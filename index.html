@@ -138,7 +138,10 @@
 
 			const ROUTE_STYLE = { color: "#1452F7", weight: 10, opacity: 1 };
 			const ROUTE_NODE_STYLE = { fillColor: "white", color: "#000", radius: 8, weight: 2, fillOpacity: 1 };
-			const MAP_MARKER_STYLE = { radius: 4, fillColor: "#F52B25", color: "#000", weight: 2, opacity: 1, fillOpacity: 1 };
+                        const MAP_MARKER_STYLE = { radius: 4, fillColor: "#F52B25", color: "#000", weight: 2, opacity: 1, fillOpacity: 1 };
+
+                        // Schaltet Debug-Anzeigen (blaue Linien und rote Punkte) ein oder aus
+                        const debug = false;
 
 			const SPEED_TABLE = {
 				groupFoot: { Strasse: 3.75, Pfad: 3.0, Weg: 3.0, Reichsstrasse: 4.13, Gebirgspass: 1.5, Wueste: 1.8 },
@@ -209,15 +212,15 @@
 				isSearchPanelHidden = !isSearchPanelHidden;
 			});
 
-			$("#toggleLocations").change(function () {
-				const showMarkers = this.checked;
-				$.each(locationMarkers, (i, marker) => map[showMarkers ? "addLayer" : "removeLayer"](marker));
-			});
+                        $("#toggleLocations").change(function () {
+                                const showMarkers = this.checked && debug;
+                                $.each(locationMarkers, (i, marker) => map[showMarkers ? "addLayer" : "removeLayer"](marker));
+                        });
 
-			$("#togglePaths").change(function () {
-				const showPaths = this.checked;
-				$.each(pathLayers, (i, layer) => map[showPaths ? "addLayer" : "removeLayer"](layer));
-			});
+                        $("#togglePaths").change(function () {
+                                const showPaths = this.checked && debug;
+                                $.each(pathLayers, (i, layer) => map[showPaths ? "addLayer" : "removeLayer"](layer));
+                        });
 
 			// Datenaufbereitung 
 
@@ -276,14 +279,16 @@
 						name: feature.properties.name.startsWith("Kreuzung") ? `Kreuzung-${crossingCount++}` : feature.properties.name,
 						coordinates: [feature.geometry.coordinates[1], feature.geometry.coordinates[0]],
 					}));
-				locationData.forEach(({ name, coordinates }) => {
-					const marker = L.circleMarker(coordinates, MAP_MARKER_STYLE)
-						.addTo(map)
-						.bindPopup(
-							`<div style="background: #fff; color: #000; border: 0; border-radius: 5px; margin: 0; font-size: 16px; padding: 0 10px; font-weight: bold;">Hier ist: ${name}</div>`
-						);
-					locationMarkers.push(marker);
-				});
+                                locationData.forEach(({ name, coordinates }) => {
+                                        const marker = L.circleMarker(coordinates, MAP_MARKER_STYLE)
+                                                .bindPopup(
+                                                        `<div style="background: #fff; color: #000; border: 0; border-radius: 5px; margin: 0; font-size: 16px; padding: 0 10px; font-weight: bold;">Hier ist: ${name}</div>`
+                                                );
+                                        locationMarkers.push(marker);
+                                        if (debug && $("#toggleLocations").is(":checked")) {
+                                                marker.addTo(map);
+                                        }
+                                });
 				// Anpassung der Marker-Größe bei Zoomänderung
 				const zoomStyles = {
 					5: { radius: 16, weight: 4 },
@@ -292,28 +297,28 @@
 					2: { radius: 2, weight: 0.75 },
 					1: { radius: 1, weight: 0.5 },
 				};
-				map.on("zoomend", () => {
-					const zoom = map.getZoom();
-					$.each(locationMarkers, (i, marker) => {
-						if (zoom <= -1 || !$("#toggleLocations").is(":checked")) {
-							map.removeLayer(marker);
-						} else {
-							if (!map.hasLayer(marker)) map.addLayer(marker);
-							const { radius, weight } = zoomStyles[zoom] || { radius: 0, weight: 0 };
-							marker.setStyle({ radius, weight });
-						}
-					});
-				});
+                                map.on("zoomend", () => {
+                                        const zoom = map.getZoom();
+                                        $.each(locationMarkers, (i, marker) => {
+                                                if (zoom <= -1 || !$("#toggleLocations").is(":checked") || !debug) {
+                                                        map.removeLayer(marker);
+                                                } else {
+                                                        if (!map.hasLayer(marker)) map.addLayer(marker);
+                                                        const { radius, weight } = zoomStyles[zoom] || { radius: 0, weight: 0 };
+                                                        marker.setStyle({ radius, weight });
+                                                }
+                                        });
+                                });
 			};
 
 			// Laden und Verarbeiten der GeoJSON-Daten (mit Skript konvertiert aus der SVG)
 			$.getJSON("routes/output.geojson")
 				.done((data) => {
 					prepareLocationData(data);
-					preparePathData(data);
-					if ($("#togglePaths").is(":checked")) {
-						$.each(pathLayers, (i, layer) => layer.addTo(map));
-					}
+                                        preparePathData(data);
+                                        if (debug && $("#togglePaths").is(":checked")) {
+                                                $.each(pathLayers, (i, layer) => layer.addTo(map));
+                                        }
 					// Waypoint hinzufügen
 					$("#inputLocation").on("click", function () {
 						const waypointId = `inputLocation-${Date.now()}`;
@@ -412,15 +417,15 @@
 						graph[endNode.name][startNode.name].push(connection);
 					}
 				});
-				Object.keys(graph).forEach((locName) => {
-					if (!Object.keys(graph[locName]).length) {
-						console.log(`Location ${locName} ist nicht verbunden.`);
-						const unconnectedLoc = locationData.find((loc) => loc.name === locName);
-						if (unconnectedLoc) {
-							L.circleMarker(unconnectedLoc.coordinates, { color: "red", radius: 10, fillOpacity: 0.5 }).addTo(map);
-						}
-					}
-				});
+                                Object.keys(graph).forEach((locName) => {
+                                        if (!Object.keys(graph[locName]).length) {
+                                                console.log(`Location ${locName} ist nicht verbunden.`);
+                                                const unconnectedLoc = locationData.find((loc) => loc.name === locName);
+                                                if (unconnectedLoc && debug) {
+                                                        L.circleMarker(unconnectedLoc.coordinates, { color: "red", radius: 10, fillOpacity: 0.5 }).addTo(map);
+                                                }
+                                        }
+                                });
 				return graph;
 			}
 
