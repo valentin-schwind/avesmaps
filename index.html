@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="de">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Avesmaps</title>
+		<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+		<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css" />
+		<link rel="stylesheet" href="styles.css" />
+		<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+		<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+		<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+	</head>
+	<body>
+		<div id="map" style="width: 100%; height: 100%"></div>
+		<div id="search" class="ui-widget">
+			<!-- Waypoints -->
+			<div id="waypoints"></div>
+			<div class="input-options">
+				<button id="inputLocation">+</button>
+				<button id="searchButton">Suche</button>
+			</div>
+			<div class="display-options">
+				<label>Zeige Markierungen</label>
+				<label><input type="checkbox" id="toggleLocations" checked /> Orte</label>
+				<label><input type="checkbox" id="togglePaths" checked /> Wege</label>
+			</div>
+			<div id="transport-options">
+				<label>Transportmittel:</label>
+				<div></div>
+				<label><input type="checkbox" id="allowLand" checked /> 🏔️ Land</label>
+				<select id="landTransport" class="transportOptionSelect">
+					<option value="groupFoot">🚶‍♂️ Reisegruppe zu Fuß</option>
+					<option value="lightWalker">🏃 Zu Fuß mit leichtem Gepäck</option>
+					<option value="groupHorse">🏇 Reisegruppe zu Pferd</option>
+					<option value="lightRider">🐎 Zu Pferd mit leichtem Gepäck</option>
+					<option value="caravan">🐪 Karawane</option>
+				</select>
+				<label><input type="checkbox" id="allowRiver" checked /> 🏞️ Fluss</label>
+				<select id="riverTransport" class="transportOptionSelect">
+					<option value="riverSailer">⛵ Flusssegler</option>
+					<option value="riverBarge">🚣 Flusskahn</option>
+				</select>
+				<label><input type="checkbox" id="allowSea" checked /> ⚓ Meer</label>
+				<select id="seaTransport" class="transportOptionSelect">
+					<option value="cargoShip">🚢 Lastensegler</option>
+					<option value="fastShip">⛵ Schnellsegler</option>
+					<option value="galley">🛶 Galeere</option>
+				</select>
+			</div>
+			<button id="toggle-button">Routenplaner</button>
+			<div>
+				<label>
+					<input type="radio" name="pathType" value="fastest" id="fastestPath" checked />
+					Schnellste Route
+				</label>
+				<label>
+					<input type="radio" name="pathType" value="shortest" id="shortestPath" />
+					Kürzeste Route
+				</label>
+			</div>
+			<div id="overview">Wegpunkte und Dauer der Reise werden hier angezeigt.</div>
+		</div>
+
+		<script>
+			/******************************************************************
+			 * PriorityQueue (Min-Heap) – Optimierung für den Dijkstra-Algorithmus
+			 ******************************************************************/
+			class PriorityQueue {
+				constructor() {
+					this.heap = [];
+				}
+				enqueue(item, priority) {
+					const node = { item, priority };
+					this.heap.push(node);
+					this._bubbleUp();
+				}
+				_bubbleUp() {
+					let idx = this.heap.length - 1;
+					const node = this.heap[idx];
+					while (idx > 0) {
+						const parentIdx = Math.floor((idx - 1) / 2);
+						if (this.heap[parentIdx].priority <= node.priority) break;
+						this.heap[idx] = this.heap[parentIdx];
+						idx = parentIdx;
+					}
+					this.heap[idx] = node;
+				}
+				dequeue() {
+					if (this.isEmpty()) return null;
+					const min = this.heap[0];
+					const lastNode = this.heap.pop();
+					if (this.heap.length > 0) {
+						this.heap[0] = lastNode;
+						this._sinkDown(0);
+					}
+					return min;
+				}
+				_sinkDown(idx) {
+					const length = this.heap.length;
+					const node = this.heap[idx];
+					while (true) {
+						const leftIdx = 2 * idx + 1,
+							rightIdx = 2 * idx + 2;
+						let swapIdx = null;
+						if (leftIdx < length && this.heap[leftIdx].priority < node.priority) {
+							swapIdx = leftIdx;
+						}
+						if (
+							rightIdx < length &&
+							((swapIdx === null && this.heap[rightIdx].priority < node.priority) || (swapIdx !== null && this.heap[rightIdx].priority < this.heap[leftIdx].priority))
+						) {
+							swapIdx = rightIdx;
+						}
+						if (swapIdx === null) break;
+						this.heap[idx] = this.heap[swapIdx];
+						idx = swapIdx;
+					}
+					this.heap[idx] = node;
+				}
+				isEmpty() {
+					return this.heap.length === 0;
+				}
+			}
+
+			// Konstanten 
+			const THRESHOLD = 0.5; // Toleranz für Koordinatenvergleich
+			const TILE_SIZE = 256;
+			const IMG_WIDTH = 1024; // Eigentlich nur wichtig für das SVG overlay
+			const IMG_HEIGHT = 1024;
+			const DISTANCE_SCALING_FACTOR = 3; // random wert zur distanzskalierung (orientiert sich überwiegend an avespfade.de)
+			const TIME_SCALE_FACTOR = 0.8; // random wert zur zeitskalierung
+			const KM_TO_MILES = 1; // eigentlich 0.621371, aber bei DSA irgendwie anders
+			const MAP_BOUNDS = [
+				[0, 0],
+				[IMG_WIDTH, IMG_HEIGHT],
+			];
+
+			const ROUTE_STYLE = { color: "#1452F7", weight: 10, opacity: 1 };
+			const ROUTE_NODE_STYLE = { fillColor: "white", color: "#000", radius: 8, weight: 2, fillOpacity: 1 };
+			const MAP_MARKER_STYLE = { radius: 4, fillColor: "#F52B25", color: "#000", weight: 2, opacity: 1, fillOpacity: 1 };
+
+			const SPEED_TABLE = {
+				groupFoot: { Strasse: 3.75, Pfad: 3.0, Weg: 3.0, Reichsstrasse: 4.13, Gebirgspass: 1.5, Wueste: 1.8 },
+				lightWalker: { Strasse: 5.0, Pfad: 4.0, Weg: 4.0, Reichsstrasse: 5.5, Gebirgspass: 2.0, Wueste: 2.5 },
+				groupHorse: { Strasse: 5.0, Pfad: 4.0, Weg: 4.0, Reichsstrasse: 5.5, Gebirgspass: 2.0, Wueste: 2.5 },
+				lightRider: { Strasse: 6.25, Pfad: 5.0, Weg: 5.0, Reichsstrasse: 6.88, Gebirgspass: 2.5, Wueste: 3.13 },
+				caravan: { Strasse: 3.75, Pfad: 3.0, Weg: 3.0, Reichsstrasse: 4.13, Gebirgspass: 1.5, Wueste: 1.88 },
+				riverSailer: { Flussweg: 5.0 },
+				riverBarge: { Flussweg: 3.33 },
+				cargoShip: { Seeweg: 8.0 },
+				fastShip: { Seeweg: 9.33 },
+				galley: { Seeweg: 7.25 },
+			};
+
+			const ROUTE_EMOJIS = {
+				Reichsstrasse: "🛣️",
+				Strasse: "🛤️",
+				Gebirgspfad: "⛰️",
+				Pfad: "🥾",
+				Flussweg: "🏞️",
+				Seeweg: "⚓",
+				Weg: "🗺️",
+			};
+
+			// Globale Variablen 
+			let locationData = [],
+				pathData = [],
+				locationMarkers = [],
+				pathLayers = [],
+				activeTooltips = [],
+				highlightedRouteNodes = [],
+				hasFirstWaypoint = false,
+				isSearchPanelHidden = false,
+				currentRouteLayer = null,
+				graphData = null,
+				invalidLocationInputs = [],
+				selectedLocations = [];
+
+			// Initialisierung der Karte 
+			const map = L.map("map", {
+				crs: L.CRS.Simple,
+				minZoom: 0,
+				maxZoom: 5,
+				bounds: MAP_BOUNDS,
+				continuousWorld: false,
+				noWrap: true,
+				zoomControl: false,
+			}).setView([533.015307, 552.375], 3);
+
+			L.control.zoom({ position: "topright" }).addTo(map);
+			map.setMaxBounds(MAP_BOUNDS);
+
+			// Da liegen die Map-Tiles
+			L.tileLayer("./tiles/{z}/map_{x}_{y}.jpg", {
+				tileSize: TILE_SIZE,
+				noWrap: true,
+				errorTileUrl: "loading.jpg",
+				bounds: MAP_BOUNDS,
+				continuousWorld: false,
+			}).addTo(map);
+
+			// UI-Interaktionen und Events
+			$("#toggle-button").on("click", () => {
+				const leftPos = isSearchPanelHidden ? "0px" : "-300px",
+					btnPos = isSearchPanelHidden ? "300px" : "0px";
+				$("#search").animate({ left: leftPos }, 500);
+				$("#toggle-button").animate({ left: btnPos }, 500);
+				isSearchPanelHidden = !isSearchPanelHidden;
+			});
+
+			$("#toggleLocations").change(function () {
+				const showMarkers = this.checked;
+				$.each(locationMarkers, (i, marker) => map[showMarkers ? "addLayer" : "removeLayer"](marker));
+			});
+
+			$("#togglePaths").change(function () {
+				const showPaths = this.checked;
+				$.each(pathLayers, (i, layer) => map[showPaths ? "addLayer" : "removeLayer"](layer));
+			});
+
+			// Datenaufbereitung 
+
+			// Normalisiert den Pfadnamen
+			const normalizePathName = (name) => {
+				if (typeof name === "string") {
+					if (name.startsWith("Reichsstrasse")) return "Reichsstrasse";
+					if (name.startsWith("Strasse")) return "Strasse";
+					if (name.startsWith("Gebirgspfad")) return "Gebirgspfad";
+					if (name.startsWith("Pfad")) return "Pfad";
+					if (name.startsWith("Flussweg")) return "Flussweg";
+					if (name.startsWith("Meer")) return "Seeweg";
+				}
+				return "Weg";
+			};
+
+			// Normalisiert den Knotennamen
+			const normalizeNodeName = (name) => {
+				if (typeof name === "string") return name.replace(/Kreuzung-\d+/i, "Kreuzung");
+				console.warn("Ungültiger Name in normalizeNodeName:", name);
+				return name || "";
+			};
+
+			// Verarbeitung der Pfade (GeoJSON LineStrings)
+			const preparePathData = (data) => {
+				pathData = data.features
+					.filter((feature) => feature.geometry.type === "LineString")
+					.map((feature, idx) => {
+						const pathId = idx + 1;
+						return {
+							...feature,
+							geometry: {
+								...feature.geometry,
+								coordinates: feature.geometry.coordinates.map(([x, y]) => [x, y]),
+							},
+							properties: {
+								...feature.properties,
+								name: `${feature.properties.name.split("-")[0]}-${pathId}`,
+								id: `path-${pathId}`,
+							},
+						};
+					});
+				pathData.forEach((path) => {
+					const latLngCoords = path.geometry.coordinates.map(([x, y]) => [y, x]);
+					const polyline = L.polyline(latLngCoords, { color: "#3388FF", weight: 3, opacity: 1 }).bindPopup(`<strong>Pfad ID:</strong> ${path.properties.id}`);
+					pathLayers.push(polyline);
+				});
+			};
+
+			// Verarbeitung der Locations (GeoJSON Points)
+			const prepareLocationData = (data) => {
+				let crossingCount = 1;
+				locationData = data.features
+					.filter((feature) => feature.geometry.type === "Point" && feature.properties?.name)
+					.map((feature) => ({
+						name: feature.properties.name.startsWith("Kreuzung") ? `Kreuzung-${crossingCount++}` : feature.properties.name,
+						coordinates: [feature.geometry.coordinates[1], feature.geometry.coordinates[0]],
+					}));
+				locationData.forEach(({ name, coordinates }) => {
+					const marker = L.circleMarker(coordinates, MAP_MARKER_STYLE)
+						.addTo(map)
+						.bindPopup(
+							`<div style="background: #fff; color: #000; border: 0; border-radius: 5px; margin: 0; font-size: 16px; padding: 0 10px; font-weight: bold;">Hier ist: ${name}</div>`
+						);
+					locationMarkers.push(marker);
+				});
+				// Anpassung der Marker-Größe bei Zoomänderung
+				const zoomStyles = {
+					5: { radius: 16, weight: 4 },
+					4: { radius: 8, weight: 2 },
+					3: { radius: 4, weight: 1 },
+					2: { radius: 2, weight: 0.75 },
+					1: { radius: 1, weight: 0.5 },
+				};
+				map.on("zoomend", () => {
+					const zoom = map.getZoom();
+					$.each(locationMarkers, (i, marker) => {
+						if (zoom <= -1 || !$("#toggleLocations").is(":checked")) {
+							map.removeLayer(marker);
+						} else {
+							if (!map.hasLayer(marker)) map.addLayer(marker);
+							const { radius, weight } = zoomStyles[zoom] || { radius: 0, weight: 0 };
+							marker.setStyle({ radius, weight });
+						}
+					});
+				});
+			};
+
+			// Laden und Verarbeiten der GeoJSON-Daten (mit Skript konvertiert aus der SVG)
+			$.getJSON("routes/output.geojson")
+				.done((data) => {
+					prepareLocationData(data);
+					preparePathData(data);
+					if ($("#togglePaths").is(":checked")) {
+						$.each(pathLayers, (i, layer) => layer.addTo(map));
+					}
+					// Waypoint hinzufügen
+					$("#inputLocation").on("click", function () {
+						const waypointId = `inputLocation-${Date.now()}`;
+						const waypointHtml = `
+							<div class="waypoint-container">
+							<input type="text" id="${waypointId}" class="waypoint-input" placeholder="Suche Ort..." />
+							${hasFirstWaypoint ? '<button class="remove-waypoint">-</button>' : ""}
+							</div>`;
+						hasFirstWaypoint = true;
+						$("#waypoints").append(waypointHtml);
+						$(`#${waypointId}`).autocomplete({
+							source: locationData
+								.map((loc) => loc.name)
+								.filter((name) => !/Kreuzung/i.test(name))
+								.sort((a, b) => a.localeCompare(b)),
+						});
+						$(`#${waypointId}`)
+							.next(".remove-waypoint")
+							.on("click", function () {
+								$(this).parent().remove();
+								updateMapView();
+							});
+					});
+					// Standardmäßig ersten Waypoint hinzufügen
+					$("#inputLocation").click();
+				})
+				.fail((err) => console.error("Fehler beim Laden der GeoJSON-Datei:", err));
+
+			$("#searchButton").on("click", () => updateMapView());
+
+			/******************************************************************
+			 * Dijkstra-Algorithmus mit optimierter PriorityQueue
+			 ******************************************************************/
+			function calculateRoute(startName, endName, useShortestPath = true) {
+				const distances = Object.fromEntries(Object.keys(graphData).map((node) => [node, Infinity]));
+				const previousNodes = {},
+					connectionUsed = {};
+				distances[startName] = 0;
+				const queue = new PriorityQueue();
+				queue.enqueue(startName, 0);
+
+				while (!queue.isEmpty()) {
+					const { item: currentNode, priority: currentDist } = queue.dequeue();
+					if (currentDist > distances[currentNode]) continue;
+					if (currentNode === endName) break;
+					for (const [neighbor, connections] of Object.entries(graphData[currentNode] || {})) {
+						const validConnections = connections.filter(({ routeType }) => Boolean(getTransportOption(routeType)));
+						if (!validConnections.length) continue;
+						const bestConnection = validConnections.reduce((best, current) => {
+							const currentWeight = useShortestPath ? current.distance : current.time,
+								bestWeight = useShortestPath ? best.distance : best.time;
+							return currentWeight < bestWeight ? current : best;
+						});
+						const weight = useShortestPath ? bestConnection.distance : bestConnection.time,
+							altDistance = distances[currentNode] + weight;
+						if (altDistance < distances[neighbor]) {
+							distances[neighbor] = altDistance;
+							previousNodes[neighbor] = currentNode;
+							connectionUsed[neighbor] = bestConnection.id;
+							queue.enqueue(neighbor, altDistance);
+						}
+					}
+				}
+				const route = [];
+				for (let node = endName; node && previousNodes[node]; node = previousNodes[node]) {
+					route.unshift({ from: previousNodes[node], to: node, connectionId: connectionUsed[node] });
+				}
+				return route;
+			}
+
+			// Erzeugt einen gewichteten Graphen aus den Locations und Pfaden
+			function createGraph() {
+				const graph = locationData.reduce((acc, loc) => ({ ...acc, [loc.name]: {} }), {});
+				pathData.forEach(({ geometry: { coordinates }, properties }) => {
+					const [startX, startY] = coordinates[0],
+						[endX, endY] = coordinates[coordinates.length - 1];
+					const startNode = locationData.find(({ coordinates: [lat, lng] }) => Math.abs(lat - startY) < THRESHOLD && Math.abs(lng - startX) < THRESHOLD);
+					const endNode = locationData.find(({ coordinates: [lat, lng] }) => Math.abs(lat - endY) < THRESHOLD && Math.abs(lng - endX) < THRESHOLD);
+					if (startNode && endNode) {
+						const distance = Math.hypot(endX - startX, endY - startY),
+							routeType = normalizePathName(properties?.name),
+							transportOption = getTransportOption(routeType);
+						if (!transportOption) {
+							console.warn(`Keine Transportoption für ${routeType} gefunden. Pfad wird übersprungen.`);
+							return;
+						}
+						const speed = SPEED_TABLE[transportOption]?.[routeType];
+						if (!speed) {
+							console.warn(`Geschwindigkeit für ${transportOption} auf ${routeType} nicht definiert. Pfad wird übersprungen.`);
+							return;
+						}
+						const connection = { distance, time: distance / speed, routeType, id: properties.id };
+						graph[startNode.name][endNode.name] = graph[startNode.name][endNode.name] || [];
+						graph[startNode.name][endNode.name].push(connection);
+						graph[endNode.name][startNode.name] = graph[endNode.name][startNode.name] || [];
+						graph[endNode.name][startNode.name].push(connection);
+					}
+				});
+				Object.keys(graph).forEach((locName) => {
+					if (!Object.keys(graph[locName]).length) {
+						console.log(`Location ${locName} ist nicht verbunden.`);
+						const unconnectedLoc = locationData.find((loc) => loc.name === locName);
+						if (unconnectedLoc) {
+							L.circleMarker(unconnectedLoc.coordinates, { color: "red", radius: 10, fillOpacity: 0.5 }).addTo(map);
+						}
+					}
+				});
+				return graph;
+			}
+
+			// Zeichnet die berechnete Route
+			function drawRoute(segments) {
+				if (currentRouteLayer) {
+					map.removeLayer(currentRouteLayer);
+					currentRouteLayer = null;
+				}
+				segments.forEach((segment) => {
+					const segCoords = (segment.geometry?.coordinates || []).map(([x, y]) => [y, x]);
+					if (segCoords.length) {
+						const segLayer = L.polyline(segCoords, ROUTE_STYLE).addTo(map);
+						currentRouteLayer = currentRouteLayer ? currentRouteLayer.addLayer(segLayer) : L.layerGroup([segLayer]);
+					} else {
+						console.warn("Ungültige Segmentkoordinaten:", segment.geometry);
+					}
+				});
+				if (currentRouteLayer) currentRouteLayer.addTo(map);
+			}
+
+			// Debug: Gibt alle Punkte der Route aus
+			function logRoutePoints(segments) {
+				const points = segments.flatMap((segment) => segment.geometry.coordinates.map(([x, y]) => ({ x, y })));
+				console.log("Route points:", points);
+				return points;
+			}
+
+			// Ermittelt Segmente anhand der Verbindung-ID
+			function getRouteSegments(route) {
+				return route
+					.map(({ connectionId }) => {
+						const segment = pathData.find((p) => p.properties.id === connectionId);
+						if (!segment) console.warn(`Kein Segment gefunden für Verbindung ${connectionId}`);
+						return segment;
+					})
+					.filter(Boolean);
+			}
+
+			// Hebt alle Locations der Route hervor
+			function highlightRouteLocations(routeNames) {
+				removeHighlightedRouteNodes();
+				routeNames.forEach((name) => {
+					const loc = locationData.find((l) => l.name === name);
+					if (loc) {
+						const node = L.circleMarker(loc.coordinates, ROUTE_NODE_STYLE).addTo(map);
+						highlightedRouteNodes.push(node);
+					} else {
+						console.warn(`Location ${name} nicht gefunden.`);
+					}
+				});
+			}
+
+			// Entfernt alle hervorgehobenen Routen-Knoten
+			function removeHighlightedRouteNodes() {
+				$.each(highlightedRouteNodes, (i, node) => map.removeLayer(node));
+				highlightedRouteNodes = [];
+				console.log("Alle Routen-Knoten entfernt.");
+			}
+
+			// Bestimmt das Transportmittel für einen Segmenttyp
+			function getTransportOption(routeType) {
+				const allowLand = $("#allowLand").is(":checked"),
+					landOption = allowLand ? $("#landTransport").val() : null,
+					allowRiver = $("#allowRiver").is(":checked"),
+					riverOption = allowRiver ? $("#riverTransport").val() : null,
+					allowSea = $("#allowSea").is(":checked"),
+					seaOption = allowSea ? $("#seaTransport").val() : null;
+				if (["Pfad", "Weg", "Strasse", "Reichsstrasse", "Gebirgspass"].includes(routeType)) return landOption;
+				if (routeType === "Flussweg") return riverOption;
+				if (routeType === "Seeweg") return seaOption;
+				console.warn(`Kein gültiges Transportmittel für ${routeType}.`);
+				return null;
+			}
+
+			// Zeigt den Routenplan (mit Distanzen und Zeiten)
+			function showRoutePlan(routeNames, segments) {
+				const $overview = $("#overview").empty();
+				let totalDistance = 0,
+					totalTime = 0;
+				const calcDistance = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]) * DISTANCE_SCALING_FACTOR;
+				const startLoc = selectedLocations[0]?.coordinates,
+					endLoc = selectedLocations[selectedLocations.length - 1]?.coordinates,
+					airDistance = startLoc && endLoc ? calcDistance(startLoc, endLoc) : 0;
+
+				segments.forEach((segment, idx) => {
+					if (!segment.geometry || segment.geometry.coordinates.length < 2) {
+						console.warn(`Ungültiges Segment an Index ${idx}`, segment);
+						return;
+					}
+					const type = normalizePathName(segment.properties?.name),
+						transport = getTransportOption(type),
+						speedKm = SPEED_TABLE[transport]?.[type] || 1,
+						speedMiles = speedKm * KM_TO_MILES;
+					let segDistance = 0;
+					for (let i = 0; i < segment.geometry.coordinates.length - 1; i++) {
+						segDistance += calcDistance(segment.geometry.coordinates[i], segment.geometry.coordinates[i + 1]);
+					}
+					totalDistance += segDistance;
+					const segTime = (segDistance / speedMiles) * TIME_SCALE_FACTOR;
+					totalTime += segTime;
+					const startName = normalizeNodeName(routeNames[idx]),
+						endName = normalizeNodeName(routeNames[idx + 1]);
+					$overview.append(`
+						<p>
+							${
+								["Seeweg", "Flussweg"].includes(type)
+									? `${ROUTE_EMOJIS[type] || ROUTE_EMOJIS["Weg"]} ${type} (${segDistance.toFixed(2)} Meilen) bis <strong>${
+											endName === "Kreuzung" ? "Markierung" : endName
+									}</strong> in ${segTime.toFixed(2)} Stunden`
+									: `${ROUTE_EMOJIS[type] || ROUTE_EMOJIS["Weg"]} ${type} (${segDistance.toFixed(2)} Meilen) von <strong>${startName}</strong> bis <strong>${endName}</strong> in ${segTime.toFixed(
+											2
+									)} Stunden`
+							}
+						</p>
+					`);
+				});
+				const routeDesc = selectedLocations
+					.map((loc, i, arr) => {
+						if (i === 0) return `von <strong>${loc.name}</strong>`;
+						else if (i === arr.length - 1) return `nach <strong>${loc.name}</strong>`;
+						else return `über ${loc.name}`;
+					})
+					.join(" ");
+				$overview.prepend(`
+					<div>
+					Die Reise ${routeDesc} (${totalDistance.toFixed(2)} Meilen, Luftlinie: ${airDistance.toFixed(2)} Meilen) dauert ${totalTime.toFixed(2)} Stunden:<br />
+					</div>
+					<hr />
+				`);
+			}
+
+			// Validiert einen Ortsnamen anhand der geladenen Locations
+			const validateLocation = (name) => locationData.find((loc) => loc.name === name) || null;
+
+			// Fügt einen Tooltip zu einem Waypoint hinzu
+			const addTooltip = ({ name, coordinates }, boundsArray) => {
+				const tooltip = L.tooltip({
+					permanent: false,
+					direction: "top",
+					offset: [0, -10],
+					opacity: 1,
+				})
+					.setLatLng(coordinates)
+					.setContent(name)
+					.addTo(map);
+				boundsArray.push(coordinates);
+				activeTooltips.push(tooltip);
+			};
+
+			// Entfernt alle Tooltips
+			function removeAllTooltips() {
+				$.each(activeTooltips, (i, tip) => map.removeLayer(tip));
+				activeTooltips = [];
+				console.log("Alle Tooltips entfernt.");
+			}
+
+			// Hebt fehlerhafte Eingaben hervor
+			const highlightError = ($input) => {
+				$input.css("border", "2px solid red");
+				setTimeout(() => $input.css("border", ""), 3000);
+			};
+
+			// Popup bei Klick auf die Karte
+			map.on("click", (e) => {
+				L.popup().setLatLng(e.latlng).setContent(`You clicked the map at ${e.latlng.toString()}`).openOn(map);
+			});
+
+			/******************************************************************
+			 * Aktualisiert Kartenansicht und berechnet die Route
+			 ******************************************************************/
+			function updateMapView() {
+				const useShortest = $('input[name="pathType"]:checked').val() === "shortest";
+				graphData = createGraph();
+				console.log("Graph:", graphData);
+
+				if (currentRouteLayer) {
+					map.removeLayer(currentRouteLayer);
+					currentRouteLayer = null;
+				}
+				removeAllTooltips();
+				selectedLocations = [];
+				invalidLocationInputs = [];
+
+				$(".waypoint-input").each(function () {
+					const inputVal = $(this).val(),
+						loc = validateLocation(inputVal);
+					if (loc) {
+						addTooltip(loc, MAP_BOUNDS);
+						selectedLocations.push(loc);
+					} else {
+						invalidLocationInputs.push(inputVal);
+						highlightError($(this));
+					}
+				});
+
+				console.log("Ausgewählte Locations:", selectedLocations);
+				console.log("Ungültige Eingaben:", invalidLocationInputs);
+
+				if (selectedLocations.length > 0) {
+					const boundsLatLng = L.latLngBounds(selectedLocations.map((loc) => loc.coordinates));
+					map.fitBounds(boundsLatLng, { padding: [50, 50] });
+				}
+				if (invalidLocationInputs.length) alert(`Orte nicht gefunden: ${invalidLocationInputs.join(", ")}`);
+
+				if (selectedLocations.length >= 2) {
+					let routeNodeNames = [],
+						segments = [];
+					for (let i = 0; i < selectedLocations.length - 1; i++) {
+						const start = selectedLocations[i].name,
+							end = selectedLocations[i + 1].name,
+							route = calculateRoute(start, end, useShortest);
+						console.log("Berechnete Route:", route);
+						if (route.length) {
+							routeNodeNames = [...routeNodeNames, ...route.map((r) => r.from)];
+							routeNodeNames.push(route[route.length - 1].to);
+							segments = [...segments, ...getRouteSegments(route)];
+						} else {
+							alert(`Keine Route zwischen ${start} und ${end} gefunden.`);
+							return;
+						}
+					}
+					console.log("Komplette Route (Knoten):", routeNodeNames);
+					console.log("Routensegmente:", segments);
+					if (segments.length) {
+						logRoutePoints(segments);
+						drawRoute(segments);
+						highlightRouteLocations(routeNodeNames);
+						showRoutePlan(routeNodeNames, segments);
+					} else {
+						alert("Keine gültigen Routensegmente gefunden.");
+					}
+				}
+			}
+		</script>
+	</body>
+</html>
