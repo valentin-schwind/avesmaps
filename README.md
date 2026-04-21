@@ -123,5 +123,9 @@ Es werden auch fuer die Konvertierung **keine externen Services** benoetigt.
 ## Hinweise zur Datenpflege
 
 - Die SVG ist die fachliche Quelle fuer Orte und Wege.
+- In `map/Aventurien_routes.svg` liegt die editierbare Karte.
+- Die SVG wurde in **Inkscape** erstellt und sollte auch dort gepflegt werden.
+- Ueber die Layer lassen sich einfache Ortschaften hinzufuegen, solange sie an Strassen angebunden sind.
 - Nach Aenderungen an der SVG sollte die GeoJSON-Datei neu erzeugt werden.
+- Die Karte ist noch nicht vollstaendig.
 - Danach kann der aktualisierte Stand direkt ueber den statischen Webserver ausgeliefert werden.
