@@ -1,17 +1,18 @@
 # Avesmaps
 
-Avesmaps ist ein statischer Routenplaner fuer Aventurien. Die Anwendung zeigt eine kachelbasierte Karte, Orte, Wege und optionale Regionsgrenzen an und berechnet Reiserouten direkt im Browser.
+Avesmaps ist ein statischer Routenplaner fuer Aventurien aus dem Rollenspiel "Das Schwarze Auge". Die Anwendung zeigt eine kachelbasierte Karte, Orte, Wege und optionale Regionsgrenzen an und berechnet Reiserouten direkt im Browser.
 
 ![Beispielansicht](img/example.jpg)
 
 ## Was das Projekt kann
 
 - Orte, Wege und Grenzen auf einer lokal gehosteten Karte darstellen
+- eine politische Karte mit den Grenzen der Reiche anzeigen
 - Routen zwischen mehreren Wegpunkten berechnen
 - zwischen kuerzester und schnellster Route unterscheiden
 - Land-, Fluss- und Seewege mit unterschiedlichen Transportmitteln einbeziehen
 - Umstiege auf Wunsch mit einer Strafgewichtung minimieren
-- den aktuellen Stand des Routenplaners inklusive Wegpunkten ueber die URL teilbar machen
+- die aktuelle URL kopieren, um Routen und Einstellungen direkt zu teilen
 
 ## Wie die Routen berechnet werden
 
@@ -72,7 +73,7 @@ Der Zustand des Routenplaners kann ueber Query-Parameter in der URL gespeichert 
 - Rastzeiten
 - die Option zum Minimieren von Umstiegen
 
-Dadurch kann eine fertig konfigurierte Route einfach per Link weitergegeben werden.
+Dadurch kann eine fertig konfigurierte Route einfach geteilt werden, indem die URL aus dem Browser kopiert und weitergegeben wird.
 
 ## SVG zu GeoJSON konvertieren
 
