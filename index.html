@@ -4,10 +4,90 @@
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>Avesmaps</title>
+	<title>Avesmaps | Aventurien-Routenplaner fuer Das Schwarze Auge (DSA)</title>
+	<meta
+		name="description"
+		content="Avesmaps ist ein statischer Aventurien-Routenplaner fuer Das Schwarze Auge (DSA) mit Orten, Wegen, politischer Karte, Reichsgrenzen und teilbaren Routen-URLs."
+	/>
+	<meta name="author" content="Valentin Schwind" />
+	<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+	<meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+	<meta name="theme-color" content="#565044" />
+	<link rel="canonical" href="https://valentin-schwind.github.io/avesmaps/" />
+	<link rel="sitemap" type="application/xml" href="https://valentin-schwind.github.io/avesmaps/sitemap.xml" />
+	<meta property="og:locale" content="de_DE" />
+	<meta property="og:type" content="website" />
+	<meta property="og:site_name" content="Avesmaps" />
+	<meta property="og:title" content="Avesmaps | Aventurien-Routenplaner fuer Das Schwarze Auge (DSA)" />
+	<meta
+		property="og:description"
+		content="Statischer Routenplaner fuer Aventurien mit Orten, Wegen, politischer Karte, Grenzen der Reiche und teilbaren Routen per URL."
+	/>
+	<meta property="og:url" content="https://valentin-schwind.github.io/avesmaps/" />
+	<meta property="og:image" content="https://valentin-schwind.github.io/avesmaps/img/example.jpg" />
+	<meta property="og:image:alt" content="Avesmaps mit Aventurien-Karte und Routenplaner" />
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content="Avesmaps | Aventurien-Routenplaner fuer Das Schwarze Auge (DSA)" />
+	<meta
+		name="twitter:description"
+		content="Statischer Aventurien-Routenplaner mit politischer Karte, Reichsgrenzen und teilbaren Routen-URLs."
+	/>
+	<meta name="twitter:image" content="https://valentin-schwind.github.io/avesmaps/img/example.jpg" />
 	<link rel="stylesheet" href="css/leaflet.css" />
 	<link rel="stylesheet" href="css/jquery-ui.css" />
 	<link rel="stylesheet" href="css/styles.css" />
+	<script type="application/ld+json">
+		{
+			"@context": "https://schema.org",
+			"@graph": [
+				{
+					"@type": "WebSite",
+					"@id": "https://valentin-schwind.github.io/avesmaps/#website",
+					"url": "https://valentin-schwind.github.io/avesmaps/",
+					"name": "Avesmaps",
+					"inLanguage": "de-DE",
+					"description": "Statischer Aventurien-Routenplaner fuer Das Schwarze Auge mit Orten, Wegen, politischen Grenzen und teilbaren Routen-URLs.",
+					"sameAs": ["https://github.com/valentin-schwind/avesmaps"],
+					"publisher": {
+						"@type": "Person",
+						"name": "Valentin Schwind",
+						"url": "https://github.com/valentin-schwind"
+					}
+				},
+				{
+					"@type": "SoftwareApplication",
+					"@id": "https://valentin-schwind.github.io/avesmaps/#app",
+					"name": "Avesmaps",
+					"url": "https://valentin-schwind.github.io/avesmaps/",
+					"applicationCategory": "UtilitiesApplication",
+					"operatingSystem": "Any",
+					"isAccessibleForFree": true,
+					"inLanguage": "de-DE",
+					"browserRequirements": "JavaScript erforderlich",
+					"description": "Statischer Aventurien-Routenplaner fuer Das Schwarze Auge mit politischer Karte, Routenplanung auf Basis eines gewichteten Graphen und teilbaren URLs.",
+					"image": "https://valentin-schwind.github.io/avesmaps/img/example.jpg",
+					"screenshot": "https://valentin-schwind.github.io/avesmaps/img/example.jpg",
+					"sameAs": ["https://github.com/valentin-schwind/avesmaps"],
+					"author": {
+						"@type": "Person",
+						"name": "Valentin Schwind",
+						"url": "https://github.com/valentin-schwind"
+					},
+					"featureList": [
+						"Interaktive Aventurien-Karte mit Orten, Wegen und politischen Grenzen",
+						"Routenplanung fuer mehrere Wegpunkte",
+						"Berechnung der schnellsten oder kuerzesten Route",
+						"Teilbare Routen und Einstellungen per URL"
+					],
+					"offers": {
+						"@type": "Offer",
+						"price": "0",
+						"priceCurrency": "EUR"
+					}
+				}
+			]
+		}
+	</script>
 	<script src="js/leaflet.js"></script>
 	<script src="js/jquery-3.6.0.min.js"></script>
 	<script src="js/jquery-ui.min.js"></script>
@@ -16,6 +96,11 @@
 <body>
 	<div id="map" style="width: 100%; height: 100%"></div>
 	<div id="search" class="ui-widget">
+		<section class="project-summary" aria-labelledby="project-summary-title">
+			<h1 id="project-summary-title">Avesmaps</h1>
+			<p>Avesmaps ist ein statischer Routenplaner fuer Aventurien aus dem Rollenspiel "Das Schwarze Auge" (DSA).</p>
+			<p>Die Karte zeigt Orte, Wege und auf Wunsch auch die politischen Grenzen der Reiche. Routen und Planner-Einstellungen koennen direkt ueber die URL geteilt werden.</p>
+		</section>
 		<!-- Waypoints -->
 		<div id="waypoints"></div>
 		<div class="input-options">

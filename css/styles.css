@@ -43,6 +43,27 @@ html {
 	overflow-y: auto; /* Vertikales Scrollen aktivieren */
 }
 
+.project-summary {
+	border: 1px solid #d8c6b2;
+	border-radius: 6px;
+	background-color: #fff9f4;
+	padding: 10px;
+	line-height: 1.35;
+}
+
+.project-summary h1 {
+	margin: 0 0 6px 0;
+	font-size: 18px;
+}
+
+.project-summary p {
+	margin: 0 0 6px 0;
+}
+
+.project-summary p:last-child {
+	margin-bottom: 0;
+}
+
 .region-label {
     background: transparent;
     border: none;

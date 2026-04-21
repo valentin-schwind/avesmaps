@@ -1,0 +1,21 @@
+# Avesmaps
+
+> Statischer Aventurien-Routenplaner fuer "Das Schwarze Auge" mit interaktiver Karte, politischen Grenzen der Reiche und teilbaren Routen-URLs.
+
+Avesmaps ist eine vollstaendig statische Webanwendung. Sie laeuft ohne Backend, ohne Datenbank und ohne externe APIs auf jedem normalen Webserver.
+
+Die Anwendung richtet sich an Personen, die in Aventurien Reiserouten planen wollen. Sie zeigt Orte, Wege und optional die politischen Grenzen der Reiche und berechnet Routen zwischen mehreren Wegpunkten.
+
+Die Routenberechnung basiert auf dem Dijkstra-Algorithmus auf einem gewichteten Graphen. Der Graph wird aus GeoJSON-Daten fuer Orte und Wege aufgebaut. Je nach Einstellung optimiert die Anwendung auf Distanz oder Reisezeit. Optional wird eine Umstiegsstrafe fuer Transportwechsel beruecksichtigt.
+
+Routen und Planner-Einstellungen koennen ueber URL-Parameter geteilt werden.
+
+## Wichtige Ressourcen
+
+- [Live-Anwendung](https://valentin-schwind.github.io/avesmaps/): Oeffentliche Projektseite mit Karte und Routenplaner.
+- [Maschinenlesbare Projektzusammenfassung](https://valentin-schwind.github.io/avesmaps/site-summary.md): Kurze Markdown-Zusammenfassung fuer KI-Systeme und Agenten.
+- [GitHub-Repository](https://github.com/valentin-schwind/avesmaps): Quellcode und Projektverlauf.
+
+## Optional
+
+- [README im Repository](https://github.com/valentin-schwind/avesmaps#readme): Ausfuehrlichere Projektdokumentation fuer Menschen.
