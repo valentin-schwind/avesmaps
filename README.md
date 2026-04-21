@@ -4,6 +4,8 @@ Avesmaps ist ein statischer Routenplaner fuer Aventurien aus dem Rollenspiel "Da
 
 ![Beispielansicht](img/example.jpg)
 
+Die aktuell erreichbare Version laeuft unter [https://valentin-schwind.github.io/avesmaps/](https://valentin-schwind.github.io/avesmaps/).
+
 ## Was das Projekt kann
 
 - Orte, Wege und Grenzen auf einer lokal gehosteten Karte darstellen
