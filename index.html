@@ -95,6 +95,13 @@
 
 <body>
 	<div id="map" style="width: 100%; height: 100%"></div>
+	<div id="map-context-menu" class="map-context-menu" hidden>
+		<button type="button" class="map-context-menu__item" data-context-action="share-pin">📍 Stelle markieren und teilen</button>
+		<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location">🔎 Nächsten Ort finden</button>
+		<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement">📏 Entfernung messen</button>
+		<button type="button" class="map-context-menu__item" data-context-action="clear-distance-measurement">🗑️ Entfernungsmessung löschen</button>
+	</div>
+	<div id="copy-feedback-toast" class="feedback-toast" role="status" aria-live="polite" hidden></div>
 	<div id="search" class="ui-widget">
 		<section class="project-summary" aria-labelledby="project-summary-title">
 			<h1 id="project-summary-title">Avesmaps</h1>
@@ -207,6 +214,7 @@
 			</div>
 			<div class="legal-dialog__content">
 				<p><strong>Fanprojekt.</strong> Avesmaps ist ein offenes, nicht-kommerzielles Fanprojekt von Valentin Schwind. Diese Website enthält nicht-offizielle Informationen zu Das Schwarze Auge und Aventurien und kann offiziellen Publikationen widersprechen.</p>
+				<p><strong>Verantwortlicher.</strong> Entwicklung, Gestaltung, Programmierung und Betreibung durch: <a href="https://vali.de/" target="_blank" rel="noopener noreferrer">Valentin Schwind (vali.de)</a></p>
 				<p><strong>Kartenmaterial.</strong> Die Karte basiert auf bearbeitetem offiziellem DSA-Kartenmaterial. Veröffentlichung und Bearbeitung erfolgen nach bestem Wissen im Rahmen der von Ulisses für nicht-kommerzielle Online-Nutzung bereitgestellten Lizenzbedingungen.</p>
 				<p><strong>Fanrichtlinien.</strong> Kennzeichnung als Fanprojekt und Verwendung des DSA-FANPROJEKT-Logos orientieren sich an den von Ulisses am 29.07.2011 veröffentlichten und 2019 inhaltlich überarbeiteten Fanrichtlinien. DSA-bezogenes Karten-, Bild- und Datenmaterial wird hier nicht unter Creative-Commons- oder vergleichbaren Fremdlizenzen veröffentlicht. Die Erlaubnis zur Verwendung von Bildmaterial erfolgt laut Ulisses nur bis auf Widerruf.</p>
 				<p><strong>Orts- und Wegdaten.</strong> Orts-, Kreuzungs- und Wegdaten wurden aus <a href="https://avespfade.de/" target="_blank" rel="noopener noreferrer">avespfade.de</a> teilweise abgeleitet und ergänzt. Quelle laut avespfade: Oliver Hackstein und Florian Mazur. Nach Angabe von avespfade wurden einzelne Ortspositionen teils an das Dereglobus-Projekt angelehnt.</p>
@@ -294,6 +302,7 @@
 
 		const ROUTE_STYLE = { pane: "routePane", color: "#1452F7", weight: 10, opacity: 1, interactive: false, lineCap: "round", lineJoin: "round" };
 		const SYNTHETIC_ROUTE_STYLE = { ...ROUTE_STYLE, dashArray: "14 10", opacity: 0.7 };
+		const MEASUREMENT_LINE_STYLE = { pane: "measurementPane", color: "#FFFFFF", weight: 4, opacity: 0.95, interactive: false, dashArray: "10 8", lineCap: "round", lineJoin: "round" };
 		const ROUTE_NODE_STYLE = { pane: "locationsPane", fillColor: "white", color: "#000", radius: 8, weight: 2, fillOpacity: 1 };
 		const LOCATION_MARKER_STYLE = { pane: "locationsPane", fillColor: "#F52B25", color: "#7A1411", weight: 1.25, opacity: 1, fillOpacity: 0.95 };
 		const MAP_MARKER_STYLE = { pane: "locationsPane", radius: 4, fillColor: "#F52B25", color: "#000", weight: 2, opacity: 1, fillOpacity: 1 };
@@ -326,13 +335,15 @@
 		const DEFAULT_OVERVIEW_TEXT = "Wegpunkte und Dauer der Reise werden hier angezeigt.";
 		const DEFAULT_ROUTE_QUERY_PARAM = "route";
 		const ROUTE_QUERY_PARAM_ALIASES = ["route", "routes", "router"];
+		const SHARE_PIN_QUERY_PARAM = "pin";
 		const MAX_SHARED_WAYPOINTS = 25;
+		const DEFAULT_SHARE_PIN_ZOOM = 4;
 		const LOCATION_TYPE_CONFIG = {
-			metropole: { label: "Metropolen", singularLabel: "Metropole", icon: "🏛️", queryParam: "toggleMetropolen", radius: 10 },
-			grossstadt: { label: "Großstädte", singularLabel: "Großstadt", icon: "🏰", queryParam: "toggleGrossstaedte", radius: 7.5 },
-			stadt: { label: "Städte", singularLabel: "Stadt", icon: "⛪", queryParam: "toggleStaedte", radius: 6 },
-			kleinstadt: { label: "Kleinstädte", singularLabel: "Kleinstadt", icon: "🏘️", queryParam: "toggleKleinstaedte", radius: 4 },
-			dorf: { label: "Dörfer", singularLabel: "Dorf", icon: "🏡", queryParam: "toggleDoerfer", radius: 3 },
+			metropole: { label: "Metropolen", singularLabel: "Metropole", icon: "🏛️", queryParam: "toggleMetropolen", radius: 10, shape: "circle", borderWidth: 3 },
+			grossstadt: { label: "Großstädte", singularLabel: "Großstadt", icon: "🏰", queryParam: "toggleGrossstaedte", radius: 7.5, shape: "square", borderWidth: 3 },
+			stadt: { label: "Städte", singularLabel: "Stadt", icon: "⛪", queryParam: "toggleStaedte", radius: 6, shape: "square", borderWidth: 2 },
+			kleinstadt: { label: "Kleinstädte", singularLabel: "Kleinstadt", icon: "🏘️", queryParam: "toggleKleinstaedte", radius: 4, shape: "square", borderWidth: 2 },
+			dorf: { label: "Dörfer", singularLabel: "Dorf", icon: "🏡", queryParam: "toggleDoerfer", radius: 4, shape: "circle", borderWidth: 2 },
 		};
 		const LOCATION_ICON_PATHS = {
 			metropole: "icons/metropole.png",
@@ -406,7 +417,18 @@
 			graphData = null,
 			invalidLocationInputs = [],
 			selectedLocations = [],
-			waypointCounter = 0;
+			waypointCounter = 0,
+			sharePinMarker = null,
+			sharePinCoordinates = null,
+			pendingContextMenuLatLng = null,
+			feedbackToastTimeoutId = null,
+			distanceMeasurementStartHandle = null,
+			distanceMeasurementEndHandle = null,
+			distanceMeasurementLine = null,
+			distanceMeasurementLabel = null,
+			distanceMeasurementStartLatLng = null,
+			distanceMeasurementEndLatLng = null,
+			isAwaitingDistanceMeasurementEnd = false;
 
 		// Initialisierung der Karte 
 		const map = L.map("map", {
@@ -424,6 +446,8 @@
 		map.createPane("roadsOutlinePane");
 		map.createPane("roadsPane");
 		map.createPane("routePane");
+		map.createPane("measurementPane");
+		map.createPane("measurementHandlesPane");
 		map.createPane("regionLabelsPane");
 		map.createPane("locationsPane");
 		map.createPane("labelsPane");
@@ -432,6 +456,8 @@
 		map.getPane("roadsOutlinePane").style.zIndex = 350;
 		map.getPane("roadsPane").style.zIndex = 400;
 		map.getPane("routePane").style.zIndex = 450;
+		map.getPane("measurementPane").style.zIndex = 460;
+		map.getPane("measurementHandlesPane").style.zIndex = 520;
 		map.getPane("regionLabelsPane").style.zIndex = 475;
 		map.getPane("locationsPane").style.zIndex = 500;
 		map.getPane("labelsPane").style.zIndex = 650;
@@ -488,8 +514,89 @@
 		$(document).on("keydown", (event) => {
 			if (event.key === "Escape" && !$("#legal-overlay").prop("hidden")) {
 				setLegalDialogOpen(false);
+				return;
+			}
+
+			if (event.key === "Escape") {
+				closeMapContextMenu();
 			}
 		});
+
+		function getMapContextMenuElement() {
+			return document.getElementById("map-context-menu");
+		}
+
+		function closeMapContextMenu() {
+			const menuElement = getMapContextMenuElement();
+			if (!menuElement) {
+				return;
+			}
+
+			menuElement.hidden = true;
+			pendingContextMenuLatLng = null;
+		}
+
+		function openMapContextMenu(latlng, clientX, clientY) {
+			const menuElement = getMapContextMenuElement();
+			if (!menuElement) {
+				return;
+			}
+
+			pendingContextMenuLatLng = L.latLng(latlng);
+			syncDistanceMeasurementContextMenuAction();
+			menuElement.hidden = false;
+			menuElement.style.left = `${clientX}px`;
+			menuElement.style.top = `${clientY}px`;
+
+			const viewportPadding = 8;
+			const menuWidth = menuElement.offsetWidth;
+			const menuHeight = menuElement.offsetHeight;
+			const left = Math.max(viewportPadding, Math.min(clientX, window.innerWidth - menuWidth - viewportPadding));
+			const top = Math.max(viewportPadding, Math.min(clientY, window.innerHeight - menuHeight - viewportPadding));
+
+			menuElement.style.left = `${left}px`;
+			menuElement.style.top = `${top}px`;
+		}
+
+		function shouldIgnoreDistanceMeasurementClickTarget(target) {
+			const targetElement = target instanceof Element ? target : null;
+			if (!targetElement) {
+				return false;
+			}
+
+			return Boolean(targetElement.closest(
+				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button"
+			));
+		}
+
+		function handleDistanceMeasurementContainerClick(event) {
+			if (!isAwaitingDistanceMeasurementEnd || event.button !== 0) {
+				return;
+			}
+
+			if (shouldIgnoreDistanceMeasurementClickTarget(event.target)) {
+				return;
+			}
+
+			event.preventDefault();
+			event.stopPropagation();
+			event.stopImmediatePropagation();
+			completeDistanceMeasurementAt(map.mouseEventToLatLng(event));
+		}
+
+		map.on("contextmenu", (event) => {
+			event.originalEvent?.preventDefault();
+			openMapContextMenu(
+				event.latlng,
+				event.originalEvent?.clientX ?? 0,
+				event.originalEvent?.clientY ?? 0
+			);
+		});
+		map.on("click", closeMapContextMenu);
+		map.on("movestart", closeMapContextMenu);
+		window.addEventListener("resize", closeMapContextMenu);
+		map.getContainer().addEventListener("click", handleDistanceMeasurementContainerClick, true);
+		syncDistanceMeasurementContextMenuAction();
 
 		function getLocationToggleButton(locationType) {
 			return $(`.location-toggle[data-location-type="${locationType}"]`);
@@ -516,6 +623,35 @@
 				.replace(/>/g, "&gt;")
 				.replace(/"/g, "&quot;")
 				.replace(/'/g, "&#039;");
+		}
+
+		function buildHtmlAttributes(attributes = {}) {
+			return Object.entries(attributes)
+				.filter(([, value]) => value !== undefined && value !== null && value !== "")
+				.map(([name, value]) => ` ${escapeHtml(name)}="${escapeHtml(value)}"`)
+				.join("");
+		}
+
+		function popupActionButtonMarkup({ label, className = "", attributes = {} }) {
+			const safeClassName = className ? ` ${escapeHtml(className)}` : "";
+			return `<button type="button" class="location-popup__action-button${safeClassName}"${buildHtmlAttributes(attributes)}>${escapeHtml(label)}</button>`;
+		}
+
+		function locationPopupActionsMarkup(actionButtons = []) {
+			if (!actionButtons.length) {
+				return "";
+			}
+
+			return `<div class="location-popup__actions">${actionButtons.join("")}</div>`;
+		}
+
+		function isWithinMapBounds(latlng) {
+			const normalizedLatLng = L.latLng(latlng);
+			const [[minLat, minLng], [maxLat, maxLng]] = MAP_BOUNDS;
+			return normalizedLatLng.lat >= minLat
+				&& normalizedLatLng.lat <= maxLat
+				&& normalizedLatLng.lng >= minLng
+				&& normalizedLatLng.lng <= maxLng;
 		}
 
 		function getWikiLocationLink(name) {
@@ -579,6 +715,36 @@
 			return `<div class="location-popup__description">${escapeHtml(description)}</div>`;
 		}
 
+		function locationAddToRouteActionMarkup(name) {
+			return locationPopupActionsMarkup([
+				popupActionButtonMarkup({
+					label: "➕ Zur Route hinzufügen",
+					className: "location-popup__action-button--accent",
+					attributes: {
+						"data-popup-action": "add-location-to-route",
+						"data-location-name": name,
+					},
+				}),
+			]);
+		}
+
+		function waypointRemoveActionMarkup(waypointId) {
+			if (!waypointId) {
+				return "";
+			}
+
+			return locationPopupActionsMarkup([
+				popupActionButtonMarkup({
+					label: "➖ Aus Route entfernen",
+					className: "location-popup__action-button--danger",
+					attributes: {
+						"data-popup-action": "remove-waypoint",
+						"data-waypoint-id": waypointId,
+					},
+				}),
+			]);
+		}
+
 		function locationPopupMarkup({
 			name,
 			locationType,
@@ -587,6 +753,7 @@
 			showType = false,
 			showDescription = true,
 			showWikiLink = true,
+			actionsMarkup = "",
 		}) {
 			const popupClassName = compact ? "location-popup location-popup--compact" : "location-popup";
 			return `
@@ -599,8 +766,217 @@
 						</div>
 					</div>
 					${showDescription ? locationDescriptionMarkup(name) : ""}
+					${actionsMarkup}
 					${showWikiLink ? wikiLocationLinkMarkup(name) : ""}
 				</div>`;
+		}
+
+		function sharePinPopupMarkup() {
+			return `
+				<div class="share-pin-popup">
+					<div class="share-pin-popup__title">Markierte Stelle</div>
+					${locationPopupActionsMarkup([
+						popupActionButtonMarkup({
+							label: "🗑️ Markierung entfernen",
+							className: "location-popup__action-button--danger",
+							attributes: {
+								"data-popup-action": "remove-share-pin",
+							},
+						}),
+					])}
+				</div>`;
+		}
+
+		function calculateCoordinateDistance(firstCoordinates, secondCoordinates) {
+			return Math.hypot(
+				secondCoordinates[0] - firstCoordinates[0],
+				secondCoordinates[1] - firstCoordinates[1]
+			);
+		}
+
+		function calculateScaledDistance(firstCoordinates, secondCoordinates) {
+			return calculateCoordinateDistance(firstCoordinates, secondCoordinates) * DISTANCE_SCALING_FACTOR;
+		}
+
+		function latLngToCoordinates(latlng) {
+			const normalizedLatLng = L.latLng(latlng);
+			return [normalizedLatLng.lat, normalizedLatLng.lng];
+		}
+
+		function formatDistanceMeasurement(distanceInMiles) {
+			return `${distanceInMiles.toFixed(1)} Meilen`;
+		}
+
+		function getDistanceMeasurementMidpoint(startLatLng, endLatLng) {
+			return L.latLng(
+				(startLatLng.lat + endLatLng.lat) / 2,
+				(startLatLng.lng + endLatLng.lng) / 2
+			);
+		}
+
+		function hasDistanceMeasurement() {
+			return Boolean(distanceMeasurementStartLatLng || distanceMeasurementEndLatLng || isAwaitingDistanceMeasurementEnd);
+		}
+
+		function getClearDistanceMeasurementMenuButton() {
+			return document.querySelector('[data-context-action="clear-distance-measurement"]');
+		}
+
+		function syncDistanceMeasurementContextMenuAction() {
+			const clearButton = getClearDistanceMeasurementMenuButton();
+			if (!clearButton) {
+				return;
+			}
+
+			const isVisible = hasDistanceMeasurement();
+			clearButton.hidden = !isVisible;
+		}
+
+		function createDistanceMeasurementHandleIcon() {
+			return L.divIcon({
+				className: "measurement-handle-marker",
+				html: '<span class="measurement-handle-marker__outer"><span class="measurement-handle-marker__inner"></span></span>',
+				iconSize: [24, 24],
+				iconAnchor: [12, 12],
+			});
+		}
+
+		function createDistanceMeasurementValueIcon(distanceInMiles) {
+			return L.divIcon({
+				className: "measurement-value-marker",
+				html: `<span class="measurement-value-marker__text">${escapeHtml(formatDistanceMeasurement(distanceInMiles))}</span>`,
+				iconSize: null,
+				iconAnchor: [0, 0],
+			});
+		}
+
+		function createDistanceMeasurementHandle(latlng, title, onPositionChange) {
+			const handleMarker = L.marker(L.latLng(latlng), {
+				icon: createDistanceMeasurementHandleIcon(),
+				draggable: true,
+				keyboard: true,
+				title,
+				pane: "measurementHandlesPane",
+				riseOnHover: true,
+			}).addTo(map);
+
+			handleMarker.on("drag", (event) => {
+				onPositionChange(event.target.getLatLng());
+			});
+			handleMarker.on("dragend", (event) => {
+				onPositionChange(event.target.getLatLng());
+			});
+
+			return handleMarker;
+		}
+
+		function removeDistanceMeasurementLineAndLabel() {
+			if (distanceMeasurementLine) {
+				map.removeLayer(distanceMeasurementLine);
+				distanceMeasurementLine = null;
+			}
+
+			if (distanceMeasurementLabel) {
+				map.removeLayer(distanceMeasurementLabel);
+				distanceMeasurementLabel = null;
+			}
+		}
+
+		function updateDistanceMeasurementPresentation() {
+			if (!distanceMeasurementStartLatLng || !distanceMeasurementEndLatLng) {
+				removeDistanceMeasurementLineAndLabel();
+				syncDistanceMeasurementContextMenuAction();
+				return;
+			}
+
+			const measurementLatLngs = [distanceMeasurementStartLatLng, distanceMeasurementEndLatLng];
+			if (!distanceMeasurementLine) {
+				distanceMeasurementLine = L.polyline(measurementLatLngs, MEASUREMENT_LINE_STYLE).addTo(map);
+			} else {
+				distanceMeasurementLine.setLatLngs(measurementLatLngs);
+			}
+
+			const distanceInMiles = calculateScaledDistance(
+				latLngToCoordinates(distanceMeasurementStartLatLng),
+				latLngToCoordinates(distanceMeasurementEndLatLng)
+			);
+			const labelLatLng = getDistanceMeasurementMidpoint(distanceMeasurementStartLatLng, distanceMeasurementEndLatLng);
+			if (!distanceMeasurementLabel) {
+				distanceMeasurementLabel = L.marker(labelLatLng, {
+					icon: createDistanceMeasurementValueIcon(distanceInMiles),
+					pane: "labelsPane",
+					interactive: false,
+					keyboard: false,
+				}).addTo(map);
+			}
+
+			distanceMeasurementLabel
+				.setLatLng(labelLatLng)
+				.setIcon(createDistanceMeasurementValueIcon(distanceInMiles));
+
+			syncDistanceMeasurementContextMenuAction();
+		}
+
+		function clearDistanceMeasurement() {
+			const hadMeasurement = hasDistanceMeasurement();
+
+			if (distanceMeasurementStartHandle) {
+				map.removeLayer(distanceMeasurementStartHandle);
+				distanceMeasurementStartHandle = null;
+			}
+
+			if (distanceMeasurementEndHandle) {
+				map.removeLayer(distanceMeasurementEndHandle);
+				distanceMeasurementEndHandle = null;
+			}
+
+			removeDistanceMeasurementLineAndLabel();
+			distanceMeasurementStartLatLng = null;
+			distanceMeasurementEndLatLng = null;
+			isAwaitingDistanceMeasurementEnd = false;
+			syncDistanceMeasurementContextMenuAction();
+
+			return hadMeasurement;
+		}
+
+		function startDistanceMeasurementAt(latlng) {
+			const normalizedLatLng = L.latLng(latlng);
+			clearDistanceMeasurement();
+
+			distanceMeasurementStartLatLng = normalizedLatLng;
+			distanceMeasurementStartHandle = createDistanceMeasurementHandle(
+				normalizedLatLng,
+				"Startpunkt der Entfernungsmessung",
+				(nextLatLng) => {
+					distanceMeasurementStartLatLng = L.latLng(nextLatLng);
+					updateDistanceMeasurementPresentation();
+				}
+			);
+			isAwaitingDistanceMeasurementEnd = true;
+			syncDistanceMeasurementContextMenuAction();
+		}
+
+		function completeDistanceMeasurementAt(latlng) {
+			if (!distanceMeasurementStartLatLng) {
+				return false;
+			}
+
+			distanceMeasurementEndLatLng = L.latLng(latlng);
+			if (distanceMeasurementEndHandle) {
+				map.removeLayer(distanceMeasurementEndHandle);
+			}
+
+			distanceMeasurementEndHandle = createDistanceMeasurementHandle(
+				distanceMeasurementEndLatLng,
+				"Endpunkt der Entfernungsmessung",
+				(nextLatLng) => {
+					distanceMeasurementEndLatLng = L.latLng(nextLatLng);
+					updateDistanceMeasurementPresentation();
+				}
+			);
+			isAwaitingDistanceMeasurementEnd = false;
+			updateDistanceMeasurementPresentation();
+			return true;
 		}
 
 		const ICON_ASSET_VERSION = "20260423-142011";
@@ -909,12 +1285,29 @@
 			return zoomScales[zoomLevel] || 1;
 		}
 
-		function locationMarkerStyle(locationType, zoomLevel = map.getZoom()) {
+		function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
 			const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
-			return {
-				...LOCATION_MARKER_STYLE,
-				radius: config.radius * locationZoomScale(zoomLevel),
-			};
+			return config.radius * locationZoomScale(zoomLevel) * 2 + 1;
+		}
+
+		function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
+			const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
+			const markerSize = getLocationMarkerSize(locationType, zoomLevel);
+			const shapeClassName = config.shape === "square"
+				? "location-visual-marker__shape location-visual-marker__shape--square"
+				: "location-visual-marker__shape location-visual-marker__shape--circle";
+			const iconHtml = `<span${buildHtmlAttributes({
+				class: shapeClassName,
+				style: `width:${markerSize}px;height:${markerSize}px;border-width:${config.borderWidth}px;`,
+			})}></span>`;
+
+			return L.divIcon({
+				className: "location-visual-marker",
+				html: iconHtml,
+				iconSize: [markerSize, markerSize],
+				iconAnchor: [markerSize / 2, markerSize / 2],
+				popupAnchor: [0, -(markerSize / 2)],
+			});
 		}
 
 		function syncLocationMarkerVisibility() {
@@ -922,7 +1315,7 @@
 			const zoomLevel = map.getZoom();
 			$.each(locationMarkers, (i, entry) => {
 				const shouldShow = isLocationTypeVisible(entry.locationType);
-				entry.marker.setStyle(locationMarkerStyle(entry.locationType, zoomLevel));
+				entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, zoomLevel));
 				map[shouldShow ? "addLayer" : "removeLayer"](entry.marker);
 			});
 		}
@@ -974,6 +1367,22 @@
 			return typeof name === "string" && /^Kreuzung(?:-\d+)?$/i.test(name);
 		}
 
+		function createWaypointId() {
+			return `waypoint-${Date.now()}-${waypointCounter++}`;
+		}
+
+		function getWaypointContainers() {
+			return $("#waypoints .waypoint-container");
+		}
+
+		function getWaypointElementById(waypointId) {
+			return getWaypointContainers()
+				.filter(function () {
+					return $(this).data("waypointId") === waypointId;
+				})
+				.first();
+		}
+
 		function getWaypointAutocompleteSource() {
 			return locationData
 				.map((loc) => loc.name)
@@ -981,15 +1390,46 @@
 				.sort((a, b) => a.localeCompare(b));
 		}
 
-		function appendWaypointInput(initialValue = "") {
-			const waypointId = `inputLocation-${Date.now()}-${waypointCounter++}`;
-			const showRemoveButton = $("#waypoints .waypoint-input").length > 0;
-			const waypointHtml = `
-				<div class="waypoint-container">
-					<input type="text" id="${waypointId}" class="waypoint-input" placeholder="Suche Ort..." />
-					${showRemoveButton ? '<button class="remove-waypoint">-</button>' : ""}
+		function initializeWaypointAutocomplete($input) {
+			$input.autocomplete({
+				source: getWaypointAutocompleteSource(),
+			});
+		}
+
+		function waypointDragHandleMarkup() {
+			return `
+				<button type="button" class="waypoint-drag-handle" aria-label="Wegpunkt verschieben" title="Wegpunkt verschieben">
+					<span class="waypoint-drag-handle__dots" aria-hidden="true">
+						<span></span>
+						<span></span>
+						<span></span>
+						<span></span>
+						<span></span>
+						<span></span>
+					</span>
+				</button>`;
+		}
+
+		function createWaypointMarkup(waypointId) {
+			const inputId = `waypoint-input-${waypointId}`;
+			return `
+				<div class="waypoint-container" data-waypoint-id="${escapeHtml(waypointId)}">
+					${waypointDragHandleMarkup()}
+					<input type="text" id="${escapeHtml(inputId)}" class="waypoint-input" placeholder="Suche Ort..." />
+					<button type="button" class="remove-waypoint" aria-label="Wegpunkt entfernen" title="Wegpunkt entfernen">➖</button>
 				</div>`;
-			const $waypoint = $(waypointHtml);
+		}
+
+		function refreshWaypointSorting() {
+			const $waypoints = $("#waypoints");
+			if ($waypoints.hasClass("ui-sortable")) {
+				$waypoints.sortable("refresh");
+			}
+		}
+
+		function appendWaypointInput(initialValue = "") {
+			const waypointId = createWaypointId();
+			const $waypoint = $(createWaypointMarkup(waypointId));
 			const $input = $waypoint.find(".waypoint-input");
 
 			if (initialValue) {
@@ -997,17 +1437,41 @@
 			}
 
 			$("#waypoints").append($waypoint);
-
-			$input.autocomplete({
-				source: getWaypointAutocompleteSource(),
-			});
-
-			$waypoint.find(".remove-waypoint").on("click", function () {
-				$(this).parent().remove();
-				updateMapView();
-			});
+			initializeWaypointAutocomplete($input);
+			refreshWaypointSorting();
 
 			return $input;
+		}
+
+		function getLastEmptyWaypointInput() {
+			const emptyWaypointElement = getWaypointContainers()
+				.get()
+				.reverse()
+				.find((waypointElement) => {
+					const inputValue = ($(waypointElement).find(".waypoint-input").val() || "").trim();
+					return !inputValue;
+				});
+
+			if (!emptyWaypointElement) {
+				return $();
+			}
+
+			return $(emptyWaypointElement).find(".waypoint-input").first();
+		}
+
+		function fillLastEmptyWaypointOrAppend(locationName) {
+			const normalizedLocationName = (locationName || "").trim();
+			if (!normalizedLocationName) {
+				return $();
+			}
+
+			const $lastEmptyInput = getLastEmptyWaypointInput();
+			if ($lastEmptyInput.length) {
+				$lastEmptyInput.val(normalizedLocationName);
+				return $lastEmptyInput;
+			}
+
+			return appendWaypointInput(normalizedLocationName);
 		}
 
 		function resetWaypointInputs(waypointNames = []) {
@@ -1019,6 +1483,7 @@
 			}
 
 			waypointNames.forEach((waypointName) => appendWaypointInput(waypointName));
+			refreshWaypointSorting();
 		}
 
 		function getWaypointInputValues() {
@@ -1028,6 +1493,58 @@
 				})
 				.get()
 				.filter(Boolean);
+		}
+
+		function removeWaypointElement($waypoint, { updateRoute = true } = {}) {
+			if (!$waypoint?.length) {
+				return false;
+			}
+
+			if (getWaypointContainers().length <= 1) {
+				$waypoint.find(".waypoint-input").val("");
+			} else {
+				$waypoint.remove();
+				refreshWaypointSorting();
+			}
+
+			if (updateRoute) {
+				updateMapView();
+			} else {
+				syncPlannerStateToUrl();
+			}
+
+			return true;
+		}
+
+		function removeWaypointById(waypointId, options = {}) {
+			return removeWaypointElement(getWaypointElementById(waypointId), options);
+		}
+
+		function initializeWaypointSorting() {
+			const $waypoints = $("#waypoints");
+			if ($waypoints.hasClass("ui-sortable")) {
+				return;
+			}
+
+			$waypoints.sortable({
+				handle: ".waypoint-drag-handle",
+				cancel: ".waypoint-input, .remove-waypoint",
+				axis: "y",
+				distance: 4,
+				tolerance: "pointer",
+				placeholder: "waypoint-sort-placeholder",
+				forcePlaceholderSize: true,
+				start(event, ui) {
+					ui.placeholder.height(ui.item.outerHeight());
+					ui.item.addClass("is-dragging");
+				},
+				stop(event, ui) {
+					ui.item.removeClass("is-dragging");
+				},
+				update() {
+					updateMapView();
+				},
+			});
 		}
 
 		function resetOverview() {
@@ -1043,6 +1560,27 @@
 			removeAllTooltips();
 			removeHighlightedRouteNodes();
 			resetOverview();
+		}
+
+		function focusMapOnActiveTargets() {
+			const focusTargets = selectedLocations.map((loc) => loc.coordinates);
+			if (sharePinCoordinates) {
+				focusTargets.push(sharePinCoordinates);
+			}
+
+			if (!focusTargets.length) {
+				return;
+			}
+
+			if (!selectedLocations.length && sharePinCoordinates) {
+				map.setView(sharePinCoordinates, Math.max(map.getZoom(), DEFAULT_SHARE_PIN_ZOOM));
+				if (sharePinMarker) {
+					sharePinMarker.openPopup();
+				}
+				return;
+			}
+
+			map.fitBounds(L.latLngBounds(focusTargets), { padding: [50, 50] });
 		}
 
 		function parseBooleanQueryParam(paramValue, fallbackValue) {
@@ -1097,9 +1635,88 @@
 			return waypointNames;
 		}
 
+		function readSharePinFromUrl(searchParams) {
+			const pinParam = searchParams.get(SHARE_PIN_QUERY_PARAM);
+			if (!pinParam) {
+				return null;
+			}
+
+			const [latValue, lngValue] = pinParam.split(",", 2);
+			const lat = Number.parseFloat(latValue);
+			const lng = Number.parseFloat(lngValue);
+			if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+				return null;
+			}
+
+			const latlng = L.latLng(lat, lng);
+			return isWithinMapBounds(latlng) ? latlng : null;
+		}
+
+		function createSharePinIcon() {
+			return L.divIcon({
+				className: "share-pin-marker",
+				html: '<span class="share-pin-marker__emoji" aria-hidden="true">📍</span>',
+				iconSize: [28, 28],
+				iconAnchor: [14, 28],
+				popupAnchor: [0, -24],
+			});
+		}
+
+		function formatSharePinQueryValue(latlng) {
+			const normalizedLatLng = L.latLng(latlng);
+			return `${normalizedLatLng.lat.toFixed(3)},${normalizedLatLng.lng.toFixed(3)}`;
+		}
+
+		function clearSharePin({ syncUrl = true } = {}) {
+			if (sharePinMarker) {
+				map.removeLayer(sharePinMarker);
+				sharePinMarker = null;
+			}
+
+			sharePinCoordinates = null;
+
+			if (syncUrl) {
+				syncPlannerStateToUrl();
+			}
+		}
+
+		function setSharePin(latlng, { openPopup = false, syncUrl = true } = {}) {
+			const normalizedLatLng = L.latLng(latlng);
+			if (!isWithinMapBounds(normalizedLatLng)) {
+				return false;
+			}
+
+			sharePinCoordinates = normalizedLatLng;
+
+			if (sharePinMarker) {
+				map.removeLayer(sharePinMarker);
+			}
+
+			sharePinMarker = L.marker(normalizedLatLng, {
+				icon: createSharePinIcon(),
+				title: "Geteilte Markierung",
+				keyboard: true,
+			})
+				.bindPopup(sharePinPopupMarkup(), {
+					autoClose: false,
+				})
+				.addTo(map);
+
+			if (openPopup) {
+				sharePinMarker.openPopup();
+			}
+
+			if (syncUrl) {
+				syncPlannerStateToUrl();
+			}
+
+			return true;
+		}
+
 		function applyPlannerStateFromUrl() {
 			const searchParams = new URLSearchParams(window.location.search);
 			const waypointNames = readWaypointsFromUrl(searchParams);
+			const sharePinLatLng = readSharePinFromUrl(searchParams);
 			const pathType = searchParams.get("pathType");
 			const landTransport = searchParams.get("landTransport");
 			const riverTransport = searchParams.get("riverTransport");
@@ -1142,6 +1759,15 @@
 			syncTransportControls();
 
 			resetWaypointInputs(waypointNames);
+
+			if (sharePinLatLng) {
+				setSharePin(sharePinLatLng, {
+					openPopup: waypointNames.length === 0,
+					syncUrl: false,
+				});
+			} else {
+				clearSharePin({ syncUrl: false });
+			}
 
 			return waypointNames.length > 0;
 		}
@@ -1210,6 +1836,10 @@
 				searchParams.set("seaTransport", $("#seaTransport").val());
 			}
 
+			if (sharePinCoordinates) {
+				searchParams.set(SHARE_PIN_QUERY_PARAM, formatSharePinQueryValue(sharePinCoordinates));
+			}
+
 			return searchParams;
 		}
 
@@ -1223,6 +1853,81 @@
 			const nextUrl = `${window.location.pathname}${queryString ? `?${queryString}` : ""}${window.location.hash}`;
 
 			window.history.replaceState(window.history.state, "", nextUrl);
+		}
+
+		function fallbackCopyTextToClipboard(text) {
+			const textarea = document.createElement("textarea");
+			textarea.value = text;
+			textarea.setAttribute("readonly", "readonly");
+			textarea.style.position = "fixed";
+			textarea.style.opacity = "0";
+			textarea.style.pointerEvents = "none";
+			document.body.append(textarea);
+			textarea.focus();
+			textarea.select();
+			textarea.setSelectionRange(0, textarea.value.length);
+
+			const didCopy = document.execCommand("copy");
+			textarea.remove();
+			return didCopy;
+		}
+
+		async function copyTextToClipboard(text) {
+			if (navigator.clipboard?.writeText) {
+				try {
+					await navigator.clipboard.writeText(text);
+					return true;
+				} catch (error) {
+					console.warn("Kopieren über navigator.clipboard fehlgeschlagen. Es wird ein Fallback versucht.", error);
+				}
+			}
+
+			try {
+				return fallbackCopyTextToClipboard(text);
+			} catch (error) {
+				console.warn("Kopieren in die Zwischenablage fehlgeschlagen.", error);
+				return false;
+			}
+		}
+
+		function copyCurrentUrlToClipboard() {
+			return copyTextToClipboard(window.location.href);
+		}
+
+		function getFeedbackToastElement() {
+			return document.getElementById("copy-feedback-toast");
+		}
+
+		function showFeedbackToast(message, type = "info") {
+			const toastElement = getFeedbackToastElement();
+			if (!toastElement) {
+				return;
+			}
+
+			if (feedbackToastTimeoutId) {
+				window.clearTimeout(feedbackToastTimeoutId);
+				feedbackToastTimeoutId = null;
+			}
+
+			toastElement.textContent = message;
+			toastElement.dataset.toastType = type;
+			toastElement.hidden = false;
+			toastElement.classList.add("is-visible");
+
+			feedbackToastTimeoutId = window.setTimeout(() => {
+				toastElement.classList.remove("is-visible");
+				toastElement.hidden = true;
+				feedbackToastTimeoutId = null;
+			}, 2200);
+		}
+
+		async function copyCurrentUrlToClipboardWithFeedback() {
+			const didCopy = await copyCurrentUrlToClipboard();
+			showFeedbackToast(
+				didCopy ? "Link in die Zwischenablage kopiert." : "Link konnte nicht automatisch kopiert werden.",
+				didCopy ? "success" : "warning"
+			);
+			return didCopy;
 		}
 
 
@@ -1259,7 +1964,46 @@
 		function getLocationDistance(firstLocation, secondLocation) {
 			const [firstLat, firstLng] = firstLocation.coordinates;
 			const [secondLat, secondLng] = secondLocation.coordinates;
-			return Math.hypot(secondLng - firstLng, secondLat - firstLat);
+			return calculateCoordinateDistance([firstLat, firstLng], [secondLat, secondLng]);
+		}
+
+		function findLocationMarkerByName(name) {
+			return locationMarkers.find((entry) => entry.name === name) || null;
+		}
+
+		function findNearestLocationToLatLng(latlng) {
+			const targetLocation = { coordinates: [latlng.lat, latlng.lng] };
+			let nearestMatch = null;
+
+			locationData
+				.filter(({ name }) => !isCrossingName(name))
+				.forEach((location) => {
+					const distance = getLocationDistance(location, targetLocation);
+					if (!nearestMatch || distance < nearestMatch.distance) {
+						nearestMatch = { location, distance };
+					}
+				});
+
+			return nearestMatch?.location || null;
+		}
+
+		function openLocationPopupByName(locationName) {
+			const markerEntry = findLocationMarkerByName(locationName);
+			if (!markerEntry) {
+				return false;
+			}
+
+			if (!map.hasLayer(markerEntry.marker)) {
+				map.addLayer(markerEntry.marker);
+			}
+
+			if (typeof markerEntry.marker.bringToFront === "function") {
+				markerEntry.marker.bringToFront();
+			}
+
+			map.panTo(markerEntry.marker.getLatLng());
+			markerEntry.marker.openPopup();
+			return true;
 		}
 
 		function buildSyntheticPathSegment(fromLocation, toLocation, connectionId, routeType) {
@@ -1447,8 +2191,17 @@
 			locationData
 				.filter(({ name }) => !isCrossingName(name))
 				.forEach(({ name, coordinates, locationType, locationTypeLabel }) => {
-					const marker = L.circleMarker(coordinates, locationMarkerStyle(locationType)).bindPopup(
-						locationPopupMarkup({ name, locationType, locationTypeLabel })
+					const marker = L.marker(coordinates, {
+						icon: createLocationMarkerIcon(locationType),
+						pane: "locationsPane",
+						keyboard: true,
+					}).bindPopup(
+						locationPopupMarkup({
+							name,
+							locationType,
+							locationTypeLabel,
+							actionsMarkup: locationAddToRouteActionMarkup(name),
+						})
 					);
 					locationMarkers.push({ marker, locationType, name });
 				});
@@ -1485,7 +2238,7 @@
 					const waypointHtml = `
 							<div class="waypoint-container">
 							<input type="text" id="${waypointId}" class="waypoint-input" placeholder="Suche Ort..." />
-							${hasFirstWaypoint ? '<button class="remove-waypoint">-</button>' : ""}
+							${hasFirstWaypoint ? '<button class="remove-waypoint">➖</button>' : ""}
 							</div>`;
 					hasFirstWaypoint = true;
 					$("#waypoints").append(waypointHtml);
@@ -1503,8 +2256,10 @@
 						});
 				});
 				// Standardmäßig ersten Waypoint hinzufügen
-				$("#inputLocation").click();
-				$("#inputLocation").off("click").on("click", () => appendWaypointInput());
+				initializeWaypointSorting();
+				$("#inputLocation").off("click").on("click", () => {
+					appendWaypointInput().trigger("focus");
+				});
 				resetWaypointInputs();
 
 				const hasSharedRoute = applyPlannerStateFromUrl();
@@ -1512,6 +2267,8 @@
 
 				if (hasSharedRoute) {
 					updateMapView();
+				} else {
+					focusMapOnActiveTargets();
 				}
 			})
 			.fail((err) => console.error("Fehler beim Laden der GeoJSON-Datei:", err));
@@ -1523,6 +2280,89 @@
 			const requestUrl = settings?.url || "unbekannte Anfrage";
 			const requestError = thrownError || jqXHR?.statusText || "XMLHttpRequest fehlgeschlagen";
 			alert(`Fehler bei der Anfrage ${requestUrl}: ${requestError}`);
+		});
+
+		$(document).on("click", (event) => {
+			const clickedElement = event.target instanceof Element ? event.target : null;
+			if (!clickedElement?.closest("#map-context-menu")) {
+				closeMapContextMenu();
+			}
+		});
+
+		$(document).on("click", ".remove-waypoint", function (event) {
+			event.preventDefault();
+			removeWaypointElement($(this).closest(".waypoint-container"));
+		});
+
+		$(document).on("click", ".map-context-menu__item", function (event) {
+			event.preventDefault();
+			event.stopPropagation();
+
+			const action = this.dataset.contextAction;
+			const contextMenuLatLng = pendingContextMenuLatLng ? L.latLng(pendingContextMenuLatLng) : null;
+			if (action === "share-pin" && pendingContextMenuLatLng) {
+				setSharePin(pendingContextMenuLatLng, { openPopup: true });
+				void copyCurrentUrlToClipboardWithFeedback();
+				closeMapContextMenu();
+				focusMapOnActiveTargets();
+				return;
+			}
+
+			if (action === "find-nearest-location" && pendingContextMenuLatLng) {
+				const nearestLocation = findNearestLocationToLatLng(pendingContextMenuLatLng);
+				closeMapContextMenu();
+				if (!nearestLocation) {
+					showFeedbackToast("Kein Ort gefunden.", "warning");
+					return;
+				}
+
+				if (!openLocationPopupByName(nearestLocation.name)) {
+					showFeedbackToast("Der nächste Ort konnte nicht geöffnet werden.", "warning");
+				}
+				return;
+			}
+
+			if (action === "start-distance-measurement" && contextMenuLatLng) {
+				closeMapContextMenu();
+				startDistanceMeasurementAt(contextMenuLatLng);
+				showFeedbackToast("Startpunkt gesetzt. Jetzt den zweiten Punkt anklicken.", "info");
+				return;
+			}
+
+			if (action === "clear-distance-measurement") {
+				closeMapContextMenu();
+				if (clearDistanceMeasurement()) {
+					showFeedbackToast("Entfernungsmessung gelöscht.", "success");
+				}
+			}
+		});
+
+		$(document).on("click", ".location-popup__action-button", function (event) {
+			event.preventDefault();
+			event.stopPropagation();
+
+			const action = this.dataset.popupAction;
+			if (action === "add-location-to-route") {
+				const locationName = this.dataset.locationName;
+				if (locationName) {
+					fillLastEmptyWaypointOrAppend(locationName);
+					map.closePopup();
+					updateMapView();
+				}
+				return;
+			}
+
+			if (action === "remove-waypoint") {
+				const waypointId = this.dataset.waypointId;
+				if (waypointId) {
+					removeWaypointById(waypointId);
+				}
+				return;
+			}
+
+			if (action === "remove-share-pin") {
+				clearSharePin();
+			}
 		});
 
 		/******************************************************************
@@ -1853,8 +2693,7 @@
 			let totalTravelTime = 0;
 			let totalRestTime = 0;
 
-			const calcDistance = (a, b) =>
-				Math.hypot(b[0] - a[0], b[1] - a[1]) * DISTANCE_SCALING_FACTOR;
+			const calcDistance = (a, b) => calculateScaledDistance(a, b);
 
 			const startLoc = selectedLocations[0]?.coordinates;
 			const endLoc = selectedLocations[selectedLocations.length - 1]?.coordinates;
@@ -1974,10 +2813,12 @@
 			coordinates,
 			locationType,
 			locationTypeLabel,
+			waypointId,
 		}, {
 			compact = true,
 			showDescription = false,
 			showWikiLink = false,
+			showRemoveAction = false,
 		} = {}) => {
 			const popupContent = locationPopupMarkup({
 				name,
@@ -1986,6 +2827,7 @@
 				compact,
 				showDescription,
 				showWikiLink,
+				actionsMarkup: showRemoveAction ? waypointRemoveActionMarkup(waypointId) : "",
 			});
 
 			if (showDescription || showWikiLink) {
@@ -2005,7 +2847,8 @@
 				direction: "top",
 				offset: [0, -10],
 				opacity: 1,
-				className: "location-tooltip",
+				interactive: showRemoveAction,
+				className: showRemoveAction ? "location-tooltip location-tooltip--interactive" : "location-tooltip",
 			})
 				.setLatLng(coordinates)
 				.setContent(popupContent)
@@ -2039,8 +2882,10 @@
 			selectedLocations = [];
 			invalidLocationInputs = [];
 
-			$(".waypoint-input").each(function () {
-				const inputVal = ($(this).val() || "").trim();
+			getWaypointContainers().each(function () {
+				const $waypoint = $(this);
+				const $input = $waypoint.find(".waypoint-input");
+				const inputVal = ($input.val() || "").trim();
 
 				if (!inputVal) {
 					return;
@@ -2048,10 +2893,13 @@
 
 				const loc = validateLocation(inputVal);
 				if (loc) {
-					selectedLocations.push(loc);
+					selectedLocations.push({
+						...loc,
+						waypointId: String($waypoint.data("waypointId") || ""),
+					});
 				} else {
 					invalidLocationInputs.push(inputVal);
-					highlightError($(this));
+					highlightError($input);
 				}
 			});
 
@@ -2061,16 +2909,14 @@
 					compact: !showFullTooltip,
 					showDescription: showFullTooltip,
 					showWikiLink: showFullTooltip,
+					showRemoveAction: true,
 				});
 			});
 
 			console.log("Ausgewählte Locations:", selectedLocations);
 			console.log("Ungültige Eingaben:", invalidLocationInputs);
 
-			if (selectedLocations.length > 0) {
-				const boundsLatLng = L.latLngBounds(selectedLocations.map((loc) => loc.coordinates));
-				map.fitBounds(boundsLatLng, { padding: [50, 50] });
-			}
+			focusMapOnActiveTargets();
 			if (invalidLocationInputs.length) alert(`Orte nicht gefunden: ${invalidLocationInputs.join(", ")}`);
 
 			if (selectedLocations.length >= 2) {
