@@ -110,6 +110,121 @@ html {
 	text-orientation: mixed;
 }
 
+#legal-button {
+	position: fixed;
+	left: 12px;
+	bottom: 12px;
+	padding: 7px 10px;
+	border: 1px solid #8d7962;
+	border-radius: 6px;
+	background: rgba(255, 249, 244, 0.94);
+	color: #3f3428;
+	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+	cursor: pointer;
+	z-index: 1000;
+	font-size: 13px;
+}
+
+#legal-button:hover,
+#legal-button:focus-visible {
+	background: rgba(255, 249, 244, 1);
+	outline: none;
+}
+
+body.legal-dialog-open {
+	overflow: hidden;
+}
+
+#legal-overlay[hidden] {
+	display: none !important;
+}
+
+#legal-overlay {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	background: rgba(20, 16, 12, 0.56);
+	z-index: 1200;
+}
+
+.legal-dialog {
+	width: min(680px, 100%);
+	max-height: min(80vh, 760px);
+	overflow-y: auto;
+	background: #fff9f4;
+	color: #2f251c;
+	border: 1px solid #d8c6b2;
+	border-radius: 10px;
+	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+	padding: 16px 18px;
+}
+
+.legal-dialog:focus {
+	outline: none;
+}
+
+.legal-dialog__header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 10px;
+}
+
+.legal-dialog__header h2 {
+	margin: 0;
+	font-size: 20px;
+}
+
+.legal-dialog__badge {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 6px;
+	margin: 0 0 14px 0;
+}
+
+.legal-dialog__badge img {
+	display: block;
+	width: min(240px, 100%);
+	height: auto;
+}
+
+.legal-dialog__badge span {
+	font-size: 12px;
+	font-weight: bold;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: #6c5a49;
+}
+
+.legal-dialog__close {
+	border: none;
+	background: transparent;
+	color: #5f4f40;
+	cursor: pointer;
+	font-size: 28px;
+	line-height: 1;
+	padding: 0;
+}
+
+.legal-dialog__content p {
+	margin: 0 0 10px 0;
+	line-height: 1.45;
+}
+
+.legal-dialog__content a {
+	color: #7a1411;
+}
+
+.legal-dialog__note {
+	font-size: 12px;
+	color: #6f6256;
+}
+
 .input-options {
 	display: inline-grid;
 	grid-template-columns: auto auto;
@@ -118,10 +233,76 @@ html {
 }
 
 .display-options {
-	display: inline-grid;
-	grid-template-columns: 50px 60px 70px 90px;
-	gap: 5px;
+	display: grid;
+	grid-template-columns: 50px 220px;
+	column-gap: 8px;
+	row-gap: 4px;
 	align-items: center;
+}
+
+.display-options__label {
+	flex: 0 0 auto;
+	font-weight: bold;
+}
+
+.display-options__spacer {
+	display: block;
+}
+
+.display-options__secondary {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+}
+
+.location-toggle-group {
+	display: flex;
+	flex-wrap: nowrap;
+	gap: 6px;
+	align-items: center;
+	white-space: nowrap;
+}
+
+.display-options .location-toggle {
+	appearance: none;
+	-webkit-appearance: none;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	margin: 0;
+	border: none;
+	background: transparent;
+	opacity: 0.22;
+	cursor: pointer;
+	line-height: 1;
+	transition: opacity 120ms ease;
+	flex: 0 0 auto;
+}
+
+.display-options .location-toggle__icon {
+	display: block;
+	width: 40px;
+	height: 40px;
+	object-fit: contain;
+	pointer-events: none;
+	user-select: none;
+}
+
+.display-options .location-toggle.is-active {
+	opacity: 1;
+}
+
+.display-options .location-toggle:hover,
+.display-options .location-toggle:focus-visible {
+	opacity: 0.55;
+	outline: none;
+}
+
+.display-options .location-toggle.is-active:hover,
+.display-options .location-toggle.is-active:focus-visible {
+	opacity: 1;
 }
 
 #transport-options {
@@ -129,6 +310,25 @@ html {
 	grid-template-columns: auto auto;
 	gap: 10px;
 	align-items: center;
+}
+
+.transport-filter-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.transport-filter-icon,
+.route-overview-icon {
+	display: inline-block;
+	width: 18px;
+	height: 18px;
+	object-fit: contain;
+	vertical-align: middle;
+}
+
+.route-overview-icon {
+	margin-right: 4px;
 }
 
 .ui-autocomplete {

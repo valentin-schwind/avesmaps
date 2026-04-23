@@ -1,6 +1,9 @@
 # Avesmaps
 
-Avesmaps ist ein statischer Routenplaner fuer Aventurien aus dem Rollenspiel "Das Schwarze Auge". Die Anwendung zeigt eine kachelbasierte Karte, Orte, Wege und optionale Regionsgrenzen an und berechnet Reiserouten direkt im Browser.
+Avesmaps ist ein offener, nicht-kommerzieller Routenplaner fuer Aventurien aus
+dem Rollenspiel "Das Schwarze Auge". Die Anwendung zeigt eine kachelbasierte
+Karte, Orte, Wege und optionale Regionsgrenzen an und berechnet Reiserouten
+direkt im Browser.
 
 ![Beispielansicht](img/example.jpg)
 
@@ -33,8 +36,9 @@ Die Anwendung ist bewusst einfach gehalten:
 
 - `index.html` enthaelt den groessten Teil der Logik fuer Karte, Datenverarbeitung und Routenplanung
 - `tiles/` enthaelt die Kartenkacheln
-- `map/aventurien_routes.geojson` enthaelt Orte und Wege fuer die Routenplanung
-- `map/Aventurien_routes.svg` ist die SVG-Quelldatei fuer die Geodaten
+- `map/Aventurien_routes_hybrid.geojson` enthaelt Orte und Wege fuer die Routenplanung
+- `map/Aventurien_routes_hybrid.svg` ist die editierbare SVG-Quelle fuer die Geodaten
+- `map/svg_to_geojson.py` konvertiert die SVG in die GeoJSON-Datei
 - `css/`, `js/` und `fonts/` enthalten alle benoetigten Assets lokal im Repository
 
 Es gibt **keine Abhaengigkeit zu externen Diensten**:
@@ -79,53 +83,59 @@ Dadurch kann eine fertig konfigurierte Route einfach geteilt werden, indem die U
 
 ## SVG zu GeoJSON konvertieren
 
-Die Datei [`map/SVGtoGeoJSON.py`](map/SVGtoGeoJSON.py) konvertiert die SVG-Grundlage in die von der Anwendung verwendete GeoJSON-Datei.
+Die Datei [`map/svg_to_geojson.py`](map/svg_to_geojson.py) konvertiert die
+SVG-Grundlage in die von der Anwendung verwendete GeoJSON-Datei.
 
 ### Erwartete Dateien
 
-Das Skript arbeitet mit festen Dateinamen im Ordner `map/`:
+Die relevanten Dateien liegen im Ordner `map/`:
 
-- Eingabe: `map/Aventurien_routes.svg`
-- Ausgabe: `map/aventurien_routes.geojson`
+- Eingabe: `map/Aventurien_routes_hybrid.svg`
+- Ausgabe: `map/Aventurien_routes_hybrid.geojson`
 
 ### Ausfuehrung
 
 Im Projektverzeichnis:
 
 ```bash
-python map/SVGtoGeoJSON.py
-```
-
-Alternativ direkt im `map`-Ordner:
-
-```bash
-python SVGtoGeoJSON.py
+python map/svg_to_geojson.py map/Aventurien_routes_hybrid.svg --output map/Aventurien_routes_hybrid.geojson
 ```
 
 ### Was das Skript macht
 
-- es liest `circle`-Elemente als Punkte ein
-- es liest `path`-Elemente als Linien ein
-- es uebernimmt Inkscape-Labels als Namen
-- es erkennt doppelte Ortsnamen und bricht in diesem Fall ab
+- es liest Orte, Kreuzungen, Wege und Regionen aus Inkscape-Layern
+- es uebernimmt Layer- und Label-Informationen in GeoJSON-Metadaten
+- es erhaelt Ortskategorien fuer die UI
 - es schreibt daraus eine GeoJSON-`FeatureCollection`
 
 ### Abhaengigkeiten des Skripts
 
-Das aktuelle Skript verwendet nur Python-Standardbibliothek:
+Das Skript verwendet ausschliesslich Python-Standardbibliothek.
 
-- `xml.etree.ElementTree`
-- `json`
-- `pathlib`
-
-Es werden auch fuer die Konvertierung **keine externen Services** benoetigt.
+Es werden fuer die Konvertierung **keine externen Services** benoetigt.
 
 ## Hinweise zur Datenpflege
 
-- Die SVG ist die fachliche Quelle fuer Orte und Wege.
-- In `map/Aventurien_routes.svg` liegt die editierbare Karte.
+- Die SVG ist die fachliche Quelle fuer Orte, Wege und Regionen.
+- In `map/Aventurien_routes_hybrid.svg` liegt die editierbare Karte.
 - Die SVG wurde in **Inkscape** erstellt und sollte auch dort gepflegt werden.
-- Ueber die Layer lassen sich einfache Ortschaften hinzufuegen, solange sie an Strassen angebunden sind.
 - Nach Aenderungen an der SVG sollte die GeoJSON-Datei neu erzeugt werden.
-- Die Karte ist noch nicht vollstaendig.
-- Danach kann der aktualisierte Stand direkt ueber den statischen Webserver ausgeliefert werden.
+- Danach kann der aktualisierte Stand direkt ueber den statischen Webserver
+  ausgeliefert werden.
+
+## Rechtliches und Quellen
+
+Avesmaps ist ein Fanprojekt und verwendet DSA-bezogenes Material unter
+Beruecksichtigung der Ulisses-Fanrichtlinien.
+
+Wichtige Punkte fuer dieses Repository:
+
+- keine pauschale Open-Source-Lizenz fuer DSA-bezogene Karten-, Bild- und
+  Datenassets
+- Fanprojekt-Logo statt offizieller Produktlogos
+- keine Weitergabe des verwendeten Materials unter Creative-Commons- oder
+  vergleichbaren Fremdlizenzen
+- keine offizielle Verbindung zu Ulisses Spiele
+
+Details, Quellen und Hinweise zur Rechte-Lage stehen in
+[`NOTICE.md`](NOTICE.md).

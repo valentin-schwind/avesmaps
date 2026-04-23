@@ -1,6 +1,6 @@
 # Avesmaps
 
-> Avesmaps ist ein statischer Routenplaner fuer Aventurien aus dem Rollenspiel "Das Schwarze Auge".
+> Avesmaps ist ein offenes, nicht-kommerzielles Fanprojekt und statischer Routenplaner fuer Aventurien aus dem Rollenspiel "Das Schwarze Auge".
 
 ## Kurzbeschreibung
 
@@ -33,9 +33,15 @@ Avesmaps ist eine interaktive Webkarte fuer Aventurien. Die Anwendung zeigt Orte
 ## Daten und Hosting
 
 - Die Kartendaten liegen lokal im Projekt und werden nicht ueber externe Dienste geladen.
-- Die Datei `map/aventurien_routes.geojson` wird von der Anwendung direkt verwendet.
-- Die Datei `map/SVGtoGeoJSON.py` konvertiert `map/Aventurien_routes.svg` in `map/aventurien_routes.geojson`.
+- Die Datei `map/Aventurien_routes_hybrid.geojson` wird von der Anwendung direkt verwendet.
+- Die Datei `map/svg_to_geojson.py` konvertiert `map/Aventurien_routes_hybrid.svg` in `map/Aventurien_routes_hybrid.geojson`.
 - Es gibt kein Backend, keine Datenbank und keine externe API-Abhaengigkeit.
+
+## Rechtliches
+
+- Das Projekt ist als DSA-Fanprojekt gekennzeichnet.
+- Quellen- und Lizenzhinweise stehen in `NOTICE.md`.
+- DSA-bezogene Karten-, Bild- und Datenassets stehen nicht unter einer pauschalen Open-Source-Lizenz des Repositories.
 
 ## Wichtige URLs
 

@@ -98,8 +98,7 @@
 	<div id="search" class="ui-widget">
 		<section class="project-summary" aria-labelledby="project-summary-title">
 			<h1 id="project-summary-title">Avesmaps</h1>
-			<p>Avesmaps ist ein statischer Routenplaner fuer Aventurien aus dem Rollenspiel "Das Schwarze Auge" (DSA).</p>
-			<p>Die Karte zeigt Orte, Wege und auf Wunsch auch die politischen Grenzen der Reiche. Routen und Planner-Einstellungen koennen direkt ueber die URL geteilt werden.</p>
+			<p>Dein Routenplaner für Aventurien aus "Das Schwarze Auge" (DSA).</p>
 		</section>
 		<!-- Waypoints -->
 		<div id="waypoints"></div>
@@ -108,15 +107,24 @@
 			<button id="searchButton">Suche</button>
 		</div>
 		<div class="display-options">
-			<label>Zeige</label>
-			<label><input type="checkbox" id="toggleLocations" /> Orte</label>
-			<label><input type="checkbox" id="togglePaths" /> Wege</label>
-			<label><input type="checkbox" id="toggleBorders" /> Grenzen</label>
+			<span class="display-options__label">Zeige</span>
+			<div class="location-toggle-group" role="group" aria-label="Ortsklassen anzeigen">
+				<button type="button" class="location-toggle" data-location-type="metropole" title="Metropolen anzeigen oder ausblenden" aria-label="Metropolen anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/metropole.png" data-source-src="icons/metropole.png" alt="" /></button>
+				<button type="button" class="location-toggle" data-location-type="grossstadt" title="Großstädte anzeigen oder ausblenden" aria-label="Großstädte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/grossstadt.png" data-source-src="icons/grossstadt.png" alt="" /></button>
+				<button type="button" class="location-toggle" data-location-type="stadt" title="Städte anzeigen oder ausblenden" aria-label="Städte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/stadt.png" data-source-src="icons/stadt.png" alt="" /></button>
+				<button type="button" class="location-toggle" data-location-type="kleinstadt" title="Kleinstädte anzeigen oder ausblenden" aria-label="Kleinstädte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/kleinstadt.png" data-source-src="icons/kleinstadt.png" alt="" /></button>
+				<button type="button" class="location-toggle" data-location-type="dorf" title="Dörfer anzeigen oder ausblenden" aria-label="Dörfer anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/dorf.png" data-source-src="icons/dorf.png" alt="" /></button>
+			</div>
+			<span class="display-options__spacer" aria-hidden="true"></span>
+			<div class="display-options__secondary">
+				<label><input type="checkbox" id="togglePaths" /> Wege</label>
+				<label><input type="checkbox" id="toggleBorders" /> Regionen</label>
+			</div>
 		</div>
 		<div id="transport-options">
 			<label>Transportmittel:</label>
 			<div></div>
-			<label><input type="checkbox" id="allowLand" checked /> 🏔️ Land</label>
+			<label class="transport-filter-label"><input type="checkbox" id="allowLand" checked /> <img class="transport-filter-icon" src="icons/landweg.png" data-source-src="icons/landweg.png" alt="" /> Land</label>
 			<select id="landTransport" class="transportOptionSelect">
 				<option value="caravan">🐪 Karawane (3.5 km/h)</option>
 				<option value="groupFoot" selected>🚶‍♂️ Reisegruppe zu Fuß (4 km/h)</option>
@@ -125,12 +133,12 @@
 				<option value="groupHorse">🏇 Reisegruppe zu Pferd (6.5 km/h)</option>
 				<option value="lightRider">🐎 Reiter zu Pferd mit leichtem Gepäck (8 km/h)</option>
 			</select>
-			<label><input type="checkbox" id="allowRiver" checked /> 🏞️ Fluss</label>
+			<label class="transport-filter-label"><input type="checkbox" id="allowRiver" checked /> <img class="transport-filter-icon" src="icons/flussweg.png" data-source-src="icons/flussweg.png" alt="" /> Fluss</label>
 			<select id="riverTransport" class="transportOptionSelect">
 				<option value="riverSailer">⛵ Flusssegler</option>
 				<option value="riverBarge">🚣 Flusskahn</option>
 			</select>
-			<label><input type="checkbox" id="allowSea" checked /> ⚓ Meer</label>
+			<label class="transport-filter-label"><input type="checkbox" id="allowSea" checked /> <img class="transport-filter-icon" src="icons/meerweg.png" data-source-src="icons/meerweg.png" alt="" /> Meer</label>
 			<select id="seaTransport" class="transportOptionSelect">
 				<option value="cargoShip">🚢 Lastensegler</option>
 				<option value="fastShip">⛵ Schnellsegler</option>
@@ -164,6 +172,29 @@
 			Tag
 		</div>
 		<div id="overview">Wegpunkte und Dauer der Reise werden hier angezeigt.</div>
+	</div>
+	<button id="legal-button" type="button" aria-haspopup="dialog" aria-controls="legal-dialog" aria-expanded="false">Rechtliches</button>
+	<div id="legal-overlay" hidden>
+		<div id="legal-dialog" class="legal-dialog" role="dialog" aria-modal="true" aria-labelledby="legal-title" tabindex="-1">
+			<div class="legal-dialog__header">
+				<h2 id="legal-title">Rechtliches</h2>
+				<button id="legal-close" class="legal-dialog__close" type="button" aria-label="Rechtliches schließen">×</button>
+			</div>
+			<div class="legal-dialog__badge">
+				<img src="img/dsa-fanprojekt-logo.png" data-source-src="img/dsa-fanprojekt-logo.png" alt="DSA-Fanprojekt-Logo" />
+				<span>Nicht-kommerzielles Fanprojekt</span>
+			</div>
+			<div class="legal-dialog__content">
+				<p><strong>Fanprojekt.</strong> Avesmaps ist ein offenes, nicht-kommerzielles Fanprojekt von Valentin Schwind. Diese Website enthält nicht-offizielle Informationen zu Das Schwarze Auge und Aventurien und kann offiziellen Publikationen widersprechen.</p>
+				<p><strong>Kartenmaterial.</strong> Die Karte basiert auf bearbeitetem offiziellem DSA-Kartenmaterial. Veröffentlichung und Bearbeitung erfolgen nach bestem Wissen im Rahmen der von Ulisses für nicht-kommerzielle Online-Nutzung bereitgestellten Lizenzbedingungen.</p>
+				<p><strong>Fanrichtlinien.</strong> Kennzeichnung als Fanprojekt und Verwendung des DSA-FANPROJEKT-Logos orientieren sich an den von Ulisses am 29.07.2011 veröffentlichten und 2019 inhaltlich überarbeiteten Fanrichtlinien. DSA-bezogenes Karten-, Bild- und Datenmaterial wird hier nicht unter Creative-Commons- oder vergleichbaren Fremdlizenzen veröffentlicht. Die Erlaubnis zur Verwendung von Bildmaterial erfolgt laut Ulisses nur bis auf Widerruf.</p>
+				<p><strong>Orts- und Wegdaten.</strong> Orts-, Kreuzungs- und Wegdaten wurden aus <a href="https://avespfade.de/" target="_blank" rel="noopener noreferrer">avespfade.de</a> teilweise abgeleitet und ergänzt. Quelle laut avespfade: Oliver Hackstein und Florian Mazur. Nach Angabe von avespfade wurden einzelne Ortspositionen teils an das Dereglobus-Projekt angelehnt.</p>
+				<p><strong>Disclaimer.</strong> Artwork © Ulisses Spiele. DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA, RIESLAND und THE DARK EYE sind eingetragene Marken der Ulisses Spiele GmbH, Waldems. Die Verwendung der Grafiken erfolgt unter den von Ulisses Spiele erlaubten Richtlinien. Eine Verwendung über diese Richtlinien hinaus darf nur nach vorheriger schriftlicher Genehmigung der Ulisses Medien und Spiel Distribution GmbH erfolgen.</p>
+				<p><strong>Markenhinweis.</strong> DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA und RIESLAND sind Marken der Significant Fantasy Medienrechte GbR. Avesmaps steht in keiner offiziellen Verbindung zu Ulisses Spiele.</p>
+				<p><strong>Quellen.</strong> <a href="https://avespfade.de/" target="_blank" rel="noopener noreferrer">avespfade.de</a> · <a href="http://www.orkenspalter.de/filebase/index.php/File/46-Aventurienkarte-aus-Regionalpl%C3%A4nen/" target="_blank" rel="noopener noreferrer">Orkenspalter Kartenmaterial</a> · <a href="https://ulisses-spiele.de/fan-richtlinie/" target="_blank" rel="noopener noreferrer">Ulisses Fan-Richtlinie</a> · <a href="https://github.com/valentin-schwind/avesmaps" target="_blank" rel="noopener noreferrer">GitHub-Repository</a></p>
+				<p class="legal-dialog__note">Hinweis: Diese Zusammenfassung dient der Quellen- und Lizenzangabe im Projekt.</p>
+			</div>
+		</div>
 	</div>
 
 	<script>
@@ -241,8 +272,11 @@
 		];
 
 		const ROUTE_STYLE = { pane: "routePane", color: "#1452F7", weight: 10, opacity: 1, interactive: false, lineCap: "round", lineJoin: "round" };
+		const SYNTHETIC_ROUTE_STYLE = { ...ROUTE_STYLE, dashArray: "14 10", opacity: 0.7 };
 		const ROUTE_NODE_STYLE = { pane: "locationsPane", fillColor: "white", color: "#000", radius: 8, weight: 2, fillOpacity: 1 };
+		const LOCATION_MARKER_STYLE = { pane: "locationsPane", fillColor: "#F52B25", color: "#7A1411", weight: 1.25, opacity: 1, fillOpacity: 0.95 };
 		const MAP_MARKER_STYLE = { pane: "locationsPane", radius: 4, fillColor: "#F52B25", color: "#000", weight: 2, opacity: 1, fillOpacity: 1 };
+		const LOCATION_SNAP_THRESHOLD = 10;
 
 		const SPEED_TABLE = {
 			groupFoot: { Reichsstrasse: 4.5, Strasse: 4.0, Weg: 3.5, Pfad: 3.0, Gebirgspass: 1.5, Wueste: 2.5 },
@@ -255,24 +289,36 @@
 			horseCarriage: { Reichsstrasse: 6.0, Strasse: 5.5, Weg: 4.5, Pfad: 3.0, Gebirgspass: 2.0, Wueste: 3.0 }
 		};
 
-		const ROUTE_EMOJIS = {
-			Reichsstrasse: "🛣️",
-			Strasse: "🛤️",
-			Gebirgspfad: "⛰️",
-			Pfad: "🥾",
-			Flussweg: "🏞️",
-			Seeweg: "⚓",
-			Weg: "🗺️",
+		const ROUTE_ICON_PATHS = {
+			Reichsstrasse: "icons/landweg.png",
+			Strasse: "icons/landweg.png",
+			Gebirgspfad: "icons/landweg.png",
+			Pfad: "icons/landweg.png",
+			Flussweg: "icons/flussweg.png",
+			Seeweg: "icons/meerweg.png",
+			Weg: "icons/landweg.png",
 		};
 
-		ROUTE_EMOJIS.Gebirgspass = ROUTE_EMOJIS.Gebirgspfad;
+		ROUTE_ICON_PATHS.Gebirgspass = ROUTE_ICON_PATHS.Gebirgspfad;
 
 		const DEFAULT_OVERVIEW_TEXT = "Wegpunkte und Dauer der Reise werden hier angezeigt.";
 		const DEFAULT_ROUTE_QUERY_PARAM = "route";
 		const ROUTE_QUERY_PARAM_ALIASES = ["route", "routes", "router"];
 		const MAX_SHARED_WAYPOINTS = 25;
+		const LOCATION_TYPE_CONFIG = {
+			metropole: { label: "Metropolen", singularLabel: "Metropole", icon: "🏛️", queryParam: "toggleMetropolen", radius: 10 },
+			grossstadt: { label: "Großstädte", singularLabel: "Großstadt", icon: "🏰", queryParam: "toggleGrossstaedte", radius: 7.5 },
+			stadt: { label: "Städte", singularLabel: "Stadt", icon: "⛪", queryParam: "toggleStaedte", radius: 6 },
+			kleinstadt: { label: "Kleinstädte", singularLabel: "Kleinstadt", icon: "🏘️", queryParam: "toggleKleinstaedte", radius: 4 },
+			dorf: { label: "Dörfer", singularLabel: "Dorf", icon: "🏡", queryParam: "toggleDoerfer", radius: 3 },
+		};
+		const LOCATION_TYPE_KEYS = Object.keys(LOCATION_TYPE_CONFIG);
 		const DEFAULT_PLANNER_STATE = {
-			toggleLocations: false,
+			toggleMetropolen: false,
+			toggleGrossstaedte: false,
+			toggleStaedte: false,
+			toggleKleinstaedte: false,
+			toggleDoerfer: false,
 			togglePaths: false,
 			toggleBorders: false,
 			pathType: "fastest",
@@ -296,8 +342,8 @@
 		let locationData = [],
 			pathData = [],
 			regionData = [],
+			syntheticPathSegments = new Map(),
 			locationMarkers = [],
-			unconnectedLocationMarkers = [],
 			pathLayers = [],
 			regionLayers = [],
 			regionPolygons = [],
@@ -328,6 +374,7 @@
 		map.createPane("roadsOutlinePane");
 		map.createPane("roadsPane");
 		map.createPane("routePane");
+		map.createPane("regionLabelsPane");
 		map.createPane("locationsPane");
 		map.createPane("labelsPane");
 
@@ -335,6 +382,7 @@
 		map.getPane("roadsOutlinePane").style.zIndex = 350;
 		map.getPane("roadsPane").style.zIndex = 400;
 		map.getPane("routePane").style.zIndex = 450;
+		map.getPane("regionLabelsPane").style.zIndex = 475;
 		map.getPane("locationsPane").style.zIndex = 500;
 		map.getPane("labelsPane").style.zIndex = 650;
 
@@ -368,9 +416,114 @@
 			isSearchPanelHidden = !isSearchPanelHidden;
 		});
 
+		function setLegalDialogOpen(isOpen) {
+			$("#legal-overlay").prop("hidden", !isOpen);
+			$("#legal-button").attr("aria-expanded", isOpen ? "true" : "false");
+			$("body").toggleClass("legal-dialog-open", isOpen);
+
+			if (isOpen) {
+				$("#legal-dialog").trigger("focus");
+			} else {
+				$("#legal-button").trigger("focus");
+			}
+		}
+
+		$("#legal-button").on("click", () => setLegalDialogOpen(true));
+		$("#legal-close").on("click", () => setLegalDialogOpen(false));
+		$("#legal-overlay").on("click", function (event) {
+			if (event.target === this) {
+				setLegalDialogOpen(false);
+			}
+		});
+		$(document).on("keydown", (event) => {
+			if (event.key === "Escape" && !$("#legal-overlay").prop("hidden")) {
+				setLegalDialogOpen(false);
+			}
+		});
+
+		function getLocationToggleButton(locationType) {
+			return $(`.location-toggle[data-location-type="${locationType}"]`);
+		}
+
+		function isLocationTypeVisible(locationType) {
+			return getLocationToggleButton(locationType).hasClass("is-active");
+		}
+
+		function syncLocationToggleButtons() {
+			LOCATION_TYPE_KEYS.forEach((locationType) => {
+				const $button = getLocationToggleButton(locationType);
+				const isActive = $button.hasClass("is-active");
+				$button
+					.toggleClass("is-inactive", !isActive)
+					.attr("aria-pressed", isActive ? "true" : "false");
+			});
+		}
+
+		function escapeHtml(value) {
+			return String(value)
+				.replace(/&/g, "&amp;")
+				.replace(/</g, "&lt;")
+				.replace(/>/g, "&gt;")
+				.replace(/"/g, "&quot;")
+				.replace(/'/g, "&#039;");
+		}
+
+		const ICON_ASSET_VERSION = "20260423-043946";
+
+		function withAssetVersion(sourcePath) {
+			if (!sourcePath) {
+				return sourcePath;
+			}
+
+			const separator = sourcePath.includes("?") ? "&" : "?";
+			return `${sourcePath}${separator}v=${ICON_ASSET_VERSION}`;
+		}
+
+		function assetIconMarkup(sourcePath, className = "route-overview-icon") {
+			const versionedSourcePath = escapeHtml(withAssetVersion(sourcePath));
+			const safeClassName = escapeHtml(className);
+			return `<img class="${safeClassName}" src="${versionedSourcePath}" alt="" />`;
+		}
+
+		function initializeVersionedAssetIcons() {
+			document.querySelectorAll("[data-source-src]").forEach((iconElement) => {
+				const sourcePath = iconElement.dataset.sourceSrc || iconElement.getAttribute("src");
+				if (!sourcePath) {
+					return;
+				}
+
+				iconElement.src = withAssetVersion(sourcePath);
+			});
+		}
+
+		function locationZoomScale(zoomLevel) {
+			const zoomScales = {
+				0: 0.45,
+				1: 0.6,
+				2: 0.78,
+				3: 1,
+				4: 1.18,
+				5: 1.36,
+			};
+			return zoomScales[zoomLevel] || 1;
+		}
+
+		function locationMarkerStyle(locationType, zoomLevel = map.getZoom()) {
+			const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
+			return {
+				...LOCATION_MARKER_STYLE,
+				radius: config.radius * locationZoomScale(zoomLevel),
+			};
+		}
+
 		function syncLocationMarkerVisibility() {
-			const showMarkers = $("#toggleLocations").is(":checked");
-			$.each(locationMarkers, (i, marker) => map[showMarkers ? "addLayer" : "removeLayer"](marker));
+			syncLocationToggleButtons();
+			const zoomLevel = map.getZoom();
+			$.each(locationMarkers, (i, entry) => {
+				const shouldShow = isLocationTypeVisible(entry.locationType);
+				entry.marker.setStyle(locationMarkerStyle(entry.locationType, zoomLevel));
+				map[shouldShow ? "addLayer" : "removeLayer"](entry.marker);
+			});
 		}
 
 		function syncPathVisibility() {
@@ -378,27 +531,41 @@
 			$.each(pathLayers, (i, layer) => map[showPaths ? "addLayer" : "removeLayer"](layer));
 		}
 
-		function syncBorderVisibility() {
-			const showBorders = $("#toggleBorders").is(":checked");
+		function syncRegionVisibility() {
+			const showRegions = $("#toggleBorders").is(":checked");
 
 			regionPolygons.forEach((layer) => {
-				if (showBorders) {
+				if (showRegions) {
 					map.addLayer(layer);
 				} else {
 					map.removeLayer(layer);
 				}
 			});
+
+			regionLabels.forEach((label) => {
+				if (showRegions) {
+					map.addLayer(label);
+				} else {
+					map.removeLayer(label);
+				}
+			});
 		}
 
 		function applyDisplayOptions() {
+			syncLocationToggleButtons();
 			syncLocationMarkerVisibility();
 			syncPathVisibility();
-			syncBorderVisibility();
+			syncRegionVisibility();
 		}
 
-		$("#toggleLocations").change(syncLocationMarkerVisibility);
+		$(".location-toggle").on("click", function () {
+			$(this).toggleClass("is-active");
+			syncLocationMarkerVisibility();
+			syncPlannerStateToUrl();
+		});
+		initializeVersionedAssetIcons();
 		$("#togglePaths").change(syncPathVisibility);
-		$("#toggleBorders").change(syncBorderVisibility);
+		$("#toggleBorders").change(syncRegionVisibility);
 
 		function isCrossingName(name) {
 			return typeof name === "string" && /^Kreuzung(?:-\d+)?$/i.test(name);
@@ -462,11 +629,6 @@
 
 		function resetOverview() {
 			$("#overview").html(DEFAULT_OVERVIEW_TEXT);
-		}
-
-		function clearUnconnectedLocationMarkers() {
-			$.each(unconnectedLocationMarkers, (i, marker) => map.removeLayer(marker));
-			unconnectedLocationMarkers = [];
 		}
 
 		function resetRoutePresentation() {
@@ -539,8 +701,16 @@
 			const landTransport = searchParams.get("landTransport");
 			const riverTransport = searchParams.get("riverTransport");
 			const seaTransport = searchParams.get("seaTransport");
+			const legacyLocationToggle = searchParams.has("toggleLocations")
+				? parseBooleanQueryParam(searchParams.get("toggleLocations"), false)
+				: null;
 
-			$("#toggleLocations").prop("checked", parseBooleanQueryParam(searchParams.get("toggleLocations"), DEFAULT_PLANNER_STATE.toggleLocations));
+			LOCATION_TYPE_KEYS.forEach((locationType) => {
+				const config = LOCATION_TYPE_CONFIG[locationType];
+				const fallback = legacyLocationToggle ?? DEFAULT_PLANNER_STATE[config.queryParam];
+				getLocationToggleButton(locationType).toggleClass("is-active", parseBooleanQueryParam(searchParams.get(config.queryParam), fallback));
+			});
+			syncLocationToggleButtons();
 			$("#togglePaths").prop("checked", parseBooleanQueryParam(searchParams.get("togglePaths"), DEFAULT_PLANNER_STATE.togglePaths));
 			$("#toggleBorders").prop("checked", parseBooleanQueryParam(searchParams.get("toggleBorders"), DEFAULT_PLANNER_STATE.toggleBorders));
 
@@ -580,9 +750,13 @@
 
 			waypointNames.forEach((waypointName) => searchParams.append(DEFAULT_ROUTE_QUERY_PARAM, waypointName));
 
-			if ($("#toggleLocations").is(":checked") !== DEFAULT_PLANNER_STATE.toggleLocations) {
-				searchParams.set("toggleLocations", $("#toggleLocations").is(":checked") ? "1" : "0");
-			}
+			LOCATION_TYPE_KEYS.forEach((locationType) => {
+				const config = LOCATION_TYPE_CONFIG[locationType];
+				const isVisible = isLocationTypeVisible(locationType);
+				if (isVisible !== DEFAULT_PLANNER_STATE[config.queryParam]) {
+					searchParams.set(config.queryParam, isVisible ? "1" : "0");
+				}
+			});
 
 			if ($("#togglePaths").is(":checked") !== DEFAULT_PLANNER_STATE.togglePaths) {
 				searchParams.set("togglePaths", $("#togglePaths").is(":checked") ? "1" : "0");
@@ -667,6 +841,44 @@
 			console.warn("Ungültiger Name in normalizeNodeName:", name);
 			return name || "";
 		};
+
+		function addGraphConnection(graph, fromName, toName, connection) {
+			graph[fromName][toName] = graph[fromName][toName] || [];
+			graph[fromName][toName].push(connection);
+		}
+
+		function getLocationAtPathEndpoint([x, y]) {
+			return locationData.find(({ coordinates: [lat, lng] }) => Math.abs(lat - y) < THRESHOLD && Math.abs(lng - x) < THRESHOLD) || null;
+		}
+
+		function getLocationDistance(firstLocation, secondLocation) {
+			const [firstLat, firstLng] = firstLocation.coordinates;
+			const [secondLat, secondLng] = secondLocation.coordinates;
+			return Math.hypot(secondLng - firstLng, secondLat - firstLat);
+		}
+
+		function getPreferredSnapRouteType(graph, nodeName) {
+			const connections = Object.values(graph[nodeName] || {}).flat();
+			return connections[0]?.routeType || "Pfad";
+		}
+
+		function buildSyntheticPathSegment(fromLocation, toLocation, connectionId, routeType) {
+			return {
+				type: "Feature",
+				geometry: {
+					type: "LineString",
+					coordinates: [
+						[fromLocation.coordinates[1], fromLocation.coordinates[0]],
+						[toLocation.coordinates[1], toLocation.coordinates[0]],
+					],
+				},
+				properties: {
+					id: connectionId,
+					name: `${routeType}-synthetic`,
+					synthetic: true,
+				},
+			};
+		}
 
 		// Verarbeitung der Pfade (GeoJSON LineStrings)
 		const preparePathData = (data) => {
@@ -770,7 +982,7 @@
 							offset: [0, 0],
 							opacity: 1,
 							className: "region-label",
-							pane: "labelsPane"
+							pane: "regionLabelsPane"
 						})
 							.setLatLng(center)
 							.setContent(name);
@@ -794,54 +1006,65 @@
 			return days * 24;
 		}
 
+		function normalizeLocationType(value) {
+			return LOCATION_TYPE_KEYS.includes(value) ? value : "dorf";
+		}
+
+		function locationTypeFromProperties(properties) {
+			const settlementClass = properties?.settlement_class;
+			if (settlementClass) {
+				return normalizeLocationType(settlementClass);
+			}
+
+			const placeTypeMap = {
+				m: "metropole",
+				gs: "grossstadt",
+				s: "stadt",
+				ks: "kleinstadt",
+				sz: "dorf",
+				d: "dorf",
+			};
+			return normalizeLocationType(placeTypeMap[String(properties?.["data-place-type"] || "d").toLowerCase()]);
+		}
+
 		// Verarbeitung der Locations (GeoJSON Points)
 		const prepareLocationData = (data) => {
 			let crossingCount = 1;
+			locationMarkers = [];
 			locationData = data.features
 				.filter((feature) => feature.geometry.type === "Point" && feature.properties?.name)
-				.map((feature) => ({
-					name: feature.properties.name.startsWith("Kreuzung") ? `Kreuzung-${crossingCount++}` : feature.properties.name,
-					coordinates: [feature.geometry.coordinates[1], feature.geometry.coordinates[0]],
-				}));
+				.map((feature) => {
+					const isCrossing = feature.properties.name.startsWith("Kreuzung");
+					const locationType = isCrossing ? null : locationTypeFromProperties(feature.properties);
+					const locationConfig = locationType ? LOCATION_TYPE_CONFIG[locationType] : null;
+					return {
+						name: isCrossing ? `Kreuzung-${crossingCount++}` : feature.properties.name,
+						coordinates: [feature.geometry.coordinates[1], feature.geometry.coordinates[0]],
+						locationType,
+						locationTypeLabel: feature.properties.settlement_class_label || locationConfig?.singularLabel || "Dorf",
+					};
+				});
 			locationData
 				.filter(({ name }) => !isCrossingName(name))
-				.forEach(({ name, coordinates }) => {
-					const marker = L.circleMarker(coordinates, MAP_MARKER_STYLE).bindPopup(
-						`<div style="background: #fff; color: #000; border: 0; border-radius: 5px; margin: 0; font-size: 16px; padding: 0 10px; font-weight: bold;">Hier ist: ${name}</div>`
+				.forEach(({ name, coordinates, locationType, locationTypeLabel }) => {
+					const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
+					const marker = L.circleMarker(coordinates, locationMarkerStyle(locationType)).bindPopup(
+						`<div style="background: #fff; color: #000; border: 0; border-radius: 5px; margin: 0; font-size: 16px; padding: 0 10px; font-weight: bold;">${config.icon} ${escapeHtml(name)}<br><span style="font-size: 12px;">${escapeHtml(locationTypeLabel)}</span></div>`
 					);
-					locationMarkers.push(marker);
+					locationMarkers.push({ marker, locationType, name });
 				});
 			syncLocationMarkerVisibility();
-			// Anpassung der Marker-Größe bei Zoomänderung
-			const zoomStyles = {
-				5: { radius: 16, weight: 4 },
-				4: { radius: 8, weight: 2 },
-				3: { radius: 4, weight: 1 },
-				2: { radius: 2, weight: 0.75 },
-				1: { radius: 1, weight: 0.5 },
-			};
-			map.on("zoomend", () => {
-				const zoom = map.getZoom();
-				$.each(locationMarkers, (i, marker) => {
-					if (zoom <= -1 || !$("#toggleLocations").is(":checked")) {
-						map.removeLayer(marker);
-					} else {
-						if (!map.hasLayer(marker)) map.addLayer(marker);
-						const { radius, weight } = zoomStyles[zoom] || { radius: 0, weight: 0 };
-						marker.setStyle({ radius, weight });
-					}
-				});
-			});
+			map.off("zoomend", syncLocationMarkerVisibility);
+			map.on("zoomend", syncLocationMarkerVisibility);
 		};
 
 		// Laden und Verarbeiten der GeoJSON-Daten (mit Skript konvertiert aus der SVG)
-		$.getJSON("map/aventurien_routes.geojson")
+		$.getJSON("map/Aventurien_routes_hybrid.geojson")
 			.done((data) => {
 				prepareLocationData(data);
 				preparePathData(data);
 				prepareRegionData(data);
 
-				regionLabels.forEach(label => label.addTo(map));
 
 				// Waypoint hinzufügen
 				$("#inputLocation").on("click", function () {
@@ -968,14 +1191,13 @@
 
 		// Erzeugt einen gewichteten Graphen aus den Locations und Pfaden
 		function createGraph() {
-			clearUnconnectedLocationMarkers();
+			syntheticPathSegments.clear();
 			const graph = locationData.reduce((acc, loc) => ({ ...acc, [loc.name]: {} }), {});
 			pathData.forEach(({ geometry: { coordinates }, properties }) => {
-				const [startX, startY] = coordinates[0],
-					[endX, endY] = coordinates[coordinates.length - 1];
-				const startNode = locationData.find(({ coordinates: [lat, lng] }) => Math.abs(lat - startY) < THRESHOLD && Math.abs(lng - startX) < THRESHOLD);
-				const endNode = locationData.find(({ coordinates: [lat, lng] }) => Math.abs(lat - endY) < THRESHOLD && Math.abs(lng - endX) < THRESHOLD);
+				const startNode = getLocationAtPathEndpoint(coordinates[0]);
+				const endNode = getLocationAtPathEndpoint(coordinates[coordinates.length - 1]);
 				if (startNode && endNode) {
+					const [[startX, startY], [endX, endY]] = [coordinates[0], coordinates[coordinates.length - 1]];
 					const distance = Math.hypot(endX - startX, endY - startY),
 						routeType = normalizePathName(properties?.name),
 						transportOption = getTransportOption(routeType);
@@ -989,22 +1211,57 @@
 						return;
 					}
 					const connection = { distance, time: distance / speed, routeType, id: properties.id };
-					graph[startNode.name][endNode.name] = graph[startNode.name][endNode.name] || [];
-					graph[startNode.name][endNode.name].push(connection);
-					graph[endNode.name][startNode.name] = graph[endNode.name][startNode.name] || [];
-					graph[endNode.name][startNode.name].push(connection);
+					addGraphConnection(graph, startNode.name, endNode.name, connection);
+					addGraphConnection(graph, endNode.name, startNode.name, connection);
 				}
 			});
-			Object.keys(graph).forEach((locName) => {
-				if (!Object.keys(graph[locName]).length) {
-					console.log(`Location ${locName} ist nicht verbunden.`);
-					const unconnectedLoc = locationData.find((loc) => loc.name === locName);
-					if (unconnectedLoc) {
-						const unconnectedMarker = L.circleMarker(unconnectedLoc.coordinates, { pane: "locationsPane", color: "red", radius: 10, fillOpacity: 0.5, interactive: false }).addTo(map);
-						unconnectedLocationMarkers.push(unconnectedMarker);
+			const connectedLocations = locationData.filter((loc) => Object.keys(graph[loc.name]).length);
+			locationData.forEach((loc) => {
+				if (Object.keys(graph[loc.name]).length) {
+					return;
+				}
+
+				let nearestConnectedLocation = null;
+				let shortestDistance = Infinity;
+
+				connectedLocations.forEach((candidate) => {
+					const distance = getLocationDistance(loc, candidate);
+					if (distance < shortestDistance) {
+						shortestDistance = distance;
+						nearestConnectedLocation = candidate;
 					}
+				});
+
+				if (!nearestConnectedLocation || shortestDistance > LOCATION_SNAP_THRESHOLD) {
+					return;
 				}
+
+				const routeType = getPreferredSnapRouteType(graph, nearestConnectedLocation.name);
+				const transportOption = getTransportOption(routeType);
+				const speed = SPEED_TABLE[transportOption]?.[routeType];
+
+				if (!transportOption || !speed) {
+					return;
+				}
+
+				const connectionId = `synthetic-${loc.name}->${nearestConnectedLocation.name}`;
+				const connection = {
+					distance: shortestDistance,
+					time: shortestDistance / speed,
+					routeType,
+					id: connectionId,
+					synthetic: true,
+				};
+
+				addGraphConnection(graph, loc.name, nearestConnectedLocation.name, connection);
+				addGraphConnection(graph, nearestConnectedLocation.name, loc.name, connection);
+				syntheticPathSegments.set(connectionId, buildSyntheticPathSegment(loc, nearestConnectedLocation, connectionId, routeType));
 			});
+
+			const unconnectedNames = Object.keys(graph).filter((locName) => !Object.keys(graph[locName]).length);
+			if (unconnectedNames.length) {
+				console.warn(`${unconnectedNames.length} Locations sind nicht verbunden:\n${unconnectedNames.join("\n")}`);
+			}
 			return graph;
 		}
 
@@ -1017,7 +1274,8 @@
 			segments.forEach((segment) => {
 				const segCoords = (segment.geometry?.coordinates || []).map(([x, y]) => [y, x]);
 				if (segCoords.length) {
-					const segLayer = L.polyline(segCoords, ROUTE_STYLE).addTo(map);
+					const routeStyle = segment.properties?.synthetic ? SYNTHETIC_ROUTE_STYLE : ROUTE_STYLE;
+					const segLayer = L.polyline(segCoords, routeStyle).addTo(map);
 					currentRouteLayer = currentRouteLayer ? currentRouteLayer.addLayer(segLayer) : L.layerGroup([segLayer]);
 				} else {
 					console.warn("Ungültige Segmentkoordinaten:", segment.geometry);
@@ -1037,7 +1295,7 @@
 		function getRouteSegments(route) {
 			return route
 				.map(({ connectionId }) => {
-					const segment = pathData.find((p) => p.properties.id === connectionId);
+					const segment = pathData.find((p) => p.properties.id === connectionId) || syntheticPathSegments.get(connectionId);
 					if (!segment) console.warn(`Kein Segment gefunden für Verbindung ${connectionId}`);
 					return segment;
 				})
@@ -1154,11 +1412,11 @@
 				$overview.append(`
 					<p>
 					${["Seeweg", "Flussweg"].includes(type)
-						? `${ROUTE_EMOJIS[type] || ROUTE_EMOJIS["Weg"]} ${type}
+						? `${assetIconMarkup(ROUTE_ICON_PATHS[type] || ROUTE_ICON_PATHS["Weg"])} ${type}
 						(${segDistance.toFixed(2)} Meilen)
 						bis <strong>${endName === "Kreuzung" ? "Markierung" : endName}</strong>
 						in ${segTravelTime.toFixed(2)} Stunden`
-						: `${ROUTE_EMOJIS[type] || ROUTE_EMOJIS["Weg"]} ${type}
+						: `${assetIconMarkup(ROUTE_ICON_PATHS[type] || ROUTE_ICON_PATHS["Weg"])} ${type}
 						(${segDistance.toFixed(2)} Meilen)
 						von <strong>${startName}</strong>
 						bis <strong>${endName}</strong>
