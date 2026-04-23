@@ -522,6 +522,10 @@
 			return wikiLocationLinks[name] || null;
 		}
 
+		function escapeRegExp(value) {
+			return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+		}
+
 		function wikiLocationLinkMarkup(name) {
 			const wikiLocationLink = getWikiLocationLink(name);
 
@@ -545,24 +549,55 @@
 			return `<img class="location-popup__icon" src="${escapeHtml(withAssetVersion(iconPath))}" alt="${escapeHtml(altText)}" />`;
 		}
 
-		function locationDescriptionMarkup(name, locationTypeLabel) {
+		function getLocationDescriptionText(name) {
 			const wikiLocationLink = getWikiLocationLink(name);
-			const description = wikiLocationLink?.description || `${name} ist in Avesmaps als ${locationTypeLabel} erfasst.`;
+			const rawDescription = (wikiLocationLink?.description || "").trim();
+
+			if (!rawDescription) {
+				return "";
+			}
+
+			const prefixPattern = new RegExp(`^${escapeRegExp(name)}\\s+ist\\s+`, "i");
+			let normalizedDescription = rawDescription.replace(prefixPattern, "");
+
+			normalizedDescription = normalizedDescription.replace(/^(ein|eine)\s+/i, "");
+
+			if (/^in Avesmaps als\s+/i.test(normalizedDescription)) {
+				return "";
+			}
+
+			return normalizedDescription.charAt(0).toUpperCase() + normalizedDescription.slice(1);
+		}
+
+		function locationDescriptionMarkup(name) {
+			const description = getLocationDescriptionText(name);
+
+			if (!description) {
+				return "";
+			}
+
 			return `<div class="location-popup__description">${escapeHtml(description)}</div>`;
 		}
 
-		function locationPopupMarkup({ name, locationType, locationTypeLabel }) {
+		function locationPopupMarkup({
+			name,
+			locationType,
+			locationTypeLabel,
+			showType = false,
+			showDescription = true,
+			showWikiLink = true,
+		}) {
 			return `
 				<div class="location-popup">
 					<div class="location-popup__header">
 						${locationIconMarkup(locationType, locationTypeLabel)}
 						<div>
 							<div class="location-popup__name">${escapeHtml(name)}</div>
-							<div class="location-popup__type">${escapeHtml(locationTypeLabel)}</div>
+							${showType ? `<div class="location-popup__type">${escapeHtml(locationTypeLabel)}</div>` : ""}
 						</div>
 					</div>
-					${locationDescriptionMarkup(name, locationTypeLabel)}
-					${wikiLocationLinkMarkup(name)}
+					${showDescription ? locationDescriptionMarkup(name) : ""}
+					${showWikiLink ? wikiLocationLinkMarkup(name) : ""}
 				</div>`;
 		}
 
@@ -1941,7 +1976,13 @@
 				className: "location-tooltip",
 			})
 				.setLatLng(coordinates)
-				.setContent(locationPopupMarkup({ name, locationType, locationTypeLabel }))
+				.setContent(locationPopupMarkup({
+					name,
+					locationType,
+					locationTypeLabel,
+					showDescription: false,
+					showWikiLink: false,
+				}))
 				.addTo(map);
 			activeTooltips.push(tooltip);
 		};
