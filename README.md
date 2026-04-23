@@ -36,8 +36,8 @@ Die Anwendung ist bewusst einfach gehalten:
 
 - `index.html` enthaelt den groessten Teil der Logik fuer Karte, Datenverarbeitung und Routenplanung
 - `tiles/` enthaelt die Kartenkacheln
-- `map/Aventurien_routes_hybrid.geojson` enthaelt Orte und Wege fuer die Routenplanung
-- `map/Aventurien_routes_hybrid.svg` ist die editierbare SVG-Quelle fuer die Geodaten
+- `map/Aventurien_routes.geojson` enthaelt Orte und Wege fuer die Routenplanung
+- `map/Aventurien_routes.svg` ist die editierbare SVG-Quelle fuer die Geodaten
 - `map/svg_to_geojson.py` konvertiert die SVG in die GeoJSON-Datei
 - `css/`, `js/` und `fonts/` enthalten alle benoetigten Assets lokal im Repository
 
@@ -90,15 +90,15 @@ SVG-Grundlage in die von der Anwendung verwendete GeoJSON-Datei.
 
 Die relevanten Dateien liegen im Ordner `map/`:
 
-- Eingabe: `map/Aventurien_routes_hybrid.svg`
-- Ausgabe: `map/Aventurien_routes_hybrid.geojson`
+- Eingabe: `map/Aventurien_routes.svg`
+- Ausgabe: `map/Aventurien_routes.geojson`
 
 ### Ausfuehrung
 
 Im Projektverzeichnis:
 
 ```bash
-python map/svg_to_geojson.py map/Aventurien_routes_hybrid.svg --output map/Aventurien_routes_hybrid.geojson
+python map/svg_to_geojson.py map/Aventurien_routes.svg --output map/Aventurien_routes.geojson
 ```
 
 ### Was das Skript macht
@@ -117,7 +117,7 @@ Es werden fuer die Konvertierung **keine externen Services** benoetigt.
 ## Hinweise zur Datenpflege
 
 - Die SVG ist die fachliche Quelle fuer Orte, Wege und Regionen.
-- In `map/Aventurien_routes_hybrid.svg` liegt die editierbare Karte.
+- In `map/Aventurien_routes.svg` liegt die editierbare Karte.
 - Die SVG wurde in **Inkscape** erstellt und sollte auch dort gepflegt werden.
 - Nach Aenderungen an der SVG sollte die GeoJSON-Datei neu erzeugt werden.
 - Danach kann der aktualisierte Stand direkt ueber den statischen Webserver

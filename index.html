@@ -1059,7 +1059,7 @@
 		};
 
 		// Laden und Verarbeiten der GeoJSON-Daten (mit Skript konvertiert aus der SVG)
-		$.getJSON("map/Aventurien_routes_hybrid.geojson")
+		$.getJSON("map/Aventurien_routes.geojson")
 			.done((data) => {
 				prepareLocationData(data);
 				preparePathData(data);
@@ -1452,14 +1452,18 @@
 
 		}
 		// Validiert einen Ortsnamen anhand der geladenen Locations
+		const normalizeLocationSearchName = (name) => {
+			return typeof name === "string" ? name.normalize("NFC").trim().toLowerCase() : "";
+		};
+
 		const validateLocation = (name) => {
-			const normalizedName = typeof name === "string" ? name.trim().toLowerCase() : "";
+			const normalizedName = normalizeLocationSearchName(name);
 
 			if (!normalizedName) {
 				return null;
 			}
 
-			return locationData.find((loc) => loc.name.toLowerCase() === normalizedName) || null;
+			return locationData.find((loc) => normalizeLocationSearchName(loc.name) === normalizedName) || null;
 		};
 
 		// Fügt einen Tooltip zu einem Waypoint hinzu

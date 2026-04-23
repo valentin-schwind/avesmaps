@@ -34,7 +34,25 @@ PATH_PARAM_COUNT = {
     "Z": 0,
 }
 
-POINT_LAYERS = {"Orte", "Kreuzungen"}
+SETTLEMENT_LAYERS = {
+    "Metropolen": {"class": "metropole", "label": "Metropole", "icon": "🏛️"},
+    "Großstädte": {"class": "grossstadt", "label": "Großstadt", "icon": "🏰"},
+    "Städte": {"class": "stadt", "label": "Stadt", "icon": "⛪"},
+    "Kleinstädte": {"class": "kleinstadt", "label": "Kleinstadt", "icon": "🏘️"},
+    "Dörfer": {"class": "dorf", "label": "Dorf", "icon": "🏡"},
+}
+PLACE_TYPE_TO_SETTLEMENT_CLASS = {
+    "m": "metropole",
+    "gs": "grossstadt",
+    "s": "stadt",
+    "ks": "kleinstadt",
+    "sz": "dorf",
+    "d": "dorf",
+}
+SETTLEMENT_CLASS_METADATA = {
+    metadata["class"]: metadata for metadata in SETTLEMENT_LAYERS.values()
+}
+POINT_LAYERS = {"Orte", "Kreuzungen", *SETTLEMENT_LAYERS}
 REGION_LAYER = "Regionen"
 ROUTE_LAYER_PREFIXES = {
     "Pfade": "Pfad",
@@ -89,7 +107,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Konvertiert strukturierte SVG-Karten in ein avesmaps-kompatibles GeoJSON."
     )
-    parser.add_argument("svg_file", help="Eingabe-SVG, z. B. Aventurien_routes_hybrid.svg")
+    parser.add_argument("svg_file", help="Eingabe-SVG, z. B. Aventurien_routes.svg")
     parser.add_argument(
         "--output",
         "-o",
@@ -195,14 +213,28 @@ def parse_style_map(style_value: Optional[str]) -> Dict[str, str]:
     return style_map
 
 
+def clean_label_value(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+
+    cleaned_value = value.strip()
+    return cleaned_value or None
+
+
 def feature_label(element: ET.Element) -> str:
-    return (
-        element.get(ATTR_INKSCAPE_LABEL)
-        or element.get("data-item-label")
-        or element.get("data-place-name")
-        or element.get("id")
-        or "Unknown"
+    label_candidates = (
+        element.get("data-place-name"),
+        element.get("data-item-label"),
+        element.get(ATTR_INKSCAPE_LABEL),
+        element.get("id"),
     )
+
+    for label_candidate in label_candidates:
+        cleaned_label = clean_label_value(label_candidate)
+        if cleaned_label:
+            return cleaned_label
+
+    return "Unknown"
 
 
 def extract_common_properties(element: ET.Element, layer_name: Optional[str], svg_tag: str, label: str) -> Dict[str, object]:
@@ -226,7 +258,25 @@ def extract_common_properties(element: ET.Element, layer_name: Optional[str], sv
 def build_location_properties(element: ET.Element, layer_name: Optional[str], label: str) -> Dict[str, object]:
     properties = extract_common_properties(element, layer_name, local_name(element.tag), label)
     properties["type"] = "location"
+    if is_settlement_layer(layer_name):
+        settlement_metadata = settlement_metadata_for_point(layer_name, properties)
+        properties["settlement_class"] = settlement_metadata["class"]
+        properties["settlement_class_label"] = settlement_metadata["label"]
+        properties["settlement_icon"] = settlement_metadata["icon"]
     return properties
+
+
+def is_settlement_layer(layer_name: Optional[str]) -> bool:
+    return layer_name == "Orte" or layer_name in SETTLEMENT_LAYERS
+
+
+def settlement_metadata_for_point(layer_name: Optional[str], properties: Dict[str, object]) -> Dict[str, str]:
+    if layer_name in SETTLEMENT_LAYERS:
+        return SETTLEMENT_LAYERS[layer_name]
+
+    place_type = str(properties.get("data-place-type") or "").strip().lower()
+    settlement_class = PLACE_TYPE_TO_SETTLEMENT_CLASS.get(place_type, "dorf")
+    return SETTLEMENT_CLASS_METADATA[settlement_class]
 
 
 def extract_round_shape_geometry(element: ET.Element) -> Optional[Coordinate]:
@@ -537,7 +587,7 @@ def duplicate_place_names(features: Iterable[Dict[str, object]]) -> Dict[str, Li
         properties = feature.get("properties", {})
         if geometry.get("type") != "Point":
             continue
-        if properties.get("layer") != "Orte":
+        if not is_settlement_layer(str(properties.get("layer") or "")):
             continue
 
         name = str(properties.get("name") or "").strip()
@@ -793,15 +843,40 @@ def default_output_path(svg_file: Path) -> Path:
     return svg_file.with_suffix(".geojson")
 
 
+def resolve_svg_path(raw_svg_path: str) -> Path:
+    svg_path = Path(raw_svg_path)
+    cwd_path = svg_path.resolve()
+    if cwd_path.exists():
+        return cwd_path
+
+    if svg_path.parent == Path("."):
+        script_path = Path(__file__).resolve().parent / svg_path
+        if script_path.exists():
+            return script_path
+
+    return cwd_path
+
+
+def resolve_output_path(raw_output_path: Optional[str], svg_file: Path) -> Path:
+    if raw_output_path is None:
+        return default_output_path(svg_file)
+
+    output_path = Path(raw_output_path)
+    if output_path.parent == Path("."):
+        return svg_file.parent / output_path.name
+
+    return output_path.resolve()
+
+
 def main() -> int:
     args = parse_args()
     setup_logging(args.log_level)
 
-    svg_file = Path(args.svg_file).resolve()
+    svg_file = resolve_svg_path(args.svg_file)
     if not svg_file.exists():
         raise FileNotFoundError(f"SVG-Datei nicht gefunden: {svg_file}")
 
-    output_path = Path(args.output).resolve() if args.output else default_output_path(svg_file)
+    output_path = resolve_output_path(args.output, svg_file)
     svg_to_geojson(
         svg_file=svg_file,
         geojson_file=output_path,

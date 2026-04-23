@@ -24,6 +24,15 @@ Quellen:
 - Kartenmaterial:
   http://www.orkenspalter.de/filebase/index.php/File/46-Aventurienkarte-aus-Regionalplänen/
 
+## Schriftarten
+
+Die lokal eingebundene Schriftart Faculty Glyphic wird unter der SIL Open Font
+License, Version 1.1, mitverteilt.
+
+- Copyright 2024 The Faculty Glyphic Project Authors
+- Lizenztext: `fonts/OFL-FacultyGlyphic.txt`
+- Quelle: https://github.com/google/fonts/tree/main/ofl/facultyglyphic
+
 ## Ulisses-Fanrichtlinien
 
 Kennzeichnung als Fanprojekt und Verwendung des DSA-FANPROJEKT-Logos
