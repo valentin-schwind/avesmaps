@@ -490,6 +490,13 @@ body.legal-dialog-open {
 	gap: 8px;
 }
 
+.location-popup__title-group {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	min-height: 28px;
+}
+
 .location-popup__icon {
 	width: 28px;
 	height: 28px;
@@ -549,6 +556,20 @@ body.legal-dialog-open {
 
 .location-tooltip .location-popup {
 	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.location-tooltip .location-popup--compact {
+	padding-top: 6px;
+	padding-bottom: 6px;
+}
+
+.location-tooltip .location-popup--compact .location-popup__title-group {
+	flex-direction: row;
+	align-items: center;
+}
+
+.location-tooltip .location-popup--compact .location-popup__name {
+	line-height: 1.1;
 }
 
 #overview {

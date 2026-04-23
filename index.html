@@ -583,15 +583,17 @@
 			name,
 			locationType,
 			locationTypeLabel,
+			compact = false,
 			showType = false,
 			showDescription = true,
 			showWikiLink = true,
 		}) {
+			const popupClassName = compact ? "location-popup location-popup--compact" : "location-popup";
 			return `
-				<div class="location-popup">
+				<div class="${popupClassName}">
 					<div class="location-popup__header">
 						${locationIconMarkup(locationType, locationTypeLabel)}
-						<div>
+						<div class="location-popup__title-group">
 							<div class="location-popup__name">${escapeHtml(name)}</div>
 							${showType ? `<div class="location-popup__type">${escapeHtml(locationTypeLabel)}</div>` : ""}
 						</div>
@@ -1980,6 +1982,7 @@
 					name,
 					locationType,
 					locationTypeLabel,
+					compact: true,
 					showDescription: false,
 					showWikiLink: false,
 				}))
