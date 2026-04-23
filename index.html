@@ -1969,7 +1969,37 @@
 		};
 
 		// Fügt einen Tooltip zu einem Waypoint hinzu
-		const addTooltip = ({ name, coordinates, locationType, locationTypeLabel }) => {
+		const addTooltip = ({
+			name,
+			coordinates,
+			locationType,
+			locationTypeLabel,
+		}, {
+			compact = true,
+			showDescription = false,
+			showWikiLink = false,
+		} = {}) => {
+			const popupContent = locationPopupMarkup({
+				name,
+				locationType,
+				locationTypeLabel,
+				compact,
+				showDescription,
+				showWikiLink,
+			});
+
+			if (showDescription || showWikiLink) {
+				const popup = L.popup({
+					autoClose: false,
+					closeOnClick: false,
+				})
+					.setLatLng(coordinates)
+					.setContent(popupContent)
+					.addTo(map);
+				activeTooltips.push(popup);
+				return;
+			}
+
 			const tooltip = L.tooltip({
 				permanent: false,
 				direction: "top",
@@ -1978,14 +2008,7 @@
 				className: "location-tooltip",
 			})
 				.setLatLng(coordinates)
-				.setContent(locationPopupMarkup({
-					name,
-					locationType,
-					locationTypeLabel,
-					compact: true,
-					showDescription: false,
-					showWikiLink: false,
-				}))
+				.setContent(popupContent)
 				.addTo(map);
 			activeTooltips.push(tooltip);
 		};
@@ -2025,12 +2048,20 @@
 
 				const loc = validateLocation(inputVal);
 				if (loc) {
-					addTooltip(loc);
 					selectedLocations.push(loc);
 				} else {
 					invalidLocationInputs.push(inputVal);
 					highlightError($(this));
 				}
+			});
+
+			const showFullTooltip = selectedLocations.length === 1;
+			selectedLocations.forEach((loc) => {
+				addTooltip(loc, {
+					compact: !showFullTooltip,
+					showDescription: showFullTooltip,
+					showWikiLink: showFullTooltip,
+				});
 			});
 
 			console.log("Ausgewählte Locations:", selectedLocations);
