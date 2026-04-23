@@ -334,6 +334,13 @@
 			kleinstadt: { label: "Kleinstädte", singularLabel: "Kleinstadt", icon: "🏘️", queryParam: "toggleKleinstaedte", radius: 4 },
 			dorf: { label: "Dörfer", singularLabel: "Dorf", icon: "🏡", queryParam: "toggleDoerfer", radius: 3 },
 		};
+		const LOCATION_ICON_PATHS = {
+			metropole: "icons/metropole.png",
+			grossstadt: "icons/grossstadt.png",
+			stadt: "icons/stadt.png",
+			kleinstadt: "icons/kleinstadt.png",
+			dorf: "icons/dorf.png",
+		};
 		const LOCATION_TYPE_KEYS = Object.keys(LOCATION_TYPE_CONFIG);
 		const DEFAULT_PLANNER_STATE = {
 			toggleMetropolen: false,
@@ -382,6 +389,7 @@
 
 		// Globale Variablen 
 		let locationData = [],
+			wikiLocationLinks = {},
 			pathData = [],
 			regionData = [],
 			syntheticPathSegments = new Map(),
@@ -508,6 +516,54 @@
 				.replace(/>/g, "&gt;")
 				.replace(/"/g, "&quot;")
 				.replace(/'/g, "&#039;");
+		}
+
+		function getWikiLocationLink(name) {
+			return wikiLocationLinks[name] || null;
+		}
+
+		function wikiLocationLinkMarkup(name) {
+			const wikiLocationLink = getWikiLocationLink(name);
+
+			if (!wikiLocationLink?.url) {
+				return "";
+			}
+
+			const wikiTitle = wikiLocationLink.title || name;
+			const linkText = `${name} im Wiki Aventurica`;
+			const titleText = wikiTitle === name ? linkText : `${linkText}: ${wikiTitle}`;
+			return `
+				<a class="location-popup__wiki-link" href="${escapeHtml(wikiLocationLink.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(titleText)}">
+					${escapeHtml(linkText)}
+					<span class="location-popup__link-icon" aria-hidden="true">&#8599;</span>
+				</a>`;
+		}
+
+		function locationIconMarkup(locationType, locationTypeLabel) {
+			const iconPath = LOCATION_ICON_PATHS[locationType] || LOCATION_ICON_PATHS.dorf;
+			const altText = `${locationTypeLabel}-Icon`;
+			return `<img class="location-popup__icon" src="${escapeHtml(withAssetVersion(iconPath))}" alt="${escapeHtml(altText)}" />`;
+		}
+
+		function locationDescriptionMarkup(name, locationTypeLabel) {
+			const wikiLocationLink = getWikiLocationLink(name);
+			const description = wikiLocationLink?.description || `${name} ist in Avesmaps als ${locationTypeLabel} erfasst.`;
+			return `<div class="location-popup__description">${escapeHtml(description)}</div>`;
+		}
+
+		function locationPopupMarkup({ name, locationType, locationTypeLabel }) {
+			return `
+				<div class="location-popup">
+					<div class="location-popup__header">
+						${locationIconMarkup(locationType, locationTypeLabel)}
+						<div>
+							<div class="location-popup__name">${escapeHtml(name)}</div>
+							<div class="location-popup__type">${escapeHtml(locationTypeLabel)}</div>
+						</div>
+					</div>
+					${locationDescriptionMarkup(name, locationTypeLabel)}
+					${wikiLocationLinkMarkup(name)}
+				</div>`;
 		}
 
 		const ICON_ASSET_VERSION = "20260423-142011";
@@ -1354,9 +1410,8 @@
 			locationData
 				.filter(({ name }) => !isCrossingName(name))
 				.forEach(({ name, coordinates, locationType, locationTypeLabel }) => {
-					const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
 					const marker = L.circleMarker(coordinates, locationMarkerStyle(locationType)).bindPopup(
-						`<div style="background: #fff; color: #000; border: 0; border-radius: 5px; margin: 0; font-size: 16px; padding: 0 10px; font-weight: bold;">${config.icon} ${escapeHtml(name)}<br><span style="font-size: 12px;">${escapeHtml(locationTypeLabel)}</span></div>`
+						locationPopupMarkup({ name, locationType, locationTypeLabel })
 					);
 					locationMarkers.push({ marker, locationType, name });
 				});
@@ -1365,8 +1420,22 @@
 			map.on("zoomend", syncLocationMarkerVisibility);
 		};
 
+		function loadWikiLocationLinks() {
+			return $.getJSON("map/wiki_location_links.json")
+				.then((data) => {
+					wikiLocationLinks = data?.links || {};
+					return wikiLocationLinks;
+				}, (err) => {
+					console.warn("Wiki-Aventurica-Linktabelle konnte nicht geladen werden:", err);
+					wikiLocationLinks = {};
+					return wikiLocationLinks;
+				});
+		}
+
 		// Laden und Verarbeiten der GeoJSON-Daten (mit Skript konvertiert aus der SVG)
-		$.getJSON("map/Aventurien_routes.geojson")
+		const routeDataRequest = $.getJSON("map/Aventurien_routes.geojson").then((data) => data);
+
+		$.when(routeDataRequest, loadWikiLocationLinks())
 			.done((data) => {
 				prepareLocationData(data);
 				preparePathData(data);
@@ -1863,15 +1932,16 @@
 		};
 
 		// Fügt einen Tooltip zu einem Waypoint hinzu
-		const addTooltip = ({ name, coordinates }) => {
+		const addTooltip = ({ name, coordinates, locationType, locationTypeLabel }) => {
 			const tooltip = L.tooltip({
 				permanent: false,
 				direction: "top",
 				offset: [0, -10],
 				opacity: 1,
+				className: "location-tooltip",
 			})
 				.setLatLng(coordinates)
-				.setContent(name)
+				.setContent(locationPopupMarkup({ name, locationType, locationTypeLabel }))
 				.addTo(map);
 			activeTooltips.push(tooltip);
 		};

@@ -114,6 +114,22 @@ Das Skript verwendet ausschliesslich Python-Standardbibliothek.
 
 Es werden fuer die Konvertierung **keine externen Services** benoetigt.
 
+## Wiki-Aventurica-Links erzeugen
+
+Die Datei `map/wiki_location_links.json` enthaelt die statische Lookup-Tabelle
+fuer Ortslinks zu Wiki Aventurica. Die Anwendung laedt diese Datei lokal und
+fragt Wiki Aventurica nicht zur Laufzeit im Browser ab.
+
+Im Projektverzeichnis:
+
+```bash
+python map/build_wiki_location_links.py
+```
+
+Das Skript liest die Orte aus `map/Aventurien_routes.geojson`, gleicht sie ueber
+die MediaWiki-API mit Wiki Aventurica ab und schreibt zusaetzlich
+`map/wiki_location_links_report.json` mit Treffer- und Restlisten.
+
 ## Hinweise zur Datenpflege
 
 - Die SVG ist die fachliche Quelle fuer Orte, Wege und Regionen.

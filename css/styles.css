@@ -472,6 +472,85 @@ body.legal-dialog-open {
 	font-weight: bold;
 }
 
+.location-popup {
+	background: #fff;
+	color: #000;
+	border: 0;
+	border-radius: 5px;
+	margin: 0;
+	padding: 2px 10px 8px;
+	max-width: 260px;
+	font-size: 14px;
+	line-height: 1.35;
+}
+
+.location-popup__header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.location-popup__icon {
+	width: 28px;
+	height: 28px;
+	object-fit: contain;
+	flex: 0 0 auto;
+}
+
+.location-popup__name {
+	font-size: 16px;
+	font-weight: bold;
+}
+
+.location-popup__type {
+	font-size: 12px;
+	font-weight: normal;
+	color: #5f5548;
+}
+
+.location-popup__description {
+	margin-top: 6px;
+	color: #2e2a24;
+	font-size: 12px;
+	font-weight: normal;
+}
+
+.location-popup__wiki-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	margin-top: 6px;
+	color: #1452f7;
+	font-size: 12px;
+	font-weight: bold;
+	text-decoration: none;
+}
+
+.location-popup__link-icon {
+	font-size: 11px;
+	line-height: 1;
+}
+
+.location-popup__wiki-link:hover,
+.location-popup__wiki-link:focus-visible {
+	text-decoration: underline;
+}
+
+.location-tooltip {
+	background: transparent;
+	border: 0;
+	box-shadow: none;
+	padding: 0;
+}
+
+.location-tooltip::before {
+	border-top-color: #fff;
+}
+
+.location-tooltip .location-popup {
+	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
 #overview {
 	max-height: 80vh; /* Begrenzung der Höhe auf 80% der Bildschirmhöhe */
 	overflow-y: auto; /* Aktiviert vertikales Scrollen, wenn der Inhalt größer ist */
