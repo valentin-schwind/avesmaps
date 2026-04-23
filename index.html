@@ -35,7 +35,7 @@
 	<meta name="twitter:image" content="https://valentin-schwind.github.io/avesmaps/img/example.jpg" />
 	<link rel="stylesheet" href="css/leaflet.css" />
 	<link rel="stylesheet" href="css/jquery-ui.css" />
-	<link rel="stylesheet" href="css/styles.css" />
+	<link rel="stylesheet" href="css/styles.css?v=20260423-transport-menu-popup" />
 	<script type="application/ld+json">
 		{
 			"@context": "https://schema.org",
@@ -125,25 +125,46 @@
 			<label>Transportmittel:</label>
 			<div></div>
 			<label class="transport-filter-label"><input type="checkbox" id="allowLand" checked /> <img class="transport-filter-icon" src="icons/landweg.png" data-source-src="icons/landweg.png" alt="" /> Land</label>
-			<select id="landTransport" class="transportOptionSelect">
-				<option value="caravan">🐪 Karawane (3.5 km/h)</option>
-				<option value="groupFoot" selected>🚶‍♂️ Reisegruppe zu Fuß (4 km/h)</option>
-				<option value="lightWalker">🏃 Zu Fuß mit leichtem Gepäck (5 km/h)</option>
-				<option value="horseCarriage">🐎🐎🛺 Pferdekutsche (5.5 km/h)</option>
-				<option value="groupHorse">🏇 Reisegruppe zu Pferd (6.5 km/h)</option>
-				<option value="lightRider">🐎 Reiter zu Pferd mit leichtem Gepäck (8 km/h)</option>
-			</select>
+			<div class="transport-select-with-icon transport-icon-select">
+				<select id="landTransport" class="transportOptionSelect transport-native-select" aria-label="Land-Transportmittel">
+					<option value="caravan">Karawane (3.5 km/h)</option>
+					<option value="groupFoot" selected>Reisegruppe zu Fuß (4 km/h)</option>
+					<option value="lightWalker">Zu Fuß mit leichtem Gepäck (5 km/h)</option>
+					<option value="horseCarriage">Pferdekutsche (5.5 km/h)</option>
+					<option value="groupHorse">Reisegruppe zu Pferd (6.5 km/h)</option>
+					<option value="lightRider">Reiter zu Pferd mit leichtem Gepäck (8 km/h)</option>
+				</select>
+				<button type="button" id="landTransportButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="landTransportMenu">
+					<img id="landTransportIcon" class="transport-option-inline-icon" src="icons/Reisegruppe.png" data-source-src="icons/Reisegruppe.png" alt="" />
+					<span id="landTransportLabel" class="transport-combobox__label">Reisegruppe zu Fuß (4 km/h)</span>
+				</button>
+				<div id="landTransportMenu" class="transport-combobox__menu" role="listbox" aria-label="Land-Transportmittel" hidden></div>
+			</div>
 			<label class="transport-filter-label"><input type="checkbox" id="allowRiver" checked /> <img class="transport-filter-icon" src="icons/flussweg.png" data-source-src="icons/flussweg.png" alt="" /> Fluss</label>
-			<select id="riverTransport" class="transportOptionSelect">
-				<option value="riverSailer">⛵ Flusssegler</option>
-				<option value="riverBarge">🚣 Flusskahn</option>
-			</select>
+			<div class="transport-select-with-icon transport-icon-select">
+				<select id="riverTransport" class="transportOptionSelect transport-native-select" aria-label="Fluss-Transportmittel">
+					<option value="riverSailer" selected>Flusssegler</option>
+					<option value="riverBarge">Flusskahn</option>
+				</select>
+				<button type="button" id="riverTransportButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="riverTransportMenu">
+					<img id="riverTransportIcon" class="transport-option-inline-icon" src="icons/Flusssegler.png" data-source-src="icons/Flusssegler.png" alt="" />
+					<span id="riverTransportLabel" class="transport-combobox__label">Flusssegler</span>
+				</button>
+				<div id="riverTransportMenu" class="transport-combobox__menu" role="listbox" aria-label="Fluss-Transportmittel" hidden></div>
+			</div>
 			<label class="transport-filter-label"><input type="checkbox" id="allowSea" checked /> <img class="transport-filter-icon" src="icons/meerweg.png" data-source-src="icons/meerweg.png" alt="" /> Meer</label>
-			<select id="seaTransport" class="transportOptionSelect">
-				<option value="cargoShip">🚢 Lastensegler</option>
-				<option value="fastShip">⛵ Schnellsegler</option>
-				<option value="galley">🛶 Galeere</option>
-			</select>
+			<div class="transport-select-with-icon transport-icon-select">
+				<select id="seaTransport" class="transportOptionSelect transport-native-select" aria-label="Meer-Transportmittel">
+					<option value="cargoShip" selected>Lastensegler</option>
+					<option value="fastShip">Schnellsegler</option>
+					<option value="galley">Galeere</option>
+				</select>
+				<button type="button" id="seaTransportButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="seaTransportMenu">
+					<img id="seaTransportIcon" class="transport-option-inline-icon" src="icons/Lastensegler.png" data-source-src="icons/Lastensegler.png" alt="" />
+					<span id="seaTransportLabel" class="transport-combobox__label">Lastensegler</span>
+				</button>
+				<div id="seaTransportMenu" class="transport-combobox__menu" role="listbox" aria-label="Meer-Transportmittel" hidden></div>
+			</div>
 		</div>
 		<button id="toggle-button">Routenplaner</button>
 		<div>
@@ -290,12 +311,12 @@
 		};
 
 		const ROUTE_ICON_PATHS = {
-			Reichsstrasse: "icons/landweg.png",
-			Strasse: "icons/landweg.png",
-			Gebirgspfad: "icons/landweg.png",
-			Pfad: "icons/landweg.png",
-			Flussweg: "icons/flussweg.png",
-			Seeweg: "icons/meerweg.png",
+			Reichsstrasse: "icons/Reichsstrasse.png",
+			Strasse: "icons/Strasse.png",
+			Gebirgspfad: "icons/Gebirgspfad.png",
+			Pfad: "icons/Pfad.png",
+			Flussweg: "icons/Flusswege.png",
+			Seeweg: "icons/Meerwege.png",
 			Weg: "icons/landweg.png",
 		};
 
@@ -337,6 +358,26 @@
 			river: new Set(["riverSailer", "riverBarge"]),
 			sea: new Set(["cargoShip", "fastShip", "galley"]),
 		};
+		const TRANSPORT_ICON_PATHS = {
+			landTransport: {
+				caravan: "icons/karavane.png",
+				groupFoot: "icons/Reisegruppe.png",
+				lightWalker: "icons/ZuFuss.png",
+				horseCarriage: "icons/Kutsche.png",
+				groupHorse: "icons/BeritteneReisegruppe.png",
+				lightRider: "icons/EinzelnerReiter.png",
+			},
+			riverTransport: {
+				riverSailer: "icons/Flusssegler.png",
+				riverBarge: "icons/Flusskahn.png",
+			},
+			seaTransport: {
+				cargoShip: "icons/Lastensegler.png",
+				fastShip: "icons/Schnellsegler.png",
+				galley: "icons/Galeere.png",
+			},
+		};
+		const ICON_TRANSPORT_SELECT_IDS = Object.keys(TRANSPORT_ICON_PATHS);
 
 		// Globale Variablen 
 		let locationData = [],
@@ -468,7 +509,7 @@
 				.replace(/'/g, "&#039;");
 		}
 
-		const ICON_ASSET_VERSION = "20260423-043946";
+		const ICON_ASSET_VERSION = "20260423-142011";
 
 		function withAssetVersion(sourcePath) {
 			if (!sourcePath) {
@@ -494,6 +535,272 @@
 
 				iconElement.src = withAssetVersion(sourcePath);
 			});
+		}
+
+		function setVersionedIconSource(iconElement, iconPath) {
+			if (!iconElement || !iconPath) {
+				return;
+			}
+
+			iconElement.dataset.sourceSrc = iconPath;
+			iconElement.src = withAssetVersion(iconPath);
+		}
+
+		function getTransportIconPath(selectId, transportValue) {
+			const iconPaths = TRANSPORT_ICON_PATHS[selectId] || {};
+			return iconPaths[transportValue] || iconPaths[DEFAULT_PLANNER_STATE[selectId]];
+		}
+
+		function getTransportControl(selectId) {
+			const selectElement = document.getElementById(selectId);
+			const containerElement = selectElement?.closest(".transport-icon-select");
+			if (!selectElement || !containerElement) {
+				return null;
+			}
+
+			return {
+				selectElement,
+				containerElement,
+				buttonElement: containerElement.querySelector(".transport-combobox"),
+				menuElement: containerElement.querySelector(".transport-combobox__menu"),
+				iconElement: containerElement.querySelector(".transport-combobox > .transport-option-inline-icon"),
+				labelElement: containerElement.querySelector(".transport-combobox__label"),
+			};
+		}
+
+		function getSelectedTransportOption(selectElement) {
+			return Array.from(selectElement.options)
+				.find((optionElement) => optionElement.value === selectElement.value);
+		}
+
+		function getTransportOptionButtons(selectId) {
+			const control = getTransportControl(selectId);
+			if (!control?.menuElement) {
+				return [];
+			}
+
+			return Array.from(control.menuElement.querySelectorAll(".transport-combobox__option"));
+		}
+
+		function closeTransportMenu(selectId) {
+			const control = getTransportControl(selectId);
+			if (!control?.menuElement || !control.buttonElement) {
+				return;
+			}
+
+			control.menuElement.hidden = true;
+			control.buttonElement.setAttribute("aria-expanded", "false");
+		}
+
+		function positionTransportMenu(selectId) {
+			const control = getTransportControl(selectId);
+			if (!control?.menuElement || !control.buttonElement || control.menuElement.hidden) {
+				return;
+			}
+
+			const viewportPadding = 8;
+			const buttonRect = control.buttonElement.getBoundingClientRect();
+			control.menuElement.style.minWidth = `${buttonRect.width}px`;
+			control.menuElement.style.left = "0px";
+			control.menuElement.style.top = "0px";
+
+			const menuWidth = control.menuElement.offsetWidth;
+			const menuHeight = control.menuElement.offsetHeight;
+			const maxLeft = window.innerWidth - menuWidth - viewportPadding;
+			const left = Math.max(viewportPadding, Math.min(buttonRect.right - menuWidth, maxLeft));
+			const belowTop = buttonRect.bottom + 2;
+			const aboveTop = buttonRect.top - menuHeight - 2;
+			const top = belowTop + menuHeight <= window.innerHeight - viewportPadding
+				? belowTop
+				: Math.max(viewportPadding, aboveTop);
+
+			control.menuElement.style.left = `${left}px`;
+			control.menuElement.style.top = `${top}px`;
+		}
+
+		function positionOpenTransportMenus() {
+			ICON_TRANSPORT_SELECT_IDS.forEach((selectId) => {
+				const control = getTransportControl(selectId);
+				if (control?.menuElement && !control.menuElement.hidden) {
+					positionTransportMenu(selectId);
+				}
+			});
+		}
+
+		function closeAllTransportMenus(exceptSelectId = null) {
+			ICON_TRANSPORT_SELECT_IDS.forEach((selectId) => {
+				if (selectId !== exceptSelectId) {
+					closeTransportMenu(selectId);
+				}
+			});
+		}
+
+		function setTransportMenuOpen(selectId, isOpen) {
+			const control = getTransportControl(selectId);
+			if (!control?.menuElement || !control.buttonElement) {
+				return;
+			}
+
+			if (isOpen) {
+				closeAllTransportMenus(selectId);
+			}
+
+			control.menuElement.hidden = !isOpen;
+			control.buttonElement.setAttribute("aria-expanded", isOpen ? "true" : "false");
+			if (isOpen) {
+				positionTransportMenu(selectId);
+			}
+		}
+
+		function focusSelectedTransportOption(selectId) {
+			const control = getTransportControl(selectId);
+			const selectedOption = control?.menuElement?.querySelector(".transport-combobox__option.is-active")
+				|| control?.menuElement?.querySelector(".transport-combobox__option");
+			if (selectedOption) {
+				selectedOption.focus();
+			}
+		}
+
+		function syncTransportControl(selectId) {
+			const control = getTransportControl(selectId);
+			if (!control?.selectElement) {
+				return;
+			}
+
+			const selectedTransport = control.selectElement.value;
+			const iconPath = getTransportIconPath(selectId, selectedTransport);
+			const selectedOption = getSelectedTransportOption(control.selectElement);
+
+			setVersionedIconSource(control.iconElement, iconPath);
+			if (control.labelElement && selectedOption) {
+				control.labelElement.textContent = selectedOption.textContent;
+			}
+
+			getTransportOptionButtons(selectId).forEach((optionButton) => {
+				const isSelected = optionButton.dataset.transportValue === selectedTransport;
+				optionButton.classList.toggle("is-active", isSelected);
+				optionButton.setAttribute("aria-selected", isSelected ? "true" : "false");
+			});
+		}
+
+		function syncTransportControls() {
+			ICON_TRANSPORT_SELECT_IDS.forEach(syncTransportControl);
+		}
+
+		function createTransportOptionButton(selectId, optionElement) {
+			const optionButton = document.createElement("button");
+			const iconElement = document.createElement("img");
+			const labelElement = document.createElement("span");
+
+			optionButton.type = "button";
+			optionButton.className = "transport-combobox__option";
+			optionButton.dataset.transportValue = optionElement.value;
+			optionButton.setAttribute("role", "option");
+
+			iconElement.className = "transport-option-inline-icon";
+			iconElement.alt = "";
+			setVersionedIconSource(iconElement, getTransportIconPath(selectId, optionElement.value));
+
+			labelElement.textContent = optionElement.textContent;
+			optionButton.append(iconElement, labelElement);
+
+			return optionButton;
+		}
+
+		function handleTransportButtonKeydown(event, selectId) {
+			if (!["ArrowDown", "ArrowUp", "Enter", " "].includes(event.key)) {
+				return;
+			}
+
+			event.preventDefault();
+			setTransportMenuOpen(selectId, true);
+			focusSelectedTransportOption(selectId);
+		}
+
+		function handleTransportMenuKeydown(event, selectId) {
+			const optionButtons = getTransportOptionButtons(selectId);
+			const currentIndex = optionButtons.indexOf(document.activeElement);
+			const control = getTransportControl(selectId);
+
+			if (event.key === "Escape") {
+				event.preventDefault();
+				closeTransportMenu(selectId);
+				control?.buttonElement?.focus();
+				return;
+			}
+
+			if (event.key === "Enter" || event.key === " ") {
+				event.preventDefault();
+				document.activeElement?.click();
+				return;
+			}
+
+			if (event.key === "Home" || event.key === "End") {
+				event.preventDefault();
+				optionButtons[event.key === "Home" ? 0 : optionButtons.length - 1]?.focus();
+				return;
+			}
+
+			if (!["ArrowDown", "ArrowUp"].includes(event.key) || currentIndex < 0 || !optionButtons.length) {
+				return;
+			}
+
+			event.preventDefault();
+			const direction = event.key === "ArrowDown" ? 1 : -1;
+			const nextIndex = (currentIndex + direction + optionButtons.length) % optionButtons.length;
+			optionButtons[nextIndex].focus();
+		}
+
+		function initializeTransportIconSelect(selectId) {
+			const control = getTransportControl(selectId);
+			if (!control?.selectElement || !control.buttonElement || !control.menuElement) {
+				return;
+			}
+
+			control.menuElement.innerHTML = "";
+			Array.from(control.selectElement.options).forEach((optionElement) => {
+				control.menuElement.append(createTransportOptionButton(selectId, optionElement));
+			});
+
+			control.buttonElement.addEventListener("click", () => {
+				setTransportMenuOpen(selectId, control.menuElement.hidden);
+				if (!control.menuElement.hidden) {
+					focusSelectedTransportOption(selectId);
+				}
+			});
+			control.buttonElement.addEventListener("keydown", (event) => handleTransportButtonKeydown(event, selectId));
+			control.menuElement.addEventListener("click", (event) => {
+				const clickedElement = event.target instanceof Element ? event.target : null;
+				const optionButton = clickedElement?.closest(".transport-combobox__option");
+				if (!optionButton) {
+					return;
+				}
+
+				$(`#${selectId}`).val(optionButton.dataset.transportValue).trigger("change");
+				closeTransportMenu(selectId);
+				control.buttonElement.focus();
+			});
+			control.menuElement.addEventListener("keydown", (event) => handleTransportMenuKeydown(event, selectId));
+
+			syncTransportControl(selectId);
+		}
+
+		function initializeTransportIconSelects() {
+			ICON_TRANSPORT_SELECT_IDS.forEach((selectId) => {
+				$(`#${selectId}`).on("change", () => syncTransportControl(selectId));
+				initializeTransportIconSelect(selectId);
+			});
+
+			document.addEventListener("click", (event) => {
+				const clickedElement = event.target instanceof Element ? event.target : null;
+				if (!clickedElement || !clickedElement.closest(".transport-icon-select")) {
+					closeAllTransportMenus();
+				}
+			});
+			window.addEventListener("resize", positionOpenTransportMenus);
+			document.getElementById("search")?.addEventListener("scroll", positionOpenTransportMenus);
+
+			syncTransportControls();
 		}
 
 		function locationZoomScale(zoomLevel) {
@@ -563,7 +870,9 @@
 			syncLocationMarkerVisibility();
 			syncPlannerStateToUrl();
 		});
+		initializeTransportIconSelects();
 		initializeVersionedAssetIcons();
+		syncTransportControls();
 		$("#togglePaths").change(syncPathVisibility);
 		$("#toggleBorders").change(syncRegionVisibility);
 
@@ -736,6 +1045,7 @@
 			if (seaTransport && VALID_TRANSPORT_OPTIONS.sea.has(seaTransport)) {
 				$("#seaTransport").val(seaTransport);
 			}
+			syncTransportControls();
 
 			resetWaypointInputs(waypointNames);
 
