@@ -297,17 +297,17 @@
 		const ROUTE_NODE_STYLE = { pane: "locationsPane", fillColor: "white", color: "#000", radius: 8, weight: 2, fillOpacity: 1 };
 		const LOCATION_MARKER_STYLE = { pane: "locationsPane", fillColor: "#F52B25", color: "#7A1411", weight: 1.25, opacity: 1, fillOpacity: 0.95 };
 		const MAP_MARKER_STYLE = { pane: "locationsPane", radius: 4, fillColor: "#F52B25", color: "#000", weight: 2, opacity: 1, fillOpacity: 1 };
-		const LOCATION_SNAP_THRESHOLD = 10;
+		const SYNTHETIC_ROUTE_TYPE = "Querfeldein";
 
 		const SPEED_TABLE = {
-			groupFoot: { Reichsstrasse: 4.5, Strasse: 4.0, Weg: 3.5, Pfad: 3.0, Gebirgspass: 1.5, Wueste: 2.5 },
-			lightWalker: { Reichsstrasse: 5.5, Strasse: 5.0, Weg: 4.5, Pfad: 4.0, Gebirgspass: 2.0, Wueste: 3.5 },
-			groupHorse: { Reichsstrasse: 7.0, Strasse: 6.5, Weg: 5.5, Pfad: 4.5, Gebirgspass: 2.5, Wueste: 3.0 },
-			lightRider: { Reichsstrasse: 8.5, Strasse: 8.0, Weg: 7.0, Pfad: 6.0, Gebirgspass: 3.0, Wueste: 4.0 },
-			caravan: { Reichsstrasse: 4.0, Strasse: 3.5, Weg: 3.0, Pfad: 2.5, Gebirgspass: 1.5, Wueste: 2.0 },
+			groupFoot: { Reichsstrasse: 4.5, Strasse: 4.0, Weg: 3.5, Pfad: 3.0, Gebirgspass: 1.5, Querfeldein: 3.0, Wueste: 2.5 },
+			lightWalker: { Reichsstrasse: 5.5, Strasse: 5.0, Weg: 4.5, Pfad: 4.0, Gebirgspass: 2.0, Querfeldein: 4.0, Wueste: 3.5 },
+			groupHorse: { Reichsstrasse: 7.0, Strasse: 6.5, Weg: 5.5, Pfad: 4.5, Gebirgspass: 2.5, Querfeldein: 4.5, Wueste: 3.0 },
+			lightRider: { Reichsstrasse: 8.5, Strasse: 8.0, Weg: 7.0, Pfad: 6.0, Gebirgspass: 3.0, Querfeldein: 6.0, Wueste: 4.0 },
+			caravan: { Reichsstrasse: 4.0, Strasse: 3.5, Weg: 3.0, Pfad: 2.5, Gebirgspass: 1.5, Querfeldein: 2.5, Wueste: 2.0 },
 			riverSailer: { Flussweg: 7.5 }, riverBarge: { Flussweg: 5.0 },
 			cargoShip: { Seeweg: 10.0 }, fastShip: { Seeweg: 12.0 }, galley: { Seeweg: 9.0 },
-			horseCarriage: { Reichsstrasse: 6.0, Strasse: 5.5, Weg: 4.5, Pfad: 3.0, Gebirgspass: 2.0, Wueste: 3.0 }
+			horseCarriage: { Reichsstrasse: 6.0, Strasse: 5.5, Weg: 4.5, Pfad: 3.0, Gebirgspass: 2.0, Querfeldein: 3.0, Wueste: 3.0 }
 		};
 
 		const ROUTE_ICON_PATHS = {
@@ -317,6 +317,7 @@
 			Pfad: "icons/Pfad.png",
 			Flussweg: "icons/Flusswege.png",
 			Seeweg: "icons/Meerwege.png",
+			Querfeldein: "icons/Pfad.png",
 			Weg: "icons/landweg.png",
 		};
 
@@ -1141,6 +1142,7 @@
 				if (name.startsWith("Pfad")) return "Pfad";
 				if (name.startsWith("Flussweg")) return "Flussweg";
 				if (name.startsWith("Meer")) return "Seeweg";
+				if (name.startsWith(SYNTHETIC_ROUTE_TYPE)) return SYNTHETIC_ROUTE_TYPE;
 			}
 			return "Weg";
 		};
@@ -1165,11 +1167,6 @@
 			const [firstLat, firstLng] = firstLocation.coordinates;
 			const [secondLat, secondLng] = secondLocation.coordinates;
 			return Math.hypot(secondLng - firstLng, secondLat - firstLat);
-		}
-
-		function getPreferredSnapRouteType(graph, nodeName) {
-			const connections = Object.values(graph[nodeName] || {}).flat();
-			return connections[0]?.routeType || "Pfad";
 		}
 
 		function buildSyntheticPathSegment(fromLocation, toLocation, connectionId, routeType) {
@@ -1499,6 +1496,136 @@
 			return route;
 		}
 
+		function createLocationLookup() {
+			return new Map(locationData.map((location) => [location.name, location]));
+		}
+
+		function findGraphComponents(graph) {
+			const visitedNodeNames = new Set();
+			const components = [];
+
+			Object.keys(graph).forEach((startName) => {
+				if (visitedNodeNames.has(startName)) {
+					return;
+				}
+
+				const nodeNames = [];
+				const stack = [startName];
+				visitedNodeNames.add(startName);
+
+				while (stack.length) {
+					const currentName = stack.pop();
+					nodeNames.push(currentName);
+
+					Object.keys(graph[currentName] || {}).forEach((neighborName) => {
+						if (!visitedNodeNames.has(neighborName)) {
+							visitedNodeNames.add(neighborName);
+							stack.push(neighborName);
+						}
+					});
+				}
+
+				components.push({ nodeNames });
+			});
+
+			return components;
+		}
+
+		function getSyntheticRouteConfig() {
+			const transportOption = getTransportOption(SYNTHETIC_ROUTE_TYPE);
+			const speed = SPEED_TABLE[transportOption]?.[SYNTHETIC_ROUTE_TYPE];
+			if (!transportOption || !speed) {
+				return null;
+			}
+
+			return { routeType: SYNTHETIC_ROUTE_TYPE, speed };
+		}
+
+		function findNearestComponentConnection(component, connectedNodeNames, locationLookup) {
+			let nearestConnection = null;
+
+			component.nodeNames.forEach((sourceName) => {
+				const sourceLocation = locationLookup.get(sourceName);
+				if (!sourceLocation) {
+					return;
+				}
+
+				connectedNodeNames.forEach((targetName) => {
+					const targetLocation = locationLookup.get(targetName);
+					if (!targetLocation) {
+						return;
+					}
+
+					const distance = getLocationDistance(sourceLocation, targetLocation);
+					if (!nearestConnection || distance < nearestConnection.distance) {
+						nearestConnection = {
+							fromLocation: sourceLocation,
+							toLocation: targetLocation,
+							distance,
+						};
+					}
+				});
+			});
+
+			return nearestConnection;
+		}
+
+		function addSyntheticGraphConnection(graph, fromLocation, toLocation, distance, routeConfig) {
+			const connectionId = `synthetic-${fromLocation.name}->${toLocation.name}`;
+			const connection = {
+				distance,
+				time: distance / routeConfig.speed,
+				routeType: routeConfig.routeType,
+				id: connectionId,
+				synthetic: true,
+			};
+
+			addGraphConnection(graph, fromLocation.name, toLocation.name, connection);
+			addGraphConnection(graph, toLocation.name, fromLocation.name, connection);
+			syntheticPathSegments.set(
+				connectionId,
+				buildSyntheticPathSegment(fromLocation, toLocation, connectionId, routeConfig.routeType)
+			);
+		}
+
+		function connectDetachedGraphComponents(graph) {
+			const components = findGraphComponents(graph).sort((a, b) => b.nodeNames.length - a.nodeNames.length);
+			if (components.length <= 1) {
+				return;
+			}
+
+			const routeConfig = getSyntheticRouteConfig();
+			if (!routeConfig) {
+				console.warn("Querfeldein-Verbindungen werden übersprungen, weil kein Land-Transportmittel aktiv ist.");
+				return;
+			}
+
+			const locationLookup = createLocationLookup();
+			const anchorNodeNames = components[0].nodeNames;
+			const detachedComponents = components.slice(1);
+			let syntheticConnectionCount = 0;
+
+			detachedComponents.forEach((component) => {
+				const nearestConnection = findNearestComponentConnection(component, anchorNodeNames, locationLookup);
+				if (!nearestConnection) {
+					return;
+				}
+
+				addSyntheticGraphConnection(
+					graph,
+					nearestConnection.fromLocation,
+					nearestConnection.toLocation,
+					nearestConnection.distance,
+					routeConfig
+				);
+				syntheticConnectionCount++;
+			});
+
+			if (syntheticConnectionCount) {
+				console.info(`${syntheticConnectionCount} Querfeldein-Verbindungen für getrennte Orte hinzugefügt.`);
+			}
+		}
+
 		// Erzeugt einen gewichteten Graphen aus den Locations und Pfaden
 		function createGraph() {
 			syntheticPathSegments.clear();
@@ -1525,48 +1652,7 @@
 					addGraphConnection(graph, endNode.name, startNode.name, connection);
 				}
 			});
-			const connectedLocations = locationData.filter((loc) => Object.keys(graph[loc.name]).length);
-			locationData.forEach((loc) => {
-				if (Object.keys(graph[loc.name]).length) {
-					return;
-				}
-
-				let nearestConnectedLocation = null;
-				let shortestDistance = Infinity;
-
-				connectedLocations.forEach((candidate) => {
-					const distance = getLocationDistance(loc, candidate);
-					if (distance < shortestDistance) {
-						shortestDistance = distance;
-						nearestConnectedLocation = candidate;
-					}
-				});
-
-				if (!nearestConnectedLocation || shortestDistance > LOCATION_SNAP_THRESHOLD) {
-					return;
-				}
-
-				const routeType = getPreferredSnapRouteType(graph, nearestConnectedLocation.name);
-				const transportOption = getTransportOption(routeType);
-				const speed = SPEED_TABLE[transportOption]?.[routeType];
-
-				if (!transportOption || !speed) {
-					return;
-				}
-
-				const connectionId = `synthetic-${loc.name}->${nearestConnectedLocation.name}`;
-				const connection = {
-					distance: shortestDistance,
-					time: shortestDistance / speed,
-					routeType,
-					id: connectionId,
-					synthetic: true,
-				};
-
-				addGraphConnection(graph, loc.name, nearestConnectedLocation.name, connection);
-				addGraphConnection(graph, nearestConnectedLocation.name, loc.name, connection);
-				syntheticPathSegments.set(connectionId, buildSyntheticPathSegment(loc, nearestConnectedLocation, connectionId, routeType));
-			});
+			connectDetachedGraphComponents(graph);
 
 			const unconnectedNames = Object.keys(graph).filter((locName) => !Object.keys(graph[locName]).length);
 			if (unconnectedNames.length) {
@@ -1645,7 +1731,7 @@
 				riverOption = allowRiver ? $("#riverTransport").val() : null,
 				allowSea = $("#allowSea").is(":checked"),
 				seaOption = allowSea ? $("#seaTransport").val() : null;
-			if (["Pfad", "Weg", "Strasse", "Reichsstrasse", "Gebirgspass"].includes(routeType)) return landOption;
+			if (["Pfad", "Weg", "Strasse", "Reichsstrasse", "Gebirgspass", SYNTHETIC_ROUTE_TYPE].includes(routeType)) return landOption;
 			if (routeType === "Flussweg") return riverOption;
 			if (routeType === "Seeweg") return seaOption;
 			console.warn(`Kein gültiges Transportmittel für ${routeType}.`);
