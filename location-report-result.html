@@ -11,7 +11,7 @@
 		(function () {
 			const searchParams = new URLSearchParams(window.location.search);
 			const hashParams = new URLSearchParams(window.location.hash.slice(1));
-			const payloadValue = hashParams.get("payload");
+			const payloadValue = searchParams.get("payload") || hashParams.get("payload");
 			if (!payloadValue) {
 				return;
 			}

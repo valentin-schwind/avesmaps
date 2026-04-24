@@ -282,13 +282,19 @@ function truncateForLog(value, maxLength) {
 }
 
 function buildIframeResponse(payload, responseBridgeUrl) {
-    const safePayload = JSON.stringify({
+    const normalizedPayload = {
         type: MESSAGE_TYPE,
         ok: Boolean(payload.ok),
         message: payload.message || "",
         error: payload.error || "",
-    }).replace(/</g, "\\u003c");
+    };
+    const bridgeRedirectUrl = buildBridgeRedirectUrl(responseBridgeUrl, normalizedPayload);
+    const safePayload = JSON.stringify(normalizedPayload).replace(/</g, "\\u003c");
     const safeResponseBridgeUrl = JSON.stringify(String(responseBridgeUrl || "")).replace(/</g, "\\u003c");
+    const safeBridgeRedirectUrl = JSON.stringify(bridgeRedirectUrl).replace(/</g, "\\u003c");
+    const metaRefreshMarkup = bridgeRedirectUrl
+        ? `<meta http-equiv="refresh" content="0;url=${escapeHtmlAttribute(bridgeRedirectUrl)}" />`
+        : "";
 
     return HtmlService
         .createHtmlOutput(`<!DOCTYPE html>
@@ -296,16 +302,23 @@ function buildIframeResponse(payload, responseBridgeUrl) {
 	<head>
 		<meta charset="UTF-8" />
 		<title>Avesmaps Ortsmeldung</title>
+		${metaRefreshMarkup}
 	</head>
 	<body>
 		<script>
 			(function () {
 				const payload = ${safePayload};
 				const responseBridgeUrl = ${safeResponseBridgeUrl};
+				const bridgeRedirectUrl = ${safeBridgeRedirectUrl};
+
+				if (bridgeRedirectUrl) {
+					window.location.replace(bridgeRedirectUrl);
+					return;
+				}
 
 				if (responseBridgeUrl) {
 					const bridgeUrl = new URL(responseBridgeUrl);
-					bridgeUrl.hash = "payload=" + encodeURIComponent(JSON.stringify(payload));
+					bridgeUrl.searchParams.set("payload", JSON.stringify(payload));
 					window.location.replace(bridgeUrl.toString());
 					return;
 				}
@@ -316,4 +329,23 @@ function buildIframeResponse(payload, responseBridgeUrl) {
 	</body>
 </html>`)
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function buildBridgeRedirectUrl(responseBridgeUrl, payload) {
+    const normalizedResponseBridgeUrl = String(responseBridgeUrl || "").trim();
+    if (!normalizedResponseBridgeUrl) {
+        return "";
+    }
+
+    const bridgeUrl = new URL(normalizedResponseBridgeUrl);
+    bridgeUrl.searchParams.set("payload", JSON.stringify(payload));
+    return bridgeUrl.toString();
+}
+
+function escapeHtmlAttribute(value) {
+    return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
 }

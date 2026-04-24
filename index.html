@@ -1047,7 +1047,8 @@
 					return null;
 				}
 
-				const payloadValue = new URLSearchParams(submitTargetUrl.hash.slice(1)).get("payload");
+				const payloadValue = new URLSearchParams(submitTargetUrl.search).get("payload")
+					|| new URLSearchParams(submitTargetUrl.hash.slice(1)).get("payload");
 				if (!payloadValue) {
 					return null;
 				}
