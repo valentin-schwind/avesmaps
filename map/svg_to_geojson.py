@@ -223,9 +223,9 @@ def clean_label_value(value: Optional[str]) -> Optional[str]:
 
 def feature_label(element: ET.Element) -> str:
     label_candidates = (
+        element.get(ATTR_INKSCAPE_LABEL),
         element.get("data-place-name"),
         element.get("data-item-label"),
-        element.get(ATTR_INKSCAPE_LABEL),
         element.get("id"),
     )
 
