@@ -399,14 +399,8 @@
 		const MAP_CONTEXT_MENU_VIEWPORT_PADDING = 8;
 		const MAP_CONTEXT_MENU_OFFSET_X = 18;
 		const MAP_CONTEXT_MENU_OFFSET_Y = 14;
-		const DEFAULT_LOCATION_REPORT_ENDPOINT_PATH = "api/report-location.php";
-		const LOCATION_REPORT_FORM_ENDPOINT_URL = window.AVESMAPS_LOCATION_REPORT_ENDPOINT || (() => {
-			try {
-				return window.location.hostname.endsWith("github.io") ? "" : DEFAULT_LOCATION_REPORT_ENDPOINT_PATH;
-			} catch (error) {
-				return DEFAULT_LOCATION_REPORT_ENDPOINT_PATH;
-			}
-		})();
+		const DEFAULT_LOCATION_REPORT_ENDPOINT_URL = "https://hci-studies.org/avesmaps/api/report-location.php";
+		const LOCATION_REPORT_FORM_ENDPOINT_URL = window.AVESMAPS_LOCATION_REPORT_ENDPOINT || DEFAULT_LOCATION_REPORT_ENDPOINT_URL;
 		const LOCATION_REPORT_REQUEST_TIMEOUT_MS = 7000;
 		const MAX_SHARED_WAYPOINTS = 25;
 		const DEFAULT_SHARE_PIN_ZOOM = 4;
