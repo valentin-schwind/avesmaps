@@ -109,7 +109,11 @@
 				<h2 id="location-report-title">Neuen Ort melden</h2>
 				<button id="location-report-close" class="location-report-dialog__close" type="button" aria-label="Ortsmeldung schließen">×</button>
 			</div>
-			<p class="location-report-dialog__intro">Melde neue Ortschaften direkt aus der Karte. Pflichtfelder helfen beim schnellen Prüfen.</p>
+			<ul class="location-report-dialog__intro">
+				<li>Hilf Avesmaps zu erweitern. Gesucht sind neue Orte aus DSA.</li>
+				<li>Meldungen werden gesammelt und bei Gelegenheit geprüft und eingepflegt.</li>
+				<li>Bitte nur Meldungen mit sicherer Quellenlage und Beschreibung.</li>
+			</ul>
 			<form id="location-report-form" class="location-report-form" method="post" target="location-report-submit-target" accept-charset="UTF-8" novalidate>
 				<div class="location-report-form__meta">
 					<div class="location-report-form__meta-item">
@@ -118,11 +122,11 @@
 					</div>
 				</div>
 				<label class="location-report-form__field">
-					<span>Ortsname</span>
+					<span>Ortsname *</span>
 					<input id="location-report-name" name="name" type="text" maxlength="80" required />
 				</label>
 				<label class="location-report-form__field">
-					<span>Ortsgröße</span>
+					<span>Ortsgröße *</span>
 					<select id="location-report-size" name="size" required>
 						<option value="dorf">Dorf</option>
 						<option value="kleinstadt">Kleine Stadt</option>
@@ -132,7 +136,7 @@
 					</select>
 				</label>
 				<label class="location-report-form__field">
-					<span>Quelle</span>
+					<span>Quelle (Abenteuer, Regionalband, etc.) *</span>
 					<input id="location-report-source" name="source" type="text" maxlength="200" required />
 				</label>
 				<label class="location-report-form__field">
@@ -398,7 +402,7 @@
 		const MAP_CONTEXT_MENU_OFFSET_Y = 14;
 		const LOCATION_REPORT_FORM_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbz9-2nNuHzdcaIrHePLJ-Jd_AQqvjRSZgorhiAoNz5JGLy3TETz74i4IHNoKR_L2N2z/exec";
 		const LOCATION_REPORT_MESSAGE_TYPE = "avesmaps-location-report-result";
-		const LOCATION_REPORT_SUBMISSION_TIMEOUT_MS = 15000;
+		const LOCATION_REPORT_SUBMISSION_TIMEOUT_MS = 7000;
 		const LOCATION_REPORT_MESSAGE_HOSTS = new Set(["script.google.com", "script.googleusercontent.com"]);
 		const LOCATION_REPORT_MESSAGE_HOST_SUFFIXES = [".script.googleusercontent.com"];
 		const MAX_SHARED_WAYPOINTS = 25;
@@ -612,8 +616,8 @@
 			return L.divIcon({
 				className: "map-context-anchor-marker",
 				html: '<span class="map-context-anchor-marker__dot" aria-hidden="true"></span>',
-				iconSize: [24, 24],
-				iconAnchor: [12, 12],
+				iconSize: [18, 18],
+				iconAnchor: [9, 9],
 			});
 		}
 
@@ -998,6 +1002,35 @@
 			}, LOCATION_REPORT_SUBMISSION_TIMEOUT_MS);
 		}
 
+		function shouldUseLocationReportFetchSubmit() {
+			try {
+				const currentUrl = new URL(window.location.href);
+				return currentUrl.protocol === "https:";
+			} catch (error) {
+				return false;
+			}
+		}
+
+		async function submitLocationReportViaFetch(formElement) {
+			const abortController = new AbortController();
+			const timeoutId = window.setTimeout(() => {
+				abortController.abort();
+			}, LOCATION_REPORT_SUBMISSION_TIMEOUT_MS);
+
+			try {
+				await fetch(LOCATION_REPORT_FORM_ENDPOINT_URL, {
+					method: "POST",
+					mode: "no-cors",
+					credentials: "omit",
+					cache: "no-store",
+					body: new FormData(formElement),
+					signal: abortController.signal,
+				});
+			} finally {
+				window.clearTimeout(timeoutId);
+			}
+		}
+
 		function handleLocationReportBridgePayload(payload) {
 			if (!isLocationReportSubmissionPending || !payload || payload.type !== LOCATION_REPORT_MESSAGE_TYPE) {
 				return false;
@@ -1077,7 +1110,7 @@
 			handleLocationReportBridgePayload(payload);
 		}
 
-		function handleLocationReportFormSubmit(event) {
+		async function handleLocationReportFormSubmit(event) {
 			event.preventDefault();
 
 			const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
@@ -1106,10 +1139,26 @@
 			setLocationReportStatus("Meldung wird gesendet...", "pending");
 			locationReportSubmitTargetLoadCount = 0;
 			resetLocationReportSubmitTarget();
+			setLocationReportSubmitPending(true);
+			if (shouldUseLocationReportFetchSubmit()) {
+				try {
+					await submitLocationReportViaFetch(formElement);
+					finalizeLocationReportSubmission({
+						ok: true,
+						message: "Ort wurde gemeldet.",
+					});
+				} catch (error) {
+					finalizeLocationReportSubmission({
+						ok: false,
+						message: "Die Meldung konnte nicht gesendet werden. Bitte später erneut versuchen.",
+					});
+				}
+				return;
+			}
+
 			isLocationReportSubmissionPending = true;
 			scheduleLocationReportSubmissionTimeout();
 			formElement.submit();
-			setLocationReportSubmitPending(true);
 		}
 
 		window.handleLocationReportBridgePayload = handleLocationReportBridgePayload;
