@@ -998,6 +998,19 @@
 			}, LOCATION_REPORT_SUBMISSION_TIMEOUT_MS);
 		}
 
+		function handleLocationReportBridgePayload(payload) {
+			if (!isLocationReportSubmissionPending || !payload || payload.type !== LOCATION_REPORT_MESSAGE_TYPE) {
+				return false;
+			}
+
+			finalizeLocationReportSubmission({
+				ok: Boolean(payload.ok),
+				message: payload.message || payload.error || "",
+			});
+
+			return true;
+		}
+
 		function handleLocationReportSubmissionMessage(event) {
 			if (!isLocationReportSubmissionPending) {
 				return;
@@ -1014,10 +1027,7 @@
 				return;
 			}
 
-			finalizeLocationReportSubmission({
-				ok: Boolean(payload.ok),
-				message: payload.message || payload.error || "",
-			});
+			handleLocationReportBridgePayload(payload);
 		}
 
 		function readLocationReportPayloadFromSubmitTarget() {
@@ -1064,10 +1074,7 @@
 				return;
 			}
 
-			finalizeLocationReportSubmission({
-				ok: Boolean(payload.ok),
-				message: payload.message || payload.error || "",
-			});
+			handleLocationReportBridgePayload(payload);
 		}
 
 		function handleLocationReportFormSubmit(event) {
@@ -1104,6 +1111,8 @@
 			formElement.submit();
 			setLocationReportSubmitPending(true);
 		}
+
+		window.handleLocationReportBridgePayload = handleLocationReportBridgePayload;
 
 		function escapeHtml(value) {
 			return String(value)

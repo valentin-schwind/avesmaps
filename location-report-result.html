@@ -24,6 +24,17 @@
 					: window.location.origin;
 
 				if (window.parent && window.parent !== window) {
+					try {
+						if (typeof window.parent.handleLocationReportBridgePayload === "function") {
+							const wasHandled = window.parent.handleLocationReportBridgePayload(payload);
+							if (wasHandled) {
+								return;
+							}
+						}
+					} catch (error) {
+						// Direct parent access can fail before same-origin navigation fully settles.
+					}
+
 					window.parent.postMessage(payload, parentOrigin);
 				}
 			} catch (error) {
