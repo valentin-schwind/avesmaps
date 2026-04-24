@@ -779,15 +779,8 @@
 			return bridgeUrl.toString();
 		}
 
-		function isLocalDevelopmentOrigin() {
-			try {
-				const currentUrl = new URL(window.location.href);
-				const hostname = String(currentUrl.hostname || "").toLowerCase();
-				return currentUrl.protocol === "http:"
-					&& (hostname === "localhost" || hostname === "127.0.0.1");
-			} catch (error) {
-				return false;
-			}
+		function hasLocationReportSubmitTargetActivity() {
+			return locationReportSubmitTargetLoadCount > 0;
 		}
 
 		function resetLocationReportSubmitTarget() {
@@ -988,7 +981,7 @@
 		function scheduleLocationReportSubmissionTimeout() {
 			clearLocationReportSubmissionTimeout();
 			locationReportSubmissionTimeoutId = window.setTimeout(() => {
-				if (isLocalDevelopmentOrigin() && locationReportSubmitTargetLoadCount > 0) {
+				if (hasLocationReportSubmitTargetActivity()) {
 					finalizeLocationReportSubmission({
 						ok: true,
 						message: "Ort wurde gemeldet.",
