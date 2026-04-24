@@ -114,6 +114,7 @@
 				<li>Meldungen werden gesammelt und bei Gelegenheit geprüft und eingepflegt.</li>
 				<li>Bitte nur Meldungen mit sicherer Quellenlage und Beschreibung.</li>
 			</ul>
+			<p class="location-report-dialog__trust-note">Beim Senden öffnet sich kurz ein Avesmaps-Fenster für die Google-Bestätigung der Meldung. Das Fenster wurde durch deinen Klick geöffnet und schließt sich automatisch.</p>
 			<form id="location-report-form" class="location-report-form" method="post" target="location-report-submit-target" accept-charset="UTF-8" novalidate>
 				<div class="location-report-form__meta">
 					<div class="location-report-form__meta-item">
@@ -404,6 +405,7 @@
 		const LOCATION_REPORT_MESSAGE_TYPE = "avesmaps-location-report-result";
 		const LOCATION_REPORT_POPUP_TARGET_NAME = "location-report-submit-popup";
 		const LOCATION_REPORT_STORAGE_KEY = "avesmaps-location-report-result";
+		const LOCATION_REPORT_POPUP_MONITOR_INTERVAL_MS = 150;
 		const LOCATION_REPORT_SUBMISSION_TIMEOUT_MS = 7000;
 		const LOCATION_REPORT_MESSAGE_HOSTS = new Set(["script.google.com", "script.googleusercontent.com"]);
 		const LOCATION_REPORT_MESSAGE_HOST_SUFFIXES = [".script.googleusercontent.com"];
@@ -505,7 +507,9 @@
 			isLocationReportSubmissionPending = false,
 			locationReportSubmissionTimeoutId = null,
 			locationReportSubmitTargetLoadCount = 0,
-			locationReportPopupWindow = null;
+			locationReportPopupWindow = null,
+			locationReportPopupMonitorIntervalId = null,
+			locationReportPopupNavigationDetected = false;
 
 		// Initialisierung der Karte 
 		const map = L.map("map", {
@@ -806,6 +810,10 @@
 			return locationReportSubmitTargetLoadCount > 0;
 		}
 
+		function hasLocationReportPopupActivity() {
+			return locationReportPopupNavigationDetected;
+		}
+
 		function clearLocationReportBridgeStorage() {
 			try {
 				window.localStorage.removeItem(LOCATION_REPORT_STORAGE_KEY);
@@ -814,9 +822,10 @@
 			}
 		}
 
-		function buildLocationReportPopupMarkup({ heading, message, detail = "" }) {
+		function buildLocationReportPopupMarkup({ eyebrow = "Avesmaps", heading, message, detail = "" }) {
 			const assetBasePath = getLocationReportAssetBasePath();
 			const fontUrl = `${window.location.origin}${assetBasePath}fonts/FacultyGlyphic-Regular.woff`;
+			const escapedEyebrow = escapeHtml(eyebrow);
 			const escapedHeading = escapeHtml(heading);
 			const escapedMessage = escapeHtml(message);
 			const detailMarkup = detail ? `<p class="location-report-popup__detail">${escapeHtml(detail)}</p>` : "";
@@ -899,7 +908,7 @@
 </head>
 <body>
 	<section class="location-report-popup" aria-live="polite">
-		<p class="location-report-popup__eyebrow">Avesmaps</p>
+		<p class="location-report-popup__eyebrow">${escapedEyebrow}</p>
 		<h1 class="location-report-popup__title">${escapedHeading}</h1>
 		<p class="location-report-popup__message">${escapedMessage}</p>
 		${detailMarkup}
@@ -916,6 +925,18 @@
 
 			locationReportPopupWindow.close();
 			locationReportPopupWindow = null;
+		}
+
+		function clearLocationReportPopupMonitor() {
+			if (locationReportPopupMonitorIntervalId) {
+				window.clearInterval(locationReportPopupMonitorIntervalId);
+				locationReportPopupMonitorIntervalId = null;
+			}
+		}
+
+		function resetLocationReportPopupMonitor() {
+			clearLocationReportPopupMonitor();
+			locationReportPopupNavigationDetected = false;
 		}
 
 		function openLocationReportSubmitPopup() {
@@ -936,9 +957,10 @@
 			try {
 				popupWindow.document.open();
 				popupWindow.document.write(buildLocationReportPopupMarkup({
+					eyebrow: "Avesmaps",
 					heading: "Ortsmeldung",
-					message: "Die Meldung wird an Avesmaps übertragen.",
-					detail: "Das Fenster schließt sich danach automatisch.",
+					message: "Die Meldung wird direkt an die Avesmaps-Meldeliste übertragen.",
+					detail: "Das Fenster wurde durch deinen Klick geöffnet, nutzt kurz Google zur Bestätigung und schließt sich danach automatisch.",
 				}));
 				popupWindow.document.close();
 			} catch (error) {
@@ -946,6 +968,74 @@
 			}
 
 			return popupWindow;
+		}
+
+		function readLocationReportPayloadFromPopupWindow() {
+			if (!locationReportPopupWindow || locationReportPopupWindow.closed) {
+				return null;
+			}
+
+			try {
+				const popupUrl = new URL(locationReportPopupWindow.location.href);
+				const expectedBridgeUrl = new URL(getLocationReportResponseBridgeUrl());
+				if (popupUrl.origin !== window.location.origin || popupUrl.pathname !== expectedBridgeUrl.pathname) {
+					return null;
+				}
+
+				const payloadValue = new URLSearchParams(popupUrl.search).get("payload")
+					|| new URLSearchParams(popupUrl.hash.slice(1)).get("payload");
+				if (!payloadValue) {
+					return null;
+				}
+
+				const payload = JSON.parse(payloadValue);
+				if (!payload || payload.type !== LOCATION_REPORT_MESSAGE_TYPE) {
+					return null;
+				}
+
+				return payload;
+			} catch (error) {
+				return null;
+			}
+		}
+
+		function startLocationReportPopupMonitor() {
+			resetLocationReportPopupMonitor();
+			if (!locationReportPopupWindow) {
+				return;
+			}
+
+			locationReportPopupMonitorIntervalId = window.setInterval(() => {
+				if (!isLocationReportSubmissionPending) {
+					clearLocationReportPopupMonitor();
+					return;
+				}
+
+				if (!locationReportPopupWindow) {
+					clearLocationReportPopupMonitor();
+					return;
+				}
+
+				if (locationReportPopupWindow.closed) {
+					clearLocationReportPopupMonitor();
+					return;
+				}
+
+				const payload = readLocationReportPayloadFromPopupWindow();
+				if (payload) {
+					handleLocationReportBridgePayload(payload);
+					return;
+				}
+
+				try {
+					const popupUrl = new URL(locationReportPopupWindow.location.href);
+					if (popupUrl.href !== "about:blank") {
+						locationReportPopupNavigationDetected = true;
+					}
+				} catch (error) {
+					locationReportPopupNavigationDetected = true;
+				}
+			}, LOCATION_REPORT_POPUP_MONITOR_INTERVAL_MS);
 		}
 
 		function resetLocationReportSubmitTarget() {
@@ -1130,6 +1220,7 @@
 
 		function finalizeLocationReportSubmission({ ok, message }) {
 			clearLocationReportSubmissionTimeout();
+			clearLocationReportPopupMonitor();
 			setLocationReportSubmitPending(false);
 			updateLocationReportDialogAvailability();
 			resetLocationReportSubmitTarget();
@@ -1148,7 +1239,7 @@
 		function scheduleLocationReportSubmissionTimeout() {
 			clearLocationReportSubmissionTimeout();
 			locationReportSubmissionTimeoutId = window.setTimeout(() => {
-				if (hasLocationReportSubmitTargetActivity()) {
+				if (hasLocationReportSubmitTargetActivity() || hasLocationReportPopupActivity()) {
 					finalizeLocationReportSubmission({
 						ok: true,
 						message: "Ort wurde gemeldet.",
@@ -1285,6 +1376,7 @@
 			setLocationReportStatus("Meldung wird gesendet...", "pending");
 			locationReportSubmitTargetLoadCount = 0;
 			resetLocationReportSubmitTarget();
+			resetLocationReportPopupMonitor();
 			clearLocationReportBridgeStorage();
 			isLocationReportSubmissionPending = true;
 			scheduleLocationReportSubmissionTimeout();
@@ -1293,6 +1385,7 @@
 				const popupWindow = openLocationReportSubmitPopup();
 				if (popupWindow) {
 					formElement.target = LOCATION_REPORT_POPUP_TARGET_NAME;
+					startLocationReportPopupMonitor();
 				}
 			}
 			formElement.submit();

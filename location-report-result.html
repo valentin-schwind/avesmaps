@@ -78,17 +78,28 @@
 	<section class="location-report-popup" aria-live="polite">
 		<p class="location-report-popup__eyebrow">Avesmaps</p>
 		<h1 class="location-report-popup__title">Ortsmeldung</h1>
-		<p class="location-report-popup__message">Die Meldung wird bestätigt.</p>
-		<p class="location-report-popup__detail">Das Fenster schließt sich automatisch, sobald die Rückmeldung übertragen wurde.</p>
+		<p class="location-report-popup__message">Die Meldung wurde an die Avesmaps-Meldeliste übertragen.</p>
+		<p class="location-report-popup__detail">Dieses Fenster wurde durch deinen Klick geöffnet, nutzt Google nur für die Übertragung und schließt sich danach automatisch.</p>
 	</section>
 	<script>
 		(function () {
 			const LOCATION_REPORT_STORAGE_KEY = "avesmaps-location-report-result";
+			const CLOSE_WINDOW_DELAY_MS = 120;
 			const searchParams = new URLSearchParams(window.location.search);
 			const hashParams = new URLSearchParams(window.location.hash.slice(1));
 			const payloadValue = searchParams.get("payload") || hashParams.get("payload");
 			if (!payloadValue) {
 				return;
+			}
+
+			function closeWindowSoon() {
+				window.setTimeout(() => {
+					try {
+						window.close();
+					} catch (error) {
+						// Some browsers may refuse to close a window at this stage.
+					}
+				}, CLOSE_WINDOW_DELAY_MS);
 			}
 
 			try {
@@ -112,7 +123,7 @@
 						if (typeof window.opener.handleLocationReportBridgePayload === "function") {
 							const wasHandled = window.opener.handleLocationReportBridgePayload(payload);
 							if (wasHandled) {
-								window.close();
+								closeWindowSoon();
 								return;
 							}
 						}
@@ -122,7 +133,7 @@
 
 					try {
 						window.opener.postMessage(payload, parentOrigin);
-						window.close();
+						closeWindowSoon();
 						return;
 					} catch (error) {
 						// The opener fallback may still be blocked in some browsers.
@@ -134,6 +145,7 @@
 						if (typeof window.parent.handleLocationReportBridgePayload === "function") {
 							const wasHandled = window.parent.handleLocationReportBridgePayload(payload);
 							if (wasHandled) {
+								closeWindowSoon();
 								return;
 							}
 						}

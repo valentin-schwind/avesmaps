@@ -295,6 +295,17 @@ body.modal-dialog-open {
 	margin-top: 6px;
 }
 
+.location-report-dialog__trust-note {
+	margin: -4px 0 4px 0;
+	padding: 10px 12px;
+	border: 1px solid #d9c1a4;
+	border-radius: 10px;
+	background: #f5ecdf;
+	color: #5b4735;
+	font-size: 12px;
+	line-height: 1.45;
+}
+
 .location-report-form {
 	display: flex;
 	flex-direction: column;
