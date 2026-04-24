@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-23T13:29:16+00:00",
+  "generatedAt": "2026-04-24T18:54:00+00:00",
   "source": "Wiki Aventurica MediaWiki API (Siedlungen-Index, page categories, search fallback)",
   "sourceUrl": "https://de.wiki-aventurica.de/wiki/Kategorie:Siedlungen-Index",
   "links": {
@@ -8,6 +8,12 @@
       "url": "https://de.wiki-aventurica.de/wiki/Aaleinen",
       "match": "exact",
       "description": "Aaleinen ist ein Dorf in der Region Mittelreich."
+    },
+    "Abagund": {
+      "title": "Abagund (Siedlung)",
+      "url": "https://de.wiki-aventurica.de/wiki/Abagund_(Siedlung)",
+      "match": "search",
+      "description": "Abagund ist ein Dorf in der Region Albernia."
     },
     "Abilacht": {
       "title": "Abilacht",
@@ -321,6 +327,12 @@
       "match": "exact",
       "description": "Altenfurt ist ein Dorf in der Region Mittelreich."
     },
+    "Altenfurten": {
+      "title": "Altenfurten",
+      "url": "https://de.wiki-aventurica.de/wiki/Altenfurten",
+      "match": "exact",
+      "description": "Altenfurten ist ein Dorf in der Region Mittelreich."
+    },
     "Althagen": {
       "title": "Althagen",
       "url": "https://de.wiki-aventurica.de/wiki/Althagen",
@@ -416,12 +428,6 @@
       "url": "https://de.wiki-aventurica.de/wiki/Andergast",
       "match": "exact",
       "description": "Andergast ist eine Großstadt in der Region Königreich Andergast."
-    },
-    "Anderstein": {
-      "title": "Anderstein (Siedlung)",
-      "url": "https://de.wiki-aventurica.de/wiki/Anderstein_(Siedlung)",
-      "match": "search",
-      "description": "Anderstein ist ein Dorf in der Region Königreich Andergast."
     },
     "Andrafall": {
       "title": "Andrafall",
@@ -1485,6 +1491,12 @@
       "match": "place",
       "description": "Burg Falkenwind ist in Avesmaps als Dorf erfasst; Wiki Aventurica führt den Ort als Festung."
     },
+    "Burg Firnhag": {
+      "title": "Burg Firnhag",
+      "url": "https://de.wiki-aventurica.de/wiki/Burg_Firnhag",
+      "match": "place",
+      "description": "Burg Firnhag ist in Avesmaps als Dorf erfasst; Wiki Aventurica führt den Ort als Festung."
+    },
     "Burg Geierschrei": {
       "title": "Burg Geierschrei",
       "url": "https://de.wiki-aventurica.de/wiki/Burg_Geierschrei",
@@ -1534,8 +1546,8 @@
       "description": "Burg Rabenmund ist in Avesmaps als Dorf erfasst; Wiki Aventurica führt den Ort als Festung."
     },
     "Burg Rudes Schild": {
-      "title": "Burg Rudes Schild (Garetien)",
-      "url": "https://de.wiki-aventurica.de/wiki/Burg_Rudes_Schild_(Garetien)",
+      "title": "Burg Rudes Schild (Kosch)",
+      "url": "https://de.wiki-aventurica.de/wiki/Burg_Rudes_Schild_(Kosch)",
       "match": "search",
       "description": "Burg Rudes Schild ist in Avesmaps als Dorf erfasst; Wiki Aventurica führt den Ort als Festung."
     },
@@ -1802,12 +1814,6 @@
       "url": "https://de.wiki-aventurica.de/wiki/Crux",
       "match": "exact",
       "description": "Crux ist ein Dorf in der Region Horasreich."
-    },
-    "Cumrat": {
-      "title": "Cumrat (Siedlung)",
-      "url": "https://de.wiki-aventurica.de/wiki/Cumrat_(Siedlung)",
-      "match": "search",
-      "description": "Cumrat ist ein Dorf in der Region Almada."
     },
     "Cuoris": {
       "title": "Cuoris",
@@ -2212,10 +2218,10 @@
       "description": "Dutlindhusen ist ein Dorf in der Region Bornland (Bund)."
     },
     "Dâl": {
-      "title": "Dâl (Chababien)",
-      "url": "https://de.wiki-aventurica.de/wiki/D%C3%A2l_(Chababien)",
+      "title": "Dâl (Almada)",
+      "url": "https://de.wiki-aventurica.de/wiki/D%C3%A2l_(Almada)",
       "match": "search",
-      "description": "Dâl ist ein Dorf in der Region Horasreich."
+      "description": "Dâl ist ein Dorf in der Region Almada."
     },
     "Dâlend": {
       "title": "Dâlend",
@@ -2859,6 +2865,12 @@
       "match": "exact",
       "description": "Fiolbar ist ein Dorf in der Region Königreich Nostria."
     },
+    "Firnroden": {
+      "title": "Firnroden",
+      "url": "https://de.wiki-aventurica.de/wiki/Firnroden",
+      "match": "exact",
+      "description": "Firnroden ist ein Dorf in der Region Mittelreich."
+    },
     "Firunen": {
       "title": "Firunen",
       "url": "https://de.wiki-aventurica.de/wiki/Firunen",
@@ -2872,10 +2884,10 @@
       "description": "Firunsbrunn ist ein Dorf in der Region Mittelreich."
     },
     "Firunshag": {
-      "title": "Firunshag (Nivesenland)",
-      "url": "https://de.wiki-aventurica.de/wiki/Firunshag_(Nivesenland)",
+      "title": "Firunshag (Bornland)",
+      "url": "https://de.wiki-aventurica.de/wiki/Firunshag_(Bornland)",
       "match": "search",
-      "description": "Firunshag ist ein Dorf in der Region Nivesenlande."
+      "description": "Firunshag ist ein Dorf in der Region Bornland (Bund)."
     },
     "Fischbach": {
       "title": "Fischbach",
@@ -3286,10 +3298,10 @@
       "description": "Gnitzenkuhl ist ein Dorf in der Region Mittelreich."
     },
     "Goldklamm": {
-      "title": "Goldklamm (Rorwhed)",
-      "url": "https://de.wiki-aventurica.de/wiki/Goldklamm_(Rorwhed)",
+      "title": "Goldklamm (Kosch)",
+      "url": "https://de.wiki-aventurica.de/wiki/Goldklamm_(Kosch)",
       "match": "search",
-      "description": "Goldklamm ist ein Dorf in der Region Sternenbund."
+      "description": "Goldklamm ist ein Dorf in der Region Kosch (Region)."
     },
     "Goldsholmr": {
       "title": "Goldsholmr",
@@ -3627,6 +3639,12 @@
       "match": "exact",
       "description": "Hammerberg ist ein Dorf in der Region Kosch (Region)."
     },
+    "Hammerschlag": {
+      "title": "Hammerschlag (Siedlung)",
+      "url": "https://de.wiki-aventurica.de/wiki/Hammerschlag_(Siedlung)",
+      "match": "search",
+      "description": "Hammerschlag ist ein Dorf in der Region Kosch (Region)."
+    },
     "Harasim": {
       "title": "Harasim",
       "url": "https://de.wiki-aventurica.de/wiki/Harasim",
@@ -3866,6 +3884,12 @@
       "url": "https://de.wiki-aventurica.de/wiki/Hirschfurt",
       "match": "exact",
       "description": "Hirschfurt ist eine Kleinstadt in der Region Herz des Kontinents."
+    },
+    "Hirschquell": {
+      "title": "Hirschquell",
+      "url": "https://de.wiki-aventurica.de/wiki/Hirschquell",
+      "match": "exact",
+      "description": "Hirschquell ist ein Dorf in der Region Mittelreich."
     },
     "Hirschwailer": {
       "title": "Hirschwailer",
@@ -5895,6 +5919,12 @@
       "match": "exact",
       "description": "Nordvest ist ein Dorf in der Region Königreich Nostria."
     },
+    "Nordwall": {
+      "title": "Nordwall",
+      "url": "https://de.wiki-aventurica.de/wiki/Nordwall",
+      "match": "exact",
+      "description": "Nordwall ist ein Dorf in der Region Mittelreich."
+    },
     "Nordweide": {
       "title": "Nordweide",
       "url": "https://de.wiki-aventurica.de/wiki/Nordweide",
@@ -5960,6 +5990,12 @@
       "url": "https://de.wiki-aventurica.de/wiki/Nummath",
       "match": "exact",
       "description": "Nummath ist eine Kleinstadt in der Region Mittelreich."
+    },
+    "Nuran": {
+      "title": "Nuran (Maraskan)",
+      "url": "https://de.wiki-aventurica.de/wiki/Nuran_(Maraskan)",
+      "match": "search",
+      "description": "Nuran ist ein Dorf in der Region Fürstkomturei Maraskan."
     },
     "Nuzell": {
       "title": "Nuzell",
@@ -6459,6 +6495,12 @@
       "match": "exact",
       "description": "Perainsgarten ist ein Dorf in der Region Herz des Kontinents."
     },
+    "Pergelfurt": {
+      "title": "Pergelfurt",
+      "url": "https://de.wiki-aventurica.de/wiki/Pergelfurt",
+      "match": "exact",
+      "description": "Pergelfurt ist ein Dorf in der Region Mittelreich."
+    },
     "Pergelgrund": {
       "title": "Pergelgrund",
       "url": "https://de.wiki-aventurica.de/wiki/Pergelgrund",
@@ -6807,11 +6849,23 @@
       "match": "exact",
       "description": "Rabenfeld ist ein Dorf in der Region Mittelreich."
     },
+    "Rabenhorst": {
+      "title": "Rabenhorst",
+      "url": "https://de.wiki-aventurica.de/wiki/Rabenhorst",
+      "match": "place",
+      "description": "Rabenhorst ist in Avesmaps als Dorf erfasst; Wiki Aventurica führt den Ort als Festung."
+    },
     "Rabicum": {
       "title": "Rabicum",
       "url": "https://de.wiki-aventurica.de/wiki/Rabicum",
       "match": "exact",
       "description": "Rabicum ist ein Dorf in der Region Mittelreich."
+    },
+    "Radbruch": {
+      "title": "Radbruch",
+      "url": "https://de.wiki-aventurica.de/wiki/Radbruch",
+      "match": "exact",
+      "description": "Radbruch ist ein Dorf in der Region Mittelreich."
     },
     "Radil": {
       "title": "Radil",
@@ -7364,12 +7418,6 @@
       "url": "https://de.wiki-aventurica.de/wiki/Salmingen",
       "match": "exact",
       "description": "Salmingen ist eine Kleinstadt in der Region Kosch (Region)."
-    },
-    "Salsweiler": {
-      "title": "Salsweiler (Siedlung)",
-      "url": "https://de.wiki-aventurica.de/wiki/Salsweiler_(Siedlung)",
-      "match": "search",
-      "description": "Salsweiler ist ein Dorf in der Region Bornland (Bund)."
     },
     "Salthel": {
       "title": "Salthel",
@@ -8073,6 +8121,12 @@
       "match": "place",
       "description": "Stadt der Toten ist in Avesmaps als Dorf erfasst."
     },
+    "Steenbukken": {
+      "title": "Steenbukken",
+      "url": "https://de.wiki-aventurica.de/wiki/Steenbukken",
+      "match": "exact",
+      "description": "Steenbukken ist ein Dorf in der Region Mittelreich."
+    },
     "Steinbrücken": {
       "title": "Steinbrücken",
       "url": "https://de.wiki-aventurica.de/wiki/Steinbr%C3%BCcken",
@@ -8228,6 +8282,12 @@
       "url": "https://de.wiki-aventurica.de/wiki/Syrrenholt",
       "match": "redirect",
       "description": "Syrrenolt ist ein Dorf in der Region Herz des Kontinents."
+    },
+    "Südhag": {
+      "title": "Südhag",
+      "url": "https://de.wiki-aventurica.de/wiki/S%C3%BCdhag",
+      "match": "exact",
+      "description": "Südhag ist ein Dorf in der Region Mittelreich."
     },
     "Südwall": {
       "title": "Sassandra-Südwall",
@@ -8666,6 +8726,12 @@
       "url": "https://de.wiki-aventurica.de/wiki/Tjolmar",
       "match": "exact",
       "description": "Tjolmar ist eine Stadt in der Region Orkreich."
+    },
+    "Tobra": {
+      "title": "Tobra",
+      "url": "https://de.wiki-aventurica.de/wiki/Tobra",
+      "match": "exact",
+      "description": "Tobra ist ein Dorf in der Region Mittelreich."
     },
     "Tolacas": {
       "title": "Tolacas",
@@ -9369,6 +9435,12 @@
       "match": "exact",
       "description": "Waldrast ist ein Dorf in der Region Greifenfurt (Region)."
     },
+    "Waldscheidt": {
+      "title": "Waldscheidt",
+      "url": "https://de.wiki-aventurica.de/wiki/Waldscheidt",
+      "match": "exact",
+      "description": "Waldscheidt ist ein Dorf in der Region Mittelreich."
+    },
     "Waldsend": {
       "title": "Waldsend",
       "url": "https://de.wiki-aventurica.de/wiki/Waldsend",
@@ -9406,8 +9478,8 @@
       "description": "Wandleth ist eine Stadt in der Region Herz des Kontinents."
     },
     "Wanka": {
-      "title": "Wanka (Yaquiria)",
-      "url": "https://de.wiki-aventurica.de/wiki/Wanka_(Yaquiria)",
+      "title": "Wanka (Drôl)",
+      "url": "https://de.wiki-aventurica.de/wiki/Wanka_(Dr%C3%B4l)",
       "match": "search",
       "description": "Wanka ist ein Dorf in der Region Horasreich."
     },
@@ -9483,6 +9555,12 @@
       "match": "exact",
       "description": "Weidenau ist ein Dorf in der Region Albernia."
     },
+    "Weidenhag": {
+      "title": "Weidenhag",
+      "url": "https://de.wiki-aventurica.de/wiki/Weidenhag",
+      "match": "exact",
+      "description": "Weidenhag ist ein Dorf in der Region Mittelreich."
+    },
     "Weidensee": {
       "title": "Weidensee",
       "url": "https://de.wiki-aventurica.de/wiki/Weidensee",
@@ -9518,6 +9596,12 @@
       "url": "https://de.wiki-aventurica.de/wiki/Wei%C3%9Fbruch",
       "match": "exact",
       "description": "Weißbruch ist ein Dorf in der Region Horasreich."
+    },
+    "Weißenstein": {
+      "title": "Weißenstein (Siedlung)",
+      "url": "https://de.wiki-aventurica.de/wiki/Wei%C3%9Fenstein_(Siedlung)",
+      "match": "search",
+      "description": "Weißenstein ist ein Dorf in der Region Mittelreich."
     },
     "Welferode": {
       "title": "Welferode",
