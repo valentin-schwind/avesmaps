@@ -177,8 +177,8 @@ die MediaWiki-API mit Wiki Aventurica ab und schreibt zusaetzlich
 ## Neue Ortsmeldungen aus SQL importieren
 
 Die Datei `map/import_reported_locations.py` liest neue Ortsmeldungen direkt aus
-der Tabelle `location_reports`, fragt sie interaktiv durch und uebernimmt angenommene
-Eintraege in die SVG-Quelle.
+der Tabelle `location_reports` beziehungsweise ueber die serverseitigen Import-Endpunkte,
+fragt sie interaktiv durch und uebernimmt angenommene Eintraege in die SVG-Quelle.
 
 Der Ablauf des Skripts:
 
@@ -186,7 +186,7 @@ Der Ablauf des Skripts:
 - es zeigt jeden Eintrag einzeln mit Leaflet- und SVG-Koordinaten an
 - bei Zustimmung fuegt es den Ort in `map/Aventurien_routes.svg` ein
 - danach erzeugt es direkt `map/Aventurien_routes.geojson` neu
-- anschliessend loescht es den angenommenen Eintrag aus der Datenbank
+- anschliessend setzt es den angenommenen Eintrag in der Datenbank auf `status = alt`
 - bei Ablehnung fragt es zusaetzlich, ob der Datenbank-Eintrag geloescht werden soll
 
 ### Voraussetzungen
@@ -197,7 +197,7 @@ Die Python-Abhaengigkeiten einmal installieren:
 pip install -r map/requirements-location-import.txt
 ```
 
-Danach dieselben Datenbankwerte bereitstellen, die auch die PHP-API nutzt, zum Beispiel per Umgebungsvariablen:
+Wenn dein Rechner die MySQL-Datenbank direkt erreichen kann, kannst du dieselben Datenbankwerte bereitstellen, die auch die PHP-API nutzt, zum Beispiel per Umgebungsvariablen:
 
 ```bash
 export AVESMAPS_DB_DRIVER=mysql
@@ -219,6 +219,15 @@ $env:AVESMAPS_DB_USER = "avesmaps_user"
 $env:AVESMAPS_DB_PASSWORD = "replace-with-a-secret-password"
 ```
 
+Wenn die Datenbank nur intern vom Webserver aus erreichbar ist, kann das Skript stattdessen ueber HTTPS mit den PHP-Import-Endpunkten sprechen. Dann sind diese Umgebungsvariablen ausreichend:
+
+```powershell
+$env:AVESMAPS_IMPORT_API_BASE_URL = "https://example.org/avesmaps/api"
+$env:AVESMAPS_IMPORT_API_TOKEN = "replace-with-a-long-random-import-token"
+```
+
+Das Skript nutzt automatisch die Import-API, sobald `AVESMAPS_IMPORT_API_BASE_URL` gesetzt ist.
+
 ### Ausfuehrung
 
 Im Projektverzeichnis:
@@ -226,6 +235,8 @@ Im Projektverzeichnis:
 ```bash
 python map/import_reported_locations.py
 ```
+
+Standardmaessig setzt das Skript erfolgreich uebernommene Meldungen auf `status = alt`.
 
 Optional als Testlauf ohne Schreiben:
 

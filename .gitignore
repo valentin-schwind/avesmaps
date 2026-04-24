@@ -5,3 +5,4 @@ api/.env
 .env
 map/google-sheets-credentials.json
 map/google-sheets-token.json
+map/Aventurien_routes.backup-*.svg

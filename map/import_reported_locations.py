@@ -4,11 +4,15 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import sys
 import textwrap
 import xml.etree.ElementTree as ET
+import urllib.error
+import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,6 +22,7 @@ from svg_to_geojson import svg_to_geojson
 
 
 DEFAULT_ROW_STATUS = "neu"
+DEFAULT_IMPORTED_STATUS = "alt"
 DEFAULT_DB_CHARSET = "utf8mb4"
 
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
@@ -75,6 +80,20 @@ class DatabaseConfig:
 
 
 @dataclass
+class ApiConfig:
+    base_url: str
+    token: str
+    timeout_seconds: float = 20.0
+
+
+@dataclass
+class ImportBackend:
+    kind: str
+    connection: Any = None
+    api_config: Optional[ApiConfig] = None
+
+
+@dataclass
 class ReportRow:
     report_id: int
     created_at: str
@@ -121,6 +140,21 @@ def parse_args() -> argparse.Namespace:
         help="Datenbank-Treiber: mysql, mariadb oder pgsql/postgres.",
     )
     parser.add_argument(
+        "--api-base-url",
+        default=os.getenv("AVESMAPS_IMPORT_API_BASE_URL", ""),
+        help="Basis-URL der Import-API, zum Beispiel https://example.org/avesmaps/api.",
+    )
+    parser.add_argument(
+        "--api-token",
+        default=os.getenv("AVESMAPS_IMPORT_API_TOKEN", ""),
+        help="Import-API-Token fuer die serverseitigen Moderations-Endpunkte.",
+    )
+    parser.add_argument(
+        "--api-timeout",
+        default=os.getenv("AVESMAPS_IMPORT_API_TIMEOUT", "20"),
+        help="Timeout fuer Import-API-Anfragen in Sekunden.",
+    )
+    parser.add_argument(
         "--db-host",
         default=os.getenv("AVESMAPS_DB_HOST", ""),
         help="Datenbank-Host.",
@@ -156,6 +190,11 @@ def parse_args() -> argparse.Namespace:
         help="Es werden nur Meldungen mit diesem Status verarbeitet.",
     )
     parser.add_argument(
+        "--imported-status",
+        default=DEFAULT_IMPORTED_STATUS,
+        help="Auf diesen Status werden erfolgreich importierte Meldungen gesetzt.",
+    )
+    parser.add_argument(
         "--svg",
         default=str(map_dir / "Aventurien_routes.svg"),
         help="Pfad zur zu aktualisierenden SVG-Datei.",
@@ -185,6 +224,32 @@ def prompt_choice(prompt_text: str, valid_choices: Sequence[str], default_choice
             return raw_value
 
         print(f"Bitte eine der Optionen eingeben: {', '.join(valid_choices)}")
+
+
+def build_api_config(args: argparse.Namespace) -> Optional[ApiConfig]:
+    api_base_url = str(args.api_base_url).strip().rstrip("/")
+    if api_base_url == "":
+        return None
+
+    api_token = str(args.api_token).strip()
+    if api_token == "":
+        raise ValueError(
+            "Fuer die Import-API fehlt das Token. Bitte --api-token oder AVESMAPS_IMPORT_API_TOKEN setzen."
+        )
+
+    try:
+        timeout_seconds = float(str(args.api_timeout).strip())
+    except ValueError as error:
+        raise ValueError("Der API-Timeout muss eine Zahl sein.") from error
+
+    if timeout_seconds <= 0:
+        raise ValueError("Der API-Timeout muss groesser als 0 sein.")
+
+    return ApiConfig(
+        base_url=api_base_url,
+        token=api_token,
+        timeout_seconds=timeout_seconds,
+    )
 
 
 def build_database_config(args: argparse.Namespace) -> DatabaseConfig:
@@ -271,6 +336,88 @@ def open_database_connection(database_config: DatabaseConfig):
     )
 
 
+def open_import_backend(args: argparse.Namespace) -> ImportBackend:
+    api_config = build_api_config(args)
+    if api_config is not None:
+        return ImportBackend(
+            kind="api",
+            api_config=api_config,
+        )
+
+    database_config = build_database_config(args)
+    return ImportBackend(
+        kind="database",
+        connection=open_database_connection(database_config),
+    )
+
+
+def close_import_backend(backend: ImportBackend) -> None:
+    if backend.kind == "database" and backend.connection is not None:
+        backend.connection.close()
+
+
+def perform_import_api_request(
+    api_config: ApiConfig,
+    method: str,
+    endpoint_name: str,
+    payload: Optional[Dict[str, Any]] = None,
+    query_params: Optional[Dict[str, str]] = None,
+) -> Dict[str, Any]:
+    endpoint_url = f"{api_config.base_url}/{endpoint_name.lstrip('/')}"
+    if query_params:
+        endpoint_url = f"{endpoint_url}?{urllib.parse.urlencode(query_params)}"
+
+    request_body: Optional[bytes] = None
+    request_headers = {
+        "Accept": "application/json",
+        "X-Avesmaps-Import-Token": api_config.token,
+    }
+
+    if payload is not None:
+        request_body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        request_headers["Content-Type"] = "application/json"
+
+    request = urllib.request.Request(
+        endpoint_url,
+        data=request_body,
+        headers=request_headers,
+        method=method.upper(),
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=api_config.timeout_seconds) as response:
+            response_body = response.read().decode("utf-8")
+    except urllib.error.HTTPError as error:
+        response_body = error.read().decode("utf-8", errors="replace")
+        try:
+            response_payload = json.loads(response_body)
+        except json.JSONDecodeError as decode_error:
+            raise RuntimeError(
+                f"Die Import-API hat mit HTTP {error.code} und ungueltigem JSON geantwortet."
+            ) from decode_error
+
+        error_message = str(response_payload.get("error") or response_payload.get("message") or "").strip()
+        if error_message == "":
+            error_message = f"Die Import-API hat HTTP {error.code} zurueckgegeben."
+        raise RuntimeError(error_message) from error
+    except urllib.error.URLError as error:
+        raise RuntimeError(f"Die Import-API ist nicht erreichbar: {error.reason}") from error
+
+    try:
+        response_payload = json.loads(response_body)
+    except json.JSONDecodeError as error:
+        raise RuntimeError("Die Import-API hat ungueltiges JSON geliefert.") from error
+
+    if not isinstance(response_payload, dict):
+        raise RuntimeError("Die Import-API hat kein gueltiges JSON-Objekt geliefert.")
+
+    if response_payload.get("ok") is False:
+        error_message = str(response_payload.get("error") or response_payload.get("message") or "").strip()
+        raise RuntimeError(error_message or "Die Import-API hat einen Fehler gemeldet.")
+
+    return response_payload
+
+
 def serialize_timestamp(timestamp_value: Any) -> str:
     if isinstance(timestamp_value, datetime):
         if timestamp_value.tzinfo is None:
@@ -313,7 +460,7 @@ def parse_report_row(raw_row: Dict[str, Any]) -> Optional[ReportRow]:
     )
 
 
-def fetch_report_rows(connection, status_filter: str) -> List[ReportRow]:
+def fetch_report_rows_from_database(connection, status_filter: str) -> List[ReportRow]:
     with connection.cursor() as cursor:
         cursor.execute(
             """
@@ -354,9 +501,84 @@ def fetch_report_rows(connection, status_filter: str) -> List[ReportRow]:
     return parsed_rows
 
 
+def fetch_report_rows_from_api(api_config: ApiConfig, status_filter: str) -> List[ReportRow]:
+    response_payload = perform_import_api_request(
+        api_config=api_config,
+        method="GET",
+        endpoint_name="list-location-reports.php",
+        query_params={"status": status_filter},
+    )
+    raw_rows = response_payload.get("reports", [])
+    if not isinstance(raw_rows, list):
+        raise RuntimeError("Die Import-API hat kein gueltiges report-Array geliefert.")
+
+    parsed_rows: List[ReportRow] = []
+    for raw_row in raw_rows:
+        if not isinstance(raw_row, dict):
+            continue
+
+        report_row = parse_report_row(raw_row)
+        if report_row is None:
+            report_identifier = raw_row.get("id", "?")
+            print(
+                f"Meldung {report_identifier} wird uebersprungen: unvollstaendige oder ungueltige Daten.",
+                file=sys.stderr,
+            )
+            continue
+        parsed_rows.append(report_row)
+
+    return parsed_rows
+
+
+def fetch_report_rows(backend: ImportBackend, status_filter: str) -> List[ReportRow]:
+    if backend.kind == "api":
+        if backend.api_config is None:
+            raise RuntimeError("Die Import-API-Konfiguration fehlt.")
+        return fetch_report_rows_from_api(backend.api_config, status_filter)
+
+    if backend.connection is None:
+        raise RuntimeError("Die Datenbank-Verbindung fehlt.")
+    return fetch_report_rows_from_database(backend.connection, status_filter)
+
+
 def delete_report_row(connection, report_id: int) -> None:
     with connection.cursor() as cursor:
         cursor.execute("DELETE FROM location_reports WHERE id = %s", (report_id,))
+
+
+def update_report_status(connection, report_id: int, status: str) -> None:
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE location_reports
+            SET
+                status = %s,
+                reviewed_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+            """,
+            (status, report_id),
+        )
+
+
+def delete_report_via_api(api_config: ApiConfig, report_id: int) -> None:
+    perform_import_api_request(
+        api_config=api_config,
+        method="POST",
+        endpoint_name="delete-location-report.php",
+        payload={"report_id": report_id},
+    )
+
+
+def update_report_status_via_api(api_config: ApiConfig, report_id: int, status: str) -> None:
+    perform_import_api_request(
+        api_config=api_config,
+        method="POST",
+        endpoint_name="update-location-report-status.php",
+        payload={
+            "report_id": report_id,
+            "status": status,
+        },
+    )
 
 
 def collect_xml_namespaces(svg_path: Path) -> List[Tuple[str, str]]:
@@ -578,27 +800,78 @@ def print_report_row(report_row: ReportRow) -> None:
         print(f"Gemeldet am: {report_row.created_at}")
 
 
-def delete_report_with_feedback(connection, report_row: ReportRow, dry_run: bool, reason_text: str) -> bool:
+def delete_report_with_feedback(backend: ImportBackend, report_row: ReportRow, dry_run: bool, reason_text: str) -> bool:
     if dry_run:
-        print(f"Dry-Run: Meldung {report_row.report_id} wuerde aus der Datenbank geloescht ({reason_text}).")
+        print(f"Dry-Run: Meldung {report_row.report_id} wuerde entfernt ({reason_text}).")
         return True
 
     try:
-        delete_report_row(connection, report_row.report_id)
-        connection.commit()
+        if backend.kind == "api":
+            if backend.api_config is None:
+                raise RuntimeError("Die Import-API-Konfiguration fehlt.")
+            delete_report_via_api(backend.api_config, report_row.report_id)
+        else:
+            if backend.connection is None:
+                raise RuntimeError("Die Datenbank-Verbindung fehlt.")
+            delete_report_row(backend.connection, report_row.report_id)
+            backend.connection.commit()
     except Exception as error:  # pragma: no cover - depends on external state
-        connection.rollback()
+        if backend.kind == "database" and backend.connection is not None:
+            backend.connection.rollback()
         print(
-            f"Meldung {report_row.report_id} konnte nicht aus der Datenbank geloescht werden: {error}",
+            f"Meldung {report_row.report_id} konnte nicht entfernt werden: {error}",
             file=sys.stderr,
         )
         return False
 
-    print(f"Meldung {report_row.report_id} wurde aus der Datenbank geloescht ({reason_text}).")
+    print(f"Meldung {report_row.report_id} wurde entfernt ({reason_text}).")
     return True
 
 
-def review_rows(connection, report_rows: List[ReportRow], context: SvgImportContext, dry_run: bool) -> None:
+def update_report_status_with_feedback(
+    backend: ImportBackend,
+    report_row: ReportRow,
+    new_status: str,
+    dry_run: bool,
+    reason_text: str,
+) -> bool:
+    if dry_run:
+        print(
+            f"Dry-Run: Meldung {report_row.report_id} wuerde auf "
+            f"status='{new_status}' gesetzt ({reason_text})."
+        )
+        return True
+
+    try:
+        if backend.kind == "api":
+            if backend.api_config is None:
+                raise RuntimeError("Die Import-API-Konfiguration fehlt.")
+            update_report_status_via_api(backend.api_config, report_row.report_id, new_status)
+        else:
+            if backend.connection is None:
+                raise RuntimeError("Die Datenbank-Verbindung fehlt.")
+            update_report_status(backend.connection, report_row.report_id, new_status)
+            backend.connection.commit()
+    except Exception as error:  # pragma: no cover - depends on external state
+        if backend.kind == "database" and backend.connection is not None:
+            backend.connection.rollback()
+        print(
+            f"Meldung {report_row.report_id} konnte nicht auf status='{new_status}' gesetzt werden: {error}",
+            file=sys.stderr,
+        )
+        return False
+
+    print(f"Meldung {report_row.report_id} wurde auf status='{new_status}' gesetzt ({reason_text}).")
+    return True
+
+
+def review_rows(
+    backend: ImportBackend,
+    report_rows: List[ReportRow],
+    context: SvgImportContext,
+    dry_run: bool,
+    imported_status: str,
+) -> None:
     index = 0
     while index < len(report_rows):
         report_row = report_rows[index]
@@ -625,44 +898,52 @@ def review_rows(connection, report_rows: List[ReportRow], context: SvgImportCont
                 regenerate_geojson(context, dry_run=dry_run)
             except Exception as error:  # pragma: no cover - depends on external state
                 print(f"Fehler beim Import von {report_row.name}: {error}", file=sys.stderr)
-                print("Der Datenbank-Eintrag bleibt erhalten.", file=sys.stderr)
+                print("Der Eintrag bleibt erhalten.", file=sys.stderr)
                 index += 1
                 continue
 
             if dry_run:
                 print(
                     f"Dry-Run: {report_row.name} wuerde bei cx={svg_x:.3f}, cy={svg_y:.3f} eingefuegt "
-                    "und anschliessend aus der Datenbank geloescht."
+                    f"und anschliessend auf status='{imported_status}' gesetzt."
                 )
                 report_rows.pop(index)
                 continue
 
-            if delete_report_with_feedback(connection, report_row, dry_run=False, reason_text="nach Import"):
+            if update_report_status_with_feedback(
+                backend,
+                report_row,
+                new_status=imported_status,
+                dry_run=False,
+                reason_text="nach Import",
+            ):
                 print(f"{report_row.name} wurde importiert.")
                 report_rows.pop(index)
                 continue
 
-            print("Der Ort wurde importiert, aber der Datenbank-Eintrag ist noch vorhanden.", file=sys.stderr)
+            print(
+                "Der Ort wurde importiert, aber der Eintrag konnte nicht auf den Zielstatus gesetzt werden.",
+                file=sys.stderr,
+            )
             index += 1
             continue
 
         delete_decision = prompt_choice(
-            "Nicht importiert. Soll der Datenbank-Eintrag geloescht werden? [j]a / [n]ein: ",
+            "Nicht importiert. Soll der Eintrag geloescht werden? [j]a / [n]ein: ",
             valid_choices=("j", "n"),
             default_choice="n",
         )
         if delete_decision == "j":
-            if delete_report_with_feedback(connection, report_row, dry_run=dry_run, reason_text="nach Ablehnung"):
+            if delete_report_with_feedback(backend, report_row, dry_run=dry_run, reason_text="nach Ablehnung"):
                 report_rows.pop(index)
                 continue
 
-        print("Eintrag bleibt in der Datenbank erhalten.")
+        print("Eintrag bleibt erhalten.")
         index += 1
 
 
 def main() -> int:
     args = parse_args()
-    database_config = build_database_config(args)
 
     svg_path = Path(args.svg).resolve()
     geojson_path = Path(args.geojson).resolve()
@@ -670,9 +951,9 @@ def main() -> int:
     if not svg_path.exists():
         raise FileNotFoundError(f"SVG-Datei nicht gefunden: {svg_path}")
 
-    connection = open_database_connection(database_config)
+    backend = open_import_backend(args)
     try:
-        report_rows = fetch_report_rows(connection, str(args.status).strip())
+        report_rows = fetch_report_rows(backend, str(args.status).strip())
 
         if not report_rows:
             print(f"Keine Ortsmeldungen mit status='{args.status}' gefunden.")
@@ -680,13 +961,14 @@ def main() -> int:
 
         context = load_svg_context(svg_path, geojson_path)
         review_rows(
-            connection=connection,
+            backend=backend,
             report_rows=report_rows,
             context=context,
             dry_run=args.dry_run,
+            imported_status=str(args.imported_status).strip() or DEFAULT_IMPORTED_STATUS,
         )
     finally:
-        connection.close()
+        close_import_backend(backend)
 
     print("Fertig.")
     return 0

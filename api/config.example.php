@@ -18,4 +18,7 @@ return [
             'https://valentin-schwind.github.io',
         ],
     ],
+    'import_api' => [
+        'token' => 'replace-with-a-long-random-import-token',
+    ],
 ];

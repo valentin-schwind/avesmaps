@@ -54,6 +54,9 @@ function avesmapsBuildApiConfigFromEnvironment(): ?array {
         'cors' => [
             'allowed_origins' => array_values($allowedOrigins),
         ],
+        'import_api' => [
+            'token' => trim((string) getenv('AVESMAPS_IMPORT_API_TOKEN')),
+        ],
     ];
 }
 
@@ -173,6 +176,33 @@ function avesmapsCreatePdo(array $databaseConfig): PDO {
             PDO::ATTR_EMULATE_PREPARES => false,
         ]
     );
+}
+
+function avesmapsGetConfiguredImportApiToken(array $config): string {
+    return trim((string) ($config['import_api']['token'] ?? ''));
+}
+
+function avesmapsReadRequestHeader(string $headerName): string {
+    $serverKey = 'HTTP_' . str_replace('-', '_', strtoupper($headerName));
+    return trim((string) ($_SERVER[$serverKey] ?? ''));
+}
+
+function avesmapsReadBearerTokenFromRequest(): string {
+    $authorizationHeader = avesmapsReadRequestHeader('Authorization');
+    if (preg_match('/^Bearer\s+(.+)$/i', $authorizationHeader, $matches) !== 1) {
+        return '';
+    }
+
+    return trim((string) ($matches[1] ?? ''));
+}
+
+function avesmapsReadImportApiTokenFromRequest(): string {
+    $headerToken = avesmapsReadRequestHeader('X-Avesmaps-Import-Token');
+    if ($headerToken !== '') {
+        return $headerToken;
+    }
+
+    return avesmapsReadBearerTokenFromRequest();
 }
 
 function avesmapsNormalizeSingleLine(?string $value, int $maxLength): string {

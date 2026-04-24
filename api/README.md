@@ -8,6 +8,9 @@ schreibt sie in die Tabelle `location_reports`.
 - `config.example.php`: Beispiel fuer eine lokale Konfiguration ohne echte Secrets
 - `report-location.php`: POST-Endpoint fuer neue Ortsmeldungen
 - `bootstrap.php`: Konfigurations-, CORS- und PDO-Helfer
+- `list-location-reports.php`: liest Ortsmeldungen fuer das lokale Import-Skript
+- `update-location-report-status.php`: setzt den Status einer Ortsmeldung
+- `delete-location-report.php`: loescht Ortsmeldungen nach Ablehnung
 - `schema.mysql.sql`: Tabellen-Schema fuer MySQL oder MariaDB
 - `schema.pgsql.sql`: Tabellen-Schema fuer PostgreSQL
 
@@ -32,6 +35,7 @@ Alternativ kann die API auch ueber Umgebungsvariablen konfiguriert werden:
 - `AVESMAPS_DB_USER`
 - `AVESMAPS_DB_PASSWORD`
 - `AVESMAPS_ALLOWED_ORIGINS`
+- `AVESMAPS_IMPORT_API_TOKEN`
 
 `AVESMAPS_ALLOWED_ORIGINS` erwartet eine kommaseparierte Liste, zum Beispiel:
 
@@ -70,6 +74,40 @@ globale Endpoint-Variable gesetzt werden:
 <script>
 	window.AVESMAPS_LOCATION_REPORT_ENDPOINT = "https://example.org/avesmaps/api/report-location.php";
 </script>
+```
+
+## Import-Skript verbinden
+
+Das lokale Python-Skript `map/import_reported_locations.py` kann statt direkter
+Datenbankverbindung ueber die serverseitigen Admin-Endpunkte laufen. Dafuer wird
+ein separates Import-Token verwendet.
+
+Beispiel in `config.local.php`:
+
+```php
+'import_api' => [
+    'token' => 'replace-with-a-long-random-import-token',
+],
+```
+
+Oder per Umgebungsvariable:
+
+```text
+AVESMAPS_IMPORT_API_TOKEN=replace-with-a-long-random-import-token
+```
+
+Das Python-Skript nutzt dann:
+
+- `list-location-reports.php`
+- `update-location-report-status.php`
+- `delete-location-report.php`
+
+Lokal in PowerShell zum Beispiel:
+
+```powershell
+$env:AVESMAPS_IMPORT_API_BASE_URL = "https://example.org/avesmaps/api"
+$env:AVESMAPS_IMPORT_API_TOKEN = "replace-with-a-long-random-import-token"
+python map/import_reported_locations.py
 ```
 
 ## Request-Format
