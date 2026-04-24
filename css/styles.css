@@ -286,8 +286,13 @@ body.modal-dialog-open {
 }
 
 .location-report-dialog__intro {
-	margin: 0 0 14px 0;
+	margin: 0 0 14px 18px;
+	padding: 0;
 	line-height: 1.45;
+}
+
+.location-report-dialog__intro li + li {
+	margin-top: 6px;
 }
 
 .location-report-form {
@@ -713,14 +718,15 @@ body.modal-dialog-open {
 
 .map-context-anchor-marker__dot {
 	display: block;
-	width: 24px;
-	height: 24px;
+	width: 18px;
+	height: 18px;
+	box-sizing: border-box;
 	border-radius: 50%;
 	background: #d2473b;
-	border: 3px solid #ffffff;
+	border: 2px solid #ffffff;
 	box-shadow:
-		0 0 0 2px rgba(111, 83, 56, 0.4),
-		0 6px 16px rgba(0, 0, 0, 0.24);
+		0 0 0 1px rgba(111, 83, 56, 0.4),
+		0 4px 12px rgba(0, 0, 0, 0.22);
 }
 
 .feedback-toast[hidden] {
@@ -733,13 +739,13 @@ body.modal-dialog-open {
 	bottom: 18px;
 	z-index: 1450;
 	max-width: min(320px, calc(100vw - 32px));
-	padding: 10px 14px;
+	padding: 12px 16px;
 	border: 1px solid #c7aa88;
 	border-radius: 10px;
 	background: rgba(255, 249, 244, 0.98);
 	box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
 	color: #4a392c;
-	font-size: 13px;
+	font-size: 15px;
 	line-height: 1.35;
 	text-align: center;
 	opacity: 0;
@@ -861,13 +867,17 @@ body.modal-dialog-open {
 	font-weight: bold;
 }
 
+.leaflet-popup-content {
+	margin: 0px 10px 5px 10px;
+}
+
 .location-popup {
 	background: #fff;
 	color: #000;
 	border: 0;
 	border-radius: 12px;
 	margin: 0;
-	padding: 2px 10px 8px;
+	padding: 10px;
 	max-width: 260px;
 	font-size: 14px;
 	line-height: 1.35;
@@ -1006,8 +1016,7 @@ body.modal-dialog-open {
 }
 
 .location-tooltip .location-popup--compact {
-	padding-top: 6px;
-	padding-bottom: 6px;
+	padding: 10px;
 }
 
 .location-tooltip .location-popup--compact .location-popup__title-group {

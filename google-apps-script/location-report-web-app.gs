@@ -22,6 +22,7 @@ const MAX_WIKI_URL_LENGTH = 300;
 const MAX_COMMENT_LENGTH = 800;
 const MAX_RESPONSE_BRIDGE_URL_LENGTH = 500;
 const MAX_MAP_COORDINATE = 1024;
+const MAX_LOG_PREVIEW_LENGTH = 800;
 
 function doGet() {
     return ContentService
@@ -30,9 +31,16 @@ function doGet() {
 }
 
 function doPost(e) {
+    logDebug("location_report_request_received", buildRequestDebugSummary(e));
+
     try {
         const report = parseLocationReportPayload(e);
+        logDebug("location_report_payload_parsed", buildParsedReportDebugSummary(report));
+
         if (report.isSpam) {
+            logDebug("location_report_marked_as_spam", {
+                responseBridgeUrl: report.responseBridgeUrl,
+            });
             return buildIframeResponse({
                 ok: true,
                 message: "Ort wurde gemeldet.",
@@ -58,6 +66,14 @@ function doPost(e) {
                 report.clientVersion,
                 "",
             ]);
+            logDebug("location_report_row_written", {
+                sheetName: SHEET_NAME,
+                lastRow: sheet.getLastRow(),
+                name: report.name,
+                size: report.size,
+                lat: report.lat,
+                lng: report.lng,
+            });
         } finally {
             lock.releaseLock();
         }
@@ -67,6 +83,7 @@ function doPost(e) {
             message: "Ort wurde gemeldet.",
         }, report.responseBridgeUrl);
     } catch (error) {
+        logError("location_report_request_failed", error, buildRequestDebugSummary(e));
         return buildIframeResponse({
             ok: false,
             error: error && error.message ? error.message : "Die Ortsmeldung konnte nicht verarbeitet werden.",
@@ -184,6 +201,84 @@ function parseMapCoordinate(value, fieldName) {
     }
 
     return Number(parsedValue.toFixed(3));
+}
+
+function buildRequestDebugSummary(e) {
+    const params = e && e.parameter ? e.parameter : {};
+    const postData = e && e.postData ? e.postData : null;
+
+    return {
+        parameterKeys: Object.keys(params).sort(),
+        parameterPreview: buildParameterPreview(params),
+        contentLength: e && typeof e.contentLength === "number" ? e.contentLength : null,
+        postDataType: postData && postData.type ? postData.type : "",
+        postDataLength: postData && typeof postData.contents === "string" ? postData.contents.length : 0,
+        postDataPreview: truncateForLog(postData && typeof postData.contents === "string" ? postData.contents : ""),
+        queryString: truncateForLog(e && e.queryString ? e.queryString : ""),
+    };
+}
+
+function buildParameterPreview(params) {
+    return {
+        name: truncateForLog(params.name),
+        size: truncateForLog(params.size),
+        lat: truncateForLog(params.lat),
+        lng: truncateForLog(params.lng),
+        source: truncateForLog(params.source),
+        wiki_url: truncateForLog(params.wiki_url),
+        comment: truncateForLog(params.comment),
+        page_url: truncateForLog(params.page_url),
+        client_version: truncateForLog(params.client_version),
+        response_bridge_url: truncateForLog(params.response_bridge_url),
+        website: truncateForLog(params.website),
+    };
+}
+
+function buildParsedReportDebugSummary(report) {
+    return {
+        isSpam: Boolean(report.isSpam),
+        name: truncateForLog(report.name),
+        size: truncateForLog(report.size),
+        lat: report.lat,
+        lng: report.lng,
+        hasSource: Boolean(report.source),
+        hasWikiUrl: Boolean(report.wikiUrl),
+        hasComment: Boolean(report.comment),
+        pageUrl: truncateForLog(report.pageUrl),
+        clientVersion: truncateForLog(report.clientVersion),
+        responseBridgeUrl: truncateForLog(report.responseBridgeUrl),
+    };
+}
+
+function logDebug(label, details) {
+    console.log(JSON.stringify({
+        label,
+        timestamp: new Date().toISOString(),
+        details,
+    }));
+}
+
+function logError(label, error, details) {
+    console.error(JSON.stringify({
+        label,
+        timestamp: new Date().toISOString(),
+        details,
+        error: {
+            message: error && error.message ? String(error.message) : String(error || ""),
+            stack: error && error.stack ? truncateForLog(error.stack, 2000) : "",
+        },
+    }));
+}
+
+function truncateForLog(value, maxLength) {
+    const normalizedValue = String(value || "").replace(/\s+/g, " ").trim();
+    const finalMaxLength = typeof maxLength === "number" && maxLength > 0 ? maxLength : MAX_LOG_PREVIEW_LENGTH;
+
+    if (normalizedValue.length <= finalMaxLength) {
+        return normalizedValue;
+    }
+
+    return `${normalizedValue.slice(0, finalMaxLength)}…`;
 }
 
 function buildIframeResponse(payload, responseBridgeUrl) {

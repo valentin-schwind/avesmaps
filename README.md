@@ -130,6 +130,51 @@ Das Skript liest die Orte aus `map/Aventurien_routes.geojson`, gleicht sie ueber
 die MediaWiki-API mit Wiki Aventurica ab und schreibt zusaetzlich
 `map/wiki_location_links_report.json` mit Treffer- und Restlisten.
 
+## Neue Ortsmeldungen aus Google Sheets importieren
+
+Die Datei `map/import_reported_locations.py` liest neue Ortsmeldungen direkt aus
+dem Google Sheet, fragt sie interaktiv durch und uebernimmt angenommene Eintraege
+in die SVG-Quelle.
+
+Der Ablauf des Skripts:
+
+- es liest Zeilen mit `status = neu` aus dem Tabellenblatt `Ortsmeldungen`
+- es zeigt jeden Eintrag einzeln mit Leaflet- und SVG-Koordinaten an
+- bei Zustimmung fuegt es den Ort in `map/Aventurien_routes.svg` ein
+- danach erzeugt es direkt `map/Aventurien_routes.geojson` neu
+- anschliessend loescht es den angenommenen Eintrag aus dem Google Sheet
+- bei Ablehnung fragt es zusaetzlich, ob der Sheet-Eintrag geloescht werden soll
+
+### Voraussetzungen
+
+Die Google-Abhaengigkeiten einmal installieren:
+
+```bash
+pip install -r map/requirements-location-import.txt
+```
+
+Danach eine Google-Credentials-Datei unter
+`map/google-sheets-credentials.json` ablegen.
+
+Moeglich sind:
+
+- OAuth-Client fuer eine lokale Desktop-Anmeldung
+- Service-Account-JSON, wenn das Sheet fuer diesen Account freigegeben wurde
+
+### Ausfuehrung
+
+Im Projektverzeichnis:
+
+```bash
+python map/import_reported_locations.py
+```
+
+Optional als Testlauf ohne Schreiben:
+
+```bash
+python map/import_reported_locations.py --dry-run
+```
+
 ## Hinweise zur Datenpflege
 
 - Die SVG ist die fachliche Quelle fuer Orte, Wege und Regionen.
