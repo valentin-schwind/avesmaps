@@ -910,6 +910,13 @@ body.modal-dialog-open {
 	flex: 0 0 auto;
 }
 
+.location-popup__icon--share-pin {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: visible;
+}
+
 .location-popup__name {
 	font-size: 16px;
 	font-weight: bold;
@@ -1056,33 +1063,82 @@ body.modal-dialog-open {
 	border-radius: 0;
 }
 
-.share-pin-popup {
-	max-width: 220px;
-}
-
-.share-pin-popup__title {
-	font-size: 15px;
-	font-weight: bold;
-}
-
-.share-pin-popup__text {
-	margin-top: 6px;
-	font-size: 12px;
-	line-height: 1.35;
-	color: #4d4236;
-}
-
 .share-pin-marker {
 	background: transparent;
 	border: none;
 }
 
-.share-pin-marker__emoji {
+.share-pin-visual {
+	--share-pin-dot-size: 18px;
+	--share-pin-dot-left: 8px;
+	--share-pin-dot-top: 18px;
+	--share-pin-pole-left: 16px;
+	--share-pin-pole-top: 2px;
+	--share-pin-pole-height: 18px;
+	--share-pin-flag-width: 16px;
+	--share-pin-flag-height: 12px;
+	position: relative;
 	display: block;
-	font-size: 28px;
-	line-height: 1;
-	text-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-	transform: translateY(-6px);
+	width: 34px;
+	height: 42px;
+}
+
+.share-pin-visual--marker {
+	--share-pin-dot-top: 22px;
+	--share-pin-pole-top: 0px;
+	--share-pin-pole-height: 22px;
+	width: 34px;
+	height: 42px;
+}
+
+.share-pin-visual--popup {
+	--share-pin-pole-left: 8px;
+	--share-pin-pole-top: 2px;
+	--share-pin-pole-height: 14px;
+	--share-pin-flag-width: 14px;
+	--share-pin-flag-height: 10px;
+	width: 20px;
+	height: 18px;
+}
+
+.share-pin-visual__dot {
+	position: absolute;
+	left: var(--share-pin-dot-left);
+	top: var(--share-pin-dot-top);
+	width: var(--share-pin-dot-size);
+	height: var(--share-pin-dot-size);
+	z-index: 1;
+	box-sizing: border-box;
+	border-radius: 50%;
+	background: #d2473b;
+	border: 2px solid #ffffff;
+	box-shadow:
+		0 0 0 1px rgba(111, 83, 56, 0.4),
+		0 4px 12px rgba(0, 0, 0, 0.22);
+}
+
+.share-pin-visual__flag-pole {
+	position: absolute;
+	left: var(--share-pin-pole-left);
+	top: var(--share-pin-pole-top);
+	width: 2px;
+	height: var(--share-pin-pole-height);
+	z-index: 2;
+	border-radius: 999px;
+	background: #8a6747;
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.share-pin-visual__flag {
+	position: absolute;
+	left: calc(var(--share-pin-pole-left) + 2px);
+	top: var(--share-pin-pole-top);
+	width: var(--share-pin-flag-width);
+	height: var(--share-pin-flag-height);
+	z-index: 3;
+	background: linear-gradient(180deg, #e05046 0%, #c63731 100%);
+	clip-path: polygon(0 0, 100% 18%, 68% 50%, 100% 82%, 0 100%);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
 }
 
 .measurement-handle-marker {

@@ -1063,6 +1063,21 @@
 			return `<img class="location-popup__icon" src="${escapeHtml(withAssetVersion(iconPath))}" alt="${escapeHtml(altText)}" />`;
 		}
 
+		function sharePinVisualMarkup(rootClassName = "", { includeDot = true } = {}) {
+			const safeRootClassName = rootClassName ? ` ${escapeHtml(rootClassName)}` : "";
+			const dotMarkup = includeDot ? '<span class="share-pin-visual__dot"></span>' : "";
+			return `
+				<span class="share-pin-visual${safeRootClassName}" aria-hidden="true">
+					${dotMarkup}
+					<span class="share-pin-visual__flag-pole"></span>
+					<span class="share-pin-visual__flag"></span>
+				</span>`;
+		}
+
+		function sharePinPopupIconMarkup() {
+			return `<span class="location-popup__icon location-popup__icon--share-pin">${sharePinVisualMarkup("share-pin-visual--popup", { includeDot: false })}</span>`;
+		}
+
 		function getLocationDescriptionText(name) {
 			const wikiLocationLink = getWikiLocationLink(name);
 			const rawDescription = (wikiLocationLink?.description || "").trim();
@@ -1127,6 +1142,8 @@
 			name,
 			locationType,
 			locationTypeLabel,
+			headerIconMarkup = "",
+			showHeaderIcon = true,
 			compact = false,
 			showType = false,
 			showDescription = true,
@@ -1137,7 +1154,7 @@
 			return `
 				<div class="${popupClassName}">
 					<div class="location-popup__header">
-						${locationIconMarkup(locationType, locationTypeLabel)}
+						${showHeaderIcon ? (headerIconMarkup || locationIconMarkup(locationType, locationTypeLabel)) : ""}
 						<div class="location-popup__title-group">
 							<div class="location-popup__name">${escapeHtml(name)}</div>
 							${showType ? `<div class="location-popup__type">${escapeHtml(locationTypeLabel)}</div>` : ""}
@@ -1150,19 +1167,26 @@
 		}
 
 		function sharePinPopupMarkup() {
-			return `
-				<div class="share-pin-popup">
-					<div class="share-pin-popup__title">Markierte Stelle</div>
-					${locationPopupActionsMarkup([
-						popupActionButtonMarkup({
-							label: "🗑️ Markierung entfernen",
-							className: "location-popup__action-button--danger",
-							attributes: {
-								"data-popup-action": "remove-share-pin",
-							},
-						}),
-					])}
-				</div>`;
+			return locationPopupMarkup({
+				name: "Markierte Stelle",
+				locationType: "dorf",
+				locationTypeLabel: "Markierte Stelle",
+				headerIconMarkup: sharePinPopupIconMarkup(),
+				showHeaderIcon: true,
+				compact: true,
+				showType: false,
+				showDescription: false,
+				showWikiLink: false,
+				actionsMarkup: locationPopupActionsMarkup([
+					popupActionButtonMarkup({
+						label: "🗑️ Markierung entfernen",
+						className: "location-popup__action-button--danger",
+						attributes: {
+							"data-popup-action": "remove-share-pin",
+						},
+					}),
+				]),
+			});
 		}
 
 		function calculateCoordinateDistance(firstCoordinates, secondCoordinates) {
@@ -2033,10 +2057,10 @@
 		function createSharePinIcon() {
 			return L.divIcon({
 				className: "share-pin-marker",
-				html: '<span class="share-pin-marker__emoji" aria-hidden="true">📍</span>',
-				iconSize: [28, 28],
-				iconAnchor: [14, 28],
-				popupAnchor: [0, -24],
+				html: sharePinVisualMarkup("share-pin-visual--marker"),
+				iconSize: [34, 42],
+				iconAnchor: [17, 31],
+				popupAnchor: [0, -34],
 			});
 		}
 
@@ -3227,7 +3251,7 @@
 			}
 
 			const tooltip = L.tooltip({
-				permanent: false,
+				permanent: true,
 				direction: "top",
 				offset: [0, -10],
 				opacity: 1,
