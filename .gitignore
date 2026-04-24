@@ -1,2 +1,7 @@
 __pycache__/
 *.py[cod]
+api/config.local.php
+api/.env
+.env
+map/google-sheets-credentials.json
+map/google-sheets-token.json

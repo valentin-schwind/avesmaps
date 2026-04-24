@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import argparse
-import json
+import os
 import shutil
 import sys
 import textwrap
@@ -12,30 +12,13 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
-
-try:
-    from google.auth.transport.requests import Request
-    from google.oauth2.credentials import Credentials as UserCredentials
-    from google.oauth2.service_account import Credentials as ServiceAccountCredentials
-    from google_auth_oauthlib.flow import InstalledAppFlow
-    from googleapiclient.discovery import build
-except ImportError as import_error:  # pragma: no cover - depends on local environment
-    print(
-        "Fehlende Python-Abhängigkeiten für den Google-Sheets-Zugriff.\n"
-        "Bitte zuerst installieren:\n"
-        "  pip install -r map/requirements-location-import.txt",
-        file=sys.stderr,
-    )
-    raise SystemExit(import_error) from import_error
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from svg_to_geojson import svg_to_geojson
 
 
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-DEFAULT_SHEET_ID = "1BCAH1WFP49YqcMYAYK2GEBf_IGmy3KM9hrWqTqMGebo"
-DEFAULT_WORKSHEET_NAME = "Ortsmeldungen"
 DEFAULT_ROW_STATUS = "neu"
+DEFAULT_DB_CHARSET = "utf8mb4"
 
 SVG_NAMESPACE = "http://www.w3.org/2000/svg"
 INKSCAPE_NAMESPACE = "http://www.inkscape.org/namespaces/inkscape"
@@ -81,8 +64,19 @@ SETTLEMENT_CONFIG = {
 
 
 @dataclass
+class DatabaseConfig:
+    driver: str
+    host: str
+    port: int
+    name: str
+    user: str
+    password: str
+    charset: str = DEFAULT_DB_CHARSET
+
+
+@dataclass
 class ReportRow:
-    row_number: int
+    report_id: int
     created_at: str
     status: str
     name: str
@@ -119,32 +113,47 @@ class SvgImportContext:
 def parse_args() -> argparse.Namespace:
     map_dir = Path(__file__).resolve().parent
     parser = argparse.ArgumentParser(
-        description="Importiert neue Ortsmeldungen interaktiv aus Google Sheets in die SVG und aktualisiert das GeoJSON."
+        description="Importiert neue Ortsmeldungen interaktiv aus der SQL-Datenbank in die SVG und aktualisiert das GeoJSON."
     )
     parser.add_argument(
-        "--credentials",
-        default=str(map_dir / "google-sheets-credentials.json"),
-        help="Pfad zur Google-OAuth- oder Service-Account-JSON-Datei.",
+        "--db-driver",
+        default=os.getenv("AVESMAPS_DB_DRIVER", ""),
+        help="Datenbank-Treiber: mysql, mariadb oder pgsql/postgres.",
     )
     parser.add_argument(
-        "--token",
-        default=str(map_dir / "google-sheets-token.json"),
-        help="Pfad zur gespeicherten OAuth-Token-Datei fuer lokale Logins.",
+        "--db-host",
+        default=os.getenv("AVESMAPS_DB_HOST", ""),
+        help="Datenbank-Host.",
     )
     parser.add_argument(
-        "--sheet-id",
-        default=DEFAULT_SHEET_ID,
-        help="Spreadsheet-ID der Ortsmeldungen.",
+        "--db-port",
+        default=os.getenv("AVESMAPS_DB_PORT", ""),
+        help="Datenbank-Port.",
     )
     parser.add_argument(
-        "--worksheet",
-        default=DEFAULT_WORKSHEET_NAME,
-        help="Name des Tabellenblatts mit den Meldungen.",
+        "--db-name",
+        default=os.getenv("AVESMAPS_DB_NAME", ""),
+        help="Datenbankname.",
+    )
+    parser.add_argument(
+        "--db-user",
+        default=os.getenv("AVESMAPS_DB_USER", ""),
+        help="Datenbank-Benutzer.",
+    )
+    parser.add_argument(
+        "--db-password",
+        default=os.getenv("AVESMAPS_DB_PASSWORD", ""),
+        help="Datenbank-Passwort.",
+    )
+    parser.add_argument(
+        "--db-charset",
+        default=os.getenv("AVESMAPS_DB_CHARSET", DEFAULT_DB_CHARSET),
+        help="Zeichensatz fuer MySQL/MariaDB-Verbindungen.",
     )
     parser.add_argument(
         "--status",
         default=DEFAULT_ROW_STATUS,
-        help="Es werden nur Zeilen mit diesem Status verarbeitet.",
+        help="Es werden nur Meldungen mit diesem Status verarbeitet.",
     )
     parser.add_argument(
         "--svg",
@@ -159,13 +168,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Zeigt nur an, was passieren wuerde, ohne SVG, GeoJSON oder Sheet zu veraendern.",
+        help="Zeigt nur an, was passieren wuerde, ohne SVG, GeoJSON oder Datenbankeintraege zu veraendern.",
     )
     return parser.parse_args()
-
-
-def normalize_header(header_value: str) -> str:
-    return header_value.strip().lower().replace(" ", "_")
 
 
 def prompt_choice(prompt_text: str, valid_choices: Sequence[str], default_choice: Optional[str] = None) -> str:
@@ -182,6 +187,178 @@ def prompt_choice(prompt_text: str, valid_choices: Sequence[str], default_choice
         print(f"Bitte eine der Optionen eingeben: {', '.join(valid_choices)}")
 
 
+def build_database_config(args: argparse.Namespace) -> DatabaseConfig:
+    missing_fields = []
+    for field_name in ("db_driver", "db_host", "db_port", "db_name", "db_user"):
+        if not getattr(args, field_name):
+            missing_fields.append(field_name.replace("db_", ""))
+
+    if missing_fields:
+        joined_fields = ", ".join(missing_fields)
+        raise ValueError(
+            "Die Datenbank-Konfiguration ist unvollstaendig. "
+            f"Bitte Parameter oder AVESMAPS_DB_* Umgebungsvariablen fuer {joined_fields} setzen."
+        )
+
+    try:
+        port = int(str(args.db_port).strip())
+    except ValueError as error:
+        raise ValueError("Der Datenbank-Port muss eine Zahl sein.") from error
+
+    return DatabaseConfig(
+        driver=normalize_driver_name(str(args.db_driver)),
+        host=str(args.db_host).strip(),
+        port=port,
+        name=str(args.db_name).strip(),
+        user=str(args.db_user).strip(),
+        password=str(args.db_password),
+        charset=str(args.db_charset or DEFAULT_DB_CHARSET).strip() or DEFAULT_DB_CHARSET,
+    )
+
+
+def normalize_driver_name(driver_name: str) -> str:
+    normalized_driver = driver_name.strip().lower()
+    if normalized_driver in {"mysql", "mariadb"}:
+        return normalized_driver
+    if normalized_driver in {"pgsql", "postgres", "postgresql"}:
+        return "pgsql"
+    raise ValueError("Unterstuetzte Datenbank-Treiber sind mysql, mariadb und pgsql/postgres.")
+
+
+def open_database_connection(database_config: DatabaseConfig):
+    if database_config.driver in {"mysql", "mariadb"}:
+        try:
+            import pymysql
+        except ImportError as import_error:  # pragma: no cover - depends on local environment
+            print(
+                "Fehlende Python-Abhaengigkeit fuer MySQL/MariaDB.\n"
+                "Bitte zuerst installieren:\n"
+                "  pip install -r map/requirements-location-import.txt",
+                file=sys.stderr,
+            )
+            raise SystemExit(import_error) from import_error
+
+        return pymysql.connect(
+            host=database_config.host,
+            port=database_config.port,
+            user=database_config.user,
+            password=database_config.password,
+            database=database_config.name,
+            charset=database_config.charset,
+            autocommit=False,
+            cursorclass=pymysql.cursors.DictCursor,
+        )
+
+    try:
+        import psycopg
+        from psycopg.rows import dict_row
+    except ImportError as import_error:  # pragma: no cover - depends on local environment
+        print(
+            "Fehlende Python-Abhaengigkeit fuer PostgreSQL.\n"
+            "Bitte zuerst installieren:\n"
+            "  pip install -r map/requirements-location-import.txt",
+            file=sys.stderr,
+        )
+        raise SystemExit(import_error) from import_error
+
+    return psycopg.connect(
+        host=database_config.host,
+        port=database_config.port,
+        dbname=database_config.name,
+        user=database_config.user,
+        password=database_config.password,
+        row_factory=dict_row,
+    )
+
+
+def serialize_timestamp(timestamp_value: Any) -> str:
+    if isinstance(timestamp_value, datetime):
+        if timestamp_value.tzinfo is None:
+            return timestamp_value.replace(tzinfo=timezone.utc).isoformat()
+        return timestamp_value.isoformat()
+
+    return str(timestamp_value or "").strip()
+
+
+def parse_report_row(raw_row: Dict[str, Any]) -> Optional[ReportRow]:
+    name = str(raw_row.get("name") or "").strip()
+    if not name:
+        return None
+
+    size = str(raw_row.get("size") or "").strip().lower()
+    if size not in SETTLEMENT_CONFIG:
+        return None
+
+    try:
+        report_id = int(raw_row["id"])
+        lat = float(raw_row["lat"])
+        lng = float(raw_row["lng"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+    return ReportRow(
+        report_id=report_id,
+        created_at=serialize_timestamp(raw_row.get("created_at")),
+        status=str(raw_row.get("status") or "").strip(),
+        name=name,
+        size=size,
+        lat=lat,
+        lng=lng,
+        source=str(raw_row.get("source") or "").strip(),
+        wiki_url=str(raw_row.get("wiki_url") or "").strip(),
+        comment=str(raw_row.get("comment") or "").strip(),
+        page_url=str(raw_row.get("page_url") or "").strip(),
+        client_version=str(raw_row.get("client_version") or "").strip(),
+        review_note=str(raw_row.get("review_note") or "").strip(),
+    )
+
+
+def fetch_report_rows(connection, status_filter: str) -> List[ReportRow]:
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                id,
+                created_at,
+                status,
+                name,
+                size,
+                lat,
+                lng,
+                source,
+                wiki_url,
+                comment,
+                page_url,
+                client_version,
+                review_note
+            FROM location_reports
+            WHERE status = %s
+            ORDER BY created_at ASC, id ASC
+            """,
+            (status_filter,),
+        )
+        raw_rows = cursor.fetchall()
+
+    parsed_rows: List[ReportRow] = []
+    for raw_row in raw_rows:
+        report_row = parse_report_row(dict(raw_row))
+        if report_row is None:
+            report_identifier = raw_row.get("id", "?") if isinstance(raw_row, dict) else "?"
+            print(
+                f"Meldung {report_identifier} wird uebersprungen: unvollstaendige oder ungueltige Daten.",
+                file=sys.stderr,
+            )
+            continue
+        parsed_rows.append(report_row)
+
+    return parsed_rows
+
+
+def delete_report_row(connection, report_id: int) -> None:
+    with connection.cursor() as cursor:
+        cursor.execute("DELETE FROM location_reports WHERE id = %s", (report_id,))
+
+
 def collect_xml_namespaces(svg_path: Path) -> List[Tuple[str, str]]:
     namespaces: List[Tuple[str, str]] = []
     for _, namespace in ET.iterparse(svg_path, events=("start-ns",)):
@@ -193,143 +370,6 @@ def collect_xml_namespaces(svg_path: Path) -> List[Tuple[str, str]]:
 def register_xml_namespaces(namespaces: Iterable[Tuple[str, str]]) -> None:
     for prefix, uri in namespaces:
         ET.register_namespace(prefix, uri)
-
-
-def load_google_credentials(credentials_path: Path, token_path: Path):
-    if not credentials_path.exists():
-        raise FileNotFoundError(
-            f"Google-Credentials-Datei nicht gefunden: {credentials_path}\n"
-            "Lege dort entweder eine OAuth-Client-JSON oder eine Service-Account-JSON ab."
-        )
-
-    credentials_payload = json.loads(credentials_path.read_text(encoding="utf-8"))
-    credentials_type = credentials_payload.get("type")
-
-    if credentials_type == "service_account":
-        return ServiceAccountCredentials.from_service_account_file(str(credentials_path), scopes=SCOPES)
-
-    credentials = None
-    if token_path.exists():
-        credentials = UserCredentials.from_authorized_user_file(str(token_path), SCOPES)
-
-    if credentials and credentials.expired and credentials.refresh_token:
-        credentials.refresh(Request())
-        token_path.write_text(credentials.to_json(), encoding="utf-8")
-        return credentials
-
-    if credentials and credentials.valid:
-        return credentials
-
-    flow = InstalledAppFlow.from_client_secrets_file(str(credentials_path), SCOPES)
-    credentials = flow.run_local_server(port=0)
-    token_path.write_text(credentials.to_json(), encoding="utf-8")
-    return credentials
-
-
-def build_sheets_service(credentials):
-    return build("sheets", "v4", credentials=credentials, cache_discovery=False)
-
-
-def get_sheet_metadata(service, spreadsheet_id: str, worksheet_name: str) -> Dict[str, object]:
-    spreadsheet = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
-    for sheet in spreadsheet.get("sheets", []):
-        properties = sheet.get("properties", {})
-        if properties.get("title") == worksheet_name:
-            return properties
-    raise ValueError(f"Tabellenblatt '{worksheet_name}' wurde im Spreadsheet nicht gefunden.")
-
-
-def parse_report_row(row_number: int, row_values: Sequence[str], header_map: Dict[str, int]) -> Optional[ReportRow]:
-    def get_value(column_name: str) -> str:
-        index = header_map.get(column_name)
-        if index is None or index >= len(row_values):
-            return ""
-        return str(row_values[index]).strip()
-
-    name = get_value("name")
-    if not name:
-        return None
-
-    status = get_value("status")
-    size = get_value("size").lower()
-    lat_text = get_value("lat")
-    lng_text = get_value("lng")
-    if not lat_text or not lng_text:
-        return None
-
-    try:
-        lat = float(lat_text)
-        lng = float(lng_text)
-    except ValueError:
-        return None
-
-    return ReportRow(
-        row_number=row_number,
-        created_at=get_value("created_at"),
-        status=status,
-        name=name,
-        size=size,
-        lat=lat,
-        lng=lng,
-        source=get_value("source"),
-        wiki_url=get_value("wiki_url"),
-        comment=get_value("comment"),
-        page_url=get_value("page_url"),
-        client_version=get_value("client_version"),
-        review_note=get_value("review_note"),
-    )
-
-
-def fetch_report_rows(service, spreadsheet_id: str, worksheet_name: str, status_filter: str) -> Tuple[int, List[ReportRow]]:
-    metadata = get_sheet_metadata(service, spreadsheet_id, worksheet_name)
-    sheet_id = int(metadata["sheetId"])
-    value_range = service.spreadsheets().values().get(
-        spreadsheetId=spreadsheet_id,
-        range=f"'{worksheet_name}'",
-    ).execute()
-    rows = value_range.get("values", [])
-    if not rows:
-        return sheet_id, []
-
-    header_map = {normalize_header(value): index for index, value in enumerate(rows[0])}
-    parsed_rows: List[ReportRow] = []
-    normalized_status_filter = status_filter.strip().lower()
-
-    for zero_based_index, row_values in enumerate(rows[1:], start=1):
-        report_row = parse_report_row(zero_based_index + 1, row_values, header_map)
-        if report_row is None:
-            continue
-        if report_row.status.lower() != normalized_status_filter:
-            continue
-        if report_row.size not in SETTLEMENT_CONFIG:
-            print(
-                f"Zeile {report_row.row_number} wird uebersprungen: unbekannte Ortsgroesse '{report_row.size}'.",
-                file=sys.stderr,
-            )
-            continue
-        parsed_rows.append(report_row)
-
-    return sheet_id, parsed_rows
-
-
-def delete_sheet_row(service, spreadsheet_id: str, sheet_id: int, row_number: int) -> None:
-    service.spreadsheets().batchUpdate(
-        spreadsheetId=spreadsheet_id,
-        body={
-            "requests": [
-                {
-                    "deleteDimension": {
-                        "range": {
-                            "sheetId": sheet_id,
-                            "dimension": "ROWS",
-                            "startIndex": row_number - 1,
-                            "endIndex": row_number,
-                        }
-                    }
-                }
-            ]
-        },
-    ).execute()
 
 
 def load_svg_context(svg_path: Path, geojson_path: Path) -> SvgImportContext:
@@ -355,15 +395,21 @@ def load_svg_context(svg_path: Path, geojson_path: Path) -> SvgImportContext:
 
 def find_target_layers(root: ET.Element) -> Dict[str, ET.Element]:
     target_layers: Dict[str, ET.Element] = {}
+    expected_layer_labels = {config["layer_label"] for config in SETTLEMENT_CONFIG.values()}
+
     for element in root.iter():
         if local_name(element.tag) != "g":
             continue
 
         layer_label = (element.get("data-layer-label") or element.get(ATTR_INKSCAPE_LABEL) or "").strip()
-        if layer_label in {config["layer_label"] for config in SETTLEMENT_CONFIG.values()}:
+        if layer_label in expected_layer_labels:
             target_layers[layer_label] = element
 
-    missing_layers = [config["layer_label"] for config in SETTLEMENT_CONFIG.values() if config["layer_label"] not in target_layers]
+    missing_layers = [
+        config["layer_label"]
+        for config in SETTLEMENT_CONFIG.values()
+        if config["layer_label"] not in target_layers
+    ]
     if missing_layers:
         raise ValueError(f"SVG-Layer fuer Siedlungen fehlen: {', '.join(missing_layers)}")
 
@@ -376,7 +422,12 @@ def collect_existing_locations(root: ET.Element) -> List[ExistingLocation]:
         if local_name(element.tag) not in {"circle", "ellipse"}:
             continue
 
-        name = (element.get("data-place-name") or element.get("data-item-label") or element.get(ATTR_INKSCAPE_LABEL) or "").strip()
+        name = (
+            element.get("data-place-name")
+            or element.get("data-item-label")
+            or element.get(ATTR_INKSCAPE_LABEL)
+            or ""
+        ).strip()
         if not name:
             continue
 
@@ -452,6 +503,7 @@ def build_new_location_element(context: SvgImportContext, report_row: ReportRow)
     element.set("data-place-category", report_row.size)
     element.set("data-place-category-label", config["type_label"])
     element.set("data-place-icon", config["icon"])
+    element.set("data-report-id", str(report_row.report_id))
     element.set("data-report-created-at", report_row.created_at)
     element.set("data-report-source", report_row.source)
     if report_row.wiki_url:
@@ -513,7 +565,7 @@ def print_report_row(report_row: ReportRow) -> None:
     config = SETTLEMENT_CONFIG[report_row.size]
     svg_x, svg_y = leaflet_to_svg_coordinates(report_row.lat, report_row.lng)
     print("\n" + "=" * 72)
-    print(f"Zeile {report_row.row_number}: {report_row.name} ({config['type_label']})")
+    print(f"DB-ID {report_row.report_id}: {report_row.name} ({config['type_label']})")
     print(f"Leaflet-Koordinaten: lat={report_row.lat:.3f}, lng={report_row.lng:.3f}")
     print(f"SVG-Koordinaten:     cx={svg_x:.3f}, cy={svg_y:.3f}")
     print(f"Quelle: {report_row.source or '-'}")
@@ -526,13 +578,27 @@ def print_report_row(report_row: ReportRow) -> None:
         print(f"Gemeldet am: {report_row.created_at}")
 
 
-def adjust_remaining_row_numbers(rows: Sequence[ReportRow], deleted_row_number: int) -> None:
-    for row in rows:
-        if row.row_number > deleted_row_number:
-            row.row_number -= 1
+def delete_report_with_feedback(connection, report_row: ReportRow, dry_run: bool, reason_text: str) -> bool:
+    if dry_run:
+        print(f"Dry-Run: Meldung {report_row.report_id} wuerde aus der Datenbank geloescht ({reason_text}).")
+        return True
+
+    try:
+        delete_report_row(connection, report_row.report_id)
+        connection.commit()
+    except Exception as error:  # pragma: no cover - depends on external state
+        connection.rollback()
+        print(
+            f"Meldung {report_row.report_id} konnte nicht aus der Datenbank geloescht werden: {error}",
+            file=sys.stderr,
+        )
+        return False
+
+    print(f"Meldung {report_row.report_id} wurde aus der Datenbank geloescht ({reason_text}).")
+    return True
 
 
-def review_rows(service, spreadsheet_id: str, sheet_id: int, report_rows: List[ReportRow], context: SvgImportContext, dry_run: bool) -> None:
+def review_rows(connection, report_rows: List[ReportRow], context: SvgImportContext, dry_run: bool) -> None:
     index = 0
     while index < len(report_rows):
         report_row = report_rows[index]
@@ -557,72 +623,70 @@ def review_rows(service, spreadsheet_id: str, sheet_id: int, report_rows: List[R
             try:
                 svg_x, svg_y = append_location_to_svg(context, report_row, dry_run=dry_run)
                 regenerate_geojson(context, dry_run=dry_run)
-                if dry_run:
-                    print(
-                        f"Dry-Run: {report_row.name} wuerde bei cx={svg_x:.3f}, cy={svg_y:.3f} eingefuegt "
-                        "und anschliessend aus dem Sheet geloescht."
-                    )
-                else:
-                    delete_sheet_row(service, spreadsheet_id, sheet_id, report_row.row_number)
-                    print(f"{report_row.name} wurde importiert und aus dem Google Sheet geloescht.")
-                deleted_row_number = report_row.row_number
-                report_rows.pop(index)
-                adjust_remaining_row_numbers(report_rows, deleted_row_number)
-                continue
             except Exception as error:  # pragma: no cover - depends on external state
                 print(f"Fehler beim Import von {report_row.name}: {error}", file=sys.stderr)
-                print("Der Sheet-Eintrag bleibt erhalten.", file=sys.stderr)
+                print("Der Datenbank-Eintrag bleibt erhalten.", file=sys.stderr)
                 index += 1
                 continue
 
+            if dry_run:
+                print(
+                    f"Dry-Run: {report_row.name} wuerde bei cx={svg_x:.3f}, cy={svg_y:.3f} eingefuegt "
+                    "und anschliessend aus der Datenbank geloescht."
+                )
+                report_rows.pop(index)
+                continue
+
+            if delete_report_with_feedback(connection, report_row, dry_run=False, reason_text="nach Import"):
+                print(f"{report_row.name} wurde importiert.")
+                report_rows.pop(index)
+                continue
+
+            print("Der Ort wurde importiert, aber der Datenbank-Eintrag ist noch vorhanden.", file=sys.stderr)
+            index += 1
+            continue
+
         delete_decision = prompt_choice(
-            "Nicht importiert. Soll der Sheet-Eintrag geloescht werden? [j]a / [n]ein: ",
+            "Nicht importiert. Soll der Datenbank-Eintrag geloescht werden? [j]a / [n]ein: ",
             valid_choices=("j", "n"),
             default_choice="n",
         )
         if delete_decision == "j":
-            if dry_run:
-                print(f"Dry-Run: Zeile {report_row.row_number} wuerde aus dem Google Sheet geloescht.")
-            else:
-                delete_sheet_row(service, spreadsheet_id, sheet_id, report_row.row_number)
-                print(f"Zeile {report_row.row_number} wurde aus dem Google Sheet geloescht.")
-            deleted_row_number = report_row.row_number
-            report_rows.pop(index)
-            adjust_remaining_row_numbers(report_rows, deleted_row_number)
-            continue
+            if delete_report_with_feedback(connection, report_row, dry_run=dry_run, reason_text="nach Ablehnung"):
+                report_rows.pop(index)
+                continue
 
-        print("Eintrag bleibt im Google Sheet erhalten.")
+        print("Eintrag bleibt in der Datenbank erhalten.")
         index += 1
 
 
 def main() -> int:
     args = parse_args()
+    database_config = build_database_config(args)
 
-    credentials_path = Path(args.credentials).resolve()
-    token_path = Path(args.token).resolve()
     svg_path = Path(args.svg).resolve()
     geojson_path = Path(args.geojson).resolve()
 
     if not svg_path.exists():
         raise FileNotFoundError(f"SVG-Datei nicht gefunden: {svg_path}")
 
-    credentials = load_google_credentials(credentials_path, token_path)
-    service = build_sheets_service(credentials)
-    sheet_id, report_rows = fetch_report_rows(service, args.sheet_id, args.worksheet, args.status)
+    connection = open_database_connection(database_config)
+    try:
+        report_rows = fetch_report_rows(connection, str(args.status).strip())
 
-    if not report_rows:
-        print(f"Keine Ortsmeldungen mit status='{args.status}' gefunden.")
-        return 0
+        if not report_rows:
+            print(f"Keine Ortsmeldungen mit status='{args.status}' gefunden.")
+            return 0
 
-    context = load_svg_context(svg_path, geojson_path)
-    review_rows(
-        service=service,
-        spreadsheet_id=args.sheet_id,
-        sheet_id=sheet_id,
-        report_rows=report_rows,
-        context=context,
-        dry_run=args.dry_run,
-    )
+        context = load_svg_context(svg_path, geojson_path)
+        review_rows(
+            connection=connection,
+            report_rows=report_rows,
+            context=context,
+            dry_run=args.dry_run,
+        )
+    finally:
+        connection.close()
 
     print("Fertig.")
     return 0

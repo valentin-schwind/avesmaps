@@ -39,17 +39,16 @@ Die Anwendung ist bewusst einfach gehalten:
 - `map/Aventurien_routes.geojson` enthaelt Orte und Wege fuer die Routenplanung
 - `map/Aventurien_routes.svg` ist die editierbare SVG-Quelle fuer die Geodaten
 - `map/svg_to_geojson.py` konvertiert die SVG in die GeoJSON-Datei
+- `api/` enthaelt den optionalen PHP-Endpoint fuer Ortsmeldungen, Beispiel-Konfiguration und SQL-Schemata
 - `css/`, `js/` und `fonts/` enthalten alle benoetigten Assets lokal im Repository
 
-Es gibt **keine Abhaengigkeit zu externen Diensten**:
+Die Karten- und Routenlogik selbst bleibt komplett im Browser:
 
-- kein Backend
-- keine API
-- keine Datenbank
 - kein externer Tile-Server
 - keine CDN-Einbindung
+- kein Build-Schritt
 
-Damit kann das Projekt auf **jedem normalen Webserver** betrieben werden, der statische Dateien ausliefert.
+Fuer Ortsmeldungen kann Avesmaps optional ein kleines PHP-/SQL-Backend nutzen. Ohne `api/` laeuft die Anwendung weiterhin als rein statische Karte und Routenplanung.
 
 ## Lokale Nutzung
 
@@ -63,9 +62,24 @@ python -m http.server 8000
 
 Danach ist die Anwendung unter [http://localhost:8000](http://localhost:8000) erreichbar.
 
+Wenn auch das Ortsmelde-Formular lokal getestet werden soll, ist ein PHP-faehiger Server sinnvoll, zum Beispiel:
+
+```bash
+php -S localhost:8000
+```
+
+Dann koennen die statischen Dateien und `api/report-location.php` direkt ueber denselben Host laufen.
+
 ## Deployment
 
-Fuer den Betrieb reicht es, den kompletten Projektordner auf einen beliebigen Webserver zu legen. Es ist kein Build-Schritt und keine Serverlogik notwendig. Solange HTML-, CSS-, JS-, Bild-, Tile- und GeoJSON-Dateien statisch ausgeliefert werden, laeuft die Anwendung.
+Fuer die reine Karte reicht es, den kompletten Projektordner auf einen beliebigen statischen Webserver zu legen. Es ist kein Build-Schritt notwendig.
+
+Wenn das Ortsmelde-Formular aktiv sein soll, braucht die API einen PHP-faehigen Server und eine SQL-Datenbank. Zwei typische Varianten:
+
+- gesamtes Projekt auf einem PHP-Webserver hosten, sodass `api/report-location.php` relativ erreichbar ist
+- Frontend statisch hosten und `window.AVESMAPS_LOCATION_REPORT_ENDPOINT` auf eine absolute API-URL setzen
+
+Wichtig: GitHub Pages kann den PHP-Teil nicht selbst ausfuehren. Ohne separate API bleibt das Meldeformular dort deshalb deaktiviert.
 
 ## URL-Sharing des Routenplaners
 
@@ -80,6 +94,36 @@ Der Zustand des Routenplaners kann ueber Query-Parameter in der URL gespeichert 
 - die Option zum Minimieren von Umstiegen
 
 Dadurch kann eine fertig konfigurierte Route einfach geteilt werden, indem die URL aus dem Browser kopiert und weitergegeben wird.
+
+## Ortsmeldungen per PHP und SQL
+
+Die Datei `api/report-location.php` nimmt neue Ortsmeldungen als JSON entgegen und speichert sie in der Tabelle `location_reports`.
+
+### Einmaliges Setup
+
+1. Passendes SQL-Schema aus `api/schema.mysql.sql` oder `api/schema.pgsql.sql` ausfuehren.
+2. `api/config.example.php` nach `api/config.local.php` kopieren.
+3. Dort Datenbank-Zugang und erlaubte Frontend-Origins eintragen.
+4. Den Ordner `api/` auf einem PHP-faehigen Server ausliefern.
+
+Alternativ kann die API ueber Umgebungsvariablen konfiguriert werden:
+
+- `AVESMAPS_DB_DRIVER`
+- `AVESMAPS_DB_HOST`
+- `AVESMAPS_DB_PORT`
+- `AVESMAPS_DB_NAME`
+- `AVESMAPS_DB_CHARSET`
+- `AVESMAPS_DB_USER`
+- `AVESMAPS_DB_PASSWORD`
+- `AVESMAPS_ALLOWED_ORIGINS`
+
+Wenn Frontend und API nicht auf derselben Origin laufen, muss die Frontend-Seite den Endpoint explizit setzen, zum Beispiel:
+
+```html
+<script>
+	window.AVESMAPS_LOCATION_REPORT_ENDPOINT = "https://example.org/avesmaps/api/report-location.php";
+</script>
+```
 
 ## SVG zu GeoJSON konvertieren
 
@@ -130,36 +174,50 @@ Das Skript liest die Orte aus `map/Aventurien_routes.geojson`, gleicht sie ueber
 die MediaWiki-API mit Wiki Aventurica ab und schreibt zusaetzlich
 `map/wiki_location_links_report.json` mit Treffer- und Restlisten.
 
-## Neue Ortsmeldungen aus Google Sheets importieren
+## Neue Ortsmeldungen aus SQL importieren
 
 Die Datei `map/import_reported_locations.py` liest neue Ortsmeldungen direkt aus
-dem Google Sheet, fragt sie interaktiv durch und uebernimmt angenommene Eintraege
-in die SVG-Quelle.
+der Tabelle `location_reports`, fragt sie interaktiv durch und uebernimmt angenommene
+Eintraege in die SVG-Quelle.
 
 Der Ablauf des Skripts:
 
-- es liest Zeilen mit `status = neu` aus dem Tabellenblatt `Ortsmeldungen`
+- es liest Datensaetze mit `status = neu` aus `location_reports`
 - es zeigt jeden Eintrag einzeln mit Leaflet- und SVG-Koordinaten an
 - bei Zustimmung fuegt es den Ort in `map/Aventurien_routes.svg` ein
 - danach erzeugt es direkt `map/Aventurien_routes.geojson` neu
-- anschliessend loescht es den angenommenen Eintrag aus dem Google Sheet
-- bei Ablehnung fragt es zusaetzlich, ob der Sheet-Eintrag geloescht werden soll
+- anschliessend loescht es den angenommenen Eintrag aus der Datenbank
+- bei Ablehnung fragt es zusaetzlich, ob der Datenbank-Eintrag geloescht werden soll
 
 ### Voraussetzungen
 
-Die Google-Abhaengigkeiten einmal installieren:
+Die Python-Abhaengigkeiten einmal installieren:
 
 ```bash
 pip install -r map/requirements-location-import.txt
 ```
 
-Danach eine Google-Credentials-Datei unter
-`map/google-sheets-credentials.json` ablegen.
+Danach dieselben Datenbankwerte bereitstellen, die auch die PHP-API nutzt, zum Beispiel per Umgebungsvariablen:
 
-Moeglich sind:
+```bash
+export AVESMAPS_DB_DRIVER=mysql
+export AVESMAPS_DB_HOST=127.0.0.1
+export AVESMAPS_DB_PORT=3306
+export AVESMAPS_DB_NAME=avesmaps
+export AVESMAPS_DB_USER=avesmaps_user
+export AVESMAPS_DB_PASSWORD=replace-with-a-secret-password
+```
 
-- OAuth-Client fuer eine lokale Desktop-Anmeldung
-- Service-Account-JSON, wenn das Sheet fuer diesen Account freigegeben wurde
+Unter PowerShell entsprechend:
+
+```powershell
+$env:AVESMAPS_DB_DRIVER = "mysql"
+$env:AVESMAPS_DB_HOST = "127.0.0.1"
+$env:AVESMAPS_DB_PORT = "3306"
+$env:AVESMAPS_DB_NAME = "avesmaps"
+$env:AVESMAPS_DB_USER = "avesmaps_user"
+$env:AVESMAPS_DB_PASSWORD = "replace-with-a-secret-password"
+```
 
 ### Ausfuehrung
 
