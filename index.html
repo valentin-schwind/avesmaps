@@ -1002,35 +1002,6 @@
 			}, LOCATION_REPORT_SUBMISSION_TIMEOUT_MS);
 		}
 
-		function shouldUseLocationReportFetchSubmit() {
-			try {
-				const currentUrl = new URL(window.location.href);
-				return currentUrl.protocol === "https:";
-			} catch (error) {
-				return false;
-			}
-		}
-
-		async function submitLocationReportViaFetch(formElement) {
-			const abortController = new AbortController();
-			const timeoutId = window.setTimeout(() => {
-				abortController.abort();
-			}, LOCATION_REPORT_SUBMISSION_TIMEOUT_MS);
-
-			try {
-				await fetch(LOCATION_REPORT_FORM_ENDPOINT_URL, {
-					method: "POST",
-					mode: "no-cors",
-					credentials: "omit",
-					cache: "no-store",
-					body: new FormData(formElement),
-					signal: abortController.signal,
-				});
-			} finally {
-				window.clearTimeout(timeoutId);
-			}
-		}
-
 		function handleLocationReportBridgePayload(payload) {
 			if (!isLocationReportSubmissionPending || !payload || payload.type !== LOCATION_REPORT_MESSAGE_TYPE) {
 				return false;
@@ -1110,7 +1081,7 @@
 			handleLocationReportBridgePayload(payload);
 		}
 
-		async function handleLocationReportFormSubmit(event) {
+		function handleLocationReportFormSubmit(event) {
 			event.preventDefault();
 
 			const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
@@ -1140,23 +1111,6 @@
 			locationReportSubmitTargetLoadCount = 0;
 			resetLocationReportSubmitTarget();
 			setLocationReportSubmitPending(true);
-			if (shouldUseLocationReportFetchSubmit()) {
-				try {
-					await submitLocationReportViaFetch(formElement);
-					finalizeLocationReportSubmission({
-						ok: true,
-						message: "Ort wurde gemeldet.",
-					});
-				} catch (error) {
-					finalizeLocationReportSubmission({
-						ok: false,
-						message: "Die Meldung konnte nicht gesendet werden. Bitte später erneut versuchen.",
-					});
-				}
-				return;
-			}
-
-			isLocationReportSubmissionPending = true;
 			scheduleLocationReportSubmissionTimeout();
 			formElement.submit();
 		}
