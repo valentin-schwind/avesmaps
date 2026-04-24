@@ -402,6 +402,7 @@
 		const MAP_CONTEXT_MENU_OFFSET_Y = 14;
 		const LOCATION_REPORT_FORM_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbz9-2nNuHzdcaIrHePLJ-Jd_AQqvjRSZgorhiAoNz5JGLy3TETz74i4IHNoKR_L2N2z/exec";
 		const LOCATION_REPORT_MESSAGE_TYPE = "avesmaps-location-report-result";
+		const LOCATION_REPORT_POPUP_TARGET_NAME = "location-report-submit-popup";
 		const LOCATION_REPORT_SUBMISSION_TIMEOUT_MS = 7000;
 		const LOCATION_REPORT_MESSAGE_HOSTS = new Set(["script.google.com", "script.googleusercontent.com"]);
 		const LOCATION_REPORT_MESSAGE_HOST_SUFFIXES = [".script.googleusercontent.com"];
@@ -502,7 +503,8 @@
 			locationReportLatLng = null,
 			isLocationReportSubmissionPending = false,
 			locationReportSubmissionTimeoutId = null,
-			locationReportSubmitTargetLoadCount = 0;
+			locationReportSubmitTargetLoadCount = 0,
+			locationReportPopupWindow = null;
 
 		// Initialisierung der Karte 
 		const map = L.map("map", {
@@ -767,6 +769,15 @@
 			return document.getElementById("location-report-submit-target");
 		}
 
+		function shouldUseLocationReportPopupSubmit() {
+			try {
+				const currentUrl = new URL(window.location.href);
+				return currentUrl.protocol === "https:";
+			} catch (error) {
+				return false;
+			}
+		}
+
 		function getLocationReportResponseBridgeUrl() {
 			const pathname = window.location.pathname || "/";
 			const isDirectoryPath = pathname.endsWith("/") || !pathname.split("/").pop()?.includes(".");
@@ -781,6 +792,51 @@
 
 		function hasLocationReportSubmitTargetActivity() {
 			return locationReportSubmitTargetLoadCount > 0;
+		}
+
+		function closeLocationReportPopupWindow() {
+			if (!locationReportPopupWindow || locationReportPopupWindow.closed) {
+				locationReportPopupWindow = null;
+				return;
+			}
+
+			locationReportPopupWindow.close();
+			locationReportPopupWindow = null;
+		}
+
+		function openLocationReportSubmitPopup() {
+			const popupFeatures = [
+				"popup=yes",
+				"width=520",
+				"height=640",
+				"resizable=yes",
+				"scrollbars=yes",
+			].join(",");
+			const popupWindow = window.open("", LOCATION_REPORT_POPUP_TARGET_NAME, popupFeatures);
+			if (!popupWindow) {
+				return null;
+			}
+
+			locationReportPopupWindow = popupWindow;
+
+			try {
+				popupWindow.document.open();
+				popupWindow.document.write(`<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="UTF-8" />
+	<title>Avesmaps Ortsmeldung</title>
+</head>
+<body>
+	<p>Die Ortsmeldung wird gesendet...</p>
+</body>
+</html>`);
+				popupWindow.document.close();
+			} catch (error) {
+				// Some browsers may restrict document access immediately after opening.
+			}
+
+			return popupWindow;
 		}
 
 		function resetLocationReportSubmitTarget() {
@@ -968,6 +1024,7 @@
 			setLocationReportSubmitPending(false);
 			updateLocationReportDialogAvailability();
 			resetLocationReportSubmitTarget();
+			closeLocationReportPopupWindow();
 
 			if (ok) {
 				setLocationReportDialogOpen(false, { resetForm: true });
@@ -1106,6 +1163,13 @@
 			resetLocationReportSubmitTarget();
 			isLocationReportSubmissionPending = true;
 			scheduleLocationReportSubmissionTimeout();
+			formElement.target = "location-report-submit-target";
+			if (shouldUseLocationReportPopupSubmit()) {
+				const popupWindow = openLocationReportSubmitPopup();
+				if (popupWindow) {
+					formElement.target = LOCATION_REPORT_POPUP_TARGET_NAME;
+				}
+			}
 			formElement.submit();
 			setLocationReportSubmitPending(true);
 		}

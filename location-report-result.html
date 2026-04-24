@@ -23,6 +23,28 @@
 					? new URL(requestedParentOrigin).origin
 					: window.location.origin;
 
+				if (window.opener && !window.opener.closed) {
+					try {
+						if (typeof window.opener.handleLocationReportBridgePayload === "function") {
+							const wasHandled = window.opener.handleLocationReportBridgePayload(payload);
+							if (wasHandled) {
+								window.close();
+								return;
+							}
+						}
+					} catch (error) {
+						// Direct opener access can fail before same-origin navigation fully settles.
+					}
+
+					try {
+						window.opener.postMessage(payload, parentOrigin);
+						window.close();
+						return;
+					} catch (error) {
+						// The opener fallback may still be blocked in some browsers.
+					}
+				}
+
 				if (window.parent && window.parent !== window) {
 					try {
 						if (typeof window.parent.handleLocationReportBridgePayload === "function") {
