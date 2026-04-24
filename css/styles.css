@@ -286,13 +286,9 @@ body.modal-dialog-open {
 }
 
 .location-report-dialog__intro {
-	margin: 0 0 14px 18px;
+	margin: 0 0 14px 0;
 	padding: 0;
 	line-height: 1.45;
-}
-
-.location-report-dialog__intro li + li {
-	margin-top: 6px;
 }
 
 .location-report-dialog__trust-note {

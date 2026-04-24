@@ -109,12 +109,7 @@
 				<h2 id="location-report-title">Neuen Ort melden</h2>
 				<button id="location-report-close" class="location-report-dialog__close" type="button" aria-label="Ortsmeldung schließen">×</button>
 			</div>
-			<ul class="location-report-dialog__intro">
-				<li>Hilf Avesmaps zu erweitern. Gesucht sind neue Orte aus DSA.</li>
-				<li>Meldungen werden gesammelt und bei Gelegenheit geprüft und eingepflegt.</li>
-				<li>Bitte nur Meldungen mit sicherer Quellenlage und Beschreibung.</li>
-			</ul>
-			<p class="location-report-dialog__trust-note">Beim Senden wird die Meldung direkt an den Avesmaps-Server übertragen. Falls etwas blockiert wird oder der Server nicht erreichbar ist, erscheint hier eine klare Fehlermeldung.</p>
+			<p class="location-report-dialog__intro">Hilf mit, Avesmaps zu erweitern. Wir tragen gern neue Orte aus der DSA-Welt ein. Alle Meldungen werden gesammelt und bei Gelegenheit geprüft sowie eingepflegt. Bitte melde nur Orte mit sicherer Quellenlage. Hinterlass eine Beschreibung der Stelle, wenn nicht ganz klar ist, wo genau sich der Ort befindet.</p>
 			<form id="location-report-form" class="location-report-form" novalidate>
 				<div class="location-report-form__meta">
 					<div class="location-report-form__meta-item">
@@ -141,11 +136,11 @@
 					<input id="location-report-source" name="source" type="text" maxlength="200" required />
 				</label>
 				<label class="location-report-form__field">
-					<span>Wiki-Link</span>
+					<span>Wiki-Link (wenn vorhanden)</span>
 					<input id="location-report-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="300" placeholder="https://..." />
 				</label>
 				<label class="location-report-form__field">
-					<span>Kommentar</span>
+					<span>Kommentar (zur näheren Beschreibung)</span>
 					<textarea id="location-report-comment" name="comment" rows="4" maxlength="800"></textarea>
 				</label>
 				<input id="location-report-lat" name="lat" type="hidden" />

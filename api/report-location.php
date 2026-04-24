@@ -99,16 +99,41 @@ try {
         'error' => $exception->getMessage(),
     ]);
 } catch (PDOException $exception) {
+    avesmapsLogLocationReportServerError('database_error', [
+        'exception_code' => (string) $exception->getCode(),
+        'exception_message' => $exception->getMessage(),
+        'sqlstate' => (string) ($exception->errorInfo[0] ?? ''),
+        'driver_code' => (string) ($exception->errorInfo[1] ?? ''),
+        'driver_message' => (string) ($exception->errorInfo[2] ?? ''),
+        'request_origin' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_ORIGIN'] ?? ''), 255),
+        'remote_ip' => avesmapsClientIpAddress(),
+    ]);
+
     avesmapsJsonResponse(500, [
         'ok' => false,
-        'error' => 'Die Ortsmeldung konnte nicht in der Datenbank gespeichert werden.',
+        'error' => avesmapsBuildDatabaseErrorMessage($exception),
     ]);
 } catch (RuntimeException $exception) {
+    avesmapsLogLocationReportServerError('runtime_error', [
+        'exception_code' => (string) $exception->getCode(),
+        'exception_message' => $exception->getMessage(),
+        'request_origin' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_ORIGIN'] ?? ''), 255),
+        'remote_ip' => avesmapsClientIpAddress(),
+    ]);
+
     avesmapsJsonResponse(503, [
         'ok' => false,
         'error' => $exception->getMessage(),
     ]);
 } catch (Throwable $exception) {
+    avesmapsLogLocationReportServerError('unexpected_error', [
+        'exception_class' => $exception::class,
+        'exception_code' => (string) $exception->getCode(),
+        'exception_message' => $exception->getMessage(),
+        'request_origin' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_ORIGIN'] ?? ''), 255),
+        'remote_ip' => avesmapsClientIpAddress(),
+    ]);
+
     avesmapsJsonResponse(500, [
         'ok' => false,
         'error' => 'Die Ortsmeldung konnte nicht verarbeitet werden.',
@@ -150,4 +175,42 @@ function avesmapsValidateLocationReport(array $payload): array {
         'page_url' => avesmapsNormalizeOptionalUrl((string) ($payload['page_url'] ?? ''), 500, 'Die Seiten-URL'),
         'client_version' => avesmapsNormalizeSingleLine((string) ($payload['client_version'] ?? ''), 80),
     ];
+}
+
+function avesmapsBuildDatabaseErrorMessage(PDOException $exception): string {
+    $sqlState = strtoupper((string) ($exception->errorInfo[0] ?? $exception->getCode() ?? ''));
+    $driverCode = (string) ($exception->errorInfo[1] ?? '');
+
+    if (in_array($sqlState, ['42S02', '42P01'], true)) {
+        return 'Die Tabelle location_reports fehlt auf dem Server.';
+    }
+
+    if (in_array($sqlState, ['1049', '3D000'], true) || $driverCode === '1049') {
+        return 'Die konfigurierte Ortsmeldungs-Datenbank existiert auf dem Server nicht.';
+    }
+
+    if (in_array($sqlState, ['28000', '42501'], true) || in_array($driverCode, ['1044', '1045', '1142'], true)) {
+        return 'Der Datenbank-Benutzer darf Ortsmeldungen gerade nicht speichern.';
+    }
+
+    if (in_array($sqlState, ['08001', '08004', '08006', 'HY000', '57P03'], true) || in_array($driverCode, ['2002', '2003'], true)) {
+        return 'Die Ortsmeldungs-Datenbank ist aktuell nicht erreichbar.';
+    }
+
+    return 'Die Ortsmeldung konnte nicht in der Datenbank gespeichert werden.';
+}
+
+function avesmapsLogLocationReportServerError(string $label, array $context): void {
+    $logPayload = [
+        'label' => $label,
+        'time' => gmdate('c'),
+        'context' => $context,
+    ];
+
+    try {
+        $encodedPayload = json_encode($logPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        error_log('Avesmaps location report error: ' . $encodedPayload);
+    } catch (JsonException) {
+        error_log('Avesmaps location report error: ' . $label);
+    }
 }
