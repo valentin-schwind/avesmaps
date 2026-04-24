@@ -125,6 +125,29 @@ Wenn Frontend und API nicht auf derselben Origin laufen, muss die Frontend-Seite
 </script>
 ```
 
+### Moderations- und Import-Workflow
+
+Ortsmeldungen aus dem Formular werden nicht automatisch in die Karte uebernommen.
+Sie landen zuerst als Vorschlaege in der Datenbank und muessen lokal geprueft
+werden. Erst das Import-Skript entscheidet interaktiv, ob ein Ort in die SVG
+geschrieben wird.
+
+Der praktische Ablauf:
+
+1. Nutzer melden Orte ueber das Formular in Avesmaps.
+2. Die PHP-API speichert die Meldungen mit `status = neu` in `location_reports`.
+3. Der Betreiber startet lokal `python map/import_reported_locations.py`.
+4. Das Skript zeigt jede neue Meldung einzeln mit Name, Quelle, Kommentar und Koordinaten an.
+5. Bei Zustimmung wird der Ort in `map/Aventurien_routes.svg` eingefuegt.
+6. Danach erzeugt das Skript `map/Aventurien_routes.geojson` neu.
+7. Die uebernommene Meldung wird auf `status = alt` gesetzt.
+8. Die geaenderte SVG und GeoJSON werden anschliessend bewusst per Git commit/push veroeffentlicht.
+
+Wichtig: Weil die Melde-API und Datenbank von der jeweiligen Avesmaps-Instanz
+gehostet werden, sind Community-Meldungen nur Vorschlaege. Die Entscheidung,
+welche SVG-Version in GitHub landet und damit oeffentlich ausgeliefert wird,
+liegt beim Betreiber dieser gehosteten Instanz.
+
 ## SVG zu GeoJSON konvertieren
 
 Die Datei [`map/svg_to_geojson.py`](map/svg_to_geojson.py) konvertiert die
