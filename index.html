@@ -97,11 +97,68 @@
 	<div id="map" style="width: 100%; height: 100%"></div>
 	<div id="map-context-menu" class="map-context-menu" hidden>
 		<button type="button" class="map-context-menu__item" data-context-action="share-pin">📍 Stelle markieren und teilen</button>
+		<button type="button" class="map-context-menu__item" data-context-action="report-location">📝 Neuen Ort melden</button>
 		<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location">🔎 Nächsten Ort finden</button>
 		<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement">📏 Entfernung messen</button>
 		<button type="button" class="map-context-menu__item" data-context-action="clear-distance-measurement">🗑️ Entfernungsmessung löschen</button>
 	</div>
 	<div id="copy-feedback-toast" class="feedback-toast" role="status" aria-live="polite" hidden></div>
+	<div id="location-report-overlay" hidden>
+		<div id="location-report-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="location-report-title" tabindex="-1">
+			<div class="location-report-dialog__header">
+				<h2 id="location-report-title">Neuen Ort melden</h2>
+				<button id="location-report-close" class="location-report-dialog__close" type="button" aria-label="Ortsmeldung schließen">×</button>
+			</div>
+			<p class="location-report-dialog__intro">Melde neue Ortschaften direkt aus der Karte. Pflichtfelder helfen beim schnellen Prüfen.</p>
+			<form id="location-report-form" class="location-report-form" method="post" target="location-report-submit-target" accept-charset="UTF-8" novalidate>
+				<div class="location-report-form__meta">
+					<div class="location-report-form__meta-item">
+						<span class="location-report-form__meta-label">Position</span>
+						<span id="location-report-coordinates" class="location-report-form__meta-value">-</span>
+					</div>
+				</div>
+				<label class="location-report-form__field">
+					<span>Ortsname</span>
+					<input id="location-report-name" name="name" type="text" maxlength="80" required />
+				</label>
+				<label class="location-report-form__field">
+					<span>Ortsgröße</span>
+					<select id="location-report-size" name="size" required>
+						<option value="dorf">Dorf</option>
+						<option value="kleinstadt">Kleine Stadt</option>
+						<option value="stadt">Stadt</option>
+						<option value="grossstadt">Große Stadt</option>
+						<option value="metropole">Metropole</option>
+					</select>
+				</label>
+				<label class="location-report-form__field">
+					<span>Quelle</span>
+					<input id="location-report-source" name="source" type="text" maxlength="200" required />
+				</label>
+				<label class="location-report-form__field">
+					<span>Wiki-Link</span>
+					<input id="location-report-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="300" placeholder="https://..." />
+				</label>
+				<label class="location-report-form__field">
+					<span>Kommentar</span>
+					<textarea id="location-report-comment" name="comment" rows="4" maxlength="800"></textarea>
+				</label>
+				<input id="location-report-lat" name="lat" type="hidden" />
+				<input id="location-report-lng" name="lng" type="hidden" />
+				<input id="location-report-page-url" name="page_url" type="hidden" />
+				<input id="location-report-client-version" name="client_version" type="hidden" />
+				<input id="location-report-response-bridge-url" name="response_bridge_url" type="hidden" />
+				<input id="location-report-honeypot" class="location-report-form__honeypot" name="website" type="text" tabindex="-1" autocomplete="off" />
+				<p id="location-report-service-note" class="location-report-form__service-note" hidden>Das Meldeformular ist vorbereitet, aber noch nicht mit dem Google-Apps-Script verbunden.</p>
+				<p id="location-report-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+				<div class="location-report-form__actions">
+					<button id="location-report-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+					<button id="location-report-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Melden</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<iframe id="location-report-submit-target" name="location-report-submit-target" hidden></iframe>
 	<div id="search" class="ui-widget">
 		<section class="project-summary" aria-labelledby="project-summary-title">
 			<h1 id="project-summary-title">Avesmaps</h1>
@@ -336,6 +393,14 @@
 		const DEFAULT_ROUTE_QUERY_PARAM = "route";
 		const ROUTE_QUERY_PARAM_ALIASES = ["route", "routes", "router"];
 		const SHARE_PIN_QUERY_PARAM = "pin";
+		const MAP_CONTEXT_MENU_VIEWPORT_PADDING = 8;
+		const MAP_CONTEXT_MENU_OFFSET_X = 18;
+		const MAP_CONTEXT_MENU_OFFSET_Y = 14;
+		const LOCATION_REPORT_FORM_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbz9-2nNuHzdcaIrHePLJ-Jd_AQqvjRSZgorhiAoNz5JGLy3TETz74i4IHNoKR_L2N2z/exec";
+		const LOCATION_REPORT_MESSAGE_TYPE = "avesmaps-location-report-result";
+		const LOCATION_REPORT_SUBMISSION_TIMEOUT_MS = 15000;
+		const LOCATION_REPORT_MESSAGE_HOSTS = new Set(["script.google.com", "script.googleusercontent.com"]);
+		const LOCATION_REPORT_MESSAGE_HOST_SUFFIXES = [".script.googleusercontent.com"];
 		const MAX_SHARED_WAYPOINTS = 25;
 		const DEFAULT_SHARE_PIN_ZOOM = 4;
 		const LOCATION_TYPE_CONFIG = {
@@ -421,6 +486,7 @@
 			sharePinMarker = null,
 			sharePinCoordinates = null,
 			pendingContextMenuLatLng = null,
+			contextMenuAnchorMarker = null,
 			feedbackToastTimeoutId = null,
 			distanceMeasurementStartHandle = null,
 			distanceMeasurementEndHandle = null,
@@ -428,7 +494,11 @@
 			distanceMeasurementLabel = null,
 			distanceMeasurementStartLatLng = null,
 			distanceMeasurementEndLatLng = null,
-			isAwaitingDistanceMeasurementEnd = false;
+			isAwaitingDistanceMeasurementEnd = false,
+			locationReportLatLng = null,
+			isLocationReportSubmissionPending = false,
+			locationReportSubmissionTimeoutId = null,
+			locationReportSubmitTargetLoadCount = 0;
 
 		// Initialisierung der Karte 
 		const map = L.map("map", {
@@ -495,7 +565,7 @@
 		function setLegalDialogOpen(isOpen) {
 			$("#legal-overlay").prop("hidden", !isOpen);
 			$("#legal-button").attr("aria-expanded", isOpen ? "true" : "false");
-			$("body").toggleClass("legal-dialog-open", isOpen);
+			syncModalDialogBodyState();
 
 			if (isOpen) {
 				$("#legal-dialog").trigger("focus");
@@ -511,7 +581,19 @@
 				setLegalDialogOpen(false);
 			}
 		});
+		$("#location-report-close, #location-report-cancel").on("click", () => setLocationReportDialogOpen(false, { resetForm: true }));
+		$("#location-report-overlay").on("click", function (event) {
+			if (event.target === this) {
+				setLocationReportDialogOpen(false, { resetForm: true });
+			}
+		});
+		$("#location-report-form").on("submit", handleLocationReportFormSubmit);
 		$(document).on("keydown", (event) => {
+			if (event.key === "Escape" && isLocationReportDialogOpen()) {
+				setLocationReportDialogOpen(false, { resetForm: true });
+				return;
+			}
+
 			if (event.key === "Escape" && !$("#legal-overlay").prop("hidden")) {
 				setLegalDialogOpen(false);
 				return;
@@ -526,6 +608,35 @@
 			return document.getElementById("map-context-menu");
 		}
 
+		function createMapContextMenuAnchorIcon() {
+			return L.divIcon({
+				className: "map-context-anchor-marker",
+				html: '<span class="map-context-anchor-marker__dot" aria-hidden="true"></span>',
+				iconSize: [24, 24],
+				iconAnchor: [12, 12],
+			});
+		}
+
+		function clearMapContextMenuAnchor() {
+			if (!contextMenuAnchorMarker) {
+				return;
+			}
+
+			map.removeLayer(contextMenuAnchorMarker);
+			contextMenuAnchorMarker = null;
+		}
+
+		function setMapContextMenuAnchor(latlng) {
+			clearMapContextMenuAnchor();
+			contextMenuAnchorMarker = L.marker(L.latLng(latlng), {
+				icon: createMapContextMenuAnchorIcon(),
+				keyboard: false,
+				interactive: false,
+				pane: "measurementHandlesPane",
+				zIndexOffset: 1200,
+			}).addTo(map);
+		}
+
 		function closeMapContextMenu() {
 			const menuElement = getMapContextMenuElement();
 			if (!menuElement) {
@@ -534,6 +645,7 @@
 
 			menuElement.hidden = true;
 			pendingContextMenuLatLng = null;
+			clearMapContextMenuAnchor();
 		}
 
 		function openMapContextMenu(latlng, clientX, clientY) {
@@ -543,16 +655,24 @@
 			}
 
 			pendingContextMenuLatLng = L.latLng(latlng);
+			setMapContextMenuAnchor(pendingContextMenuLatLng);
 			syncDistanceMeasurementContextMenuAction();
 			menuElement.hidden = false;
-			menuElement.style.left = `${clientX}px`;
-			menuElement.style.top = `${clientY}px`;
+			menuElement.style.left = `${clientX + MAP_CONTEXT_MENU_OFFSET_X}px`;
+			menuElement.style.top = `${clientY + MAP_CONTEXT_MENU_OFFSET_Y}px`;
 
-			const viewportPadding = 8;
 			const menuWidth = menuElement.offsetWidth;
 			const menuHeight = menuElement.offsetHeight;
-			const left = Math.max(viewportPadding, Math.min(clientX, window.innerWidth - menuWidth - viewportPadding));
-			const top = Math.max(viewportPadding, Math.min(clientY, window.innerHeight - menuHeight - viewportPadding));
+			const preferredLeft = clientX + MAP_CONTEXT_MENU_OFFSET_X;
+			const preferredTop = clientY + MAP_CONTEXT_MENU_OFFSET_Y;
+			const left = Math.max(
+				MAP_CONTEXT_MENU_VIEWPORT_PADDING,
+				Math.min(preferredLeft, window.innerWidth - menuWidth - MAP_CONTEXT_MENU_VIEWPORT_PADDING)
+			);
+			const top = Math.max(
+				MAP_CONTEXT_MENU_VIEWPORT_PADDING,
+				Math.min(preferredTop, window.innerHeight - menuHeight - MAP_CONTEXT_MENU_VIEWPORT_PADDING)
+			);
 
 			menuElement.style.left = `${left}px`;
 			menuElement.style.top = `${top}px`;
@@ -565,7 +685,7 @@
 			}
 
 			return Boolean(targetElement.closest(
-				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button"
+				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #location-report-overlay"
 			));
 		}
 
@@ -595,8 +715,11 @@
 		map.on("click", closeMapContextMenu);
 		map.on("movestart", closeMapContextMenu);
 		window.addEventListener("resize", closeMapContextMenu);
+		window.addEventListener("message", handleLocationReportSubmissionMessage);
+		getLocationReportSubmitTargetElement()?.addEventListener("load", handleLocationReportSubmitTargetLoad);
 		map.getContainer().addEventListener("click", handleDistanceMeasurementContainerClick, true);
 		syncDistanceMeasurementContextMenuAction();
+		updateLocationReportDialogAvailability();
 
 		function getLocationToggleButton(locationType) {
 			return $(`.location-toggle[data-location-type="${locationType}"]`);
@@ -614,6 +737,372 @@
 					.toggleClass("is-inactive", !isActive)
 					.attr("aria-pressed", isActive ? "true" : "false");
 			});
+		}
+
+		function getLocationReportOverlayElement() {
+			return document.getElementById("location-report-overlay");
+		}
+
+		function getLocationReportDialogElement() {
+			return document.getElementById("location-report-dialog");
+		}
+
+		function getLocationReportFormElement() {
+			return document.getElementById("location-report-form");
+		}
+
+		function getLocationReportStatusElement() {
+			return document.getElementById("location-report-status");
+		}
+
+		function getLocationReportServiceNoteElement() {
+			return document.getElementById("location-report-service-note");
+		}
+
+		function getLocationReportSubmitTargetElement() {
+			return document.getElementById("location-report-submit-target");
+		}
+
+		function getLocationReportResponseBridgeUrl() {
+			const pathname = window.location.pathname || "/";
+			const isDirectoryPath = pathname.endsWith("/") || !pathname.split("/").pop()?.includes(".");
+			const basePath = isDirectoryPath
+				? (pathname.endsWith("/") ? pathname : `${pathname}/`)
+				: pathname.replace(/[^/]*$/, "");
+			const bridgeUrl = new URL(window.location.origin);
+			bridgeUrl.pathname = `${basePath}location-report-result.html`;
+			bridgeUrl.searchParams.set("parent_origin", window.location.origin);
+			return bridgeUrl.toString();
+		}
+
+		function isLocalDevelopmentOrigin() {
+			try {
+				const currentUrl = new URL(window.location.href);
+				const hostname = String(currentUrl.hostname || "").toLowerCase();
+				return currentUrl.protocol === "http:"
+					&& (hostname === "localhost" || hostname === "127.0.0.1");
+			} catch (error) {
+				return false;
+			}
+		}
+
+		function resetLocationReportSubmitTarget() {
+			const submitTargetElement = getLocationReportSubmitTargetElement();
+			if (!submitTargetElement) {
+				return;
+			}
+
+			try {
+				if (submitTargetElement.contentWindow?.location.href !== "about:blank") {
+					submitTargetElement.src = "about:blank";
+				}
+			} catch (error) {
+				// Cross-origin loads are expected while the Apps Script response is in flight.
+			}
+		}
+
+		function isLocationReportSubmitTargetBlank() {
+			const submitTargetElement = getLocationReportSubmitTargetElement();
+			if (!submitTargetElement?.contentWindow) {
+				return true;
+			}
+
+			try {
+				return submitTargetElement.contentWindow.location.href === "about:blank";
+			} catch (error) {
+				return false;
+			}
+		}
+
+		function isLocationReportDialogOpen() {
+			return !$("#location-report-overlay").prop("hidden");
+		}
+
+		function isLocationReportServiceConfigured() {
+			return Boolean(String(LOCATION_REPORT_FORM_ENDPOINT_URL || "").trim());
+		}
+
+		function syncModalDialogBodyState() {
+			const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden");
+			$("body").toggleClass("modal-dialog-open", hasOpenModal);
+		}
+
+		function clearLocationReportSubmissionTimeout() {
+			if (!locationReportSubmissionTimeoutId) {
+				return;
+			}
+
+			window.clearTimeout(locationReportSubmissionTimeoutId);
+			locationReportSubmissionTimeoutId = null;
+		}
+
+		function setLocationReportStatus(message = "", type = "") {
+			const statusElement = getLocationReportStatusElement();
+			if (!statusElement) {
+				return;
+			}
+
+			statusElement.textContent = message;
+			if (type) {
+				statusElement.dataset.status = type;
+			} else {
+				delete statusElement.dataset.status;
+			}
+		}
+
+		function setLocationReportSubmitPending(isPending) {
+			isLocationReportSubmissionPending = isPending;
+
+			const formElement = getLocationReportFormElement();
+			if (!formElement) {
+				return;
+			}
+
+			Array.from(formElement.elements).forEach((fieldElement) => {
+				if (fieldElement instanceof HTMLElement) {
+					fieldElement.disabled = isPending;
+				}
+			});
+			const closeButtonElement = document.getElementById("location-report-close");
+			if (closeButtonElement) {
+				closeButtonElement.disabled = isPending;
+			}
+		}
+
+		function resetLocationReportForm() {
+			const formElement = getLocationReportFormElement();
+			if (!formElement) {
+				return;
+			}
+
+			formElement.reset();
+			locationReportLatLng = null;
+			locationReportSubmitTargetLoadCount = 0;
+			document.getElementById("location-report-coordinates").textContent = "-";
+			document.getElementById("location-report-lat").value = "";
+			document.getElementById("location-report-lng").value = "";
+			document.getElementById("location-report-page-url").value = "";
+			document.getElementById("location-report-client-version").value = "";
+			document.getElementById("location-report-response-bridge-url").value = "";
+			setLocationReportStatus();
+		}
+
+		function updateLocationReportDialogAvailability() {
+			const serviceNoteElement = getLocationReportServiceNoteElement();
+			const submitButtonElement = document.getElementById("location-report-submit");
+			const isConfigured = isLocationReportServiceConfigured();
+
+			if (serviceNoteElement) {
+				serviceNoteElement.hidden = isConfigured;
+			}
+
+			if (submitButtonElement && !isLocationReportSubmissionPending) {
+				submitButtonElement.disabled = !isConfigured;
+			}
+		}
+
+		function formatLocationReportCoordinates(latlng) {
+			const normalizedLatLng = L.latLng(latlng);
+			return `${normalizedLatLng.lat.toFixed(3)}, ${normalizedLatLng.lng.toFixed(3)}`;
+		}
+
+		function populateLocationReportForm(latlng) {
+			const normalizedLatLng = L.latLng(latlng);
+			locationReportLatLng = normalizedLatLng;
+			document.getElementById("location-report-coordinates").textContent = formatLocationReportCoordinates(normalizedLatLng);
+			document.getElementById("location-report-lat").value = normalizedLatLng.lat.toFixed(3);
+			document.getElementById("location-report-lng").value = normalizedLatLng.lng.toFixed(3);
+			document.getElementById("location-report-page-url").value = window.location.href;
+			document.getElementById("location-report-client-version").value = ICON_ASSET_VERSION;
+			document.getElementById("location-report-response-bridge-url").value = getLocationReportResponseBridgeUrl();
+			document.getElementById("location-report-size").value = "dorf";
+		}
+
+		function setLocationReportDialogOpen(isOpen, { resetForm = false } = {}) {
+			if (!isOpen && isLocationReportSubmissionPending) {
+				return;
+			}
+
+			$("#location-report-overlay").prop("hidden", !isOpen);
+			syncModalDialogBodyState();
+
+			if (isOpen) {
+				updateLocationReportDialogAvailability();
+				getLocationReportDialogElement()?.focus();
+				document.getElementById("location-report-name")?.focus();
+				return;
+			}
+
+			clearLocationReportSubmissionTimeout();
+			if (resetForm) {
+				resetLocationReportForm();
+			}
+		}
+
+		function openLocationReportDialog(latlng) {
+			resetLocationReportForm();
+			updateLocationReportDialogAvailability();
+			populateLocationReportForm(latlng);
+			setLocationReportDialogOpen(true);
+		}
+
+		function isTrustedLocationReportMessageOrigin(origin) {
+			try {
+				const url = new URL(origin);
+				const host = String(url.host || "").toLowerCase();
+				if (url.origin === window.location.origin) {
+					return true;
+				}
+
+				return LOCATION_REPORT_MESSAGE_HOSTS.has(host)
+					|| LOCATION_REPORT_MESSAGE_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix));
+			} catch (error) {
+				return false;
+			}
+		}
+
+		function isLocationReportMessageFromSubmitTarget(messageSource) {
+			const submitTargetElement = getLocationReportSubmitTargetElement();
+			return Boolean(submitTargetElement?.contentWindow && messageSource === submitTargetElement.contentWindow);
+		}
+
+		function finalizeLocationReportSubmission({ ok, message }) {
+			clearLocationReportSubmissionTimeout();
+			setLocationReportSubmitPending(false);
+			updateLocationReportDialogAvailability();
+			resetLocationReportSubmitTarget();
+
+			if (ok) {
+				setLocationReportDialogOpen(false, { resetForm: true });
+				showFeedbackToast(message || "Ort wurde gemeldet.", "success");
+				return;
+			}
+
+			setLocationReportStatus(message || "Die Meldung konnte nicht gesendet werden.", "error");
+		}
+
+		function scheduleLocationReportSubmissionTimeout() {
+			clearLocationReportSubmissionTimeout();
+			locationReportSubmissionTimeoutId = window.setTimeout(() => {
+				if (isLocalDevelopmentOrigin() && locationReportSubmitTargetLoadCount > 0) {
+					finalizeLocationReportSubmission({
+						ok: true,
+						message: "Ort wurde gemeldet.",
+					});
+					return;
+				}
+				finalizeLocationReportSubmission({
+					ok: false,
+					message: "Die Meldung konnte nicht bestätigt werden. Bitte später erneut versuchen.",
+				});
+			}, LOCATION_REPORT_SUBMISSION_TIMEOUT_MS);
+		}
+
+		function handleLocationReportSubmissionMessage(event) {
+			if (!isLocationReportSubmissionPending) {
+				return;
+			}
+
+			const payload = event.data;
+			if (!payload || payload.type !== LOCATION_REPORT_MESSAGE_TYPE) {
+				return;
+			}
+
+			const isTrustedOrigin = isTrustedLocationReportMessageOrigin(event.origin);
+			const isTrustedSubmitTarget = isLocationReportMessageFromSubmitTarget(event.source);
+			if (!isTrustedOrigin && !isTrustedSubmitTarget) {
+				return;
+			}
+
+			finalizeLocationReportSubmission({
+				ok: Boolean(payload.ok),
+				message: payload.message || payload.error || "",
+			});
+		}
+
+		function readLocationReportPayloadFromSubmitTarget() {
+			const submitTargetElement = getLocationReportSubmitTargetElement();
+			if (!submitTargetElement?.contentWindow) {
+				return null;
+			}
+
+			try {
+				const submitTargetUrl = new URL(submitTargetElement.contentWindow.location.href);
+				const expectedBridgeUrl = new URL(getLocationReportResponseBridgeUrl());
+				if (submitTargetUrl.origin !== window.location.origin || submitTargetUrl.pathname !== expectedBridgeUrl.pathname) {
+					return null;
+				}
+
+				const payloadValue = new URLSearchParams(submitTargetUrl.hash.slice(1)).get("payload");
+				if (!payloadValue) {
+					return null;
+				}
+
+				const payload = JSON.parse(payloadValue);
+				if (!payload || payload.type !== LOCATION_REPORT_MESSAGE_TYPE) {
+					return null;
+				}
+
+				return payload;
+			} catch (error) {
+				return null;
+			}
+		}
+
+		function handleLocationReportSubmitTargetLoad() {
+			if (!isLocationReportSubmissionPending) {
+				return;
+			}
+
+			const payload = readLocationReportPayloadFromSubmitTarget();
+			if (!payload) {
+				if (isLocationReportSubmitTargetBlank()) {
+					return;
+				}
+
+				locationReportSubmitTargetLoadCount += 1;
+				return;
+			}
+
+			finalizeLocationReportSubmission({
+				ok: Boolean(payload.ok),
+				message: payload.message || payload.error || "",
+			});
+		}
+
+		function handleLocationReportFormSubmit(event) {
+			event.preventDefault();
+
+			const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
+			if (!formElement) {
+				return;
+			}
+
+			if (!isLocationReportServiceConfigured()) {
+				setLocationReportStatus("Das Meldeformular ist noch nicht mit dem Google-Apps-Script verbunden.", "error");
+				return;
+			}
+
+			if (!locationReportLatLng || !isWithinMapBounds(locationReportLatLng)) {
+				setLocationReportStatus("Die ausgewählte Position ist ungültig.", "error");
+				return;
+			}
+
+			if (!formElement.reportValidity()) {
+				return;
+			}
+
+			formElement.action = LOCATION_REPORT_FORM_ENDPOINT_URL;
+			document.getElementById("location-report-page-url").value = window.location.href;
+			document.getElementById("location-report-client-version").value = ICON_ASSET_VERSION;
+			document.getElementById("location-report-response-bridge-url").value = getLocationReportResponseBridgeUrl();
+			setLocationReportStatus("Meldung wird gesendet...", "pending");
+			locationReportSubmitTargetLoadCount = 0;
+			resetLocationReportSubmitTarget();
+			isLocationReportSubmissionPending = true;
+			scheduleLocationReportSubmissionTimeout();
+			formElement.submit();
+			setLocationReportSubmitPending(true);
 		}
 
 		function escapeHtml(value) {
@@ -2305,6 +2794,12 @@
 				void copyCurrentUrlToClipboardWithFeedback();
 				closeMapContextMenu();
 				focusMapOnActiveTargets();
+				return;
+			}
+
+			if (action === "report-location" && contextMenuLatLng) {
+				closeMapContextMenu();
+				openLocationReportDialog(contextMenuLatLng);
 				return;
 			}
 

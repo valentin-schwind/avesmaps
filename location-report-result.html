@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Avesmaps Ortsmeldung</title>
+</head>
+<body>
+	<p>Die Ortsmeldung wird bestätigt.</p>
+	<script>
+		(function () {
+			const searchParams = new URLSearchParams(window.location.search);
+			const hashParams = new URLSearchParams(window.location.hash.slice(1));
+			const payloadValue = hashParams.get("payload");
+			if (!payloadValue) {
+				return;
+			}
+
+			try {
+				const payload = JSON.parse(payloadValue);
+				const requestedParentOrigin = searchParams.get("parent_origin");
+				const parentOrigin = requestedParentOrigin
+					? new URL(requestedParentOrigin).origin
+					: window.location.origin;
+
+				if (window.parent && window.parent !== window) {
+					window.parent.postMessage(payload, parentOrigin);
+				}
+			} catch (error) {
+				console.error("Die Ortsmeldung konnte nicht an Avesmaps zurückgemeldet werden.", error);
+			}
+		})();
+	</script>
+</body>
+</html>

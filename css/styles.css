@@ -131,7 +131,8 @@ html {
 	outline: none;
 }
 
-body.legal-dialog-open {
+body.legal-dialog-open,
+body.modal-dialog-open {
 	overflow: hidden;
 }
 
@@ -223,6 +224,218 @@ body.legal-dialog-open {
 .legal-dialog__note {
 	font-size: 12px;
 	color: #6f6256;
+}
+
+#location-report-overlay[hidden] {
+	display: none !important;
+}
+
+#location-report-overlay {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	background: rgba(20, 16, 12, 0.56);
+	z-index: 1250;
+}
+
+.location-report-dialog {
+	width: min(520px, 100%);
+	max-height: min(86vh, 760px);
+	overflow-y: auto;
+	background: #fff9f4;
+	color: #2f251c;
+	border: 1px solid #d8c6b2;
+	border-radius: 12px;
+	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+	padding: 18px;
+}
+
+.location-report-dialog:focus {
+	outline: none;
+}
+
+.location-report-dialog__header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 10px;
+}
+
+.location-report-dialog__header h2 {
+	margin: 0;
+	font-size: 20px;
+}
+
+.location-report-dialog__close {
+	border: none;
+	background: transparent;
+	color: #5f4f40;
+	cursor: pointer;
+	font-size: 28px;
+	line-height: 1;
+	padding: 0;
+}
+
+.location-report-dialog__close:disabled {
+	cursor: wait;
+	opacity: 0.5;
+}
+
+.location-report-dialog__intro {
+	margin: 0 0 14px 0;
+	line-height: 1.45;
+}
+
+.location-report-form {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.location-report-form__meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.location-report-form__meta-item {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 8px 10px;
+	border: 1px solid #d8c6b2;
+	border-radius: 8px;
+	background: #fff;
+}
+
+.location-report-form__meta-label {
+	font-size: 11px;
+	font-weight: bold;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: #6c5a49;
+}
+
+.location-report-form__meta-value {
+	font-size: 13px;
+	font-weight: bold;
+	color: #3f3428;
+}
+
+.location-report-form__field {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.location-report-form__field > span {
+	font-size: 12px;
+	font-weight: bold;
+	color: #5a4a3b;
+}
+
+.location-report-form__field input,
+.location-report-form__field select,
+.location-report-form__field textarea {
+	border: 1px solid #cdb79f;
+	border-radius: 8px;
+	background: #fff;
+	color: #2f251c;
+	font: inherit;
+	padding: 9px 10px;
+}
+
+.location-report-form__field textarea {
+	min-height: 96px;
+	resize: vertical;
+}
+
+.location-report-form__field input:focus,
+.location-report-form__field select:focus,
+.location-report-form__field textarea:focus {
+	border-color: #9b7b58;
+	outline: 2px solid rgba(155, 123, 88, 0.14);
+	outline-offset: 0;
+}
+
+.location-report-form__field input:disabled,
+.location-report-form__field select:disabled,
+.location-report-form__field textarea:disabled {
+	background: #f3ede7;
+	cursor: wait;
+}
+
+.location-report-form__honeypot {
+	position: absolute;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.location-report-form__service-note {
+	margin: -2px 0 0 0;
+	font-size: 12px;
+	line-height: 1.4;
+	color: #8b5d2a;
+}
+
+.location-report-form__status {
+	min-height: 1.4em;
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.4;
+	color: #5f4f40;
+}
+
+.location-report-form__status[data-status="error"] {
+	color: #8a3a1b;
+}
+
+.location-report-form__status[data-status="pending"] {
+	color: #6b583f;
+}
+
+.location-report-form__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+.location-report-form__button {
+	border: 1px solid #c6aa8c;
+	border-radius: 999px;
+	cursor: pointer;
+	font: inherit;
+	font-weight: bold;
+	padding: 8px 14px;
+}
+
+.location-report-form__button:disabled {
+	cursor: wait;
+	opacity: 0.65;
+}
+
+.location-report-form__button--secondary {
+	background: #f3ebdf;
+	color: #513c2b;
+}
+
+.location-report-form__button--primary {
+	background: #e8dac7;
+	color: #3f3428;
+}
+
+.location-report-form__button:not(:disabled):hover,
+.location-report-form__button:not(:disabled):focus-visible {
+	border-color: #b48d68;
+	background: #ead7bf;
+	outline: none;
 }
 
 .input-options {
@@ -490,6 +703,24 @@ body.legal-dialog-open {
 	background: transparent;
 	border-color: transparent;
 	outline: none;
+}
+
+.map-context-anchor-marker {
+	background: transparent;
+	border: none;
+	pointer-events: none;
+}
+
+.map-context-anchor-marker__dot {
+	display: block;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	background: #d2473b;
+	border: 3px solid #ffffff;
+	box-shadow:
+		0 0 0 2px rgba(111, 83, 56, 0.4),
+		0 6px 16px rgba(0, 0, 0, 0.24);
 }
 
 .feedback-toast[hidden] {
