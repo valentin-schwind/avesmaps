@@ -1262,6 +1262,11 @@ body.modal-dialog-open {
 	color: #5f4a3a;
 }
 
+.map-label--gebirge span,
+.map-label--region span {
+	text-transform: uppercase;
+}
+
 @media (max-width: 420px) {
 	.review-panel-toggle {
 		right: calc(100vw - 64px);
