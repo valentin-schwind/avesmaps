@@ -175,6 +175,15 @@ function avesmapsReadLabelMinZoom(mixed $value): int {
     return (int) $minZoom;
 }
 
+function avesmapsReadLabelPriority(mixed $value): int {
+    $priority = filter_var($value, FILTER_VALIDATE_INT);
+    if ($priority === false || $priority < 1 || $priority > 5) {
+        throw new InvalidArgumentException('Die Label-Prioritaet ist ungueltig.');
+    }
+
+    return (int) $priority;
+}
+
 function avesmapsReadOptionalWikiUrl(mixed $value): string {
     return avesmapsNormalizeOptionalUrl((string) $value, 500, 'Der Wiki-Aventurica-Link');
 }
@@ -648,6 +657,7 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
     $size = avesmapsReadLabelSize($payload['size'] ?? 18);
     $rotation = avesmapsReadLabelRotation($payload['rotation'] ?? 0);
     $minZoom = avesmapsReadLabelMinZoom($payload['min_zoom'] ?? 0);
+    $priority = avesmapsReadLabelPriority($payload['priority'] ?? 3);
     $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
     $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
     $publicId = avesmapsUuidV4();
@@ -663,6 +673,7 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
         'size' => $size,
         'rotation' => $rotation,
         'min_zoom' => $minZoom,
+        'priority' => $priority,
     ];
 
     $pdo->beginTransaction();
@@ -712,6 +723,7 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
     $size = avesmapsReadLabelSize($payload['size'] ?? 18);
     $rotation = avesmapsReadLabelRotation($payload['rotation'] ?? 0);
     $minZoom = avesmapsReadLabelMinZoom($payload['min_zoom'] ?? 0);
+    $priority = avesmapsReadLabelPriority($payload['priority'] ?? 3);
 
     $pdo->beginTransaction();
     try {
@@ -727,6 +739,7 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
         $properties['size'] = $size;
         $properties['rotation'] = $rotation;
         $properties['min_zoom'] = $minZoom;
+        $properties['priority'] = $priority;
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         $coordinates = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [0, 0];
         $revision = avesmapsNextMapRevision($pdo);

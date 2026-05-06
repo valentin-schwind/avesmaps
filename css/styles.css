@@ -1265,6 +1265,10 @@ body.edit-mode .map-label span {
 	pointer-events: auto;
 }
 
+.map-label.is-colliding {
+	display: none;
+}
+
 .map-label--meer span,
 .map-label--fluss span,
 .map-label--see span {

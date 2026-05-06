@@ -297,6 +297,10 @@
 					<span>Sichtbar ab Zoom <output id="label-edit-min-zoom-output">0</output></span>
 					<input id="label-edit-min-zoom" name="min_zoom" type="range" min="0" max="5" step="1" value="0" />
 				</label>
+				<label class="location-report-form__field">
+					<span>Prioritaet <output id="label-edit-priority-output">3</output></span>
+					<input id="label-edit-priority" name="priority" type="range" min="1" max="5" step="1" value="3" />
+				</label>
 				<p id="label-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions">
 					<button id="label-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Loeschen</button>
@@ -722,6 +726,7 @@
 			});
 			syncLabelIcons();
 		});
+		map.on("moveend", () => window.requestAnimationFrame(resolveLabelCollisions));
 
 		// Da liegen die Map-Tiles
 		L.tileLayer("./tiles/{z}/map_{x}_{y}.jpg", {
@@ -792,6 +797,7 @@
 		$("#label-edit-form").on("submit", handleLabelEditFormSubmit);
 		$("#label-edit-delete").on("click", () => deleteActiveLabel());
 		$("#label-edit-min-zoom").on("input", syncLabelMinZoomOutput);
+		$("#label-edit-priority").on("input", syncLabelPriorityOutput);
 		$("#path-edit-autoname").on("change", syncPathAutoNameControls);
 		$("#path-edit-type").on("change", () => syncPathAutoNameControls({ forceName: true }));
 		$("#path-edit-close, #path-edit-cancel").on("click", () => setPathEditDialogOpen(false, { resetForm: true }));
@@ -1465,7 +1471,9 @@
 			document.getElementById("label-edit-size").value = label.size || 18;
 			document.getElementById("label-edit-rotation").value = label.rotation || 0;
 			document.getElementById("label-edit-min-zoom").value = label.minZoom ?? 0;
+			document.getElementById("label-edit-priority").value = label.priority ?? 3;
 			syncLabelMinZoomOutput();
+			syncLabelPriorityOutput();
 			document.getElementById("label-edit-delete").hidden = !labelEntry;
 			if (labelEditLatLng) {
 				document.getElementById("label-edit-lat").value = labelEditLatLng.lat.toFixed(3);
@@ -1482,6 +1490,17 @@
 		function syncLabelMinZoomOutput() {
 			const inputElement = document.getElementById("label-edit-min-zoom");
 			const outputElement = document.getElementById("label-edit-min-zoom-output");
+			if (!inputElement || !outputElement) {
+				return;
+			}
+
+			outputElement.value = inputElement.value;
+			outputElement.textContent = inputElement.value;
+		}
+
+		function syncLabelPriorityOutput() {
+			const inputElement = document.getElementById("label-edit-priority");
+			const outputElement = document.getElementById("label-edit-priority-output");
 			if (!inputElement || !outputElement) {
 				return;
 			}
@@ -1581,6 +1600,7 @@
 				size: Number.parseInt(String(formData.get("size") || "18"), 10),
 				rotation: Number.parseInt(String(formData.get("rotation") || "0"), 10),
 				min_zoom: Number.parseInt(String(formData.get("min_zoom") || "0"), 10),
+				priority: Number.parseInt(String(formData.get("priority") || "3"), 10),
 			};
 
 			if (action === "create_label") {
@@ -3851,6 +3871,7 @@
 				size: Number(properties.size || feature.size || 18),
 				rotation: Number(properties.rotation || feature.rotation || 0),
 				minZoom: Number(properties.min_zoom ?? feature.min_zoom ?? 0),
+				priority: Number(properties.priority ?? feature.priority ?? 3),
 				coordinates: [Number(lat), Number(lng)],
 			};
 		}
@@ -3868,7 +3889,9 @@
 
 		function getScaledLabelSize(label) {
 			const baseSize = Math.max(10, Math.min(56, Number(label.size) || 18));
-			return Math.round(baseSize * (1 + map.getZoom() * 0.18));
+			const maxZoom = Number(map.getMaxZoom()) || 5;
+			const zoomRatio = Math.max(0, Math.min(1, map.getZoom() / maxZoom));
+			return Math.round(baseSize * (0.5 + zoomRatio * 0.5));
 		}
 
 		function createLabelMarkerEntry(label) {
@@ -3903,6 +3926,7 @@
 
 		function syncLabelVisibility() {
 			labelMarkers.forEach(syncLabelMarkerVisibility);
+			window.requestAnimationFrame(resolveLabelCollisions);
 		}
 
 		function syncLabelIcons() {
@@ -3910,6 +3934,45 @@
 				entry.marker.setIcon(createLabelIcon(entry.label));
 				syncLabelMarkerVisibility(entry);
 			});
+			window.requestAnimationFrame(resolveLabelCollisions);
+		}
+
+		function rectanglesOverlap(firstRect, secondRect) {
+			return firstRect.left < secondRect.right
+				&& firstRect.right > secondRect.left
+				&& firstRect.top < secondRect.bottom
+				&& firstRect.bottom > secondRect.top;
+		}
+
+		function resolveLabelCollisions() {
+			const visibleEntries = labelMarkers
+				.filter((entry) => map.hasLayer(entry.marker))
+				.map((entry) => ({ entry, element: entry.marker.getElement() }))
+				.filter(({ element }) => element);
+
+			visibleEntries.forEach(({ element }) => {
+				element.classList.remove("is-colliding");
+			});
+
+			const acceptedRects = [];
+			visibleEntries
+				.sort((left, right) => {
+					const priorityDiff = (Number(right.entry.label.priority) || 3) - (Number(left.entry.label.priority) || 3);
+					return priorityDiff || (Number(left.entry.label.minZoom) || 0) - (Number(right.entry.label.minZoom) || 0);
+				})
+				.forEach(({ element }) => {
+					const rect = element.getBoundingClientRect();
+					if (rect.width <= 0 || rect.height <= 0) {
+						return;
+					}
+
+					if (acceptedRects.some((acceptedRect) => rectanglesOverlap(rect, acceptedRect))) {
+						element.classList.add("is-colliding");
+						return;
+					}
+
+					acceptedRects.push(rect);
+				});
 		}
 
 		function prepareLabelData(data) {
