@@ -95,6 +95,7 @@
 
 <body>
 	<div id="map" style="width: 100%; height: 100%"></div>
+	<div id="map-data-status" class="map-data-status" role="status" aria-live="polite" hidden></div>
 	<div id="map-context-menu" class="map-context-menu" hidden>
 		<button type="button" class="map-context-menu__item" data-context-action="share-pin">📍 Stelle markieren und teilen</button>
 		<button type="button" class="map-context-menu__item" data-context-action="report-location">📝 Neuen Ort melden</button>
@@ -2649,12 +2650,35 @@
 					}
 
 					console.info(`SQL-Vektorkarte geladen: ${data.features.length} Features, Revision ${data.revision ?? "unbekannt"}.`);
+					data.avesmapsSource = {
+						label: "SQL",
+						revision: data.revision ?? null,
+						featureCount: data.features.length,
+					};
 					return data;
 				});
 		}
 
 		function loadRouteDataFromFile() {
-			return $.getJSON(MAP_FEATURES_FILE_URL).then((data) => data);
+			return $.getJSON(MAP_FEATURES_FILE_URL).then((data) => {
+				data.avesmapsSource = {
+					label: "GeoJSON",
+					revision: null,
+					featureCount: Array.isArray(data.features) ? data.features.length : 0,
+				};
+				return data;
+			});
+		}
+
+		function updateMapDataStatus(data) {
+			const source = data?.avesmapsSource || {};
+			const sourceLabel = source.label || "unbekannt";
+			const revisionText = source.revision === null || source.revision === undefined ? "-" : source.revision;
+			const featureCount = Number.isFinite(source.featureCount) ? source.featureCount : Array.isArray(data?.features) ? data.features.length : 0;
+
+			$("#map-data-status")
+				.text(`Map: ${sourceLabel} | Rev ${revisionText} | ${featureCount.toLocaleString("de-DE")} Features`)
+				.prop("hidden", false);
 		}
 
 		function loadRouteData() {
@@ -2672,6 +2696,7 @@
 
 		$.when(routeDataRequest, loadWikiLocationLinks())
 			.done((data) => {
+				updateMapDataStatus(data);
 				prepareLocationData(data);
 				preparePathData(data);
 				prepareRegionData(data);
