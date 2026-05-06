@@ -80,7 +80,7 @@ function avesmapsApplyCorsPolicy(array $config): bool {
         header('Vary: Origin');
     }
 
-    header('Access-Control-Allow-Methods: POST, OPTIONS');
+    header('Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type, Accept');
     header('Access-Control-Max-Age: 86400');
 
