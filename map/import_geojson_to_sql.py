@@ -25,14 +25,15 @@ SETTLEMENT_SUBTYPES = {
 }
 
 NORMALIZED_ROUTE_LAYER_SUBTYPES = {
-    "pfade": "pfad",
-    "strassen": "strasse",
-    "reichsstrasse": "reichsstrasse",
-    "gebirgspaesse": "gebirgspass",
-    "gebirgspasse": "gebirgspass",
-    "wustenpfade": "wuestenpfad",
-    "wuestenpfade": "wuestenpfad",
-    "meerwege": "seeweg",
+    "pfade": "Pfad",
+    "strassen": "Strasse",
+    "reichsstrasse": "Reichsstrasse",
+    "gebirgspaesse": "Gebirgspass",
+    "gebirgspasse": "Gebirgspass",
+    "wustenpfade": "Pfad",
+    "wuestenpfade": "Pfad",
+    "flusswege": "Flussweg",
+    "meerwege": "Seeweg",
 }
 
 STYLE_KEYS = {
@@ -154,6 +155,32 @@ def deterministic_public_id(feature: dict[str, Any], index: int) -> str:
     return str(uuid.uuid5(MAP_NAMESPACE, source))
 
 
+def infer_route_subtype_from_name(value: Any) -> str | None:
+    name = str(value or "").strip()
+    if not name:
+        return None
+
+    normalized_name = normalize_subtype(name.split("-", 1)[0], "")
+    route_subtypes = {
+        "reichsstrasse": "Reichsstrasse",
+        "reichsstrasze": "Reichsstrasse",
+        "strasse": "Strasse",
+        "strasze": "Strasse",
+        "weg": "Weg",
+        "pfad": "Pfad",
+        "wueste": "Pfad",
+        "wustenpfad": "Pfad",
+        "wuestenpfad": "Pfad",
+        "gebirgspfad": "Gebirgspass",
+        "gebirgspass": "Gebirgspass",
+        "flussweg": "Flussweg",
+        "meer": "Seeweg",
+        "meerweg": "Seeweg",
+        "seeweg": "Seeweg",
+    }
+    return route_subtypes.get(normalized_name)
+
+
 def classify_feature(feature: dict[str, Any]) -> tuple[str, str]:
     geometry = feature.get("geometry") or {}
     properties = feature.get("properties") or {}
@@ -176,11 +203,12 @@ def classify_feature(feature: dict[str, Any]) -> tuple[str, str]:
     if legacy_type == "region" or geometry_type in {"Polygon", "MultiPolygon"}:
         return "region", normalized_layer or "region"
 
-    if normalized_layer == "flusswege":
-        return "river", "river"
-
     if geometry_type in {"LineString", "MultiLineString"}:
-        return "path", NORMALIZED_ROUTE_LAYER_SUBTYPES.get(normalized_layer, normalized_layer or "path")
+        name_subtype = infer_route_subtype_from_name(properties.get("name"))
+        if name_subtype:
+            return "path", name_subtype
+
+        return "path", NORMALIZED_ROUTE_LAYER_SUBTYPES.get(normalized_layer, "Weg")
 
     return normalize_subtype(legacy_type, "feature"), normalized_layer or "default"
 

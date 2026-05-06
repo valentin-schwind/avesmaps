@@ -47,6 +47,7 @@ try {
         'dry_run_geojson' => avesmapsImportGeoJsonMap($pdo, false, false),
         'import_geojson' => avesmapsImportGeoJsonMap($pdo, $replaceExisting, true),
         'install_schema_and_import_geojson' => avesmapsInstallSchemaAndImportGeoJson($pdo, $replaceExisting),
+        'repair_path_subtypes_from_names' => avesmapsRepairPathSubtypesFromNames($pdo),
         'upsert_user' => avesmapsUpsertUser($pdo, $payload),
         default => throw new InvalidArgumentException('Die angeforderte Admin-Aktion ist unbekannt.'),
     };
@@ -336,6 +337,80 @@ function avesmapsImportGeoJsonMap(PDO $pdo, bool $replaceExisting, bool $writeCh
     ];
 }
 
+function avesmapsRepairPathSubtypesFromNames(PDO $pdo): array {
+    if (!avesmapsTableExists($pdo, 'map_features')) {
+        throw new RuntimeException('Die Future-Tabellen fehlen. Fuehre zuerst install_schema aus.');
+    }
+
+    $selectStatement = $pdo->query(
+        'SELECT id, name, properties_json
+        FROM map_features
+        WHERE is_active = 1
+            AND geometry_type IN (\'LineString\', \'MultiLineString\')'
+    );
+    $rows = $selectStatement !== false ? $selectStatement->fetchAll() : [];
+    $updatesBySubtype = [];
+    $unchanged = 0;
+
+    $pdo->beginTransaction();
+    try {
+        $updateStatement = $pdo->prepare(
+            'UPDATE map_features
+            SET feature_type = :feature_type,
+                feature_subtype = :feature_subtype,
+                properties_json = :properties_json
+            WHERE id = :id'
+        );
+
+        foreach ($rows as $row) {
+            $name = (string) ($row['name'] ?? '');
+            $subtype = avesmapsInferPathSubtypeFromName($name);
+            if ($subtype === null) {
+                $unchanged++;
+                continue;
+            }
+
+            $properties = avesmapsDecodeJsonColumnForAdmin($row['properties_json'] ?? null);
+            $properties['feature_type'] = 'path';
+            $properties['feature_subtype'] = $subtype;
+            if (!isset($properties['display_name'])) {
+                $properties['display_name'] = $name;
+            }
+
+            $updateStatement->execute([
+                'id' => (int) $row['id'],
+                'feature_type' => 'path',
+                'feature_subtype' => $subtype,
+                'properties_json' => avesmapsEncodeJsonForDatabase($properties),
+            ]);
+
+            $updatesBySubtype[$subtype] = ($updatesBySubtype[$subtype] ?? 0) + 1;
+        }
+
+        if ($updatesBySubtype !== []) {
+            avesmapsIncrementMapRevision($pdo);
+        }
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $exception;
+    }
+
+    ksort($updatesBySubtype);
+
+    return [
+        'ok' => true,
+        'action' => 'repair_path_subtypes_from_names',
+        'updated_total' => array_sum($updatesBySubtype),
+        'updated_by_subtype' => $updatesBySubtype,
+        'unchanged' => $unchanged,
+        'status' => avesmapsBuildMapDatabaseStatus($pdo),
+    ];
+}
+
 function avesmapsLoadMapGeoJson(): array {
     $geoJsonPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'map' . DIRECTORY_SEPARATOR . 'Aventurien_routes.geojson';
     if (!is_file($geoJsonPath)) {
@@ -489,26 +564,52 @@ function avesmapsClassifyMapFeature(array $feature): array {
         return ['region', $normalizedLayer !== '' ? $normalizedLayer : 'region'];
     }
 
-    if ($normalizedLayer === 'flusswege') {
-        return ['river', 'river'];
-    }
-
     if (in_array($geometryType, ['LineString', 'MultiLineString'], true)) {
+        $nameSubtype = avesmapsInferPathSubtypeFromName((string) ($properties['name'] ?? ''));
+        if ($nameSubtype !== null) {
+            return ['path', $nameSubtype];
+        }
+
         $routeSubtypes = [
-            'pfade' => 'pfad',
-            'strassen' => 'strasse',
-            'reichsstrasse' => 'reichsstrasse',
-            'gebirgspaesse' => 'gebirgspass',
-            'gebirgspasse' => 'gebirgspass',
-            'wustenpfade' => 'wuestenpfad',
-            'wuestenpfade' => 'wuestenpfad',
-            'meerwege' => 'seeweg',
+            'pfade' => 'Pfad',
+            'strassen' => 'Strasse',
+            'reichsstrasse' => 'Reichsstrasse',
+            'gebirgspaesse' => 'Gebirgspass',
+            'gebirgspasse' => 'Gebirgspass',
+            'wustenpfade' => 'Pfad',
+            'wuestenpfade' => 'Pfad',
+            'flusswege' => 'Flussweg',
+            'meerwege' => 'Seeweg',
         ];
 
-        return ['path', $routeSubtypes[$normalizedLayer] ?? ($normalizedLayer !== '' ? $normalizedLayer : 'path')];
+        return ['path', $routeSubtypes[$normalizedLayer] ?? 'Weg'];
     }
 
     return [avesmapsNormalizeMapSubtype($legacyType, 'feature'), $normalizedLayer !== '' ? $normalizedLayer : 'default'];
+}
+
+function avesmapsInferPathSubtypeFromName(string $name): ?string {
+    $prefix = preg_split('/-/', trim($name), 2)[0] ?? '';
+    $normalizedPrefix = avesmapsNormalizeMapSubtype($prefix, '');
+    $routeSubtypes = [
+        'reichsstrasse' => 'Reichsstrasse',
+        'reichsstrasze' => 'Reichsstrasse',
+        'strasse' => 'Strasse',
+        'strasze' => 'Strasse',
+        'weg' => 'Weg',
+        'pfad' => 'Pfad',
+        'wueste' => 'Pfad',
+        'wustenpfad' => 'Pfad',
+        'wuestenpfad' => 'Pfad',
+        'gebirgspfad' => 'Gebirgspass',
+        'gebirgspass' => 'Gebirgspass',
+        'flussweg' => 'Flussweg',
+        'meer' => 'Seeweg',
+        'meerweg' => 'Seeweg',
+        'seeweg' => 'Seeweg',
+    ];
+
+    return $routeSubtypes[$normalizedPrefix] ?? null;
 }
 
 function avesmapsNormalizeMapSubtype(mixed $value, string $fallback): string {
@@ -672,6 +773,24 @@ function avesmapsNormalizeNullableSingleLine(mixed $value, int $maxLength): ?str
 
     $normalizedValue = avesmapsNormalizeSingleLine((string) $value, $maxLength);
     return $normalizedValue === '' ? null : $normalizedValue;
+}
+
+function avesmapsDecodeJsonColumnForAdmin(mixed $value): array {
+    if ($value === null || $value === '') {
+        return [];
+    }
+
+    if (is_array($value)) {
+        return $value;
+    }
+
+    try {
+        $decodedValue = json_decode((string) $value, true, 512, JSON_THROW_ON_ERROR);
+    } catch (JsonException) {
+        return [];
+    }
+
+    return is_array($decodedValue) ? $decodedValue : [];
 }
 
 function avesmapsEncodeJsonForDatabase(mixed $value): string {
