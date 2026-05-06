@@ -30,7 +30,7 @@ jobs:
       AVESMAPS_PORT: ${{ secrets.AVESMAPS_PORT }}
       AVESMAPS_REMOTE_PATH: ${{ secrets.AVESMAPS_REMOTE_PATH }}
       AVESMAPS_USER: ${{ secrets.AVESMAPS_USER }}
-      DEPLOY_DIR: ${{ runner.temp }}/avesmaps-deploy
+      DEPLOY_DIR: /tmp/avesmaps-deploy
 
     steps:
       - name: Check out repository
