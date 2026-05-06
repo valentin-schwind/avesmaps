@@ -41,6 +41,9 @@ try {
         'create_path' => avesmapsCreatePathFeature($pdo, $payload, $user),
         'update_path_details' => avesmapsUpdatePathFeatureDetails($pdo, $payload, $user),
         'update_path_geometry' => avesmapsUpdatePathFeatureGeometry($pdo, $payload, $user),
+        'create_label' => avesmapsCreateLabelFeature($pdo, $payload, $user),
+        'update_label' => avesmapsUpdateLabelFeature($pdo, $payload, $user),
+        'move_label' => avesmapsMoveLabelFeature($pdo, $payload, $user),
         'delete_feature' => avesmapsDeleteMapFeature($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Edit-Aktion ist unbekannt.'),
     };
@@ -129,6 +132,38 @@ function avesmapsReadPathSubtype(mixed $value): string {
     }
 
     return $subtype;
+}
+
+function avesmapsReadLabelSubtype(mixed $value): string {
+    $subtype = avesmapsNormalizeSingleLine((string) ($value ?: 'region'), 40);
+    $allowedSubtypes = ['region', 'fluss', 'meer', 'gebirge', 'see', 'insel', 'sonstiges'];
+    if (!in_array($subtype, $allowedSubtypes, true)) {
+        throw new InvalidArgumentException('Die Label-Kategorie ist ungueltig.');
+    }
+
+    return $subtype;
+}
+
+function avesmapsReadLabelText(mixed $value): string {
+    return avesmapsReadFeatureName($value, 'Der Labeltext');
+}
+
+function avesmapsReadLabelSize(mixed $value): int {
+    $size = filter_var($value, FILTER_VALIDATE_INT);
+    if ($size === false || $size < 10 || $size > 56) {
+        throw new InvalidArgumentException('Die Label-Groesse ist ungueltig.');
+    }
+
+    return (int) $size;
+}
+
+function avesmapsReadLabelRotation(mixed $value): int {
+    $rotation = filter_var($value, FILTER_VALIDATE_INT);
+    if ($rotation === false || $rotation < -180 || $rotation > 180) {
+        throw new InvalidArgumentException('Die Label-Rotation ist ungueltig.');
+    }
+
+    return (int) $rotation;
 }
 
 function avesmapsReadOptionalWikiUrl(mixed $value): string {
@@ -598,6 +633,161 @@ function avesmapsUpdatePathFeatureGeometry(PDO $pdo, array $payload, array $user
     }
 }
 
+function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): array {
+    $text = avesmapsReadLabelText($payload['text'] ?? '');
+    $subtype = avesmapsReadLabelSubtype($payload['feature_subtype'] ?? 'region');
+    $size = avesmapsReadLabelSize($payload['size'] ?? 18);
+    $rotation = avesmapsReadLabelRotation($payload['rotation'] ?? 0);
+    $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
+    $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
+    $publicId = avesmapsUuidV4();
+    $geometry = [
+        'type' => 'Point',
+        'coordinates' => [$lng, $lat],
+    ];
+    $properties = [
+        'name' => $text,
+        'text' => $text,
+        'feature_type' => 'label',
+        'feature_subtype' => $subtype,
+        'size' => $size,
+        'rotation' => $rotation,
+    ];
+
+    $pdo->beginTransaction();
+    try {
+        $revision = avesmapsNextMapRevision($pdo);
+        $sortOrder = avesmapsNextMapSortOrder($pdo);
+        $statement = $pdo->prepare(
+            'INSERT INTO map_features (
+                public_id, feature_type, feature_subtype, name, geometry_type,
+                geometry_json, properties_json, min_x, min_y, max_x, max_y,
+                sort_order, revision, created_by, updated_by
+            ) VALUES (
+                :public_id, :feature_type, :feature_subtype, :name, :geometry_type,
+                :geometry_json, :properties_json, :min_x, :min_y, :max_x, :max_y,
+                :sort_order, :revision, :created_by, :updated_by
+            )'
+        );
+        $statement->execute([
+            'public_id' => $publicId,
+            'feature_type' => 'label',
+            'feature_subtype' => $subtype,
+            'name' => $text,
+            'geometry_type' => 'Point',
+            'geometry_json' => avesmapsEncodeJson($geometry),
+            'properties_json' => avesmapsEncodeJson($properties),
+            'min_x' => $lng,
+            'min_y' => $lat,
+            'max_x' => $lng,
+            'max_y' => $lat,
+            'sort_order' => $sortOrder,
+            'revision' => $revision,
+            'created_by' => (int) $user['id'],
+            'updated_by' => (int) $user['id'],
+        ]);
+        $pdo->commit();
+
+        return avesmapsBuildLabelFeatureResponse($publicId, $text, $subtype, $lat, $lng, $properties, $revision);
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
+function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): array {
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $text = avesmapsReadLabelText($payload['text'] ?? '');
+    $subtype = avesmapsReadLabelSubtype($payload['feature_subtype'] ?? 'region');
+    $size = avesmapsReadLabelSize($payload['size'] ?? 18);
+    $rotation = avesmapsReadLabelRotation($payload['rotation'] ?? 0);
+
+    $pdo->beginTransaction();
+    try {
+        $feature = avesmapsFetchEditablePointFeature($pdo, $publicId);
+        if ((string) $feature['feature_type'] !== 'label') {
+            throw new InvalidArgumentException('Dieses Kartenobjekt ist kein Label.');
+        }
+        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
+        $properties['name'] = $text;
+        $properties['text'] = $text;
+        $properties['feature_type'] = 'label';
+        $properties['feature_subtype'] = $subtype;
+        $properties['size'] = $size;
+        $properties['rotation'] = $rotation;
+        $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
+        $coordinates = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [0, 0];
+        $revision = avesmapsNextMapRevision($pdo);
+        $statement = $pdo->prepare(
+            'UPDATE map_features
+            SET name = :name,
+                feature_subtype = :feature_subtype,
+                properties_json = :properties_json,
+                revision = :revision,
+                updated_by = :updated_by
+            WHERE id = :id'
+        );
+        $statement->execute([
+            'id' => (int) $feature['id'],
+            'name' => $text,
+            'feature_subtype' => $subtype,
+            'properties_json' => avesmapsEncodeJson($properties),
+            'revision' => $revision,
+            'updated_by' => (int) $user['id'],
+        ]);
+        $pdo->commit();
+
+        return avesmapsBuildLabelFeatureResponse($publicId, $text, $subtype, (float) $coordinates[1], (float) $coordinates[0], $properties, $revision);
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
+function avesmapsMoveLabelFeature(PDO $pdo, array $payload, array $user): array {
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
+    $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
+
+    $pdo->beginTransaction();
+    try {
+        $feature = avesmapsFetchEditablePointFeature($pdo, $publicId);
+        if ((string) $feature['feature_type'] !== 'label') {
+            throw new InvalidArgumentException('Dieses Kartenobjekt ist kein Label.');
+        }
+        $geometry = [
+            'type' => 'Point',
+            'coordinates' => [$lng, $lat],
+        ];
+        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
+        $revision = avesmapsNextMapRevision($pdo);
+        $statement = $pdo->prepare(
+            'UPDATE map_features
+            SET geometry_json = :geometry_json,
+                min_x = :min_x,
+                min_y = :min_y,
+                max_x = :max_x,
+                max_y = :max_y,
+                revision = :revision,
+                updated_by = :updated_by
+            WHERE id = :id'
+        );
+        $statement->execute([
+            'id' => (int) $feature['id'],
+            'geometry_json' => avesmapsEncodeJson($geometry),
+            'min_x' => $lng,
+            'min_y' => $lat,
+            'max_x' => $lng,
+            'max_y' => $lat,
+            'revision' => $revision,
+            'updated_by' => (int) $user['id'],
+        ]);
+        $pdo->commit();
+
+        return avesmapsBuildLabelFeatureResponse($publicId, (string) $feature['name'], (string) $feature['feature_subtype'], $lat, $lng, $properties, $revision);
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
 function avesmapsDeleteMapFeature(PDO $pdo, array $payload, array $user): array {
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
 
@@ -747,6 +937,25 @@ function avesmapsBuildLineStringFeatureResponse(string $publicId, string $name, 
         'properties' => $properties + [
             'name' => $name,
         ],
+    ];
+}
+
+function avesmapsBuildLabelFeatureResponse(string $publicId, string $text, string $subtype, float $lat, float $lng, array $properties, int $revision): array {
+    $properties['public_id'] = $publicId;
+    $properties['name'] = $text;
+    $properties['text'] = $text;
+    $properties['feature_type'] = 'label';
+    $properties['feature_subtype'] = $subtype;
+    $properties['revision'] = $revision;
+
+    return [
+        'type' => 'Feature',
+        'id' => $publicId,
+        'geometry' => [
+            'type' => 'Point',
+            'coordinates' => [$lng, $lat],
+        ],
+        'properties' => $properties,
     ];
 }
 

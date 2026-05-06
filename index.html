@@ -105,6 +105,7 @@
 				<button type="button" class="map-context-menu__item" data-context-action="create-crossing">Neue Kreuzung</button>
 				<button type="button" class="map-context-menu__item" data-context-action="split-path-at-node" hidden>Neue Kreuzung und Weg teilen</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-path">Neuer Weg</button>
+				<button type="button" class="map-context-menu__item" data-context-action="create-label">Neues Label</button>
 			</div>
 		</div>
 		<button type="button" class="map-context-menu__item" data-context-action="report-location">📝 Neuen Ort melden</button>
@@ -254,6 +255,49 @@
 				<div class="location-report-form__actions">
 					<button id="path-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
 					<button id="path-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<div id="label-edit-overlay" hidden>
+		<div id="label-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="label-edit-title" tabindex="-1">
+			<div class="location-report-dialog__header">
+				<h2 id="label-edit-title">Label bearbeiten</h2>
+				<button id="label-edit-close" class="location-report-dialog__close" type="button" aria-label="Labelbearbeitung schliessen">x</button>
+			</div>
+			<form id="label-edit-form" class="location-report-form" novalidate>
+				<input id="label-edit-public-id" name="public_id" type="hidden" />
+				<input id="label-edit-lat" name="lat" type="hidden" />
+				<input id="label-edit-lng" name="lng" type="hidden" />
+				<label class="location-report-form__field">
+					<span>Text *</span>
+					<input id="label-edit-text" name="text" type="text" maxlength="160" required />
+				</label>
+				<label class="location-report-form__field">
+					<span>Kategorie *</span>
+					<select id="label-edit-type" name="feature_subtype" required>
+						<option value="region">Region</option>
+						<option value="fluss">Fluss</option>
+						<option value="meer">Meer</option>
+						<option value="gebirge">Gebirge</option>
+						<option value="see">See</option>
+						<option value="insel">Insel</option>
+						<option value="sonstiges">Sonstiges</option>
+					</select>
+				</label>
+				<label class="location-report-form__field">
+					<span>Groesse</span>
+					<input id="label-edit-size" name="size" type="number" min="10" max="56" step="1" value="18" />
+				</label>
+				<label class="location-report-form__field">
+					<span>Rotation</span>
+					<input id="label-edit-rotation" name="rotation" type="number" min="-180" max="180" step="1" value="0" />
+				</label>
+				<p id="label-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+				<div class="location-report-form__actions">
+					<button id="label-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Loeschen</button>
+					<button id="label-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+					<button id="label-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
 				</div>
 			</form>
 		</div>
@@ -577,10 +621,12 @@
 		let locationData = [],
 			wikiLocationLinks = {},
 			pathData = [],
+			labelData = [],
 			regionData = [],
 			syntheticPathSegments = new Map(),
 			locationMarkers = [],
 			pathLayers = [],
+			labelMarkers = [],
 			regionLayers = [],
 			regionPolygons = [],
 			regionLabels = [],
@@ -620,6 +666,8 @@
 			pendingPathCreationLine = null,
 			pendingPathCreationPoints = [],
 			pathEditFeature = null,
+			labelEditEntry = null,
+			labelEditLatLng = null,
 			isPathEditSubmissionPending = false,
 			activePathGeometryEdit = null,
 			pendingPathSplit = null,
@@ -735,12 +783,20 @@
 		$("#location-report-form").on("submit", handleLocationReportFormSubmit);
 		$("#location-edit-form").on("submit", handleLocationEditFormSubmit);
 		$("#path-edit-form").on("submit", handlePathEditFormSubmit);
+		$("#label-edit-form").on("submit", handleLabelEditFormSubmit);
+		$("#label-edit-delete").on("click", () => deleteActiveLabel());
 		$("#path-edit-autoname").on("change", syncPathAutoNameControls);
 		$("#path-edit-type").on("change", () => syncPathAutoNameControls({ forceName: true }));
 		$("#path-edit-close, #path-edit-cancel").on("click", () => setPathEditDialogOpen(false, { resetForm: true }));
+		$("#label-edit-close, #label-edit-cancel").on("click", () => setLabelEditDialogOpen(false, { resetForm: true }));
 		$("#path-edit-overlay").on("click", function (event) {
 			if (event.target === this) {
 				setPathEditDialogOpen(false, { resetForm: true });
+			}
+		});
+		$("#label-edit-overlay").on("click", function (event) {
+			if (event.target === this) {
+				setLabelEditDialogOpen(false, { resetForm: true });
 			}
 		});
 		$(document).on("keydown", (event) => {
@@ -751,6 +807,11 @@
 
 			if (event.key === "Escape" && isPathEditDialogOpen()) {
 				setPathEditDialogOpen(false, { resetForm: true });
+				return;
+			}
+
+			if (event.key === "Escape" && isLabelEditDialogOpen()) {
+				setLabelEditDialogOpen(false, { resetForm: true });
 				return;
 			}
 
@@ -858,7 +919,7 @@
 			}
 
 			return Boolean(targetElement.closest(
-				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #review-panel, #review-panel-toggle, #location-report-overlay, #location-edit-overlay, #path-edit-overlay"
+				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #review-panel, #review-panel-toggle, #location-report-overlay, #location-edit-overlay, #path-edit-overlay, #label-edit-overlay"
 			));
 		}
 
@@ -950,6 +1011,18 @@
 			return document.getElementById("path-edit-status");
 		}
 
+		function getLabelEditFormElement() {
+			return document.getElementById("label-edit-form");
+		}
+
+		function getLabelEditStatusElement() {
+			return document.getElementById("label-edit-status");
+		}
+
+		function getLabelEditDialogElement() {
+			return document.getElementById("label-edit-dialog");
+		}
+
 		function getLocationReportServiceNoteElement() {
 			return document.getElementById("location-report-service-note");
 		}
@@ -966,12 +1039,16 @@
 			return !$("#path-edit-overlay").prop("hidden");
 		}
 
+		function isLabelEditDialogOpen() {
+			return !$("#label-edit-overlay").prop("hidden");
+		}
+
 		function isLocationReportServiceConfigured() {
 			return Boolean(String(LOCATION_REPORT_FORM_ENDPOINT_URL || "").trim());
 		}
 
 		function syncModalDialogBodyState() {
-			const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden") || !$("#path-edit-overlay").prop("hidden");
+			const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden") || !$("#path-edit-overlay").prop("hidden") || !$("#label-edit-overlay").prop("hidden");
 			$("body").toggleClass("modal-dialog-open", hasOpenModal);
 		}
 
@@ -1093,6 +1170,20 @@
 			}
 		}
 
+		function setLabelEditStatus(message = "", type = "") {
+			const statusElement = getLabelEditStatusElement();
+			if (!statusElement) {
+				return;
+			}
+
+			statusElement.textContent = message;
+			if (type) {
+				statusElement.dataset.status = type;
+			} else {
+				delete statusElement.dataset.status;
+			}
+		}
+
 		function setLocationReportSubmitPending(isPending) {
 			isLocationReportSubmissionPending = isPending;
 
@@ -1201,6 +1292,19 @@
 			setPathEditStatus();
 		}
 
+		function resetLabelEditForm() {
+			const formElement = getLabelEditFormElement();
+			if (!formElement) {
+				return;
+			}
+
+			formElement.reset();
+			labelEditEntry = null;
+			labelEditLatLng = null;
+			document.getElementById("label-edit-public-id").value = "";
+			setLabelEditStatus();
+		}
+
 		function updateLocationReportDialogAvailability() {
 			const serviceNoteElement = getLocationReportServiceNoteElement();
 			const submitButtonElement = document.getElementById("location-report-submit");
@@ -1289,6 +1393,21 @@
 			}
 		}
 
+		function setLabelEditDialogOpen(isOpen, { resetForm = false } = {}) {
+			$("#label-edit-overlay").prop("hidden", !isOpen);
+			syncModalDialogBodyState();
+
+			if (isOpen) {
+				getLabelEditDialogElement()?.focus();
+				document.getElementById("label-edit-text")?.focus();
+				return;
+			}
+
+			if (resetForm) {
+				resetLabelEditForm();
+			}
+		}
+
 		function openLocationReportDialog(latlng) {
 			resetLocationReportForm();
 			updateLocationReportDialogAvailability();
@@ -1327,6 +1446,28 @@
 			resetLocationEditForm();
 			populateLocationEditForm(options);
 			setLocationEditDialogOpen(true);
+		}
+
+		function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
+			labelEditEntry = labelEntry;
+			labelEditLatLng = latlng ? L.latLng(latlng) : labelEntry?.marker.getLatLng() || null;
+			const label = labelEntry?.label || {};
+			document.getElementById("label-edit-public-id").value = label.publicId || "";
+			document.getElementById("label-edit-text").value = label.text || "";
+			document.getElementById("label-edit-type").value = label.labelType || "region";
+			document.getElementById("label-edit-size").value = label.size || 18;
+			document.getElementById("label-edit-rotation").value = label.rotation || 0;
+			document.getElementById("label-edit-delete").hidden = !labelEntry;
+			if (labelEditLatLng) {
+				document.getElementById("label-edit-lat").value = labelEditLatLng.lat.toFixed(3);
+				document.getElementById("label-edit-lng").value = labelEditLatLng.lng.toFixed(3);
+			}
+		}
+
+		function openLabelEditDialog(options = {}) {
+			resetLabelEditForm();
+			populateLabelEditForm(options);
+			setLabelEditDialogOpen(true);
 		}
 
 		function populatePathEditForm(path) {
@@ -1400,6 +1541,28 @@
 			};
 
 			if (action === "create_point") {
+				payload.lat = Number.parseFloat(String(formData.get("lat") || ""));
+				payload.lng = Number.parseFloat(String(formData.get("lng") || ""));
+				delete payload.public_id;
+			}
+
+			return payload;
+		}
+
+		function buildLabelEditPayload(formElement) {
+			const formData = new FormData(formElement);
+			const publicId = String(formData.get("public_id") || "").trim();
+			const action = publicId ? "update_label" : "create_label";
+			const payload = {
+				action,
+				public_id: publicId,
+				text: String(formData.get("text") || "").trim(),
+				feature_subtype: String(formData.get("feature_subtype") || "region").trim(),
+				size: Number.parseInt(String(formData.get("size") || "18"), 10),
+				rotation: Number.parseInt(String(formData.get("rotation") || "0"), 10),
+			};
+
+			if (action === "create_label") {
 				payload.lat = Number.parseFloat(String(formData.get("lat") || ""));
 				payload.lng = Number.parseFloat(String(formData.get("lng") || ""));
 				delete payload.public_id;
@@ -1649,6 +1812,31 @@
 				setPathEditStatus(error.message || "Weg konnte nicht gespeichert werden.", "error");
 			} finally {
 				setPathEditSubmitPending(false);
+			}
+		}
+
+		async function handleLabelEditFormSubmit(event) {
+			event.preventDefault();
+			const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
+			if (!formElement || !formElement.reportValidity()) {
+				return;
+			}
+
+			const payload = buildLabelEditPayload(formElement);
+			setLabelEditStatus("Label wird gespeichert...", "pending");
+			try {
+				const result = await submitMapFeatureEdit(payload);
+				if (labelEditEntry) {
+					applyLabelFeatureResponse(labelEditEntry, result.feature);
+				} else {
+					addCreatedLabelFeature(result.feature);
+				}
+				updateRevisionFromEditResponse(result);
+				setLabelEditDialogOpen(false, { resetForm: true });
+				showFeedbackToast("Label gespeichert.", "success");
+			} catch (error) {
+				console.error("Label konnte nicht gespeichert werden:", error);
+				setLabelEditStatus(error.message || "Label konnte nicht gespeichert werden.", "error");
 			}
 		}
 
@@ -3632,6 +3820,108 @@
 			openLocationEditDialog({ latlng: normalizedLatLng });
 		}
 
+		function normalizeLabelFeature(feature) {
+			const properties = feature.properties || {};
+			const [lng, lat] = feature.geometry?.coordinates || [feature.lng, feature.lat];
+			return {
+				publicId: properties.public_id || feature.id || feature.public_id || "",
+				text: properties.text || properties.name || feature.name || "",
+				labelType: properties.feature_subtype || feature.feature_subtype || "region",
+				size: Number(properties.size || feature.size || 18),
+				rotation: Number(properties.rotation || feature.rotation || 0),
+				coordinates: [Number(lat), Number(lng)],
+			};
+		}
+
+		function createLabelIcon(label) {
+			const safeSize = Math.max(10, Math.min(56, Number(label.size) || 18));
+			const safeRotation = Math.max(-180, Math.min(180, Number(label.rotation) || 0));
+			return L.divIcon({
+				className: `map-label map-label--${label.labelType}`,
+				html: `<span style="font-size:${safeSize}px; transform: rotate(${safeRotation}deg);">${escapeHtml(label.text)}</span>`,
+				iconSize: null,
+				iconAnchor: [0, 0],
+			});
+		}
+
+		function createLabelMarkerEntry(label) {
+			const marker = L.marker(label.coordinates, {
+				icon: createLabelIcon(label),
+				draggable: IS_EDIT_MODE,
+				keyboard: false,
+				pane: "tooltipPane",
+			});
+			const entry = { label, marker };
+			if (IS_EDIT_MODE) {
+				marker.on("click", () => openLabelEditDialog({ labelEntry: entry }));
+				marker.on("dragend", () => saveLabelPosition(entry));
+			}
+			marker.addTo(map);
+			return entry;
+		}
+
+		function prepareLabelData(data) {
+			labelMarkers.forEach((entry) => map.removeLayer(entry.marker));
+			labelData = data.features.filter((feature) => feature.properties?.feature_type === "label").map(normalizeLabelFeature);
+			labelMarkers = labelData.map(createLabelMarkerEntry);
+		}
+
+		function addCreatedLabelFeature(feature) {
+			const label = normalizeLabelFeature(feature);
+			labelData.push(label);
+			labelMarkers.push(createLabelMarkerEntry(label));
+		}
+
+		function applyLabelFeatureResponse(entry, feature) {
+			const label = normalizeLabelFeature(feature);
+			Object.assign(entry.label, label);
+			entry.marker.setLatLng(label.coordinates);
+			entry.marker.setIcon(createLabelIcon(label));
+		}
+
+		async function saveLabelPosition(entry) {
+			const latlng = entry.marker.getLatLng();
+			try {
+				const result = await submitMapFeatureEdit({
+					action: "move_label",
+					public_id: entry.label.publicId,
+					lat: latlng.lat,
+					lng: latlng.lng,
+				});
+				applyLabelFeatureResponse(entry, result.feature);
+				updateRevisionFromEditResponse(result);
+			} catch (error) {
+				console.error("Label konnte nicht verschoben werden:", error);
+				showFeedbackToast(error.message || "Label konnte nicht verschoben werden.", "warning");
+			}
+		}
+
+		async function deleteActiveLabel() {
+			if (!labelEditEntry || !window.confirm(`${labelEditEntry.label.text} wirklich loeschen?`)) {
+				return;
+			}
+
+			try {
+				const result = await submitMapFeatureEdit({
+					action: "delete_feature",
+					public_id: labelEditEntry.label.publicId,
+				});
+				map.removeLayer(labelEditEntry.marker);
+				labelData = labelData.filter((label) => label !== labelEditEntry.label);
+				labelMarkers = labelMarkers.filter((entry) => entry !== labelEditEntry);
+				updateRevisionFromEditResponse(result);
+				setLabelEditDialogOpen(false, { resetForm: true });
+				showFeedbackToast("Label geloescht.", "success");
+			} catch (error) {
+				console.error("Label konnte nicht geloescht werden:", error);
+				setLabelEditStatus(error.message || "Label konnte nicht geloescht werden.", "error");
+			}
+		}
+
+		function createLabelAt(latlng) {
+			openLabelEditDialog({ latlng: L.latLng(latlng) });
+		}
+
 		function addCreatedCrossingMarker(feature) {
 			const location = {
 				publicId: feature.public_id,
@@ -4674,6 +4964,7 @@
 				prepareLocationData(data);
 				preparePathData(data);
 				prepareRegionData(data);
+				prepareLabelData(data);
 
 
 				// Waypoint hinzufügen
@@ -4820,6 +5111,12 @@
 			if (action === "create-path" && contextMenuLatLng) {
 				closeMapContextMenu();
 				startPathCreationAt(contextMenuLatLng);
+				return;
+			}
+
+			if (action === "create-label" && contextMenuLatLng) {
+				closeMapContextMenu();
+				createLabelAt(contextMenuLatLng);
 				return;
 			}
 
