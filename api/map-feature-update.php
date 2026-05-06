@@ -106,10 +106,10 @@ function avesmapsMovePointFeature(PDO $pdo, string $publicId, float $lat, float 
         $updateStatement = $pdo->prepare(
             'UPDATE map_features
             SET geometry_json = :geometry_json,
-                min_x = :lng,
-                min_y = :lat,
-                max_x = :lng,
-                max_y = :lat,
+                min_x = :min_lng,
+                min_y = :min_lat,
+                max_x = :max_lng,
+                max_y = :max_lat,
                 revision = :revision,
                 updated_by = :updated_by
             WHERE id = :id'
@@ -117,8 +117,10 @@ function avesmapsMovePointFeature(PDO $pdo, string $publicId, float $lat, float 
         $updateStatement->execute([
             'id' => (int) $feature['id'],
             'geometry_json' => json_encode($geometry, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
-            'lng' => $lng,
-            'lat' => $lat,
+            'min_lng' => $lng,
+            'min_lat' => $lat,
+            'max_lng' => $lng,
+            'max_lat' => $lat,
             'revision' => $revision,
             'updated_by' => (int) $user['id'],
         ]);
