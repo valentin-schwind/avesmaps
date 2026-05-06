@@ -1039,15 +1039,20 @@ body.modal-dialog-open {
 	outline: none;
 }
 
+.review-panel[hidden],
+.review-panel-toggle[hidden] {
+	display: none !important;
+}
+
 .review-panel {
 	position: fixed;
 	right: 0;
-	top: 16px;
+	top: 78px;
 	z-index: 1100;
 	display: flex;
 	flex-direction: column;
 	width: min(340px, calc(100vw - 64px));
-	max-height: calc(100vh - 32px);
+	max-height: calc(100vh - 94px);
 	border: 1px solid rgba(96, 72, 48, 0.22);
 	border-radius: 8px 0 0 8px;
 	background: rgba(250, 243, 236, 0.97);
@@ -1093,7 +1098,7 @@ body.modal-dialog-open {
 .review-panel-toggle {
 	position: fixed;
 	right: 340px;
-	top: 28px;
+	top: 90px;
 	z-index: 1101;
 	padding: 8px 10px;
 	border-radius: 6px 0 0 6px;
@@ -1136,10 +1141,35 @@ body.modal-dialog-open {
 	text-align: left;
 }
 
+.review-report__focus {
+	display: grid;
+	gap: 4px;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	font: inherit;
+	padding: 0;
+	text-align: left;
+}
+
 .review-report:hover,
-.review-report:focus-visible {
+.review-report:focus-within {
 	border-color: #9b7b58;
 	outline: none;
+}
+
+.review-report__reject {
+	justify-self: start;
+	border: 1px solid #b87d73;
+	border-radius: 6px;
+	background: #fff3f0;
+	color: #8a2d22;
+	cursor: pointer;
+	font: inherit;
+	font-size: 12px;
+	margin-top: 4px;
+	padding: 5px 8px;
 }
 
 .review-report__name {

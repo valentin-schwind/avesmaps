@@ -1483,14 +1483,16 @@
 
 			setReviewPanelStatus(`${reviewReports.length} offene Ortsmeldungen.`, "success");
 			reviewReports.forEach((report) => {
-				const itemElement = document.createElement("button");
-				itemElement.type = "button";
+				const itemElement = document.createElement("article");
 				itemElement.className = "review-report";
 				itemElement.dataset.reportId = String(report.id);
 				itemElement.innerHTML = `
-					<span class="review-report__name"></span>
-					<span class="review-report__meta"></span>
-					<span class="review-report__source"></span>
+					<button type="button" class="review-report__focus">
+						<span class="review-report__name"></span>
+						<span class="review-report__meta"></span>
+						<span class="review-report__source"></span>
+					</button>
+					<button type="button" class="review-report__reject">Verwerfen</button>
 				`;
 				itemElement.querySelector(".review-report__name").textContent = report.name || "Unbenannter Ort";
 				itemElement.querySelector(".review-report__meta").textContent = `${report.size || "dorf"} · ${formatLocationReportCoordinates(L.latLng(Number(report.lat), Number(report.lng)))}`;
@@ -1566,6 +1568,26 @@
 			}
 		}
 
+		async function rejectReviewReport(report) {
+			if (!window.confirm(`${report.name || "Ortsmeldung"} wirklich verwerfen?`)) {
+				return;
+			}
+
+			try {
+				await updateReviewReportStatus(Number(report.id), "rejected");
+				if (activeReviewReportId === Number(report.id)) {
+					activeReviewReportId = null;
+					clearReviewReportMarker();
+					setLocationEditDialogOpen(false, { resetForm: true });
+				}
+				showFeedbackToast("Ortsmeldung verworfen.", "success");
+				await loadReviewReports();
+			} catch (error) {
+				console.error("Ortsmeldung konnte nicht verworfen werden:", error);
+				showFeedbackToast(error.message || "Ortsmeldung konnte nicht verworfen werden.", "warning");
+			}
+		}
+
 		async function handleLocationEditFormSubmit(event) {
 			event.preventDefault();
 			const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
@@ -1588,7 +1610,7 @@
 					await updateReviewReportStatus(activeReviewReportId, "approved");
 					activeReviewReportId = null;
 					clearReviewReportMarker();
-					void loadReviewReports();
+					await loadReviewReports();
 				}
 				updateRevisionFromEditResponse(result);
 				setLocationEditSubmitPending(false);
@@ -4714,9 +4736,9 @@
 			removeWaypointElement($(this).closest(".waypoint-container"));
 		});
 
-		$(document).on("click", ".review-report", function (event) {
+		$(document).on("click", ".review-report__focus", function (event) {
 			event.preventDefault();
-			const reportId = Number(this.dataset.reportId);
+			const reportId = Number(this.closest(".review-report")?.dataset.reportId);
 			const report = reviewReports.find((entry) => Number(entry.id) === reportId);
 			if (!report) {
 				showFeedbackToast("Ortsmeldung konnte nicht gefunden werden.", "warning");
@@ -4724,6 +4746,19 @@
 			}
 
 			focusReviewReport(report);
+		});
+
+		$(document).on("click", ".review-report__reject", function (event) {
+			event.preventDefault();
+			event.stopPropagation();
+			const reportId = Number(this.closest(".review-report")?.dataset.reportId);
+			const report = reviewReports.find((entry) => Number(entry.id) === reportId);
+			if (!report) {
+				showFeedbackToast("Ortsmeldung konnte nicht gefunden werden.", "warning");
+				return;
+			}
+
+			void rejectReviewReport(report);
 		});
 
 		$(document).on("click", ".map-context-menu__item", function (event) {

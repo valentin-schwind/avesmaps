@@ -96,7 +96,7 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
 function avesmapsUpdateLocationReportReviewStatus(PDO $pdo, array $payload, array $user): array {
     $reportId = filter_var($payload['report_id'] ?? null, FILTER_VALIDATE_INT);
     $newStatus = avesmapsNormalizeSingleLine((string) ($payload['status'] ?? ''), 20);
-    $reviewNote = avesmapsNormalizeNullableSingleLine($payload['review_note'] ?? null, 500);
+    $reviewNote = avesmapsNormalizeReviewNote($payload['review_note'] ?? null);
 
     if ($reportId === false || $reportId <= 0) {
         throw new InvalidArgumentException('Es wurde keine gueltige report_id uebergeben.');
@@ -132,4 +132,9 @@ function avesmapsUpdateLocationReportReviewStatus(PDO $pdo, array $payload, arra
         'message' => 'Die Ortsmeldung wurde aktualisiert.',
         'reviewed_by' => $user['username'] ?? '',
     ];
+}
+
+function avesmapsNormalizeReviewNote(mixed $value): ?string {
+    $normalizedValue = avesmapsNormalizeSingleLine((string) ($value ?? ''), 500);
+    return $normalizedValue !== '' ? $normalizedValue : null;
 }
