@@ -48,6 +48,7 @@ try {
         'import_geojson' => avesmapsImportGeoJsonMap($pdo, $replaceExisting, true),
         'install_schema_and_import_geojson' => avesmapsInstallSchemaAndImportGeoJson($pdo, $replaceExisting),
         'repair_path_subtypes_from_names' => avesmapsRepairPathSubtypesFromNames($pdo),
+        'check_path_name_consistency' => avesmapsCheckPathNameConsistency($pdo),
         'upsert_user' => avesmapsUpsertUser($pdo, $payload),
         default => throw new InvalidArgumentException('Die angeforderte Admin-Aktion ist unbekannt.'),
     };
@@ -365,6 +366,9 @@ function avesmapsRepairPathSubtypesFromNames(PDO $pdo): array {
         foreach ($rows as $row) {
             $name = (string) ($row['name'] ?? '');
             $subtype = avesmapsInferPathSubtypeFromName($name);
+            if ($subtype === null && avesmapsIsPlainMeerPathName($name)) {
+                $subtype = 'Weg';
+            }
             if ($subtype === null) {
                 $unchanged++;
                 continue;
@@ -408,6 +412,63 @@ function avesmapsRepairPathSubtypesFromNames(PDO $pdo): array {
         'updated_by_subtype' => $updatesBySubtype,
         'unchanged' => $unchanged,
         'status' => avesmapsBuildMapDatabaseStatus($pdo),
+    ];
+}
+
+function avesmapsCheckPathNameConsistency(PDO $pdo): array {
+    if (!avesmapsTableExists($pdo, 'map_features')) {
+        throw new RuntimeException('Die Future-Tabellen fehlen. Fuehre zuerst install_schema aus.');
+    }
+
+    $statement = $pdo->query(
+        "SELECT public_id, feature_subtype, name, properties_json
+        FROM map_features
+        WHERE feature_type = 'path'
+            AND is_active = 1
+        ORDER BY id ASC"
+    );
+    $rows = $statement !== false ? $statement->fetchAll() : [];
+    $names = [];
+    $blankNames = [];
+
+    foreach ($rows as $row) {
+        $properties = avesmapsDecodeJsonColumnForAdmin($row['properties_json'] ?? null);
+        $name = trim((string) ($properties['display_name'] ?? $properties['name'] ?? $row['name'] ?? ''));
+        if ($name === '') {
+            $blankNames[] = (string) $row['public_id'];
+            continue;
+        }
+
+        if (!isset($names[$name])) {
+            $names[$name] = [];
+        }
+        $names[$name][] = [
+            'public_id' => (string) $row['public_id'],
+            'feature_subtype' => (string) $row['feature_subtype'],
+        ];
+    }
+
+    $duplicates = [];
+    foreach ($names as $name => $features) {
+        if (count($features) <= 1) {
+            continue;
+        }
+
+        $duplicates[] = [
+            'name' => $name,
+            'count' => count($features),
+            'features' => $features,
+        ];
+    }
+
+    return [
+        'ok' => true,
+        'action' => 'check_path_name_consistency',
+        'path_count' => count($rows),
+        'duplicate_name_count' => count($duplicates),
+        'duplicates' => $duplicates,
+        'blank_name_count' => count($blankNames),
+        'blank_names' => $blankNames,
     ];
 }
 
@@ -565,6 +626,10 @@ function avesmapsClassifyMapFeature(array $feature): array {
     }
 
     if (in_array($geometryType, ['LineString', 'MultiLineString'], true)) {
+        if (avesmapsIsPlainMeerPathName((string) ($properties['name'] ?? ''))) {
+            return ['path', 'Weg'];
+        }
+
         $nameSubtype = avesmapsInferPathSubtypeFromName((string) ($properties['name'] ?? ''));
         if ($nameSubtype !== null) {
             return ['path', $nameSubtype];
@@ -604,12 +669,16 @@ function avesmapsInferPathSubtypeFromName(string $name): ?string {
         'gebirgspfad' => 'Gebirgspass',
         'gebirgspass' => 'Gebirgspass',
         'flussweg' => 'Flussweg',
-        'meer' => 'Seeweg',
         'meerweg' => 'Seeweg',
         'seeweg' => 'Seeweg',
     ];
 
     return $routeSubtypes[$normalizedPrefix] ?? null;
+}
+
+function avesmapsIsPlainMeerPathName(string $name): bool {
+    $prefix = preg_split('/-/', trim($name), 2)[0] ?? '';
+    return avesmapsNormalizeMapSubtype($prefix, '') === 'meer';
 }
 
 function avesmapsNormalizeMapSubtype(mixed $value, string $fallback): string {

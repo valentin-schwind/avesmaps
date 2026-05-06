@@ -952,7 +952,7 @@ body.modal-dialog-open {
 }
 
 .map-context-menu__item {
-	width: auto;
+	width: 100%;
 	border: 1px solid transparent;
 	border-radius: 6px;
 	background: transparent;
@@ -966,15 +966,21 @@ body.modal-dialog-open {
 
 .map-context-menu__group {
 	position: relative;
+	width: 100%;
 }
 
 .map-context-menu__group[hidden] {
 	display: none !important;
 }
 
+.map-context-menu__item--submenu {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
 .map-context-menu__item--submenu::after {
-	content: ">";
-	float: right;
+	content: "➡️";
 	margin-left: 18px;
 	color: #806b56;
 }

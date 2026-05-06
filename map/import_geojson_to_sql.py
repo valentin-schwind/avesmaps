@@ -174,11 +174,18 @@ def infer_route_subtype_from_name(value: Any) -> str | None:
         "gebirgspfad": "Gebirgspass",
         "gebirgspass": "Gebirgspass",
         "flussweg": "Flussweg",
-        "meer": "Seeweg",
         "meerweg": "Seeweg",
         "seeweg": "Seeweg",
     }
     return route_subtypes.get(normalized_name)
+
+
+def is_plain_meer_path_name(value: Any) -> bool:
+    name = str(value or "").strip()
+    if not name:
+        return False
+
+    return normalize_subtype(name.split("-", 1)[0], "") == "meer"
 
 
 def classify_feature(feature: dict[str, Any]) -> tuple[str, str]:
@@ -204,6 +211,9 @@ def classify_feature(feature: dict[str, Any]) -> tuple[str, str]:
         return "region", normalized_layer or "region"
 
     if geometry_type in {"LineString", "MultiLineString"}:
+        if is_plain_meer_path_name(properties.get("name")):
+            return "path", "Weg"
+
         name_subtype = infer_route_subtype_from_name(properties.get("name"))
         if name_subtype:
             return "path", name_subtype

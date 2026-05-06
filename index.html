@@ -103,6 +103,7 @@
 			<div class="map-context-submenu">
 				<button type="button" class="map-context-menu__item" data-context-action="create-location">Neuer Ort</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-crossing">Neue Kreuzung</button>
+				<button type="button" class="map-context-menu__item" data-context-action="split-path-at-node" hidden>Neue Kreuzung und Weg teilen</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-path">Neuer Weg</button>
 			</div>
 		</div>
@@ -602,6 +603,7 @@
 			pathEditFeature = null,
 			isPathEditSubmissionPending = false,
 			activePathGeometryEdit = null,
+			pendingPathSplit = null,
 			mapDataSourceStatus = null;
 
 		// Initialisierung der Karte 
@@ -778,7 +780,17 @@
 
 			menuElement.hidden = true;
 			pendingContextMenuLatLng = null;
+			pendingPathSplit = null;
 			clearMapContextMenuAnchor();
+		}
+
+		function syncPathSplitContextMenuAction() {
+			const splitActionElement = document.querySelector('[data-context-action="split-path-at-node"]');
+			if (!splitActionElement) {
+				return;
+			}
+
+			splitActionElement.hidden = !pendingPathSplit;
 		}
 
 		function openMapContextMenu(latlng, clientX, clientY) {
@@ -790,6 +802,7 @@
 			pendingContextMenuLatLng = L.latLng(latlng);
 			setMapContextMenuAnchor(pendingContextMenuLatLng);
 			syncDistanceMeasurementContextMenuAction();
+			syncPathSplitContextMenuAction();
 			menuElement.hidden = false;
 			menuElement.style.left = `${clientX + MAP_CONTEXT_MENU_OFFSET_X}px`;
 			menuElement.style.top = `${clientY + MAP_CONTEXT_MENU_OFFSET_Y}px`;
@@ -1307,11 +1320,12 @@
 
 		function buildPathEditPayload(formElement) {
 			const formData = new FormData(formElement);
+			const featureSubtype = String(formData.get("feature_subtype") || "").trim();
 			return {
 				action: "update_path_details",
 				public_id: String(formData.get("public_id") || "").trim(),
-				name: String(formData.get("name") || "").trim(),
-				feature_subtype: String(formData.get("feature_subtype") || "").trim(),
+				name: ensureUniquePathDisplayName(formData.get("name"), featureSubtype, { excludePath: pathEditFeature }),
+				feature_subtype: featureSubtype,
 			};
 		}
 
@@ -1654,6 +1668,15 @@
 					label: "Kreuzung verschieben",
 					attributes: {
 						"data-popup-action": "start-location-edit",
+						"data-location-name": name,
+						"data-public-id": publicId,
+					},
+				}),
+				popupActionButtonMarkup({
+					label: "Kreuzung loeschen",
+					className: "location-popup__action-button--danger",
+					attributes: {
+						"data-popup-action": "delete-location",
 						"data-location-name": name,
 						"data-public-id": publicId,
 					},
@@ -3023,7 +3046,7 @@
 				if (name.startsWith("Gebirgspass") || name.startsWith("Gebirgspfad")) return "Gebirgspass";
 				if (name.startsWith("Pfad")) return "Pfad";
 				if (name.startsWith("Flussweg")) return "Flussweg";
-				if (name.startsWith("Meer")) return "Seeweg";
+				if (name.startsWith("Meerweg") || name.startsWith("Seeweg")) return "Seeweg";
 				if (name.startsWith(SYNTHETIC_ROUTE_TYPE)) return SYNTHETIC_ROUTE_TYPE;
 			}
 			return "Weg";
@@ -3036,6 +3059,61 @@
 
 		function getPathDisplayName(path) {
 			return path?.properties?.display_name || path?.properties?.original_name || path?.properties?.name?.replace(/-\d+$/, "") || "Weg";
+		}
+
+		function escapeRegExp(value) {
+			return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+		}
+
+		function getExistingPathDisplayNames({ excludePath = null } = {}) {
+			return new Set(pathData
+				.filter((path) => path !== excludePath)
+				.map((path) => getPathDisplayName(path).trim())
+				.filter(Boolean));
+		}
+
+		function getNextPathDisplayName(subtype, { excludePath = null } = {}) {
+			const normalizedSubtype = normalizePathSubtype(subtype);
+			const namePattern = new RegExp(`^${escapeRegExp(normalizedSubtype)}-(\\d+)$`);
+			let highestNumber = 0;
+
+			getExistingPathDisplayNames({ excludePath }).forEach((pathName) => {
+				const match = namePattern.exec(pathName);
+				if (!match) {
+					return;
+				}
+
+				highestNumber = Math.max(highestNumber, Number.parseInt(match[1], 10) || 0);
+			});
+
+			return `${normalizedSubtype}-${highestNumber + 1}`;
+		}
+
+		function ensureUniquePathDisplayName(name, subtype, { excludePath = null } = {}) {
+			const trimmedName = String(name || "").trim();
+			if (trimmedName === "") {
+				return getNextPathDisplayName(subtype, { excludePath });
+			}
+
+			const existingNames = getExistingPathDisplayNames({ excludePath });
+			if (!existingNames.has(trimmedName)) {
+				return trimmedName;
+			}
+
+			return getNextPathDisplayName(subtype, { excludePath });
+		}
+
+		function getNextLocalPathId() {
+			const highestPathId = pathData.reduce((highestId, path) => {
+				const match = /^path-(\d+)$/.exec(String(path?.properties?.id || ""));
+				if (!match) {
+					return highestId;
+				}
+
+				return Math.max(highestId, Number.parseInt(match[1], 10) || 0);
+			}, 0);
+
+			return highestPathId + 1;
 		}
 
 		function getPathPublicId(path) {
@@ -3261,6 +3339,7 @@
 		}
 
 		async function deleteLocationMarker(markerEntry) {
+			const locationTypeLabel = markerEntry.locationType === CROSSING_LOCATION_TYPE ? "Kreuzung" : "Ort";
 			if (!window.confirm(`${markerEntry.name} wirklich loeschen?`)) {
 				return;
 			}
@@ -3276,10 +3355,10 @@
 				const didClearWaypoint = clearWaypointLocationName(markerEntry.name);
 				updateRevisionFromEditResponse(result);
 				refreshPlannerAfterFeatureChange({ updateRoute: didClearWaypoint });
-				showFeedbackToast("Ort geloescht.", "success");
+				showFeedbackToast(`${locationTypeLabel} geloescht.`, "success");
 			} catch (error) {
-				console.error("Ort konnte nicht geloescht werden:", error);
-				showFeedbackToast(error.message || "Ort konnte nicht geloescht werden.", "warning");
+				console.error(`${locationTypeLabel} konnte nicht geloescht werden:`, error);
+				showFeedbackToast(error.message || `${locationTypeLabel} konnte nicht geloescht werden.`, "warning");
 			}
 		}
 
@@ -3327,19 +3406,22 @@
 			markerEntry.marker.openPopup();
 		}
 
-		async function createCrossingAt(latlng) {
+		async function createCrossingFeatureAt(latlng) {
 			const normalizedLatLng = L.latLng(latlng);
 			if (!isWithinMapBounds(normalizedLatLng)) {
-				showFeedbackToast("Diese Position kann nicht gespeichert werden.", "warning");
-				return;
+				throw new Error("Diese Position kann nicht gespeichert werden.");
 			}
 
+			return submitMapFeatureEdit({
+				action: "create_crossing",
+				lat: normalizedLatLng.lat,
+				lng: normalizedLatLng.lng,
+			});
+		}
+
+		async function createCrossingAt(latlng) {
 			try {
-				const result = await submitMapFeatureEdit({
-					action: "create_crossing",
-					lat: normalizedLatLng.lat,
-					lng: normalizedLatLng.lng,
-				});
+				const result = await createCrossingFeatureAt(latlng);
 				addCreatedCrossingMarker(result.feature);
 				updateRevisionFromEditResponse(result);
 				showFeedbackToast("Kreuzung erstellt.", "success");
@@ -3439,13 +3521,6 @@
 						label: "Verlauf bearbeiten",
 						attributes: {
 							"data-popup-action": "edit-path-geometry",
-							"data-public-id": getPathPublicId(path),
-						},
-					}),
-					popupActionButtonMarkup({
-						label: "Weg verschieben",
-						attributes: {
-							"data-popup-action": "move-path",
 							"data-public-id": getPathPublicId(path),
 						},
 					}),
@@ -3570,13 +3645,14 @@
 		};
 
 		function addCreatedPathFeature(feature) {
-			const path = normalizeRoutePathFeature(feature, pathData.length + 1);
+			const path = normalizeRoutePathFeature(feature, getNextLocalPathId());
 			const pathLayer = createPathLayer(path);
 			pathData.push(path);
 			pathLayers.push(pathLayer);
 			$("#togglePaths").prop("checked", true);
 			syncPathVisibility();
 			refreshPlannerAfterFeatureChange({ updateRoute: true });
+			return path;
 		}
 
 		function findPathByPublicId(publicId) {
@@ -3760,11 +3836,12 @@
 				const result = await submitMapFeatureEdit({
 					action: "create_path",
 					feature_subtype: "Weg",
-					name: "Weg",
+					name: getNextPathDisplayName("Weg"),
 					coordinates: pathCoordinates,
 				});
-				addCreatedPathFeature(result.feature);
+				const createdPath = addCreatedPathFeature(result.feature);
 				updateRevisionFromEditResponse(result);
+				openPathEditDialog(createdPath);
 				showFeedbackToast(`Weg ${startLocation.name} -> ${endLocation.name} erstellt.`, "success");
 			} catch (error) {
 				console.error("Weg konnte nicht erstellt werden:", error);
@@ -3862,8 +3939,96 @@
 					L.DomEvent.stop(event);
 					deleteActivePathNode(index);
 				});
+				handle.on("contextmenu", (event) => {
+					L.DomEvent.stop(event);
+					preparePathSplitContextMenu(index, handle.getLatLng(), event.originalEvent);
+				});
 				activePathGeometryEdit.handles.push(handle);
 			});
+		}
+
+		function preparePathSplitContextMenu(nodeIndex, latlng, originalEvent = null) {
+			if (!activePathGeometryEdit?.path) {
+				return;
+			}
+
+			const latLngs = getActivePathLatLngs();
+			if (nodeIndex <= 0 || nodeIndex >= latLngs.length - 1) {
+				showFeedbackToast("Nur Zwischenknoten koennen einen Weg teilen.", "warning");
+				return;
+			}
+
+			pendingPathSplit = {
+				path: activePathGeometryEdit.path,
+				nodeIndex,
+				latlng: L.latLng(latlng),
+			};
+			openMapContextMenu(
+				latlng,
+				originalEvent?.clientX ?? 0,
+				originalEvent?.clientY ?? 0
+			);
+		}
+
+		function getPathSplitCoordinateGroups(path, nodeIndex) {
+			const latLngs = activePathGeometryEdit?.path === path ? getActivePathLatLngs() : pathCoordinatesToLatLngs(path);
+			if (nodeIndex <= 0 || nodeIndex >= latLngs.length - 1) {
+				return null;
+			}
+
+			return {
+				firstCoordinates: latLngs.slice(0, nodeIndex + 1).map((latLng) => [latLng.lat, latLng.lng]),
+				secondCoordinates: latLngs.slice(nodeIndex).map((latLng) => [latLng.lat, latLng.lng]),
+				splitLatLng: L.latLng(latLngs[nodeIndex]),
+			};
+		}
+
+		async function splitPathAtNode(splitState) {
+			const path = splitState?.path;
+			if (!path || !pathData.includes(path)) {
+				showFeedbackToast("Weg konnte nicht gefunden werden.", "warning");
+				return;
+			}
+
+			const coordinateGroups = getPathSplitCoordinateGroups(path, splitState.nodeIndex);
+			if (!coordinateGroups) {
+				showFeedbackToast("Dieser Knoten kann den Weg nicht teilen.", "warning");
+				return;
+			}
+
+			const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+			try {
+				const crossingResult = await createCrossingFeatureAt(coordinateGroups.splitLatLng);
+				addCreatedCrossingMarker(crossingResult.feature);
+
+				const firstPathResult = await submitMapFeatureEdit({
+					action: "create_path",
+					feature_subtype: pathSubtype,
+					name: getNextPathDisplayName(pathSubtype),
+					coordinates: coordinateGroups.firstCoordinates,
+				});
+				addCreatedPathFeature(firstPathResult.feature);
+
+				const secondPathResult = await submitMapFeatureEdit({
+					action: "create_path",
+					feature_subtype: pathSubtype,
+					name: getNextPathDisplayName(pathSubtype),
+					coordinates: coordinateGroups.secondCoordinates,
+				});
+				addCreatedPathFeature(secondPathResult.feature);
+
+				const deleteResult = await submitMapFeatureEdit({
+					action: "delete_feature",
+					public_id: getPathPublicId(path),
+				});
+				clearPathGeometryEdit();
+				removePathFeature(path);
+				updateRevisionFromEditResponse(deleteResult);
+				showFeedbackToast("Weg geteilt und Kreuzung erstellt.", "success");
+			} catch (error) {
+				console.error("Weg konnte nicht geteilt werden:", error);
+				showFeedbackToast(error.message || "Weg konnte nicht geteilt werden.", "warning");
+			}
 		}
 
 		async function finishPathNodeDrag(index, handle) {
@@ -4004,11 +4169,6 @@
 			if (showToast) {
 				showFeedbackToast("Knoten ziehen. Doppelklick Linie fuegt Knoten hinzu, Doppelklick Knoten loescht ihn.", "info");
 			}
-		}
-
-		function startPathMove(path) {
-			startPathGeometryEdit(path);
-			showFeedbackToast("Endpunkte rasten auf Orte/Kreuzungen ein; Zwischenpunkte frei ziehen.", "info");
 		}
 
 		async function deletePathFeature(path) {
@@ -4365,6 +4525,13 @@
 				return;
 			}
 
+			if (action === "split-path-at-node") {
+				const splitState = pendingPathSplit;
+				closeMapContextMenu();
+				void splitPathAtNode(splitState);
+				return;
+			}
+
 			if (action === "create-path" && contextMenuLatLng) {
 				closeMapContextMenu();
 				startPathCreationAt(contextMenuLatLng);
@@ -4505,17 +4672,6 @@
 
 				map.closePopup();
 				startPathGeometryEdit(path);
-				return;
-			}
-
-			if (action === "move-path") {
-				const path = findPathByPublicId(this.dataset.publicId);
-				if (!path) {
-					showFeedbackToast("Weg konnte nicht gefunden werden.", "warning");
-					return;
-				}
-
-				startPathMove(path);
 				return;
 			}
 
