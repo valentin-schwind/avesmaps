@@ -184,21 +184,29 @@ Erlaubte Rollen sind `admin`, `editor` und `reviewer`. Fuer `/edit` reichen
 ## Edit-API
 
 `map-feature-update.php` ist der erste schreibende Karten-Endpoint fuer
-angemeldete Editoren. Aktuell erlaubt er nur das Verschieben von Point-Features
-per Session-Login aus `/edit`.
+angemeldete Editoren. Aktuell erlaubt er Point-Features fuer Orte anzulegen,
+zu verschieben, in Name/Beschreibung/Typ zu bearbeiten und weich zu loeschen.
 
 Payload:
 
 ```json
 {
+  "action": "move_point",
   "public_id": "00000000-0000-0000-0000-000000000000",
   "lat": 512.125,
   "lng": 404.875
 }
 ```
 
-Der Endpoint aktualisiert `geometry_json`, Bounding Box, Feature-Revision,
-`updated_by`, `map_revision` und schreibt einen Eintrag in `map_audit_log`.
+Weitere Aktionen:
+
+- `create_point`: `name`, `feature_subtype`, `description`, `lat`, `lng`
+- `update_point`: `public_id`, `name`, `feature_subtype`, `description`
+- `delete_feature`: `public_id`
+
+Der Endpoint aktualisiert je nach Aktion `geometry_json`, Bounding Box,
+Feature-Revision, `updated_by`, `map_revision` und schreibt einen Eintrag in
+`map_audit_log`.
 
 ## Request-Format
 

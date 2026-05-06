@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require __DIR__ . '/auth.php';
 
+const AVESMAPS_LOCATION_SUBTYPES = ['metropole', 'grossstadt', 'stadt', 'kleinstadt', 'dorf'];
+
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
 
@@ -19,21 +21,25 @@ try {
         avesmapsJsonResponse(204);
     }
 
-    if ($requestMethod !== 'POST' && $requestMethod !== 'PATCH') {
+    if ($requestMethod !== 'POST' && $requestMethod !== 'PATCH' && $requestMethod !== 'DELETE') {
         avesmapsJsonResponse(405, [
             'ok' => false,
-            'error' => 'Nur POST oder PATCH sind fuer diesen Endpoint erlaubt.',
+            'error' => 'Nur POST, PATCH oder DELETE sind fuer diesen Endpoint erlaubt.',
         ]);
     }
 
     $user = avesmapsRequireUserWithCapability('edit');
     $payload = avesmapsReadJsonRequest();
-    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
-    $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
-    $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
-
+    $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? 'move_point'), 40);
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
-    $result = avesmapsMovePointFeature($pdo, $publicId, $lat, $lng, $user);
+
+    $result = match ($action) {
+        'move_point' => avesmapsMovePointFeature($pdo, $payload, $user),
+        'update_point' => avesmapsUpdatePointFeatureDetails($pdo, $payload, $user),
+        'create_point' => avesmapsCreatePointFeature($pdo, $payload, $user),
+        'delete_feature' => avesmapsDeleteMapFeature($pdo, $payload, $user),
+        default => throw new InvalidArgumentException('Die Edit-Aktion ist unbekannt.'),
+    };
 
     avesmapsJsonResponse(200, [
         'ok' => true,
@@ -70,39 +76,78 @@ function avesmapsReadMapFeaturePublicId(mixed $value): string {
     return strtolower($publicId);
 }
 
-function avesmapsMovePointFeature(PDO $pdo, string $publicId, float $lat, float $lng, array $user): array {
+function avesmapsReadLocationName(mixed $value): string {
+    $name = avesmapsNormalizeSingleLine((string) $value, 160);
+    if ($name === '') {
+        throw new InvalidArgumentException('Der Ortsname fehlt.');
+    }
+
+    return $name;
+}
+
+function avesmapsReadLocationSubtype(mixed $value): string {
+    $subtype = avesmapsNormalizeSingleLine((string) ($value ?: 'dorf'), 60);
+    if (!in_array($subtype, AVESMAPS_LOCATION_SUBTYPES, true)) {
+        throw new InvalidArgumentException('Die Ortsgroesse ist ungueltig.');
+    }
+
+    return $subtype;
+}
+
+function avesmapsLocationSubtypeLabel(string $subtype): string {
+    return match ($subtype) {
+        'metropole' => 'Metropole',
+        'grossstadt' => 'Grosse Stadt',
+        'stadt' => 'Stadt',
+        'kleinstadt' => 'Kleine Stadt',
+        default => 'Dorf',
+    };
+}
+
+function avesmapsReadLocationDescription(mixed $value): string {
+    return avesmapsNormalizeMultiline((string) $value, 1200);
+}
+
+function avesmapsFetchEditableFeature(PDO $pdo, string $publicId): array {
+    $statement = $pdo->prepare(
+        'SELECT id, public_id, feature_type, feature_subtype, name, geometry_type, geometry_json, properties_json, style_json, revision
+        FROM map_features
+        WHERE public_id = :public_id
+            AND is_active = 1
+        LIMIT 1
+        FOR UPDATE'
+    );
+    $statement->execute([
+        'public_id' => $publicId,
+    ]);
+
+    $feature = $statement->fetch();
+    if (!$feature) {
+        throw new InvalidArgumentException('Das Kartenobjekt wurde nicht gefunden.');
+    }
+
+    if ((string) $feature['geometry_type'] !== 'Point') {
+        throw new InvalidArgumentException('Aktuell koennen nur Orte bearbeitet werden.');
+    }
+
+    return $feature;
+}
+
+function avesmapsMovePointFeature(PDO $pdo, array $payload, array $user): array {
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
+    $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
+
     $pdo->beginTransaction();
-
     try {
-        $statement = $pdo->prepare(
-            'SELECT id, public_id, feature_type, feature_subtype, name, geometry_type, geometry_json, properties_json, revision
-            FROM map_features
-            WHERE public_id = :public_id
-                AND is_active = 1
-            LIMIT 1
-            FOR UPDATE'
-        );
-        $statement->execute([
-            'public_id' => $publicId,
-        ]);
-        $feature = $statement->fetch();
-
-        if (!$feature) {
-            throw new InvalidArgumentException('Das Kartenobjekt wurde nicht gefunden.');
-        }
-
-        if ((string) $feature['geometry_type'] !== 'Point') {
-            throw new InvalidArgumentException('Aktuell koennen nur Orte verschoben werden.');
-        }
-
-        $beforeJson = avesmapsEncodeAuditJson($feature);
+        $feature = avesmapsFetchEditableFeature($pdo, $publicId);
         $geometry = [
             'type' => 'Point',
             'coordinates' => [$lng, $lat],
         ];
         $revision = avesmapsNextMapRevision($pdo);
 
-        $updateStatement = $pdo->prepare(
+        $statement = $pdo->prepare(
             'UPDATE map_features
             SET geometry_json = :geometry_json,
                 min_x = :min_lng,
@@ -113,9 +158,9 @@ function avesmapsMovePointFeature(PDO $pdo, string $publicId, float $lat, float 
                 updated_by = :updated_by
             WHERE id = :id'
         );
-        $updateStatement->execute([
+        $statement->execute([
             'id' => (int) $feature['id'],
-            'geometry_json' => json_encode($geometry, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+            'geometry_json' => avesmapsEncodeJson($geometry),
             'min_lng' => $lng,
             'min_lat' => $lat,
             'max_lng' => $lng,
@@ -124,33 +169,202 @@ function avesmapsMovePointFeature(PDO $pdo, string $publicId, float $lat, float 
             'updated_by' => (int) $user['id'],
         ]);
 
-        $afterJson = avesmapsEncodeAuditJson([
-            'public_id' => $feature['public_id'],
-            'feature_type' => $feature['feature_type'],
-            'feature_subtype' => $feature['feature_subtype'],
-            'name' => $feature['name'],
-            'geometry_type' => 'Point',
+        avesmapsWriteMapAuditLog($pdo, (int) $feature['id'], 'move_point', (int) $user['id'], avesmapsEncodeAuditJson($feature), avesmapsEncodeAuditJson([
+            'public_id' => $publicId,
             'geometry_json' => $geometry,
             'revision' => $revision,
+        ]));
+        $pdo->commit();
+
+        return avesmapsBuildPointFeatureResponse($publicId, (string) ($feature['name'] ?? ''), (string) $feature['feature_subtype'], $lat, $lng, avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null), $revision);
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
+function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user): array {
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $name = avesmapsReadLocationName($payload['name'] ?? '');
+    $subtype = avesmapsReadLocationSubtype($payload['feature_subtype'] ?? $payload['location_type'] ?? 'dorf');
+    $description = avesmapsReadLocationDescription($payload['description'] ?? '');
+
+    $pdo->beginTransaction();
+    try {
+        $feature = avesmapsFetchEditableFeature($pdo, $publicId);
+        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
+        $properties['name'] = $name;
+        $properties['feature_type'] = 'location';
+        $properties['feature_subtype'] = $subtype;
+        $properties['settlement_class'] = $subtype;
+        $properties['settlement_class_label'] = avesmapsLocationSubtypeLabel($subtype);
+        if ($description === '') {
+            unset($properties['description']);
+        } else {
+            $properties['description'] = $description;
+        }
+
+        $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
+        [$lng, $lat] = avesmapsReadPointCoordinatesFromGeometry($geometry);
+        $revision = avesmapsNextMapRevision($pdo);
+
+        $statement = $pdo->prepare(
+            'UPDATE map_features
+            SET name = :name,
+                feature_type = :feature_type,
+                feature_subtype = :feature_subtype,
+                properties_json = :properties_json,
+                revision = :revision,
+                updated_by = :updated_by
+            WHERE id = :id'
+        );
+        $statement->execute([
+            'id' => (int) $feature['id'],
+            'name' => $name,
+            'feature_type' => 'location',
+            'feature_subtype' => $subtype,
+            'properties_json' => avesmapsEncodeJson($properties),
+            'revision' => $revision,
+            'updated_by' => (int) $user['id'],
         ]);
 
-        avesmapsWriteMapAuditLog($pdo, (int) $feature['id'], 'move_point', (int) $user['id'], $beforeJson, $afterJson);
+        avesmapsWriteMapAuditLog($pdo, (int) $feature['id'], 'update_point', (int) $user['id'], avesmapsEncodeAuditJson($feature), avesmapsEncodeAuditJson([
+            'public_id' => $publicId,
+            'name' => $name,
+            'feature_subtype' => $subtype,
+            'properties_json' => $properties,
+            'revision' => $revision,
+        ]));
+        $pdo->commit();
+
+        return avesmapsBuildPointFeatureResponse($publicId, $name, $subtype, $lat, $lng, $properties, $revision);
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
+function avesmapsCreatePointFeature(PDO $pdo, array $payload, array $user): array {
+    $name = avesmapsReadLocationName($payload['name'] ?? '');
+    $subtype = avesmapsReadLocationSubtype($payload['feature_subtype'] ?? $payload['location_type'] ?? 'dorf');
+    $description = avesmapsReadLocationDescription($payload['description'] ?? '');
+    $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
+    $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
+    $publicId = avesmapsUuidV4();
+    $geometry = [
+        'type' => 'Point',
+        'coordinates' => [$lng, $lat],
+    ];
+    $properties = [
+        'name' => $name,
+        'feature_type' => 'location',
+        'feature_subtype' => $subtype,
+        'settlement_class' => $subtype,
+        'settlement_class_label' => avesmapsLocationSubtypeLabel($subtype),
+    ];
+    if ($description !== '') {
+        $properties['description'] = $description;
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $revision = avesmapsNextMapRevision($pdo);
+        $sortOrder = avesmapsNextMapSortOrder($pdo);
+        $statement = $pdo->prepare(
+            'INSERT INTO map_features (
+                public_id, feature_type, feature_subtype, name, geometry_type,
+                geometry_json, properties_json, min_x, min_y, max_x, max_y,
+                sort_order, revision, created_by, updated_by
+            ) VALUES (
+                :public_id, :feature_type, :feature_subtype, :name, :geometry_type,
+                :geometry_json, :properties_json, :min_x, :min_y, :max_x, :max_y,
+                :sort_order, :revision, :created_by, :updated_by
+            )'
+        );
+        $statement->execute([
+            'public_id' => $publicId,
+            'feature_type' => 'location',
+            'feature_subtype' => $subtype,
+            'name' => $name,
+            'geometry_type' => 'Point',
+            'geometry_json' => avesmapsEncodeJson($geometry),
+            'properties_json' => avesmapsEncodeJson($properties),
+            'min_x' => $lng,
+            'min_y' => $lat,
+            'max_x' => $lng,
+            'max_y' => $lat,
+            'sort_order' => $sortOrder,
+            'revision' => $revision,
+            'created_by' => (int) $user['id'],
+            'updated_by' => (int) $user['id'],
+        ]);
+
+        $featureId = (int) $pdo->lastInsertId();
+        avesmapsWriteMapAuditLog($pdo, $featureId, 'create_point', (int) $user['id'], '{}', avesmapsEncodeAuditJson([
+            'public_id' => $publicId,
+            'name' => $name,
+            'feature_subtype' => $subtype,
+            'geometry_json' => $geometry,
+            'properties_json' => $properties,
+            'revision' => $revision,
+        ]));
+        $pdo->commit();
+
+        return avesmapsBuildPointFeatureResponse($publicId, $name, $subtype, $lat, $lng, $properties, $revision);
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
+function avesmapsDeleteMapFeature(PDO $pdo, array $payload, array $user): array {
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+
+    $pdo->beginTransaction();
+    try {
+        $feature = avesmapsFetchEditableFeature($pdo, $publicId);
+        $revision = avesmapsNextMapRevision($pdo);
+        $statement = $pdo->prepare(
+            'UPDATE map_features
+            SET is_active = 0,
+                revision = :revision,
+                updated_by = :updated_by
+            WHERE id = :id'
+        );
+        $statement->execute([
+            'id' => (int) $feature['id'],
+            'revision' => $revision,
+            'updated_by' => (int) $user['id'],
+        ]);
+
+        avesmapsWriteMapAuditLog($pdo, (int) $feature['id'], 'delete_feature', (int) $user['id'], avesmapsEncodeAuditJson($feature), avesmapsEncodeAuditJson([
+            'public_id' => $publicId,
+            'is_active' => 0,
+            'revision' => $revision,
+        ]));
         $pdo->commit();
 
         return [
             'public_id' => $publicId,
-            'name' => (string) ($feature['name'] ?? ''),
-            'lat' => $lat,
-            'lng' => $lng,
+            'deleted' => true,
             'revision' => $revision,
         ];
     } catch (Throwable $exception) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-
-        throw $exception;
+        avesmapsRollbackAndRethrow($pdo, $exception);
     }
+}
+
+function avesmapsReadPointCoordinatesFromGeometry(array $geometry): array {
+    $coordinates = $geometry['coordinates'] ?? null;
+    if (!is_array($coordinates) || count($coordinates) < 2 || !is_numeric($coordinates[0]) || !is_numeric($coordinates[1])) {
+        throw new RuntimeException('Die Point-Geometrie ist ungueltig.');
+    }
+
+    return [(float) $coordinates[0], (float) $coordinates[1]];
+}
+
+function avesmapsNextMapSortOrder(PDO $pdo): int {
+    $statement = $pdo->query('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM map_features');
+    $sortOrder = $statement !== false ? $statement->fetchColumn() : false;
+
+    return $sortOrder === false ? 1 : (int) $sortOrder;
 }
 
 function avesmapsNextMapRevision(PDO $pdo): int {
@@ -183,6 +397,65 @@ function avesmapsWriteMapAuditLog(PDO $pdo, int $featureId, string $action, int 
     ]);
 }
 
+function avesmapsBuildPointFeatureResponse(string $publicId, string $name, string $subtype, float $lat, float $lng, array $properties, int $revision): array {
+    return [
+        'public_id' => $publicId,
+        'name' => $name,
+        'feature_type' => 'location',
+        'feature_subtype' => $subtype,
+        'location_type' => $subtype,
+        'location_type_label' => avesmapsLocationSubtypeLabel($subtype),
+        'description' => (string) ($properties['description'] ?? ''),
+        'lat' => $lat,
+        'lng' => $lng,
+        'revision' => $revision,
+    ];
+}
+
+function avesmapsDecodeJsonColumnForEdit(mixed $value): array {
+    if ($value === null || $value === '') {
+        return [];
+    }
+
+    if (is_array($value)) {
+        return $value;
+    }
+
+    $decoded = json_decode((string) $value, true);
+    return is_array($decoded) ? $decoded : [];
+}
+
 function avesmapsEncodeAuditJson(array $value): string {
+    return avesmapsEncodeJson($value);
+}
+
+function avesmapsEncodeJson(mixed $value): string {
     return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+}
+
+function avesmapsUuidV4(): string {
+    $bytes = random_bytes(16);
+    $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
+    $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
+    $hex = unpack('H*', $bytes);
+    if (!is_array($hex) || !isset($hex[1])) {
+        throw new RuntimeException('Die UUID konnte nicht erzeugt werden.');
+    }
+
+    return sprintf(
+        '%s-%s-%s-%s-%s',
+        substr($hex[1], 0, 8),
+        substr($hex[1], 8, 4),
+        substr($hex[1], 12, 4),
+        substr($hex[1], 16, 4),
+        substr($hex[1], 20)
+    );
+}
+
+function avesmapsRollbackAndRethrow(PDO $pdo, Throwable $exception): never {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+
+    throw $exception;
 }

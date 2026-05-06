@@ -98,6 +98,7 @@
 	<div id="map-data-status" class="map-data-status" role="status" aria-live="polite" hidden></div>
 	<div id="map-context-menu" class="map-context-menu" hidden>
 		<button type="button" class="map-context-menu__item" data-context-action="share-pin">📍 Stelle markieren und teilen</button>
+		<button type="button" class="map-context-menu__item" data-context-action="create-location" hidden>Neuen Ort anlegen</button>
 		<button type="button" class="map-context-menu__item" data-context-action="report-location">📝 Neuen Ort melden</button>
 		<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location">🔎 Nächsten Ort finden</button>
 		<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement">📏 Entfernung messen</button>
@@ -554,6 +555,10 @@
 			bounds: MAP_BOUNDS,
 			continuousWorld: false,
 		}).addTo(map);
+
+		if (IS_EDIT_MODE) {
+			document.querySelector('[data-context-action="create-location"]')?.removeAttribute("hidden");
+		}
 
 		// UI-Interaktionen und Events
 		$("#toggle-button").on("click", () => {
@@ -1086,7 +1091,11 @@
 			return `<span class="location-popup__icon location-popup__icon--share-pin">${sharePinVisualMarkup("share-pin-visual--popup", { includeDot: false })}</span>`;
 		}
 
-		function getLocationDescriptionText(name) {
+		function getLocationDescriptionText(name, descriptionOverride = "") {
+			if (descriptionOverride) {
+				return descriptionOverride;
+			}
+
 			const wikiLocationLink = getWikiLocationLink(name);
 			const rawDescription = (wikiLocationLink?.description || "").trim();
 
@@ -1106,8 +1115,8 @@
 			return normalizedDescription.charAt(0).toUpperCase() + normalizedDescription.slice(1);
 		}
 
-		function locationDescriptionMarkup(name) {
-			const description = getLocationDescriptionText(name);
+		function locationDescriptionMarkup(name, descriptionOverride = "") {
+			const description = getLocationDescriptionText(name, descriptionOverride);
 
 			if (!description) {
 				return "";
@@ -1152,6 +1161,27 @@
 						},
 					})
 				);
+				actionButtons.push(
+					popupActionButtonMarkup({
+						label: "Details bearbeiten",
+						attributes: {
+							"data-popup-action": "edit-location-details",
+							"data-location-name": name,
+							"data-public-id": publicId,
+						},
+					})
+				);
+				actionButtons.push(
+					popupActionButtonMarkup({
+						label: "Ort loeschen",
+						className: "location-popup__action-button--danger",
+						attributes: {
+							"data-popup-action": "delete-location",
+							"data-location-name": name,
+							"data-public-id": publicId,
+						},
+					})
+				);
 			}
 
 			return locationPopupActionsMarkup(actionButtons);
@@ -1184,6 +1214,7 @@
 			showType = false,
 			showDescription = true,
 			showWikiLink = true,
+			description = "",
 			actionsMarkup = "",
 		}) {
 			const popupClassName = compact ? "location-popup location-popup--compact" : "location-popup";
@@ -1196,7 +1227,7 @@
 							${showType ? `<div class="location-popup__type">${escapeHtml(locationTypeLabel)}</div>` : ""}
 						</div>
 					</div>
-					${showDescription ? locationDescriptionMarkup(name) : ""}
+					${showDescription ? locationDescriptionMarkup(name, description) : ""}
 					${actionsMarkup}
 					${showWikiLink ? wikiLocationLinkMarkup(name) : ""}
 				</div>`;
@@ -2484,6 +2515,208 @@
 			}
 		}
 
+		function promptLocationDetails(defaults = {}) {
+			const name = window.prompt("Ortsname", defaults.name || "");
+			if (name === null) {
+				return null;
+			}
+
+			const normalizedName = name.trim();
+			if (!normalizedName) {
+				showFeedbackToast("Der Ortsname fehlt.", "warning");
+				return null;
+			}
+
+			const type = window.prompt("Ortsgroesse: metropole, grossstadt, stadt, kleinstadt oder dorf", defaults.locationType || "dorf");
+			if (type === null) {
+				return null;
+			}
+
+			const normalizedType = type.trim().toLowerCase();
+			if (!LOCATION_TYPE_KEYS.includes(normalizedType)) {
+				showFeedbackToast("Die Ortsgroesse ist ungueltig.", "warning");
+				return null;
+			}
+
+			const description = window.prompt("Beschreibung", defaults.description || "");
+			if (description === null) {
+				return null;
+			}
+
+			return {
+				name: normalizedName,
+				locationType: normalizedType,
+				description: description.trim(),
+			};
+		}
+
+		function updateRevisionFromEditResponse(payload) {
+			if (payload?.feature?.revision && mapDataSourceStatus) {
+				mapDataSourceStatus.revision = payload.feature.revision;
+				updateMapDataStatus({ avesmapsSource: mapDataSourceStatus });
+			}
+		}
+
+		async function submitMapFeatureEdit(payload) {
+			const response = await fetch(MAP_FEATURE_UPDATE_API_URL, {
+				method: "PATCH",
+				credentials: "same-origin",
+				headers: {
+					Accept: "application/json",
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(payload),
+			});
+			const result = await response.json().catch(() => ({}));
+			if (!response.ok || result?.ok !== true) {
+				throw new Error(result?.error || `Speichern fehlgeschlagen (${response.status}).`);
+			}
+
+			return result;
+		}
+
+		function refreshLocationMarkerPopup(markerEntry) {
+			markerEntry.marker.setIcon(createLocationMarkerIcon(markerEntry.locationType));
+			markerEntry.marker.bindPopup(
+				locationPopupMarkup({
+					name: markerEntry.name,
+					locationType: markerEntry.locationType,
+					locationTypeLabel: markerEntry.location.locationTypeLabel,
+					description: markerEntry.location.description,
+					actionsMarkup: locationActionsMarkup(markerEntry.name, markerEntry.publicId),
+				})
+			);
+		}
+
+		function applyFeatureResponseToMarker(markerEntry, feature) {
+			const locationType = normalizeLocationType(feature.location_type || feature.feature_subtype || markerEntry.locationType);
+			const latLng = [Number(feature.lat), Number(feature.lng)];
+			markerEntry.name = feature.name || markerEntry.name;
+			markerEntry.locationType = locationType;
+			markerEntry.location = {
+				...markerEntry.location,
+				publicId: feature.public_id || markerEntry.publicId,
+				name: markerEntry.name,
+				coordinates: latLng,
+				locationType,
+				locationTypeLabel: feature.location_type_label || LOCATION_TYPE_CONFIG[locationType]?.singularLabel || "Dorf",
+				description: feature.description || "",
+			};
+			markerEntry.marker.setLatLng(latLng);
+			refreshLocationMarkerPopup(markerEntry);
+		}
+
+		async function editLocationDetails(markerEntry) {
+			const details = promptLocationDetails({
+				name: markerEntry.name,
+				locationType: markerEntry.locationType,
+				description: markerEntry.location.description,
+			});
+			if (!details) {
+				return;
+			}
+
+			try {
+				const result = await submitMapFeatureEdit({
+					action: "update_point",
+					public_id: markerEntry.publicId,
+					name: details.name,
+					feature_subtype: details.locationType,
+					description: details.description,
+				});
+				applyFeatureResponseToMarker(markerEntry, result.feature);
+				updateRevisionFromEditResponse(result);
+				showFeedbackToast("Ort gespeichert.", "success");
+			} catch (error) {
+				console.error("Ort konnte nicht bearbeitet werden:", error);
+				showFeedbackToast(error.message || "Ort konnte nicht gespeichert werden.", "warning");
+			}
+		}
+
+		async function deleteLocationMarker(markerEntry) {
+			if (!window.confirm(`${markerEntry.name} wirklich loeschen?`)) {
+				return;
+			}
+
+			try {
+				const result = await submitMapFeatureEdit({
+					action: "delete_feature",
+					public_id: markerEntry.publicId,
+				});
+				map.removeLayer(markerEntry.marker);
+				locationMarkers = locationMarkers.filter((entry) => entry !== markerEntry);
+				locationData = locationData.filter((location) => location !== markerEntry.location);
+				updateRevisionFromEditResponse(result);
+				showFeedbackToast("Ort geloescht.", "success");
+			} catch (error) {
+				console.error("Ort konnte nicht geloescht werden:", error);
+				showFeedbackToast(error.message || "Ort konnte nicht geloescht werden.", "warning");
+			}
+		}
+
+		function addCreatedLocationMarker(feature) {
+			const locationType = normalizeLocationType(feature.location_type || feature.feature_subtype || "dorf");
+			const location = {
+				publicId: feature.public_id,
+				name: feature.name,
+				coordinates: [Number(feature.lat), Number(feature.lng)],
+				locationType,
+				locationTypeLabel: feature.location_type_label || LOCATION_TYPE_CONFIG[locationType]?.singularLabel || "Dorf",
+				description: feature.description || "",
+			};
+			locationData.push(location);
+
+			const marker = L.marker(location.coordinates, {
+				icon: createLocationMarkerIcon(locationType),
+				pane: "locationsPane",
+				keyboard: true,
+				draggable: false,
+			});
+			const markerEntry = {
+				marker,
+				locationType,
+				name: location.name,
+				publicId: location.publicId,
+				location,
+			};
+			marker.on("dragend", async () => {
+				const saveSucceeded = await saveMovedLocationMarker(markerEntry, marker.getLatLng());
+				if (!saveSucceeded && activeLocationEdit?.originalLatLng) {
+					marker.setLatLng(activeLocationEdit.originalLatLng);
+				}
+				setLocationEditActive(markerEntry, false);
+			});
+			locationMarkers.push(markerEntry);
+			refreshLocationMarkerPopup(markerEntry);
+			syncLocationMarkerVisibility();
+			marker.openPopup();
+		}
+
+		async function createLocationAt(latlng) {
+			const normalizedLatLng = L.latLng(latlng);
+			const details = promptLocationDetails({ locationType: "dorf" });
+			if (!details) {
+				return;
+			}
+
+			try {
+				const result = await submitMapFeatureEdit({
+					action: "create_point",
+					name: details.name,
+					feature_subtype: details.locationType,
+					description: details.description,
+					lat: normalizedLatLng.lat,
+					lng: normalizedLatLng.lng,
+				});
+				addCreatedLocationMarker(result.feature);
+				updateRevisionFromEditResponse(result);
+				showFeedbackToast("Ort angelegt.", "success");
+			} catch (error) {
+				console.error("Ort konnte nicht angelegt werden:", error);
+				showFeedbackToast(error.message || "Ort konnte nicht angelegt werden.", "warning");
+			}
+		}
+
 		function findNearestLocationToLatLng(latlng) {
 			const targetLocation = { coordinates: [latlng.lat, latlng.lng] };
 			let nearestMatch = null;
@@ -2700,6 +2933,7 @@
 						coordinates: [feature.geometry.coordinates[1], feature.geometry.coordinates[0]],
 						locationType,
 						locationTypeLabel: feature.properties.settlement_class_label || locationConfig?.singularLabel || "Dorf",
+						description: feature.properties.description || "",
 					};
 				});
 			locationData
@@ -2716,6 +2950,7 @@
 							name,
 							locationType,
 							locationTypeLabel,
+							description: location.description,
 							actionsMarkup: locationActionsMarkup(name, publicId),
 						})
 					);
@@ -2906,6 +3141,12 @@
 				return;
 			}
 
+			if (action === "create-location" && contextMenuLatLng) {
+				closeMapContextMenu();
+				void createLocationAt(contextMenuLatLng);
+				return;
+			}
+
 			if (action === "find-nearest-location" && pendingContextMenuLatLng) {
 				const nearestLocation = findNearestLocationToLatLng(pendingContextMenuLatLng);
 				closeMapContextMenu();
@@ -2971,6 +3212,28 @@
 				}
 
 				setLocationEditActive(markerEntry, true);
+				return;
+			}
+
+			if (action === "edit-location-details") {
+				const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
+				if (!markerEntry) {
+					showFeedbackToast("Ort konnte nicht fuer die Bearbeitung gefunden werden.", "warning");
+					return;
+				}
+
+				void editLocationDetails(markerEntry);
+				return;
+			}
+
+			if (action === "delete-location") {
+				const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
+				if (!markerEntry) {
+					showFeedbackToast("Ort konnte nicht fuer die Bearbeitung gefunden werden.", "warning");
+					return;
+				}
+
+				void deleteLocationMarker(markerEntry);
 			}
 		});
 
