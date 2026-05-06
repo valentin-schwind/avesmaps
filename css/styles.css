@@ -1348,6 +1348,17 @@ body.modal-dialog-open {
 	border-radius: 0;
 }
 
+.location-visual-marker__shape--crossing {
+	display: block;
+	box-sizing: border-box;
+	border-radius: 50%;
+	background: #212121;
+	border: 2px solid #ffffff;
+	box-shadow:
+		0 0 0 1px rgba(0, 0, 0, 0.7),
+		0 2px 8px rgba(0, 0, 0, 0.28);
+}
+
 .share-pin-marker {
 	background: transparent;
 	border: none;

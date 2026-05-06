@@ -234,6 +234,7 @@
 			<div class="display-options__secondary">
 				<label><input type="checkbox" id="togglePaths" /> Wege</label>
 				<label><input type="checkbox" id="toggleBorders" /> Regionen</label>
+				<label id="toggleCrossingsControl" hidden><input type="checkbox" id="toggleCrossings" /> Kreuzungen</label>
 			</div>
 		</div>
 		<div id="transport-options">
@@ -415,6 +416,7 @@
 		const LOCATION_MARKER_STYLE = { pane: "locationsPane", fillColor: "#F52B25", color: "#7A1411", weight: 1.25, opacity: 1, fillOpacity: 0.95 };
 		const MAP_MARKER_STYLE = { pane: "locationsPane", radius: 4, fillColor: "#F52B25", color: "#000", weight: 2, opacity: 1, fillOpacity: 1 };
 		const SYNTHETIC_ROUTE_TYPE = "Querfeldein";
+		const CROSSING_LOCATION_TYPE = "crossing";
 
 		const SPEED_TABLE = {
 			groupFoot: { Reichsstrasse: 4.5, Strasse: 4.0, Weg: 3.5, Pfad: 3.0, Gebirgspass: 1.5, Querfeldein: 3.0, Wueste: 2.5 },
@@ -481,6 +483,7 @@
 			toggleDoerfer: false,
 			togglePaths: false,
 			toggleBorders: false,
+			toggleCrossings: true,
 			pathType: "fastest",
 			minimizeTransfers: false,
 			includeRests: true,
@@ -613,6 +616,10 @@
 
 		if (IS_EDIT_MODE) {
 			document.querySelector('.map-context-menu__group[data-context-action="add-here"]')?.removeAttribute("hidden");
+			document.getElementById("toggleCrossingsControl")?.removeAttribute("hidden");
+			document.getElementById("toggleCrossings")?.removeAttribute("disabled");
+		} else {
+			document.getElementById("toggleCrossings")?.setAttribute("disabled", "disabled");
 		}
 
 		// UI-Interaktionen und Events
@@ -1426,6 +1433,23 @@
 			return locationPopupActionsMarkup(actionButtons);
 		}
 
+		function crossingActionsMarkup(name, publicId) {
+			if (!IS_EDIT_MODE || !publicId) {
+				return "";
+			}
+
+			return locationPopupActionsMarkup([
+				popupActionButtonMarkup({
+					label: "Kreuzung verschieben",
+					attributes: {
+						"data-popup-action": "start-location-edit",
+						"data-location-name": name,
+						"data-public-id": publicId,
+					},
+				}),
+			]);
+		}
+
 		function waypointRemoveActionMarkup(waypointId) {
 			if (!waypointId) {
 				return "";
@@ -1995,11 +2019,28 @@
 		}
 
 		function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
+			if (locationType === CROSSING_LOCATION_TYPE) {
+				return Math.max(7, 5 + zoomLevel * 1.5);
+			}
+
 			const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
 			return config.radius * locationZoomScale(zoomLevel) * 2 + 1;
 		}
 
 		function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
+			if (locationType === CROSSING_LOCATION_TYPE) {
+				const markerSize = getLocationMarkerSize(locationType, zoomLevel);
+				const iconHtml = `<span class="location-visual-marker__shape location-visual-marker__shape--crossing" style="width:${markerSize}px;height:${markerSize}px;"></span>`;
+
+				return L.divIcon({
+					className: "location-visual-marker location-visual-marker--crossing",
+					html: iconHtml,
+					iconSize: [markerSize, markerSize],
+					iconAnchor: [markerSize / 2, markerSize / 2],
+					popupAnchor: [0, -(markerSize / 2)],
+				});
+			}
+
 			const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
 			const markerSize = getLocationMarkerSize(locationType, zoomLevel);
 			const shapeClassName = config.shape === "square"
@@ -2023,7 +2064,9 @@
 			syncLocationToggleButtons();
 			const zoomLevel = map.getZoom();
 			$.each(locationMarkers, (i, entry) => {
-				const shouldShow = isLocationTypeVisible(entry.locationType);
+				const shouldShow = entry.locationType === CROSSING_LOCATION_TYPE
+					? IS_EDIT_MODE && $("#toggleCrossings").is(":checked")
+					: isLocationTypeVisible(entry.locationType);
 				entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, zoomLevel));
 				map[shouldShow ? "addLayer" : "removeLayer"](entry.marker);
 			});
@@ -2071,9 +2114,17 @@
 		syncTransportControls();
 		$("#togglePaths").change(syncPathVisibility);
 		$("#toggleBorders").change(syncRegionVisibility);
+		$("#toggleCrossings").change(() => {
+			syncLocationMarkerVisibility();
+			syncPlannerStateToUrl();
+		});
 
 		function isCrossingName(name) {
 			return typeof name === "string" && /^Kreuzung(?:-\d+)?$/i.test(name);
+		}
+
+		function isCrossingLocation(location) {
+			return location?.locationType === CROSSING_LOCATION_TYPE || isCrossingName(location?.name);
 		}
 
 		function createWaypointId() {
@@ -2103,6 +2154,60 @@
 			$input.autocomplete({
 				source: getWaypointAutocompleteSource(),
 			});
+		}
+
+		function refreshWaypointAutocompleteSources() {
+			const autocompleteSource = getWaypointAutocompleteSource();
+			$(".waypoint-input").each(function () {
+				const $input = $(this);
+				if ($input.data("ui-autocomplete")) {
+					$input.autocomplete("option", "source", autocompleteSource);
+				}
+			});
+		}
+
+		function replaceWaypointLocationName(previousName, nextName) {
+			if (!previousName || !nextName || previousName === nextName) {
+				return false;
+			}
+
+			let didReplace = false;
+			$(".waypoint-input").each(function () {
+				const $input = $(this);
+				if (normalizeLocationSearchName($input.val()) === normalizeLocationSearchName(previousName)) {
+					$input.val(nextName);
+					didReplace = true;
+				}
+			});
+
+			return didReplace;
+		}
+
+		function clearWaypointLocationName(locationName) {
+			if (!locationName) {
+				return false;
+			}
+
+			let didClear = false;
+			$(".waypoint-input").each(function () {
+				const $input = $(this);
+				if (normalizeLocationSearchName($input.val()) === normalizeLocationSearchName(locationName)) {
+					$input.val("");
+					didClear = true;
+				}
+			});
+
+			return didClear;
+		}
+
+		function refreshPlannerAfterFeatureChange({ updateRoute = false } = {}) {
+			graphData = null;
+			refreshWaypointAutocompleteSources();
+			syncPlannerStateToUrl();
+
+			if (updateRoute && getWaypointInputValues().length) {
+				updateMapView();
+			}
 		}
 
 		function waypointDragHandleMarkup() {
@@ -2442,6 +2547,7 @@
 			syncLocationToggleButtons();
 			$("#togglePaths").prop("checked", parseBooleanQueryParam(searchParams.get("togglePaths"), DEFAULT_PLANNER_STATE.togglePaths));
 			$("#toggleBorders").prop("checked", parseBooleanQueryParam(searchParams.get("toggleBorders"), DEFAULT_PLANNER_STATE.toggleBorders));
+			$("#toggleCrossings").prop("checked", parseBooleanQueryParam(searchParams.get("toggleCrossings"), DEFAULT_PLANNER_STATE.toggleCrossings));
 
 			if (pathType === "shortest" || pathType === "fastest") {
 				$(`input[name="pathType"][value="${pathType}"]`).prop("checked", true);
@@ -2540,6 +2646,10 @@
 
 			if ($("#toggleBorders").is(":checked") !== DEFAULT_PLANNER_STATE.toggleBorders) {
 				searchParams.set("toggleBorders", $("#toggleBorders").is(":checked") ? "1" : "0");
+			}
+
+			if (IS_EDIT_MODE && $("#toggleCrossings").is(":checked") !== DEFAULT_PLANNER_STATE.toggleCrossings) {
+				searchParams.set("toggleCrossings", $("#toggleCrossings").is(":checked") ? "1" : "0");
 			}
 
 			if (selectedPathType !== DEFAULT_PLANNER_STATE.pathType) {
@@ -2786,6 +2896,7 @@
 					mapDataSourceStatus.revision = payload.feature.revision;
 					updateMapDataStatus({ avesmapsSource: mapDataSourceStatus });
 				}
+				refreshPlannerAfterFeatureChange({ updateRoute: true });
 				showFeedbackToast(`${markerEntry.name} gespeichert.`, "success");
 				return true;
 			} catch (error) {
@@ -2822,6 +2933,21 @@
 
 		function refreshLocationMarkerPopup(markerEntry) {
 			markerEntry.marker.setIcon(createLocationMarkerIcon(markerEntry.locationType));
+			if (markerEntry.locationType === CROSSING_LOCATION_TYPE) {
+				markerEntry.marker.bindPopup(
+					locationPopupMarkup({
+						name: markerEntry.name,
+						locationType: CROSSING_LOCATION_TYPE,
+						locationTypeLabel: "Kreuzung",
+						showHeaderIcon: false,
+						showDescription: false,
+						showWikiLink: false,
+						actionsMarkup: crossingActionsMarkup(markerEntry.name, markerEntry.publicId),
+					})
+				);
+				return;
+			}
+
 			markerEntry.marker.bindPopup(
 				locationPopupMarkup({
 					name: markerEntry.name,
@@ -2835,6 +2961,7 @@
 		}
 
 		function applyFeatureResponseToMarker(markerEntry, feature) {
+			const previousName = markerEntry.name;
 			const locationType = normalizeLocationType(feature.location_type || feature.feature_subtype || markerEntry.locationType);
 			const latLng = [Number(feature.lat), Number(feature.lng)];
 			markerEntry.name = feature.name || markerEntry.name;
@@ -2851,6 +2978,8 @@
 			};
 			markerEntry.marker.setLatLng(latLng);
 			refreshLocationMarkerPopup(markerEntry);
+			const didReplaceWaypoint = replaceWaypointLocationName(previousName, markerEntry.name);
+			refreshPlannerAfterFeatureChange({ updateRoute: didReplaceWaypoint });
 		}
 
 		async function editLocationDetails(markerEntry) {
@@ -2870,7 +2999,9 @@
 				map.removeLayer(markerEntry.marker);
 				locationMarkers = locationMarkers.filter((entry) => entry !== markerEntry);
 				locationData = locationData.filter((location) => location !== markerEntry.location);
+				const didClearWaypoint = clearWaypointLocationName(markerEntry.name);
 				updateRevisionFromEditResponse(result);
+				refreshPlannerAfterFeatureChange({ updateRoute: didClearWaypoint });
 				showFeedbackToast("Ort geloescht.", "success");
 			} catch (error) {
 				console.error("Ort konnte nicht geloescht werden:", error);
@@ -2914,6 +3045,7 @@
 			locationMarkers.push(markerEntry);
 			refreshLocationMarkerPopup(markerEntry);
 			syncLocationMarkerVisibility();
+			refreshPlannerAfterFeatureChange();
 			marker.openPopup();
 		}
 
@@ -3130,20 +3262,20 @@
 				.filter((feature) => feature.geometry.type === "Point" && feature.properties?.name)
 				.map((feature) => {
 					const isCrossing = feature.properties.name.startsWith("Kreuzung");
-					const locationType = isCrossing ? null : locationTypeFromProperties(feature.properties);
+					const locationType = isCrossing ? CROSSING_LOCATION_TYPE : locationTypeFromProperties(feature.properties);
 					const locationConfig = locationType ? LOCATION_TYPE_CONFIG[locationType] : null;
 					return {
 						publicId: feature.id || feature.properties.public_id || "",
 						name: isCrossing ? `Kreuzung-${crossingCount++}` : feature.properties.name,
 						coordinates: [feature.geometry.coordinates[1], feature.geometry.coordinates[0]],
 						locationType,
-						locationTypeLabel: feature.properties.settlement_class_label || locationConfig?.singularLabel || "Dorf",
+						locationTypeLabel: isCrossing ? "Kreuzung" : feature.properties.settlement_class_label || locationConfig?.singularLabel || "Dorf",
 						description: feature.properties.description || "",
 						wikiUrl: feature.properties.wiki_url || "",
 					};
 				});
 			locationData
-				.filter(({ name }) => !isCrossingName(name))
+				.filter((location) => IS_EDIT_MODE || !isCrossingLocation(location))
 				.forEach((location) => {
 					const { publicId, name, coordinates, locationType, locationTypeLabel } = location;
 					const marker = L.marker(coordinates, {
@@ -3151,16 +3283,7 @@
 						pane: "locationsPane",
 						keyboard: true,
 						draggable: false,
-					}).bindPopup(
-						locationPopupMarkup({
-							name,
-							locationType,
-							locationTypeLabel,
-							description: location.description,
-							wikiUrl: location.wikiUrl,
-							actionsMarkup: locationActionsMarkup(name, publicId),
-						})
-					);
+					});
 					const markerEntry = { marker, locationType, name, publicId, location };
 					marker.on("dragend", async () => {
 						const saveSucceeded = await saveMovedLocationMarker(markerEntry, marker.getLatLng());
@@ -3169,6 +3292,7 @@
 						}
 						setLocationEditActive(markerEntry, false);
 					});
+					refreshLocationMarkerPopup(markerEntry);
 					locationMarkers.push(markerEntry);
 				});
 			syncLocationMarkerVisibility();
