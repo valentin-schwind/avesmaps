@@ -1594,9 +1594,9 @@
 			if (IS_EDIT_MODE && publicId) {
 				actionButtons.push(
 					popupActionButtonMarkup({
-						label: "Neuer Weg",
+						label: pendingPathCreationStart ? "Weg abschliessen" : "Neuer Weg",
 						attributes: {
-							"data-popup-action": "start-path-from-location",
+							"data-popup-action": pendingPathCreationStart ? "finish-path-at-location" : "start-path-from-location",
 							"data-public-id": publicId,
 						},
 					})
@@ -1644,9 +1644,9 @@
 
 			return locationPopupActionsMarkup([
 				popupActionButtonMarkup({
-					label: "Neuer Weg",
+					label: pendingPathCreationStart ? "Weg abschliessen" : "Neuer Weg",
 					attributes: {
-						"data-popup-action": "start-path-from-location",
+						"data-popup-action": pendingPathCreationStart ? "finish-path-at-location" : "start-path-from-location",
 						"data-public-id": publicId,
 					},
 				}),
@@ -3205,6 +3205,10 @@
 			);
 		}
 
+		function refreshAllLocationMarkerPopups() {
+			locationMarkers.forEach((markerEntry) => refreshLocationMarkerPopup(markerEntry));
+		}
+
 		function createEditablePointMarkerEntry(location) {
 			const marker = L.marker(location.coordinates, {
 				icon: createLocationMarkerIcon(location.locationType),
@@ -3457,6 +3461,34 @@
 			});
 		}
 
+		function getPathStyleColors(path) {
+			const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+			const centerColors = {
+				Reichsstrasse: "#d8d8d8",
+				Strasse: "#555555",
+				Weg: "#cdb98a",
+				Pfad: "#7b4f2f",
+				Gebirgspass: "#8f3f2f",
+				Flussweg: "#6ec6ff",
+				Seeweg: "#174b9a",
+			};
+
+			return {
+				outline: "#ffffff",
+				center: centerColors[pathSubtype] || centerColors.Weg,
+			};
+		}
+
+		function updatePathLayerStyle(path) {
+			if (!path?._pathLines?.length) {
+				return;
+			}
+
+			const colors = getPathStyleColors(path);
+			path._pathLines[0]?.setStyle({ color: colors.outline, weight: 5 });
+			path._pathLines[1]?.setStyle({ color: colors.center, weight: 3 });
+		}
+
 		function refreshPathLayerPopup(path) {
 			if (!path?._pathLines?.length) {
 				return;
@@ -3470,9 +3502,10 @@
 
 		function createPathLayer(path) {
 			const latLngCoords = path.geometry.coordinates.map(([x, y]) => [y, x]);
+			const colors = getPathStyleColors(path);
 			const roadOutline = L.polyline(latLngCoords, {
 				pane: "roadsOutlinePane",
-				color: "#FFFFFF",
+				color: colors.outline,
 				weight: 5,
 				opacity: 1,
 				interactive: IS_EDIT_MODE,
@@ -3482,7 +3515,7 @@
 			});
 			const roadCenter = L.polyline(latLngCoords, {
 				pane: "roadsPane",
-				color: "#3388FF",
+				color: colors.center,
 				weight: 3,
 				opacity: 1,
 				interactive: IS_EDIT_MODE,
@@ -3500,6 +3533,7 @@
 				});
 			}
 			refreshPathLayerPopup(path);
+			updatePathLayerStyle(path);
 			return layerGroup;
 		}
 
@@ -3577,6 +3611,7 @@
 				name: `${pathSubtype}-${path.properties.id?.replace(/^path-/, "") || pathData.indexOf(path) + 1}`,
 			};
 			updatePathLayerGeometry(path);
+			updatePathLayerStyle(path);
 			refreshPathLayerPopup(path);
 			refreshPlannerAfterFeatureChange({ updateRoute: true });
 		}
@@ -3604,6 +3639,8 @@
 			pendingPathCreationStart = null;
 			pendingPathCreationPoints = [];
 			map.off("click", handlePendingPathCreationClick);
+			map.getContainer().classList.remove("path-creation-cursor");
+			refreshAllLocationMarkerPopups();
 		}
 
 		function showPendingPathCreationPreview(startLocation) {
@@ -3674,6 +3711,8 @@
 			pendingPathCreationStart = nearestMatch.location;
 			pendingPathCreationPoints = [L.latLng(pendingPathCreationStart.coordinates)];
 			showPendingPathCreationPreview(pendingPathCreationStart);
+			map.getContainer().classList.add("path-creation-cursor");
+			refreshAllLocationMarkerPopups();
 			map.on("click", handlePendingPathCreationClick);
 			showFeedbackToast(`Start: ${pendingPathCreationStart.name}. Punkte setzen, Zielknoten anklicken beendet.`, "info");
 		}
@@ -3688,22 +3727,25 @@
 			pendingPathCreationStart = location;
 			pendingPathCreationPoints = [L.latLng(location.coordinates)];
 			showPendingPathCreationPreview(location);
+			map.getContainer().classList.add("path-creation-cursor");
+			refreshAllLocationMarkerPopups();
 			map.on("click", handlePendingPathCreationClick);
 			showFeedbackToast(`Start: ${location.name}. Punkte setzen, Zielknoten anklicken beendet.`, "info");
 		}
 
-		async function handlePendingPathCreationClick(event) {
+		async function completePendingPathCreationAtLocation(endLocation) {
 			if (!pendingPathCreationStart) {
 				clearPendingPathCreation();
 				return;
 			}
 
-			const endLocation = findNearestGraphEndpointToLatLng(event.latlng, {
-				excludeLocation: pendingPathCreationStart,
-			});
 			if (!endLocation) {
-				pendingPathCreationPoints.push(L.latLng(event.latlng));
-				updatePendingPathCreationLine();
+				showFeedbackToast("Kein Zielknoten gefunden.", "warning");
+				return;
+			}
+
+			if (endLocation === pendingPathCreationStart) {
+				showFeedbackToast("Start und Ziel sind identisch.", "warning");
 				return;
 			}
 
@@ -3728,6 +3770,24 @@
 				console.error("Weg konnte nicht erstellt werden:", error);
 				showFeedbackToast(error.message || "Weg konnte nicht erstellt werden.", "warning");
 			}
+		}
+
+		async function handlePendingPathCreationClick(event) {
+			if (!pendingPathCreationStart) {
+				clearPendingPathCreation();
+				return;
+			}
+
+			const endLocation = findNearestGraphEndpointToLatLng(event.latlng, {
+				excludeLocation: pendingPathCreationStart,
+			});
+			if (endLocation) {
+				await completePendingPathCreationAtLocation(endLocation);
+				return;
+			}
+
+			pendingPathCreationPoints.push(L.latLng(event.latlng));
+			updatePendingPathCreationLine();
 		}
 
 		function pathCoordinatesToLatLngs(path) {
@@ -4402,6 +4462,18 @@
 				return;
 			}
 
+			if (action === "finish-path-at-location") {
+				const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
+				if (!markerEntry) {
+					showFeedbackToast("Zielknoten konnte nicht gefunden werden.", "warning");
+					return;
+				}
+
+				map.closePopup();
+				void completePendingPathCreationAtLocation(markerEntry.location);
+				return;
+			}
+
 			if (action === "delete-location") {
 				const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
 				if (!markerEntry) {
@@ -4431,6 +4503,7 @@
 					return;
 				}
 
+				map.closePopup();
 				startPathGeometryEdit(path);
 				return;
 			}
