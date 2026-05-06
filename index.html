@@ -3489,6 +3489,11 @@
 			const layerGroup = L.layerGroup([roadOutline, roadCenter]);
 			path._layerGroup = layerGroup;
 			path._pathLines = [roadOutline, roadCenter];
+			if (IS_EDIT_MODE) {
+				path._pathLines.forEach((line) => {
+					line.on("dblclick", (event) => handleEditablePathDoubleClick(path, event));
+				});
+			}
 			refreshPathLayerPopup(path);
 			return layerGroup;
 		}
@@ -3743,9 +3748,6 @@
 			}
 
 			activePathGeometryEdit.handles.forEach((handle) => map.removeLayer(handle));
-			activePathGeometryEdit.path._pathLines?.forEach((line) => {
-				line.off("dblclick", handlePathLineDoubleClick);
-			});
 			map.off("dblclick", handleMapDoubleClickWhileEditingPath);
 			map.doubleClickZoom.enable();
 			activePathGeometryEdit = null;
@@ -3885,8 +3887,12 @@
 			void saveActivePathGeometry();
 		}
 
-		function handlePathLineDoubleClick(event) {
+		function handleEditablePathDoubleClick(path, event) {
 			L.DomEvent.stop(event);
+			if (!activePathGeometryEdit || activePathGeometryEdit.path !== path) {
+				startPathGeometryEdit(path, { showToast: false });
+			}
+
 			insertActivePathNode(event.latlng);
 		}
 
@@ -3919,7 +3925,7 @@
 			}
 		}
 
-		function startPathGeometryEdit(path) {
+		function startPathGeometryEdit(path, { showToast = true } = {}) {
 			clearPendingPathCreation();
 			clearPathGeometryEdit();
 			path._layerGroup?.closePopup();
@@ -3929,11 +3935,10 @@
 			};
 			map.doubleClickZoom.disable();
 			refreshPathEditHandles();
-			path._pathLines?.forEach((line) => {
-				line.on("dblclick", handlePathLineDoubleClick);
-			});
 			map.on("dblclick", handleMapDoubleClickWhileEditingPath);
-			showFeedbackToast("Knoten ziehen. Doppelklick Linie fuegt Knoten hinzu, Doppelklick Knoten loescht ihn.", "info");
+			if (showToast) {
+				showFeedbackToast("Knoten ziehen. Doppelklick Linie fuegt Knoten hinzu, Doppelklick Knoten loescht ihn.", "info");
+			}
 		}
 
 		function startPathMove(path) {
