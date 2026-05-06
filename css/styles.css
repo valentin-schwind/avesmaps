@@ -949,6 +949,40 @@ body.modal-dialog-open {
 	white-space: nowrap;
 }
 
+.map-context-menu__group {
+	position: relative;
+}
+
+.map-context-menu__group[hidden] {
+	display: none !important;
+}
+
+.map-context-menu__item--submenu::after {
+	content: ">";
+	float: right;
+	margin-left: 18px;
+	color: #806b56;
+}
+
+.map-context-submenu {
+	position: absolute;
+	top: -6px;
+	left: calc(100% + 6px);
+	display: none;
+	min-width: 160px;
+	padding: 6px;
+	border: 1px solid #8d7962;
+	border-radius: 8px;
+	background: rgba(250, 243, 236, 0.98);
+	box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+
+.map-context-menu__group:hover .map-context-submenu,
+.map-context-menu__group:focus-within .map-context-submenu {
+	display: flex;
+	flex-direction: column;
+}
+
 .map-context-menu__item:hover,
 .map-context-menu__item:focus-visible {
 	background: #e8dac7;

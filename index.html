@@ -98,7 +98,12 @@
 	<div id="map-data-status" class="map-data-status" role="status" aria-live="polite" hidden></div>
 	<div id="map-context-menu" class="map-context-menu" hidden>
 		<button type="button" class="map-context-menu__item" data-context-action="share-pin">📍 Stelle markieren und teilen</button>
-		<button type="button" class="map-context-menu__item" data-context-action="create-location" hidden>Neuen Ort anlegen</button>
+		<div class="map-context-menu__group" data-context-action="add-here" hidden>
+			<button type="button" class="map-context-menu__item map-context-menu__item--submenu" data-context-action="add-here">Hier hinzufuegen</button>
+			<div class="map-context-submenu">
+				<button type="button" class="map-context-menu__item" data-context-action="create-location">Neuer Ort</button>
+			</div>
+		</div>
 		<button type="button" class="map-context-menu__item" data-context-action="report-location">📝 Neuen Ort melden</button>
 		<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location">🔎 Nächsten Ort finden</button>
 		<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement">📏 Entfernung messen</button>
@@ -449,6 +454,7 @@
 		const INITIAL_SEARCH_PARAMS = new URLSearchParams(window.location.search);
 		const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
 		const MAP_FEATURE_UPDATE_API_URL = window.AVESMAPS_MAP_FEATURE_UPDATE_ENDPOINT || "api/map-feature-update.php";
+		const EDIT_MODE_PLANNER_STATE_STORAGE_KEY = "avesmaps.edit.plannerState";
 		const LOCATION_REPORT_REQUEST_TIMEOUT_MS = 7000;
 		const MAX_SHARED_WAYPOINTS = 25;
 		const DEFAULT_SHARE_PIN_ZOOM = 4;
@@ -606,7 +612,7 @@
 		}).addTo(map);
 
 		if (IS_EDIT_MODE) {
-			document.querySelector('[data-context-action="create-location"]')?.removeAttribute("hidden");
+			document.querySelector('.map-context-menu__group[data-context-action="add-here"]')?.removeAttribute("hidden");
 		}
 
 		// UI-Interaktionen und Events
@@ -992,6 +998,7 @@
 			const submitButtonElement = document.getElementById("location-edit-submit");
 			if (submitButtonElement) {
 				submitButtonElement.textContent = isPending ? "Speichert..." : "Speichern";
+				submitButtonElement.disabled = isPending;
 			}
 		}
 
@@ -1108,11 +1115,12 @@
 			locationEditMarkerEntry = markerEntry;
 			locationEditLatLng = latlng ? L.latLng(latlng) : markerEntry?.marker.getLatLng() || null;
 			const location = markerEntry?.location || {};
+			const wikiLocationLink = getWikiLocationLink(location.name || markerEntry?.name || "", location.wikiUrl || "");
 			document.getElementById("location-edit-public-id").value = markerEntry?.publicId || "";
 			document.getElementById("location-edit-name").value = location.name || markerEntry?.name || "";
 			document.getElementById("location-edit-type").value = normalizeLocationType(location.locationType || markerEntry?.locationType || "dorf");
 			document.getElementById("location-edit-description").value = location.description || "";
-			document.getElementById("location-edit-wiki-url").value = location.wikiUrl || "";
+			document.getElementById("location-edit-wiki-url").value = location.wikiUrl || wikiLocationLink?.url || "";
 
 			if (locationEditLatLng) {
 				document.getElementById("location-edit-coordinates").textContent = formatLocationReportCoordinates(locationEditLatLng);
@@ -1160,11 +1168,12 @@
 				return;
 			}
 
+			const payload = buildLocationEditPayload(formElement);
 			setLocationEditStatus("Ort wird gespeichert...", "pending");
 			setLocationEditSubmitPending(true);
 
 			try {
-				const result = await submitMapFeatureEdit(buildLocationEditPayload(formElement));
+				const result = await submitMapFeatureEdit(payload);
 				if (locationEditMarkerEntry) {
 					applyFeatureResponseToMarker(locationEditMarkerEntry, result.feature);
 				} else {
@@ -2413,7 +2422,7 @@
 		}
 
 		function applyPlannerStateFromUrl() {
-			const searchParams = new URLSearchParams(window.location.search);
+			const searchParams = getInitialPlannerSearchParams();
 			const waypointNames = readWaypointsFromUrl(searchParams);
 			const sharePinLatLng = readSharePinFromUrl(searchParams);
 			const pathType = searchParams.get("pathType");
@@ -2469,6 +2478,39 @@
 			}
 
 			return waypointNames.length > 0;
+		}
+
+		function getInitialPlannerSearchParams() {
+			const searchParams = new URLSearchParams(window.location.search);
+			if (!IS_EDIT_MODE || hasPlannerStateSearchParams(searchParams)) {
+				return searchParams;
+			}
+
+			try {
+				const storedQueryString = window.localStorage?.getItem(EDIT_MODE_PLANNER_STATE_STORAGE_KEY) || "";
+				if (!storedQueryString) {
+					return searchParams;
+				}
+
+				const storedSearchParams = new URLSearchParams(storedQueryString);
+				storedSearchParams.set("edit", "1");
+				storedSearchParams.set("debugMap", "1");
+				return storedSearchParams;
+			} catch (error) {
+				console.warn("Editmode-Filter konnten nicht wiederhergestellt werden:", error);
+				return searchParams;
+			}
+		}
+
+		function hasPlannerStateSearchParams(searchParams) {
+			const ignoredParams = new Set(["edit", "debugMap"]);
+			for (const paramName of searchParams.keys()) {
+				if (!ignoredParams.has(paramName)) {
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		function buildPlannerSearchParams() {
@@ -2556,6 +2598,13 @@
 			const nextUrl = `${window.location.pathname}${queryString ? `?${queryString}` : ""}${window.location.hash}`;
 
 			window.history.replaceState(window.history.state, "", nextUrl);
+			if (IS_EDIT_MODE) {
+				try {
+					window.localStorage?.setItem(EDIT_MODE_PLANNER_STATE_STORAGE_KEY, queryString);
+				} catch (error) {
+					console.warn("Editmode-Filter konnten nicht gespeichert werden:", error);
+				}
+			}
 		}
 
 		function fallbackCopyTextToClipboard(text) {
