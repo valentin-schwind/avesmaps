@@ -366,9 +366,6 @@ function avesmapsRepairPathSubtypesFromNames(PDO $pdo): array {
         foreach ($rows as $row) {
             $name = (string) ($row['name'] ?? '');
             $subtype = avesmapsInferPathSubtypeFromName($name);
-            if ($subtype === null && avesmapsIsPlainMeerPathName($name)) {
-                $subtype = 'Weg';
-            }
             if ($subtype === null) {
                 $unchanged++;
                 continue;
@@ -626,10 +623,6 @@ function avesmapsClassifyMapFeature(array $feature): array {
     }
 
     if (in_array($geometryType, ['LineString', 'MultiLineString'], true)) {
-        if (avesmapsIsPlainMeerPathName((string) ($properties['name'] ?? ''))) {
-            return ['path', 'Weg'];
-        }
-
         $nameSubtype = avesmapsInferPathSubtypeFromName((string) ($properties['name'] ?? ''));
         if ($nameSubtype !== null) {
             return ['path', $nameSubtype];
@@ -669,16 +662,12 @@ function avesmapsInferPathSubtypeFromName(string $name): ?string {
         'gebirgspfad' => 'Gebirgspass',
         'gebirgspass' => 'Gebirgspass',
         'flussweg' => 'Flussweg',
+        'meer' => 'Seeweg',
         'meerweg' => 'Seeweg',
         'seeweg' => 'Seeweg',
     ];
 
     return $routeSubtypes[$normalizedPrefix] ?? null;
-}
-
-function avesmapsIsPlainMeerPathName(string $name): bool {
-    $prefix = preg_split('/-/', trim($name), 2)[0] ?? '';
-    return avesmapsNormalizeMapSubtype($prefix, '') === 'meer';
 }
 
 function avesmapsNormalizeMapSubtype(mixed $value, string $fallback): string {
