@@ -13,6 +13,11 @@ on:
         required: true
         default: false
         type: boolean
+      upload_tiles:
+        description: "Upload the tile pyramid"
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
   group: avesmaps-strato-deploy
@@ -22,7 +27,7 @@ jobs:
   deploy:
     name: Deploy via SFTP
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     env:
       AVESMAPS_HOST: ${{ secrets.AVESMAPS_HOST }}
@@ -78,7 +83,6 @@ jobs:
             "img"
             "js"
             "map"
-            "tiles"
           )
 
           for item in "${deploy_items[@]}"; do
@@ -87,11 +91,18 @@ jobs:
             fi
           done
 
+          if [[ "${{ inputs.upload_tiles }}" == "true" && -e "tiles" ]]; then
+            cp -a "tiles" "$DEPLOY_DIR/"
+          fi
+
           rm -f "$DEPLOY_DIR/.env"
           rm -f "$DEPLOY_DIR/api/.env"
           rm -f "$DEPLOY_DIR/api/config.local.php"
           rm -f "$DEPLOY_DIR/map/google-sheets-credentials.json"
           rm -f "$DEPLOY_DIR/map/google-sheets-token.json"
+          rm -f "$DEPLOY_DIR/map/Aventurien_routes.svg"
+          rm -f "$DEPLOY_DIR/map/"*.py
+          rm -f "$DEPLOY_DIR/map/requirements-"*.txt
 
           find "$DEPLOY_DIR" -type d -name "__pycache__" -prune -exec rm -rf {} +
           find "$DEPLOY_DIR" -type f \( -name "*.pyc" -o -name "*.pyo" -o -name "Aventurien_routes.backup-*.svg" \) -delete
