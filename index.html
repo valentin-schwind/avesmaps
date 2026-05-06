@@ -3458,11 +3458,14 @@
 		}
 
 		function refreshPathLayerPopup(path) {
-			if (!path._layerGroup) {
+			if (!path?._pathLines?.length) {
 				return;
 			}
 
-			path._layerGroup.bindPopup(createPathPopupMarkup(path));
+			const popupMarkup = createPathPopupMarkup(path);
+			path._pathLines.forEach((line) => {
+				line.bindPopup(popupMarkup);
+			});
 		}
 
 		function createPathLayer(path) {
@@ -3473,6 +3476,7 @@
 				weight: 5,
 				opacity: 1,
 				interactive: IS_EDIT_MODE,
+				bubblingMouseEvents: false,
 				lineCap: "round",
 				lineJoin: "round",
 			});
@@ -3482,6 +3486,7 @@
 				weight: 3,
 				opacity: 1,
 				interactive: IS_EDIT_MODE,
+				bubblingMouseEvents: false,
 				lineCap: "round",
 				lineJoin: "round",
 			});
