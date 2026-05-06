@@ -116,10 +116,22 @@
 	<aside id="review-panel" class="review-panel" aria-labelledby="review-panel-title" hidden>
 		<header class="review-panel__header">
 			<h2 id="review-panel-title">Review</h2>
-			<button id="review-panel-refresh" class="review-panel__icon-button" type="button" title="Neu laden">↻</button>
+			<div class="review-panel__header-actions">
+				<button id="review-panel-refresh" class="review-panel__icon-button" type="button" title="Neu laden">↻</button>
+			</div>
 		</header>
-		<p id="review-panel-status" class="review-panel__status" role="status" aria-live="polite">Ortsmeldungen werden geladen...</p>
-		<div id="review-report-list" class="review-panel__list"></div>
+		<nav class="review-panel__tabs" aria-label="Editorpanel">
+			<button class="review-panel__tab is-active" type="button" data-editor-panel-tab="review">Review</button>
+			<button class="review-panel__tab" type="button" data-editor-panel-tab="changes">Änderungen</button>
+		</nav>
+		<section class="review-panel__section is-active" data-editor-panel-section="review">
+			<p id="review-panel-status" class="review-panel__status" role="status" aria-live="polite">Ortsmeldungen werden geladen...</p>
+			<div id="review-report-list" class="review-panel__list"></div>
+		</section>
+		<section class="review-panel__section" data-editor-panel-section="changes">
+			<p id="change-panel-status" class="review-panel__status" role="status" aria-live="polite">Änderungen werden geladen...</p>
+			<div id="change-log-list" class="review-panel__list"></div>
+		</section>
 	</aside>
 	<button id="review-panel-toggle" class="review-panel-toggle" type="button" hidden>Review</button>
 	<div id="copy-feedback-toast" class="feedback-toast" role="status" aria-live="polite" hidden></div>
@@ -559,6 +571,7 @@
 		const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
 		const MAP_FEATURE_UPDATE_API_URL = window.AVESMAPS_MAP_FEATURE_UPDATE_ENDPOINT || "api/map-feature-update.php";
 		const LOCATION_REPORT_REVIEW_API_URL = window.AVESMAPS_LOCATION_REPORT_REVIEW_ENDPOINT || "api/location-report-review.php";
+		const MAP_AUDIT_LOG_API_URL = window.AVESMAPS_MAP_AUDIT_LOG_ENDPOINT || "api/map-audit-log.php";
 		const EDIT_MODE_PLANNER_STATE_STORAGE_KEY = "avesmaps.edit.plannerState";
 		const EDIT_MODE_REVIEW_PANEL_STORAGE_KEY = "avesmaps.edit.reviewPanelHidden";
 		const LOCATION_REPORT_REQUEST_TIMEOUT_MS = 7000;
@@ -651,6 +664,8 @@
 			sharePinMarker = null,
 			reviewReportMarker = null,
 			reviewReports = [],
+			changeLogEntries = [],
+			activeEditorPanelTab = "review",
 			activeReviewReportId = null,
 			isReviewPanelHidden = false,
 			sharePinCoordinates = null,
@@ -745,6 +760,7 @@
 			document.getElementById("review-panel-toggle")?.removeAttribute("hidden");
 			restoreReviewPanelState();
 			void loadReviewReports();
+			void loadChangeLog();
 		} else {
 			document.getElementById("toggleCrossings")?.setAttribute("disabled", "disabled");
 		}
@@ -759,6 +775,9 @@
 		});
 		$("#review-panel-toggle").on("click", toggleReviewPanel);
 		$("#review-panel-refresh").on("click", () => loadReviewReports());
+		$(".review-panel__tab").on("click", function () {
+			setEditorPanelTab(this.dataset.editorPanelTab || "review");
+		});
 
 		function setLegalDialogOpen(isOpen) {
 			$("#legal-overlay").prop("hidden", !isOpen);
@@ -1622,6 +1641,30 @@
 			statusElement.dataset.state = state;
 		}
 
+		function setChangePanelStatus(message, state = "") {
+			const statusElement = document.getElementById("change-panel-status");
+			if (!statusElement) {
+				return;
+			}
+
+			statusElement.textContent = message || "";
+			statusElement.dataset.state = state;
+		}
+
+		function setEditorPanelTab(tabName) {
+			activeEditorPanelTab = tabName === "changes" ? "changes" : "review";
+			document.querySelectorAll(".review-panel__tab").forEach((tabElement) => {
+				tabElement.classList.toggle("is-active", tabElement.dataset.editorPanelTab === activeEditorPanelTab);
+			});
+			document.querySelectorAll(".review-panel__section").forEach((sectionElement) => {
+				sectionElement.classList.toggle("is-active", sectionElement.dataset.editorPanelSection === activeEditorPanelTab);
+			});
+
+			if (activeEditorPanelTab === "changes") {
+				void loadChangeLog();
+			}
+		}
+
 		function restoreReviewPanelState() {
 			try {
 				isReviewPanelHidden = window.localStorage?.getItem(EDIT_MODE_REVIEW_PANEL_STORAGE_KEY) === "1";
@@ -1671,6 +1714,76 @@
 				console.error("Ortsmeldungen konnten nicht geladen werden:", error);
 				setReviewPanelStatus(error.message || "Ortsmeldungen konnten nicht geladen werden.", "error");
 			}
+		}
+
+		async function loadChangeLog() {
+			if (!IS_EDIT_MODE) {
+				return;
+			}
+
+			setChangePanelStatus("Änderungen werden geladen...", "pending");
+			try {
+				const response = await fetch(MAP_AUDIT_LOG_API_URL, {
+					credentials: "same-origin",
+					headers: { Accept: "application/json" },
+				});
+				const data = await response.json().catch(() => null);
+				if (!response.ok || !data?.ok) {
+					throw new Error(data?.error || `Änderungs-API antwortet mit HTTP ${response.status}.`);
+				}
+
+				changeLogEntries = Array.isArray(data.changes) ? data.changes : [];
+				renderChangeLog();
+			} catch (error) {
+				console.error("Änderungsverlauf konnte nicht geladen werden:", error);
+				setChangePanelStatus(error.message || "Änderungsverlauf konnte nicht geladen werden.", "error");
+			}
+		}
+
+		function formatChangeAction(action) {
+			const labels = {
+				move_point: "Ort verschoben",
+				update_point: "Ort geändert",
+				create_point: "Ort erstellt",
+				create_crossing: "Kreuzung erstellt",
+				create_path: "Weg erstellt",
+				update_path_details: "Weg geändert",
+				update_path_geometry: "Wegverlauf geändert",
+				create_label: "Label erstellt",
+				update_label: "Label geändert",
+				move_label: "Label verschoben",
+				delete_feature: "Objekt gelöscht",
+			};
+
+			return labels[action] || action;
+		}
+
+		function renderChangeLog() {
+			const listElement = document.getElementById("change-log-list");
+			if (!listElement) {
+				return;
+			}
+
+			listElement.innerHTML = "";
+			if (changeLogEntries.length < 1) {
+				setChangePanelStatus("Noch keine Änderungen.", "empty");
+				return;
+			}
+
+			setChangePanelStatus(`${changeLogEntries.length} letzte Änderungen.`, "success");
+			changeLogEntries.forEach((entry) => {
+				const itemElement = document.createElement("article");
+				itemElement.className = "change-log-entry";
+				itemElement.innerHTML = `
+					<span class="change-log-entry__action"></span>
+					<span class="change-log-entry__target"></span>
+					<span class="change-log-entry__meta"></span>
+				`;
+				itemElement.querySelector(".change-log-entry__action").textContent = formatChangeAction(entry.action);
+				itemElement.querySelector(".change-log-entry__target").textContent = entry.name || entry.feature_subtype || entry.public_id || "Unbenannt";
+				itemElement.querySelector(".change-log-entry__meta").textContent = `${entry.username || "unbekannt"} · ${entry.created_at || ""}`;
+				listElement.appendChild(itemElement);
+			});
 		}
 
 		function renderReviewReports() {
@@ -1819,6 +1932,7 @@
 					await loadReviewReports();
 				}
 				updateRevisionFromEditResponse(result);
+				void loadChangeLog();
 				setLocationEditSubmitPending(false);
 				setLocationEditDialogOpen(false, { resetForm: true });
 				showFeedbackToast("Ort gespeichert.", "success");
@@ -1845,6 +1959,7 @@
 				const result = await submitMapFeatureEdit(payload);
 				applyPathFeatureResponse(pathEditFeature, result.feature);
 				updateRevisionFromEditResponse(result);
+				void loadChangeLog();
 				setPathEditSubmitPending(false);
 				setPathEditDialogOpen(false, { resetForm: true });
 				showFeedbackToast("Weg gespeichert.", "success");
@@ -1873,6 +1988,7 @@
 					addCreatedLabelFeature(result.feature);
 				}
 				updateRevisionFromEditResponse(result);
+				void loadChangeLog();
 				setLabelEditDialogOpen(false, { resetForm: true });
 				showFeedbackToast("Label gespeichert.", "success");
 			} catch (error) {
@@ -4007,6 +4123,7 @@
 				});
 				applyLabelFeatureResponse(entry, result.feature);
 				updateRevisionFromEditResponse(result);
+				void loadChangeLog();
 				showFeedbackToast("Labelposition gespeichert.", "success");
 			} catch (error) {
 				console.error("Label konnte nicht verschoben werden:", error);
@@ -4028,6 +4145,7 @@
 				labelData = labelData.filter((label) => label !== labelEditEntry.label);
 				labelMarkers = labelMarkers.filter((entry) => entry !== labelEditEntry);
 				updateRevisionFromEditResponse(result);
+				void loadChangeLog();
 				setLabelEditDialogOpen(false, { resetForm: true });
 				showFeedbackToast("Label geloescht.", "success");
 			} catch (error) {

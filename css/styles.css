@@ -1089,6 +1089,11 @@ body.modal-dialog-open {
 	border-bottom: 1px solid rgba(96, 72, 48, 0.16);
 }
 
+.review-panel__header-actions {
+	display: flex;
+	gap: 6px;
+}
+
 .review-panel__header h2 {
 	margin: 0;
 	color: #3f3428;
@@ -1129,6 +1134,39 @@ body.modal-dialog-open {
 	padding: 10px 14px;
 	color: #5a4a3b;
 	font-size: 13px;
+}
+
+.review-panel__tabs {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	border-bottom: 1px solid rgba(96, 72, 48, 0.16);
+}
+
+.review-panel__tab {
+	border: 0;
+	background: transparent;
+	color: #5a4a3b;
+	cursor: pointer;
+	font: inherit;
+	padding: 9px 10px;
+}
+
+.review-panel__tab.is-active {
+	background: #f1e4d7;
+	color: #3f3428;
+	font-weight: 700;
+}
+
+.review-panel__section {
+	display: none;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.review-panel__section.is-active {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
 }
 
 .review-panel__status[data-state="error"] {
@@ -1220,6 +1258,30 @@ body.modal-dialog-open {
 
 .review-report__meta,
 .review-report__source {
+	color: #6d5b49;
+	font-size: 12px;
+}
+
+.change-log-entry {
+	display: grid;
+	gap: 4px;
+	box-sizing: border-box;
+	min-width: 0;
+	border: 1px solid rgba(96, 72, 48, 0.16);
+	border-radius: 8px;
+	background: #fffaf4;
+	color: #3f3428;
+	padding: 10px;
+}
+
+.change-log-entry__action {
+	font-weight: 700;
+}
+
+.change-log-entry__target,
+.change-log-entry__meta {
+	min-width: 0;
+	overflow-wrap: anywhere;
 	color: #6d5b49;
 	font-size: 12px;
 }
