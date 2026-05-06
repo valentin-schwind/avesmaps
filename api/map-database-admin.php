@@ -134,12 +134,17 @@ function avesmapsBuildMapDatabaseStatus(PDO $pdo): array {
 }
 
 function avesmapsTableExists(PDO $pdo, string $tableName): bool {
-    $statement = $pdo->prepare('SHOW TABLES LIKE :table_name');
+    $statement = $pdo->prepare(
+        'SELECT COUNT(*) AS table_count
+        FROM information_schema.tables
+        WHERE table_schema = DATABASE()
+            AND table_name = :table_name'
+    );
     $statement->execute([
         'table_name' => $tableName,
     ]);
 
-    return $statement->fetchColumn() !== false;
+    return (int) $statement->fetchColumn() > 0;
 }
 
 function avesmapsFetchMapFeatureCounts(PDO $pdo): array {
