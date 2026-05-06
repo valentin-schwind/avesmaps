@@ -1462,6 +1462,24 @@ body.modal-dialog-open {
 	background: #8a6644;
 }
 
+.path-edit-handle-marker {
+	background: transparent;
+	border: none;
+}
+
+.path-edit-handle-marker__dot {
+	display: block;
+	box-sizing: border-box;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: #ffffff;
+	border: 3px solid #1452f7;
+	box-shadow:
+		0 0 0 1px rgba(20, 82, 247, 0.35),
+		0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
 .measurement-value-marker {
 	position: relative;
 	width: 0 !important;

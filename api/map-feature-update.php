@@ -39,6 +39,8 @@ try {
         'create_point' => avesmapsCreatePointFeature($pdo, $payload, $user),
         'create_crossing' => avesmapsCreateCrossingFeature($pdo, $payload, $user),
         'create_path' => avesmapsCreatePathFeature($pdo, $payload, $user),
+        'update_path_details' => avesmapsUpdatePathFeatureDetails($pdo, $payload, $user),
+        'update_path_geometry' => avesmapsUpdatePathFeatureGeometry($pdo, $payload, $user),
         'delete_feature' => avesmapsDeleteMapFeature($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Edit-Aktion ist unbekannt.'),
     };
@@ -82,6 +84,15 @@ function avesmapsReadLocationName(mixed $value): string {
     $name = avesmapsNormalizeSingleLine((string) $value, 160);
     if ($name === '') {
         throw new InvalidArgumentException('Der Ortsname fehlt.');
+    }
+
+    return $name;
+}
+
+function avesmapsReadFeatureName(mixed $value, string $fieldLabel): string {
+    $name = avesmapsNormalizeSingleLine((string) $value, 160);
+    if ($name === '') {
+        throw new InvalidArgumentException("{$fieldLabel} fehlt.");
     }
 
     return $name;
@@ -142,8 +153,22 @@ function avesmapsFetchEditableFeature(PDO $pdo, string $publicId): array {
         throw new InvalidArgumentException('Das Kartenobjekt wurde nicht gefunden.');
     }
 
+    return $feature;
+}
+
+function avesmapsFetchEditablePointFeature(PDO $pdo, string $publicId): array {
+    $feature = avesmapsFetchEditableFeature($pdo, $publicId);
     if ((string) $feature['geometry_type'] !== 'Point') {
-        throw new InvalidArgumentException('Aktuell koennen nur Orte bearbeitet werden.');
+        throw new InvalidArgumentException('Aktuell kann diese Aktion nur Punkte bearbeiten.');
+    }
+
+    return $feature;
+}
+
+function avesmapsFetchEditableLineStringFeature(PDO $pdo, string $publicId): array {
+    $feature = avesmapsFetchEditableFeature($pdo, $publicId);
+    if ((string) $feature['geometry_type'] !== 'LineString') {
+        throw new InvalidArgumentException('Diese Aktion kann nur Wege bearbeiten.');
     }
 
     return $feature;
@@ -156,7 +181,7 @@ function avesmapsMovePointFeature(PDO $pdo, array $payload, array $user): array 
 
     $pdo->beginTransaction();
     try {
-        $feature = avesmapsFetchEditableFeature($pdo, $publicId);
+        $feature = avesmapsFetchEditablePointFeature($pdo, $publicId);
         $geometry = [
             'type' => 'Point',
             'coordinates' => [$lng, $lat],
@@ -207,7 +232,7 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
 
     $pdo->beginTransaction();
     try {
-        $feature = avesmapsFetchEditableFeature($pdo, $publicId);
+        $feature = avesmapsFetchEditablePointFeature($pdo, $publicId);
         $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
         $properties['name'] = $name;
         $properties['feature_type'] = 'location';
@@ -405,26 +430,18 @@ function avesmapsCreateCrossingFeature(PDO $pdo, array $payload, array $user): a
 
 function avesmapsCreatePathFeature(PDO $pdo, array $payload, array $user): array {
     $subtype = avesmapsReadPathSubtype($payload['feature_subtype'] ?? 'Weg');
-    $startLat = avesmapsParseMapCoordinate($payload['start_lat'] ?? null, 'start_lat');
-    $startLng = avesmapsParseMapCoordinate($payload['start_lng'] ?? null, 'start_lng');
-    $endLat = avesmapsParseMapCoordinate($payload['end_lat'] ?? null, 'end_lat');
-    $endLng = avesmapsParseMapCoordinate($payload['end_lng'] ?? null, 'end_lng');
-
-    if (abs($startLat - $endLat) < 0.0001 && abs($startLng - $endLng) < 0.0001) {
-        throw new InvalidArgumentException('Start und Ziel des Weges duerfen nicht identisch sein.');
-    }
+    $name = avesmapsReadFeatureName($payload['name'] ?? $subtype, 'Der Wegname');
+    $coordinates = avesmapsReadLineStringCoordinates($payload['coordinates'] ?? null);
+    $bounds = avesmapsCalculateLineStringBounds($coordinates);
 
     $publicId = avesmapsUuidV4();
-    $name = $subtype;
     $geometry = [
         'type' => 'LineString',
-        'coordinates' => [
-            [$startLng, $startLat],
-            [$endLng, $endLat],
-        ],
+        'coordinates' => $coordinates,
     ];
     $properties = [
         'name' => $name,
+        'display_name' => $name,
         'feature_type' => 'path',
         'feature_subtype' => $subtype,
     ];
@@ -452,10 +469,10 @@ function avesmapsCreatePathFeature(PDO $pdo, array $payload, array $user): array
             'geometry_type' => 'LineString',
             'geometry_json' => avesmapsEncodeJson($geometry),
             'properties_json' => avesmapsEncodeJson($properties),
-            'min_x' => min($startLng, $endLng),
-            'min_y' => min($startLat, $endLat),
-            'max_x' => max($startLng, $endLng),
-            'max_y' => max($startLat, $endLat),
+            'min_x' => $bounds['min_x'],
+            'min_y' => $bounds['min_y'],
+            'max_x' => $bounds['max_x'],
+            'max_y' => $bounds['max_y'],
             'sort_order' => $sortOrder,
             'revision' => $revision,
             'created_by' => (int) $user['id'],
@@ -468,6 +485,109 @@ function avesmapsCreatePathFeature(PDO $pdo, array $payload, array $user): array
             'feature_subtype' => $subtype,
             'geometry_json' => $geometry,
             'properties_json' => $properties,
+            'revision' => $revision,
+        ]));
+        $pdo->commit();
+
+        return avesmapsBuildLineStringFeatureResponse($publicId, $name, $subtype, $geometry, $properties, $revision);
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
+function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user): array {
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $name = avesmapsReadFeatureName($payload['name'] ?? '', 'Der Wegname');
+    $subtype = avesmapsReadPathSubtype($payload['feature_subtype'] ?? 'Weg');
+
+    $pdo->beginTransaction();
+    try {
+        $feature = avesmapsFetchEditableLineStringFeature($pdo, $publicId);
+        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
+        $properties['name'] = $name;
+        $properties['display_name'] = $name;
+        $properties['feature_type'] = 'path';
+        $properties['feature_subtype'] = $subtype;
+        $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
+        $revision = avesmapsNextMapRevision($pdo);
+
+        $statement = $pdo->prepare(
+            'UPDATE map_features
+            SET name = :name,
+                feature_type = :feature_type,
+                feature_subtype = :feature_subtype,
+                properties_json = :properties_json,
+                revision = :revision,
+                updated_by = :updated_by
+            WHERE id = :id'
+        );
+        $statement->execute([
+            'id' => (int) $feature['id'],
+            'name' => $name,
+            'feature_type' => 'path',
+            'feature_subtype' => $subtype,
+            'properties_json' => avesmapsEncodeJson($properties),
+            'revision' => $revision,
+            'updated_by' => (int) $user['id'],
+        ]);
+
+        avesmapsWriteMapAuditLog($pdo, (int) $feature['id'], 'update_path_details', (int) $user['id'], avesmapsEncodeAuditJson($feature), avesmapsEncodeAuditJson([
+            'public_id' => $publicId,
+            'name' => $name,
+            'feature_subtype' => $subtype,
+            'properties_json' => $properties,
+            'revision' => $revision,
+        ]));
+        $pdo->commit();
+
+        return avesmapsBuildLineStringFeatureResponse($publicId, $name, $subtype, $geometry, $properties, $revision);
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
+function avesmapsUpdatePathFeatureGeometry(PDO $pdo, array $payload, array $user): array {
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $coordinates = avesmapsReadLineStringCoordinates($payload['coordinates'] ?? null);
+    $bounds = avesmapsCalculateLineStringBounds($coordinates);
+
+    $pdo->beginTransaction();
+    try {
+        $feature = avesmapsFetchEditableLineStringFeature($pdo, $publicId);
+        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
+        $name = avesmapsNormalizeSingleLine((string) ($feature['name'] ?? $properties['name'] ?? 'Weg'), 160) ?: 'Weg';
+        $subtype = avesmapsReadPathSubtype($feature['feature_subtype'] ?? $properties['feature_subtype'] ?? 'Weg');
+        $geometry = [
+            'type' => 'LineString',
+            'coordinates' => $coordinates,
+        ];
+        $revision = avesmapsNextMapRevision($pdo);
+
+        $statement = $pdo->prepare(
+            'UPDATE map_features
+            SET geometry_json = :geometry_json,
+                min_x = :min_x,
+                min_y = :min_y,
+                max_x = :max_x,
+                max_y = :max_y,
+                revision = :revision,
+                updated_by = :updated_by
+            WHERE id = :id'
+        );
+        $statement->execute([
+            'id' => (int) $feature['id'],
+            'geometry_json' => avesmapsEncodeJson($geometry),
+            'min_x' => $bounds['min_x'],
+            'min_y' => $bounds['min_y'],
+            'max_x' => $bounds['max_x'],
+            'max_y' => $bounds['max_y'],
+            'revision' => $revision,
+            'updated_by' => (int) $user['id'],
+        ]);
+
+        avesmapsWriteMapAuditLog($pdo, (int) $feature['id'], 'update_path_geometry', (int) $user['id'], avesmapsEncodeAuditJson($feature), avesmapsEncodeAuditJson([
+            'public_id' => $publicId,
+            'geometry_json' => $geometry,
             'revision' => $revision,
         ]));
         $pdo->commit();
@@ -522,6 +642,43 @@ function avesmapsReadPointCoordinatesFromGeometry(array $geometry): array {
     }
 
     return [(float) $coordinates[0], (float) $coordinates[1]];
+}
+
+function avesmapsReadLineStringCoordinates(mixed $value): array {
+    if (!is_array($value) || count($value) < 2) {
+        throw new InvalidArgumentException('Ein Weg braucht mindestens Start- und Endpunkt.');
+    }
+
+    $coordinates = [];
+    foreach ($value as $index => $coordinatePair) {
+        if (!is_array($coordinatePair) || count($coordinatePair) < 2) {
+            throw new InvalidArgumentException('Die Wegkoordinaten sind ungueltig.');
+        }
+
+        $lat = avesmapsParseMapCoordinate($coordinatePair[0] ?? null, "coordinates[{$index}][0]");
+        $lng = avesmapsParseMapCoordinate($coordinatePair[1] ?? null, "coordinates[{$index}][1]");
+        $coordinates[] = [$lng, $lat];
+    }
+
+    $firstCoordinate = $coordinates[0];
+    $lastCoordinate = $coordinates[count($coordinates) - 1];
+    if (abs($firstCoordinate[0] - $lastCoordinate[0]) < 0.0001 && abs($firstCoordinate[1] - $lastCoordinate[1]) < 0.0001) {
+        throw new InvalidArgumentException('Start und Ziel des Weges duerfen nicht identisch sein.');
+    }
+
+    return $coordinates;
+}
+
+function avesmapsCalculateLineStringBounds(array $coordinates): array {
+    $xValues = array_map(static fn(array $coordinate): float => (float) $coordinate[0], $coordinates);
+    $yValues = array_map(static fn(array $coordinate): float => (float) $coordinate[1], $coordinates);
+
+    return [
+        'min_x' => min($xValues),
+        'min_y' => min($yValues),
+        'max_x' => max($xValues),
+        'max_y' => max($yValues),
+    ];
 }
 
 function avesmapsNextMapSortOrder(PDO $pdo): int {
