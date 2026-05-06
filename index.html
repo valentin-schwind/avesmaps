@@ -1180,6 +1180,7 @@
 					addCreatedLocationMarker(result.feature);
 				}
 				updateRevisionFromEditResponse(result);
+				setLocationEditSubmitPending(false);
 				setLocationEditDialogOpen(false, { resetForm: true });
 				showFeedbackToast("Ort gespeichert.", "success");
 			} catch (error) {
