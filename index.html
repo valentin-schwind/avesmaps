@@ -396,6 +396,8 @@
 		const MAP_CONTEXT_MENU_OFFSET_Y = 14;
 		const DEFAULT_LOCATION_REPORT_ENDPOINT_URL = "http://54143555.swh.strato-hosting.eu/avesmaps/api/report-location.php";
 		const LOCATION_REPORT_FORM_ENDPOINT_URL = window.AVESMAPS_LOCATION_REPORT_ENDPOINT || DEFAULT_LOCATION_REPORT_ENDPOINT_URL;
+		const MAP_FEATURES_FILE_URL = "map/Aventurien_routes.geojson";
+		const MAP_FEATURES_API_URL = window.AVESMAPS_MAP_FEATURES_ENDPOINT || (window.location.hostname === "54143555.swh.strato-hosting.eu" ? "api/map-features.php" : "");
 		const LOCATION_REPORT_REQUEST_TIMEOUT_MS = 7000;
 		const MAX_SHARED_WAYPOINTS = 25;
 		const DEFAULT_SHARE_PIN_ZOOM = 4;
@@ -2624,8 +2626,49 @@
 				});
 		}
 
-		// Laden und Verarbeiten der GeoJSON-Daten (mit Skript konvertiert aus der SVG)
-		const routeDataRequest = $.getJSON("map/Aventurien_routes.geojson").then((data) => data);
+		function loadRouteDataFromApi() {
+			if (!MAP_FEATURES_API_URL) {
+				return Promise.reject(new Error("Keine Map-Features-API fuer diese Umgebung konfiguriert."));
+			}
+
+			return fetch(MAP_FEATURES_API_URL, {
+				headers: {
+					Accept: "application/json",
+				},
+			})
+				.then((response) => {
+					if (!response.ok) {
+						throw new Error(`Map-Features-API antwortet mit HTTP ${response.status}.`);
+					}
+
+					return response.json();
+				})
+				.then((data) => {
+					if (!data || data.type !== "FeatureCollection" || !Array.isArray(data.features)) {
+						throw new Error("Map-Features-API liefert kein gueltiges GeoJSON.");
+					}
+
+					console.info(`SQL-Vektorkarte geladen: ${data.features.length} Features, Revision ${data.revision ?? "unbekannt"}.`);
+					return data;
+				});
+		}
+
+		function loadRouteDataFromFile() {
+			return $.getJSON(MAP_FEATURES_FILE_URL).then((data) => data);
+		}
+
+		function loadRouteData() {
+			return loadRouteDataFromApi().catch((error) => {
+				if (MAP_FEATURES_API_URL) {
+					console.warn("SQL-Vektorkarte konnte nicht geladen werden, nutze GeoJSON-Datei:", error);
+				}
+
+				return loadRouteDataFromFile();
+			});
+		}
+
+		// Laden und Verarbeiten der GeoJSON-Daten. Auf STRATO kommt die Vektorkarte aus SQL, sonst aus der Datei.
+		const routeDataRequest = loadRouteData();
 
 		$.when(routeDataRequest, loadWikiLocationLinks())
 			.done((data) => {
