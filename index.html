@@ -3944,6 +3944,7 @@
 				});
 				applyLabelFeatureResponse(entry, result.feature);
 				updateRevisionFromEditResponse(result);
+				showFeedbackToast("Labelposition gespeichert.", "success");
 			} catch (error) {
 				console.error("Label konnte nicht verschoben werden:", error);
 				showFeedbackToast(error.message || "Label konnte nicht verschoben werden.", "warning");
