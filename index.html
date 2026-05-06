@@ -225,6 +225,10 @@
 					<span>Wegname *</span>
 					<input id="path-edit-name" name="name" type="text" maxlength="160" required />
 				</label>
+				<label class="location-report-form__field location-report-form__field--checkbox">
+					<input id="path-edit-autoname" name="autoname" type="checkbox" checked />
+					<span>Auto-Name</span>
+				</label>
 				<label class="location-report-form__field">
 					<span>Wegtyp *</span>
 					<select id="path-edit-type" name="feature_subtype" required>
@@ -710,6 +714,8 @@
 		$("#location-report-form").on("submit", handleLocationReportFormSubmit);
 		$("#location-edit-form").on("submit", handleLocationEditFormSubmit);
 		$("#path-edit-form").on("submit", handlePathEditFormSubmit);
+		$("#path-edit-autoname").on("change", syncPathAutoNameControls);
+		$("#path-edit-type").on("change", () => syncPathAutoNameControls({ forceName: true }));
 		$("#path-edit-close, #path-edit-cancel").on("click", () => setPathEditDialogOpen(false, { resetForm: true }));
 		$("#path-edit-overlay").on("click", function (event) {
 			if (event.target === this) {
@@ -1169,6 +1175,7 @@
 
 			formElement.reset();
 			pathEditFeature = null;
+			syncPathAutoNameControls();
 			setPathEditStatus();
 		}
 
@@ -1306,10 +1313,13 @@
 				return;
 			}
 
+			const pathSubtype = normalizePathName(path.properties?.name || path.properties?.feature_subtype || "Weg");
 			pathEditFeature = path;
 			document.getElementById("path-edit-public-id").value = path.properties.public_id || path.id || "";
 			document.getElementById("path-edit-name").value = getPathDisplayName(path);
-			document.getElementById("path-edit-type").value = normalizePathName(path.properties?.name || path.properties?.feature_subtype || "Weg");
+			document.getElementById("path-edit-type").value = pathSubtype;
+			document.getElementById("path-edit-autoname").checked = true;
+			syncPathAutoNameControls();
 		}
 
 		function openPathEditDialog(path) {
@@ -1321,12 +1331,37 @@
 		function buildPathEditPayload(formElement) {
 			const formData = new FormData(formElement);
 			const featureSubtype = String(formData.get("feature_subtype") || "").trim();
+			const isAutoNameEnabled = formData.get("autoname") === "on";
+			const submittedName = isAutoNameEnabled
+				? String(formData.get("name") || "").trim()
+				: ensureUniquePathDisplayName(formData.get("name"), featureSubtype, { excludePath: pathEditFeature });
 			return {
 				action: "update_path_details",
 				public_id: String(formData.get("public_id") || "").trim(),
-				name: ensureUniquePathDisplayName(formData.get("name"), featureSubtype, { excludePath: pathEditFeature }),
+				name: submittedName || getNextPathDisplayName(featureSubtype, { excludePath: pathEditFeature }),
 				feature_subtype: featureSubtype,
 			};
+		}
+
+		function syncPathAutoNameControls({ forceName = false } = {}) {
+			const nameInputElement = document.getElementById("path-edit-name");
+			const typeSelectElement = document.getElementById("path-edit-type");
+			const autoNameElement = document.getElementById("path-edit-autoname");
+			if (!nameInputElement || !typeSelectElement || !autoNameElement) {
+				return;
+			}
+
+			const isAutoNameEnabled = autoNameElement.checked;
+			nameInputElement.readOnly = isAutoNameEnabled;
+			if (!isAutoNameEnabled) {
+				return;
+			}
+
+			const selectedSubtype = normalizePathSubtype(typeSelectElement.value);
+			const shouldRefreshName = forceName || !nameInputElement.value.trim();
+			if (shouldRefreshName) {
+				nameInputElement.value = getNextPathDisplayName(selectedSubtype, { excludePath: pathEditFeature });
+			}
 		}
 
 		function buildLocationEditPayload(formElement) {

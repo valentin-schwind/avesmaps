@@ -627,6 +627,16 @@ body.modal-dialog-open {
 	padding: 9px 10px;
 }
 
+.location-report-form__field--checkbox {
+	align-items: center;
+	flex-direction: row;
+	gap: 8px;
+}
+
+.location-report-form__field--checkbox input {
+	width: auto;
+}
+
 .location-report-form__field textarea {
 	min-height: 96px;
 	resize: vertical;
@@ -645,6 +655,12 @@ body.modal-dialog-open {
 .location-report-form__field textarea:disabled {
 	background: #f3ede7;
 	cursor: wait;
+}
+
+.location-report-form__field input[readonly] {
+	background: #f8f2ec;
+	color: #5a4a3b;
+	cursor: default;
 }
 
 .location-report-form__honeypot {
