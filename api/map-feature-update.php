@@ -108,6 +108,10 @@ function avesmapsReadLocationDescription(mixed $value): string {
     return avesmapsNormalizeMultiline((string) $value, 1200);
 }
 
+function avesmapsReadOptionalWikiUrl(mixed $value): string {
+    return avesmapsNormalizeOptionalUrl((string) $value, 500, 'Der Wiki-Aventurica-Link');
+}
+
 function avesmapsFetchEditableFeature(PDO $pdo, string $publicId): array {
     $statement = $pdo->prepare(
         'SELECT id, public_id, feature_type, feature_subtype, name, geometry_type, geometry_json, properties_json, style_json, revision
@@ -187,6 +191,7 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
     $name = avesmapsReadLocationName($payload['name'] ?? '');
     $subtype = avesmapsReadLocationSubtype($payload['feature_subtype'] ?? $payload['location_type'] ?? 'dorf');
     $description = avesmapsReadLocationDescription($payload['description'] ?? '');
+    $wikiUrl = avesmapsReadOptionalWikiUrl($payload['wiki_url'] ?? '');
 
     $pdo->beginTransaction();
     try {
@@ -201,6 +206,11 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
             unset($properties['description']);
         } else {
             $properties['description'] = $description;
+        }
+        if ($wikiUrl === '') {
+            unset($properties['wiki_url']);
+        } else {
+            $properties['wiki_url'] = $wikiUrl;
         }
 
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
@@ -246,6 +256,7 @@ function avesmapsCreatePointFeature(PDO $pdo, array $payload, array $user): arra
     $name = avesmapsReadLocationName($payload['name'] ?? '');
     $subtype = avesmapsReadLocationSubtype($payload['feature_subtype'] ?? $payload['location_type'] ?? 'dorf');
     $description = avesmapsReadLocationDescription($payload['description'] ?? '');
+    $wikiUrl = avesmapsReadOptionalWikiUrl($payload['wiki_url'] ?? '');
     $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
     $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
     $publicId = avesmapsUuidV4();
@@ -262,6 +273,9 @@ function avesmapsCreatePointFeature(PDO $pdo, array $payload, array $user): arra
     ];
     if ($description !== '') {
         $properties['description'] = $description;
+    }
+    if ($wikiUrl !== '') {
+        $properties['wiki_url'] = $wikiUrl;
     }
 
     $pdo->beginTransaction();
@@ -406,6 +420,7 @@ function avesmapsBuildPointFeatureResponse(string $publicId, string $name, strin
         'location_type' => $subtype,
         'location_type_label' => avesmapsLocationSubtypeLabel($subtype),
         'description' => (string) ($properties['description'] ?? ''),
+        'wiki_url' => (string) ($properties['wiki_url'] ?? ''),
         'lat' => $lat,
         'lng' => $lng,
         'revision' => $revision,

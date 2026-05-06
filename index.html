@@ -159,6 +159,52 @@
 			</form>
 		</div>
 	</div>
+	<div id="location-edit-overlay" hidden>
+		<div id="location-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="location-edit-title" tabindex="-1">
+			<div class="location-report-dialog__header">
+				<h2 id="location-edit-title">Ort bearbeiten</h2>
+				<button id="location-edit-close" class="location-report-dialog__close" type="button" aria-label="Ortsbearbeitung schliessen">x</button>
+			</div>
+			<form id="location-edit-form" class="location-report-form" novalidate>
+				<input id="location-edit-public-id" name="public_id" type="hidden" />
+				<input id="location-edit-lat" name="lat" type="hidden" />
+				<input id="location-edit-lng" name="lng" type="hidden" />
+				<div class="location-report-form__meta">
+					<div class="location-report-form__meta-item">
+						<span class="location-report-form__meta-label">Position</span>
+						<span id="location-edit-coordinates" class="location-report-form__meta-value">-</span>
+					</div>
+				</div>
+				<label class="location-report-form__field">
+					<span>Ortsname *</span>
+					<input id="location-edit-name" name="name" type="text" maxlength="160" required />
+				</label>
+				<label class="location-report-form__field">
+					<span>Ortsgroesse *</span>
+					<select id="location-edit-type" name="feature_subtype" required>
+						<option value="dorf">Dorf</option>
+						<option value="kleinstadt">Kleine Stadt</option>
+						<option value="stadt">Stadt</option>
+						<option value="grossstadt">Grosse Stadt</option>
+						<option value="metropole">Metropole</option>
+					</select>
+				</label>
+				<label class="location-report-form__field">
+					<span>Beschreibung</span>
+					<textarea id="location-edit-description" name="description" rows="4" maxlength="1200"></textarea>
+				</label>
+				<label class="location-report-form__field">
+					<span>Wiki-Aventurica-Link</span>
+					<input id="location-edit-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
+				</label>
+				<p id="location-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+				<div class="location-report-form__actions">
+					<button id="location-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+					<button id="location-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
+				</div>
+			</form>
+		</div>
+	</div>
 	<div id="search" class="ui-widget">
 		<section class="project-summary" aria-labelledby="project-summary-title">
 			<h1 id="project-summary-title">Avesmaps</h1>
@@ -500,6 +546,9 @@
 			isAwaitingDistanceMeasurementEnd = false,
 			locationReportLatLng = null,
 			isLocationReportSubmissionPending = false,
+			locationEditLatLng = null,
+			locationEditMarkerEntry = null,
+			isLocationEditSubmissionPending = false,
 			activeLocationEdit = null,
 			mapDataSourceStatus = null;
 
@@ -589,12 +638,19 @@
 			}
 		});
 		$("#location-report-close, #location-report-cancel").on("click", () => setLocationReportDialogOpen(false, { resetForm: true }));
+		$("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));
 		$("#location-report-overlay").on("click", function (event) {
 			if (event.target === this) {
 				setLocationReportDialogOpen(false, { resetForm: true });
 			}
 		});
+		$("#location-edit-overlay").on("click", function (event) {
+			if (event.target === this) {
+				setLocationEditDialogOpen(false, { resetForm: true });
+			}
+		});
 		$("#location-report-form").on("submit", handleLocationReportFormSubmit);
+		$("#location-edit-form").on("submit", handleLocationEditFormSubmit);
 		$(document).on("keydown", (event) => {
 			if (event.key === "Escape" && isLocationReportDialogOpen()) {
 				setLocationReportDialogOpen(false, { resetForm: true });
@@ -692,7 +748,7 @@
 			}
 
 			return Boolean(targetElement.closest(
-				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #location-report-overlay"
+				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #location-report-overlay, #location-edit-overlay"
 			));
 		}
 
@@ -752,12 +808,24 @@
 			return document.getElementById("location-report-dialog");
 		}
 
+		function getLocationEditDialogElement() {
+			return document.getElementById("location-edit-dialog");
+		}
+
 		function getLocationReportFormElement() {
 			return document.getElementById("location-report-form");
 		}
 
 		function getLocationReportStatusElement() {
 			return document.getElementById("location-report-status");
+		}
+
+		function getLocationEditFormElement() {
+			return document.getElementById("location-edit-form");
+		}
+
+		function getLocationEditStatusElement() {
+			return document.getElementById("location-edit-status");
 		}
 
 		function getLocationReportServiceNoteElement() {
@@ -768,12 +836,16 @@
 			return !$("#location-report-overlay").prop("hidden");
 		}
 
+		function isLocationEditDialogOpen() {
+			return !$("#location-edit-overlay").prop("hidden");
+		}
+
 		function isLocationReportServiceConfigured() {
 			return Boolean(String(LOCATION_REPORT_FORM_ENDPOINT_URL || "").trim());
 		}
 
 		function syncModalDialogBodyState() {
-			const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden");
+			const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden");
 			$("body").toggleClass("modal-dialog-open", hasOpenModal);
 		}
 
@@ -867,6 +939,20 @@
 			}
 		}
 
+		function setLocationEditStatus(message = "", type = "") {
+			const statusElement = getLocationEditStatusElement();
+			if (!statusElement) {
+				return;
+			}
+
+			statusElement.textContent = message;
+			if (type) {
+				statusElement.dataset.status = type;
+			} else {
+				delete statusElement.dataset.status;
+			}
+		}
+
 		function setLocationReportSubmitPending(isPending) {
 			isLocationReportSubmissionPending = isPending;
 
@@ -886,6 +972,29 @@
 			}
 		}
 
+		function setLocationEditSubmitPending(isPending) {
+			isLocationEditSubmissionPending = isPending;
+
+			const formElement = getLocationEditFormElement();
+			if (!formElement) {
+				return;
+			}
+
+			Array.from(formElement.elements).forEach((fieldElement) => {
+				if (fieldElement instanceof HTMLElement) {
+					fieldElement.disabled = isPending;
+				}
+			});
+			const closeButtonElement = document.getElementById("location-edit-close");
+			if (closeButtonElement) {
+				closeButtonElement.disabled = isPending;
+			}
+			const submitButtonElement = document.getElementById("location-edit-submit");
+			if (submitButtonElement) {
+				submitButtonElement.textContent = isPending ? "Speichert..." : "Speichern";
+			}
+		}
+
 		function resetLocationReportForm() {
 			const formElement = getLocationReportFormElement();
 			if (!formElement) {
@@ -900,6 +1009,18 @@
 			document.getElementById("location-report-page-url").value = "";
 			document.getElementById("location-report-client-version").value = "";
 			setLocationReportStatus();
+		}
+
+		function resetLocationEditForm() {
+			const formElement = getLocationEditFormElement();
+			if (!formElement) {
+				return;
+			}
+
+			formElement.reset();
+			locationEditLatLng = null;
+			locationEditMarkerEntry = null;
+			setLocationEditStatus();
 		}
 
 		function updateLocationReportDialogAvailability() {
@@ -952,11 +1073,112 @@
 			}
 		}
 
+		function setLocationEditDialogOpen(isOpen, { resetForm = false } = {}) {
+			if (!isOpen && isLocationEditSubmissionPending) {
+				return;
+			}
+
+			$("#location-edit-overlay").prop("hidden", !isOpen);
+			syncModalDialogBodyState();
+
+			if (isOpen) {
+				getLocationEditDialogElement()?.focus();
+				document.getElementById("location-edit-name")?.focus();
+				return;
+			}
+
+			if (resetForm) {
+				resetLocationEditForm();
+			}
+		}
+
 		function openLocationReportDialog(latlng) {
 			resetLocationReportForm();
 			updateLocationReportDialogAvailability();
 			populateLocationReportForm(latlng);
 			setLocationReportDialogOpen(true);
+		}
+
+		function populateLocationEditForm({ markerEntry = null, latlng = null } = {}) {
+			const formElement = getLocationEditFormElement();
+			if (!formElement) {
+				return;
+			}
+
+			locationEditMarkerEntry = markerEntry;
+			locationEditLatLng = latlng ? L.latLng(latlng) : markerEntry?.marker.getLatLng() || null;
+			const location = markerEntry?.location || {};
+			document.getElementById("location-edit-public-id").value = markerEntry?.publicId || "";
+			document.getElementById("location-edit-name").value = location.name || markerEntry?.name || "";
+			document.getElementById("location-edit-type").value = normalizeLocationType(location.locationType || markerEntry?.locationType || "dorf");
+			document.getElementById("location-edit-description").value = location.description || "";
+			document.getElementById("location-edit-wiki-url").value = location.wikiUrl || "";
+
+			if (locationEditLatLng) {
+				document.getElementById("location-edit-coordinates").textContent = formatLocationReportCoordinates(locationEditLatLng);
+				document.getElementById("location-edit-lat").value = locationEditLatLng.lat.toFixed(3);
+				document.getElementById("location-edit-lng").value = locationEditLatLng.lng.toFixed(3);
+			} else {
+				document.getElementById("location-edit-coordinates").textContent = "-";
+				document.getElementById("location-edit-lat").value = "";
+				document.getElementById("location-edit-lng").value = "";
+			}
+		}
+
+		function openLocationEditDialog(options = {}) {
+			resetLocationEditForm();
+			populateLocationEditForm(options);
+			setLocationEditDialogOpen(true);
+		}
+
+		function buildLocationEditPayload(formElement) {
+			const formData = new FormData(formElement);
+			const publicId = String(formData.get("public_id") || "").trim();
+			const action = publicId ? "update_point" : "create_point";
+			const payload = {
+				action,
+				public_id: publicId,
+				name: String(formData.get("name") || "").trim(),
+				feature_subtype: String(formData.get("feature_subtype") || "").trim(),
+				description: String(formData.get("description") || "").trim(),
+				wiki_url: String(formData.get("wiki_url") || "").trim(),
+			};
+
+			if (action === "create_point") {
+				payload.lat = Number.parseFloat(String(formData.get("lat") || ""));
+				payload.lng = Number.parseFloat(String(formData.get("lng") || ""));
+				delete payload.public_id;
+			}
+
+			return payload;
+		}
+
+		async function handleLocationEditFormSubmit(event) {
+			event.preventDefault();
+			const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
+			if (!formElement || !formElement.reportValidity()) {
+				return;
+			}
+
+			setLocationEditStatus("Ort wird gespeichert...", "pending");
+			setLocationEditSubmitPending(true);
+
+			try {
+				const result = await submitMapFeatureEdit(buildLocationEditPayload(formElement));
+				if (locationEditMarkerEntry) {
+					applyFeatureResponseToMarker(locationEditMarkerEntry, result.feature);
+				} else {
+					addCreatedLocationMarker(result.feature);
+				}
+				updateRevisionFromEditResponse(result);
+				setLocationEditDialogOpen(false, { resetForm: true });
+				showFeedbackToast("Ort gespeichert.", "success");
+			} catch (error) {
+				console.error("Ort konnte nicht gespeichert werden:", error);
+				setLocationEditStatus(error.message || "Ort konnte nicht gespeichert werden.", "error");
+			} finally {
+				setLocationEditSubmitPending(false);
+			}
 		}
 
 		function finalizeLocationReportSubmission({ ok, message }) {
@@ -1045,7 +1267,14 @@
 				&& normalizedLatLng.lng <= maxLng;
 		}
 
-		function getWikiLocationLink(name) {
+		function getWikiLocationLink(name, wikiUrlOverride = "") {
+			if (wikiUrlOverride) {
+				return {
+					url: wikiUrlOverride,
+					title: name,
+				};
+			}
+
 			return wikiLocationLinks[name] || null;
 		}
 
@@ -1053,8 +1282,8 @@
 			return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 		}
 
-		function wikiLocationLinkMarkup(name) {
-			const wikiLocationLink = getWikiLocationLink(name);
+		function wikiLocationLinkMarkup(name, wikiUrlOverride = "") {
+			const wikiLocationLink = getWikiLocationLink(name, wikiUrlOverride);
 
 			if (!wikiLocationLink?.url) {
 				return "";
@@ -1215,6 +1444,7 @@
 			showDescription = true,
 			showWikiLink = true,
 			description = "",
+			wikiUrl = "",
 			actionsMarkup = "",
 		}) {
 			const popupClassName = compact ? "location-popup location-popup--compact" : "location-popup";
@@ -1229,7 +1459,7 @@
 					</div>
 					${showDescription ? locationDescriptionMarkup(name, description) : ""}
 					${actionsMarkup}
-					${showWikiLink ? wikiLocationLinkMarkup(name) : ""}
+					${showWikiLink ? wikiLocationLinkMarkup(name, wikiUrl) : ""}
 				</div>`;
 		}
 
@@ -2515,41 +2745,6 @@
 			}
 		}
 
-		function promptLocationDetails(defaults = {}) {
-			const name = window.prompt("Ortsname", defaults.name || "");
-			if (name === null) {
-				return null;
-			}
-
-			const normalizedName = name.trim();
-			if (!normalizedName) {
-				showFeedbackToast("Der Ortsname fehlt.", "warning");
-				return null;
-			}
-
-			const type = window.prompt("Ortsgroesse: metropole, grossstadt, stadt, kleinstadt oder dorf", defaults.locationType || "dorf");
-			if (type === null) {
-				return null;
-			}
-
-			const normalizedType = type.trim().toLowerCase();
-			if (!LOCATION_TYPE_KEYS.includes(normalizedType)) {
-				showFeedbackToast("Die Ortsgroesse ist ungueltig.", "warning");
-				return null;
-			}
-
-			const description = window.prompt("Beschreibung", defaults.description || "");
-			if (description === null) {
-				return null;
-			}
-
-			return {
-				name: normalizedName,
-				locationType: normalizedType,
-				description: description.trim(),
-			};
-		}
-
 		function updateRevisionFromEditResponse(payload) {
 			if (payload?.feature?.revision && mapDataSourceStatus) {
 				mapDataSourceStatus.revision = payload.feature.revision;
@@ -2583,6 +2778,7 @@
 					locationType: markerEntry.locationType,
 					locationTypeLabel: markerEntry.location.locationTypeLabel,
 					description: markerEntry.location.description,
+					wikiUrl: markerEntry.location.wikiUrl,
 					actionsMarkup: locationActionsMarkup(markerEntry.name, markerEntry.publicId),
 				})
 			);
@@ -2601,36 +2797,14 @@
 				locationType,
 				locationTypeLabel: feature.location_type_label || LOCATION_TYPE_CONFIG[locationType]?.singularLabel || "Dorf",
 				description: feature.description || "",
+				wikiUrl: feature.wiki_url || "",
 			};
 			markerEntry.marker.setLatLng(latLng);
 			refreshLocationMarkerPopup(markerEntry);
 		}
 
 		async function editLocationDetails(markerEntry) {
-			const details = promptLocationDetails({
-				name: markerEntry.name,
-				locationType: markerEntry.locationType,
-				description: markerEntry.location.description,
-			});
-			if (!details) {
-				return;
-			}
-
-			try {
-				const result = await submitMapFeatureEdit({
-					action: "update_point",
-					public_id: markerEntry.publicId,
-					name: details.name,
-					feature_subtype: details.locationType,
-					description: details.description,
-				});
-				applyFeatureResponseToMarker(markerEntry, result.feature);
-				updateRevisionFromEditResponse(result);
-				showFeedbackToast("Ort gespeichert.", "success");
-			} catch (error) {
-				console.error("Ort konnte nicht bearbeitet werden:", error);
-				showFeedbackToast(error.message || "Ort konnte nicht gespeichert werden.", "warning");
-			}
+			openLocationEditDialog({ markerEntry });
 		}
 
 		async function deleteLocationMarker(markerEntry) {
@@ -2663,6 +2837,7 @@
 				locationType,
 				locationTypeLabel: feature.location_type_label || LOCATION_TYPE_CONFIG[locationType]?.singularLabel || "Dorf",
 				description: feature.description || "",
+				wikiUrl: feature.wiki_url || "",
 			};
 			locationData.push(location);
 
@@ -2694,27 +2869,7 @@
 
 		async function createLocationAt(latlng) {
 			const normalizedLatLng = L.latLng(latlng);
-			const details = promptLocationDetails({ locationType: "dorf" });
-			if (!details) {
-				return;
-			}
-
-			try {
-				const result = await submitMapFeatureEdit({
-					action: "create_point",
-					name: details.name,
-					feature_subtype: details.locationType,
-					description: details.description,
-					lat: normalizedLatLng.lat,
-					lng: normalizedLatLng.lng,
-				});
-				addCreatedLocationMarker(result.feature);
-				updateRevisionFromEditResponse(result);
-				showFeedbackToast("Ort angelegt.", "success");
-			} catch (error) {
-				console.error("Ort konnte nicht angelegt werden:", error);
-				showFeedbackToast(error.message || "Ort konnte nicht angelegt werden.", "warning");
-			}
+			openLocationEditDialog({ latlng: normalizedLatLng });
 		}
 
 		function findNearestLocationToLatLng(latlng) {
@@ -2934,6 +3089,7 @@
 						locationType,
 						locationTypeLabel: feature.properties.settlement_class_label || locationConfig?.singularLabel || "Dorf",
 						description: feature.properties.description || "",
+						wikiUrl: feature.properties.wiki_url || "",
 					};
 				});
 			locationData
@@ -2951,6 +3107,7 @@
 							locationType,
 							locationTypeLabel,
 							description: location.description,
+							wikiUrl: location.wikiUrl,
 							actionsMarkup: locationActionsMarkup(name, publicId),
 						})
 					);

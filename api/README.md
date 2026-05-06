@@ -200,8 +200,8 @@ Payload:
 
 Weitere Aktionen:
 
-- `create_point`: `name`, `feature_subtype`, `description`, `lat`, `lng`
-- `update_point`: `public_id`, `name`, `feature_subtype`, `description`
+- `create_point`: `name`, `feature_subtype`, `description`, `wiki_url`, `lat`, `lng`
+- `update_point`: `public_id`, `name`, `feature_subtype`, `description`, `wiki_url`
 - `delete_feature`: `public_id`
 
 Der Endpoint aktualisiert je nach Aktion `geometry_json`, Bounding Box,
