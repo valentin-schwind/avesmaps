@@ -153,6 +153,113 @@ html {
 	display: none !important;
 }
 
+.edit-page {
+	min-height: 100%;
+	background: #2f322c;
+	color: #2f251c;
+}
+
+.edit-login {
+	min-height: 100vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	box-sizing: border-box;
+}
+
+.edit-login__panel {
+	width: min(360px, 100%);
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 20px;
+	border: 1px solid #d8c6b2;
+	border-radius: 8px;
+	background: #fff9f4;
+	box-shadow: 0 20px 45px rgba(0, 0, 0, 0.32);
+}
+
+.edit-login__panel h1,
+.edit-login__panel p {
+	margin: 0;
+}
+
+.edit-login__panel label {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	font-weight: bold;
+}
+
+.edit-login__panel input {
+	border: 1px solid #cdb79f;
+	border-radius: 6px;
+	background: #fff;
+	color: #2f251c;
+	font: inherit;
+	padding: 9px 10px;
+}
+
+.edit-login__panel button,
+.edit-shell__bar button {
+	border: 1px solid #5f4f40;
+	border-radius: 6px;
+	background: #565044;
+	color: #fff;
+	cursor: pointer;
+	font: inherit;
+	padding: 8px 11px;
+}
+
+.edit-login__error {
+	padding: 9px 10px;
+	border: 1px solid #ba6b59;
+	border-radius: 6px;
+	background: #fff1ee;
+	color: #7a2115;
+}
+
+.edit-shell {
+	height: 100vh;
+	display: grid;
+	grid-template-rows: auto 1fr;
+	background: #1e211d;
+}
+
+.edit-shell__bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 8px 12px;
+	border-bottom: 1px solid #8d7962;
+	background: #fff9f4;
+	box-shadow: 0 3px 12px rgba(0, 0, 0, 0.24);
+	z-index: 2;
+}
+
+.edit-shell__bar div {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+}
+
+.edit-shell__bar span {
+	color: #6c5a49;
+	font-size: 12px;
+}
+
+.edit-shell__bar form {
+	margin: 0;
+}
+
+.edit-shell__map {
+	width: 100%;
+	height: 100%;
+	border: 0;
+}
+
 body.legal-dialog-open,
 body.modal-dialog-open {
 	overflow: hidden;

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/auth.php';
 
 const AVESMAPS_MAP_NAMESPACE_UUID = '7c22ff08-9d82-46a0-a5d1-f6f47e2b12a5';
 
@@ -46,6 +47,7 @@ try {
         'dry_run_geojson' => avesmapsImportGeoJsonMap($pdo, false, false),
         'import_geojson' => avesmapsImportGeoJsonMap($pdo, $replaceExisting, true),
         'install_schema_and_import_geojson' => avesmapsInstallSchemaAndImportGeoJson($pdo, $replaceExisting),
+        'upsert_user' => avesmapsUpsertUser($pdo, $payload),
         default => throw new InvalidArgumentException('Die angeforderte Admin-Aktion ist unbekannt.'),
     };
 
@@ -229,6 +231,57 @@ function avesmapsInstallSchemaAndImportGeoJson(PDO $pdo, bool $replaceExisting):
         'action' => 'install_schema_and_import_geojson',
         'schema' => $schemaResponse,
         'import' => $importResponse,
+    ];
+}
+
+function avesmapsUpsertUser(PDO $pdo, array $payload): array {
+    if (!avesmapsTableExists($pdo, 'users')) {
+        throw new RuntimeException('Die User-Tabelle fehlt. Fuehre zuerst install_schema aus.');
+    }
+
+    $username = avesmapsNormalizeSingleLine((string) ($payload['username'] ?? ''), 80);
+    $password = (string) ($payload['password'] ?? '');
+    $role = avesmapsValidateRole((string) ($payload['role'] ?? 'editor'));
+    $isActive = filter_var($payload['is_active'] ?? true, FILTER_VALIDATE_BOOLEAN);
+
+    if ($username === '') {
+        throw new InvalidArgumentException('Der Benutzername fehlt.');
+    }
+
+    if ($password === '') {
+        throw new InvalidArgumentException('Das Passwort fehlt.');
+    }
+
+    if (strlen($password) < 12) {
+        throw new InvalidArgumentException('Das Passwort muss mindestens 12 Zeichen lang sein.');
+    }
+
+    $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+    if (!is_string($passwordHash) || $passwordHash === '') {
+        throw new RuntimeException('Das Passwort konnte nicht gehasht werden.');
+    }
+
+    $statement = $pdo->prepare(
+        'INSERT INTO users (username, password_hash, role, is_active)
+        VALUES (:username, :password_hash, :role, :is_active)
+        ON DUPLICATE KEY UPDATE
+            password_hash = VALUES(password_hash),
+            role = VALUES(role),
+            is_active = VALUES(is_active)'
+    );
+    $statement->execute([
+        'username' => $username,
+        'password_hash' => $passwordHash,
+        'role' => $role,
+        'is_active' => $isActive ? 1 : 0,
+    ]);
+
+    return [
+        'ok' => true,
+        'action' => 'upsert_user',
+        'username' => $username,
+        'role' => $role,
+        'is_active' => $isActive,
     ];
 }
 

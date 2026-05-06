@@ -168,6 +168,19 @@ Invoke-RestMethod `
 `map_features`, `map_feature_relations` und `map_audit_log`. Die bisherigen
 Ortsmeldungen bleiben unangetastet.
 
+Ersten Admin- oder Editor-Zugang anlegen:
+
+```powershell
+Invoke-RestMethod `
+    -Uri "https://example.org/avesmaps/api/map-database-admin.php" `
+    -Method Post `
+    -Headers $headers `
+    -Body '{"action":"upsert_user","username":"valentin","password":"replace-with-a-long-password","role":"admin"}'
+```
+
+Erlaubte Rollen sind `admin`, `editor` und `reviewer`. Fuer `/edit` reichen
+`admin` oder `editor`; `reviewer` ist fuer spaetere Freigabe-Workflows gedacht.
+
 ## Request-Format
 
 Die API erwartet einen `POST` mit JSON:
