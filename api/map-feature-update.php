@@ -166,6 +166,15 @@ function avesmapsReadLabelRotation(mixed $value): int {
     return (int) $rotation;
 }
 
+function avesmapsReadLabelMinZoom(mixed $value): int {
+    $minZoom = filter_var($value, FILTER_VALIDATE_INT);
+    if ($minZoom === false || $minZoom < 0 || $minZoom > 5) {
+        throw new InvalidArgumentException('Die Label-Zoomstufe ist ungueltig.');
+    }
+
+    return (int) $minZoom;
+}
+
 function avesmapsReadOptionalWikiUrl(mixed $value): string {
     return avesmapsNormalizeOptionalUrl((string) $value, 500, 'Der Wiki-Aventurica-Link');
 }
@@ -638,6 +647,7 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
     $subtype = avesmapsReadLabelSubtype($payload['feature_subtype'] ?? 'region');
     $size = avesmapsReadLabelSize($payload['size'] ?? 18);
     $rotation = avesmapsReadLabelRotation($payload['rotation'] ?? 0);
+    $minZoom = avesmapsReadLabelMinZoom($payload['min_zoom'] ?? 0);
     $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
     $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
     $publicId = avesmapsUuidV4();
@@ -652,6 +662,7 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
         'feature_subtype' => $subtype,
         'size' => $size,
         'rotation' => $rotation,
+        'min_zoom' => $minZoom,
     ];
 
     $pdo->beginTransaction();
@@ -700,6 +711,7 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
     $subtype = avesmapsReadLabelSubtype($payload['feature_subtype'] ?? 'region');
     $size = avesmapsReadLabelSize($payload['size'] ?? 18);
     $rotation = avesmapsReadLabelRotation($payload['rotation'] ?? 0);
+    $minZoom = avesmapsReadLabelMinZoom($payload['min_zoom'] ?? 0);
 
     $pdo->beginTransaction();
     try {
@@ -714,6 +726,7 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
         $properties['feature_subtype'] = $subtype;
         $properties['size'] = $size;
         $properties['rotation'] = $rotation;
+        $properties['min_zoom'] = $minZoom;
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         $coordinates = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [0, 0];
         $revision = avesmapsNextMapRevision($pdo);

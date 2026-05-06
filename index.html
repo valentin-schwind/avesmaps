@@ -293,6 +293,10 @@
 					<span>Rotation</span>
 					<input id="label-edit-rotation" name="rotation" type="number" min="-180" max="180" step="1" value="0" />
 				</label>
+				<label class="location-report-form__field">
+					<span>Sichtbar ab Zoom <output id="label-edit-min-zoom-output">0</output></span>
+					<input id="label-edit-min-zoom" name="min_zoom" type="range" min="0" max="5" step="1" value="0" />
+				</label>
 				<p id="label-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions">
 					<button id="label-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Loeschen</button>
@@ -715,6 +719,7 @@
 			document.querySelectorAll(".region-label").forEach(e => {
 				e.style.fontSize = size + "px";
 			});
+			syncLabelVisibility();
 		});
 
 		// Da liegen die Map-Tiles
@@ -785,6 +790,7 @@
 		$("#path-edit-form").on("submit", handlePathEditFormSubmit);
 		$("#label-edit-form").on("submit", handleLabelEditFormSubmit);
 		$("#label-edit-delete").on("click", () => deleteActiveLabel());
+		$("#label-edit-min-zoom").on("input", syncLabelMinZoomOutput);
 		$("#path-edit-autoname").on("change", syncPathAutoNameControls);
 		$("#path-edit-type").on("change", () => syncPathAutoNameControls({ forceName: true }));
 		$("#path-edit-close, #path-edit-cancel").on("click", () => setPathEditDialogOpen(false, { resetForm: true }));
@@ -1457,6 +1463,8 @@
 			document.getElementById("label-edit-type").value = label.labelType || "region";
 			document.getElementById("label-edit-size").value = label.size || 18;
 			document.getElementById("label-edit-rotation").value = label.rotation || 0;
+			document.getElementById("label-edit-min-zoom").value = label.minZoom ?? 0;
+			syncLabelMinZoomOutput();
 			document.getElementById("label-edit-delete").hidden = !labelEntry;
 			if (labelEditLatLng) {
 				document.getElementById("label-edit-lat").value = labelEditLatLng.lat.toFixed(3);
@@ -1468,6 +1476,17 @@
 			resetLabelEditForm();
 			populateLabelEditForm(options);
 			setLabelEditDialogOpen(true);
+		}
+
+		function syncLabelMinZoomOutput() {
+			const inputElement = document.getElementById("label-edit-min-zoom");
+			const outputElement = document.getElementById("label-edit-min-zoom-output");
+			if (!inputElement || !outputElement) {
+				return;
+			}
+
+			outputElement.value = inputElement.value;
+			outputElement.textContent = inputElement.value;
 		}
 
 		function populatePathEditForm(path) {
@@ -1560,6 +1579,7 @@
 				feature_subtype: String(formData.get("feature_subtype") || "region").trim(),
 				size: Number.parseInt(String(formData.get("size") || "18"), 10),
 				rotation: Number.parseInt(String(formData.get("rotation") || "0"), 10),
+				min_zoom: Number.parseInt(String(formData.get("min_zoom") || "0"), 10),
 			};
 
 			if (action === "create_label") {
@@ -3829,6 +3849,7 @@
 				labelType: properties.feature_subtype || feature.feature_subtype || "region",
 				size: Number(properties.size || feature.size || 18),
 				rotation: Number(properties.rotation || feature.rotation || 0),
+				minZoom: Number(properties.min_zoom ?? feature.min_zoom ?? 0),
 				coordinates: [Number(lat), Number(lng)],
 			};
 		}
@@ -3849,21 +3870,39 @@
 				icon: createLabelIcon(label),
 				draggable: IS_EDIT_MODE,
 				keyboard: false,
-				pane: "tooltipPane",
+				pane: "labelsPane",
 			});
 			const entry = { label, marker };
 			if (IS_EDIT_MODE) {
 				marker.on("click", () => openLabelEditDialog({ labelEntry: entry }));
 				marker.on("dragend", () => saveLabelPosition(entry));
 			}
-			marker.addTo(map);
+			syncLabelMarkerVisibility(entry);
 			return entry;
+		}
+
+		function syncLabelMarkerVisibility(entry) {
+			const shouldShow = map.getZoom() >= (Number(entry.label.minZoom) || 0);
+			const isVisible = map.hasLayer(entry.marker);
+			if (shouldShow && !isVisible) {
+				entry.marker.addTo(map);
+				return;
+			}
+
+			if (!shouldShow && isVisible) {
+				map.removeLayer(entry.marker);
+			}
+		}
+
+		function syncLabelVisibility() {
+			labelMarkers.forEach(syncLabelMarkerVisibility);
 		}
 
 		function prepareLabelData(data) {
 			labelMarkers.forEach((entry) => map.removeLayer(entry.marker));
 			labelData = data.features.filter((feature) => feature.properties?.feature_type === "label").map(normalizeLabelFeature);
 			labelMarkers = labelData.map(createLabelMarkerEntry);
+			syncLabelVisibility();
 		}
 
 		function addCreatedLabelFeature(feature) {
@@ -3877,6 +3916,7 @@
 			Object.assign(entry.label, label);
 			entry.marker.setLatLng(label.coordinates);
 			entry.marker.setIcon(createLabelIcon(label));
+			syncLabelMarkerVisibility(entry);
 		}
 
 		async function saveLabelPosition(entry) {
