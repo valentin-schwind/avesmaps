@@ -1039,6 +1039,136 @@ body.modal-dialog-open {
 	outline: none;
 }
 
+.review-panel {
+	position: fixed;
+	right: 0;
+	top: 16px;
+	z-index: 1100;
+	display: flex;
+	flex-direction: column;
+	width: min(340px, calc(100vw - 64px));
+	max-height: calc(100vh - 32px);
+	border: 1px solid rgba(96, 72, 48, 0.22);
+	border-radius: 8px 0 0 8px;
+	background: rgba(250, 243, 236, 0.97);
+	box-shadow: -10px 12px 28px rgba(0, 0, 0, 0.22);
+	overflow: hidden;
+	transition: transform 220ms ease;
+}
+
+.review-panel.is-hidden {
+	transform: translateX(100%);
+}
+
+.review-panel__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 12px 14px;
+	border-bottom: 1px solid rgba(96, 72, 48, 0.16);
+}
+
+.review-panel__header h2 {
+	margin: 0;
+	color: #3f3428;
+	font-size: 16px;
+}
+
+.review-panel__icon-button,
+.review-panel-toggle {
+	border: 1px solid #b99b79;
+	border-radius: 6px;
+	background: #f8f0e7;
+	color: #3f3428;
+	cursor: pointer;
+	font: inherit;
+}
+
+.review-panel__icon-button {
+	width: 32px;
+	height: 32px;
+}
+
+.review-panel-toggle {
+	position: fixed;
+	right: 340px;
+	top: 28px;
+	z-index: 1101;
+	padding: 8px 10px;
+	border-radius: 6px 0 0 6px;
+	transition: right 220ms ease;
+}
+
+.review-panel-toggle.is-hidden {
+	right: 0;
+}
+
+.review-panel__status {
+	margin: 0;
+	padding: 10px 14px;
+	color: #5a4a3b;
+	font-size: 13px;
+}
+
+.review-panel__status[data-state="error"] {
+	color: #9b2d22;
+}
+
+.review-panel__list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 0 10px 12px;
+	overflow: auto;
+}
+
+.review-report {
+	display: grid;
+	gap: 4px;
+	width: 100%;
+	border: 1px solid rgba(96, 72, 48, 0.16);
+	border-radius: 8px;
+	background: #fffaf4;
+	color: #3f3428;
+	cursor: pointer;
+	padding: 10px;
+	text-align: left;
+}
+
+.review-report:hover,
+.review-report:focus-visible {
+	border-color: #9b7b58;
+	outline: none;
+}
+
+.review-report__name {
+	font-weight: 700;
+}
+
+.review-report__meta,
+.review-report__source {
+	color: #6d5b49;
+	font-size: 12px;
+}
+
+.review-report-tooltip {
+	border: 1px solid #1452f7;
+	background: #fff;
+	color: #1f2f5f;
+	font-weight: 700;
+}
+
+@media (max-width: 420px) {
+	.review-panel-toggle {
+		right: calc(100vw - 64px);
+	}
+
+	.review-panel-toggle.is-hidden {
+		right: 0;
+	}
+}
+
 .map-context-anchor-marker {
 	background: transparent;
 	border: none;

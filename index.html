@@ -112,6 +112,15 @@
 		<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement">📏 Entfernung messen</button>
 		<button type="button" class="map-context-menu__item" data-context-action="clear-distance-measurement">🗑️ Entfernungsmessung löschen</button>
 	</div>
+	<aside id="review-panel" class="review-panel" aria-labelledby="review-panel-title" hidden>
+		<header class="review-panel__header">
+			<h2 id="review-panel-title">Review</h2>
+			<button id="review-panel-refresh" class="review-panel__icon-button" type="button" title="Neu laden">↻</button>
+		</header>
+		<p id="review-panel-status" class="review-panel__status" role="status" aria-live="polite">Ortsmeldungen werden geladen...</p>
+		<div id="review-report-list" class="review-panel__list"></div>
+	</aside>
+	<button id="review-panel-toggle" class="review-panel-toggle" type="button" hidden>Review</button>
 	<div id="copy-feedback-toast" class="feedback-toast" role="status" aria-live="polite" hidden></div>
 	<div id="location-report-overlay" hidden>
 		<div id="location-report-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="location-report-title" tabindex="-1">
@@ -497,7 +506,9 @@
 		const INITIAL_SEARCH_PARAMS = new URLSearchParams(window.location.search);
 		const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
 		const MAP_FEATURE_UPDATE_API_URL = window.AVESMAPS_MAP_FEATURE_UPDATE_ENDPOINT || "api/map-feature-update.php";
+		const LOCATION_REPORT_REVIEW_API_URL = window.AVESMAPS_LOCATION_REPORT_REVIEW_ENDPOINT || "api/location-report-review.php";
 		const EDIT_MODE_PLANNER_STATE_STORAGE_KEY = "avesmaps.edit.plannerState";
+		const EDIT_MODE_REVIEW_PANEL_STORAGE_KEY = "avesmaps.edit.reviewPanelHidden";
 		const LOCATION_REPORT_REQUEST_TIMEOUT_MS = 7000;
 		const MAX_SHARED_WAYPOINTS = 25;
 		const DEFAULT_SHARE_PIN_ZOOM = 4;
@@ -583,6 +594,10 @@
 			selectedLocations = [],
 			waypointCounter = 0,
 			sharePinMarker = null,
+			reviewReportMarker = null,
+			reviewReports = [],
+			activeReviewReportId = null,
+			isReviewPanelHidden = false,
 			sharePinCoordinates = null,
 			pendingContextMenuLatLng = null,
 			contextMenuAnchorMarker = null,
@@ -667,6 +682,10 @@
 			document.querySelector('.map-context-menu__group[data-context-action="add-here"]')?.removeAttribute("hidden");
 			document.getElementById("toggleCrossingsControl")?.removeAttribute("hidden");
 			document.getElementById("toggleCrossings")?.removeAttribute("disabled");
+			document.getElementById("review-panel")?.removeAttribute("hidden");
+			document.getElementById("review-panel-toggle")?.removeAttribute("hidden");
+			restoreReviewPanelState();
+			void loadReviewReports();
 		} else {
 			document.getElementById("toggleCrossings")?.setAttribute("disabled", "disabled");
 		}
@@ -679,6 +698,8 @@
 			$("#toggle-button").animate({ left: btnPos }, 500);
 			isSearchPanelHidden = !isSearchPanelHidden;
 		});
+		$("#review-panel-toggle").on("click", toggleReviewPanel);
+		$("#review-panel-refresh").on("click", () => loadReviewReports());
 
 		function setLegalDialogOpen(isOpen) {
 			$("#legal-overlay").prop("hidden", !isOpen);
@@ -837,7 +858,7 @@
 			}
 
 			return Boolean(targetElement.closest(
-				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #location-report-overlay, #location-edit-overlay, #path-edit-overlay"
+				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #review-panel, #review-panel-toggle, #location-report-overlay, #location-edit-overlay, #path-edit-overlay"
 			));
 		}
 
@@ -1164,6 +1185,7 @@
 			formElement.reset();
 			locationEditLatLng = null;
 			locationEditMarkerEntry = null;
+			activeReviewReportId = null;
 			setLocationEditStatus();
 		}
 
@@ -1386,6 +1408,164 @@
 			return payload;
 		}
 
+		function setReviewPanelStatus(message, state = "") {
+			const statusElement = document.getElementById("review-panel-status");
+			if (!statusElement) {
+				return;
+			}
+
+			statusElement.textContent = message || "";
+			statusElement.dataset.state = state;
+		}
+
+		function restoreReviewPanelState() {
+			try {
+				isReviewPanelHidden = window.localStorage?.getItem(EDIT_MODE_REVIEW_PANEL_STORAGE_KEY) === "1";
+			} catch (error) {
+				isReviewPanelHidden = false;
+			}
+
+			syncReviewPanelVisibility();
+		}
+
+		function syncReviewPanelVisibility() {
+			$("#review-panel").toggleClass("is-hidden", isReviewPanelHidden);
+			$("#review-panel-toggle").toggleClass("is-hidden", isReviewPanelHidden);
+			$("#review-panel-toggle").text(isReviewPanelHidden ? "Review" : "×");
+		}
+
+		function toggleReviewPanel() {
+			isReviewPanelHidden = !isReviewPanelHidden;
+			try {
+				window.localStorage?.setItem(EDIT_MODE_REVIEW_PANEL_STORAGE_KEY, isReviewPanelHidden ? "1" : "0");
+			} catch (error) {
+				console.warn("Review-Panel-Zustand konnte nicht gespeichert werden:", error);
+			}
+
+			syncReviewPanelVisibility();
+		}
+
+		async function loadReviewReports() {
+			if (!IS_EDIT_MODE) {
+				return;
+			}
+
+			setReviewPanelStatus("Ortsmeldungen werden geladen...", "pending");
+			try {
+				const response = await fetch(LOCATION_REPORT_REVIEW_API_URL, {
+					credentials: "same-origin",
+					headers: { Accept: "application/json" },
+				});
+				const data = await response.json().catch(() => null);
+				if (!response.ok || !data?.ok) {
+					throw new Error(data?.error || `Review-API antwortet mit HTTP ${response.status}.`);
+				}
+
+				reviewReports = Array.isArray(data.reports) ? data.reports : [];
+				renderReviewReports();
+			} catch (error) {
+				console.error("Ortsmeldungen konnten nicht geladen werden:", error);
+				setReviewPanelStatus(error.message || "Ortsmeldungen konnten nicht geladen werden.", "error");
+			}
+		}
+
+		function renderReviewReports() {
+			const listElement = document.getElementById("review-report-list");
+			if (!listElement) {
+				return;
+			}
+
+			listElement.innerHTML = "";
+			if (reviewReports.length < 1) {
+				setReviewPanelStatus("Keine offenen Ortsmeldungen.", "empty");
+				return;
+			}
+
+			setReviewPanelStatus(`${reviewReports.length} offene Ortsmeldungen.`, "success");
+			reviewReports.forEach((report) => {
+				const itemElement = document.createElement("button");
+				itemElement.type = "button";
+				itemElement.className = "review-report";
+				itemElement.dataset.reportId = String(report.id);
+				itemElement.innerHTML = `
+					<span class="review-report__name"></span>
+					<span class="review-report__meta"></span>
+					<span class="review-report__source"></span>
+				`;
+				itemElement.querySelector(".review-report__name").textContent = report.name || "Unbenannter Ort";
+				itemElement.querySelector(".review-report__meta").textContent = `${report.size || "dorf"} · ${formatLocationReportCoordinates(L.latLng(Number(report.lat), Number(report.lng)))}`;
+				itemElement.querySelector(".review-report__source").textContent = report.source || "Keine Quelle";
+				listElement.appendChild(itemElement);
+			});
+		}
+
+		function clearReviewReportMarker() {
+			if (!reviewReportMarker) {
+				return;
+			}
+
+			map.removeLayer(reviewReportMarker);
+			reviewReportMarker = null;
+		}
+
+		function focusReviewReport(report) {
+			const latlng = L.latLng(Number(report.lat), Number(report.lng));
+			if (!isWithinMapBounds(latlng)) {
+				showFeedbackToast("Die gemeldete Position liegt ausserhalb der Karte.", "warning");
+				return;
+			}
+
+			clearReviewReportMarker();
+			reviewReportMarker = L.circleMarker(latlng, {
+				pane: "measurementHandlesPane",
+				radius: 9,
+				color: "#1452F7",
+				weight: 3,
+				fillColor: "#ffffff",
+				fillOpacity: 0.95,
+			}).addTo(map);
+			reviewReportMarker.bindTooltip(report.name || "Ortsvorschlag", {
+				permanent: true,
+				direction: "top",
+				className: "review-report-tooltip",
+				offset: [0, -10],
+			}).openTooltip();
+
+			map.flyTo(latlng, Math.max(map.getZoom(), 3), { duration: 0.8 });
+			openLocationEditDialogFromReport(report, latlng);
+		}
+
+		function openLocationEditDialogFromReport(report, latlng) {
+			openLocationEditDialog({ latlng });
+			activeReviewReportId = Number(report.id) || null;
+			document.getElementById("location-edit-name").value = report.name || "";
+			document.getElementById("location-edit-type").value = normalizeLocationType(report.size || "dorf");
+			document.getElementById("location-edit-description").value = [report.comment, report.source ? `Quelle: ${report.source}` : ""]
+				.filter(Boolean)
+				.join("\n\n");
+			document.getElementById("location-edit-wiki-url").value = report.wiki_url || "";
+		}
+
+		async function updateReviewReportStatus(reportId, status) {
+			const response = await fetch(LOCATION_REPORT_REVIEW_API_URL, {
+				method: "POST",
+				credentials: "same-origin",
+				headers: {
+					"Content-Type": "application/json",
+					Accept: "application/json",
+				},
+				body: JSON.stringify({
+					action: "update_status",
+					report_id: reportId,
+					status,
+				}),
+			});
+			const data = await response.json().catch(() => null);
+			if (!response.ok || !data?.ok) {
+				throw new Error(data?.error || `Review-API antwortet mit HTTP ${response.status}.`);
+			}
+		}
+
 		async function handleLocationEditFormSubmit(event) {
 			event.preventDefault();
 			const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
@@ -1403,6 +1583,12 @@
 					applyFeatureResponseToMarker(locationEditMarkerEntry, result.feature);
 				} else {
 					addCreatedLocationMarker(result.feature);
+				}
+				if (payload.action === "create_point" && activeReviewReportId) {
+					await updateReviewReportStatus(activeReviewReportId, "approved");
+					activeReviewReportId = null;
+					clearReviewReportMarker();
+					void loadReviewReports();
 				}
 				updateRevisionFromEditResponse(result);
 				setLocationEditSubmitPending(false);
@@ -4526,6 +4712,18 @@
 		$(document).on("click", ".remove-waypoint", function (event) {
 			event.preventDefault();
 			removeWaypointElement($(this).closest(".waypoint-container"));
+		});
+
+		$(document).on("click", ".review-report", function (event) {
+			event.preventDefault();
+			const reportId = Number(this.dataset.reportId);
+			const report = reviewReports.find((entry) => Number(entry.id) === reportId);
+			if (!report) {
+				showFeedbackToast("Ortsmeldung konnte nicht gefunden werden.", "warning");
+				return;
+			}
+
+			focusReviewReport(report);
 		});
 
 		$(document).on("click", ".map-context-menu__item", function (event) {
