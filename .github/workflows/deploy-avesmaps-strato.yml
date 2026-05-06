@@ -1,0 +1,138 @@
+name: Deploy Avesmaps to STRATO
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only show which files would be uploaded"
+        required: true
+        default: true
+        type: boolean
+      delete_remote_files:
+        description: "Delete remote files that are no longer in the deploy package"
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: avesmaps-strato-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy via SFTP
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      AVESMAPS_HOST: ${{ secrets.AVESMAPS_HOST }}
+      AVESMAPS_PASSWORD: ${{ secrets.AVESMAPS_PASSWORD }}
+      AVESMAPS_PORT: ${{ secrets.AVESMAPS_PORT }}
+      AVESMAPS_REMOTE_PATH: ${{ secrets.AVESMAPS_REMOTE_PATH }}
+      AVESMAPS_USER: ${{ secrets.AVESMAPS_USER }}
+      DEPLOY_DIR: ${{ runner.temp }}/avesmaps-deploy
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate deployment secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=0
+          for secret_name in AVESMAPS_HOST AVESMAPS_PASSWORD AVESMAPS_PORT AVESMAPS_REMOTE_PATH AVESMAPS_USER; do
+            if [[ -z "${!secret_name:-}" ]]; then
+              echo "::error title=Missing secret::${secret_name} is not configured."
+              missing=1
+            fi
+          done
+
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
+      - name: Prepare deploy package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          rm -rf "$DEPLOY_DIR"
+          mkdir -p "$DEPLOY_DIR"
+
+          deploy_items=(
+            "index.html"
+            "CNAME"
+            "favicon.ico"
+            "llms.txt"
+            "robots.txt"
+            "sitemap.xml"
+            "admin"
+            "api"
+            "assets"
+            "css"
+            "edit"
+            "fonts"
+            "icons"
+            "img"
+            "js"
+            "map"
+            "tiles"
+          )
+
+          for item in "${deploy_items[@]}"; do
+            if [[ -e "$item" ]]; then
+              cp -a "$item" "$DEPLOY_DIR/"
+            fi
+          done
+
+          rm -f "$DEPLOY_DIR/.env"
+          rm -f "$DEPLOY_DIR/api/.env"
+          rm -f "$DEPLOY_DIR/api/config.local.php"
+          rm -f "$DEPLOY_DIR/map/google-sheets-credentials.json"
+          rm -f "$DEPLOY_DIR/map/google-sheets-token.json"
+
+          find "$DEPLOY_DIR" -type d -name "__pycache__" -prune -exec rm -rf {} +
+          find "$DEPLOY_DIR" -type f \( -name "*.pyc" -o -name "*.pyo" -o -name "Aventurien_routes.backup-*.svg" \) -delete
+
+          echo "Deploy package:"
+          find "$DEPLOY_DIR" -maxdepth 2 -mindepth 1 | sort
+
+      - name: Install SFTP client
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes lftp
+
+      - name: Deploy package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mirror_options=(
+            "--reverse"
+            "--verbose"
+            "--parallel=4"
+            "--exclude-glob=api/config.local.php"
+            "--exclude-glob=api/.env"
+            "--exclude-glob=.env"
+          )
+
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            mirror_options+=("--dry-run")
+          fi
+
+          if [[ "${{ inputs.delete_remote_files }}" == "true" ]]; then
+            mirror_options+=("--delete")
+          fi
+
+          lftp -u "$AVESMAPS_USER","$AVESMAPS_PASSWORD" -p "$AVESMAPS_PORT" "sftp://$AVESMAPS_HOST" <<EOF
+          set sftp:auto-confirm yes
+          set net:max-retries 2
+          set net:timeout 30
+          cd "$AVESMAPS_REMOTE_PATH"
+          mirror ${mirror_options[*]} "$DEPLOY_DIR" .
+          bye
+          EOF
