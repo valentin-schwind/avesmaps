@@ -1772,8 +1772,13 @@
 
 			setChangePanelStatus(`${changeLogEntries.length} letzte Änderungen.`, "success");
 			changeLogEntries.forEach((entry) => {
-				const itemElement = document.createElement("article");
+				const itemElement = document.createElement("button");
+				itemElement.type = "button";
 				itemElement.className = "change-log-entry";
+				itemElement.dataset.changeId = String(entry.id || "");
+				itemElement.dataset.publicId = entry.public_id || "";
+				itemElement.dataset.featureType = entry.feature_type || "";
+				itemElement.dataset.action = entry.action || "";
 				itemElement.innerHTML = `
 					<span class="change-log-entry__action"></span>
 					<span class="change-log-entry__target"></span>
@@ -1784,6 +1789,66 @@
 				itemElement.querySelector(".change-log-entry__meta").textContent = `${entry.username || "unbekannt"} · ${entry.created_at || ""}`;
 				listElement.appendChild(itemElement);
 			});
+		}
+
+		function findLabelMarkerByPublicId(publicId) {
+			return labelMarkers.find((entry) => entry.label.publicId === publicId) || null;
+		}
+
+		function focusPathFeature(path) {
+			if (!path?._pathLines?.length) {
+				return false;
+			}
+
+			const latLngs = pathCoordinatesToLatLngs(path);
+			if (latLngs.length < 1) {
+				return false;
+			}
+
+			map.fitBounds(L.latLngBounds(latLngs), { padding: [60, 60], maxZoom: Math.max(map.getZoom(), 4) });
+			path._pathLines[1]?.openPopup(latLngs[Math.floor(latLngs.length / 2)]);
+			return true;
+		}
+
+		function focusLabelFeature(labelEntry) {
+			if (!labelEntry) {
+				return false;
+			}
+
+			const latlng = labelEntry.marker.getLatLng();
+			if (!map.hasLayer(labelEntry.marker)) {
+				map.setZoom(Math.max(map.getZoom(), labelEntry.label.minZoom || 0));
+				syncLabelVisibility();
+			}
+			map.panTo(latlng);
+			openLabelEditDialog({ labelEntry });
+			return true;
+		}
+
+		function focusChangeLogEntry(entry) {
+			if (!entry?.public_id) {
+				showFeedbackToast("Dieses Objekt kann nicht lokalisiert werden.", "warning");
+				return;
+			}
+
+			const locationEntry = findLocationMarkerByPublicId(entry.public_id);
+			if (locationEntry) {
+				map.panTo(locationEntry.marker.getLatLng());
+				locationEntry.marker.openPopup();
+				return;
+			}
+
+			const path = findPathByPublicId(entry.public_id);
+			if (path && focusPathFeature(path)) {
+				return;
+			}
+
+			const labelEntry = findLabelMarkerByPublicId(entry.public_id);
+			if (labelEntry && focusLabelFeature(labelEntry)) {
+				return;
+			}
+
+			showFeedbackToast("Objekt ist nicht mehr aktiv oder wurde noch nicht neu geladen.", "warning");
 		}
 
 		function renderReviewReports() {
@@ -5275,6 +5340,18 @@
 			}
 
 			focusReviewReport(report);
+		});
+
+		$(document).on("click", ".change-log-entry", function (event) {
+			event.preventDefault();
+			const changeId = Number(this.dataset.changeId || 0);
+			const changeEntry = changeLogEntries.find((entry) => Number(entry.id) === changeId);
+			if (!changeEntry) {
+				showFeedbackToast("Änderung konnte nicht gefunden werden.", "warning");
+				return;
+			}
+
+			focusChangeLogEntry(changeEntry);
 		});
 
 		$(document).on("click", ".review-report__reject", function (event) {

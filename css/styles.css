@@ -1271,7 +1271,16 @@ body.modal-dialog-open {
 	border-radius: 8px;
 	background: #fffaf4;
 	color: #3f3428;
+	cursor: pointer;
+	font: inherit;
 	padding: 10px;
+	text-align: left;
+}
+
+.change-log-entry:hover,
+.change-log-entry:focus-visible {
+	border-color: #9b7b58;
+	outline: none;
 }
 
 .change-log-entry__action {
