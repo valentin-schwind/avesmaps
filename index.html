@@ -575,6 +575,7 @@
 			dorf: "icons/dorf.png",
 		};
 		const LOCATION_TYPE_KEYS = Object.keys(LOCATION_TYPE_CONFIG);
+		document.body.classList.toggle("edit-mode", IS_EDIT_MODE);
 		const DEFAULT_PLANNER_STATE = {
 			toggleMetropolen: false,
 			toggleGrossstaedte: false,
@@ -719,7 +720,7 @@
 			document.querySelectorAll(".region-label").forEach(e => {
 				e.style.fontSize = size + "px";
 			});
-			syncLabelVisibility();
+			syncLabelIcons();
 		});
 
 		// Da liegen die Map-Tiles
@@ -3855,20 +3856,26 @@
 		}
 
 		function createLabelIcon(label) {
-			const safeSize = Math.max(10, Math.min(56, Number(label.size) || 18));
+			const safeSize = getScaledLabelSize(label);
 			const safeRotation = Math.max(-180, Math.min(180, Number(label.rotation) || 0));
 			return L.divIcon({
 				className: `map-label map-label--${label.labelType}`,
-				html: `<span style="font-size:${safeSize}px; transform: rotate(${safeRotation}deg);">${escapeHtml(label.text)}</span>`,
-				iconSize: null,
+				html: `<span style="font-size:${safeSize}px; transform: translate(-50%, -50%) rotate(${safeRotation}deg);">${escapeHtml(label.text)}</span>`,
+				iconSize: [0, 0],
 				iconAnchor: [0, 0],
 			});
+		}
+
+		function getScaledLabelSize(label) {
+			const baseSize = Math.max(10, Math.min(56, Number(label.size) || 18));
+			return Math.round(baseSize * (1 + map.getZoom() * 0.18));
 		}
 
 		function createLabelMarkerEntry(label) {
 			const marker = L.marker(label.coordinates, {
 				icon: createLabelIcon(label),
 				draggable: IS_EDIT_MODE,
+				interactive: IS_EDIT_MODE,
 				keyboard: false,
 				pane: "labelsPane",
 			});
@@ -3896,6 +3903,13 @@
 
 		function syncLabelVisibility() {
 			labelMarkers.forEach(syncLabelMarkerVisibility);
+		}
+
+		function syncLabelIcons() {
+			labelMarkers.forEach((entry) => {
+				entry.marker.setIcon(createLabelIcon(entry.label));
+				syncLabelMarkerVisibility(entry);
+			});
 		}
 
 		function prepareLabelData(data) {

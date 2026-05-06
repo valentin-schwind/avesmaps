@@ -1233,23 +1233,36 @@ body.modal-dialog-open {
 
 .map-label {
 	background: transparent;
-	border: 0;
-	pointer-events: auto;
+	border: 0 !important;
+	width: 0 !important;
+	height: 0 !important;
+	margin: 0 !important;
+	pointer-events: none;
 	white-space: nowrap;
 }
 
 .map-label span {
 	display: inline-block;
+	position: absolute;
+	left: 0;
+	top: 0;
 	color: #2f251c;
 	font-family: Georgia, "Times New Roman", serif;
 	font-weight: 700;
 	line-height: 1;
+	pointer-events: none;
 	text-shadow:
 		0 1px 0 rgba(255, 255, 255, 0.85),
 		1px 0 0 rgba(255, 255, 255, 0.85),
 		0 -1px 0 rgba(255, 255, 255, 0.85),
 		-1px 0 0 rgba(255, 255, 255, 0.85);
-	transform-origin: left center;
+	transform-origin: center center;
+}
+
+body.edit-mode .map-label,
+body.edit-mode .map-label span {
+	cursor: move;
+	pointer-events: auto;
 }
 
 .map-label--meer span,
