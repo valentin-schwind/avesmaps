@@ -980,7 +980,7 @@ body.modal-dialog-open {
 }
 
 .map-context-menu__item--submenu::after {
-	content: "➡️";
+	content: "\27A1\FE0F";
 	margin-left: 18px;
 	color: #806b56;
 }
