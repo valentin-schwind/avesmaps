@@ -1492,7 +1492,10 @@
 						<span class="review-report__meta"></span>
 						<span class="review-report__source"></span>
 					</button>
-					<button type="button" class="review-report__reject">Verwerfen</button>
+					<div class="review-report__actions">
+						<button type="button" class="review-report__create">Anlegen</button>
+						<button type="button" class="review-report__reject">Verwerfen</button>
+					</div>
 				`;
 				itemElement.querySelector(".review-report__name").textContent = report.name || "Unbenannter Ort";
 				itemElement.querySelector(".review-report__meta").textContent = `${report.size || "dorf"} · ${formatLocationReportCoordinates(L.latLng(Number(report.lat), Number(report.lng)))}`;
@@ -1534,7 +1537,6 @@
 			}).openTooltip();
 
 			map.flyTo(latlng, Math.max(map.getZoom(), 3), { duration: 0.8 });
-			openLocationEditDialogFromReport(report, latlng);
 		}
 
 		function openLocationEditDialogFromReport(report, latlng) {
@@ -1577,9 +1579,9 @@
 				await updateReviewReportStatus(Number(report.id), "rejected");
 				if (activeReviewReportId === Number(report.id)) {
 					activeReviewReportId = null;
-					clearReviewReportMarker();
 					setLocationEditDialogOpen(false, { resetForm: true });
 				}
+				clearReviewReportMarker();
 				showFeedbackToast("Ortsmeldung verworfen.", "success");
 				await loadReviewReports();
 			} catch (error) {
@@ -4759,6 +4761,21 @@
 			}
 
 			void rejectReviewReport(report);
+		});
+
+		$(document).on("click", ".review-report__create", function (event) {
+			event.preventDefault();
+			event.stopPropagation();
+			const reportId = Number(this.closest(".review-report")?.dataset.reportId);
+			const report = reviewReports.find((entry) => Number(entry.id) === reportId);
+			if (!report) {
+				showFeedbackToast("Ortsmeldung konnte nicht gefunden werden.", "warning");
+				return;
+			}
+
+			const latlng = L.latLng(Number(report.lat), Number(report.lng));
+			focusReviewReport(report);
+			openLocationEditDialogFromReport(report, latlng);
 		});
 
 		$(document).on("click", ".map-context-menu__item", function (event) {
