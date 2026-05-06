@@ -37,6 +37,8 @@ try {
         'move_point' => avesmapsMovePointFeature($pdo, $payload, $user),
         'update_point' => avesmapsUpdatePointFeatureDetails($pdo, $payload, $user),
         'create_point' => avesmapsCreatePointFeature($pdo, $payload, $user),
+        'create_crossing' => avesmapsCreateCrossingFeature($pdo, $payload, $user),
+        'create_path' => avesmapsCreatePathFeature($pdo, $payload, $user),
         'delete_feature' => avesmapsDeleteMapFeature($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Edit-Aktion ist unbekannt.'),
     };
@@ -106,6 +108,16 @@ function avesmapsLocationSubtypeLabel(string $subtype): string {
 
 function avesmapsReadLocationDescription(mixed $value): string {
     return avesmapsNormalizeMultiline((string) $value, 1200);
+}
+
+function avesmapsReadPathSubtype(mixed $value): string {
+    $subtype = avesmapsNormalizeSingleLine((string) ($value ?: 'Weg'), 60);
+    $allowedSubtypes = ['Reichsstrasse', 'Strasse', 'Weg', 'Pfad', 'Gebirgspass', 'Flussweg', 'Seeweg'];
+    if (!in_array($subtype, $allowedSubtypes, true)) {
+        throw new InvalidArgumentException('Der Wegtyp ist ungueltig.');
+    }
+
+    return $subtype;
 }
 
 function avesmapsReadOptionalWikiUrl(mixed $value): string {
@@ -328,6 +340,144 @@ function avesmapsCreatePointFeature(PDO $pdo, array $payload, array $user): arra
     }
 }
 
+function avesmapsCreateCrossingFeature(PDO $pdo, array $payload, array $user): array {
+    $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
+    $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
+    $publicId = avesmapsUuidV4();
+    $name = 'Kreuzung';
+    $geometry = [
+        'type' => 'Point',
+        'coordinates' => [$lng, $lat],
+    ];
+    $properties = [
+        'name' => $name,
+        'feature_type' => 'junction',
+        'feature_subtype' => 'crossing',
+    ];
+
+    $pdo->beginTransaction();
+    try {
+        $revision = avesmapsNextMapRevision($pdo);
+        $sortOrder = avesmapsNextMapSortOrder($pdo);
+        $statement = $pdo->prepare(
+            'INSERT INTO map_features (
+                public_id, feature_type, feature_subtype, name, geometry_type,
+                geometry_json, properties_json, min_x, min_y, max_x, max_y,
+                sort_order, revision, created_by, updated_by
+            ) VALUES (
+                :public_id, :feature_type, :feature_subtype, :name, :geometry_type,
+                :geometry_json, :properties_json, :min_x, :min_y, :max_x, :max_y,
+                :sort_order, :revision, :created_by, :updated_by
+            )'
+        );
+        $statement->execute([
+            'public_id' => $publicId,
+            'feature_type' => 'junction',
+            'feature_subtype' => 'crossing',
+            'name' => $name,
+            'geometry_type' => 'Point',
+            'geometry_json' => avesmapsEncodeJson($geometry),
+            'properties_json' => avesmapsEncodeJson($properties),
+            'min_x' => $lng,
+            'min_y' => $lat,
+            'max_x' => $lng,
+            'max_y' => $lat,
+            'sort_order' => $sortOrder,
+            'revision' => $revision,
+            'created_by' => (int) $user['id'],
+            'updated_by' => (int) $user['id'],
+        ]);
+
+        $featureId = (int) $pdo->lastInsertId();
+        avesmapsWriteMapAuditLog($pdo, $featureId, 'create_crossing', (int) $user['id'], '{}', avesmapsEncodeAuditJson([
+            'public_id' => $publicId,
+            'geometry_json' => $geometry,
+            'properties_json' => $properties,
+            'revision' => $revision,
+        ]));
+        $pdo->commit();
+
+        return avesmapsBuildPointFeatureResponse($publicId, $name, 'crossing', $lat, $lng, $properties, $revision);
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
+function avesmapsCreatePathFeature(PDO $pdo, array $payload, array $user): array {
+    $subtype = avesmapsReadPathSubtype($payload['feature_subtype'] ?? 'Weg');
+    $startLat = avesmapsParseMapCoordinate($payload['start_lat'] ?? null, 'start_lat');
+    $startLng = avesmapsParseMapCoordinate($payload['start_lng'] ?? null, 'start_lng');
+    $endLat = avesmapsParseMapCoordinate($payload['end_lat'] ?? null, 'end_lat');
+    $endLng = avesmapsParseMapCoordinate($payload['end_lng'] ?? null, 'end_lng');
+
+    if (abs($startLat - $endLat) < 0.0001 && abs($startLng - $endLng) < 0.0001) {
+        throw new InvalidArgumentException('Start und Ziel des Weges duerfen nicht identisch sein.');
+    }
+
+    $publicId = avesmapsUuidV4();
+    $name = $subtype;
+    $geometry = [
+        'type' => 'LineString',
+        'coordinates' => [
+            [$startLng, $startLat],
+            [$endLng, $endLat],
+        ],
+    ];
+    $properties = [
+        'name' => $name,
+        'feature_type' => 'path',
+        'feature_subtype' => $subtype,
+    ];
+
+    $pdo->beginTransaction();
+    try {
+        $revision = avesmapsNextMapRevision($pdo);
+        $sortOrder = avesmapsNextMapSortOrder($pdo);
+        $statement = $pdo->prepare(
+            'INSERT INTO map_features (
+                public_id, feature_type, feature_subtype, name, geometry_type,
+                geometry_json, properties_json, min_x, min_y, max_x, max_y,
+                sort_order, revision, created_by, updated_by
+            ) VALUES (
+                :public_id, :feature_type, :feature_subtype, :name, :geometry_type,
+                :geometry_json, :properties_json, :min_x, :min_y, :max_x, :max_y,
+                :sort_order, :revision, :created_by, :updated_by
+            )'
+        );
+        $statement->execute([
+            'public_id' => $publicId,
+            'feature_type' => 'path',
+            'feature_subtype' => $subtype,
+            'name' => $name,
+            'geometry_type' => 'LineString',
+            'geometry_json' => avesmapsEncodeJson($geometry),
+            'properties_json' => avesmapsEncodeJson($properties),
+            'min_x' => min($startLng, $endLng),
+            'min_y' => min($startLat, $endLat),
+            'max_x' => max($startLng, $endLng),
+            'max_y' => max($startLat, $endLat),
+            'sort_order' => $sortOrder,
+            'revision' => $revision,
+            'created_by' => (int) $user['id'],
+            'updated_by' => (int) $user['id'],
+        ]);
+
+        $featureId = (int) $pdo->lastInsertId();
+        avesmapsWriteMapAuditLog($pdo, $featureId, 'create_path', (int) $user['id'], '{}', avesmapsEncodeAuditJson([
+            'public_id' => $publicId,
+            'feature_subtype' => $subtype,
+            'geometry_json' => $geometry,
+            'properties_json' => $properties,
+            'revision' => $revision,
+        ]));
+        $pdo->commit();
+
+        return avesmapsBuildLineStringFeatureResponse($publicId, $name, $subtype, $geometry, $properties, $revision);
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
 function avesmapsDeleteMapFeature(PDO $pdo, array $payload, array $user): array {
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
 
@@ -424,6 +574,22 @@ function avesmapsBuildPointFeatureResponse(string $publicId, string $name, strin
         'lat' => $lat,
         'lng' => $lng,
         'revision' => $revision,
+    ];
+}
+
+function avesmapsBuildLineStringFeatureResponse(string $publicId, string $name, string $subtype, array $geometry, array $properties, int $revision): array {
+    $properties['public_id'] = $publicId;
+    $properties['feature_type'] = 'path';
+    $properties['feature_subtype'] = $subtype;
+    $properties['revision'] = $revision;
+
+    return [
+        'type' => 'Feature',
+        'id' => $publicId,
+        'geometry' => $geometry,
+        'properties' => $properties + [
+            'name' => $name,
+        ],
     ];
 }
 

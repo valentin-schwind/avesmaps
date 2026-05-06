@@ -102,6 +102,8 @@
 			<button type="button" class="map-context-menu__item map-context-menu__item--submenu" data-context-action="add-here">Hier hinzufuegen</button>
 			<div class="map-context-submenu">
 				<button type="button" class="map-context-menu__item" data-context-action="create-location">Neuer Ort</button>
+				<button type="button" class="map-context-menu__item" data-context-action="create-crossing">Neue Kreuzung</button>
+				<button type="button" class="map-context-menu__item" data-context-action="create-path">Neuer Weg</button>
 			</div>
 		</div>
 		<button type="button" class="map-context-menu__item" data-context-action="report-location">📝 Neuen Ort melden</button>
@@ -559,6 +561,8 @@
 			locationEditMarkerEntry = null,
 			isLocationEditSubmissionPending = false,
 			activeLocationEdit = null,
+			pendingPathCreationStart = null,
+			pendingPathCreationPreview = null,
 			mapDataSourceStatus = null;
 
 		// Initialisierung der Karte 
@@ -676,6 +680,7 @@
 			}
 
 			if (event.key === "Escape") {
+				clearPendingPathCreation();
 				closeMapContextMenu();
 			}
 		});
@@ -2127,6 +2132,16 @@
 			return location?.locationType === CROSSING_LOCATION_TYPE || isCrossingName(location?.name);
 		}
 
+		function getNextCrossingDisplayName() {
+			const crossingNumbers = locationData
+				.map((location) => /^Kreuzung-(\d+)$/i.exec(location.name || ""))
+				.filter(Boolean)
+				.map((match) => Number.parseInt(match[1], 10))
+				.filter(Number.isFinite);
+			const nextNumber = crossingNumbers.length ? Math.max(...crossingNumbers) + 1 : 1;
+			return `Kreuzung-${nextNumber}`;
+		}
+
 		function createWaypointId() {
 			return `waypoint-${Date.now()}-${waypointCounter++}`;
 		}
@@ -2960,6 +2975,31 @@
 			);
 		}
 
+		function createEditablePointMarkerEntry(location) {
+			const marker = L.marker(location.coordinates, {
+				icon: createLocationMarkerIcon(location.locationType),
+				pane: "locationsPane",
+				keyboard: true,
+				draggable: false,
+			});
+			const markerEntry = {
+				marker,
+				locationType: location.locationType,
+				name: location.name,
+				publicId: location.publicId,
+				location,
+			};
+			marker.on("dragend", async () => {
+				const saveSucceeded = await saveMovedLocationMarker(markerEntry, marker.getLatLng());
+				if (!saveSucceeded && activeLocationEdit?.originalLatLng) {
+					marker.setLatLng(activeLocationEdit.originalLatLng);
+				}
+				setLocationEditActive(markerEntry, false);
+			});
+			refreshLocationMarkerPopup(markerEntry);
+			return markerEntry;
+		}
+
 		function applyFeatureResponseToMarker(markerEntry, feature) {
 			const previousName = markerEntry.name;
 			const locationType = normalizeLocationType(feature.location_type || feature.feature_subtype || markerEntry.locationType);
@@ -3022,36 +3062,57 @@
 			};
 			locationData.push(location);
 
-			const marker = L.marker(location.coordinates, {
-				icon: createLocationMarkerIcon(locationType),
-				pane: "locationsPane",
-				keyboard: true,
-				draggable: false,
-			});
-			const markerEntry = {
-				marker,
-				locationType,
-				name: location.name,
-				publicId: location.publicId,
-				location,
-			};
-			marker.on("dragend", async () => {
-				const saveSucceeded = await saveMovedLocationMarker(markerEntry, marker.getLatLng());
-				if (!saveSucceeded && activeLocationEdit?.originalLatLng) {
-					marker.setLatLng(activeLocationEdit.originalLatLng);
-				}
-				setLocationEditActive(markerEntry, false);
-			});
+			const markerEntry = createEditablePointMarkerEntry(location);
 			locationMarkers.push(markerEntry);
-			refreshLocationMarkerPopup(markerEntry);
 			syncLocationMarkerVisibility();
 			refreshPlannerAfterFeatureChange();
-			marker.openPopup();
+			markerEntry.marker.openPopup();
 		}
 
 		async function createLocationAt(latlng) {
 			const normalizedLatLng = L.latLng(latlng);
 			openLocationEditDialog({ latlng: normalizedLatLng });
+		}
+
+		function addCreatedCrossingMarker(feature) {
+			const location = {
+				publicId: feature.public_id,
+				name: getNextCrossingDisplayName(),
+				coordinates: [Number(feature.lat), Number(feature.lng)],
+				locationType: CROSSING_LOCATION_TYPE,
+				locationTypeLabel: "Kreuzung",
+				description: "",
+				wikiUrl: "",
+			};
+			locationData.push(location);
+
+			const markerEntry = createEditablePointMarkerEntry(location);
+			locationMarkers.push(markerEntry);
+			syncLocationMarkerVisibility();
+			refreshPlannerAfterFeatureChange();
+			markerEntry.marker.openPopup();
+		}
+
+		async function createCrossingAt(latlng) {
+			const normalizedLatLng = L.latLng(latlng);
+			if (!isWithinMapBounds(normalizedLatLng)) {
+				showFeedbackToast("Diese Position kann nicht gespeichert werden.", "warning");
+				return;
+			}
+
+			try {
+				const result = await submitMapFeatureEdit({
+					action: "create_crossing",
+					lat: normalizedLatLng.lat,
+					lng: normalizedLatLng.lng,
+				});
+				addCreatedCrossingMarker(result.feature);
+				updateRevisionFromEditResponse(result);
+				showFeedbackToast("Kreuzung erstellt.", "success");
+			} catch (error) {
+				console.error("Kreuzung konnte nicht erstellt werden:", error);
+				showFeedbackToast(error.message || "Kreuzung konnte nicht erstellt werden.", "warning");
+			}
 		}
 
 		function findNearestLocationToLatLng(latlng) {
@@ -3068,6 +3129,20 @@
 				});
 
 			return nearestMatch?.location || null;
+		}
+
+		function findNearestGraphNodeToLatLng(latlng) {
+			const targetLocation = { coordinates: [latlng.lat, latlng.lng] };
+			let nearestMatch = null;
+
+			locationData.forEach((location) => {
+				const distance = getLocationDistance(location, targetLocation);
+				if (!nearestMatch || distance < nearestMatch.distance) {
+					nearestMatch = { location, distance };
+				}
+			});
+
+			return nearestMatch;
 		}
 
 		function openLocationPopupByName(locationName) {
@@ -3107,48 +3182,142 @@
 			};
 		}
 
+		function createPathLayer(path) {
+			const latLngCoords = path.geometry.coordinates.map(([x, y]) => [y, x]);
+			const roadOutline = L.polyline(latLngCoords, {
+				pane: "roadsOutlinePane",
+				color: "#FFFFFF",
+				weight: 5,
+				opacity: 1,
+				interactive: false,
+				lineCap: "round",
+				lineJoin: "round",
+			});
+			const roadCenter = L.polyline(latLngCoords, {
+				pane: "roadsPane",
+				color: "#3388FF",
+				weight: 3,
+				opacity: 1,
+				interactive: false,
+				lineCap: "round",
+				lineJoin: "round",
+			});
+
+			return L.layerGroup([roadOutline, roadCenter]);
+		}
+
+		function normalizeRoutePathFeature(feature, pathId) {
+			return {
+				...feature,
+				geometry: {
+					...feature.geometry,
+					coordinates: feature.geometry.coordinates.map(([x, y]) => [x, y]),
+				},
+				properties: {
+					...feature.properties,
+					name: `${feature.properties.name.split("-")[0]}-${pathId}`,
+					id: `path-${pathId}`,
+				},
+			};
+		}
+
 		// Verarbeitung der Pfade (GeoJSON LineStrings)
 		const preparePathData = (data) => {
 			pathData = data.features
 				.filter((feature) => feature.geometry.type === "LineString")
-				.map((feature, idx) => {
-					const pathId = idx + 1;
-					return {
-						...feature,
-						geometry: {
-							...feature.geometry,
-							coordinates: feature.geometry.coordinates.map(([x, y]) => [x, y]),
-						},
-						properties: {
-							...feature.properties,
-							name: `${feature.properties.name.split("-")[0]}-${pathId}`,
-							id: `path-${pathId}`,
-						},
-					};
-				});
+				.map((feature, idx) => normalizeRoutePathFeature(feature, idx + 1));
 			pathData.forEach((path) => {
-				const latLngCoords = path.geometry.coordinates.map(([x, y]) => [y, x]);
-				const roadOutline = L.polyline(latLngCoords, {
-					pane: "roadsOutlinePane",
-					color: "#FFFFFF",
-					weight: 5,
-					opacity: 1,
-					interactive: false,
-					lineCap: "round",
-					lineJoin: "round",
-				});
-				const roadCenter = L.polyline(latLngCoords, {
-					pane: "roadsPane",
-					color: "#3388FF",
-					weight: 3,
-					opacity: 1,
-					interactive: false,
-					lineCap: "round",
-					lineJoin: "round",
-				});
-				pathLayers.push(L.layerGroup([roadOutline, roadCenter]));
+				pathLayers.push(createPathLayer(path));
 			});
 		};
+
+		function addCreatedPathFeature(feature) {
+			const path = normalizeRoutePathFeature(feature, pathData.length + 1);
+			const pathLayer = createPathLayer(path);
+			pathData.push(path);
+			pathLayers.push(pathLayer);
+			syncPathVisibility();
+			refreshPlannerAfterFeatureChange({ updateRoute: true });
+		}
+
+		function clearPendingPathCreation() {
+			if (pendingPathCreationPreview) {
+				map.removeLayer(pendingPathCreationPreview);
+				pendingPathCreationPreview = null;
+			}
+
+			pendingPathCreationStart = null;
+			map.off("click", handlePendingPathCreationClick);
+		}
+
+		function showPendingPathCreationPreview(startLocation) {
+			if (pendingPathCreationPreview) {
+				map.removeLayer(pendingPathCreationPreview);
+			}
+
+			pendingPathCreationPreview = L.circleMarker(startLocation.coordinates, {
+				pane: "measurementHandlesPane",
+				radius: 10,
+				color: "#1452F7",
+				weight: 3,
+				fillColor: "#FFFFFF",
+				fillOpacity: 0.9,
+				interactive: false,
+			}).addTo(map);
+		}
+
+		function startPathCreationAt(latlng) {
+			const nearestMatch = findNearestGraphNodeToLatLng(L.latLng(latlng));
+			if (!nearestMatch?.location) {
+				showFeedbackToast("Kein Startknoten gefunden.", "warning");
+				return;
+			}
+
+			clearPendingPathCreation();
+			pendingPathCreationStart = nearestMatch.location;
+			showPendingPathCreationPreview(pendingPathCreationStart);
+			map.on("click", handlePendingPathCreationClick);
+			showFeedbackToast(`Start: ${pendingPathCreationStart.name}. Jetzt Zielknoten anklicken.`, "info");
+		}
+
+		async function handlePendingPathCreationClick(event) {
+			if (!pendingPathCreationStart) {
+				clearPendingPathCreation();
+				return;
+			}
+
+			const nearestMatch = findNearestGraphNodeToLatLng(event.latlng);
+			const endLocation = nearestMatch?.location || null;
+			if (!endLocation) {
+				showFeedbackToast("Kein Zielknoten gefunden.", "warning");
+				return;
+			}
+
+			if (endLocation === pendingPathCreationStart) {
+				showFeedbackToast("Start und Ziel sind identisch.", "warning");
+				return;
+			}
+
+			const startLocation = pendingPathCreationStart;
+			clearPendingPathCreation();
+
+			try {
+				const result = await submitMapFeatureEdit({
+					action: "create_path",
+					feature_subtype: "Weg",
+					start_lat: startLocation.coordinates[0],
+					start_lng: startLocation.coordinates[1],
+					end_lat: endLocation.coordinates[0],
+					end_lng: endLocation.coordinates[1],
+				});
+				addCreatedPathFeature(result.feature);
+				updateRevisionFromEditResponse(result);
+				showFeedbackToast(`Weg ${startLocation.name} -> ${endLocation.name} erstellt.`, "success");
+			} catch (error) {
+				console.error("Weg konnte nicht erstellt werden:", error);
+				showFeedbackToast(error.message || "Weg konnte nicht erstellt werden.", "warning");
+			}
+		}
 
 		// Verarbeitung der Regionen
 		function prepareRegionData(data) {
@@ -3475,6 +3644,18 @@
 			if (action === "create-location" && contextMenuLatLng) {
 				closeMapContextMenu();
 				void createLocationAt(contextMenuLatLng);
+				return;
+			}
+
+			if (action === "create-crossing" && contextMenuLatLng) {
+				closeMapContextMenu();
+				void createCrossingAt(contextMenuLatLng);
+				return;
+			}
+
+			if (action === "create-path" && contextMenuLatLng) {
+				closeMapContextMenu();
+				startPathCreationAt(contextMenuLatLng);
 				return;
 			}
 
