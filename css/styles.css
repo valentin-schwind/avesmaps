@@ -1133,7 +1133,6 @@ body.modal-dialog-open {
 	display: grid;
 	gap: 4px;
 	box-sizing: border-box;
-	width: 100%;
 	min-width: 0;
 	border: 1px solid rgba(96, 72, 48, 0.16);
 	border-radius: 8px;
@@ -1163,16 +1162,21 @@ body.modal-dialog-open {
 	outline: none;
 }
 
+.review-report__create,
 .review-report__reject {
-	border: 1px solid #b87d73;
 	border-radius: 6px;
-	background: #fff3f0;
-	color: #8a2d22;
 	cursor: pointer;
 	font: inherit;
 	font-size: 12px;
 	margin-top: 4px;
+	min-height: 30px;
 	padding: 5px 8px;
+}
+
+.review-report__reject {
+	border: 1px solid #b87d73;
+	background: #fff3f0;
+	color: #8a2d22;
 }
 
 .review-report__actions {
@@ -1184,13 +1188,8 @@ body.modal-dialog-open {
 
 .review-report__create {
 	border: 1px solid #8fa46d;
-	border-radius: 6px;
 	background: #f1f7e8;
 	color: #435724;
-	cursor: pointer;
-	font: inherit;
-	font-size: 12px;
-	padding: 5px 8px;
 }
 
 .review-report__name,
