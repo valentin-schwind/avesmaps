@@ -44,11 +44,10 @@ try {
         'ok' => false,
         'error' => $exception->getMessage(),
     ]);
-} catch (PDOException $exception) {
+} catch (PDOException) {
     avesmapsJsonResponse(500, [
         'ok' => false,
         'error' => 'Das Kartenobjekt konnte nicht gespeichert werden.',
-        'detail' => $exception->getMessage(),
     ]);
 } catch (RuntimeException $exception) {
     avesmapsJsonResponse(503, [
