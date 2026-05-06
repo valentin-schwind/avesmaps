@@ -59,6 +59,7 @@ try {
     avesmapsJsonResponse(500, [
         'ok' => false,
         'error' => 'Die Map-Datenbank konnte nicht verwaltet werden.',
+        'detail' => $exception->getMessage(),
     ]);
 } catch (RuntimeException $exception) {
     avesmapsJsonResponse(503, [
