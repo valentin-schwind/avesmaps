@@ -478,6 +478,10 @@ body.modal-dialog-open {
 	display: none !important;
 }
 
+#region-edit-overlay[hidden] {
+	display: none !important;
+}
+
 #location-report-overlay {
 	position: fixed;
 	inset: 0;
@@ -512,6 +516,17 @@ body.modal-dialog-open {
 }
 
 #label-edit-overlay {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	background: rgba(20, 16, 12, 0.56);
+	z-index: 1260;
+}
+
+#region-edit-overlay {
 	position: fixed;
 	inset: 0;
 	display: flex;

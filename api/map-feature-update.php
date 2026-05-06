@@ -44,6 +44,9 @@ try {
         'create_label' => avesmapsCreateLabelFeature($pdo, $payload, $user),
         'update_label' => avesmapsUpdateLabelFeature($pdo, $payload, $user),
         'move_label' => avesmapsMoveLabelFeature($pdo, $payload, $user),
+        'create_region' => avesmapsCreateRegionFeature($pdo, $payload, $user),
+        'update_region' => avesmapsUpdateRegionFeature($pdo, $payload, $user),
+        'update_region_geometry' => avesmapsUpdateRegionFeatureGeometry($pdo, $payload, $user),
         'delete_feature' => avesmapsDeleteMapFeature($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Edit-Aktion ist unbekannt.'),
     };
@@ -182,6 +185,43 @@ function avesmapsReadLabelPriority(mixed $value): int {
     }
 
     return (int) $priority;
+}
+
+function avesmapsReadHexColor(mixed $value): string {
+    $color = avesmapsNormalizeSingleLine((string) ($value ?: '#888888'), 9);
+    if (!preg_match('/^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/', $color)) {
+        throw new InvalidArgumentException('Der Farbwert ist ungueltig.');
+    }
+
+    return $color;
+}
+
+function avesmapsReadOpacity(mixed $value): float {
+    $opacity = filter_var($value, FILTER_VALIDATE_FLOAT);
+    if ($opacity === false || $opacity < 0 || $opacity > 1) {
+        throw new InvalidArgumentException('Die Transparenz ist ungueltig.');
+    }
+
+    return (float) $opacity;
+}
+
+function avesmapsReadPolygonCoordinates(mixed $value): array {
+    if (!is_array($value) || count($value) < 1 || !is_array($value[0] ?? null) || count($value[0]) < 4) {
+        throw new InvalidArgumentException('Eine Region braucht mindestens drei Punkte.');
+    }
+
+    $ring = [];
+    foreach ($value[0] as $coordinate) {
+        if (!is_array($coordinate) || count($coordinate) !== 2) {
+            throw new InvalidArgumentException('Die Regionskoordinaten sind ungueltig.');
+        }
+        $ring[] = [
+            avesmapsParseMapCoordinate($coordinate[0], 'lng'),
+            avesmapsParseMapCoordinate($coordinate[1], 'lat'),
+        ];
+    }
+
+    return [$ring];
 }
 
 function avesmapsReadOptionalWikiUrl(mixed $value): string {
@@ -814,6 +854,110 @@ function avesmapsMoveLabelFeature(PDO $pdo, array $payload, array $user): array 
     }
 }
 
+function avesmapsCreateRegionFeature(PDO $pdo, array $payload, array $user): array {
+    $name = avesmapsReadFeatureName($payload['name'] ?? 'Neue Region', 'Der Regionsname');
+    $color = avesmapsReadHexColor($payload['color'] ?? '#888888');
+    $opacity = avesmapsReadOpacity($payload['opacity'] ?? 0.33);
+    $coordinates = avesmapsReadPolygonCoordinates($payload['coordinates'] ?? null);
+    $bounds = avesmapsCalculateLineStringBounds($coordinates[0]);
+    $publicId = avesmapsUuidV4();
+    $geometry = ['type' => 'Polygon', 'coordinates' => $coordinates];
+    $properties = [
+        'type' => 'region',
+        'name' => $name,
+        'fill' => $color,
+        'stroke' => $color,
+        'fillOpacity' => $opacity,
+        'feature_type' => 'region',
+        'feature_subtype' => 'region',
+    ];
+
+    $pdo->beginTransaction();
+    try {
+        $revision = avesmapsNextMapRevision($pdo);
+        $sortOrder = avesmapsNextMapSortOrder($pdo);
+        $statement = $pdo->prepare(
+            'INSERT INTO map_features (
+                public_id, feature_type, feature_subtype, name, geometry_type,
+                geometry_json, properties_json, min_x, min_y, max_x, max_y,
+                sort_order, revision, created_by, updated_by
+            ) VALUES (
+                :public_id, :feature_type, :feature_subtype, :name, :geometry_type,
+                :geometry_json, :properties_json, :min_x, :min_y, :max_x, :max_y,
+                :sort_order, :revision, :created_by, :updated_by
+            )'
+        );
+        $statement->execute([
+            'public_id' => $publicId,
+            'feature_type' => 'region',
+            'feature_subtype' => 'region',
+            'name' => $name,
+            'geometry_type' => 'Polygon',
+            'geometry_json' => avesmapsEncodeJson($geometry),
+            'properties_json' => avesmapsEncodeJson($properties),
+            'min_x' => $bounds['min_x'],
+            'min_y' => $bounds['min_y'],
+            'max_x' => $bounds['max_x'],
+            'max_y' => $bounds['max_y'],
+            'sort_order' => $sortOrder,
+            'revision' => $revision,
+            'created_by' => (int) $user['id'],
+            'updated_by' => (int) $user['id'],
+        ]);
+        $featureId = (int) $pdo->lastInsertId();
+        avesmapsWriteMapAuditLog($pdo, $featureId, 'create_region', (int) $user['id'], '{}', avesmapsEncodeAuditJson(['public_id' => $publicId, 'name' => $name, 'revision' => $revision]));
+        $pdo->commit();
+        return avesmapsBuildRegionFeatureResponse($publicId, $name, $geometry, $properties, $revision);
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
+function avesmapsUpdateRegionFeature(PDO $pdo, array $payload, array $user): array {
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $name = avesmapsReadFeatureName($payload['name'] ?? '', 'Der Regionsname');
+    $color = avesmapsReadHexColor($payload['color'] ?? '#888888');
+    $opacity = avesmapsReadOpacity($payload['opacity'] ?? 0.33);
+
+    $pdo->beginTransaction();
+    try {
+        $feature = avesmapsFetchEditableFeature($pdo, $publicId);
+        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
+        $properties['type'] = 'region';
+        $properties['name'] = $name;
+        $properties['fill'] = $color;
+        $properties['stroke'] = $color;
+        $properties['fillOpacity'] = $opacity;
+        $revision = avesmapsNextMapRevision($pdo);
+        $statement = $pdo->prepare('UPDATE map_features SET name = :name, properties_json = :properties_json, revision = :revision, updated_by = :updated_by WHERE id = :id');
+        $statement->execute(['id' => (int) $feature['id'], 'name' => $name, 'properties_json' => avesmapsEncodeJson($properties), 'revision' => $revision, 'updated_by' => (int) $user['id']]);
+        avesmapsWriteMapAuditLog($pdo, (int) $feature['id'], 'update_region', (int) $user['id'], avesmapsEncodeAuditJson($feature), avesmapsEncodeAuditJson(['public_id' => $publicId, 'name' => $name, 'revision' => $revision]));
+        $pdo->commit();
+        return avesmapsBuildRegionFeatureResponse($publicId, $name, avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null), $properties, $revision);
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
+function avesmapsUpdateRegionFeatureGeometry(PDO $pdo, array $payload, array $user): array {
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $coordinates = avesmapsReadPolygonCoordinates($payload['coordinates'] ?? null);
+    $bounds = avesmapsCalculateLineStringBounds($coordinates[0]);
+    $geometry = ['type' => 'Polygon', 'coordinates' => $coordinates];
+    $pdo->beginTransaction();
+    try {
+        $feature = avesmapsFetchEditableFeature($pdo, $publicId);
+        $revision = avesmapsNextMapRevision($pdo);
+        $statement = $pdo->prepare('UPDATE map_features SET geometry_json = :geometry_json, min_x = :min_x, min_y = :min_y, max_x = :max_x, max_y = :max_y, revision = :revision, updated_by = :updated_by WHERE id = :id');
+        $statement->execute(['id' => (int) $feature['id'], 'geometry_json' => avesmapsEncodeJson($geometry), 'min_x' => $bounds['min_x'], 'min_y' => $bounds['min_y'], 'max_x' => $bounds['max_x'], 'max_y' => $bounds['max_y'], 'revision' => $revision, 'updated_by' => (int) $user['id']]);
+        avesmapsWriteMapAuditLog($pdo, (int) $feature['id'], 'update_region_geometry', (int) $user['id'], avesmapsEncodeAuditJson($feature), avesmapsEncodeAuditJson(['public_id' => $publicId, 'revision' => $revision]));
+        $pdo->commit();
+        return avesmapsBuildRegionFeatureResponse($publicId, (string) $feature['name'], $geometry, avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null), $revision);
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
 function avesmapsDeleteMapFeature(PDO $pdo, array $payload, array $user): array {
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
 
@@ -981,6 +1125,22 @@ function avesmapsBuildLabelFeatureResponse(string $publicId, string $text, strin
             'type' => 'Point',
             'coordinates' => [$lng, $lat],
         ],
+        'properties' => $properties,
+    ];
+}
+
+function avesmapsBuildRegionFeatureResponse(string $publicId, string $name, array $geometry, array $properties, int $revision): array {
+    $properties['public_id'] = $publicId;
+    $properties['type'] = 'region';
+    $properties['name'] = $name;
+    $properties['feature_type'] = 'region';
+    $properties['feature_subtype'] = 'region';
+    $properties['revision'] = $revision;
+
+    return [
+        'type' => 'Feature',
+        'id' => $publicId,
+        'geometry' => $geometry,
         'properties' => $properties,
     ];
 }

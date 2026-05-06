@@ -106,6 +106,7 @@
 				<button type="button" class="map-context-menu__item" data-context-action="split-path-at-node" hidden>Neue Kreuzung und Weg teilen</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-path">Neuer Weg</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-label">Neues Label</button>
+				<button type="button" class="map-context-menu__item" data-context-action="create-region">Neue Region</button>
 			</div>
 		</div>
 		<button type="button" class="map-context-menu__item" data-context-action="report-location">📝 Neuen Ort melden</button>
@@ -318,6 +319,35 @@
 					<button id="label-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Loeschen</button>
 					<button id="label-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
 					<button id="label-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<div id="region-edit-overlay" hidden>
+		<div id="region-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="region-edit-title" tabindex="-1">
+			<div class="location-report-dialog__header">
+				<h2 id="region-edit-title">Region bearbeiten</h2>
+				<button id="region-edit-close" class="location-report-dialog__close" type="button" aria-label="Region schliessen">x</button>
+			</div>
+			<form id="region-edit-form" class="location-report-form" novalidate>
+				<input id="region-edit-public-id" name="public_id" type="hidden" />
+				<label class="location-report-form__field">
+					<span>Name *</span>
+					<input id="region-edit-name" name="name" type="text" maxlength="160" required />
+				</label>
+				<label class="location-report-form__field">
+					<span>Farbe *</span>
+					<input id="region-edit-color" name="color" type="text" maxlength="9" value="#888888" required />
+				</label>
+				<label class="location-report-form__field">
+					<span>Transparenz <output id="region-edit-opacity-output">33%</output></span>
+					<input id="region-edit-opacity" name="opacity" type="range" min="0" max="100" step="1" value="33" />
+				</label>
+				<p id="region-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+				<div class="location-report-form__actions">
+					<button id="region-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Loeschen</button>
+					<button id="region-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+					<button id="region-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
 				</div>
 			</form>
 		</div>
@@ -692,6 +722,8 @@
 			pathEditFeature = null,
 			labelEditEntry = null,
 			labelEditLatLng = null,
+			regionEditEntry = null,
+			activeRegionGeometryEdit = null,
 			isPathEditSubmissionPending = false,
 			activePathGeometryEdit = null,
 			pendingPathSplit = null,
@@ -817,10 +849,14 @@
 		$("#label-edit-delete").on("click", () => deleteActiveLabel());
 		$("#label-edit-min-zoom").on("input", syncLabelMinZoomOutput);
 		$("#label-edit-priority").on("input", syncLabelPriorityOutput);
+		$("#region-edit-form").on("submit", handleRegionEditFormSubmit);
+		$("#region-edit-delete").on("click", () => deleteActiveRegion());
+		$("#region-edit-opacity").on("input", syncRegionOpacityOutput);
 		$("#path-edit-autoname").on("change", syncPathAutoNameControls);
 		$("#path-edit-type").on("change", () => syncPathAutoNameControls({ forceName: true }));
 		$("#path-edit-close, #path-edit-cancel").on("click", () => setPathEditDialogOpen(false, { resetForm: true }));
 		$("#label-edit-close, #label-edit-cancel").on("click", () => setLabelEditDialogOpen(false, { resetForm: true }));
+		$("#region-edit-close, #region-edit-cancel").on("click", () => setRegionEditDialogOpen(false, { resetForm: true }));
 		$("#path-edit-overlay").on("click", function (event) {
 			if (event.target === this) {
 				setPathEditDialogOpen(false, { resetForm: true });
@@ -829,6 +865,11 @@
 		$("#label-edit-overlay").on("click", function (event) {
 			if (event.target === this) {
 				setLabelEditDialogOpen(false, { resetForm: true });
+			}
+		});
+		$("#region-edit-overlay").on("click", function (event) {
+			if (event.target === this) {
+				setRegionEditDialogOpen(false, { resetForm: true });
 			}
 		});
 		$(document).on("keydown", (event) => {
@@ -951,7 +992,7 @@
 			}
 
 			return Boolean(targetElement.closest(
-				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #review-panel, #review-panel-toggle, #location-report-overlay, #location-edit-overlay, #path-edit-overlay, #label-edit-overlay"
+				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #review-panel, #review-panel-toggle, #location-report-overlay, #location-edit-overlay, #path-edit-overlay, #label-edit-overlay, #region-edit-overlay"
 			));
 		}
 
@@ -1053,6 +1094,18 @@
 
 		function getLabelEditDialogElement() {
 			return document.getElementById("label-edit-dialog");
+		}
+
+		function getRegionEditFormElement() {
+			return document.getElementById("region-edit-form");
+		}
+
+		function getRegionEditStatusElement() {
+			return document.getElementById("region-edit-status");
+		}
+
+		function getRegionEditDialogElement() {
+			return document.getElementById("region-edit-dialog");
 		}
 
 		function getLocationReportServiceNoteElement() {
@@ -1216,6 +1269,14 @@
 			}
 		}
 
+		function setRegionEditStatus(message = "", type = "") {
+			const statusElement = getRegionEditStatusElement();
+			if (!statusElement) return;
+			statusElement.textContent = message;
+			if (type) statusElement.dataset.status = type;
+			else delete statusElement.dataset.status;
+		}
+
 		function setLocationReportSubmitPending(isPending) {
 			isLocationReportSubmissionPending = isPending;
 
@@ -1337,6 +1398,17 @@
 			setLabelEditStatus();
 		}
 
+		function resetRegionEditForm() {
+			const formElement = getRegionEditFormElement();
+			if (!formElement) return;
+			formElement.reset();
+			regionEditEntry = null;
+			document.getElementById("region-edit-public-id").value = "";
+			document.getElementById("region-edit-delete").hidden = true;
+			syncRegionOpacityOutput();
+			setRegionEditStatus();
+		}
+
 		function updateLocationReportDialogAvailability() {
 			const serviceNoteElement = getLocationReportServiceNoteElement();
 			const submitButtonElement = document.getElementById("location-report-submit");
@@ -1440,6 +1512,17 @@
 			}
 		}
 
+		function setRegionEditDialogOpen(isOpen, { resetForm = false } = {}) {
+			$("#region-edit-overlay").prop("hidden", !isOpen);
+			syncModalDialogBodyState();
+			if (isOpen) {
+				getRegionEditDialogElement()?.focus();
+				document.getElementById("region-edit-name")?.focus();
+				return;
+			}
+			if (resetForm) resetRegionEditForm();
+		}
+
 		function openLocationReportDialog(latlng) {
 			resetLocationReportForm();
 			updateLocationReportDialogAvailability();
@@ -1526,6 +1609,31 @@
 
 			outputElement.value = inputElement.value;
 			outputElement.textContent = inputElement.value;
+		}
+
+		function syncRegionOpacityOutput() {
+			const inputElement = document.getElementById("region-edit-opacity");
+			const outputElement = document.getElementById("region-edit-opacity-output");
+			if (!inputElement || !outputElement) return;
+			outputElement.value = `${inputElement.value}%`;
+			outputElement.textContent = `${inputElement.value}%`;
+		}
+
+		function populateRegionEditForm(entry) {
+			regionEditEntry = entry;
+			const region = entry?.region || {};
+			document.getElementById("region-edit-public-id").value = region.publicId || "";
+			document.getElementById("region-edit-name").value = region.name || "";
+			document.getElementById("region-edit-color").value = region.color || "#888888";
+			document.getElementById("region-edit-opacity").value = Math.round((region.opacity ?? 0.33) * 100);
+			document.getElementById("region-edit-delete").hidden = !entry;
+			syncRegionOpacityOutput();
+		}
+
+		function openRegionEditDialog(entry) {
+			resetRegionEditForm();
+			populateRegionEditForm(entry);
+			setRegionEditDialogOpen(true);
 		}
 
 		function populatePathEditForm(path) {
@@ -1629,6 +1737,17 @@
 			}
 
 			return payload;
+		}
+
+		function buildRegionEditPayload(formElement) {
+			const formData = new FormData(formElement);
+			return {
+				action: "update_region",
+				public_id: String(formData.get("public_id") || "").trim(),
+				name: String(formData.get("name") || "").trim(),
+				color: String(formData.get("color") || "#888888").trim(),
+				opacity: Number.parseInt(String(formData.get("opacity") || "33"), 10) / 100,
+			};
 		}
 
 		function setReviewPanelStatus(message, state = "") {
@@ -2059,6 +2178,23 @@
 			} catch (error) {
 				console.error("Label konnte nicht gespeichert werden:", error);
 				setLabelEditStatus(error.message || "Label konnte nicht gespeichert werden.", "error");
+			}
+		}
+
+		async function handleRegionEditFormSubmit(event) {
+			event.preventDefault();
+			const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
+			if (!formElement || !formElement.reportValidity() || !regionEditEntry) return;
+			try {
+				const result = await submitMapFeatureEdit(buildRegionEditPayload(formElement));
+				applyRegionFeatureResponse(regionEditEntry, result.feature);
+				updateRevisionFromEditResponse(result);
+				void loadChangeLog();
+				setRegionEditDialogOpen(false, { resetForm: true });
+				showFeedbackToast("Region gespeichert.", "success");
+			} catch (error) {
+				console.error("Region konnte nicht gespeichert werden:", error);
+				setRegionEditStatus(error.message || "Region konnte nicht gespeichert werden.", "error");
 			}
 		}
 
@@ -4962,6 +5098,36 @@
 			insertActivePathNode(event.latlng);
 		}
 
+		function handleEditableRegionDoubleClick(regionEntry, event) {
+			L.DomEvent.stop(event);
+			startRegionGeometryEdit(regionEntry);
+			const latLngs = getRegionOuterLatLngs(regionEntry);
+			const insertIndex = findNearestRegionSegmentInsertIndex(regionEntry, event.latlng);
+			latLngs.splice(insertIndex, 0, L.latLng(event.latlng));
+			regionEntry.layer.setLatLngs([latLngs]);
+			refreshRegionEditHandles();
+			void saveRegionGeometry(regionEntry);
+		}
+
+		function findNearestRegionSegmentInsertIndex(regionEntry, latlng) {
+			const latLngs = getRegionOuterLatLngs(regionEntry);
+			const targetPoint = map.latLngToLayerPoint(latlng);
+			let bestIndex = 1;
+			let bestDistance = Infinity;
+			for (let index = 0; index < latLngs.length; index++) {
+				const start = latLngs[index];
+				const end = latLngs[(index + 1) % latLngs.length];
+				const startPoint = map.latLngToLayerPoint(start);
+				const endPoint = map.latLngToLayerPoint(end);
+				const distance = L.LineUtil.pointToSegmentDistance(targetPoint, startPoint, endPoint);
+				if (distance < bestDistance) {
+					bestDistance = distance;
+					bestIndex = index + 1;
+				}
+			}
+			return bestIndex;
+		}
+
 		function handleMapDoubleClickWhileEditingPath(event) {
 			if (event.originalEvent?.target?.closest?.(".path-edit-handle-marker")) {
 				return;
@@ -5038,14 +5204,12 @@
 			);
 
 			regionData.forEach(region => {
+				const regionEntry = normalizeRegionFeature(region);
 
-				const name = region.properties?.name || "Region";
-
-				const fill = region.properties?.fill || "#888";
-				const stroke = region.properties?.stroke || "#333";
-
-				const strokeWidth = 2;
-				const fillOpacity = region.properties?.fillOpacity ?? 0.35;
+				const name = regionEntry.name;
+				const fill = regionEntry.color;
+				const stroke = regionEntry.color;
+				const fillOpacity = regionEntry.opacity;
 
 				let polygons = [];
 
@@ -5066,10 +5230,30 @@
 					const polygon = L.polygon(latlngs, {
 						pane: "regionsPane",
 						color: stroke,
-						weight: strokeWidth,
+						weight: 2,
 						fillColor: fill,
-						fillOpacity: fillOpacity
+						fillOpacity,
+						interactive: IS_EDIT_MODE,
 					});
+					polygon._regionEntry = regionEntry;
+					regionEntry.layer = polygon;
+					if (IS_EDIT_MODE) {
+						polygon.on("dblclick", (event) => {
+							if (event.originalEvent?.target?.closest?.(".region-edit-handle-marker")) return;
+							if (activeRegionGeometryEdit?.regionEntry === regionEntry) {
+								handleEditableRegionDoubleClick(regionEntry, event);
+								return;
+							}
+							L.DomEvent.stop(event);
+							startRegionGeometryEdit(regionEntry);
+							openRegionEditDialog(regionEntry);
+						});
+						polygon.on("contextmenu", (event) => {
+							L.DomEvent.stop(event);
+							startRegionGeometryEdit(regionEntry);
+							openRegionEditDialog(regionEntry);
+						});
+					}
 
 					polygon.bringToBack();
 
@@ -5099,6 +5283,185 @@
 
 			});
 
+		}
+
+		function normalizeRegionFeature(feature) {
+			const properties = feature.properties || {};
+			return {
+				publicId: properties.public_id || feature.id || "",
+				name: properties.name || "Region",
+				color: properties.fill || properties.stroke || "#888888",
+				opacity: Number(properties.fillOpacity ?? properties.fill_opacity ?? 0.33),
+				feature,
+				layer: null,
+				handles: [],
+			};
+		}
+
+		function polygonLatLngsToCoordinates(latLngs) {
+			const ring = latLngs.map((latLng) => [latLng.lng, latLng.lat]);
+			const first = ring[0];
+			const last = ring[ring.length - 1];
+			if (first && last && (first[0] !== last[0] || first[1] !== last[1])) ring.push([...first]);
+			return [ring];
+		}
+
+		function getRegionOuterLatLngs(regionEntry) {
+			const latLngs = regionEntry.layer.getLatLngs();
+			return Array.isArray(latLngs[0]?.[0]) ? latLngs[0][0] : latLngs[0] || [];
+		}
+
+		function createRegionHandleIcon() {
+			return L.divIcon({
+				className: "path-edit-handle-marker region-edit-handle-marker",
+				html: '<span class="path-edit-handle-marker__dot"></span>',
+				iconSize: [18, 18],
+				iconAnchor: [9, 9],
+			});
+		}
+
+		function clearRegionGeometryEdit() {
+			if (!activeRegionGeometryEdit) return;
+			activeRegionGeometryEdit.handles.forEach((handle) => map.removeLayer(handle));
+			activeRegionGeometryEdit = null;
+		}
+
+		function refreshRegionEditHandles() {
+			if (!activeRegionGeometryEdit) return;
+			activeRegionGeometryEdit.handles.forEach((handle) => map.removeLayer(handle));
+			activeRegionGeometryEdit.handles = [];
+			getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry).forEach((latLng, index) => {
+				const handle = L.marker(latLng, {
+					icon: createRegionHandleIcon(),
+					pane: "measurementHandlesPane",
+					draggable: true,
+					keyboard: false,
+				}).addTo(map);
+				handle.on("drag", (event) => {
+					const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry);
+					latLngs[index] = event.target.getLatLng();
+					activeRegionGeometryEdit.regionEntry.layer.setLatLngs([latLngs]);
+				});
+				handle.on("dragend", (event) => {
+					const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry);
+					latLngs[index] = findNearestRegionVertex(event.target.getLatLng(), activeRegionGeometryEdit.regionEntry) || event.target.getLatLng();
+					activeRegionGeometryEdit.regionEntry.layer.setLatLngs([latLngs]);
+					refreshRegionEditHandles();
+					void saveRegionGeometry(activeRegionGeometryEdit.regionEntry);
+				});
+				handle.on("dblclick", (event) => {
+					L.DomEvent.stop(event);
+					deleteRegionNode(index);
+				});
+				activeRegionGeometryEdit.handles.push(handle);
+			});
+		}
+
+		function startRegionGeometryEdit(regionEntry) {
+			clearRegionGeometryEdit();
+			activeRegionGeometryEdit = { regionEntry, handles: [] };
+			refreshRegionEditHandles();
+		}
+
+		function findNearestRegionVertex(latLng, ownRegion) {
+			const targetPoint = map.latLngToContainerPoint(latLng);
+			let nearest = null;
+			regionPolygons.forEach((polygon) => {
+				if (polygon._regionEntry === ownRegion) return;
+				const rings = polygon.getLatLngs();
+				const outer = Array.isArray(rings[0]?.[0]) ? rings[0][0] : rings[0] || [];
+				outer.forEach((candidate) => {
+					const distance = targetPoint.distanceTo(map.latLngToContainerPoint(candidate));
+					if (distance <= 12 && (!nearest || distance < nearest.distance)) nearest = { latLng: candidate, distance };
+				});
+			});
+			return nearest?.latLng || null;
+		}
+
+		function deleteRegionNode(index) {
+			const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry);
+			if (latLngs.length <= 3) {
+				showFeedbackToast("Region braucht mindestens drei Punkte.", "warning");
+				return;
+			}
+			latLngs.splice(index, 1);
+			activeRegionGeometryEdit.regionEntry.layer.setLatLngs([latLngs]);
+			refreshRegionEditHandles();
+			void saveRegionGeometry(activeRegionGeometryEdit.regionEntry);
+		}
+
+		async function saveRegionGeometry(regionEntry) {
+			const coordinates = polygonLatLngsToCoordinates(getRegionOuterLatLngs(regionEntry));
+			try {
+				const result = await submitMapFeatureEdit({ action: "update_region_geometry", public_id: regionEntry.publicId, coordinates });
+				updateRevisionFromEditResponse(result);
+				void loadChangeLog();
+				showFeedbackToast("Regionsgrenze gespeichert.", "success");
+			} catch (error) {
+				showFeedbackToast(error.message || "Regionsgrenze konnte nicht gespeichert werden.", "warning");
+			}
+		}
+
+		function applyRegionFeatureResponse(regionEntry, feature) {
+			const properties = feature.properties || {};
+			regionEntry.name = properties.name || regionEntry.name;
+			regionEntry.color = properties.fill || regionEntry.color;
+			regionEntry.opacity = Number(properties.fillOpacity ?? regionEntry.opacity);
+			regionEntry.layer.setStyle({ color: regionEntry.color, fillColor: regionEntry.color, fillOpacity: regionEntry.opacity });
+		}
+
+		async function createRegionAt(latlng) {
+			const center = L.latLng(latlng);
+			const radius = 80;
+			const points = Array.from({ length: 6 }, (_, index) => {
+				const angle = Math.PI / 3 * index;
+				return [center.lng + Math.cos(angle) * radius, center.lat + Math.sin(angle) * radius];
+			});
+			points.push(points[0]);
+			try {
+				const result = await submitMapFeatureEdit({
+					action: "create_region",
+					name: "Neue Region",
+					color: "#888888",
+					opacity: 0.33,
+					coordinates: [points],
+				});
+				const regionEntry = normalizeRegionFeature(result.feature);
+				regionData.push(result.feature);
+				const polygon = L.polygon([points.map(([x, y]) => [y, x])], {
+					pane: "regionsPane",
+					color: regionEntry.color,
+					weight: 2,
+					fillColor: regionEntry.color,
+					fillOpacity: regionEntry.opacity,
+					interactive: IS_EDIT_MODE,
+				}).addTo(map);
+				polygon._regionEntry = regionEntry;
+				regionEntry.layer = polygon;
+				regionPolygons.push(polygon);
+				startRegionGeometryEdit(regionEntry);
+				openRegionEditDialog(regionEntry);
+				updateRevisionFromEditResponse(result);
+				void loadChangeLog();
+			} catch (error) {
+				showFeedbackToast(error.message || "Region konnte nicht erstellt werden.", "warning");
+			}
+		}
+
+		async function deleteActiveRegion() {
+			if (!regionEditEntry || !window.confirm(`${regionEditEntry.name} wirklich loeschen?`)) return;
+			try {
+				const result = await submitMapFeatureEdit({ action: "delete_feature", public_id: regionEditEntry.publicId });
+				map.removeLayer(regionEditEntry.layer);
+				regionPolygons = regionPolygons.filter((polygon) => polygon !== regionEditEntry.layer);
+				clearRegionGeometryEdit();
+				updateRevisionFromEditResponse(result);
+				void loadChangeLog();
+				setRegionEditDialogOpen(false, { resetForm: true });
+				showFeedbackToast("Region geloescht.", "success");
+			} catch (error) {
+				setRegionEditStatus(error.message || "Region konnte nicht geloescht werden.", "error");
+			}
 		}
 
 		// Verarbeitung der Rastzeiten
@@ -5430,6 +5793,12 @@
 			if (action === "create-label" && contextMenuLatLng) {
 				closeMapContextMenu();
 				createLabelAt(contextMenuLatLng);
+				return;
+			}
+
+			if (action === "create-region" && contextMenuLatLng) {
+				closeMapContextMenu();
+				void createRegionAt(contextMenuLatLng);
 				return;
 			}
 
