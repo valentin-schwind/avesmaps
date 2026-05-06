@@ -75,7 +75,7 @@ $isEditor = $currentUser !== null && avesmapsUserCan($currentUser, 'edit');
                     <button type="submit">Abmelden</button>
                 </form>
             </header>
-            <iframe class="edit-shell__map" src="../index.html?debugMap=1" title="Avesmaps Karte"></iframe>
+            <iframe class="edit-shell__map" src="../index.html?debugMap=1&edit=1" title="Avesmaps Karte"></iframe>
         </main>
     <?php endif; ?>
 </body>

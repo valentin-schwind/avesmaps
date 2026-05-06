@@ -181,6 +181,25 @@ Invoke-RestMethod `
 Erlaubte Rollen sind `admin`, `editor` und `reviewer`. Fuer `/edit` reichen
 `admin` oder `editor`; `reviewer` ist fuer spaetere Freigabe-Workflows gedacht.
 
+## Edit-API
+
+`map-feature-update.php` ist der erste schreibende Karten-Endpoint fuer
+angemeldete Editoren. Aktuell erlaubt er nur das Verschieben von Point-Features
+per Session-Login aus `/edit`.
+
+Payload:
+
+```json
+{
+  "public_id": "00000000-0000-0000-0000-000000000000",
+  "lat": 512.125,
+  "lng": 404.875
+}
+```
+
+Der Endpoint aktualisiert `geometry_json`, Bounding Box, Feature-Revision,
+`updated_by`, `map_revision` und schreibt einen Eintrag in `map_audit_log`.
+
 ## Request-Format
 
 Die API erwartet einen `POST` mit JSON:

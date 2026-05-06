@@ -399,6 +399,9 @@
 		const LOCATION_REPORT_FORM_ENDPOINT_URL = window.AVESMAPS_LOCATION_REPORT_ENDPOINT || DEFAULT_LOCATION_REPORT_ENDPOINT_URL;
 		const MAP_FEATURES_FILE_URL = "map/Aventurien_routes.geojson";
 		const MAP_FEATURES_API_URL = window.AVESMAPS_MAP_FEATURES_ENDPOINT || (window.location.hostname === "54143555.swh.strato-hosting.eu" ? "api/map-features.php" : "");
+		const INITIAL_SEARCH_PARAMS = new URLSearchParams(window.location.search);
+		const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
+		const MAP_FEATURE_UPDATE_API_URL = window.AVESMAPS_MAP_FEATURE_UPDATE_ENDPOINT || "api/map-feature-update.php";
 		const LOCATION_REPORT_REQUEST_TIMEOUT_MS = 7000;
 		const MAX_SHARED_WAYPOINTS = 25;
 		const DEFAULT_SHARE_PIN_ZOOM = 4;
@@ -495,7 +498,9 @@
 			distanceMeasurementEndLatLng = null,
 			isAwaitingDistanceMeasurementEnd = false,
 			locationReportLatLng = null,
-			isLocationReportSubmissionPending = false;
+			isLocationReportSubmissionPending = false,
+			activeLocationEdit = null,
+			mapDataSourceStatus = null;
 
 		// Initialisierung der Karte 
 		const map = L.map("map", {
@@ -1122,6 +1127,34 @@
 					},
 				}),
 			]);
+		}
+
+		function locationActionsMarkup(name, publicId) {
+			const actionButtons = [
+				popupActionButtonMarkup({
+					label: "Zur Route hinzufuegen",
+					className: "location-popup__action-button--accent",
+					attributes: {
+						"data-popup-action": "add-location-to-route",
+						"data-location-name": name,
+					},
+				}),
+			];
+
+			if (IS_EDIT_MODE && publicId) {
+				actionButtons.push(
+					popupActionButtonMarkup({
+						label: "Ort verschieben",
+						attributes: {
+							"data-popup-action": "start-location-edit",
+							"data-location-name": name,
+							"data-public-id": publicId,
+						},
+					})
+				);
+			}
+
+			return locationPopupActionsMarkup(actionButtons);
 		}
 
 		function waypointRemoveActionMarkup(waypointId) {
@@ -2179,6 +2212,10 @@
 
 		function buildPlannerSearchParams() {
 			const searchParams = new URLSearchParams();
+			if (IS_EDIT_MODE) {
+				searchParams.set("edit", "1");
+				searchParams.set("debugMap", "1");
+			}
 			const selectedPathType = $('input[name="pathType"]:checked').val() || DEFAULT_PLANNER_STATE.pathType;
 			const waypointNames = getWaypointInputValues();
 			const restHours = parseNumberQueryParam($("#restHours").val(), DEFAULT_PLANNER_STATE.restHours, 0, 24);
@@ -2374,6 +2411,77 @@
 
 		function findLocationMarkerByName(name) {
 			return locationMarkers.find((entry) => entry.name === name) || null;
+		}
+
+		function findLocationMarkerByPublicId(publicId) {
+			return locationMarkers.find((entry) => entry.publicId === publicId) || null;
+		}
+
+		function setLocationEditActive(markerEntry, isActive) {
+			if (!markerEntry) {
+				return;
+			}
+
+			if (activeLocationEdit?.markerEntry && activeLocationEdit.markerEntry !== markerEntry) {
+				setLocationEditActive(activeLocationEdit.markerEntry, false);
+			}
+
+			if (isActive) {
+				activeLocationEdit = {
+					markerEntry,
+					originalLatLng: markerEntry.marker.getLatLng(),
+				};
+				markerEntry.marker.dragging.enable();
+				markerEntry.marker.closePopup();
+				showFeedbackToast(`${markerEntry.name}: Marker verschieben, Loslassen speichert.`, "info");
+				return;
+			}
+
+			if (activeLocationEdit?.markerEntry === markerEntry) {
+				activeLocationEdit = null;
+			}
+			markerEntry.marker.dragging.disable();
+		}
+
+		async function saveMovedLocationMarker(markerEntry, latlng) {
+			const normalizedLatLng = L.latLng(latlng);
+			if (!markerEntry?.publicId || !isWithinMapBounds(normalizedLatLng)) {
+				showFeedbackToast("Diese Position kann nicht gespeichert werden.", "warning");
+				return false;
+			}
+
+			try {
+				const response = await fetch(MAP_FEATURE_UPDATE_API_URL, {
+					method: "PATCH",
+					credentials: "same-origin",
+					headers: {
+						Accept: "application/json",
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						public_id: markerEntry.publicId,
+						lat: normalizedLatLng.lat,
+						lng: normalizedLatLng.lng,
+					}),
+				});
+				const payload = await response.json().catch(() => ({}));
+				if (!response.ok || payload?.ok !== true) {
+					throw new Error(payload?.error || `Speichern fehlgeschlagen (${response.status}).`);
+				}
+
+				markerEntry.location.coordinates = [normalizedLatLng.lat, normalizedLatLng.lng];
+				markerEntry.marker.setLatLng(normalizedLatLng);
+				if (payload.feature?.revision && mapDataSourceStatus) {
+					mapDataSourceStatus.revision = payload.feature.revision;
+					updateMapDataStatus({ avesmapsSource: mapDataSourceStatus });
+				}
+				showFeedbackToast(`${markerEntry.name} gespeichert.`, "success");
+				return true;
+			} catch (error) {
+				console.error("Ort konnte nicht gespeichert werden:", error);
+				showFeedbackToast(error.message || "Ort konnte nicht gespeichert werden.", "warning");
+				return false;
+			}
 		}
 
 		function findNearestLocationToLatLng(latlng) {
@@ -2587,6 +2695,7 @@
 					const locationType = isCrossing ? null : locationTypeFromProperties(feature.properties);
 					const locationConfig = locationType ? LOCATION_TYPE_CONFIG[locationType] : null;
 					return {
+						publicId: feature.id || feature.properties.public_id || "",
 						name: isCrossing ? `Kreuzung-${crossingCount++}` : feature.properties.name,
 						coordinates: [feature.geometry.coordinates[1], feature.geometry.coordinates[0]],
 						locationType,
@@ -2595,20 +2704,30 @@
 				});
 			locationData
 				.filter(({ name }) => !isCrossingName(name))
-				.forEach(({ name, coordinates, locationType, locationTypeLabel }) => {
+				.forEach((location) => {
+					const { publicId, name, coordinates, locationType, locationTypeLabel } = location;
 					const marker = L.marker(coordinates, {
 						icon: createLocationMarkerIcon(locationType),
 						pane: "locationsPane",
 						keyboard: true,
+						draggable: false,
 					}).bindPopup(
 						locationPopupMarkup({
 							name,
 							locationType,
 							locationTypeLabel,
-							actionsMarkup: locationAddToRouteActionMarkup(name),
+							actionsMarkup: locationActionsMarkup(name, publicId),
 						})
 					);
-					locationMarkers.push({ marker, locationType, name });
+					const markerEntry = { marker, locationType, name, publicId, location };
+					marker.on("dragend", async () => {
+						const saveSucceeded = await saveMovedLocationMarker(markerEntry, marker.getLatLng());
+						if (!saveSucceeded && activeLocationEdit?.originalLatLng) {
+							marker.setLatLng(activeLocationEdit.originalLatLng);
+						}
+						setLocationEditActive(markerEntry, false);
+					});
+					locationMarkers.push(markerEntry);
 				});
 			syncLocationMarkerVisibility();
 			map.off("zoomend", syncLocationMarkerVisibility);
@@ -2672,12 +2791,15 @@
 
 		function updateMapDataStatus(data) {
 			const source = data?.avesmapsSource || {};
-			const sourceLabel = source.label || "unbekannt";
-			const revisionText = source.revision === null || source.revision === undefined ? "-" : source.revision;
-			const featureCount = Number.isFinite(source.featureCount) ? source.featureCount : Array.isArray(data?.features) ? data.features.length : 0;
+			mapDataSourceStatus = {
+				label: source.label || "unbekannt",
+				revision: source.revision ?? null,
+				featureCount: Number.isFinite(source.featureCount) ? source.featureCount : Array.isArray(data?.features) ? data.features.length : 0,
+			};
+			const revisionText = mapDataSourceStatus.revision === null || mapDataSourceStatus.revision === undefined ? "-" : mapDataSourceStatus.revision;
 
 			$("#map-data-status")
-				.text(`Map: ${sourceLabel} | Rev ${revisionText} | ${featureCount.toLocaleString("de-DE")} Features`)
+				.text(`Map: ${mapDataSourceStatus.label} | Rev ${revisionText} | ${mapDataSourceStatus.featureCount.toLocaleString("de-DE")} Features`)
 				.prop("hidden", false);
 		}
 
@@ -2838,6 +2960,17 @@
 
 			if (action === "remove-share-pin") {
 				clearSharePin();
+				return;
+			}
+
+			if (action === "start-location-edit") {
+				const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
+				if (!markerEntry) {
+					showFeedbackToast("Ort konnte nicht fuer die Bearbeitung gefunden werden.", "warning");
+					return;
+				}
+
+				setLocationEditActive(markerEntry, true);
 			}
 		});
 
