@@ -97,7 +97,6 @@
 	<div id="map" style="width: 100%; height: 100%"></div>
 	<div id="map-data-status" class="map-data-status" role="status" aria-live="polite" hidden></div>
 	<div id="map-context-menu" class="map-context-menu" hidden>
-		<button type="button" class="map-context-menu__item" data-context-action="share-pin">📍 Stelle markieren und teilen</button>
 		<div class="map-context-menu__group" data-context-action="add-here" hidden>
 			<button type="button" class="map-context-menu__item map-context-menu__item--submenu" data-context-action="add-here">Hier hinzufuegen</button>
 			<div class="map-context-submenu">
@@ -109,6 +108,7 @@
 				<button type="button" class="map-context-menu__item" data-context-action="create-region">Neue Region</button>
 			</div>
 		</div>
+		<button type="button" class="map-context-menu__item" data-context-action="share-pin">📍 Stelle markieren und teilen</button>
 		<button type="button" class="map-context-menu__item" data-context-action="report-location">📝 Neuen Ort melden</button>
 		<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location">🔎 Nächsten Ort finden</button>
 		<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement">📏 Entfernung messen</button>
@@ -294,6 +294,9 @@
 						<option value="meer">Meer</option>
 						<option value="gebirge">Gebirge</option>
 						<option value="wald">Wald</option>
+						<option value="kontinent">Kontinent</option>
+						<option value="wueste">Wüste</option>
+						<option value="suempfe_moore">Sümpfe & Moore</option>
 						<option value="see">See</option>
 						<option value="insel">Insel</option>
 						<option value="sonstiges">Sonstiges</option>
@@ -310,6 +313,10 @@
 				<label class="location-report-form__field">
 					<span>Sichtbar ab Zoom <output id="label-edit-min-zoom-output">0</output></span>
 					<input id="label-edit-min-zoom" name="min_zoom" type="range" min="0" max="5" step="1" value="0" />
+				</label>
+				<label class="location-report-form__field">
+					<span>Sichtbar bis Zoom <output id="label-edit-max-zoom-output">5</output></span>
+					<input id="label-edit-max-zoom" name="max_zoom" type="range" min="0" max="5" step="1" value="5" />
 				</label>
 				<label class="location-report-form__field">
 					<span>Prioritaet <output id="label-edit-priority-output">3</output></span>
@@ -343,6 +350,10 @@
 				<label class="location-report-form__field">
 					<span>Transparenz <output id="region-edit-opacity-output">33%</output></span>
 					<input id="region-edit-opacity" name="opacity" type="range" min="0" max="100" step="1" value="33" />
+				</label>
+				<label class="location-report-form__field">
+					<span>Wiki-Aventurica-Link</span>
+					<input id="region-edit-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
 				</label>
 				<p id="region-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions">
@@ -382,7 +393,11 @@
 					</select>
 				</label>
 				<label><input type="checkbox" id="togglePaths" /> Wege</label>
-				<label><input type="checkbox" id="toggleBorders" /> Regionen</label>
+				<div class="map-layer-mode-control" role="radiogroup" aria-label="Kartenansicht">
+					<label><input type="radio" name="mapLayerMode" value="none" /> Aus</label>
+					<label><input type="radio" name="mapLayerMode" value="political" /> Politisch</label>
+					<label><input type="radio" name="mapLayerMode" value="deregraphic" /> Deregraphisch</label>
+				</div>
 				<label id="toggleCrossingsControl" hidden><input type="checkbox" id="toggleCrossings" /> Kreuzungen</label>
 			</div>
 		</div>
@@ -650,8 +665,8 @@
 			toggleKleinstaedte: false,
 			toggleDoerfer: false,
 			togglePaths: false,
-			toggleBorders: false,
-			toggleCrossings: true,
+			mapLayerMode: "deregraphic",
+			toggleCrossings: false,
 			pathType: "fastest",
 			minimizeTransfers: false,
 			includeRests: true,
@@ -783,6 +798,7 @@
 		map.getPane("regionLabelsPane").style.zIndex = 475;
 		map.getPane("locationsPane").style.zIndex = 500;
 		map.getPane("labelsPane").style.zIndex = 650;
+		map.getPane("popupPane").style.zIndex = 900;
 
 		L.control.zoom({ position: "topright" }).addTo(map);
 		map.setMaxBounds(MAP_BOUNDS);
@@ -910,22 +926,12 @@
 		});
 		$("#location-report-close, #location-report-cancel").on("click", () => setLocationReportDialogOpen(false, { resetForm: true }));
 		$("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));
-		$("#location-report-overlay").on("click", function (event) {
-			if (event.target === this) {
-				setLocationReportDialogOpen(false, { resetForm: true });
-			}
-		});
-		$("#location-edit-overlay").on("click", function (event) {
-			if (event.target === this) {
-				setLocationEditDialogOpen(false, { resetForm: true });
-			}
-		});
 		$("#location-report-form").on("submit", handleLocationReportFormSubmit);
 		$("#location-edit-form").on("submit", handleLocationEditFormSubmit);
 		$("#path-edit-form").on("submit", handlePathEditFormSubmit);
 		$("#label-edit-form").on("submit", handleLabelEditFormSubmit);
 		$("#label-edit-delete").on("click", () => deleteActiveLabel());
-		$("#label-edit-min-zoom").on("input", syncLabelMinZoomOutput);
+		$("#label-edit-min-zoom, #label-edit-max-zoom").on("input", syncLabelZoomRangeOutputs);
 		$("#label-edit-priority").on("input", syncLabelPriorityOutput);
 		$("#region-edit-form").on("submit", handleRegionEditFormSubmit);
 		$("#region-edit-delete").on("click", () => deleteActiveRegion());
@@ -935,21 +941,6 @@
 		$("#path-edit-close, #path-edit-cancel").on("click", () => setPathEditDialogOpen(false, { resetForm: true }));
 		$("#label-edit-close, #label-edit-cancel").on("click", () => setLabelEditDialogOpen(false, { resetForm: true }));
 		$("#region-edit-close, #region-edit-cancel").on("click", () => setRegionEditDialogOpen(false, { resetForm: true }));
-		$("#path-edit-overlay").on("click", function (event) {
-			if (event.target === this) {
-				setPathEditDialogOpen(false, { resetForm: true });
-			}
-		});
-		$("#label-edit-overlay").on("click", function (event) {
-			if (event.target === this) {
-				setLabelEditDialogOpen(false, { resetForm: true });
-			}
-		});
-		$("#region-edit-overlay").on("click", function (event) {
-			if (event.target === this) {
-				setRegionEditDialogOpen(false, { resetForm: true });
-			}
-		});
 		$(document).on("keydown", (event) => {
 			if (event.key === "Escape" && isLocationReportDialogOpen()) {
 				setLocationReportDialogOpen(false, { resetForm: true });
@@ -1483,6 +1474,8 @@
 			labelEditEntry = null;
 			labelEditLatLng = null;
 			document.getElementById("label-edit-public-id").value = "";
+			syncLabelZoomRangeOutputs();
+			syncLabelPriorityOutput();
 			setLabelEditStatus();
 		}
 
@@ -1493,6 +1486,7 @@
 			regionEditEntry = null;
 			document.getElementById("region-edit-public-id").value = "";
 			document.getElementById("region-edit-delete").hidden = true;
+			document.getElementById("region-edit-wiki-url").value = "";
 			syncRegionOpacityOutput();
 			setRegionEditStatus();
 		}
@@ -1661,8 +1655,9 @@
 			document.getElementById("label-edit-size").value = label.size || 18;
 			document.getElementById("label-edit-rotation").value = label.rotation || 0;
 			document.getElementById("label-edit-min-zoom").value = label.minZoom ?? 0;
+			document.getElementById("label-edit-max-zoom").value = label.maxZoom ?? 5;
 			document.getElementById("label-edit-priority").value = label.priority ?? 3;
-			syncLabelMinZoomOutput();
+			syncLabelZoomRangeOutputs();
 			syncLabelPriorityOutput();
 			document.getElementById("label-edit-delete").hidden = !labelEntry;
 			if (labelEditLatLng) {
@@ -1677,15 +1672,32 @@
 			setLabelEditDialogOpen(true);
 		}
 
-		function syncLabelMinZoomOutput() {
-			const inputElement = document.getElementById("label-edit-min-zoom");
-			const outputElement = document.getElementById("label-edit-min-zoom-output");
-			if (!inputElement || !outputElement) {
+		function syncLabelZoomRangeOutputs(event = null) {
+			const minInputElement = document.getElementById("label-edit-min-zoom");
+			const maxInputElement = document.getElementById("label-edit-max-zoom");
+			const minOutputElement = document.getElementById("label-edit-min-zoom-output");
+			const maxOutputElement = document.getElementById("label-edit-max-zoom-output");
+			if (!minInputElement || !maxInputElement || !minOutputElement || !maxOutputElement) {
 				return;
 			}
 
-			outputElement.value = inputElement.value;
-			outputElement.textContent = inputElement.value;
+			let minZoom = Number.parseInt(minInputElement.value, 10);
+			let maxZoom = Number.parseInt(maxInputElement.value, 10);
+			if (event?.currentTarget === minInputElement && minZoom > maxZoom) {
+				maxZoom = minZoom;
+				maxInputElement.value = String(maxZoom);
+			} else if (event?.currentTarget === maxInputElement && maxZoom < minZoom) {
+				minZoom = maxZoom;
+				minInputElement.value = String(minZoom);
+			}
+
+			minOutputElement.value = String(minZoom);
+			minOutputElement.textContent = String(minZoom);
+			maxOutputElement.value = String(maxZoom);
+			maxOutputElement.textContent = String(maxZoom);
+			if (event?.currentTarget && map.getZoom() !== Number(event.currentTarget.value)) {
+				map.setZoom(Number(event.currentTarget.value));
+			}
 		}
 
 		function syncLabelPriorityOutput() {
@@ -1714,6 +1726,7 @@
 			document.getElementById("region-edit-name").value = region.name || "";
 			document.getElementById("region-edit-color").value = region.color || "#888888";
 			document.getElementById("region-edit-opacity").value = Math.round((region.opacity ?? 0.33) * 100);
+			document.getElementById("region-edit-wiki-url").value = region.wikiUrl || "";
 			document.getElementById("region-edit-delete").hidden = !entry;
 			syncRegionOpacityOutput();
 		}
@@ -1815,6 +1828,7 @@
 				size: Number.parseInt(String(formData.get("size") || "18"), 10),
 				rotation: Number.parseInt(String(formData.get("rotation") || "0"), 10),
 				min_zoom: Number.parseInt(String(formData.get("min_zoom") || "0"), 10),
+				max_zoom: Number.parseInt(String(formData.get("max_zoom") || "5"), 10),
 				priority: Number.parseInt(String(formData.get("priority") || "3"), 10),
 			};
 
@@ -1835,6 +1849,7 @@
 				name: String(formData.get("name") || "").trim(),
 				color: String(formData.get("color") || "#888888").trim(),
 				opacity: Number.parseInt(String(formData.get("opacity") || "33"), 10) / 100,
+				wiki_url: String(formData.get("wiki_url") || "").trim(),
 			};
 		}
 
@@ -3201,6 +3216,20 @@
 			return config.radius * locationZoomScale(zoomLevel) * 2 + 1;
 		}
 
+		function getLocationMarkerBorderWidth(locationType, zoomLevel = map.getZoom()) {
+			const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
+			if (locationType === "dorf") {
+				if (zoomLevel <= 3) {
+					return 0;
+				}
+				if (zoomLevel === 4) {
+					return 1;
+				}
+			}
+
+			return config.borderWidth;
+		}
+
 		function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
 			if (locationType === CROSSING_LOCATION_TYPE) {
 				const markerSize = getLocationMarkerSize(locationType, zoomLevel);
@@ -3222,7 +3251,7 @@
 				: "location-visual-marker__shape location-visual-marker__shape--circle";
 			const iconHtml = `<span${buildHtmlAttributes({
 				class: shapeClassName,
-				style: `width:${markerSize}px;height:${markerSize}px;border-width:${config.borderWidth}px;`,
+				style: `width:${markerSize}px;height:${markerSize}px;border-width:${getLocationMarkerBorderWidth(locationType, zoomLevel)}px;`,
 			})}></span>`;
 
 			return L.divIcon({
@@ -3299,8 +3328,17 @@
 			$.each(pathLayers, (i, layer) => map[showPaths ? "addLayer" : "removeLayer"](layer));
 		}
 
+		function getSelectedMapLayerMode() {
+			return String($('input[name="mapLayerMode"]:checked').val() || DEFAULT_PLANNER_STATE.mapLayerMode);
+		}
+
+		function setSelectedMapLayerMode(mode) {
+			const normalizedMode = ["none", "political", "deregraphic"].includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
+			$(`input[name="mapLayerMode"][value="${normalizedMode}"]`).prop("checked", true);
+		}
+
 		function syncRegionVisibility() {
-			const showRegions = $("#toggleBorders").is(":checked");
+			const showRegions = getSelectedMapLayerMode() === "political";
 			if (!showRegions) {
 				clearRegionGeometryEdit();
 			}
@@ -3327,6 +3365,7 @@
 			syncLocationMarkerVisibility();
 			syncPathVisibility();
 			syncRegionVisibility();
+			syncLabelVisibility();
 		}
 
 		$(".location-toggle").on("click", function () {
@@ -3341,7 +3380,11 @@
 			setMapStyle(String(this.value || "stylized"), { persist: true });
 		});
 		$("#togglePaths").change(syncPathVisibility);
-		$("#toggleBorders").change(syncRegionVisibility);
+		$('input[name="mapLayerMode"]').change(() => {
+			syncRegionVisibility();
+			syncLabelVisibility();
+			syncPlannerStateToUrl();
+		});
 		$("#toggleCrossings").change(() => {
 			syncLocationMarkerVisibility();
 			syncPlannerStateToUrl();
@@ -3784,7 +3827,8 @@
 			});
 			syncLocationToggleButtons();
 			$("#togglePaths").prop("checked", parseBooleanQueryParam(searchParams.get("togglePaths"), DEFAULT_PLANNER_STATE.togglePaths));
-			$("#toggleBorders").prop("checked", parseBooleanQueryParam(searchParams.get("toggleBorders"), DEFAULT_PLANNER_STATE.toggleBorders));
+			const legacyPoliticalMode = parseBooleanQueryParam(searchParams.get("toggleBorders"), false) ? "political" : DEFAULT_PLANNER_STATE.mapLayerMode;
+			setSelectedMapLayerMode(searchParams.get("mapLayerMode") || legacyPoliticalMode);
 			$("#toggleCrossings").prop("checked", parseBooleanQueryParam(searchParams.get("toggleCrossings"), DEFAULT_PLANNER_STATE.toggleCrossings));
 
 			if (pathType === "shortest" || pathType === "fastest") {
@@ -3882,8 +3926,8 @@
 				searchParams.set("togglePaths", $("#togglePaths").is(":checked") ? "1" : "0");
 			}
 
-			if ($("#toggleBorders").is(":checked") !== DEFAULT_PLANNER_STATE.toggleBorders) {
-				searchParams.set("toggleBorders", $("#toggleBorders").is(":checked") ? "1" : "0");
+			if (getSelectedMapLayerMode() !== DEFAULT_PLANNER_STATE.mapLayerMode) {
+				searchParams.set("mapLayerMode", getSelectedMapLayerMode());
 			}
 
 			if (IS_EDIT_MODE && $("#toggleCrossings").is(":checked") !== DEFAULT_PLANNER_STATE.toggleCrossings) {
@@ -4418,6 +4462,7 @@
 				size: Number(properties.size || feature.size || 18),
 				rotation: Number(properties.rotation || feature.rotation || 0),
 				minZoom: Number(properties.min_zoom ?? feature.min_zoom ?? 0),
+				maxZoom: Number(properties.max_zoom ?? feature.max_zoom ?? 5),
 				priority: Number(properties.priority ?? feature.priority ?? 3),
 				coordinates: [Number(lat), Number(lng)],
 			};
@@ -4489,7 +4534,10 @@
 		}
 
 		function syncLabelMarkerVisibility(entry) {
-			const shouldShow = map.getZoom() >= (Number(entry.label.minZoom) || 0);
+			const zoomLevel = map.getZoom();
+			const minZoom = Number(entry.label.minZoom) || 0;
+			const maxZoom = Number.isFinite(Number(entry.label.maxZoom)) ? Number(entry.label.maxZoom) : 5;
+			const shouldShow = getSelectedMapLayerMode() === "deregraphic" && zoomLevel >= minZoom && zoomLevel <= maxZoom;
 			const isVisible = map.hasLayer(entry.marker);
 			if (shouldShow && !isVisible) {
 				entry.marker.addTo(map);
@@ -4638,6 +4686,7 @@
 					size: Number(entry.label.size) || 18,
 					rotation: Number(entry.label.rotation) || 0,
 					min_zoom: Number(entry.label.minZoom) || 0,
+					max_zoom: Number(entry.label.maxZoom) || 5,
 					priority: Number(entry.label.priority) || 3,
 					lat: duplicateLatLng.lat,
 					lng: duplicateLatLng.lng,
@@ -5601,6 +5650,7 @@
 				name: getRegionFeatureName(properties),
 				color: fillColor,
 				opacity,
+				wikiUrl: properties.wiki_url || "",
 				feature,
 				layer: null,
 				label: null,
@@ -5775,6 +5825,7 @@
 			regionEntry.name = updatedRegion.name || regionEntry.name;
 			regionEntry.color = updatedRegion.color || regionEntry.color;
 			regionEntry.opacity = updatedRegion.opacity ?? regionEntry.opacity;
+			regionEntry.wikiUrl = updatedRegion.wikiUrl || "";
 			regionEntry.feature = feature;
 			regionEntry.layer.setStyle({ color: regionEntry.color, fillColor: regionEntry.color, fillOpacity: regionEntry.opacity });
 			regionEntry.label?.setContent(regionEntry.name);
@@ -5794,6 +5845,7 @@
 					name: "Neue Region",
 					color: "#888888",
 					opacity: 0.33,
+					wiki_url: "",
 					coordinates: [points],
 				});
 				const regionEntry = normalizeRegionFeature(result.feature);
@@ -5822,7 +5874,7 @@
 					.setContent(regionEntry.name);
 				regionEntry.label = label;
 				regionLabels.push(label);
-				if ($("#toggleBorders").is(":checked")) {
+				if (getSelectedMapLayerMode() === "political") {
 					map.addLayer(label);
 				}
 				startRegionGeometryEdit(regionEntry);

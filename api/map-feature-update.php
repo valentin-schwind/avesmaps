@@ -139,7 +139,7 @@ function avesmapsReadPathSubtype(mixed $value): string {
 
 function avesmapsReadLabelSubtype(mixed $value): string {
     $subtype = avesmapsNormalizeSingleLine((string) ($value ?: 'region'), 40);
-    $allowedSubtypes = ['region', 'fluss', 'meer', 'gebirge', 'wald', 'see', 'insel', 'sonstiges'];
+    $allowedSubtypes = ['region', 'fluss', 'meer', 'gebirge', 'wald', 'kontinent', 'wueste', 'suempfe_moore', 'see', 'insel', 'sonstiges'];
     if (!in_array($subtype, $allowedSubtypes, true)) {
         throw new InvalidArgumentException('Die Label-Kategorie ist ungueltig.');
     }
@@ -169,13 +169,13 @@ function avesmapsReadLabelRotation(mixed $value): int {
     return (int) $rotation;
 }
 
-function avesmapsReadLabelMinZoom(mixed $value): int {
-    $minZoom = filter_var($value, FILTER_VALIDATE_INT);
-    if ($minZoom === false || $minZoom < 0 || $minZoom > 5) {
+function avesmapsReadLabelZoom(mixed $value): int {
+    $zoom = filter_var($value, FILTER_VALIDATE_INT);
+    if ($zoom === false || $zoom < 0 || $zoom > 5) {
         throw new InvalidArgumentException('Die Label-Zoomstufe ist ungueltig.');
     }
 
-    return (int) $minZoom;
+    return (int) $zoom;
 }
 
 function avesmapsReadLabelPriority(mixed $value): int {
@@ -696,7 +696,11 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
     $subtype = avesmapsReadLabelSubtype($payload['feature_subtype'] ?? 'region');
     $size = avesmapsReadLabelSize($payload['size'] ?? 18);
     $rotation = avesmapsReadLabelRotation($payload['rotation'] ?? 0);
-    $minZoom = avesmapsReadLabelMinZoom($payload['min_zoom'] ?? 0);
+    $minZoom = avesmapsReadLabelZoom($payload['min_zoom'] ?? 0);
+    $maxZoom = avesmapsReadLabelZoom($payload['max_zoom'] ?? 5);
+    if ($maxZoom < $minZoom) {
+        throw new InvalidArgumentException('Die Label-Zoomspanne ist ungueltig.');
+    }
     $priority = avesmapsReadLabelPriority($payload['priority'] ?? 3);
     $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
     $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
@@ -713,6 +717,7 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
         'size' => $size,
         'rotation' => $rotation,
         'min_zoom' => $minZoom,
+        'max_zoom' => $maxZoom,
         'priority' => $priority,
     ];
 
@@ -762,7 +767,11 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
     $subtype = avesmapsReadLabelSubtype($payload['feature_subtype'] ?? 'region');
     $size = avesmapsReadLabelSize($payload['size'] ?? 18);
     $rotation = avesmapsReadLabelRotation($payload['rotation'] ?? 0);
-    $minZoom = avesmapsReadLabelMinZoom($payload['min_zoom'] ?? 0);
+    $minZoom = avesmapsReadLabelZoom($payload['min_zoom'] ?? 0);
+    $maxZoom = avesmapsReadLabelZoom($payload['max_zoom'] ?? 5);
+    if ($maxZoom < $minZoom) {
+        throw new InvalidArgumentException('Die Label-Zoomspanne ist ungueltig.');
+    }
     $priority = avesmapsReadLabelPriority($payload['priority'] ?? 3);
 
     $pdo->beginTransaction();
@@ -779,6 +788,7 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
         $properties['size'] = $size;
         $properties['rotation'] = $rotation;
         $properties['min_zoom'] = $minZoom;
+        $properties['max_zoom'] = $maxZoom;
         $properties['priority'] = $priority;
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         $coordinates = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [0, 0];
@@ -858,6 +868,7 @@ function avesmapsCreateRegionFeature(PDO $pdo, array $payload, array $user): arr
     $name = avesmapsReadFeatureName($payload['name'] ?? 'Neue Region', 'Der Regionsname');
     $color = avesmapsReadHexColor($payload['color'] ?? '#888888');
     $opacity = avesmapsReadOpacity($payload['opacity'] ?? 0.33);
+    $wikiUrl = avesmapsReadOptionalWikiUrl($payload['wiki_url'] ?? '');
     $coordinates = avesmapsReadPolygonCoordinates($payload['coordinates'] ?? null);
     $bounds = avesmapsCalculateLineStringBounds($coordinates[0]);
     $publicId = avesmapsUuidV4();
@@ -871,6 +882,9 @@ function avesmapsCreateRegionFeature(PDO $pdo, array $payload, array $user): arr
         'feature_type' => 'region',
         'feature_subtype' => 'region',
     ];
+    if ($wikiUrl !== '') {
+        $properties['wiki_url'] = $wikiUrl;
+    }
 
     $pdo->beginTransaction();
     try {
@@ -918,6 +932,7 @@ function avesmapsUpdateRegionFeature(PDO $pdo, array $payload, array $user): arr
     $name = avesmapsReadFeatureName($payload['name'] ?? '', 'Der Regionsname');
     $color = avesmapsReadHexColor($payload['color'] ?? '#888888');
     $opacity = avesmapsReadOpacity($payload['opacity'] ?? 0.33);
+    $wikiUrl = avesmapsReadOptionalWikiUrl($payload['wiki_url'] ?? '');
 
     $pdo->beginTransaction();
     try {
@@ -928,6 +943,11 @@ function avesmapsUpdateRegionFeature(PDO $pdo, array $payload, array $user): arr
         $properties['fill'] = $color;
         $properties['stroke'] = $color;
         $properties['fillOpacity'] = $opacity;
+        if ($wikiUrl === '') {
+            unset($properties['wiki_url']);
+        } else {
+            $properties['wiki_url'] = $wikiUrl;
+        }
         $style = avesmapsDecodeJsonColumnForEdit($feature['style_json'] ?? null);
         $style['fill'] = $color;
         $style['stroke'] = $color;

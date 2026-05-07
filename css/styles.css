@@ -793,6 +793,12 @@ body.modal-dialog-open {
 	flex-wrap: wrap;
 }
 
+.map-layer-mode-control {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
 .location-toggle-group {
 	display: flex;
 	flex-wrap: nowrap;
@@ -1369,9 +1375,26 @@ body.edit-mode .map-label span {
 	color: #2f6f3d;
 }
 
+.map-label--kontinent span {
+	color: #56412f;
+}
+
+.map-label--wueste span {
+	color: #9a6d22;
+}
+
+.map-label--suempfe_moore span {
+	color: #3f6d58;
+}
+
 .map-label--gebirge span,
+.map-label--insel span,
 .map-label--region span {
 	text-transform: uppercase;
+}
+
+.leaflet-popup-pane {
+	z-index: 900;
 }
 
 .location-name-label {
