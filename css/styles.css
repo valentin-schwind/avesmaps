@@ -798,8 +798,11 @@ body.modal-dialog-open {
 }
 
 .display-options__select-row {
-	justify-content: space-between;
-	width: 100%;
+	display: inline-grid;
+	grid-template-columns: auto auto;
+	justify-content: start;
+	gap: 10px;
+	width: auto;
 }
 
 .display-options__select {

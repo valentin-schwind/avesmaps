@@ -376,6 +376,13 @@
 			<button id="searchButton">Suche</button>
 		</div>
 		<div class="display-options">
+			<label class="display-options__row display-options__select-row">Deregraphie
+				<select id="mapLayerModeSelect" class="display-options__select" aria-label="Deregraphie">
+					<option value="none">Nur Karte</option>
+					<option value="political">Politisch</option>
+					<option value="deregraphic" selected>Regionen</option>
+				</select>
+			</label>
 			<div class="display-options__row">
 				<span class="display-options__label">Zeige</span>
 				<div class="location-toggle-group" role="group" aria-label="Ortsklassen anzeigen">
@@ -390,13 +397,6 @@
 				<label id="togglePathsControl" hidden><input type="checkbox" id="togglePaths" /> Wege</label>
 				<label id="toggleCrossingsControl" hidden><input type="checkbox" id="toggleCrossings" /> Kreuzungen</label>
 			</div>
-			<label class="display-options__row display-options__select-row">Deregraphie
-				<select id="mapLayerModeSelect" class="display-options__select" aria-label="Deregraphie">
-					<option value="none">Nur Karte</option>
-					<option value="political">Politisch</option>
-					<option value="deregraphic">Regionen</option>
-				</select>
-			</label>
 			<label id="mapStyleControl" class="display-options__row display-options__select-row" hidden>Mapstil
 				<select id="mapStyleSelect" class="display-options__select" aria-label="Mapstil">
 					<option value="stylized">Stylized</option>
