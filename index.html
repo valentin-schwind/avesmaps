@@ -769,7 +769,8 @@
 			pendingPathSplit = null,
 			mapDataSourceStatus = null,
 			baseTileLayer = null,
-			activeMapStyle = "stylized";
+			activeMapStyle = "stylized",
+			labelCollisionFrameId = null;
 
 		// Initialisierung der Karte 
 		const map = L.map("map", {
@@ -817,7 +818,10 @@
 			});
 			syncLabelIcons();
 		});
-		map.on("moveend", () => window.requestAnimationFrame(resolveLabelCollisions));
+		map.on("moveend", () => {
+			syncLocationMarkerVisibility();
+			syncLabelVisibility();
+		});
 
 		function createBaseTileLayer(mapStyle) {
 			const tileStyle = MAP_TILE_STYLES[mapStyle] || MAP_TILE_STYLES.stylized;
@@ -3289,14 +3293,29 @@
 		function syncLocationMarkerVisibility() {
 			syncLocationToggleButtons();
 			const zoomLevel = map.getZoom();
+			const renderBounds = getMapRenderBounds();
 			$.each(locationMarkers, (i, entry) => {
 				const shouldShow = entry.locationType === CROSSING_LOCATION_TYPE
-					? IS_EDIT_MODE && $("#toggleCrossings").is(":checked")
-					: isLocationTypeVisible(entry.locationType);
-				entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, zoomLevel));
+					? IS_EDIT_MODE && $("#toggleCrossings").is(":checked") && isMarkerEntryInRenderBounds(entry, renderBounds)
+					: isLocationTypeVisible(entry.locationType) && isMarkerEntryInRenderBounds(entry, renderBounds);
+				if (shouldShow || map.hasLayer(entry.marker)) {
+					entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, zoomLevel));
+				}
 				map[shouldShow ? "addLayer" : "removeLayer"](entry.marker);
 			});
 			syncLocationNameLabelVisibility();
+		}
+
+		function getMapRenderBounds() {
+			return map.getBounds().pad(0.2);
+		}
+
+		function isLatLngInRenderBounds(latlng, renderBounds = getMapRenderBounds()) {
+			return renderBounds.contains(L.latLng(latlng));
+		}
+
+		function isMarkerEntryInRenderBounds(entry, renderBounds = getMapRenderBounds()) {
+			return entry?.marker && isLatLngInRenderBounds(entry.marker.getLatLng(), renderBounds);
 		}
 
 		function getLocationNameLabelSize(locationType, zoomLevel = map.getZoom()) {
@@ -3349,13 +3368,20 @@
 
 		function syncLocationNameLabelVisibility() {
 			const zoomLevel = map.getZoom();
+			const renderBounds = getMapRenderBounds();
 			locationNameLabels.forEach((entry) => {
-				const shouldShow = shouldShowLocationNameLabel(entry.markerEntry, zoomLevel);
+				const shouldShow = shouldShowLocationNameLabel(entry.markerEntry, zoomLevel)
+					&& isMarkerEntryInRenderBounds(entry.markerEntry, renderBounds);
+				if (!shouldShow) {
+					map.removeLayer(entry.marker);
+					return;
+				}
+
 				entry.marker.setLatLng(entry.markerEntry.marker.getLatLng());
 				entry.marker.setIcon(createLocationNameLabelIcon(entry.markerEntry, zoomLevel));
-				map[shouldShow ? "addLayer" : "removeLayer"](entry.marker);
+				map.addLayer(entry.marker);
 			});
-			window.requestAnimationFrame(resolveLabelCollisions);
+			scheduleLabelCollisionResolution();
 		}
 
 		function syncPathVisibility() {
@@ -4576,11 +4602,17 @@
 			entry.marker.dragging.disable();
 		}
 
-		function syncLabelMarkerVisibility(entry) {
-			const zoomLevel = map.getZoom();
+		function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds()) {
 			const minZoom = Number(entry.label.minZoom) || 0;
 			const maxZoom = Number.isFinite(Number(entry.label.maxZoom)) ? Number(entry.label.maxZoom) : 5;
-			const shouldShow = getSelectedMapLayerMode() === "deregraphic" && zoomLevel >= minZoom && zoomLevel <= maxZoom;
+			return getSelectedMapLayerMode() === "deregraphic"
+				&& zoomLevel >= minZoom
+				&& zoomLevel <= maxZoom
+				&& isLatLngInRenderBounds(entry.marker.getLatLng(), renderBounds);
+		}
+
+		function syncLabelMarkerVisibility(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds()) {
+			const shouldShow = shouldShowLabelMarker(entry, zoomLevel, renderBounds);
 			const isVisible = map.hasLayer(entry.marker);
 			if (shouldShow && !isVisible) {
 				entry.marker.addTo(map);
@@ -4593,16 +4625,33 @@
 		}
 
 		function syncLabelVisibility() {
-			labelMarkers.forEach(syncLabelMarkerVisibility);
-			window.requestAnimationFrame(resolveLabelCollisions);
+			const zoomLevel = map.getZoom();
+			const renderBounds = getMapRenderBounds();
+			labelMarkers.forEach((entry) => syncLabelMarkerVisibility(entry, zoomLevel, renderBounds));
+			scheduleLabelCollisionResolution();
 		}
 
 		function syncLabelIcons() {
+			const zoomLevel = map.getZoom();
+			const renderBounds = getMapRenderBounds();
 			labelMarkers.forEach((entry) => {
-				entry.marker.setIcon(createLabelIcon(entry.label));
-				syncLabelMarkerVisibility(entry);
+				if (shouldShowLabelMarker(entry, zoomLevel, renderBounds) || map.hasLayer(entry.marker)) {
+					entry.marker.setIcon(createLabelIcon(entry.label));
+				}
+				syncLabelMarkerVisibility(entry, zoomLevel, renderBounds);
 			});
-			window.requestAnimationFrame(resolveLabelCollisions);
+			scheduleLabelCollisionResolution();
+		}
+
+		function scheduleLabelCollisionResolution() {
+			if (labelCollisionFrameId !== null) {
+				return;
+			}
+
+			labelCollisionFrameId = window.requestAnimationFrame(() => {
+				labelCollisionFrameId = null;
+				resolveLabelCollisions();
+			});
 		}
 
 		function rectanglesOverlap(firstRect, secondRect) {
@@ -6749,7 +6798,10 @@
 		// Erzeugt einen gewichteten Graphen aus den Locations und Pfaden
 		function createGraph() {
 			syntheticPathSegments.clear();
-			const graph = locationData.reduce((acc, loc) => ({ ...acc, [loc.name]: {} }), {});
+			const graph = {};
+			locationData.forEach((location) => {
+				graph[location.name] = {};
+			});
 			pathData.forEach(({ geometry: { coordinates }, properties }) => {
 				const startNode = getLocationAtPathEndpoint(coordinates[0]);
 				const endNode = getLocationAtPathEndpoint(coordinates[coordinates.length - 1]);
