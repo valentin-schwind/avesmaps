@@ -5038,7 +5038,7 @@
 			const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
 			const centerColors = {
 				Reichsstrasse: "#d8d8d8",
-				Strasse: "#555555",
+				Strasse: "#6a6a6a",
 				Weg: "#cdb98a",
 				Pfad: "#7b4f2f",
 				Gebirgspass: "#8f3f2f",
@@ -5050,6 +5050,8 @@
 			return {
 				outline: "#ffffff",
 				center: centerColors[pathSubtype] || centerColors.Weg,
+				outlineWeight: pathSubtype === "Reichsstrasse" ? 6 : 5,
+				centerWeight: pathSubtype === "Reichsstrasse" ? 4 : 3,
 			};
 		}
 
@@ -5059,8 +5061,8 @@
 			}
 
 			const colors = getPathStyleColors(path);
-			path._pathLines[0]?.setStyle({ color: colors.outline, weight: 5 });
-			path._pathLines[1]?.setStyle({ color: colors.center, weight: 3 });
+			path._pathLines[0]?.setStyle({ color: colors.outline, weight: colors.outlineWeight });
+			path._pathLines[1]?.setStyle({ color: colors.center, weight: colors.centerWeight });
 		}
 
 		function refreshPathLayerPopup(path) {
@@ -5080,7 +5082,7 @@
 			const roadOutline = L.polyline(latLngCoords, {
 				pane: "roadsOutlinePane",
 				color: colors.outline,
-				weight: 5,
+				weight: colors.outlineWeight,
 				opacity: 1,
 				interactive: IS_EDIT_MODE,
 				bubblingMouseEvents: false,
@@ -5090,7 +5092,7 @@
 			const roadCenter = L.polyline(latLngCoords, {
 				pane: "roadsPane",
 				color: colors.center,
-				weight: 3,
+				weight: colors.centerWeight,
 				opacity: 1,
 				interactive: IS_EDIT_MODE,
 				bubblingMouseEvents: false,
