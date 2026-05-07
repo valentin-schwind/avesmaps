@@ -1383,8 +1383,8 @@ body.edit-mode .map-label span {
 .location-name-label span {
 	display: inline-block;
 	position: absolute;
-	left: 0;
-	top: 0;
+	left: 3px;
+	top: 3px;
 	color: #241b14;
 	font-family: Georgia, "Times New Roman", serif;
 	font-weight: 700;
