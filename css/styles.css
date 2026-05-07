@@ -770,11 +770,10 @@ body.modal-dialog-open {
 }
 
 .display-options {
-	display: grid;
-	grid-template-columns: 50px 220px;
-	column-gap: 8px;
-	row-gap: 4px;
-	align-items: center;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 7px;
 }
 
 .display-options__label {
@@ -782,21 +781,26 @@ body.modal-dialog-open {
 	font-weight: bold;
 }
 
-.display-options__spacer {
-	display: block;
-}
-
-.display-options__secondary {
+.display-options__row {
 	display: flex;
 	align-items: center;
-	gap: 14px;
-	flex-wrap: wrap;
+	gap: 8px;
+	min-width: 0;
 }
 
-.map-layer-mode-control {
-	display: inline-flex;
-	align-items: center;
-	gap: 8px;
+.display-options__row--wrap {
+	flex-wrap: wrap;
+	gap: 14px;
+}
+
+.display-options__select-row {
+	justify-content: space-between;
+	width: 100%;
+}
+
+.display-options__select-row select {
+	max-width: 150px;
+	min-width: 116px;
 }
 
 .location-toggle-group {

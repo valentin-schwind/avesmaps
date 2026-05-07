@@ -376,30 +376,33 @@
 			<button id="searchButton">Suche</button>
 		</div>
 		<div class="display-options">
-			<span class="display-options__label">Zeige</span>
-			<div class="location-toggle-group" role="group" aria-label="Ortsklassen anzeigen">
-				<button type="button" class="location-toggle" data-location-type="metropole" title="Metropolen anzeigen oder ausblenden" aria-label="Metropolen anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/metropole.png" data-source-src="icons/metropole.png" alt="" /></button>
-				<button type="button" class="location-toggle" data-location-type="grossstadt" title="Großstädte anzeigen oder ausblenden" aria-label="Großstädte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/grossstadt.png" data-source-src="icons/grossstadt.png" alt="" /></button>
-				<button type="button" class="location-toggle" data-location-type="stadt" title="Städte anzeigen oder ausblenden" aria-label="Städte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/stadt.png" data-source-src="icons/stadt.png" alt="" /></button>
-				<button type="button" class="location-toggle" data-location-type="kleinstadt" title="Kleinstädte anzeigen oder ausblenden" aria-label="Kleinstädte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/kleinstadt.png" data-source-src="icons/kleinstadt.png" alt="" /></button>
-				<button type="button" class="location-toggle" data-location-type="dorf" title="Dörfer anzeigen oder ausblenden" aria-label="Dörfer anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/dorf.png" data-source-src="icons/dorf.png" alt="" /></button>
-			</div>
-			<span class="display-options__spacer" aria-hidden="true"></span>
-			<div class="display-options__secondary">
-				<label id="mapStyleControl" hidden>Mapstyle
-					<select id="mapStyleSelect" aria-label="Mapstyle">
-						<option value="old">Old</option>
-						<option value="stylized">Stylized</option>
-					</select>
-				</label>
-				<label><input type="checkbox" id="togglePaths" /> Wege</label>
-				<div class="map-layer-mode-control" role="radiogroup" aria-label="Kartenansicht">
-					<label><input type="radio" name="mapLayerMode" value="none" /> Aus</label>
-					<label><input type="radio" name="mapLayerMode" value="political" /> Politisch</label>
-					<label><input type="radio" name="mapLayerMode" value="deregraphic" /> Deregraphisch</label>
+			<div class="display-options__row">
+				<span class="display-options__label">Zeige</span>
+				<div class="location-toggle-group" role="group" aria-label="Ortsklassen anzeigen">
+					<button type="button" class="location-toggle" data-location-type="metropole" title="Metropolen anzeigen oder ausblenden" aria-label="Metropolen anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/metropole.png" data-source-src="icons/metropole.png" alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="grossstadt" title="Großstädte anzeigen oder ausblenden" aria-label="Großstädte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/grossstadt.png" data-source-src="icons/grossstadt.png" alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="stadt" title="Städte anzeigen oder ausblenden" aria-label="Städte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/stadt.png" data-source-src="icons/stadt.png" alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="kleinstadt" title="Kleinstädte anzeigen oder ausblenden" aria-label="Kleinstädte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/kleinstadt.png" data-source-src="icons/kleinstadt.png" alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="dorf" title="Dörfer anzeigen oder ausblenden" aria-label="Dörfer anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/dorf.png" data-source-src="icons/dorf.png" alt="" /></button>
 				</div>
+			</div>
+			<div class="display-options__row display-options__row--wrap">
+				<label><input type="checkbox" id="togglePaths" /> Wege</label>
 				<label id="toggleCrossingsControl" hidden><input type="checkbox" id="toggleCrossings" /> Kreuzungen</label>
 			</div>
+			<label class="display-options__row display-options__select-row">Darstellung
+				<select id="mapLayerModeSelect" aria-label="Darstellung">
+					<option value="none">Nur Karte</option>
+					<option value="political">Politisch</option>
+					<option value="deregraphic">Deregraphie</option>
+				</select>
+			</label>
+			<label id="mapStyleControl" class="display-options__row display-options__select-row" hidden>Mapstil
+				<select id="mapStyleSelect" aria-label="Mapstil">
+					<option value="stylized">Stylized</option>
+					<option value="old">Old</option>
+				</select>
+			</label>
 		</div>
 		<div id="transport-options">
 			<label>Transportmittel:</label>
@@ -3331,12 +3334,12 @@
 		}
 
 		function getSelectedMapLayerMode() {
-			return String($('input[name="mapLayerMode"]:checked').val() || DEFAULT_PLANNER_STATE.mapLayerMode);
+			return String($("#mapLayerModeSelect").val() || DEFAULT_PLANNER_STATE.mapLayerMode);
 		}
 
 		function setSelectedMapLayerMode(mode) {
 			const normalizedMode = ["none", "political", "deregraphic"].includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
-			$(`input[name="mapLayerMode"][value="${normalizedMode}"]`).prop("checked", true);
+			$("#mapLayerModeSelect").val(normalizedMode);
 		}
 
 		function syncRegionVisibility() {
@@ -3382,7 +3385,7 @@
 			setMapStyle(String(this.value || "stylized"), { persist: true });
 		});
 		$("#togglePaths").change(syncPathVisibility);
-		$('input[name="mapLayerMode"]').change(() => {
+		$("#mapLayerModeSelect").change(() => {
 			syncRegionVisibility();
 			syncLabelVisibility();
 			syncPlannerStateToUrl();
