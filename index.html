@@ -3197,7 +3197,7 @@
 			const config = LOCATION_NAME_LABEL_CONFIG[locationType] || LOCATION_NAME_LABEL_CONFIG.dorf;
 			const maxZoom = Number(map.getMaxZoom()) || 5;
 			const zoomStepsOut = Math.max(0, maxZoom - zoomLevel);
-			return Math.max(5, config.size / (2 ** zoomStepsOut));
+			return Math.max(10, config.size / (2 ** zoomStepsOut));
 		}
 
 		function shouldShowLocationNameLabel(entry, zoomLevel = map.getZoom()) {
