@@ -656,7 +656,7 @@
 			stadt: { label: "Städte", singularLabel: "Stadt", icon: "⛪", queryParam: "toggleStaedte", radius: 6, shape: "square", borderWidth: 2 },
 			kleinstadt: { label: "Kleinstädte", singularLabel: "Kleinstadt", icon: "🏘️", queryParam: "toggleKleinstaedte", radius: 4, shape: "square", borderWidth: 2 },
 			dorf: { label: "Dörfer", singularLabel: "Dorf", icon: "🏡", queryParam: "toggleDoerfer", radius: 3.5, shape: "circle", borderWidth: 2 },
-			gebaeude: { label: "Besondere Bauwerke/Stätten", singularLabel: "Besondere Bauwerke/Stätten", icon: "🏛️", queryParam: "toggleGebaeude", radius: 3.5, shape: "circle", borderWidth: 2, minZoom: 5 },
+			gebaeude: { label: "Besondere Bauwerke/Stätten", singularLabel: "Besondere Bauwerke/Stätten", icon: "🏛️", queryParam: "toggleGebaeude", radius: 3.5, shape: "circle", borderWidth: 2 },
 		};
 		const LOCATION_ICON_PATHS = {
 			metropole: "icons/metropole.png",
@@ -673,7 +673,7 @@
 			stadt: { size: 14, minZoom: 2 },
 			kleinstadt: { size: 13, minZoom: 3 },
 			dorf: { size: 12, minZoom: 4 },
-			gebaeude: { size: 12, minZoom: 5 },
+			gebaeude: { size: 12, minZoom: 4 },
 		};
 		document.body.classList.toggle("edit-mode", IS_EDIT_MODE);
 		const DEFAULT_PLANNER_STATE = {
