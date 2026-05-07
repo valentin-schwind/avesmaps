@@ -788,6 +788,10 @@ body.modal-dialog-open {
 	min-width: 0;
 }
 
+.display-options__row[hidden] {
+	display: none !important;
+}
+
 .display-options__row--wrap {
 	flex-wrap: wrap;
 	gap: 14px;
