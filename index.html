@@ -3212,9 +3212,27 @@
 			return zoomScales[zoomLevel] || 1;
 		}
 
+		function getVillageMarkerStyle(zoomLevel = map.getZoom()) {
+			const villageZoomStyles = {
+				0: { radius: 1, borderWidth: 0 },
+				1: { radius: 1.25, borderWidth: 0 },
+				2: { radius: 1.25, borderWidth: 1 },
+				3: { radius: 1.5, borderWidth: 1 },
+				4: { radius: 1.75, borderWidth: 2 },
+				5: { radius: 2, borderWidth: 2 },
+			};
+
+			return villageZoomStyles[Math.round(Number(zoomLevel))] || villageZoomStyles[5];
+		}
+
 		function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
 			if (locationType === CROSSING_LOCATION_TYPE) {
 				return Math.max(7, 5 + zoomLevel * 1.5);
+			}
+
+			if (locationType === "dorf") {
+				const villageStyle = getVillageMarkerStyle(zoomLevel);
+				return villageStyle.radius * 2 + villageStyle.borderWidth * 2;
 			}
 
 			const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
@@ -3224,12 +3242,7 @@
 		function getLocationMarkerBorderWidth(locationType, zoomLevel = map.getZoom()) {
 			const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
 			if (locationType === "dorf") {
-				if (zoomLevel <= 3) {
-					return 0;
-				}
-				if (zoomLevel === 4) {
-					return 1;
-				}
+				return getVillageMarkerStyle(zoomLevel).borderWidth;
 			}
 
 			return config.borderWidth;
