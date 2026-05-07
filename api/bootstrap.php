@@ -61,7 +61,7 @@ function avesmapsBuildApiConfigFromEnvironment(): ?array {
 }
 
 function avesmapsApplyCorsPolicy(array $config): bool {
-    $origin = trim((string) ($_SERVER['HTTP_ORIGIN'] ?? ''));
+    $origin = avesmapsNormalizeCorsOrigin((string) ($_SERVER['HTTP_ORIGIN'] ?? ''));
     if ($origin === '') {
         return true;
     }
@@ -87,6 +87,28 @@ function avesmapsApplyCorsPolicy(array $config): bool {
     return true;
 }
 
+function avesmapsNormalizeCorsOrigin(string $origin): string {
+    $normalizedOrigin = trim($origin);
+    if ($normalizedOrigin === '' || $normalizedOrigin === '*') {
+        return $normalizedOrigin;
+    }
+
+    if (!preg_match('/^https?:\/\//i', $normalizedOrigin)) {
+        return strtolower(rtrim($normalizedOrigin, '/'));
+    }
+
+    $parts = parse_url($normalizedOrigin);
+    if (!is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) {
+        return strtolower(rtrim($normalizedOrigin, '/'));
+    }
+
+    $scheme = strtolower((string) $parts['scheme']);
+    $host = strtolower((string) $parts['host']);
+    $port = isset($parts['port']) ? ':' . (int) $parts['port'] : '';
+
+    return "{$scheme}://{$host}{$port}";
+}
+
 function avesmapsGetAllowedOrigins(array $config): array {
     $origins = $config['cors']['allowed_origins'] ?? [];
     if (!is_array($origins)) {
@@ -95,7 +117,7 @@ function avesmapsGetAllowedOrigins(array $config): array {
 
     $normalizedOrigins = [];
     foreach ($origins as $origin) {
-        $normalizedOrigin = trim((string) $origin);
+        $normalizedOrigin = avesmapsNormalizeCorsOrigin((string) $origin);
         if ($normalizedOrigin === '') {
             continue;
         }
