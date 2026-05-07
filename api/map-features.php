@@ -171,6 +171,9 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row): array {
     }
 
     $properties['public_id'] = (string) $row['public_id'];
+    if ((string) $row['name'] !== '') {
+        $properties['name'] = (string) $row['name'];
+    }
     $properties['feature_type'] = (string) $row['feature_type'];
     $properties['feature_subtype'] = (string) $row['feature_subtype'];
     $properties['revision'] = (int) $row['revision'];

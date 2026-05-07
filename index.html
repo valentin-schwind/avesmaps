@@ -888,6 +888,11 @@
 				return;
 			}
 
+			if (event.key === "Escape" && isRegionEditDialogOpen()) {
+				setRegionEditDialogOpen(false, { resetForm: true });
+				return;
+			}
+
 			if (event.key === "Escape" && !$("#legal-overlay").prop("hidden")) {
 				setLegalDialogOpen(false);
 				return;
@@ -896,6 +901,7 @@
 			if (event.key === "Escape") {
 				clearPendingPathCreation();
 				clearPathGeometryEdit();
+				clearRegionGeometryEdit();
 				closeMapContextMenu();
 			}
 		});
@@ -1128,12 +1134,16 @@
 			return !$("#label-edit-overlay").prop("hidden");
 		}
 
+		function isRegionEditDialogOpen() {
+			return !$("#region-edit-overlay").prop("hidden");
+		}
+
 		function isLocationReportServiceConfigured() {
 			return Boolean(String(LOCATION_REPORT_FORM_ENDPOINT_URL || "").trim());
 		}
 
 		function syncModalDialogBodyState() {
-			const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden") || !$("#path-edit-overlay").prop("hidden") || !$("#label-edit-overlay").prop("hidden");
+			const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden") || !$("#path-edit-overlay").prop("hidden") || !$("#label-edit-overlay").prop("hidden") || !$("#region-edit-overlay").prop("hidden");
 			$("body").toggleClass("modal-dialog-open", hasOpenModal);
 		}
 
@@ -1621,7 +1631,7 @@
 
 		function populateRegionEditForm(entry) {
 			regionEditEntry = entry;
-			const region = entry?.region || {};
+			const region = entry?.region || entry || {};
 			document.getElementById("region-edit-public-id").value = region.publicId || "";
 			document.getElementById("region-edit-name").value = region.name || "";
 			document.getElementById("region-edit-color").value = region.color || "#888888";
@@ -2185,8 +2195,13 @@
 			event.preventDefault();
 			const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
 			if (!formElement || !formElement.reportValidity() || !regionEditEntry) return;
+			const payload = buildRegionEditPayload(formElement);
+			if (!isSqlMapFeatureId(payload.public_id)) {
+				setRegionEditStatus("Diese Region hat keine gueltige SQL-ID. Bitte die SQL-Karte neu laden.", "error");
+				return;
+			}
 			try {
-				const result = await submitMapFeatureEdit(buildRegionEditPayload(formElement));
+				const result = await submitMapFeatureEdit(payload);
 				applyRegionFeatureResponse(regionEditEntry, result.feature);
 				updateRevisionFromEditResponse(result);
 				void loadChangeLog();
@@ -2196,6 +2211,10 @@
 				console.error("Region konnte nicht gespeichert werden:", error);
 				setRegionEditStatus(error.message || "Region konnte nicht gespeichert werden.", "error");
 			}
+		}
+
+		function isSqlMapFeatureId(value) {
+			return /^[a-f0-9-]{36}$/i.test(String(value || "").trim());
 		}
 
 		function finalizeLocationReportSubmission({ ok, message }) {
@@ -3104,6 +3123,9 @@
 
 		function syncRegionVisibility() {
 			const showRegions = $("#toggleBorders").is(":checked");
+			if (!showRegions) {
+				clearRegionGeometryEdit();
+			}
 
 			regionPolygons.forEach((layer) => {
 				if (showRegions) {
@@ -5105,6 +5127,7 @@
 			const insertIndex = findNearestRegionSegmentInsertIndex(regionEntry, event.latlng);
 			latLngs.splice(insertIndex, 0, L.latLng(event.latlng));
 			regionEntry.layer.setLatLngs([latLngs]);
+			updateRegionLabelPosition(regionEntry);
 			refreshRegionEditHandles();
 			void saveRegionGeometry(regionEntry);
 		}
@@ -5237,23 +5260,7 @@
 					});
 					polygon._regionEntry = regionEntry;
 					regionEntry.layer = polygon;
-					if (IS_EDIT_MODE) {
-						polygon.on("dblclick", (event) => {
-							if (event.originalEvent?.target?.closest?.(".region-edit-handle-marker")) return;
-							if (activeRegionGeometryEdit?.regionEntry === regionEntry) {
-								handleEditableRegionDoubleClick(regionEntry, event);
-								return;
-							}
-							L.DomEvent.stop(event);
-							startRegionGeometryEdit(regionEntry);
-							openRegionEditDialog(regionEntry);
-						});
-						polygon.on("contextmenu", (event) => {
-							L.DomEvent.stop(event);
-							startRegionGeometryEdit(regionEntry);
-							openRegionEditDialog(regionEntry);
-						});
-					}
+					bindRegionPolygonEditEvents(polygon, regionEntry);
 
 					polygon.bringToBack();
 
@@ -5275,6 +5282,7 @@
 							.setLatLng(center)
 							.setContent(name);
 
+						regionEntry.label = label;
 						regionLabels.push(label);
 
 					}
@@ -5285,17 +5293,87 @@
 
 		}
 
+		function bindRegionPolygonEditEvents(polygon, regionEntry) {
+			if (!IS_EDIT_MODE) return;
+			polygon.on("click", (event) => {
+				L.DomEvent.stop(event);
+				startRegionGeometryEdit(regionEntry);
+			});
+			polygon.on("dblclick", (event) => {
+				if (event.originalEvent?.target?.closest?.(".region-edit-handle-marker")) return;
+				if (activeRegionGeometryEdit?.regionEntry === regionEntry) {
+					handleEditableRegionDoubleClick(regionEntry, event);
+					return;
+				}
+				L.DomEvent.stop(event);
+				startRegionGeometryEdit(regionEntry);
+				openRegionEditDialog(regionEntry);
+			});
+			polygon.on("contextmenu", (event) => {
+				L.DomEvent.stop(event);
+				startRegionGeometryEdit(regionEntry);
+				openRegionEditDialog(regionEntry);
+			});
+		}
+
 		function normalizeRegionFeature(feature) {
 			const properties = feature.properties || {};
+			const fillColor = getRegionFeatureColor(properties);
+			const opacity = getRegionFeatureOpacity(properties);
 			return {
-				publicId: properties.public_id || feature.id || "",
-				name: properties.name || "Region",
-				color: properties.fill || properties.stroke || "#888888",
-				opacity: Number(properties.fillOpacity ?? properties.fill_opacity ?? 0.33),
+				publicId: properties.public_id || feature.id || properties.id || properties.svg_id || "",
+				name: getRegionFeatureName(properties),
+				color: fillColor,
+				opacity,
 				feature,
 				layer: null,
+				label: null,
 				handles: [],
 			};
+		}
+
+		function getRegionFeatureName(properties) {
+			return String(
+				properties.name
+				|| properties["data-item-label"]
+				|| properties.title
+				|| properties.label
+				|| properties.feature_subtype
+				|| properties.layer
+				|| "Region"
+			).trim() || "Region";
+		}
+
+		function getRegionFeatureColor(properties) {
+			return normalizeRegionHexColor(
+				properties.fill
+				|| getStyleDeclarationValue(properties.style, "fill")
+				|| properties.stroke
+				|| getStyleDeclarationValue(properties.style, "stroke")
+				|| "#888888"
+			);
+		}
+
+		function getRegionFeatureOpacity(properties) {
+			const rawOpacity = properties.fillOpacity
+				?? properties.fill_opacity
+				?? properties["fill-opacity"]
+				?? getStyleDeclarationValue(properties.style, "fill-opacity")
+				?? 0.33;
+			const opacity = Number(rawOpacity);
+			return Number.isFinite(opacity) ? Math.min(1, Math.max(0, opacity)) : 0.33;
+		}
+
+		function getStyleDeclarationValue(style, propertyName) {
+			if (!style) return "";
+			const declarations = String(style).split(";");
+			const declaration = declarations.find((entry) => entry.trim().toLowerCase().startsWith(`${propertyName.toLowerCase()}:`));
+			return declaration ? declaration.split(":").slice(1).join(":").trim() : "";
+		}
+
+		function normalizeRegionHexColor(value) {
+			const color = String(value || "").trim();
+			return /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(color) ? color : "#888888";
 		}
 
 		function polygonLatLngsToCoordinates(latLngs) {
@@ -5341,11 +5419,13 @@
 					const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry);
 					latLngs[index] = event.target.getLatLng();
 					activeRegionGeometryEdit.regionEntry.layer.setLatLngs([latLngs]);
+					updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
 				});
 				handle.on("dragend", (event) => {
 					const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry);
 					latLngs[index] = findNearestRegionVertex(event.target.getLatLng(), activeRegionGeometryEdit.regionEntry) || event.target.getLatLng();
 					activeRegionGeometryEdit.regionEntry.layer.setLatLngs([latLngs]);
+					updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
 					refreshRegionEditHandles();
 					void saveRegionGeometry(activeRegionGeometryEdit.regionEntry);
 				});
@@ -5361,6 +5441,12 @@
 			clearRegionGeometryEdit();
 			activeRegionGeometryEdit = { regionEntry, handles: [] };
 			refreshRegionEditHandles();
+		}
+
+		function updateRegionLabelPosition(regionEntry) {
+			if (regionEntry?.label && regionEntry.layer) {
+				regionEntry.label.setLatLng(regionEntry.layer.getBounds().getCenter());
+			}
 		}
 
 		function findNearestRegionVertex(latLng, ownRegion) {
@@ -5386,11 +5472,16 @@
 			}
 			latLngs.splice(index, 1);
 			activeRegionGeometryEdit.regionEntry.layer.setLatLngs([latLngs]);
+			updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
 			refreshRegionEditHandles();
 			void saveRegionGeometry(activeRegionGeometryEdit.regionEntry);
 		}
 
 		async function saveRegionGeometry(regionEntry) {
+			if (!isSqlMapFeatureId(regionEntry.publicId)) {
+				showFeedbackToast("Region hat keine gueltige SQL-ID.", "warning");
+				return;
+			}
 			const coordinates = polygonLatLngsToCoordinates(getRegionOuterLatLngs(regionEntry));
 			try {
 				const result = await submitMapFeatureEdit({ action: "update_region_geometry", public_id: regionEntry.publicId, coordinates });
@@ -5403,11 +5494,14 @@
 		}
 
 		function applyRegionFeatureResponse(regionEntry, feature) {
-			const properties = feature.properties || {};
-			regionEntry.name = properties.name || regionEntry.name;
-			regionEntry.color = properties.fill || regionEntry.color;
-			regionEntry.opacity = Number(properties.fillOpacity ?? regionEntry.opacity);
+			const updatedRegion = normalizeRegionFeature(feature);
+			regionEntry.publicId = updatedRegion.publicId || regionEntry.publicId;
+			regionEntry.name = updatedRegion.name || regionEntry.name;
+			regionEntry.color = updatedRegion.color || regionEntry.color;
+			regionEntry.opacity = updatedRegion.opacity ?? regionEntry.opacity;
+			regionEntry.feature = feature;
 			regionEntry.layer.setStyle({ color: regionEntry.color, fillColor: regionEntry.color, fillOpacity: regionEntry.opacity });
+			regionEntry.label?.setContent(regionEntry.name);
 		}
 
 		async function createRegionAt(latlng) {
@@ -5438,7 +5532,23 @@
 				}).addTo(map);
 				polygon._regionEntry = regionEntry;
 				regionEntry.layer = polygon;
+				bindRegionPolygonEditEvents(polygon, regionEntry);
 				regionPolygons.push(polygon);
+				const label = L.tooltip({
+					permanent: true,
+					direction: "center",
+					offset: [0, 0],
+					opacity: 1,
+					className: "region-label",
+					pane: "regionLabelsPane",
+				})
+					.setLatLng(polygon.getBounds().getCenter())
+					.setContent(regionEntry.name);
+				regionEntry.label = label;
+				regionLabels.push(label);
+				if ($("#toggleBorders").is(":checked")) {
+					map.addLayer(label);
+				}
 				startRegionGeometryEdit(regionEntry);
 				openRegionEditDialog(regionEntry);
 				updateRevisionFromEditResponse(result);
@@ -5450,9 +5560,17 @@
 
 		async function deleteActiveRegion() {
 			if (!regionEditEntry || !window.confirm(`${regionEditEntry.name} wirklich loeschen?`)) return;
+			if (!isSqlMapFeatureId(regionEditEntry.publicId)) {
+				setRegionEditStatus("Diese Region hat keine gueltige SQL-ID.", "error");
+				return;
+			}
 			try {
 				const result = await submitMapFeatureEdit({ action: "delete_feature", public_id: regionEditEntry.publicId });
 				map.removeLayer(regionEditEntry.layer);
+				if (regionEditEntry.label) {
+					map.removeLayer(regionEditEntry.label);
+					regionLabels = regionLabels.filter((label) => label !== regionEditEntry.label);
+				}
 				regionPolygons = regionPolygons.filter((polygon) => polygon !== regionEditEntry.layer);
 				clearRegionGeometryEdit();
 				updateRevisionFromEditResponse(result);
