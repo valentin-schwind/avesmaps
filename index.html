@@ -260,6 +260,7 @@
 						<option value="Weg">Weg</option>
 						<option value="Pfad">Pfad</option>
 						<option value="Gebirgspass">Gebirgspass</option>
+						<option value="Wuestenpfad">Wuestenpfad</option>
 						<option value="Flussweg">Flussweg</option>
 						<option value="Seeweg">Seeweg</option>
 					</select>
@@ -585,18 +586,18 @@
 		const SYNTHETIC_ROUTE_TYPE = "Querfeldein";
 		const SYNTHETIC_ROUTE_DISTANCE_COST_FACTOR = 1.2;
 		const CROSSING_LOCATION_TYPE = "crossing";
-		const PATH_SUBTYPE_KEYS = ["Reichsstrasse", "Strasse", "Weg", "Pfad", "Gebirgspass", "Flussweg", "Seeweg"];
+		const PATH_SUBTYPE_KEYS = ["Reichsstrasse", "Strasse", "Weg", "Pfad", "Gebirgspass", "Wuestenpfad", "Flussweg", "Seeweg"];
 		const PATH_ENDPOINT_SNAP_DISTANCE_PX = 18;
 
 		const SPEED_TABLE = {
-			groupFoot: { Reichsstrasse: 4.5, Strasse: 4.0, Weg: 3.5, Pfad: 3.0, Gebirgspass: 1.5, Querfeldein: 1.25, Wueste: 2.5 },
-			lightWalker: { Reichsstrasse: 5.5, Strasse: 5.0, Weg: 4.5, Pfad: 4.0, Gebirgspass: 2.0, Querfeldein: 1.7, Wueste: 3.5 },
-			groupHorse: { Reichsstrasse: 7.0, Strasse: 6.5, Weg: 5.5, Pfad: 4.5, Gebirgspass: 2.5, Querfeldein: 2.1, Wueste: 3.0 },
-			lightRider: { Reichsstrasse: 8.5, Strasse: 8.0, Weg: 7.0, Pfad: 6.0, Gebirgspass: 3.0, Querfeldein: 2.5, Wueste: 4.0 },
-			caravan: { Reichsstrasse: 4.0, Strasse: 3.5, Weg: 3.0, Pfad: 2.5, Gebirgspass: 1.5, Querfeldein: 1.25, Wueste: 2.0 },
+			groupFoot: { Reichsstrasse: 4.5, Strasse: 4.0, Weg: 3.5, Pfad: 3.0, Gebirgspass: 1.5, Wuestenpfad: 2.5, Querfeldein: 1.25 },
+			lightWalker: { Reichsstrasse: 5.5, Strasse: 5.0, Weg: 4.5, Pfad: 4.0, Gebirgspass: 2.0, Wuestenpfad: 3.5, Querfeldein: 1.7 },
+			groupHorse: { Reichsstrasse: 7.0, Strasse: 6.5, Weg: 5.5, Pfad: 4.5, Gebirgspass: 2.5, Wuestenpfad: 3.0, Querfeldein: 2.1 },
+			lightRider: { Reichsstrasse: 8.5, Strasse: 8.0, Weg: 7.0, Pfad: 6.0, Gebirgspass: 3.0, Wuestenpfad: 4.0, Querfeldein: 2.5 },
+			caravan: { Reichsstrasse: 4.0, Strasse: 3.5, Weg: 3.0, Pfad: 2.5, Gebirgspass: 1.5, Wuestenpfad: 2.0, Querfeldein: 1.25 },
 			riverSailer: { Flussweg: 7.5 }, riverBarge: { Flussweg: 5.0 },
 			cargoShip: { Seeweg: 10.0 }, fastShip: { Seeweg: 12.0 }, galley: { Seeweg: 9.0 },
-			horseCarriage: { Reichsstrasse: 6.0, Strasse: 5.5, Weg: 4.5, Pfad: 3.0, Gebirgspass: 2.0, Querfeldein: 1.7, Wueste: 3.0 }
+			horseCarriage: { Reichsstrasse: 6.0, Strasse: 5.5, Weg: 4.5, Pfad: 3.0, Gebirgspass: 2.0, Wuestenpfad: 3.0, Querfeldein: 1.7 }
 		};
 
 		const ROUTE_ICON_PATHS = {
@@ -604,6 +605,7 @@
 			Strasse: "icons/Strasse.png",
 			Gebirgspfad: "icons/Gebirgspfad.png",
 			Pfad: "icons/Pfad.png",
+			Wuestenpfad: "icons/Pfad.png",
 			Flussweg: "icons/Flusswege.png",
 			Seeweg: "icons/Meerwege.png",
 			Querfeldein: "icons/Pfad.png",
@@ -4155,6 +4157,7 @@
 				if (name.startsWith("Reichsstrasse")) return "Reichsstrasse";
 				if (name.startsWith("Strasse")) return "Strasse";
 				if (name.startsWith("Gebirgspass") || name.startsWith("Gebirgspfad")) return "Gebirgspass";
+				if (name.startsWith("Wueste") || name.startsWith("Wuestenpfad") || name.startsWith("Wüstenpfad")) return "Wuestenpfad";
 				if (name.startsWith("Pfad")) return "Pfad";
 				if (name.startsWith("Flussweg")) return "Flussweg";
 				if (name.startsWith("Meer") || name.startsWith("Seeweg")) return "Seeweg";
@@ -5006,6 +5009,7 @@
 				Weg: "#cdb98a",
 				Pfad: "#7b4f2f",
 				Gebirgspass: "#8f3f2f",
+				Wuestenpfad: "#c6922e",
 				Flussweg: "#6ec6ff",
 				Seeweg: "#2f7dd3",
 			};
@@ -6807,7 +6811,7 @@
 				const endNode = getLocationAtPathEndpoint(coordinates[coordinates.length - 1]);
 				if (startNode && endNode) {
 					const distance = calculatePathCoordinateDistance(coordinates),
-						routeType = normalizePathName(properties?.name),
+						routeType = normalizePathSubtype(properties?.feature_subtype || properties?.name),
 						transportOption = getTransportOption(routeType);
 					if (!transportOption) {
 						console.warn(`Keine Transportoption für ${routeType} gefunden. Pfad wird übersprungen.`);
@@ -6902,7 +6906,7 @@
 				riverOption = allowRiver ? $("#riverTransport").val() : null,
 				allowSea = $("#allowSea").is(":checked"),
 				seaOption = allowSea ? $("#seaTransport").val() : null;
-			if (["Pfad", "Weg", "Strasse", "Reichsstrasse", "Gebirgspass", SYNTHETIC_ROUTE_TYPE].includes(routeType)) return landOption;
+			if (["Pfad", "Weg", "Strasse", "Reichsstrasse", "Gebirgspass", "Wuestenpfad", SYNTHETIC_ROUTE_TYPE].includes(routeType)) return landOption;
 			if (routeType === "Flussweg") return riverOption;
 			if (routeType === "Seeweg") return seaOption;
 			console.warn(`Kein gültiges Transportmittel für ${routeType}.`);
@@ -6936,7 +6940,7 @@
 					return;
 				}
 
-				const type = normalizePathName(segment.properties?.name);
+				const type = normalizePathSubtype(segment.properties?.feature_subtype || segment.properties?.name);
 
 				const transport = getTransportOption(type) || "groupFoot";
 

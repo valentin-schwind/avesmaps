@@ -129,7 +129,7 @@ function avesmapsReadLocationDescription(mixed $value): string {
 
 function avesmapsReadPathSubtype(mixed $value): string {
     $subtype = avesmapsNormalizeSingleLine((string) ($value ?: 'Weg'), 60);
-    $allowedSubtypes = ['Reichsstrasse', 'Strasse', 'Weg', 'Pfad', 'Gebirgspass', 'Flussweg', 'Seeweg'];
+    $allowedSubtypes = ['Reichsstrasse', 'Strasse', 'Weg', 'Pfad', 'Gebirgspass', 'Wuestenpfad', 'Flussweg', 'Seeweg'];
     if (!in_array($subtype, $allowedSubtypes, true)) {
         throw new InvalidArgumentException('Der Wegtyp ist ungueltig.');
     }
