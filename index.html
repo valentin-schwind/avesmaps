@@ -633,6 +633,13 @@
 			dorf: "icons/dorf.png",
 		};
 		const LOCATION_TYPE_KEYS = Object.keys(LOCATION_TYPE_CONFIG);
+		const LOCATION_NAME_LABEL_CONFIG = {
+			metropole: { size: 14, minZoom: 0 },
+			grossstadt: { size: 13, minZoom: 0 },
+			stadt: { size: 12, minZoom: 2 },
+			kleinstadt: { size: 11, minZoom: 3 },
+			dorf: { size: 10, minZoom: 4 },
+		};
 		document.body.classList.toggle("edit-mode", IS_EDIT_MODE);
 		const DEFAULT_PLANNER_STATE = {
 			toggleMetropolen: false,
@@ -688,6 +695,7 @@
 			regionData = [],
 			syntheticPathSegments = new Map(),
 			locationMarkers = [],
+			locationNameLabels = [],
 			pathLayers = [],
 			labelMarkers = [],
 			regionLayers = [],
@@ -834,6 +842,7 @@
 			baseTileLayer = createBaseTileLayer(activeMapStyle).addTo(map);
 			baseTileLayer.bringToBack();
 			document.getElementById("mapStyleSelect").value = activeMapStyle;
+			syncLocationNameLabelVisibility();
 
 			if (persist && IS_EDIT_MODE) {
 				try {
@@ -3181,6 +3190,54 @@
 				entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, zoomLevel));
 				map[shouldShow ? "addLayer" : "removeLayer"](entry.marker);
 			});
+			syncLocationNameLabelVisibility();
+		}
+
+		function getLocationNameLabelSize(locationType, zoomLevel = map.getZoom()) {
+			const config = LOCATION_NAME_LABEL_CONFIG[locationType] || LOCATION_NAME_LABEL_CONFIG.dorf;
+			const maxZoom = Number(map.getMaxZoom()) || 5;
+			const zoomStepsOut = Math.max(0, maxZoom - zoomLevel);
+			return Math.max(5, config.size / (2 ** zoomStepsOut));
+		}
+
+		function shouldShowLocationNameLabel(entry, zoomLevel = map.getZoom()) {
+			if (activeMapStyle !== "stylized" || isCrossingLocation(entry.location)) {
+				return false;
+			}
+
+			const config = LOCATION_NAME_LABEL_CONFIG[entry.locationType] || LOCATION_NAME_LABEL_CONFIG.dorf;
+			return zoomLevel >= config.minZoom;
+		}
+
+		function createLocationNameLabelIcon(entry, zoomLevel = map.getZoom()) {
+			const labelSize = getLocationNameLabelSize(entry.locationType, zoomLevel);
+			const labelType = entry.locationType || "dorf";
+			return L.divIcon({
+				className: `location-name-label location-name-label--${labelType}`,
+				html: `<span style="font-size:${labelSize}pt;">${escapeHtml(entry.name)}</span>`,
+				iconSize: [0, 0],
+				iconAnchor: [0, 0],
+			});
+		}
+
+		function createLocationNameLabelEntry(markerEntry) {
+			const marker = L.marker(markerEntry.location.coordinates, {
+				icon: createLocationNameLabelIcon(markerEntry),
+				interactive: false,
+				keyboard: false,
+				pane: "labelsPane",
+			});
+			return { markerEntry, marker };
+		}
+
+		function syncLocationNameLabelVisibility() {
+			const zoomLevel = map.getZoom();
+			locationNameLabels.forEach((entry) => {
+				const shouldShow = shouldShowLocationNameLabel(entry.markerEntry, zoomLevel);
+				entry.marker.setLatLng(entry.markerEntry.marker.getLatLng());
+				entry.marker.setIcon(createLocationNameLabelIcon(entry.markerEntry, zoomLevel));
+				map[shouldShow ? "addLayer" : "removeLayer"](entry.marker);
+			});
 		}
 
 		function syncPathVisibility() {
@@ -4102,6 +4159,7 @@
 
 				markerEntry.location.coordinates = [normalizedLatLng.lat, normalizedLatLng.lng];
 				markerEntry.marker.setLatLng(normalizedLatLng);
+				syncLocationNameLabelVisibility();
 				if (payload.feature?.revision && mapDataSourceStatus) {
 					mapDataSourceStatus.revision = payload.feature.revision;
 					updateMapDataStatus({ avesmapsSource: mapDataSourceStatus });
@@ -4192,11 +4250,30 @@
 				const saveSucceeded = await saveMovedLocationMarker(markerEntry, marker.getLatLng());
 				if (!saveSucceeded && activeLocationEdit?.originalLatLng) {
 					marker.setLatLng(activeLocationEdit.originalLatLng);
+					syncLocationNameLabelVisibility();
 				}
 				setLocationEditActive(markerEntry, false);
 			});
 			refreshLocationMarkerPopup(markerEntry);
 			return markerEntry;
+		}
+
+		function addLocationNameLabel(markerEntry) {
+			if (isCrossingLocation(markerEntry.location)) {
+				return;
+			}
+
+			locationNameLabels.push(createLocationNameLabelEntry(markerEntry));
+		}
+
+		function removeLocationNameLabel(markerEntry) {
+			const labelEntry = locationNameLabels.find((entry) => entry.markerEntry === markerEntry);
+			if (!labelEntry) {
+				return;
+			}
+
+			map.removeLayer(labelEntry.marker);
+			locationNameLabels = locationNameLabels.filter((entry) => entry !== labelEntry);
 		}
 
 		function applyFeatureResponseToMarker(markerEntry, feature) {
@@ -4217,6 +4294,7 @@
 			};
 			markerEntry.marker.setLatLng(latLng);
 			refreshLocationMarkerPopup(markerEntry);
+			syncLocationNameLabelVisibility();
 			const didReplaceWaypoint = replaceWaypointLocationName(previousName, markerEntry.name);
 			refreshPlannerAfterFeatureChange({ updateRoute: didReplaceWaypoint });
 		}
@@ -4237,6 +4315,7 @@
 					public_id: markerEntry.publicId,
 				});
 				map.removeLayer(markerEntry.marker);
+				removeLocationNameLabel(markerEntry);
 				locationMarkers = locationMarkers.filter((entry) => entry !== markerEntry);
 				locationData = locationData.filter((location) => location !== markerEntry.location);
 				const didClearWaypoint = clearWaypointLocationName(markerEntry.name);
@@ -4264,6 +4343,7 @@
 
 			const markerEntry = createEditablePointMarkerEntry(location);
 			locationMarkers.push(markerEntry);
+			addLocationNameLabel(markerEntry);
 			syncLocationMarkerVisibility();
 			refreshPlannerAfterFeatureChange();
 			markerEntry.marker.openPopup();
@@ -5689,6 +5769,8 @@
 		// Verarbeitung der Locations (GeoJSON Points)
 		const prepareLocationData = (data) => {
 			let crossingCount = 1;
+			locationNameLabels.forEach((entry) => map.removeLayer(entry.marker));
+			locationNameLabels = [];
 			locationMarkers = [];
 			locationData = data.features
 				.filter((feature) => feature.geometry.type === "Point" && feature.properties?.name && feature.properties?.feature_type !== "label")
@@ -5721,11 +5803,13 @@
 						const saveSucceeded = await saveMovedLocationMarker(markerEntry, marker.getLatLng());
 						if (!saveSucceeded && activeLocationEdit?.originalLatLng) {
 							marker.setLatLng(activeLocationEdit.originalLatLng);
+							syncLocationNameLabelVisibility();
 						}
 						setLocationEditActive(markerEntry, false);
 					});
 					refreshLocationMarkerPopup(markerEntry);
 					locationMarkers.push(markerEntry);
+					addLocationNameLabel(markerEntry);
 				});
 			syncLocationMarkerVisibility();
 			map.off("zoomend", syncLocationMarkerVisibility);
