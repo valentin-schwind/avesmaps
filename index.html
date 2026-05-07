@@ -2571,6 +2571,38 @@
 			]);
 		}
 
+		function labelActionsMarkup(publicId) {
+			if (!IS_EDIT_MODE || !publicId) {
+				return "";
+			}
+
+			return locationPopupActionsMarkup([
+				popupActionButtonMarkup({
+					label: "Label verschieben",
+					className: "location-popup__action-button--accent",
+					attributes: {
+						"data-popup-action": "start-label-edit",
+						"data-public-id": publicId,
+					},
+				}),
+				popupActionButtonMarkup({
+					label: "Details bearbeiten",
+					attributes: {
+						"data-popup-action": "edit-label-details",
+						"data-public-id": publicId,
+					},
+				}),
+				popupActionButtonMarkup({
+					label: "Label loeschen",
+					className: "location-popup__action-button--danger",
+					attributes: {
+						"data-popup-action": "delete-label",
+						"data-public-id": publicId,
+					},
+				}),
+			]);
+		}
+
 		function waypointRemoveActionMarkup(waypointId) {
 			if (!waypointId) {
 				return "";
@@ -2616,6 +2648,19 @@
 					${actionsMarkup}
 					${showWikiLink ? wikiLocationLinkMarkup(name, wikiUrl) : ""}
 				</div>`;
+		}
+
+		function labelPopupMarkup(entry) {
+			return locationPopupMarkup({
+				name: entry.label.text || "Label",
+				locationTypeLabel: "Label",
+				showHeaderIcon: false,
+				compact: true,
+				showType: false,
+				showDescription: false,
+				showWikiLink: false,
+				actionsMarkup: labelActionsMarkup(entry.label.publicId),
+			});
 		}
 
 		function sharePinPopupMarkup() {
@@ -4391,18 +4436,48 @@
 		function createLabelMarkerEntry(label) {
 			const marker = L.marker(label.coordinates, {
 				icon: createLabelIcon(label),
-				draggable: IS_EDIT_MODE,
+				draggable: false,
 				interactive: IS_EDIT_MODE,
 				keyboard: false,
 				pane: "labelsPane",
 			});
 			const entry = { label, marker };
 			if (IS_EDIT_MODE) {
-				marker.on("click", () => openLabelEditDialog({ labelEntry: entry }));
-				marker.on("dragend", () => saveLabelPosition(entry));
+				refreshLabelMarkerPopup(entry);
+				marker.on("dragend", () => {
+					void saveLabelPosition(entry);
+					setLabelMoveActive(entry, false);
+				});
 			}
 			syncLabelMarkerVisibility(entry);
 			return entry;
+		}
+
+		function refreshLabelMarkerPopup(entry) {
+			if (!IS_EDIT_MODE) {
+				return;
+			}
+
+			entry.marker.bindPopup(labelPopupMarkup(entry));
+		}
+
+		function findLabelEntryByPublicId(publicId) {
+			return labelMarkers.find((entry) => entry.label.publicId === publicId) || null;
+		}
+
+		function setLabelMoveActive(entry, isActive) {
+			if (!entry?.marker?.dragging) {
+				return;
+			}
+
+			if (isActive) {
+				entry.marker.dragging.enable();
+				entry.marker.closePopup();
+				showFeedbackToast(`${entry.label.text}: Label verschieben, Loslassen speichert.`, "info");
+				return;
+			}
+
+			entry.marker.dragging.disable();
 		}
 
 		function syncLabelMarkerVisibility(entry) {
@@ -4487,6 +4562,7 @@
 			Object.assign(entry.label, label);
 			entry.marker.setLatLng(label.coordinates);
 			entry.marker.setIcon(createLabelIcon(label));
+			refreshLabelMarkerPopup(entry);
 			syncLabelMarkerVisibility(entry);
 		}
 
@@ -4509,27 +4585,33 @@
 			}
 		}
 
-		async function deleteActiveLabel() {
-			if (!labelEditEntry || !window.confirm(`${labelEditEntry.label.text} wirklich loeschen?`)) {
+		async function deleteLabelEntry(entry, { closeDialog = false } = {}) {
+			if (!entry || !window.confirm(`${entry.label.text} wirklich loeschen?`)) {
 				return;
 			}
 
 			try {
 				const result = await submitMapFeatureEdit({
 					action: "delete_feature",
-					public_id: labelEditEntry.label.publicId,
+					public_id: entry.label.publicId,
 				});
-				map.removeLayer(labelEditEntry.marker);
-				labelData = labelData.filter((label) => label !== labelEditEntry.label);
-				labelMarkers = labelMarkers.filter((entry) => entry !== labelEditEntry);
+				map.removeLayer(entry.marker);
+				labelData = labelData.filter((label) => label !== entry.label);
+				labelMarkers = labelMarkers.filter((labelEntry) => labelEntry !== entry);
 				updateRevisionFromEditResponse(result);
 				void loadChangeLog();
-				setLabelEditDialogOpen(false, { resetForm: true });
+				if (closeDialog) {
+					setLabelEditDialogOpen(false, { resetForm: true });
+				}
 				showFeedbackToast("Label geloescht.", "success");
 			} catch (error) {
 				console.error("Label konnte nicht geloescht werden:", error);
 				setLabelEditStatus(error.message || "Label konnte nicht geloescht werden.", "error");
 			}
+		}
+
+		async function deleteActiveLabel() {
+			await deleteLabelEntry(labelEditEntry, { closeDialog: true });
 		}
 
 		function createLabelAt(latlng) {
@@ -6224,6 +6306,39 @@
 				}
 
 				void deletePathFeature(path);
+				return;
+			}
+
+			if (action === "start-label-edit") {
+				const labelEntry = findLabelEntryByPublicId(this.dataset.publicId);
+				if (!labelEntry) {
+					showFeedbackToast("Label konnte nicht gefunden werden.", "warning");
+					return;
+				}
+
+				setLabelMoveActive(labelEntry, true);
+				return;
+			}
+
+			if (action === "edit-label-details") {
+				const labelEntry = findLabelEntryByPublicId(this.dataset.publicId);
+				if (!labelEntry) {
+					showFeedbackToast("Label konnte nicht gefunden werden.", "warning");
+					return;
+				}
+
+				openLabelEditDialog({ labelEntry });
+				return;
+			}
+
+			if (action === "delete-label") {
+				const labelEntry = findLabelEntryByPublicId(this.dataset.publicId);
+				if (!labelEntry) {
+					showFeedbackToast("Label konnte nicht gefunden werden.", "warning");
+					return;
+				}
+
+				void deleteLabelEntry(labelEntry);
 			}
 		});
 
