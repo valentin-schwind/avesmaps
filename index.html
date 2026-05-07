@@ -5691,7 +5691,7 @@
 			let crossingCount = 1;
 			locationMarkers = [];
 			locationData = data.features
-				.filter((feature) => feature.geometry.type === "Point" && feature.properties?.name)
+				.filter((feature) => feature.geometry.type === "Point" && feature.properties?.name && feature.properties?.feature_type !== "label")
 				.map((feature) => {
 					const isCrossing = feature.properties.name.startsWith("Kreuzung");
 					const locationType = isCrossing ? CROSSING_LOCATION_TYPE : locationTypeFromProperties(feature.properties);
