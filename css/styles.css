@@ -799,7 +799,7 @@ body.modal-dialog-open {
 
 .display-options__select-row {
 	display: inline-grid;
-	grid-template-columns: 128px 170px;
+	grid-template-columns: 96px 170px;
 	justify-content: start;
 	gap: 10px;
 	width: auto;
@@ -865,7 +865,7 @@ body.modal-dialog-open {
 
 #transport-options {
 	display: inline-grid;
-	grid-template-columns: 128px 170px;
+	grid-template-columns: 96px 170px;
 	gap: 10px;
 	align-items: center;
 }
