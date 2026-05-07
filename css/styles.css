@@ -1349,9 +1349,9 @@ body.modal-dialog-open {
 	position: absolute;
 	left: 0;
 	top: 0;
-	color: #ffffff;
+	color: #f5f0d6;
 	font-family: Georgia, "Times New Roman", serif;
-	font-weight: 700;
+	font-weight: 400;
 	line-height: 1;
 	pointer-events: none;
 	text-shadow:
@@ -1373,27 +1373,35 @@ body.edit-mode .map-label span {
 .map-label--meer span,
 .map-label--fluss span,
 .map-label--see span {
-	color: #1c5f9f;
+	color: #b9e7ff;
 }
 
 .map-label--gebirge span {
-	color: #5f4a3a;
+	color: #ead6c4;
 }
 
 .map-label--wald span {
-	color: #2f6f3d;
+	color: #bfeec8;
 }
 
 .map-label--kontinent span {
-	color: #56412f;
+	color: #f0dcc4;
 }
 
 .map-label--wueste span {
-	color: #9a6d22;
+	color: #ffe0a6;
 }
 
 .map-label--suempfe_moore span {
-	color: #3f6d58;
+	color: #c4ead8;
+}
+
+.map-label--insel span {
+	color: #d8f0ff;
+}
+
+.map-label--region span {
+	color: #f2d2f4;
 }
 
 .map-label--gebirge span,
