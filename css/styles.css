@@ -1349,16 +1349,14 @@ body.modal-dialog-open {
 	position: absolute;
 	left: 0;
 	top: 0;
-	color: #2f251c;
+	color: #ffffff;
 	font-family: Georgia, "Times New Roman", serif;
 	font-weight: 700;
 	line-height: 1;
 	pointer-events: none;
 	text-shadow:
-		0 1px 0 rgba(255, 255, 255, 0.85),
-		1px 0 0 rgba(255, 255, 255, 0.85),
-		0 -1px 0 rgba(255, 255, 255, 0.85),
-		-1px 0 0 rgba(255, 255, 255, 0.85);
+		0 1px 1px rgba(0, 0, 0, 0.95),
+		0 0 2px rgba(0, 0, 0, 0.78);
 	transform-origin: center center;
 }
 
@@ -1425,19 +1423,16 @@ body.edit-mode .map-label span {
 .location-name-label span {
 	display: inline-block;
 	position: absolute;
-	left: 10px;
-	top: -10px;
-	color: #241b14;
+	left: calc(10px + var(--label-offset-x, 0px));
+	top: calc(-10px + var(--label-offset-y, 0px));
+	color: #ffffff;
 	font-family: Georgia, "Times New Roman", serif;
 	font-weight: 700;
 	line-height: 1;
 	pointer-events: none;
 	text-shadow:
-		0 1px 0 rgba(255, 255, 255, 0.9),
-		1px 0 0 rgba(255, 255, 255, 0.9),
-		0 -1px 0 rgba(255, 255, 255, 0.9),
-		-1px 0 0 rgba(255, 255, 255, 0.9),
-		0 2px 5px rgba(255, 255, 255, 0.65);
+		0 1px 1px rgba(0, 0, 0, 0.95),
+		0 0 2px rgba(0, 0, 0, 0.78);
 }
 
 .location-name-label--metropole span {
