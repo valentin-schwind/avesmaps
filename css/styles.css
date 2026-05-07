@@ -1365,6 +1365,10 @@ body.edit-mode .map-label span {
 	color: #5f4a3a;
 }
 
+.map-label--wald span {
+	color: #2f6f3d;
+}
+
 .map-label--gebirge span,
 .map-label--region span {
 	text-transform: uppercase;
