@@ -22,6 +22,7 @@ SETTLEMENT_SUBTYPES = {
     "stadt",
     "kleinstadt",
     "dorf",
+    "gebaeude",
 }
 
 NORMALIZED_ROUTE_LAYER_SUBTYPES = {

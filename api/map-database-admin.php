@@ -674,7 +674,7 @@ function avesmapsClassifyMapFeature(array $feature): array {
         }
 
         $settlementClass = avesmapsNormalizeMapSubtype($properties['settlement_class'] ?? '', 'dorf');
-        if (in_array($settlementClass, ['metropole', 'grossstadt', 'stadt', 'kleinstadt', 'dorf'], true)) {
+        if (in_array($settlementClass, ['metropole', 'grossstadt', 'stadt', 'kleinstadt', 'dorf', 'gebaeude'], true)) {
             return ['location', $settlementClass];
         }
 

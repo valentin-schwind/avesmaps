@@ -65,6 +65,12 @@ SETTLEMENT_CONFIG = {
         "type_label": "Dorf",
         "icon": "🏡",
     },
+    "gebaeude": {
+        "layer_label": "Gebaeude",
+        "type_code": "g",
+        "type_label": "Gebaeude",
+        "icon": "Gebaeude",
+    },
 }
 
 

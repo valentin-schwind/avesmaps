@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/auth.php';
 
-const AVESMAPS_LOCATION_SUBTYPES = ['metropole', 'grossstadt', 'stadt', 'kleinstadt', 'dorf'];
+const AVESMAPS_LOCATION_SUBTYPES = ['metropole', 'grossstadt', 'stadt', 'kleinstadt', 'dorf', 'gebaeude'];
 
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
@@ -119,6 +119,7 @@ function avesmapsLocationSubtypeLabel(string $subtype): string {
         'grossstadt' => 'Grosse Stadt',
         'stadt' => 'Stadt',
         'kleinstadt' => 'Kleine Stadt',
+        'gebaeude' => 'Gebaeude',
         default => 'Dorf',
     };
 }

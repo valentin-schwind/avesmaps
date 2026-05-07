@@ -158,6 +158,7 @@
 					<span>Ortsgröße *</span>
 					<select id="location-report-size" name="size" required>
 						<option value="dorf">Dorf</option>
+						<option value="gebaeude">Gebäude</option>
 						<option value="kleinstadt">Kleine Stadt</option>
 						<option value="stadt">Stadt</option>
 						<option value="grossstadt">Große Stadt</option>
@@ -214,6 +215,7 @@
 					<span>Ortsgroesse *</span>
 					<select id="location-edit-type" name="feature_subtype" required>
 						<option value="dorf">Dorf</option>
+						<option value="gebaeude">Gebäude</option>
 						<option value="kleinstadt">Kleine Stadt</option>
 						<option value="stadt">Stadt</option>
 						<option value="grossstadt">Grosse Stadt</option>
@@ -392,13 +394,13 @@
 				</div>
 			</label>
 			<div class="display-options__row">
-				<span class="display-options__label">Zeige</span>
 				<div class="location-toggle-group" role="group" aria-label="Ortsklassen anzeigen">
 					<button type="button" class="location-toggle" data-location-type="metropole" title="Metropolen anzeigen oder ausblenden" aria-label="Metropolen anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/metropole.png" data-source-src="icons/metropole.png" alt="" /></button>
 					<button type="button" class="location-toggle" data-location-type="grossstadt" title="Großstädte anzeigen oder ausblenden" aria-label="Großstädte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/grossstadt.png" data-source-src="icons/grossstadt.png" alt="" /></button>
 					<button type="button" class="location-toggle" data-location-type="stadt" title="Städte anzeigen oder ausblenden" aria-label="Städte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/stadt.png" data-source-src="icons/stadt.png" alt="" /></button>
 					<button type="button" class="location-toggle" data-location-type="kleinstadt" title="Kleinstädte anzeigen oder ausblenden" aria-label="Kleinstädte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/kleinstadt.png" data-source-src="icons/kleinstadt.png" alt="" /></button>
 					<button type="button" class="location-toggle" data-location-type="dorf" title="Dörfer anzeigen oder ausblenden" aria-label="Dörfer anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/dorf.png" data-source-src="icons/dorf.png" alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="gebaeude" title="Besondere Gebäude anzeigen oder ausblenden" aria-label="Besondere Gebäude anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/Gebaeude.png" data-source-src="icons/Gebaeude.png" alt="" /></button>
 				</div>
 			</div>
 			<div class="display-options__row display-options__row--wrap">
@@ -654,6 +656,7 @@
 			stadt: { label: "Städte", singularLabel: "Stadt", icon: "⛪", queryParam: "toggleStaedte", radius: 6, shape: "square", borderWidth: 2 },
 			kleinstadt: { label: "Kleinstädte", singularLabel: "Kleinstadt", icon: "🏘️", queryParam: "toggleKleinstaedte", radius: 4, shape: "square", borderWidth: 2 },
 			dorf: { label: "Dörfer", singularLabel: "Dorf", icon: "🏡", queryParam: "toggleDoerfer", radius: 3.5, shape: "circle", borderWidth: 2 },
+			gebaeude: { label: "Gebäude", singularLabel: "Gebäude", icon: "🏛️", queryParam: "toggleGebaeude", radius: 3.5, shape: "circle", borderWidth: 2, minZoom: 5 },
 		};
 		const LOCATION_ICON_PATHS = {
 			metropole: "icons/metropole.png",
@@ -661,6 +664,7 @@
 			stadt: "icons/stadt.png",
 			kleinstadt: "icons/kleinstadt.png",
 			dorf: "icons/dorf.png",
+			gebaeude: "icons/Gebaeude.png",
 		};
 		const LOCATION_TYPE_KEYS = Object.keys(LOCATION_TYPE_CONFIG);
 		const LOCATION_NAME_LABEL_CONFIG = {
@@ -669,6 +673,7 @@
 			stadt: { size: 14, minZoom: 2 },
 			kleinstadt: { size: 13, minZoom: 3 },
 			dorf: { size: 12, minZoom: 4 },
+			gebaeude: { size: 12, minZoom: 5 },
 		};
 		document.body.classList.toggle("edit-mode", IS_EDIT_MODE);
 		const DEFAULT_PLANNER_STATE = {
@@ -677,6 +682,7 @@
 			toggleStaedte: false,
 			toggleKleinstaedte: false,
 			toggleDoerfer: false,
+			toggleGebaeude: false,
 			togglePaths: false,
 			mapLayerMode: "deregraphic",
 			toggleCrossings: false,
@@ -3248,12 +3254,16 @@
 			return villageZoomStyles[Math.round(Number(zoomLevel))] || villageZoomStyles[5];
 		}
 
+		function isVillageMarkerStyleLocation(locationType) {
+			return locationType === "dorf" || locationType === "gebaeude";
+		}
+
 		function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
 			if (locationType === CROSSING_LOCATION_TYPE) {
 				return Math.max(7, 5 + zoomLevel * 1.5);
 			}
 
-			if (locationType === "dorf") {
+			if (isVillageMarkerStyleLocation(locationType)) {
 				const villageStyle = getVillageMarkerStyle(zoomLevel);
 				return villageStyle.radius * 2 + villageStyle.borderWidth * 2;
 			}
@@ -3264,7 +3274,7 @@
 
 		function getLocationMarkerBorderWidth(locationType, zoomLevel = map.getZoom()) {
 			const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
-			if (locationType === "dorf") {
+			if (isVillageMarkerStyleLocation(locationType)) {
 				return getVillageMarkerStyle(zoomLevel).borderWidth;
 			}
 
@@ -3304,14 +3314,23 @@
 			});
 		}
 
+		function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds()) {
+			if (entry.locationType === CROSSING_LOCATION_TYPE) {
+				return IS_EDIT_MODE && $("#toggleCrossings").is(":checked") && isMarkerEntryInRenderBounds(entry, renderBounds);
+			}
+
+			const config = LOCATION_TYPE_CONFIG[entry.locationType] || LOCATION_TYPE_CONFIG.dorf;
+			return isLocationTypeVisible(entry.locationType)
+				&& zoomLevel >= (config.minZoom || 0)
+				&& isMarkerEntryInRenderBounds(entry, renderBounds);
+		}
+
 		function syncLocationMarkerVisibility() {
 			syncLocationToggleButtons();
 			const zoomLevel = map.getZoom();
 			const renderBounds = getMapRenderBounds();
 			$.each(locationMarkers, (i, entry) => {
-				const shouldShow = entry.locationType === CROSSING_LOCATION_TYPE
-					? IS_EDIT_MODE && $("#toggleCrossings").is(":checked") && isMarkerEntryInRenderBounds(entry, renderBounds)
-					: isLocationTypeVisible(entry.locationType) && isMarkerEntryInRenderBounds(entry, renderBounds);
+				const shouldShow = shouldShowLocationMarker(entry, zoomLevel, renderBounds);
 				if (shouldShow || map.hasLayer(entry.marker)) {
 					entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, zoomLevel));
 				}
@@ -4684,6 +4703,7 @@
 				stadt: 80,
 				kleinstadt: 70,
 				dorf: 60,
+				gebaeude: 60,
 			};
 			return priorities[entry.markerEntry?.locationType] || 50;
 		}

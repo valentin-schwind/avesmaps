@@ -40,6 +40,8 @@ SETTLEMENT_LAYERS = {
     "Städte": {"class": "stadt", "label": "Stadt", "icon": "⛪"},
     "Kleinstädte": {"class": "kleinstadt", "label": "Kleinstadt", "icon": "🏘️"},
     "Dörfer": {"class": "dorf", "label": "Dorf", "icon": "🏡"},
+    "Gebaeude": {"class": "gebaeude", "label": "Gebaeude", "icon": "Gebaeude"},
+    "Gebäude": {"class": "gebaeude", "label": "Gebäude", "icon": "Gebaeude"},
 }
 PLACE_TYPE_TO_SETTLEMENT_CLASS = {
     "m": "metropole",
@@ -48,6 +50,7 @@ PLACE_TYPE_TO_SETTLEMENT_CLASS = {
     "ks": "kleinstadt",
     "sz": "dorf",
     "d": "dorf",
+    "g": "gebaeude",
 }
 SETTLEMENT_CLASS_METADATA = {
     metadata["class"]: metadata for metadata in SETTLEMENT_LAYERS.values()

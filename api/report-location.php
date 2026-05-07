@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 
-const AVESMAPS_ALLOWED_LOCATION_SIZES = ['dorf', 'kleinstadt', 'stadt', 'grossstadt', 'metropole'];
+const AVESMAPS_ALLOWED_LOCATION_SIZES = ['dorf', 'gebaeude', 'kleinstadt', 'stadt', 'grossstadt', 'metropole'];
 
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
