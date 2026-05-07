@@ -1377,7 +1377,7 @@ body.edit-mode .map-label span {
 }
 
 .map-label--gebirge span {
-	color: #ead6c4;
+	color: #e2ddd2;
 }
 
 .map-label--wald span {
@@ -1385,7 +1385,7 @@ body.edit-mode .map-label span {
 }
 
 .map-label--kontinent span {
-	color: #f0dcc4;
+	color: #ffffff;
 }
 
 .map-label--wueste span {
@@ -1397,11 +1397,11 @@ body.edit-mode .map-label span {
 }
 
 .map-label--insel span {
-	color: #d8f0ff;
+	color: #ffffff;
 }
 
 .map-label--region span {
-	color: #f2d2f4;
+	color: #ffffff;
 }
 
 .map-label--gebirge span,
@@ -1435,7 +1435,7 @@ body.edit-mode .map-label span {
 	top: calc(var(--location-label-offset-y, -9px) + var(--label-offset-y, 0px));
 	color: #ffffff;
 	font-family: Georgia, "Times New Roman", serif;
-	font-weight: 600;
+	font-weight: 400;
 	line-height: 1;
 	pointer-events: none;
 	text-shadow:
