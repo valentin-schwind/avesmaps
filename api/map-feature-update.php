@@ -928,12 +928,16 @@ function avesmapsUpdateRegionFeature(PDO $pdo, array $payload, array $user): arr
         $properties['fill'] = $color;
         $properties['stroke'] = $color;
         $properties['fillOpacity'] = $opacity;
+        $style = avesmapsDecodeJsonColumnForEdit($feature['style_json'] ?? null);
+        $style['fill'] = $color;
+        $style['stroke'] = $color;
+        $style['fillOpacity'] = $opacity;
         $revision = avesmapsNextMapRevision($pdo);
-        $statement = $pdo->prepare('UPDATE map_features SET name = :name, properties_json = :properties_json, revision = :revision, updated_by = :updated_by WHERE id = :id');
-        $statement->execute(['id' => (int) $feature['id'], 'name' => $name, 'properties_json' => avesmapsEncodeJson($properties), 'revision' => $revision, 'updated_by' => (int) $user['id']]);
+        $statement = $pdo->prepare('UPDATE map_features SET name = :name, properties_json = :properties_json, style_json = :style_json, revision = :revision, updated_by = :updated_by WHERE id = :id');
+        $statement->execute(['id' => (int) $feature['id'], 'name' => $name, 'properties_json' => avesmapsEncodeJson($properties), 'style_json' => avesmapsEncodeJson($style), 'revision' => $revision, 'updated_by' => (int) $user['id']]);
         avesmapsWriteMapAuditLog($pdo, (int) $feature['id'], 'update_region', (int) $user['id'], avesmapsEncodeAuditJson($feature), avesmapsEncodeAuditJson(['public_id' => $publicId, 'name' => $name, 'revision' => $revision]));
         $pdo->commit();
-        return avesmapsBuildRegionFeatureResponse($publicId, $name, avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null), $properties, $revision);
+        return avesmapsBuildRegionFeatureResponse($publicId, $name, avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null), $properties + $style, $revision);
     } catch (Throwable $exception) {
         avesmapsRollbackAndRethrow($pdo, $exception);
     }

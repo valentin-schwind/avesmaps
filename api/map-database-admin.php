@@ -48,6 +48,7 @@ try {
         'import_geojson' => avesmapsImportGeoJsonMap($pdo, $replaceExisting, true),
         'install_schema_and_import_geojson' => avesmapsInstallSchemaAndImportGeoJson($pdo, $replaceExisting),
         'repair_path_subtypes_from_names' => avesmapsRepairPathSubtypesFromNames($pdo),
+        'set_region_opacity' => avesmapsSetRegionOpacity($pdo, $payload),
         'check_path_name_consistency' => avesmapsCheckPathNameConsistency($pdo),
         'upsert_user' => avesmapsUpsertUser($pdo, $payload),
         default => throw new InvalidArgumentException('Die angeforderte Admin-Aktion ist unbekannt.'),
@@ -408,6 +409,68 @@ function avesmapsRepairPathSubtypesFromNames(PDO $pdo): array {
         'updated_total' => array_sum($updatesBySubtype),
         'updated_by_subtype' => $updatesBySubtype,
         'unchanged' => $unchanged,
+        'status' => avesmapsBuildMapDatabaseStatus($pdo),
+    ];
+}
+
+function avesmapsSetRegionOpacity(PDO $pdo, array $payload): array {
+    if (!avesmapsTableExists($pdo, 'map_features')) {
+        throw new RuntimeException('Die Future-Tabellen fehlen. Fuehre zuerst install_schema aus.');
+    }
+
+    $opacity = filter_var($payload['opacity'] ?? 0.3, FILTER_VALIDATE_FLOAT);
+    if ($opacity === false || $opacity < 0 || $opacity > 1) {
+        throw new InvalidArgumentException('Die Transparenz ist ungueltig.');
+    }
+
+    $selectStatement = $pdo->query(
+        "SELECT id, properties_json, style_json
+        FROM map_features
+        WHERE is_active = 1
+            AND feature_type = 'region'"
+    );
+    $rows = $selectStatement !== false ? $selectStatement->fetchAll() : [];
+
+    $pdo->beginTransaction();
+    try {
+        $updateStatement = $pdo->prepare(
+            'UPDATE map_features
+            SET properties_json = :properties_json,
+                style_json = :style_json
+            WHERE id = :id'
+        );
+
+        foreach ($rows as $row) {
+            $properties = avesmapsDecodeJsonColumnForAdmin($row['properties_json'] ?? null);
+            $style = avesmapsDecodeJsonColumnForAdmin($row['style_json'] ?? null);
+            $properties['type'] = 'region';
+            $properties['fillOpacity'] = (float) $opacity;
+            $style['fillOpacity'] = (float) $opacity;
+
+            $updateStatement->execute([
+                'id' => (int) $row['id'],
+                'properties_json' => avesmapsEncodeJsonForDatabase($properties),
+                'style_json' => avesmapsEncodeJsonForDatabase($style),
+            ]);
+        }
+
+        if ($rows !== []) {
+            avesmapsIncrementMapRevision($pdo);
+        }
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $exception;
+    }
+
+    return [
+        'ok' => true,
+        'action' => 'set_region_opacity',
+        'opacity' => (float) $opacity,
+        'updated_total' => count($rows),
         'status' => avesmapsBuildMapDatabaseStatus($pdo),
     ];
 }
