@@ -3206,7 +3206,7 @@
 			}
 
 			const config = LOCATION_NAME_LABEL_CONFIG[entry.locationType] || LOCATION_NAME_LABEL_CONFIG.dorf;
-			return zoomLevel >= config.minZoom;
+			return zoomLevel >= config.minZoom && isLocationTypeVisible(entry.locationType);
 		}
 
 		function createLocationNameLabelIcon(entry, zoomLevel = map.getZoom()) {
