@@ -1397,6 +1397,10 @@ body.edit-mode .map-label span {
 	z-index: 900;
 }
 
+.leaflet-tooltip-pane {
+	z-index: 875;
+}
+
 .location-name-label {
 	background: transparent;
 	border: 0 !important;
