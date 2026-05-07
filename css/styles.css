@@ -1398,6 +1398,10 @@ body.edit-mode .map-label span {
 		0 2px 5px rgba(255, 255, 255, 0.65);
 }
 
+.location-name-label--metropole span {
+	text-transform: uppercase;
+}
+
 @media (max-width: 420px) {
 	.review-panel-toggle {
 		right: calc(100vw - 64px);
