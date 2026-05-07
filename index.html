@@ -374,6 +374,12 @@
 			</div>
 			<span class="display-options__spacer" aria-hidden="true"></span>
 			<div class="display-options__secondary">
+				<label id="mapStyleControl" hidden>Mapstyle
+					<select id="mapStyleSelect" aria-label="Mapstyle">
+						<option value="old">Old</option>
+						<option value="stylized">Stylized</option>
+					</select>
+				</label>
 				<label><input type="checkbox" id="togglePaths" /> Wege</label>
 				<label><input type="checkbox" id="toggleBorders" /> Regionen</label>
 				<label id="toggleCrossingsControl" hidden><input type="checkbox" id="toggleCrossings" /> Kreuzungen</label>
@@ -599,11 +605,16 @@
 		const MAP_FEATURES_API_URL = window.AVESMAPS_MAP_FEATURES_ENDPOINT || (window.location.hostname === "54143555.swh.strato-hosting.eu" ? "api/map-features.php" : "");
 		const INITIAL_SEARCH_PARAMS = new URLSearchParams(window.location.search);
 		const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
+		const MAP_TILE_STYLES = {
+			old: { label: "Old", url: "./tiles/old/{z}/map_{x}_{y}.jpg" },
+			stylized: { label: "Stylized", url: "./tiles/stylized/{z}/map_{x}_{y}.webp" },
+		};
 		const MAP_FEATURE_UPDATE_API_URL = window.AVESMAPS_MAP_FEATURE_UPDATE_ENDPOINT || "api/map-feature-update.php";
 		const LOCATION_REPORT_REVIEW_API_URL = window.AVESMAPS_LOCATION_REPORT_REVIEW_ENDPOINT || "api/location-report-review.php";
 		const MAP_AUDIT_LOG_API_URL = window.AVESMAPS_MAP_AUDIT_LOG_ENDPOINT || "api/map-audit-log.php";
 		const EDIT_MODE_PLANNER_STATE_STORAGE_KEY = "avesmaps.edit.plannerState";
 		const EDIT_MODE_REVIEW_PANEL_STORAGE_KEY = "avesmaps.edit.reviewPanelHidden";
+		const EDIT_MODE_MAP_STYLE_STORAGE_KEY = "avesmaps.edit.mapStyle";
 		const LOCATION_REPORT_REQUEST_TIMEOUT_MS = 7000;
 		const MAX_SHARED_WAYPOINTS = 25;
 		const DEFAULT_SHARE_PIN_ZOOM = 4;
@@ -727,7 +738,9 @@
 			isPathEditSubmissionPending = false,
 			activePathGeometryEdit = null,
 			pendingPathSplit = null,
-			mapDataSourceStatus = null;
+			mapDataSourceStatus = null,
+			baseTileLayer = null,
+			activeMapStyle = "stylized";
 
 		// Initialisierung der Karte 
 		const map = L.map("map", {
@@ -775,16 +788,70 @@
 		});
 		map.on("moveend", () => window.requestAnimationFrame(resolveLabelCollisions));
 
+		function createBaseTileLayer(mapStyle) {
+			const tileStyle = MAP_TILE_STYLES[mapStyle] || MAP_TILE_STYLES.stylized;
+			return L.tileLayer(tileStyle.url, {
+				tileSize: TILE_SIZE,
+				noWrap: true,
+				errorTileUrl: "map/loading.jpg",
+				bounds: MAP_BOUNDS,
+				continuousWorld: false,
+			});
+		}
+
+		function getInitialMapStyle() {
+			if (!IS_EDIT_MODE) {
+				return "stylized";
+			}
+
+			const queryStyle = INITIAL_SEARCH_PARAMS.get("mapstyle");
+			if (queryStyle && MAP_TILE_STYLES[queryStyle]) {
+				return queryStyle;
+			}
+
+			try {
+				const storedStyle = window.localStorage?.getItem(EDIT_MODE_MAP_STYLE_STORAGE_KEY);
+				if (storedStyle && MAP_TILE_STYLES[storedStyle]) {
+					return storedStyle;
+				}
+			} catch (error) {
+				console.warn("Mapstyle konnte nicht wiederhergestellt werden:", error);
+			}
+
+			return "stylized";
+		}
+
+		function setMapStyle(mapStyle, { persist = false } = {}) {
+			if (!MAP_TILE_STYLES[mapStyle] || mapStyle === activeMapStyle && baseTileLayer) {
+				return;
+			}
+
+			if (baseTileLayer) {
+				map.removeLayer(baseTileLayer);
+			}
+
+			activeMapStyle = mapStyle;
+			baseTileLayer = createBaseTileLayer(activeMapStyle).addTo(map);
+			baseTileLayer.bringToBack();
+			document.getElementById("mapStyleSelect").value = activeMapStyle;
+
+			if (persist && IS_EDIT_MODE) {
+				try {
+					window.localStorage?.setItem(EDIT_MODE_MAP_STYLE_STORAGE_KEY, activeMapStyle);
+				} catch (error) {
+					console.warn("Mapstyle konnte nicht gespeichert werden:", error);
+				}
+				syncPlannerStateToUrl();
+			}
+		}
+
 		// Da liegen die Map-Tiles
-		L.tileLayer("./tiles/{z}/map_{x}_{y}.jpg", {
-			tileSize: TILE_SIZE,
-			noWrap: true,
-			errorTileUrl: "map/loading.jpg",
-			bounds: MAP_BOUNDS,
-			continuousWorld: false,
-		}).addTo(map);
+		activeMapStyle = getInitialMapStyle();
+		baseTileLayer = createBaseTileLayer(activeMapStyle).addTo(map);
 
 		if (IS_EDIT_MODE) {
+			document.getElementById("mapStyleControl")?.removeAttribute("hidden");
+			document.getElementById("mapStyleSelect").value = activeMapStyle;
 			document.querySelector('.map-context-menu__group[data-context-action="add-here"]')?.removeAttribute("hidden");
 			document.getElementById("toggleCrossingsControl")?.removeAttribute("hidden");
 			document.getElementById("toggleCrossings")?.removeAttribute("disabled");
@@ -3159,6 +3226,9 @@
 		initializeTransportIconSelects();
 		initializeVersionedAssetIcons();
 		syncTransportControls();
+		$("#mapStyleSelect").on("change", function () {
+			setMapStyle(String(this.value || "stylized"), { persist: true });
+		});
 		$("#togglePaths").change(syncPathVisibility);
 		$("#toggleBorders").change(syncRegionVisibility);
 		$("#toggleCrossings").change(() => {
@@ -3707,6 +3777,10 @@
 
 			if (IS_EDIT_MODE && $("#toggleCrossings").is(":checked") !== DEFAULT_PLANNER_STATE.toggleCrossings) {
 				searchParams.set("toggleCrossings", $("#toggleCrossings").is(":checked") ? "1" : "0");
+			}
+
+			if (IS_EDIT_MODE && activeMapStyle !== "stylized") {
+				searchParams.set("mapstyle", activeMapStyle);
 			}
 
 			if (selectedPathType !== DEFAULT_PLANNER_STATE.pathType) {
