@@ -799,7 +799,7 @@ body.modal-dialog-open {
 
 .display-options__select-row {
 	display: inline-grid;
-	grid-template-columns: auto auto;
+	grid-template-columns: 128px 170px;
 	justify-content: start;
 	gap: 10px;
 	width: auto;
@@ -808,6 +808,10 @@ body.modal-dialog-open {
 .display-options__select {
 	width: 170px;
 	min-width: 0;
+}
+
+.display-options__icon-select {
+	width: 170px;
 }
 
 .location-toggle-group {
@@ -861,7 +865,7 @@ body.modal-dialog-open {
 
 #transport-options {
 	display: inline-grid;
-	grid-template-columns: auto auto;
+	grid-template-columns: 128px 170px;
 	gap: 10px;
 	align-items: center;
 }

@@ -378,11 +378,18 @@
 		</div>
 		<div class="display-options">
 			<label class="display-options__row display-options__select-row">Deregraphie
-				<select id="mapLayerModeSelect" class="display-options__select" aria-label="Deregraphie">
-					<option value="none">Nur Karte</option>
-					<option value="political">Politisch</option>
-					<option value="deregraphic" selected>Regionen</option>
-				</select>
+				<div class="transport-select-with-icon transport-icon-select display-options__icon-select">
+					<select id="mapLayerModeSelect" class="display-options__select transport-native-select" aria-label="Deregraphie">
+						<option value="none">Nur Karte</option>
+						<option value="political">Politisch</option>
+						<option value="deregraphic" selected>Regionen</option>
+					</select>
+					<button type="button" id="mapLayerModeButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="mapLayerModeMenu">
+						<img id="mapLayerModeIcon" class="transport-option-inline-icon" src="icons/RegionenKarte.png" data-source-src="icons/RegionenKarte.png" alt="" />
+						<span id="mapLayerModeLabel" class="transport-combobox__label">Regionen</span>
+					</button>
+					<div id="mapLayerModeMenu" class="transport-combobox__menu" role="listbox" aria-label="Deregraphie" hidden></div>
+				</div>
 			</label>
 			<div class="display-options__row">
 				<span class="display-options__label">Zeige</span>
@@ -690,6 +697,11 @@
 			sea: new Set(["cargoShip", "fastShip", "galley"]),
 		};
 		const TRANSPORT_ICON_PATHS = {
+			mapLayerModeSelect: {
+				none: "icons/NurKarte.png",
+				political: "icons/PolitischeKarte.png",
+				deregraphic: "icons/RegionenKarte.png",
+			},
 			landTransport: {
 				caravan: "icons/karavane.png",
 				groupFoot: "icons/Reisegruppe.png",
@@ -3398,6 +3410,7 @@
 		function setSelectedMapLayerMode(mode) {
 			const normalizedMode = ["none", "political", "deregraphic"].includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
 			$("#mapLayerModeSelect").val(normalizedMode);
+			syncTransportControl("mapLayerModeSelect");
 		}
 
 		function syncRegionVisibility() {
