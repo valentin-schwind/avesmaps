@@ -1441,7 +1441,6 @@ body.edit-mode .map-label span {
 	text-shadow:
 		0 1px 1px rgba(0, 0, 0, 0.95),
 		0 0 2px rgba(0, 0, 0, 0.78);
-	transform: translateY(-50%);
 }
 
 .location-name-label--metropole span {

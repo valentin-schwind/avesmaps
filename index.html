@@ -3306,12 +3306,13 @@
 			return Math.max(10, config.size / (2 ** zoomStepsOut));
 		}
 
-		function getLocationNameLabelOffset(zoomLevel = map.getZoom()) {
-			const baseOffset = { x: 11, y: -9 };
+		function getLocationNameLabelOffset(labelSize, zoomLevel = map.getZoom()) {
+			const baseOffset = { x: 11 };
 			const scale = Math.max(1, locationZoomScale(zoomLevel));
+			const labelHeightInPixels = labelSize * 4 / 3;
 			return {
 				x: Math.round(baseOffset.x * scale),
-				y: Math.round(baseOffset.y * scale),
+				y: Math.round(1 - labelHeightInPixels / 2),
 			};
 		}
 
@@ -3327,7 +3328,7 @@
 		function createLocationNameLabelIcon(entry, zoomLevel = map.getZoom()) {
 			const labelSize = getLocationNameLabelSize(entry.locationType, zoomLevel);
 			const labelType = entry.locationType || "dorf";
-			const offset = getLocationNameLabelOffset(zoomLevel);
+			const offset = getLocationNameLabelOffset(labelSize, zoomLevel);
 			return L.divIcon({
 				className: `location-name-label location-name-label--${labelType}`,
 				html: `<span style="font-size:${labelSize}pt; --location-label-offset-x:${offset.x}px; --location-label-offset-y:${offset.y}px;">${escapeHtml(entry.name)}</span>`,
