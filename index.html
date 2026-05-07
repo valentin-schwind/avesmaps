@@ -3306,6 +3306,15 @@
 			return Math.max(10, config.size / (2 ** zoomStepsOut));
 		}
 
+		function getLocationNameLabelOffset(zoomLevel = map.getZoom()) {
+			const baseOffset = { x: 11, y: -9 };
+			const scale = Math.max(1, locationZoomScale(zoomLevel));
+			return {
+				x: Math.round(baseOffset.x * scale),
+				y: Math.round(baseOffset.y * scale),
+			};
+		}
+
 		function shouldShowLocationNameLabel(entry, zoomLevel = map.getZoom()) {
 			if (activeMapStyle !== "stylized" || isCrossingLocation(entry.location)) {
 				return false;
@@ -3318,9 +3327,10 @@
 		function createLocationNameLabelIcon(entry, zoomLevel = map.getZoom()) {
 			const labelSize = getLocationNameLabelSize(entry.locationType, zoomLevel);
 			const labelType = entry.locationType || "dorf";
+			const offset = getLocationNameLabelOffset(zoomLevel);
 			return L.divIcon({
 				className: `location-name-label location-name-label--${labelType}`,
-				html: `<span style="font-size:${labelSize}pt;">${escapeHtml(entry.name)}</span>`,
+				html: `<span style="font-size:${labelSize}pt; --location-label-offset-x:${offset.x}px; --location-label-offset-y:${offset.y}px;">${escapeHtml(entry.name)}</span>`,
 				iconSize: [0, 0],
 				iconAnchor: [0, 0],
 			});

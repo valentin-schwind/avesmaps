@@ -1423,16 +1423,17 @@ body.edit-mode .map-label span {
 .location-name-label span {
 	display: inline-block;
 	position: absolute;
-	left: calc(10px + var(--label-offset-x, 0px));
-	top: calc(-10px + var(--label-offset-y, 0px));
+	left: calc(var(--location-label-offset-x, 11px) + var(--label-offset-x, 0px));
+	top: calc(var(--location-label-offset-y, -9px) + var(--label-offset-y, 0px));
 	color: #ffffff;
 	font-family: Georgia, "Times New Roman", serif;
-	font-weight: 700;
+	font-weight: 600;
 	line-height: 1;
 	pointer-events: none;
 	text-shadow:
 		0 1px 1px rgba(0, 0, 0, 0.95),
 		0 0 2px rgba(0, 0, 0, 0.78);
+	transform: translateY(-50%);
 }
 
 .location-name-label--metropole span {
@@ -1785,6 +1786,9 @@ body.edit-mode .map-label span {
 	background: #f52b25;
 	border-style: solid;
 	border-color: #ffffff;
+	filter:
+		drop-shadow(0 1px 1px rgba(0, 0, 0, 0.95))
+		drop-shadow(0 0 2px rgba(0, 0, 0, 0.78));
 }
 
 .location-visual-marker__shape--circle {
