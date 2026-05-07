@@ -2594,6 +2594,13 @@
 					},
 				}),
 				popupActionButtonMarkup({
+					label: "Label duplizieren",
+					attributes: {
+						"data-popup-action": "duplicate-label",
+						"data-public-id": publicId,
+					},
+				}),
+				popupActionButtonMarkup({
 					label: "Label loeschen",
 					className: "location-popup__action-button--danger",
 					attributes: {
@@ -4615,6 +4622,37 @@
 			await deleteLabelEntry(labelEditEntry, { closeDialog: true });
 		}
 
+		async function duplicateLabelEntry(entry) {
+			if (!entry) {
+				showFeedbackToast("Label konnte nicht gefunden werden.", "warning");
+				return;
+			}
+
+			const sourceLatLng = entry.marker.getLatLng();
+			const duplicateLatLng = map.layerPointToLatLng(map.latLngToLayerPoint(sourceLatLng).add([24, 24]));
+			try {
+				const result = await submitMapFeatureEdit({
+					action: "create_label",
+					text: entry.label.text,
+					feature_subtype: entry.label.labelType || "region",
+					size: Number(entry.label.size) || 18,
+					rotation: Number(entry.label.rotation) || 0,
+					min_zoom: Number(entry.label.minZoom) || 0,
+					priority: Number(entry.label.priority) || 3,
+					lat: duplicateLatLng.lat,
+					lng: duplicateLatLng.lng,
+				});
+				addCreatedLabelFeature(result.feature);
+				updateRevisionFromEditResponse(result);
+				void loadChangeLog();
+				entry.marker.closePopup();
+				showFeedbackToast("Label dupliziert.", "success");
+			} catch (error) {
+				console.error("Label konnte nicht dupliziert werden:", error);
+				showFeedbackToast(error.message || "Label konnte nicht dupliziert werden.", "warning");
+			}
+		}
+
 		function createLabelAt(latlng) {
 			openLabelEditDialog({ latlng: L.latLng(latlng) });
 		}
@@ -6340,6 +6378,17 @@
 				}
 
 				void deleteLabelEntry(labelEntry);
+				return;
+			}
+
+			if (action === "duplicate-label") {
+				const labelEntry = findLabelEntryByPublicId(this.dataset.publicId);
+				if (!labelEntry) {
+					showFeedbackToast("Label konnte nicht gefunden werden.", "warning");
+					return;
+				}
+
+				void duplicateLabelEntry(labelEntry);
 			}
 		});
 
