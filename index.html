@@ -158,7 +158,7 @@
 					<span>Ortsgröße *</span>
 					<select id="location-report-size" name="size" required>
 						<option value="dorf">Dorf</option>
-						<option value="gebaeude">Gebäude</option>
+						<option value="gebaeude">Besondere Bauwerke/Stätten</option>
 						<option value="kleinstadt">Kleine Stadt</option>
 						<option value="stadt">Stadt</option>
 						<option value="grossstadt">Große Stadt</option>
@@ -215,7 +215,7 @@
 					<span>Ortsgroesse *</span>
 					<select id="location-edit-type" name="feature_subtype" required>
 						<option value="dorf">Dorf</option>
-						<option value="gebaeude">Gebäude</option>
+						<option value="gebaeude">Besondere Bauwerke/Stätten</option>
 						<option value="kleinstadt">Kleine Stadt</option>
 						<option value="stadt">Stadt</option>
 						<option value="grossstadt">Grosse Stadt</option>
@@ -400,7 +400,7 @@
 					<button type="button" class="location-toggle" data-location-type="stadt" title="Städte anzeigen oder ausblenden" aria-label="Städte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/stadt.png" data-source-src="icons/stadt.png" alt="" /></button>
 					<button type="button" class="location-toggle" data-location-type="kleinstadt" title="Kleinstädte anzeigen oder ausblenden" aria-label="Kleinstädte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/kleinstadt.png" data-source-src="icons/kleinstadt.png" alt="" /></button>
 					<button type="button" class="location-toggle" data-location-type="dorf" title="Dörfer anzeigen oder ausblenden" aria-label="Dörfer anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/dorf.png" data-source-src="icons/dorf.png" alt="" /></button>
-					<button type="button" class="location-toggle" data-location-type="gebaeude" title="Besondere Gebäude anzeigen oder ausblenden" aria-label="Besondere Gebäude anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/Gebaeude.png" data-source-src="icons/Gebaeude.png" alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="gebaeude" title="Besondere Bauwerke/Stätten anzeigen oder ausblenden" aria-label="Besondere Bauwerke/Stätten anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/bauwerk.png" data-source-src="icons/bauwerk.png" alt="" /></button>
 				</div>
 			</div>
 			<div class="display-options__row display-options__row--wrap">
@@ -656,7 +656,7 @@
 			stadt: { label: "Städte", singularLabel: "Stadt", icon: "⛪", queryParam: "toggleStaedte", radius: 6, shape: "square", borderWidth: 2 },
 			kleinstadt: { label: "Kleinstädte", singularLabel: "Kleinstadt", icon: "🏘️", queryParam: "toggleKleinstaedte", radius: 4, shape: "square", borderWidth: 2 },
 			dorf: { label: "Dörfer", singularLabel: "Dorf", icon: "🏡", queryParam: "toggleDoerfer", radius: 3.5, shape: "circle", borderWidth: 2 },
-			gebaeude: { label: "Gebäude", singularLabel: "Gebäude", icon: "🏛️", queryParam: "toggleGebaeude", radius: 3.5, shape: "circle", borderWidth: 2, minZoom: 5 },
+			gebaeude: { label: "Besondere Bauwerke/Stätten", singularLabel: "Besondere Bauwerke/Stätten", icon: "🏛️", queryParam: "toggleGebaeude", radius: 3.5, shape: "circle", borderWidth: 2, minZoom: 5 },
 		};
 		const LOCATION_ICON_PATHS = {
 			metropole: "icons/metropole.png",
@@ -664,7 +664,7 @@
 			stadt: "icons/stadt.png",
 			kleinstadt: "icons/kleinstadt.png",
 			dorf: "icons/dorf.png",
-			gebaeude: "icons/Gebaeude.png",
+			gebaeude: "icons/bauwerk.png",
 		};
 		const LOCATION_TYPE_KEYS = Object.keys(LOCATION_TYPE_CONFIG);
 		const LOCATION_NAME_LABEL_CONFIG = {

@@ -119,7 +119,7 @@ function avesmapsLocationSubtypeLabel(string $subtype): string {
         'grossstadt' => 'Grosse Stadt',
         'stadt' => 'Stadt',
         'kleinstadt' => 'Kleine Stadt',
-        'gebaeude' => 'Gebaeude',
+        'gebaeude' => 'Besondere Bauwerke/Staetten',
         default => 'Dorf',
     };
 }

@@ -40,8 +40,10 @@ SETTLEMENT_LAYERS = {
     "Städte": {"class": "stadt", "label": "Stadt", "icon": "⛪"},
     "Kleinstädte": {"class": "kleinstadt", "label": "Kleinstadt", "icon": "🏘️"},
     "Dörfer": {"class": "dorf", "label": "Dorf", "icon": "🏡"},
-    "Gebaeude": {"class": "gebaeude", "label": "Gebaeude", "icon": "Gebaeude"},
-    "Gebäude": {"class": "gebaeude", "label": "Gebäude", "icon": "Gebaeude"},
+    "Gebaeude": {"class": "gebaeude", "label": "Besondere Bauwerke/Staetten", "icon": "bauwerk"},
+    "Gebäude": {"class": "gebaeude", "label": "Besondere Bauwerke/Stätten", "icon": "bauwerk"},
+    "Besondere Bauwerke/Staetten": {"class": "gebaeude", "label": "Besondere Bauwerke/Staetten", "icon": "bauwerk"},
+    "Besondere Bauwerke/Stätten": {"class": "gebaeude", "label": "Besondere Bauwerke/Stätten", "icon": "bauwerk"},
 }
 PLACE_TYPE_TO_SETTLEMENT_CLASS = {
     "m": "metropole",

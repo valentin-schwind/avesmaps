@@ -66,10 +66,10 @@ SETTLEMENT_CONFIG = {
         "icon": "🏡",
     },
     "gebaeude": {
-        "layer_label": "Gebaeude",
+        "layer_label": "Besondere Bauwerke/Staetten",
         "type_code": "g",
-        "type_label": "Gebaeude",
-        "icon": "Gebaeude",
+        "type_label": "Besondere Bauwerke/Staetten",
+        "icon": "bauwerk",
     },
 }
 
