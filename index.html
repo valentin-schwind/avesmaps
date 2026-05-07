@@ -387,18 +387,18 @@
 				</div>
 			</div>
 			<div class="display-options__row display-options__row--wrap">
-				<label><input type="checkbox" id="togglePaths" /> Wege</label>
+				<label id="togglePathsControl" hidden><input type="checkbox" id="togglePaths" /> Wege</label>
 				<label id="toggleCrossingsControl" hidden><input type="checkbox" id="toggleCrossings" /> Kreuzungen</label>
 			</div>
-			<label class="display-options__row display-options__select-row">Darstellung
-				<select id="mapLayerModeSelect" aria-label="Darstellung">
+			<label class="display-options__row display-options__select-row">Deregraphie
+				<select id="mapLayerModeSelect" class="display-options__select" aria-label="Deregraphie">
 					<option value="none">Nur Karte</option>
 					<option value="political">Politisch</option>
-					<option value="deregraphic">Deregraphie</option>
+					<option value="deregraphic">Regionen</option>
 				</select>
 			</label>
 			<label id="mapStyleControl" class="display-options__row display-options__select-row" hidden>Mapstil
-				<select id="mapStyleSelect" aria-label="Mapstil">
+				<select id="mapStyleSelect" class="display-options__select" aria-label="Mapstil">
 					<option value="stylized">Stylized</option>
 					<option value="old">Old</option>
 				</select>
@@ -889,6 +889,7 @@
 			document.getElementById("mapStyleControl")?.removeAttribute("hidden");
 			document.getElementById("mapStyleSelect").value = activeMapStyle;
 			document.querySelector('.map-context-menu__group[data-context-action="add-here"]')?.removeAttribute("hidden");
+			document.getElementById("togglePathsControl")?.removeAttribute("hidden");
 			document.getElementById("toggleCrossingsControl")?.removeAttribute("hidden");
 			document.getElementById("toggleCrossings")?.removeAttribute("disabled");
 			document.getElementById("review-panel")?.removeAttribute("hidden");
@@ -3854,6 +3855,9 @@
 			});
 			syncLocationToggleButtons();
 			$("#togglePaths").prop("checked", parseBooleanQueryParam(searchParams.get("togglePaths"), DEFAULT_PLANNER_STATE.togglePaths));
+			if (!IS_EDIT_MODE) {
+				$("#togglePaths").prop("checked", false);
+			}
 			const legacyPoliticalMode = parseBooleanQueryParam(searchParams.get("toggleBorders"), false) ? "political" : DEFAULT_PLANNER_STATE.mapLayerMode;
 			setSelectedMapLayerMode(searchParams.get("mapLayerMode") || legacyPoliticalMode);
 			$("#toggleCrossings").prop("checked", parseBooleanQueryParam(searchParams.get("toggleCrossings"), DEFAULT_PLANNER_STATE.toggleCrossings));
@@ -3949,7 +3953,7 @@
 				}
 			});
 
-			if ($("#togglePaths").is(":checked") !== DEFAULT_PLANNER_STATE.togglePaths) {
+			if (IS_EDIT_MODE && $("#togglePaths").is(":checked") !== DEFAULT_PLANNER_STATE.togglePaths) {
 				searchParams.set("togglePaths", $("#togglePaths").is(":checked") ? "1" : "0");
 			}
 

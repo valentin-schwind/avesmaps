@@ -802,9 +802,9 @@ body.modal-dialog-open {
 	width: 100%;
 }
 
-.display-options__select-row select {
-	max-width: 150px;
-	min-width: 116px;
+.display-options__select {
+	width: 170px;
+	min-width: 0;
 }
 
 .location-toggle-group {
