@@ -51,8 +51,8 @@ def ensure_supported_input(image: Image.Image, world_size: int, max_zoom: int) -
         raise ValueError(f"Input is {width}px wide, but max zoom {max_zoom} expects {expected_size}px.")
 
 
-def leaflet_tile_name(prefix: str, x_index: int, y_index: int, extension: str) -> str:
-    leaflet_y = -(y_index + 1)
+def leaflet_tile_name(prefix: str, x_index: int, y_index: int, tiles_per_side: int, extension: str) -> str:
+    leaflet_y = y_index - tiles_per_side
     return f"{prefix}_{x_index}_{leaflet_y}.{extension}"
 
 
@@ -97,7 +97,7 @@ def build_tiles(args: argparse.Namespace) -> int:
                 if tile.size != (args.tile_size, args.tile_size):
                     tile = tile.resize((args.tile_size, args.tile_size), Image.Resampling.LANCZOS)
 
-                output_path = args.output / str(zoom) / leaflet_tile_name(args.prefix, x_index, y_index, extension)
+                output_path = args.output / str(zoom) / leaflet_tile_name(args.prefix, x_index, y_index, tiles_per_side, extension)
                 save_tile(tile, output_path, args.format, args.quality)
                 tile_count += 1
 

@@ -27,6 +27,8 @@ For the current `32768 x 32768` map this creates zoom levels `0` to `5` with `21
 tiles/stylized/{z}/map_{x}_{negativeY}.webp
 ```
 
+For `L.CRS.Simple`, the top row has the most negative `y` value. At zoom `0`, the first row is named `map_0_-4.webp` to `map_3_-4.webp`; the bottom row is `map_0_-1.webp` to `map_3_-1.webp`.
+
 ## Upload
 
 Upload the complete local folder:
