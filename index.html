@@ -427,7 +427,7 @@
 				</div>
 			</div>
 			<div class="display-options__row display-options__row--wrap">
-				<label id="togglePathsControl" hidden><input type="checkbox" id="togglePaths" /> Wege</label>
+				<label id="togglePathsControl"><input type="checkbox" id="togglePaths" /> Wege</label>
 				<label id="toggleCrossingsControl" hidden><input type="checkbox" id="toggleCrossings" /> Kreuzungen</label>
 			</div>
 			<label id="mapStyleControl" class="display-options__row display-options__select-row" hidden>Mapstil
@@ -692,8 +692,8 @@
 		const DEFAULT_SHARE_PIN_ZOOM = 4;
 		const VISUAL_LINE_SMOOTHING_CONFIG = {
 			enabled: INITIAL_SEARCH_PARAMS.get("smoothRoute") !== "0" && INITIAL_SEARCH_PARAMS.get("smoothLines") !== "0",
-			factor: 0.4,
-			maxDistance: 26,
+			factor: 0.46,
+			maxDistance: 34,
 			samples: 12,
 		};
 		const LOCATION_TYPE_CONFIG = {
@@ -962,7 +962,6 @@
 			document.getElementById("mapStyleControl")?.removeAttribute("hidden");
 			document.getElementById("mapStyleSelect").value = activeMapStyle;
 			document.querySelector('.map-context-menu__group[data-context-action="add-here"]')?.removeAttribute("hidden");
-			document.getElementById("togglePathsControl")?.removeAttribute("hidden");
 			document.getElementById("toggleCrossingsControl")?.removeAttribute("hidden");
 			document.getElementById("toggleCrossings")?.removeAttribute("disabled");
 			document.getElementById("review-panel")?.removeAttribute("hidden");
@@ -4072,9 +4071,6 @@
 			});
 			syncLocationToggleButtons();
 			$("#togglePaths").prop("checked", parseBooleanQueryParam(searchParams.get("togglePaths"), DEFAULT_PLANNER_STATE.togglePaths));
-			if (!IS_EDIT_MODE) {
-				$("#togglePaths").prop("checked", false);
-			}
 			const legacyPoliticalMode = parseBooleanQueryParam(searchParams.get("toggleBorders"), false) ? "political" : DEFAULT_PLANNER_STATE.mapLayerMode;
 			setSelectedMapLayerMode(searchParams.get("mapLayerMode") || legacyPoliticalMode);
 			$("#toggleCrossings").prop("checked", parseBooleanQueryParam(searchParams.get("toggleCrossings"), DEFAULT_PLANNER_STATE.toggleCrossings));
@@ -4170,7 +4166,7 @@
 				}
 			});
 
-			if (IS_EDIT_MODE && $("#togglePaths").is(":checked") !== DEFAULT_PLANNER_STATE.togglePaths) {
+			if ($("#togglePaths").is(":checked") !== DEFAULT_PLANNER_STATE.togglePaths) {
 				searchParams.set("togglePaths", $("#togglePaths").is(":checked") ? "1" : "0");
 			}
 
@@ -7102,10 +7098,6 @@
 		}
 
 		function getVisualPathLatLngCoordinates(coordinates) {
-			if (!IS_EDIT_MODE) {
-				return coordinates.map(([x, y]) => [y, x]);
-			}
-
 			return smoothLineCoordinatesForDisplay(coordinates).map(([x, y]) => [y, x]);
 		}
 
