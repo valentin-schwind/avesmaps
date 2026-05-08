@@ -1907,7 +1907,7 @@
 			const isAutoNameEnabled = formData.get("autoname") === "on";
 			const submittedName = isAutoNameEnabled
 				? String(formData.get("name") || "").trim()
-				: ensureUniquePathDisplayName(formData.get("name"), featureSubtype, { excludePath: pathEditFeature });
+				: getPathDisplayNameOrGenerated(formData.get("name"), featureSubtype, { excludePath: pathEditFeature });
 			return {
 				action: "update_path_details",
 				public_id: String(formData.get("public_id") || "").trim(),
@@ -4462,38 +4462,29 @@
 			return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 		}
 
-		function getExistingPathDisplayNames({ excludePath = null } = {}) {
-			return new Set(pathData
-				.filter((path) => path !== excludePath)
-				.map((path) => getPathDisplayName(path).trim())
-				.filter(Boolean));
-		}
-
 		function getNextPathDisplayName(subtype, { excludePath = null } = {}) {
 			const normalizedSubtype = normalizePathSubtype(subtype);
 			const namePattern = new RegExp(`^${escapeRegExp(normalizedSubtype)}-(\\d+)$`);
 			let highestNumber = 0;
 
-			getExistingPathDisplayNames({ excludePath }).forEach((pathName) => {
-				const match = namePattern.exec(pathName);
-				if (!match) {
-					return;
-				}
+			pathData
+				.filter((path) => path !== excludePath)
+				.map((path) => String(path?.properties?.name || path?.properties?.display_name || "").trim())
+				.forEach((pathName) => {
+					const match = namePattern.exec(pathName);
+					if (!match) {
+						return;
+					}
 
-				highestNumber = Math.max(highestNumber, Number.parseInt(match[1], 10) || 0);
-			});
+					highestNumber = Math.max(highestNumber, Number.parseInt(match[1], 10) || 0);
+				});
 
 			return `${normalizedSubtype}-${highestNumber + 1}`;
 		}
 
-		function ensureUniquePathDisplayName(name, subtype, { excludePath = null } = {}) {
+		function getPathDisplayNameOrGenerated(name, subtype, { excludePath = null } = {}) {
 			const trimmedName = String(name || "").trim();
-			if (trimmedName === "") {
-				return getNextPathDisplayName(subtype, { excludePath });
-			}
-
-			const existingNames = getExistingPathDisplayNames({ excludePath });
-			if (!existingNames.has(trimmedName)) {
+			if (trimmedName !== "") {
 				return trimmedName;
 			}
 
@@ -5431,7 +5422,11 @@
 		}
 
 		function isPathLabelVisibleAtCurrentZoom(path) {
-			return shouldPathNameBeDisplayed(path) && map.getZoom() >= LOCATION_NAME_LABEL_CONFIG.dorf.minZoom;
+			const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+			const minZoom = pathSubtype === "Flussweg"
+				? Math.max(0, LOCATION_NAME_LABEL_CONFIG.dorf.minZoom - 1)
+				: LOCATION_NAME_LABEL_CONFIG.dorf.minZoom;
+			return shouldPathNameBeDisplayed(path) && map.getZoom() >= minZoom;
 		}
 
 		function getPathLabelStyle(path) {
@@ -5447,13 +5442,14 @@
 				Seeweg: "#9ed0ff",
 			};
 
+			const fontSize = getLocationNameLabelSize("dorf") + (pathSubtype === "Flussweg" ? 3 : 1);
 			return {
 				fill: fillColors[pathSubtype] || fillColors.Weg,
 				stroke: "rgba(0, 0, 0, 0.75)",
 				strokeWidth: "2px",
 				paintOrder: "stroke",
 				fontFamily: 'Georgia, "Times New Roman", serif',
-				fontSize: `${getLocationNameLabelSize("dorf")}px`,
+				fontSize: `${fontSize}px`,
 				fontWeight: "400",
 				letterSpacing: "0",
 			};
