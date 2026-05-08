@@ -89,6 +89,7 @@
 		}
 	</script>
 	<script src="js/leaflet.js"></script>
+	<script src="js/leaflet.textpath.local.js"></script>
 	<script src="js/jquery-3.6.0.min.js"></script>
 	<script src="js/jquery-ui.min.js"></script>
 </head>
@@ -270,6 +271,10 @@
 				<label class="location-report-form__field location-report-form__field--checkbox">
 					<input id="path-edit-autoname" name="autoname" type="checkbox" checked />
 					<span>Auto-Name</span>
+				</label>
+				<label class="location-report-form__field location-report-form__field--checkbox">
+					<input id="path-edit-show-label" name="show_label" type="checkbox" />
+					<span>Weg anzeigen</span>
 				</label>
 				<label class="location-report-form__field">
 					<span>Wegtyp *</span>
@@ -880,6 +885,7 @@
 				e.style.fontSize = size + "px";
 			});
 			syncLabelIcons();
+			syncPathLabels();
 		});
 		map.on("moveend", () => {
 			syncLocationMarkerVisibility();
@@ -1855,6 +1861,7 @@
 			document.getElementById("path-edit-name").value = getPathDisplayName(path);
 			document.getElementById("path-edit-type").value = pathSubtype;
 			document.getElementById("path-edit-autoname").checked = true;
+			document.getElementById("path-edit-show-label").checked = shouldPathNameBeDisplayed(path);
 			syncPathAutoNameControls();
 		}
 
@@ -1876,6 +1883,7 @@
 				public_id: String(formData.get("public_id") || "").trim(),
 				name: submittedName || getNextPathDisplayName(featureSubtype, { excludePath: pathEditFeature }),
 				feature_subtype: featureSubtype,
+				show_label: formData.get("show_label") === "on",
 			};
 		}
 
@@ -5204,6 +5212,64 @@
 			const colors = getPathStyleColors(path);
 			path._pathLines[0]?.setStyle({ color: colors.outline, weight: colors.outlineWeight });
 			path._pathLines[1]?.setStyle({ color: colors.center, weight: colors.centerWeight });
+			refreshPathLayerText(path);
+		}
+
+		function shouldPathNameBeDisplayed(path) {
+			return path?.properties?.show_label === true || path?.properties?.show_label === 1 || path?.properties?.show_label === "1";
+		}
+
+		function isPathLabelVisibleAtCurrentZoom(path) {
+			return shouldPathNameBeDisplayed(path) && map.getZoom() >= LOCATION_NAME_LABEL_CONFIG.dorf.minZoom;
+		}
+
+		function getPathLabelStyle(path) {
+			const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+			const fillColors = {
+				Reichsstrasse: "#f4f4f4",
+				Strasse: "#dddddd",
+				Weg: "#f0ddb0",
+				Pfad: "#d8b28a",
+				Gebirgspass: "#e0a090",
+				Wuestenpfad: "#f1c56f",
+				Flussweg: "#b9e7ff",
+				Seeweg: "#9ed0ff",
+			};
+
+			return {
+				fill: fillColors[pathSubtype] || fillColors.Weg,
+				stroke: "rgba(0, 0, 0, 0.75)",
+				strokeWidth: "2px",
+				paintOrder: "stroke",
+				fontFamily: 'Georgia, "Times New Roman", serif',
+				fontSize: `${getLocationNameLabelSize("dorf")}px`,
+				fontWeight: "400",
+				letterSpacing: "0",
+			};
+		}
+
+		function refreshPathLayerText(path) {
+			const labelLine = path?._pathLines?.[1];
+			if (!labelLine?.setText) {
+				return;
+			}
+
+			if (!isPathLabelVisibleAtCurrentZoom(path)) {
+				labelLine.removeText?.();
+				return;
+			}
+
+			labelLine.setText(getPathDisplayName(path), {
+				className: `path-name-text path-name-text--${normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name)}`,
+				offset: "50%",
+				textAnchor: "middle",
+				dy: "-6",
+				style: getPathLabelStyle(path),
+			});
+		}
+
+		function syncPathLabels() {
+			pathData.forEach(refreshPathLayerText);
 		}
 
 		function refreshPathLayerPopup(path) {

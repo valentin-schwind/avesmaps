@@ -138,6 +138,10 @@ function avesmapsReadPathSubtype(mixed $value): string {
     return $subtype;
 }
 
+function avesmapsReadBoolean(mixed $value): bool {
+    return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
+}
+
 function avesmapsReadLabelSubtype(mixed $value): string {
     $subtype = avesmapsNormalizeSingleLine((string) ($value ?: 'region'), 40);
     $allowedSubtypes = ['region', 'fluss', 'meer', 'gebirge', 'berggipfel', 'wald', 'kontinent', 'wueste', 'suempfe_moore', 'see', 'insel', 'sonstiges'];
@@ -525,6 +529,7 @@ function avesmapsCreateCrossingFeature(PDO $pdo, array $payload, array $user): a
 function avesmapsCreatePathFeature(PDO $pdo, array $payload, array $user): array {
     $subtype = avesmapsReadPathSubtype($payload['feature_subtype'] ?? 'Weg');
     $name = avesmapsReadFeatureName($payload['name'] ?? $subtype, 'Der Wegname');
+    $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
     $coordinates = avesmapsReadLineStringCoordinates($payload['coordinates'] ?? null);
     $bounds = avesmapsCalculateLineStringBounds($coordinates);
 
@@ -538,6 +543,7 @@ function avesmapsCreatePathFeature(PDO $pdo, array $payload, array $user): array
         'display_name' => $name,
         'feature_type' => 'path',
         'feature_subtype' => $subtype,
+        'show_label' => $showLabel,
     ];
 
     $pdo->beginTransaction();
@@ -593,6 +599,7 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
     $name = avesmapsReadFeatureName($payload['name'] ?? '', 'Der Wegname');
     $subtype = avesmapsReadPathSubtype($payload['feature_subtype'] ?? 'Weg');
+    $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
 
     $pdo->beginTransaction();
     try {
@@ -602,6 +609,7 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         $properties['display_name'] = $name;
         $properties['feature_type'] = 'path';
         $properties['feature_subtype'] = $subtype;
+        $properties['show_label'] = $showLabel;
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         $revision = avesmapsNextMapRevision($pdo);
 
@@ -629,6 +637,7 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
             'public_id' => $publicId,
             'name' => $name,
             'feature_subtype' => $subtype,
+            'show_label' => $showLabel,
             'properties_json' => $properties,
             'revision' => $revision,
         ]));

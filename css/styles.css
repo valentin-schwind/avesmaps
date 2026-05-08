@@ -1417,6 +1417,11 @@ body.edit-mode .map-label span {
 	text-transform: uppercase;
 }
 
+.path-name-text {
+	pointer-events: none;
+	text-rendering: optimizeLegibility;
+}
+
 .leaflet-popup-pane {
 	z-index: 900;
 }
