@@ -36,6 +36,7 @@ try {
     $payload = avesmapsReadJsonRequest();
     $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? 'move_point'), 40);
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
+    avesmapsEnsureMapFeatureLocksTable($pdo);
 
     $result = match ($action) {
         'move_point' => avesmapsMovePointFeature($pdo, $payload, $user),
@@ -316,7 +317,6 @@ function avesmapsAssertFeatureCanBeEdited(PDO $pdo, array $payload, array $featu
         throw new AvesmapsConflictException('Dieses Kartenobjekt wurde inzwischen geaendert. Bitte neu laden.');
     }
 
-    avesmapsEnsureMapFeatureLocksTable($pdo);
     $statement = $pdo->prepare(
         'SELECT user_id, username
         FROM map_feature_locks
