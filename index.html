@@ -161,6 +161,7 @@
 						<option value="region">Region</option>
 						<option value="insel">Insel</option>
 						<option value="gebirge">Gebirge</option>
+						<option value="berggipfel">Berggipfel</option>
 						<option value="wald">Wald</option>
 						<option value="wueste">Wüste</option>
 						<option value="suempfe_moore">Sümpfe/Moore</option>
@@ -312,6 +313,7 @@
 						<option value="fluss">Fluss</option>
 						<option value="meer">Meer</option>
 						<option value="gebirge">Gebirge</option>
+						<option value="berggipfel">Berggipfel</option>
 						<option value="wald">Wald</option>
 						<option value="kontinent">Kontinent</option>
 						<option value="wueste">Wüste</option>
@@ -1314,6 +1316,7 @@
 			}
 			if (sizeSelectElement) {
 				sizeSelectElement.required = isLocationReport;
+				sizeSelectElement.disabled = !isLocationReport;
 				if (!isLocationReport) {
 					sizeSelectElement.value = "dorf";
 				}
@@ -2221,6 +2224,7 @@
 				region: "Region",
 				insel: "Insel",
 				gebirge: "Gebirge",
+				berggipfel: "Berggipfel",
 				wald: "Wald",
 				wueste: "Wüste",
 				suempfe_moore: "Sümpfe/Moore",

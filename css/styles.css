@@ -1383,6 +1383,10 @@ body.edit-mode .map-label span {
 	color: #e2ddd2;
 }
 
+.map-label--berggipfel span {
+	color: #f1efe7;
+}
+
 .map-label--wald span {
 	color: #bfeec8;
 }

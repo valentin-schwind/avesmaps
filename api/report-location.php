@@ -13,6 +13,7 @@ const AVESMAPS_REPORT_TYPES = [
     'region' => ['type' => 'label', 'subtype' => 'region'],
     'insel' => ['type' => 'label', 'subtype' => 'insel'],
     'gebirge' => ['type' => 'label', 'subtype' => 'gebirge'],
+    'berggipfel' => ['type' => 'label', 'subtype' => 'berggipfel'],
     'wald' => ['type' => 'label', 'subtype' => 'wald'],
     'wueste' => ['type' => 'label', 'subtype' => 'wueste'],
     'suempfe_moore' => ['type' => 'label', 'subtype' => 'suempfe_moore'],
