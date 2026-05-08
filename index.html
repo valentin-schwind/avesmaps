@@ -687,9 +687,9 @@
 		const DEFAULT_SHARE_PIN_ZOOM = 4;
 		const VISUAL_LINE_SMOOTHING_CONFIG = {
 			enabled: INITIAL_SEARCH_PARAMS.get("smoothRoute") !== "0" && INITIAL_SEARCH_PARAMS.get("smoothLines") !== "0",
-			factor: 0.22,
-			maxDistance: 14,
-			samples: 6,
+			factor: 0.32,
+			maxDistance: 20,
+			samples: 12,
 		};
 		const LOCATION_TYPE_CONFIG = {
 			metropole: { label: "Metropolen", singularLabel: "Metropole", icon: "🏛️", queryParam: "toggleMetropolen", radius: 10, shape: "circle", borderWidth: 3 },
