@@ -685,8 +685,8 @@
 		const LOCATION_REPORT_REQUEST_TIMEOUT_MS = 7000;
 		const MAX_SHARED_WAYPOINTS = 25;
 		const DEFAULT_SHARE_PIN_ZOOM = 4;
-		const ROUTE_VISUAL_SMOOTHING_CONFIG = {
-			enabled: INITIAL_SEARCH_PARAMS.get("smoothRoute") !== "0",
+		const VISUAL_LINE_SMOOTHING_CONFIG = {
+			enabled: INITIAL_SEARCH_PARAMS.get("smoothRoute") !== "0" && INITIAL_SEARCH_PARAMS.get("smoothLines") !== "0",
 			factor: 0.22,
 			maxDistance: 14,
 			samples: 6,
@@ -5218,7 +5218,7 @@
 		}
 
 		function createPathLayer(path) {
-			const latLngCoords = path.geometry.coordinates.map(([x, y]) => [y, x]);
+			const latLngCoords = getVisualPathLatLngCoordinates(path.geometry.coordinates);
 			const colors = getPathStyleColors(path);
 			const roadOutline = L.polyline(latLngCoords, {
 				pane: "roadsOutlinePane",
@@ -5306,7 +5306,7 @@
 				return;
 			}
 
-			const latLngCoords = path.geometry.coordinates.map(([x, y]) => [y, x]);
+			const latLngCoords = getVisualPathLatLngCoordinates(path.geometry.coordinates);
 			path._pathLines.forEach((line) => line.setLatLngs(latLngCoords));
 		}
 
@@ -5387,7 +5387,7 @@
 				return;
 			}
 
-			pendingPathCreationLine = L.polyline(pendingPathCreationPoints, {
+			pendingPathCreationLine = L.polyline(getVisualLatLngCoordinates(pendingPathCreationPoints), {
 				pane: "measurementPane",
 				color: "#1452F7",
 				weight: 5,
@@ -7014,7 +7014,23 @@
 			return graph;
 		}
 
-		function smoothRouteCoordinatesForDisplay(coordinates, config = ROUTE_VISUAL_SMOOTHING_CONFIG) {
+		function getVisualPathLatLngCoordinates(coordinates) {
+			if (!IS_EDIT_MODE) {
+				return coordinates.map(([x, y]) => [y, x]);
+			}
+
+			return smoothLineCoordinatesForDisplay(coordinates).map(([x, y]) => [y, x]);
+		}
+
+		function getVisualLatLngCoordinates(latLngs) {
+			const coordinates = latLngs.map((latLng) => {
+				const normalizedLatLng = L.latLng(latLng);
+				return [normalizedLatLng.lng, normalizedLatLng.lat];
+			});
+			return smoothLineCoordinatesForDisplay(coordinates).map(([x, y]) => [y, x]);
+		}
+
+		function smoothLineCoordinatesForDisplay(coordinates, config = VISUAL_LINE_SMOOTHING_CONFIG) {
 			if (!config?.enabled || !Array.isArray(coordinates) || coordinates.length < 3) {
 				return coordinates;
 			}
@@ -7078,7 +7094,7 @@
 				currentRouteLayer = null;
 			}
 			segments.forEach((segment) => {
-				const visualCoordinates = smoothRouteCoordinatesForDisplay(segment.geometry?.coordinates || []);
+				const visualCoordinates = smoothLineCoordinatesForDisplay(segment.geometry?.coordinates || []);
 				const segCoords = visualCoordinates.map(([x, y]) => [y, x]);
 				if (segCoords.length) {
 					const routeStyle = segment.properties?.synthetic ? SYNTHETIC_ROUTE_STYLE : ROUTE_STYLE;
