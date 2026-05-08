@@ -685,6 +685,12 @@
 		const LOCATION_REPORT_REQUEST_TIMEOUT_MS = 7000;
 		const MAX_SHARED_WAYPOINTS = 25;
 		const DEFAULT_SHARE_PIN_ZOOM = 4;
+		const ROUTE_VISUAL_SMOOTHING_CONFIG = {
+			enabled: INITIAL_SEARCH_PARAMS.get("smoothRoute") !== "0",
+			factor: 0.22,
+			maxDistance: 14,
+			samples: 6,
+		};
 		const LOCATION_TYPE_CONFIG = {
 			metropole: { label: "Metropolen", singularLabel: "Metropole", icon: "🏛️", queryParam: "toggleMetropolen", radius: 10, shape: "circle", borderWidth: 3 },
 			grossstadt: { label: "Großstädte", singularLabel: "Großstadt", icon: "🏰", queryParam: "toggleGrossstaedte", radius: 7.5, shape: "square", borderWidth: 3 },
@@ -7008,14 +7014,72 @@
 			return graph;
 		}
 
-		// Zeichnet die berechnete Route
+		function smoothRouteCoordinatesForDisplay(coordinates, config = ROUTE_VISUAL_SMOOTHING_CONFIG) {
+			if (!config?.enabled || !Array.isArray(coordinates) || coordinates.length < 3) {
+				return coordinates;
+			}
+
+			const sampleCount = Math.max(1, Math.min(12, Number.parseInt(config.samples, 10) || 6));
+			const smoothingFactor = Math.max(0, Math.min(0.5, Number(config.factor) || 0));
+			const maxDistance = Math.max(0, Number(config.maxDistance) || 0);
+			if (smoothingFactor <= 0 || maxDistance <= 0) {
+				return coordinates;
+			}
+
+			const smoothedCoordinates = [coordinates[0]];
+			for (let index = 1; index < coordinates.length - 1; index += 1) {
+				const prev = coordinates[index - 1];
+				const curr = coordinates[index];
+				const next = coordinates[index + 1];
+				const distanceToPrev = getCoordinateDistance(curr, prev);
+				const distanceToNext = getCoordinateDistance(curr, next);
+				const cutDistance = Math.min(distanceToPrev * smoothingFactor, distanceToNext * smoothingFactor, maxDistance);
+				if (cutDistance < 0.5 || distanceToPrev === 0 || distanceToNext === 0) {
+					smoothedCoordinates.push(curr);
+					continue;
+				}
+
+				const curveStart = moveCoordinateTowards(curr, prev, cutDistance / distanceToPrev);
+				const curveEnd = moveCoordinateTowards(curr, next, cutDistance / distanceToNext);
+				smoothedCoordinates.push(curveStart);
+				for (let sampleIndex = 1; sampleIndex < sampleCount; sampleIndex += 1) {
+					smoothedCoordinates.push(getQuadraticBezierPoint(curveStart, curr, curveEnd, sampleIndex / sampleCount));
+				}
+				smoothedCoordinates.push(curveEnd);
+			}
+			smoothedCoordinates.push(coordinates[coordinates.length - 1]);
+			return smoothedCoordinates;
+		}
+
+		function getCoordinateDistance(first, second) {
+			const deltaX = Number(first?.[0]) - Number(second?.[0]);
+			const deltaY = Number(first?.[1]) - Number(second?.[1]);
+			return Math.hypot(deltaX, deltaY);
+		}
+
+		function moveCoordinateTowards(from, to, ratio) {
+			return [
+				Number(from[0]) + (Number(to[0]) - Number(from[0])) * ratio,
+				Number(from[1]) + (Number(to[1]) - Number(from[1])) * ratio,
+			];
+		}
+
+		function getQuadraticBezierPoint(start, control, end, t) {
+			const inverseT = 1 - t;
+			return [
+				inverseT * inverseT * Number(start[0]) + 2 * inverseT * t * Number(control[0]) + t * t * Number(end[0]),
+				inverseT * inverseT * Number(start[1]) + 2 * inverseT * t * Number(control[1]) + t * t * Number(end[1]),
+			];
+		}
+
 		function drawRoute(segments) {
 			if (currentRouteLayer) {
 				map.removeLayer(currentRouteLayer);
 				currentRouteLayer = null;
 			}
 			segments.forEach((segment) => {
-				const segCoords = (segment.geometry?.coordinates || []).map(([x, y]) => [y, x]);
+				const visualCoordinates = smoothRouteCoordinatesForDisplay(segment.geometry?.coordinates || []);
+				const segCoords = visualCoordinates.map(([x, y]) => [y, x]);
 				if (segCoords.length) {
 					const routeStyle = segment.properties?.synthetic ? SYNTHETIC_ROUTE_STYLE : ROUTE_STYLE;
 					const segLayer = L.polyline(segCoords, routeStyle).addTo(map);
