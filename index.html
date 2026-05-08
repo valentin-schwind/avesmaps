@@ -5424,7 +5424,7 @@
 		function isPathLabelVisibleAtCurrentZoom(path) {
 			const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
 			const minZoom = pathSubtype === "Flussweg"
-				? Math.max(0, LOCATION_NAME_LABEL_CONFIG.dorf.minZoom - 1)
+				? LOCATION_NAME_LABEL_CONFIG.dorf.minZoom
 				: LOCATION_NAME_LABEL_CONFIG.dorf.minZoom;
 			return shouldPathNameBeDisplayed(path) && map.getZoom() >= minZoom;
 		}
