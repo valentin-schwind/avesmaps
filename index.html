@@ -838,6 +838,9 @@
 			mapDataSourceStatus = null,
 			baseTileLayer = null,
 			activeMapStyle = "stylized",
+			activeFeatureLocks = new Map(),
+			liveMapUpdateTimerId = null,
+			isLiveMapUpdatePending = false,
 			labelCollisionFrameId = null;
 
 		// Initialisierung der Karte 
@@ -982,6 +985,9 @@
 			isSearchPanelHidden = !isSearchPanelHidden;
 		});
 		$("#review-panel-toggle").on("click", toggleReviewPanel);
+		window.addEventListener("beforeunload", () => {
+			activeFeatureLocks.forEach((timerId) => window.clearInterval(timerId));
+		});
 		$("#review-panel-refresh").on("click", () => loadReviewReports());
 		$(".review-panel__tab").on("click", function () {
 			setEditorPanelTab(this.dataset.editorPanelTab || "review");
@@ -1547,11 +1553,13 @@
 				return;
 			}
 
+			const publicId = document.getElementById("location-edit-public-id")?.value || "";
 			formElement.reset();
 			locationEditLatLng = null;
 			locationEditMarkerEntry = null;
 			activeReviewReportId = null;
 			activeReviewReportSource = null;
+			void releaseFeatureSoftLock(publicId);
 			setLocationEditStatus();
 		}
 
@@ -1561,8 +1569,10 @@
 				return;
 			}
 
+			const publicId = document.getElementById("path-edit-public-id")?.value || "";
 			formElement.reset();
 			pathEditFeature = null;
+			void releaseFeatureSoftLock(publicId);
 			syncPathAutoNameControls();
 			setPathEditStatus();
 		}
@@ -1577,9 +1587,11 @@
 				pendingLabelMoveAfterEditEntry = null;
 			}
 
+			const publicId = document.getElementById("label-edit-public-id")?.value || "";
 			formElement.reset();
 			labelEditEntry = null;
 			labelEditLatLng = null;
+			void releaseFeatureSoftLock(publicId);
 			activeReviewReportId = null;
 			activeReviewReportSource = null;
 			document.getElementById("label-edit-public-id").value = "";
@@ -1591,8 +1603,10 @@
 		function resetRegionEditForm() {
 			const formElement = getRegionEditFormElement();
 			if (!formElement) return;
+			const publicId = document.getElementById("region-edit-public-id")?.value || "";
 			formElement.reset();
 			regionEditEntry = null;
+			void releaseFeatureSoftLock(publicId);
 			document.getElementById("region-edit-public-id").value = "";
 			document.getElementById("region-edit-delete").hidden = true;
 			document.getElementById("region-edit-wiki-url").value = "";
@@ -1734,6 +1748,7 @@
 			const location = markerEntry?.location || {};
 			const wikiLocationLink = getWikiLocationLink(location.name || markerEntry?.name || "", location.wikiUrl || "");
 			document.getElementById("location-edit-public-id").value = markerEntry?.publicId || "";
+			void acquireFeatureSoftLock(markerEntry?.publicId || "");
 			document.getElementById("location-edit-name").value = location.name || markerEntry?.name || "";
 			document.getElementById("location-edit-type").value = normalizeLocationType(location.locationType || markerEntry?.locationType || "dorf");
 			document.getElementById("location-edit-description").value = location.description || "";
@@ -1761,6 +1776,7 @@
 			labelEditLatLng = latlng ? L.latLng(latlng) : labelEntry?.marker.getLatLng() || null;
 			const label = labelEntry?.label || {};
 			document.getElementById("label-edit-public-id").value = label.publicId || "";
+			void acquireFeatureSoftLock(label.publicId || "");
 			document.getElementById("label-edit-text").value = label.text || "";
 			document.getElementById("label-edit-type").value = label.labelType || "region";
 			document.getElementById("label-edit-size").value = label.size || 18;
@@ -1834,6 +1850,7 @@
 			regionEditEntry = entry;
 			const region = entry?.region || entry || {};
 			document.getElementById("region-edit-public-id").value = region.publicId || "";
+			void acquireFeatureSoftLock(region.publicId || "");
 			document.getElementById("region-edit-name").value = region.name || "";
 			document.getElementById("region-edit-color").value = region.color || "#888888";
 			document.getElementById("region-edit-opacity").value = Math.round((region.opacity ?? 0.33) * 100);
@@ -1857,6 +1874,7 @@
 			const pathSubtype = normalizePathName(path.properties?.name || path.properties?.feature_subtype || "Weg");
 			pathEditFeature = path;
 			document.getElementById("path-edit-public-id").value = path.properties.public_id || path.id || "";
+			void acquireFeatureSoftLock(document.getElementById("path-edit-public-id").value);
 			document.getElementById("path-edit-name").value = getPathDisplayName(path);
 			document.getElementById("path-edit-type").value = pathSubtype;
 			document.getElementById("path-edit-autoname").checked = true;
@@ -4458,6 +4476,7 @@
 			}
 
 			if (isActive) {
+				void acquireFeatureSoftLock(markerEntry.publicId);
 				activeLocationEdit = {
 					markerEntry,
 					originalLatLng: markerEntry.marker.getLatLng(),
@@ -4469,6 +4488,7 @@
 			}
 
 			if (activeLocationEdit?.markerEntry === markerEntry) {
+				void releaseFeatureSoftLock(activeLocationEdit.markerEntry.publicId);
 				activeLocationEdit = null;
 			}
 			markerEntry.marker.dragging.disable();
@@ -4482,31 +4502,18 @@
 			}
 
 			try {
-				const response = await fetch(MAP_FEATURE_UPDATE_API_URL, {
-					method: "PATCH",
-					credentials: "same-origin",
-					headers: {
-						Accept: "application/json",
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						public_id: markerEntry.publicId,
-						lat: normalizedLatLng.lat,
-						lng: normalizedLatLng.lng,
-					}),
+				const payload = await submitMapFeatureEdit({
+					action: "move_point",
+					public_id: markerEntry.publicId,
+					lat: normalizedLatLng.lat,
+					lng: normalizedLatLng.lng,
 				});
-				const payload = await response.json().catch(() => ({}));
-				if (!response.ok || payload?.ok !== true) {
-					throw new Error(payload?.error || `Speichern fehlgeschlagen (${response.status}).`);
-				}
 
 				markerEntry.location.coordinates = [normalizedLatLng.lat, normalizedLatLng.lng];
+				markerEntry.location.revision = Number(payload.feature?.revision) || markerEntry.location.revision || null;
 				markerEntry.marker.setLatLng(normalizedLatLng);
 				syncLocationNameLabelVisibility();
-				if (payload.feature?.revision && mapDataSourceStatus) {
-					mapDataSourceStatus.revision = payload.feature.revision;
-					updateMapDataStatus({ avesmapsSource: mapDataSourceStatus });
-				}
+				updateRevisionFromEditResponse(payload);
 				refreshPlannerAfterFeatureChange({ updateRoute: true });
 				showFeedbackToast(`${markerEntry.name} gespeichert.`, "success");
 				return true;
@@ -4524,7 +4531,42 @@
 			}
 		}
 
+		function getLocalFeatureRevision(publicId) {
+			if (!publicId) {
+				return null;
+			}
+
+			const markerEntry = findLocationMarkerByPublicId(publicId);
+			if (markerEntry?.location?.revision !== undefined) {
+				return markerEntry.location.revision;
+			}
+
+			const path = findPathByPublicId(publicId);
+			if (path?.properties?.revision !== undefined) {
+				return path.properties.revision;
+			}
+
+			const labelEntry = labelMarkers.find((entry) => entry.label.publicId === publicId);
+			if (labelEntry?.label?.revision !== undefined) {
+				return labelEntry.label.revision;
+			}
+
+			const regionEntry = regionData.map(normalizeRegionFeature).find((entry) => entry.publicId === publicId)
+				|| regionPolygons.map((polygon) => polygon._regionEntry).find((entry) => entry?.publicId === publicId);
+			return regionEntry?.revision ?? null;
+		}
+
+		function withExpectedRevision(payload) {
+			if (!payload?.public_id || payload.expected_revision !== undefined || ["create_point", "create_crossing", "create_path", "create_label", "create_region", "acquire_lock", "release_lock"].includes(payload.action)) {
+				return payload;
+			}
+
+			const revision = getLocalFeatureRevision(payload.public_id);
+			return revision === null || revision === undefined ? payload : { ...payload, expected_revision: revision };
+		}
+
 		async function submitMapFeatureEdit(payload) {
+			const requestPayload = withExpectedRevision(payload);
 			const response = await fetch(MAP_FEATURE_UPDATE_API_URL, {
 				method: "PATCH",
 				credentials: "same-origin",
@@ -4532,14 +4574,50 @@
 					Accept: "application/json",
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify(payload),
+				body: JSON.stringify(requestPayload),
 			});
 			const result = await response.json().catch(() => ({}));
 			if (!response.ok || result?.ok !== true) {
+				if (response.status === 409) {
+					void pollLiveMapUpdates();
+				}
 				throw new Error(result?.error || `Speichern fehlgeschlagen (${response.status}).`);
 			}
 
 			return result;
+		}
+
+		async function acquireFeatureSoftLock(publicId) {
+			if (!IS_EDIT_MODE || !isSqlMapFeatureId(publicId) || activeFeatureLocks.has(publicId)) {
+				return;
+			}
+
+			try {
+				await submitMapFeatureEdit({ action: "acquire_lock", public_id: publicId });
+				const refreshTimerId = window.setInterval(() => {
+					void submitMapFeatureEdit({ action: "acquire_lock", public_id: publicId }).catch((error) => {
+						console.warn("Feature-Lock konnte nicht erneuert werden:", error);
+					});
+				}, 45000);
+				activeFeatureLocks.set(publicId, refreshTimerId);
+			} catch (error) {
+				showFeedbackToast(error.message || "Dieses Objekt ist gerade gesperrt.", "warning");
+				throw error;
+			}
+		}
+
+		async function releaseFeatureSoftLock(publicId) {
+			if (!isSqlMapFeatureId(publicId) || !activeFeatureLocks.has(publicId)) {
+				return;
+			}
+
+			window.clearInterval(activeFeatureLocks.get(publicId));
+			activeFeatureLocks.delete(publicId);
+			try {
+				await submitMapFeatureEdit({ action: "release_lock", public_id: publicId });
+			} catch (error) {
+				console.warn("Feature-Lock konnte nicht freigegeben werden:", error);
+			}
 		}
 
 		function refreshLocationMarkerPopup(markerEntry) {
@@ -4634,6 +4712,7 @@
 				locationTypeLabel: feature.location_type_label || LOCATION_TYPE_CONFIG[locationType]?.singularLabel || "Dorf",
 				description: feature.description || "",
 				wikiUrl: feature.wiki_url || "",
+				revision: Number(feature.revision) || markerEntry.location.revision || null,
 			};
 			markerEntry.marker.setLatLng(latLng);
 			refreshLocationMarkerPopup(markerEntry);
@@ -4671,16 +4750,19 @@
 			}
 		}
 
-		function addCreatedLocationMarker(feature) {
-			const locationType = normalizeLocationType(feature.location_type || feature.feature_subtype || "dorf");
+		function addCreatedLocationMarker(feature, { openPopup = true } = {}) {
+			const locationType = feature.feature_subtype === CROSSING_LOCATION_TYPE || String(feature.name || "").startsWith("Kreuzung")
+				? CROSSING_LOCATION_TYPE
+				: normalizeLocationType(feature.location_type || feature.feature_subtype || "dorf");
 			const location = {
 				publicId: feature.public_id,
 				name: feature.name,
 				coordinates: [Number(feature.lat), Number(feature.lng)],
 				locationType,
-				locationTypeLabel: feature.location_type_label || LOCATION_TYPE_CONFIG[locationType]?.singularLabel || "Dorf",
+				locationTypeLabel: locationType === CROSSING_LOCATION_TYPE ? "Kreuzung" : feature.location_type_label || LOCATION_TYPE_CONFIG[locationType]?.singularLabel || "Dorf",
 				description: feature.description || "",
 				wikiUrl: feature.wiki_url || "",
+				revision: Number(feature.revision) || null,
 			};
 			locationData.push(location);
 
@@ -4689,7 +4771,31 @@
 			addLocationNameLabel(markerEntry);
 			syncLocationMarkerVisibility();
 			refreshPlannerAfterFeatureChange();
-			markerEntry.marker.openPopup();
+			if (openPopup) {
+				markerEntry.marker.openPopup();
+			}
+		}
+
+		function applyLiveLocationFeature(feature) {
+			const properties = feature.properties || {};
+			const publicId = properties.public_id || feature.id || "";
+			const markerEntry = findLocationMarkerByPublicId(publicId);
+			const payload = {
+				public_id: publicId,
+				name: properties.name || "",
+				feature_subtype: properties.feature_subtype || properties.settlement_class || "dorf",
+				lat: feature.geometry.coordinates[1],
+				lng: feature.geometry.coordinates[0],
+				description: properties.description || "",
+				wiki_url: properties.wiki_url || "",
+				revision: properties.revision || null,
+			};
+			if (markerEntry) {
+				applyFeatureResponseToMarker(markerEntry, payload);
+				return;
+			}
+
+			addCreatedLocationMarker(payload, { openPopup: false });
 		}
 
 		async function createLocationAt(latlng) {
@@ -4709,6 +4815,7 @@
 				minZoom: Number(properties.min_zoom ?? feature.min_zoom ?? 0),
 				maxZoom: Number(properties.max_zoom ?? feature.max_zoom ?? 5),
 				priority: Number(properties.priority ?? feature.priority ?? 3),
+				revision: Number(properties.revision ?? feature.revision) || null,
 				coordinates: [Number(lat), Number(lng)],
 			};
 		}
@@ -4769,6 +4876,7 @@
 			}
 
 			if (isActive) {
+				void acquireFeatureSoftLock(entry.label.publicId);
 				entry.marker.dragging.enable();
 				entry.marker.closePopup();
 				showFeedbackToast(`${entry.label.text}: Label verschieben, Loslassen speichert.`, "info");
@@ -4776,6 +4884,7 @@
 			}
 
 			entry.marker.dragging.disable();
+			void releaseFeatureSoftLock(entry.label.publicId);
 		}
 
 		function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds()) {
@@ -4942,6 +5051,20 @@
 			entry.marker.setIcon(createLabelIcon(label));
 			refreshLabelMarkerPopup(entry);
 			syncLabelMarkerVisibility(entry);
+		}
+
+		function applyLiveLabelFeature(feature) {
+			const label = normalizeLabelFeature(feature);
+			const entry = labelMarkers.find((labelEntry) => labelEntry.label.publicId === label.publicId);
+			if (entry) {
+				applyLabelFeatureResponse(entry, feature);
+				return;
+			}
+
+			const newEntry = createLabelMarkerEntry(label);
+			labelData.push(label);
+			labelMarkers.push(newEntry);
+			syncLabelMarkerVisibility(newEntry);
 		}
 
 		async function saveLabelPosition(entry) {
@@ -5379,6 +5502,21 @@
 			return path;
 		}
 
+		function applyLivePathFeature(feature) {
+			const publicId = feature.properties?.public_id || feature.id || "";
+			const path = findPathByPublicId(publicId);
+			if (path) {
+				applyPathFeatureResponse(path, feature);
+				return;
+			}
+
+			const newPath = normalizeRoutePathFeature(feature, getNextLocalPathId());
+			const pathLayer = createPathLayer(newPath);
+			pathData.push(newPath);
+			pathLayers.push(pathLayer);
+			syncPathVisibility();
+		}
+
 		function findPathByPublicId(publicId) {
 			return pathData.find((path) => getPathPublicId(path) === publicId) || null;
 		}
@@ -5424,6 +5562,67 @@
 			pathData = pathData.filter((entry) => entry !== path);
 			pathLayers = pathLayers.filter((layer) => layer !== path._layerGroup);
 			refreshPlannerAfterFeatureChange({ updateRoute: true });
+		}
+
+		function removeLiveFeature(publicId) {
+			const markerEntry = findLocationMarkerByPublicId(publicId);
+			if (markerEntry) {
+				map.removeLayer(markerEntry.marker);
+				removeLocationNameLabel(markerEntry);
+				locationMarkers = locationMarkers.filter((entry) => entry !== markerEntry);
+				locationData = locationData.filter((location) => location !== markerEntry.location);
+				return;
+			}
+
+			const path = findPathByPublicId(publicId);
+			if (path) {
+				removePathFeature(path);
+				return;
+			}
+
+			const labelEntry = labelMarkers.find((entry) => entry.label.publicId === publicId);
+			if (labelEntry) {
+				map.removeLayer(labelEntry.marker);
+				labelData = labelData.filter((label) => label !== labelEntry.label);
+				labelMarkers = labelMarkers.filter((entry) => entry !== labelEntry);
+				return;
+			}
+
+			const regionEntry = regionPolygons.map((polygon) => polygon._regionEntry).find((entry) => entry?.publicId === publicId);
+			if (regionEntry) {
+				map.removeLayer(regionEntry.layer);
+				if (regionEntry.label) {
+					map.removeLayer(regionEntry.label);
+					regionLabels = regionLabels.filter((label) => label !== regionEntry.label);
+				}
+				regionPolygons = regionPolygons.filter((polygon) => polygon !== regionEntry.layer);
+			}
+		}
+
+		function applyLiveMapFeatureUpdate(feature) {
+			const properties = feature.properties || {};
+			const publicId = properties.public_id || feature.id || "";
+			if (!publicId) {
+				return;
+			}
+
+			if (properties.deleted) {
+				removeLiveFeature(publicId);
+				return;
+			}
+
+			if (feature.geometry?.type === "LineString") {
+				applyLivePathFeature(feature);
+			} else if (properties.feature_type === "label") {
+				applyLiveLabelFeature(feature);
+			} else if (properties.feature_type === "region") {
+				const regionEntry = regionPolygons.map((polygon) => polygon._regionEntry).find((entry) => entry?.publicId === publicId);
+				if (regionEntry) {
+					applyRegionFeatureResponse(regionEntry, feature);
+				}
+			} else if (feature.geometry?.type === "Point") {
+				applyLiveLocationFeature(feature);
+			}
 		}
 
 		function clearPendingPathCreation() {
@@ -5614,6 +5813,7 @@
 				return;
 			}
 
+			void releaseFeatureSoftLock(getPathPublicId(activePathGeometryEdit.path));
 			activePathGeometryEdit.handles.forEach((handle) => map.removeLayer(handle));
 			map.off("dblclick", handleMapDoubleClickWhileEditingPath);
 			map.doubleClickZoom.enable();
@@ -5914,6 +6114,7 @@
 		function startPathGeometryEdit(path, { showToast = true } = {}) {
 			clearPendingPathCreation();
 			clearPathGeometryEdit();
+			void acquireFeatureSoftLock(getPathPublicId(path));
 			path._layerGroup?.closePopup();
 			activePathGeometryEdit = {
 				path,
@@ -6057,6 +6258,7 @@
 				color: fillColor,
 				opacity,
 				wikiUrl: properties.wiki_url || "",
+				revision: Number(properties.revision) || null,
 				feature,
 				layer: null,
 				label: null,
@@ -6132,6 +6334,7 @@
 
 		function clearRegionGeometryEdit() {
 			if (!activeRegionGeometryEdit) return;
+			void releaseFeatureSoftLock(activeRegionGeometryEdit.regionEntry.publicId);
 			activeRegionGeometryEdit.handles.forEach((handle) => map.removeLayer(handle));
 			activeRegionGeometryEdit = null;
 		}
@@ -6171,6 +6374,7 @@
 
 		function startRegionGeometryEdit(regionEntry) {
 			clearRegionGeometryEdit();
+			void acquireFeatureSoftLock(regionEntry.publicId);
 			activeRegionGeometryEdit = { regionEntry, handles: [] };
 			refreshRegionEditHandles();
 		}
@@ -6232,6 +6436,7 @@
 			regionEntry.color = updatedRegion.color || regionEntry.color;
 			regionEntry.opacity = updatedRegion.opacity ?? regionEntry.opacity;
 			regionEntry.wikiUrl = updatedRegion.wikiUrl || "";
+			regionEntry.revision = updatedRegion.revision || regionEntry.revision || null;
 			regionEntry.feature = feature;
 			regionEntry.layer.setStyle({ color: regionEntry.color, fillColor: regionEntry.color, fillOpacity: regionEntry.opacity });
 			regionEntry.label?.setContent(regionEntry.name);
@@ -6366,6 +6571,7 @@
 						locationTypeLabel: isCrossing ? "Kreuzung" : feature.properties.settlement_class_label || locationConfig?.singularLabel || "Dorf",
 						description: feature.properties.description || "",
 						wikiUrl: feature.properties.wiki_url || "",
+						revision: Number(feature.properties.revision) || null,
 					};
 				});
 			locationData
@@ -6475,6 +6681,50 @@
 			});
 		}
 
+		async function pollLiveMapUpdates() {
+			if (!IS_EDIT_MODE || !MAP_FEATURES_API_URL || isLiveMapUpdatePending || !mapDataSourceStatus?.revision) {
+				return;
+			}
+
+			isLiveMapUpdatePending = true;
+			try {
+				const url = new URL(MAP_FEATURES_API_URL, window.location.href);
+				url.searchParams.set("since_revision", String(mapDataSourceStatus.revision));
+				const response = await fetch(url.toString(), { headers: { Accept: "application/json" } });
+				const data = await response.json().catch(() => ({}));
+				if (!response.ok || data?.ok !== true) {
+					throw new Error(data?.error || "Live-Aktualisierung fehlgeschlagen.");
+				}
+
+				const features = Array.isArray(data.features) ? data.features : [];
+				if (features.length > 0) {
+					features.forEach(applyLiveMapFeatureUpdate);
+					refreshPlannerAfterFeatureChange({ updateRoute: true });
+					void loadChangeLog();
+					showFeedbackToast(`${features.length} Kartenänderung(en) aktualisiert.`, "info");
+				}
+
+				if (data.revision && mapDataSourceStatus) {
+					mapDataSourceStatus.revision = data.revision;
+					updateMapDataStatus({ avesmapsSource: mapDataSourceStatus });
+				}
+			} catch (error) {
+				console.warn("Live-Aktualisierung konnte nicht geladen werden:", error);
+			} finally {
+				isLiveMapUpdatePending = false;
+			}
+		}
+
+		function startLiveMapUpdates() {
+			if (!IS_EDIT_MODE || liveMapUpdateTimerId || !MAP_FEATURES_API_URL) {
+				return;
+			}
+
+			liveMapUpdateTimerId = window.setInterval(() => {
+				void pollLiveMapUpdates();
+			}, 15000);
+		}
+
 		// Laden und Verarbeiten der GeoJSON-Daten. Auf STRATO kommt die Vektorkarte aus SQL, sonst aus der Datei.
 		const routeDataRequest = loadRouteData();
 
@@ -6525,6 +6775,7 @@
 				} else {
 					focusMapOnActiveTargets();
 				}
+				startLiveMapUpdates();
 			})
 			.fail((err) => console.error("Fehler beim Laden der GeoJSON-Datei:", err));
 

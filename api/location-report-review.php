@@ -168,7 +168,8 @@ function avesmapsUpdateLocationReportReviewStatus(PDO $pdo, array $payload, arra
             review_note = :review_note,
             reviewed_at = CURRENT_TIMESTAMP
             {$reviewedBySql}
-        WHERE id = :report_id"
+        WHERE id = :report_id
+            AND status = 'neu'"
     );
     $params = [
         'status' => $newStatus,
@@ -183,7 +184,7 @@ function avesmapsUpdateLocationReportReviewStatus(PDO $pdo, array $payload, arra
     if ($statement->rowCount() < 1) {
         avesmapsJsonResponse(404, [
             'ok' => false,
-            'error' => 'Die gewuenschte Meldung wurde nicht gefunden.',
+            'error' => 'Die gewuenschte Meldung wurde bereits verarbeitet oder nicht gefunden.',
         ]);
     }
 

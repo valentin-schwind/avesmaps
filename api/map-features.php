@@ -64,10 +64,10 @@ try {
 }
 
 function avesmapsBuildMapFeaturesQuery(array $queryParams): array {
-    $whereClauses = ['is_active = 1'];
     $params = [];
 
     $sinceRevision = avesmapsParseOptionalPositiveInt($queryParams['since_revision'] ?? null, 'since_revision');
+    $whereClauses = $sinceRevision === null ? ['is_active = 1'] : [];
     if ($sinceRevision !== null) {
         $whereClauses[] = 'revision > :since_revision';
         $params['since_revision'] = $sinceRevision;
@@ -95,6 +95,7 @@ function avesmapsBuildMapFeaturesQuery(array $queryParams): array {
             geometry_json,
             properties_json,
             style_json,
+            is_active,
             revision,
             updated_at
         FROM map_features
@@ -164,6 +165,20 @@ function avesmapsFetchMapRevision(PDO $pdo): int {
 }
 
 function avesmapsMapFeatureRowToGeoJsonFeature(array $row): array {
+    if ((int) ($row['is_active'] ?? 1) !== 1) {
+        return [
+            'type' => 'Feature',
+            'id' => (string) $row['public_id'],
+            'geometry' => null,
+            'properties' => [
+                'public_id' => (string) $row['public_id'],
+                'deleted' => true,
+                'revision' => (int) $row['revision'],
+                'updated_at' => (string) $row['updated_at'],
+            ],
+        ];
+    }
+
     $properties = avesmapsDecodeJsonColumn($row['properties_json'] ?? null);
     $style = avesmapsDecodeJsonColumn($row['style_json'] ?? null);
     foreach ($style as $styleKey => $styleValue) {

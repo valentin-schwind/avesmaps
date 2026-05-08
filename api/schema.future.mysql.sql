@@ -117,3 +117,13 @@ CREATE TABLE IF NOT EXISTS map_audit_log (
     KEY idx_map_audit_log_feature_created (feature_id, created_at),
     KEY idx_map_audit_log_actor_created (actor_user_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS map_feature_locks (
+    public_id CHAR(36) NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    username VARCHAR(120) NOT NULL,
+    locked_until DATETIME(3) NOT NULL,
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (public_id),
+    KEY idx_map_feature_locks_locked_until (locked_until)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

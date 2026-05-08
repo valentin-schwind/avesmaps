@@ -5,6 +5,10 @@ declare(strict_types=1);
 require __DIR__ . '/auth.php';
 
 const AVESMAPS_LOCATION_SUBTYPES = ['metropole', 'grossstadt', 'stadt', 'kleinstadt', 'dorf', 'gebaeude'];
+const AVESMAPS_FEATURE_LOCK_TTL_SECONDS = 120;
+
+class AvesmapsConflictException extends RuntimeException {
+}
 
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
@@ -48,6 +52,8 @@ try {
         'update_region' => avesmapsUpdateRegionFeature($pdo, $payload, $user),
         'update_region_geometry' => avesmapsUpdateRegionFeatureGeometry($pdo, $payload, $user),
         'delete_feature' => avesmapsDeleteMapFeature($pdo, $payload, $user),
+        'acquire_lock' => avesmapsAcquireMapFeatureLock($pdo, $payload, $user),
+        'release_lock' => avesmapsReleaseMapFeatureLock($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Edit-Aktion ist unbekannt.'),
     };
 
@@ -57,6 +63,11 @@ try {
     ]);
 } catch (InvalidArgumentException $exception) {
     avesmapsJsonResponse(400, [
+        'ok' => false,
+        'error' => $exception->getMessage(),
+    ]);
+} catch (AvesmapsConflictException $exception) {
+    avesmapsJsonResponse(409, [
         'ok' => false,
         'error' => $exception->getMessage(),
     ]);
@@ -140,6 +151,19 @@ function avesmapsReadPathSubtype(mixed $value): string {
 
 function avesmapsReadBoolean(mixed $value): bool {
     return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
+}
+
+function avesmapsReadOptionalRevision(mixed $value): ?int {
+    if ($value === null || $value === '') {
+        return null;
+    }
+
+    $revision = filter_var($value, FILTER_VALIDATE_INT);
+    if ($revision === false || $revision < 0) {
+        throw new InvalidArgumentException('Die Feature-Revision ist ungueltig.');
+    }
+
+    return (int) $revision;
 }
 
 function avesmapsReadLabelSubtype(mixed $value): string {
@@ -272,6 +296,91 @@ function avesmapsFetchEditableLineStringFeature(PDO $pdo, string $publicId): arr
     return $feature;
 }
 
+function avesmapsEnsureMapFeatureLocksTable(PDO $pdo): void {
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS map_feature_locks (
+            public_id CHAR(36) NOT NULL,
+            user_id BIGINT UNSIGNED NOT NULL,
+            username VARCHAR(120) NOT NULL,
+            locked_until DATETIME(3) NOT NULL,
+            updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+            PRIMARY KEY (public_id),
+            KEY idx_map_feature_locks_locked_until (locked_until)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+}
+
+function avesmapsAssertFeatureCanBeEdited(PDO $pdo, array $payload, array $feature, array $user): void {
+    $expectedRevision = avesmapsReadOptionalRevision($payload['expected_revision'] ?? null);
+    if ($expectedRevision !== null && $expectedRevision !== (int) $feature['revision']) {
+        throw new AvesmapsConflictException('Dieses Kartenobjekt wurde inzwischen geaendert. Bitte neu laden.');
+    }
+
+    avesmapsEnsureMapFeatureLocksTable($pdo);
+    $statement = $pdo->prepare(
+        'SELECT user_id, username
+        FROM map_feature_locks
+        WHERE public_id = :public_id
+            AND locked_until > NOW(3)
+        LIMIT 1'
+    );
+    $statement->execute(['public_id' => (string) $feature['public_id']]);
+    $lock = $statement->fetch();
+    if ($lock && (int) $lock['user_id'] !== (int) $user['id']) {
+        throw new AvesmapsConflictException('Dieses Kartenobjekt wird gerade von ' . (string) $lock['username'] . ' bearbeitet.');
+    }
+}
+
+function avesmapsAcquireMapFeatureLock(PDO $pdo, array $payload, array $user): array {
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    avesmapsEnsureMapFeatureLocksTable($pdo);
+
+    $pdo->beginTransaction();
+    try {
+        $feature = avesmapsFetchEditableFeature($pdo, $publicId);
+        avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
+        $statement = $pdo->prepare(
+            'INSERT INTO map_feature_locks (public_id, user_id, username, locked_until)
+            VALUES (:public_id, :user_id, :username, DATE_ADD(NOW(3), INTERVAL ' . AVESMAPS_FEATURE_LOCK_TTL_SECONDS . ' SECOND))
+            ON DUPLICATE KEY UPDATE
+                user_id = VALUES(user_id),
+                username = VALUES(username),
+                locked_until = VALUES(locked_until)'
+        );
+        $statement->execute([
+            'public_id' => $publicId,
+            'user_id' => (int) $user['id'],
+            'username' => (string) ($user['username'] ?? 'Editor'),
+        ]);
+        $pdo->commit();
+
+        return [
+            'public_id' => $publicId,
+            'locked' => true,
+            'locked_by' => (string) ($user['username'] ?? 'Editor'),
+            'locked_until_seconds' => AVESMAPS_FEATURE_LOCK_TTL_SECONDS,
+            'revision' => (int) $feature['revision'],
+        ];
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
+function avesmapsReleaseMapFeatureLock(PDO $pdo, array $payload, array $user): array {
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    avesmapsEnsureMapFeatureLocksTable($pdo);
+    $statement = $pdo->prepare('DELETE FROM map_feature_locks WHERE public_id = :public_id AND user_id = :user_id');
+    $statement->execute([
+        'public_id' => $publicId,
+        'user_id' => (int) $user['id'],
+    ]);
+
+    return [
+        'public_id' => $publicId,
+        'locked' => false,
+    ];
+}
+
 function avesmapsMovePointFeature(PDO $pdo, array $payload, array $user): array {
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
     $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
@@ -280,6 +389,7 @@ function avesmapsMovePointFeature(PDO $pdo, array $payload, array $user): array 
     $pdo->beginTransaction();
     try {
         $feature = avesmapsFetchEditablePointFeature($pdo, $publicId);
+        avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
         $geometry = [
             'type' => 'Point',
             'coordinates' => [$lng, $lat],
@@ -331,6 +441,7 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
     $pdo->beginTransaction();
     try {
         $feature = avesmapsFetchEditablePointFeature($pdo, $publicId);
+        avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
         $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
         $properties['name'] = $name;
         $properties['feature_type'] = 'location';
@@ -604,6 +715,7 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
     $pdo->beginTransaction();
     try {
         $feature = avesmapsFetchEditableLineStringFeature($pdo, $publicId);
+        avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
         $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
         $properties['name'] = $name;
         $properties['display_name'] = $name;
@@ -657,6 +769,7 @@ function avesmapsUpdatePathFeatureGeometry(PDO $pdo, array $payload, array $user
     $pdo->beginTransaction();
     try {
         $feature = avesmapsFetchEditableLineStringFeature($pdo, $publicId);
+        avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
         $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
         $name = avesmapsNormalizeSingleLine((string) ($feature['name'] ?? $properties['name'] ?? 'Weg'), 160) ?: 'Weg';
         $subtype = avesmapsReadPathSubtype($feature['feature_subtype'] ?? $properties['feature_subtype'] ?? 'Weg');
@@ -787,6 +900,7 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
     $pdo->beginTransaction();
     try {
         $feature = avesmapsFetchEditablePointFeature($pdo, $publicId);
+        avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
         if ((string) $feature['feature_type'] !== 'label') {
             throw new InvalidArgumentException('Dieses Kartenobjekt ist kein Label.');
         }
@@ -836,6 +950,7 @@ function avesmapsMoveLabelFeature(PDO $pdo, array $payload, array $user): array 
     $pdo->beginTransaction();
     try {
         $feature = avesmapsFetchEditablePointFeature($pdo, $publicId);
+        avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
         if ((string) $feature['feature_type'] !== 'label') {
             throw new InvalidArgumentException('Dieses Kartenobjekt ist kein Label.');
         }
@@ -947,6 +1062,7 @@ function avesmapsUpdateRegionFeature(PDO $pdo, array $payload, array $user): arr
     $pdo->beginTransaction();
     try {
         $feature = avesmapsFetchEditableFeature($pdo, $publicId);
+        avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
         $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
         $properties['type'] = 'region';
         $properties['name'] = $name;
@@ -981,6 +1097,7 @@ function avesmapsUpdateRegionFeatureGeometry(PDO $pdo, array $payload, array $us
     $pdo->beginTransaction();
     try {
         $feature = avesmapsFetchEditableFeature($pdo, $publicId);
+        avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
         $revision = avesmapsNextMapRevision($pdo);
         $statement = $pdo->prepare('UPDATE map_features SET geometry_json = :geometry_json, min_x = :min_x, min_y = :min_y, max_x = :max_x, max_y = :max_y, revision = :revision, updated_by = :updated_by WHERE id = :id');
         $statement->execute(['id' => (int) $feature['id'], 'geometry_json' => avesmapsEncodeJson($geometry), 'min_x' => $bounds['min_x'], 'min_y' => $bounds['min_y'], 'max_x' => $bounds['max_x'], 'max_y' => $bounds['max_y'], 'revision' => $revision, 'updated_by' => (int) $user['id']]);
@@ -998,6 +1115,7 @@ function avesmapsDeleteMapFeature(PDO $pdo, array $payload, array $user): array 
     $pdo->beginTransaction();
     try {
         $feature = avesmapsFetchEditableFeature($pdo, $publicId);
+        avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
         $revision = avesmapsNextMapRevision($pdo);
         $statement = $pdo->prepare(
             'UPDATE map_features
