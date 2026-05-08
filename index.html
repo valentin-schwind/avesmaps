@@ -782,6 +782,7 @@
 			pathEditFeature = null,
 			labelEditEntry = null,
 			labelEditLatLng = null,
+			pendingLabelMoveAfterEditEntry = null,
 			regionEditEntry = null,
 			activeRegionGeometryEdit = null,
 			isPathEditSubmissionPending = false,
@@ -1502,6 +1503,10 @@
 			const formElement = getLabelEditFormElement();
 			if (!formElement) {
 				return;
+			}
+
+			if (pendingLabelMoveAfterEditEntry === labelEditEntry) {
+				pendingLabelMoveAfterEditEntry = null;
 			}
 
 			formElement.reset();
@@ -2300,17 +2305,24 @@
 			}
 
 			const payload = buildLabelEditPayload(formElement);
+			const editedLabelEntry = labelEditEntry;
+			const shouldStartMoveAfterSave = pendingLabelMoveAfterEditEntry === editedLabelEntry;
+			pendingLabelMoveAfterEditEntry = null;
 			setLabelEditStatus("Label wird gespeichert...", "pending");
 			try {
 				const result = await submitMapFeatureEdit(payload);
+				let savedLabelEntry = editedLabelEntry;
 				if (labelEditEntry) {
 					applyLabelFeatureResponse(labelEditEntry, result.feature);
 				} else {
-					addCreatedLabelFeature(result.feature);
+					savedLabelEntry = addCreatedLabelFeature(result.feature);
 				}
 				updateRevisionFromEditResponse(result);
 				void loadChangeLog();
 				setLabelEditDialogOpen(false, { resetForm: true });
+				if (shouldStartMoveAfterSave && savedLabelEntry) {
+					setLabelMoveActive(savedLabelEntry, true);
+				}
 				showFeedbackToast("Label gespeichert.", "success");
 			} catch (error) {
 				console.error("Label konnte nicht gespeichert werden:", error);
@@ -4788,8 +4800,10 @@
 
 		function addCreatedLabelFeature(feature) {
 			const label = normalizeLabelFeature(feature);
+			const entry = createLabelMarkerEntry(label);
 			labelData.push(label);
-			labelMarkers.push(createLabelMarkerEntry(label));
+			labelMarkers.push(entry);
+			return entry;
 		}
 
 		function applyLabelFeatureResponse(entry, feature) {
@@ -4870,11 +4884,13 @@
 					lat: duplicateLatLng.lat,
 					lng: duplicateLatLng.lng,
 				});
-				addCreatedLabelFeature(result.feature);
+				const duplicatedLabelEntry = addCreatedLabelFeature(result.feature);
 				updateRevisionFromEditResponse(result);
 				void loadChangeLog();
 				entry.marker.closePopup();
-				showFeedbackToast("Label dupliziert.", "success");
+				pendingLabelMoveAfterEditEntry = duplicatedLabelEntry;
+				openLabelEditDialog({ labelEntry: duplicatedLabelEntry });
+				showFeedbackToast("Label dupliziert. Details bearbeiten, danach verschieben.", "success");
 			} catch (error) {
 				console.error("Label konnte nicht dupliziert werden:", error);
 				showFeedbackToast(error.message || "Label konnte nicht dupliziert werden.", "warning");
