@@ -125,6 +125,7 @@
 		<nav class="review-panel__tabs" aria-label="Editorpanel">
 			<button class="review-panel__tab is-active" type="button" data-editor-panel-tab="review">Review</button>
 			<button class="review-panel__tab" type="button" data-editor-panel-tab="changes">Änderungen</button>
+			<button class="review-panel__tab" type="button" data-editor-panel-tab="presence">Online</button>
 		</nav>
 		<section class="review-panel__section is-active" data-editor-panel-section="review">
 			<p id="review-panel-status" class="review-panel__status" role="status" aria-live="polite">Meldungen werden geladen...</p>
@@ -133,6 +134,10 @@
 		<section class="review-panel__section" data-editor-panel-section="changes">
 			<p id="change-panel-status" class="review-panel__status" role="status" aria-live="polite">Änderungen werden geladen...</p>
 			<div id="change-log-list" class="review-panel__list"></div>
+		</section>
+		<section class="review-panel__section" data-editor-panel-section="presence">
+			<p id="presence-panel-status" class="review-panel__status" role="status" aria-live="polite">Online-Status wird geladen...</p>
+			<div id="presence-user-list" class="review-panel__list"></div>
 		</section>
 	</aside>
 	<button id="review-panel-toggle" class="review-panel-toggle" type="button" hidden>Review</button>
@@ -684,6 +689,7 @@
 		const MAP_FEATURE_UPDATE_API_URL = window.AVESMAPS_MAP_FEATURE_UPDATE_ENDPOINT || "api/map-feature-update.php";
 		const LOCATION_REPORT_REVIEW_API_URL = window.AVESMAPS_LOCATION_REPORT_REVIEW_ENDPOINT || "api/location-report-review.php";
 		const MAP_AUDIT_LOG_API_URL = window.AVESMAPS_MAP_AUDIT_LOG_ENDPOINT || "api/map-audit-log.php";
+		const EDITOR_PRESENCE_API_URL = window.AVESMAPS_EDITOR_PRESENCE_ENDPOINT || "api/editor-presence.php";
 		const EDIT_MODE_PLANNER_STATE_STORAGE_KEY = "avesmaps.edit.plannerState";
 		const EDIT_MODE_REVIEW_PANEL_STORAGE_KEY = "avesmaps.edit.reviewPanelHidden";
 		const EDIT_MODE_MAP_STYLE_STORAGE_KEY = "avesmaps.edit.mapStyle";
@@ -841,6 +847,8 @@
 			activeFeatureLocks = new Map(),
 			liveMapUpdateTimerId = null,
 			isLiveMapUpdatePending = false,
+			editorPresenceTimerId = null,
+			editorPresenceUsers = [],
 			labelCollisionFrameId = null;
 
 		// Initialisierung der Karte 
@@ -972,6 +980,8 @@
 			restoreReviewPanelState();
 			void loadReviewReports();
 			void loadChangeLog();
+			void sendEditorPresenceHeartbeat();
+			startEditorPresenceHeartbeat();
 		} else {
 			document.getElementById("toggleCrossings")?.setAttribute("disabled", "disabled");
 		}
@@ -987,6 +997,9 @@
 		$("#review-panel-toggle").on("click", toggleReviewPanel);
 		window.addEventListener("beforeunload", () => {
 			activeFeatureLocks.forEach((timerId) => window.clearInterval(timerId));
+			if (editorPresenceTimerId) {
+				window.clearInterval(editorPresenceTimerId);
+			}
 		});
 		$("#review-panel-refresh").on("click", () => loadReviewReports());
 		$(".review-panel__tab").on("click", function () {
@@ -2004,8 +2017,18 @@
 			statusElement.dataset.state = state;
 		}
 
+		function setPresencePanelStatus(message, state = "") {
+			const statusElement = document.getElementById("presence-panel-status");
+			if (!statusElement) {
+				return;
+			}
+
+			statusElement.textContent = message || "";
+			statusElement.dataset.state = state;
+		}
+
 		function setEditorPanelTab(tabName) {
-			activeEditorPanelTab = tabName === "changes" ? "changes" : "review";
+			activeEditorPanelTab = ["review", "changes", "presence"].includes(tabName) ? tabName : "review";
 			document.querySelectorAll(".review-panel__tab").forEach((tabElement) => {
 				tabElement.classList.toggle("is-active", tabElement.dataset.editorPanelTab === activeEditorPanelTab);
 			});
@@ -2015,6 +2038,8 @@
 
 			if (activeEditorPanelTab === "changes") {
 				void loadChangeLog();
+			} else if (activeEditorPanelTab === "presence") {
+				void sendEditorPresenceHeartbeat();
 			}
 		}
 
@@ -2236,6 +2261,73 @@
 				itemElement.querySelector(".review-report__name").textContent = report.name || "Unbenannter Eintrag";
 				itemElement.querySelector(".review-report__meta").textContent = `${getReportTypeLabel(report)} · ${formatLocationReportCoordinates(L.latLng(Number(report.lat), Number(report.lng)))}`;
 				itemElement.querySelector(".review-report__source").textContent = report.source || "Keine Quelle";
+				listElement.appendChild(itemElement);
+			});
+		}
+
+		async function sendEditorPresenceHeartbeat() {
+			if (!IS_EDIT_MODE) {
+				return;
+			}
+
+			try {
+				const response = await fetch(EDITOR_PRESENCE_API_URL, {
+					method: "POST",
+					credentials: "same-origin",
+					headers: {
+						Accept: "application/json",
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({ path: window.location.pathname }),
+				});
+				const data = await response.json().catch(() => ({}));
+				if (!response.ok || data?.ok !== true) {
+					throw new Error(data?.error || "Online-Status konnte nicht geladen werden.");
+				}
+
+				editorPresenceUsers = Array.isArray(data.users) ? data.users : [];
+				renderEditorPresenceUsers();
+			} catch (error) {
+				console.warn("Online-Status konnte nicht aktualisiert werden:", error);
+				setPresencePanelStatus(error.message || "Online-Status konnte nicht geladen werden.", "error");
+			}
+		}
+
+		function startEditorPresenceHeartbeat() {
+			if (!IS_EDIT_MODE || editorPresenceTimerId) {
+				return;
+			}
+
+			editorPresenceTimerId = window.setInterval(() => {
+				void sendEditorPresenceHeartbeat();
+			}, 30000);
+		}
+
+		function renderEditorPresenceUsers() {
+			const listElement = document.getElementById("presence-user-list");
+			if (!listElement) {
+				return;
+			}
+
+			listElement.innerHTML = "";
+			if (editorPresenceUsers.length < 1) {
+				setPresencePanelStatus("Niemand online.", "empty");
+				return;
+			}
+
+			setPresencePanelStatus(`${editorPresenceUsers.length} Nutzer online.`, "success");
+			editorPresenceUsers.forEach((user) => {
+				const itemElement = document.createElement("article");
+				itemElement.className = "presence-user";
+				itemElement.innerHTML = `
+					<span class="presence-user__dot" aria-hidden="true"></span>
+					<span>
+						<span class="presence-user__name"></span>
+						<span class="presence-user__meta"></span>
+					</span>
+				`;
+				itemElement.querySelector(".presence-user__name").textContent = user.username || "Editor";
+				itemElement.querySelector(".presence-user__meta").textContent = ` ${user.role || ""}`;
 				listElement.appendChild(itemElement);
 			});
 		}

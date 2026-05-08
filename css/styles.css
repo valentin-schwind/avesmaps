@@ -1173,7 +1173,7 @@ body.modal-dialog-open {
 
 .review-panel__tabs {
 	display: grid;
-	grid-template-columns: 1fr 1fr;
+	grid-template-columns: repeat(3, 1fr);
 	border-bottom: 1px solid rgba(96, 72, 48, 0.16);
 }
 
@@ -1326,6 +1326,35 @@ body.modal-dialog-open {
 .change-log-entry__meta {
 	min-width: 0;
 	overflow-wrap: anywhere;
+	color: #6d5b49;
+	font-size: 12px;
+}
+
+.presence-user {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	border: 1px solid rgba(96, 72, 48, 0.16);
+	border-radius: 8px;
+	background: #fffaf4;
+	color: #3f3428;
+	padding: 10px;
+}
+
+.presence-user__dot {
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	background: #4f9f4a;
+	box-shadow: 0 0 0 3px rgba(79, 159, 74, 0.16);
+	flex: 0 0 auto;
+}
+
+.presence-user__name {
+	font-weight: 700;
+}
+
+.presence-user__meta {
 	color: #6d5b49;
 	font-size: 12px;
 }

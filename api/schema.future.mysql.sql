@@ -127,3 +127,14 @@ CREATE TABLE IF NOT EXISTS map_feature_locks (
     PRIMARY KEY (public_id),
     KEY idx_map_feature_locks_locked_until (locked_until)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS editor_presence (
+    user_id BIGINT UNSIGNED NOT NULL,
+    username VARCHAR(120) NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    last_seen DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    request_origin VARCHAR(255) NULL,
+    user_agent VARCHAR(500) NULL,
+    PRIMARY KEY (user_id),
+    KEY idx_editor_presence_last_seen (last_seen)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
