@@ -10,7 +10,7 @@ try {
     if (!avesmapsApplyCorsPolicy($config)) {
         avesmapsJsonResponse(403, [
             'ok' => false,
-            'error' => 'Diese Herkunft darf Ortsmeldungen nicht pruefen.',
+            'error' => 'Diese Herkunft darf Meldungen nicht pruefen.',
         ]);
     }
 
@@ -49,7 +49,7 @@ try {
 } catch (PDOException) {
     avesmapsJsonResponse(500, [
         'ok' => false,
-        'error' => 'Die Ortsmeldungen konnten nicht verarbeitet werden.',
+        'error' => 'Die Meldungen konnten nicht verarbeitet werden.',
     ]);
 } catch (RuntimeException $exception) {
     avesmapsJsonResponse(503, [
@@ -59,11 +59,44 @@ try {
 } catch (Throwable) {
     avesmapsJsonResponse(500, [
         'ok' => false,
-        'error' => 'Die Ortsmeldungen konnten nicht verarbeitet werden.',
+        'error' => 'Die Meldungen konnten nicht verarbeitet werden.',
     ]);
 }
 
 function avesmapsListLocationReportsForReview(PDO $pdo): array {
+    avesmapsEnsureMapReportsTableForReview($pdo);
+
+    $reports = [];
+    $mapStatement = $pdo->prepare(
+        'SELECT
+            id,
+            created_at,
+            status,
+            report_type,
+            report_subtype,
+            name,
+            lat,
+            lng,
+            source,
+            wiki_url,
+            comment,
+            page_url,
+            client_version,
+            review_note
+        FROM map_reports
+        WHERE status = :status
+        ORDER BY created_at ASC, id ASC'
+    );
+    $mapStatement->execute([
+        'status' => 'neu',
+    ]);
+
+    foreach ($mapStatement->fetchAll() as $report) {
+        $report['report_source'] = 'map_reports';
+        $report['size'] = $report['report_type'] === 'location' ? $report['report_subtype'] : '';
+        $reports[] = $report;
+    }
+
     $statement = $pdo->prepare(
         'SELECT
             id,
@@ -87,14 +120,27 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
         'status' => 'neu',
     ]);
 
+    foreach ($statement->fetchAll() as $report) {
+        $report['report_source'] = 'location_reports';
+        $report['report_type'] = 'location';
+        $report['report_subtype'] = (string) ($report['size'] ?? 'dorf');
+        $reports[] = $report;
+    }
+
+    usort(
+        $reports,
+        static fn(array $left, array $right): int => [$left['created_at'] ?? '', (int) ($left['id'] ?? 0)] <=> [$right['created_at'] ?? '', (int) ($right['id'] ?? 0)]
+    );
+
     return [
         'ok' => true,
-        'reports' => $statement->fetchAll(),
+        'reports' => $reports,
     ];
 }
 
 function avesmapsUpdateLocationReportReviewStatus(PDO $pdo, array $payload, array $user): array {
     $reportId = filter_var($payload['report_id'] ?? null, FILTER_VALIDATE_INT);
+    $reportSource = avesmapsNormalizeSingleLine((string) ($payload['report_source'] ?? 'location_reports'), 40);
     $newStatus = avesmapsNormalizeSingleLine((string) ($payload['status'] ?? ''), 20);
     $reviewNote = avesmapsNormalizeReviewNote($payload['review_note'] ?? null);
 
@@ -106,32 +152,75 @@ function avesmapsUpdateLocationReportReviewStatus(PDO $pdo, array $payload, arra
         throw new InvalidArgumentException('Der Review-Status ist ungueltig.');
     }
 
+    if (!in_array($reportSource, ['location_reports', 'map_reports'], true)) {
+        throw new InvalidArgumentException('Die Meldungsquelle ist ungueltig.');
+    }
+
+    if ($reportSource === 'map_reports') {
+        avesmapsEnsureMapReportsTableForReview($pdo);
+    }
+
+    $reviewedBySql = $reportSource === 'map_reports' ? ', reviewed_by = :reviewed_by' : '';
     $statement = $pdo->prepare(
-        'UPDATE location_reports
+        "UPDATE {$reportSource}
         SET
             status = :status,
             review_note = :review_note,
             reviewed_at = CURRENT_TIMESTAMP
-        WHERE id = :report_id'
+            {$reviewedBySql}
+        WHERE id = :report_id"
     );
-    $statement->execute([
+    $params = [
         'status' => $newStatus,
         'review_note' => $reviewNote,
         'report_id' => $reportId,
-    ]);
+    ];
+    if ($reportSource === 'map_reports') {
+        $params['reviewed_by'] = (int) ($user['id'] ?? 0) ?: null;
+    }
+    $statement->execute($params);
 
     if ($statement->rowCount() < 1) {
         avesmapsJsonResponse(404, [
             'ok' => false,
-            'error' => 'Die gewuenschte Ortsmeldung wurde nicht gefunden.',
+            'error' => 'Die gewuenschte Meldung wurde nicht gefunden.',
         ]);
     }
 
     return [
         'ok' => true,
-        'message' => 'Die Ortsmeldung wurde aktualisiert.',
+        'message' => 'Die Meldung wurde aktualisiert.',
         'reviewed_by' => $user['username'] ?? '',
     ];
+}
+
+function avesmapsEnsureMapReportsTableForReview(PDO $pdo): void {
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS map_reports (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            status VARCHAR(20) NOT NULL DEFAULT 'neu',
+            report_type VARCHAR(40) NOT NULL,
+            report_subtype VARCHAR(60) NOT NULL,
+            name VARCHAR(160) NOT NULL,
+            lat DECIMAL(10, 4) NOT NULL,
+            lng DECIMAL(10, 4) NOT NULL,
+            source VARCHAR(200) NOT NULL,
+            wiki_url VARCHAR(300) NULL,
+            comment TEXT NULL,
+            page_url VARCHAR(500) NULL,
+            client_version VARCHAR(80) NULL,
+            review_note TEXT NULL,
+            request_origin VARCHAR(255) NULL,
+            remote_ip VARCHAR(64) NULL,
+            user_agent VARCHAR(500) NULL,
+            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            reviewed_at DATETIME(3) NULL,
+            reviewed_by BIGINT UNSIGNED NULL,
+            PRIMARY KEY (id),
+            KEY idx_map_reports_status_created_at (status, created_at),
+            KEY idx_map_reports_type_status (report_type, report_subtype, status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
 }
 
 function avesmapsNormalizeReviewNote(mixed $value): ?string {

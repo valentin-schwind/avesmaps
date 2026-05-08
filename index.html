@@ -109,7 +109,7 @@
 			</div>
 		</div>
 		<button type="button" class="map-context-menu__item" data-context-action="share-pin">📍 Stelle markieren und teilen</button>
-		<button type="button" class="map-context-menu__item" data-context-action="report-location">📝 Neuen Ort melden</button>
+		<button type="button" class="map-context-menu__item" data-context-action="report-location">📝 Hier melden...</button>
 		<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location">🔎 Nächsten Ort finden</button>
 		<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement">📏 Entfernung messen</button>
 		<button type="button" class="map-context-menu__item" data-context-action="clear-distance-measurement">🗑️ Entfernungsmessung löschen</button>
@@ -126,7 +126,7 @@
 			<button class="review-panel__tab" type="button" data-editor-panel-tab="changes">Änderungen</button>
 		</nav>
 		<section class="review-panel__section is-active" data-editor-panel-section="review">
-			<p id="review-panel-status" class="review-panel__status" role="status" aria-live="polite">Ortsmeldungen werden geladen...</p>
+			<p id="review-panel-status" class="review-panel__status" role="status" aria-live="polite">Meldungen werden geladen...</p>
 			<div id="review-report-list" class="review-panel__list"></div>
 		</section>
 		<section class="review-panel__section" data-editor-panel-section="changes">
@@ -139,10 +139,10 @@
 	<div id="location-report-overlay" hidden>
 		<div id="location-report-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="location-report-title" tabindex="-1">
 			<div class="location-report-dialog__header">
-				<h2 id="location-report-title">Neuen Ort melden</h2>
-				<button id="location-report-close" class="location-report-dialog__close" type="button" aria-label="Ortsmeldung schließen">×</button>
+				<h2 id="location-report-title">Karteneintrag melden</h2>
+				<button id="location-report-close" class="location-report-dialog__close" type="button" aria-label="Meldung schließen">×</button>
 			</div>
-			<p class="location-report-dialog__intro">Hilf mit, Avesmaps zu erweitern. Wir tragen gern neue Orte aus der DSA-Welt ein. Alle Meldungen werden gesammelt und bei Gelegenheit geprüft sowie eingepflegt. Bitte melde nur Orte mit sicherer Quellenlage. Hinterlass eine Beschreibung der Stelle, wenn nicht ganz klar ist, wo genau sich der Ort befindet.</p>
+			<p class="location-report-dialog__intro">Hilf mit, Avesmaps zu erweitern. Alle Meldungen werden gesammelt und geprüft. Bitte melde nur Einträge mit sicherer Quellenlage und beschreibe die Stelle, wenn die Position nicht eindeutig ist.</p>
 			<form id="location-report-form" class="location-report-form" novalidate>
 				<div class="location-report-form__meta">
 					<div class="location-report-form__meta-item">
@@ -151,14 +151,30 @@
 					</div>
 				</div>
 				<label class="location-report-form__field">
-					<span>Ortsname *</span>
-					<input id="location-report-name" name="name" type="text" maxlength="80" required />
+					<span>Art des Eintrags *</span>
+					<select id="location-report-type" name="report_type" required>
+						<option value="location">Ort</option>
+						<option value="gebaeude">Besondere Bauwerke/Stätten</option>
+						<option value="fluss">Fluss</option>
+						<option value="meer">Meer</option>
+						<option value="see">See</option>
+						<option value="region">Region</option>
+						<option value="insel">Insel</option>
+						<option value="gebirge">Gebirge</option>
+						<option value="wald">Wald</option>
+						<option value="wueste">Wüste</option>
+						<option value="suempfe_moore">Sümpfe/Moore</option>
+						<option value="sonstiges">Sonstiges</option>
+					</select>
 				</label>
 				<label class="location-report-form__field">
+					<span>Name *</span>
+					<input id="location-report-name" name="name" type="text" maxlength="80" required />
+				</label>
+				<label id="location-report-size-field" class="location-report-form__field">
 					<span>Ortsgröße *</span>
 					<select id="location-report-size" name="size" required>
 						<option value="dorf">Dorf</option>
-						<option value="gebaeude">Besondere Bauwerke/Stätten</option>
 						<option value="kleinstadt">Kleine Stadt</option>
 						<option value="stadt">Stadt</option>
 						<option value="grossstadt">Große Stadt</option>
@@ -774,6 +790,7 @@
 			changeLogEntries = [],
 			activeEditorPanelTab = "review",
 			activeReviewReportId = null,
+			activeReviewReportSource = null,
 			isReviewPanelHidden = false,
 			sharePinCoordinates = null,
 			pendingContextMenuLatLng = null,
@@ -978,6 +995,7 @@
 		});
 		$("#location-report-close, #location-report-cancel").on("click", () => setLocationReportDialogOpen(false, { resetForm: true }));
 		$("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));
+		$("#location-report-type").on("change", syncLocationReportTypeFields);
 		$("#location-report-form").on("submit", handleLocationReportFormSubmit);
 		$("#location-edit-form").on("submit", handleLocationEditFormSubmit);
 		$("#path-edit-form").on("submit", handlePathEditFormSubmit);
@@ -1272,6 +1290,7 @@
 			const formData = new FormData(formElement);
 
 			return {
+				report_type: String(formData.get("report_type") || "location").trim(),
 				name: String(formData.get("name") || "").trim(),
 				size: String(formData.get("size") || "").trim(),
 				source: String(formData.get("source") || "").trim(),
@@ -1283,6 +1302,22 @@
 				client_version: String(formData.get("client_version") || "").trim(),
 				website: String(formData.get("website") || "").trim(),
 			};
+		}
+
+		function syncLocationReportTypeFields() {
+			const reportType = String(document.getElementById("location-report-type")?.value || "location");
+			const sizeFieldElement = document.getElementById("location-report-size-field");
+			const sizeSelectElement = document.getElementById("location-report-size");
+			const isLocationReport = reportType === "location";
+			if (sizeFieldElement) {
+				sizeFieldElement.hidden = !isLocationReport;
+			}
+			if (sizeSelectElement) {
+				sizeSelectElement.required = isLocationReport;
+				if (!isLocationReport) {
+					sizeSelectElement.value = "dorf";
+				}
+			}
 		}
 
 		async function submitLocationReportRequest(payload) {
@@ -1325,7 +1360,7 @@
 
 				return {
 					ok: true,
-					message: responsePayload.message || "Ort wurde gemeldet.",
+					message: responsePayload.message || "Karteneintrag wurde gemeldet.",
 				};
 			} catch (error) {
 				if (error?.name === "AbortError") {
@@ -1335,7 +1370,7 @@
 					};
 				}
 
-				console.error("Ortsmeldung konnte nicht gesendet werden:", error, LOCATION_REPORT_FORM_ENDPOINT_URL);
+				console.error("Meldung konnte nicht gesendet werden:", error, LOCATION_REPORT_FORM_ENDPOINT_URL);
 				return {
 					ok: false,
 					message: "Die Meldung konnte nicht an den Avesmaps-Server gesendet werden.",
@@ -1502,6 +1537,7 @@
 			locationEditLatLng = null;
 			locationEditMarkerEntry = null;
 			activeReviewReportId = null;
+			activeReviewReportSource = null;
 			setLocationEditStatus();
 		}
 
@@ -1530,6 +1566,8 @@
 			formElement.reset();
 			labelEditEntry = null;
 			labelEditLatLng = null;
+			activeReviewReportId = null;
+			activeReviewReportSource = null;
 			document.getElementById("label-edit-public-id").value = "";
 			syncLabelZoomRangeOutputs();
 			syncLabelPriorityOutput();
@@ -1570,12 +1608,14 @@
 		function populateLocationReportForm(latlng) {
 			const normalizedLatLng = L.latLng(latlng);
 			locationReportLatLng = normalizedLatLng;
+			document.getElementById("location-report-type").value = "location";
 			document.getElementById("location-report-coordinates").textContent = formatLocationReportCoordinates(normalizedLatLng);
 			document.getElementById("location-report-lat").value = normalizedLatLng.lat.toFixed(3);
 			document.getElementById("location-report-lng").value = normalizedLatLng.lng.toFixed(3);
 			document.getElementById("location-report-page-url").value = window.location.href;
 			document.getElementById("location-report-client-version").value = ICON_ASSET_VERSION;
 			document.getElementById("location-report-size").value = "dorf";
+			syncLocationReportTypeFields();
 		}
 
 		function setLocationReportDialogOpen(isOpen, { resetForm = false } = {}) {
@@ -1976,7 +2016,7 @@
 				return;
 			}
 
-			setReviewPanelStatus("Ortsmeldungen werden geladen...", "pending");
+			setReviewPanelStatus("Meldungen werden geladen...", "pending");
 			try {
 				const response = await fetch(LOCATION_REPORT_REVIEW_API_URL, {
 					credentials: "same-origin",
@@ -1990,8 +2030,8 @@
 				reviewReports = Array.isArray(data.reports) ? data.reports : [];
 				renderReviewReports();
 			} catch (error) {
-				console.error("Ortsmeldungen konnten nicht geladen werden:", error);
-				setReviewPanelStatus(error.message || "Ortsmeldungen konnten nicht geladen werden.", "error");
+				console.error("Meldungen konnten nicht geladen werden:", error);
+				setReviewPanelStatus(error.message || "Meldungen konnten nicht geladen werden.", "error");
 			}
 		}
 
@@ -2138,15 +2178,16 @@
 
 			listElement.innerHTML = "";
 			if (reviewReports.length < 1) {
-				setReviewPanelStatus("Keine offenen Ortsmeldungen.", "empty");
+				setReviewPanelStatus("Keine offenen Meldungen.", "empty");
 				return;
 			}
 
-			setReviewPanelStatus(`${reviewReports.length} offene Ortsmeldungen.`, "success");
+			setReviewPanelStatus(`${reviewReports.length} offene Meldungen.`, "success");
 			reviewReports.forEach((report) => {
 				const itemElement = document.createElement("article");
 				itemElement.className = "review-report";
 				itemElement.dataset.reportId = String(report.id);
+				itemElement.dataset.reportSource = report.report_source || "location_reports";
 				itemElement.innerHTML = `
 					<button type="button" class="review-report__focus">
 						<span class="review-report__name"></span>
@@ -2158,11 +2199,44 @@
 						<button type="button" class="review-report__reject">Verwerfen</button>
 					</div>
 				`;
-				itemElement.querySelector(".review-report__name").textContent = report.name || "Unbenannter Ort";
-				itemElement.querySelector(".review-report__meta").textContent = `${report.size || "dorf"} · ${formatLocationReportCoordinates(L.latLng(Number(report.lat), Number(report.lng)))}`;
+				itemElement.querySelector(".review-report__name").textContent = report.name || "Unbenannter Eintrag";
+				itemElement.querySelector(".review-report__meta").textContent = `${getReportTypeLabel(report)} · ${formatLocationReportCoordinates(L.latLng(Number(report.lat), Number(report.lng)))}`;
 				itemElement.querySelector(".review-report__source").textContent = report.source || "Keine Quelle";
 				listElement.appendChild(itemElement);
 			});
+		}
+
+		function getReportTypeLabel(report) {
+			const reportType = report.report_type || "location";
+			const reportSubtype = report.report_subtype || report.size || "dorf";
+			if (reportType === "location") {
+				return LOCATION_TYPE_CONFIG[normalizeLocationType(reportSubtype)]?.singularLabel || "Ort";
+			}
+
+			return {
+				label: "Label",
+				fluss: "Fluss",
+				meer: "Meer",
+				see: "See",
+				region: "Region",
+				insel: "Insel",
+				gebirge: "Gebirge",
+				wald: "Wald",
+				wueste: "Wüste",
+				suempfe_moore: "Sümpfe/Moore",
+				sonstiges: "Sonstiges",
+			}[reportSubtype] || reportSubtype || "Karteneintrag";
+		}
+
+		function isLocationReport(report) {
+			return (report.report_type || "location") === "location";
+		}
+
+		function findReviewReportFromElement(element) {
+			const reportElement = element?.closest?.(".review-report");
+			const reportId = Number(reportElement?.dataset.reportId);
+			const reportSource = reportElement?.dataset.reportSource || "location_reports";
+			return reviewReports.find((entry) => Number(entry.id) === reportId && (entry.report_source || "location_reports") === reportSource) || null;
 		}
 
 		function clearReviewReportMarker() {
@@ -2190,7 +2264,7 @@
 				fillColor: "#ffffff",
 				fillOpacity: 0.95,
 			}).addTo(map);
-			reviewReportMarker.bindTooltip(report.name || "Ortsvorschlag", {
+			reviewReportMarker.bindTooltip(report.name || "Meldung", {
 				permanent: true,
 				direction: "top",
 				className: "review-report-tooltip",
@@ -2203,15 +2277,27 @@
 		function openLocationEditDialogFromReport(report, latlng) {
 			openLocationEditDialog({ latlng });
 			activeReviewReportId = Number(report.id) || null;
+			activeReviewReportSource = report.report_source || "location_reports";
 			document.getElementById("location-edit-name").value = report.name || "";
-			document.getElementById("location-edit-type").value = normalizeLocationType(report.size || "dorf");
+			document.getElementById("location-edit-type").value = normalizeLocationType(report.report_subtype || report.size || "dorf");
 			document.getElementById("location-edit-description").value = [report.comment, report.source ? `Quelle: ${report.source}` : ""]
 				.filter(Boolean)
 				.join("\n\n");
 			document.getElementById("location-edit-wiki-url").value = report.wiki_url || "";
 		}
 
-		async function updateReviewReportStatus(reportId, status) {
+		function openLabelEditDialogFromReport(report, latlng) {
+			openLabelEditDialog({ latlng });
+			activeReviewReportId = Number(report.id) || null;
+			activeReviewReportSource = report.report_source || "map_reports";
+			document.getElementById("label-edit-text").value = report.name || "";
+			document.getElementById("label-edit-type").value = report.report_subtype || "sonstiges";
+			document.getElementById("label-edit-size").value = report.report_subtype === "region" ? 22 : 18;
+			document.getElementById("label-edit-priority").value = report.report_subtype === "region" ? 4 : 3;
+			syncLabelPriorityOutput();
+		}
+
+		async function updateReviewReportStatus(reportId, status, reportSource = "location_reports") {
 			const response = await fetch(LOCATION_REPORT_REVIEW_API_URL, {
 				method: "POST",
 				credentials: "same-origin",
@@ -2222,6 +2308,7 @@
 				body: JSON.stringify({
 					action: "update_status",
 					report_id: reportId,
+					report_source: reportSource,
 					status,
 				}),
 			});
@@ -2232,22 +2319,24 @@
 		}
 
 		async function rejectReviewReport(report) {
-			if (!window.confirm(`${report.name || "Ortsmeldung"} wirklich verwerfen?`)) {
+			if (!window.confirm(`${report.name || "Meldung"} wirklich verwerfen?`)) {
 				return;
 			}
 
 			try {
-				await updateReviewReportStatus(Number(report.id), "rejected");
-				if (activeReviewReportId === Number(report.id)) {
+				await updateReviewReportStatus(Number(report.id), "rejected", report.report_source || "location_reports");
+				if (activeReviewReportId === Number(report.id) && activeReviewReportSource === (report.report_source || "location_reports")) {
 					activeReviewReportId = null;
+					activeReviewReportSource = null;
 					setLocationEditDialogOpen(false, { resetForm: true });
+					setLabelEditDialogOpen(false, { resetForm: true });
 				}
 				clearReviewReportMarker();
-				showFeedbackToast("Ortsmeldung verworfen.", "success");
+				showFeedbackToast("Meldung verworfen.", "success");
 				await loadReviewReports();
 			} catch (error) {
-				console.error("Ortsmeldung konnte nicht verworfen werden:", error);
-				showFeedbackToast(error.message || "Ortsmeldung konnte nicht verworfen werden.", "warning");
+				console.error("Meldung konnte nicht verworfen werden:", error);
+				showFeedbackToast(error.message || "Meldung konnte nicht verworfen werden.", "warning");
 			}
 		}
 
@@ -2270,8 +2359,9 @@
 					addCreatedLocationMarker(result.feature);
 				}
 				if (payload.action === "create_point" && activeReviewReportId) {
-					await updateReviewReportStatus(activeReviewReportId, "approved");
+					await updateReviewReportStatus(activeReviewReportId, "approved", activeReviewReportSource || "location_reports");
 					activeReviewReportId = null;
+					activeReviewReportSource = null;
 					clearReviewReportMarker();
 					await loadReviewReports();
 				}
@@ -2337,6 +2427,13 @@
 				}
 				updateRevisionFromEditResponse(result);
 				void loadChangeLog();
+				if (payload.action === "create_label" && activeReviewReportId) {
+					await updateReviewReportStatus(activeReviewReportId, "approved", activeReviewReportSource || "map_reports");
+					activeReviewReportId = null;
+					activeReviewReportSource = null;
+					clearReviewReportMarker();
+					await loadReviewReports();
+				}
 				setLabelEditDialogOpen(false, { resetForm: true });
 				if (shouldStartMoveAfterSave && savedLabelEntry) {
 					setLabelMoveActive(savedLabelEntry, true);
@@ -2380,7 +2477,7 @@
 
 			if (ok) {
 				setLocationReportDialogOpen(false, { resetForm: true });
-				showFeedbackToast(message || "Ort wurde gemeldet.", "success");
+				showFeedbackToast(message || "Karteneintrag wurde gemeldet.", "success");
 				return;
 			}
 
@@ -6361,10 +6458,9 @@
 
 		$(document).on("click", ".review-report__focus", function (event) {
 			event.preventDefault();
-			const reportId = Number(this.closest(".review-report")?.dataset.reportId);
-			const report = reviewReports.find((entry) => Number(entry.id) === reportId);
+			const report = findReviewReportFromElement(this);
 			if (!report) {
-				showFeedbackToast("Ortsmeldung konnte nicht gefunden werden.", "warning");
+				showFeedbackToast("Meldung konnte nicht gefunden werden.", "warning");
 				return;
 			}
 
@@ -6386,10 +6482,9 @@
 		$(document).on("click", ".review-report__reject", function (event) {
 			event.preventDefault();
 			event.stopPropagation();
-			const reportId = Number(this.closest(".review-report")?.dataset.reportId);
-			const report = reviewReports.find((entry) => Number(entry.id) === reportId);
+			const report = findReviewReportFromElement(this);
 			if (!report) {
-				showFeedbackToast("Ortsmeldung konnte nicht gefunden werden.", "warning");
+				showFeedbackToast("Meldung konnte nicht gefunden werden.", "warning");
 				return;
 			}
 
@@ -6399,16 +6494,20 @@
 		$(document).on("click", ".review-report__create", function (event) {
 			event.preventDefault();
 			event.stopPropagation();
-			const reportId = Number(this.closest(".review-report")?.dataset.reportId);
-			const report = reviewReports.find((entry) => Number(entry.id) === reportId);
+			const report = findReviewReportFromElement(this);
 			if (!report) {
-				showFeedbackToast("Ortsmeldung konnte nicht gefunden werden.", "warning");
+				showFeedbackToast("Meldung konnte nicht gefunden werden.", "warning");
 				return;
 			}
 
 			const latlng = L.latLng(Number(report.lat), Number(report.lng));
 			focusReviewReport(report);
-			openLocationEditDialogFromReport(report, latlng);
+			if (isLocationReport(report)) {
+				openLocationEditDialogFromReport(report, latlng);
+				return;
+			}
+
+			openLabelEditDialogFromReport(report, latlng);
 		});
 
 		$(document).on("click", ".map-context-menu__item", function (event) {

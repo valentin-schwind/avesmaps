@@ -69,6 +69,31 @@ CREATE TABLE IF NOT EXISTS map_proposals (
     KEY idx_map_proposals_target_feature (target_feature_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS map_reports (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    status VARCHAR(20) NOT NULL DEFAULT 'neu',
+    report_type VARCHAR(40) NOT NULL,
+    report_subtype VARCHAR(60) NOT NULL,
+    name VARCHAR(160) NOT NULL,
+    lat DECIMAL(10, 4) NOT NULL,
+    lng DECIMAL(10, 4) NOT NULL,
+    source VARCHAR(200) NOT NULL,
+    wiki_url VARCHAR(300) NULL,
+    comment TEXT NULL,
+    page_url VARCHAR(500) NULL,
+    client_version VARCHAR(80) NULL,
+    review_note TEXT NULL,
+    request_origin VARCHAR(255) NULL,
+    remote_ip VARCHAR(64) NULL,
+    user_agent VARCHAR(500) NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    reviewed_at DATETIME(3) NULL,
+    reviewed_by BIGINT UNSIGNED NULL,
+    PRIMARY KEY (id),
+    KEY idx_map_reports_status_created_at (status, created_at),
+    KEY idx_map_reports_type_status (report_type, report_subtype, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS map_revision (
     id TINYINT UNSIGNED NOT NULL,
     revision BIGINT UNSIGNED NOT NULL,
