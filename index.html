@@ -5249,7 +5249,7 @@
 		}
 
 		function refreshPathLayerText(path) {
-			const labelLine = path?._pathLines?.[1];
+			const labelLine = path?._pathLabelLine;
 			if (!labelLine?.setText) {
 				return;
 			}
@@ -5270,6 +5270,16 @@
 
 		function syncPathLabels() {
 			pathData.forEach(refreshPathLayerText);
+		}
+
+		function getReadablePathLabelLatLngCoordinates(latLngCoords) {
+			if (latLngCoords.length < 2) {
+				return latLngCoords;
+			}
+
+			const startPoint = map.latLngToLayerPoint(latLngCoords[0]);
+			const endPoint = map.latLngToLayerPoint(latLngCoords[latLngCoords.length - 1]);
+			return endPoint.x < startPoint.x ? [...latLngCoords].reverse() : latLngCoords;
 		}
 
 		function refreshPathLayerPopup(path) {
@@ -5306,10 +5316,20 @@
 				lineCap: "round",
 				lineJoin: "round",
 			});
+			const pathLabelLine = L.polyline(getReadablePathLabelLatLngCoordinates(latLngCoords), {
+				pane: "labelsPane",
+				color: "transparent",
+				weight: 1,
+				opacity: 0,
+				interactive: false,
+				lineCap: "round",
+				lineJoin: "round",
+			});
 
-			const layerGroup = L.layerGroup([roadOutline, roadCenter]);
+			const layerGroup = L.layerGroup([roadOutline, roadCenter, pathLabelLine]);
 			path._layerGroup = layerGroup;
 			path._pathLines = [roadOutline, roadCenter];
+			path._pathLabelLine = pathLabelLine;
 			if (IS_EDIT_MODE) {
 				path._pathLines.forEach((line) => {
 					line.on("dblclick", (event) => handleEditablePathDoubleClick(path, event));
@@ -5374,6 +5394,7 @@
 
 			const latLngCoords = getVisualPathLatLngCoordinates(path.geometry.coordinates);
 			path._pathLines.forEach((line) => line.setLatLngs(latLngCoords));
+			path._pathLabelLine?.setLatLngs(getReadablePathLabelLatLngCoordinates(latLngCoords));
 		}
 
 		function applyPathFeatureResponse(path, feature) {
