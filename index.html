@@ -763,6 +763,21 @@
 			dorf: { size: 12, minZoom: 4 },
 			gebaeude: { size: 12, minZoom: 4 },
 		};
+		const POWERLINE_RENDER_CONFIG = {
+			strandCount: 3,
+			segmentCount: 10,
+			normalScales: [0.1, 0.1, 0.1, 0.1],
+			waveOffsets: [-1, 1, 1, 1],
+			phaseStep: 1.73,
+			tremorNormalAmplitude: 2.1,
+			tremorTangentAmplitude: 0.3,
+			tremorNormalSpeed: 0.55,
+			tremorTangentSpeed: 0.42,
+			tremorNormalFrequency: 0.38,
+			tremorTangentFrequency: 0.29,
+			tremorPhaseMultiplier: 2.4,
+			frameIntervalMs: 24,
+		};
 		document.body.classList.toggle("edit-mode", IS_EDIT_MODE);
 		const DEFAULT_PLANNER_STATE = {
 			toggleMetropolen: false,
@@ -3761,7 +3776,11 @@
 			}
 
 			const config = LOCATION_NAME_LABEL_CONFIG[entry.locationType] || LOCATION_NAME_LABEL_CONFIG.dorf;
-			return zoomLevel >= config.minZoom && isLocationTypeVisible(entry.locationType);
+			const isVisibleByNodixToggle = IS_EDIT_MODE
+				&& $("#toggleNodix").is(":checked")
+				&& isNodixLocation(entry.location)
+				&& zoomLevel >= 2;
+			return isVisibleByNodixToggle || (zoomLevel >= config.minZoom && isLocationTypeVisible(entry.locationType));
 		}
 
 		function createLocationNameLabelIcon(entry, zoomLevel = map.getZoom()) {
@@ -3832,12 +3851,10 @@
 			const ty = dy / length;
 			const nx = -ty;
 			const ny = tx;
-			const segmentCount = Math.round(Math.max(18, Math.min(120, length / 180)));
-			const normalScales = [0.48, 0.62, 0.72, 0.56];
-			const waveOffsets = [-7, 5, 0, 8];
-			const phase = strandIndex * 1.73;
-			const normalScale = normalScales[strandIndex % normalScales.length];
-			const waveOffset = waveOffsets[strandIndex % waveOffsets.length];
+			const segmentCount = Math.max(2, Math.round(POWERLINE_RENDER_CONFIG.segmentCount));
+			const phase = strandIndex * POWERLINE_RENDER_CONFIG.phaseStep;
+			const normalScale = POWERLINE_RENDER_CONFIG.normalScales[strandIndex % POWERLINE_RENDER_CONFIG.normalScales.length];
+			const waveOffset = POWERLINE_RENDER_CONFIG.waveOffsets[strandIndex % POWERLINE_RENDER_CONFIG.waveOffsets.length];
 			const points = [];
 
 			for (let index = 0; index <= segmentCount; index++) {
@@ -3845,8 +3862,16 @@
 				const envelope = Math.sin(Math.PI * t);
 				const normalWave = Math.sin(index * 0.62 + phase) * envelope * 4.5;
 				const tangentWave = Math.sin(index * 1.17 + phase) * envelope * 0.8;
-				const tremorWave = Math.sin(timeSeconds * 0.55 + index * 0.38 + phase * 2.4) * envelope * 2.1;
-				const tremorTangent = Math.sin(timeSeconds * 0.42 + index * 0.29 + phase) * envelope * 0.3;
+				const tremorWave = Math.sin(
+					timeSeconds * POWERLINE_RENDER_CONFIG.tremorNormalSpeed
+					+ index * POWERLINE_RENDER_CONFIG.tremorNormalFrequency
+					+ phase * POWERLINE_RENDER_CONFIG.tremorPhaseMultiplier
+				) * envelope * POWERLINE_RENDER_CONFIG.tremorNormalAmplitude;
+				const tremorTangent = Math.sin(
+					timeSeconds * POWERLINE_RENDER_CONFIG.tremorTangentSpeed
+					+ index * POWERLINE_RENDER_CONFIG.tremorTangentFrequency
+					+ phase
+				) * envelope * POWERLINE_RENDER_CONFIG.tremorTangentAmplitude;
 				const normalOffset = (normalWave + tremorWave + waveOffset * envelope) * normalScale;
 
 				points.push(L.latLng(
@@ -3861,7 +3886,7 @@
 		function getPowerlineRenderStyles() {
 			const styles = [];
 
-			for (let strikeIndex = 0; strikeIndex < 4; strikeIndex++) {
+			for (let strikeIndex = 0; strikeIndex < POWERLINE_RENDER_CONFIG.strandCount; strikeIndex++) {
 				styles.push(
 					{
 						className: `powerline powerline--aura powerline--strike-${strikeIndex + 1}`,
@@ -3971,7 +3996,7 @@
 			}
 
 			const elapsedMs = frameTimeMs - powerlineAnimationLastFrameMs;
-			if (elapsedMs >= 24) {
+			if (elapsedMs >= POWERLINE_RENDER_CONFIG.frameIntervalMs) {
 				powerlineAnimationTimeSeconds += Math.min(elapsedMs, 120) / 1000;
 				powerlineAnimationLastFrameMs = frameTimeMs;
 				refreshPowerlineLayers(powerlineAnimationTimeSeconds);
