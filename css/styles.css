@@ -667,6 +667,15 @@ body.modal-dialog-open {
 	width: auto;
 }
 
+#path-edit-transport-options label {
+	display: block;
+	font-size: 13px;
+}
+
+#path-edit-transport-options input {
+	width: auto;
+}
+
 .location-report-form__field textarea {
 	min-height: 96px;
 	resize: vertical;

@@ -171,6 +171,7 @@
 						<option value="wald">Wald</option>
 						<option value="wueste">Wüste</option>
 						<option value="suempfe_moore">Sümpfe/Moore</option>
+						<option value="comment">Kommentar</option>
 						<option value="sonstiges">Sonstiges</option>
 					</select>
 				</label>
@@ -193,6 +194,10 @@
 					<input id="location-report-source" name="source" type="text" maxlength="200" required />
 				</label>
 				<label class="location-report-form__field">
+					<span>Name/Pseudonym (optional)</span>
+					<input id="location-report-reporter-name" name="reporter_name" type="text" maxlength="80" autocomplete="nickname" />
+				</label>
+				<label class="location-report-form__field">
 					<span>Wiki-Link (wenn vorhanden)</span>
 					<input id="location-report-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="300" placeholder="https://..." />
 				</label>
@@ -204,6 +209,7 @@
 				<input id="location-report-lng" name="lng" type="hidden" />
 				<input id="location-report-page-url" name="page_url" type="hidden" />
 				<input id="location-report-client-version" name="client_version" type="hidden" />
+				<input id="location-report-opened-at" name="opened_at" type="hidden" />
 				<input id="location-report-honeypot" class="location-report-form__honeypot" name="website" type="text" tabindex="-1" autocomplete="off" />
 				<p id="location-report-service-note" class="location-report-form__service-note" hidden>Das Meldeformular ist hier noch nicht mit einem Avesmaps-Server verbunden.</p>
 				<p id="location-report-status" class="location-report-form__status" role="status" aria-live="polite"></p>
@@ -294,6 +300,29 @@
 						<option value="Seeweg">Seeweg</option>
 					</select>
 				</label>
+				<label class="location-report-form__field">
+					<span>Reiseart</span>
+					<select id="path-edit-transport-domain" name="transport_domain">
+						<option value="land">Landweg</option>
+						<option value="river">Flussweg</option>
+						<option value="sea">Seeweg</option>
+						<option value="none">Keine</option>
+					</select>
+				</label>
+				<div id="path-edit-transport-options" class="location-report-form__field">
+					<span>Erlaubte Transportmittel</span>
+					<label><input type="checkbox" name="allowed_transport" value="caravan" /> Karawane</label>
+					<label><input type="checkbox" name="allowed_transport" value="groupFoot" /> Reisegruppe zu Fuss</label>
+					<label><input type="checkbox" name="allowed_transport" value="lightWalker" /> Zu Fuss</label>
+					<label><input type="checkbox" name="allowed_transport" value="horseCarriage" /> Kutsche</label>
+					<label><input type="checkbox" name="allowed_transport" value="groupHorse" /> Reisegruppe beritten</label>
+					<label><input type="checkbox" name="allowed_transport" value="lightRider" /> Reiter</label>
+					<label><input type="checkbox" name="allowed_transport" value="riverSailer" /> Flusssegler</label>
+					<label><input type="checkbox" name="allowed_transport" value="riverBarge" /> Flusskahn</label>
+					<label><input type="checkbox" name="allowed_transport" value="cargoShip" /> Lastensegler</label>
+					<label><input type="checkbox" name="allowed_transport" value="fastShip" /> Schnellsegler</label>
+					<label><input type="checkbox" name="allowed_transport" value="galley" /> Galeere</label>
+				</div>
 				<p id="path-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions">
 					<button id="path-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
@@ -698,9 +727,9 @@
 		const DEFAULT_SHARE_PIN_ZOOM = 4;
 		const VISUAL_LINE_SMOOTHING_CONFIG = {
 			enabled: INITIAL_SEARCH_PARAMS.get("smoothRoute") !== "0" && INITIAL_SEARCH_PARAMS.get("smoothLines") !== "0",
-			factor: 0.46,
-			maxDistance: 34,
-			samples: 12,
+			factor: 0.58,
+			maxDistance: 54,
+			samples: 16,
 		};
 		const LOCATION_TYPE_CONFIG = {
 			metropole: { label: "Metropolen", singularLabel: "Metropole", icon: "🏛️", queryParam: "toggleMetropolen", radius: 10, shape: "circle", borderWidth: 3 },
@@ -753,6 +782,12 @@
 			land: new Set(["caravan", "groupFoot", "lightWalker", "horseCarriage", "groupHorse", "lightRider"]),
 			river: new Set(["riverSailer", "riverBarge"]),
 			sea: new Set(["cargoShip", "fastShip", "galley"]),
+		};
+		const TRANSPORT_DOMAIN_OPTIONS = {
+			land: ["caravan", "groupFoot", "lightWalker", "horseCarriage", "groupHorse", "lightRider"],
+			river: ["riverSailer", "riverBarge"],
+			sea: ["cargoShip", "fastShip", "galley"],
+			none: [],
 		};
 		const TRANSPORT_ICON_PATHS = {
 			mapLayerModeSelect: {
@@ -1039,7 +1074,12 @@
 		$("#region-edit-delete").on("click", () => deleteActiveRegion());
 		$("#region-edit-opacity").on("input", syncRegionOpacityOutput);
 		$("#path-edit-autoname").on("change", syncPathAutoNameControls);
-		$("#path-edit-type").on("change", () => syncPathAutoNameControls({ forceName: true }));
+		$("#path-edit-type").on("change", () => {
+			syncPathAutoNameControls({ forceName: true });
+			document.getElementById("path-edit-transport-domain").value = getDefaultTransportDomainForPathSubtype(normalizePathSubtype(document.getElementById("path-edit-type").value));
+			syncPathTransportOptions({ resetToDefault: true });
+		});
+		$("#path-edit-transport-domain").on("change", () => syncPathTransportOptions({ resetToDefault: true }));
 		$("#path-edit-close, #path-edit-cancel").on("click", () => setPathEditDialogOpen(false, { resetForm: true }));
 		$("#label-edit-close, #label-edit-cancel").on("click", () => setLabelEditDialogOpen(false, { resetForm: true }));
 		$("#region-edit-close, #region-edit-cancel").on("click", () => setRegionEditDialogOpen(false, { resetForm: true }));
@@ -1326,12 +1366,14 @@
 				name: String(formData.get("name") || "").trim(),
 				size: String(formData.get("size") || "").trim(),
 				source: String(formData.get("source") || "").trim(),
+				reporter_name: String(formData.get("reporter_name") || "").trim(),
 				wiki_url: String(formData.get("wiki_url") || "").trim(),
 				comment: String(formData.get("comment") || "").trim(),
 				lat: Number.parseFloat(String(formData.get("lat") || "")),
 				lng: Number.parseFloat(String(formData.get("lng") || "")),
 				page_url: String(formData.get("page_url") || "").trim(),
 				client_version: String(formData.get("client_version") || "").trim(),
+				elapsed_ms: Math.max(0, Date.now() - Number.parseInt(String(formData.get("opened_at") || "0"), 10)),
 				website: String(formData.get("website") || "").trim(),
 			};
 		}
@@ -1340,7 +1382,9 @@
 			const reportType = String(document.getElementById("location-report-type")?.value || "location");
 			const sizeFieldElement = document.getElementById("location-report-size-field");
 			const sizeSelectElement = document.getElementById("location-report-size");
+			const sourceInputElement = document.getElementById("location-report-source");
 			const isLocationReport = reportType === "location";
+			const isCommentReport = reportType === "comment";
 			if (sizeFieldElement) {
 				sizeFieldElement.hidden = !isLocationReport;
 			}
@@ -1350,6 +1394,12 @@
 				if (!isLocationReport) {
 					sizeSelectElement.value = "dorf";
 				}
+			}
+			if (sourceInputElement) {
+				sourceInputElement.required = !isCommentReport;
+				sourceInputElement.closest(".location-report-form__field").querySelector("span").textContent = isCommentReport
+					? "Quelle (optional)"
+					: "Quelle (Abenteuer, Regionalband, etc.) *";
 			}
 		}
 
@@ -1557,6 +1607,7 @@
 			document.getElementById("location-report-lng").value = "";
 			document.getElementById("location-report-page-url").value = "";
 			document.getElementById("location-report-client-version").value = "";
+			document.getElementById("location-report-opened-at").value = "";
 			setLocationReportStatus();
 		}
 
@@ -1655,6 +1706,7 @@
 			document.getElementById("location-report-lng").value = normalizedLatLng.lng.toFixed(3);
 			document.getElementById("location-report-page-url").value = window.location.href;
 			document.getElementById("location-report-client-version").value = ICON_ASSET_VERSION;
+			document.getElementById("location-report-opened-at").value = String(Date.now());
 			document.getElementById("location-report-size").value = "dorf";
 			syncLocationReportTypeFields();
 		}
@@ -1892,6 +1944,8 @@
 			document.getElementById("path-edit-type").value = pathSubtype;
 			document.getElementById("path-edit-autoname").checked = true;
 			document.getElementById("path-edit-show-label").checked = shouldPathNameBeDisplayed(path);
+			document.getElementById("path-edit-transport-domain").value = getPathTransportDomain(path);
+			syncPathTransportOptions({ path });
 			syncPathAutoNameControls();
 		}
 
@@ -1914,7 +1968,37 @@
 				name: submittedName || getNextPathDisplayName(featureSubtype, { excludePath: pathEditFeature }),
 				feature_subtype: featureSubtype,
 				show_label: formData.get("show_label") === "on",
+				transport_domain: String(formData.get("transport_domain") || "land"),
+				allowed_transports: Array.from(formElement.querySelectorAll('input[name="allowed_transport"]:checked')).map((input) => input.value),
 			};
+		}
+
+		function getDefaultTransportDomainForPathSubtype(pathSubtype) {
+			if (pathSubtype === "Flussweg") return "river";
+			if (pathSubtype === "Seeweg") return "sea";
+			return "land";
+		}
+
+		function getPathTransportDomain(path) {
+			return path?.properties?.transport_domain || getDefaultTransportDomainForPathSubtype(normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name));
+		}
+
+		function getPathAllowedTransports(path) {
+			const domain = getPathTransportDomain(path);
+			const configured = Array.isArray(path?.properties?.allowed_transports) ? path.properties.allowed_transports : null;
+			return configured || TRANSPORT_DOMAIN_OPTIONS[domain] || [];
+		}
+
+		function syncPathTransportOptions({ path = null, resetToDefault = false } = {}) {
+			const domain = String(document.getElementById("path-edit-transport-domain")?.value || "land");
+			const defaultOptions = TRANSPORT_DOMAIN_OPTIONS[domain] || [];
+			const selectedOptions = resetToDefault || !path ? defaultOptions : getPathAllowedTransports(path);
+			document.querySelectorAll('#path-edit-transport-options input[name="allowed_transport"]').forEach((input) => {
+				const isCompatible = defaultOptions.includes(input.value);
+				input.closest("label").hidden = !isCompatible;
+				input.disabled = !isCompatible;
+				input.checked = isCompatible && selectedOptions.includes(input.value);
+			});
 		}
 
 		function syncPathAutoNameControls({ forceName = false } = {}) {
@@ -2261,6 +2345,9 @@
 				itemElement.querySelector(".review-report__name").textContent = report.name || "Unbenannter Eintrag";
 				itemElement.querySelector(".review-report__meta").textContent = `${getReportTypeLabel(report)} · ${formatLocationReportCoordinates(L.latLng(Number(report.lat), Number(report.lng)))}`;
 				itemElement.querySelector(".review-report__source").textContent = report.source || "Keine Quelle";
+				if (isCommentReport(report)) {
+					itemElement.querySelector(".review-report__create").textContent = "Erledigt";
+				}
 				listElement.appendChild(itemElement);
 			});
 		}
@@ -2351,12 +2438,17 @@
 				wald: "Wald",
 				wueste: "Wüste",
 				suempfe_moore: "Sümpfe/Moore",
+				comment: "Kommentar",
 				sonstiges: "Sonstiges",
 			}[reportSubtype] || reportSubtype || "Karteneintrag";
 		}
 
 		function isLocationReport(report) {
 			return (report.report_type || "location") === "location";
+		}
+
+		function isCommentReport(report) {
+			return (report.report_type || "") === "comment" || (report.report_subtype || "") === "comment";
 		}
 
 		function findReviewReportFromElement(element) {
@@ -5586,6 +5678,7 @@
 			pathLayers.push(pathLayer);
 			$("#togglePaths").prop("checked", true);
 			syncPathVisibility();
+			syncPathTransportOptions({ path });
 			refreshPlannerAfterFeatureChange({ updateRoute: true });
 			return path;
 		}
@@ -6934,6 +7027,16 @@
 
 			const latlng = L.latLng(Number(report.lat), Number(report.lng));
 			focusReviewReport(report);
+			if (isCommentReport(report)) {
+				void updateReviewReportStatus(Number(report.id), "approved", report.report_source || "map_reports")
+					.then(() => {
+						clearReviewReportMarker();
+						showFeedbackToast("Kommentar erledigt.", "success");
+						return loadReviewReports();
+					})
+					.catch((error) => showFeedbackToast(error.message || "Kommentar konnte nicht erledigt werden.", "warning"));
+				return;
+			}
 			if (isLocationReport(report)) {
 				openLocationEditDialogFromReport(report, latlng);
 				return;
@@ -7228,7 +7331,10 @@
 
 					for (const conn of connections) {
 
-						const transport = getTransportOption(conn.routeType);
+						const transport = conn.transportOption || getTransportOption(conn.routeType);
+						if (!transport) {
+							continue;
+						}
 
 						let weight = useShortestPath ? conn.distance : conn.time;
 
@@ -7417,12 +7523,15 @@
 						console.warn(`Keine Transportoption für ${routeType} gefunden. Pfad wird übersprungen.`);
 						return;
 					}
+					if (!isTransportAllowedForPath(properties, transportOption)) {
+						return;
+					}
 					const speed = SPEED_TABLE[transportOption]?.[routeType];
 					if (!speed) {
 						console.warn(`Geschwindigkeit für ${transportOption} auf ${routeType} nicht definiert. Pfad wird übersprungen.`);
 						return;
 					}
-					const connection = { distance, time: distance / speed, routeType, id: properties.id };
+					const connection = { distance, time: distance / speed, routeType, id: properties.id, transportOption };
 					addGraphConnection(graph, startNode.name, endNode.name, connection);
 					addGraphConnection(graph, endNode.name, startNode.name, connection);
 				}
@@ -7583,6 +7692,18 @@
 			return null;
 		}
 
+		function isTransportAllowedForPath(pathProperties, transportOption) {
+			if (!transportOption) {
+				return false;
+			}
+
+			const domain = pathProperties?.transport_domain || getDefaultTransportDomainForPathSubtype(normalizePathSubtype(pathProperties?.feature_subtype || pathProperties?.name));
+			const allowedTransports = Array.isArray(pathProperties?.allowed_transports)
+				? pathProperties.allowed_transports
+				: TRANSPORT_DOMAIN_OPTIONS[domain] || [];
+			return allowedTransports.includes(transportOption);
+		}
+
 		// Zeigt den Routenplan (mit Distanzen und Zeiten)
 		function showRoutePlan(routeNames, segments) {
 
@@ -7612,7 +7733,7 @@
 
 				const type = normalizePathSubtype(segment.properties?.feature_subtype || segment.properties?.name);
 
-				const transport = getTransportOption(type) || "groupFoot";
+				const transport = segment.properties?.transportOption || getTransportOption(type) || "groupFoot";
 
 				const speedKm = SPEED_TABLE[transport]?.[type] || 1;
 

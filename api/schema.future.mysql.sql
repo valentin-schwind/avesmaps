@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS map_reports (
     report_type VARCHAR(40) NOT NULL,
     report_subtype VARCHAR(60) NOT NULL,
     name VARCHAR(160) NOT NULL,
+    reporter_name VARCHAR(80) NULL,
     lat DECIMAL(10, 4) NOT NULL,
     lng DECIMAL(10, 4) NOT NULL,
     source VARCHAR(200) NOT NULL,
@@ -85,13 +86,15 @@ CREATE TABLE IF NOT EXISTS map_reports (
     review_note TEXT NULL,
     request_origin VARCHAR(255) NULL,
     remote_ip VARCHAR(64) NULL,
+    ip_hash CHAR(64) NULL,
     user_agent VARCHAR(500) NULL,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     reviewed_at DATETIME(3) NULL,
     reviewed_by BIGINT UNSIGNED NULL,
     PRIMARY KEY (id),
     KEY idx_map_reports_status_created_at (status, created_at),
-    KEY idx_map_reports_type_status (report_type, report_subtype, status)
+    KEY idx_map_reports_type_status (report_type, report_subtype, status),
+    KEY idx_map_reports_ip_hash_created_at (ip_hash, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS map_revision (

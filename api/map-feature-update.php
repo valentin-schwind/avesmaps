@@ -150,6 +150,48 @@ function avesmapsReadPathSubtype(mixed $value): string {
     return $subtype;
 }
 
+function avesmapsDefaultTransportDomainForPathSubtype(string $subtype): string {
+    return match ($subtype) {
+        'Flussweg' => 'river',
+        'Seeweg' => 'sea',
+        default => 'land',
+    };
+}
+
+function avesmapsAllowedTransportOptionsForDomain(string $domain): array {
+    return match ($domain) {
+        'land' => ['caravan', 'groupFoot', 'lightWalker', 'horseCarriage', 'groupHorse', 'lightRider'],
+        'river' => ['riverSailer', 'riverBarge'],
+        'sea' => ['cargoShip', 'fastShip', 'galley'],
+        'none' => [],
+        default => throw new InvalidArgumentException('Die Reiseart ist ungueltig.'),
+    };
+}
+
+function avesmapsReadTransportDomain(mixed $value, string $subtype): string {
+    $domain = avesmapsNormalizeSingleLine((string) ($value ?: avesmapsDefaultTransportDomainForPathSubtype($subtype)), 20);
+    avesmapsAllowedTransportOptionsForDomain($domain);
+    return $domain;
+}
+
+function avesmapsReadAllowedTransports(mixed $value, string $domain): array {
+    $compatibleOptions = avesmapsAllowedTransportOptionsForDomain($domain);
+    if (!is_array($value)) {
+        return $compatibleOptions;
+    }
+
+    $allowedOptions = [];
+    foreach ($value as $option) {
+        $normalizedOption = avesmapsNormalizeSingleLine((string) $option, 40);
+        if (!in_array($normalizedOption, $compatibleOptions, true)) {
+            throw new InvalidArgumentException('Ein Transportmittel passt nicht zur Reiseart.');
+        }
+        $allowedOptions[] = $normalizedOption;
+    }
+
+    return array_values(array_unique($allowedOptions));
+}
+
 function avesmapsReadBoolean(mixed $value): bool {
     return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
 }
@@ -641,6 +683,8 @@ function avesmapsCreatePathFeature(PDO $pdo, array $payload, array $user): array
     $subtype = avesmapsReadPathSubtype($payload['feature_subtype'] ?? 'Weg');
     $name = avesmapsReadFeatureName($payload['name'] ?? $subtype, 'Der Wegname');
     $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
+    $transportDomain = avesmapsReadTransportDomain($payload['transport_domain'] ?? null, $subtype);
+    $allowedTransports = avesmapsReadAllowedTransports($payload['allowed_transports'] ?? null, $transportDomain);
     $coordinates = avesmapsReadLineStringCoordinates($payload['coordinates'] ?? null);
     $bounds = avesmapsCalculateLineStringBounds($coordinates);
 
@@ -655,6 +699,8 @@ function avesmapsCreatePathFeature(PDO $pdo, array $payload, array $user): array
         'feature_type' => 'path',
         'feature_subtype' => $subtype,
         'show_label' => $showLabel,
+        'transport_domain' => $transportDomain,
+        'allowed_transports' => $allowedTransports,
     ];
 
     $pdo->beginTransaction();
@@ -711,6 +757,8 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
     $name = avesmapsReadFeatureName($payload['name'] ?? '', 'Der Wegname');
     $subtype = avesmapsReadPathSubtype($payload['feature_subtype'] ?? 'Weg');
     $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
+    $transportDomain = avesmapsReadTransportDomain($payload['transport_domain'] ?? null, $subtype);
+    $allowedTransports = avesmapsReadAllowedTransports($payload['allowed_transports'] ?? null, $transportDomain);
 
     $pdo->beginTransaction();
     try {
@@ -722,6 +770,8 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         $properties['feature_type'] = 'path';
         $properties['feature_subtype'] = $subtype;
         $properties['show_label'] = $showLabel;
+        $properties['transport_domain'] = $transportDomain;
+        $properties['allowed_transports'] = $allowedTransports;
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         $revision = avesmapsNextMapRevision($pdo);
 
@@ -750,6 +800,8 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
             'name' => $name,
             'feature_subtype' => $subtype,
             'show_label' => $showLabel,
+            'transport_domain' => $transportDomain,
+            'allowed_transports' => $allowedTransports,
             'properties_json' => $properties,
             'revision' => $revision,
         ]));

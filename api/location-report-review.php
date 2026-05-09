@@ -75,6 +75,7 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
             report_type,
             report_subtype,
             name,
+            reporter_name,
             lat,
             lng,
             source,
@@ -203,6 +204,7 @@ function avesmapsEnsureMapReportsTableForReview(PDO $pdo): void {
             report_type VARCHAR(40) NOT NULL,
             report_subtype VARCHAR(60) NOT NULL,
             name VARCHAR(160) NOT NULL,
+            reporter_name VARCHAR(80) NULL,
             lat DECIMAL(10, 4) NOT NULL,
             lng DECIMAL(10, 4) NOT NULL,
             source VARCHAR(200) NOT NULL,
@@ -213,6 +215,7 @@ function avesmapsEnsureMapReportsTableForReview(PDO $pdo): void {
             review_note TEXT NULL,
             request_origin VARCHAR(255) NULL,
             remote_ip VARCHAR(64) NULL,
+            ip_hash CHAR(64) NULL,
             user_agent VARCHAR(500) NULL,
             created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
             reviewed_at DATETIME(3) NULL,
@@ -222,6 +225,20 @@ function avesmapsEnsureMapReportsTableForReview(PDO $pdo): void {
             KEY idx_map_reports_type_status (report_type, report_subtype, status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+    avesmapsEnsureMapReportReviewColumn($pdo, 'reporter_name', 'VARCHAR(80) NULL AFTER name');
+    avesmapsEnsureMapReportReviewColumn($pdo, 'ip_hash', 'CHAR(64) NULL AFTER remote_ip');
+}
+
+function avesmapsEnsureMapReportReviewColumn(PDO $pdo, string $columnName, string $columnDefinition): void {
+    $statement = $pdo->prepare('SHOW COLUMNS FROM map_reports LIKE :column_name');
+    $statement->execute([
+        'column_name' => $columnName,
+    ]);
+    if ($statement->fetch() !== false) {
+        return;
+    }
+
+    $pdo->exec("ALTER TABLE map_reports ADD COLUMN {$columnName} {$columnDefinition}");
 }
 
 function avesmapsNormalizeReviewNote(mixed $value): ?string {

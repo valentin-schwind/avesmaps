@@ -17,9 +17,12 @@ const AVESMAPS_REPORT_TYPES = [
     'wald' => ['type' => 'label', 'subtype' => 'wald'],
     'wueste' => ['type' => 'label', 'subtype' => 'wueste'],
     'suempfe_moore' => ['type' => 'label', 'subtype' => 'suempfe_moore'],
+    'comment' => ['type' => 'comment', 'subtype' => 'comment'],
     'sonstiges' => ['type' => 'label', 'subtype' => 'sonstiges'],
 ];
 const AVESMAPS_LOCATION_SUBTYPES = ['dorf', 'gebaeude', 'kleinstadt', 'stadt', 'grossstadt', 'metropole'];
+const AVESMAPS_REPORT_MAP_MAX_COORDINATE = 1024.0;
+const AVESMAPS_REPORT_SPAM_WORDS = ['casino', 'crypto', 'viagra', 'loan', 'betting', 'porn', 'seo'];
 
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
@@ -54,12 +57,23 @@ try {
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsEnsureMapReportsTable($pdo);
+    if (avesmapsReportRateLimitExceeded($pdo, avesmapsBuildPrivacyIpHash($config))) {
+        avesmapsJsonResponse(200, [
+            'ok' => true,
+            'message' => 'Karteneintrag wurde gemeldet.',
+        ]);
+    }
+    if (avesmapsIsNearDuplicateReport($pdo, $mapReport)) {
+        $mapReport['review_note'] = 'Moegliches Duplikat.';
+    }
+
     $insertStatement = $pdo->prepare(
         'INSERT INTO map_reports (
             status,
             report_type,
             report_subtype,
             name,
+            reporter_name,
             lat,
             lng,
             source,
@@ -70,12 +84,14 @@ try {
             review_note,
             request_origin,
             remote_ip,
+            ip_hash,
             user_agent
         ) VALUES (
             :status,
             :report_type,
             :report_subtype,
             :name,
+            :reporter_name,
             :lat,
             :lng,
             :source,
@@ -86,15 +102,18 @@ try {
             :review_note,
             :request_origin,
             :remote_ip,
+            :ip_hash,
             :user_agent
         )'
     );
 
+    $ipHash = avesmapsBuildPrivacyIpHash($config);
     $insertStatement->execute([
         'status' => 'neu',
         'report_type' => $mapReport['report_type'],
         'report_subtype' => $mapReport['report_subtype'],
         'name' => $mapReport['name'],
+        'reporter_name' => $mapReport['reporter_name'],
         'lat' => $mapReport['lat'],
         'lng' => $mapReport['lng'],
         'source' => $mapReport['source'],
@@ -102,9 +121,10 @@ try {
         'comment' => $mapReport['comment'],
         'page_url' => $mapReport['page_url'],
         'client_version' => $mapReport['client_version'],
-        'review_note' => '',
+        'review_note' => $mapReport['review_note'] ?? '',
         'request_origin' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_ORIGIN'] ?? ''), 255),
-        'remote_ip' => avesmapsClientIpAddress(),
+        'remote_ip' => '',
+        'ip_hash' => $ipHash,
         'user_agent' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 500),
     ]);
 
@@ -167,6 +187,13 @@ function avesmapsValidateMapReport(array $payload): array {
         ];
     }
 
+    $elapsedMilliseconds = filter_var($payload['elapsed_ms'] ?? null, FILTER_VALIDATE_INT);
+    if ($elapsedMilliseconds !== false && $elapsedMilliseconds > 0 && $elapsedMilliseconds < 3000) {
+        return [
+            'is_spam' => true,
+        ];
+    }
+
     $name = avesmapsNormalizeSingleLine((string) ($payload['name'] ?? ''), 80);
     if ($name === '') {
         throw new InvalidArgumentException('Bitte einen Namen angeben.');
@@ -193,8 +220,22 @@ function avesmapsValidateMapReport(array $payload): array {
     }
 
     $source = avesmapsNormalizeSingleLine((string) ($payload['source'] ?? ''), 200);
-    if ($source === '') {
+    if ($source === '' && $requestedType !== 'comment') {
         throw new InvalidArgumentException('Bitte eine Quelle angeben.');
+    }
+    $comment = avesmapsNormalizeMultiline((string) ($payload['comment'] ?? ''), 800);
+    $wikiUrl = avesmapsNormalizeOptionalUrl((string) ($payload['wiki_url'] ?? ''), 300, 'Der Wiki-Link');
+    $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
+    $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
+    if ($lat < 0 || $lat > AVESMAPS_REPORT_MAP_MAX_COORDINATE || $lng < 0 || $lng > AVESMAPS_REPORT_MAP_MAX_COORDINATE) {
+        throw new InvalidArgumentException('Die Meldung ist ungueltig.');
+    }
+
+    $spamText = implode(' ', [$name, $source, $wikiUrl, $comment, (string) ($payload['reporter_name'] ?? '')]);
+    if (avesmapsContainsSpamText($spamText) || avesmapsIsLinkOnlyText($comment)) {
+        return [
+            'is_spam' => true,
+        ];
     }
 
     return [
@@ -202,14 +243,95 @@ function avesmapsValidateMapReport(array $payload): array {
         'report_type' => $reportConfig['type'],
         'report_subtype' => $reportConfig['subtype'],
         'name' => $name,
+        'reporter_name' => avesmapsNormalizeSingleLine((string) ($payload['reporter_name'] ?? ''), 80),
         'source' => $source,
-        'wiki_url' => avesmapsNormalizeOptionalUrl((string) ($payload['wiki_url'] ?? ''), 300, 'Der Wiki-Link'),
-        'comment' => avesmapsNormalizeMultiline((string) ($payload['comment'] ?? ''), 800),
-        'lat' => avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat'),
-        'lng' => avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng'),
+        'wiki_url' => $wikiUrl,
+        'comment' => $comment,
+        'lat' => $lat,
+        'lng' => $lng,
         'page_url' => avesmapsNormalizeOptionalUrl((string) ($payload['page_url'] ?? ''), 500, 'Die Seiten-URL'),
         'client_version' => avesmapsNormalizeSingleLine((string) ($payload['client_version'] ?? ''), 80),
     ];
+}
+
+function avesmapsContainsSpamText(string $value): bool {
+    $normalizedValue = mb_strtolower($value);
+    foreach (AVESMAPS_REPORT_SPAM_WORDS as $spamWord) {
+        if (preg_match('/\b' . preg_quote($spamWord, '/') . '\b/u', $normalizedValue) === 1) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function avesmapsIsLinkOnlyText(string $value): bool {
+    $normalizedValue = trim($value);
+    if ($normalizedValue === '') {
+        return false;
+    }
+
+    $withoutLinks = trim((string) preg_replace('/https?:\/\/\S+/iu', '', $normalizedValue));
+    return $withoutLinks === '';
+}
+
+function avesmapsBuildPrivacyIpHash(array $config): string {
+    $secret = avesmapsGetConfiguredImportApiToken($config);
+    if ($secret === '') {
+        $secret = (string) ($config['database']['name'] ?? 'avesmaps');
+    }
+
+    return hash_hmac('sha256', avesmapsClientIpAddress(), $secret);
+}
+
+function avesmapsReportRateLimitExceeded(PDO $pdo, string $ipHash): bool {
+    $statement = $pdo->prepare(
+        "SELECT COUNT(*)
+        FROM map_reports
+        WHERE ip_hash = :ip_hash
+            AND created_at >= (CURRENT_TIMESTAMP - INTERVAL 1 HOUR)"
+    );
+    $statement->execute([
+        'ip_hash' => $ipHash,
+    ]);
+
+    return (int) $statement->fetchColumn() >= 5;
+}
+
+function avesmapsIsNearDuplicateReport(PDO $pdo, array $mapReport): bool {
+    $statement = $pdo->prepare(
+        'SELECT name, lat, lng
+        FROM map_reports
+        WHERE status = :status
+            AND report_type = :report_type
+            AND report_subtype = :report_subtype
+            AND ABS(lat - :lat) <= 2
+            AND ABS(lng - :lng) <= 2
+        ORDER BY created_at DESC
+        LIMIT 20'
+    );
+    $statement->execute([
+        'status' => 'neu',
+        'report_type' => $mapReport['report_type'],
+        'report_subtype' => $mapReport['report_subtype'],
+        'lat' => $mapReport['lat'],
+        'lng' => $mapReport['lng'],
+    ]);
+
+    $normalizedName = avesmapsNormalizeDuplicateText($mapReport['name']);
+    foreach ($statement->fetchAll() as $existingReport) {
+        $existingName = avesmapsNormalizeDuplicateText((string) ($existingReport['name'] ?? ''));
+        if ($existingName === $normalizedName || levenshtein($existingName, $normalizedName) <= 2) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function avesmapsNormalizeDuplicateText(string $value): string {
+    $normalizedValue = mb_strtolower($value);
+    return preg_replace('/[^\p{L}\p{N}]+/u', '', $normalizedValue) ?? '';
 }
 
 function avesmapsEnsureMapReportsTable(PDO $pdo): void {
@@ -220,6 +342,7 @@ function avesmapsEnsureMapReportsTable(PDO $pdo): void {
             report_type VARCHAR(40) NOT NULL,
             report_subtype VARCHAR(60) NOT NULL,
             name VARCHAR(160) NOT NULL,
+            reporter_name VARCHAR(80) NULL,
             lat DECIMAL(10, 4) NOT NULL,
             lng DECIMAL(10, 4) NOT NULL,
             source VARCHAR(200) NOT NULL,
@@ -230,15 +353,42 @@ function avesmapsEnsureMapReportsTable(PDO $pdo): void {
             review_note TEXT NULL,
             request_origin VARCHAR(255) NULL,
             remote_ip VARCHAR(64) NULL,
+            ip_hash CHAR(64) NULL,
             user_agent VARCHAR(500) NULL,
             created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
             reviewed_at DATETIME(3) NULL,
             reviewed_by BIGINT UNSIGNED NULL,
             PRIMARY KEY (id),
             KEY idx_map_reports_status_created_at (status, created_at),
-            KEY idx_map_reports_type_status (report_type, report_subtype, status)
+            KEY idx_map_reports_type_status (report_type, report_subtype, status),
+            KEY idx_map_reports_ip_hash_created_at (ip_hash, created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+    avesmapsEnsureMapReportColumn($pdo, 'reporter_name', 'VARCHAR(80) NULL AFTER name');
+    avesmapsEnsureMapReportColumn($pdo, 'ip_hash', 'CHAR(64) NULL AFTER remote_ip');
+    avesmapsEnsureMapReportIndex($pdo, 'idx_map_reports_ip_hash_created_at', '(ip_hash, created_at)');
+}
+
+function avesmapsEnsureMapReportColumn(PDO $pdo, string $columnName, string $columnDefinition): void {
+    $statement = $pdo->prepare('SHOW COLUMNS FROM map_reports LIKE :column_name');
+    $statement->execute([
+        'column_name' => $columnName,
+    ]);
+    if ($statement->fetch() !== false) {
+        return;
+    }
+
+    $pdo->exec("ALTER TABLE map_reports ADD COLUMN {$columnName} {$columnDefinition}");
+}
+
+function avesmapsEnsureMapReportIndex(PDO $pdo, string $indexName, string $indexDefinition): void {
+    foreach ($pdo->query('SHOW INDEX FROM map_reports') as $indexRow) {
+        if (($indexRow['Key_name'] ?? '') === $indexName) {
+            return;
+        }
+    }
+
+    $pdo->exec("ALTER TABLE map_reports ADD KEY {$indexName} {$indexDefinition}");
 }
 
 function avesmapsBuildDatabaseErrorMessage(PDOException $exception): string {
