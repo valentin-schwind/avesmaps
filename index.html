@@ -5376,8 +5376,12 @@
 			const targetLocation = { coordinates: [latlng.lat, latlng.lng] };
 			let nearestMatch = null;
 
-			locationData
-				.filter(({ name }) => !isCrossingName(name))
+			const locationCandidates = locationData.length
+				? locationData
+				: locationMarkers.map((entry) => entry.location).filter(Boolean);
+
+			locationCandidates
+				.filter((location) => location?.name && !isCrossingName(location.name))
 				.forEach((location) => {
 					const distance = getLocationDistance(location, targetLocation);
 					if (!nearestMatch || distance < nearestMatch.distance) {
@@ -5417,13 +5421,16 @@
 			}
 
 			const markerLatLng = markerEntry.marker.getLatLng();
-			const openPopup = () => {
-				if (map.hasLayer(markerEntry.marker)) {
-					markerEntry.marker.openPopup();
-				}
-			};
+			const popupContent = markerEntry.marker.getPopup()?.getContent?.() || markerEntry.name;
 			map.panTo(markerLatLng);
-			window.setTimeout(openPopup, 0);
+			L.popup({
+				autoPan: false,
+				closeButton: true,
+				className: "location-popup-wrapper",
+			})
+				.setLatLng(markerLatLng)
+				.setContent(popupContent)
+				.openOn(map);
 			return true;
 		}
 
