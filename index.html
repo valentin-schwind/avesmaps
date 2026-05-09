@@ -3971,7 +3971,7 @@
 			}
 
 			const elapsedMs = frameTimeMs - powerlineAnimationLastFrameMs;
-			if (elapsedMs >= 50) {
+			if (elapsedMs >= 24) {
 				powerlineAnimationTimeSeconds += Math.min(elapsedMs, 120) / 1000;
 				powerlineAnimationLastFrameMs = frameTimeMs;
 				refreshPowerlineLayers(powerlineAnimationTimeSeconds);
