@@ -676,6 +676,39 @@ body.modal-dialog-open {
 	width: auto;
 }
 
+.powerline {
+	filter: drop-shadow(0 0 10px rgba(255, 70, 110, 0.9));
+	mix-blend-mode: screen;
+	animation: powerlinePulse 2.8s ease-in-out infinite alternate;
+}
+
+.powerline--aura {
+	stroke: rgba(255, 70, 90, 0.7);
+}
+
+.powerline--mid {
+	stroke: rgba(255, 105, 130, 0.9);
+	stroke-dasharray: 10 7;
+	animation-duration: 1.8s;
+}
+
+.powerline--core {
+	stroke: rgba(255, 235, 240, 1);
+	stroke-dasharray: 4 9;
+	animation-duration: 1.2s;
+}
+
+@keyframes powerlinePulse {
+	from {
+		stroke-dashoffset: 0;
+		filter: drop-shadow(0 0 8px rgba(255, 70, 110, 0.75));
+	}
+	to {
+		stroke-dashoffset: -32;
+		filter: drop-shadow(0 0 16px rgba(255, 105, 150, 1));
+	}
+}
+
 .location-report-form__field textarea {
 	min-height: 96px;
 	resize: vertical;

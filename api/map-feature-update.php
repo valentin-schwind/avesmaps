@@ -43,6 +43,7 @@ try {
         'update_point' => avesmapsUpdatePointFeatureDetails($pdo, $payload, $user),
         'create_point' => avesmapsCreatePointFeature($pdo, $payload, $user),
         'create_crossing' => avesmapsCreateCrossingFeature($pdo, $payload, $user),
+        'create_powerline' => avesmapsCreatePowerlineFeature($pdo, $payload, $user),
         'create_path' => avesmapsCreatePathFeature($pdo, $payload, $user),
         'update_path_details' => avesmapsUpdatePathFeatureDetails($pdo, $payload, $user),
         'update_path_geometry' => avesmapsUpdatePathFeatureGeometry($pdo, $payload, $user),
@@ -490,6 +491,7 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
         $properties['feature_subtype'] = $subtype;
         $properties['settlement_class'] = $subtype;
         $properties['settlement_class_label'] = avesmapsLocationSubtypeLabel($subtype);
+        $properties['is_nodix'] = avesmapsReadBoolean($payload['is_nodix'] ?? false);
         if ($description === '') {
             unset($properties['description']);
         } else {
@@ -529,6 +531,7 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
             'public_id' => $publicId,
             'name' => $name,
             'feature_subtype' => $subtype,
+            'is_nodix' => $properties['is_nodix'],
             'properties_json' => $properties,
             'revision' => $revision,
         ]));
@@ -558,6 +561,7 @@ function avesmapsCreatePointFeature(PDO $pdo, array $payload, array $user): arra
         'feature_subtype' => $subtype,
         'settlement_class' => $subtype,
         'settlement_class_label' => avesmapsLocationSubtypeLabel($subtype),
+        'is_nodix' => avesmapsReadBoolean($payload['is_nodix'] ?? false),
     ];
     if ($description !== '') {
         $properties['description'] = $description;
@@ -674,6 +678,85 @@ function avesmapsCreateCrossingFeature(PDO $pdo, array $payload, array $user): a
         $pdo->commit();
 
         return avesmapsBuildPointFeatureResponse($publicId, $name, 'crossing', $lat, $lng, $properties, $revision);
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
+function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): array {
+    $fromPublicId = avesmapsReadMapFeaturePublicId($payload['from_public_id'] ?? '');
+    $toPublicId = avesmapsReadMapFeaturePublicId($payload['to_public_id'] ?? '');
+    if ($fromPublicId === $toPublicId) {
+        throw new InvalidArgumentException('Start und Ziel muessen verschieden sein.');
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $fromFeature = avesmapsFetchEditablePointFeature($pdo, $fromPublicId);
+        $toFeature = avesmapsFetchEditablePointFeature($pdo, $toPublicId);
+        $fromProperties = avesmapsDecodeJsonColumnForEdit($fromFeature['properties_json'] ?? null);
+        $toProperties = avesmapsDecodeJsonColumnForEdit($toFeature['properties_json'] ?? null);
+        if (empty($fromProperties['is_nodix']) || empty($toProperties['is_nodix'])) {
+            throw new InvalidArgumentException('Kraftlinien koennen nur Nodix-Orte verbinden.');
+        }
+
+        $fromGeometry = avesmapsDecodeJsonColumnForEdit($fromFeature['geometry_json'] ?? null);
+        $toGeometry = avesmapsDecodeJsonColumnForEdit($toFeature['geometry_json'] ?? null);
+        [$fromLng, $fromLat] = avesmapsReadPointCoordinatesFromGeometry($fromGeometry);
+        [$toLng, $toLat] = avesmapsReadPointCoordinatesFromGeometry($toGeometry);
+        $publicId = avesmapsUuidV4();
+        $name = trim((string) ($fromFeature['name'] ?? 'Nodix') . ' - ' . (string) ($toFeature['name'] ?? 'Nodix'));
+        $geometry = [
+            'type' => 'LineString',
+            'coordinates' => [[$fromLng, $fromLat], [$toLng, $toLat]],
+        ];
+        $properties = [
+            'name' => $name,
+            'feature_type' => 'powerline',
+            'feature_subtype' => 'powerline',
+            'from_public_id' => $fromPublicId,
+            'to_public_id' => $toPublicId,
+        ];
+        $revision = avesmapsNextMapRevision($pdo);
+        $sortOrder = avesmapsNextMapSortOrder($pdo);
+        $statement = $pdo->prepare(
+            'INSERT INTO map_features (
+                public_id, feature_type, feature_subtype, name, geometry_type,
+                geometry_json, properties_json, min_x, min_y, max_x, max_y,
+                sort_order, revision, created_by, updated_by
+            ) VALUES (
+                :public_id, :feature_type, :feature_subtype, :name, :geometry_type,
+                :geometry_json, :properties_json, :min_x, :min_y, :max_x, :max_y,
+                :sort_order, :revision, :created_by, :updated_by
+            )'
+        );
+        $statement->execute([
+            'public_id' => $publicId,
+            'feature_type' => 'powerline',
+            'feature_subtype' => 'powerline',
+            'name' => $name,
+            'geometry_type' => 'LineString',
+            'geometry_json' => avesmapsEncodeJson($geometry),
+            'properties_json' => avesmapsEncodeJson($properties),
+            'min_x' => min($fromLng, $toLng),
+            'min_y' => min($fromLat, $toLat),
+            'max_x' => max($fromLng, $toLng),
+            'max_y' => max($fromLat, $toLat),
+            'sort_order' => $sortOrder,
+            'revision' => $revision,
+            'created_by' => (int) $user['id'],
+            'updated_by' => (int) $user['id'],
+        ]);
+
+        $featureId = (int) $pdo->lastInsertId();
+        avesmapsWriteMapAuditLog($pdo, $featureId, 'create_powerline', (int) $user['id'], '{}', avesmapsEncodeAuditJson([
+            'public_id' => $publicId,
+            'properties_json' => $properties,
+            'revision' => $revision,
+        ]));
+        $pdo->commit();
+
+        return avesmapsBuildPowerlineFeatureResponse($publicId, $name, $geometry, $properties, $revision);
     } catch (Throwable $exception) {
         avesmapsRollbackAndRethrow($pdo, $exception);
     }
@@ -1292,9 +1375,25 @@ function avesmapsBuildPointFeatureResponse(string $publicId, string $name, strin
         'location_type_label' => avesmapsLocationSubtypeLabel($subtype),
         'description' => (string) ($properties['description'] ?? ''),
         'wiki_url' => (string) ($properties['wiki_url'] ?? ''),
+        'is_nodix' => !empty($properties['is_nodix']),
         'lat' => $lat,
         'lng' => $lng,
         'revision' => $revision,
+    ];
+}
+
+function avesmapsBuildPowerlineFeatureResponse(string $publicId, string $name, array $geometry, array $properties, int $revision): array {
+    $properties['public_id'] = $publicId;
+    $properties['name'] = $name;
+    $properties['feature_type'] = 'powerline';
+    $properties['feature_subtype'] = 'powerline';
+    $properties['revision'] = $revision;
+
+    return [
+        'type' => 'Feature',
+        'id' => $publicId,
+        'geometry' => $geometry,
+        'properties' => $properties,
     ];
 }
 

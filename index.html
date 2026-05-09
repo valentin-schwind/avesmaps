@@ -105,6 +105,7 @@
 				<button type="button" class="map-context-menu__item" data-context-action="create-crossing">Neue Kreuzung</button>
 				<button type="button" class="map-context-menu__item" data-context-action="split-path-at-node" hidden>Neue Kreuzung und Weg teilen</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-path">Neuer Weg</button>
+				<button type="button" class="map-context-menu__item" data-context-action="create-powerline">Neue Kraftlinie</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-label">Neues Label</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-region">Neue Region</button>
 			</div>
@@ -258,6 +259,10 @@
 				<label class="location-report-form__field">
 					<span>Wiki-Aventurica-Link</span>
 					<input id="location-edit-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
+				</label>
+				<label class="location-report-form__field location-report-form__field--checkbox">
+					<input id="location-edit-is-nodix" name="is_nodix" type="checkbox" />
+					<span>Ort ist ein Nodix</span>
 				</label>
 				<p id="location-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions">
@@ -442,6 +447,7 @@
 						<option value="none">Nur Karte</option>
 						<option value="political">Politisch</option>
 						<option value="deregraphic" selected>Regionen</option>
+						<option value="powerlines">Kraftlinien</option>
 					</select>
 					<button type="button" id="mapLayerModeButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="mapLayerModeMenu">
 						<img id="mapLayerModeIcon" class="transport-option-inline-icon" src="icons/RegionenKarte.png" data-source-src="icons/RegionenKarte.png" alt="" />
@@ -463,6 +469,7 @@
 			<div class="display-options__row display-options__row--wrap">
 				<label id="togglePathsControl"><input type="checkbox" id="togglePaths" /> Wege</label>
 				<label id="toggleCrossingsControl" hidden><input type="checkbox" id="toggleCrossings" /> Kreuzungen</label>
+				<label id="toggleNodixControl" hidden><input type="checkbox" id="toggleNodix" /> Nodix</label>
 			</div>
 			<label id="mapStyleControl" class="display-options__row display-options__select-row" hidden>Mapstil
 				<select id="mapStyleSelect" class="display-options__select" aria-label="Mapstil">
@@ -767,6 +774,7 @@
 			togglePaths: false,
 			mapLayerMode: "deregraphic",
 			toggleCrossings: false,
+			toggleNodix: false,
 			pathType: "fastest",
 			minimizeTransfers: false,
 			includeRests: true,
@@ -794,6 +802,7 @@
 				none: "icons/NurKarte.png",
 				political: "icons/PolitischeKarte.png",
 				deregraphic: "icons/RegionenKarte.png",
+				powerlines: "icons/RegionenKarte.png",
 			},
 			landTransport: {
 				caravan: "icons/karavane.png",
@@ -819,12 +828,14 @@
 		let locationData = [],
 			wikiLocationLinks = {},
 			pathData = [],
+			powerlineData = [],
 			labelData = [],
 			regionData = [],
 			syntheticPathSegments = new Map(),
 			locationMarkers = [],
 			locationNameLabels = [],
 			pathLayers = [],
+			powerlineLayers = [],
 			labelMarkers = [],
 			regionLayers = [],
 			regionPolygons = [],
@@ -864,6 +875,7 @@
 			isLocationEditSubmissionPending = false,
 			activeLocationEdit = null,
 			pendingPathCreationStart = null,
+			pendingPowerlineCreationStart = null,
 			pendingPathCreationPreview = null,
 			pendingPathCreationLine = null,
 			pendingPathCreationPoints = [],
@@ -901,6 +913,7 @@
 		map.createPane("regionsPane");
 		map.createPane("roadsOutlinePane");
 		map.createPane("roadsPane");
+		map.createPane("powerlinesPane");
 		map.createPane("routePane");
 		map.createPane("measurementPane");
 		map.createPane("measurementHandlesPane");
@@ -911,6 +924,7 @@
 		map.getPane("regionsPane").style.zIndex = 200;
 		map.getPane("roadsOutlinePane").style.zIndex = 350;
 		map.getPane("roadsPane").style.zIndex = 400;
+		map.getPane("powerlinesPane").style.zIndex = 430;
 		map.getPane("routePane").style.zIndex = 450;
 		map.getPane("measurementPane").style.zIndex = 460;
 		map.getPane("measurementHandlesPane").style.zIndex = 520;
@@ -1010,6 +1024,8 @@
 			document.querySelector('.map-context-menu__group[data-context-action="add-here"]')?.removeAttribute("hidden");
 			document.getElementById("toggleCrossingsControl")?.removeAttribute("hidden");
 			document.getElementById("toggleCrossings")?.removeAttribute("disabled");
+			document.getElementById("toggleNodixControl")?.removeAttribute("hidden");
+			document.getElementById("toggleNodix")?.removeAttribute("disabled");
 			document.getElementById("review-panel")?.removeAttribute("hidden");
 			document.getElementById("review-panel-toggle")?.removeAttribute("hidden");
 			restoreReviewPanelState();
@@ -1019,6 +1035,7 @@
 			startEditorPresenceHeartbeat();
 		} else {
 			document.getElementById("toggleCrossings")?.setAttribute("disabled", "disabled");
+			document.getElementById("toggleNodix")?.setAttribute("disabled", "disabled");
 		}
 
 		// UI-Interaktionen und Events
@@ -1818,6 +1835,7 @@
 			document.getElementById("location-edit-type").value = normalizeLocationType(location.locationType || markerEntry?.locationType || "dorf");
 			document.getElementById("location-edit-description").value = location.description || "";
 			document.getElementById("location-edit-wiki-url").value = location.wikiUrl || wikiLocationLink?.url || "";
+			document.getElementById("location-edit-is-nodix").checked = Boolean(location.isNodix);
 
 			if (locationEditLatLng) {
 				document.getElementById("location-edit-coordinates").textContent = formatLocationReportCoordinates(locationEditLatLng);
@@ -2033,6 +2051,7 @@
 				feature_subtype: String(formData.get("feature_subtype") || "").trim(),
 				description: String(formData.get("description") || "").trim(),
 				wiki_url: String(formData.get("wiki_url") || "").trim(),
+				is_nodix: formData.get("is_nodix") === "on",
 			};
 
 			if (action === "create_point") {
@@ -2898,6 +2917,17 @@
 						},
 					})
 				);
+				if (isNodixLocation(findLocationMarkerByPublicId(publicId)?.location)) {
+					actionButtons.push(
+						popupActionButtonMarkup({
+							label: pendingPowerlineCreationStart ? "Kraftlinie abschliessen" : "Neue Kraftlinie",
+							attributes: {
+								"data-popup-action": pendingPowerlineCreationStart ? "finish-powerline-at-location" : "start-powerline-from-location",
+								"data-public-id": publicId,
+							},
+						})
+					);
+				}
 				actionButtons.push(
 					popupActionButtonMarkup({
 						label: "Ort verschieben",
@@ -3666,7 +3696,8 @@
 			}
 
 			const config = LOCATION_TYPE_CONFIG[entry.locationType] || LOCATION_TYPE_CONFIG.dorf;
-			return isLocationTypeVisible(entry.locationType)
+			const isVisibleByNodixToggle = IS_EDIT_MODE && $("#toggleNodix").is(":checked") && isNodixLocation(entry.location);
+			return (isVisibleByNodixToggle || isLocationTypeVisible(entry.locationType))
 				&& zoomLevel >= (config.minZoom || 0)
 				&& isMarkerEntryInRenderBounds(entry, renderBounds);
 		}
@@ -3768,14 +3799,68 @@
 			$.each(pathLayers, (i, layer) => map[showPaths ? "addLayer" : "removeLayer"](layer));
 		}
 
+		function getPowerlineLatLngs(powerline) {
+			const fromEntry = findLocationMarkerByPublicId(powerline.properties?.from_public_id);
+			const toEntry = findLocationMarkerByPublicId(powerline.properties?.to_public_id);
+			if (fromEntry && toEntry) {
+				return [fromEntry.marker.getLatLng(), toEntry.marker.getLatLng()];
+			}
+			return powerline.geometry.coordinates.map(([x, y]) => L.latLng(y, x));
+		}
+
+		function createPowerlineLayer(powerline) {
+			const latLngs = getPowerlineLatLngs(powerline);
+			const group = L.layerGroup();
+			[
+				{ className: "powerline powerline--aura", weight: 12, opacity: 0.32 },
+				{ className: "powerline powerline--mid", weight: 5, opacity: 0.72 },
+				{ className: "powerline powerline--core", weight: 2, opacity: 0.98 },
+			].forEach((style) => {
+				L.polyline(latLngs, {
+					pane: "powerlinesPane",
+					color: "#ff5f82",
+					lineCap: "round",
+					lineJoin: "round",
+					interactive: false,
+					...style,
+				}).addTo(group);
+			});
+			powerline._layerGroup = group;
+			return group;
+		}
+
+		function normalizePowerlineFeature(feature) {
+			const properties = feature.properties || {};
+			return {
+				id: feature.id || properties.public_id || "",
+				geometry: feature.geometry,
+				properties,
+			};
+		}
+
 		function getSelectedMapLayerMode() {
 			return String($("#mapLayerModeSelect").val() || DEFAULT_PLANNER_STATE.mapLayerMode);
 		}
 
 		function setSelectedMapLayerMode(mode) {
-			const normalizedMode = ["none", "political", "deregraphic"].includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
+			const normalizedMode = ["none", "political", "deregraphic", "powerlines"].includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
 			$("#mapLayerModeSelect").val(normalizedMode);
 			syncTransportControl("mapLayerModeSelect");
+		}
+
+		function syncPowerlineVisibility() {
+			const showPowerlines = getSelectedMapLayerMode() === "powerlines";
+			powerlineLayers.forEach((layer) => map[showPowerlines ? "addLayer" : "removeLayer"](layer));
+		}
+
+		function refreshPowerlineLayers() {
+			powerlineData.forEach((powerline) => {
+				if (!powerline._layerGroup) {
+					return;
+				}
+				const latLngs = getPowerlineLatLngs(powerline);
+				powerline._layerGroup.eachLayer((layer) => layer.setLatLngs?.(latLngs));
+			});
 		}
 
 		function syncRegionVisibility() {
@@ -3805,6 +3890,7 @@
 			syncLocationToggleButtons();
 			syncLocationMarkerVisibility();
 			syncPathVisibility();
+			syncPowerlineVisibility();
 			syncRegionVisibility();
 			syncLabelVisibility();
 		}
@@ -3829,9 +3915,14 @@
 		$("#mapLayerModeSelect").change(() => {
 			syncRegionVisibility();
 			syncLabelVisibility();
+			syncPowerlineVisibility();
 			syncPlannerStateToUrl();
 		});
 		$("#toggleCrossings").change(() => {
+			syncLocationMarkerVisibility();
+			syncPlannerStateToUrl();
+		});
+		$("#toggleNodix").change(() => {
 			syncLocationMarkerVisibility();
 			syncPlannerStateToUrl();
 		});
@@ -3842,6 +3933,10 @@
 
 		function isCrossingLocation(location) {
 			return location?.locationType === CROSSING_LOCATION_TYPE || isCrossingName(location?.name);
+		}
+
+		function isNodixLocation(location) {
+			return Boolean(location?.isNodix) && !isCrossingLocation(location);
 		}
 
 		function getNextCrossingDisplayName() {
@@ -4276,6 +4371,7 @@
 			const legacyPoliticalMode = parseBooleanQueryParam(searchParams.get("toggleBorders"), false) ? "political" : DEFAULT_PLANNER_STATE.mapLayerMode;
 			setSelectedMapLayerMode(searchParams.get("mapLayerMode") || legacyPoliticalMode);
 			$("#toggleCrossings").prop("checked", parseBooleanQueryParam(searchParams.get("toggleCrossings"), DEFAULT_PLANNER_STATE.toggleCrossings));
+			$("#toggleNodix").prop("checked", parseBooleanQueryParam(searchParams.get("toggleNodix"), DEFAULT_PLANNER_STATE.toggleNodix));
 
 			if (pathType === "shortest" || pathType === "fastest") {
 				$(`input[name="pathType"][value="${pathType}"]`).prop("checked", true);
@@ -4370,6 +4466,9 @@
 
 			if ($("#togglePaths").is(":checked") !== DEFAULT_PLANNER_STATE.togglePaths) {
 				searchParams.set("togglePaths", $("#togglePaths").is(":checked") ? "1" : "0");
+			}
+			if (IS_EDIT_MODE && $("#toggleNodix").is(":checked") !== DEFAULT_PLANNER_STATE.toggleNodix) {
+				searchParams.set("toggleNodix", $("#toggleNodix").is(":checked") ? "1" : "0");
 			}
 
 			if (getSelectedMapLayerMode() !== DEFAULT_PLANNER_STATE.mapLayerMode) {
@@ -4887,10 +4986,12 @@
 				locationTypeLabel: feature.location_type_label || LOCATION_TYPE_CONFIG[locationType]?.singularLabel || "Dorf",
 				description: feature.description || "",
 				wikiUrl: feature.wiki_url || "",
+				isNodix: Boolean(feature.is_nodix),
 				revision: Number(feature.revision) || markerEntry.location.revision || null,
 			};
 			markerEntry.marker.setLatLng(latLng);
 			refreshLocationMarkerPopup(markerEntry);
+			refreshPowerlineLayers();
 			syncLocationNameLabelVisibility();
 			const didReplaceWaypoint = replaceWaypointLocationName(previousName, markerEntry.name);
 			refreshPlannerAfterFeatureChange({ updateRoute: didReplaceWaypoint });
@@ -4937,6 +5038,7 @@
 				locationTypeLabel: locationType === CROSSING_LOCATION_TYPE ? "Kreuzung" : feature.location_type_label || LOCATION_TYPE_CONFIG[locationType]?.singularLabel || "Dorf",
 				description: feature.description || "",
 				wikiUrl: feature.wiki_url || "",
+				isNodix: Boolean(feature.is_nodix),
 				revision: Number(feature.revision) || null,
 			};
 			locationData.push(location);
@@ -4963,6 +5065,7 @@
 				lng: feature.geometry.coordinates[0],
 				description: properties.description || "",
 				wiki_url: properties.wiki_url || "",
+				is_nodix: Boolean(properties.is_nodix),
 				revision: properties.revision || null,
 			};
 			if (markerEntry) {
@@ -5677,11 +5780,24 @@
 		// Verarbeitung der Pfade (GeoJSON LineStrings)
 		const preparePathData = (data) => {
 			pathData = data.features
-				.filter((feature) => feature.geometry.type === "LineString")
+				.filter((feature) => feature.geometry.type === "LineString" && feature.properties?.feature_type !== "powerline")
 				.map((feature, idx) => normalizeRoutePathFeature(feature, idx + 1));
 			pathData.forEach((path) => {
 				pathLayers.push(createPathLayer(path));
 			});
+		};
+
+		const preparePowerlineData = (data) => {
+			powerlineLayers.forEach((layer) => map.removeLayer(layer));
+			powerlineLayers = [];
+			powerlineData = data.features
+				.filter((feature) => feature.geometry.type === "LineString" && feature.properties?.feature_type === "powerline")
+				.map(normalizePowerlineFeature);
+			powerlineData.forEach((powerline) => {
+				const layer = createPowerlineLayer(powerline);
+				powerlineLayers.push(layer);
+			});
+			syncPowerlineVisibility();
 		};
 
 		function addCreatedPathFeature(feature) {
@@ -5697,6 +5813,10 @@
 		}
 
 		function applyLivePathFeature(feature) {
+			if (feature.properties?.feature_type === "powerline") {
+				applyLivePowerlineFeature(feature);
+				return;
+			}
 			const publicId = feature.properties?.public_id || feature.id || "";
 			const path = findPathByPublicId(publicId);
 			if (path) {
@@ -5709,6 +5829,25 @@
 			pathData.push(newPath);
 			pathLayers.push(pathLayer);
 			syncPathVisibility();
+		}
+
+		function findPowerlineByPublicId(publicId) {
+			return powerlineData.find((powerline) => (powerline.id || powerline.properties?.public_id) === publicId) || null;
+		}
+
+		function applyLivePowerlineFeature(feature) {
+			const publicId = feature.id || feature.properties?.public_id || "";
+			const existingPowerline = findPowerlineByPublicId(publicId);
+			if (existingPowerline?._layerGroup) {
+				map.removeLayer(existingPowerline._layerGroup);
+				powerlineLayers = powerlineLayers.filter((layer) => layer !== existingPowerline._layerGroup);
+				powerlineData = powerlineData.filter((powerline) => powerline !== existingPowerline);
+			}
+			const powerline = normalizePowerlineFeature(feature);
+			const layer = createPowerlineLayer(powerline);
+			powerlineData.push(powerline);
+			powerlineLayers.push(layer);
+			syncPowerlineVisibility();
 		}
 
 		function findPathByPublicId(publicId) {
@@ -5774,6 +5913,14 @@
 				return;
 			}
 
+			const powerline = findPowerlineByPublicId(publicId);
+			if (powerline?._layerGroup) {
+				map.removeLayer(powerline._layerGroup);
+				powerlineLayers = powerlineLayers.filter((layer) => layer !== powerline._layerGroup);
+				powerlineData = powerlineData.filter((entry) => entry !== powerline);
+				return;
+			}
+
 			const labelEntry = labelMarkers.find((entry) => entry.label.publicId === publicId);
 			if (labelEntry) {
 				map.removeLayer(labelEntry.marker);
@@ -5805,7 +5952,9 @@
 				return;
 			}
 
-			if (feature.geometry?.type === "LineString") {
+			if (properties.feature_type === "powerline") {
+				applyLivePowerlineFeature(feature);
+			} else if (feature.geometry?.type === "LineString") {
 				applyLivePathFeature(feature);
 			} else if (properties.feature_type === "label") {
 				applyLiveLabelFeature(feature);
@@ -5820,6 +5969,7 @@
 		}
 
 		function clearPendingPathCreation() {
+			clearPendingPowerlineCreation();
 			if (pendingPathCreationPreview) {
 				map.removeLayer(pendingPathCreationPreview);
 				pendingPathCreationPreview = null;
@@ -5835,6 +5985,45 @@
 			map.off("click", handlePendingPathCreationClick);
 			map.getContainer().classList.remove("path-creation-cursor");
 			refreshAllLocationMarkerPopups();
+		}
+
+		function clearPendingPowerlineCreation() {
+			pendingPowerlineCreationStart = null;
+			refreshAllLocationMarkerPopups();
+		}
+
+		function startPowerlineCreationFromLocation(location) {
+			if (!isNodixLocation(location)) {
+				showFeedbackToast("Kraftlinien koennen nur an Nodix-Orten starten.", "warning");
+				return;
+			}
+			pendingPowerlineCreationStart = location;
+			refreshAllLocationMarkerPopups();
+			showFeedbackToast(`Start-Nodix: ${location.name}. Ziel-Nodix anklicken.`, "info");
+		}
+
+		async function completePendingPowerlineAtLocation(endLocation) {
+			const startLocation = pendingPowerlineCreationStart;
+			if (!startLocation || !isNodixLocation(endLocation) || startLocation === endLocation) {
+				showFeedbackToast("Bitte zwei verschiedene Nodix-Orte verbinden.", "warning");
+				return;
+			}
+			clearPendingPowerlineCreation();
+			try {
+				const result = await submitMapFeatureEdit({
+					action: "create_powerline",
+					from_public_id: startLocation.publicId,
+					to_public_id: endLocation.publicId,
+				});
+				applyLivePowerlineFeature(result.feature);
+				updateRevisionFromEditResponse(result);
+				setSelectedMapLayerMode("powerlines");
+				syncPowerlineVisibility();
+				showFeedbackToast(`Kraftlinie ${startLocation.name} -> ${endLocation.name} erstellt.`, "success");
+			} catch (error) {
+				console.error("Kraftlinie konnte nicht erstellt werden:", error);
+				showFeedbackToast(error.message || "Kraftlinie konnte nicht erstellt werden.", "warning");
+			}
 		}
 
 		function showPendingPathCreationPreview(startLocation) {
@@ -6765,6 +6954,7 @@
 						locationTypeLabel: isCrossing ? "Kreuzung" : feature.properties.settlement_class_label || locationConfig?.singularLabel || "Dorf",
 						description: feature.properties.description || "",
 						wikiUrl: feature.properties.wiki_url || "",
+						isNodix: Boolean(feature.properties.is_nodix),
 						revision: Number(feature.properties.revision) || null,
 					};
 				});
@@ -6926,6 +7116,7 @@
 			.done((data) => {
 				updateMapDataStatus(data);
 				prepareLocationData(data);
+				preparePowerlineData(data);
 				preparePathData(data);
 				prepareRegionData(data);
 				prepareLabelData(data);
@@ -7103,6 +7294,13 @@
 				return;
 			}
 
+			if (action === "create-powerline" && contextMenuLatLng) {
+				closeMapContextMenu();
+				const nearest = findNearestLocationToLatLng(contextMenuLatLng);
+				startPowerlineCreationFromLocation(nearest);
+				return;
+			}
+
 			if (action === "create-label" && contextMenuLatLng) {
 				closeMapContextMenu();
 				createLabelAt(contextMenuLatLng);
@@ -7215,6 +7413,20 @@
 
 				map.closePopup();
 				void completePendingPathCreationAtLocation(markerEntry.location);
+				return;
+			}
+
+			if (action === "start-powerline-from-location") {
+				const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
+				startPowerlineCreationFromLocation(markerEntry?.location);
+				map.closePopup();
+				return;
+			}
+
+			if (action === "finish-powerline-at-location") {
+				const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
+				void completePendingPowerlineAtLocation(markerEntry?.location);
+				map.closePopup();
 				return;
 			}
 
