@@ -474,6 +474,10 @@ body.modal-dialog-open {
 	display: none !important;
 }
 
+#powerline-edit-overlay[hidden] {
+	display: none !important;
+}
+
 #label-edit-overlay[hidden] {
 	display: none !important;
 }
