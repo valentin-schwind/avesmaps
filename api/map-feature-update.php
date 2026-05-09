@@ -44,6 +44,7 @@ try {
         'create_point' => avesmapsCreatePointFeature($pdo, $payload, $user),
         'create_crossing' => avesmapsCreateCrossingFeature($pdo, $payload, $user),
         'create_powerline' => avesmapsCreatePowerlineFeature($pdo, $payload, $user),
+        'update_powerline_details' => avesmapsUpdatePowerlineFeatureDetails($pdo, $payload, $user),
         'create_path' => avesmapsCreatePathFeature($pdo, $payload, $user),
         'update_path_details' => avesmapsUpdatePathFeatureDetails($pdo, $payload, $user),
         'update_path_geometry' => avesmapsUpdatePathFeatureGeometry($pdo, $payload, $user),
@@ -714,6 +715,7 @@ function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): 
             'name' => $name,
             'feature_type' => 'powerline',
             'feature_subtype' => 'powerline',
+            'show_label' => false,
             'from_public_id' => $fromPublicId,
             'to_public_id' => $toPublicId,
         ];
@@ -751,6 +753,58 @@ function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): 
         $featureId = (int) $pdo->lastInsertId();
         avesmapsWriteMapAuditLog($pdo, $featureId, 'create_powerline', (int) $user['id'], '{}', avesmapsEncodeAuditJson([
             'public_id' => $publicId,
+            'properties_json' => $properties,
+            'revision' => $revision,
+        ]));
+        $pdo->commit();
+
+        return avesmapsBuildPowerlineFeatureResponse($publicId, $name, $geometry, $properties, $revision);
+    } catch (Throwable $exception) {
+        avesmapsRollbackAndRethrow($pdo, $exception);
+    }
+}
+
+function avesmapsUpdatePowerlineFeatureDetails(PDO $pdo, array $payload, array $user): array {
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $name = avesmapsReadFeatureName($payload['name'] ?? '', 'Der Name der Kraftlinie');
+    $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
+
+    $pdo->beginTransaction();
+    try {
+        $feature = avesmapsFetchEditableLineStringFeature($pdo, $publicId);
+        avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
+        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
+        $properties['name'] = $name;
+        $properties['feature_type'] = 'powerline';
+        $properties['feature_subtype'] = 'powerline';
+        $properties['show_label'] = $showLabel;
+        $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
+        $revision = avesmapsNextMapRevision($pdo);
+
+        $statement = $pdo->prepare(
+            'UPDATE map_features
+            SET name = :name,
+                feature_type = :feature_type,
+                feature_subtype = :feature_subtype,
+                properties_json = :properties_json,
+                revision = :revision,
+                updated_by = :updated_by
+            WHERE id = :id'
+        );
+        $statement->execute([
+            'id' => (int) $feature['id'],
+            'name' => $name,
+            'feature_type' => 'powerline',
+            'feature_subtype' => 'powerline',
+            'properties_json' => avesmapsEncodeJson($properties),
+            'revision' => $revision,
+            'updated_by' => (int) $user['id'],
+        ]);
+
+        avesmapsWriteMapAuditLog($pdo, (int) $feature['id'], 'update_powerline_details', (int) $user['id'], avesmapsEncodeAuditJson($feature), avesmapsEncodeAuditJson([
+            'public_id' => $publicId,
+            'name' => $name,
+            'show_label' => $showLabel,
             'properties_json' => $properties,
             'revision' => $revision,
         ]));

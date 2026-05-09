@@ -336,6 +336,31 @@
 			</form>
 		</div>
 	</div>
+	<div id="powerline-edit-overlay" hidden>
+		<div id="powerline-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="powerline-edit-title" tabindex="-1">
+			<div class="location-report-dialog__header">
+				<h2 id="powerline-edit-title">Kraftlinie bearbeiten</h2>
+				<button id="powerline-edit-close" class="location-report-dialog__close" type="button" aria-label="Kraftlinienbearbeitung schliessen">x</button>
+			</div>
+			<form id="powerline-edit-form" class="location-report-form" novalidate>
+				<input id="powerline-edit-public-id" name="public_id" type="hidden" />
+				<label class="location-report-form__field">
+					<span>Name *</span>
+					<input id="powerline-edit-name" name="name" type="text" maxlength="160" required />
+				</label>
+				<label class="location-report-form__field location-report-form__field--checkbox">
+					<input id="powerline-edit-show-label" name="show_label" type="checkbox" />
+					<span>Name auf der Karte anzeigen</span>
+				</label>
+				<p id="powerline-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+				<div class="location-report-form__actions">
+					<button id="powerline-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+					<button id="powerline-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Loeschen</button>
+					<button id="powerline-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
+				</div>
+			</form>
+		</div>
+	</div>
 	<div id="label-edit-overlay" hidden>
 		<div id="label-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="label-edit-title" tabindex="-1">
 			<div class="location-report-dialog__header">
@@ -895,6 +920,7 @@
 			pendingPathCreationLine = null,
 			pendingPathCreationPoints = [],
 			pathEditFeature = null,
+			powerlineEditFeature = null,
 			labelEditEntry = null,
 			labelEditLatLng = null,
 			pendingLabelMoveAfterEditEntry = null,
@@ -914,7 +940,8 @@
 			labelCollisionFrameId = null,
 			powerlineAnimationFrameId = null,
 			powerlineAnimationLastFrameMs = 0,
-			powerlineAnimationTimeSeconds = 0;
+			powerlineAnimationTimeSeconds = 0,
+			isPowerlineEditSubmissionPending = false;
 
 		// Initialisierung der Karte 
 		const map = L.map("map", {
@@ -964,6 +991,7 @@
 			});
 			syncLabelIcons();
 			syncPathLabels();
+			syncPowerlineLabels();
 		});
 		map.on("moveend", () => {
 			syncLocationMarkerVisibility();
@@ -1108,7 +1136,9 @@
 		$("#location-report-form").on("submit", handleLocationReportFormSubmit);
 		$("#location-edit-form").on("submit", handleLocationEditFormSubmit);
 		$("#path-edit-form").on("submit", handlePathEditFormSubmit);
+		$("#powerline-edit-form").on("submit", handlePowerlineEditFormSubmit);
 		$("#label-edit-form").on("submit", handleLabelEditFormSubmit);
+		$("#powerline-edit-delete").on("click", () => void deletePowerlineFeature(powerlineEditFeature));
 		$("#label-edit-delete").on("click", () => deleteActiveLabel());
 		$("#label-edit-min-zoom, #label-edit-max-zoom").on("input", syncLabelZoomRangeOutputs);
 		$("#label-edit-priority").on("input", syncLabelPriorityOutput);
@@ -1123,6 +1153,7 @@
 		});
 		$("#path-edit-transport-domain").on("change", () => syncPathTransportOptions({ resetToDefault: true }));
 		$("#path-edit-close, #path-edit-cancel").on("click", () => setPathEditDialogOpen(false, { resetForm: true }));
+		$("#powerline-edit-close, #powerline-edit-cancel").on("click", () => setPowerlineEditDialogOpen(false, { resetForm: true }));
 		$("#label-edit-close, #label-edit-cancel").on("click", () => setLabelEditDialogOpen(false, { resetForm: true }));
 		$("#region-edit-close, #region-edit-cancel").on("click", () => setRegionEditDialogOpen(false, { resetForm: true }));
 		$(document).on("keydown", (event) => {
@@ -1133,6 +1164,11 @@
 
 			if (event.key === "Escape" && isPathEditDialogOpen()) {
 				setPathEditDialogOpen(false, { resetForm: true });
+				return;
+			}
+
+			if (event.key === "Escape" && isPowerlineEditDialogOpen()) {
+				setPowerlineEditDialogOpen(false, { resetForm: true });
 				return;
 			}
 
@@ -1343,6 +1379,18 @@
 			return document.getElementById("path-edit-status");
 		}
 
+		function getPowerlineEditFormElement() {
+			return document.getElementById("powerline-edit-form");
+		}
+
+		function getPowerlineEditStatusElement() {
+			return document.getElementById("powerline-edit-status");
+		}
+
+		function getPowerlineEditDialogElement() {
+			return document.getElementById("powerline-edit-dialog");
+		}
+
 		function getLabelEditFormElement() {
 			return document.getElementById("label-edit-form");
 		}
@@ -1383,6 +1431,10 @@
 			return !$("#path-edit-overlay").prop("hidden");
 		}
 
+		function isPowerlineEditDialogOpen() {
+			return !$("#powerline-edit-overlay").prop("hidden");
+		}
+
 		function isLabelEditDialogOpen() {
 			return !$("#label-edit-overlay").prop("hidden");
 		}
@@ -1396,7 +1448,7 @@
 		}
 
 		function syncModalDialogBodyState() {
-			const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden") || !$("#path-edit-overlay").prop("hidden") || !$("#label-edit-overlay").prop("hidden") || !$("#region-edit-overlay").prop("hidden");
+			const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden") || !$("#path-edit-overlay").prop("hidden") || !$("#powerline-edit-overlay").prop("hidden") || !$("#label-edit-overlay").prop("hidden") || !$("#region-edit-overlay").prop("hidden");
 			$("body").toggleClass("modal-dialog-open", hasOpenModal);
 		}
 
@@ -1547,6 +1599,20 @@
 			}
 		}
 
+		function setPowerlineEditStatus(message = "", type = "") {
+			const statusElement = getPowerlineEditStatusElement();
+			if (!statusElement) {
+				return;
+			}
+
+			statusElement.textContent = message;
+			if (type) {
+				statusElement.dataset.status = type;
+			} else {
+				delete statusElement.dataset.status;
+			}
+		}
+
 		function setLabelEditStatus(message = "", type = "") {
 			const statusElement = getLabelEditStatusElement();
 			if (!statusElement) {
@@ -1636,6 +1702,30 @@
 			}
 		}
 
+		function setPowerlineEditSubmitPending(isPending) {
+			isPowerlineEditSubmissionPending = isPending;
+
+			const formElement = getPowerlineEditFormElement();
+			if (!formElement) {
+				return;
+			}
+
+			Array.from(formElement.elements).forEach((fieldElement) => {
+				if (fieldElement instanceof HTMLElement) {
+					fieldElement.disabled = isPending;
+				}
+			});
+			const closeButtonElement = document.getElementById("powerline-edit-close");
+			if (closeButtonElement) {
+				closeButtonElement.disabled = isPending;
+			}
+			const submitButtonElement = document.getElementById("powerline-edit-submit");
+			if (submitButtonElement) {
+				submitButtonElement.textContent = isPending ? "Speichert..." : "Speichern";
+				submitButtonElement.disabled = isPending;
+			}
+		}
+
 		function resetLocationReportForm() {
 			const formElement = getLocationReportFormElement();
 			if (!formElement) {
@@ -1681,6 +1771,19 @@
 			void releaseFeatureSoftLock(publicId);
 			syncPathAutoNameControls();
 			setPathEditStatus();
+		}
+
+		function resetPowerlineEditForm() {
+			const formElement = getPowerlineEditFormElement();
+			if (!formElement) {
+				return;
+			}
+
+			const publicId = document.getElementById("powerline-edit-public-id")?.value || "";
+			formElement.reset();
+			powerlineEditFeature = null;
+			void releaseFeatureSoftLock(publicId);
+			setPowerlineEditStatus();
 		}
 
 		function resetLabelEditForm() {
@@ -1808,6 +1911,25 @@
 
 			if (resetForm) {
 				resetPathEditForm();
+			}
+		}
+
+		function setPowerlineEditDialogOpen(isOpen, { resetForm = false } = {}) {
+			if (!isOpen && isPowerlineEditSubmissionPending) {
+				return;
+			}
+
+			$("#powerline-edit-overlay").prop("hidden", !isOpen);
+			syncModalDialogBodyState();
+
+			if (isOpen) {
+				getPowerlineEditDialogElement()?.focus();
+				document.getElementById("powerline-edit-name")?.focus();
+				return;
+			}
+
+			if (resetForm) {
+				resetPowerlineEditForm();
 			}
 		}
 
@@ -1996,6 +2118,35 @@
 			resetPathEditForm();
 			populatePathEditForm(path);
 			setPathEditDialogOpen(true);
+		}
+
+		function populatePowerlineEditForm(powerline) {
+			const formElement = getPowerlineEditFormElement();
+			if (!formElement) {
+				return;
+			}
+
+			powerlineEditFeature = powerline;
+			document.getElementById("powerline-edit-public-id").value = powerline.properties?.public_id || powerline.id || "";
+			void acquireFeatureSoftLock(document.getElementById("powerline-edit-public-id").value);
+			document.getElementById("powerline-edit-name").value = String(powerline.properties?.name || "").trim();
+			document.getElementById("powerline-edit-show-label").checked = shouldPowerlineNameBeDisplayed(powerline);
+		}
+
+		function openPowerlineEditDialog(powerline) {
+			resetPowerlineEditForm();
+			populatePowerlineEditForm(powerline);
+			setPowerlineEditDialogOpen(true);
+		}
+
+		function buildPowerlineEditPayload(formElement) {
+			const formData = new FormData(formElement);
+			return {
+				action: "update_powerline_details",
+				public_id: String(formData.get("public_id") || "").trim(),
+				name: String(formData.get("name") || "").trim(),
+				show_label: formData.get("show_label") === "on",
+			};
 		}
 
 		function buildPathEditPayload(formElement) {
@@ -2252,6 +2403,8 @@
 				update_point: "Ort geändert",
 				create_point: "Ort erstellt",
 				create_crossing: "Kreuzung erstellt",
+				create_powerline: "Kraftlinie erstellt",
+				update_powerline_details: "Kraftlinie geändert",
 				create_path: "Weg erstellt",
 				update_path_details: "Weg geändert",
 				update_path_geometry: "Wegverlauf geändert",
@@ -2665,6 +2818,36 @@
 				setPathEditStatus(error.message || "Weg konnte nicht gespeichert werden.", "error");
 			} finally {
 				setPathEditSubmitPending(false);
+			}
+		}
+
+		async function handlePowerlineEditFormSubmit(event) {
+			event.preventDefault();
+			const formElement = getPowerlineEditFormElement();
+			if (!formElement || !powerlineEditFeature) {
+				return;
+			}
+
+			const payload = buildPowerlineEditPayload(formElement);
+			if (!payload.public_id || !payload.name) {
+				setPowerlineEditStatus("Ein Name fuer die Kraftlinie fehlt.", "error");
+				return;
+			}
+
+			setPowerlineEditSubmitPending(true);
+			setPowerlineEditStatus("Kraftlinie wird gespeichert...", "pending");
+			try {
+				const result = await submitMapFeatureEdit(payload);
+				applyPowerlineFeatureResponse(powerlineEditFeature, result.feature);
+				updateRevisionFromEditResponse(result);
+				void loadChangeLog();
+				setPowerlineEditDialogOpen(false, { resetForm: true });
+				showFeedbackToast("Kraftlinie gespeichert.", "success");
+			} catch (error) {
+				console.error("Kraftlinie konnte nicht gespeichert werden:", error);
+				setPowerlineEditStatus(error.message || "Kraftlinie konnte nicht gespeichert werden.", "error");
+			} finally {
+				setPowerlineEditSubmitPending(false);
 			}
 		}
 
@@ -3837,6 +4020,14 @@
 			return powerline.geometry.coordinates.map(([x, y]) => L.latLng(y, x));
 		}
 
+		function getPowerlinePublicId(powerline) {
+			return powerline?.properties?.public_id || powerline?.id || "";
+		}
+
+		function getPowerlineDisplayName(powerline) {
+			return String(powerline?.properties?.name || "Kraftlinie").trim() || "Kraftlinie";
+		}
+
 		function createPowerlineStrandLatLngs(latLngs, strandIndex, timeSeconds = 0) {
 			if (latLngs.length < 2) {
 				return latLngs;
@@ -3912,22 +4103,129 @@
 			return styles;
 		}
 
+		function shouldPowerlineNameBeDisplayed(powerline) {
+			return powerline?.properties?.show_label === true || powerline?.properties?.show_label === 1 || powerline?.properties?.show_label === "1";
+		}
+
+		function isPowerlineLabelVisibleAtCurrentZoom(powerline) {
+			return shouldPowerlineNameBeDisplayed(powerline) && map.getZoom() >= 2;
+		}
+
+		function getPowerlineLabelStyle() {
+			return {
+				fill: "rgba(255, 196, 214, 0.98)",
+				stroke: "rgba(120, 18, 44, 0.92)",
+				strokeWidth: "2px",
+				paintOrder: "stroke",
+				fontFamily: 'Georgia, "Times New Roman", serif',
+				fontSize: `${Math.max(18, getLocationNameLabelSize("dorf") + 7)}px`,
+				fontWeight: "500",
+				letterSpacing: "0",
+			};
+		}
+
+		function getReadablePowerlineLabelLatLngCoordinates(latLngCoords) {
+			if (latLngCoords.length < 2) {
+				return latLngCoords;
+			}
+
+			const startPoint = map.latLngToLayerPoint(latLngCoords[0]);
+			const endPoint = map.latLngToLayerPoint(latLngCoords[latLngCoords.length - 1]);
+			return endPoint.x < startPoint.x ? [...latLngCoords].reverse() : latLngCoords;
+		}
+
+		function refreshPowerlineLayerText(powerline) {
+			const labelLine = powerline?._labelLine;
+			if (!labelLine?.setText) {
+				return;
+			}
+
+			if (!isPowerlineLabelVisibleAtCurrentZoom(powerline)) {
+				labelLine.removeText?.();
+				return;
+			}
+
+			labelLine.setText(getPowerlineDisplayName(powerline), {
+				className: "path-name-text path-name-text--powerline",
+				offset: "50%",
+				textAnchor: "middle",
+				dy: "-10",
+				style: getPowerlineLabelStyle(),
+			});
+		}
+
+		function syncPowerlineLabels() {
+			powerlineData.forEach(refreshPowerlineLayerText);
+		}
+
+		function createPowerlinePopupMarkup(powerline) {
+			return locationPopupMarkup({
+				name: getPowerlineDisplayName(powerline),
+				locationType: "dorf",
+				locationTypeLabel: "Kraftlinie",
+				showHeaderIcon: false,
+				showDescription: false,
+				showWikiLink: false,
+				showType: true,
+				actionsMarkup: IS_EDIT_MODE ? locationPopupActionsMarkup([
+					popupActionButtonMarkup({
+						label: "Details bearbeiten",
+						attributes: {
+							"data-popup-action": "edit-powerline-details",
+							"data-public-id": getPowerlinePublicId(powerline),
+						},
+					}),
+					popupActionButtonMarkup({
+						label: "Kraftlinie loeschen",
+						className: "location-popup__action-button--danger",
+						attributes: {
+							"data-popup-action": "delete-powerline",
+							"data-public-id": getPowerlinePublicId(powerline),
+						},
+					}),
+				]) : "",
+			});
+		}
+
+		function refreshPowerlineLayerPopup(powerline) {
+			const popupMarkup = createPowerlinePopupMarkup(powerline);
+			powerline._interactiveLines?.forEach((line) => line.bindPopup(popupMarkup));
+		}
+
 		function createPowerlineLayer(powerline) {
 			const latLngs = getPowerlineLatLngs(powerline);
-			const group = L.layerGroup();
+			const labelLine = L.polyline(getReadablePowerlineLabelLatLngCoordinates(latLngs), {
+				pane: "labelsPane",
+				color: "transparent",
+				weight: 1,
+				opacity: 0,
+				interactive: false,
+				lineCap: "round",
+				lineJoin: "round",
+			});
+			const layers = [labelLine];
+			const interactiveLines = [];
 			getPowerlineRenderStyles().forEach(({ strandIndex, ...style }) => {
 				const layer = L.polyline(createPowerlineStrandLatLngs(latLngs, strandIndex, powerlineAnimationTimeSeconds), {
 					pane: "powerlinesPane",
 					color: "#ff5f82",
 					lineCap: "round",
 					lineJoin: "round",
-					interactive: false,
+					interactive: style.className.includes("powerline--core"),
 					...style,
 				});
 				layer._powerlineStrandIndex = strandIndex;
-				layer.addTo(group);
+				layers.push(layer);
+				if (layer.options.interactive) {
+					interactiveLines.push(layer);
+				}
 			});
+			const group = L.layerGroup(layers);
 			powerline._layerGroup = group;
+			powerline._labelLine = labelLine;
+			powerline._interactiveLines = interactiveLines;
+			refreshPowerlineLayerPopup(powerline);
+			refreshPowerlineLayerText(powerline);
 			return group;
 		}
 
@@ -3967,9 +4265,14 @@
 				}
 				const latLngs = getPowerlineLatLngs(powerline);
 				powerline._layerGroup.eachLayer((layer) => {
+					if (layer === powerline._labelLine) {
+						layer.setLatLngs?.(getReadablePowerlineLabelLatLngCoordinates(latLngs));
+						return;
+					}
 					const strandIndex = layer._powerlineStrandIndex || 0;
 					layer.setLatLngs?.(createPowerlineStrandLatLngs(latLngs, strandIndex, timeSeconds));
 				});
+				refreshPowerlineLayerText(powerline);
 			});
 		}
 
@@ -6000,6 +6303,15 @@
 			syncPowerlineVisibility();
 		}
 
+		function applyPowerlineFeatureResponse(powerline, feature) {
+			const updatedPowerline = normalizePowerlineFeature(feature);
+			powerline.geometry = updatedPowerline.geometry;
+			powerline.properties = updatedPowerline.properties;
+			powerline.id = updatedPowerline.id;
+			refreshPowerlineLayerPopup(powerline);
+			refreshPowerlineLayers();
+		}
+
 		function findPathByPublicId(publicId) {
 			return pathData.find((path) => getPathPublicId(path) === publicId) || null;
 		}
@@ -6678,6 +6990,33 @@
 			} catch (error) {
 				console.error("Weg konnte nicht geloescht werden:", error);
 				showFeedbackToast(error.message || "Weg konnte nicht geloescht werden.", "warning");
+			}
+		}
+
+		async function deletePowerlineFeature(powerline) {
+			if (!powerline) {
+				return;
+			}
+
+			if (!window.confirm(`${getPowerlineDisplayName(powerline)} wirklich loeschen?`)) {
+				return;
+			}
+
+			try {
+				const result = await submitMapFeatureEdit({
+					action: "delete_feature",
+					public_id: getPowerlinePublicId(powerline),
+				});
+				map.removeLayer(powerline._layerGroup);
+				powerlineLayers = powerlineLayers.filter((layer) => layer !== powerline._layerGroup);
+				powerlineData = powerlineData.filter((entry) => entry !== powerline);
+				updateRevisionFromEditResponse(result);
+				void loadChangeLog();
+				setPowerlineEditDialogOpen(false, { resetForm: true });
+				showFeedbackToast("Kraftlinie geloescht.", "success");
+			} catch (error) {
+				console.error("Kraftlinie konnte nicht geloescht werden:", error);
+				showFeedbackToast(error.message || "Kraftlinie konnte nicht geloescht werden.", "warning");
 			}
 		}
 
@@ -7622,6 +7961,28 @@
 				}
 
 				void deletePathFeature(path);
+				return;
+			}
+
+			if (action === "edit-powerline-details") {
+				const powerline = findPowerlineByPublicId(this.dataset.publicId);
+				if (!powerline) {
+					showFeedbackToast("Kraftlinie konnte nicht gefunden werden.", "warning");
+					return;
+				}
+
+				openPowerlineEditDialog(powerline);
+				return;
+			}
+
+			if (action === "delete-powerline") {
+				const powerline = findPowerlineByPublicId(this.dataset.publicId);
+				if (!powerline) {
+					showFeedbackToast("Kraftlinie konnte nicht gefunden werden.", "warning");
+					return;
+				}
+
+				void deletePowerlineFeature(powerline);
 				return;
 			}
 

@@ -680,21 +680,23 @@ body.modal-dialog-open {
 	filter: drop-shadow(0 0 10px rgba(255, 70, 110, 0.85));
 	mix-blend-mode: screen;
 	animation: powerlineGlow 2.8s ease-in-out infinite alternate;
-	pointer-events: none;
 }
 
 .powerline--aura {
 	stroke: rgba(255, 70, 90, 0.42);
+	pointer-events: none;
 }
 
 .powerline--mid {
 	stroke: rgba(255, 105, 130, 0.82);
 	animation-duration: 2.1s;
+	pointer-events: none;
 }
 
 .powerline--core {
 	stroke: rgba(255, 235, 240, 1);
 	animation-duration: 1.6s;
+	cursor: pointer;
 }
 
 .powerline--strike-2 {
@@ -1500,6 +1502,10 @@ body.edit-mode .map-label span {
 .path-name-text {
 	pointer-events: none;
 	text-rendering: optimizeLegibility;
+}
+
+.path-name-text--powerline {
+	filter: drop-shadow(0 0 5px rgba(255, 92, 132, 0.95));
 }
 
 .leaflet-popup-pane {
