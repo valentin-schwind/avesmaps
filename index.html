@@ -3808,22 +3808,87 @@
 			return powerline.geometry.coordinates.map(([x, y]) => L.latLng(y, x));
 		}
 
+		function createPowerlineStrandLatLngs(latLngs, strandIndex) {
+			if (latLngs.length < 2) {
+				return latLngs;
+			}
+
+			const start = latLngs[0];
+			const end = latLngs[latLngs.length - 1];
+			const dx = end.lng - start.lng;
+			const dy = end.lat - start.lat;
+			const length = Math.sqrt(dx * dx + dy * dy) || 1;
+			const tx = dx / length;
+			const ty = dy / length;
+			const nx = -ty;
+			const ny = tx;
+			const segmentCount = Math.round(Math.max(18, Math.min(120, length / 180)));
+			const normalScales = [0.48, 0.62, 0.72, 0.56];
+			const waveOffsets = [-7, 5, 0, 8];
+			const phase = strandIndex * 1.73;
+			const normalScale = normalScales[strandIndex % normalScales.length];
+			const waveOffset = waveOffsets[strandIndex % waveOffsets.length];
+			const points = [];
+
+			for (let index = 0; index <= segmentCount; index++) {
+				const t = index / segmentCount;
+				const envelope = Math.sin(Math.PI * t);
+				const normalWave = Math.sin(index * 0.62 + phase) * envelope * 4.5;
+				const tangentWave = Math.sin(index * 1.17 + phase) * envelope * 0.8;
+				const normalOffset = (normalWave + waveOffset * envelope) * normalScale;
+
+				points.push(L.latLng(
+					start.lat + dy * t + ny * normalOffset + ty * tangentWave,
+					start.lng + dx * t + nx * normalOffset + tx * tangentWave
+				));
+			}
+
+			return points;
+		}
+
+		function getPowerlineRenderStyles() {
+			const styles = [];
+
+			for (let strikeIndex = 0; strikeIndex < 4; strikeIndex++) {
+				styles.push(
+					{
+						className: `powerline powerline--aura powerline--strike-${strikeIndex + 1}`,
+						weight: 10,
+						opacity: 0.34,
+						strandIndex: strikeIndex,
+					},
+					{
+						className: `powerline powerline--mid powerline--strike-${strikeIndex + 1}`,
+						weight: 4.6,
+						opacity: 0.72,
+						strandIndex: strikeIndex,
+					},
+					{
+						className: `powerline powerline--core powerline--strike-${strikeIndex + 1}`,
+						weight: 1.5,
+						opacity: 0.98,
+						strandIndex: strikeIndex,
+					}
+				);
+			}
+
+			return styles;
+		}
+
 		function createPowerlineLayer(powerline) {
 			const latLngs = getPowerlineLatLngs(powerline);
 			const group = L.layerGroup();
-			[
-				{ className: "powerline powerline--aura", weight: 12, opacity: 0.32 },
-				{ className: "powerline powerline--mid", weight: 5, opacity: 0.72 },
-				{ className: "powerline powerline--core", weight: 2, opacity: 0.98 },
-			].forEach((style) => {
-				L.polyline(latLngs, {
+			getPowerlineRenderStyles().forEach(({ strandIndex, ...style }) => {
+				const layer = L.polyline(createPowerlineStrandLatLngs(latLngs, strandIndex), {
 					pane: "powerlinesPane",
 					color: "#ff5f82",
 					lineCap: "round",
 					lineJoin: "round",
 					interactive: false,
 					...style,
-				}).addTo(group);
+				});
+				layer._powerlineStrandIndex = strandIndex;
+				layer.addTo(group);
 			});
 			powerline._layerGroup = group;
 			return group;
@@ -3859,7 +3924,10 @@
 					return;
 				}
 				const latLngs = getPowerlineLatLngs(powerline);
-				powerline._layerGroup.eachLayer((layer) => layer.setLatLngs?.(latLngs));
+				powerline._layerGroup.eachLayer((layer) => {
+					const strandIndex = layer._powerlineStrandIndex || 0;
+					layer.setLatLngs?.(createPowerlineStrandLatLngs(latLngs, strandIndex));
+				});
 			});
 		}
 
