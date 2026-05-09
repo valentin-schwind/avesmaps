@@ -106,7 +106,7 @@
 				<button type="button" class="map-context-menu__item" data-context-action="split-path-at-node" hidden>Neue Kreuzung und Weg teilen</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-path">Neuer Weg</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-label">Neues Label</button>
-				<button type="button" class="map-context-menu__item" data-context-action="create-region">Neue Region</button>
+				<button type="button" class="map-context-menu__item" data-context-action="create-region">Neues politisches Gebiet</button>
 			</div>
 		</div>
 		<button type="button" class="map-context-menu__item" data-context-action="share-pin">📍 Stelle markieren und teilen</button>
@@ -410,6 +410,10 @@
 				<label class="location-report-form__field">
 					<span>Prioritaet <output id="label-edit-priority-output">3</output></span>
 					<input id="label-edit-priority" name="priority" type="range" min="1" max="5" step="1" value="3" />
+				</label>
+				<label class="location-report-form__field location-report-form__field--checkbox">
+					<input id="label-edit-is-nodix" name="is_nodix" type="checkbox" />
+					<span>Label ist ein Nodix</span>
 				</label>
 				<p id="label-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions">
@@ -779,6 +783,7 @@
 			gebaeude: "icons/bauwerk.png",
 		};
 		const LOCATION_TYPE_KEYS = Object.keys(LOCATION_TYPE_CONFIG);
+		const LOCATION_TYPE_VISIBILITY_ORDER = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"];
 		const LOCATION_NAME_LABEL_CONFIG = {
 			metropole: { size: 18, minZoom: 0 },
 			grossstadt: { size: 15, minZoom: 0 },
@@ -1326,6 +1331,30 @@
 
 		function isLocationTypeVisible(locationType) {
 			return getLocationToggleButton(locationType).hasClass("is-active");
+		}
+
+		function getVisibleLocationTypeIndex() {
+			return LOCATION_TYPE_VISIBILITY_ORDER.reduce((lastVisibleIndex, locationType, index) => {
+				return isLocationTypeVisible(locationType) ? index : lastVisibleIndex;
+			}, -1);
+		}
+
+		function setVisibleLocationTypesThrough(targetLocationType, { syncUrl = true } = {}) {
+			const targetIndex = LOCATION_TYPE_VISIBILITY_ORDER.indexOf(targetLocationType);
+			LOCATION_TYPE_VISIBILITY_ORDER.forEach((locationType, index) => {
+				getLocationToggleButton(locationType).toggleClass("is-active", targetIndex >= 0 && index <= targetIndex);
+			});
+			syncLocationMarkerVisibility();
+			if (syncUrl) {
+				syncPlannerStateToUrl();
+			}
+		}
+
+		function previewVisibleLocationTypesThrough(targetLocationType = null) {
+			const targetIndex = targetLocationType ? LOCATION_TYPE_VISIBILITY_ORDER.indexOf(targetLocationType) : -1;
+			LOCATION_TYPE_VISIBILITY_ORDER.forEach((locationType, index) => {
+				getLocationToggleButton(locationType).toggleClass("is-hover-preview", targetIndex >= 0 && index <= targetIndex);
+			});
 		}
 
 		function syncLocationToggleButtons() {
@@ -2013,6 +2042,7 @@
 			document.getElementById("label-edit-min-zoom").value = label.minZoom ?? 0;
 			document.getElementById("label-edit-max-zoom").value = label.maxZoom ?? 5;
 			document.getElementById("label-edit-priority").value = label.priority ?? 3;
+			document.getElementById("label-edit-is-nodix").checked = Boolean(label.isNodix);
 			syncLabelZoomRangeOutputs();
 			syncLabelPriorityOutput();
 			document.getElementById("label-edit-delete").hidden = !labelEntry;
@@ -2252,6 +2282,7 @@
 				min_zoom: Number.parseInt(String(formData.get("min_zoom") || "0"), 10),
 				max_zoom: Number.parseInt(String(formData.get("max_zoom") || "5"), 10),
 				priority: Number.parseInt(String(formData.get("priority") || "3"), 10),
+				is_nodix: formData.get("is_nodix") === "on",
 			};
 
 			if (action === "create_label") {
@@ -3103,7 +3134,39 @@
 			]);
 		}
 
-		function locationActionsMarkup(name, publicId) {
+		function getPowerlineEndpointByPublicId(publicId) {
+			const markerEntry = findLocationMarkerByPublicId(publicId);
+			if (markerEntry) {
+				return {
+					publicId: markerEntry.publicId,
+					name: markerEntry.name,
+					coordinates: markerEntry.location.coordinates,
+					isNodix: Boolean(markerEntry.location.isNodix),
+					locationType: markerEntry.locationType,
+					featureKind: "location",
+				};
+			}
+
+			const labelEntry = findLabelEntryByPublicId(publicId);
+			if (labelEntry) {
+				return {
+					publicId: labelEntry.label.publicId,
+					name: labelEntry.label.text,
+					coordinates: labelEntry.label.coordinates,
+					isNodix: Boolean(labelEntry.label.isNodix),
+					locationType: labelEntry.label.labelType,
+					featureKind: "label",
+				};
+			}
+
+			return null;
+		}
+
+		function isEligiblePowerlineEndpoint(endpoint) {
+			return Boolean(endpoint) && (Boolean(endpoint.isNodix) || endpoint.locationType === CROSSING_LOCATION_TYPE);
+		}
+
+		function locationActionsMarkup(name, publicId, location = null) {
 			const actionButtons = [
 				popupActionButtonMarkup({
 					label: "Zur Route hinzufuegen",
@@ -3125,7 +3188,14 @@
 						},
 					})
 				);
-				if (isNodixLocation(findLocationMarkerByPublicId(publicId)?.location)) {
+				if (isEligiblePowerlineEndpoint(getPowerlineEndpointByPublicId(publicId) || (location ? {
+					publicId,
+					name,
+					coordinates: location.coordinates,
+					isNodix: Boolean(location.isNodix),
+					locationType: location.locationType,
+					featureKind: "location",
+				} : null))) {
 					actionButtons.push(
 						popupActionButtonMarkup({
 							label: pendingPowerlineCreationStart ? "Kraftlinie abschliessen" : "Neue Kraftlinie",
@@ -3186,6 +3256,13 @@
 					},
 				}),
 				popupActionButtonMarkup({
+					label: pendingPowerlineCreationStart ? "Kraftlinie abschliessen" : "Neue Kraftlinie",
+					attributes: {
+						"data-popup-action": pendingPowerlineCreationStart ? "finish-powerline-at-location" : "start-powerline-from-location",
+						"data-public-id": publicId,
+					},
+				}),
+				popupActionButtonMarkup({
 					label: "Kreuzung verschieben",
 					attributes: {
 						"data-popup-action": "start-location-edit",
@@ -3210,7 +3287,20 @@
 				return "";
 			}
 
-			return locationPopupActionsMarkup([
+			const actionButtons = [];
+			if (isEligiblePowerlineEndpoint(getPowerlineEndpointByPublicId(publicId))) {
+				actionButtons.push(
+					popupActionButtonMarkup({
+						label: pendingPowerlineCreationStart ? "Kraftlinie abschliessen" : "Neue Kraftlinie",
+						attributes: {
+							"data-popup-action": pendingPowerlineCreationStart ? "finish-powerline-at-location" : "start-powerline-from-location",
+							"data-public-id": publicId,
+						},
+					})
+				);
+			}
+
+			actionButtons.push(
 				popupActionButtonMarkup({
 					label: "Label verschieben",
 					className: "location-popup__action-button--accent",
@@ -3241,7 +3331,9 @@
 						"data-public-id": publicId,
 					},
 				}),
-			]);
+			);
+
+			return locationPopupActionsMarkup(actionButtons);
 		}
 
 		function waypointRemoveActionMarkup(waypointId) {
@@ -4246,6 +4338,10 @@
 			const normalizedMode = ["none", "political", "deregraphic", "powerlines"].includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
 			$("#mapLayerModeSelect").val(normalizedMode);
 			syncTransportControl("mapLayerModeSelect");
+			syncRegionVisibility();
+			syncLabelVisibility();
+			syncPowerlineVisibility();
+			syncPlannerStateToUrl();
 		}
 
 		function syncPowerlineVisibility() {
@@ -4349,9 +4445,13 @@
 		}
 
 		$(".location-toggle").on("click", function () {
-			$(this).toggleClass("is-active");
-			syncLocationMarkerVisibility();
-			syncPlannerStateToUrl();
+			setVisibleLocationTypesThrough(String(this.dataset.locationType || ""), { syncUrl: true });
+		});
+		$(".location-toggle").on("mouseenter focus", function () {
+			previewVisibleLocationTypesThrough(String(this.dataset.locationType || ""));
+		});
+		$(".location-toggle").on("mouseleave blur", () => {
+			previewVisibleLocationTypesThrough(null);
 		});
 		initializeTransportIconSelects();
 		initializeVersionedAssetIcons();
@@ -4389,7 +4489,7 @@
 		}
 
 		function isNodixLocation(location) {
-			return Boolean(location?.isNodix) && !isCrossingLocation(location);
+			return Boolean(location?.isNodix) || isCrossingLocation(location);
 		}
 
 		function getNextCrossingDisplayName() {
@@ -4814,10 +4914,16 @@
 				? parseBooleanQueryParam(searchParams.get("toggleLocations"), false)
 				: null;
 
-			LOCATION_TYPE_KEYS.forEach((locationType) => {
+			let highestVisibleIndex = -1;
+			LOCATION_TYPE_VISIBILITY_ORDER.forEach((locationType, index) => {
 				const config = LOCATION_TYPE_CONFIG[locationType];
 				const fallback = legacyLocationToggle ?? DEFAULT_PLANNER_STATE[config.queryParam];
-				getLocationToggleButton(locationType).toggleClass("is-active", parseBooleanQueryParam(searchParams.get(config.queryParam), fallback));
+				if (parseBooleanQueryParam(searchParams.get(config.queryParam), fallback)) {
+					highestVisibleIndex = index;
+				}
+			});
+			LOCATION_TYPE_VISIBILITY_ORDER.forEach((locationType, index) => {
+				getLocationToggleButton(locationType).toggleClass("is-active", highestVisibleIndex >= 0 && index <= highestVisibleIndex);
 			});
 			syncLocationToggleButtons();
 			$("#togglePaths").prop("checked", parseBooleanQueryParam(searchParams.get("togglePaths"), DEFAULT_PLANNER_STATE.togglePaths));
@@ -5371,7 +5477,7 @@
 					locationTypeLabel: markerEntry.location.locationTypeLabel,
 					description: markerEntry.location.description,
 					wikiUrl: markerEntry.location.wikiUrl,
-					actionsMarkup: locationActionsMarkup(markerEntry.name, markerEntry.publicId),
+					actionsMarkup: locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location),
 				})
 			);
 		}
@@ -5503,6 +5609,7 @@
 
 			const markerEntry = createEditablePointMarkerEntry(location);
 			locationMarkers.push(markerEntry);
+			refreshLocationMarkerPopup(markerEntry);
 			addLocationNameLabel(markerEntry);
 			syncLocationMarkerVisibility();
 			refreshPlannerAfterFeatureChange();
@@ -5551,6 +5658,7 @@
 				minZoom: Number(properties.min_zoom ?? feature.min_zoom ?? 0),
 				maxZoom: Number(properties.max_zoom ?? feature.max_zoom ?? 5),
 				priority: Number(properties.priority ?? feature.priority ?? 3),
+				isNodix: Boolean(properties.is_nodix ?? feature.is_nodix),
 				revision: Number(properties.revision ?? feature.revision) || null,
 				coordinates: [Number(lat), Number(lng)],
 			};
@@ -5777,6 +5885,7 @@
 			const entry = createLabelMarkerEntry(label);
 			labelData.push(label);
 			labelMarkers.push(entry);
+			refreshLabelMarkerPopup(entry);
 			return entry;
 		}
 
@@ -5886,6 +5995,7 @@
 		}
 
 		function createLabelAt(latlng) {
+			setSelectedMapLayerMode("deregraphic");
 			openLabelEditDialog({ latlng: L.latLng(latlng) });
 		}
 
@@ -6457,21 +6567,23 @@
 		function clearPendingPowerlineCreation() {
 			pendingPowerlineCreationStart = null;
 			refreshAllLocationMarkerPopups();
+			labelMarkers.forEach((entry) => refreshLabelMarkerPopup(entry));
 		}
 
-		function startPowerlineCreationFromLocation(location) {
-			if (!isNodixLocation(location)) {
+		function startPowerlineCreationFromEndpoint(endpoint) {
+			if (!isEligiblePowerlineEndpoint(endpoint)) {
 				showFeedbackToast("Kraftlinien koennen nur an Nodix-Orten starten.", "warning");
 				return;
 			}
-			pendingPowerlineCreationStart = location;
+			pendingPowerlineCreationStart = endpoint;
 			refreshAllLocationMarkerPopups();
-			showFeedbackToast(`Start-Nodix: ${location.name}. Ziel-Nodix anklicken.`, "info");
+			labelMarkers.forEach((entry) => refreshLabelMarkerPopup(entry));
+			showFeedbackToast(`Start-Nodix: ${endpoint.name}. Ziel-Nodix anklicken.`, "info");
 		}
 
-		async function completePendingPowerlineAtLocation(endLocation) {
-			const startLocation = pendingPowerlineCreationStart;
-			if (!startLocation || !isNodixLocation(endLocation) || startLocation === endLocation) {
+		async function completePendingPowerlineAtEndpoint(endEndpoint) {
+			const startEndpoint = pendingPowerlineCreationStart;
+			if (!startEndpoint || !isEligiblePowerlineEndpoint(endEndpoint) || startEndpoint.publicId === endEndpoint.publicId) {
 				showFeedbackToast("Bitte zwei verschiedene Nodix-Orte verbinden.", "warning");
 				return;
 			}
@@ -6479,14 +6591,14 @@
 			try {
 				const result = await submitMapFeatureEdit({
 					action: "create_powerline",
-					from_public_id: startLocation.publicId,
-					to_public_id: endLocation.publicId,
+					from_public_id: startEndpoint.publicId,
+					to_public_id: endEndpoint.publicId,
 				});
 				applyLivePowerlineFeature(result.feature);
 				updateRevisionFromEditResponse(result);
 				setSelectedMapLayerMode("powerlines");
 				syncPowerlineVisibility();
-				showFeedbackToast(`Kraftlinie ${startLocation.name} -> ${endLocation.name} erstellt.`, "success");
+				showFeedbackToast(`Kraftlinie ${startEndpoint.name} -> ${endEndpoint.name} erstellt.`, "success");
 			} catch (error) {
 				console.error("Kraftlinie konnte nicht erstellt werden:", error);
 				showFeedbackToast(error.message || "Kraftlinie konnte nicht erstellt werden.", "warning");
@@ -7320,6 +7432,7 @@
 		}
 
 		async function createRegionAt(latlng) {
+			setSelectedMapLayerMode("political");
 			const center = L.latLng(latlng);
 			const radius = 80;
 			const points = Array.from({ length: 6 }, (_, index) => {
@@ -7791,7 +7904,7 @@
 			if (action === "create-powerline" && contextMenuLatLng) {
 				closeMapContextMenu();
 				const nearest = findNearestLocationToLatLng(contextMenuLatLng);
-				startPowerlineCreationFromLocation(nearest);
+				startPowerlineCreationFromEndpoint(getPowerlineEndpointByPublicId(nearest?.publicId || "") || nearest);
 				return;
 			}
 
@@ -7911,15 +8024,23 @@
 			}
 
 			if (action === "start-powerline-from-location") {
-				const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
-				startPowerlineCreationFromLocation(markerEntry?.location);
+				const endpoint = getPowerlineEndpointByPublicId(this.dataset.publicId)
+					|| (() => {
+						const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
+						return markerEntry?.location || null;
+					})();
+				startPowerlineCreationFromEndpoint(endpoint);
 				map.closePopup();
 				return;
 			}
 
 			if (action === "finish-powerline-at-location") {
-				const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
-				void completePendingPowerlineAtLocation(markerEntry?.location);
+				const endpoint = getPowerlineEndpointByPublicId(this.dataset.publicId)
+					|| (() => {
+						const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
+						return markerEntry?.location || null;
+					})();
+				void completePendingPowerlineAtEndpoint(endpoint);
 				map.closePopup();
 				return;
 			}
@@ -8032,7 +8153,9 @@
 				}
 
 				void duplicateLabelEntry(labelEntry);
+				return;
 			}
+
 		});
 
 		/******************************************************************

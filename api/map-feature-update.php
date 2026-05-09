@@ -697,7 +697,9 @@ function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): 
         $toFeature = avesmapsFetchEditablePointFeature($pdo, $toPublicId);
         $fromProperties = avesmapsDecodeJsonColumnForEdit($fromFeature['properties_json'] ?? null);
         $toProperties = avesmapsDecodeJsonColumnForEdit($toFeature['properties_json'] ?? null);
-        if (empty($fromProperties['is_nodix']) || empty($toProperties['is_nodix'])) {
+        $fromIsEligibleEndpoint = !empty($fromProperties['is_nodix']) || (string) ($fromFeature['feature_subtype'] ?? '') === 'crossing';
+        $toIsEligibleEndpoint = !empty($toProperties['is_nodix']) || (string) ($toFeature['feature_subtype'] ?? '') === 'crossing';
+        if (!$fromIsEligibleEndpoint || !$toIsEligibleEndpoint) {
             throw new InvalidArgumentException('Kraftlinien koennen nur Nodix-Orte verbinden.');
         }
 
@@ -1031,6 +1033,7 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
         'min_zoom' => $minZoom,
         'max_zoom' => $maxZoom,
         'priority' => $priority,
+        'is_nodix' => avesmapsReadBoolean($payload['is_nodix'] ?? false),
     ];
 
     $pdo->beginTransaction();
@@ -1103,6 +1106,7 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
         $properties['min_zoom'] = $minZoom;
         $properties['max_zoom'] = $maxZoom;
         $properties['priority'] = $priority;
+        $properties['is_nodix'] = avesmapsReadBoolean($payload['is_nodix'] ?? false);
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         $coordinates = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [0, 0];
         $revision = avesmapsNextMapRevision($pdo);
@@ -1473,6 +1477,7 @@ function avesmapsBuildLabelFeatureResponse(string $publicId, string $text, strin
     $properties['text'] = $text;
     $properties['feature_type'] = 'label';
     $properties['feature_subtype'] = $subtype;
+    $properties['is_nodix'] = !empty($properties['is_nodix']);
     $properties['revision'] = $revision;
 
     return [

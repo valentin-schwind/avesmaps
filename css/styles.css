@@ -919,6 +919,14 @@ body.modal-dialog-open {
 	opacity: 1;
 }
 
+.display-options .location-toggle.is-hover-preview {
+	opacity: 0.55;
+}
+
+.display-options .location-toggle.is-active.is-hover-preview {
+	opacity: 1;
+}
+
 .display-options .location-toggle:hover,
 .display-options .location-toggle:focus-visible {
 	opacity: 0.55;
