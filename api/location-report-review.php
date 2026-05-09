@@ -230,11 +230,9 @@ function avesmapsEnsureMapReportsTableForReview(PDO $pdo): void {
 }
 
 function avesmapsEnsureMapReportReviewColumn(PDO $pdo, string $columnName, string $columnDefinition): void {
-    $statement = $pdo->prepare('SHOW COLUMNS FROM map_reports LIKE :column_name');
-    $statement->execute([
-        'column_name' => $columnName,
-    ]);
-    if ($statement->fetch() !== false) {
+    $quotedColumnName = $pdo->quote($columnName);
+    $statement = $pdo->query("SHOW COLUMNS FROM map_reports LIKE {$quotedColumnName}");
+    if ($statement !== false && $statement->fetch() !== false) {
         return;
     }
 
