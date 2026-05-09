@@ -896,7 +896,10 @@
 			isLiveMapUpdatePending = false,
 			editorPresenceTimerId = null,
 			editorPresenceUsers = [],
-			labelCollisionFrameId = null;
+			labelCollisionFrameId = null,
+			powerlineAnimationFrameId = null,
+			powerlineAnimationLastFrameMs = 0,
+			powerlineAnimationTimeSeconds = 0;
 
 		// Initialisierung der Karte 
 		const map = L.map("map", {
@@ -950,6 +953,13 @@
 		map.on("moveend", () => {
 			syncLocationMarkerVisibility();
 			syncLabelVisibility();
+		});
+		document.addEventListener("visibilitychange", () => {
+			if (document.visibilityState === "visible") {
+				ensurePowerlineAnimationLoop();
+				return;
+			}
+			stopPowerlineAnimationLoop();
 		});
 
 		function createBaseTileLayer(mapStyle) {
@@ -3808,7 +3818,7 @@
 			return powerline.geometry.coordinates.map(([x, y]) => L.latLng(y, x));
 		}
 
-		function createPowerlineStrandLatLngs(latLngs, strandIndex) {
+		function createPowerlineStrandLatLngs(latLngs, strandIndex, timeSeconds = 0) {
 			if (latLngs.length < 2) {
 				return latLngs;
 			}
@@ -3835,11 +3845,13 @@
 				const envelope = Math.sin(Math.PI * t);
 				const normalWave = Math.sin(index * 0.62 + phase) * envelope * 4.5;
 				const tangentWave = Math.sin(index * 1.17 + phase) * envelope * 0.8;
-				const normalOffset = (normalWave + waveOffset * envelope) * normalScale;
+				const tremorWave = Math.sin(timeSeconds * 0.55 + index * 0.38 + phase * 2.4) * envelope * 2.1;
+				const tremorTangent = Math.sin(timeSeconds * 0.42 + index * 0.29 + phase) * envelope * 0.3;
+				const normalOffset = (normalWave + tremorWave + waveOffset * envelope) * normalScale;
 
 				points.push(L.latLng(
-					start.lat + dy * t + ny * normalOffset + ty * tangentWave,
-					start.lng + dx * t + nx * normalOffset + tx * tangentWave
+					start.lat + dy * t + ny * normalOffset + ty * (tangentWave + tremorTangent),
+					start.lng + dx * t + nx * normalOffset + tx * (tangentWave + tremorTangent)
 				));
 			}
 
@@ -3879,7 +3891,7 @@
 			const latLngs = getPowerlineLatLngs(powerline);
 			const group = L.layerGroup();
 			getPowerlineRenderStyles().forEach(({ strandIndex, ...style }) => {
-				const layer = L.polyline(createPowerlineStrandLatLngs(latLngs, strandIndex), {
+				const layer = L.polyline(createPowerlineStrandLatLngs(latLngs, strandIndex, powerlineAnimationTimeSeconds), {
 					pane: "powerlinesPane",
 					color: "#ff5f82",
 					lineCap: "round",
@@ -3916,9 +3928,14 @@
 		function syncPowerlineVisibility() {
 			const showPowerlines = getSelectedMapLayerMode() === "powerlines";
 			powerlineLayers.forEach((layer) => map[showPowerlines ? "addLayer" : "removeLayer"](layer));
+			if (showPowerlines) {
+				ensurePowerlineAnimationLoop();
+			} else {
+				stopPowerlineAnimationLoop();
+			}
 		}
 
-		function refreshPowerlineLayers() {
+		function refreshPowerlineLayers(timeSeconds = powerlineAnimationTimeSeconds) {
 			powerlineData.forEach((powerline) => {
 				if (!powerline._layerGroup) {
 					return;
@@ -3926,9 +3943,49 @@
 				const latLngs = getPowerlineLatLngs(powerline);
 				powerline._layerGroup.eachLayer((layer) => {
 					const strandIndex = layer._powerlineStrandIndex || 0;
-					layer.setLatLngs?.(createPowerlineStrandLatLngs(latLngs, strandIndex));
+					layer.setLatLngs?.(createPowerlineStrandLatLngs(latLngs, strandIndex, timeSeconds));
 				});
 			});
+		}
+
+		function stopPowerlineAnimationLoop() {
+			if (powerlineAnimationFrameId !== null) {
+				window.cancelAnimationFrame(powerlineAnimationFrameId);
+				powerlineAnimationFrameId = null;
+			}
+			powerlineAnimationLastFrameMs = 0;
+		}
+
+		function shouldAnimatePowerlines() {
+			return getSelectedMapLayerMode() === "powerlines" && powerlineData.length > 0 && document.visibilityState === "visible";
+		}
+
+		function tickPowerlineAnimation(frameTimeMs) {
+			if (!shouldAnimatePowerlines()) {
+				stopPowerlineAnimationLoop();
+				return;
+			}
+
+			if (powerlineAnimationLastFrameMs === 0) {
+				powerlineAnimationLastFrameMs = frameTimeMs;
+			}
+
+			const elapsedMs = frameTimeMs - powerlineAnimationLastFrameMs;
+			if (elapsedMs >= 50) {
+				powerlineAnimationTimeSeconds += Math.min(elapsedMs, 120) / 1000;
+				powerlineAnimationLastFrameMs = frameTimeMs;
+				refreshPowerlineLayers(powerlineAnimationTimeSeconds);
+			}
+
+			powerlineAnimationFrameId = window.requestAnimationFrame(tickPowerlineAnimation);
+		}
+
+		function ensurePowerlineAnimationLoop() {
+			if (powerlineAnimationFrameId !== null || !shouldAnimatePowerlines()) {
+				return;
+			}
+			powerlineAnimationLastFrameMs = 0;
+			powerlineAnimationFrameId = window.requestAnimationFrame(tickPowerlineAnimation);
 		}
 
 		function syncRegionVisibility() {
