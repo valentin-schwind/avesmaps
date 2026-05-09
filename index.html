@@ -263,6 +263,10 @@
 					<input id="location-edit-is-nodix" name="is_nodix" type="checkbox" />
 					<span>Ort ist ein Nodix</span>
 				</label>
+				<label class="location-report-form__field location-report-form__field--checkbox">
+					<input id="location-edit-is-ruined" name="is_ruined" type="checkbox" />
+					<span>Ruine/zerstoert</span>
+				</label>
 				<p id="location-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions">
 					<button id="location-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
@@ -497,7 +501,7 @@
 			<div class="display-options__row display-options__row--wrap">
 				<label id="togglePathsControl"><input type="checkbox" id="togglePaths" /> Wege</label>
 				<label id="toggleCrossingsControl" hidden><input type="checkbox" id="toggleCrossings" /> Kreuzungen</label>
-				<label id="toggleNodixControl" hidden><input type="checkbox" id="toggleNodix" /> Nodix</label>
+				<label id="toggleNodixControl" hidden><input type="checkbox" id="toggleNodix" /> Nodices</label>
 			</div>
 			<label id="mapStyleControl" class="display-options__row display-options__select-row" hidden>Mapstil
 				<select id="mapStyleSelect" class="display-options__select" aria-label="Mapstil">
@@ -793,6 +797,7 @@
 			gebaeude: { size: 12, minZoom: 4 },
 		};
 		const POWERLINE_RENDER_CONFIG = {
+			animationEnabled: false,
 			strandCount: 1,
 			segmentCount: 10,
 			normalScales: [0.1, 0.1, 0.1, 0.1],
@@ -1341,8 +1346,9 @@
 
 		function setVisibleLocationTypesThrough(targetLocationType, { syncUrl = true } = {}) {
 			const targetIndex = LOCATION_TYPE_VISIBILITY_ORDER.indexOf(targetLocationType);
+			const activeTargetIndex = targetIndex === getVisibleLocationTypeIndex() ? -1 : targetIndex;
 			LOCATION_TYPE_VISIBILITY_ORDER.forEach((locationType, index) => {
-				getLocationToggleButton(locationType).toggleClass("is-active", targetIndex >= 0 && index <= targetIndex);
+				getLocationToggleButton(locationType).toggleClass("is-active", activeTargetIndex >= 0 && index <= activeTargetIndex);
 			});
 			syncLocationMarkerVisibility();
 			if (syncUrl) {
@@ -2011,6 +2017,7 @@
 			document.getElementById("location-edit-description").value = location.description || "";
 			document.getElementById("location-edit-wiki-url").value = location.wikiUrl || wikiLocationLink?.url || "";
 			document.getElementById("location-edit-is-nodix").checked = Boolean(location.isNodix);
+			document.getElementById("location-edit-is-ruined").checked = Boolean(location.isRuined);
 
 			if (locationEditLatLng) {
 				document.getElementById("location-edit-coordinates").textContent = formatLocationReportCoordinates(locationEditLatLng);
@@ -2257,6 +2264,7 @@
 				description: String(formData.get("description") || "").trim(),
 				wiki_url: String(formData.get("wiki_url") || "").trim(),
 				is_nodix: formData.get("is_nodix") === "on",
+				is_ruined: formData.get("is_ruined") === "on",
 			};
 
 			if (action === "create_point") {
@@ -3111,14 +3119,15 @@
 			return normalizedDescription.charAt(0).toUpperCase() + normalizedDescription.slice(1);
 		}
 
-		function locationDescriptionMarkup(name, descriptionOverride = "") {
+		function locationDescriptionMarkup(name, descriptionOverride = "", isRuined = false) {
 			const description = getLocationDescriptionText(name, descriptionOverride);
+			const statusText = isRuined ? "Ruine oder zerstoert." : "";
 
-			if (!description) {
+			if (!description && !statusText) {
 				return "";
 			}
 
-			return `<div class="location-popup__description">${escapeHtml(description)}</div>`;
+			return `<div class="location-popup__description">${escapeHtml([statusText, description].filter(Boolean).join(" "))}</div>`;
 		}
 
 		function locationAddToRouteActionMarkup(name) {
@@ -3365,19 +3374,21 @@
 			showWikiLink = true,
 			description = "",
 			wikiUrl = "",
+			isRuined = false,
 			actionsMarkup = "",
 		}) {
 			const popupClassName = compact ? "location-popup location-popup--compact" : "location-popup";
+			const nameClassName = isRuined ? "location-popup__name location-popup__name--ruined" : "location-popup__name";
 			return `
 				<div class="${popupClassName}">
 					<div class="location-popup__header">
 						${showHeaderIcon ? (headerIconMarkup || locationIconMarkup(locationType, locationTypeLabel)) : ""}
 						<div class="location-popup__title-group">
-							<div class="location-popup__name">${escapeHtml(name)}</div>
+							<div class="${nameClassName}">${escapeHtml(name)}</div>
 							${showType ? `<div class="location-popup__type">${escapeHtml(locationTypeLabel)}</div>` : ""}
 						</div>
 					</div>
-					${showDescription ? locationDescriptionMarkup(name, description) : ""}
+					${showDescription ? locationDescriptionMarkup(name, description, isRuined) : ""}
 					${actionsMarkup}
 					${showWikiLink ? wikiLocationLinkMarkup(name, wikiUrl) : ""}
 				</div>`;
@@ -3921,8 +3932,8 @@
 			const villageZoomStyles = {
 				0: { radius: 1, borderWidth: 0 },
 				1: { radius: 1.25, borderWidth: 0 },
-				2: { radius: 1.25, borderWidth: 1 },
-				3: { radius: 1.5, borderWidth: 1 },
+				2: { radius: 1.25, borderWidth: 0 },
+				3: { radius: 1.5, borderWidth: 0 },
 				4: { radius: 2.75, borderWidth: 2 },
 				5: { radius: 3, borderWidth: 2 },
 			};
@@ -3936,7 +3947,7 @@
 
 		function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
 			if (locationType === CROSSING_LOCATION_TYPE) {
-				return Math.max(7, 5 + zoomLevel * 1.5);
+				return Math.round(Number(zoomLevel)) <= 3 ? 5 : Math.max(7, 5 + zoomLevel * 1.5);
 			}
 
 			if (isVillageMarkerStyleLocation(locationType)) {
@@ -3960,10 +3971,11 @@
 		function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
 			if (locationType === CROSSING_LOCATION_TYPE) {
 				const markerSize = getLocationMarkerSize(locationType, zoomLevel);
-				const iconHtml = `<span class="location-visual-marker__shape location-visual-marker__shape--crossing" style="width:${markerSize}px;height:${markerSize}px;"></span>`;
+				const isSimpleMarker = Math.round(Number(zoomLevel)) <= 3;
+				const iconHtml = `<span class="location-visual-marker__shape location-visual-marker__shape--crossing${isSimpleMarker ? " location-visual-marker__shape--simple" : ""}" style="width:${markerSize}px;height:${markerSize}px;"></span>`;
 
 				return L.divIcon({
-					className: "location-visual-marker location-visual-marker--crossing",
+					className: `location-visual-marker location-visual-marker--crossing${isSimpleMarker ? " location-visual-marker--simple" : ""}`,
 					html: iconHtml,
 					iconSize: [markerSize, markerSize],
 					iconAnchor: [markerSize / 2, markerSize / 2],
@@ -3973,16 +3985,17 @@
 
 			const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
 			const markerSize = getLocationMarkerSize(locationType, zoomLevel);
+			const isSimpleMarker = isVillageMarkerStyleLocation(locationType) && Math.round(Number(zoomLevel)) <= 3;
 			const shapeClassName = config.shape === "square"
-				? "location-visual-marker__shape location-visual-marker__shape--square"
-				: "location-visual-marker__shape location-visual-marker__shape--circle";
+				? `location-visual-marker__shape location-visual-marker__shape--square${isSimpleMarker ? " location-visual-marker__shape--simple" : ""}`
+				: `location-visual-marker__shape location-visual-marker__shape--circle${isSimpleMarker ? " location-visual-marker__shape--simple" : ""}`;
 			const iconHtml = `<span${buildHtmlAttributes({
 				class: shapeClassName,
 				style: `width:${markerSize}px;height:${markerSize}px;border-width:${getLocationMarkerBorderWidth(locationType, zoomLevel)}px;`,
 			})}></span>`;
 
 			return L.divIcon({
-				className: "location-visual-marker",
+				className: `location-visual-marker${isSimpleMarker ? " location-visual-marker--simple" : ""}`,
 				html: iconHtml,
 				iconSize: [markerSize, markerSize],
 				iconAnchor: [markerSize / 2, markerSize / 2],
@@ -4062,8 +4075,9 @@
 			const labelSize = getLocationNameLabelSize(entry.locationType, zoomLevel);
 			const labelType = entry.locationType || "dorf";
 			const offset = getLocationNameLabelOffset(labelSize, zoomLevel);
+			const ruinedClassName = entry.location?.isRuined ? " location-name-label--ruined" : "";
 			return L.divIcon({
-				className: `location-name-label location-name-label--${labelType}`,
+				className: `location-name-label location-name-label--${labelType}${ruinedClassName}`,
 				html: `<span style="font-size:${labelSize}pt; --location-label-offset-x:${offset.x}px; --location-label-offset-y:${offset.y}px;">${escapeHtml(entry.name)}</span>`,
 				iconSize: [0, 0],
 				iconAnchor: [0, 0],
@@ -4206,9 +4220,9 @@
 		function getPowerlineLabelStyle() {
 			return {
 				fill: "rgba(255, 196, 214, 0.98)",
-				stroke: "rgba(120, 18, 44, 0.92)",
-				strokeWidth: "2px",
-				paintOrder: "stroke",
+				stroke: "transparent",
+				strokeWidth: "0",
+				paintOrder: "fill",
 				fontFamily: 'Georgia, "Times New Roman", serif',
 				fontSize: `${Math.max(18, getLocationNameLabelSize("dorf") + 7)}px`,
 				fontWeight: "500",
@@ -4338,6 +4352,10 @@
 			const normalizedMode = ["none", "political", "deregraphic", "powerlines"].includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
 			$("#mapLayerModeSelect").val(normalizedMode);
 			syncTransportControl("mapLayerModeSelect");
+			if (IS_EDIT_MODE && normalizedMode === "powerlines") {
+				$("#toggleNodix").prop("checked", true);
+				syncLocationMarkerVisibility();
+			}
 			syncRegionVisibility();
 			syncLabelVisibility();
 			syncPowerlineVisibility();
@@ -4381,7 +4399,10 @@
 		}
 
 		function shouldAnimatePowerlines() {
-			return getSelectedMapLayerMode() === "powerlines" && powerlineData.length > 0 && document.visibilityState === "visible";
+			return POWERLINE_RENDER_CONFIG.animationEnabled
+				&& getSelectedMapLayerMode() === "powerlines"
+				&& powerlineData.length > 0
+				&& document.visibilityState === "visible";
 		}
 
 		function tickPowerlineAnimation(frameTimeMs) {
@@ -4466,10 +4487,7 @@
 		});
 		$("#togglePaths").change(syncPathVisibility);
 		$("#mapLayerModeSelect").change(() => {
-			syncRegionVisibility();
-			syncLabelVisibility();
-			syncPowerlineVisibility();
-			syncPlannerStateToUrl();
+			setSelectedMapLayerMode(getSelectedMapLayerMode());
 		});
 		$("#toggleCrossings").change(() => {
 			syncLocationMarkerVisibility();
@@ -5477,6 +5495,7 @@
 					locationTypeLabel: markerEntry.location.locationTypeLabel,
 					description: markerEntry.location.description,
 					wikiUrl: markerEntry.location.wikiUrl,
+					isRuined: markerEntry.location.isRuined,
 					actionsMarkup: locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location),
 				})
 			);
@@ -5548,6 +5567,7 @@
 				description: feature.description || "",
 				wikiUrl: feature.wiki_url || "",
 				isNodix: Boolean(feature.is_nodix),
+				isRuined: Boolean(feature.is_ruined),
 				revision: Number(feature.revision) || markerEntry.location.revision || null,
 			};
 			markerEntry.marker.setLatLng(latLng);
@@ -5603,6 +5623,7 @@
 				description: feature.description || "",
 				wikiUrl: feature.wiki_url || "",
 				isNodix: Boolean(feature.is_nodix),
+				isRuined: Boolean(feature.is_ruined),
 				revision: Number(feature.revision) || null,
 			};
 			locationData.push(location);
@@ -5631,6 +5652,7 @@
 				description: properties.description || "",
 				wiki_url: properties.wiki_url || "",
 				is_nodix: Boolean(properties.is_nodix),
+				is_ruined: Boolean(properties.is_ruined),
 				revision: properties.revision || null,
 			};
 			if (markerEntry) {
@@ -6035,6 +6057,9 @@
 			try {
 				const result = await createCrossingFeatureAt(latlng);
 				addCreatedCrossingMarker(result.feature);
+				$("#toggleCrossings").prop("checked", true);
+				syncLocationMarkerVisibility();
+				syncPlannerStateToUrl();
 				updateRevisionFromEditResponse(result);
 				showFeedbackToast("Kreuzung erstellt.", "success");
 			} catch (error) {
@@ -7562,6 +7587,7 @@
 						description: feature.properties.description || "",
 						wikiUrl: feature.properties.wiki_url || "",
 						isNodix: Boolean(feature.properties.is_nodix),
+						isRuined: Boolean(feature.properties.is_ruined),
 						revision: Number(feature.properties.revision) || null,
 					};
 				});

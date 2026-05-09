@@ -1528,7 +1528,7 @@ body.edit-mode .map-label span {
 }
 
 .path-name-text--powerline {
-	filter: drop-shadow(0 0 5px rgba(255, 92, 132, 0.95));
+	filter: none;
 }
 
 .leaflet-popup-pane {
@@ -1566,6 +1566,11 @@ body.edit-mode .map-label span {
 
 .location-name-label--metropole span {
 	text-transform: uppercase;
+}
+
+.location-name-label--ruined span,
+.location-popup__name--ruined {
+	font-style: italic;
 }
 
 @media (max-width: 420px) {
@@ -1917,6 +1922,12 @@ body.edit-mode .map-label span {
 	filter:
 		drop-shadow(0 1px 1px rgba(0, 0, 0, 0.95))
 		drop-shadow(0 0 2px rgba(0, 0, 0, 0.78));
+}
+
+.location-visual-marker__shape--simple {
+	border: 0 !important;
+	box-shadow: none !important;
+	filter: none !important;
 }
 
 .location-visual-marker__shape--circle {

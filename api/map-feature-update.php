@@ -493,6 +493,7 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
         $properties['settlement_class'] = $subtype;
         $properties['settlement_class_label'] = avesmapsLocationSubtypeLabel($subtype);
         $properties['is_nodix'] = avesmapsReadBoolean($payload['is_nodix'] ?? false);
+        $properties['is_ruined'] = avesmapsReadBoolean($payload['is_ruined'] ?? false);
         if ($description === '') {
             unset($properties['description']);
         } else {
@@ -533,6 +534,7 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
             'name' => $name,
             'feature_subtype' => $subtype,
             'is_nodix' => $properties['is_nodix'],
+            'is_ruined' => $properties['is_ruined'],
             'properties_json' => $properties,
             'revision' => $revision,
         ]));
@@ -563,6 +565,7 @@ function avesmapsCreatePointFeature(PDO $pdo, array $payload, array $user): arra
         'settlement_class' => $subtype,
         'settlement_class_label' => avesmapsLocationSubtypeLabel($subtype),
         'is_nodix' => avesmapsReadBoolean($payload['is_nodix'] ?? false),
+        'is_ruined' => avesmapsReadBoolean($payload['is_ruined'] ?? false),
     ];
     if ($description !== '') {
         $properties['description'] = $description;
@@ -1434,6 +1437,7 @@ function avesmapsBuildPointFeatureResponse(string $publicId, string $name, strin
         'description' => (string) ($properties['description'] ?? ''),
         'wiki_url' => (string) ($properties['wiki_url'] ?? ''),
         'is_nodix' => !empty($properties['is_nodix']),
+        'is_ruined' => !empty($properties['is_ruined']),
         'lat' => $lat,
         'lng' => $lng,
         'revision' => $revision,
