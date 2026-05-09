@@ -692,9 +692,9 @@ body.modal-dialog-open {
 }
 
 .powerline {
-	filter: drop-shadow(0 0 10px rgba(255, 70, 110, 0.85));
-	mix-blend-mode: screen;
-	animation: powerlineGlow 2.8s ease-in-out infinite alternate;
+	filter: none;
+	mix-blend-mode: normal;
+	animation: none;
 }
 
 .powerline--aura {
@@ -724,15 +724,6 @@ body.modal-dialog-open {
 
 .powerline--strike-4 {
 	animation-delay: -1.35s;
-}
-
-@keyframes powerlineGlow {
-	from {
-		filter: drop-shadow(0 0 8px rgba(255, 70, 110, 0.75));
-	}
-	to {
-		filter: drop-shadow(0 0 18px rgba(255, 105, 150, 1));
-	}
 }
 
 .location-report-form__field textarea {
@@ -1525,10 +1516,6 @@ body.edit-mode .map-label span {
 .path-name-text {
 	pointer-events: none;
 	text-rendering: optimizeLegibility;
-}
-
-.path-name-text--powerline {
-	filter: none;
 }
 
 .leaflet-popup-pane {

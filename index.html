@@ -308,15 +308,6 @@
 						<option value="Seeweg">Seeweg</option>
 					</select>
 				</label>
-				<label class="location-report-form__field">
-					<span>Reiseart</span>
-					<select id="path-edit-transport-domain" name="transport_domain">
-						<option value="land">Landweg</option>
-						<option value="river">Flussweg</option>
-						<option value="sea">Seeweg</option>
-						<option value="none">Keine</option>
-					</select>
-				</label>
 				<div id="path-edit-transport-options" class="location-report-form__field">
 					<span>Erlaubte Transportmittel</span>
 					<label><input type="checkbox" name="allowed_transport" value="caravan" /> Karawane</label>
@@ -1157,10 +1148,8 @@
 		$("#path-edit-autoname").on("change", syncPathAutoNameControls);
 		$("#path-edit-type").on("change", () => {
 			syncPathAutoNameControls({ forceName: true });
-			document.getElementById("path-edit-transport-domain").value = getDefaultTransportDomainForPathSubtype(normalizePathSubtype(document.getElementById("path-edit-type").value));
 			syncPathTransportOptions({ resetToDefault: true });
 		});
-		$("#path-edit-transport-domain").on("change", () => syncPathTransportOptions({ resetToDefault: true }));
 		$("#path-edit-close, #path-edit-cancel").on("click", () => setPathEditDialogOpen(false, { resetForm: true }));
 		$("#powerline-edit-close, #powerline-edit-cancel").on("click", () => setPowerlineEditDialogOpen(false, { resetForm: true }));
 		$("#label-edit-close, #label-edit-cancel").on("click", () => setLabelEditDialogOpen(false, { resetForm: true }));
@@ -2145,7 +2134,6 @@
 			document.getElementById("path-edit-type").value = pathSubtype;
 			document.getElementById("path-edit-autoname").checked = true;
 			document.getElementById("path-edit-show-label").checked = shouldPathNameBeDisplayed(path);
-			document.getElementById("path-edit-transport-domain").value = getPathTransportDomain(path);
 			syncPathTransportOptions({ path });
 			syncPathAutoNameControls();
 		}
@@ -2220,7 +2208,8 @@
 		}
 
 		function syncPathTransportOptions({ path = null, resetToDefault = false } = {}) {
-			const domain = String(document.getElementById("path-edit-transport-domain")?.value || "land");
+			const subtype = normalizePathSubtype(document.getElementById("path-edit-type")?.value || path?.properties?.feature_subtype || "Weg");
+			const domain = getDefaultTransportDomainForPathSubtype(subtype);
 			const defaultOptions = TRANSPORT_DOMAIN_OPTIONS[domain] || [];
 			const selectedOptions = resetToDefault || !path ? defaultOptions : getPathAllowedTransports(path);
 			document.querySelectorAll('#path-edit-transport-options input[name="allowed_transport"]').forEach((input) => {
