@@ -5416,8 +5416,14 @@
 				markerEntry.marker.bringToFront();
 			}
 
-			map.panTo(markerEntry.marker.getLatLng());
-			markerEntry.marker.openPopup();
+			const markerLatLng = markerEntry.marker.getLatLng();
+			const openPopup = () => {
+				if (map.hasLayer(markerEntry.marker)) {
+					markerEntry.marker.openPopup();
+				}
+			};
+			map.panTo(markerLatLng);
+			window.setTimeout(openPopup, 0);
 			return true;
 		}
 
@@ -7051,8 +7057,8 @@
 
 			const action = this.dataset.contextAction;
 			const contextMenuLatLng = pendingContextMenuLatLng ? L.latLng(pendingContextMenuLatLng) : null;
-			if (action === "share-pin" && pendingContextMenuLatLng) {
-				setSharePin(pendingContextMenuLatLng, { openPopup: true });
+			if (action === "share-pin" && contextMenuLatLng) {
+				setSharePin(contextMenuLatLng, { openPopup: true });
 				void copyCurrentUrlToClipboardWithFeedback();
 				closeMapContextMenu();
 				focusMapOnActiveTargets();
@@ -7102,8 +7108,8 @@
 				return;
 			}
 
-			if (action === "find-nearest-location" && pendingContextMenuLatLng) {
-				const nearestLocation = findNearestLocationToLatLng(pendingContextMenuLatLng);
+			if (action === "find-nearest-location" && contextMenuLatLng) {
+				const nearestLocation = findNearestLocationToLatLng(contextMenuLatLng);
 				closeMapContextMenu();
 				if (!nearestLocation) {
 					showFeedbackToast("Kein Ort gefunden.", "warning");
