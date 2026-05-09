@@ -105,7 +105,6 @@
 				<button type="button" class="map-context-menu__item" data-context-action="create-crossing">Neue Kreuzung</button>
 				<button type="button" class="map-context-menu__item" data-context-action="split-path-at-node" hidden>Neue Kreuzung und Weg teilen</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-path">Neuer Weg</button>
-				<button type="button" class="map-context-menu__item" data-context-action="create-powerline">Neue Kraftlinie</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-label">Neues Label</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-region">Neue Region</button>
 			</div>
@@ -789,7 +788,7 @@
 			gebaeude: { size: 12, minZoom: 4 },
 		};
 		const POWERLINE_RENDER_CONFIG = {
-			strandCount: 3,
+			strandCount: 1,
 			segmentCount: 10,
 			normalScales: [0.1, 0.1, 0.1, 0.1],
 			waveOffsets: [-1, 1, 1, 1],
@@ -2841,6 +2840,7 @@
 				applyPowerlineFeatureResponse(powerlineEditFeature, result.feature);
 				updateRevisionFromEditResponse(result);
 				void loadChangeLog();
+				setPowerlineEditSubmitPending(false);
 				setPowerlineEditDialogOpen(false, { resetForm: true });
 				showFeedbackToast("Kraftlinie gespeichert.", "success");
 			} catch (error) {
@@ -5426,13 +5426,15 @@
 
 		function applyFeatureResponseToMarker(markerEntry, feature) {
 			const previousName = markerEntry.name;
+			const wasPopupOpen = markerEntry.marker.isPopupOpen();
 			const locationType = normalizeLocationType(feature.location_type || feature.feature_subtype || markerEntry.locationType);
 			const latLng = [Number(feature.lat), Number(feature.lng)];
 			markerEntry.name = feature.name || markerEntry.name;
+			markerEntry.publicId = feature.public_id || markerEntry.publicId;
 			markerEntry.locationType = locationType;
 			markerEntry.location = {
 				...markerEntry.location,
-				publicId: feature.public_id || markerEntry.publicId,
+				publicId: markerEntry.publicId,
 				name: markerEntry.name,
 				coordinates: latLng,
 				locationType,
@@ -5444,6 +5446,9 @@
 			};
 			markerEntry.marker.setLatLng(latLng);
 			refreshLocationMarkerPopup(markerEntry);
+			if (wasPopupOpen) {
+				markerEntry.marker.openPopup();
+			}
 			refreshPowerlineLayers();
 			syncLocationNameLabelVisibility();
 			const didReplaceWaypoint = replaceWaypointLocationName(previousName, markerEntry.name);
