@@ -75,7 +75,6 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
             report_type,
             report_subtype,
             name,
-            reporter_name,
             lat,
             lng,
             source,
@@ -98,34 +97,36 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
         $reports[] = $report;
     }
 
-    $statement = $pdo->prepare(
-        'SELECT
-            id,
-            created_at,
-            status,
-            name,
-            size,
-            lat,
-            lng,
-            source,
-            wiki_url,
-            comment,
-            page_url,
-            client_version,
-            review_note
-        FROM location_reports
-        WHERE status = :status
-        ORDER BY created_at ASC, id ASC'
-    );
-    $statement->execute([
-        'status' => 'neu',
-    ]);
+    if (avesmapsReviewTableExists($pdo, 'location_reports')) {
+        $statement = $pdo->prepare(
+            'SELECT
+                id,
+                created_at,
+                status,
+                name,
+                size,
+                lat,
+                lng,
+                source,
+                wiki_url,
+                comment,
+                page_url,
+                client_version,
+                review_note
+            FROM location_reports
+            WHERE status = :status
+            ORDER BY created_at ASC, id ASC'
+        );
+        $statement->execute([
+            'status' => 'neu',
+        ]);
 
-    foreach ($statement->fetchAll() as $report) {
-        $report['report_source'] = 'location_reports';
-        $report['report_type'] = 'location';
-        $report['report_subtype'] = (string) ($report['size'] ?? 'dorf');
-        $reports[] = $report;
+        foreach ($statement->fetchAll() as $report) {
+            $report['report_source'] = 'location_reports';
+            $report['report_type'] = 'location';
+            $report['report_subtype'] = (string) ($report['size'] ?? 'dorf');
+            $reports[] = $report;
+        }
     }
 
     usort(
@@ -225,18 +226,12 @@ function avesmapsEnsureMapReportsTableForReview(PDO $pdo): void {
             KEY idx_map_reports_type_status (report_type, report_subtype, status)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
-    avesmapsEnsureMapReportReviewColumn($pdo, 'reporter_name', 'VARCHAR(80) NULL AFTER name');
-    avesmapsEnsureMapReportReviewColumn($pdo, 'ip_hash', 'CHAR(64) NULL AFTER remote_ip');
 }
 
-function avesmapsEnsureMapReportReviewColumn(PDO $pdo, string $columnName, string $columnDefinition): void {
-    $quotedColumnName = $pdo->quote($columnName);
-    $statement = $pdo->query("SHOW COLUMNS FROM map_reports LIKE {$quotedColumnName}");
-    if ($statement !== false && $statement->fetch() !== false) {
-        return;
-    }
-
-    $pdo->exec("ALTER TABLE map_reports ADD COLUMN {$columnName} {$columnDefinition}");
+function avesmapsReviewTableExists(PDO $pdo, string $tableName): bool {
+    $quotedTableName = $pdo->quote($tableName);
+    $statement = $pdo->query("SHOW TABLES LIKE {$quotedTableName}");
+    return $statement !== false && $statement->fetch() !== false;
 }
 
 function avesmapsNormalizeReviewNote(mixed $value): ?string {
