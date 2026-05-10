@@ -201,7 +201,7 @@
 					<span>Wiki-Link (wenn vorhanden)</span>
 					<input id="location-report-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="300" placeholder="https://..." />
 				</label>
-				<label class="location-report-form__field">
+				<label id="location-report-comment-field" class="location-report-form__field">
 					<span>Kommentar (zur näheren Beschreibung)</span>
 					<textarea id="location-report-comment" name="comment" rows="4" maxlength="800"></textarea>
 				</label>
@@ -676,7 +676,9 @@
 		];
 
 		const ROUTE_STYLE = { pane: "routePane", color: "#1452F7", weight: 10, opacity: 1, interactive: true, lineCap: "round", lineJoin: "round" };
-		const ROUTE_SELECTED_STYLE = { color: "#ffd54a", weight: 15, opacity: 1 };
+		const ROUTE_SELECTED_STYLE = { color: "#ffd54a", weight: ROUTE_STYLE.weight, opacity: 1 };
+		const ROUTE_DIRECTION_MARKER_INTERVAL_MILES = 70;
+		const ROUTE_DIRECTION_MARKER_MIN_DISTANCE_MILES = 18;
 		const SYNTHETIC_ROUTE_STYLE = { ...ROUTE_STYLE, dashArray: "14 10", opacity: 0.7 };
 		const MEASUREMENT_LINE_STYLE = { pane: "measurementPane", color: "#FFFFFF", weight: 4, opacity: 0.95, interactive: false, dashArray: "10 8", lineCap: "round", lineJoin: "round" };
 		const ROUTE_NODE_STYLE = { pane: "locationsPane", fillColor: "white", color: "#000", radius: 8, weight: 2, fillOpacity: 1 };
@@ -889,6 +891,7 @@
 			isSearchPanelHidden = false,
 			currentRouteLayer = null,
 			currentRouteNodeLayer = null,
+			currentRouteDirectionLayer = null,
 			currentRouteSegmentLayers = [],
 			currentRoutePlanEntries = [],
 			activeRoutePlanEntryIndex = null,
@@ -4778,6 +4781,7 @@
 				map.removeLayer(currentRouteNodeLayer);
 				currentRouteNodeLayer = null;
 			}
+			clearRouteDirectionMarkers();
 			currentRouteSegmentLayers = [];
 			currentRoutePlanEntries = [];
 			activeRoutePlanEntryIndex = null;
@@ -8559,6 +8563,137 @@
 			return bounds;
 		}
 
+		function clearRouteDirectionMarkers() {
+			if (currentRouteDirectionLayer) {
+				map.removeLayer(currentRouteDirectionLayer);
+				currentRouteDirectionLayer = null;
+			}
+		}
+
+		function routeCoordinatesAreEqual(first, second) {
+			return Math.abs(Number(first?.[0]) - Number(second?.[0])) < 0.001
+				&& Math.abs(Number(first?.[1]) - Number(second?.[1])) < 0.001;
+		}
+
+		function getRouteEntryVisualCoordinates(routeEntry) {
+			const coordinates = [];
+			(routeEntry?.segmentIndexes || []).forEach((segmentIndex) => {
+				const segmentCoordinates = currentRouteSegmentLayers[segmentIndex]?.segment?.geometry?.coordinates || [];
+				smoothLineCoordinatesForDisplay(segmentCoordinates).forEach((coordinate) => {
+					const normalizedCoordinate = [Number(coordinate?.[0]), Number(coordinate?.[1])];
+					if (!Number.isFinite(normalizedCoordinate[0]) || !Number.isFinite(normalizedCoordinate[1])) {
+						return;
+					}
+
+					if (coordinates.length && routeCoordinatesAreEqual(coordinates[coordinates.length - 1], normalizedCoordinate)) {
+						return;
+					}
+
+					coordinates.push(normalizedCoordinate);
+				});
+			});
+			return coordinates;
+		}
+
+		function getRouteCoordinateDistance(coordinates) {
+			let distance = 0;
+			for (let index = 0; index < coordinates.length - 1; index += 1) {
+				distance += calculateScaledDistance(coordinates[index], coordinates[index + 1]);
+			}
+			return distance;
+		}
+
+		function getRouteDirectionMarkerDistances(totalDistance) {
+			if (totalDistance < ROUTE_DIRECTION_MARKER_MIN_DISTANCE_MILES) {
+				return [];
+			}
+
+			if (totalDistance <= ROUTE_DIRECTION_MARKER_INTERVAL_MILES) {
+				return [totalDistance / 2];
+			}
+
+			const distances = [];
+			for (let distance = ROUTE_DIRECTION_MARKER_INTERVAL_MILES; distance < totalDistance; distance += ROUTE_DIRECTION_MARKER_INTERVAL_MILES) {
+				distances.push(distance);
+			}
+			return distances;
+		}
+
+		function getCoordinateDirectionAngle(start, end) {
+			const startPoint = map.latLngToLayerPoint([start[1], start[0]]);
+			const endPoint = map.latLngToLayerPoint([end[1], end[0]]);
+			return Math.atan2(endPoint.y - startPoint.y, endPoint.x - startPoint.x) * 180 / Math.PI;
+		}
+
+		function interpolateRouteDirectionMarker(coordinates, targetDistance) {
+			let distanceSoFar = 0;
+			for (let index = 0; index < coordinates.length - 1; index += 1) {
+				const start = coordinates[index];
+				const end = coordinates[index + 1];
+				const segmentDistance = calculateScaledDistance(start, end);
+				if (segmentDistance <= 0) {
+					continue;
+				}
+
+				if (distanceSoFar + segmentDistance >= targetDistance) {
+					const ratio = (targetDistance - distanceSoFar) / segmentDistance;
+					return {
+						coordinates: [
+							start[0] + (end[0] - start[0]) * ratio,
+							start[1] + (end[1] - start[1]) * ratio,
+						],
+						angle: getCoordinateDirectionAngle(start, end),
+					};
+				}
+
+				distanceSoFar += segmentDistance;
+			}
+
+			return null;
+		}
+
+		function createRouteDirectionIcon(angle) {
+			return L.divIcon({
+				className: "route-direction-marker",
+				html: `<span class="route-direction-marker__triangle" style="--route-direction-angle: ${angle}deg;"></span>`,
+				iconSize: [18, 18],
+				iconAnchor: [9, 9],
+			});
+		}
+
+		function renderRouteDirectionMarkers(routeEntry) {
+			clearRouteDirectionMarkers();
+			const coordinates = getRouteEntryVisualCoordinates(routeEntry);
+			if (coordinates.length < 2) {
+				return;
+			}
+
+			const totalDistance = getRouteCoordinateDistance(coordinates);
+			const markerDistances = getRouteDirectionMarkerDistances(totalDistance);
+			if (!markerDistances.length) {
+				return;
+			}
+
+			currentRouteDirectionLayer = L.layerGroup();
+			markerDistances.forEach((distance) => {
+				const markerData = interpolateRouteDirectionMarker(coordinates, distance);
+				if (!markerData) {
+					return;
+				}
+
+				currentRouteDirectionLayer.addLayer(L.marker([markerData.coordinates[1], markerData.coordinates[0]], {
+					icon: createRouteDirectionIcon(markerData.angle),
+					interactive: false,
+					keyboard: false,
+					pane: "routePane",
+				}));
+			});
+
+			if (currentRouteDirectionLayer.getLayers().length) {
+				currentRouteDirectionLayer.addTo(map);
+			}
+		}
+
 		function selectRoutePlanEntry(entryIndex, { zoomToEntry = false, scrollPlan = false } = {}) {
 			const routeEntry = currentRoutePlanEntries[entryIndex];
 			if (!routeEntry) {
@@ -8587,6 +8722,8 @@
 				}
 			});
 
+			renderRouteDirectionMarkers(routeEntry);
+
 			if (zoomToEntry) {
 				const bounds = getRouteEntryBounds(routeEntry);
 				if (bounds?.isValid()) {
@@ -8611,6 +8748,7 @@
 				map.removeLayer(currentRouteNodeLayer);
 				currentRouteNodeLayer = null;
 			}
+			clearRouteDirectionMarkers();
 			currentRouteSegmentLayers = [];
 			currentRouteNodeLayer = L.layerGroup();
 			currentRouteLayer = L.layerGroup();
@@ -8962,6 +9100,9 @@
 			coordinates,
 			locationType,
 			locationTypeLabel,
+			description,
+			wikiUrl,
+			isRuined,
 			waypointId,
 		}, {
 			compact = true,
@@ -8976,6 +9117,9 @@
 				compact,
 				showDescription,
 				showWikiLink,
+				description,
+				wikiUrl,
+				isRuined,
 				actionsMarkup: showRemoveAction ? waypointRemoveActionMarkup(waypointId) : "",
 			});
 
@@ -9052,12 +9196,11 @@
 				}
 			});
 
-			const showFullTooltip = selectedLocations.length === 1;
 			selectedLocations.forEach((loc) => {
 				addTooltip(loc, {
-					compact: !showFullTooltip,
-					showDescription: showFullTooltip,
-					showWikiLink: showFullTooltip,
+					compact: false,
+					showDescription: true,
+					showWikiLink: true,
 					showRemoveAction: true,
 				});
 			});
