@@ -156,66 +156,6 @@ function syncLocationReportTypeFields() {
 	}
 }
 
-async function submitLocationReportRequest(payload) {
-	const abortController = new AbortController();
-	const timeoutId = window.setTimeout(() => {
-		abortController.abort();
-	}, LOCATION_REPORT_REQUEST_TIMEOUT_MS);
-
-	try {
-		const response = await fetch(LOCATION_REPORT_FORM_ENDPOINT_URL, {
-			method: "POST",
-			headers: {
-				"Accept": "application/json",
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(payload),
-			signal: abortController.signal,
-		});
-
-		let responsePayload = null;
-		try {
-			responsePayload = await response.json();
-		} catch (error) {
-			responsePayload = null;
-		}
-
-		if (!response.ok) {
-			return {
-				ok: false,
-				message: responsePayload?.error || "Die Meldung konnte nicht gespeichert werden.",
-			};
-		}
-
-		if (!responsePayload || responsePayload.ok !== true) {
-			return {
-				ok: false,
-				message: responsePayload?.error || "Die Meldung konnte nicht verarbeitet werden.",
-			};
-		}
-
-		return {
-			ok: true,
-			message: responsePayload.message || "Karteneintrag wurde gemeldet.",
-		};
-	} catch (error) {
-		if (error?.name === "AbortError") {
-			return {
-				ok: false,
-				message: "Der Avesmaps-Server hat zu lange nicht geantwortet.",
-			};
-		}
-
-		console.error("Meldung konnte nicht gesendet werden:", error, LOCATION_REPORT_FORM_ENDPOINT_URL);
-		return {
-			ok: false,
-			message: "Die Meldung konnte nicht an den Avesmaps-Server gesendet werden.",
-		};
-	} finally {
-		window.clearTimeout(timeoutId);
-	}
-}
-
 function setLocationReportStatus(message = "", type = "") {
 	const statusElement = getLocationReportStatusElement();
 	if (!statusElement) {
@@ -1374,27 +1314,6 @@ function openLabelEditDialogFromReport(report, latlng) {
 	document.getElementById("label-edit-size").value = report.report_subtype === "region" ? 22 : 18;
 	document.getElementById("label-edit-priority").value = report.report_subtype === "region" ? 4 : 3;
 	syncLabelPriorityOutput();
-}
-
-async function updateReviewReportStatus(reportId, status, reportSource = "location_reports") {
-	const response = await fetch(LOCATION_REPORT_REVIEW_API_URL, {
-		method: "POST",
-		credentials: "same-origin",
-		headers: {
-			"Content-Type": "application/json",
-			Accept: "application/json",
-		},
-		body: JSON.stringify({
-			action: "update_status",
-			report_id: reportId,
-			report_source: reportSource,
-			status,
-		}),
-	});
-	const data = await response.json().catch(() => null);
-	if (!response.ok || !data?.ok) {
-		throw new Error(data?.error || `Review-API antwortet mit HTTP ${response.status}.`);
-	}
 }
 
 async function rejectReviewReport(report) {

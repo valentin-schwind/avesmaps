@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -16,6 +17,18 @@ from typing import Any
 
 MAP_MIN = 0
 MAP_MAX = 1024
+SCRIPT_SRC_PATTERN = re.compile(r'<script\s+src="([^"]+)"')
+FRONTEND_SCRIPT_PATHS = [
+    "js/priority-queue.js",
+    "js/config.js",
+    "js/utils.js",
+    "js/popups.js",
+    "js/api.js",
+    "js/dialogs-review.js",
+    "js/ui-controls.js",
+    "js/map-features.js",
+    "js/routing.js",
+]
 
 
 @dataclass
@@ -26,10 +39,11 @@ class CheckResult:
 
 
 class SmokeTester:
-    def __init__(self, base_url: str, admin_token: str = "", timeout: int = 20) -> None:
+    def __init__(self, base_url: str, admin_token: str = "", timeout: int = 20, frontend_only: bool = False) -> None:
         self.base_url = base_url.rstrip("/") + "/"
         self.admin_token = admin_token
         self.timeout = timeout
+        self.frontend_only = frontend_only
         self.results: list[CheckResult] = []
         self.feature_collection: dict[str, Any] | None = None
 
@@ -70,6 +84,10 @@ class SmokeTester:
 
     def run(self) -> int:
         self.check_frontend()
+        if self.frontend_only:
+            self.print_results()
+            return 1 if any(result.status == "FAIL" for result in self.results) else 0
+
         self.check_sql_features()
         self.check_feature_consistency()
         self.check_auth_boundaries()
@@ -83,11 +101,30 @@ class SmokeTester:
             self.fail("frontend", f"index.html returned HTTP {status}")
             return
 
-        if "tiles/stylized" not in html or "api/map-features.php" not in html:
-            self.warn("frontend", "index.html loaded, but expected SQL/stylized markers were not found")
+        script_paths = SCRIPT_SRC_PATTERN.findall(html)
+        missing_scripts = [path for path in FRONTEND_SCRIPT_PATHS if path not in script_paths]
+        if missing_scripts:
+            self.fail("frontend", f"missing script references: {', '.join(missing_scripts)}")
             return
 
-        self.ok("frontend", "index.html is reachable and contains SQL/stylized configuration")
+        script_failures = self.check_frontend_scripts()
+        if script_failures:
+            self.fail("frontend-js", "; ".join(script_failures))
+            return
+
+        self.ok("frontend", "index.html and modular JS files are reachable")
+
+    def check_frontend_scripts(self) -> list[str]:
+        failures: list[str] = []
+        for path in FRONTEND_SCRIPT_PATHS:
+            status, body = self.request_text(path)
+            if status != 200:
+                failures.append(f"{path} returned HTTP {status}")
+                continue
+
+            if path == "js/config.js" and ("tiles/stylized" not in body or "api/map-features.php" not in body):
+                failures.append("js/config.js does not contain expected SQL/stylized configuration")
+        return failures
 
     def check_sql_features(self) -> None:
         status, payload = self.request_json("api/map-features.php")
@@ -243,12 +280,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--base-url", default="https://avesmaps.de/", help="Deployment base URL.")
     parser.add_argument("--admin-token", default="", help="Optional import/admin bearer token for read-only DB status.")
     parser.add_argument("--timeout", type=int, default=20, help="HTTP timeout in seconds.")
+    parser.add_argument("--frontend-only", action="store_true", help="Only verify frontend files and script references.")
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    tester = SmokeTester(args.base_url, args.admin_token, args.timeout)
+    tester = SmokeTester(args.base_url, args.admin_token, args.timeout, args.frontend_only)
     try:
         return tester.run()
     except Exception as error:

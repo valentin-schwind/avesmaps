@@ -1,3 +1,4 @@
+// Location markers and labels
 function locationZoomScale(zoomLevel) {
 	const zoomScales = {
 		0: 0.45,
@@ -199,6 +200,7 @@ function syncPathVisibility() {
 	$.each(pathLayers, (i, layer) => map[showPaths ? "addLayer" : "removeLayer"](layer));
 }
 
+// Powerlines
 function getPowerlineLatLngs(powerline) {
 	const fromEntry = findLocationMarkerByPublicId(powerline.properties?.from_public_id);
 	const toEntry = findLocationMarkerByPublicId(powerline.properties?.to_public_id);
@@ -1503,28 +1505,6 @@ function withExpectedRevision(payload) {
 	return revision === null || revision === undefined ? payload : { ...payload, expected_revision: revision };
 }
 
-async function submitMapFeatureEdit(payload) {
-	const requestPayload = withExpectedRevision(payload);
-	const response = await fetch(MAP_FEATURE_UPDATE_API_URL, {
-		method: "PATCH",
-		credentials: "same-origin",
-		headers: {
-			Accept: "application/json",
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify(requestPayload),
-	});
-	const result = await response.json().catch(() => ({}));
-	if (!response.ok || result?.ok !== true) {
-		if (response.status === 409) {
-			void pollLiveMapUpdates();
-		}
-		throw new Error(result?.error || `Speichern fehlgeschlagen (${response.status}).`);
-	}
-
-	return result;
-}
-
 async function acquireFeatureSoftLock(publicId) {
 	if (!IS_EDIT_MODE || !isSqlMapFeatureId(publicId) || activeFeatureLocks.has(publicId)) {
 		return;
@@ -1755,6 +1735,7 @@ async function createLocationAt(latlng) {
 	openLocationEditDialog({ latlng: normalizedLatLng });
 }
 
+// Labels
 function normalizeLabelFeature(feature) {
 	const properties = feature.properties || {};
 	const [lng, lat] = feature.geometry?.coordinates || [feature.lng, feature.lat];
@@ -2439,6 +2420,7 @@ function createPathLayer(path) {
 	return layerGroup;
 }
 
+// Paths
 function normalizeRoutePathFeature(feature, pathId) {
 	const originalName = feature.properties?.name || feature.properties?.feature_subtype || "Weg";
 	const routeType = normalizePathSubtype(feature.properties?.feature_subtype || originalName);
@@ -3256,6 +3238,7 @@ async function deletePowerlineFeature(powerline) {
 }
 
 // Verarbeitung der Regionen
+// Regions
 function prepareRegionData(data) {
 
 	regionPolygons = [];
