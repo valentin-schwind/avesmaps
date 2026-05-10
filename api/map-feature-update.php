@@ -166,14 +166,13 @@ function avesmapsAllowedTransportOptionsForDomain(string $domain): array {
         'river' => ['riverSailer', 'riverBarge'],
         'sea' => ['cargoShip', 'fastShip', 'galley'],
         'none' => [],
-        default => throw new InvalidArgumentException('Die Reiseart ist ungueltig.'),
+        default => [],
     };
 }
 
 function avesmapsReadTransportDomain(mixed $value, string $subtype): string {
     $domain = avesmapsNormalizeSingleLine((string) ($value ?: avesmapsDefaultTransportDomainForPathSubtype($subtype)), 20);
-    avesmapsAllowedTransportOptionsForDomain($domain);
-    return $domain;
+    return in_array($domain, ['land', 'river', 'sea', 'none'], true) ? $domain : avesmapsDefaultTransportDomainForPathSubtype($subtype);
 }
 
 function avesmapsReadAllowedTransports(mixed $value, string $domain): array {
@@ -186,12 +185,13 @@ function avesmapsReadAllowedTransports(mixed $value, string $domain): array {
     foreach ($value as $option) {
         $normalizedOption = avesmapsNormalizeSingleLine((string) $option, 40);
         if (!in_array($normalizedOption, $compatibleOptions, true)) {
-            throw new InvalidArgumentException('Ein Transportmittel passt nicht zur Reiseart.');
+            continue;
         }
         $allowedOptions[] = $normalizedOption;
     }
 
-    return array_values(array_unique($allowedOptions));
+    $allowedOptions = array_values(array_unique($allowedOptions));
+    return $allowedOptions !== [] ? $allowedOptions : $compatibleOptions;
 }
 
 function avesmapsReadBoolean(mixed $value): bool {
@@ -825,7 +825,7 @@ function avesmapsCreatePathFeature(PDO $pdo, array $payload, array $user): array
     $subtype = avesmapsReadPathSubtype($payload['feature_subtype'] ?? 'Weg');
     $name = avesmapsReadFeatureName($payload['name'] ?? $subtype, 'Der Wegname');
     $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
-    $transportDomain = avesmapsReadTransportDomain($payload['transport_domain'] ?? null, $subtype);
+    $transportDomain = avesmapsDefaultTransportDomainForPathSubtype($subtype);
     $allowedTransports = avesmapsReadAllowedTransports($payload['allowed_transports'] ?? null, $transportDomain);
     $coordinates = avesmapsReadLineStringCoordinates($payload['coordinates'] ?? null);
     $bounds = avesmapsCalculateLineStringBounds($coordinates);
@@ -899,7 +899,7 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
     $name = avesmapsReadFeatureName($payload['name'] ?? '', 'Der Wegname');
     $subtype = avesmapsReadPathSubtype($payload['feature_subtype'] ?? 'Weg');
     $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
-    $transportDomain = avesmapsReadTransportDomain($payload['transport_domain'] ?? null, $subtype);
+    $transportDomain = avesmapsDefaultTransportDomainForPathSubtype($subtype);
     $allowedTransports = avesmapsReadAllowedTransports($payload['allowed_transports'] ?? null, $transportDomain);
 
     $pdo->beginTransaction();

@@ -595,7 +595,7 @@
 				<p><strong>Community-Meldungen.</strong> Von Nutzerinnen und Nutzern gemeldete Orte, Korrekturen oder Ergänzungen werden nicht automatisch veröffentlicht. Sie werden redaktionell geprüft und nur übernommen, wenn sie nach Einschätzung des Betreibers inhaltlich, technisch und rechtlich vertretbar sind. Mit dem Absenden einer Meldung wird keine Veröffentlichung zugesagt.</p>
 				<p><strong>Marken- und Rechtehinweis.</strong> Artwork © Ulisses Spiele, soweit nicht anders angegeben. DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA, RIESLAND und THE DARK EYE sind eingetragene Marken der Ulisses Spiele GmbH, Waldems. Die Verwendung von Grafiken, Kartenmaterial, Namen und sonstigem DSA-bezogenem Material erfolgt ausschließlich im Rahmen der von Ulisses Spiele erlaubten Richtlinien beziehungsweise einschlägigen Lizenzbedingungen. Eine Verwendung über diese Richtlinien hinaus darf nur nach vorheriger schriftlicher Genehmigung der Ulisses Medien und Spiel Distribution GmbH erfolgen.</p>
 				<p><strong>Distanzierung von offizieller Verbindlichkeit.</strong> Avesmaps ist ein Hilfsmittel für Spielrunden, Recherche und private Nutzung. Die Website ersetzt keine offiziellen DSA-Publikationen. Maßgeblich für Kanon, Regeln, Geographie, Namen, Grenzen und Beschreibungen bleiben ausschließlich die offiziellen Veröffentlichungen der jeweiligen Rechteinhaber.</p>
-				<p><strong>Quellen.</strong> avespfade.de · Orkenspalter Kartenmaterial · Ulisses Fan-Richtlinie · GitHub-Repository</p>
+                <p><strong>Quellen.</strong> <a href="https://avespfade.de/" target="_blank" rel="noopener noreferrer">avespfade.de</a> · <a href="https://www.orkenspalter.de/filebase/index.php/File/46-Aventurienkarte-aus-Regionalpl%C3%A4nen/" target="_blank" rel="noopener noreferrer">Orkenspalter Kartenmaterial</a> · <a href="https://ulisses-spiele.de/fan-richtlinie/" target="_blank" rel="noopener noreferrer">Ulisses Fan-Richtlinie</a> · <a href="https://github.com/valentin-schwind/avesmaps" target="_blank" rel="noopener noreferrer">GitHub-Repository</a></p>
 				<p class="legal-dialog__note">Hinweis: Diese Zusammenfassung dient der Quellen- und Lizenzangabe im Projekt.</p>
 </div>
 		</div>
@@ -2188,7 +2188,7 @@
 				name: submittedName || getNextPathDisplayName(featureSubtype, { excludePath: pathEditFeature }),
 				feature_subtype: featureSubtype,
 				show_label: formData.get("show_label") === "on",
-				transport_domain: String(formData.get("transport_domain") || "land"),
+				transport_domain: getDefaultTransportDomainForPathSubtype(featureSubtype),
 				allowed_transports: Array.from(formElement.querySelectorAll('input[name="allowed_transport"]:checked')).map((input) => input.value),
 			};
 		}
@@ -6903,6 +6903,8 @@
 			try {
 				const crossingResult = await createCrossingFeatureAt(coordinateGroups.splitLatLng);
 				addCreatedCrossingMarker(crossingResult.feature);
+				$("#toggleCrossings").prop("checked", true);
+				setSelectedMapLayerMode("political");
 
 				const firstPathResult = await submitMapFeatureEdit({
 					action: "create_path",
