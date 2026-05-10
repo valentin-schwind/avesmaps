@@ -8561,6 +8561,13 @@
 		function highlightRouteLocations(routeNames, segments = []) {
 			removeHighlightedRouteNodes();
 			routeNames.forEach((name, index) => {
+				const isInternalSeaNode = index > 0 && index < routeNames.length - 1
+					&& normalizePathSubtype(segments[index - 1]?.properties?.feature_subtype || segments[index - 1]?.properties?.name) === "Seeweg"
+					&& normalizePathSubtype(segments[index]?.properties?.feature_subtype || segments[index]?.properties?.name) === "Seeweg";
+				if (isInternalSeaNode) {
+					return;
+				}
+
 				const normalizedName = normalizeLocationSearchName(name);
 				const loc = locationData.find((l) => l.name === name)
 					|| locationData.find((l) => normalizeLocationSearchName(l.name) === normalizedName)
