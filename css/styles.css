@@ -1309,7 +1309,7 @@ body.modal-dialog-open {
 	position: fixed;
 	right: min(340px, calc(100vw - 64px));
 	top: 20px;
-	z-index: 1101;
+	z-index: 1020;
 	width: 20px;
 	height: 140px;
 	padding: 0;
