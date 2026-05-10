@@ -73,9 +73,11 @@ jobs:
           mkdir -p "$DEPLOY_DIR"
 
           deploy_items=(
+            ".htaccess"
             "index.html"
             "CNAME"
             "favicon.ico"
+            "og-image.png"
             "llms.txt"
             "robots.txt"
             "sitemap.xml"

@@ -1,0 +1,20 @@
+DirectoryIndex index.html
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+</IfModule>
+
+<IfModule mod_authz_core.c>
+<FilesMatch "^(index\.html|og-image\.png|robots\.txt|sitemap\.xml)$">
+    Require all granted
+</FilesMatch>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+<FilesMatch "^(index\.html|og-image\.png|robots\.txt|sitemap\.xml)$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
+</IfModule>
