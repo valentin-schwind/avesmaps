@@ -109,6 +109,43 @@ function avesmapsReadLocationName(mixed $value): string {
     return $name;
 }
 
+function avesmapsNormalizeDuplicateLocationName(string $value): string {
+    $normalizedValue = mb_strtolower($value);
+    return preg_replace('/[^\p{L}\p{N}]+/u', '', $normalizedValue) ?? '';
+}
+
+function avesmapsAssertUniqueLocationName(PDO $pdo, string $name, ?string $excludePublicId = null): void {
+    $normalizedName = avesmapsNormalizeDuplicateLocationName($name);
+    if ($normalizedName === '') {
+        return;
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT public_id, name
+        FROM map_features
+        WHERE feature_type = :feature_type'
+        . ($excludePublicId !== null && $excludePublicId !== '' ? ' AND public_id <> :public_id' : '')
+    );
+    $parameters = [
+        'feature_type' => 'location',
+    ];
+    if ($excludePublicId !== null && $excludePublicId !== '') {
+        $parameters['public_id'] = $excludePublicId;
+    }
+    $statement->execute($parameters);
+
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $existingName = (string) ($row['name'] ?? '');
+        if ($existingName === '') {
+            continue;
+        }
+
+        if (avesmapsNormalizeDuplicateLocationName($existingName) === $normalizedName) {
+            throw new InvalidArgumentException('Ein Ort mit diesem Namen existiert bereits.');
+        }
+    }
+}
+
 function avesmapsReadFeatureName(mixed $value, string $fieldLabel): string {
     $name = avesmapsNormalizeSingleLine((string) $value, 160);
     if ($name === '') {
@@ -486,6 +523,10 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
     try {
         $feature = avesmapsFetchEditablePointFeature($pdo, $publicId);
         avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
+        $currentName = (string) ($feature['name'] ?? '');
+        if (avesmapsNormalizeDuplicateLocationName($currentName) !== avesmapsNormalizeDuplicateLocationName($name)) {
+            avesmapsAssertUniqueLocationName($pdo, $name, $publicId);
+        }
         $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
         $properties['name'] = $name;
         $properties['feature_type'] = 'location';
@@ -576,6 +617,7 @@ function avesmapsCreatePointFeature(PDO $pdo, array $payload, array $user): arra
 
     $pdo->beginTransaction();
     try {
+        avesmapsAssertUniqueLocationName($pdo, $name);
         $revision = avesmapsNextMapRevision($pdo);
         $sortOrder = avesmapsNextMapSortOrder($pdo);
         $statement = $pdo->prepare(

@@ -2794,6 +2794,14 @@
 			}
 
 			const payload = buildLocationEditPayload(formElement);
+			const duplicateLocation = findDuplicateLocationByName(payload.name, {
+				excludePublicId: payload.public_id || "",
+				allowCurrentName: locationEditMarkerEntry?.location?.name || locationEditMarkerEntry?.name || "",
+			});
+			if (duplicateLocation) {
+				setLocationEditStatus(`Ein Ort namens "${duplicateLocation.name}" existiert bereits.`, "error");
+				return;
+			}
 			setLocationEditStatus("Ort wird gespeichert...", "pending");
 			setLocationEditSubmitPending(true);
 
@@ -2986,6 +2994,13 @@
 			document.getElementById("location-report-page-url").value = window.location.href;
 			document.getElementById("location-report-client-version").value = ICON_ASSET_VERSION;
 			const payload = buildLocationReportRequestPayload(formElement);
+			if (payload.report_type === "location") {
+				const duplicateLocation = findDuplicateLocationByName(payload.name);
+				if (duplicateLocation) {
+					setLocationReportStatus(`Ein Ort namens "${duplicateLocation.name}" existiert bereits.`, "error");
+					return;
+				}
+			}
 			setLocationReportStatus("Meldung wird gesendet...", "pending");
 			setLocationReportSubmitPending(true);
 
@@ -8598,15 +8613,18 @@
 			return normalizeNodeName(routeName);
 		}
 
+		function formatRoutePlanNodeName(name) {
+			return normalizeNodeName(name) === "Kreuzung" ? "Markierung" : name;
+		}
+
 		// Hebt alle Locations der Route hervor
 		function highlightRouteLocations(routeNames, segments = []) {
 			removeHighlightedRouteNodes();
 			routeNames.forEach((name, index) => {
-				const isInternalSeaNode = index > 0 && index < routeNames.length - 1
-					&& normalizePathSubtype(segments[index - 1]?.properties?.feature_subtype || segments[index - 1]?.properties?.name) === "Seeweg"
-					&& normalizePathSubtype(segments[index]?.properties?.feature_subtype || segments[index]?.properties?.name) === "Seeweg";
+				const previousIsSea = normalizePathSubtype(segments[index - 1]?.properties?.feature_subtype || segments[index - 1]?.properties?.name) === "Seeweg";
+				const nextIsSea = normalizePathSubtype(segments[index]?.properties?.feature_subtype || segments[index]?.properties?.name) === "Seeweg";
 				const loc = resolveRouteNodeLocation(name, index, routeNames, segments);
-				if (isInternalSeaNode && (!loc || isCrossingLocation(loc))) {
+				if ((previousIsSea || nextIsSea) && (!loc || isCrossingLocation(loc))) {
 					return;
 				}
 
@@ -8685,8 +8703,16 @@
 				const segTravelTime = (segDistance / speedMiles) * TIME_SCALE_FACTOR;
 				const startName = getRouteNodeDisplayName(routeNames[index], index, routeNames, segments);
 				const endName = getRouteNodeDisplayName(routeNames[index + 1], index + 1, routeNames, segments);
+				const startLocation = resolveRouteNodeLocation(routeNames[index], index, routeNames, segments);
+				const endLocation = resolveRouteNodeLocation(routeNames[index + 1], index + 1, routeNames, segments);
+				const startIsSeaStation = Boolean(startLocation) && !isCrossingLocation(startLocation);
+				const endIsSeaStation = Boolean(endLocation) && !isCrossingLocation(endLocation);
 
 				if (type === "Seeweg") {
+					if (seaAggregateEntry && startIsSeaStation) {
+						flushSeaAggregate();
+					}
+
 					if (!seaAggregateEntry) {
 						seaAggregateEntry = {
 							type,
@@ -8701,6 +8727,9 @@
 					seaAggregateEntry.distance += segDistance;
 					seaAggregateEntry.travelTime += segTravelTime;
 					seaAggregateEntry.endName = endName;
+					if (endIsSeaStation) {
+						flushSeaAggregate();
+					}
 					return;
 				}
 
@@ -8752,20 +8781,16 @@
 
 				totalTravelTime += entry.travelTime;
 				totalRestTime += segRestTime;
+				const formattedStartName = formatRoutePlanNodeName(entry.startName);
+				const formattedEndName = formatRoutePlanNodeName(entry.endName);
 
 				$overview.append(`
 					<p>
-					${["Seeweg", "Flussweg"].includes(entry.type)
-						? `${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type}
-						(${entry.distance.toFixed(2)} Meilen)
-						bis <strong>${entry.endName === "Kreuzung" ? "Markierung" : entry.endName}</strong>
-						in ${entry.travelTime.toFixed(2)} Stunden`
-						: `${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type}
-						(${entry.distance.toFixed(2)} Meilen)
-						von <strong>${entry.startName}</strong>
-						bis <strong>${entry.endName}</strong>
-						in ${entry.travelTime.toFixed(2)} Stunden`
-					}
+					${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type}
+					(${entry.distance.toFixed(2)} Meilen)
+					von <strong>${formattedStartName}</strong>
+					bis <strong>${formattedEndName}</strong>
+					in ${entry.travelTime.toFixed(2)} Stunden
 					</p>
 				`);
 			});
@@ -8798,6 +8823,16 @@
 			return typeof name === "string" ? name.normalize("NFC").trim().toLowerCase() : "";
 		};
 
+		const normalizeLocationDuplicateName = (name) => {
+			return typeof name === "string"
+				? name
+					.normalize("NFD")
+					.replace(/[\u0300-\u036f]/g, "")
+					.toLowerCase()
+					.replace(/[^a-z0-9]+/g, "")
+				: "";
+		};
+
 		const validateLocation = (name) => {
 			const normalizedName = normalizeLocationSearchName(name);
 
@@ -8807,6 +8842,30 @@
 
 			return locationData.find((loc) => normalizeLocationSearchName(loc.name) === normalizedName) || null;
 		};
+
+		function findDuplicateLocationByName(name, { excludePublicId = "", allowCurrentName = "" } = {}) {
+			const normalizedName = normalizeLocationDuplicateName(name);
+			if (!normalizedName) {
+				return null;
+			}
+
+			const normalizedCurrentName = normalizeLocationDuplicateName(allowCurrentName);
+			if (normalizedCurrentName !== "" && normalizedCurrentName === normalizedName) {
+				return null;
+			}
+
+			return locationData.find((location) => {
+				if (isCrossingLocation(location)) {
+					return false;
+				}
+
+				if (excludePublicId !== "" && location.publicId === excludePublicId) {
+					return false;
+				}
+
+				return normalizeLocationDuplicateName(location.name) === normalizedName;
+			}) || null;
+		}
 
 		// Fügt einen Tooltip zu einem Waypoint hinzu
 		const addTooltip = ({

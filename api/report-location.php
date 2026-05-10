@@ -57,6 +57,12 @@ try {
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsEnsureMapReportsTable($pdo);
+    if ($mapReport['report_type'] === 'location' && avesmapsLocationNameExists($pdo, $mapReport['name'])) {
+        avesmapsJsonResponse(409, [
+            'ok' => false,
+            'error' => 'Ein Ort mit diesem Namen existiert bereits oder wurde bereits gemeldet.',
+        ]);
+    }
     if (avesmapsReportRateLimitExceeded($pdo, avesmapsBuildPrivacyIpHash($config))) {
         avesmapsJsonResponse(200, [
             'ok' => true,
@@ -332,6 +338,45 @@ function avesmapsIsNearDuplicateReport(PDO $pdo, array $mapReport): bool {
 function avesmapsNormalizeDuplicateText(string $value): string {
     $normalizedValue = mb_strtolower($value);
     return preg_replace('/[^\p{L}\p{N}]+/u', '', $normalizedValue) ?? '';
+}
+
+function avesmapsLocationNameExists(PDO $pdo, string $name): bool {
+    $normalizedName = avesmapsNormalizeDuplicateText($name);
+    if ($normalizedName === '') {
+        return false;
+    }
+
+    $featureStatement = $pdo->prepare(
+        'SELECT name
+        FROM map_features
+        WHERE feature_type = :feature_type'
+    );
+    $featureStatement->execute([
+        'feature_type' => 'location',
+    ]);
+    foreach ($featureStatement->fetchAll() as $featureRow) {
+        if (avesmapsNormalizeDuplicateText((string) ($featureRow['name'] ?? '')) === $normalizedName) {
+            return true;
+        }
+    }
+
+    $reportStatement = $pdo->prepare(
+        'SELECT name
+        FROM map_reports
+        WHERE status = :status
+            AND report_type = :report_type'
+    );
+    $reportStatement->execute([
+        'status' => 'neu',
+        'report_type' => 'location',
+    ]);
+    foreach ($reportStatement->fetchAll() as $reportRow) {
+        if (avesmapsNormalizeDuplicateText((string) ($reportRow['name'] ?? '')) === $normalizedName) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function avesmapsEnsureMapReportsTable(PDO $pdo): void {
