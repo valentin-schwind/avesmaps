@@ -8510,27 +8510,7 @@
 		}
 
 		function createRouteNodeMarkersForSegment(segment) {
-			const routeType = normalizePathSubtype(segment?.properties?.feature_subtype || segment?.properties?.name);
-			if (routeType !== "Seeweg") {
-				return [];
-			}
-
-			const coordinates = Array.isArray(segment?.geometry?.coordinates) ? segment.geometry.coordinates : [];
-			if (coordinates.length < 2) {
-				return [];
-			}
-
-			return [coordinates[0], coordinates[coordinates.length - 1]]
-				.map(([x, y]) => L.circleMarker([y, x], {
-					pane: "locationsPane",
-					radius: 8,
-					color: "#000000",
-					weight: 2,
-					fillColor: "#ffffff",
-					fillOpacity: 1,
-					opacity: 1,
-					interactive: false,
-				}));
+			return [];
 		}
 
 		function drawRoute(segments) {
@@ -8625,6 +8605,72 @@
 			return allowedTransports.includes(transportOption);
 		}
 
+		function buildRoutePlanEntries(routeNames, segments) {
+			const entries = [];
+			let seaAggregateEntry = null;
+
+			const flushSeaAggregate = () => {
+				if (seaAggregateEntry) {
+					entries.push(seaAggregateEntry);
+					seaAggregateEntry = null;
+				}
+			};
+
+			segments.forEach((segment, index) => {
+				if (!segment?.geometry?.coordinates?.length || segment.geometry.coordinates.length < 2) {
+					return;
+				}
+
+				const type = normalizePathSubtype(segment.properties?.feature_subtype || segment.properties?.name);
+				const transport = segment.properties?.transportOption || getTransportOption(type) || "groupFoot";
+				const speedKm = SPEED_TABLE[transport]?.[type] || 1;
+				const speedMiles = speedKm * KM_TO_MILES;
+				let segDistance = 0;
+
+				for (let coordinateIndex = 0; coordinateIndex < segment.geometry.coordinates.length - 1; coordinateIndex += 1) {
+					segDistance += calculateScaledDistance(
+						segment.geometry.coordinates[coordinateIndex],
+						segment.geometry.coordinates[coordinateIndex + 1]
+					);
+				}
+
+				const segTravelTime = (segDistance / speedMiles) * TIME_SCALE_FACTOR;
+				const startName = normalizeNodeName(routeNames[index]);
+				const endName = normalizeNodeName(routeNames[index + 1]);
+
+				if (type === "Seeweg") {
+					if (!seaAggregateEntry) {
+						seaAggregateEntry = {
+							type,
+							startName,
+							endName,
+							distance: 0,
+							travelTime: 0,
+							restTime: 0,
+						};
+					}
+
+					seaAggregateEntry.distance += segDistance;
+					seaAggregateEntry.travelTime += segTravelTime;
+					seaAggregateEntry.endName = endName;
+					return;
+				}
+
+				flushSeaAggregate();
+				entries.push({
+					type,
+					startName,
+					endName,
+					distance: segDistance,
+					travelTime: segTravelTime,
+					restTime: 0,
+				});
+			});
+
+			flushSeaAggregate();
+			return entries;
+		}
+
 		// Zeigt den Routenplan (mit Distanzen und Zeiten)
 		function showRoutePlan(routeNames, segments) {
 
@@ -8644,71 +8690,37 @@
 
 			const restPerDay = parseFloat($("#restHours").val()) || 10;
 			const travelPerDay = Math.max(24 - restPerDay, 0.5);
+			const planEntries = buildRoutePlanEntries(routeNames, segments);
 
-			segments.forEach((segment, idx) => {
-
-				if (!segment.geometry || segment.geometry.coordinates.length < 2) {
-					console.warn(`Ungültiges Segment an Index ${idx}`, segment);
-					return;
-				}
-
-				const type = normalizePathSubtype(segment.properties?.feature_subtype || segment.properties?.name);
-
-				const transport = segment.properties?.transportOption || getTransportOption(type) || "groupFoot";
-
-				const speedKm = SPEED_TABLE[transport]?.[type] || 1;
-
-				const speedMiles = speedKm * KM_TO_MILES;
-
-				let segDistance = 0;
-
-				for (let i = 0; i < segment.geometry.coordinates.length - 1; i++) {
-					segDistance += calcDistance(
-						segment.geometry.coordinates[i],
-						segment.geometry.coordinates[i + 1]
-					);
-				}
-
-				totalDistance += segDistance;
-
-				const segTravelTime = (segDistance / speedMiles) * TIME_SCALE_FACTOR;
+			planEntries.forEach((entry) => {
+				totalDistance += entry.distance;
 
 				let segRestTime = 0;
-
-				// Rast nur bei Landwegen
-				if ($("#includeRests").is(":checked") &&
-					!["Seeweg", "Flussweg"].includes(type)) {
-
-					const days = segTravelTime / travelPerDay;
+				if ($("#includeRests").is(":checked") && !["Seeweg", "Flussweg"].includes(entry.type)) {
+					const days = entry.travelTime / travelPerDay;
 					const totalSegmentHours = days * 24;
-
-					segRestTime = totalSegmentHours - segTravelTime;
+					segRestTime = totalSegmentHours - entry.travelTime;
 				}
 
-				totalTravelTime += segTravelTime;
+				totalTravelTime += entry.travelTime;
 				totalRestTime += segRestTime;
-
-				const startName = normalizeNodeName(routeNames[idx]);
-				const endName = normalizeNodeName(routeNames[idx + 1]);
 
 				$overview.append(`
 					<p>
-					${["Seeweg", "Flussweg"].includes(type)
-						? `${assetIconMarkup(ROUTE_ICON_PATHS[type] || ROUTE_ICON_PATHS["Weg"])} ${type}
-						(${segDistance.toFixed(2)} Meilen)
-						bis <strong>${endName === "Kreuzung" ? "Markierung" : endName}</strong>
-						in ${segTravelTime.toFixed(2)} Stunden`
-						: `${assetIconMarkup(ROUTE_ICON_PATHS[type] || ROUTE_ICON_PATHS["Weg"])} ${type}
-						(${segDistance.toFixed(2)} Meilen)
-						von <strong>${startName}</strong>
-						bis <strong>${endName}</strong>
-						in ${segTravelTime.toFixed(2)} Stunden`
+					${["Seeweg", "Flussweg"].includes(entry.type)
+						? `${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type}
+						(${entry.distance.toFixed(2)} Meilen)
+						bis <strong>${entry.endName === "Kreuzung" ? "Markierung" : entry.endName}</strong>
+						in ${entry.travelTime.toFixed(2)} Stunden`
+						: `${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type}
+						(${entry.distance.toFixed(2)} Meilen)
+						von <strong>${entry.startName}</strong>
+						bis <strong>${entry.endName}</strong>
+						in ${entry.travelTime.toFixed(2)} Stunden`
 					}
 					</p>
 				`);
-
 			});
-
 			const totalHours = totalTravelTime + totalRestTime;
 
 			const routeDesc = selectedLocations
