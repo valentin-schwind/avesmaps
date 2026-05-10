@@ -8557,6 +8557,47 @@
 				.filter(Boolean);
 		}
 
+		function resolveRouteNodeLocation(routeName, index, routeNames, segments) {
+			const normalizedName = normalizeLocationSearchName(routeName);
+			const directLocation = locationData.find((location) => location.name === routeName)
+				|| locationData.find((location) => normalizeLocationSearchName(location.name) === normalizedName)
+				|| findLocationMarkerByName(routeName)?.location
+				|| null;
+			if (directLocation) {
+				return directLocation;
+			}
+
+			const candidateCoordinates = [];
+			const previousSegment = segments[index - 1];
+			const nextSegment = segments[index];
+			const previousEnd = previousSegment?.geometry?.coordinates?.[previousSegment.geometry.coordinates.length - 1];
+			const nextStart = nextSegment?.geometry?.coordinates?.[0];
+			if (previousEnd) {
+				candidateCoordinates.push(previousEnd);
+			}
+			if (nextStart) {
+				candidateCoordinates.push(nextStart);
+			}
+
+			for (const coordinate of candidateCoordinates) {
+				const location = getLocationAtPathEndpoint(coordinate);
+				if (location) {
+					return location;
+				}
+			}
+
+			return null;
+		}
+
+		function getRouteNodeDisplayName(routeName, index, routeNames, segments) {
+			const location = resolveRouteNodeLocation(routeName, index, routeNames, segments);
+			if (location) {
+				return isCrossingLocation(location) ? normalizeNodeName(location.name) : location.name;
+			}
+
+			return normalizeNodeName(routeName);
+		}
+
 		// Hebt alle Locations der Route hervor
 		function highlightRouteLocations(routeNames, segments = []) {
 			removeHighlightedRouteNodes();
@@ -8564,15 +8605,11 @@
 				const isInternalSeaNode = index > 0 && index < routeNames.length - 1
 					&& normalizePathSubtype(segments[index - 1]?.properties?.feature_subtype || segments[index - 1]?.properties?.name) === "Seeweg"
 					&& normalizePathSubtype(segments[index]?.properties?.feature_subtype || segments[index]?.properties?.name) === "Seeweg";
-				if (isInternalSeaNode) {
+				const loc = resolveRouteNodeLocation(name, index, routeNames, segments);
+				if (isInternalSeaNode && (!loc || isCrossingLocation(loc))) {
 					return;
 				}
 
-				const normalizedName = normalizeLocationSearchName(name);
-				const loc = locationData.find((l) => l.name === name)
-					|| locationData.find((l) => normalizeLocationSearchName(l.name) === normalizedName)
-					|| findLocationMarkerByName(name)?.location
-					|| null;
 				if (loc) {
 					const node = L.circleMarker(loc.coordinates, ROUTE_NODE_STYLE).addTo(map);
 					highlightedRouteNodes.push(node);
@@ -8646,8 +8683,8 @@
 				}
 
 				const segTravelTime = (segDistance / speedMiles) * TIME_SCALE_FACTOR;
-				const startName = normalizeNodeName(routeNames[index]);
-				const endName = normalizeNodeName(routeNames[index + 1]);
+				const startName = getRouteNodeDisplayName(routeNames[index], index, routeNames, segments);
+				const endName = getRouteNodeDisplayName(routeNames[index + 1], index + 1, routeNames, segments);
 
 				if (type === "Seeweg") {
 					if (!seaAggregateEntry) {
