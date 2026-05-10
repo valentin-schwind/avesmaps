@@ -675,7 +675,8 @@
 			[IMG_WIDTH, IMG_HEIGHT],
 		];
 
-		const ROUTE_STYLE = { pane: "routePane", color: "#1452F7", weight: 10, opacity: 1, interactive: false, lineCap: "round", lineJoin: "round" };
+		const ROUTE_STYLE = { pane: "routePane", color: "#1452F7", weight: 10, opacity: 1, interactive: true, lineCap: "round", lineJoin: "round" };
+		const ROUTE_SELECTED_STYLE = { color: "#ffd54a", weight: 15, opacity: 1 };
 		const SYNTHETIC_ROUTE_STYLE = { ...ROUTE_STYLE, dashArray: "14 10", opacity: 0.7 };
 		const MEASUREMENT_LINE_STYLE = { pane: "measurementPane", color: "#FFFFFF", weight: 4, opacity: 0.95, interactive: false, dashArray: "10 8", lineCap: "round", lineJoin: "round" };
 		const ROUTE_NODE_STYLE = { pane: "locationsPane", fillColor: "white", color: "#000", radius: 8, weight: 2, fillOpacity: 1 };
@@ -888,6 +889,9 @@
 			isSearchPanelHidden = false,
 			currentRouteLayer = null,
 			currentRouteNodeLayer = null,
+			currentRouteSegmentLayers = [],
+			currentRoutePlanEntries = [],
+			activeRoutePlanEntryIndex = null,
 			graphData = null,
 			invalidLocationInputs = [],
 			selectedLocations = [],
@@ -4774,6 +4778,9 @@
 				map.removeLayer(currentRouteNodeLayer);
 				currentRouteNodeLayer = null;
 			}
+			currentRouteSegmentLayers = [];
+			currentRoutePlanEntries = [];
+			activeRoutePlanEntryIndex = null;
 
 			removeAllTooltips();
 			removeHighlightedRouteNodes();
@@ -8528,6 +8535,73 @@
 			return [];
 		}
 
+		function getRouteSegmentStyle(segment, isSelected = false) {
+			const baseStyle = segment?.properties?.synthetic ? SYNTHETIC_ROUTE_STYLE : ROUTE_STYLE;
+			return isSelected ? { ...baseStyle, ...ROUTE_SELECTED_STYLE } : { ...baseStyle };
+		}
+
+		function getRouteEntryBounds(routeEntry) {
+			let bounds = null;
+			(routeEntry?.segmentIndexes || []).forEach((segmentIndex) => {
+				const segmentLayer = currentRouteSegmentLayers[segmentIndex]?.layer;
+				if (!segmentLayer?.getBounds) {
+					return;
+				}
+
+				const segmentBounds = segmentLayer.getBounds();
+				if (!segmentBounds.isValid()) {
+					return;
+				}
+
+				bounds = bounds ? bounds.extend(segmentBounds) : L.latLngBounds(segmentBounds.getSouthWest(), segmentBounds.getNorthEast());
+			});
+
+			return bounds;
+		}
+
+		function selectRoutePlanEntry(entryIndex, { zoomToEntry = false, scrollPlan = false } = {}) {
+			const routeEntry = currentRoutePlanEntries[entryIndex];
+			if (!routeEntry) {
+				return;
+			}
+
+			activeRoutePlanEntryIndex = entryIndex;
+			const selectedSegmentIndexes = new Set(routeEntry.segmentIndexes || []);
+			currentRouteSegmentLayers.forEach((entry, segmentIndex) => {
+				if (!entry?.layer) {
+					return;
+				}
+
+				const isSelected = selectedSegmentIndexes.has(segmentIndex);
+				entry.layer.setStyle(getRouteSegmentStyle(entry.segment, isSelected));
+				if (isSelected) {
+					entry.layer.bringToFront();
+				}
+			});
+
+			document.querySelectorAll(".route-plan-entry").forEach((entryElement) => {
+				const isActive = Number(entryElement.dataset.routeEntryIndex) === entryIndex;
+				entryElement.classList.toggle("is-active", isActive);
+				if (isActive && scrollPlan) {
+					entryElement.scrollIntoView({ block: "nearest", behavior: "smooth" });
+				}
+			});
+
+			if (zoomToEntry) {
+				const bounds = getRouteEntryBounds(routeEntry);
+				if (bounds?.isValid()) {
+					map.fitBounds(bounds.pad(0.18), { maxZoom: Math.max(map.getZoom(), 4) });
+				}
+			}
+		}
+
+		function selectRoutePlanEntryForSegment(segmentIndex) {
+			const entryIndex = currentRoutePlanEntries.findIndex((routeEntry) => (routeEntry.segmentIndexes || []).includes(segmentIndex));
+			if (entryIndex >= 0) {
+				selectRoutePlanEntry(entryIndex, { scrollPlan: true });
+			}
+		}
+
 		function drawRoute(segments) {
 			if (currentRouteLayer) {
 				map.removeLayer(currentRouteLayer);
@@ -8537,20 +8611,28 @@
 				map.removeLayer(currentRouteNodeLayer);
 				currentRouteNodeLayer = null;
 			}
+			currentRouteSegmentLayers = [];
 			currentRouteNodeLayer = L.layerGroup();
-			segments.forEach((segment) => {
+			currentRouteLayer = L.layerGroup();
+			segments.forEach((segment, segmentIndex) => {
 				const visualCoordinates = smoothLineCoordinatesForDisplay(segment.geometry?.coordinates || []);
 				const segCoords = visualCoordinates.map(([x, y]) => [y, x]);
 				if (segCoords.length) {
-					const routeStyle = segment.properties?.synthetic ? SYNTHETIC_ROUTE_STYLE : ROUTE_STYLE;
-					const segLayer = L.polyline(segCoords, routeStyle).addTo(map);
-					currentRouteLayer = currentRouteLayer ? currentRouteLayer.addLayer(segLayer) : L.layerGroup([segLayer]);
+					const segLayer = L.polyline(segCoords, getRouteSegmentStyle(segment));
+					segLayer.on("click", (event) => {
+						if (event.originalEvent) {
+							L.DomEvent.stop(event.originalEvent);
+						}
+						selectRoutePlanEntryForSegment(segmentIndex);
+					});
+					currentRouteLayer.addLayer(segLayer);
+					currentRouteSegmentLayers[segmentIndex] = { layer: segLayer, segment };
 					createRouteNodeMarkersForSegment(segment).forEach((marker) => currentRouteNodeLayer.addLayer(marker));
 				} else {
 					console.warn("Ungültige Segmentkoordinaten:", segment.geometry);
 				}
 			});
-			if (currentRouteLayer) currentRouteLayer.addTo(map);
+			if (currentRouteLayer.getLayers().length) currentRouteLayer.addTo(map);
 			if (currentRouteNodeLayer.getLayers().length) currentRouteNodeLayer.addTo(map);
 		}
 
@@ -8721,12 +8803,14 @@
 							distance: 0,
 							travelTime: 0,
 							restTime: 0,
+							segmentIndexes: [],
 						};
 					}
 
 					seaAggregateEntry.distance += segDistance;
 					seaAggregateEntry.travelTime += segTravelTime;
 					seaAggregateEntry.endName = endName;
+					seaAggregateEntry.segmentIndexes.push(index);
 					if (endIsSeaStation) {
 						flushSeaAggregate();
 					}
@@ -8741,6 +8825,7 @@
 					distance: segDistance,
 					travelTime: segTravelTime,
 					restTime: 0,
+					segmentIndexes: [index],
 				});
 			});
 
@@ -8768,8 +8853,9 @@
 			const restPerDay = parseFloat($("#restHours").val()) || 10;
 			const travelPerDay = Math.max(24 - restPerDay, 0.5);
 			const planEntries = buildRoutePlanEntries(routeNames, segments);
+			currentRoutePlanEntries = planEntries;
 
-			planEntries.forEach((entry) => {
+			planEntries.forEach((entry, entryIndex) => {
 				totalDistance += entry.distance;
 
 				let segRestTime = 0;
@@ -8785,14 +8871,17 @@
 				const formattedEndName = formatRoutePlanNodeName(entry.endName);
 
 				$overview.append(`
-					<p>
+					<button type="button" class="route-plan-entry" data-route-entry-index="${entryIndex}">
 					${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type}
 					(${entry.distance.toFixed(2)} Meilen)
 					von <strong>${formattedStartName}</strong>
 					bis <strong>${formattedEndName}</strong>
 					in ${entry.travelTime.toFixed(2)} Stunden
-					</p>
+					</button>
 				`);
+			});
+			$overview.find(".route-plan-entry").on("click", function () {
+				selectRoutePlanEntry(Number(this.dataset.routeEntryIndex), { zoomToEntry: true });
 			});
 			const totalHours = totalTravelTime + totalRestTime;
 
@@ -8988,8 +9077,12 @@
 						route = calculateRoute(start, end, useShortest);
 					console.log("Berechnete Route:", route);
 					if (route.length) {
-						routeNodeNames = [...routeNodeNames, ...route.map((r) => r.from)];
-						routeNodeNames.push(route[route.length - 1].to);
+						if (!routeNodeNames.length) {
+							routeNodeNames.push(route[0].from);
+						}
+						route.forEach((routeStep) => {
+							routeNodeNames.push(routeStep.to);
+						});
 						segments = [...segments, ...getRouteSegments(route)];
 					} else {
 						alert(`Keine Route zwischen ${start} und ${end} gefunden.`);

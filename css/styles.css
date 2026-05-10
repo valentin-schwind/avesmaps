@@ -955,6 +955,34 @@ body.modal-dialog-open {
 	margin-right: 4px;
 }
 
+.route-plan-entry {
+	display: block;
+	width: 100%;
+	margin: 0 0 8px;
+	padding: 7px 8px;
+	border: 1px solid transparent;
+	border-radius: 6px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	line-height: 1.35;
+	text-align: left;
+	cursor: pointer;
+}
+
+.route-plan-entry:hover,
+.route-plan-entry:focus-visible {
+	border-color: rgba(20, 82, 247, 0.35);
+	background: rgba(20, 82, 247, 0.08);
+	outline: none;
+}
+
+.route-plan-entry.is-active {
+	border-color: rgba(20, 82, 247, 0.65);
+	background: rgba(255, 213, 74, 0.32);
+	box-shadow: inset 3px 0 0 #1452f7;
+}
+
 .transport-select-with-icon {
 	position: relative;
 	width: 170px;
