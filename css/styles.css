@@ -1841,17 +1841,6 @@ body.edit-mode .map-label span {
 	line-height: 1.35;
 }
 
-.location-popup-wrapper--route .leaflet-popup-content {
-	width: auto !important;
-}
-
-.location-popup-wrapper--route .location-popup {
-	display: inline-block;
-	width: auto;
-	min-width: 0;
-	max-width: min(260px, calc(100vw - 72px));
-}
-
 .location-popup__header {
 	display: flex;
 	align-items: center;
