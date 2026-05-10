@@ -8671,6 +8671,46 @@
 			return entries;
 		}
 
+		function buildHighlightedRouteNodeNames(route, segments) {
+			const highlightedNames = [];
+			let seaBlockStart = null;
+			let seaBlockEnd = null;
+
+			const flushSeaBlock = () => {
+				if (!seaBlockStart) {
+					return;
+				}
+
+				highlightedNames.push(seaBlockStart);
+				if (seaBlockEnd && seaBlockEnd !== seaBlockStart) {
+					highlightedNames.push(seaBlockEnd);
+				}
+				seaBlockStart = null;
+				seaBlockEnd = null;
+			};
+
+			route.forEach((step, index) => {
+				const segment = segments[index];
+				const type = normalizePathSubtype(segment?.properties?.feature_subtype || segment?.properties?.name);
+				const fromName = normalizeNodeName(step?.from);
+				const toName = normalizeNodeName(step?.to);
+
+				if (type === "Seeweg") {
+					if (!seaBlockStart) {
+						seaBlockStart = fromName;
+					}
+					seaBlockEnd = toName;
+					return;
+				}
+
+				flushSeaBlock();
+				highlightedNames.push(fromName, toName);
+			});
+
+			flushSeaBlock();
+			return [...new Set(highlightedNames.filter(Boolean))];
+		}
+
 		// Zeigt den Routenplan (mit Distanzen und Zeiten)
 		function showRoutePlan(routeNames, segments) {
 
@@ -8894,7 +8934,7 @@
 				if (segments.length) {
 					logRoutePoints(segments);
 					drawRoute(segments);
-					highlightRouteLocations(routeNodeNames);
+					highlightRouteLocations(buildHighlightedRouteNodeNames(routeNodeNames, segments));
 					showRoutePlan(routeNodeNames, segments);
 				} else {
 					alert("Keine gültigen Routensegmente gefunden.");
