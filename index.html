@@ -8678,8 +8678,8 @@
 			route.forEach((step, index) => {
 				const segment = segments[index];
 				const type = normalizePathSubtype(segment?.properties?.feature_subtype || segment?.properties?.name);
-				const fromName = normalizeNodeName(step?.from);
-				const toName = normalizeNodeName(step?.to);
+				const fromName = String(step?.from || "");
+				const toName = String(step?.to || "");
 
 				if (type === "Seeweg") {
 					if (!inSeaBlock) {
