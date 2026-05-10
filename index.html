@@ -8673,21 +8673,7 @@
 
 		function buildHighlightedRouteNodeNames(route, segments) {
 			const highlightedNames = [];
-			let seaBlockStart = null;
-			let seaBlockEnd = null;
-
-			const flushSeaBlock = () => {
-				if (!seaBlockStart) {
-					return;
-				}
-
-				highlightedNames.push(seaBlockStart);
-				if (seaBlockEnd && seaBlockEnd !== seaBlockStart) {
-					highlightedNames.push(seaBlockEnd);
-				}
-				seaBlockStart = null;
-				seaBlockEnd = null;
-			};
+			let inSeaBlock = false;
 
 			route.forEach((step, index) => {
 				const segment = segments[index];
@@ -8696,18 +8682,22 @@
 				const toName = normalizeNodeName(step?.to);
 
 				if (type === "Seeweg") {
-					if (!seaBlockStart) {
-						seaBlockStart = fromName;
+					if (!inSeaBlock) {
+						highlightedNames.push(fromName);
+						inSeaBlock = true;
 					}
-					seaBlockEnd = toName;
+
+					if (index === route.length - 1 || normalizePathSubtype(segments[index + 1]?.properties?.feature_subtype || segments[index + 1]?.properties?.name) !== "Seeweg") {
+						highlightedNames.push(toName);
+						inSeaBlock = false;
+					}
 					return;
 				}
 
-				flushSeaBlock();
+				inSeaBlock = false;
 				highlightedNames.push(fromName, toName);
 			});
 
-			flushSeaBlock();
 			return [...new Set(highlightedNames.filter(Boolean))];
 		}
 
