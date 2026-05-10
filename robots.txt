@@ -1,4 +1,10 @@
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Facebot
+Allow: /
+
 User-agent: *
 Allow: /
 
-Sitemap: https://valentin-schwind.github.io/avesmaps/sitemap.xml
+Sitemap: https://avesmaps.de/sitemap.xml
