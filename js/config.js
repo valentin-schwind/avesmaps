@@ -188,7 +188,7 @@ const TRANSPORT_ICON_PATHS = {
 		none: "icons/small_webp/NurKarte.webp",
 		political: "icons/small_webp/PolitischeKarte.webp",
 		deregraphic: "icons/small_webp/RegionenKarte.webp",
-		powerlines: "icons/small_webp/RegionenKarte.webp",
+		powerlines: "icons/small_webp/kraftlinien.webp",
 	},
 	landTransport: {
 		caravan: "icons/small_webp/karavane.webp",
