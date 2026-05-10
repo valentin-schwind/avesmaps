@@ -26,6 +26,26 @@ function getRouteEntryBounds(routeEntry) {
 	return bounds;
 }
 
+function getCurrentRouteBounds() {
+	let bounds = null;
+
+	currentRouteSegmentLayers.forEach((entry) => {
+		const segmentLayer = entry?.layer;
+		if (!segmentLayer?.getBounds) {
+			return;
+		}
+
+		const segmentBounds = segmentLayer.getBounds();
+		if (!segmentBounds.isValid()) {
+			return;
+		}
+
+		bounds = bounds ? bounds.extend(segmentBounds) : L.latLngBounds(segmentBounds.getSouthWest(), segmentBounds.getNorthEast());
+	});
+
+	return bounds;
+}
+
 function clearRouteDirectionMarkers() {
 	if (currentRouteDirectionLayer) {
 		map.removeLayer(currentRouteDirectionLayer);
@@ -74,6 +94,13 @@ function selectRoutePlanEntryForSegment(segmentIndex) {
 	const entryIndex = currentRoutePlanEntries.findIndex((routeEntry) => (routeEntry.segmentIndexes || []).includes(segmentIndex));
 	if (entryIndex >= 0) {
 		selectRoutePlanEntry(entryIndex, { scrollPlan: true });
+	}
+}
+
+function zoomToCurrentRoute() {
+	const bounds = getCurrentRouteBounds();
+	if (bounds?.isValid()) {
+		map.fitBounds(bounds.pad(0.18), { maxZoom: Math.max(map.getZoom(), 4) });
 	}
 }
 
@@ -358,7 +385,7 @@ function showRoutePlan(routeNames, segments) {
 		.join(" ");
 
 	$overview.prepend(`
-		<div>
+		<button type="button" class="route-plan-summary">
 		Die Reise ${routeDesc}<br>
 		Distanz: ${totalDistance.toFixed(1)} Meilen
 		(Luftlinie: ${airDistance.toFixed(1)} Meilen)<br><br>
@@ -366,9 +393,10 @@ function showRoutePlan(routeNames, segments) {
 		Reisezeit: ${totalTravelTime.toFixed(1)} Stunden (${(totalTravelTime / 24).toFixed(1)} Tage)<br>
 		Rastzeit: ${totalRestTime.toFixed(1)} Stunden (${(totalRestTime / 24).toFixed(1)} Tage)<br>
 		Gesamtzeit: <strong>${totalHours.toFixed(1)} Stunden (${(totalHours / 24).toFixed(1)} Tage)</strong>
-		</div>
+		</button>
 		<hr>
 	`);
+	$overview.find(".route-plan-summary").on("click", zoomToCurrentRoute);
 }
 
 function applyRestTimes(travelHours) {

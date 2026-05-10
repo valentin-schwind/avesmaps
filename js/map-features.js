@@ -13,15 +13,28 @@ function locationZoomScale(zoomLevel) {
 
 function getVillageMarkerStyle(zoomLevel = map.getZoom()) {
 	const villageZoomStyles = {
-		0: { radius: 1, borderWidth: 0 },
-		1: { radius: 1.25, borderWidth: 0 },
+		0: { radius: 1.5, borderWidth: 0 },
+		1: { radius: 1.5, borderWidth: 0 },
 		2: { radius: 1.25, borderWidth: 0 },
-		3: { radius: 1.5, borderWidth: 0 },
+		3: { radius: 2, borderWidth: 0 },
 		4: { radius: 2.75, borderWidth: 2 },
 		5: { radius: 3, borderWidth: 2 },
 	};
 
 	return villageZoomStyles[Math.round(Number(zoomLevel))] || villageZoomStyles[5];
+}
+
+function getBuildingMarkerStyle(zoomLevel = map.getZoom()) {
+	const buildingZoomStyles = {
+		0: { radius: 0.5, borderWidth: 0 },
+		1: { radius: 1, borderWidth: 0 },
+		2: { radius: 1, borderWidth: 0 },
+		3: { radius: 1.5, borderWidth: 0 },
+		4: { radius: 2.25, borderWidth: 1 },
+		5: { radius: 2.75, borderWidth: 2 },
+	};
+
+	return buildingZoomStyles[Math.round(Number(zoomLevel))] || buildingZoomStyles[5];
 }
 
 function isVillageMarkerStyleLocation(locationType) {
@@ -34,7 +47,7 @@ function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
 	}
 
 	if (isVillageMarkerStyleLocation(locationType)) {
-		const villageStyle = getVillageMarkerStyle(zoomLevel);
+		const villageStyle = locationType === "gebaeude" ? getBuildingMarkerStyle(zoomLevel) : getVillageMarkerStyle(zoomLevel);
 		return villageStyle.radius * 2 + villageStyle.borderWidth * 2;
 	}
 
@@ -45,7 +58,7 @@ function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
 function getLocationMarkerBorderWidth(locationType, zoomLevel = map.getZoom()) {
 	const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
 	if (isVillageMarkerStyleLocation(locationType)) {
-		return getVillageMarkerStyle(zoomLevel).borderWidth;
+		return locationType === "gebaeude" ? getBuildingMarkerStyle(zoomLevel).borderWidth : getVillageMarkerStyle(zoomLevel).borderWidth;
 	}
 
 	return config.borderWidth;
@@ -620,25 +633,39 @@ function getWaypointElementById(waypointId) {
 		.first();
 }
 
-function getWaypointAutocompleteSource() {
-	return locationData
+function getWaypointAutocompleteSource(term = "") {
+	const waypointNames = locationData
 		.map((loc) => loc.name)
-		.filter((name) => !isCrossingName(name))
-		.sort((a, b) => a.localeCompare(b));
+		.filter((name) => !isCrossingName(name));
+	const normalizedTerm = normalizeLocationSearchName(term);
+
+	return waypointNames.sort((a, b) => {
+		const normalizedA = normalizeLocationSearchName(a);
+		const normalizedB = normalizeLocationSearchName(b);
+		const aPrefix = normalizedTerm && normalizedA.startsWith(normalizedTerm) ? 0 : 1;
+		const bPrefix = normalizedTerm && normalizedB.startsWith(normalizedTerm) ? 0 : 1;
+		if (aPrefix !== bPrefix) {
+			return aPrefix - bPrefix;
+		}
+		return a.localeCompare(b);
+	});
 }
 
 function initializeWaypointAutocomplete($input) {
 	$input.autocomplete({
-		source: getWaypointAutocompleteSource(),
+		source(request, response) {
+			response(getWaypointAutocompleteSource(request.term || ""));
+		},
 	});
 }
 
 function refreshWaypointAutocompleteSources() {
-	const autocompleteSource = getWaypointAutocompleteSource();
 	$(".waypoint-input").each(function () {
 		const $input = $(this);
 		if ($input.data("ui-autocomplete")) {
-			$input.autocomplete("option", "source", autocompleteSource);
+			$input.autocomplete("option", "source", function (request, response) {
+				response(getWaypointAutocompleteSource(request.term || ""));
+			});
 		}
 	});
 }

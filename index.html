@@ -94,9 +94,8 @@
 	<script src="js/jquery-ui.min.js"></script>
 </head>
 
-<body>
-	<div id="map" style="width: 100%; height: 100%"></div>
-	<div id="map-data-status" class="map-data-status" role="status" aria-live="polite" hidden></div>
+	<body>
+		<div id="map" style="width: 100%; height: 100%"></div>
 	<div id="map-context-menu" class="map-context-menu" hidden>
 		<div class="map-context-menu__group" data-context-action="add-here" hidden>
 			<button type="button" class="map-context-menu__item map-context-menu__item--submenu" data-context-action="add-here">Hier hinzufuegen</button>
@@ -117,13 +116,14 @@
 	</div>
 	<aside id="review-panel" class="review-panel" aria-labelledby="review-panel-title" hidden>
 		<header class="review-panel__header">
-			<h2 id="review-panel-title">Review</h2>
+			<h2 id="review-panel-title">Meldungen</h2>
 			<div class="review-panel__header-actions">
 				<button id="review-panel-refresh" class="review-panel__icon-button" type="button" title="Neu laden">↻</button>
+				<div id="map-data-status" class="map-data-status" role="status" aria-live="polite" hidden></div>
 			</div>
 		</header>
 		<nav class="review-panel__tabs" aria-label="Editorpanel">
-			<button class="review-panel__tab is-active" type="button" data-editor-panel-tab="review">Review</button>
+			<button class="review-panel__tab is-active" type="button" data-editor-panel-tab="review">Meldungen</button>
 			<button class="review-panel__tab" type="button" data-editor-panel-tab="changes">Änderungen</button>
 			<button class="review-panel__tab" type="button" data-editor-panel-tab="presence">Online</button>
 		</nav>
