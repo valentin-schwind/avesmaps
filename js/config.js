@@ -39,15 +39,15 @@ const SPEED_TABLE = {
 };
 
 const ROUTE_ICON_PATHS = {
-	Reichsstrasse: "icons/Reichsstrasse.png",
-	Strasse: "icons/Strasse.png",
-	Gebirgspfad: "icons/Gebirgspfad.png",
-	Pfad: "icons/Pfad.png",
-	Wuestenpfad: "icons/Pfad.png",
-	Flussweg: "icons/Flusswege.png",
-	Seeweg: "icons/Meerwege.png",
-	Querfeldein: "icons/Pfad.png",
-	Weg: "icons/landweg.png",
+	Reichsstrasse: "icons/small_webp/Reichsstrasse.webp",
+	Strasse: "icons/small_webp/Strasse.webp",
+	Gebirgspfad: "icons/small_webp/Gebirgspfad.webp",
+	Pfad: "icons/small_webp/Pfad.webp",
+	Wuestenpfad: "icons/small_webp/Pfad.webp",
+	Flussweg: "icons/small_webp/Flusswege.webp",
+	Seeweg: "icons/small_webp/Meerwege.webp",
+	Querfeldein: "icons/small_webp/Pfad.webp",
+	Weg: "icons/small_webp/landweg.webp",
 };
 
 ROUTE_ICON_PATHS.Gebirgspass = ROUTE_ICON_PATHS.Gebirgspfad;
@@ -114,12 +114,12 @@ const LOCATION_TYPE_CONFIG = {
 	gebaeude: { label: "Besondere Bauwerke/Stätten", singularLabel: "Besondere Bauwerke/Stätten", icon: "🏛️", queryParam: "toggleGebaeude", radius: 3.5, shape: "circle", borderWidth: 2 },
 };
 const LOCATION_ICON_PATHS = {
-	metropole: "icons/metropole.png",
-	grossstadt: "icons/grossstadt.png",
-	stadt: "icons/stadt.png",
-	kleinstadt: "icons/kleinstadt.png",
-	dorf: "icons/dorf.png",
-	gebaeude: "icons/bauwerk.png",
+	metropole: "icons/small_webp/metropole.webp",
+	grossstadt: "icons/small_webp/grossstadt.webp",
+	stadt: "icons/small_webp/stadt.webp",
+	kleinstadt: "icons/small_webp/kleinstadt.webp",
+	dorf: "icons/small_webp/dorf.webp",
+	gebaeude: "icons/small_webp/bauwerk.webp",
 };
 const LOCATION_TYPE_KEYS = Object.keys(LOCATION_TYPE_CONFIG);
 const LOCATION_TYPE_VISIBILITY_ORDER = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"];
@@ -185,27 +185,27 @@ const TRANSPORT_DOMAIN_OPTIONS = {
 };
 const TRANSPORT_ICON_PATHS = {
 	mapLayerModeSelect: {
-		none: "icons/NurKarte.png",
-		political: "icons/PolitischeKarte.png",
-		deregraphic: "icons/RegionenKarte.png",
-		powerlines: "icons/RegionenKarte.png",
+		none: "icons/small_webp/NurKarte.webp",
+		political: "icons/small_webp/PolitischeKarte.webp",
+		deregraphic: "icons/small_webp/RegionenKarte.webp",
+		powerlines: "icons/small_webp/RegionenKarte.webp",
 	},
 	landTransport: {
-		caravan: "icons/karavane.png",
-		groupFoot: "icons/Reisegruppe.png",
-		lightWalker: "icons/ZuFuss.png",
-		horseCarriage: "icons/Kutsche.png",
-		groupHorse: "icons/BeritteneReisegruppe.png",
-		lightRider: "icons/EinzelnerReiter.png",
+		caravan: "icons/small_webp/karavane.webp",
+		groupFoot: "icons/small_webp/Reisegruppe.webp",
+		lightWalker: "icons/small_webp/ZuFuss.webp",
+		horseCarriage: "icons/small_webp/Kutsche.webp",
+		groupHorse: "icons/small_webp/BeritteneReisegruppe.webp",
+		lightRider: "icons/small_webp/EinzelnerReiter.webp",
 	},
 	riverTransport: {
-		riverSailer: "icons/Flusssegler.png",
-		riverBarge: "icons/Flusskahn.png",
+		riverSailer: "icons/small_webp/Flusssegler.webp",
+		riverBarge: "icons/small_webp/Flusskahn.webp",
 	},
 	seaTransport: {
-		cargoShip: "icons/Lastensegler.png",
-		fastShip: "icons/Schnellsegler.png",
-		galley: "icons/Galeere.png",
+		cargoShip: "icons/small_webp/Lastensegler.webp",
+		fastShip: "icons/small_webp/Schnellsegler.webp",
+		galley: "icons/small_webp/Galeere.webp",
 	},
 };
 const ICON_TRANSPORT_SELECT_IDS = Object.keys(TRANSPORT_ICON_PATHS);

@@ -116,12 +116,12 @@
 	</div>
 	<aside id="review-panel" class="review-panel" aria-labelledby="review-panel-title" hidden>
 		<header class="review-panel__header">
-			<h2 id="review-panel-title">Meldungen</h2>
+			<h2 id="review-panel-title">Review</h2>
 			<div class="review-panel__header-actions">
 				<button id="review-panel-refresh" class="review-panel__icon-button" type="button" title="Neu laden">↻</button>
-				<div id="map-data-status" class="map-data-status" role="status" aria-live="polite" hidden></div>
 			</div>
 		</header>
+		<p id="map-data-status" class="map-data-status" role="status" aria-live="polite" hidden></p>
 		<nav class="review-panel__tabs" aria-label="Editorpanel">
 			<button class="review-panel__tab is-active" type="button" data-editor-panel-tab="review">Meldungen</button>
 			<button class="review-panel__tab" type="button" data-editor-panel-tab="changes">Änderungen</button>
@@ -473,7 +473,7 @@
 						<option value="powerlines">Kraftlinien</option>
 					</select>
 					<button type="button" id="mapLayerModeButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="mapLayerModeMenu">
-						<img id="mapLayerModeIcon" class="transport-option-inline-icon" src="icons/RegionenKarte.png" data-source-src="icons/RegionenKarte.png" alt="" />
+						<img id="mapLayerModeIcon" class="transport-option-inline-icon" src="icons/small_webp/RegionenKarte.webp" data-source-src="icons/small_webp/RegionenKarte.webp" alt="" />
 						<span id="mapLayerModeLabel" class="transport-combobox__label">Regionen</span>
 					</button>
 					<div id="mapLayerModeMenu" class="transport-combobox__menu" role="listbox" aria-label="Deregraphie" hidden></div>
@@ -481,12 +481,12 @@
 			</label>
 			<div class="display-options__row">
 				<div class="location-toggle-group" role="group" aria-label="Ortsklassen anzeigen">
-					<button type="button" class="location-toggle" data-location-type="metropole" title="Metropolen anzeigen oder ausblenden" aria-label="Metropolen anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/metropole.png" data-source-src="icons/metropole.png" alt="" /></button>
-					<button type="button" class="location-toggle" data-location-type="grossstadt" title="Großstädte anzeigen oder ausblenden" aria-label="Großstädte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/grossstadt.png" data-source-src="icons/grossstadt.png" alt="" /></button>
-					<button type="button" class="location-toggle" data-location-type="stadt" title="Städte anzeigen oder ausblenden" aria-label="Städte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/stadt.png" data-source-src="icons/stadt.png" alt="" /></button>
-					<button type="button" class="location-toggle" data-location-type="kleinstadt" title="Kleinstädte anzeigen oder ausblenden" aria-label="Kleinstädte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/kleinstadt.png" data-source-src="icons/kleinstadt.png" alt="" /></button>
-					<button type="button" class="location-toggle" data-location-type="dorf" title="Dörfer anzeigen oder ausblenden" aria-label="Dörfer anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/dorf.png" data-source-src="icons/dorf.png" alt="" /></button>
-					<button type="button" class="location-toggle" data-location-type="gebaeude" title="Besondere Bauwerke/Stätten anzeigen oder ausblenden" aria-label="Besondere Bauwerke/Stätten anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/bauwerk.png" data-source-src="icons/bauwerk.png" alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="metropole" title="Metropolen anzeigen oder ausblenden" aria-label="Metropolen anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/small_webp/metropole.webp" data-source-src="icons/small_webp/metropole.webp" alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="grossstadt" title="Großstädte anzeigen oder ausblenden" aria-label="Großstädte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/small_webp/grossstadt.webp" data-source-src="icons/small_webp/grossstadt.webp" alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="stadt" title="Städte anzeigen oder ausblenden" aria-label="Städte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/small_webp/stadt.webp" data-source-src="icons/small_webp/stadt.webp" alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="kleinstadt" title="Kleinstädte anzeigen oder ausblenden" aria-label="Kleinstädte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/small_webp/kleinstadt.webp" data-source-src="icons/small_webp/kleinstadt.webp" alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="dorf" title="Dörfer anzeigen oder ausblenden" aria-label="Dörfer anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/small_webp/dorf.webp" data-source-src="icons/small_webp/dorf.webp" alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="gebaeude" title="Besondere Bauwerke/Stätten anzeigen oder ausblenden" aria-label="Besondere Bauwerke/Stätten anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/small_webp/bauwerk.webp" data-source-src="icons/small_webp/bauwerk.webp" alt="" /></button>
 				</div>
 			</div>
 			<div class="display-options__row display-options__row--wrap">
@@ -504,7 +504,7 @@
 		<div id="transport-options">
 			<label>Transportmittel:</label>
 			<div></div>
-			<label class="transport-filter-label"><input type="checkbox" id="allowLand" checked /> <img class="transport-filter-icon" src="icons/landweg.png" data-source-src="icons/landweg.png" alt="" /> Land</label>
+			<label class="transport-filter-label"><input type="checkbox" id="allowLand" checked /> <img class="transport-filter-icon" src="icons/small_webp/landweg.webp" data-source-src="icons/small_webp/landweg.webp" alt="" /> Land</label>
 			<div class="transport-select-with-icon transport-icon-select">
 				<select id="landTransport" class="transportOptionSelect transport-native-select" aria-label="Land-Transportmittel">
 					<option value="caravan">Karawane (3.5 km/h)</option>
@@ -515,24 +515,24 @@
 					<option value="lightRider">Reiter zu Pferd mit leichtem Gepäck (8 km/h)</option>
 				</select>
 				<button type="button" id="landTransportButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="landTransportMenu">
-					<img id="landTransportIcon" class="transport-option-inline-icon" src="icons/Reisegruppe.png" data-source-src="icons/Reisegruppe.png" alt="" />
+					<img id="landTransportIcon" class="transport-option-inline-icon" src="icons/small_webp/Reisegruppe.webp" data-source-src="icons/small_webp/Reisegruppe.webp" alt="" />
 					<span id="landTransportLabel" class="transport-combobox__label">Reisegruppe zu Fuß (4 km/h)</span>
 				</button>
 				<div id="landTransportMenu" class="transport-combobox__menu" role="listbox" aria-label="Land-Transportmittel" hidden></div>
 			</div>
-			<label class="transport-filter-label"><input type="checkbox" id="allowRiver" checked /> <img class="transport-filter-icon" src="icons/flussweg.png" data-source-src="icons/flussweg.png" alt="" /> Fluss</label>
+			<label class="transport-filter-label"><input type="checkbox" id="allowRiver" checked /> <img class="transport-filter-icon" src="icons/small_webp/flussweg.webp" data-source-src="icons/small_webp/flussweg.webp" alt="" /> Fluss</label>
 			<div class="transport-select-with-icon transport-icon-select">
 				<select id="riverTransport" class="transportOptionSelect transport-native-select" aria-label="Fluss-Transportmittel">
 					<option value="riverSailer" selected>Flusssegler</option>
 					<option value="riverBarge">Flusskahn</option>
 				</select>
 				<button type="button" id="riverTransportButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="riverTransportMenu">
-					<img id="riverTransportIcon" class="transport-option-inline-icon" src="icons/Flusssegler.png" data-source-src="icons/Flusssegler.png" alt="" />
+					<img id="riverTransportIcon" class="transport-option-inline-icon" src="icons/small_webp/Flusssegler.webp" data-source-src="icons/small_webp/Flusssegler.webp" alt="" />
 					<span id="riverTransportLabel" class="transport-combobox__label">Flusssegler</span>
 				</button>
 				<div id="riverTransportMenu" class="transport-combobox__menu" role="listbox" aria-label="Fluss-Transportmittel" hidden></div>
 			</div>
-			<label class="transport-filter-label"><input type="checkbox" id="allowSea" checked /> <img class="transport-filter-icon" src="icons/meerweg.png" data-source-src="icons/meerweg.png" alt="" /> Meer</label>
+			<label class="transport-filter-label"><input type="checkbox" id="allowSea" checked /> <img class="transport-filter-icon" src="icons/small_webp/meerweg.webp" data-source-src="icons/small_webp/meerweg.webp" alt="" /> Meer</label>
 			<div class="transport-select-with-icon transport-icon-select">
 				<select id="seaTransport" class="transportOptionSelect transport-native-select" aria-label="Meer-Transportmittel">
 					<option value="cargoShip" selected>Lastensegler</option>
@@ -540,7 +540,7 @@
 					<option value="galley">Galeere</option>
 				</select>
 				<button type="button" id="seaTransportButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="seaTransportMenu">
-					<img id="seaTransportIcon" class="transport-option-inline-icon" src="icons/Lastensegler.png" data-source-src="icons/Lastensegler.png" alt="" />
+					<img id="seaTransportIcon" class="transport-option-inline-icon" src="icons/small_webp/Lastensegler.webp" data-source-src="icons/small_webp/Lastensegler.webp" alt="" />
 					<span id="seaTransportLabel" class="transport-combobox__label">Lastensegler</span>
 				</button>
 				<div id="seaTransportMenu" class="transport-combobox__menu" role="listbox" aria-label="Meer-Transportmittel" hidden></div>
@@ -574,11 +574,11 @@
 		</div>
 		<div id="overview">Wegpunkte und Dauer der Reise werden hier angezeigt.</div>
 	</div>
-	<button id="legal-button" type="button" aria-haspopup="dialog" aria-controls="legal-dialog" aria-expanded="false">Hinweise zum Fanprojekt</button>
+	<button id="legal-button" type="button" aria-haspopup="dialog" aria-controls="legal-dialog" aria-expanded="false">Hinweise</button>
 	<div id="legal-overlay" hidden>
 		<div id="legal-dialog" class="legal-dialog" role="dialog" aria-modal="true" aria-labelledby="legal-title" tabindex="-1">
 			<div class="legal-dialog__header">
-				<h2 id="legal-title">Hinweise zum Fanprojekt</h2>
+				<h2 id="legal-title">Hinweise</h2>
 				<button id="legal-close" class="legal-dialog__close" type="button" aria-label="Rechtliches schließen">×</button>
 			</div>
 			<div class="legal-dialog__badge">
@@ -595,7 +595,7 @@
 				<p><strong>Community-Meldungen.</strong> Von Nutzerinnen und Nutzern gemeldete Orte, Korrekturen oder Ergänzungen werden nicht automatisch veröffentlicht. Sie werden redaktionell geprüft und nur übernommen, wenn sie nach Einschätzung des Betreibers inhaltlich, technisch und rechtlich vertretbar sind. Mit dem Absenden einer Meldung wird keine Veröffentlichung zugesagt.</p>
 				<p><strong>Marken- und Rechtehinweis.</strong> Artwork © Ulisses Spiele, soweit nicht anders angegeben. DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA, RIESLAND und THE DARK EYE sind eingetragene Marken der Ulisses Spiele GmbH, Waldems. Die Verwendung von Grafiken, Kartenmaterial, Namen und sonstigem DSA-bezogenem Material erfolgt ausschließlich im Rahmen der von Ulisses Spiele erlaubten Richtlinien beziehungsweise einschlägigen Lizenzbedingungen. Eine Verwendung über diese Richtlinien hinaus darf nur nach vorheriger schriftlicher Genehmigung der Ulisses Medien und Spiel Distribution GmbH erfolgen.</p>
 				<p><strong>Distanzierung von offizieller Verbindlichkeit.</strong> Avesmaps ist ein Hilfsmittel für Spielrunden, Recherche und private Nutzung. Die Website ersetzt keine offiziellen DSA-Publikationen. Maßgeblich für Kanon, Regeln, Geographie, Namen, Grenzen und Beschreibungen bleiben ausschließlich die offiziellen Veröffentlichungen der jeweiligen Rechteinhaber.</p>
-                <p><strong>Quellen.</strong> <a href="https://avespfade.de/" target="_blank" rel="noopener noreferrer">avespfade.de</a> · <a href="https://www.orkenspalter.de/filebase/index.php/File/46-Aventurienkarte-aus-Regionalpl%C3%A4nen/" target="_blank" rel="noopener noreferrer">Orkenspalter Kartenmaterial</a> · <a href="https://ulisses-spiele.de/fan-richtlinie/" target="_blank" rel="noopener noreferrer">Ulisses Fan-Richtlinie</a> · <a href="https://github.com/valentin-schwind/avesmaps" target="_blank" rel="noopener noreferrer">GitHub-Repository</a></p>
+                <p><strong>Quellen.</strong> <a href="https://avespfade.de/" target="_blank" rel="noopener noreferrer">avespfade.de</a> · <a href="https://www.orkenspalter.de/filebase/index.php/File/46-Aventurienkarte-aus-Regionalpl%C3%A4nen/" target="_blank" rel="noopener noreferrer">Orkenspalter Kartenmaterial</a> · <a href="https://ulisses-spiele.de/fan-richtlinie/" target="_blank" rel="noopener noreferrer">Ulisses Fan-Richtlinie</a> · <a href="https://leafletjs.com/" target="_blank" rel="noopener noreferrer">Leaflet</a> · <a href="https://github.com/valentin-schwind/avesmaps" target="_blank" rel="noopener noreferrer">GitHub-Repository</a></p>
 				<p class="legal-dialog__note">Hinweis: Diese Zusammenfassung dient der Quellen- und Lizenzangabe im Projekt.</p>
 </div>
 		</div>
@@ -745,6 +745,7 @@
 			syncPathLabels();
 			syncPowerlineLabels();
 		});
+		map.attributionControl.setPrefix(false);
 		map.on("moveend", () => {
 			syncLocationMarkerVisibility();
 			syncLabelVisibility();
