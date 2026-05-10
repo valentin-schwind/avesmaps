@@ -8558,9 +8558,16 @@
 		}
 
 		// Hebt alle Locations der Route hervor
-		function highlightRouteLocations(routeNames) {
+		function highlightRouteLocations(routeNames, segments = []) {
 			removeHighlightedRouteNodes();
-			routeNames.forEach((name) => {
+			routeNames.forEach((name, index) => {
+				const isInternalSeaNode = index > 0 && index < routeNames.length - 1
+					&& normalizePathSubtype(segments[index - 1]?.properties?.feature_subtype || segments[index - 1]?.properties?.name) === "Seeweg"
+					&& normalizePathSubtype(segments[index]?.properties?.feature_subtype || segments[index]?.properties?.name) === "Seeweg";
+				if (isInternalSeaNode) {
+					return;
+				}
+
 				const loc = locationData.find((l) => l.name === name);
 				if (loc) {
 					const node = L.circleMarker(loc.coordinates, ROUTE_NODE_STYLE).addTo(map);
@@ -8669,36 +8676,6 @@
 
 			flushSeaAggregate();
 			return entries;
-		}
-
-		function buildHighlightedRouteNodeNames(route, segments) {
-			const highlightedNames = [];
-			let inSeaBlock = false;
-
-			route.forEach((step, index) => {
-				const segment = segments[index];
-				const type = normalizePathSubtype(segment?.properties?.feature_subtype || segment?.properties?.name);
-				const fromName = String(step?.from || "");
-				const toName = String(step?.to || "");
-
-				if (type === "Seeweg") {
-					if (!inSeaBlock) {
-						highlightedNames.push(fromName);
-						inSeaBlock = true;
-					}
-
-					if (index === route.length - 1 || normalizePathSubtype(segments[index + 1]?.properties?.feature_subtype || segments[index + 1]?.properties?.name) !== "Seeweg") {
-						highlightedNames.push(toName);
-						inSeaBlock = false;
-					}
-					return;
-				}
-
-				inSeaBlock = false;
-				highlightedNames.push(fromName, toName);
-			});
-
-			return [...new Set(highlightedNames.filter(Boolean))];
 		}
 
 		// Zeigt den Routenplan (mit Distanzen und Zeiten)
@@ -8924,7 +8901,7 @@
 				if (segments.length) {
 					logRoutePoints(segments);
 					drawRoute(segments);
-					highlightRouteLocations(buildHighlightedRouteNodeNames(routeNodeNames, segments));
+					highlightRouteLocations(routeNodeNames, segments);
 					showRoutePlan(routeNodeNames, segments);
 				} else {
 					alert("Keine gültigen Routensegmente gefunden.");
