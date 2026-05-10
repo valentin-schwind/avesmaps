@@ -792,9 +792,9 @@
 		const POWERLINE_RENDER_CONFIG = {
 			animationEnabled: false,
 			strandCount: 3,
-			segmentCount: 10,
-			normalScales: [0.1, 0.1, 0.1, 0.1],
-			waveOffsets: [-1, 1, 1, 1],
+			segmentCount: 8,
+			normalScales: [0.125, 0.125, 0.125, 0.125],
+			waveOffsets: [-2, 2, 2, 2],
 			phaseStep: 1.73,
 			tremorNormalAmplitude: 2.1,
 			tremorTangentAmplitude: 0.3,
@@ -887,6 +887,7 @@
 			hasFirstWaypoint = false,
 			isSearchPanelHidden = false,
 			currentRouteLayer = null,
+			currentRouteNodeLayer = null,
 			graphData = null,
 			invalidLocationInputs = [],
 			selectedLocations = [],
@@ -4754,6 +4755,10 @@
 				map.removeLayer(currentRouteLayer);
 				currentRouteLayer = null;
 			}
+			if (currentRouteNodeLayer) {
+				map.removeLayer(currentRouteNodeLayer);
+				currentRouteNodeLayer = null;
+			}
 
 			removeAllTooltips();
 			removeHighlightedRouteNodes();
@@ -6048,15 +6053,19 @@
 			try {
 				const result = await createCrossingFeatureAt(latlng);
 				addCreatedCrossingMarker(result.feature);
-				$("#toggleCrossings").prop("checked", true);
-				syncLocationMarkerVisibility();
-				syncPlannerStateToUrl();
+				ensureCrossingsEnabled();
 				updateRevisionFromEditResponse(result);
 				showFeedbackToast("Kreuzung erstellt.", "success");
 			} catch (error) {
 				console.error("Kreuzung konnte nicht erstellt werden:", error);
 				showFeedbackToast(error.message || "Kreuzung konnte nicht erstellt werden.", "warning");
 			}
+		}
+
+		function ensureCrossingsEnabled() {
+			$("#toggleCrossings").prop("checked", true);
+			syncLocationMarkerVisibility();
+			syncPlannerStateToUrl();
 		}
 
 		function findNearestLocationToLatLng(latlng) {
@@ -6215,7 +6224,7 @@
 
 		function isPathLabelVisibleAtCurrentZoom(path) {
 			const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
-			const minZoom = pathSubtype === "Flussweg"
+			const minZoom = pathSubtype === "Flussweg" || pathSubtype === "Seeweg"
 				? 3
 				: LOCATION_NAME_LABEL_CONFIG.dorf.minZoom;
 			return shouldPathNameBeDisplayed(path) && map.getZoom() >= minZoom;
@@ -6903,7 +6912,7 @@
 			try {
 				const crossingResult = await createCrossingFeatureAt(coordinateGroups.splitLatLng);
 				addCreatedCrossingMarker(crossingResult.feature);
-				$("#toggleCrossings").prop("checked", true);
+				ensureCrossingsEnabled();
 				setSelectedMapLayerMode("political");
 
 				const firstPathResult = await submitMapFeatureEdit({
@@ -7593,6 +7602,7 @@
 						pane: "locationsPane",
 						keyboard: true,
 						draggable: false,
+						zIndexOffset: locationType === CROSSING_LOCATION_TYPE ? 1000 : 0,
 					});
 					const markerEntry = { marker, locationType, name, publicId, location };
 					marker.on("dragend", async () => {
@@ -7910,6 +7920,7 @@
 			if (action === "split-path-at-node") {
 				const splitState = pendingPathSplit;
 				closeMapContextMenu();
+				ensureCrossingsEnabled();
 				void splitPathAtNode(splitState);
 				return;
 			}
@@ -8498,11 +8509,40 @@
 			];
 		}
 
+		function createRouteNodeMarkersForSegment(segment) {
+			const routeType = normalizePathSubtype(segment?.properties?.feature_subtype || segment?.properties?.name);
+			if (routeType !== "Seeweg") {
+				return [];
+			}
+
+			const coordinates = Array.isArray(segment?.geometry?.coordinates) ? segment.geometry.coordinates : [];
+			if (coordinates.length < 2) {
+				return [];
+			}
+
+			return [coordinates[0], coordinates[coordinates.length - 1]]
+				.map(([x, y]) => L.circleMarker([y, x], {
+					pane: "locationsPane",
+					radius: 8,
+					color: "#000000",
+					weight: 2,
+					fillColor: "#ffffff",
+					fillOpacity: 1,
+					opacity: 1,
+					interactive: false,
+				}));
+		}
+
 		function drawRoute(segments) {
 			if (currentRouteLayer) {
 				map.removeLayer(currentRouteLayer);
 				currentRouteLayer = null;
 			}
+			if (currentRouteNodeLayer) {
+				map.removeLayer(currentRouteNodeLayer);
+				currentRouteNodeLayer = null;
+			}
+			currentRouteNodeLayer = L.layerGroup();
 			segments.forEach((segment) => {
 				const visualCoordinates = smoothLineCoordinatesForDisplay(segment.geometry?.coordinates || []);
 				const segCoords = visualCoordinates.map(([x, y]) => [y, x]);
@@ -8510,11 +8550,13 @@
 					const routeStyle = segment.properties?.synthetic ? SYNTHETIC_ROUTE_STYLE : ROUTE_STYLE;
 					const segLayer = L.polyline(segCoords, routeStyle).addTo(map);
 					currentRouteLayer = currentRouteLayer ? currentRouteLayer.addLayer(segLayer) : L.layerGroup([segLayer]);
+					createRouteNodeMarkersForSegment(segment).forEach((marker) => currentRouteNodeLayer.addLayer(marker));
 				} else {
 					console.warn("Ungültige Segmentkoordinaten:", segment.geometry);
 				}
 			});
 			if (currentRouteLayer) currentRouteLayer.addTo(map);
+			if (currentRouteNodeLayer.getLayers().length) currentRouteNodeLayer.addTo(map);
 		}
 
 		// Debug: Gibt alle Punkte der Route aus
@@ -8539,10 +8581,6 @@
 		function highlightRouteLocations(routeNames) {
 			removeHighlightedRouteNodes();
 			routeNames.forEach((name) => {
-				if (isCrossingName(name)) {
-					return;
-				}
-
 				const loc = locationData.find((l) => l.name === name);
 				if (loc) {
 					const node = L.circleMarker(loc.coordinates, ROUTE_NODE_STYLE).addTo(map);
