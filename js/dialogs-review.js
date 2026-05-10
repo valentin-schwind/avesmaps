@@ -938,7 +938,7 @@ function restoreReviewPanelState() {
 function syncReviewPanelVisibility() {
 	$("#review-panel").toggleClass("is-hidden", isReviewPanelHidden);
 	$("#review-panel-toggle").toggleClass("is-hidden", isReviewPanelHidden);
-	$("#review-panel-toggle").text(isReviewPanelHidden ? "Review" : "×");
+	$("#review-panel-toggle").text("Review");
 }
 
 function toggleReviewPanel() {
