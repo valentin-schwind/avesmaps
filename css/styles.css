@@ -1689,7 +1689,7 @@ body.edit-mode .map-label span {
 
 @media (max-width: 640px) {
 	#search {
-		max-height: calc(100dvh - 20px);
+		max-height: calc(140dvh - 20px);
 	}
 
 	#overview {
