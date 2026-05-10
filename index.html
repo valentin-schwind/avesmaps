@@ -8353,6 +8353,8 @@
 				const popup = L.popup({
 					autoClose: false,
 					closeOnClick: false,
+					className: "location-popup-wrapper location-popup-wrapper--route",
+					minWidth: 0,
 				})
 					.setLatLng(coordinates)
 					.setContent(popupContent)
