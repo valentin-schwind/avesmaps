@@ -156,7 +156,8 @@ function getLocationNameLabelSize(locationType, zoomLevel = map.getZoom()) {
 	const zoomFiveSizeAdjustment = roundedZoomLevel >= maxZoom
 		? (locationType === "gebaeude" ? -1 : 1)
 		: 0;
-	return Math.max(10, (config.size + zoomFiveSizeAdjustment) / (2 ** zoomStepsOut));
+	const zoomFourSizeAdjustment = roundedZoomLevel === 4 && locationType === "gebaeude" ? -1 : 0;
+	return Math.max(10, (config.size + zoomFiveSizeAdjustment + zoomFourSizeAdjustment) / (2 ** zoomStepsOut));
 }
 
 function getLocationNameLabelOffset(labelSize, zoomLevel = map.getZoom()) {
