@@ -11,6 +11,16 @@ function locationZoomScale(zoomLevel) {
 	return zoomScales[zoomLevel] || 1;
 }
 
+const LOCATION_NAME_LABEL_SIZE_OFFSETS = {
+	default: {
+		5: 1,
+	},
+	gebaeude: {
+		4: -1,
+		5: -1,
+	},
+};
+
 function getVillageMarkerStyle(zoomLevel = map.getZoom()) {
 	const villageZoomStyles = {
 		0: { radius: 1.5, borderWidth: 0 },
@@ -153,11 +163,9 @@ function getLocationNameLabelSize(locationType, zoomLevel = map.getZoom()) {
 	const maxZoom = Number(map.getMaxZoom()) || 5;
 	const roundedZoomLevel = Math.round(Number(zoomLevel));
 	const zoomStepsOut = Math.max(0, maxZoom - zoomLevel);
-	const zoomFiveSizeAdjustment = roundedZoomLevel >= maxZoom
-		? (locationType === "gebaeude" ? -1 : 1)
-		: 0;
-	const zoomFourSizeAdjustment = roundedZoomLevel === 4 && locationType === "gebaeude" ? -1 : 0;
-	return Math.max(10, (config.size + zoomFiveSizeAdjustment + zoomFourSizeAdjustment) / (2 ** zoomStepsOut));
+	const sizeOffsets = LOCATION_NAME_LABEL_SIZE_OFFSETS[locationType] || LOCATION_NAME_LABEL_SIZE_OFFSETS.default;
+	const sizeOffset = sizeOffsets[roundedZoomLevel] || 0;
+	return Math.max(10, (config.size + sizeOffset) / (2 ** zoomStepsOut));
 }
 
 function getLocationNameLabelOffset(labelSize, zoomLevel = map.getZoom()) {
@@ -3029,7 +3037,6 @@ async function splitPathAtNode(splitState) {
 		const crossingResult = await createCrossingFeatureAt(coordinateGroups.splitLatLng);
 		addCreatedCrossingMarker(crossingResult.feature);
 		ensureCrossingsEnabled();
-		setSelectedMapLayerMode("political");
 
 		const firstPathResult = await submitMapFeatureEdit({
 			action: "create_path",
