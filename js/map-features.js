@@ -12,12 +12,12 @@ function locationZoomScale(zoomLevel) {
 }
 
 const LOCATION_NAME_LABEL_SIZE_BY_ZOOM = {
-	metropole: { 0: 9, 1: 10, 2: 11, 3: 12, 4: 16, 5: 18 },
-	grossstadt: { 0: 9, 1: 9, 2: 10, 3: 11, 4: 14, 5: 16 },
-	stadt: { 0: 9, 1: 9, 2: 9.5, 3: 10.5, 4: 12.5, 5: 14 },
-	kleinstadt: { 0: 9, 1: 9, 2: 9, 3: 9.5, 4: 11.5, 5: 13 },
-	dorf: { 0: 9, 1: 9, 2: 9, 3: 9.25, 4: 11, 5: 12 },
-	gebaeude: { 0: 9, 1: 9, 2: 9, 3: 9, 4: 9.5, 5: 11 },
+	metropole: { 0: 9, 1: 10, 2: 12, 3: 14, 4: 18, 5: 20 },
+	grossstadt: { 0: 9, 1: 9.5, 2: 11, 3: 13, 4: 16, 5: 18 },
+	stadt: { 0: 9, 1: 9, 2: 10, 3: 12, 4: 14, 5: 16 },
+	kleinstadt: { 0: 9, 1: 9, 2: 9.5, 3: 10.5, 4: 12, 5: 14 },
+	dorf: { 0: 9, 1: 9, 2: 9, 3: 9.5, 4: 11, 5: 12 },
+	gebaeude: { 0: 9, 1: 9, 2: 9, 3: 9, 4: 10, 5: 10 },
 };
 
 function getVillageMarkerStyle(zoomLevel = map.getZoom()) {

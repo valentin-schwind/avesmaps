@@ -413,6 +413,11 @@ function normalizeLocationType(value) {
 }
 
 function locationTypeFromProperties(properties) {
+	const name = String(properties?.name || "");
+	if (/^Burg\s/u.test(name)) {
+		return "gebaeude";
+	}
+
 	const settlementClass = properties?.settlement_class;
 	if (settlementClass) {
 		return normalizeLocationType(settlementClass);

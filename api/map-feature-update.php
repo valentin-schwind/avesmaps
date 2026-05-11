@@ -164,6 +164,10 @@ function avesmapsReadLocationSubtype(mixed $value): string {
     return $subtype;
 }
 
+function avesmapsInferLocationSubtypeFromName(string $name, string $subtype): string {
+    return preg_match('/^Burg\s/u', $name) === 1 ? 'gebaeude' : $subtype;
+}
+
 function avesmapsLocationSubtypeLabel(string $subtype): string {
     return match ($subtype) {
         'metropole' => 'Metropole',
@@ -516,6 +520,7 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
     $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
     $name = avesmapsReadLocationName($payload['name'] ?? '');
     $subtype = avesmapsReadLocationSubtype($payload['feature_subtype'] ?? $payload['location_type'] ?? 'dorf');
+    $subtype = avesmapsInferLocationSubtypeFromName($name, $subtype);
     $description = avesmapsReadLocationDescription($payload['description'] ?? '');
     $wikiUrl = avesmapsReadOptionalWikiUrl($payload['wiki_url'] ?? '');
 
@@ -590,6 +595,7 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
 function avesmapsCreatePointFeature(PDO $pdo, array $payload, array $user): array {
     $name = avesmapsReadLocationName($payload['name'] ?? '');
     $subtype = avesmapsReadLocationSubtype($payload['feature_subtype'] ?? $payload['location_type'] ?? 'dorf');
+    $subtype = avesmapsInferLocationSubtypeFromName($name, $subtype);
     $description = avesmapsReadLocationDescription($payload['description'] ?? '');
     $wikiUrl = avesmapsReadOptionalWikiUrl($payload['wiki_url'] ?? '');
     $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');

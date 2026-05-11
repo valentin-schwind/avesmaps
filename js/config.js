@@ -124,12 +124,12 @@ const LOCATION_ICON_PATHS = {
 const LOCATION_TYPE_KEYS = Object.keys(LOCATION_TYPE_CONFIG);
 const LOCATION_TYPE_VISIBILITY_ORDER = ["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"];
 const LOCATION_NAME_LABEL_CONFIG = {
-	metropole: { size: 18, minZoom: 0 },
-	grossstadt: { size: 16, minZoom: 0 },
-	stadt: { size: 14, minZoom: 2 },
-	kleinstadt: { size: 13, minZoom: 3 },
+	metropole: { size: 20, minZoom: 0 },
+	grossstadt: { size: 18, minZoom: 0 },
+	stadt: { size: 16, minZoom: 2 },
+	kleinstadt: { size: 14, minZoom: 3 },
 	dorf: { size: 12, minZoom: 4 },
-	gebaeude: { size: 11, minZoom: 4 },
+	gebaeude: { size: 10, minZoom: 4 },
 };
 const POWERLINE_RENDER_CONFIG = {
 	animationEnabled: false,
