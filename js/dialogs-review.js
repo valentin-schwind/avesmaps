@@ -785,18 +785,29 @@ function getPathTransportDomain(path) {
 
 function getPathAllowedTransports(path) {
 	const domain = getPathTransportDomain(path);
+	const subtype = normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name);
 	const configured = Array.isArray(path?.properties?.allowed_transports) ? path.properties.allowed_transports : null;
 	if (configured !== null) {
-		return configured;
+		return configured.filter((option) => getTransportOptionsForPathSubtype(subtype).includes(option));
 	}
 
-	return TRANSPORT_DOMAIN_OPTIONS[domain] || [];
+	return getTransportOptionsForPathSubtype(subtype);
+}
+
+function getTransportOptionsForPathSubtype(pathSubtype) {
+	const normalizedSubtype = normalizePathSubtype(pathSubtype);
+	const domain = getDefaultTransportDomainForPathSubtype(normalizedSubtype);
+	const options = TRANSPORT_DOMAIN_OPTIONS[domain] || [];
+	if (normalizedSubtype === "Wuestenpfad") {
+		return options.filter((option) => option !== "horseCarriage");
+	}
+
+	return options;
 }
 
 function syncPathTransportOptions({ path = null, resetToDefault = false } = {}) {
 	const subtype = normalizePathSubtype(document.getElementById("path-edit-type")?.value || path?.properties?.feature_subtype || "Weg");
-	const domain = getDefaultTransportDomainForPathSubtype(subtype);
-	const defaultOptions = TRANSPORT_DOMAIN_OPTIONS[domain] || [];
+	const defaultOptions = getTransportOptionsForPathSubtype(subtype);
 	const selectedOptions = resetToDefault || !path ? defaultOptions : getPathAllowedTransports(path);
 	document.querySelectorAll('#path-edit-transport-options input[name="allowed_transport"]').forEach((input) => {
 		const isCompatible = defaultOptions.includes(input.value);

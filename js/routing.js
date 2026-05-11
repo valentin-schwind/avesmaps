@@ -259,7 +259,12 @@ function isTransportAllowedForPath(pathProperties, transportOption) {
 		return false;
 	}
 
-	const domain = pathProperties?.transport_domain || getDefaultTransportDomainForPathSubtype(normalizePathSubtype(pathProperties?.feature_subtype || pathProperties?.name));
+	const subtype = normalizePathSubtype(pathProperties?.feature_subtype || pathProperties?.name);
+	const domain = pathProperties?.transport_domain || getDefaultTransportDomainForPathSubtype(subtype);
+	if (subtype === "Wuestenpfad" && transportOption === "horseCarriage") {
+		return false;
+	}
+
 	const allowedTransports = Array.isArray(pathProperties?.allowed_transports)
 		? pathProperties.allowed_transports
 		: TRANSPORT_DOMAIN_OPTIONS[domain] || [];
