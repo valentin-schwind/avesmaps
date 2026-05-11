@@ -926,6 +926,18 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		return;
 	}
 
+	if (action === "convert-crossing-to-location") {
+		const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
+		if (!markerEntry) {
+			showFeedbackToast("Kreuzung konnte nicht gefunden werden.", "warning");
+			return;
+		}
+
+		map.closePopup();
+		void convertCrossingToLocation(markerEntry);
+		return;
+	}
+
 	if (action === "edit-location-details") {
 		const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
 		if (!markerEntry) {

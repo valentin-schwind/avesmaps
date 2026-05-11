@@ -651,6 +651,16 @@ function getNextCrossingDisplayName() {
 	return `Kreuzung-${nextNumber}`;
 }
 
+function getNextLocationDisplayName() {
+	const locationNumbers = locationData
+		.map((location) => /^Ort-(\d+)$/i.exec(location.name || ""))
+		.filter(Boolean)
+		.map((match) => Number.parseInt(match[1], 10))
+		.filter(Number.isFinite);
+	const nextNumber = locationNumbers.length ? Math.max(...locationNumbers) + 1 : 1;
+	return `Ort-${nextNumber}`;
+}
+
 function createWaypointId() {
 	return `waypoint-${Date.now()}-${waypointCounter++}`;
 }
@@ -1679,6 +1689,7 @@ function removeLocationNameLabel(markerEntry) {
 
 function applyFeatureResponseToMarker(markerEntry, feature) {
 	const previousName = markerEntry.name;
+	const previousLocation = markerEntry.location;
 	const wasPopupOpen = markerEntry.marker.isPopupOpen();
 	const locationType = normalizeLocationType(feature.location_type || feature.feature_subtype || markerEntry.locationType);
 	const latLng = [Number(feature.lat), Number(feature.lng)];
@@ -1698,6 +1709,10 @@ function applyFeatureResponseToMarker(markerEntry, feature) {
 		isRuined: Boolean(feature.is_ruined),
 		revision: Number(feature.revision) || markerEntry.location.revision || null,
 	};
+	const locationIndex = locationData.indexOf(previousLocation);
+	if (locationIndex >= 0) {
+		locationData[locationIndex] = markerEntry.location;
+	}
 	markerEntry.marker.setLatLng(latLng);
 	refreshLocationMarkerPopup(markerEntry);
 	if (wasPopupOpen) {
@@ -1711,6 +1726,32 @@ function applyFeatureResponseToMarker(markerEntry, feature) {
 
 async function editLocationDetails(markerEntry) {
 	openLocationEditDialog({ markerEntry });
+}
+
+async function convertCrossingToLocation(markerEntry) {
+	if (!markerEntry || markerEntry.locationType !== CROSSING_LOCATION_TYPE) {
+		return;
+	}
+
+	try {
+		const result = await submitMapFeatureEdit({
+			action: "update_point",
+			public_id: markerEntry.publicId,
+			name: getNextLocationDisplayName(),
+			feature_subtype: "dorf",
+			is_nodix: true,
+			is_ruined: Boolean(markerEntry.location?.isRuined),
+			description: markerEntry.location?.description || "",
+			wiki_url: markerEntry.location?.wikiUrl || "",
+		});
+		applyFeatureResponseToMarker(markerEntry, result.feature);
+		updateRevisionFromEditResponse(result);
+		refreshPlannerAfterFeatureChange();
+		showFeedbackToast("Kreuzung wurde zu einem Ort konvertiert.", "success");
+	} catch (error) {
+		console.error("Kreuzung konnte nicht konvertiert werden:", error);
+		showFeedbackToast(error.message || "Kreuzung konnte nicht konvertiert werden.", "warning");
+	}
 }
 
 async function deleteLocationMarker(markerEntry) {

@@ -223,6 +223,13 @@ function crossingActionsMarkup(name, publicId) {
 
 	return locationPopupActionsMarkup([
 		popupActionButtonMarkup({
+			label: "Zu Ort konvertieren",
+			attributes: {
+				"data-popup-action": "convert-crossing-to-location",
+				"data-public-id": publicId,
+			},
+		}),
+		popupActionButtonMarkup({
 			label: pendingPathCreationStart ? "Weg abschliessen" : "Neuer Weg",
 			attributes: {
 				"data-popup-action": pendingPathCreationStart ? "finish-path-at-location" : "start-path-from-location",
