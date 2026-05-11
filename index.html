@@ -705,7 +705,7 @@
 		const map = L.map("map", {
 			crs: L.CRS.Simple,
 			minZoom: 0,
-			maxZoom: 5,
+			maxZoom: IS_EDIT_MODE ? 6 : 5,
 			bounds: MAP_BOUNDS,
 			continuousWorld: false,
 			noWrap: true,

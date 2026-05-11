@@ -1,4 +1,15 @@
 // Location markers and labels
+const VISUAL_MAX_ZOOM_LEVEL = 5;
+
+function getVisualZoomLevel(zoomLevel = map.getZoom()) {
+	const roundedZoomLevel = Math.round(Number(zoomLevel));
+	if (!Number.isFinite(roundedZoomLevel)) {
+		return 0;
+	}
+
+	return Math.max(0, Math.min(VISUAL_MAX_ZOOM_LEVEL, roundedZoomLevel));
+}
+
 function locationZoomScale(zoomLevel) {
 	const zoomScales = {
 		0: 0.45,
@@ -8,7 +19,7 @@ function locationZoomScale(zoomLevel) {
 		4: 1.18,
 		5: 1.36,
 	};
-	return zoomScales[zoomLevel] || 1;
+	return zoomScales[getVisualZoomLevel(zoomLevel)] || zoomScales[VISUAL_MAX_ZOOM_LEVEL];
 }
 
 const LOCATION_NAME_LABEL_SIZE_BY_ZOOM = {
@@ -21,6 +32,7 @@ const LOCATION_NAME_LABEL_SIZE_BY_ZOOM = {
 };
 
 function getVillageMarkerStyle(zoomLevel = map.getZoom()) {
+	const visualZoomLevel = getVisualZoomLevel(zoomLevel);
 	const villageZoomStyles = {
 		0: { radius: 1.5, borderWidth: 0 },
 		1: { radius: 1.5, borderWidth: 0 },
@@ -30,10 +42,11 @@ function getVillageMarkerStyle(zoomLevel = map.getZoom()) {
 		5: { radius: 4, borderWidth: 2 },
 	};
 
-	return villageZoomStyles[Math.round(Number(zoomLevel))] || villageZoomStyles[5];
+	return villageZoomStyles[visualZoomLevel] || villageZoomStyles[VISUAL_MAX_ZOOM_LEVEL];
 }
 
 function getBuildingMarkerStyle(zoomLevel = map.getZoom()) {
+	const visualZoomLevel = getVisualZoomLevel(zoomLevel);
 	const buildingZoomStyles = {
 		0: { radius: 0.5, borderWidth: 0 },
 		1: { radius: 1, borderWidth: 0 },
@@ -43,7 +56,7 @@ function getBuildingMarkerStyle(zoomLevel = map.getZoom()) {
 		5: { radius: 2.75, borderWidth: 2 },
 	};
 
-	return buildingZoomStyles[Math.round(Number(zoomLevel))] || buildingZoomStyles[5];
+	return buildingZoomStyles[visualZoomLevel] || buildingZoomStyles[VISUAL_MAX_ZOOM_LEVEL];
 }
 
 function isVillageMarkerStyleLocation(locationType) {
@@ -51,8 +64,9 @@ function isVillageMarkerStyleLocation(locationType) {
 }
 
 function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
+	const visualZoomLevel = getVisualZoomLevel(zoomLevel);
 	if (locationType === CROSSING_LOCATION_TYPE) {
-		return Math.round(Number(zoomLevel)) <= 3 ? 5 : Math.max(7, 5 + zoomLevel * 1.5);
+		return visualZoomLevel <= 3 ? 5 : Math.max(7, 5 + visualZoomLevel * 1.5);
 	}
 
 	if (isVillageMarkerStyleLocation(locationType)) {
@@ -76,7 +90,7 @@ function getLocationMarkerBorderWidth(locationType, zoomLevel = map.getZoom()) {
 function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
 	if (locationType === CROSSING_LOCATION_TYPE) {
 		const markerSize = getLocationMarkerSize(locationType, zoomLevel);
-		const isSimpleMarker = Math.round(Number(zoomLevel)) <= 3;
+		const isSimpleMarker = getVisualZoomLevel(zoomLevel) <= 3;
 		const iconHtml = `<span class="location-visual-marker__shape location-visual-marker__shape--crossing${isSimpleMarker ? " location-visual-marker__shape--simple" : ""}" style="width:${markerSize}px;height:${markerSize}px;"></span>`;
 
 		return L.divIcon({
@@ -91,15 +105,15 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
 	const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
 	const markerSize = getLocationMarkerSize(locationType, zoomLevel);
 	const isSimpleMarker = locationType === "dorf"
-		? Math.round(Number(zoomLevel)) <= 2
+		? getVisualZoomLevel(zoomLevel) <= 2
 		: locationType === "gebaeude"
-			? Math.round(Number(zoomLevel)) <= 3
+			? getVisualZoomLevel(zoomLevel) <= 3
 			: false;
 	const shapeClassName = config.shape === "square"
 		? `location-visual-marker__shape location-visual-marker__shape--square${isSimpleMarker ? " location-visual-marker__shape--simple" : ""}`
 		: `location-visual-marker__shape location-visual-marker__shape--circle${isSimpleMarker ? " location-visual-marker__shape--simple" : ""}`;
 	const shadowBlur = locationType === "dorf"
-		? (Math.round(Number(zoomLevel)) >= 4 ? 2.5 : Math.round(Number(zoomLevel)) === 3 ? 2.25 : 2)
+		? (getVisualZoomLevel(zoomLevel) >= 4 ? 2.5 : getVisualZoomLevel(zoomLevel) === 3 ? 2.25 : 2)
 		: 2;
 	const iconHtml = `<span${buildHtmlAttributes({
 		class: shapeClassName,
@@ -161,9 +175,9 @@ function isMarkerEntryInRenderBounds(entry, renderBounds = getMapRenderBounds())
 }
 
 function getLocationNameLabelSize(locationType, zoomLevel = map.getZoom()) {
-	const roundedZoomLevel = Math.round(Number(zoomLevel));
+	const roundedZoomLevel = getVisualZoomLevel(zoomLevel);
 	const sizeByZoom = LOCATION_NAME_LABEL_SIZE_BY_ZOOM[locationType] || LOCATION_NAME_LABEL_SIZE_BY_ZOOM.dorf;
-	return Math.max(9, Number(sizeByZoom[roundedZoomLevel] ?? sizeByZoom[5] ?? sizeByZoom[4] ?? sizeByZoom[3] ?? sizeByZoom[2] ?? sizeByZoom[1] ?? sizeByZoom[0] ?? 9));
+	return Math.max(9, Number(sizeByZoom[roundedZoomLevel] ?? sizeByZoom[VISUAL_MAX_ZOOM_LEVEL] ?? sizeByZoom[4] ?? sizeByZoom[3] ?? sizeByZoom[2] ?? sizeByZoom[1] ?? sizeByZoom[0] ?? 9));
 }
 
 function getLocationNameLabelOffset(labelSize, zoomLevel = map.getZoom()) {
@@ -1884,8 +1898,8 @@ function createLabelIcon(label) {
 
 function getScaledLabelSize(label) {
 	const baseSize = Math.max(10, Math.min(56, Number(label.size) || 18));
-	const maxZoom = Number(map.getMaxZoom()) || 5;
-	const zoomRatio = Math.max(0, Math.min(1, map.getZoom() / maxZoom));
+	const visualZoomLevel = getVisualZoomLevel(map.getZoom());
+	const zoomRatio = Math.max(0, Math.min(1, visualZoomLevel / VISUAL_MAX_ZOOM_LEVEL));
 	return Math.round(baseSize * (0.5 + zoomRatio * 0.5));
 }
 
@@ -1941,9 +1955,10 @@ function setLabelMoveActive(entry, isActive) {
 function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds()) {
 	const minZoom = Number(entry.label.minZoom) || 0;
 	const maxZoom = Number.isFinite(Number(entry.label.maxZoom)) ? Number(entry.label.maxZoom) : 5;
+	const visualZoomLevel = getVisualZoomLevel(zoomLevel);
 	return getSelectedMapLayerMode() === "deregraphic"
-		&& zoomLevel >= minZoom
-		&& zoomLevel <= maxZoom
+		&& visualZoomLevel >= minZoom
+		&& visualZoomLevel <= maxZoom
 		&& isLatLngInRenderBounds(entry.marker.getLatLng(), renderBounds);
 }
 
@@ -2472,7 +2487,7 @@ function refreshPathLayerText(path) {
 }
 
 function getPathVisualLatLngCoordinates(coordinates, zoomLevel = map.getZoom()) {
-	const roundedZoomLevel = Math.round(Number(zoomLevel));
+	const roundedZoomLevel = getVisualZoomLevel(zoomLevel);
 	const smoothingConfig = roundedZoomLevel <= PATH_RENDER_CONFIG.simplifiedMaxZoom
 		? {
 			enabled: true,
