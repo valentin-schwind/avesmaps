@@ -17,8 +17,8 @@ function getVillageMarkerStyle(zoomLevel = map.getZoom()) {
 		1: { radius: 1.5, borderWidth: 0 },
 		2: { radius: 1.25, borderWidth: 0 },
 		3: { radius: 2, borderWidth: 1 },
-		4: { radius: 2.5, borderWidth: 1 },
-		5: { radius: 3.5, borderWidth: 1 },
+		4: { radius: 3, borderWidth: 1 },
+		5: { radius: 4, borderWidth: 1 },
 	};
 
 	return villageZoomStyles[Math.round(Number(zoomLevel))] || villageZoomStyles[5];

@@ -128,7 +128,7 @@ const LOCATION_NAME_LABEL_CONFIG = {
 	grossstadt: { size: 15, minZoom: 0 },
 	stadt: { size: 14, minZoom: 2 },
 	kleinstadt: { size: 13, minZoom: 3 },
-	dorf: { size: 12, minZoom: 3 },
+	dorf: { size: 12, minZoom: 4 },
 	gebaeude: { size: 12, minZoom: 4 },
 };
 const POWERLINE_RENDER_CONFIG = {
