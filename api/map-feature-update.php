@@ -123,7 +123,8 @@ function avesmapsAssertUniqueLocationName(PDO $pdo, string $name, ?string $exclu
     $statement = $pdo->prepare(
         'SELECT public_id, name
         FROM map_features
-        WHERE feature_type = :feature_type'
+        WHERE feature_type = :feature_type
+          AND is_active = 1'
         . ($excludePublicId !== null && $excludePublicId !== '' ? ' AND public_id <> :public_id' : '')
     );
     $parameters = [
