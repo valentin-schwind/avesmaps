@@ -155,13 +155,13 @@ function getRouteSegments(route) {
 		.filter(Boolean);
 }
 
-function resolveRouteNodeLocation(routeName, index, routeNames, segments) {
+function resolveRouteNodeLocation(routeName, index, routeNames, segments, { allowCrossings = true } = {}) {
 	const normalizedName = normalizeLocationSearchName(routeName);
 	const directLocation = locationData.find((location) => location.name === routeName)
 		|| locationData.find((location) => normalizeLocationSearchName(location.name) === normalizedName)
 		|| findLocationMarkerByName(routeName)?.location
 		|| null;
-	if (directLocation) {
+	if (directLocation && (allowCrossings || !isCrossingLocation(directLocation))) {
 		return directLocation;
 	}
 
@@ -179,7 +179,7 @@ function resolveRouteNodeLocation(routeName, index, routeNames, segments) {
 
 	for (const coordinate of candidateCoordinates) {
 		const location = getLocationAtPathEndpoint(coordinate);
-		if (location) {
+		if (location && (allowCrossings || !isCrossingLocation(location))) {
 			return location;
 		}
 	}
@@ -187,8 +187,8 @@ function resolveRouteNodeLocation(routeName, index, routeNames, segments) {
 	return null;
 }
 
-function getRouteNodeDisplayName(routeName, index, routeNames, segments) {
-	const location = resolveRouteNodeLocation(routeName, index, routeNames, segments);
+function getRouteNodeDisplayName(routeName, index, routeNames, segments, options = {}) {
+	const location = resolveRouteNodeLocation(routeName, index, routeNames, segments, options);
 	if (location) {
 		return isCrossingLocation(location) ? normalizeNodeName(location.name) : location.name;
 	}
@@ -296,8 +296,8 @@ function buildRoutePlanEntries(routeNames, segments) {
 		}
 
 		const segTravelTime = (segDistance / speedMiles) * TIME_SCALE_FACTOR;
-		const startName = getRouteNodeDisplayName(routeNames[index], index, routeNames, segments);
-		const endName = getRouteNodeDisplayName(routeNames[index + 1], index + 1, routeNames, segments);
+		const startName = getRouteNodeDisplayName(routeNames[index], index, routeNames, segments, { allowCrossings: type !== "Flussweg" && type !== "Seeweg" });
+		const endName = getRouteNodeDisplayName(routeNames[index + 1], index + 1, routeNames, segments, { allowCrossings: type !== "Flussweg" && type !== "Seeweg" });
 		const segmentLabel = type === "Flussweg" && shouldShowRoutePathDisplayName(segment)
 			? getRoutePathDisplayName(segment)
 			: "";
@@ -324,7 +324,9 @@ function buildRoutePlanEntries(routeNames, segments) {
 
 			aggregateEntry.distance += segDistance;
 			aggregateEntry.travelTime += segTravelTime;
-			aggregateEntry.endName = endName;
+			if (endName && endName !== aggregateEntry.endName) {
+				aggregateEntry.endName = endName;
+			}
 			aggregateEntry.segmentIndexes.push(index);
 			return;
 		}
