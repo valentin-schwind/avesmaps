@@ -48,7 +48,6 @@ try {
         'import_geojson' => avesmapsImportGeoJsonMap($pdo, $replaceExisting, true),
         'install_schema_and_import_geojson' => avesmapsInstallSchemaAndImportGeoJson($pdo, $replaceExisting),
         'repair_path_subtypes_from_names' => avesmapsRepairPathSubtypesFromNames($pdo),
-        'migrate_burg_locations_to_gebaeude' => avesmapsMigrateBurgLocationsToGebaeude($pdo),
         'set_region_opacity' => avesmapsSetRegionOpacity($pdo, $payload),
         'check_path_name_consistency' => avesmapsCheckPathNameConsistency($pdo),
         'upsert_user' => avesmapsUpsertUser($pdo, $payload),
@@ -182,16 +181,6 @@ function avesmapsFetchMapRevisionForAdmin(PDO $pdo): int {
     }
 
     return (int) $revision;
-}
-
-function avesmapsIncrementAndFetchMapRevision(PDO $pdo): int {
-    $pdo->exec(
-        'INSERT INTO map_revision (id, revision)
-        VALUES (1, 2)
-        ON DUPLICATE KEY UPDATE revision = revision + 1'
-    );
-
-    return avesmapsFetchMapRevisionForAdmin($pdo);
 }
 
 function avesmapsInstallFutureSchema(PDO $pdo): array {
@@ -422,64 +411,6 @@ function avesmapsRepairPathSubtypesFromNames(PDO $pdo): array {
         'unchanged' => $unchanged,
         'status' => avesmapsBuildMapDatabaseStatus($pdo),
     ];
-}
-
-function avesmapsMigrateBurgLocationsToGebaeude(PDO $pdo): array {
-    $pdo->beginTransaction();
-    try {
-        $selectStatement = $pdo->query(
-            "SELECT id, public_id, name, feature_subtype, properties_json
-            FROM map_features
-            WHERE feature_type = 'location'
-              AND name LIKE 'Burg %'
-            FOR UPDATE"
-        );
-        $features = $selectStatement->fetchAll(PDO::FETCH_ASSOC);
-
-        if ($features === []) {
-            $pdo->commit();
-            return [
-                'ok' => true,
-                'action' => 'migrate_burg_locations_to_gebaeude',
-                'updated_total' => 0,
-                'revision' => avesmapsFetchMapRevisionForAdmin($pdo),
-            ];
-        }
-
-        $revision = avesmapsIncrementAndFetchMapRevision($pdo);
-        $updateStatement = $pdo->prepare(
-            "UPDATE map_features
-            SET feature_subtype = 'gebaeude',
-                properties_json = :properties_json,
-                revision = :revision
-            WHERE id = :id"
-        );
-
-        $updatedTotal = 0;
-        foreach ($features as $feature) {
-            $properties = avesmapsDecodeJsonColumnForAdmin($feature['properties_json'] ?? null);
-            $properties['feature_subtype'] = 'gebaeude';
-            $properties['settlement_class'] = 'gebaeude';
-            $properties['settlement_class_label'] = 'Besondere Bauwerke/Staetten';
-            $updateStatement->execute([
-                'id' => (int) $feature['id'],
-                'properties_json' => avesmapsEncodeJsonForDatabase($properties),
-                'revision' => $revision,
-            ]);
-            $updatedTotal++;
-        }
-
-        $pdo->commit();
-
-        return [
-            'ok' => true,
-            'action' => 'migrate_burg_locations_to_gebaeude',
-            'updated_total' => $updatedTotal,
-            'revision' => $revision,
-        ];
-    } catch (Throwable $exception) {
-        avesmapsRollbackAndRethrow($pdo, $exception);
-    }
 }
 
 function avesmapsSetRegionOpacity(PDO $pdo, array $payload): array {
