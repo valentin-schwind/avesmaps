@@ -2034,8 +2034,8 @@ body.edit-mode .map-label span {
 	border-style: solid;
 	border-color: #ffffff;
 	filter:
-		drop-shadow(0 1px 1px rgba(0, 0, 0, 0.95))
-		drop-shadow(0 0 2px rgba(0, 0, 0, 0.78));
+		drop-shadow(0 1px var(--location-marker-shadow-blur, 2px) rgba(0, 0, 0, 0.95))
+		drop-shadow(0 0 var(--location-marker-shadow-blur, 2px) rgba(0, 0, 0, 0.78));
 }
 
 .location-visual-marker__shape--simple {

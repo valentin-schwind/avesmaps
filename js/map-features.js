@@ -16,9 +16,9 @@ function getVillageMarkerStyle(zoomLevel = map.getZoom()) {
 		0: { radius: 1.5, borderWidth: 0 },
 		1: { radius: 1.5, borderWidth: 0 },
 		2: { radius: 1.25, borderWidth: 0 },
-		3: { radius: 2, borderWidth: 1 },
-		4: { radius: 3, borderWidth: 1 },
-		5: { radius: 4, borderWidth: 1 },
+		3: { radius: 2, borderWidth: 1.5 },
+		4: { radius: 3, borderWidth: 2 },
+		5: { radius: 4, borderWidth: 2 },
 	};
 
 	return villageZoomStyles[Math.round(Number(zoomLevel))] || villageZoomStyles[5];
@@ -30,7 +30,7 @@ function getBuildingMarkerStyle(zoomLevel = map.getZoom()) {
 		1: { radius: 1, borderWidth: 0 },
 		2: { radius: 1, borderWidth: 0 },
 		3: { radius: 1.5, borderWidth: 0 },
-		4: { radius: 2.25, borderWidth: 1 },
+		4: { radius: 1.25, borderWidth: 1 },
 		5: { radius: 2.75, borderWidth: 2 },
 	};
 
@@ -81,13 +81,20 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
 
 	const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
 	const markerSize = getLocationMarkerSize(locationType, zoomLevel);
-	const isSimpleMarker = isVillageMarkerStyleLocation(locationType) && Math.round(Number(zoomLevel)) <= 3;
+	const isSimpleMarker = locationType === "dorf"
+		? Math.round(Number(zoomLevel)) <= 2
+		: locationType === "gebaeude"
+			? Math.round(Number(zoomLevel)) <= 3
+			: false;
 	const shapeClassName = config.shape === "square"
 		? `location-visual-marker__shape location-visual-marker__shape--square${isSimpleMarker ? " location-visual-marker__shape--simple" : ""}`
 		: `location-visual-marker__shape location-visual-marker__shape--circle${isSimpleMarker ? " location-visual-marker__shape--simple" : ""}`;
+	const shadowBlur = locationType === "dorf"
+		? (Math.round(Number(zoomLevel)) >= 4 ? 2.5 : Math.round(Number(zoomLevel)) === 3 ? 2.25 : 2)
+		: 2;
 	const iconHtml = `<span${buildHtmlAttributes({
 		class: shapeClassName,
-		style: `width:${markerSize}px;height:${markerSize}px;border-width:${getLocationMarkerBorderWidth(locationType, zoomLevel)}px;`,
+		style: `width:${markerSize}px;height:${markerSize}px;border-width:${getLocationMarkerBorderWidth(locationType, zoomLevel)}px;--location-marker-shadow-blur:${shadowBlur}px;`,
 	})}></span>`;
 
 	return L.divIcon({
