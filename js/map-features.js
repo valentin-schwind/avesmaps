@@ -1735,36 +1735,15 @@ async function convertCrossingToLocation(markerEntry) {
 
 	const nextName = getNextLocationDisplayName();
 	const hasConnectedPowerlines = getConnectedPowerlinesForPublicId(markerEntry.publicId).length > 0;
-
-	try {
-		const result = await submitMapFeatureEdit({
-			action: "update_point",
-			public_id: markerEntry.publicId,
-			name: nextName,
-			feature_subtype: "dorf",
-			is_nodix: hasConnectedPowerlines,
-			is_ruined: Boolean(markerEntry.location?.isRuined),
-			description: markerEntry.location?.description || "",
-			wiki_url: markerEntry.location?.wikiUrl || "",
-		});
-		if (!result?.feature?.name) {
-			markerEntry.name = nextName;
-			markerEntry.location.name = nextName;
-			refreshLocationMarkerPopup(markerEntry);
-		}
-		applyFeatureResponseToMarker(markerEntry, result.feature);
-		updateRevisionFromEditResponse(result);
-		openLocationEditDialog({
-			markerEntry,
-			presetName: nextName,
-			presetIsNodix: hasConnectedPowerlines,
-		});
-		refreshPlannerAfterFeatureChange();
-		showFeedbackToast("Kreuzung wurde zu einem Ort konvertiert.", "success");
-	} catch (error) {
-		console.error("Kreuzung konnte nicht konvertiert werden:", error);
-		showFeedbackToast(error.message || "Kreuzung konnte nicht konvertiert werden.", "warning");
-	}
+	openLocationEditDialog({
+		markerEntry,
+		presetName: nextName,
+		presetIsNodix: hasConnectedPowerlines,
+	});
+	pendingCrossingConversionPublicId = markerEntry.publicId;
+	pendingCrossingConversionName = nextName;
+	pendingCrossingConversionIsNodix = hasConnectedPowerlines;
+	showFeedbackToast("Ort bearbeiten und speichern, um die Konvertierung abzuschliessen.", "info");
 }
 
 async function deleteLocationMarker(markerEntry) {

@@ -354,6 +354,9 @@ function resetLocationEditForm() {
 	locationEditMarkerEntry = null;
 	activeReviewReportId = null;
 	activeReviewReportSource = null;
+	pendingCrossingConversionPublicId = null;
+	pendingCrossingConversionName = "";
+	pendingCrossingConversionIsNodix = false;
 	void releaseFeatureSoftLock(publicId);
 	setLocationEditStatus();
 }
@@ -577,11 +580,14 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	const wikiLocationLink = getWikiLocationLink(location.name || markerEntry?.name || "", location.wikiUrl || "");
 	document.getElementById("location-edit-public-id").value = markerEntry?.publicId || "";
 	void acquireFeatureSoftLock(markerEntry?.publicId || "");
-	document.getElementById("location-edit-name").value = presetName || location.name || markerEntry?.name || "";
+	const isCrossingConversion = pendingCrossingConversionPublicId && pendingCrossingConversionPublicId === markerEntry?.publicId;
+	document.getElementById("location-edit-name").value = presetName || (isCrossingConversion ? pendingCrossingConversionName : "") || location.name || markerEntry?.name || "";
 	document.getElementById("location-edit-type").value = normalizeLocationType(location.locationType || markerEntry?.locationType || "dorf");
 	document.getElementById("location-edit-description").value = location.description || "";
 	document.getElementById("location-edit-wiki-url").value = location.wikiUrl || wikiLocationLink?.url || "";
-	document.getElementById("location-edit-is-nodix").checked = presetIsNodix === null ? Boolean(location.isNodix) : Boolean(presetIsNodix);
+	document.getElementById("location-edit-is-nodix").checked = presetIsNodix === null
+		? (isCrossingConversion ? pendingCrossingConversionIsNodix : Boolean(location.isNodix))
+		: Boolean(presetIsNodix);
 	document.getElementById("location-edit-is-ruined").checked = Boolean(location.isRuined);
 
 	if (locationEditLatLng) {
@@ -1350,6 +1356,9 @@ async function handleLocationEditFormSubmit(event) {
 	}
 
 	const payload = buildLocationEditPayload(formElement);
+	if (pendingCrossingConversionPublicId && pendingCrossingConversionPublicId === payload.public_id && !payload.name) {
+		payload.name = pendingCrossingConversionName || payload.name;
+	}
 	const duplicateLocation = findDuplicateLocationByName(payload.name, {
 		excludePublicId: payload.public_id || "",
 		allowCurrentName: locationEditMarkerEntry?.location?.name || locationEditMarkerEntry?.name || "",
@@ -1377,6 +1386,9 @@ async function handleLocationEditFormSubmit(event) {
 		}
 		updateRevisionFromEditResponse(result);
 		void loadChangeLog();
+		pendingCrossingConversionPublicId = null;
+		pendingCrossingConversionName = "";
+		pendingCrossingConversionIsNodix = false;
 		setLocationEditSubmitPending(false);
 		setLocationEditDialogOpen(false, { resetForm: true });
 		showFeedbackToast("Ort gespeichert.", "success");
