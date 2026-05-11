@@ -1415,9 +1415,11 @@
 					const next = currentCoordinates[index + 1];
 					const distanceToPrev = getCoordinateDistance(curr, prev);
 					const distanceToNext = getCoordinateDistance(curr, next);
+					const cornerSmoothingMultiplier = getCornerSmoothingMultiplier(prev, curr, next);
+					const adjustedSmoothingFactor = Math.max(smoothingFactor, smoothingFactor * cornerSmoothingMultiplier);
 					const cutDistance = Math.min(
-						distanceToPrev * smoothingFactor,
-						distanceToNext * smoothingFactor,
+						distanceToPrev * adjustedSmoothingFactor,
+						distanceToNext * adjustedSmoothingFactor,
 						distanceToPrev * segmentCutShareLimit,
 						distanceToNext * segmentCutShareLimit,
 						maxDistance
@@ -1445,6 +1447,23 @@
 			const deltaX = Number(first?.[0]) - Number(second?.[0]);
 			const deltaY = Number(first?.[1]) - Number(second?.[1]);
 			return Math.hypot(deltaX, deltaY);
+		}
+
+		function getCornerSmoothingMultiplier(prev, curr, next) {
+			const incomingX = Number(curr?.[0]) - Number(prev?.[0]);
+			const incomingY = Number(curr?.[1]) - Number(prev?.[1]);
+			const outgoingX = Number(next?.[0]) - Number(curr?.[0]);
+			const outgoingY = Number(next?.[1]) - Number(curr?.[1]);
+			const incomingLength = Math.hypot(incomingX, incomingY);
+			const outgoingLength = Math.hypot(outgoingX, outgoingY);
+			if (incomingLength === 0 || outgoingLength === 0) {
+				return 1;
+			}
+
+			const dotProduct = (incomingX * outgoingX + incomingY * outgoingY) / (incomingLength * outgoingLength);
+			const turnAngle = Math.acos(Math.max(-1, Math.min(1, dotProduct)));
+			const turnStrength = Math.max(0, Math.min(1, turnAngle / Math.PI));
+			return 1 + Math.pow(turnStrength, 1.35) * 0.85;
 		}
 
 		function moveCoordinateTowards(from, to, ratio) {
