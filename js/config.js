@@ -118,6 +118,16 @@ const VISUAL_LINE_SMOOTHING_CONFIG_HIGH_ZOOM = {
 	maxSegmentCutShare: 0.49,
 	passes: 2,
 };
+const VISUAL_LINE_SMOOTHING_CONFIG_MAX_ZOOM = {
+	enabled: INITIAL_SEARCH_PARAMS.get("smoothRoute") !== "0" && INITIAL_SEARCH_PARAMS.get("smoothLines") !== "0",
+	factor: 0.86,
+	maxDistance: 120,
+	samples: 128,
+	maxFactor: 0.92,
+	maxSamples: 128,
+	maxSegmentCutShare: 0.49,
+	passes: 2,
+};
 const PATH_RENDER_CONFIG = {
 	simplifiedMaxZoom: 2,
 	simplifiedSmoothingFactor: 0.2,

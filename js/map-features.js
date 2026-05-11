@@ -2495,7 +2495,9 @@ function getPathVisualLatLngCoordinates(coordinates, zoomLevel = map.getZoom()) 
 			maxDistance: PATH_RENDER_CONFIG.simplifiedMaxDistance,
 			samples: PATH_RENDER_CONFIG.simplifiedSamples,
 		}
-		: roundedZoomLevel >= 5
+		: roundedZoomLevel >= 6
+			? VISUAL_LINE_SMOOTHING_CONFIG_MAX_ZOOM
+			: roundedZoomLevel >= 5
 			? VISUAL_LINE_SMOOTHING_CONFIG_HIGH_ZOOM
 			: VISUAL_LINE_SMOOTHING_CONFIG;
 
