@@ -104,10 +104,14 @@ function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds
 		return IS_EDIT_MODE && $("#toggleCrossings").is(":checked") && isMarkerEntryInRenderBounds(entry, renderBounds);
 	}
 
-	const config = LOCATION_TYPE_CONFIG[entry.locationType] || LOCATION_TYPE_CONFIG.dorf;
 	const isVisibleByNodixToggle = IS_EDIT_MODE && $("#toggleNodix").is(":checked") && isNodixLocation(entry.location);
+	const minZoomByType = entry.locationType === "dorf"
+		? 2
+		: entry.locationType === "gebaeude"
+			? 3
+			: 0;
 	return (isVisibleByNodixToggle || isLocationTypeVisible(entry.locationType))
-		&& zoomLevel >= (config.minZoom || 0)
+		&& zoomLevel >= minZoomByType
 		&& isMarkerEntryInRenderBounds(entry, renderBounds);
 }
 
