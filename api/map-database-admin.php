@@ -48,6 +48,7 @@ try {
         'import_geojson' => avesmapsImportGeoJsonMap($pdo, $replaceExisting, true),
         'install_schema_and_import_geojson' => avesmapsInstallSchemaAndImportGeoJson($pdo, $replaceExisting),
         'repair_path_subtypes_from_names' => avesmapsRepairPathSubtypesFromNames($pdo),
+        'normalize_wuestenpfad_transports' => avesmapsNormalizeWuestenpfadTransports($pdo),
         'set_region_opacity' => avesmapsSetRegionOpacity($pdo, $payload),
         'check_path_name_consistency' => avesmapsCheckPathNameConsistency($pdo),
         'deactivate_locations_by_name_prefix' => avesmapsDeactivateLocationsByNamePrefix($pdo, $payload),
@@ -410,6 +411,74 @@ function avesmapsRepairPathSubtypesFromNames(PDO $pdo): array {
         'updated_total' => array_sum($updatesBySubtype),
         'updated_by_subtype' => $updatesBySubtype,
         'unchanged' => $unchanged,
+        'status' => avesmapsBuildMapDatabaseStatus($pdo),
+    ];
+}
+
+function avesmapsNormalizeWuestenpfadTransports(PDO $pdo): array {
+    if (!avesmapsTableExists($pdo, 'map_features')) {
+        throw new RuntimeException('Die Future-Tabellen fehlen. Fuehre zuerst install_schema aus.');
+    }
+
+    $selectStatement = $pdo->query(
+        "SELECT id, properties_json
+        FROM map_features
+        WHERE is_active = 1
+            AND feature_type = 'path'
+            AND feature_subtype = 'Wuestenpfad'"
+    );
+    $rows = $selectStatement !== false ? $selectStatement->fetchAll() : [];
+    $updatedTotal = 0;
+
+    $pdo->beginTransaction();
+    try {
+        $updateStatement = $pdo->prepare(
+            'UPDATE map_features
+            SET properties_json = :properties_json
+            WHERE id = :id'
+        );
+
+        foreach ($rows as $row) {
+            $properties = avesmapsDecodeJsonColumnForAdmin($row['properties_json'] ?? null);
+            $allowedTransports = is_array($properties['allowed_transports'] ?? null)
+                ? array_values(array_filter(
+                    $properties['allowed_transports'],
+                    static fn(mixed $transport): bool => (string) $transport !== 'horseCarriage'
+                ))
+                : [];
+
+            if (($properties['transport_domain'] ?? 'land') !== 'land') {
+                $properties['transport_domain'] = 'land';
+            }
+
+            if (($properties['allowed_transports'] ?? null) === $allowedTransports) {
+                continue;
+            }
+
+            $properties['allowed_transports'] = $allowedTransports;
+            $updateStatement->execute([
+                'id' => (int) $row['id'],
+                'properties_json' => avesmapsEncodeJsonForDatabase($properties),
+            ]);
+            $updatedTotal++;
+        }
+
+        if ($updatedTotal > 0) {
+            avesmapsIncrementMapRevision($pdo);
+        }
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $exception;
+    }
+
+    return [
+        'ok' => true,
+        'action' => 'normalize_wuestenpfad_transports',
+        'updated_total' => $updatedTotal,
         'status' => avesmapsBuildMapDatabaseStatus($pdo),
     ];
 }
