@@ -1372,10 +1372,17 @@ async function handleLocationEditFormSubmit(event) {
 
 	try {
 		const result = await submitMapFeatureEdit(payload);
+		const responseFeature = pendingCrossingConversionPublicId === payload.public_id
+			? { ...result.feature, name: result.feature?.name || payload.name }
+			: result.feature;
 		if (locationEditMarkerEntry) {
-			applyFeatureResponseToMarker(locationEditMarkerEntry, result.feature);
+			applyFeatureResponseToMarker(locationEditMarkerEntry, responseFeature);
+			if (pendingCrossingConversionPublicId === payload.public_id) {
+				ensureLocationNameLabel(locationEditMarkerEntry);
+				syncLocationNameLabelVisibility();
+			}
 		} else {
-			addCreatedLocationMarker(result.feature);
+			addCreatedLocationMarker(responseFeature);
 		}
 		if (payload.action === "create_point" && activeReviewReportId) {
 			await updateReviewReportStatus(activeReviewReportId, "approved", activeReviewReportSource || "location_reports");
