@@ -16,8 +16,8 @@ const LOCATION_NAME_LABEL_SIZE_BY_ZOOM = {
 	grossstadt: { 0: 9, 1: 9, 2: 10, 3: 11, 4: 14, 5: 16 },
 	stadt: { 0: 9, 1: 9, 2: 9.5, 3: 10.5, 4: 12.5, 5: 14 },
 	kleinstadt: { 0: 9, 1: 9, 2: 9, 3: 9.5, 4: 11.5, 5: 13 },
-	dorf: { 0: 9, 1: 9, 2: 9, 3: 9.25, 4: 10.25, 5: 12 },
-	gebaeude: { 0: 9, 1: 9, 2: 9, 3: 9, 4: 9.75, 5: 11 },
+	dorf: { 0: 9, 1: 9, 2: 9, 3: 9.25, 4: 11, 5: 12 },
+	gebaeude: { 0: 9, 1: 9, 2: 9, 3: 9, 4: 9.5, 5: 11 },
 };
 
 function getVillageMarkerStyle(zoomLevel = map.getZoom()) {
