@@ -1677,6 +1677,19 @@ function addLocationNameLabel(markerEntry) {
 	locationNameLabels.push(createLocationNameLabelEntry(markerEntry));
 }
 
+function ensureLocationNameLabel(markerEntry) {
+	if (isCrossingLocation(markerEntry.location)) {
+		return;
+	}
+
+	const existingLabelEntry = locationNameLabels.find((entry) => entry.markerEntry === markerEntry);
+	if (existingLabelEntry) {
+		return;
+	}
+
+	addLocationNameLabel(markerEntry);
+}
+
 function removeLocationNameLabel(markerEntry) {
 	const labelEntry = locationNameLabels.find((entry) => entry.markerEntry === markerEntry);
 	if (!labelEntry) {
@@ -1690,6 +1703,7 @@ function removeLocationNameLabel(markerEntry) {
 function applyFeatureResponseToMarker(markerEntry, feature) {
 	const previousName = markerEntry.name;
 	const previousLocation = markerEntry.location;
+	const wasCrossing = isCrossingLocation(previousLocation);
 	const wasPopupOpen = markerEntry.marker.isPopupOpen();
 	const locationType = normalizeLocationType(feature.location_type || feature.feature_subtype || markerEntry.locationType);
 	const latLng = [Number(feature.lat), Number(feature.lng)];
@@ -1712,6 +1726,9 @@ function applyFeatureResponseToMarker(markerEntry, feature) {
 	const locationIndex = locationData.indexOf(previousLocation);
 	if (locationIndex >= 0) {
 		locationData[locationIndex] = markerEntry.location;
+	}
+	if (wasCrossing && !isCrossingLocation(markerEntry.location)) {
+		ensureLocationNameLabel(markerEntry);
 	}
 	markerEntry.marker.setLatLng(latLng);
 	refreshLocationMarkerPopup(markerEntry);
