@@ -11,14 +11,13 @@ function locationZoomScale(zoomLevel) {
 	return zoomScales[zoomLevel] || 1;
 }
 
-const LOCATION_NAME_LABEL_SIZE_OFFSETS = {
-	default: {
-		5: 1,
-	},
-	gebaeude: {
-		4: -1,
-		5: -1,
-	},
+const LOCATION_NAME_LABEL_SIZE_BY_ZOOM = {
+	metropole: { 0: 9, 1: 10, 2: 11, 3: 12, 4: 16, 5: 18 },
+	grossstadt: { 0: 9, 1: 9, 2: 10, 3: 11, 4: 14, 5: 16 },
+	stadt: { 0: 9, 1: 9, 2: 9.5, 3: 10.5, 4: 12.5, 5: 14 },
+	kleinstadt: { 0: 9, 1: 9, 2: 9, 3: 9.5, 4: 11.5, 5: 13 },
+	dorf: { 0: 9, 1: 9, 2: 9, 3: 9.25, 4: 10.25, 5: 12 },
+	gebaeude: { 0: 9, 1: 9, 2: 9, 3: 9, 4: 9.75, 5: 11 },
 };
 
 function getVillageMarkerStyle(zoomLevel = map.getZoom()) {
@@ -159,13 +158,9 @@ function isMarkerEntryInRenderBounds(entry, renderBounds = getMapRenderBounds())
 }
 
 function getLocationNameLabelSize(locationType, zoomLevel = map.getZoom()) {
-	const config = LOCATION_NAME_LABEL_CONFIG[locationType] || LOCATION_NAME_LABEL_CONFIG.dorf;
-	const maxZoom = Number(map.getMaxZoom()) || 5;
 	const roundedZoomLevel = Math.round(Number(zoomLevel));
-	const zoomStepsOut = Math.max(0, maxZoom - zoomLevel);
-	const sizeOffsets = LOCATION_NAME_LABEL_SIZE_OFFSETS[locationType] || LOCATION_NAME_LABEL_SIZE_OFFSETS.default;
-	const sizeOffset = sizeOffsets[roundedZoomLevel] || 0;
-	return Math.max(9, (config.size + sizeOffset) / (2 ** zoomStepsOut));
+	const sizeByZoom = LOCATION_NAME_LABEL_SIZE_BY_ZOOM[locationType] || LOCATION_NAME_LABEL_SIZE_BY_ZOOM.dorf;
+	return Math.max(9, Number(sizeByZoom[roundedZoomLevel] ?? sizeByZoom[5] ?? sizeByZoom[4] ?? sizeByZoom[3] ?? sizeByZoom[2] ?? sizeByZoom[1] ?? sizeByZoom[0] ?? 9));
 }
 
 function getLocationNameLabelOffset(labelSize, zoomLevel = map.getZoom()) {
@@ -1705,7 +1700,13 @@ async function editLocationDetails(markerEntry) {
 
 async function deleteLocationMarker(markerEntry) {
 	const locationTypeLabel = markerEntry.locationType === CROSSING_LOCATION_TYPE ? "Kreuzung" : "Ort";
-	if (!window.confirm(`${markerEntry.name} wirklich loeschen?`)) {
+	const connectedPowerlines = markerEntry.locationType === CROSSING_LOCATION_TYPE
+		? getConnectedPowerlinesForPublicId(markerEntry.publicId)
+		: [];
+	const confirmationMessage = connectedPowerlines.length > 0
+		? `${markerEntry.name} ist noch mit ${connectedPowerlines.length} ${connectedPowerlines.length === 1 ? "Kraftlinie" : "Kraftlinien"} verbunden. Wirklich loeschen?`
+		: `${markerEntry.name} wirklich loeschen?`;
+	if (!window.confirm(confirmationMessage)) {
 		return;
 	}
 
@@ -2550,6 +2551,10 @@ function applyLivePathFeature(feature) {
 
 function findPowerlineByPublicId(publicId) {
 	return powerlineData.find((powerline) => (powerline.id || powerline.properties?.public_id) === publicId) || null;
+}
+
+function getConnectedPowerlinesForPublicId(publicId) {
+	return powerlineData.filter((powerline) => powerline.properties?.from_public_id === publicId || powerline.properties?.to_public_id === publicId);
 }
 
 function applyLivePowerlineFeature(feature) {
