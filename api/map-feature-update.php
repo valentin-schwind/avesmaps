@@ -229,7 +229,7 @@ function avesmapsReadAllowedTransports(mixed $value, string $domain): array {
     }
 
     $allowedOptions = array_values(array_unique($allowedOptions));
-    return $allowedOptions !== [] ? $allowedOptions : $compatibleOptions;
+    return $allowedOptions;
 }
 
 function avesmapsReadBoolean(mixed $value): bool {

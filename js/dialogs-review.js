@@ -780,7 +780,11 @@ function getPathTransportDomain(path) {
 function getPathAllowedTransports(path) {
 	const domain = getPathTransportDomain(path);
 	const configured = Array.isArray(path?.properties?.allowed_transports) ? path.properties.allowed_transports : null;
-	return configured || TRANSPORT_DOMAIN_OPTIONS[domain] || [];
+	if (configured !== null) {
+		return configured;
+	}
+
+	return TRANSPORT_DOMAIN_OPTIONS[domain] || [];
 }
 
 function syncPathTransportOptions({ path = null, resetToDefault = false } = {}) {
