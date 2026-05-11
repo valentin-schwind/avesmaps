@@ -106,16 +106,16 @@ const VISUAL_LINE_SMOOTHING_CONFIG = {
 	samples: 16,
 	maxFactor: 0.5,
 	maxSamples: 12,
-	maxSegmentCutShare: 0.45,
+	maxSegmentCutShare: 0.48,
 };
 const VISUAL_LINE_SMOOTHING_CONFIG_HIGH_ZOOM = {
 	enabled: INITIAL_SEARCH_PARAMS.get("smoothRoute") !== "0" && INITIAL_SEARCH_PARAMS.get("smoothLines") !== "0",
-	factor: 0.68,
-	maxDistance: 72,
-	samples: 20,
+	factor: 0.72,
+	maxDistance: 80,
+	samples: 24,
 	maxFactor: 0.75,
-	maxSamples: 20,
-	maxSegmentCutShare: 0.42,
+	maxSamples: 24,
+	maxSegmentCutShare: 0.49,
 };
 const PATH_RENDER_CONFIG = {
 	simplifiedMaxZoom: 2,

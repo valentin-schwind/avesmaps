@@ -1397,7 +1397,7 @@
 
 			const sampleCountLimit = Math.max(1, Number.parseInt(config.maxSamples, 10) || 12);
 			const smoothingFactorLimit = Math.max(0, Number(config.maxFactor) || 0.5);
-			const segmentCutShareLimit = Math.max(0, Math.min(0.5, Number(config.maxSegmentCutShare) || 0.45));
+			const segmentCutShareLimit = Math.max(0, Math.min(0.5, Number(config.maxSegmentCutShare) || 0.48));
 			const sampleCount = Math.max(1, Math.min(sampleCountLimit, Number.parseInt(config.samples, 10) || 6));
 			const smoothingFactor = Math.max(0, Math.min(smoothingFactorLimit, Number(config.factor) || 0));
 			const maxDistance = Math.max(0, Number(config.maxDistance) || 0);
