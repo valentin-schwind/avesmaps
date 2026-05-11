@@ -298,17 +298,13 @@ function buildRoutePlanEntries(routeNames, segments) {
 		const segTravelTime = (segDistance / speedMiles) * TIME_SCALE_FACTOR;
 		const startName = getRouteNodeDisplayName(routeNames[index], index, routeNames, segments);
 		const endName = getRouteNodeDisplayName(routeNames[index + 1], index + 1, routeNames, segments);
-		const startLocation = resolveRouteNodeLocation(routeNames[index], index, routeNames, segments);
-		const endLocation = resolveRouteNodeLocation(routeNames[index + 1], index + 1, routeNames, segments);
-		const startIsStation = Boolean(startLocation) && !isCrossingLocation(startLocation);
-		const endIsStation = Boolean(endLocation) && !isCrossingLocation(endLocation);
 		const segmentLabel = type === "Flussweg" && shouldShowRoutePathDisplayName(segment)
 			? getRoutePathDisplayName(segment)
 			: "";
 
-		if (type === "Seeweg" || type === "Flussweg") {
+		if (type === "Flussweg") {
 			const aggregateKey = `${type}:${segmentLabel}`;
-			if (aggregateEntry && (aggregateEntry.aggregateKey !== aggregateKey || startIsStation)) {
+			if (aggregateEntry && aggregateEntry.aggregateKey !== aggregateKey) {
 				flushAggregateEntry();
 			}
 
@@ -330,9 +326,33 @@ function buildRoutePlanEntries(routeNames, segments) {
 			aggregateEntry.travelTime += segTravelTime;
 			aggregateEntry.endName = endName;
 			aggregateEntry.segmentIndexes.push(index);
-			if (endIsStation) {
+			return;
+		}
+
+		if (type === "Seeweg") {
+			const aggregateKey = `${type}:${segmentLabel}`;
+			if (aggregateEntry && aggregateEntry.aggregateKey !== aggregateKey) {
 				flushAggregateEntry();
 			}
+
+			if (!aggregateEntry) {
+				aggregateEntry = {
+					aggregateKey,
+					type,
+					startName,
+					endName,
+					segmentLabel,
+					distance: 0,
+					travelTime: 0,
+					restTime: 0,
+					segmentIndexes: [],
+				};
+			}
+
+			aggregateEntry.distance += segDistance;
+			aggregateEntry.travelTime += segTravelTime;
+			aggregateEntry.endName = endName;
+			aggregateEntry.segmentIndexes.push(index);
 			return;
 		}
 
