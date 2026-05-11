@@ -1733,17 +1733,25 @@ async function convertCrossingToLocation(markerEntry) {
 		return;
 	}
 
+	const nextName = getNextLocationDisplayName();
+	const hasConnectedPowerlines = getConnectedPowerlinesForPublicId(markerEntry.publicId).length > 0;
+
 	try {
 		const result = await submitMapFeatureEdit({
 			action: "update_point",
 			public_id: markerEntry.publicId,
-			name: getNextLocationDisplayName(),
+			name: nextName,
 			feature_subtype: "dorf",
-			is_nodix: true,
+			is_nodix: hasConnectedPowerlines,
 			is_ruined: Boolean(markerEntry.location?.isRuined),
 			description: markerEntry.location?.description || "",
 			wiki_url: markerEntry.location?.wikiUrl || "",
 		});
+		if (!result?.feature?.name) {
+			markerEntry.name = nextName;
+			markerEntry.location.name = nextName;
+			refreshLocationMarkerPopup(markerEntry);
+		}
 		applyFeatureResponseToMarker(markerEntry, result.feature);
 		updateRevisionFromEditResponse(result);
 		openLocationEditDialog({ markerEntry });
