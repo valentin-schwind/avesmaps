@@ -112,9 +112,9 @@ const VISUAL_LINE_SMOOTHING_CONFIG_HIGH_ZOOM = {
 	enabled: INITIAL_SEARCH_PARAMS.get("smoothRoute") !== "0" && INITIAL_SEARCH_PARAMS.get("smoothLines") !== "0",
 	factor: 0.82,
 	maxDistance: 110,
-	samples: 32,
+	samples: 64,
 	maxFactor: 0.9,
-	maxSamples: 32,
+	maxSamples: 64,
 	maxSegmentCutShare: 0.49,
 	passes: 2,
 };
