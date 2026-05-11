@@ -117,7 +117,10 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
 
 function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds()) {
 	if (entry.locationType === CROSSING_LOCATION_TYPE) {
-		return IS_EDIT_MODE && $("#toggleCrossings").is(":checked") && isMarkerEntryInRenderBounds(entry, renderBounds);
+		return IS_EDIT_MODE
+			&& $("#toggleCrossings").is(":checked")
+			&& zoomLevel >= 3
+			&& isMarkerEntryInRenderBounds(entry, renderBounds);
 	}
 
 	const isVisibleByNodixToggle = IS_EDIT_MODE && $("#toggleNodix").is(":checked") && isNodixLocation(entry.location);

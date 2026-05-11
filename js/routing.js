@@ -196,6 +196,10 @@ function getRouteNodeDisplayName(routeName, index, routeNames, segments) {
 	return normalizeNodeName(routeName);
 }
 
+function getRoutePathDisplayName(segment) {
+	return String(segment?.properties?.display_name || segment?.properties?.original_name || segment?.properties?.name || "").trim();
+}
+
 function formatRoutePlanNodeName(name) {
 	return normalizeNodeName(name) === "Kreuzung" ? "Markierung" : name;
 }
@@ -253,12 +257,12 @@ function isTransportAllowedForPath(pathProperties, transportOption) {
 
 function buildRoutePlanEntries(routeNames, segments) {
 	const entries = [];
-	let seaAggregateEntry = null;
+	let aggregateEntry = null;
 
-	const flushSeaAggregate = () => {
-		if (seaAggregateEntry) {
-			entries.push(seaAggregateEntry);
-			seaAggregateEntry = null;
+	const flushAggregateEntry = () => {
+		if (aggregateEntry) {
+			entries.push(aggregateEntry);
+			aggregateEntry = null;
 		}
 	};
 
@@ -285,19 +289,23 @@ function buildRoutePlanEntries(routeNames, segments) {
 		const endName = getRouteNodeDisplayName(routeNames[index + 1], index + 1, routeNames, segments);
 		const startLocation = resolveRouteNodeLocation(routeNames[index], index, routeNames, segments);
 		const endLocation = resolveRouteNodeLocation(routeNames[index + 1], index + 1, routeNames, segments);
-		const startIsSeaStation = Boolean(startLocation) && !isCrossingLocation(startLocation);
-		const endIsSeaStation = Boolean(endLocation) && !isCrossingLocation(endLocation);
+		const startIsStation = Boolean(startLocation) && !isCrossingLocation(startLocation);
+		const endIsStation = Boolean(endLocation) && !isCrossingLocation(endLocation);
+		const segmentLabel = type === "Flussweg" ? getRoutePathDisplayName(segment) : "";
 
-		if (type === "Seeweg") {
-			if (seaAggregateEntry && startIsSeaStation) {
-				flushSeaAggregate();
+		if (type === "Seeweg" || type === "Flussweg") {
+			const aggregateKey = `${type}:${segmentLabel}`;
+			if (aggregateEntry && (aggregateEntry.aggregateKey !== aggregateKey || startIsStation)) {
+				flushAggregateEntry();
 			}
 
-			if (!seaAggregateEntry) {
-				seaAggregateEntry = {
+			if (!aggregateEntry) {
+				aggregateEntry = {
+					aggregateKey,
 					type,
 					startName,
 					endName,
+					segmentLabel,
 					distance: 0,
 					travelTime: 0,
 					restTime: 0,
@@ -305,21 +313,22 @@ function buildRoutePlanEntries(routeNames, segments) {
 				};
 			}
 
-			seaAggregateEntry.distance += segDistance;
-			seaAggregateEntry.travelTime += segTravelTime;
-			seaAggregateEntry.endName = endName;
-			seaAggregateEntry.segmentIndexes.push(index);
-			if (endIsSeaStation) {
-				flushSeaAggregate();
+			aggregateEntry.distance += segDistance;
+			aggregateEntry.travelTime += segTravelTime;
+			aggregateEntry.endName = endName;
+			aggregateEntry.segmentIndexes.push(index);
+			if (endIsStation) {
+				flushAggregateEntry();
 			}
 			return;
 		}
 
-		flushSeaAggregate();
+		flushAggregateEntry();
 		entries.push({
 			type,
 			startName,
 			endName,
+			segmentLabel: "",
 			distance: segDistance,
 			travelTime: segTravelTime,
 			restTime: 0,
@@ -327,7 +336,7 @@ function buildRoutePlanEntries(routeNames, segments) {
 		});
 	});
 
-	flushSeaAggregate();
+	flushAggregateEntry();
 	return entries;
 }
 
@@ -360,10 +369,13 @@ function showRoutePlan(routeNames, segments) {
 		totalRestTime += segRestTime;
 		const formattedStartName = formatRoutePlanNodeName(entry.startName);
 		const formattedEndName = formatRoutePlanNodeName(entry.endName);
+		const labelSuffix = entry.type === "Flussweg" && entry.segmentLabel
+			? ` <span class="route-plan-entry__label">${escapeHtml(entry.segmentLabel)}</span>`
+			: "";
 
 		$overview.append(`
 			<button type="button" class="route-plan-entry" data-route-entry-index="${entryIndex}">
-			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type}
+			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type}${labelSuffix}
 			(${entry.distance.toFixed(2)} Meilen)
 			von <strong>${formattedStartName}</strong>
 			bis <strong>${formattedEndName}</strong>
