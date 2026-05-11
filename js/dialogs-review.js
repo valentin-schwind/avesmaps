@@ -565,7 +565,7 @@ function openLocationReportDialog(latlng) {
 	setLocationReportDialogOpen(true);
 }
 
-function populateLocationEditForm({ markerEntry = null, latlng = null } = {}) {
+function populateLocationEditForm({ markerEntry = null, latlng = null, presetName = "", presetIsNodix = null } = {}) {
 	const formElement = getLocationEditFormElement();
 	if (!formElement) {
 		return;
@@ -577,11 +577,11 @@ function populateLocationEditForm({ markerEntry = null, latlng = null } = {}) {
 	const wikiLocationLink = getWikiLocationLink(location.name || markerEntry?.name || "", location.wikiUrl || "");
 	document.getElementById("location-edit-public-id").value = markerEntry?.publicId || "";
 	void acquireFeatureSoftLock(markerEntry?.publicId || "");
-	document.getElementById("location-edit-name").value = location.name || markerEntry?.name || "";
+	document.getElementById("location-edit-name").value = presetName || location.name || markerEntry?.name || "";
 	document.getElementById("location-edit-type").value = normalizeLocationType(location.locationType || markerEntry?.locationType || "dorf");
 	document.getElementById("location-edit-description").value = location.description || "";
 	document.getElementById("location-edit-wiki-url").value = location.wikiUrl || wikiLocationLink?.url || "";
-	document.getElementById("location-edit-is-nodix").checked = Boolean(location.isNodix);
+	document.getElementById("location-edit-is-nodix").checked = presetIsNodix === null ? Boolean(location.isNodix) : Boolean(presetIsNodix);
 	document.getElementById("location-edit-is-ruined").checked = Boolean(location.isRuined);
 
 	if (locationEditLatLng) {
