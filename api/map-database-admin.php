@@ -50,6 +50,7 @@ try {
         'repair_path_subtypes_from_names' => avesmapsRepairPathSubtypesFromNames($pdo),
         'set_region_opacity' => avesmapsSetRegionOpacity($pdo, $payload),
         'check_path_name_consistency' => avesmapsCheckPathNameConsistency($pdo),
+        'deactivate_locations_by_name_prefix' => avesmapsDeactivateLocationsByNamePrefix($pdo, $payload),
         'upsert_user' => avesmapsUpsertUser($pdo, $payload),
         default => throw new InvalidArgumentException('Die angeforderte Admin-Aktion ist unbekannt.'),
     };
@@ -529,6 +530,79 @@ function avesmapsCheckPathNameConsistency(PDO $pdo): array {
         'duplicates' => $duplicates,
         'blank_name_count' => count($blankNames),
         'blank_names' => $blankNames,
+    ];
+}
+
+function avesmapsDeactivateLocationsByNamePrefix(PDO $pdo, array $payload): array {
+    if (!avesmapsTableExists($pdo, 'map_features')) {
+        throw new RuntimeException('Die Future-Tabellen fehlen. Fuehre zuerst install_schema aus.');
+    }
+
+    $prefix = avesmapsNormalizeSingleLine((string) ($payload['name_prefix'] ?? 'Quelle '), 80);
+    if ($prefix === '') {
+        throw new InvalidArgumentException('Der Namenspraefix fehlt.');
+    }
+
+    $prefixLike = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $prefix) . '%';
+
+    $selectStatement = $pdo->prepare(
+        "SELECT id
+        FROM map_features
+        WHERE feature_type = 'location'
+            AND is_active = 1
+            AND name LIKE :name_prefix ESCAPE '\\\\'
+        ORDER BY id ASC"
+    );
+    $selectStatement->execute([
+        'name_prefix' => $prefixLike,
+    ]);
+    $rows = $selectStatement->fetchAll();
+
+    if ($rows === []) {
+        return [
+            'ok' => true,
+            'action' => 'deactivate_locations_by_name_prefix',
+            'name_prefix' => $prefix,
+            'updated_total' => 0,
+            'status' => avesmapsBuildMapDatabaseStatus($pdo),
+        ];
+    }
+
+    $pdo->beginTransaction();
+    try {
+        avesmapsIncrementMapRevision($pdo);
+        $revision = avesmapsFetchMapRevisionForAdmin($pdo);
+
+        $updateStatement = $pdo->prepare(
+            'UPDATE map_features
+            SET is_active = 0,
+                revision = :revision,
+                updated_by = NULL
+            WHERE id = :id'
+        );
+
+        foreach ($rows as $row) {
+            $updateStatement->execute([
+                'id' => (int) $row['id'],
+                'revision' => $revision,
+            ]);
+        }
+
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $exception;
+    }
+
+    return [
+        'ok' => true,
+        'action' => 'deactivate_locations_by_name_prefix',
+        'name_prefix' => $prefix,
+        'updated_total' => count($rows),
+        'status' => avesmapsBuildMapDatabaseStatus($pdo),
     ];
 }
 
