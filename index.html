@@ -1401,39 +1401,44 @@
 			const sampleCount = Math.max(1, Math.min(sampleCountLimit, Number.parseInt(config.samples, 10) || 6));
 			const smoothingFactor = Math.max(0, Math.min(smoothingFactorLimit, Number(config.factor) || 0));
 			const maxDistance = Math.max(0, Number(config.maxDistance) || 0);
+			const smoothingPasses = Math.max(1, Math.min(4, Number.parseInt(config.passes, 10) || 1));
 			if (smoothingFactor <= 0 || maxDistance <= 0) {
 				return coordinates;
 			}
 
-			const smoothedCoordinates = [coordinates[0]];
-			for (let index = 1; index < coordinates.length - 1; index += 1) {
-				const prev = coordinates[index - 1];
-				const curr = coordinates[index];
-				const next = coordinates[index + 1];
-				const distanceToPrev = getCoordinateDistance(curr, prev);
-				const distanceToNext = getCoordinateDistance(curr, next);
-				const cutDistance = Math.min(
-					distanceToPrev * smoothingFactor,
-					distanceToNext * smoothingFactor,
-					distanceToPrev * segmentCutShareLimit,
-					distanceToNext * segmentCutShareLimit,
-					maxDistance
-				);
-				if (cutDistance < 0.5 || distanceToPrev === 0 || distanceToNext === 0) {
-					smoothedCoordinates.push(curr);
-					continue;
-				}
+			let currentCoordinates = coordinates;
+			for (let passIndex = 0; passIndex < smoothingPasses; passIndex += 1) {
+				const smoothedCoordinates = [currentCoordinates[0]];
+				for (let index = 1; index < currentCoordinates.length - 1; index += 1) {
+					const prev = currentCoordinates[index - 1];
+					const curr = currentCoordinates[index];
+					const next = currentCoordinates[index + 1];
+					const distanceToPrev = getCoordinateDistance(curr, prev);
+					const distanceToNext = getCoordinateDistance(curr, next);
+					const cutDistance = Math.min(
+						distanceToPrev * smoothingFactor,
+						distanceToNext * smoothingFactor,
+						distanceToPrev * segmentCutShareLimit,
+						distanceToNext * segmentCutShareLimit,
+						maxDistance
+					);
+					if (cutDistance < 0.5 || distanceToPrev === 0 || distanceToNext === 0) {
+						smoothedCoordinates.push(curr);
+						continue;
+					}
 
-				const curveStart = moveCoordinateTowards(curr, prev, cutDistance / distanceToPrev);
-				const curveEnd = moveCoordinateTowards(curr, next, cutDistance / distanceToNext);
-				smoothedCoordinates.push(curveStart);
-				for (let sampleIndex = 1; sampleIndex < sampleCount; sampleIndex += 1) {
-					smoothedCoordinates.push(getQuadraticBezierPoint(curveStart, curr, curveEnd, sampleIndex / sampleCount));
+					const curveStart = moveCoordinateTowards(curr, prev, cutDistance / distanceToPrev);
+					const curveEnd = moveCoordinateTowards(curr, next, cutDistance / distanceToNext);
+					smoothedCoordinates.push(curveStart);
+					for (let sampleIndex = 1; sampleIndex < sampleCount; sampleIndex += 1) {
+						smoothedCoordinates.push(getQuadraticBezierPoint(curveStart, curr, curveEnd, sampleIndex / sampleCount));
+					}
+					smoothedCoordinates.push(curveEnd);
 				}
-				smoothedCoordinates.push(curveEnd);
+				smoothedCoordinates.push(currentCoordinates[currentCoordinates.length - 1]);
+				currentCoordinates = smoothedCoordinates;
 			}
-			smoothedCoordinates.push(coordinates[coordinates.length - 1]);
-			return smoothedCoordinates;
+			return currentCoordinates;
 		}
 
 		function getCoordinateDistance(first, second) {
