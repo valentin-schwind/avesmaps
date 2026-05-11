@@ -229,7 +229,19 @@ function syncLocationNameLabelVisibility() {
 
 function syncPathVisibility() {
 	const showPaths = $("#togglePaths").is(":checked");
-	$.each(pathLayers, (i, layer) => map[showPaths ? "addLayer" : "removeLayer"](layer));
+	$.each(pathLayers, (i, layer) => {
+		const path = pathData[i];
+		const shouldShow = showPaths && shouldShowPathOnMap(path);
+		map[shouldShow ? "addLayer" : "removeLayer"](layer);
+	});
+}
+
+function shouldShowPathOnMap(path) {
+	if (IS_EDIT_MODE) {
+		return true;
+	}
+
+	return normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name) !== "Seeweg";
 }
 
 // Powerlines
