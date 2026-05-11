@@ -2312,6 +2312,7 @@ function createPathPopupMarkup(path) {
 
 function getPathStyleColors(path) {
 	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+	const simplifiedRender = Math.round(Number(map.getZoom())) <= PATH_RENDER_CONFIG.simplifiedMaxZoom;
 	const centerColors = {
 		Reichsstrasse: "#d8d8d8",
 		Strasse: "#6a6a6a",
@@ -2326,8 +2327,13 @@ function getPathStyleColors(path) {
 	return {
 		outline: "#ffffff",
 		center: centerColors[pathSubtype] || centerColors.Weg,
-		outlineWeight: pathSubtype === "Reichsstrasse" ? 6 : 5,
-		centerWeight: pathSubtype === "Reichsstrasse" ? 4 : 3,
+		outlineWeight: simplifiedRender
+			? PATH_RENDER_CONFIG.simplifiedOutlineWeight
+			: pathSubtype === "Reichsstrasse" ? 6 : 5,
+		centerWeight: simplifiedRender
+			? Math.max(1.5, (pathSubtype === "Reichsstrasse" ? 4 : 3) * PATH_RENDER_CONFIG.simplifiedCenterWeightScale)
+			: pathSubtype === "Reichsstrasse" ? 4 : 3,
+		outlineOpacity: simplifiedRender ? PATH_RENDER_CONFIG.simplifiedOutlineOpacity : 1,
 	};
 }
 
@@ -2337,7 +2343,7 @@ function updatePathLayerStyle(path) {
 	}
 
 	const colors = getPathStyleColors(path);
-	path._pathLines[0]?.setStyle({ color: colors.outline, weight: colors.outlineWeight });
+	path._pathLines[0]?.setStyle({ color: colors.outline, weight: colors.outlineWeight, opacity: colors.outlineOpacity });
 	path._pathLines[1]?.setStyle({ color: colors.center, weight: colors.centerWeight });
 	refreshPathLayerText(path);
 }
@@ -2400,6 +2406,20 @@ function refreshPathLayerText(path) {
 	});
 }
 
+function getPathVisualLatLngCoordinates(coordinates, zoomLevel = map.getZoom()) {
+	const roundedZoomLevel = Math.round(Number(zoomLevel));
+	const smoothingConfig = roundedZoomLevel <= PATH_RENDER_CONFIG.simplifiedMaxZoom
+		? {
+			enabled: true,
+			factor: PATH_RENDER_CONFIG.simplifiedSmoothingFactor,
+			maxDistance: PATH_RENDER_CONFIG.simplifiedMaxDistance,
+			samples: PATH_RENDER_CONFIG.simplifiedSamples,
+		}
+		: VISUAL_LINE_SMOOTHING_CONFIG;
+
+	return smoothLineCoordinatesForDisplay(coordinates, smoothingConfig).map(([x, y]) => [y, x]);
+}
+
 function syncPathLabels() {
 	pathData.forEach(refreshPathLayerText);
 }
@@ -2426,7 +2446,7 @@ function refreshPathLayerPopup(path) {
 }
 
 function createPathLayer(path) {
-	const latLngCoords = getVisualPathLatLngCoordinates(path.geometry.coordinates);
+	const latLngCoords = getPathVisualLatLngCoordinates(path.geometry.coordinates);
 	const colors = getPathStyleColors(path);
 	const roadOutline = L.polyline(latLngCoords, {
 		pane: "roadsOutlinePane",
@@ -2590,9 +2610,16 @@ function updatePathLayerGeometry(path) {
 		return;
 	}
 
-	const latLngCoords = getVisualPathLatLngCoordinates(path.geometry.coordinates);
+	const latLngCoords = getPathVisualLatLngCoordinates(path.geometry.coordinates);
 	path._pathLines.forEach((line) => line.setLatLngs(latLngCoords));
 	path._pathLabelLine?.setLatLngs(getReadablePathLabelLatLngCoordinates(latLngCoords));
+}
+
+function syncPathRendering() {
+	pathData.forEach((path) => {
+		updatePathLayerGeometry(path);
+		updatePathLayerStyle(path);
+	});
 }
 
 function applyPathFeatureResponse(path, feature) {

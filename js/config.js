@@ -105,6 +105,15 @@ const VISUAL_LINE_SMOOTHING_CONFIG = {
 	maxDistance: 54,
 	samples: 16,
 };
+const PATH_RENDER_CONFIG = {
+	simplifiedMaxZoom: 2,
+	simplifiedSmoothingFactor: 0.2,
+	simplifiedMaxDistance: 18,
+	simplifiedSamples: 4,
+	simplifiedOutlineOpacity: 0,
+	simplifiedOutlineWeight: 0,
+	simplifiedCenterWeightScale: 0.85,
+};
 const LOCATION_TYPE_CONFIG = {
 	metropole: { label: "Metropolen", singularLabel: "Metropole", icon: "🏛️", queryParam: "toggleMetropolen", radius: 10, shape: "circle", borderWidth: 3 },
 	grossstadt: { label: "Großstädte", singularLabel: "Großstadt", icon: "🏰", queryParam: "toggleGrossstaedte", radius: 7.5, shape: "square", borderWidth: 3 },
