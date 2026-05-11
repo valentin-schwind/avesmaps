@@ -165,7 +165,7 @@ function getLocationNameLabelSize(locationType, zoomLevel = map.getZoom()) {
 	const zoomStepsOut = Math.max(0, maxZoom - zoomLevel);
 	const sizeOffsets = LOCATION_NAME_LABEL_SIZE_OFFSETS[locationType] || LOCATION_NAME_LABEL_SIZE_OFFSETS.default;
 	const sizeOffset = sizeOffsets[roundedZoomLevel] || 0;
-	return Math.max(10, (config.size + sizeOffset) / (2 ** zoomStepsOut));
+	return Math.max(9, (config.size + sizeOffset) / (2 ** zoomStepsOut));
 }
 
 function getLocationNameLabelOffset(labelSize, zoomLevel = map.getZoom()) {
