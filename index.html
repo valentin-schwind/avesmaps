@@ -769,6 +769,7 @@
 			const tileStyle = MAP_TILE_STYLES[mapStyle] || MAP_TILE_STYLES.stylized;
 			return L.tileLayer(tileStyle.url, {
 				tileSize: TILE_SIZE,
+				maxNativeZoom: 5,
 				noWrap: true,
 				errorTileUrl: "map/loading.jpg",
 				bounds: MAP_BOUNDS,
