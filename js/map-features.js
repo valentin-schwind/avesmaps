@@ -151,8 +151,12 @@ function isMarkerEntryInRenderBounds(entry, renderBounds = getMapRenderBounds())
 function getLocationNameLabelSize(locationType, zoomLevel = map.getZoom()) {
 	const config = LOCATION_NAME_LABEL_CONFIG[locationType] || LOCATION_NAME_LABEL_CONFIG.dorf;
 	const maxZoom = Number(map.getMaxZoom()) || 5;
+	const roundedZoomLevel = Math.round(Number(zoomLevel));
 	const zoomStepsOut = Math.max(0, maxZoom - zoomLevel);
-	return Math.max(10, config.size / (2 ** zoomStepsOut));
+	const zoomFiveSizeAdjustment = roundedZoomLevel >= maxZoom
+		? (locationType === "gebaeude" ? -1 : 1)
+		: 0;
+	return Math.max(10, (config.size + zoomFiveSizeAdjustment) / (2 ** zoomStepsOut));
 }
 
 function getLocationNameLabelOffset(labelSize, zoomLevel = map.getZoom()) {
