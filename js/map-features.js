@@ -1746,6 +1746,7 @@ async function convertCrossingToLocation(markerEntry) {
 		});
 		applyFeatureResponseToMarker(markerEntry, result.feature);
 		updateRevisionFromEditResponse(result);
+		openLocationEditDialog({ markerEntry });
 		refreshPlannerAfterFeatureChange();
 		showFeedbackToast("Kreuzung wurde zu einem Ort konvertiert.", "success");
 	} catch (error) {
