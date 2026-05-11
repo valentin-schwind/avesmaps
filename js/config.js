@@ -104,6 +104,16 @@ const VISUAL_LINE_SMOOTHING_CONFIG = {
 	factor: 0.58,
 	maxDistance: 54,
 	samples: 16,
+	maxFactor: 0.5,
+	maxSamples: 12,
+};
+const VISUAL_LINE_SMOOTHING_CONFIG_HIGH_ZOOM = {
+	enabled: INITIAL_SEARCH_PARAMS.get("smoothRoute") !== "0" && INITIAL_SEARCH_PARAMS.get("smoothLines") !== "0",
+	factor: 0.68,
+	maxDistance: 72,
+	samples: 20,
+	maxFactor: 0.75,
+	maxSamples: 20,
 };
 const PATH_RENDER_CONFIG = {
 	simplifiedMaxZoom: 2,
