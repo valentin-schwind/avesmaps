@@ -41,10 +41,10 @@ const AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS = [
 ];
 
 const AVESMAPS_WIKI_CASE_LABELS = [
-    'canonical_name_difference' => 'Abweichende Benennung, aber sauber zugeordnet',
+    'canonical_name_difference' => 'Abweichende Benennung',
     'type_conflict' => 'Typkonflikte',
-    'probable_match' => 'UnaufgelÃ¶st, aber mit wahrscheinlichem Match',
-    'unresolved_without_candidate' => 'UnaufgelÃ¶st ohne brauchbaren Kandidaten',
+    'probable_match' => 'Unaufgelöst, aber mit wahrscheinlichem Match',
+    'unresolved_without_candidate' => 'Unaufgelöst, ohne Match',
     'duplicate_wiki_title' => 'Mehrere Avesmaps-Namen zeigen auf denselben Wiki-Titel',
     'missing_wiki_with_coordinates' => 'Fehlende Wiki-Orte mit Koordinaten',
     'missing_wiki_without_coordinates' => 'Fehlende Wiki-Orte ohne nutzbare Koordinaten',

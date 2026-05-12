@@ -1468,8 +1468,8 @@ function getWikiSyncCaseTypeLabel(caseType) {
 	const labels = {
 		canonical_name_difference: "Abweichende Benennung",
 		type_conflict: "Typkonflikte",
-		probable_match: "Wahrscheinliche Matches",
-		unresolved_without_candidate: "Unaufgelöst ohne brauchbaren Kandidaten",
+		probable_match: "Unaufgelöst, aber mit wahrscheinlichem Match",
+		unresolved_without_candidate: "Unaufgelöst, ohne Match",
 		duplicate_wiki_title: "Mehrere Avesmaps-Namen zeigen auf denselben Wiki-Titel",
 		missing_wiki_with_coordinates: "Fehlende Wiki-Orte mit Koordinaten",
 		missing_wiki_without_coordinates: "Fehlende Wiki-Orte ohne nutzbare Koordinaten",
