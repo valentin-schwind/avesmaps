@@ -898,11 +898,12 @@ function avesmapsWikiSyncUpsertCase(PDO $pdo, int $runId, array $case): void {
             payload_json = :payload_json,
             signature_hash = :signature_hash,
             last_seen_run_id = :last_seen_run_id,
-            reviewed_at = CASE WHEN :same_signature = 1 THEN reviewed_at ELSE NULL END,
-            reviewed_by = CASE WHEN :same_signature = 1 THEN reviewed_by ELSE NULL END,
-            resolution_json = CASE WHEN :same_signature = 1 THEN resolution_json ELSE NULL END
+            reviewed_at = CASE WHEN :same_signature_reviewed_at = 1 THEN reviewed_at ELSE NULL END,
+            reviewed_by = CASE WHEN :same_signature_reviewed_by = 1 THEN reviewed_by ELSE NULL END,
+            resolution_json = CASE WHEN :same_signature_resolution = 1 THEN resolution_json ELSE NULL END
         WHERE id = :id'
     );
+    $sameSignatureValue = $sameSignature ? 1 : 0;
     $updateStatement->execute([
         'id' => (int) $existing['id'],
         'case_type' => $case['case_type'],
@@ -913,7 +914,9 @@ function avesmapsWikiSyncUpsertCase(PDO $pdo, int $runId, array $case): void {
         'payload_json' => avesmapsWikiSyncEncodeJson($case['payload']),
         'signature_hash' => $case['signature_hash'],
         'last_seen_run_id' => $runId,
-        'same_signature' => $sameSignature ? 1 : 0,
+        'same_signature_reviewed_at' => $sameSignatureValue,
+        'same_signature_reviewed_by' => $sameSignatureValue,
+        'same_signature_resolution' => $sameSignatureValue,
     ]);
 }
 
