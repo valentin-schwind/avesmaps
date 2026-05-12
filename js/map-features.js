@@ -3020,7 +3020,7 @@ async function completePendingPathCreationAtLocation(endLocation) {
 		});
 		const createdPath = addCreatedPathFeature(result.feature);
 		updateRevisionFromEditResponse(result);
-		openPathEditDialog(createdPath);
+		openPathEditDialog(createdPath, { inheritLastSettings: true });
 		showFeedbackToast(`Weg ${startLocation.name} -> ${endLocation.name} erstellt.`, "success");
 	} catch (error) {
 		console.error("Weg konnte nicht erstellt werden:", error);

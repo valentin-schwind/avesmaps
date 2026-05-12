@@ -708,7 +708,7 @@ function populatePathEditForm(path) {
 		return;
 	}
 
-	const pathSubtype = normalizePathName(path.properties?.name || path.properties?.feature_subtype || "Weg");
+	const pathSubtype = normalizePathSubtype(path.properties?.name || path.properties?.feature_subtype || "Weg");
 	pathEditFeature = path;
 	document.getElementById("path-edit-public-id").value = path.properties.public_id || path.id || "";
 	void acquireFeatureSoftLock(document.getElementById("path-edit-public-id").value);
@@ -720,9 +720,45 @@ function populatePathEditForm(path) {
 	syncPathAutoNameControls();
 }
 
-function openPathEditDialog(path) {
+function populatePathEditFormFromLastSettings(path) {
+	const formElement = getPathEditFormElement();
+	if (!formElement) {
+		return;
+	}
+
+	const storedSettings = lastPathEditSettings || {};
+	const fallbackSubtype = normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name || "Weg");
+	const pathSubtype = normalizePathSubtype(storedSettings.feature_subtype || fallbackSubtype);
+	const autoNameEnabled = storedSettings.autoname !== undefined ? Boolean(storedSettings.autoname) : true;
+	const showLabelEnabled = storedSettings.show_label !== undefined ? Boolean(storedSettings.show_label) : shouldPathNameBeDisplayed(path);
+	const allowedTransports = Array.isArray(storedSettings.allowed_transports) ? storedSettings.allowed_transports : null;
+
+	pathEditFeature = path;
+	document.getElementById("path-edit-public-id").value = path.properties.public_id || path.id || "";
+	void acquireFeatureSoftLock(document.getElementById("path-edit-public-id").value);
+	document.getElementById("path-edit-name").value = getNextPathDisplayName(pathSubtype, { excludePath: pathEditFeature });
+	document.getElementById("path-edit-type").value = pathSubtype;
+	document.getElementById("path-edit-autoname").checked = autoNameEnabled;
+	document.getElementById("path-edit-show-label").checked = showLabelEnabled;
+	syncPathTransportOptions({
+		path: {
+			properties: {
+				feature_subtype: pathSubtype,
+				allowed_transports: allowedTransports,
+			},
+		},
+		resetToDefault: !allowedTransports,
+	});
+	syncPathAutoNameControls({ forceName: true });
+}
+
+function openPathEditDialog(path, { inheritLastSettings = false } = {}) {
 	resetPathEditForm();
-	populatePathEditForm(path);
+	if (inheritLastSettings && lastPathEditSettings) {
+		populatePathEditFormFromLastSettings(path);
+	} else {
+		populatePathEditForm(path);
+	}
 	setPathEditDialogOpen(true);
 }
 
@@ -770,6 +806,15 @@ function buildPathEditPayload(formElement) {
 		show_label: formData.get("show_label") === "on",
 		transport_domain: getDefaultTransportDomainForPathSubtype(featureSubtype),
 		allowed_transports: Array.from(formElement.querySelectorAll('input[name="allowed_transport"]:checked')).map((input) => input.value),
+	};
+}
+
+function rememberPathEditSettingsFromPayload(payload, { autoname = true } = {}) {
+	lastPathEditSettings = {
+		feature_subtype: String(payload?.feature_subtype || "Weg").trim() || "Weg",
+		show_label: Boolean(payload?.show_label),
+		autoname: Boolean(autoname),
+		allowed_transports: Array.isArray(payload?.allowed_transports) ? [...payload.allowed_transports] : [],
 	};
 }
 
@@ -1426,6 +1471,7 @@ async function handlePathEditFormSubmit(event) {
 	}
 
 	const payload = buildPathEditPayload(formElement);
+	const isAutoNameEnabled = formElement.querySelector("#path-edit-autoname")?.checked === true;
 	setPathEditStatus("Weg wird gespeichert...", "pending");
 	setPathEditSubmitPending(true);
 
@@ -1434,6 +1480,7 @@ async function handlePathEditFormSubmit(event) {
 		applyPathFeatureResponse(pathEditFeature, result.feature);
 		updateRevisionFromEditResponse(result);
 		void loadChangeLog();
+		rememberPathEditSettingsFromPayload(payload, { autoname: isAutoNameEnabled });
 		setPathEditSubmitPending(false);
 		setPathEditDialogOpen(false, { resetForm: true });
 		showFeedbackToast("Weg gespeichert.", "success");
