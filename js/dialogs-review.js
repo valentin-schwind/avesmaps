@@ -1301,7 +1301,6 @@ function renderWikiSyncCases(latestRun = null) {
 	}
 
 	listElement.innerHTML = "";
-	renderWikiSyncOverview();
 
 	if (!latestRun && wikiSyncCases.length < 1) {
 		setWikiSyncStatus("Noch kein WikiSync-Lauf. Starte die Synchronisierung manuell.", "empty");
@@ -1321,7 +1320,6 @@ function renderWikiSyncCases(latestRun = null) {
 	getWikiSyncGroupedCases().forEach((group) => {
 		const groupElement = document.createElement("details");
 		groupElement.className = "wiki-sync-case-group";
-		groupElement.id = getWikiSyncGroupElementId(group.caseType);
 		groupElement.open = group.cases.some((caseEntry) => caseEntry.status === "open");
 
 		const summaryElement = document.createElement("summary");
@@ -1340,23 +1338,6 @@ function renderWikiSyncCases(latestRun = null) {
 		group.cases.forEach((caseEntry) => bodyElement.appendChild(createWikiSyncCaseElement(caseEntry)));
 		groupElement.appendChild(bodyElement);
 		listElement.appendChild(groupElement);
-	});
-}
-
-function renderWikiSyncOverview() {
-	const overviewElement = document.getElementById("wiki-sync-overview");
-	if (!overviewElement) {
-		return;
-	}
-
-	overviewElement.innerHTML = "";
-	getWikiSyncGroupedCases().forEach((group) => {
-		const linkElement = document.createElement("button");
-		linkElement.type = "button";
-		linkElement.className = "wiki-sync-overview__link";
-		linkElement.dataset.wikiSyncOverviewTarget = group.caseType;
-		linkElement.textContent = `${group.label} (${group.cases.length})`;
-		overviewElement.appendChild(linkElement);
 	});
 }
 
@@ -1404,10 +1385,6 @@ function getWikiSyncCaseTypeLabel(caseType) {
 	};
 
 	return labels[caseType] || caseType;
-}
-
-function getWikiSyncGroupElementId(caseType) {
-	return `wiki-sync-group-${String(caseType || "unknown").replace(/[^a-z0-9_-]/gi, "-")}`;
 }
 
 function createWikiSyncCaseElement(caseEntry) {
@@ -1633,17 +1610,6 @@ function findWikiSyncCaseFromElement(element) {
 	const caseElement = element?.closest?.(".wiki-sync-case");
 	const caseId = Number(caseElement?.dataset.caseId);
 	return wikiSyncCases.find((caseEntry) => Number(caseEntry.id) === caseId) || null;
-}
-
-function handleWikiSyncOverviewClick(event) {
-	const targetType = event.currentTarget?.dataset?.wikiSyncOverviewTarget || "";
-	const groupElement = document.getElementById(getWikiSyncGroupElementId(targetType));
-	if (!groupElement) {
-		return;
-	}
-
-	groupElement.open = true;
-	groupElement.scrollIntoView({ block: "start", behavior: "smooth" });
 }
 
 async function handleWikiSyncCaseActionClick(event) {

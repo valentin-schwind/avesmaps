@@ -148,7 +148,6 @@
 				<progress id="wiki-sync-progress" class="wiki-sync-progress" max="4" value="0" hidden></progress>
 			</div>
 			<p id="wiki-sync-status" class="review-panel__status" role="status" aria-live="polite">WikiSync ist bereit.</p>
-			<nav id="wiki-sync-overview" class="wiki-sync-overview" aria-label="WikiSync-Fallgruppen"></nav>
 			<div id="wiki-sync-case-list" class="review-panel__list"></div>
 		</section>
 	</aside>
@@ -979,7 +978,6 @@
 		$("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));
 		$("#wiki-sync-start").on("click", () => startWikiSyncRun());
 		$("#wiki-sync-case-list").on("click", "[data-wiki-sync-action]", handleWikiSyncCaseActionClick);
-		$("#wiki-sync-overview").on("click", "[data-wiki-sync-overview-target]", handleWikiSyncOverviewClick);
 		$("#wiki-sync-resolve-close, #wiki-sync-resolve-cancel").on("click", () => setWikiSyncResolveDialogOpen(false, { resetForm: true }));
 		$("#wiki-sync-preset-wiki").on("click", () => applyWikiSyncResolvePreset("wiki"));
 		$("#wiki-sync-preset-avesmap").on("click", () => applyWikiSyncResolvePreset("avesmap"));

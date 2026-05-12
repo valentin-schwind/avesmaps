@@ -1501,32 +1501,6 @@ body.modal-dialog-open {
 	accent-color: #6a7f3a;
 }
 
-.wiki-sync-overview {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-	padding: 0 10px 10px;
-}
-
-.wiki-sync-overview__link {
-	border: 1px solid rgba(96, 72, 48, 0.2);
-	border-radius: 6px;
-	background: #fffaf4;
-	color: #4a392c;
-	cursor: pointer;
-	font: inherit;
-	font-size: 12px;
-	line-height: 1.25;
-	padding: 5px 8px;
-	text-align: left;
-}
-
-.wiki-sync-overview__link:hover,
-.wiki-sync-overview__link:focus-visible {
-	border-color: #8d7354;
-	outline: none;
-}
-
 .wiki-sync-case-group {
 	border: 1px solid rgba(96, 72, 48, 0.18);
 	border-radius: 8px;
