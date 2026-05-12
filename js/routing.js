@@ -966,6 +966,18 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		return;
 	}
 
+	if (action === "continue-path-at-location") {
+		const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
+		if (!markerEntry) {
+			showFeedbackToast("Zielknoten konnte nicht gefunden werden.", "warning");
+			return;
+		}
+
+		map.closePopup();
+		void extendPendingPathCreationAtLocation(markerEntry.location);
+		return;
+	}
+
 	if (action === "finish-path-at-location") {
 		const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
 		if (!markerEntry) {

@@ -153,15 +153,35 @@ function locationActionsMarkup(name, publicId, location = null) {
 	];
 
 	if (IS_EDIT_MODE && publicId) {
-		actionButtons.push(
-			popupActionButtonMarkup({
-				label: pendingPathCreationStart ? "Weg abschliessen" : "Neuer Weg",
-				attributes: {
-					"data-popup-action": pendingPathCreationStart ? "finish-path-at-location" : "start-path-from-location",
-					"data-public-id": publicId,
-				},
-			})
-		);
+		if (pendingPathCreationStart) {
+			actionButtons.push(
+				popupActionButtonMarkup({
+					label: "Ort verbinden und Straße weiterführen",
+					className: "location-popup__action-button--accent",
+					attributes: {
+						"data-popup-action": "continue-path-at-location",
+						"data-public-id": publicId,
+					},
+				}),
+				popupActionButtonMarkup({
+					label: "Weg abschliessen",
+					attributes: {
+						"data-popup-action": "finish-path-at-location",
+						"data-public-id": publicId,
+					},
+				})
+			);
+		} else {
+			actionButtons.push(
+				popupActionButtonMarkup({
+					label: "Neuer Weg",
+					attributes: {
+						"data-popup-action": "start-path-from-location",
+						"data-public-id": publicId,
+					},
+				})
+			);
+		}
 		if (isEligiblePowerlineEndpoint(getPowerlineEndpointByPublicId(publicId) || (location ? {
 			publicId,
 			name,
@@ -229,13 +249,33 @@ function crossingActionsMarkup(name, publicId) {
 				"data-public-id": publicId,
 			},
 		}),
-		popupActionButtonMarkup({
-			label: pendingPathCreationStart ? "Weg abschliessen" : "Neuer Weg",
-			attributes: {
-				"data-popup-action": pendingPathCreationStart ? "finish-path-at-location" : "start-path-from-location",
-				"data-public-id": publicId,
-			},
-		}),
+		...(pendingPathCreationStart
+			? [
+				popupActionButtonMarkup({
+					label: "Ort verbinden und Straße weiterführen",
+					className: "location-popup__action-button--accent",
+					attributes: {
+						"data-popup-action": "continue-path-at-location",
+						"data-public-id": publicId,
+					},
+				}),
+				popupActionButtonMarkup({
+					label: "Weg abschliessen",
+					attributes: {
+						"data-popup-action": "finish-path-at-location",
+						"data-public-id": publicId,
+					},
+				}),
+			]
+			: [
+				popupActionButtonMarkup({
+					label: "Neuer Weg",
+					attributes: {
+						"data-popup-action": "start-path-from-location",
+						"data-public-id": publicId,
+					},
+				}),
+			]),
 		popupActionButtonMarkup({
 			label: pendingPowerlineCreationStart ? "Kraftlinie abschliessen" : "Neue Kraftlinie",
 			attributes: {

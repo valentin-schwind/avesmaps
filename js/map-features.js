@@ -2941,7 +2941,7 @@ function startPathCreationAt(latlng) {
 	map.getContainer().classList.add("path-creation-cursor");
 	refreshAllLocationMarkerPopups();
 	map.on("click", handlePendingPathCreationClick);
-	showFeedbackToast(`Start: ${pendingPathCreationStart.name}. Punkte setzen, Zielknoten anklicken beendet.`, "info");
+	showFeedbackToast(`Start: ${pendingPathCreationStart.name}. Punkte setzen, Ort verbinden oder mit Weg abschliessen beenden.`, "info");
 }
 
 function startPathCreationFromLocation(location) {
@@ -2957,7 +2957,37 @@ function startPathCreationFromLocation(location) {
 	map.getContainer().classList.add("path-creation-cursor");
 	refreshAllLocationMarkerPopups();
 	map.on("click", handlePendingPathCreationClick);
-	showFeedbackToast(`Start: ${location.name}. Punkte setzen, Zielknoten anklicken beendet.`, "info");
+	showFeedbackToast(`Start: ${location.name}. Punkte setzen, Ort verbinden oder mit Weg abschliessen beenden.`, "info");
+}
+
+function appendPendingPathCreationLocation(location) {
+	if (!pendingPathCreationStart || !location) {
+		return false;
+	}
+
+	const nextPoint = L.latLng(location.coordinates);
+	const lastPoint = pendingPathCreationPoints.at(-1);
+	if (!lastPoint || !lastPoint.equals(nextPoint)) {
+		pendingPathCreationPoints.push(nextPoint);
+		updatePendingPathCreationLine();
+	}
+
+	return true;
+}
+
+async function extendPendingPathCreationAtLocation(location) {
+	if (!pendingPathCreationStart) {
+		clearPendingPathCreation();
+		return;
+	}
+
+	if (!location) {
+		showFeedbackToast("Kein Zielknoten gefunden.", "warning");
+		return;
+	}
+
+	appendPendingPathCreationLocation(location);
+	showFeedbackToast(`Ort verbunden: ${location.name}. Weg kann weitergeführt werden.`, "success");
 }
 
 async function completePendingPathCreationAtLocation(endLocation) {
@@ -2977,10 +3007,8 @@ async function completePendingPathCreationAtLocation(endLocation) {
 	}
 
 	const startLocation = pendingPathCreationStart;
-	const pathCoordinates = [
-		...pendingPathCreationPoints.map((latLng) => [latLng.lat, latLng.lng]),
-		endLocation.coordinates,
-	];
+	appendPendingPathCreationLocation(endLocation);
+	const pathCoordinates = pendingPathCreationPoints.map((latLng) => [latLng.lat, latLng.lng]);
 	clearPendingPathCreation();
 
 	try {
