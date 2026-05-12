@@ -10,6 +10,10 @@ function getLocationEditDialogElement() {
 	return document.getElementById("location-edit-dialog");
 }
 
+function getWikiSyncResolveDialogElement() {
+	return document.getElementById("wiki-sync-resolve-dialog");
+}
+
 function getPathEditDialogElement() {
 	return document.getElementById("path-edit-dialog");
 }
@@ -26,8 +30,16 @@ function getLocationEditFormElement() {
 	return document.getElementById("location-edit-form");
 }
 
+function getWikiSyncResolveFormElement() {
+	return document.getElementById("wiki-sync-resolve-form");
+}
+
 function getLocationEditStatusElement() {
 	return document.getElementById("location-edit-status");
+}
+
+function getWikiSyncResolveStatusElement() {
+	return document.getElementById("wiki-sync-resolve-status");
 }
 
 function getPathEditFormElement() {
@@ -86,6 +98,10 @@ function isLocationEditDialogOpen() {
 	return !$("#location-edit-overlay").prop("hidden");
 }
 
+function isWikiSyncResolveDialogOpen() {
+	return !$("#wiki-sync-resolve-overlay").prop("hidden");
+}
+
 function isPathEditDialogOpen() {
 	return !$("#path-edit-overlay").prop("hidden");
 }
@@ -107,7 +123,7 @@ function isLocationReportServiceConfigured() {
 }
 
 function syncModalDialogBodyState() {
-	const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden") || !$("#path-edit-overlay").prop("hidden") || !$("#powerline-edit-overlay").prop("hidden") || !$("#label-edit-overlay").prop("hidden") || !$("#region-edit-overlay").prop("hidden");
+	const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden") || !$("#wiki-sync-resolve-overlay").prop("hidden") || !$("#path-edit-overlay").prop("hidden") || !$("#powerline-edit-overlay").prop("hidden") || !$("#label-edit-overlay").prop("hidden") || !$("#region-edit-overlay").prop("hidden");
 	$("body").toggleClass("modal-dialog-open", hasOpenModal);
 }
 
@@ -172,6 +188,20 @@ function setLocationReportStatus(message = "", type = "") {
 
 function setLocationEditStatus(message = "", type = "") {
 	const statusElement = getLocationEditStatusElement();
+	if (!statusElement) {
+		return;
+	}
+
+	statusElement.textContent = message;
+	if (type) {
+		statusElement.dataset.status = type;
+	} else {
+		delete statusElement.dataset.status;
+	}
+}
+
+function setWikiSyncResolveStatus(message = "", type = "") {
+	const statusElement = getWikiSyncResolveStatusElement();
 	if (!statusElement) {
 		return;
 	}
@@ -277,6 +307,30 @@ function setLocationEditSubmitPending(isPending) {
 	}
 }
 
+function setWikiSyncResolveSubmitPending(isPending) {
+	isWikiSyncResolveSubmissionPending = isPending;
+
+	const formElement = getWikiSyncResolveFormElement();
+	if (!formElement) {
+		return;
+	}
+
+	Array.from(formElement.elements).forEach((fieldElement) => {
+		if (fieldElement instanceof HTMLElement) {
+			fieldElement.disabled = isPending;
+		}
+	});
+	const closeButtonElement = document.getElementById("wiki-sync-resolve-close");
+	if (closeButtonElement) {
+		closeButtonElement.disabled = isPending;
+	}
+	const submitButtonElement = document.getElementById("wiki-sync-resolve-submit");
+	if (submitButtonElement) {
+		submitButtonElement.textContent = isPending ? "Speichert..." : "Lösen";
+		submitButtonElement.disabled = isPending;
+	}
+}
+
 function setPathEditSubmitPending(isPending) {
 	isPathEditSubmissionPending = isPending;
 
@@ -359,6 +413,28 @@ function resetLocationEditForm() {
 	pendingCrossingConversionIsNodix = false;
 	void releaseFeatureSoftLock(publicId);
 	setLocationEditStatus();
+}
+
+function resetWikiSyncResolveForm() {
+	const formElement = getWikiSyncResolveFormElement();
+	if (!formElement) {
+		return;
+	}
+
+	const publicId = document.getElementById("wiki-sync-resolve-public-id")?.value || "";
+	formElement.reset();
+	activeWikiSyncCase = null;
+	activeWikiSyncSelectedMap = null;
+	activeWikiSyncSelectedWiki = null;
+	activeWikiSyncPreset = null;
+	document.getElementById("wiki-sync-resolve-case-id").value = "";
+	document.getElementById("wiki-sync-resolve-public-id").value = "";
+	document.getElementById("wiki-sync-resolve-expected-revision").value = "";
+	document.getElementById("wiki-sync-resolve-lat").value = "";
+	document.getElementById("wiki-sync-resolve-lng").value = "";
+	document.getElementById("wiki-sync-resolve-coordinates").textContent = "-";
+	void releaseFeatureSoftLock(publicId);
+	setWikiSyncResolveStatus();
 }
 
 function resetPathEditForm() {
@@ -494,6 +570,25 @@ function setLocationEditDialogOpen(isOpen, { resetForm = false } = {}) {
 
 	if (resetForm) {
 		resetLocationEditForm();
+	}
+}
+
+function setWikiSyncResolveDialogOpen(isOpen, { resetForm = false } = {}) {
+	if (!isOpen && isWikiSyncResolveSubmissionPending) {
+		return;
+	}
+
+	$("#wiki-sync-resolve-overlay").prop("hidden", !isOpen);
+	syncModalDialogBodyState();
+
+	if (isOpen) {
+		getWikiSyncResolveDialogElement()?.focus();
+		document.getElementById("wiki-sync-resolve-name")?.focus();
+		return;
+	}
+
+	if (resetForm) {
+		resetWikiSyncResolveForm();
 	}
 }
 
@@ -975,8 +1070,37 @@ function setPresencePanelStatus(message, state = "") {
 	statusElement.dataset.state = state;
 }
 
+function setWikiSyncStatus(message, state = "") {
+	const statusElement = document.getElementById("wiki-sync-status");
+	if (!statusElement) {
+		return;
+	}
+
+	statusElement.textContent = message || "";
+	statusElement.dataset.state = state;
+}
+
+function setWikiSyncRunning(isRunning, run = null) {
+	isWikiSyncRunning = isRunning;
+
+	const startButtonElement = document.getElementById("wiki-sync-start");
+	if (startButtonElement) {
+		startButtonElement.disabled = isRunning;
+		startButtonElement.textContent = isRunning
+			? "Synchronisiert..."
+			: (activeWikiSyncRunStatus === "running" ? "Fortsetzen" : "Synchronisieren");
+	}
+
+	const progressElement = document.getElementById("wiki-sync-progress");
+	if (progressElement) {
+		progressElement.hidden = !isRunning && !run;
+		progressElement.max = Number(run?.progress_total) || 4;
+		progressElement.value = Number(run?.progress_current) || 0;
+	}
+}
+
 function setEditorPanelTab(tabName) {
-	activeEditorPanelTab = ["review", "changes", "presence"].includes(tabName) ? tabName : "review";
+	activeEditorPanelTab = ["review", "changes", "presence", "wiki-sync"].includes(tabName) ? tabName : "review";
 	document.querySelectorAll(".review-panel__tab").forEach((tabElement) => {
 		tabElement.classList.toggle("is-active", tabElement.dataset.editorPanelTab === activeEditorPanelTab);
 	});
@@ -988,7 +1112,25 @@ function setEditorPanelTab(tabName) {
 		void loadChangeLog();
 	} else if (activeEditorPanelTab === "presence") {
 		void sendEditorPresenceHeartbeat();
+	} else if (activeEditorPanelTab === "wiki-sync") {
+		void loadWikiSyncCases();
 	}
+}
+
+function refreshActiveEditorPanel() {
+	if (activeEditorPanelTab === "changes") {
+		return loadChangeLog();
+	}
+
+	if (activeEditorPanelTab === "presence") {
+		return sendEditorPresenceHeartbeat();
+	}
+
+	if (activeEditorPanelTab === "wiki-sync") {
+		return loadWikiSyncCases();
+	}
+
+	return loadReviewReports();
 }
 
 function restoreReviewPanelState() {
@@ -1066,11 +1208,765 @@ async function loadChangeLog() {
 	}
 }
 
+async function loadWikiSyncCases() {
+	if (!IS_EDIT_MODE) {
+		return;
+	}
+
+	setWikiSyncStatus("WikiSync-Fälle werden geladen...", "pending");
+	try {
+		const response = await fetch(WIKI_SYNC_API_URL, {
+			credentials: "same-origin",
+			headers: { Accept: "application/json" },
+		});
+		const data = await response.json().catch(() => null);
+		if (!response.ok || !data?.ok) {
+			throw new Error(data?.error || `WikiSync-API antwortet mit HTTP ${response.status}.`);
+		}
+
+		wikiSyncCases = Array.isArray(data.cases) ? data.cases : [];
+		wikiSyncSummary = data.summary || null;
+		const activeRun = data.active_run || null;
+		activeWikiSyncRunId = activeRun?.public_id || data.latest_run?.public_id || activeWikiSyncRunId;
+		activeWikiSyncRunStatus = activeRun?.status || "";
+		renderWikiSyncCases(data.latest_run || null);
+		if (activeRun?.status === "running") {
+			setWikiSyncRunning(false, activeRun);
+			setWikiSyncStatus(activeRun.message || "Ein WikiSync-Lauf kann fortgesetzt werden.", "pending");
+		} else {
+			setWikiSyncRunning(false);
+		}
+	} catch (error) {
+		console.error("WikiSync-Fälle konnten nicht geladen werden:", error);
+		setWikiSyncStatus(error.message || "WikiSync-Fälle konnten nicht geladen werden.", "error");
+	}
+}
+
+async function startWikiSyncRun() {
+	if (isWikiSyncRunning) {
+		return;
+	}
+
+	setWikiSyncRunning(true);
+	setWikiSyncStatus(activeWikiSyncRunStatus === "running" ? "WikiSync wird fortgesetzt..." : "WikiSync wird gestartet...", "pending");
+
+	try {
+		let run = null;
+		if (activeWikiSyncRunStatus === "running" && activeWikiSyncRunId) {
+			run = { public_id: activeWikiSyncRunId, status: "running" };
+		} else {
+			const startResult = await submitWikiSyncAction("start_run");
+			activeWikiSyncRunId = startResult.run?.public_id || null;
+			activeWikiSyncRunStatus = startResult.run?.status || "running";
+			run = startResult.run || null;
+		}
+		let safetyCounter = 0;
+		setWikiSyncRunning(true, run);
+
+		while (run && run.status !== "completed" && run.status !== "failed") {
+			if (safetyCounter > 8) {
+				throw new Error("WikiSync wurde nach zu vielen Teilschritten angehalten.");
+			}
+
+			const advanceResult = await submitWikiSyncAction("advance_run", { run_id: activeWikiSyncRunId });
+			run = advanceResult.run || null;
+			activeWikiSyncRunStatus = run?.status || "";
+			wikiSyncSummary = advanceResult.summary || wikiSyncSummary;
+			setWikiSyncRunning(true, run);
+			setWikiSyncStatus(run?.message || "WikiSync läuft...", "pending");
+			safetyCounter += 1;
+		}
+
+		if (run?.status === "failed") {
+			throw new Error(run.message || "WikiSync ist fehlgeschlagen.");
+		}
+
+		setWikiSyncRunning(false);
+		activeWikiSyncRunStatus = "";
+		setWikiSyncStatus("WikiSync abgeschlossen.", "success");
+		await loadWikiSyncCases();
+	} catch (error) {
+		console.error("WikiSync konnte nicht ausgeführt werden:", error);
+		activeWikiSyncRunStatus = "";
+		setWikiSyncRunning(false);
+		setWikiSyncStatus(error.message || "WikiSync konnte nicht ausgeführt werden.", "error");
+		showFeedbackToast(error.message || "WikiSync konnte nicht ausgeführt werden.", "warning");
+	}
+}
+
+function renderWikiSyncCases(latestRun = null) {
+	const listElement = document.getElementById("wiki-sync-case-list");
+	if (!listElement) {
+		return;
+	}
+
+	listElement.innerHTML = "";
+	renderWikiSyncOverview();
+
+	if (!latestRun && wikiSyncCases.length < 1) {
+		setWikiSyncStatus("Noch kein WikiSync-Lauf. Starte die Synchronisierung manuell.", "empty");
+		return;
+	}
+
+	if (wikiSyncCases.length < 1) {
+		setWikiSyncStatus("Keine offenen WikiSync-Fälle.", "empty");
+		return;
+	}
+
+	const openCount = Number(wikiSyncSummary?.by_status?.open ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "open").length);
+	const deferredCount = Number(wikiSyncSummary?.by_status?.deferred ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "deferred").length);
+	const archivedCount = Number(wikiSyncSummary?.by_status?.archived ?? 0);
+	setWikiSyncStatus(`${openCount} offen, ${deferredCount} zurückgestellt, ${archivedCount} archiviert.`, "success");
+
+	getWikiSyncGroupedCases().forEach((group) => {
+		const groupElement = document.createElement("details");
+		groupElement.className = "wiki-sync-case-group";
+		groupElement.id = getWikiSyncGroupElementId(group.caseType);
+		groupElement.open = group.cases.some((caseEntry) => caseEntry.status === "open");
+
+		const summaryElement = document.createElement("summary");
+		summaryElement.className = "wiki-sync-case-group__summary";
+		const titleElement = document.createElement("span");
+		titleElement.className = "wiki-sync-case-group__title";
+		titleElement.textContent = group.label;
+		const countElement = document.createElement("span");
+		countElement.className = "wiki-sync-case-group__count";
+		countElement.textContent = String(group.cases.length);
+		summaryElement.append(titleElement, countElement);
+		groupElement.appendChild(summaryElement);
+
+		const bodyElement = document.createElement("div");
+		bodyElement.className = "wiki-sync-case-group__body";
+		group.cases.forEach((caseEntry) => bodyElement.appendChild(createWikiSyncCaseElement(caseEntry)));
+		groupElement.appendChild(bodyElement);
+		listElement.appendChild(groupElement);
+	});
+}
+
+function renderWikiSyncOverview() {
+	const overviewElement = document.getElementById("wiki-sync-overview");
+	if (!overviewElement) {
+		return;
+	}
+
+	overviewElement.innerHTML = "";
+	getWikiSyncGroupedCases().forEach((group) => {
+		const linkElement = document.createElement("button");
+		linkElement.type = "button";
+		linkElement.className = "wiki-sync-overview__link";
+		linkElement.dataset.wikiSyncOverviewTarget = group.caseType;
+		linkElement.textContent = `${group.label} (${group.cases.length})`;
+		overviewElement.appendChild(linkElement);
+	});
+}
+
+function getWikiSyncGroupedCases() {
+	const groupsByType = new Map();
+	wikiSyncCases.forEach((caseEntry) => {
+		const caseType = caseEntry.case_type || "unknown";
+		if (!groupsByType.has(caseType)) {
+			groupsByType.set(caseType, {
+				caseType,
+				label: caseEntry.case_label || getWikiSyncCaseTypeLabel(caseType),
+				cases: [],
+			});
+		}
+
+		groupsByType.get(caseType).cases.push(caseEntry);
+	});
+
+	return Array.from(groupsByType.values()).sort((left, right) => getWikiSyncCaseTypeOrder(left.caseType) - getWikiSyncCaseTypeOrder(right.caseType));
+}
+
+function getWikiSyncCaseTypeOrder(caseType) {
+	const order = {
+		canonical_name_difference: 10,
+		type_conflict: 20,
+		probable_match: 30,
+		unresolved_without_candidate: 40,
+		duplicate_wiki_title: 50,
+		missing_wiki_with_coordinates: 60,
+		missing_wiki_without_coordinates: 70,
+	};
+
+	return order[caseType] || 999;
+}
+
+function getWikiSyncCaseTypeLabel(caseType) {
+	const labels = {
+		canonical_name_difference: "Abweichende Benennung",
+		type_conflict: "Typkonflikte",
+		probable_match: "Wahrscheinliche Matches",
+		unresolved_without_candidate: "Unaufgelöst ohne brauchbaren Kandidaten",
+		duplicate_wiki_title: "Mehrere Avesmaps-Namen zeigen auf denselben Wiki-Titel",
+		missing_wiki_with_coordinates: "Fehlende Wiki-Orte mit Koordinaten",
+		missing_wiki_without_coordinates: "Fehlende Wiki-Orte ohne nutzbare Koordinaten",
+	};
+
+	return labels[caseType] || caseType;
+}
+
+function getWikiSyncGroupElementId(caseType) {
+	return `wiki-sync-group-${String(caseType || "unknown").replace(/[^a-z0-9_-]/gi, "-")}`;
+}
+
+function createWikiSyncCaseElement(caseEntry) {
+	const payload = caseEntry.payload || {};
+	const detailsElement = document.createElement("details");
+	detailsElement.className = "wiki-sync-case";
+	detailsElement.dataset.caseId = String(caseEntry.id || "");
+	detailsElement.dataset.caseType = caseEntry.case_type || "";
+
+	const summaryElement = document.createElement("summary");
+	summaryElement.className = "wiki-sync-case__summary";
+	const titleElement = document.createElement("span");
+	titleElement.className = "wiki-sync-case__title";
+	titleElement.textContent = getWikiSyncCaseTitle(caseEntry);
+	const statusElement = document.createElement("span");
+	statusElement.className = `wiki-sync-case__status wiki-sync-case__status--${caseEntry.status || "open"}`;
+	statusElement.textContent = formatWikiSyncCaseStatus(caseEntry.status);
+	summaryElement.append(titleElement, statusElement);
+
+	const bodyElement = document.createElement("div");
+	bodyElement.className = "wiki-sync-case__body";
+	appendWikiSyncCaseRows(bodyElement, caseEntry);
+	appendWikiSyncCaseCandidates(bodyElement, caseEntry);
+	appendWikiSyncCaseActions(bodyElement, caseEntry);
+
+	detailsElement.append(summaryElement, bodyElement);
+	detailsElement.addEventListener("toggle", () => {
+		if (detailsElement.open && (payload.map || payload.proposed_location || Array.isArray(payload.matches))) {
+			focusWikiSyncCase(caseEntry);
+		}
+	});
+
+	return detailsElement;
+}
+
+function appendWikiSyncCaseRows(bodyElement, caseEntry) {
+	const payload = caseEntry.payload || {};
+	const mapPlace = payload.map || null;
+	const wikiPage = payload.wiki || null;
+
+	if (mapPlace) {
+		appendWikiSyncInfoRow(bodyElement, "Avesmaps", `${mapPlace.name || "Unbenannt"} · ${mapPlace.settlement_label || mapPlace.settlement_class || "Ort"}`);
+	}
+
+	if (wikiPage) {
+		appendWikiSyncLinkRow(bodyElement, "Wiki", wikiPage.title || "Wiki Aventurica", wikiPage.url || "");
+	}
+
+	if (payload.match_kind) {
+		appendWikiSyncInfoRow(bodyElement, "Match", formatWikiSyncMatchKind(payload.match_kind));
+	}
+
+	if (payload.proposed_location) {
+		const sourceLabel = payload.proposed_location.source_label || payload.proposed_location.source || "Koordinaten";
+		appendWikiSyncInfoRow(bodyElement, "Position", `${formatLocationReportCoordinates(payload.proposed_location)} · ${sourceLabel}`);
+		if (Array.isArray(payload.proposed_location.warnings) && payload.proposed_location.warnings.length > 0) {
+			appendWikiSyncInfoRow(bodyElement, "Hinweis", payload.proposed_location.warnings.join(" "));
+		}
+	}
+}
+
+function appendWikiSyncCaseCandidates(bodyElement, caseEntry) {
+	const payload = caseEntry.payload || {};
+	const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
+	const matches = Array.isArray(payload.matches) ? payload.matches : [];
+
+	if (matches.length > 0) {
+		const sectionElement = document.createElement("div");
+		sectionElement.className = "wiki-sync-case__choices";
+		const labelElement = document.createElement("span");
+		labelElement.className = "wiki-sync-case__choices-label";
+		labelElement.textContent = "Avesmaps-Orte";
+		sectionElement.appendChild(labelElement);
+		matches.forEach((match) => {
+			const buttonElement = document.createElement("button");
+			buttonElement.type = "button";
+			buttonElement.className = "wiki-sync-case__choice";
+			buttonElement.dataset.wikiSyncAction = "focus";
+			buttonElement.dataset.publicId = match.public_id || "";
+			buttonElement.textContent = match.name || "Unbenannter Ort";
+			sectionElement.appendChild(buttonElement);
+			if (caseEntry.status === "open") {
+				const acceptButtonElement = document.createElement("button");
+				acceptButtonElement.type = "button";
+				acceptButtonElement.className = "wiki-sync-case__choice wiki-sync-case__choice--accept";
+				acceptButtonElement.dataset.wikiSyncAction = "resolve";
+				acceptButtonElement.dataset.publicId = match.public_id || "";
+				acceptButtonElement.textContent = "Akzeptieren";
+				sectionElement.appendChild(acceptButtonElement);
+			}
+		});
+		bodyElement.appendChild(sectionElement);
+	}
+
+	if (candidates.length > 0) {
+		const sectionElement = document.createElement("div");
+		sectionElement.className = "wiki-sync-case__choices";
+		const labelElement = document.createElement("span");
+		labelElement.className = "wiki-sync-case__choices-label";
+		labelElement.textContent = "Wiki-Kandidaten";
+		sectionElement.appendChild(labelElement);
+		candidates.forEach((candidate, index) => {
+			const buttonElement = document.createElement("button");
+			buttonElement.type = "button";
+			buttonElement.className = "wiki-sync-case__choice";
+			buttonElement.dataset.wikiSyncAction = "resolve";
+			buttonElement.dataset.candidateIndex = String(index);
+			buttonElement.textContent = `${candidate.title || "Wiki-Kandidat"}${candidate.score ? ` (${Math.round(Number(candidate.score) * 100)}%)` : ""}`;
+			sectionElement.appendChild(buttonElement);
+		});
+		bodyElement.appendChild(sectionElement);
+	}
+}
+
+function appendWikiSyncCaseActions(bodyElement, caseEntry) {
+	const actionsElement = document.createElement("div");
+	actionsElement.className = "wiki-sync-case__actions";
+
+	if (caseEntry.status === "archived" || caseEntry.status === "deferred") {
+		actionsElement.appendChild(createWikiSyncActionButton("reopen", "Wieder öffnen", "review-report__create"));
+		bodyElement.appendChild(actionsElement);
+		return;
+	}
+
+	actionsElement.appendChild(createWikiSyncActionButton("focus", "Anzeigen", "review-report__create"));
+
+	if (canResolveWikiSyncCase(caseEntry)) {
+		const label = caseEntry.case_type === "missing_wiki_without_coordinates" ? "Position wählen" : "Lösen";
+		const action = caseEntry.case_type === "missing_wiki_without_coordinates" ? "pick-position" : "resolve";
+		actionsElement.appendChild(createWikiSyncActionButton(action, label, "review-report__create"));
+	}
+
+	actionsElement.appendChild(createWikiSyncActionButton("defer", "Zurückstellen", "review-report__reject"));
+	actionsElement.appendChild(createWikiSyncActionButton("archive", "Archivieren", "review-report__reject"));
+	bodyElement.appendChild(actionsElement);
+}
+
+function createWikiSyncActionButton(action, label, className) {
+	const buttonElement = document.createElement("button");
+	buttonElement.type = "button";
+	buttonElement.className = className;
+	buttonElement.dataset.wikiSyncAction = action;
+	buttonElement.textContent = label;
+	return buttonElement;
+}
+
+function appendWikiSyncInfoRow(bodyElement, label, value) {
+	const rowElement = document.createElement("p");
+	rowElement.className = "wiki-sync-case__row";
+	const labelElement = document.createElement("span");
+	labelElement.className = "wiki-sync-case__row-label";
+	labelElement.textContent = label;
+	const valueElement = document.createElement("span");
+	valueElement.className = "wiki-sync-case__row-value";
+	valueElement.textContent = value || "-";
+	rowElement.append(labelElement, valueElement);
+	bodyElement.appendChild(rowElement);
+}
+
+function appendWikiSyncLinkRow(bodyElement, label, text, url) {
+	const rowElement = document.createElement("p");
+	rowElement.className = "wiki-sync-case__row";
+	const labelElement = document.createElement("span");
+	labelElement.className = "wiki-sync-case__row-label";
+	labelElement.textContent = label;
+	const linkElement = document.createElement("a");
+	linkElement.className = "wiki-sync-case__row-value";
+	linkElement.href = url || "#";
+	linkElement.target = "_blank";
+	linkElement.rel = "noopener";
+	linkElement.textContent = text || url || "-";
+	rowElement.append(labelElement, linkElement);
+	bodyElement.appendChild(rowElement);
+}
+
+function canResolveWikiSyncCase(caseEntry) {
+	if (caseEntry.case_type === "unresolved_without_candidate") {
+		return false;
+	}
+
+	return caseEntry.status === "open";
+}
+
+function getWikiSyncCaseTitle(caseEntry) {
+	const payload = caseEntry.payload || {};
+	const mapName = payload.map?.name || "";
+	const wikiTitle = payload.wiki?.title || "";
+
+	if (caseEntry.case_type === "missing_wiki_with_coordinates" || caseEntry.case_type === "missing_wiki_without_coordinates") {
+		return wikiTitle || "Fehlender Wiki-Ort";
+	}
+
+	if (caseEntry.case_type === "duplicate_wiki_title") {
+		return wikiTitle || "Mehrfachzuordnung";
+	}
+
+	return mapName && wikiTitle ? `${mapName} ↔ ${wikiTitle}` : mapName || wikiTitle || "WikiSync-Fall";
+}
+
+function formatWikiSyncCaseStatus(status) {
+	const labels = {
+		open: "offen",
+		resolved: "gelöst",
+		deferred: "zurückgestellt",
+		archived: "archiviert",
+	};
+
+	return labels[status] || status || "offen";
+}
+
+function formatWikiSyncMatchKind(matchKind) {
+	const labels = {
+		exact: "exakter Titel",
+		redirect: "Wiki-Weiterleitung",
+		normalized: "normalisierter Titel",
+		search: "Wiki-Suche",
+	};
+
+	return labels[matchKind] || matchKind || "-";
+}
+
+function findWikiSyncCaseFromElement(element) {
+	const caseElement = element?.closest?.(".wiki-sync-case");
+	const caseId = Number(caseElement?.dataset.caseId);
+	return wikiSyncCases.find((caseEntry) => Number(caseEntry.id) === caseId) || null;
+}
+
+function handleWikiSyncOverviewClick(event) {
+	const targetType = event.currentTarget?.dataset?.wikiSyncOverviewTarget || "";
+	const groupElement = document.getElementById(getWikiSyncGroupElementId(targetType));
+	if (!groupElement) {
+		return;
+	}
+
+	groupElement.open = true;
+	groupElement.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+
+async function handleWikiSyncCaseActionClick(event) {
+	const buttonElement = event.currentTarget;
+	const caseEntry = findWikiSyncCaseFromElement(buttonElement);
+	if (!caseEntry) {
+		return;
+	}
+
+	event.preventDefault();
+	const action = buttonElement.dataset.wikiSyncAction || "";
+	const selectedMap = findWikiSyncMapInCase(caseEntry, buttonElement.dataset.publicId || "");
+	const selectedWiki = findWikiSyncCandidateInCase(caseEntry, buttonElement.dataset.candidateIndex);
+
+	if (action === "focus") {
+		focusWikiSyncCase(caseEntry, { mapPlace: selectedMap });
+		return;
+	}
+
+	if (action === "resolve") {
+		openWikiSyncResolveDialogForCase(caseEntry, { mapPlace: selectedMap, wikiCandidate: selectedWiki });
+		return;
+	}
+
+	if (action === "pick-position") {
+		startWikiSyncLocationPick(caseEntry);
+		return;
+	}
+
+	if (action === "defer") {
+		await updateWikiSyncCaseStatus(caseEntry, "defer_case", "Fall zurückgestellt.");
+		return;
+	}
+
+	if (action === "archive") {
+		await updateWikiSyncCaseStatus(caseEntry, "archive_case", "Fall archiviert.");
+		return;
+	}
+
+	if (action === "reopen") {
+		await updateWikiSyncCaseStatus(caseEntry, "reopen_case", "Fall wieder geöffnet.");
+	}
+}
+
+async function updateWikiSyncCaseStatus(caseEntry, action, successMessage) {
+	try {
+		await submitWikiSyncAction(action, { case_id: Number(caseEntry.id) });
+		showFeedbackToast(successMessage, "success");
+		await loadWikiSyncCases();
+	} catch (error) {
+		console.error("WikiSync-Fall konnte nicht aktualisiert werden:", error);
+		showFeedbackToast(error.message || "WikiSync-Fall konnte nicht aktualisiert werden.", "warning");
+	}
+}
+
+function findWikiSyncMapInCase(caseEntry, publicId = "") {
+	const payload = caseEntry.payload || {};
+	if (payload.map && (!publicId || payload.map.public_id === publicId)) {
+		return payload.map;
+	}
+
+	const matches = Array.isArray(payload.matches) ? payload.matches : [];
+	return matches.find((match) => !publicId || match.public_id === publicId) || null;
+}
+
+function findWikiSyncCandidateInCase(caseEntry, indexValue) {
+	const candidateIndex = Number(indexValue);
+	if (!Number.isInteger(candidateIndex) || candidateIndex < 0) {
+		return null;
+	}
+
+	const candidates = Array.isArray(caseEntry.payload?.candidates) ? caseEntry.payload.candidates : [];
+	return candidates[candidateIndex] || null;
+}
+
+function focusWikiSyncCase(caseEntry, { mapPlace = null } = {}) {
+	const payload = caseEntry.payload || {};
+	const selectedMap = mapPlace || findWikiSyncMapInCase(caseEntry);
+	if (selectedMap?.public_id) {
+		const markerEntry = findLocationMarkerByPublicId(selectedMap.public_id);
+		if (markerEntry) {
+			map.flyTo(markerEntry.marker.getLatLng(), Math.max(map.getZoom(), 4), { duration: 0.8 });
+			markerEntry.marker.openPopup();
+			return;
+		}
+	}
+
+	if (payload.proposed_location) {
+		const latlng = L.latLng(Number(payload.proposed_location.lat), Number(payload.proposed_location.lng));
+		if (isWithinMapBounds(latlng)) {
+			showWikiSyncPreviewMarker(caseEntry, latlng);
+			map.flyTo(latlng, Math.max(map.getZoom(), 4), { duration: 0.8 });
+			return;
+		}
+	}
+
+	showFeedbackToast("Dieser WikiSync-Fall hat keine Kartenposition.", "warning");
+}
+
+function clearWikiSyncPreviewMarker() {
+	if (!wikiSyncPreviewMarker) {
+		return;
+	}
+
+	map.removeLayer(wikiSyncPreviewMarker);
+	wikiSyncPreviewMarker = null;
+}
+
+function showWikiSyncPreviewMarker(caseEntry, latlng) {
+	clearWikiSyncPreviewMarker();
+	const wikiPage = caseEntry.payload?.wiki || {};
+	wikiSyncPreviewMarker = L.circleMarker(latlng, {
+		pane: "measurementHandlesPane",
+		radius: 10,
+		color: "#6a4c9c",
+		weight: 3,
+		fillColor: "#ffffff",
+		fillOpacity: 0.96,
+	}).addTo(map);
+	wikiSyncPreviewMarker.bindTooltip(wikiPage.title || "WikiSync", {
+		permanent: true,
+		direction: "top",
+		className: "wiki-sync-preview-tooltip",
+		offset: [0, -12],
+	}).openTooltip();
+	wikiSyncPreviewMarker.bindPopup(`
+		<strong>${escapeHtml(wikiPage.title || "WikiSync-Ort")}</strong>
+		${wikiPage.url ? `<br><a href="${escapeHtml(wikiPage.url)}" target="_blank" rel="noopener">Wiki Aventurica</a>` : ""}
+	`);
+	wikiSyncPreviewMarker.openPopup();
+}
+
+function startWikiSyncLocationPick(caseEntry) {
+	pendingWikiSyncLocationPickCase = caseEntry;
+	map.off("click", handleWikiSyncLocationPick);
+	map.once("click", handleWikiSyncLocationPick);
+	setWikiSyncStatus("Position auf der Karte anklicken, danach öffnet der WikiSync-Dialog.", "pending");
+	showFeedbackToast("Position für den Wiki-Ort auf der Karte anklicken.", "info");
+}
+
+function handleWikiSyncLocationPick(event) {
+	const caseEntry = pendingWikiSyncLocationPickCase;
+	pendingWikiSyncLocationPickCase = null;
+	if (!caseEntry) {
+		return;
+	}
+
+	const latlng = L.latLng(event.latlng);
+	if (!isWithinMapBounds(latlng)) {
+		showFeedbackToast("Diese Position liegt ausserhalb der Karte.", "warning");
+		return;
+	}
+
+	showWikiSyncPreviewMarker(caseEntry, latlng);
+	openWikiSyncResolveDialogForCase(caseEntry, { latlng });
+}
+
+function openWikiSyncResolveDialogForCase(caseEntry, { mapPlace = null, wikiCandidate = null, latlng = null } = {}) {
+	resetWikiSyncResolveForm();
+	activeWikiSyncCase = caseEntry;
+	activeWikiSyncSelectedMap = mapPlace || findWikiSyncMapInCase(caseEntry);
+	activeWikiSyncSelectedWiki = wikiCandidate || caseEntry.payload?.wiki || null;
+	if (!activeWikiSyncSelectedWiki && Array.isArray(caseEntry.payload?.candidates) && caseEntry.payload.candidates.length > 0) {
+		activeWikiSyncSelectedWiki = caseEntry.payload.candidates[0];
+	}
+
+	const presets = buildWikiSyncResolvePresets(caseEntry, { mapPlace: activeWikiSyncSelectedMap, wikiPage: activeWikiSyncSelectedWiki, latlng });
+	activeWikiSyncPreset = presets;
+	document.getElementById("wiki-sync-resolve-case-id").value = String(caseEntry.id || "");
+	document.getElementById("wiki-sync-resolve-public-id").value = activeWikiSyncSelectedMap?.public_id || "";
+	document.getElementById("wiki-sync-resolve-expected-revision").value = activeWikiSyncSelectedMap?.revision || "";
+	document.getElementById("wiki-sync-resolve-lat").value = presets.wiki.lat === null ? "" : Number(presets.wiki.lat).toFixed(3);
+	document.getElementById("wiki-sync-resolve-lng").value = presets.wiki.lng === null ? "" : Number(presets.wiki.lng).toFixed(3);
+	document.getElementById("wiki-sync-resolve-coordinates").textContent = presets.wiki.lat === null || presets.wiki.lng === null
+		? "-"
+		: formatLocationReportCoordinates(L.latLng(presets.wiki.lat, presets.wiki.lng));
+	void acquireFeatureSoftLock(activeWikiSyncSelectedMap?.public_id || "");
+
+	applyWikiSyncResolvePreset("wiki");
+	setWikiSyncResolveDialogOpen(true);
+}
+
+function buildWikiSyncResolvePresets(caseEntry, { mapPlace = null, wikiPage = null, latlng = null } = {}) {
+	const payload = caseEntry.payload || {};
+	const proposedLocation = latlng || payload.proposed_location || mapPlace?.coordinates || null;
+	const currentLatLng = normalizeWikiSyncLatLng(mapPlace?.coordinates || proposedLocation);
+	const wikiLatLng = normalizeWikiSyncLatLng(proposedLocation || mapPlace?.coordinates);
+	const mapSubtype = normalizeLocationType(mapPlace?.settlement_class || "dorf");
+	const wikiSubtype = normalizeLocationType(wikiPage?.settlement_class || mapSubtype);
+	const currentWikiUrl = mapPlace?.wiki_url || wikiPage?.url || "";
+	const currentName = mapPlace?.name || wikiPage?.title || "";
+
+	return {
+		avesmap: {
+			name: currentName,
+			feature_subtype: mapSubtype,
+			description: mapPlace?.description || "",
+			wiki_url: currentWikiUrl,
+			is_nodix: Boolean(mapPlace?.is_nodix),
+			is_ruined: Boolean(mapPlace?.is_ruined),
+			lat: currentLatLng?.lat ?? null,
+			lng: currentLatLng?.lng ?? null,
+		},
+		wiki: {
+			name: wikiPage?.title || currentName,
+			feature_subtype: wikiSubtype,
+			description: mapPlace?.description || "",
+			wiki_url: wikiPage?.url || currentWikiUrl,
+			is_nodix: Boolean(mapPlace?.is_nodix),
+			is_ruined: Boolean(mapPlace?.is_ruined),
+			lat: wikiLatLng?.lat ?? null,
+			lng: wikiLatLng?.lng ?? null,
+		},
+	};
+}
+
+function normalizeWikiSyncLatLng(value) {
+	if (!value) {
+		return null;
+	}
+
+	const lat = Number(value.lat);
+	const lng = Number(value.lng);
+	if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+		return null;
+	}
+
+	return L.latLng(lat, lng);
+}
+
+function applyWikiSyncResolvePreset(kind) {
+	if (!activeWikiSyncPreset) {
+		return;
+	}
+
+	const preset = activeWikiSyncPreset[kind] || activeWikiSyncPreset.wiki;
+	document.getElementById("wiki-sync-resolve-name").value = preset.name || "";
+	document.getElementById("wiki-sync-resolve-type").value = normalizeLocationType(preset.feature_subtype || "dorf");
+	document.getElementById("wiki-sync-resolve-description").value = preset.description || "";
+	document.getElementById("wiki-sync-resolve-wiki-url").value = preset.wiki_url || "";
+	document.getElementById("wiki-sync-resolve-is-nodix").checked = Boolean(preset.is_nodix);
+	document.getElementById("wiki-sync-resolve-is-ruined").checked = Boolean(preset.is_ruined);
+	document.getElementById("wiki-sync-resolve-lat").value = preset.lat === null ? "" : Number(preset.lat).toFixed(3);
+	document.getElementById("wiki-sync-resolve-lng").value = preset.lng === null ? "" : Number(preset.lng).toFixed(3);
+	document.getElementById("wiki-sync-resolve-coordinates").textContent = preset.lat === null || preset.lng === null
+		? "-"
+		: formatLocationReportCoordinates(L.latLng(preset.lat, preset.lng));
+
+	document.getElementById("wiki-sync-preset-wiki")?.classList.toggle("is-active", kind === "wiki");
+	document.getElementById("wiki-sync-preset-avesmap")?.classList.toggle("is-active", kind === "avesmap");
+}
+
+async function handleWikiSyncResolveFormSubmit(event) {
+	event.preventDefault();
+	const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
+	if (!formElement || !formElement.reportValidity()) {
+		return;
+	}
+
+	const formData = new FormData(formElement);
+	const payload = {
+		case_id: Number(formData.get("case_id")),
+		public_id: String(formData.get("public_id") || "").trim(),
+		expected_revision: String(formData.get("expected_revision") || "").trim(),
+		name: String(formData.get("name") || "").trim(),
+		feature_subtype: String(formData.get("feature_subtype") || "dorf").trim(),
+		description: String(formData.get("description") || "").trim(),
+		wiki_url: String(formData.get("wiki_url") || "").trim(),
+		is_nodix: formData.get("is_nodix") === "on",
+		is_ruined: formData.get("is_ruined") === "on",
+		lat: Number.parseFloat(String(formData.get("lat") || "")),
+		lng: Number.parseFloat(String(formData.get("lng") || "")),
+	};
+
+	if (!payload.public_id && (!Number.isFinite(payload.lat) || !Number.isFinite(payload.lng) || !isWithinMapBounds(L.latLng(payload.lat, payload.lng)))) {
+		setWikiSyncResolveStatus("Für eine Neuanlage fehlt eine gültige Position.", "error");
+		return;
+	}
+
+	const duplicateLocation = findDuplicateLocationByName(payload.name, {
+		excludePublicId: payload.public_id || "",
+		allowCurrentName: activeWikiSyncSelectedMap?.name || "",
+	});
+	if (duplicateLocation) {
+		setWikiSyncResolveStatus(`Ein Ort namens "${duplicateLocation.name}" existiert bereits.`, "error");
+		return;
+	}
+
+	setWikiSyncResolveSubmitPending(true);
+	setWikiSyncResolveStatus("WikiSync-Fall wird gespeichert...", "pending");
+	try {
+		const result = await submitWikiSyncAction("resolve_case", payload);
+		if (result.feature) {
+			const markerEntry = findLocationMarkerByPublicId(result.feature.public_id);
+			if (markerEntry) {
+				applyFeatureResponseToMarker(markerEntry, result.feature);
+			} else {
+				addCreatedLocationMarker(result.feature);
+			}
+			updateRevisionFromEditResponse(result);
+		}
+
+		clearWikiSyncPreviewMarker();
+		void loadChangeLog();
+		setWikiSyncResolveSubmitPending(false);
+		setWikiSyncResolveDialogOpen(false, { resetForm: true });
+		await loadWikiSyncCases();
+		showFeedbackToast("WikiSync-Fall gelöst.", "success");
+	} catch (error) {
+		console.error("WikiSync-Fall konnte nicht gelöst werden:", error);
+		setWikiSyncResolveStatus(error.message || "WikiSync-Fall konnte nicht gelöst werden.", "error");
+	} finally {
+		setWikiSyncResolveSubmitPending(false);
+	}
+}
+
 function formatChangeAction(action) {
 	const labels = {
 		move_point: "Ort verschoben",
 		update_point: "Ort geändert",
 		create_point: "Ort erstellt",
+		wiki_sync_update_point: "WikiSync: Ort geändert",
+		wiki_sync_create_point: "WikiSync: Ort erstellt",
 		create_crossing: "Kreuzung erstellt",
 		create_powerline: "Kraftlinie erstellt",
 		update_powerline_details: "Kraftlinie geändert",

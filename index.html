@@ -128,6 +128,7 @@
 			<button class="review-panel__tab is-active" type="button" data-editor-panel-tab="review">Meldungen</button>
 			<button class="review-panel__tab" type="button" data-editor-panel-tab="changes">Änderungen</button>
 			<button class="review-panel__tab" type="button" data-editor-panel-tab="presence">Online</button>
+			<button class="review-panel__tab" type="button" data-editor-panel-tab="wiki-sync">WikiSync</button>
 		</nav>
 		<section class="review-panel__section is-active" data-editor-panel-section="review">
 			<p id="review-panel-status" class="review-panel__status" role="status" aria-live="polite">Meldungen werden geladen...</p>
@@ -140,6 +141,15 @@
 		<section class="review-panel__section" data-editor-panel-section="presence">
 			<p id="presence-panel-status" class="review-panel__status" role="status" aria-live="polite">Online-Status wird geladen...</p>
 			<div id="presence-user-list" class="review-panel__list"></div>
+		</section>
+		<section class="review-panel__section" data-editor-panel-section="wiki-sync">
+			<div class="wiki-sync-panel__actions">
+				<button id="wiki-sync-start" class="review-report__create" type="button">Synchronisieren</button>
+				<progress id="wiki-sync-progress" class="wiki-sync-progress" max="4" value="0" hidden></progress>
+			</div>
+			<p id="wiki-sync-status" class="review-panel__status" role="status" aria-live="polite">WikiSync ist bereit.</p>
+			<nav id="wiki-sync-overview" class="wiki-sync-overview" aria-label="WikiSync-Fallgruppen"></nav>
+			<div id="wiki-sync-case-list" class="review-panel__list"></div>
 		</section>
 	</aside>
 	<button id="review-panel-toggle" class="review-panel-toggle" type="button" hidden>Review</button>
@@ -273,6 +283,66 @@
 				<div class="location-report-form__actions">
 					<button id="location-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
 					<button id="location-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
+				</div>
+			</form>
+		</div>
+	</div>
+	<div id="wiki-sync-resolve-overlay" hidden>
+		<div id="wiki-sync-resolve-dialog" class="location-report-dialog wiki-sync-resolve-dialog" role="dialog" aria-modal="true" aria-labelledby="wiki-sync-resolve-title" tabindex="-1">
+			<div class="location-report-dialog__header">
+				<h2 id="wiki-sync-resolve-title">WikiSync-Fall lösen</h2>
+				<button id="wiki-sync-resolve-close" class="location-report-dialog__close" type="button" aria-label="WikiSync-Fall schliessen">x</button>
+			</div>
+			<form id="wiki-sync-resolve-form" class="location-report-form" novalidate>
+				<input id="wiki-sync-resolve-case-id" name="case_id" type="hidden" />
+				<input id="wiki-sync-resolve-public-id" name="public_id" type="hidden" />
+				<input id="wiki-sync-resolve-expected-revision" name="expected_revision" type="hidden" />
+				<input id="wiki-sync-resolve-lat" name="lat" type="hidden" />
+				<input id="wiki-sync-resolve-lng" name="lng" type="hidden" />
+				<div class="wiki-sync-resolve-presets" role="group" aria-label="WikiSync-Vorlagen">
+					<button id="wiki-sync-preset-wiki" class="location-report-form__button location-report-form__button--secondary" type="button">Wiki-Einstellung</button>
+					<button id="wiki-sync-preset-avesmap" class="location-report-form__button location-report-form__button--secondary" type="button">Avesmap Einstellung</button>
+				</div>
+				<div class="location-report-form__meta">
+					<div class="location-report-form__meta-item">
+						<span class="location-report-form__meta-label">Position</span>
+						<span id="wiki-sync-resolve-coordinates" class="location-report-form__meta-value">-</span>
+					</div>
+				</div>
+				<label class="location-report-form__field">
+					<span>Ortsname *</span>
+					<input id="wiki-sync-resolve-name" name="name" type="text" maxlength="160" required />
+				</label>
+				<label class="location-report-form__field">
+					<span>Ortsgroesse *</span>
+					<select id="wiki-sync-resolve-type" name="feature_subtype" required>
+						<option value="dorf">Dorf</option>
+						<option value="kleinstadt">Kleine Stadt</option>
+						<option value="stadt">Stadt</option>
+						<option value="grossstadt">Grosse Stadt</option>
+						<option value="metropole">Metropole</option>
+					</select>
+				</label>
+				<label class="location-report-form__field">
+					<span>Beschreibung</span>
+					<textarea id="wiki-sync-resolve-description" name="description" rows="4" maxlength="1200"></textarea>
+				</label>
+				<label class="location-report-form__field">
+					<span>Wiki-Aventurica-Link</span>
+					<input id="wiki-sync-resolve-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
+				</label>
+				<label class="location-report-form__field location-report-form__field--checkbox">
+					<input id="wiki-sync-resolve-is-nodix" name="is_nodix" type="checkbox" />
+					<span>Ort ist ein Nodix</span>
+				</label>
+				<label class="location-report-form__field location-report-form__field--checkbox">
+					<input id="wiki-sync-resolve-is-ruined" name="is_ruined" type="checkbox" />
+					<span>Ruine/zerstoert</span>
+				</label>
+				<p id="wiki-sync-resolve-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+				<div class="location-report-form__actions">
+					<button id="wiki-sync-resolve-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+					<button id="wiki-sync-resolve-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Lösen</button>
 				</div>
 			</form>
 		</div>
@@ -647,6 +717,18 @@
 			sharePinMarker = null,
 			reviewReportMarker = null,
 			reviewReports = [],
+			wikiSyncCases = [],
+			wikiSyncSummary = null,
+			activeWikiSyncRunId = null,
+			activeWikiSyncRunStatus = "",
+			activeWikiSyncCase = null,
+			activeWikiSyncSelectedMap = null,
+			activeWikiSyncSelectedWiki = null,
+			activeWikiSyncPreset = null,
+			wikiSyncPreviewMarker = null,
+			pendingWikiSyncLocationPickCase = null,
+			isWikiSyncRunning = false,
+			isWikiSyncResolveSubmissionPending = false,
 			changeLogEntries = [],
 			activeEditorPanelTab = "review",
 			activeReviewReportId = null,
@@ -845,6 +927,7 @@
 			document.getElementById("review-panel-toggle")?.removeAttribute("hidden");
 			restoreReviewPanelState();
 			void loadReviewReports();
+			void loadWikiSyncCases();
 			void loadChangeLog();
 			void sendEditorPresenceHeartbeat();
 			startEditorPresenceHeartbeat();
@@ -868,7 +951,7 @@
 				window.clearInterval(editorPresenceTimerId);
 			}
 		});
-		$("#review-panel-refresh").on("click", () => loadReviewReports());
+		$("#review-panel-refresh").on("click", () => refreshActiveEditorPanel());
 		$(".review-panel__tab").on("click", function () {
 			setEditorPanelTab(this.dataset.editorPanelTab || "review");
 		});
@@ -894,9 +977,16 @@
 		});
 		$("#location-report-close, #location-report-cancel").on("click", () => setLocationReportDialogOpen(false, { resetForm: true }));
 		$("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));
+		$("#wiki-sync-start").on("click", () => startWikiSyncRun());
+		$("#wiki-sync-case-list").on("click", "[data-wiki-sync-action]", handleWikiSyncCaseActionClick);
+		$("#wiki-sync-overview").on("click", "[data-wiki-sync-overview-target]", handleWikiSyncOverviewClick);
+		$("#wiki-sync-resolve-close, #wiki-sync-resolve-cancel").on("click", () => setWikiSyncResolveDialogOpen(false, { resetForm: true }));
+		$("#wiki-sync-preset-wiki").on("click", () => applyWikiSyncResolvePreset("wiki"));
+		$("#wiki-sync-preset-avesmap").on("click", () => applyWikiSyncResolvePreset("avesmap"));
 		$("#location-report-type").on("change", syncLocationReportTypeFields);
 		$("#location-report-form").on("submit", handleLocationReportFormSubmit);
 		$("#location-edit-form").on("submit", handleLocationEditFormSubmit);
+		$("#wiki-sync-resolve-form").on("submit", handleWikiSyncResolveFormSubmit);
 		$("#path-edit-form").on("submit", handlePathEditFormSubmit);
 		$("#powerline-edit-form").on("submit", handlePowerlineEditFormSubmit);
 		$("#label-edit-form").on("submit", handleLabelEditFormSubmit);
@@ -1047,7 +1137,7 @@
 			}
 
 			return Boolean(targetElement.closest(
-				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #review-panel, #review-panel-toggle, #location-report-overlay, #location-edit-overlay, #path-edit-overlay, #label-edit-overlay, #region-edit-overlay"
+				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #review-panel, #review-panel-toggle, #location-report-overlay, #location-edit-overlay, #wiki-sync-resolve-overlay, #path-edit-overlay, #label-edit-overlay, #region-edit-overlay"
 			));
 		}
 

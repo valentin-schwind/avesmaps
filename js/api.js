@@ -102,3 +102,28 @@ async function updateReviewReportStatus(reportId, status, reportSource = "locati
 		throw new Error(data?.error || `Review-API antwortet mit HTTP ${response.status}.`);
 	}
 }
+
+async function submitWikiSyncAction(action, payload = {}) {
+	const response = await fetch(WIKI_SYNC_API_URL, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: {
+			"Content-Type": "application/json",
+			Accept: "application/json",
+		},
+		body: JSON.stringify({
+			action,
+			...payload,
+		}),
+	});
+	const data = await readJsonResponse(response, {});
+
+	if (!response.ok || data?.ok !== true) {
+		if (response.status === 409) {
+			void pollLiveMapUpdates();
+		}
+		throw new Error(data?.error || `WikiSync-API antwortet mit HTTP ${response.status}.`);
+	}
+
+	return data;
+}

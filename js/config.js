@@ -92,6 +92,7 @@ const MAP_TILE_STYLES = {
 const MAP_FEATURE_UPDATE_API_URL = window.AVESMAPS_MAP_FEATURE_UPDATE_ENDPOINT || "api/map-feature-update.php";
 const LOCATION_REPORT_REVIEW_API_URL = window.AVESMAPS_LOCATION_REPORT_REVIEW_ENDPOINT || "api/location-report-review.php";
 const MAP_AUDIT_LOG_API_URL = window.AVESMAPS_MAP_AUDIT_LOG_ENDPOINT || "api/map-audit-log.php";
+const WIKI_SYNC_API_URL = window.AVESMAPS_WIKI_SYNC_ENDPOINT || "api/wiki-sync.php";
 const EDITOR_PRESENCE_API_URL = window.AVESMAPS_EDITOR_PRESENCE_ENDPOINT || "api/editor-presence.php";
 const EDIT_MODE_PLANNER_STATE_STORAGE_KEY = "avesmaps.edit.plannerState";
 const EDIT_MODE_REVIEW_PANEL_STORAGE_KEY = "avesmaps.edit.reviewPanelHidden";

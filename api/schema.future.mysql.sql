@@ -141,3 +141,65 @@ CREATE TABLE IF NOT EXISTS editor_presence (
     PRIMARY KEY (user_id),
     KEY idx_editor_presence_last_seen (last_seen)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS wiki_sync_runs (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    public_id CHAR(36) NOT NULL,
+    sync_type VARCHAR(40) NOT NULL DEFAULT 'location',
+    status VARCHAR(20) NOT NULL DEFAULT 'running',
+    phase VARCHAR(60) NOT NULL DEFAULT 'settlement_titles',
+    progress_current INT NOT NULL DEFAULT 0,
+    progress_total INT NOT NULL DEFAULT 4,
+    message VARCHAR(255) NULL,
+    stats_json JSON NULL,
+    created_by BIGINT UNSIGNED NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    completed_at DATETIME(3) NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_wiki_sync_runs_public_id (public_id),
+    KEY idx_wiki_sync_runs_status_created (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS wiki_sync_pages (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    wiki_page_id BIGINT NULL,
+    title VARCHAR(255) NOT NULL,
+    normalized_key VARCHAR(255) NOT NULL,
+    wiki_url VARCHAR(500) NOT NULL,
+    settlement_class VARCHAR(60) NULL,
+    settlement_label VARCHAR(120) NULL,
+    categories_json JSON NULL,
+    coordinates_json JSON NULL,
+    content_hash CHAR(64) NULL,
+    fetched_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_wiki_sync_pages_title (title),
+    KEY idx_wiki_sync_pages_normalized_key (normalized_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS wiki_sync_cases (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    case_key CHAR(64) NOT NULL,
+    sync_type VARCHAR(40) NOT NULL DEFAULT 'location',
+    case_type VARCHAR(60) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'open',
+    map_feature_id BIGINT UNSIGNED NULL,
+    map_public_id CHAR(36) NULL,
+    wiki_title VARCHAR(255) NULL,
+    payload_json JSON NOT NULL,
+    signature_hash CHAR(64) NOT NULL,
+    first_seen_run_id BIGINT UNSIGNED NOT NULL,
+    last_seen_run_id BIGINT UNSIGNED NOT NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    reviewed_at DATETIME(3) NULL,
+    reviewed_by BIGINT UNSIGNED NULL,
+    resolution_json JSON NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_wiki_sync_cases_case_key (case_key),
+    KEY idx_wiki_sync_cases_run_status (last_seen_run_id, status),
+    KEY idx_wiki_sync_cases_type_status (case_type, status),
+    KEY idx_wiki_sync_cases_map_public_id (map_public_id),
+    KEY idx_wiki_sync_cases_wiki_title (wiki_title)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
