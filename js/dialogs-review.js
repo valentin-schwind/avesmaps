@@ -1320,7 +1320,7 @@ function renderWikiSyncCases(latestRun = null) {
 	getWikiSyncGroupedCases().forEach((group) => {
 		const groupElement = document.createElement("details");
 		groupElement.className = "wiki-sync-case-group";
-		groupElement.open = group.cases.some((caseEntry) => caseEntry.status === "open");
+		groupElement.addEventListener("toggle", handleWikiSyncCaseGroupToggle);
 
 		const summaryElement = document.createElement("summary");
 		summaryElement.className = "wiki-sync-case-group__summary";
@@ -1338,6 +1338,23 @@ function renderWikiSyncCases(latestRun = null) {
 		group.cases.forEach((caseEntry) => bodyElement.appendChild(createWikiSyncCaseElement(caseEntry)));
 		groupElement.appendChild(bodyElement);
 		listElement.appendChild(groupElement);
+	});
+}
+
+function handleWikiSyncCaseGroupToggle(event) {
+	const groupElement = event.currentTarget;
+	if (!(groupElement instanceof HTMLDetailsElement) || !groupElement.open) {
+		return;
+	}
+
+	document.querySelectorAll("#wiki-sync-case-list .wiki-sync-case-group").forEach((otherGroupElement) => {
+		if (otherGroupElement !== groupElement && otherGroupElement instanceof HTMLDetailsElement) {
+			otherGroupElement.open = false;
+		}
+	});
+
+	window.requestAnimationFrame(() => {
+		groupElement.scrollIntoView({ block: "nearest", behavior: "smooth" });
 	});
 }
 

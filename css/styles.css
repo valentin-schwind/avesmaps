@@ -1418,11 +1418,17 @@ body.modal-dialog-open {
 
 .review-panel__list {
 	display: flex;
+	flex: 1 1 auto;
 	flex-direction: column;
 	gap: 8px;
+	min-height: 0;
 	padding: 0 10px 12px;
 	overflow: auto;
 	overflow-x: hidden;
+}
+
+.review-panel__list > * {
+	flex: 0 0 auto;
 }
 
 .review-report {
