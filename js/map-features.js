@@ -709,10 +709,99 @@ function getWaypointAutocompleteSource(term = "") {
 	});
 }
 
+function scrollWaypointInputIntoView($input) {
+	const inputElement = $input?.[0];
+	const searchElement = document.getElementById("search");
+	if (!inputElement || !searchElement || !searchElement.contains(inputElement)) {
+		return;
+	}
+
+	const panelRect = searchElement.getBoundingClientRect();
+	const inputRect = inputElement.getBoundingClientRect();
+	const preferredMenuHeight = Math.min(260, Math.max(140, window.innerHeight * 0.32));
+	const lowerOverflow = inputRect.bottom + preferredMenuHeight - panelRect.bottom;
+	const upperOverflow = panelRect.top + 8 - inputRect.top;
+
+	if (lowerOverflow > 0) {
+		searchElement.scrollTop += lowerOverflow + 8;
+		return;
+	}
+
+	if (upperOverflow > 0) {
+		searchElement.scrollTop -= upperOverflow + 8;
+	}
+}
+
+function fitWaypointAutocompleteMenu($input) {
+	const inputElement = $input?.[0];
+	if (!inputElement || !$input.data("ui-autocomplete")) {
+		return;
+	}
+
+	const $menu = $input.autocomplete("widget");
+	const menuElement = $menu?.[0];
+	if (!menuElement || !menuElement.offsetParent) {
+		return;
+	}
+
+	const viewportPadding = 8;
+	const inputRect = inputElement.getBoundingClientRect();
+	const availableBelow = Math.max(0, window.innerHeight - inputRect.bottom - viewportPadding);
+	const availableAbove = Math.max(0, inputRect.top - viewportPadding);
+	const shouldOpenAbove = availableBelow < 160 && availableAbove > availableBelow;
+	const availableHeight = Math.max(110, Math.min(360, shouldOpenAbove ? availableAbove : availableBelow));
+
+	menuElement.style.maxHeight = `${availableHeight}px`;
+	menuElement.style.overflowY = "auto";
+	menuElement.style.overflowX = "hidden";
+	menuElement.style.width = `${Math.max(inputRect.width, 220)}px`;
+
+	$menu.position({
+		my: shouldOpenAbove ? "left bottom" : "left top",
+		at: shouldOpenAbove ? "left top-4" : "left bottom+4",
+		of: inputElement,
+		collision: "fit",
+	});
+}
+
+function fitOpenWaypointAutocompleteMenus() {
+	$(".waypoint-input").each(function () {
+		const $input = $(this);
+		if ($input.data("ui-autocomplete") && $input.autocomplete("widget").is(":visible")) {
+			fitWaypointAutocompleteMenu($input);
+		}
+	});
+}
+
+function initializeWaypointAutocompletePositioning() {
+	if (initializeWaypointAutocompletePositioning.isInitialized) {
+		return;
+	}
+
+	initializeWaypointAutocompletePositioning.isInitialized = true;
+	document.getElementById("search")?.addEventListener("scroll", fitOpenWaypointAutocompleteMenus);
+	window.addEventListener("resize", fitOpenWaypointAutocompleteMenus);
+}
+
 function initializeWaypointAutocomplete($input) {
+	initializeWaypointAutocompletePositioning();
 	$input.autocomplete({
+		appendTo: document.body,
+		position: {
+			my: "left top",
+			at: "left bottom+4",
+			collision: "flipfit",
+		},
 		source(request, response) {
 			response(getWaypointAutocompleteSource(request.term || ""));
+		},
+		search(event) {
+			scrollWaypointInputIntoView($(event.target));
+		},
+		open(event) {
+			const $activeInput = $(event.target);
+			scrollWaypointInputIntoView($activeInput);
+			window.requestAnimationFrame(() => fitWaypointAutocompleteMenu($activeInput));
 		},
 	});
 }

@@ -1150,7 +1150,16 @@ body.modal-dialog-open {
 }
 
 .ui-autocomplete {
-	z-index: 1000;
+	z-index: 1300;
+	max-width: calc(100vw - 16px);
+	max-height: calc(100vh - 16px);
+	overflow-x: hidden;
+	overflow-y: auto;
+}
+
+.ui-autocomplete .ui-menu-item-wrapper {
+	overflow-wrap: anywhere;
+	white-space: normal;
 }
 
 .map-context-menu[hidden] {
