@@ -461,6 +461,10 @@ body.modal-dialog-open {
 	display: none !important;
 }
 
+#wiki-sync-resolve-overlay[hidden] {
+	display: none !important;
+}
+
 #path-edit-overlay[hidden] {
 	display: none !important;
 }
@@ -489,6 +493,17 @@ body.modal-dialog-open {
 }
 
 #location-edit-overlay {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	background: rgba(20, 16, 12, 0.56);
+	z-index: 1260;
+}
+
+#wiki-sync-resolve-overlay {
 	position: fixed;
 	inset: 0;
 	display: flex;
