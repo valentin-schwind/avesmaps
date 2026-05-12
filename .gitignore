@@ -8,3 +8,4 @@ map/google-sheets-token.json
 map/Aventurien_routes.backup-*.svg
 map/*.import.mysql.sql
 tiles/stylized/
+tiles/old/
