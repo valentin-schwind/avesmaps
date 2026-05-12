@@ -433,6 +433,7 @@ function resetWikiSyncResolveForm() {
 	document.getElementById("wiki-sync-resolve-lat").value = "";
 	document.getElementById("wiki-sync-resolve-lng").value = "";
 	document.getElementById("wiki-sync-resolve-coordinates").textContent = "-";
+	syncWikiSyncResolveLinkButton();
 	void releaseFeatureSoftLock(publicId);
 	setWikiSyncResolveStatus();
 }
@@ -1300,6 +1301,7 @@ function renderWikiSyncCases(latestRun = null) {
 		return;
 	}
 
+	const previousOpenGroupKeys = getWikiSyncOpenGroupKeys();
 	listElement.innerHTML = "";
 
 	if (!latestRun && wikiSyncCases.length < 1) {
@@ -1308,46 +1310,118 @@ function renderWikiSyncCases(latestRun = null) {
 	}
 
 	if (wikiSyncCases.length < 1) {
-		setWikiSyncStatus("Keine offenen WikiSync-Fälle.", "empty");
+		setWikiSyncStatus("Keine WikiSync-Fälle.", "empty");
 		return;
 	}
 
 	const openCount = Number(wikiSyncSummary?.by_status?.open ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "open").length);
 	const deferredCount = Number(wikiSyncSummary?.by_status?.deferred ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "deferred").length);
 	const archivedCount = Number(wikiSyncSummary?.by_status?.archived ?? 0);
-	setWikiSyncStatus(`${openCount} offen, ${deferredCount} zurückgestellt, ${archivedCount} archiviert.`, "success");
+	const activeCount = openCount + deferredCount;
+	const statusMessage = activeCount > 0
+		? `${openCount} offen, ${deferredCount} zurückgestellt, ${archivedCount} archiviert.`
+		: `${archivedCount} archiviert, keine offenen Fälle.`;
+	setWikiSyncStatus(statusMessage, "success");
 
-	getWikiSyncGroupedCases().forEach((group) => {
-		const groupElement = document.createElement("details");
-		groupElement.className = "wiki-sync-case-group";
-		groupElement.addEventListener("toggle", handleWikiSyncCaseGroupToggle);
+	const renderedGroupElements = new Map();
+	const openSectionElement = renderWikiSyncCaseSection(listElement, "Offen", "open", wikiSyncCases.filter((caseEntry) => caseEntry.status !== "archived"), renderedGroupElements);
+	const archivedSectionElement = renderWikiSyncCaseSection(listElement, "Archiviert", "archived", wikiSyncCases.filter((caseEntry) => caseEntry.status === "archived"), renderedGroupElements);
+	if (!openSectionElement && !archivedSectionElement) {
+		setWikiSyncStatus("Keine WikiSync-Fälle.", "empty");
+		return;
+	}
 
-		const summaryElement = document.createElement("summary");
-		summaryElement.className = "wiki-sync-case-group__summary";
-		const titleElement = document.createElement("span");
-		titleElement.className = "wiki-sync-case-group__title";
-		titleElement.textContent = group.label;
-		const countElement = document.createElement("span");
-		countElement.className = "wiki-sync-case-group__count";
-		countElement.textContent = String(group.cases.length);
-		summaryElement.append(titleElement, countElement);
-		groupElement.appendChild(summaryElement);
+	restoreWikiSyncAccordionState(renderedGroupElements, previousOpenGroupKeys);
+}
 
-		const bodyElement = document.createElement("div");
-		bodyElement.className = "wiki-sync-case-group__body";
-		group.cases.forEach((caseEntry) => bodyElement.appendChild(createWikiSyncCaseElement(caseEntry)));
-		groupElement.appendChild(bodyElement);
-		listElement.appendChild(groupElement);
+function getWikiSyncOpenGroupKeys() {
+	return Array.from(document.querySelectorAll("#wiki-sync-case-list .wiki-sync-case-group[open]"))
+		.map((groupElement) => (groupElement instanceof HTMLElement ? String(groupElement.dataset.groupKey || "") : ""))
+		.filter((groupKey) => groupKey !== "");
+}
+
+function restoreWikiSyncAccordionState(renderedGroupElements, previousOpenGroupKeys) {
+	if (!Array.isArray(previousOpenGroupKeys) || previousOpenGroupKeys.length < 1) {
+		return;
+	}
+
+	isWikiSyncAccordionRestoring = true;
+	try {
+		previousOpenGroupKeys.forEach((groupKey) => {
+			const groupElement = renderedGroupElements.get(groupKey) || getWikiSyncFallbackGroupElement(renderedGroupElements, groupKey);
+			if (groupElement) {
+				groupElement.open = true;
+			}
+		});
+	} finally {
+		window.requestAnimationFrame(() => {
+			isWikiSyncAccordionRestoring = false;
+		});
+	}
+}
+
+function getWikiSyncFallbackGroupElement(renderedGroupElements, groupKey) {
+	const parts = String(groupKey).split(":");
+	if (parts.length < 2) {
+		return null;
+	}
+
+	const sectionKey = parts.shift();
+	const caseType = parts.join(":");
+	if (sectionKey !== "open") {
+		return null;
+	}
+
+	return renderedGroupElements.get(`archived:${caseType}`) || null;
+}
+
+function renderWikiSyncCaseSection(listElement, title, sectionKey, cases, renderedGroupElements) {
+	if (!Array.isArray(cases) || cases.length < 1) {
+		return null;
+	}
+
+	const sectionElement = document.createElement("section");
+	sectionElement.className = `wiki-sync-case-section wiki-sync-case-section--${sectionKey}`;
+	sectionElement.dataset.sectionKey = sectionKey;
+
+	const titleElement = document.createElement("h3");
+	titleElement.className = "wiki-sync-case-section__title";
+	titleElement.textContent = title;
+	sectionElement.appendChild(titleElement);
+
+	const bodyElement = document.createElement("div");
+	bodyElement.className = "wiki-sync-case-section__body";
+	getWikiSyncGroupedCases(cases).forEach((group) => {
+		const groupElement = createWikiSyncCaseGroupElement(group, sectionKey);
+		renderedGroupElements.set(groupElement.dataset.groupKey || `${sectionKey}:${group.caseType}`, groupElement);
+		bodyElement.appendChild(groupElement);
 	});
+
+	if (bodyElement.childElementCount < 1) {
+		return null;
+	}
+
+	sectionElement.appendChild(bodyElement);
+	listElement.appendChild(sectionElement);
+	return sectionElement;
 }
 
 function handleWikiSyncCaseGroupToggle(event) {
+	if (isWikiSyncAccordionRestoring) {
+		return;
+	}
+
 	const groupElement = event.currentTarget;
 	if (!(groupElement instanceof HTMLDetailsElement) || !groupElement.open) {
 		return;
 	}
 
-	document.querySelectorAll("#wiki-sync-case-list .wiki-sync-case-group").forEach((otherGroupElement) => {
+	const sectionElement = groupElement.closest(".wiki-sync-case-section");
+	if (!sectionElement) {
+		return;
+	}
+
+	sectionElement.querySelectorAll(".wiki-sync-case-group").forEach((otherGroupElement) => {
 		if (otherGroupElement !== groupElement && otherGroupElement instanceof HTMLDetailsElement) {
 			otherGroupElement.open = false;
 		}
@@ -1358,9 +1432,9 @@ function handleWikiSyncCaseGroupToggle(event) {
 	});
 }
 
-function getWikiSyncGroupedCases() {
+function getWikiSyncGroupedCases(cases = wikiSyncCases) {
 	const groupsByType = new Map();
-	wikiSyncCases.forEach((caseEntry) => {
+	cases.forEach((caseEntry) => {
 		const caseType = caseEntry.case_type || "unknown";
 		if (!groupsByType.has(caseType)) {
 			groupsByType.set(caseType, {
@@ -1435,6 +1509,33 @@ function createWikiSyncCaseElement(caseEntry) {
 	});
 
 	return detailsElement;
+}
+
+function createWikiSyncCaseGroupElement(group, sectionKey) {
+	const groupElement = document.createElement("details");
+	groupElement.className = "wiki-sync-case-group";
+	groupElement.dataset.caseType = group.caseType;
+	groupElement.dataset.sectionKey = sectionKey;
+	groupElement.dataset.groupKey = `${sectionKey}:${group.caseType}`;
+	groupElement.addEventListener("toggle", handleWikiSyncCaseGroupToggle);
+
+	const summaryElement = document.createElement("summary");
+	summaryElement.className = "wiki-sync-case-group__summary";
+	const titleElement = document.createElement("span");
+	titleElement.className = "wiki-sync-case-group__title";
+	titleElement.textContent = group.label;
+	const countElement = document.createElement("span");
+	countElement.className = "wiki-sync-case-group__count";
+	countElement.textContent = String(group.cases.length);
+	summaryElement.append(titleElement, countElement);
+	groupElement.appendChild(summaryElement);
+
+	const bodyElement = document.createElement("div");
+	bodyElement.className = "wiki-sync-case-group__body";
+	group.cases.forEach((caseEntry) => bodyElement.appendChild(createWikiSyncCaseElement(caseEntry)));
+	groupElement.appendChild(bodyElement);
+
+	return groupElement;
 }
 
 function appendWikiSyncCaseRows(bodyElement, caseEntry) {
@@ -1811,9 +1912,10 @@ function openWikiSyncResolveDialogForCase(caseEntry, { mapPlace = null, wikiCand
 
 function buildWikiSyncResolvePresets(caseEntry, { mapPlace = null, wikiPage = null, latlng = null } = {}) {
 	const payload = caseEntry.payload || {};
-	const proposedLocation = latlng || payload.proposed_location || mapPlace?.coordinates || null;
-	const currentLatLng = normalizeWikiSyncLatLng(mapPlace?.coordinates || proposedLocation);
-	const wikiLatLng = normalizeWikiSyncLatLng(proposedLocation || mapPlace?.coordinates);
+	const mapLatLng = normalizeWikiSyncLatLng(mapPlace ? { lat: mapPlace.lat, lng: mapPlace.lng } : null);
+	const proposedLocation = latlng || payload.proposed_location || mapLatLng || null;
+	const currentLatLng = normalizeWikiSyncLatLng(mapLatLng || proposedLocation);
+	const wikiLatLng = normalizeWikiSyncLatLng(proposedLocation || mapLatLng);
 	const mapSubtype = normalizeLocationType(mapPlace?.settlement_class || "dorf");
 	const wikiSubtype = normalizeLocationType(wikiPage?.settlement_class || mapSubtype);
 	const currentWikiUrl = mapPlace?.wiki_url || wikiPage?.url || "";
@@ -1874,9 +1976,42 @@ function applyWikiSyncResolvePreset(kind) {
 	document.getElementById("wiki-sync-resolve-coordinates").textContent = preset.lat === null || preset.lng === null
 		? "-"
 		: formatLocationReportCoordinates(L.latLng(preset.lat, preset.lng));
+	syncWikiSyncResolveLinkButton();
 
 	document.getElementById("wiki-sync-preset-wiki")?.classList.toggle("is-active", kind === "wiki");
 	document.getElementById("wiki-sync-preset-avesmap")?.classList.toggle("is-active", kind === "avesmap");
+}
+
+function syncWikiSyncResolveLinkButton() {
+	const inputElement = document.getElementById("wiki-sync-resolve-wiki-url");
+	const buttonElement = document.getElementById("wiki-sync-resolve-wiki-open");
+	if (!(buttonElement instanceof HTMLButtonElement)) {
+		return;
+	}
+
+	const urlValue = String(inputElement?.value || "").trim();
+	buttonElement.disabled = urlValue === "";
+	buttonElement.title = urlValue === "" ? "Kein Wiki-Link vorhanden" : "Wiki-Link in neuem Fenster öffnen";
+	buttonElement.setAttribute("aria-label", buttonElement.title);
+}
+
+function openWikiSyncResolveWikiLink() {
+	const urlValue = String(document.getElementById("wiki-sync-resolve-wiki-url")?.value || "").trim();
+	if (urlValue === "") {
+		showFeedbackToast("Kein Wiki-Link vorhanden.", "warning");
+		return;
+	}
+
+	try {
+		const parsedUrl = new URL(urlValue);
+		if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+			throw new Error("Ungültiges Protokoll");
+		}
+
+		window.open(parsedUrl.href, "_blank", "noopener,noreferrer");
+	} catch (error) {
+		showFeedbackToast("Der Wiki-Link ist ungültig.", "warning");
+	}
 }
 
 async function handleWikiSyncResolveFormSubmit(event) {

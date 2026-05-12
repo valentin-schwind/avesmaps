@@ -1507,6 +1507,24 @@ body.modal-dialog-open {
 	accent-color: #6a7f3a;
 }
 
+.wiki-sync-case-section {
+	display: grid;
+	gap: 8px;
+}
+
+.wiki-sync-case-section__title {
+	margin: 0;
+	color: #4a3c2e;
+	font-size: 13px;
+	font-weight: 700;
+	letter-spacing: 0;
+}
+
+.wiki-sync-case-section__body {
+	display: grid;
+	gap: 8px;
+}
+
 .wiki-sync-case-group {
 	border: 1px solid rgba(96, 72, 48, 0.18);
 	border-radius: 8px;
@@ -1660,6 +1678,24 @@ body.modal-dialog-open {
 	background: #eaf4dc;
 	color: #35491b;
 	font-weight: 700;
+}
+
+.wiki-sync-resolve-link-row {
+	display: flex;
+	align-items: stretch;
+	gap: 8px;
+	width: 100%;
+}
+
+.wiki-sync-resolve-link-row input {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.wiki-sync-resolve-link-button {
+	flex: 0 0 auto;
+	min-width: 42px;
+	padding-inline: 0;
 }
 
 .wiki-sync-preview-tooltip {

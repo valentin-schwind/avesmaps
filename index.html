@@ -316,6 +316,7 @@
 					<span>Ortsgroesse *</span>
 					<select id="wiki-sync-resolve-type" name="feature_subtype" required>
 						<option value="dorf">Dorf</option>
+						<option value="gebaeude">Gebäude/Stätte</option>
 						<option value="kleinstadt">Kleine Stadt</option>
 						<option value="stadt">Stadt</option>
 						<option value="grossstadt">Grosse Stadt</option>
@@ -328,7 +329,10 @@
 				</label>
 				<label class="location-report-form__field">
 					<span>Wiki-Aventurica-Link</span>
-					<input id="wiki-sync-resolve-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
+					<div class="wiki-sync-resolve-link-row">
+						<input id="wiki-sync-resolve-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
+						<button id="wiki-sync-resolve-wiki-open" class="location-report-form__button location-report-form__button--secondary wiki-sync-resolve-link-button" type="button" title="Wiki-Link in neuem Fenster öffnen" aria-label="Wiki-Link in neuem Fenster öffnen">↗</button>
+					</div>
 				</label>
 				<label class="location-report-form__field location-report-form__field--checkbox">
 					<input id="wiki-sync-resolve-is-nodix" name="is_nodix" type="checkbox" />
@@ -726,6 +730,7 @@
 			activeWikiSyncPreset = null,
 			wikiSyncPreviewMarker = null,
 			pendingWikiSyncLocationPickCase = null,
+			isWikiSyncAccordionRestoring = false,
 			isWikiSyncRunning = false,
 			isWikiSyncResolveSubmissionPending = false,
 			changeLogEntries = [],
@@ -981,6 +986,8 @@
 		$("#wiki-sync-resolve-close, #wiki-sync-resolve-cancel").on("click", () => setWikiSyncResolveDialogOpen(false, { resetForm: true }));
 		$("#wiki-sync-preset-wiki").on("click", () => applyWikiSyncResolvePreset("wiki"));
 		$("#wiki-sync-preset-avesmap").on("click", () => applyWikiSyncResolvePreset("avesmap"));
+		$("#wiki-sync-resolve-wiki-open").on("click", () => openWikiSyncResolveWikiLink());
+		$("#wiki-sync-resolve-wiki-url").on("input", () => syncWikiSyncResolveLinkButton());
 		$("#location-report-type").on("change", syncLocationReportTypeFields);
 		$("#location-report-form").on("submit", handleLocationReportFormSubmit);
 		$("#location-edit-form").on("submit", handleLocationEditFormSubmit);

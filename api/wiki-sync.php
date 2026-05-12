@@ -18,7 +18,7 @@ const AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS = [
     'dorf' => 'Dorf',
     'kleinstadt' => 'Kleinstadt',
     'stadt' => 'Stadt',
-    'grossstadt' => 'Großstadt',
+    'grossstadt' => 'GroÃŸstadt',
     'metropole' => 'Metropole',
 ];
 
@@ -26,16 +26,25 @@ const AVESMAPS_WIKI_CATEGORY_TO_CLASS = [
     'Dorf' => 'dorf',
     'Kleinstadt' => 'kleinstadt',
     'Stadt' => 'stadt',
-    'Mittelgroße Stadt' => 'stadt',
-    'Großstadt' => 'grossstadt',
-    'Metropole (Siedlungsgröße)' => 'metropole',
+    'MittelgroÃŸe Stadt' => 'stadt',
+    'GroÃŸstadt' => 'grossstadt',
+    'Metropole (SiedlungsgrÃ¶ÃŸe)' => 'metropole',
+];
+
+const AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS = [
+    'dorf' => 'Dorf',
+    'gebaeude' => 'Besondere Bauwerke/Stätten',
+    'kleinstadt' => 'Kleinstadt',
+    'stadt' => 'Stadt',
+    'grossstadt' => 'Großstadt',
+    'metropole' => 'Metropole',
 ];
 
 const AVESMAPS_WIKI_CASE_LABELS = [
     'canonical_name_difference' => 'Abweichende Benennung, aber sauber zugeordnet',
     'type_conflict' => 'Typkonflikte',
-    'probable_match' => 'Unaufgelöst, aber mit wahrscheinlichem Match',
-    'unresolved_without_candidate' => 'Unaufgelöst ohne brauchbaren Kandidaten',
+    'probable_match' => 'UnaufgelÃ¶st, aber mit wahrscheinlichem Match',
+    'unresolved_without_candidate' => 'UnaufgelÃ¶st ohne brauchbaren Kandidaten',
     'duplicate_wiki_title' => 'Mehrere Avesmaps-Namen zeigen auf denselben Wiki-Titel',
     'missing_wiki_with_coordinates' => 'Fehlende Wiki-Orte mit Koordinaten',
     'missing_wiki_without_coordinates' => 'Fehlende Wiki-Orte ohne nutzbare Koordinaten',
@@ -261,7 +270,7 @@ function avesmapsWikiSyncAdvanceRun(PDO $pdo, array $payload): array {
         $missingPlaces = avesmapsWikiSyncFetchMissingWikiPlaces($pdo, $stats['settlement_titles'] ?? [], array_keys($matchedTitles));
         $stats['missing_wiki_places'] = $missingPlaces;
         $stats['missing_wiki_place_count'] = count($missingPlaces);
-        avesmapsWikiSyncUpdateRun($pdo, (int) $run['id'], 'running', 'build_cases', 3, 'WikiSync-Fälle werden aufgebaut.', $stats);
+        avesmapsWikiSyncUpdateRun($pdo, (int) $run['id'], 'running', 'build_cases', 3, 'WikiSync-FÃ¤lle werden aufgebaut.', $stats);
     } elseif ($phase === 'build_cases') {
         $caseCount = avesmapsWikiSyncBuildAndStoreCases($pdo, (int) $run['id'], $stats);
         $stats['case_count'] = $caseCount;
@@ -301,7 +310,7 @@ function avesmapsWikiSyncListCases(PDO $pdo): array {
         "SELECT id, case_type, status, map_public_id, wiki_title, payload_json, signature_hash, updated_at
         FROM wiki_sync_cases
         WHERE last_seen_run_id = :run_id
-            AND status IN ('open', 'deferred')
+            AND status IN ('open', 'deferred', 'archived')
         ORDER BY
             FIELD(case_type, 'canonical_name_difference', 'type_conflict', 'probable_match', 'unresolved_without_candidate', 'duplicate_wiki_title', 'missing_wiki_with_coordinates', 'missing_wiki_without_coordinates'),
             wiki_title ASC,
@@ -1329,7 +1338,7 @@ function avesmapsWikiSyncExtractCoordinatesFromContent(string $content): array {
         $lonMatch = [];
         $latMatch = [];
         if (
-            preg_match('/Länge\(x\)\s*=\s*([-+]?\d+(?:\.\d+)?)/u', $body, $lonMatch) === 1
+            preg_match('/LÃ¤nge\(x\)\s*=\s*([-+]?\d+(?:\.\d+)?)/u', $body, $lonMatch) === 1
             && preg_match('/Breite\(y\)\s*=\s*([-+]?\d+(?:\.\d+)?)/u', $body, $latMatch) === 1
         ) {
             return [
@@ -1404,7 +1413,7 @@ function avesmapsWikiSyncCoordinatesToMapLocation(array $coordinates): ?array {
             $lat,
             $lng,
             'medium',
-            ['Positionskarte ist gröber als DereGlobus und sollte manuell geprüft werden.'],
+            ['Positionskarte ist grÃ¶ber als DereGlobus und sollte manuell geprÃ¼ft werden.'],
             ['x' => (float) $x, 'y' => (float) $y]
         );
     }
@@ -1439,14 +1448,14 @@ function avesmapsWikiSyncBuildConvertedMapLocation(
 function avesmapsWikiSyncCreateMatchKey(string $value): string {
     $value = avesmapsWikiSyncStripParentheticalSuffix($value);
     $value = mb_strtolower($value);
-    $value = str_replace(['ß', 'æ', 'œ', 'ø', 'ð', 'þ'], ['ss', 'ae', 'oe', 'o', 'd', 'th'], $value);
+    $value = str_replace(['ÃŸ', 'Ã¦', 'Å“', 'Ã¸', 'Ã°', 'Ã¾'], ['ss', 'ae', 'oe', 'o', 'd', 'th'], $value);
     if (function_exists('iconv')) {
         $transliteratedValue = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
         if (is_string($transliteratedValue)) {
             $value = $transliteratedValue;
         }
     }
-    $value = preg_replace('/[\s_\-\'’ʼ`´]+/u', '', $value) ?? '';
+    $value = preg_replace('/[\s_\-\'â€™Ê¼`Â´]+/u', '', $value) ?? '';
     $value = preg_replace('/[^a-z0-9]+/u', '', $value) ?? '';
 
     return $value;
@@ -1686,7 +1695,7 @@ function avesmapsWikiSyncReadLocationName(mixed $value): string {
 
 function avesmapsWikiSyncReadLocationSubtype(mixed $value): string {
     $subtype = avesmapsNormalizeSingleLine((string) ($value ?: 'dorf'), 60);
-    if (!array_key_exists($subtype, AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS)) {
+    if (!array_key_exists($subtype, AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS)) {
         throw new InvalidArgumentException('Die Ortsgroesse ist ungueltig.');
     }
 
@@ -1703,6 +1712,7 @@ function avesmapsWikiSyncReadBoolean(mixed $value): bool {
 
 function avesmapsWikiSyncLocationSubtypeLabel(string $subtype): string {
     return match ($subtype) {
+        'gebaeude' => 'Besondere Bauwerke/Stätten',
         'metropole' => 'Metropole',
         'grossstadt' => 'Großstadt',
         'stadt' => 'Stadt',
