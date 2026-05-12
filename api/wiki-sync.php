@@ -192,6 +192,8 @@ function avesmapsWikiSyncEnsureTables(PDO $pdo): void {
             KEY idx_wiki_sync_cases_wiki_title (wiki_title)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+
+    avesmapsWikiSyncEnsureMapFeatureLocksTable($pdo);
 }
 
 function avesmapsWikiSyncStartRun(PDO $pdo, array $user): array {
@@ -400,7 +402,7 @@ function avesmapsWikiSyncResolveCase(PDO $pdo, array $payload, array $user): arr
         );
         $statement->execute([
             'id' => $caseId,
-            'status' => 'resolved',
+            'status' => 'archived',
             'reviewed_by' => (int) ($user['id'] ?? 0) ?: null,
             'resolution_json' => avesmapsWikiSyncEncodeJson($resolution),
         ]);
@@ -438,13 +440,64 @@ function avesmapsWikiSyncUpdateLocationFeature(
         throw new InvalidArgumentException('WikiSync kann nur Orts-Punkte bearbeiten.');
     }
 
-    avesmapsWikiSyncAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
     $currentName = (string) ($feature['name'] ?? '');
+    $properties = avesmapsWikiSyncDecodeJson($feature['properties_json'] ?? null);
+    $geometry = avesmapsWikiSyncDecodeJson($feature['geometry_json'] ?? null);
+    [$lng, $lat] = avesmapsWikiSyncReadPointCoordinatesFromGeometry($geometry);
+    $nextProperties = avesmapsWikiSyncBuildLocationProperties($properties, $name, $subtype, $description, $wikiUrl, $isNodix, $isRuined);
+
+    if (!avesmapsWikiSyncLocationFeatureNeedsUpdate($feature, $properties, $name, $subtype, $description, $wikiUrl, $isNodix, $isRuined)) {
+        return avesmapsWikiSyncBuildPointFeatureResponse($publicId, $name, $subtype, $lat, $lng, $nextProperties, (int) $feature['revision']);
+    }
+
+    avesmapsWikiSyncAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
     if (avesmapsWikiSyncNormalizeDuplicateLocationName($currentName) !== avesmapsWikiSyncNormalizeDuplicateLocationName($name)) {
         avesmapsWikiSyncAssertUniqueLocationName($pdo, $name, $publicId);
     }
 
-    $properties = avesmapsWikiSyncDecodeJson($feature['properties_json'] ?? null);
+    $revision = avesmapsWikiSyncNextMapRevision($pdo);
+
+    $statement = $pdo->prepare(
+        'UPDATE map_features
+        SET name = :name,
+            feature_type = :feature_type,
+            feature_subtype = :feature_subtype,
+            properties_json = :properties_json,
+            revision = :revision,
+            updated_by = :updated_by
+        WHERE id = :id'
+    );
+    $statement->execute([
+        'id' => (int) $feature['id'],
+        'name' => $name,
+        'feature_type' => 'location',
+        'feature_subtype' => $subtype,
+        'properties_json' => avesmapsWikiSyncEncodeJson($nextProperties),
+        'revision' => $revision,
+        'updated_by' => (int) ($user['id'] ?? 0) ?: null,
+    ]);
+
+    avesmapsWikiSyncWriteMapAuditLog($pdo, (int) $feature['id'], 'wiki_sync_update_point', (int) ($user['id'] ?? 0), avesmapsWikiSyncEncodeJson($feature), avesmapsWikiSyncEncodeJson([
+        'public_id' => $publicId,
+        'name' => $name,
+        'feature_subtype' => $subtype,
+        'properties_json' => $nextProperties,
+        'revision' => $revision,
+    ]));
+
+    return avesmapsWikiSyncBuildPointFeatureResponse($publicId, $name, $subtype, $lat, $lng, $nextProperties, $revision);
+}
+
+function avesmapsWikiSyncBuildLocationProperties(
+    array $baseProperties,
+    string $name,
+    string $subtype,
+    string $description,
+    string $wikiUrl,
+    bool $isNodix,
+    bool $isRuined
+): array {
+    $properties = $baseProperties;
     $properties['name'] = $name;
     $properties['feature_type'] = 'location';
     $properties['feature_subtype'] = $subtype;
@@ -463,39 +516,27 @@ function avesmapsWikiSyncUpdateLocationFeature(
         $properties['wiki_url'] = $wikiUrl;
     }
 
-    $geometry = avesmapsWikiSyncDecodeJson($feature['geometry_json'] ?? null);
-    [$lng, $lat] = avesmapsWikiSyncReadPointCoordinatesFromGeometry($geometry);
-    $revision = avesmapsWikiSyncNextMapRevision($pdo);
+    return $properties;
+}
 
-    $statement = $pdo->prepare(
-        'UPDATE map_features
-        SET name = :name,
-            feature_type = :feature_type,
-            feature_subtype = :feature_subtype,
-            properties_json = :properties_json,
-            revision = :revision,
-            updated_by = :updated_by
-        WHERE id = :id'
-    );
-    $statement->execute([
-        'id' => (int) $feature['id'],
-        'name' => $name,
-        'feature_type' => 'location',
-        'feature_subtype' => $subtype,
-        'properties_json' => avesmapsWikiSyncEncodeJson($properties),
-        'revision' => $revision,
-        'updated_by' => (int) ($user['id'] ?? 0) ?: null,
-    ]);
+function avesmapsWikiSyncLocationFeatureNeedsUpdate(
+    array $feature,
+    array $properties,
+    string $name,
+    string $subtype,
+    string $description,
+    string $wikiUrl,
+    bool $isNodix,
+    bool $isRuined
+): bool {
+    $currentSubtype = avesmapsWikiSyncReadSettlementClass((string) ($feature['feature_subtype'] ?? $properties['settlement_class'] ?? 'dorf'));
 
-    avesmapsWikiSyncWriteMapAuditLog($pdo, (int) $feature['id'], 'wiki_sync_update_point', (int) ($user['id'] ?? 0), avesmapsWikiSyncEncodeJson($feature), avesmapsWikiSyncEncodeJson([
-        'public_id' => $publicId,
-        'name' => $name,
-        'feature_subtype' => $subtype,
-        'properties_json' => $properties,
-        'revision' => $revision,
-    ]));
-
-    return avesmapsWikiSyncBuildPointFeatureResponse($publicId, $name, $subtype, $lat, $lng, $properties, $revision);
+    return (string) ($feature['name'] ?? '') !== $name
+        || $currentSubtype !== $subtype
+        || (string) ($properties['description'] ?? '') !== $description
+        || (string) ($properties['wiki_url'] ?? '') !== $wikiUrl
+        || avesmapsWikiSyncReadBoolean($properties['is_nodix'] ?? false) !== $isNodix
+        || avesmapsWikiSyncReadBoolean($properties['is_ruined'] ?? false) !== $isRuined;
 }
 
 function avesmapsWikiSyncCreateLocationFeature(
@@ -1737,7 +1778,6 @@ function avesmapsWikiSyncAssertFeatureCanBeEdited(PDO $pdo, array $payload, arra
         }
     }
 
-    avesmapsWikiSyncEnsureMapFeatureLocksTable($pdo);
     $statement = $pdo->prepare(
         'SELECT user_id, username
         FROM map_feature_locks
