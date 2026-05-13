@@ -130,6 +130,12 @@ const VISUAL_LINE_SMOOTHING_CONFIG_MAX_ZOOM = {
 	maxSegmentCutShare: 0.49,
 	passes: 2,
 };
+const VISUAL_LINE_CATMULL_ROM_CONFIG = {
+	enabled: INITIAL_SEARCH_PARAMS.get("smoothRoute") !== "0" && INITIAL_SEARCH_PARAMS.get("smoothLines") !== "0",
+	method: "catmullRom",
+	samples: 8,
+	tension: 0.5,
+};
 const PATH_RENDER_CONFIG = {
 	simplifiedMaxZoom: 2,
 	simplifiedSmoothingFactor: 0.2,

@@ -2759,18 +2759,17 @@ function refreshPathLayerText(path) {
 }
 
 function getPathVisualLatLngCoordinates(coordinates, zoomLevel = map.getZoom()) {
-	const roundedZoomLevel = getVisualZoomLevel(zoomLevel);
-	const smoothingConfig = roundedZoomLevel <= PATH_RENDER_CONFIG.simplifiedMaxZoom
+	const roundedZoomLevel = Math.round(Number(zoomLevel));
+	const visualZoomLevel = getVisualZoomLevel(zoomLevel);
+	const smoothingConfig = visualZoomLevel <= PATH_RENDER_CONFIG.simplifiedMaxZoom
 		? {
 			enabled: true,
 			factor: PATH_RENDER_CONFIG.simplifiedSmoothingFactor,
 			maxDistance: PATH_RENDER_CONFIG.simplifiedMaxDistance,
 			samples: PATH_RENDER_CONFIG.simplifiedSamples,
 		}
-		: roundedZoomLevel >= 6
-			? VISUAL_LINE_SMOOTHING_CONFIG_MAX_ZOOM
-			: roundedZoomLevel >= 5
-			? VISUAL_LINE_SMOOTHING_CONFIG_HIGH_ZOOM
+		: roundedZoomLevel >= 5
+			? VISUAL_LINE_CATMULL_ROM_CONFIG
 			: VISUAL_LINE_SMOOTHING_CONFIG;
 
 	return smoothLineCoordinatesForDisplay(coordinates, smoothingConfig).map(([x, y]) => [y, x]);
