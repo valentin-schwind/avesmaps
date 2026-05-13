@@ -1054,6 +1054,13 @@
 				return;
 			}
 
+			if (event.key === "Escape" && activeEditorPanelTab === "wiki-sync" && getWikiSyncFilterQuery() !== "") {
+				event.preventDefault();
+				event.stopPropagation();
+				setWikiSyncFilterQuery("");
+				return;
+			}
+
 			if (event.key === "Escape") {
 				clearPendingPathCreation();
 				clearPathGeometryEdit();
