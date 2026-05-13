@@ -1650,10 +1650,39 @@ body.modal-dialog-open {
 	align-items: center;
 }
 
+.wiki-sync-case__choices--duplicate {
+	display: grid;
+	align-items: stretch;
+}
+
 .wiki-sync-case__choices-label {
 	color: #75614d;
 	font-size: 12px;
 	margin-right: 2px;
+}
+
+.wiki-sync-case__duplicate-entry {
+	display: grid;
+	gap: 6px;
+	padding: 6px 0 2px;
+	border-top: 1px solid rgba(96, 72, 48, 0.12);
+}
+
+.wiki-sync-case__duplicate-entry:first-of-type {
+	border-top: 0;
+	padding-top: 0;
+}
+
+.wiki-sync-case__duplicate-title {
+	color: #3f3428;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.wiki-sync-case__duplicate-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
 }
 
 .wiki-sync-case__choice {

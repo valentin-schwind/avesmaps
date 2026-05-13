@@ -1569,7 +1569,50 @@ function appendWikiSyncCaseCandidates(bodyElement, caseEntry) {
 	const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
 	const matches = Array.isArray(payload.matches) ? payload.matches : [];
 
-	if (matches.length > 0) {
+	if (caseEntry.case_type === "duplicate_wiki_title" && matches.length > 0) {
+		const sectionElement = document.createElement("div");
+		sectionElement.className = "wiki-sync-case__choices wiki-sync-case__choices--duplicate";
+		const labelElement = document.createElement("span");
+		labelElement.className = "wiki-sync-case__choices-label";
+		labelElement.textContent = "Avesmaps-Orte";
+		sectionElement.appendChild(labelElement);
+
+		matches.slice(0, 2).forEach((match, index) => {
+			const entryElement = document.createElement("div");
+			entryElement.className = "wiki-sync-case__duplicate-entry";
+
+			const entryTitleElement = document.createElement("span");
+			entryTitleElement.className = "wiki-sync-case__duplicate-title";
+			entryTitleElement.textContent = `${index + 1}. Ort: ${match.name || "Unbenannter Ort"}`;
+			entryElement.appendChild(entryTitleElement);
+
+			const entryActionsElement = document.createElement("div");
+			entryActionsElement.className = "wiki-sync-case__duplicate-actions";
+
+			const showButtonElement = document.createElement("button");
+			showButtonElement.type = "button";
+			showButtonElement.className = "wiki-sync-case__choice";
+			showButtonElement.dataset.wikiSyncAction = "focus";
+			showButtonElement.dataset.publicId = match.public_id || "";
+			showButtonElement.textContent = "Anzeigen";
+			entryActionsElement.appendChild(showButtonElement);
+
+			if (caseEntry.status === "open") {
+				const acceptButtonElement = document.createElement("button");
+				acceptButtonElement.type = "button";
+				acceptButtonElement.className = "wiki-sync-case__choice wiki-sync-case__choice--accept";
+				acceptButtonElement.dataset.wikiSyncAction = "resolve";
+				acceptButtonElement.dataset.publicId = match.public_id || "";
+				acceptButtonElement.textContent = "Akzeptieren";
+				entryActionsElement.appendChild(acceptButtonElement);
+			}
+
+			entryElement.appendChild(entryActionsElement);
+			sectionElement.appendChild(entryElement);
+		});
+
+		bodyElement.appendChild(sectionElement);
+	} else if (matches.length > 0) {
 		const sectionElement = document.createElement("div");
 		sectionElement.className = "wiki-sync-case__choices";
 		const labelElement = document.createElement("span");
