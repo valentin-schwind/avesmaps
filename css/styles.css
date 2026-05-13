@@ -427,11 +427,6 @@ body.modal-dialog-open {
 	padding: 5px;
 }
 
-.spotlight-search__results[hidden],
-.spotlight-search__status[hidden] {
-	display: none !important;
-}
-
 .spotlight-search__result {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) auto;
@@ -2212,14 +2207,6 @@ body.edit-mode .map-label span {
 	text-shadow:
 		0 1px 1px rgba(0, 0, 0, 0.95),
 		0 0 2px rgba(0, 0, 0, 0.78);
-}
-
-.location-name-label.is-colliding {
-	display: none;
-}
-
-.location-name-label--anchor-bottom-right span {
-	transform: translate(-100%, -100%);
 }
 
 .location-name-label--metropole span {

@@ -309,8 +309,8 @@ function avesmapsWikiSyncListCases(PDO $pdo): array {
     $statement = $pdo->prepare(
         "SELECT id, case_type, status, map_public_id, wiki_title, payload_json, resolution_json, signature_hash, updated_at
         FROM wiki_sync_cases
-        WHERE (last_seen_run_id = :run_id AND status IN ('open', 'deferred'))
-            OR status = 'archived'
+        WHERE last_seen_run_id = :run_id
+            AND status IN ('open', 'deferred', 'archived')
         ORDER BY
             FIELD(case_type, 'canonical_name_difference', 'type_conflict', 'probable_match', 'unresolved_without_candidate', 'duplicate_wiki_title', 'missing_wiki_with_coordinates', 'missing_wiki_without_coordinates'),
             wiki_title ASC,
@@ -1537,8 +1537,7 @@ function avesmapsWikiSyncBuildSummary(PDO $pdo, int $runId): array {
     $statement = $pdo->prepare(
         'SELECT case_type, status, COUNT(*) AS case_count
         FROM wiki_sync_cases
-        WHERE (last_seen_run_id = :run_id AND status IN (\'open\', \'deferred\'))
-            OR status = \'archived\'
+        WHERE last_seen_run_id = :run_id
         GROUP BY case_type, status'
     );
     $statement->execute(['run_id' => $runId]);
