@@ -2203,15 +2203,8 @@ function rectanglesOverlap(firstRect, secondRect) {
 }
 
 function getLocationNameLabelPriority(entry) {
-	const priorities = {
-		metropole: 100,
-		grossstadt: 90,
-		stadt: 80,
-		kleinstadt: 70,
-		dorf: 60,
-		gebaeude: 60,
-	};
-	return priorities[entry.markerEntry?.locationType] || 50;
+	const config = LOCATION_NAME_LABEL_CONFIG[entry.markerEntry?.locationType];
+	return config ? 100 + config.size : 50;
 }
 
 function getLabelOffsetCandidates() {
@@ -2231,6 +2224,27 @@ function getLabelOffsetCandidates() {
 function setLabelElementOffset(element, offsetX, offsetY) {
 	element.style.setProperty("--label-offset-x", `${offsetX}px`);
 	element.style.setProperty("--label-offset-y", `${offsetY}px`);
+}
+
+function setLabelElementPlacement(element, { anchor = "top-left", offsetX = 0, offsetY = 0 } = {}) {
+	setLabelElementOffset(element, offsetX, offsetY);
+	element.classList.toggle("location-name-label--anchor-bottom-right", anchor === "bottom-right");
+}
+
+function getLocationNameLabelPlacementCandidates(offsetCandidates) {
+	const placementCandidates = [
+		{ anchor: "top-left", offsetX: 0, offsetY: 0 },
+		{ anchor: "bottom-right", offsetX: 0, offsetY: 0 },
+	];
+
+	offsetCandidates
+		.filter(([offsetX, offsetY]) => offsetX !== 0 || offsetY !== 0)
+		.forEach(([offsetX, offsetY]) => {
+			placementCandidates.push({ anchor: "top-left", offsetX, offsetY });
+			placementCandidates.push({ anchor: "bottom-right", offsetX, offsetY });
+		});
+
+	return placementCandidates;
 }
 
 function getCollisionEntries() {
@@ -2255,11 +2269,16 @@ function getCollisionEntries() {
 function resolveLabelCollisions() {
 	const visibleEntries = getCollisionEntries();
 	const offsetCandidates = getLabelOffsetCandidates();
+	const visualZoomLevel = getVisualZoomLevel(map.getZoom());
 
 	visibleEntries.forEach(({ element }) => {
 		element.classList.remove("is-colliding");
-		setLabelElementOffset(element, 0, 0);
+		setLabelElementPlacement(element, { anchor: "top-left", offsetX: 0, offsetY: 0 });
 	});
+
+	if (visualZoomLevel >= VISUAL_MAX_ZOOM_LEVEL) {
+		return;
+	}
 
 	const acceptedRects = [];
 	visibleEntries
@@ -2268,8 +2287,12 @@ function resolveLabelCollisions() {
 			return priorityDiff || left.minZoom - right.minZoom;
 		})
 		.forEach(({ element }) => {
-			for (const [offsetX, offsetY] of offsetCandidates) {
-				setLabelElementOffset(element, offsetX, offsetY);
+			const placementCandidates = element.classList.contains("location-name-label")
+				? getLocationNameLabelPlacementCandidates(offsetCandidates)
+				: offsetCandidates.map(([offsetX, offsetY]) => ({ anchor: "top-left", offsetX, offsetY }));
+
+			for (const placement of placementCandidates) {
+				setLabelElementPlacement(element, placement);
 				const rect = element.getBoundingClientRect();
 				if (rect.width <= 0 || rect.height <= 0) {
 					return;

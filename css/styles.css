@@ -2214,6 +2214,10 @@ body.edit-mode .map-label span {
 		0 0 2px rgba(0, 0, 0, 0.78);
 }
 
+.location-name-label--anchor-bottom-right span {
+	transform: translate(-100%, -100%);
+}
+
 .location-name-label--metropole span {
 	text-transform: uppercase;
 }
