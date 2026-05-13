@@ -1350,7 +1350,7 @@ function renderWikiSyncCases(latestRun = null) {
 	if (hasActiveFilter) {
 		isWikiSyncAccordionRestoring = true;
 		try {
-			listElement.querySelectorAll(".wiki-sync-case-group, .wiki-sync-case").forEach((detailsElement) => {
+			listElement.querySelectorAll(".wiki-sync-case-group").forEach((detailsElement) => {
 				if (detailsElement instanceof HTMLDetailsElement) {
 					detailsElement.open = true;
 				}
@@ -1444,7 +1444,7 @@ function normalizeWikiSyncSearchText(value) {
 function getWikiSyncCaseSearchText(caseEntry) {
 	const payload = caseEntry.payload || {};
 	const mapPlace = payload.map || {};
-	const resolutionFeature = payload.resolution?.feature || {};
+	const resolutionFeature = getWikiSyncResolvedFeature(caseEntry) || {};
 	const wikiPage = payload.wiki || {};
 	const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
 	const matches = Array.isArray(payload.matches) ? payload.matches : [];
@@ -1673,6 +1673,10 @@ function getWikiSyncCaseTypeLabel(caseType) {
 	return labels[caseType] || caseType;
 }
 
+function getWikiSyncResolvedFeature(caseEntry) {
+	return caseEntry?.resolution?.feature || caseEntry?.payload?.resolution?.feature || null;
+}
+
 function createWikiSyncCaseElement(caseEntry) {
 	const payload = caseEntry.payload || {};
 	const detailsElement = document.createElement("details");
@@ -1739,7 +1743,7 @@ function createWikiSyncCaseGroupElement(group, sectionKey) {
 
 function appendWikiSyncCaseRows(bodyElement, caseEntry) {
 	const payload = caseEntry.payload || {};
-	const mapPlace = payload.map || payload.resolution?.feature || null;
+	const mapPlace = payload.map || getWikiSyncResolvedFeature(caseEntry);
 	const wikiPage = payload.wiki || null;
 
 	if (mapPlace) {
@@ -2059,8 +2063,9 @@ function findWikiSyncMapInCase(caseEntry, publicId = "") {
 		return payload.map;
 	}
 
-	if (payload.resolution?.feature && (!publicId || payload.resolution.feature.public_id === publicId)) {
-		return payload.resolution.feature;
+	const resolvedFeature = getWikiSyncResolvedFeature(caseEntry);
+	if (resolvedFeature && (!publicId || resolvedFeature.public_id === publicId)) {
+		return resolvedFeature;
 	}
 
 	const matches = Array.isArray(payload.matches) ? payload.matches : [];
