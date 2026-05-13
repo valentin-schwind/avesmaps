@@ -2092,6 +2092,14 @@ function focusWikiSyncCase(caseEntry, { mapPlace = null } = {}) {
 			markerEntry.marker.openPopup();
 			return;
 		}
+
+		const lat = Number(selectedMap.lat);
+		const lng = Number(selectedMap.lng);
+		const latlng = Number.isFinite(lat) && Number.isFinite(lng) ? L.latLng(lat, lng) : null;
+		if (latlng && isWithinMapBounds(latlng)) {
+			map.flyTo(latlng, Math.max(map.getZoom(), 4), { duration: 0.8 });
+			return;
+		}
 	}
 
 	if (payload.proposed_location) {
