@@ -1,3 +1,5 @@
+const CHANGE_LOG_FOCUS_MARKER_TTL_MS = 12000;
+
 function getLocationReportOverlayElement() {
 	return document.getElementById("location-report-overlay");
 }
@@ -2481,12 +2483,27 @@ function focusLabelFeature(labelEntry) {
 }
 
 function clearChangeLogFocusMarker() {
+	if (changeLogFocusMarkerTimeout) {
+		window.clearTimeout(changeLogFocusMarkerTimeout);
+		changeLogFocusMarkerTimeout = null;
+	}
 	if (!changeLogFocusMarker) {
-		return;
+		return false;
 	}
 
 	map.removeLayer(changeLogFocusMarker);
 	changeLogFocusMarker = null;
+	return true;
+}
+
+function scheduleChangeLogFocusMarkerRemoval() {
+	if (changeLogFocusMarkerTimeout) {
+		window.clearTimeout(changeLogFocusMarkerTimeout);
+	}
+
+	changeLogFocusMarkerTimeout = window.setTimeout(() => {
+		clearChangeLogFocusMarker();
+	}, CHANGE_LOG_FOCUS_MARKER_TTL_MS);
 }
 
 function getChangeLogFocusTooltip(entry) {
@@ -2520,6 +2537,7 @@ function focusAuditChangeTarget(entry) {
 			direction: "center",
 			className: "change-log-focus-tooltip",
 		}).openTooltip();
+		scheduleChangeLogFocusMarkerRemoval();
 		map.fitBounds(bounds, { padding: [60, 60], maxZoom: Math.max(map.getZoom(), 4) });
 		return true;
 	}
@@ -2538,6 +2556,8 @@ function focusAuditChangeTarget(entry) {
 		className: "change-log-focus-tooltip",
 		offset: [0, -10],
 	}).openTooltip();
+	changeLogFocusMarker.on("click", clearChangeLogFocusMarker);
+	scheduleChangeLogFocusMarkerRemoval();
 	map.flyTo(latlng, Math.max(map.getZoom(), 3), { duration: 0.8 });
 	return true;
 }

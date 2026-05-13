@@ -754,6 +754,7 @@
 			isWikiSyncResolveSubmissionPending = false,
 			changeLogEntries = [],
 			changeLogFocusMarker = null,
+			changeLogFocusMarkerTimeout = null,
 			isChangeUndoPending = false,
 			activeEditorPanelTab = "review",
 			activeReviewReportId = null,
@@ -1079,6 +1080,10 @@
 			}
 
 			if (event.key === "Escape") {
+				if (clearChangeLogFocusMarker()) {
+					return;
+				}
+
 				clearPendingPathCreation();
 				clearPathGeometryEdit();
 				clearRegionGeometryEdit();
@@ -1207,6 +1212,7 @@
 			);
 		});
 		map.on("click", closeMapContextMenu);
+		map.on("click", clearChangeLogFocusMarker);
 		map.on("movestart", closeMapContextMenu);
 		window.addEventListener("resize", closeMapContextMenu);
 		map.getContainer().addEventListener("click", handleDistanceMeasurementContainerClick, true);
