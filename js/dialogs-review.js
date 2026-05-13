@@ -396,7 +396,7 @@ function resetLocationReportForm() {
 	setLocationReportStatus();
 }
 
-function resetLocationEditForm() {
+function resetLocationEditForm({ preserveWikiSyncFlow = false } = {}) {
 	const formElement = getLocationEditFormElement();
 	if (!formElement) {
 		return;
@@ -411,7 +411,9 @@ function resetLocationEditForm() {
 	pendingCrossingConversionPublicId = null;
 	pendingCrossingConversionName = "";
 	pendingCrossingConversionIsNodix = false;
-	resetWikiSyncCreateLocationFlowState();
+	if (!preserveWikiSyncFlow) {
+		resetWikiSyncCreateLocationFlowState();
+	}
 	void releaseFeatureSoftLock(publicId);
 	setLocationEditStatus();
 }
@@ -699,7 +701,7 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 }
 
 function openLocationEditDialog(options = {}) {
-	resetLocationEditForm();
+	resetLocationEditForm({ preserveWikiSyncFlow: true });
 	populateLocationEditForm(options);
 	setLocationEditDialogOpen(true);
 }
