@@ -2233,15 +2233,15 @@ function setLabelElementPlacement(element, { anchor = "top-left", offsetX = 0, o
 
 function getLocationNameLabelPlacementCandidates(offsetCandidates) {
 	const placementCandidates = [
-		{ anchor: "top-left", offsetX: 0, offsetY: 0 },
 		{ anchor: "bottom-right", offsetX: 0, offsetY: 0 },
+		{ anchor: "top-left", offsetX: 0, offsetY: 0 },
 	];
 
 	offsetCandidates
 		.filter(([offsetX, offsetY]) => offsetX !== 0 || offsetY !== 0)
 		.forEach(([offsetX, offsetY]) => {
-			placementCandidates.push({ anchor: "top-left", offsetX, offsetY });
 			placementCandidates.push({ anchor: "bottom-right", offsetX, offsetY });
+			placementCandidates.push({ anchor: "top-left", offsetX, offsetY });
 		});
 
 	return placementCandidates;
