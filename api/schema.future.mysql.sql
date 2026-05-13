@@ -116,6 +116,9 @@ CREATE TABLE IF NOT EXISTS map_audit_log (
     before_json JSON NULL,
     after_json JSON NULL,
     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    undone_at DATETIME(3) NULL,
+    undone_by BIGINT UNSIGNED NULL,
+    undo_audit_id BIGINT UNSIGNED NULL,
     PRIMARY KEY (id),
     KEY idx_map_audit_log_feature_created (feature_id, created_at),
     KEY idx_map_audit_log_actor_created (actor_user_id, created_at)

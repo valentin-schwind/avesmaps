@@ -81,6 +81,13 @@ async function submitMapFeatureEdit(payload) {
 	return result;
 }
 
+async function undoMapAuditChange(changeId) {
+	return submitMapFeatureEdit({
+		action: "undo_audit_change",
+		audit_id: changeId,
+	});
+}
+
 async function updateReviewReportStatus(reportId, status, reportSource = "location_reports") {
 	const response = await fetch(LOCATION_REPORT_REVIEW_API_URL, {
 		method: "POST",

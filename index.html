@@ -753,6 +753,8 @@
 			isWikiSyncRunning = false,
 			isWikiSyncResolveSubmissionPending = false,
 			changeLogEntries = [],
+			changeLogFocusMarker = null,
+			isChangeUndoPending = false,
 			activeEditorPanelTab = "review",
 			activeReviewReportId = null,
 			activeReviewReportSource = null,
@@ -1034,6 +1036,10 @@
 		$("#label-edit-close, #label-edit-cancel").on("click", () => setLabelEditDialogOpen(false, { resetForm: true }));
 		$("#region-edit-close, #region-edit-cancel").on("click", () => setRegionEditDialogOpen(false, { resetForm: true }));
 		$(document).on("keydown", (event) => {
+			if (handleChangeLogUndoShortcut(event)) {
+				return;
+			}
+
 			if (event.key === "Escape" && isLocationReportDialogOpen()) {
 				setLocationReportDialogOpen(false, { resetForm: true });
 				return;

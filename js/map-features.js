@@ -1639,8 +1639,9 @@ async function saveMovedLocationMarker(markerEntry, latlng) {
 }
 
 function updateRevisionFromEditResponse(payload) {
-	if (payload?.feature?.revision && mapDataSourceStatus) {
-		mapDataSourceStatus.revision = payload.feature.revision;
+	const revision = payload?.feature?.revision || payload?.feature?.properties?.revision;
+	if (revision && mapDataSourceStatus) {
+		mapDataSourceStatus.revision = revision;
 		updateMapDataStatus({ avesmapsSource: mapDataSourceStatus });
 	}
 }
@@ -2897,6 +2898,50 @@ function applyLiveMapFeatureUpdate(feature) {
 	} else if (feature.geometry?.type === "Point") {
 		applyLiveLocationFeature(feature);
 	}
+}
+
+function applyMapFeatureEditResult(result) {
+	const feature = result?.feature;
+	if (!feature) {
+		return false;
+	}
+
+	if (feature.deleted && feature.public_id) {
+		removeLiveFeature(feature.public_id);
+		return true;
+	}
+
+	if (feature.type === "Feature") {
+		applyLiveMapFeatureUpdate(feature);
+		return true;
+	}
+
+	if (feature.public_id && Number.isFinite(Number(feature.lat)) && Number.isFinite(Number(feature.lng))) {
+		applyLiveLocationFeature({
+			type: "Feature",
+			id: feature.public_id,
+			geometry: {
+				type: "Point",
+				coordinates: [Number(feature.lng), Number(feature.lat)],
+			},
+			properties: {
+				public_id: feature.public_id,
+				name: feature.name || "",
+				feature_type: feature.feature_type || "location",
+				feature_subtype: feature.feature_subtype || feature.location_type || "dorf",
+				settlement_class: feature.location_type || feature.feature_subtype || "dorf",
+				settlement_class_label: feature.location_type_label || "",
+				description: feature.description || "",
+				wiki_url: feature.wiki_url || "",
+				is_nodix: Boolean(feature.is_nodix),
+				is_ruined: Boolean(feature.is_ruined),
+				revision: feature.revision || null,
+			},
+		});
+		return true;
+	}
+
+	return false;
 }
 
 function clearPendingPathCreation() {

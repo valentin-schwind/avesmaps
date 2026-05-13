@@ -1942,6 +1942,11 @@ body.modal-dialog-open {
 	text-align: left;
 }
 
+.change-log-entry.is-undone {
+	background: #f4f0ea;
+	color: #6b5a48;
+}
+
 .change-log-entry:hover,
 .change-log-entry:focus-visible {
 	border-color: #9b7b58;
@@ -1953,11 +1958,41 @@ body.modal-dialog-open {
 }
 
 .change-log-entry__target,
-.change-log-entry__meta {
+.change-log-entry__meta,
+.change-log-entry__state {
 	min-width: 0;
 	overflow-wrap: anywhere;
 	color: #6d5b49;
 	font-size: 12px;
+}
+
+.change-log-entry__state {
+	color: #31536f;
+	font-weight: 700;
+}
+
+.change-log-entry__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 4px;
+}
+
+.change-log-entry__undo {
+	border: 1px solid #8fa46d;
+	border-radius: 6px;
+	background: #f1f7e8;
+	color: #435724;
+	cursor: pointer;
+	font: inherit;
+	font-size: 12px;
+	min-height: 30px;
+	padding: 5px 8px;
+}
+
+.change-log-entry__undo:disabled {
+	cursor: default;
+	opacity: 0.58;
 }
 
 .presence-user {
@@ -1993,6 +2028,13 @@ body.modal-dialog-open {
 	border: 1px solid #1452f7;
 	background: #fff;
 	color: #1f2f5f;
+	font-weight: 700;
+}
+
+.change-log-focus-tooltip {
+	border: 1px solid #31536f;
+	background: #fff;
+	color: #233d55;
 	font-weight: 700;
 }
 

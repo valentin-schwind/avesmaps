@@ -493,6 +493,8 @@ function avesmapsWikiSyncUpdateLocationFeature(
 
     avesmapsWikiSyncWriteMapAuditLog($pdo, (int) $feature['id'], 'wiki_sync_update_point', (int) ($user['id'] ?? 0), avesmapsWikiSyncEncodeJson($feature), avesmapsWikiSyncEncodeJson([
         'public_id' => $publicId,
+        'wiki_sync_case_id' => (int) ($payload['case_id'] ?? 0),
+        'feature_type' => 'location',
         'name' => $name,
         'feature_subtype' => $subtype,
         'properties_json' => $nextProperties,
@@ -622,6 +624,8 @@ function avesmapsWikiSyncCreateLocationFeature(
     $featureId = (int) $pdo->lastInsertId();
     avesmapsWikiSyncWriteMapAuditLog($pdo, $featureId, 'wiki_sync_create_point', (int) ($user['id'] ?? 0), '{}', avesmapsWikiSyncEncodeJson([
         'public_id' => $publicId,
+        'wiki_sync_case_id' => (int) ($payload['case_id'] ?? 0),
+        'feature_type' => 'location',
         'name' => $name,
         'feature_subtype' => $subtype,
         'geometry_json' => $geometry,

@@ -2365,6 +2365,10 @@ async function handleWikiSyncResolveFormSubmit(event) {
 }
 
 function formatChangeAction(action) {
+	if (String(action || "").startsWith("undo_")) {
+		return `Rückgängig: ${formatChangeAction(String(action).replace(/^undo_/, ""))}`;
+	}
+
 	const labels = {
 		move_point: "Ort verschoben",
 		update_point: "Ort geändert",
@@ -2380,6 +2384,9 @@ function formatChangeAction(action) {
 		create_label: "Label erstellt",
 		update_label: "Label geändert",
 		move_label: "Label verschoben",
+		create_region: "Region erstellt",
+		update_region: "Region geändert",
+		update_region_geometry: "Regionsgrenze geändert",
 		delete_feature: "Objekt gelöscht",
 	};
 
@@ -2400,21 +2407,41 @@ function renderChangeLog() {
 
 	setChangePanelStatus(`${changeLogEntries.length} letzte Änderungen.`, "success");
 	changeLogEntries.forEach((entry) => {
-		const itemElement = document.createElement("button");
-		itemElement.type = "button";
+		const itemElement = document.createElement("article");
 		itemElement.className = "change-log-entry";
+		itemElement.tabIndex = 0;
+		itemElement.setAttribute("role", "button");
 		itemElement.dataset.changeId = String(entry.id || "");
 		itemElement.dataset.publicId = entry.public_id || "";
 		itemElement.dataset.featureType = entry.feature_type || "";
 		itemElement.dataset.action = entry.action || "";
+		itemElement.classList.toggle("is-undone", Boolean(entry.undone));
 		itemElement.innerHTML = `
 			<span class="change-log-entry__action"></span>
 			<span class="change-log-entry__target"></span>
 			<span class="change-log-entry__meta"></span>
+			<span class="change-log-entry__state"></span>
+			<span class="change-log-entry__actions"></span>
 		`;
 		itemElement.querySelector(".change-log-entry__action").textContent = formatChangeAction(entry.action);
 		itemElement.querySelector(".change-log-entry__target").textContent = entry.name || entry.feature_subtype || entry.public_id || "Unbenannt";
 		itemElement.querySelector(".change-log-entry__meta").textContent = `${entry.username || "unbekannt"} · ${entry.created_at || ""}`;
+		const stateElement = itemElement.querySelector(".change-log-entry__state");
+		if (entry.undone) {
+			stateElement.textContent = `Rückgängig gemacht${entry.undone_username ? ` von ${entry.undone_username}` : ""}`;
+		} else {
+			stateElement.hidden = true;
+		}
+		const actionsElement = itemElement.querySelector(".change-log-entry__actions");
+		if (entry.can_undo) {
+			const undoButtonElement = document.createElement("button");
+			undoButtonElement.type = "button";
+			undoButtonElement.className = "change-log-entry__undo";
+			undoButtonElement.textContent = "Rückgängig";
+			actionsElement.appendChild(undoButtonElement);
+		} else {
+			actionsElement.hidden = true;
+		}
 		listElement.appendChild(itemElement);
 	});
 }
@@ -2453,7 +2480,73 @@ function focusLabelFeature(labelEntry) {
 	return true;
 }
 
+function clearChangeLogFocusMarker() {
+	if (!changeLogFocusMarker) {
+		return;
+	}
+
+	map.removeLayer(changeLogFocusMarker);
+	changeLogFocusMarker = null;
+}
+
+function getChangeLogFocusTooltip(entry) {
+	return `${formatChangeAction(entry.action)} · ${entry.name || entry.feature_subtype || entry.public_id || "Änderung"}`;
+}
+
+function focusAuditChangeTarget(entry) {
+	const focus = entry?.focus || null;
+	if (!focus) {
+		return false;
+	}
+
+	const latlng = L.latLng(Number(focus.lat), Number(focus.lng));
+	if (!isWithinMapBounds(latlng)) {
+		return false;
+	}
+
+	clearChangeLogFocusMarker();
+	if (focus.type === "bounds" && Array.isArray(focus.bounds) && focus.bounds.length === 2) {
+		const bounds = L.latLngBounds(focus.bounds.map((coordinate) => L.latLng(Number(coordinate[0]), Number(coordinate[1]))));
+		changeLogFocusMarker = L.rectangle(bounds, {
+			pane: "measurementPane",
+			color: "#31536f",
+			weight: 3,
+			fillColor: "#ffffff",
+			fillOpacity: 0.08,
+			interactive: false,
+		}).addTo(map);
+		changeLogFocusMarker.bindTooltip(getChangeLogFocusTooltip(entry), {
+			permanent: true,
+			direction: "center",
+			className: "change-log-focus-tooltip",
+		}).openTooltip();
+		map.fitBounds(bounds, { padding: [60, 60], maxZoom: Math.max(map.getZoom(), 4) });
+		return true;
+	}
+
+	changeLogFocusMarker = L.circleMarker(latlng, {
+		pane: "measurementHandlesPane",
+		radius: 9,
+		color: "#31536f",
+		weight: 3,
+		fillColor: "#ffffff",
+		fillOpacity: 0.95,
+	}).addTo(map);
+	changeLogFocusMarker.bindTooltip(getChangeLogFocusTooltip(entry), {
+		permanent: true,
+		direction: "top",
+		className: "change-log-focus-tooltip",
+		offset: [0, -10],
+	}).openTooltip();
+	map.flyTo(latlng, Math.max(map.getZoom(), 3), { duration: 0.8 });
+	return true;
+}
+
 function focusChangeLogEntry(entry) {
+	if (focusAuditChangeTarget(entry)) {
+		return;
+	}
+
 	if (!entry?.public_id) {
 		showFeedbackToast("Dieses Objekt kann nicht lokalisiert werden.", "warning");
 		return;
@@ -2477,6 +2570,85 @@ function focusChangeLogEntry(entry) {
 	}
 
 	showFeedbackToast("Objekt ist nicht mehr aktiv oder wurde noch nicht neu geladen.", "warning");
+}
+
+function getLatestUndoableChangeLogEntry() {
+	return changeLogEntries.find((entry) => entry?.can_undo) || null;
+}
+
+async function undoLastChangeLogEntry() {
+	let entry = getLatestUndoableChangeLogEntry();
+	if (!entry) {
+		await loadChangeLog();
+		entry = getLatestUndoableChangeLogEntry();
+	}
+	if (!entry) {
+		showFeedbackToast("Keine Änderung zum Rückgängigmachen.", "info");
+		return;
+	}
+
+	await undoChangeLogEntry(entry);
+}
+
+async function undoChangeLogEntry(entry) {
+	if (isChangeUndoPending) {
+		return;
+	}
+	if (!entry?.can_undo) {
+		showFeedbackToast("Diese Änderung kann nicht rückgängig gemacht werden.", "warning");
+		return;
+	}
+
+	isChangeUndoPending = true;
+	setChangePanelStatus("Änderung wird rückgängig gemacht...", "pending");
+	try {
+		const result = await undoMapAuditChange(Number(entry.id));
+		applyMapFeatureEditResult(result);
+		updateRevisionFromEditResponse(result);
+		await loadChangeLog();
+		void loadReviewReports();
+		void loadWikiSyncCases();
+		showFeedbackToast(`${formatChangeAction(entry.action)} rückgängig gemacht.`, "success");
+	} catch (error) {
+		console.error("Änderung konnte nicht rückgängig gemacht werden:", error);
+		showFeedbackToast(error.message || "Änderung konnte nicht rückgängig gemacht werden.", "warning");
+		await loadChangeLog();
+	} finally {
+		isChangeUndoPending = false;
+	}
+}
+
+function isTextEditingShortcutTarget(target) {
+	const element = target instanceof Element ? target : null;
+	if (!element) {
+		return false;
+	}
+
+	return Boolean(element.isContentEditable || element.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""]'));
+}
+
+function handleChangeLogUndoShortcut(event) {
+	const key = String(event.key || "").toLowerCase();
+	if (!IS_EDIT_MODE || key !== "z" || event.altKey || event.shiftKey || !(event.ctrlKey || event.metaKey)) {
+		return false;
+	}
+	if (isTextEditingShortcutTarget(event.target)) {
+		return false;
+	}
+
+	event.preventDefault();
+	event.stopPropagation();
+	void undoLastChangeLogEntry();
+	return true;
+}
+
+function attachActiveReviewReportContext(payload) {
+	if (activeReviewReportId) {
+		payload.review_report_id = activeReviewReportId;
+		payload.review_report_source = activeReviewReportSource || "location_reports";
+	}
+
+	return payload;
 }
 
 function renderReviewReports() {
@@ -2711,7 +2883,7 @@ async function handleLocationEditFormSubmit(event) {
 		return;
 	}
 
-	const payload = buildLocationEditPayload(formElement);
+	const payload = attachActiveReviewReportContext(buildLocationEditPayload(formElement));
 	if (pendingCrossingConversionPublicId && pendingCrossingConversionPublicId === payload.public_id && !payload.name) {
 		payload.name = pendingCrossingConversionName || payload.name;
 	}
@@ -2845,7 +3017,7 @@ async function handleLabelEditFormSubmit(event) {
 		return;
 	}
 
-	const payload = buildLabelEditPayload(formElement);
+	const payload = attachActiveReviewReportContext(buildLabelEditPayload(formElement));
 	const editedLabelEntry = labelEditEntry;
 	const shouldStartMoveAfterSave = pendingLabelMoveAfterEditEntry === editedLabelEntry;
 	pendingLabelMoveAfterEditEntry = null;

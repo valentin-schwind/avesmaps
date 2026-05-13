@@ -757,6 +757,31 @@ $(document).on("click", ".change-log-entry", function (event) {
 	focusChangeLogEntry(changeEntry);
 });
 
+$(document).on("keydown", ".change-log-entry", function (event) {
+	if (event.key !== "Enter" && event.key !== " ") {
+		return;
+	}
+	if (event.target !== this) {
+		return;
+	}
+
+	event.preventDefault();
+	this.click();
+});
+
+$(document).on("click", ".change-log-entry__undo", function (event) {
+	event.preventDefault();
+	event.stopPropagation();
+	const changeId = Number(this.closest(".change-log-entry")?.dataset.changeId || 0);
+	const changeEntry = changeLogEntries.find((entry) => Number(entry.id) === changeId);
+	if (!changeEntry) {
+		showFeedbackToast("Änderung konnte nicht gefunden werden.", "warning");
+		return;
+	}
+
+	void undoChangeLogEntry(changeEntry);
+});
+
 $(document).on("click", ".review-report__reject", function (event) {
 	event.preventDefault();
 	event.stopPropagation();
