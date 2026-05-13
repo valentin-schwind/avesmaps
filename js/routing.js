@@ -804,6 +804,12 @@ $(document).on("click", ".map-context-menu__item", function (event) {
 
 	const action = this.dataset.contextAction;
 	const contextMenuLatLng = pendingContextMenuLatLng ? L.latLng(pendingContextMenuLatLng) : null;
+	if (action === "open-spotlight-search") {
+		closeMapContextMenu();
+		openSpotlightSearch();
+		return;
+	}
+
 	if (action === "share-pin" && contextMenuLatLng) {
 		setSharePin(contextMenuLatLng, { openPopup: true });
 		void copyCurrentUrlToClipboardWithFeedback();

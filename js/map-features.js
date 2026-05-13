@@ -2667,7 +2667,7 @@ function createPathLayer(path) {
 
 // Paths
 function normalizeRoutePathFeature(feature, pathId) {
-	const originalName = feature.properties?.name || feature.properties?.feature_subtype || "Weg";
+	const originalName = feature.properties?.display_name || feature.properties?.original_name || feature.properties?.name || feature.properties?.feature_subtype || "Weg";
 	const routeType = normalizePathSubtype(feature.properties?.feature_subtype || originalName);
 	return {
 		...feature,

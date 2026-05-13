@@ -12,6 +12,7 @@ schreibt sie in die Tabelle `location_reports`.
 - `update-location-report-status.php`: setzt den Status einer Ortsmeldung
 - `delete-location-report.php`: loescht Ortsmeldungen nach Ablehnung
 - `map-features.php`: liest die neue SQL-basierte Vektorkarte als GeoJSON
+- `map-search.php`: liefert die Spotlight-Kartensuche fuer Orte, Labels, Regionen, benannte Wege und Kraftlinien
 - `map-database-admin.php`: token-geschuetzter Aufbau der Future-Map-Tabellen
 - `schema.mysql.sql`: Tabellen-Schema fuer MySQL oder MariaDB
 - `schema.pgsql.sql`: Tabellen-Schema fuer PostgreSQL

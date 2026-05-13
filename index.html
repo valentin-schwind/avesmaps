@@ -113,9 +113,18 @@
 		</div>
 		<button type="button" class="map-context-menu__item" data-context-action="share-pin">📍 Stelle markieren und teilen</button>
 		<button type="button" class="map-context-menu__item" data-context-action="report-location">📝 Hier melden...</button>
+		<button type="button" class="map-context-menu__item" data-context-action="open-spotlight-search">Suchen</button>
 		<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location">🔎 Nächsten Ort finden</button>
 		<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement">📏 Entfernung messen</button>
 		<button type="button" class="map-context-menu__item" data-context-action="clear-distance-measurement">🗑️ Entfernungsmessung löschen</button>
+	</div>
+	<div id="spotlight-search-overlay" class="spotlight-search-overlay" hidden>
+		<div id="spotlight-search-dialog" class="spotlight-search" role="dialog" aria-modal="true" aria-labelledby="spotlight-search-title">
+			<h2 id="spotlight-search-title" class="spotlight-search__title">Suchen</h2>
+			<input id="spotlight-search-input" class="spotlight-search__input" type="search" autocomplete="off" spellcheck="false" placeholder="Karte durchsuchen" aria-controls="spotlight-search-results" aria-autocomplete="list" />
+			<div id="spotlight-search-results" class="spotlight-search__results" role="listbox" aria-label="Suchtreffer"></div>
+			<p id="spotlight-search-status" class="spotlight-search__status" role="status" aria-live="polite"></p>
+		</div>
 	</div>
 	<aside id="review-panel" class="review-panel" aria-labelledby="review-panel-title" hidden>
 		<header class="review-panel__header">
@@ -690,6 +699,7 @@
 	<script src="js/ui-controls.js"></script>
 	<script src="js/map-features.js"></script>
 	<script src="js/routing.js"></script>
+	<script src="js/spotlight-search.js"></script>
 	<script>
 		// Globale Variablen 
 		let locationData = [],
@@ -1163,7 +1173,7 @@
 			}
 
 			return Boolean(targetElement.closest(
-				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #review-panel, #review-panel-toggle, #location-report-overlay, #location-edit-overlay, #wiki-sync-resolve-overlay, #path-edit-overlay, #label-edit-overlay, #region-edit-overlay"
+				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #review-panel, #review-panel-toggle, #spotlight-search-overlay, #location-report-overlay, #location-edit-overlay, #wiki-sync-resolve-overlay, #path-edit-overlay, #label-edit-overlay, #region-edit-overlay"
 			));
 		}
 
@@ -1194,6 +1204,7 @@
 		map.on("movestart", closeMapContextMenu);
 		window.addEventListener("resize", closeMapContextMenu);
 		map.getContainer().addEventListener("click", handleDistanceMeasurementContainerClick, true);
+		initializeSpotlightSearch();
 		syncDistanceMeasurementContextMenuAction();
 		updateLocationReportDialogAvailability();
 

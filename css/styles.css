@@ -367,6 +367,118 @@ body.modal-dialog-open {
 	display: none !important;
 }
 
+#spotlight-search-overlay[hidden] {
+	display: none !important;
+}
+
+#spotlight-search-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 1450;
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding: min(18vh, 140px) 16px 24px;
+	background: rgba(18, 15, 12, 0.34);
+	backdrop-filter: blur(4px);
+}
+
+.spotlight-search {
+	width: min(640px, 100%);
+	overflow: hidden;
+	border: 1px solid rgba(255, 255, 255, 0.24);
+	border-radius: 8px;
+	background: rgba(31, 27, 24, 0.94);
+	box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48);
+	color: #fff9ef;
+}
+
+.spotlight-search__title {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+}
+
+.spotlight-search__input {
+	width: 100%;
+	height: 58px;
+	border: 0;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+	background: transparent;
+	color: #fff9ef;
+	font-family: Georgia, "Times New Roman", serif;
+	font-size: 24px;
+	line-height: 1.2;
+	outline: none;
+	padding: 0 20px;
+}
+
+.spotlight-search__input::placeholder {
+	color: rgba(255, 249, 239, 0.58);
+}
+
+.spotlight-search__results {
+	max-height: min(58vh, 520px);
+	overflow-y: auto;
+	padding: 6px;
+}
+
+.spotlight-search__result {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	min-height: 42px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	font: inherit;
+	padding: 8px 12px;
+	text-align: left;
+}
+
+.spotlight-search__result:hover,
+.spotlight-search__result:focus-visible,
+.spotlight-search__result.is-active {
+	background: rgba(255, 216, 88, 0.18);
+	outline: none;
+}
+
+.spotlight-search__result-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.spotlight-search__result-type {
+	overflow: hidden;
+	max-width: 180px;
+	color: rgba(255, 249, 239, 0.68);
+	font-size: 12px;
+	text-overflow: ellipsis;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.spotlight-search__status {
+	min-height: 20px;
+	margin: 0;
+	padding: 0 18px 12px;
+	color: rgba(255, 249, 239, 0.68);
+	font-size: 13px;
+}
+
+.spotlight-path-highlight {
+	filter: drop-shadow(0 0 4px rgba(255, 230, 74, 0.92));
+}
+
 #legal-overlay {
 	position: fixed;
 	inset: 0;
