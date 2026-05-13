@@ -1608,12 +1608,99 @@ function setLocationEditActive(markerEntry, isActive) {
 	markerEntry.marker.dragging.disable();
 }
 
+function areMapCoordinatesClose(firstValue, secondValue, tolerance = THRESHOLD) {
+	return Math.abs(Number(firstValue) - Number(secondValue)) <= tolerance;
+}
+
+function isPathEndpointAtLocation(coordinates, locationCoordinates) {
+	if (!Array.isArray(coordinates) || coordinates.length < 2 || !Array.isArray(locationCoordinates) || locationCoordinates.length < 2) {
+		return false;
+	}
+
+	const [locationLat, locationLng] = locationCoordinates;
+	const firstCoordinate = coordinates[0];
+	const lastCoordinate = coordinates[coordinates.length - 1];
+	return isCoordinatePairClose(firstCoordinate, locationLng, locationLat) || isCoordinatePairClose(lastCoordinate, locationLng, locationLat);
+}
+
+function isCoordinatePairClose(coordinate, targetLng, targetLat) {
+	return Array.isArray(coordinate)
+		&& coordinate.length >= 2
+		&& areMapCoordinatesClose(coordinate[0], targetLng)
+		&& areMapCoordinatesClose(coordinate[1], targetLat);
+}
+
+function shiftPathEndpointsForLocationMove(coordinates, previousCoordinates, nextCoordinates) {
+	if (!Array.isArray(coordinates) || coordinates.length < 2 || !Array.isArray(previousCoordinates) || previousCoordinates.length < 2 || !Array.isArray(nextCoordinates) || nextCoordinates.length < 2) {
+		return null;
+	}
+
+	const [previousLat, previousLng] = previousCoordinates;
+	const [nextLat, nextLng] = nextCoordinates;
+	const updatedCoordinates = coordinates.map((coordinate) => (Array.isArray(coordinate) ? [...coordinate] : coordinate));
+	let hasChanges = false;
+
+	if (isCoordinatePairClose(updatedCoordinates[0], previousLng, previousLat)) {
+		updatedCoordinates[0] = [nextLng, nextLat];
+		hasChanges = true;
+	}
+
+	const lastIndex = updatedCoordinates.length - 1;
+	if (lastIndex > 0 && isCoordinatePairClose(updatedCoordinates[lastIndex], previousLng, previousLat)) {
+		updatedCoordinates[lastIndex] = [nextLng, nextLat];
+		hasChanges = true;
+	}
+
+	return hasChanges ? updatedCoordinates : null;
+}
+
+async function moveConnectedPathEndpointsForLocation(previousCoordinates, nextCoordinates) {
+	const connectedPaths = pathData.filter((path) => isPathEndpointAtLocation(path?.geometry?.coordinates, previousCoordinates));
+	if (connectedPaths.length === 0) {
+		return {
+			movedPathCount: 0,
+			failedPathCount: 0,
+		};
+	}
+
+	let movedPathCount = 0;
+	let failedPathCount = 0;
+
+	for (const path of connectedPaths) {
+		const updatedCoordinates = shiftPathEndpointsForLocationMove(path.geometry.coordinates, previousCoordinates, nextCoordinates);
+		if (!updatedCoordinates) {
+			continue;
+		}
+
+		try {
+			const result = await submitMapFeatureEdit({
+				action: "update_path_geometry",
+				public_id: getPathPublicId(path),
+				coordinates: updatedCoordinates.map(([lng, lat]) => [lat, lng]),
+			});
+			applyMapFeatureEditResult(result);
+			updateRevisionFromEditResponse(result);
+			movedPathCount += 1;
+		} catch (error) {
+			failedPathCount += 1;
+			console.warn("An einen Ort angeschlossene Wege konnten nicht mitverschoben werden:", error);
+		}
+	}
+
+	return {
+		movedPathCount,
+		failedPathCount,
+	};
+}
+
 async function saveMovedLocationMarker(markerEntry, latlng) {
 	const normalizedLatLng = L.latLng(latlng);
 	if (!markerEntry?.publicId || !isWithinMapBounds(normalizedLatLng)) {
 		showFeedbackToast("Diese Position kann nicht gespeichert werden.", "warning");
 		return false;
 	}
+
+	const previousCoordinates = Array.isArray(markerEntry.location?.coordinates) ? [...markerEntry.location.coordinates] : null;
 
 	try {
 		const payload = await submitMapFeatureEdit({
@@ -1626,10 +1713,23 @@ async function saveMovedLocationMarker(markerEntry, latlng) {
 		markerEntry.location.coordinates = [normalizedLatLng.lat, normalizedLatLng.lng];
 		markerEntry.location.revision = Number(payload.feature?.revision) || markerEntry.location.revision || null;
 		markerEntry.marker.setLatLng(normalizedLatLng);
-		syncLocationNameLabelVisibility();
 		updateRevisionFromEditResponse(payload);
+		const pathMoveSummary = previousCoordinates
+			? await moveConnectedPathEndpointsForLocation(previousCoordinates, markerEntry.location.coordinates)
+			: {
+				movedPathCount: 0,
+				failedPathCount: 0,
+			};
+		syncLocationNameLabelVisibility();
 		refreshPlannerAfterFeatureChange({ updateRoute: true });
-		showFeedbackToast(`${markerEntry.name} gespeichert.`, "success");
+		const movedPathText = pathMoveSummary.movedPathCount > 0
+			? ` und ${pathMoveSummary.movedPathCount} ${pathMoveSummary.movedPathCount === 1 ? "angeschlossener Weg" : "angeschlossene Wege"} mitverschoben`
+			: "";
+		const statusMessage = `${markerEntry.name} gespeichert${movedPathText}.`;
+		showFeedbackToast(
+			pathMoveSummary.failedPathCount > 0 ? `${statusMessage} Einige Wege konnten nicht mitverschoben werden.` : statusMessage,
+			pathMoveSummary.failedPathCount > 0 ? "warning" : "success"
+		);
 		return true;
 	} catch (error) {
 		console.error("Ort konnte nicht gespeichert werden:", error);
