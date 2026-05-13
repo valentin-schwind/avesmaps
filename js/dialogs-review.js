@@ -1868,30 +1868,30 @@ function appendWikiSyncCaseActions(bodyElement, caseEntry) {
 	actionsElement.className = "wiki-sync-case__actions";
 
 	if (caseEntry.status === "archived" || caseEntry.status === "deferred") {
-		actionsElement.appendChild(createWikiSyncActionButton("reopen", "Wieder öffnen", "review-report__create"));
+		actionsElement.appendChild(createWikiSyncActionButton("reopen", "Wieder öffnen", "wiki-sync-case__action--primary"));
 	}
 
 	if (caseEntry.case_type === "missing_wiki_without_coordinates" && caseEntry.status === "open" && isWikiSyncCreateLocationSelectionActive && wikiSyncCreateLocationContextLatLng) {
-		actionsElement.appendChild(createWikiSyncActionButton("select-wiki-location", "Diesen Ort wählen", "review-report__create"));
+		actionsElement.appendChild(createWikiSyncActionButton("select-wiki-location", "Diesen Ort wählen", "wiki-sync-case__action--primary"));
 	} else if (caseEntry.case_type !== "missing_wiki_with_coordinates") {
-		actionsElement.appendChild(createWikiSyncActionButton("focus", "Anzeigen", "review-report__create"));
+		actionsElement.appendChild(createWikiSyncActionButton("focus", "Anzeigen", "wiki-sync-case__action--primary"));
 	}
 
 	if (canResolveWikiSyncCase(caseEntry)) {
 		const label = caseEntry.case_type === "missing_wiki_without_coordinates" ? "Position wählen" : "Lösen";
 		const action = caseEntry.case_type === "missing_wiki_without_coordinates" ? "pick-position" : "resolve";
-		actionsElement.appendChild(createWikiSyncActionButton(action, label, "review-report__create"));
+		actionsElement.appendChild(createWikiSyncActionButton(action, label, "wiki-sync-case__action--primary"));
 	}
 
-	actionsElement.appendChild(createWikiSyncActionButton("defer", "Zurückstellen", "review-report__reject"));
-	actionsElement.appendChild(createWikiSyncActionButton("archive", "Archivieren", "review-report__reject"));
+	actionsElement.appendChild(createWikiSyncActionButton("defer", "Zurückstellen", "wiki-sync-case__action--danger"));
+	actionsElement.appendChild(createWikiSyncActionButton("archive", "Archivieren", "wiki-sync-case__action--danger"));
 	bodyElement.appendChild(actionsElement);
 }
 
 function createWikiSyncActionButton(action, label, className) {
 	const buttonElement = document.createElement("button");
 	buttonElement.type = "button";
-	buttonElement.className = className;
+	buttonElement.className = `wiki-sync-case__action ${className}`;
 	buttonElement.dataset.wikiSyncAction = action;
 	buttonElement.textContent = label;
 	return buttonElement;

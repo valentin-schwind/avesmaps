@@ -1618,6 +1618,34 @@ body.modal-dialog-open {
 	color: #435724;
 }
 
+.wiki-sync-panel__start,
+.wiki-sync-case__action {
+	border-radius: 6px;
+	cursor: pointer;
+	font: inherit;
+	font-size: 12px;
+	min-height: 30px;
+	padding: 5px 8px;
+}
+
+.wiki-sync-panel__start {
+	border: 1px solid #8fa46d;
+	background: #f1f7e8;
+	color: #435724;
+}
+
+.wiki-sync-case__action--primary {
+	border: 1px solid #8fa46d;
+	background: #f1f7e8;
+	color: #435724;
+}
+
+.wiki-sync-case__action--danger {
+	border: 1px solid #b87d73;
+	background: #fff3f0;
+	color: #8a2d22;
+}
+
 .wiki-sync-panel__actions {
 	display: flex;
 	align-items: center;
