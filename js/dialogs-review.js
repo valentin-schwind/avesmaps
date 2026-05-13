@@ -1306,7 +1306,12 @@ function renderWikiSyncCases(latestRun = null) {
 	}
 
 	const previousOpenGroupKeys = getWikiSyncOpenGroupKeys();
+	const filterQuery = getWikiSyncFilterQuery();
+	const filterDisplayQuery = String(wikiSyncFilterQuery || "").trim();
+	const hasActiveFilter = filterQuery !== "";
+	const shouldCollapseGroups = wikiSyncFilterCollapseRequested && !hasActiveFilter;
 	listElement.innerHTML = "";
+	syncWikiSyncFilterControls();
 
 	if (!latestRun && wikiSyncCases.length < 1) {
 		setWikiSyncStatus("Noch kein WikiSync-Lauf. Starte die Synchronisierung manuell.", "empty");
@@ -1318,27 +1323,47 @@ function renderWikiSyncCases(latestRun = null) {
 		return;
 	}
 
-	const openCount = Number(wikiSyncSummary?.by_status?.open ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "open").length);
-	const deferredCount = Number(wikiSyncSummary?.by_status?.deferred ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "deferred").length);
-	const archivedCount = Number(wikiSyncSummary?.by_status?.archived ?? 0);
+	const filteredCases = hasActiveFilter ? getWikiSyncFilteredCases(wikiSyncCases, filterQuery) : wikiSyncCases;
+	const openCount = Number(wikiSyncSummary?.by_status?.open ?? filteredCases.filter((caseEntry) => caseEntry.status === "open").length);
+	const deferredCount = Number(wikiSyncSummary?.by_status?.deferred ?? filteredCases.filter((caseEntry) => caseEntry.status === "deferred").length);
+	const archivedCount = Number(wikiSyncSummary?.by_status?.archived ?? filteredCases.filter((caseEntry) => caseEntry.status === "archived").length);
 	const activeCount = openCount + deferredCount;
 	const statusMessage = isWikiSyncCreateLocationSelectionActive
 		? "Wählen Sie den Ort aus der Liste."
+		: hasActiveFilter
+		? `${filteredCases.length} Treffer für "${filterDisplayQuery}".`
 		: activeCount > 0
 		? `${openCount} offen, ${deferredCount} zurückgestellt, ${archivedCount} archiviert.`
 		: `${archivedCount} archiviert, keine offenen Fälle.`;
 	setWikiSyncStatus(statusMessage, isWikiSyncCreateLocationSelectionActive ? "pending" : "success");
 
 	const renderedGroupElements = new Map();
-	const openSectionElement = renderWikiSyncCaseSection(listElement, "Offen", "open", wikiSyncCases.filter((caseEntry) => caseEntry.status !== "archived"), renderedGroupElements);
-	const archivedSectionElement = renderWikiSyncCaseSection(listElement, "Archiviert", "archived", wikiSyncCases.filter((caseEntry) => caseEntry.status === "archived"), renderedGroupElements);
+	const openSectionElement = renderWikiSyncCaseSection(listElement, "Offen", "open", filteredCases.filter((caseEntry) => caseEntry.status !== "archived"), renderedGroupElements);
+	const archivedSectionElement = renderWikiSyncCaseSection(listElement, "Archiviert", "archived", filteredCases.filter((caseEntry) => caseEntry.status === "archived"), renderedGroupElements);
 	if (!openSectionElement && !archivedSectionElement) {
-		setWikiSyncStatus("Keine WikiSync-Fälle.", "empty");
+		setWikiSyncStatus(hasActiveFilter ? `Keine Treffer für "${filterDisplayQuery}".` : "Keine WikiSync-Fälle.", "empty");
+		wikiSyncFilterCollapseRequested = false;
 		syncWikiSyncCreateLocationContextMenuAction();
 		return;
 	}
 
-	restoreWikiSyncAccordionState(renderedGroupElements, previousOpenGroupKeys);
+	if (hasActiveFilter) {
+		isWikiSyncAccordionRestoring = true;
+		try {
+			listElement.querySelectorAll(".wiki-sync-case-group, .wiki-sync-case").forEach((detailsElement) => {
+				if (detailsElement instanceof HTMLDetailsElement) {
+					detailsElement.open = true;
+				}
+			});
+		} finally {
+			window.requestAnimationFrame(() => {
+				isWikiSyncAccordionRestoring = false;
+			});
+		}
+	} else if (!shouldCollapseGroups) {
+		restoreWikiSyncAccordionState(renderedGroupElements, previousOpenGroupKeys);
+	}
+
 	if (isWikiSyncCreateLocationSelectionActive) {
 		window.requestAnimationFrame(() => {
 			const selectionGroupElement = document.querySelector('#wiki-sync-case-list .wiki-sync-case-group[data-case-type="missing_wiki_without_coordinates"]');
@@ -1347,6 +1372,7 @@ function renderWikiSyncCases(latestRun = null) {
 			}
 		});
 	}
+	wikiSyncFilterCollapseRequested = false;
 	syncWikiSyncCreateLocationContextMenuAction();
 }
 
@@ -1374,6 +1400,100 @@ function restoreWikiSyncAccordionState(renderedGroupElements, previousOpenGroupK
 			isWikiSyncAccordionRestoring = false;
 		});
 	}
+}
+
+function syncWikiSyncFilterControls() {
+	const inputElement = document.getElementById("wiki-sync-filter");
+	const clearButtonElement = document.getElementById("wiki-sync-filter-clear");
+	if (inputElement instanceof HTMLInputElement) {
+		inputElement.value = wikiSyncFilterQuery;
+	}
+	if (clearButtonElement instanceof HTMLButtonElement) {
+		clearButtonElement.hidden = getWikiSyncFilterQuery() === "";
+	}
+}
+
+function setWikiSyncFilterQuery(value) {
+	const nextQuery = String(value || "");
+	const previousNormalized = getWikiSyncFilterQuery();
+	const nextNormalized = normalizeWikiSyncFilterQuery(nextQuery);
+	if (nextQuery === wikiSyncFilterQuery) {
+		syncWikiSyncFilterControls();
+		return;
+	}
+
+	const hadFilter = previousNormalized !== "";
+	wikiSyncFilterQuery = nextQuery;
+	wikiSyncFilterCollapseRequested = hadFilter && nextNormalized === "";
+	syncWikiSyncFilterControls();
+	if (previousNormalized !== nextNormalized || wikiSyncFilterCollapseRequested) {
+		renderWikiSyncCases();
+	}
+}
+
+function getWikiSyncFilterQuery() {
+	return normalizeWikiSyncFilterQuery(wikiSyncFilterQuery);
+}
+
+function normalizeWikiSyncFilterQuery(value) {
+	return normalizeWikiSyncSearchText(value).trim();
+}
+
+function normalizeWikiSyncSearchText(value) {
+	return String(value || "")
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.replace(/ß/g, "ss")
+		.toLowerCase();
+}
+
+function getWikiSyncCaseSearchText(caseEntry) {
+	const payload = caseEntry.payload || {};
+	const mapPlace = payload.map || {};
+	const wikiPage = payload.wiki || {};
+	const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
+	const matches = Array.isArray(payload.matches) ? payload.matches : [];
+	const proposedLocation = payload.proposed_location || {};
+	const tokens = [
+		caseEntry.case_label,
+		caseEntry.case_type,
+		formatWikiSyncCaseStatus(caseEntry.status),
+		getWikiSyncCaseTitle(caseEntry),
+		mapPlace.name,
+		mapPlace.settlement_label,
+		mapPlace.settlement_class,
+		wikiPage.title,
+		wikiPage.url,
+		payload.match_kind,
+		proposedLocation.source_label,
+		proposedLocation.source,
+		proposedLocation.warnings?.join(" "),
+		...candidates.map((candidate) => candidate.title || ""),
+		...matches.map((match) => match.name || ""),
+	];
+
+	if (proposedLocation.lat !== undefined && proposedLocation.lng !== undefined) {
+		tokens.push(formatLocationReportCoordinates(proposedLocation));
+	}
+
+	return normalizeWikiSyncSearchText(tokens.filter(Boolean).join(" "));
+}
+
+function getWikiSyncFilteredCases(cases = wikiSyncCases, filterQuery = "") {
+	const normalizedQuery = normalizeWikiSyncFilterQuery(filterQuery);
+	if (!normalizedQuery) {
+		return Array.isArray(cases) ? cases.slice() : [];
+	}
+
+	const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean);
+	if (queryTokens.length < 1) {
+		return Array.isArray(cases) ? cases.slice() : [];
+	}
+
+	return (Array.isArray(cases) ? cases : []).filter((caseEntry) => {
+		const searchableText = getWikiSyncCaseSearchText(caseEntry);
+		return queryTokens.every((token) => searchableText.includes(token));
+	});
 }
 
 function hasWikiSyncMissingWikiWithoutCoordinatesCases() {
@@ -1580,6 +1700,10 @@ function createWikiSyncCaseElement(caseEntry) {
 
 	detailsElement.append(summaryElement, bodyElement);
 	detailsElement.addEventListener("toggle", () => {
+		if (isWikiSyncAccordionRestoring) {
+			return;
+		}
+
 		if (detailsElement.open && (payload.map || payload.proposed_location || Array.isArray(payload.matches))) {
 			focusWikiSyncCase(caseEntry);
 		}

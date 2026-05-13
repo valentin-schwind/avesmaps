@@ -1513,6 +1513,51 @@ body.modal-dialog-open {
 	padding: 10px 10px 0;
 }
 
+.wiki-sync-panel__filter {
+	display: flex;
+	align-items: stretch;
+	gap: 8px;
+	margin: 0 10px 8px;
+}
+
+.wiki-sync-panel__filter-input {
+	flex: 1 1 auto;
+	min-width: 0;
+	border: 1px solid #cdb79f;
+	border-radius: 8px;
+	background: #fff;
+	color: #2f251c;
+	font: inherit;
+	padding: 9px 10px;
+}
+
+.wiki-sync-panel__filter-input:focus {
+	border-color: #6a7f3a;
+	box-shadow: 0 0 0 2px rgba(106, 127, 58, 0.12);
+	outline: none;
+}
+
+.wiki-sync-panel__filter-clear {
+	flex: 0 0 auto;
+	width: 36px;
+	min-width: 36px;
+	padding: 0;
+	border: 1px solid rgba(96, 72, 48, 0.24);
+	border-radius: 8px;
+	background: #f8f0e6;
+	color: #5a4a3b;
+	font-size: 20px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.wiki-sync-panel__filter-clear:hover,
+.wiki-sync-panel__filter-clear:focus-visible {
+	border-color: rgba(96, 72, 48, 0.4);
+	background: #f1e4d7;
+	outline: none;
+}
+
 .wiki-sync-progress {
 	flex: 1;
 	height: 12px;

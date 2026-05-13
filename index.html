@@ -148,6 +148,10 @@
 				<button id="wiki-sync-start" class="review-report__create" type="button">Synchronisieren</button>
 				<progress id="wiki-sync-progress" class="wiki-sync-progress" max="4" value="0" hidden></progress>
 			</div>
+			<div class="wiki-sync-panel__filter">
+				<input id="wiki-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="WikiSync-Fälle durchsuchen" />
+				<button id="wiki-sync-filter-clear" class="wiki-sync-panel__filter-clear" type="button" title="Suche löschen" aria-label="Suche löschen" hidden>×</button>
+			</div>
 			<p id="wiki-sync-status" class="review-panel__status" role="status" aria-live="polite">WikiSync ist bereit.</p>
 			<div id="wiki-sync-case-list" class="review-panel__list"></div>
 		</section>
@@ -733,6 +737,8 @@
 			pendingWikiSyncLocationPickCase = null,
 			wikiSyncCreateLocationContextLatLng = null,
 			wikiSyncCreateLocationCaseId = null,
+			wikiSyncFilterQuery = "",
+			wikiSyncFilterCollapseRequested = false,
 			isWikiSyncCreateLocationSelectionActive = false,
 			isWikiSyncAccordionRestoring = false,
 			isWikiSyncRunning = false,
@@ -986,6 +992,10 @@
 		$("#location-report-close, #location-report-cancel").on("click", () => setLocationReportDialogOpen(false, { resetForm: true }));
 		$("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));
 		$("#wiki-sync-start").on("click", () => startWikiSyncRun());
+		$("#wiki-sync-filter").on("input search", function () {
+			setWikiSyncFilterQuery(this.value || "");
+		});
+		$("#wiki-sync-filter-clear").on("click", () => setWikiSyncFilterQuery(""));
 		$("#wiki-sync-case-list").on("click", "[data-wiki-sync-action]", handleWikiSyncCaseActionClick);
 		$("#wiki-sync-resolve-close, #wiki-sync-resolve-cancel").on("click", () => setWikiSyncResolveDialogOpen(false, { resetForm: true }));
 		$("#wiki-sync-preset-wiki").on("click", () => applyWikiSyncResolvePreset("wiki"));
