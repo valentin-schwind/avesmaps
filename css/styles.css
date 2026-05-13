@@ -2112,6 +2112,10 @@ body.edit-mode .map-label span {
 	display: none;
 }
 
+.location-name-label.is-colliding {
+	display: none;
+}
+
 .map-label--meer span,
 .map-label--fluss span,
 .map-label--see span {

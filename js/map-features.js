@@ -1,5 +1,8 @@
 // Location markers and labels
 const VISUAL_MAX_ZOOM_LEVEL = 5;
+const LOCATION_LABEL_GAP = 11;
+const LOCATION_LABEL_SHIFT_SMALL = 8;
+const LOCATION_LABEL_COLLISION_PADDING = 2;
 
 function getVisualZoomLevel(zoomLevel = map.getZoom()) {
 	const roundedZoomLevel = Math.round(Number(zoomLevel));
@@ -181,7 +184,7 @@ function getLocationNameLabelSize(locationType, zoomLevel = map.getZoom()) {
 }
 
 function getLocationNameLabelOffset(labelSize, zoomLevel = map.getZoom()) {
-	const baseOffset = { x: 11 };
+	const baseOffset = { x: LOCATION_LABEL_GAP };
 	const scale = Math.max(1, locationZoomScale(zoomLevel));
 	const labelHeightInPixels = labelSize * 4 / 3;
 	return {
@@ -2202,6 +2205,17 @@ function rectanglesOverlap(firstRect, secondRect) {
 		&& firstRect.bottom > secondRect.top;
 }
 
+function expandRect(rect, padding) {
+	return {
+		left: rect.left - padding,
+		right: rect.right + padding,
+		top: rect.top - padding,
+		bottom: rect.bottom + padding,
+		width: rect.width + padding * 2,
+		height: rect.height + padding * 2,
+	};
+}
+
 function getLocationNameLabelPriority(entry) {
 	const priorities = {
 		metropole: 100,
@@ -2231,6 +2245,63 @@ function getLabelOffsetCandidates() {
 function setLabelElementOffset(element, offsetX, offsetY) {
 	element.style.setProperty("--label-offset-x", `${offsetX}px`);
 	element.style.setProperty("--label-offset-y", `${offsetY}px`);
+}
+
+function getLocationNameLabelBaseOffset(element) {
+	const labelElement = element.querySelector("span");
+	const style = labelElement ? window.getComputedStyle(labelElement) : null;
+	return {
+		x: parseFloat(style?.getPropertyValue("--location-label-offset-x")) || LOCATION_LABEL_GAP,
+		y: parseFloat(style?.getPropertyValue("--location-label-offset-y")) || 0,
+	};
+}
+
+function getLocationNameLabelOffsets(element, labelRect) {
+	const baseOffset = getLocationNameLabelBaseOffset(element);
+	const labelWidth = labelRect.width;
+	const labelHeight = labelRect.height;
+	const scaledGap = Math.max(LOCATION_LABEL_GAP, Math.abs(baseOffset.x));
+	const smallShift = LOCATION_LABEL_SHIFT_SMALL;
+	const verticalCenterOffset = -labelHeight / 2;
+
+	return [
+		{ name: "right", dx: baseOffset.x, dy: baseOffset.y },
+		{ name: "right-up", dx: baseOffset.x, dy: baseOffset.y - smallShift },
+		{ name: "right-down", dx: baseOffset.x, dy: baseOffset.y + smallShift },
+		{ name: "top-right", dx: baseOffset.x, dy: baseOffset.y - labelHeight - smallShift },
+		{ name: "bottom-right", dx: baseOffset.x, dy: baseOffset.y + labelHeight + smallShift },
+		{ name: "left", dx: -labelWidth - scaledGap, dy: baseOffset.y },
+		{ name: "left-up", dx: -labelWidth - scaledGap, dy: baseOffset.y - smallShift },
+		{ name: "left-down", dx: -labelWidth - scaledGap, dy: baseOffset.y + smallShift },
+		{ name: "top-left", dx: -labelWidth - scaledGap, dy: baseOffset.y - labelHeight - smallShift },
+		{ name: "bottom-left", dx: -labelWidth - scaledGap, dy: baseOffset.y + labelHeight + smallShift },
+		{ name: "top", dx: -labelWidth / 2, dy: verticalCenterOffset - labelHeight - smallShift },
+		{ name: "bottom", dx: -labelWidth / 2, dy: verticalCenterOffset + labelHeight + smallShift },
+	];
+}
+
+function applyLocationNameLabelOffset(element, candidate) {
+	const baseOffset = getLocationNameLabelBaseOffset(element);
+	setLabelElementOffset(element, candidate.dx - baseOffset.x, candidate.dy - baseOffset.y);
+}
+
+function getLabelCollisionTarget(element) {
+	return element.classList.contains("location-name-label")
+		? element.querySelector("span") || element
+		: element;
+}
+
+function measureLabelRect(element) {
+	return getLabelCollisionTarget(element).getBoundingClientRect();
+}
+
+function measureLabelCollisionRect(element) {
+	const rect = measureLabelRect(element);
+	if (rect.width <= 0 || rect.height <= 0) {
+		return rect;
+	}
+
+	return expandRect(rect, LOCATION_LABEL_COLLISION_PADDING);
 }
 
 function getCollisionEntries() {
@@ -2268,9 +2339,20 @@ function resolveLabelCollisions() {
 			return priorityDiff || left.minZoom - right.minZoom;
 		})
 		.forEach(({ element }) => {
-			for (const [offsetX, offsetY] of offsetCandidates) {
-				setLabelElementOffset(element, offsetX, offsetY);
-				const rect = element.getBoundingClientRect();
+			const locationLabelRect = element.classList.contains("location-name-label")
+				? measureLabelRect(element)
+				: null;
+			const candidates = locationLabelRect
+				? getLocationNameLabelOffsets(element, locationLabelRect)
+				: offsetCandidates.map(([offsetX, offsetY]) => ({ dx: offsetX, dy: offsetY }));
+
+			for (const candidate of candidates) {
+				if (locationLabelRect) {
+					applyLocationNameLabelOffset(element, candidate);
+				} else {
+					setLabelElementOffset(element, candidate.dx, candidate.dy);
+				}
+				const rect = measureLabelCollisionRect(element);
 				if (rect.width <= 0 || rect.height <= 0) {
 					return;
 				}
