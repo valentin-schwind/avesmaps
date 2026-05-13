@@ -213,7 +213,7 @@ function avesmapsValidateMapReport(array $payload): array {
     $reportConfig = AVESMAPS_REPORT_TYPES[$requestedType];
     $size = strtolower(avesmapsNormalizeSingleLine((string) ($payload['size'] ?? ''), 40));
     if ($requestedType === 'location') {
-        if (!in_array($size, AVESMAPS_LOCATION_SUBTYPES, true) || $size === 'gebaeude') {
+        if (!in_array($size, AVESMAPS_LOCATION_SUBTYPES, true)) {
             throw new InvalidArgumentException('Die Ortsgroesse ist ungueltig.');
         }
         $reportConfig['subtype'] = $size;
