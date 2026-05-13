@@ -1627,7 +1627,10 @@ function appendWikiSyncCaseActions(bodyElement, caseEntry) {
 		return;
 	}
 
-	actionsElement.appendChild(createWikiSyncActionButton("focus", "Anzeigen", "review-report__create"));
+	const showFocusAction = caseEntry.case_type !== "missing_wiki_with_coordinates";
+	if (showFocusAction) {
+		actionsElement.appendChild(createWikiSyncActionButton("focus", "Anzeigen", "review-report__create"));
+	}
 
 	if (canResolveWikiSyncCase(caseEntry)) {
 		const label = caseEntry.case_type === "missing_wiki_without_coordinates" ? "Position wählen" : "Lösen";
@@ -1824,6 +1827,10 @@ function focusWikiSyncCase(caseEntry, { mapPlace = null } = {}) {
 		}
 	}
 
+	if (caseEntry.case_type === "missing_wiki_with_coordinates") {
+		return;
+	}
+
 	showFeedbackToast("Dieser WikiSync-Fall hat keine Kartenposition.", "warning");
 }
 
@@ -1841,9 +1848,9 @@ function showWikiSyncPreviewMarker(caseEntry, latlng) {
 	const wikiPage = caseEntry.payload?.wiki || {};
 	wikiSyncPreviewMarker = L.circleMarker(latlng, {
 		pane: "measurementHandlesPane",
-		radius: 10,
+		radius: 13,
 		color: "#6a4c9c",
-		weight: 3,
+		weight: 4,
 		fillColor: "#ffffff",
 		fillOpacity: 0.96,
 	}).addTo(map);
@@ -1864,8 +1871,8 @@ function startWikiSyncLocationPick(caseEntry) {
 	pendingWikiSyncLocationPickCase = caseEntry;
 	map.off("click", handleWikiSyncLocationPick);
 	map.once("click", handleWikiSyncLocationPick);
-	setWikiSyncStatus("Position auf der Karte anklicken, danach öffnet der WikiSync-Dialog.", "pending");
-	showFeedbackToast("Position für den Wiki-Ort auf der Karte anklicken.", "info");
+	setWikiSyncStatus("Klick zur Erstellung auf die Karte.", "pending");
+	showFeedbackToast("Klick zur Erstellung auf die Karte.", "info");
 }
 
 function handleWikiSyncLocationPick(event) {

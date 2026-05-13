@@ -1416,6 +1416,18 @@ body.modal-dialog-open {
 	color: #9b2d22;
 }
 
+.review-panel__status[data-state="pending"] {
+	display: inline-flex;
+	align-self: flex-start;
+	margin: 0 10px 8px;
+	padding: 5px 10px;
+	border: 1px solid rgba(106, 127, 58, 0.28);
+	border-radius: 999px;
+	background: #f5f8eb;
+	color: #4c5d24;
+	font-weight: 700;
+}
+
 .review-panel__list {
 	display: flex;
 	flex: 1 1 auto;
