@@ -309,8 +309,8 @@ function avesmapsWikiSyncListCases(PDO $pdo): array {
     $statement = $pdo->prepare(
         "SELECT id, case_type, status, map_public_id, wiki_title, payload_json, resolution_json, signature_hash, updated_at
         FROM wiki_sync_cases
-        WHERE last_seen_run_id = :run_id
-            AND status IN ('open', 'deferred', 'archived')
+        WHERE (last_seen_run_id = :run_id AND status IN ('open', 'deferred'))
+            OR status = 'archived'
         ORDER BY
             FIELD(case_type, 'canonical_name_difference', 'type_conflict', 'probable_match', 'unresolved_without_candidate', 'duplicate_wiki_title', 'missing_wiki_with_coordinates', 'missing_wiki_without_coordinates'),
             wiki_title ASC,
@@ -946,7 +946,9 @@ function avesmapsWikiSyncUpsertCase(PDO $pdo, int $runId, array $case): void {
 
     $existingStatus = (string) $existing['status'];
     $sameSignature = hash_equals((string) $existing['signature_hash'], (string) $case['signature_hash']);
-    $nextStatus = $sameSignature ? $existingStatus : 'open';
+    $isArchived = $existingStatus === 'archived';
+    $nextStatus = $isArchived ? 'archived' : ($sameSignature ? $existingStatus : 'open');
+    $preserveReviewStateValue = ($sameSignature || $isArchived) ? 1 : 0;
     $updateStatement = $pdo->prepare(
         'UPDATE wiki_sync_cases
         SET case_type = :case_type,
@@ -957,12 +959,11 @@ function avesmapsWikiSyncUpsertCase(PDO $pdo, int $runId, array $case): void {
             payload_json = :payload_json,
             signature_hash = :signature_hash,
             last_seen_run_id = :last_seen_run_id,
-            reviewed_at = CASE WHEN :same_signature_reviewed_at = 1 THEN reviewed_at ELSE NULL END,
-            reviewed_by = CASE WHEN :same_signature_reviewed_by = 1 THEN reviewed_by ELSE NULL END,
-            resolution_json = CASE WHEN :same_signature_resolution = 1 THEN resolution_json ELSE NULL END
+            reviewed_at = CASE WHEN :preserve_reviewed_at = 1 THEN reviewed_at ELSE NULL END,
+            reviewed_by = CASE WHEN :preserve_reviewed_by = 1 THEN reviewed_by ELSE NULL END,
+            resolution_json = CASE WHEN :preserve_resolution = 1 THEN resolution_json ELSE NULL END
         WHERE id = :id'
     );
-    $sameSignatureValue = $sameSignature ? 1 : 0;
     $updateStatement->execute([
         'id' => (int) $existing['id'],
         'case_type' => $case['case_type'],
@@ -973,9 +974,9 @@ function avesmapsWikiSyncUpsertCase(PDO $pdo, int $runId, array $case): void {
         'payload_json' => avesmapsWikiSyncEncodeJson($case['payload']),
         'signature_hash' => $case['signature_hash'],
         'last_seen_run_id' => $runId,
-        'same_signature_reviewed_at' => $sameSignatureValue,
-        'same_signature_reviewed_by' => $sameSignatureValue,
-        'same_signature_resolution' => $sameSignatureValue,
+        'preserve_reviewed_at' => $preserveReviewStateValue,
+        'preserve_reviewed_by' => $preserveReviewStateValue,
+        'preserve_resolution' => $preserveReviewStateValue,
     ]);
 }
 
@@ -1537,7 +1538,8 @@ function avesmapsWikiSyncBuildSummary(PDO $pdo, int $runId): array {
     $statement = $pdo->prepare(
         'SELECT case_type, status, COUNT(*) AS case_count
         FROM wiki_sync_cases
-        WHERE last_seen_run_id = :run_id
+        WHERE (last_seen_run_id = :run_id AND status IN (\'open\', \'deferred\'))
+            OR status = \'archived\'
         GROUP BY case_type, status'
     );
     $statement->execute(['run_id' => $runId]);
