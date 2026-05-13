@@ -411,6 +411,7 @@ function resetLocationEditForm() {
 	pendingCrossingConversionPublicId = null;
 	pendingCrossingConversionName = "";
 	pendingCrossingConversionIsNodix = false;
+	resetWikiSyncCreateLocationFlowState();
 	void releaseFeatureSoftLock(publicId);
 	setLocationEditStatus();
 }
@@ -1403,6 +1404,13 @@ function clearWikiSyncCreateLocationSelection() {
 	syncWikiSyncCreateLocationContextMenuAction();
 }
 
+function resetWikiSyncCreateLocationFlowState() {
+	wikiSyncCreateLocationContextLatLng = null;
+	wikiSyncCreateLocationCaseId = null;
+	isWikiSyncCreateLocationSelectionActive = false;
+	syncWikiSyncCreateLocationContextMenuAction();
+}
+
 function openWikiSyncCreateLocationDialogFromCase(caseEntry) {
 	const latlng = wikiSyncCreateLocationContextLatLng ? L.latLng(wikiSyncCreateLocationContextLatLng) : null;
 	if (!latlng) {
@@ -1414,6 +1422,7 @@ function openWikiSyncCreateLocationDialogFromCase(caseEntry) {
 	const presetName = wikiPage.title || "";
 	const presetLocationType = normalizeLocationType(wikiPage.settlement_class || "dorf");
 	const presetWikiUrl = wikiPage.url || "";
+	wikiSyncCreateLocationCaseId = Number(caseEntry.id) || null;
 	clearWikiSyncCreateLocationSelection();
 	openLocationEditDialog({
 		latlng,
@@ -1900,6 +1909,23 @@ async function updateWikiSyncCaseStatus(caseEntry, action, successMessage) {
 	} catch (error) {
 		console.error("WikiSync-Fall konnte nicht aktualisiert werden:", error);
 		showFeedbackToast(error.message || "WikiSync-Fall konnte nicht aktualisiert werden.", "warning");
+	}
+}
+
+async function archiveWikiSyncCreatedLocationCase(caseId) {
+	const numericCaseId = Number(caseId);
+	if (!Number.isInteger(numericCaseId) || numericCaseId < 1) {
+		return false;
+	}
+
+	try {
+		await submitWikiSyncAction("archive_case", { case_id: numericCaseId });
+		await loadWikiSyncCases();
+		return true;
+	} catch (error) {
+		console.error("WikiSync-Fall konnte nicht archiviert werden:", error);
+		showFeedbackToast(error.message || "WikiSync-Fall konnte nicht archiviert werden.", "warning");
+		return false;
 	}
 }
 
@@ -2590,9 +2616,24 @@ async function handleLocationEditFormSubmit(event) {
 		pendingCrossingConversionPublicId = null;
 		pendingCrossingConversionName = "";
 		pendingCrossingConversionIsNodix = false;
+		const wikiSyncCreatedCaseId = wikiSyncCreateLocationCaseId;
+		if (wikiSyncCreatedCaseId) {
+			resetWikiSyncCreateLocationFlowState();
+			const archived = await archiveWikiSyncCreatedLocationCase(wikiSyncCreatedCaseId);
+			if (archived) {
+				setWikiSyncStatus("Ort wurde gespeichert, Wiki-Meldung ist archiviert.", "success");
+				showFeedbackToast("Ort wurde gespeichert, Wiki-Meldung ist archiviert.", "success");
+			} else {
+				showFeedbackToast("Ort wurde gespeichert, die Wiki-Meldung konnte noch nicht archiviert werden.", "warning");
+			}
+		} else {
+			resetWikiSyncCreateLocationFlowState();
+		}
 		setLocationEditSubmitPending(false);
 		setLocationEditDialogOpen(false, { resetForm: true });
-		showFeedbackToast("Ort gespeichert.", "success");
+		if (!wikiSyncCreatedCaseId) {
+			showFeedbackToast("Ort gespeichert.", "success");
+		}
 	} catch (error) {
 		console.error("Ort konnte nicht gespeichert werden:", error);
 		setLocationEditStatus(error.message || "Ort konnte nicht gespeichert werden.", "error");
