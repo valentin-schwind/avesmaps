@@ -2010,6 +2010,26 @@ body.modal-dialog-open {
 	opacity: 0.74;
 }
 
+.presence-user-group {
+	display: grid;
+	gap: 8px;
+}
+
+.presence-user-group__title {
+	margin: 0;
+	padding: 2px 14px 0;
+	color: #3f3428;
+	font-size: 12px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0;
+}
+
+.presence-user-group__list {
+	display: grid;
+	gap: 8px;
+}
+
 .presence-user__dot {
 	width: 9px;
 	height: 9px;

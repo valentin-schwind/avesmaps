@@ -2795,16 +2795,35 @@ function renderEditorPresenceUsers() {
 	}
 
 	const onlineUsers = editorPresenceUsers.filter((user) => Boolean(user.is_online));
-	const offlineUsers = editorPresenceUsers.length - onlineUsers.length;
+	const offlineUsers = editorPresenceUsers.filter((user) => !user.is_online);
 	setPresencePanelStatus(
-		offlineUsers > 0
-			? `${onlineUsers.length} online, ${offlineUsers} offline.`
+		offlineUsers.length > 0
+			? `${onlineUsers.length} online, ${offlineUsers.length} offline.`
 			: `${onlineUsers.length} Nutzer online.`,
 		onlineUsers.length > 0 ? "success" : "empty"
 	);
-	editorPresenceUsers.forEach((user) => {
+
+	renderPresenceUserGroup(listElement, "Online", onlineUsers, "online");
+	renderPresenceUserGroup(listElement, "Offline", offlineUsers, "offline");
+}
+
+function renderPresenceUserGroup(listElement, title, users, state) {
+	if (!listElement || !Array.isArray(users) || users.length < 1) {
+		return;
+	}
+
+	const groupElement = document.createElement("section");
+	groupElement.className = "presence-user-group";
+	groupElement.innerHTML = `
+		<h3 class="presence-user-group__title"></h3>
+		<div class="presence-user-group__list"></div>
+	`;
+	groupElement.querySelector(".presence-user-group__title").textContent = `${title} (${users.length})`;
+
+	const groupListElement = groupElement.querySelector(".presence-user-group__list");
+	users.forEach((user) => {
 		const itemElement = document.createElement("article");
-		itemElement.className = `presence-user${user.is_online ? " presence-user--online" : " presence-user--offline"}`;
+		itemElement.className = `presence-user presence-user--${state}`;
 		itemElement.innerHTML = `
 			<span class="presence-user__dot" aria-hidden="true"></span>
 			<span class="presence-user__body">
@@ -2817,8 +2836,10 @@ function renderEditorPresenceUsers() {
 		const roleLabel = formatPresenceRole(user.role);
 		const stateLabel = user.is_online ? "online" : "offline";
 		itemElement.querySelector(".presence-user__meta").textContent = [roleLabel, stateLabel, presenceAge].filter(Boolean).join(" · ");
-		listElement.appendChild(itemElement);
+		groupListElement.appendChild(itemElement);
 	});
+
+	listElement.appendChild(groupElement);
 }
 
 function getReportTypeLabel(report) {
