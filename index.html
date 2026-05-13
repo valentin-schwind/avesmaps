@@ -103,6 +103,7 @@
 			<button type="button" class="map-context-menu__item map-context-menu__item--submenu" data-context-action="add-here">Hier hinzufuegen</button>
 			<div class="map-context-submenu">
 				<button type="button" class="map-context-menu__item" data-context-action="create-location">Neuer Ort</button>
+				<button type="button" class="map-context-menu__item" data-context-action="create-location-from-wiki" hidden>Neuer Ort aus dem Wiki</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-crossing">Neue Kreuzung</button>
 				<button type="button" class="map-context-menu__item" data-context-action="split-path-at-node" hidden>Neue Kreuzung und Weg teilen</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-path">Neuer Weg</button>
@@ -730,6 +731,8 @@
 			activeWikiSyncPreset = null,
 			wikiSyncPreviewMarker = null,
 			pendingWikiSyncLocationPickCase = null,
+			wikiSyncCreateLocationContextLatLng = null,
+			isWikiSyncCreateLocationSelectionActive = false,
 			isWikiSyncAccordionRestoring = false,
 			isWikiSyncRunning = false,
 			isWikiSyncResolveSubmissionPending = false,
@@ -1114,6 +1117,7 @@
 			setMapContextMenuAnchor(pendingContextMenuLatLng);
 			syncDistanceMeasurementContextMenuAction();
 			syncPathSplitContextMenuAction();
+			syncWikiSyncCreateLocationContextMenuAction();
 			menuElement.hidden = false;
 			menuElement.style.left = `${clientX + MAP_CONTEXT_MENU_OFFSET_X}px`;
 			menuElement.style.top = `${clientY + MAP_CONTEXT_MENU_OFFSET_Y}px`;

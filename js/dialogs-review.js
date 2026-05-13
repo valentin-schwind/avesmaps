@@ -664,7 +664,7 @@ function openLocationReportDialog(latlng) {
 	setLocationReportDialogOpen(true);
 }
 
-function populateLocationEditForm({ markerEntry = null, latlng = null, presetName = "", presetIsNodix = null } = {}) {
+function populateLocationEditForm({ markerEntry = null, latlng = null, presetName = "", presetLocationType = "", presetWikiUrl = "", presetDescription = "", presetIsNodix = null } = {}) {
 	const formElement = getLocationEditFormElement();
 	if (!formElement) {
 		return;
@@ -678,9 +678,9 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	void acquireFeatureSoftLock(markerEntry?.publicId || "");
 	const isCrossingConversion = pendingCrossingConversionPublicId && pendingCrossingConversionPublicId === markerEntry?.publicId;
 	document.getElementById("location-edit-name").value = presetName || (isCrossingConversion ? pendingCrossingConversionName : "") || location.name || markerEntry?.name || "";
-	document.getElementById("location-edit-type").value = normalizeLocationType(location.locationType || markerEntry?.locationType || "dorf");
-	document.getElementById("location-edit-description").value = location.description || "";
-	document.getElementById("location-edit-wiki-url").value = location.wikiUrl || wikiLocationLink?.url || "";
+	document.getElementById("location-edit-type").value = normalizeLocationType(presetLocationType || location.locationType || markerEntry?.locationType || "dorf");
+	document.getElementById("location-edit-description").value = presetDescription || location.description || "";
+	document.getElementById("location-edit-wiki-url").value = presetWikiUrl || location.wikiUrl || wikiLocationLink?.url || "";
 	document.getElementById("location-edit-is-nodix").checked = presetIsNodix === null
 		? (isCrossingConversion ? pendingCrossingConversionIsNodix : Boolean(location.isNodix))
 		: Boolean(presetIsNodix);
@@ -1231,6 +1231,7 @@ async function loadWikiSyncCases() {
 		activeWikiSyncRunId = activeRun?.public_id || data.latest_run?.public_id || activeWikiSyncRunId;
 		activeWikiSyncRunStatus = activeRun?.status || "";
 		renderWikiSyncCases(data.latest_run || null);
+		syncWikiSyncCreateLocationContextMenuAction();
 		if (activeRun?.status === "running") {
 			setWikiSyncRunning(false, activeRun);
 			setWikiSyncStatus(activeRun.message || "Ein WikiSync-Lauf kann fortgesetzt werden.", "pending");
@@ -1318,20 +1319,32 @@ function renderWikiSyncCases(latestRun = null) {
 	const deferredCount = Number(wikiSyncSummary?.by_status?.deferred ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "deferred").length);
 	const archivedCount = Number(wikiSyncSummary?.by_status?.archived ?? 0);
 	const activeCount = openCount + deferredCount;
-	const statusMessage = activeCount > 0
+	const statusMessage = isWikiSyncCreateLocationSelectionActive
+		? "Wählen Sie den Ort aus der Liste."
+		: activeCount > 0
 		? `${openCount} offen, ${deferredCount} zurückgestellt, ${archivedCount} archiviert.`
 		: `${archivedCount} archiviert, keine offenen Fälle.`;
-	setWikiSyncStatus(statusMessage, "success");
+	setWikiSyncStatus(statusMessage, isWikiSyncCreateLocationSelectionActive ? "pending" : "success");
 
 	const renderedGroupElements = new Map();
 	const openSectionElement = renderWikiSyncCaseSection(listElement, "Offen", "open", wikiSyncCases.filter((caseEntry) => caseEntry.status !== "archived"), renderedGroupElements);
 	const archivedSectionElement = renderWikiSyncCaseSection(listElement, "Archiviert", "archived", wikiSyncCases.filter((caseEntry) => caseEntry.status === "archived"), renderedGroupElements);
 	if (!openSectionElement && !archivedSectionElement) {
 		setWikiSyncStatus("Keine WikiSync-Fälle.", "empty");
+		syncWikiSyncCreateLocationContextMenuAction();
 		return;
 	}
 
 	restoreWikiSyncAccordionState(renderedGroupElements, previousOpenGroupKeys);
+	if (isWikiSyncCreateLocationSelectionActive) {
+		window.requestAnimationFrame(() => {
+			const selectionGroupElement = document.querySelector('#wiki-sync-case-list .wiki-sync-case-group[data-case-type="missing_wiki_without_coordinates"]');
+			if (selectionGroupElement instanceof HTMLDetailsElement) {
+				selectionGroupElement.open = true;
+			}
+		});
+	}
+	syncWikiSyncCreateLocationContextMenuAction();
 }
 
 function getWikiSyncOpenGroupKeys() {
@@ -1358,6 +1371,59 @@ function restoreWikiSyncAccordionState(renderedGroupElements, previousOpenGroupK
 			isWikiSyncAccordionRestoring = false;
 		});
 	}
+}
+
+function hasWikiSyncMissingWikiWithoutCoordinatesCases() {
+	return wikiSyncCases.some((caseEntry) => caseEntry.case_type === "missing_wiki_without_coordinates" && caseEntry.status !== "archived");
+}
+
+function syncWikiSyncCreateLocationContextMenuAction() {
+	const actionElement = document.querySelector('[data-context-action="create-location-from-wiki"]');
+	if (!actionElement) {
+		return;
+	}
+
+	actionElement.hidden = !hasWikiSyncMissingWikiWithoutCoordinatesCases();
+}
+
+function startWikiSyncCreateLocationSelection(latlng) {
+	wikiSyncCreateLocationContextLatLng = L.latLng(latlng);
+	isWikiSyncCreateLocationSelectionActive = true;
+	if (isReviewPanelHidden) {
+		toggleReviewPanel();
+	}
+	window.setEditorPanelTab?.("wiki-sync");
+	setWikiSyncStatus("Wählen Sie den Ort aus der Liste.", "pending");
+	showFeedbackToast("Wählen Sie den Ort aus der Liste.", "info");
+}
+
+function clearWikiSyncCreateLocationSelection() {
+	wikiSyncCreateLocationContextLatLng = null;
+	isWikiSyncCreateLocationSelectionActive = false;
+	syncWikiSyncCreateLocationContextMenuAction();
+}
+
+function openWikiSyncCreateLocationDialogFromCase(caseEntry) {
+	const latlng = wikiSyncCreateLocationContextLatLng ? L.latLng(wikiSyncCreateLocationContextLatLng) : null;
+	if (!latlng) {
+		showFeedbackToast("Bitte zuerst eine Position auf der Karte wählen.", "warning");
+		return;
+	}
+
+	const wikiPage = caseEntry.payload?.wiki || {};
+	const presetName = wikiPage.title || "";
+	const presetLocationType = normalizeLocationType(wikiPage.settlement_class || "dorf");
+	const presetWikiUrl = wikiPage.url || "";
+	clearWikiSyncCreateLocationSelection();
+	openLocationEditDialog({
+		latlng,
+		presetName,
+		presetLocationType,
+		presetWikiUrl,
+		presetDescription: "",
+	});
+	renderWikiSyncCases();
+	showFeedbackToast("Wiki-Ort wird als neuer Ort angelegt.", "success");
 }
 
 function getWikiSyncFallbackGroupElement(renderedGroupElements, groupKey) {
@@ -1670,8 +1736,11 @@ function appendWikiSyncCaseActions(bodyElement, caseEntry) {
 		return;
 	}
 
-	const showFocusAction = caseEntry.case_type !== "missing_wiki_with_coordinates";
-	if (showFocusAction) {
+	if (caseEntry.case_type === "missing_wiki_without_coordinates") {
+		if (isWikiSyncCreateLocationSelectionActive && wikiSyncCreateLocationContextLatLng) {
+			actionsElement.appendChild(createWikiSyncActionButton("select-wiki-location", "Diesen Ort wählen", "review-report__create"));
+		}
+	} else if (caseEntry.case_type !== "missing_wiki_with_coordinates") {
 		actionsElement.appendChild(createWikiSyncActionButton("focus", "Anzeigen", "review-report__create"));
 	}
 
@@ -1800,6 +1869,11 @@ async function handleWikiSyncCaseActionClick(event) {
 
 	if (action === "pick-position") {
 		startWikiSyncLocationPick(caseEntry);
+		return;
+	}
+
+	if (action === "select-wiki-location") {
+		openWikiSyncCreateLocationDialogFromCase(caseEntry);
 		return;
 	}
 
