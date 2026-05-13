@@ -1355,6 +1355,12 @@ function renderWikiSyncCases(latestRun = null) {
 					detailsElement.open = true;
 				}
 			});
+			if (isWikiSyncCreateLocationSelectionActive) {
+				const selectionGroupElement = listElement.querySelector('.wiki-sync-case-group[data-case-type="missing_wiki_without_coordinates"]');
+				if (selectionGroupElement instanceof HTMLDetailsElement) {
+					selectionGroupElement.open = true;
+				}
+			}
 		} finally {
 			window.requestAnimationFrame(() => {
 				isWikiSyncAccordionRestoring = false;
@@ -1364,14 +1370,6 @@ function renderWikiSyncCases(latestRun = null) {
 		restoreWikiSyncAccordionState(renderedGroupElements, previousOpenGroupKeys);
 	}
 
-	if (isWikiSyncCreateLocationSelectionActive) {
-		window.requestAnimationFrame(() => {
-			const selectionGroupElement = document.querySelector('#wiki-sync-case-list .wiki-sync-case-group[data-case-type="missing_wiki_without_coordinates"]');
-			if (selectionGroupElement instanceof HTMLDetailsElement) {
-				selectionGroupElement.open = true;
-			}
-		});
-	}
 	wikiSyncFilterCollapseRequested = false;
 	syncWikiSyncCreateLocationContextMenuAction();
 }
@@ -1404,12 +1402,8 @@ function restoreWikiSyncAccordionState(renderedGroupElements, previousOpenGroupK
 
 function syncWikiSyncFilterControls() {
 	const inputElement = document.getElementById("wiki-sync-filter");
-	const clearButtonElement = document.getElementById("wiki-sync-filter-clear");
 	if (inputElement instanceof HTMLInputElement) {
 		inputElement.value = wikiSyncFilterQuery;
-	}
-	if (clearButtonElement instanceof HTMLButtonElement) {
-		clearButtonElement.hidden = getWikiSyncFilterQuery() === "";
 	}
 }
 
@@ -1867,8 +1861,6 @@ function appendWikiSyncCaseActions(bodyElement, caseEntry) {
 
 	if (caseEntry.status === "archived" || caseEntry.status === "deferred") {
 		actionsElement.appendChild(createWikiSyncActionButton("reopen", "Wieder öffnen", "review-report__create"));
-		bodyElement.appendChild(actionsElement);
-		return;
 	}
 
 	if (caseEntry.case_type === "missing_wiki_without_coordinates") {
