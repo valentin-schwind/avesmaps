@@ -2136,11 +2136,6 @@ function showWikiSyncPreviewMarker(caseEntry, latlng) {
 		className: "wiki-sync-preview-tooltip",
 		offset: [0, -12],
 	}).openTooltip();
-	wikiSyncPreviewMarker.bindPopup(`
-		<strong>${escapeHtml(wikiPage.title || "WikiSync-Ort")}</strong>
-		${wikiPage.url ? `<br><a href="${escapeHtml(wikiPage.url)}" target="_blank" rel="noopener">Wiki Aventurica</a>` : ""}
-	`);
-	wikiSyncPreviewMarker.openPopup();
 }
 
 function startWikiSyncLocationPick(caseEntry) {
