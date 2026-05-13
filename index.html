@@ -137,8 +137,8 @@
 		<nav class="review-panel__tabs" aria-label="Editorpanel">
 			<button class="review-panel__tab is-active" type="button" data-editor-panel-tab="review">Meldungen</button>
 			<button class="review-panel__tab" type="button" data-editor-panel-tab="changes">Änderungen</button>
-			<button class="review-panel__tab" type="button" data-editor-panel-tab="presence">Status</button>
 			<button class="review-panel__tab" type="button" data-editor-panel-tab="wiki-sync">WikiSync</button>
+			<button class="review-panel__tab" type="button" data-editor-panel-tab="presence">Status</button>
 		</nav>
 		<section class="review-panel__section is-active" data-editor-panel-section="review">
 			<p id="review-panel-status" class="review-panel__status" role="status" aria-live="polite">Meldungen werden geladen...</p>
@@ -147,10 +147,6 @@
 		<section class="review-panel__section" data-editor-panel-section="changes">
 			<p id="change-panel-status" class="review-panel__status" role="status" aria-live="polite">Änderungen werden geladen...</p>
 			<div id="change-log-list" class="review-panel__list"></div>
-		</section>
-		<section class="review-panel__section" data-editor-panel-section="presence">
-			<p id="presence-panel-status" class="review-panel__status" role="status" aria-live="polite">Nutzerstatus wird geladen...</p>
-			<div id="presence-user-list" class="review-panel__list"></div>
 		</section>
 		<section class="review-panel__section" data-editor-panel-section="wiki-sync">
 			<div class="wiki-sync-panel__actions">
@@ -162,6 +158,10 @@
 			</div>
 			<p id="wiki-sync-status" class="review-panel__status" role="status" aria-live="polite">WikiSync ist bereit.</p>
 			<div id="wiki-sync-case-list" class="review-panel__list"></div>
+		</section>
+		<section class="review-panel__section" data-editor-panel-section="presence">
+			<p id="presence-panel-status" class="review-panel__status" role="status" aria-live="polite">Nutzerstatus wird geladen...</p>
+			<div id="presence-user-list" class="review-panel__list"></div>
 		</section>
 	</aside>
 	<button id="review-panel-toggle" class="review-panel-toggle" type="button" hidden>Review</button>
