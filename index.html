@@ -1054,10 +1054,11 @@
 				return;
 			}
 
-			if (event.key === "Escape" && activeEditorPanelTab === "wiki-sync" && getWikiSyncFilterQuery() !== "") {
+			if (event.key === "Escape" && activeEditorPanelTab === "wiki-sync" && isWikiSyncCreateLocationSelectionActive) {
 				event.preventDefault();
 				event.stopPropagation();
-				setWikiSyncFilterQuery("");
+				resetWikiSyncCreateLocationFlowState();
+				renderWikiSyncCases();
 				return;
 			}
 
