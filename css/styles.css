@@ -427,6 +427,11 @@ body.modal-dialog-open {
 	padding: 5px;
 }
 
+.spotlight-search__results[hidden],
+.spotlight-search__status[hidden] {
+	display: none !important;
+}
+
 .spotlight-search__result {
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) auto;
