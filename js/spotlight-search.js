@@ -71,9 +71,11 @@ function closeSpotlightSearch({ resetInput = false } = {}) {
 	}
 	if (results) {
 		results.innerHTML = "";
+		results.hidden = true;
 	}
 	if (status) {
 		status.textContent = "";
+		status.hidden = true;
 	}
 	if (spotlightBackendAbortController) {
 		spotlightBackendAbortController.abort();
@@ -184,7 +186,7 @@ function updateSpotlightSearchResults() {
 	const query = input?.value || "";
 	const renderToken = ++spotlightSearchRenderToken;
 	const localEntries = searchSpotlightEntries(query);
-	renderSpotlightSearchResults(localEntries, query);
+	renderSpotlightSearchResults(localEntries);
 
 	if (!shouldUseBackendSpotlightSearch(query)) {
 		return;
@@ -198,7 +200,7 @@ function updateSpotlightSearchResults() {
 
 			const resolvedEntries = resolveBackendSpotlightEntries(backendResults, localEntries);
 			if (resolvedEntries.length) {
-				renderSpotlightSearchResults(resolvedEntries, query);
+				renderSpotlightSearchResults(resolvedEntries);
 			}
 		})
 		.catch((error) => {
@@ -340,7 +342,7 @@ function getSpotlightSearchScore(entry, normalizedQuery) {
 	return bestScore;
 }
 
-function renderSpotlightSearchResults(entries, query) {
+function renderSpotlightSearchResults(entries) {
 	const { input, results, status } = getSpotlightSearchElements();
 	if (!results || !status) {
 		return;
@@ -348,8 +350,9 @@ function renderSpotlightSearchResults(entries, query) {
 
 	spotlightRenderedEntries = entries;
 	results.innerHTML = entries.map((entry, index) => spotlightResultMarkup(entry, index)).join("");
-	const normalizedQuery = normalizeSpotlightSearchText(query);
-	status.textContent = normalizedQuery && entries.length === 0 ? "Keine Treffer" : "";
+	results.hidden = entries.length === 0;
+	status.textContent = "";
+	status.hidden = true;
 	setSpotlightActiveResultIndex(entries.length ? 0 : -1);
 
 	if (input) {
