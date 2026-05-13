@@ -307,7 +307,7 @@ function avesmapsWikiSyncListCases(PDO $pdo): array {
     }
 
     $statement = $pdo->prepare(
-        "SELECT id, case_type, status, map_public_id, wiki_title, payload_json, signature_hash, updated_at
+        "SELECT id, case_type, status, map_public_id, wiki_title, payload_json, resolution_json, signature_hash, updated_at
         FROM wiki_sync_cases
         WHERE last_seen_run_id = :run_id
             AND status IN ('open', 'deferred', 'archived')
@@ -330,6 +330,7 @@ function avesmapsWikiSyncListCases(PDO $pdo): array {
             'map_public_id' => (string) ($row['map_public_id'] ?? ''),
             'wiki_title' => (string) ($row['wiki_title'] ?? ''),
             'payload' => $payload,
+            'resolution' => avesmapsWikiSyncDecodeJson($row['resolution_json'] ?? null),
             'signature_hash' => (string) $row['signature_hash'],
             'updated_at' => (string) $row['updated_at'],
         ];
@@ -350,17 +351,21 @@ function avesmapsWikiSyncUpdateCaseStatus(PDO $pdo, array $payload, array $user,
         throw new InvalidArgumentException('Der WikiSync-Status ist ungueltig.');
     }
 
+    $resolution = isset($payload['resolution']) && is_array($payload['resolution']) ? $payload['resolution'] : null;
+
     $statement = $pdo->prepare(
         'UPDATE wiki_sync_cases
         SET status = :status,
             reviewed_at = CURRENT_TIMESTAMP(3),
-            reviewed_by = :reviewed_by
+            reviewed_by = :reviewed_by,
+            resolution_json = :resolution_json
         WHERE id = :id'
     );
     $statement->execute([
         'id' => $caseId,
         'status' => $status,
         'reviewed_by' => (int) ($user['id'] ?? 0) ?: null,
+        'resolution_json' => $resolution !== null ? avesmapsWikiSyncEncodeJson($resolution) : null,
     ]);
 
     if ($statement->rowCount() < 1) {

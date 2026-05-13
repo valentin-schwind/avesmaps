@@ -1444,6 +1444,7 @@ function normalizeWikiSyncSearchText(value) {
 function getWikiSyncCaseSearchText(caseEntry) {
 	const payload = caseEntry.payload || {};
 	const mapPlace = payload.map || {};
+	const resolutionFeature = payload.resolution?.feature || {};
 	const wikiPage = payload.wiki || {};
 	const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
 	const matches = Array.isArray(payload.matches) ? payload.matches : [];
@@ -1456,6 +1457,9 @@ function getWikiSyncCaseSearchText(caseEntry) {
 		mapPlace.name,
 		mapPlace.settlement_label,
 		mapPlace.settlement_class,
+		resolutionFeature.name,
+		resolutionFeature.location_type_label,
+		resolutionFeature.feature_subtype,
 		wikiPage.title,
 		wikiPage.url,
 		payload.match_kind,
@@ -1735,11 +1739,11 @@ function createWikiSyncCaseGroupElement(group, sectionKey) {
 
 function appendWikiSyncCaseRows(bodyElement, caseEntry) {
 	const payload = caseEntry.payload || {};
-	const mapPlace = payload.map || null;
+	const mapPlace = payload.map || payload.resolution?.feature || null;
 	const wikiPage = payload.wiki || null;
 
 	if (mapPlace) {
-		appendWikiSyncInfoRow(bodyElement, "Avesmaps", `${mapPlace.name || "Unbenannt"} · ${mapPlace.settlement_label || mapPlace.settlement_class || "Ort"}`);
+		appendWikiSyncInfoRow(bodyElement, "Avesmaps", `${mapPlace.name || "Unbenannt"} · ${mapPlace.settlement_label || mapPlace.location_type_label || mapPlace.settlement_class || mapPlace.feature_subtype || "Ort"}`);
 	}
 
 	if (wikiPage) {
@@ -1863,10 +1867,8 @@ function appendWikiSyncCaseActions(bodyElement, caseEntry) {
 		actionsElement.appendChild(createWikiSyncActionButton("reopen", "Wieder öffnen", "review-report__create"));
 	}
 
-	if (caseEntry.case_type === "missing_wiki_without_coordinates") {
-		if (isWikiSyncCreateLocationSelectionActive && wikiSyncCreateLocationContextLatLng) {
-			actionsElement.appendChild(createWikiSyncActionButton("select-wiki-location", "Diesen Ort wählen", "review-report__create"));
-		}
+	if (caseEntry.case_type === "missing_wiki_without_coordinates" && caseEntry.status === "open" && isWikiSyncCreateLocationSelectionActive && wikiSyncCreateLocationContextLatLng) {
+		actionsElement.appendChild(createWikiSyncActionButton("select-wiki-location", "Diesen Ort wählen", "review-report__create"));
 	} else if (caseEntry.case_type !== "missing_wiki_with_coordinates") {
 		actionsElement.appendChild(createWikiSyncActionButton("focus", "Anzeigen", "review-report__create"));
 	}
@@ -2030,14 +2032,18 @@ async function updateWikiSyncCaseStatus(caseEntry, action, successMessage) {
 	}
 }
 
-async function archiveWikiSyncCreatedLocationCase(caseId) {
+async function archiveWikiSyncCreatedLocationCase(caseId, feature = null) {
 	const numericCaseId = Number(caseId);
 	if (!Number.isInteger(numericCaseId) || numericCaseId < 1) {
 		return false;
 	}
 
 	try {
-		await submitWikiSyncAction("archive_case", { case_id: numericCaseId });
+		const payload = { case_id: numericCaseId };
+		if (feature) {
+			payload.resolution = { feature };
+		}
+		await submitWikiSyncAction("archive_case", payload);
 		await loadWikiSyncCases();
 		return true;
 	} catch (error) {
@@ -2051,6 +2057,10 @@ function findWikiSyncMapInCase(caseEntry, publicId = "") {
 	const payload = caseEntry.payload || {};
 	if (payload.map && (!publicId || payload.map.public_id === publicId)) {
 		return payload.map;
+	}
+
+	if (payload.resolution?.feature && (!publicId || payload.resolution.feature.public_id === publicId)) {
+		return payload.resolution.feature;
 	}
 
 	const matches = Array.isArray(payload.matches) ? payload.matches : [];
@@ -2736,8 +2746,8 @@ async function handleLocationEditFormSubmit(event) {
 		pendingCrossingConversionIsNodix = false;
 		const wikiSyncCreatedCaseId = wikiSyncCreateLocationCaseId;
 		if (wikiSyncCreatedCaseId) {
+			const archived = await archiveWikiSyncCreatedLocationCase(wikiSyncCreatedCaseId, responseFeature || result.feature || null);
 			resetWikiSyncCreateLocationFlowState();
-			const archived = await archiveWikiSyncCreatedLocationCase(wikiSyncCreatedCaseId);
 			if (archived) {
 				setWikiSyncStatus("Ort wurde gespeichert, Wiki-Meldung ist archiviert.", "success");
 				showFeedbackToast("Ort wurde gespeichert, Wiki-Meldung ist archiviert.", "success");
