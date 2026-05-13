@@ -1086,6 +1086,40 @@ function setWikiSyncStatus(message, state = "") {
 	statusElement.dataset.state = state;
 }
 
+function formatPresenceAge(secondsSinceSeen) {
+	const seconds = Number(secondsSinceSeen);
+	if (!Number.isFinite(seconds) || seconds < 0) {
+		return "";
+	}
+
+	if (seconds < 30) {
+		return "gerade eben";
+	}
+
+	if (seconds < 90) {
+		return "vor 1 Min.";
+	}
+
+	if (seconds < 3600) {
+		return `vor ${Math.max(2, Math.round(seconds / 60))} Min.`;
+	}
+
+	if (seconds < 86400) {
+		return `vor ${Math.max(1, Math.round(seconds / 3600))} Std.`;
+	}
+
+	return `vor ${Math.max(1, Math.round(seconds / 86400))} Tagen`;
+}
+
+function formatPresenceRole(role) {
+	const normalizedRole = String(role || "").trim().toLowerCase();
+	return {
+		admin: "Admin",
+		editor: "Editor",
+		reviewer: "Reviewer",
+	}[normalizedRole] || normalizedRole || "Editor";
+}
+
 function setWikiSyncRunning(isRunning, run = null) {
 	isWikiSyncRunning = isRunning;
 
@@ -2734,7 +2768,7 @@ async function sendEditorPresenceHeartbeat() {
 		renderEditorPresenceUsers();
 	} catch (error) {
 		console.warn("Online-Status konnte nicht aktualisiert werden:", error);
-		setPresencePanelStatus(error.message || "Online-Status konnte nicht geladen werden.", "error");
+		setPresencePanelStatus(error.message || "Nutzerstatus konnte nicht geladen werden.", "error");
 	}
 }
 
@@ -2756,23 +2790,33 @@ function renderEditorPresenceUsers() {
 
 	listElement.innerHTML = "";
 	if (editorPresenceUsers.length < 1) {
-		setPresencePanelStatus("Niemand online.", "empty");
+		setPresencePanelStatus("Keine review-berechtigten Nutzer gefunden.", "empty");
 		return;
 	}
 
-	setPresencePanelStatus(`${editorPresenceUsers.length} Nutzer online.`, "success");
+	const onlineUsers = editorPresenceUsers.filter((user) => Boolean(user.is_online));
+	const offlineUsers = editorPresenceUsers.length - onlineUsers.length;
+	setPresencePanelStatus(
+		offlineUsers > 0
+			? `${onlineUsers.length} online, ${offlineUsers} offline.`
+			: `${onlineUsers.length} Nutzer online.`,
+		onlineUsers.length > 0 ? "success" : "empty"
+	);
 	editorPresenceUsers.forEach((user) => {
 		const itemElement = document.createElement("article");
-		itemElement.className = "presence-user";
+		itemElement.className = `presence-user${user.is_online ? " presence-user--online" : " presence-user--offline"}`;
 		itemElement.innerHTML = `
 			<span class="presence-user__dot" aria-hidden="true"></span>
-			<span>
+			<span class="presence-user__body">
 				<span class="presence-user__name"></span>
 				<span class="presence-user__meta"></span>
 			</span>
 		`;
 		itemElement.querySelector(".presence-user__name").textContent = user.username || "Editor";
-		itemElement.querySelector(".presence-user__meta").textContent = ` ${user.role || ""}`;
+		const presenceAge = formatPresenceAge(user.seconds_since_seen);
+		const roleLabel = formatPresenceRole(user.role);
+		const stateLabel = user.is_online ? "online" : "offline";
+		itemElement.querySelector(".presence-user__meta").textContent = [roleLabel, stateLabel, presenceAge].filter(Boolean).join(" · ");
 		listElement.appendChild(itemElement);
 	});
 }

@@ -2006,6 +2006,10 @@ body.modal-dialog-open {
 	padding: 10px;
 }
 
+.presence-user--offline {
+	opacity: 0.74;
+}
+
 .presence-user__dot {
 	width: 9px;
 	height: 9px;
@@ -2015,13 +2019,27 @@ body.modal-dialog-open {
 	flex: 0 0 auto;
 }
 
+.presence-user--offline .presence-user__dot {
+	background: #a18c74;
+	box-shadow: 0 0 0 3px rgba(161, 140, 116, 0.16);
+}
+
+.presence-user__body {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-width: 0;
+}
+
 .presence-user__name {
 	font-weight: 700;
+	line-height: 1.2;
 }
 
 .presence-user__meta {
 	color: #6d5b49;
 	font-size: 12px;
+	line-height: 1.35;
 }
 
 .review-report-tooltip {

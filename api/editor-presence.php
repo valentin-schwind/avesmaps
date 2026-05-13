@@ -95,10 +95,21 @@ function avesmapsWriteEditorPresenceHeartbeat(PDO $pdo, array $user): void {
 
 function avesmapsListOnlineEditors(PDO $pdo): array {
     $statement = $pdo->prepare(
-        'SELECT user_id, username, role, last_seen
-        FROM editor_presence
-        WHERE last_seen >= DATE_SUB(NOW(3), INTERVAL ' . AVESMAPS_EDITOR_PRESENCE_ONLINE_SECONDS . ' SECOND)
-        ORDER BY username ASC'
+        'SELECT
+            users.id AS user_id,
+            users.username,
+            users.role,
+            editor_presence.last_seen,
+            TIMESTAMPDIFF(SECOND, editor_presence.last_seen, NOW(3)) AS seconds_since_seen,
+            CASE
+                WHEN editor_presence.last_seen >= DATE_SUB(NOW(3), INTERVAL ' . AVESMAPS_EDITOR_PRESENCE_ONLINE_SECONDS . ' SECOND) THEN 1
+                ELSE 0
+            END AS is_online
+        FROM users
+        LEFT JOIN editor_presence ON editor_presence.user_id = users.id
+        WHERE users.is_active = 1
+          AND users.role IN (\'admin\', \'editor\', \'reviewer\')
+        ORDER BY is_online DESC, users.username ASC'
     );
     $statement->execute();
 
@@ -107,7 +118,9 @@ function avesmapsListOnlineEditors(PDO $pdo): array {
             'id' => (int) $row['user_id'],
             'username' => (string) $row['username'],
             'role' => (string) $row['role'],
-            'last_seen' => (string) $row['last_seen'],
+            'last_seen' => $row['last_seen'] !== null ? (string) $row['last_seen'] : null,
+            'seconds_since_seen' => $row['seconds_since_seen'] !== null ? (int) $row['seconds_since_seen'] : null,
+            'is_online' => (int) $row['is_online'] === 1,
         ],
         $statement->fetchAll()
     );
