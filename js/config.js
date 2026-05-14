@@ -12,7 +12,7 @@ const MAP_BOUNDS = [
 ];
 const MAP_DECORATION_CONFIG = {
 	compass: {
-		src: "img/compass.png",
+		src: "img/compass_2.png",
 		coordinates: [1006, 1006],
 		size: [96, 94],
 		anchor: [96, 94],
