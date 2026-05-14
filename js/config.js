@@ -10,6 +10,23 @@ const MAP_BOUNDS = [
 	[0, 0],
 	[IMG_WIDTH, IMG_HEIGHT],
 ];
+const MAP_DECORATION_CONFIG = {
+	compass: {
+		src: "img/compass.png",
+		coordinates: [897.25, 153.875],
+		size: [96, 94],
+		anchor: [48, 47],
+		alt: "Kompassrose",
+	},
+	logo: {
+		src: "img/dsa-fanprojekt-logo.png",
+		coordinates: [18, 1004],
+		size: [144, 40],
+		anchor: [144, 0],
+		alt: "DSA-Fanprojekt",
+	},
+};
+const MAP_SCALE_BAND_MILES_BY_ZOOM = [100, 50, 25, 10, 5, 2, 1];
 
 const ROUTE_STYLE = { pane: "routePane", color: "#1452F7", weight: 10, opacity: 1, interactive: true, lineCap: "round", lineJoin: "round" };
 const ROUTE_SELECTED_STYLE = { color: "#ffd54a", weight: ROUTE_STYLE.weight, opacity: 1 };

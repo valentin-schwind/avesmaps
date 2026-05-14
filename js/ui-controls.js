@@ -1,3 +1,68 @@
+function createMapDecorationIcon(config) {
+	const [width, height] = config.size;
+	const [anchorX, anchorY] = config.anchor;
+	return L.divIcon({
+		className: "map-decoration-marker",
+		html: `<img class="map-decoration-marker__image" src="${escapeHtml(withAssetVersion(config.src))}" alt="${escapeHtml(config.alt || "")}" style="width:${width}px;height:${height}px;">`,
+		iconSize: [width, height],
+		iconAnchor: [anchorX, anchorY],
+	});
+}
+
+function addMapDecorationMarker(config) {
+	return L.marker(config.coordinates, {
+		icon: createMapDecorationIcon(config),
+		interactive: false,
+		keyboard: false,
+		pane: "mapDecorationsPane",
+	}).addTo(map);
+}
+
+function getScaleBandMilesForCurrentZoom() {
+	const zoomLevel = Math.max(0, Math.min(MAP_SCALE_BAND_MILES_BY_ZOOM.length - 1, Math.round(Number(map.getZoom())) || 0));
+	return MAP_SCALE_BAND_MILES_BY_ZOOM[zoomLevel];
+}
+
+function getScaleBandWidthPixels(distanceInMiles) {
+	const mapUnits = distanceInMiles / DISTANCE_SCALING_FACTOR;
+	const startPoint = map.latLngToContainerPoint([0, 0]);
+	const endPoint = map.latLngToContainerPoint([0, mapUnits]);
+	return Math.max(1, Math.abs(endPoint.x - startPoint.x));
+}
+
+function syncMapScaleBand(controlElement) {
+	const distanceInMiles = getScaleBandMilesForCurrentZoom();
+	const widthInPixels = getScaleBandWidthPixels(distanceInMiles);
+	const bandElement = controlElement.querySelector(".map-scale-band__bar");
+	const labelElement = controlElement.querySelector(".map-scale-band__label");
+
+	if (bandElement) {
+		bandElement.style.width = `${Math.round(widthInPixels)}px`;
+	}
+
+	if (labelElement) {
+		labelElement.textContent = `${distanceInMiles} Meilen`;
+	}
+}
+
+function addMapScaleBandControl() {
+	const scaleBandControl = L.control({ position: "bottomleft" });
+	scaleBandControl.onAdd = () => {
+		const container = L.DomUtil.create("div", "map-scale-band leaflet-control");
+		container.innerHTML = '<div class="map-scale-band__bar" aria-hidden="true"><span></span><span></span></div><div class="map-scale-band__label"></div>';
+		L.DomEvent.disableClickPropagation(container);
+		syncMapScaleBand(container);
+		map.on("zoomend resize", () => syncMapScaleBand(container));
+		return container;
+	};
+	scaleBandControl.addTo(map);
+}
+
+function initializeMapDecorations() {
+	Object.values(MAP_DECORATION_CONFIG).forEach(addMapDecorationMarker);
+	addMapScaleBandControl();
+}
+
 function getDistanceMeasurementMidpoint(startLatLng, endLatLng) {
 	return L.latLng(
 		(startLatLng.lat + endLatLng.lat) / 2,

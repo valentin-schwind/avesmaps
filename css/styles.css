@@ -26,6 +26,68 @@ html {
 	width: 100%;
 }
 
+.map-decoration-marker {
+	background: transparent;
+	border: 0 !important;
+	pointer-events: none;
+}
+
+.map-decoration-marker__image {
+	display: block;
+	object-fit: contain;
+	pointer-events: none;
+	user-select: none;
+}
+
+.leaflet-bottom.leaflet-left .map-scale-band {
+	margin-left: 50vw;
+	transform: translateX(-50%);
+}
+
+.map-scale-band {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	margin-bottom: 18px;
+	padding: 7px 10px 6px;
+	border: 1px solid rgba(50, 39, 27, 0.55);
+	border-radius: 6px;
+	background: rgba(255, 248, 229, 0.68);
+	box-shadow: 0 2px 9px rgba(0, 0, 0, 0.26);
+	color: #30251a;
+	pointer-events: none;
+}
+
+.map-scale-band__bar {
+	display: flex;
+	min-width: 1px;
+	height: 9px;
+	border: 1px solid rgba(48, 37, 26, 0.78);
+	background: rgba(255, 255, 255, 0.72);
+	box-sizing: content-box;
+}
+
+.map-scale-band__bar span {
+	flex: 1 1 0;
+	min-width: 1px;
+}
+
+.map-scale-band__bar span:first-child {
+	background: rgba(48, 37, 26, 0.82);
+}
+
+.map-scale-band__bar span:last-child {
+	background: rgba(255, 255, 255, 0.72);
+}
+
+.map-scale-band__label {
+	font-size: 11px;
+	line-height: 1;
+	white-space: nowrap;
+	text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
 #search {
 	position: absolute;
 	top: 10px;

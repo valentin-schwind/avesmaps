@@ -823,6 +823,7 @@
 
 		// Rendering-Reihenfolge
 		map.createPane("regionsPane");
+		map.createPane("mapDecorationsPane");
 		map.createPane("roadsOutlinePane");
 		map.createPane("roadsPane");
 		map.createPane("powerlinesPane");
@@ -834,6 +835,7 @@
 		map.createPane("labelsPane");
 
 		map.getPane("regionsPane").style.zIndex = 200;
+		map.getPane("mapDecorationsPane").style.zIndex = 480;
 		map.getPane("roadsOutlinePane").style.zIndex = 350;
 		map.getPane("roadsPane").style.zIndex = 400;
 		map.getPane("powerlinesPane").style.zIndex = 430;
@@ -846,6 +848,7 @@
 		map.getPane("tooltipPane").style.zIndex = 875;
 		map.getPane("popupPane").style.zIndex = 900;
 
+		initializeMapDecorations();
 		L.control.zoom({ position: "topright" }).addTo(map);
 		map.setMaxBounds(MAP_BOUNDS);
 
