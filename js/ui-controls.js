@@ -1,19 +1,20 @@
-function createMapDecorationIcon(config) {
+function getMapDecorationBounds(config) {
 	const [width, height] = config.size;
 	const [anchorX, anchorY] = config.anchor;
-	return L.divIcon({
-		className: "map-decoration-marker",
-		html: `<img class="map-decoration-marker__image" src="${escapeHtml(withAssetVersion(config.src))}" alt="${escapeHtml(config.alt || "")}" style="width:${width}px;height:${height}px;">`,
-		iconSize: [width, height],
-		iconAnchor: [anchorX, anchorY],
-	});
+	const anchorPoint = map.project(L.latLng(config.coordinates), 0);
+	const topLeftPoint = anchorPoint.subtract(L.point(anchorX, anchorY));
+	const bottomRightPoint = topLeftPoint.add(L.point(width, height));
+	return L.latLngBounds(
+		map.unproject(topLeftPoint, 0),
+		map.unproject(bottomRightPoint, 0)
+	);
 }
 
-function addMapDecorationMarker(config) {
-	return L.marker(config.coordinates, {
-		icon: createMapDecorationIcon(config),
+function addMapDecorationOverlay(config) {
+	return L.imageOverlay(withAssetVersion(config.src), getMapDecorationBounds(config), {
+		alt: config.alt || "",
+		className: "map-decoration-overlay",
 		interactive: false,
-		keyboard: false,
 		pane: "mapDecorationsPane",
 	}).addTo(map);
 }
@@ -63,7 +64,7 @@ function addMapScaleBandControl() {
 }
 
 function initializeMapDecorations() {
-	Object.values(MAP_DECORATION_CONFIG).forEach(addMapDecorationMarker);
+	Object.values(MAP_DECORATION_CONFIG).forEach(addMapDecorationOverlay);
 	addMapScaleBandControl();
 }
 
