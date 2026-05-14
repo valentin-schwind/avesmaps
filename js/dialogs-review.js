@@ -1087,6 +1087,10 @@ function setWikiSyncStatus(message, state = "") {
 }
 
 function formatPresenceAge(secondsSinceSeen) {
+	if (secondsSinceSeen === null || secondsSinceSeen === undefined || secondsSinceSeen === "") {
+		return "noch nie online";
+	}
+
 	const seconds = Number(secondsSinceSeen);
 	if (!Number.isFinite(seconds) || seconds < 0) {
 		return "";
