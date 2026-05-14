@@ -5,7 +5,7 @@ dem Rollenspiel "Das Schwarze Auge". Die Anwendung zeigt eine kachelbasierte
 Karte, Orte, Wege und optionale Regionsgrenzen an und berechnet Reiserouten
 direkt im Browser.
 
-![Beispielansicht](img/example.jpg)
+![Beispielansicht](img/example.png)
 
 Die aktuell erreichbare Version laeuft unter [https://valentin-schwind.github.io/avesmaps/](https://valentin-schwind.github.io/avesmaps/).
 
