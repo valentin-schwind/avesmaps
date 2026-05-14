@@ -117,17 +117,33 @@ try {
         'ok' => false,
         'error' => $exception->getMessage(),
     ]);
-} catch (PDOException) {
+} catch (PDOException $exception) {
+    avesmapsWikiSyncLogServerError('database_error', [
+        'exception_code' => (string) $exception->getCode(),
+        'exception_message' => $exception->getMessage(),
+        'sqlstate' => (string) ($exception->errorInfo[0] ?? ''),
+        'driver_code' => (string) ($exception->errorInfo[1] ?? ''),
+        'driver_message' => (string) ($exception->errorInfo[2] ?? ''),
+    ]);
     avesmapsJsonResponse(500, [
         'ok' => false,
         'error' => 'WikiSync konnte die Datenbank nicht verarbeiten.',
     ]);
 } catch (RuntimeException $exception) {
+    avesmapsWikiSyncLogServerError('runtime_error', [
+        'exception_code' => (string) $exception->getCode(),
+        'exception_message' => $exception->getMessage(),
+    ]);
     avesmapsJsonResponse(503, [
         'ok' => false,
         'error' => $exception->getMessage(),
     ]);
-} catch (Throwable) {
+} catch (Throwable $exception) {
+    avesmapsWikiSyncLogServerError('unexpected_error', [
+        'exception_class' => $exception::class,
+        'exception_code' => (string) $exception->getCode(),
+        'exception_message' => $exception->getMessage(),
+    ]);
     avesmapsJsonResponse(500, [
         'ok' => false,
         'error' => 'WikiSync konnte nicht verarbeitet werden.',
@@ -828,8 +844,15 @@ function avesmapsWikiSyncBuildAndStoreCases(PDO $pdo, int $runId, array $stats):
     $unresolved = is_array($stats['unresolved'] ?? null) ? $stats['unresolved'] : [];
     $missingPlaces = is_array($stats['missing_wiki_places'] ?? null) ? $stats['missing_wiki_places'] : [];
 
-    foreach (avesmapsWikiSyncFindDuplicateMapPlaceNames($mapPlaces) as $duplicateGroup) {
-        $cases[] = avesmapsWikiSyncBuildCase('duplicate_avesmaps_name', $duplicateGroup);
+    try {
+        foreach (avesmapsWikiSyncFindDuplicateMapPlaceNames($mapPlaces) as $duplicateGroup) {
+            $cases[] = avesmapsWikiSyncBuildCase('duplicate_avesmaps_name', $duplicateGroup);
+        }
+    } catch (Throwable $exception) {
+        avesmapsWikiSyncLogServerError('duplicate_avesmaps_name_build_error', [
+            'exception_class' => $exception::class,
+            'exception_message' => $exception->getMessage(),
+        ]);
     }
 
     foreach ($matches as $match) {
@@ -882,7 +905,20 @@ function avesmapsWikiSyncBuildAndStoreCases(PDO $pdo, int $runId, array $stats):
 
     $storedCount = 0;
     foreach ($cases as $case) {
-        avesmapsWikiSyncUpsertCase($pdo, $runId, $case);
+        try {
+            avesmapsWikiSyncUpsertCase($pdo, $runId, $case);
+        } catch (Throwable $exception) {
+            if ((string) ($case['case_type'] ?? '') !== 'duplicate_avesmaps_name') {
+                throw $exception;
+            }
+
+            avesmapsWikiSyncLogServerError('duplicate_avesmaps_name_store_error', [
+                'exception_class' => $exception::class,
+                'exception_message' => $exception->getMessage(),
+            ]);
+            continue;
+        }
+
         $storedCount++;
     }
 
@@ -922,10 +958,10 @@ function avesmapsWikiSyncFindDuplicateMapPlaceNames(array $mapPlaces): array {
             continue;
         }
 
-        $placesByName[$name][] = avesmapsWikiSyncPublicMapPlace($mapPlace);
+        $placesByName[$name][] = avesmapsWikiSyncPublicDuplicateMapPlace($mapPlace);
     }
 
-    ksort($placesByName, SORT_NATURAL | SORT_FLAG_CASE);
+    uksort($placesByName, static fn(string $left, string $right): int => strcasecmp($left, $right));
     $duplicateGroups = [];
     foreach ($placesByName as $name => $places) {
         if (count($places) < 2) {
@@ -943,6 +979,19 @@ function avesmapsWikiSyncFindDuplicateMapPlaceNames(array $mapPlaces): array {
     }
 
     return $duplicateGroups;
+}
+
+function avesmapsWikiSyncPublicDuplicateMapPlace(array $mapPlace): array {
+    return [
+        'id' => (int) ($mapPlace['id'] ?? 0),
+        'public_id' => (string) ($mapPlace['public_id'] ?? ''),
+        'name' => (string) ($mapPlace['name'] ?? ''),
+        'settlement_class' => (string) ($mapPlace['settlement_class'] ?? 'dorf'),
+        'settlement_label' => (string) ($mapPlace['settlement_label'] ?? 'Dorf'),
+        'lat' => (float) ($mapPlace['lat'] ?? 0),
+        'lng' => (float) ($mapPlace['lng'] ?? 0),
+        'revision' => (int) ($mapPlace['revision'] ?? 0),
+    ];
 }
 
 function avesmapsWikiSyncUpsertCase(PDO $pdo, int $runId, array $case): void {
@@ -1948,6 +1997,19 @@ function avesmapsWikiSyncDecodeJson(mixed $value): array {
 
 function avesmapsWikiSyncEncodeJson(mixed $value): string {
     return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+}
+
+function avesmapsWikiSyncLogServerError(string $label, array $context): void {
+    $payload = [
+        'label' => $label,
+        'context' => $context,
+    ];
+
+    try {
+        error_log('Avesmaps WikiSync error: ' . avesmapsWikiSyncEncodeJson($payload));
+    } catch (Throwable) {
+        error_log('Avesmaps WikiSync error: ' . $label);
+    }
 }
 
 function avesmapsWikiSyncUuidV4(): string {
