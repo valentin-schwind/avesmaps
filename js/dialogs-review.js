@@ -1490,6 +1490,7 @@ function getWikiSyncCaseSearchText(caseEntry) {
 		caseEntry.case_type,
 		formatWikiSyncCaseStatus(caseEntry.status),
 		getWikiSyncCaseTitle(caseEntry),
+		payload.name,
 		mapPlace.name,
 		mapPlace.settlement_label,
 		mapPlace.settlement_class,
@@ -1687,9 +1688,10 @@ function getWikiSyncCaseTypeOrder(caseType) {
 		type_conflict: 20,
 		probable_match: 30,
 		unresolved_without_candidate: 40,
-		duplicate_wiki_title: 50,
-		missing_wiki_with_coordinates: 60,
-		missing_wiki_without_coordinates: 70,
+		duplicate_avesmaps_name: 50,
+		duplicate_wiki_title: 60,
+		missing_wiki_with_coordinates: 70,
+		missing_wiki_without_coordinates: 80,
 	};
 
 	return order[caseType] || 999;
@@ -1701,6 +1703,7 @@ function getWikiSyncCaseTypeLabel(caseType) {
 		type_conflict: "Typkonflikte",
 		probable_match: "Unaufgelöst, aber mit wahrscheinlichem Match",
 		unresolved_without_candidate: "Unaufgelöst, ohne Match",
+		duplicate_avesmaps_name: "Dubletten in Avesmaps",
 		duplicate_wiki_title: "Mehrere Avesmaps-Namen zeigen auf denselben Wiki-Titel",
 		missing_wiki_with_coordinates: "Fehlende Wiki-Orte mit Koordinaten",
 		missing_wiki_without_coordinates: "Fehlende Wiki-Orte ohne nutzbare Koordinaten",
@@ -1794,6 +1797,11 @@ function appendWikiSyncCaseRows(bodyElement, caseEntry) {
 		appendWikiSyncInfoRow(bodyElement, "Match", formatWikiSyncMatchKind(payload.match_kind));
 	}
 
+	if (caseEntry.case_type === "duplicate_avesmaps_name") {
+		appendWikiSyncInfoRow(bodyElement, "Name", payload.name || "Unbenannt");
+		appendWikiSyncInfoRow(bodyElement, "Treffer", String(Array.isArray(payload.matches) ? payload.matches.length : 0));
+	}
+
 	if (payload.proposed_location) {
 		const sourceLabel = payload.proposed_location.source_label || payload.proposed_location.source || "Koordinaten";
 		appendWikiSyncInfoRow(bodyElement, "Position", `${formatLocationReportCoordinates(payload.proposed_location)} · ${sourceLabel}`);
@@ -1808,7 +1816,40 @@ function appendWikiSyncCaseCandidates(bodyElement, caseEntry) {
 	const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
 	const matches = Array.isArray(payload.matches) ? payload.matches : [];
 
-	if (caseEntry.case_type === "duplicate_wiki_title" && matches.length > 0) {
+	if (caseEntry.case_type === "duplicate_avesmaps_name" && matches.length > 0) {
+		const sectionElement = document.createElement("div");
+		sectionElement.className = "wiki-sync-case__choices wiki-sync-case__choices--duplicate";
+		const labelElement = document.createElement("span");
+		labelElement.className = "wiki-sync-case__choices-label";
+		labelElement.textContent = "Avesmaps-Dubletten";
+		sectionElement.appendChild(labelElement);
+
+		matches.forEach((match, index) => {
+			const entryElement = document.createElement("div");
+			entryElement.className = "wiki-sync-case__duplicate-entry";
+
+			const entryTitleElement = document.createElement("span");
+			entryTitleElement.className = "wiki-sync-case__duplicate-title";
+			entryTitleElement.textContent = `${index + 1}. Ort: ${match.name || "Unbenannter Ort"} · ${match.settlement_label || match.settlement_class || "Ort"}`;
+			entryElement.appendChild(entryTitleElement);
+
+			const entryActionsElement = document.createElement("div");
+			entryActionsElement.className = "wiki-sync-case__duplicate-actions";
+
+			const showButtonElement = document.createElement("button");
+			showButtonElement.type = "button";
+			showButtonElement.className = "wiki-sync-case__choice";
+			showButtonElement.dataset.wikiSyncAction = "focus";
+			showButtonElement.dataset.publicId = match.public_id || "";
+			showButtonElement.textContent = "Anzeigen";
+			entryActionsElement.appendChild(showButtonElement);
+
+			entryElement.appendChild(entryActionsElement);
+			sectionElement.appendChild(entryElement);
+		});
+
+		bodyElement.appendChild(sectionElement);
+	} else if (caseEntry.case_type === "duplicate_wiki_title" && matches.length > 0) {
 		const sectionElement = document.createElement("div");
 		sectionElement.className = "wiki-sync-case__choices wiki-sync-case__choices--duplicate";
 		const labelElement = document.createElement("span");
@@ -1963,7 +2004,7 @@ function appendWikiSyncLinkRow(bodyElement, label, text, url) {
 }
 
 function canResolveWikiSyncCase(caseEntry) {
-	if (caseEntry.case_type === "unresolved_without_candidate") {
+	if (caseEntry.case_type === "unresolved_without_candidate" || caseEntry.case_type === "duplicate_avesmaps_name") {
 		return false;
 	}
 
@@ -1981,6 +2022,11 @@ function getWikiSyncCaseTitle(caseEntry) {
 
 	if (caseEntry.case_type === "duplicate_wiki_title") {
 		return wikiTitle || "Mehrfachzuordnung";
+	}
+
+	if (caseEntry.case_type === "duplicate_avesmaps_name") {
+		const duplicateCount = Array.isArray(payload.matches) ? payload.matches.length : 0;
+		return `${payload.name || "Unbenannter Ort"} (${duplicateCount} Dubletten)`;
 	}
 
 	return mapName && wikiTitle ? `${mapName} ↔ ${wikiTitle}` : mapName || wikiTitle || "WikiSync-Fall";

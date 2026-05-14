@@ -45,6 +45,7 @@ const AVESMAPS_WIKI_CASE_LABELS = [
     'type_conflict' => 'Typkonflikte',
     'probable_match' => 'Unaufgelöst, aber mit wahrscheinlichem Match',
     'unresolved_without_candidate' => 'Unaufgelöst, ohne Match',
+    'duplicate_avesmaps_name' => 'Dubletten in Avesmaps',
     'duplicate_wiki_title' => 'Mehrere Avesmaps-Namen zeigen auf denselben Wiki-Titel',
     'missing_wiki_with_coordinates' => 'Fehlende Wiki-Orte mit Koordinaten',
     'missing_wiki_without_coordinates' => 'Fehlende Wiki-Orte ohne nutzbare Koordinaten',
@@ -312,7 +313,7 @@ function avesmapsWikiSyncListCases(PDO $pdo): array {
         WHERE (last_seen_run_id = :run_id AND status IN ('open', 'deferred'))
             OR status = 'archived'
         ORDER BY
-            FIELD(case_type, 'canonical_name_difference', 'type_conflict', 'probable_match', 'unresolved_without_candidate', 'duplicate_wiki_title', 'missing_wiki_with_coordinates', 'missing_wiki_without_coordinates'),
+            FIELD(case_type, 'canonical_name_difference', 'type_conflict', 'probable_match', 'unresolved_without_candidate', 'duplicate_avesmaps_name', 'duplicate_wiki_title', 'missing_wiki_with_coordinates', 'missing_wiki_without_coordinates'),
             wiki_title ASC,
             map_public_id ASC,
             id ASC"
@@ -822,9 +823,14 @@ function avesmapsWikiSyncFetchMissingWikiPlaces(PDO $pdo, array $settlementTitle
 
 function avesmapsWikiSyncBuildAndStoreCases(PDO $pdo, int $runId, array $stats): int {
     $cases = [];
+    $mapPlaces = is_array($stats['map_places'] ?? null) ? $stats['map_places'] : [];
     $matches = is_array($stats['matches'] ?? null) ? $stats['matches'] : [];
     $unresolved = is_array($stats['unresolved'] ?? null) ? $stats['unresolved'] : [];
     $missingPlaces = is_array($stats['missing_wiki_places'] ?? null) ? $stats['missing_wiki_places'] : [];
+
+    foreach (avesmapsWikiSyncFindDuplicateMapPlaceNames($mapPlaces) as $duplicateGroup) {
+        $cases[] = avesmapsWikiSyncBuildCase('duplicate_avesmaps_name', $duplicateGroup);
+    }
 
     foreach ($matches as $match) {
         if (($match['match_kind'] ?? '') !== 'exact') {
@@ -906,6 +912,37 @@ function avesmapsWikiSyncBuildCase(string $caseType, array $payload): array {
         'payload' => $payload,
         'signature_hash' => $signatureHash,
     ];
+}
+
+function avesmapsWikiSyncFindDuplicateMapPlaceNames(array $mapPlaces): array {
+    $placesByName = [];
+    foreach ($mapPlaces as $mapPlace) {
+        $name = trim((string) ($mapPlace['name'] ?? ''));
+        if ($name === '') {
+            continue;
+        }
+
+        $placesByName[$name][] = avesmapsWikiSyncPublicMapPlace($mapPlace);
+    }
+
+    ksort($placesByName, SORT_NATURAL | SORT_FLAG_CASE);
+    $duplicateGroups = [];
+    foreach ($placesByName as $name => $places) {
+        if (count($places) < 2) {
+            continue;
+        }
+
+        usort(
+            $places,
+            static fn(array $left, array $right): int => strcmp((string) $left['public_id'], (string) $right['public_id'])
+        );
+        $duplicateGroups[] = [
+            'name' => $name,
+            'matches' => $places,
+        ];
+    }
+
+    return $duplicateGroups;
 }
 
 function avesmapsWikiSyncUpsertCase(PDO $pdo, int $runId, array $case): void {
