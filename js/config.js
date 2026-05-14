@@ -13,14 +13,14 @@ const MAP_BOUNDS = [
 const MAP_DECORATION_CONFIG = {
 	compass: {
 		src: "img/compass_2.png",
-		coordinates: [1006, 1006],
+		coordinates: [18, 1006],
 		size: [96, 94],
 		anchor: [96, 94],
 		alt: "Kompassrose",
 	},
 	logo: {
 		src: "img/dsa-fanprojekt-logo.png",
-		coordinates: [18, 18],
+		coordinates: [1006, 18],
 		size: [144, 40],
 		anchor: [0, 0],
 		alt: "DSA-Fanprojekt",
