@@ -49,7 +49,11 @@ function addMapScaleBandControl() {
 	const scaleBandControl = L.control({ position: "bottomleft" });
 	scaleBandControl.onAdd = () => {
 		const container = L.DomUtil.create("div", "map-scale-band leaflet-control");
-		container.innerHTML = '<div class="map-scale-band__bar" aria-hidden="true"><span></span><span></span></div><div class="map-scale-band__label"></div>';
+		const tickMarkup = Array.from({ length: 11 }, (_, index) => {
+			const tickType = index % 5 === 0 ? "major" : "minor";
+			return `<span class="map-scale-band__tick map-scale-band__tick--${tickType}" style="--tick-position:${index * 10}%;"></span>`;
+		}).join("");
+		container.innerHTML = `<div class="map-scale-band__bar" aria-hidden="true">${tickMarkup}</div><div class="map-scale-band__label"></div>`;
 		L.DomEvent.disableClickPropagation(container);
 		syncMapScaleBand(container);
 		map.on("zoomend resize", () => syncMapScaleBand(container));
