@@ -10,9 +10,20 @@ const MAP_BOUNDS = [
 	[0, 0],
 	[IMG_WIDTH, IMG_HEIGHT],
 ];
+const COMPASS_DECORATION_SOURCES = [
+	"img/compass1.png",
+	"img/compass2.png",
+	"img/compass3.png",
+	"img/compass4.png",
+];
+
+function getRandomCompassDecorationSource() {
+	return COMPASS_DECORATION_SOURCES[Math.floor(Math.random() * COMPASS_DECORATION_SOURCES.length)];
+}
+
 const MAP_DECORATION_CONFIG = {
 	compass: {
-		src: "img/compass3.png",
+		src: getRandomCompassDecorationSource(),
 		coordinates: [18, 1006],
 		size: [96, 94],
 		anchor: [96, 94],
