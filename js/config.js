@@ -26,7 +26,7 @@ const MAP_DECORATION_CONFIG = {
 		alt: "DSA-Fanprojekt",
 	},
 };
-const MAP_SCALE_BAND_MILES_BY_ZOOM = [100, 50, 25, 10, 5, 2, 1];
+const MAP_SCALE_BAND_MILES_BY_ZOOM = [100, 100, 100, 100, 10, 10, 10];
 
 const ROUTE_STYLE = { pane: "routePane", color: "#1452F7", weight: 10, opacity: 1, interactive: true, lineCap: "round", lineJoin: "round" };
 const ROUTE_SELECTED_STYLE = { color: "#ffd54a", weight: ROUTE_STYLE.weight, opacity: 1 };
