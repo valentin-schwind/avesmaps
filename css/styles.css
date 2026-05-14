@@ -47,31 +47,43 @@ html {
 	color: #ffffff;
 	pointer-events: none;
 	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95);
+	--map-scale-band-line-thickness: 1px;
+	--map-scale-band-line-lift: 1px;
+	--map-scale-band-tick-width: 1px;
 }
 
 .map-scale-band__bar {
 	position: relative;
 	min-width: 1px;
 	height: 18px;
-	border-bottom: 2px solid currentColor;
 	filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9));
+}
+
+.map-scale-band__bar::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: var(--map-scale-band-line-lift);
+	height: var(--map-scale-band-line-thickness);
+	background: currentColor;
 }
 
 .map-scale-band__tick {
 	position: absolute;
 	left: var(--tick-position, 0%);
 	bottom: 0;
-	width: 2px;
+	width: var(--map-scale-band-tick-width);
 	background: currentColor;
 	transform: translateX(-50%);
 }
 
 .map-scale-band__tick--major {
-	height: 18px;
+	height: 17px;
 }
 
 .map-scale-band__tick--minor {
-	height: 6px;
+	height: 5px;
 }
 
 .map-scale-band__label {
