@@ -961,6 +961,7 @@ function clonePoliticalTerritoryHierarchyNode(node) {
 	}
 
 	const isGroup = node.is_group === true || node.isGroup === true;
+	const children = Array.isArray(node.children) ? node.children.map((child) => clonePoliticalTerritoryHierarchyNode(child)).filter(Boolean) : [];
 	const territory = {
 		public_id: node.public_id || "",
 		name: node.name || "",
@@ -975,13 +976,88 @@ function clonePoliticalTerritoryHierarchyNode(node) {
 		aliases: Array.isArray(node.aliases) ? node.aliases : [],
 	};
 	const option = territory.public_id ? findPoliticalTerritoryOption(territory.public_id) : null;
-	const mergedTerritory = option ? { ...option, ...territory } : territory;
+	let mergedTerritory = option ? { ...option, ...territory } : territory;
+	if (isGroup && !mergedTerritory.public_id) {
+		const representative = findRepresentativePoliticalTerritoryNode({
+			territory: mergedTerritory,
+			children,
+		});
+		if (representative?.territory?.public_id) {
+			mergedTerritory = {
+				...representative.territory,
+				name: territory.name || representative.territory.name || "",
+				short_name: territory.short_name || representative.territory.short_name || "",
+				wiki_name: territory.wiki_name || representative.territory.wiki_name || "",
+				wiki_affiliation_root: territory.wiki_affiliation_root || representative.territory.wiki_affiliation_root || "",
+				aliases: Array.from(new Set([
+					...(Array.isArray(territory.aliases) ? territory.aliases : []),
+					...(Array.isArray(representative.territory.aliases) ? representative.territory.aliases : []),
+				])),
+			};
+		}
+	}
 	return {
 		key: `territory:${mergedTerritory.public_id || mergedTerritory.name}`,
 		territory: mergedTerritory,
-		children: Array.isArray(node.children) ? node.children.map((child) => clonePoliticalTerritoryHierarchyNode(child)).filter(Boolean) : [],
+		children,
 		isGroup,
 	};
+}
+
+function findRepresentativePoliticalTerritoryNode(node) {
+	if (!node || typeof node !== "object") {
+		return null;
+	}
+
+	const rootName = normalizeSearchText(node.territory?.name || "");
+	let bestNode = null;
+	let bestScore = Number.NEGATIVE_INFINITY;
+
+	const visit = (currentNode) => {
+		if (!currentNode || typeof currentNode !== "object") {
+			return 0;
+		}
+
+		let descendantCount = 0;
+		for (const child of Array.isArray(currentNode.children) ? currentNode.children : []) {
+			descendantCount += visit(child);
+		}
+
+		const territory = currentNode.territory || {};
+		const publicId = String(territory.public_id || "").trim();
+		if (publicId) {
+			let score = descendantCount * 100;
+			const aliases = [
+				territory.name,
+				territory.short_name,
+				territory.wiki_name,
+				...(Array.isArray(territory.aliases) ? territory.aliases : []),
+			].map((value) => normalizeSearchText(value)).filter(Boolean);
+			for (const alias of aliases) {
+				if (!rootName || !alias) {
+					continue;
+				}
+				if (alias === rootName) {
+					score += 1000000;
+					break;
+				}
+				if (alias.includes(rootName) || rootName.includes(alias)) {
+					score += 100000 - Math.abs(alias.length - rootName.length);
+				}
+			}
+
+			if (score > bestScore) {
+				bestScore = score;
+				bestNode = currentNode;
+			}
+			descendantCount += 1;
+		}
+
+		return descendantCount;
+	};
+
+	visit(node);
+	return bestNode;
 }
 
 function renderPoliticalTerritoryTreeNode(node, region, depth) {
