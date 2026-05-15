@@ -91,13 +91,15 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
     $yearBf = avesmapsPoliticalReadOptionalInt($query['year_bf'] ?? null) ?? AVESMAPS_POLITICAL_DEFAULT_YEAR_BF;
     $zoom = avesmapsPoliticalReadOptionalZoom($query['zoom'] ?? null) ?? 0;
     $bbox = avesmapsPoliticalReadOptionalBoundingBox((string) ($query['bbox'] ?? ''));
+    $normalizedTerritoryValidToSql = avesmapsPoliticalNormalizedValidToSql('territory.valid_to_bf', 'wiki.dissolved_type', 'wiki.dissolved_text');
+    $normalizedGeometryValidToSql = avesmapsPoliticalNormalizedValidToSql('geometry.valid_to_bf', 'wiki.dissolved_type', 'wiki.dissolved_text');
 
     $conditions = [
         'territory.is_active = 1',
         'geometry.is_active = 1',
         'territory.continent = :continent',
         '(COALESCE(geometry.valid_from_bf, territory.valid_from_bf) IS NULL OR COALESCE(geometry.valid_from_bf, territory.valid_from_bf) <= :year_bf_start)',
-        '(COALESCE(geometry.valid_to_bf, territory.valid_to_bf) IS NULL OR COALESCE(geometry.valid_to_bf, territory.valid_to_bf) >= :year_bf_end)',
+        '(COALESCE(' . $normalizedGeometryValidToSql . ', ' . $normalizedTerritoryValidToSql . ') IS NULL OR COALESCE(' . $normalizedGeometryValidToSql . ', ' . $normalizedTerritoryValidToSql . ') >= :year_bf_end)',
     ];
     $params = [
         'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
@@ -151,6 +153,7 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
             wiki.affiliation_path_json,
             wiki.founded_text,
             wiki.dissolved_text,
+            wiki.dissolved_type,
             wiki.capital_name,
             wiki.seat_name,
             geometry.public_id AS geometry_public_id,
@@ -188,6 +191,7 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
 }
 
 function avesmapsPoliticalFetchLayerTerritories(PDO $pdo, int $yearBf): array {
+    $normalizedTerritoryValidToSql = avesmapsPoliticalNormalizedValidToSql('territory.valid_to_bf', 'wiki.dissolved_type', 'wiki.dissolved_text');
     $statement = $pdo->prepare(
         'SELECT
             territory.id AS territory_id,
@@ -221,6 +225,7 @@ function avesmapsPoliticalFetchLayerTerritories(PDO $pdo, int $yearBf): array {
             wiki.affiliation_path_json,
             wiki.founded_text,
             wiki.dissolved_text,
+            wiki.dissolved_type,
             wiki.capital_name,
             wiki.seat_name
         FROM political_territory territory
@@ -231,7 +236,7 @@ function avesmapsPoliticalFetchLayerTerritories(PDO $pdo, int $yearBf): array {
         WHERE territory.is_active = 1
             AND territory.continent = :continent
             AND (territory.valid_from_bf IS NULL OR territory.valid_from_bf <= :year_bf_start)
-            AND (territory.valid_to_bf IS NULL OR territory.valid_to_bf >= :year_bf_end)
+            AND (' . $normalizedTerritoryValidToSql . ' IS NULL OR ' . $normalizedTerritoryValidToSql . ' >= :year_bf_end)
         ORDER BY territory.sort_order ASC, territory.name ASC'
     );
     $statement->execute([
@@ -419,7 +424,10 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         'parent_public_id' => (string) ($row['parent_public_id'] ?? ''),
         'parent_name' => (string) ($row['parent_name'] ?? ''),
         'valid_from_bf' => avesmapsPoliticalNullableInt($row['geometry_valid_from_bf'] ?? $row['valid_from_bf'] ?? null),
-        'valid_to_bf' => avesmapsPoliticalNullableInt($row['geometry_valid_to_bf'] ?? $row['valid_to_bf'] ?? null),
+        'valid_to_bf' => avesmapsPoliticalNormalizeRowValidTo(
+            $row['geometry_valid_to_bf'] ?? $row['valid_to_bf'] ?? null,
+            $row
+        ),
         'valid_label' => (string) ($row['valid_label'] ?? ''),
         'founded_text' => (string) ($row['founded_text'] ?? ''),
         'dissolved_text' => (string) ($row['dissolved_text'] ?? ''),
@@ -1096,7 +1104,7 @@ function avesmapsPoliticalTerritoryRowToPublic(array $row): array {
         'capital_place_public_id' => (string) ($row['capital_place_public_id'] ?? ''),
         'seat_place_public_id' => (string) ($row['seat_place_public_id'] ?? ''),
         'valid_from_bf' => avesmapsPoliticalNullableInt($row['valid_from_bf'] ?? null),
-        'valid_to_bf' => avesmapsPoliticalNullableInt($row['valid_to_bf'] ?? null),
+        'valid_to_bf' => avesmapsPoliticalNormalizeRowValidTo($row['valid_to_bf'] ?? null, $row),
         'valid_label' => (string) ($row['valid_label'] ?? ''),
         'min_zoom' => avesmapsPoliticalNullableInt($row['min_zoom'] ?? null),
         'max_zoom' => avesmapsPoliticalNullableInt($row['max_zoom'] ?? null),
@@ -1815,6 +1823,18 @@ function avesmapsPoliticalReadOpenEndedValidTo(array $payload, mixed $fallback =
     return avesmapsPoliticalReadOptionalInt($payload['valid_to_bf'] ?? $fallback);
 }
 
+function avesmapsPoliticalNormalizedValidToSql(string $valueExpression, string $dissolvedTypeExpression, string $dissolvedTextExpression): string {
+    return 'CASE
+        WHEN ' . $valueExpression . ' = 0
+            AND (
+                LOWER(COALESCE(' . $dissolvedTypeExpression . ', \'\')) IN (\'ongoing\', \'unknown\')
+                OR LOWER(COALESCE(' . $dissolvedTextExpression . ', \'\')) LIKE \'%besteht%\'
+            )
+        THEN NULL
+        ELSE ' . $valueExpression . '
+    END';
+}
+
 function avesmapsPoliticalReadOptionalUrl(mixed $value, string $fieldLabel): string {
     return avesmapsNormalizeOptionalUrl((string) ($value ?? ''), 500, $fieldLabel);
 }
@@ -1825,6 +1845,21 @@ function avesmapsPoliticalNullableInt(mixed $value): ?int {
     }
 
     return is_numeric($value) ? (int) $value : null;
+}
+
+function avesmapsPoliticalNormalizeRowValidTo(mixed $value, array $row): ?int {
+    $normalizedValue = avesmapsPoliticalNullableInt($value);
+    if ($normalizedValue !== 0) {
+        return $normalizedValue;
+    }
+
+    $dissolvedType = mb_strtolower(trim((string) ($row['dissolved_type'] ?? $row['wiki_dissolved_type'] ?? '')));
+    $dissolvedText = mb_strtolower(trim((string) ($row['dissolved_text'] ?? $row['wiki_dissolved_text'] ?? '')));
+    if (in_array($dissolvedType, ['ongoing', 'unknown'], true) || str_contains($dissolvedText, 'besteht')) {
+        return null;
+    }
+
+    return 0;
 }
 
 function avesmapsPoliticalReadOptionalBoundingBox(string $rawBoundingBox): ?array {
