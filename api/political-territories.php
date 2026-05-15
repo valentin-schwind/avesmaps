@@ -582,6 +582,7 @@ function avesmapsPoliticalUpdateGeometry(PDO $pdo, array $payload, array $user):
             min_y = :min_y,
             max_x = :max_x,
             max_y = :max_y,
+            source = :source,
             style_json = :style_json,
             updated_by = :updated_by
         WHERE id = :id'
@@ -597,6 +598,7 @@ function avesmapsPoliticalUpdateGeometry(PDO $pdo, array $payload, array $user):
         'min_y' => $bounds['min_y'],
         'max_x' => $bounds['max_x'],
         'max_y' => $bounds['max_y'],
+        'source' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['source'] ?? 'editor'), 255)),
         'style_json' => avesmapsPoliticalEncodeJsonOrNull(is_array($payload['style_json'] ?? null) ? $payload['style_json'] : avesmapsPoliticalDecodeJson($geometryRow['style_json'] ?? null)),
         'updated_by' => (int) ($user['id'] ?? 0) ?: null,
     ]);

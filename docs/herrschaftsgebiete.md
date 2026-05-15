@@ -28,16 +28,19 @@ Admin-Endpoint meldet die neuen Tabellen im Datenbankstatus.
 
 ## WikiSync
 
-`api/wiki-sync.php` unterstuetzt die Aktion `import_political_territories`.
-Der Payload enthaelt `records` als Array mit Wiki-Aventurica-Datensaetzen. Im
-Editor koennen JSON-Dateien und Semikolon-CSV-Dateien ausgewaehlt werden; CSV
-wird vor dem API-Aufruf in Datensatzobjekte umgewandelt.
+Der normale WikiSync-Lauf importiert Herrschaftsgebiete in einer eigenen Phase
+`political_territories`. Die serverseitige Referenz liegt unter
+`data/wiki/avesmaps-herrschaftsgebiete.json`; `politics_test` bleibt nur als
+lokales Referenz- und Analyseverzeichnis.
 
 Beim Import werden nur Datensaetze mit `Kontinent = Aventurien` als lokale
 Herrschaftsgebiete angelegt. Wiki-Referenzdaten werden aktualisiert, aber
 redaktionelle Felder und vorhandene Geometrien werden nicht ueberschrieben.
-Wenn ein lokales Gebiet noch keine Geometrie hat und eine alte `region` mit
-gleichem Namen existiert, wird diese einmalig als Startgeometrie kopiert.
+Wenn ein lokales Gebiet noch keine redaktionelle Geometrie hat und eine alte
+`region` per Name, normalisiertem Namen, geographischem/politischem Feld oder
+Zugehoerigkeitspfad passt, wird diese als Startgeometrie kopiert. Automatisch
+geseedete `legacy_region_seed`-Geometrien duerfen vom Sync regeneriert werden,
+redaktionell gespeicherte `editor`-Geometrien nicht.
 
 Wappen-URLs werden importiert, wenn sie nicht nach Navigations-, Karten- oder
 Platzhaltergrafiken aussehen. Geblockt sind unter anderem `pfeil`, `arrow`,
@@ -99,6 +102,8 @@ Vollstaendig umgesetzt:
 - `Polygon` und `MultiPolygon` inklusive Loechern
 - Snap-to-vertex
 - Snap-to-edge
+- Shared-Vertex-Aktualisierung angrenzender Herrschaftsgebiete beim Verschieben
+  gemeinsamer Eckpunkte
 - Union, Difference und Intersection ueber `polygon-clipping`
 - serverseitiges Speichern der berechneten Operationsergebnisse
 
@@ -106,18 +111,18 @@ Vorbereitet, aber noch nicht als echte Shared-Boundary-Topologie umgesetzt:
 
 - eine eigene Relationstabelle fuer spaetere Topologie- und Zeitbeziehungen
 - Geometrieoperationen, die gemeinsame Grenzen sauberer erzeugen koennen
-- Snap-Logik als Grundlage fuer spaetere Nachbar-Aktualisierung
+- Edge-Splitting und vollstaendige gemeinsame Kantenpflege ohne identische
+  Eckpunkte
 
-Das Verschieben einer gemeinsamen Grenze aktualisiert derzeit nur die aktiv
-bearbeitete Geometrie. Angrenzende Gebiete werden noch nicht automatisch
-mitgezogen.
+Das Verschieben einer gemeinsamen Ecke aktualisiert angrenzende Gebiete, wenn
+deren Eckpunkt bereits auf derselben Koordinate liegt. Das Verschieben ganzer
+Kanten ohne gemeinsame Eckpunkte ist die naechste Ausbaustufe.
 
 ## Manuelle Tests
 
 1. Schema installieren oder die Migration ausfuehren.
-2. Im Editor WikiSync oeffnen und `politics_test/avesmaps-herrschaftsgebiete.json`
-   oder `politics_test/avesmaps-herrschaftsgebiete.csv` ueber
-   "Herrschaftsgebiete importieren" einlesen.
+2. Im Editor WikiSync oeffnen und "Synchronisieren" ausfuehren. Der Lauf
+   importiert Orte und anschliessend Herrschaftsgebiete.
 3. Layer "Politisch" aktivieren und pruefen, dass die Timeline unten mittig
    erscheint.
 4. BF-Jahr aendern und sichtbare Gebiete pruefen.

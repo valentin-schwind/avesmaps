@@ -238,7 +238,7 @@ function avesmapsWikiSyncStartRun(PDO $pdo, array $user): array {
     $publicId = avesmapsWikiSyncUuidV4();
     $statement = $pdo->prepare(
         'INSERT INTO wiki_sync_runs (public_id, sync_type, status, phase, progress_current, progress_total, message, stats_json, created_by)
-        VALUES (:public_id, :sync_type, :status, :phase, 0, 4, :message, :stats_json, :created_by)'
+        VALUES (:public_id, :sync_type, :status, :phase, 0, 5, :message, :stats_json, :created_by)'
     );
     $statement->execute([
         'public_id' => $publicId,
@@ -302,7 +302,10 @@ function avesmapsWikiSyncAdvanceRun(PDO $pdo, array $payload): array {
     } elseif ($phase === 'build_cases') {
         $caseCount = avesmapsWikiSyncBuildAndStoreCases($pdo, (int) $run['id'], $stats);
         $stats['case_count'] = $caseCount;
-        avesmapsWikiSyncUpdateRun($pdo, (int) $run['id'], 'completed', 'completed', 4, 'WikiSync abgeschlossen.', $stats);
+        avesmapsWikiSyncUpdateRun($pdo, (int) $run['id'], 'running', 'political_territories', 4, 'Herrschaftsgebiete werden synchronisiert.', $stats);
+    } elseif ($phase === 'political_territories') {
+        $stats['political_territories'] = avesmapsWikiSyncImportPoliticalTerritoriesFromReference($pdo);
+        avesmapsWikiSyncUpdateRun($pdo, (int) $run['id'], 'completed', 'completed', 5, 'WikiSync abgeschlossen.', $stats);
         $pdo->prepare('UPDATE wiki_sync_runs SET completed_at = CURRENT_TIMESTAMP(3) WHERE id = :id')->execute(['id' => (int) $run['id']]);
     } else {
         throw new RuntimeException('Die WikiSync-Phase ist unbekannt.');
@@ -314,6 +317,47 @@ function avesmapsWikiSyncAdvanceRun(PDO $pdo, array $payload): array {
         'run' => avesmapsWikiSyncPublicRun($updatedRun),
         'summary' => $updatedRun['status'] === 'completed' ? avesmapsWikiSyncBuildSummary($pdo, (int) $updatedRun['id']) : null,
     ];
+}
+
+function avesmapsWikiSyncImportPoliticalTerritoriesFromReference(PDO $pdo): array {
+    $records = avesmapsWikiSyncReadPoliticalTerritoryReferenceRecords();
+    if ($records === []) {
+        return [
+            'received' => 0,
+            'message' => 'Keine Herrschaftsgebiet-Referenzdaten gefunden.',
+        ];
+    }
+
+    $result = avesmapsPoliticalImportWikiRecords($pdo, $records);
+    return $result['stats'] ?? [];
+}
+
+function avesmapsWikiSyncReadPoliticalTerritoryReferenceRecords(): array {
+    $candidatePaths = [
+        dirname(__DIR__) . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'wiki' . DIRECTORY_SEPARATOR . 'avesmaps-herrschaftsgebiete.json',
+        dirname(__DIR__) . DIRECTORY_SEPARATOR . 'politics_test' . DIRECTORY_SEPARATOR . 'avesmaps-herrschaftsgebiete.json',
+    ];
+
+    foreach ($candidatePaths as $path) {
+        if (!is_file($path)) {
+            continue;
+        }
+
+        $json = file_get_contents($path);
+        if (!is_string($json) || trim($json) === '') {
+            continue;
+        }
+
+        try {
+            $records = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            continue;
+        }
+
+        return is_array($records) ? $records : [];
+    }
+
+    return [];
 }
 
 function avesmapsWikiSyncListCases(PDO $pdo): array {
@@ -1739,6 +1783,10 @@ function avesmapsWikiSyncPublicRun(array $run): array {
             'unresolved_count' => (int) ($stats['unresolved_count'] ?? 0),
             'missing_wiki_place_count' => (int) ($stats['missing_wiki_place_count'] ?? 0),
             'case_count' => (int) ($stats['case_count'] ?? 0),
+            'political_territory_received' => (int) ($stats['political_territories']['received'] ?? 0),
+            'political_territory_created' => (int) ($stats['political_territories']['territory_created'] ?? 0),
+            'political_territory_updated' => (int) ($stats['political_territories']['wiki_updated'] ?? 0),
+            'political_territory_geometry_seeded' => (int) ($stats['political_territories']['geometry_seeded'] ?? 0),
         ],
     ];
 }

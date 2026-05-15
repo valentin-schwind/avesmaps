@@ -159,9 +159,7 @@
 		<section class="review-panel__section" data-editor-panel-section="wiki-sync">
 			<div class="wiki-sync-panel__actions">
 				<button id="wiki-sync-start" class="wiki-sync-panel__start" type="button">Synchronisieren</button>
-				<label class="wiki-sync-panel__start wiki-sync-panel__file-button" for="wiki-sync-territory-import">Herrschaftsgebiete importieren</label>
-				<input id="wiki-sync-territory-import" class="visually-hidden" type="file" accept="application/json,text/csv,.json,.csv" />
-				<progress id="wiki-sync-progress" class="wiki-sync-progress" max="4" value="0" hidden></progress>
+				<progress id="wiki-sync-progress" class="wiki-sync-progress" max="5" value="0" hidden></progress>
 			</div>
 			<div class="wiki-sync-panel__filter">
 				<input id="wiki-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="WikiSync-Fälle durchsuchen" />
@@ -182,10 +180,10 @@
 	</div>
 	<div id="political-timeline" class="political-timeline" hidden>
 		<label class="political-timeline__field">
-			<span>BF-Jahr</span>
+			<span>Jahr</span>
 			<input id="political-timeline-range" type="range" min="-3000" max="1050" step="1" value="1046" />
 		</label>
-		<input id="political-timeline-year" class="political-timeline__year" type="number" min="-3000" max="1050" step="1" value="1046" aria-label="BF-Jahr" />
+		<input id="political-timeline-year" class="political-timeline__year" type="number" min="-3000" max="1050" step="1" value="1046" aria-label="Jahr" />
 		<span id="political-timeline-label" class="political-timeline__label">1046 BF</span>
 	</div>
 	<div id="location-report-overlay" hidden>
@@ -550,15 +548,16 @@
 				</label>
 				<label class="location-report-form__field political-territory-field">
 					<span>Typ</span>
-					<input id="region-edit-type" name="type" type="text" maxlength="160" placeholder="Herrschaftsgebiet" />
+					<select id="region-edit-type" name="type"></select>
 				</label>
 				<label class="location-report-form__field political-territory-field">
-					<span>Parent/Hiearchie</span>
-					<select id="region-edit-parent" name="parent_public_id"></select>
+					<span>Parent/Hierarchie</span>
+					<input id="region-edit-parent" name="parent_public_id" type="hidden" />
+					<div id="region-edit-parent-tree" class="political-territory-parent-tree" role="tree"></div>
 				</label>
 				<label class="location-report-form__field">
 					<span>Farbe *</span>
-					<input id="region-edit-color" name="color" type="text" maxlength="9" value="#888888" required />
+					<input id="region-edit-color" name="color" type="color" value="#888888" required />
 				</label>
 				<label class="location-report-form__field">
 					<span>Transparenz <output id="region-edit-opacity-output">33%</output></span>
@@ -582,24 +581,13 @@
 						<input id="region-edit-max-zoom" name="max_zoom" type="number" min="0" max="6" step="1" />
 					</label>
 				</div>
-				<div class="location-report-form__grid political-territory-field">
-					<label class="location-report-form__field">
-						<span>Zeit von (BF)</span>
-						<input id="region-edit-valid-from" name="valid_from_bf" type="number" step="1" />
-					</label>
-					<label class="location-report-form__field">
-						<span>Zeit bis (BF)</span>
-						<input id="region-edit-valid-to" name="valid_to_bf" type="number" step="1" />
-					</label>
-				</div>
-				<label class="location-report-form__checkbox political-territory-field">
-					<input id="region-edit-valid-open" name="valid_to_open" type="checkbox" />
-					<span>besteht/heute</span>
-				</label>
 				<label class="location-report-form__field political-territory-field">
-					<span>Zeitanzeige</span>
+					<span>Jahr / Zeitraum</span>
 					<input id="region-edit-valid-label" name="valid_label" type="text" maxlength="500" />
 				</label>
+				<input id="region-edit-valid-from" name="valid_from_bf" type="hidden" />
+				<input id="region-edit-valid-to" name="valid_to_bf" type="hidden" />
+				<input id="region-edit-valid-open" name="valid_to_open" type="hidden" value="1" />
 				<label class="location-report-form__checkbox political-territory-field">
 					<input id="region-edit-is-active" name="is_active" type="checkbox" checked />
 					<span>Aktiv</span>
@@ -1099,7 +1087,6 @@
 		$("#location-report-close, #location-report-cancel").on("click", () => setLocationReportDialogOpen(false, { resetForm: true }));
 		$("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));
 		$("#wiki-sync-start").on("click", () => startWikiSyncRun());
-		$("#wiki-sync-territory-import").on("change", handleWikiSyncTerritoryImportFile);
 		$("#wiki-sync-filter").on("input search", function () {
 			setWikiSyncFilterQuery(this.value || "");
 		});

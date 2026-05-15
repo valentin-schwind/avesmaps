@@ -199,18 +199,14 @@ in `schema.future.mysql.sql` enthalten. Der Editor-Endpoint ist
 `geometries`, `layer` sowie schreibende Aktionen fuer Gebiete, Hierarchien,
 Geometrien und Geometrieoperationen.
 
-WikiSync importiert Herrschaftsgebiete ueber:
+WikiSync importiert Herrschaftsgebiete ueber den normalen
+`action=start_run`/`action=advance_run`-Ablauf. Nach den Ortsabgleichen folgt
+die Phase `political_territories`; sie liest
+`data/wiki/avesmaps-herrschaftsgebiete.json` als serverseitige
+WikiSync-Referenz.
 
-```json
-{
-  "action": "import_political_territories",
-  "records": []
-}
-```
-
-Der Editor kann JSON- oder CSV-Dateien laden und sendet sie als `records` an
-WikiSync. Der Import aktualisiert nur Wiki-Referenzfelder. Redaktionelle
-Overrides und vorhandene Geometrien bleiben erhalten. Nur Datensaetze fuer
+Der Import aktualisiert nur Wiki-Referenzfelder. Redaktionelle Overrides und
+redaktionell gespeicherte Geometrien bleiben erhalten. Nur Datensaetze fuer
 `Aventurien` werden als lokale Herrschaftsgebiete angelegt.
 
 Weitere Details: `docs/herrschaftsgebiete.md`.

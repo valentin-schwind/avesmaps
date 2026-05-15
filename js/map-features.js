@@ -3964,15 +3964,18 @@ function createRegionCompactTooltipMarkup(regionEntry) {
 	const affiliation = regionEntry.affiliationRoot || regionEntry.affiliation || "";
 	const capitalMarkup = createRegionPlaceTooltipLine("Hauptstadt", regionEntry.capitalName, regionEntry.capitalPlacePublicId);
 	const seatMarkup = createRegionPlaceTooltipLine("Herrschaftssitz", regionEntry.seatName, regionEntry.seatPlacePublicId);
+	const hasCoatClass = regionEntry.coatOfArmsUrl ? " has-coat" : "";
 
 	return `
-		<span class="region-compact-tooltip__content">
+		<span class="region-compact-tooltip__content${hasCoatClass}">
 			${coatMarkup}
-			<span class="region-compact-tooltip__name">${escapeHtml(regionEntry.name)}</span>
-			<span class="region-compact-tooltip__meta">${escapeHtml(meta || "Herrschaftsgebiet")}</span>
-			<span class="region-compact-tooltip__meta">${escapeHtml(affiliation)}</span>
-			${capitalMarkup}
-			${seatMarkup}
+			<span class="region-compact-tooltip__body">
+				<span class="region-compact-tooltip__name">${escapeHtml(regionEntry.name)}</span>
+				<span class="region-compact-tooltip__meta">${escapeHtml(meta || "Herrschaftsgebiet")}</span>
+				<span class="region-compact-tooltip__meta">${escapeHtml(affiliation)}</span>
+				${capitalMarkup}
+				${seatMarkup}
+			</span>
 		</span>
 	`;
 }
@@ -4014,7 +4017,7 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 			void completePendingRegionOperation(regionEntry);
 			return;
 		}
-		startRegionGeometryEdit(regionEntry);
+		startRegionGeometryEdit(regionEntry, polygon);
 	});
 	polygon.on("dblclick", (event) => {
 		if (event.originalEvent?.target?.closest?.(".region-edit-handle-marker")) return;
@@ -4023,7 +4026,7 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 			return;
 		}
 		L.DomEvent.stop(event);
-		startRegionGeometryEdit(regionEntry);
+		startRegionGeometryEdit(regionEntry, polygon);
 		openRegionEditDialog(regionEntry);
 	});
 	polygon.on("contextmenu", (event) => {
@@ -4194,6 +4197,7 @@ async function completePendingRegionOperation(targetRegion) {
 				operation: operationState.operation,
 				public_id: operationState.sourceRegion.geometryPublicId || operationState.sourceRegion.publicId,
 				geometry_public_id: operationState.sourceRegion.geometryPublicId || operationState.sourceRegion.publicId,
+				source: "editor",
 				geometry_geojson: geometryGeoJson,
 				style_json: {
 					fill: operationState.sourceRegion.color,
@@ -4348,8 +4352,20 @@ function polygonLatLngsToCoordinates(latLngs) {
 }
 
 function getRegionOuterLatLngs(regionEntry) {
-	const latLngs = regionEntry.layer.getLatLngs();
+	const layer = activeRegionGeometryEdit?.regionEntry === regionEntry
+		? activeRegionGeometryEdit.editLayer
+		: regionEntry.layer;
+	const latLngs = layer.getLatLngs();
 	return Array.isArray(latLngs[0]?.[0]) ? latLngs[0][0] : latLngs[0] || [];
+}
+
+function setRegionOuterLatLngs(regionEntry, outerLatLngs) {
+	const layer = activeRegionGeometryEdit?.regionEntry === regionEntry
+		? activeRegionGeometryEdit.editLayer
+		: regionEntry.layer;
+	const latLngs = layer.getLatLngs();
+	const holes = Array.isArray(latLngs[0]?.[0]) ? latLngs.slice(1) : [];
+	layer.setLatLngs(holes.length > 0 ? [outerLatLngs, ...holes] : [outerLatLngs]);
 }
 
 function createRegionHandleIcon() {
@@ -4375,6 +4391,7 @@ function refreshRegionEditHandles() {
 	activeRegionGeometryEdit.handles.forEach((handle) => map.removeLayer(handle));
 	activeRegionGeometryEdit.handles = [];
 	getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry).forEach((latLng, index) => {
+		const originalLatLng = L.latLng(latLng);
 		const handle = L.marker(latLng, {
 			icon: createRegionHandleIcon(),
 			pane: "measurementHandlesPane",
@@ -4384,16 +4401,21 @@ function refreshRegionEditHandles() {
 		handle.on("drag", (event) => {
 			const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry);
 			latLngs[index] = event.target.getLatLng();
-			activeRegionGeometryEdit.regionEntry.layer.setLatLngs([latLngs]);
+			setRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, latLngs);
 			updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
 		});
 		handle.on("dragend", (event) => {
 			const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry);
-			latLngs[index] = findNearestRegionSnapPoint(event.target.getLatLng(), activeRegionGeometryEdit.regionEntry) || event.target.getLatLng();
-			activeRegionGeometryEdit.regionEntry.layer.setLatLngs([latLngs]);
+			const targetLatLng = findNearestRegionSnapPoint(event.target.getLatLng(), activeRegionGeometryEdit.regionEntry) || event.target.getLatLng();
+			latLngs[index] = targetLatLng;
+			setRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, latLngs);
+			const affectedRegions = applySharedBoundaryVertexMove(activeRegionGeometryEdit.regionEntry, originalLatLng, targetLatLng);
 			updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
 			refreshRegionEditHandles();
 			void saveRegionGeometry(activeRegionGeometryEdit.regionEntry);
+			affectedRegions.forEach((region) => {
+				void saveRegionGeometry(region);
+			});
 		});
 		handle.on("dblclick", (event) => {
 			L.DomEvent.stop(event);
@@ -4403,19 +4425,62 @@ function refreshRegionEditHandles() {
 	});
 }
 
-function startRegionGeometryEdit(regionEntry) {
+function startRegionGeometryEdit(regionEntry, editLayer = null) {
 	clearRegionGeometryEdit();
 	if (regionEntry.source !== "political_territory") {
 		void acquireFeatureSoftLock(regionEntry.publicId);
 	}
-	activeRegionGeometryEdit = { regionEntry, handles: [] };
+	activeRegionGeometryEdit = { regionEntry, editLayer: editLayer || regionEntry.layer, handles: [] };
 	refreshRegionEditHandles();
 }
 
 function updateRegionLabelPosition(regionEntry) {
 	if (regionEntry?.label && regionEntry.layer) {
-		regionEntry.label.setLatLng(regionEntry.layer.getBounds().getCenter());
+		const bounds = getRegionEntryBounds(regionEntry);
+		regionEntry.label.setLatLng(bounds?.getCenter?.() || regionEntry.layer.getBounds().getCenter());
 	}
+}
+
+function getRegionEntryBounds(regionEntry) {
+	const layers = (regionEntry.layers?.length ? regionEntry.layers : [regionEntry.layer]).filter(Boolean);
+	if (layers.length < 1) {
+		return null;
+	}
+
+	const bounds = L.latLngBounds([]);
+	layers.forEach((layer) => bounds.extend(layer.getBounds()));
+	return bounds;
+}
+
+function applySharedBoundaryVertexMove(ownRegion, originalLatLng, targetLatLng) {
+	const affectedRegions = new Set();
+	regionPolygons.forEach((polygon) => {
+		const regionEntry = polygon._regionEntry;
+		if (!regionEntry || regionEntry === ownRegion || regionEntry.source !== "political_territory") {
+			return;
+		}
+
+		const latLngs = polygon.getLatLngs();
+		const rings = Array.isArray(latLngs[0]?.[0]) ? latLngs : [latLngs];
+		let changed = false;
+		const updatedRings = rings.map((ring) => ring.map((latLng) => {
+			if (latLng.distanceTo(originalLatLng) > 0.5) {
+				return latLng;
+			}
+
+			changed = true;
+			return L.latLng(targetLatLng);
+		}));
+		if (!changed) {
+			return;
+		}
+
+		polygon.setLatLngs(Array.isArray(latLngs[0]?.[0]) ? updatedRings : updatedRings[0]);
+		updateRegionLabelPosition(regionEntry);
+		affectedRegions.add(regionEntry);
+	});
+
+	return Array.from(affectedRegions);
 }
 
 function findNearestRegionVertex(latLng, ownRegion) {
@@ -4496,7 +4561,7 @@ function deleteRegionNode(index) {
 		return;
 	}
 	latLngs.splice(index, 1);
-	activeRegionGeometryEdit.regionEntry.layer.setLatLngs([latLngs]);
+	setRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, latLngs);
 	updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
 	refreshRegionEditHandles();
 	void saveRegionGeometry(activeRegionGeometryEdit.regionEntry);
@@ -4509,6 +4574,7 @@ async function saveRegionGeometry(regionEntry) {
 				action: "update_geometry",
 				public_id: regionEntry.geometryPublicId || regionEntry.publicId,
 				geometry_public_id: regionEntry.geometryPublicId || regionEntry.publicId,
+				source: "editor",
 				geometry_geojson: regionLayerToGeoJsonGeometry(regionEntry),
 				style_json: {
 					fill: regionEntry.color,
@@ -4542,15 +4608,30 @@ async function saveRegionGeometry(regionEntry) {
 }
 
 function regionLayerToGeoJsonGeometry(regionEntry) {
-	const geometry = regionEntry.layer?.toGeoJSON?.().geometry;
-	if (!geometry || !["Polygon", "MultiPolygon"].includes(geometry.type)) {
+	const geometries = (regionEntry.layers?.length ? regionEntry.layers : [regionEntry.layer])
+		.filter(Boolean)
+		.map((layer) => layer.toGeoJSON?.().geometry)
+		.filter((geometry) => geometry && ["Polygon", "MultiPolygon"].includes(geometry.type));
+	if (geometries.length < 1) {
 		return {
 			type: "Polygon",
 			coordinates: polygonLatLngsToCoordinates(getRegionOuterLatLngs(regionEntry)),
 		};
 	}
 
-	return geometry;
+	const polygons = [];
+	geometries.forEach((geometry) => {
+		if (geometry.type === "Polygon") {
+			polygons.push(geometry.coordinates);
+			return;
+		}
+
+		geometry.coordinates.forEach((polygon) => polygons.push(polygon));
+	});
+
+	return polygons.length === 1
+		? { type: "Polygon", coordinates: polygons[0] }
+		: { type: "MultiPolygon", coordinates: polygons };
 }
 
 function applyRegionFeatureResponse(regionEntry, feature) {
@@ -4617,9 +4698,9 @@ async function createRegionAt(latlng) {
 				},
 			});
 			await loadPoliticalTerritoryOptions();
-			schedulePoliticalTerritoryLayerReload({ immediate: true });
 			if (result.feature) {
 				const regionEntry = normalizeRegionFeature(result.feature);
+				regionData.push(result.feature);
 				addRegionFeatureToMap(result.feature, regionEntry);
 				if (getSelectedMapLayerMode() === "political") {
 					map.addLayer(regionEntry.layer);

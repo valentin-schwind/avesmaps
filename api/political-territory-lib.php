@@ -495,64 +495,54 @@ function avesmapsPoliticalLinkTerritoryToWiki(PDO $pdo, int $territoryId, int $w
 function avesmapsPoliticalSeedGeometryFromMapFeature(PDO $pdo, int $territoryId, array $wikiRecord, array $user): bool {
     try {
         $existingStatement = $pdo->prepare(
-            'SELECT COUNT(*)
+            'SELECT source, geometry_geojson
             FROM political_territory_geometry
             WHERE territory_id = :territory_id
                 AND is_active = 1'
         );
         $existingStatement->execute(['territory_id' => $territoryId]);
-        if ((int) $existingStatement->fetchColumn() > 0) {
+        $existingGeometries = $existingStatement->fetchAll(PDO::FETCH_ASSOC);
+        $existingSources = array_map(static fn(array $row): string => (string) ($row['source'] ?? ''), $existingGeometries);
+        $hasEditorialGeometry = $existingSources !== [] && array_filter(
+            $existingSources,
+            static fn(string $source): bool => $source !== 'legacy_region_seed'
+        ) !== [];
+        if ($hasEditorialGeometry) {
             return false;
         }
 
-        $featureStatement = $pdo->prepare(
-            'SELECT
-                geometry_json,
-                properties_json,
-                style_json,
-                min_x,
-                min_y,
-                max_x,
-                max_y
-            FROM map_features
-            WHERE feature_type = :feature_type
-                AND name = :name
-                AND is_active = 1
-                AND geometry_type IN (:polygon_type, :multipolygon_type)
-            ORDER BY sort_order ASC, id ASC
-            LIMIT 1'
-        );
-        $featureStatement->execute([
-            'feature_type' => 'region',
-            'name' => (string) $wikiRecord['name'],
-            'polygon_type' => 'Polygon',
-            'multipolygon_type' => 'MultiPolygon',
-        ]);
-        $feature = $featureStatement->fetch(PDO::FETCH_ASSOC);
+        $features = avesmapsPoliticalFindLegacyRegionFeaturesForWikiRecord($pdo, $wikiRecord);
     } catch (Throwable) {
         return false;
     }
 
-    if (!$feature) {
+    if ($features === []) {
         return false;
     }
 
-    $geometry = avesmapsPoliticalDecodeJson($feature['geometry_json'] ?? null);
-    if (!in_array((string) ($geometry['type'] ?? ''), ['Polygon', 'MultiPolygon'], true)) {
-        return false;
-    }
+    if ($existingSources !== []) {
+        $existingPartCount = avesmapsPoliticalCountGeometryPartsInRows($existingGeometries, 'geometry_geojson');
+        $legacyPartCount = avesmapsPoliticalCountGeometryPartsInRows($features, 'geometry_json');
+        if ($existingPartCount >= $legacyPartCount) {
+            return false;
+        }
 
-    $bounds = avesmapsPoliticalReadSeedBounds($feature, $geometry);
-    if ($bounds === null) {
-        return false;
+        $deactivateStatement = $pdo->prepare(
+            'UPDATE political_territory_geometry
+            SET is_active = 0
+            WHERE territory_id = :territory_id
+                AND is_active = 1
+                AND source = :source'
+        );
+        $deactivateStatement->execute([
+            'territory_id' => $territoryId,
+            'source' => 'legacy_region_seed',
+        ]);
     }
 
     $color = avesmapsPoliticalColorFromText((string) $wikiRecord['name']);
     $zoomRange = avesmapsPoliticalDefaultZoomRange((string) ($wikiRecord['type'] ?? ''));
-    $style = avesmapsPoliticalBuildSeedGeometryStyle($feature, $color);
-    $publicId = avesmapsPoliticalUuidV4();
     $validFrom = $wikiRecord['founded_start_bf'] ?? $wikiRecord['founded_display_bf'] ?? null;
-
     $insertStatement = $pdo->prepare(
         'INSERT INTO political_territory_geometry (
             public_id, territory_id, geometry_geojson, valid_from_bf, valid_to_bf,
@@ -564,25 +554,119 @@ function avesmapsPoliticalSeedGeometryFromMapFeature(PDO $pdo, int $territoryId,
             :created_by, :updated_by
         )'
     );
-    $insertStatement->execute([
-        'public_id' => $publicId,
-        'territory_id' => $territoryId,
-        'geometry_geojson' => avesmapsPoliticalEncodeJsonOrNull($geometry),
-        'valid_from_bf' => $validFrom === null ? null : (int) round((float) $validFrom),
-        'valid_to_bf' => avesmapsPoliticalReadDissolvedValidTo($wikiRecord),
-        'min_zoom' => $zoomRange['min_zoom'],
-        'max_zoom' => $zoomRange['max_zoom'],
-        'min_x' => $bounds['min_x'],
-        'min_y' => $bounds['min_y'],
-        'max_x' => $bounds['max_x'],
-        'max_y' => $bounds['max_y'],
-        'source' => 'legacy_region_seed',
-        'style_json' => avesmapsPoliticalEncodeJsonOrNull($style),
-        'created_by' => (int) ($user['id'] ?? 0) ?: null,
-        'updated_by' => (int) ($user['id'] ?? 0) ?: null,
+
+    $inserted = 0;
+    foreach ($features as $feature) {
+        $geometry = avesmapsPoliticalDecodeJson($feature['geometry_json'] ?? null);
+        if (!in_array((string) ($geometry['type'] ?? ''), ['Polygon', 'MultiPolygon'], true)) {
+            continue;
+        }
+
+        $bounds = avesmapsPoliticalReadSeedBounds($feature, $geometry);
+        if ($bounds === null) {
+            continue;
+        }
+
+        $style = avesmapsPoliticalBuildSeedGeometryStyle($feature, $color);
+        $insertStatement->execute([
+            'public_id' => avesmapsPoliticalUuidV4(),
+            'territory_id' => $territoryId,
+            'geometry_geojson' => avesmapsPoliticalEncodeJsonOrNull($geometry),
+            'valid_from_bf' => $validFrom === null ? null : (int) round((float) $validFrom),
+            'valid_to_bf' => avesmapsPoliticalReadDissolvedValidTo($wikiRecord),
+            'min_zoom' => $zoomRange['min_zoom'],
+            'max_zoom' => $zoomRange['max_zoom'],
+            'min_x' => $bounds['min_x'],
+            'min_y' => $bounds['min_y'],
+            'max_x' => $bounds['max_x'],
+            'max_y' => $bounds['max_y'],
+            'source' => 'legacy_region_seed',
+            'style_json' => avesmapsPoliticalEncodeJsonOrNull($style),
+            'created_by' => (int) ($user['id'] ?? 0) ?: null,
+            'updated_by' => (int) ($user['id'] ?? 0) ?: null,
+        ]);
+        $inserted++;
+    }
+
+    return $inserted > 0;
+}
+
+function avesmapsPoliticalCountGeometryPartsInRows(array $rows, string $geometryKey): int {
+    $count = 0;
+    foreach ($rows as $row) {
+        $geometry = avesmapsPoliticalDecodeJson($row[$geometryKey] ?? null);
+        if (($geometry['type'] ?? '') === 'Polygon') {
+            $count++;
+        } elseif (($geometry['type'] ?? '') === 'MultiPolygon') {
+            $count += is_array($geometry['coordinates'] ?? null) ? count($geometry['coordinates']) : 0;
+        }
+    }
+
+    return $count;
+}
+
+function avesmapsPoliticalFindLegacyRegionFeaturesForWikiRecord(PDO $pdo, array $wikiRecord): array {
+    $candidateSlugs = avesmapsPoliticalBuildLegacyRegionCandidateSlugs($wikiRecord);
+    if ($candidateSlugs === []) {
+        return [];
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT
+            name,
+            geometry_json,
+            properties_json,
+            style_json,
+            min_x,
+            min_y,
+            max_x,
+            max_y
+        FROM map_features
+        WHERE feature_type = :feature_type
+            AND is_active = 1
+            AND geometry_type IN (:polygon_type, :multipolygon_type)
+        ORDER BY sort_order ASC, id ASC'
+    );
+    $statement->execute([
+        'feature_type' => 'region',
+        'polygon_type' => 'Polygon',
+        'multipolygon_type' => 'MultiPolygon',
     ]);
 
-    return true;
+    $matches = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $feature) {
+        $featureSlug = avesmapsPoliticalSlug((string) ($feature['name'] ?? ''));
+        if ($featureSlug !== '' && isset($candidateSlugs[$featureSlug])) {
+            $matches[] = $feature;
+        }
+    }
+
+    return $matches;
+}
+
+function avesmapsPoliticalBuildLegacyRegionCandidateSlugs(array $wikiRecord): array {
+    $values = [
+        (string) ($wikiRecord['name'] ?? ''),
+        (string) ($wikiRecord['geographic'] ?? ''),
+        (string) ($wikiRecord['political'] ?? ''),
+        (string) ($wikiRecord['affiliation_root'] ?? ''),
+    ];
+
+    foreach ((array) ($wikiRecord['affiliation_path_json'] ?? []) as $pathPart) {
+        $values[] = (string) $pathPart;
+    }
+
+    $slugs = [];
+    foreach ($values as $value) {
+        foreach (preg_split('/\s*[:;,]\s*/', $value) ?: [] as $part) {
+            $slug = avesmapsPoliticalSlug($part);
+            if ($slug !== '') {
+                $slugs[$slug] = true;
+            }
+        }
+    }
+
+    return $slugs;
 }
 
 function avesmapsPoliticalBuildSeedGeometryStyle(array $feature, string $fallbackColor): array {
