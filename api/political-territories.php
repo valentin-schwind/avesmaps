@@ -274,7 +274,7 @@ function avesmapsPoliticalBuildEffectiveLayerParentIds(array $territories): arra
         }
 
         $inferredParentName = avesmapsPoliticalInferLayerParentName($territory);
-        $inferredParentId = $aliasToId[avesmapsPoliticalSlug($inferredParentName)] ?? 0;
+        $inferredParentId = avesmapsPoliticalResolveParentAliasId($aliasToId, $inferredParentName, (int) $territoryId);
         if ($inferredParentId > 0 && $inferredParentId !== (int) $territoryId) {
             $parentIds[(int) $territoryId] = $inferredParentId;
         }
@@ -284,11 +284,11 @@ function avesmapsPoliticalBuildEffectiveLayerParentIds(array $territories): arra
 }
 
 function avesmapsPoliticalLayerTerritoryAliases(array $territory): array {
-    $aliases = [
+    $aliases = avesmapsPoliticalExpandTerritoryAliases([
         (string) ($territory['name'] ?? ''),
         (string) ($territory['short_name'] ?? ''),
         (string) ($territory['wiki_name'] ?? ''),
-    ];
+    ]);
     $name = mb_strtolower(implode(' ', $aliases));
     if (str_contains($name, 'heiliges neues kaiserreich vom greifenthron')) {
         $aliases[] = 'Mittelreich';
@@ -1311,11 +1311,11 @@ function avesmapsPoliticalBuildHierarchy(array $territories): array {
 }
 
 function avesmapsPoliticalPublicTerritoryAliases(array $territory): array {
-    $aliases = [
+    $aliases = avesmapsPoliticalExpandTerritoryAliases([
         (string) ($territory['name'] ?? ''),
         (string) ($territory['short_name'] ?? ''),
         (string) ($territory['wiki_name'] ?? ''),
-    ];
+    ]);
     $name = mb_strtolower(implode(' ', $aliases));
     if (str_contains($name, 'heiliges neues kaiserreich vom greifenthron')) {
         $aliases[] = 'Mittelreich';
@@ -1342,7 +1342,7 @@ function avesmapsPoliticalInferPublicTerritoryParentId(array $territory, array $
         }
     }
 
-    $parentId = (int) ($aliasToId[avesmapsPoliticalSlug($parentName)] ?? 0);
+    $parentId = avesmapsPoliticalResolveParentAliasId($aliasToId, $parentName, (int) ($territory['id'] ?? 0));
     return $parentId === (int) ($territory['id'] ?? 0) ? 0 : $parentId;
 }
 
@@ -2029,6 +2029,42 @@ function avesmapsPoliticalNormalizeRowValidTo(mixed $value, array $row): ?int {
     $dissolvedText = mb_strtolower(trim((string) ($row['dissolved_text'] ?? $row['wiki_dissolved_text'] ?? '')));
     if (in_array($dissolvedType, ['ongoing', 'unknown'], true) || str_contains($dissolvedText, 'besteht')) {
         return null;
+    }
+
+    return 0;
+}
+
+function avesmapsPoliticalExpandTerritoryAliases(array $values): array {
+    $aliases = [];
+    foreach ($values as $value) {
+        $text = trim((string) $value);
+        if ($text === '') {
+            continue;
+        }
+
+        $aliases[] = $text;
+        $withoutParenthetical = trim((string) preg_replace('/\s*\([^)]*\)/u', '', $text));
+        if ($withoutParenthetical !== '') {
+            $aliases[] = $withoutParenthetical;
+        }
+
+        foreach (preg_split('/\s*,\s*/u', $withoutParenthetical) ?: [] as $part) {
+            $part = trim((string) $part);
+            if ($part !== '') {
+                $aliases[] = $part;
+            }
+        }
+    }
+
+    return array_values(array_unique($aliases));
+}
+
+function avesmapsPoliticalResolveParentAliasId(array $aliasToId, string $parentName, int $selfId = 0): int {
+    foreach (avesmapsPoliticalExpandTerritoryAliases([$parentName]) as $candidate) {
+        $parentId = (int) ($aliasToId[avesmapsPoliticalSlug($candidate)] ?? 0);
+        if ($parentId > 0 && $parentId !== $selfId) {
+            return $parentId;
+        }
     }
 
     return 0;
