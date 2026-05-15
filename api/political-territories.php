@@ -1478,58 +1478,122 @@ function avesmapsPoliticalBuildHierarchy(array $territories): array {
     }
 
     $childrenByParentId = [];
-    $rootIds = [];
     foreach ($territoriesById as $territoryId => $territory) {
         $parentId = (int) ($resolvedParentIds[$territoryId] ?? 0);
         if ($parentId > 0 && isset($nodesById[$parentId])) {
             $childrenByParentId[$parentId] ??= [];
             $childrenByParentId[$parentId][] = $territoryId;
-            continue;
         }
-
-        $rootIds[] = $territoryId;
     }
 
-    $includedIds = [];
-    $buildNode = function (int $territoryId, array $trail = []) use (&$buildNode, &$includedIds, $nodesById, $childrenByParentId): array {
-        if (!isset($nodesById[$territoryId])) {
-            return [];
+    $rootGroups = [];
+    foreach ($territoriesById as $territoryId => $territory) {
+        $rootName = avesmapsPoliticalResolveHierarchyRootName($territory);
+        $rootKey = avesmapsPoliticalSlug($rootName);
+        if ($rootKey === '') {
+            $rootKey = 'territory:' . $territoryId;
+            $rootName = (string) ($territory['name'] ?? '');
         }
 
-        $node = $nodesById[$territoryId];
-        if (isset($trail[$territoryId])) {
-            return $node;
+        if (!isset($rootGroups[$rootKey])) {
+            $rootGroups[$rootKey] = [
+                'key' => $rootKey,
+                'name' => $rootName,
+                'territory_ids' => [],
+            ];
         }
 
-        $trail[$territoryId] = true;
-        $includedIds[$territoryId] = true;
-        foreach ((array) ($childrenByParentId[$territoryId] ?? []) as $childId) {
-            if (!is_int($childId)) {
-                continue;
-            }
+        $rootGroups[$rootKey]['territory_ids'][] = $territoryId;
+    }
 
-            $childNode = $buildNode($childId, $trail);
-            if ($childNode === []) {
-                continue;
-            }
-
-            $node['children'][] = $childNode;
-        }
-
-        return $node;
-    };
+    uasort(
+        $rootGroups,
+        static fn(array $left, array $right): int => strnatcasecmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? ''))
+    );
 
     $hierarchy = [];
-    foreach ($rootIds as $rootId) {
-        $hierarchy[] = $buildNode($rootId);
-    }
-
-    foreach (array_keys($nodesById) as $territoryId) {
-        if (isset($includedIds[$territoryId])) {
-            continue;
+    foreach ($rootGroups as $group) {
+        $groupTerritoryIds = [];
+        foreach ((array) ($group['territory_ids'] ?? []) as $territoryId) {
+            $groupTerritoryIds[(int) $territoryId] = true;
         }
 
-        $hierarchy[] = $buildNode((int) $territoryId);
+        $buildNode = function (int $territoryId, array $trail = []) use (&$buildNode, $nodesById, $childrenByParentId, $groupTerritoryIds): array {
+            if (!isset($nodesById[$territoryId])) {
+                return [];
+            }
+
+            $node = $nodesById[$territoryId];
+            if (isset($trail[$territoryId])) {
+                return $node;
+            }
+
+            $trail[$territoryId] = true;
+            $childIds = array_values(
+                array_filter(
+                    (array) ($childrenByParentId[$territoryId] ?? []),
+                    static fn(mixed $childId): bool => is_int($childId) && isset($groupTerritoryIds[$childId])
+                )
+            );
+            usort(
+                $childIds,
+                static fn(int $leftId, int $rightId): int => strnatcasecmp(
+                    (string) ($nodesById[$leftId]['name'] ?? ''),
+                    (string) ($nodesById[$rightId]['name'] ?? '')
+                )
+            );
+
+            foreach ($childIds as $childId) {
+                $childNode = $buildNode($childId, $trail);
+                if ($childNode !== []) {
+                    $node['children'][] = $childNode;
+                }
+            }
+
+            return $node;
+        };
+
+        $topLevelIds = [];
+        foreach (array_keys($groupTerritoryIds) as $territoryId) {
+            $parentId = (int) ($resolvedParentIds[$territoryId] ?? 0);
+            if ($parentId > 0 && isset($groupTerritoryIds[$parentId])) {
+                continue;
+            }
+
+            $topLevelIds[] = $territoryId;
+        }
+
+        usort(
+            $topLevelIds,
+            static fn(int $leftId, int $rightId): int => strnatcasecmp(
+                (string) ($nodesById[$leftId]['name'] ?? ''),
+                (string) ($nodesById[$rightId]['name'] ?? '')
+            )
+        );
+
+        $children = [];
+        foreach ($topLevelIds as $territoryId) {
+            $node = $buildNode($territoryId);
+            if ($node !== []) {
+                $children[] = $node;
+            }
+        }
+
+        $hierarchy[] = [
+            'public_id' => '',
+            'name' => (string) ($group['name'] ?? ''),
+            'short_name' => '',
+            'type' => '',
+            'valid_label' => '',
+            'parent_public_id' => '',
+            'parent_name' => '',
+            'wiki_name' => (string) ($group['name'] ?? ''),
+            'wiki_affiliation_raw' => (string) ($group['name'] ?? ''),
+            'wiki_affiliation_root' => (string) ($group['name'] ?? ''),
+            'aliases' => [(string) ($group['name'] ?? '')],
+            'children' => $children,
+            'is_group' => true,
+        ];
     }
 
     return $hierarchy;
@@ -1592,6 +1656,32 @@ function avesmapsPoliticalPublicTerritoryAliases(array $territory): array {
     }
 
     return array_values(array_unique(array_filter(array_map('trim', $aliases))));
+}
+
+function avesmapsPoliticalResolveHierarchyRootName(array $territory): string {
+    $rootName = trim((string) ($territory['wiki_affiliation_root'] ?? ''));
+    if ($rootName !== '') {
+        return $rootName;
+    }
+
+    $path = $territory['wiki_affiliation_path'] ?? [];
+    if (is_array($path) && $path !== []) {
+        $first = trim((string) reset($path));
+        if ($first !== '') {
+            return $first;
+        }
+    }
+
+    $affiliation = trim((string) ($territory['wiki_affiliation_raw'] ?? ''));
+    if ($affiliation !== '') {
+        $parts = preg_split('/\s*[:;]\s*/u', $affiliation) ?: [];
+        $first = trim((string) reset($parts));
+        if ($first !== '') {
+            return $first;
+        }
+    }
+
+    return trim((string) ($territory['name'] ?? ''));
 }
 
 function avesmapsPoliticalInferPublicTerritoryParentId(array $territory, array $aliasToIds, array $territoriesById): int {

@@ -960,6 +960,7 @@ function clonePoliticalTerritoryHierarchyNode(node) {
 		return null;
 	}
 
+	const isGroup = node.is_group === true || node.isGroup === true;
 	const territory = {
 		public_id: node.public_id || "",
 		name: node.name || "",
@@ -979,7 +980,7 @@ function clonePoliticalTerritoryHierarchyNode(node) {
 		key: `territory:${mergedTerritory.public_id || mergedTerritory.name}`,
 		territory: mergedTerritory,
 		children: Array.isArray(node.children) ? node.children.map((child) => clonePoliticalTerritoryHierarchyNode(child)).filter(Boolean) : [],
-		isGroup: false,
+		isGroup,
 	};
 }
 
