@@ -694,22 +694,17 @@ function avesmapsPoliticalBestLegacySlugDistance(string $featureSlug, array $can
 function avesmapsPoliticalBuildLegacyRegionCandidateSlugs(array $wikiRecord): array {
     $values = [
         (string) ($wikiRecord['name'] ?? ''),
-        (string) ($wikiRecord['geographic'] ?? ''),
-        (string) ($wikiRecord['political'] ?? ''),
-        (string) ($wikiRecord['affiliation_root'] ?? ''),
     ];
-
-    foreach ((array) ($wikiRecord['affiliation_path_json'] ?? []) as $pathPart) {
-        $values[] = (string) $pathPart;
-    }
 
     $slugs = [];
     foreach ($values as $value) {
-        foreach (preg_split('/\s*[:;,]\s*/', $value) ?: [] as $part) {
-            $slug = avesmapsPoliticalSlug($part);
-            if ($slug !== '') {
-                $slugs[$slug] = true;
+        foreach (avesmapsPoliticalExpandTerritoryAliases([$value]) as $part) {
+            $slug = avesmapsPoliticalSlug((string) $part);
+            if ($slug === '') {
+                continue;
             }
+
+            $slugs[$slug] = true;
         }
     }
 
