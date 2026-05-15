@@ -919,7 +919,6 @@ function populateRegionParentSelect(region) {
 function buildPoliticalTerritoryTree(excludedPublicId) {
 	const byId = new Map();
 	politicalTerritoryOptions
-		.filter((territory) => territory.public_id !== excludedPublicId)
 		.forEach((territory) => {
 			byId.set(territory.public_id, {
 				key: `territory:${territory.public_id}`,
@@ -962,11 +961,12 @@ function renderPoliticalTerritoryTreeNode(node, region, depth) {
 	const button = createRegionParentTreeButton(node.territory, region, { isGroup: node.isGroup });
 	if (node.children.length > 0) {
 		button.dataset.regionTreeToggle = node.key;
-		button.classList.toggle("is-collapsed", regionParentFilterQuery === "" && regionParentCollapsedKeys.has(node.key));
-		button.setAttribute("aria-expanded", regionParentFilterQuery !== "" || !regionParentCollapsedKeys.has(node.key) ? "true" : "false");
+		const isNodeCollapsed = isPoliticalTerritoryTreeNodeCollapsed(node);
+		button.classList.toggle("is-collapsed", isNodeCollapsed);
+		button.setAttribute("aria-expanded", isNodeCollapsed ? "false" : "true");
 	}
 	wrapper.append(button);
-	const isCollapsed = regionParentFilterQuery === "" && regionParentCollapsedKeys.has(node.key);
+	const isCollapsed = isPoliticalTerritoryTreeNodeCollapsed(node);
 	if (node.children.length > 0 && depth < 12 && !isCollapsed) {
 		const childrenElement = document.createElement("div");
 		childrenElement.className = "political-territory-parent-tree__children";
@@ -982,6 +982,10 @@ function renderPoliticalTerritoryTreeNode(node, region, depth) {
 	}
 
 	return wrapper;
+}
+
+function isPoliticalTerritoryTreeNodeCollapsed(node) {
+	return regionParentFilterQuery === "" && node.children.length > 0 && !regionParentCollapsedKeys.has(node.key);
 }
 
 function doesPoliticalTerritoryTreeNodeMatchFilter(node) {
@@ -1265,6 +1269,16 @@ function isRegionEditTabDirty(tab) {
 	return !areRegionEditPayloadsEqual(tab.payload || regionEditPayloadToPayload(tab.region), tab.savedPayload || regionEditPayloadToPayload(tab.region));
 }
 
+function shouldAssignActiveGeometryToTerritory(territoryPublicId) {
+	const primaryTab = regionEditTabs[0] || null;
+	const geometryPublicId = primaryTab?.region?.geometryPublicId || primaryTab?.region?.publicId || "";
+	if (!geometryPublicId || !territoryPublicId || primaryTab?.region?.territoryPublicId === territoryPublicId) {
+		return false;
+	}
+
+	return !regionEditTabs.some((tab) => tab.assignGeometryPublicId === geometryPublicId);
+}
+
 async function saveRegionEditTab(tab) {
 	if (!tab) {
 		return null;
@@ -1272,15 +1286,28 @@ async function saveRegionEditTab(tab) {
 
 	const payload = tab.payload || regionEditPayloadToPayload(tab.region);
 	const result = await submitPoliticalTerritoryEdit(payload);
+	let latestResult = result;
 	if (result.feature) {
 		applyRegionFeatureResponse(tab.entry || regionEditEntry, result.feature);
 	}
 	if (result.territory) {
 		tab.region = normalizePoliticalTerritoryForRegionEdit(result.territory);
 	}
+	if (tab.assignGeometryPublicId && payload.territory_public_id) {
+		latestResult = await submitPoliticalTerritoryEdit({
+			action: "assign_geometry",
+			geometry_public_id: tab.assignGeometryPublicId,
+			territory_public_id: payload.territory_public_id,
+		});
+		if (latestResult.feature) {
+			applyRegionFeatureResponse(tab.entry || regionEditEntry, latestResult.feature);
+		}
+		tab.region.geometryPublicId = tab.assignGeometryPublicId;
+		tab.assignGeometryPublicId = "";
+	}
 	tab.savedPayload = getComparableRegionEditPayload(payload);
 	tab.payload = null;
-	return result;
+	return latestResult;
 }
 
 function normalizePoliticalTerritoryForRegionEdit(territory, wiki = null) {
@@ -1332,12 +1359,19 @@ async function openRegionEditTabForTerritory(territoryPublicId) {
 		setRegionEditStatus("Herrschaftsgebiet wird geladen...", "pending");
 		const response = await fetchPoliticalTerritories({ action: "get", public_id: territoryPublicId });
 		const region = normalizePoliticalTerritoryForRegionEdit(response.territory || {}, response.wiki || null);
+		const assignGeometryPublicId = shouldAssignActiveGeometryToTerritory(territoryPublicId)
+			? (regionEditTabs[0]?.region?.geometryPublicId || regionEditTabs[0]?.region?.publicId || "")
+			: "";
+		if (assignGeometryPublicId) {
+			region.geometryPublicId = assignGeometryPublicId;
+		}
 		const tab = {
 			key: territoryPublicId,
-			entry: region,
+			entry: assignGeometryPublicId ? regionEditTabs[0]?.entry || regionEditEntry || region : region,
 			region,
 			payload: null,
 			savedPayload: regionEditPayloadToPayload(region),
+			assignGeometryPublicId,
 		};
 		regionEditTabs.push(tab);
 		activeRegionEditTabKey = territoryPublicId;
@@ -1348,6 +1382,38 @@ async function openRegionEditTabForTerritory(territoryPublicId) {
 		console.error("Herrschaftsgebiet konnte nicht geladen werden:", error);
 		setRegionEditStatus(error.message || "Herrschaftsgebiet konnte nicht geladen werden.", "error");
 	}
+}
+
+function askRegionTabCloseChoice() {
+	return new Promise((resolve) => {
+		const overlay = document.createElement("div");
+		overlay.className = "political-territory-confirm";
+		overlay.innerHTML = `
+			<div class="political-territory-confirm__dialog" role="dialog" aria-modal="true" aria-labelledby="region-tab-close-title">
+				<h3 id="region-tab-close-title">Änderungen speichern?</h3>
+				<p>Der Tab enthält ungespeicherte Änderungen.</p>
+				<div class="political-territory-confirm__actions">
+					<button type="button" data-region-tab-close-choice="save">Ja</button>
+					<button type="button" data-region-tab-close-choice="discard">Nein</button>
+					<button type="button" data-region-tab-close-choice="cancel">Abbrechen</button>
+				</div>
+			</div>
+		`;
+		const finish = (choice) => {
+			overlay.remove();
+			resolve(choice);
+		};
+		overlay.addEventListener("click", (event) => {
+			if (event.target === overlay) {
+				finish("cancel");
+			}
+		});
+		overlay.querySelectorAll("[data-region-tab-close-choice]").forEach((button) => {
+			button.addEventListener("click", () => finish(button.dataset.regionTabCloseChoice || "cancel"));
+		});
+		document.body.append(overlay);
+		overlay.querySelector("[data-region-tab-close-choice='save']")?.focus();
+	});
 }
 
 $(document).on("click", "[data-region-edit-tab]", function (event) {
@@ -1376,8 +1442,8 @@ $(document).on("click", "[data-region-edit-tab-close]", async function (event) {
 	snapshotActiveRegionEditTab();
 	const tab = regionEditTabs[tabIndex];
 	if (isRegionEditTabDirty(tab)) {
-		const shouldSave = window.confirm("Änderungen vor dem Schließen speichern?");
-		if (shouldSave) {
+		const closeChoice = await askRegionTabCloseChoice();
+		if (closeChoice === "save") {
 			try {
 				await saveRegionEditTab(tab);
 				await loadPoliticalTerritoryOptions();
@@ -1388,7 +1454,7 @@ $(document).on("click", "[data-region-edit-tab-close]", async function (event) {
 				setRegionEditStatus(error.message || "Herrschaftsgebiet konnte nicht gespeichert werden.", "error");
 				return;
 			}
-		} else if (!window.confirm("Tab ohne Speichern schließen?")) {
+		} else if (closeChoice !== "discard") {
 			return;
 		}
 	}

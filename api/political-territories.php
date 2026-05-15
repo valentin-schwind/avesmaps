@@ -57,6 +57,7 @@ try {
         'save_hierarchy' => avesmapsPoliticalSaveHierarchy($pdo, $payload),
         'create_geometry' => avesmapsPoliticalCreateGeometry($pdo, $payload, $user),
         'update_geometry' => avesmapsPoliticalUpdateGeometry($pdo, $payload, $user),
+        'assign_geometry' => avesmapsPoliticalAssignGeometryToTerritory($pdo, $payload),
         'delete_geometry' => avesmapsPoliticalDeleteGeometry($pdo, $payload),
         'geometry_operation' => avesmapsPoliticalApplyGeometryOperationResult($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Herrschaftsgebiet-Aktion ist unbekannt.'),
@@ -807,6 +808,29 @@ function avesmapsPoliticalUpdateGeometry(PDO $pdo, array $payload, array $user):
     ]);
 
     return avesmapsPoliticalResponseForGeometry($pdo, (string) $geometryRow['public_id']);
+}
+
+function avesmapsPoliticalAssignGeometryToTerritory(PDO $pdo, array $payload): array {
+    $geometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? ''));
+    $territory = avesmapsPoliticalFetchTerritoryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['territory_public_id'] ?? ''));
+    $style = avesmapsPoliticalDecodeJson($geometry['style_json'] ?? null);
+    $style['fill'] = (string) ($territory['color'] ?? '#888888');
+    $style['stroke'] = (string) ($territory['color'] ?? '#888888');
+    $style['fillOpacity'] = (float) ($territory['opacity'] ?? 0.33);
+
+    $statement = $pdo->prepare(
+        'UPDATE political_territory_geometry
+        SET territory_id = :territory_id,
+            style_json = :style_json
+        WHERE id = :id'
+    );
+    $statement->execute([
+        'id' => (int) $geometry['id'],
+        'territory_id' => (int) $territory['id'],
+        'style_json' => avesmapsPoliticalEncodeJsonOrNull($style),
+    ]);
+
+    return avesmapsPoliticalResponseForGeometry($pdo, (string) $geometry['public_id']);
 }
 
 function avesmapsPoliticalDeleteGeometry(PDO $pdo, array $payload): array {

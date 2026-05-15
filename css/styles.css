@@ -1197,6 +1197,56 @@ body.modal-dialog-open {
 	font: inherit;
 }
 
+.political-territory-confirm {
+	position: fixed;
+	inset: 0;
+	z-index: 5000;
+	display: grid;
+	place-items: center;
+	background: rgba(20, 15, 10, 0.36);
+}
+
+.political-territory-confirm__dialog {
+	width: min(360px, calc(100vw - 32px));
+	border: 1px solid #cdb79f;
+	border-radius: 8px;
+	background: #fffaf5;
+	box-shadow: 0 16px 42px rgba(0, 0, 0, 0.28);
+	padding: 16px;
+	color: #3f3428;
+}
+
+.political-territory-confirm__dialog h3 {
+	margin: 0 0 8px;
+	font-size: 17px;
+}
+
+.political-territory-confirm__dialog p {
+	margin: 0 0 14px;
+}
+
+.political-territory-confirm__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+.political-territory-confirm__actions button {
+	border: 1px solid #a98b6d;
+	border-radius: 8px;
+	background: #fff;
+	color: #3f3428;
+	cursor: pointer;
+	font: inherit;
+	padding: 7px 12px;
+}
+
+.political-territory-confirm__actions button:first-child {
+	background: #385d72;
+	border-color: #385d72;
+	color: #fff;
+}
+
 .political-territory-parent-tree {
 	display: grid;
 	gap: 3px;
