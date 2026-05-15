@@ -1571,6 +1571,56 @@ function avesmapsPoliticalBuildHierarchy(array $territories): array {
             )
         );
 
+        $representativeId = avesmapsPoliticalResolveHierarchyGroupRepresentativeId(
+            (string) ($group['name'] ?? ''),
+            $topLevelIds,
+            $territoriesById
+        );
+
+        if ($representativeId > 0) {
+            $includedTopLevelIds = [];
+            $collectTopLevelIds = function (array $node) use (&$collectTopLevelIds, &$includedTopLevelIds): void {
+                $publicId = (string) ($node['public_id'] ?? '');
+                if ($publicId !== '') {
+                    $includedTopLevelIds[$publicId] = true;
+                }
+
+                foreach ((array) ($node['children'] ?? []) as $childNode) {
+                    if (is_array($childNode)) {
+                        $collectTopLevelIds($childNode);
+                    }
+                }
+            };
+
+            $rootNode = $buildNode($representativeId);
+            $collectTopLevelIds($rootNode);
+            foreach ($topLevelIds as $territoryId) {
+                if ($territoryId === $representativeId) {
+                    continue;
+                }
+
+                $publicId = (string) ($nodesById[$territoryId]['public_id'] ?? '');
+                if ($publicId !== '' && isset($includedTopLevelIds[$publicId])) {
+                    continue;
+                }
+
+                $childNode = $buildNode($territoryId);
+                if ($childNode !== []) {
+                    $rootNode['children'][] = $childNode;
+                }
+            }
+
+            usort(
+                $rootNode['children'],
+                static fn(array $left, array $right): int => strnatcasecmp(
+                    (string) ($left['name'] ?? ''),
+                    (string) ($right['name'] ?? '')
+                )
+            );
+            $hierarchy[] = $rootNode;
+            continue;
+        }
+
         $children = [];
         foreach ($topLevelIds as $territoryId) {
             $node = $buildNode($territoryId);
@@ -1654,6 +1704,9 @@ function avesmapsPoliticalPublicTerritoryAliases(array $territory): array {
     if (str_contains($name, 'heiliges neues kaiserreich vom greifenthron')) {
         $aliases[] = 'Mittelreich';
     }
+    if (str_contains($name, 'reich des horas') || str_contains($name, 'horasreich')) {
+        $aliases[] = 'Horasreich';
+    }
 
     return array_values(array_unique(array_filter(array_map('trim', $aliases))));
 }
@@ -1682,6 +1735,44 @@ function avesmapsPoliticalResolveHierarchyRootName(array $territory): string {
     }
 
     return trim((string) ($territory['name'] ?? ''));
+}
+
+function avesmapsPoliticalResolveHierarchyGroupRepresentativeId(string $groupName, array $topLevelIds, array $territoriesById): int {
+    $groupSlug = avesmapsPoliticalSlug($groupName);
+    if ($groupSlug === '') {
+        return 0;
+    }
+
+    $bestId = 0;
+    $bestScore = PHP_INT_MIN;
+    foreach ($topLevelIds as $territoryId) {
+        $territory = $territoriesById[$territoryId] ?? null;
+        if (!is_array($territory)) {
+            continue;
+        }
+
+        $aliases = avesmapsPoliticalPublicTerritoryAliases($territory);
+        $score = PHP_INT_MIN;
+        foreach ($aliases as $alias) {
+            $aliasSlug = avesmapsPoliticalSlug((string) $alias);
+            if ($aliasSlug === '') {
+                continue;
+            }
+
+            if ($aliasSlug === $groupSlug) {
+                $score = max($score, 1000);
+            } elseif (str_contains($aliasSlug, $groupSlug) || str_contains($groupSlug, $aliasSlug)) {
+                $score = max($score, 500 - abs(strlen($aliasSlug) - strlen($groupSlug)));
+            }
+        }
+
+        if ($score > $bestScore) {
+            $bestScore = $score;
+            $bestId = $territoryId;
+        }
+    }
+
+    return $bestScore >= 500 ? $bestId : 0;
 }
 
 function avesmapsPoliticalInferPublicTerritoryParentId(array $territory, array $aliasToIds, array $territoriesById): int {
