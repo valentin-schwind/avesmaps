@@ -1042,6 +1042,15 @@ body.modal-dialog-open {
 	max-height: calc(100vh - 28px);
 }
 
+.political-territory-tree-form > :not(input[type="hidden"]):not(.political-territory-tree-panel):not(#region-edit-status):not(.location-report-form__actions) {
+	display: none !important;
+}
+
+.political-territory-tree-form #region-edit-delete,
+.political-territory-tree-form #region-edit-submit {
+	display: none !important;
+}
+
 .location-report-form__field small {
 	font-size: 11px;
 	font-weight: normal;

@@ -685,7 +685,8 @@ function setRegionEditDialogOpen(isOpen, { resetForm = false } = {}) {
 	syncModalDialogBodyState();
 	if (isOpen) {
 		getRegionEditDialogElement()?.focus();
-		document.getElementById("region-edit-name")?.focus();
+		const isTreeOnly = document.getElementById("region-edit-form")?.classList.contains("political-territory-tree-form") === true;
+		document.getElementById(isTreeOnly ? "region-edit-parent-filter" : "region-edit-name")?.focus();
 		return;
 	}
 	if (resetForm) resetRegionEditForm();
@@ -852,8 +853,11 @@ function syncRegionCoatPreview() {
 
 function syncRegionTerritoryFieldVisibility(source) {
 	const isPoliticalTerritory = source === "political_territory";
+	const isTreeOnly = document.getElementById("region-edit-form")?.classList.contains("political-territory-tree-form") === true;
 	document.querySelectorAll(".political-territory-field").forEach((element) => {
-		element.hidden = !isPoliticalTerritory;
+		element.hidden = isTreeOnly && element.classList.contains("political-territory-tree-panel")
+			? false
+			: !isPoliticalTerritory;
 	});
 }
 
@@ -1739,18 +1743,24 @@ $(document).on("click", "[data-region-parent-id]", function (event) {
 	document.querySelectorAll("#region-edit-parent-tree [data-region-parent-id]").forEach((button) => {
 		button.classList.toggle("is-selected", button === this);
 	});
-	void activatePrimaryRegionEditTabForTerritory(territoryPublicId);
+	const territoryName = this.querySelector(".political-territory-parent-tree__name")?.textContent || "Herrschaftsgebiet";
+	setRegionEditStatus(`${territoryName} ausgewählt.`, "success");
 });
 
 $(document).on("dblclick", "#region-edit-parent-tree [data-region-territory-id]", function (event) {
-	const territoryPublicId = this.dataset.regionTerritoryId || "";
-	if (!territoryPublicId) {
+	event.preventDefault();
+	event.stopPropagation();
+	const toggleKey = this.dataset.regionTreeToggle || "";
+	if (!toggleKey) {
 		return;
 	}
 
-	event.preventDefault();
-	event.stopPropagation();
-	void openRegionEditTabForTerritory(territoryPublicId);
+	if (regionParentCollapsedKeys.has(toggleKey)) {
+		regionParentCollapsedKeys.delete(toggleKey);
+	} else {
+		regionParentCollapsedKeys.add(toggleKey);
+	}
+	populateRegionParentSelect(regionEditEntry?.region || regionEditEntry || {});
 });
 
 $(document).on("dragstart", "#region-edit-parent-tree [data-region-territory-id]", function (event) {
@@ -1804,18 +1814,15 @@ async function loadPoliticalTerritoryWikiReferences() {
 		return politicalTerritoryWikiReferences;
 	}
 
-	try {
-		const response = await fetchPoliticalTerritories({ action: "wiki_list", continent: "Aventurien" });
-		politicalTerritoryWikiReferences = Array.isArray(response.wiki) ? response.wiki : [];
-	} catch (error) {
-		console.warn("Wiki-Referenzen werden aus der statischen Referenzdatei geladen:", error);
-		politicalTerritoryWikiReferences = await loadPoliticalTerritoryWikiReferenceFallback();
-	}
+	const response = await fetchWikiSyncData({ action: "political_territory_tree" });
+	politicalTerritoryWikiReferences = Array.isArray(response.territories)
+		? response.territories.map((entry, index) => normalizeWikiTreeReferenceRecord(entry, index))
+		: [];
 	return politicalTerritoryWikiReferences;
 }
 
 async function loadPoliticalTerritoryWikiReferenceFallback() {
-	const response = await fetch("data/wiki/avesmaps-herrschaftsgebiete.json", {
+	const response = await fetch("api/wiki-sync.php?action=political_territory_tree", {
 		credentials: "same-origin",
 		headers: {
 			Accept: "application/json",
@@ -4392,6 +4399,9 @@ async function handleLabelEditFormSubmit(event) {
 async function handleRegionEditFormSubmit(event) {
 	event.preventDefault();
 	const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
+	if (formElement?.classList.contains("political-territory-tree-form")) {
+		return;
+	}
 	if (!formElement || !formElement.reportValidity() || !regionEditEntry) return;
 	snapshotActiveRegionEditTab();
 	const payload = buildRegionEditPayload(formElement);

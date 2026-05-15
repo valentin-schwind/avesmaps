@@ -184,36 +184,17 @@ Erlaubte Rollen sind `admin`, `editor` und `reviewer`. Fuer `/edit` reichen
 
 ## Herrschaftsgebiete
 
-Der politische Layer nutzt fuer neue Installationen das dreigeteilte
-Herrschaftsgebiete-Modell:
+Der Editor-Baum fuer Herrschaftsgebiete wird aktuell read-only direkt aus Wiki
+Aventurica geladen:
 
-- `political_territory_wiki` fuer importierte Wiki-Aventurica-Referenzdaten
-- `political_territory` fuer redaktionelle Avesmaps-Felder
-- `political_territory_geometry` fuer Polygon- und MultiPolygon-Geometrien
-- `political_territory_relation` als Erweiterungspunkt fuer komplexere
-  Beziehungen
-
-Die Migration liegt in `sql/2026-05-15-political-territories.sql` und ist auch
-in `schema.future.mysql.sql` enthalten. Der Editor-Endpoint ist
-`political-territories.php`; er bietet `list`, `get`, `wiki`, `wiki_list`, `hierarchy`,
-`geometries`, `layer` sowie schreibende Aktionen fuer Gebiete, Hierarchien,
-Geometrien und Geometrieoperationen.
-
-WikiSync importiert Herrschaftsgebiete ueber den normalen
-`action=start_run`/`action=advance_run`-Ablauf. Nach den Ortsabgleichen folgt
-die Phase `political_territories`; sie liest
-`data/wiki/avesmaps-herrschaftsgebiete.json` als serverseitige
-WikiSync-Referenz.
-
-Die Referenz enthaelt 500 Herrschaftsgebiete in 36 Root-Bereichen aus
-`Zugehoerigkeit-Root`. Diese Root-Werte werden im Editor als gruppierte,
-suchbare Parent/Hierarchie-Struktur verwendet.
-
-Der Import aktualisiert nur Wiki-Referenzfelder. Redaktionelle Overrides und
-redaktionell gespeicherte Geometrien bleiben erhalten. Nur Datensaetze fuer
-`Aventurien` werden als lokale Herrschaftsgebiete angelegt.
-
-Weitere Details: `docs/herrschaftsgebiete.md`.
+- `wiki-sync.php?action=political_territory_tree` liest `Staat/Liste` aus dem
+  Wiki.
+- Der Baum wird aus der dortigen Zugehoerigkeit aufgebaut.
+- Es werden keine `political_territory`- oder
+  `political_territory_relation`-Datensaetze mehr angelegt.
+- `political_territory_geometry` bleibt als Geometrie-Zwischenspeicher
+  erhalten; die alten `territory_id`-Verweise muessen spaeter neu vergeben
+  werden.
 
 ## Edit-API
 

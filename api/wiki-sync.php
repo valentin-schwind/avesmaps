@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 require __DIR__ . '/auth.php';
-require_once __DIR__ . '/political-territory-lib.php';
 
 const AVESMAPS_WIKI_API_URL = 'https://de.wiki-aventurica.de/de/api.php';
 const AVESMAPS_WIKI_PAGE_BASE_URL = 'https://de.wiki-aventurica.de/wiki/';
@@ -90,7 +89,14 @@ try {
     avesmapsWikiSyncEnsureTables($pdo);
 
     if ($requestMethod === 'GET') {
-        avesmapsJsonResponse(200, avesmapsWikiSyncListCases($pdo));
+        $action = avesmapsNormalizeSingleLine((string) ($_GET['action'] ?? 'cases'), 80);
+        $response = match ($action) {
+            'cases', '' => avesmapsWikiSyncListCases($pdo),
+            'political_territory_tree' => avesmapsWikiSyncReadPoliticalTerritoryTreeFromWiki(),
+            default => throw new InvalidArgumentException('Die WikiSync-Aktion ist unbekannt.'),
+        };
+
+        avesmapsJsonResponse(200, $response);
     }
 
     if ($requestMethod !== 'POST') {
@@ -109,7 +115,6 @@ try {
         'archive_case' => avesmapsWikiSyncUpdateCaseStatus($pdo, $payload, $user, 'archived'),
         'reopen_case' => avesmapsWikiSyncUpdateCaseStatus($pdo, $payload, $user, 'open'),
         'resolve_case' => avesmapsWikiSyncResolveCase($pdo, $payload, avesmapsRequireUserWithCapability('edit')),
-        'import_political_territories' => avesmapsWikiSyncImportPoliticalTerritories($pdo, $payload, avesmapsRequireUserWithCapability('edit')),
         default => throw new InvalidArgumentException('Die WikiSync-Aktion ist unbekannt.'),
     };
 
@@ -150,15 +155,6 @@ try {
         'ok' => false,
         'error' => 'WikiSync konnte nicht verarbeitet werden.',
     ]);
-}
-
-function avesmapsWikiSyncImportPoliticalTerritories(PDO $pdo, array $payload, array $user): array {
-    $records = $payload['records'] ?? null;
-    if (!is_array($records)) {
-        throw new InvalidArgumentException('Die Herrschaftsgebiet-Daten fehlen.');
-    }
-
-    return avesmapsPoliticalImportWikiRecords($pdo, $records, $user);
 }
 
 function avesmapsWikiSyncEnsureTables(PDO $pdo): void {
@@ -238,7 +234,7 @@ function avesmapsWikiSyncStartRun(PDO $pdo, array $user): array {
     $publicId = avesmapsWikiSyncUuidV4();
     $statement = $pdo->prepare(
         'INSERT INTO wiki_sync_runs (public_id, sync_type, status, phase, progress_current, progress_total, message, stats_json, created_by)
-        VALUES (:public_id, :sync_type, :status, :phase, 0, 5, :message, :stats_json, :created_by)'
+        VALUES (:public_id, :sync_type, :status, :phase, 0, 4, :message, :stats_json, :created_by)'
     );
     $statement->execute([
         'public_id' => $publicId,
@@ -302,10 +298,7 @@ function avesmapsWikiSyncAdvanceRun(PDO $pdo, array $payload): array {
     } elseif ($phase === 'build_cases') {
         $caseCount = avesmapsWikiSyncBuildAndStoreCases($pdo, (int) $run['id'], $stats);
         $stats['case_count'] = $caseCount;
-        avesmapsWikiSyncUpdateRun($pdo, (int) $run['id'], 'running', 'political_territories', 4, 'Herrschaftsgebiete werden synchronisiert.', $stats);
-    } elseif ($phase === 'political_territories') {
-        $stats['political_territories'] = avesmapsWikiSyncImportPoliticalTerritoriesFromReference($pdo);
-        avesmapsWikiSyncUpdateRun($pdo, (int) $run['id'], 'completed', 'completed', 5, 'WikiSync abgeschlossen.', $stats);
+        avesmapsWikiSyncUpdateRun($pdo, (int) $run['id'], 'completed', 'completed', 4, 'WikiSync abgeschlossen.', $stats);
         $pdo->prepare('UPDATE wiki_sync_runs SET completed_at = CURRENT_TIMESTAMP(3) WHERE id = :id')->execute(['id' => (int) $run['id']]);
     } else {
         throw new RuntimeException('Die WikiSync-Phase ist unbekannt.');
@@ -319,45 +312,423 @@ function avesmapsWikiSyncAdvanceRun(PDO $pdo, array $payload): array {
     ];
 }
 
-function avesmapsWikiSyncImportPoliticalTerritoriesFromReference(PDO $pdo): array {
-    $records = avesmapsWikiSyncReadPoliticalTerritoryReferenceRecords();
-    if ($records === []) {
-        return [
-            'received' => 0,
-            'message' => 'Keine Herrschaftsgebiet-Referenzdaten gefunden.',
+function avesmapsWikiSyncReadPoliticalTerritoryTreeFromWiki(): array {
+    avesmapsWikiSyncRelaxLimits();
+    $rows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki();
+    $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($rows);
+
+    return [
+        'ok' => true,
+        'source' => 'wiki-aventurica',
+        'source_page' => avesmapsWikiSyncPageUrl('Staat/Liste'),
+        'territory_count' => count($rows),
+        'root_count' => count($tree['hierarchy']),
+        'territories' => $tree['territories'],
+        'hierarchy' => $tree['hierarchy'],
+    ];
+}
+
+function avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki(): array {
+    $html = avesmapsWikiSyncFetchParsedWikiHtml('Staat/Liste');
+    $rows = avesmapsWikiSyncParsePoliticalTerritoryRowsFromHtml($html);
+    if ($rows === []) {
+        throw new RuntimeException('Aus Staat/Liste konnten keine Herrschaftsgebiete gelesen werden.');
+    }
+
+    return $rows;
+}
+
+function avesmapsWikiSyncFetchParsedWikiHtml(string $pageTitle): string {
+    $data = avesmapsWikiSyncApiRequest([
+        'action' => 'parse',
+        'page' => $pageTitle,
+        'prop' => 'text',
+        'disablelimitreport' => '1',
+    ]);
+
+    $text = $data['parse']['text'] ?? '';
+    if (is_array($text)) {
+        $text = (string) ($text['*'] ?? '');
+    }
+
+    if (!is_string($text) || trim($text) === '') {
+        throw new RuntimeException("Wiki Aventurica hat fuer {$pageTitle} kein HTML geliefert.");
+    }
+
+    return $text;
+}
+
+function avesmapsWikiSyncParsePoliticalTerritoryRowsFromHtml(string $html): array {
+    if (!class_exists(DOMDocument::class)) {
+        throw new RuntimeException('Die PHP-DOM-Erweiterung fehlt fuer den Wiki-HTML-Import.');
+    }
+
+    $document = new DOMDocument();
+    @$document->loadHTML('<?xml encoding="UTF-8">' . $html);
+    $tables = $document->getElementsByTagName('table');
+    $bestRows = [];
+    $bestScore = -1;
+
+    foreach ($tables as $table) {
+        if (!$table instanceof DOMElement) {
+            continue;
+        }
+
+        $parsedRows = avesmapsWikiSyncParsePoliticalTerritoryTable($table);
+        if ($parsedRows === []) {
+            continue;
+        }
+
+        $headers = array_keys($parsedRows[0]['raw'] ?? []);
+        $score = count($parsedRows);
+        if (in_array('name', $headers, true)) {
+            $score += 1000;
+        }
+        if (in_array('art', $headers, true) || in_array('typ', $headers, true)) {
+            $score += 500;
+        }
+        if (in_array('staat', $headers, true) || in_array('zugehorigkeit', $headers, true)) {
+            $score += 500;
+        }
+
+        if ($score > $bestScore) {
+            $bestScore = $score;
+            $bestRows = $parsedRows;
+        }
+    }
+
+    return array_map(
+        static fn(array $row): array => $row['public'],
+        $bestRows
+    );
+}
+
+function avesmapsWikiSyncParsePoliticalTerritoryTable(DOMElement $table): array {
+    $rows = [];
+    $headers = [];
+
+    foreach ($table->getElementsByTagName('tr') as $tableRow) {
+        if (!$tableRow instanceof DOMElement) {
+            continue;
+        }
+
+        $cells = avesmapsWikiSyncReadTableCells($tableRow);
+        if ($cells === []) {
+            continue;
+        }
+
+        $isHeaderRow = false;
+        foreach ($cells as $cell) {
+            if (strtolower($cell->tagName) === 'th') {
+                $isHeaderRow = true;
+                break;
+            }
+        }
+
+        if ($isHeaderRow || $headers === []) {
+            $candidateHeaders = array_map(
+                static fn(DOMElement $cell): string => avesmapsWikiSyncNormalizePoliticalHeader($cell->textContent),
+                $cells
+            );
+            if (in_array('name', $candidateHeaders, true)) {
+                $headers = $candidateHeaders;
+                continue;
+            }
+        }
+
+        if ($headers === [] || count($cells) < 2) {
+            continue;
+        }
+
+        $raw = [];
+        foreach ($cells as $index => $cell) {
+            $header = $headers[$index] ?? "spalte_{$index}";
+            $raw[$header] = avesmapsWikiSyncNormalizeWikiTreeText($cell->textContent);
+        }
+
+        $name = $raw['name'] ?? '';
+        if ($name === '') {
+            continue;
+        }
+
+        $wikiUrl = avesmapsWikiSyncReadFirstWikiLink($cells[array_search('name', $headers, true) ?: 0] ?? $cells[0]);
+        $rows[] = [
+            'raw' => $raw,
+            'public' => [
+                'name' => $name,
+                'type' => $raw['typ'] ?? $raw['art'] ?? '',
+                'affiliation' => $raw['zugehorigkeit'] ?? $raw['staat'] ?? '',
+                'capital_name' => $raw['hauptstadt'] ?? '',
+                'seat_name' => $raw['herrschaftssitz'] ?? '',
+                'population' => $raw['einwohnerzahl'] ?? '',
+                'founded_text' => $raw['grundungsdatum'] ?? '',
+                'dissolved_text' => $raw['aufgelost'] ?? '',
+                'wiki_url' => $wikiUrl,
+            ],
         ];
     }
 
-    $result = avesmapsPoliticalImportWikiRecords($pdo, $records);
-    return $result['stats'] ?? [];
+    return $rows;
 }
 
-function avesmapsWikiSyncReadPoliticalTerritoryReferenceRecords(): array {
-    $candidatePaths = [
-        dirname(__DIR__) . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'wiki' . DIRECTORY_SEPARATOR . 'avesmaps-herrschaftsgebiete.json',
-        dirname(__DIR__) . DIRECTORY_SEPARATOR . 'politics_test' . DIRECTORY_SEPARATOR . 'avesmaps-herrschaftsgebiete.json',
-    ];
-
-    foreach ($candidatePaths as $path) {
-        if (!is_file($path)) {
-            continue;
+function avesmapsWikiSyncReadTableCells(DOMElement $row): array {
+    $cells = [];
+    foreach ($row->childNodes as $child) {
+        if ($child instanceof DOMElement && in_array(strtolower($child->tagName), ['th', 'td'], true)) {
+            $cells[] = $child;
         }
-
-        $json = file_get_contents($path);
-        if (!is_string($json) || trim($json) === '') {
-            continue;
-        }
-
-        try {
-            $records = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            continue;
-        }
-
-        return is_array($records) ? $records : [];
     }
 
-    return [];
+    return $cells;
+}
+
+function avesmapsWikiSyncNormalizePoliticalHeader(string $header): string {
+    $normalized = avesmapsWikiSyncCreateMatchKey(avesmapsWikiSyncNormalizeWikiTreeText($header));
+    return match ($normalized) {
+        'name', 'staat', 'hauptstadt', 'herrschaftssitz', 'einwohnerzahl' => $normalized,
+        'art' => 'art',
+        'typ', 'herrschaftsgebiet' => 'typ',
+        'zugehorigkeit', 'zugehoerigkeit' => 'zugehorigkeit',
+        'grundungsdatum', 'gruendungsdatum' => 'grundungsdatum',
+        'aufgelost', 'aufgeloest' => 'aufgelost',
+        default => $normalized,
+    };
+}
+
+function avesmapsWikiSyncReadFirstWikiLink(DOMElement $cell): string {
+    foreach ($cell->getElementsByTagName('a') as $link) {
+        if (!$link instanceof DOMElement) {
+            continue;
+        }
+
+        $href = trim((string) $link->getAttribute('href'));
+        if ($href === '' || str_starts_with($href, '#')) {
+            continue;
+        }
+
+        if (str_starts_with($href, '/wiki/')) {
+            return 'https://de.wiki-aventurica.de' . $href;
+        }
+
+        if (preg_match('/^https?:\/\//i', $href) === 1) {
+            return $href;
+        }
+    }
+
+    return '';
+}
+
+function avesmapsWikiSyncBuildPoliticalTerritoryTree(array $rows): array {
+    $root = avesmapsWikiSyncCreatePoliticalTreeNode('__root__', '');
+    $rowIndex = avesmapsWikiSyncBuildPoliticalTerritoryRowIndex($rows);
+    $territories = [];
+
+    foreach ($rows as $index => $row) {
+        $path = avesmapsWikiSyncReadPoliticalTerritoryPath($row);
+        $current =& $root;
+        foreach ($path as $part) {
+            $key = avesmapsWikiSyncMakePoliticalTreeKey($part);
+            if ($key === '') {
+                continue;
+            }
+
+            if (!isset($current['children'][$key])) {
+                $current['children'][$key] = avesmapsWikiSyncCreatePoliticalTreeNode($key, $part, $rowIndex[$key] ?? null);
+            } elseif ($current['children'][$key]['row'] === null && isset($rowIndex[$key])) {
+                $current['children'][$key]['row'] = $rowIndex[$key];
+                $current['children'][$key] = avesmapsWikiSyncApplyPoliticalRowToTreeNode($current['children'][$key], $rowIndex[$key]);
+            }
+
+            $current =& $current['children'][$key];
+        }
+
+        $name = (string) ($row['name'] ?? '');
+        $ownKey = avesmapsWikiSyncMakePoliticalTreeKey($name) ?: 'gebiet-' . ($index + 1);
+        if (!isset($current['children'][$ownKey])) {
+            $current['children'][$ownKey] = avesmapsWikiSyncCreatePoliticalTreeNode($ownKey, $name, $row);
+        } elseif ($current['children'][$ownKey]['row'] === null) {
+            $current['children'][$ownKey]['row'] = $row;
+            $current['children'][$ownKey] = avesmapsWikiSyncApplyPoliticalRowToTreeNode($current['children'][$ownKey], $row);
+        }
+
+        $territories[$current['children'][$ownKey]['public_id']] = avesmapsWikiSyncPublicPoliticalTreeNode($current['children'][$ownKey]);
+        unset($current);
+    }
+
+    $hierarchy = avesmapsWikiSyncFlattenPoliticalTreeChildren($root['children']);
+    foreach ($hierarchy as $node) {
+        avesmapsWikiSyncCollectPoliticalTreeTerritories($node, $territories);
+    }
+
+    return [
+        'hierarchy' => $hierarchy,
+        'territories' => array_values($territories),
+    ];
+}
+
+function avesmapsWikiSyncCreatePoliticalTreeNode(string $key, string $name, ?array $row = null): array {
+    $node = [
+        'key' => 'wiki:' . $key,
+        'public_id' => 'wiki:' . $key,
+        'name' => $name,
+        'short_name' => '',
+        'type' => '',
+        'valid_label' => '',
+        'parent_public_id' => '',
+        'parent_name' => '',
+        'wiki_name' => '',
+        'wiki_affiliation_raw' => '',
+        'wiki_affiliation_root' => '',
+        'wiki_url' => '',
+        'capital_name' => '',
+        'seat_name' => '',
+        'is_group' => $row === null,
+        'row' => $row,
+        'children' => [],
+    ];
+
+    return $row === null ? $node : avesmapsWikiSyncApplyPoliticalRowToTreeNode($node, $row);
+}
+
+function avesmapsWikiSyncApplyPoliticalRowToTreeNode(array $node, array $row): array {
+    $node['type'] = (string) ($row['type'] ?? '');
+    $node['valid_label'] = avesmapsWikiSyncFormatPoliticalPeriod($row);
+    $node['wiki_name'] = (string) ($row['name'] ?? '');
+    $node['wiki_affiliation_raw'] = (string) ($row['affiliation'] ?? '');
+    $node['wiki_affiliation_root'] = avesmapsWikiSyncReadPoliticalTerritoryPath($row)[0] ?? '';
+    $node['wiki_url'] = (string) ($row['wiki_url'] ?? '');
+    $node['capital_name'] = (string) ($row['capital_name'] ?? '');
+    $node['seat_name'] = (string) ($row['seat_name'] ?? '');
+
+    return $node;
+}
+
+function avesmapsWikiSyncFlattenPoliticalTreeChildren(array $children, int $depth = 0): array {
+    if ($depth > 24) {
+        return [];
+    }
+
+    uasort($children, 'avesmapsWikiSyncComparePoliticalTreeNodes');
+    $output = [];
+    foreach ($children as $child) {
+        $node = avesmapsWikiSyncPublicPoliticalTreeNode($child);
+        $node['children'] = avesmapsWikiSyncFlattenPoliticalTreeChildren($child['children'], $depth + 1);
+        $node['is_group'] = $node['is_group'] || $node['children'] !== [];
+        $output[] = $node;
+    }
+
+    return $output;
+}
+
+function avesmapsWikiSyncPublicPoliticalTreeNode(array $node): array {
+    return [
+        'key' => (string) $node['key'],
+        'public_id' => (string) $node['public_id'],
+        'name' => (string) $node['name'],
+        'short_name' => (string) $node['short_name'],
+        'type' => (string) $node['type'],
+        'valid_label' => (string) $node['valid_label'],
+        'parent_public_id' => (string) $node['parent_public_id'],
+        'parent_name' => (string) $node['parent_name'],
+        'wiki_name' => (string) $node['wiki_name'],
+        'wiki_affiliation_raw' => (string) $node['wiki_affiliation_raw'],
+        'wiki_affiliation_root' => (string) $node['wiki_affiliation_root'],
+        'wiki_url' => (string) $node['wiki_url'],
+        'capital_name' => (string) $node['capital_name'],
+        'seat_name' => (string) $node['seat_name'],
+        'is_group' => (bool) $node['is_group'],
+        'is_wiki_live' => true,
+    ];
+}
+
+function avesmapsWikiSyncCollectPoliticalTreeTerritories(array $node, array &$territories): void {
+    $territories[$node['public_id']] = $node;
+    foreach (($node['children'] ?? []) as $child) {
+        if (is_array($child)) {
+            avesmapsWikiSyncCollectPoliticalTreeTerritories($child, $territories);
+        }
+    }
+}
+
+function avesmapsWikiSyncReadPoliticalTerritoryPath(array $row): array {
+    $affiliation = avesmapsWikiSyncNormalizeWikiTreeText((string) ($row['affiliation'] ?? ''));
+    if ($affiliation === '') {
+        return ['ungeklärt'];
+    }
+
+    $firstClause = preg_split('/\s*[;·]\s*/u', $affiliation)[0] ?? $affiliation;
+    $parts = preg_split('/\s*:\s*/u', $firstClause) ?: [];
+    $path = [];
+    foreach ($parts as $part) {
+        $normalizedPart = avesmapsWikiSyncNormalizePoliticalPathPart($part);
+        if ($normalizedPart !== '') {
+            $path[] = $normalizedPart;
+        }
+    }
+
+    return $path !== [] ? $path : ['ungeklärt'];
+}
+
+function avesmapsWikiSyncNormalizePoliticalPathPart(string $value): string {
+    $normalized = avesmapsWikiSyncNormalizeWikiTreeText($value);
+    $normalized = preg_replace('/\([^)]*\)/u', '', $normalized) ?? $normalized;
+    $normalized = preg_replace('/\[[^\]]*\]/u', '', $normalized) ?? $normalized;
+    $normalized = preg_replace('/^(?:sowie|und|zuvor|ehemals)\s+/iu', '', $normalized) ?? $normalized;
+    $normalized = preg_replace('/^(?:unter\s+der\s+Herrschaft\s+(?:des|der)|beansprucht\s+(?:von|vom|durch)|benasprucht\s+(?:von|vom|durch))\s+/iu', '', $normalized) ?? $normalized;
+
+    return trim($normalized, " \t\n\r\0\x0B,");
+}
+
+function avesmapsWikiSyncBuildPoliticalTerritoryRowIndex(array $rows): array {
+    $index = [];
+    foreach ($rows as $row) {
+        $name = (string) ($row['name'] ?? '');
+        foreach ([$name, preg_replace('/\s*\([^)]*\)\s*$/u', '', $name) ?? $name] as $alias) {
+            $key = avesmapsWikiSyncMakePoliticalTreeKey((string) $alias);
+            if ($key !== '' && !isset($index[$key])) {
+                $index[$key] = $row;
+            }
+        }
+    }
+
+    return $index;
+}
+
+function avesmapsWikiSyncFormatPoliticalPeriod(array $row): string {
+    $founded = avesmapsWikiSyncNormalizeWikiTreeText((string) ($row['founded_text'] ?? ''));
+    $dissolved = avesmapsWikiSyncNormalizeWikiTreeText((string) ($row['dissolved_text'] ?? ''));
+    if ($founded !== '' && $dissolved !== '') {
+        return preg_match('/\bbesteht\b/iu', $dissolved) === 1 ? 'besteht seit ' . $founded : $founded . ' - ' . $dissolved;
+    }
+    if ($founded !== '') {
+        return 'seit ' . $founded;
+    }
+    if ($dissolved !== '') {
+        return preg_match('/\bbesteht\b/iu', $dissolved) === 1 ? 'besteht' : 'bis ' . $dissolved;
+    }
+
+    return '';
+}
+
+function avesmapsWikiSyncComparePoliticalTreeNodes(array $left, array $right): int {
+    $leftHasRow = $left['row'] === null ? 0 : 1;
+    $rightHasRow = $right['row'] === null ? 0 : 1;
+    if ($leftHasRow !== $rightHasRow) {
+        return $leftHasRow <=> $rightHasRow;
+    }
+
+    return strnatcasecmp((string) $left['name'], (string) $right['name']);
+}
+
+function avesmapsWikiSyncMakePoliticalTreeKey(string $value): string {
+    return avesmapsWikiSyncCreateMatchKey($value);
+}
+
+function avesmapsWikiSyncNormalizeWikiTreeText(string $value): string {
+    $decoded = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $decoded = preg_replace('/\s+/u', ' ', $decoded) ?? $decoded;
+
+    return trim($decoded);
 }
 
 function avesmapsWikiSyncListCases(PDO $pdo): array {

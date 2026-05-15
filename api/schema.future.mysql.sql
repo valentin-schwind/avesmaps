@@ -254,43 +254,6 @@ CREATE TABLE IF NOT EXISTS political_territory_wiki (
     KEY idx_political_territory_wiki_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS political_territory (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    public_id CHAR(36) NOT NULL,
-    wiki_id BIGINT UNSIGNED NULL,
-    slug VARCHAR(180) NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    short_name VARCHAR(160) NULL,
-    type VARCHAR(160) NULL,
-    parent_id BIGINT UNSIGNED NULL,
-    continent VARCHAR(120) NOT NULL DEFAULT 'Aventurien',
-    status VARCHAR(255) NULL,
-    color CHAR(9) NOT NULL DEFAULT '#888888',
-    opacity DECIMAL(4, 3) NOT NULL DEFAULT 0.330,
-    coat_of_arms_url VARCHAR(500) NULL,
-    wiki_url VARCHAR(500) NULL,
-    capital_place_id BIGINT UNSIGNED NULL,
-    seat_place_id BIGINT UNSIGNED NULL,
-    valid_from_bf INT NULL,
-    valid_to_bf INT NULL,
-    valid_label VARCHAR(500) NULL,
-    min_zoom TINYINT UNSIGNED NULL,
-    max_zoom TINYINT UNSIGNED NULL,
-    is_active TINYINT(1) NOT NULL DEFAULT 1,
-    editor_notes TEXT NULL,
-    sort_order INT NOT NULL DEFAULT 0,
-    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_political_territory_public_id (public_id),
-    UNIQUE KEY uq_political_territory_slug (slug),
-    KEY idx_political_territory_wiki (wiki_id),
-    KEY idx_political_territory_parent (parent_id),
-    KEY idx_political_territory_continent_active (continent, is_active),
-    KEY idx_political_territory_timeline (valid_from_bf, valid_to_bf),
-    KEY idx_political_territory_zoom (min_zoom, max_zoom)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 CREATE TABLE IF NOT EXISTS political_territory_geometry (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     public_id CHAR(36) NOT NULL,
@@ -317,22 +280,4 @@ CREATE TABLE IF NOT EXISTS political_territory_geometry (
     KEY idx_political_territory_geometry_bbox (min_x, min_y, max_x, max_y),
     KEY idx_political_territory_geometry_timeline (valid_from_bf, valid_to_bf),
     KEY idx_political_territory_geometry_zoom (min_zoom, max_zoom)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS political_territory_relation (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    child_id BIGINT UNSIGNED NOT NULL,
-    parent_id BIGINT UNSIGNED NOT NULL,
-    relation_type VARCHAR(80) NOT NULL DEFAULT 'hierarchy',
-    valid_from_bf INT NULL,
-    valid_to_bf INT NULL,
-    source VARCHAR(120) NULL,
-    confidence DECIMAL(4, 3) NULL,
-    notes TEXT NULL,
-    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_political_territory_relation (child_id, parent_id, relation_type),
-    KEY idx_political_territory_relation_parent (parent_id, relation_type),
-    KEY idx_political_territory_relation_timeline (valid_from_bf, valid_to_bf)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
