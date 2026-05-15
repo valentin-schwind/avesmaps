@@ -35,6 +35,7 @@ try {
             'hierarchy' => avesmapsPoliticalReadHierarchy($pdo),
             'geometries' => avesmapsPoliticalReadGeometries($pdo, $_GET),
             'debug' => avesmapsPoliticalReadDebug($pdo, $_GET),
+            'audit' => avesmapsPoliticalReadAudit($pdo, $_GET),
             default => throw new InvalidArgumentException('Die Herrschaftsgebiet-Aktion ist unbekannt.'),
         };
 
@@ -521,6 +522,7 @@ function avesmapsPoliticalListTerritories(PDO $pdo, array $query): array {
         static fn(array $row): array => avesmapsPoliticalTerritoryRowToPublic($row),
         $statement->fetchAll(PDO::FETCH_ASSOC)
     );
+    $territories = avesmapsPoliticalApplyEffectiveParents($territories);
 
     return [
         'ok' => true,
@@ -533,10 +535,11 @@ function avesmapsPoliticalGetTerritory(PDO $pdo, array $query): array {
     $territory = avesmapsPoliticalFetchTerritoryByRequest($pdo, $query);
     $wiki = $territory['wiki_id'] ? avesmapsPoliticalFetchWikiById($pdo, (int) $territory['wiki_id']) : null;
     $geometries = avesmapsPoliticalFetchGeometryRowsForTerritory($pdo, (int) $territory['id']);
+    $territoryPublic = avesmapsPoliticalResolveSingleEffectiveTerritory($pdo, avesmapsPoliticalTerritoryRowToPublic($territory));
 
     return [
         'ok' => true,
-        'territory' => avesmapsPoliticalTerritoryRowToPublic($territory),
+        'territory' => $territoryPublic,
         'wiki' => $wiki === null ? null : avesmapsPoliticalWikiRowToPublic($wiki),
         'geometries' => array_map(static fn(array $row): array => avesmapsPoliticalGeometryRowToPublic($row), $geometries),
     ];
@@ -612,10 +615,11 @@ function avesmapsPoliticalReadHierarchy(PDO $pdo): array {
 function avesmapsPoliticalReadGeometries(PDO $pdo, array $query): array {
     $territory = avesmapsPoliticalFetchTerritoryByRequest($pdo, $query);
     $geometries = avesmapsPoliticalFetchGeometryRowsForTerritory($pdo, (int) $territory['id']);
+    $territoryPublic = avesmapsPoliticalResolveSingleEffectiveTerritory($pdo, avesmapsPoliticalTerritoryRowToPublic($territory));
 
     return [
         'ok' => true,
-        'territory' => avesmapsPoliticalTerritoryRowToPublic($territory),
+        'territory' => $territoryPublic,
         'geometries' => array_map(static fn(array $row): array => avesmapsPoliticalGeometryRowToPublic($row), $geometries),
     ];
 }
@@ -670,6 +674,91 @@ function avesmapsPoliticalReadDebug(PDO $pdo, array $query): array {
         'children' => $children,
         'matches' => array_map(static fn(array $row): array => avesmapsPoliticalTerritoryRowToPublic($row), $matches),
         'zoom_visibility' => $zoomVisibility,
+    ];
+}
+
+function avesmapsPoliticalReadAudit(PDO $pdo, array $query): array {
+    $yearBf = avesmapsPoliticalReadOptionalInt($query['year_bf'] ?? null) ?? AVESMAPS_POLITICAL_DEFAULT_YEAR_BF;
+    $zoomFrom = avesmapsPoliticalReadOptionalZoom($query['zoom_from'] ?? null) ?? 0;
+    $zoomTo = avesmapsPoliticalReadOptionalZoom($query['zoom_to'] ?? null) ?? 6;
+    if ($zoomFrom > $zoomTo) {
+        [$zoomFrom, $zoomTo] = [$zoomTo, $zoomFrom];
+    }
+
+    $territoriesResponse = avesmapsPoliticalListTerritories($pdo, ['continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT]);
+    $territories = $territoriesResponse['territories'];
+    $territoriesById = [];
+    foreach ($territories as $territory) {
+        $territoriesById[(int) $territory['id']] = $territory;
+    }
+
+    $geometryCounts = avesmapsPoliticalFetchAuditGeometryCounts($pdo);
+    $layerByZoom = [];
+    for ($zoom = $zoomFrom; $zoom <= $zoomTo; $zoom++) {
+        $layerByZoom[$zoom] = avesmapsPoliticalReadLayer($pdo, [
+            'year_bf' => $yearBf,
+            'zoom' => $zoom,
+        ]);
+    }
+
+    $entries = [];
+    foreach ($territories as $territory) {
+        $territoryId = (int) $territory['id'];
+        $geometryCount = (int) ($geometryCounts[$territoryId]['geometry_count'] ?? 0);
+        $hasInferredParent = empty($territory['parent_id']) && !empty($territory['parent_public_id']);
+        $visibleZooms = [];
+        foreach ($layerByZoom as $zoom => $layer) {
+            foreach ((array) ($layer['features'] ?? []) as $feature) {
+                $properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
+                if (
+                    (string) ($properties['territory_public_id'] ?? '') === (string) $territory['public_id']
+                    || (string) ($properties['aggregate_source_territory_public_id'] ?? '') === (string) $territory['public_id']
+                ) {
+                    $visibleZooms[] = (int) $zoom;
+                    break;
+                }
+            }
+        }
+
+        if ($geometryCount < 1 && $visibleZooms === [] && !$hasInferredParent) {
+            continue;
+        }
+
+        $entries[] = [
+            'territory' => $territory,
+            'geometry_count' => $geometryCount,
+            'geometry_sources' => $geometryCounts[$territoryId]['sources'] ?? [],
+            'visible_zooms' => $visibleZooms,
+            'stored_parent_missing' => empty($territory['parent_id']),
+            'effective_parent_public_id' => (string) ($territory['parent_public_id'] ?? ''),
+            'effective_parent_name' => (string) ($territory['parent_name'] ?? ''),
+            'timeline_issue' => avesmapsPoliticalDetectTimelineIssue($territory),
+        ];
+    }
+
+    usort(
+        $entries,
+        static function (array $left, array $right): int {
+            $leftGeometry = (int) ($left['geometry_count'] ?? 0);
+            $rightGeometry = (int) ($right['geometry_count'] ?? 0);
+            if ($leftGeometry !== $rightGeometry) {
+                return $rightGeometry <=> $leftGeometry;
+            }
+
+            return strcmp(
+                (string) ($left['territory']['name'] ?? ''),
+                (string) ($right['territory']['name'] ?? '')
+            );
+        }
+    );
+
+    return [
+        'ok' => true,
+        'summary' => avesmapsPoliticalReadDebugSummary($pdo),
+        'year_bf' => $yearBf,
+        'zoom_from' => $zoomFrom,
+        'zoom_to' => $zoomTo,
+        'entries' => $entries,
     ];
 }
 
@@ -1608,6 +1697,89 @@ function avesmapsPoliticalCountGeometryRings(?array $geometry): int {
     }
 
     return 0;
+}
+
+function avesmapsPoliticalApplyEffectiveParents(array $territories): array {
+    $byId = [];
+    foreach ($territories as $territory) {
+        $byId[(int) $territory['id']] = $territory;
+    }
+
+    $aliasToId = [];
+    foreach ($territories as $territory) {
+        foreach (avesmapsPoliticalPublicTerritoryAliases($territory) as $alias) {
+            $slug = avesmapsPoliticalSlug($alias);
+            if ($slug !== '') {
+                $aliasToId[$slug] = (int) $territory['id'];
+            }
+        }
+    }
+
+    foreach ($territories as &$territory) {
+        $parentId = (int) ($territory['parent_id'] ?? 0);
+        if ($parentId < 1 || !isset($byId[$parentId])) {
+            $parentId = avesmapsPoliticalInferPublicTerritoryParentId($territory, $aliasToId);
+            if ($parentId > 0 && isset($byId[$parentId])) {
+                $territory['parent_id'] = $parentId;
+                $territory['parent_public_id'] = (string) $byId[$parentId]['public_id'];
+                $territory['parent_name'] = (string) $byId[$parentId]['name'];
+            }
+        }
+    }
+    unset($territory);
+
+    return $territories;
+}
+
+function avesmapsPoliticalResolveSingleEffectiveTerritory(PDO $pdo, array $territory): array {
+    if (!empty($territory['parent_public_id'])) {
+        return $territory;
+    }
+
+    $allTerritories = avesmapsPoliticalListTerritories($pdo, ['continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT]);
+    foreach ((array) ($allTerritories['territories'] ?? []) as $candidate) {
+        if ((int) ($candidate['id'] ?? 0) === (int) ($territory['id'] ?? 0)) {
+            return $candidate;
+        }
+    }
+
+    return $territory;
+}
+
+function avesmapsPoliticalFetchAuditGeometryCounts(PDO $pdo): array {
+    $statement = $pdo->query(
+        'SELECT
+            territory_id,
+            COUNT(*) AS geometry_count,
+            GROUP_CONCAT(DISTINCT COALESCE(source, \'\') ORDER BY COALESCE(source, \'\') SEPARATOR \',\') AS sources
+        FROM political_territory_geometry
+        WHERE is_active = 1
+        GROUP BY territory_id'
+    );
+    if ($statement === false) {
+        return [];
+    }
+
+    $counts = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $territoryId = (int) ($row['territory_id'] ?? 0);
+        $counts[$territoryId] = [
+            'geometry_count' => (int) ($row['geometry_count'] ?? 0),
+            'sources' => array_values(array_filter(array_map('trim', explode(',', (string) ($row['sources'] ?? ''))))),
+        ];
+    }
+
+    return $counts;
+}
+
+function avesmapsPoliticalDetectTimelineIssue(array $territory): string {
+    $validTo = avesmapsPoliticalNullableInt($territory['valid_to_bf'] ?? null);
+    $dissolvedText = mb_strtolower((string) ($territory['wiki_dissolved_text'] ?? ''));
+    if ($validTo === 0 && str_contains($dissolvedText, 'besteht')) {
+        return 'valid_to_zero_but_ongoing';
+    }
+
+    return '';
 }
 
 function avesmapsPoliticalReadGeoJsonGeometry(mixed $value): array {
