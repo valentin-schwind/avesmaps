@@ -511,6 +511,7 @@ function resetRegionEditForm() {
 	regionEditTabs = [];
 	activeRegionEditTabKey = "";
 	regionParentSelectedTreeId = "";
+	regionParentCollapsedKeys = new Set();
 	if (source !== "political_territory") {
 		void releaseFeatureSoftLock(publicId);
 	}
@@ -1093,6 +1094,10 @@ function initializeRegionEditTabs(entry) {
 	renderRegionEditTabs();
 }
 
+function getPrimaryRegionGeometryPublicId() {
+	return regionEditTabs[0]?.region?.geometryPublicId || regionEditTabs[0]?.region?.publicId || regionEditEntry?.region?.geometryPublicId || regionEditEntry?.geometryPublicId || regionEditEntry?.publicId || "";
+}
+
 function renderRegionEditTabs() {
 	const tabsElement = document.getElementById("region-edit-tabs");
 	if (!tabsElement) {
@@ -1384,6 +1389,50 @@ async function openRegionEditTabForTerritory(territoryPublicId) {
 	}
 }
 
+async function activatePrimaryRegionEditTabForTerritory(territoryPublicId) {
+	if (!territoryPublicId) {
+		return;
+	}
+
+	const primaryTab = regionEditTabs[0] || null;
+	const currentTerritoryId = primaryTab?.region?.territoryPublicId || "";
+	if (currentTerritoryId === territoryPublicId) {
+		activeRegionEditTabKey = primaryTab?.key || territoryPublicId;
+		if (primaryTab) {
+			populateRegionEditForm(primaryTab, { preserveTabs: true });
+			renderRegionEditTabs();
+		}
+		return;
+	}
+
+	setRegionEditStatus("Herrschaftsgebiet wird geladen...", "pending");
+	const response = await fetchPoliticalTerritories({ action: "get", public_id: territoryPublicId });
+	const region = normalizePoliticalTerritoryForRegionEdit(response.territory || {}, response.wiki || null);
+	const geometryPublicId = getPrimaryRegionGeometryPublicId();
+	if (geometryPublicId) {
+		region.geometryPublicId = geometryPublicId;
+	}
+	const assignGeometryPublicId = geometryPublicId && currentTerritoryId !== territoryPublicId ? geometryPublicId : "";
+	regionEditTabs = regionEditTabs.filter((tab, index) => index === 0 || tab.key !== territoryPublicId);
+	const nextPrimaryTab = {
+		key: territoryPublicId,
+		entry: primaryTab?.entry || regionEditEntry || region,
+		region,
+		payload: null,
+		savedPayload: regionEditPayloadToPayload(region),
+		assignGeometryPublicId,
+	};
+	if (regionEditTabs.length > 0) {
+		regionEditTabs[0] = nextPrimaryTab;
+	} else {
+		regionEditTabs = [nextPrimaryTab];
+	}
+	activeRegionEditTabKey = territoryPublicId;
+	populateRegionEditForm(nextPrimaryTab, { preserveTabs: true });
+	renderRegionEditTabs();
+	setRegionEditStatus();
+}
+
 function askRegionTabCloseChoice() {
 	return new Promise((resolve) => {
 		const overlay = document.createElement("div");
@@ -1474,6 +1523,7 @@ function populateRegionEditForm(entry, { preserveTabs = false } = {}) {
 	regionEditEntry = entry;
 	const region = entry?.region || entry || {};
 	const source = region.source || "map_feature";
+	regionParentSelectedTreeId = region.territoryPublicId || "";
 	document.getElementById("region-edit-public-id").value = region.publicId || "";
 	document.getElementById("region-edit-source").value = source;
 	document.getElementById("region-edit-territory-public-id").value = region.territoryPublicId || "";
@@ -1510,15 +1560,17 @@ function populateRegionEditForm(entry, { preserveTabs = false } = {}) {
 function openRegionEditDialog(entry, { title = "Eigenschaften bearbeiten" } = {}) {
 	resetRegionEditForm();
 	document.getElementById("region-edit-title").textContent = title;
-	populateRegionEditForm(entry);
 	initializeRegionEditTabs(entry);
+	const initialEntry = regionEditTabs[0] || entry;
+	populateRegionEditForm(initialEntry, { preserveTabs: true });
 	setRegionEditDialogOpen(true);
 	if ((entry?.source || "") === "political_territory" && politicalTerritoryOptions.length === 0) {
 		void loadPoliticalTerritoryOptions().then(() => {
-			if (regionEditEntry === entry) {
-				populateRegionTypeOptions(entry);
-				populateRegionParentSelect(entry);
-				updateRegionParentDropTarget((entry?.region || entry || {}).parentPublicId || "");
+			if (regionEditEntry === initialEntry || regionEditEntry === entry) {
+				const activeEntry = regionEditTabs[0] || initialEntry;
+				populateRegionTypeOptions(activeEntry?.region || activeEntry || {});
+				populateRegionParentSelect(activeEntry?.region || activeEntry || {});
+				updateRegionParentDropTarget((activeEntry?.region || activeEntry || {}).parentPublicId || "");
 			}
 		});
 	}
@@ -1546,6 +1598,7 @@ $(document).on("click", "[data-region-parent-id]", function (event) {
 	document.querySelectorAll("#region-edit-parent-tree [data-region-parent-id]").forEach((button) => {
 		button.classList.toggle("is-selected", button === this);
 	});
+	void activatePrimaryRegionEditTabForTerritory(territoryPublicId);
 });
 
 $(document).on("dblclick", "#region-edit-parent-tree [data-region-territory-id]", function (event) {
