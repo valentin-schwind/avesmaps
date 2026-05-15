@@ -279,6 +279,9 @@ function avesmapsPoliticalBuildEffectiveLayerParentIds(array $territories): arra
             (int) $territoryId
         );
         if ($inferredParentId > 0 && $inferredParentId !== (int) $territoryId) {
+            if (avesmapsPoliticalWouldCreateParentCycle((int) $territoryId, $inferredParentId, $territories)) {
+                continue;
+            }
             $parentIds[(int) $territoryId] = $inferredParentId;
         }
     }
@@ -1297,6 +1300,10 @@ function avesmapsPoliticalBuildHierarchy(array $territories): array {
         }
 
         if ($parentId > 0 && isset($nodesById[$parentId])) {
+            if (avesmapsPoliticalWouldCreateParentCycle($id, $parentId, $territoriesById)) {
+                $roots[] = &$nodesById[$id];
+                continue;
+            }
             $nodesById[$id]['parent_public_id'] = $territoriesById[$parentId]['public_id'] ?? $nodesById[$id]['parent_public_id'];
             $nodesById[$id]['parent_name'] = $territoriesById[$parentId]['name'] ?? $nodesById[$id]['parent_name'];
             $nodesById[$parentId]['children'][] = &$nodesById[$id];
@@ -1721,6 +1728,9 @@ function avesmapsPoliticalApplyEffectiveParents(array $territories): array {
         ) {
             $parentId = avesmapsPoliticalInferPublicTerritoryParentId($territory, $aliasToIds, $byId);
             if ($parentId > 0 && isset($byId[$parentId])) {
+                if (avesmapsPoliticalWouldCreateParentCycle((int) ($territory['id'] ?? 0), $parentId, $byId)) {
+                    continue;
+                }
                 $territory['parent_id'] = $parentId;
                 $territory['parent_public_id'] = (string) $byId[$parentId]['public_id'];
                 $territory['parent_name'] = (string) $byId[$parentId]['name'];
@@ -2182,6 +2192,35 @@ function avesmapsPoliticalIsParentCompatible(array $candidate, array $childTerri
     }
 
     return true;
+}
+
+function avesmapsPoliticalWouldCreateParentCycle(int $childId, int $parentId, array $territoriesById): bool {
+    if ($childId < 1 || $parentId < 1 || $childId === $parentId) {
+        return true;
+    }
+
+    $currentId = $parentId;
+    $visited = [];
+    $safety = 0;
+    while ($currentId > 0 && $safety < 64) {
+        if ($currentId === $childId) {
+            return true;
+        }
+        if (isset($visited[$currentId])) {
+            return true;
+        }
+
+        $visited[$currentId] = true;
+        $current = $territoriesById[$currentId] ?? null;
+        if (!is_array($current)) {
+            return false;
+        }
+
+        $currentId = (int) ($current['parent_id'] ?? 0);
+        $safety++;
+    }
+
+    return false;
 }
 
 function avesmapsPoliticalReadOptionalBoundingBox(string $rawBoundingBox): ?array {
