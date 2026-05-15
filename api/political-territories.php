@@ -282,26 +282,11 @@ function avesmapsPoliticalFetchLayerTerritories(PDO $pdo, int $yearBf): array {
 }
 
 function avesmapsPoliticalBuildEffectiveLayerParentIds(array $territories): array {
-    $aliasToIds = avesmapsPoliticalBuildAliasIndex($territories, static fn(array $territory): array => avesmapsPoliticalLayerTerritoryAliases($territory));
-
     $parentIds = [];
     foreach ($territories as $territoryId => $territory) {
         $storedParentId = (int) ($territory['parent_id'] ?? 0);
         if ($storedParentId > 0 && isset($territories[$storedParentId]) && $storedParentId !== (int) $territoryId) {
             $parentIds[(int) $territoryId] = $storedParentId;
-            continue;
-        }
-
-        $inferredParentName = avesmapsPoliticalInferLayerParentName($territory);
-        $inferredParentId = avesmapsPoliticalResolveParentAliasId(
-            $aliasToIds,
-            $inferredParentName,
-            $territories,
-            $territory,
-            (int) $territoryId
-        );
-        if ($inferredParentId > 0 && $inferredParentId !== (int) $territoryId) {
-            $parentIds[(int) $territoryId] = $inferredParentId;
         }
     }
 
@@ -1342,15 +1327,12 @@ function avesmapsPoliticalBuildHierarchy(array $territories): array {
         ];
     }
 
-    $aliasToIds = avesmapsPoliticalBuildAliasIndex($territories, static fn(array $territory): array => avesmapsPoliticalPublicTerritoryAliases($territory));
     $resolvedParentIds = [];
     foreach ($territoriesById as $territoryId => $territory) {
-        $resolvedParentIds[$territoryId] = avesmapsPoliticalResolveHierarchyParentId(
-            $territoryId,
-            $territory,
-            $territoriesById,
-            $aliasToIds
-        );
+        $parentId = (int) ($territory['parent_id'] ?? 0);
+        $resolvedParentIds[$territoryId] = isset($territoriesById[$parentId]) && $parentId !== $territoryId
+            ? $parentId
+            : 0;
     }
 
     $childrenByParentId = [];
@@ -1852,26 +1834,6 @@ function avesmapsPoliticalCountGeometryRings(?array $geometry): int {
 }
 
 function avesmapsPoliticalApplyEffectiveParents(array $territories): array {
-    $byId = [];
-    foreach ($territories as $territory) {
-        $byId[(int) $territory['id']] = $territory;
-    }
-
-    $aliasToIds = avesmapsPoliticalBuildAliasIndex($territories, static fn(array $territory): array => avesmapsPoliticalPublicTerritoryAliases($territory));
-
-    foreach ($territories as &$territory) {
-        $parentId = (int) ($territory['parent_id'] ?? 0);
-        if ($parentId < 1 || !isset($byId[$parentId])) {
-            $parentId = avesmapsPoliticalInferPublicTerritoryParentId($territory, $aliasToIds, $byId);
-            if ($parentId > 0 && isset($byId[$parentId])) {
-                $territory['parent_id'] = $parentId;
-                $territory['parent_public_id'] = (string) $byId[$parentId]['public_id'];
-                $territory['parent_name'] = (string) $byId[$parentId]['name'];
-            }
-        }
-    }
-    unset($territory);
-
     return $territories;
 }
 
