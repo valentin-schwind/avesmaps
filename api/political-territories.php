@@ -1490,7 +1490,8 @@ function avesmapsPoliticalBuildHierarchy(array $territories): array {
         $rootIds[] = $territoryId;
     }
 
-    $buildNode = function (int $territoryId, array $trail = []) use (&$buildNode, $nodesById, $childrenByParentId): array {
+    $includedIds = [];
+    $buildNode = function (int $territoryId, array $trail = []) use (&$buildNode, &$includedIds, $nodesById, $childrenByParentId): array {
         if (!isset($nodesById[$territoryId])) {
             return [];
         }
@@ -1501,6 +1502,7 @@ function avesmapsPoliticalBuildHierarchy(array $territories): array {
         }
 
         $trail[$territoryId] = true;
+        $includedIds[$territoryId] = true;
         foreach ((array) ($childrenByParentId[$territoryId] ?? []) as $childId) {
             if (!is_int($childId)) {
                 continue;
@@ -1518,14 +1520,12 @@ function avesmapsPoliticalBuildHierarchy(array $territories): array {
     };
 
     $hierarchy = [];
-    $addedRootIds = [];
     foreach ($rootIds as $rootId) {
         $hierarchy[] = $buildNode($rootId);
-        $addedRootIds[$rootId] = true;
     }
 
     foreach (array_keys($nodesById) as $territoryId) {
-        if (isset($addedRootIds[$territoryId])) {
+        if (isset($includedIds[$territoryId])) {
             continue;
         }
 
