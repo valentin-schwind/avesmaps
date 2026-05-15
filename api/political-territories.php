@@ -262,16 +262,27 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
         $aggregateRows = [];
     }
 
-    $aggregateTerritoryIds = [];
-    $aggregateSourceTerritoryIds = [];
-    foreach ($aggregateRows as $row) {
-        $aggregateTerritoryIds[(int) $row['territory_id']] = true;
-        $aggregateSourceTerritoryIds[(int) $row['aggregate_source_territory_id']] = true;
+    $directVisibleTerritoryIds = [];
+    foreach ($rows as $row) {
+        $directVisibleTerritoryIds[(int) $row['territory_id']] = true;
     }
 
+    $aggregateTerritoryIds = [];
+    $aggregateSourceTerritoryIds = [];
     $features = [];
     $aggregateFeaturesByTerritory = [];
     foreach ($aggregateRows as $row) {
+        $aggregateTerritoryId = (int) $row['territory_id'];
+        $aggregateSourceTerritoryId = (int) $row['aggregate_source_territory_id'];
+        if (
+            isset($directVisibleTerritoryIds[$aggregateTerritoryId])
+            || isset($directVisibleTerritoryIds[$aggregateSourceTerritoryId])
+        ) {
+            continue;
+        }
+
+        $aggregateTerritoryIds[$aggregateTerritoryId] = true;
+        $aggregateSourceTerritoryIds[$aggregateSourceTerritoryId] = true;
         $aggregateKey = (string) $row['territory_public_id'];
         $aggregateFeature = avesmapsPoliticalLayerRowToFeature($row, $yearBf, $zoom);
         if (!isset($aggregateFeaturesByTerritory[$aggregateKey])) {
