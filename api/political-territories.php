@@ -1712,6 +1712,17 @@ function avesmapsPoliticalPublicTerritoryAliases(array $territory): array {
 }
 
 function avesmapsPoliticalResolveHierarchyRootName(array $territory): string {
+    $aliases = avesmapsPoliticalPublicTerritoryAliases($territory);
+    foreach ($aliases as $alias) {
+        $aliasSlug = avesmapsPoliticalSlug((string) $alias);
+        if ($aliasSlug === 'mittelreich') {
+            return 'Mittelreich';
+        }
+        if ($aliasSlug === 'horasreich') {
+            return 'Horasreich';
+        }
+    }
+
     $rootName = trim((string) ($territory['wiki_affiliation_root'] ?? ''));
     if ($rootName !== '') {
         return $rootName;
