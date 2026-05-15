@@ -2196,6 +2196,10 @@ function avesmapsPoliticalNormalizedValidToSql(string $valueExpression, string $
             AND (
                 LOWER(COALESCE(' . $dissolvedTypeExpression . ', \'\')) IN (\'ongoing\', \'unknown\')
                 OR LOWER(COALESCE(' . $dissolvedTextExpression . ', \'\')) LIKE \'%besteht%\'
+                OR (
+                    COALESCE(' . $dissolvedTypeExpression . ', \'\') = \'\'
+                    AND COALESCE(' . $dissolvedTextExpression . ', \'\') = \'\'
+                )
             )
         THEN NULL
         ELSE ' . $valueExpression . '
@@ -2222,7 +2226,11 @@ function avesmapsPoliticalNormalizeRowValidTo(mixed $value, array $row): ?int {
 
     $dissolvedType = mb_strtolower(trim((string) ($row['dissolved_type'] ?? $row['wiki_dissolved_type'] ?? '')));
     $dissolvedText = mb_strtolower(trim((string) ($row['dissolved_text'] ?? $row['wiki_dissolved_text'] ?? '')));
-    if (in_array($dissolvedType, ['ongoing', 'unknown'], true) || str_contains($dissolvedText, 'besteht')) {
+    if (
+        in_array($dissolvedType, ['ongoing', 'unknown'], true)
+        || str_contains($dissolvedText, 'besteht')
+        || ($dissolvedType === '' && $dissolvedText === '')
+    ) {
         return null;
     }
 
