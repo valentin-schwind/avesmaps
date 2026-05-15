@@ -84,6 +84,7 @@ html {
 
 .map-scale-band__tick--minor {
 	height: 2px;
+	bottom: 2px;
 }
 
 .map-scale-band__label {
