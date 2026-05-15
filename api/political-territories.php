@@ -262,14 +262,6 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
         $aggregateRows = [];
     }
 
-    $parentIdsWithVisibleChildren = [];
-    foreach ($rows as $row) {
-        $parentId = (int) ($row['parent_id'] ?? 0);
-        if ($parentId > 0) {
-            $parentIdsWithVisibleChildren[$parentId] = true;
-        }
-    }
-
     $aggregateTerritoryIds = [];
     $aggregateSourceTerritoryIds = [];
     foreach ($aggregateRows as $row) {
@@ -299,7 +291,6 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
         if (
             isset($aggregateTerritoryIds[$territoryId])
             || isset($aggregateSourceTerritoryIds[$territoryId])
-            || isset($parentIdsWithVisibleChildren[$territoryId])
         ) {
             continue;
         }
