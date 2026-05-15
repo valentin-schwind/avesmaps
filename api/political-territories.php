@@ -387,6 +387,12 @@ function avesmapsPoliticalResolveLayerDisplayTerritoryId(int $sourceTerritoryId,
 function avesmapsPoliticalLayerTerritoryMatchesZoom(array $territory, int $zoom): bool {
     $minZoom = avesmapsPoliticalNullableInt($territory['territory_min_zoom'] ?? null);
     $maxZoom = avesmapsPoliticalNullableInt($territory['territory_max_zoom'] ?? null);
+    $isEditorTerritory = empty($territory['wiki_id'])
+        && trim((string) ($territory['type'] ?? '')) === 'Herrschaftsgebiet';
+
+    if ($isEditorTerritory && $minZoom === 0 && $maxZoom === 0) {
+        return true;
+    }
 
     return ($minZoom === null || $minZoom <= $zoom)
         && ($maxZoom === null || $maxZoom >= $zoom);
