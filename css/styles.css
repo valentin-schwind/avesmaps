@@ -1112,9 +1112,21 @@ body.modal-dialog-open {
 	gap: 6px;
 }
 
-.political-territory-tabs__tab {
+.political-territory-tabs__entry {
+	display: inline-flex;
+	align-items: stretch;
 	border: 1px solid #cdb79f;
 	border-radius: 8px;
+	overflow: hidden;
+	background: #fff;
+}
+
+.political-territory-tabs__entry.is-active {
+	border-color: #385d72;
+}
+
+.political-territory-tabs__tab {
+	border: 0;
 	background: #fff;
 	color: #493c30;
 	cursor: pointer;
@@ -1130,6 +1142,59 @@ body.modal-dialog-open {
 	background: #385d72;
 	border-color: #385d72;
 	color: #fff;
+}
+
+.political-territory-tabs__close {
+	border: 0;
+	border-left: 1px solid #e0cdb9;
+	background: #fff;
+	color: #6c5947;
+	cursor: pointer;
+	font: inherit;
+	padding: 0 8px;
+}
+
+.political-territory-tabs__entry.is-active .political-territory-tabs__close {
+	background: #385d72;
+	border-left-color: rgba(255, 255, 255, 0.25);
+	color: #fff;
+}
+
+.political-territory-parent-drop {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 32px;
+	align-items: center;
+	gap: 8px;
+	min-height: 40px;
+	border: 1px dashed #b79678;
+	border-radius: 8px;
+	background: #fffaf5;
+	padding: 6px 8px;
+	color: #4f4134;
+}
+
+.political-territory-parent-drop.has-parent {
+	border-style: solid;
+	background: #fff;
+}
+
+.political-territory-parent-drop.is-drag-over {
+	border-color: #385d72;
+	background: #eef5f8;
+}
+
+.political-territory-parent-drop span {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.political-territory-parent-drop button {
+	border: 1px solid #cdb79f;
+	border-radius: 8px;
+	background: #fff;
+	color: #5a4a3b;
+	cursor: pointer;
+	font: inherit;
 }
 
 .political-territory-parent-tree {

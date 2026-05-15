@@ -539,7 +539,6 @@
 				<input id="region-edit-territory-public-id" name="territory_public_id" type="hidden" />
 				<input id="region-edit-geometry-public-id" name="geometry_public_id" type="hidden" />
 				<input id="region-edit-wiki-id" name="wiki_id" type="hidden" />
-				<div id="region-edit-tabs" class="political-territory-tabs political-territory-field" role="tablist" aria-label="Offene Herrschaftsgebiete"></div>
 				<section id="region-edit-wiki-reference" class="political-territory-wiki-reference political-territory-field" aria-labelledby="region-edit-wiki-reference-title">
 					<div class="political-territory-wiki-reference__header">
 						<h3 id="region-edit-wiki-reference-title">Wiki-Referenz</h3>
@@ -547,6 +546,15 @@
 					</div>
 					<dl id="region-edit-wiki-reference-list"></dl>
 				</section>
+				<section class="location-report-form__field political-territory-field">
+					<span>Parent/Hierarchie</span>
+					<div class="political-territory-parent-search">
+						<input id="region-edit-parent-filter" type="search" autocomplete="off" placeholder="Hierarchie durchsuchen" />
+						<button id="region-edit-parent-filter-clear" type="button" aria-label="Suche leeren">x</button>
+					</div>
+					<div id="region-edit-parent-tree" class="political-territory-parent-tree" role="tree"></div>
+				</section>
+				<div id="region-edit-tabs" class="political-territory-tabs political-territory-field" role="tablist" aria-label="Offene Herrschaftsgebiete"></div>
 				<label class="location-report-form__field">
 					<span>Name * <small>Anzeige, falls kein Kurzname gesetzt ist</small></span>
 					<input id="region-edit-name" name="name" type="text" maxlength="160" required />
@@ -560,13 +568,12 @@
 					<select id="region-edit-type" name="type"></select>
 				</label>
 				<label class="location-report-form__field political-territory-field">
-					<span>Parent/Hierarchie</span>
-					<div class="political-territory-parent-search">
-						<input id="region-edit-parent-filter" type="search" autocomplete="off" placeholder="Hierarchie durchsuchen" />
-						<button id="region-edit-parent-filter-clear" type="button" aria-label="Suche leeren">x</button>
-					</div>
+					<span>Eingegliedert in</span>
 					<input id="region-edit-parent" name="parent_public_id" type="hidden" />
-					<div id="region-edit-parent-tree" class="political-territory-parent-tree" role="tree"></div>
+					<div id="region-edit-parent-drop" class="political-territory-parent-drop" tabindex="0">
+						<span id="region-edit-parent-drop-label">Kein Parent</span>
+						<button id="region-edit-parent-clear" type="button" aria-label="Parent entfernen">x</button>
+					</div>
 				</label>
 				<div class="location-report-form__grid">
 					<label class="location-report-form__field">
@@ -911,6 +918,7 @@
 			regionEditEntry = null,
 			regionEditTabs = [],
 			activeRegionEditTabKey = "",
+			regionParentSelectedTreeId = "",
 			activeRegionGeometryEdit = null,
 			activeRegionContextEntry = null,
 			activeRegionInfoTooltip = null,
