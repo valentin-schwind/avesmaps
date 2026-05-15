@@ -206,6 +206,7 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
     $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
 
     $territories = avesmapsPoliticalFetchLayerTerritories($pdo, $yearBf);
+    $rows = avesmapsPoliticalAppendLegacyFallbackLayerRows($pdo, $rows, $territories, $zoom);
     $parentIds = avesmapsPoliticalBuildEffectiveLayerParentIds($territories);
     $features = avesmapsPoliticalBuildResolvedLayerFeatures($rows, $territories, $parentIds, $yearBf, $zoom);
 
@@ -279,6 +280,65 @@ function avesmapsPoliticalFetchLayerTerritories(PDO $pdo, int $yearBf): array {
     }
 
     return $territories;
+}
+
+function avesmapsPoliticalAppendLegacyFallbackLayerRows(PDO $pdo, array $rows, array $territories, int $zoom): array {
+    $territoryIdsWithGeometry = [];
+    foreach ($rows as $row) {
+        $territoryId = (int) ($row['territory_id'] ?? 0);
+        if ($territoryId > 0) {
+            $territoryIdsWithGeometry[$territoryId] = true;
+        }
+    }
+
+    foreach ($territories as $territoryId => $territory) {
+        $territoryId = (int) $territoryId;
+        if ($territoryId < 1 || isset($territoryIdsWithGeometry[$territoryId])) {
+            continue;
+        }
+
+        if (!avesmapsPoliticalLayerTerritoryMatchesZoom($territory, $zoom)) {
+            continue;
+        }
+
+        $candidateRecord = [
+            'name' => (string) ($territory['wiki_name'] ?? $territory['name'] ?? ''),
+            'geographic' => '',
+            'political' => (string) ($territory['affiliation_raw'] ?? ''),
+            'affiliation_root' => (string) ($territory['affiliation_root'] ?? ''),
+            'affiliation_path_json' => avesmapsPoliticalDecodeJson($territory['affiliation_path_json'] ?? null),
+        ];
+        $legacyFeatures = avesmapsPoliticalFindLegacyRegionFeaturesForWikiRecord($pdo, $candidateRecord);
+        foreach ($legacyFeatures as $index => $legacyFeature) {
+            $rows[] = avesmapsPoliticalBuildLegacyFallbackLayerRow($territory, $legacyFeature, $index);
+        }
+    }
+
+    return $rows;
+}
+
+function avesmapsPoliticalBuildLegacyFallbackLayerRow(array $territory, array $legacyFeature, int $index): array {
+    $style = avesmapsPoliticalBuildSeedGeometryStyle($legacyFeature, (string) ($territory['color'] ?? '#888888'));
+
+    return [
+        ...$territory,
+        'territory_id' => (int) ($territory['territory_id'] ?? 0),
+        'territory_public_id' => (string) ($territory['territory_public_id'] ?? ''),
+        'geometry_public_id' => sprintf(
+            'legacy-fallback:%s:%d:%s',
+            (string) ($territory['territory_public_id'] ?? ''),
+            $index,
+            (string) ($legacyFeature['public_id'] ?? avesmapsPoliticalSlug((string) ($legacyFeature['name'] ?? '')))
+        ),
+        'geometry_id' => 0,
+        'geometry_geojson' => $legacyFeature['geometry_json'] ?? null,
+        'geometry_valid_from_bf' => null,
+        'geometry_valid_to_bf' => null,
+        'geometry_min_zoom' => null,
+        'geometry_max_zoom' => null,
+        'style_json' => avesmapsPoliticalEncodeJsonOrNull($style),
+        'updated_at' => '',
+    ];
 }
 
 function avesmapsPoliticalBuildEffectiveLayerParentIds(array $territories): array {

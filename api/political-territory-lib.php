@@ -613,6 +613,7 @@ function avesmapsPoliticalFindLegacyRegionFeaturesForWikiRecord(PDO $pdo, array 
 
     $statement = $pdo->prepare(
         'SELECT
+            public_id,
             name,
             geometry_json,
             properties_json,
@@ -633,15 +634,61 @@ function avesmapsPoliticalFindLegacyRegionFeaturesForWikiRecord(PDO $pdo, array 
         'multipolygon_type' => 'MultiPolygon',
     ]);
 
+    $features = $statement->fetchAll(PDO::FETCH_ASSOC);
     $matches = [];
-    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $feature) {
+    foreach ($features as $feature) {
         $featureSlug = avesmapsPoliticalSlug((string) ($feature['name'] ?? ''));
         if ($featureSlug !== '' && isset($candidateSlugs[$featureSlug])) {
             $matches[] = $feature;
         }
     }
 
-    return $matches;
+    if ($matches !== []) {
+        return $matches;
+    }
+
+    return avesmapsPoliticalFindFuzzyLegacyRegionFeatures($features, $candidateSlugs);
+}
+
+function avesmapsPoliticalFindFuzzyLegacyRegionFeatures(array $features, array $candidateSlugs): array {
+    $bestDistance = PHP_INT_MAX;
+    $bestFeatures = [];
+
+    foreach ($features as $feature) {
+        $featureSlug = avesmapsPoliticalSlug((string) ($feature['name'] ?? ''));
+        if ($featureSlug === '') {
+            continue;
+        }
+
+        $distance = avesmapsPoliticalBestLegacySlugDistance($featureSlug, $candidateSlugs);
+        if ($distance === null || $distance > 2) {
+            continue;
+        }
+
+        if ($distance < $bestDistance) {
+            $bestDistance = $distance;
+            $bestFeatures = [$feature];
+            continue;
+        }
+
+        if ($distance === $bestDistance) {
+            $bestFeatures[] = $feature;
+        }
+    }
+
+    return $bestDistance <= 2 ? $bestFeatures : [];
+}
+
+function avesmapsPoliticalBestLegacySlugDistance(string $featureSlug, array $candidateSlugs): ?int {
+    $bestDistance = null;
+    foreach (array_keys($candidateSlugs) as $candidateSlug) {
+        $distance = levenshtein($featureSlug, (string) $candidateSlug);
+        if ($bestDistance === null || $distance < $bestDistance) {
+            $bestDistance = $distance;
+        }
+    }
+
+    return $bestDistance;
 }
 
 function avesmapsPoliticalBuildLegacyRegionCandidateSlugs(array $wikiRecord): array {
@@ -1107,6 +1154,7 @@ function avesmapsPoliticalSlug(string $value): string {
     }
     $slug = preg_replace('/[^a-z0-9]+/i', '-', $slug) ?? '';
     $slug = trim($slug, '-');
+    $slug = str_replace('marktgrafschaft', 'markgrafschaft', $slug);
 
     return mb_substr($slug, 0, 180);
 }
