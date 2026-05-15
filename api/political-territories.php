@@ -926,6 +926,8 @@ function avesmapsPoliticalReadAudit(PDO $pdo, array $query): array {
         }
     );
 
+    $missingTerritoryEntries = avesmapsPoliticalBuildMissingTerritoryEntryAudit($pdo, $territories);
+
     return [
         'ok' => true,
         'summary' => avesmapsPoliticalReadDebugSummary($pdo),
@@ -933,6 +935,8 @@ function avesmapsPoliticalReadAudit(PDO $pdo, array $query): array {
         'zoom_from' => $zoomFrom,
         'zoom_to' => $zoomTo,
         'entries' => $entries,
+        'missing_territory_entry_count' => count($missingTerritoryEntries),
+        'missing_territory_entries' => $missingTerritoryEntries,
     ];
 }
 
@@ -2027,6 +2031,67 @@ function avesmapsPoliticalFetchAuditGeometryCounts(PDO $pdo): array {
     }
 
     return $counts;
+}
+
+function avesmapsPoliticalBuildMissingTerritoryEntryAudit(PDO $pdo, array $territories): array {
+    $aliasToIds = avesmapsPoliticalBuildAliasIndex(
+        $territories,
+        static function (array $territory): array {
+            return avesmapsPoliticalExpandTerritoryAliases([
+                (string) ($territory['name'] ?? ''),
+                (string) ($territory['short_name'] ?? ''),
+                (string) ($territory['wiki_name'] ?? ''),
+            ]);
+        }
+    );
+
+    $statement = $pdo->prepare(
+        'SELECT
+            public_id,
+            name,
+            feature_subtype,
+            geometry_type
+        FROM map_features
+        WHERE feature_type = :feature_type
+            AND is_active = 1
+            AND geometry_type IN (:polygon_type, :multipolygon_type)
+        ORDER BY sort_order ASC, name ASC, id ASC'
+    );
+    $statement->execute([
+        'feature_type' => 'region',
+        'polygon_type' => 'Polygon',
+        'multipolygon_type' => 'MultiPolygon',
+    ]);
+
+    $missingEntries = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $name = trim((string) ($row['name'] ?? ''));
+        if ($name === '') {
+            continue;
+        }
+
+        $matched = false;
+        foreach (avesmapsPoliticalExpandTerritoryAliases([$name]) as $alias) {
+            $slug = avesmapsPoliticalSlug($alias);
+            if ($slug !== '' && !empty($aliasToIds[$slug])) {
+                $matched = true;
+                break;
+            }
+        }
+
+        if ($matched) {
+            continue;
+        }
+
+        $missingEntries[] = [
+            'public_id' => (string) ($row['public_id'] ?? ''),
+            'name' => $name,
+            'feature_subtype' => (string) ($row['feature_subtype'] ?? ''),
+            'geometry_type' => (string) ($row['geometry_type'] ?? ''),
+        ];
+    }
+
+    return $missingEntries;
 }
 
 function avesmapsPoliticalDetectTimelineIssue(array $territory): string {
