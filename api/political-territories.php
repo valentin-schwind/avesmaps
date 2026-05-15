@@ -1462,12 +1462,19 @@ function avesmapsPoliticalBuildHierarchy(array $territories): array {
         ];
     }
 
+    $aliasToIds = avesmapsPoliticalBuildAliasIndex(
+        $territoriesById,
+        static fn(array $territory): array => avesmapsPoliticalPublicTerritoryAliases($territory)
+    );
+
     $resolvedParentIds = [];
     foreach ($territoriesById as $territoryId => $territory) {
-        $parentId = (int) ($territory['parent_id'] ?? 0);
-        $resolvedParentIds[$territoryId] = isset($territoriesById[$parentId]) && $parentId !== $territoryId
-            ? $parentId
-            : 0;
+        $resolvedParentIds[$territoryId] = avesmapsPoliticalResolveHierarchyParentId(
+            $territoryId,
+            $territory,
+            $territoriesById,
+            $aliasToIds
+        );
     }
 
     $childrenByParentId = [];
