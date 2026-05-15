@@ -963,10 +963,15 @@ function clonePoliticalTerritoryHierarchyNode(node) {
 	const territory = {
 		public_id: node.public_id || "",
 		name: node.name || "",
+		short_name: node.short_name || "",
 		type: node.type || "",
 		valid_label: node.valid_label || "",
 		parent_public_id: node.parent_public_id || "",
 		parent_name: node.parent_name || "",
+		wiki_name: node.wiki_name || "",
+		wiki_affiliation_raw: node.wiki_affiliation_raw || "",
+		wiki_affiliation_root: node.wiki_affiliation_root || "",
+		aliases: Array.isArray(node.aliases) ? node.aliases : [],
 	};
 	const option = territory.public_id ? findPoliticalTerritoryOption(territory.public_id) : null;
 	const mergedTerritory = option ? { ...option, ...territory } : territory;
@@ -1031,11 +1036,14 @@ function doesPoliticalTerritoryTreeNodeMatchFilter(node) {
 function getPoliticalTerritoryTreeSearchText(territory) {
 	return normalizeSearchText([
 		territory.name,
+		territory.short_name,
 		territory.type,
 		territory.valid_label,
+		territory.wiki_name,
 		territory.wiki_affiliation_root,
 		territory.wiki_affiliation_raw,
 		territory.parent_name,
+		...(Array.isArray(territory.aliases) ? territory.aliases : []),
 	].filter(Boolean).join(" "));
 }
 
