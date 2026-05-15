@@ -1236,8 +1236,7 @@ function avesmapsPoliticalAssignGeometryToTerritory(PDO $pdo, array $payload): a
 
 function avesmapsPoliticalDeleteGeometry(PDO $pdo, array $payload): array {
     $geometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? ''));
-    $statement = $pdo->prepare('UPDATE political_territory_geometry SET is_active = 0 WHERE id = :id');
-    $statement->execute(['id' => (int) $geometry['id']]);
+    avesmapsPoliticalSoftDeleteGeometryById($pdo, (int) $geometry['id']);
 
     return [
         'ok' => true,
@@ -1258,7 +1257,39 @@ function avesmapsPoliticalApplyGeometryOperationResult(PDO $pdo, array $payload,
         return avesmapsPoliticalCreateTerritory($pdo, $payload, $user);
     }
 
-    return avesmapsPoliticalUpdateGeometry($pdo, $payload, $user);
+    $deleteGeometryPublicId = avesmapsNormalizeSingleLine((string) ($payload['delete_geometry_public_id'] ?? ''), 36);
+    if ($deleteGeometryPublicId === '') {
+        return avesmapsPoliticalUpdateGeometry($pdo, $payload, $user);
+    }
+
+    $sourceGeometryPublicId = avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? '');
+    $targetGeometryPublicId = avesmapsPoliticalReadPublicId($deleteGeometryPublicId);
+    if ($sourceGeometryPublicId === $targetGeometryPublicId) {
+        throw new InvalidArgumentException('Quelle und Ziel der Geometrieoperation muessen verschieden sein.');
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $result = avesmapsPoliticalUpdateGeometry($pdo, $payload, $user);
+        $targetGeometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, $targetGeometryPublicId);
+        avesmapsPoliticalSoftDeleteGeometryById($pdo, (int) $targetGeometry['id']);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $exception;
+    }
+
+    $result['deleted_geometry_public_id'] = $targetGeometryPublicId;
+
+    return $result;
+}
+
+function avesmapsPoliticalSoftDeleteGeometryById(PDO $pdo, int $geometryId): void {
+    $statement = $pdo->prepare('UPDATE political_territory_geometry SET is_active = 0 WHERE id = :id');
+    $statement->execute(['id' => $geometryId]);
 }
 
 function avesmapsPoliticalInsertGeometry(PDO $pdo, int $territoryId, array $geometry, array $payload, array $user): string {

@@ -4130,7 +4130,7 @@ $(document).on("click", "[data-region-context-action]", function (event) {
 		openRegionEditDialog(regionEntry, { title: "Eigenschaften bearbeiten" });
 		return;
 	}
-	if (["union", "difference", "intersection"].includes(action)) {
+	if (["union", "difference", "difference-keep-target", "intersection"].includes(action)) {
 		startPendingRegionOperation(action, regionEntry);
 		return;
 	}
@@ -4173,6 +4173,7 @@ function syncRegionOperationChip() {
 	const labels = {
 		union: "Mit anderem vereinigen",
 		difference: "Von anderem ausschneiden",
+		"difference-keep-target": "Von anderem ausschneiden und anderes beibehalten",
 		intersection: "Neues von anderem ausschneiden",
 	};
 	textElement.textContent = `${labels[pendingRegionOperation.operation] || "Operation"}: Zielgebiet anklicken.`;
@@ -4226,11 +4227,13 @@ async function completePendingRegionOperation(targetRegion) {
 				geometry_geojson: geometryGeoJson,
 			});
 		} else {
+			const deleteTargetGeometry = shouldRegionBooleanOperationConsumeTarget(operationState.operation);
 			await submitPoliticalTerritoryEdit({
 				action: "geometry_operation",
-				operation: operationState.operation,
+				operation: getStoredRegionBooleanOperation(operationState.operation),
 				public_id: operationState.sourceRegion.geometryPublicId || operationState.sourceRegion.publicId,
 				geometry_public_id: operationState.sourceRegion.geometryPublicId || operationState.sourceRegion.publicId,
+				delete_geometry_public_id: deleteTargetGeometry ? targetRegion.geometryPublicId || targetRegion.publicId : "",
 				source: "editor",
 				geometry_geojson: geometryGeoJson,
 				style_json: {
@@ -4255,7 +4258,7 @@ function calculateRegionBooleanGeometry(operation, sourceGeometry, targetGeometr
 	if (operation === "union") {
 		return window.polygonClipping.union(sourceGeometry, targetGeometry);
 	}
-	if (operation === "difference") {
+	if (operation === "difference" || operation === "difference-keep-target") {
 		return window.polygonClipping.difference(sourceGeometry, targetGeometry);
 	}
 	if (operation === "intersection") {
@@ -4263,6 +4266,14 @@ function calculateRegionBooleanGeometry(operation, sourceGeometry, targetGeometr
 	}
 
 	throw new Error("Unbekannte Geometrieoperation.");
+}
+
+function shouldRegionBooleanOperationConsumeTarget(operation) {
+	return operation === "union" || operation === "difference";
+}
+
+function getStoredRegionBooleanOperation(operation) {
+	return operation === "difference-keep-target" ? "difference" : operation;
 }
 
 function regionEntryToClippingMultiPolygon(regionEntry) {
