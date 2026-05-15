@@ -2473,6 +2473,7 @@ async function loadWikiSyncCases() {
 
 		wikiSyncCases = Array.isArray(data.cases) ? data.cases : [];
 		wikiSyncSummary = data.summary || null;
+		wikiSyncTerritorySummary = data.political_territory_tree || null;
 		const activeRun = data.active_run || null;
 		activeWikiSyncRunId = activeRun?.public_id || data.latest_run?.public_id || activeWikiSyncRunId;
 		activeWikiSyncRunStatus = activeRun?.status || "";
@@ -2550,6 +2551,16 @@ async function startWikiSyncRun() {
 	}
 }
 
+function appendWikiSyncTerritorySummary(message) {
+	const territoryCount = Number(wikiSyncTerritorySummary?.territory_count ?? 0);
+	const rootCount = Number(wikiSyncTerritorySummary?.root_count ?? 0);
+	if (territoryCount < 1 && rootCount < 1) {
+		return message;
+	}
+
+	return `${message} (${territoryCount} Territorien, ${rootCount} Mächte)`;
+}
+
 function renderWikiSyncCases(latestRun = null) {
 	const listElement = document.getElementById("wiki-sync-case-list");
 	if (!listElement) {
@@ -2586,7 +2597,7 @@ function renderWikiSyncCases(latestRun = null) {
 		: activeCount > 0
 		? `${openCount} offen, ${deferredCount} zurückgestellt, ${archivedCount} archiviert.`
 		: `${archivedCount} archiviert, keine offenen Fälle.`;
-	setWikiSyncStatus(statusMessage, isWikiSyncCreateLocationSelectionActive ? "pending" : "success");
+	setWikiSyncStatus(appendWikiSyncTerritorySummary(statusMessage), isWikiSyncCreateLocationSelectionActive ? "pending" : "success");
 
 	const renderedGroupElements = new Map();
 	const openSectionElement = renderWikiSyncCaseSection(listElement, "Offen", "open", filteredCases.filter((caseEntry) => caseEntry.status !== "archived"), renderedGroupElements);

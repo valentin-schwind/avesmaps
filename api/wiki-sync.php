@@ -328,6 +328,31 @@ function avesmapsWikiSyncReadPoliticalTerritoryTreeFromWiki(): array {
     ];
 }
 
+function avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromWiki(): array {
+    try {
+        $rows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki();
+        $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($rows);
+
+        return [
+            'ok' => true,
+            'territory_count' => count($rows),
+            'root_count' => count($tree['hierarchy']),
+        ];
+    } catch (Throwable $exception) {
+        avesmapsWikiSyncLogServerError('political_territory_tree_summary_error', [
+            'exception_class' => $exception::class,
+            'exception_message' => $exception->getMessage(),
+        ]);
+
+        return [
+            'ok' => false,
+            'territory_count' => 0,
+            'root_count' => 0,
+            'error' => 'Herrschaftsgebiets-Baum konnte nicht gelesen werden.',
+        ];
+    }
+}
+
 function avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki(): array {
     $html = avesmapsWikiSyncFetchParsedWikiHtml('Staat/Liste');
     $rows = avesmapsWikiSyncParsePoliticalTerritoryRowsFromHtml($html);
@@ -745,6 +770,7 @@ function avesmapsWikiSyncListCases(PDO $pdo): array {
                 'by_type' => [],
                 'by_status' => [],
             ],
+            'political_territory_tree' => avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromWiki(),
             'cases' => [],
         ];
     }
@@ -784,6 +810,7 @@ function avesmapsWikiSyncListCases(PDO $pdo): array {
         'latest_run' => avesmapsWikiSyncPublicRun($run),
         'active_run' => $activeRun === null ? null : avesmapsWikiSyncPublicRun($activeRun),
         'summary' => avesmapsWikiSyncBuildSummary($pdo, (int) $run['id']),
+        'political_territory_tree' => avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromWiki(),
         'cases' => $cases,
     ];
 }
