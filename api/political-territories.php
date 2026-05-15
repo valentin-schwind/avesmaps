@@ -255,15 +255,7 @@ function avesmapsPoliticalFetchLayerTerritories(PDO $pdo, int $yearBf): array {
 }
 
 function avesmapsPoliticalBuildEffectiveLayerParentIds(array $territories): array {
-    $aliasToId = [];
-    foreach ($territories as $territoryId => $territory) {
-        foreach (avesmapsPoliticalLayerTerritoryAliases($territory) as $alias) {
-            $slug = avesmapsPoliticalSlug($alias);
-            if ($slug !== '') {
-                $aliasToId[$slug] = (int) $territoryId;
-            }
-        }
-    }
+    $aliasToIds = avesmapsPoliticalBuildAliasIndex($territories, static fn(array $territory): array => avesmapsPoliticalLayerTerritoryAliases($territory));
 
     $parentIds = [];
     foreach ($territories as $territoryId => $territory) {
@@ -274,7 +266,13 @@ function avesmapsPoliticalBuildEffectiveLayerParentIds(array $territories): arra
         }
 
         $inferredParentName = avesmapsPoliticalInferLayerParentName($territory);
-        $inferredParentId = avesmapsPoliticalResolveParentAliasId($aliasToId, $inferredParentName, (int) $territoryId);
+        $inferredParentId = avesmapsPoliticalResolveParentAliasId(
+            $aliasToIds,
+            $inferredParentName,
+            $territories,
+            $territory,
+            (int) $territoryId
+        );
         if ($inferredParentId > 0 && $inferredParentId !== (int) $territoryId) {
             $parentIds[(int) $territoryId] = $inferredParentId;
         }
@@ -1279,22 +1277,14 @@ function avesmapsPoliticalBuildHierarchy(array $territories): array {
         ];
     }
 
-    $aliasToId = [];
-    foreach ($territories as $territory) {
-        foreach (avesmapsPoliticalPublicTerritoryAliases($territory) as $alias) {
-            $slug = avesmapsPoliticalSlug($alias);
-            if ($slug !== '') {
-                $aliasToId[$slug] = (int) $territory['id'];
-            }
-        }
-    }
+    $aliasToIds = avesmapsPoliticalBuildAliasIndex($territories, static fn(array $territory): array => avesmapsPoliticalPublicTerritoryAliases($territory));
 
     $roots = [];
     foreach ($territories as $territory) {
         $id = (int) $territory['id'];
         $parentId = (int) ($territory['parent_id'] ?? 0);
         if ($parentId < 1 || !isset($nodesById[$parentId])) {
-            $parentId = avesmapsPoliticalInferPublicTerritoryParentId($territory, $aliasToId);
+            $parentId = avesmapsPoliticalInferPublicTerritoryParentId($territory, $aliasToIds, $territoriesById);
         }
 
         if ($parentId > 0 && isset($nodesById[$parentId])) {
@@ -1324,7 +1314,7 @@ function avesmapsPoliticalPublicTerritoryAliases(array $territory): array {
     return array_values(array_unique(array_filter(array_map('trim', $aliases))));
 }
 
-function avesmapsPoliticalInferPublicTerritoryParentId(array $territory, array $aliasToId): int {
+function avesmapsPoliticalInferPublicTerritoryParentId(array $territory, array $aliasToIds, array $territoriesById): int {
     $parentName = '';
     $path = $territory['wiki_affiliation_path'] ?? [];
     if (is_array($path) && $path !== []) {
@@ -1342,7 +1332,13 @@ function avesmapsPoliticalInferPublicTerritoryParentId(array $territory, array $
         }
     }
 
-    $parentId = avesmapsPoliticalResolveParentAliasId($aliasToId, $parentName, (int) ($territory['id'] ?? 0));
+    $parentId = avesmapsPoliticalResolveParentAliasId(
+        $aliasToIds,
+        $parentName,
+        $territoriesById,
+        $territory,
+        (int) ($territory['id'] ?? 0)
+    );
     return $parentId === (int) ($territory['id'] ?? 0) ? 0 : $parentId;
 }
 
@@ -1705,20 +1701,12 @@ function avesmapsPoliticalApplyEffectiveParents(array $territories): array {
         $byId[(int) $territory['id']] = $territory;
     }
 
-    $aliasToId = [];
-    foreach ($territories as $territory) {
-        foreach (avesmapsPoliticalPublicTerritoryAliases($territory) as $alias) {
-            $slug = avesmapsPoliticalSlug($alias);
-            if ($slug !== '') {
-                $aliasToId[$slug] = (int) $territory['id'];
-            }
-        }
-    }
+    $aliasToIds = avesmapsPoliticalBuildAliasIndex($territories, static fn(array $territory): array => avesmapsPoliticalPublicTerritoryAliases($territory));
 
     foreach ($territories as &$territory) {
         $parentId = (int) ($territory['parent_id'] ?? 0);
         if ($parentId < 1 || !isset($byId[$parentId])) {
-            $parentId = avesmapsPoliticalInferPublicTerritoryParentId($territory, $aliasToId);
+            $parentId = avesmapsPoliticalInferPublicTerritoryParentId($territory, $aliasToIds, $byId);
             if ($parentId > 0 && isset($byId[$parentId])) {
                 $territory['parent_id'] = $parentId;
                 $territory['parent_public_id'] = (string) $byId[$parentId]['public_id'];
@@ -1729,6 +1717,26 @@ function avesmapsPoliticalApplyEffectiveParents(array $territories): array {
     unset($territory);
 
     return $territories;
+}
+
+function avesmapsPoliticalBuildAliasIndex(array $territories, callable $aliasReader): array {
+    $aliasToIds = [];
+    foreach ($territories as $territoryId => $territory) {
+        $resolvedId = (int) ($territory['id'] ?? $territoryId);
+        foreach ((array) $aliasReader($territory) as $alias) {
+            $slug = avesmapsPoliticalSlug((string) $alias);
+            if ($slug === '') {
+                continue;
+            }
+
+            $aliasToIds[$slug] ??= [];
+            if (!in_array($resolvedId, $aliasToIds[$slug], true)) {
+                $aliasToIds[$slug][] = $resolvedId;
+            }
+        }
+    }
+
+    return $aliasToIds;
 }
 
 function avesmapsPoliticalResolveSingleEffectiveTerritory(PDO $pdo, array $territory): array {
@@ -2059,15 +2067,80 @@ function avesmapsPoliticalExpandTerritoryAliases(array $values): array {
     return array_values(array_unique($aliases));
 }
 
-function avesmapsPoliticalResolveParentAliasId(array $aliasToId, string $parentName, int $selfId = 0): int {
+function avesmapsPoliticalResolveParentAliasId(array $aliasToIds, string $parentName, array $territoriesById, array $childTerritory, int $selfId = 0): int {
+    $candidateIds = [];
     foreach (avesmapsPoliticalExpandTerritoryAliases([$parentName]) as $candidate) {
-        $parentId = (int) ($aliasToId[avesmapsPoliticalSlug($candidate)] ?? 0);
-        if ($parentId > 0 && $parentId !== $selfId) {
-            return $parentId;
+        $slug = avesmapsPoliticalSlug($candidate);
+        foreach ((array) ($aliasToIds[$slug] ?? []) as $candidateId) {
+            $candidateId = (int) $candidateId;
+            if ($candidateId > 0 && $candidateId !== $selfId && !in_array($candidateId, $candidateIds, true)) {
+                $candidateIds[] = $candidateId;
+            }
         }
     }
 
-    return 0;
+    if ($candidateIds === []) {
+        return 0;
+    }
+
+    if (count($candidateIds) === 1) {
+        return $candidateIds[0];
+    }
+
+    $bestId = 0;
+    $bestScore = PHP_INT_MIN;
+    foreach ($candidateIds as $candidateId) {
+        $candidate = $territoriesById[$candidateId] ?? null;
+        if (!is_array($candidate)) {
+            continue;
+        }
+
+        $score = avesmapsPoliticalScoreParentCandidate($candidate, $childTerritory);
+        if ($score > $bestScore) {
+            $bestScore = $score;
+            $bestId = $candidateId;
+        }
+    }
+
+    return $bestId;
+}
+
+function avesmapsPoliticalScoreParentCandidate(array $candidate, array $childTerritory): int {
+    $score = 0;
+    $childPath = (array) ($childTerritory['wiki_affiliation_path'] ?? $childTerritory['affiliation_path_json'] ?? []);
+    $childAffiliationRaw = (string) ($childTerritory['wiki_affiliation_raw'] ?? $childTerritory['affiliation_raw'] ?? '');
+    $candidateRoot = (string) ($candidate['wiki_affiliation_root'] ?? $candidate['affiliation_root'] ?? '');
+    $candidateRaw = (string) ($candidate['wiki_affiliation_raw'] ?? $candidate['affiliation_raw'] ?? '');
+    $candidateValidTo = avesmapsPoliticalNormalizeRowValidTo($candidate['valid_to_bf'] ?? null, $candidate);
+
+    if (count($childPath) > 1) {
+        $prefix = (string) $childPath[count($childPath) - 2];
+        if ($prefix !== '') {
+            if (avesmapsPoliticalSlug($candidateRoot) === avesmapsPoliticalSlug($prefix)) {
+                $score += 100;
+            }
+            if (str_contains(avesmapsPoliticalSlug($candidateRaw), avesmapsPoliticalSlug($prefix))) {
+                $score += 40;
+            }
+        }
+    }
+
+    $root = (string) ($childTerritory['wiki_affiliation_root'] ?? '');
+    if ($root !== '' && avesmapsPoliticalSlug($candidateRoot) === avesmapsPoliticalSlug($root)) {
+        $score += 30;
+    }
+
+    if ($childAffiliationRaw !== '' && str_contains(avesmapsPoliticalSlug($childAffiliationRaw), avesmapsPoliticalSlug((string) ($candidate['name'] ?? '')))) {
+        $score += 10;
+    }
+
+    if ($candidateValidTo === null) {
+        $score += 20;
+    }
+
+    $score += max(0, 10 - max(0, (int) ($candidate['sort_order'] ?? 0) / 100));
+
+    return $score;
 }
 
 function avesmapsPoliticalReadOptionalBoundingBox(string $rawBoundingBox): ?array {
