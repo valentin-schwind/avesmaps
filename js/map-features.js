@@ -630,10 +630,10 @@ $(".location-toggle").on("mouseenter focus", function () {
 $(".location-toggle").on("mouseleave blur", () => {
 	previewVisibleLocationTypesThrough(null);
 });
+$("#mapLayerModeSelect option[value=\"political\"]").prop("disabled", !IS_EDIT_MODE);
 initializeTransportIconSelects();
 initializeVersionedAssetIcons();
 syncTransportControls();
-$("#mapLayerModeSelect option[value=\"political\"]").prop("disabled", !IS_EDIT_MODE);
 syncTransportControl("mapLayerModeSelect");
 $("#mapStyleSelect").on("change", function () {
 	if (!IS_EDIT_MODE) {
