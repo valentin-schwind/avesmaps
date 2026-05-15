@@ -484,6 +484,7 @@ function avesmapsPoliticalMergeLayerGeometries(?array $leftGeometry, ?array $rig
 
 function avesmapsPoliticalListTerritories(PDO $pdo, array $query): array {
     $continent = avesmapsNormalizeSingleLine((string) ($query['continent'] ?? AVESMAPS_POLITICAL_DEFAULT_CONTINENT), 120);
+    $includeDiagnostics = filter_var($query['debug'] ?? false, FILTER_VALIDATE_BOOL);
     $conditions = [];
     $params = [];
     if ($continent !== '') {
@@ -520,13 +521,45 @@ function avesmapsPoliticalListTerritories(PDO $pdo, array $query): array {
         static fn(array $row): array => avesmapsPoliticalTerritoryRowToPublic($row),
         $statement->fetchAll(PDO::FETCH_ASSOC)
     );
-    $territories = avesmapsPoliticalApplyEffectiveParents($territories);
+    $diagnostics = [
+        'territory_count' => count($territories),
+    ];
+    $warnings = [];
 
-    return [
+    try {
+        $territories = avesmapsPoliticalApplyEffectiveParents($territories);
+    } catch (Throwable $exception) {
+        $warnings[] = 'effective_parent_resolution_failed';
+        if ($includeDiagnostics) {
+            $diagnostics['effective_parent_error'] = $exception->getMessage();
+        }
+    }
+
+    $hierarchy = [];
+    try {
+        $hierarchy = avesmapsPoliticalBuildHierarchy($territories);
+    } catch (Throwable $exception) {
+        $warnings[] = 'hierarchy_build_failed';
+        if ($includeDiagnostics) {
+            $diagnostics['hierarchy_error'] = $exception->getMessage();
+        }
+    }
+
+    $response = [
         'ok' => true,
         'territories' => $territories,
-        'hierarchy' => avesmapsPoliticalBuildHierarchy($territories),
+        'hierarchy' => $hierarchy,
     ];
+
+    if ($warnings !== []) {
+        $response['warnings'] = $warnings;
+    }
+
+    if ($includeDiagnostics) {
+        $response['diagnostics'] = $diagnostics;
+    }
+
+    return $response;
 }
 
 function avesmapsPoliticalGetTerritory(PDO $pdo, array $query): array {
