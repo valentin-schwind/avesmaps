@@ -135,6 +135,8 @@ async function resetPoliticalTerritoryMetadataKeepGeometries() {
 	});
 }
 
+window.resetPoliticalTerritoryMetadataKeepGeometries = resetPoliticalTerritoryMetadataKeepGeometries;
+
 async function undoMapAuditChange(changeId) {
 	return submitMapFeatureEdit({
 		action: "undo_audit_change",
