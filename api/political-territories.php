@@ -1412,20 +1412,25 @@ function avesmapsPoliticalFindDebugTerritories(PDO $pdo, array $query): array {
         LEFT JOIN political_territory_wiki wiki ON wiki.id = territory.wiki_id
         WHERE territory.continent = :continent
             AND (
-                territory.name LIKE :like
-                OR territory.short_name LIKE :like
-                OR territory.slug LIKE :like
+                territory.name LIKE :like_name
+                OR territory.short_name LIKE :like_short_name
+                OR territory.slug LIKE :like_slug
                 OR territory.public_id = :exact
-                OR wiki.name LIKE :like
-                OR wiki.affiliation_raw LIKE :like
-                OR wiki.affiliation_root LIKE :like
+                OR wiki.name LIKE :like_wiki_name
+                OR wiki.affiliation_raw LIKE :like_affiliation_raw
+                OR wiki.affiliation_root LIKE :like_affiliation_root
             )
         ORDER BY territory.name ASC
         LIMIT 50'
     );
     $statement->execute([
         'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
-        'like' => $like,
+        'like_name' => $like,
+        'like_short_name' => $like,
+        'like_slug' => $like,
+        'like_wiki_name' => $like,
+        'like_affiliation_raw' => $like,
+        'like_affiliation_root' => $like,
         'exact' => $search,
     ]);
 
