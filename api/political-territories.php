@@ -176,6 +176,86 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
     $statement->execute($params);
     $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
 
+    $aggregateConditions = [
+        'territory.is_active = 1',
+        'child_territory.is_active = 1',
+        'geometry.is_active = 1',
+        'territory.continent = :continent',
+        '(territory.min_zoom IS NOT NULL OR territory.max_zoom IS NOT NULL)',
+        '(territory.valid_from_bf IS NULL OR territory.valid_from_bf <= :year_bf_start)',
+        '(territory.valid_to_bf IS NULL OR territory.valid_to_bf >= :year_bf_end)',
+        '(territory.min_zoom IS NULL OR territory.min_zoom <= :zoom_min)',
+        '(territory.max_zoom IS NULL OR territory.max_zoom >= :zoom_max)',
+        '(COALESCE(geometry.valid_from_bf, child_territory.valid_from_bf) IS NULL OR COALESCE(geometry.valid_from_bf, child_territory.valid_from_bf) <= :year_bf_start)',
+        '(COALESCE(geometry.valid_to_bf, child_territory.valid_to_bf) IS NULL OR COALESCE(geometry.valid_to_bf, child_territory.valid_to_bf) >= :year_bf_end)',
+    ];
+    if ($bbox !== null) {
+        $aggregateConditions[] = 'geometry.max_x >= :bbox_min_x';
+        $aggregateConditions[] = 'geometry.min_x <= :bbox_max_x';
+        $aggregateConditions[] = 'geometry.max_y >= :bbox_min_y';
+        $aggregateConditions[] = 'geometry.min_y <= :bbox_max_y';
+    }
+
+    $aggregateStatement = $pdo->prepare(
+        'SELECT
+            territory.id AS territory_id,
+            territory.public_id AS territory_public_id,
+            territory.parent_id,
+            territory.slug,
+            territory.name,
+            territory.short_name,
+            territory.type,
+            territory.status,
+            territory.color,
+            territory.opacity,
+            territory.coat_of_arms_url,
+            territory.wiki_url,
+            territory.capital_place_id,
+            territory.seat_place_id,
+            capital_place.public_id AS capital_place_public_id,
+            seat_place.public_id AS seat_place_public_id,
+            territory.valid_from_bf,
+            territory.valid_to_bf,
+            territory.valid_label,
+            territory.min_zoom AS territory_min_zoom,
+            territory.max_zoom AS territory_max_zoom,
+            territory.sort_order,
+            upper_parent.public_id AS parent_public_id,
+            upper_parent.name AS parent_name,
+            wiki.id AS wiki_id,
+            wiki.name AS wiki_name,
+            wiki.affiliation_raw,
+            wiki.affiliation_root,
+            wiki.affiliation_path_json,
+            wiki.founded_text,
+            wiki.dissolved_text,
+            wiki.capital_name,
+            wiki.seat_name,
+            geometry.public_id AS geometry_public_id,
+            geometry.id AS geometry_id,
+            geometry.geometry_geojson,
+            geometry.valid_from_bf AS geometry_valid_from_bf,
+            geometry.valid_to_bf AS geometry_valid_to_bf,
+            NULL AS geometry_min_zoom,
+            NULL AS geometry_max_zoom,
+            NULL AS style_json,
+            geometry.updated_at,
+            child_territory.id AS aggregate_source_territory_id,
+            child_territory.public_id AS aggregate_source_territory_public_id,
+            child_territory.name AS aggregate_source_territory_name
+        FROM political_territory territory
+        INNER JOIN political_territory child_territory ON child_territory.parent_id = territory.id
+        INNER JOIN political_territory_geometry geometry ON geometry.territory_id = child_territory.id
+        LEFT JOIN political_territory upper_parent ON upper_parent.id = territory.parent_id
+        LEFT JOIN political_territory_wiki wiki ON wiki.id = territory.wiki_id
+        LEFT JOIN map_features capital_place ON capital_place.id = territory.capital_place_id
+        LEFT JOIN map_features seat_place ON seat_place.id = territory.seat_place_id
+        WHERE ' . implode(' AND ', $aggregateConditions) . '
+        ORDER BY territory.sort_order ASC, territory.name ASC, child_territory.sort_order ASC, child_territory.name ASC, geometry.id ASC'
+    );
+    $aggregateStatement->execute($params);
+    $aggregateRows = $aggregateStatement->fetchAll(PDO::FETCH_ASSOC);
+
     $parentIdsWithVisibleChildren = [];
     foreach ($rows as $row) {
         $parentId = (int) ($row['parent_id'] ?? 0);
@@ -184,9 +264,37 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
         }
     }
 
+    $aggregateTerritoryIds = [];
+    $aggregateSourceTerritoryIds = [];
+    foreach ($aggregateRows as $row) {
+        $aggregateTerritoryIds[(int) $row['territory_id']] = true;
+        $aggregateSourceTerritoryIds[(int) $row['aggregate_source_territory_id']] = true;
+    }
+
     $features = [];
+    $aggregateFeaturesByTerritory = [];
+    foreach ($aggregateRows as $row) {
+        $aggregateKey = (string) $row['territory_public_id'];
+        $aggregateFeature = avesmapsPoliticalLayerRowToFeature($row, $yearBf, $zoom);
+        if (!isset($aggregateFeaturesByTerritory[$aggregateKey])) {
+            $aggregateFeaturesByTerritory[$aggregateKey] = $aggregateFeature;
+            continue;
+        }
+
+        $aggregateFeaturesByTerritory[$aggregateKey]['geometry'] = avesmapsPoliticalMergeLayerGeometries(
+            $aggregateFeaturesByTerritory[$aggregateKey]['geometry'],
+            $aggregateFeature['geometry']
+        );
+    }
+    $features = array_values($aggregateFeaturesByTerritory);
+
     foreach ($rows as $row) {
-        if (isset($parentIdsWithVisibleChildren[(int) $row['territory_id']])) {
+        $territoryId = (int) $row['territory_id'];
+        if (
+            isset($aggregateTerritoryIds[$territoryId])
+            || isset($aggregateSourceTerritoryIds[$territoryId])
+            || isset($parentIdsWithVisibleChildren[$territoryId])
+        ) {
             continue;
         }
 
@@ -246,14 +354,51 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         'timeline_year_bf' => $yearBf,
         'render_zoom' => $zoom,
         'updated_at' => (string) ($row['updated_at'] ?? ''),
+        'is_aggregate' => isset($row['aggregate_source_territory_id']),
+        'aggregate_source_territory_public_id' => (string) ($row['aggregate_source_territory_public_id'] ?? ''),
+        'aggregate_source_territory_name' => (string) ($row['aggregate_source_territory_name'] ?? ''),
     ];
+
+    $featureId = isset($row['aggregate_source_territory_id'])
+        ? sprintf('%s:%s', (string) $row['territory_public_id'], (string) $row['geometry_public_id'])
+        : (string) $row['geometry_public_id'];
 
     return [
         'type' => 'Feature',
-        'id' => (string) $row['geometry_public_id'],
+        'id' => $featureId,
         'geometry' => avesmapsPoliticalDecodeJson($row['geometry_geojson'] ?? null),
         'properties' => $properties,
     ];
+}
+
+function avesmapsPoliticalMergeLayerGeometries(?array $leftGeometry, ?array $rightGeometry): ?array {
+    $polygons = [];
+    foreach ([$leftGeometry, $rightGeometry] as $geometry) {
+        if (!is_array($geometry)) {
+            continue;
+        }
+
+        if (($geometry['type'] ?? '') === 'Polygon' && is_array($geometry['coordinates'] ?? null)) {
+            $polygons[] = $geometry['coordinates'];
+            continue;
+        }
+
+        if (($geometry['type'] ?? '') === 'MultiPolygon' && is_array($geometry['coordinates'] ?? null)) {
+            foreach ($geometry['coordinates'] as $polygon) {
+                if (is_array($polygon)) {
+                    $polygons[] = $polygon;
+                }
+            }
+        }
+    }
+
+    if ($polygons === []) {
+        return null;
+    }
+
+    return count($polygons) === 1
+        ? ['type' => 'Polygon', 'coordinates' => $polygons[0]]
+        : ['type' => 'MultiPolygon', 'coordinates' => $polygons];
 }
 
 function avesmapsPoliticalListTerritories(PDO $pdo, array $query): array {

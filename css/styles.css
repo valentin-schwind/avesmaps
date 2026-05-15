@@ -1106,17 +1106,43 @@ body.modal-dialog-open {
 	font: inherit;
 }
 
+.political-territory-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.political-territory-tabs__tab {
+	border: 1px solid #cdb79f;
+	border-radius: 8px;
+	background: #fff;
+	color: #493c30;
+	cursor: pointer;
+	font: inherit;
+	max-width: 220px;
+	overflow: hidden;
+	padding: 6px 10px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.political-territory-tabs__tab.is-active {
+	background: #385d72;
+	border-color: #385d72;
+	color: #fff;
+}
+
 .political-territory-parent-tree {
 	display: grid;
 	gap: 3px;
-	max-height: 360px;
-	min-height: 260px;
+	max-height: 480px;
+	min-height: 330px;
 	overflow: auto;
 	border: 1px solid #cdb79f;
 	border-radius: 8px;
 	background: #fff;
 	padding: 6px;
-	font-size: 13px;
+	font-size: 14px;
 }
 
 .political-territory-parent-tree__node {

@@ -539,6 +539,7 @@
 				<input id="region-edit-territory-public-id" name="territory_public_id" type="hidden" />
 				<input id="region-edit-geometry-public-id" name="geometry_public_id" type="hidden" />
 				<input id="region-edit-wiki-id" name="wiki_id" type="hidden" />
+				<div id="region-edit-tabs" class="political-territory-tabs political-territory-field" role="tablist" aria-label="Offene Herrschaftsgebiete"></div>
 				<section id="region-edit-wiki-reference" class="political-territory-wiki-reference political-territory-field" aria-labelledby="region-edit-wiki-reference-title">
 					<div class="political-territory-wiki-reference__header">
 						<h3 id="region-edit-wiki-reference-title">Wiki-Referenz</h3>
@@ -908,6 +909,8 @@
 			labelEditLatLng = null,
 			pendingLabelMoveAfterEditEntry = null,
 			regionEditEntry = null,
+			regionEditTabs = [],
+			activeRegionEditTabKey = "",
 			activeRegionGeometryEdit = null,
 			activeRegionContextEntry = null,
 			activeRegionInfoTooltip = null,
