@@ -453,9 +453,6 @@ function initializeTransportIconSelect(selectId) {
 
 	control.menuElement.innerHTML = "";
 	Array.from(control.selectElement.options).forEach((optionElement) => {
-		if (optionElement.disabled || optionElement.hidden) {
-			return;
-		}
 		control.menuElement.append(createTransportOptionButton(selectId, optionElement));
 	});
 

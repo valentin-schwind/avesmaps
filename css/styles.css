@@ -1688,6 +1688,12 @@ body.modal-dialog-open {
 	outline: none;
 }
 
+.transport-combobox__option:disabled {
+	opacity: 0.45;
+	color: #7f766f;
+	cursor: not-allowed;
+}
+
 .transport-option-inline-icon {
 	width: 24px;
 	height: 24px;
