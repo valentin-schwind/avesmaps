@@ -33,6 +33,15 @@ License, Version 1.1, mitverteilt.
 - Lizenztext: `fonts/OFL-FacultyGlyphic.txt`
 - Quelle: https://github.com/google/fonts/tree/main/ofl/facultyglyphic
 
+## Open-Source-Komponenten
+
+Die interaktive Karte verwendet Leaflet fuer Kartendarstellung und
+`polygon-clipping` fuer boolesche Polygonoperationen im Herrschaftsgebiete-
+Editor. `polygon-clipping` steht unter der MIT-Lizenz.
+
+- Leaflet: https://leafletjs.com/
+- polygon-clipping: https://github.com/mfogel/polygon-clipping
+
 ## Ulisses-Fanrichtlinien
 
 Kennzeichnung als Fanprojekt und Verwendung des DSA-FANPROJEKT-Logos

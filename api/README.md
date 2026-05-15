@@ -182,6 +182,39 @@ Invoke-RestMethod `
 Erlaubte Rollen sind `admin`, `editor` und `reviewer`. Fuer `/edit` reichen
 `admin` oder `editor`; `reviewer` ist fuer spaetere Freigabe-Workflows gedacht.
 
+## Herrschaftsgebiete
+
+Der politische Layer nutzt fuer neue Installationen das dreigeteilte
+Herrschaftsgebiete-Modell:
+
+- `political_territory_wiki` fuer importierte Wiki-Aventurica-Referenzdaten
+- `political_territory` fuer redaktionelle Avesmaps-Felder
+- `political_territory_geometry` fuer Polygon- und MultiPolygon-Geometrien
+- `political_territory_relation` als Erweiterungspunkt fuer komplexere
+  Beziehungen
+
+Die Migration liegt in `sql/2026-05-15-political-territories.sql` und ist auch
+in `schema.future.mysql.sql` enthalten. Der Editor-Endpoint ist
+`political-territories.php`; er bietet `list`, `get`, `wiki`, `hierarchy`,
+`geometries`, `layer` sowie schreibende Aktionen fuer Gebiete, Hierarchien,
+Geometrien und Geometrieoperationen.
+
+WikiSync importiert Herrschaftsgebiete ueber:
+
+```json
+{
+  "action": "import_political_territories",
+  "records": []
+}
+```
+
+Der Editor kann JSON- oder CSV-Dateien laden und sendet sie als `records` an
+WikiSync. Der Import aktualisiert nur Wiki-Referenzfelder. Redaktionelle
+Overrides und vorhandene Geometrien bleiben erhalten. Nur Datensaetze fuer
+`Aventurien` werden als lokale Herrschaftsgebiete angelegt.
+
+Weitere Details: `docs/herrschaftsgebiete.md`.
+
 ## Edit-API
 
 `map-feature-update.php` ist der erste schreibende Karten-Endpoint fuer

@@ -443,7 +443,7 @@ function buildSpotlightRegionEntries() {
 				id: `region:${key}`,
 				kind: "region",
 				name: regionEntry.name,
-				typeLabel: "Politisches Land",
+				typeLabel: "Herrschaftsgebiet",
 				publicIds: [regionEntry.publicId].filter(Boolean),
 				regionEntry,
 				polygons: [],

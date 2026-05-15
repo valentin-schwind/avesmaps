@@ -81,6 +81,50 @@ async function submitMapFeatureEdit(payload) {
 	return result;
 }
 
+async function fetchPoliticalTerritories(params = {}) {
+	if (!POLITICAL_TERRITORIES_API_URL) {
+		throw new Error("Keine Herrschaftsgebiet-API fuer diese Umgebung konfiguriert.");
+	}
+
+	const url = new URL(POLITICAL_TERRITORIES_API_URL, window.location.href);
+	Object.entries(params).forEach(([key, value]) => {
+		if (value !== undefined && value !== null && value !== "") {
+			url.searchParams.set(key, String(value));
+		}
+	});
+
+	const response = await fetch(url.toString(), {
+		credentials: "same-origin",
+		headers: {
+			Accept: "application/json",
+		},
+	});
+	const data = await readJsonResponse(response, {});
+	if (!response.ok || data?.ok !== true) {
+		throw new Error(data?.error || `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`);
+	}
+
+	return data;
+}
+
+async function submitPoliticalTerritoryEdit(payload) {
+	const response = await fetch(POLITICAL_TERRITORIES_API_URL, {
+		method: "PATCH",
+		credentials: "same-origin",
+		headers: {
+			Accept: "application/json",
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify(payload),
+	});
+	const data = await readJsonResponse(response, {});
+	if (!response.ok || data?.ok !== true) {
+		throw new Error(data?.error || `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`);
+	}
+
+	return data;
+}
+
 async function undoMapAuditChange(changeId) {
 	return submitMapFeatureEdit({
 		action: "undo_audit_change",

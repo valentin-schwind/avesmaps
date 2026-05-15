@@ -727,6 +727,9 @@ $(document).on("click", (event) => {
 	if (!clickedElement?.closest("#map-context-menu")) {
 		closeMapContextMenu();
 	}
+	if (!clickedElement?.closest("#region-context-menu")) {
+		closeRegionContextMenu();
+	}
 });
 
 $(document).on("click", ".remove-waypoint", function (event) {

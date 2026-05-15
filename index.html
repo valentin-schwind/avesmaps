@@ -108,7 +108,7 @@
 				<button type="button" class="map-context-menu__item" data-context-action="split-path-at-node" hidden>Neue Kreuzung und Weg teilen</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-path">Neuer Weg</button>
 				<button type="button" class="map-context-menu__item" data-context-action="create-label">Neues Label</button>
-				<button type="button" class="map-context-menu__item" data-context-action="create-region">Neues politisches Gebiet</button>
+				<button type="button" class="map-context-menu__item" data-context-action="create-region">Neues Herrschaftsgebiet</button>
 			</div>
 		</div>
 		<button type="button" class="map-context-menu__item" data-context-action="share-pin">📍 Stelle markieren und teilen</button>
@@ -117,6 +117,14 @@
 		<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location">📌 Nächsten Ort finden</button>
 		<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement">📏 Entfernung messen</button>
 		<button type="button" class="map-context-menu__item" data-context-action="clear-distance-measurement">🗑️ Entfernungsmessung löschen</button>
+	</div>
+	<div id="region-context-menu" class="map-context-menu region-context-menu" hidden>
+		<button type="button" class="map-context-menu__item" data-region-context-action="edit-geometry">Herrschaftsgebiet bearbeiten</button>
+		<button type="button" class="map-context-menu__item" data-region-context-action="edit-properties">Eigenschaften bearbeiten</button>
+		<button type="button" class="map-context-menu__item" data-region-context-action="union">Mit anderem vereinigen</button>
+		<button type="button" class="map-context-menu__item" data-region-context-action="difference">Von anderem ausschneiden</button>
+		<button type="button" class="map-context-menu__item" data-region-context-action="intersection">Neues von anderem ausschneiden</button>
+		<button type="button" class="map-context-menu__item map-context-menu__item--danger" data-region-context-action="delete">Loeschen</button>
 	</div>
 	<div id="spotlight-search-overlay" class="spotlight-search-overlay" hidden>
 		<div id="spotlight-search-dialog" class="spotlight-search" role="dialog" aria-modal="true" aria-labelledby="spotlight-search-title">
@@ -151,6 +159,8 @@
 		<section class="review-panel__section" data-editor-panel-section="wiki-sync">
 			<div class="wiki-sync-panel__actions">
 				<button id="wiki-sync-start" class="wiki-sync-panel__start" type="button">Synchronisieren</button>
+				<label class="wiki-sync-panel__start wiki-sync-panel__file-button" for="wiki-sync-territory-import">Herrschaftsgebiete importieren</label>
+				<input id="wiki-sync-territory-import" class="visually-hidden" type="file" accept="application/json,text/csv,.json,.csv" />
 				<progress id="wiki-sync-progress" class="wiki-sync-progress" max="4" value="0" hidden></progress>
 			</div>
 			<div class="wiki-sync-panel__filter">
@@ -166,6 +176,18 @@
 	</aside>
 	<button id="review-panel-toggle" class="review-panel-toggle" type="button" hidden>Review</button>
 	<div id="copy-feedback-toast" class="feedback-toast" role="status" aria-live="polite" hidden></div>
+	<div id="region-operation-chip" class="region-operation-chip" role="status" aria-live="polite" hidden>
+		<span id="region-operation-chip-text"></span>
+		<button id="region-operation-cancel" type="button">Abbrechen</button>
+	</div>
+	<div id="political-timeline" class="political-timeline" hidden>
+		<label class="political-timeline__field">
+			<span>BF-Jahr</span>
+			<input id="political-timeline-range" type="range" min="-3000" max="1050" step="1" value="1046" />
+		</label>
+		<input id="political-timeline-year" class="political-timeline__year" type="number" min="-3000" max="1050" step="1" value="1046" aria-label="BF-Jahr" />
+		<span id="political-timeline-label" class="political-timeline__label">1046 BF</span>
+	</div>
 	<div id="location-report-overlay" hidden>
 		<div id="location-report-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="location-report-title" tabindex="-1">
 			<div class="location-report-dialog__header">
@@ -510,14 +532,29 @@
 	<div id="region-edit-overlay" hidden>
 		<div id="region-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="region-edit-title" tabindex="-1">
 			<div class="location-report-dialog__header">
-				<h2 id="region-edit-title">Region bearbeiten</h2>
-				<button id="region-edit-close" class="location-report-dialog__close" type="button" aria-label="Region schliessen">x</button>
+				<h2 id="region-edit-title">Herrschaftsgebiet bearbeiten</h2>
+				<button id="region-edit-close" class="location-report-dialog__close" type="button" aria-label="Herrschaftsgebiet schliessen">x</button>
 			</div>
 			<form id="region-edit-form" class="location-report-form" novalidate>
 				<input id="region-edit-public-id" name="public_id" type="hidden" />
+				<input id="region-edit-source" name="source" type="hidden" />
+				<input id="region-edit-territory-public-id" name="territory_public_id" type="hidden" />
+				<input id="region-edit-geometry-public-id" name="geometry_public_id" type="hidden" />
 				<label class="location-report-form__field">
 					<span>Name *</span>
 					<input id="region-edit-name" name="name" type="text" maxlength="160" required />
+				</label>
+				<label class="location-report-form__field political-territory-field">
+					<span>Kurzname</span>
+					<input id="region-edit-short-name" name="short_name" type="text" maxlength="160" />
+				</label>
+				<label class="location-report-form__field political-territory-field">
+					<span>Typ</span>
+					<input id="region-edit-type" name="type" type="text" maxlength="160" placeholder="Herrschaftsgebiet" />
+				</label>
+				<label class="location-report-form__field political-territory-field">
+					<span>Parent/Hiearchie</span>
+					<select id="region-edit-parent" name="parent_public_id"></select>
 				</label>
 				<label class="location-report-form__field">
 					<span>Farbe *</span>
@@ -531,6 +568,50 @@
 					<span>Wiki-Aventurica-Link</span>
 					<input id="region-edit-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
 				</label>
+				<label class="location-report-form__field political-territory-field">
+					<span>Wappen-Link</span>
+					<input id="region-edit-coat-url" name="coat_of_arms_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
+				</label>
+				<div class="location-report-form__grid political-territory-field">
+					<label class="location-report-form__field">
+						<span>Zoom von</span>
+						<input id="region-edit-min-zoom" name="min_zoom" type="number" min="0" max="6" step="1" />
+					</label>
+					<label class="location-report-form__field">
+						<span>Zoom bis</span>
+						<input id="region-edit-max-zoom" name="max_zoom" type="number" min="0" max="6" step="1" />
+					</label>
+				</div>
+				<div class="location-report-form__grid political-territory-field">
+					<label class="location-report-form__field">
+						<span>Zeit von (BF)</span>
+						<input id="region-edit-valid-from" name="valid_from_bf" type="number" step="1" />
+					</label>
+					<label class="location-report-form__field">
+						<span>Zeit bis (BF)</span>
+						<input id="region-edit-valid-to" name="valid_to_bf" type="number" step="1" />
+					</label>
+				</div>
+				<label class="location-report-form__checkbox political-territory-field">
+					<input id="region-edit-valid-open" name="valid_to_open" type="checkbox" />
+					<span>besteht/heute</span>
+				</label>
+				<label class="location-report-form__field political-territory-field">
+					<span>Zeitanzeige</span>
+					<input id="region-edit-valid-label" name="valid_label" type="text" maxlength="500" />
+				</label>
+				<label class="location-report-form__checkbox political-territory-field">
+					<input id="region-edit-is-active" name="is_active" type="checkbox" checked />
+					<span>Aktiv</span>
+				</label>
+				<label class="location-report-form__field political-territory-field">
+					<span>Redaktioneller Kommentar</span>
+					<textarea id="region-edit-notes" name="editor_notes" rows="3" maxlength="3000"></textarea>
+				</label>
+				<details id="region-edit-wiki-reference" class="political-territory-wiki-reference political-territory-field">
+					<summary>Wiki-Referenzdaten ansehen</summary>
+					<dl id="region-edit-wiki-reference-list"></dl>
+				</details>
 				<p id="region-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions">
 					<button id="region-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Loeschen</button>
@@ -683,8 +764,8 @@
 				<p><strong>Community-Meldungen.</strong> Von Nutzerinnen und Nutzern gemeldete Orte, Korrekturen oder Ergänzungen werden nicht automatisch veröffentlicht. Sie werden redaktionell geprüft und nur übernommen, wenn sie nach Einschätzung des Betreibers inhaltlich, technisch und rechtlich vertretbar sind. Mit dem Absenden einer Meldung wird keine Veröffentlichung zugesagt.</p>
 				<p><strong>Marken- und Rechtehinweis.</strong> Artwork © Ulisses Spiele, soweit nicht anders angegeben. DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA, RIESLAND und THE DARK EYE sind eingetragene Marken der Ulisses Spiele GmbH, Waldems. Die Verwendung von Grafiken, Kartenmaterial, Namen und sonstigem DSA-bezogenem Material erfolgt ausschließlich im Rahmen der von Ulisses Spiele erlaubten Richtlinien beziehungsweise einschlägigen Lizenzbedingungen. Eine Verwendung über diese Richtlinien hinaus darf nur nach vorheriger schriftlicher Genehmigung der Ulisses Medien und Spiel Distribution GmbH erfolgen.</p>
 				<p><strong>Distanzierung von offizieller Verbindlichkeit.</strong> Avesmaps ist ein Hilfsmittel für Spielrunden, Recherche und private Nutzung. Die Website ersetzt keine offiziellen DSA-Publikationen. Maßgeblich für Kanon, Regeln, Geographie, Namen, Grenzen und Beschreibungen bleiben ausschließlich die offiziellen Veröffentlichungen der jeweiligen Rechteinhaber.</p>
-				<p><strong>Software und Open-Source-Komponenten.</strong> Avesmaps verwendet Leaflet, eine Open-Source-JavaScript-Bibliothek für interaktive Karten. Leaflet steht unter der BSD-2-Clause-Lizenz. Copyright (c) 2010–2026, Volodymyr Agafonkin; Copyright (c) 2010–2011, CloudMade. Die Nutzung von Leaflet betrifft ausschließlich die technische Darstellung und Bedienung der interaktiven Karte und begründet keine Rechte an DSA-bezogenem Karten-, Namens-, Marken- oder Hintergrundmaterial.</p>
-                <p><strong>Quellen.</strong> <a href="https://avespfade.de/" target="_blank" rel="noopener noreferrer">avespfade.de</a> · <a href="https://www.orkenspalter.de/filebase/index.php/File/46-Aventurienkarte-aus-Regionalpl%C3%A4nen/" target="_blank" rel="noopener noreferrer">Orkenspalter Kartenmaterial</a> · <a href="https://ulisses-spiele.de/fan-richtlinie/" target="_blank" rel="noopener noreferrer">Ulisses Fan-Richtlinie</a> · <a href="https://leafletjs.com/" target="_blank" rel="noopener noreferrer">Leaflet</a> · <a href="https://github.com/valentin-schwind/avesmaps" target="_blank" rel="noopener noreferrer">GitHub-Repository</a></p>
+				<p><strong>Software und Open-Source-Komponenten.</strong> Avesmaps verwendet Leaflet, eine Open-Source-JavaScript-Bibliothek für interaktive Karten, und polygon-clipping für boolesche Polygonoperationen im Herrschaftsgebiete-Editor. Leaflet steht unter der BSD-2-Clause-Lizenz; polygon-clipping steht unter der MIT-Lizenz. Die Nutzung dieser Bibliotheken betrifft ausschließlich die technische Darstellung und Bedienung der interaktiven Karte und begründet keine Rechte an DSA-bezogenem Karten-, Namens-, Marken- oder Hintergrundmaterial.</p>
+                <p><strong>Quellen.</strong> <a href="https://avespfade.de/" target="_blank" rel="noopener noreferrer">avespfade.de</a> · <a href="https://www.orkenspalter.de/filebase/index.php/File/46-Aventurienkarte-aus-Regionalpl%C3%A4nen/" target="_blank" rel="noopener noreferrer">Orkenspalter Kartenmaterial</a> · <a href="https://ulisses-spiele.de/fan-richtlinie/" target="_blank" rel="noopener noreferrer">Ulisses Fan-Richtlinie</a> · <a href="https://leafletjs.com/" target="_blank" rel="noopener noreferrer">Leaflet</a> · <a href="https://github.com/mfogel/polygon-clipping" target="_blank" rel="noopener noreferrer">polygon-clipping</a> · <a href="https://github.com/valentin-schwind/avesmaps" target="_blank" rel="noopener noreferrer">GitHub-Repository</a></p>
 				<p class="legal-dialog__note">Hinweis: Diese Zusammenfassung dient der Quellen- und Lizenzangabe im Projekt.</p>
 </div>
 		</div>
@@ -697,6 +778,7 @@
 	<script src="js/api.js"></script>
 	<script src="js/dialogs-review.js"></script>
 	<script src="js/ui-controls.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/polygon-clipping@0.15.7/dist/polygon-clipping.umd.min.js"></script>
 	<script src="js/map-features.js"></script>
 	<script src="js/routing.js"></script>
 	<script src="js/spotlight-search.js"></script>
@@ -708,6 +790,8 @@
 			powerlineData = [],
 			labelData = [],
 			regionData = [],
+			politicalTerritoryOptions = [],
+			politicalTerritoryFallbackData = null,
 			syntheticPathSegments = new Map(),
 			locationMarkers = [],
 			locationNameLabels = [],
@@ -793,6 +877,12 @@
 			pendingLabelMoveAfterEditEntry = null,
 			regionEditEntry = null,
 			activeRegionGeometryEdit = null,
+			activeRegionContextEntry = null,
+			pendingRegionOperation = null,
+			politicalTimelineYear = 1046,
+			isPoliticalTerritoryLayerLoading = false,
+			politicalTerritoryLayerReloadTimerId = null,
+			politicalTerritoryApiUnavailable = false,
 			isPathEditSubmissionPending = false,
 			activePathGeometryEdit = null,
 			pendingPathSplit = null,
@@ -863,11 +953,13 @@
 			syncPathRendering();
 			syncPathLabels();
 			syncPowerlineLabels();
+			schedulePoliticalTerritoryLayerReload();
 		});
 		map.attributionControl.setPrefix(false);
 		map.on("moveend", () => {
 			syncLocationMarkerVisibility();
 			syncLabelVisibility();
+			schedulePoliticalTerritoryLayerReload();
 		});
 		document.addEventListener("visibilitychange", () => {
 			if (document.visibilityState === "visible") {
@@ -1007,6 +1099,7 @@
 		$("#location-report-close, #location-report-cancel").on("click", () => setLocationReportDialogOpen(false, { resetForm: true }));
 		$("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));
 		$("#wiki-sync-start").on("click", () => startWikiSyncRun());
+		$("#wiki-sync-territory-import").on("change", handleWikiSyncTerritoryImportFile);
 		$("#wiki-sync-filter").on("input search", function () {
 			setWikiSyncFilterQuery(this.value || "");
 		});
@@ -1030,6 +1123,11 @@
 		$("#region-edit-form").on("submit", handleRegionEditFormSubmit);
 		$("#region-edit-delete").on("click", () => deleteActiveRegion());
 		$("#region-edit-opacity").on("input", syncRegionOpacityOutput);
+		$("#region-edit-valid-open").on("change", syncRegionValidToControls);
+		$("#region-operation-cancel").on("click", cancelPendingRegionOperation);
+		$("#political-timeline-range, #political-timeline-year").on("input change", function () {
+			setPoliticalTimelineYear(this.value);
+		});
 		$("#path-edit-autoname").on("change", syncPathAutoNameControls);
 		$("#path-edit-type").on("change", () => {
 			syncPathAutoNameControls({ forceName: true });
@@ -1083,6 +1181,11 @@
 			}
 
 			if (event.key === "Escape") {
+				if (pendingRegionOperation) {
+					cancelPendingRegionOperation();
+					return;
+				}
+
 				if (clearChangeLogFocusMarker()) {
 					return;
 				}
@@ -1091,6 +1194,7 @@
 				clearPathGeometryEdit();
 				clearRegionGeometryEdit();
 				closeMapContextMenu();
+				closeRegionContextMenu();
 			}
 		});
 
@@ -1215,6 +1319,7 @@
 			);
 		});
 		map.on("click", closeMapContextMenu);
+		map.on("click", closeRegionContextMenu);
 		map.on("click", clearChangeLogFocusMarker);
 		map.on("movestart", closeMapContextMenu);
 		window.addEventListener("resize", closeMapContextMenu);

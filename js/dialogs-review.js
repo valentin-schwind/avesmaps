@@ -497,13 +497,23 @@ function resetRegionEditForm() {
 	const formElement = getRegionEditFormElement();
 	if (!formElement) return;
 	const publicId = document.getElementById("region-edit-public-id")?.value || "";
+	const source = document.getElementById("region-edit-source")?.value || "";
 	formElement.reset();
 	regionEditEntry = null;
-	void releaseFeatureSoftLock(publicId);
+	if (source !== "political_territory") {
+		void releaseFeatureSoftLock(publicId);
+	}
 	document.getElementById("region-edit-public-id").value = "";
+	document.getElementById("region-edit-source").value = "";
+	document.getElementById("region-edit-territory-public-id").value = "";
+	document.getElementById("region-edit-geometry-public-id").value = "";
 	document.getElementById("region-edit-delete").hidden = true;
 	document.getElementById("region-edit-wiki-url").value = "";
+	document.getElementById("region-edit-coat-url").value = "";
+	document.getElementById("region-edit-parent").innerHTML = "";
+	document.getElementById("region-edit-wiki-reference-list").innerHTML = "";
 	syncRegionOpacityOutput();
+	syncRegionValidToControls();
 	setRegionEditStatus();
 }
 
@@ -784,23 +794,110 @@ function syncRegionOpacityOutput() {
 	outputElement.textContent = `${inputElement.value}%`;
 }
 
+function syncRegionValidToControls() {
+	const validToInput = document.getElementById("region-edit-valid-to");
+	const openEndInput = document.getElementById("region-edit-valid-open");
+	if (!validToInput || !openEndInput) {
+		return;
+	}
+
+	validToInput.disabled = openEndInput.checked;
+	if (openEndInput.checked) {
+		validToInput.value = "";
+	}
+}
+
+function syncRegionTerritoryFieldVisibility(source) {
+	const isPoliticalTerritory = source === "political_territory";
+	document.querySelectorAll(".political-territory-field").forEach((element) => {
+		element.hidden = !isPoliticalTerritory;
+	});
+}
+
+function populateRegionParentSelect(region) {
+	const selectElement = document.getElementById("region-edit-parent");
+	if (!selectElement) {
+		return;
+	}
+
+	selectElement.innerHTML = "";
+	const emptyOption = document.createElement("option");
+	emptyOption.value = "";
+	emptyOption.textContent = "Kein Parent";
+	selectElement.append(emptyOption);
+	politicalTerritoryOptions
+		.filter((territory) => territory.public_id !== region.territoryPublicId)
+		.forEach((territory) => {
+			const option = document.createElement("option");
+			option.value = territory.public_id;
+			option.textContent = territory.name;
+			selectElement.append(option);
+		});
+	selectElement.value = region.parentPublicId || "";
+}
+
+function renderRegionWikiReference(region) {
+	const listElement = document.getElementById("region-edit-wiki-reference-list");
+	if (!listElement) {
+		return;
+	}
+
+	const rows = [
+		["Typ", region.type],
+		["Zeitraum", region.validLabel],
+		["Zugehoerigkeit", region.affiliation],
+		["Hauptstadt", region.feature?.properties?.capital_name || ""],
+		["Herrschaftssitz", region.feature?.properties?.seat_name || ""],
+		["Wiki", region.wikiUrl],
+	].filter(([, value]) => String(value || "").trim() !== "");
+	listElement.innerHTML = rows.map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join("");
+}
+
 function populateRegionEditForm(entry) {
 	regionEditEntry = entry;
 	const region = entry?.region || entry || {};
+	const source = region.source || "map_feature";
 	document.getElementById("region-edit-public-id").value = region.publicId || "";
-	void acquireFeatureSoftLock(region.publicId || "");
+	document.getElementById("region-edit-source").value = source;
+	document.getElementById("region-edit-territory-public-id").value = region.territoryPublicId || "";
+	document.getElementById("region-edit-geometry-public-id").value = region.geometryPublicId || region.publicId || "";
+	if (source !== "political_territory") {
+		void acquireFeatureSoftLock(region.publicId || "");
+	}
 	document.getElementById("region-edit-name").value = region.name || "";
+	document.getElementById("region-edit-short-name").value = region.shortName || "";
+	document.getElementById("region-edit-type").value = region.type || "Herrschaftsgebiet";
 	document.getElementById("region-edit-color").value = region.color || "#888888";
 	document.getElementById("region-edit-opacity").value = Math.round((region.opacity ?? 0.33) * 100);
 	document.getElementById("region-edit-wiki-url").value = region.wikiUrl || "";
+	document.getElementById("region-edit-coat-url").value = region.coatOfArmsUrl || "";
+	document.getElementById("region-edit-min-zoom").value = region.minZoom ?? "";
+	document.getElementById("region-edit-max-zoom").value = region.maxZoom ?? "";
+	document.getElementById("region-edit-valid-from").value = region.validFromBf ?? "";
+	document.getElementById("region-edit-valid-to").value = region.validToBf ?? "";
+	document.getElementById("region-edit-valid-open").checked = region.validToBf === null || region.validToBf === undefined;
+	document.getElementById("region-edit-valid-label").value = region.validLabel || "";
+	document.getElementById("region-edit-is-active").checked = region.isActive !== false;
+	document.getElementById("region-edit-notes").value = region.editorNotes || "";
+	syncRegionTerritoryFieldVisibility(source);
+	populateRegionParentSelect(region);
+	renderRegionWikiReference(region);
 	document.getElementById("region-edit-delete").hidden = !entry;
 	syncRegionOpacityOutput();
+	syncRegionValidToControls();
 }
 
 function openRegionEditDialog(entry) {
 	resetRegionEditForm();
 	populateRegionEditForm(entry);
 	setRegionEditDialogOpen(true);
+	if ((entry?.source || "") === "political_territory" && politicalTerritoryOptions.length === 0) {
+		void loadPoliticalTerritoryOptions().then(() => {
+			if (regionEditEntry === entry) {
+				populateRegionParentSelect(entry);
+			}
+		});
+	}
 }
 
 function populatePathEditForm(path) {
@@ -1036,6 +1133,33 @@ function buildLabelEditPayload(formElement) {
 
 function buildRegionEditPayload(formElement) {
 	const formData = new FormData(formElement);
+	const source = String(formData.get("source") || "map_feature").trim();
+	if (source === "political_territory") {
+		return {
+			action: "update_territory",
+			source,
+			public_id: String(formData.get("geometry_public_id") || "").trim(),
+			geometry_public_id: String(formData.get("geometry_public_id") || "").trim(),
+			territory_public_id: String(formData.get("territory_public_id") || "").trim(),
+			name: String(formData.get("name") || "").trim(),
+			short_name: String(formData.get("short_name") || "").trim(),
+			type: String(formData.get("type") || "").trim(),
+			parent_public_id: String(formData.get("parent_public_id") || "").trim(),
+			color: String(formData.get("color") || "#888888").trim(),
+			opacity: Number.parseInt(String(formData.get("opacity") || "33"), 10) / 100,
+			wiki_url: String(formData.get("wiki_url") || "").trim(),
+			coat_of_arms_url: String(formData.get("coat_of_arms_url") || "").trim(),
+			min_zoom: String(formData.get("min_zoom") || "").trim(),
+			max_zoom: String(formData.get("max_zoom") || "").trim(),
+			valid_from_bf: String(formData.get("valid_from_bf") || "").trim(),
+			valid_to_bf: String(formData.get("valid_to_bf") || "").trim(),
+			valid_to_open: formData.get("valid_to_open") === "on",
+			valid_label: String(formData.get("valid_label") || "").trim(),
+			is_active: formData.get("is_active") === "on",
+			editor_notes: String(formData.get("editor_notes") || "").trim(),
+		};
+	}
+
 	return {
 		action: "update_region",
 		public_id: String(formData.get("public_id") || "").trim(),
@@ -2822,6 +2946,111 @@ async function sendEditorPresenceHeartbeat() {
 	}
 }
 
+async function handleWikiSyncTerritoryImportFile(event) {
+	const inputElement = event.currentTarget;
+	const file = inputElement?.files?.[0] || null;
+	if (!file) {
+		return;
+	}
+
+	setWikiSyncStatus("Herrschaftsgebiete werden importiert...", "pending");
+	try {
+		const text = await file.text();
+		const records = parseWikiSyncTerritoryImport(text, file.name);
+		if (!Array.isArray(records)) {
+			throw new Error("Die Importdatei muss eine Liste von Herrschaftsgebieten enthalten.");
+		}
+		const result = await submitWikiSyncAction("import_political_territories", { records });
+		const stats = result.stats || {};
+		await loadPoliticalTerritoryOptions();
+		schedulePoliticalTerritoryLayerReload({ immediate: true });
+		setWikiSyncStatus(
+			`Herrschaftsgebiete importiert: ${stats.territory_created || 0} neu, ${stats.wiki_updated || 0} Wiki-Updates, ${stats.invalid_coat_of_arms || 0} Wappen gefiltert.`,
+			"success"
+		);
+		showFeedbackToast("Herrschaftsgebiete importiert.", "success");
+	} catch (error) {
+		console.error("Herrschaftsgebiete konnten nicht importiert werden:", error);
+		setWikiSyncStatus(error.message || "Herrschaftsgebiete konnten nicht importiert werden.", "error");
+	} finally {
+		inputElement.value = "";
+	}
+}
+
+function parseWikiSyncTerritoryImport(text, fileName = "") {
+	const trimmedText = String(text || "").replace(/^\uFEFF/, "").trim();
+	const lowerFileName = String(fileName || "").toLowerCase();
+	if (lowerFileName.endsWith(".json") || trimmedText.startsWith("[") || trimmedText.startsWith("{")) {
+		const parsed = JSON.parse(trimmedText);
+		return Array.isArray(parsed) ? parsed : parsed.records;
+	}
+
+	return parseWikiSyncTerritoryCsv(trimmedText);
+}
+
+function parseWikiSyncTerritoryCsv(text) {
+	let rows = parseDelimitedRows(text, ";");
+	if ((rows[0] || []).length < 2) {
+		rows = parseDelimitedRows(text, ",");
+	}
+	if (rows.length < 2) {
+		throw new Error("Die CSV-Datei enthaelt keine Herrschaftsgebiete.");
+	}
+
+	const headers = rows[0].map((header) => String(header || "").trim());
+	return rows.slice(1)
+		.filter((row) => row.some((value) => String(value || "").trim() !== ""))
+		.map((row) => {
+			const record = {};
+			headers.forEach((header, index) => {
+				if (header !== "") {
+					record[header] = row[index] ?? "";
+				}
+			});
+			return record;
+		});
+}
+
+function parseDelimitedRows(text, delimiter) {
+	const normalizedText = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+	const rows = [];
+	let row = [];
+	let field = "";
+	let isQuoted = false;
+
+	for (let index = 0; index < normalizedText.length; index++) {
+		const character = normalizedText[index];
+		const nextCharacter = normalizedText[index + 1];
+		if (character === "\"") {
+			if (isQuoted && nextCharacter === "\"") {
+				field += "\"";
+				index++;
+				continue;
+			}
+			isQuoted = !isQuoted;
+			continue;
+		}
+		if (!isQuoted && character === delimiter) {
+			row.push(field);
+			field = "";
+			continue;
+		}
+		if (!isQuoted && character === "\n") {
+			row.push(field);
+			rows.push(row);
+			row = [];
+			field = "";
+			continue;
+		}
+		field += character;
+	}
+
+	row.push(field);
+	rows.push(row);
+
+	return rows;
+}
+
 function startEditorPresenceHeartbeat() {
 	if (!IS_EDIT_MODE || editorPresenceTimerId) {
 		return;
@@ -3190,20 +3419,29 @@ async function handleRegionEditFormSubmit(event) {
 	const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
 	if (!formElement || !formElement.reportValidity() || !regionEditEntry) return;
 	const payload = buildRegionEditPayload(formElement);
-	if (!isSqlMapFeatureId(payload.public_id)) {
+	if (payload.source !== "political_territory" && !isSqlMapFeatureId(payload.public_id)) {
 		setRegionEditStatus("Diese Region hat keine gueltige SQL-ID. Bitte die SQL-Karte neu laden.", "error");
 		return;
 	}
 	try {
-		const result = await submitMapFeatureEdit(payload);
-		applyRegionFeatureResponse(regionEditEntry, result.feature);
-		updateRevisionFromEditResponse(result);
-		void loadChangeLog();
+		const result = payload.source === "political_territory"
+			? await submitPoliticalTerritoryEdit(payload)
+			: await submitMapFeatureEdit(payload);
+		if (result.feature) {
+			applyRegionFeatureResponse(regionEditEntry, result.feature);
+		}
+		if (payload.source === "political_territory") {
+			await loadPoliticalTerritoryOptions();
+			schedulePoliticalTerritoryLayerReload({ immediate: true });
+		} else {
+			updateRevisionFromEditResponse(result);
+			void loadChangeLog();
+		}
 		setRegionEditDialogOpen(false, { resetForm: true });
-		showFeedbackToast("Region gespeichert.", "success");
+		showFeedbackToast("Herrschaftsgebiet gespeichert.", "success");
 	} catch (error) {
-		console.error("Region konnte nicht gespeichert werden:", error);
-		setRegionEditStatus(error.message || "Region konnte nicht gespeichert werden.", "error");
+		console.error("Herrschaftsgebiet konnte nicht gespeichert werden:", error);
+		setRegionEditStatus(error.message || "Herrschaftsgebiet konnte nicht gespeichert werden.", "error");
 	}
 }
 

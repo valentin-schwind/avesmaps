@@ -155,6 +155,74 @@ html {
 	pointer-events: none;
 }
 
+.region-label__content {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 2px 5px;
+	border-radius: 6px;
+	background: rgba(255, 255, 255, 0.3);
+	color: #2f251c;
+}
+
+.region-label__coat {
+	width: 18px;
+	height: 18px;
+	object-fit: contain;
+}
+
+.region-compact-tooltip {
+	border: 1px solid #b79d7d;
+	border-radius: 8px;
+	background: rgba(255, 249, 244, 0.98);
+	color: #3f3428;
+	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+	padding: 0;
+}
+
+.region-compact-tooltip__content {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 2px 8px;
+	align-items: center;
+	max-width: 240px;
+	padding: 8px 10px;
+}
+
+.region-compact-tooltip__coat {
+	grid-row: span 3;
+	width: 30px;
+	height: 30px;
+	object-fit: contain;
+}
+
+.region-compact-tooltip__name {
+	font-weight: bold;
+}
+
+.region-compact-tooltip__meta {
+	font-size: 12px;
+	color: #6a5543;
+}
+
+.region-compact-tooltip__place-link {
+	appearance: none;
+	border: 0;
+	padding: 0;
+	background: transparent;
+	color: #235f82;
+	cursor: pointer;
+	font: inherit;
+	text-decoration: underline;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 2px;
+}
+
+.region-compact-tooltip__place-link:hover,
+.region-compact-tooltip__place-link:focus-visible {
+	color: #103f5a;
+}
+
 .transportOptionSelect {
 	width: 170px;
 }
@@ -942,6 +1010,55 @@ body.modal-dialog-open {
 	width: auto;
 }
 
+.location-report-form__grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: 10px;
+}
+
+.location-report-form__checkbox {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	color: #4f4134;
+}
+
+.location-report-form__checkbox input {
+	width: auto;
+}
+
+.political-territory-wiki-reference {
+	border: 1px solid #dccab8;
+	border-radius: 8px;
+	padding: 8px 10px;
+	background: #fffaf5;
+	color: #4f4134;
+}
+
+.political-territory-wiki-reference summary {
+	cursor: pointer;
+	font-weight: bold;
+}
+
+.political-territory-wiki-reference dl {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 4px 10px;
+	margin: 8px 0 0 0;
+	font-size: 12px;
+}
+
+.political-territory-wiki-reference dt {
+	font-weight: bold;
+	color: #6a5543;
+}
+
+.political-territory-wiki-reference dd {
+	margin: 0;
+	word-break: break-word;
+}
+
 #path-edit-transport-options label {
 	display: block;
 	font-size: 13px;
@@ -1453,6 +1570,14 @@ body.modal-dialog-open {
 	outline: none;
 }
 
+.map-context-menu__item--danger {
+	color: #7d241d;
+}
+
+.region-context-menu {
+	z-index: 1410;
+}
+
 .review-panel[hidden],
 .review-panel-toggle[hidden] {
 	display: none !important;
@@ -1704,6 +1829,12 @@ body.modal-dialog-open {
 	border: 1px solid #8fa46d;
 	background: #f1f7e8;
 	color: #435724;
+}
+
+.wiki-sync-panel__file-button {
+	display: inline-flex;
+	align-items: center;
+	cursor: pointer;
 }
 
 .wiki-sync-case__action--primary {
@@ -2370,6 +2501,95 @@ body.edit-mode .map-label span {
 .feedback-toast[data-toast-type="warning"] {
 	border-color: #c8a98b;
 	background: rgba(246, 237, 227, 0.98);
+}
+
+.political-timeline[hidden],
+.region-operation-chip[hidden] {
+	display: none !important;
+}
+
+.visually-hidden {
+	position: absolute !important;
+	width: 1px !important;
+	height: 1px !important;
+	overflow: hidden !important;
+	clip: rect(0 0 0 0) !important;
+	white-space: nowrap !important;
+}
+
+.political-timeline {
+	position: fixed;
+	left: 50%;
+	bottom: 18px;
+	z-index: 1200;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	width: min(520px, calc(100vw - 32px));
+	padding: 10px 12px;
+	border: 1px solid #b79d7d;
+	border-radius: 8px;
+	background: rgba(250, 243, 236, 0.96);
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+	color: #3f3428;
+	transform: translateX(-50%);
+}
+
+.political-timeline__field {
+	display: flex;
+	align-items: center;
+	flex: 1;
+	gap: 8px;
+	min-width: 0;
+	font-size: 13px;
+	font-weight: bold;
+}
+
+.political-timeline__field input {
+	flex: 1;
+	min-width: 120px;
+}
+
+.political-timeline__year {
+	width: 92px;
+	border: 1px solid #cdb79f;
+	border-radius: 6px;
+	padding: 6px 8px;
+	font: inherit;
+}
+
+.political-timeline__label {
+	min-width: 74px;
+	font-weight: bold;
+	text-align: right;
+}
+
+.region-operation-chip {
+	position: fixed;
+	left: 50%;
+	bottom: 86px;
+	z-index: 1450;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	max-width: min(520px, calc(100vw - 32px));
+	padding: 10px 12px;
+	border: 1px solid #b79d7d;
+	border-radius: 8px;
+	background: rgba(255, 249, 244, 0.98);
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+	color: #3f3428;
+	transform: translateX(-50%);
+}
+
+.region-operation-chip button {
+	border: 1px solid #b79d7d;
+	border-radius: 6px;
+	background: #f4eadf;
+	color: #3f3428;
+	cursor: pointer;
+	font: inherit;
+	padding: 6px 8px;
 }
 
 .waypoint-container {

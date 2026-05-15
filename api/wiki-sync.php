@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/auth.php';
+require_once __DIR__ . '/political-territory-lib.php';
 
 const AVESMAPS_WIKI_API_URL = 'https://de.wiki-aventurica.de/de/api.php';
 const AVESMAPS_WIKI_PAGE_BASE_URL = 'https://de.wiki-aventurica.de/wiki/';
@@ -108,6 +109,7 @@ try {
         'archive_case' => avesmapsWikiSyncUpdateCaseStatus($pdo, $payload, $user, 'archived'),
         'reopen_case' => avesmapsWikiSyncUpdateCaseStatus($pdo, $payload, $user, 'open'),
         'resolve_case' => avesmapsWikiSyncResolveCase($pdo, $payload, avesmapsRequireUserWithCapability('edit')),
+        'import_political_territories' => avesmapsWikiSyncImportPoliticalTerritories($pdo, $payload, avesmapsRequireUserWithCapability('edit')),
         default => throw new InvalidArgumentException('Die WikiSync-Aktion ist unbekannt.'),
     };
 
@@ -148,6 +150,15 @@ try {
         'ok' => false,
         'error' => 'WikiSync konnte nicht verarbeitet werden.',
     ]);
+}
+
+function avesmapsWikiSyncImportPoliticalTerritories(PDO $pdo, array $payload, array $user): array {
+    $records = $payload['records'] ?? null;
+    if (!is_array($records)) {
+        throw new InvalidArgumentException('Die Herrschaftsgebiet-Daten fehlen.');
+    }
+
+    return avesmapsPoliticalImportWikiRecords($pdo, $records, $user);
 }
 
 function avesmapsWikiSyncEnsureTables(PDO $pdo): void {

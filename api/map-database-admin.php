@@ -116,6 +116,10 @@ function avesmapsBuildMapDatabaseStatus(PDO $pdo): array {
         'map_proposals',
         'map_revision',
         'map_audit_log',
+        'political_territory_wiki',
+        'political_territory',
+        'political_territory_geometry',
+        'political_territory_relation',
     ];
 
     $existingTables = [];
