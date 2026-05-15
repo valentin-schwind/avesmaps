@@ -88,6 +88,10 @@ function getRegionEditDialogElement() {
 	return document.getElementById("region-edit-dialog");
 }
 
+function getRegionWikiPickerDialogElement() {
+	return document.getElementById("region-wiki-picker-dialog");
+}
+
 function getLocationReportServiceNoteElement() {
 	return document.getElementById("location-report-service-note");
 }
@@ -120,12 +124,16 @@ function isRegionEditDialogOpen() {
 	return !$("#region-edit-overlay").prop("hidden");
 }
 
+function isRegionWikiPickerDialogOpen() {
+	return !$("#region-wiki-picker-overlay").prop("hidden");
+}
+
 function isLocationReportServiceConfigured() {
 	return Boolean(String(LOCATION_REPORT_FORM_ENDPOINT_URL || "").trim());
 }
 
 function syncModalDialogBodyState() {
-	const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#spotlight-search-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden") || !$("#wiki-sync-resolve-overlay").prop("hidden") || !$("#path-edit-overlay").prop("hidden") || !$("#powerline-edit-overlay").prop("hidden") || !$("#label-edit-overlay").prop("hidden") || !$("#region-edit-overlay").prop("hidden");
+	const hasOpenModal = !$("#legal-overlay").prop("hidden") || !$("#spotlight-search-overlay").prop("hidden") || !$("#location-report-overlay").prop("hidden") || !$("#location-edit-overlay").prop("hidden") || !$("#wiki-sync-resolve-overlay").prop("hidden") || !$("#path-edit-overlay").prop("hidden") || !$("#powerline-edit-overlay").prop("hidden") || !$("#label-edit-overlay").prop("hidden") || !$("#region-edit-overlay").prop("hidden") || !$("#region-wiki-picker-overlay").prop("hidden");
 	$("body").toggleClass("modal-dialog-open", hasOpenModal);
 }
 
@@ -507,9 +515,13 @@ function resetRegionEditForm() {
 	document.getElementById("region-edit-source").value = "";
 	document.getElementById("region-edit-territory-public-id").value = "";
 	document.getElementById("region-edit-geometry-public-id").value = "";
+	document.getElementById("region-edit-wiki-id").value = "";
 	document.getElementById("region-edit-delete").hidden = true;
 	document.getElementById("region-edit-wiki-url").value = "";
 	document.getElementById("region-edit-coat-url").value = "";
+	syncRegionCoatPreview();
+	regionParentFilterQuery = "";
+	document.getElementById("region-edit-parent-filter").value = "";
 	document.getElementById("region-edit-parent").value = "";
 	document.getElementById("region-edit-parent-tree").innerHTML = "";
 	document.getElementById("region-edit-wiki-reference-list").innerHTML = "";
@@ -673,6 +685,15 @@ function setRegionEditDialogOpen(isOpen, { resetForm = false } = {}) {
 	if (resetForm) resetRegionEditForm();
 }
 
+function setRegionWikiPickerDialogOpen(isOpen) {
+	$("#region-wiki-picker-overlay").prop("hidden", !isOpen);
+	syncModalDialogBodyState();
+	if (isOpen) {
+		getRegionWikiPickerDialogElement()?.focus();
+		document.getElementById("region-wiki-picker-filter")?.focus();
+	}
+}
+
 function openLocationReportDialog(latlng) {
 	resetLocationReportForm();
 	updateLocationReportDialogAvailability();
@@ -811,6 +832,18 @@ function syncRegionValidToControls() {
 	}
 }
 
+function syncRegionCoatPreview() {
+	const inputElement = document.getElementById("region-edit-coat-url");
+	const imageElement = document.getElementById("region-edit-coat-preview");
+	if (!inputElement || !imageElement) {
+		return;
+	}
+
+	const url = String(inputElement.value || "").trim();
+	imageElement.hidden = url === "";
+	imageElement.src = url;
+}
+
 function syncRegionTerritoryFieldVisibility(source) {
 	const isPoliticalTerritory = source === "political_territory";
 	document.querySelectorAll(".political-territory-field").forEach((element) => {
@@ -824,11 +857,11 @@ function populateRegionTypeOptions(region) {
 		return;
 	}
 
-	const currentType = region.type || "Herrschaftsgebiet";
+	const currentType = normalizeParentheticalSpacing(region.type || "Herrschaftsgebiet");
 	const types = Array.from(new Set([
 		currentType,
 		"Herrschaftsgebiet",
-		...politicalTerritoryOptions.map((territory) => territory.type || "").filter(Boolean),
+		...politicalTerritoryOptions.map((territory) => normalizeParentheticalSpacing(territory.type || "")).filter(Boolean),
 	])).sort((left, right) => left.localeCompare(right, "de"));
 
 	selectElement.innerHTML = "";
@@ -839,6 +872,18 @@ function populateRegionTypeOptions(region) {
 		selectElement.append(option);
 	});
 	selectElement.value = currentType;
+}
+
+function normalizeSearchText(value) {
+	return String(value || "")
+		.toLocaleLowerCase("de")
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.trim();
+}
+
+function normalizeParentheticalSpacing(value) {
+	return String(value || "").replace(/([^\s])\(/gu, "$1 (");
 }
 
 function populateRegionParentSelect(region) {
@@ -854,13 +899,22 @@ function populateRegionParentSelect(region) {
 		public_id: "",
 		name: "Kein Parent",
 		type: "",
-	}, region);
+	}, region, { isGroup: false });
 	treeElement.append(noParentButton);
 
 	const tree = buildPoliticalTerritoryTree(region.territoryPublicId || "");
 	tree.forEach((node) => {
-		treeElement.append(renderPoliticalTerritoryTreeNode(node, region, 0));
+		const renderedNode = renderPoliticalTerritoryTreeNode(node, region, 0);
+		if (renderedNode) {
+			treeElement.append(renderedNode);
+		}
 	});
+	if (treeElement.childElementCount === 1 && regionParentFilterQuery !== "") {
+		const emptyElement = document.createElement("p");
+		emptyElement.className = "political-territory-parent-tree__empty";
+		emptyElement.textContent = "Keine Treffer";
+		treeElement.append(emptyElement);
+	}
 }
 
 function buildPoliticalTerritoryTree(excludedPublicId) {
@@ -868,10 +922,15 @@ function buildPoliticalTerritoryTree(excludedPublicId) {
 	politicalTerritoryOptions
 		.filter((territory) => territory.public_id !== excludedPublicId)
 		.forEach((territory) => {
-			byId.set(territory.public_id, { territory, children: [] });
+			byId.set(territory.public_id, {
+				key: `territory:${territory.public_id}`,
+				territory,
+				children: [],
+				isGroup: false,
+			});
 		});
 
-	const roots = [];
+	const territoryRoots = [];
 	byId.forEach((node) => {
 		const parentId = node.territory.parent_public_id || "";
 		const parent = byId.get(parentId);
@@ -880,47 +939,114 @@ function buildPoliticalTerritoryTree(excludedPublicId) {
 			return;
 		}
 
-		roots.push(node);
+		territoryRoots.push(node);
 	});
 
 	const sortNodes = (nodes) => {
 		nodes.sort((left, right) => String(left.territory.name || "").localeCompare(String(right.territory.name || ""), "de"));
 		nodes.forEach((node) => sortNodes(node.children));
 	};
-	sortNodes(roots);
-	return roots;
+	sortNodes(territoryRoots);
+
+	const groupsByName = new Map();
+	territoryRoots.forEach((node) => {
+		const rootName = getPoliticalTerritoryRootName(node.territory);
+		if (!groupsByName.has(rootName)) {
+			groupsByName.set(rootName, {
+				key: `root:${rootName}`,
+				isGroup: true,
+				territory: {
+					public_id: "",
+					name: rootName,
+					type: "Wurzelbereich",
+				},
+				children: [],
+			});
+		}
+		groupsByName.get(rootName).children.push(node);
+	});
+
+	const groups = Array.from(groupsByName.values());
+	groups.sort((left, right) => left.territory.name.localeCompare(right.territory.name, "de"));
+	return groups;
 }
 
 function renderPoliticalTerritoryTreeNode(node, region, depth) {
+	if (!doesPoliticalTerritoryTreeNodeMatchFilter(node)) {
+		return null;
+	}
+
 	const wrapper = document.createElement("div");
-	wrapper.className = "political-territory-parent-tree__node";
+	wrapper.className = node.isGroup
+		? "political-territory-parent-tree__node political-territory-parent-tree__node--group"
+		: "political-territory-parent-tree__node";
 	wrapper.style.setProperty("--territory-tree-depth", String(Math.min(depth, 8)));
-	wrapper.append(createRegionParentTreeButton(node.territory, region));
-	if (node.children.length > 0 && depth < 12) {
+	const button = createRegionParentTreeButton(node.territory, region, { isGroup: node.isGroup });
+	if (node.children.length > 0) {
+		button.dataset.regionTreeToggle = node.key;
+		button.classList.toggle("is-collapsed", regionParentFilterQuery === "" && regionParentCollapsedKeys.has(node.key));
+		button.setAttribute("aria-expanded", regionParentFilterQuery !== "" || !regionParentCollapsedKeys.has(node.key) ? "true" : "false");
+	}
+	wrapper.append(button);
+	const isCollapsed = regionParentFilterQuery === "" && regionParentCollapsedKeys.has(node.key);
+	if (node.children.length > 0 && depth < 12 && !isCollapsed) {
 		const childrenElement = document.createElement("div");
 		childrenElement.className = "political-territory-parent-tree__children";
 		node.children.forEach((child) => {
-			childrenElement.append(renderPoliticalTerritoryTreeNode(child, region, depth + 1));
+			const renderedChild = renderPoliticalTerritoryTreeNode(child, region, depth + 1);
+			if (renderedChild) {
+				childrenElement.append(renderedChild);
+			}
 		});
-		wrapper.append(childrenElement);
+		if (childrenElement.childElementCount > 0) {
+			wrapper.append(childrenElement);
+		}
 	}
 
 	return wrapper;
 }
 
-function createRegionParentTreeButton(territory, region) {
+function doesPoliticalTerritoryTreeNodeMatchFilter(node) {
+	const query = normalizeSearchText(regionParentFilterQuery);
+	if (query === "") {
+		return true;
+	}
+
+	return getPoliticalTerritoryTreeSearchText(node.territory).includes(query)
+		|| node.children.some((child) => doesPoliticalTerritoryTreeNodeMatchFilter(child));
+}
+
+function getPoliticalTerritoryTreeSearchText(territory) {
+	return normalizeSearchText([
+		territory.name,
+		territory.type,
+		territory.wiki_affiliation_root,
+		territory.wiki_affiliation_raw,
+		territory.parent_name,
+	].filter(Boolean).join(" "));
+}
+
+function getPoliticalTerritoryRootName(territory) {
+	return String(territory.wiki_affiliation_root || territory.affiliation_root || territory.parent_name || "Ohne Wurzelbereich").trim() || "Ohne Wurzelbereich";
+}
+
+function createRegionParentTreeButton(territory, region, { isGroup = false } = {}) {
 	const button = document.createElement("button");
 	button.type = "button";
 	button.className = "political-territory-parent-tree__item";
 	button.dataset.regionParentId = territory.public_id || "";
 	button.setAttribute("role", "treeitem");
+	if (isGroup) {
+		button.dataset.regionTreeGroup = "1";
+	}
 	button.classList.toggle("is-selected", (territory.public_id || "") === (region.parentPublicId || ""));
 	button.innerHTML = `
+		<span class="political-territory-parent-tree__toggle" aria-hidden="true"></span>
 		<span class="political-territory-parent-tree__name"></span>
 		<span class="political-territory-parent-tree__meta"></span>
 	`;
-	button.querySelector(".political-territory-parent-tree__name").textContent = territory.name || "Kein Parent";
-	button.querySelector(".political-territory-parent-tree__meta").textContent = territory.type || "";
+	button.querySelector(".political-territory-parent-tree__name").textContent = normalizeParentheticalSpacing(territory.name || "Kein Parent");
+	button.querySelector(".political-territory-parent-tree__meta").textContent = normalizeParentheticalSpacing(territory.type || "");
 	return button;
 }
 
@@ -930,15 +1056,31 @@ function renderRegionWikiReference(region) {
 		return;
 	}
 
+	const wikiName = region.wikiName || region.wiki_name || region.name || "";
+	const wikiUrl = region.wikiUrl || region.wiki_url || "";
 	const rows = [
-		["Typ", region.type],
-		["Zeitraum", region.validLabel],
-		["Zugehoerigkeit", region.affiliation],
-		["Hauptstadt", region.feature?.properties?.capital_name || ""],
-		["Herrschaftssitz", region.feature?.properties?.seat_name || ""],
-		["Wiki", region.wikiUrl],
+		["Name", wikiName],
+		["Typ", region.wikiType || region.wiki_type || region.type],
+		["Zeitraum", region.validLabel || region.valid_label || buildWikiReferencePeriod(region)],
+		["Zugehoerigkeit", region.wikiAffiliationRaw || region.wiki_affiliation_raw || region.affiliation],
+		["Wurzel", region.wikiAffiliationRoot || region.wiki_affiliation_root || region.affiliationRoot],
+		["Hauptstadt", region.feature?.properties?.capital_name || region.wikiCapitalName || region.wiki_capital_name || ""],
+		["Herrschaftssitz", region.feature?.properties?.seat_name || region.wikiSeatName || region.wiki_seat_name || ""],
+		["Wiki", wikiUrl],
 	].filter(([, value]) => String(value || "").trim() !== "");
-	listElement.innerHTML = rows.map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join("");
+	listElement.innerHTML = rows.map(([label, value]) => {
+		const displayValue = normalizeParentheticalSpacing(value);
+		const valueMarkup = label === "Wiki"
+			? `<a href="${escapeHtml(displayValue)}" target="_blank" rel="noopener noreferrer">${escapeHtml(displayValue)}</a>`
+			: escapeHtml(displayValue);
+		return `<dt>${escapeHtml(label)}</dt><dd>${valueMarkup}</dd>`;
+	}).join("");
+}
+
+function buildWikiReferencePeriod(region) {
+	return [region.wikiFoundedText || region.wiki_founded_text || "", region.wikiDissolvedText || region.wiki_dissolved_text || ""]
+		.filter(Boolean)
+		.join(" - ");
 }
 
 function populateRegionEditForm(entry) {
@@ -949,10 +1091,11 @@ function populateRegionEditForm(entry) {
 	document.getElementById("region-edit-source").value = source;
 	document.getElementById("region-edit-territory-public-id").value = region.territoryPublicId || "";
 	document.getElementById("region-edit-geometry-public-id").value = region.geometryPublicId || region.publicId || "";
+	document.getElementById("region-edit-wiki-id").value = region.wikiId || region.wiki_id || "";
 	if (source !== "political_territory") {
 		void acquireFeatureSoftLock(region.publicId || "");
 	}
-	document.getElementById("region-edit-name").value = region.name || "";
+	document.getElementById("region-edit-name").value = normalizeParentheticalSpacing(region.displayName || region.name || "");
 	document.getElementById("region-edit-short-name").value = region.shortName || "";
 	document.getElementById("region-edit-color").value = region.color || "#888888";
 	document.getElementById("region-edit-opacity").value = Math.round((region.opacity ?? 0.33) * 100);
@@ -962,11 +1105,12 @@ function populateRegionEditForm(entry) {
 	document.getElementById("region-edit-max-zoom").value = region.maxZoom ?? "";
 	document.getElementById("region-edit-valid-from").value = region.validFromBf ?? "";
 	document.getElementById("region-edit-valid-to").value = region.validToBf ?? "";
-	document.getElementById("region-edit-valid-open").value = region.validToBf === null || region.validToBf === undefined ? "1" : "0";
+	document.getElementById("region-edit-valid-open").checked = region.validToBf === null || region.validToBf === undefined;
 	document.getElementById("region-edit-valid-label").value = region.validLabel || "";
 	document.getElementById("region-edit-is-active").checked = region.isActive !== false;
 	document.getElementById("region-edit-notes").value = region.editorNotes || "";
 	syncRegionTerritoryFieldVisibility(source);
+	syncRegionCoatPreview();
 	populateRegionTypeOptions(region);
 	populateRegionParentSelect(region);
 	renderRegionWikiReference(region);
@@ -975,8 +1119,9 @@ function populateRegionEditForm(entry) {
 	syncRegionValidToControls();
 }
 
-function openRegionEditDialog(entry) {
+function openRegionEditDialog(entry, { title = "Eigenschaften bearbeiten" } = {}) {
 	resetRegionEditForm();
+	document.getElementById("region-edit-title").textContent = title;
 	populateRegionEditForm(entry);
 	setRegionEditDialogOpen(true);
 	if ((entry?.source || "") === "political_territory" && politicalTerritoryOptions.length === 0) {
@@ -991,6 +1136,21 @@ function openRegionEditDialog(entry) {
 
 $(document).on("click", "[data-region-parent-id]", function (event) {
 	event.preventDefault();
+	const toggleKey = this.dataset.regionTreeToggle || "";
+	if (toggleKey && (this.dataset.regionTreeGroup === "1" || event.target?.closest?.(".political-territory-parent-tree__toggle"))) {
+		if (regionParentCollapsedKeys.has(toggleKey)) {
+			regionParentCollapsedKeys.delete(toggleKey);
+		} else {
+			regionParentCollapsedKeys.add(toggleKey);
+		}
+		populateRegionParentSelect(regionEditEntry?.region || regionEditEntry || {});
+		return;
+	}
+
+	if (this.dataset.regionTreeGroup === "1") {
+		return;
+	}
+
 	const inputElement = document.getElementById("region-edit-parent");
 	if (!inputElement) {
 		return;
@@ -1001,6 +1161,131 @@ $(document).on("click", "[data-region-parent-id]", function (event) {
 		button.classList.toggle("is-selected", button === this);
 	});
 });
+
+function updateRegionParentFilter(value) {
+	regionParentFilterQuery = String(value || "").trim();
+	populateRegionParentSelect(regionEditEntry?.region || regionEditEntry || {});
+}
+
+async function loadPoliticalTerritoryWikiReferences() {
+	if (politicalTerritoryWikiReferences.length > 0) {
+		return politicalTerritoryWikiReferences;
+	}
+
+	const response = await fetchPoliticalTerritories({ action: "wiki_list", continent: "Aventurien" });
+	politicalTerritoryWikiReferences = Array.isArray(response.wiki) ? response.wiki : [];
+	return politicalTerritoryWikiReferences;
+}
+
+async function openRegionWikiPickerDialog() {
+	if (!regionEditEntry) {
+		return;
+	}
+
+	document.getElementById("region-wiki-picker-status").textContent = "Wiki-Referenzen werden geladen...";
+	document.getElementById("region-wiki-picker-filter").value = "";
+	setRegionWikiPickerDialogOpen(true);
+	try {
+		await loadPoliticalTerritoryWikiReferences();
+		renderRegionWikiPickerList("");
+		document.getElementById("region-wiki-picker-status").textContent = "";
+	} catch (error) {
+		console.error("Wiki-Referenzen konnten nicht geladen werden:", error);
+		document.getElementById("region-wiki-picker-status").textContent = error.message || "Wiki-Referenzen konnten nicht geladen werden.";
+	}
+}
+
+function renderRegionWikiPickerList(filterValue) {
+	const listElement = document.getElementById("region-wiki-picker-list");
+	if (!listElement) {
+		return;
+	}
+
+	const query = normalizeSearchText(filterValue);
+	const matches = politicalTerritoryWikiReferences
+		.filter((entry) => query === "" || getWikiReferenceSearchText(entry).includes(query))
+		.slice(0, 250);
+	listElement.innerHTML = "";
+	matches.forEach((entry) => {
+		const button = document.createElement("button");
+		button.type = "button";
+		button.className = "political-territory-wiki-picker-list__item";
+		button.dataset.wikiReferenceId = String(entry.id || "");
+		button.innerHTML = `
+			<span class="political-territory-wiki-picker-list__name"></span>
+			<span class="political-territory-wiki-picker-list__meta"></span>
+		`;
+		button.querySelector(".political-territory-wiki-picker-list__name").textContent = normalizeParentheticalSpacing(entry.name || "");
+		button.querySelector(".political-territory-wiki-picker-list__meta").textContent = normalizeParentheticalSpacing([
+			entry.type,
+			entry.affiliation_root,
+			buildWikiReferencePeriod({
+				wiki_founded_text: entry.founded_text,
+				wiki_dissolved_text: entry.dissolved_text,
+			}),
+		].filter(Boolean).join(" · "));
+		listElement.append(button);
+	});
+
+	if (matches.length === 0) {
+		const emptyElement = document.createElement("p");
+		emptyElement.className = "political-territory-wiki-picker-list__empty";
+		emptyElement.textContent = "Keine Treffer";
+		listElement.append(emptyElement);
+	}
+}
+
+function getWikiReferenceSearchText(entry) {
+	return normalizeSearchText([
+		entry.name,
+		entry.type,
+		entry.affiliation_raw,
+		entry.affiliation_root,
+		entry.status,
+		entry.capital_name,
+		entry.seat_name,
+		entry.ruler,
+	].filter(Boolean).join(" "));
+}
+
+function applyRegionWikiReferenceSelection(wikiReferenceId) {
+	const wikiReference = politicalTerritoryWikiReferences.find((entry) => String(entry.id) === String(wikiReferenceId));
+	if (!wikiReference) {
+		return;
+	}
+
+	document.getElementById("region-edit-wiki-id").value = String(wikiReference.id || "");
+	document.getElementById("region-edit-wiki-url").value = wikiReference.wiki_url || "";
+	if (wikiReference.coat_of_arms_url) {
+		document.getElementById("region-edit-coat-url").value = wikiReference.coat_of_arms_url;
+	}
+	if (wikiReference.type) {
+		const typeSelect = document.getElementById("region-edit-type");
+		const normalizedType = normalizeParentheticalSpacing(wikiReference.type);
+		if (typeSelect && !Array.from(typeSelect.options).some((option) => option.value === normalizedType)) {
+			typeSelect.append(new Option(normalizedType, normalizedType));
+		}
+		if (typeSelect) {
+			typeSelect.value = normalizedType;
+		}
+	}
+
+	const region = regionEditEntry?.region || regionEditEntry || {};
+	region.wikiId = wikiReference.id || null;
+	region.wikiName = wikiReference.name || "";
+	region.wikiType = wikiReference.type || "";
+	region.wikiAffiliationRaw = wikiReference.affiliation_raw || "";
+	region.wikiAffiliationRoot = wikiReference.affiliation_root || "";
+	region.wikiFoundedText = wikiReference.founded_text || "";
+	region.wikiDissolvedText = wikiReference.dissolved_text || "";
+	region.wikiCapitalName = wikiReference.capital_name || "";
+	region.wikiSeatName = wikiReference.seat_name || "";
+	region.wikiUrl = wikiReference.wiki_url || "";
+	region.coatOfArmsUrl = wikiReference.coat_of_arms_url || region.coatOfArmsUrl || "";
+	renderRegionWikiReference(region);
+	syncRegionCoatPreview();
+	setRegionWikiPickerDialogOpen(false);
+}
 
 function populatePathEditForm(path) {
 	const formElement = getPathEditFormElement();
@@ -1243,6 +1528,7 @@ function buildRegionEditPayload(formElement) {
 			public_id: String(formData.get("geometry_public_id") || "").trim(),
 			geometry_public_id: String(formData.get("geometry_public_id") || "").trim(),
 			territory_public_id: String(formData.get("territory_public_id") || "").trim(),
+			wiki_id: String(formData.get("wiki_id") || "").trim(),
 			name: String(formData.get("name") || "").trim(),
 			short_name: String(formData.get("short_name") || "").trim(),
 			type: String(formData.get("type") || "").trim(),

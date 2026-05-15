@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 const AVESMAPS_POLITICAL_DEFAULT_CONTINENT = 'Aventurien';
-const AVESMAPS_POLITICAL_DEFAULT_YEAR_BF = 1046;
+const AVESMAPS_POLITICAL_DEFAULT_YEAR_BF = 1049;
 
 function avesmapsPoliticalEnsureTables(PDO $pdo): void {
     $pdo->exec(
@@ -260,7 +260,7 @@ function avesmapsPoliticalNormalizeWikiRecord(array $record): array {
         'wiki_key' => $wikiKey,
         'slug' => $slug,
         'name' => $name,
-        'type' => avesmapsPoliticalReadWikiString($record, ['Typ', 'type'], 160),
+        'type' => avesmapsPoliticalNormalizeParentheticalSpacing(avesmapsPoliticalReadWikiString($record, ['Typ', 'type'], 160)),
         'continent' => $continent,
         'affiliation_raw' => avesmapsPoliticalReadWikiString($record, ['Zugehörigkeit', 'Zugehoerigkeit', 'ZugehÃ¶rigkeit', 'affiliation_raw']),
         'affiliation_key' => avesmapsPoliticalReadWikiString($record, ['Zugehörigkeit-Key', 'Zugehoerigkeit-Key', 'ZugehÃ¶rigkeit-Key', 'affiliation_key']),
@@ -1005,6 +1005,10 @@ function avesmapsPoliticalReadWikiString(array $record, array $keys, int $maxLen
     }
 
     return '';
+}
+
+function avesmapsPoliticalNormalizeParentheticalSpacing(string $value): string {
+    return (string) preg_replace('/([^\s])\(/u', '$1 (', $value);
 }
 
 function avesmapsPoliticalReadWikiInt(array $record, array $keys): ?int {

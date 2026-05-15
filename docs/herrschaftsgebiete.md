@@ -36,6 +36,9 @@ lokales Referenz- und Analyseverzeichnis.
 Beim Import werden nur Datensaetze mit `Kontinent = Aventurien` als lokale
 Herrschaftsgebiete angelegt. Wiki-Referenzdaten werden aktualisiert, aber
 redaktionelle Felder und vorhandene Geometrien werden nicht ueberschrieben.
+Die importierte Referenz enthaelt 500 Herrschaftsgebiete in 36
+`Zugehoerigkeit-Root`-Bereichen; der Editor nutzt diese Root-Werte als
+Such- und Gruppierungsstruktur im Parent/Hierarchie-Baum.
 Wenn ein lokales Gebiet noch keine redaktionelle Geometrie hat und eine alte
 `region` per Name, normalisiertem Namen, geographischem/politischem Feld oder
 Zugehoerigkeitspfad passt, wird diese als Startgeometrie kopiert. Automatisch
@@ -56,6 +59,7 @@ Platzhaltergrafiken aussehen. Geblockt sind unter anderem `pfeil`, `arrow`,
 - `GET action=list`: auswaehlbare Herrschaftsgebiete fuer den Editor laden.
 - `GET action=get`: einzelnes Gebiet mit Wiki-Referenz und Geometrien laden.
 - `GET action=wiki`: Wiki-Referenzdaten fuer ein Gebiet laden.
+- `GET action=wiki_list`: alle Wiki-Referenzen fuer den Editor-Picker laden.
 - `GET action=hierarchy`: aktuelle Baumstruktur laden.
 - `GET action=geometries`: Geometrien eines Gebiets laden.
 - `PATCH action=create_territory|update_territory|delete_territory`: das
@@ -76,7 +80,8 @@ Der bestehende Layer `political` laedt bei SQL-Konfiguration das neue
 Herrschaftsgebiete-Modell. Falls die API nicht erreichbar ist, faellt die Karte
 auf die bisherigen `map_features`-Regionen zurueck.
 
-Die BF-Timeline erscheint nur, wenn der politische Layer aktiv ist. Negative
+Die BF-Timeline erscheint nur, wenn der politische Layer aktiv ist. Der
+Standardwert ist das aktuelle Redaktionsjahr `1049 BF`. Negative
 BF-Werte stehen intern fuer `v. BF`. Textuelle Datierungen aus dem Wiki bleiben
 fuer Anzeige und Redaktion erhalten.
 
@@ -84,7 +89,7 @@ Im Editor koennen Herrschaftsgebiete ausgewaehlt, per Doppelklick in der
 Geometrie bearbeitet und ueber Rechtsklick per Kontextmenue verarbeitet werden.
 Das Kontextmenue bietet:
 
-- Geometrie bearbeiten
+- Grenzen bearbeiten
 - Eigenschaften bearbeiten
 - Mit anderem vereinigen
 - Von anderem ausschneiden
@@ -93,6 +98,15 @@ Das Kontextmenue bietet:
 
 Aktive mehrstufige Operationen werden als Chip angezeigt und koennen mit `Esc`
 abgebrochen werden.
+
+Der Eigenschaften-Dialog zeigt die Wiki-Referenz dauerhaft als Box oben an,
+inklusive anklickbarem Wiki-Link. Ueber "Wiki-Referenz aendern" kann eine
+andere importierte Wiki-Referenz gesucht und verknuepft werden. Der
+Parent/Hierarchie-Baum hat eine Suchmaske, einklappbare Root-/Parent-Knoten und
+gruppiert die langen Listen nach den 36 Wiki-Root-Bereichen. Farbe und
+Transparenz liegen in einer Zeile; der Wappen-Link zeigt sofort eine Vorschau.
+Numerische Von/Bis-Jahre koennen direkt gesetzt werden, wobei "heute" das
+Bis-Feld deaktiviert und als offenes Ende gespeichert wird.
 
 ## Geometriephase
 

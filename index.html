@@ -119,7 +119,7 @@
 		<button type="button" class="map-context-menu__item" data-context-action="clear-distance-measurement">🗑️ Entfernungsmessung löschen</button>
 	</div>
 	<div id="region-context-menu" class="map-context-menu region-context-menu" hidden>
-		<button type="button" class="map-context-menu__item" data-region-context-action="edit-geometry">Herrschaftsgebiet bearbeiten</button>
+		<button type="button" class="map-context-menu__item" data-region-context-action="edit-geometry">Grenzen bearbeiten</button>
 		<button type="button" class="map-context-menu__item" data-region-context-action="edit-properties">Eigenschaften bearbeiten</button>
 		<button type="button" class="map-context-menu__item" data-region-context-action="union">Mit anderem vereinigen</button>
 		<button type="button" class="map-context-menu__item" data-region-context-action="difference">Von anderem ausschneiden</button>
@@ -181,10 +181,10 @@
 	<div id="political-timeline" class="political-timeline" hidden>
 		<label class="political-timeline__field">
 			<span>Jahr</span>
-			<input id="political-timeline-range" type="range" min="-3000" max="1050" step="1" value="1046" />
+			<input id="political-timeline-range" type="range" min="-3000" max="1050" step="1" value="1049" />
 		</label>
-		<input id="political-timeline-year" class="political-timeline__year" type="number" min="-3000" max="1050" step="1" value="1046" aria-label="Jahr" />
-		<span id="political-timeline-label" class="political-timeline__label">1046 BF</span>
+		<input id="political-timeline-year" class="political-timeline__year" type="number" min="-3000" max="1050" step="1" value="1049" aria-label="Jahr" />
+		<span id="political-timeline-label" class="political-timeline__label">1049 BF</span>
 	</div>
 	<div id="location-report-overlay" hidden>
 		<div id="location-report-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="location-report-title" tabindex="-1">
@@ -538,12 +538,20 @@
 				<input id="region-edit-source" name="source" type="hidden" />
 				<input id="region-edit-territory-public-id" name="territory_public_id" type="hidden" />
 				<input id="region-edit-geometry-public-id" name="geometry_public_id" type="hidden" />
+				<input id="region-edit-wiki-id" name="wiki_id" type="hidden" />
+				<section id="region-edit-wiki-reference" class="political-territory-wiki-reference political-territory-field" aria-labelledby="region-edit-wiki-reference-title">
+					<div class="political-territory-wiki-reference__header">
+						<h3 id="region-edit-wiki-reference-title">Wiki-Referenz</h3>
+						<button id="region-edit-change-wiki" class="location-report-form__button location-report-form__button--secondary" type="button">Wiki-Referenz ändern</button>
+					</div>
+					<dl id="region-edit-wiki-reference-list"></dl>
+				</section>
 				<label class="location-report-form__field">
-					<span>Name *</span>
+					<span>Name * <small>Anzeige, falls kein Kurzname gesetzt ist</small></span>
 					<input id="region-edit-name" name="name" type="text" maxlength="160" required />
 				</label>
 				<label class="location-report-form__field political-territory-field">
-					<span>Kurzname</span>
+					<span>Kurzname <small>wird auf der Karte bevorzugt angezeigt</small></span>
 					<input id="region-edit-short-name" name="short_name" type="text" maxlength="160" />
 				</label>
 				<label class="location-report-form__field political-territory-field">
@@ -552,24 +560,33 @@
 				</label>
 				<label class="location-report-form__field political-territory-field">
 					<span>Parent/Hierarchie</span>
+					<div class="political-territory-parent-search">
+						<input id="region-edit-parent-filter" type="search" autocomplete="off" placeholder="Hierarchie durchsuchen" />
+						<button id="region-edit-parent-filter-clear" type="button" aria-label="Suche leeren">x</button>
+					</div>
 					<input id="region-edit-parent" name="parent_public_id" type="hidden" />
 					<div id="region-edit-parent-tree" class="political-territory-parent-tree" role="tree"></div>
 				</label>
-				<label class="location-report-form__field">
-					<span>Farbe *</span>
-					<input id="region-edit-color" name="color" type="color" value="#888888" required />
-				</label>
-				<label class="location-report-form__field">
-					<span>Transparenz <output id="region-edit-opacity-output">33%</output></span>
-					<input id="region-edit-opacity" name="opacity" type="range" min="0" max="100" step="1" value="33" />
-				</label>
+				<div class="location-report-form__grid">
+					<label class="location-report-form__field">
+						<span>Farbe *</span>
+						<input id="region-edit-color" name="color" type="color" value="#888888" required />
+					</label>
+					<label class="location-report-form__field">
+						<span>Transparenz <output id="region-edit-opacity-output">33%</output></span>
+						<input id="region-edit-opacity" name="opacity" type="range" min="0" max="100" step="1" value="33" />
+					</label>
+				</div>
 				<label class="location-report-form__field">
 					<span>Wiki-Aventurica-Link</span>
 					<input id="region-edit-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
 				</label>
 				<label class="location-report-form__field political-territory-field">
 					<span>Wappen-Link</span>
-					<input id="region-edit-coat-url" name="coat_of_arms_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
+					<div class="political-territory-coat-field">
+						<input id="region-edit-coat-url" name="coat_of_arms_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
+						<img id="region-edit-coat-preview" class="political-territory-coat-preview" alt="" hidden />
+					</div>
 				</label>
 				<div class="location-report-form__grid political-territory-field">
 					<label class="location-report-form__field">
@@ -581,13 +598,24 @@
 						<input id="region-edit-max-zoom" name="max_zoom" type="number" min="0" max="6" step="1" />
 					</label>
 				</div>
+				<div class="location-report-form__grid political-territory-field">
+					<label class="location-report-form__field">
+						<span>Von</span>
+						<input id="region-edit-valid-from" name="valid_from_bf" type="number" step="1" />
+					</label>
+					<label class="location-report-form__field">
+						<span>Bis</span>
+						<input id="region-edit-valid-to" name="valid_to_bf" type="number" step="1" />
+					</label>
+				</div>
+				<label class="location-report-form__checkbox political-territory-field">
+					<input id="region-edit-valid-open" name="valid_to_open" type="checkbox" checked />
+					<span>heute</span>
+				</label>
 				<label class="location-report-form__field political-territory-field">
-					<span>Jahr / Zeitraum</span>
+					<span>Textanzeige Zeitraum</span>
 					<input id="region-edit-valid-label" name="valid_label" type="text" maxlength="500" />
 				</label>
-				<input id="region-edit-valid-from" name="valid_from_bf" type="hidden" />
-				<input id="region-edit-valid-to" name="valid_to_bf" type="hidden" />
-				<input id="region-edit-valid-open" name="valid_to_open" type="hidden" value="1" />
 				<label class="location-report-form__checkbox political-territory-field">
 					<input id="region-edit-is-active" name="is_active" type="checkbox" checked />
 					<span>Aktiv</span>
@@ -596,10 +624,6 @@
 					<span>Redaktioneller Kommentar</span>
 					<textarea id="region-edit-notes" name="editor_notes" rows="3" maxlength="3000"></textarea>
 				</label>
-				<details id="region-edit-wiki-reference" class="political-territory-wiki-reference political-territory-field">
-					<summary>Wiki-Referenzdaten ansehen</summary>
-					<dl id="region-edit-wiki-reference-list"></dl>
-				</details>
 				<p id="region-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions">
 					<button id="region-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Loeschen</button>
@@ -607,6 +631,25 @@
 					<button id="region-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
 				</div>
 			</form>
+		</div>
+	</div>
+	<div id="region-wiki-picker-overlay" hidden>
+		<div id="region-wiki-picker-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="region-wiki-picker-title" tabindex="-1">
+			<div class="location-report-dialog__header">
+				<h2 id="region-wiki-picker-title">Wiki-Referenz ändern</h2>
+				<button id="region-wiki-picker-close" class="location-report-dialog__close" type="button" aria-label="Wiki-Referenz schliessen">x</button>
+			</div>
+			<div class="location-report-form">
+				<label class="location-report-form__field">
+					<span>Wiki-Eintrag suchen</span>
+					<input id="region-wiki-picker-filter" type="search" autocomplete="off" placeholder="Name, Typ, Zugehörigkeit" />
+				</label>
+				<div id="region-wiki-picker-list" class="political-territory-wiki-picker-list" role="listbox"></div>
+				<p id="region-wiki-picker-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+				<div class="location-report-form__actions">
+					<button id="region-wiki-picker-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+				</div>
+			</div>
 		</div>
 	</div>
 	<div id="search" class="ui-widget">
@@ -779,6 +822,7 @@
 			labelData = [],
 			regionData = [],
 			politicalTerritoryOptions = [],
+			politicalTerritoryWikiReferences = [],
 			politicalTerritoryFallbackData = null,
 			syntheticPathSegments = new Map(),
 			locationMarkers = [],
@@ -866,8 +910,11 @@
 			regionEditEntry = null,
 			activeRegionGeometryEdit = null,
 			activeRegionContextEntry = null,
+			activeRegionInfoTooltip = null,
 			pendingRegionOperation = null,
-			politicalTimelineYear = 1046,
+			regionParentCollapsedKeys = new Set(),
+			regionParentFilterQuery = "",
+			politicalTimelineYear = 1049,
 			isPoliticalTerritoryLayerLoading = false,
 			politicalTerritoryLayerReloadTimerId = null,
 			politicalTerritoryApiUnavailable = false,
@@ -948,6 +995,9 @@
 			syncLocationMarkerVisibility();
 			syncLabelVisibility();
 			schedulePoliticalTerritoryLayerReload();
+		});
+		map.on("click", () => {
+			closeRegionCompactTooltip();
 		});
 		document.addEventListener("visibilitychange", () => {
 			if (document.visibilityState === "visible") {
@@ -1110,7 +1160,23 @@
 		$("#region-edit-form").on("submit", handleRegionEditFormSubmit);
 		$("#region-edit-delete").on("click", () => deleteActiveRegion());
 		$("#region-edit-opacity").on("input", syncRegionOpacityOutput);
+		$("#region-edit-coat-url").on("input", syncRegionCoatPreview);
 		$("#region-edit-valid-open").on("change", syncRegionValidToControls);
+		$("#region-edit-parent-filter").on("input search", function () {
+			updateRegionParentFilter(this.value || "");
+		});
+		$("#region-edit-parent-filter-clear").on("click", () => {
+			$("#region-edit-parent-filter").val("");
+			updateRegionParentFilter("");
+		});
+		$("#region-edit-change-wiki").on("click", () => void openRegionWikiPickerDialog());
+		$("#region-wiki-picker-close, #region-wiki-picker-cancel").on("click", () => setRegionWikiPickerDialogOpen(false));
+		$("#region-wiki-picker-filter").on("input search", function () {
+			renderRegionWikiPickerList(this.value || "");
+		});
+		$("#region-wiki-picker-list").on("click", "[data-wiki-reference-id]", function () {
+			applyRegionWikiReferenceSelection(this.dataset.wikiReferenceId || "");
+		});
 		$("#region-operation-cancel").on("click", cancelPendingRegionOperation);
 		$("#political-timeline-range, #political-timeline-year").on("input change", function () {
 			setPoliticalTimelineYear(this.value);
@@ -1146,6 +1212,11 @@
 
 			if (event.key === "Escape" && isLabelEditDialogOpen()) {
 				setLabelEditDialogOpen(false, { resetForm: true });
+				return;
+			}
+
+			if (event.key === "Escape" && isRegionWikiPickerDialogOpen()) {
+				setRegionWikiPickerDialogOpen(false);
 				return;
 			}
 
@@ -1278,7 +1349,7 @@
 			}
 
 			return Boolean(targetElement.closest(
-				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #review-panel, #review-panel-toggle, #spotlight-search-overlay, #location-report-overlay, #location-edit-overlay, #wiki-sync-resolve-overlay, #path-edit-overlay, #label-edit-overlay, #region-edit-overlay"
+				".leaflet-control, .leaflet-popup, .location-tooltip, .map-context-menu, .measurement-handle-marker, #search, #toggle-button, #review-panel, #review-panel-toggle, #spotlight-search-overlay, #location-report-overlay, #location-edit-overlay, #wiki-sync-resolve-overlay, #path-edit-overlay, #label-edit-overlay, #region-edit-overlay, #region-wiki-picker-overlay"
 			));
 		}
 

@@ -586,6 +586,7 @@ function syncRegionVisibility() {
 	syncPoliticalTimelineVisibility();
 	if (!showRegions) {
 		clearRegionGeometryEdit();
+		closeRegionCompactTooltip();
 		closeRegionContextMenu();
 		cancelPendingRegionOperation();
 	}
@@ -3767,6 +3768,7 @@ function prepareLegacyRegionData(data) {
 }
 
 function clearRenderedRegionLayers() {
+	closeRegionCompactTooltip();
 	regionPolygons.forEach((polygon) => map.removeLayer(polygon));
 	regionLabels.forEach((label) => map.removeLayer(label));
 	regionPolygons = [];
@@ -3945,22 +3947,48 @@ function createRegionLabelMarkup(regionEntry, fallbackName) {
 }
 
 function bindRegionCompactTooltip(polygon, regionEntry) {
-	const tooltipMarkup = createRegionCompactTooltipMarkup(regionEntry);
-	polygon.bindTooltip(tooltipMarkup, {
+	polygon.on("click", (event) => {
+		if (IS_EDIT_MODE) {
+			return;
+		}
+
+		L.DomEvent.stop(event);
+		openRegionCompactTooltip(regionEntry);
+	});
+}
+
+function openRegionCompactTooltip(regionEntry) {
+	closeRegionCompactTooltip();
+	const tooltip = L.tooltip({
 		direction: "top",
-		offset: [0, -8],
+		offset: [0, -18],
 		opacity: 1,
 		className: "region-compact-tooltip",
-		sticky: true,
 		interactive: true,
-	});
+	})
+		.setLatLng(getRegionTooltipLatLng(regionEntry))
+		.setContent(createRegionCompactTooltipMarkup(regionEntry));
+	activeRegionInfoTooltip = tooltip;
+	tooltip.addTo(map);
+}
+
+function closeRegionCompactTooltip() {
+	if (activeRegionInfoTooltip) {
+		map.removeLayer(activeRegionInfoTooltip);
+		activeRegionInfoTooltip = null;
+	}
+}
+
+function getRegionTooltipLatLng(regionEntry) {
+	const bounds = getRegionEntryBounds(regionEntry);
+	return regionEntry.label?.getLatLng?.() || bounds?.getCenter?.() || regionEntry.layer?.getBounds?.().getCenter?.() || map.getCenter();
 }
 
 function createRegionCompactTooltipMarkup(regionEntry) {
 	const coatMarkup = regionEntry.coatOfArmsUrl
 		? `<img class="region-compact-tooltip__coat" src="${escapeHtml(regionEntry.coatOfArmsUrl)}" alt="">`
 		: "";
-	const meta = [regionEntry.type, regionEntry.validLabel].filter(Boolean).join(" | ");
+	const meta = [normalizeRegionParentheticalSpacing(regionEntry.type), regionEntry.validLabel].filter(Boolean).join(" | ");
 	const affiliation = regionEntry.affiliationRoot || regionEntry.affiliation || "";
 	const capitalMarkup = createRegionPlaceTooltipLine("Hauptstadt", regionEntry.capitalName, regionEntry.capitalPlacePublicId);
 	const seatMarkup = createRegionPlaceTooltipLine("Herrschaftssitz", regionEntry.seatName, regionEntry.seatPlacePublicId);
@@ -3970,7 +3998,7 @@ function createRegionCompactTooltipMarkup(regionEntry) {
 		<span class="region-compact-tooltip__content${hasCoatClass}">
 			${coatMarkup}
 			<span class="region-compact-tooltip__body">
-				<span class="region-compact-tooltip__name">${escapeHtml(regionEntry.name)}</span>
+				<span class="region-compact-tooltip__name">${escapeHtml(normalizeRegionParentheticalSpacing(regionEntry.displayName || regionEntry.name))}</span>
 				<span class="region-compact-tooltip__meta">${escapeHtml(meta || "Herrschaftsgebiet")}</span>
 				<span class="region-compact-tooltip__meta">${escapeHtml(affiliation)}</span>
 				${capitalMarkup}
@@ -3990,6 +4018,10 @@ function createRegionPlaceTooltipLine(label, placeName, placePublicId) {
 		? `<button type="button" class="region-compact-tooltip__place-link" data-region-place-public-id="${escapeHtml(placePublicId)}">${escapeHtml(normalizedName)}</button>`
 		: `<span>${escapeHtml(normalizedName)}</span>`;
 	return `<span class="region-compact-tooltip__meta">${escapeHtml(label)}: ${valueMarkup}</span>`;
+}
+
+function normalizeRegionParentheticalSpacing(value) {
+	return String(value || "").replace(/([^\s])\(/gu, "$1 (");
 }
 
 $(document).on("click", "[data-region-place-public-id]", function (event) {
@@ -4092,8 +4124,8 @@ $(document).on("click", "[data-region-context-action]", function (event) {
 		return;
 	}
 	if (action === "edit-properties") {
-		startRegionGeometryEdit(regionEntry);
-		openRegionEditDialog(regionEntry);
+		clearRegionGeometryEdit();
+		openRegionEditDialog(regionEntry, { title: "Eigenschaften bearbeiten" });
 		return;
 	}
 	if (["union", "difference", "intersection"].includes(action)) {
@@ -4268,12 +4300,16 @@ function normalizeRegionFeature(feature) {
 		geometryPublicId: properties.geometry_public_id || properties.public_id || feature.id || "",
 		territoryPublicId: properties.territory_public_id || "",
 		source: properties.source || (properties.feature_type === "political_territory" ? "political_territory" : "map_feature"),
-		name: getRegionFeatureName(properties),
+		name: normalizeRegionParentheticalSpacing(getRegionFeatureName(properties)),
+		displayName: normalizeRegionParentheticalSpacing(properties.display_name || properties.name || ""),
 		shortName: properties.short_name || "",
-		type: properties.territory_type || properties.feature_subtype || "",
+		type: normalizeRegionParentheticalSpacing(properties.territory_type || properties.feature_subtype || ""),
 		color: fillColor,
 		opacity,
 		wikiUrl: properties.wiki_url || "",
+		wikiId: properties.wiki_id || null,
+		wikiName: properties.wiki_name || "",
+		wikiType: normalizeRegionParentheticalSpacing(properties.wiki_type || properties.territory_type || properties.feature_subtype || ""),
 		coatOfArmsUrl: properties.coat_of_arms_url || "",
 		capitalName: properties.capital_name || "",
 		seatName: properties.seat_name || "",
@@ -4284,6 +4320,12 @@ function normalizeRegionFeature(feature) {
 		validLabel: properties.valid_label || "",
 		affiliation: properties.affiliation || "",
 		affiliationRoot: properties.affiliation_root || "",
+		wikiAffiliationRaw: properties.wiki_affiliation_raw || properties.affiliation || "",
+		wikiAffiliationRoot: properties.wiki_affiliation_root || properties.affiliation_root || "",
+		wikiFoundedText: properties.wiki_founded_text || properties.founded_text || "",
+		wikiDissolvedText: properties.wiki_dissolved_text || properties.dissolved_text || "",
+		wikiCapitalName: properties.wiki_capital_name || properties.capital_name || "",
+		wikiSeatName: properties.wiki_seat_name || properties.seat_name || "",
 		parentPublicId: properties.parent_public_id || "",
 		minZoom: Number.isFinite(Number(properties.min_zoom)) ? Number(properties.min_zoom) : null,
 		maxZoom: Number.isFinite(Number(properties.max_zoom)) ? Number(properties.max_zoom) : null,

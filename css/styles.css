@@ -155,6 +155,10 @@ html {
 	pointer-events: none;
 }
 
+.leaflet-interactive:focus {
+	outline: none;
+}
+
 .region-label__content {
 	display: inline-flex;
 	align-items: center;
@@ -171,6 +175,7 @@ html {
 	object-fit: contain;
 }
 
+.leaflet-tooltip.region-compact-tooltip,
 .region-compact-tooltip {
 	border: 1px solid #b79d7d;
 	border-radius: 8px;
@@ -178,6 +183,9 @@ html {
 	color: #3f3428;
 	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
 	padding: 0;
+	white-space: normal;
+	max-width: min(300px, calc(100vw - 32px));
+	box-sizing: border-box;
 }
 
 .region-compact-tooltip__content {
@@ -185,8 +193,10 @@ html {
 	grid-template-columns: minmax(0, 1fr);
 	gap: 8px;
 	align-items: start;
-	width: min(280px, calc(100vw - 32px));
+	width: min(280px, calc(100vw - 52px));
 	padding: 8px 10px;
+	box-sizing: border-box;
+	overflow: hidden;
 }
 
 .region-compact-tooltip__content.has-coat {
@@ -205,6 +215,8 @@ html {
 	grid-template-columns: minmax(0, 1fr);
 	gap: 2px;
 	min-width: 0;
+	max-width: 100%;
+	overflow: hidden;
 }
 
 .region-compact-tooltip__name {
@@ -218,6 +230,7 @@ html {
 	font-size: 12px;
 	color: #6a5543;
 	line-height: 1.25;
+	min-width: 0;
 }
 
 .region-compact-tooltip__place-link {
@@ -1004,6 +1017,33 @@ body.modal-dialog-open {
 	color: #5a4a3b;
 }
 
+#region-edit-dialog {
+	width: min(760px, 100%);
+	max-height: calc(100vh - 28px);
+}
+
+#region-wiki-picker-overlay {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	background: rgba(20, 16, 12, 0.56);
+	z-index: 1270;
+}
+
+#region-wiki-picker-dialog {
+	width: min(720px, 100%);
+	max-height: calc(100vh - 28px);
+}
+
+.location-report-form__field small {
+	font-size: 11px;
+	font-weight: normal;
+	color: #806c59;
+}
+
 .location-report-form__field input,
 .location-report-form__field select,
 .location-report-form__field textarea {
@@ -1043,15 +1083,36 @@ body.modal-dialog-open {
 	width: auto;
 }
 
+.political-territory-parent-search {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 32px;
+	gap: 6px;
+}
+
+.political-territory-parent-search input {
+	min-width: 0;
+}
+
+.political-territory-parent-search button {
+	border: 1px solid #cdb79f;
+	border-radius: 8px;
+	background: #fff;
+	color: #5a4a3b;
+	cursor: pointer;
+	font: inherit;
+}
+
 .political-territory-parent-tree {
 	display: grid;
 	gap: 3px;
-	max-height: 220px;
+	max-height: 360px;
+	min-height: 260px;
 	overflow: auto;
 	border: 1px solid #cdb79f;
 	border-radius: 8px;
 	background: #fff;
 	padding: 6px;
+	font-size: 13px;
 }
 
 .political-territory-parent-tree__node {
@@ -1066,7 +1127,7 @@ body.modal-dialog-open {
 
 .political-territory-parent-tree__item {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr);
+	grid-template-columns: 18px minmax(0, 1fr);
 	gap: 1px;
 	width: 100%;
 	margin: 0;
@@ -1075,8 +1136,27 @@ body.modal-dialog-open {
 	background: transparent;
 	color: #3f3428;
 	cursor: pointer;
-	padding: 6px 8px 6px calc(8px + var(--territory-tree-depth, 0) * 14px);
+	padding: 7px 8px 7px calc(8px + var(--territory-tree-depth, 0) * 16px);
 	text-align: left;
+}
+
+.political-territory-parent-tree__node--group > .political-territory-parent-tree__item {
+	background: #f8efe5;
+	font-weight: bold;
+}
+
+.political-territory-parent-tree__toggle::before {
+	content: "";
+	display: inline-block;
+	border-top: 5px solid transparent;
+	border-bottom: 5px solid transparent;
+	border-left: 6px solid currentColor;
+	transform: rotate(90deg);
+	transition: transform 0.12s ease;
+}
+
+.political-territory-parent-tree__item.is-collapsed .political-territory-parent-tree__toggle::before {
+	transform: rotate(0deg);
 }
 
 .political-territory-parent-tree__item:hover,
@@ -1091,6 +1171,7 @@ body.modal-dialog-open {
 
 .political-territory-parent-tree__name,
 .political-territory-parent-tree__meta {
+	grid-column: 2;
 	overflow-wrap: anywhere;
 }
 
@@ -1100,11 +1181,33 @@ body.modal-dialog-open {
 
 .political-territory-parent-tree__meta {
 	color: #7a6756;
-	font-size: 11px;
+	font-size: 13px;
 }
 
 .political-territory-parent-tree__item.is-selected .political-territory-parent-tree__meta {
 	color: rgba(255, 255, 255, 0.75);
+}
+
+.political-territory-parent-tree__empty {
+	margin: 6px 8px;
+	color: #806c59;
+}
+
+.political-territory-coat-field {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 48px;
+	gap: 8px;
+	align-items: center;
+}
+
+.political-territory-coat-preview {
+	width: 44px;
+	height: 44px;
+	object-fit: contain;
+	border: 1px solid #dccab8;
+	border-radius: 6px;
+	background: #fff;
+	padding: 3px;
 }
 
 .political-territory-wiki-reference {
@@ -1115,16 +1218,24 @@ body.modal-dialog-open {
 	color: #4f4134;
 }
 
-.political-territory-wiki-reference summary {
-	cursor: pointer;
-	font-weight: bold;
+.political-territory-wiki-reference__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	margin-bottom: 8px;
+}
+
+.political-territory-wiki-reference__header h3 {
+	margin: 0;
+	font-size: 14px;
 }
 
 .political-territory-wiki-reference dl {
 	display: grid;
 	grid-template-columns: max-content minmax(0, 1fr);
 	gap: 4px 10px;
-	margin: 8px 0 0 0;
+	margin: 0;
 	font-size: 12px;
 }
 
@@ -1136,6 +1247,51 @@ body.modal-dialog-open {
 .political-territory-wiki-reference dd {
 	margin: 0;
 	word-break: break-word;
+}
+
+.political-territory-wiki-reference a {
+	color: #235f82;
+}
+
+.political-territory-wiki-picker-list {
+	display: grid;
+	gap: 4px;
+	max-height: 420px;
+	overflow: auto;
+	border: 1px solid #cdb79f;
+	border-radius: 8px;
+	background: #fff;
+	padding: 6px;
+}
+
+.political-territory-wiki-picker-list__item {
+	display: grid;
+	gap: 2px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: #3f3428;
+	cursor: pointer;
+	font: inherit;
+	padding: 7px 8px;
+	text-align: left;
+}
+
+.political-territory-wiki-picker-list__item:hover,
+.political-territory-wiki-picker-list__item:focus-visible {
+	background: #f5eadc;
+}
+
+.political-territory-wiki-picker-list__name {
+	font-weight: bold;
+	overflow-wrap: anywhere;
+}
+
+.political-territory-wiki-picker-list__meta,
+.political-territory-wiki-picker-list__empty {
+	color: #7a6756;
+	font-size: 12px;
+	overflow-wrap: anywhere;
 }
 
 #path-edit-transport-options label {

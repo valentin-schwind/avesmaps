@@ -195,7 +195,7 @@ Herrschaftsgebiete-Modell:
 
 Die Migration liegt in `sql/2026-05-15-political-territories.sql` und ist auch
 in `schema.future.mysql.sql` enthalten. Der Editor-Endpoint ist
-`political-territories.php`; er bietet `list`, `get`, `wiki`, `hierarchy`,
+`political-territories.php`; er bietet `list`, `get`, `wiki`, `wiki_list`, `hierarchy`,
 `geometries`, `layer` sowie schreibende Aktionen fuer Gebiete, Hierarchien,
 Geometrien und Geometrieoperationen.
 
@@ -204,6 +204,10 @@ WikiSync importiert Herrschaftsgebiete ueber den normalen
 die Phase `political_territories`; sie liest
 `data/wiki/avesmaps-herrschaftsgebiete.json` als serverseitige
 WikiSync-Referenz.
+
+Die Referenz enthaelt 500 Herrschaftsgebiete in 36 Root-Bereichen aus
+`Zugehoerigkeit-Root`. Diese Root-Werte werden im Editor als gruppierte,
+suchbare Parent/Hierarchie-Struktur verwendet.
 
 Der Import aktualisiert nur Wiki-Referenzfelder. Redaktionelle Overrides und
 redaktionell gespeicherte Geometrien bleiben erhalten. Nur Datensaetze fuer
