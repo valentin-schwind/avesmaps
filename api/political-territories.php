@@ -1577,6 +1577,58 @@ function avesmapsPoliticalBuildHierarchy(array $territories): array {
             )
         );
 
+        $representativeId = avesmapsPoliticalResolveHierarchyGroupRepresentativeId(
+            (string) ($group['name'] ?? ''),
+            $topLevelIds,
+            $territoriesById,
+            $groupTerritoryIds,
+            $childrenByParentId
+        );
+
+        if ($representativeId > 0) {
+            $includedTopLevelIds = [];
+            $collectTopLevelIds = function (array $node) use (&$collectTopLevelIds, &$includedTopLevelIds): void {
+                $publicId = (string) ($node['public_id'] ?? '');
+                if ($publicId !== '') {
+                    $includedTopLevelIds[$publicId] = true;
+                }
+
+                foreach ((array) ($node['children'] ?? []) as $childNode) {
+                    if (is_array($childNode)) {
+                        $collectTopLevelIds($childNode);
+                    }
+                }
+            };
+
+            $rootNode = $buildNode($representativeId);
+            $collectTopLevelIds($rootNode);
+            foreach ($topLevelIds as $territoryId) {
+                if ($territoryId === $representativeId) {
+                    continue;
+                }
+
+                $publicId = (string) ($nodesById[$territoryId]['public_id'] ?? '');
+                if ($publicId !== '' && isset($includedTopLevelIds[$publicId])) {
+                    continue;
+                }
+
+                $childNode = $buildNode($territoryId);
+                if ($childNode !== []) {
+                    $rootNode['children'][] = $childNode;
+                }
+            }
+
+            usort(
+                $rootNode['children'],
+                static fn(array $left, array $right): int => strnatcasecmp(
+                    (string) ($left['name'] ?? ''),
+                    (string) ($right['name'] ?? '')
+                )
+            );
+            $hierarchy[] = $rootNode;
+            continue;
+        }
+
         $children = [];
         foreach ($topLevelIds as $territoryId) {
             $node = $buildNode($territoryId);
@@ -1747,6 +1799,96 @@ function avesmapsPoliticalIsGenericHierarchyRootName(string $rootName): bool {
         ['unabhangig', 'umstritten', 'ungeklart'],
         true
     );
+}
+
+function avesmapsPoliticalResolveHierarchyGroupRepresentativeId(
+    string $groupName,
+    array $topLevelIds,
+    array $territoriesById,
+    array $groupTerritoryIds,
+    array $childrenByParentId
+): int {
+    if (count($topLevelIds) === 1) {
+        return (int) $topLevelIds[0];
+    }
+
+    $groupSlug = avesmapsPoliticalSlug($groupName);
+    $bestId = 0;
+    $bestScore = PHP_INT_MIN;
+
+    foreach ($topLevelIds as $territoryId) {
+        $territory = $territoriesById[$territoryId] ?? null;
+        if (!is_array($territory)) {
+            continue;
+        }
+
+        $score = avesmapsPoliticalScoreHierarchyGroupRepresentative(
+            $territory,
+            $groupSlug,
+            $groupTerritoryIds,
+            $childrenByParentId
+        );
+        if ($score > $bestScore) {
+            $bestScore = $score;
+            $bestId = (int) $territoryId;
+        }
+    }
+
+    return $bestId;
+}
+
+function avesmapsPoliticalScoreHierarchyGroupRepresentative(
+    array $territory,
+    string $groupSlug,
+    array $groupTerritoryIds,
+    array $childrenByParentId
+): int {
+    $score = 0;
+    foreach (avesmapsPoliticalPublicTerritoryAliases($territory) as $alias) {
+        $aliasSlug = avesmapsPoliticalSlug((string) $alias);
+        if ($aliasSlug === '' || $groupSlug === '') {
+            continue;
+        }
+
+        if ($aliasSlug === $groupSlug) {
+            $score += 1000000;
+            break;
+        }
+
+        if (str_contains($aliasSlug, $groupSlug) || str_contains($groupSlug, $aliasSlug)) {
+            $score += 100000 - abs(strlen($aliasSlug) - strlen($groupSlug));
+        }
+    }
+
+    $territoryId = (int) ($territory['id'] ?? 0);
+    $score += avesmapsPoliticalCountHierarchyGroupDescendants(
+        $territoryId,
+        $groupTerritoryIds,
+        $childrenByParentId
+    ) * 100;
+    $score += count((array) ($childrenByParentId[$territoryId] ?? [])) * 10;
+    $score += avesmapsPoliticalNormalizeRowValidTo($territory['valid_to_bf'] ?? null, $territory) === null ? 1 : 0;
+
+    return $score;
+}
+
+function avesmapsPoliticalCountHierarchyGroupDescendants(int $territoryId, array $groupTerritoryIds, array $childrenByParentId, array &$visited = []): int {
+    if ($territoryId < 1 || isset($visited[$territoryId])) {
+        return 0;
+    }
+
+    $visited[$territoryId] = true;
+    $count = 0;
+    foreach ((array) ($childrenByParentId[$territoryId] ?? []) as $childId) {
+        if (!is_int($childId) || !isset($groupTerritoryIds[$childId])) {
+            continue;
+        }
+
+        $count++;
+        $count += avesmapsPoliticalCountHierarchyGroupDescendants($childId, $groupTerritoryIds, $childrenByParentId, $visited);
+    }
+
+    return $count;
 }
 
 function avesmapsPoliticalInferPublicTerritoryParentId(array $territory, array $aliasToIds, array $territoriesById): int {
