@@ -6,6 +6,8 @@ require __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/political-territory-lib.php';
 
+$debugErrors = filter_var($_GET['debug_errors'] ?? false, FILTER_VALIDATE_BOOL);
+
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
 
@@ -67,25 +69,50 @@ try {
 
     avesmapsJsonResponse(200, $response);
 } catch (InvalidArgumentException $exception) {
-    avesmapsJsonResponse(400, [
+    $response = [
         'ok' => false,
         'error' => $exception->getMessage(),
-    ]);
+    ];
+    if ($debugErrors) {
+        $response['exception'] = avesmapsPoliticalDebugExceptionPayload($exception);
+    }
+    avesmapsJsonResponse(400, $response);
 } catch (PDOException) {
-    avesmapsJsonResponse(500, [
+    $response = [
         'ok' => false,
         'error' => 'Die Herrschaftsgebiete konnten nicht aus der Datenbank verarbeitet werden.',
-    ]);
+    ];
+    if ($debugErrors) {
+        $response['exception'] = avesmapsPoliticalDebugExceptionPayload($exception);
+    }
+    avesmapsJsonResponse(500, $response);
 } catch (RuntimeException $exception) {
-    avesmapsJsonResponse(503, [
+    $response = [
         'ok' => false,
         'error' => $exception->getMessage(),
-    ]);
-} catch (Throwable) {
-    avesmapsJsonResponse(500, [
+    ];
+    if ($debugErrors) {
+        $response['exception'] = avesmapsPoliticalDebugExceptionPayload($exception);
+    }
+    avesmapsJsonResponse(503, $response);
+} catch (Throwable $exception) {
+    $response = [
         'ok' => false,
         'error' => 'Die Herrschaftsgebiete konnten nicht verarbeitet werden.',
-    ]);
+    ];
+    if ($debugErrors) {
+        $response['exception'] = avesmapsPoliticalDebugExceptionPayload($exception);
+    }
+    avesmapsJsonResponse(500, $response);
+}
+
+function avesmapsPoliticalDebugExceptionPayload(Throwable $exception): array {
+    return [
+        'type' => $exception::class,
+        'message' => $exception->getMessage(),
+        'file' => basename((string) $exception->getFile()),
+        'line' => $exception->getLine(),
+    ];
 }
 
 function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
