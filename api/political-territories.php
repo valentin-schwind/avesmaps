@@ -2294,7 +2294,8 @@ function avesmapsPoliticalScoreParentCandidate(array $candidate, array $childTer
         $score += 20;
     }
 
-    $score += max(0, 10 - max(0, (int) ($candidate['sort_order'] ?? 0) / 100));
+    $sortOrder = max(0, (int) ($candidate['sort_order'] ?? 0));
+    $score += max(0, 10 - intdiv($sortOrder, 100));
 
     return $score;
 }
