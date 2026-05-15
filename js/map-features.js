@@ -633,6 +633,8 @@ $(".location-toggle").on("mouseleave blur", () => {
 initializeTransportIconSelects();
 initializeVersionedAssetIcons();
 syncTransportControls();
+$("#mapLayerModeSelect option[value=\"political\"]").prop("disabled", !IS_EDIT_MODE);
+syncTransportControl("mapLayerModeSelect");
 $("#mapStyleSelect").on("change", function () {
 	if (!IS_EDIT_MODE) {
 		this.value = "stylized";

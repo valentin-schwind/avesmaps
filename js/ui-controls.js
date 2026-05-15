@@ -390,6 +390,7 @@ function createTransportOptionButton(selectId, optionElement) {
 	optionButton.className = "transport-combobox__option";
 	optionButton.dataset.transportValue = optionElement.value;
 	optionButton.setAttribute("role", "option");
+	optionButton.disabled = Boolean(optionElement.disabled);
 
 	iconElement.className = "transport-option-inline-icon";
 	iconElement.alt = "";
@@ -466,7 +467,7 @@ function initializeTransportIconSelect(selectId) {
 	control.menuElement.addEventListener("click", (event) => {
 		const clickedElement = event.target instanceof Element ? event.target : null;
 		const optionButton = clickedElement?.closest(".transport-combobox__option");
-		if (!optionButton) {
+		if (!optionButton || optionButton.disabled) {
 			return;
 		}
 
