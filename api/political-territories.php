@@ -197,65 +197,70 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
         $aggregateConditions[] = 'geometry.min_y <= :bbox_max_y';
     }
 
-    $aggregateStatement = $pdo->prepare(
-        'SELECT
-            territory.id AS territory_id,
-            territory.public_id AS territory_public_id,
-            territory.parent_id,
-            territory.slug,
-            territory.name,
-            territory.short_name,
-            territory.type,
-            territory.status,
-            territory.color,
-            territory.opacity,
-            territory.coat_of_arms_url,
-            territory.wiki_url,
-            territory.capital_place_id,
-            territory.seat_place_id,
-            capital_place.public_id AS capital_place_public_id,
-            seat_place.public_id AS seat_place_public_id,
-            territory.valid_from_bf,
-            territory.valid_to_bf,
-            territory.valid_label,
-            territory.min_zoom AS territory_min_zoom,
-            territory.max_zoom AS territory_max_zoom,
-            territory.sort_order,
-            upper_parent.public_id AS parent_public_id,
-            upper_parent.name AS parent_name,
-            wiki.id AS wiki_id,
-            wiki.name AS wiki_name,
-            wiki.affiliation_raw,
-            wiki.affiliation_root,
-            wiki.affiliation_path_json,
-            wiki.founded_text,
-            wiki.dissolved_text,
-            wiki.capital_name,
-            wiki.seat_name,
-            geometry.public_id AS geometry_public_id,
-            geometry.id AS geometry_id,
-            geometry.geometry_geojson,
-            geometry.valid_from_bf AS geometry_valid_from_bf,
-            geometry.valid_to_bf AS geometry_valid_to_bf,
-            NULL AS geometry_min_zoom,
-            NULL AS geometry_max_zoom,
-            NULL AS style_json,
-            geometry.updated_at,
-            child_territory.id AS aggregate_source_territory_id,
-            child_territory.public_id AS aggregate_source_territory_public_id,
-            child_territory.name AS aggregate_source_territory_name
-        FROM political_territory territory
-        INNER JOIN political_territory child_territory ON child_territory.parent_id = territory.id
-        INNER JOIN political_territory_geometry geometry ON geometry.territory_id = child_territory.id
-        LEFT JOIN political_territory upper_parent ON upper_parent.id = territory.parent_id
-        LEFT JOIN political_territory_wiki wiki ON wiki.id = territory.wiki_id
-        LEFT JOIN map_features capital_place ON capital_place.id = territory.capital_place_id
-        LEFT JOIN map_features seat_place ON seat_place.id = territory.seat_place_id
-        WHERE ' . implode(' AND ', $aggregateConditions) . '
-        ORDER BY territory.sort_order ASC, territory.name ASC, child_territory.sort_order ASC, child_territory.name ASC, geometry.id ASC'
-    );
-    $aggregateStatement->execute($params);
-    $aggregateRows = $aggregateStatement->fetchAll(PDO::FETCH_ASSOC);
+    $aggregateRows = [];
+    try {
+        $aggregateStatement = $pdo->prepare(
+            'SELECT
+                territory.id AS territory_id,
+                territory.public_id AS territory_public_id,
+                territory.parent_id,
+                territory.slug,
+                territory.name,
+                territory.short_name,
+                territory.type,
+                territory.status,
+                territory.color,
+                territory.opacity,
+                territory.coat_of_arms_url,
+                territory.wiki_url,
+                territory.capital_place_id,
+                territory.seat_place_id,
+                capital_place.public_id AS capital_place_public_id,
+                seat_place.public_id AS seat_place_public_id,
+                territory.valid_from_bf,
+                territory.valid_to_bf,
+                territory.valid_label,
+                territory.min_zoom AS territory_min_zoom,
+                territory.max_zoom AS territory_max_zoom,
+                territory.sort_order,
+                upper_parent.public_id AS parent_public_id,
+                upper_parent.name AS parent_name,
+                wiki.id AS wiki_id,
+                wiki.name AS wiki_name,
+                wiki.affiliation_raw,
+                wiki.affiliation_root,
+                wiki.affiliation_path_json,
+                wiki.founded_text,
+                wiki.dissolved_text,
+                wiki.capital_name,
+                wiki.seat_name,
+                geometry.public_id AS geometry_public_id,
+                geometry.id AS geometry_id,
+                geometry.geometry_geojson,
+                geometry.valid_from_bf AS geometry_valid_from_bf,
+                geometry.valid_to_bf AS geometry_valid_to_bf,
+                NULL AS geometry_min_zoom,
+                NULL AS geometry_max_zoom,
+                NULL AS style_json,
+                geometry.updated_at,
+                child_territory.id AS aggregate_source_territory_id,
+                child_territory.public_id AS aggregate_source_territory_public_id,
+                child_territory.name AS aggregate_source_territory_name
+            FROM political_territory territory
+            INNER JOIN political_territory child_territory ON child_territory.parent_id = territory.id
+            INNER JOIN political_territory_geometry geometry ON geometry.territory_id = child_territory.id
+            LEFT JOIN political_territory upper_parent ON upper_parent.id = territory.parent_id
+            LEFT JOIN political_territory_wiki wiki ON wiki.id = territory.wiki_id
+            LEFT JOIN map_features capital_place ON capital_place.id = territory.capital_place_id
+            LEFT JOIN map_features seat_place ON seat_place.id = territory.seat_place_id
+            WHERE ' . implode(' AND ', $aggregateConditions) . '
+            ORDER BY territory.sort_order ASC, territory.name ASC, child_territory.sort_order ASC, child_territory.name ASC, geometry.id ASC'
+        );
+        $aggregateStatement->execute($params);
+        $aggregateRows = $aggregateStatement->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable) {
+        $aggregateRows = [];
+    }
 
     $parentIdsWithVisibleChildren = [];
     foreach ($rows as $row) {

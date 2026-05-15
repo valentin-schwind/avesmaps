@@ -1274,14 +1274,21 @@ function isRegionEditTabDirty(tab) {
 	return !areRegionEditPayloadsEqual(tab.payload || regionEditPayloadToPayload(tab.region), tab.savedPayload || regionEditPayloadToPayload(tab.region));
 }
 
-function shouldAssignActiveGeometryToTerritory(territoryPublicId) {
+function getActiveRegionGeometryAssignment(territoryPublicId) {
 	const primaryTab = regionEditTabs[0] || null;
 	const geometryPublicId = primaryTab?.region?.geometryPublicId || primaryTab?.region?.publicId || "";
 	if (!geometryPublicId || !territoryPublicId || primaryTab?.region?.territoryPublicId === territoryPublicId) {
-		return false;
+		return null;
 	}
 
-	return !regionEditTabs.some((tab) => tab.assignGeometryPublicId === geometryPublicId);
+	if (regionEditTabs.some((tab) => tab.assignGeometryPublicId === geometryPublicId)) {
+		return null;
+	}
+
+	return {
+		geometryPublicId,
+		mode: primaryTab?.entry?.source === "political_territory" ? "reassign" : "create",
+	};
 }
 
 async function saveRegionEditTab(tab) {
@@ -1299,16 +1306,36 @@ async function saveRegionEditTab(tab) {
 		tab.region = normalizePoliticalTerritoryForRegionEdit(result.territory);
 	}
 	if (tab.assignGeometryPublicId && payload.territory_public_id) {
-		latestResult = await submitPoliticalTerritoryEdit({
-			action: "assign_geometry",
-			geometry_public_id: tab.assignGeometryPublicId,
-			territory_public_id: payload.territory_public_id,
-		});
+		latestResult = tab.assignGeometryMode === "create"
+			? await submitPoliticalTerritoryEdit({
+				action: "create_geometry",
+				territory_public_id: payload.territory_public_id,
+				source: "editor",
+				geometry_geojson: regionLayerToGeoJsonGeometry(tab.entry || regionEditEntry),
+				valid_from_bf: payload.valid_from_bf,
+				valid_to_bf: payload.valid_to_bf,
+				valid_to_open: payload.valid_to_open,
+				min_zoom: payload.min_zoom,
+				max_zoom: payload.max_zoom,
+				style_json: {
+					fill: payload.color,
+					stroke: payload.color,
+					fillOpacity: payload.opacity,
+				},
+			})
+			: await submitPoliticalTerritoryEdit({
+				action: "assign_geometry",
+				geometry_public_id: tab.assignGeometryPublicId,
+				territory_public_id: payload.territory_public_id,
+			});
 		if (latestResult.feature) {
-			applyRegionFeatureResponse(tab.entry || regionEditEntry, latestResult.feature);
+			if ((tab.entry || regionEditEntry)?.source === "political_territory") {
+				applyRegionFeatureResponse(tab.entry || regionEditEntry, latestResult.feature);
+			}
 		}
-		tab.region.geometryPublicId = tab.assignGeometryPublicId;
+		tab.region.geometryPublicId = latestResult.geometry?.public_id || tab.assignGeometryPublicId;
 		tab.assignGeometryPublicId = "";
+		tab.assignGeometryMode = "";
 	}
 	tab.savedPayload = getComparableRegionEditPayload(payload);
 	tab.payload = null;
@@ -1364,9 +1391,8 @@ async function openRegionEditTabForTerritory(territoryPublicId) {
 		setRegionEditStatus("Herrschaftsgebiet wird geladen...", "pending");
 		const response = await fetchPoliticalTerritories({ action: "get", public_id: territoryPublicId });
 		const region = normalizePoliticalTerritoryForRegionEdit(response.territory || {}, response.wiki || null);
-		const assignGeometryPublicId = shouldAssignActiveGeometryToTerritory(territoryPublicId)
-			? (regionEditTabs[0]?.region?.geometryPublicId || regionEditTabs[0]?.region?.publicId || "")
-			: "";
+		const geometryAssignment = getActiveRegionGeometryAssignment(territoryPublicId);
+		const assignGeometryPublicId = geometryAssignment?.geometryPublicId || "";
 		if (assignGeometryPublicId) {
 			region.geometryPublicId = assignGeometryPublicId;
 		}
@@ -1377,6 +1403,7 @@ async function openRegionEditTabForTerritory(territoryPublicId) {
 			payload: null,
 			savedPayload: regionEditPayloadToPayload(region),
 			assignGeometryPublicId,
+			assignGeometryMode: geometryAssignment?.mode || "",
 		};
 		regionEditTabs.push(tab);
 		activeRegionEditTabKey = territoryPublicId;
@@ -1412,7 +1439,8 @@ async function activatePrimaryRegionEditTabForTerritory(territoryPublicId) {
 	if (geometryPublicId) {
 		region.geometryPublicId = geometryPublicId;
 	}
-	const assignGeometryPublicId = geometryPublicId && currentTerritoryId !== territoryPublicId ? geometryPublicId : "";
+	const geometryAssignment = getActiveRegionGeometryAssignment(territoryPublicId);
+	const assignGeometryPublicId = geometryAssignment?.geometryPublicId || "";
 	regionEditTabs = regionEditTabs.filter((tab, index) => index === 0 || tab.key !== territoryPublicId);
 	const nextPrimaryTab = {
 		key: territoryPublicId,
@@ -1421,6 +1449,7 @@ async function activatePrimaryRegionEditTabForTerritory(territoryPublicId) {
 		payload: null,
 		savedPayload: regionEditPayloadToPayload(region),
 		assignGeometryPublicId,
+		assignGeometryMode: geometryAssignment?.mode || "",
 	};
 	if (regionEditTabs.length > 0) {
 		regionEditTabs[0] = nextPrimaryTab;
