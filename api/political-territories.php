@@ -260,7 +260,12 @@ function avesmapsPoliticalBuildEffectiveLayerParentIds(array $territories): arra
     $parentIds = [];
     foreach ($territories as $territoryId => $territory) {
         $storedParentId = (int) ($territory['parent_id'] ?? 0);
-        if ($storedParentId > 0 && isset($territories[$storedParentId]) && $storedParentId !== (int) $territoryId) {
+        if (
+            $storedParentId > 0
+            && isset($territories[$storedParentId])
+            && $storedParentId !== (int) $territoryId
+            && avesmapsPoliticalIsParentCompatible($territories[$storedParentId], $territory)
+        ) {
             $parentIds[(int) $territoryId] = $storedParentId;
             continue;
         }
@@ -1283,7 +1288,11 @@ function avesmapsPoliticalBuildHierarchy(array $territories): array {
     foreach ($territories as $territory) {
         $id = (int) $territory['id'];
         $parentId = (int) ($territory['parent_id'] ?? 0);
-        if ($parentId < 1 || !isset($nodesById[$parentId])) {
+        if (
+            $parentId < 1
+            || !isset($nodesById[$parentId])
+            || !avesmapsPoliticalIsParentCompatible($territoriesById[$parentId], $territory)
+        ) {
             $parentId = avesmapsPoliticalInferPublicTerritoryParentId($territory, $aliasToIds, $territoriesById);
         }
 
@@ -1705,7 +1714,11 @@ function avesmapsPoliticalApplyEffectiveParents(array $territories): array {
 
     foreach ($territories as &$territory) {
         $parentId = (int) ($territory['parent_id'] ?? 0);
-        if ($parentId < 1 || !isset($byId[$parentId])) {
+        if (
+            $parentId < 1
+            || !isset($byId[$parentId])
+            || !avesmapsPoliticalIsParentCompatible($byId[$parentId], $territory)
+        ) {
             $parentId = avesmapsPoliticalInferPublicTerritoryParentId($territory, $aliasToIds, $byId);
             if ($parentId > 0 && isset($byId[$parentId])) {
                 $territory['parent_id'] = $parentId;
@@ -2141,6 +2154,34 @@ function avesmapsPoliticalScoreParentCandidate(array $candidate, array $childTer
     $score += max(0, 10 - max(0, (int) ($candidate['sort_order'] ?? 0) / 100));
 
     return $score;
+}
+
+function avesmapsPoliticalIsParentCompatible(array $candidate, array $childTerritory): bool {
+    $childPath = (array) ($childTerritory['wiki_affiliation_path'] ?? $childTerritory['affiliation_path_json'] ?? []);
+    if (count($childPath) > 1) {
+        $expectedRoot = (string) $childPath[count($childPath) - 2];
+        $candidateRoot = (string) ($candidate['wiki_affiliation_root'] ?? $candidate['affiliation_root'] ?? '');
+        if (
+            $expectedRoot !== ''
+            && $candidateRoot !== ''
+            && avesmapsPoliticalSlug($candidateRoot) !== avesmapsPoliticalSlug($expectedRoot)
+        ) {
+            return false;
+        }
+    }
+
+    $childRoot = (string) ($childTerritory['wiki_affiliation_root'] ?? '');
+    $candidateName = (string) ($candidate['name'] ?? '');
+    $childAffiliationRaw = (string) ($childTerritory['wiki_affiliation_raw'] ?? $childTerritory['affiliation_raw'] ?? '');
+    if (
+        $childRoot !== ''
+        && $candidateName !== ''
+        && str_contains(avesmapsPoliticalSlug($childAffiliationRaw), avesmapsPoliticalSlug($candidateName))
+    ) {
+        return true;
+    }
+
+    return true;
 }
 
 function avesmapsPoliticalReadOptionalBoundingBox(string $rawBoundingBox): ?array {
