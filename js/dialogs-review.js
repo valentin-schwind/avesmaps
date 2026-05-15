@@ -971,12 +971,18 @@ function clonePoliticalTerritoryHierarchyNode(node) {
 		name: node.name || "",
 		short_name: node.short_name || "",
 		type: node.type || "",
+		status: node.status || "",
+		form_of_government: node.form_of_government || "",
 		valid_label: node.valid_label || "",
 		parent_public_id: node.parent_public_id || "",
 		parent_name: node.parent_name || "",
 		wiki_name: node.wiki_name || "",
 		wiki_affiliation_raw: node.wiki_affiliation_raw || "",
 		wiki_affiliation_root: node.wiki_affiliation_root || "",
+		wiki_url: node.wiki_url || "",
+		capital_name: node.capital_name || "",
+		seat_name: node.seat_name || "",
+		ruler: node.ruler || "",
 		aliases: Array.isArray(node.aliases) ? node.aliases : [],
 	};
 	const option = territory.public_id ? findPoliticalTerritoryOption(territory.public_id) : null;
@@ -1119,11 +1125,16 @@ function getPoliticalTerritoryTreeSearchText(territory) {
 		territory.name,
 		territory.short_name,
 		territory.type,
+		territory.status,
+		territory.form_of_government,
 		territory.valid_label,
 		territory.wiki_name,
 		territory.wiki_affiliation_root,
 		territory.wiki_affiliation_raw,
 		territory.parent_name,
+		territory.capital_name,
+		territory.seat_name,
+		territory.ruler,
 		...(Array.isArray(territory.aliases) ? territory.aliases : []),
 	].filter(Boolean).join(" "));
 }
@@ -1144,12 +1155,18 @@ function createRegionParentTreeButton(territory, region, { isGroup = false } = {
 		<span class="political-territory-parent-tree__toggle" aria-hidden="true"></span>
 		<span class="political-territory-parent-tree__name"></span>
 		<span class="political-territory-parent-tree__meta"></span>
+		<span class="political-territory-parent-tree__summary"></span>
 	`;
 	button.querySelector(".political-territory-parent-tree__name").textContent = normalizeParentheticalSpacing(territory.name || "Kein Parent");
 	button.querySelector(".political-territory-parent-tree__meta").textContent = normalizeParentheticalSpacing([
 		territory.type,
+		territory.status,
+	].filter(Boolean).join(" · "));
+	button.querySelector(".political-territory-parent-tree__summary").textContent = normalizeParentheticalSpacing([
 		territory.valid_label,
-	].filter(Boolean).join(" - "));
+		territory.capital_name ? `Hauptstadt: ${territory.capital_name}` : "",
+		territory.ruler ? `Oberhaupt: ${territory.ruler}` : "",
+	].filter(Boolean).join(" · "));
 	return button;
 }
 
