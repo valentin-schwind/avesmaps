@@ -946,37 +946,7 @@ function buildPoliticalTerritoryTree(excludedPublicId) {
 		nodes.forEach((node) => sortNodes(node.children));
 	};
 	sortNodes(territoryRoots);
-
-	const groupsByName = new Map();
-	const rootNodesByName = new Map();
-	territoryRoots.forEach((node) => {
-		rootNodesByName.set(normalizeSearchText(node.territory.name), node);
-	});
-	territoryRoots.forEach((node) => {
-		const rootName = getPoliticalTerritoryRootName(node.territory);
-		if (!groupsByName.has(rootName)) {
-			const rootNode = rootNodesByName.get(normalizeSearchText(rootName));
-			groupsByName.set(rootName, rootNode || {
-				key: `root:${rootName}`,
-				isGroup: true,
-				territory: {
-					public_id: "",
-					name: rootName,
-					type: "",
-					valid_label: "",
-				},
-				children: [],
-			});
-		}
-		const groupNode = groupsByName.get(rootName);
-		if (groupNode !== node && !groupNode.children.includes(node)) {
-			groupNode.children.push(node);
-		}
-	});
-
-	const groups = Array.from(groupsByName.values());
-	groups.sort((left, right) => left.territory.name.localeCompare(right.territory.name, "de"));
-	return groups;
+	return territoryRoots;
 }
 
 function renderPoliticalTerritoryTreeNode(node, region, depth) {
@@ -1033,10 +1003,6 @@ function getPoliticalTerritoryTreeSearchText(territory) {
 		territory.wiki_affiliation_raw,
 		territory.parent_name,
 	].filter(Boolean).join(" "));
-}
-
-function getPoliticalTerritoryRootName(territory) {
-	return String(territory.wiki_affiliation_root || territory.affiliation_root || territory.parent_name || "Ohne Parent").trim() || "Ohne Parent";
 }
 
 function createRegionParentTreeButton(territory, region, { isGroup = false } = {}) {
@@ -1111,11 +1077,13 @@ function initializeRegionEditTabs(entry) {
 	}
 
 	const key = getRegionEditTabKey(region);
+	const savedPayload = regionEditPayloadToPayload(region);
 	regionEditTabs = key ? [{
 		key,
 		entry,
 		region: { ...region },
 		payload: null,
+		savedPayload,
 	}] : [];
 	activeRegionEditTabKey = key;
 	renderRegionEditTabs();
@@ -1271,6 +1239,50 @@ function regionEditPayloadToPayload(region) {
 	};
 }
 
+function getComparableRegionEditPayload(payload) {
+	const copy = { ...payload };
+	delete copy.action;
+	delete copy.source;
+	delete copy.public_id;
+	delete copy.geometry_public_id;
+	Object.keys(copy).forEach((key) => {
+		if (copy[key] === undefined || copy[key] === null) {
+			copy[key] = "";
+		}
+	});
+	return copy;
+}
+
+function areRegionEditPayloadsEqual(leftPayload, rightPayload) {
+	return JSON.stringify(getComparableRegionEditPayload(leftPayload || {})) === JSON.stringify(getComparableRegionEditPayload(rightPayload || {}));
+}
+
+function isRegionEditTabDirty(tab) {
+	if (!tab) {
+		return false;
+	}
+
+	return !areRegionEditPayloadsEqual(tab.payload || regionEditPayloadToPayload(tab.region), tab.savedPayload || regionEditPayloadToPayload(tab.region));
+}
+
+async function saveRegionEditTab(tab) {
+	if (!tab) {
+		return null;
+	}
+
+	const payload = tab.payload || regionEditPayloadToPayload(tab.region);
+	const result = await submitPoliticalTerritoryEdit(payload);
+	if (result.feature) {
+		applyRegionFeatureResponse(tab.entry || regionEditEntry, result.feature);
+	}
+	if (result.territory) {
+		tab.region = normalizePoliticalTerritoryForRegionEdit(result.territory);
+	}
+	tab.savedPayload = getComparableRegionEditPayload(payload);
+	tab.payload = null;
+	return result;
+}
+
 function normalizePoliticalTerritoryForRegionEdit(territory, wiki = null) {
 	return {
 		source: "political_territory",
@@ -1325,6 +1337,7 @@ async function openRegionEditTabForTerritory(territoryPublicId) {
 			entry: region,
 			region,
 			payload: null,
+			savedPayload: regionEditPayloadToPayload(region),
 		};
 		regionEditTabs.push(tab);
 		activeRegionEditTabKey = territoryPublicId;
@@ -1351,7 +1364,7 @@ $(document).on("click", "[data-region-edit-tab]", function (event) {
 	renderRegionEditTabs();
 });
 
-$(document).on("click", "[data-region-edit-tab-close]", function (event) {
+$(document).on("click", "[data-region-edit-tab-close]", async function (event) {
 	event.preventDefault();
 	event.stopPropagation();
 	const key = this.dataset.regionEditTabClose || "";
@@ -1361,6 +1374,25 @@ $(document).on("click", "[data-region-edit-tab-close]", function (event) {
 	}
 
 	snapshotActiveRegionEditTab();
+	const tab = regionEditTabs[tabIndex];
+	if (isRegionEditTabDirty(tab)) {
+		const shouldSave = window.confirm("Änderungen vor dem Schließen speichern?");
+		if (shouldSave) {
+			try {
+				await saveRegionEditTab(tab);
+				await loadPoliticalTerritoryOptions();
+				schedulePoliticalTerritoryLayerReload({ immediate: true });
+				showFeedbackToast("Herrschaftsgebiet gespeichert.", "success");
+			} catch (error) {
+				console.error("Herrschaftsgebiet konnte nicht gespeichert werden:", error);
+				setRegionEditStatus(error.message || "Herrschaftsgebiet konnte nicht gespeichert werden.", "error");
+				return;
+			}
+		} else if (!window.confirm("Tab ohne Speichern schließen?")) {
+			return;
+		}
+	}
+
 	regionEditTabs.splice(tabIndex, 1);
 	if (activeRegionEditTabKey === key) {
 		const nextTab = regionEditTabs[Math.max(0, tabIndex - 1)] || regionEditTabs[0] || null;
@@ -4112,22 +4144,14 @@ async function handleRegionEditFormSubmit(event) {
 	}
 	try {
 		let latestResult = null;
-		for (const editPayload of payloads) {
-			const result = editPayload.source === "political_territory"
-				? await submitPoliticalTerritoryEdit(editPayload)
-				: await submitMapFeatureEdit(editPayload);
-			latestResult = result;
-			if (result.feature) {
-				const tab = editPayload.source === "political_territory"
-					? findRegionEditTab(editPayload.territory_public_id || "")
-					: null;
-				applyRegionFeatureResponse(tab?.entry || regionEditEntry, result.feature);
-			}
-		}
 		if (payload.source === "political_territory") {
+			for (const tab of regionEditTabs) {
+				latestResult = await saveRegionEditTab(tab);
+			}
 			await loadPoliticalTerritoryOptions();
 			schedulePoliticalTerritoryLayerReload({ immediate: true });
 		} else {
+			latestResult = await submitMapFeatureEdit(payloads[0]);
 			updateRevisionFromEditResponse(latestResult);
 			void loadChangeLog();
 		}
