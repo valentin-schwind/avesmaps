@@ -58,6 +58,7 @@ try {
         'create_territory' => avesmapsPoliticalCreateTerritory($pdo, $payload, $user),
         'update_territory' => avesmapsPoliticalUpdateTerritory($pdo, $payload, $user),
         'delete_territory' => avesmapsPoliticalDeleteTerritory($pdo, $payload),
+        'reset_metadata_keep_geometries' => avesmapsPoliticalResetMetadataKeepingGeometries($pdo),
         'save_hierarchy' => avesmapsPoliticalSaveHierarchy($pdo, $payload),
         'create_geometry' => avesmapsPoliticalCreateGeometry($pdo, $payload, $user),
         'update_geometry' => avesmapsPoliticalUpdateGeometry($pdo, $payload, $user),

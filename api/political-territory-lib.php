@@ -245,6 +245,108 @@ function avesmapsPoliticalImportWikiRecords(PDO $pdo, array $records, array $use
     ];
 }
 
+function avesmapsPoliticalResetMetadataKeepingGeometries(PDO $pdo): array {
+    avesmapsPoliticalEnsureTables($pdo);
+
+    $activeGeometryCount = (int) $pdo->query(
+        'SELECT COUNT(*)
+        FROM political_territory_geometry
+        WHERE is_active = 1'
+    )->fetchColumn();
+
+    $geometryTerritoryIds = $pdo->query(
+        'SELECT DISTINCT territory_id
+        FROM political_territory_geometry
+        WHERE is_active = 1
+        ORDER BY territory_id ASC'
+    )->fetchAll(PDO::FETCH_COLUMN);
+
+    $territoryIdsToKeep = array_values(
+        array_filter(
+            array_map(
+                static fn(mixed $value): int => (int) $value,
+                is_array($geometryTerritoryIds) ? $geometryTerritoryIds : []
+            ),
+            static fn(int $value): bool => $value > 0
+        )
+    );
+
+    $pdo->beginTransaction();
+    try {
+        $wikiDeleted = (int) $pdo->exec('DELETE FROM political_territory_wiki');
+        $relationsDeleted = (int) $pdo->exec('DELETE FROM political_territory_relation');
+
+        $territoriesDeleted = 0;
+        $territoriesReset = 0;
+
+        if ($territoryIdsToKeep !== []) {
+            $placeholders = implode(', ', array_fill(0, count($territoryIdsToKeep), '?'));
+
+            $deleteStatement = $pdo->prepare(
+                "DELETE FROM political_territory
+                WHERE id NOT IN ({$placeholders})"
+            );
+            $deleteStatement->execute($territoryIdsToKeep);
+            $territoriesDeleted = $deleteStatement->rowCount();
+
+            $resetStatement = $pdo->prepare(
+                "UPDATE political_territory
+                SET
+                    wiki_id = NULL,
+                    short_name = NULL,
+                    type = NULL,
+                    parent_id = NULL,
+                    continent = ?,
+                    status = NULL,
+                    color = ?,
+                    opacity = ?,
+                    coat_of_arms_url = NULL,
+                    wiki_url = NULL,
+                    capital_place_id = NULL,
+                    seat_place_id = NULL,
+                    valid_from_bf = NULL,
+                    valid_to_bf = NULL,
+                    valid_label = NULL,
+                    min_zoom = NULL,
+                    max_zoom = NULL,
+                    is_active = 1,
+                    editor_notes = NULL,
+                    sort_order = 0
+                WHERE id IN ({$placeholders})"
+            );
+
+            $resetStatement->execute([
+                AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+                '#888888',
+                0.330,
+                ...$territoryIdsToKeep,
+            ]);
+            $territoriesReset = $resetStatement->rowCount();
+        } else {
+            $territoriesDeleted = (int) $pdo->exec('DELETE FROM political_territory');
+        }
+
+        $pdo->commit();
+
+        return [
+            'ok' => true,
+            'action' => 'reset_metadata_keep_geometries',
+            'wiki_deleted' => $wikiDeleted,
+            'relations_deleted' => $relationsDeleted,
+            'territories_reset' => $territoriesReset,
+            'territories_deleted' => $territoriesDeleted,
+            'territories_kept_for_geometry' => count($territoryIdsToKeep),
+            'active_geometry_count' => $activeGeometryCount,
+        ];
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $exception;
+    }
+}
+
 function avesmapsPoliticalNormalizeWikiRecord(array $record): array {
     $wikiUrl = avesmapsPoliticalReadWikiString($record, ['Wiki-Link', 'Wiki Link', 'wiki_url']);
     $name = avesmapsPoliticalReadWikiString($record, ['Name', 'name'], 255);

@@ -129,6 +129,12 @@ async function submitPoliticalTerritoryEdit(payload) {
 	return data;
 }
 
+async function resetPoliticalTerritoryMetadataKeepGeometries() {
+	return submitPoliticalTerritoryEdit({
+		action: "reset_metadata_keep_geometries",
+	});
+}
+
 async function undoMapAuditChange(changeId) {
 	return submitMapFeatureEdit({
 		action: "undo_audit_change",
