@@ -297,10 +297,6 @@ function avesmapsPoliticalAppendLegacyFallbackLayerRows(PDO $pdo, array $rows, a
             continue;
         }
 
-        if (!avesmapsPoliticalLayerTerritoryMatchesZoom($territory, $zoom)) {
-            continue;
-        }
-
         $candidateRecord = [
             'name' => (string) ($territory['wiki_name'] ?? $territory['name'] ?? ''),
             'geographic' => '',
