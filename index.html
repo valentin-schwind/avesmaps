@@ -121,6 +121,7 @@
 	<div id="region-context-menu" class="map-context-menu region-context-menu" hidden>
 		<button type="button" class="map-context-menu__item" data-region-context-action="edit-geometry">Grenzen bearbeiten</button>
 		<button type="button" class="map-context-menu__item" data-region-context-action="edit-properties">Eigenschaften bearbeiten</button>
+		<button type="button" class="map-context-menu__item" data-region-context-action="split">Gebiet zerschneiden</button>
 		<button type="button" class="map-context-menu__item" data-region-context-action="union">Mit anderem vereinigen</button>
 		<button type="button" class="map-context-menu__item" data-region-context-action="difference">Von anderem ausschneiden</button>
 		<button type="button" class="map-context-menu__item" data-region-context-action="difference-keep-target">Von anderem ausschneiden und anderes beibehalten</button>
@@ -926,6 +927,7 @@
 			activeRegionContextEntry = null,
 			activeRegionInfoTooltip = null,
 			pendingRegionOperation = null,
+			pendingRegionSplitPreviewLayer = null,
 			regionParentCollapsedKeys = new Set(),
 			regionParentFilterQuery = "",
 			politicalTimelineYear = 1049,

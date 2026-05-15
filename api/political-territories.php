@@ -61,6 +61,7 @@ try {
         'save_hierarchy' => avesmapsPoliticalSaveHierarchy($pdo, $payload),
         'create_geometry' => avesmapsPoliticalCreateGeometry($pdo, $payload, $user),
         'update_geometry' => avesmapsPoliticalUpdateGeometry($pdo, $payload, $user),
+        'split_geometry' => avesmapsPoliticalSplitGeometry($pdo, $payload, $user),
         'assign_geometry' => avesmapsPoliticalAssignGeometryToTerritory($pdo, $payload),
         'delete_geometry' => avesmapsPoliticalDeleteGeometry($pdo, $payload),
         'geometry_operation' => avesmapsPoliticalApplyGeometryOperationResult($pdo, $payload, $user),
@@ -1209,6 +1210,39 @@ function avesmapsPoliticalUpdateGeometry(PDO $pdo, array $payload, array $user):
     ]);
 
     return avesmapsPoliticalResponseForGeometry($pdo, (string) $geometryRow['public_id']);
+}
+
+function avesmapsPoliticalSplitGeometry(PDO $pdo, array $payload, array $user): array {
+    $geometryRow = avesmapsPoliticalFetchGeometryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? ''));
+    $splitGeometry = avesmapsPoliticalReadGeoJsonGeometry($payload['split_geometry_geojson'] ?? null);
+    $insertPayload = [
+        ...$payload,
+        'source' => $payload['source'] ?? 'editor-split',
+        'geometry_valid_from_bf' => $payload['split_valid_from_bf'] ?? $geometryRow['valid_from_bf'] ?? null,
+        'valid_to_bf' => $payload['split_valid_to_bf'] ?? $geometryRow['valid_to_bf'] ?? null,
+        'min_zoom' => $payload['split_min_zoom'] ?? $geometryRow['min_zoom'] ?? null,
+        'max_zoom' => $payload['split_max_zoom'] ?? $geometryRow['max_zoom'] ?? null,
+        'style_json' => is_array($payload['style_json'] ?? null)
+            ? $payload['style_json']
+            : avesmapsPoliticalDecodeJson($geometryRow['style_json'] ?? null),
+    ];
+
+    $pdo->beginTransaction();
+    try {
+        $result = avesmapsPoliticalUpdateGeometry($pdo, $payload, $user);
+        $splitGeometryPublicId = avesmapsPoliticalInsertGeometry($pdo, (int) $geometryRow['territory_id'], $splitGeometry, $insertPayload, $user);
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $exception;
+    }
+
+    $result['split_geometry'] = avesmapsPoliticalGeometryRowToPublic(avesmapsPoliticalFetchGeometryByPublicId($pdo, $splitGeometryPublicId));
+
+    return $result;
 }
 
 function avesmapsPoliticalAssignGeometryToTerritory(PDO $pdo, array $payload): array {
