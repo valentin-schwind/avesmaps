@@ -3815,6 +3815,9 @@ function addRegionFeatureToMap(region, regionEntry) {
 		polygon.bringToBack();
 		regionPolygons.push(polygon);
 		if (index === 0) {
+			const labelLatLng = regionEntry.labelLat !== null && regionEntry.labelLng !== null
+				? L.latLng(regionEntry.labelLat, regionEntry.labelLng)
+				: polygon.getBounds().getCenter();
 			const label = L.tooltip({
 				permanent: true,
 				direction: "center",
@@ -3823,7 +3826,7 @@ function addRegionFeatureToMap(region, regionEntry) {
 				className: "region-label",
 				pane: "regionLabelsPane"
 			})
-				.setLatLng(polygon.getBounds().getCenter())
+				.setLatLng(labelLatLng)
 				.setContent(createRegionLabelMarkup(regionEntry, name));
 
 			regionEntry.label = label;
@@ -4332,6 +4335,8 @@ function normalizeRegionFeature(feature) {
 		wikiCapitalName: properties.wiki_capital_name || properties.capital_name || "",
 		wikiSeatName: properties.wiki_seat_name || properties.seat_name || "",
 		parentPublicId: properties.parent_public_id || "",
+		labelLng: Number.isFinite(Number(properties.label_lng)) ? Number(properties.label_lng) : null,
+		labelLat: Number.isFinite(Number(properties.label_lat)) ? Number(properties.label_lat) : null,
 		minZoom: Number.isFinite(Number(properties.min_zoom)) ? Number(properties.min_zoom) : null,
 		maxZoom: Number.isFinite(Number(properties.max_zoom)) ? Number(properties.max_zoom) : null,
 		isActive: properties.is_active !== false,
@@ -4483,6 +4488,11 @@ function startRegionGeometryEdit(regionEntry, editLayer = null) {
 
 function updateRegionLabelPosition(regionEntry) {
 	if (regionEntry?.label && regionEntry.layer) {
+		if (regionEntry.labelLat !== null && regionEntry.labelLng !== null) {
+			regionEntry.label.setLatLng(L.latLng(regionEntry.labelLat, regionEntry.labelLng));
+			return;
+		}
+
 		const bounds = getRegionEntryBounds(regionEntry);
 		regionEntry.label.setLatLng(bounds?.getCenter?.() || regionEntry.layer.getBounds().getCenter());
 	}

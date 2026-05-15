@@ -357,6 +357,15 @@ function avesmapsPoliticalBuildResolvedLayerFeatures(array $geometryRows, array 
         );
     }
 
+    foreach ($featuresByTerritory as &$feature) {
+        $labelCenter = avesmapsPoliticalComputeGeometryLabelCenter($feature['geometry'] ?? null);
+        if ($labelCenter !== null) {
+            $feature['properties']['label_lng'] = $labelCenter['lng'];
+            $feature['properties']['label_lat'] = $labelCenter['lat'];
+        }
+    }
+    unset($feature);
+
     return array_values($featuresByTerritory);
 }
 
@@ -492,6 +501,66 @@ function avesmapsPoliticalMergeLayerGeometries(?array $leftGeometry, ?array $rig
     return count($polygons) === 1
         ? ['type' => 'Polygon', 'coordinates' => $polygons[0]]
         : ['type' => 'MultiPolygon', 'coordinates' => $polygons];
+}
+
+function avesmapsPoliticalComputeGeometryLabelCenter(?array $geometry): ?array {
+    if (!is_array($geometry)) {
+        return null;
+    }
+
+    $points = [];
+    if (($geometry['type'] ?? '') === 'Polygon') {
+        $points = avesmapsPoliticalCollectGeometryPoints($geometry['coordinates'] ?? null);
+    } elseif (($geometry['type'] ?? '') === 'MultiPolygon') {
+        foreach ((array) ($geometry['coordinates'] ?? []) as $polygon) {
+            $points = array_merge($points, avesmapsPoliticalCollectGeometryPoints($polygon));
+        }
+    }
+
+    if ($points === []) {
+        return null;
+    }
+
+    $minLng = null;
+    $maxLng = null;
+    $minLat = null;
+    $maxLat = null;
+    foreach ($points as $point) {
+        $lng = (float) ($point[0] ?? 0);
+        $lat = (float) ($point[1] ?? 0);
+        $minLng = $minLng === null ? $lng : min($minLng, $lng);
+        $maxLng = $maxLng === null ? $lng : max($maxLng, $lng);
+        $minLat = $minLat === null ? $lat : min($minLat, $lat);
+        $maxLat = $maxLat === null ? $lat : max($maxLat, $lat);
+    }
+
+    if ($minLng === null || $maxLng === null || $minLat === null || $maxLat === null) {
+        return null;
+    }
+
+    return [
+        'lng' => ($minLng + $maxLng) / 2,
+        'lat' => ($minLat + $maxLat) / 2,
+    ];
+}
+
+function avesmapsPoliticalCollectGeometryPoints(mixed $polygon): array {
+    $points = [];
+    foreach ((array) $polygon as $ring) {
+        if (!is_array($ring)) {
+            continue;
+        }
+
+        foreach ($ring as $point) {
+            if (!is_array($point) || count($point) < 2) {
+                continue;
+            }
+
+            $points[] = [(float) $point[0], (float) $point[1]];
+        }
+    }
+
+    return $points;
 }
 
 function avesmapsPoliticalListTerritories(PDO $pdo, array $query): array {
