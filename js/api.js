@@ -87,6 +87,7 @@ async function fetchPoliticalTerritories(params = {}) {
 	}
 
 	const url = new URL(POLITICAL_TERRITORIES_API_URL, window.location.href);
+	url.searchParams.set("_", String(Date.now()));
 	Object.entries(params).forEach(([key, value]) => {
 		if (value !== undefined && value !== null && value !== "") {
 			url.searchParams.set(key, String(value));
@@ -94,9 +95,12 @@ async function fetchPoliticalTerritories(params = {}) {
 	});
 
 	const response = await fetch(url.toString(), {
+		cache: "no-store",
 		credentials: "same-origin",
 		headers: {
 			Accept: "application/json",
+			"Cache-Control": "no-cache",
+			Pragma: "no-cache",
 		},
 	});
 	const data = await readJsonResponse(response, {});
