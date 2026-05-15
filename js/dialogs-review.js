@@ -1172,9 +1172,60 @@ async function loadPoliticalTerritoryWikiReferences() {
 		return politicalTerritoryWikiReferences;
 	}
 
-	const response = await fetchPoliticalTerritories({ action: "wiki_list", continent: "Aventurien" });
-	politicalTerritoryWikiReferences = Array.isArray(response.wiki) ? response.wiki : [];
+	try {
+		const response = await fetchPoliticalTerritories({ action: "wiki_list", continent: "Aventurien" });
+		politicalTerritoryWikiReferences = Array.isArray(response.wiki) ? response.wiki : [];
+	} catch (error) {
+		console.warn("Wiki-Referenzen werden aus der statischen Referenzdatei geladen:", error);
+		politicalTerritoryWikiReferences = await loadPoliticalTerritoryWikiReferenceFallback();
+	}
 	return politicalTerritoryWikiReferences;
+}
+
+async function loadPoliticalTerritoryWikiReferenceFallback() {
+	const response = await fetch("data/wiki/avesmaps-herrschaftsgebiete.json", {
+		credentials: "same-origin",
+		headers: {
+			Accept: "application/json",
+		},
+	});
+	if (!response.ok) {
+		throw new Error(`Statische Wiki-Referenz antwortet mit HTTP ${response.status}.`);
+	}
+
+	const data = await response.json().catch(() => []);
+	return Array.isArray(data) ? data.map((entry, index) => normalizeStaticWikiReferenceRecord(entry, index)) : [];
+}
+
+function normalizeStaticWikiReferenceRecord(record, index) {
+	return {
+		id: index + 1,
+		wiki_key: getStaticWikiReferenceValue(record, ["Wiki-Link", "Wiki Link", "wiki_url", "Name", "name"]),
+		name: getStaticWikiReferenceValue(record, ["Name", "name"]),
+		type: normalizeParentheticalSpacing(getStaticWikiReferenceValue(record, ["Typ", "type"])),
+		continent: getStaticWikiReferenceValue(record, ["Kontinent", "continent"]),
+		affiliation_raw: getStaticWikiReferenceValue(record, ["Zugehörigkeit", "Zugehoerigkeit", "affiliation_raw"]),
+		affiliation_root: getStaticWikiReferenceValue(record, ["Zugehörigkeit-Root", "Zugehoerigkeit-Root", "affiliation_root"]),
+		affiliation_path: getStaticWikiReferenceValue(record, ["Zugehörigkeit-Pfad", "Zugehoerigkeit-Pfad", "affiliation_path"]),
+		status: getStaticWikiReferenceValue(record, ["Status", "status"]),
+		capital_name: getStaticWikiReferenceValue(record, ["Hauptstadt", "capital_name"]),
+		seat_name: getStaticWikiReferenceValue(record, ["Herrschaftssitz", "seat_name"]),
+		ruler: getStaticWikiReferenceValue(record, ["Oberhaupt", "ruler"]),
+		founded_text: getStaticWikiReferenceValue(record, ["Gründungsdatum-Text", "Gründungsdatum", "founded_text"]),
+		dissolved_text: getStaticWikiReferenceValue(record, ["Aufgelöst-Text", "Aufgelöst", "dissolved_text"]),
+		wiki_url: getStaticWikiReferenceValue(record, ["Wiki-Link", "wiki_url"]),
+		coat_of_arms_url: getStaticWikiReferenceValue(record, ["Wappen", "Wappen-Link", "coat_of_arms_url"]),
+	};
+}
+
+function getStaticWikiReferenceValue(record, keys) {
+	for (const key of keys) {
+		if (Object.prototype.hasOwnProperty.call(record, key)) {
+			return String(record[key] || "").trim();
+		}
+	}
+
+	return "";
 }
 
 async function openRegionWikiPickerDialog() {
@@ -1219,6 +1270,7 @@ function renderRegionWikiPickerList(filterValue) {
 		button.querySelector(".political-territory-wiki-picker-list__meta").textContent = normalizeParentheticalSpacing([
 			entry.type,
 			entry.affiliation_root,
+			entry.continent,
 			buildWikiReferencePeriod({
 				wiki_founded_text: entry.founded_text,
 				wiki_dissolved_text: entry.dissolved_text,
