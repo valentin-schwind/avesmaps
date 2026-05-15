@@ -918,6 +918,12 @@ function populateRegionParentSelect(region) {
 }
 
 function buildPoliticalTerritoryTree(excludedPublicId) {
+	if (Array.isArray(politicalTerritoryHierarchy) && politicalTerritoryHierarchy.length > 0) {
+		return politicalTerritoryHierarchy
+			.map((node) => clonePoliticalTerritoryHierarchyNode(node))
+			.filter(Boolean);
+	}
+
 	const byId = new Map();
 	politicalTerritoryOptions
 		.forEach((territory) => {
@@ -947,6 +953,29 @@ function buildPoliticalTerritoryTree(excludedPublicId) {
 	};
 	sortNodes(territoryRoots);
 	return territoryRoots;
+}
+
+function clonePoliticalTerritoryHierarchyNode(node) {
+	if (!node || typeof node !== "object") {
+		return null;
+	}
+
+	const territory = {
+		public_id: node.public_id || "",
+		name: node.name || "",
+		type: node.type || "",
+		valid_label: node.valid_label || "",
+		parent_public_id: node.parent_public_id || "",
+		parent_name: node.parent_name || "",
+	};
+	const option = territory.public_id ? findPoliticalTerritoryOption(territory.public_id) : null;
+	const mergedTerritory = option ? { ...option, ...territory } : territory;
+	return {
+		key: `territory:${mergedTerritory.public_id || mergedTerritory.name}`,
+		territory: mergedTerritory,
+		children: Array.isArray(node.children) ? node.children.map((child) => clonePoliticalTerritoryHierarchyNode(child)).filter(Boolean) : [],
+		isGroup: false,
+	};
 }
 
 function renderPoliticalTerritoryTreeNode(node, region, depth) {
@@ -1593,16 +1622,14 @@ function openRegionEditDialog(entry, { title = "Eigenschaften bearbeiten" } = {}
 	const initialEntry = regionEditTabs[0] || entry;
 	populateRegionEditForm(initialEntry, { preserveTabs: true });
 	setRegionEditDialogOpen(true);
-	if ((entry?.source || "") === "political_territory" && politicalTerritoryOptions.length === 0) {
-		void loadPoliticalTerritoryOptions().then(() => {
-			if (regionEditEntry === initialEntry || regionEditEntry === entry) {
-				const activeEntry = regionEditTabs[0] || initialEntry;
-				populateRegionTypeOptions(activeEntry?.region || activeEntry || {});
-				populateRegionParentSelect(activeEntry?.region || activeEntry || {});
-				updateRegionParentDropTarget((activeEntry?.region || activeEntry || {}).parentPublicId || "");
-			}
-		});
-	}
+	void loadPoliticalTerritoryOptions().then(() => {
+		if (regionEditEntry === initialEntry || regionEditEntry === entry || regionEditTabs.length > 0) {
+			const activeEntry = regionEditTabs[0] || initialEntry;
+			populateRegionTypeOptions(activeEntry?.region || activeEntry || {});
+			populateRegionParentSelect(activeEntry?.region || activeEntry || {});
+			updateRegionParentDropTarget((activeEntry?.region || activeEntry || {}).parentPublicId || "");
+		}
+	});
 }
 
 $(document).on("click", "[data-region-parent-id]", function (event) {

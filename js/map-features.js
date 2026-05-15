@@ -3925,16 +3925,19 @@ async function loadPoliticalTerritoryLayer() {
 async function loadPoliticalTerritoryOptions() {
 	if (!POLITICAL_TERRITORIES_API_URL) {
 		politicalTerritoryOptions = [];
+		politicalTerritoryHierarchy = [];
 		return [];
 	}
 
 	try {
 		const response = await fetchPoliticalTerritories({ action: "list", continent: "Aventurien" });
 		politicalTerritoryOptions = Array.isArray(response.territories) ? response.territories : [];
+		politicalTerritoryHierarchy = Array.isArray(response.hierarchy) ? response.hierarchy : [];
 		return politicalTerritoryOptions;
 	} catch (error) {
 		console.warn("Herrschaftsgebiet-Liste konnte nicht geladen werden:", error);
 		politicalTerritoryOptions = [];
+		politicalTerritoryHierarchy = [];
 		return [];
 	}
 }
