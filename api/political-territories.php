@@ -36,6 +36,7 @@ try {
             'wiki_list' => avesmapsPoliticalListWikiReferences($pdo, $_GET),
             'hierarchy' => avesmapsPoliticalReadHierarchy($pdo),
             'geometries' => avesmapsPoliticalReadGeometries($pdo, $_GET),
+            'geometry_assignment' => avesmapsPoliticalGetGeometryAssignment($pdo, $_GET),
             'debug' => avesmapsPoliticalReadDebug($pdo, $_GET),
             'audit' => avesmapsPoliticalReadAudit($pdo, $_GET),
             default => throw new InvalidArgumentException('Die Herrschaftsgebiet-Aktion ist unbekannt.'),
@@ -111,6 +112,127 @@ try {
         $response['exception'] = avesmapsPoliticalDebugExceptionPayload($exception);
     }
     avesmapsJsonResponse(500, $response);
+}
+
+function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
+    $geometry = avesmapsPoliticalFetchGeometryByPublicId(
+        $pdo,
+        avesmapsPoliticalReadPublicId($query['geometry_public_id'] ?? $query['public_id'] ?? '')
+    );
+
+    $territoryId = (int) ($geometry['territory_id'] ?? 0);
+    if ($territoryId < 1) {
+        return [
+            'ok' => true,
+            'assignment' => null,
+            'geometry' => avesmapsPoliticalGeometryRowToPublic($geometry),
+        ];
+    }
+
+    $chain = [];
+    $visited = [];
+    $current = avesmapsPoliticalFetchTerritoryById($pdo, $territoryId);
+
+    while ($current && !isset($visited[(int) $current['id']])) {
+        $visited[(int) $current['id']] = true;
+        array_unshift($chain, $current);
+
+        $parentId = (int) ($current['parent_id'] ?? 0);
+        if ($parentId < 1) {
+            break;
+        }
+
+        $current = avesmapsPoliticalFetchTerritoryById($pdo, $parentId);
+    }
+
+    $assignedPath = [];
+    $displays = [];
+
+    foreach ($chain as $index => $territory) {
+        $wikiKey = '';
+        if (!empty($territory['wiki_id'])) {
+            try {
+                $wiki = avesmapsPoliticalFetchWikiById($pdo, (int) $territory['wiki_id']);
+                $wikiKey = (string) ($wiki['wiki_key'] ?? '');
+            } catch (Throwable) {
+                $wikiKey = '';
+            }
+        }
+
+        $label = (string) ($territory['name'] ?? '');
+        $nodeKey = $wikiKey !== '' ? $wikiKey : avesmapsPoliticalSlug($label);
+
+        $assignedPath[] = [
+            'id' => $nodeKey,
+            'key' => $nodeKey,
+            'label' => $label,
+            'kind' => (string) ($territory['type'] ?? 'Herrschaftsgebiet'),
+            'isSynthetic' => empty($territory['wiki_id']),
+            'wikiKey' => $wikiKey,
+            'rowId' => isset($territory['wiki_id']) ? (int) $territory['wiki_id'] : null,
+            'path' => array_map(static fn(array $item): string => (string) ($item['name'] ?? ''), array_slice($chain, 0, $index + 1)),
+            'pathKeys' => array_map(
+                static fn(array $item): string => avesmapsPoliticalSlug((string) ($item['name'] ?? '')),
+                array_slice($chain, 0, $index + 1)
+            ),
+        ];
+
+        $validTo = avesmapsPoliticalNullableInt($territory['valid_to_bf'] ?? null);
+        $existsUntilToday = $validTo === null || $validTo >= 9999;
+
+        $displays[] = [
+            'nodeId' => $nodeKey,
+            'nodeKey' => avesmapsPoliticalSlug($label),
+            'wikiKey' => $wikiKey,
+            'rowId' => isset($territory['wiki_id']) ? (int) $territory['wiki_id'] : null,
+            'name' => $label,
+            'displayName' => $label,
+            'coatOfArmsUrl' => (string) ($territory['coat_of_arms_url'] ?? ''),
+            'zoomMin' => avesmapsPoliticalNullableInt($territory['min_zoom'] ?? null),
+            'zoomMax' => avesmapsPoliticalNullableInt($territory['max_zoom'] ?? null),
+            'color' => (string) ($territory['color'] ?? '#888888'),
+            'opacity' => (float) ($territory['opacity'] ?? 0.33),
+            'startYear' => avesmapsPoliticalNullableInt($territory['valid_from_bf'] ?? null),
+            'endYear' => $existsUntilToday ? null : $validTo,
+            'existsUntilToday' => $existsUntilToday,
+            'depth' => $index,
+            'path' => array_map(static fn(array $item): string => (string) ($item['name'] ?? ''), array_slice($chain, 0, $index + 1)),
+            'pathKeys' => array_map(
+                static fn(array $item): string => avesmapsPoliticalSlug((string) ($item['name'] ?? '')),
+                array_slice($chain, 0, $index + 1)
+            ),
+            'isSynthetic' => empty($territory['wiki_id']),
+            'kind' => (string) ($territory['type'] ?? 'Herrschaftsgebiet'),
+        ];
+    }
+
+    $assignedTerritory = $assignedPath[count($assignedPath) - 1] ?? null;
+    $activeDisplay = $displays[count($displays) - 1] ?? null;
+
+    return [
+        'ok' => true,
+        'geometry' => avesmapsPoliticalGeometryRowToPublic($geometry),
+        'assignment' => [
+            'assignedTerritory' => $assignedTerritory,
+            'activeDisplayNode' => $assignedTerritory,
+            'assignedPath' => $assignedPath,
+            'editedPath' => $assignedPath,
+            'display' => $activeDisplay === null ? null : [
+                'name' => $activeDisplay['displayName'],
+                'coatOfArmsUrl' => $activeDisplay['coatOfArmsUrl'],
+                'zoomMin' => $activeDisplay['zoomMin'],
+                'zoomMax' => $activeDisplay['zoomMax'],
+                'color' => $activeDisplay['color'],
+                'opacity' => $activeDisplay['opacity'],
+            ],
+            'validity' => $activeDisplay === null ? null : [
+                'startYear' => $activeDisplay['startYear'],
+                'endYear' => $activeDisplay['endYear'],
+                'existsUntilToday' => $activeDisplay['existsUntilToday'],
+            ],
+            'displays' => $displays,
+        ],
+    ];
 }
 
 function avesmapsPoliticalDebugExceptionPayload(Throwable $exception): array {

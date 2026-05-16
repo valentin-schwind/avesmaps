@@ -1189,6 +1189,7 @@
 				setStatus("Fertig");
 				updateFilters();
 				render();
+				await loadExistingGeometryAssignmentFromUrl();
 			} catch (error) {
 				allRows = [];
 				currentTree = null;
@@ -1234,6 +1235,35 @@
 					coat_of_arms_url: normalizeText(row.coat_of_arms_url)
 				}))
 				.filter(row => row.name);
+		}
+		
+		async function loadExistingGeometryAssignmentFromUrl() {
+			const params = new URLSearchParams(window.location.search);
+			const geometryPublicId = normalizeText(params.get("geometry_public_id") || "");
+
+			if (!geometryPublicId) {
+				return;
+			}
+
+			const separator = WRITE_API_URL.includes("?") ? "&" : "?";
+			const response = await fetch(`${WRITE_API_URL}${separator}action=geometry_assignment&geometry_public_id=${encodeURIComponent(geometryPublicId)}`, {
+				method: "GET",
+				credentials: "same-origin",
+				headers: {
+					"Accept": "application/json"
+				}
+			});
+
+			const payload = await response.json();
+
+			if (!response.ok || !payload.ok) {
+				throw new Error(payload.error || `HTTP ${response.status}`);
+			}
+
+			if (payload.assignment) {
+				setAssignmentValue(payload.assignment);
+				setFormStatus("Bestehende Eigenschaften geladen.", "success");
+			}
 		}
 
 		function normalizeAffiliationPath(row) {
@@ -2198,8 +2228,14 @@
 		function setAssignmentValue(value = {}) {
 			pendingValue = value;
 
-			if (value.territoryWikiKey || value.assignedTerritory?.wikiKey || value.assignedTerritory?.key) {
-				setSelectedTerritory(value.territoryWikiKey || value.assignedTerritory?.wikiKey || value.assignedTerritory?.key);
+			const selectedIdentifier = value.territoryWikiKey
+				|| value.assignedTerritory?.wikiKey
+				|| value.assignedTerritory?.key
+				|| value.assignedTerritory?.label
+				|| "";
+
+			if (selectedIdentifier) {
+				setSelectedTerritory(selectedIdentifier);
 			}
 
 			const display = value.display || value;
