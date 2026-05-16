@@ -211,6 +211,16 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
     $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
 
     $territories = avesmapsPoliticalFetchLayerTerritories($pdo, $yearBf);
+    if ($isEditMode) {
+        return [
+            'ok' => true,
+            'type' => 'FeatureCollection',
+            'year_bf' => $yearBf,
+            'zoom' => $zoom,
+            'features' => avesmapsPoliticalBuildRawEditorLayerFeatures($rows, $yearBf, $zoom),
+        ];
+    }
+
     if (!$isEditMode) {
         $rows = avesmapsPoliticalAppendLegacyFallbackLayerRows($pdo, $rows, $territories, $zoom);
     }
@@ -224,6 +234,27 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
         'zoom' => $zoom,
         'features' => $features,
     ];
+}
+
+function avesmapsPoliticalBuildRawEditorLayerFeatures(array $rows, int $yearBf, int $zoom): array {
+    $features = [];
+    foreach ($rows as $row) {
+        if (!avesmapsPoliticalLayerRowMatchesOwnZoom($row, $zoom)) {
+            continue;
+        }
+
+        $features[] = avesmapsPoliticalLayerRowToFeature($row, $yearBf, $zoom);
+    }
+
+    return $features;
+}
+
+function avesmapsPoliticalLayerRowMatchesOwnZoom(array $row, int $zoom): bool {
+    $minZoom = avesmapsPoliticalNullableInt($row['geometry_min_zoom'] ?? $row['territory_min_zoom'] ?? null);
+    $maxZoom = avesmapsPoliticalNullableInt($row['geometry_max_zoom'] ?? $row['territory_max_zoom'] ?? null);
+
+    return ($minZoom === null || $minZoom <= $zoom)
+        && ($maxZoom === null || $maxZoom >= $zoom);
 }
 
 function avesmapsPoliticalFetchLayerTerritories(PDO $pdo, int $yearBf): array {
