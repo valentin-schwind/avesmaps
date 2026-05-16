@@ -793,11 +793,13 @@ function avesmapsPoliticalBuildAggregateLayerRow(array $displayTerritory, array 
 function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom): array {
     $style = avesmapsPoliticalDecodeJson($row['style_json'] ?? null);
     $territoryPublicId = trim((string) ($row['territory_public_id'] ?? ''));
-    $displayName = trim((string) ($row['name'] ?? ''));
+    $styleDisplayName = trim((string) ($style['displayName'] ?? $style['name'] ?? ''));
+    $rowDisplayName = trim((string) ($row['name'] ?? ''));
+    $displayName = $styleDisplayName !== '' ? $styleDisplayName : $rowDisplayName;
     $shortName = trim((string) ($row['short_name'] ?? ''));
     $fallbackName = $territoryPublicId !== '' ? 'Herrschaftsgebiet' : 'Freie Geometrie';
     $resolvedDisplayName = $displayName !== '' ? $displayName : $fallbackName;
-    $resolvedName = $shortName !== '' ? $shortName : $resolvedDisplayName;
+    $resolvedName = $styleDisplayName !== '' ? $styleDisplayName : ($shortName !== '' ? $shortName : $resolvedDisplayName);
     $resolvedType = trim((string) ($row['type'] ?? '')) ?: 'Herrschaftsgebiet';
     $properties = [
         'type' => 'region',
@@ -816,7 +818,7 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         'fill' => (string) ($style['fill'] ?? $row['color'] ?? '#888888'),
         'stroke' => (string) ($style['stroke'] ?? $row['color'] ?? '#888888'),
         'fillOpacity' => (float) ($style['fillOpacity'] ?? $row['opacity'] ?? 0.33),
-        'coat_of_arms_url' => (string) ($row['coat_of_arms_url'] ?? ''),
+        'coat_of_arms_url' => (string) ($style['coatOfArmsUrl'] ?? $style['coat_of_arms_url'] ?? $row['coat_of_arms_url'] ?? ''),
         'wiki_url' => (string) ($row['wiki_url'] ?? ''),
         'wiki_id' => isset($row['wiki_id']) ? (int) $row['wiki_id'] : null,
         'wiki_name' => (string) ($row['wiki_name'] ?? ''),
@@ -1815,6 +1817,24 @@ function avesmapsPoliticalSaveGeometryDisplayOnly(PDO $pdo, array $payload, arra
 
     if (array_key_exists('opacity', $display)) {
         $style['fillOpacity'] = avesmapsPoliticalReadOpacity($display['opacity'] ?? 0.33);
+    }
+
+    if (array_key_exists('name', $display)) {
+        $displayName = trim((string) ($display['name'] ?? ''));
+        if ($displayName !== '') {
+            $style['displayName'] = $displayName;
+            $style['name'] = $displayName;
+        }
+    }
+
+    if (array_key_exists('coatOfArmsUrl', $display)) {
+        $coatOfArmsUrl = avesmapsPoliticalReadOptionalUrl(
+            $display['coatOfArmsUrl'] ?? '',
+            'Der Wappen-Link'
+        );
+        if ($coatOfArmsUrl !== '') {
+            $style['coatOfArmsUrl'] = $coatOfArmsUrl;
+        }
     }
 
     $minZoom = avesmapsPoliticalReadOptionalZoom($display['zoomMin'] ?? $geometry['min_zoom'] ?? null);
