@@ -643,13 +643,6 @@ $("#mapStyleSelect").on("change", function () {
 
 	setMapStyle(String(this.value || "stylized"), { persist: true });
 });
-map.on("click", () => {
-	if (!IS_EDIT_MODE || pendingRegionOperation || pendingRegionMoveState) {
-		return;
-	}
-
-	clearRegionGeometryEdit();
-});
 $("#togglePaths").change(syncPathVisibility);
 $("#mapLayerModeSelect").change(() => {
 	setSelectedMapLayerMode(getSelectedMapLayerMode());

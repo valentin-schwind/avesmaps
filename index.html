@@ -1019,6 +1019,9 @@
 		});
 		map.on("click", () => {
 			closeRegionCompactTooltip();
+			if (IS_EDIT_MODE && !pendingRegionOperation && !pendingRegionMoveState) {
+				clearRegionGeometryEdit();
+			}
 		});
 		document.addEventListener("visibilitychange", () => {
 			if (document.visibilityState === "visible") {
