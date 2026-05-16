@@ -1871,55 +1871,57 @@ function renderRegionAssignmentSummary(summaryElement, wiki, territory = null, o
 	summaryElement.hidden = false;
 	summaryElement.dataset.regionAssignmentActiveId = territoryPublicId;
 	summaryElement.innerHTML = `
-		${coatUrl ? `<img src="${escapeHtml(coatUrl)}" alt="">` : "<span></span>"}
+		${coatUrl ? `<img src="${escapeHtml(coatUrl)}" alt="">` : ""}
 		<div class="political-territory-assignment-summary__content">
-			<div class="political-territory-assignment-summary__wiki-box">
-				<dl>${rows.map(([label, value]) => {
+			<div class="political-territory-assignment-summary__panes">
+				<div class="political-territory-assignment-summary__wiki-box">
+					<dl>${rows.map(([label, value]) => {
 			if (label === "Wiki-Link" && wikiUrl) {
 				return `<dt>${escapeHtml(label)}</dt><dd><a href="${escapeHtml(wikiUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(wikiUrl)}</a></dd>`;
 			}
 
 			return `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`;
 		}).join("")}</dl>
-			</div>
-			<div class="political-territory-assignment-summary__settings-box">
-				<div class="political-territory-assignment-summary__controls">
-				<label class="political-territory-assignment-summary__field">
-					<span>Zoom von</span>
-					<input data-region-assignment-zoom-field="min" data-region-assignment-zoom-min type="number" min="0" max="6" step="1" value="${escapeHtml(normalizedZoom.minText)}" />
-				</label>
-				<label class="political-territory-assignment-summary__field">
-					<span>Zoom bis</span>
-					<input data-region-assignment-zoom-field="max" data-region-assignment-zoom-max type="number" min="0" max="6" step="1" value="${escapeHtml(normalizedZoom.maxText)}" />
-				</label>
-				<label class="political-territory-assignment-summary__field">
-					<span>Farbe</span>
-					<input data-region-assignment-field="color" type="color" value="${escapeHtml(territory?.color || "#888888")}" />
-				</label>
-				<label class="political-territory-assignment-summary__field">
-					<span>Transparenz ${escapeHtml(String(opacityPercent))}%</span>
-					<input data-region-assignment-field="opacity" type="range" min="0" max="100" step="1" value="${escapeHtml(String(opacityPercent))}" />
-				</label>
-				<label class="political-territory-assignment-summary__field political-territory-assignment-summary__field--wide">
-					<span>Anzeigename</span>
-					<input data-region-assignment-field="name" type="text" maxlength="160" value="${escapeHtml(territory?.name || territory?.displayName || "")}" />
-				</label>
-				<label class="political-territory-assignment-summary__field political-territory-assignment-summary__field--wide">
-					<span>Neuer Wappen-Link</span>
-					<input data-region-assignment-field="coat" type="url" maxlength="500" value="${escapeHtml(territory?.coat_of_arms_url || territory?.coatOfArmsUrl || "")}" />
-				</label>
-				<label class="political-territory-assignment-summary__field">
-					<span>Von</span>
-					<input data-region-assignment-field="valid-from" type="number" step="1" value="${escapeHtml(String(validFromText))}" />
-				</label>
-				<label class="political-territory-assignment-summary__field">
-					<span>Bis</span>
-					<input data-region-assignment-field="valid-to" type="number" step="1" value="${escapeHtml(validToText)}" ${validToOpen ? "disabled" : ""} />
-				</label>
-				<label class="political-territory-assignment-summary__field political-territory-assignment-summary__field--wide political-territory-assignment-summary__checkbox">
-					<input data-region-assignment-field="valid-open" type="checkbox" ${validToOpen ? "checked" : ""} />
-					<span>Heute</span>
-				</label>
+				</div>
+				<div class="political-territory-assignment-summary__settings-box">
+					<div class="political-territory-assignment-summary__controls">
+						<label class="political-territory-assignment-summary__field">
+							<span>Zoom von</span>
+							<input data-region-assignment-zoom-field="min" data-region-assignment-zoom-min type="number" min="0" max="6" step="1" value="${escapeHtml(normalizedZoom.minText)}" />
+						</label>
+						<label class="political-territory-assignment-summary__field">
+							<span>Zoom bis</span>
+							<input data-region-assignment-zoom-field="max" data-region-assignment-zoom-max type="number" min="0" max="6" step="1" value="${escapeHtml(normalizedZoom.maxText)}" />
+						</label>
+						<label class="political-territory-assignment-summary__field">
+							<span>Farbe</span>
+							<input data-region-assignment-field="color" type="color" value="${escapeHtml(territory?.color || "#888888")}" />
+						</label>
+						<label class="political-territory-assignment-summary__field">
+							<span>Transparenz ${escapeHtml(String(opacityPercent))}%</span>
+							<input data-region-assignment-field="opacity" type="range" min="0" max="100" step="1" value="${escapeHtml(String(opacityPercent))}" />
+						</label>
+						<label class="political-territory-assignment-summary__field political-territory-assignment-summary__field--wide">
+							<span>Anzeigename</span>
+							<input data-region-assignment-field="name" type="text" maxlength="160" value="${escapeHtml(territory?.name || territory?.displayName || "")}" />
+						</label>
+						<label class="political-territory-assignment-summary__field political-territory-assignment-summary__field--wide">
+							<span>Neuer Wappen-Link</span>
+							<input data-region-assignment-field="coat" type="url" maxlength="500" value="${escapeHtml(territory?.coat_of_arms_url || territory?.coatOfArmsUrl || "")}" />
+						</label>
+						<label class="political-territory-assignment-summary__field">
+							<span>Von</span>
+							<input data-region-assignment-field="valid-from" type="number" step="1" value="${escapeHtml(String(validFromText))}" />
+						</label>
+						<label class="political-territory-assignment-summary__field">
+							<span>Bis</span>
+							<input data-region-assignment-field="valid-to" type="number" step="1" value="${escapeHtml(validToText)}" ${validToOpen ? "disabled" : ""} />
+						</label>
+						<label class="political-territory-assignment-summary__field political-territory-assignment-summary__field--wide political-territory-assignment-summary__checkbox">
+							<input data-region-assignment-field="valid-open" type="checkbox" ${validToOpen ? "checked" : ""} />
+							<span>Heute</span>
+						</label>
+					</div>
 				</div>
 			</div>
 		</div>
