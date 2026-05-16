@@ -1008,23 +1008,13 @@ function clonePoliticalTerritoryHierarchyNode(node) {
 	};
 	const option = territory.public_id ? findPoliticalTerritoryOption(territory.public_id) : null;
 	let mergedTerritory = option ? { ...option, ...territory } : territory;
-	if (isGroup && !mergedTerritory.public_id) {
+	if (isGroup && !hasPoliticalTerritoryTreeDisplayDetails(mergedTerritory)) {
 		const representative = findRepresentativePoliticalTerritoryNode({
 			territory: mergedTerritory,
 			children,
 		});
 		if (representative?.territory?.public_id) {
-			mergedTerritory = {
-				...representative.territory,
-				name: territory.name || representative.territory.name || "",
-				short_name: territory.short_name || representative.territory.short_name || "",
-				wiki_name: territory.wiki_name || representative.territory.wiki_name || "",
-				wiki_affiliation_root: territory.wiki_affiliation_root || representative.territory.wiki_affiliation_root || "",
-				aliases: Array.from(new Set([
-					...(Array.isArray(territory.aliases) ? territory.aliases : []),
-					...(Array.isArray(representative.territory.aliases) ? representative.territory.aliases : []),
-				])),
-			};
+			mergedTerritory = mergePoliticalTerritoryTreeGroupNode(territory, representative.territory, option);
 		}
 	}
 	return {
@@ -1032,6 +1022,63 @@ function clonePoliticalTerritoryHierarchyNode(node) {
 		territory: mergedTerritory,
 		children,
 		isGroup,
+	};
+}
+
+function hasPoliticalTerritoryTreeDisplayDetails(territory) {
+	if (!territory || typeof territory !== "object") {
+		return false;
+	}
+
+	return [
+		territory.type,
+		territory.status,
+		territory.form_of_government,
+		territory.valid_label,
+		territory.wiki_name,
+		territory.capital_name,
+		territory.seat_name,
+		territory.ruler,
+		territory.founded_text,
+		territory.dissolved_text,
+	].some((value) => String(value || "").trim() !== "");
+}
+
+function mergePoliticalTerritoryTreeGroupNode(groupTerritory, representativeTerritory, option = null) {
+	const mergedAliases = Array.from(new Set([
+		...(Array.isArray(groupTerritory?.aliases) ? groupTerritory.aliases : []),
+		...(Array.isArray(representativeTerritory?.aliases) ? representativeTerritory.aliases : []),
+	]));
+
+	return {
+		...(option || {}),
+		...(representativeTerritory || {}),
+		...(groupTerritory || {}),
+		public_id: String(groupTerritory?.public_id || representativeTerritory?.public_id || ""),
+		name: groupTerritory?.name || representativeTerritory?.name || "",
+		short_name: groupTerritory?.short_name || representativeTerritory?.short_name || "",
+		type: groupTerritory?.type || representativeTerritory?.type || "",
+		status: groupTerritory?.status || representativeTerritory?.status || "",
+		form_of_government: groupTerritory?.form_of_government || representativeTerritory?.form_of_government || "",
+		valid_label: groupTerritory?.valid_label || representativeTerritory?.valid_label || "",
+		parent_public_id: groupTerritory?.parent_public_id || representativeTerritory?.parent_public_id || "",
+		parent_name: groupTerritory?.parent_name || representativeTerritory?.parent_name || "",
+		wiki_name: groupTerritory?.wiki_name || representativeTerritory?.wiki_name || representativeTerritory?.name || "",
+		wiki_affiliation_raw: groupTerritory?.wiki_affiliation_raw || representativeTerritory?.wiki_affiliation_raw || "",
+		wiki_affiliation_root: groupTerritory?.wiki_affiliation_root || representativeTerritory?.wiki_affiliation_root || "",
+		wiki_url: groupTerritory?.wiki_url || representativeTerritory?.wiki_url || "",
+		capital_name: groupTerritory?.capital_name || representativeTerritory?.capital_name || "",
+		seat_name: groupTerritory?.seat_name || representativeTerritory?.seat_name || "",
+		ruler: groupTerritory?.ruler || representativeTerritory?.ruler || "",
+		founder: groupTerritory?.founder || representativeTerritory?.founder || "",
+		language: groupTerritory?.language || representativeTerritory?.language || "",
+		currency: groupTerritory?.currency || representativeTerritory?.currency || "",
+		trade_goods: groupTerritory?.trade_goods || representativeTerritory?.trade_goods || "",
+		population: groupTerritory?.population || representativeTerritory?.population || "",
+		founded_text: groupTerritory?.founded_text || representativeTerritory?.founded_text || "",
+		dissolved_text: groupTerritory?.dissolved_text || representativeTerritory?.dissolved_text || "",
+		coat_of_arms_url: groupTerritory?.coat_of_arms_url || representativeTerritory?.coat_of_arms_url || "",
+		aliases: mergedAliases,
 	};
 }
 
@@ -1043,6 +1090,7 @@ function findRepresentativePoliticalTerritoryNode(node) {
 	const rootName = normalizeSearchText(node.territory?.name || "");
 	let bestNode = null;
 	let bestScore = Number.NEGATIVE_INFINITY;
+	let bestNameMatchScore = Number.NEGATIVE_INFINITY;
 
 	const visit = (currentNode) => {
 		if (!currentNode || typeof currentNode !== "object") {
@@ -1057,6 +1105,7 @@ function findRepresentativePoliticalTerritoryNode(node) {
 		const territory = currentNode.territory || {};
 		const publicId = String(territory.public_id || "").trim();
 		if (publicId) {
+			let nameMatchScore = 0;
 			let score = descendantCount * 100;
 			const aliases = [
 				territory.name,
@@ -1069,15 +1118,17 @@ function findRepresentativePoliticalTerritoryNode(node) {
 					continue;
 				}
 				if (alias === rootName) {
-					score += 1000000;
+					nameMatchScore = 1000000;
 					break;
 				}
 				if (alias.includes(rootName) || rootName.includes(alias)) {
-					score += 100000 - Math.abs(alias.length - rootName.length);
+					nameMatchScore = Math.max(nameMatchScore, 100000 - Math.abs(alias.length - rootName.length));
 				}
 			}
+			score += nameMatchScore;
 
-			if (score > bestScore) {
+			if (nameMatchScore > bestNameMatchScore || (nameMatchScore === bestNameMatchScore && score > bestScore)) {
+				bestNameMatchScore = nameMatchScore;
 				bestScore = score;
 				bestNode = currentNode;
 			}
@@ -1088,6 +1139,9 @@ function findRepresentativePoliticalTerritoryNode(node) {
 	};
 
 	visit(node);
+	if (rootName && bestNameMatchScore <= 0) {
+		return null;
+	}
 	return bestNode;
 }
 
