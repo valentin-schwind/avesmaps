@@ -1046,8 +1046,7 @@ body.modal-dialog-open {
 	display: none !important;
 }
 
-.political-territory-tree-form #region-edit-delete,
-.political-territory-tree-form #region-edit-submit {
+.political-territory-tree-form #region-edit-delete {
 	display: none !important;
 }
 

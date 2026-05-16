@@ -2990,19 +2990,6 @@ $(document).on("click", "#region-edit-parent-clear", function (event) {
 	updateRegionParentDropTarget("");
 });
 
-$(document).on("click", "#region-edit-assignment-save", function (event) {
-	event.preventDefault();
-	const formElement = document.getElementById("region-edit-form");
-	if (!formElement) {
-		return;
-	}
-	if (typeof formElement.requestSubmit === "function") {
-		formElement.requestSubmit();
-		return;
-	}
-	formElement.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
-});
-
 function updateRegionParentFilter(value) {
 	regionParentFilterQuery = String(value || "").trim();
 	populateRegionParentSelect(regionEditEntry?.region || regionEditEntry || {});
