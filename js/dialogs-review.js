@@ -1279,6 +1279,35 @@ function storeRegionAssignmentBreadcrumbCache(territoryPublicId, path, ensuredCh
 	});
 }
 
+function storeRegionAssignmentBreadcrumbCaches(path, ensuredChain = [], activeWikiPublicId = "") {
+	const normalizedPath = Array.isArray(path) ? path : [];
+	if (normalizedPath.length < 1) {
+		return;
+	}
+
+	const snapshotPath = clonePoliticalTerritoryPath(normalizedPath);
+	const snapshotChain = clonePoliticalTerritoryChain(ensuredChain);
+	const territoryIds = Array.from(new Set(normalizedPath
+		.map((node) => String(node?.territory?.public_id || "").trim())
+		.filter(Boolean)));
+	territoryIds.forEach((territoryId) => {
+		regionAssignmentBreadcrumbCache.set(territoryId, {
+			path: snapshotPath,
+			ensuredChain: snapshotChain,
+			activeWikiPublicId: territoryId,
+		});
+	});
+
+	const explicitActiveId = String(activeWikiPublicId || "").trim();
+	if (explicitActiveId && !regionAssignmentBreadcrumbCache.has(explicitActiveId)) {
+		regionAssignmentBreadcrumbCache.set(explicitActiveId, {
+			path: snapshotPath,
+			ensuredChain: snapshotChain,
+			activeWikiPublicId: explicitActiveId,
+		});
+	}
+}
+
 function updateRegionAssignmentBreadcrumbChain(territoryPublicId, territory = null, wiki = null) {
 	const cacheKey = String(territoryPublicId || "").trim();
 	if (!cacheKey) {
@@ -1663,7 +1692,7 @@ async function assignRegionGeometryToWikiTreeLeaf(wikiPublicId) {
 	regionAssignmentWikiPath = path;
 	regionAssignmentEnsuredChain = [];
 	regionAssignmentActiveWikiPublicId = wikiPublicId;
-	storeRegionAssignmentBreadcrumbCache(wikiPublicId, path, [], wikiPublicId);
+	storeRegionAssignmentBreadcrumbCaches(path, [], wikiPublicId);
 	renderRegionAssignment(path, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
 	setRegionEditStatus("Wiki-Hierarchie wird dem Gebiet zugewiesen...", "pending");
 	const response = await ensurePoliticalTerritoryChainFromWikiPath(path);
@@ -1673,7 +1702,7 @@ async function assignRegionGeometryToWikiTreeLeaf(wikiPublicId) {
 	}
 
 	regionAssignmentActiveWikiPublicId = selectedTerritoryId;
-	storeRegionAssignmentBreadcrumbCache(selectedTerritoryId, path, response.chain || [], selectedTerritoryId);
+	storeRegionAssignmentBreadcrumbCaches(path, response.chain || [], selectedTerritoryId);
 	await activatePrimaryRegionEditTabForTerritory(selectedTerritoryId);
 	renderRegionAssignment(path, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
 	setRegionEditStatus("Herrschaftsgebiet zugewiesen. Speichern uebernimmt die Geometrie dauerhaft.", "success");
@@ -1904,10 +1933,8 @@ async function saveRegionEditTab(tab) {
 		renderRegionEditTabs();
 	}
 	const territoryPublicId = String(tab.region?.territoryPublicId || payload.territory_public_id || "").trim();
-	const lastBreadcrumbNode = regionAssignmentWikiPath.length > 0 ? regionAssignmentWikiPath[regionAssignmentWikiPath.length - 1] : null;
-	const cacheTerritoryId = String(lastBreadcrumbNode?.territory?.public_id || territoryPublicId || "").trim();
-	if (regionAssignmentWikiPath.length > 0 && cacheTerritoryId) {
-		storeRegionAssignmentBreadcrumbCache(cacheTerritoryId, regionAssignmentWikiPath, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
+	if (regionAssignmentWikiPath.length > 0) {
+		storeRegionAssignmentBreadcrumbCaches(regionAssignmentWikiPath, regionAssignmentEnsuredChain, territoryPublicId || regionAssignmentActiveWikiPublicId);
 	}
 	return latestResult;
 }
