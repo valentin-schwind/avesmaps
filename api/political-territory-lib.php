@@ -59,7 +59,7 @@ function avesmapsPoliticalEnsureTables(PDO $pdo): void {
         "CREATE TABLE IF NOT EXISTS political_territory_geometry (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             public_id CHAR(36) NOT NULL,
-            territory_id BIGINT UNSIGNED NOT NULL,
+            territory_id BIGINT UNSIGNED NULL,
             geometry_geojson JSON NOT NULL,
             valid_from_bf INT NULL,
             valid_to_bf INT NULL,
@@ -84,6 +84,11 @@ function avesmapsPoliticalEnsureTables(PDO $pdo): void {
             KEY idx_political_territory_geometry_zoom (min_zoom, max_zoom)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+
+    $column = $pdo->query("SHOW COLUMNS FROM political_territory_geometry LIKE 'territory_id'")->fetch(PDO::FETCH_ASSOC);
+    if (is_array($column) && strtoupper((string) ($column['Null'] ?? 'NO')) !== 'YES') {
+        $pdo->exec('ALTER TABLE political_territory_geometry MODIFY territory_id BIGINT UNSIGNED NULL');
+    }
 }
 
 function avesmapsPoliticalNormalizeWikiRecord(array $record): array {

@@ -1365,8 +1365,9 @@ body.modal-dialog-open {
 
 .political-territory-assignment-actions {
 	display: flex;
-	justify-content: flex-end;
+	justify-content: flex-start;
 	margin-top: 8px;
+	gap: 8px;
 }
 
 .political-territory-assignment-drop {
@@ -1484,6 +1485,14 @@ body.modal-dialog-open {
 	min-width: 0;
 }
 
+.political-territory-assignment-summary__wiki-box,
+.political-territory-assignment-summary__settings-box {
+	border: 1px solid #dccab8;
+	border-radius: 8px;
+	background: #fff;
+	padding: 8px;
+}
+
 .political-territory-assignment-summary dl {
 	display: grid;
 	grid-template-columns: max-content minmax(0, 1fr);
@@ -1521,9 +1530,22 @@ body.modal-dialog-open {
 	width: 100%;
 }
 
-.political-territory-assignment-summary__remove {
+.political-territory-assignment-summary__field--wide {
 	grid-column: 1 / -1;
-	justify-self: start;
+}
+
+.political-territory-assignment-summary__checkbox {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.political-territory-assignment-summary__checkbox input {
+	width: auto;
+}
+
+.political-territory-assignment-summary__checkbox span {
+	font-weight: 400;
 }
 
 .political-territory-coat-field {

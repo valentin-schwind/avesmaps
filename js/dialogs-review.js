@@ -1672,6 +1672,47 @@ function syncRegionAssignmentFormZoomInputs(minText, maxText) {
 	}
 }
 
+function syncRegionAssignmentFormFieldValues(values = {}) {
+	const assignments = [
+		["region-edit-name", values.name ?? null],
+		["region-edit-coat-url", values.coatOfArmsUrl ?? null],
+		["region-edit-valid-from", values.validFromBfText ?? null],
+		["region-edit-valid-to", values.validToBfText ?? null],
+		["region-edit-color", values.color ?? null],
+	];
+
+	for (const [elementId, value] of assignments) {
+		if (value === null) {
+			continue;
+		}
+
+		const inputElement = document.getElementById(elementId);
+		if (inputElement instanceof HTMLInputElement) {
+			inputElement.value = value;
+		}
+	}
+
+	if (values.opacityPercent !== null && values.opacityPercent !== undefined) {
+		const opacityElement = document.getElementById("region-edit-opacity");
+		if (opacityElement instanceof HTMLInputElement) {
+			opacityElement.value = String(values.opacityPercent);
+			syncRegionOpacityOutput();
+		}
+	}
+
+	if (values.validToOpen !== null && values.validToOpen !== undefined) {
+		const openEndElement = document.getElementById("region-edit-valid-open");
+		if (openEndElement instanceof HTMLInputElement) {
+			openEndElement.checked = Boolean(values.validToOpen);
+			syncRegionValidToControls();
+		}
+	}
+
+	if (values.coatOfArmsUrl !== null && values.coatOfArmsUrl !== undefined) {
+		syncRegionCoatPreview();
+	}
+}
+
 function syncRegionAssignmentBreadcrumbZoomLabel(territoryPublicId, minZoom, maxZoom) {
 	const normalizedPublicId = String(territoryPublicId || "").trim();
 	if (!normalizedPublicId) {
@@ -1687,6 +1728,25 @@ function syncRegionAssignmentBreadcrumbZoomLabel(territoryPublicId, minZoom, max
 		const zoomElement = element.querySelector(".political-territory-assignment-breadcrumb__zoom");
 		if (zoomElement) {
 			zoomElement.textContent = zoomLabel;
+		}
+	});
+}
+
+function syncRegionAssignmentBreadcrumbName(territoryPublicId, name) {
+	const normalizedPublicId = String(territoryPublicId || "").trim();
+	if (!normalizedPublicId) {
+		return;
+	}
+
+	const normalizedName = normalizeParentheticalSpacing(String(name || "").trim());
+	document.querySelectorAll("[data-region-assignment-breadcrumb-id]").forEach((element) => {
+		if (String(element?.dataset?.regionAssignmentBreadcrumbId || "").trim() !== normalizedPublicId) {
+			return;
+		}
+
+		const nameElement = element.querySelector(".political-territory-assignment-breadcrumb__name");
+		if (nameElement) {
+			nameElement.textContent = normalizedName || "Herrschaftsgebiet";
 		}
 	});
 }
@@ -1718,6 +1778,7 @@ function renderRegionAssignment(path = regionAssignmentWikiPath, ensuredChain = 
 	const labelElement = document.getElementById("region-edit-assignment-drop-label");
 	const breadcrumbElement = document.getElementById("region-edit-assignment-breadcrumb");
 	const summaryElement = document.getElementById("region-edit-assignment-summary");
+	const clearButtonElement = document.getElementById("region-edit-assignment-clear");
 	const selectedNode = path[path.length - 1] || null;
 	const defaultActiveId = ensuredChain.length > 0
 		? ensuredChain[ensuredChain.length - 1]?.territory?.public_id || ""
@@ -1734,6 +1795,9 @@ function renderRegionAssignment(path = regionAssignmentWikiPath, ensuredChain = 
 			: "Untersten Knoten hierher ziehen, um die Geometrie zuzuweisen";
 	}
 	dropElement?.classList.toggle("has-assignment", Boolean(selectedNode));
+	if (clearButtonElement) {
+		clearButtonElement.disabled = !selectedNode;
+	}
 	if (breadcrumbElement) {
 		breadcrumbElement.innerHTML = "";
 		path.forEach((node, index) => {
@@ -1778,8 +1842,13 @@ function renderRegionAssignmentSummary(summaryElement, wiki, territory = null, o
 	}
 
 	const territoryPublicId = String(options.territoryPublicId || territory?.public_id || "").trim();
-	const canRemove = options.canRemove === true && territoryPublicId !== "";
 	const normalizedZoom = normalizePoliticalTerritoryZoomDraft(territory?.min_zoom ?? territory?.minZoom ?? "", territory?.max_zoom ?? territory?.maxZoom ?? "");
+	const territoryOpacity = Number.isFinite(Number(territory?.opacity)) ? Number(territory.opacity) : 0.33;
+	const opacityPercent = Math.round(territoryOpacity * 100);
+	const validFromText = territory?.valid_from_bf ?? territory?.validFromBf ?? "";
+	const validToValue = territory?.valid_to_bf ?? territory?.validToBf ?? null;
+	const validToOpen = validToValue === null || validToValue === undefined;
+	const validToText = validToOpen ? "" : String(validToValue);
 
 	const rows = [
 		["Name", wiki.name || wiki.wiki_name || ""],
@@ -1797,21 +1866,24 @@ function renderRegionAssignmentSummary(summaryElement, wiki, territory = null, o
 		["Aufloesung", wiki.dissolved_text || ""],
 		["Wiki-Link", wiki.wiki_url || ""],
 	].filter(([, value]) => String(value || "").trim() !== "");
-	const coatUrl = wiki.coat_of_arms_url || "";
+	const coatUrl = territory?.coat_of_arms_url || territory?.coatOfArmsUrl || wiki.coat_of_arms_url || "";
 	const wikiUrl = wiki.wiki_url || "";
 	summaryElement.hidden = false;
 	summaryElement.dataset.regionAssignmentActiveId = territoryPublicId;
 	summaryElement.innerHTML = `
 		${coatUrl ? `<img src="${escapeHtml(coatUrl)}" alt="">` : "<span></span>"}
 		<div class="political-territory-assignment-summary__content">
-			<dl>${rows.map(([label, value]) => {
+			<div class="political-territory-assignment-summary__wiki-box">
+				<dl>${rows.map(([label, value]) => {
 			if (label === "Wiki-Link" && wikiUrl) {
 				return `<dt>${escapeHtml(label)}</dt><dd><a href="${escapeHtml(wikiUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(wikiUrl)}</a></dd>`;
 			}
 
 			return `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`;
 		}).join("")}</dl>
-			<div class="political-territory-assignment-summary__controls">
+			</div>
+			<div class="political-territory-assignment-summary__settings-box">
+				<div class="political-territory-assignment-summary__controls">
 				<label class="political-territory-assignment-summary__field">
 					<span>Zoom von</span>
 					<input data-region-assignment-zoom-field="min" data-region-assignment-zoom-min type="number" min="0" max="6" step="1" value="${escapeHtml(normalizedZoom.minText)}" />
@@ -1820,9 +1892,35 @@ function renderRegionAssignmentSummary(summaryElement, wiki, territory = null, o
 					<span>Zoom bis</span>
 					<input data-region-assignment-zoom-field="max" data-region-assignment-zoom-max type="number" min="0" max="6" step="1" value="${escapeHtml(normalizedZoom.maxText)}" />
 				</label>
-				${canRemove
-		? `<button type="button" class="location-report-form__button location-report-form__button--secondary political-territory-assignment-summary__remove" data-region-assignment-remove="${escapeHtml(territoryPublicId)}">Breadcrumb loeschen</button>`
-		: ""}
+				<label class="political-territory-assignment-summary__field">
+					<span>Farbe</span>
+					<input data-region-assignment-field="color" type="color" value="${escapeHtml(territory?.color || "#888888")}" />
+				</label>
+				<label class="political-territory-assignment-summary__field">
+					<span>Transparenz ${escapeHtml(String(opacityPercent))}%</span>
+					<input data-region-assignment-field="opacity" type="range" min="0" max="100" step="1" value="${escapeHtml(String(opacityPercent))}" />
+				</label>
+				<label class="political-territory-assignment-summary__field political-territory-assignment-summary__field--wide">
+					<span>Anzeigename</span>
+					<input data-region-assignment-field="name" type="text" maxlength="160" value="${escapeHtml(territory?.name || territory?.displayName || "")}" />
+				</label>
+				<label class="political-territory-assignment-summary__field political-territory-assignment-summary__field--wide">
+					<span>Neuer Wappen-Link</span>
+					<input data-region-assignment-field="coat" type="url" maxlength="500" value="${escapeHtml(territory?.coat_of_arms_url || territory?.coatOfArmsUrl || "")}" />
+				</label>
+				<label class="political-territory-assignment-summary__field">
+					<span>Von</span>
+					<input data-region-assignment-field="valid-from" type="number" step="1" value="${escapeHtml(String(validFromText))}" />
+				</label>
+				<label class="political-territory-assignment-summary__field">
+					<span>Bis</span>
+					<input data-region-assignment-field="valid-to" type="number" step="1" value="${escapeHtml(validToText)}" ${validToOpen ? "disabled" : ""} />
+				</label>
+				<label class="political-territory-assignment-summary__field political-territory-assignment-summary__field--wide political-territory-assignment-summary__checkbox">
+					<input data-region-assignment-field="valid-open" type="checkbox" ${validToOpen ? "checked" : ""} />
+					<span>Heute</span>
+				</label>
+				</div>
 			</div>
 		</div>
 	`;
@@ -1943,68 +2041,72 @@ async function openRegionVisualTabFromBreadcrumb(wikiPublicId) {
 	});
 }
 
-async function removeRegionAssignmentBreadcrumb(territoryPublicId) {
-	const normalizedPublicId = String(territoryPublicId || "").trim();
-	if (!normalizedPublicId) {
+function buildUnassignedPoliticalRegionDraft(baseRegion = {}) {
+	const geometryPublicId = String(baseRegion.geometryPublicId || baseRegion.publicId || "").trim();
+	return {
+		...baseRegion,
+		source: "political_territory",
+		publicId: geometryPublicId,
+		geometryPublicId,
+		territoryPublicId: "",
+		wikiId: null,
+		name: "",
+		displayName: "",
+		shortName: "",
+		parentPublicId: "",
+		parentName: "",
+		wikiUrl: "",
+		coatOfArmsUrl: "",
+		wikiName: "",
+		wikiType: "",
+		wikiAffiliationRaw: "",
+		wikiAffiliationRoot: "",
+		wikiFoundedText: "",
+		wikiDissolvedText: "",
+		wikiCapitalName: "",
+		wikiSeatName: "",
+	};
+}
+
+function setPrimaryRegionEditTabToUnassignedGeometry() {
+	const currentRegion = regionEditEntry?.region || regionEditEntry || regionEditTabs[0]?.region || {};
+	const unassignedRegion = buildUnassignedPoliticalRegionDraft(currentRegion);
+	const nextPrimaryKey = unassignedRegion.geometryPublicId || `free:${Date.now()}`;
+	const existingSecondaryTabs = regionEditTabs.slice(1);
+	regionEditTabs = [{
+		key: nextPrimaryKey,
+		entry: regionEditTabs[0]?.entry || regionEditEntry || unassignedRegion,
+		region: unassignedRegion,
+		payload: regionEditPayloadToPayload(unassignedRegion),
+		savedPayload: regionEditPayloadToPayload(unassignedRegion),
+		assignGeometryPublicId: "",
+		assignGeometryMode: "",
+	}, ...existingSecondaryTabs];
+	activeRegionEditTabKey = nextPrimaryKey;
+	regionEditEntry = unassignedRegion;
+	populateRegionEditForm(unassignedRegion, { preserveTabs: true });
+	renderRegionEditTabs();
+}
+
+async function clearRegionGeometryAssignment() {
+	const geometryPublicId = String(document.getElementById("region-edit-geometry-public-id")?.value || getPrimaryRegionGeometryPublicId() || "").trim();
+	if (!geometryPublicId) {
+		setRegionEditStatus("Die Geometrie konnte nicht bestimmt werden.", "error");
 		return;
 	}
 
-	snapshotActiveRegionEditTab();
-
-	const breadcrumbIndex = regionAssignmentWikiPath.findIndex((node) => String(node?.territory?.public_id || "").trim() === normalizedPublicId);
-	if (breadcrumbIndex < 1) {
-		setRegionEditStatus("Der oberste Knoten bleibt als Bezug erhalten.", "pending");
-		return;
-	}
-
-	const nextPath = regionAssignmentWikiPath.slice(0, breadcrumbIndex);
-	const nextChain = regionAssignmentEnsuredChain.slice(0, breadcrumbIndex);
-	const removedIds = regionAssignmentWikiPath
-		.slice(breadcrumbIndex)
-		.map((node) => String(node?.territory?.public_id || "").trim())
-		.filter(Boolean);
-	removedIds.forEach((removedId) => {
-		regionAssignmentBreadcrumbCache.delete(removedId);
+	await submitPoliticalTerritoryEdit({
+		action: "unassign_geometry",
+		geometry_public_id: geometryPublicId,
 	});
-
-	const nextLeafTerritoryId = String(
-		nextChain[nextChain.length - 1]?.territory?.public_id
-		|| nextPath[nextPath.length - 1]?.territory?.public_id
-		|| ""
-	).trim();
-	const currentPrimaryTab = regionEditTabs[0] || null;
-	const currentPrimaryTerritoryId = String(
-		currentPrimaryTab?.region?.territoryPublicId
-		|| currentPrimaryTab?.region?.publicId
-		|| currentPrimaryTab?.key
-		|| ""
-	).trim();
-	if (
-		currentPrimaryTab
-		&& currentPrimaryTerritoryId
-		&& currentPrimaryTerritoryId !== nextLeafTerritoryId
-		&& !regionEditTabs.some((tab, index) => index > 0 && tab.key === currentPrimaryTab.key)
-	) {
-		regionEditTabs.splice(1, 0, {
-			...currentPrimaryTab,
-			region: { ...(currentPrimaryTab.region || {}) },
-			payload: currentPrimaryTab.payload ? { ...currentPrimaryTab.payload } : currentPrimaryTab.payload,
-			savedPayload: currentPrimaryTab.savedPayload ? { ...currentPrimaryTab.savedPayload } : currentPrimaryTab.savedPayload,
-			assignGeometryPublicId: "",
-			assignGeometryMode: "",
-		});
-	}
-	regionAssignmentWikiPath = nextPath;
-	regionAssignmentEnsuredChain = nextChain;
-	regionAssignmentActiveWikiPublicId = nextLeafTerritoryId;
-	if (nextPath.length > 0) {
-		storeRegionAssignmentBreadcrumbCaches(nextPath, nextChain, nextLeafTerritoryId);
-	}
-	if (nextLeafTerritoryId) {
-		await activatePrimaryRegionEditTabForTerritory(nextLeafTerritoryId);
-	}
-	renderRegionAssignment(regionAssignmentWikiPath, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
-	setRegionEditStatus("Zugehoerigkeit gekuerzt. Speichern uebernimmt die neue Zuordnung.", "success");
+	regionAssignmentWikiPath = [];
+	regionAssignmentEnsuredChain = [];
+	regionAssignmentActiveWikiPublicId = "";
+	regionAssignmentBreadcrumbCache.clear();
+	setPrimaryRegionEditTabToUnassignedGeometry();
+	renderRegionAssignment();
+	schedulePoliticalTerritoryLayerReload({ immediate: true });
+	setRegionEditStatus("Geometrie freigegeben. Jetzt kann eine neue Hierarchie zugewiesen werden.", "success");
 }
 
 function snapshotActiveRegionEditTab() {
@@ -2602,13 +2704,11 @@ $(document).on("click", "[data-region-assignment-breadcrumb-id]", function (even
 	});
 });
 
-$(document).on("click", "[data-region-assignment-remove]", function (event) {
+$(document).on("click", "#region-edit-assignment-clear", function (event) {
 	event.preventDefault();
-	event.stopPropagation();
-	const territoryPublicId = this.dataset.regionAssignmentRemove || "";
-	void removeRegionAssignmentBreadcrumb(territoryPublicId).catch((error) => {
-		console.error("Breadcrumb konnte nicht entfernt werden:", error);
-		setRegionEditStatus(error.message || "Breadcrumb konnte nicht entfernt werden.", "error");
+	void clearRegionGeometryAssignment().catch((error) => {
+		console.error("Geometrie konnte nicht freigegeben werden:", error);
+		setRegionEditStatus(error.message || "Geometrie konnte nicht freigegeben werden.", "error");
 	});
 });
 
@@ -2670,6 +2770,88 @@ $(document).on("input change", "#region-edit-min-zoom, #region-edit-max-zoom", f
 		if (summaryMaxInput instanceof HTMLInputElement) {
 			summaryMaxInput.value = normalizedZoom.maxText;
 		}
+	}
+});
+
+$(document).on("input change", "[data-region-assignment-field]", function () {
+	const summaryElement = this.closest("#region-edit-assignment-summary");
+	const territoryPublicId = String(summaryElement?.dataset?.regionAssignmentActiveId || "").trim();
+	if (!territoryPublicId) {
+		return;
+	}
+
+	const field = this.dataset.regionAssignmentField || "";
+	if (field === "color") {
+		const value = String(this.value || "#888888").trim() || "#888888";
+		applyPoliticalTerritoryDraftPatch(territoryPublicId, { color: value }, { color: value });
+		syncRegionAssignmentFormFieldValues({ color: value });
+		return;
+	}
+
+	if (field === "opacity") {
+		const opacityPercent = Math.max(0, Math.min(100, Number.parseInt(String(this.value || "33"), 10) || 0));
+		const opacity = opacityPercent / 100;
+		const labelElement = this.closest(".political-territory-assignment-summary__field")?.querySelector("span");
+		if (labelElement) {
+			labelElement.textContent = `Transparenz ${opacityPercent}%`;
+		}
+		applyPoliticalTerritoryDraftPatch(territoryPublicId, { opacity }, { opacity });
+		syncRegionAssignmentFormFieldValues({ opacityPercent });
+		return;
+	}
+
+	if (field === "name") {
+		const value = normalizeParentheticalSpacing(String(this.value || "").trim());
+		if (this.value !== value) {
+			this.value = value;
+		}
+		applyPoliticalTerritoryDraftPatch(territoryPublicId, { name: value, displayName: value }, { name: value });
+		syncRegionAssignmentFormFieldValues({ name: value });
+		syncRegionAssignmentBreadcrumbName(territoryPublicId, value);
+		return;
+	}
+
+	if (field === "coat") {
+		const value = String(this.value || "").trim();
+		applyPoliticalTerritoryDraftPatch(territoryPublicId, { coat_of_arms_url: value, coatOfArmsUrl: value }, { coat_of_arms_url: value });
+		syncRegionAssignmentFormFieldValues({ coatOfArmsUrl: value });
+		const imageElement = summaryElement.querySelector("img");
+		if (imageElement instanceof HTMLImageElement) {
+			imageElement.src = value;
+			imageElement.hidden = value === "";
+		}
+		return;
+	}
+
+	if (field === "valid-from") {
+		const value = String(this.value || "").trim();
+		const number = value === "" ? null : Number.parseInt(value, 10);
+		applyPoliticalTerritoryDraftPatch(territoryPublicId, { valid_from_bf: number, validFromBf: number }, { valid_from_bf: value });
+		syncRegionAssignmentFormFieldValues({ validFromBfText: value });
+		return;
+	}
+
+	if (field === "valid-open") {
+		const isOpen = this.checked === true;
+		const validToInput = summaryElement.querySelector("[data-region-assignment-field='valid-to']");
+		if (validToInput instanceof HTMLInputElement) {
+			validToInput.disabled = isOpen;
+			if (isOpen) {
+				validToInput.value = "";
+			}
+		}
+		applyPoliticalTerritoryDraftPatch(territoryPublicId, { valid_to_bf: isOpen ? null : null, validToBf: isOpen ? null : null }, { valid_to_open: isOpen, valid_to_bf: isOpen ? "" : String(validToInput?.value || "") });
+		syncRegionAssignmentFormFieldValues({ validToOpen: isOpen, validToBfText: isOpen ? "" : String(validToInput?.value || "") });
+		return;
+	}
+
+	if (field === "valid-to") {
+		const openInput = summaryElement.querySelector("[data-region-assignment-field='valid-open']");
+		const isOpen = openInput instanceof HTMLInputElement ? openInput.checked : false;
+		const value = isOpen ? "" : String(this.value || "").trim();
+		const number = value === "" ? null : Number.parseInt(value, 10);
+		applyPoliticalTerritoryDraftPatch(territoryPublicId, { valid_to_bf: number, validToBf: number }, { valid_to_open: isOpen, valid_to_bf: value });
+		syncRegionAssignmentFormFieldValues({ validToBfText: value, validToOpen: isOpen });
 	}
 });
 
@@ -5303,6 +5485,10 @@ async function handleRegionEditFormSubmit(event) {
 	const payloads = payload.source === "political_territory" && regionEditTabs.length > 0
 		? regionEditTabs.map((tab) => tab.payload || regionEditPayloadToPayload(tab.region)).filter(Boolean)
 		: [payload];
+	if (payload.source === "political_territory" && payloads.some((entry) => String(entry?.territory_public_id || "").trim() === "")) {
+		setRegionEditStatus("Bitte zuerst einen untersten Knoten zuweisen.", "error");
+		return;
+	}
 	if (payload.source !== "political_territory" && !isSqlMapFeatureId(payload.public_id)) {
 		setRegionEditStatus("Diese Region hat keine gueltige SQL-ID. Bitte die SQL-Karte neu laden.", "error");
 		return;
