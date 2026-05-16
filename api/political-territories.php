@@ -67,6 +67,7 @@ try {
         'delete_geometry_part' => avesmapsPoliticalDeleteGeometryPart($pdo, $payload, $user),
         'geometry_operation' => avesmapsPoliticalApplyGeometryOperationResult($pdo, $payload, $user),
         'geometry_operation_debug' => avesmapsPoliticalDebugGeometryOperation($payload),
+        'ensure_wiki_territory_chain' => avesmapsPoliticalEnsureWikiTerritoryChain($pdo, $payload, $user),
         'restore_legacy_region_geometries' => avesmapsPoliticalRestoreLegacyRegionGeometries($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Herrschaftsgebiet-Aktion ist unbekannt.'),
     };
@@ -1116,6 +1117,165 @@ function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user)
     avesmapsPoliticalSyncTerritoryGeometryStyle($pdo, (int) $territory['id'], $color, $opacity);
 
     return avesmapsPoliticalResponseForTerritory($pdo, (string) $territory['public_id']);
+}
+
+function avesmapsPoliticalEnsureWikiTerritoryChain(PDO $pdo, array $payload, array $user): array {
+    $wikiPublicIds = $payload['wiki_public_ids'] ?? null;
+    if (!is_array($wikiPublicIds) || $wikiPublicIds === []) {
+        throw new InvalidArgumentException('Die Wiki-Hierarchie fehlt.');
+    }
+
+    $chain = [];
+    $parentId = null;
+    $wikiNodes = is_array($payload['wiki_nodes'] ?? null) ? array_values($payload['wiki_nodes']) : [];
+    $pdo->beginTransaction();
+    try {
+        foreach ($wikiPublicIds as $index => $wikiPublicId) {
+            $wikiKey = avesmapsPoliticalReadWikiTreeKey($wikiPublicId);
+            $node = is_array($wikiNodes[$index] ?? null) ? $wikiNodes[$index] : [];
+            $wiki = null;
+            try {
+                $wiki = avesmapsPoliticalFetchWikiByKey($pdo, $wikiKey);
+            } catch (InvalidArgumentException) {
+                $wiki = null;
+            }
+
+            if ($wiki !== null) {
+                $slug = avesmapsPoliticalSlug((string) ($wiki['name'] ?? $wikiKey));
+                $territory = avesmapsPoliticalFindTerritoryByWikiOrSlug($pdo, (int) $wiki['id'], $slug);
+                if (!$territory) {
+                    $created = avesmapsPoliticalCreateTerritoryFromWiki($pdo, [
+                        ...$wiki,
+                        'slug' => $slug,
+                    ], $user);
+                    $territory = avesmapsPoliticalFetchTerritoryById($pdo, (int) $created['id']);
+                } else {
+                    avesmapsPoliticalLinkTerritoryToWiki($pdo, (int) $territory['id'], (int) $wiki['id']);
+                }
+            } else {
+                $territory = avesmapsPoliticalEnsureSyntheticTreeTerritory($pdo, $node, $wikiKey);
+            }
+
+            if ($parentId !== null && $parentId !== (int) $territory['id']) {
+                $statement = $pdo->prepare('UPDATE political_territory SET parent_id = :parent_id WHERE id = :id');
+                $statement->execute([
+                    'id' => (int) $territory['id'],
+                    'parent_id' => $parentId,
+                ]);
+                $territory['parent_id'] = $parentId;
+            }
+
+            $chain[] = [
+                'territory' => avesmapsPoliticalTerritoryRowToPublic(avesmapsPoliticalFetchTerritoryById($pdo, (int) $territory['id'])),
+                'wiki' => $wiki !== null ? avesmapsPoliticalWikiRowToPublic($wiki) : $node,
+                'wiki_public_id' => (string) $wikiPublicId,
+            ];
+            $parentId = (int) $territory['id'];
+        }
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $exception;
+    }
+
+    return [
+        'ok' => true,
+        'chain' => $chain,
+        'selected' => $chain[count($chain) - 1] ?? null,
+    ];
+}
+
+function avesmapsPoliticalReadWikiTreeKey(mixed $value): string {
+    $text = avesmapsNormalizeSingleLine((string) $value, 255);
+    if ($text === '') {
+        throw new InvalidArgumentException('Der Wiki-Knoten ist ungueltig.');
+    }
+
+    return $text;
+}
+
+function avesmapsPoliticalFetchWikiByKey(PDO $pdo, string $wikiKey): array {
+    $slug = str_starts_with($wikiKey, 'wiki:') || str_starts_with($wikiKey, 'name:')
+        ? substr($wikiKey, 5)
+        : $wikiKey;
+    $statement = $pdo->prepare(
+        'SELECT *
+        FROM political_territory_wiki
+        WHERE wiki_key = :wiki_key
+            OR wiki_key = :wiki_slug
+            OR wiki_key = :name_key
+        ORDER BY wiki_key = :wiki_key_order DESC, id ASC
+        LIMIT 1'
+    );
+    $statement->execute([
+        'wiki_key' => $wikiKey,
+        'wiki_key_order' => $wikiKey,
+        'wiki_slug' => $slug,
+        'name_key' => 'name:' . $slug,
+    ]);
+    $wiki = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!$wiki) {
+        throw new InvalidArgumentException('Der Wiki-Knoten wurde in den synchronisierten Referenzdaten nicht gefunden.');
+    }
+
+    return $wiki;
+}
+
+function avesmapsPoliticalEnsureSyntheticTreeTerritory(PDO $pdo, array $node, string $wikiKey): array {
+    $name = avesmapsPoliticalReadRequiredName($node['name'] ?? $wikiKey, 'Der Name des Herrschaftsgebiets');
+    $slug = avesmapsPoliticalSlug($name);
+    $territory = avesmapsPoliticalFindTerritoryBySlug($pdo, $slug);
+    if ($territory) {
+        return $territory;
+    }
+
+    $publicId = avesmapsPoliticalUuidV4();
+    $sortOrder = avesmapsPoliticalNextSortOrder($pdo);
+    $statement = $pdo->prepare(
+        'INSERT INTO political_territory (
+            public_id, wiki_id, slug, name, short_name, type, continent, status, color,
+            opacity, coat_of_arms_url, wiki_url, valid_label, min_zoom, max_zoom,
+            is_active, editor_notes, sort_order
+        ) VALUES (
+            :public_id, NULL, :slug, :name, NULL, :type, :continent, :status, :color,
+            :opacity, :coat_of_arms_url, :wiki_url, :valid_label, NULL, NULL,
+            1, :editor_notes, :sort_order
+        )'
+    );
+    $statement->execute([
+        'public_id' => $publicId,
+        'slug' => avesmapsPoliticalUniqueSlug($pdo, $slug),
+        'name' => $name,
+        'type' => avesmapsPoliticalNullableString(avesmapsPoliticalNormalizeParentheticalSpacing(avesmapsNormalizeSingleLine((string) ($node['type'] ?? 'Herrschaftsgebiet'), 160))),
+        'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+        'status' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($node['status'] ?? ''), 255)),
+        'color' => avesmapsPoliticalColorFromText($name),
+        'opacity' => 0.33,
+        'coat_of_arms_url' => avesmapsPoliticalNullableString(avesmapsPoliticalReadOptionalUrl($node['coat_of_arms_url'] ?? '', 'Der Wappen-Link')),
+        'wiki_url' => avesmapsPoliticalNullableString(avesmapsPoliticalReadOptionalUrl($node['wiki_url'] ?? '', 'Der Wiki-Aventurica-Link')),
+        'valid_label' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($node['valid_label'] ?? ''), 500)),
+        'editor_notes' => avesmapsPoliticalNullableString('Aus Wiki-Hierarchie ohne eigenen Referenzdatensatz erzeugt: ' . $wikiKey),
+        'sort_order' => $sortOrder,
+    ]);
+
+    return avesmapsPoliticalFetchTerritoryById($pdo, (int) $pdo->lastInsertId());
+}
+
+function avesmapsPoliticalFindTerritoryBySlug(PDO $pdo, string $slug): ?array {
+    $statement = $pdo->prepare(
+        'SELECT *
+        FROM political_territory
+        WHERE slug = :slug
+        ORDER BY id ASC
+        LIMIT 1'
+    );
+    $statement->execute(['slug' => $slug]);
+    $territory = $statement->fetch(PDO::FETCH_ASSOC);
+
+    return $territory ?: null;
 }
 
 function avesmapsPoliticalSyncTerritoryGeometryStyle(PDO $pdo, int $territoryId, string $color, float $opacity): void {

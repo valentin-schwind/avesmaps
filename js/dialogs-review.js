@@ -512,6 +512,8 @@ function resetRegionEditForm() {
 	activeRegionEditTabKey = "";
 	regionParentSelectedTreeId = "";
 	regionParentCollapsedKeys = new Set();
+	regionAssignmentWikiPath = [];
+	regionAssignmentEnsuredChain = [];
 	if (source !== "political_territory") {
 		void releaseFeatureSoftLock(publicId);
 	}
@@ -531,6 +533,7 @@ function resetRegionEditForm() {
 	document.getElementById("region-edit-parent-tree").innerHTML = "";
 	document.getElementById("region-edit-tabs").innerHTML = "";
 	document.getElementById("region-edit-wiki-reference-list").innerHTML = "";
+	renderRegionAssignment();
 	syncRegionOpacityOutput();
 	syncRegionValidToControls();
 	setRegionEditStatus();
@@ -990,6 +993,14 @@ function clonePoliticalTerritoryHierarchyNode(node) {
 		capital_name: node.capital_name || "",
 		seat_name: node.seat_name || "",
 		ruler: node.ruler || "",
+		founder: node.founder || "",
+		language: node.language || "",
+		currency: node.currency || "",
+		trade_goods: node.trade_goods || "",
+		population: node.population || "",
+		founded_text: node.founded_text || "",
+		dissolved_text: node.dissolved_text || "",
+		coat_of_arms_url: node.coat_of_arms_url || "",
 		aliases: Array.isArray(node.aliases) ? node.aliases : [],
 	};
 	const option = territory.public_id ? findPoliticalTerritoryOption(territory.public_id) : null;
@@ -1087,8 +1098,9 @@ function renderPoliticalTerritoryTreeNode(node, region, depth) {
 		? "political-territory-parent-tree__node political-territory-parent-tree__node--group"
 		: "political-territory-parent-tree__node";
 	wrapper.style.setProperty("--territory-tree-depth", String(Math.min(depth, 8)));
-	const button = createRegionParentTreeButton(node.territory, region, { isGroup: node.isGroup });
-	if (node.children.length > 0) {
+	const hasChildren = node.children.length > 0;
+	const button = createRegionParentTreeButton(node.territory, region, { isGroup: node.isGroup, hasChildren });
+	if (hasChildren) {
 		button.dataset.regionTreeToggle = node.key;
 		const isNodeCollapsed = isPoliticalTerritoryTreeNodeCollapsed(node);
 		button.classList.toggle("is-collapsed", isNodeCollapsed);
@@ -1146,7 +1158,7 @@ function getPoliticalTerritoryTreeSearchText(territory) {
 	].filter(Boolean).join(" "));
 }
 
-function createRegionParentTreeButton(territory, region, { isGroup = false } = {}) {
+function createRegionParentTreeButton(territory, region, { isGroup = false, hasChildren = false } = {}) {
 	const button = document.createElement("button");
 	button.type = "button";
 	button.className = "political-territory-parent-tree__item";
@@ -1156,7 +1168,8 @@ function createRegionParentTreeButton(territory, region, { isGroup = false } = {
 	if (isGroup) {
 		button.dataset.regionTreeGroup = "1";
 	}
-	button.draggable = Boolean(territory.public_id);
+	button.dataset.regionTreeLeaf = hasChildren ? "0" : "1";
+	button.draggable = Boolean(territory.public_id) && !hasChildren;
 	button.classList.toggle("is-selected", Boolean(territory.public_id) && territory.public_id === regionParentSelectedTreeId);
 	button.innerHTML = `
 		<span class="political-territory-parent-tree__toggle" aria-hidden="true"></span>
@@ -1302,6 +1315,151 @@ function updateRegionParentDropTarget(parentPublicId) {
 		].filter(Boolean).join(" - "))
 		: "Kein Parent";
 	dropElement.classList.toggle("has-parent", Boolean(parent));
+}
+
+function findPoliticalTerritoryTreePath(publicId) {
+	const normalizedPublicId = String(publicId || "").trim();
+	if (!normalizedPublicId) {
+		return [];
+	}
+
+	const visit = (node, path) => {
+		if (!node) {
+			return null;
+		}
+
+		const currentPath = [...path, node];
+		if ((node.territory?.public_id || "") === normalizedPublicId) {
+			return currentPath;
+		}
+
+		for (const child of node.children || []) {
+			const result = visit(child, currentPath);
+			if (result) {
+				return result;
+			}
+		}
+
+		return null;
+	};
+
+	for (const node of buildPoliticalTerritoryTree("")) {
+		const result = visit(node, []);
+		if (result) {
+			return result;
+		}
+	}
+
+	return [];
+}
+
+function renderRegionAssignment(path = regionAssignmentWikiPath, ensuredChain = regionAssignmentEnsuredChain) {
+	const dropElement = document.getElementById("region-edit-assignment-drop");
+	const labelElement = document.getElementById("region-edit-assignment-drop-label");
+	const breadcrumbElement = document.getElementById("region-edit-assignment-breadcrumb");
+	const summaryElement = document.getElementById("region-edit-assignment-summary");
+	const selectedNode = path[path.length - 1] || null;
+	if (labelElement) {
+		labelElement.textContent = selectedNode
+			? `Zugewiesen: ${selectedNode.territory?.name || "Herrschaftsgebiet"}`
+			: "Untersten Knoten hierher ziehen, um die Geometrie zuzuweisen";
+	}
+	dropElement?.classList.toggle("has-assignment", Boolean(selectedNode));
+	if (breadcrumbElement) {
+		breadcrumbElement.innerHTML = "";
+		path.forEach((node, index) => {
+			const button = document.createElement("button");
+			button.type = "button";
+			button.className = "political-territory-assignment-breadcrumb__item";
+			button.classList.toggle("is-active", index === path.length - 1);
+			button.dataset.regionAssignmentBreadcrumbId = node.territory?.public_id || "";
+			button.textContent = node.territory?.name || "Herrschaftsgebiet";
+			breadcrumbElement.append(button);
+		});
+	}
+	renderRegionAssignmentSummary(summaryElement, ensuredChain[ensuredChain.length - 1]?.wiki || selectedNode?.territory || null);
+}
+
+function renderRegionAssignmentSummary(summaryElement, wiki) {
+	if (!summaryElement) {
+		return;
+	}
+	if (!wiki) {
+		summaryElement.hidden = true;
+		summaryElement.innerHTML = "";
+		return;
+	}
+
+	const rows = [
+		["Name", wiki.name || wiki.wiki_name || ""],
+		["Typ", wiki.type || ""],
+		["Oberhaupt", wiki.ruler || ""],
+		["Gruender", wiki.founder || ""],
+		["Sprache", wiki.language || ""],
+		["Waehrung", wiki.currency || ""],
+		["Handelswaren", wiki.trade_goods || ""],
+		["Einwohner", wiki.population || ""],
+		["Gruendung", wiki.founded_text || ""],
+		["Aufloesung", wiki.dissolved_text || ""],
+	].filter(([, value]) => String(value || "").trim() !== "");
+	const coatUrl = wiki.coat_of_arms_url || "";
+	summaryElement.hidden = false;
+	summaryElement.innerHTML = `
+		${coatUrl ? `<img src="${escapeHtml(coatUrl)}" alt="">` : "<span></span>"}
+		<dl>${rows.map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join("")}</dl>
+	`;
+}
+
+async function ensurePoliticalTerritoryChainFromWikiPath(path) {
+	const wikiPublicIds = path.map((node) => node.territory?.public_id || "").filter(Boolean);
+	if (wikiPublicIds.length < 1) {
+		throw new Error("Die Wiki-Hierarchie fehlt.");
+	}
+
+	const response = await submitPoliticalTerritoryEdit({
+		action: "ensure_wiki_territory_chain",
+		wiki_public_ids: wikiPublicIds,
+		wiki_nodes: path.map((node) => node.territory || {}),
+	});
+	regionAssignmentEnsuredChain = Array.isArray(response.chain) ? response.chain : [];
+	return response;
+}
+
+async function assignRegionGeometryToWikiTreeLeaf(wikiPublicId) {
+	const path = findPoliticalTerritoryTreePath(wikiPublicId);
+	const selectedNode = path[path.length - 1] || null;
+	if (!selectedNode || (selectedNode.children || []).length > 0) {
+		setRegionEditStatus("Bitte den untersten Knoten der Hierarchie auswaehlen.", "error");
+		return;
+	}
+
+	regionAssignmentWikiPath = path;
+	regionAssignmentEnsuredChain = [];
+	renderRegionAssignment(path);
+	setRegionEditStatus("Wiki-Hierarchie wird dem Gebiet zugewiesen...", "pending");
+	const response = await ensurePoliticalTerritoryChainFromWikiPath(path);
+	const selectedTerritoryId = response.selected?.territory?.public_id || "";
+	if (!selectedTerritoryId) {
+		throw new Error("Das Herrschaftsgebiet konnte nicht aus dem Wiki-Knoten erzeugt werden.");
+	}
+
+	await activatePrimaryRegionEditTabForTerritory(selectedTerritoryId);
+	renderRegionAssignment(path, regionAssignmentEnsuredChain);
+	setRegionEditStatus("Herrschaftsgebiet zugewiesen. Speichern uebernimmt die Geometrie dauerhaft.", "success");
+}
+
+async function openRegionVisualTabFromBreadcrumb(wikiPublicId) {
+	const path = findPoliticalTerritoryTreePath(wikiPublicId);
+	if (path.length < 1) {
+		return;
+	}
+
+	const response = await ensurePoliticalTerritoryChainFromWikiPath(path);
+	const selectedTerritoryId = response.selected?.territory?.public_id || "";
+	if (selectedTerritoryId) {
+		await openRegionEditTabForTerritory(selectedTerritoryId, { assignGeometry: false });
+	}
+	renderRegionAssignment(regionAssignmentWikiPath, regionAssignmentEnsuredChain);
 }
 
 function snapshotActiveRegionEditTab() {
@@ -1519,7 +1677,7 @@ function normalizePoliticalTerritoryForRegionEdit(territory, wiki = null) {
 	};
 }
 
-async function openRegionEditTabForTerritory(territoryPublicId) {
+async function openRegionEditTabForTerritory(territoryPublicId, { assignGeometry = true } = {}) {
 	snapshotActiveRegionEditTab();
 	const existingTab = findRegionEditTab(territoryPublicId);
 	if (existingTab) {
@@ -1533,7 +1691,7 @@ async function openRegionEditTabForTerritory(territoryPublicId) {
 		setRegionEditStatus("Herrschaftsgebiet wird geladen...", "pending");
 		const response = await fetchPoliticalTerritories({ action: "get", public_id: territoryPublicId });
 		const region = normalizePoliticalTerritoryForRegionEdit(response.territory || {}, response.wiki || null);
-		const geometryAssignment = getActiveRegionGeometryAssignment(territoryPublicId);
+		const geometryAssignment = assignGeometry ? getActiveRegionGeometryAssignment(territoryPublicId) : null;
 		const assignGeometryPublicId = geometryAssignment?.geometryPublicId || "";
 		if (assignGeometryPublicId) {
 			region.geometryPublicId = assignGeometryPublicId;
@@ -1568,7 +1726,7 @@ async function activatePrimaryRegionEditTabForTerritory(territoryPublicId) {
 	if (currentTerritoryId === territoryPublicId) {
 		activeRegionEditTabKey = primaryTab?.key || territoryPublicId;
 		if (primaryTab) {
-			populateRegionEditForm(primaryTab, { preserveTabs: true });
+			populateRegionEditForm(primaryTab.region, { preserveTabs: true });
 			renderRegionEditTabs();
 		}
 		return;
@@ -1599,7 +1757,7 @@ async function activatePrimaryRegionEditTabForTerritory(territoryPublicId) {
 		regionEditTabs = [nextPrimaryTab];
 	}
 	activeRegionEditTabKey = territoryPublicId;
-	populateRegionEditForm(nextPrimaryTab, { preserveTabs: true });
+	populateRegionEditForm(nextPrimaryTab.region, { preserveTabs: true });
 	renderRegionEditTabs();
 	setRegionEditStatus();
 }
@@ -1749,7 +1907,8 @@ $(document).on("click", "[data-region-parent-id]", function (event) {
 	event.preventDefault();
 	const toggleKey = this.dataset.regionTreeToggle || "";
 	const territoryPublicId = this.dataset.regionTerritoryId || "";
-	if (toggleKey && (event.target?.closest?.(".political-territory-parent-tree__toggle") || (this.dataset.regionTreeGroup === "1" && !territoryPublicId))) {
+	const isLeaf = this.dataset.regionTreeLeaf === "1";
+	if (toggleKey && (!isLeaf || event.target?.closest?.(".political-territory-parent-tree__toggle") || (this.dataset.regionTreeGroup === "1" && !territoryPublicId))) {
 		if (regionParentCollapsedKeys.has(toggleKey)) {
 			regionParentCollapsedKeys.delete(toggleKey);
 		} else {
@@ -1760,6 +1919,10 @@ $(document).on("click", "[data-region-parent-id]", function (event) {
 	}
 
 	if (!territoryPublicId) {
+		return;
+	}
+	if (!isLeaf) {
+		setRegionEditStatus("Nur der unterste Knoten kann einer Geometrie zugewiesen werden.", "pending");
 		return;
 	}
 
@@ -1789,7 +1952,8 @@ $(document).on("dblclick", "#region-edit-parent-tree [data-region-territory-id]"
 
 $(document).on("dragstart", "#region-edit-parent-tree [data-region-territory-id]", function (event) {
 	const territoryPublicId = this.dataset.regionTerritoryId || "";
-	if (!territoryPublicId || !event.originalEvent?.dataTransfer) {
+	if (!territoryPublicId || this.dataset.regionTreeLeaf !== "1" || !event.originalEvent?.dataTransfer) {
+		event.preventDefault();
 		return;
 	}
 
@@ -1816,11 +1980,51 @@ $(document).on("drop", "#region-edit-parent-drop", function (event) {
 	const dataTransfer = event.originalEvent?.dataTransfer;
 	const territoryPublicId = dataTransfer?.getData("application/x-avesmaps-territory") || dataTransfer?.getData("text/plain") || "";
 	const activeTerritoryId = document.getElementById("region-edit-territory-public-id")?.value || "";
+	if (territoryPublicId.startsWith("wiki:")) {
+		setRegionEditStatus("Wiki-Knoten bitte in die Zuweisungsflaeche unter dem Baum ziehen.", "pending");
+		return;
+	}
 	if (!territoryPublicId || territoryPublicId === activeTerritoryId) {
 		return;
 	}
 
 	updateRegionParentDropTarget(territoryPublicId);
+});
+
+$(document).on("dragover", "#region-edit-assignment-drop", function (event) {
+	event.preventDefault();
+	this.classList.add("is-drag-over");
+	if (event.originalEvent?.dataTransfer) {
+		event.originalEvent.dataTransfer.dropEffect = "copy";
+	}
+});
+
+$(document).on("dragleave", "#region-edit-assignment-drop", function () {
+	this.classList.remove("is-drag-over");
+});
+
+$(document).on("drop", "#region-edit-assignment-drop", function (event) {
+	event.preventDefault();
+	this.classList.remove("is-drag-over");
+	const dataTransfer = event.originalEvent?.dataTransfer;
+	const territoryPublicId = dataTransfer?.getData("application/x-avesmaps-territory") || dataTransfer?.getData("text/plain") || "";
+	if (!territoryPublicId) {
+		return;
+	}
+
+	void assignRegionGeometryToWikiTreeLeaf(territoryPublicId).catch((error) => {
+		console.error("Herrschaftsgebiet konnte nicht zugewiesen werden:", error);
+		setRegionEditStatus(error.message || "Herrschaftsgebiet konnte nicht zugewiesen werden.", "error");
+	});
+});
+
+$(document).on("click", "[data-region-assignment-breadcrumb-id]", function (event) {
+	event.preventDefault();
+	const territoryPublicId = this.dataset.regionAssignmentBreadcrumbId || "";
+	void openRegionVisualTabFromBreadcrumb(territoryPublicId).catch((error) => {
+		console.error("Herrschaftsgebiet konnte nicht geoeffnet werden:", error);
+		setRegionEditStatus(error.message || "Herrschaftsgebiet konnte nicht geoeffnet werden.", "error");
+	});
 });
 
 $(document).on("click", "#region-edit-parent-clear", function (event) {

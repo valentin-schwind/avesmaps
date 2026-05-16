@@ -948,6 +948,14 @@ function avesmapsWikiSyncApplyPoliticalRowToTreeNode(array $node, array $row): a
     $node['capital_name'] = (string) ($row['capital_name'] ?? '');
     $node['seat_name'] = (string) ($row['seat_name'] ?? '');
     $node['ruler'] = (string) ($row['ruler'] ?? '');
+    $node['founder'] = (string) ($row['founder'] ?? '');
+    $node['language'] = (string) ($row['language'] ?? '');
+    $node['currency'] = (string) ($row['currency'] ?? '');
+    $node['trade_goods'] = (string) ($row['trade_goods'] ?? '');
+    $node['population'] = (string) ($row['population'] ?? '');
+    $node['founded_text'] = (string) ($row['founded_text'] ?? '');
+    $node['dissolved_text'] = (string) ($row['dissolved_text'] ?? '');
+    $node['coat_of_arms_url'] = (string) ($row['coat_of_arms_url'] ?? '');
 
     return $node;
 }
@@ -988,6 +996,14 @@ function avesmapsWikiSyncPublicPoliticalTreeNode(array $node): array {
         'capital_name' => (string) $node['capital_name'],
         'seat_name' => (string) $node['seat_name'],
         'ruler' => (string) $node['ruler'],
+        'founder' => (string) ($node['founder'] ?? ''),
+        'language' => (string) ($node['language'] ?? ''),
+        'currency' => (string) ($node['currency'] ?? ''),
+        'trade_goods' => (string) ($node['trade_goods'] ?? ''),
+        'population' => (string) ($node['population'] ?? ''),
+        'founded_text' => (string) ($node['founded_text'] ?? ''),
+        'dissolved_text' => (string) ($node['dissolved_text'] ?? ''),
+        'coat_of_arms_url' => (string) ($node['coat_of_arms_url'] ?? ''),
         'is_group' => (bool) $node['is_group'],
         'is_wiki_live' => true,
     ];

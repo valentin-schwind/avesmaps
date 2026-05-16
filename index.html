@@ -556,6 +556,11 @@
 						<button id="region-edit-parent-filter-clear" type="button" aria-label="Suche leeren">x</button>
 					</div>
 					<div id="region-edit-parent-tree" class="political-territory-parent-tree" role="tree"></div>
+					<div id="region-edit-assignment-drop" class="political-territory-assignment-drop" tabindex="0">
+						<span id="region-edit-assignment-drop-label">Untersten Knoten hierher ziehen, um die Geometrie zuzuweisen</span>
+					</div>
+					<nav id="region-edit-assignment-breadcrumb" class="political-territory-assignment-breadcrumb" aria-label="Zugehoerigkeit"></nav>
+					<div id="region-edit-assignment-summary" class="political-territory-assignment-summary" hidden></div>
 				</section>
 				<div id="region-edit-tabs" class="political-territory-tabs political-territory-field" role="tablist" aria-label="Offene Herrschaftsgebiete"></div>
 				<label class="location-report-form__field">
@@ -611,11 +616,11 @@
 				</div>
 				<div class="location-report-form__grid political-territory-field">
 					<label class="location-report-form__field">
-						<span>Von</span>
+						<span>Jahr der Gruendung</span>
 						<input id="region-edit-valid-from" name="valid_from_bf" type="number" step="1" />
 					</label>
 					<label class="location-report-form__field">
-						<span>Bis</span>
+						<span>Jahr der Aufloesung</span>
 						<input id="region-edit-valid-to" name="valid_to_bf" type="number" step="1" />
 					</label>
 				</div>
@@ -841,6 +846,8 @@
 			politicalTerritoryOptionsSource = "",
 			politicalTerritoryWikiReferences = [],
 			politicalTerritoryFallbackData = null,
+			regionAssignmentWikiPath = [],
+			regionAssignmentEnsuredChain = [],
 			syntheticPathSegments = new Map(),
 			locationMarkers = [],
 			locationNameLabels = [],

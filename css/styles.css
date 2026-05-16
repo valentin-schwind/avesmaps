@@ -1259,8 +1259,8 @@ body.modal-dialog-open {
 .political-territory-parent-tree {
 	display: grid;
 	gap: 3px;
-	max-height: 480px;
-	min-height: 330px;
+	max-height: 280px;
+	min-height: 180px;
 	overflow: auto;
 	border: 1px solid #cdb79f;
 	border-radius: 8px;
@@ -1353,6 +1353,88 @@ body.modal-dialog-open {
 .political-territory-parent-tree__empty {
 	margin: 6px 8px;
 	color: #806c59;
+}
+
+.political-territory-assignment-drop {
+	display: flex;
+	align-items: center;
+	min-height: 38px;
+	margin-top: 8px;
+	border: 1px dashed #b99878;
+	border-radius: 8px;
+	background: #fffaf5;
+	color: #5f5145;
+	padding: 7px 10px;
+	font-size: 13px;
+}
+
+.political-territory-assignment-drop.is-drag-over {
+	border-color: #385d72;
+	background: #edf5f8;
+}
+
+.political-territory-assignment-drop.has-assignment {
+	border-style: solid;
+	background: #f6efe7;
+}
+
+.political-territory-assignment-breadcrumb {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+	margin-top: 8px;
+}
+
+.political-territory-assignment-breadcrumb__item {
+	border: 1px solid #cdb79f;
+	border-radius: 999px;
+	background: #fff;
+	color: #3f3428;
+	cursor: pointer;
+	font: inherit;
+	font-size: 12px;
+	padding: 4px 9px;
+}
+
+.political-territory-assignment-breadcrumb__item.is-active {
+	background: #385d72;
+	border-color: #385d72;
+	color: #fff;
+}
+
+.political-territory-assignment-summary {
+	display: grid;
+	grid-template-columns: 46px minmax(0, 1fr);
+	gap: 8px 10px;
+	margin-top: 8px;
+	border: 1px solid #dccab8;
+	border-radius: 8px;
+	background: #fffaf5;
+	padding: 8px;
+	font-size: 12px;
+	color: #4f4134;
+}
+
+.political-territory-assignment-summary img {
+	width: 42px;
+	height: 42px;
+	object-fit: contain;
+}
+
+.political-territory-assignment-summary dl {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 3px 8px;
+	margin: 0;
+}
+
+.political-territory-assignment-summary dt {
+	font-weight: bold;
+}
+
+.political-territory-assignment-summary dd {
+	margin: 0;
+	overflow-wrap: anywhere;
 }
 
 .political-territory-coat-field {
