@@ -64,6 +64,7 @@ try {
         'split_geometry' => avesmapsPoliticalSplitGeometry($pdo, $payload, $user),
         'assign_geometry' => avesmapsPoliticalAssignGeometryToTerritory($pdo, $payload),
         'delete_geometry' => avesmapsPoliticalDeleteGeometry($pdo, $payload),
+        'delete_geometry_part' => avesmapsPoliticalDeleteGeometryPart($pdo, $payload, $user),
         'geometry_operation' => avesmapsPoliticalApplyGeometryOperationResult($pdo, $payload, $user),
         'geometry_operation_debug' => avesmapsPoliticalDebugGeometryOperation($payload),
         'restore_legacy_region_geometries' => avesmapsPoliticalRestoreLegacyRegionGeometries($pdo, $payload, $user),
@@ -1306,6 +1307,72 @@ function avesmapsPoliticalDeleteGeometry(PDO $pdo, array $payload): array {
         'territory_deleted' => $territoryDeleted,
         'remaining_geometry_count' => $remainingGeometryCount,
     ];
+}
+
+function avesmapsPoliticalDeleteGeometryPart(PDO $pdo, array $payload, array $user): array {
+    $geometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? ''));
+    $polygonIndex = avesmapsPoliticalReadRequiredPolygonIndex($payload['polygon_index'] ?? null);
+    $geometryGeoJson = avesmapsPoliticalReadGeoJsonGeometry(avesmapsPoliticalDecodeJson($geometry['geometry_geojson'] ?? null));
+    $polygons = avesmapsPoliticalGeometryToPolygonList($geometryGeoJson);
+    if (!array_key_exists($polygonIndex, $polygons)) {
+        throw new InvalidArgumentException('Das ausgewaehlte Polygon wurde in der gespeicherten Geometrie nicht gefunden.');
+    }
+
+    array_splice($polygons, $polygonIndex, 1);
+    if ($polygons === []) {
+        return avesmapsPoliticalDeleteGeometry($pdo, [
+            'geometry_public_id' => (string) $geometry['public_id'],
+        ]);
+    }
+
+    $updatedGeometry = avesmapsPoliticalBuildGeoJsonFromPolygons($polygons);
+    $bounds = avesmapsPoliticalCalculateGeometryBounds($updatedGeometry);
+    $statement = $pdo->prepare(
+        'UPDATE political_territory_geometry
+        SET geometry_geojson = :geometry_geojson,
+            min_x = :min_x,
+            min_y = :min_y,
+            max_x = :max_x,
+            max_y = :max_y,
+            source = :source,
+            updated_by = :updated_by
+        WHERE id = :id'
+    );
+    $statement->execute([
+        'id' => (int) $geometry['id'],
+        'geometry_geojson' => avesmapsPoliticalEncodeJsonOrNull($updatedGeometry),
+        'min_x' => $bounds['min_x'],
+        'min_y' => $bounds['min_y'],
+        'max_x' => $bounds['max_x'],
+        'max_y' => $bounds['max_y'],
+        'source' => 'editor-part-delete',
+        'updated_by' => (int) ($user['id'] ?? 0) ?: null,
+    ]);
+
+    $response = avesmapsPoliticalResponseForGeometry($pdo, (string) $geometry['public_id']);
+    $response['deleted_polygon_index'] = $polygonIndex;
+    $response['remaining_polygon_count'] = count($polygons);
+
+    return $response;
+}
+
+function avesmapsPoliticalReadRequiredPolygonIndex(mixed $value): int {
+    $index = filter_var($value, FILTER_VALIDATE_INT);
+    if ($index === false || $index < 0) {
+        throw new InvalidArgumentException('Der Polygon-Index ist ungueltig.');
+    }
+
+    return (int) $index;
+}
+
+function avesmapsPoliticalBuildGeoJsonFromPolygons(array $polygons): array {
+    if ($polygons === []) {
+        throw new InvalidArgumentException('Die Geometrie enthaelt kein Polygon mehr.');
+    }
+
+    return count($polygons) === 1
+        ? ['type' => 'Polygon', 'coordinates' => array_values($polygons)[0]]
+        : ['type' => 'MultiPolygon', 'coordinates' => array_values($polygons)];
 }
 
 function avesmapsPoliticalCountActiveGeometriesForTerritory(PDO $pdo, int $territoryId): int {

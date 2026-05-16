@@ -3808,6 +3808,7 @@ function addRegionFeatureToMap(region, regionEntry) {
 			interactive: IS_EDIT_MODE || regionEntry.source === "political_territory",
 		});
 		polygon._regionEntry = regionEntry;
+		polygon._regionPolygonIndex = index;
 		regionEntry.layers.push(polygon);
 		if (!regionEntry.layer) {
 			regionEntry.layer = polygon;
@@ -4108,6 +4109,7 @@ function getRegionContextMenuElement() {
 function openRegionContextMenu(regionEntry, regionLayer, latlng, clientX, clientY) {
 	activeRegionContextEntry = regionEntry;
 	activeRegionContextLayer = regionLayer || regionEntry.layer || null;
+	activeRegionContextPolygonIndex = Number.isInteger(regionLayer?._regionPolygonIndex) ? regionLayer._regionPolygonIndex : null;
 	pendingContextMenuLatLng = L.latLng(latlng);
 	closeMapContextMenu();
 	const menuElement = getRegionContextMenuElement();
@@ -4126,6 +4128,7 @@ function closeRegionContextMenu() {
 	}
 	activeRegionContextEntry = null;
 	activeRegionContextLayer = null;
+	activeRegionContextPolygonIndex = null;
 }
 
 function positionContextMenuElement(menuElement, clientX, clientY) {
@@ -4146,6 +4149,7 @@ $(document).on("click", "[data-region-context-action]", function (event) {
 	const action = this.dataset.regionContextAction || "";
 	const regionEntry = activeRegionContextEntry;
 	const regionLayer = activeRegionContextLayer || regionEntry?.layer || null;
+	const polygonIndex = activeRegionContextPolygonIndex;
 	closeRegionContextMenu();
 	if (!regionEntry) {
 		return;
@@ -4174,7 +4178,7 @@ $(document).on("click", "[data-region-context-action]", function (event) {
 	}
 	if (action === "delete") {
 		regionEditEntry = regionEntry;
-		void deleteActiveRegion(regionLayer);
+		void deleteActiveRegion(regionLayer, polygonIndex);
 	}
 });
 
@@ -5436,7 +5440,7 @@ async function createRegionAt(latlng) {
 	}
 }
 
-async function deleteActiveRegion(selectedLayer = null) {
+async function deleteActiveRegion(selectedLayer = null, selectedPolygonIndex = null) {
 	if (!regionEditEntry) return;
 	if (regionEditEntry.source === "political_territory") {
 		const selectedGeometryLayer = selectedLayer || activeRegionGeometryEdit?.editLayer || regionEditEntry.layer || null;
@@ -5444,7 +5448,7 @@ async function deleteActiveRegion(selectedLayer = null) {
 		if (!window.confirm(createPoliticalRegionDeleteConfirmation(regionEditEntry, polygonCount))) return;
 		if (selectedGeometryLayer && polygonCount > 1) {
 			try {
-				await deleteRegionGeometryPart(regionEditEntry, selectedGeometryLayer);
+				await deleteRegionGeometryPart(regionEditEntry, selectedGeometryLayer, selectedPolygonIndex);
 				showFeedbackToast("Polygon geloescht.", "success");
 			} catch (error) {
 				showFeedbackToast(error.message || "Polygon konnte nicht geloescht werden.", "warning");
@@ -5549,13 +5553,18 @@ function prunePoliticalTerritoryHierarchy(publicId, nodes) {
 	}
 }
 
-async function deleteRegionGeometryPart(regionEntry, selectedLayer) {
+async function deleteRegionGeometryPart(regionEntry, selectedLayer, selectedPolygonIndex = null) {
 	const layers = getRegionEntryLayers(regionEntry);
 	if (!selectedLayer || !layers.includes(selectedLayer)) {
 		throw new Error("Die ausgewaehlte Teilflaeche wurde nicht gefunden.");
 	}
 
 	const remainingLayers = layers.filter((layer) => layer !== selectedLayer);
+	const polygonIndex = Number.isInteger(selectedPolygonIndex)
+		? selectedPolygonIndex
+		: Number.isInteger(selectedLayer._regionPolygonIndex)
+			? selectedLayer._regionPolygonIndex
+			: layers.indexOf(selectedLayer);
 	if (remainingLayers.length < 1) {
 		const result = await submitPoliticalTerritoryEdit({
 			action: "delete_geometry",
@@ -5571,12 +5580,19 @@ async function deleteRegionGeometryPart(regionEntry, selectedLayer) {
 		return;
 	}
 
-	const updatedGeometry = regionLayersToGeoJsonGeometry(remainingLayers);
-	await updatePoliticalRegionGeometry(regionEntry, updatedGeometry);
+	await submitPoliticalTerritoryEdit({
+		action: "delete_geometry_part",
+		public_id: regionEntry.geometryPublicId || regionEntry.publicId,
+		geometry_public_id: regionEntry.geometryPublicId || regionEntry.publicId,
+		polygon_index: polygonIndex,
+	});
 	map.removeLayer(selectedLayer);
 	regionPolygons = regionPolygons.filter((polygon) => polygon !== selectedLayer);
 	regionEntry.layers = remainingLayers;
 	regionEntry.layer = regionEntry.layers[0] || null;
+	regionEntry.layers.forEach((layer, index) => {
+		layer._regionPolygonIndex = index;
+	});
 
 	if (activeRegionGeometryEdit?.editLayer === selectedLayer) {
 		clearRegionGeometryEdit();
