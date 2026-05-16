@@ -5448,7 +5448,7 @@ async function deleteActiveRegion(selectedLayer = null, selectedPolygonIndex = n
 		if (!window.confirm(createPoliticalRegionDeleteConfirmation(regionEditEntry, polygonCount))) return;
 		if (selectedGeometryLayer && polygonCount > 1) {
 			try {
-				await deleteRegionGeometryPart(regionEditEntry, selectedGeometryLayer, selectedPolygonIndex);
+				await deleteRegionGeometryPart(regionEditEntry, selectedGeometryLayer);
 				showFeedbackToast("Polygon geloescht.", "success");
 			} catch (error) {
 				showFeedbackToast(error.message || "Polygon konnte nicht geloescht werden.", "warning");
@@ -5553,19 +5553,13 @@ function prunePoliticalTerritoryHierarchy(publicId, nodes) {
 	}
 }
 
-async function deleteRegionGeometryPart(regionEntry, selectedLayer, selectedPolygonIndex = null) {
+async function deleteRegionGeometryPart(regionEntry, selectedLayer) {
 	const layers = getRegionEntryLayers(regionEntry);
 	if (!selectedLayer || !layers.includes(selectedLayer)) {
 		throw new Error("Die ausgewaehlte Teilflaeche wurde nicht gefunden.");
 	}
 
-	const selectedPolygonGeoJson = selectedLayer.toGeoJSON?.()?.geometry || null;
 	const remainingLayers = layers.filter((layer) => layer !== selectedLayer);
-	const polygonIndex = Number.isInteger(selectedPolygonIndex)
-		? selectedPolygonIndex
-		: Number.isInteger(selectedLayer._regionPolygonIndex)
-			? selectedLayer._regionPolygonIndex
-			: layers.indexOf(selectedLayer);
 	if (remainingLayers.length < 1) {
 		const result = await submitPoliticalTerritoryEdit({
 			action: "delete_geometry",
@@ -5581,13 +5575,7 @@ async function deleteRegionGeometryPart(regionEntry, selectedLayer, selectedPoly
 		return;
 	}
 
-	await submitPoliticalTerritoryEdit({
-		action: "delete_geometry_part",
-		public_id: regionEntry.geometryPublicId || regionEntry.publicId,
-		geometry_public_id: regionEntry.geometryPublicId || regionEntry.publicId,
-		polygon_index: polygonIndex,
-		selected_polygon_geojson: selectedPolygonGeoJson,
-	});
+	const result = await updatePoliticalRegionGeometry(regionEntry, regionLayersToGeoJsonGeometry(remainingLayers, regionEntry));
 	map.removeLayer(selectedLayer);
 	regionPolygons = regionPolygons.filter((polygon) => polygon !== selectedLayer);
 	regionEntry.layers = remainingLayers;
@@ -5595,6 +5583,9 @@ async function deleteRegionGeometryPart(regionEntry, selectedLayer, selectedPoly
 	regionEntry.layers.forEach((layer, index) => {
 		layer._regionPolygonIndex = index;
 	});
+	if (result.feature) {
+		applyRegionFeatureResponse(regionEntry, result.feature);
+	}
 
 	if (activeRegionGeometryEdit?.editLayer === selectedLayer) {
 		clearRegionGeometryEdit();

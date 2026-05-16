@@ -123,6 +123,12 @@ async function submitPoliticalTerritoryEdit(payload) {
 	});
 	const data = await readJsonResponse(response, {});
 	if (!response.ok || data?.ok !== true) {
+		console.error("Herrschaftsgebiet-API Fehler:", {
+			status: response.status,
+			action: payload?.action || "",
+			error: data?.error || "",
+			response: data,
+		});
 		throw new Error(data?.error || `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`);
 	}
 
