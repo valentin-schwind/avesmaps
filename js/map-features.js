@@ -5230,18 +5230,7 @@ function deleteRegionNode(index) {
 async function saveRegionGeometry(regionEntry) {
 	if (regionEntry.source === "political_territory") {
 		try {
-			const result = await submitPoliticalTerritoryEdit({
-				action: "update_geometry",
-				public_id: regionEntry.geometryPublicId || regionEntry.publicId,
-				geometry_public_id: regionEntry.geometryPublicId || regionEntry.publicId,
-				source: "editor",
-				geometry_geojson: regionLayerToGeoJsonGeometry(regionEntry),
-				style_json: {
-					fill: regionEntry.color,
-					stroke: regionEntry.color,
-					fillOpacity: regionEntry.opacity,
-				},
-			});
+			const result = await updatePoliticalRegionGeometry(regionEntry, regionLayerToGeoJsonGeometry(regionEntry));
 			if (result.feature) {
 				applyRegionFeatureResponse(regionEntry, result.feature);
 			}
@@ -5267,15 +5256,38 @@ async function saveRegionGeometry(regionEntry) {
 	}
 }
 
+async function updatePoliticalRegionGeometry(regionEntry, geometryGeoJson) {
+	return submitPoliticalTerritoryEdit({
+		action: "update_geometry",
+		public_id: regionEntry.geometryPublicId || regionEntry.publicId,
+		geometry_public_id: regionEntry.geometryPublicId || regionEntry.publicId,
+		source: "editor",
+		geometry_geojson: geometryGeoJson,
+		style_json: {
+			fill: regionEntry.color,
+			stroke: regionEntry.color,
+			fillOpacity: regionEntry.opacity,
+		},
+	});
+}
+
 function regionLayerToGeoJsonGeometry(regionEntry) {
-	const geometries = (regionEntry.layers?.length ? regionEntry.layers : [regionEntry.layer])
+	return regionLayersToGeoJsonGeometry(regionEntry.layers?.length ? regionEntry.layers : [regionEntry.layer], regionEntry);
+}
+
+function regionLayersToGeoJsonGeometry(layers, fallbackRegionEntry = null) {
+	const geometries = layers
 		.filter(Boolean)
 		.map((layer) => layer.toGeoJSON?.().geometry)
 		.filter((geometry) => geometry && ["Polygon", "MultiPolygon"].includes(geometry.type));
 	if (geometries.length < 1) {
+		if (!fallbackRegionEntry) {
+			throw new Error("Die Geometrie enthaelt keine Flaeche.");
+		}
+
 		return {
 			type: "Polygon",
-			coordinates: polygonLatLngsToCoordinates(getRegionOuterLatLngs(regionEntry)),
+			coordinates: polygonLatLngsToCoordinates(getRegionOuterLatLngs(fallbackRegionEntry)),
 		};
 	}
 
@@ -5543,26 +5555,33 @@ async function deleteRegionGeometryPart(regionEntry, selectedLayer) {
 		throw new Error("Die ausgewaehlte Teilflaeche wurde nicht gefunden.");
 	}
 
-	map.removeLayer(selectedLayer);
-	regionPolygons = regionPolygons.filter((polygon) => polygon !== selectedLayer);
-	regionEntry.layers = layers.filter((layer) => layer !== selectedLayer);
-	regionEntry.layer = regionEntry.layers[0] || null;
-	if (!regionEntry.layer) {
-		await submitPoliticalTerritoryEdit({
+	const remainingLayers = layers.filter((layer) => layer !== selectedLayer);
+	if (remainingLayers.length < 1) {
+		const result = await submitPoliticalTerritoryEdit({
 			action: "delete_geometry",
 			public_id: regionEntry.geometryPublicId || regionEntry.publicId,
 			geometry_public_id: regionEntry.geometryPublicId || regionEntry.publicId,
 		});
+		removeRegionEntryFromMap(regionEntry);
+		if (result.territory_deleted) {
+			removePoliticalTerritoryOption(result.territory_public_id || regionEntry.territoryPublicId || "");
+		}
 		clearRegionGeometryEdit();
 		schedulePoliticalTerritoryLayerReload({ immediate: true });
 		return;
 	}
 
+	const updatedGeometry = regionLayersToGeoJsonGeometry(remainingLayers);
+	await updatePoliticalRegionGeometry(regionEntry, updatedGeometry);
+	map.removeLayer(selectedLayer);
+	regionPolygons = regionPolygons.filter((polygon) => polygon !== selectedLayer);
+	regionEntry.layers = remainingLayers;
+	regionEntry.layer = regionEntry.layers[0] || null;
+
 	if (activeRegionGeometryEdit?.editLayer === selectedLayer) {
 		clearRegionGeometryEdit();
 	}
 	updateRegionLabelPosition(regionEntry);
-	await saveRegionGeometry(regionEntry);
 	schedulePoliticalTerritoryLayerReload({ immediate: true });
 }
 
