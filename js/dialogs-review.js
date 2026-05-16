@@ -863,6 +863,31 @@ function syncRegionTerritoryFieldVisibility(source) {
 			? false
 			: !isPoliticalTerritory;
 	});
+	syncRegionEditRequiredState();
+}
+
+function syncRegionEditRequiredState() {
+	const formElement = getRegionEditFormElement();
+	if (!formElement) {
+		return;
+	}
+
+	formElement.querySelectorAll("input, select, textarea").forEach((element) => {
+		if (!(element instanceof HTMLInputElement || element instanceof HTMLSelectElement || element instanceof HTMLTextAreaElement)) {
+			return;
+		}
+		if (element.type === "hidden") {
+			return;
+		}
+
+		if (typeof element.dataset.regionOriginalRequired === "undefined") {
+			element.dataset.regionOriginalRequired = element.required ? "1" : "0";
+		}
+
+		const shouldBeRequired = element.dataset.regionOriginalRequired === "1";
+		const isVisible = !element.hidden && element.getClientRects().length > 0;
+		element.required = shouldBeRequired && isVisible;
+	});
 }
 
 function populateRegionTypeOptions(region) {
@@ -1415,42 +1440,51 @@ async function loadPersistedRegionAssignment(territoryPublicId) {
 	}
 
 	const request = (async () => {
-		const response = await fetchPoliticalTerritories({
-			action: "get",
-			public_id: normalizedPublicId,
-		});
-		const assignmentChain = Array.isArray(response.assignment_chain) ? response.assignment_chain : [];
-		if (assignmentChain.length < 1) {
-			return false;
-		}
-
-		const activeTab = findRegionEditTab(normalizedPublicId);
-		if (activeTab && !isRegionEditTabDirty(activeTab)) {
-			const normalizedRegion = normalizePoliticalTerritoryForRegionEdit({
-				...(response.territory || {}),
-				assignment_chain: response.assignment_chain || [],
-			}, response.wiki || null);
-			activeTab.region = {
-				...(activeTab.region || {}),
-				...normalizedRegion,
-			};
-			activeTab.savedPayload = regionEditPayloadToPayload(activeTab.region);
-			if (activeRegionEditTabKey === activeTab.key) {
-				regionEditEntry = activeTab.region;
+		try {
+			const response = await fetchPoliticalTerritories({
+				action: "get",
+				public_id: normalizedPublicId,
+			});
+			const assignmentChain = Array.isArray(response.assignment_chain) ? response.assignment_chain : [];
+			if (assignmentChain.length < 1) {
+				return false;
 			}
-		}
 
-		const applied = applyPersistedRegionAssignmentChain(assignmentChain, normalizedPublicId);
-		if (!applied) {
+			const activeTab = findRegionEditTab(normalizedPublicId);
+			if (activeTab && !isRegionEditTabDirty(activeTab)) {
+				const normalizedRegion = normalizePoliticalTerritoryForRegionEdit({
+					...(response.territory || {}),
+					assignment_chain: response.assignment_chain || [],
+				}, response.wiki || null);
+				activeTab.region = {
+					...(activeTab.region || {}),
+					...normalizedRegion,
+				};
+				activeTab.savedPayload = regionEditPayloadToPayload(activeTab.region);
+				if (activeRegionEditTabKey === activeTab.key) {
+					regionEditEntry = activeTab.region;
+				}
+			}
+
+			const applied = applyPersistedRegionAssignmentChain(assignmentChain, normalizedPublicId);
+			if (!applied) {
+				return false;
+			}
+
+			const currentActiveTerritoryPublicId = String(regionEditEntry?.territoryPublicId || regionEditEntry?.publicId || "").trim();
+			if (currentActiveTerritoryPublicId === normalizedPublicId) {
+				renderRegionAssignment(regionAssignmentWikiPath, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
+			}
+
+			return true;
+		} catch (error) {
+			if (String(error?.message || "").includes("nicht gefunden")) {
+				return false;
+			}
+
+			console.error("Gespeicherte Herrschaftsgebiets-Zuweisung konnte nicht geladen werden:", error);
 			return false;
 		}
-
-		const currentActiveTerritoryPublicId = String(regionEditEntry?.territoryPublicId || regionEditEntry?.publicId || "").trim();
-		if (currentActiveTerritoryPublicId === normalizedPublicId) {
-			renderRegionAssignment(regionAssignmentWikiPath, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
-		}
-
-		return true;
 	})().finally(() => {
 		regionAssignmentPersistedLoadPromises.delete(normalizedPublicId);
 	});
@@ -5602,7 +5636,13 @@ async function handleLabelEditFormSubmit(event) {
 async function handleRegionEditFormSubmit(event) {
 	event.preventDefault();
 	const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
-	if (!formElement || !formElement.reportValidity() || !regionEditEntry) return;
+	if (!formElement || !regionEditEntry) {
+		return;
+	}
+	syncRegionEditRequiredState();
+	if (!formElement.reportValidity()) {
+		return;
+	}
 	snapshotActiveRegionEditTab();
 	const payload = buildRegionEditPayload(formElement);
 	const payloads = payload.source === "political_territory" && regionEditTabs.length > 0
