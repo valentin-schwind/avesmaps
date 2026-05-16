@@ -1612,7 +1612,8 @@ function initializeRegionEditTabs(entry) {
 }
 
 function getPrimaryRegionGeometryPublicId() {
-	return regionEditTabs[0]?.region?.geometryPublicId || regionEditTabs[0]?.region?.publicId || regionEditEntry?.region?.geometryPublicId || regionEditEntry?.geometryPublicId || regionEditEntry?.publicId || "";
+	const primaryRegion = regionEditTabs[0]?.region || regionEditTabs[0]?.entry || regionEditEntry?.region || regionEditEntry || {};
+	return String(primaryRegion.geometryPublicId || "").trim();
 }
 
 function renderRegionEditTabs() {
@@ -2047,12 +2048,21 @@ function arePoliticalTerritoryPathsEqual(leftPath, rightPath) {
 
 function syncRegionAssignmentForRegion(region) {
 	const source = region?.source || "map_feature";
-	const territoryPublicId = region?.territoryPublicId || region?.publicId || "";
+	const territoryPublicId = String(region?.territoryPublicId || "").trim();
 	if (source !== "political_territory" || !territoryPublicId) {
 		regionAssignmentWikiPath = [];
 		regionAssignmentEnsuredChain = [];
 		regionAssignmentActiveWikiPublicId = "";
 		renderRegionAssignment();
+		return;
+	}
+
+	const normalizedTerritoryPublicId = territoryPublicId;
+	const currentPathContainsTerritory = Array.isArray(regionAssignmentWikiPath)
+		&& regionAssignmentWikiPath.some((node) => String(node?.territory?.public_id || "").trim() === normalizedTerritoryPublicId);
+	if (regionAssignmentWikiPath.length > 0 && currentPathContainsTerritory) {
+		regionAssignmentActiveWikiPublicId = normalizedTerritoryPublicId;
+		renderRegionAssignment(regionAssignmentWikiPath, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
 		return;
 	}
 
@@ -2063,15 +2073,6 @@ function syncRegionAssignmentForRegion(region) {
 	}
 
 	if (restoreRegionAssignmentBreadcrumbCache(territoryPublicId)) {
-		renderRegionAssignment(regionAssignmentWikiPath, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
-		return;
-	}
-
-	const normalizedTerritoryPublicId = String(territoryPublicId || "").trim();
-	const currentPathContainsTerritory = Array.isArray(regionAssignmentWikiPath)
-		&& regionAssignmentWikiPath.some((node) => String(node?.territory?.public_id || "").trim() === normalizedTerritoryPublicId);
-	if (regionAssignmentWikiPath.length > 0 && currentPathContainsTerritory) {
-		regionAssignmentActiveWikiPublicId = normalizedTerritoryPublicId;
 		renderRegionAssignment(regionAssignmentWikiPath, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
 		return;
 	}
@@ -2654,11 +2655,14 @@ function populateRegionEditForm(entry, { preserveTabs = false } = {}) {
 	regionEditEntry = entry;
 	const region = entry?.region || entry || {};
 	const source = region.source || "map_feature";
+	const geometryPublicId = source === "political_territory"
+		? getPrimaryRegionGeometryPublicId()
+		: String(region.geometryPublicId || region.publicId || "").trim();
 	regionParentSelectedTreeId = region.territoryPublicId || "";
 	document.getElementById("region-edit-public-id").value = region.publicId || "";
 	document.getElementById("region-edit-source").value = source;
 	document.getElementById("region-edit-territory-public-id").value = region.territoryPublicId || "";
-	document.getElementById("region-edit-geometry-public-id").value = region.geometryPublicId || region.publicId || "";
+	document.getElementById("region-edit-geometry-public-id").value = geometryPublicId;
 	document.getElementById("region-edit-wiki-id").value = region.wikiId || region.wiki_id || "";
 	if (source !== "political_territory") {
 		void acquireFeatureSoftLock(region.publicId || "");

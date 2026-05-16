@@ -1474,7 +1474,9 @@ body.modal-dialog-open {
 }
 
 .political-territory-assignment-summary {
-	display: block;
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
 	margin-top: 8px;
 	border: 1px solid #dccab8;
 	border-radius: 8px;
@@ -1490,21 +1492,17 @@ body.modal-dialog-open {
 	width: 56px;
 	height: 56px;
 	object-fit: contain;
-	border: 1px solid #dccab8;
-	border-radius: 8px;
-	background: #fff;
-	padding: 4px;
 }
 
 .political-territory-assignment-summary__content {
 	display: flex;
-	align-items: flex-start;
-	gap: 10px;
+	flex: 1 1 auto;
 	min-width: 0;
 }
 
 .political-territory-assignment-summary__panes {
-	display: grid;
+	display: flex;
+	flex-direction: column;
 	gap: 8px;
 	flex: 1 1 auto;
 	min-width: 0;
