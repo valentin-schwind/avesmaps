@@ -1232,6 +1232,18 @@ function buildWikiReferencePeriod(region) {
 		.join(" - ");
 }
 
+function formatPoliticalTerritoryZoomRange(minZoom, maxZoom) {
+	const minValue = Number.isFinite(Number(minZoom)) ? Number.parseInt(minZoom, 10) : null;
+	const maxValue = Number.isFinite(Number(maxZoom)) ? Number.parseInt(maxZoom, 10) : null;
+	if (minValue === null && maxValue === null) {
+		return "Zoom offen";
+	}
+
+	const minText = minValue === null ? "–" : String(minValue);
+	const maxText = maxValue === null ? "–" : String(maxValue);
+	return `Zoom ${minText}-${maxText}`;
+}
+
 function clonePoliticalTerritoryPathNode(node) {
 	return {
 		territory: {
@@ -1265,6 +1277,76 @@ function storeRegionAssignmentBreadcrumbCache(territoryPublicId, path, ensuredCh
 		ensuredChain: clonePoliticalTerritoryChain(ensuredChain),
 		activeWikiPublicId: String(activeWikiPublicId || "").trim(),
 	});
+}
+
+function updateRegionAssignmentBreadcrumbChain(territoryPublicId, territory = null, wiki = null) {
+	const cacheKey = String(territoryPublicId || "").trim();
+	if (!cacheKey) {
+		return;
+	}
+
+	const territoryPatch = territory && typeof territory === "object" ? { ...territory } : null;
+	const wikiPatch = wiki && typeof wiki === "object" ? { ...wiki } : null;
+	const patchChain = (chain) => chain.map((node) => {
+		if (String(node?.territory?.public_id || "").trim() !== cacheKey) {
+			return node;
+		}
+
+		return {
+			...node,
+			territory: territoryPatch
+				? {
+					...(node.territory || {}),
+					...territoryPatch,
+				}
+				: node.territory,
+			wiki: wikiPatch
+				? {
+					...(node.wiki || {}),
+					...wikiPatch,
+				}
+				: node.wiki,
+		};
+	});
+
+	if (Array.isArray(regionAssignmentEnsuredChain) && regionAssignmentEnsuredChain.length > 0) {
+		regionAssignmentEnsuredChain = patchChain(regionAssignmentEnsuredChain);
+	}
+
+	regionAssignmentBreadcrumbCache.forEach((snapshot, snapshotKey) => {
+		if (!snapshot || typeof snapshot !== "object") {
+			return;
+		}
+
+		const snapshotChain = Array.isArray(snapshot.ensuredChain) ? snapshot.ensuredChain : [];
+		const hasMatch = snapshotChain.some((node) => String(node?.territory?.public_id || "").trim() === cacheKey);
+		if (!hasMatch && String(snapshotKey || "").trim() !== cacheKey) {
+			return;
+		}
+
+		regionAssignmentBreadcrumbCache.set(snapshotKey, {
+			...snapshot,
+			ensuredChain: patchChain(snapshotChain),
+		});
+	});
+
+	if (Array.isArray(regionAssignmentWikiPath) && regionAssignmentWikiPath.length > 0) {
+		regionAssignmentWikiPath = regionAssignmentWikiPath.map((node) => {
+			if (String(node?.territory?.public_id || "").trim() !== cacheKey) {
+				return node;
+			}
+
+			return {
+				...node,
+				territory: territoryPatch
+					? {
+						...(node.territory || {}),
+						...territoryPatch,
+					}
+					: node.territory,
+			};
+		});
+	}
 }
 
 function restoreRegionAssignmentBreadcrumbCache(territoryPublicId) {
@@ -1423,6 +1505,9 @@ function renderRegionAssignment(path = regionAssignmentWikiPath, ensuredChain = 
 	const activeId = String(activeWikiPublicId || defaultActiveId).trim();
 	const activeIndex = ensuredChain.findIndex((node) => (node.territory?.public_id || "") === activeId);
 	const activeWiki = activeIndex >= 0 ? ensuredChain[activeIndex]?.wiki || ensuredChain[activeIndex]?.territory || null : ensuredChain[ensuredChain.length - 1]?.wiki || selectedNode?.territory || null;
+	const activeTerritory = activeIndex >= 0
+		? ensuredChain[activeIndex]?.territory || selectedNode?.territory || null
+		: selectedNode?.territory || null;
 	if (labelElement) {
 		labelElement.textContent = selectedNode
 			? `Zugewiesen: ${selectedNode.territory?.name || "Herrschaftsgebiet"}`
@@ -1433,10 +1518,12 @@ function renderRegionAssignment(path = regionAssignmentWikiPath, ensuredChain = 
 		breadcrumbElement.innerHTML = "";
 		path.forEach((node, index) => {
 			const ensuredNode = ensuredChain[index] || null;
-			const wiki = ensuredNode?.wiki || node.territory || {};
+			const territory = ensuredNode?.territory || node.territory || {};
+			const wiki = ensuredNode?.wiki || territory || {};
 			const wikiName = wiki.name || wiki.wiki_name || node.territory?.name || "Herrschaftsgebiet";
 			const wikiType = normalizeParentheticalSpacing([wiki.type || "", wiki.status || ""].filter(Boolean).join(" · "));
 			const wikiPeriod = normalizeParentheticalSpacing(wiki.valid_label || buildWikiReferencePeriod(wiki));
+			const zoomLabel = formatPoliticalTerritoryZoomRange(territory.min_zoom ?? territory.minZoom ?? null, territory.max_zoom ?? territory.maxZoom ?? null);
 			const breadcrumbTerritoryId = String(ensuredNode?.territory?.public_id || node.territory?.public_id || "").trim();
 			const button = document.createElement("button");
 			button.type = "button";
@@ -1446,16 +1533,18 @@ function renderRegionAssignment(path = regionAssignmentWikiPath, ensuredChain = 
 			button.innerHTML = `
 				<span class="political-territory-assignment-breadcrumb__name"></span>
 				<span class="political-territory-assignment-breadcrumb__meta"></span>
+				<span class="political-territory-assignment-breadcrumb__zoom"></span>
 			`;
 			button.querySelector(".political-territory-assignment-breadcrumb__name").textContent = wikiName;
 			button.querySelector(".political-territory-assignment-breadcrumb__meta").textContent = [wikiType, wikiPeriod].filter(Boolean).join(" · ") || "Wiki-Daten";
+			button.querySelector(".political-territory-assignment-breadcrumb__zoom").textContent = zoomLabel;
 			breadcrumbElement.append(button);
 		});
 	}
-	renderRegionAssignmentSummary(summaryElement, activeWiki || selectedNode?.territory || null);
+	renderRegionAssignmentSummary(summaryElement, activeWiki || selectedNode?.territory || null, activeTerritory);
 }
 
-function renderRegionAssignmentSummary(summaryElement, wiki) {
+function renderRegionAssignmentSummary(summaryElement, wiki, territory = null) {
 	if (!summaryElement) {
 		return;
 	}
@@ -1479,6 +1568,7 @@ function renderRegionAssignmentSummary(summaryElement, wiki) {
 		["Einwohner", wiki.population || ""],
 		["Gruendung", wiki.founded_text || ""],
 		["Aufloesung", wiki.dissolved_text || ""],
+		["Zoom", formatPoliticalTerritoryZoomRange(territory?.min_zoom ?? territory?.minZoom ?? null, territory?.max_zoom ?? territory?.maxZoom ?? null)],
 		["Wiki-Link", wiki.wiki_url || ""],
 	].filter(([, value]) => String(value || "").trim() !== "");
 	const coatUrl = wiki.coat_of_arms_url || "";
@@ -1520,6 +1610,15 @@ function syncRegionAssignmentForRegion(region) {
 	}
 
 	if (restoreRegionAssignmentBreadcrumbCache(territoryPublicId)) {
+		renderRegionAssignment(regionAssignmentWikiPath, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
+		return;
+	}
+
+	const normalizedTerritoryPublicId = String(territoryPublicId || "").trim();
+	const currentPathContainsTerritory = Array.isArray(regionAssignmentWikiPath)
+		&& regionAssignmentWikiPath.some((node) => String(node?.territory?.public_id || "").trim() === normalizedTerritoryPublicId);
+	if (regionAssignmentWikiPath.length > 0 && currentPathContainsTerritory) {
+		regionAssignmentActiveWikiPublicId = normalizedTerritoryPublicId;
 		renderRegionAssignment(regionAssignmentWikiPath, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
 		return;
 	}
@@ -1754,6 +1853,7 @@ async function saveRegionEditTab(tab) {
 	}
 	tab.region = liveRegion;
 	tab.entry = liveRegion;
+	updateRegionAssignmentBreadcrumbChain(payload.territory_public_id || liveRegion.territoryPublicId || "", result.territory || null, result.wiki || null);
 	if (tab.assignGeometryPublicId && payload.territory_public_id) {
 		latestResult = tab.assignGeometryMode === "create"
 			? await submitPoliticalTerritoryEdit({
