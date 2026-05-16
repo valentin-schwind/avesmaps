@@ -1312,8 +1312,10 @@ function buildWikiReferencePeriod(region) {
 }
 
 function formatPoliticalTerritoryZoomRange(minZoom, maxZoom) {
-	const minValue = Number.isFinite(Number(minZoom)) ? Number.parseInt(minZoom, 10) : null;
-	const maxValue = Number.isFinite(Number(maxZoom)) ? Number.parseInt(maxZoom, 10) : null;
+	const parsedMin = Number.parseInt(String(minZoom ?? ""), 10);
+	const parsedMax = Number.parseInt(String(maxZoom ?? ""), 10);
+	const minValue = Number.isFinite(parsedMin) ? parsedMin : null;
+	const maxValue = Number.isFinite(parsedMax) ? parsedMax : null;
 	if (minValue === null && maxValue === null) {
 		return "Zoom offen";
 	}
@@ -2433,8 +2435,6 @@ async function saveRegionEditTab(tab) {
 				valid_from_bf: payload.valid_from_bf,
 				valid_to_bf: payload.valid_to_bf,
 				valid_to_open: payload.valid_to_open,
-				min_zoom: payload.min_zoom,
-				max_zoom: payload.max_zoom,
 				style_json: {
 					fill: payload.color,
 					stroke: payload.color,

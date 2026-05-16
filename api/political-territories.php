@@ -1204,6 +1204,7 @@ function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user)
         'editor_notes' => avesmapsPoliticalNullableString(avesmapsNormalizeMultiline((string) ($payload['editor_notes'] ?? ''), 3000)),
     ]);
     avesmapsPoliticalSyncTerritoryGeometryStyle($pdo, (int) $territory['id'], $color, $opacity);
+    avesmapsPoliticalClearTerritoryGeometryZoomOverrides($pdo, (int) $territory['id']);
 
     return avesmapsPoliticalResponseForTerritory($pdo, (string) $territory['public_id']);
 }
@@ -1216,6 +1217,7 @@ function avesmapsPoliticalEnsureWikiTerritoryChain(PDO $pdo, array $payload, arr
 
     $chain = [];
     $parentId = null;
+    $chainLength = count($wikiPublicIds);
     $wikiNodes = is_array($payload['wiki_nodes'] ?? null) ? array_values($payload['wiki_nodes']) : [];
     $pdo->beginTransaction();
     try {
@@ -1254,6 +1256,9 @@ function avesmapsPoliticalEnsureWikiTerritoryChain(PDO $pdo, array $payload, arr
                 $territory['parent_id'] = $parentId;
             }
 
+            $zoomRange = avesmapsPoliticalDefaultAssignmentZoomRange($chainLength, $index);
+            avesmapsPoliticalUpdateTerritoryZoomRange($pdo, (int) $territory['id'], $zoomRange['min'], $zoomRange['max']);
+
             $chain[] = [
                 'territory' => avesmapsPoliticalTerritoryRowToPublic(avesmapsPoliticalFetchTerritoryById($pdo, (int) $territory['id'])),
                 'wiki' => $wiki !== null ? avesmapsPoliticalWikiRowToPublic($wiki) : $node,
@@ -1275,6 +1280,65 @@ function avesmapsPoliticalEnsureWikiTerritoryChain(PDO $pdo, array $payload, arr
         'chain' => $chain,
         'selected' => $chain[count($chain) - 1] ?? null,
     ];
+}
+
+function avesmapsPoliticalDefaultAssignmentZoomRange(int $chainLength, int $index): array {
+    if ($chainLength <= 1) {
+        return ['min' => 0, 'max' => 6];
+    }
+
+    if ($chainLength === 2) {
+        return $index === 0
+            ? ['min' => 0, 'max' => 2]
+            : ['min' => 3, 'max' => 6];
+    }
+
+    if ($chainLength === 3) {
+        return match ($index) {
+            0 => ['min' => 0, 'max' => 2],
+            1 => ['min' => 3, 'max' => 4],
+            default => ['min' => 5, 'max' => 6],
+        };
+    }
+
+    if ($index === 0) {
+        return ['min' => 0, 'max' => 2];
+    }
+
+    if ($index === 1) {
+        return ['min' => 3, 'max' => 4];
+    }
+
+    if ($index >= $chainLength - 1) {
+        return ['min' => 6, 'max' => 6];
+    }
+
+    return ['min' => 5, 'max' => 5];
+}
+
+function avesmapsPoliticalUpdateTerritoryZoomRange(PDO $pdo, int $territoryId, int $minZoom, int $maxZoom): void {
+    $statement = $pdo->prepare(
+        'UPDATE political_territory
+        SET min_zoom = :min_zoom,
+            max_zoom = :max_zoom
+        WHERE id = :id'
+    );
+    $statement->execute([
+        'id' => $territoryId,
+        'min_zoom' => $minZoom,
+        'max_zoom' => $maxZoom,
+    ]);
+    avesmapsPoliticalClearTerritoryGeometryZoomOverrides($pdo, $territoryId);
+}
+
+function avesmapsPoliticalClearTerritoryGeometryZoomOverrides(PDO $pdo, int $territoryId): void {
+    $statement = $pdo->prepare(
+        'UPDATE political_territory_geometry
+        SET min_zoom = NULL,
+            max_zoom = NULL
+        WHERE territory_id = :territory_id'
+    );
+    $statement->execute(['territory_id' => $territoryId]);
 }
 
 function avesmapsPoliticalReadWikiTreeKey(mixed $value): string {
@@ -1543,6 +1607,8 @@ function avesmapsPoliticalAssignGeometryToTerritory(PDO $pdo, array $payload): a
     $statement = $pdo->prepare(
         'UPDATE political_territory_geometry
         SET territory_id = :territory_id,
+            min_zoom = NULL,
+            max_zoom = NULL,
             style_json = :style_json
         WHERE id = :id'
     );
