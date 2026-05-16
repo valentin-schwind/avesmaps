@@ -4219,6 +4219,12 @@ $(document).on("click", "[data-region-context-action]", function (event) {
 	}
 	if (action === "edit-properties") {
 		clearRegionGeometryEdit();
+
+		if (window.AvesmapsPoliticalTerritoryEditorLink) {
+			window.AvesmapsPoliticalTerritoryEditorLink.open(regionEntry);
+			return;
+		}
+
 		openRegionEditDialog(regionEntry, { title: "Eigenschaften bearbeiten" });
 		return;
 	}
