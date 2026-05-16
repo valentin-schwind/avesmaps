@@ -84,7 +84,7 @@ try {
         $response['exception'] = avesmapsPoliticalDebugExceptionPayload($exception);
     }
     avesmapsJsonResponse(400, $response);
-} catch (PDOException) {
+} catch (PDOException $exception) {
     $response = [
         'ok' => false,
         'error' => 'Die Herrschaftsgebiete konnten nicht aus der Datenbank verarbeitet werden.',
@@ -349,6 +349,13 @@ function avesmapsPoliticalBuildRawEditorLayerFeatures(array $rows, int $yearBf, 
                     $territories[$sourceTerritoryId]
                 );
             }
+            
+            $featureIndex = count($features);
+            $features[] = $feature;
+            $labelGroups[$labelKey]['feature_indexes'][] = $featureIndex;
+            $labelGroups[$labelKey]['geometry'] = isset($labelGroups[$labelKey]['geometry'])
+                ? avesmapsPoliticalMergeLayerGeometries($labelGroups[$labelKey]['geometry'], $feature['geometry'] ?? null)
+                : ($feature['geometry'] ?? null);
         }
 
         $feature = avesmapsPoliticalLayerRowToFeature($featureRow, $yearBf, $zoom);
@@ -1758,10 +1765,10 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
         'territory_id' => (int) $selectedTerritory['id'],
         'valid_from_bf' => avesmapsPoliticalReadOptionalInt($selectedDisplay['startYear'] ?? $geometry['valid_from_bf'] ?? null),
         'valid_to_bf' => !empty($selectedDisplay['existsUntilToday'])
-                ? 9999
-                : avesmapsPoliticalReadOptionalInt($selectedDisplay['endYear'] ?? $geometry['valid_to_bf'] ?? null),
-            'min_zoom' => null,
-            'max_zoom' => null,
+            ? 9999
+            : avesmapsPoliticalReadOptionalInt($selectedDisplay['endYear'] ?? $geometry['valid_to_bf'] ?? null),
+        'min_zoom' => null,
+        'max_zoom' => null,
         'min_zoom' => avesmapsPoliticalReadOptionalZoom($selectedDisplay['zoomMin'] ?? null),
         'max_zoom' => avesmapsPoliticalReadOptionalZoom($selectedDisplay['zoomMax'] ?? null),
         'style_json' => avesmapsPoliticalEncodeJsonOrNull($style),
