@@ -2357,15 +2357,46 @@
 		}
 
 		async function defaultSaveAssignment(value) {
-			const response = await fetch(moduleOptions.saveUrl || API_URL, {
+			const params = new URLSearchParams(window.location.search);
+			const geometryPublicId = normalizeText(params.get("geometry_public_id") || "");
+
+			if (!geometryPublicId) {
+				throw new Error("Die Geometrie-ID fehlt. Öffnen Sie den Editor über Rechtsklick auf ein Herrschaftsgebiet.");
+			}
+
+			const assignedPath = Array.isArray(value.assignedPath) ? value.assignedPath : [];
+			const displays = Array.isArray(value.displays) ? value.displays : [];
+
+			const wikiPublicIds = assignedPath
+				.map(node => normalizeText(node.wikiKey || node.key || ""))
+				.filter(Boolean);
+
+			if (wikiPublicIds.length < 1) {
+				throw new Error("Es wurde kein Wiki-Herrschaftsgebiet zugewiesen.");
+			}
+
+			const response = await fetch(moduleOptions.saveUrl || WRITE_API_URL, {
 				method: "PATCH",
+				credentials: "same-origin",
 				headers: {
 					"Content-Type": "application/json",
 					"Accept": "application/json"
 				},
 				body: JSON.stringify({
 					action: "save_geometry_assignment",
-					...value
+					geometry_public_id: geometryPublicId,
+					wiki_public_ids: wikiPublicIds,
+					wiki_nodes: assignedPath.map((node, index) => {
+						const display = displays[index] || {};
+						return {
+							name: display.displayName || node.label || node.key || "",
+							type: node.kind || "Herrschaftsgebiet",
+							status: "",
+							coat_of_arms_url: display.coatOfArmsUrl || "",
+							wiki_url: ""
+						};
+					}),
+					assignment: value
 				})
 			});
 
