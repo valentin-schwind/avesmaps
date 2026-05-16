@@ -962,6 +962,8 @@
 		"use strict";
 
 		const API_URL = "https://avesmaps.de/api/political-territories-2.php";
+		const WRITE_API_URL = "../api/political-territories.php";
+		
 		const MODULE_VERSION = "2026-05-16-module-save-api";
 
 		/*
@@ -1008,7 +1010,7 @@
 		*/
 
 		let moduleOptions = {
-			saveUrl: API_URL,
+			saveUrl: WRITE_API_URL,
 			onSave: null,
 			onCancel: null,
 			onStatusChange: null,
