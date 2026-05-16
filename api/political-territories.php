@@ -328,16 +328,32 @@ function avesmapsPoliticalReadEditorLayer(PDO $pdo, int $yearBf, int $zoom, ?arr
 function avesmapsPoliticalBuildRawEditorLayerFeatures(array $rows, int $yearBf, int $zoom, array $territories = [], array $parentIds = []): array {
     $features = [];
     $labelGroups = [];
+    
     foreach ($rows as $row) {
-        $feature = avesmapsPoliticalLayerRowToFeature($row, $yearBf, $zoom);
         $sourceTerritoryId = (int) ($row['territory_id'] ?? 0);
         $displayTerritoryId = null;
+        $featureRow = $row;
+
         if ($sourceTerritoryId > 0 && isset($territories[$sourceTerritoryId])) {
             $displayTerritoryId = avesmapsPoliticalResolveLayerDisplayTerritoryId($sourceTerritoryId, $territories, $parentIds, $zoom)
                 ?? $sourceTerritoryId;
+
+            if (
+                $displayTerritoryId !== null
+                && isset($territories[$displayTerritoryId])
+                && $displayTerritoryId !== $sourceTerritoryId
+            ) {
+                $featureRow = avesmapsPoliticalBuildAggregateLayerRow(
+                    $territories[$displayTerritoryId],
+                    $row,
+                    $territories[$sourceTerritoryId]
+                );
+            }
         }
 
-        $labelKey = (string) ($row['geometry_public_id'] ?? count($features));
+        $feature = avesmapsPoliticalLayerRowToFeature($featureRow, $yearBf, $zoom);
+
+        $labelKey = (string) ($featureRow['territory_public_id'] ?? $row['geometry_public_id'] ?? count($features));
         if ($displayTerritoryId !== null && isset($territories[$displayTerritoryId])) {
             $displayTerritory = $territories[$displayTerritoryId];
             $labelKey = (string) ($displayTerritory['territory_public_id'] ?? $displayTerritoryId);
@@ -349,14 +365,6 @@ function avesmapsPoliticalBuildRawEditorLayerFeatures(array $rows, int $yearBf, 
             $feature['properties']['label_display_name'] = trim((string) ($displayTerritory['name'] ?? $labelName));
             $feature['properties']['label_territory_public_id'] = (string) ($displayTerritory['territory_public_id'] ?? '');
             $feature['properties']['label_coat_of_arms_url'] = (string) ($displayTerritory['coat_of_arms_url'] ?? '');
-        }
-
-        $featureIndex = count($features);
-        $features[] = $feature;
-        $labelGroups[$labelKey]['feature_indexes'][] = $featureIndex;
-        $labelGroups[$labelKey]['geometry'] = isset($labelGroups[$labelKey]['geometry'])
-            ? avesmapsPoliticalMergeLayerGeometries($labelGroups[$labelKey]['geometry'], $feature['geometry'] ?? null)
-            : ($feature['geometry'] ?? null);
     }
 
     foreach ($labelGroups as $group) {
