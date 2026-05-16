@@ -561,6 +561,9 @@
 					</div>
 					<nav id="region-edit-assignment-breadcrumb" class="political-territory-assignment-breadcrumb" aria-label="Zugehoerigkeit"></nav>
 					<div id="region-edit-assignment-summary" class="political-territory-assignment-summary" hidden></div>
+					<div class="political-territory-assignment-actions">
+						<button id="region-edit-assignment-save" type="button" class="location-report-form__button location-report-form__button--secondary">Speichern</button>
+					</div>
 				</section>
 				<div id="region-edit-tabs" class="political-territory-tabs political-territory-field" role="tablist" aria-label="Offene Herrschaftsgebiete"></div>
 				<label class="location-report-form__field">
@@ -848,6 +851,8 @@
 			politicalTerritoryFallbackData = null,
 			regionAssignmentWikiPath = [],
 			regionAssignmentEnsuredChain = [],
+			regionAssignmentActiveWikiPublicId = "",
+			regionAssignmentBreadcrumbCache = new Map(),
 			syntheticPathSegments = new Map(),
 			locationMarkers = [],
 			locationNameLabels = [],
