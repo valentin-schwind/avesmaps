@@ -5374,6 +5374,15 @@ function applyRegionFeatureResponse(regionEntry, feature) {
 	regionEntry.color = updatedRegion.color || regionEntry.color;
 	regionEntry.opacity = updatedRegion.opacity ?? regionEntry.opacity;
 	regionEntry.wikiUrl = updatedRegion.wikiUrl || "";
+	regionEntry.wikiId = updatedRegion.wikiId || regionEntry.wikiId || null;
+	regionEntry.wikiName = updatedRegion.wikiName || regionEntry.wikiName || "";
+	regionEntry.wikiType = updatedRegion.wikiType || regionEntry.wikiType || "";
+	regionEntry.wikiAffiliationRaw = updatedRegion.wikiAffiliationRaw || regionEntry.wikiAffiliationRaw || "";
+	regionEntry.wikiAffiliationRoot = updatedRegion.wikiAffiliationRoot || regionEntry.wikiAffiliationRoot || "";
+	regionEntry.wikiFoundedText = updatedRegion.wikiFoundedText || regionEntry.wikiFoundedText || "";
+	regionEntry.wikiDissolvedText = updatedRegion.wikiDissolvedText || regionEntry.wikiDissolvedText || "";
+	regionEntry.wikiCapitalName = updatedRegion.wikiCapitalName || regionEntry.wikiCapitalName || "";
+	regionEntry.wikiSeatName = updatedRegion.wikiSeatName || regionEntry.wikiSeatName || "";
 	regionEntry.coatOfArmsUrl = updatedRegion.coatOfArmsUrl || "";
 	regionEntry.capitalName = updatedRegion.capitalName || "";
 	regionEntry.seatName = updatedRegion.seatName || "";

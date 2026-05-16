@@ -909,7 +909,9 @@ function populateRegionParentSelect(region) {
 
 	inputElement.value = region.parentPublicId || "";
 	treeElement.innerHTML = "";
-	if (politicalTerritoryOptionsLoading && politicalTerritoryOptionsSource !== "wiki") {
+	const hasTreeData = (Array.isArray(politicalTerritoryHierarchy) && politicalTerritoryHierarchy.length > 0)
+		|| (Array.isArray(politicalTerritoryOptions) && politicalTerritoryOptions.length > 0);
+	if (politicalTerritoryOptionsLoading && politicalTerritoryOptionsSource !== "wiki" && !hasTreeData) {
 		const loadingElement = document.createElement("p");
 		loadingElement.className = "political-territory-parent-tree__empty";
 		loadingElement.textContent = "Hierarchie wird geladen...";
@@ -1435,38 +1437,18 @@ function renderRegionAssignment(path = regionAssignmentWikiPath, ensuredChain = 
 			const wikiName = wiki.name || wiki.wiki_name || node.territory?.name || "Herrschaftsgebiet";
 			const wikiType = normalizeParentheticalSpacing([wiki.type || "", wiki.status || ""].filter(Boolean).join(" · "));
 			const wikiPeriod = normalizeParentheticalSpacing(wiki.valid_label || buildWikiReferencePeriod(wiki));
-			const wikiSummary = [
-				wiki.ruler ? `Oberhaupt: ${wiki.ruler}` : "",
-				wiki.capital_name ? `Hauptstadt: ${wiki.capital_name}` : "",
-				wiki.seat_name ? `Sitz: ${wiki.seat_name}` : "",
-			].filter(Boolean).join(" · ");
-			const wikiDetails = [
-				wiki.language ? `Sprache: ${wiki.language}` : "",
-				wiki.currency ? `Waehrung: ${wiki.currency}` : "",
-				wiki.trade_goods ? `Handelswaren: ${wiki.trade_goods}` : "",
-				wiki.population ? `Einwohner: ${wiki.population}` : "",
-				wikiPeriod ? `Gr./Aufl.: ${wikiPeriod}` : "",
-			].filter(Boolean).join(" · ");
-			const coatUrl = wiki.coat_of_arms_url || "";
 			const breadcrumbTerritoryId = String(ensuredNode?.territory?.public_id || node.territory?.public_id || "").trim();
-			const breadcrumbWikiId = String(node.territory?.public_id || "").trim();
 			const button = document.createElement("button");
 			button.type = "button";
 			button.className = "political-territory-assignment-breadcrumb__item";
 			button.classList.toggle("is-active", breadcrumbTerritoryId === activeId);
 			button.dataset.regionAssignmentBreadcrumbId = breadcrumbTerritoryId;
-			button.dataset.regionAssignmentWikiPublicId = breadcrumbWikiId;
 			button.innerHTML = `
-				${coatUrl ? `<img class="political-territory-assignment-breadcrumb__coat" src="${escapeHtml(coatUrl)}" alt="">` : '<span class="political-territory-assignment-breadcrumb__coat" aria-hidden="true"></span>'}
 				<span class="political-territory-assignment-breadcrumb__name"></span>
 				<span class="political-territory-assignment-breadcrumb__meta"></span>
-				<span class="political-territory-assignment-breadcrumb__summary"></span>
-				<span class="political-territory-assignment-breadcrumb__wiki"></span>
 			`;
 			button.querySelector(".political-territory-assignment-breadcrumb__name").textContent = wikiName;
-			button.querySelector(".political-territory-assignment-breadcrumb__meta").textContent = wikiType || "Herrschaftsgebiet";
-			button.querySelector(".political-territory-assignment-breadcrumb__summary").textContent = [wikiPeriod, wikiSummary].filter(Boolean).join(" · ") || "Wiki-Daten";
-			button.querySelector(".political-territory-assignment-breadcrumb__wiki").textContent = wikiDetails || "Wiki-Daten";
+			button.querySelector(".political-territory-assignment-breadcrumb__meta").textContent = [wikiType, wikiPeriod].filter(Boolean).join(" · ") || "Wiki-Daten";
 			breadcrumbElement.append(button);
 		});
 	}
@@ -1747,12 +1729,31 @@ async function saveRegionEditTab(tab) {
 	const payload = tab.payload || regionEditPayloadToPayload(tab.region);
 	const result = await submitPoliticalTerritoryEdit(payload);
 	let latestResult = result;
+	const liveRegion = tab.entry && typeof tab.entry === "object"
+		? tab.entry
+		: tab.region && typeof tab.region === "object"
+			? tab.region
+			: {};
 	if (result.feature) {
-		applyRegionFeatureResponse(tab.entry || regionEditEntry, result.feature);
+		applyRegionFeatureResponse(liveRegion, result.feature);
 	}
 	if (result.territory) {
-		tab.region = normalizePoliticalTerritoryForRegionEdit(result.territory);
+		const savedRegion = normalizePoliticalTerritoryForRegionEdit(result.territory, result.wiki || null);
+		const territoryMetadata = { ...savedRegion };
+		delete territoryMetadata.publicId;
+		delete territoryMetadata.geometryPublicId;
+		delete territoryMetadata.feature;
+		delete territoryMetadata.layer;
+		delete territoryMetadata.layers;
+		delete territoryMetadata.label;
+		delete territoryMetadata.handles;
+		Object.assign(liveRegion, tab.region || {}, territoryMetadata);
+		if (result.feature) {
+			liveRegion.feature = result.feature;
+		}
 	}
+	tab.region = liveRegion;
+	tab.entry = liveRegion;
 	if (tab.assignGeometryPublicId && payload.territory_public_id) {
 		latestResult = tab.assignGeometryMode === "create"
 			? await submitPoliticalTerritoryEdit({
@@ -1778,15 +1779,20 @@ async function saveRegionEditTab(tab) {
 			});
 		if (latestResult.feature) {
 			if ((tab.entry || regionEditEntry)?.source === "political_territory") {
-				applyRegionFeatureResponse(tab.entry || regionEditEntry, latestResult.feature);
+				applyRegionFeatureResponse(liveRegion, latestResult.feature);
 			}
 		}
-		tab.region.geometryPublicId = latestResult.geometry?.public_id || tab.assignGeometryPublicId;
+		liveRegion.geometryPublicId = latestResult.geometry?.public_id || tab.assignGeometryPublicId;
 		tab.assignGeometryPublicId = "";
 		tab.assignGeometryMode = "";
 	}
 	tab.savedPayload = getComparableRegionEditPayload(payload);
 	tab.payload = null;
+	if (tab.key === activeRegionEditTabKey) {
+		regionEditEntry = liveRegion || tab.entry || tab.region || regionEditEntry;
+		populateRegionEditForm(liveRegion || regionEditEntry, { preserveTabs: true });
+		renderRegionEditTabs();
+	}
 	const territoryPublicId = String(tab.region?.territoryPublicId || payload.territory_public_id || "").trim();
 	const lastBreadcrumbNode = regionAssignmentWikiPath.length > 0 ? regionAssignmentWikiPath[regionAssignmentWikiPath.length - 1] : null;
 	const activeBreadcrumbLeafId = String(lastBreadcrumbNode?.territory?.public_id || "").trim();
@@ -4822,7 +4828,7 @@ async function handleRegionEditFormSubmit(event) {
 			for (const tab of regionEditTabs) {
 				latestResult = await saveRegionEditTab(tab);
 			}
-			await loadPoliticalTerritoryOptions();
+			void loadPoliticalTerritoryOptions({ force: true });
 			schedulePoliticalTerritoryLayerReload({ immediate: true });
 		} else {
 			latestResult = await submitMapFeatureEdit(payloads[0]);
