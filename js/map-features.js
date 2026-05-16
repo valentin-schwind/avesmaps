@@ -3771,6 +3771,7 @@ function prepareLegacyRegionData(data) {
 
 function clearRenderedRegionLayers() {
 	closeRegionCompactTooltip();
+	clearPendingRegionTargetHighlight();
 	regionPolygons.forEach((polygon) => map.removeLayer(polygon));
 	regionLabels.forEach((label) => map.removeLayer(label));
 	regionPolygons = [];
@@ -3876,6 +3877,9 @@ function setPoliticalTimelineYear(value) {
 
 function schedulePoliticalTerritoryLayerReload({ immediate = false } = {}) {
 	if (!POLITICAL_TERRITORIES_API_URL || politicalTerritoryApiUnavailable || isPoliticalTerritoryLayerLoading || getSelectedMapLayerMode() !== "political") {
+		return;
+	}
+	if (!immediate && (activeRegionGeometryEdit || pendingRegionOperation || pendingRegionMoveState)) {
 		return;
 	}
 
@@ -4051,6 +4055,10 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 			void handlePendingRegionSplitClick(event);
 			return;
 		}
+		if (pendingRegionOperation?.operation === "move") {
+			handlePendingRegionMoveClick(event);
+			return;
+		}
 		if (pendingRegionOperation) {
 			void completePendingRegionOperation(regionEntry);
 			return;
@@ -4059,7 +4067,7 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 	});
 	polygon.on("dblclick", (event) => {
 		if (event.originalEvent?.target?.closest?.(".region-edit-handle-marker")) return;
-		if (activeRegionGeometryEdit?.regionEntry === regionEntry) {
+		if (activeRegionGeometryEdit?.regionEntry === regionEntry && activeRegionGeometryEdit.editLayer === polygon) {
 			handleEditableRegionDoubleClick(regionEntry, event);
 			return;
 		}
@@ -4074,6 +4082,20 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 			event.originalEvent?.clientX ?? 0,
 			event.originalEvent?.clientY ?? 0
 		);
+	});
+	polygon.on("mouseover", () => {
+		if (!pendingRegionOperation || pendingRegionOperation.operation === "split" || pendingRegionOperation.operation === "move") {
+			return;
+		}
+
+		setPendingRegionTargetHighlight(regionEntry);
+	});
+	polygon.on("mouseout", () => {
+		if (!pendingRegionOperation || pendingRegionOperation.operation === "split" || pendingRegionOperation.operation === "move") {
+			return;
+		}
+
+		clearPendingRegionTargetHighlight();
 	});
 }
 
@@ -4133,6 +4155,10 @@ $(document).on("click", "[data-region-context-action]", function (event) {
 		openRegionEditDialog(regionEntry, { title: "Eigenschaften bearbeiten" });
 		return;
 	}
+	if (action === "move") {
+		startPendingRegionMove(regionEntry, pendingContextMenuLatLng || regionEntry.layer?.getBounds?.().getCenter?.() || map.getCenter());
+		return;
+	}
 	if (action === "split") {
 		startPendingRegionSplit(regionEntry);
 		return;
@@ -4174,9 +4200,40 @@ function startPendingRegionSplit(sourceRegion) {
 	showFeedbackToast("Ersten Schnittpunkt setzen.", "info");
 }
 
+function startPendingRegionMove(sourceRegion, anchorLatLng) {
+	if (sourceRegion.source !== "political_territory") {
+		showFeedbackToast("Verschieben ist fuer das neue Herrschaftsgebiete-Modell aktiv.", "warning");
+		return;
+	}
+
+	cancelPendingRegionOperation();
+	const layers = getRegionEntryLayers(sourceRegion);
+	if (layers.length < 1) {
+		showFeedbackToast("Das Herrschaftsgebiet hat keine verschiebbare Geometrie.", "warning");
+		return;
+	}
+
+	pendingRegionOperation = { operation: "move", sourceRegion };
+	pendingRegionMoveState = {
+		regionEntry: sourceRegion,
+		anchorLatLng: L.latLng(anchorLatLng),
+		originalLayerLatLngs: layers.map((layer) => ({
+			layer,
+			latLngs: cloneNestedLatLngs(layer.getLatLngs()),
+		})),
+	};
+	clearRegionGeometryEdit();
+	map.on("mousemove", handlePendingRegionMoveMouseMove);
+	map.on("click", handlePendingRegionMoveClick);
+	syncRegionOperationChip();
+	showFeedbackToast("Gebiet verschieben. Klick speichert, ESC bricht ab.", "info");
+}
+
 function cancelPendingRegionOperation() {
 	map.off("click", handlePendingRegionSplitClick);
+	cancelPendingRegionMove({ restore: true, silent: true });
 	clearPendingRegionSplitPreview();
+	clearPendingRegionTargetHighlight();
 	pendingRegionOperation = null;
 	syncRegionOperationChip();
 }
@@ -4195,6 +4252,7 @@ function syncRegionOperationChip() {
 	}
 
 	const labels = {
+		move: "Gebiet verschieben",
 		split: "Gebiet zerschneiden",
 		union: "Mit anderem vereinigen",
 		difference: "Von anderem ausschneiden",
@@ -4203,9 +4261,142 @@ function syncRegionOperationChip() {
 	};
 	const instruction = pendingRegionOperation.operation === "split"
 		? (pendingRegionOperation.points?.length === 1 ? "zweiten Schnittpunkt setzen." : "ersten Schnittpunkt setzen.")
-		: "Zielgebiet anklicken.";
+		: pendingRegionOperation.operation === "move"
+			? "Maus bewegen, Klick speichert."
+			: "Zielgebiet anklicken.";
 	textElement.textContent = `${labels[pendingRegionOperation.operation] || "Operation"}: ${instruction}`;
 	chipElement.hidden = false;
+}
+
+function handlePendingRegionMoveMouseMove(event) {
+	if (!pendingRegionMoveState) {
+		return;
+	}
+
+	const targetLatLng = L.latLng(event.latlng);
+	const delta = {
+		lat: targetLatLng.lat - pendingRegionMoveState.anchorLatLng.lat,
+		lng: targetLatLng.lng - pendingRegionMoveState.anchorLatLng.lng,
+	};
+	applyPendingRegionMoveDelta(delta);
+}
+
+function handlePendingRegionMoveClick(event) {
+	if (!pendingRegionMoveState) {
+		return;
+	}
+
+	L.DomEvent.stop(event);
+	void completePendingRegionMove();
+}
+
+function applyPendingRegionMoveDelta(delta) {
+	pendingRegionMoveState.originalLayerLatLngs.forEach((entry) => {
+		entry.layer.setLatLngs(offsetNestedLatLngs(entry.latLngs, delta));
+	});
+	updateRegionLabelPosition(pendingRegionMoveState.regionEntry);
+}
+
+async function completePendingRegionMove() {
+	const moveState = pendingRegionMoveState;
+	if (!moveState) {
+		return;
+	}
+
+	map.off("mousemove", handlePendingRegionMoveMouseMove);
+	map.off("click", handlePendingRegionMoveClick);
+	pendingRegionMoveState = null;
+	pendingRegionOperation = null;
+	syncRegionOperationChip();
+	try {
+		await saveRegionGeometry(moveState.regionEntry);
+		schedulePoliticalTerritoryLayerReload({ immediate: true });
+		showFeedbackToast("Gebiet verschoben.", "success");
+	} catch (error) {
+		console.error("Gebiet konnte nicht verschoben werden:", error);
+		showFeedbackToast(error.message || "Gebiet konnte nicht verschoben werden.", "warning");
+	}
+}
+
+function cancelPendingRegionMove({ restore = false, silent = false } = {}) {
+	if (!pendingRegionMoveState) {
+		return;
+	}
+
+	const moveState = pendingRegionMoveState;
+	map.off("mousemove", handlePendingRegionMoveMouseMove);
+	map.off("click", handlePendingRegionMoveClick);
+	if (restore) {
+		moveState.originalLayerLatLngs.forEach((entry) => {
+			entry.layer.setLatLngs(cloneNestedLatLngs(entry.latLngs));
+		});
+		updateRegionLabelPosition(moveState.regionEntry);
+	}
+	pendingRegionMoveState = null;
+	if (!silent) {
+		showFeedbackToast("Verschieben abgebrochen.", "info");
+	}
+}
+
+function cloneNestedLatLngs(value) {
+	if (Array.isArray(value)) {
+		return value.map((entry) => cloneNestedLatLngs(entry));
+	}
+
+	return L.latLng(value);
+}
+
+function offsetNestedLatLngs(value, delta) {
+	if (Array.isArray(value)) {
+		return value.map((entry) => offsetNestedLatLngs(entry, delta));
+	}
+
+	const latLng = L.latLng(value);
+	return L.latLng(latLng.lat + delta.lat, latLng.lng + delta.lng);
+}
+
+function getRegionEntryLayers(regionEntry) {
+	return (regionEntry?.layers?.length ? regionEntry.layers : [regionEntry?.layer]).filter(Boolean);
+}
+
+function setPendingRegionTargetHighlight(regionEntry) {
+	if (!pendingRegionOperation || regionEntry === pendingRegionOperation.sourceRegion) {
+		clearPendingRegionTargetHighlight();
+		return;
+	}
+
+	const layers = getRegionEntryLayers(regionEntry);
+	if (pendingRegionTargetHighlightLayers.length === layers.length && layers.every((layer, index) => layer === pendingRegionTargetHighlightLayers[index]?.layer)) {
+		return;
+	}
+
+	clearPendingRegionTargetHighlight();
+	pendingRegionTargetHighlightLayers = layers.map((layer) => ({ layer, regionEntry }));
+	pendingRegionTargetHighlightLayers.forEach(({ layer }) => {
+		layer.setStyle({
+			color: "#fff4a3",
+			opacity: 1,
+			weight: 5,
+		});
+		layer.bringToFront?.();
+	});
+}
+
+function clearPendingRegionTargetHighlight() {
+	if (!pendingRegionTargetHighlightLayers.length) {
+		return;
+	}
+
+	pendingRegionTargetHighlightLayers.forEach(({ layer, regionEntry }) => {
+		layer.setStyle({
+			color: regionEntry.color,
+			fillColor: regionEntry.color,
+			fillOpacity: regionEntry.opacity,
+			opacity: 1,
+			weight: 2,
+		});
+	});
+	pendingRegionTargetHighlightLayers = [];
 }
 
 async function handlePendingRegionSplitClick(event) {
@@ -4373,6 +4564,7 @@ async function completePendingRegionOperation(targetRegion) {
 	if (!operationState) {
 		return;
 	}
+	clearPendingRegionTargetHighlight();
 
 	if (targetRegion === operationState.sourceRegion) {
 		showFeedbackToast("Bitte ein anderes Herrschaftsgebiet waehlen.", "warning");
@@ -4600,16 +4792,14 @@ function getRegionOuterLatLngs(regionEntry) {
 	const layer = activeRegionGeometryEdit?.regionEntry === regionEntry
 		? activeRegionGeometryEdit.editLayer
 		: regionEntry.layer;
-	const latLngs = layer.getLatLngs();
-	return Array.isArray(latLngs[0]?.[0]) ? latLngs[0][0] : latLngs[0] || [];
+	return getPolygonOuterLatLngs(layer);
 }
 
 function setRegionOuterLatLngs(regionEntry, outerLatLngs) {
 	const layer = activeRegionGeometryEdit?.regionEntry === regionEntry
 		? activeRegionGeometryEdit.editLayer
 		: regionEntry.layer;
-	const latLngs = layer.getLatLngs();
-	const holes = Array.isArray(latLngs[0]?.[0]) ? latLngs.slice(1) : [];
+	const holes = getPolygonLatLngRings(layer).slice(1);
 	layer.setLatLngs(holes.length > 0 ? [outerLatLngs, ...holes] : [outerLatLngs]);
 }
 
@@ -4711,21 +4901,13 @@ function applySharedBoundaryVertexMove(ownRegion, originalLatLng, targetLatLng) 
 		}
 
 		const latLngs = polygon.getLatLngs();
-		const rings = Array.isArray(latLngs[0]?.[0]) ? latLngs : [latLngs];
-		let changed = false;
-		const updatedRings = rings.map((ring) => ring.map((latLng) => {
-			if (latLng.distanceTo(originalLatLng) > 0.5) {
-				return latLng;
-			}
-
-			changed = true;
-			return L.latLng(targetLatLng);
-		}));
+		const updateResult = replaceMatchingNestedLatLngs(latLngs, originalLatLng, targetLatLng);
+		const changed = updateResult.changed;
 		if (!changed) {
 			return;
 		}
 
-		polygon.setLatLngs(Array.isArray(latLngs[0]?.[0]) ? updatedRings : updatedRings[0]);
+		polygon.setLatLngs(updateResult.latLngs);
 		updateRegionLabelPosition(regionEntry);
 		affectedRegions.add(regionEntry);
 	});
@@ -4733,16 +4915,35 @@ function applySharedBoundaryVertexMove(ownRegion, originalLatLng, targetLatLng) 
 	return Array.from(affectedRegions);
 }
 
+function replaceMatchingNestedLatLngs(value, originalLatLng, targetLatLng) {
+	if (Array.isArray(value)) {
+		let changed = false;
+		const latLngs = value.map((entry) => {
+			const result = replaceMatchingNestedLatLngs(entry, originalLatLng, targetLatLng);
+			changed = changed || result.changed;
+			return result.latLngs;
+		});
+		return { latLngs, changed };
+	}
+
+	const latLng = L.latLng(value);
+	if (latLng.distanceTo(L.latLng(originalLatLng)) > 0.5) {
+		return { latLngs: latLng, changed: false };
+	}
+
+	return { latLngs: L.latLng(targetLatLng), changed: true };
+}
+
 function findNearestRegionVertex(latLng, ownRegion) {
 	const targetPoint = map.latLngToContainerPoint(latLng);
 	let nearest = null;
 	regionPolygons.forEach((polygon) => {
 		if (polygon._regionEntry === ownRegion) return;
-		const rings = polygon.getLatLngs();
-		const outer = Array.isArray(rings[0]?.[0]) ? rings[0][0] : rings[0] || [];
-		outer.forEach((candidate) => {
-			const distance = targetPoint.distanceTo(map.latLngToContainerPoint(candidate));
-			if (distance <= 12 && (!nearest || distance < nearest.distance)) nearest = { latLng: candidate, distance };
+		getPolygonLatLngRings(polygon).forEach((ring) => {
+			ring.forEach((candidate) => {
+				const distance = targetPoint.distanceTo(map.latLngToContainerPoint(candidate));
+				if (distance <= 12 && (!nearest || distance < nearest.distance)) nearest = { latLng: candidate, distance };
+			});
 		});
 	});
 	return nearest?.latLng || null;
@@ -4762,21 +4963,22 @@ function findNearestRegionEdgePoint(latLng, ownRegion) {
 	let nearest = null;
 	regionPolygons.forEach((polygon) => {
 		if (polygon._regionEntry === ownRegion) return;
-		const outer = getPolygonOuterLatLngs(polygon);
-		for (let index = 0; index < outer.length; index++) {
-			const start = outer[index];
-			const end = outer[(index + 1) % outer.length];
-			const startPoint = map.latLngToContainerPoint(start);
-			const endPoint = map.latLngToContainerPoint(end);
-			const projectedPoint = closestPointOnSegment(targetPoint, startPoint, endPoint);
-			const distance = targetPoint.distanceTo(projectedPoint);
-			if (distance <= 10 && (!nearest || distance < nearest.distance)) {
-				nearest = {
-					distance,
-					latLng: map.containerPointToLatLng(projectedPoint),
-				};
+		getPolygonLatLngRings(polygon).forEach((ring) => {
+			for (let index = 0; index < ring.length; index++) {
+				const start = ring[index];
+				const end = ring[(index + 1) % ring.length];
+				const startPoint = map.latLngToContainerPoint(start);
+				const endPoint = map.latLngToContainerPoint(end);
+				const projectedPoint = closestPointOnSegment(targetPoint, startPoint, endPoint);
+				const distance = targetPoint.distanceTo(projectedPoint);
+				if (distance <= 10 && (!nearest || distance < nearest.distance)) {
+					nearest = {
+						distance,
+						latLng: map.containerPointToLatLng(projectedPoint),
+					};
+				}
 			}
-		}
+		});
 	});
 
 	return nearest?.latLng || null;
@@ -4800,8 +5002,27 @@ function closestPointOnSegment(point, startPoint, endPoint) {
 }
 
 function getPolygonOuterLatLngs(polygon) {
-	const rings = polygon.getLatLngs();
-	return Array.isArray(rings[0]?.[0]) ? rings[0][0] : rings[0] || [];
+	return getPolygonLatLngRings(polygon)[0] || [];
+}
+
+function getPolygonLatLngRings(polygon) {
+	return flattenLatLngRings(polygon.getLatLngs()).filter((ring) => ring.length > 0);
+}
+
+function flattenLatLngRings(value) {
+	if (!Array.isArray(value) || value.length < 1) {
+		return [];
+	}
+
+	if (isLatLngLike(value[0])) {
+		return [value.map((latLng) => L.latLng(latLng))];
+	}
+
+	return value.flatMap((entry) => flattenLatLngRings(entry));
+}
+
+function isLatLngLike(value) {
+	return Boolean(value && typeof value === "object" && "lat" in value && ("lng" in value || "lon" in value));
 }
 
 function deleteRegionNode(index) {
@@ -4947,7 +5168,7 @@ async function createRegionAt(latlng) {
 					fillOpacity: 0.33,
 				},
 			});
-			await loadPoliticalTerritoryOptions();
+			void loadPoliticalTerritoryOptions();
 			if (result.feature) {
 				const regionEntry = normalizeRegionFeature(result.feature);
 				regionData.push(result.feature);

@@ -1902,6 +1902,9 @@ body.modal-dialog-open {
 }
 
 .map-context-menu__item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
 	width: 100%;
 	border: 1px solid transparent;
 	border-radius: 6px;
@@ -1912,6 +1915,52 @@ body.modal-dialog-open {
 	padding: 8px 10px;
 	text-align: left;
 	white-space: nowrap;
+}
+
+.map-context-menu__item::before {
+	width: 1.2em;
+	color: #6c5a46;
+	text-align: center;
+}
+
+.map-context-menu__item[data-context-action="create-region"]::before {
+	content: "\25B2";
+}
+
+.map-context-menu__item[data-region-context-action="edit-geometry"]::before {
+	content: "\270E";
+}
+
+.map-context-menu__item[data-region-context-action="edit-properties"]::before {
+	content: "\2699";
+}
+
+.map-context-menu__item[data-region-context-action="move"]::before {
+	content: "\2725";
+}
+
+.map-context-menu__item[data-region-context-action="split"]::before {
+	content: "\2571";
+}
+
+.map-context-menu__item[data-region-context-action="union"]::before {
+	content: "\222A";
+}
+
+.map-context-menu__item[data-region-context-action="difference"]::before {
+	content: "\2212";
+}
+
+.map-context-menu__item[data-region-context-action="difference-keep-target"]::before {
+	content: "\2296";
+}
+
+.map-context-menu__item[data-region-context-action="intersection"]::before {
+	content: "\2229";
+}
+
+.map-context-menu__item[data-region-context-action="delete"]::before {
+	content: "\2715";
 }
 
 .map-context-menu__group {
@@ -1938,7 +1987,7 @@ body.modal-dialog-open {
 .map-context-submenu {
 	position: absolute;
 	top: -6px;
-	left: calc(100% + 6px);
+	left: 100%;
 	display: none;
 	min-width: 160px;
 	padding: 6px;

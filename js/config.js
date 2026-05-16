@@ -118,6 +118,7 @@ const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
 const MAP_TILE_STYLES = {
 	old: { label: "Old", url: "./tiles/old/{z}/map_{x}_{y}.jpg" },
 	stylized: { label: "Stylized", url: "./tiles/stylized/{z}/map_{x}_{y}.webp" },
+	politics: { label: "Politics", url: "./tiles/politics/{z}/map_{x}_{y}.webp", maxNativeZoom: 4 },
 };
 const MAP_FEATURE_UPDATE_API_URL = window.AVESMAPS_MAP_FEATURE_UPDATE_ENDPOINT || "api/map-feature-update.php";
 const LOCATION_REPORT_REVIEW_API_URL = window.AVESMAPS_LOCATION_REPORT_REVIEW_ENDPOINT || "api/location-report-review.php";

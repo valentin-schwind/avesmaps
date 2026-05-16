@@ -942,7 +942,7 @@ function avesmapsPoliticalReadAudit(PDO $pdo, array $query): array {
 }
 
 function avesmapsPoliticalCreateTerritory(PDO $pdo, array $payload, array $user): array {
-    $name = avesmapsPoliticalReadRequiredName($payload['name'] ?? '', 'Der Name des Herrschaftsgebiets');
+    $requestedName = avesmapsPoliticalReadRequiredName($payload['name'] ?? '', 'Der Name des Herrschaftsgebiets');
     $shortName = avesmapsNormalizeSingleLine((string) ($payload['short_name'] ?? ''), 160);
     $type = avesmapsPoliticalNormalizeParentheticalSpacing(avesmapsNormalizeSingleLine((string) ($payload['type'] ?? 'Herrschaftsgebiet'), 160));
     $parentId = avesmapsPoliticalReadOptionalTerritoryId($pdo, $payload['parent_public_id'] ?? null);
@@ -964,6 +964,7 @@ function avesmapsPoliticalCreateTerritory(PDO $pdo, array $payload, array $user)
     $pdo->beginTransaction();
     try {
         $publicId = avesmapsPoliticalUuidV4();
+        $name = avesmapsPoliticalUniqueName($pdo, $requestedName);
         $slug = avesmapsPoliticalUniqueSlug($pdo, avesmapsPoliticalSlug((string) ($payload['slug'] ?? $name)));
         $sortOrder = avesmapsPoliticalNextSortOrder($pdo);
         $statement = $pdo->prepare(
@@ -2480,6 +2481,37 @@ function avesmapsPoliticalReadRequiredName(mixed $value, string $fieldLabel): st
     }
 
     return $name;
+}
+
+function avesmapsPoliticalUniqueName(PDO $pdo, string $baseName, ?int $excludeId = null): string {
+    $normalizedBaseName = avesmapsNormalizeSingleLine($baseName, 240);
+    $namePrefix = $normalizedBaseName !== '' ? $normalizedBaseName : 'Neues Herrschaftsgebiet';
+    $candidate = $namePrefix;
+    $suffix = 2;
+    while (avesmapsPoliticalNameExists($pdo, $candidate, $excludeId) && $suffix < 10000) {
+        $candidate = avesmapsNormalizeSingleLine("{$namePrefix} ({$suffix})", 255);
+        $suffix++;
+    }
+
+    if ($suffix >= 10000) {
+        throw new InvalidArgumentException('Es konnte kein eindeutiger Name erzeugt werden.');
+    }
+
+    return $candidate;
+}
+
+function avesmapsPoliticalNameExists(PDO $pdo, string $name, ?int $excludeId): bool {
+    $sql = 'SELECT COUNT(*) FROM political_territory WHERE name = :name';
+    $params = ['name' => $name];
+    if ($excludeId !== null) {
+        $sql .= ' AND id <> :exclude_id';
+        $params['exclude_id'] = $excludeId;
+    }
+
+    $statement = $pdo->prepare($sql);
+    $statement->execute($params);
+
+    return (int) $statement->fetchColumn() > 0;
 }
 
 function avesmapsPoliticalReadHexColor(mixed $value): string {
