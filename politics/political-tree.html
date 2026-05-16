@@ -1008,7 +1008,7 @@
 		*/
 
 		let moduleOptions = {
-			saveUrl: "",
+			saveUrl: API_URL,
 			onSave: null,
 			onCancel: null,
 			onStatusChange: null,
@@ -2355,12 +2355,16 @@
 		}
 
 		async function defaultSaveAssignment(value) {
-			const response = await fetch(moduleOptions.saveUrl, {
-				method: "POST",
+			const response = await fetch(moduleOptions.saveUrl || API_URL, {
+				method: "PATCH",
 				headers: {
-					"Content-Type": "application/json"
+					"Content-Type": "application/json",
+					"Accept": "application/json"
 				},
-				body: JSON.stringify(value)
+				body: JSON.stringify({
+					action: "save_geometry_assignment",
+					...value
+				})
 			});
 
 			let result = null;
