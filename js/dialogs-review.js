@@ -2013,10 +2013,10 @@ function renderRegionAssignmentSummary(summaryElement, wiki, territory = null, o
 	summaryElement.hidden = false;
 	summaryElement.dataset.regionAssignmentActiveId = territoryPublicId;
 	summaryElement.innerHTML = `
-		${coatUrl ? `<img src="${escapeHtml(coatUrl)}" alt="">` : ""}
 		<div class="political-territory-assignment-summary__content">
 			<div class="political-territory-assignment-summary__panes">
 				<div class="political-territory-assignment-summary__wiki-box">
+					${coatUrl ? `<img class="political-territory-assignment-summary__coat" src="${escapeHtml(coatUrl)}" alt="">` : `<span class="political-territory-assignment-summary__coat-placeholder"></span>`}
 					<dl>${rows.map(([label, value]) => {
 			if (label === "Wiki-Link" && wikiUrl) {
 				return `<dt>${escapeHtml(label)}</dt><dd><a href="${escapeHtml(wikiUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(wikiUrl)}</a></dd>`;
@@ -2049,7 +2049,10 @@ function renderRegionAssignmentSummary(summaryElement, wiki, territory = null, o
 						</label>
 						<label class="political-territory-assignment-summary__field political-territory-assignment-summary__field--wide">
 							<span>Neuer Wappen-Link</span>
-							<input data-region-assignment-field="coat" type="url" maxlength="500" value="${escapeHtml(territory?.coat_of_arms_url || territory?.coatOfArmsUrl || "")}" />
+							<span class="political-territory-assignment-summary__inline-control">
+								<input data-region-assignment-field="coat" type="url" maxlength="500" value="${escapeHtml(territory?.coat_of_arms_url || territory?.coatOfArmsUrl || "")}" />
+								<button data-region-assignment-coat-refresh type="button" class="location-report-form__button location-report-form__button--secondary">Aktualisieren</button>
+							</span>
 						</label>
 						<label class="political-territory-assignment-summary__field">
 							<span>Von</span>
@@ -2979,7 +2982,7 @@ $(document).on("input change", "[data-region-assignment-field]", function () {
 		const value = String(this.value || "").trim();
 		applyPoliticalTerritoryDraftPatch(territoryPublicId, { coat_of_arms_url: value, coatOfArmsUrl: value }, { coat_of_arms_url: value });
 		syncRegionAssignmentFormFieldValues({ coatOfArmsUrl: value });
-		const imageElement = summaryElement.querySelector("img");
+		const imageElement = summaryElement.querySelector(".political-territory-assignment-summary__coat");
 		if (imageElement instanceof HTMLImageElement) {
 			imageElement.src = value;
 			imageElement.hidden = value === "";
@@ -3017,6 +3020,21 @@ $(document).on("input change", "[data-region-assignment-field]", function () {
 		applyPoliticalTerritoryDraftPatch(territoryPublicId, { valid_to_bf: number, validToBf: number }, { valid_to_open: isOpen, valid_to_bf: value });
 		syncRegionAssignmentFormFieldValues({ validToBfText: value, validToOpen: isOpen });
 	}
+});
+
+$(document).on("click", "[data-region-assignment-coat-refresh]", function (event) {
+	event.preventDefault();
+	const summaryElement = this.closest("#region-edit-assignment-summary");
+	const inputElement = summaryElement?.querySelector("[data-region-assignment-field='coat']");
+	const territoryPublicId = String(summaryElement?.dataset?.regionAssignmentActiveId || "").trim();
+	if (!(inputElement instanceof HTMLInputElement) || !territoryPublicId) {
+		return;
+	}
+
+	const value = String(inputElement.value || "").trim();
+	applyPoliticalTerritoryDraftPatch(territoryPublicId, { coat_of_arms_url: value, coatOfArmsUrl: value }, { coat_of_arms_url: value });
+	syncRegionAssignmentFormFieldValues({ coatOfArmsUrl: value });
+	renderRegionAssignment(regionAssignmentWikiPath, regionAssignmentEnsuredChain, territoryPublicId);
 });
 
 $(document).on("click", "#region-edit-parent-clear", function (event) {
@@ -5648,7 +5666,21 @@ async function handleRegionEditFormSubmit(event) {
 	const payloads = payload.source === "political_territory" && regionEditTabs.length > 0
 		? regionEditTabs.map((tab) => tab.payload || regionEditPayloadToPayload(tab.region)).filter(Boolean)
 		: [payload];
-	if (payload.source === "political_territory" && payloads.some((entry) => String(entry?.territory_public_id || "").trim() === "")) {
+	const saveablePayloads = payload.source === "political_territory"
+		? payloads.filter((entry) => String(entry?.territory_public_id || "").trim() !== "")
+		: payloads;
+	if (payload.source === "political_territory" && payloads.length > 0 && saveablePayloads.length < 1) {
+		setRegionEditDialogOpen(false, { resetForm: true });
+		showFeedbackToast("Geometrie bleibt freigegeben.", "success");
+		return;
+	}
+	if (payload.source === "political_territory" && saveablePayloads.length !== payloads.length) {
+		regionEditTabs = regionEditTabs.filter((tab) => {
+			const tabPayload = tab.payload || regionEditPayloadToPayload(tab.region);
+			return String(tabPayload?.territory_public_id || "").trim() !== "";
+		});
+	}
+	if (payload.source === "political_territory" && saveablePayloads.some((entry) => String(entry?.territory_public_id || "").trim() === "")) {
 		setRegionEditStatus("Bitte zuerst einen untersten Knoten zuweisen.", "error");
 		return;
 	}

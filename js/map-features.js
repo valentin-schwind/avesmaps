@@ -3816,7 +3816,7 @@ function addRegionFeatureToMap(region, regionEntry) {
 		bindRegionPolygonEditEvents(polygon, regionEntry);
 		polygon.bringToBack();
 		regionPolygons.push(polygon);
-		if (index === 0) {
+		if (index === 0 && regionEntry.showRegionLabel !== false) {
 			const labelLatLng = regionEntry.labelLat !== null && regionEntry.labelLng !== null
 				? L.latLng(regionEntry.labelLat, regionEntry.labelLng)
 				: polygon.getBounds().getCenter();
@@ -4003,9 +4003,10 @@ function preloadPoliticalTerritoryOptions() {
 }
 
 function createRegionLabelMarkup(regionEntry, fallbackName) {
-	const name = escapeHtml(regionEntry.shortName || fallbackName || regionEntry.name);
-	const coatMarkup = regionEntry.coatOfArmsUrl
-		? `<img class="region-label__coat" src="${escapeHtml(regionEntry.coatOfArmsUrl)}" alt="">`
+	const name = escapeHtml(regionEntry.labelName || regionEntry.shortName || fallbackName || regionEntry.name);
+	const coatUrl = regionEntry.labelCoatOfArmsUrl || regionEntry.coatOfArmsUrl || "";
+	const coatMarkup = coatUrl
+		? `<img class="region-label__coat" src="${escapeHtml(coatUrl)}" alt="">`
 		: "";
 
 	return `<span class="region-label__content">${coatMarkup}<span>${name}</span></span>`;
@@ -4954,6 +4955,9 @@ function normalizeRegionFeature(feature) {
 		wikiName: properties.wiki_name || "",
 		wikiType: normalizeRegionParentheticalSpacing(properties.wiki_type || properties.territory_type || properties.feature_subtype || ""),
 		coatOfArmsUrl: properties.coat_of_arms_url || "",
+		labelName: properties.label_name || "",
+		labelDisplayName: properties.label_display_name || "",
+		labelCoatOfArmsUrl: properties.label_coat_of_arms_url || "",
 		capitalName: properties.capital_name || "",
 		seatName: properties.seat_name || "",
 		capitalPlacePublicId: properties.capital_place_public_id || "",
@@ -4972,6 +4976,7 @@ function normalizeRegionFeature(feature) {
 		parentPublicId: properties.parent_public_id || "",
 		labelLng: Number.isFinite(Number(properties.label_lng)) ? Number(properties.label_lng) : null,
 		labelLat: Number.isFinite(Number(properties.label_lat)) ? Number(properties.label_lat) : null,
+		showRegionLabel: properties.show_region_label !== false,
 		minZoom: Number.isFinite(Number(properties.min_zoom)) ? Number(properties.min_zoom) : null,
 		maxZoom: Number.isFinite(Number(properties.max_zoom)) ? Number(properties.max_zoom) : null,
 		isActive: properties.is_active !== false,

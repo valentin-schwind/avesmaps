@@ -1473,9 +1473,7 @@ body.modal-dialog-open {
 }
 
 .political-territory-assignment-summary {
-	display: flex;
-	align-items: flex-start;
-	gap: 10px;
+	display: block;
 	margin-top: 8px;
 	border: 1px solid #dccab8;
 	border-radius: 8px;
@@ -1485,12 +1483,17 @@ body.modal-dialog-open {
 	color: #4f4134;
 }
 
-.political-territory-assignment-summary img {
+.political-territory-assignment-summary__coat {
 	display: block;
-	flex: 0 0 56px;
-	width: 56px;
-	height: 56px;
+	grid-row: 1 / -1;
+	width: 64px;
+	height: 64px;
 	object-fit: contain;
+}
+
+.political-territory-assignment-summary__coat-placeholder {
+	display: block;
+	width: 64px;
 }
 
 .political-territory-assignment-summary__content {
@@ -1513,6 +1516,13 @@ body.modal-dialog-open {
 	border-radius: 8px;
 	background: #fff;
 	padding: 8px;
+}
+
+.political-territory-assignment-summary__wiki-box {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 8px;
+	align-items: start;
 }
 
 .political-territory-assignment-summary dl {
@@ -1550,7 +1560,20 @@ body.modal-dialog-open {
 
 .political-territory-assignment-summary__field input {
 	width: 100%;
+	min-height: 32px;
 	box-sizing: border-box;
+}
+
+.political-territory-assignment-summary__field input[type="color"] {
+	min-height: 36px;
+	padding: 2px;
+}
+
+.political-territory-assignment-summary__inline-control {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 8px;
+	align-items: center;
 }
 
 .political-territory-assignment-summary__field--wide {
