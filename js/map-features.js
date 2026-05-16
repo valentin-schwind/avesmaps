@@ -4664,17 +4664,31 @@ async function completePendingRegionOperation(targetRegion, targetLayer = null) 
 }
 
 function calculateRegionBooleanGeometry(operation, sourceGeometry, targetGeometry) {
-	if (operation === "union") {
-		return window.polygonClipping.union(sourceGeometry, targetGeometry);
+	const normalizedSourceGeometry = normalizeClippingMultiPolygon(sourceGeometry, "Quellgeometrie");
+	const normalizedTargetGeometry = normalizeClippingMultiPolygon(targetGeometry, "Zielgeometrie");
+	if (normalizedSourceGeometry.length < 1) {
+		throw new Error("Die Quellgeometrie enthaelt keine gueltige Flaeche.");
 	}
-	if (operation === "difference" || operation === "difference-keep-target") {
-		return window.polygonClipping.difference(sourceGeometry, targetGeometry);
-	}
-	if (operation === "intersection") {
-		return window.polygonClipping.intersection(sourceGeometry, targetGeometry);
+	if (normalizedTargetGeometry.length < 1) {
+		throw new Error("Die Zielgeometrie enthaelt keine gueltige Flaeche.");
 	}
 
-	throw new Error("Unbekannte Geometrieoperation.");
+	let resultGeometry = null;
+	if (operation === "union") {
+		resultGeometry = window.polygonClipping.union(normalizedSourceGeometry, normalizedTargetGeometry);
+	} else if (operation === "difference" || operation === "difference-keep-target") {
+		resultGeometry = window.polygonClipping.difference(normalizedSourceGeometry, normalizedTargetGeometry);
+	} else if (operation === "intersection") {
+		resultGeometry = window.polygonClipping.intersection(normalizedSourceGeometry, normalizedTargetGeometry);
+	} else {
+		throw new Error("Unbekannte Geometrieoperation.");
+	}
+
+	const normalizedResult = normalizeClippingMultiPolygon(resultGeometry, "Ergebnisgeometrie");
+	validateRegionBooleanResult(operation, normalizedSourceGeometry, normalizedTargetGeometry, normalizedResult);
+	void debugRegionBooleanOperation(operation, normalizedSourceGeometry, normalizedTargetGeometry, normalizedResult);
+
+	return normalizedResult;
 }
 
 function shouldRegionBooleanOperationConsumeTarget(operation) {
@@ -4704,17 +4718,159 @@ function regionEntryToClippingMultiPolygon(regionEntry, { onlyLayer = null, excl
 		geometry.coordinates.forEach((polygon) => polygons.push(polygon));
 	});
 
-	return polygons;
+	return normalizeClippingMultiPolygon(polygons, "Karten-Geometrie");
 }
 
 function clippingMultiPolygonToGeoJson(multiPolygon) {
-	if (!Array.isArray(multiPolygon) || multiPolygon.length < 1) {
+	const normalizedMultiPolygon = normalizeClippingMultiPolygon(multiPolygon, "GeoJSON-Ausgabe");
+	if (!Array.isArray(normalizedMultiPolygon) || normalizedMultiPolygon.length < 1) {
 		throw new Error("Die Ergebnisgeometrie ist leer.");
 	}
 
-	return multiPolygon.length === 1
-		? { type: "Polygon", coordinates: multiPolygon[0] }
-		: { type: "MultiPolygon", coordinates: multiPolygon };
+	return normalizedMultiPolygon.length === 1
+		? { type: "Polygon", coordinates: normalizedMultiPolygon[0] }
+		: { type: "MultiPolygon", coordinates: normalizedMultiPolygon };
+}
+
+function normalizeClippingMultiPolygon(multiPolygon, label = "Geometrie") {
+	if (!Array.isArray(multiPolygon)) {
+		throw new Error(`${label} ist kein MultiPolygon.`);
+	}
+
+	const normalizedPolygons = [];
+	multiPolygon.forEach((polygon) => {
+		const normalizedPolygon = normalizeClippingPolygon(polygon);
+		if (normalizedPolygon) {
+			normalizedPolygons.push(normalizedPolygon);
+		}
+	});
+
+	if (normalizedPolygons.length < 1) {
+		return [];
+	}
+
+	return normalizedPolygons;
+}
+
+function normalizeClippingPolygon(polygon) {
+	if (!Array.isArray(polygon) || polygon.length < 1) {
+		return null;
+	}
+
+	const outerRing = normalizeClippingRing(polygon[0]);
+	if (!outerRing || calculateClippingRingArea(outerRing) <= 0.000001) {
+		return null;
+	}
+
+	const rings = [];
+	rings.push(outerRing);
+	polygon.slice(1).forEach((ring) => {
+		const normalizedRing = normalizeClippingRing(ring);
+		if (!normalizedRing) {
+			return;
+		}
+
+		const area = calculateClippingRingArea(normalizedRing);
+		if (area <= 0.000001) {
+			return;
+		}
+
+		rings.push(normalizedRing);
+	});
+
+	return rings;
+}
+
+function normalizeClippingRing(ring) {
+	if (!Array.isArray(ring) || ring.length < 3) {
+		return null;
+	}
+
+	const coordinates = [];
+	ring.forEach((coordinate) => {
+		if (!Array.isArray(coordinate) || coordinate.length < 2) {
+			return;
+		}
+
+		const x = Number(coordinate[0]);
+		const y = Number(coordinate[1]);
+		if (!Number.isFinite(x) || !Number.isFinite(y)) {
+			return;
+		}
+
+		const previous = coordinates[coordinates.length - 1];
+		if (previous && Math.abs(previous[0] - x) <= 0.000001 && Math.abs(previous[1] - y) <= 0.000001) {
+			return;
+		}
+
+		coordinates.push([roundGeometryCoordinate(x), roundGeometryCoordinate(y)]);
+	});
+
+	if (coordinates.length < 3) {
+		return null;
+	}
+
+	const first = coordinates[0];
+	const last = coordinates[coordinates.length - 1];
+	if (Math.abs(first[0] - last[0]) > 0.000001 || Math.abs(first[1] - last[1]) > 0.000001) {
+		coordinates.push([...first]);
+	}
+
+	return coordinates.length >= 4 ? coordinates : null;
+}
+
+function roundGeometryCoordinate(value) {
+	return Math.round(value * 1000000) / 1000000;
+}
+
+function validateRegionBooleanResult(operation, sourceGeometry, targetGeometry, resultGeometry) {
+	const sourceArea = calculateClippingMultiPolygonArea(sourceGeometry);
+	const targetArea = calculateClippingMultiPolygonArea(targetGeometry);
+	const resultArea = calculateClippingMultiPolygonArea(resultGeometry);
+	const epsilon = Math.max(0.01, (sourceArea + targetArea) * 0.000001);
+	if (resultArea <= 0) {
+		throw new Error("Die Geometrieoperation erzeugt keine gueltige Flaeche.");
+	}
+
+	if (operation === "difference" || operation === "difference-keep-target") {
+		if (resultArea - sourceArea > epsilon) {
+			throw new Error("Difference-Ergebnis ist groesser als die Ausgangsflaeche.");
+		}
+		return;
+	}
+
+	if (operation === "intersection") {
+		if (resultArea - Math.min(sourceArea, targetArea) > epsilon) {
+			throw new Error("Intersection-Ergebnis ist groesser als eine der Ausgangsflaechen.");
+		}
+		return;
+	}
+
+	if (operation === "union" && resultArea + epsilon < Math.max(sourceArea, targetArea)) {
+		throw new Error("Union-Ergebnis ist kleiner als eine der Ausgangsflaechen.");
+	}
+}
+
+function calculateClippingMultiPolygonArea(multiPolygon) {
+	return (multiPolygon || []).reduce((area, polygon) => area + calculateClippingPolygonArea(polygon), 0);
+}
+
+async function debugRegionBooleanOperation(operation, sourceGeometry, targetGeometry, resultGeometry) {
+	if (!POLITICAL_TERRITORIES_API_URL || !INITIAL_SEARCH_PARAMS.has("debugMap")) {
+		return;
+	}
+
+	try {
+		await submitPoliticalTerritoryEdit({
+			action: "geometry_operation_debug",
+			operation,
+			source_geometry_geojson: clippingMultiPolygonToGeoJson(sourceGeometry),
+			target_geometry_geojson: clippingMultiPolygonToGeoJson(targetGeometry),
+			result_geometry_geojson: clippingMultiPolygonToGeoJson(resultGeometry),
+		});
+	} catch (error) {
+		console.warn("Geometrie-Debug konnte nicht geschrieben werden:", error);
+	}
 }
 
 function normalizeRegionFeature(feature) {

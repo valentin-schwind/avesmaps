@@ -65,6 +65,7 @@ try {
         'assign_geometry' => avesmapsPoliticalAssignGeometryToTerritory($pdo, $payload),
         'delete_geometry' => avesmapsPoliticalDeleteGeometry($pdo, $payload),
         'geometry_operation' => avesmapsPoliticalApplyGeometryOperationResult($pdo, $payload, $user),
+        'geometry_operation_debug' => avesmapsPoliticalDebugGeometryOperation($payload),
         'restore_legacy_region_geometries' => avesmapsPoliticalRestoreLegacyRegionGeometries($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Herrschaftsgebiet-Aktion ist unbekannt.'),
     };
@@ -1324,6 +1325,136 @@ function avesmapsPoliticalApplyGeometryOperationResult(PDO $pdo, array $payload,
     $result['deleted_geometry_public_id'] = $targetGeometryPublicId;
 
     return $result;
+}
+
+function avesmapsPoliticalDebugGeometryOperation(array $payload): array {
+    $operation = avesmapsNormalizeSingleLine((string) ($payload['operation'] ?? ''), 40);
+    if (!in_array($operation, ['union', 'difference', 'difference-keep-target', 'intersection'], true)) {
+        throw new InvalidArgumentException('Die Geometrieoperation ist unbekannt.');
+    }
+
+    $sourceGeometry = avesmapsPoliticalReadGeoJsonGeometry($payload['source_geometry_geojson'] ?? null);
+    $targetGeometry = avesmapsPoliticalReadGeoJsonGeometry($payload['target_geometry_geojson'] ?? null);
+    $resultGeometry = avesmapsPoliticalReadGeoJsonGeometry($payload['result_geometry_geojson'] ?? null);
+    $sourceDiagnostics = avesmapsPoliticalBuildGeometryDiagnostics($sourceGeometry);
+    $targetDiagnostics = avesmapsPoliticalBuildGeometryDiagnostics($targetGeometry);
+    $resultDiagnostics = avesmapsPoliticalBuildGeometryDiagnostics($resultGeometry);
+    $issues = avesmapsPoliticalCompareGeometryOperationDiagnostics(
+        $operation,
+        $sourceDiagnostics,
+        $targetDiagnostics,
+        $resultDiagnostics
+    );
+
+    return [
+        'ok' => true,
+        'operation' => $operation,
+        'source' => $sourceDiagnostics,
+        'target' => $targetDiagnostics,
+        'result' => $resultDiagnostics,
+        'issues' => $issues,
+        'valid' => $issues === [],
+    ];
+}
+
+function avesmapsPoliticalBuildGeometryDiagnostics(array $geometry): array {
+    $polygons = avesmapsPoliticalGeometryToPolygonList($geometry);
+    $area = 0.0;
+    $ringCount = 0;
+    $invalidRingCount = 0;
+    $coordinateCount = 0;
+    foreach ($polygons as $polygon) {
+        foreach ($polygon as $ringIndex => $ring) {
+            $ringCount++;
+            $coordinateCount += count($ring);
+            $ringArea = abs(avesmapsPoliticalSignedRingArea($ring));
+            if (count($ring) < 4 || $ringArea <= 0.000001 || !avesmapsPoliticalRingIsClosed($ring)) {
+                $invalidRingCount++;
+            }
+            $area += $ringIndex === 0 ? $ringArea : -$ringArea;
+        }
+    }
+
+    return [
+        'type' => (string) ($geometry['type'] ?? ''),
+        'polygon_count' => count($polygons),
+        'ring_count' => $ringCount,
+        'coordinate_count' => $coordinateCount,
+        'invalid_ring_count' => $invalidRingCount,
+        'area' => round(max(0.0, $area), 6),
+        'bbox' => avesmapsPoliticalCalculateGeometryBounds($geometry),
+    ];
+}
+
+function avesmapsPoliticalGeometryToPolygonList(array $geometry): array {
+    if (($geometry['type'] ?? '') === 'Polygon') {
+        return [$geometry['coordinates'] ?? []];
+    }
+
+    if (($geometry['type'] ?? '') === 'MultiPolygon') {
+        return is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [];
+    }
+
+    return [];
+}
+
+function avesmapsPoliticalSignedRingArea(array $ring): float {
+    $area = 0.0;
+    $count = count($ring);
+    for ($index = 0; $index < $count - 1; $index++) {
+        $current = $ring[$index];
+        $next = $ring[$index + 1];
+        $area += (float) ($current[0] ?? 0) * (float) ($next[1] ?? 0)
+            - (float) ($next[0] ?? 0) * (float) ($current[1] ?? 0);
+    }
+
+    return $area / 2;
+}
+
+function avesmapsPoliticalRingIsClosed(array $ring): bool {
+    if (count($ring) < 2) {
+        return false;
+    }
+
+    $first = $ring[0];
+    $last = $ring[count($ring) - 1];
+
+    return abs((float) ($first[0] ?? 0) - (float) ($last[0] ?? 0)) <= 0.000001
+        && abs((float) ($first[1] ?? 0) - (float) ($last[1] ?? 0)) <= 0.000001;
+}
+
+function avesmapsPoliticalCompareGeometryOperationDiagnostics(
+    string $operation,
+    array $sourceDiagnostics,
+    array $targetDiagnostics,
+    array $resultDiagnostics
+): array {
+    $issues = [];
+    if ((int) $resultDiagnostics['polygon_count'] < 1 || (float) $resultDiagnostics['area'] <= 0.0) {
+        $issues[] = 'empty_result';
+    }
+    if ((int) $resultDiagnostics['invalid_ring_count'] > 0) {
+        $issues[] = 'invalid_result_rings';
+    }
+
+    $epsilon = max(0.01, ((float) $sourceDiagnostics['area'] + (float) $targetDiagnostics['area']) * 0.000001);
+    if (($operation === 'difference' || $operation === 'difference-keep-target')
+        && (float) $resultDiagnostics['area'] - (float) $sourceDiagnostics['area'] > $epsilon
+    ) {
+        $issues[] = 'difference_area_larger_than_source';
+    }
+    if ($operation === 'intersection'
+        && (float) $resultDiagnostics['area'] - min((float) $sourceDiagnostics['area'], (float) $targetDiagnostics['area']) > $epsilon
+    ) {
+        $issues[] = 'intersection_area_larger_than_input';
+    }
+    if ($operation === 'union'
+        && (float) $resultDiagnostics['area'] + $epsilon < max((float) $sourceDiagnostics['area'], (float) $targetDiagnostics['area'])
+    ) {
+        $issues[] = 'union_area_smaller_than_input';
+    }
+
+    return $issues;
 }
 
 function avesmapsPoliticalSoftDeleteGeometryById(PDO $pdo, int $geometryId): void {
