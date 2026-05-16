@@ -119,6 +119,41 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
         $pdo,
         avesmapsPoliticalReadPublicId($query['geometry_public_id'] ?? $query['public_id'] ?? '')
     );
+    
+    $geometryStyle = avesmapsPoliticalDecodeJson($geometry['style_json'] ?? null);
+    $geometryDisplayName = trim((string) ($geometryStyle['displayName'] ?? $geometryStyle['name'] ?? ''));
+    $isDisplayOnlyGeometry = trim((string) ($geometry['source'] ?? '')) === 'editor-display';
+
+    if ($isDisplayOnlyGeometry || $geometryDisplayName !== '') {
+        $validTo = avesmapsPoliticalNullableInt($geometry['valid_to_bf'] ?? null);
+        $existsUntilToday = $validTo === null || $validTo >= 9999;
+
+        return [
+            'ok' => true,
+            'geometry' => avesmapsPoliticalGeometryRowToPublic($geometry),
+            'assignment' => [
+                'assignedTerritory' => null,
+                'activeDisplayNode' => null,
+                'assignedPath' => [],
+                'editedPath' => [],
+                'display' => [
+                    'name' => $geometryDisplayName,
+                    'displayName' => $geometryDisplayName,
+                    'coatOfArmsUrl' => (string) ($geometryStyle['coatOfArmsUrl'] ?? $geometryStyle['coat_of_arms_url'] ?? ''),
+                    'zoomMin' => avesmapsPoliticalNullableInt($geometry['min_zoom'] ?? null),
+                    'zoomMax' => avesmapsPoliticalNullableInt($geometry['max_zoom'] ?? null),
+                    'color' => (string) ($geometryStyle['fill'] ?? $geometryStyle['stroke'] ?? '#888888'),
+                    'opacity' => (float) ($geometryStyle['fillOpacity'] ?? 0.33),
+                ],
+                'validity' => [
+                    'startYear' => avesmapsPoliticalNullableInt($geometry['valid_from_bf'] ?? null),
+                    'endYear' => $existsUntilToday ? null : $validTo,
+                    'existsUntilToday' => $existsUntilToday,
+                ],
+                'displays' => [],
+            ],
+        ];
+    }
 
     $territoryId = (int) ($geometry['territory_id'] ?? 0);
     if ($territoryId < 1) {
