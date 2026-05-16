@@ -91,6 +91,7 @@ jobs:
             "img"
             "js"
             "map"
+            "politics"
           )
 
           for item in "${deploy_items[@]}"; do
