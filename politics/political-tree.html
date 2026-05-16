@@ -1189,7 +1189,16 @@
 				setStatus("Fertig");
 				updateFilters();
 				render();
-				await loadExistingGeometryAssignmentFromUrl();
+
+				try {
+					await loadExistingGeometryAssignmentFromUrl();
+				} catch (assignmentError) {
+					console.warn("Bestehende Eigenschaften konnten nicht geladen werden:", assignmentError);
+					setFormStatus(
+						assignmentError.message || "Bestehende Eigenschaften konnten nicht geladen werden.",
+						"error"
+					);
+				}
 			} catch (error) {
 				allRows = [];
 				currentTree = null;
@@ -1255,6 +1264,11 @@
 			});
 
 			const payload = await response.json();
+
+			if (response.status === 400 || response.status === 404) {
+				setFormStatus(payload.error || "Noch keine gespeicherten Eigenschaften für diese Geometrie vorhanden.", "pending");
+				return;
+			}
 
 			if (!response.ok || !payload.ok) {
 				throw new Error(payload.error || `HTTP ${response.status}`);
