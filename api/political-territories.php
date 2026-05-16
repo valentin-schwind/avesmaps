@@ -65,6 +65,7 @@ try {
         'assign_geometry' => avesmapsPoliticalAssignGeometryToTerritory($pdo, $payload),
         'delete_geometry' => avesmapsPoliticalDeleteGeometry($pdo, $payload),
         'geometry_operation' => avesmapsPoliticalApplyGeometryOperationResult($pdo, $payload, $user),
+        'restore_legacy_region_geometries' => avesmapsPoliticalRestoreLegacyRegionGeometries($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Herrschaftsgebiet-Aktion ist unbekannt.'),
     };
 
@@ -119,6 +120,7 @@ function avesmapsPoliticalDebugExceptionPayload(Throwable $exception): array {
 function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
     $yearBf = avesmapsPoliticalReadOptionalInt($query['year_bf'] ?? null) ?? AVESMAPS_POLITICAL_DEFAULT_YEAR_BF;
     $zoom = avesmapsPoliticalReadOptionalZoom($query['zoom'] ?? null) ?? 0;
+    $isEditMode = avesmapsPoliticalReadBoolean($query['edit_mode'] ?? false);
     $bbox = avesmapsPoliticalReadOptionalBoundingBox((string) ($query['bbox'] ?? ''));
     $normalizedTerritoryValidToSql = avesmapsPoliticalNormalizedValidToSql('territory.valid_to_bf', 'wiki.dissolved_type', 'wiki.dissolved_text');
     $normalizedGeometryValidToSql = avesmapsPoliticalNormalizedValidToSql('geometry.valid_to_bf', 'wiki.dissolved_type', 'wiki.dissolved_text');
@@ -207,7 +209,9 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
     $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
 
     $territories = avesmapsPoliticalFetchLayerTerritories($pdo, $yearBf);
-    $rows = avesmapsPoliticalAppendLegacyFallbackLayerRows($pdo, $rows, $territories, $zoom);
+    if (!$isEditMode) {
+        $rows = avesmapsPoliticalAppendLegacyFallbackLayerRows($pdo, $rows, $territories, $zoom);
+    }
     $parentIds = avesmapsPoliticalBuildEffectiveLayerParentIds($territories);
     $features = avesmapsPoliticalBuildResolvedLayerFeatures($rows, $territories, $parentIds, $yearBf, $zoom);
 
@@ -1325,6 +1329,175 @@ function avesmapsPoliticalApplyGeometryOperationResult(PDO $pdo, array $payload,
 function avesmapsPoliticalSoftDeleteGeometryById(PDO $pdo, int $geometryId): void {
     $statement = $pdo->prepare('UPDATE political_territory_geometry SET is_active = 0 WHERE id = :id');
     $statement->execute(['id' => $geometryId]);
+}
+
+function avesmapsPoliticalRestoreLegacyRegionGeometries(PDO $pdo, array $payload, array $user): array {
+    $dryRun = avesmapsPoliticalReadBoolean($payload['dry_run'] ?? false);
+    $features = avesmapsPoliticalFetchLegacyRegionFeaturesByExactName($pdo);
+    $createdTerritories = 0;
+    $restoredGeometries = 0;
+    $skippedExistingEditorial = 0;
+    $skippedInvalid = 0;
+
+    $pdo->beginTransaction();
+    try {
+        foreach ($features as $feature) {
+            $name = avesmapsPoliticalReadLegacyFeatureName($feature);
+            $geometry = avesmapsPoliticalDecodeJson($feature['geometry_json'] ?? null);
+            if ($name === '' || !in_array((string) ($geometry['type'] ?? ''), ['Polygon', 'MultiPolygon'], true)) {
+                $skippedInvalid++;
+                continue;
+            }
+
+            $territory = avesmapsPoliticalFindTerritoryByExactNameOrSlug($pdo, $name);
+            if ($territory === null) {
+                if ($dryRun) {
+                    $createdTerritories++;
+                    $restoredGeometries++;
+                    continue;
+                }
+
+                $territory = avesmapsPoliticalCreateLegacyRegionTerritory($pdo, $feature, $name, $user);
+                $createdTerritories++;
+            }
+
+            if (avesmapsPoliticalTerritoryHasEditorialGeometry($pdo, (int) $territory['id'])) {
+                $skippedExistingEditorial++;
+                continue;
+            }
+
+            if (avesmapsPoliticalTerritoryHasEquivalentActiveGeometry($pdo, (int) $territory['id'], $geometry)) {
+                continue;
+            }
+
+            if (!$dryRun) {
+                avesmapsPoliticalInsertGeometry($pdo, (int) $territory['id'], $geometry, [
+                    'source' => 'legacy_region_restore',
+                    'min_zoom' => $territory['min_zoom'] ?? null,
+                    'max_zoom' => $territory['max_zoom'] ?? null,
+                    'style_json' => avesmapsPoliticalBuildSeedGeometryStyle($feature, (string) ($territory['color'] ?? '#888888')),
+                ], $user);
+            }
+            $restoredGeometries++;
+        }
+
+        $dryRun ? $pdo->rollBack() : $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $exception;
+    }
+
+    return [
+        'ok' => true,
+        'dry_run' => $dryRun,
+        'legacy_region_count' => count($features),
+        'created_territories' => $createdTerritories,
+        'restored_geometries' => $restoredGeometries,
+        'skipped_existing_editorial' => $skippedExistingEditorial,
+        'skipped_invalid' => $skippedInvalid,
+    ];
+}
+
+function avesmapsPoliticalFetchLegacyRegionFeaturesByExactName(PDO $pdo): array {
+    $statement = $pdo->query(
+        "SELECT public_id, name, geometry_json, properties_json, style_json, min_x, min_y, max_x, max_y
+        FROM map_features
+        WHERE feature_type = 'region'
+            AND is_active = 1
+            AND geometry_type IN ('Polygon', 'MultiPolygon')
+        ORDER BY sort_order ASC, id ASC"
+    );
+
+    return $statement !== false ? ($statement->fetchAll(PDO::FETCH_ASSOC) ?: []) : [];
+}
+
+function avesmapsPoliticalReadLegacyFeatureName(array $feature): string {
+    $properties = avesmapsPoliticalDecodeJson($feature['properties_json'] ?? null);
+    return avesmapsNormalizeSingleLine((string) ($feature['name'] ?? $properties['name'] ?? $properties['data-item-label'] ?? ''), 255);
+}
+
+function avesmapsPoliticalFindTerritoryByExactNameOrSlug(PDO $pdo, string $name): ?array {
+    $statement = $pdo->prepare(
+        'SELECT *
+        FROM political_territory
+        WHERE name = :name OR slug = :slug
+        ORDER BY name = :name_order DESC, id ASC
+        LIMIT 1'
+    );
+    $statement->execute([
+        'name' => $name,
+        'name_order' => $name,
+        'slug' => avesmapsPoliticalSlug($name),
+    ]);
+    $territory = $statement->fetch(PDO::FETCH_ASSOC);
+
+    return $territory ?: null;
+}
+
+function avesmapsPoliticalCreateLegacyRegionTerritory(PDO $pdo, array $feature, string $name, array $user): array {
+    $properties = avesmapsPoliticalDecodeJson($feature['properties_json'] ?? null);
+    $style = avesmapsPoliticalBuildSeedGeometryStyle($feature, '#888888');
+    $publicId = avesmapsPoliticalUuidV4();
+    $statement = $pdo->prepare(
+        'INSERT INTO political_territory (
+            public_id, wiki_id, slug, name, short_name, type, parent_id, continent, status, color,
+            opacity, coat_of_arms_url, wiki_url, valid_from_bf, valid_to_bf, valid_label,
+            min_zoom, max_zoom, is_active, editor_notes, sort_order
+        ) VALUES (
+            :public_id, NULL, :slug, :name, NULL, :type, NULL, :continent, NULL, :color,
+            :opacity, NULL, NULL, NULL, NULL, NULL,
+            :min_zoom, :max_zoom, 1, :editor_notes, :sort_order
+        )'
+    );
+    $statement->execute([
+        'public_id' => $publicId,
+        'slug' => avesmapsPoliticalUniqueSlug($pdo, avesmapsPoliticalSlug($name)),
+        'name' => avesmapsPoliticalUniqueName($pdo, $name),
+        'type' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($properties['feature_subtype'] ?? $properties['layer'] ?? 'Herrschaftsgebiet'), 160)),
+        'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+        'color' => (string) ($style['fill'] ?? '#888888'),
+        'opacity' => (float) ($style['fillOpacity'] ?? 0.33),
+        'min_zoom' => 0,
+        'max_zoom' => 6,
+        'editor_notes' => 'Aus urspruenglichem Regionen-Layer wiederhergestellt.',
+        'sort_order' => avesmapsPoliticalNextSortOrder($pdo),
+    ]);
+
+    return avesmapsPoliticalFetchTerritoryByPublicId($pdo, $publicId);
+}
+
+function avesmapsPoliticalTerritoryHasEditorialGeometry(PDO $pdo, int $territoryId): bool {
+    $statement = $pdo->prepare(
+        "SELECT COUNT(*)
+        FROM political_territory_geometry
+        WHERE territory_id = :territory_id
+            AND is_active = 1
+            AND COALESCE(source, '') NOT IN ('legacy_region_seed', 'legacy_region_restore')"
+    );
+    $statement->execute(['territory_id' => $territoryId]);
+
+    return (int) $statement->fetchColumn() > 0;
+}
+
+function avesmapsPoliticalTerritoryHasEquivalentActiveGeometry(PDO $pdo, int $territoryId, array $geometry): bool {
+    $statement = $pdo->prepare(
+        'SELECT geometry_geojson
+        FROM political_territory_geometry
+        WHERE territory_id = :territory_id
+            AND is_active = 1'
+    );
+    $statement->execute(['territory_id' => $territoryId]);
+    $encodedGeometry = avesmapsPoliticalEncodeJsonOrNull($geometry);
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        if (avesmapsPoliticalEncodeJsonOrNull(avesmapsPoliticalDecodeJson($row['geometry_geojson'] ?? null)) === $encodedGeometry) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function avesmapsPoliticalInsertGeometry(PDO $pdo, int $territoryId, array $geometry, array $payload, array $user): string {

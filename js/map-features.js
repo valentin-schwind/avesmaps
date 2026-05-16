@@ -643,6 +643,13 @@ $("#mapStyleSelect").on("change", function () {
 
 	setMapStyle(String(this.value || "stylized"), { persist: true });
 });
+map.on("click", () => {
+	if (!IS_EDIT_MODE || pendingRegionOperation || pendingRegionMoveState) {
+		return;
+	}
+
+	clearRegionGeometryEdit();
+});
 $("#togglePaths").change(syncPathVisibility);
 $("#mapLayerModeSelect").change(() => {
 	setSelectedMapLayerMode(getSelectedMapLayerMode());
@@ -3619,13 +3626,13 @@ function handleEditablePathDoubleClick(path, event) {
 	insertActivePathNode(event.latlng);
 }
 
-function handleEditableRegionDoubleClick(regionEntry, event) {
+function handleEditableRegionDoubleClick(regionEntry, event, editLayer = null) {
 	L.DomEvent.stop(event);
-	startRegionGeometryEdit(regionEntry);
+	startRegionGeometryEdit(regionEntry, editLayer || activeRegionGeometryEdit?.editLayer || regionEntry.layer);
 	const latLngs = getRegionOuterLatLngs(regionEntry);
 	const insertIndex = findNearestRegionSegmentInsertIndex(regionEntry, event.latlng);
 	latLngs.splice(insertIndex, 0, L.latLng(event.latlng));
-	regionEntry.layer.setLatLngs([latLngs]);
+	setRegionOuterLatLngs(regionEntry, latLngs);
 	updateRegionLabelPosition(regionEntry);
 	refreshRegionEditHandles();
 	void saveRegionGeometry(regionEntry);
@@ -3906,6 +3913,7 @@ async function loadPoliticalTerritoryLayer() {
 			action: "layer",
 			year_bf: politicalTimelineYear,
 			zoom: Math.round(map.getZoom()),
+			edit_mode: IS_EDIT_MODE ? 1 : 0,
 			bbox: [
 				bounds.getWest(),
 				bounds.getSouth(),
@@ -4060,7 +4068,7 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 			return;
 		}
 		if (pendingRegionOperation) {
-			void completePendingRegionOperation(regionEntry);
+			void completePendingRegionOperation(regionEntry, polygon);
 			return;
 		}
 		startRegionGeometryEdit(regionEntry, polygon);
@@ -4068,7 +4076,7 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 	polygon.on("dblclick", (event) => {
 		if (event.originalEvent?.target?.closest?.(".region-edit-handle-marker")) return;
 		if (activeRegionGeometryEdit?.regionEntry === regionEntry && activeRegionGeometryEdit.editLayer === polygon) {
-			handleEditableRegionDoubleClick(regionEntry, event);
+			handleEditableRegionDoubleClick(regionEntry, event, polygon);
 			return;
 		}
 		L.DomEvent.stop(event);
@@ -4078,6 +4086,7 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 		L.DomEvent.stop(event);
 		openRegionContextMenu(
 			regionEntry,
+			polygon,
 			event.latlng,
 			event.originalEvent?.clientX ?? 0,
 			event.originalEvent?.clientY ?? 0
@@ -4103,8 +4112,9 @@ function getRegionContextMenuElement() {
 	return document.getElementById("region-context-menu");
 }
 
-function openRegionContextMenu(regionEntry, latlng, clientX, clientY) {
+function openRegionContextMenu(regionEntry, regionLayer, latlng, clientX, clientY) {
 	activeRegionContextEntry = regionEntry;
+	activeRegionContextLayer = regionLayer || regionEntry.layer || null;
 	pendingContextMenuLatLng = L.latLng(latlng);
 	closeMapContextMenu();
 	const menuElement = getRegionContextMenuElement();
@@ -4122,6 +4132,7 @@ function closeRegionContextMenu() {
 		menuElement.hidden = true;
 	}
 	activeRegionContextEntry = null;
+	activeRegionContextLayer = null;
 }
 
 function positionContextMenuElement(menuElement, clientX, clientY) {
@@ -4141,13 +4152,14 @@ $(document).on("click", "[data-region-context-action]", function (event) {
 	event.stopPropagation();
 	const action = this.dataset.regionContextAction || "";
 	const regionEntry = activeRegionContextEntry;
+	const regionLayer = activeRegionContextLayer || regionEntry?.layer || null;
 	closeRegionContextMenu();
 	if (!regionEntry) {
 		return;
 	}
 
 	if (action === "edit-geometry") {
-		startRegionGeometryEdit(regionEntry);
+		startRegionGeometryEdit(regionEntry, regionLayer);
 		return;
 	}
 	if (action === "edit-properties") {
@@ -4160,40 +4172,40 @@ $(document).on("click", "[data-region-context-action]", function (event) {
 		return;
 	}
 	if (action === "split") {
-		startPendingRegionSplit(regionEntry);
+		startPendingRegionSplit(regionEntry, regionLayer);
 		return;
 	}
 	if (["union", "difference", "difference-keep-target", "intersection"].includes(action)) {
-		startPendingRegionOperation(action, regionEntry);
+		startPendingRegionOperation(action, regionEntry, regionLayer);
 		return;
 	}
 	if (action === "delete") {
 		regionEditEntry = regionEntry;
-		void deleteActiveRegion();
+		void deleteActiveRegion(regionLayer);
 	}
 });
 
-function startPendingRegionOperation(operation, sourceRegion) {
+function startPendingRegionOperation(operation, sourceRegion, sourceLayer = null) {
 	if (sourceRegion.source !== "political_territory") {
 		showFeedbackToast("Geometrieoperationen sind fuer das neue Herrschaftsgebiete-Modell aktiv.", "warning");
 		return;
 	}
 
 	cancelPendingRegionOperation();
-	pendingRegionOperation = { operation, sourceRegion };
+	pendingRegionOperation = { operation, sourceRegion, sourceLayer: sourceLayer || sourceRegion.layer || null };
 	clearRegionGeometryEdit();
 	syncRegionOperationChip();
 	showFeedbackToast("Naechstes Herrschaftsgebiet anklicken.", "info");
 }
 
-function startPendingRegionSplit(sourceRegion) {
+function startPendingRegionSplit(sourceRegion, sourceLayer = null) {
 	if (sourceRegion.source !== "political_territory") {
 		showFeedbackToast("Gebiete zerschneiden ist fuer das neue Herrschaftsgebiete-Modell aktiv.", "warning");
 		return;
 	}
 
 	cancelPendingRegionOperation();
-	pendingRegionOperation = { operation: "split", sourceRegion, points: [] };
+	pendingRegionOperation = { operation: "split", sourceRegion, sourceLayer: sourceLayer || sourceRegion.layer || null, points: [] };
 	clearRegionGeometryEdit();
 	map.on("click", handlePendingRegionSplitClick);
 	syncRegionOperationChip();
@@ -4427,8 +4439,13 @@ async function completePendingRegionSplit(operationState) {
 	}
 
 	try {
-		const sourceGeometry = regionEntryToClippingMultiPolygon(operationState.sourceRegion);
-		const cutterGeometry = buildRegionSplitCutterGeometry(operationState.sourceRegion, operationState.points[0], operationState.points[1]);
+		const sourceGeometry = regionEntryToClippingMultiPolygon(operationState.sourceRegion, {
+			onlyLayer: operationState.sourceLayer,
+		});
+		const remainingGeometry = regionEntryToClippingMultiPolygon(operationState.sourceRegion, {
+			excludeLayers: [operationState.sourceLayer].filter(Boolean),
+		});
+		const cutterGeometry = buildRegionSplitCutterGeometry(operationState.sourceRegion, operationState.points[0], operationState.points[1], operationState.sourceLayer);
 		const splitGeometry = window.polygonClipping.difference(sourceGeometry, cutterGeometry);
 		if (splitGeometry.length <= sourceGeometry.length) {
 			showFeedbackToast("Die Schnittlinie trennt das Gebiet nicht vollstaendig.", "warning");
@@ -4440,7 +4457,7 @@ async function completePendingRegionSplit(operationState) {
 			.map((polygon) => ({ polygon, area: calculateClippingPolygonArea(polygon) }))
 			.sort((left, right) => right.area - left.area)
 			.map((entry) => entry.polygon);
-		const sourcePart = [sortedPolygons[0]];
+		const sourcePart = [...remainingGeometry, sortedPolygons[0]];
 		const splitPart = sortedPolygons.slice(1);
 		await submitPoliticalTerritoryEdit({
 			action: "split_geometry",
@@ -4502,7 +4519,7 @@ function clearPendingRegionSplitPreview() {
 	}
 }
 
-function buildRegionSplitCutterGeometry(regionEntry, startLatLng, endLatLng) {
+function buildRegionSplitCutterGeometry(regionEntry, startLatLng, endLatLng, sourceLayer = null) {
 	const start = { x: startLatLng.lng, y: startLatLng.lat };
 	const end = { x: endLatLng.lng, y: endLatLng.lat };
 	const dx = end.x - start.x;
@@ -4512,7 +4529,7 @@ function buildRegionSplitCutterGeometry(regionEntry, startLatLng, endLatLng) {
 		throw new Error("Die Schnittlinie braucht zwei verschiedene Punkte.");
 	}
 
-	const bounds = getRegionEntryBounds(regionEntry);
+	const bounds = sourceLayer?.getBounds?.() || getRegionEntryBounds(regionEntry);
 	const boundsWidth = Math.abs((bounds?.getEast?.() ?? end.x) - (bounds?.getWest?.() ?? start.x));
 	const boundsHeight = Math.abs((bounds?.getNorth?.() ?? end.y) - (bounds?.getSouth?.() ?? start.y));
 	const boundsDiagonal = Math.max(Math.hypot(boundsWidth, boundsHeight), lineLength);
@@ -4559,15 +4576,21 @@ function calculateClippingRingArea(ring) {
 	return Math.abs(area / 2);
 }
 
-async function completePendingRegionOperation(targetRegion) {
+async function completePendingRegionOperation(targetRegion, targetLayer = null) {
 	const operationState = pendingRegionOperation;
 	if (!operationState) {
 		return;
 	}
 	clearPendingRegionTargetHighlight();
 
-	if (targetRegion === operationState.sourceRegion) {
-		showFeedbackToast("Bitte ein anderes Herrschaftsgebiet waehlen.", "warning");
+	const sourceLayer = operationState.sourceLayer || operationState.sourceRegion.layer || null;
+	const normalizedTargetLayer = targetLayer || targetRegion.layer || null;
+	const sourceGeometryPublicId = operationState.sourceRegion.geometryPublicId || operationState.sourceRegion.publicId || "";
+	const targetGeometryPublicId = targetRegion.geometryPublicId || targetRegion.publicId || "";
+	const isSameGeometry = sourceGeometryPublicId !== "" && sourceGeometryPublicId === targetGeometryPublicId;
+	const isSameLayer = sourceLayer && normalizedTargetLayer && sourceLayer === normalizedTargetLayer;
+	if (isSameGeometry && isSameLayer) {
+		showFeedbackToast("Bitte eine andere Flaeche waehlen.", "warning");
 		return;
 	}
 
@@ -4583,8 +4606,20 @@ async function completePendingRegionOperation(targetRegion) {
 	}
 
 	try {
-		const sourceGeometry = regionEntryToClippingMultiPolygon(operationState.sourceRegion);
-		const targetGeometry = regionEntryToClippingMultiPolygon(targetRegion);
+		const targetIsConsumed = shouldRegionBooleanOperationConsumeTarget(operationState.operation);
+		const sourceExclusions = [sourceLayer].filter(Boolean);
+		if (isSameGeometry && normalizedTargetLayer && (operationState.operation === "union" || targetIsConsumed)) {
+			sourceExclusions.push(normalizedTargetLayer);
+		}
+		const sourceGeometry = regionEntryToClippingMultiPolygon(operationState.sourceRegion, {
+			onlyLayer: sourceLayer,
+		});
+		const targetGeometry = regionEntryToClippingMultiPolygon(targetRegion, {
+			onlyLayer: normalizedTargetLayer,
+		});
+		const remainingSourceGeometry = sourceLayer
+			? regionEntryToClippingMultiPolygon(operationState.sourceRegion, { excludeLayers: sourceExclusions })
+			: [];
 		const clippedGeometry = calculateRegionBooleanGeometry(operationState.operation, sourceGeometry, targetGeometry);
 		if (!clippedGeometry.length) {
 			showFeedbackToast("Die Operation ergibt keine Flaeche.", "warning");
@@ -4592,7 +4627,8 @@ async function completePendingRegionOperation(targetRegion) {
 			return;
 		}
 
-		const geometryGeoJson = clippingMultiPolygonToGeoJson(clippedGeometry);
+		const operationGeometryGeoJson = clippingMultiPolygonToGeoJson(clippedGeometry);
+		const geometryGeoJson = clippingMultiPolygonToGeoJson([...remainingSourceGeometry, ...clippedGeometry]);
 		if (operationState.operation === "intersection") {
 			await submitPoliticalTerritoryEdit({
 				action: "geometry_operation",
@@ -4604,10 +4640,10 @@ async function completePendingRegionOperation(targetRegion) {
 				opacity: operationState.sourceRegion.opacity,
 				valid_to_open: true,
 				is_active: true,
-				geometry_geojson: geometryGeoJson,
+				geometry_geojson: operationGeometryGeoJson,
 			});
 		} else {
-			const deleteTargetGeometry = shouldRegionBooleanOperationConsumeTarget(operationState.operation);
+			const deleteTargetGeometry = targetIsConsumed && !isSameGeometry;
 			await submitPoliticalTerritoryEdit({
 				action: "geometry_operation",
 				operation: getStoredRegionBooleanOperation(operationState.operation),
@@ -4656,8 +4692,12 @@ function getStoredRegionBooleanOperation(operation) {
 	return operation === "difference-keep-target" ? "difference" : operation;
 }
 
-function regionEntryToClippingMultiPolygon(regionEntry) {
-	const geometries = (regionEntry.layers?.length ? regionEntry.layers : [regionEntry.layer])
+function regionEntryToClippingMultiPolygon(regionEntry, { onlyLayer = null, excludeLayers = [] } = {}) {
+	const excludedLayers = new Set(excludeLayers.filter(Boolean));
+	const layers = onlyLayer
+		? [onlyLayer]
+		: getRegionEntryLayers(regionEntry).filter((layer) => !excludedLayers.has(layer));
+	const geometries = layers
 		.filter(Boolean)
 		.map((layer) => layer.toGeoJSON?.().geometry)
 		.filter((geometry) => geometry && ["Polygon", "MultiPolygon"].includes(geometry.type));
@@ -5235,9 +5275,20 @@ async function createRegionAt(latlng) {
 	}
 }
 
-async function deleteActiveRegion() {
+async function deleteActiveRegion(selectedLayer = null) {
 	if (!regionEditEntry || !window.confirm(`${regionEditEntry.name} wirklich loeschen?`)) return;
 	if (regionEditEntry.source === "political_territory") {
+		const selectedGeometryLayer = selectedLayer || activeRegionGeometryEdit?.editLayer || regionEditEntry.layer || null;
+		if (selectedGeometryLayer && getRegionEntryLayers(regionEditEntry).length > 1) {
+			try {
+				await deleteRegionGeometryPart(regionEditEntry, selectedGeometryLayer);
+				showFeedbackToast("Teilflaeche geloescht.", "success");
+			} catch (error) {
+				showFeedbackToast(error.message || "Teilflaeche konnte nicht geloescht werden.", "warning");
+			}
+			return;
+		}
+
 		try {
 			await submitPoliticalTerritoryEdit({
 				action: "delete_geometry",
@@ -5280,6 +5331,35 @@ async function deleteActiveRegion() {
 	} catch (error) {
 		setRegionEditStatus(error.message || "Region konnte nicht geloescht werden.", "error");
 	}
+}
+
+async function deleteRegionGeometryPart(regionEntry, selectedLayer) {
+	const layers = getRegionEntryLayers(regionEntry);
+	if (!selectedLayer || !layers.includes(selectedLayer)) {
+		throw new Error("Die ausgewaehlte Teilflaeche wurde nicht gefunden.");
+	}
+
+	map.removeLayer(selectedLayer);
+	regionPolygons = regionPolygons.filter((polygon) => polygon !== selectedLayer);
+	regionEntry.layers = layers.filter((layer) => layer !== selectedLayer);
+	regionEntry.layer = regionEntry.layers[0] || null;
+	if (!regionEntry.layer) {
+		await submitPoliticalTerritoryEdit({
+			action: "delete_geometry",
+			public_id: regionEntry.geometryPublicId || regionEntry.publicId,
+			geometry_public_id: regionEntry.geometryPublicId || regionEntry.publicId,
+		});
+		clearRegionGeometryEdit();
+		schedulePoliticalTerritoryLayerReload({ immediate: true });
+		return;
+	}
+
+	if (activeRegionGeometryEdit?.editLayer === selectedLayer) {
+		clearRegionGeometryEdit();
+	}
+	updateRegionLabelPosition(regionEntry);
+	await saveRegionGeometry(regionEntry);
+	schedulePoliticalTerritoryLayerReload({ immediate: true });
 }
 
 // Verarbeitung der Rastzeiten
