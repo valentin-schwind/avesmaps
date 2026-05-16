@@ -5425,41 +5425,50 @@ async function createRegionAt(latlng) {
 }
 
 async function deleteActiveRegion(selectedLayer = null) {
-	if (!regionEditEntry || !window.confirm(`${regionEditEntry.name} wirklich loeschen?`)) return;
+	if (!regionEditEntry) return;
 	if (regionEditEntry.source === "political_territory") {
 		const selectedGeometryLayer = selectedLayer || activeRegionGeometryEdit?.editLayer || regionEditEntry.layer || null;
-		if (selectedGeometryLayer && getRegionEntryLayers(regionEditEntry).length > 1) {
+		const polygonCount = getRegionEntryLayers(regionEditEntry).length;
+		if (!window.confirm(createPoliticalRegionDeleteConfirmation(regionEditEntry, polygonCount))) return;
+		if (selectedGeometryLayer && polygonCount > 1) {
 			try {
 				await deleteRegionGeometryPart(regionEditEntry, selectedGeometryLayer);
-				showFeedbackToast("Teilflaeche geloescht.", "success");
+				showFeedbackToast("Polygon geloescht.", "success");
 			} catch (error) {
-				showFeedbackToast(error.message || "Teilflaeche konnte nicht geloescht werden.", "warning");
+				showFeedbackToast(error.message || "Polygon konnte nicht geloescht werden.", "warning");
 			}
 			return;
 		}
 
 		try {
-			await submitPoliticalTerritoryEdit({
+			const result = await submitPoliticalTerritoryEdit({
 				action: "delete_geometry",
 				public_id: regionEditEntry.geometryPublicId || regionEditEntry.publicId,
 				geometry_public_id: regionEditEntry.geometryPublicId || regionEditEntry.publicId,
 			});
-			(regionEditEntry.layers?.length ? regionEditEntry.layers : [regionEditEntry.layer]).filter(Boolean).forEach((layer) => map.removeLayer(layer));
-			if (regionEditEntry.label) {
-				map.removeLayer(regionEditEntry.label);
-				regionLabels = regionLabels.filter((label) => label !== regionEditEntry.label);
+			removeRegionEntryFromMap(regionEditEntry);
+			if (result.territory_deleted) {
+				removePoliticalTerritoryOption(result.territory_public_id || regionEditEntry.territoryPublicId || "");
 			}
-			regionPolygons = regionPolygons.filter((polygon) => polygon._regionEntry !== regionEditEntry);
+			regionData = regionData.filter((feature) => {
+				const properties = feature.properties || {};
+				return properties.geometry_public_id !== regionEditEntry.geometryPublicId
+					&& properties.public_id !== regionEditEntry.geometryPublicId
+					&& (!result.territory_deleted || properties.territory_public_id !== regionEditEntry.territoryPublicId);
+			});
 			clearRegionGeometryEdit();
 			setRegionEditDialogOpen(false, { resetForm: true });
 			schedulePoliticalTerritoryLayerReload({ immediate: true });
-			showFeedbackToast("Geometrie geloescht.", "success");
+			showFeedbackToast(result.territory_deleted ? "Letztes Polygon geloescht, Herrschaftsgebiet entfernt." : "Polygon geloescht.", "success");
 		} catch (error) {
-			setRegionEditStatus(error.message || "Geometrie konnte nicht geloescht werden.", "error");
+			console.error("Polygon konnte nicht geloescht werden:", error);
+			showFeedbackToast(error.message || "Polygon konnte nicht geloescht werden.", "warning");
+			setRegionEditStatus(error.message || "Polygon konnte nicht geloescht werden.", "error");
 		}
 		return;
 	}
 
+	if (!window.confirm(`${regionEditEntry.name} wirklich loeschen?`)) return;
 	if (!isSqlMapFeatureId(regionEditEntry.publicId)) {
 		setRegionEditStatus("Diese Region hat keine gueltige SQL-ID.", "error");
 		return;
@@ -5479,6 +5488,52 @@ async function deleteActiveRegion(selectedLayer = null) {
 		showFeedbackToast("Region geloescht.", "success");
 	} catch (error) {
 		setRegionEditStatus(error.message || "Region konnte nicht geloescht werden.", "error");
+	}
+}
+
+function createPoliticalRegionDeleteConfirmation(regionEntry, polygonCount) {
+	const name = regionEntry.name || "Herrschaftsgebiet";
+	if (polygonCount > 1) {
+		return `Ausgewaehltes Polygon von ${name} wirklich loeschen?`;
+	}
+
+	return `Letztes Polygon von ${name} wirklich loeschen? Das Herrschaftsgebiet wird nur entfernt, wenn danach keine Flaeche mehr existiert.`;
+}
+
+function removeRegionEntryFromMap(regionEntry) {
+	getRegionEntryLayers(regionEntry).forEach((layer) => map.removeLayer(layer));
+	if (regionEntry.label) {
+		map.removeLayer(regionEntry.label);
+		regionLabels = regionLabels.filter((label) => label !== regionEntry.label);
+	}
+	regionPolygons = regionPolygons.filter((polygon) => polygon._regionEntry !== regionEntry);
+	regionEntry.layers = [];
+	regionEntry.layer = null;
+	regionEntry.label = null;
+}
+
+function removePoliticalTerritoryOption(territoryPublicId) {
+	const normalizedPublicId = String(territoryPublicId || "").trim();
+	if (normalizedPublicId === "") {
+		return;
+	}
+
+	politicalTerritoryOptions = politicalTerritoryOptions.filter((territory) => territory.public_id !== normalizedPublicId);
+	prunePoliticalTerritoryHierarchy(normalizedPublicId, politicalTerritoryHierarchy);
+}
+
+function prunePoliticalTerritoryHierarchy(publicId, nodes) {
+	if (!Array.isArray(nodes)) {
+		return;
+	}
+
+	for (let index = nodes.length - 1; index >= 0; index--) {
+		const node = nodes[index];
+		if (node?.public_id === publicId) {
+			nodes.splice(index, 1);
+			continue;
+		}
+		prunePoliticalTerritoryHierarchy(publicId, node?.children);
 	}
 }
 

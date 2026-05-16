@@ -1276,14 +1276,48 @@ function avesmapsPoliticalAssignGeometryToTerritory(PDO $pdo, array $payload): a
 
 function avesmapsPoliticalDeleteGeometry(PDO $pdo, array $payload): array {
     $geometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? ''));
-    avesmapsPoliticalSoftDeleteGeometryById($pdo, (int) $geometry['id']);
+    $territory = avesmapsPoliticalFetchTerritoryById($pdo, (int) $geometry['territory_id']);
+    $territoryDeleted = false;
+    $remainingGeometryCount = 0;
+
+    $pdo->beginTransaction();
+    try {
+        avesmapsPoliticalSoftDeleteGeometryById($pdo, (int) $geometry['id']);
+        $remainingGeometryCount = avesmapsPoliticalCountActiveGeometriesForTerritory($pdo, (int) $geometry['territory_id']);
+        if ($remainingGeometryCount === 0 && empty($territory['wiki_id'])) {
+            $statement = $pdo->prepare('UPDATE political_territory SET is_active = 0 WHERE id = :id');
+            $statement->execute(['id' => (int) $geometry['territory_id']]);
+            $territoryDeleted = true;
+        }
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $exception;
+    }
 
     return [
         'ok' => true,
         'deleted' => true,
         'geometry_public_id' => (string) $geometry['public_id'],
-        'territory_public_id' => avesmapsPoliticalFetchTerritoryPublicIdById($pdo, (int) $geometry['territory_id']),
+        'territory_public_id' => (string) $territory['public_id'],
+        'territory_deleted' => $territoryDeleted,
+        'remaining_geometry_count' => $remainingGeometryCount,
     ];
+}
+
+function avesmapsPoliticalCountActiveGeometriesForTerritory(PDO $pdo, int $territoryId): int {
+    $statement = $pdo->prepare(
+        'SELECT COUNT(*)
+        FROM political_territory_geometry
+        WHERE territory_id = :territory_id
+            AND is_active = 1'
+    );
+    $statement->execute(['territory_id' => $territoryId]);
+
+    return (int) $statement->fetchColumn();
 }
 
 function avesmapsPoliticalApplyGeometryOperationResult(PDO $pdo, array $payload, array $user): array {
