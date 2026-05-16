@@ -2366,8 +2366,8 @@
 		async function handleSave() {
 			const value = getAssignmentValue();
 
-			if (!value || !value.assignedTerritory) {
-				setFormStatus("Kein Herrschaftsgebiet zugewiesen.", "error");
+			if (!value) {
+				setFormStatus("Keine Geometrie-Daten zum Speichern vorhanden.", "error");
 				return;
 			}
 
@@ -2407,9 +2407,8 @@
 				.map(node => normalizeText(node.wikiKey || node.key || ""))
 				.filter(Boolean);
 
-			if (wikiPublicIds.length < 1) {
-				throw new Error("Es wurde kein Wiki-Herrschaftsgebiet zugewiesen.");
-			}
+			const display = value.display || {};
+			const validity = value.validity || {};
 
 			const response = await fetch(moduleOptions.saveUrl || WRITE_API_URL, {
 				method: "PATCH",
@@ -2421,6 +2420,20 @@
 				body: JSON.stringify({
 					action: "save_geometry_assignment",
 					geometry_public_id: geometryPublicId,
+					display_only: wikiPublicIds.length < 1,
+					display: {
+						name: display.name || display.displayName || normalizeText(params.get("name") || ""),
+						coatOfArmsUrl: display.coatOfArmsUrl || "",
+						zoomMin: display.zoomMin ?? parseOptionalNumber(params.get("min_zoom")),
+						zoomMax: display.zoomMax ?? parseOptionalNumber(params.get("max_zoom")),
+						color: display.color || normalizeText(params.get("color") || "#888888"),
+						opacity: typeof display.opacity === "number" ? display.opacity : parseOptionalNumber(params.get("opacity"), 0.33),
+					},
+					validity: {
+						startYear: validity.startYear ?? parseOptionalNumber(params.get("valid_from_bf")),
+						endYear: validity.endYear ?? parseOptionalNumber(params.get("valid_to_bf")),
+						existsUntilToday: Boolean(validity.existsUntilToday),
+					},
 					wiki_public_ids: wikiPublicIds,
 					wiki_nodes: assignedPath.map((node, index) => {
 						const display = displays[index] || {};

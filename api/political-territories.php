@@ -1796,12 +1796,78 @@ function avesmapsPoliticalSplitGeometry(PDO $pdo, array $payload, array $user): 
     return $result;
 }
 
+function avesmapsPoliticalSaveGeometryDisplayOnly(PDO $pdo, array $payload, array $user): array {
+    $geometry = avesmapsPoliticalFetchGeometryByPublicId(
+        $pdo,
+        avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? '')
+    );
+
+    $display = is_array($payload['display'] ?? null) ? $payload['display'] : [];
+    $validity = is_array($payload['validity'] ?? null) ? $payload['validity'] : [];
+
+    $style = avesmapsPoliticalDecodeJson($geometry['style_json'] ?? null);
+
+    if (array_key_exists('color', $display)) {
+        $color = avesmapsPoliticalReadHexColor($display['color'] ?? '#888888');
+        $style['fill'] = $color;
+        $style['stroke'] = $color;
+    }
+
+    if (array_key_exists('opacity', $display)) {
+        $style['fillOpacity'] = avesmapsPoliticalReadOpacity($display['opacity'] ?? 0.33);
+    }
+
+    $minZoom = avesmapsPoliticalReadOptionalZoom($display['zoomMin'] ?? $geometry['min_zoom'] ?? null);
+    $maxZoom = avesmapsPoliticalReadOptionalZoom($display['zoomMax'] ?? $geometry['max_zoom'] ?? null);
+    avesmapsPoliticalAssertZoomRange($minZoom, $maxZoom);
+
+    $existsUntilToday = !empty($validity['existsUntilToday']);
+
+    $statement = $pdo->prepare(
+        'UPDATE political_territory_geometry
+        SET valid_from_bf = :valid_from_bf,
+            valid_to_bf = :valid_to_bf,
+            min_zoom = :min_zoom,
+            max_zoom = :max_zoom,
+            style_json = :style_json,
+            source = :source,
+            updated_by = :updated_by
+        WHERE id = :id'
+    );
+
+    $statement->execute([
+        'id' => (int) $geometry['id'],
+        'valid_from_bf' => avesmapsPoliticalReadOptionalInt($validity['startYear'] ?? $geometry['valid_from_bf'] ?? null),
+        'valid_to_bf' => $existsUntilToday
+            ? 9999
+            : avesmapsPoliticalReadOptionalInt($validity['endYear'] ?? $geometry['valid_to_bf'] ?? null),
+        'min_zoom' => $minZoom,
+        'max_zoom' => $maxZoom,
+        'style_json' => avesmapsPoliticalEncodeJsonOrNull($style),
+        'source' => 'editor-display',
+        'updated_by' => (int) ($user['id'] ?? 0) ?: null,
+    ]);
+
+    $updatedGeometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, (string) $geometry['public_id']);
+
+    return [
+        'ok' => true,
+        'display_only_saved' => true,
+        'geometry' => avesmapsPoliticalGeometryRowToPublic($updatedGeometry),
+        'geometry_public_id' => (string) $updatedGeometry['public_id'],
+    ];
+}
+
 
 function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array $user): array {
     $geometry = avesmapsPoliticalFetchGeometryByPublicId(
         $pdo,
         avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? '')
     );
+
+    if (!empty($payload['display_only'])) {
+        return avesmapsPoliticalSaveGeometryDisplayOnly($pdo, $payload, $user);
+    }
 
     $assignment = is_array($payload['assignment'] ?? null) ? $payload['assignment'] : [];
     $displays = is_array($assignment['displays'] ?? null) ? array_values($assignment['displays']) : [];
