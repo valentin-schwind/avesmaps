@@ -836,12 +836,14 @@ function avesmapsPoliticalGetTerritory(PDO $pdo, array $query): array {
     $wiki = $territory['wiki_id'] ? avesmapsPoliticalFetchWikiById($pdo, (int) $territory['wiki_id']) : null;
     $geometries = avesmapsPoliticalFetchGeometryRowsForTerritory($pdo, (int) $territory['id']);
     $territoryPublic = avesmapsPoliticalResolveSingleEffectiveTerritory($pdo, avesmapsPoliticalTerritoryRowToPublic($territory));
+    $assignmentChain = avesmapsPoliticalBuildAssignmentChain($pdo, $territory);
 
     return [
         'ok' => true,
         'territory' => $territoryPublic,
         'wiki' => $wiki === null ? null : avesmapsPoliticalWikiRowToPublic($wiki),
         'geometries' => array_map(static fn(array $row): array => avesmapsPoliticalGeometryRowToPublic($row), $geometries),
+        'assignment_chain' => $assignmentChain,
     ];
 }
 
@@ -2196,12 +2198,16 @@ function avesmapsPoliticalInsertGeometry(PDO $pdo, int $territoryId, array $geom
 function avesmapsPoliticalResponseForTerritory(PDO $pdo, string $publicId): array {
     $territory = avesmapsPoliticalFetchTerritoryByPublicId($pdo, $publicId);
     $geometries = avesmapsPoliticalFetchGeometryRowsForTerritory($pdo, (int) $territory['id']);
+    $wiki = !empty($territory['wiki_id']) ? avesmapsPoliticalFetchWikiById($pdo, (int) $territory['wiki_id']) : null;
+    $assignmentChain = avesmapsPoliticalBuildAssignmentChain($pdo, $territory);
 
     return [
         'ok' => true,
         'territory' => avesmapsPoliticalTerritoryRowToPublic($territory),
+        'wiki' => $wiki === null ? null : avesmapsPoliticalWikiRowToPublic($wiki),
         'geometries' => array_map(static fn(array $row): array => avesmapsPoliticalGeometryRowToPublic($row), $geometries),
         'feature' => $geometries === [] ? null : avesmapsPoliticalBuildFeatureFromStoredRows($territory, $geometries[0]),
+        'assignment_chain' => $assignmentChain,
     ];
 }
 
@@ -2914,6 +2920,38 @@ function avesmapsPoliticalBuildDebugParentChain(array $territories, int $territo
     }
 
     return $chain;
+}
+
+function avesmapsPoliticalBuildAssignmentChain(PDO $pdo, array $territory): array {
+    $chain = [];
+    $current = $territory;
+    $visitedIds = [];
+    $safety = 0;
+
+    while (is_array($current) && $safety < 64) {
+        $currentId = (int) ($current['id'] ?? 0);
+        if ($currentId < 1 || isset($visitedIds[$currentId])) {
+            break;
+        }
+
+        $visitedIds[$currentId] = true;
+        $wiki = !empty($current['wiki_id']) ? avesmapsPoliticalFetchWikiById($pdo, (int) $current['wiki_id']) : null;
+        $chain[] = [
+            'territory' => avesmapsPoliticalTerritoryRowToPublic($current),
+            'wiki' => $wiki === null ? null : avesmapsPoliticalWikiRowToPublic($wiki),
+            'wiki_public_id' => $wiki === null ? '' : (string) ($wiki['wiki_key'] ?? ''),
+        ];
+
+        $parentId = (int) ($current['parent_id'] ?? 0);
+        if ($parentId < 1) {
+            break;
+        }
+
+        $current = avesmapsPoliticalFetchTerritoryById($pdo, $parentId);
+        $safety++;
+    }
+
+    return array_reverse($chain);
 }
 
 function avesmapsPoliticalBuildDebugChildrenList(array $territories, int $territoryId): array {
