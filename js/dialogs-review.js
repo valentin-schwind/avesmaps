@@ -905,6 +905,13 @@ function populateRegionParentSelect(region) {
 
 	inputElement.value = region.parentPublicId || "";
 	treeElement.innerHTML = "";
+	if (politicalTerritoryOptions.length < 1 && politicalTerritoryHierarchy.length < 1 && !politicalTerritoryOptionsLoaded) {
+		const loadingElement = document.createElement("p");
+		loadingElement.className = "political-territory-parent-tree__empty";
+		loadingElement.textContent = "Hierarchie wird geladen...";
+		treeElement.append(loadingElement);
+		return;
+	}
 
 	const tree = buildPoliticalTerritoryTree(region.territoryPublicId || "");
 	tree.forEach((node) => {
@@ -913,10 +920,10 @@ function populateRegionParentSelect(region) {
 			treeElement.append(renderedNode);
 		}
 	});
-	if (treeElement.childElementCount === 0 && regionParentFilterQuery !== "") {
+	if (treeElement.childElementCount === 0) {
 		const emptyElement = document.createElement("p");
 		emptyElement.className = "political-territory-parent-tree__empty";
-		emptyElement.textContent = "Keine Treffer";
+		emptyElement.textContent = regionParentFilterQuery !== "" ? "Keine Treffer" : "Keine Hierarchie geladen";
 		treeElement.append(emptyElement);
 	}
 }
