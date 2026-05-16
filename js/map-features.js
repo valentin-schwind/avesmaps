@@ -5559,6 +5559,7 @@ async function deleteRegionGeometryPart(regionEntry, selectedLayer, selectedPoly
 		throw new Error("Die ausgewaehlte Teilflaeche wurde nicht gefunden.");
 	}
 
+	const selectedPolygonGeoJson = selectedLayer.toGeoJSON?.()?.geometry || null;
 	const remainingLayers = layers.filter((layer) => layer !== selectedLayer);
 	const polygonIndex = Number.isInteger(selectedPolygonIndex)
 		? selectedPolygonIndex
@@ -5585,6 +5586,7 @@ async function deleteRegionGeometryPart(regionEntry, selectedLayer, selectedPoly
 		public_id: regionEntry.geometryPublicId || regionEntry.publicId,
 		geometry_public_id: regionEntry.geometryPublicId || regionEntry.publicId,
 		polygon_index: polygonIndex,
+		selected_polygon_geojson: selectedPolygonGeoJson,
 	});
 	map.removeLayer(selectedLayer);
 	regionPolygons = regionPolygons.filter((polygon) => polygon !== selectedLayer);

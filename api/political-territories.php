@@ -1311,12 +1311,12 @@ function avesmapsPoliticalDeleteGeometry(PDO $pdo, array $payload): array {
 
 function avesmapsPoliticalDeleteGeometryPart(PDO $pdo, array $payload, array $user): array {
     $geometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? ''));
-    $polygonIndex = avesmapsPoliticalReadRequiredPolygonIndex($payload['polygon_index'] ?? null);
     $geometryGeoJson = avesmapsPoliticalReadGeoJsonGeometry(avesmapsPoliticalDecodeJson($geometry['geometry_geojson'] ?? null));
     $polygons = avesmapsPoliticalGeometryToPolygonList($geometryGeoJson);
-    if (!array_key_exists($polygonIndex, $polygons)) {
-        throw new InvalidArgumentException('Das ausgewaehlte Polygon wurde in der gespeicherten Geometrie nicht gefunden.');
-    }
+    $selectedPolygon = avesmapsPoliticalReadSelectedPolygonForDelete($payload['selected_polygon_geojson'] ?? null);
+    $requestedPolygonIndex = avesmapsPoliticalReadOptionalPolygonIndex($payload['polygon_index'] ?? null);
+    $resolvedPolygon = avesmapsPoliticalResolveDeletedPolygonIndex($polygons, $requestedPolygonIndex, $selectedPolygon);
+    $polygonIndex = $resolvedPolygon['index'];
 
     array_splice($polygons, $polygonIndex, 1);
     if ($polygons === []) {
@@ -1351,18 +1351,141 @@ function avesmapsPoliticalDeleteGeometryPart(PDO $pdo, array $payload, array $us
 
     $response = avesmapsPoliticalResponseForGeometry($pdo, (string) $geometry['public_id']);
     $response['deleted_polygon_index'] = $polygonIndex;
+    $response['delete_match_source'] = $resolvedPolygon['source'];
+    $response['requested_polygon_index'] = $requestedPolygonIndex;
     $response['remaining_polygon_count'] = count($polygons);
 
     return $response;
 }
 
-function avesmapsPoliticalReadRequiredPolygonIndex(mixed $value): int {
+function avesmapsPoliticalReadOptionalPolygonIndex(mixed $value): ?int {
+    if ($value === null || $value === '') {
+        return null;
+    }
+
     $index = filter_var($value, FILTER_VALIDATE_INT);
     if ($index === false || $index < 0) {
-        throw new InvalidArgumentException('Der Polygon-Index ist ungueltig.');
+        return null;
     }
 
     return (int) $index;
+}
+
+function avesmapsPoliticalReadSelectedPolygonForDelete(mixed $value): ?array {
+    if ($value === null || $value === '') {
+        return null;
+    }
+
+    $geometry = avesmapsPoliticalReadGeoJsonGeometry($value);
+    $polygons = avesmapsPoliticalGeometryToPolygonList($geometry);
+
+    return $polygons[0] ?? null;
+}
+
+function avesmapsPoliticalResolveDeletedPolygonIndex(array $storedPolygons, ?int $requestedPolygonIndex, ?array $selectedPolygon): array {
+    if ($selectedPolygon !== null) {
+        $selectedSignature = avesmapsPoliticalBuildPolygonCoordinateSignature($selectedPolygon);
+        foreach ($storedPolygons as $index => $storedPolygon) {
+            if (avesmapsPoliticalBuildPolygonCoordinateSignature($storedPolygon) === $selectedSignature) {
+                return [
+                    'index' => (int) $index,
+                    'source' => 'geometry-signature',
+                ];
+            }
+        }
+
+        $matchedIndex = avesmapsPoliticalFindClosestPolygonIndex($storedPolygons, $selectedPolygon);
+        if ($matchedIndex !== null) {
+            return [
+                'index' => $matchedIndex,
+                'source' => 'geometry-shape',
+            ];
+        }
+    }
+
+    if ($requestedPolygonIndex !== null && array_key_exists($requestedPolygonIndex, $storedPolygons)) {
+        return [
+            'index' => $requestedPolygonIndex,
+            'source' => 'index',
+        ];
+    }
+
+    throw new InvalidArgumentException('Das ausgewaehlte Polygon wurde in der gespeicherten Geometrie nicht gefunden.');
+}
+
+function avesmapsPoliticalBuildPolygonCoordinateSignature(array $polygon): string {
+    $coordinates = [];
+    foreach ($polygon as $ring) {
+        if (!is_array($ring)) {
+            continue;
+        }
+        foreach ($ring as $coordinate) {
+            if (!is_array($coordinate) || count($coordinate) < 2) {
+                continue;
+            }
+            $coordinates[] = round((float) $coordinate[0], 5) . ',' . round((float) $coordinate[1], 5);
+        }
+    }
+
+    sort($coordinates, SORT_STRING);
+
+    return implode('|', $coordinates);
+}
+
+function avesmapsPoliticalFindClosestPolygonIndex(array $storedPolygons, array $selectedPolygon): ?int {
+    $selectedMetrics = avesmapsPoliticalBuildPolygonMatchMetrics($selectedPolygon);
+    $bestIndex = null;
+    $bestScore = null;
+
+    foreach ($storedPolygons as $index => $storedPolygon) {
+        $storedMetrics = avesmapsPoliticalBuildPolygonMatchMetrics($storedPolygon);
+        $score = abs($storedMetrics['area'] - $selectedMetrics['area'])
+            + abs($storedMetrics['min_x'] - $selectedMetrics['min_x'])
+            + abs($storedMetrics['min_y'] - $selectedMetrics['min_y'])
+            + abs($storedMetrics['max_x'] - $selectedMetrics['max_x'])
+            + abs($storedMetrics['max_y'] - $selectedMetrics['max_y']);
+        if ($bestScore === null || $score < $bestScore) {
+            $bestScore = $score;
+            $bestIndex = (int) $index;
+        }
+    }
+
+    return $bestScore !== null && $bestScore <= 0.01 ? $bestIndex : null;
+}
+
+function avesmapsPoliticalBuildPolygonMatchMetrics(array $polygon): array {
+    $area = 0.0;
+    $minX = null;
+    $minY = null;
+    $maxX = null;
+    $maxY = null;
+
+    foreach ($polygon as $ringIndex => $ring) {
+        if (!is_array($ring)) {
+            continue;
+        }
+        $ringArea = abs(avesmapsPoliticalSignedRingArea($ring));
+        $area += $ringIndex === 0 ? $ringArea : -$ringArea;
+        foreach ($ring as $coordinate) {
+            if (!is_array($coordinate) || count($coordinate) < 2) {
+                continue;
+            }
+            $x = (float) $coordinate[0];
+            $y = (float) $coordinate[1];
+            $minX = $minX === null ? $x : min($minX, $x);
+            $minY = $minY === null ? $y : min($minY, $y);
+            $maxX = $maxX === null ? $x : max($maxX, $x);
+            $maxY = $maxY === null ? $y : max($maxY, $y);
+        }
+    }
+
+    return [
+        'area' => max(0.0, $area),
+        'min_x' => $minX ?? 0.0,
+        'min_y' => $minY ?? 0.0,
+        'max_x' => $maxX ?? 0.0,
+        'max_y' => $maxY ?? 0.0,
+    ];
 }
 
 function avesmapsPoliticalBuildGeoJsonFromPolygons(array $polygons): array {
