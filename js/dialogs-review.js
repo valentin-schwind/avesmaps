@@ -2885,9 +2885,15 @@ async function loadPoliticalTerritoryWikiReferences() {
 		return politicalTerritoryWikiReferences;
 	}
 
-	const response = await fetchWikiSyncData({ action: "political_territory_tree" });
-	politicalTerritoryWikiReferences = Array.isArray(response.territories)
-		? response.territories.map((entry, index) => normalizeWikiTreeReferenceRecord(entry, index))
+	const response = await fetchPoliticalTerritories({
+		action: "wiki_list",
+		continent: "Aventurien",
+	});
+	politicalTerritoryWikiReferences = Array.isArray(response.wiki)
+		? response.wiki.map((entry) => ({
+			...entry,
+			type: normalizeParentheticalSpacing(entry.type || ""),
+		}))
 		: [];
 	return politicalTerritoryWikiReferences;
 }

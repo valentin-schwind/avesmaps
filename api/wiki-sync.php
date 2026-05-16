@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/auth.php';
+require_once __DIR__ . '/political-territory-lib.php';
 
 const AVESMAPS_WIKI_API_URL = 'https://de.wiki-aventurica.de/de/api.php';
 const AVESMAPS_WIKI_PAGE_BASE_URL = 'https://de.wiki-aventurica.de/wiki/';
@@ -87,12 +88,13 @@ try {
     $user = avesmapsRequireUserWithCapability('review');
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsWikiSyncEnsureTables($pdo);
+    avesmapsPoliticalEnsureTables($pdo);
 
     if ($requestMethod === 'GET') {
         $action = avesmapsNormalizeSingleLine((string) ($_GET['action'] ?? 'cases'), 80);
         $response = match ($action) {
             'cases', '' => avesmapsWikiSyncListCases($pdo),
-            'political_territory_tree' => avesmapsWikiSyncReadPoliticalTerritoryTreeFromWiki(),
+            'political_territory_tree' => avesmapsWikiSyncReadPoliticalTerritoryTree($pdo),
             default => throw new InvalidArgumentException('Die WikiSync-Aktion ist unbekannt.'),
         };
 
@@ -312,6 +314,15 @@ function avesmapsWikiSyncAdvanceRun(PDO $pdo, array $payload): array {
     ];
 }
 
+function avesmapsWikiSyncReadPoliticalTerritoryTree(PDO $pdo): array {
+    $cachedTree = avesmapsWikiSyncReadPoliticalTerritoryTreeFromCache($pdo);
+    if ($cachedTree !== null) {
+        return $cachedTree;
+    }
+
+    return avesmapsWikiSyncReadPoliticalTerritoryTreeFromWiki();
+}
+
 function avesmapsWikiSyncReadPoliticalTerritoryTreeFromWiki(): array {
     avesmapsWikiSyncRelaxLimits();
     $rows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki();
@@ -326,6 +337,15 @@ function avesmapsWikiSyncReadPoliticalTerritoryTreeFromWiki(): array {
         'territories' => $tree['territories'],
         'hierarchy' => $tree['hierarchy'],
     ];
+}
+
+function avesmapsWikiSyncReadPoliticalTerritoryTreeSummary(PDO $pdo): array {
+    $cachedSummary = avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromCache($pdo);
+    if ($cachedSummary !== null) {
+        return $cachedSummary;
+    }
+
+    return avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromWiki();
 }
 
 function avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromWiki(): array {
@@ -351,6 +371,106 @@ function avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromWiki(): array {
             'error' => 'Herrschaftsgebiets-Baum konnte nicht gelesen werden.',
         ];
     }
+}
+
+function avesmapsWikiSyncReadPoliticalTerritoryTreeFromCache(PDO $pdo): ?array {
+    $rows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache($pdo);
+    if ($rows === []) {
+        return null;
+    }
+
+    $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($rows);
+
+    return [
+        'ok' => true,
+        'source' => 'database-cache',
+        'territory_count' => count($rows),
+        'root_count' => count($tree['hierarchy']),
+        'territories' => $tree['territories'],
+        'hierarchy' => $tree['hierarchy'],
+    ];
+}
+
+function avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromCache(PDO $pdo): ?array {
+    $rows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache($pdo);
+    if ($rows === []) {
+        return null;
+    }
+
+    $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($rows, false);
+
+    return [
+        'ok' => true,
+        'territory_count' => count($rows),
+        'root_count' => count($tree['hierarchy']),
+    ];
+}
+
+function avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache(PDO $pdo): array {
+    $statement = $pdo->prepare(
+        'SELECT
+            id,
+            wiki_key,
+            name,
+            type,
+            continent,
+            affiliation_raw,
+            affiliation_root,
+            affiliation_path_json,
+            affiliation_json,
+            status,
+            form_of_government,
+            capital_name,
+            seat_name,
+            ruler,
+            language,
+            currency,
+            trade_goods,
+            population,
+            founded_text,
+            founder,
+            dissolved_text,
+            blazon,
+            wiki_url,
+            coat_of_arms_url
+        FROM political_territory_wiki
+        WHERE continent = :continent
+        ORDER BY affiliation_root ASC, name ASC'
+    );
+    $statement->execute([
+        'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+    ]);
+    $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+    return array_map(static function (array $row): array {
+        return [
+            'id' => (int) ($row['id'] ?? 0),
+            'wiki_key' => (string) ($row['wiki_key'] ?? ''),
+            'name' => (string) ($row['name'] ?? ''),
+            'type' => (string) ($row['type'] ?? ''),
+            'continent' => (string) ($row['continent'] ?? ''),
+            'affiliation' => (string) ($row['affiliation_raw'] ?? ''),
+            'affiliation_raw' => (string) ($row['affiliation_raw'] ?? ''),
+            'affiliation_root' => (string) ($row['affiliation_root'] ?? ''),
+            'affiliation_path_json' => avesmapsWikiSyncDecodeJson($row['affiliation_path_json'] ?? null),
+            'affiliation_json' => avesmapsWikiSyncDecodeJson($row['affiliation_json'] ?? null),
+            'status' => (string) ($row['status'] ?? ''),
+            'form_of_government' => (string) ($row['form_of_government'] ?? ''),
+            'capital_name' => (string) ($row['capital_name'] ?? ''),
+            'seat_name' => (string) ($row['seat_name'] ?? ''),
+            'ruler' => (string) ($row['ruler'] ?? ''),
+            'language' => (string) ($row['language'] ?? ''),
+            'currency' => (string) ($row['currency'] ?? ''),
+            'trade_goods' => (string) ($row['trade_goods'] ?? ''),
+            'population' => (string) ($row['population'] ?? ''),
+            'founded_text' => (string) ($row['founded_text'] ?? ''),
+            'founder' => (string) ($row['founder'] ?? ''),
+            'dissolved_text' => (string) ($row['dissolved_text'] ?? ''),
+            'blazon' => (string) ($row['blazon'] ?? ''),
+            'wiki_url' => (string) ($row['wiki_url'] ?? ''),
+            'coat_of_arms_url' => (string) ($row['coat_of_arms_url'] ?? ''),
+        ];
+    }, $rows);
 }
 
 function avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki(bool $includeDetails = true): array {
@@ -1113,7 +1233,7 @@ function avesmapsWikiSyncListCases(PDO $pdo): array {
                 'by_type' => [],
                 'by_status' => [],
             ],
-            'political_territory_tree' => avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromWiki(),
+            'political_territory_tree' => avesmapsWikiSyncReadPoliticalTerritoryTreeSummary($pdo),
             'cases' => [],
         ];
     }
@@ -1153,7 +1273,7 @@ function avesmapsWikiSyncListCases(PDO $pdo): array {
         'latest_run' => avesmapsWikiSyncPublicRun($run),
         'active_run' => $activeRun === null ? null : avesmapsWikiSyncPublicRun($activeRun),
         'summary' => avesmapsWikiSyncBuildSummary($pdo, (int) $run['id']),
-        'political_territory_tree' => avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromWiki(),
+        'political_territory_tree' => avesmapsWikiSyncReadPoliticalTerritoryTreeSummary($pdo),
         'cases' => $cases,
     ];
 }
