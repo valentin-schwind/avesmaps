@@ -1177,6 +1177,7 @@ function createRegionParentTreeButton(territory, region, { isGroup = false, hasC
 		<span class="political-territory-parent-tree__name"></span>
 		<span class="political-territory-parent-tree__meta"></span>
 		<span class="political-territory-parent-tree__summary"></span>
+		<span class="political-territory-parent-tree__wiki"></span>
 	`;
 	button.querySelector(".political-territory-parent-tree__name").textContent = normalizeParentheticalSpacing(territory.name || "Kein Parent");
 	button.querySelector(".political-territory-parent-tree__meta").textContent = normalizeParentheticalSpacing([
@@ -1187,6 +1188,11 @@ function createRegionParentTreeButton(territory, region, { isGroup = false, hasC
 		territory.valid_label,
 		territory.capital_name ? `Hauptstadt: ${territory.capital_name}` : "",
 		territory.ruler ? `Oberhaupt: ${territory.ruler}` : "",
+	].filter(Boolean).join(" · "));
+	button.querySelector(".political-territory-parent-tree__wiki").textContent = normalizeParentheticalSpacing([
+		territory.wiki_name ? `Wiki: ${territory.wiki_name}` : "",
+		territory.wiki_affiliation_root || territory.wiki_affiliation_raw || "",
+		territory.wiki_url ? "Wiki" : "",
 	].filter(Boolean).join(" · "));
 	return button;
 }
@@ -1409,9 +1415,12 @@ function renderRegionAssignment(path = regionAssignmentWikiPath, ensuredChain = 
 	const breadcrumbElement = document.getElementById("region-edit-assignment-breadcrumb");
 	const summaryElement = document.getElementById("region-edit-assignment-summary");
 	const selectedNode = path[path.length - 1] || null;
-	const activeId = String(activeWikiPublicId || selectedNode?.territory?.public_id || "").trim();
-	const activeIndex = path.findIndex((node) => (node.territory?.public_id || "") === activeId);
-	const activeWiki = activeIndex >= 0 ? ensuredChain[activeIndex]?.wiki || path[activeIndex]?.territory || null : ensuredChain[ensuredChain.length - 1]?.wiki || selectedNode?.territory || null;
+	const defaultActiveId = ensuredChain.length > 0
+		? ensuredChain[ensuredChain.length - 1]?.territory?.public_id || ""
+		: selectedNode?.territory?.public_id || "";
+	const activeId = String(activeWikiPublicId || defaultActiveId).trim();
+	const activeIndex = ensuredChain.findIndex((node) => (node.territory?.public_id || "") === activeId);
+	const activeWiki = activeIndex >= 0 ? ensuredChain[activeIndex]?.wiki || ensuredChain[activeIndex]?.territory || null : ensuredChain[ensuredChain.length - 1]?.wiki || selectedNode?.territory || null;
 	if (labelElement) {
 		labelElement.textContent = selectedNode
 			? `Zugewiesen: ${selectedNode.territory?.name || "Herrschaftsgebiet"}`
@@ -1421,7 +1430,8 @@ function renderRegionAssignment(path = regionAssignmentWikiPath, ensuredChain = 
 	if (breadcrumbElement) {
 		breadcrumbElement.innerHTML = "";
 		path.forEach((node, index) => {
-			const wiki = ensuredChain[index]?.wiki || node.territory || {};
+			const ensuredNode = ensuredChain[index] || null;
+			const wiki = ensuredNode?.wiki || node.territory || {};
 			const wikiName = wiki.name || wiki.wiki_name || node.territory?.name || "Herrschaftsgebiet";
 			const wikiType = normalizeParentheticalSpacing([wiki.type || "", wiki.status || ""].filter(Boolean).join(" · "));
 			const wikiPeriod = normalizeParentheticalSpacing(wiki.valid_label || buildWikiReferencePeriod(wiki));
@@ -1438,11 +1448,14 @@ function renderRegionAssignment(path = regionAssignmentWikiPath, ensuredChain = 
 				wikiPeriod ? `Gr./Aufl.: ${wikiPeriod}` : "",
 			].filter(Boolean).join(" · ");
 			const coatUrl = wiki.coat_of_arms_url || "";
+			const breadcrumbTerritoryId = String(ensuredNode?.territory?.public_id || node.territory?.public_id || "").trim();
+			const breadcrumbWikiId = String(node.territory?.public_id || "").trim();
 			const button = document.createElement("button");
 			button.type = "button";
 			button.className = "political-territory-assignment-breadcrumb__item";
-			button.classList.toggle("is-active", (node.territory?.public_id || "") === activeId);
-			button.dataset.regionAssignmentBreadcrumbId = node.territory?.public_id || "";
+			button.classList.toggle("is-active", breadcrumbTerritoryId === activeId);
+			button.dataset.regionAssignmentBreadcrumbId = breadcrumbTerritoryId;
+			button.dataset.regionAssignmentWikiPublicId = breadcrumbWikiId;
 			button.innerHTML = `
 				${coatUrl ? `<img class="political-territory-assignment-breadcrumb__coat" src="${escapeHtml(coatUrl)}" alt="">` : '<span class="political-territory-assignment-breadcrumb__coat" aria-hidden="true"></span>'}
 				<span class="political-territory-assignment-breadcrumb__name"></span>
@@ -1524,22 +1537,14 @@ function syncRegionAssignmentForRegion(region) {
 		return;
 	}
 
-	const currentPathContainsTerritory = regionAssignmentWikiPath.some((node) => (node.territory?.public_id || "") === territoryPublicId);
-	if (regionAssignmentWikiPath.length < 1 || !currentPathContainsTerritory) {
-		if (restoreRegionAssignmentBreadcrumbCache(territoryPublicId)) {
-			renderRegionAssignment(regionAssignmentWikiPath, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
-			return;
-		}
-	}
-
-	if (regionAssignmentWikiPath.length > 0 && currentPathContainsTerritory) {
+	if (restoreRegionAssignmentBreadcrumbCache(territoryPublicId)) {
 		renderRegionAssignment(regionAssignmentWikiPath, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
 		return;
 	}
 
 	const path = findPoliticalTerritoryTreePath(territoryPublicId);
 	if (path.length > 0) {
-		if (regionAssignmentWikiPath.length < 1 || (!currentPathContainsTerritory && !arePoliticalTerritoryPathsEqual(regionAssignmentWikiPath, path))) {
+		if (regionAssignmentWikiPath.length < 1 || !arePoliticalTerritoryPathsEqual(regionAssignmentWikiPath, path)) {
 			regionAssignmentWikiPath = path;
 			regionAssignmentEnsuredChain = [];
 		}
@@ -1586,7 +1591,8 @@ async function assignRegionGeometryToWikiTreeLeaf(wikiPublicId) {
 		throw new Error("Das Herrschaftsgebiet konnte nicht aus dem Wiki-Knoten erzeugt werden.");
 	}
 
-	storeRegionAssignmentBreadcrumbCache(selectedTerritoryId, path, response.chain || [], wikiPublicId);
+	regionAssignmentActiveWikiPublicId = selectedTerritoryId;
+	storeRegionAssignmentBreadcrumbCache(selectedTerritoryId, path, response.chain || [], selectedTerritoryId);
 	await activatePrimaryRegionEditTabForTerritory(selectedTerritoryId);
 	renderRegionAssignment(path, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
 	setRegionEditStatus("Herrschaftsgebiet zugewiesen. Speichern uebernimmt die Geometrie dauerhaft.", "success");

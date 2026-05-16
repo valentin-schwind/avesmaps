@@ -1325,7 +1325,8 @@ body.modal-dialog-open {
 
 .political-territory-parent-tree__name,
 .political-territory-parent-tree__meta,
-.political-territory-parent-tree__summary {
+.political-territory-parent-tree__summary,
+.political-territory-parent-tree__wiki {
 	grid-column: 2;
 	overflow-wrap: anywhere;
 }
@@ -1345,8 +1346,15 @@ body.modal-dialog-open {
 	line-height: 1.25;
 }
 
+.political-territory-parent-tree__wiki {
+	color: #776556;
+	font-size: 12px;
+	line-height: 1.25;
+}
+
 .political-territory-parent-tree__item.is-selected .political-territory-parent-tree__meta,
-.political-territory-parent-tree__item.is-selected .political-territory-parent-tree__summary {
+.political-territory-parent-tree__item.is-selected .political-territory-parent-tree__summary,
+.political-territory-parent-tree__item.is-selected .political-territory-parent-tree__wiki {
 	color: rgba(255, 255, 255, 0.75);
 }
 
