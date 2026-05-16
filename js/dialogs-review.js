@@ -2379,7 +2379,7 @@ function isRegionEditTabDirty(tab) {
 
 function getActiveRegionGeometryAssignment(territoryPublicId) {
 	const primaryTab = regionEditTabs[0] || null;
-	const geometryPublicId = primaryTab?.region?.geometryPublicId || primaryTab?.region?.publicId || "";
+	const geometryPublicId = String(primaryTab?.region?.geometryPublicId || "").trim();
 	if (!geometryPublicId || !territoryPublicId || primaryTab?.region?.territoryPublicId === territoryPublicId) {
 		return null;
 	}
