@@ -240,10 +240,6 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
 function avesmapsPoliticalBuildRawEditorLayerFeatures(array $rows, int $yearBf, int $zoom): array {
     $features = [];
     foreach ($rows as $row) {
-        if (!avesmapsPoliticalLayerRowMatchesOwnZoom($row, $zoom)) {
-            continue;
-        }
-
         $features[] = avesmapsPoliticalLayerRowToFeature($row, $yearBf, $zoom);
     }
 
