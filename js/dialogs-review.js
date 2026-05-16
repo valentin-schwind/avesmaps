@@ -1689,6 +1689,16 @@ async function openRegionVisualTabFromBreadcrumb(wikiPublicId) {
 	if (regionAssignmentWikiPath.length > 0) {
 		renderRegionAssignment(regionAssignmentWikiPath, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
 	}
+	window.requestAnimationFrame(() => {
+		const minZoomElement = document.getElementById("region-edit-min-zoom");
+		if (minZoomElement instanceof HTMLInputElement) {
+			minZoomElement.focus();
+			minZoomElement.select?.();
+			return;
+		}
+
+		document.getElementById("region-edit-max-zoom")?.focus();
+	});
 }
 
 function snapshotActiveRegionEditTab() {
@@ -1895,9 +1905,9 @@ async function saveRegionEditTab(tab) {
 	}
 	const territoryPublicId = String(tab.region?.territoryPublicId || payload.territory_public_id || "").trim();
 	const lastBreadcrumbNode = regionAssignmentWikiPath.length > 0 ? regionAssignmentWikiPath[regionAssignmentWikiPath.length - 1] : null;
-	const activeBreadcrumbLeafId = String(lastBreadcrumbNode?.territory?.public_id || "").trim();
-	if (territoryPublicId && territoryPublicId === activeBreadcrumbLeafId && regionAssignmentWikiPath.length > 0) {
-		storeRegionAssignmentBreadcrumbCache(territoryPublicId, regionAssignmentWikiPath, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
+	const cacheTerritoryId = String(lastBreadcrumbNode?.territory?.public_id || territoryPublicId || "").trim();
+	if (regionAssignmentWikiPath.length > 0 && cacheTerritoryId) {
+		storeRegionAssignmentBreadcrumbCache(cacheTerritoryId, regionAssignmentWikiPath, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
 	}
 	return latestResult;
 }
