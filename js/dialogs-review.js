@@ -1298,6 +1298,40 @@ function formatPoliticalTerritoryZoomRange(minZoom, maxZoom) {
 	return `Zoom ${minText}-${maxText}`;
 }
 
+function readOptionalPoliticalTerritoryZoomValue(value) {
+	const text = String(value ?? "").trim();
+	if (text === "") {
+		return null;
+	}
+
+	const number = Number.parseInt(text, 10);
+	if (!Number.isFinite(number)) {
+		return null;
+	}
+
+	return Math.max(0, Math.min(6, number));
+}
+
+function normalizePoliticalTerritoryZoomDraft(minValue, maxValue, changedField = "") {
+	let normalizedMin = readOptionalPoliticalTerritoryZoomValue(minValue);
+	let normalizedMax = readOptionalPoliticalTerritoryZoomValue(maxValue);
+
+	if (normalizedMin !== null && normalizedMax !== null && normalizedMin > normalizedMax) {
+		if (changedField === "max") {
+			normalizedMin = normalizedMax;
+		} else {
+			normalizedMax = normalizedMin;
+		}
+	}
+
+	return {
+		minNumber: normalizedMin,
+		maxNumber: normalizedMax,
+		minText: normalizedMin === null ? "" : String(normalizedMin),
+		maxText: normalizedMax === null ? "" : String(normalizedMax),
+	};
+}
+
 function clonePoliticalTerritoryPathNode(node) {
 	return {
 		territory: {
@@ -1576,6 +1610,109 @@ function findPoliticalTerritoryTreePath(publicId) {
 	return [];
 }
 
+function applyPoliticalTerritoryDraftPatch(territoryPublicId, patch = {}, payloadPatch = null) {
+	const normalizedPublicId = String(territoryPublicId || "").trim();
+	if (!normalizedPublicId || !patch || typeof patch !== "object") {
+		return;
+	}
+
+	politicalTerritoryOptions = politicalTerritoryOptions.map((territory) => {
+		if (String(territory?.public_id || "").trim() !== normalizedPublicId) {
+			return territory;
+		}
+
+		return {
+			...territory,
+			...patch,
+		};
+	});
+
+	regionEditTabs = regionEditTabs.map((tab) => {
+		const tabTerritoryPublicId = String(tab?.region?.territoryPublicId || tab?.region?.publicId || tab?.key || "").trim();
+		if (tabTerritoryPublicId !== normalizedPublicId) {
+			return tab;
+		}
+
+		const nextRegion = {
+			...(tab.region || {}),
+			...patch,
+		};
+		const nextPayload = tab.payload
+			? {
+				...tab.payload,
+				...(payloadPatch || {}),
+			}
+			: tab.payload;
+		return {
+			...tab,
+			region: nextRegion,
+			payload: nextPayload,
+			entry: tab.entry === tab.region ? nextRegion : tab.entry,
+		};
+	});
+
+	if (String(regionEditEntry?.territoryPublicId || regionEditEntry?.publicId || "").trim() === normalizedPublicId) {
+		regionEditEntry = {
+			...(regionEditEntry || {}),
+			...patch,
+		};
+	}
+
+	updateRegionAssignmentBreadcrumbChain(normalizedPublicId, patch, null);
+}
+
+function syncRegionAssignmentFormZoomInputs(minText, maxText) {
+	const minZoomElement = document.getElementById("region-edit-min-zoom");
+	const maxZoomElement = document.getElementById("region-edit-max-zoom");
+	if (minZoomElement instanceof HTMLInputElement) {
+		minZoomElement.value = minText;
+	}
+	if (maxZoomElement instanceof HTMLInputElement) {
+		maxZoomElement.value = maxText;
+	}
+}
+
+function syncRegionAssignmentBreadcrumbZoomLabel(territoryPublicId, minZoom, maxZoom) {
+	const normalizedPublicId = String(territoryPublicId || "").trim();
+	if (!normalizedPublicId) {
+		return;
+	}
+
+	const zoomLabel = formatPoliticalTerritoryZoomRange(minZoom, maxZoom);
+	document.querySelectorAll("[data-region-assignment-breadcrumb-id]").forEach((element) => {
+		if (String(element?.dataset?.regionAssignmentBreadcrumbId || "").trim() !== normalizedPublicId) {
+			return;
+		}
+
+		const zoomElement = element.querySelector(".political-territory-assignment-breadcrumb__zoom");
+		if (zoomElement) {
+			zoomElement.textContent = zoomLabel;
+		}
+	});
+}
+
+function updatePoliticalTerritoryDraftZoom(territoryPublicId, minValue, maxValue, changedField = "") {
+	const normalizedPublicId = String(territoryPublicId || "").trim();
+	if (!normalizedPublicId) {
+		return null;
+	}
+
+	const normalizedZoom = normalizePoliticalTerritoryZoomDraft(minValue, maxValue, changedField);
+	const territoryPatch = {
+		min_zoom: normalizedZoom.minNumber,
+		max_zoom: normalizedZoom.maxNumber,
+		minZoom: normalizedZoom.minNumber,
+		maxZoom: normalizedZoom.maxNumber,
+	};
+	const payloadPatch = {
+		min_zoom: normalizedZoom.minText,
+		max_zoom: normalizedZoom.maxText,
+	};
+	applyPoliticalTerritoryDraftPatch(normalizedPublicId, territoryPatch, payloadPatch);
+	syncRegionAssignmentBreadcrumbZoomLabel(normalizedPublicId, normalizedZoom.minNumber, normalizedZoom.maxNumber);
+	return normalizedZoom;
+}
+
 function renderRegionAssignment(path = regionAssignmentWikiPath, ensuredChain = regionAssignmentEnsuredChain, activeWikiPublicId = regionAssignmentActiveWikiPublicId) {
 	const dropElement = document.getElementById("region-edit-assignment-drop");
 	const labelElement = document.getElementById("region-edit-assignment-drop-label");
@@ -1624,10 +1761,13 @@ function renderRegionAssignment(path = regionAssignmentWikiPath, ensuredChain = 
 			breadcrumbElement.append(button);
 		});
 	}
-	renderRegionAssignmentSummary(summaryElement, activeWiki || selectedNode?.territory || null, activeTerritory);
+	renderRegionAssignmentSummary(summaryElement, activeWiki || selectedNode?.territory || null, activeTerritory, {
+		territoryPublicId: activeId,
+		canRemove: activeIndex > 0,
+	});
 }
 
-function renderRegionAssignmentSummary(summaryElement, wiki, territory = null) {
+function renderRegionAssignmentSummary(summaryElement, wiki, territory = null, options = {}) {
 	if (!summaryElement) {
 		return;
 	}
@@ -1636,6 +1776,10 @@ function renderRegionAssignmentSummary(summaryElement, wiki, territory = null) {
 		summaryElement.innerHTML = "";
 		return;
 	}
+
+	const territoryPublicId = String(options.territoryPublicId || territory?.public_id || "").trim();
+	const canRemove = options.canRemove === true && territoryPublicId !== "";
+	const normalizedZoom = normalizePoliticalTerritoryZoomDraft(territory?.min_zoom ?? territory?.minZoom ?? "", territory?.max_zoom ?? territory?.maxZoom ?? "");
 
 	const rows = [
 		["Name", wiki.name || wiki.wiki_name || ""],
@@ -1651,21 +1795,36 @@ function renderRegionAssignmentSummary(summaryElement, wiki, territory = null) {
 		["Einwohner", wiki.population || ""],
 		["Gruendung", wiki.founded_text || ""],
 		["Aufloesung", wiki.dissolved_text || ""],
-		["Zoom", formatPoliticalTerritoryZoomRange(territory?.min_zoom ?? territory?.minZoom ?? null, territory?.max_zoom ?? territory?.maxZoom ?? null)],
 		["Wiki-Link", wiki.wiki_url || ""],
 	].filter(([, value]) => String(value || "").trim() !== "");
 	const coatUrl = wiki.coat_of_arms_url || "";
 	const wikiUrl = wiki.wiki_url || "";
 	summaryElement.hidden = false;
+	summaryElement.dataset.regionAssignmentActiveId = territoryPublicId;
 	summaryElement.innerHTML = `
 		${coatUrl ? `<img src="${escapeHtml(coatUrl)}" alt="">` : "<span></span>"}
-		<dl>${rows.map(([label, value]) => {
+		<div class="political-territory-assignment-summary__content">
+			<dl>${rows.map(([label, value]) => {
 			if (label === "Wiki-Link" && wikiUrl) {
 				return `<dt>${escapeHtml(label)}</dt><dd><a href="${escapeHtml(wikiUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(wikiUrl)}</a></dd>`;
 			}
 
 			return `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`;
 		}).join("")}</dl>
+			<div class="political-territory-assignment-summary__controls">
+				<label class="political-territory-assignment-summary__field">
+					<span>Zoom von</span>
+					<input data-region-assignment-zoom-field="min" data-region-assignment-zoom-min type="number" min="0" max="6" step="1" value="${escapeHtml(normalizedZoom.minText)}" />
+				</label>
+				<label class="political-territory-assignment-summary__field">
+					<span>Zoom bis</span>
+					<input data-region-assignment-zoom-field="max" data-region-assignment-zoom-max type="number" min="0" max="6" step="1" value="${escapeHtml(normalizedZoom.maxText)}" />
+				</label>
+				${canRemove
+		? `<button type="button" class="location-report-form__button location-report-form__button--secondary political-territory-assignment-summary__remove" data-region-assignment-remove="${escapeHtml(territoryPublicId)}">Breadcrumb loeschen</button>`
+		: ""}
+			</div>
+		</div>
 	`;
 }
 
@@ -1782,6 +1941,70 @@ async function openRegionVisualTabFromBreadcrumb(wikiPublicId) {
 
 		document.getElementById("region-edit-max-zoom")?.focus();
 	});
+}
+
+async function removeRegionAssignmentBreadcrumb(territoryPublicId) {
+	const normalizedPublicId = String(territoryPublicId || "").trim();
+	if (!normalizedPublicId) {
+		return;
+	}
+
+	snapshotActiveRegionEditTab();
+
+	const breadcrumbIndex = regionAssignmentWikiPath.findIndex((node) => String(node?.territory?.public_id || "").trim() === normalizedPublicId);
+	if (breadcrumbIndex < 1) {
+		setRegionEditStatus("Der oberste Knoten bleibt als Bezug erhalten.", "pending");
+		return;
+	}
+
+	const nextPath = regionAssignmentWikiPath.slice(0, breadcrumbIndex);
+	const nextChain = regionAssignmentEnsuredChain.slice(0, breadcrumbIndex);
+	const removedIds = regionAssignmentWikiPath
+		.slice(breadcrumbIndex)
+		.map((node) => String(node?.territory?.public_id || "").trim())
+		.filter(Boolean);
+	removedIds.forEach((removedId) => {
+		regionAssignmentBreadcrumbCache.delete(removedId);
+	});
+
+	const nextLeafTerritoryId = String(
+		nextChain[nextChain.length - 1]?.territory?.public_id
+		|| nextPath[nextPath.length - 1]?.territory?.public_id
+		|| ""
+	).trim();
+	const currentPrimaryTab = regionEditTabs[0] || null;
+	const currentPrimaryTerritoryId = String(
+		currentPrimaryTab?.region?.territoryPublicId
+		|| currentPrimaryTab?.region?.publicId
+		|| currentPrimaryTab?.key
+		|| ""
+	).trim();
+	if (
+		currentPrimaryTab
+		&& currentPrimaryTerritoryId
+		&& currentPrimaryTerritoryId !== nextLeafTerritoryId
+		&& !regionEditTabs.some((tab, index) => index > 0 && tab.key === currentPrimaryTab.key)
+	) {
+		regionEditTabs.splice(1, 0, {
+			...currentPrimaryTab,
+			region: { ...(currentPrimaryTab.region || {}) },
+			payload: currentPrimaryTab.payload ? { ...currentPrimaryTab.payload } : currentPrimaryTab.payload,
+			savedPayload: currentPrimaryTab.savedPayload ? { ...currentPrimaryTab.savedPayload } : currentPrimaryTab.savedPayload,
+			assignGeometryPublicId: "",
+			assignGeometryMode: "",
+		});
+	}
+	regionAssignmentWikiPath = nextPath;
+	regionAssignmentEnsuredChain = nextChain;
+	regionAssignmentActiveWikiPublicId = nextLeafTerritoryId;
+	if (nextPath.length > 0) {
+		storeRegionAssignmentBreadcrumbCaches(nextPath, nextChain, nextLeafTerritoryId);
+	}
+	if (nextLeafTerritoryId) {
+		await activatePrimaryRegionEditTabForTerritory(nextLeafTerritoryId);
+	}
+	renderRegionAssignment(regionAssignmentWikiPath, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
+	setRegionEditStatus("Zugehoerigkeit gekuerzt. Speichern uebernimmt die neue Zuordnung.", "success");
 }
 
 function snapshotActiveRegionEditTab() {
@@ -2377,6 +2600,77 @@ $(document).on("click", "[data-region-assignment-breadcrumb-id]", function (even
 		console.error("Herrschaftsgebiet konnte nicht geoeffnet werden:", error);
 		setRegionEditStatus(error.message || "Herrschaftsgebiet konnte nicht geoeffnet werden.", "error");
 	});
+});
+
+$(document).on("click", "[data-region-assignment-remove]", function (event) {
+	event.preventDefault();
+	event.stopPropagation();
+	const territoryPublicId = this.dataset.regionAssignmentRemove || "";
+	void removeRegionAssignmentBreadcrumb(territoryPublicId).catch((error) => {
+		console.error("Breadcrumb konnte nicht entfernt werden:", error);
+		setRegionEditStatus(error.message || "Breadcrumb konnte nicht entfernt werden.", "error");
+	});
+});
+
+$(document).on("input change", "[data-region-assignment-zoom-min], [data-region-assignment-zoom-max]", function (event) {
+	const summaryElement = this.closest("#region-edit-assignment-summary");
+	const territoryPublicId = summaryElement?.dataset?.regionAssignmentActiveId || "";
+	if (!territoryPublicId) {
+		return;
+	}
+
+	const minInputElement = summaryElement.querySelector("[data-region-assignment-zoom-min]");
+	const maxInputElement = summaryElement.querySelector("[data-region-assignment-zoom-max]");
+	if (!(minInputElement instanceof HTMLInputElement) || !(maxInputElement instanceof HTMLInputElement)) {
+		return;
+	}
+
+	const changedField = this.dataset.regionAssignmentZoomField || "";
+	const normalizedZoom = updatePoliticalTerritoryDraftZoom(territoryPublicId, minInputElement.value, maxInputElement.value, changedField);
+	if (!normalizedZoom) {
+		return;
+	}
+
+	minInputElement.value = normalizedZoom.minText;
+	maxInputElement.value = normalizedZoom.maxText;
+	syncRegionAssignmentFormZoomInputs(normalizedZoom.minText, normalizedZoom.maxText);
+	if (event.type === "change") {
+		renderRegionAssignment(regionAssignmentWikiPath, regionAssignmentEnsuredChain, territoryPublicId);
+	}
+});
+
+$(document).on("input change", "#region-edit-min-zoom, #region-edit-max-zoom", function () {
+	const territoryPublicId = String(document.getElementById("region-edit-territory-public-id")?.value || "").trim();
+	if (!territoryPublicId) {
+		return;
+	}
+
+	const minInputElement = document.getElementById("region-edit-min-zoom");
+	const maxInputElement = document.getElementById("region-edit-max-zoom");
+	if (!(minInputElement instanceof HTMLInputElement) || !(maxInputElement instanceof HTMLInputElement)) {
+		return;
+	}
+
+	const changedField = this.id === "region-edit-max-zoom" ? "max" : "min";
+	const normalizedZoom = updatePoliticalTerritoryDraftZoom(territoryPublicId, minInputElement.value, maxInputElement.value, changedField);
+	if (!normalizedZoom) {
+		return;
+	}
+
+	minInputElement.value = normalizedZoom.minText;
+	maxInputElement.value = normalizedZoom.maxText;
+	const summaryElement = document.getElementById("region-edit-assignment-summary");
+	const summaryTerritoryId = String(summaryElement?.dataset?.regionAssignmentActiveId || "").trim();
+	if (summaryTerritoryId === territoryPublicId) {
+		const summaryMinInput = summaryElement.querySelector("[data-region-assignment-zoom-min]");
+		const summaryMaxInput = summaryElement.querySelector("[data-region-assignment-zoom-max]");
+		if (summaryMinInput instanceof HTMLInputElement) {
+			summaryMinInput.value = normalizedZoom.minText;
+		}
+		if (summaryMaxInput instanceof HTMLInputElement) {
+			summaryMaxInput.value = normalizedZoom.maxText;
+		}
+	}
 });
 
 $(document).on("click", "#region-edit-parent-clear", function (event) {

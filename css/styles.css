@@ -1478,6 +1478,12 @@ body.modal-dialog-open {
 	object-fit: contain;
 }
 
+.political-territory-assignment-summary__content {
+	display: grid;
+	gap: 8px;
+	min-width: 0;
+}
+
 .political-territory-assignment-summary dl {
 	display: grid;
 	grid-template-columns: max-content minmax(0, 1fr);
@@ -1492,6 +1498,32 @@ body.modal-dialog-open {
 .political-territory-assignment-summary dd {
 	margin: 0;
 	overflow-wrap: anywhere;
+}
+
+.political-territory-assignment-summary__controls {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	align-items: end;
+}
+
+.political-territory-assignment-summary__field {
+	display: grid;
+	gap: 4px;
+	min-width: 0;
+}
+
+.political-territory-assignment-summary__field span {
+	font-weight: 700;
+}
+
+.political-territory-assignment-summary__field input {
+	width: 100%;
+}
+
+.political-territory-assignment-summary__remove {
+	grid-column: 1 / -1;
+	justify-self: start;
 }
 
 .political-territory-coat-field {
