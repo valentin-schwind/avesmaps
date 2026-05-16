@@ -905,7 +905,7 @@ function populateRegionParentSelect(region) {
 
 	inputElement.value = region.parentPublicId || "";
 	treeElement.innerHTML = "";
-	if (politicalTerritoryOptions.length < 1 && politicalTerritoryHierarchy.length < 1 && !politicalTerritoryOptionsLoaded) {
+	if (politicalTerritoryOptionsLoading && politicalTerritoryOptionsSource !== "wiki") {
 		const loadingElement = document.createElement("p");
 		loadingElement.className = "political-territory-parent-tree__empty";
 		loadingElement.textContent = "Hierarchie wird geladen...";
@@ -2562,7 +2562,7 @@ async function startWikiSyncRun() {
 			: "";
 		await loadWikiSyncCases();
 		if (territoryStats.political_territory_received) {
-			await loadPoliticalTerritoryOptions();
+			await loadPoliticalTerritoryOptions({ force: true });
 			schedulePoliticalTerritoryLayerReload({ immediate: true });
 		}
 		setWikiSyncStatus(`WikiSync abgeschlossen.${territoryMessage}`, "success");

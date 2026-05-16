@@ -3943,34 +3943,57 @@ async function loadPoliticalTerritoryLayer() {
 	}
 }
 
-async function loadPoliticalTerritoryOptions() {
-	try {
-		const response = await fetchWikiSyncData({ action: "political_territory_tree" });
-		const territories = Array.isArray(response.territories) ? response.territories : [];
-		const hierarchy = Array.isArray(response.hierarchy) ? response.hierarchy : [];
-		politicalTerritoryOptionsLoaded = true;
-		if (territories.length > 0 || hierarchy.length > 0) {
-			politicalTerritoryOptions = territories;
-			politicalTerritoryHierarchy = hierarchy;
-		}
+async function loadPoliticalTerritoryOptions({ force = false } = {}) {
+	if (!force && politicalTerritoryOptionsSource === "wiki" && politicalTerritoryOptionsLoaded) {
 		return politicalTerritoryOptions;
-	} catch (error) {
-		console.warn("Wiki-Herrschaftsgebiet-Baum konnte nicht geladen werden:", error);
+	}
+	if (!force && politicalTerritoryOptionsPromise) {
+		return politicalTerritoryOptionsPromise;
+	}
+
+	politicalTerritoryOptionsLoading = true;
+	politicalTerritoryOptionsPromise = (async () => {
 		try {
-			const response = await fetchPoliticalTerritories({ action: "hierarchy" });
+			const response = await fetchWikiSyncData({ action: "political_territory_tree" });
 			const territories = Array.isArray(response.territories) ? response.territories : [];
 			const hierarchy = Array.isArray(response.hierarchy) ? response.hierarchy : [];
 			politicalTerritoryOptionsLoaded = true;
-			if (territories.length > 0 || hierarchy.length > 0) {
-				politicalTerritoryOptions = territories;
-				politicalTerritoryHierarchy = hierarchy;
+			politicalTerritoryOptions = territories;
+			politicalTerritoryHierarchy = hierarchy;
+			politicalTerritoryOptionsSource = "wiki";
+			return politicalTerritoryOptions;
+		} catch (error) {
+			console.warn("Wiki-Herrschaftsgebiet-Baum konnte nicht geladen werden:", error);
+			try {
+				const response = await fetchPoliticalTerritories({ action: "hierarchy" });
+				const territories = Array.isArray(response.territories) ? response.territories : [];
+				const hierarchy = Array.isArray(response.hierarchy) ? response.hierarchy : [];
+				politicalTerritoryOptionsLoaded = true;
+				if (territories.length > 0 || hierarchy.length > 0) {
+					politicalTerritoryOptions = territories;
+					politicalTerritoryHierarchy = hierarchy;
+					politicalTerritoryOptionsSource = "database";
+				}
+			} catch (fallbackError) {
+				politicalTerritoryOptionsLoaded = true;
+				console.warn("Datenbank-Herrschaftsgebiet-Baum konnte nicht geladen werden:", fallbackError);
 			}
-		} catch (fallbackError) {
-			politicalTerritoryOptionsLoaded = true;
-			console.warn("Datenbank-Herrschaftsgebiet-Baum konnte nicht geladen werden:", fallbackError);
+			return politicalTerritoryOptions;
+		} finally {
+			politicalTerritoryOptionsLoading = false;
+			politicalTerritoryOptionsPromise = null;
 		}
-		return politicalTerritoryOptions;
+	})();
+
+	return politicalTerritoryOptionsPromise;
+}
+
+function preloadPoliticalTerritoryOptions() {
+	if (!POLITICAL_TERRITORIES_API_URL) {
+		return;
 	}
+
+	void loadPoliticalTerritoryOptions();
 }
 
 function createRegionLabelMarkup(regionEntry, fallbackName) {

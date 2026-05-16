@@ -836,6 +836,9 @@
 			politicalTerritoryOptions = [],
 			politicalTerritoryHierarchy = [],
 			politicalTerritoryOptionsLoaded = false,
+			politicalTerritoryOptionsLoading = false,
+			politicalTerritoryOptionsPromise = null,
+			politicalTerritoryOptionsSource = "",
 			politicalTerritoryWikiReferences = [],
 			politicalTerritoryFallbackData = null,
 			syntheticPathSegments = new Map(),
@@ -1411,6 +1414,7 @@
 		initializeSpotlightSearch();
 		syncDistanceMeasurementContextMenuAction();
 		updateLocationReportDialogAvailability();
+		preloadPoliticalTerritoryOptions();
 
 		function getLocationToggleButton(locationType) {
 			return $(`.location-toggle[data-location-type="${locationType}"]`);
