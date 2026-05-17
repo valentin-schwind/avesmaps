@@ -492,21 +492,29 @@
 
 		.legend {
 			display: grid;
+			gap: 5px;
+			min-width: 0;
+		}
+
+		.legend-line {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
 			gap: 6px;
 			min-width: 0;
+			font-size: 12px;
+			color: var(--muted);
 		}
 
 		.legend-item {
-			display: flex;
+			display: inline-flex;
 			align-items: center;
-			gap: 8px;
-			font-size: 12px;
-			color: var(--muted);
+			gap: 5px;
 			min-width: 0;
 		}
 
-		.legend-item span:last-child {
-			overflow-wrap: anywhere;
+		.legend-separator {
+			color: #b79d7d;
 		}
 
 		.legend-swatch {
@@ -515,10 +523,50 @@
 			border-radius: 999px;
 			border: 1px solid #b79d7d;
 			background: var(--text-strong);
+			flex: 0 0 12px;
+			box-sizing: border-box;
 		}
 
 		.legend-swatch.synthetic {
 			background: var(--synthetic);
+		}
+
+		.legend-map-status {
+			position: relative;
+			width: 13px;
+			height: 13px;
+			flex: 0 0 13px;
+			border: 2px solid #6a7f3a;
+			border-radius: 50%;
+			background: #fffaf4;
+			box-sizing: border-box;
+			color: #6a7f3a;
+			overflow: hidden;
+		}
+
+		.legend-map-status--children-only::before,
+		.legend-map-status--own-only::before {
+			content: "";
+			position: absolute;
+			top: 1px;
+			bottom: 1px;
+			background: currentColor;
+		}
+
+		.legend-map-status--children-only::before {
+			left: 1px;
+			right: 50%;
+			border-radius: 999px 0 0 999px;
+		}
+
+		.legend-map-status--own-only::before {
+			left: 50%;
+			right: 1px;
+			border-radius: 0 999px 999px 0;
+		}
+
+		.legend-map-status--all {
+			background: currentColor;
 		}
 
 		.tree-panel-footer {
@@ -867,6 +915,7 @@
 			color: #103f5a;
 			text-decoration: underline;
 		}
+		
 	</style>
 </head>
 
@@ -923,9 +972,20 @@
 				</div>
 				<div id="treeView" class="tree-wrap"></div>
 				<div class="tree-panel-footer" aria-label="Legende und Baumaktionen">
-					<div class="legend" aria-label="Legende der Baumfarben">
-						<div class="legend-item"><span class="legend-swatch"></span><span>echter Wiki-/SQL-Datensatz mit Detailinformationen.</span></div>
-						<div class="legend-item"><span class="legend-swatch synthetic"></span><span>abgeleiteter Gruppenknoten aus der Hierarchie, ohne eigenen Datensatz.</span></div>
+					<div class="legend" aria-label="Legende der Baumfarben und Karten-Vollständigkeit">
+						<div class="legend-line">
+							<span class="legend-item"><span class="legend-swatch"></span><span>echter Wiki-/SQL-Datensatz mit Details</span></span>
+							<span class="legend-item"><span class="legend-swatch synthetic"></span><span>abgeleiteter Gruppenknoten, ohne eigenen Datensatz</span></span>
+						</div>
+						<div class="legend-line">
+							<span class="legend-item"><span class="legend-map-status"></span><span>fehlt</span></span>
+							<span class="legend-separator">|</span>
+							<span class="legend-item"><span class="legend-map-status legend-map-status--children-only"></span><span>indirekt vorhanden (unvollständig)</span></span>
+							<span class="legend-separator">|</span>
+							<span class="legend-item"><span class="legend-map-status legend-map-status--own-only"></span><span>direkt vorhanden (unvollständig)</span></span>
+							<span class="legend-separator">|</span>
+							<span class="legend-item"><span class="legend-map-status legend-map-status--all"></span><span>vollständig</span></span>
+						</div>
 					</div>
 					<div class="tree-footer-actions">
 						<button id="expandButton" class="secondary tree-footer-button" type="button" title="Alles öffnen" aria-label="Alles öffnen">+</button>
