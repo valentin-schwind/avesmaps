@@ -89,6 +89,7 @@ jobs:
             "fonts"
             "icons"
             "img"
+            "html"
             "js"
             "map"
             "politics"
