@@ -4091,6 +4091,14 @@ body.edit-mode .map-label span {
 	background: #8a6644;
 }
 
+.region-edit-edge-highlight {
+	stroke: #f0c05a;
+	stroke-width: 4;
+	stroke-opacity: 0.95;
+	stroke-dasharray: 8 5;
+	pointer-events: none;
+}
+
 .path-edit-handle-marker {
 	background: transparent;
 	border: none;
