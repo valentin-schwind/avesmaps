@@ -829,17 +829,14 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
     $style = avesmapsPoliticalDecodeJson($row['style_json'] ?? null);
     $territoryPublicId = trim((string) ($row['territory_public_id'] ?? ''));
 
-    $styleDisplayName = trim((string) ($style['displayName'] ?? $style['name'] ?? ''));
-    $rowDisplayName = trim((string) ($row['name'] ?? ''));
-    $displayName = $styleDisplayName !== '' ? $styleDisplayName : $rowDisplayName;
+    $territoryName = trim((string) ($row['name'] ?? ''));
+    $customName = trim((string) ($style['displayName'] ?? $style['name'] ?? ''));
+    $visibleName = $customName !== ''
+        ? $customName
+        : ($territoryName !== '' ? $territoryName : 'Freie Geometrie');
 
-    $shortName = trim((string) ($row['short_name'] ?? ''));
-    $fallbackName = $territoryPublicId !== '' ? 'Herrschaftsgebiet' : 'Freie Geometrie';
-    $resolvedDisplayName = $displayName !== '' ? $displayName : $fallbackName;
-    $resolvedName = $styleDisplayName !== ''
-        ? $styleDisplayName
-        : ($shortName !== '' ? $shortName : $resolvedDisplayName);
-    $resolvedType = trim((string) ($row['type'] ?? '')) ?: 'Herrschaftsgebiet';
+    $resolvedType = trim((string) ($row['type'] ?? '')) ?: 'Herrschaftsgebiet'; 
+    
     $properties = [
         'type' => 'region',
         'source' => 'political_territory',
@@ -847,9 +844,11 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         'geometry_public_id' => (string) $row['geometry_public_id'],
         'territory_public_id' => $territoryPublicId,
         'territory_id' => (int) $row['territory_id'],
-        'name' => $resolvedName,
-        'display_name' => $resolvedDisplayName,
-        'short_name' => $shortName,
+        'name' => $visibleName,
+        'display_name' => $visibleName,
+        'short_name' => trim((string) ($row['short_name'] ?? '')),
+        'source_name' => $territoryName,
+        'custom_display_name' => $customName,
         'feature_type' => 'political_territory',
         'feature_subtype' => $resolvedType,
         'territory_type' => trim((string) ($row['type'] ?? '')),
@@ -1769,6 +1768,10 @@ function avesmapsPoliticalUpdateGeometry(PDO $pdo, array $payload, array $user):
     $maxZoom = avesmapsPoliticalReadOptionalZoom($payload['max_zoom'] ?? $geometryRow['max_zoom'] ?? null);
     avesmapsPoliticalAssertZoomRange($minZoom, $maxZoom);
 
+    $currentStyle = avesmapsPoliticalDecodeJson($geometryRow['style_json'] ?? null);
+    $incomingStyle = is_array($payload['style_json'] ?? null) ? $payload['style_json'] : [];
+    $style = array_merge($currentStyle, $incomingStyle);
+
     $statement = $pdo->prepare(
         'UPDATE political_territory_geometry
         SET geometry_geojson = :geometry_geojson,
@@ -1797,7 +1800,7 @@ function avesmapsPoliticalUpdateGeometry(PDO $pdo, array $payload, array $user):
         'max_x' => $bounds['max_x'],
         'max_y' => $bounds['max_y'],
         'source' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['source'] ?? 'editor'), 255)),
-        'style_json' => avesmapsPoliticalEncodeJsonOrNull(is_array($payload['style_json'] ?? null) ? $payload['style_json'] : avesmapsPoliticalDecodeJson($geometryRow['style_json'] ?? null)),
+        'style_json' => avesmapsPoliticalEncodeJsonOrNull($style),
         'updated_by' => (int) ($user['id'] ?? 0) ?: null,
     ]);
 
