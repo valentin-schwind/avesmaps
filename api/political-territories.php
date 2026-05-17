@@ -1838,20 +1838,26 @@ function avesmapsPoliticalUpdateGeometry(PDO $pdo, array $payload, array $user):
         'updated_by' => (int) ($user['id'] ?? 0) ?: null,
     ]);
 
-    if ($territoryId === null) {
-        $updatedGeometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, (string) $geometryRow['public_id']);
+    return avesmapsPoliticalGeometryMutationResponse($pdo, (string) $geometryRow['public_id']);
+}
 
+function avesmapsPoliticalGeometryMutationResponse(PDO $pdo, string $geometryPublicId): array {
+    $geometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, $geometryPublicId);
+    $territoryId = (int) ($geometry['territory_id'] ?? 0);
+
+    if ($territoryId < 1) {
         return [
             'ok' => true,
-            'geometry' => avesmapsPoliticalGeometryRowToPublic($updatedGeometry),
-            'geometry_public_id' => (string) $updatedGeometry['public_id'],
+            'geometry' => avesmapsPoliticalGeometryRowToPublic($geometry),
+            'geometry_public_id' => (string) $geometry['public_id'],
             'territory_public_id' => '',
             'feature' => null,
         ];
     }
 
-    return avesmapsPoliticalResponseForGeometry($pdo, (string) $geometryRow['public_id']);
+    return avesmapsPoliticalResponseForGeometry($pdo, $geometryPublicId);
 }
+
 
 function avesmapsPoliticalSplitGeometry(PDO $pdo, array $payload, array $user): array {
     $geometryRow = avesmapsPoliticalFetchGeometryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? ''));
@@ -2155,20 +2161,34 @@ function avesmapsPoliticalUnassignGeometry(PDO $pdo, array $payload): array {
 }
 
 function avesmapsPoliticalDeleteGeometry(PDO $pdo, array $payload): array {
-    $geometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? ''));
-    $territory = avesmapsPoliticalFetchTerritoryById($pdo, (int) $geometry['territory_id']);
+    $geometry = avesmapsPoliticalFetchGeometryByPublicId(
+        $pdo,
+        avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? '')
+    );
+
+    $territoryId = (int) ($geometry['territory_id'] ?? 0);
+    $territory = null;
     $territoryDeleted = false;
     $remainingGeometryCount = 0;
+
+    if ($territoryId > 0) {
+        $territory = avesmapsPoliticalFetchTerritoryById($pdo, $territoryId);
+    }
 
     $pdo->beginTransaction();
     try {
         avesmapsPoliticalSoftDeleteGeometryById($pdo, (int) $geometry['id']);
-        $remainingGeometryCount = avesmapsPoliticalCountActiveGeometriesForTerritory($pdo, (int) $geometry['territory_id']);
-        if ($remainingGeometryCount === 0 && empty($territory['wiki_id'])) {
-            $statement = $pdo->prepare('UPDATE political_territory SET is_active = 0 WHERE id = :id');
-            $statement->execute(['id' => (int) $geometry['territory_id']]);
-            $territoryDeleted = true;
+
+        if ($territoryId > 0) {
+            $remainingGeometryCount = avesmapsPoliticalCountActiveGeometriesForTerritory($pdo, $territoryId);
+
+            if ($remainingGeometryCount === 0 && empty($territory['wiki_id'])) {
+                $statement = $pdo->prepare('UPDATE political_territory SET is_active = 0 WHERE id = :id');
+                $statement->execute(['id' => $territoryId]);
+                $territoryDeleted = true;
+            }
         }
+
         $pdo->commit();
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) {
@@ -2182,7 +2202,7 @@ function avesmapsPoliticalDeleteGeometry(PDO $pdo, array $payload): array {
         'ok' => true,
         'deleted' => true,
         'geometry_public_id' => (string) $geometry['public_id'],
-        'territory_public_id' => (string) $territory['public_id'],
+        'territory_public_id' => $territory !== null ? (string) $territory['public_id'] : '',
         'territory_deleted' => $territoryDeleted,
         'remaining_geometry_count' => $remainingGeometryCount,
     ];
@@ -2228,7 +2248,7 @@ function avesmapsPoliticalDeleteGeometryPart(PDO $pdo, array $payload, array $us
         'updated_by' => (int) ($user['id'] ?? 0) ?: null,
     ]);
 
-    $response = avesmapsPoliticalResponseForGeometry($pdo, (string) $geometry['public_id']);
+    $response = avesmapsPoliticalGeometryMutationResponse($pdo, (string) $geometry['public_id']);
     $response['deleted_polygon_index'] = $polygonIndex;
     $response['delete_match_source'] = $resolvedPolygon['source'];
     $response['requested_polygon_index'] = $requestedPolygonIndex;
