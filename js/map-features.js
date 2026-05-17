@@ -5334,9 +5334,14 @@ function createRegionHandleIcon() {
 
 function clearRegionGeometryEdit() {
 	if (!activeRegionGeometryEdit) return;
+
+	clearRegionEditEdgeHover();
+	disableRegionEditEdgeControls();
+
 	if (activeRegionGeometryEdit.regionEntry.source !== "political_territory") {
 		void releaseFeatureSoftLock(activeRegionGeometryEdit.regionEntry.publicId);
 	}
+
 	activeRegionGeometryEdit.handles.forEach((handle) => map.removeLayer(handle));
 	activeRegionGeometryEdit = null;
 }
@@ -5352,13 +5357,17 @@ function refreshRegionEditHandles() {
 			pane: "measurementHandlesPane",
 			draggable: true,
 			keyboard: false,
+			bubblingMouseEvents: false,
 		}).addTo(map);
+
 		handle.on("drag", (event) => {
 			const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry);
 			latLngs[index] = event.target.getLatLng();
 			setRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, latLngs);
 			updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
+			updateRegionEditEdgeHoverFromLatLng(event.target.getLatLng());
 		});
+
 		handle.on("dragend", (event) => {
 			const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry);
 			const targetLatLng = findNearestRegionSnapPoint(event.target.getLatLng(), activeRegionGeometryEdit.regionEntry) || event.target.getLatLng();
@@ -5372,22 +5381,246 @@ function refreshRegionEditHandles() {
 				void saveRegionGeometry(region);
 			});
 		});
+
 		handle.on("dblclick", (event) => {
 			L.DomEvent.stop(event);
+			L.DomEvent.preventDefault(event);
 			deleteRegionNode(index);
 		});
+
+		const element = handle.getElement?.();
+		if (element) {
+			L.DomEvent.disableClickPropagation(element);
+			L.DomEvent.disableScrollPropagation(element);
+			element.addEventListener("dblclick", (event) => {
+				event.preventDefault();
+				event.stopPropagation();
+				deleteRegionNode(index);
+			});
+		}
+
 		activeRegionGeometryEdit.handles.push(handle);
 	});
 }
-
 function startRegionGeometryEdit(regionEntry, editLayer = null) {
 	cancelPoliticalTerritoryLayerReload();
 	clearRegionGeometryEdit();
+
 	if (regionEntry.source !== "political_territory") {
 		void acquireFeatureSoftLock(regionEntry.publicId);
 	}
-	activeRegionGeometryEdit = { regionEntry, editLayer: editLayer || regionEntry.layer, handles: [] };
+
+	activeRegionGeometryEdit = {
+		regionEntry,
+		editLayer: editLayer || regionEntry.layer,
+		handles: [],
+		edgeHover: null,
+		edgeHighlightLayer: null,
+		edgeSubdivisionCount: 2,
+	};
+
 	refreshRegionEditHandles();
+	enableRegionEditEdgeControls();
+}
+
+function enableRegionEditEdgeControls() {
+	if (!map || map._regionEditEdgeControlsEnabled) {
+		return;
+	}
+
+	map._regionEditEdgeControlsEnabled = true;
+
+	map.on("mousemove", handleRegionEditMouseMove);
+	map.on("mouseout", handleRegionEditMouseOut);
+
+	const container = map.getContainer?.();
+	if (container) {
+		container.addEventListener("wheel", handleRegionEditWheel, { passive: false });
+		document.addEventListener("keyup", handleRegionEditKeyUp, true);
+	}
+}
+
+function disableRegionEditEdgeControls() {
+	if (!map || !map._regionEditEdgeControlsEnabled) {
+		return;
+	}
+
+	map._regionEditEdgeControlsEnabled = false;
+
+	map.off("mousemove", handleRegionEditMouseMove);
+	map.off("mouseout", handleRegionEditMouseOut);
+
+	const container = map.getContainer?.();
+	if (container) {
+		container.removeEventListener("wheel", handleRegionEditWheel, { passive: false });
+		document.removeEventListener("keyup", handleRegionEditKeyUp, true);
+	}
+}
+
+function handleRegionEditMouseMove(event) {
+	if (!activeRegionGeometryEdit || !event?.originalEvent?.ctrlKey) {
+		clearRegionEditEdgeHover();
+		return;
+	}
+
+	updateRegionEditEdgeHoverFromLatLng(event.latlng);
+}
+
+function handleRegionEditMouseOut() {
+	clearRegionEditEdgeHover();
+}
+
+function handleRegionEditKeyUp(event) {
+	if (event.key === "Control") {
+		clearRegionEditEdgeHover();
+	}
+}
+
+function handleRegionEditWheel(event) {
+	if (!activeRegionGeometryEdit || !event.ctrlKey || !activeRegionGeometryEdit.edgeHover) {
+		return;
+	}
+
+	event.preventDefault();
+	event.stopPropagation();
+
+	if (map.scrollWheelZoom?.enabled?.()) {
+		map.scrollWheelZoom.disable();
+		window.setTimeout(() => {
+			if (!event.ctrlKey) {
+				map.scrollWheelZoom.enable();
+			}
+		}, 0);
+	}
+
+	const direction = event.deltaY < 0 ? 1 : -1;
+	const currentCount = Number(activeRegionGeometryEdit.edgeSubdivisionCount || 2);
+	const nextCount = Math.max(2, Math.min(16, currentCount + direction));
+
+	activeRegionGeometryEdit.edgeSubdivisionCount = nextCount;
+	subdivideRegionEditHoveredEdge(nextCount);
+}
+
+function updateRegionEditEdgeHoverFromLatLng(latLng) {
+	if (!activeRegionGeometryEdit || !latLng) {
+		clearRegionEditEdgeHover();
+		return;
+	}
+
+	const edge = findNearestEditedRegionEdge(latLng, activeRegionGeometryEdit.regionEntry);
+
+	if (!edge) {
+		clearRegionEditEdgeHover();
+		return;
+	}
+
+	activeRegionGeometryEdit.edgeHover = edge;
+	renderRegionEditEdgeHighlight(edge);
+}
+
+function clearRegionEditEdgeHover() {
+	if (!activeRegionGeometryEdit) {
+		return;
+	}
+
+	activeRegionGeometryEdit.edgeHover = null;
+
+	if (activeRegionGeometryEdit.edgeHighlightLayer) {
+		map.removeLayer(activeRegionGeometryEdit.edgeHighlightLayer);
+		activeRegionGeometryEdit.edgeHighlightLayer = null;
+	}
+
+	if (map.scrollWheelZoom && !map.scrollWheelZoom.enabled()) {
+		map.scrollWheelZoom.enable();
+	}
+}
+
+function renderRegionEditEdgeHighlight(edge) {
+	if (!activeRegionGeometryEdit || !edge) {
+		return;
+	}
+
+	if (activeRegionGeometryEdit.edgeHighlightLayer) {
+		activeRegionGeometryEdit.edgeHighlightLayer.setLatLngs([edge.start, edge.end]);
+		return;
+	}
+
+	activeRegionGeometryEdit.edgeHighlightLayer = L.polyline([edge.start, edge.end], {
+		pane: "measurementHandlesPane",
+		color: "#f0c05a",
+		weight: 4,
+		opacity: 0.95,
+		dashArray: "8 5",
+		interactive: false,
+	}).addTo(map);
+}
+
+function findNearestEditedRegionEdge(latLng, regionEntry) {
+	const ring = getRegionOuterLatLngs(regionEntry);
+	const targetPoint = map.latLngToContainerPoint(latLng);
+	let nearest = null;
+
+	for (let index = 0; index < ring.length; index += 1) {
+		const start = L.latLng(ring[index]);
+		const end = L.latLng(ring[(index + 1) % ring.length]);
+
+		if (start.distanceTo(end) <= 0.001) {
+			continue;
+		}
+
+		const startPoint = map.latLngToContainerPoint(start);
+		const endPoint = map.latLngToContainerPoint(end);
+		const projectedPoint = closestPointOnSegment(targetPoint, startPoint, endPoint);
+		const distance = targetPoint.distanceTo(projectedPoint);
+
+		if (distance <= 12 && (!nearest || distance < nearest.distance)) {
+			nearest = {
+				index,
+				start,
+				end,
+				distance,
+				projectedLatLng: map.containerPointToLatLng(projectedPoint),
+			};
+		}
+	}
+
+	return nearest;
+}
+
+function subdivideRegionEditHoveredEdge(pointCount) {
+	if (!activeRegionGeometryEdit?.edgeHover) {
+		return;
+	}
+
+	const regionEntry = activeRegionGeometryEdit.regionEntry;
+	const edge = activeRegionGeometryEdit.edgeHover;
+	const latLngs = getRegionOuterLatLngs(regionEntry).map(latLng => L.latLng(latLng));
+
+	if (latLngs.length < 3 || edge.index < 0 || edge.index >= latLngs.length) {
+		return;
+	}
+
+	const start = L.latLng(latLngs[edge.index]);
+	const endIndex = (edge.index + 1) % latLngs.length;
+	const end = L.latLng(latLngs[endIndex]);
+	const insertedPoints = [];
+
+	for (let offset = 1; offset <= pointCount; offset += 1) {
+		const ratio = offset / (pointCount + 1);
+		insertedPoints.push(L.latLng(
+			start.lat + (end.lat - start.lat) * ratio,
+			start.lng + (end.lng - start.lng) * ratio
+		));
+	}
+
+	latLngs.splice(edge.index + 1, 0, ...insertedPoints);
+
+	setRegionOuterLatLngs(regionEntry, latLngs);
+	updateRegionLabelPosition(regionEntry);
+	refreshRegionEditHandles();
+	clearRegionEditEdgeHover();
+
+	void saveRegionGeometry(regionEntry);
 }
 
 function updateRegionLabelPosition(regionEntry) {
