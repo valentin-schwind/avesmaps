@@ -109,21 +109,3 @@ CREATE TABLE IF NOT EXISTS political_territory_geometry (
     KEY idx_political_territory_geometry_timeline (valid_from_bf, valid_to_bf),
     KEY idx_political_territory_geometry_zoom (min_zoom, max_zoom)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS political_territory_relation (
-    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    child_id BIGINT UNSIGNED NOT NULL,
-    parent_id BIGINT UNSIGNED NOT NULL,
-    relation_type VARCHAR(80) NOT NULL DEFAULT 'hierarchy',
-    valid_from_bf INT NULL,
-    valid_to_bf INT NULL,
-    source VARCHAR(120) NULL,
-    confidence DECIMAL(4, 3) NULL,
-    notes TEXT NULL,
-    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_political_territory_relation (child_id, parent_id, relation_type),
-    KEY idx_political_territory_relation_parent (parent_id, relation_type),
-    KEY idx_political_territory_relation_timeline (valid_from_bf, valid_to_bf)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
