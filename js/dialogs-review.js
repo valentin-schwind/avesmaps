@@ -2731,6 +2731,15 @@ function populateRegionEditForm(entry, { preserveTabs = false } = {}) {
 }
 
 function openRegionEditDialog(entry, { title = "Eigenschaften bearbeiten" } = {}) {
+	const region = entry?.region || entry || {};
+	const canOpenPoliticalTerritoryEditor = region.source === "political_territory"
+		&& typeof window.AvesmapsPoliticalTerritoryEditorLink?.open === "function"
+		&& document.getElementById("political-territory-editor-frame");
+	if (canOpenPoliticalTerritoryEditor) {
+		window.AvesmapsPoliticalTerritoryEditorLink.open(region);
+		return;
+	}
+
 	resetRegionEditForm();
 	document.getElementById("region-edit-title").textContent = title;
 	initializeRegionEditTabs(entry);

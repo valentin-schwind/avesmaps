@@ -27,7 +27,7 @@ function createPoliticalTerritoryEditorUrl(regionEntry = {}) {
 	if (validFromBf !== "" && validFromBf !== null && typeof validFromBf !== "undefined") params.set("valid_from_bf", String(validFromBf));
 	if (validToBf !== "" && validToBf !== null && typeof validToBf !== "undefined") params.set("valid_to_bf", String(validToBf));
 
-	return `politics/political-tree.html${params.toString() ? `?${params.toString()}` : ""}`;
+	return `html/political-territory-editor.html${params.toString() ? `?${params.toString()}` : ""}`;
 }
 
 function getPoliticalTerritoryEditorElements() {
