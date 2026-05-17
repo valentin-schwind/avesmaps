@@ -1838,6 +1838,18 @@ function avesmapsPoliticalUpdateGeometry(PDO $pdo, array $payload, array $user):
         'updated_by' => (int) ($user['id'] ?? 0) ?: null,
     ]);
 
+    if ($territoryId === null) {
+        $updatedGeometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, (string) $geometryRow['public_id']);
+
+        return [
+            'ok' => true,
+            'geometry' => avesmapsPoliticalGeometryRowToPublic($updatedGeometry),
+            'geometry_public_id' => (string) $updatedGeometry['public_id'],
+            'territory_public_id' => '',
+            'feature' => null,
+        ];
+    }
+
     return avesmapsPoliticalResponseForGeometry($pdo, (string) $geometryRow['public_id']);
 }
 
