@@ -381,18 +381,17 @@
 			background: currentColor;
 		}
 
-		.tree-map-status--own-only::before {
+		.tree-map-status--children-only::before {
 			left: 1px;
 			right: 50%;
 			border-radius: 999px 0 0 999px;
 		}
 
-		.tree-map-status--children-only::before {
+		.tree-map-status--own-only::before {
 			left: 50%;
 			right: 1px;
 			border-radius: 0 999px 999px 0;
 		}
-
 		.tree-map-status--all {
 			background: currentColor;
 		}
@@ -1659,28 +1658,28 @@
 		}
 
 		function getTreeMapStatus(node) {
-			const ownAssigned = isTreeNodeAssignedToMap(node);
-			const descendantStatus = getTreeDescendantMapStatus(node);
-			const allDescendantsAssigned = descendantStatus.total === 0 || descendantStatus.assigned === descendantStatus.total;
+			const status = getTreeCoverageStatus(node);
 
-			if (ownAssigned && allDescendantsAssigned) {
+			if (status.kind === "all") {
 				return {
 					kind: "all",
-					label: "Gebiet und Untergebiete sind auf der Karte vorhanden"
+					label: status.ownAssigned
+						? "Gebiet und Untergebiete sind auf der Karte vorhanden"
+						: "Alle Untergebiete sind auf der Karte vorhanden"
 				};
 			}
 
-			if (ownAssigned) {
+			if (status.kind === "own-only") {
 				return {
 					kind: "own-only",
-					label: "Gebiet ist auf der Karte vorhanden, Untergebiete fehlen teilweise"
+					label: "Gebiet ist auf der Karte vorhanden, Untergebiete fehlen oder sind nicht vollständig"
 				};
 			}
 
-			if (descendantStatus.total > 0 && allDescendantsAssigned) {
+			if (status.kind === "children-only") {
 				return {
 					kind: "children-only",
-					label: "Gebiet fehlt auf der Karte, alle Untergebiete sind vorhanden"
+					label: "Gebiet ist indirekt durch Untergebiete auf der Karte vorhanden, Untergebiete fehlen oder sind nicht vollständig"
 				};
 			}
 
@@ -1690,34 +1689,70 @@
 			};
 		}
 
-		function isTreeNodeAssignedToMap(node) {
-			return Boolean(node?.row?.map_assigned) || Number(node?.row?.map_geometry_count || 0) > 0;
-		}
+		function getTreeCoverageStatus(node) {
+			const ownAssigned = isTreeNodeAssignedToMap(node);
+			const children = Array.isArray(node?.children) ? node.children : [];
 
-		function getTreeDescendantMapStatus(node) {
-			const stack = Array.isArray(node?.children) ? [...node.children] : [];
-			let total = 0;
-			let assigned = 0;
-
-			while (stack.length > 0) {
-				const current = stack.pop();
-				if (!current) {
-					continue;
-				}
-
-				if (current.row) {
-					total += 1;
-					if (isTreeNodeAssignedToMap(current)) {
-						assigned += 1;
-					}
-				}
-
-				if (Array.isArray(current.children) && current.children.length > 0) {
-					stack.push(...current.children);
-				}
+			if (children.length === 0) {
+				return {
+					kind: ownAssigned ? "all" : "none",
+					ownAssigned,
+					hasAnyCoverage: ownAssigned,
+					isComplete: ownAssigned
+				};
 			}
 
-			return { total, assigned };
+			const childStatuses = children.map(getTreeCoverageStatus);
+			const hasAnyChildCoverage = childStatuses.some(status => status.hasAnyCoverage);
+			const allChildrenComplete = childStatuses.every(status => status.isComplete);
+			const hasAnyCoverage = ownAssigned || hasAnyChildCoverage;
+
+			if (ownAssigned && allChildrenComplete) {
+				return {
+					kind: "all",
+					ownAssigned,
+					hasAnyCoverage,
+					isComplete: true
+				};
+			}
+
+			if (ownAssigned) {
+				return {
+					kind: "own-only",
+					ownAssigned,
+					hasAnyCoverage,
+					isComplete: false
+				};
+			}
+
+			if (hasAnyChildCoverage && allChildrenComplete) {
+				return {
+					kind: "all",
+					ownAssigned,
+					hasAnyCoverage,
+					isComplete: true
+				};
+			}
+
+			if (hasAnyChildCoverage) {
+				return {
+					kind: "children-only",
+					ownAssigned,
+					hasAnyCoverage,
+					isComplete: false
+				};
+			}
+
+			return {
+				kind: "none",
+				ownAssigned,
+				hasAnyCoverage: false,
+				isComplete: false
+			};
+		}
+
+		function isTreeNodeAssignedToMap(node) {
+			return Boolean(node?.row?.map_assigned) || Number(node?.row?.map_geometry_count || 0) > 0;
 		}
 
 		function showNodeDetails(node) {
