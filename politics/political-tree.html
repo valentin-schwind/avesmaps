@@ -40,12 +40,21 @@
 			color: var(--text);
 		}
 
+		body.is-embedded {
+			background: var(--page-bg);
+		}
+
 		.app-container {
 			width: min(760px, 100%);
 			min-height: 100vh;
 			margin: 0 auto;
 			background: var(--page-bg);
 			box-shadow: 0 0 30px rgba(0, 0, 0, 0.28);
+		}
+
+		body.is-embedded .app-container {
+			width: 100%;
+			box-shadow: none;
 		}
 
 		header {
@@ -57,6 +66,10 @@
 			z-index: 10;
 			box-shadow: 0 3px 12px rgba(0, 0, 0, 0.18);
 			backdrop-filter: blur(6px);
+		}
+
+		body.is-embedded header {
+			display: none;
 		}
 
 		h1 {
@@ -81,6 +94,10 @@
 			padding: 14px 16px 20px;
 			display: grid;
 			gap: 14px;
+		}
+
+		body.is-embedded main {
+			padding: 12px;
 		}
 
 		.controls,
@@ -984,6 +1001,10 @@
 		
 		const MODULE_VERSION = "2026-05-16-module-save-api";
 
+		if (new URLSearchParams(window.location.search).get("embedded") === "1") {
+			document.body.classList.add("is-embedded");
+		}
+
 		/*
 			Vorgeschlagenes DB-Schema für die spätere Speicher-API.
 			Strategie: Beim Speichern wird die vollständige Breadcrumb-Darstellungskette
@@ -1030,6 +1051,7 @@
 		let moduleOptions = {
 			saveUrl: WRITE_API_URL,
 			onSave: null,
+			onUnassign: null,
 			onCancel: null,
 			onStatusChange: null,
 			onTerritoryDrop: null
@@ -2454,6 +2476,13 @@
 			setFormStatus("Entferne Zuweisung ...", "pending");
 
 			try {
+				if (typeof moduleOptions.onUnassign === "function") {
+					const result = await moduleOptions.onUnassign(getAssignmentValue());
+					clearSelection();
+					setFormStatus(result?.message || "Zuweisung entfernt. Anzeigeeinstellungen bleiben erhalten.", "success");
+					return;
+				}
+
 				const response = await fetch(moduleOptions.saveUrl || WRITE_API_URL, {
 					method: "PATCH",
 					credentials: "same-origin",

@@ -123,8 +123,6 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
     $territoryId = (int) ($geometry['territory_id'] ?? 0);
     $geometryStyle = avesmapsPoliticalDecodeJson($geometry['style_json'] ?? null);
     $geometryDisplayName = trim((string) ($geometryStyle['displayName'] ?? $geometryStyle['name'] ?? ''));
-    
-    $storedAssignmentDisplays = avesmapsPoliticalReadAssignmentDisplaysFromStyle($geometryStyle);
 
     if ($territoryId < 1) {
         $validTo = avesmapsPoliticalNullableInt($geometry['valid_to_bf'] ?? null);
