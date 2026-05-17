@@ -3819,12 +3819,14 @@ function formatWikiSyncSettlementSummaryLine() {
 
 function formatWikiSyncTerritorySummaryLine() {
 	const territoryCount = Number(wikiSyncTerritorySummary?.territory_count ?? 0);
+	const assignedTerritoryCount = Number(wikiSyncTerritorySummary?.assigned_territory_count ?? 0);
 	const rootCount = Number(wikiSyncTerritorySummary?.root_count ?? 0);
+	const assignedRootCount = Number(wikiSyncTerritorySummary?.assigned_root_count ?? 0);
 	if (territoryCount < 1 && rootCount < 1) {
 		return "";
 	}
 
-	return `Herrschaftsgebiete: ${territoryCount} Territorien, ${rootCount} Mächte`;
+	return `Herrschaftsgebiete: ${territoryCount} Territorien (${assignedTerritoryCount} zugewiesen), ${rootCount} Mächte (${assignedRootCount} zugewiesen)`;
 }
 
 function renderWikiSyncCases(latestRun = null) {
@@ -3860,7 +3862,7 @@ function renderWikiSyncCases(latestRun = null) {
 	setWikiSyncStatus(buildWikiSyncStatusMessage(statusMessage), isWikiSyncCreateLocationSelectionActive ? "pending" : "success");
 
 	const renderedGroupElements = new Map();
-	const openSectionElement = renderWikiSyncCaseSection(listElement, "Siedlungen aus dem Wiki", "open", filteredCases.filter((caseEntry) => caseEntry.status !== "archived"), renderedGroupElements);
+	const openSectionElement = renderWikiSyncCaseSection(listElement, "Offen", "open", filteredCases.filter((caseEntry) => caseEntry.status !== "archived"), renderedGroupElements);
 	const archivedSectionElement = renderWikiSyncCaseSection(listElement, "Archiviert", "archived", filteredCases.filter((caseEntry) => caseEntry.status === "archived"), renderedGroupElements);
 	if (!openSectionElement && !archivedSectionElement) {
 		setWikiSyncStatus(buildWikiSyncStatusMessage(hasActiveFilter ? `Keine Treffer für "${filterDisplayQuery}".` : "Keine WikiSync-Fälle."), "empty");

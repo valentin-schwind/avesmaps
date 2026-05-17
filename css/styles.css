@@ -2815,6 +2815,14 @@ body.modal-dialog-open {
 	white-space: pre-line;
 }
 
+.wiki-sync-panel__list-title {
+	margin: 8px 10px 6px;
+	color: #4a3c2e;
+	font-size: 13px;
+	font-weight: 700;
+	line-height: 1.25;
+}
+
 .wiki-sync-progress {
 	flex: 1;
 	height: 12px;

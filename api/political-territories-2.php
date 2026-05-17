@@ -118,6 +118,24 @@ try {
             blazon,
             wiki_url,
             coat_of_arms_url,
+            (
+                SELECT COUNT(DISTINCT territory.id)
+                FROM political_territory territory
+                INNER JOIN political_territory_geometry geometry
+                    ON geometry.territory_id = territory.id
+                    AND geometry.is_active = 1
+                WHERE territory.wiki_id = political_territory_wiki.id
+                    AND territory.is_active = 1
+            ) AS map_territory_count,
+            (
+                SELECT COUNT(geometry.id)
+                FROM political_territory territory
+                INNER JOIN political_territory_geometry geometry
+                    ON geometry.territory_id = territory.id
+                    AND geometry.is_active = 1
+                WHERE territory.wiki_id = political_territory_wiki.id
+                    AND territory.is_active = 1
+            ) AS map_geometry_count,
             raw_json,
             synced_at
         FROM political_territory_wiki';
@@ -201,6 +219,9 @@ function normalizeTerritoryRow(array $row): array {
         'blazon' => stringOrNull($row['blazon'] ?? null),
         'wiki_url' => stringOrNull($row['wiki_url'] ?? null),
         'coat_of_arms_url' => stringOrNull($row['coat_of_arms_url'] ?? null),
+        'map_assigned' => (int)($row['map_geometry_count'] ?? 0) > 0,
+        'map_territory_count' => intOrNull($row['map_territory_count'] ?? null) ?? 0,
+        'map_geometry_count' => intOrNull($row['map_geometry_count'] ?? null) ?? 0,
         'raw' => is_array($raw) ? $raw : null,
         'synced_at' => stringOrNull($row['synced_at'] ?? null),
     ];

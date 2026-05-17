@@ -320,13 +320,17 @@ function avesmapsWikiSyncReadPoliticalTerritoryTree(PDO $pdo): array {
         return $cachedTree;
     }
 
-    return avesmapsWikiSyncReadPoliticalTerritoryTreeFromWiki();
+    return avesmapsWikiSyncReadPoliticalTerritoryTreeFromWiki($pdo);
 }
 
-function avesmapsWikiSyncReadPoliticalTerritoryTreeFromWiki(): array {
+function avesmapsWikiSyncReadPoliticalTerritoryTreeFromWiki(PDO $pdo): array {
     avesmapsWikiSyncRelaxLimits();
-    $rows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki();
+    $rows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments(
+        avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki(),
+        avesmapsWikiSyncReadPoliticalTerritoryMapAssignments($pdo)
+    );
     $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($rows);
+    $summary = avesmapsWikiSyncBuildPoliticalTerritoryTreeAssignmentSummary($rows, $tree['hierarchy']);
 
     return [
         'ok' => true,
@@ -334,6 +338,8 @@ function avesmapsWikiSyncReadPoliticalTerritoryTreeFromWiki(): array {
         'source_page' => avesmapsWikiSyncPageUrl('Staat/Liste'),
         'territory_count' => count($rows),
         'root_count' => count($tree['hierarchy']),
+        'assigned_territory_count' => $summary['assigned_territory_count'],
+        'assigned_root_count' => $summary['assigned_root_count'],
         'territories' => $tree['territories'],
         'hierarchy' => $tree['hierarchy'],
     ];
@@ -345,18 +351,24 @@ function avesmapsWikiSyncReadPoliticalTerritoryTreeSummary(PDO $pdo): array {
         return $cachedSummary;
     }
 
-    return avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromWiki();
+    return avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromWiki($pdo);
 }
 
-function avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromWiki(): array {
+function avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromWiki(PDO $pdo): array {
     try {
-        $rows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki(false);
+        $rows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments(
+            avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki(false),
+            avesmapsWikiSyncReadPoliticalTerritoryMapAssignments($pdo)
+        );
         $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($rows, false);
+        $summary = avesmapsWikiSyncBuildPoliticalTerritoryTreeAssignmentSummary($rows, $tree['hierarchy']);
 
         return [
             'ok' => true,
             'territory_count' => count($rows),
             'root_count' => count($tree['hierarchy']),
+            'assigned_territory_count' => $summary['assigned_territory_count'],
+            'assigned_root_count' => $summary['assigned_root_count'],
         ];
     } catch (Throwable $exception) {
         avesmapsWikiSyncLogServerError('political_territory_tree_summary_error', [
@@ -368,41 +380,125 @@ function avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromWiki(): array {
             'ok' => false,
             'territory_count' => 0,
             'root_count' => 0,
+            'assigned_territory_count' => 0,
+            'assigned_root_count' => 0,
             'error' => 'Herrschaftsgebiets-Baum konnte nicht gelesen werden.',
         ];
     }
 }
 
 function avesmapsWikiSyncReadPoliticalTerritoryTreeFromCache(PDO $pdo): ?array {
-    $rows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache($pdo);
+    $rows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments(
+        avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache($pdo),
+        avesmapsWikiSyncReadPoliticalTerritoryMapAssignments($pdo)
+    );
     if ($rows === []) {
         return null;
     }
 
     $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($rows);
+    $summary = avesmapsWikiSyncBuildPoliticalTerritoryTreeAssignmentSummary($rows, $tree['hierarchy']);
 
     return [
         'ok' => true,
         'source' => 'database-cache',
         'territory_count' => count($rows),
         'root_count' => count($tree['hierarchy']),
+        'assigned_territory_count' => $summary['assigned_territory_count'],
+        'assigned_root_count' => $summary['assigned_root_count'],
         'territories' => $tree['territories'],
         'hierarchy' => $tree['hierarchy'],
     ];
 }
 
 function avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromCache(PDO $pdo): ?array {
-    $rows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache($pdo);
+    $rows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments(
+        avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache($pdo),
+        avesmapsWikiSyncReadPoliticalTerritoryMapAssignments($pdo)
+    );
     if ($rows === []) {
         return null;
     }
 
     $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($rows, false);
+    $summary = avesmapsWikiSyncBuildPoliticalTerritoryTreeAssignmentSummary($rows, $tree['hierarchy']);
 
     return [
         'ok' => true,
         'territory_count' => count($rows),
         'root_count' => count($tree['hierarchy']),
+        'assigned_territory_count' => $summary['assigned_territory_count'],
+        'assigned_root_count' => $summary['assigned_root_count'],
+    ];
+}
+
+function avesmapsWikiSyncReadPoliticalTerritoryMapAssignments(PDO $pdo): array {
+    $statement = $pdo->prepare(
+        'SELECT
+            wiki.wiki_key,
+            COUNT(DISTINCT territory.id) AS territory_count,
+            COUNT(geometry.id) AS geometry_count
+        FROM political_territory_wiki wiki
+        INNER JOIN political_territory territory
+            ON territory.wiki_id = wiki.id
+            AND territory.is_active = 1
+        INNER JOIN political_territory_geometry geometry
+            ON geometry.territory_id = territory.id
+            AND geometry.is_active = 1
+        WHERE wiki.continent = :continent
+        GROUP BY wiki.wiki_key'
+    );
+    $statement->execute([
+        'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+    ]);
+
+    $assignments = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $wikiKey = (string) ($row['wiki_key'] ?? '');
+        if ($wikiKey === '') {
+            continue;
+        }
+
+        $assignments[$wikiKey] = [
+            'territory_count' => (int) ($row['territory_count'] ?? 0),
+            'geometry_count' => (int) ($row['geometry_count'] ?? 0),
+        ];
+    }
+
+    return $assignments;
+}
+
+function avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments(array $rows, array $assignments): array {
+    return array_map(static function (array $row) use ($assignments): array {
+        $assignment = $assignments[(string) ($row['wiki_key'] ?? '')] ?? null;
+        $geometryCount = (int) ($assignment['geometry_count'] ?? 0);
+
+        $row['map_assigned'] = $geometryCount > 0;
+        $row['map_territory_count'] = (int) ($assignment['territory_count'] ?? 0);
+        $row['map_geometry_count'] = $geometryCount;
+
+        return $row;
+    }, $rows);
+}
+
+function avesmapsWikiSyncBuildPoliticalTerritoryTreeAssignmentSummary(array $rows, array $hierarchy): array {
+    $assignedTerritoryCount = 0;
+    foreach ($rows as $row) {
+        if (!empty($row['map_assigned'])) {
+            $assignedTerritoryCount++;
+        }
+    }
+
+    $assignedRootCount = 0;
+    foreach ($hierarchy as $node) {
+        if (is_array($node) && !empty($node['map_assigned'])) {
+            $assignedRootCount++;
+        }
+    }
+
+    return [
+        'assigned_territory_count' => $assignedTerritoryCount,
+        'assigned_root_count' => $assignedRootCount,
     ];
 }
 
@@ -1048,6 +1144,9 @@ function avesmapsWikiSyncCreatePoliticalTreeNode(string $key, string $name, ?arr
         'capital_name' => '',
         'seat_name' => '',
         'ruler' => '',
+        'map_assigned' => false,
+        'map_territory_count' => 0,
+        'map_geometry_count' => 0,
         'is_group' => $row === null,
         'row' => $row,
         'children' => [],
@@ -1076,6 +1175,9 @@ function avesmapsWikiSyncApplyPoliticalRowToTreeNode(array $node, array $row): a
     $node['founded_text'] = (string) ($row['founded_text'] ?? '');
     $node['dissolved_text'] = (string) ($row['dissolved_text'] ?? '');
     $node['coat_of_arms_url'] = (string) ($row['coat_of_arms_url'] ?? '');
+    $node['map_assigned'] = !empty($row['map_assigned']);
+    $node['map_territory_count'] = (int) ($row['map_territory_count'] ?? 0);
+    $node['map_geometry_count'] = (int) ($row['map_geometry_count'] ?? 0);
 
     return $node;
 }
@@ -1124,6 +1226,9 @@ function avesmapsWikiSyncPublicPoliticalTreeNode(array $node): array {
         'founded_text' => (string) ($node['founded_text'] ?? ''),
         'dissolved_text' => (string) ($node['dissolved_text'] ?? ''),
         'coat_of_arms_url' => (string) ($node['coat_of_arms_url'] ?? ''),
+        'map_assigned' => !empty($node['map_assigned']),
+        'map_territory_count' => (int) ($node['map_territory_count'] ?? 0),
+        'map_geometry_count' => (int) ($node['map_geometry_count'] ?? 0),
         'is_group' => (bool) $node['is_group'],
         'is_wiki_live' => true,
     ];
