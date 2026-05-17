@@ -182,12 +182,24 @@
 		<button id="region-operation-cancel" type="button">Abbrechen</button>
 	</div>
 	<div id="political-timeline" class="political-timeline" hidden>
-		<label class="political-timeline__field">
-			<span>Jahr</span>
-			<input id="political-timeline-range" type="range" min="-3000" max="1050" step="1" value="1049" />
-		</label>
-		<input id="political-timeline-year" class="political-timeline__year" type="number" min="-3000" max="1050" step="1" value="1049" aria-label="Jahr" />
-		<span id="political-timeline-label" class="political-timeline__label">1049 BF</span>
+		<div class="political-timeline__controls">
+			<label class="political-timeline__field">
+				<span>Jahr</span>
+				<input id="political-timeline-range" type="range" min="-3000" max="1050" step="1" value="1049" />
+			</label>
+			<input id="political-timeline-year" class="political-timeline__year" type="number" min="-3000" max="1050" step="1" value="1049" aria-label="Jahr" />
+			<span id="political-timeline-label" class="political-timeline__label">1049 BF</span>
+		</div>
+
+		<div id="political-territory-range" class="political-territory-range" hidden>
+			<div class="political-territory-range__header">
+				<span id="political-territory-range-name" class="political-territory-range__name"></span>
+				<span id="political-territory-range-years" class="political-territory-range__years"></span>
+			</div>
+			<div class="political-territory-range__track" aria-hidden="true">
+				<span id="political-territory-range-bar" class="political-territory-range__bar"></span>
+			</div>
+		</div>
 	</div>
 	<div id="location-report-overlay" hidden>
 		<div id="location-report-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="location-report-title" tabindex="-1">

@@ -903,10 +903,7 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         'parent_public_id' => (string) ($row['parent_public_id'] ?? ''),
         'parent_name' => (string) ($row['parent_name'] ?? ''),
         'valid_from_bf' => avesmapsPoliticalNullableInt($row['geometry_valid_from_bf'] ?? $row['valid_from_bf'] ?? null),
-        'valid_to_bf' => avesmapsPoliticalNormalizeRowValidTo(
-            $row['geometry_valid_to_bf'] ?? $row['valid_to_bf'] ?? null,
-            $row
-        ),
+        'valid_to_bf' => avesmapsPoliticalNullableInt($row['geometry_valid_to_bf'] ?? $row['valid_to_bf'] ?? null),
         'valid_label' => (string) ($row['valid_label'] ?? ''),
         'founded_text' => (string) ($row['founded_text'] ?? ''),
         'dissolved_text' => (string) ($row['dissolved_text'] ?? ''),

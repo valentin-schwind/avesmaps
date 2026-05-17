@@ -3840,11 +3840,19 @@ function addRegionFeatureToMap(region, regionEntry) {
 
 function syncPoliticalTimelineVisibility() {
 	const timelineElement = document.getElementById("political-timeline");
+	const isPoliticalMode = getSelectedMapLayerMode() === "political";
+
 	if (!timelineElement) {
 		return;
 	}
 
-	timelineElement.hidden = getSelectedMapLayerMode() !== "political";
+	timelineElement.hidden = !isPoliticalMode;
+
+	if (!isPoliticalMode) {
+		clearPoliticalTerritoryTimelineSelection();
+		return;
+	}
+
 	syncPoliticalTimelineControls();
 }
 
@@ -3874,6 +3882,79 @@ function setPoliticalTimelineYear(value) {
 	politicalTimelineYear = Math.max(-3000, Math.min(1050, parsedYear));
 	syncPoliticalTimelineControls();
 	schedulePoliticalTerritoryLayerReload();
+}
+
+function showPoliticalTerritoryTimelineSelection(regionEntry) {
+	const panelElement = document.getElementById("political-territory-range");
+	const nameElement = document.getElementById("political-territory-range-name");
+	const yearsElement = document.getElementById("political-territory-range-years");
+	const barElement = document.getElementById("political-territory-range-bar");
+
+	if (!panelElement || !nameElement || !yearsElement || !barElement || !regionEntry) {
+		return;
+	}
+
+	const startYear = normalizePoliticalTimelineYearValue(regionEntry.validFromBf);
+	const endYear = normalizePoliticalTimelineYearValue(regionEntry.validToBf);
+	const hasStart = startYear !== null;
+	const hasEnd = endYear !== null && endYear < 9999;
+	const effectiveStart = hasStart ? startYear : -3000;
+	const effectiveEnd = hasEnd ? endYear : 1050;
+
+	nameElement.textContent = normalizeRegionParentheticalSpacing(regionEntry.displayName || regionEntry.name || "Herrschaftsgebiet");
+	yearsElement.textContent = formatPoliticalTerritoryRangeLabel(startYear, endYear, regionEntry.validLabel);
+
+	const minYear = -3000;
+	const maxYear = 1050;
+	const range = maxYear - minYear;
+	const leftPercent = Math.max(0, Math.min(100, ((effectiveStart - minYear) / range) * 100));
+	const rightPercent = Math.max(0, Math.min(100, ((effectiveEnd - minYear) / range) * 100));
+	const widthPercent = Math.max(1.5, rightPercent - leftPercent);
+
+	barElement.style.left = `${leftPercent}%`;
+	barElement.style.width = `${widthPercent}%`;
+	barElement.style.backgroundColor = normalizeRegionHexColor(regionEntry.color || "#888888");
+
+	panelElement.hidden = false;
+}
+
+function clearPoliticalTerritoryTimelineSelection() {
+	const panelElement = document.getElementById("political-territory-range");
+
+	if (panelElement) {
+		panelElement.hidden = true;
+	}
+}
+
+function normalizePoliticalTimelineYearValue(value) {
+	const number = Number(value);
+
+	return Number.isFinite(number) ? number : null;
+}
+
+function formatPoliticalTerritoryRangeLabel(startYear, endYear, fallbackLabel = "") {
+	const normalizedFallback = String(fallbackLabel || "").trim();
+
+	if (normalizedFallback !== "") {
+		return normalizedFallback;
+	}
+
+	const hasStart = startYear !== null;
+	const hasEnd = endYear !== null && endYear < 9999;
+
+	if (!hasStart && !hasEnd) {
+		return "Zeitraum unbekannt";
+	}
+
+	if (hasStart && !hasEnd) {
+		return `seit ${formatPoliticalTimelineYear(startYear)}`;
+	}
+
+	if (!hasStart && hasEnd) {
+		return `bis ${formatPoliticalTimelineYear(endYear)}`;
+	}
+
+	return `${formatPoliticalTimelineYear(startYear)} – ${formatPoliticalTimelineYear(endYear)}`;
 }
 
 function schedulePoliticalTerritoryLayerReload({ immediate = false } = {}) {
@@ -3927,6 +4008,7 @@ async function loadPoliticalTerritoryLayer() {
 		if (activeRegionGeometryEdit || pendingRegionOperation || pendingRegionMoveState) {
 			return;
 		}
+		clearPoliticalTerritoryTimelineSelection();
 		clearRenderedRegionLayers();
 		regionData = Array.isArray(response.features) ? response.features : [];
 		regionData.forEach((region) => addRegionFeatureToMap(region, normalizeRegionFeature(region)));
@@ -4020,6 +4102,7 @@ function bindRegionCompactTooltip(polygon, regionEntry) {
 
 		L.DomEvent.stop(event);
 		openRegionCompactTooltip(regionEntry);
+		showPoliticalTerritoryTimelineSelection(regionEntry);
 	});
 }
 
