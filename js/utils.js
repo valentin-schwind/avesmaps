@@ -58,6 +58,14 @@ function withAssetVersion(sourcePath) {
 	return `${sourcePath}${separator}v=${ICON_ASSET_VERSION}`;
 }
 
+function readFeatureWikiUrl(properties = {}) {
+	if (!properties || typeof properties !== "object") {
+		return "";
+	}
+
+	return String(properties.wiki_url || properties["data-report-wiki-url"] || "").trim();
+}
+
 function assetIconMarkup(sourcePath, className = "route-overview-icon") {
 	const versionedSourcePath = escapeHtml(withAssetVersion(sourcePath));
 	const safeClassName = escapeHtml(className);

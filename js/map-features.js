@@ -2051,7 +2051,7 @@ function applyLiveLocationFeature(feature) {
 		lat: feature.geometry.coordinates[1],
 		lng: feature.geometry.coordinates[0],
 		description: properties.description || "",
-		wiki_url: properties.wiki_url || "",
+		wiki_url: readFeatureWikiUrl(properties),
 		is_nodix: Boolean(properties.is_nodix),
 		is_ruined: Boolean(properties.is_ruined),
 		revision: properties.revision || null,

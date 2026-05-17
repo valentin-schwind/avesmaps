@@ -189,7 +189,7 @@ function avesmapsBuildSearchEntry(array $row): ?array {
             'kind' => 'location',
             'name' => $name,
             'type_label' => avesmapsLocationSearchTypeLabel($featureSubtype),
-            'search_texts' => [$name, $featureSubtype, $properties['settlement_class_label'] ?? ''],
+            'search_texts' => [$name, $featureSubtype, $properties['settlement_class_label'] ?? '', avesmapsReadSearchWikiUrl($properties)],
         ]);
     }
 
@@ -416,4 +416,13 @@ function avesmapsDecodeJsonColumnForSearch(mixed $value): array {
     }
 
     return is_array($decodedValue) ? $decodedValue : [];
+}
+
+function avesmapsReadSearchWikiUrl(array $properties): string {
+    $wikiUrl = (string) ($properties['wiki_url'] ?? '');
+    if ($wikiUrl !== '') {
+        return $wikiUrl;
+    }
+
+    return (string) ($properties['data-report-wiki-url'] ?? '');
 }

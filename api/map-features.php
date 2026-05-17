@@ -179,7 +179,7 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row): array {
         ];
     }
 
-    $properties = avesmapsDecodeJsonColumn($row['properties_json'] ?? null);
+    $properties = avesmapsNormalizeLegacyMapFeatureProperties(avesmapsDecodeJsonColumn($row['properties_json'] ?? null));
     $style = avesmapsDecodeJsonColumn($row['style_json'] ?? null);
     foreach ($style as $styleKey => $styleValue) {
         $properties[$styleKey] = $styleValue;
@@ -218,4 +218,15 @@ function avesmapsDecodeJsonColumn(mixed $value): array {
     }
 
     return is_array($decodedValue) ? $decodedValue : [];
+}
+
+function avesmapsNormalizeLegacyMapFeatureProperties(array $properties): array {
+    if (
+        (string) ($properties['wiki_url'] ?? '') === ''
+        && (string) ($properties['data-report-wiki-url'] ?? '') !== ''
+    ) {
+        $properties['wiki_url'] = trim((string) $properties['data-report-wiki-url']);
+    }
+
+    return $properties;
 }
