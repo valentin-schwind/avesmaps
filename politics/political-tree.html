@@ -950,6 +950,7 @@
 						<div class="form-actions">
 							<button id="cancelButton" class="secondary" type="button">Abbrechen</button>
 							<button id="saveButton" type="button">Speichern</button>
+							<button id="unassignButton" class="secondary" type="button">Zuweisung entfernen</button>
 						</div>
 					</div>
 				</section>
@@ -1104,7 +1105,8 @@
 
 		const saveButton = document.getElementById("saveButton");
 		const cancelButton = document.getElementById("cancelButton");
-
+		const unassignButton = document.getElementById("unassignButton");
+		
 		if (saveButton) {
 			saveButton.addEventListener("click", handleSave);
 		}
@@ -1112,7 +1114,11 @@
 		if (cancelButton) {
 			cancelButton.addEventListener("click", handleCancel);
 		}
-
+		
+		if (unassignButton) {
+			unassignButton.addEventListener("click", handleUnassign);
+		}
+		
 		els.expandButton.addEventListener("click", () => setAllTreeDetailsOpen(true));
 		els.collapseButton.addEventListener("click", () => setAllTreeDetailsOpen(false));
 
@@ -2292,6 +2298,55 @@
 			}
 
 			renderManualCoatPreview(normalizeText(document.getElementById("alternateCoatInput")?.value || ""));
+		}
+		
+		async function handleUnassign() {
+			const params = new URLSearchParams(window.location.search);
+			const geometryPublicId = normalizeText(params.get("geometry_public_id") || "");
+
+			if (!geometryPublicId) {
+				setFormStatus("Die Geometrie-ID fehlt. Öffnen Sie den Editor über Rechtsklick auf ein Herrschaftsgebiet.", "error");
+				return;
+			}
+
+			if (!window.confirm("Zuweisung zu einem Herrschaftsgebiet entfernen? Die Anzeigeeinstellungen der Geometrie bleiben erhalten.")) {
+				return;
+			}
+
+			setFormStatus("Entferne Zuweisung ...", "pending");
+
+			try {
+				const response = await fetch(moduleOptions.saveUrl || WRITE_API_URL, {
+					method: "PATCH",
+					credentials: "same-origin",
+					headers: {
+						"Content-Type": "application/json",
+						"Accept": "application/json"
+					},
+					body: JSON.stringify({
+						action: "unassign_geometry",
+						geometry_public_id: geometryPublicId
+					})
+				});
+
+				let result = null;
+
+				try {
+					result = await response.json();
+				} catch (error) {
+					result = { ok: response.ok };
+				}
+
+				if (!response.ok || result?.ok === false) {
+					throw new Error(result?.error || `Zuweisung entfernen fehlgeschlagen: HTTP ${response.status}`);
+				}
+
+				clearSelection();
+				await loadExistingGeometryAssignmentFromUrl();
+				setFormStatus("Zuweisung entfernt. Anzeigeeinstellungen bleiben erhalten.", "success");
+			} catch (error) {
+				setFormStatus(error.message || String(error), "error");
+			}
 		}
 
 		function findNodeForDisplayState(displayState) {

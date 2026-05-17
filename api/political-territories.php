@@ -2110,15 +2110,20 @@ function avesmapsPoliticalAssignGeometryToTerritory(PDO $pdo, array $payload): a
 }
 
 function avesmapsPoliticalUnassignGeometry(PDO $pdo, array $payload): array {
-    $geometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? ''));
+    $geometry = avesmapsPoliticalFetchGeometryByPublicId(
+        $pdo,
+        avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? '')
+    );
 
     $statement = $pdo->prepare(
         'UPDATE political_territory_geometry
-        SET territory_id = NULL
+        SET territory_id = NULL,
+            source = :source
         WHERE id = :id'
     );
     $statement->execute([
         'id' => (int) $geometry['id'],
+        'source' => 'editor-display',
     ]);
 
     $updatedGeometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, (string) $geometry['public_id']);
