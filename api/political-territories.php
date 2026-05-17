@@ -530,16 +530,10 @@ function avesmapsPoliticalBuildRawEditorLayerFeatures(array $rows, int $yearBf, 
             $feature['properties']['fill'] = (string) ($displayTerritory['color'] ?? $feature['properties']['fill'] ?? '#888888');
             $feature['properties']['stroke'] = (string) ($displayTerritory['color'] ?? $feature['properties']['stroke'] ?? '#888888');
             $feature['properties']['fillOpacity'] = (float) ($displayTerritory['opacity'] ?? $feature['properties']['fillOpacity'] ?? 0.33);
-            $feature['properties']['label_name'] = trim((string) ($feature['properties']['label_name'] ?? '')) !== ''
-                ? $feature['properties']['label_name']
-                : $labelName;
-            $feature['properties']['label_display_name'] = trim((string) ($feature['properties']['label_display_name'] ?? '')) !== ''
-                ? $feature['properties']['label_display_name']
-                : trim((string) ($displayTerritory['name'] ?? $labelName));
+            $feature['properties']['label_name'] = $labelName;
+            $feature['properties']['label_display_name'] = trim((string) ($displayTerritory['name'] ?? $labelName));
             $feature['properties']['label_territory_public_id'] = (string) ($displayTerritory['territory_public_id'] ?? '');
-            $feature['properties']['label_coat_of_arms_url'] = trim((string) ($feature['properties']['label_coat_of_arms_url'] ?? '')) !== ''
-                ? $feature['properties']['label_coat_of_arms_url']
-                : (string) ($displayTerritory['coat_of_arms_url'] ?? '');
+            $feature['properties']['label_coat_of_arms_url'] = (string) ($displayTerritory['coat_of_arms_url'] ?? '');
         }
 
         $featureIndex = count($features);
@@ -862,9 +856,7 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         'short_name' => trim((string) ($row['short_name'] ?? '')),
         'label_name' => $visibleName,
         'label_display_name' => $visibleName,
-        'label_coat_of_arms_url' => $visibleCoatOfArmsUrl,
-        'source_name' => $territoryName,
-        'custom_display_name' => $customName,
+        'label_coat_of_arms_url' => $visibleCoatOfArmsUrl, 
         'feature_type' => 'political_territory',
         'feature_subtype' => $resolvedType,
         'territory_type' => trim((string) ($row['type'] ?? '')),
