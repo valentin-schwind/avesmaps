@@ -155,7 +155,7 @@ Invoke-RestMethod `
     -Body '{"action":"dry_run_geojson"}'
 ```
 
-Schema installieren und `map/Aventurien_routes.geojson` importieren:
+Schema installieren und die Kartendaten importieren:
 
 ```powershell
 Invoke-RestMethod `
