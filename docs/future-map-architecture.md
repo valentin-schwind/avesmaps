@@ -8,7 +8,6 @@ Vektorkarte mit neuer hochaufgeloester Rasterkarte.
 - Die bestehende Anwendung ist eine statische Leaflet-1.9.4-App mit
   `L.CRS.Simple`, Kartenbounds `0..1024`, Zoomstufen `0..5` und alter
   Tile-Pyramide unter `tiles/`.
-- Die fachliche Datenquelle ist aktuell `map/Aventurien_routes.svg`.
 - `map/Aventurien_routes.geojson` enthaelt aktuell 6.403 Features:
   2.954 Punkte, 3.374 Linien und 75 Regionen.
 - Die neue stilisierte Karte ist `32768 x 32768` Pixel gross. Das passt exakt

@@ -33,8 +33,7 @@ Avesmaps ist eine interaktive Webkarte fuer Aventurien. Die Anwendung zeigt Orte
 ## Daten und Hosting
 
 - Die Kartendaten liegen lokal im Projekt und werden nicht ueber externe Dienste geladen.
-- Die Datei `map/Aventurien_routes.geojson` wird von der Anwendung direkt verwendet.
-- Die Datei `map/svg_to_geojson.py` konvertiert `map/Aventurien_routes.svg` in `map/Aventurien_routes.geojson`.
+- Die Kartendaten werden intern ueber die Karten- und API-Workflows verarbeitet.
 - Es gibt kein Backend, keine Datenbank und keine externe API-Abhaengigkeit.
 
 ## Rechtliches

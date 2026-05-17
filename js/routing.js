@@ -535,18 +535,6 @@ const prepareLocationData = (data) => {
 	map.on("zoomend", syncLocationMarkerVisibility);
 };
 
-function loadWikiLocationLinks() {
-	return $.getJSON("map/wiki_location_links.json")
-		.then((data) => {
-			wikiLocationLinks = data?.links || {};
-			return wikiLocationLinks;
-		}, (err) => {
-			console.warn("Wiki-Aventurica-Linktabelle konnte nicht geladen werden:", err);
-			wikiLocationLinks = {};
-			return wikiLocationLinks;
-		});
-}
-
 function loadRouteDataFromApi() {
 	if (!MAP_FEATURES_API_URL) {
 		return Promise.reject(new Error("Keine Map-Features-API fuer diese Umgebung konfiguriert."));
@@ -579,17 +567,6 @@ function loadRouteDataFromApi() {
 		});
 }
 
-function loadRouteDataFromFile() {
-	return $.getJSON(MAP_FEATURES_FILE_URL).then((data) => {
-		data.avesmapsSource = {
-			label: "GeoJSON",
-			revision: null,
-			featureCount: Array.isArray(data.features) ? data.features.length : 0,
-		};
-		return data;
-	});
-}
-
 function updateMapDataStatus(data) {
 	const source = data?.avesmapsSource || {};
 	mapDataSourceStatus = {
@@ -605,13 +582,7 @@ function updateMapDataStatus(data) {
 }
 
 function loadRouteData() {
-	return loadRouteDataFromApi().catch((error) => {
-		if (MAP_FEATURES_API_URL) {
-			console.warn("SQL-Vektorkarte konnte nicht geladen werden, nutze GeoJSON-Datei:", error);
-		}
-
-		return loadRouteDataFromFile();
-	});
+	return loadRouteDataFromApi();
 }
 
 async function pollLiveMapUpdates() {
@@ -658,10 +629,10 @@ function startLiveMapUpdates() {
 	}, 15000);
 }
 
-// Laden und Verarbeiten der GeoJSON-Daten. Auf STRATO kommt die Vektorkarte aus SQL, sonst aus der Datei.
+// Laden und Verarbeiten der GeoJSON-Daten aus SQL.
 const routeDataRequest = loadRouteData();
 
-$.when(routeDataRequest, loadWikiLocationLinks())
+routeDataRequest
 	.done((data) => {
 		updateMapDataStatus(data);
 		prepareLocationData(data);

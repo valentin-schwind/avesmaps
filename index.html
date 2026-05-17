@@ -861,7 +861,6 @@
 	<script>
 		// Globale Variablen 
 		let locationData = [],
-			wikiLocationLinks = {},
 			pathData = [],
 			powerlineData = [],
 			labelData = [],
@@ -1079,7 +1078,7 @@
 				tileSize: TILE_SIZE,
 				maxNativeZoom: tileStyle.maxNativeZoom ?? 5,
 				noWrap: true,
-				errorTileUrl: "map/loading.jpg",
+				errorTileUrl: "tiles/loading.jpg",
 				bounds: MAP_BOUNDS,
 				continuousWorld: false,
 			});
