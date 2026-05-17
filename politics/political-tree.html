@@ -2421,8 +2421,34 @@
 				.map(node => normalizeText(node.wikiKey || node.key || ""))
 				.filter(Boolean);
 
-			const display = value.display || {};
-			const validity = value.validity || {};
+			const displayNameInput = document.getElementById("displayNameInput");
+			const alternateCoatInput = document.getElementById("alternateCoatInput");
+			const colorInput = document.getElementById("colorInput");
+			const startYearInput = document.getElementById("startYearInput");
+			const endYearInput = document.getElementById("endYearInput");
+
+			const display = {
+				...(value.display || {}),
+				name: normalizeText(displayNameInput?.value || value.display?.name || value.display?.displayName || params.get("name") || ""),
+				displayName: normalizeText(displayNameInput?.value || value.display?.displayName || value.display?.name || params.get("name") || ""),
+				coatOfArmsUrl: normalizeText(alternateCoatInput?.value || value.display?.coatOfArmsUrl || ""),
+				zoomMin: parseOptionalNumber(els.zoomFromInput?.value, value.display?.zoomMin ?? parseOptionalNumber(params.get("min_zoom"))),
+				zoomMax: parseOptionalNumber(els.zoomToInput?.value, value.display?.zoomMax ?? parseOptionalNumber(params.get("max_zoom"))),
+				color: normalizeText(colorInput?.value || value.display?.color || params.get("color") || "#888888"),
+				opacity: parseOptionalNumber(
+					transparencyInput?.value,
+					Math.round((value.display?.opacity ?? parseOptionalNumber(params.get("opacity"), 0.33)) * 100)
+				) / 100
+			};
+
+			const validity = {
+				...(value.validity || {}),
+				startYear: parseOptionalNumber(startYearInput?.value, value.validity?.startYear ?? parseOptionalNumber(params.get("valid_from_bf"))),
+				endYear: existsUntilTodayInput?.checked
+					? null
+					: parseOptionalNumber(endYearInput?.value, value.validity?.endYear ?? parseOptionalNumber(params.get("valid_to_bf"))),
+				existsUntilToday: Boolean(existsUntilTodayInput?.checked)
+			};
 
 			const response = await fetch(moduleOptions.saveUrl || WRITE_API_URL, {
 				method: "PATCH",
@@ -2436,17 +2462,18 @@
 					geometry_public_id: geometryPublicId,
 					display_only: wikiPublicIds.length < 1,
 					display: {
-						name: display.name || display.displayName || normalizeText(params.get("name") || ""),
+						name: display.name || display.displayName || "",
+						displayName: display.displayName || display.name || "",
 						coatOfArmsUrl: display.coatOfArmsUrl || "",
-						zoomMin: display.zoomMin ?? parseOptionalNumber(params.get("min_zoom")),
-						zoomMax: display.zoomMax ?? parseOptionalNumber(params.get("max_zoom")),
-						color: display.color || normalizeText(params.get("color") || "#888888"),
-						opacity: typeof display.opacity === "number" ? display.opacity : parseOptionalNumber(params.get("opacity"), 0.33),
+						zoomMin: display.zoomMin,
+						zoomMax: display.zoomMax,
+						color: display.color || "#888888",
+						opacity: display.opacity,
 					},
 					validity: {
-						startYear: validity.startYear ?? parseOptionalNumber(params.get("valid_from_bf")),
-						endYear: validity.endYear ?? parseOptionalNumber(params.get("valid_to_bf")),
-						existsUntilToday: Boolean(validity.existsUntilToday),
+						startYear: validity.startYear,
+						endYear: validity.endYear,
+						existsUntilToday: validity.existsUntilToday,
 					},
 					wiki_public_ids: wikiPublicIds,
 					wiki_nodes: assignedPath.map((node, index) => {
