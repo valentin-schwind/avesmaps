@@ -119,12 +119,12 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
         $pdo,
         avesmapsPoliticalReadPublicId($query['geometry_public_id'] ?? $query['public_id'] ?? '')
     );
-    
+
+    $territoryId = (int) ($geometry['territory_id'] ?? 0);
     $geometryStyle = avesmapsPoliticalDecodeJson($geometry['style_json'] ?? null);
     $geometryDisplayName = trim((string) ($geometryStyle['displayName'] ?? $geometryStyle['name'] ?? ''));
-    $isDisplayOnlyGeometry = trim((string) ($geometry['source'] ?? '')) === 'editor-display';
 
-    if ($isDisplayOnlyGeometry || $geometryDisplayName !== '') {
+    if ($territoryId < 1) {
         $validTo = avesmapsPoliticalNullableInt($geometry['valid_to_bf'] ?? null);
         $existsUntilToday = $validTo === null || $validTo >= 9999;
 
@@ -155,15 +155,6 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
         ];
     }
 
-    $territoryId = (int) ($geometry['territory_id'] ?? 0);
-    if ($territoryId < 1) {
-        return [
-            'ok' => true,
-            'assignment' => null,
-            'geometry' => avesmapsPoliticalGeometryRowToPublic($geometry),
-        ];
-    }
-
     $chain = [];
     $visited = [];
     $current = avesmapsPoliticalFetchTerritoryById($pdo, $territoryId);
@@ -185,6 +176,7 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
 
     foreach ($chain as $index => $territory) {
         $wikiKey = '';
+
         if (!empty($territory['wiki_id'])) {
             try {
                 $wiki = avesmapsPoliticalFetchWikiById($pdo, (int) $territory['wiki_id']);
@@ -194,8 +186,20 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
             }
         }
 
-        $label = (string) ($territory['name'] ?? '');
+        $label = trim((string) ($territory['name'] ?? ''));
         $nodeKey = $wikiKey !== '' ? $wikiKey : avesmapsPoliticalSlug($label);
+
+        $pathNames = array_map(
+            static fn(array $item): string => (string) ($item['name'] ?? ''),
+            array_slice($chain, 0, $index + 1)
+        );
+
+        $pathKeys = array_map(
+            static function (array $item): string {
+                return avesmapsPoliticalSlug((string) ($item['name'] ?? ''));
+            },
+            array_slice($chain, 0, $index + 1)
+        );
 
         $assignedPath[] = [
             'id' => $nodeKey,
@@ -205,11 +209,8 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
             'isSynthetic' => empty($territory['wiki_id']),
             'wikiKey' => $wikiKey,
             'rowId' => isset($territory['wiki_id']) ? (int) $territory['wiki_id'] : null,
-            'path' => array_map(static fn(array $item): string => (string) ($item['name'] ?? ''), array_slice($chain, 0, $index + 1)),
-            'pathKeys' => array_map(
-                static fn(array $item): string => avesmapsPoliticalSlug((string) ($item['name'] ?? '')),
-                array_slice($chain, 0, $index + 1)
-            ),
+            'path' => $pathNames,
+            'pathKeys' => $pathKeys,
         ];
 
         $validTo = avesmapsPoliticalNullableInt($territory['valid_to_bf'] ?? null);
@@ -217,7 +218,7 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
 
         $displays[] = [
             'nodeId' => $nodeKey,
-            'nodeKey' => avesmapsPoliticalSlug($label),
+            'nodeKey' => $nodeKey,
             'wikiKey' => $wikiKey,
             'rowId' => isset($territory['wiki_id']) ? (int) $territory['wiki_id'] : null,
             'name' => $label,
@@ -231,11 +232,8 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
             'endYear' => $existsUntilToday ? null : $validTo,
             'existsUntilToday' => $existsUntilToday,
             'depth' => $index,
-            'path' => array_map(static fn(array $item): string => (string) ($item['name'] ?? ''), array_slice($chain, 0, $index + 1)),
-            'pathKeys' => array_map(
-                static fn(array $item): string => avesmapsPoliticalSlug((string) ($item['name'] ?? '')),
-                array_slice($chain, 0, $index + 1)
-            ),
+            'path' => $pathNames,
+            'pathKeys' => $pathKeys,
             'isSynthetic' => empty($territory['wiki_id']),
             'kind' => (string) ($territory['type'] ?? 'Herrschaftsgebiet'),
         ];
@@ -243,6 +241,11 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
 
     $assignedTerritory = $assignedPath[count($assignedPath) - 1] ?? null;
     $activeDisplay = $displays[count($displays) - 1] ?? null;
+
+    if ($activeDisplay !== null && $geometryDisplayName !== '') {
+        $activeDisplay['name'] = $geometryDisplayName;
+        $activeDisplay['displayName'] = $geometryDisplayName;
+    }
 
     return [
         'ok' => true,
@@ -254,6 +257,7 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
             'editedPath' => $assignedPath,
             'display' => $activeDisplay === null ? null : [
                 'name' => $activeDisplay['displayName'],
+                'displayName' => $activeDisplay['displayName'],
                 'coatOfArmsUrl' => $activeDisplay['coatOfArmsUrl'],
                 'zoomMin' => $activeDisplay['zoomMin'],
                 'zoomMax' => $activeDisplay['zoomMax'],
