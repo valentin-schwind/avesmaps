@@ -4096,12 +4096,12 @@ function createRegionLabelMarkup(regionEntry, fallbackName) {
 
 function bindRegionCompactTooltip(polygon, regionEntry) {
 	polygon.on("click", (event) => {
-		if (IS_EDIT_MODE) {
-			return;
+		L.DomEvent.stop(event);
+
+		if (!IS_EDIT_MODE) {
+			openRegionCompactTooltip(regionEntry);
 		}
 
-		L.DomEvent.stop(event);
-		openRegionCompactTooltip(regionEntry);
 		showPoliticalTerritoryTimelineSelection(regionEntry);
 	});
 }
