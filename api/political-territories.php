@@ -209,6 +209,9 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
             'isSynthetic' => empty($territory['wiki_id']),
             'wikiKey' => $wikiKey,
             'rowId' => isset($territory['wiki_id']) ? (int) $territory['wiki_id'] : null,
+            'territoryPublicId' => (string) ($territory['public_id'] ?? ''),
+            'territoryId' => (int) ($territory['id'] ?? 0),
+            'slug' => (string) ($territory['slug'] ?? ''),
             'path' => $pathNames,
             'pathKeys' => $pathKeys,
         ];
@@ -235,6 +238,9 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
             'nodeKey' => $nodeKey,
             'wikiKey' => $wikiKey,
             'rowId' => isset($territory['wiki_id']) ? (int) $territory['wiki_id'] : null,
+            'territoryPublicId' => (string) ($territory['public_id'] ?? ''),
+            'territoryId' => (int) ($territory['id'] ?? 0),
+            'slug' => (string) ($territory['slug'] ?? ''),
             'name' => $label,
             'displayName' => $displayName,
             'coatOfArmsUrl' => $storedCoatOfArmsUrl ?: (string) ($territory['coat_of_arms_url'] ?? ''),
@@ -2166,6 +2172,10 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
     );
 
     if (!empty($payload['display_only'])) {
+        if ((int) ($geometry['territory_id'] ?? 0) > 0) {
+            return avesmapsPoliticalSaveExistingGeometryAssignment($pdo, $payload, $user, $geometry);
+        }
+
         return avesmapsPoliticalSaveGeometryDisplayOnly($pdo, $payload, $user);
     }
 

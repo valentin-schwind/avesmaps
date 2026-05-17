@@ -2485,8 +2485,14 @@
 				|| value.assignedTerritory?.label
 				|| "";
 
+			let selectedFromTree = false;
+
 			if (selectedIdentifier) {
-				setSelectedTerritory(selectedIdentifier);
+				selectedFromTree = setSelectedTerritory(selectedIdentifier);
+			}
+
+			if (!selectedFromTree && Array.isArray(value.assignedPath) && value.assignedPath.length > 0) {
+				selectedFromTree = setFallbackAssignedPath(value.assignedPath);
 			}
 
 			const display = value.display || value;
@@ -2536,6 +2542,8 @@
 				displayState.nodeId,
 				displayState.nodeKey,
 				displayState.wikiKey,
+				displayState.territoryPublicId,
+				displayState.slug,
 				displayState.name,
 				displayState.displayName
 			].filter(Boolean);
@@ -2548,6 +2556,9 @@
 						node.id,
 						node.label,
 						node.row?.wiki_key,
+						node.row?.public_id,
+						node.row?.territory_id,
+						node.row?.slug,
 						node.row?.name,
 						node.row?.id
 					].filter(value => value !== null && typeof value !== "undefined");
@@ -2569,6 +2580,9 @@
 				nodeKey: makeKey(node.label),
 				wikiKey: node.row?.wiki_key || displayState.wikiKey || "",
 				rowId: node.row?.id || displayState.rowId || null,
+				territoryPublicId: node.row?.public_id || displayState.territoryPublicId || "",
+				territoryId: node.row?.territory_id || displayState.territoryId || null,
+				slug: node.row?.slug || displayState.slug || "",
 				name: node.label,
 				displayName: normalizeText(displayState.displayName || displayState.name || node.label),
 				coatOfArmsUrl: normalizeText(displayState.coatOfArmsUrl || displayState.alternateCoatOfArmsUrl || ""),
@@ -2604,6 +2618,66 @@
 			}
 
 			return false;
+		}
+		
+		function setFallbackAssignedPath(pathReferences) {
+			const nodes = [];
+			let parent = null;
+
+			for (const reference of pathReferences) {
+				const label = normalizeText(reference.label || reference.name || reference.key || reference.id || "");
+
+				if (!label) {
+					continue;
+				}
+
+				const node = createTreeNode(
+					reference.id || reference.key || reference.territoryPublicId || makeKey(label),
+					label,
+					reference.kind || "territory"
+				);
+
+				node.parent = parent;
+				node.row = {
+					id: reference.rowId || null,
+					territory_id: reference.territoryId || null,
+					public_id: reference.territoryPublicId || "",
+					slug: reference.slug || reference.nodeKey || reference.key || makeKey(label),
+					wiki_key: reference.wikiKey || "",
+					name: label,
+					type: reference.kind || "Herrschaftsgebiet",
+					coat_of_arms_url: reference.coatOfArmsUrl || "",
+					map_assigned: true,
+					map_geometry_count: 1
+				};
+
+				node.isExternalAssignment = true;
+
+				if (parent) {
+					parent.children = [node];
+				}
+
+				nodes.push(node);
+				nodeRegistry.set(node.id, node);
+
+				if (node.row.public_id) {
+					nodeRegistry.set(node.row.public_id, node);
+				}
+
+				parent = node;
+			}
+
+			if (nodes.length === 0) {
+				return false;
+			}
+
+			droppedNode = nodes[nodes.length - 1];
+			displayStateByNodeId = new Map();
+
+			renderDropZone();
+			selectNode(droppedNode);
+
+			return true;
 		}
 
 		function clearSelection() {
@@ -2716,10 +2790,14 @@
 			const displays = Array.isArray(value.displays) ? value.displays : [];
 
 			const wikiPublicIds = assignedPath
-				.map(node => normalizeText(node.wikiKey || node.id || node.key || node.label || ""))
+				.map(node => normalizeText(node.wikiKey || ""))
 				.filter(Boolean);
 
-			const hasAssignedTerritory = assignedPath.length > 0 && wikiPublicIds.length > 0;
+			const territoryPublicIds = assignedPath
+				.map(node => normalizeText(node.territoryPublicId || ""))
+				.filter(Boolean);
+
+			const hasAssignedTerritory = assignedPath.length > 0 && (wikiPublicIds.length > 0 || territoryPublicIds.length > 0);
 
 			const displayNameInput = document.getElementById("displayNameInput");
 			const alternateCoatInput = document.getElementById("alternateCoatInput");
@@ -2778,10 +2856,13 @@
 						existsUntilToday: validity.existsUntilToday,
 					},
 					wiki_public_ids: wikiPublicIds,
+					territory_public_ids: territoryPublicIds,
 					wiki_nodes: assignedPath.map((node, index) => {
 						const display = displays[index] || {};
 						return {
-							key: wikiPublicIds[index] || node.wikiKey || node.id || node.key || node.label || "",
+							key: wikiPublicIds[index] || node.wikiKey || node.territoryPublicId || node.id || node.key || node.label || "",
+							territoryPublicId: node.territoryPublicId || "",
+							territoryId: node.territoryId || null,
 							name: display.displayName || node.label || node.key || "",
 							type: node.kind || "Herrschaftsgebiet",
 							status: "",
@@ -2806,6 +2887,121 @@
 			}
 
 			return result;
+		}
+		
+		function avesmapsPoliticalSaveExistingGeometryAssignment(PDO $pdo, array $payload, array $user, array $geometry): array {
+			$territoryId = (int) ($geometry['territory_id'] ?? 0);
+			if ($territoryId < 1) {
+				return avesmapsPoliticalSaveGeometryDisplayOnly($pdo, $payload, $user);
+			}
+
+			$selectedTerritory = avesmapsPoliticalFetchTerritoryById($pdo, $territoryId);
+			$chainRows = [];
+			$visited = [];
+			$current = $selectedTerritory;
+
+			while ($current && !isset($visited[(int) $current['id']])) {
+				$visited[(int) $current['id']] = true;
+				array_unshift($chainRows, $current);
+
+				$parentId = (int) ($current['parent_id'] ?? 0);
+				if ($parentId < 1) {
+					break;
+				}
+
+				$current = avesmapsPoliticalFetchTerritoryById($pdo, $parentId);
+			}
+
+			$assignment = is_array($payload['assignment'] ?? null) ? $payload['assignment'] : [];
+			$displays = is_array($assignment['displays'] ?? null) ? array_values($assignment['displays']) : [];
+			$assignmentDisplays = [];
+
+			foreach ($chainRows as $index => $territory) {
+				$display = is_array($displays[$index] ?? null) ? $displays[$index] : [];
+
+				$assignmentDisplays[] = avesmapsPoliticalBuildStoredAssignmentDisplay($territory, $display, $index);
+
+				$color = avesmapsPoliticalReadHexColor($display['color'] ?? $territory['color'] ?? '#888888');
+				$opacity = avesmapsPoliticalReadOpacity($display['opacity'] ?? $territory['opacity'] ?? 0.33);
+				$coatOfArmsUrl = avesmapsPoliticalReadOptionalUrl(
+					$display['coatOfArmsUrl'] ?? $territory['coat_of_arms_url'] ?? '',
+					'Der Wappen-Link'
+				);
+
+				if ($coatOfArmsUrl !== '' && !avesmapsPoliticalIsLikelyCoatOfArmsUrl($coatOfArmsUrl)) {
+					$coatOfArmsUrl = '';
+				}
+
+				$minZoom = avesmapsPoliticalReadOptionalZoom($display['zoomMin'] ?? $territory['min_zoom'] ?? null);
+				$maxZoom = avesmapsPoliticalReadOptionalZoom($display['zoomMax'] ?? $territory['max_zoom'] ?? null);
+				avesmapsPoliticalAssertZoomRange($minZoom, $maxZoom);
+
+				$statement = $pdo->prepare(
+					'UPDATE political_territory
+					SET color = :color,
+						opacity = :opacity,
+						coat_of_arms_url = :coat_of_arms_url,
+						min_zoom = :min_zoom,
+						max_zoom = :max_zoom,
+						valid_from_bf = :valid_from_bf,
+						valid_to_bf = :valid_to_bf
+					WHERE id = :id'
+				);
+
+				$statement->execute([
+					'id' => (int) $territory['id'],
+					'color' => $color,
+					'opacity' => $opacity,
+					'coat_of_arms_url' => avesmapsPoliticalNullableString($coatOfArmsUrl),
+					'min_zoom' => $minZoom,
+					'max_zoom' => $maxZoom,
+					'valid_from_bf' => avesmapsPoliticalReadOptionalInt($display['startYear'] ?? $territory['valid_from_bf'] ?? null),
+					'valid_to_bf' => !empty($display['existsUntilToday'])
+						? 9999
+						: avesmapsPoliticalReadOptionalInt($display['endYear'] ?? $territory['valid_to_bf'] ?? null),
+				]);
+			}
+
+			$selectedDisplay = is_array($displays[count($chainRows) - 1] ?? null) ? $displays[count($chainRows) - 1] : [];
+
+			$style = avesmapsPoliticalDecodeJson($geometry['style_json'] ?? null);
+			$style['fill'] = (string) ($selectedDisplay['color'] ?? $selectedTerritory['color'] ?? '#888888');
+			$style['stroke'] = (string) ($selectedDisplay['color'] ?? $selectedTerritory['color'] ?? '#888888');
+			$style['fillOpacity'] = avesmapsPoliticalReadOpacity($selectedDisplay['opacity'] ?? $selectedTerritory['opacity'] ?? 0.33);
+			$style['assignmentDisplays'] = $assignmentDisplays;
+
+			unset($style['displayName'], $style['name']);
+
+			$statement = $pdo->prepare(
+				'UPDATE political_territory_geometry
+				SET territory_id = :territory_id,
+					valid_from_bf = :valid_from_bf,
+					valid_to_bf = :valid_to_bf,
+					min_zoom = :min_zoom,
+					max_zoom = :max_zoom,
+					style_json = :style_json,
+					source = :source,
+					updated_by = :updated_by
+				WHERE id = :id'
+			);
+
+			$statement->execute([
+				'id' => (int) $geometry['id'],
+				'territory_id' => (int) $selectedTerritory['id'],
+				'valid_from_bf' => avesmapsPoliticalReadOptionalInt($selectedDisplay['startYear'] ?? $geometry['valid_from_bf'] ?? null),
+				'valid_to_bf' => avesmapsPoliticalReadEditorValidTo($selectedDisplay, $geometry['valid_to_bf'] ?? null),
+				'min_zoom' => null,
+				'max_zoom' => null,
+				'style_json' => avesmapsPoliticalEncodeJsonOrNull($style),
+				'source' => 'editor-assignment',
+				'updated_by' => (int) ($user['id'] ?? 0) ?: null,
+			]);
+
+			$response = avesmapsPoliticalResponseForGeometry($pdo, (string) $geometry['public_id']);
+			$response['assignment_saved'] = true;
+			$response['existing_assignment_saved'] = true;
+
+			return $response;
 		}
 
 		function handleCancel() {
@@ -2838,14 +3034,17 @@
 
 			return {
 				id: node.id,
-				key: node.row?.wiki_key || node.id || makeKey(node.label),
+				key: node.row?.wiki_key || node.row?.public_id || node.id || makeKey(node.label),
 				label: node.label,
 				kind: node.kind,
 				isSynthetic: isSyntheticNode(node),
 				wikiKey: node.row?.wiki_key || "",
 				rowId: node.row?.id || null,
+				territoryPublicId: node.row?.public_id || "",
+				territoryId: node.row?.territory_id || null,
+				slug: node.row?.slug || "",
 				path: getNodePath(node).map(pathNode => pathNode.label),
-				pathKeys: getNodePath(node).map(pathNode => node.row?.wiki_key || node.id || makeKey(pathNode.label))
+				pathKeys: getNodePath(node).map(pathNode => pathNode.row?.wiki_key || pathNode.row?.public_id || pathNode.id || makeKey(pathNode.label))
 			};
 		}
 
