@@ -828,13 +828,17 @@ function avesmapsPoliticalBuildAggregateLayerRow(array $displayTerritory, array 
 function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom): array {
     $style = avesmapsPoliticalDecodeJson($row['style_json'] ?? null);
     $territoryPublicId = trim((string) ($row['territory_public_id'] ?? ''));
+
     $styleDisplayName = trim((string) ($style['displayName'] ?? $style['name'] ?? ''));
     $rowDisplayName = trim((string) ($row['name'] ?? ''));
     $displayName = $styleDisplayName !== '' ? $styleDisplayName : $rowDisplayName;
+
     $shortName = trim((string) ($row['short_name'] ?? ''));
     $fallbackName = $territoryPublicId !== '' ? 'Herrschaftsgebiet' : 'Freie Geometrie';
     $resolvedDisplayName = $displayName !== '' ? $displayName : $fallbackName;
-    $resolvedName = $styleDisplayName !== '' ? $styleDisplayName : ($shortName !== '' ? $shortName : $resolvedDisplayName);
+    $resolvedName = $styleDisplayName !== ''
+        ? $styleDisplayName
+        : ($shortName !== '' ? $shortName : $resolvedDisplayName);
     $resolvedType = trim((string) ($row['type'] ?? '')) ?: 'Herrschaftsgebiet';
     $properties = [
         'type' => 'region',
