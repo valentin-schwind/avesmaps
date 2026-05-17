@@ -3883,7 +3883,6 @@ function setPoliticalTimelineYear(value) {
 	syncPoliticalTimelineControls();
 	schedulePoliticalTerritoryLayerReload();
 }
-
 function showPoliticalTerritoryTimelineSelection(regionEntry) {
 	const panelElement = document.getElementById("political-territory-range");
 	const nameElement = document.getElementById("political-territory-range-name");
@@ -3898,31 +3897,41 @@ function showPoliticalTerritoryTimelineSelection(regionEntry) {
 	const endYear = normalizePoliticalTimelineYearValue(regionEntry.validToBf);
 	const hasStart = startYear !== null;
 	const hasEnd = endYear !== null && endYear < 9999;
+
+	const minYear = 0;
+	const maxYear = 1049;
+	const range = maxYear - minYear;
+
 	const effectiveStart = hasStart ? Math.max(startYear, minYear) : minYear;
 	const effectiveEnd = hasEnd ? Math.min(endYear, maxYear) : maxYear;
 
 	nameElement.textContent = normalizeRegionParentheticalSpacing(regionEntry.displayName || regionEntry.name || "Herrschaftsgebiet");
 	yearsElement.textContent = formatPoliticalTerritoryRangeLabel(startYear, endYear, regionEntry.validLabel);
 
-	const minYear = 0,;
-	const maxYear = 1049;
-	const range = maxYear - minYear;
 	const leftPercent = Math.max(0, Math.min(100, ((effectiveStart - minYear) / range) * 100));
 	const rightPercent = Math.max(0, Math.min(100, ((effectiveEnd - minYear) / range) * 100));
-	const widthPercent = Math.max(1.5, rightPercent - leftPercent);
+	const widthPercent = rightPercent > leftPercent
+		? Math.max(1.5, rightPercent - leftPercent)
+		: 0;
 
 	barElement.style.left = `${leftPercent}%`;
 	barElement.style.width = `${widthPercent}%`;
 	barElement.style.backgroundColor = normalizeRegionHexColor(regionEntry.color || "#888888");
 
+	barElement.hidden = false;
 	panelElement.hidden = false;
 }
 
 function clearPoliticalTerritoryTimelineSelection() {
 	const panelElement = document.getElementById("political-territory-range");
+	const barElement = document.getElementById("political-territory-range-bar");
 
 	if (panelElement) {
 		panelElement.hidden = true;
+	}
+
+	if (barElement) {
+		barElement.hidden = true;
 	}
 }
 

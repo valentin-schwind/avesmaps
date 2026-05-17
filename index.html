@@ -185,7 +185,10 @@
 		<div class="political-timeline__controls">
 			<label class="political-timeline__field">
 				<span>Jahr</span>
-				<input id="political-timeline-range" type="range" min="0" max="1049" step="1" value="1049" />
+				<span class="political-timeline__range-wrap">
+					<span id="political-territory-range-bar" class="political-territory-range__bar" hidden></span>
+					<input id="political-timeline-range" type="range" min="0" max="1049" step="1" value="1049" />
+				</span>
 			</label>
 			<input id="political-timeline-year" class="political-timeline__year" type="number" min="0" max="1049" step="1" value="1049" aria-label="Jahr" />
 			<span id="political-timeline-label" class="political-timeline__label">1049 BF</span>
@@ -195,10 +198,7 @@
 			<div class="political-territory-range__header">
 				<span id="political-territory-range-name" class="political-territory-range__name"></span>
 				<span id="political-territory-range-years" class="political-territory-range__years"></span>
-			</div>
-			<div class="political-territory-range__track" aria-hidden="true">
-				<span id="political-territory-range-bar" class="political-territory-range__bar"></span>
-			</div>
+			</div> 
 		</div>
 	</div>
 	<div id="location-report-overlay" hidden>
