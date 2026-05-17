@@ -5416,7 +5416,6 @@ function startRegionGeometryEdit(regionEntry, editLayer = null) {
 		handles: [],
 		edgeHover: null,
 		edgeHighlightLayer: null,
-		edgeSubdivisionCount: 2,
 	};
 
 	refreshRegionEditHandles();
@@ -5432,12 +5431,9 @@ function enableRegionEditEdgeControls() {
 
 	map.on("mousemove", handleRegionEditMouseMove);
 	map.on("mouseout", handleRegionEditMouseOut);
+	map.on("click", handleRegionEditClick);
 
-	const container = map.getContainer?.();
-	if (container) {
-		container.addEventListener("wheel", handleRegionEditWheel, { passive: false });
-		document.addEventListener("keyup", handleRegionEditKeyUp, true);
-	}
+	document.addEventListener("keyup", handleRegionEditKeyUp, true);
 }
 
 function disableRegionEditEdgeControls() {
@@ -5449,12 +5445,9 @@ function disableRegionEditEdgeControls() {
 
 	map.off("mousemove", handleRegionEditMouseMove);
 	map.off("mouseout", handleRegionEditMouseOut);
+	map.off("click", handleRegionEditClick);
 
-	const container = map.getContainer?.();
-	if (container) {
-		container.removeEventListener("wheel", handleRegionEditWheel, { passive: false });
-		document.removeEventListener("keyup", handleRegionEditKeyUp, true);
-	}
+	document.removeEventListener("keyup", handleRegionEditKeyUp, true);
 }
 
 function handleRegionEditMouseMove(event) {
@@ -5474,31 +5467,17 @@ function handleRegionEditKeyUp(event) {
 	if (event.key === "Control") {
 		clearRegionEditEdgeHover();
 	}
-}
+} 
 
-function handleRegionEditWheel(event) {
-	if (!activeRegionGeometryEdit || !event.ctrlKey || !activeRegionGeometryEdit.edgeHover) {
+function handleRegionEditClick(event) {
+	if (!activeRegionGeometryEdit || !event?.originalEvent?.ctrlKey || !activeRegionGeometryEdit.edgeHover) {
 		return;
 	}
 
-	event.preventDefault();
-	event.stopPropagation();
+	L.DomEvent.stop(event.originalEvent);
+	L.DomEvent.preventDefault(event.originalEvent);
 
-	if (map.scrollWheelZoom?.enabled?.()) {
-		map.scrollWheelZoom.disable();
-		window.setTimeout(() => {
-			if (!event.ctrlKey) {
-				map.scrollWheelZoom.enable();
-			}
-		}, 0);
-	}
-
-	const direction = event.deltaY < 0 ? 1 : -1;
-	const currentCount = Number(activeRegionGeometryEdit.edgeSubdivisionCount || 2);
-	const nextCount = Math.max(2, Math.min(16, currentCount + direction));
-
-	activeRegionGeometryEdit.edgeSubdivisionCount = nextCount;
-	subdivideRegionEditHoveredEdge(nextCount);
+	subdivideRegionEditHoveredEdge(4);
 }
 
 function updateRegionEditEdgeHoverFromLatLng(latLng) {
@@ -5528,10 +5507,6 @@ function clearRegionEditEdgeHover() {
 	if (activeRegionGeometryEdit.edgeHighlightLayer) {
 		map.removeLayer(activeRegionGeometryEdit.edgeHighlightLayer);
 		activeRegionGeometryEdit.edgeHighlightLayer = null;
-	}
-
-	if (map.scrollWheelZoom && !map.scrollWheelZoom.enabled()) {
-		map.scrollWheelZoom.enable();
 	}
 }
 
