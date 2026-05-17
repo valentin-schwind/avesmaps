@@ -2418,8 +2418,10 @@
 			const displays = Array.isArray(value.displays) ? value.displays : [];
 
 			const wikiPublicIds = assignedPath
-				.map(node => normalizeText(node.wikiKey || node.key || ""))
+				.map(node => normalizeText(node.wikiKey || node.id || node.key || node.label || ""))
 				.filter(Boolean);
+
+			const hasAssignedTerritory = assignedPath.length > 0 && wikiPublicIds.length > 0;
 
 			const displayNameInput = document.getElementById("displayNameInput");
 			const alternateCoatInput = document.getElementById("alternateCoatInput");
@@ -2460,7 +2462,7 @@
 				body: JSON.stringify({
 					action: "save_geometry_assignment",
 					geometry_public_id: geometryPublicId,
-					display_only: wikiPublicIds.length < 1,
+					display_only: !hasAssignedTerritory,
 					display: {
 						name: display.name || display.displayName || "",
 						displayName: display.displayName || display.name || "",
@@ -2479,6 +2481,7 @@
 					wiki_nodes: assignedPath.map((node, index) => {
 						const display = displays[index] || {};
 						return {
+							key: wikiPublicIds[index] || node.wikiKey || node.id || node.key || node.label || "",
 							name: display.displayName || node.label || node.key || "",
 							type: node.kind || "Herrschaftsgebiet",
 							status: "",
@@ -2535,14 +2538,14 @@
 
 			return {
 				id: node.id,
-				key: makeKey(node.label),
+				key: node.row?.wiki_key || node.id || makeKey(node.label),
 				label: node.label,
 				kind: node.kind,
 				isSynthetic: isSyntheticNode(node),
 				wikiKey: node.row?.wiki_key || "",
 				rowId: node.row?.id || null,
 				path: getNodePath(node).map(pathNode => pathNode.label),
-				pathKeys: getNodePath(node).map(pathNode => makeKey(pathNode.label))
+				pathKeys: getNodePath(node).map(pathNode => node.row?.wiki_key || node.id || makeKey(pathNode.label))
 			};
 		}
 

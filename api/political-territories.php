@@ -2024,7 +2024,15 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
     $style['stroke'] = (string) ($selectedDisplay['color'] ?? $selectedTerritory['color'] ?? '#888888');
     $style['fillOpacity'] = avesmapsPoliticalReadOpacity($selectedDisplay['opacity'] ?? $selectedTerritory['opacity'] ?? 0.33);
 
+    $selectedTerritoryName = trim((string) ($selectedTerritory['name'] ?? ''));
     $customDisplayName = trim((string) ($selectedDisplay['displayName'] ?? $selectedDisplay['name'] ?? ''));
+
+    if ($customDisplayName !== '' && $customDisplayName !== $selectedTerritoryName) {
+        $style['displayName'] = $customDisplayName;
+        $style['name'] = $customDisplayName;
+    } else {
+        unset($style['displayName'], $style['name']);
+    }
 
     if ($customDisplayName !== '') {
         $style['displayName'] = $customDisplayName;
