@@ -1917,8 +1917,6 @@ function avesmapsPoliticalSaveGeometryDisplayOnly(PDO $pdo, array $payload, arra
     $maxZoom = avesmapsPoliticalReadOptionalZoom($display['zoomMax'] ?? $geometry['max_zoom'] ?? null);
     avesmapsPoliticalAssertZoomRange($minZoom, $maxZoom);
 
-    $existsUntilToday = !empty($validity['existsUntilToday']);
-
     $statement = $pdo->prepare(
         'UPDATE political_territory_geometry
         SET valid_from_bf = :valid_from_bf,
@@ -1934,9 +1932,7 @@ function avesmapsPoliticalSaveGeometryDisplayOnly(PDO $pdo, array $payload, arra
     $statement->execute([
         'id' => (int) $geometry['id'],
         'valid_from_bf' => avesmapsPoliticalReadOptionalInt($validity['startYear'] ?? $geometry['valid_from_bf'] ?? null),
-        'valid_to_bf' => $existsUntilToday
-            ? 9999
-            : avesmapsPoliticalReadOptionalInt($validity['endYear'] ?? $geometry['valid_to_bf'] ?? null),
+        'valid_to_bf' => avesmapsPoliticalReadEditorValidTo($validity, $geometry['valid_to_bf'] ?? null),
         'min_zoom' => $minZoom,
         'max_zoom' => $maxZoom,
         'style_json' => avesmapsPoliticalEncodeJsonOrNull($style),
@@ -2076,9 +2072,7 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
         'id' => (int) $geometry['id'],
         'territory_id' => (int) $selectedTerritory['id'],
         'valid_from_bf' => avesmapsPoliticalReadOptionalInt($selectedDisplay['startYear'] ?? $geometry['valid_from_bf'] ?? null),
-        'valid_to_bf' => !empty($selectedDisplay['existsUntilToday'])
-            ? 9999
-            : avesmapsPoliticalReadOptionalInt($selectedDisplay['endYear'] ?? $geometry['valid_to_bf'] ?? null),
+        'valid_to_bf' => avesmapsPoliticalReadEditorValidTo($selectedDisplay, $geometry['valid_to_bf'] ?? null),
         'min_zoom' => null,
         'max_zoom' => null, 
         'style_json' => avesmapsPoliticalEncodeJsonOrNull($style),
@@ -3976,6 +3970,22 @@ function avesmapsPoliticalReadOptionalInt(mixed $value): ?int {
     }
 
     return (int) $parsedValue;
+}
+
+function avesmapsPoliticalReadEditorValidTo(array $state, mixed $fallback = null): ?int {
+    if (!empty($state['existsUntilToday'])) {
+        return 9999;
+    }
+
+    if (array_key_exists('endYear', $state)) {
+        if ($state['endYear'] === null || $state['endYear'] === '') {
+            return null;
+        }
+
+        return avesmapsPoliticalReadOptionalInt($state['endYear']);
+    }
+
+    return avesmapsPoliticalReadOptionalInt($fallback);
 }
 
 function avesmapsPoliticalReadOptionalZoom(mixed $value): ?int {

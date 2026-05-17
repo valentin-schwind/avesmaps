@@ -923,7 +923,7 @@
 										<input id="endYearInput" name="end_year" type="number" step="1">
 									</div>
 									<label class="manual-data-checkbox manual-data-field--wide">
-										<input id="existsUntilTodayInput" name="exists_until_today" type="checkbox">
+										<input id="existsUntilTodayInput" name="exists_until_today" type="checkbox" checked>
 										<span>existiert bis heute</span>
 									</label>
 								</div>
@@ -2443,13 +2443,14 @@
 				) / 100
 			};
 
+			const rawEndYear = normalizeText(endYearInput?.value || "");
+			const isOpenEnded = Boolean(existsUntilTodayInput?.checked) || rawEndYear === "";
+
 			const validity = {
 				...(value.validity || {}),
 				startYear: parseOptionalNumber(startYearInput?.value, value.validity?.startYear ?? parseOptionalNumber(params.get("valid_from_bf"))),
-				endYear: existsUntilTodayInput?.checked
-					? null
-					: parseOptionalNumber(endYearInput?.value, value.validity?.endYear ?? parseOptionalNumber(params.get("valid_to_bf"))),
-				existsUntilToday: Boolean(existsUntilTodayInput?.checked)
+				endYear: isOpenEnded ? null : parseOptionalNumber(rawEndYear),
+				existsUntilToday: isOpenEnded
 			};
 
 			const response = await fetch(moduleOptions.saveUrl || WRITE_API_URL, {
