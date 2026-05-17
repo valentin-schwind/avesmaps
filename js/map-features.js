@@ -5359,13 +5359,17 @@ function refreshRegionEditHandles() {
 			keyboard: false,
 			bubblingMouseEvents: false,
 		}).addTo(map);
+		
+		handle.on("dragstart", () => {
+			clearRegionEditEdgeHover();
+		});
 
 		handle.on("drag", (event) => {
 			const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry);
 			latLngs[index] = event.target.getLatLng();
 			setRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, latLngs);
 			updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
-			updateRegionEditEdgeHoverFromLatLng(event.target.getLatLng());
+			clearRegionEditEdgeHover();
 		});
 
 		handle.on("dragend", (event) => {
