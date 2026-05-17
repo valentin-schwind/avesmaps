@@ -3249,8 +3249,8 @@ body.edit-mode .map-label span {
 .political-territory-range {
 	display: grid;
 	gap: 5px;
-	padding-top: 7px;
-	border-top: 1px solid rgba(90, 70, 50, 0.22);
+	padding-bottom: 7px;
+	border-bottom: 1px solid rgba(90, 70, 50, 0.22);
 }
 
 .political-territory-range__header {
