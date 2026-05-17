@@ -9,7 +9,7 @@ py tools/smoke_test.py --base-url "https://avesmaps.de/"
 Optional DB/table status check with the import/admin token:
 
 ```powershell
-py tools/smoke_test.py --base-url "https://avesmaps.de/" --admin-token "YOUR_IMPORT_TOKEN"
+py tools/smoke_test.py --base-url "https://avesmaps.de/"
 ```
 
 The script does not create, edit, or delete map data. It checks:

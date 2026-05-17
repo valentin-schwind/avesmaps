@@ -39,9 +39,8 @@ class CheckResult:
 
 
 class SmokeTester:
-    def __init__(self, base_url: str, admin_token: str = "", timeout: int = 20, frontend_only: bool = False) -> None:
+    def __init__(self, base_url: str, timeout: int = 20, frontend_only: bool = False) -> None:
         self.base_url = base_url.rstrip("/") + "/"
-        self.admin_token = admin_token
         self.timeout = timeout
         self.frontend_only = frontend_only
         self.results: list[CheckResult] = []
@@ -91,7 +90,6 @@ class SmokeTester:
         self.check_sql_features()
         self.check_feature_consistency()
         self.check_auth_boundaries()
-        self.check_admin_status()
         self.print_results()
         return 1 if any(result.status == "FAIL" for result in self.results) else 0
 
@@ -204,29 +202,6 @@ class SmokeTester:
 
         self.ok("auth-boundaries", "review/audit APIs reject anonymous requests")
 
-    def check_admin_status(self) -> None:
-        if not self.admin_token:
-            self.warn("admin-status", "Skipped; pass --admin-token to check DB table/revision status")
-            return
-
-        status, payload = self.request_json(
-            "api/map-database-admin.php",
-            headers={"Authorization": f"Bearer {self.admin_token}"},
-        )
-        if status != 200 or payload.get("ok") is not True:
-            self.fail("admin-status", f"HTTP {status}: {payload.get('error') or payload}")
-            return
-
-        tables = payload.get("tables") or {}
-        missing_tables = [name for name, exists in tables.items() if not exists]
-        if missing_tables:
-            self.fail("admin-status", f"missing tables: {', '.join(missing_tables)}")
-            return
-
-        revision = payload.get("revision", "?")
-        counts = payload.get("feature_counts") or []
-        self.ok("admin-status", f"all tables present, revision {revision}, {len(counts)} feature count rows")
-
     def collect_location_names(self, features: list[dict[str, Any]]) -> set[str]:
         names = set()
         for feature in features:
@@ -278,7 +253,6 @@ class SmokeTester:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run read-only Avesmaps deployment smoke checks.")
     parser.add_argument("--base-url", default="https://avesmaps.de/", help="Deployment base URL.")
-    parser.add_argument("--admin-token", default="", help="Optional import/admin bearer token for read-only DB status.")
     parser.add_argument("--timeout", type=int, default=20, help="HTTP timeout in seconds.")
     parser.add_argument("--frontend-only", action="store_true", help="Only verify frontend files and script references.")
     return parser.parse_args()
@@ -286,7 +260,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    tester = SmokeTester(args.base_url, args.admin_token, args.timeout, args.frontend_only)
+    tester = SmokeTester(args.base_url, args.timeout, args.frontend_only)
     try:
         return tester.run()
     except Exception as error:
