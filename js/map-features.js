@@ -4094,7 +4094,17 @@ function preloadPoliticalTerritoryOptions() {
 }
 
 function createRegionLabelMarkup(regionEntry, fallbackName) {
-	const name = escapeHtml(regionEntry.labelName || regionEntry.shortName || fallbackName || regionEntry.name);
+	const labelText = normalizeRegionParentheticalSpacing(
+		regionEntry.labelDisplayName
+		|| regionEntry.displayName
+		|| regionEntry.labelName
+		|| regionEntry.shortName
+		|| fallbackName
+		|| regionEntry.name
+		|| "Herrschaftsgebiet"
+	);
+
+	const name = escapeHtml(labelText);
 	const coatUrl = regionEntry.labelCoatOfArmsUrl || regionEntry.coatOfArmsUrl || "";
 	const coatMarkup = coatUrl
 		? `<img class="region-label__coat" src="${escapeHtml(coatUrl)}" alt="">`
