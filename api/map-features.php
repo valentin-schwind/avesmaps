@@ -26,8 +26,9 @@ try {
         ]);
     }
 
-    $query = avesmapsBuildMapFeaturesQuery($_GET);
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
+    $wikiLocationLinks = avesmapsLoadWikiSyncLocationLinks($pdo);
+    $query = avesmapsBuildMapFeaturesQuery($_GET);
     $revision = avesmapsFetchMapRevision($pdo);
     $statement = $pdo->prepare($query['sql']);
     $statement->execute($query['params']);
@@ -37,7 +38,7 @@ try {
         'revision' => $revision,
         'type' => 'FeatureCollection',
         'features' => array_map(
-            static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row),
+            static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks),
             $statement->fetchAll()
         ),
     ]);
@@ -164,7 +165,7 @@ function avesmapsFetchMapRevision(PDO $pdo): int {
     return (int) $revision;
 }
 
-function avesmapsMapFeatureRowToGeoJsonFeature(array $row): array {
+function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = []): array {
     if ((int) ($row['is_active'] ?? 1) !== 1) {
         return [
             'type' => 'Feature',
@@ -180,6 +181,7 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row): array {
     }
 
     $properties = avesmapsNormalizeLegacyMapFeatureProperties(avesmapsDecodeJsonColumn($row['properties_json'] ?? null));
+    $properties = avesmapsEnrichMapFeatureWikiUrl($properties, $row, $wikiLocationLinks);
     $style = avesmapsDecodeJsonColumn($row['style_json'] ?? null);
     foreach ($style as $styleKey => $styleValue) {
         $properties[$styleKey] = $styleValue;
@@ -229,4 +231,69 @@ function avesmapsNormalizeLegacyMapFeatureProperties(array $properties): array {
     }
 
     return $properties;
+}
+
+function avesmapsLoadWikiSyncLocationLinks(PDO $pdo): array {
+    $statement = $pdo->query(
+        'SELECT normalized_key, wiki_url
+        FROM wiki_sync_pages
+        WHERE wiki_url IS NOT NULL AND wiki_url <> \'\'
+            AND normalized_key IS NOT NULL AND normalized_key <> \'\''
+    );
+    if ($statement === false) {
+        return [];
+    }
+
+    $links = [];
+    foreach ($statement->fetchAll() as $row) {
+        $normalizedKey = trim((string) ($row['normalized_key'] ?? ''));
+        $wikiUrl = trim((string) ($row['wiki_url'] ?? ''));
+        if ($normalizedKey === '' || $wikiUrl === '') {
+            continue;
+        }
+
+        $links[$normalizedKey] ??= $wikiUrl;
+    }
+
+    return $links;
+}
+
+function avesmapsEnrichMapFeatureWikiUrl(array $properties, array $row, array $wikiLocationLinks): array {
+    if ((string) ($properties['wiki_url'] ?? '') !== '') {
+        return $properties;
+    }
+
+    $locationName = trim((string) ($row['name'] ?? ''));
+    if ($locationName === '') {
+        return $properties;
+    }
+
+    $matchKey = avesmapsWikiSyncCreateMatchKey($locationName);
+    if ($matchKey === '' || !isset($wikiLocationLinks[$matchKey])) {
+        return $properties;
+    }
+
+    $properties['wiki_url'] = (string) ($wikiLocationLinks[$matchKey] ?? '');
+
+    return $properties;
+}
+
+function avesmapsWikiSyncCreateMatchKey(string $value): string {
+    $value = avesmapsWikiSyncStripParentheticalSuffix($value);
+    $value = mb_strtolower($value);
+    $value = str_replace(['ÃƒÅ¸', 'ÃƒÂ¦', 'Ã…â€œ', 'ÃƒÂ¸', 'ÃƒÂ°', 'ÃƒÂ¾'], ['ss', 'ae', 'oe', 'o', 'd', 'th'], $value);
+    if (function_exists('iconv')) {
+        $transliteratedValue = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+        if (is_string($transliteratedValue)) {
+            $value = $transliteratedValue;
+        }
+    }
+    $value = preg_replace('/[\s_\-\'Ã¢â‚¬â„¢ÃŠÂ¼`Ã‚Â´]+/u', '', $value) ?? '';
+    $value = preg_replace('/[^a-z0-9]+/u', '', $value) ?? '';
+
+    return $value;
+}
+
+function avesmapsWikiSyncStripParentheticalSuffix(string $title): string {
+    return trim(preg_replace('/\s+\([^)]*\)\s*$/u', '', $title) ?? $title);
 }

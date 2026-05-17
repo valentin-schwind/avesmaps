@@ -535,18 +535,6 @@ const prepareLocationData = (data) => {
 	map.on("zoomend", syncLocationMarkerVisibility);
 };
 
-function loadWikiLocationLinks() {
-	return $.getJSON("map/wiki_location_links.json")
-		.then((data) => {
-			wikiLocationLinks = data?.links || {};
-			return wikiLocationLinks;
-		}, (err) => {
-			console.warn("Wiki-Aventurica-Linktabelle konnte nicht geladen werden:", err);
-			wikiLocationLinks = {};
-			return wikiLocationLinks;
-		});
-}
-
 function loadRouteDataFromApi() {
 	if (!MAP_FEATURES_API_URL) {
 		return Promise.reject(new Error("Keine Map-Features-API fuer diese Umgebung konfiguriert."));
@@ -644,7 +632,7 @@ function startLiveMapUpdates() {
 // Laden und Verarbeiten der GeoJSON-Daten aus SQL.
 const routeDataRequest = loadRouteData();
 
-$.when(routeDataRequest, loadWikiLocationLinks())
+routeDataRequest
 	.done((data) => {
 		updateMapDataStatus(data);
 		prepareLocationData(data);

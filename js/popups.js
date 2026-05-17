@@ -19,7 +19,7 @@ function getWikiLocationLink(name, wikiUrlOverride = "") {
 		};
 	}
 
-	return wikiLocationLinks[name] || null;
+	return null;
 }
 
 function wikiLocationLinkMarkup(name, wikiUrlOverride = "") {
@@ -65,23 +65,7 @@ function getLocationDescriptionText(name, descriptionOverride = "") {
 		return descriptionOverride;
 	}
 
-	const wikiLocationLink = getWikiLocationLink(name);
-	const rawDescription = (wikiLocationLink?.description || "").trim();
-
-	if (!rawDescription) {
-		return "";
-	}
-
-	const prefixPattern = new RegExp(`^${escapeRegExp(name)}\\s+ist\\s+`, "i");
-	let normalizedDescription = rawDescription.replace(prefixPattern, "");
-
-	normalizedDescription = normalizedDescription.replace(/^(ein|eine)\s+/i, "");
-
-	if (/^in Avesmaps als\s+/i.test(normalizedDescription)) {
-		return "";
-	}
-
-	return normalizedDescription.charAt(0).toUpperCase() + normalizedDescription.slice(1);
+	return "";
 }
 
 function locationDescriptionMarkup(name, descriptionOverride = "", isRuined = false) {
