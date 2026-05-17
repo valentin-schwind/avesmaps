@@ -6,6 +6,31 @@ async function readJsonResponse(response, fallback = null) {
 	}
 }
 
+async function fetchWithRetry(url, options = {}, retryOptions = {}) {
+	const retries = Number.isInteger(retryOptions.retries) ? retryOptions.retries : 1;
+	const delayMs = Number.isFinite(retryOptions.delayMs) ? retryOptions.delayMs : 350;
+	const retryMethods = new Set(retryOptions.retryMethods || ["GET"]);
+	const method = String(options.method || "GET").toUpperCase();
+
+	let lastError = null;
+
+	for (let attempt = 0; attempt <= retries; attempt += 1) {
+		try {
+			return await fetch(url, options);
+		} catch (error) {
+			lastError = error;
+
+			if (!retryMethods.has(method) || attempt >= retries) {
+				throw error;
+			}
+
+			await new Promise(resolve => window.setTimeout(resolve, delayMs * (attempt + 1)));
+		}
+	}
+
+	throw lastError;
+}
+
 async function submitLocationReportRequest(payload) {
 	const abortController = new AbortController();
 	const timeoutId = window.setTimeout(() => abortController.abort(), LOCATION_REPORT_REQUEST_TIMEOUT_MS);
@@ -94,7 +119,7 @@ async function fetchPoliticalTerritories(params = {}) {
 		}
 	});
 
-	const response = await fetch(url.toString(), {
+	const response = await fetchWithRetry(url.toString(), {
 		cache: "no-store",
 		credentials: "same-origin",
 		headers: {
@@ -102,7 +127,12 @@ async function fetchPoliticalTerritories(params = {}) {
 			"Cache-Control": "no-cache",
 			Pragma: "no-cache",
 		},
+	}, {
+		retries: 2,
+		delayMs: 300,
+		retryMethods: ["GET"],
 	});
+	
 	const data = await readJsonResponse(response, {});
 	if (!response.ok || data?.ok !== true) {
 		throw new Error(data?.error || `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`);
@@ -112,15 +142,27 @@ async function fetchPoliticalTerritories(params = {}) {
 }
 
 async function submitPoliticalTerritoryEdit(payload) {
-	const response = await fetch(POLITICAL_TERRITORIES_API_URL, {
-		method: "PATCH",
-		credentials: "same-origin",
-		headers: {
-			Accept: "application/json",
-			"Content-Type": "application/json",
-		},
-		body: JSON.stringify(payload),
-	});
+	let response = null;
+
+	try {
+		response = await fetch(POLITICAL_TERRITORIES_API_URL, {
+			method: "PATCH",
+			credentials: "same-origin",
+			headers: {
+				Accept: "application/json",
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(payload),
+		});
+	} catch (error) {
+		console.error("Herrschaftsgebiet-API Netzwerkfehler:", {
+			action: payload?.action || "",
+			error,
+		});
+
+		throw new Error("Die Herrschaftsgebiet-API hat die Verbindung unterbrochen. Die Änderung wurde möglicherweise trotzdem gespeichert.");
+	}
+
 	const data = await readJsonResponse(response, {});
 	if (!response.ok || data?.ok !== true) {
 		console.error("Herrschaftsgebiet-API Fehler:", {

@@ -5731,7 +5731,16 @@ async function createRegionAt(latlng) {
 			showFeedbackToast("Herrschaftsgebiet erstellt.", "success");
 			return;
 		} catch (error) {
-			showFeedbackToast(error.message || "Herrschaftsgebiet konnte nicht erstellt werden.", "warning");
+			console.warn("Herrschaftsgebiet-Erstellung konnte nicht eindeutig bestätigt werden:", error);
+
+			showFeedbackToast(
+				error.message || "Herrschaftsgebiet konnte nicht eindeutig erstellt werden. Die Karte wird neu geladen.",
+				"warning"
+			);
+
+			void loadPoliticalTerritoryOptions();
+			schedulePoliticalTerritoryLayerReload();
+
 			return;
 		}
 	}
