@@ -181,7 +181,13 @@
 		<span id="region-operation-chip-text"></span>
 		<button id="region-operation-cancel" type="button">Abbrechen</button>
 	</div>
-	<div id="political-timeline" class="political-timeline" hidden>
+	<div id="political-timeline" class="political-timeline" hidden> 
+		<div id="political-territory-range" class="political-territory-range" hidden>
+			<div class="political-territory-range__header">
+				<span id="political-territory-range-name" class="political-territory-range__name"></span>
+				<span id="political-territory-range-years" class="political-territory-range__years"></span>
+			</div> 
+		</div>
 		<div class="political-timeline__controls">
 			<label class="political-timeline__field">
 				<span>Jahr</span>
@@ -192,13 +198,6 @@
 			</label>
 			<input id="political-timeline-year" class="political-timeline__year" type="number" min="0" max="1049" step="1" value="1049" aria-label="Jahr" />
 			<span id="political-timeline-label" class="political-timeline__label">1049 BF</span>
-		</div>
-
-		<div id="political-territory-range" class="political-territory-range" hidden>
-			<div class="political-territory-range__header">
-				<span id="political-territory-range-name" class="political-territory-range__name"></span>
-				<span id="political-territory-range-years" class="political-territory-range__years"></span>
-			</div> 
 		</div>
 	</div>
 	<div id="location-report-overlay" hidden>
