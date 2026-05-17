@@ -29,9 +29,9 @@ Admin-Endpoint meldet die neuen Tabellen im Datenbankstatus.
 ## WikiSync
 
 Der normale WikiSync-Lauf importiert Herrschaftsgebiete in einer eigenen Phase
-`political_territories`. Die serverseitige Referenz liegt unter
-`data/wiki/avesmaps-herrschaftsgebiete.json`; `politics_test` bleibt nur als
-lokales Referenz- und Analyseverzeichnis.
+`political_territories`. Die serverseitige Referenz liegt in der Tabelle
+`political_territory_wiki`; lokale JSON-Ablagen werden dafuer nicht mehr
+verwendet.
 
 Beim Import werden nur Datensaetze mit `Kontinent = Aventurien` als lokale
 Herrschaftsgebiete angelegt. Wiki-Referenzdaten werden aktualisiert, aber
