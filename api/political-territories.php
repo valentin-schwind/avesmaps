@@ -522,18 +522,23 @@ function avesmapsPoliticalBuildRawEditorLayerFeatures(array $rows, int $yearBf, 
 
         if ($displayTerritoryId !== null && isset($territories[$displayTerritoryId])) {
             $displayTerritory = $territories[$displayTerritoryId];
-            $customLabelName = trim((string) ($feature['properties']['custom_display_name'] ?? $feature['properties']['display_name'] ?? $feature['properties']['name'] ?? ''));
+            $geometryStyle = avesmapsPoliticalDecodeJson($row['style_json'] ?? null);
+            $customLabelName = trim((string) ($geometryStyle['displayName'] ?? $geometryStyle['name'] ?? ''));
 
             $labelKey = (string) ($displayTerritory['territory_public_id'] ?? $displayTerritoryId);
-            $labelName = trim((string) ($displayTerritory['short_name'] ?? '')) ?: trim((string) ($displayTerritory['name'] ?? ''));
+            $territoryLabelName = trim((string) ($displayTerritory['short_name'] ?? '')) ?: trim((string) ($displayTerritory['name'] ?? ''));
+            $territoryDisplayName = trim((string) ($displayTerritory['name'] ?? $territoryLabelName));
+
+            $labelName = $customLabelName !== '' ? $customLabelName : $territoryLabelName;
+            $labelDisplayName = $customLabelName !== '' ? $customLabelName : $territoryDisplayName;
 
             $feature['properties']['fill'] = (string) ($displayTerritory['color'] ?? $feature['properties']['fill'] ?? '#888888');
             $feature['properties']['stroke'] = (string) ($displayTerritory['color'] ?? $feature['properties']['stroke'] ?? '#888888');
             $feature['properties']['fillOpacity'] = (float) ($displayTerritory['opacity'] ?? $feature['properties']['fillOpacity'] ?? 0.33);
             $feature['properties']['label_name'] = $labelName;
-            $feature['properties']['label_display_name'] = trim((string) ($displayTerritory['name'] ?? $labelName));
+            $feature['properties']['label_display_name'] = $labelDisplayName;
             $feature['properties']['label_territory_public_id'] = (string) ($displayTerritory['territory_public_id'] ?? '');
-            $feature['properties']['label_coat_of_arms_url'] = (string) ($displayTerritory['coat_of_arms_url'] ?? '');
+            $feature['properties']['label_coat_of_arms_url'] = (string) ($geometryStyle['coatOfArmsUrl'] ?? $geometryStyle['coat_of_arms_url'] ?? $displayTerritory['coat_of_arms_url'] ?? '');
         }
 
         $featureIndex = count($features);
@@ -846,6 +851,7 @@ function avesmapsPoliticalBuildAggregateLayerRow(array $displayTerritory, array 
         'geometry_min_zoom' => null,
         'geometry_max_zoom' => null,
         'style_json' => null,
+        'geometry_style_json' => $geometryRow['style_json'] ?? null,
         'updated_at' => (string) ($geometryRow['updated_at'] ?? ''),
         'aggregate_source_territory_id' => (int) $sourceTerritory['territory_id'],
         'aggregate_source_territory_public_id' => (string) $sourceTerritory['territory_public_id'],
@@ -855,10 +861,11 @@ function avesmapsPoliticalBuildAggregateLayerRow(array $displayTerritory, array 
 
 function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom): array {
     $style = avesmapsPoliticalDecodeJson($row['style_json'] ?? null);
+    $geometryStyle = avesmapsPoliticalDecodeJson($row['geometry_style_json'] ?? $row['style_json'] ?? null);
     $territoryPublicId = trim((string) ($row['territory_public_id'] ?? ''));
 
     $territoryName = trim((string) ($row['name'] ?? ''));
-    $customName = trim((string) ($style['displayName'] ?? $style['name'] ?? ''));
+    $customName = trim((string) ($geometryStyle['displayName'] ?? $geometryStyle['name'] ?? ''));
     $visibleName = $customName !== ''
         ? $customName
         : ($territoryName !== '' ? $territoryName : 'Freie Geometrie');
