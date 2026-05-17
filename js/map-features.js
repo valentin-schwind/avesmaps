@@ -5470,7 +5470,15 @@ function handleRegionEditKeyUp(event) {
 } 
 
 function handleRegionEditClick(event) {
-	if (!activeRegionGeometryEdit || !event?.originalEvent?.ctrlKey || !activeRegionGeometryEdit.edgeHover) {
+	if (!activeRegionGeometryEdit || !event?.originalEvent?.ctrlKey) {
+		return;
+	}
+
+	if (!activeRegionGeometryEdit.edgeHover && event.latlng) {
+		updateRegionEditEdgeHoverFromLatLng(event.latlng);
+	}
+
+	if (!activeRegionGeometryEdit.edgeHover) {
 		return;
 	}
 
@@ -5523,11 +5531,26 @@ function renderRegionEditEdgeHighlight(edge) {
 	activeRegionGeometryEdit.edgeHighlightLayer = L.polyline([edge.start, edge.end], {
 		pane: "measurementHandlesPane",
 		color: "#f0c05a",
-		weight: 4,
+		weight: 6,
 		opacity: 0.95,
 		dashArray: "8 5",
-		interactive: false,
+		interactive: true,
+		bubblingMouseEvents: false,
 	}).addTo(map);
+
+	activeRegionGeometryEdit.edgeHighlightLayer.on("click", handleRegionEditEdgeClick);
+	activeRegionGeometryEdit.edgeHighlightLayer.on("dblclick", handleRegionEditEdgeClick);
+}
+
+function handleRegionEditEdgeClick(event) {
+	if (!activeRegionGeometryEdit || !event?.originalEvent?.ctrlKey || !activeRegionGeometryEdit.edgeHover) {
+		return;
+	}
+
+	L.DomEvent.stop(event.originalEvent);
+	L.DomEvent.preventDefault(event.originalEvent);
+
+	subdivideRegionEditHoveredEdge(4);
 }
 
 function findNearestEditedRegionEdge(latLng, regionEntry) {
@@ -5566,6 +5589,12 @@ function subdivideRegionEditHoveredEdge(pointCount) {
 	if (!activeRegionGeometryEdit?.edgeHover) {
 		return;
 	}
+
+	const now = Date.now();
+	if (activeRegionGeometryEdit.lastEdgeSubdivisionAt && now - activeRegionGeometryEdit.lastEdgeSubdivisionAt < 350) {
+		return;
+	}
+	activeRegionGeometryEdit.lastEdgeSubdivisionAt = now;
 
 	const regionEntry = activeRegionGeometryEdit.regionEntry;
 	const edge = activeRegionGeometryEdit.edgeHover;
