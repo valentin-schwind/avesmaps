@@ -1789,12 +1789,23 @@ function avesmapsPoliticalCreateGeometry(PDO $pdo, array $payload, array $user):
 }
 
 function avesmapsPoliticalUpdateGeometry(PDO $pdo, array $payload, array $user): array {
-    $geometryRow = avesmapsPoliticalFetchGeometryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? ''));
+    $geometryRow = avesmapsPoliticalFetchGeometryByPublicId(
+        $pdo,
+        avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? '')
+    );
+
     $geometry = avesmapsPoliticalReadGeoJsonGeometry($payload['geometry_geojson'] ?? null);
-    $bounds = avesmapsPoliticalCalculateGeometryBounds($geometry);
-    $minZoom = avesmapsPoliticalReadOptionalZoom($payload['min_zoom'] ?? $geometryRow['min_zoom'] ?? null);
-    $maxZoom = avesmapsPoliticalReadOptionalZoom($payload['max_zoom'] ?? $geometryRow['max_zoom'] ?? null);
-    avesmapsPoliticalAssertZoomRange($minZoom, $maxZoom);
+
+    $territoryPublicId = trim((string) ($payload['territory_public_id'] ?? ''));
+    $territoryId = (int) ($geometryRow['territory_id'] ?? 0) ?: null;
+
+    if ($territoryPublicId !== '') {
+        $territory = avesmapsPoliticalFetchTerritoryByPublicId(
+            $pdo,
+            avesmapsPoliticalReadPublicId($territoryPublicId)
+        );
+        $territoryId = (int) $territory['id'];
+    }
 
     $currentStyle = avesmapsPoliticalDecodeJson($geometryRow['style_json'] ?? null);
     $incomingStyle = is_array($payload['style_json'] ?? null) ? $payload['style_json'] : [];
@@ -1802,31 +1813,26 @@ function avesmapsPoliticalUpdateGeometry(PDO $pdo, array $payload, array $user):
 
     $statement = $pdo->prepare(
         'UPDATE political_territory_geometry
-        SET geometry_geojson = :geometry_geojson,
+        SET territory_id = :territory_id,
+            geometry_geojson = :geometry_geojson,
             valid_from_bf = :valid_from_bf,
             valid_to_bf = :valid_to_bf,
             min_zoom = :min_zoom,
             max_zoom = :max_zoom,
-            min_x = :min_x,
-            min_y = :min_y,
-            max_x = :max_x,
-            max_y = :max_y,
             source = :source,
             style_json = :style_json,
             updated_by = :updated_by
         WHERE id = :id'
     );
+
     $statement->execute([
         'id' => (int) $geometryRow['id'],
+        'territory_id' => $territoryId,
         'geometry_geojson' => avesmapsPoliticalEncodeJsonOrNull($geometry),
         'valid_from_bf' => avesmapsPoliticalReadOptionalInt($payload['valid_from_bf'] ?? $geometryRow['valid_from_bf'] ?? null),
-        'valid_to_bf' => avesmapsPoliticalReadOpenEndedValidTo($payload, $geometryRow['valid_to_bf'] ?? null),
-        'min_zoom' => $minZoom,
-        'max_zoom' => $maxZoom,
-        'min_x' => $bounds['min_x'],
-        'min_y' => $bounds['min_y'],
-        'max_x' => $bounds['max_x'],
-        'max_y' => $bounds['max_y'],
+        'valid_to_bf' => avesmapsPoliticalReadOptionalInt($payload['valid_to_bf'] ?? $geometryRow['valid_to_bf'] ?? null),
+        'min_zoom' => avesmapsPoliticalReadOptionalZoom($payload['min_zoom'] ?? $geometryRow['min_zoom'] ?? null),
+        'max_zoom' => avesmapsPoliticalReadOptionalZoom($payload['max_zoom'] ?? $geometryRow['max_zoom'] ?? null),
         'source' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['source'] ?? 'editor'), 255)),
         'style_json' => avesmapsPoliticalEncodeJsonOrNull($style),
         'updated_by' => (int) ($user['id'] ?? 0) ?: null,
