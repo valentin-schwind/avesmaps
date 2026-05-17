@@ -785,29 +785,52 @@ function avesmapsPoliticalBuildResolvedLayerFeatures(array $geometryRows, array 
 }
 
 function avesmapsPoliticalResolveLayerDisplayTerritoryId(int $sourceTerritoryId, array $territories, array $parentIds, int $zoom): ?int {
+    $chain = [];
     $territoryId = $sourceTerritoryId;
     $visited = [];
+
     while ($territoryId > 0 && isset($territories[$territoryId]) && !isset($visited[$territoryId])) {
         $visited[$territoryId] = true;
-        if (avesmapsPoliticalLayerTerritoryMatchesZoom($territories[$territoryId], $zoom)) {
-            return $territoryId;
-        }
-
+        array_unshift($chain, $territoryId);
         $territoryId = (int) ($parentIds[$territoryId] ?? 0);
     }
 
-    return null;
+    if ($chain === []) {
+        return null;
+    }
+
+    $bestTerritoryId = null;
+    $bestRangeWidth = null;
+    $bestDepth = null;
+
+    foreach ($chain as $depth => $candidateTerritoryId) {
+        $territory = $territories[$candidateTerritoryId] ?? null;
+        if (!$territory || !avesmapsPoliticalLayerTerritoryMatchesZoom($territory, $zoom)) {
+            continue;
+        }
+
+        $minZoom = avesmapsPoliticalNullableInt($territory['territory_min_zoom'] ?? null);
+        $maxZoom = avesmapsPoliticalNullableInt($territory['territory_max_zoom'] ?? null);
+
+        $rangeWidth = ($maxZoom ?? 99) - ($minZoom ?? 0);
+
+        if (
+            $bestTerritoryId === null
+            || $rangeWidth < $bestRangeWidth
+            || ($rangeWidth === $bestRangeWidth && $depth > $bestDepth)
+        ) {
+            $bestTerritoryId = $candidateTerritoryId;
+            $bestRangeWidth = $rangeWidth;
+            $bestDepth = $depth;
+        }
+    }
+
+    return $bestTerritoryId;
 }
 
 function avesmapsPoliticalLayerTerritoryMatchesZoom(array $territory, int $zoom): bool {
     $minZoom = avesmapsPoliticalNullableInt($territory['territory_min_zoom'] ?? null);
     $maxZoom = avesmapsPoliticalNullableInt($territory['territory_max_zoom'] ?? null);
-    $isEditorTerritory = empty($territory['wiki_id'])
-        && trim((string) ($territory['type'] ?? '')) === 'Herrschaftsgebiet';
-
-    if ($isEditorTerritory && $minZoom === 0 && $maxZoom === 0) {
-        return true;
-    }
 
     return ($minZoom === null || $minZoom <= $zoom)
         && ($maxZoom === null || $maxZoom >= $zoom);
