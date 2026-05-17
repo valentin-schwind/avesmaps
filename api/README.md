@@ -121,8 +121,9 @@ Aventurica geladen:
 - `wiki-sync.php?action=political_territory_tree` liest `Staat/Liste` aus dem
   Wiki.
 - Der Baum wird aus der dortigen Zugehoerigkeit aufgebaut.
-- Es werden keine `political_territory`- oder
-  `political_territory_relation`-Datensaetze mehr angelegt.
+- Es werden keine separaten `political_territory_relation`-Datensaetze mehr
+  verwendet; die aktuelle Hierarchie liegt direkt auf
+  `political_territory.parent_id`.
 - `political_territory_geometry` bleibt als Geometrie-Zwischenspeicher
   erhalten; die alten `territory_id`-Verweise muessen spaeter neu vergeben
   werden.

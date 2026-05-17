@@ -18,9 +18,10 @@ Geometrien:
   GeoJSON `Polygon` oder `MultiPolygon`. Ein Herrschaftsgebiet kann beliebig
   viele Geometrien haben; Enklaven, Exklaven und Loecher werden ueber
   MultiPolygons und Polygon-Ringe abgebildet.
-- `political_territory_relation` ist fuer zeitlich oder semantisch erweiterte
-  Beziehungen vorbereitet. Die aktuelle Parent-Hierarchie liegt direkt auf
-  `political_territory.parent_id`.
+
+Die fruehere `political_territory_relation`-Tabelle ist im aktuellen Stand
+entfernt. Die Hierarchie wird direkt ueber `political_territory.parent_id`
+abgebildet.
 
 Die Migration liegt in `sql/2026-05-15-political-territories.sql`; das gleiche
 Schema ist auch in `api/schema.future.mysql.sql` enthalten. Der bestehende
