@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>Avesmaps – Baum der Herrschaftsgebiete</title>
+	<title>Avesmaps – Herrschaftsgebiete aus dem Wiki</title>
 
 	<style>
 		:root {
@@ -831,7 +831,7 @@
 <body>
 	<div class="app-container">
 	<header>
-		<h1>Avesmaps – Baum der Herrschaftsgebiete</h1>
+		<h1>Avesmaps – Herrschaftsgebiete aus dem Wiki</h1>
 		<p>
 			Lädt die vorhandenen Daten. Zum Synchronisieren WikiSync benutzen.
 		</p>
@@ -862,7 +862,7 @@
 			<section class="panel">
 				<div class="panel-header tree-panel-header">
 					<div class="tree-header-title">
-						<h2>Baum der Herrschaftsgebiete</h2>
+						<h2>Herrschaftsgebiete aus dem Wiki</h2>
 						<span id="treeInfo" class="note">Noch keine Daten geladen.</span>
 					</div>
 					<div class="tree-header-controls">
@@ -894,7 +894,7 @@
 
 			<section class="detail-stack">
 				<div class="drop-zone-row">
-					<div id="dropZone" class="drop-zone">Herrschaftsgebiet hier mit Drag'n'drop zuweisen</div>
+					<div id="dropZone" class="drop-zone">Herrschaftsgebiet aus dem Wiki hier mit Drag'n'drop zuweisen</div>
 					<button id="unassignButton" class="secondary drop-zone-unassign-button" type="button" hidden>Zuweisung entfernen</button>
 				</div>
 
@@ -1629,7 +1629,7 @@
 
 			const title = document.createElement("div");
 			title.className = "drop-zone-title";
-			title.textContent = "Herrschaftsgebiet hier mit Drag'n'drop zuweisen";
+			title.textContent = "Herrschaftsgebiet aus dem Wiki hier mit Drag'n'drop zuweisen";
 			els.dropZone.appendChild(title);
 
 			if (!droppedNode) {
@@ -1739,6 +1739,73 @@
 			const [from, to] = presets[normalizedLength][normalizedIndex];
 
 			return { from, to };
+		}
+
+		function createAutoTerritoryColor(node) {
+			const path = node ? getNodePath(node) : [];
+			const rootNode = path[0] || node;
+			const depth = Math.max(0, path.length - 1);
+			const rootSeed = hashString(rootNode?.row?.wiki_key || rootNode?.id || rootNode?.label || "Herrschaftsgebiet");
+			const nodeSeed = hashString(node?.row?.wiki_key || node?.id || node?.label || "Herrschaftsgebiet");
+			const baseHue = rootSeed % 360;
+			const hueOffset = depth === 0 ? 0 : ((nodeSeed % 37) - 18) + (depth * 4);
+			const hue = (baseHue + hueOffset + 360) % 360;
+			const saturation = clampNumber(58 + (rootSeed % 18) - Math.min(depth * 3, 12), 44, 74);
+			const value = clampNumber(54 + (nodeSeed % 18) + Math.min(depth * 3, 10), 48, 78);
+
+			return hsvToHex(hue, saturation, value);
+		}
+
+		function hashString(value) {
+			const text = String(value || "");
+			let hash = 2166136261;
+
+			for (let index = 0; index < text.length; index += 1) {
+				hash ^= text.charCodeAt(index);
+				hash = Math.imul(hash, 16777619);
+			}
+
+			return hash >>> 0;
+		}
+
+		function hsvToHex(hue, saturationPercent, valuePercent) {
+			const saturation = clampNumber(saturationPercent, 0, 100) / 100;
+			const value = clampNumber(valuePercent, 0, 100) / 100;
+			const chroma = value * saturation;
+			const huePrime = (clampNumber(hue, 0, 360) % 360) / 60;
+			const secondary = chroma * (1 - Math.abs((huePrime % 2) - 1));
+			const match = value - chroma;
+			const [red, green, blue] = huePrime < 1
+				? [chroma, secondary, 0]
+				: huePrime < 2
+				? [secondary, chroma, 0]
+				: huePrime < 3
+				? [0, chroma, secondary]
+				: huePrime < 4
+				? [0, secondary, chroma]
+				: huePrime < 5
+				? [secondary, 0, chroma]
+				: [chroma, 0, secondary];
+
+			return `#${[red, green, blue].map(channel => toHexByte((channel + match) * 255)).join("")}`;
+		}
+
+		function toHexByte(value) {
+			return Math.round(clampNumber(value, 0, 255)).toString(16).padStart(2, "0");
+		}
+
+		function clampNumber(value, min, max) {
+			const number = Number(value);
+			if (!Number.isFinite(number)) {
+				return min;
+			}
+
+			return Math.max(min, Math.min(max, number));
+		}
+
+		function normalizeHexColor(value) {
+			const color = normalizeText(value);
+			return /^#[0-9a-fA-F]{6}$/.test(color) ? color : "";
 		}
 
 		function renderManualEditPath(node, activeIndex = null) {
@@ -1880,7 +1947,7 @@
 				coatOfArmsUrl,
 				zoomMin: zoomPreset?.from ?? null,
 				zoomMax: zoomPreset?.to ?? null,
-				color: "#385d72",
+				color: createAutoTerritoryColor(node),
 				opacity: 0.33,
 				startYear: parseOptionalNumber(node.row?.founded_start_bf),
 				endYear: parseOptionalNumber(node.row?.dissolved_end_bf),
@@ -1900,6 +1967,9 @@
 
 			const existing = displayStateByNodeId.get(editedNode.id) || createDefaultDisplayState(editedNode);
 			const opacityPercent = parseOptionalNumber(transparencyInput?.value, Math.round((existing.opacity ?? 0.33) * 100));
+			const color = normalizeHexColor(document.getElementById("colorInput")?.value)
+				|| normalizeHexColor(existing.color)
+				|| createAutoTerritoryColor(editedNode);
 
 			displayStateByNodeId.set(editedNode.id, {
 				...existing,
@@ -1907,7 +1977,7 @@
 				coatOfArmsUrl: normalizeText(els.alternateCoatInput?.value || ""),
 				zoomMin: parseOptionalNumber(els.zoomFromInput?.value),
 				zoomMax: parseOptionalNumber(els.zoomToInput?.value),
-				color: normalizeText(document.getElementById("colorInput")?.value || "#385d72"),
+				color,
 				opacity: opacityPercent / 100,
 				startYear: parseOptionalNumber(document.getElementById("startYearInput")?.value),
 				endYear: existsUntilTodayInput?.checked ? null : parseOptionalNumber(endYearInput?.value),
@@ -1932,7 +2002,7 @@
 				els.zoomToInput.value = state.zoomMax ?? "";
 			}
 
-			setInputValue("colorInput", state.color || "#385d72");
+			setInputValue("colorInput", normalizeHexColor(state.color) || (editedNode ? createAutoTerritoryColor(editedNode) : "#385d72"));
 
 			if (transparencyInput) {
 				transparencyInput.value = String(Math.round((state.opacity ?? 0.33) * 100));
@@ -2308,7 +2378,7 @@
 			setInputValue("alternateCoatInput", display.coatOfArmsUrl || display.alternateCoatOfArmsUrl);
 			setInputValue("zoomFromInput", display.zoomMin);
 			setInputValue("zoomToInput", display.zoomMax);
-			setInputValue("colorInput", display.color);
+			setInputValue("colorInput", normalizeHexColor(display.color) || (droppedNode ? createAutoTerritoryColor(droppedNode) : "#385d72"));
 
 			if (typeof display.opacity === "number") {
 				setInputValue("transparencyInput", Math.round(display.opacity * 100));
@@ -2387,6 +2457,7 @@
 				coatOfArmsUrl: normalizeText(displayState.coatOfArmsUrl || displayState.alternateCoatOfArmsUrl || ""),
 				zoomMin: parseOptionalNumber(displayState.zoomMin),
 				zoomMax: parseOptionalNumber(displayState.zoomMax),
+				color: normalizeHexColor(displayState.color) || createAutoTerritoryColor(node),
 				opacity: typeof displayState.opacity === "number" ? displayState.opacity : 0.33,
 				startYear: parseOptionalNumber(displayState.startYear),
 				endYear: parseOptionalNumber(displayState.endYear),
@@ -2546,7 +2617,8 @@
 				coatOfArmsUrl: normalizeText(alternateCoatInput?.value || value.display?.coatOfArmsUrl || ""),
 				zoomMin: parseOptionalNumber(els.zoomFromInput?.value, value.display?.zoomMin ?? parseOptionalNumber(params.get("min_zoom"))),
 				zoomMax: parseOptionalNumber(els.zoomToInput?.value, value.display?.zoomMax ?? parseOptionalNumber(params.get("max_zoom"))),
-				color: normalizeText(colorInput?.value || value.display?.color || params.get("color") || "#888888"),
+				color: normalizeHexColor(colorInput?.value || value.display?.color || params.get("color"))
+					|| (droppedNode ? createAutoTerritoryColor(droppedNode) : "#888888"),
 				opacity: parseOptionalNumber(
 					transparencyInput?.value,
 					Math.round((value.display?.opacity ?? parseOptionalNumber(params.get("opacity"), 0.33)) * 100)
@@ -2580,7 +2652,7 @@
 						coatOfArmsUrl: display.coatOfArmsUrl || "",
 						zoomMin: display.zoomMin,
 						zoomMax: display.zoomMax,
-						color: display.color || "#888888",
+						color: normalizeHexColor(display.color) || "#888888",
 						opacity: display.opacity,
 					},
 					validity: {

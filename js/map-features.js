@@ -4153,6 +4153,14 @@ function getRegionTooltipLatLng(regionEntry) {
 }
 
 function createRegionCompactTooltipMarkup(regionEntry) {
+	if (hasRegionWikiInfo(regionEntry)) {
+		return createRegionWikiInfoBoxMarkup(regionEntry);
+	}
+
+	return createRegionMiniTooltipMarkup(regionEntry);
+}
+
+function createRegionMiniTooltipMarkup(regionEntry) {
 	const coatMarkup = regionEntry.coatOfArmsUrl
 		? `<img class="region-compact-tooltip__coat" src="${escapeHtml(regionEntry.coatOfArmsUrl)}" alt="">`
 		: "";
@@ -4174,6 +4182,145 @@ function createRegionCompactTooltipMarkup(regionEntry) {
 			</span>
 		</span>
 	`;
+}
+
+function hasRegionWikiInfo(regionEntry) {
+	return Boolean(
+		regionEntry.wikiId
+		|| regionEntry.wikiUrl
+		|| regionEntry.wikiName
+		|| regionEntry.wikiFoundedText
+		|| regionEntry.wikiDissolvedText
+		|| regionEntry.foundedText
+		|| regionEntry.dissolvedText
+	);
+}
+
+function createRegionWikiInfoBoxMarkup(regionEntry) {
+	const name = normalizeRegionParentheticalSpacing(regionEntry.displayName || regionEntry.name || "Herrschaftsgebiet");
+	const wikiName = normalizeRegionParentheticalSpacing(regionEntry.wikiName || name);
+	const type = normalizeRegionParentheticalSpacing(regionEntry.wikiType || regionEntry.type || "Herrschaftsgebiet");
+	const coatMarkup = regionEntry.coatOfArmsUrl
+		? `<img class="region-info-box__coat" src="${escapeHtml(regionEntry.coatOfArmsUrl)}" alt="">`
+		: "";
+	const hasCoatClass = coatMarkup ? " has-coat" : "";
+	const wikiLink = createRegionInfoLink(regionEntry.wikiUrl);
+	const affiliationPath = createRegionInfoPathValue(regionEntry);
+	const wikiRows = [
+		createRegionInfoTextRow("Wiki-Eintrag", wikiName),
+		createRegionInfoTextRow("Typ", type),
+		createRegionInfoTextRow("Status", regionEntry.status),
+		createRegionInfoTextRow("Gründung", regionEntry.wikiFoundedText || regionEntry.foundedText),
+		createRegionInfoTextRow("Auflösung", regionEntry.wikiDissolvedText || regionEntry.dissolvedText),
+		createRegionInfoTextRow("Obergebiet", regionEntry.parentName || regionEntry.affiliationRoot || regionEntry.wikiAffiliationRoot),
+		createRegionInfoBoxRow("Hauptstadt", createRegionInfoPlaceValue(regionEntry.wikiCapitalName || regionEntry.capitalName, regionEntry.capitalPlacePublicId)),
+		createRegionInfoBoxRow("Herrschaftssitz", createRegionInfoPlaceValue(regionEntry.wikiSeatName || regionEntry.seatName, regionEntry.seatPlacePublicId)),
+		createRegionInfoBoxRow("Wiki", wikiLink)
+	].join("");
+	const detailRows = [
+		createRegionInfoTextRow("Kartenname", name),
+		createRegionInfoTextRow("Kartenzeitraum", regionEntry.validLabel),
+		createRegionInfoTextRow("Zuordnung", affiliationPath)
+	].join("");
+	const detailsMarkup = detailRows
+		? `<details class="region-info-box__details"><summary>Details</summary><dl>${detailRows}</dl></details>`
+		: "";
+
+	return `
+		<div class="region-info-box">
+			<div class="region-info-box__header${hasCoatClass}">
+				${coatMarkup}
+				<div class="region-info-box__title-group">
+					<strong class="region-info-box__title">${escapeHtml(name)}</strong>
+					<span class="region-info-box__subtitle">Wiki-Daten</span>
+				</div>
+			</div>
+			<dl class="region-info-box__data">${wikiRows}</dl>
+			${detailsMarkup}
+		</div>
+	`;
+}
+
+function createRegionInfoTextRow(label, value) {
+	const normalizedValue = normalizeRegionParentheticalSpacing(value).trim();
+	if (normalizedValue === "") {
+		return "";
+	}
+
+	return createRegionInfoBoxRow(label, escapeHtml(normalizedValue));
+}
+
+function createRegionInfoBoxRow(label, valueMarkup) {
+	if (!valueMarkup) {
+		return "";
+	}
+
+	return `
+		<div class="region-info-box__row">
+			<dt>${escapeHtml(label)}</dt>
+			<dd>${valueMarkup}</dd>
+		</div>
+	`;
+}
+
+function createRegionInfoPlaceValue(placeName, placePublicId) {
+	const normalizedName = normalizeRegionParentheticalSpacing(placeName).trim();
+	if (normalizedName === "") {
+		return "";
+	}
+
+	if (placePublicId) {
+		return `<button type="button" class="region-compact-tooltip__place-link" data-region-place-public-id="${escapeHtml(placePublicId)}">${escapeHtml(normalizedName)}</button>`;
+	}
+
+	return escapeHtml(normalizedName);
+}
+
+function createRegionInfoLink(url) {
+	const normalizedUrl = normalizeRegionInfoUrl(url);
+	if (normalizedUrl === "") {
+		return "";
+	}
+
+	return `<a class="region-info-box__link" href="${escapeHtml(normalizedUrl)}" target="_blank" rel="noopener noreferrer">Wiki öffnen</a>`;
+}
+
+function createRegionInfoPathValue(regionEntry) {
+	const pathItems = normalizeRegionStringList(regionEntry.affiliationPath);
+	if (pathItems.length > 0) {
+		return pathItems.join(" > ");
+	}
+
+	return normalizeRegionParentheticalSpacing(regionEntry.wikiAffiliationRaw || regionEntry.affiliation || "").trim();
+}
+
+function normalizeRegionInfoUrl(value) {
+	const url = String(value || "").trim();
+	return /^https?:\/\//iu.test(url) ? url : "";
+}
+
+function normalizeRegionStringList(value) {
+	if (Array.isArray(value)) {
+		return value.map((entry) => normalizeRegionParentheticalSpacing(entry).trim()).filter(Boolean);
+	}
+
+	const rawValue = String(value || "").trim();
+	if (rawValue === "") {
+		return [];
+	}
+
+	if (rawValue.startsWith("[") && rawValue.endsWith("]")) {
+		try {
+			const parsedValue = JSON.parse(rawValue);
+			return Array.isArray(parsedValue)
+				? parsedValue.map((entry) => normalizeRegionParentheticalSpacing(entry).trim()).filter(Boolean)
+				: [];
+		} catch {
+			return [];
+		}
+	}
+
+	return [normalizeRegionParentheticalSpacing(rawValue).trim()].filter(Boolean);
 }
 
 function createRegionPlaceTooltipLine(label, placeName, placePublicId) {
@@ -4328,6 +4475,11 @@ $(document).on("click", "[data-region-context-action]", function (event) {
 		}
 
 		openRegionEditDialog(regionEntry, { title: "Eigenschaften bearbeiten" });
+		return;
+	}
+	if (action === "show-info") {
+		openRegionCompactTooltip(regionEntry);
+		showPoliticalTerritoryTimelineSelection(regionEntry);
 		return;
 	}
 	if (action === "move") {
@@ -5062,6 +5214,7 @@ function normalizeRegionFeature(feature) {
 		wikiId: properties.wiki_id || null,
 		wikiName: properties.wiki_name || "",
 		wikiType: normalizeRegionParentheticalSpacing(properties.wiki_type || properties.territory_type || properties.feature_subtype || ""),
+		status: properties.status || "",
 		coatOfArmsUrl: properties.coat_of_arms_url || "",
 		labelName: properties.label_name || "",
 		labelDisplayName: properties.label_display_name || "",
@@ -5075,6 +5228,10 @@ function normalizeRegionFeature(feature) {
 		validLabel: properties.valid_label || "",
 		affiliation: properties.affiliation || "",
 		affiliationRoot: properties.affiliation_root || "",
+		affiliationPath: normalizeRegionStringList(properties.affiliation_path || properties.affiliation_path_json || properties.wiki_affiliation_path || properties.wiki_affiliation_path_json),
+		parentName: properties.parent_name || "",
+		foundedText: properties.founded_text || "",
+		dissolvedText: properties.dissolved_text || "",
 		wikiAffiliationRaw: properties.wiki_affiliation_raw || properties.affiliation || "",
 		wikiAffiliationRoot: properties.wiki_affiliation_root || properties.affiliation_root || "",
 		wikiFoundedText: properties.wiki_founded_text || properties.founded_text || "",
@@ -5496,8 +5653,13 @@ function applyRegionFeatureResponse(regionEntry, feature) {
 	regionEntry.wikiId = updatedRegion.wikiId || regionEntry.wikiId || null;
 	regionEntry.wikiName = updatedRegion.wikiName || regionEntry.wikiName || "";
 	regionEntry.wikiType = updatedRegion.wikiType || regionEntry.wikiType || "";
+	regionEntry.status = updatedRegion.status || "";
 	regionEntry.wikiAffiliationRaw = updatedRegion.wikiAffiliationRaw || regionEntry.wikiAffiliationRaw || "";
 	regionEntry.wikiAffiliationRoot = updatedRegion.wikiAffiliationRoot || regionEntry.wikiAffiliationRoot || "";
+	regionEntry.affiliationPath = updatedRegion.affiliationPath || regionEntry.affiliationPath || [];
+	regionEntry.parentName = updatedRegion.parentName || "";
+	regionEntry.foundedText = updatedRegion.foundedText || "";
+	regionEntry.dissolvedText = updatedRegion.dissolvedText || "";
 	regionEntry.wikiFoundedText = updatedRegion.wikiFoundedText || regionEntry.wikiFoundedText || "";
 	regionEntry.wikiDissolvedText = updatedRegion.wikiDissolvedText || regionEntry.wikiDissolvedText || "";
 	regionEntry.wikiCapitalName = updatedRegion.wikiCapitalName || regionEntry.wikiCapitalName || "";

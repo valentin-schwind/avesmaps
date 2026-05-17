@@ -3777,15 +3777,12 @@ async function startWikiSyncRun() {
 		setWikiSyncRunning(false);
 		activeWikiSyncRunStatus = "";
 		const territoryStats = run?.stats || {};
-		const territoryMessage = territoryStats.political_territory_received
-			? ` Herrschaftsgebiete: ${territoryStats.political_territory_created || 0} neu, ${territoryStats.political_territory_updated || 0} aktualisiert, ${territoryStats.political_territory_geometry_seeded || 0} Geometrien verknuepft.`
-			: "";
 		await loadWikiSyncCases();
 		if (territoryStats.political_territory_received) {
 			await loadPoliticalTerritoryOptions({ force: true });
 			schedulePoliticalTerritoryLayerReload({ immediate: true });
 		}
-		setWikiSyncStatus(`WikiSync abgeschlossen.${territoryMessage}`, "success");
+		setWikiSyncStatus(buildWikiSyncStatusMessage("WikiSync abgeschlossen."), "success");
 	} catch (error) {
 		console.error("WikiSync konnte nicht ausgeführt werden:", error);
 		activeWikiSyncRunStatus = "";
@@ -3795,14 +3792,39 @@ async function startWikiSyncRun() {
 	}
 }
 
-function appendWikiSyncTerritorySummary(message) {
+function buildWikiSyncStatusMessage(message = "") {
+	const statusLines = [];
+	const normalizedMessage = String(message || "").trim();
+	if (normalizedMessage !== "") {
+		statusLines.push(normalizedMessage);
+	}
+
+	statusLines.push(formatWikiSyncSettlementSummaryLine());
+
+	const territoryLine = formatWikiSyncTerritorySummaryLine();
+	if (territoryLine !== "") {
+		statusLines.push(territoryLine);
+	}
+
+	return statusLines.join("\n");
+}
+
+function formatWikiSyncSettlementSummaryLine() {
+	const openCount = Number(wikiSyncSummary?.by_status?.open ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "open").length);
+	const deferredCount = Number(wikiSyncSummary?.by_status?.deferred ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "deferred").length);
+	const archivedCount = Number(wikiSyncSummary?.by_status?.archived ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "archived").length);
+
+	return `Siedlungen: ${openCount} offen, ${deferredCount} zurückgestellt, ${archivedCount} archiviert`;
+}
+
+function formatWikiSyncTerritorySummaryLine() {
 	const territoryCount = Number(wikiSyncTerritorySummary?.territory_count ?? 0);
 	const rootCount = Number(wikiSyncTerritorySummary?.root_count ?? 0);
 	if (territoryCount < 1 && rootCount < 1) {
-		return message;
+		return "";
 	}
 
-	return `${message} (${territoryCount} Territorien, ${rootCount} Mächte)`;
+	return `Herrschaftsgebiete: ${territoryCount} Territorien, ${rootCount} Mächte`;
 }
 
 function renderWikiSyncCases(latestRun = null) {
@@ -3820,34 +3842,28 @@ function renderWikiSyncCases(latestRun = null) {
 	syncWikiSyncFilterControls();
 
 	if (!latestRun && wikiSyncCases.length < 1) {
-		setWikiSyncStatus("Noch kein WikiSync-Lauf. Starte die Synchronisierung manuell.", "empty");
+		setWikiSyncStatus(buildWikiSyncStatusMessage("Noch kein WikiSync-Lauf. Starte die Synchronisierung manuell."), "empty");
 		return;
 	}
 
 	if (wikiSyncCases.length < 1) {
-		setWikiSyncStatus("Keine WikiSync-Fälle.", "empty");
+		setWikiSyncStatus(buildWikiSyncStatusMessage("Keine WikiSync-Fälle."), "empty");
 		return;
 	}
 
 	const filteredCases = hasActiveFilter ? getWikiSyncFilteredCases(wikiSyncCases, filterQuery) : wikiSyncCases;
-	const openCount = Number(wikiSyncSummary?.by_status?.open ?? filteredCases.filter((caseEntry) => caseEntry.status === "open").length);
-	const deferredCount = Number(wikiSyncSummary?.by_status?.deferred ?? filteredCases.filter((caseEntry) => caseEntry.status === "deferred").length);
-	const archivedCount = Number(wikiSyncSummary?.by_status?.archived ?? filteredCases.filter((caseEntry) => caseEntry.status === "archived").length);
-	const activeCount = openCount + deferredCount;
 	const statusMessage = isWikiSyncCreateLocationSelectionActive
 		? "Wählen Sie den Ort aus der Liste."
 		: hasActiveFilter
 		? `${filteredCases.length} Treffer für "${filterDisplayQuery}".`
-		: activeCount > 0
-		? `${openCount} offen, ${deferredCount} zurückgestellt, ${archivedCount} archiviert.`
-		: `${archivedCount} archiviert, keine offenen Fälle.`;
-	setWikiSyncStatus(appendWikiSyncTerritorySummary(statusMessage), isWikiSyncCreateLocationSelectionActive ? "pending" : "success");
+		: "";
+	setWikiSyncStatus(buildWikiSyncStatusMessage(statusMessage), isWikiSyncCreateLocationSelectionActive ? "pending" : "success");
 
 	const renderedGroupElements = new Map();
-	const openSectionElement = renderWikiSyncCaseSection(listElement, "Offen", "open", filteredCases.filter((caseEntry) => caseEntry.status !== "archived"), renderedGroupElements);
+	const openSectionElement = renderWikiSyncCaseSection(listElement, "Siedlungen aus dem Wiki", "open", filteredCases.filter((caseEntry) => caseEntry.status !== "archived"), renderedGroupElements);
 	const archivedSectionElement = renderWikiSyncCaseSection(listElement, "Archiviert", "archived", filteredCases.filter((caseEntry) => caseEntry.status === "archived"), renderedGroupElements);
 	if (!openSectionElement && !archivedSectionElement) {
-		setWikiSyncStatus(hasActiveFilter ? `Keine Treffer für "${filterDisplayQuery}".` : "Keine WikiSync-Fälle.", "empty");
+		setWikiSyncStatus(buildWikiSyncStatusMessage(hasActiveFilter ? `Keine Treffer für "${filterDisplayQuery}".` : "Keine WikiSync-Fälle."), "empty");
 		wikiSyncFilterCollapseRequested = false;
 		syncWikiSyncCreateLocationContextMenuAction();
 		return;

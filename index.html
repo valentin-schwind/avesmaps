@@ -121,6 +121,7 @@
 	<div id="region-context-menu" class="map-context-menu region-context-menu" hidden>
 		<button type="button" class="map-context-menu__item" data-region-context-action="edit-geometry">Grenzen bearbeiten</button>
 		<button type="button" class="map-context-menu__item" data-region-context-action="edit-properties">Eigenschaften bearbeiten</button>
+		<button type="button" class="map-context-menu__item" data-region-context-action="show-info">Infobox anzeigen</button>
 		<button type="button" class="map-context-menu__item" data-region-context-action="move">Verschieben</button>
 		<button type="button" class="map-context-menu__item" data-region-context-action="split">Gebiet zerschneiden</button>
 		<button type="button" class="map-context-menu__item" data-region-context-action="union">Mit anderem vereinigen</button>
@@ -173,10 +174,10 @@
 				<button id="wiki-sync-start" class="wiki-sync-panel__start" type="button">Synchronisieren</button>
 				<progress id="wiki-sync-progress" class="wiki-sync-progress" max="5" value="0" hidden></progress>
 			</div>
+			<p id="wiki-sync-status" class="review-panel__status" role="status" aria-live="polite">WikiSync ist bereit.</p>
 			<div class="wiki-sync-panel__filter">
 				<input id="wiki-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="WikiSync-Fälle durchsuchen" />
 			</div>
-			<p id="wiki-sync-status" class="review-panel__status" role="status" aria-live="polite">WikiSync ist bereit.</p>
 			<div id="wiki-sync-case-list" class="review-panel__list"></div>
 		</section>
 		<section class="review-panel__section" data-editor-panel-section="presence">
