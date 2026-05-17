@@ -3398,15 +3398,14 @@ body.edit-mode .map-label span {
 }
 
 .political-timeline__year {
-	width: 92px;
+	width: 50px;
 	border: 1px solid #cdb79f;
 	border-radius: 6px;
 	padding: 6px 8px;
 	font: inherit;
 }
 
-.political-timeline__label {
-	min-width: 74px;
+.political-timeline__label { 
 	font-weight: bold;
 	text-align: right;
 }
