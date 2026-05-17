@@ -3870,7 +3870,7 @@ function syncPoliticalTimelineControls() {
 }
 
 function formatPoliticalTimelineYear(yearBf) {
-	return yearBf < 0 ? `${Math.abs(yearBf)} v. BF` : `${yearBf} BF`;
+	return "BF";
 }
 
 function setPoliticalTimelineYear(value) {
