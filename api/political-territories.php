@@ -123,6 +123,8 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
     $territoryId = (int) ($geometry['territory_id'] ?? 0);
     $geometryStyle = avesmapsPoliticalDecodeJson($geometry['style_json'] ?? null);
     $geometryDisplayName = trim((string) ($geometryStyle['displayName'] ?? $geometryStyle['name'] ?? ''));
+    
+    $storedAssignmentDisplays = avesmapsPoliticalReadAssignmentDisplaysFromStyle($geometryStyle);
 
     if ($territoryId < 1) {
         $validTo = avesmapsPoliticalNullableInt($geometry['valid_to_bf'] ?? null);
@@ -215,6 +217,20 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
 
         $validTo = avesmapsPoliticalNullableInt($territory['valid_to_bf'] ?? null);
         $existsUntilToday = $validTo === null || $validTo >= 9999;
+        
+        $storedDisplay = avesmapsPoliticalFindAssignmentDisplayForTerritory(
+            $geometryStyle,
+            (string) ($territory['public_id'] ?? ''),
+            (string) ($territory['slug'] ?? '')
+        );
+
+        $displayName = $storedDisplay !== null
+            ? avesmapsPoliticalResolveAssignmentDisplayName($storedDisplay, $label)
+            : $label;
+
+        $storedCoatOfArmsUrl = trim((string) ($storedDisplay['coatOfArmsUrl'] ?? $storedDisplay['coat_of_arms_url'] ?? ''));
+        $storedColor = trim((string) ($storedDisplay['color'] ?? ''));
+        $storedOpacity = $storedDisplay['opacity'] ?? null;
 
         $displays[] = [
             'nodeId' => $nodeKey,
@@ -222,12 +238,12 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
             'wikiKey' => $wikiKey,
             'rowId' => isset($territory['wiki_id']) ? (int) $territory['wiki_id'] : null,
             'name' => $label,
-            'displayName' => $label,
-            'coatOfArmsUrl' => (string) ($territory['coat_of_arms_url'] ?? ''),
-            'zoomMin' => avesmapsPoliticalNullableInt($territory['min_zoom'] ?? null),
-            'zoomMax' => avesmapsPoliticalNullableInt($territory['max_zoom'] ?? null),
-            'color' => (string) ($territory['color'] ?? '#888888'),
-            'opacity' => (float) ($territory['opacity'] ?? 0.33),
+            'displayName' => $displayName,
+            'coatOfArmsUrl' => $storedCoatOfArmsUrl ?: (string) ($territory['coat_of_arms_url'] ?? ''),
+            'zoomMin' => avesmapsPoliticalNullableInt($storedDisplay['zoomMin'] ?? $territory['min_zoom'] ?? null),
+            'zoomMax' => avesmapsPoliticalNullableInt($storedDisplay['zoomMax'] ?? $territory['max_zoom'] ?? null),
+            'color' => $storedColor ?: (string) ($territory['color'] ?? '#888888'),
+            'opacity' => (float) ($storedOpacity ?? $territory['opacity'] ?? 0.33),
             'startYear' => avesmapsPoliticalNullableInt($territory['valid_from_bf'] ?? null),
             'endYear' => $existsUntilToday ? null : $validTo,
             'existsUntilToday' => $existsUntilToday,
@@ -241,12 +257,7 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
 
     $assignedTerritory = $assignedPath[count($assignedPath) - 1] ?? null;
     $activeDisplay = $displays[count($displays) - 1] ?? null;
-
-    if ($activeDisplay !== null && $geometryDisplayName !== '') {
-        $activeDisplay['name'] = $geometryDisplayName;
-        $activeDisplay['displayName'] = $geometryDisplayName;
-    }
-
+ 
     return [
         'ok' => true,
         'geometry' => avesmapsPoliticalGeometryRowToPublic($geometry),
@@ -523,16 +534,12 @@ function avesmapsPoliticalBuildRawEditorLayerFeatures(array $rows, int $yearBf, 
         if ($displayTerritoryId !== null && isset($territories[$displayTerritoryId])) {
             $displayTerritory = $territories[$displayTerritoryId];
 
-            $isAggregateFeature = !empty($feature['properties']['is_aggregate']);
-
-            $customLabelName = $isAggregateFeature
-                ? ''
-                : trim((string) (
-                    $feature['properties']['custom_display_name']
-                    ?? $feature['properties']['display_name']
-                    ?? $feature['properties']['name']
-                    ?? ''
-                ));
+            $customLabelName = trim((string) (
+                $feature['properties']['custom_display_name']
+                ?? $feature['properties']['display_name']
+                ?? $feature['properties']['name']
+                ?? ''
+            ));
 
             $fallbackLabelName = trim((string) ($displayTerritory['short_name'] ?? ''))
                 ?: trim((string) ($displayTerritory['name'] ?? ''));
@@ -871,30 +878,181 @@ function avesmapsPoliticalBuildAggregateLayerRow(array $displayTerritory, array 
     ]);
 }
 
+function avesmapsPoliticalReadAssignmentDisplaysFromStyle(array $style): array {
+    $rawDisplays = $style['assignmentDisplays'] ?? $style['assignment_displays'] ?? [];
+    if (!is_array($rawDisplays)) {
+        return [];
+    }
+
+    $displays = [];
+    foreach ($rawDisplays as $rawDisplay) {
+        if (!is_array($rawDisplay)) {
+            continue;
+        }
+
+        $territoryPublicId = trim((string) (
+            $rawDisplay['territoryPublicId']
+            ?? $rawDisplay['territory_public_id']
+            ?? ''
+        ));
+
+        $nodeKey = trim((string) (
+            $rawDisplay['nodeKey']
+            ?? $rawDisplay['node_key']
+            ?? ''
+        ));
+
+        $originalName = trim((string) (
+            $rawDisplay['originalName']
+            ?? $rawDisplay['original_name']
+            ?? $rawDisplay['name']
+            ?? ''
+        ));
+
+        $displayName = trim((string) (
+            $rawDisplay['displayName']
+            ?? $rawDisplay['display_name']
+            ?? ''
+        ));
+
+        if ($territoryPublicId === '' && $nodeKey === '' && $originalName === '' && $displayName === '') {
+            continue;
+        }
+
+        $opacity = $rawDisplay['opacity'] ?? null;
+        $displays[] = [
+            'territoryPublicId' => $territoryPublicId,
+            'territory_public_id' => $territoryPublicId,
+            'nodeKey' => $nodeKey,
+            'node_key' => $nodeKey,
+            'originalName' => $originalName,
+            'original_name' => $originalName,
+            'displayName' => $displayName,
+            'display_name' => $displayName,
+            'coatOfArmsUrl' => trim((string) (
+                $rawDisplay['coatOfArmsUrl']
+                ?? $rawDisplay['coat_of_arms_url']
+                ?? ''
+            )),
+            'color' => trim((string) ($rawDisplay['color'] ?? '')),
+            'opacity' => is_numeric($opacity) ? (float) $opacity : null,
+            'zoomMin' => avesmapsPoliticalNullableInt($rawDisplay['zoomMin'] ?? $rawDisplay['zoom_min'] ?? null),
+            'zoomMax' => avesmapsPoliticalNullableInt($rawDisplay['zoomMax'] ?? $rawDisplay['zoom_max'] ?? null),
+        ];
+    }
+
+    return $displays;
+}
+
+function avesmapsPoliticalFindAssignmentDisplayForTerritory(array $style, string $territoryPublicId, string $nodeKey = ''): ?array {
+    $territoryPublicId = trim($territoryPublicId);
+    $nodeKey = trim($nodeKey);
+
+    foreach (avesmapsPoliticalReadAssignmentDisplaysFromStyle($style) as $display) {
+        $displayTerritoryPublicId = trim((string) ($display['territoryPublicId'] ?? $display['territory_public_id'] ?? ''));
+        $displayNodeKey = trim((string) ($display['nodeKey'] ?? $display['node_key'] ?? ''));
+
+        if ($territoryPublicId !== '' && $displayTerritoryPublicId === $territoryPublicId) {
+            return $display;
+        }
+
+        if ($nodeKey !== '' && $displayNodeKey === $nodeKey) {
+            return $display;
+        }
+    }
+
+    return null;
+}
+
+function avesmapsPoliticalResolveAssignmentDisplayName(?array $display, string $fallbackName): string {
+    if ($display === null) {
+        return trim($fallbackName);
+    }
+
+    $displayName = trim((string) ($display['displayName'] ?? $display['display_name'] ?? ''));
+    if ($displayName !== '') {
+        return $displayName;
+    }
+
+    $originalName = trim((string) ($display['originalName'] ?? $display['original_name'] ?? ''));
+    if ($originalName !== '') {
+        return $originalName;
+    }
+
+    return trim($fallbackName);
+}
+
+function avesmapsPoliticalBuildStoredAssignmentDisplay(array $territory, array $display, int $depth): array {
+    $originalName = trim((string) ($territory['wiki_name'] ?? ''))
+        ?: trim((string) ($territory['name'] ?? ''));
+
+    $displayName = trim((string) ($display['displayName'] ?? $display['name'] ?? ''));
+
+    if ($displayName === $originalName) {
+        $displayName = '';
+    }
+
+    return [
+        'territoryPublicId' => (string) ($territory['public_id'] ?? ''),
+        'territoryId' => (int) ($territory['id'] ?? 0),
+        'nodeKey' => trim((string) (
+            $display['nodeKey']
+            ?? $display['nodeId']
+            ?? $territory['wiki_key']
+            ?? $territory['slug']
+            ?? ''
+        )),
+        'originalName' => $originalName,
+        'displayName' => $displayName,
+        'coatOfArmsUrl' => trim((string) ($display['coatOfArmsUrl'] ?? $territory['coat_of_arms_url'] ?? '')),
+        'zoomMin' => avesmapsPoliticalReadOptionalZoom($display['zoomMin'] ?? $territory['min_zoom'] ?? null),
+        'zoomMax' => avesmapsPoliticalReadOptionalZoom($display['zoomMax'] ?? $territory['max_zoom'] ?? null),
+        'color' => avesmapsPoliticalReadHexColor($display['color'] ?? $territory['color'] ?? '#888888'),
+        'opacity' => avesmapsPoliticalReadOpacity($display['opacity'] ?? $territory['opacity'] ?? 0.33),
+        'startYear' => avesmapsPoliticalReadOptionalInt($display['startYear'] ?? $territory['valid_from_bf'] ?? null),
+        'endYear' => !empty($display['existsUntilToday'])
+            ? null
+            : avesmapsPoliticalReadOptionalInt($display['endYear'] ?? $territory['valid_to_bf'] ?? null),
+        'existsUntilToday' => !empty($display['existsUntilToday']),
+        'depth' => $depth,
+    ];
+}
+
 function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom): array {
     $style = avesmapsPoliticalDecodeJson($row['style_json'] ?? null);
     $geometryStyle = avesmapsPoliticalDecodeJson($row['geometry_style_json'] ?? null);
     $territoryPublicId = trim((string) ($row['territory_public_id'] ?? ''));
+    $nodeKey = trim((string) ($row['slug'] ?? ''));
 
     $territoryName = trim((string) ($row['name'] ?? ''));
     $isAggregate = isset($row['aggregate_source_territory_id']);
 
-    $customName = $isAggregate
-        ? ''
-        : trim((string) ($style['displayName'] ?? $style['name'] ?? ''));
+    $assignmentDisplay = avesmapsPoliticalFindAssignmentDisplayForTerritory($style, $territoryPublicId, $nodeKey)
+        ?? avesmapsPoliticalFindAssignmentDisplayForTerritory($geometryStyle, $territoryPublicId, $nodeKey);
+
+    $customName = $assignmentDisplay !== null
+        ? avesmapsPoliticalResolveAssignmentDisplayName($assignmentDisplay, $territoryName)
+        : ($isAggregate ? '' : trim((string) ($style['displayName'] ?? $style['name'] ?? '')));
 
     $visibleName = $customName !== ''
         ? $customName
         : ($territoryName !== '' ? $territoryName : 'Freie Geometrie');
 
+    $displayCoatOfArmsUrl = trim((string) ($assignmentDisplay['coatOfArmsUrl'] ?? $assignmentDisplay['coat_of_arms_url'] ?? ''));
     $visibleCoatOfArmsUrl = (string) (
-        $geometryStyle['coatOfArmsUrl']
-        ?? $geometryStyle['coat_of_arms_url']
-        ?? $style['coatOfArmsUrl']
-        ?? $style['coat_of_arms_url']
-        ?? $row['coat_of_arms_url']
-        ?? ''
+        $displayCoatOfArmsUrl
+        ?: (
+            $geometryStyle['coatOfArmsUrl']
+            ?? $geometryStyle['coat_of_arms_url']
+            ?? $style['coatOfArmsUrl']
+            ?? $style['coat_of_arms_url']
+            ?? $row['coat_of_arms_url']
+            ?? ''
+        )
     );
+
+    $displayColor = trim((string) ($assignmentDisplay['color'] ?? ''));
+    $displayOpacity = $assignmentDisplay['opacity'] ?? null;
 
     $resolvedType = trim((string) ($row['type'] ?? '')) ?: 'Herrschaftsgebiet';
 
@@ -915,9 +1073,9 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         'feature_subtype' => $resolvedType,
         'territory_type' => trim((string) ($row['type'] ?? '')),
         'status' => (string) ($row['status'] ?? ''),
-        'fill' => (string) ($style['fill'] ?? $geometryStyle['fill'] ?? $row['color'] ?? '#888888'),
-        'stroke' => (string) ($style['stroke'] ?? $geometryStyle['stroke'] ?? $row['color'] ?? '#888888'),
-        'fillOpacity' => (float) ($style['fillOpacity'] ?? $geometryStyle['fillOpacity'] ?? $row['opacity'] ?? 0.33),
+        'fill' => (string) ($displayColor ?: ($style['fill'] ?? $geometryStyle['fill'] ?? $row['color'] ?? '#888888')),
+        'stroke' => (string) ($displayColor ?: ($style['stroke'] ?? $geometryStyle['stroke'] ?? $row['color'] ?? '#888888')),
+        'fillOpacity' => (float) ($displayOpacity ?? $style['fillOpacity'] ?? $geometryStyle['fillOpacity'] ?? $row['opacity'] ?? 0.33),
         'coat_of_arms_url' => $visibleCoatOfArmsUrl,
         'wiki_url' => (string) ($row['wiki_url'] ?? ''),
         'wiki_id' => isset($row['wiki_id']) ? (int) $row['wiki_id'] : null,
@@ -943,12 +1101,12 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         'timeline_year_bf' => $yearBf,
         'render_zoom' => $zoom,
         'updated_at' => (string) ($row['updated_at'] ?? ''),
-        'is_aggregate' => isset($row['aggregate_source_territory_id']),
+        'is_aggregate' => $isAggregate,
         'aggregate_source_territory_public_id' => (string) ($row['aggregate_source_territory_public_id'] ?? ''),
         'aggregate_source_territory_name' => (string) ($row['aggregate_source_territory_name'] ?? ''),
     ];
 
-    $featureId = isset($row['aggregate_source_territory_id'])
+    $featureId = $isAggregate
         ? sprintf('%s:%s', (string) $row['territory_public_id'], (string) $row['geometry_public_id'])
         : (string) $row['geometry_public_id'];
 
@@ -2022,6 +2180,8 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
     if ($chain === []) {
         throw new InvalidArgumentException('Die Herrschaftsgebiet-Zuweisung konnte nicht erzeugt werden.');
     }
+    
+    $assignmentDisplays = [];
 
     foreach ($chain as $index => $chainEntry) {
         $territoryPublicId = (string) ($chainEntry['territory']['public_id'] ?? '');
@@ -2031,11 +2191,9 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
 
         $territory = avesmapsPoliticalFetchTerritoryByPublicId($pdo, $territoryPublicId);
         $display = is_array($displays[$index] ?? null) ? $displays[$index] : [];
-
-        $name = avesmapsPoliticalReadRequiredName(
-            $display['displayName'] ?? $display['name'] ?? $territory['name'],
-            'Der Anzeigename des Herrschaftsgebiets'
-        );
+        
+        $assignmentDisplays[] = avesmapsPoliticalBuildStoredAssignmentDisplay($territory, $display, $index);
+ 
         $color = avesmapsPoliticalReadHexColor($display['color'] ?? $territory['color'] ?? '#888888');
         $opacity = avesmapsPoliticalReadOpacity($display['opacity'] ?? $territory['opacity'] ?? 0.33);
         $coatOfArmsUrl = avesmapsPoliticalReadOptionalUrl(
@@ -2052,8 +2210,7 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
 
         $statement = $pdo->prepare(
             'UPDATE political_territory
-            SET name = :name,
-                color = :color,
+            SET color = :color,
                 opacity = :opacity,
                 coat_of_arms_url = :coat_of_arms_url,
                 min_zoom = :min_zoom,
@@ -2063,8 +2220,7 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
             WHERE id = :id'
         );
         $statement->execute([
-            'id' => (int) $territory['id'],
-            'name' => $name,
+            'id' => (int) $territory['id'], 
             'color' => $color,
             'opacity' => $opacity,
             'coat_of_arms_url' => avesmapsPoliticalNullableString($coatOfArmsUrl),
@@ -2091,22 +2247,11 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
     $style['stroke'] = (string) ($selectedDisplay['color'] ?? $selectedTerritory['color'] ?? '#888888');
     $style['fillOpacity'] = avesmapsPoliticalReadOpacity($selectedDisplay['opacity'] ?? $selectedTerritory['opacity'] ?? 0.33);
 
-    $selectedTerritoryName = trim((string) ($selectedTerritory['name'] ?? ''));
-    $customDisplayName = trim((string) ($selectedDisplay['displayName'] ?? $selectedDisplay['name'] ?? ''));
+    $style['assignmentDisplays'] = $assignmentDisplays;
 
-    if ($customDisplayName !== '' && $customDisplayName !== $selectedTerritoryName) {
-        $style['displayName'] = $customDisplayName;
-        $style['name'] = $customDisplayName;
-    } else {
-        unset($style['displayName'], $style['name']);
-    }
-
-    if ($customDisplayName !== '') {
-        $style['displayName'] = $customDisplayName;
-        $style['name'] = $customDisplayName;
-    } else {
-        unset($style['displayName'], $style['name']);
-    }
+    // Ein zugewiesenes Gebiet hat jetzt keine einzelne globale Geometrie-Beschriftung mehr.
+    // Der Anzeigename wird pro Zoomstufe aus assignmentDisplays gelesen.
+    unset($style['displayName'], $style['name']);
 
     $statement = $pdo->prepare(
         'UPDATE political_territory_geometry
