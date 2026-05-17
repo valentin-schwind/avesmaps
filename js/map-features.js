@@ -3879,7 +3879,7 @@ function setPoliticalTimelineYear(value) {
 		return;
 	}
 
-	politicalTimelineYear = Math.max(-3000, Math.min(1050, parsedYear));
+	politicalTimelineYear = Math.max(0, Math.min(1049, parsedYear));
 	syncPoliticalTimelineControls();
 	schedulePoliticalTerritoryLayerReload();
 }
@@ -3898,14 +3898,14 @@ function showPoliticalTerritoryTimelineSelection(regionEntry) {
 	const endYear = normalizePoliticalTimelineYearValue(regionEntry.validToBf);
 	const hasStart = startYear !== null;
 	const hasEnd = endYear !== null && endYear < 9999;
-	const effectiveStart = hasStart ? startYear : -3000;
-	const effectiveEnd = hasEnd ? endYear : 1050;
+	const effectiveStart = hasStart ? Math.max(startYear, minYear) : minYear;
+	const effectiveEnd = hasEnd ? Math.min(endYear, maxYear) : maxYear;
 
 	nameElement.textContent = normalizeRegionParentheticalSpacing(regionEntry.displayName || regionEntry.name || "Herrschaftsgebiet");
 	yearsElement.textContent = formatPoliticalTerritoryRangeLabel(startYear, endYear, regionEntry.validLabel);
 
-	const minYear = -3000;
-	const maxYear = 1050;
+	const minYear = 0,;
+	const maxYear = 1049;
 	const range = maxYear - minYear;
 	const leftPercent = Math.max(0, Math.min(100, ((effectiveStart - minYear) / range) * 100));
 	const rightPercent = Math.max(0, Math.min(100, ((effectiveEnd - minYear) / range) * 100));
