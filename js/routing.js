@@ -633,7 +633,7 @@ function startLiveMapUpdates() {
 const routeDataRequest = loadRouteData();
 
 routeDataRequest
-	.done((data) => {
+	.then((data) => {
 		updateMapDataStatus(data);
 		prepareLocationData(data);
 		preparePowerlineData(data);
@@ -682,7 +682,7 @@ routeDataRequest
 		}
 		startLiveMapUpdates();
 	})
-	.fail((err) => console.error("Fehler beim Laden der GeoJSON-Datei:", err));
+	.catch((err) => console.error("Fehler beim Laden der GeoJSON-Datei:", err));
 
 $("#searchButton").on("click", () => updateMapView());
 $("#search").on("change", 'input[type="checkbox"], input[type="radio"], select, input[type="number"]', () => syncPlannerStateToUrl());
