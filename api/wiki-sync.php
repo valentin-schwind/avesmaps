@@ -1071,6 +1071,16 @@ function avesmapsWikiSyncHasPoliticalTerritoryDisplayDetails(array $details): bo
     return false;
 }
 
+function avesmapsWikiSyncIsIndependentPoliticalTerritoryPath(array $path): bool {
+	if ($path === []) {
+		return false;
+	}
+
+	$firstPart = avesmapsWikiSyncNormalizeWikiTreeText((string) $path[0]);
+
+	return preg_match('/^unabhängig\b/iu', $firstPart) === 1;
+}
+
 function avesmapsWikiSyncBuildPoliticalTerritoryTree(array $rows, bool $includePathReferenceRows = true): array {
     $root = avesmapsWikiSyncCreatePoliticalTreeNode('__root__', '');
     $rowIndex = avesmapsWikiSyncBuildPoliticalTerritoryRowIndex($rows);
@@ -1084,6 +1094,10 @@ function avesmapsWikiSyncBuildPoliticalTerritoryTree(array $rows, bool $includeP
 
     foreach ($rows as $index => $row) {
         $path = avesmapsWikiSyncReadPoliticalTerritoryPath($row);
+        if (avesmapsWikiSyncIsIndependentPoliticalTerritoryPath($path)) {
+            $path = [];
+        }
+
         $current =& $root;
         foreach ($path as $part) {
             $key = avesmapsWikiSyncMakePoliticalTreeKey($part);
