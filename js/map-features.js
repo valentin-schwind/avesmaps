@@ -4004,6 +4004,8 @@ async function loadPoliticalTerritoryLayer() {
 		return;
 	}
 
+	window.__avesmapsPoliticalLayerRequestSeq = (window.__avesmapsPoliticalLayerRequestSeq || 0) + 1;
+	const requestSeq = window.__avesmapsPoliticalLayerRequestSeq;
 	isPoliticalTerritoryLayerLoading = true;
 	try {
 		const bounds = getMapRenderBounds();
@@ -4020,6 +4022,9 @@ async function loadPoliticalTerritoryLayer() {
 			].map((value) => value.toFixed(3)).join(","),
 		});
 		if (activeRegionGeometryEdit || pendingRegionOperation || pendingRegionMoveState) {
+			return;
+		}
+		if (requestSeq !== window.__avesmapsPoliticalLayerRequestSeq) {
 			return;
 		}
 		politicalTerritoryApiUnavailable = false;
