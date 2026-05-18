@@ -1865,6 +1865,16 @@ function avesmapsPoliticalEnsureWikiTerritoryChain(PDO $pdo, array $payload, arr
             }
 
             if ($parentId !== null && $parentId !== (int) $territory['id']) {
+                $parentTerritory = avesmapsPoliticalFetchTerritoryById($pdo, (int) $parentId);
+                $isGenericParent = avesmapsPoliticalIsGenericHierarchyRootName((string) ($parentTerritory['name'] ?? ''))
+                    || avesmapsPoliticalIsGenericHierarchyRootName((string) ($parentTerritory['slug'] ?? ''));
+
+                if ($isGenericParent) {
+                    $parentId = null;
+                }
+            }
+
+            if ($parentId !== null && $parentId !== (int) $territory['id']) {
                 $statement = $pdo->prepare('UPDATE political_territory SET parent_id = :parent_id WHERE id = :id');
                 $statement->execute([
                     'id' => (int) $territory['id'],
