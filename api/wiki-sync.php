@@ -1073,6 +1073,10 @@ function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent(string $conte
         'gegruendet' => 'founded_text',
         'neugrundung' => 'founded_text',
         'neugruendung' => 'founded_text',
+        'zeitraum' => 'period_text',
+        'bestandszeit' => 'period_text',
+        'bestehen' => 'period_text',
+        'bestand' => 'period_text',
         'aufgelost' => 'dissolved_text',
         'aufgeloest' => 'dissolved_text',
         'auflosung' => 'dissolved_text',
@@ -1103,7 +1107,35 @@ function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent(string $conte
         }
     }
 
+    if (
+        isset($details['period_text'])
+        && (string) ($details['founded_text'] ?? '') === ''
+        && (string) ($details['dissolved_text'] ?? '') === ''
+    ) {
+        [$foundedText, $dissolvedText] = avesmapsWikiSyncSplitPoliticalPeriodText((string) $details['period_text']);
+        if ($foundedText !== '') {
+            $details['founded_text'] = $foundedText;
+        }
+        if ($dissolvedText !== '') {
+            $details['dissolved_text'] = $dissolvedText;
+        }
+    }
+
     return $details;
+}
+
+function avesmapsWikiSyncSplitPoliticalPeriodText(string $periodText): array {
+    $normalized = avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($periodText);
+    if ($normalized === '') {
+        return ['', ''];
+    }
+
+    $parts = preg_split('/\s*(?:-|–|—|bis)\s*/u', $normalized) ?: [];
+    if (count($parts) >= 2) {
+        return [trim((string) $parts[0]), trim((string) $parts[1])];
+    }
+
+    return [$normalized, ''];
 }
 
 function avesmapsWikiSyncReadWikiTemplateFields(string $content): array {
@@ -1710,6 +1742,7 @@ function avesmapsWikiSyncBuildPoliticalTerritoryTree(array $rows, bool $includeP
     }
 
     $hierarchy = avesmapsWikiSyncFlattenPoliticalTreeChildren($root['children']);
+    $hierarchy = avesmapsWikiSyncDedupePoliticalTreeHierarchy($hierarchy);
     foreach ($hierarchy as $node) {
         avesmapsWikiSyncCollectPoliticalTreeTerritories($node, $territories);
     }
@@ -1718,6 +1751,82 @@ function avesmapsWikiSyncBuildPoliticalTerritoryTree(array $rows, bool $includeP
         'hierarchy' => $hierarchy,
         'territories' => array_values($territories),
     ];
+}
+
+function avesmapsWikiSyncDedupePoliticalTreeHierarchy(array $nodes): array {
+    $dedupedByKey = [];
+    foreach ($nodes as $node) {
+        if (!is_array($node)) {
+            continue;
+        }
+
+        $normalizedNode = $node;
+        $normalizedNode['children'] = avesmapsWikiSyncDedupePoliticalTreeHierarchy(is_array($node['children'] ?? null) ? $node['children'] : []);
+        $key = avesmapsWikiSyncBuildPoliticalTreeDedupeKey($normalizedNode);
+        $existing = $dedupedByKey[$key] ?? null;
+        if (!is_array($existing)) {
+            $dedupedByKey[$key] = $normalizedNode;
+            continue;
+        }
+
+        $winner = avesmapsWikiSyncScorePublicPoliticalTreeNode($normalizedNode) >= avesmapsWikiSyncScorePublicPoliticalTreeNode($existing)
+            ? $normalizedNode
+            : $existing;
+        $loser = $winner === $normalizedNode ? $existing : $normalizedNode;
+        $winner['children'] = avesmapsWikiSyncDedupePoliticalTreeHierarchy(array_merge(
+            is_array($winner['children'] ?? null) ? $winner['children'] : [],
+            is_array($loser['children'] ?? null) ? $loser['children'] : []
+        ));
+        $winner = avesmapsWikiSyncMergePublicPoliticalTreeNode($winner, $loser);
+        $dedupedByKey[$key] = $winner;
+    }
+
+    $deduped = array_values($dedupedByKey);
+    usort($deduped, static fn(array $left, array $right): int => strnatcasecmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? '')));
+    return $deduped;
+}
+
+function avesmapsWikiSyncBuildPoliticalTreeDedupeKey(array $node): string {
+    $nameKey = avesmapsWikiSyncCreateMatchKey((string) ($node['name'] ?? ''));
+    $typeKey = avesmapsWikiSyncCreateMatchKey((string) ($node['type'] ?? ''));
+    $periodKey = avesmapsWikiSyncCreateMatchKey((string) ($node['valid_label'] ?? ''));
+    if ($periodKey !== '') {
+        return $nameKey . '|' . $typeKey . '|' . $periodKey;
+    }
+
+    return $nameKey . '|' . $typeKey;
+}
+
+function avesmapsWikiSyncScorePublicPoliticalTreeNode(array $node): int {
+    $score = 0;
+    $score += count(is_array($node['children'] ?? null) ? $node['children'] : []) * 1000;
+    foreach (['wiki_url', 'type', 'status', 'valid_label', 'founded_text', 'dissolved_text', 'coat_of_arms_url'] as $field) {
+        if (trim((string) ($node[$field] ?? '')) !== '') {
+            $score += 20;
+        }
+    }
+    $score += (int) ($node['map_geometry_count'] ?? 0) * 5;
+    return $score;
+}
+
+function avesmapsWikiSyncMergePublicPoliticalTreeNode(array $primary, array $secondary): array {
+    $merged = $primary;
+    foreach ([
+        'public_id', 'name', 'short_name', 'type', 'status', 'form_of_government', 'valid_label',
+        'wiki_name', 'wiki_affiliation_raw', 'wiki_affiliation_root', 'wiki_url', 'capital_name',
+        'seat_name', 'ruler', 'founder', 'language', 'currency', 'trade_goods', 'population',
+        'founded_text', 'dissolved_text', 'coat_of_arms_url'
+    ] as $field) {
+        if (trim((string) ($merged[$field] ?? '')) === '' && trim((string) ($secondary[$field] ?? '')) !== '') {
+            $merged[$field] = $secondary[$field];
+        }
+    }
+
+    $merged['map_assigned'] = !empty($merged['map_assigned']) || !empty($secondary['map_assigned']);
+    $merged['map_territory_count'] = max((int) ($merged['map_territory_count'] ?? 0), (int) ($secondary['map_territory_count'] ?? 0));
+    $merged['map_geometry_count'] = max((int) ($merged['map_geometry_count'] ?? 0), (int) ($secondary['map_geometry_count'] ?? 0));
+
+    return $merged;
 }
 
 function avesmapsWikiSyncNormalizePoliticalTerritoryPathForNode(array $path, string $nodeName): array {
