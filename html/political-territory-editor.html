@@ -1647,13 +1647,29 @@
 			const index = new Map();
 
 			for (const row of rows) {
-				const key = makeKey(row.name);
-				if (key && !index.has(key)) {
-					index.set(key, row);
+				const labels = new Set([row.name]);
+
+				for (const alias of getFixedAliases(row.name)) {
+					labels.add(alias);
+				}
+
+				for (const label of labels) {
+					const key = makeKey(label);
+					if (key && !index.has(key)) {
+						index.set(key, row);
+					}
 				}
 			}
 
 			return index;
+		}
+
+		function getFixedAliases(name) {
+			const aliases = {
+				"Heiliges Neues Kaiserreich vom Greifenthron zu Gareth": ["Mittelreich"]
+			};
+
+			return aliases[name] || [];
 		}
 
 
