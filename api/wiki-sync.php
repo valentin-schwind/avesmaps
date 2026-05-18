@@ -690,8 +690,11 @@ function avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache(PDO $pdo): array {
             trade_goods,
             population,
             founded_text,
+            founded_start_bf,
             founder,
             dissolved_text,
+            dissolved_type,
+            dissolved_end_bf,
             blazon,
             wiki_url,
             coat_of_arms_url
@@ -726,8 +729,11 @@ function avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache(PDO $pdo): array {
             'trade_goods' => (string) ($row['trade_goods'] ?? ''),
             'population' => (string) ($row['population'] ?? ''),
             'founded_text' => (string) ($row['founded_text'] ?? ''),
+            'founded_start_bf' => isset($row['founded_start_bf']) ? (int) $row['founded_start_bf'] : null,
             'founder' => (string) ($row['founder'] ?? ''),
             'dissolved_text' => (string) ($row['dissolved_text'] ?? ''),
+            'dissolved_type' => (string) ($row['dissolved_type'] ?? ''),
+            'dissolved_end_bf' => isset($row['dissolved_end_bf']) ? (int) $row['dissolved_end_bf'] : null,
             'blazon' => (string) ($row['blazon'] ?? ''),
             'wiki_url' => (string) ($row['wiki_url'] ?? ''),
             'coat_of_arms_url' => (string) ($row['coat_of_arms_url'] ?? ''),
@@ -1785,13 +1791,12 @@ function avesmapsWikiSyncDedupePoliticalTreeHierarchy(array $nodes): array {
 
 function avesmapsWikiSyncBuildPoliticalTreeDedupeKey(array $node): string {
     $nameKey = avesmapsWikiSyncCreateMatchKey((string) ($node['name'] ?? ''));
-    $typeKey = avesmapsWikiSyncCreateMatchKey((string) ($node['type'] ?? ''));
     $periodKey = avesmapsWikiSyncCreateMatchKey((string) ($node['valid_label'] ?? ''));
     if ($periodKey !== '') {
-        return $nameKey . '|' . $typeKey . '|' . $periodKey;
+        return $nameKey . '|' . $periodKey;
     }
 
-    return $nameKey . '|' . $typeKey;
+    return $nameKey;
 }
 
 function avesmapsWikiSyncScorePublicPoliticalTreeNode(array $node): int {
@@ -2105,6 +2110,12 @@ function avesmapsWikiSyncBuildPoliticalTerritoryRowIndex(array $rows): array {
 function avesmapsWikiSyncFormatPoliticalPeriod(array $row): string {
     $founded = avesmapsWikiSyncNormalizeWikiTreeText((string) ($row['founded_text'] ?? ''));
     $dissolved = avesmapsWikiSyncNormalizeWikiTreeText((string) ($row['dissolved_text'] ?? ''));
+    if ($founded === '' && isset($row['founded_start_bf']) && $row['founded_start_bf'] !== null) {
+        $founded = avesmapsWikiSyncFormatBfYear((int) $row['founded_start_bf']);
+    }
+    if ($dissolved === '' && isset($row['dissolved_end_bf']) && $row['dissolved_end_bf'] !== null) {
+        $dissolved = avesmapsWikiSyncFormatBfYear((int) $row['dissolved_end_bf']);
+    }
     if ($founded !== '' && $dissolved !== '') {
         return preg_match('/\bbesteht\b/iu', $dissolved) === 1 ? 'besteht seit ' . $founded : $founded . ' - ' . $dissolved;
     }
@@ -2116,6 +2127,14 @@ function avesmapsWikiSyncFormatPoliticalPeriod(array $row): string {
     }
 
     return '';
+}
+
+function avesmapsWikiSyncFormatBfYear(int $year): string {
+    if ($year < 0) {
+        return abs($year) . ' v. BF';
+    }
+
+    return $year . ' BF';
 }
 
 function avesmapsWikiSyncComparePoliticalTreeNodes(array $left, array $right): int {
