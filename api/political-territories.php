@@ -2018,6 +2018,28 @@ function avesmapsPoliticalFetchWikiByKey(PDO $pdo, string $wikiKey): array {
     ]);
     $wiki = $statement->fetch(PDO::FETCH_ASSOC);
     if (!$wiki) {
+        $nameCandidate = str_starts_with($wikiKey, 'wiki:') || str_starts_with($wikiKey, 'name:')
+            ? substr($wikiKey, 5)
+            : $wikiKey;
+
+        $nameCandidate = str_replace('-', ' ', $nameCandidate);
+
+        $fallbackStatement = $pdo->prepare(
+            'SELECT *
+            FROM political_territory_wiki
+            WHERE name = :name
+                OR LOWER(REPLACE(name, " ", "-")) = :slug
+            ORDER BY id ASC
+            LIMIT 1'
+        );
+        $fallbackStatement->execute([
+            'name' => $nameCandidate,
+            'slug' => mb_strtolower(str_replace(' ', '-', $nameCandidate)),
+        ]);
+        $wiki = $fallbackStatement->fetch(PDO::FETCH_ASSOC);
+    }
+
+    if (!$wiki) {
         throw new InvalidArgumentException('Der Wiki-Knoten wurde in den synchronisierten Referenzdaten nicht gefunden.');
     }
 

@@ -1460,10 +1460,11 @@ function avesmapsWikiSyncBuildPoliticalTerritoryTree(array $rows, bool $includeP
     }
     $territories = [];
 
-    foreach ($rows as $index => $row) {
-        $path = avesmapsWikiSyncReadPoliticalTerritoryPath($row);
-        if (avesmapsWikiSyncIsIndependentPoliticalTerritoryPath($path)) {
-            $path = [];
+    foreach ($path as $part) {
+        $part = avesmapsWikiSyncResolvePoliticalPathPart($rowIndex, $part);
+        $key = avesmapsWikiSyncMakePoliticalTreeKey($part);
+        if ($key === '') {
+            continue;
         }
 
         $current =& $root;
@@ -1706,7 +1707,17 @@ function avesmapsWikiSyncBuildPoliticalTerritoryRowIndex(array $rows): array {
     $index = [];
     foreach ($rows as $row) {
         $name = (string) ($row['name'] ?? '');
-        foreach ([$name, preg_replace('/\s*\([^)]*\)\s*$/u', '', $name) ?? $name] as $alias) {
+        $aliases = [
+            $name,
+            preg_replace('/\s*\([^)]*\)\s*$/u', '', $name) ?? $name,
+        ];
+
+        $title = avesmapsWikiSyncPoliticalTerritoryTitleFromUrl((string) ($row['wiki_url'] ?? ''));
+        if ($title !== '') {
+            $aliases[] = $title;
+        }
+
+        foreach ($aliases as $alias) {
             $key = avesmapsWikiSyncMakePoliticalTreeKey((string) $alias);
             if ($key !== '' && !isset($index[$key])) {
                 $index[$key] = $row;
