@@ -1631,12 +1631,17 @@ function avesmapsWikiSyncReadPoliticalTerritoryPath(array $row): array {
         return ['ungeklärt'];
     }
 
+    if (avesmapsWikiSyncIsIndependentPoliticalTerritoryPath([$affiliation])) {
+        return ['unabhängig'];
+    }
+
     $clauses = array_values(array_filter(array_map(
         static fn(string $part): string => trim($part),
         preg_split('/\s*[;·]\s*/u', $affiliation) ?: []
     )));
 
     $selectedClause = '';
+
     foreach ($clauses as $clause) {
         if (preg_match('/^politisch\b/iu', $clause) === 1) {
             $selectedClause = preg_replace('/^politisch\s*/iu', '', $clause) ?? $clause;
@@ -1646,9 +1651,14 @@ function avesmapsWikiSyncReadPoliticalTerritoryPath(array $row): array {
 
     if ($selectedClause === '') {
         foreach ($clauses as $clause) {
-            if (preg_match('/^(?:derographisch|geographisch|ehemals|früher|frueher|historisch)\b/iu', $clause) === 1) {
+            if (preg_match('/^(?:ehemals|früher|frueher|historisch)\b/iu', $clause) === 1) {
                 continue;
             }
+
+            if (preg_match('/^(?:geographisch|geografisch|derographisch)\b/iu', $clause) === 1) {
+                continue;
+            }
+
             $selectedClause = $clause;
             break;
         }
@@ -1660,6 +1670,7 @@ function avesmapsWikiSyncReadPoliticalTerritoryPath(array $row): array {
 
     $parts = preg_split('/\s*:\s*/u', $selectedClause) ?: [];
     $path = [];
+
     foreach ($parts as $part) {
         $normalizedPart = avesmapsWikiSyncNormalizePoliticalPathPart($part);
         if ($normalizedPart !== '') {
@@ -1670,14 +1681,25 @@ function avesmapsWikiSyncReadPoliticalTerritoryPath(array $row): array {
     return $path !== [] ? $path : ['ungeklärt'];
 }
 
-function avesmapsWikiSyncNormalizePoliticalPathPart(string $value): string {
-    $normalized = avesmapsWikiSyncNormalizeWikiTreeText($value);
-    $normalized = preg_replace('/\([^)]*\)/u', '', $normalized) ?? $normalized;
-    $normalized = preg_replace('/\[[^\]]*\]/u', '', $normalized) ?? $normalized;
-    $normalized = preg_replace('/^(?:sowie|und|zuvor|ehemals)\s+/iu', '', $normalized) ?? $normalized;
-    $normalized = preg_replace('/^(?:unter\s+der\s+Herrschaft\s+(?:des|der)|beansprucht\s+(?:von|vom|durch)|benasprucht\s+(?:von|vom|durch))\s+/iu', '', $normalized) ?? $normalized;
+function avesmapsWikiSyncResolvePoliticalPathPart(array $rowIndex, string $part): string {
+    $normalizedPart = avesmapsWikiSyncNormalizePoliticalPathPart($part);
+    if ($normalizedPart === '') {
+        return '';
+    }
 
-    return trim($normalized, " \t\n\r\0\x0B,");
+    $key = avesmapsWikiSyncMakePoliticalTreeKey($normalizedPart);
+    if ($key !== '' && isset($rowIndex[$key])) {
+        return $normalizedPart;
+    }
+
+    $candidateBeforeSemicolon = trim((string) (preg_split('/\s*[;·]\s*/u', $normalizedPart)[0] ?? $normalizedPart));
+    $candidateKey = avesmapsWikiSyncMakePoliticalTreeKey($candidateBeforeSemicolon);
+
+    if ($candidateKey !== '' && isset($rowIndex[$candidateKey])) {
+        return $candidateBeforeSemicolon;
+    }
+
+    return $normalizedPart;
 }
 
 function avesmapsWikiSyncBuildPoliticalTerritoryRowIndex(array $rows): array {
