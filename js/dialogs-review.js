@@ -961,9 +961,10 @@ function populateRegionParentSelect(region) {
 
 function buildPoliticalTerritoryTree(excludedPublicId) {
 	if (Array.isArray(politicalTerritoryHierarchy) && politicalTerritoryHierarchy.length > 0) {
-		return politicalTerritoryHierarchy
+		const hierarchyTree = politicalTerritoryHierarchy
 			.map((node) => clonePoliticalTerritoryHierarchyNode(node))
 			.filter(Boolean);
+		return dedupePoliticalTerritoryTreeNodes(hierarchyTree);
 	}
 
 	const byId = new Map();
@@ -995,6 +996,100 @@ function buildPoliticalTerritoryTree(excludedPublicId) {
 	};
 	sortNodes(territoryRoots);
 	return territoryRoots;
+}
+
+function dedupePoliticalTerritoryTreeNodes(nodes) {
+	const normalizedNodes = (Array.isArray(nodes) ? nodes : [])
+		.map((node) => dedupePoliticalTerritoryTreeNode(node))
+		.filter(Boolean);
+	const nodesByKey = new Map();
+	for (const node of normalizedNodes) {
+		const dedupeKey = buildPoliticalTerritoryTreeDedupeKey(node?.territory);
+		const existingNode = nodesByKey.get(dedupeKey);
+		if (!existingNode) {
+			nodesByKey.set(dedupeKey, node);
+			continue;
+		}
+
+		const winningNode = scorePoliticalTerritoryTreeNode(node) > scorePoliticalTerritoryTreeNode(existingNode) ? node : existingNode;
+		const losingNode = winningNode === node ? existingNode : node;
+		winningNode.children = dedupePoliticalTerritoryTreeNodes([
+			...(Array.isArray(winningNode.children) ? winningNode.children : []),
+			...(Array.isArray(losingNode.children) ? losingNode.children : []),
+		]);
+		winningNode.territory = mergePoliticalTerritoryTreeDuplicateTerritory(winningNode.territory, losingNode.territory);
+		winningNode.key = `territory:${winningNode.territory.public_id || winningNode.territory.name}`;
+		nodesByKey.set(dedupeKey, winningNode);
+	}
+
+	return Array.from(nodesByKey.values()).sort((left, right) => {
+		return String(left?.territory?.name || "").localeCompare(String(right?.territory?.name || ""), "de");
+	});
+}
+
+function dedupePoliticalTerritoryTreeNode(node) {
+	if (!node || typeof node !== "object") {
+		return null;
+	}
+
+	return {
+		...node,
+		children: dedupePoliticalTerritoryTreeNodes(node.children || []),
+	};
+}
+
+function buildPoliticalTerritoryTreeDedupeKey(territory) {
+	const name = normalizeSearchText(territory?.name || "");
+	const wikiName = normalizeSearchText(territory?.wiki_name || "");
+	const wikiUrl = normalizeSearchText(territory?.wiki_url || "");
+	const fallback = normalizeSearchText(territory?.public_id || "");
+	return [name, wikiName, wikiUrl || fallback].filter(Boolean).join("|");
+}
+
+function scorePoliticalTerritoryTreeNode(node) {
+	if (!node || typeof node !== "object") {
+		return Number.NEGATIVE_INFINITY;
+	}
+
+	const territory = node.territory || {};
+	const directChildren = Array.isArray(node.children) ? node.children.length : 0;
+	const filledFields = [
+		territory.wiki_url,
+		territory.wiki_name,
+		territory.type,
+		territory.status,
+		territory.form_of_government,
+		territory.coat_of_arms_url,
+		territory.capital_name,
+		territory.seat_name,
+	].filter((value) => String(value || "").trim() !== "").length;
+	return (directChildren * 100) + (filledFields * 10);
+}
+
+function mergePoliticalTerritoryTreeDuplicateTerritory(primaryTerritory, secondaryTerritory) {
+	const primary = primaryTerritory || {};
+	const secondary = secondaryTerritory || {};
+	const mergedAliases = Array.from(new Set([
+		...(Array.isArray(primary.aliases) ? primary.aliases : []),
+		...(Array.isArray(secondary.aliases) ? secondary.aliases : []),
+	]));
+	return {
+		...secondary,
+		...primary,
+		public_id: String(primary.public_id || secondary.public_id || ""),
+		name: primary.name || secondary.name || "",
+		short_name: primary.short_name || secondary.short_name || "",
+		type: primary.type || secondary.type || "",
+		status: primary.status || secondary.status || "",
+		form_of_government: primary.form_of_government || secondary.form_of_government || "",
+		valid_label: primary.valid_label || secondary.valid_label || "",
+		parent_public_id: primary.parent_public_id || secondary.parent_public_id || "",
+		parent_name: primary.parent_name || secondary.parent_name || "",
+		wiki_name: primary.wiki_name || secondary.wiki_name || "",
+		wiki_url: primary.wiki_url || secondary.wiki_url || "",
+		coat_of_arms_url: primary.coat_of_arms_url || secondary.coat_of_arms_url || "",
+		aliases: mergedAliases,
+	};
 }
 
 function clonePoliticalTerritoryHierarchyNode(node) {
