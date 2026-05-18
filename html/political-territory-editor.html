@@ -2582,6 +2582,8 @@
 			const editedPath = editedNode ? getNodePath(editedNode) : [];
 			const displays = getDisplayStatesForDroppedPath();
 			const activeDisplay = editedNode ? getDisplayStateForNode(editedNode) : null;
+			const manualDisplay = readDisplayStateFromForm(activeDisplay || createEmptyDisplayState());
+			const effectiveDisplay = activeDisplay || manualDisplay;
 
 			return {
 				version: MODULE_VERSION,
@@ -2590,24 +2592,50 @@
 				activeDisplayNode: createNodeReference(editedNode),
 				assignedPath: assignedPath.map(createNodeReference),
 				editedPath: editedPath.map(createNodeReference),
-				display: activeDisplay ? {
-					name: activeDisplay.displayName,
-					coatOfArmsUrl: activeDisplay.coatOfArmsUrl,
-					zoomMin: activeDisplay.zoomMin,
-					zoomMax: activeDisplay.zoomMax,
-					color: activeDisplay.color,
-					opacity: activeDisplay.opacity
-				} : null,
-				validity: activeDisplay ? {
-					startYear: activeDisplay.startYear,
-					endYear: activeDisplay.endYear,
-					existsUntilToday: activeDisplay.existsUntilToday
-				} : null,
+				display: {
+					name: effectiveDisplay.displayName || effectiveDisplay.name || "",
+					coatOfArmsUrl: effectiveDisplay.coatOfArmsUrl || "",
+					zoomMin: effectiveDisplay.zoomMin,
+					zoomMax: effectiveDisplay.zoomMax,
+					color: effectiveDisplay.color || "#888888",
+					opacity: effectiveDisplay.opacity
+				},
+				validity: {
+					startYear: effectiveDisplay.startYear,
+					endYear: effectiveDisplay.endYear,
+					existsUntilToday: effectiveDisplay.existsUntilToday
+				},
 				displays,
 				source: {
 					assignedRow: droppedNode?.row || null,
 					editedRow: editedNode?.row || null
 				}
+			};
+		}
+
+		function readDisplayStateFromForm(fallbackState = createEmptyDisplayState()) {
+			const opacityPercent = parseOptionalNumber(
+				transparencyInput?.value,
+				Math.round((fallbackState.opacity ?? 0.33) * 100)
+			);
+			const color = normalizeHexColor(document.getElementById("colorInput")?.value)
+				|| normalizeHexColor(fallbackState.color)
+				|| "#888888";
+			const isOpenEnded = Boolean(existsUntilTodayInput?.checked);
+
+			return {
+				...fallbackState,
+				displayName: normalizeText(els.displayNameInput?.value || fallbackState.displayName || fallbackState.name || ""),
+				coatOfArmsUrl: normalizeText(els.alternateCoatInput?.value || fallbackState.coatOfArmsUrl || ""),
+				zoomMin: parseOptionalNumber(els.zoomFromInput?.value, fallbackState.zoomMin),
+				zoomMax: parseOptionalNumber(els.zoomToInput?.value, fallbackState.zoomMax),
+				color,
+				opacity: opacityPercent / 100,
+				startYear: parseOptionalNumber(document.getElementById("startYearInput")?.value, fallbackState.startYear),
+				endYear: isOpenEnded
+					? null
+					: parseOptionalNumber(endYearInput?.value, fallbackState.endYear),
+				existsUntilToday: isOpenEnded,
 			};
 		}
 

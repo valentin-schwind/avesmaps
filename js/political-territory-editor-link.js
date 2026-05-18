@@ -124,9 +124,12 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 	const assignedPath = Array.isArray(value.assignedPath) ? value.assignedPath : [];
 	const displays = Array.isArray(value.displays) ? value.displays : [];
 	const wikiPublicIds = assignedPath
-		.map((node) => String(node?.wikiKey || node?.id || node?.key || node?.label || "").trim())
+		.map((node) => String(node?.wikiKey || "").trim())
 		.filter(Boolean);
-	const hasAssignedTerritory = assignedPath.length > 0 && wikiPublicIds.length > 0;
+	const territoryPublicIds = assignedPath
+		.map((node) => String(node?.territoryPublicId || "").trim())
+		.filter(Boolean);
+	const hasAssignedTerritory = assignedPath.length > 0 && (wikiPublicIds.length > 0 || territoryPublicIds.length > 0);
 	const display = buildPoliticalTerritoryEditorDisplayPayload(regionEntry, value);
 	const validity = buildPoliticalTerritoryEditorValidityPayload(regionEntry, value);
 
@@ -137,6 +140,7 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 		display,
 		validity,
 		wiki_public_ids: wikiPublicIds,
+		territory_public_ids: territoryPublicIds,
 		wiki_nodes: buildPoliticalTerritoryEditorWikiNodes(assignedPath, displays, wikiPublicIds),
 		assignment: value,
 	});
@@ -199,7 +203,9 @@ function buildPoliticalTerritoryEditorWikiNodes(assignedPath, displays, wikiPubl
 	return assignedPath.map((node, index) => {
 		const display = displays[index] || {};
 		return {
-			key: wikiPublicIds[index] || node?.wikiKey || node?.id || node?.key || node?.label || "",
+			key: wikiPublicIds[index] || node?.wikiKey || node?.territoryPublicId || "",
+			territoryPublicId: node?.territoryPublicId || "",
+			territoryId: node?.territoryId || null,
 			name: display.displayName || node?.label || node?.key || "",
 			type: node?.kind || "Herrschaftsgebiet",
 			status: "",

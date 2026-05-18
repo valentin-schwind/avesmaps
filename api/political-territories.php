@@ -2353,9 +2353,36 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
 
     $assignment = is_array($payload['assignment'] ?? null) ? $payload['assignment'] : [];
     $displays = is_array($assignment['displays'] ?? null) ? array_values($assignment['displays']) : [];
+    $wikiPublicIds = [];
+    if (is_array($payload['wiki_public_ids'] ?? null)) {
+        foreach ($payload['wiki_public_ids'] as $wikiPublicId) {
+            $normalizedWikiPublicId = trim((string) $wikiPublicId);
+            if ($normalizedWikiPublicId !== '') {
+                $wikiPublicIds[] = $normalizedWikiPublicId;
+            }
+        }
+    }
 
-    $chainResponse = avesmapsPoliticalEnsureWikiTerritoryChain($pdo, $payload, $user);
-    $chain = is_array($chainResponse['chain'] ?? null) ? array_values($chainResponse['chain']) : [];
+    $territoryPublicIds = [];
+    if (is_array($payload['territory_public_ids'] ?? null)) {
+        foreach ($payload['territory_public_ids'] as $territoryPublicId) {
+            $normalizedTerritoryPublicId = trim((string) $territoryPublicId);
+            if ($normalizedTerritoryPublicId !== '') {
+                $territoryPublicIds[] = $normalizedTerritoryPublicId;
+            }
+        }
+    }
+
+    $chain = [];
+    if ($wikiPublicIds !== []) {
+        $chainResponse = avesmapsPoliticalEnsureWikiTerritoryChain($pdo, [
+            ...$payload,
+            'wiki_public_ids' => $wikiPublicIds,
+        ], $user);
+        $chain = is_array($chainResponse['chain'] ?? null) ? array_values($chainResponse['chain']) : [];
+    } elseif ($territoryPublicIds !== []) {
+        $chain = avesmapsPoliticalBuildAssignmentChainFromTerritoryPublicIds($pdo, $territoryPublicIds);
+    }
 
     if ($chain === []) {
         throw new InvalidArgumentException('Die Herrschaftsgebiet-Zuweisung konnte nicht erzeugt werden.');
@@ -2462,6 +2489,53 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
     $response['chain'] = $chain;
 
     return $response;
+}
+
+function avesmapsPoliticalBuildAssignmentChainFromTerritoryPublicIds(PDO $pdo, array $territoryPublicIds): array {
+    $chain = [];
+    $seenTerritoryPublicIds = [];
+
+    foreach ($territoryPublicIds as $territoryPublicId) {
+        try {
+            $normalizedTerritoryPublicId = avesmapsPoliticalReadPublicId($territoryPublicId);
+        } catch (InvalidArgumentException) {
+            continue;
+        }
+
+        if ($normalizedTerritoryPublicId === '' || isset($seenTerritoryPublicIds[$normalizedTerritoryPublicId])) {
+            continue;
+        }
+        $seenTerritoryPublicIds[$normalizedTerritoryPublicId] = true;
+
+        $territory = avesmapsPoliticalFetchTerritoryByPublicId($pdo, $normalizedTerritoryPublicId);
+        $wikiPublicId = '';
+        $wikiPayload = [
+            'key' => $normalizedTerritoryPublicId,
+            'name' => (string) ($territory['name'] ?? ''),
+            'type' => (string) ($territory['type'] ?? 'Herrschaftsgebiet'),
+            'status' => (string) ($territory['status'] ?? ''),
+            'coat_of_arms_url' => (string) ($territory['coat_of_arms_url'] ?? ''),
+            'wiki_url' => (string) ($territory['wiki_url'] ?? ''),
+        ];
+
+        if (!empty($territory['wiki_id'])) {
+            try {
+                $wiki = avesmapsPoliticalFetchWikiById($pdo, (int) $territory['wiki_id']);
+                $wikiPublicId = (string) ($wiki['wiki_key'] ?? '');
+                $wikiPayload = avesmapsPoliticalWikiRowToPublic($wiki);
+            } catch (Throwable) {
+                $wikiPublicId = '';
+            }
+        }
+
+        $chain[] = [
+            'territory' => avesmapsPoliticalTerritoryRowToPublic($territory),
+            'wiki' => $wikiPayload,
+            'wiki_public_id' => $wikiPublicId,
+        ];
+    }
+
+    return $chain;
 }
 
 function avesmapsPoliticalAssignGeometryToTerritory(PDO $pdo, array $payload): array {
