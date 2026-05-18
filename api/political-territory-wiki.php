@@ -159,6 +159,7 @@ try {
     while ($row = $stmt->fetch()) {
         $items[] = normalizeTerritoryRow($row);
     }
+    $items = dedupeTerritoryItems($items);
 
     $rows = array_map('territoryItemToLegacyRow', $items);
     $hierarchy = buildLegacyTree($rows);
@@ -230,6 +231,177 @@ function normalizeTerritoryRow(array $row): array {
         'raw' => is_array($raw) ? $raw : null,
         'synced_at' => stringOrNull($row['synced_at'] ?? null),
     ];
+}
+
+function dedupeTerritoryItems(array $items): array {
+    $dedupedByKey = [];
+    $order = [];
+
+    foreach ($items as $index => $item) {
+        if (!is_array($item)) {
+            continue;
+        }
+
+        $key = territoryItemDedupeKey($item);
+        if ($key === '') {
+            $key = '__row__' . $index;
+        }
+
+        if (!isset($dedupedByKey[$key])) {
+            $dedupedByKey[$key] = $item;
+            $order[] = $key;
+            continue;
+        }
+
+        $dedupedByKey[$key] = mergeTerritoryItems($dedupedByKey[$key], $item);
+    }
+
+    $deduped = [];
+    foreach ($order as $key) {
+        if (!isset($dedupedByKey[$key]) || !is_array($dedupedByKey[$key])) {
+            continue;
+        }
+        $deduped[] = $dedupedByKey[$key];
+    }
+
+    return $deduped;
+}
+
+function territoryItemDedupeKey(array $item): string {
+    $wikiUrl = value($item['wiki_url'] ?? null);
+    if ($wikiUrl !== '') {
+        $wikiTitle = wikiTitleFromUrl($wikiUrl);
+        if ($wikiTitle !== '') {
+            return 'wiki_title|' . makeStableKey($wikiTitle);
+        }
+
+        return 'wiki_url|' . makeStableKey($wikiUrl);
+    }
+
+    $wikiKey = value($item['wiki_key'] ?? null);
+    if ($wikiKey !== '') {
+        return 'wiki_key|' . makeStableKey($wikiKey);
+    }
+
+    return '';
+}
+
+function mergeTerritoryItems(array $left, array $right): array {
+    $primary = $left;
+    $secondary = $right;
+
+    if (territoryItemMergeScore($secondary) > territoryItemMergeScore($primary)) {
+        $primary = $right;
+        $secondary = $left;
+    }
+
+    $merged = $primary;
+    $preferredFields = [
+        'wiki_key',
+        'name',
+        'type',
+        'continent',
+        'affiliation_raw',
+        'affiliation_key',
+        'affiliation_root',
+        'status',
+        'form_of_government',
+        'capital_name',
+        'seat_name',
+        'ruler',
+        'language',
+        'currency',
+        'trade_goods',
+        'population',
+        'founded_text',
+        'founded_type',
+        'founder',
+        'dissolved_text',
+        'dissolved_type',
+        'geographic',
+        'political',
+        'trade_zone',
+        'blazon',
+        'wiki_url',
+        'coat_of_arms_url',
+        'synced_at',
+    ];
+
+    foreach ($preferredFields as $field) {
+        $currentValue = value($merged[$field] ?? null);
+        $fallbackValue = value($secondary[$field] ?? null);
+        if ($currentValue === '' && $fallbackValue !== '') {
+            $merged[$field] = $fallbackValue;
+        }
+    }
+
+    foreach (['id', 'founded_start_bf', 'founded_end_bf', 'dissolved_start_bf', 'dissolved_end_bf'] as $field) {
+        if (($merged[$field] ?? null) === null && ($secondary[$field] ?? null) !== null) {
+            $merged[$field] = $secondary[$field];
+        }
+    }
+
+    foreach (['founded_display_bf', 'dissolved_display_bf'] as $field) {
+        if (($merged[$field] ?? null) === null && ($secondary[$field] ?? null) !== null) {
+            $merged[$field] = $secondary[$field];
+        }
+    }
+
+    foreach (['affiliation_path', 'affiliation', 'founded', 'dissolved', 'raw'] as $field) {
+        $current = $merged[$field] ?? null;
+        $fallback = $secondary[$field] ?? null;
+
+        if (empty($current) && !empty($fallback)) {
+            $merged[$field] = $fallback;
+        }
+    }
+
+    $merged['map_territory_count'] = max(
+        (int) ($left['map_territory_count'] ?? 0),
+        (int) ($right['map_territory_count'] ?? 0)
+    );
+    $merged['map_geometry_count'] = max(
+        (int) ($left['map_geometry_count'] ?? 0),
+        (int) ($right['map_geometry_count'] ?? 0)
+    );
+    $merged['map_assigned'] = $merged['map_geometry_count'] > 0;
+
+    return $merged;
+}
+
+function territoryItemMergeScore(array $item): int {
+    $score = 0;
+    $score += max(0, (int) ($item['map_geometry_count'] ?? 0)) * 100;
+    $score += max(0, (int) ($item['map_territory_count'] ?? 0)) * 20;
+
+    $fields = [
+        'wiki_url',
+        'coat_of_arms_url',
+        'founded_text',
+        'dissolved_text',
+        'type',
+        'status',
+        'affiliation_raw',
+        'capital_name',
+        'seat_name',
+        'ruler',
+        'language',
+        'currency',
+        'trade_goods',
+        'population',
+    ];
+
+    foreach ($fields as $field) {
+        if (value($item[$field] ?? null) !== '') {
+            $score++;
+        }
+    }
+
+    if (!empty($item['affiliation_path']) && is_array($item['affiliation_path'])) {
+        $score += count($item['affiliation_path']);
+    }
+
+    return $score;
 }
 
 function territoryItemToLegacyRow(array $item): array {
