@@ -809,6 +809,13 @@ function avesmapsPoliticalBuildResolvedLayerFeatures(array $geometryRows, array 
         }
 
         $displayTerritoryId = avesmapsPoliticalResolveLayerDisplayTerritoryId($sourceTerritoryId, $territories, $parentIds, $zoom);
+        if ($displayTerritoryId !== null && $displayTerritoryId !== $sourceTerritoryId) {
+            $displayTerritory = $territories[$displayTerritoryId] ?? null;
+            if (is_array($displayTerritory) && avesmapsPoliticalIsGenericLayerParentTerritory($displayTerritory)) {
+                $displayTerritoryId = $sourceTerritoryId;
+            }
+        }
+
         if ($displayTerritoryId === null || !isset($territories[$displayTerritoryId])) {
             continue;
         }
@@ -866,6 +873,10 @@ function avesmapsPoliticalResolveLayerDisplayTerritoryId(int $sourceTerritoryId,
             continue;
         }
 
+        if (avesmapsPoliticalIsGenericLayerParentTerritory($territory)) {
+            continue;
+        }
+
         $minZoom = avesmapsPoliticalNullableInt($territory['territory_min_zoom'] ?? null);
         $maxZoom = avesmapsPoliticalNullableInt($territory['territory_max_zoom'] ?? null);
 
@@ -879,6 +890,18 @@ function avesmapsPoliticalResolveLayerDisplayTerritoryId(int $sourceTerritoryId,
             $bestTerritoryId = $candidateTerritoryId;
             $bestRangeWidth = $rangeWidth;
             $bestDepth = $depth;
+        }
+    }
+
+    if ($bestTerritoryId !== null) {
+        return $bestTerritoryId;
+    }
+
+    for ($index = count($chain) - 1; $index >= 0; $index--) {
+        $candidateTerritoryId = (int) ($chain[$index] ?? 0);
+        $territory = $territories[$candidateTerritoryId] ?? null;
+        if ($territory && avesmapsPoliticalLayerTerritoryMatchesZoom($territory, $zoom)) {
+            return $candidateTerritoryId;
         }
     }
 

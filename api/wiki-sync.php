@@ -747,11 +747,16 @@ function avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki(bool $includeDetail
             }
 
             $key = avesmapsWikiSyncCreateMatchKey($keySource);
-            if ($key === '' || isset($rowsByKey[$key])) {
+            if ($key === '') {
                 continue;
             }
 
-            $rowsByKey[$key] = $row;
+            if (!isset($rowsByKey[$key])) {
+                $rowsByKey[$key] = $row;
+                continue;
+            }
+
+            $rowsByKey[$key] = avesmapsWikiSyncSelectPreferredPoliticalTerritoryRow($rowsByKey[$key], $row);
         }
     }
 
@@ -761,6 +766,68 @@ function avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki(bool $includeDetail
     }
 
     return $includeDetails ? avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki($rows) : $rows;
+}
+
+function avesmapsWikiSyncSelectPreferredPoliticalTerritoryRow(array $currentRow, array $candidateRow): array {
+    $currentScore = avesmapsWikiSyncScorePoliticalTerritoryRow($currentRow);
+    $candidateScore = avesmapsWikiSyncScorePoliticalTerritoryRow($candidateRow);
+    if ($candidateScore > $currentScore) {
+        return $candidateRow;
+    }
+
+    return $currentRow;
+}
+
+function avesmapsWikiSyncScorePoliticalTerritoryRow(array $row): int {
+    $score = 0;
+    if (trim((string) ($row['wiki_url'] ?? '')) !== '') {
+        $score += 120;
+    }
+
+    $name = trim((string) ($row['name'] ?? ''));
+    if ($name !== '') {
+        $score += 40;
+        if (!str_contains($name, ';') && !str_contains($name, ',')) {
+            $score += 15;
+        }
+    }
+
+    $affiliation = trim((string) ($row['affiliation'] ?? ''));
+    if ($affiliation !== '') {
+        $clauses = preg_split('/\s*[;·]\s*/u', $affiliation) ?: [];
+        $bestClauseScore = -100;
+        foreach ($clauses as $clause) {
+            $parts = array_values(array_filter(array_map(
+                static fn(string $part): string => avesmapsWikiSyncNormalizePoliticalPathPart($part),
+                preg_split('/\s*:\s*/u', (string) $clause) ?: []
+            ), static fn(string $part): bool => $part !== ''));
+            if ($parts === []) {
+                continue;
+            }
+
+            $clauseScore = count($parts) * 12;
+            $firstPartKey = avesmapsWikiSyncCreateMatchKey((string) ($parts[0] ?? ''));
+            if (in_array($firstPartKey, ['unabhangig', 'umstritten', 'ungeklart'], true)) {
+                $clauseScore -= 30;
+            } else {
+                $clauseScore += 10;
+            }
+
+            $bestClauseScore = max($bestClauseScore, $clauseScore);
+        }
+
+        if ($bestClauseScore > -100) {
+            $score += $bestClauseScore;
+        }
+    }
+
+    foreach (['status', 'form_of_government', 'capital_name', 'seat_name', 'founded_text', 'dissolved_text'] as $field) {
+        if (trim((string) ($row[$field] ?? '')) !== '') {
+            $score += 3;
+        }
+    }
+
+    return $score;
 }
 
 function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): array {
@@ -1059,19 +1126,21 @@ function avesmapsWikiSyncParsePoliticalTerritoryRowsFromHtml(string $html): arra
 function avesmapsWikiSyncParsePoliticalTerritoryTable(DOMElement $table): array {
     $rows = [];
     $headers = [];
+    $rowSpanCells = [];
 
     foreach ($table->getElementsByTagName('tr') as $tableRow) {
         if (!$tableRow instanceof DOMElement) {
             continue;
         }
 
-        $cells = avesmapsWikiSyncReadTableCells($tableRow);
+        $directCells = avesmapsWikiSyncReadTableCells($tableRow);
+        $cells = avesmapsWikiSyncReadTableGridCells($tableRow, $rowSpanCells);
         if ($cells === []) {
             continue;
         }
 
         $isHeaderRow = false;
-        foreach ($cells as $cell) {
+        foreach ($directCells as $cell) {
             if (strtolower($cell->tagName) === 'th') {
                 $isHeaderRow = true;
                 break;
@@ -1104,7 +1173,23 @@ function avesmapsWikiSyncParsePoliticalTerritoryTable(DOMElement $table): array 
             continue;
         }
 
-        $wikiUrl = avesmapsWikiSyncReadFirstWikiLink($cells[array_search('name', $headers, true) ?: 0] ?? $cells[0]);
+        $nameCellIndex = array_search('name', $headers, true);
+        if (!is_int($nameCellIndex)) {
+            $nameCellIndex = 0;
+        }
+
+        $nameCell = $cells[$nameCellIndex] ?? $cells[0] ?? null;
+        if (!$nameCell instanceof DOMElement) {
+            continue;
+        }
+
+        $nameLink = avesmapsWikiSyncReadFirstWikiLinkMetadata($nameCell);
+        $canonicalName = avesmapsWikiSyncNormalizeWikiTreeText((string) ($nameLink['title'] ?? ''));
+        if ($canonicalName !== '') {
+            $name = $canonicalName;
+        }
+
+        $wikiUrl = (string) ($nameLink['url'] ?? '');
         $rows[] = [
             'raw' => $raw,
             'public' => [
@@ -1143,6 +1228,85 @@ function avesmapsWikiSyncReadTableCells(DOMElement $row): array {
     return $cells;
 }
 
+function avesmapsWikiSyncReadTableGridCells(DOMElement $row, array &$rowSpanCells): array {
+    $gridCells = [];
+    $directCells = avesmapsWikiSyncReadTableCells($row);
+    if ($directCells === [] && $rowSpanCells === []) {
+        return [];
+    }
+
+    $columnIndex = 0;
+    $consumePendingCell = static function (int $columnIndex, array &$rowSpanCells, array &$gridCells): void {
+        if (!isset($rowSpanCells[$columnIndex])) {
+            return;
+        }
+
+        $pending = $rowSpanCells[$columnIndex];
+        if (!$pending['cell'] instanceof DOMElement) {
+            unset($rowSpanCells[$columnIndex]);
+            return;
+        }
+
+        $gridCells[$columnIndex] = $pending['cell'];
+        $pending['rows_left']--;
+        if ($pending['rows_left'] > 0) {
+            $rowSpanCells[$columnIndex] = $pending;
+            return;
+        }
+
+        unset($rowSpanCells[$columnIndex]);
+    };
+
+    foreach ($directCells as $cell) {
+        while (isset($rowSpanCells[$columnIndex])) {
+            $consumePendingCell($columnIndex, $rowSpanCells, $gridCells);
+            $columnIndex++;
+        }
+
+        $colspan = avesmapsWikiSyncReadTableSpanValue($cell, 'colspan');
+        $rowspan = avesmapsWikiSyncReadTableSpanValue($cell, 'rowspan');
+
+        for ($offset = 0; $offset < $colspan; $offset++) {
+            $targetColumn = $columnIndex + $offset;
+            $gridCells[$targetColumn] = $cell;
+            if ($rowspan > 1) {
+                $rowSpanCells[$targetColumn] = [
+                    'cell' => $cell,
+                    'rows_left' => $rowspan - 1,
+                ];
+            }
+        }
+
+        $columnIndex += $colspan;
+    }
+
+    while (isset($rowSpanCells[$columnIndex])) {
+        $consumePendingCell($columnIndex, $rowSpanCells, $gridCells);
+        $columnIndex++;
+    }
+
+    if ($gridCells === []) {
+        return [];
+    }
+
+    ksort($gridCells);
+    return array_values($gridCells);
+}
+
+function avesmapsWikiSyncReadTableSpanValue(DOMElement $cell, string $attribute): int {
+    $rawValue = trim((string) $cell->getAttribute($attribute));
+    if ($rawValue === '') {
+        return 1;
+    }
+
+    $value = filter_var($rawValue, FILTER_VALIDATE_INT);
+    if ($value === false || $value < 1) {
+        return 1;
+    }
+
+    return (int) $value;
+}
+
 function avesmapsWikiSyncNormalizePoliticalHeader(string $header): string {
     $normalized = avesmapsWikiSyncCreateMatchKey(avesmapsWikiSyncNormalizeWikiTreeText($header));
     return match ($normalized) {
@@ -1159,6 +1323,10 @@ function avesmapsWikiSyncNormalizePoliticalHeader(string $header): string {
 }
 
 function avesmapsWikiSyncReadFirstWikiLink(DOMElement $cell): string {
+    return (string) (avesmapsWikiSyncReadFirstWikiLinkMetadata($cell)['url'] ?? '');
+}
+
+function avesmapsWikiSyncReadFirstWikiLinkMetadata(DOMElement $cell): array {
     foreach ($cell->getElementsByTagName('a') as $link) {
         if (!$link instanceof DOMElement) {
             continue;
@@ -1170,15 +1338,31 @@ function avesmapsWikiSyncReadFirstWikiLink(DOMElement $cell): string {
         }
 
         if (str_starts_with($href, '/wiki/')) {
-            return 'https://de.wiki-aventurica.de' . $href;
+            $title = avesmapsWikiSyncNormalizeWikiTreeText((string) $link->getAttribute('title'));
+            if ($title === '') {
+                $title = avesmapsWikiSyncPoliticalTerritoryTitleFromUrl('https://de.wiki-aventurica.de' . $href);
+            }
+
+            return [
+                'url' => 'https://de.wiki-aventurica.de' . $href,
+                'title' => $title,
+            ];
         }
 
         if (preg_match('/^https?:\/\//i', $href) === 1) {
-            return $href;
+            $title = avesmapsWikiSyncNormalizeWikiTreeText((string) $link->getAttribute('title'));
+            if ($title === '') {
+                $title = avesmapsWikiSyncPoliticalTerritoryTitleFromUrl($href);
+            }
+
+            return [
+                'url' => $href,
+                'title' => $title,
+            ];
         }
     }
 
-    return '';
+    return [];
 }
 
 function avesmapsWikiSyncFetchPoliticalTerritoryPathReferenceRows(array $rows, array $rowIndex): array {
