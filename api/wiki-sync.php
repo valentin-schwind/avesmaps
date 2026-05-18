@@ -18,6 +18,7 @@ const AVESMAPS_WIKI_POLITICAL_TERRITORY_SEED_PAGES = [
     'Staat/Liste',
     'Grafschaft/Liste',
     'Baronie/Liste',
+    'Freiherrschaft/Liste',
     'Herzogtum/Liste',
     "F\u{00FC}rstentum/Liste",
     'Markgrafschaft/Liste',
@@ -1625,6 +1626,7 @@ function avesmapsWikiSyncExtractPoliticalTerritoryChildReferences(string $rawVal
     }
 
     $referencesByKey = [];
+    $listDefaultType = avesmapsWikiSyncInferPoliticalTerritoryTypeFromListContext($value);
 
     if (preg_match_all('/\[\[([^|\]#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/u', $value, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) !== false) {
         foreach ($matches as $match) {
@@ -1650,6 +1652,13 @@ function avesmapsWikiSyncExtractPoliticalTerritoryChildReferences(string $rawVal
 
                 if ($contextualName !== '') {
                     $name = $contextualName;
+                }
+            }
+
+            if (!avesmapsWikiSyncLooksLikePoliticalTerritoryName($name) && $listDefaultType !== '') {
+                $typedName = avesmapsWikiSyncNormalizePoliticalTerritoryDisplayName($listDefaultType . ' ' . $name);
+                if (avesmapsWikiSyncLooksLikePoliticalTerritoryName($typedName)) {
+                    $name = $typedName;
                 }
             }
 
@@ -1679,6 +1688,14 @@ function avesmapsWikiSyncExtractPoliticalTerritoryChildReferences(string $rawVal
 
     foreach ($parts as $part) {
         $name = avesmapsWikiSyncNormalizePoliticalTerritoryDisplayName($part);
+
+        if (!avesmapsWikiSyncLooksLikePoliticalTerritoryName($name) && $listDefaultType !== '') {
+            $typedName = avesmapsWikiSyncNormalizePoliticalTerritoryDisplayName($listDefaultType . ' ' . $name);
+            if (avesmapsWikiSyncLooksLikePoliticalTerritoryName($typedName)) {
+                $name = $typedName;
+            }
+        }
+
         if (!avesmapsWikiSyncLooksLikePoliticalTerritoryName($name)) {
             continue;
         }
@@ -1844,6 +1861,23 @@ function avesmapsWikiSyncInferPoliticalTerritoryTypeFromName(string $name): stri
 
     foreach ($patterns as $pattern => $type) {
         if (preg_match($pattern, $normalized) === 1) {
+            return $type;
+        }
+    }
+
+    return '';
+}
+
+function avesmapsWikiSyncInferPoliticalTerritoryTypeFromListContext(string $rawValue): string {
+    $cleaned = avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($rawValue);
+    if ($cleaned === '') {
+        return '';
+    }
+
+    $segments = preg_split('/\s*(?:,|;|\x{00B7}|\x{2022}|\n|\r)\s*/u', $cleaned) ?: [];
+    foreach ($segments as $segment) {
+        $type = avesmapsWikiSyncInferPoliticalTerritoryTypeFromName((string) $segment);
+        if ($type !== '') {
             return $type;
         }
     }
