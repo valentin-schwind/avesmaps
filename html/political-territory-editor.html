@@ -1364,36 +1364,43 @@
 
 		function normalizeApiRows(rows) {
 			const normalizedRows = rows
-				.map(row => ({
-					...row,
-					name: normalizeText(row.name),
-					type: normalizeText(row.type),
-					continent: normalizeText(row.continent),
-					affiliation_raw: normalizeText(row.affiliation_raw || row.political),
-					affiliation_root: normalizeText(row.affiliation_root),
-					affiliation_path: normalizeAffiliationPath(row),
-					status: normalizeText(row.status),
-					form_of_government: normalizeText(row.form_of_government),
-					capital_name: normalizeText(row.capital_name),
-					seat_name: normalizeText(row.seat_name),
-					ruler: normalizeText(row.ruler),
-					language: normalizeText(row.language),
-					currency: normalizeText(row.currency),
-					trade_goods: normalizeText(row.trade_goods),
-					population: normalizeText(row.population),
-					founded_text: normalizeText(row.founded_text),
-					dissolved_text: normalizeText(row.dissolved_text),
-					founder: normalizeText(row.founder),
-					geographic: normalizeText(row.geographic),
-					political: normalizeText(row.political),
-					trade_zone: normalizeText(row.trade_zone),
-					blazon: normalizeText(row.blazon),
-					wiki_url: normalizeText(row.wiki_url),
-					coat_of_arms_url: normalizeText(row.coat_of_arms_url),
-					map_assigned: Boolean(row.map_assigned) || Number(row.map_geometry_count || 0) > 0,
-					map_territory_count: parseOptionalNumber(row.map_territory_count, 0),
-					map_geometry_count: parseOptionalNumber(row.map_geometry_count, 0)
-				}))
+				.map(row => {
+					const normalizedName = normalizeText(row.name);
+					const normalizedStatus = normalizeText(row.status);
+					const statusFilterTags = buildRowStatusFilterTags(normalizedName, normalizedStatus);
+
+					return {
+						...row,
+						name: normalizedName,
+						type: normalizeText(row.type),
+						continent: normalizeText(row.continent),
+						affiliation_raw: normalizeText(row.affiliation_raw || row.political),
+						affiliation_root: normalizeText(row.affiliation_root),
+						affiliation_path: normalizeAffiliationPath(row),
+						status: normalizedStatus,
+						status_filter_tags: statusFilterTags,
+						form_of_government: normalizeText(row.form_of_government),
+						capital_name: normalizeText(row.capital_name),
+						seat_name: normalizeText(row.seat_name),
+						ruler: normalizeText(row.ruler),
+						language: normalizeText(row.language),
+						currency: normalizeText(row.currency),
+						trade_goods: normalizeText(row.trade_goods),
+						population: normalizeText(row.population),
+						founded_text: normalizeText(row.founded_text),
+						dissolved_text: normalizeText(row.dissolved_text),
+						founder: normalizeText(row.founder),
+						geographic: normalizeText(row.geographic),
+						political: normalizeText(row.political),
+						trade_zone: normalizeText(row.trade_zone),
+						blazon: normalizeText(row.blazon),
+						wiki_url: normalizeText(row.wiki_url),
+						coat_of_arms_url: normalizeText(row.coat_of_arms_url),
+						map_assigned: Boolean(row.map_assigned) || Number(row.map_geometry_count || 0) > 0,
+						map_territory_count: parseOptionalNumber(row.map_territory_count, 0),
+						map_geometry_count: parseOptionalNumber(row.map_geometry_count, 0)
+					};
+				})
 				.filter(row => row.name);
 
 			return dedupeRowsByIdentity(normalizedRows);
@@ -2696,12 +2703,16 @@
 			const search = normalizeText(els.searchInput.value).toLowerCase();
 			const continent = els.continentFilter.value;
 			const type = els.typeFilter.value;
-			const status = els.statusFilter.value;
+			const status = normalizeText(els.statusFilter.value).toLowerCase();
 
 			return allRows.filter(row => {
 				if (continent && row.continent !== continent) return false;
 				if (type && row.type !== type) return false;
-				if (status && row.status !== status) return false;
+				if (status) {
+					const rowStatus = normalizeText(row.status).toLowerCase();
+					const rowStatusTags = Array.isArray(row.status_filter_tags) ? row.status_filter_tags : [];
+					if (rowStatus !== status && !rowStatusTags.includes(status)) return false;
+				}
 
 				if (!search) return true;
 
@@ -2727,7 +2738,7 @@
 		function updateFilters() {
 			fillSelect(els.continentFilter, "Alle Kontinente", uniqueValues(allRows, "continent"));
 			fillSelect(els.typeFilter, "Alle Typen", uniqueValues(allRows, "type"));
-			fillSelect(els.statusFilter, "Alle Status", uniqueValues(allRows, "status"));
+			fillSelect(els.statusFilter, "Alle Status", uniqueStatusValues(allRows));
 		}
 
 		function fillSelect(select, firstLabel, values) {
@@ -2753,6 +2764,70 @@
 
 		function uniqueValues(rows, key) {
 			return [...new Set(rows.map(row => row[key]).filter(Boolean))].sort((a, b) => a.localeCompare(b, "de"));
+		}
+
+		function uniqueStatusValues(rows) {
+			const valuesByKey = new Map();
+
+			const addValue = (rawValue) => {
+				const value = normalizeText(rawValue);
+				if (!value) {
+					return;
+				}
+
+				const key = value.toLowerCase();
+				if (!valuesByKey.has(key)) {
+					valuesByKey.set(key, value);
+				}
+			};
+
+			for (const row of rows) {
+				addValue(row.status);
+				for (const tag of (Array.isArray(row.status_filter_tags) ? row.status_filter_tags : [])) {
+					addValue(tag);
+				}
+			}
+
+			return [...valuesByKey.values()].sort((a, b) => a.localeCompare(b, "de"));
+		}
+
+		function buildRowStatusFilterTags(name, status) {
+			const tags = new Set();
+			const normalizedStatus = normalizeText(status).toLowerCase();
+			if (normalizedStatus) {
+				tags.add(normalizedStatus);
+			}
+
+			for (const content of extractParentheticalContents(name)) {
+				const normalizedContent = normalizeText(content).toLowerCase();
+				if (!normalizedContent) {
+					continue;
+				}
+
+				if (normalizedContent.split(/\s+/u).length <= 3) {
+					tags.add(normalizedContent);
+				}
+			}
+
+			return [...tags];
+		}
+
+		function extractParentheticalContents(value) {
+			const text = normalizeText(value);
+			if (!text) {
+				return [];
+			}
+
+			const contents = [];
+			const pattern = /\(([^)]+)\)/gu;
+			for (const match of text.matchAll(pattern)) {
+				const content = normalizeText(match[1] || "");
+				if (content) {
+					contents.push(content);
+				}
+			}
+
+			return contents;
 		}
 
 		function setAllTreeDetailsOpen(open) {
