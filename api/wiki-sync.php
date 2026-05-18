@@ -477,7 +477,9 @@ function avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache(PDO $pdo, bool $rese
     foreach ($wikiRows as $row) {
         $canonicalTitle = avesmapsWikiSyncPoliticalTerritoryTitleFromUrl((string) ($row['wiki_url'] ?? ''));
         if ($canonicalTitle !== '') {
-            $row['name'] = $canonicalTitle;
+            $row['name'] = avesmapsWikiSyncNormalizePoliticalTerritoryDisplayName($canonicalTitle);
+        } else {
+            $row['name'] = avesmapsWikiSyncNormalizePoliticalTerritoryDisplayName((string) ($row['name'] ?? ''));
         }
 
         $temporal = avesmapsWikiSyncBuildPoliticalTemporalPayload(
@@ -1047,6 +1049,8 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
         return $rows;
     }
 
+    $discoveredChildRowsByKey = [];
+
     foreach ($titlesByIndex as $index => $title) {
         $content = $contentsByTitle[$title] ?? '';
         if ($content === '') {
@@ -1054,6 +1058,11 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
         }
 
         $details = avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent($content);
+        $childTerritories = is_array($details['child_territories'] ?? null)
+            ? $details['child_territories']
+            : [];
+        unset($details['child_territories']);
+
         foreach ($details as $key => $value) {
             if ($value === '') {
                 continue;
@@ -1063,6 +1072,29 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
                 $rows[$index][$key] = $value;
             }
         }
+
+        foreach (avesmapsWikiSyncBuildPoliticalTerritoryChildRows($childTerritories, $rows[$index]) as $childRow) {
+            $keySource = (string) ($childRow['wiki_url'] ?? $childRow['name'] ?? '');
+            $childKey = avesmapsWikiSyncCreateMatchKey($keySource);
+
+            if ($childKey === '') {
+                continue;
+            }
+
+            if (!isset($discoveredChildRowsByKey[$childKey])) {
+                $discoveredChildRowsByKey[$childKey] = $childRow;
+                continue;
+            }
+
+            $discoveredChildRowsByKey[$childKey] = avesmapsWikiSyncSelectPreferredPoliticalTerritoryRow(
+                $discoveredChildRowsByKey[$childKey],
+                $childRow
+            );
+        }
+    }
+
+    if ($discoveredChildRowsByKey !== []) {
+        $rows = array_merge($rows, array_values($discoveredChildRowsByKey));
     }
 
     return $rows;
@@ -1137,6 +1169,8 @@ function avesmapsWikiSyncPoliticalTerritoryTitleFromUrl(string $wikiUrl): string
 function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent(string $content): array {
     $fields = avesmapsWikiSyncReadWikiTemplateFields($content);
     $details = [];
+    $childTerritoriesByKey = [];
+
     $fieldMap = [
         'typ' => 'type',
         'art' => 'type',
@@ -1178,8 +1212,57 @@ function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent(string $conte
         'wappenabbildung' => 'coat_of_arms_url',
     ];
 
+    $childFieldKeys = [
+        'provinz',
+        'provinzen',
+        'unterregion',
+        'unterregionen',
+        'untergliederung',
+        'untergliederungen',
+        'verwaltungseinheit',
+        'verwaltungseinheiten',
+        'verwaltungsgebiet',
+        'verwaltungsgebiete',
+        'lehen',
+        'lehensgebiete',
+        'grafschaft',
+        'grafschaften',
+        'landgrafschaft',
+        'landgrafschaften',
+        'markgrafschaft',
+        'markgrafschaften',
+        'baronie',
+        'baronien',
+        'freiherrschaft',
+        'freiherrschaften',
+        'herzogtum',
+        'herzogtumer',
+        'herzogtuemer',
+        'furstentum',
+        'fuerstentum',
+        'furstentumer',
+        'fuerstentuemer',
+    ];
+
     foreach ($fields as $rawKey => $rawValue) {
         $key = avesmapsWikiSyncCreateMatchKey($rawKey);
+
+        if (in_array($key, $childFieldKeys, true)) {
+            foreach (avesmapsWikiSyncExtractPoliticalTerritoryChildReferences($rawValue) as $childReference) {
+                $childKeySource = (string) ($childReference['wiki_url'] ?? $childReference['name'] ?? '');
+                $childKey = avesmapsWikiSyncCreateMatchKey($childKeySource);
+
+                if ($childKey === '') {
+                    continue;
+                }
+
+                $childReference['source_field'] = (string) $rawKey;
+                $childTerritoriesByKey[$childKey] = $childReference;
+            }
+
+            continue;
+        }
+
         $targetKey = $fieldMap[$key] ?? null;
         if ($targetKey === null) {
             continue;
@@ -1191,6 +1274,10 @@ function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent(string $conte
         if ($value !== '' && !isset($details[$targetKey])) {
             $details[$targetKey] = $value;
         }
+    }
+
+    if ($childTerritoriesByKey !== []) {
+        $details['child_territories'] = array_values($childTerritoriesByKey);
     }
 
     if (
@@ -1529,6 +1616,189 @@ function avesmapsWikiSyncPoliticalTerritoryFilePathUrl(string $fileTitle): strin
     $normalizedTitle = str_replace('_', ' ', $normalizedTitle);
 
     return AVESMAPS_WIKI_PAGE_BASE_URL . 'Spezial:Dateipfad/' . str_replace('%2F', '/', rawurlencode($normalizedTitle));
+}
+
+function avesmapsWikiSyncExtractPoliticalTerritoryChildReferences(string $rawValue): array {
+    $value = trim($rawValue);
+    if ($value === '') {
+        return [];
+    }
+
+    $referencesByKey = [];
+
+    if (preg_match_all('/\[\[([^|\]#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/u', $value, $matches, PREG_SET_ORDER) !== false) {
+        foreach ($matches as $match) {
+            $pageTitle = avesmapsWikiSyncNormalizeWikiTreeText((string) ($match[1] ?? ''));
+            $displayText = avesmapsWikiSyncNormalizeWikiTreeText((string) ($match[2] ?? ''));
+
+            if ($pageTitle === '' || avesmapsWikiSyncIsIgnoredPoliticalTerritoryLinkTitle($pageTitle)) {
+                continue;
+            }
+
+            $nameSource = $displayText !== '' && avesmapsWikiSyncInferPoliticalTerritoryTypeFromName($displayText) !== ''
+                ? $displayText
+                : $pageTitle;
+
+            $name = avesmapsWikiSyncNormalizePoliticalTerritoryDisplayName($nameSource);
+            if (!avesmapsWikiSyncLooksLikePoliticalTerritoryName($name)) {
+                continue;
+            }
+
+            $reference = [
+                'name' => $name,
+                'type' => avesmapsWikiSyncInferPoliticalTerritoryTypeFromName($name),
+                'wiki_url' => avesmapsWikiSyncPageUrl($pageTitle),
+                'wiki_title' => $pageTitle,
+            ];
+
+            $key = avesmapsWikiSyncCreateMatchKey((string) $reference['wiki_url']);
+            if ($key !== '') {
+                $referencesByKey[$key] = $reference;
+            }
+        }
+    }
+
+    if ($referencesByKey !== []) {
+        return array_values($referencesByKey);
+    }
+
+    $cleanedValue = avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($value);
+    $parts = preg_split('/\s*(?:,|;|·|\n|\r)\s*/u', $cleanedValue) ?: [];
+
+    foreach ($parts as $part) {
+        $name = avesmapsWikiSyncNormalizePoliticalTerritoryDisplayName($part);
+        if (!avesmapsWikiSyncLooksLikePoliticalTerritoryName($name)) {
+            continue;
+        }
+
+        $reference = [
+            'name' => $name,
+            'type' => avesmapsWikiSyncInferPoliticalTerritoryTypeFromName($name),
+            'wiki_url' => avesmapsWikiSyncPageUrl($name),
+            'wiki_title' => $name,
+        ];
+
+        $key = avesmapsWikiSyncCreateMatchKey($name);
+        if ($key !== '') {
+            $referencesByKey[$key] = $reference;
+        }
+    }
+
+    return array_values($referencesByKey);
+}
+
+function avesmapsWikiSyncBuildPoliticalTerritoryChildRows(array $childReferences, array $parentRow): array {
+    $parentName = avesmapsWikiSyncNormalizePoliticalTerritoryDisplayName((string) ($parentRow['name'] ?? ''));
+    if ($parentName === '') {
+        return [];
+    }
+
+    $parentKey = avesmapsWikiSyncCreateMatchKey($parentName);
+    $rows = [];
+
+    foreach ($childReferences as $childReference) {
+        if (!is_array($childReference)) {
+            continue;
+        }
+
+        $childName = avesmapsWikiSyncNormalizePoliticalTerritoryDisplayName((string) ($childReference['name'] ?? ''));
+        if ($childName === '') {
+            continue;
+        }
+
+        $childKey = avesmapsWikiSyncCreateMatchKey($childName);
+        if ($childKey === '' || $childKey === $parentKey) {
+            continue;
+        }
+
+        $rows[] = [
+            'name' => $childName,
+            'type' => (string) ($childReference['type'] ?? avesmapsWikiSyncInferPoliticalTerritoryTypeFromName($childName)),
+            'continent' => (string) ($parentRow['continent'] ?? AVESMAPS_POLITICAL_DEFAULT_CONTINENT),
+            'affiliation' => $parentName,
+            'status' => '',
+            'form_of_government' => '',
+            'capital_name' => '',
+            'seat_name' => '',
+            'ruler' => '',
+            'language' => '',
+            'currency' => '',
+            'trade_goods' => '',
+            'population' => '',
+            'founded_text' => '',
+            'founder' => '',
+            'dissolved_text' => '',
+            'blazon' => '',
+            'wiki_url' => (string) ($childReference['wiki_url'] ?? avesmapsWikiSyncPageUrl($childName)),
+            'coat_of_arms_url' => '',
+            'discovered_from_parent' => $parentName,
+            'discovered_from_field' => (string) ($childReference['source_field'] ?? ''),
+        ];
+    }
+
+    return $rows;
+}
+
+function avesmapsWikiSyncIsIgnoredPoliticalTerritoryLinkTitle(string $title): bool {
+    return preg_match('/^(?:Datei|File|Kategorie|Category|Spezial|Special|Hilfe|Help|Vorlage|Template)\s*:/iu', $title) === 1;
+}
+
+function avesmapsWikiSyncLooksLikePoliticalTerritoryName(string $name): bool {
+    if ($name === '') {
+        return false;
+    }
+
+    return preg_match(
+        '/\b(?:Staat|Königreich|Koenigreich|Kaiserreich|Herzogtum|Fürstentum|Fuerstentum|Grafschaft|Landgrafschaft|Markgrafschaft|Baronie|Freiherrschaft|Republik|Sultanat|Emirat|Kalifat|Mhaharanyat|Theokratie)\b/iu',
+        $name
+    ) === 1;
+}
+
+function avesmapsWikiSyncInferPoliticalTerritoryTypeFromName(string $name): string {
+    $normalized = avesmapsWikiSyncNormalizeWikiTreeText($name);
+
+    $patterns = [
+        '/\bFreiherrschaft\b/iu' => 'Freiherrschaft',
+        '/\bLandgrafschaft\b/iu' => 'Landgrafschaft',
+        '/\bMarkgrafschaft\b/iu' => 'Markgrafschaft',
+        '/\bGrafschaft\b/iu' => 'Grafschaft',
+        '/\bBaronie\b/iu' => 'Baronie',
+        '/\bHerzogtum\b/iu' => 'Herzogtum',
+        '/\bFürstentum\b/iu' => 'Fürstentum',
+        '/\bFuerstentum\b/iu' => 'Fürstentum',
+        '/\bKönigreich\b/iu' => 'Königreich',
+        '/\bKoenigreich\b/iu' => 'Königreich',
+        '/\bKaiserreich\b/iu' => 'Kaiserreich',
+        '/\bRepublik\b/iu' => 'Republik',
+        '/\bSultanat\b/iu' => 'Sultanat',
+        '/\bEmirat\b/iu' => 'Emirat',
+        '/\bKalifat\b/iu' => 'Kalifat',
+        '/\bMhaharanyat\b/iu' => 'Mhaharanyat',
+    ];
+
+    foreach ($patterns as $pattern => $type) {
+        if (preg_match($pattern, $normalized) === 1) {
+            return $type;
+        }
+    }
+
+    return '';
+}
+
+function avesmapsWikiSyncNormalizePoliticalTerritoryDisplayName(string $name): string {
+    $normalized = avesmapsWikiSyncNormalizeWikiTreeText($name);
+
+    if ($normalized === '') {
+        return '';
+    }
+
+    $normalized = preg_replace(
+        '/\s*\(\s*unabh(?:a|ae|\x{00E4})ngig\s*\)\s*$/iu',
+        '',
+        $normalized
+    ) ?? $normalized;
+
+    return trim($normalized);
 }
 
 function avesmapsWikiSyncReadTableCells(DOMElement $row): array {

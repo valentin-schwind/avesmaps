@@ -1589,16 +1589,33 @@
 				}
 
 				const nodeKey = rowKey(row);
-				let ownNode = current.childMap.get(nodeKey);
+				const nameKey = makeKey(row.name);
+				let ownNode = null;
+
+				if (nameKey && current.childMap.has(nameKey)) {
+					ownNode = current.childMap.get(nameKey);
+				} else if (nodeKey && current.childMap.has(nodeKey)) {
+					ownNode = current.childMap.get(nodeKey);
+				}
 
 				if (!ownNode) {
-					ownNode = createTreeNode(nodeKey, row.name, "territory");
+					ownNode = createTreeNode(nodeKey || nameKey || `row:${row.id}`, row.name, "territory");
 					ownNode.parent = current;
-					current.childMap.set(nodeKey, ownNode);
+					current.childMap.set(ownNode.id, ownNode);
+
+					if (nameKey && nameKey !== ownNode.id) {
+						current.childMap.set(nameKey, ownNode);
+					}
+
+					if (nodeKey && nodeKey !== ownNode.id) {
+						current.childMap.set(nodeKey, ownNode);
+					}
+
 					current.children.push(ownNode);
 				}
 
 				ownNode.row = row;
+				ownNode.label = row.name || ownNode.label;
 				ownNode.kind = ownNode.children.length > 0 ? "territory-group" : "territory";
 			}
 
@@ -1650,17 +1667,36 @@
 			let node = parent.childMap.get(key);
 
 			if (!node) {
-				node = createTreeNode(`path:${pathParts.map(makeKey).join("/")}`, label, "synthetic");
-				node.parent = parent;
-
 				const matchingRow = rowIndex.get(key);
+				const nodeId = matchingRow ? rowKey(matchingRow) : `path:${pathParts.map(makeKey).join("/")}`;
+
+				node = createTreeNode(nodeId, label, matchingRow ? "territory-group" : "synthetic");
+				node.parent = parent;
 
 				if (matchingRow) {
 					node.row = matchingRow;
-					node.kind = "territory-group";
+					node.label = matchingRow.name || label;
 				}
 
 				parent.childMap.set(key, node);
+
+				if (nodeId && nodeId !== key) {
+					parent.childMap.set(nodeId, node);
+				}
+
+				if (matchingRow) {
+					const matchingNameKey = makeKey(matchingRow.name);
+					const matchingRowKey = rowKey(matchingRow);
+
+					if (matchingNameKey) {
+						parent.childMap.set(matchingNameKey, node);
+					}
+
+					if (matchingRowKey) {
+						parent.childMap.set(matchingRowKey, node);
+					}
+				}
+
 				parent.children.push(node);
 			}
 
@@ -2575,7 +2611,7 @@
 		}
 
 		function rowKey(row) {
-			return row.wiki_key || (row.id ? `row:${row.id}` : makeKey(row.name));
+			return makeKey(row.name || row.wiki_key || row.id || "");
 		}
 
 		function canonicalLabel(value) {
