@@ -518,12 +518,34 @@ function avesmapsPoliticalBuildRawEditorLayerFeatures(array $rows, int $yearBf, 
         $featureRow = $row;
 
         if ($sourceTerritoryId > 0 && isset($territories[$sourceTerritoryId])) {
-            $displayTerritoryId = avesmapsPoliticalResolveLayerDisplayTerritoryId(
+            $resolvedDisplayTerritoryId = avesmapsPoliticalResolveLayerDisplayTerritoryId(
                 $sourceTerritoryId,
                 $territories,
                 $parentIds,
                 $zoom
-            ) ?? $sourceTerritoryId;
+            );
+
+            if ($resolvedDisplayTerritoryId === null) {
+                if (!avesmapsPoliticalLayerRowMatchesOwnZoom($row, $zoom)) {
+                    continue;
+                }
+                $displayTerritoryId = $sourceTerritoryId;
+            } else {
+                $displayTerritoryId = $resolvedDisplayTerritoryId;
+            }
+
+            if (
+                $displayTerritoryId !== null
+                && $displayTerritoryId !== $sourceTerritoryId
+                && isset($territories[$displayTerritoryId])
+                && avesmapsPoliticalIsGenericLayerParentTerritory($territories[$displayTerritoryId])
+            ) {
+                if (avesmapsPoliticalLayerRowMatchesOwnZoom($row, $zoom)) {
+                    $displayTerritoryId = $sourceTerritoryId;
+                } else {
+                    continue;
+                }
+            }
 
             if (
                 $displayTerritoryId !== null
@@ -791,10 +813,6 @@ function avesmapsPoliticalIsGenericLayerParentTerritory(array $territory): bool 
         (string) ($territory['name'] ?? ''),
         (string) ($territory['short_name'] ?? ''),
         (string) ($territory['wiki_name'] ?? ''),
-        (string) ($territory['wiki_affiliation_root'] ?? ''),
-        (string) ($territory['wiki_affiliation_raw'] ?? ''),
-        (string) ($territory['affiliation_root'] ?? ''),
-        (string) ($territory['affiliation_raw'] ?? ''),
         (string) ($territory['slug'] ?? ''),
     ];
 

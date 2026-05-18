@@ -1709,6 +1709,7 @@ function avesmapsWikiSyncNormalizeWikiTreeText(string $value): string {
 function avesmapsWikiSyncListCases(PDO $pdo): array {
     $run = avesmapsWikiSyncFetchLatestCompletedRun($pdo);
     $activeRun = avesmapsWikiSyncFetchLatestActiveRun($pdo);
+    $politicalTerritorySummary = avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryForCaseList($pdo);
     if ($run === null) {
         return [
             'ok' => true,
@@ -1720,7 +1721,7 @@ function avesmapsWikiSyncListCases(PDO $pdo): array {
                 'by_type' => [],
                 'by_status' => [],
             ],
-            'political_territory_tree' => avesmapsWikiSyncReadPoliticalTerritoryTreeSummary($pdo),
+            'political_territory_tree' => $politicalTerritorySummary,
             'cases' => [],
         ];
     }
@@ -1760,8 +1761,23 @@ function avesmapsWikiSyncListCases(PDO $pdo): array {
         'latest_run' => avesmapsWikiSyncPublicRun($run),
         'active_run' => $activeRun === null ? null : avesmapsWikiSyncPublicRun($activeRun),
         'summary' => avesmapsWikiSyncBuildSummary($pdo, (int) $run['id']),
-        'political_territory_tree' => avesmapsWikiSyncReadPoliticalTerritoryTreeSummary($pdo),
+        'political_territory_tree' => $politicalTerritorySummary,
         'cases' => $cases,
+    ];
+}
+
+function avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryForCaseList(PDO $pdo): array {
+    $cachedSummary = avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromCache($pdo);
+    if ($cachedSummary !== null) {
+        return $cachedSummary;
+    }
+
+    return [
+        'ok' => true,
+        'territory_count' => avesmapsWikiSyncCountCachedPoliticalTerritories($pdo),
+        'root_count' => 0,
+        'assigned_territory_count' => 0,
+        'assigned_root_count' => 0,
     ];
 }
 
