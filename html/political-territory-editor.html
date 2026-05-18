@@ -1774,14 +1774,16 @@
 				return "";
 			}
 
-			const wikiTitle = wikiTitleFromUrl(row.wiki_url || "");
-			if (wikiTitle !== "") {
-				return `wiki_title:${makeKey(wikiTitle)}`;
-			}
-
 			const wikiKey = makeKey(row.wiki_key || "");
 			if (wikiKey !== "") {
 				return `wiki_key:${wikiKey}`;
+			}
+
+			const wikiTitle = wikiTitleFromUrl(row.wiki_url || "");
+			if (wikiTitle !== "") {
+				const nameKeyFromWikiTitle = makeKey(row.name || "");
+				const typeKeyFromWikiTitle = makeKey(row.type || "");
+				return `wiki_title:${makeKey(wikiTitle)}|name:${nameKeyFromWikiTitle}|type:${typeKeyFromWikiTitle}`;
 			}
 
 			const nameKey = makeKey(row.name || "");

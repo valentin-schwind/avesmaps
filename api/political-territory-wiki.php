@@ -268,19 +268,21 @@ function dedupeTerritoryItems(array $items): array {
 }
 
 function territoryItemDedupeKey(array $item): string {
-    $wikiUrl = value($item['wiki_url'] ?? null);
-    if ($wikiUrl !== '') {
-        $wikiTitle = wikiTitleFromUrl($wikiUrl);
-        if ($wikiTitle !== '') {
-            return 'wiki_title|' . makeStableKey($wikiTitle);
-        }
-
-        return 'wiki_url|' . makeStableKey($wikiUrl);
-    }
-
     $wikiKey = value($item['wiki_key'] ?? null);
     if ($wikiKey !== '') {
         return 'wiki_key|' . makeStableKey($wikiKey);
+    }
+
+    $wikiUrl = value($item['wiki_url'] ?? null);
+    if ($wikiUrl !== '') {
+        $wikiTitle = wikiTitleFromUrl($wikiUrl);
+        $name = value($item['name'] ?? null);
+        $type = value($item['type'] ?? null);
+        if ($wikiTitle !== '') {
+            return 'wiki_title_name|' . makeStableKey($wikiTitle) . '|' . makeStableKey($name) . '|' . makeStableKey($type);
+        }
+
+        return 'wiki_url_name|' . makeStableKey($wikiUrl) . '|' . makeStableKey($name) . '|' . makeStableKey($type);
     }
 
     return '';
