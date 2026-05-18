@@ -1664,15 +1664,14 @@ function avesmapsWikiSyncExtractPoliticalTerritoryChildReferences(string $rawVal
                 'wiki_title' => $pageTitle,
             ];
 
-            $key = avesmapsWikiSyncCreateMatchKey((string) $reference['wiki_url']);
+            $key = avesmapsWikiSyncCreateMatchKey((string) $reference['name']);
+            if ($key === '') {
+                $key = avesmapsWikiSyncCreateMatchKey((string) $reference['wiki_url']);
+            }
             if ($key !== '') {
                 $referencesByKey[$key] = $reference;
             }
         }
-    }
-
-    if ($referencesByKey !== []) {
-        return array_values($referencesByKey);
     }
 
     $cleanedValue = avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($value);
@@ -1691,8 +1690,21 @@ function avesmapsWikiSyncExtractPoliticalTerritoryChildReferences(string $rawVal
             'wiki_title' => $name,
         ];
 
-        $key = avesmapsWikiSyncCreateMatchKey($name);
-        if ($key !== '') {
+        $key = avesmapsWikiSyncCreateMatchKey((string) $reference['name']);
+        if ($key === '') {
+            $key = avesmapsWikiSyncCreateMatchKey((string) $reference['wiki_url']);
+        }
+        if ($key === '') {
+            continue;
+        }
+
+        $existing = $referencesByKey[$key] ?? null;
+        if (!is_array($existing)) {
+            $referencesByKey[$key] = $reference;
+            continue;
+        }
+
+        if (trim((string) ($existing['wiki_url'] ?? '')) === '' && trim((string) ($reference['wiki_url'] ?? '')) !== '') {
             $referencesByKey[$key] = $reference;
         }
     }
