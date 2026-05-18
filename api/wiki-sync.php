@@ -1691,7 +1691,7 @@ function avesmapsWikiSyncReadPoliticalTerritoryPath(array $row): array {
 
     $clauses = array_values(array_filter(array_map(
         static fn(string $part): string => trim($part),
-        preg_split('/\s*(?:[;·]|,\s*(?=(?:ehemals|früher|frueher|historisch|vormals)\b))\s*/iu', $affiliation) ?: []
+        preg_split('/\s*(?:[;]|,\s*(?=(?:ehemals|frueher|historisch|vormals)\b))\s*/iu', $affiliation) ?: []
     )));
 
     $selectedClause = '';
@@ -1705,7 +1705,7 @@ function avesmapsWikiSyncReadPoliticalTerritoryPath(array $row): array {
 
     if ($selectedClause === '') {
         foreach ($clauses as $clause) {
-            if (preg_match('/^(?:ehemals|früher|frueher|historisch)\b/iu', $clause) === 1) {
+            if (preg_match('/^(?:ehemals|frueher|historisch)\b/iu', $clause) === 1) {
                 continue;
             }
 
@@ -1745,7 +1745,7 @@ function avesmapsWikiSyncNormalizePoliticalPathPart(string $value): string {
     $normalized = preg_replace('/\[[^\]]*\]/u', '', $normalized) ?? $normalized;
 
     $normalized = preg_replace(
-        '/^(?:politisch|sowie|und|zuvor|ehemals|früher|frueher|historisch|vormals)\s+/iu',
+        '/^(?:politisch|sowie|und|zuvor|ehemals|frueher|historisch|vormals)\s+/iu',
         '',
         $normalized
     ) ?? $normalized;
@@ -1756,7 +1756,7 @@ function avesmapsWikiSyncNormalizePoliticalPathPart(string $value): string {
         $normalized
     ) ?? $normalized;
 
-    $normalized = preg_split('/\s*(?:[;·]|,\s*(?=(?:ehemals|früher|frueher|historisch|vormals)\b))\s*/iu', $normalized)[0] ?? $normalized;
+    $normalized = preg_split('/\s*(?:[;]|,\s*(?=(?:ehemals|frueher|historisch|vormals)\b))\s*/iu', $normalized)[0] ?? $normalized;
 
     return trim($normalized, " \t\n\r\0\x0B,:;");
 }
@@ -1772,7 +1772,7 @@ function avesmapsWikiSyncResolvePoliticalPathPart(array $rowIndex, string $part)
         return $normalizedPart;
     }
 
-    $candidateBeforeSemicolon = trim((string) (preg_split('/\s*(?:[;·]|,\s*(?=(?:ehemals|früher|frueher|historisch|vormals)\b))\s*/iu', $normalizedPart)[0] ?? $normalizedPart));
+    $candidateBeforeSemicolon = trim((string) (preg_split('/\s*(?:[;]|,\s*(?=(?:ehemals|frueher|historisch|vormals)\b))\s*/iu', $normalizedPart)[0] ?? $normalizedPart));
     $candidateKey = avesmapsWikiSyncMakePoliticalTreeKey($candidateBeforeSemicolon);
 
     if ($candidateKey !== '' && isset($rowIndex[$candidateKey])) {
