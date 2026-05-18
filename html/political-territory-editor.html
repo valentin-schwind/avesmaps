@@ -1996,7 +1996,8 @@
 
 			const name = document.createElement("span");
 			name.className = "tree-item-name";
-			name.textContent = node.label;
+			const rowId = Number(node?.row?.id || 0);
+			name.textContent = rowId > 0 ? `${node.label} (${rowId})` : node.label;
 			item.appendChild(name);
 
 			const mapStatus = getTreeMapStatus(node);
