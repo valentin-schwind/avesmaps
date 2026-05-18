@@ -1071,6 +1071,7 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         'type' => 'region',
         'source' => 'political_territory',
         'public_id' => (string) $row['geometry_public_id'],
+        'geometry_id' => (int) ($row['geometry_id'] ?? 0),
         'geometry_public_id' => (string) $row['geometry_public_id'],
         'territory_public_id' => $territoryPublicId,
         'territory_id' => (int) $row['territory_id'],

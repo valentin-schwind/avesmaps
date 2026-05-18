@@ -6,6 +6,7 @@ let pendingPoliticalTerritoryEditorFrameSetup = null;
 function createPoliticalTerritoryEditorUrl(regionEntry = {}) {
 	const params = new URLSearchParams();
 	const geometryPublicId = String(regionEntry.geometryPublicId || regionEntry.geometry_public_id || regionEntry.publicId || "").trim();
+	const geometryId = String(regionEntry.geometryId || regionEntry.geometry_id || "").trim();
 	const territoryPublicId = String(regionEntry.territoryPublicId || regionEntry.territory_public_id || "").trim();
 	const wikiKey = String(regionEntry.wikiKey || regionEntry.wiki_key || regionEntry.wikiId || regionEntry.wiki_id || "").trim();
 	const name = String(regionEntry.displayName || regionEntry.name || "").trim();
@@ -17,6 +18,7 @@ function createPoliticalTerritoryEditorUrl(regionEntry = {}) {
 	const validToBf = regionEntry.validToBf ?? regionEntry.valid_to_bf ?? "";
 
 	if (geometryPublicId) params.set("geometry_public_id", geometryPublicId);
+	if (geometryId) params.set("geometry_id", geometryId);
 	if (territoryPublicId) params.set("territory_public_id", territoryPublicId);
 	if (wikiKey) params.set("wiki_key", wikiKey);
 	if (name) params.set("name", name);

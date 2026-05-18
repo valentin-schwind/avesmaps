@@ -1003,7 +1003,7 @@
 				<section class="panel manual-data-panel">
 					<div class="panel-header">
 						<h2>Gebietsdarstellung</h2>
-						<span class="note">Geometrie in der Datenbank</span>
+						<span id="geometryDatabaseInfo" class="note">Geometrie in der Datenbank</span>
 					</div>
 					<div id="manualEditPath" class="breadcrumb manual-edit-path">Kein Knoten zugewiesen</div>
 					<form class="manual-data-box" autocomplete="off">
@@ -1193,7 +1193,8 @@
 			displayNameInput: document.getElementById("displayNameInput"),
 			alternateCoatInput: document.getElementById("alternateCoatInput"),
 			manualCoatPreview: document.getElementById("manualCoatPreview"),
-			updateCoatButton: document.getElementById("updateCoatButton")
+			updateCoatButton: document.getElementById("updateCoatButton"),
+			geometryDatabaseInfo: document.getElementById("geometryDatabaseInfo")
 		};
 
 		if (els.reloadButton) {
@@ -1397,13 +1398,15 @@
 		}
 		
 		async function loadExistingGeometryAssignmentFromUrl() {
+			updateGeometryDatabaseInfo();
+
 			const params = new URLSearchParams(window.location.search);
 			const geometryPublicId = normalizeText(params.get("geometry_public_id") || "");
 
 			if (!geometryPublicId) {
 				return;
 			}
-
+			
 			const separator = WRITE_API_URL.includes("?") ? "&" : "?";
 			const response = await fetch(`${WRITE_API_URL}${separator}action=geometry_assignment&geometry_public_id=${encodeURIComponent(geometryPublicId)}`, {
 				method: "GET",
@@ -1422,12 +1425,49 @@
 
 			if (!response.ok || !payload.ok) {
 				throw new Error(payload.error || `HTTP ${response.status}`);
-			}
-
+			} 
+			
 			if (payload.assignment) {
+				if (payload.geometry) {
+					updateGeometryDatabaseInfo(payload.geometry);
+				}
+
 				setAssignmentValue(payload.assignment);
 				setFormStatus("Bestehende Eigenschaften geladen.", "success");
 			}
+		}
+		
+		function updateGeometryDatabaseInfo(geometry = null) {
+			const params = new URLSearchParams(window.location.search);
+			const geometryPublicId = normalizeText(
+				geometry?.publicId
+				|| geometry?.public_id
+				|| params.get("geometry_public_id")
+				|| ""
+			);
+			const geometryId = normalizeText(
+				geometry?.id
+				|| geometry?.geometryId
+				|| geometry?.geometry_id
+				|| params.get("geometry_id")
+				|| ""
+			);
+
+			if (!els.geometryDatabaseInfo) {
+				return;
+			}
+
+			const idParts = [];
+			if (geometryId) {
+				idParts.push(`#${geometryId}`);
+			}
+			if (geometryPublicId) {
+				idParts.push(geometryPublicId);
+			}
+
+			els.geometryDatabaseInfo.textContent = idParts.length > 0
+				? `Geometrie in der Datenbank: ${idParts.join(" / ")}`
+				: "Geometrie in der Datenbank";
 		}
 
 		function normalizeAffiliationPath(row) {
