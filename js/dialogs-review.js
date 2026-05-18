@@ -1260,7 +1260,7 @@ function createRegionParentTreeButton(territory, region, { isGroup = false, hasC
 		<span class="political-territory-parent-tree__summary"></span>
 		<span class="political-territory-parent-tree__wiki"></span>
 	`;
-	button.querySelector(".political-territory-parent-tree__name").textContent = normalizeParentheticalSpacing(territory.name || "Kein Parent");
+	button.querySelector(".political-territory-parent-tree__name").textContent = formatPoliticalTerritoryTreeDisplayName(territory);
 	button.querySelector(".political-territory-parent-tree__meta").textContent = normalizeParentheticalSpacing([
 		territory.type,
 		territory.status,
@@ -1276,6 +1276,36 @@ function createRegionParentTreeButton(territory, region, { isGroup = false, hasC
 		territory.wiki_url ? "Wiki" : "",
 	].filter(Boolean).join(" · "));
 	return button;
+}
+
+function formatPoliticalTerritoryTreeDisplayName(territory) {
+	const baseName = normalizeParentheticalSpacing(territory?.name || "Kein Parent");
+	if (!territory || !territory.public_id || baseName === "Kein Parent") {
+		return baseName;
+	}
+
+	const normalizedNameKey = normalizeSearchText(baseName);
+	if (normalizedNameKey === "") {
+		return baseName;
+	}
+
+	const duplicates = (politicalTerritoryOptions || []).filter((candidate) => {
+		if (!candidate || candidate.public_id === territory.public_id) {
+			return false;
+		}
+		return normalizeSearchText(normalizeParentheticalSpacing(candidate.name || "")) === normalizedNameKey;
+	});
+
+	if (duplicates.length < 1) {
+		return baseName;
+	}
+
+	const disambiguator = normalizeParentheticalSpacing(territory.type || territory.wiki_name || territory.short_name || "");
+	if (disambiguator !== "") {
+		return `${baseName} (${disambiguator})`;
+	}
+
+	return `${baseName} (${String(territory.public_id).slice(0, 8)})`;
 }
 
 function renderRegionWikiReference(region) {
