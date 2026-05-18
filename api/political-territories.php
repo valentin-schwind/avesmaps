@@ -515,6 +515,9 @@ function avesmapsPoliticalBuildRawEditorLayerFeatures(array $rows, int $yearBf, 
 
     foreach ($rows as $row) {
         $sourceTerritoryId = (int) ($row['territory_id'] ?? 0);
+        if ($sourceTerritoryId < 1 && !avesmapsPoliticalLayerRowMatchesOwnZoom($row, $zoom)) {
+            continue;
+        }
         $displayTerritoryId = null;
         $featureRow = $row;
 
@@ -2756,15 +2759,22 @@ function avesmapsPoliticalUnassignGeometry(PDO $pdo, array $payload): array {
         $pdo,
         avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? '')
     );
+    $territory = avesmapsPoliticalFetchTerritoryById($pdo, (int) ($geometry['territory_id'] ?? 0));
+    $style = avesmapsPoliticalDecodeJson($geometry['style_json'] ?? null);
+    [$minZoom, $maxZoom] = avesmapsPoliticalResolveUnassignedGeometryZoomRange($geometry, $territory, $style);
 
     $statement = $pdo->prepare(
         'UPDATE political_territory_geometry
         SET territory_id = NULL,
+            min_zoom = :min_zoom,
+            max_zoom = :max_zoom,
             source = :source
         WHERE id = :id'
     );
     $statement->execute([
         'id' => (int) $geometry['id'],
+        'min_zoom' => $minZoom,
+        'max_zoom' => $maxZoom,
         'source' => 'editor-display',
     ]);
 
@@ -2776,6 +2786,35 @@ function avesmapsPoliticalUnassignGeometry(PDO $pdo, array $payload): array {
         'geometry_public_id' => (string) $updatedGeometry['public_id'],
         'territory_public_id' => '',
     ];
+}
+
+function avesmapsPoliticalResolveUnassignedGeometryZoomRange(array $geometry, array $territory, array $style): array {
+    $fallbackMinZoom = avesmapsPoliticalNullableInt($geometry['min_zoom'] ?? null);
+    $fallbackMaxZoom = avesmapsPoliticalNullableInt($geometry['max_zoom'] ?? null);
+    $territoryMinZoom = avesmapsPoliticalNullableInt($territory['min_zoom'] ?? null);
+    $territoryMaxZoom = avesmapsPoliticalNullableInt($territory['max_zoom'] ?? null);
+    $displays = avesmapsPoliticalReadAssignmentDisplaysFromStyle($style);
+    $selectedDisplay = null;
+
+    if ($displays !== []) {
+        $selectedDisplay = $displays[count($displays) - 1];
+    }
+
+    $minZoom = avesmapsPoliticalReadOptionalZoom(
+        $selectedDisplay['zoomMin']
+        ?? $selectedDisplay['zoom_min']
+        ?? $fallbackMinZoom
+        ?? $territoryMinZoom
+    );
+    $maxZoom = avesmapsPoliticalReadOptionalZoom(
+        $selectedDisplay['zoomMax']
+        ?? $selectedDisplay['zoom_max']
+        ?? $fallbackMaxZoom
+        ?? $territoryMaxZoom
+    );
+    avesmapsPoliticalAssertZoomRange($minZoom, $maxZoom);
+
+    return [$minZoom, $maxZoom];
 }
 
 function avesmapsPoliticalDeleteGeometry(PDO $pdo, array $payload, array $user = []): array {
