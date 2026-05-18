@@ -1241,12 +1241,12 @@ function avesmapsWikiSyncExtractPoliticalTerritoryCoatOfArmsUrl(string $rawValue
     }
 
     if (preg_match('/\[\[(?:Datei|File)\s*:\s*([^|\]#]+)(?:#[^\]|]+)?(?:\|[^\]]*)?\]\]/iu', $value, $fileMatch) === 1) {
-        $fileTitle = avesmapsWikiSyncNormalizePoliticalTerritoryWikiValue((string) $fileMatch[1]);
+        $fileTitle = avesmapsWikiSyncNormalizeWikiTreeText((string) $fileMatch[1]);
         return avesmapsWikiSyncPoliticalTerritoryFilePathUrl($fileTitle);
     }
 
     if (preg_match('/\{\{[Ii]nfoboxbild\|([^|}]+)(?:\|[^}]*)?\}\}/u', $value, $templateMatch) === 1) {
-        $fileTitle = avesmapsWikiSyncNormalizePoliticalTerritoryWikiValue((string) $templateMatch[1]);
+        $fileTitle = avesmapsWikiSyncNormalizeWikiTreeText((string) $templateMatch[1]);
         return avesmapsWikiSyncPoliticalTerritoryFilePathUrl($fileTitle);
     }
 
@@ -1259,7 +1259,7 @@ function avesmapsWikiSyncExtractPoliticalTerritoryCoatOfArmsUrl(string $rawValue
 }
 
 function avesmapsWikiSyncPoliticalTerritoryFilePathUrl(string $fileTitle): string {
-    $normalizedTitle = avesmapsWikiSyncNormalizePoliticalTerritoryWikiValue($fileTitle);
+    $normalizedTitle = avesmapsWikiSyncNormalizeWikiTreeText($fileTitle);
     if ($normalizedTitle === '') {
         return '';
     }
