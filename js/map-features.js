@@ -598,8 +598,8 @@ function syncRegionVisibility() {
 
 	regionPolygons.forEach((layer) => {
 		const regionEntry = layer?._regionEntry || null;
-		const minZoom = Number.isFinite(Number(regionEntry?.minZoom)) ? Number(regionEntry.minZoom) : null;
-		const maxZoom = Number.isFinite(Number(regionEntry?.maxZoom)) ? Number(regionEntry.maxZoom) : null;
+		const minZoom = readOptionalRegionZoom(regionEntry?.minZoom);
+		const maxZoom = readOptionalRegionZoom(regionEntry?.maxZoom);
 		const isVisibleAtZoom = (minZoom === null || minZoom <= currentZoom) && (maxZoom === null || maxZoom >= currentZoom);
 
 		if (showRegions && isVisibleAtZoom) {
@@ -613,8 +613,8 @@ function syncRegionVisibility() {
 		const regionEntry = regionData.find((entry) => entry?._normalizedRegionEntry?.label === label)
 			|| regionPolygons.map((polygon) => polygon?._regionEntry).find((entry) => entry?.label === label)
 			|| null;
-		const minZoom = Number.isFinite(Number(regionEntry?.minZoom)) ? Number(regionEntry.minZoom) : null;
-		const maxZoom = Number.isFinite(Number(regionEntry?.maxZoom)) ? Number(regionEntry.maxZoom) : null;
+		const minZoom = readOptionalRegionZoom(regionEntry?.minZoom);
+		const maxZoom = readOptionalRegionZoom(regionEntry?.maxZoom);
 		const isVisibleAtZoom = (minZoom === null || minZoom <= currentZoom) && (maxZoom === null || maxZoom >= currentZoom);
 
 		if (showRegions && isVisibleAtZoom) {
@@ -5494,8 +5494,8 @@ function normalizeRegionFeature(feature) {
 		labelLng: Number.isFinite(Number(properties.label_lng)) ? Number(properties.label_lng) : null,
 		labelLat: Number.isFinite(Number(properties.label_lat)) ? Number(properties.label_lat) : null,
 		showRegionLabel: properties.show_region_label !== false,
-		minZoom: Number.isFinite(Number(properties.min_zoom)) ? Number(properties.min_zoom) : null,
-		maxZoom: Number.isFinite(Number(properties.max_zoom)) ? Number(properties.max_zoom) : null,
+		minZoom: readOptionalRegionZoom(properties.min_zoom),
+		maxZoom: readOptionalRegionZoom(properties.max_zoom),
 		isActive: properties.is_active !== false,
 		editorNotes: properties.editor_notes || "",
 		revision: Number(properties.revision) || null,
@@ -5777,6 +5777,15 @@ function clearRegionEditEdgeHover() {
 		map.removeLayer(activeRegionGeometryEdit.edgePreviewLayer);
 		activeRegionGeometryEdit.edgePreviewLayer = null;
 	}
+}
+
+function readOptionalRegionZoom(value) {
+	if (value === "" || value === null || typeof value === "undefined") {
+		return null;
+	}
+
+	const zoom = Number(value);
+	return Number.isFinite(zoom) ? zoom : null;
 }
 
 function renderRegionEditEdgeHighlight(edge) {
