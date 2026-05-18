@@ -964,7 +964,8 @@ function buildPoliticalTerritoryTree(excludedPublicId) {
 		const hierarchyTree = politicalTerritoryHierarchy
 			.map((node) => clonePoliticalTerritoryHierarchyNode(node))
 			.filter(Boolean);
-		return dedupePoliticalTerritoryTreeNodes(hierarchyTree);
+		const dedupedTree = dedupePoliticalTerritoryTreeNodes(hierarchyTree);
+		return prunePoliticalTerritoryTreeDuplicatesGlobally(dedupedTree);
 	}
 
 	const byId = new Map();
@@ -996,6 +997,33 @@ function buildPoliticalTerritoryTree(excludedPublicId) {
 	};
 	sortNodes(territoryRoots);
 	return territoryRoots;
+}
+
+function prunePoliticalTerritoryTreeDuplicatesGlobally(nodes, seenKeys = new Set()) {
+	const result = [];
+	for (const node of Array.isArray(nodes) ? nodes : []) {
+		if (!node || typeof node !== "object") {
+			continue;
+		}
+
+		const territory = node.territory || {};
+		const dedupeKey = [
+			normalizeSearchText(territory.name || ""),
+			normalizeSearchText(territory.valid_label || buildWikiReferencePeriod(territory)),
+		].filter(Boolean).join("|");
+		const key = dedupeKey || `id:${territory.public_id || node.key || ""}`;
+		if (seenKeys.has(key)) {
+			continue;
+		}
+
+		seenKeys.add(key);
+		result.push({
+			...node,
+			children: prunePoliticalTerritoryTreeDuplicatesGlobally(node.children || [], seenKeys),
+		});
+	}
+
+	return result;
 }
 
 function dedupePoliticalTerritoryTreeNodes(nodes) {
