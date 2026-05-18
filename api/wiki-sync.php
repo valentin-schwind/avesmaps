@@ -562,7 +562,7 @@ function avesmapsWikiSyncReadPoliticalTerritoryTreeFromCache(PDO $pdo): ?array {
         return null;
     }
 
-    $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($rows);
+    $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($rows, false);
     $summary = avesmapsWikiSyncBuildPoliticalTerritoryTreeAssignmentSummary($rows, $tree['hierarchy']);
 
     return [
