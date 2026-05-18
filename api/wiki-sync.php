@@ -323,12 +323,16 @@ function avesmapsWikiSyncAdvanceRun(PDO $pdo, array $payload): array {
 }
 
 function avesmapsWikiSyncReadPoliticalTerritoryTree(PDO $pdo): array {
+    if (avesmapsWikiSyncPoliticalTerritoryCacheNeedsRefresh($pdo)) {
+        return avesmapsWikiSyncRefreshAndReadPoliticalTerritoryTree($pdo);
+    }
+
     $cachedTree = avesmapsWikiSyncReadPoliticalTerritoryTreeFromCache($pdo);
     if ($cachedTree !== null) {
         return $cachedTree;
     }
 
-    return avesmapsWikiSyncReadPoliticalTerritoryTreeFromWiki($pdo);
+    return avesmapsWikiSyncRefreshAndReadPoliticalTerritoryTree($pdo);
 }
 
 function avesmapsWikiSyncReadPoliticalTerritoryTreeFromWiki(PDO $pdo): array {
@@ -354,12 +358,150 @@ function avesmapsWikiSyncReadPoliticalTerritoryTreeFromWiki(PDO $pdo): array {
 }
 
 function avesmapsWikiSyncReadPoliticalTerritoryTreeSummary(PDO $pdo): array {
+    if (avesmapsWikiSyncPoliticalTerritoryCacheNeedsRefresh($pdo)) {
+        return avesmapsWikiSyncRefreshAndReadPoliticalTerritoryTreeSummary($pdo);
+    }
+
     $cachedSummary = avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromCache($pdo);
     if ($cachedSummary !== null) {
         return $cachedSummary;
     }
 
-    return avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromWiki($pdo);
+    return avesmapsWikiSyncRefreshAndReadPoliticalTerritoryTreeSummary($pdo);
+}
+
+function avesmapsWikiSyncPoliticalTerritoryCacheNeedsRefresh(PDO $pdo): bool {
+    $cachedCount = avesmapsWikiSyncCountCachedPoliticalTerritories($pdo);
+
+    if ($cachedCount <= 0) {
+        return true;
+    }
+
+    try {
+        $liveRows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki(false);
+    } catch (Throwable $exception) {
+        avesmapsWikiSyncLogServerError('political_territory_cache_refresh_check_error', [
+            'exception_class' => $exception::class,
+            'exception_message' => $exception->getMessage(),
+        ]);
+
+        return false;
+    }
+
+    return count($liveRows) > $cachedCount;
+}
+
+function avesmapsWikiSyncCountCachedPoliticalTerritories(PDO $pdo): int {
+    $statement = $pdo->prepare(
+        'SELECT COUNT(*) AS territory_count
+        FROM political_territory_wiki
+        WHERE continent = :continent'
+    );
+    $statement->execute([
+        'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+    ]);
+
+    return (int) ($statement->fetchColumn() ?: 0);
+}
+
+function avesmapsWikiSyncRefreshAndReadPoliticalTerritoryTree(PDO $pdo): array {
+    $rows = avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache($pdo);
+    $rows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments(
+        $rows,
+        avesmapsWikiSyncReadPoliticalTerritoryMapAssignments($pdo)
+    );
+    $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($rows);
+    $summary = avesmapsWikiSyncBuildPoliticalTerritoryTreeAssignmentSummary($rows, $tree['hierarchy']);
+
+    return [
+        'ok' => true,
+        'source' => 'wiki-aventurica-refreshed',
+        'source_page' => avesmapsWikiSyncPageUrl('Staat/Liste'),
+        'territory_count' => count($rows),
+        'root_count' => count($tree['hierarchy']),
+        'assigned_territory_count' => $summary['assigned_territory_count'],
+        'assigned_root_count' => $summary['assigned_root_count'],
+        'territories' => $tree['territories'],
+        'hierarchy' => $tree['hierarchy'],
+    ];
+}
+
+function avesmapsWikiSyncRefreshAndReadPoliticalTerritoryTreeSummary(PDO $pdo): array {
+    try {
+        $rows = avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache($pdo);
+        $rows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments(
+            $rows,
+            avesmapsWikiSyncReadPoliticalTerritoryMapAssignments($pdo)
+        );
+        $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($rows, false);
+        $summary = avesmapsWikiSyncBuildPoliticalTerritoryTreeAssignmentSummary($rows, $tree['hierarchy']);
+
+        return [
+            'ok' => true,
+            'territory_count' => count($rows),
+            'root_count' => count($tree['hierarchy']),
+            'assigned_territory_count' => $summary['assigned_territory_count'],
+            'assigned_root_count' => $summary['assigned_root_count'],
+        ];
+    } catch (Throwable $exception) {
+        avesmapsWikiSyncLogServerError('political_territory_tree_summary_refresh_error', [
+            'exception_class' => $exception::class,
+            'exception_message' => $exception->getMessage(),
+        ]);
+
+        return [
+            'ok' => false,
+            'territory_count' => 0,
+            'root_count' => 0,
+            'assigned_territory_count' => 0,
+            'assigned_root_count' => 0,
+            'error' => 'Herrschaftsgebiets-Baum konnte nicht aktualisiert werden.',
+        ];
+    }
+}
+
+function avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache(PDO $pdo): array {
+    $wikiRows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki(true);
+    $normalizedRows = [];
+
+    foreach ($wikiRows as $row) {
+        $record = avesmapsPoliticalNormalizeWikiRecord([
+            'Name' => (string) ($row['name'] ?? ''),
+            'Typ' => (string) ($row['type'] ?? ''),
+            'Kontinent' => (string) ($row['continent'] ?? AVESMAPS_POLITICAL_DEFAULT_CONTINENT),
+            'Zugehörigkeit' => (string) ($row['affiliation'] ?? ''),
+            'Status' => (string) ($row['status'] ?? ''),
+            'Herrschaftsform' => (string) ($row['form_of_government'] ?? ''),
+            'Hauptstadt' => (string) ($row['capital_name'] ?? ''),
+            'Herrschaftssitz' => (string) ($row['seat_name'] ?? ''),
+            'Oberhaupt' => (string) ($row['ruler'] ?? ''),
+            'Sprache' => (string) ($row['language'] ?? ''),
+            'Währung' => (string) ($row['currency'] ?? ''),
+            'Handelswaren' => (string) ($row['trade_goods'] ?? ''),
+            'Einwohnerzahl' => (string) ($row['population'] ?? ''),
+            'Gründungsdatum' => (string) ($row['founded_text'] ?? ''),
+            'Gründer' => (string) ($row['founder'] ?? ''),
+            'Aufgelöst' => (string) ($row['dissolved_text'] ?? ''),
+            'Blasonierung' => (string) ($row['blazon'] ?? ''),
+            'Wiki-Link' => (string) ($row['wiki_url'] ?? ''),
+            'Wappen-Link' => (string) ($row['coat_of_arms_url'] ?? ''),
+            'raw_json' => $row,
+        ]);
+
+        if ((string) ($record['wiki_key'] ?? '') === '' || (string) ($record['name'] ?? '') === '') {
+            continue;
+        }
+
+        $upsert = avesmapsPoliticalUpsertWikiRecord($pdo, $record);
+        $record['id'] = (int) ($upsert['id'] ?? 0);
+        $record['map_assigned'] = false;
+        $record['map_territory_count'] = 0;
+        $record['map_geometry_count'] = 0;
+
+        $normalizedRows[] = $record;
+    }
+
+    return $normalizedRows;
 }
 
 function avesmapsWikiSyncReadPoliticalTerritoryTreeSummaryFromWiki(PDO $pdo): array {
