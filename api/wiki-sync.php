@@ -465,11 +465,16 @@ function avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache(PDO $pdo): array {
     $normalizedRows = [];
 
     foreach ($wikiRows as $row) {
+        $affiliationPath = avesmapsWikiSyncReadPoliticalTerritoryPath($row);
+        $affiliationRoot = $affiliationPath[0] ?? '';
+
         $record = avesmapsPoliticalNormalizeWikiRecord([
             'Name' => (string) ($row['name'] ?? ''),
             'Typ' => (string) ($row['type'] ?? ''),
             'Kontinent' => (string) ($row['continent'] ?? AVESMAPS_POLITICAL_DEFAULT_CONTINENT),
             'Zugehörigkeit' => (string) ($row['affiliation'] ?? ''),
+            'Zugehörigkeit-Root' => $affiliationRoot,
+            'Zugehörigkeit-Pfad' => implode(' > ', $affiliationPath),
             'Status' => (string) ($row['status'] ?? ''),
             'Herrschaftsform' => (string) ($row['form_of_government'] ?? ''),
             'Hauptstadt' => (string) ($row['capital_name'] ?? ''),
@@ -486,8 +491,8 @@ function avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache(PDO $pdo): array {
             'Wiki-Link' => (string) ($row['wiki_url'] ?? ''),
             'Wappen-Link' => (string) ($row['coat_of_arms_url'] ?? ''),
             'raw_json' => $row,
-        ]);
-
+        ]); 
+        
         if ((string) ($record['wiki_key'] ?? '') === '' || (string) ($record['name'] ?? '') === '') {
             continue;
         }
