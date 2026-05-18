@@ -4011,7 +4011,7 @@ async function loadPoliticalTerritoryLayer() {
 			action: "layer",
 			year_bf: politicalTimelineYear,
 			zoom: Math.round(map.getZoom()),
-			edit_mode: 0,
+			edit_mode: IS_EDIT_MODE ? 1 : 0,
 			bbox: [
 				bounds.getWest(),
 				bounds.getSouth(),

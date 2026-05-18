@@ -511,6 +511,7 @@ function avesmapsPoliticalReadEditorLayer(PDO $pdo, int $yearBf, int $zoom, ?arr
 function avesmapsPoliticalBuildRawEditorLayerFeatures(array $rows, int $yearBf, int $zoom, array $territories = [], array $parentIds = []): array {
     $features = [];
     $labelGroups = [];
+    $seenFeatureIds = [];
 
     foreach ($rows as $row) {
         $sourceTerritoryId = (int) ($row['territory_id'] ?? 0);
@@ -561,6 +562,13 @@ function avesmapsPoliticalBuildRawEditorLayerFeatures(array $rows, int $yearBf, 
         }
 
         $feature = avesmapsPoliticalLayerRowToFeature($featureRow, $yearBf, $zoom);
+        $featureId = (string) ($feature['id'] ?? '');
+        if ($featureId !== '' && isset($seenFeatureIds[$featureId])) {
+            continue;
+        }
+        if ($featureId !== '') {
+            $seenFeatureIds[$featureId] = true;
+        }
 
         $labelKey = (string) ($featureRow['territory_public_id'] ?? $row['geometry_public_id'] ?? count($features));
 
