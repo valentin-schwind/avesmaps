@@ -3,6 +3,9 @@ const VISUAL_MAX_ZOOM_LEVEL = 5;
 const LOCATION_LABEL_GAP = 11;
 const LOCATION_LABEL_SHIFT_SMALL = 8;
 const LOCATION_LABEL_COLLISION_PADDING = 2;
+const REGION_OVERLAP_SELECTION_TIMEOUT_MS = 3000;
+const REGION_OVERLAP_SELECTION_MAX_PIXEL_DISTANCE = 18;
+let recentRegionOverlapSelection = null;
 
 function getVisualZoomLevel(zoomLevel = map.getZoom()) {
 	const roundedZoomLevel = Math.round(Number(zoomLevel));
@@ -3772,6 +3775,7 @@ function prepareLegacyRegionData(data) {
 function clearRenderedRegionLayers() {
 	closeRegionCompactTooltip();
 	clearPendingRegionTargetHighlight();
+	recentRegionOverlapSelection = null;
 	regionPolygons.forEach((polygon) => map.removeLayer(polygon));
 	regionLabels.forEach((label) => map.removeLayer(label));
 	regionPolygons = [];
@@ -4339,6 +4343,181 @@ function normalizeRegionParentheticalSpacing(value) {
 	return String(value || "").replace(/([^\s])\(/gu, "$1 (");
 }
 
+function getRegionLayerGeometryPublicId(layer) {
+	return String(layer?._regionEntry?.geometryPublicId || layer?._regionEntry?.publicId || "").trim();
+}
+
+function isLatLngInsideRegionRing(latlng, ring) {
+	if (!Array.isArray(ring) || ring.length < 3) {
+		return false;
+	}
+
+	const testLat = Number(latlng?.lat);
+	const testLng = Number(latlng?.lng);
+	if (!Number.isFinite(testLat) || !Number.isFinite(testLng)) {
+		return false;
+	}
+
+	let inside = false;
+	for (let index = 0, previousIndex = ring.length - 1; index < ring.length; previousIndex = index, index += 1) {
+		const currentPoint = ring[index];
+		const previousPoint = ring[previousIndex];
+		const currentLat = Number(currentPoint?.lat);
+		const currentLng = Number(currentPoint?.lng);
+		const previousLat = Number(previousPoint?.lat);
+		const previousLng = Number(previousPoint?.lng);
+
+		if (!Number.isFinite(currentLat) || !Number.isFinite(currentLng) || !Number.isFinite(previousLat) || !Number.isFinite(previousLng)) {
+			continue;
+		}
+
+		const intersects = ((currentLat > testLat) !== (previousLat > testLat))
+			&& (testLng < ((previousLng - currentLng) * (testLat - currentLat) / ((previousLat - currentLat) || Number.EPSILON)) + currentLng);
+		if (intersects) {
+			inside = !inside;
+		}
+	}
+
+	return inside;
+}
+
+function isLatLngInsideRegionLayer(layer, latlng) {
+	if (!layer || !latlng) {
+		return false;
+	}
+
+	const normalizedLatLng = L.latLng(latlng);
+	if (!layer.getBounds?.().contains?.(normalizedLatLng)) {
+		return false;
+	}
+
+	const layerPoint = map.latLngToLayerPoint(normalizedLatLng);
+	if (typeof layer._containsPoint === "function" && layer._map) {
+		return layer._containsPoint(layerPoint);
+	}
+
+	const rings = layer.getLatLngs?.();
+	if (!Array.isArray(rings) || rings.length < 1 || !Array.isArray(rings[0])) {
+		return false;
+	}
+
+	if (!isLatLngInsideRegionRing(normalizedLatLng, rings[0])) {
+		return false;
+	}
+
+	for (let ringIndex = 1; ringIndex < rings.length; ringIndex += 1) {
+		if (isLatLngInsideRegionRing(normalizedLatLng, rings[ringIndex])) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+function getOverlappingPoliticalRegionLayersAtLatLng(latlng, preferredLayer = null) {
+	const normalizedLatLng = L.latLng(latlng);
+	const candidates = [];
+
+	regionPolygons.forEach((layer) => {
+		const candidateRegion = layer?._regionEntry;
+		if (!candidateRegion || candidateRegion.source !== "political_territory") {
+			return;
+		}
+
+		if (isLatLngInsideRegionLayer(layer, normalizedLatLng)) {
+			candidates.push(layer);
+		}
+	});
+
+	if (candidates.length < 2) {
+		return candidates;
+	}
+
+	const uniqueCandidates = [];
+	const seenLayerIds = new Set();
+	candidates.forEach((layer) => {
+		const layerId = L.stamp(layer);
+		if (seenLayerIds.has(layerId)) {
+			return;
+		}
+		seenLayerIds.add(layerId);
+		uniqueCandidates.push(layer);
+	});
+
+	const hasPreferredLayer = preferredLayer && uniqueCandidates.includes(preferredLayer);
+	const orderedCandidates = hasPreferredLayer
+		? [preferredLayer, ...uniqueCandidates.filter((layer) => layer !== preferredLayer)]
+		: [...uniqueCandidates];
+
+	const headLayer = orderedCandidates[0] || null;
+	const tailLayers = orderedCandidates.slice(1).sort((leftLayer, rightLayer) => {
+		const leftGeometry = getRegionLayerGeometryPublicId(leftLayer) || `layer:${L.stamp(leftLayer)}`;
+		const rightGeometry = getRegionLayerGeometryPublicId(rightLayer) || `layer:${L.stamp(rightLayer)}`;
+		return leftGeometry.localeCompare(rightGeometry, "de");
+	});
+
+	return headLayer ? [headLayer, ...tailLayers] : tailLayers;
+}
+
+function resolveOverlappingRegionLayerSelection(latlng, fallbackLayer = null) {
+	const normalizedLatLng = L.latLng(latlng);
+	const candidateLayers = getOverlappingPoliticalRegionLayersAtLatLng(normalizedLatLng, fallbackLayer);
+	const fallbackResultLayer = fallbackLayer || candidateLayers[0] || null;
+
+	if (candidateLayers.length < 2) {
+		recentRegionOverlapSelection = null;
+		return {
+			layer: fallbackResultLayer,
+			total: Math.max(candidateLayers.length, fallbackResultLayer ? 1 : 0),
+			index: 0,
+		};
+	}
+
+	const signature = candidateLayers
+		.map((layer) => getRegionLayerGeometryPublicId(layer) || `layer:${L.stamp(layer)}`)
+		.join("|");
+	let nextIndex = 0;
+	const now = Date.now();
+	if (recentRegionOverlapSelection && recentRegionOverlapSelection.signature === signature && now - recentRegionOverlapSelection.timestamp <= REGION_OVERLAP_SELECTION_TIMEOUT_MS) {
+		const previousPoint = map.latLngToContainerPoint(recentRegionOverlapSelection.latlng);
+		const currentPoint = map.latLngToContainerPoint(normalizedLatLng);
+		if (previousPoint.distanceTo(currentPoint) <= REGION_OVERLAP_SELECTION_MAX_PIXEL_DISTANCE) {
+			nextIndex = (recentRegionOverlapSelection.index + 1) % candidateLayers.length;
+		}
+	}
+
+	recentRegionOverlapSelection = {
+		signature,
+		index: nextIndex,
+		latlng: normalizedLatLng,
+		timestamp: now,
+	};
+
+	return {
+		layer: candidateLayers[nextIndex] || fallbackResultLayer,
+		total: candidateLayers.length,
+		index: nextIndex,
+	};
+}
+
+function announceOverlappingRegionSelection(selection) {
+	if (!selection || selection.total < 2 || typeof showFeedbackToast !== "function") {
+		return;
+	}
+
+	const selectedRegion = selection.layer?._regionEntry || {};
+	const geometryLabelParts = [];
+	if (selectedRegion.geometryId !== null && selectedRegion.geometryId !== undefined) {
+		geometryLabelParts.push(`#${selectedRegion.geometryId}`);
+	}
+	if (selectedRegion.geometryPublicId) {
+		geometryLabelParts.push(selectedRegion.geometryPublicId);
+	}
+
+	const geometrySuffix = geometryLabelParts.length > 0 ? ` (${geometryLabelParts.join(" / ")})` : "";
+	showFeedbackToast(`Ueberlagerte Geometrien: ${selection.index + 1}/${selection.total}${geometrySuffix}`, "info");
+}
+
 $(document).on("click", "[data-region-place-public-id]", function (event) {
 	event.preventDefault();
 	event.stopPropagation();
@@ -4372,7 +4551,11 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 			void completePendingRegionOperation(regionEntry, polygon);
 			return;
 		}
-		startRegionGeometryEdit(regionEntry, polygon);
+		const selection = resolveOverlappingRegionLayerSelection(event.latlng, polygon);
+		const selectedLayer = selection.layer || polygon;
+		const selectedRegionEntry = selectedLayer._regionEntry || regionEntry;
+		announceOverlappingRegionSelection(selection);
+		startRegionGeometryEdit(selectedRegionEntry, selectedLayer);
 	});
 	polygon.on("dblclick", (event) => {
 		if (event.originalEvent?.target?.closest?.(".region-edit-handle-marker")) return;
@@ -4385,9 +4568,13 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 	});
 	polygon.on("contextmenu", (event) => {
 		L.DomEvent.stop(event);
+		const selection = resolveOverlappingRegionLayerSelection(event.latlng, polygon);
+		const selectedLayer = selection.layer || polygon;
+		const selectedRegionEntry = selectedLayer._regionEntry || regionEntry;
+		announceOverlappingRegionSelection(selection);
 		openRegionContextMenu(
-			regionEntry,
-			polygon,
+			selectedRegionEntry,
+			selectedLayer,
 			event.latlng,
 			event.originalEvent?.clientX ?? 0,
 			event.originalEvent?.clientY ?? 0
@@ -5210,6 +5397,7 @@ function normalizeRegionFeature(feature) {
 	const opacity = getRegionFeatureOpacity(properties);
 	return {
 		publicId: properties.public_id || feature.id || properties.id || properties.svg_id || "",
+		geometryId: Number.isFinite(Number(properties.geometry_id)) ? Number(properties.geometry_id) : null,
 		geometryPublicId: properties.geometry_public_id || properties.public_id || feature.id || "",
 		territoryPublicId: properties.territory_public_id || "",
 		source: properties.source || (properties.feature_type === "political_territory" ? "political_territory" : "map_feature"),
@@ -5893,8 +6081,9 @@ function regionLayersToGeoJsonGeometry(layers, fallbackRegionEntry = null) {
 function applyRegionFeatureResponse(regionEntry, feature) {
 	const updatedRegion = normalizeRegionFeature(feature);
 	regionEntry.publicId = updatedRegion.publicId || regionEntry.publicId;
+	regionEntry.geometryId = updatedRegion.geometryId ?? regionEntry.geometryId ?? null;
 	regionEntry.geometryPublicId = updatedRegion.geometryPublicId || regionEntry.geometryPublicId;
-	regionEntry.territoryPublicId = updatedRegion.territoryPublicId || regionEntry.territoryPublicId;
+	regionEntry.territoryPublicId = updatedRegion.territoryPublicId;
 	regionEntry.source = updatedRegion.source || regionEntry.source;
 	regionEntry.name = updatedRegion.name || regionEntry.name;
 	regionEntry.shortName = updatedRegion.shortName || "";
