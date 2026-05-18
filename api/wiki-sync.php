@@ -414,6 +414,7 @@ function avesmapsWikiSyncCountCachedPoliticalTerritories(PDO $pdo): int {
 }
 
 function avesmapsWikiSyncRefreshAndReadPoliticalTerritoryTree(PDO $pdo): array {
+    avesmapsWikiSyncMergeDuplicatePoliticalTerritoriesByName($pdo);
     $rows = avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache($pdo);
     $rows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments(
         $rows,
@@ -437,6 +438,7 @@ function avesmapsWikiSyncRefreshAndReadPoliticalTerritoryTree(PDO $pdo): array {
 
 function avesmapsWikiSyncRefreshAndReadPoliticalTerritoryTreeSummary(PDO $pdo): array {
     try {
+        avesmapsWikiSyncMergeDuplicatePoliticalTerritoriesByName($pdo);
         $rows = avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache($pdo);
         $rows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments(
             $rows,
@@ -780,6 +782,90 @@ function avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki(bool $includeDetail
     }
 
     return $includeDetails ? avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki($rows) : $rows;
+}
+
+function avesmapsWikiSyncMergeDuplicatePoliticalTerritoriesByName(PDO $pdo): void {
+    $statement = $pdo->prepare(
+        'SELECT
+            id, public_id, name, continent, wiki_id, parent_id, coat_of_arms_url, wiki_url
+        FROM political_territory
+        WHERE is_active = 1
+            AND continent = :continent
+            AND TRIM(COALESCE(name, \'\')) <> \'\'
+        ORDER BY name ASC, id ASC'
+    );
+    $statement->execute(['continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT]);
+    $rows = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+    $groups = [];
+    foreach ($rows as $row) {
+        $key = avesmapsWikiSyncCreateMatchKey((string) ($row['name'] ?? ''));
+        if ($key === '') {
+            continue;
+        }
+        $groups[$key][] = $row;
+    }
+
+    foreach ($groups as $groupRows) {
+        if (count($groupRows) < 2) {
+            continue;
+        }
+
+        $keeper = avesmapsWikiSyncSelectPoliticalTerritoryMergeKeeper($pdo, $groupRows);
+        $keeperId = (int) ($keeper['id'] ?? 0);
+        if ($keeperId < 1) {
+            continue;
+        }
+
+        foreach ($groupRows as $candidate) {
+            $candidateId = (int) ($candidate['id'] ?? 0);
+            if ($candidateId < 1 || $candidateId === $keeperId) {
+                continue;
+            }
+
+            $updateKeeper = $pdo->prepare(
+                'UPDATE political_territory
+                SET wiki_id = COALESCE(wiki_id, :wiki_id),
+                    coat_of_arms_url = CASE WHEN TRIM(COALESCE(coat_of_arms_url, \'\')) = \'\' THEN :coat_of_arms_url ELSE coat_of_arms_url END,
+                    wiki_url = CASE WHEN TRIM(COALESCE(wiki_url, \'\')) = \'\' THEN :wiki_url ELSE wiki_url END
+                WHERE id = :id'
+            );
+            $updateKeeper->execute([
+                'id' => $keeperId,
+                'wiki_id' => isset($candidate['wiki_id']) ? (int) $candidate['wiki_id'] : null,
+                'coat_of_arms_url' => (string) ($candidate['coat_of_arms_url'] ?? ''),
+                'wiki_url' => (string) ($candidate['wiki_url'] ?? ''),
+            ]);
+
+            $pdo->prepare('UPDATE political_territory_geometry SET territory_id = :keeper_id WHERE territory_id = :candidate_id')
+                ->execute(['keeper_id' => $keeperId, 'candidate_id' => $candidateId]);
+            $pdo->prepare('UPDATE political_territory SET parent_id = :keeper_id WHERE parent_id = :candidate_id')
+                ->execute(['keeper_id' => $keeperId, 'candidate_id' => $candidateId]);
+            $pdo->prepare('UPDATE political_territory SET is_active = 0 WHERE id = :candidate_id')
+                ->execute(['candidate_id' => $candidateId]);
+        }
+    }
+}
+
+function avesmapsWikiSyncSelectPoliticalTerritoryMergeKeeper(PDO $pdo, array $rows): array {
+    $best = null;
+    $bestScore = -1;
+    foreach ($rows as $row) {
+        $id = (int) ($row['id'] ?? 0);
+        if ($id < 1) {
+            continue;
+        }
+
+        $childCount = (int) ($pdo->query('SELECT COUNT(*) FROM political_territory WHERE parent_id = ' . $id . ' AND is_active = 1')->fetchColumn() ?: 0);
+        $geometryCount = (int) ($pdo->query('SELECT COUNT(*) FROM political_territory_geometry WHERE territory_id = ' . $id . ' AND is_active = 1')->fetchColumn() ?: 0);
+        $score = $childCount * 1000 + $geometryCount * 100 + (!empty($row['wiki_id']) ? 10 : 0) + (!empty($row['coat_of_arms_url']) ? 5 : 0);
+        if ($score > $bestScore) {
+            $bestScore = $score;
+            $best = $row;
+        }
+    }
+
+    return is_array($best) ? $best : ($rows[0] ?? []);
 }
 
 function avesmapsWikiSyncSelectPreferredPoliticalTerritoryRow(array $currentRow, array $candidateRow): array {
