@@ -816,7 +816,11 @@ function avesmapsPoliticalBuildResolvedLayerFeatures(array $geometryRows, array 
         if ($displayTerritoryId !== null && $displayTerritoryId !== $sourceTerritoryId) {
             $displayTerritory = $territories[$displayTerritoryId] ?? null;
             if (is_array($displayTerritory) && avesmapsPoliticalIsGenericLayerParentTerritory($displayTerritory)) {
-                $displayTerritoryId = $sourceTerritoryId;
+                if (avesmapsPoliticalLayerRowMatchesOwnZoom($geometryRow, $zoom)) {
+                    $displayTerritoryId = $sourceTerritoryId;
+                } else {
+                    continue;
+                }
             }
         }
 
