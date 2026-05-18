@@ -5,6 +5,7 @@ const LOCATION_LABEL_SHIFT_SMALL = 8;
 const LOCATION_LABEL_COLLISION_PADDING = 2;
 const REGION_OVERLAP_SELECTION_TIMEOUT_MS = 3000;
 const REGION_OVERLAP_SELECTION_MAX_PIXEL_DISTANCE = 18;
+const REGION_EDIT_EDGE_HIT_TOLERANCE_PX = 22;
 let recentRegionOverlapSelection = null;
 
 function getVisualZoomLevel(zoomLevel = map.getZoom()) {
@@ -4010,7 +4011,7 @@ async function loadPoliticalTerritoryLayer() {
 			action: "layer",
 			year_bf: politicalTimelineYear,
 			zoom: Math.round(map.getZoom()),
-			edit_mode: IS_EDIT_MODE ? 1 : 0,
+			edit_mode: 0,
 			bbox: [
 				bounds.getWest(),
 				bounds.getSouth(),
@@ -4611,6 +4612,12 @@ function openRegionContextMenu(regionEntry, regionLayer, latlng, clientX, client
 		return;
 	}
 
+	const extractActionElement = menuElement.querySelector('[data-region-context-action="extract"]');
+	if (extractActionElement) {
+		const layerCount = getRegionEntryLayers(regionEntry).length;
+		extractActionElement.hidden = !(regionEntry?.source === "political_territory" && layerCount > 1 && regionLayer);
+	}
+
 	menuElement.hidden = false;
 	positionContextMenuElement(menuElement, clientX, clientY);
 }
@@ -4681,11 +4688,58 @@ $(document).on("click", "[data-region-context-action]", function (event) {
 		startPendingRegionOperation(action, regionEntry, regionLayer);
 		return;
 	}
+	if (action === "extract") {
+		void extractRegionGeometryPartAsNewTerritory(regionEntry, regionLayer);
+		return;
+	}
 	if (action === "delete") {
 		regionEditEntry = regionEntry;
 		void deleteActiveRegion(regionLayer, polygonIndex);
 	}
 });
+
+async function extractRegionGeometryPartAsNewTerritory(regionEntry, selectedLayer) {
+	if (!regionEntry || regionEntry.source !== "political_territory") {
+		showFeedbackToast("Herausloesen ist nur fuer das neue Herrschaftsgebiete-Modell verfuegbar.", "warning");
+		return;
+	}
+
+	const layers = getRegionEntryLayers(regionEntry);
+	if (!selectedLayer || !layers.includes(selectedLayer) || layers.length < 2) {
+		showFeedbackToast("Zum Herausloesen muss ein Teilpolygon eines Mehrfach-Gebiets ausgewaehlt sein.", "warning");
+		return;
+	}
+
+	const extractedGeometry = regionLayersToGeoJsonGeometry([selectedLayer], regionEntry);
+	const extractedName = `${regionEntry.name || "Herrschaftsgebiet"} (Teilgebiet)`;
+
+	try {
+		await submitPoliticalTerritoryEdit({
+			action: "create_territory",
+			name: extractedName,
+			short_name: "",
+			type: regionEntry.type || "Herrschaftsgebiet",
+			color: regionEntry.color || "#888888",
+			opacity: Number.isFinite(Number(regionEntry.opacity)) ? Number(regionEntry.opacity) : 0.33,
+			valid_to_open: true,
+			is_active: true,
+			geometry_geojson: extractedGeometry,
+			style_json: {
+				fill: regionEntry.color || "#888888",
+				stroke: regionEntry.color || "#888888",
+				fillOpacity: Number.isFinite(Number(regionEntry.opacity)) ? Number(regionEntry.opacity) : 0.33,
+			},
+		});
+
+		await deleteRegionGeometryPart(regionEntry, selectedLayer);
+		void loadPoliticalTerritoryOptions({ force: true });
+		schedulePoliticalTerritoryLayerReload({ immediate: true });
+		showFeedbackToast("Teilpolygon als neues Herrschaftsgebiet herausgeloest.", "success");
+	} catch (error) {
+		console.error("Teilpolygon konnte nicht herausgeloest werden:", error);
+		showFeedbackToast(error.message || "Teilpolygon konnte nicht herausgeloest werden.", "warning");
+	}
+}
 
 function startPendingRegionOperation(operation, sourceRegion, sourceLayer = null) {
 	if (sourceRegion.source !== "political_territory") {
@@ -5717,6 +5771,11 @@ function clearRegionEditEdgeHover() {
 		map.removeLayer(activeRegionGeometryEdit.edgeHighlightLayer);
 		activeRegionGeometryEdit.edgeHighlightLayer = null;
 	}
+
+	if (activeRegionGeometryEdit.edgePreviewLayer) {
+		map.removeLayer(activeRegionGeometryEdit.edgePreviewLayer);
+		activeRegionGeometryEdit.edgePreviewLayer = null;
+	}
 }
 
 function renderRegionEditEdgeHighlight(edge) {
@@ -5726,6 +5785,7 @@ function renderRegionEditEdgeHighlight(edge) {
 
 	if (activeRegionGeometryEdit.edgeHighlightLayer) {
 		activeRegionGeometryEdit.edgeHighlightLayer.setLatLngs([edge.start, edge.end]);
+		renderRegionEditEdgeSubdivisionPreview(edge, 4);
 		return;
 	}
 
@@ -5741,6 +5801,38 @@ function renderRegionEditEdgeHighlight(edge) {
 
 	activeRegionGeometryEdit.edgeHighlightLayer.on("click", handleRegionEditEdgeClick);
 	activeRegionGeometryEdit.edgeHighlightLayer.on("dblclick", handleRegionEditEdgeClick);
+	renderRegionEditEdgeSubdivisionPreview(edge, 4);
+}
+
+function renderRegionEditEdgeSubdivisionPreview(edge, pointCount) {
+	if (!activeRegionGeometryEdit || !edge || pointCount < 1) {
+		return;
+	}
+
+	const previewLayers = [];
+	for (let offset = 1; offset <= pointCount; offset += 1) {
+		const ratio = offset / (pointCount + 1);
+		const point = L.latLng(
+			edge.start.lat + (edge.end.lat - edge.start.lat) * ratio,
+			edge.start.lng + (edge.end.lng - edge.start.lng) * ratio
+		);
+
+		previewLayers.push(L.circleMarker(point, {
+			pane: "measurementHandlesPane",
+			radius: 4,
+			color: "#f0c05a",
+			weight: 2,
+			fillColor: "#f0c05a",
+			fillOpacity: 0.95,
+			interactive: false,
+		}));
+	}
+
+	if (activeRegionGeometryEdit.edgePreviewLayer) {
+		map.removeLayer(activeRegionGeometryEdit.edgePreviewLayer);
+	}
+
+	activeRegionGeometryEdit.edgePreviewLayer = L.layerGroup(previewLayers).addTo(map);
 }
 
 function handleRegionEditEdgeClick(event) {
@@ -5772,7 +5864,7 @@ function findNearestEditedRegionEdge(latLng, regionEntry) {
 		const projectedPoint = closestPointOnSegment(targetPoint, startPoint, endPoint);
 		const distance = targetPoint.distanceTo(projectedPoint);
 
-		if (distance <= 12 && (!nearest || distance < nearest.distance)) {
+		if (distance <= REGION_EDIT_EDGE_HIT_TOLERANCE_PX && (!nearest || distance < nearest.distance)) {
 			nearest = {
 				index,
 				start,
@@ -6129,7 +6221,7 @@ function applyRegionFeatureResponse(regionEntry, feature) {
 async function createRegionAt(latlng) {
 	setSelectedMapLayerMode("political");
 	const center = L.latLng(latlng);
-	const radius = 80;
+	const radius = 50;
 	const points = Array.from({ length: 6 }, (_, index) => {
 		const angle = Math.PI / 3 * index;
 		return [center.lng + Math.cos(angle) * radius, center.lat + Math.sin(angle) * radius];

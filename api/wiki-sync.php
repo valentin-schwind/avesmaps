@@ -976,6 +976,12 @@ function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent(string $conte
         'grunder' => 'founder',
         'gruender' => 'founder',
         'blasonierung' => 'blazon',
+        'wappen' => 'coat_of_arms_url',
+        'wappenlink' => 'coat_of_arms_url',
+        'wappenbild' => 'coat_of_arms_url',
+        'wappendatei' => 'coat_of_arms_url',
+        'wappenbilddatei' => 'coat_of_arms_url',
+        'wappenabbildung' => 'coat_of_arms_url',
     ];
 
     foreach ($fields as $rawKey => $rawValue) {
@@ -985,7 +991,9 @@ function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent(string $conte
             continue;
         }
 
-        $value = avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($rawValue);
+        $value = $targetKey === 'coat_of_arms_url'
+            ? avesmapsWikiSyncExtractPoliticalTerritoryCoatOfArmsUrl($rawValue)
+            : avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($rawValue);
         if ($value !== '' && !isset($details[$targetKey])) {
             $details[$targetKey] = $value;
         }
@@ -1220,6 +1228,46 @@ function avesmapsWikiSyncParsePoliticalTerritoryTable(DOMElement $table): array 
     }
 
     return $rows;
+}
+
+function avesmapsWikiSyncExtractPoliticalTerritoryCoatOfArmsUrl(string $rawValue): string {
+    $value = trim($rawValue);
+    if ($value === '') {
+        return '';
+    }
+
+    if (preg_match('/https?:\/\/\S+/iu', $value, $urlMatch) === 1) {
+        return trim((string) $urlMatch[0]);
+    }
+
+    if (preg_match('/\[\[(?:Datei|File)\s*:\s*([^|\]#]+)(?:#[^\]|]+)?(?:\|[^\]]*)?\]\]/iu', $value, $fileMatch) === 1) {
+        $fileTitle = avesmapsWikiSyncNormalizePoliticalTerritoryWikiValue((string) $fileMatch[1]);
+        return avesmapsWikiSyncPoliticalTerritoryFilePathUrl($fileTitle);
+    }
+
+    if (preg_match('/\{\{[Ii]nfoboxbild\|([^|}]+)(?:\|[^}]*)?\}\}/u', $value, $templateMatch) === 1) {
+        $fileTitle = avesmapsWikiSyncNormalizePoliticalTerritoryWikiValue((string) $templateMatch[1]);
+        return avesmapsWikiSyncPoliticalTerritoryFilePathUrl($fileTitle);
+    }
+
+    $cleanedValue = avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($value);
+    if (str_contains($cleanedValue, '.')) {
+        return avesmapsWikiSyncPoliticalTerritoryFilePathUrl($cleanedValue);
+    }
+
+    return '';
+}
+
+function avesmapsWikiSyncPoliticalTerritoryFilePathUrl(string $fileTitle): string {
+    $normalizedTitle = avesmapsWikiSyncNormalizePoliticalTerritoryWikiValue($fileTitle);
+    if ($normalizedTitle === '') {
+        return '';
+    }
+
+    $normalizedTitle = preg_replace('/^(?:Datei|File)\s*:\s*/iu', '', $normalizedTitle) ?? $normalizedTitle;
+    $normalizedTitle = str_replace('_', ' ', $normalizedTitle);
+
+    return AVESMAPS_WIKI_PAGE_BASE_URL . 'Spezial:Dateipfad/' . str_replace('%2F', '/', rawurlencode($normalizedTitle));
 }
 
 function avesmapsWikiSyncReadTableCells(DOMElement $row): array {
@@ -1643,7 +1691,7 @@ function avesmapsWikiSyncReadPoliticalTerritoryPath(array $row): array {
 
     $clauses = array_values(array_filter(array_map(
         static fn(string $part): string => trim($part),
-        preg_split('/\s*[;·]\s*/u', $affiliation) ?: []
+        preg_split('/\s*(?:[;·]|,\s*(?=(?:ehemals|früher|frueher|historisch|vormals)\b))\s*/iu', $affiliation) ?: []
     )));
 
     $selectedClause = '';
@@ -1708,7 +1756,7 @@ function avesmapsWikiSyncNormalizePoliticalPathPart(string $value): string {
         $normalized
     ) ?? $normalized;
 
-    $normalized = preg_split('/\s*[;·]\s*/u', $normalized)[0] ?? $normalized;
+    $normalized = preg_split('/\s*(?:[;·]|,\s*(?=(?:ehemals|früher|frueher|historisch|vormals)\b))\s*/iu', $normalized)[0] ?? $normalized;
 
     return trim($normalized, " \t\n\r\0\x0B,:;");
 }
@@ -1724,7 +1772,7 @@ function avesmapsWikiSyncResolvePoliticalPathPart(array $rowIndex, string $part)
         return $normalizedPart;
     }
 
-    $candidateBeforeSemicolon = trim((string) (preg_split('/\s*[;·]\s*/u', $normalizedPart)[0] ?? $normalizedPart));
+    $candidateBeforeSemicolon = trim((string) (preg_split('/\s*(?:[;·]|,\s*(?=(?:ehemals|früher|frueher|historisch|vormals)\b))\s*/iu', $normalizedPart)[0] ?? $normalizedPart));
     $candidateKey = avesmapsWikiSyncMakePoliticalTreeKey($candidateBeforeSemicolon);
 
     if ($candidateKey !== '' && isset($rowIndex[$candidateKey])) {
