@@ -486,6 +486,11 @@ function avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache(PDO $pdo, bool $rese
         );
 
         $affiliationPath = avesmapsWikiSyncReadPoliticalTerritoryPath($row);
+
+        if (avesmapsWikiSyncIsIndependentPoliticalTerritoryPath($affiliationPath)) {
+            $affiliationPath = [];
+        }
+
         $affiliationRoot = $affiliationPath[0] ?? '';
 
         $record = avesmapsPoliticalNormalizeWikiRecord([
@@ -520,7 +525,6 @@ function avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache(PDO $pdo, bool $rese
             'Wappen-Link' => (string) ($row['coat_of_arms_url'] ?? ''),
             'raw_json' => $row,
         ]);
-
         if ((string) ($record['wiki_key'] ?? '') === '' || (string) ($record['name'] ?? '') === '') {
             continue;
         }
@@ -2141,28 +2145,40 @@ function avesmapsWikiSyncClassifyPoliticalTerritoryPath(array $path, array $row)
     $name = avesmapsWikiSyncNormalizeWikiTreeText((string) ($row['name'] ?? ''));
     $nameLower = mb_strtolower($name, 'UTF-8');
     $nameKey = avesmapsWikiSyncCreateMatchKey($name);
-    $pathText = avesmapsWikiSyncNormalizeWikiTreeText(implode(' ', $path));
+
+    $normalizedPath = array_values(array_filter(array_map(
+        static fn(mixed $part): string => avesmapsWikiSyncNormalizePoliticalPathPart((string) $part),
+        $path
+    ), static fn(string $part): bool => $part !== ''));
+
+    $pathText = avesmapsWikiSyncNormalizeWikiTreeText(implode(' ', $normalizedPath));
     $pathKey = avesmapsWikiSyncCreateMatchKey($pathText);
 
     if (
         preg_match('/\bunabh(?:a|ae|\x{00E4})ngig\b/iu', $name) === 1
+        || preg_match('/\bunabh(?:a|ae|\x{00E4})ngig\b/iu', $pathText) === 1
         || str_contains($nameKey, 'unabhangig')
+        || str_contains($nameKey, 'unabhaengig')
         || str_contains($pathKey, 'unabhangig')
+        || str_contains($pathKey, 'unabhaengig')
     ) {
-        return ["unabh\u{00E4}ngig"];
+        return ["unabhängig"];
     }
 
     if (
-        preg_match('/\bumstritten\b|\bungekl(?:a|ae|\x{00E4})rt\b/iu', $name) === 1
+        preg_match('/\bumstritten\b|\bungekl(?:a|ae|\x{00E4})rt\b|\bunbekannt\b/iu', $name) === 1
+        || preg_match('/\bumstritten\b|\bungekl(?:a|ae|\x{00E4})rt\b|\bunbekannt\b/iu', $pathText) === 1
         || str_contains($nameLower, '-kirche')
         || str_contains($nameLower, ' kirche')
         || str_contains($pathKey, 'umstritten')
         || str_contains($pathKey, 'ungeklart')
+        || str_contains($pathKey, 'ungeklaert')
+        || str_contains($pathKey, 'unbekannt')
     ) {
         return ['Sonstiges'];
     }
 
-    return $path;
+    return $normalizedPath !== [] ? $normalizedPath : ['Sonstiges'];
 }
 
 function avesmapsWikiSyncNormalizePoliticalPathPart(string $value): string {
