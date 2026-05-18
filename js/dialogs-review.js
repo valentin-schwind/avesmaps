@@ -1040,10 +1040,8 @@ function dedupePoliticalTerritoryTreeNode(node) {
 
 function buildPoliticalTerritoryTreeDedupeKey(territory) {
 	const name = normalizeSearchText(territory?.name || "");
-	const wikiName = normalizeSearchText(territory?.wiki_name || "");
-	const wikiUrl = normalizeSearchText(territory?.wiki_url || "");
-	const fallback = normalizeSearchText(territory?.public_id || "");
-	return [name, wikiName, wikiUrl || fallback].filter(Boolean).join("|");
+	const type = normalizeSearchText(territory?.type || "");
+	return [name, type].filter(Boolean).join("|");
 }
 
 function scorePoliticalTerritoryTreeNode(node) {
@@ -1088,6 +1086,9 @@ function mergePoliticalTerritoryTreeDuplicateTerritory(primaryTerritory, seconda
 		wiki_name: primary.wiki_name || secondary.wiki_name || "",
 		wiki_url: primary.wiki_url || secondary.wiki_url || "",
 		coat_of_arms_url: primary.coat_of_arms_url || secondary.coat_of_arms_url || "",
+		valid_label: primary.valid_label || secondary.valid_label || "",
+		founded_text: primary.founded_text || secondary.founded_text || "",
+		dissolved_text: primary.dissolved_text || secondary.dissolved_text || "",
 		aliases: mergedAliases,
 	};
 }
@@ -1378,6 +1379,7 @@ function formatPoliticalTerritoryTreeDisplayName(territory) {
 	if (!territory || !territory.public_id || baseName === "Kein Parent") {
 		return baseName;
 	}
+	const periodLabel = normalizeParentheticalSpacing(territory.valid_label || buildWikiReferencePeriod(territory));
 
 	const normalizedNameKey = normalizeSearchText(baseName);
 	if (normalizedNameKey === "") {
@@ -1392,15 +1394,19 @@ function formatPoliticalTerritoryTreeDisplayName(territory) {
 	});
 
 	if (duplicates.length < 1) {
-		return baseName;
+		return periodLabel ? `${baseName} [${periodLabel}]` : baseName;
 	}
 
 	const disambiguator = normalizeParentheticalSpacing(territory.type || territory.wiki_name || territory.short_name || "");
 	if (disambiguator !== "") {
-		return `${baseName} (${disambiguator})`;
+		return periodLabel
+			? `${baseName} (${disambiguator}) [${periodLabel}]`
+			: `${baseName} (${disambiguator})`;
 	}
 
-	return `${baseName} (${String(territory.public_id).slice(0, 8)})`;
+	return periodLabel
+		? `${baseName} (${String(territory.public_id).slice(0, 8)}) [${periodLabel}]`
+		: `${baseName} (${String(territory.public_id).slice(0, 8)})`;
 }
 
 function renderRegionWikiReference(region) {
