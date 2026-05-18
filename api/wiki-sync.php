@@ -1682,6 +1682,32 @@ function avesmapsWikiSyncReadPoliticalTerritoryPath(array $row): array {
     return $path !== [] ? $path : ['ungeklärt'];
 }
 
+function avesmapsWikiSyncNormalizePoliticalPathPart(string $value): string {
+    $normalized = avesmapsWikiSyncNormalizeWikiTreeText($value);
+    if ($normalized === '') {
+        return '';
+    }
+
+    $normalized = preg_replace('/\([^)]*\)/u', '', $normalized) ?? $normalized;
+    $normalized = preg_replace('/\[[^\]]*\]/u', '', $normalized) ?? $normalized;
+
+    $normalized = preg_replace(
+        '/^(?:politisch|sowie|und|zuvor|ehemals|früher|frueher|historisch|vormals)\s+/iu',
+        '',
+        $normalized
+    ) ?? $normalized;
+
+    $normalized = preg_replace(
+        '/^(?:unter\s+der\s+Herrschaft\s+(?:des|der)|beansprucht\s+(?:von|vom|durch)|benasprucht\s+(?:von|vom|durch))\s+/iu',
+        '',
+        $normalized
+    ) ?? $normalized;
+
+    $normalized = preg_split('/\s*[;·]\s*/u', $normalized)[0] ?? $normalized;
+
+    return trim($normalized, " \t\n\r\0\x0B,:;");
+}
+
 function avesmapsWikiSyncResolvePoliticalPathPart(array $rowIndex, string $part): string {
     $normalizedPart = avesmapsWikiSyncNormalizePoliticalPathPart($part);
     if ($normalizedPart === '') {
