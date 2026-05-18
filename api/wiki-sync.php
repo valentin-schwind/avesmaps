@@ -1631,8 +1631,34 @@ function avesmapsWikiSyncReadPoliticalTerritoryPath(array $row): array {
         return ['ungeklärt'];
     }
 
-    $firstClause = preg_split('/\s*[;·]\s*/u', $affiliation)[0] ?? $affiliation;
-    $parts = preg_split('/\s*:\s*/u', $firstClause) ?: [];
+    $clauses = array_values(array_filter(array_map(
+        static fn(string $part): string => trim($part),
+        preg_split('/\s*[;·]\s*/u', $affiliation) ?: []
+    )));
+
+    $selectedClause = '';
+    foreach ($clauses as $clause) {
+        if (preg_match('/^politisch\b/iu', $clause) === 1) {
+            $selectedClause = preg_replace('/^politisch\s*/iu', '', $clause) ?? $clause;
+            break;
+        }
+    }
+
+    if ($selectedClause === '') {
+        foreach ($clauses as $clause) {
+            if (preg_match('/^(?:derographisch|geographisch|ehemals|früher|frueher|historisch)\b/iu', $clause) === 1) {
+                continue;
+            }
+            $selectedClause = $clause;
+            break;
+        }
+    }
+
+    if ($selectedClause === '') {
+        $selectedClause = $clauses[0] ?? $affiliation;
+    }
+
+    $parts = preg_split('/\s*:\s*/u', $selectedClause) ?: [];
     $path = [];
     foreach ($parts as $part) {
         $normalizedPart = avesmapsWikiSyncNormalizePoliticalPathPart($part);

@@ -4512,6 +4512,40 @@ function avesmapsPoliticalNormalizeHierarchyRootKey(string $value): string {
     return $normalized;
 }
 
+function avesmapsPoliticalExtractCurrentPoliticalParentName(string $affiliation): string {
+    $affiliation = trim($affiliation);
+    if ($affiliation === '' || avesmapsPoliticalIsGenericHierarchyRootName($affiliation)) {
+        return '';
+    }
+
+    $clauses = preg_split('/\s*[;·]\s*/u', $affiliation) ?: [];
+    $clauses = array_values(array_filter(array_map('trim', $clauses)));
+
+    foreach ($clauses as $clause) {
+        if (preg_match('/^politisch\b/iu', $clause) === 1) {
+            $parent = preg_replace('/^politisch\s*/iu', '', $clause) ?? $clause;
+            return trim($parent, " \t\n\r\0\x0B,:;");
+        }
+    }
+
+    foreach ($clauses as $clause) {
+        if (preg_match('/^(?:derographisch|geographisch|ehemals|früher|frueher|historisch)\b/iu', $clause) === 1) {
+            continue;
+        }
+
+        $parts = preg_split('/\s*:\s*/u', $clause) ?: [];
+        $candidate = trim((string) end($parts));
+        if ($candidate !== '') {
+            return $candidate;
+        }
+    }
+
+    $firstClause = $clauses[0] ?? $affiliation;
+    $parts = preg_split('/\s*:\s*/u', $firstClause) ?: [];
+
+    return trim((string) end($parts));
+}
+
 function avesmapsPoliticalInferPublicTerritoryParentId(array $territory, array $aliasToIds, array $territoriesById): int {
     $parentName = '';
     $path = $territory['wiki_affiliation_path'] ?? [];
@@ -4524,10 +4558,7 @@ function avesmapsPoliticalInferPublicTerritoryParentId(array $territory, array $
 
     if (trim($parentName) === '') {
         $affiliation = trim((string) ($territory['wiki_affiliation_raw'] ?? ''));
-        if ($affiliation !== '' && !avesmapsPoliticalIsGenericHierarchyRootName($affiliation)) {
-            $parts = preg_split('/\s*[:;]\s*/u', $affiliation) ?: [];
-            $parentName = (string) end($parts);
-        }
+        $parentName = avesmapsPoliticalExtractCurrentPoliticalParentName($affiliation);
     }
 
     $parentId = avesmapsPoliticalResolveParentAliasId(
