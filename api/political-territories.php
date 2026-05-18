@@ -754,6 +754,10 @@ function avesmapsPoliticalIsGenericLayerParentTerritory(array $territory): bool 
         (string) ($territory['short_name'] ?? ''),
         (string) ($territory['wiki_name'] ?? ''),
         (string) ($territory['wiki_affiliation_root'] ?? ''),
+        (string) ($territory['wiki_affiliation_raw'] ?? ''),
+        (string) ($territory['affiliation_root'] ?? ''),
+        (string) ($territory['affiliation_raw'] ?? ''),
+        (string) ($territory['slug'] ?? ''),
     ];
 
     foreach ($candidates as $candidate) {
@@ -792,7 +796,7 @@ function avesmapsPoliticalInferLayerParentName(array $territory): string {
     }
 
     $affiliation = trim((string) ($territory['affiliation_raw'] ?? ''));
-    if ($affiliation === '' || in_array(mb_strtolower($affiliation), ['unabhaengig', 'unabhängig', 'umstritten', 'ungeklaert', 'ungeklärt'], true)) {
+    if ($affiliation === '' || avesmapsPoliticalIsGenericHierarchyRootName($affiliation)) {
         return '';
     }
 
@@ -4401,11 +4405,51 @@ function avesmapsPoliticalResolveHierarchyDisplayRootName(
 }
 
 function avesmapsPoliticalIsGenericHierarchyRootName(string $rootName): bool {
-    return in_array(
-        avesmapsPoliticalSlug($rootName),
-        ['unabhangig', 'umstritten', 'ungeklart'],
-        true
-    );
+    $normalizedRootName = trim($rootName);
+    if ($normalizedRootName === '') {
+        return false;
+    }
+
+    if (preg_match('/^unabh.*ngig\b/iu', $normalizedRootName) === 1) {
+        return true;
+    }
+
+    if (preg_match('/^umstritten\b/iu', $normalizedRootName) === 1) {
+        return true;
+    }
+
+    if (preg_match('/^ungekl.*rt\b/iu', $normalizedRootName) === 1) {
+        return true;
+    }
+
+    $rootKey = avesmapsPoliticalNormalizeHierarchyRootKey($normalizedRootName);
+
+    return in_array($rootKey, ['unabhangig', 'unabhngig', 'umstritten', 'ungeklart', 'ungeklrt'], true);
+}
+
+function avesmapsPoliticalNormalizeHierarchyRootKey(string $value): string {
+    $normalized = trim($value);
+    if ($normalized === '') {
+        return '';
+    }
+
+    if (function_exists('mb_strtolower')) {
+        $normalized = mb_strtolower($normalized);
+    } else {
+        $normalized = strtolower($normalized);
+    }
+
+    $normalized = str_replace('ß', 'ss', $normalized);
+    if (function_exists('iconv')) {
+        $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalized);
+        if (is_string($transliterated)) {
+            $normalized = $transliterated;
+        }
+    }
+
+    $normalized = preg_replace('/[^a-z0-9]+/i', '', $normalized) ?? '';
+
+    return $normalized;
 }
 
 function avesmapsPoliticalInferPublicTerritoryParentId(array $territory, array $aliasToIds, array $territoriesById): int {
@@ -4420,7 +4464,7 @@ function avesmapsPoliticalInferPublicTerritoryParentId(array $territory, array $
 
     if (trim($parentName) === '') {
         $affiliation = trim((string) ($territory['wiki_affiliation_raw'] ?? ''));
-        if (!in_array(mb_strtolower($affiliation), ['', 'unabhaengig', 'unabhängig', 'umstritten', 'ungeklaert', 'ungeklärt'], true)) {
+        if ($affiliation !== '' && !avesmapsPoliticalIsGenericHierarchyRootName($affiliation)) {
             $parts = preg_split('/\s*[:;]\s*/u', $affiliation) ?: [];
             $parentName = (string) end($parts);
         }
