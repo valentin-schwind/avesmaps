@@ -1471,23 +1471,85 @@
 		}
 
 		function normalizeAffiliationPath(row) {
-			if (Array.isArray(row.affiliation_path) && row.affiliation_path.length > 0) {
-				return row.affiliation_path.map(normalizeText).filter(Boolean);
-			}
+			const candidatePaths = [
+				row.affiliation_path,
+				row.affiliation && Array.isArray(row.affiliation.path) ? row.affiliation.path : null,
+				row.affiliation_root ? [row.affiliation_root] : null,
+				row.affiliation_raw ? [normalizeText(row.affiliation_raw).split(":")[0]] : null
+			];
 
-			if (row.affiliation && Array.isArray(row.affiliation.path) && row.affiliation.path.length > 0) {
-				return row.affiliation.path.map(normalizeText).filter(Boolean);
-			}
+			for (const candidatePath of candidatePaths) {
+				const normalized = normalizeAffiliationPathCandidate(candidatePath);
 
-			if (row.affiliation_root) {
-				return [normalizeText(row.affiliation_root)];
-			}
+				if (!normalized.hasSource) {
+					continue;
+				}
 
-			if (row.affiliation_raw) {
-				return [normalizeText(row.affiliation_raw).split(":")[0]];
+				if (normalized.isIndependent) {
+					return [];
+				}
+
+				if (normalized.parts.length > 0) {
+					return normalized.parts;
+				}
 			}
 
 			return ["ungeklärt"];
+		}
+
+		function normalizeAffiliationPathCandidate(pathCandidate) {
+			if (!Array.isArray(pathCandidate)) {
+				return {
+					hasSource: false,
+					isIndependent: false,
+					parts: []
+				};
+			}
+
+			const parts = pathCandidate.map(normalizeText).filter(Boolean);
+
+			if (parts.length === 0) {
+				return {
+					hasSource: false,
+					isIndependent: false,
+					parts: []
+				};
+			}
+
+			if (parts.some(isIndependentAffiliationSegment)) {
+				return {
+					hasSource: true,
+					isIndependent: true,
+					parts: []
+				};
+			}
+
+			const cleanedParts = [...parts];
+
+			while (cleanedParts.length > 0 && isGenericAffiliationSegment(cleanedParts[0])) {
+				cleanedParts.shift();
+			}
+
+			return {
+				hasSource: true,
+				isIndependent: false,
+				parts: cleanedParts
+			};
+		}
+
+		function isIndependentAffiliationSegment(segment) {
+			const key = makeKey(segment);
+			return key.startsWith("unabhangig") || key.startsWith("unabhaengig");
+		}
+
+		function isGenericAffiliationSegment(segment) {
+			const key = makeKey(segment);
+
+			return key === "sonstiges"
+				|| key === "sonstige"
+				|| key === "misc"
+				|| key === "unbekannt"
+				|| key === "ungeklart";
 		}
 
 		function render() {
