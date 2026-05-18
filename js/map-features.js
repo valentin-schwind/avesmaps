@@ -4790,6 +4790,7 @@ async function completePendingRegionSplit(operationState) {
 
 		cancelPendingRegionOperation();
 		schedulePoliticalTerritoryLayerReload({ immediate: true });
+		void loadChangeLog();
 		showFeedbackToast("Gebiet zerschnitten.", "success");
 	} catch (error) {
 		console.error("Gebiet konnte nicht zerschnitten werden:", error);
@@ -4958,8 +4959,11 @@ async function completePendingRegionOperation(targetRegion, targetLayer = null) 
 				geometry_geojson: operationGeometryGeoJson,
 			});
 		} else {
-			const deleteTargetGeometry = targetIsConsumed && !isSameGeometry;
-			await submitPoliticalTerritoryEdit({
+			const remainingTargetGeometry = targetIsConsumed && !isSameGeometry && normalizedTargetLayer
+				? regionEntryToClippingMultiPolygon(targetRegion, { excludeLayers: [normalizedTargetLayer] })
+				: [];
+			const deleteTargetGeometry = targetIsConsumed && !isSameGeometry && remainingTargetGeometry.length < 1;
+			const payload = {
 				action: "geometry_operation",
 				operation: getStoredRegionBooleanOperation(operationState.operation),
 				public_id: operationState.sourceRegion.geometryPublicId || operationState.sourceRegion.publicId,
@@ -4972,11 +4976,16 @@ async function completePendingRegionOperation(targetRegion, targetLayer = null) 
 					stroke: operationState.sourceRegion.color,
 					fillOpacity: operationState.sourceRegion.opacity,
 				},
-			});
+			};
+			if (!deleteTargetGeometry && remainingTargetGeometry.length > 0) {
+				payload.target_geometry_geojson = clippingMultiPolygonToGeoJson(remainingTargetGeometry);
+			}
+			await submitPoliticalTerritoryEdit(payload);
 		}
 
 		cancelPendingRegionOperation();
 		schedulePoliticalTerritoryLayerReload({ immediate: true });
+		void loadChangeLog();
 		showFeedbackToast("Geometrieoperation gespeichert.", "success");
 	} catch (error) {
 		console.error("Geometrieoperation fehlgeschlagen:", error);
@@ -5830,7 +5839,7 @@ async function saveRegionGeometry(regionEntry) {
 }
 
 async function updatePoliticalRegionGeometry(regionEntry, geometryGeoJson) {
-	return submitPoliticalTerritoryEdit({
+	const result = await submitPoliticalTerritoryEdit({
 		action: "update_geometry",
 		public_id: regionEntry.geometryPublicId || regionEntry.publicId,
 		geometry_public_id: regionEntry.geometryPublicId || regionEntry.publicId,
@@ -5842,6 +5851,8 @@ async function updatePoliticalRegionGeometry(regionEntry, geometryGeoJson) {
 			fillOpacity: regionEntry.opacity,
 		},
 	});
+	void loadChangeLog();
+	return result;
 }
 
 function regionLayerToGeoJsonGeometry(regionEntry) {
@@ -6067,6 +6078,7 @@ async function deleteActiveRegion(selectedLayer = null, selectedPolygonIndex = n
 			clearRegionGeometryEdit();
 			setRegionEditDialogOpen(false, { resetForm: true });
 			schedulePoliticalTerritoryLayerReload({ immediate: true });
+			void loadChangeLog();
 			showFeedbackToast(result.territory_deleted ? "Letztes Polygon geloescht, Herrschaftsgebiet entfernt." : "Polygon geloescht.", "success");
 		} catch (error) {
 			console.error("Polygon konnte nicht geloescht werden:", error);
@@ -6164,6 +6176,7 @@ async function deleteRegionGeometryPart(regionEntry, selectedLayer) {
 		}
 		clearRegionGeometryEdit();
 		schedulePoliticalTerritoryLayerReload({ immediate: true });
+		void loadChangeLog();
 		return;
 	}
 

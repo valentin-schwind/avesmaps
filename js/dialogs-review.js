@@ -3700,7 +3700,28 @@ async function loadChangeLog() {
 			throw new Error(data?.error || `Änderungs-API antwortet mit HTTP ${response.status}.`);
 		}
 
-		changeLogEntries = Array.isArray(data.changes) ? data.changes : [];
+		let politicalChanges = [];
+		try {
+			const politicalChangeLog = await fetchPoliticalChangeLog();
+			politicalChanges = Array.isArray(politicalChangeLog?.changes) ? politicalChangeLog.changes : [];
+		} catch (error) {
+			console.warn("Politischer Aenderungsverlauf konnte nicht geladen werden:", error);
+		}
+
+		const mapChanges = Array.isArray(data.changes)
+			? data.changes.map((entry) => ({ ...entry, audit_source: "map_feature" }))
+			: [];
+		const politicalChangeEntries = politicalChanges.map((entry) => ({ ...entry, audit_source: "political_territory" }));
+		changeLogEntries = [...mapChanges, ...politicalChangeEntries]
+			.sort((left, right) => {
+				const leftTime = Date.parse(String(left?.created_at || ""));
+				const rightTime = Date.parse(String(right?.created_at || ""));
+				if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) {
+					return rightTime - leftTime;
+				}
+				return Number(right?.id || 0) - Number(left?.id || 0);
+			})
+			.slice(0, 50);
 		renderChangeLog();
 	} catch (error) {
 		console.error("Änderungsverlauf konnte nicht geladen werden:", error);
@@ -4967,6 +4988,13 @@ function formatChangeAction(action) {
 		update_region: "Region geändert",
 		update_region_geometry: "Regionsgrenze geändert",
 		delete_feature: "Objekt gelöscht",
+		update_geometry: "Herrschaftsgebiet-Geometrie geändert",
+		split_geometry: "Herrschaftsgebiet zerschnitten",
+		delete_geometry: "Herrschaftsgebiet-Geometrie gelöscht",
+		delete_geometry_part: "Polygon aus Herrschaftsgebiet entfernt",
+		geometry_operation_union: "Herrschaftsgebiete vereinigt",
+		geometry_operation_difference: "Herrschaftsgebiet ausgeschnitten",
+		geometry_operation_intersection: "Schnittmenge als Herrschaftsgebiet erstellt",
 	};
 
 	return labels[action] || action;
@@ -5199,9 +5227,15 @@ async function undoChangeLogEntry(entry) {
 	isChangeUndoPending = true;
 	setChangePanelStatus("Änderung wird rückgängig gemacht...", "pending");
 	try {
-		const result = await undoMapAuditChange(Number(entry.id));
-		applyMapFeatureEditResult(result);
-		updateRevisionFromEditResponse(result);
+		const auditSource = String(entry.audit_source || "map_feature");
+		if (auditSource === "political_territory") {
+			await undoPoliticalAuditChange(Number(entry.id));
+			schedulePoliticalTerritoryLayerReload({ immediate: true });
+		} else {
+			const result = await undoMapAuditChange(Number(entry.id));
+			applyMapFeatureEditResult(result);
+			updateRevisionFromEditResponse(result);
+		}
 		await loadChangeLog();
 		void loadReviewReports();
 		void loadWikiSyncCases();

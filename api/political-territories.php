@@ -28,6 +28,12 @@ try {
 
     if ($requestMethod === 'GET') {
         $action = avesmapsNormalizeSingleLine((string) ($_GET['action'] ?? 'layer'), 60);
+        if ($action === 'change_log') {
+            $reviewUser = avesmapsRequireUserWithCapability('review');
+            $response = avesmapsPoliticalReadChangeLog($pdo, avesmapsUserCan($reviewUser, 'edit'));
+            avesmapsJsonResponse(200, $response);
+        }
+
         $response = match ($action) {
             'layer' => avesmapsPoliticalReadLayer($pdo, $_GET),
             'list' => avesmapsPoliticalListTerritories($pdo, $_GET),
@@ -66,10 +72,11 @@ try {
         'assign_geometry' => avesmapsPoliticalAssignGeometryToTerritory($pdo, $payload),
         'save_geometry_assignment' => avesmapsPoliticalSaveGeometryAssignment($pdo, $payload, $user),
         'unassign_geometry' => avesmapsPoliticalUnassignGeometry($pdo, $payload),
-        'delete_geometry' => avesmapsPoliticalDeleteGeometry($pdo, $payload),
+        'delete_geometry' => avesmapsPoliticalDeleteGeometry($pdo, $payload, $user),
         'delete_geometry_part' => avesmapsPoliticalDeleteGeometryPart($pdo, $payload, $user),
         'geometry_operation' => avesmapsPoliticalApplyGeometryOperationResult($pdo, $payload, $user),
         'geometry_operation_debug' => avesmapsPoliticalDebugGeometryOperation($payload),
+        'undo_audit_change' => avesmapsPoliticalUndoAuditChange($pdo, $payload, $user),
         'ensure_wiki_territory_chain' => avesmapsPoliticalEnsureWikiTerritoryChain($pdo, $payload, $user),
         'restore_legacy_region_geometries' => avesmapsPoliticalRestoreLegacyRegionGeometries($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Herrschaftsgebiet-Aktion ist unbekannt.'),
@@ -1986,6 +1993,8 @@ function avesmapsPoliticalUpdateGeometry(PDO $pdo, array $payload, array $user):
         $pdo,
         avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? '')
     );
+    $beforeGeometrySnapshot = avesmapsPoliticalBuildGeometryAuditSnapshot($geometryRow);
+    $skipAudit = avesmapsPoliticalReadBoolean($payload['_skip_audit'] ?? false);
 
     $geometry = avesmapsPoliticalReadGeoJsonGeometry($payload['geometry_geojson'] ?? null);
 
@@ -2031,7 +2040,29 @@ function avesmapsPoliticalUpdateGeometry(PDO $pdo, array $payload, array $user):
         'updated_by' => (int) ($user['id'] ?? 0) ?: null,
     ]);
 
-    return avesmapsPoliticalGeometryMutationResponse($pdo, (string) $geometryRow['public_id']);
+    $response = avesmapsPoliticalGeometryMutationResponse($pdo, (string) $geometryRow['public_id']);
+    if (!$skipAudit) {
+        $geometryAfterRow = avesmapsPoliticalFetchGeometryRowByPublicIdRaw($pdo, (string) $geometryRow['public_id']);
+        avesmapsPoliticalWriteGeometryAuditLog(
+            $pdo,
+            'update_geometry',
+            (int) ($user['id'] ?? 0),
+            [
+                'geometries' => [
+                    (string) $geometryRow['public_id'] => $beforeGeometrySnapshot,
+                ],
+                'territories' => [],
+            ],
+            [
+                'geometries' => [
+                    (string) $geometryRow['public_id'] => avesmapsPoliticalBuildGeometryAuditSnapshot($geometryAfterRow),
+                ],
+                'territories' => [],
+            ]
+        );
+    }
+
+    return $response;
 }
 
 function avesmapsPoliticalGeometryMutationResponse(PDO $pdo, string $geometryPublicId): array {
@@ -2054,6 +2085,8 @@ function avesmapsPoliticalGeometryMutationResponse(PDO $pdo, string $geometryPub
 
 function avesmapsPoliticalSplitGeometry(PDO $pdo, array $payload, array $user): array {
     $geometryRow = avesmapsPoliticalFetchGeometryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? ''));
+    $sourceGeometryPublicId = (string) $geometryRow['public_id'];
+    $sourceBeforeSnapshot = avesmapsPoliticalBuildGeometryAuditSnapshot($geometryRow);
     $splitGeometry = avesmapsPoliticalReadGeoJsonGeometry($payload['split_geometry_geojson'] ?? null);
     $insertPayload = [
         ...$payload,
@@ -2069,8 +2102,32 @@ function avesmapsPoliticalSplitGeometry(PDO $pdo, array $payload, array $user): 
 
     $pdo->beginTransaction();
     try {
-        $result = avesmapsPoliticalUpdateGeometry($pdo, $payload, $user);
+        $result = avesmapsPoliticalUpdateGeometry($pdo, [
+            ...$payload,
+            '_skip_audit' => true,
+        ], $user);
         $splitGeometryPublicId = avesmapsPoliticalInsertGeometry($pdo, (int) $geometryRow['territory_id'], $splitGeometry, $insertPayload, $user);
+        $sourceAfterRow = avesmapsPoliticalFetchGeometryRowByPublicIdRaw($pdo, $sourceGeometryPublicId, true);
+        $splitAfterRow = avesmapsPoliticalFetchGeometryRowByPublicIdRaw($pdo, $splitGeometryPublicId, true);
+        avesmapsPoliticalWriteGeometryAuditLog(
+            $pdo,
+            'split_geometry',
+            (int) ($user['id'] ?? 0),
+            [
+                'geometries' => [
+                    $sourceGeometryPublicId => $sourceBeforeSnapshot,
+                    $splitGeometryPublicId => null,
+                ],
+                'territories' => [],
+            ],
+            [
+                'geometries' => [
+                    $sourceGeometryPublicId => avesmapsPoliticalBuildGeometryAuditSnapshot($sourceAfterRow),
+                    $splitGeometryPublicId => avesmapsPoliticalBuildGeometryAuditSnapshot($splitAfterRow),
+                ],
+                'territories' => [],
+            ]
+        );
         $pdo->commit();
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) {
@@ -2458,19 +2515,23 @@ function avesmapsPoliticalUnassignGeometry(PDO $pdo, array $payload): array {
     ];
 }
 
-function avesmapsPoliticalDeleteGeometry(PDO $pdo, array $payload): array {
+function avesmapsPoliticalDeleteGeometry(PDO $pdo, array $payload, array $user = []): array {
     $geometry = avesmapsPoliticalFetchGeometryByPublicId(
         $pdo,
         avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? '')
     );
+    $geometryPublicId = (string) $geometry['public_id'];
+    $beforeGeometrySnapshot = avesmapsPoliticalBuildGeometryAuditSnapshot($geometry);
 
     $territoryId = (int) ($geometry['territory_id'] ?? 0);
     $territory = null;
+    $beforeTerritorySnapshot = null;
     $territoryDeleted = false;
     $remainingGeometryCount = 0;
 
     if ($territoryId > 0) {
         $territory = avesmapsPoliticalFetchTerritoryById($pdo, $territoryId);
+        $beforeTerritorySnapshot = avesmapsPoliticalBuildTerritoryAuditSnapshot($territory);
     }
 
     $pdo->beginTransaction();
@@ -2486,6 +2547,36 @@ function avesmapsPoliticalDeleteGeometry(PDO $pdo, array $payload): array {
                 $territoryDeleted = true;
             }
         }
+
+        $geometryAfterRow = avesmapsPoliticalFetchGeometryRowByPublicIdRaw($pdo, $geometryPublicId, true);
+        $afterTerritorySnapshot = null;
+        if ($territoryId > 0) {
+            $territoryAfterRow = avesmapsPoliticalFetchTerritoryByIdForAudit($pdo, $territoryId, true);
+            $afterTerritorySnapshot = $territoryAfterRow === null
+                ? null
+                : avesmapsPoliticalBuildTerritoryAuditSnapshot($territoryAfterRow);
+        }
+        avesmapsPoliticalWriteGeometryAuditLog(
+            $pdo,
+            'delete_geometry',
+            (int) ($user['id'] ?? 0),
+            [
+                'geometries' => [
+                    $geometryPublicId => $beforeGeometrySnapshot,
+                ],
+                'territories' => $beforeTerritorySnapshot === null || $territory === null
+                    ? []
+                    : [(string) $territory['public_id'] => $beforeTerritorySnapshot],
+            ],
+            [
+                'geometries' => [
+                    $geometryPublicId => avesmapsPoliticalBuildGeometryAuditSnapshot($geometryAfterRow),
+                ],
+                'territories' => $afterTerritorySnapshot === null || $territory === null
+                    ? []
+                    : [(string) $territory['public_id'] => $afterTerritorySnapshot],
+            ]
+        );
 
         $pdo->commit();
     } catch (Throwable $exception) {
@@ -2519,7 +2610,7 @@ function avesmapsPoliticalDeleteGeometryPart(PDO $pdo, array $payload, array $us
     if ($polygons === []) {
         return avesmapsPoliticalDeleteGeometry($pdo, [
             'geometry_public_id' => (string) $geometry['public_id'],
-        ]);
+        ], $user);
     }
 
     $updatedGeometry = avesmapsPoliticalBuildGeoJsonFromPolygons($polygons);
@@ -2545,6 +2636,25 @@ function avesmapsPoliticalDeleteGeometryPart(PDO $pdo, array $payload, array $us
         'source' => 'editor-part-delete',
         'updated_by' => (int) ($user['id'] ?? 0) ?: null,
     ]);
+
+    $afterGeometryRow = avesmapsPoliticalFetchGeometryRowByPublicIdRaw($pdo, (string) $geometry['public_id']);
+    avesmapsPoliticalWriteGeometryAuditLog(
+        $pdo,
+        'delete_geometry_part',
+        (int) ($user['id'] ?? 0),
+        [
+            'geometries' => [
+                (string) $geometry['public_id'] => avesmapsPoliticalBuildGeometryAuditSnapshot($geometry),
+            ],
+            'territories' => [],
+        ],
+        [
+            'geometries' => [
+                (string) $geometry['public_id'] => avesmapsPoliticalBuildGeometryAuditSnapshot($afterGeometryRow),
+            ],
+            'territories' => [],
+        ]
+    );
 
     $response = avesmapsPoliticalGeometryMutationResponse($pdo, (string) $geometry['public_id']);
     $response['deleted_polygon_index'] = $polygonIndex;
@@ -2715,25 +2825,113 @@ function avesmapsPoliticalApplyGeometryOperationResult(PDO $pdo, array $payload,
 
     if ($operation === 'intersection' && avesmapsPoliticalReadBoolean($payload['create_territory'] ?? false)) {
         $payload['name'] = avesmapsNormalizeSingleLine((string) ($payload['name'] ?? 'Neues Herrschaftsgebiet'), 255);
-        return avesmapsPoliticalCreateTerritory($pdo, $payload, $user);
-    }
+        $result = avesmapsPoliticalCreateTerritory($pdo, $payload, $user);
+        $territoryPublicId = (string) ($result['territory']['public_id'] ?? '');
+        $geometryPublicId = (string) (($result['geometries'][0]['public_id'] ?? '') ?: ($result['geometry']['public_id'] ?? ''));
+        if ($territoryPublicId !== '' && $geometryPublicId !== '') {
+            $createdTerritory = avesmapsPoliticalFetchTerritoryByPublicIdForAudit($pdo, $territoryPublicId);
+            $createdGeometry = avesmapsPoliticalFetchGeometryRowByPublicIdRaw($pdo, $geometryPublicId);
+            avesmapsPoliticalWriteGeometryAuditLog(
+                $pdo,
+                'geometry_operation_intersection',
+                (int) ($user['id'] ?? 0),
+                [
+                    'geometries' => [
+                        $geometryPublicId => null,
+                    ],
+                    'territories' => [
+                        $territoryPublicId => null,
+                    ],
+                ],
+                [
+                    'geometries' => [
+                        $geometryPublicId => avesmapsPoliticalBuildGeometryAuditSnapshot($createdGeometry),
+                    ],
+                    'territories' => [
+                        $territoryPublicId => avesmapsPoliticalBuildTerritoryAuditSnapshot($createdTerritory),
+                    ],
+                ]
+            );
+        }
 
-    $deleteGeometryPublicId = avesmapsNormalizeSingleLine((string) ($payload['delete_geometry_public_id'] ?? ''), 36);
-    if ($deleteGeometryPublicId === '') {
-        return avesmapsPoliticalUpdateGeometry($pdo, $payload, $user);
+        return $result;
     }
 
     $sourceGeometryPublicId = avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? '');
-    $targetGeometryPublicId = avesmapsPoliticalReadPublicId($deleteGeometryPublicId);
-    if ($sourceGeometryPublicId === $targetGeometryPublicId) {
+    $deleteGeometryPublicId = avesmapsNormalizeSingleLine((string) ($payload['delete_geometry_public_id'] ?? ''), 36);
+    $targetGeometryPublicId = $deleteGeometryPublicId === ''
+        ? ''
+        : avesmapsPoliticalReadPublicId($deleteGeometryPublicId);
+    if ($targetGeometryPublicId !== '' && $sourceGeometryPublicId === $targetGeometryPublicId) {
         throw new InvalidArgumentException('Quelle und Ziel der Geometrieoperation muessen verschieden sein.');
+    }
+
+    $targetGeometryUpdate = null;
+    if (array_key_exists('target_geometry_geojson', $payload) && $payload['target_geometry_geojson'] !== null && $payload['target_geometry_geojson'] !== '') {
+        $targetGeometryUpdate = avesmapsPoliticalReadGeoJsonGeometry($payload['target_geometry_geojson']);
     }
 
     $pdo->beginTransaction();
     try {
-        $result = avesmapsPoliticalUpdateGeometry($pdo, $payload, $user);
-        $targetGeometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, $targetGeometryPublicId);
-        avesmapsPoliticalSoftDeleteGeometryById($pdo, (int) $targetGeometry['id']);
+        $sourceBeforeRow = avesmapsPoliticalFetchGeometryRowByPublicIdRaw($pdo, $sourceGeometryPublicId, true);
+        if ($sourceBeforeRow === null || (int) ($sourceBeforeRow['is_active'] ?? 0) !== 1) {
+            throw new InvalidArgumentException('Die Quellgeometrie wurde nicht gefunden.');
+        }
+
+        $targetBeforeRow = null;
+        if ($targetGeometryPublicId !== '') {
+            $targetBeforeRow = avesmapsPoliticalFetchGeometryRowByPublicIdRaw($pdo, $targetGeometryPublicId, true);
+            if ($targetBeforeRow === null || (int) ($targetBeforeRow['is_active'] ?? 0) !== 1) {
+                throw new InvalidArgumentException('Die Zielgeometrie wurde nicht gefunden.');
+            }
+        }
+
+        $result = avesmapsPoliticalUpdateGeometry($pdo, [
+            ...$payload,
+            '_skip_audit' => true,
+        ], $user);
+
+        $sourceAfterRow = avesmapsPoliticalFetchGeometryRowByPublicIdRaw($pdo, $sourceGeometryPublicId, true);
+        if ($sourceAfterRow === null) {
+            throw new RuntimeException('Die aktualisierte Quellgeometrie konnte nicht gelesen werden.');
+        }
+
+        $targetAfterRow = null;
+        if ($targetBeforeRow !== null) {
+            if ($targetGeometryUpdate !== null) {
+                avesmapsPoliticalUpdateGeometryRowGeometry($pdo, $targetBeforeRow, $targetGeometryUpdate, (string) ($payload['source'] ?? 'editor'), (int) ($user['id'] ?? 0));
+            } else {
+                avesmapsPoliticalSoftDeleteGeometryById($pdo, (int) $targetBeforeRow['id']);
+                $result['deleted_geometry_public_id'] = $targetGeometryPublicId;
+            }
+            $targetAfterRow = avesmapsPoliticalFetchGeometryRowByPublicIdRaw($pdo, $targetGeometryPublicId, true);
+        }
+
+        $beforeGeometries = [
+            $sourceGeometryPublicId => avesmapsPoliticalBuildGeometryAuditSnapshot($sourceBeforeRow),
+        ];
+        $afterGeometries = [
+            $sourceGeometryPublicId => avesmapsPoliticalBuildGeometryAuditSnapshot($sourceAfterRow),
+        ];
+        if ($targetBeforeRow !== null) {
+            $beforeGeometries[$targetGeometryPublicId] = avesmapsPoliticalBuildGeometryAuditSnapshot($targetBeforeRow);
+            $afterGeometries[$targetGeometryPublicId] = avesmapsPoliticalBuildGeometryAuditSnapshot($targetAfterRow);
+        }
+
+        avesmapsPoliticalWriteGeometryAuditLog(
+            $pdo,
+            'geometry_operation_' . $operation,
+            (int) ($user['id'] ?? 0),
+            [
+                'geometries' => $beforeGeometries,
+                'territories' => [],
+            ],
+            [
+                'geometries' => $afterGeometries,
+                'territories' => [],
+            ]
+        );
+
         $pdo->commit();
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) {
@@ -2743,9 +2941,478 @@ function avesmapsPoliticalApplyGeometryOperationResult(PDO $pdo, array $payload,
         throw $exception;
     }
 
-    $result['deleted_geometry_public_id'] = $targetGeometryPublicId;
-
     return $result;
+}
+
+function avesmapsPoliticalReadChangeLog(PDO $pdo, bool $canUndoChanges): array {
+    $statement = $pdo->query(
+        'SELECT
+            audit.id,
+            audit.action,
+            audit.created_at,
+            audit.before_json,
+            audit.after_json,
+            audit.undone_at,
+            audit.undo_audit_id,
+            users.username,
+            undone_users.username AS undone_username
+        FROM political_territory_geometry_audit_log audit
+        LEFT JOIN users ON users.id = audit.actor_user_id
+        LEFT JOIN users undone_users ON undone_users.id = audit.undone_by
+        ORDER BY audit.created_at DESC, audit.id DESC
+        LIMIT 50'
+    );
+    $rows = $statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC);
+
+    return [
+        'ok' => true,
+        'changes' => array_map(
+            static fn(array $row): array => avesmapsPoliticalNormalizeChangeLogEntry($row, $canUndoChanges),
+            $rows
+        ),
+    ];
+}
+
+function avesmapsPoliticalNormalizeChangeLogEntry(array $row, bool $canUndoChanges): array {
+    $beforePayload = avesmapsPoliticalDecodeAuditPayload($row['before_json'] ?? null);
+    $afterPayload = avesmapsPoliticalDecodeAuditPayload($row['after_json'] ?? null);
+    $focus = avesmapsPoliticalBuildAuditFocusTarget($beforePayload, $afterPayload);
+    $primaryPublicId = avesmapsPoliticalResolveAuditPrimaryPublicId($beforePayload, $afterPayload);
+    $isUndone = (string) ($row['undone_at'] ?? '') !== '';
+    $action = (string) ($row['action'] ?? '');
+
+    return [
+        'id' => (int) ($row['id'] ?? 0),
+        'action' => $action,
+        'created_at' => (string) ($row['created_at'] ?? ''),
+        'username' => (string) ($row['username'] ?? ''),
+        'undone' => $isUndone,
+        'undone_at' => (string) ($row['undone_at'] ?? ''),
+        'undone_username' => (string) ($row['undone_username'] ?? ''),
+        'undo_audit_id' => (int) ($row['undo_audit_id'] ?? 0),
+        'can_undo' => $canUndoChanges && !$isUndone && avesmapsPoliticalCanUndoGeometryAuditAction($action),
+        'public_id' => $primaryPublicId,
+        'feature_type' => 'political_territory',
+        'feature_subtype' => 'region',
+        'name' => $primaryPublicId,
+        'focus' => $focus,
+    ];
+}
+
+function avesmapsPoliticalCanUndoGeometryAuditAction(string $action): bool {
+    if (str_starts_with($action, 'undo_')) {
+        return false;
+    }
+
+    return in_array($action, [
+        'update_geometry',
+        'split_geometry',
+        'delete_geometry',
+        'delete_geometry_part',
+        'geometry_operation_union',
+        'geometry_operation_difference',
+        'geometry_operation_intersection',
+    ], true);
+}
+
+function avesmapsPoliticalBuildAuditFocusTarget(array $beforePayload, array $afterPayload): ?array {
+    $afterGeometries = is_array($afterPayload['geometries'] ?? null) ? $afterPayload['geometries'] : [];
+    $beforeGeometries = is_array($beforePayload['geometries'] ?? null) ? $beforePayload['geometries'] : [];
+
+    $snapshot = avesmapsPoliticalPickActiveGeometrySnapshot($afterGeometries)
+        ?? avesmapsPoliticalPickActiveGeometrySnapshot($beforeGeometries)
+        ?? avesmapsPoliticalPickFirstGeometrySnapshot($afterGeometries)
+        ?? avesmapsPoliticalPickFirstGeometrySnapshot($beforeGeometries);
+
+    if (!is_array($snapshot)) {
+        return null;
+    }
+
+    $minX = (float) ($snapshot['min_x'] ?? 0);
+    $minY = (float) ($snapshot['min_y'] ?? 0);
+    $maxX = (float) ($snapshot['max_x'] ?? 0);
+    $maxY = (float) ($snapshot['max_y'] ?? 0);
+    $lat = ($minY + $maxY) / 2;
+    $lng = ($minX + $maxX) / 2;
+    if (abs($maxX - $minX) < 0.0001 && abs($maxY - $minY) < 0.0001) {
+        return [
+            'type' => 'point',
+            'lat' => round($lat, 6),
+            'lng' => round($lng, 6),
+        ];
+    }
+
+    return [
+        'type' => 'bounds',
+        'lat' => round($lat, 6),
+        'lng' => round($lng, 6),
+        'bounds' => [
+            [round($minY, 6), round($minX, 6)],
+            [round($maxY, 6), round($maxX, 6)],
+        ],
+    ];
+}
+
+function avesmapsPoliticalPickActiveGeometrySnapshot(array $geometries): ?array {
+    foreach ($geometries as $snapshot) {
+        if (is_array($snapshot) && (int) ($snapshot['is_active'] ?? 0) === 1) {
+            return $snapshot;
+        }
+    }
+
+    return null;
+}
+
+function avesmapsPoliticalPickFirstGeometrySnapshot(array $geometries): ?array {
+    foreach ($geometries as $snapshot) {
+        if (is_array($snapshot)) {
+            return $snapshot;
+        }
+    }
+
+    return null;
+}
+
+function avesmapsPoliticalResolveAuditPrimaryPublicId(array $beforePayload, array $afterPayload): string {
+    $afterGeometries = is_array($afterPayload['geometries'] ?? null) ? $afterPayload['geometries'] : [];
+    foreach (array_keys($afterGeometries) as $publicId) {
+        if ((string) $publicId !== '') {
+            return (string) $publicId;
+        }
+    }
+
+    $beforeGeometries = is_array($beforePayload['geometries'] ?? null) ? $beforePayload['geometries'] : [];
+    foreach (array_keys($beforeGeometries) as $publicId) {
+        if ((string) $publicId !== '') {
+            return (string) $publicId;
+        }
+    }
+
+    return '';
+}
+
+function avesmapsPoliticalUndoAuditChange(PDO $pdo, array $payload, array $user): array {
+    $auditId = avesmapsPoliticalReadAuditLogId($payload['audit_id'] ?? null);
+    $pdo->beginTransaction();
+    try {
+        $auditEntry = avesmapsPoliticalFetchAuditEntryForUndo($pdo, $auditId);
+        $action = (string) ($auditEntry['action'] ?? '');
+        if (!avesmapsPoliticalCanUndoGeometryAuditAction($action)) {
+            throw new InvalidArgumentException('Diese Aenderung kann nicht rueckgaengig gemacht werden.');
+        }
+        if (!empty($auditEntry['undone_at'])) {
+            throw new InvalidArgumentException('Diese Aenderung wurde bereits rueckgaengig gemacht.');
+        }
+
+        $beforePayload = avesmapsPoliticalDecodeAuditPayload($auditEntry['before_json'] ?? null);
+        $afterPayload = avesmapsPoliticalDecodeAuditPayload($auditEntry['after_json'] ?? null);
+        avesmapsPoliticalRestoreAuditGeometries($pdo, $beforePayload, $afterPayload, (int) ($user['id'] ?? 0));
+        avesmapsPoliticalRestoreAuditTerritories($pdo, $beforePayload, $afterPayload, (int) ($user['id'] ?? 0));
+
+        $undoAuditId = avesmapsPoliticalWriteGeometryAuditLog(
+            $pdo,
+            avesmapsPoliticalBuildUndoAuditAction($action),
+            (int) ($user['id'] ?? 0),
+            $afterPayload,
+            $beforePayload
+        );
+        avesmapsPoliticalMarkAuditEntryUndone($pdo, $auditId, (int) ($user['id'] ?? 0), $undoAuditId);
+
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $exception;
+    }
+
+    return [
+        'ok' => true,
+        'audit_id' => $auditId,
+    ];
+}
+
+function avesmapsPoliticalReadAuditLogId(mixed $value): int {
+    $auditId = filter_var($value, FILTER_VALIDATE_INT);
+    if ($auditId === false || $auditId <= 0) {
+        throw new InvalidArgumentException('Die Audit-ID ist ungueltig.');
+    }
+
+    return (int) $auditId;
+}
+
+function avesmapsPoliticalFetchAuditEntryForUndo(PDO $pdo, int $auditId): array {
+    $statement = $pdo->prepare(
+        'SELECT id, action, before_json, after_json, undone_at
+        FROM political_territory_geometry_audit_log
+        WHERE id = :id
+        LIMIT 1
+        FOR UPDATE'
+    );
+    $statement->execute(['id' => $auditId]);
+    $entry = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!$entry) {
+        throw new InvalidArgumentException('Die Aenderung wurde nicht gefunden.');
+    }
+
+    return $entry;
+}
+
+function avesmapsPoliticalRestoreAuditGeometries(PDO $pdo, array $beforePayload, array $afterPayload, int $userId): void {
+    $beforeGeometries = is_array($beforePayload['geometries'] ?? null) ? $beforePayload['geometries'] : [];
+    $afterGeometries = is_array($afterPayload['geometries'] ?? null) ? $afterPayload['geometries'] : [];
+    $geometryPublicIds = array_values(array_unique(array_merge(array_keys($beforeGeometries), array_keys($afterGeometries))));
+    foreach ($geometryPublicIds as $publicId) {
+        $geometryPublicId = (string) $publicId;
+        if ($geometryPublicId === '') {
+            continue;
+        }
+
+        $beforeSnapshot = is_array($beforeGeometries[$geometryPublicId] ?? null) ? $beforeGeometries[$geometryPublicId] : null;
+        $afterSnapshot = is_array($afterGeometries[$geometryPublicId] ?? null) ? $afterGeometries[$geometryPublicId] : null;
+        $currentRow = avesmapsPoliticalFetchGeometryRowByPublicIdRaw($pdo, $geometryPublicId, true);
+        $currentSnapshot = $currentRow === null ? null : avesmapsPoliticalBuildGeometryAuditSnapshot($currentRow);
+        if (!avesmapsPoliticalAuditSnapshotsEqual($currentSnapshot, $afterSnapshot)) {
+            throw new RuntimeException('Diese Aenderung kann nicht unabhaengig rueckgaengig gemacht werden, weil die Geometrie inzwischen geaendert wurde.');
+        }
+
+        if ($beforeSnapshot === null) {
+            if ($currentRow !== null && (int) ($currentRow['is_active'] ?? 0) === 1) {
+                $statement = $pdo->prepare(
+                    'UPDATE political_territory_geometry
+                    SET is_active = 0,
+                        updated_by = :updated_by
+                    WHERE id = :id'
+                );
+                $statement->execute([
+                    'id' => (int) $currentRow['id'],
+                    'updated_by' => $userId > 0 ? $userId : null,
+                ]);
+            }
+            continue;
+        }
+
+        avesmapsPoliticalApplyGeometryAuditSnapshot($pdo, $geometryPublicId, $beforeSnapshot, $userId);
+    }
+}
+
+function avesmapsPoliticalRestoreAuditTerritories(PDO $pdo, array $beforePayload, array $afterPayload, int $userId): void {
+    $beforeTerritories = is_array($beforePayload['territories'] ?? null) ? $beforePayload['territories'] : [];
+    $afterTerritories = is_array($afterPayload['territories'] ?? null) ? $afterPayload['territories'] : [];
+    $territoryPublicIds = array_values(array_unique(array_merge(array_keys($beforeTerritories), array_keys($afterTerritories))));
+    foreach ($territoryPublicIds as $publicId) {
+        $territoryPublicId = (string) $publicId;
+        if ($territoryPublicId === '') {
+            continue;
+        }
+
+        $beforeSnapshot = is_array($beforeTerritories[$territoryPublicId] ?? null) ? $beforeTerritories[$territoryPublicId] : null;
+        $afterSnapshot = is_array($afterTerritories[$territoryPublicId] ?? null) ? $afterTerritories[$territoryPublicId] : null;
+        $currentRow = avesmapsPoliticalFetchTerritoryByPublicIdForAudit($pdo, $territoryPublicId, true);
+        $currentSnapshot = $currentRow === null ? null : avesmapsPoliticalBuildTerritoryAuditSnapshot($currentRow);
+        if (!avesmapsPoliticalAuditSnapshotsEqual($currentSnapshot, $afterSnapshot)) {
+            throw new RuntimeException('Diese Aenderung kann nicht unabhaengig rueckgaengig gemacht werden, weil das Herrschaftsgebiet inzwischen geaendert wurde.');
+        }
+
+        if ($beforeSnapshot === null) {
+            if ($currentRow !== null && (int) ($currentRow['is_active'] ?? 0) === 1) {
+                $statement = $pdo->prepare('UPDATE political_territory SET is_active = 0 WHERE id = :id');
+                $statement->execute(['id' => (int) $currentRow['id']]);
+            }
+            continue;
+        }
+
+        $statement = $pdo->prepare('UPDATE political_territory SET is_active = :is_active WHERE id = :id');
+        $statement->execute([
+            'id' => (int) ($currentRow['id'] ?? 0),
+            'is_active' => (int) ($beforeSnapshot['is_active'] ?? 0) === 1 ? 1 : 0,
+        ]);
+    }
+}
+
+function avesmapsPoliticalApplyGeometryAuditSnapshot(PDO $pdo, string $geometryPublicId, array $snapshot, int $userId): void {
+    $statement = $pdo->prepare(
+        'UPDATE political_territory_geometry
+        SET territory_id = :territory_id,
+            geometry_geojson = :geometry_geojson,
+            valid_from_bf = :valid_from_bf,
+            valid_to_bf = :valid_to_bf,
+            min_zoom = :min_zoom,
+            max_zoom = :max_zoom,
+            min_x = :min_x,
+            min_y = :min_y,
+            max_x = :max_x,
+            max_y = :max_y,
+            source = :source,
+            style_json = :style_json,
+            is_active = :is_active,
+            updated_by = :updated_by
+        WHERE public_id = :public_id'
+    );
+    $statement->execute([
+        'public_id' => $geometryPublicId,
+        'territory_id' => isset($snapshot['territory_id']) ? (int) $snapshot['territory_id'] : null,
+        'geometry_geojson' => avesmapsPoliticalEncodeJsonOrNull($snapshot['geometry_geojson'] ?? null),
+        'valid_from_bf' => isset($snapshot['valid_from_bf']) ? avesmapsPoliticalNullableInt($snapshot['valid_from_bf']) : null,
+        'valid_to_bf' => isset($snapshot['valid_to_bf']) ? avesmapsPoliticalNullableInt($snapshot['valid_to_bf']) : null,
+        'min_zoom' => isset($snapshot['min_zoom']) ? avesmapsPoliticalNullableInt($snapshot['min_zoom']) : null,
+        'max_zoom' => isset($snapshot['max_zoom']) ? avesmapsPoliticalNullableInt($snapshot['max_zoom']) : null,
+        'min_x' => (float) ($snapshot['min_x'] ?? 0),
+        'min_y' => (float) ($snapshot['min_y'] ?? 0),
+        'max_x' => (float) ($snapshot['max_x'] ?? 0),
+        'max_y' => (float) ($snapshot['max_y'] ?? 0),
+        'source' => avesmapsPoliticalNullableString((string) ($snapshot['source'] ?? '')),
+        'style_json' => avesmapsPoliticalEncodeJsonOrNull($snapshot['style_json'] ?? null),
+        'is_active' => (int) ($snapshot['is_active'] ?? 0) === 1 ? 1 : 0,
+        'updated_by' => $userId > 0 ? $userId : null,
+    ]);
+}
+
+function avesmapsPoliticalBuildUndoAuditAction(string $action): string {
+    return mb_substr('undo_' . $action, 0, 80);
+}
+
+function avesmapsPoliticalMarkAuditEntryUndone(PDO $pdo, int $auditId, int $userId, int $undoAuditId): void {
+    $statement = $pdo->prepare(
+        'UPDATE political_territory_geometry_audit_log
+        SET undone_at = CURRENT_TIMESTAMP(3),
+            undone_by = :undone_by,
+            undo_audit_id = :undo_audit_id
+        WHERE id = :id'
+    );
+    $statement->execute([
+        'id' => $auditId,
+        'undone_by' => $userId > 0 ? $userId : null,
+        'undo_audit_id' => $undoAuditId,
+    ]);
+}
+
+function avesmapsPoliticalWriteGeometryAuditLog(PDO $pdo, string $action, int $actorUserId, array $beforePayload, array $afterPayload): int {
+    $statement = $pdo->prepare(
+        'INSERT INTO political_territory_geometry_audit_log (action, actor_user_id, before_json, after_json)
+        VALUES (:action, :actor_user_id, :before_json, :after_json)'
+    );
+    $statement->execute([
+        'action' => avesmapsNormalizeSingleLine($action, 80),
+        'actor_user_id' => $actorUserId > 0 ? $actorUserId : null,
+        'before_json' => avesmapsPoliticalEncodeJsonOrNull($beforePayload) ?? '{}',
+        'after_json' => avesmapsPoliticalEncodeJsonOrNull($afterPayload) ?? '{}',
+    ]);
+
+    return (int) $pdo->lastInsertId();
+}
+
+function avesmapsPoliticalDecodeAuditPayload(mixed $value): array {
+    $decoded = avesmapsPoliticalDecodeJson($value);
+    $geometries = is_array($decoded['geometries'] ?? null) ? $decoded['geometries'] : [];
+    $territories = is_array($decoded['territories'] ?? null) ? $decoded['territories'] : [];
+
+    return [
+        'geometries' => $geometries,
+        'territories' => $territories,
+    ];
+}
+
+function avesmapsPoliticalAuditSnapshotsEqual(?array $left, ?array $right): bool {
+    if ($left === null || $right === null) {
+        return $left === $right;
+    }
+
+    $leftJson = json_encode(avesmapsPoliticalNormalizeAuditValue($left), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $rightJson = json_encode(avesmapsPoliticalNormalizeAuditValue($right), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    return $leftJson === $rightJson;
+}
+
+function avesmapsPoliticalNormalizeAuditValue(mixed $value): mixed {
+    if (!is_array($value)) {
+        return $value;
+    }
+
+    if (avesmapsPoliticalArrayIsList($value)) {
+        return array_map(static fn(mixed $entry): mixed => avesmapsPoliticalNormalizeAuditValue($entry), $value);
+    }
+
+    $normalized = [];
+    $keys = array_keys($value);
+    sort($keys, SORT_STRING);
+    foreach ($keys as $key) {
+        $normalized[(string) $key] = avesmapsPoliticalNormalizeAuditValue($value[$key]);
+    }
+
+    return $normalized;
+}
+
+function avesmapsPoliticalArrayIsList(array $values): bool {
+    $expectedIndex = 0;
+    foreach ($values as $index => $_value) {
+        if ($index !== $expectedIndex) {
+            return false;
+        }
+        $expectedIndex++;
+    }
+
+    return true;
+}
+
+function avesmapsPoliticalBuildGeometryAuditSnapshot(?array $row): ?array {
+    if (!is_array($row)) {
+        return null;
+    }
+
+    return [
+        'public_id' => (string) ($row['public_id'] ?? ''),
+        'territory_id' => isset($row['territory_id']) ? avesmapsPoliticalNullableInt($row['territory_id']) : null,
+        'geometry_geojson' => avesmapsPoliticalDecodeJson($row['geometry_geojson'] ?? null),
+        'valid_from_bf' => avesmapsPoliticalNullableInt($row['valid_from_bf'] ?? null),
+        'valid_to_bf' => avesmapsPoliticalNullableInt($row['valid_to_bf'] ?? null),
+        'min_zoom' => avesmapsPoliticalNullableInt($row['min_zoom'] ?? null),
+        'max_zoom' => avesmapsPoliticalNullableInt($row['max_zoom'] ?? null),
+        'min_x' => round((float) ($row['min_x'] ?? 0), 6),
+        'min_y' => round((float) ($row['min_y'] ?? 0), 6),
+        'max_x' => round((float) ($row['max_x'] ?? 0), 6),
+        'max_y' => round((float) ($row['max_y'] ?? 0), 6),
+        'source' => (string) ($row['source'] ?? ''),
+        'style_json' => avesmapsPoliticalDecodeJson($row['style_json'] ?? null),
+        'is_active' => (int) ($row['is_active'] ?? 0) === 1 ? 1 : 0,
+    ];
+}
+
+function avesmapsPoliticalBuildTerritoryAuditSnapshot(?array $row): ?array {
+    if (!is_array($row)) {
+        return null;
+    }
+
+    return [
+        'public_id' => (string) ($row['public_id'] ?? ''),
+        'is_active' => (int) ($row['is_active'] ?? 0) === 1 ? 1 : 0,
+    ];
+}
+
+function avesmapsPoliticalUpdateGeometryRowGeometry(PDO $pdo, array $geometryRow, array $geometry, string $source, int $updatedBy): void {
+    $bounds = avesmapsPoliticalCalculateGeometryBounds($geometry);
+    $statement = $pdo->prepare(
+        'UPDATE political_territory_geometry
+        SET geometry_geojson = :geometry_geojson,
+            min_x = :min_x,
+            min_y = :min_y,
+            max_x = :max_x,
+            max_y = :max_y,
+            source = :source,
+            updated_by = :updated_by
+        WHERE id = :id'
+    );
+    $statement->execute([
+        'id' => (int) ($geometryRow['id'] ?? 0),
+        'geometry_geojson' => avesmapsPoliticalEncodeJsonOrNull($geometry),
+        'min_x' => $bounds['min_x'],
+        'min_y' => $bounds['min_y'],
+        'max_x' => $bounds['max_x'],
+        'max_y' => $bounds['max_y'],
+        'source' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine($source, 255)),
+        'updated_by' => $updatedBy > 0 ? $updatedBy : null,
+    ]);
 }
 
 function avesmapsPoliticalDebugGeometryOperation(array $payload): array {
@@ -3689,6 +4356,54 @@ function avesmapsPoliticalFetchGeometryByPublicId(PDO $pdo, string $publicId): a
     }
 
     return $geometry;
+}
+
+function avesmapsPoliticalFetchGeometryRowByPublicIdRaw(PDO $pdo, string $publicId, bool $forUpdate = false): ?array {
+    $sql = 'SELECT *
+        FROM political_territory_geometry
+        WHERE public_id = :public_id
+        LIMIT 1';
+    if ($forUpdate) {
+        $sql .= ' FOR UPDATE';
+    }
+
+    $statement = $pdo->prepare($sql);
+    $statement->execute(['public_id' => $publicId]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+    return $row ?: null;
+}
+
+function avesmapsPoliticalFetchTerritoryByPublicIdForAudit(PDO $pdo, string $publicId, bool $forUpdate = false): ?array {
+    $sql = 'SELECT *
+        FROM political_territory
+        WHERE public_id = :public_id
+        LIMIT 1';
+    if ($forUpdate) {
+        $sql .= ' FOR UPDATE';
+    }
+
+    $statement = $pdo->prepare($sql);
+    $statement->execute(['public_id' => $publicId]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+    return $row ?: null;
+}
+
+function avesmapsPoliticalFetchTerritoryByIdForAudit(PDO $pdo, int $territoryId, bool $forUpdate = false): ?array {
+    $sql = 'SELECT *
+        FROM political_territory
+        WHERE id = :id
+        LIMIT 1';
+    if ($forUpdate) {
+        $sql .= ' FOR UPDATE';
+    }
+
+    $statement = $pdo->prepare($sql);
+    $statement->execute(['id' => $territoryId]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+    return $row ?: null;
 }
 
 function avesmapsPoliticalResolveDebugTerritory(PDO $pdo, array $query): ?array {

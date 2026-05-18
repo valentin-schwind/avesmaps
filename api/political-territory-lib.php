@@ -85,6 +85,24 @@ function avesmapsPoliticalEnsureTables(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS political_territory_geometry_audit_log (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            action VARCHAR(80) NOT NULL,
+            actor_user_id BIGINT UNSIGNED NULL,
+            before_json JSON NOT NULL,
+            after_json JSON NOT NULL,
+            undone_at DATETIME(3) NULL,
+            undone_by BIGINT UNSIGNED NULL,
+            undo_audit_id BIGINT UNSIGNED NULL,
+            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            PRIMARY KEY (id),
+            KEY idx_political_territory_geometry_audit_created (created_at, id),
+            KEY idx_political_territory_geometry_audit_actor (actor_user_id),
+            KEY idx_political_territory_geometry_audit_undone (undone_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
     $column = $pdo->query("SHOW COLUMNS FROM political_territory_geometry LIKE 'territory_id'")->fetch(PDO::FETCH_ASSOC);
     if (is_array($column) && strtoupper((string) ($column['Null'] ?? 'NO')) !== 'YES') {
         $pdo->exec('ALTER TABLE political_territory_geometry MODIFY territory_id BIGINT UNSIGNED NULL');

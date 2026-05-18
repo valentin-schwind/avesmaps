@@ -184,6 +184,19 @@ async function undoMapAuditChange(changeId) {
 	});
 }
 
+async function fetchPoliticalChangeLog() {
+	return fetchPoliticalTerritories({
+		action: "change_log",
+	});
+}
+
+async function undoPoliticalAuditChange(changeId) {
+	return submitPoliticalTerritoryEdit({
+		action: "undo_audit_change",
+		audit_id: changeId,
+	});
+}
+
 async function updateReviewReportStatus(reportId, status, reportSource = "location_reports") {
 	const response = await fetch(LOCATION_REPORT_REVIEW_API_URL, {
 		method: "POST",
