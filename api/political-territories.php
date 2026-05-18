@@ -4570,7 +4570,7 @@ function avesmapsPoliticalExtractCurrentPoliticalParentName(string $affiliation)
     }
 
     foreach ($clauses as $clause) {
-        if (preg_match('/^(?:derographisch|geographisch|ehemals|früher|frueher)\b/iu', $clause) === 1) {
+        if (preg_match('/^(?:derographisch|geographisch|ehemals|früher|frueher|historisch)\b/iu', $clause) === 1) {
             continue;
         }
 
