@@ -2776,6 +2776,9 @@
 				}
 
 				const key = value.toLowerCase();
+				if (key === "historisch") {
+					return;
+				}
 				if (!valuesByKey.has(key)) {
 					valuesByKey.set(key, value);
 				}
