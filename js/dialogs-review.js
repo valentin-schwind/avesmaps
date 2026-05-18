@@ -1068,8 +1068,8 @@ function dedupePoliticalTerritoryTreeNode(node) {
 
 function buildPoliticalTerritoryTreeDedupeKey(territory) {
 	const name = normalizeSearchText(territory?.name || "");
-	const type = normalizeSearchText(territory?.type || "");
-	return [name, type].filter(Boolean).join("|");
+	const period = normalizeSearchText(territory?.valid_label || buildWikiReferencePeriod(territory));
+	return [name, period].filter(Boolean).join("|");
 }
 
 function scorePoliticalTerritoryTreeNode(node) {

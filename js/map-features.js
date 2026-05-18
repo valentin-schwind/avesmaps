@@ -4076,20 +4076,8 @@ async function loadPoliticalTerritoryOptions({ force = false } = {}) {
 			return politicalTerritoryOptions;
 		} catch (error) {
 			console.warn("Wiki-Herrschaftsgebiet-Baum konnte nicht geladen werden:", error);
-			try {
-				const response = await fetchPoliticalTerritories({ action: "hierarchy" });
-				const territories = Array.isArray(response.territories) ? response.territories : [];
-				const hierarchy = Array.isArray(response.hierarchy) ? response.hierarchy : [];
-				politicalTerritoryOptionsLoaded = true;
-				if (territories.length > 0 || hierarchy.length > 0) {
-					politicalTerritoryOptions = territories;
-					politicalTerritoryHierarchy = hierarchy;
-					politicalTerritoryOptionsSource = "database";
-				}
-			} catch (fallbackError) {
-				politicalTerritoryOptionsLoaded = true;
-				console.warn("Datenbank-Herrschaftsgebiet-Baum konnte nicht geladen werden:", fallbackError);
-			}
+			politicalTerritoryOptionsLoaded = true;
+			console.warn("Datenbank-Fallback fuer Herrschaftsgebiet-Baum deaktiviert, bestehende Wiki-Daten bleiben erhalten.");
 			return politicalTerritoryOptions;
 		} finally {
 			politicalTerritoryOptionsLoading = false;
