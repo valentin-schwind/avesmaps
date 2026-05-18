@@ -606,11 +606,49 @@ function avesmapsPoliticalBuildRawEditorLayerFeatures(array $rows, int $yearBf, 
 }
 
 function avesmapsPoliticalLayerRowMatchesOwnZoom(array $row, int $zoom): bool {
+    $assignmentDisplay = avesmapsPoliticalFindAssignmentDisplayForLayerRow($row);
+    if (is_array($assignmentDisplay)) {
+        $displayMinZoom = avesmapsPoliticalNullableInt($assignmentDisplay['zoomMin'] ?? $assignmentDisplay['zoom_min'] ?? null);
+        $displayMaxZoom = avesmapsPoliticalNullableInt($assignmentDisplay['zoomMax'] ?? $assignmentDisplay['zoom_max'] ?? null);
+
+        if ($displayMinZoom !== null || $displayMaxZoom !== null) {
+            return ($displayMinZoom === null || $displayMinZoom <= $zoom)
+                && ($displayMaxZoom === null || $displayMaxZoom >= $zoom);
+        }
+    }
+
     $minZoom = avesmapsPoliticalNullableInt($row['geometry_min_zoom'] ?? $row['territory_min_zoom'] ?? null);
     $maxZoom = avesmapsPoliticalNullableInt($row['geometry_max_zoom'] ?? $row['territory_max_zoom'] ?? null);
 
     return ($minZoom === null || $minZoom <= $zoom)
         && ($maxZoom === null || $maxZoom >= $zoom);
+}
+
+function avesmapsPoliticalFindAssignmentDisplayForLayerRow(array $row): ?array {
+    $territoryPublicId = trim((string) ($row['territory_public_id'] ?? ''));
+    $nodeKey = trim((string) ($row['slug'] ?? ''));
+
+    if ($territoryPublicId === '' && $nodeKey === '') {
+        return null;
+    }
+
+    $style = avesmapsPoliticalDecodeJson($row['style_json'] ?? null);
+    if (is_array($style)) {
+        $display = avesmapsPoliticalFindAssignmentDisplayForTerritory($style, $territoryPublicId, $nodeKey);
+        if (is_array($display)) {
+            return $display;
+        }
+    }
+
+    $geometryStyle = avesmapsPoliticalDecodeJson($row['geometry_style_json'] ?? null);
+    if (is_array($geometryStyle)) {
+        $display = avesmapsPoliticalFindAssignmentDisplayForTerritory($geometryStyle, $territoryPublicId, $nodeKey);
+        if (is_array($display)) {
+            return $display;
+        }
+    }
+
+    return null;
 }
 
 function avesmapsPoliticalFetchLayerTerritories(PDO $pdo, int $yearBf): array {
