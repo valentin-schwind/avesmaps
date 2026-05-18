@@ -4060,7 +4060,10 @@ async function loadPoliticalTerritoryOptions({ force = false } = {}) {
 	politicalTerritoryOptionsLoading = true;
 	politicalTerritoryOptionsPromise = (async () => {
 		try {
-			const response = await fetchWikiSyncData({ action: "political_territory_tree" });
+			const response = await fetchWikiSyncData({
+				action: "territories_tree",
+				force_refresh: force ? 1 : undefined,
+			});
 			const territories = Array.isArray(response.territories) ? response.territories : [];
 			const hierarchy = Array.isArray(response.hierarchy) ? response.hierarchy : [];
 			const hasIncomingTreeData = territories.length > 0 || hierarchy.length > 0;

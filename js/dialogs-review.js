@@ -2155,6 +2155,8 @@ function renderRegionAssignmentSummary(summaryElement, wiki, territory = null, o
 	const validToText = validToOpen ? "" : String(validToValue);
 
 	const rows = [
+		["Interne ID", wiki.id || wiki.wiki_id || ""],
+		["WikiKey", wiki.wiki_key || ""],
 		["Name", wiki.name || wiki.wiki_name || ""],
 		["Typ", wiki.type || ""],
 		["Status", wiki.status || ""],
@@ -3237,7 +3239,7 @@ async function loadPoliticalTerritoryWikiReferences() {
 }
 
 async function loadPoliticalTerritoryWikiReferenceFallback() {
-	const response = await fetch("api/wiki-sync.php?action=political_territory_tree", {
+	const response = await fetch("api/wiki-sync.php?action=territories_tree", {
 		credentials: "same-origin",
 		headers: {
 			Accept: "application/json",
@@ -3747,10 +3749,10 @@ function setWikiSyncRunning(isRunning, run = null) {
 
 	const startButtonElement = document.getElementById("wiki-sync-start");
 	if (startButtonElement) {
-		startButtonElement.disabled = isRunning;
+		startButtonElement.disabled = isRunning || isWikiSyncTerritoryRunning;
 		startButtonElement.textContent = isRunning
-			? "Synchronisiert..."
-			: (activeWikiSyncRunStatus === "running" ? "Fortsetzen" : "Synchronisieren");
+			? "WikiSyncLocations..."
+			: (activeWikiSyncRunStatus === "running" ? "WikiSyncLocations fortsetzen" : "WikiSyncLocations");
 	}
 
 	const progressElement = document.getElementById("wiki-sync-progress");
@@ -3758,6 +3760,28 @@ function setWikiSyncRunning(isRunning, run = null) {
 		progressElement.hidden = !isRunning && !run;
 		progressElement.max = Number(run?.progress_total) || 4;
 		progressElement.value = Number(run?.progress_current) || 0;
+	}
+
+	const territoriesButtonElement = document.getElementById("wiki-sync-territories");
+	if (territoriesButtonElement) {
+		territoriesButtonElement.disabled = isRunning || isWikiSyncTerritoryRunning;
+	}
+}
+
+function setWikiSyncTerritoryRunning(isRunning) {
+	isWikiSyncTerritoryRunning = Boolean(isRunning);
+
+	const territoriesButtonElement = document.getElementById("wiki-sync-territories");
+	if (territoriesButtonElement) {
+		territoriesButtonElement.disabled = isWikiSyncRunning || isWikiSyncTerritoryRunning;
+		territoriesButtonElement.textContent = isWikiSyncTerritoryRunning
+			? "WikiSyncTerritories..."
+			: "WikiSyncTerritories";
+	}
+
+	const startButtonElement = document.getElementById("wiki-sync-start");
+	if (startButtonElement) {
+		startButtonElement.disabled = isWikiSyncRunning || isWikiSyncTerritoryRunning;
 	}
 }
 
@@ -3896,20 +3920,12 @@ async function loadWikiSyncCases() {
 		return;
 	}
 
-	setWikiSyncStatus("WikiSync-Fälle werden geladen...", "pending");
+	setWikiSyncStatus("WikiSyncLocations-Fälle werden geladen...", "pending");
 	try {
-		const response = await fetch(WIKI_SYNC_API_URL, {
-			credentials: "same-origin",
-			headers: { Accept: "application/json" },
-		});
-		const data = await response.json().catch(() => null);
-		if (!response.ok || !data?.ok) {
-			throw new Error(data?.error || `WikiSync-API antwortet mit HTTP ${response.status}.`);
-		}
+		const data = await fetchWikiSyncData({ action: "cases" });
 
 		wikiSyncCases = Array.isArray(data.cases) ? data.cases : [];
 		wikiSyncSummary = data.summary || null;
-		wikiSyncTerritorySummary = data.political_territory_tree || null;
 		const activeRun = data.active_run || null;
 		activeWikiSyncRunId = activeRun?.public_id || data.latest_run?.public_id || activeWikiSyncRunId;
 		activeWikiSyncRunStatus = activeRun?.status || "";
@@ -3922,8 +3938,8 @@ async function loadWikiSyncCases() {
 			setWikiSyncRunning(false);
 		}
 	} catch (error) {
-		console.error("WikiSync-Fälle konnten nicht geladen werden:", error);
-		setWikiSyncStatus(error.message || "WikiSync-Fälle konnten nicht geladen werden.", "error");
+		console.error("WikiSyncLocations-Fälle konnten nicht geladen werden:", error);
+		setWikiSyncStatus(error.message || "WikiSyncLocations-Fälle konnten nicht geladen werden.", "error");
 	}
 }
 
@@ -3933,7 +3949,7 @@ async function startWikiSyncRun() {
 	}
 
 	setWikiSyncRunning(true);
-	setWikiSyncStatus(activeWikiSyncRunStatus === "running" ? "WikiSync wird fortgesetzt..." : "WikiSync wird gestartet...", "pending");
+	setWikiSyncStatus(activeWikiSyncRunStatus === "running" ? "WikiSyncLocations wird fortgesetzt..." : "WikiSyncLocations wird gestartet...", "pending");
 
 	try {
 		let run = null;
@@ -3968,19 +3984,42 @@ async function startWikiSyncRun() {
 
 		setWikiSyncRunning(false);
 		activeWikiSyncRunStatus = "";
-		const territoryStats = run?.stats || {};
 		await loadWikiSyncCases();
-		if (territoryStats.political_territory_received) {
-			await loadPoliticalTerritoryOptions({ force: true });
-			schedulePoliticalTerritoryLayerReload({ immediate: true });
-		}
-		setWikiSyncStatus(buildWikiSyncStatusMessage("WikiSync abgeschlossen."), "success");
+		setWikiSyncStatus(buildWikiSyncStatusMessage("WikiSyncLocations abgeschlossen."), "success");
 	} catch (error) {
-		console.error("WikiSync konnte nicht ausgeführt werden:", error);
+		console.error("WikiSyncLocations konnte nicht ausgeführt werden:", error);
 		activeWikiSyncRunStatus = "";
 		setWikiSyncRunning(false);
-		setWikiSyncStatus(error.message || "WikiSync konnte nicht ausgeführt werden.", "error");
-		showFeedbackToast(error.message || "WikiSync konnte nicht ausgeführt werden.", "warning");
+		setWikiSyncStatus(error.message || "WikiSyncLocations konnte nicht ausgeführt werden.", "error");
+		showFeedbackToast(error.message || "WikiSyncLocations konnte nicht ausgeführt werden.", "warning");
+	}
+}
+
+async function startWikiSyncTerritoryRun() {
+	if (isWikiSyncRunning || isWikiSyncTerritoryRunning) {
+		return;
+	}
+
+	setWikiSyncTerritoryRunning(true);
+	setWikiSyncStatus("WikiSyncTerritories wird gestartet...", "pending");
+
+	try {
+		const result = await submitWikiSyncAction("sync_territories");
+		wikiSyncTerritorySummary = {
+			territory_count: Number(result?.territory_count ?? 0),
+			root_count: Number(result?.root_count ?? 0),
+			assigned_territory_count: Number(result?.assigned_territory_count ?? 0),
+			assigned_root_count: Number(result?.assigned_root_count ?? 0),
+		};
+		await loadPoliticalTerritoryOptions();
+		schedulePoliticalTerritoryLayerReload({ immediate: true });
+		setWikiSyncStatus(buildWikiSyncStatusMessage("WikiSyncTerritories abgeschlossen."), "success");
+	} catch (error) {
+		console.error("WikiSyncTerritories konnte nicht ausgefuehrt werden:", error);
+		setWikiSyncStatus(error.message || "WikiSyncTerritories konnte nicht ausgefuehrt werden.", "error");
+		showFeedbackToast(error.message || "WikiSyncTerritories konnte nicht ausgefuehrt werden.", "warning");
+	} finally {
+		setWikiSyncTerritoryRunning(false);
 	}
 }
 

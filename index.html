@@ -172,7 +172,8 @@
 		</section>
 		<section class="review-panel__section" data-editor-panel-section="wiki-sync">
 			<div class="wiki-sync-panel__actions">
-				<button id="wiki-sync-start" class="wiki-sync-panel__start" type="button">Synchronisieren</button>
+				<button id="wiki-sync-start" class="wiki-sync-panel__start" type="button">WikiSyncLocations</button>
+				<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button">WikiSyncTerritories</button>
 				<progress id="wiki-sync-progress" class="wiki-sync-progress" max="5" value="0" hidden></progress>
 			</div>
 			<p id="wiki-sync-status" class="review-panel__status" role="status" aria-live="polite">WikiSync ist bereit.</p>
@@ -922,6 +923,7 @@
 			isWikiSyncCreateLocationSelectionActive = false,
 			isWikiSyncAccordionRestoring = false,
 			isWikiSyncRunning = false,
+			isWikiSyncTerritoryRunning = false,
 			isWikiSyncResolveSubmissionPending = false,
 			changeLogEntries = [],
 			changeLogFocusMarker = null,
@@ -1203,6 +1205,7 @@
 		$("#location-report-close, #location-report-cancel").on("click", () => setLocationReportDialogOpen(false, { resetForm: true }));
 		$("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));
 		$("#wiki-sync-start").on("click", () => startWikiSyncRun());
+		$("#wiki-sync-territories").on("click", () => startWikiSyncTerritoryRun());
 		$("#wiki-sync-filter").on("input search", function () {
 			setWikiSyncFilterQuery(this.value || "");
 		});
