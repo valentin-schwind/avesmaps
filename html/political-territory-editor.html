@@ -1363,7 +1363,7 @@
 		}
 
 		function normalizeApiRows(rows) {
-			return rows
+			const normalizedRows = rows
 				.map(row => ({
 					...row,
 					name: normalizeText(row.name),
@@ -1395,6 +1395,8 @@
 					map_geometry_count: parseOptionalNumber(row.map_geometry_count, 0)
 				}))
 				.filter(row => row.name);
+
+			return dedupeRowsByIdentity(normalizedRows);
 		}
 		
 		async function loadExistingGeometryAssignmentFromUrl() {
@@ -1576,6 +1578,7 @@
 			for (const row of rows) {
 				let current = root;
 				const pathParts = [];
+				const identityKey = rowIdentityKey(row);
 
 				for (const segment of row.affiliation_path) {
 					const label = canonicalLabel(segment);
@@ -1586,6 +1589,14 @@
 
 					pathParts.push(label);
 					current = getOrCreatePathNode(current, label, pathParts, rowIndex);
+				}
+
+				const currentIdentityKey = rowIdentityKey(current.row);
+				if (identityKey && currentIdentityKey && identityKey === currentIdentityKey) {
+					current.row = row;
+					current.label = row.name || current.label;
+					current.kind = current.children.length > 0 ? "territory-group" : "territory";
+					continue;
 				}
 
 				const nodeKey = rowKey(row);
@@ -1660,6 +1671,150 @@
 			};
 
 			return aliases[name] || [];
+		}
+
+		function dedupeRowsByIdentity(rows) {
+			const dedupedByKey = new Map();
+			const rowOrder = [];
+
+			for (const row of rows) {
+				const key = rowIdentityKey(row) || `row:${rowKey(row)}`;
+				const existing = dedupedByKey.get(key);
+
+				if (!existing) {
+					dedupedByKey.set(key, row);
+					rowOrder.push(key);
+					continue;
+				}
+
+				dedupedByKey.set(key, mergeRowsByIdentity(existing, row));
+			}
+
+			return rowOrder.map(key => dedupedByKey.get(key)).filter(Boolean);
+		}
+
+		function mergeRowsByIdentity(primary, secondary) {
+			const merged = rowMergeScore(secondary) > rowMergeScore(primary)
+				? { ...secondary }
+				: { ...primary };
+			const fallback = merged === primary ? secondary : primary;
+
+			for (const key of Object.keys(fallback)) {
+				const mergedValue = merged[key];
+				const fallbackValue = fallback[key];
+
+				if (
+					(mergedValue === null || typeof mergedValue === "undefined" || mergedValue === "")
+					&& fallbackValue !== null
+					&& typeof fallbackValue !== "undefined"
+					&& fallbackValue !== ""
+				) {
+					merged[key] = fallbackValue;
+				}
+			}
+
+			merged.map_territory_count = Math.max(
+				Number(merged.map_territory_count || 0),
+				Number(fallback.map_territory_count || 0)
+			);
+			merged.map_geometry_count = Math.max(
+				Number(merged.map_geometry_count || 0),
+				Number(fallback.map_geometry_count || 0)
+			);
+			merged.map_assigned = Boolean(merged.map_assigned) || merged.map_geometry_count > 0;
+
+			return merged;
+		}
+
+		function rowMergeScore(row) {
+			let score = 0;
+			score += Number(row.map_geometry_count || 0) * 100;
+			score += Number(row.map_territory_count || 0) * 20;
+
+			const fields = [
+				"wiki_url",
+				"wiki_key",
+				"coat_of_arms_url",
+				"founded_text",
+				"dissolved_text",
+				"type",
+				"status",
+				"affiliation_raw",
+				"capital_name",
+				"seat_name",
+				"ruler",
+				"language",
+				"currency",
+				"trade_goods",
+				"population"
+			];
+
+			for (const field of fields) {
+				if (normalizeText(row[field]) !== "") {
+					score += 1;
+				}
+			}
+
+			if (Array.isArray(row.affiliation_path)) {
+				score += row.affiliation_path.filter(Boolean).length;
+			}
+
+			return score;
+		}
+
+		function rowIdentityKey(row) {
+			if (!row || typeof row !== "object") {
+				return "";
+			}
+
+			const wikiTitle = wikiTitleFromUrl(row.wiki_url || "");
+			if (wikiTitle !== "") {
+				return `wiki_title:${makeKey(wikiTitle)}`;
+			}
+
+			const wikiKey = makeKey(row.wiki_key || "");
+			if (wikiKey !== "") {
+				return `wiki_key:${wikiKey}`;
+			}
+
+			const nameKey = makeKey(row.name || "");
+			const typeKey = makeKey(row.type || "");
+			if (nameKey !== "") {
+				return `name:${nameKey}|type:${typeKey}`;
+			}
+
+			const id = normalizeText(row.id);
+			if (id !== "") {
+				return `id:${id}`;
+			}
+
+			return "";
+		}
+
+		function wikiTitleFromUrl(url) {
+			const rawUrl = normalizeText(url);
+			if (!rawUrl) {
+				return "";
+			}
+
+			try {
+				const parsed = new URL(rawUrl, window.location.origin);
+				const marker = "/wiki/";
+				const path = parsed.pathname || "";
+				const markerIndex = path.indexOf(marker);
+				if (markerIndex < 0) {
+					return "";
+				}
+
+				const rawTitle = path.slice(markerIndex + marker.length);
+				if (!rawTitle) {
+					return "";
+				}
+
+				return decodeURIComponent(rawTitle).replace(/_/g, " ").trim();
+			} catch (error) {
+				return "";
+			}
 		}
 
 		function getOrCreatePathNode(parent, label, pathParts, rowIndex) {
