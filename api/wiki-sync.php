@@ -14,6 +14,14 @@ const AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS = 30;
 const AVESMAPS_WIKI_FUZZY_CUTOFF = 0.82;
 const AVESMAPS_WIKI_SYNC_TYPE_LOCATION = 'location';
 const AVESMAPS_WIKI_LOCK_TTL_SECONDS = 120;
+const AVESMAPS_WIKI_POLITICAL_TERRITORY_SEED_PAGES = [
+    'Staat/Liste',
+    'Grafschaft/Liste',
+    'Baronie/Liste',
+    'Herzogtum/Liste',
+    'Fürstentum/Liste',
+    'Markgrafschaft/Liste',
+];
 
 const AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS = [
     'dorf' => 'Dorf',
@@ -570,10 +578,44 @@ function avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache(PDO $pdo): array {
 }
 
 function avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki(bool $includeDetails = true): array {
-    $html = avesmapsWikiSyncFetchParsedWikiHtml('Staat/Liste');
-    $rows = avesmapsWikiSyncParsePoliticalTerritoryRowsFromHtml($html);
+    $rowsByKey = [];
+
+    foreach (AVESMAPS_WIKI_POLITICAL_TERRITORY_SEED_PAGES as $pageTitle) {
+        try {
+            $html = avesmapsWikiSyncFetchParsedWikiHtml($pageTitle);
+            $pageRows = avesmapsWikiSyncParsePoliticalTerritoryRowsFromHtml($html);
+        } catch (Throwable $exception) {
+            avesmapsWikiSyncLogServerError('political_territory_seed_page_error', [
+                'page_title' => $pageTitle,
+                'exception_class' => $exception::class,
+                'exception_message' => $exception->getMessage(),
+            ]);
+            continue;
+        }
+
+        foreach ($pageRows as $row) {
+            $name = (string) ($row['name'] ?? '');
+            if ($name === '') {
+                continue;
+            }
+
+            $keySource = (string) ($row['wiki_url'] ?? '');
+            if ($keySource === '') {
+                $keySource = $name;
+            }
+
+            $key = avesmapsWikiSyncCreateMatchKey($keySource);
+            if ($key === '' || isset($rowsByKey[$key])) {
+                continue;
+            }
+
+            $rowsByKey[$key] = $row;
+        }
+    }
+
+    $rows = array_values($rowsByKey);
     if ($rows === []) {
-        throw new RuntimeException('Aus Staat/Liste konnten keine Herrschaftsgebiete gelesen werden.');
+        throw new RuntimeException('Aus den Herrschaftsgebiets-Listen konnten keine Herrschaftsgebiete gelesen werden.');
     }
 
     return $includeDetails ? avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki($rows) : $rows;
