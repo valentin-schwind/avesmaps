@@ -4021,18 +4021,11 @@ async function loadPoliticalTerritoryLayer() {
 	const requestSeq = window.__avesmapsPoliticalLayerRequestSeq;
 	isPoliticalTerritoryLayerLoading = true;
 	try {
-		const bounds = getMapRenderBounds();
 		const response = await fetchPoliticalTerritories({
 			action: "layer",
 			year_bf: politicalTimelineYear,
 			zoom: Math.round(map.getZoom()),
 			edit_mode: IS_EDIT_MODE ? 1 : 0,
-			bbox: [
-				bounds.getWest(),
-				bounds.getSouth(),
-				bounds.getEast(),
-				bounds.getNorth(),
-			].map((value) => value.toFixed(3)).join(","),
 		});
 		if (activeRegionGeometryEdit || pendingRegionOperation || pendingRegionMoveState) {
 			return;
