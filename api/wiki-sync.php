@@ -16,12 +16,21 @@ const AVESMAPS_WIKI_SYNC_TYPE_LOCATION = 'location';
 const AVESMAPS_WIKI_LOCK_TTL_SECONDS = 120;
 const AVESMAPS_WIKI_POLITICAL_TERRITORY_SEED_PAGES = [
     'Staat/Liste',
-    'Grafschaft/Liste',
-    'Baronie/Liste',
-    'Freiherrschaft/Liste',
+    "K\u{00F6}nigreich/Liste",
+    'Kaiserreich/Liste',
     'Herzogtum/Liste',
     "F\u{00FC}rstentum/Liste",
+    'Grafschaft/Liste',
     'Markgrafschaft/Liste',
+    'Pfalzgrafschaft/Liste',
+    'Baronie/Liste',
+    'Freiherrschaft/Liste',
+    'Reichsmark/Liste',
+    'Republik/Liste',
+    'Sultanat/Liste',
+    'Emirat/Liste',
+    "Sh\u{00EE}kanydad/Liste",
+    'Theokratie/Liste',
 ];
 
 const AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS = [
