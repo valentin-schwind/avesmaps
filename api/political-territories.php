@@ -1029,6 +1029,75 @@ function avesmapsPoliticalBuildStoredAssignmentDisplay(array $territory, array $
     ];
 }
 
+function avesmapsPoliticalResolveDisplayStateForTerritory(array $displays, array $territory, int $index): array {
+    $territoryPublicId = trim((string) ($territory['public_id'] ?? ''));
+    $territorySlug = trim((string) ($territory['slug'] ?? ''));
+    $territoryName = trim((string) ($territory['name'] ?? ''));
+    $territoryNameKey = $territoryName === '' ? '' : mb_strtolower($territoryName);
+
+    foreach ($displays as $candidateDisplay) {
+        if (!is_array($candidateDisplay)) {
+            continue;
+        }
+
+        $candidateTerritoryPublicId = trim((string) (
+            $candidateDisplay['territoryPublicId']
+            ?? $candidateDisplay['territory_public_id']
+            ?? ''
+        ));
+
+        if ($territoryPublicId !== '' && $candidateTerritoryPublicId === $territoryPublicId) {
+            return $candidateDisplay;
+        }
+    }
+
+    foreach ($displays as $candidateDisplay) {
+        if (!is_array($candidateDisplay)) {
+            continue;
+        }
+
+        $candidateNodeKey = trim((string) (
+            $candidateDisplay['nodeKey']
+            ?? $candidateDisplay['node_key']
+            ?? $candidateDisplay['slug']
+            ?? ''
+        ));
+
+        if ($territorySlug === '' || $candidateNodeKey === '') {
+            continue;
+        }
+
+        if ($candidateNodeKey === $territorySlug || avesmapsPoliticalSlug($candidateNodeKey) === $territorySlug) {
+            return $candidateDisplay;
+        }
+    }
+
+    if ($territoryNameKey !== '') {
+        foreach ($displays as $candidateDisplay) {
+            if (!is_array($candidateDisplay)) {
+                continue;
+            }
+
+            $candidateName = trim((string) (
+                $candidateDisplay['originalName']
+                ?? $candidateDisplay['original_name']
+                ?? $candidateDisplay['name']
+                ?? $candidateDisplay['displayName']
+                ?? $candidateDisplay['display_name']
+                ?? ''
+            ));
+
+            if ($candidateName !== '' && mb_strtolower($candidateName) === $territoryNameKey) {
+                return $candidateDisplay;
+            }
+        }
+    }
+
+    $fallbackDisplay = $displays[$index] ?? null;
+
+    return is_array($fallbackDisplay) ? $fallbackDisplay : [];
+}
+
 function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom): array {
     $style = avesmapsPoliticalDecodeJson($row['style_json'] ?? null);
     $geometryStyle = avesmapsPoliticalDecodeJson($row['geometry_style_json'] ?? null);
@@ -2250,7 +2319,7 @@ function avesmapsPoliticalSaveExistingGeometryAssignment(PDO $pdo, array $payloa
     $assignmentDisplays = [];
 
     foreach ($chainRows as $index => $territory) {
-        $display = is_array($displays[$index] ?? null) ? $displays[$index] : [];
+        $display = avesmapsPoliticalResolveDisplayStateForTerritory($displays, $territory, $index);
 
         $assignmentDisplays[] = avesmapsPoliticalBuildStoredAssignmentDisplay($territory, $display, $index);
 
@@ -2295,7 +2364,11 @@ function avesmapsPoliticalSaveExistingGeometryAssignment(PDO $pdo, array $payloa
         ]);
     }
 
-    $selectedDisplay = is_array($displays[count($chainRows) - 1] ?? null) ? $displays[count($chainRows) - 1] : [];
+    $selectedDisplay = avesmapsPoliticalResolveDisplayStateForTerritory(
+        $displays,
+        $selectedTerritory,
+        max(0, count($chainRows) - 1)
+    );
 
     $style = avesmapsPoliticalDecodeJson($geometry['style_json'] ?? null);
     $style['fill'] = (string) ($selectedDisplay['color'] ?? $selectedTerritory['color'] ?? '#888888');
@@ -2397,7 +2470,7 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
         }
 
         $territory = avesmapsPoliticalFetchTerritoryByPublicId($pdo, $territoryPublicId);
-        $display = is_array($displays[$index] ?? null) ? $displays[$index] : [];
+        $display = avesmapsPoliticalResolveDisplayStateForTerritory($displays, $territory, $index);
         
         $assignmentDisplays[] = avesmapsPoliticalBuildStoredAssignmentDisplay($territory, $display, $index);
  
@@ -2447,7 +2520,11 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
     }
 
     $selectedTerritory = avesmapsPoliticalFetchTerritoryByPublicId($pdo, $selectedTerritoryPublicId);
-    $selectedDisplay = is_array($displays[count($chain) - 1] ?? null) ? $displays[count($chain) - 1] : [];
+    $selectedDisplay = avesmapsPoliticalResolveDisplayStateForTerritory(
+        $displays,
+        $selectedTerritory,
+        max(0, count($chain) - 1)
+    );
 
     $style = avesmapsPoliticalDecodeJson($geometry['style_json'] ?? null);
     $style['fill'] = (string) ($selectedDisplay['color'] ?? $selectedTerritory['color'] ?? '#888888');
