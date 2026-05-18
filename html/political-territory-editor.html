@@ -1647,37 +1647,15 @@
 			const index = new Map();
 
 			for (const row of rows) {
-				const labels = new Set([row.name]);
-
-				for (const alias of getFixedAliases(row.name)) {
-					labels.add(alias);
-				}
-
-				for (const label of labels) {
-					const key = makeKey(label);
-
-					if (key && !index.has(key)) {
-						index.set(key, row);
-					}
+				const key = makeKey(row.name);
+				if (key && !index.has(key)) {
+					index.set(key, row);
 				}
 			}
 
 			return index;
 		}
 
-		function getFixedAliases(name) {
-			const aliases = {
-				"Wiedererstandenes Reich des Horas": ["Horasreich"],
-				"Heiliges Neues Kaiserreich vom Greifenthron zu Gareth": ["Mittelreich"],
-				"Theaterritterliche Republik an Born und Walsach": ["Bornland"],
-				"Mhaharanyat Aranien": ["Aranien", "Fürstentum Aranien"],
-				"Thorwal (Staat)": ["Thorwal"],
-				"Könikreisch des Nortens": ["Orkreich"],
-				"Fürstentum Almada": ["Königreich Almada"],
-			};
-
-			return aliases[name] || [];
-		}
 
 		function dedupeRowsByIdentity(rows) {
 			const dedupedByKey = new Map();
