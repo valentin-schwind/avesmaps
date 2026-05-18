@@ -735,12 +735,34 @@ function avesmapsPoliticalBuildEffectiveLayerParentIds(array $territories): arra
     $parentIds = [];
     foreach ($territories as $territoryId => $territory) {
         $storedParentId = (int) ($territory['parent_id'] ?? 0);
-        if ($storedParentId > 0 && isset($territories[$storedParentId]) && $storedParentId !== (int) $territoryId) {
+        if (
+            $storedParentId > 0
+            && isset($territories[$storedParentId])
+            && $storedParentId !== (int) $territoryId
+            && !avesmapsPoliticalIsGenericLayerParentTerritory($territories[$storedParentId])
+        ) {
             $parentIds[(int) $territoryId] = $storedParentId;
         }
     }
 
     return $parentIds;
+}
+
+function avesmapsPoliticalIsGenericLayerParentTerritory(array $territory): bool {
+    $candidates = [
+        (string) ($territory['name'] ?? ''),
+        (string) ($territory['short_name'] ?? ''),
+        (string) ($territory['wiki_name'] ?? ''),
+        (string) ($territory['wiki_affiliation_root'] ?? ''),
+    ];
+
+    foreach ($candidates as $candidate) {
+        if (avesmapsPoliticalIsGenericHierarchyRootName($candidate)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function avesmapsPoliticalLayerTerritoryAliases(array $territory): array {
@@ -981,12 +1003,12 @@ function avesmapsPoliticalResolveAssignmentDisplayName(?array $display, string $
     }
 
     $displayName = trim((string) ($display['displayName'] ?? $display['display_name'] ?? ''));
-    if ($displayName !== '') {
+    if ($displayName !== '' && !avesmapsPoliticalIsGenericHierarchyRootName($displayName)) {
         return $displayName;
     }
 
     $originalName = trim((string) ($display['originalName'] ?? $display['original_name'] ?? ''));
-    if ($originalName !== '') {
+    if ($originalName !== '' && !avesmapsPoliticalIsGenericHierarchyRootName($originalName)) {
         return $originalName;
     }
 
