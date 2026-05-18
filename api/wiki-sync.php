@@ -100,9 +100,10 @@ try {
 
     if ($requestMethod === 'GET') {
         $action = avesmapsNormalizeSingleLine((string) ($_GET['action'] ?? 'cases'), 80);
+        $forceRefresh = avesmapsWikiSyncReadBoolean($_GET['force_refresh'] ?? false);
         $response = match ($action) {
             'cases', '' => avesmapsWikiSyncListCases($pdo),
-            'political_territory_tree' => avesmapsWikiSyncReadPoliticalTerritoryTree($pdo),
+            'political_territory_tree' => avesmapsWikiSyncReadPoliticalTerritoryTree($pdo, $forceRefresh),
             default => throw new InvalidArgumentException('Die WikiSync-Aktion ist unbekannt.'),
         };
 
@@ -322,7 +323,11 @@ function avesmapsWikiSyncAdvanceRun(PDO $pdo, array $payload): array {
     ];
 }
 
-function avesmapsWikiSyncReadPoliticalTerritoryTree(PDO $pdo): array {
+function avesmapsWikiSyncReadPoliticalTerritoryTree(PDO $pdo, bool $forceRefresh = false): array {
+    if ($forceRefresh) {
+        return avesmapsWikiSyncRefreshAndReadPoliticalTerritoryTree($pdo);
+    }
+
     if (avesmapsWikiSyncPoliticalTerritoryCacheNeedsRefresh($pdo)) {
         return avesmapsWikiSyncRefreshAndReadPoliticalTerritoryTree($pdo);
     }
@@ -357,7 +362,11 @@ function avesmapsWikiSyncReadPoliticalTerritoryTreeFromWiki(PDO $pdo): array {
     ];
 }
 
-function avesmapsWikiSyncReadPoliticalTerritoryTreeSummary(PDO $pdo): array {
+function avesmapsWikiSyncReadPoliticalTerritoryTreeSummary(PDO $pdo, bool $forceRefresh = false): array {
+    if ($forceRefresh) {
+        return avesmapsWikiSyncRefreshAndReadPoliticalTerritoryTreeSummary($pdo);
+    }
+
     if (avesmapsWikiSyncPoliticalTerritoryCacheNeedsRefresh($pdo)) {
         return avesmapsWikiSyncRefreshAndReadPoliticalTerritoryTreeSummary($pdo);
     }
