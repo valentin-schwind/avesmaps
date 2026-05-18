@@ -1731,25 +1731,16 @@ function avesmapsWikiSyncNormalizePoliticalTerritoryPathForNode(array $path, str
             continue;
         }
 
+        if ($nodeKey !== '' && $partKey === $nodeKey) {
+            continue;
+        }
+
         if (isset($seenKeys[$partKey])) {
             continue;
         }
 
         $seenKeys[$partKey] = true;
         $normalizedPath[] = (string) $part;
-    }
-
-    if ($nodeKey === '' || $normalizedPath === []) {
-        return $normalizedPath;
-    }
-
-    while ($normalizedPath !== []) {
-        $tailPart = $normalizedPath[count($normalizedPath) - 1] ?? '';
-        if (avesmapsWikiSyncMakePoliticalTreeKey((string) $tailPart) !== $nodeKey) {
-            break;
-        }
-
-        array_pop($normalizedPath);
     }
 
     return $normalizedPath;

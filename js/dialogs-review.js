@@ -1437,7 +1437,10 @@ function renderRegionWikiReference(region) {
 }
 
 function buildWikiReferencePeriod(region) {
-	return [region.wikiFoundedText || region.wiki_founded_text || "", region.wikiDissolvedText || region.wiki_dissolved_text || ""]
+	return [
+		region.wikiFoundedText || region.wiki_founded_text || region.founded_text || "",
+		region.wikiDissolvedText || region.wiki_dissolved_text || region.dissolved_text || "",
+	]
 		.filter(Boolean)
 		.join(" - ");
 }
