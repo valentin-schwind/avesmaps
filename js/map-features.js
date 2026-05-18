@@ -4022,6 +4022,7 @@ async function loadPoliticalTerritoryLayer() {
 		if (activeRegionGeometryEdit || pendingRegionOperation || pendingRegionMoveState) {
 			return;
 		}
+		politicalTerritoryApiUnavailable = false;
 		clearPoliticalTerritoryTimelineSelection();
 		clearRenderedRegionLayers();
 		regionData = Array.isArray(response.features) ? response.features : [];
@@ -4029,11 +4030,9 @@ async function loadPoliticalTerritoryLayer() {
 		syncRegionVisibility();
 	} catch (error) {
 		console.warn("Herrschaftsgebiete konnten nicht geladen werden:", error);
-		politicalTerritoryApiUnavailable = true;
-		if (politicalTerritoryFallbackData) {
-			prepareLegacyRegionData(politicalTerritoryFallbackData);
-			syncRegionVisibility();
-		}
+		// Keep political API active; transient request failures must not switch rendering
+		// to legacy fallback data because that can show stale zoom visibility states.
+		politicalTerritoryApiUnavailable = false;
 	} finally {
 		isPoliticalTerritoryLayerLoading = false;
 	}
