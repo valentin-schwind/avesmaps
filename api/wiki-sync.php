@@ -1626,20 +1626,33 @@ function avesmapsWikiSyncExtractPoliticalTerritoryChildReferences(string $rawVal
 
     $referencesByKey = [];
 
-    if (preg_match_all('/\[\[([^|\]#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/u', $value, $matches, PREG_SET_ORDER) !== false) {
+    if (preg_match_all('/\[\[([^|\]#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/u', $value, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE) !== false) {
         foreach ($matches as $match) {
-            $pageTitle = avesmapsWikiSyncNormalizeWikiTreeText((string) ($match[1] ?? ''));
-            $displayText = avesmapsWikiSyncNormalizeWikiTreeText((string) ($match[2] ?? ''));
+            $fullMatch = (string) ($match[0][0] ?? '');
+            $matchOffset = (int) ($match[0][1] ?? 0);
+            $pageTitle = avesmapsWikiSyncNormalizeWikiTreeText((string) ($match[1][0] ?? ''));
+            $displayText = avesmapsWikiSyncNormalizeWikiTreeText((string) ($match[2][0] ?? ''));
 
             if ($pageTitle === '' || avesmapsWikiSyncIsIgnoredPoliticalTerritoryLinkTitle($pageTitle)) {
                 continue;
             }
 
-            $nameSource = $displayText !== '' && avesmapsWikiSyncInferPoliticalTerritoryTypeFromName($displayText) !== ''
-                ? $displayText
-                : $pageTitle;
-
+            $nameSource = $displayText !== '' ? $displayText : $pageTitle;
             $name = avesmapsWikiSyncNormalizePoliticalTerritoryDisplayName($nameSource);
+
+            if (!avesmapsWikiSyncLooksLikePoliticalTerritoryName($name)) {
+                $contextualName = avesmapsWikiSyncBuildContextualPoliticalTerritoryName(
+                    $value,
+                    $matchOffset,
+                    $fullMatch,
+                    $name
+                );
+
+                if ($contextualName !== '') {
+                    $name = $contextualName;
+                }
+            }
+
             if (!avesmapsWikiSyncLooksLikePoliticalTerritoryName($name)) {
                 continue;
             }
@@ -1685,6 +1698,45 @@ function avesmapsWikiSyncExtractPoliticalTerritoryChildReferences(string $rawVal
     }
 
     return array_values($referencesByKey);
+}
+
+function avesmapsWikiSyncBuildContextualPoliticalTerritoryName(
+    string $rawValue,
+    int $matchOffset,
+    string $fullMatch,
+    string $linkedName
+): string {
+    $linkedName = avesmapsWikiSyncNormalizePoliticalTerritoryDisplayName($linkedName);
+    if ($linkedName === '') {
+        return '';
+    }
+
+    $prefixStart = max(0, $matchOffset - 80);
+    $prefix = substr($rawValue, $prefixStart, $matchOffset - $prefixStart);
+    $prefix = preg_replace('/.*(?:,|;|·|\n|\r)/su', '', $prefix) ?? $prefix;
+    $prefix = avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($prefix);
+
+    $fullCandidate = avesmapsWikiSyncNormalizePoliticalTerritoryDisplayName($prefix . ' ' . $linkedName);
+    if (avesmapsWikiSyncLooksLikePoliticalTerritoryName($fullCandidate)) {
+        return $fullCandidate;
+    }
+
+    $type = avesmapsWikiSyncInferPoliticalTerritoryTypeFromName($prefix);
+    if ($type !== '') {
+        return avesmapsWikiSyncNormalizePoliticalTerritoryDisplayName($type . ' ' . $linkedName);
+    }
+
+    $suffixStart = $matchOffset + strlen($fullMatch);
+    $suffix = substr($rawValue, $suffixStart, 80);
+    $suffix = preg_replace('/(?:,|;|·|\n|\r).*$/su', '', $suffix) ?? $suffix;
+    $suffix = avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($suffix);
+
+    $suffixCandidate = avesmapsWikiSyncNormalizePoliticalTerritoryDisplayName($linkedName . ' ' . $suffix);
+    if (avesmapsWikiSyncLooksLikePoliticalTerritoryName($suffixCandidate)) {
+        return $suffixCandidate;
+    }
+
+    return '';
 }
 
 function avesmapsWikiSyncBuildPoliticalTerritoryChildRows(array $childReferences, array $parentRow): array {
