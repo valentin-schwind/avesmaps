@@ -1704,10 +1704,7 @@ function avesmapsWikiSyncBuildPoliticalTerritoryTree(array $rows, bool $includeP
             }
 
             if (!isset($current['children'][$key])) {
-                $current['children'][$key] = avesmapsWikiSyncCreatePoliticalTreeNode($key, $part, $rowIndex[$key] ?? null);
-            } elseif ($current['children'][$key]['row'] === null && isset($rowIndex[$key])) {
-                $current['children'][$key]['row'] = $rowIndex[$key];
-                $current['children'][$key] = avesmapsWikiSyncApplyPoliticalRowToTreeNode($current['children'][$key], $rowIndex[$key]);
+                $current['children'][$key] = avesmapsWikiSyncCreatePoliticalTreeNode($key, $part, null);
             }
 
             $current =& $current['children'][$key];

@@ -1155,7 +1155,7 @@ function hasPoliticalTerritoryTreeDisplayDetails(territory) {
 		territory.type,
 		territory.status,
 		territory.form_of_government,
-		territory.valid_label,
+		territory.valid_label || buildWikiReferencePeriod(territory),
 		territory.wiki_name,
 		territory.capital_name,
 		territory.seat_name,
