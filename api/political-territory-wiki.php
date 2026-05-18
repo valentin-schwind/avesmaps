@@ -589,7 +589,7 @@ function legacyRowAliases(array $row): array {
     if ($name !== '') {
         $aliases[] = $name;
 
-        $withoutParenthesis = trim(preg_replace('/\s*\([^)]*\)\s*$/u', '', $name) ?? $name);
+        $withoutParenthesis = stripLegacyParentheticalSuffix($name);
         if ($withoutParenthesis !== '') {
             $aliases[] = $withoutParenthesis;
         }
@@ -601,7 +601,7 @@ function legacyRowAliases(array $row): array {
         if ($title !== '') {
             $aliases[] = $title;
 
-            $withoutParenthesis = trim(preg_replace('/\s*\([^)]*\)\s*$/u', '', $title) ?? $title);
+            $withoutParenthesis = stripLegacyParentheticalSuffix($title);
             if ($withoutParenthesis !== '') {
                 $aliases[] = $withoutParenthesis;
             }
@@ -800,9 +800,22 @@ function canonicalItemKey(array $item): string {
 }
 
 function legacyNodeKey(string $value): string {
-    $value = trim(preg_replace('/\s*\([^)]*\)\s*$/u', '', $value) ?? $value);
+    $value = stripLegacyParentheticalSuffix($value);
 
     return makeStableKey($value);
+}
+
+function stripLegacyParentheticalSuffix(string $value): string {
+    $normalizedValue = trim($value);
+    if ($normalizedValue === '') {
+        return '';
+    }
+
+    if (preg_match('/\(\s*historisch\s*\)\s*$/iu', $normalizedValue) === 1) {
+        return $normalizedValue;
+    }
+
+    return trim(preg_replace('/\s*\([^)]*\)\s*$/u', '', $normalizedValue) ?? $normalizedValue);
 }
 
 function makeStableKey(string $value): string {
