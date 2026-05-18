@@ -1460,15 +1460,15 @@ function avesmapsWikiSyncBuildPoliticalTerritoryTree(array $rows, bool $includeP
     }
     $territories = [];
 
-    foreach ($path as $part) {
-        $part = avesmapsWikiSyncResolvePoliticalPathPart($rowIndex, $part);
-        $key = avesmapsWikiSyncMakePoliticalTreeKey($part);
-        if ($key === '') {
-            continue;
+    foreach ($rows as $index => $row) {
+        $path = avesmapsWikiSyncReadPoliticalTerritoryPath($row);
+        if (avesmapsWikiSyncIsIndependentPoliticalTerritoryPath($path)) {
+            $path = [];
         }
 
         $current =& $root;
         foreach ($path as $part) {
+            $part = avesmapsWikiSyncResolvePoliticalPathPart($rowIndex, $part);
             $key = avesmapsWikiSyncMakePoliticalTreeKey($part);
             if ($key === '') {
                 continue;
