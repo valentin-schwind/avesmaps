@@ -1017,10 +1017,10 @@ function avesmapsWikiSyncCreatePoliticalTerritoryRowIdentityKey(array $row): str
     if ($wikiUrl !== '') {
         $wikiTitle = avesmapsWikiSyncPoliticalTerritoryTitleFromUrl($wikiUrl);
         if ($wikiTitle !== '') {
-            return 'wiki_title|' . avesmapsWikiSyncCreateMatchKeyPreservingHistoricalSuffix($wikiTitle);
+            return 'wiki_title|' . avesmapsWikiSyncCreateMatchKeyPreservingParentheticalSuffix($wikiTitle);
         }
 
-        return 'wiki_url|' . avesmapsWikiSyncCreateMatchKeyPreservingHistoricalSuffix($wikiUrl);
+        return 'wiki_url|' . avesmapsWikiSyncCreateMatchKeyPreservingParentheticalSuffix($wikiUrl);
     }
 
     $name = trim((string) ($row['name'] ?? ''));
@@ -1029,8 +1029,8 @@ function avesmapsWikiSyncCreatePoliticalTerritoryRowIdentityKey(array $row): str
     }
 
     $type = trim((string) ($row['type'] ?? ''));
-    return 'name|' . avesmapsWikiSyncCreateMatchKeyPreservingHistoricalSuffix($name)
-        . '|type|' . avesmapsWikiSyncCreateMatchKeyPreservingHistoricalSuffix($type);
+    return 'name|' . avesmapsWikiSyncCreateMatchKeyPreservingParentheticalSuffix($name)
+        . '|type|' . avesmapsWikiSyncCreateMatchKeyPreservingParentheticalSuffix($type);
 }
 
 function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): array {
@@ -1195,8 +1195,8 @@ function avesmapsWikiSyncResolvePoliticalTerritoryName(string $rawName, string $
     }
 
     if (
-        avesmapsWikiSyncHasHistoricalSuffix($normalizedRawName)
-        && !avesmapsWikiSyncHasHistoricalSuffix($normalizedCanonicalName)
+        avesmapsWikiSyncHasTrailingParentheticalSuffix($normalizedRawName)
+        && !avesmapsWikiSyncHasTrailingParentheticalSuffix($normalizedCanonicalName)
     ) {
         return $normalizedRawName;
     }
@@ -1204,8 +1204,8 @@ function avesmapsWikiSyncResolvePoliticalTerritoryName(string $rawName, string $
     return $normalizedCanonicalName;
 }
 
-function avesmapsWikiSyncHasHistoricalSuffix(string $value): bool {
-    return preg_match('/\(\s*historisch\s*\)\s*$/iu', $value) === 1;
+function avesmapsWikiSyncHasTrailingParentheticalSuffix(string $value): bool {
+    return preg_match('/\([^)]*\)\s*$/u', $value) === 1;
 }
 
 function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent(string $content): array {
@@ -2510,7 +2510,7 @@ function avesmapsWikiSyncReadPoliticalTerritoryPath(array $row): array {
 
     $clauses = array_values(array_filter(array_map(
         static fn(string $part): string => trim($part),
-        preg_split('/\s*(?:[;]|,\s*(?=(?:ehemals|frueher|historisch|vormals)\b))\s*/iu', $affiliation) ?: []
+        preg_split('/\s*(?:[;]|,\s*(?=(?:ehemals|frueher|vormals)\b))\s*/iu', $affiliation) ?: []
     )));
 
     $selectedClause = '';
@@ -2524,7 +2524,7 @@ function avesmapsWikiSyncReadPoliticalTerritoryPath(array $row): array {
 
     if ($selectedClause === '') {
         foreach ($clauses as $clause) {
-            if (preg_match('/^(?:ehemals|frueher|historisch)\b/iu', $clause) === 1) {
+            if (preg_match('/^(?:ehemals|frueher)\b/iu', $clause) === 1) {
                 continue;
             }
 
@@ -2606,7 +2606,7 @@ function avesmapsWikiSyncNormalizePoliticalPathPart(string $value): string {
     $normalized = preg_replace('/\[[^\]]*\]/u', '', $normalized) ?? $normalized;
 
     $normalized = preg_replace(
-        '/^(?:politisch|sowie|und|zuvor|ehemals|frueher|historisch|vormals)\s+/iu',
+        '/^(?:politisch|sowie|und|zuvor|ehemals|frueher|vormals)\s+/iu',
         '',
         $normalized
     ) ?? $normalized;
@@ -2617,7 +2617,7 @@ function avesmapsWikiSyncNormalizePoliticalPathPart(string $value): string {
         $normalized
     ) ?? $normalized;
 
-    $normalized = preg_split('/\s*(?:[;]|,\s*(?=(?:ehemals|frueher|historisch|vormals)\b))\s*/iu', $normalized)[0] ?? $normalized;
+    $normalized = preg_split('/\s*(?:[;]|,\s*(?=(?:ehemals|frueher|vormals)\b))\s*/iu', $normalized)[0] ?? $normalized;
 
     return trim($normalized, " \t\n\r\0\x0B,:;");
 }
@@ -2633,7 +2633,7 @@ function avesmapsWikiSyncResolvePoliticalPathPart(array $rowIndex, string $part)
         return $normalizedPart;
     }
 
-    $candidateBeforeSemicolon = trim((string) (preg_split('/\s*(?:[;]|,\s*(?=(?:ehemals|frueher|historisch|vormals)\b))\s*/iu', $normalizedPart)[0] ?? $normalizedPart));
+    $candidateBeforeSemicolon = trim((string) (preg_split('/\s*(?:[;]|,\s*(?=(?:ehemals|frueher|vormals)\b))\s*/iu', $normalizedPart)[0] ?? $normalizedPart));
     $candidateKey = avesmapsWikiSyncMakePoliticalTreeKey($candidateBeforeSemicolon);
 
     if ($candidateKey !== '' && isset($rowIndex[$candidateKey])) {
@@ -2709,7 +2709,7 @@ function avesmapsWikiSyncComparePoliticalTreeNodes(array $left, array $right): i
 }
 
 function avesmapsWikiSyncMakePoliticalTreeKey(string $value): string {
-    return avesmapsWikiSyncCreateMatchKeyPreservingHistoricalSuffix($value);
+    return avesmapsWikiSyncCreateMatchKeyPreservingParentheticalSuffix($value);
 }
 
 function avesmapsWikiSyncNormalizeWikiTreeText(string $value): string {
@@ -3959,13 +3959,13 @@ function avesmapsWikiSyncCreateMatchKey(string $value): string {
     return avesmapsWikiSyncCreateMatchKeyInternal($value, false);
 }
 
-function avesmapsWikiSyncCreateMatchKeyPreservingHistoricalSuffix(string $value): string {
+function avesmapsWikiSyncCreateMatchKeyPreservingParentheticalSuffix(string $value): string {
     return avesmapsWikiSyncCreateMatchKeyInternal($value, true);
 }
 
 function avesmapsWikiSyncCreateMatchKeyInternal(string $value, bool $preserveHistoricalSuffix): string {
     $value = $preserveHistoricalSuffix
-        ? avesmapsWikiSyncStripParentheticalSuffixExceptHistorical($value)
+        ? avesmapsWikiSyncStripParentheticalSuffixPreservingSuffix($value)
         : avesmapsWikiSyncStripParentheticalSuffix($value);
     $value = mb_strtolower($value);
     $value = str_replace(["\u{00DF}", "\u{00E6}", "\u{0153}", "\u{00F8}", "\u{00F0}", "\u{00FE}"], ['ss', 'ae', 'oe', 'o', 'd', 'th'], $value);
@@ -3985,7 +3985,7 @@ function avesmapsWikiSyncStripParentheticalSuffix(string $title): string {
     return avesmapsWikiSyncStripParentheticalSuffixInternal($title, false);
 }
 
-function avesmapsWikiSyncStripParentheticalSuffixExceptHistorical(string $title): string {
+function avesmapsWikiSyncStripParentheticalSuffixPreservingSuffix(string $title): string {
     return avesmapsWikiSyncStripParentheticalSuffixInternal($title, true);
 }
 
@@ -3995,7 +3995,7 @@ function avesmapsWikiSyncStripParentheticalSuffixInternal(string $title, bool $p
         return '';
     }
 
-    if ($preserveHistoricalSuffix && avesmapsWikiSyncHasHistoricalSuffix($normalizedTitle)) {
+    if ($preserveHistoricalSuffix && avesmapsWikiSyncHasTrailingParentheticalSuffix($normalizedTitle)) {
         return $normalizedTitle;
     }
 

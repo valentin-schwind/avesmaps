@@ -811,11 +811,7 @@ function stripLegacyParentheticalSuffix(string $value): string {
         return '';
     }
 
-    if (preg_match('/\(\s*historisch\s*\)\s*$/iu', $normalizedValue) === 1) {
-        return $normalizedValue;
-    }
-
-    return trim(preg_replace('/\s*\([^)]*\)\s*$/u', '', $normalizedValue) ?? $normalizedValue);
+    return $normalizedValue;
 }
 
 function makeStableKey(string $value): string {
