@@ -4207,17 +4207,23 @@ function avesmapsWikiSyncFetchLatestCompletedRun(PDO $pdo): ?array {
     return $run ?: null;
 }
 
-function avesmapsWikiSyncFetchLatestActiveRun(PDO $pdo): ?array {
-    $statement = $pdo->query(
-        "SELECT *
+function avesmapsWikiSyncFetchLatestActiveRun(PDO $pdo, string $syncType = AVESMAPS_WIKI_SYNC_TYPE_LOCATION): ?array {
+    $statement = $pdo->prepare(
+        'SELECT *
         FROM wiki_sync_runs
-        WHERE status = 'running'
+        WHERE sync_type = :sync_type
+            AND status = :status
+            AND updated_at >= DATE_SUB(CURRENT_TIMESTAMP(3), INTERVAL ' . AVESMAPS_WIKI_LOCK_TTL_SECONDS . ' SECOND)
         ORDER BY updated_at DESC, id DESC
-        LIMIT 1"
+        LIMIT 1'
     );
-    $run = $statement !== false ? $statement->fetch() : false;
+    $statement->execute([
+        'sync_type' => $syncType,
+        'status' => 'running',
+    ]);
 
-    return $run ?: null;
+    $run = $statement->fetch(PDO::FETCH_ASSOC);
+    return is_array($run) ? $run : null;
 }
 
 function avesmapsWikiSyncPublicRun(array $run): array {
