@@ -1125,6 +1125,27 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
         }
 
         $details = avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent($content);
+        $htmlDetails = [];
+
+        try {
+            $html = avesmapsWikiSyncFetchParsedWikiHtml($title);
+            $htmlDetails = avesmapsWikiSyncParsePoliticalTerritoryDetailsFromHtml($html);
+        } catch (Throwable $exception) {
+            avesmapsWikiSyncLogServerError('political_territory_detail_html_parse_error', [
+                'title' => $title,
+                'exception_class' => $exception::class,
+                'exception_message' => $exception->getMessage(),
+            ]);
+        }
+
+        foreach ($htmlDetails as $key => $value) {
+            if (
+                (string) ($details[$key] ?? '') === ''
+                && (string) $value !== ''
+            ) {
+                $details[$key] = $value;
+            }
+        }
         $childTerritories = is_array($details['child_territories'] ?? null)
             ? $details['child_territories']
             : [];
@@ -1718,6 +1739,87 @@ function avesmapsWikiSyncParsePoliticalTerritoryTable(DOMElement $table): array 
     }
 
     return $rows;
+}
+
+function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromHtml(string $html): array {
+    if (!class_exists(DOMDocument::class)) {
+        return [];
+    }
+
+    $document = new DOMDocument();
+    @$document->loadHTML('<?xml encoding="UTF-8">' . $html);
+
+    $details = [];
+
+    foreach ($document->getElementsByTagName('tr') as $row) {
+        if (!$row instanceof DOMElement) {
+            continue;
+        }
+
+        $cells = [];
+        foreach ($row->childNodes as $child) {
+            if ($child instanceof DOMElement && in_array(strtolower($child->tagName), ['th', 'td'], true)) {
+                $cells[] = $child;
+            }
+        }
+
+        if (count($cells) !== 2) {
+            continue;
+        }
+
+        $key = avesmapsWikiSyncNormalizeRenderedPoliticalDetailKey($cells[0]->textContent);
+        $value = avesmapsWikiSyncNormalizeWikiTreeText($cells[1]->textContent);
+
+        if ($key === '' || $value === '') {
+            continue;
+        }
+
+        $targetKey = avesmapsWikiSyncMapRenderedPoliticalDetailKey($key);
+        if ($targetKey === '') {
+            continue;
+        }
+
+        if (!isset($details[$targetKey]) || (string) $details[$targetKey] === '') {
+            $details[$targetKey] = $value;
+        }
+    }
+
+    return $details;
+}
+
+function avesmapsWikiSyncNormalizeRenderedPoliticalDetailKey(string $key): string {
+    $key = avesmapsWikiSyncNormalizeWikiTreeText($key);
+    $key = preg_replace('/\[[^\]]+\]/u', '', $key) ?? $key;
+    $key = preg_replace('/:\s*$/u', '', $key) ?? $key;
+
+    return trim($key);
+}
+
+function avesmapsWikiSyncMapRenderedPoliticalDetailKey(string $key): string {
+    $normalized = avesmapsWikiSyncCreateMatchKey($key);
+
+    return match ($normalized) {
+        'art', 'typ', 'herrschaftsgebiet' => 'type',
+        'kontinent' => 'continent',
+        'status' => 'status',
+        'herrschaftsform' => 'form_of_government',
+        'hauptstadt' => 'capital_name',
+        'herrschaftssitz' => 'seat_name',
+        'oberhaupt' => 'ruler',
+        'sprache' => 'language',
+        'wahrung', 'waehrung' => 'currency',
+        'handelswaren' => 'trade_goods',
+        'einwohnerzahl' => 'population',
+        'grundungsdatum', 'gruendungsdatum' => 'founded_text',
+        'grunder', 'gruender' => 'founder',
+        'aufgelost', 'aufgeloest' => 'dissolved_text',
+        'zugehorigkeit', 'zugehoerigkeit', 'staat' => 'affiliation',
+        'geographisch' => 'geographic',
+        'politisch' => 'political',
+        'handelszone' => 'trade_zone',
+        'blasonierung' => 'blazon',
+        default => '',
+    };
 }
 
 function avesmapsWikiSyncShouldUsePoliticalTerritoryDetailValue(string $key, string $currentValue, string $candidateValue): bool {
