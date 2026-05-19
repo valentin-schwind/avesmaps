@@ -4060,7 +4060,7 @@ async function loadPoliticalTerritoryOptions({ force = false } = {}) {
 	politicalTerritoryOptionsLoading = true;
 	politicalTerritoryOptionsPromise = (async () => {
 		try {
-			const response = await fetchWikiSyncData({
+			const response = await fetchWikiSyncTerritoryData({
 				action: "territories_tree",
 				force_refresh: force ? 1 : undefined,
 			});
