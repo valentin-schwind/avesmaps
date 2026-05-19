@@ -128,3 +128,50 @@ function avesmapsWikiSyncApiRequest(array $params): array {
 
     return $data;
 }
+
+function avesmapsWikiSyncCreateMatchKey(string $value): string {
+    return avesmapsWikiSyncCreateMatchKeyInternal($value, false);
+}
+
+function avesmapsWikiSyncCreateMatchKeyPreservingParentheticalSuffix(string $value): string {
+    return avesmapsWikiSyncCreateMatchKeyInternal($value, true);
+}
+
+function avesmapsWikiSyncCreateMatchKeyInternal(string $value, bool $preserveHistoricalSuffix): string {
+    $value = $preserveHistoricalSuffix
+        ? avesmapsWikiSyncStripParentheticalSuffixPreservingSuffix($value)
+        : avesmapsWikiSyncStripParentheticalSuffix($value);
+    $value = mb_strtolower($value);
+    $value = str_replace(["\u{00DF}", "\u{00E6}", "\u{0153}", "\u{00F8}", "\u{00F0}", "\u{00FE}"], ['ss', 'ae', 'oe', 'o', 'd', 'th'], $value);
+    if (function_exists('iconv')) {
+        $transliteratedValue = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+        if (is_string($transliteratedValue)) {
+            $value = $transliteratedValue;
+        }
+    }
+    $value = preg_replace('/[\s_\-\'\x{2019}\x{02BC}`\x{00B4}]+/u', '', $value) ?? '';
+    $value = preg_replace('/[^a-z0-9]+/u', '', $value) ?? '';
+
+    return $value;
+}
+
+function avesmapsWikiSyncStripParentheticalSuffix(string $title): string {
+    return avesmapsWikiSyncStripParentheticalSuffixInternal($title, false);
+}
+
+function avesmapsWikiSyncStripParentheticalSuffixPreservingSuffix(string $title): string {
+    return avesmapsWikiSyncStripParentheticalSuffixInternal($title, true);
+}
+
+function avesmapsWikiSyncStripParentheticalSuffixInternal(string $title, bool $preserveHistoricalSuffix): string {
+    $normalizedTitle = trim($title);
+    if ($normalizedTitle === '') {
+        return '';
+    }
+
+    if ($preserveHistoricalSuffix && avesmapsWikiSyncHasTrailingParentheticalSuffix($normalizedTitle)) {
+        return $normalizedTitle;
+    }
+
+    return trim(preg_replace('/\s+\([^)]*\)\s*$/u', '', $normalizedTitle) ?? $normalizedTitle);
+}
