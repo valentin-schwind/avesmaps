@@ -2759,7 +2759,8 @@ function avesmapsPoliticalUnassignGeometry(PDO $pdo, array $payload): array {
         $pdo,
         avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? '')
     );
-    $territory = avesmapsPoliticalFetchTerritoryById($pdo, (int) ($geometry['territory_id'] ?? 0));
+    $territoryId = (int) ($geometry['territory_id'] ?? 0);
+    $territory = $territoryId > 0 ? avesmapsPoliticalFetchTerritoryById($pdo, $territoryId) : null;
     $style = avesmapsPoliticalDecodeJson($geometry['style_json'] ?? null);
     [$minZoom, $maxZoom] = avesmapsPoliticalResolveUnassignedGeometryZoomRange($geometry, $territory, $style);
 
@@ -2788,7 +2789,7 @@ function avesmapsPoliticalUnassignGeometry(PDO $pdo, array $payload): array {
     ];
 }
 
-function avesmapsPoliticalResolveUnassignedGeometryZoomRange(array $geometry, array $territory, array $style): array {
+function avesmapsPoliticalResolveUnassignedGeometryZoomRange(array $geometry, ?array $territory, array $style): array {
     $fallbackMinZoom = avesmapsPoliticalNullableInt($geometry['min_zoom'] ?? null);
     $fallbackMaxZoom = avesmapsPoliticalNullableInt($geometry['max_zoom'] ?? null);
     $territoryMinZoom = avesmapsPoliticalNullableInt($territory['min_zoom'] ?? null);
