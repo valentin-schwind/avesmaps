@@ -1805,12 +1805,15 @@ function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromHtml(string $html): a
             }
         }
 
-        if (count($cells) !== 2) {
+        if (count($cells) < 2) {
             continue;
         }
 
-        $rawKey = avesmapsWikiSyncNormalizeRenderedPoliticalDetailKey($cells[0]->textContent);
-        $value = avesmapsWikiSyncNormalizeWikiTreeText($cells[1]->textContent);
+        $keyCell = $cells[0];
+        $valueCell = $cells[count($cells) - 1];
+
+        $rawKey = avesmapsWikiSyncNormalizeRenderedPoliticalDetailKey($keyCell->textContent);
+        $value = avesmapsWikiSyncNormalizeWikiTreeText($valueCell->textContent);
 
         if ($rawKey === '' || $value === '') {
             continue;
@@ -1856,14 +1859,36 @@ function avesmapsWikiSyncMapRenderedPoliticalDetailKey(string $key): string {
         'wahrung', 'waehrung' => 'currency',
         'handelswaren' => 'trade_goods',
         'einwohnerzahl' => 'population',
-        'grundungsdatum', 'gruendungsdatum' => 'founded_text',
-        'grunder', 'gruender' => 'founder',
-        'aufgelost', 'aufgeloest' => 'dissolved_text',
-        'zugehorigkeit', 'zugehoerigkeit', 'staat' => 'affiliation',
+
+        'grundungsdatum',
+        'gruendungsdatum',
+        'grundungsjahr',
+        'gruendungsjahr',
+        'grundung',
+        'gruendung',
+        'gegrundet',
+        'gegruendet' => 'founded_text',
+
+        'grunder',
+        'gruender' => 'founder',
+
+        'aufgelost',
+        'aufgeloest',
+        'auflosung',
+        'aufloesung',
+        'ende',
+        'endjahr',
+        'bis' => 'dissolved_text',
+
+        'zugehorigkeit',
+        'zugehoerigkeit',
+        'staat' => 'affiliation',
+
         'geographisch' => 'geographic',
         'politisch' => 'political',
         'handelszone' => 'trade_zone',
         'blasonierung' => 'blazon',
+
         default => '',
     };
 }
