@@ -3927,7 +3927,7 @@ async function loadWikiSyncCases() {
 		return;
 	}
 
-	setWikiSyncStatus("WikiSyncLocations-Fälle werden geladen...", "pending");
+	setWikiSyncStatus("WikiSync-Fälle werden geladen...", "pending");
 	try {
 		const data = await fetchWikiSyncData({ action: "cases" });
 
@@ -4825,6 +4825,7 @@ function formatWikiSyncCaseStatus(status) {
 function formatWikiSyncMatchKind(matchKind) {
 	const labels = {
 		exact: "exakter Titel",
+		wiki_url: "Wiki-Link",
 		redirect: "Wiki-Weiterleitung",
 		normalized: "normalisierter Titel",
 		search: "Wiki-Suche",
