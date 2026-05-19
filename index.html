@@ -172,9 +172,14 @@
 		</section>
 		<section class="review-panel__section" data-editor-panel-section="wiki-sync">
 			<div class="wiki-sync-panel__actions">
-				<button id="wiki-sync-start" class="wiki-sync-panel__start" type="button">WikiSyncLocations</button>
-				<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button">WikiSyncTerritories</button>
-				<progress id="wiki-sync-progress" class="wiki-sync-progress" max="5" value="0" hidden></progress>
+				<div class="wiki-sync-panel__action">
+					<button id="wiki-sync-start" class="wiki-sync-panel__start" type="button">WikiSyncLocations</button>
+					<progress id="wiki-sync-progress-locations" class="wiki-sync-progress" max="5" value="0" hidden></progress>
+				</div>
+				<div class="wiki-sync-panel__action">
+					<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button">WikiSyncTerritories</button>
+					<progress id="wiki-sync-progress-territories" class="wiki-sync-progress" max="5" value="0" hidden></progress>
+				</div>
 			</div>
 			<p id="wiki-sync-status" class="review-panel__status" role="status" aria-live="polite">WikiSync ist bereit.</p>
 			<h3 class="wiki-sync-panel__list-title">Siedlungen aus dem Wiki</h3>
@@ -910,6 +915,8 @@
 			wikiSyncTerritorySummary = null,
 			activeWikiSyncRunId = null,
 			activeWikiSyncRunStatus = "",
+			activeWikiSyncTerritoryRunId = null,
+			activeWikiSyncTerritoryRunStatus = "",
 			activeWikiSyncCase = null,
 			activeWikiSyncSelectedMap = null,
 			activeWikiSyncSelectedWiki = null,

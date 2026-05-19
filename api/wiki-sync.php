@@ -16,6 +16,8 @@ const AVESMAPS_WIKI_SEARCH_RESULT_LIMIT = 5;
 const AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS = 30;
 const AVESMAPS_WIKI_FUZZY_CUTOFF = 0.82;
 const AVESMAPS_WIKI_SYNC_TYPE_LOCATION = 'location';
+const AVESMAPS_WIKI_SYNC_TYPE_TERRITORY = 'territory';
+const AVESMAPS_WIKI_TERRITORY_DETAIL_CHUNK_SIZE = 12;
 const AVESMAPS_WIKI_LOCK_TTL_SECONDS = 120;
 const AVESMAPS_WIKI_POLITICAL_TERRITORY_SEED_PAGES = [
     'Baronie/Liste',
@@ -142,6 +144,8 @@ try {
     $response = match ($action) {
         'start_run' => avesmapsWikiSyncStartRun($pdo, $user),
         'advance_run' => avesmapsWikiSyncAdvanceRun($pdo, $payload),
+        'start_territory_run' => avesmapsWikiSyncStartTerritoryRun($pdo, avesmapsRequireUserWithCapability('edit')),
+        'advance_territory_run' => avesmapsWikiSyncAdvanceTerritoryRun($pdo, $payload, avesmapsRequireUserWithCapability('edit')),
         'sync_territories' => avesmapsWikiSyncSyncTerritories($pdo, avesmapsRequireUserWithCapability('edit')),
         'defer_case' => avesmapsWikiSyncUpdateCaseStatus($pdo, $payload, $user, 'deferred'),
         'archive_case' => avesmapsWikiSyncUpdateCaseStatus($pdo, $payload, $user, 'archived'),
@@ -344,6 +348,187 @@ function avesmapsWikiSyncAdvanceRun(PDO $pdo, array $payload): array {
     ];
 }
 
+function avesmapsWikiSyncStartTerritoryRun(PDO $pdo, array $user): array {
+    avesmapsWikiSyncRelaxLimits();
+
+    $activeRun = avesmapsWikiSyncFetchLatestActiveRunByType($pdo, AVESMAPS_WIKI_SYNC_TYPE_TERRITORY);
+    if ($activeRun !== null) {
+        return [
+            'ok' => true,
+            'run' => avesmapsWikiSyncPublicRun($activeRun),
+            'territory_summary' => null,
+        ];
+    }
+
+    $publicId = avesmapsWikiSyncUuidV4();
+    $statement = $pdo->prepare(
+        'INSERT INTO wiki_sync_runs (public_id, sync_type, status, phase, progress_current, progress_total, message, stats_json, created_by)
+        VALUES (:public_id, :sync_type, :status, :phase, 0, 1, :message, :stats_json, :created_by)'
+    );
+    $statement->execute([
+        'public_id' => $publicId,
+        'sync_type' => AVESMAPS_WIKI_SYNC_TYPE_TERRITORY,
+        'status' => 'running',
+        'phase' => 'seed',
+        'message' => 'Herrschaftsgebiete werden vorbereitet.',
+        'stats_json' => avesmapsWikiSyncEncodeJson([]),
+        'created_by' => (int) ($user['id'] ?? 0) ?: null,
+    ]);
+
+    return [
+        'ok' => true,
+        'run' => avesmapsWikiSyncPublicRun(avesmapsWikiSyncFetchRunByPublicId($pdo, $publicId)),
+        'territory_summary' => null,
+    ];
+}
+
+function avesmapsWikiSyncAdvanceTerritoryRun(PDO $pdo, array $payload, array $user): array {
+    unset($user);
+    avesmapsWikiSyncRelaxLimits();
+
+    $runPublicId = avesmapsWikiSyncReadPublicId($payload['run_id'] ?? '');
+    $run = avesmapsWikiSyncFetchRunByPublicId($pdo, $runPublicId);
+
+    if ((string) ($run['sync_type'] ?? '') !== AVESMAPS_WIKI_SYNC_TYPE_TERRITORY) {
+        throw new InvalidArgumentException('Der angeforderte WikiSync-Lauf ist kein Herrschaftsgebiets-Lauf.');
+    }
+
+    if ((string) ($run['status'] ?? '') === 'completed') {
+        return [
+            'ok' => true,
+            'run' => avesmapsWikiSyncPublicRun($run),
+            'territory_summary' => avesmapsWikiSyncBuildTerritorySummaryFromCache($pdo),
+        ];
+    }
+
+    if ((string) ($run['status'] ?? '') !== 'running') {
+        throw new RuntimeException('Dieser WikiSyncTerritories-Lauf ist nicht aktiv.');
+    }
+
+    $runId = (int) ($run['id'] ?? 0);
+    $phase = (string) ($run['phase'] ?? '');
+    $stats = avesmapsWikiSyncDecodeJson($run['stats_json'] ?? null);
+    $stats = is_array($stats) ? $stats : [];
+
+    if ($phase === 'seed') {
+        $existingTemporalByWikiKey = avesmapsWikiSyncReadPoliticalTerritoryTemporalIndex($pdo);
+        avesmapsWikiSyncResetPoliticalTerritoryWikiTable($pdo);
+
+        $seedRows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki(false);
+        $normalizedSeedRows = avesmapsWikiSyncNormalizeAndPersistPoliticalTerritoryRows($pdo, $seedRows, $existingTemporalByWikiKey);
+        $queue = avesmapsWikiSyncBuildTerritoryRunQueue($normalizedSeedRows);
+        $queueTotal = count($queue);
+
+        $stats = [
+            'seed_count' => count($normalizedSeedRows),
+            'queue' => $queue,
+            'offset' => 0,
+            'chunk_size' => AVESMAPS_WIKI_TERRITORY_DETAIL_CHUNK_SIZE,
+        ];
+
+        if ($queueTotal < 1) {
+            $territorySummary = avesmapsWikiSyncBuildTerritorySummaryFromCache($pdo);
+            $stats['territory_summary'] = $territorySummary;
+            avesmapsWikiSyncUpdateRun($pdo, $runId, 'completed', 'completed', 0, 'Keine Herrschaftsgebiete gefunden.', $stats, 1);
+            $pdo->prepare('UPDATE wiki_sync_runs SET completed_at = CURRENT_TIMESTAMP(3) WHERE id = :id')->execute(['id' => $runId]);
+        } else {
+            avesmapsWikiSyncUpdateRun(
+                $pdo,
+                $runId,
+                'running',
+                'details',
+                0,
+                "WikiSyncTerritories: 0/{$queueTotal} Herrschaftsgebiete aktualisiert.",
+                $stats,
+                $queueTotal
+            );
+        }
+    } elseif ($phase === 'details') {
+        $queue = is_array($stats['queue'] ?? null) ? $stats['queue'] : [];
+        $queueTotal = count($queue);
+        $offset = max(0, (int) ($stats['offset'] ?? 0));
+        $chunkSize = max(1, (int) ($stats['chunk_size'] ?? AVESMAPS_WIKI_TERRITORY_DETAIL_CHUNK_SIZE));
+        $chunk = array_slice($queue, $offset, $chunkSize);
+        $chunkCount = count($chunk);
+
+        if ($queueTotal < 1 || $chunkCount < 1) {
+            $territorySummary = avesmapsWikiSyncBuildTerritorySummaryFromCache($pdo);
+            $stats['territory_summary'] = $territorySummary;
+            avesmapsWikiSyncUpdateRun(
+                $pdo,
+                $runId,
+                'completed',
+                'completed',
+                $queueTotal,
+                'WikiSyncTerritories abgeschlossen.',
+                $stats,
+                max(1, $queueTotal)
+            );
+            $pdo->prepare('UPDATE wiki_sync_runs SET completed_at = CURRENT_TIMESTAMP(3) WHERE id = :id')->execute(['id' => $runId]);
+        } else {
+            $wikiKeys = [];
+            foreach ($chunk as $entry) {
+                $wikiKey = trim((string) ($entry['wiki_key'] ?? ''));
+                if ($wikiKey !== '') {
+                    $wikiKeys[] = $wikiKey;
+                }
+            }
+
+            $chunkRows = avesmapsWikiSyncReadPoliticalTerritoryRowsByWikiKeys($pdo, $wikiKeys);
+            if ($chunkRows !== []) {
+                $enrichedChunkRows = avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki($chunkRows);
+                avesmapsWikiSyncNormalizeAndPersistPoliticalTerritoryRows($pdo, $enrichedChunkRows);
+            }
+
+            $newOffset = min($queueTotal, $offset + $chunkCount);
+            $stats['offset'] = $newOffset;
+            if ($newOffset >= $queueTotal) {
+                $territorySummary = avesmapsWikiSyncBuildTerritorySummaryFromCache($pdo);
+                $stats['territory_summary'] = $territorySummary;
+                avesmapsWikiSyncUpdateRun(
+                    $pdo,
+                    $runId,
+                    'completed',
+                    'completed',
+                    $queueTotal,
+                    'WikiSyncTerritories abgeschlossen.',
+                    $stats,
+                    max(1, $queueTotal)
+                );
+                $pdo->prepare('UPDATE wiki_sync_runs SET completed_at = CURRENT_TIMESTAMP(3) WHERE id = :id')->execute(['id' => $runId]);
+            } else {
+                avesmapsWikiSyncUpdateRun(
+                    $pdo,
+                    $runId,
+                    'running',
+                    'details',
+                    $newOffset,
+                    "WikiSyncTerritories: {$newOffset}/{$queueTotal} Herrschaftsgebiete aktualisiert.",
+                    $stats,
+                    max(1, $queueTotal)
+                );
+            }
+        }
+    } else {
+        throw new RuntimeException('Die WikiSyncTerritories-Phase ist unbekannt.');
+    }
+
+    $updatedRun = avesmapsWikiSyncFetchRunByPublicId($pdo, $runPublicId);
+    $updatedStats = avesmapsWikiSyncDecodeJson($updatedRun['stats_json'] ?? null);
+    $territorySummary = null;
+    if ((string) ($updatedRun['status'] ?? '') === 'completed') {
+        $territorySummary = is_array($updatedStats) && is_array($updatedStats['territory_summary'] ?? null)
+            ? $updatedStats['territory_summary']
+            : avesmapsWikiSyncBuildTerritorySummaryFromCache($pdo);
+    }
+
+    return [
+        'ok' => true,
+        'run' => avesmapsWikiSyncPublicRun($updatedRun),
+        'territory_summary' => $territorySummary,
+    ];
+}
+
 function avesmapsWikiSyncReadPoliticalTerritoryTree(PDO $pdo, bool $forceRefresh = false): array {
     if ($forceRefresh) {
         $cachedTree = avesmapsWikiSyncReadPoliticalTerritoryTreeFromCache($pdo);
@@ -493,6 +678,14 @@ function avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache(PDO $pdo, bool $rese
     }
 
     $wikiRows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki(true);
+    return avesmapsWikiSyncNormalizeAndPersistPoliticalTerritoryRows($pdo, $wikiRows, $existingTemporalByWikiKey);
+}
+
+function avesmapsWikiSyncNormalizeAndPersistPoliticalTerritoryRows(
+    PDO $pdo,
+    array $wikiRows,
+    array $existingTemporalByWikiKey = []
+): array {
     $normalizedRowsByKey = [];
 
     foreach ($wikiRows as $row) {
@@ -616,6 +809,80 @@ function avesmapsWikiSyncSyncTerritories(PDO $pdo, array $user): array {
         'assigned_root_count' => $summary['assigned_root_count'],
         'territories' => $tree['territories'],
         'hierarchy' => $tree['hierarchy'],
+    ];
+}
+
+function avesmapsWikiSyncBuildTerritoryRunQueue(array $rows): array {
+    $queueByWikiKey = [];
+    foreach ($rows as $row) {
+        $wikiKey = trim((string) ($row['wiki_key'] ?? ''));
+        if ($wikiKey === '') {
+            continue;
+        }
+
+        $title = avesmapsWikiSyncPoliticalTerritoryTitleFromUrl((string) ($row['wiki_url'] ?? ''));
+        if ($title === '') {
+            $title = trim((string) ($row['name'] ?? ''));
+        }
+        if ($title === '') {
+            continue;
+        }
+
+        $queueByWikiKey[$wikiKey] = [
+            'wiki_key' => $wikiKey,
+            'title' => $title,
+        ];
+    }
+
+    $queue = array_values($queueByWikiKey);
+    usort(
+        $queue,
+        static fn(array $left, array $right): int => strnatcasecmp((string) ($left['title'] ?? ''), (string) ($right['title'] ?? ''))
+    );
+
+    return $queue;
+}
+
+function avesmapsWikiSyncReadPoliticalTerritoryRowsByWikiKeys(PDO $pdo, array $wikiKeys): array {
+    $lookup = [];
+    foreach ($wikiKeys as $wikiKey) {
+        $normalizedWikiKey = trim((string) $wikiKey);
+        if ($normalizedWikiKey !== '') {
+            $lookup[$normalizedWikiKey] = true;
+        }
+    }
+
+    if ($lookup === []) {
+        return [];
+    }
+
+    $rows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache($pdo);
+    $filteredRows = [];
+    foreach ($rows as $row) {
+        $wikiKey = (string) ($row['wiki_key'] ?? '');
+        if (!isset($lookup[$wikiKey])) {
+            continue;
+        }
+
+        $filteredRows[] = $row;
+    }
+
+    return $filteredRows;
+}
+
+function avesmapsWikiSyncBuildTerritorySummaryFromCache(PDO $pdo): array {
+    $rows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments(
+        avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache($pdo),
+        avesmapsWikiSyncReadPoliticalTerritoryMapAssignments($pdo)
+    );
+    $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($rows, false);
+    $summary = avesmapsWikiSyncBuildPoliticalTerritoryTreeAssignmentSummary($rows, $tree['hierarchy']);
+
+    return [
+        'territory_count' => count($rows),
+        'root_count' => count($tree['hierarchy']),
+        'assigned_territory_count' => (int) ($summary['assigned_territory_count'] ?? 0),
+        'assigned_root_count' => (int) ($summary['assigned_root_count'] ?? 0),
     ];
 }
 
@@ -3317,13 +3584,29 @@ function avesmapsWikiSyncNormalizeWikiTreeText(string $value): string {
 }
 
 function avesmapsWikiSyncListCases(PDO $pdo): array {
-    $run = avesmapsWikiSyncFetchLatestCompletedRun($pdo);
-    $activeRun = avesmapsWikiSyncFetchLatestActiveRun($pdo);
+    $run = avesmapsWikiSyncFetchLatestCompletedRunByType($pdo, AVESMAPS_WIKI_SYNC_TYPE_LOCATION);
+    $activeRun = avesmapsWikiSyncFetchLatestActiveRunByType($pdo, AVESMAPS_WIKI_SYNC_TYPE_LOCATION);
+    $latestTerritoryRun = avesmapsWikiSyncFetchLatestCompletedRunByType($pdo, AVESMAPS_WIKI_SYNC_TYPE_TERRITORY);
+    $activeTerritoryRun = avesmapsWikiSyncFetchLatestActiveRunByType($pdo, AVESMAPS_WIKI_SYNC_TYPE_TERRITORY);
+    $territorySummary = null;
+    if ($latestTerritoryRun !== null) {
+        $territoryStats = avesmapsWikiSyncDecodeJson($latestTerritoryRun['stats_json'] ?? null);
+        if (is_array($territoryStats) && is_array($territoryStats['territory_summary'] ?? null)) {
+            $territorySummary = $territoryStats['territory_summary'];
+        }
+    }
+    if ($territorySummary === null && avesmapsWikiSyncCountCachedPoliticalTerritories($pdo) > 0) {
+        $territorySummary = avesmapsWikiSyncBuildTerritorySummaryFromCache($pdo);
+    }
+
     if ($run === null) {
         return [
             'ok' => true,
             'latest_run' => null,
             'active_run' => $activeRun === null ? null : avesmapsWikiSyncPublicRun($activeRun),
+            'latest_territory_run' => $latestTerritoryRun === null ? null : avesmapsWikiSyncPublicRun($latestTerritoryRun),
+            'active_territory_run' => $activeTerritoryRun === null ? null : avesmapsWikiSyncPublicRun($activeTerritoryRun),
+            'territory_summary' => $territorySummary,
             'summary' => [
                 'case_count' => 0,
                 'visible_count' => 0,
@@ -3368,6 +3651,9 @@ function avesmapsWikiSyncListCases(PDO $pdo): array {
         'ok' => true,
         'latest_run' => avesmapsWikiSyncPublicRun($run),
         'active_run' => $activeRun === null ? null : avesmapsWikiSyncPublicRun($activeRun),
+        'latest_territory_run' => $latestTerritoryRun === null ? null : avesmapsWikiSyncPublicRun($latestTerritoryRun),
+        'active_territory_run' => $activeTerritoryRun === null ? null : avesmapsWikiSyncPublicRun($activeTerritoryRun),
+        'territory_summary' => $territorySummary,
         'summary' => avesmapsWikiSyncBuildSummary($pdo, (int) $run['id']),
         'cases' => $cases,
     ];
@@ -4720,30 +5006,42 @@ function avesmapsWikiSyncFetchRunByPublicId(PDO $pdo, string $publicId): array {
     return $run;
 }
 
-function avesmapsWikiSyncFetchLatestCompletedRun(PDO $pdo): ?array {
-    $statement = $pdo->query(
+function avesmapsWikiSyncFetchLatestCompletedRunByType(PDO $pdo, string $syncType): ?array {
+    $statement = $pdo->prepare(
         "SELECT *
         FROM wiki_sync_runs
         WHERE status = 'completed'
+            AND sync_type = :sync_type
         ORDER BY completed_at DESC, id DESC
         LIMIT 1"
     );
+    $statement->execute(['sync_type' => $syncType]);
     $run = $statement !== false ? $statement->fetch() : false;
 
     return $run ?: null;
 }
 
-function avesmapsWikiSyncFetchLatestActiveRun(PDO $pdo): ?array {
-    $statement = $pdo->query(
+function avesmapsWikiSyncFetchLatestActiveRunByType(PDO $pdo, string $syncType): ?array {
+    $statement = $pdo->prepare(
         "SELECT *
         FROM wiki_sync_runs
         WHERE status = 'running'
+            AND sync_type = :sync_type
         ORDER BY updated_at DESC, id DESC
         LIMIT 1"
     );
+    $statement->execute(['sync_type' => $syncType]);
     $run = $statement !== false ? $statement->fetch() : false;
 
     return $run ?: null;
+}
+
+function avesmapsWikiSyncFetchLatestCompletedRun(PDO $pdo): ?array {
+    return avesmapsWikiSyncFetchLatestCompletedRunByType($pdo, AVESMAPS_WIKI_SYNC_TYPE_LOCATION);
+}
+
+function avesmapsWikiSyncFetchLatestActiveRun(PDO $pdo): ?array {
+    return avesmapsWikiSyncFetchLatestActiveRunByType($pdo, AVESMAPS_WIKI_SYNC_TYPE_LOCATION);
 }
 
 function avesmapsWikiSyncPublicRun(array $run): array {
@@ -4751,6 +5049,7 @@ function avesmapsWikiSyncPublicRun(array $run): array {
     return [
         'id' => (string) $run['public_id'],
         'public_id' => (string) $run['public_id'],
+        'sync_type' => (string) ($run['sync_type'] ?? AVESMAPS_WIKI_SYNC_TYPE_LOCATION),
         'status' => (string) $run['status'],
         'phase' => (string) $run['phase'],
         'progress_current' => (int) $run['progress_current'],
@@ -4774,24 +5073,40 @@ function avesmapsWikiSyncPublicRun(array $run): array {
     ];
 }
 
-function avesmapsWikiSyncUpdateRun(PDO $pdo, int $runId, string $status, string $phase, int $progressCurrent, string $message, array $stats): void {
+function avesmapsWikiSyncUpdateRun(
+    PDO $pdo,
+    int $runId,
+    string $status,
+    string $phase,
+    int $progressCurrent,
+    string $message,
+    array $stats,
+    ?int $progressTotal = null
+): void {
+    $progressTotalClause = $progressTotal !== null ? "\n            progress_total = :progress_total," : '';
     $statement = $pdo->prepare(
         'UPDATE wiki_sync_runs
         SET status = :status,
             phase = :phase,
             progress_current = :progress_current,
+            ' . $progressTotalClause . '
             message = :message,
             stats_json = :stats_json
         WHERE id = :id'
     );
-    $statement->execute([
+    $params = [
         'id' => $runId,
         'status' => $status,
         'phase' => $phase,
         'progress_current' => $progressCurrent,
         'message' => $message,
         'stats_json' => avesmapsWikiSyncEncodeJson($stats),
-    ]);
+    ];
+    if ($progressTotal !== null) {
+        $params['progress_total'] = max(1, $progressTotal);
+    }
+
+    $statement->execute($params);
 }
 
 function avesmapsWikiSyncFetchCase(PDO $pdo, int $caseId): array {

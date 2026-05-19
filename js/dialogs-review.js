@@ -3755,7 +3755,7 @@ function setWikiSyncRunning(isRunning, run = null) {
 			: (activeWikiSyncRunStatus === "running" ? "WikiSyncLocations fortsetzen" : "WikiSyncLocations");
 	}
 
-	const progressElement = document.getElementById("wiki-sync-progress");
+	const progressElement = document.getElementById("wiki-sync-progress-locations");
 	if (progressElement) {
 		progressElement.hidden = !isRunning && !run;
 		progressElement.max = Number(run?.progress_total) || 4;
@@ -3768,7 +3768,7 @@ function setWikiSyncRunning(isRunning, run = null) {
 	}
 }
 
-function setWikiSyncTerritoryRunning(isRunning) {
+function setWikiSyncTerritoryRunning(isRunning, run = null) {
 	isWikiSyncTerritoryRunning = Boolean(isRunning);
 
 	const territoriesButtonElement = document.getElementById("wiki-sync-territories");
@@ -3776,7 +3776,14 @@ function setWikiSyncTerritoryRunning(isRunning) {
 		territoriesButtonElement.disabled = isWikiSyncRunning || isWikiSyncTerritoryRunning;
 		territoriesButtonElement.textContent = isWikiSyncTerritoryRunning
 			? "WikiSyncTerritories..."
-			: "WikiSyncTerritories";
+			: (activeWikiSyncTerritoryRunStatus === "running" ? "WikiSyncTerritories fortsetzen" : "WikiSyncTerritories");
+	}
+
+	const progressElement = document.getElementById("wiki-sync-progress-territories");
+	if (progressElement) {
+		progressElement.hidden = !isWikiSyncTerritoryRunning && !run;
+		progressElement.max = Math.max(1, Number(run?.progress_total) || 1);
+		progressElement.value = Math.max(0, Number(run?.progress_current) || 0);
 	}
 
 	const startButtonElement = document.getElementById("wiki-sync-start");
@@ -3927,8 +3934,12 @@ async function loadWikiSyncCases() {
 		wikiSyncCases = Array.isArray(data.cases) ? data.cases : [];
 		wikiSyncSummary = data.summary || null;
 		const activeRun = data.active_run || null;
+		const activeTerritoryRun = data.active_territory_run || null;
 		activeWikiSyncRunId = activeRun?.public_id || data.latest_run?.public_id || activeWikiSyncRunId;
 		activeWikiSyncRunStatus = activeRun?.status || "";
+		activeWikiSyncTerritoryRunId = activeTerritoryRun?.public_id || data.latest_territory_run?.public_id || activeWikiSyncTerritoryRunId;
+		activeWikiSyncTerritoryRunStatus = activeTerritoryRun?.status || "";
+		applyWikiSyncTerritorySummaryFromPayload(data.territory_summary);
 		renderWikiSyncCases(data.latest_run || null);
 		syncWikiSyncCreateLocationContextMenuAction();
 		if (activeRun?.status === "running") {
@@ -3937,10 +3948,32 @@ async function loadWikiSyncCases() {
 		} else {
 			setWikiSyncRunning(false);
 		}
+
+		if (activeTerritoryRun?.status === "running") {
+			setWikiSyncTerritoryRunning(false, activeTerritoryRun);
+			if (activeRun?.status !== "running") {
+				setWikiSyncStatus(activeTerritoryRun.message || "Ein WikiSyncTerritories-Lauf kann fortgesetzt werden.", "pending");
+			}
+		} else {
+			setWikiSyncTerritoryRunning(false);
+		}
 	} catch (error) {
 		console.error("WikiSyncLocations-Fälle konnten nicht geladen werden:", error);
 		setWikiSyncStatus(error.message || "WikiSyncLocations-Fälle konnten nicht geladen werden.", "error");
 	}
+}
+
+function applyWikiSyncTerritorySummaryFromPayload(payload) {
+	if (!payload || typeof payload !== "object") {
+		return;
+	}
+
+	wikiSyncTerritorySummary = {
+		territory_count: Number(payload?.territory_count ?? 0),
+		root_count: Number(payload?.root_count ?? 0),
+		assigned_territory_count: Number(payload?.assigned_territory_count ?? 0),
+		assigned_root_count: Number(payload?.assigned_root_count ?? 0),
+	};
 }
 
 async function startWikiSyncRun() {
@@ -4001,25 +4034,52 @@ async function startWikiSyncTerritoryRun() {
 	}
 
 	setWikiSyncTerritoryRunning(true);
-	setWikiSyncStatus("WikiSyncTerritories wird gestartet...", "pending");
+	setWikiSyncStatus(activeWikiSyncTerritoryRunStatus === "running" ? "WikiSyncTerritories wird fortgesetzt..." : "WikiSyncTerritories wird gestartet...", "pending");
 
 	try {
-		const result = await submitWikiSyncAction("sync_territories");
-		wikiSyncTerritorySummary = {
-			territory_count: Number(result?.territory_count ?? 0),
-			root_count: Number(result?.root_count ?? 0),
-			assigned_territory_count: Number(result?.assigned_territory_count ?? 0),
-			assigned_root_count: Number(result?.assigned_root_count ?? 0),
-		};
+		let run = null;
+		if (activeWikiSyncTerritoryRunStatus === "running" && activeWikiSyncTerritoryRunId) {
+			run = { public_id: activeWikiSyncTerritoryRunId, status: "running" };
+		} else {
+			const startResult = await submitWikiSyncAction("start_territory_run");
+			activeWikiSyncTerritoryRunId = startResult.run?.public_id || null;
+			activeWikiSyncTerritoryRunStatus = startResult.run?.status || "running";
+			run = startResult.run || null;
+			applyWikiSyncTerritorySummaryFromPayload(startResult?.territory_summary);
+		}
+
+		let safetyCounter = 0;
+		setWikiSyncTerritoryRunning(true, run);
+
+		while (run && run.status !== "completed" && run.status !== "failed") {
+			if (safetyCounter > 150) {
+				throw new Error("WikiSyncTerritories wurde nach zu vielen Teilschritten angehalten.");
+			}
+
+			const advanceResult = await submitWikiSyncAction("advance_territory_run", { run_id: activeWikiSyncTerritoryRunId });
+			run = advanceResult.run || null;
+			activeWikiSyncTerritoryRunStatus = run?.status || "";
+			applyWikiSyncTerritorySummaryFromPayload(advanceResult?.territory_summary);
+			setWikiSyncTerritoryRunning(true, run);
+			setWikiSyncStatus(run?.message || "WikiSyncTerritories laeuft...", "pending");
+			safetyCounter += 1;
+		}
+
+		if (run?.status === "failed") {
+			throw new Error(run.message || "WikiSyncTerritories ist fehlgeschlagen.");
+		}
+
+		setWikiSyncTerritoryRunning(false);
+		activeWikiSyncTerritoryRunStatus = "";
+		await loadWikiSyncCases();
 		await loadPoliticalTerritoryOptions();
 		schedulePoliticalTerritoryLayerReload({ immediate: true });
 		setWikiSyncStatus(buildWikiSyncStatusMessage("WikiSyncTerritories abgeschlossen."), "success");
 	} catch (error) {
 		console.error("WikiSyncTerritories konnte nicht ausgefuehrt werden:", error);
+		setWikiSyncTerritoryRunning(false);
 		setWikiSyncStatus(error.message || "WikiSyncTerritories konnte nicht ausgefuehrt werden.", "error");
 		showFeedbackToast(error.message || "WikiSyncTerritories konnte nicht ausgefuehrt werden.", "warning");
-	} finally {
-		setWikiSyncTerritoryRunning(false);
 	}
 }
 
