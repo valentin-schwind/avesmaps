@@ -242,29 +242,7 @@ async function submitWikiSyncLocationAction(action, payload = {}) {
 	}
 
 	return data;
-}
-
-async function submitWikiSyncTerritoryAction(action, payload = {}) {
-	const response = await fetch(WIKI_SYNC_TERRITORIES_API_URL, {
-		method: "POST",
-		credentials: "same-origin",
-		headers: {
-			"Content-Type": "application/json",
-			Accept: "application/json",
-		},
-		body: JSON.stringify({
-			action,
-			...payload,
-		}),
-	});
-	const data = await readJsonResponse(response, {});
-
-	if (!response.ok || data?.ok !== true) {
-		throw new Error(data?.error || `WikiSyncTerritories-API antwortet mit HTTP ${response.status}.`);
-	}
-
-	return data;
-}
+} 
 
 async function fetchWikiSyncLocationData(params = {}) {
 	const url = new URL(WIKI_SYNC_LOCATIONS_API_URL, window.location.href);
