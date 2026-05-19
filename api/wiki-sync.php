@@ -1130,11 +1130,7 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
             : [];
         unset($details['child_territories']);
 
-        foreach ($details as $key => $value) {
-            if ($key === '_all_template_fields' || $key === '_unmapped_fields') {
-                $rows[$index][$key] = $value;
-                continue;
-            }
+        foreach ($details as $key => $value) { 
 
             if ($value === '') {
                 continue;
@@ -1348,7 +1344,7 @@ function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent(string $conte
         'bestandszeit' => 'period_text',
         'bestehenszeit' => 'period_text',
         'bestehen' => 'period_text',
-        'bestand' => 'period_text',
+        'bestand' => 'period_text',      
     ];
 
     $childFieldKeys = [
@@ -1455,34 +1451,56 @@ function avesmapsWikiSyncReadWikiTemplateFields(string $content): array {
     $fields = [];
     $currentKey = null;
     $currentValue = '';
+    $templateDepth = 0;
+    $insideTemplate = false;
+
     $lines = preg_split('/\R/u', $content) ?: [];
 
     foreach ($lines as $line) {
-        if (preg_match('/^\|\s*([^=]+?)\s*=\s*(.*)$/u', $line, $matches) === 1) {
+        $trimmedLine = trim($line);
+
+        if (!$insideTemplate) {
+            if (preg_match('/^\s*\{\{\s*Infobox/iu', $trimmedLine) === 1) {
+                $insideTemplate = true;
+                $templateDepth = avesmapsWikiSyncCountWikiTemplateDepthDelta($line);
+            }
+
+            continue;
+        }
+
+        $isTopLevelField = $templateDepth === 1
+            && preg_match('/^\|\s*([^=]+?)\s*=\s*(.*)$/u', $line, $matches) === 1;
+
+        if ($isTopLevelField) {
             if ($currentKey !== null) {
                 $fields[$currentKey] = trim($currentValue);
             }
 
             $currentKey = trim((string) $matches[1]);
             $currentValue = trim((string) $matches[2]);
-            continue;
-        }
-
-        if ($currentKey !== null) {
-            if (preg_match('/^\s*\}\}/u', $line) === 1) {
-                $fields[$currentKey] = trim($currentValue);
-                break;
-            }
-
+        } elseif ($currentKey !== null) {
             $currentValue .= "\n" . $line;
         }
-    }
 
-    if ($currentKey !== null) {
-        $fields[$currentKey] = trim($currentValue);
+        $templateDepth += avesmapsWikiSyncCountWikiTemplateDepthDelta($line);
+
+        if ($insideTemplate && $templateDepth <= 0) {
+            if ($currentKey !== null) {
+                $fields[$currentKey] = trim($currentValue);
+            }
+
+            break;
+        }
     }
 
     return $fields;
+}
+
+function avesmapsWikiSyncCountWikiTemplateDepthDelta(string $line): int {
+    $openCount = preg_match_all('/\{\{/u', $line);
+    $closeCount = preg_match_all('/\}\}/u', $line);
+
+    return (int) $openCount - (int) $closeCount;
 }
 
 function avesmapsWikiSyncCleanPoliticalTerritoryWikiValue(string $value): string {
@@ -1655,6 +1673,23 @@ function avesmapsWikiSyncParsePoliticalTerritoryTable(DOMElement $table): array 
         if ($wikiUrl === '' && $name !== '') {
             $wikiUrl = avesmapsWikiSyncPageUrl($name);
         }
+        
+        $periodFoundedText = '';
+        $periodDissolvedText = '';
+
+        if ((string) ($raw['zeitraum'] ?? '') !== '') {
+            [$periodFoundedText, $periodDissolvedText] = avesmapsWikiSyncSplitPoliticalPeriodText((string) $raw['zeitraum']);
+        }
+
+        $foundedText = (string) ($raw['grundungsdatum'] ?? '');
+        if ($foundedText === '') {
+            $foundedText = $periodFoundedText;
+        }
+
+        $dissolvedText = (string) ($raw['aufgelost'] ?? '');
+        if ($dissolvedText === '') {
+            $dissolvedText = $periodDissolvedText;
+        }
 
         $rows[] = [
             'raw' => $raw,
@@ -1671,9 +1706,9 @@ function avesmapsWikiSyncParsePoliticalTerritoryTable(DOMElement $table): array 
                 'currency' => $raw['wahrung'] ?? $raw['waehrung'] ?? '',
                 'trade_goods' => $raw['handelswaren'] ?? '',
                 'population' => $raw['einwohnerzahl'] ?? '',
-                'founded_text' => $raw['grundungsdatum'] ?? '',
+                'founded_text' => $foundedText,
                 'founder' => $raw['grunder'] ?? $raw['gruender'] ?? '',
-                'dissolved_text' => $raw['aufgelost'] ?? '',
+                'dissolved_text' => $dissolvedText,
                 'blazon' => $raw['blasonierung'] ?? '',
                 'wiki_url' => $wikiUrl,
             ],
@@ -2136,6 +2171,7 @@ function avesmapsWikiSyncReadTableSpanValue(DOMElement $cell, string $attribute)
 
 function avesmapsWikiSyncNormalizePoliticalHeader(string $header): string {
     $normalized = avesmapsWikiSyncCreateMatchKey(avesmapsWikiSyncNormalizeWikiTreeText($header));
+
     return match ($normalized) {
         'name', 'staat', 'status', 'herrschaftsform', 'hauptstadt', 'herrschaftssitz', 'oberhaupt', 'sprache', 'handelswaren', 'einwohnerzahl', 'kontinent', 'blasonierung' => $normalized,
         'art' => 'art',
@@ -2143,8 +2179,51 @@ function avesmapsWikiSyncNormalizePoliticalHeader(string $header): string {
         'wahrung', 'waehrung' => 'wahrung',
         'grunder', 'gruender' => 'grunder',
         'zugehorigkeit', 'zugehoerigkeit' => 'zugehorigkeit',
-        'grundungsdatum', 'gruendungsdatum', 'grundung', 'gruendung', 'gegrundet', 'gegruendet', 'neugrundung', 'neugruendung' => 'grundungsdatum',
-        'aufgelost', 'aufgeloest', 'auflosung', 'aufloesung' => 'aufgelost',
+
+        'grundungsdatum',
+        'gruendungsdatum',
+        'grundungsjahr',
+        'gruendungsjahr',
+        'grundung',
+        'gruendung',
+        'gegrundet',
+        'gegruendet',
+        'neugrundung',
+        'neugruendung',
+        'entstehung',
+        'entstanden',
+        'errichtung',
+        'errichtet',
+        'seit',
+        'ab',
+        'beginn',
+        'anfang',
+        'von' => 'grundungsdatum',
+
+        'aufgelost',
+        'aufgeloest',
+        'auflosung',
+        'aufloesung',
+        'aufhebungsdatum',
+        'aufhebungsjahr',
+        'ende',
+        'endjahr',
+        'bis',
+        'untergang',
+        'zerfall',
+        'erloschen' => 'aufgelost',
+
+        'zeitraum',
+        'zeit',
+        'zeitspanne',
+        'periode',
+        'bestand',
+        'bestandszeit',
+        'bestehen',
+        'bestehenszeit',
+        'existenz',
+        'existenzzeit' => 'zeitraum',
+
         default => $normalized,
     };
 }
