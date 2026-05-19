@@ -5,7 +5,8 @@ declare(strict_types=1);
 require __DIR__ . '/auth.php';
 require_once __DIR__ . '/political-territory-lib.php';
 
-const AVESMAPS_WIKI_POLITICAL_HTML_DETAIL_FALLBACK_LIMIT = 10;
+const AVESMAPS_WIKI_POLITICAL_HTML_DETAIL_FALLBACK_LIMIT = 0;
+const AVESMAPS_WIKI_POLITICAL_HTML_DETAIL_FALLBACK_DELAY_MS = 120;
 
 const AVESMAPS_WIKI_API_URL = 'https://de.wiki-aventurica.de/de/api.php';
 const AVESMAPS_WIKI_PAGE_BASE_URL = 'https://de.wiki-aventurica.de/wiki/';
@@ -485,6 +486,8 @@ function avesmapsWikiSyncRefreshAndReadPoliticalTerritoryTreeSummary(PDO $pdo, b
 }
 
 function avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache(PDO $pdo, bool $resetTable = false): array {
+    $existingTemporalByWikiKey = avesmapsWikiSyncReadPoliticalTerritoryTemporalIndex($pdo);
+
     if ($resetTable) {
         avesmapsWikiSyncResetPoliticalTerritoryWikiTable($pdo);
     }
@@ -500,7 +503,8 @@ function avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache(PDO $pdo, bool $rese
 
         $temporal = avesmapsWikiSyncBuildPoliticalTemporalPayload(
             (string) ($row['founded_text'] ?? ''),
-            (string) ($row['dissolved_text'] ?? '')
+            (string) ($row['dissolved_text'] ?? ''),
+            (string) ($row['status'] ?? '')
         );
 
         $affiliationPath = avesmapsWikiSyncReadPoliticalTerritoryPath($row);
@@ -561,6 +565,11 @@ function avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache(PDO $pdo, bool $rese
         $record['affiliation_path_json'] = $affiliationPath;
 
         $wikiKey = (string) ($record['wiki_key'] ?? '');
+        $record = avesmapsWikiSyncMergePoliticalTerritoryTemporalFromExisting(
+            $record,
+            $existingTemporalByWikiKey[$wikiKey] ?? null
+        );
+
         if (!isset($normalizedRowsByKey[$wikiKey])) {
             $normalizedRowsByKey[$wikiKey] = $record;
             continue;
@@ -615,9 +624,112 @@ function avesmapsWikiSyncResetPoliticalTerritoryWikiTable(PDO $pdo): void {
     avesmapsPoliticalEnsureTables($pdo);
 }
 
-function avesmapsWikiSyncBuildPoliticalTemporalPayload(string $foundedTextRaw, string $dissolvedTextRaw): array {
+function avesmapsWikiSyncReadPoliticalTerritoryTemporalIndex(PDO $pdo): array {
+    $index = [];
+    $statement = $pdo->query(
+        'SELECT
+            wiki_key,
+            founded_text,
+            founded_type,
+            founded_start_bf,
+            founded_end_bf,
+            founded_display_bf,
+            dissolved_text,
+            dissolved_type,
+            dissolved_start_bf,
+            dissolved_end_bf,
+            dissolved_display_bf
+        FROM political_territory_wiki'
+    );
+
+    if ($statement === false) {
+        return $index;
+    }
+
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $wikiKey = trim((string) ($row['wiki_key'] ?? ''));
+        if ($wikiKey === '') {
+            continue;
+        }
+
+        $index[$wikiKey] = [
+            'founded_text' => (string) ($row['founded_text'] ?? ''),
+            'founded_type' => (string) ($row['founded_type'] ?? ''),
+            'founded_start_bf' => isset($row['founded_start_bf']) ? (int) $row['founded_start_bf'] : null,
+            'founded_end_bf' => isset($row['founded_end_bf']) ? (int) $row['founded_end_bf'] : null,
+            'founded_display_bf' => isset($row['founded_display_bf']) ? (float) $row['founded_display_bf'] : null,
+            'dissolved_text' => (string) ($row['dissolved_text'] ?? ''),
+            'dissolved_type' => (string) ($row['dissolved_type'] ?? ''),
+            'dissolved_start_bf' => isset($row['dissolved_start_bf']) ? (int) $row['dissolved_start_bf'] : null,
+            'dissolved_end_bf' => isset($row['dissolved_end_bf']) ? (int) $row['dissolved_end_bf'] : null,
+            'dissolved_display_bf' => isset($row['dissolved_display_bf']) ? (float) $row['dissolved_display_bf'] : null,
+        ];
+    }
+
+    return $index;
+}
+
+function avesmapsWikiSyncMergePoliticalTerritoryTemporalFromExisting(array $record, mixed $existingTemporal): array {
+    if (!is_array($existingTemporal) || $existingTemporal === []) {
+        return $record;
+    }
+
+    $currentFoundedIsKnown = avesmapsWikiSyncPoliticalTemporalIsKnown(
+        (string) ($record['founded_type'] ?? ''),
+        $record['founded_start_bf'] ?? null,
+        $record['founded_end_bf'] ?? null
+    );
+    $existingFoundedIsKnown = avesmapsWikiSyncPoliticalTemporalIsKnown(
+        (string) ($existingTemporal['founded_type'] ?? ''),
+        $existingTemporal['founded_start_bf'] ?? null,
+        $existingTemporal['founded_end_bf'] ?? null
+    );
+
+    if (!$currentFoundedIsKnown && $existingFoundedIsKnown) {
+        $record['founded_text'] = (string) ($existingTemporal['founded_text'] ?? '');
+        $record['founded_type'] = (string) ($existingTemporal['founded_type'] ?? '');
+        $record['founded_start_bf'] = $existingTemporal['founded_start_bf'] ?? null;
+        $record['founded_end_bf'] = $existingTemporal['founded_end_bf'] ?? null;
+        $record['founded_display_bf'] = $existingTemporal['founded_display_bf'] ?? null;
+    } elseif ((string) ($record['founded_text'] ?? '') === '' && (string) ($existingTemporal['founded_text'] ?? '') !== '') {
+        $record['founded_text'] = (string) $existingTemporal['founded_text'];
+    }
+
+    $currentDissolvedIsKnown = avesmapsWikiSyncPoliticalTemporalIsKnown(
+        (string) ($record['dissolved_type'] ?? ''),
+        $record['dissolved_start_bf'] ?? null,
+        $record['dissolved_end_bf'] ?? null
+    );
+    $existingDissolvedIsKnown = avesmapsWikiSyncPoliticalTemporalIsKnown(
+        (string) ($existingTemporal['dissolved_type'] ?? ''),
+        $existingTemporal['dissolved_start_bf'] ?? null,
+        $existingTemporal['dissolved_end_bf'] ?? null
+    );
+
+    if (!$currentDissolvedIsKnown && $existingDissolvedIsKnown) {
+        $record['dissolved_text'] = (string) ($existingTemporal['dissolved_text'] ?? '');
+        $record['dissolved_type'] = (string) ($existingTemporal['dissolved_type'] ?? '');
+        $record['dissolved_start_bf'] = $existingTemporal['dissolved_start_bf'] ?? null;
+        $record['dissolved_end_bf'] = $existingTemporal['dissolved_end_bf'] ?? null;
+        $record['dissolved_display_bf'] = $existingTemporal['dissolved_display_bf'] ?? null;
+    } elseif ((string) ($record['dissolved_text'] ?? '') === '' && (string) ($existingTemporal['dissolved_text'] ?? '') !== '') {
+        $record['dissolved_text'] = (string) $existingTemporal['dissolved_text'];
+    }
+
+    return $record;
+}
+
+function avesmapsWikiSyncPoliticalTemporalIsKnown(string $type, mixed $startYear, mixed $endYear): bool {
+    if (in_array(strtolower(trim($type)), ['exact', 'range', 'ongoing'], true)) {
+        return true;
+    }
+
+    return is_numeric($startYear) || is_numeric($endYear);
+}
+
+function avesmapsWikiSyncBuildPoliticalTemporalPayload(string $foundedTextRaw, string $dissolvedTextRaw, string $statusRaw = ''): array {
     $foundedText = avesmapsWikiSyncNormalizePoliticalTemporalText($foundedTextRaw);
-    $foundedYears = avesmapsWikiSyncExtractPoliticalBfYears($foundedText);
+    $foundedYears = avesmapsWikiSyncExtractPoliticalTemporalYears($foundedText);
 
     if ($foundedText === '' || $foundedYears === []) {
         $foundedStart = null;
@@ -632,9 +744,15 @@ function avesmapsWikiSyncBuildPoliticalTemporalPayload(string $foundedTextRaw, s
     }
 
     $dissolvedText = avesmapsWikiSyncNormalizePoliticalTemporalText($dissolvedTextRaw);
-    $dissolvedYears = avesmapsWikiSyncExtractPoliticalBfYears($dissolvedText);
-    $isOngoing = $dissolvedText === ''
-        || preg_match('/\bbesteht\b|\bbis\s+heute\b|\bgegenwart\b|\bheute\b/iu', $dissolvedText) === 1;
+    $dissolvedYears = avesmapsWikiSyncExtractPoliticalTemporalYears($dissolvedText);
+    $status = mb_strtolower(avesmapsWikiSyncNormalizePoliticalTemporalText($statusRaw), 'UTF-8');
+    $statusSuggestsOngoing = preg_match('/\bbesteht\b|\baktiv\b|\bheute\b|\bgegenwart\b/iu', $status) === 1;
+    $statusSuggestsEnded = preg_match('/\baufgel|untergang|beendet|erlosch|historisch|ehemalig\b/iu', $status) === 1;
+    $isOngoing = preg_match('/\bbesteht\b|\bbis\s+heute\b|\bgegenwart\b|\bheute\b|\bandauernd\b/iu', $dissolvedText) === 1;
+
+    if (!$isOngoing && $dissolvedText === '' && $statusSuggestsOngoing && !$statusSuggestsEnded) {
+        $isOngoing = true;
+    }
 
     if ($isOngoing) {
         $dissolvedStart = 9999;
@@ -642,7 +760,7 @@ function avesmapsWikiSyncBuildPoliticalTemporalPayload(string $foundedTextRaw, s
         $dissolvedType = 'ongoing';
         $dissolvedDisplay = 9999.0;
         $dissolvedText = $dissolvedText === '' ? 'besteht' : $dissolvedText;
-    } elseif ($dissolvedYears !== []) {
+    } elseif ($dissolvedText !== '' && $dissolvedYears !== []) {
         $dissolvedStart = min($dissolvedYears);
         $dissolvedEnd = max($dissolvedYears);
         $dissolvedType = count($dissolvedYears) > 1 ? 'range' : 'exact';
@@ -697,6 +815,19 @@ function avesmapsWikiSyncNormalizePoliticalTemporalText(string $value): string {
     return trim($clean, " \t\n\r\0\x0B,;");
 }
 
+function avesmapsWikiSyncExtractPoliticalTemporalYears(string $value): array {
+    if ($value === '') {
+        return [];
+    }
+
+    $explicitYears = avesmapsWikiSyncExtractPoliticalBfYears($value);
+    if ($explicitYears !== []) {
+        return $explicitYears;
+    }
+
+    return avesmapsWikiSyncExtractImplicitPoliticalYears($value);
+}
+
 function avesmapsWikiSyncExtractPoliticalBfYears(string $value): array {
     $years = [];
     if ($value === '') {
@@ -705,6 +836,42 @@ function avesmapsWikiSyncExtractPoliticalBfYears(string $value): array {
 
     $normalized = avesmapsWikiSyncNormalizePoliticalTemporalText($value);
 
+    $rangeWithTrailingEraMatchCount = preg_match_all(
+        '/(\d{1,5})\s*(?:\-|–|—|\/|bis|und)\s*(\d{1,5})\s*(v\.?\s*BF|vBF|BF)\b/iu',
+        $normalized,
+        $rangeWithTrailingEraMatches,
+        PREG_SET_ORDER
+    );
+    if ($rangeWithTrailingEraMatchCount !== false) {
+        foreach ($rangeWithTrailingEraMatches as $match) {
+            $rawStartYear = isset($match[1]) ? (int) $match[1] : 0;
+            $rawEndYear = isset($match[2]) ? (int) $match[2] : 0;
+            $era = (string) ($match[3] ?? '');
+            $isBefore = preg_match('/v\.?\s*BF|vBF/iu', $era) === 1;
+
+            avesmapsWikiSyncAppendPoliticalYear($years, $rawStartYear, $isBefore);
+            avesmapsWikiSyncAppendPoliticalYear($years, $rawEndYear, $isBefore);
+        }
+    }
+
+    $rangeWithLeadingEraMatchCount = preg_match_all(
+        '/(v\.?\s*BF|vBF|BF)\s*(\d{1,5})\s*(?:\-|–|—|\/|bis|und)\s*(\d{1,5})\b/iu',
+        $normalized,
+        $rangeWithLeadingEraMatches,
+        PREG_SET_ORDER
+    );
+    if ($rangeWithLeadingEraMatchCount !== false) {
+        foreach ($rangeWithLeadingEraMatches as $match) {
+            $era = (string) ($match[1] ?? '');
+            $rawStartYear = isset($match[2]) ? (int) $match[2] : 0;
+            $rawEndYear = isset($match[3]) ? (int) $match[3] : 0;
+            $isBefore = preg_match('/v\.?\s*BF|vBF/iu', $era) === 1;
+
+            avesmapsWikiSyncAppendPoliticalYear($years, $rawStartYear, $isBefore);
+            avesmapsWikiSyncAppendPoliticalYear($years, $rawEndYear, $isBefore);
+        }
+    }
+
     $matchCount = preg_match_all(
         '/(?:\b\d{1,2}\.\s*)?(?:(?:PRA|RON|EFF|TRA|BOR|HES|FIR|TSA|PHE|PER|ING|RAH|NAM)\s+)?(\d{1,5})\s*(v\.?\s*BF|vBF|BF)\b/iu',
         $normalized,
@@ -712,23 +879,52 @@ function avesmapsWikiSyncExtractPoliticalBfYears(string $value): array {
         PREG_SET_ORDER
     );
 
+    if ($matchCount !== false && $matchCount > 0) {
+        foreach ($matches as $match) {
+            $rawYear = isset($match[1]) ? (int) $match[1] : 0;
+            $era = (string) ($match[2] ?? '');
+            $isBefore = preg_match('/v\.?\s*BF|vBF/iu', $era) === 1;
+
+            avesmapsWikiSyncAppendPoliticalYear($years, $rawYear, $isBefore);
+        }
+    }
+
+    return $years;
+}
+
+function avesmapsWikiSyncExtractImplicitPoliticalYears(string $value): array {
+    $years = [];
+    if ($value === '') {
+        return $years;
+    }
+
+    $normalized = avesmapsWikiSyncNormalizePoliticalTemporalText($value);
+    $matchCount = preg_match_all('/\b(\d{2,5})\b/u', $normalized, $matches, PREG_SET_ORDER);
     if ($matchCount === false || $matchCount < 1) {
         return $years;
     }
 
     foreach ($matches as $match) {
         $rawYear = isset($match[1]) ? (int) $match[1] : 0;
-        if ($rawYear <= 0) {
+        if ($rawYear < 32 || $rawYear > 12000) {
             continue;
         }
 
-        $era = (string) ($match[2] ?? '');
-        $isBefore = preg_match('/v\.?\s*BF|vBF/iu', $era) === 1;
-
-        $years[] = $isBefore ? -$rawYear : $rawYear;
+        avesmapsWikiSyncAppendPoliticalYear($years, $rawYear, false);
     }
 
     return $years;
+}
+
+function avesmapsWikiSyncAppendPoliticalYear(array &$years, int $rawYear, bool $isBefore): void {
+    if ($rawYear < 0 || $rawYear > 12000) {
+        return;
+    }
+
+    $year = $isBefore ? -$rawYear : $rawYear;
+    if (!in_array($year, $years, true)) {
+        $years[] = $year;
+    }
 }
 
 function avesmapsWikiSyncBuildPoliticalDisplayYear(int $startYear, int $endYear): float {
@@ -1132,8 +1328,9 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
 
         $htmlDetails = [];
 
-        $needsHtmlDetailFallback =
-            $htmlDetailFallbackCount < AVESMAPS_WIKI_POLITICAL_HTML_DETAIL_FALLBACK_LIMIT
+        $withinHtmlFallbackBudget = AVESMAPS_WIKI_POLITICAL_HTML_DETAIL_FALLBACK_LIMIT <= 0
+            || $htmlDetailFallbackCount < AVESMAPS_WIKI_POLITICAL_HTML_DETAIL_FALLBACK_LIMIT;
+        $needsHtmlDetailFallback = $withinHtmlFallbackBudget
             && (
                 (string) ($details['founded_text'] ?? '') === ''
                 || (string) ($details['dissolved_text'] ?? '') === ''
@@ -1141,6 +1338,10 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
 
         if ($needsHtmlDetailFallback) {
             try {
+                if (AVESMAPS_WIKI_POLITICAL_HTML_DETAIL_FALLBACK_DELAY_MS > 0 && $htmlDetailFallbackCount > 0) {
+                    usleep(AVESMAPS_WIKI_POLITICAL_HTML_DETAIL_FALLBACK_DELAY_MS * 1000);
+                }
+
                 $html = avesmapsWikiSyncFetchParsedWikiHtml($title);
                 $htmlDetails = avesmapsWikiSyncParsePoliticalTerritoryDetailsFromHtml($html);
 
@@ -1501,7 +1702,7 @@ function avesmapsWikiSyncSplitPoliticalPeriodText(string $periodText): array {
         return ['', ''];
     }
 
-    $parts = preg_split('/\s*(?:-|–|—|bis)\s*/u', $normalized) ?: [];
+    $parts = preg_split('/\s*(?:\-|–|—|\/|bis|und)\s*/u', $normalized) ?: [];
     if (count($parts) >= 2) {
         return [trim((string) $parts[0]), trim((string) $parts[1])];
     }
@@ -1831,6 +2032,20 @@ function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromHtml(string $html): a
         }
     }
 
+    if (
+        isset($details['period_text'])
+        && (string) ($details['founded_text'] ?? '') === ''
+        && (string) ($details['dissolved_text'] ?? '') === ''
+    ) {
+        [$foundedText, $dissolvedText] = avesmapsWikiSyncSplitPoliticalPeriodText((string) $details['period_text']);
+        if ($foundedText !== '') {
+            $details['founded_text'] = $foundedText;
+        }
+        if ($dissolvedText !== '') {
+            $details['dissolved_text'] = $dissolvedText;
+        }
+    }
+
     $details['_html_all_detail_rows'] = $allRows;
 
     return $details;
@@ -1864,10 +2079,23 @@ function avesmapsWikiSyncMapRenderedPoliticalDetailKey(string $key): string {
         'gruendungsdatum',
         'grundungsjahr',
         'gruendungsjahr',
+        'grundungszeit',
+        'gruendungszeit',
         'grundung',
         'gruendung',
         'gegrundet',
-        'gegruendet' => 'founded_text',
+        'gegruendet',
+        'entstehung',
+        'entstanden',
+        'errichtung',
+        'errichtet',
+        'proklamation',
+        'ausrufung',
+        'seit',
+        'von',
+        'ab',
+        'beginn',
+        'anfang' => 'founded_text',
 
         'grunder',
         'gruender' => 'founder',
@@ -1876,9 +2104,26 @@ function avesmapsWikiSyncMapRenderedPoliticalDetailKey(string $key): string {
         'aufgeloest',
         'auflosung',
         'aufloesung',
+        'aufhebungsdatum',
+        'aufhebungsjahr',
         'ende',
         'endjahr',
-        'bis' => 'dissolved_text',
+        'bis',
+        'untergang',
+        'zerfall',
+        'erloschen',
+        'beendet' => 'dissolved_text',
+
+        'zeitraum',
+        'zeit',
+        'zeitspanne',
+        'periode',
+        'bestand',
+        'bestandszeit',
+        'bestehen',
+        'bestehenszeit',
+        'existenz',
+        'existenzzeit' => 'period_text',
 
         'zugehorigkeit',
         'zugehoerigkeit',
