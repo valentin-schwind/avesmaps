@@ -6,89 +6,6 @@ require __DIR__ . '/auth.php';
 require_once __DIR__ . '/wiki-sync-lib.php';
 require_once __DIR__ . '/political-territory-lib.php';
 
-const AVESMAPS_WIKI_FUZZY_CUTOFF = 0.82;
-const AVESMAPS_WIKI_SYNC_TYPE_LOCATION = 'location';
-
-const AVESMAPS_WIKI_POLITICAL_TERRITORY_SEED_PAGES = [
-    'Baronie/Liste',
-    "Bergk\u{00F6}nigreich/Liste",
-    'Dom\u{00E4}ne (Horasreich)/Liste',
-    'Emirat/Liste',
-    'Freiherrschaft/Liste',
-    "F\u{00FC}rstentum/Liste",
-    'Grafschaft/Liste',
-    'Herzogtum/Liste',
-    'Kaiserpfalz/Liste',
-    'Kaiserreich/Liste',
-    'Komturei/Liste',
-    "K\u{00F6}nigreich/Liste",
-    'Markgrafschaft/Liste',
-    'Pfalzgrafschaft/Liste',
-    'Provinz (Imperium)/Liste',
-    'Provinz (Mittelreich)/Liste',
-    'Reichsmark/Liste',
-    'Republik/Liste',
-    "Sh\u{00EE}kanydad/Liste",
-    'Staat/Liste',
-    'Sultanat/Liste',
-    'Theokratie/Liste',
-];
-
-const AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS = [
-    'dorf' => 'Dorf',
-    'kleinstadt' => 'Kleinstadt',
-    'stadt' => 'Stadt',
-    "grossstadt" => "Gro\u{00DF}stadt",
-    'metropole' => 'Metropole',
-];
-
-const AVESMAPS_WIKI_CATEGORY_TO_CLASS = [
-    'Dorf' => 'dorf',
-    'Kleinstadt' => 'kleinstadt',
-    'Stadt' => 'stadt',
-    "Mittelgro\u{00DF}e Stadt" => 'stadt',
-    "Gro\u{00DF}stadt" => 'grossstadt',
-    "Metropole (Siedlungsgr\u{00F6}\u{00DF}e)" => 'metropole',
-];
-
-const AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS = [
-    'dorf' => 'Dorf',
-    "gebaeude" => "Besondere Bauwerke/St\u{00E4}tten",
-    'kleinstadt' => 'Kleinstadt',
-    'stadt' => 'Stadt',
-    "grossstadt" => "Gro\u{00DF}stadt",
-    'metropole' => 'Metropole',
-];
-
-const AVESMAPS_WIKI_CASE_LABELS = [
-    'canonical_name_difference' => 'Abweichende Benennung',
-    'type_conflict' => 'Typkonflikte',
-    "probable_match" => "Unaufgel\u{00F6}st, aber mit wahrscheinlichem Match",
-    "unresolved_without_candidate" => "Unaufgel\u{00F6}st, ohne Match",
-    'duplicate_avesmaps_name' => 'Dubletten in Avesmaps',
-    'duplicate_wiki_title' => 'Mehrere Avesmaps-Namen zeigen auf denselben Wiki-Titel',
-    'missing_wiki_with_coordinates' => 'Fehlende Wiki-Orte mit Koordinaten',
-    'missing_wiki_without_coordinates' => 'Fehlende Wiki-Orte ohne nutzbare Koordinaten',
-];
-
-const AVESMAPS_DEREGLOBUS_TO_MAP = [
-    'x_lon' => 30.3257445760,
-    'x_lat' => 0.0014126835,
-    'x_offset' => 438.0819758605,
-    'y_lon' => 0.007511999997,
-    'y_lat' => 33.5769120338,
-    'y_offset' => -466.8085324960,
-];
-
-const AVESMAPS_POSITIONKARTE_TO_MAP = [
-    'x_x' => 2.1490004455,
-    'x_y' => 0.0010081646,
-    'x_offset' => 188.8734061695,
-    'y_x' => -0.0024556121,
-    'y_y' => -2.1502199630,
-    'y_offset' => 1018.3819994023,
-];
-
 function avesmapsWikiSyncAssertEndpointScope(string $endpointScope, array $allowedScopes, string $action): void {
     if (in_array($endpointScope, $allowedScopes, true)) {
         return;
@@ -231,6 +148,102 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
             'error' => 'WikiSync konnte nicht verarbeitet werden.',
         ]);
     }
+}
+
+// Ensure location/territory constants exist when this file is used directly
+if (!defined('AVESMAPS_WIKI_FUZZY_CUTOFF')) {
+    define('AVESMAPS_WIKI_FUZZY_CUTOFF', 0.82);
+}
+if (!defined('AVESMAPS_WIKI_SYNC_TYPE_LOCATION')) {
+    define('AVESMAPS_WIKI_SYNC_TYPE_LOCATION', 'location');
+}
+if (!defined('AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS')) {
+    define('AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS', [
+        'dorf' => 'Dorf',
+        'kleinstadt' => 'Kleinstadt',
+        'stadt' => 'Stadt',
+        "grossstadt" => "Gro\u{00DF}stadt",
+        'metropole' => 'Metropole',
+    ]);
+}
+if (!defined('AVESMAPS_WIKI_CATEGORY_TO_CLASS')) {
+    define('AVESMAPS_WIKI_CATEGORY_TO_CLASS', [
+        'Dorf' => 'dorf',
+        'Kleinstadt' => 'kleinstadt',
+        'Stadt' => 'stadt',
+        "Mittelgro\u{00DF}e Stadt" => 'stadt',
+        "Gro\u{00DF}stadt" => 'grossstadt',
+        "Metropole (Siedlungsgr\u{00F6}\u{00DF}e)" => 'metropole',
+    ]);
+}
+if (!defined('AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS')) {
+    define('AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS', [
+        'dorf' => 'Dorf',
+        "gebaeude" => "Besondere Bauwerke/St\u{00E4}tten",
+        'kleinstadt' => 'Kleinstadt',
+        'stadt' => 'Stadt',
+        "grossstadt" => "Gro\u{00DF}stadt",
+        'metropole' => 'Metropole',
+    ]);
+}
+if (!defined('AVESMAPS_WIKI_CASE_LABELS')) {
+    define('AVESMAPS_WIKI_CASE_LABELS', [
+        'canonical_name_difference' => 'Abweichende Benennung',
+        'type_conflict' => 'Typkonflikte',
+        "probable_match" => "Unaufgel\u{00F6}st, aber mit wahrscheinlichem Match",
+        "unresolved_without_candidate" => "Unaufgel\u{00F6}st, ohne Match",
+        'duplicate_avesmaps_name' => 'Dubletten in Avesmaps',
+        'duplicate_wiki_title' => 'Mehrere Avesmaps-Namen zeigen auf denselben Wiki-Titel',
+        'missing_wiki_with_coordinates' => 'Fehlende Wiki-Orte mit Koordinaten',
+        'missing_wiki_without_coordinates' => 'Fehlende Wiki-Orte ohne nutzbare Koordinaten',
+    ]);
+}
+if (!defined('AVESMAPS_DEREGLOBUS_TO_MAP')) {
+    define('AVESMAPS_DEREGLOBUS_TO_MAP', [
+        'x_lon' => 30.3257445760,
+        'x_lat' => 0.0014126835,
+        'x_offset' => 438.0819758605,
+        'y_lon' => 0.007511999997,
+        'y_lat' => 33.5769120338,
+        'y_offset' => -466.8085324960,
+    ]);
+}
+if (!defined('AVESMAPS_POSITIONKARTE_TO_MAP')) {
+    define('AVESMAPS_POSITIONKARTE_TO_MAP', [
+        'x_x' => 2.1490004455,
+        'x_y' => 0.0010081646,
+        'x_offset' => 188.8734061695,
+        'y_x' => -0.0024556121,
+        'y_y' => -2.1502199630,
+        'y_offset' => 1018.3819994023,
+    ]);
+}
+
+if (!defined('AVESMAPS_WIKI_POLITICAL_TERRITORY_SEED_PAGES')) {
+    define('AVESMAPS_WIKI_POLITICAL_TERRITORY_SEED_PAGES', [
+        'Baronie/Liste',
+        "Bergk\u{00F6}nigreich/Liste",
+        'Dom\u{00E4}ne (Horasreich)/Liste',
+        'Emirat/Liste',
+        'Freiherrschaft/Liste',
+        "F\u{00FC}rstentum/Liste",
+        'Grafschaft/Liste',
+        'Herzogtum/Liste',
+        'Kaiserpfalz/Liste',
+        'Kaiserreich/Liste',
+        'Komturei/Liste',
+        "K\u{00F6}nigreich/Liste",
+        'Markgrafschaft/Liste',
+        'Pfalzgrafschaft/Liste',
+        'Provinz (Imperium)/Liste',
+        'Provinz (Mittelreich)/Liste',
+        'Reichsmark/Liste',
+        'Republik/Liste',
+        "Sh\u{00EE}kanydad/Liste",
+        'Staat/Liste',
+        'Sultanat/Liste',
+        'Theokratie/Liste',
+    ]);
 }
 
 if (!defined('AVESMAPS_WIKI_SYNC_NO_AUTO_HANDLE')) {
