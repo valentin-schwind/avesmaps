@@ -176,6 +176,48 @@ function avesmapsWikiSyncStripParentheticalSuffixInternal(string $title, bool $p
     return trim(preg_replace('/\s+\([^)]*\)\s*$/u', '', $normalizedTitle) ?? $normalizedTitle);
 }
 
+function avesmapsWikiSyncEnsureCoreTables(PDO $pdo): void {
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS wiki_sync_runs (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            public_id CHAR(36) NOT NULL,
+            sync_type VARCHAR(40) NOT NULL DEFAULT 'location',
+            status VARCHAR(20) NOT NULL DEFAULT 'running',
+            phase VARCHAR(60) NOT NULL DEFAULT 'settlement_titles',
+            progress_current INT NOT NULL DEFAULT 0,
+            progress_total INT NOT NULL DEFAULT 4,
+            message VARCHAR(255) NULL,
+            stats_json JSON NULL,
+            created_by BIGINT UNSIGNED NULL,
+            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+            completed_at DATETIME(3) NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_wiki_sync_runs_public_id (public_id),
+            KEY idx_wiki_sync_runs_status_created (status, created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS wiki_sync_pages (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            wiki_page_id BIGINT NULL,
+            title VARCHAR(255) NOT NULL,
+            normalized_key VARCHAR(255) NOT NULL,
+            wiki_url VARCHAR(500) NOT NULL,
+            settlement_class VARCHAR(60) NULL,
+            settlement_label VARCHAR(120) NULL,
+            categories_json JSON NULL,
+            coordinates_json JSON NULL,
+            content_hash CHAR(64) NULL,
+            fetched_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_wiki_sync_pages_title (title),
+            KEY idx_wiki_sync_pages_normalized_key (normalized_key)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+}
+
 function avesmapsWikiSyncFetchRunByPublicId(PDO $pdo, string $publicId): array {
     $statement = $pdo->prepare('SELECT * FROM wiki_sync_runs WHERE public_id = :public_id LIMIT 1');
     $statement->execute(['public_id' => $publicId]);
