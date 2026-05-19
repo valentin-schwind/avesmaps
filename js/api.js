@@ -219,58 +219,6 @@ async function updateReviewReportStatus(reportId, status, reportSource = "locati
 	}
 }
 
-async function submitWikiSyncAction(action, payload = {}) {
-	const response = await fetch(WIKI_SYNC_API_URL, {
-		method: "POST",
-		credentials: "same-origin",
-		headers: {
-			"Content-Type": "application/json",
-			Accept: "application/json",
-		},
-		body: JSON.stringify({
-			action,
-			...payload,
-		}),
-	});
-	const data = await readJsonResponse(response, {});
-
-	if (!response.ok || data?.ok !== true) {
-		if (response.status === 409) {
-			void pollLiveMapUpdates();
-		}
-		throw new Error(data?.error || `WikiSync-API antwortet mit HTTP ${response.status}.`);
-	}
-
-	return data;
-}
-
-async function fetchWikiSyncData(params = {}) {
-	const url = new URL(WIKI_SYNC_API_URL, window.location.href);
-	Object.entries(params).forEach(([key, value]) => {
-		if (value !== undefined && value !== null && value !== "") {
-			url.searchParams.set(key, String(value));
-		}
-	});
-	url.searchParams.set("_", String(Date.now()));
-
-	const response = await fetch(url.toString(), {
-		cache: "no-store",
-		credentials: "same-origin",
-		headers: {
-			Accept: "application/json",
-			"Cache-Control": "no-cache",
-			Pragma: "no-cache",
-		},
-	});
-	const data = await readJsonResponse(response, {});
-
-	if (!response.ok || data?.ok !== true) {
-		throw new Error(data?.error || `WikiSync-API antwortet mit HTTP ${response.status}.`);
-	}
-
-	return data;
-}
-
 async function submitWikiSyncLocationAction(action, payload = {}) {
 	const response = await fetch(WIKI_SYNC_LOCATIONS_API_URL, {
 		method: "POST",
@@ -291,6 +239,28 @@ async function submitWikiSyncLocationAction(action, payload = {}) {
 			void pollLiveMapUpdates();
 		}
 		throw new Error(data?.error || `WikiSyncLocations-API antwortet mit HTTP ${response.status}.`);
+	}
+
+	return data;
+}
+
+async function submitWikiSyncTerritoryAction(action, payload = {}) {
+	const response = await fetch(WIKI_SYNC_TERRITORIES_API_URL, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: {
+			"Content-Type": "application/json",
+			Accept: "application/json",
+		},
+		body: JSON.stringify({
+			action,
+			...payload,
+		}),
+	});
+	const data = await readJsonResponse(response, {});
+
+	if (!response.ok || data?.ok !== true) {
+		throw new Error(data?.error || `WikiSyncTerritories-API antwortet mit HTTP ${response.status}.`);
 	}
 
 	return data;
