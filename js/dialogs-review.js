@@ -4005,7 +4005,7 @@ async function startWikiSyncTerritoryRun() {
 	setWikiSyncStatus("WikiSyncTerritories wird gestartet...", "pending");
 
 	try {
-		const result = await submitWikiSyncAction("sync_territories");
+		const result = await submitWikiSyncTerritoryAction("sync_territories");
 		wikiSyncTerritorySummary = {
 			territory_count: Number(result?.territory_count ?? 0),
 			root_count: Number(result?.root_count ?? 0),
