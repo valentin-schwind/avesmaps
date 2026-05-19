@@ -172,14 +172,9 @@
 		</section>
 		<section class="review-panel__section" data-editor-panel-section="wiki-sync">
 			<div class="wiki-sync-panel__actions">
-				<div class="wiki-sync-panel__action">
-					<button id="wiki-sync-start" class="wiki-sync-panel__start" type="button">WikiSyncLocations</button>
-					<progress id="wiki-sync-progress-locations" class="wiki-sync-progress" max="5" value="0" hidden></progress>
-				</div>
-				<div class="wiki-sync-panel__action">
-					<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button">WikiSyncTerritories</button>
-					<progress id="wiki-sync-progress-territories" class="wiki-sync-progress" max="5" value="0" hidden></progress>
-				</div>
+				<button id="wiki-sync-start" class="wiki-sync-panel__start" type="button">WikiSyncLocations</button>
+				<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button">WikiSyncTerritories</button>
+				<progress id="wiki-sync-progress" class="wiki-sync-progress" max="5" value="0" hidden></progress>
 			</div>
 			<p id="wiki-sync-status" class="review-panel__status" role="status" aria-live="polite">WikiSync ist bereit.</p>
 			<h3 class="wiki-sync-panel__list-title">Siedlungen aus dem Wiki</h3>
@@ -911,13 +906,10 @@
 			reviewReportMarker = null,
 			reviewReports = [],
 			wikiSyncCases = [],
-			wikiSyncCasesLoadPromise = null,
 			wikiSyncSummary = null,
 			wikiSyncTerritorySummary = null,
 			activeWikiSyncRunId = null,
 			activeWikiSyncRunStatus = "",
-			activeWikiSyncTerritoryRunId = null,
-			activeWikiSyncTerritoryRunStatus = "",
 			activeWikiSyncCase = null,
 			activeWikiSyncSelectedMap = null,
 			activeWikiSyncSelectedWiki = null,
@@ -1162,6 +1154,7 @@
 			document.getElementById("review-panel-toggle")?.removeAttribute("hidden");
 			restoreReviewPanelState();
 			void loadReviewReports();
+			void loadWikiSyncCases();
 			void loadChangeLog();
 			void sendEditorPresenceHeartbeat();
 			startEditorPresenceHeartbeat();

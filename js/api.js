@@ -220,46 +220,28 @@ async function updateReviewReportStatus(reportId, status, reportSource = "locati
 }
 
 async function submitWikiSyncAction(action, payload = {}) {
-	const maxAttempts = 2;
-	let lastError = null;
-	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-		try {
-			const response = await fetch(WIKI_SYNC_API_URL, {
-				method: "POST",
-				credentials: "same-origin",
-				headers: {
-					"Content-Type": "application/json",
-					Accept: "application/json",
-				},
-				body: JSON.stringify({
-					action,
-					...payload,
-				}),
-			});
-			const data = await readJsonResponse(response, {});
+	const response = await fetch(WIKI_SYNC_API_URL, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: {
+			"Content-Type": "application/json",
+			Accept: "application/json",
+		},
+		body: JSON.stringify({
+			action,
+			...payload,
+		}),
+	});
+	const data = await readJsonResponse(response, {});
 
-			if (!response.ok || data?.ok !== true) {
-				if (response.status === 409) {
-					void pollLiveMapUpdates();
-				}
-				const requestError = new Error(data?.error || `WikiSync-API antwortet mit HTTP ${response.status}.`);
-				requestError.statusCode = response.status;
-				throw requestError;
-			}
-
-			return data;
-		} catch (error) {
-			lastError = error;
-			const statusCode = Number(error?.statusCode || 0);
-			const isRetriable = attempt < maxAttempts && (statusCode === 0 || statusCode >= 500);
-			if (!isRetriable) {
-				throw error;
-			}
-			await new Promise((resolve) => window.setTimeout(resolve, 450 * attempt));
+	if (!response.ok || data?.ok !== true) {
+		if (response.status === 409) {
+			void pollLiveMapUpdates();
 		}
+		throw new Error(data?.error || `WikiSync-API antwortet mit HTTP ${response.status}.`);
 	}
 
-	throw lastError || new Error("WikiSync-API konnte nicht erreicht werden.");
+	return data;
 }
 
 async function fetchWikiSyncData(params = {}) {
@@ -271,38 +253,20 @@ async function fetchWikiSyncData(params = {}) {
 	});
 	url.searchParams.set("_", String(Date.now()));
 
-	const maxAttempts = 2;
-	let lastError = null;
-	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-		try {
-			const response = await fetch(url.toString(), {
-				cache: "no-store",
-				credentials: "same-origin",
-				headers: {
-					Accept: "application/json",
-					"Cache-Control": "no-cache",
-					Pragma: "no-cache",
-				},
-			});
-			const data = await readJsonResponse(response, {});
+	const response = await fetch(url.toString(), {
+		cache: "no-store",
+		credentials: "same-origin",
+		headers: {
+			Accept: "application/json",
+			"Cache-Control": "no-cache",
+			Pragma: "no-cache",
+		},
+	});
+	const data = await readJsonResponse(response, {});
 
-			if (!response.ok || data?.ok !== true) {
-				const requestError = new Error(data?.error || `WikiSync-API antwortet mit HTTP ${response.status}.`);
-				requestError.statusCode = response.status;
-				throw requestError;
-			}
-
-			return data;
-		} catch (error) {
-			lastError = error;
-			const statusCode = Number(error?.statusCode || 0);
-			const isRetriable = attempt < maxAttempts && (statusCode === 0 || statusCode >= 500);
-			if (!isRetriable) {
-				throw error;
-			}
-			await new Promise((resolve) => window.setTimeout(resolve, 450 * attempt));
-		}
+	if (!response.ok || data?.ok !== true) {
+		throw new Error(data?.error || `WikiSync-API antwortet mit HTTP ${response.status}.`);
 	}
 
-	throw lastError || new Error("WikiSync-API konnte nicht erreicht werden.");
+	return data;
 }

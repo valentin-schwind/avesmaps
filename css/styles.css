@@ -2782,18 +2782,9 @@ body.modal-dialog-open {
 
 .wiki-sync-panel__actions {
 	display: flex;
-	align-items: stretch;
-	flex-wrap: wrap;
+	align-items: center;
 	gap: 8px;
 	padding: 10px 10px 0;
-}
-
-.wiki-sync-panel__action {
-	display: flex;
-	flex: 1 1 180px;
-	flex-direction: column;
-	gap: 6px;
-	min-width: 0;
 }
 
 .wiki-sync-panel__filter {
@@ -2833,7 +2824,7 @@ body.modal-dialog-open {
 }
 
 .wiki-sync-progress {
-	width: 100%;
+	flex: 1;
 	height: 12px;
 	accent-color: #6a7f3a;
 }
