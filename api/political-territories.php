@@ -2165,9 +2165,19 @@ function avesmapsPoliticalSaveHierarchy(PDO $pdo, array $payload): array {
 }
 
 function avesmapsPoliticalCreateGeometry(PDO $pdo, array $payload, array $user): array {
-    $territory = avesmapsPoliticalFetchTerritoryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['territory_public_id'] ?? ''));
+    $territoryPublicId = trim((string) ($payload['territory_public_id'] ?? ''));
+    $territoryId = null;
+
+    if ($territoryPublicId !== '') {
+        $territory = avesmapsPoliticalFetchTerritoryByPublicId(
+            $pdo,
+            avesmapsPoliticalReadPublicId($territoryPublicId)
+        );
+        $territoryId = (int) $territory['id'];
+    }
+
     $geometry = avesmapsPoliticalReadGeoJsonGeometry($payload['geometry_geojson'] ?? null);
-    $geometryPublicId = avesmapsPoliticalInsertGeometry($pdo, (int) $territory['id'], $geometry, $payload, $user);
+    $geometryPublicId = avesmapsPoliticalInsertGeometry($pdo, $territoryId, $geometry, $payload, $user);
 
     return avesmapsPoliticalResponseForGeometry($pdo, $geometryPublicId);
 }
@@ -4144,6 +4154,19 @@ function avesmapsPoliticalBuildFreeGeometryFeatureFromStoredRow(array $geometry)
 
 function avesmapsPoliticalResponseForGeometry(PDO $pdo, string $geometryPublicId): array {
     $geometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, $geometryPublicId);
+    $territoryId = avesmapsPoliticalNullableInt($geometry['territory_id'] ?? null);
+
+    if ($territoryId === null || $territoryId < 1) {
+        return [
+            'ok' => true,
+            'territory' => null,
+            'geometry' => avesmapsPoliticalGeometryRowToPublic($geometry),
+            'geometry_public_id' => (string) $geometry['public_id'],
+            'territory_public_id' => '',
+            'feature' => avesmapsPoliticalBuildFreeGeometryFeatureFromStoredRow($geometry),
+        ];
+    }
+
     try {
         $territory = avesmapsPoliticalFetchTerritoryById($pdo, $territoryId);
     } catch (InvalidArgumentException) {
@@ -4157,23 +4180,12 @@ function avesmapsPoliticalResponseForGeometry(PDO $pdo, string $geometryPublicId
         ];
     }
 
-    if ($territoryId < 1) {
-        return [
-            'ok' => true,
-            'territory' => null,
-            'geometry' => avesmapsPoliticalGeometryRowToPublic($geometry),
-            'geometry_public_id' => (string) $geometry['public_id'],
-            'territory_public_id' => '',
-            'feature' => avesmapsPoliticalBuildFreeGeometryFeatureFromStoredRow($geometry),
-        ];
-    }
-
-    $territory = avesmapsPoliticalFetchTerritoryById($pdo, $territoryId);
-
     return [
         'ok' => true,
         'territory' => avesmapsPoliticalTerritoryRowToPublic($territory),
         'geometry' => avesmapsPoliticalGeometryRowToPublic($geometry),
+        'geometry_public_id' => (string) $geometry['public_id'],
+        'territory_public_id' => (string) ($territory['public_id'] ?? ''),
         'feature' => avesmapsPoliticalBuildFeatureFromStoredRows($territory, $geometry),
     ];
 }
