@@ -3704,42 +3704,6 @@ function avesmapsWikiSyncFetchPagesByTitle(PDO $pdo, array $titles, bool $includ
     return $pagesByTitle;
 }
 
-function avesmapsWikiSyncApiRequest(array $params): array {
-    $queryParams = [
-        'format' => 'json',
-        'formatversion' => '2',
-    ] + $params;
-    $url = AVESMAPS_WIKI_API_URL . '?' . http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);
-    $context = stream_context_create([
-        'http' => [
-            'method' => 'GET',
-            'timeout' => AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS,
-            'header' => "User-Agent: " . AVESMAPS_WIKI_USER_AGENT . "\r\nAccept: application/json\r\n",
-            'ignore_errors' => true,
-        ],
-        'ssl' => [
-            'verify_peer' => true,
-            'verify_peer_name' => true,
-        ],
-    ]);
-
-    $rawResponse = @file_get_contents($url, false, $context);
-    if (!is_string($rawResponse) || $rawResponse === '') {
-        throw new RuntimeException('Wiki Aventurica konnte nicht gelesen werden.');
-    }
-
-    try {
-        $data = json_decode($rawResponse, true, 512, JSON_THROW_ON_ERROR);
-    } catch (JsonException) {
-        throw new RuntimeException('Wiki Aventurica hat ungueltiges JSON geliefert.');
-    }
-
-    if (!is_array($data)) {
-        throw new RuntimeException('Wiki Aventurica hat keine gueltige Antwort geliefert.');
-    }
-
-    return $data;
-}
 
 function avesmapsWikiSyncBuildMatch(array $mapPlace, array $wikiPage, string $matchKind): array {
     return [
@@ -4108,9 +4072,6 @@ function avesmapsWikiSyncReadPageContent(array $page): string {
     return (string) ($revisions[0]['slots']['main']['content'] ?? $revisions[0]['content'] ?? '');
 }
 
-function avesmapsWikiSyncPageUrl(string $title): string {
-    return AVESMAPS_WIKI_PAGE_BASE_URL . str_replace('%2F', '/', rawurlencode(str_replace(' ', '_', $title)));
-}
 
 function avesmapsWikiSyncCoordinateSortValue(string $source): int {
     return match ($source) {
