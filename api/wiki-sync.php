@@ -4280,14 +4280,6 @@ function avesmapsWikiSyncFetchCase(PDO $pdo, int $caseId): array {
     return $case;
 }
 
-function avesmapsWikiSyncReadPublicId(mixed $value): string {
-    $publicId = avesmapsNormalizeSingleLine((string) $value, 36);
-    if (preg_match('/^[a-f0-9-]{36}$/i', $publicId) !== 1) {
-        throw new InvalidArgumentException('Die WikiSync-ID ist ungueltig.');
-    }
-
-    return strtolower($publicId);
-}
 
 function avesmapsWikiSyncReadPositiveInt(mixed $value, string $fieldName): int {
     $parsedValue = filter_var($value, FILTER_VALIDATE_INT);
@@ -4318,10 +4310,6 @@ function avesmapsWikiSyncReadLocationSubtype(mixed $value): string {
 
 function avesmapsWikiSyncReadSettlementClass(string $value): string {
     return array_key_exists($value, AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS) ? $value : 'dorf';
-}
-
-function avesmapsWikiSyncReadBoolean(mixed $value): bool {
-    return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
 }
 
 function avesmapsWikiSyncLocationSubtypeLabel(string $subtype): string {
@@ -4492,47 +4480,4 @@ function avesmapsWikiSyncBuildPointFeatureResponse(string $publicId, string $nam
         'lng' => round($lng, 3),
         'revision' => $revision,
     ];
-}
-
-
-function avesmapsWikiSyncLogServerError(string $label, array $context): void {
-    $payload = [
-        'label' => $label,
-        'context' => $context,
-    ];
-
-    try {
-        error_log('Avesmaps WikiSync error: ' . avesmapsWikiSyncEncodeJson($payload));
-    } catch (Throwable) {
-        error_log('Avesmaps WikiSync error: ' . $label);
-    }
-}
-
-function avesmapsWikiSyncUuidV4(): string {
-    $bytes = random_bytes(16);
-    $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
-    $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
-    $hex = unpack('H*', $bytes);
-    if (!is_array($hex) || !isset($hex[1])) {
-        throw new RuntimeException('Die UUID konnte nicht erzeugt werden.');
-    }
-
-    return sprintf(
-        '%s-%s-%s-%s-%s',
-        substr($hex[1], 0, 8),
-        substr($hex[1], 8, 4),
-        substr($hex[1], 12, 4),
-        substr($hex[1], 16, 4),
-        substr($hex[1], 20)
-    );
-}
-
-function avesmapsWikiSyncRelaxLimits(): void {
-    if (function_exists('set_time_limit')) {
-        @set_time_limit(300);
-    }
-
-    if (function_exists('ini_set')) {
-        @ini_set('memory_limit', '512M');
-    }
 }
