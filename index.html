@@ -911,6 +911,7 @@
 			reviewReportMarker = null,
 			reviewReports = [],
 			wikiSyncCases = [],
+			wikiSyncCasesLoadPromise = null,
 			wikiSyncSummary = null,
 			wikiSyncTerritorySummary = null,
 			activeWikiSyncRunId = null,
@@ -1161,7 +1162,6 @@
 			document.getElementById("review-panel-toggle")?.removeAttribute("hidden");
 			restoreReviewPanelState();
 			void loadReviewReports();
-			void loadWikiSyncCases();
 			void loadChangeLog();
 			void sendEditorPresenceHeartbeat();
 			startEditorPresenceHeartbeat();

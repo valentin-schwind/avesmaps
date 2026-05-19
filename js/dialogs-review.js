@@ -3927,40 +3927,50 @@ async function loadWikiSyncCases() {
 		return;
 	}
 
-	setWikiSyncStatus("WikiSyncLocations-Fälle werden geladen...", "pending");
-	try {
-		const data = await fetchWikiSyncData({ action: "cases" });
-
-		wikiSyncCases = Array.isArray(data.cases) ? data.cases : [];
-		wikiSyncSummary = data.summary || null;
-		const activeRun = data.active_run || null;
-		const activeTerritoryRun = data.active_territory_run || null;
-		activeWikiSyncRunId = activeRun?.public_id || data.latest_run?.public_id || activeWikiSyncRunId;
-		activeWikiSyncRunStatus = activeRun?.status || "";
-		activeWikiSyncTerritoryRunId = activeTerritoryRun?.public_id || data.latest_territory_run?.public_id || activeWikiSyncTerritoryRunId;
-		activeWikiSyncTerritoryRunStatus = activeTerritoryRun?.status || "";
-		applyWikiSyncTerritorySummaryFromPayload(data.territory_summary);
-		renderWikiSyncCases(data.latest_run || null);
-		syncWikiSyncCreateLocationContextMenuAction();
-		if (activeRun?.status === "running") {
-			setWikiSyncRunning(false, activeRun);
-			setWikiSyncStatus(activeRun.message || "Ein WikiSync-Lauf kann fortgesetzt werden.", "pending");
-		} else {
-			setWikiSyncRunning(false);
-		}
-
-		if (activeTerritoryRun?.status === "running") {
-			setWikiSyncTerritoryRunning(false, activeTerritoryRun);
-			if (activeRun?.status !== "running") {
-				setWikiSyncStatus(activeTerritoryRun.message || "Ein WikiSyncTerritories-Lauf kann fortgesetzt werden.", "pending");
-			}
-		} else {
-			setWikiSyncTerritoryRunning(false);
-		}
-	} catch (error) {
-		console.error("WikiSyncLocations-Fälle konnten nicht geladen werden:", error);
-		setWikiSyncStatus(error.message || "WikiSyncLocations-Fälle konnten nicht geladen werden.", "error");
+	if (wikiSyncCasesLoadPromise) {
+		return wikiSyncCasesLoadPromise;
 	}
+
+	setWikiSyncStatus("WikiSyncLocations-Fälle werden geladen...", "pending");
+	wikiSyncCasesLoadPromise = (async () => {
+		try {
+			const data = await fetchWikiSyncData({ action: "cases" });
+
+			wikiSyncCases = Array.isArray(data.cases) ? data.cases : [];
+			wikiSyncSummary = data.summary || null;
+			const activeRun = data.active_run || null;
+			const activeTerritoryRun = data.active_territory_run || null;
+			activeWikiSyncRunId = activeRun?.public_id || data.latest_run?.public_id || activeWikiSyncRunId;
+			activeWikiSyncRunStatus = activeRun?.status || "";
+			activeWikiSyncTerritoryRunId = activeTerritoryRun?.public_id || data.latest_territory_run?.public_id || activeWikiSyncTerritoryRunId;
+			activeWikiSyncTerritoryRunStatus = activeTerritoryRun?.status || "";
+			applyWikiSyncTerritorySummaryFromPayload(data.territory_summary);
+			renderWikiSyncCases(data.latest_run || null);
+			syncWikiSyncCreateLocationContextMenuAction();
+			if (activeRun?.status === "running") {
+				setWikiSyncRunning(false, activeRun);
+				setWikiSyncStatus(activeRun.message || "Ein WikiSync-Lauf kann fortgesetzt werden.", "pending");
+			} else {
+				setWikiSyncRunning(false);
+			}
+
+			if (activeTerritoryRun?.status === "running") {
+				setWikiSyncTerritoryRunning(false, activeTerritoryRun);
+				if (activeRun?.status !== "running") {
+					setWikiSyncStatus(activeTerritoryRun.message || "Ein WikiSyncTerritories-Lauf kann fortgesetzt werden.", "pending");
+				}
+			} else {
+				setWikiSyncTerritoryRunning(false);
+			}
+		} catch (error) {
+			console.error("WikiSyncLocations-Fälle konnten nicht geladen werden:", error);
+			setWikiSyncStatus(error.message || "WikiSyncLocations-Fälle konnten nicht geladen werden.", "error");
+		} finally {
+			wikiSyncCasesLoadPromise = null;
+		}
+	})();
+
+	return wikiSyncCasesLoadPromise;
 }
 
 function applyWikiSyncTerritorySummaryFromPayload(payload) {
