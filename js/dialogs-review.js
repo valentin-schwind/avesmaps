@@ -3922,7 +3922,7 @@ async function loadWikiSyncCases() {
 
 	setWikiSyncStatus("WikiSyncLocations-Fälle werden geladen...", "pending");
 	try {
-		const data = await fetchWikiSyncData({ action: "cases" });
+		const data = await fetchWikiSyncLocationData({ action: "cases" });
 
 		wikiSyncCases = Array.isArray(data.cases) ? data.cases : [];
 		wikiSyncSummary = data.summary || null;
@@ -3956,7 +3956,7 @@ async function startWikiSyncRun() {
 		if (activeWikiSyncRunStatus === "running" && activeWikiSyncRunId) {
 			run = { public_id: activeWikiSyncRunId, status: "running" };
 		} else {
-			const startResult = await submitWikiSyncAction("start_run");
+			const startResult = await submitWikiSyncLocationAction("start_run");
 			activeWikiSyncRunId = startResult.run?.public_id || null;
 			activeWikiSyncRunStatus = startResult.run?.status || "running";
 			run = startResult.run || null;
@@ -3969,7 +3969,7 @@ async function startWikiSyncRun() {
 				throw new Error("WikiSync wurde nach zu vielen Teilschritten angehalten.");
 			}
 
-			const advanceResult = await submitWikiSyncAction("advance_run", { run_id: activeWikiSyncRunId });
+			const advanceResult = await submitWikiSyncLocationAction("advance_run", { run_id: activeWikiSyncRunId });
 			run = advanceResult.run || null;
 			activeWikiSyncRunStatus = run?.status || "";
 			wikiSyncSummary = advanceResult.summary || wikiSyncSummary;
@@ -4828,7 +4828,7 @@ async function handleWikiSyncCaseActionClick(event) {
 
 async function updateWikiSyncCaseStatus(caseEntry, action, successMessage) {
 	try {
-		await submitWikiSyncAction(action, { case_id: Number(caseEntry.id) });
+		await submitWikiSyncLocationAction(action, { case_id: Number(caseEntry.id) });
 		showFeedbackToast(successMessage, "success");
 		await loadWikiSyncCases();
 	} catch (error) {
@@ -4848,7 +4848,7 @@ async function archiveWikiSyncCreatedLocationCase(caseId, feature = null) {
 		if (feature) {
 			payload.resolution = { feature };
 		}
-		await submitWikiSyncAction("archive_case", payload);
+		await submitWikiSyncLocationAction("archive_case", payload);
 		await loadWikiSyncCases();
 		return true;
 	} catch (error) {
@@ -5140,7 +5140,7 @@ async function handleWikiSyncResolveFormSubmit(event) {
 	setWikiSyncResolveSubmitPending(true);
 	setWikiSyncResolveStatus("WikiSync-Fall wird gespeichert...", "pending");
 	try {
-		const result = await submitWikiSyncAction("resolve_case", payload);
+		const result = await submitWikiSyncLocationAction("resolve_case", payload);
 		if (result.feature) {
 			const markerEntry = findLocationMarkerByPublicId(result.feature.public_id);
 			if (markerEntry) {
