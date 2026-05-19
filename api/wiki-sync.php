@@ -1166,6 +1166,11 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
         }
 
         foreach ($htmlDetails as $key => $value) {
+            if ($key === '_html_all_detail_rows') {
+                $details[$key] = $value;
+                continue;
+            }
+
             if (
                 (string) ($details[$key] ?? '') === ''
                 && (string) $value !== ''
@@ -1180,7 +1185,11 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
         unset($details['child_territories']);
 
         foreach ($details as $key => $value) {
-            if ($key === '_all_template_fields' || $key === '_unmapped_fields') {
+            if (
+                $key === '_all_template_fields'
+                || $key === '_unmapped_fields'
+                || $key === '_html_all_detail_rows'
+            ) {
                 $rows[$index][$key] = $value;
                 continue;
             }
@@ -1782,6 +1791,7 @@ function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromHtml(string $html): a
     @$document->loadHTML('<?xml encoding="UTF-8">' . $html);
 
     $details = [];
+    $allRows = [];
 
     foreach ($document->getElementsByTagName('tr') as $row) {
         if (!$row instanceof DOMElement) {
@@ -1799,14 +1809,16 @@ function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromHtml(string $html): a
             continue;
         }
 
-        $key = avesmapsWikiSyncNormalizeRenderedPoliticalDetailKey($cells[0]->textContent);
+        $rawKey = avesmapsWikiSyncNormalizeRenderedPoliticalDetailKey($cells[0]->textContent);
         $value = avesmapsWikiSyncNormalizeWikiTreeText($cells[1]->textContent);
 
-        if ($key === '' || $value === '') {
+        if ($rawKey === '' || $value === '') {
             continue;
         }
 
-        $targetKey = avesmapsWikiSyncMapRenderedPoliticalDetailKey($key);
+        $allRows[$rawKey] = $value;
+
+        $targetKey = avesmapsWikiSyncMapRenderedPoliticalDetailKey($rawKey);
         if ($targetKey === '') {
             continue;
         }
@@ -1815,6 +1827,8 @@ function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromHtml(string $html): a
             $details[$targetKey] = $value;
         }
     }
+
+    $details['_html_all_detail_rows'] = $allRows;
 
     return $details;
 }
