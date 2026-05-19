@@ -1142,13 +1142,26 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
             try {
                 $html = avesmapsWikiSyncFetchParsedWikiHtml($title);
                 $htmlDetails = avesmapsWikiSyncParsePoliticalTerritoryDetailsFromHtml($html);
+
+                $rows[$index]['_html_detail_fallback_used'] = true;
+                $rows[$index]['_html_detail_fallback_title'] = $title;
+                $rows[$index]['_html_detail_fallback_details'] = $htmlDetails;
+
                 $htmlDetailFallbackCount++;
             } catch (Throwable $exception) {
+                $rows[$index]['_html_detail_fallback_used'] = true;
+                $rows[$index]['_html_detail_fallback_title'] = $title;
+                $rows[$index]['_html_detail_fallback_error'] = [
+                    'class' => $exception::class,
+                    'message' => $exception->getMessage(),
+                ];
+                
                 avesmapsWikiSyncLogServerError('political_territory_detail_html_parse_error', [
                     'title' => $title,
                     'exception_class' => $exception::class,
                     'exception_message' => $exception->getMessage(),
                 ]);
+
             }
         }
 
