@@ -1125,7 +1125,7 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
         }
 
         $details = avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent($content);
-        $htmlDetails = [];
+        /*$htmlDetails = [];
 
         try {
             $html = avesmapsWikiSyncFetchParsedWikiHtml($title);
@@ -1145,7 +1145,7 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
             ) {
                 $details[$key] = $value;
             }
-        }
+        }*/
         $childTerritories = is_array($details['child_territories'] ?? null)
             ? $details['child_territories']
             : [];
