@@ -1131,6 +1131,10 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
         unset($details['child_territories']);
 
         foreach ($details as $key => $value) {
+            if ($key === '_unmapped_fields') {
+                $rows[$index][$key] = $value;
+                continue;
+            }
             if ($value === '') {
                 continue;
             }
@@ -1393,6 +1397,7 @@ function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent(string $conte
 
         $targetKey = $fieldMap[$key] ?? null;
         if ($targetKey === null) {
+            $details['_unmapped_fields'][$rawKey] = avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($rawValue);
             continue;
         }
 
