@@ -5,6 +5,8 @@ declare(strict_types=1);
 require __DIR__ . '/auth.php';
 require_once __DIR__ . '/political-territory-lib.php';
 
+const AVESMAPS_WIKI_POLITICAL_HTML_DETAIL_FALLBACK_LIMIT = 10;
+
 const AVESMAPS_WIKI_API_URL = 'https://de.wiki-aventurica.de/de/api.php';
 const AVESMAPS_WIKI_PAGE_BASE_URL = 'https://de.wiki-aventurica.de/wiki/';
 const AVESMAPS_WIKI_USER_AGENT = 'Avesmaps WikiSync/1.0';
@@ -1088,6 +1090,7 @@ function avesmapsWikiSyncCreatePoliticalTerritoryRowIdentityKey(array $row): str
 function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): array {
     $titlesByIndex = [];
     $titles = [];
+
     foreach ($rows as $index => $row) {
         $title = avesmapsWikiSyncPoliticalTerritoryTitleFromUrl((string) ($row['wiki_url'] ?? ''));
         if ($title === '') {
@@ -1117,6 +1120,7 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
     }
 
     $discoveredChildRowsByKey = [];
+    $htmlDetailFallbackCount = 0;
 
     foreach ($titlesByIndex as $index => $title) {
         $content = $contentsByTitle[$title] ?? '';
@@ -1125,17 +1129,27 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
         }
 
         $details = avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent($content);
-        /*$htmlDetails = [];
 
-        try {
-            $html = avesmapsWikiSyncFetchParsedWikiHtml($title);
-            $htmlDetails = avesmapsWikiSyncParsePoliticalTerritoryDetailsFromHtml($html);
-        } catch (Throwable $exception) {
-            avesmapsWikiSyncLogServerError('political_territory_detail_html_parse_error', [
-                'title' => $title,
-                'exception_class' => $exception::class,
-                'exception_message' => $exception->getMessage(),
-            ]);
+        $htmlDetails = [];
+        $needsHtmlDetailFallback =
+            $htmlDetailFallbackCount < AVESMAPS_WIKI_POLITICAL_HTML_DETAIL_FALLBACK_LIMIT
+            && (
+                (string) ($details['founded_text'] ?? '') === ''
+                || (string) ($details['dissolved_text'] ?? '') === ''
+            );
+
+        if ($needsHtmlDetailFallback) {
+            try {
+                $html = avesmapsWikiSyncFetchParsedWikiHtml($title);
+                $htmlDetails = avesmapsWikiSyncParsePoliticalTerritoryDetailsFromHtml($html);
+                $htmlDetailFallbackCount++;
+            } catch (Throwable $exception) {
+                avesmapsWikiSyncLogServerError('political_territory_detail_html_parse_error', [
+                    'title' => $title,
+                    'exception_class' => $exception::class,
+                    'exception_message' => $exception->getMessage(),
+                ]);
+            }
         }
 
         foreach ($htmlDetails as $key => $value) {
@@ -1145,13 +1159,18 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
             ) {
                 $details[$key] = $value;
             }
-        }*/
+        }
+
         $childTerritories = is_array($details['child_territories'] ?? null)
             ? $details['child_territories']
             : [];
         unset($details['child_territories']);
 
-        foreach ($details as $key => $value) { 
+        foreach ($details as $key => $value) {
+            if ($key === '_all_template_fields' || $key === '_unmapped_fields') {
+                $rows[$index][$key] = $value;
+                continue;
+            }
 
             if ($value === '') {
                 continue;
