@@ -2839,15 +2839,21 @@ function avesmapsPoliticalDeleteGeometry(PDO $pdo, array $payload, array $user =
     $remainingGeometryCount = 0;
 
     if ($territoryId > 0) {
-        $territory = avesmapsPoliticalFetchTerritoryById($pdo, $territoryId);
-        $beforeTerritorySnapshot = avesmapsPoliticalBuildTerritoryAuditSnapshot($territory);
+        try {
+            $territory = avesmapsPoliticalFetchTerritoryById($pdo, $territoryId);
+            $beforeTerritorySnapshot = avesmapsPoliticalBuildTerritoryAuditSnapshot($territory);
+        } catch (InvalidArgumentException) {
+            $territoryId = 0;
+            $territory = null;
+            $beforeTerritorySnapshot = null;
+        }
     }
 
     $pdo->beginTransaction();
     try {
         avesmapsPoliticalSoftDeleteGeometryById($pdo, (int) $geometry['id']);
 
-        if ($territoryId > 0) {
+        if ($territoryId > 0 && $territory !== null) {
             $remainingGeometryCount = avesmapsPoliticalCountActiveGeometriesForTerritory($pdo, $territoryId);
 
             if ($remainingGeometryCount === 0 && empty($territory['wiki_id'])) {
@@ -2859,7 +2865,7 @@ function avesmapsPoliticalDeleteGeometry(PDO $pdo, array $payload, array $user =
 
         $geometryAfterRow = avesmapsPoliticalFetchGeometryRowByPublicIdRaw($pdo, $geometryPublicId, true);
         $afterTerritorySnapshot = null;
-        if ($territoryId > 0) {
+        if ($territoryId > 0 && $territory !== null) {
             $territoryAfterRow = avesmapsPoliticalFetchTerritoryByIdForAudit($pdo, $territoryId, true);
             $afterTerritorySnapshot = $territoryAfterRow === null
                 ? null
@@ -4138,7 +4144,18 @@ function avesmapsPoliticalBuildFreeGeometryFeatureFromStoredRow(array $geometry)
 
 function avesmapsPoliticalResponseForGeometry(PDO $pdo, string $geometryPublicId): array {
     $geometry = avesmapsPoliticalFetchGeometryByPublicId($pdo, $geometryPublicId);
-    $territoryId = (int) ($geometry['territory_id'] ?? 0);
+    try {
+        $territory = avesmapsPoliticalFetchTerritoryById($pdo, $territoryId);
+    } catch (InvalidArgumentException) {
+        return [
+            'ok' => true,
+            'territory' => null,
+            'geometry' => avesmapsPoliticalGeometryRowToPublic($geometry),
+            'geometry_public_id' => (string) $geometry['public_id'],
+            'territory_public_id' => '',
+            'feature' => avesmapsPoliticalBuildFreeGeometryFeatureFromStoredRow($geometry),
+        ];
+    }
 
     if ($territoryId < 1) {
         return [
