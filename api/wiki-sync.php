@@ -547,14 +547,14 @@ function avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache(PDO $pdo, bool $rese
 
         $record['founded_text'] = (string) $temporal['founded_text'];
         $record['founded_type'] = (string) $temporal['founded_type'];
-        $record['founded_start_bf'] = (int) $temporal['founded_start_bf'];
-        $record['founded_end_bf'] = (int) $temporal['founded_end_bf'];
-        $record['founded_display_bf'] = (float) $temporal['founded_display_bf'];
+        $record['founded_start_bf'] = $temporal['founded_start_bf'];
+        $record['founded_end_bf'] = $temporal['founded_end_bf'];
+        $record['founded_display_bf'] = $temporal['founded_display_bf'];
         $record['dissolved_text'] = (string) $temporal['dissolved_text'];
         $record['dissolved_type'] = (string) $temporal['dissolved_type'];
-        $record['dissolved_start_bf'] = (int) $temporal['dissolved_start_bf'];
-        $record['dissolved_end_bf'] = (int) $temporal['dissolved_end_bf'];
-        $record['dissolved_display_bf'] = (float) $temporal['dissolved_display_bf'];
+        $record['dissolved_start_bf'] = $temporal['dissolved_start_bf'];
+        $record['dissolved_end_bf'] = $temporal['dissolved_end_bf'];
+        $record['dissolved_display_bf'] = $temporal['dissolved_display_bf'];
         $record['affiliation_root'] = $affiliationRoot;
         $record['affiliation_path_json'] = $affiliationPath;
 
@@ -616,10 +616,17 @@ function avesmapsWikiSyncResetPoliticalTerritoryWikiTable(PDO $pdo): void {
 function avesmapsWikiSyncBuildPoliticalTemporalPayload(string $foundedTextRaw, string $dissolvedTextRaw): array {
     $foundedText = avesmapsWikiSyncNormalizePoliticalTemporalText($foundedTextRaw);
     $foundedYears = avesmapsWikiSyncExtractPoliticalBfYears($foundedText);
-    $foundedStart = $foundedYears === [] ? 0 : min($foundedYears);
-    $foundedEnd = $foundedYears === [] ? $foundedStart : max($foundedYears);
-    if ($foundedText === '') {
-        $foundedText = avesmapsWikiSyncFormatBfYear($foundedStart);
+
+    if ($foundedText === '' || $foundedYears === []) {
+        $foundedStart = null;
+        $foundedEnd = null;
+        $foundedType = 'unknown';
+        $foundedDisplay = null;
+    } else {
+        $foundedStart = min($foundedYears);
+        $foundedEnd = max($foundedYears);
+        $foundedType = count($foundedYears) > 1 ? 'range' : 'exact';
+        $foundedDisplay = avesmapsWikiSyncBuildPoliticalDisplayYear($foundedStart, $foundedEnd);
     }
 
     $dissolvedText = avesmapsWikiSyncNormalizePoliticalTemporalText($dissolvedTextRaw);
@@ -631,36 +638,61 @@ function avesmapsWikiSyncBuildPoliticalTemporalPayload(string $foundedTextRaw, s
         $dissolvedStart = 9999;
         $dissolvedEnd = 9999;
         $dissolvedType = 'ongoing';
+        $dissolvedDisplay = 9999.0;
         $dissolvedText = $dissolvedText === '' ? 'besteht' : $dissolvedText;
     } elseif ($dissolvedYears !== []) {
         $dissolvedStart = min($dissolvedYears);
         $dissolvedEnd = max($dissolvedYears);
         $dissolvedType = count($dissolvedYears) > 1 ? 'range' : 'exact';
+        $dissolvedDisplay = avesmapsWikiSyncBuildPoliticalDisplayYear($dissolvedStart, $dissolvedEnd);
     } else {
-        $dissolvedStart = 9999;
-        $dissolvedEnd = 9999;
-        $dissolvedType = 'fallback_open';
-        $dissolvedText = $dissolvedText === '' ? 'besteht' : $dissolvedText;
+        $dissolvedStart = null;
+        $dissolvedEnd = null;
+        $dissolvedType = 'unknown';
+        $dissolvedDisplay = null;
     }
 
     return [
         'founded_text' => $foundedText,
-        'founded_type' => $foundedYears === [] ? 'fallback' : (count($foundedYears) > 1 ? 'range' : 'exact'),
+        'founded_type' => $foundedType,
         'founded_start_bf' => $foundedStart,
         'founded_end_bf' => $foundedEnd,
-        'founded_display_bf' => avesmapsWikiSyncBuildPoliticalDisplayYear($foundedStart, $foundedEnd),
+        'founded_display_bf' => $foundedDisplay,
         'dissolved_text' => $dissolvedText,
         'dissolved_type' => $dissolvedType,
         'dissolved_start_bf' => $dissolvedStart,
         'dissolved_end_bf' => $dissolvedEnd,
-        'dissolved_display_bf' => avesmapsWikiSyncBuildPoliticalDisplayYear($dissolvedStart, $dissolvedEnd),
+        'dissolved_display_bf' => $dissolvedDisplay,
     ];
 }
 
 function avesmapsWikiSyncNormalizePoliticalTemporalText(string $value): string {
     $clean = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+    $clean = preg_replace('/<!--.*?-->/su', ' ', $clean) ?? $clean;
+    $clean = preg_replace('/<ref\b[^>]*>.*?<\/ref>/isu', ' ', $clean) ?? $clean;
+    $clean = preg_replace('/<ref\b[^\/>]*\/>/isu', ' ', $clean) ?? $clean;
+
+    $clean = preg_replace_callback('/\{\{Datum\|([^{}]+)\}\}/iu', static function (array $matches): string {
+        return avesmapsWikiSyncFormatPoliticalTerritoryDateTemplate((string) $matches[1]);
+    }, $clean) ?? $clean;
+
+    $clean = preg_replace('/\[\[[^|\]]+\|([^\]]+)\]\]/u', '$1', $clean) ?? $clean;
+    $clean = preg_replace('/\[\[([^\]]+)\]\]/u', '$1', $clean) ?? $clean;
+
+    $clean = preg_replace('/\{\{[^{}|]+\|([^{}]+)\}\}/u', '$1', $clean) ?? $clean;
+    $clean = preg_replace('/\{\{[^{}]*\}\}/u', ' ', $clean) ?? $clean;
+
+    $clean = str_replace(
+        ['v.BF', 'vBF', 'v. B.F.', 'B.F.', 'nach Bosparans Fall', 'Bosparans Fall'],
+        ['v. BF', 'v. BF', 'v. BF', 'BF', 'BF', 'BF'],
+        $clean
+    );
+
+    $clean = strip_tags($clean);
     $clean = preg_replace('/\s+/u', ' ', $clean) ?? $clean;
-    return trim($clean);
+
+    return trim($clean, " \t\n\r\0\x0B,;");
 }
 
 function avesmapsWikiSyncExtractPoliticalBfYears(string $value): array {
@@ -669,12 +701,15 @@ function avesmapsWikiSyncExtractPoliticalBfYears(string $value): array {
         return $years;
     }
 
+    $normalized = avesmapsWikiSyncNormalizePoliticalTemporalText($value);
+
     $matchCount = preg_match_all(
-        '/(?:\b\d{1,2}\.\s*)?(?:(?:PRA|RON|EFF|TRA|BOR|HES|FIR|TSA|PHE|PER|ING|RAH|NAM)\s+)?(\d{1,5})\s*(v\.\s*BF|BF)\b/iu',
-        $value,
+        '/(?:\b\d{1,2}\.\s*)?(?:(?:PRA|RON|EFF|TRA|BOR|HES|FIR|TSA|PHE|PER|ING|RAH|NAM)\s+)?(\d{1,5})\s*(v\.?\s*BF|vBF|BF)\b/iu',
+        $normalized,
         $matches,
         PREG_SET_ORDER
     );
+
     if ($matchCount === false || $matchCount < 1) {
         return $years;
     }
@@ -685,7 +720,9 @@ function avesmapsWikiSyncExtractPoliticalBfYears(string $value): array {
             continue;
         }
 
-        $isBefore = isset($match[2]) && preg_match('/v\.\s*BF/iu', (string) $match[2]) === 1;
+        $era = (string) ($match[2] ?? '');
+        $isBefore = preg_match('/v\.?\s*BF|vBF/iu', $era) === 1;
+
         $years[] = $isBefore ? -$rawYear : $rawYear;
     }
 
@@ -1267,6 +1304,40 @@ function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent(string $conte
         'wappendatei' => 'coat_of_arms_url',
         'wappenbilddatei' => 'coat_of_arms_url',
         'wappenabbildung' => 'coat_of_arms_url',
+        'grundungsjahr' => 'founded_text',
+        'gruendungsjahr' => 'founded_text',
+        'grundungszeit' => 'founded_text',
+        'gruendungszeit' => 'founded_text',
+        'entstehung' => 'founded_text',
+        'entstanden' => 'founded_text',
+        'errichtung' => 'founded_text',
+        'errichtet' => 'founded_text',
+        'proklamation' => 'founded_text',
+        'ausrufung' => 'founded_text',
+        'seit' => 'founded_text',
+        'von' => 'founded_text',
+        'ab' => 'founded_text',
+        'beginn' => 'founded_text',
+        'anfang' => 'founded_text',
+        'aufhebungsjahr' => 'dissolved_text',
+        'aufhebungsdatum' => 'dissolved_text',
+        'ende' => 'dissolved_text',
+        'endjahr' => 'dissolved_text',
+        'bis' => 'dissolved_text',
+        'untergang' => 'dissolved_text',
+        'zerfall' => 'dissolved_text',
+        'erloschen' => 'dissolved_text',
+        'beendet' => 'dissolved_text',
+        'existenz' => 'period_text',
+        'existenzzeit' => 'period_text',
+        'zeit' => 'period_text',
+        'zeitspanne' => 'period_text',
+        'zeitraum' => 'period_text',
+        'periode' => 'period_text',
+        'bestandszeit' => 'period_text',
+        'bestehenszeit' => 'period_text',
+        'bestehen' => 'period_text',
+        'bestand' => 'period_text',
     ];
 
     $childFieldKeys = [
