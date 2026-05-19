@@ -3927,10 +3927,11 @@ async function loadWikiSyncCases() {
 		wikiSyncCases = Array.isArray(data.cases) ? data.cases : [];
 		wikiSyncSummary = data.summary || null;
 		const activeRun = data.active_run || null;
-		activeWikiSyncRunId = activeRun?.public_id || data.latest_run?.public_id || activeWikiSyncRunId;
-		activeWikiSyncRunStatus = activeRun?.status || "";
+		activeWikiSyncRunId = activeRun?.status === "running" ? activeRun.public_id : null;
+		activeWikiSyncRunStatus = activeRun?.status === "running" ? "running" : "";
 		renderWikiSyncCases(data.latest_run || null);
 		syncWikiSyncCreateLocationContextMenuAction();
+
 		if (activeRun?.status === "running") {
 			setWikiSyncRunning(false, activeRun);
 			setWikiSyncStatus(activeRun.message || "Ein WikiSync-Lauf kann fortgesetzt werden.", "pending");
