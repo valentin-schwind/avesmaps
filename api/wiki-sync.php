@@ -239,7 +239,10 @@ if (!defined('AVESMAPS_WIKI_SYNC_NO_AUTO_HANDLE')) {
 
 function avesmapsWikiSyncEnsureTables(PDO $pdo): void {
     avesmapsWikiSyncEnsureCoreTables($pdo);
+    avesmapsWikiSyncEnsureLocationTables($pdo);
+}
 
+function avesmapsWikiSyncEnsureLocationTables(PDO $pdo): void {
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS wiki_sync_cases (
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
