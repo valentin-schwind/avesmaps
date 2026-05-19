@@ -130,18 +130,17 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 		.map((node) => String(node?.territoryPublicId || "").trim())
 		.filter(Boolean);
 	const hasAssignedTerritory = assignedPath.length > 0 && (wikiPublicIds.length > 0 || territoryPublicIds.length > 0);
-	const hasExistingTerritory = Boolean(String(regionEntry.territoryPublicId || regionEntry.territory_public_id || "").trim());
 	const display = buildPoliticalTerritoryEditorDisplayPayload(regionEntry, value);
 	const validity = buildPoliticalTerritoryEditorValidityPayload(regionEntry, value);
 	const displayName = String(display.displayName || display.name || "").trim();
-	const shouldCreateTerritoryFromFreeGeometry = !hasAssignedTerritory && !hasExistingTerritory && displayName !== "";
+	const shouldCreateTerritoryFromGeometry = !hasAssignedTerritory && displayName !== "";
 
 	const result = await submitPoliticalTerritoryEdit({
 		action: "save_geometry_assignment",
 		geometry_public_id: geometryPublicId,
-		display_only: !hasAssignedTerritory && !shouldCreateTerritoryFromFreeGeometry,
-		create_territory_if_missing: shouldCreateTerritoryFromFreeGeometry,
-		territory_name: shouldCreateTerritoryFromFreeGeometry ? displayName : "",
+		display_only: !hasAssignedTerritory && !shouldCreateTerritoryFromGeometry,
+		create_territory_if_missing: shouldCreateTerritoryFromGeometry,
+		territory_name: shouldCreateTerritoryFromGeometry ? displayName : "",
 		display,
 		validity,
 		wiki_public_ids: wikiPublicIds,

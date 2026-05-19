@@ -2570,10 +2570,37 @@ function avesmapsPoliticalSaveExistingGeometryAssignment(PDO $pdo, array $payloa
     return $response;
 }
 
-function avesmapsPoliticalCreateTerritoryForGeometry(PDO $pdo, array $payload, array $user, array $geometry): array {
-    if ((int) ($geometry['territory_id'] ?? 0) > 0) {
-        throw new InvalidArgumentException('Die Geometrie ist bereits einem Herrschaftsgebiet zugeordnet.');
+function avesmapsPoliticalDeactivateTerritoryIfOrphaned(PDO $pdo, int $territoryId): void {
+    if ($territoryId < 1) {
+        return;
     }
+
+    $statement = $pdo->prepare(
+        'SELECT COUNT(*)
+        FROM political_territory_geometry
+        WHERE territory_id = :territory_id
+            AND is_active = 1'
+    );
+    $statement->execute([
+        'territory_id' => $territoryId,
+    ]);
+
+    if ((int) $statement->fetchColumn() > 0) {
+        return;
+    }
+
+    $updateStatement = $pdo->prepare(
+        'UPDATE political_territory
+        SET is_active = 0
+        WHERE id = :id'
+    );
+    $updateStatement->execute([
+        'id' => $territoryId,
+    ]);
+}
+
+function avesmapsPoliticalCreateTerritoryForGeometry(PDO $pdo, array $payload, array $user, array $geometry): array {
+    $previousTerritoryId = (int) ($geometry['territory_id'] ?? 0);
 
     $display = is_array($payload['display'] ?? null) ? $payload['display'] : [];
     $validity = is_array($payload['validity'] ?? null) ? $payload['validity'] : [];
@@ -2636,7 +2663,7 @@ function avesmapsPoliticalCreateTerritoryForGeometry(PDO $pdo, array $payload, a
             'opacity' => $opacity,
             'valid_from_bf' => avesmapsPoliticalReadOptionalInt($validity['startYear'] ?? $geometry['valid_from_bf'] ?? null),
             'valid_to_bf' => avesmapsPoliticalReadEditorValidTo($validity, $geometry['valid_to_bf'] ?? null),
-            'editor_notes' => avesmapsPoliticalNullableString('Aus freier Geometrie im Editor erzeugt.'),
+            'editor_notes' => avesmapsPoliticalNullableString('Aus Geometrie im Editor erzeugt.'),
             'sort_order' => avesmapsPoliticalNextSortOrder($pdo),
         ]);
 
@@ -2666,6 +2693,10 @@ function avesmapsPoliticalCreateTerritoryForGeometry(PDO $pdo, array $payload, a
             'source' => 'editor-created-territory',
             'updated_by' => (int) ($user['id'] ?? 0) ?: null,
         ]);
+
+        if ($previousTerritoryId > 0 && $previousTerritoryId !== (int) $territory['id']) {
+            avesmapsPoliticalDeactivateTerritoryIfOrphaned($pdo, $previousTerritoryId);
+        }
 
         $pdo->commit();
     } catch (Throwable $exception) {
