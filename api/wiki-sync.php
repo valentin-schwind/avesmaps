@@ -1711,6 +1711,8 @@ function avesmapsWikiSyncParsePoliticalTerritoryTable(DOMElement $table): array 
                 'dissolved_text' => $dissolvedText,
                 'blazon' => $raw['blasonierung'] ?? '',
                 'wiki_url' => $wikiUrl,
+                '_table_raw' => $raw,
+                '_table_headers' => $headers,
             ],
         ];
     }
