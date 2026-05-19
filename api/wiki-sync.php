@@ -1131,13 +1131,15 @@ function avesmapsWikiSyncEnrichPoliticalTerritoryRowsFromWiki(array $rows): arra
         unset($details['child_territories']);
 
         foreach ($details as $key => $value) {
-            if ($key === '_unmapped_fields') {
+            if ($key === '_unmapped_fields' || $key === '_all_template_fields') {
                 $rows[$index][$key] = $value;
                 continue;
             }
+
             if ($value === '') {
                 continue;
             }
+
             $currentValue = (string) ($rows[$index][$key] ?? '');
             if (avesmapsWikiSyncShouldUsePoliticalTerritoryDetailValue($key, $currentValue, (string) $value)) {
                 $rows[$index][$key] = $value;
@@ -1266,7 +1268,10 @@ function avesmapsWikiSyncHasTrailingParentheticalSuffix(string $value): bool {
 
 function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent(string $content): array {
     $fields = avesmapsWikiSyncReadWikiTemplateFields($content);
-    $details = [];
+    $details['_all_template_fields'] = array_map(
+        static fn(string $value): string => avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($value),
+        $fields
+    );
     $childTerritoriesByKey = [];
 
     $fieldMap = [
