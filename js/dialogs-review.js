@@ -4290,7 +4290,7 @@ function buildWikiSyncStatusMessage(message = "") {
 
 function syncWikiSyncPanelHeaderState() {
 	syncWikiSyncPanelSummaries();
-	syncWikiSyncPanelHeaderState();
+	syncWikiSyncActionButtonLabels();
 }
 
 function syncWikiSyncPanelSummaries() {
@@ -4306,7 +4306,7 @@ function syncWikiSyncPanelSummaries() {
 	}
 }
 
-function syncWikiSyncPanelHeaderState() {
+function syncWikiSyncActionButtonLabels() {
 	const locationsButtonElement = document.getElementById("wiki-sync-start");
 	const territoriesButtonElement = document.getElementById("wiki-sync-territories");
 
