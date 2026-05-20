@@ -3106,18 +3106,40 @@ body.modal-dialog-open {
 }
 
 .wiki-sync-panel__actions {
-	display: flex;
+	display: grid;
+	grid-template-columns: minmax(0, 2fr) minmax(120px, 1fr);
 	align-items: center;
 	gap: 8px;
-	padding: 10px 10px 8px;
+	margin: 8px 10px 8px;
+	padding: 0;
+}
+
+.wiki-sync-panel__summary {
+	min-width: 0;
+	color: #4a3c2e;
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1.25;
+	overflow-wrap: anywhere;
 }
 
 .wiki-sync-panel__start {
-	white-space: normal;
-	text-align: left;
+	width: 100%;
+	white-space: nowrap;
+	text-align: center;
 	line-height: 1.25;
 }
 
+@media (max-width: 520px) {
+	.wiki-sync-panel__actions {
+		grid-template-columns: 1fr;
+	}
+
+	.wiki-sync-panel__start {
+		width: auto;
+		justify-self: start;
+	}
+}
 
 .wiki-sync-panel__tab:hover,
 .wiki-sync-panel__tab:focus-visible {
