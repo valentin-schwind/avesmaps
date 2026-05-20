@@ -202,6 +202,51 @@ function avesmapsWikiSyncFetchSettlementTitles(): array {
     return array_values($titles);
 }
 
+function avesmapsWikiSyncReadMapPlaces(PDO $pdo): array {
+    $statement = $pdo->query(
+        "SELECT id, public_id, feature_subtype, name, geometry_json, properties_json, revision
+        FROM map_features
+        WHERE is_active = 1
+            AND feature_type = 'location'
+        ORDER BY name ASC, id ASC"
+    );
+
+    if ($statement === false) {
+        return [];
+    }
+
+    $places = [];
+    foreach ($statement->fetchAll() as $row) {
+        $name = avesmapsNormalizeSingleLine((string) ($row['name'] ?? ''), 160);
+        if ($name === '') {
+            continue;
+        }
+
+        $properties = avesmapsWikiSyncDecodeJson($row['properties_json'] ?? null);
+        $geometry = avesmapsWikiSyncDecodeJson($row['geometry_json'] ?? null);
+        $wikiUrl = avesmapsNormalizeSingleLine((string) (
+            $properties['wiki_url']
+            ?? $properties['data-report-wiki-url']
+            ?? ''
+        ), 500);
+
+        $places[] = [
+            'id' => (int) ($row['id'] ?? 0),
+            'public_id' => (string) ($row['public_id'] ?? ''),
+            'name' => $name,
+            'normalized_key' => avesmapsWikiSyncCreateMatchKey($name),
+            'settlement_class' => avesmapsWikiSyncReadSettlementClass((string) ($row['feature_subtype'] ?? 'dorf')),
+            'feature_subtype' => (string) ($row['feature_subtype'] ?? ''),
+            'wiki_url' => $wikiUrl,
+            'geometry' => $geometry,
+            'properties' => $properties,
+            'revision' => (int) ($row['revision'] ?? 0),
+        ];
+    }
+
+    return $places;
+}
+
 function avesmapsWikiSyncFetchMissingWikiPlaces(PDO $pdo, array $settlementTitles, array $matchedTitles): array {
     $matchedTitleSet = array_fill_keys($matchedTitles, true);
     $missingTitles = [];
