@@ -67,9 +67,9 @@
 					<div><label for="maxDepth">Max. Rekursionstiefe</label><input id="maxDepth" type="number" min="0" max="4" value="1"></div>
 					<div><label for="maxIterations">Max. Iterationen</label><input id="maxIterations" type="number" min="1" max="120" value="30"></div>
 					<div><label for="maxPages">Max. Territory-Seiten</label><input id="maxPages" type="number" min="1" max="100" value="20"></div>
-					<div><label for="maxRuntime">Max. Laufzeit (s)</label><input id="maxRuntime" type="number" min="3" max="30" value="20"></div>
+					<div><label for="maxRuntime">Max. Laufzeit (s)</label><input id="maxRuntime" type="number" min="3" max="35" value="20"></div>
 					<div><label for="sleepMs">Pause/Wiki-Request (ms)</label><input id="sleepMs" type="number" min="0" max="5000" value="450"></div>
-					<div><label for="timeout">Request-Timeout (s)</label><input id="timeout" type="number" min="3" max="15" value="8"></div>
+					<div><label for="timeout">Request-Timeout (s)</label><input id="timeout" type="number" min="3" max="20" value="8"></div>
 				</div>
 				<label for="catchwords">Catchword-Konfiguration (JSON)</label>
 				<textarea id="catchwords"></textarea>
@@ -102,7 +102,7 @@
 		</main>
 	</div>
 	<script>
-		const API_URL = '/api/wiki-dom-playground-seed.php';
+		const API_URL = '/api/wiki-dom-playground-seed2.php';
 		const els = {
 			seeds: document.getElementById('seeds'), catchwords: document.getElementById('catchwords'), maxDepth: document.getElementById('maxDepth'), maxIterations: document.getElementById('maxIterations'), maxPages: document.getElementById('maxPages'), maxRuntime: document.getElementById('maxRuntime'), sleepMs: document.getElementById('sleepMs'), timeout: document.getElementById('timeout'), status: document.getElementById('status'), runInfo: document.getElementById('runInfo'), rows: document.getElementById('rows'), debug: document.getElementById('debug'), count: document.getElementById('count'), iterations: document.getElementById('iterations'), pages: document.getElementById('pages'), relations: document.getElementById('relations'), runBtn: document.getElementById('runBtn'), reloadBtn: document.getElementById('reloadBtn'), defaultsBtn: document.getElementById('defaultsBtn'), clearBtn: document.getElementById('clearBtn')
 		};
