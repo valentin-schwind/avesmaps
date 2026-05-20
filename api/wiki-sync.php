@@ -149,16 +149,9 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
         ]);
 
         avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'WikiSync konnte nicht verarbeitet werden.',
-        'debug' => [
-            'class' => $exception::class,
-            'code' => (string) $exception->getCode(),
-            'message' => $exception->getMessage(),
-            'file' => basename($exception->getFile()),
-            'line' => $exception->getLine(),
-        ],
-    ]);
+            'ok' => false,
+            'error' => 'WikiSync konnte nicht verarbeitet werden.',
+        ]);
     }
 }
 
