@@ -9,7 +9,8 @@ const AVESMAPS_WIKI_TITLE_BATCH_SIZE = 50;
 const AVESMAPS_WIKI_SEARCH_RESULT_LIMIT = 5;
 const AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS = 30;
 const AVESMAPS_WIKI_LOCK_TTL_SECONDS = 120;
-
+const AVESMAPS_WIKI_SYNC_TYPE_LOCATION = 'location';
+const AVESMAPS_WIKI_SYNC_TYPE_TERRITORY = 'territory';
 
 function avesmapsWikiSyncDecodeJson(mixed $value): array {
     if ($value === null || $value === '') {
