@@ -1426,10 +1426,11 @@ function escapeRegExp(value) {
 }
 
 function formatPoliticalTerritoryTreeDisplayName(territory) {
-	return normalizeSearchText(formatPoliticalTerritoryDisplayBaseName(candidate.name || "")) === normalizedNameKey;
+	const baseName = formatPoliticalTerritoryDisplayBaseName(territory?.name || "Kein Parent");
 	if (!territory || !territory.public_id || baseName === "Kein Parent") {
 		return baseName;
 	}
+
 	const periodLabel = normalizeParentheticalSpacing(territory.valid_label || buildWikiReferencePeriod(territory));
 
 	const normalizedNameKey = normalizeSearchText(baseName);
@@ -1441,7 +1442,8 @@ function formatPoliticalTerritoryTreeDisplayName(territory) {
 		if (!candidate || candidate.public_id === territory.public_id) {
 			return false;
 		}
-		return normalizeSearchText(normalizeParentheticalSpacing(candidate.name || "")) === normalizedNameKey;
+
+		return normalizeSearchText(formatPoliticalTerritoryDisplayBaseName(candidate.name || "")) === normalizedNameKey;
 	});
 
 	if (duplicates.length < 1) {
