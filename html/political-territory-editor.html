@@ -1614,14 +1614,17 @@
 				}
 
 				const nodeKey = rowKey(row);
-				const nameKey = makeKey(row.name);
-				let ownNode = null;
+					const nameKey = makeKey(row.name);
+					const displayLabel = getRowDisplayLabel(row);
+					const lookupKeys = getRowLookupKeys(row);
+					let ownNode = null;
 
-				if (nameKey && current.childMap.has(nameKey)) {
-					ownNode = current.childMap.get(nameKey);
-				} else if (nodeKey && current.childMap.has(nodeKey)) {
-					ownNode = current.childMap.get(nodeKey);
-				}
+					for (const lookupKey of lookupKeys) {
+						if (current.childMap.has(lookupKey)) {
+							ownNode = current.childMap.get(lookupKey);
+							break;
+						}
+					}
 
 				if (!ownNode) {
 					ownNode = createTreeNode(nodeKey || nameKey || `row:${row.id}`, row.name, "territory");
@@ -1635,12 +1638,10 @@
 					if (nodeKey && nodeKey !== ownNode.id) {
 						current.childMap.set(nodeKey, ownNode);
 					}
-
-					current.children.push(ownNode);
 				}
 
 				ownNode.row = row;
-				ownNode.label = row.name || ownNode.label;
+				ownNode.label = ownNode.label || displayLabel || row.name;
 				ownNode.kind = ownNode.children.length > 0 ? "territory-group" : "territory";
 			}
 
@@ -1669,6 +1670,25 @@
 			}
 
 			return index;
+		}
+
+		function getRowDisplayLabel(row) {
+			const suffixAlias = getSuffixDisplayAliases(row?.name || "")[0];
+
+			return suffixAlias || row?.name || "";
+		}
+
+		function getRowLookupKeys(row) {
+			const keys = new Set([
+				rowKey(row),
+				makeKey(row?.name || "")
+			]);
+
+			for (const alias of getDisplayAliases(row?.name || "")) {
+				keys.add(makeKey(alias));
+			}
+
+			return [...keys].filter(Boolean);
 		}
 
 		function getDisplayAliases(name) {
