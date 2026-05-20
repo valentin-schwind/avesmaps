@@ -1,0 +1,218 @@
+===avesmapsWikiSyncFetchSettlementTitles
+function avesmapsWikiSyncFetchSettlementTitles(): array {
+    $titles = [];
+    foreach (avesmapsWikiSyncFetchSiedlungenIndexCategories() as $categoryName) {
+        foreach (avesmapsWikiSyncFetchCategoryMemberTitles($categoryName) as $title) {
+            $titles[$title] = $title;
+        }
+    }
+
+    natcasesort($titles);
+    return array_values($titles);
+}
+
+===avesmapsWikiSyncFetchMissingWikiPlaces
+function avesmapsWikiSyncFetchMissingWikiPlaces(PDO $pdo, array $settlementTitles, array $matchedTitles): array {
+    $matchedTitleSet = array_fill_keys($matchedTitles, true);
+    $missingTitles = [];
+    foreach ($settlementTitles as $title) {
+        if (!isset($matchedTitleSet[$title])) {
+            $missingTitles[] = $title;
+        }
+    }
+
+    $missingPlaces = [];
+    foreach (array_chunk($missingTitles, AVESMAPS_WIKI_TITLE_BATCH_SIZE) as $batch) {
+        $pages = avesmapsWikiSyncFetchPagesByTitle($pdo, $batch, true, true);
+        foreach ($batch as $title) {
+            $page = $pages[$title] ?? null;
+            if (!is_array($page)) {
+                continue;
+            }
+
+            $content = avesmapsWikiSyncReadPageContent($page);
+            $coordinates = avesmapsWikiSyncExtractCoordinatesFromContent($content);
+            $missingPlaces[] = [
+                'wiki' => avesmapsWikiSyncPublicWikiPage($page, $coordinates),
+            ];
+        }
+    }
+
+    usort(
+        $missingPlaces,
+        static function (array $left, array $right): int {
+            $sourceComparison = avesmapsWikiSyncCoordinateSortValue((string) ($left['wiki']['coordinates']['source'] ?? 'none'))
+                <=> avesmapsWikiSyncCoordinateSortValue((string) ($right['wiki']['coordinates']['source'] ?? 'none'));
+
+            if ($sourceComparison !== 0) {
+                return $sourceComparison;
+            }
+
+            return strcasecmp((string) $left['wiki']['title'], (string) $right['wiki']['title']);
+        }
+    );
+
+    return $missingPlaces;
+}
+
+===avesmapsWikiSyncBuildAndStoreCases
+function avesmapsWikiSyncBuildAndStoreCases(PDO $pdo, int $runId, array $stats): int {
+    $cases = [];
+    $mapPlaces = is_array($stats['map_places'] ?? null) ? $stats['map_places'] : [];
+    $matches = is_array($stats['matches'] ?? null) ? $stats['matches'] : [];
+    $unresolved = is_array($stats['unresolved'] ?? null) ? $stats['unresolved'] : [];
+    $missingPlaces = is_array($stats['missing_wiki_places'] ?? null) ? $stats['missing_wiki_places'] : [];
+
+    try {
+        foreach (avesmapsWikiSyncFindDuplicateMapPlaceNames($mapPlaces) as $duplicateGroup) {
+            $cases[] = avesmapsWikiSyncBuildCase('duplicate_avesmaps_name', $duplicateGroup);
+        }
+    } catch (Throwable $exception) {
+        avesmapsWikiSyncLogServerError('duplicate_avesmaps_name_build_error', [
+            'exception_class' => $exception::class,
+            'exception_message' => $exception->getMessage(),
+        ]);
+    }
+
+    foreach ($matches as $match) {
+        if (($match['match_kind'] ?? '') !== 'exact') {
+            $cases[] = avesmapsWikiSyncBuildCase('canonical_name_difference', $match);
+        }
+        $wikiClass = (string) ($match['wiki']['settlement_class'] ?? '');
+        $mapClass = (string) ($match['map']['settlement_class'] ?? '');
+        if ($wikiClass !== '' && $mapClass !== '' && $wikiClass !== $mapClass) {
+            $cases[] = avesmapsWikiSyncBuildCase('type_conflict', $match);
+        }
+    }
+
+    foreach ($unresolved as $result) {
+        $caseType = !empty($result['candidates']) ? 'probable_match' : 'unresolved_without_candidate';
+        $cases[] = avesmapsWikiSyncBuildCase($caseType, $result);
+    }
+
+    $matchesByTitle = [];
+    foreach ($matches as $match) {
+        $title = (string) ($match['wiki']['title'] ?? '');
+        if ($title === '') {
+            continue;
+        }
+        $matchesByTitle[$title][] = $match;
+    }
+    foreach ($matchesByTitle as $title => $titleMatches) {
+        $mapNames = [];
+        foreach ($titleMatches as $match) {
+            $mapNames[(string) ($match['map']['name'] ?? '')] = true;
+        }
+        if (count($mapNames) > 1) {
+            $cases[] = avesmapsWikiSyncBuildCase('duplicate_wiki_title', [
+                'wiki' => $titleMatches[0]['wiki'],
+                'matches' => $titleMatches,
+            ]);
+        }
+    }
+
+    foreach ($missingPlaces as $missingPlace) {
+        $source = (string) ($missingPlace['wiki']['coordinates']['source'] ?? 'none');
+        $payload = $missingPlace;
+        $proposedLocation = $source === 'none' ? null : avesmapsWikiSyncCoordinatesToMapLocation($missingPlace['wiki']['coordinates']);
+        $caseType = $proposedLocation === null ? 'missing_wiki_without_coordinates' : 'missing_wiki_with_coordinates';
+        if ($proposedLocation !== null) {
+            $payload['proposed_location'] = $proposedLocation;
+        }
+        $cases[] = avesmapsWikiSyncBuildCase($caseType, $payload);
+    }
+
+    $storedCount = 0;
+    foreach ($cases as $case) {
+        try {
+            avesmapsWikiSyncUpsertCase($pdo, $runId, $case);
+        } catch (Throwable $exception) {
+            if ((string) ($case['case_type'] ?? '') !== 'duplicate_avesmaps_name') {
+                throw $exception;
+            }
+
+            avesmapsWikiSyncLogServerError('duplicate_avesmaps_name_store_error', [
+                'exception_class' => $exception::class,
+                'exception_message' => $exception->getMessage(),
+            ]);
+            continue;
+        }
+
+        $storedCount++;
+    }
+
+    return $storedCount;
+}
+
+===avesmapsWikiSyncExtractCoordinatesFromContent
+function avesmapsWikiSyncExtractCoordinatesFromContent(string $content): array {
+    if (preg_match('/\{\{DereGlobus-Link\|([^}]*)\}\}/su', $content, $dereglobusMatch) === 1) {
+        $body = (string) ($dereglobusMatch[1] ?? '');
+        $lonMatch = [];
+        $latMatch = [];
+        if (
+            preg_match('/L\x{00E4}nge\(x\)\s*=\s*([-+]?\d+(?:\.\d+)?)/u', $body, $lonMatch) === 1
+            && preg_match('/Breite\(y\)\s*=\s*([-+]?\d+(?:\.\d+)?)/u', $body, $latMatch) === 1
+        ) {
+            return [
+                'source' => 'dereglobus',
+                'x' => (float) $lonMatch[1],
+                'y' => (float) $latMatch[1],
+            ];
+        }
+    }
+
+===avesmapsWikiSyncBuildCase
+function avesmapsWikiSyncBuildCase(string $caseType, array $payload): array {
+    $mapPublicId = (string) ($payload['map']['public_id'] ?? '');
+    $mapFeatureId = isset($payload['map']['id']) ? (int) $payload['map']['id'] : null;
+    $wikiTitle = (string) ($payload['wiki']['title'] ?? '');
+    $caseSeed = implode('|', [
+        AVESMAPS_WIKI_SYNC_TYPE_LOCATION,
+        $caseType,
+        $mapPublicId,
+        $wikiTitle,
+        hash('sha256', avesmapsWikiSyncEncodeJson($payload['matches'] ?? $payload['candidates'] ?? [])),
+    ]);
+    $caseKey = hash('sha256', $caseSeed);
+    $signatureHash = hash('sha256', avesmapsWikiSyncEncodeJson($payload));
+
+    return [
+        'case_key' => $caseKey,
+        'case_type' => $caseType,
+        'map_feature_id' => $mapFeatureId,
+        'map_public_id' => $mapPublicId !== '' ? $mapPublicId : null,
+        'wiki_title' => $wikiTitle !== '' ? $wikiTitle : null,
+        'payload' => $payload,
+        'signature_hash' => $signatureHash,
+    ];
+}
+
+===avesmapsWikiSyncReadPageContent
+function avesmapsWikiSyncReadPageContent(array $page): string {
+    $revisions = $page['revisions'] ?? [];
+    if (!is_array($revisions) || !isset($revisions[0]) || !is_array($revisions[0])) {
+        return '';
+    }
+
+    return (string) ($revisions[0]['slots']['main']['content'] ?? $revisions[0]['content'] ?? '');
+}
+
+===avesmapsWikiSyncCoordinateSortValue
+function avesmapsWikiSyncCoordinateSortValue(string $source): int {
+    return match ($source) {
+        'dereglobus' => 0,
+        'positionskarte' => 1,
+        default => 2,
+    };
+}
+
+===avesmapsWikiSyncReadLocationName
+function avesmapsWikiSyncReadLocationName(mixed $value): string {
+    $name = avesmapsNormalizeSingleLine((string) $value, 160);
+    if ($name === '') {
+        throw new InvalidArgumentException('Der Ortsname fehlt.');
+    }
+
+    return $name;
+}
