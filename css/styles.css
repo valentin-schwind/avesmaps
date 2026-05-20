@@ -3053,10 +3053,24 @@ body.modal-dialog-open {
 	font-weight: 700;
 }
 
-.wiki-sync-panel__tabs {
-	display: flex;
-	gap: 6px;
-	margin: 10px 0 8px;
+.wiki-sync-panel__tab {
+	white-space: normal;
+	text-align: left;
+	line-height: 1.25;
+}
+
+.wiki-sync-territory-tree .political-territory-parent-tree__item {
+	grid-template-columns: 18px minmax(0, 1fr);
+}
+
+.wiki-sync-territory-tree .political-territory-parent-tree__summary,
+.wiki-sync-territory-tree .political-territory-parent-tree__wiki {
+	display: none;
+}
+.wiki-sync-territory-tree .political-territory-parent-tree__meta a {
+	color: inherit;
+	text-decoration: underline;
+	text-underline-offset: 2px;
 }
 
 .wiki-sync-panel__tab {

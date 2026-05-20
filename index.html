@@ -178,12 +178,11 @@
 			</div>
 			<p id="wiki-sync-status" class="review-panel__status" role="status" aria-live="polite">WikiSync ist bereit.</p>
 			<nav class="wiki-sync-panel__tabs" aria-label="WikiSync-Bereiche">
-				<button class="wiki-sync-panel__tab is-active" type="button" data-wiki-sync-panel-tab="locations">Siedlungen</button>
-				<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="territories">Herrschaftsgebiete</button>
+				<button id="wiki-sync-locations-tab" class="wiki-sync-panel__tab is-active" type="button" data-wiki-sync-panel-tab="locations">WikiSync (Siedlungen)</button>
+				<button id="wiki-sync-territories-tab" class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="territories">WikiSync (Herrschaftsgebiete)</button>
 			</nav>
 
 			<div class="wiki-sync-panel__tab-panel is-active" data-wiki-sync-panel-section="locations">
-				<h3 class="wiki-sync-panel__list-title">Siedlungen aus dem Wiki</h3>
 				<div class="wiki-sync-panel__filter">
 					<input id="wiki-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="WikiSync-Fälle durchsuchen" />
 				</div>
@@ -191,7 +190,6 @@
 			</div>
 
 			<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="territories">
-				<h3 class="wiki-sync-panel__list-title">Herrschaftsgebiete aus dem Wiki</h3>
 				<div class="wiki-sync-panel__filter">
 					<input id="wiki-sync-territory-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="Herrschaftsgebiete durchsuchen" />
 				</div>

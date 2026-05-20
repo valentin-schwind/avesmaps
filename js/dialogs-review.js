@@ -4028,7 +4028,7 @@ async function renderWikiSyncTerritoryTree() {
 	}
 
 	treeElement.innerHTML = "";
-	const tree = buildPoliticalTerritoryTree("");
+	const tree = buildWikiSyncPoliticalTerritoryTree();
 	tree.forEach((node) => {
 		const renderedNode = renderWikiSyncTerritoryTreeNode(node, 0);
 		if (renderedNode) {
@@ -4044,10 +4044,62 @@ async function renderWikiSyncTerritoryTree() {
 	}
 }
 
+function buildWikiSyncPoliticalTerritoryTree() {
+	const tree = buildPoliticalTerritoryTree("");
+	const knownPublicIds = new Set();
+
+	const collectPublicIds = (nodes) => {
+		(Array.isArray(nodes) ? nodes : []).forEach((node) => {
+			const publicId = String(node?.territory?.public_id || "").trim();
+			if (publicId !== "") {
+				knownPublicIds.add(publicId);
+			}
+			collectPublicIds(node.children || []);
+		});
+	};
+
+	collectPublicIds(tree);
+
+	const remainingNodes = (Array.isArray(politicalTerritoryOptions) ? politicalTerritoryOptions : [])
+		.filter((territory) => {
+			const publicId = String(territory?.public_id || "").trim();
+			return publicId !== "" && !knownPublicIds.has(publicId);
+		})
+		.sort((left, right) => String(left.name || "").localeCompare(String(right.name || ""), "de"))
+		.map((territory) => ({
+			key: `territory:${territory.public_id}`,
+			territory,
+			children: [],
+			isGroup: false,
+		}));
+
+	if (remainingNodes.length < 1) {
+		return tree;
+	}
+
+	return [
+		...tree,
+		{
+			key: "wiki-sync-territory-group:sonstiges",
+			territory: {
+				public_id: "",
+				name: "Sonstiges",
+				type: "",
+				status: "",
+				valid_label: "",
+				wiki_url: "",
+			},
+			children: remainingNodes,
+			isGroup: true,
+		},
+	];
+}
+
 function renderWikiSyncTerritoryTreeNode(node, depth) {
 	if (!doesWikiSyncTerritoryTreeNodeMatchFilter(node)) {
 		return null;
 	}
+	syncWikiSyncPanelTabLabels();
 
 	const wrapper = document.createElement("div");
 	wrapper.className = node.isGroup
@@ -4087,29 +4139,39 @@ function createWikiSyncTerritoryTreeButton(node, hasChildren) {
 	button.setAttribute("role", "treeitem");
 	button.setAttribute("aria-expanded", hasChildren ? (isWikiSyncTerritoryTreeNodeCollapsed(node) ? "false" : "true") : "false");
 	button.classList.toggle("is-collapsed", hasChildren && isWikiSyncTerritoryTreeNodeCollapsed(node));
+
 	button.innerHTML = `
 		<span class="political-territory-parent-tree__toggle" aria-hidden="true"></span>
 		<span class="political-territory-parent-tree__name"></span>
 		<span class="political-territory-parent-tree__meta"></span>
-		<span class="political-territory-parent-tree__summary"></span>
-		<span class="political-territory-parent-tree__wiki"></span>
 	`;
 
 	button.querySelector(".political-territory-parent-tree__name").textContent = formatPoliticalTerritoryTreeDisplayName(territory);
-	button.querySelector(".political-territory-parent-tree__meta").textContent = normalizeParentheticalSpacing([
-		territory.type,
-		territory.status,
-	].filter(Boolean).join(" · "));
-	button.querySelector(".political-territory-parent-tree__summary").textContent = normalizeParentheticalSpacing([
-		territory.valid_label,
-		territory.capital_name ? `Hauptstadt: ${territory.capital_name}` : "",
-		territory.ruler ? `Oberhaupt: ${territory.ruler}` : "",
-	].filter(Boolean).join(" · "));
-	button.querySelector(".political-territory-parent-tree__wiki").textContent = normalizeParentheticalSpacing([
-		territory.wiki_name ? `Wiki: ${territory.wiki_name}` : "",
-		territory.wiki_affiliation_root || territory.wiki_affiliation_raw || "",
+
+	const metaElement = button.querySelector(".political-territory-parent-tree__meta");
+	const metaParts = [
+		territory.status ? String(territory.status).toLocaleLowerCase("de") : "",
 		territory.wiki_url ? "Wiki" : "",
-	].filter(Boolean).join(" · "));
+	].filter(Boolean);
+
+	if (territory.wiki_url) {
+		metaElement.innerHTML = "";
+		if (territory.status) {
+			const statusElement = document.createElement("span");
+			statusElement.textContent = String(territory.status).toLocaleLowerCase("de");
+			metaElement.append(statusElement, document.createTextNode(" · "));
+		}
+
+		const linkElement = document.createElement("a");
+		linkElement.href = territory.wiki_url;
+		linkElement.target = "_blank";
+		linkElement.rel = "noopener noreferrer";
+		linkElement.textContent = "Wiki";
+		linkElement.addEventListener("click", (event) => event.stopPropagation());
+		metaElement.append(linkElement);
+	} else {
+		metaElement.textContent = normalizeParentheticalSpacing(metaParts.join(" · "));
+	}
 
 	return button;
 }
@@ -4225,6 +4287,7 @@ async function startWikiSyncTerritoryRun() {
 			assigned_territory_count: Number(result?.assigned_territory_count ?? 0),
 			assigned_root_count: Number(result?.assigned_root_count ?? 0),
 		};
+		syncWikiSyncPanelTabLabels();
 		await loadPoliticalTerritoryOptions();
 		schedulePoliticalTerritoryLayerReload({ immediate: true });
 		if (activeWikiSyncPanelTab === "territories") {
@@ -4257,6 +4320,42 @@ function buildWikiSyncStatusMessage(message = "") {
 	return statusLines.join("\n");
 }
 
+function syncWikiSyncPanelTabLabels() {
+	const locationsTabElement = document.getElementById("wiki-sync-locations-tab");
+	const territoriesTabElement = document.getElementById("wiki-sync-territories-tab");
+
+	if (locationsTabElement) {
+		locationsTabElement.textContent = formatWikiSyncSettlementTabLabel();
+	}
+
+	if (territoriesTabElement) {
+		territoriesTabElement.textContent = formatWikiSyncTerritoryTabLabel();
+	}
+}
+
+function formatWikiSyncSettlementTabLabel() {
+	const openCount = Number(wikiSyncSummary?.by_status?.open ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "open").length);
+	const deferredCount = Number(wikiSyncSummary?.by_status?.deferred ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "deferred").length);
+	const archivedCount = Number(wikiSyncSummary?.by_status?.archived ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "archived").length);
+
+	if (openCount < 1 && deferredCount < 1 && archivedCount < 1) {
+		return "WikiSync (Siedlungen)";
+	}
+
+	return `${openCount} offen, ${deferredCount} zurückgestellt, ${archivedCount} archiviert | WikiSync (Siedlungen)`;
+}
+
+function formatWikiSyncTerritoryTabLabel() {
+	const territoryCount = Number(wikiSyncTerritorySummary?.territory_count ?? 0);
+	const rootCount = Number(wikiSyncTerritorySummary?.root_count ?? 0);
+
+	if (territoryCount < 1 && rootCount < 1) {
+		return "WikiSync (Herrschaftsgebiete)";
+	}
+
+	return `${territoryCount} in ${rootCount} Hauptmächte | WikiSync (Herrschaftsgebiete)`;
+}
+
 function formatWikiSyncSettlementSummaryLine() {
 	const openCount = Number(wikiSyncSummary?.by_status?.open ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "open").length);
 	const deferredCount = Number(wikiSyncSummary?.by_status?.deferred ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "deferred").length);
@@ -4282,6 +4381,7 @@ function renderWikiSyncCases(latestRun = null) {
 	if (!listElement) {
 		return;
 	}
+	syncWikiSyncPanelTabLabels();
 
 	const previousOpenGroupKeys = getWikiSyncOpenGroupKeys();
 	const filterQuery = getWikiSyncFilterQuery();
