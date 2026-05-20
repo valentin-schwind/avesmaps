@@ -5,51 +5,38 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Avesmaps – Wiki-DOM-Playground</title>
 	<style>
-		:root {
-			--page-bg: #f4efe7;
-			--page-bg-deep: #2f322c;
-			--panel: #fff9f4;
-			--panel-muted: #f8efe4;
-			--text: #2f251c;
-			--muted: #6c5a49;
-			--border: #d8c6b2;
-			--danger: #8a3a1b;
-			--ok: #3d6b44;
-			--shadow: rgba(0, 0, 0, 0.16);
-		}
-
-		* { box-sizing: border-box; }
-		body { margin: 0; font-family: Arial, sans-serif; font-size: 14px; background: var(--page-bg-deep); color: var(--text); }
-		.app { width: min(1180px, 100%); min-height: 100vh; margin: 0 auto; background: var(--page-bg); box-shadow: 0 0 30px rgba(0, 0, 0, 0.28); }
-		header { padding: 20px 24px; background: rgba(255, 249, 244, 0.96); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
-		h1 { margin: 0 0 6px; font-size: 24px; }
-		p { margin: 0; color: var(--muted); line-height: 1.45; }
-		code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #235f82; }
-		main { padding: 18px; display: grid; grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); gap: 16px; }
-		.panel { background: var(--panel); border: 1px solid var(--border); box-shadow: 0 8px 24px var(--shadow); padding: 14px; }
-		.panel h2 { margin: 0 0 10px; font-size: 17px; }
-		label { display: block; font-weight: 700; margin: 12px 0 5px; }
-		textarea, input { width: 100%; border: 1px solid var(--border); background: #fffdf9; padding: 8px; font: inherit; }
-		textarea { min-height: 150px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
-		.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-		.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-		button { border: 1px solid #5f4f40; background: #565044; color: #fffaf0; padding: 8px 12px; cursor: pointer; font-weight: 700; }
-		button.secondary { background: #766d5d; }
-		button.danger { background: var(--danger); }
-		button:disabled { opacity: 0.55; cursor: progress; }
-		.status { margin-top: 12px; padding: 10px; background: var(--panel-muted); border: 1px solid var(--border); white-space: pre-wrap; }
-		.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
-		.stat { background: var(--panel-muted); border: 1px solid var(--border); padding: 10px; }
-		.stat strong { display: block; font-size: 20px; }
-		table { width: 100%; border-collapse: collapse; background: #fffdf9; font-size: 12px; }
-		th, td { border: 1px solid var(--border); padding: 6px 7px; vertical-align: top; }
-		th { background: var(--panel-muted); text-align: left; }
-		tr.synthetic td { background: #fff5e7; }
-		.badge { display: inline-block; padding: 2px 5px; border-radius: 3px; background: var(--panel-muted); border: 1px solid var(--border); }
-		.badge.ok { color: var(--ok); }
-		.badge.warn { color: var(--danger); }
-		pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 11px; }
-		@media (max-width: 900px) { main { grid-template-columns: 1fr; } .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+		:root { --page-bg:#f4efe7; --page-bg-deep:#2f322c; --panel:#fff9f4; --panel-muted:#f8efe4; --text:#2f251c; --muted:#6c5a49; --border:#d8c6b2; --danger:#8a3a1b; --ok:#3d6b44; --shadow:rgba(0,0,0,.16); }
+		* { box-sizing:border-box; }
+		body { margin:0; font-family:Arial,sans-serif; font-size:14px; background:var(--page-bg-deep); color:var(--text); }
+		.app { width:min(1180px,100%); min-height:100vh; margin:0 auto; background:var(--page-bg); box-shadow:0 0 30px rgba(0,0,0,.28); }
+		header { padding:20px 24px; background:rgba(255,249,244,.96); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:10; }
+		h1 { margin:0 0 6px; font-size:24px; }
+		p { margin:0; color:var(--muted); line-height:1.45; }
+		code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:#235f82; }
+		main { padding:18px; display:grid; grid-template-columns:minmax(320px,420px) minmax(0,1fr); gap:16px; }
+		.panel { background:var(--panel); border:1px solid var(--border); box-shadow:0 8px 24px var(--shadow); padding:14px; }
+		.panel h2 { margin:0 0 10px; font-size:17px; }
+		label { display:block; font-weight:700; margin:12px 0 5px; }
+		textarea,input { width:100%; border:1px solid var(--border); background:#fffdf9; padding:8px; font:inherit; }
+		textarea { min-height:150px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; }
+		.grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+		.actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+		button { border:1px solid #5f4f40; background:#565044; color:#fffaf0; padding:8px 12px; cursor:pointer; font-weight:700; }
+		button.secondary { background:#766d5d; }
+		button.danger { background:var(--danger); }
+		button:disabled { opacity:.55; cursor:progress; }
+		.status { margin-top:12px; padding:10px; background:var(--panel-muted); border:1px solid var(--border); white-space:pre-wrap; }
+		.summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
+		.stat { background:var(--panel-muted); border:1px solid var(--border); padding:10px; }
+		.stat strong { display:block; font-size:20px; }
+		table { width:100%; border-collapse:collapse; background:#fffdf9; font-size:12px; }
+		th,td { border:1px solid var(--border); padding:6px 7px; vertical-align:top; }
+		th { background:var(--panel-muted); text-align:left; }
+		.badge { display:inline-block; padding:2px 5px; border-radius:3px; background:var(--panel-muted); border:1px solid var(--border); }
+		.badge.ok { color:var(--ok); }
+		.badge.warn { color:var(--danger); }
+		pre { margin:0; white-space:pre-wrap; word-break:break-word; font-size:11px; }
+		@media (max-width:900px) { main { grid-template-columns:1fr; } .summary { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 	</style>
 </head>
 <body>
@@ -65,7 +52,7 @@
 				<textarea id="seeds"></textarea>
 				<div class="grid">
 					<div><label for="maxDepth">Max. Rekursionstiefe</label><input id="maxDepth" type="number" min="0" max="4" value="1"></div>
-					<div><label for="maxIterations">Max. Iterationen</label><input id="maxIterations" type="number" min="1" max="120" value="30"></div>
+					<div><label for="maxIterations">Max. Iterationen</label><input id="maxIterations" type="number" min="1" max="160" value="30"></div>
 					<div><label for="maxPages">Max. Territory-Seiten</label><input id="maxPages" type="number" min="1" max="100" value="20"></div>
 					<div><label for="maxRuntime">Max. Laufzeit (s)</label><input id="maxRuntime" type="number" min="3" max="35" value="20"></div>
 					<div><label for="sleepMs">Pause/Wiki-Request (ms)</label><input id="sleepMs" type="number" min="0" max="5000" value="450"></div>
@@ -96,13 +83,16 @@
 						<tbody id="rows"></tbody>
 					</table>
 				</div>
-				<h2 style="margin-top:16px;">Relationen / Debug</h2>
+				<h2 style="margin-top:16px;">Debug</h2>
 				<pre id="debug">[]</pre>
 			</section>
 		</main>
 	</div>
 	<script>
-		const API_URL = '/api/wiki-dom-playground-seed2.php';
+		const API_URL = '/api/wiki-dom-playground-seed.php';
+		let pollTimer = null;
+		let pollStartedAt = 0;
+		let startCount = 0;
 		const els = {
 			seeds: document.getElementById('seeds'), catchwords: document.getElementById('catchwords'), maxDepth: document.getElementById('maxDepth'), maxIterations: document.getElementById('maxIterations'), maxPages: document.getElementById('maxPages'), maxRuntime: document.getElementById('maxRuntime'), sleepMs: document.getElementById('sleepMs'), timeout: document.getElementById('timeout'), status: document.getElementById('status'), runInfo: document.getElementById('runInfo'), rows: document.getElementById('rows'), debug: document.getElementById('debug'), count: document.getElementById('count'), iterations: document.getElementById('iterations'), pages: document.getElementById('pages'), relations: document.getElementById('relations'), runBtn: document.getElementById('runBtn'), reloadBtn: document.getElementById('reloadBtn'), defaultsBtn: document.getElementById('defaultsBtn'), clearBtn: document.getElementById('clearBtn')
 		};
@@ -122,6 +112,27 @@
 			if (!response.ok || payload.ok === false) throw new Error(payload.error || response.statusText);
 			return payload;
 		}
+		function startPolling() {
+			stopPolling();
+			pollStartedAt = Date.now();
+			startCount = Number(els.count.textContent) || 0;
+			pollTimer = window.setInterval(refreshLiveRows, 1200);
+			refreshLiveRows();
+		}
+		function stopPolling() {
+			if (pollTimer !== null) {
+				window.clearInterval(pollTimer);
+				pollTimer = null;
+			}
+		}
+		async function refreshLiveRows() {
+			try {
+				const payload = await fetchJson(`${API_URL}?action=list&_=${Date.now()}`);
+				render(payload, true);
+			} catch (error) {
+				els.runInfo.textContent = `Live-Aktualisierung fehlgeschlagen: ${error.message}`;
+			}
+		}
 		async function loadDefaults() {
 			setBusy(true);
 			try {
@@ -135,40 +146,50 @@
 		async function runImport() {
 			setBusy(true);
 			try {
-				setStatus('Testlauf läuft. Seed-Listen zählen nicht als Ergebnis-Territorien.');
+				setStatus('Testlauf läuft. Die Tabelle aktualisiert sich live.');
+				startPolling();
 				const payload = await fetchJson(`${API_URL}?action=run`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(readPayload()) });
-				render(payload);
+				stopPolling();
+				render(payload, false);
 				setStatus('Testlauf abgeschlossen.');
-			} catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
+			} catch (error) { stopPolling(); setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
 		}
 		async function reloadRows() {
 			setBusy(true);
-			try { const payload = await fetchJson(`${API_URL}?action=list`); render(payload); setStatus('Testtabelle geladen.'); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
+			try { const payload = await fetchJson(`${API_URL}?action=list`); render(payload, false); setStatus('Testtabelle geladen.'); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
 		}
 		async function clearRows() {
 			if (!confirm('political_territory_wiki_test wirklich leeren?')) return;
 			setBusy(true);
-			try { await fetchJson(`${API_URL}?action=clear`, {method: 'POST'}); render({ok: true, items: [], count: 0}); setStatus('Testtabelle geleert.'); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
+			try { await fetchJson(`${API_URL}?action=clear`, {method: 'POST'}); render({ok: true, items: [], count: 0}, false); setStatus('Testtabelle geleert.'); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
 		}
-		function render(payload) {
+		function render(payload, live) {
 			const items = Array.isArray(payload.items) ? payload.items : [];
-			els.count.textContent = String(payload.count ?? items.length);
-			els.iterations.textContent = payload.run?.iterations ?? '–';
-			els.pages.textContent = payload.run?.fetched_pages ?? '–';
-			els.relations.textContent = payload.run?.relations ?? (Array.isArray(payload.relations) ? payload.relations.length : '–');
-			els.runInfo.textContent = payload.run ? JSON.stringify(payload.run, null, '\t') : 'Nur Tabellenstand geladen.';
+			const count = Number(payload.count ?? items.length);
+			els.count.textContent = String(count);
+			if (live && !payload.run) {
+				const elapsed = Math.max(0, Math.round((Date.now() - pollStartedAt) / 1000));
+				els.iterations.textContent = 'läuft';
+				els.pages.textContent = String(count);
+				els.relations.textContent = '–';
+				els.runInfo.textContent = `Live-Stand nach ${elapsed}s: ${count} Datensätze${count > startCount ? `, +${count - startCount} seit Start` : ''}.`;
+			} else {
+				els.iterations.textContent = payload.run?.iterations ?? '–';
+				els.pages.textContent = payload.run?.fetched_pages ?? '–';
+				els.relations.textContent = payload.run?.relations ?? (Array.isArray(payload.relations) ? payload.relations.length : '–');
+				els.runInfo.textContent = payload.run ? JSON.stringify(payload.run, null, '\t') : 'Nur Tabellenstand geladen.';
+			}
 			els.rows.innerHTML = '';
 			for (const item of items) {
 				const raw = item.raw || {};
 				const tr = document.createElement('tr');
-				if (raw.synthetic) tr.classList.add('synthetic');
 				const path = Array.isArray(item.affiliation_path) ? item.affiliation_path.join(' > ') : '';
 				tr.innerHTML = `<td><strong>${escapeHtml(item.name || '')}</strong><br><span class="badge ${raw.synthetic ? 'warn' : 'ok'}">${raw.synthetic ? 'synthetisch' : 'geholt'}</span></td><td>${escapeHtml(item.type || '')}</td><td>${escapeHtml(path || item.affiliation_root || '')}</td><td>${escapeHtml(item.founded_text || '')}<br>${escapeHtml(item.founded_start_bf || '')}</td><td>${escapeHtml(item.dissolved_text || '')}<br>${escapeHtml(item.dissolved_start_bf || '')}</td><td>${item.wiki_url ? `<a href="${escapeAttr(item.wiki_url)}" target="_blank" rel="noreferrer">Wiki</a>` : ''}</td>`;
 				els.rows.appendChild(tr);
 			}
 			els.debug.textContent = JSON.stringify({ relations: payload.relations || [], events: payload.run?.events || [], errors: payload.run?.errors || [] }, null, '\t');
 		}
-		function escapeHtml(value) { return String(value ?? '').replace(/[&<>"]/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[char])); }
+		function escapeHtml(value) { return String(value ?? '').replace(/[&<>"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char])); }
 		function escapeAttr(value) { return escapeHtml(value).replace(/'/g, '&#039;'); }
 		els.runBtn.addEventListener('click', runImport);
 		els.reloadBtn.addEventListener('click', reloadRows);
