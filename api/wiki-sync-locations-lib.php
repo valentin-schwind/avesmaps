@@ -4,6 +4,35 @@ declare(strict_types=1);
 
 // Location-specific WikiSync helpers moved from wiki-sync.php
 
+const AVESMAPS_WIKI_CASE_LABELS = [
+    'duplicate_avesmaps_name' => 'Doppelter Avesmaps-Name',
+    'canonical_name_difference' => 'Abweichender kanonischer Name',
+    'type_conflict' => 'Abweichende Ortsgröße',
+    'probable_match' => 'Wahrscheinliche Zuordnung',
+    'unresolved_without_candidate' => 'Keine Zuordnung gefunden',
+    'duplicate_wiki_title' => 'Doppelter Wiki-Titel',
+    'missing_wiki_with_coordinates' => 'Wiki-Ort mit Koordinaten fehlt',
+    'missing_wiki_without_coordinates' => 'Wiki-Ort ohne Koordinaten fehlt',
+];
+
+const AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS = [
+    'gebaeude' => 'Besondere Bauwerke/Stätten',
+    'metropole' => 'Metropole',
+    'grossstadt' => 'Großstadt',
+    'stadt' => 'Stadt',
+    'kleinstadt' => 'Kleinstadt',
+    'dorf' => 'Dorf',
+];
+
+const AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS = [
+    'gebaeude' => 'Besondere Bauwerke/Stätten',
+    'metropole' => 'Metropole',
+    'grossstadt' => 'Großstadt',
+    'stadt' => 'Stadt',
+    'kleinstadt' => 'Kleinstadt',
+    'dorf' => 'Dorf',
+];
+
 function avesmapsWikiSyncEnsureLocationTables(PDO $pdo): void {
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS wiki_sync_cases (
