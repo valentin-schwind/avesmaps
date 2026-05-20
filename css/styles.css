@@ -2599,11 +2599,9 @@ body.modal-dialog-open {
 	right: 0;
 }
 
-.review-panel__status {
-	margin: 10px;
+.review-panel__status { 
 	padding: 10px 14px;
-	color: #5a4a3b;
-	font-size: 13px;
+	color: #5a4a3b; 
 }
 
 .review-panel__tabs {
