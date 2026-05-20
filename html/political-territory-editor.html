@@ -1623,24 +1623,6 @@
 					ownNode = current.childMap.get(nodeKey);
 				}
 
-				if (!ownNode && identityKey) {
-					for (const alias of getDisplayAliases(row.name)) {
-						const aliasKey = makeKey(alias);
-
-						if (!aliasKey || !current.childMap.has(aliasKey)) {
-							continue;
-						}
-
-						const aliasNode = current.childMap.get(aliasKey);
-						const aliasIdentityKey = rowIdentityKey(aliasNode?.row);
-
-						if (aliasIdentityKey && aliasIdentityKey === identityKey) {
-							ownNode = aliasNode;
-							break;
-						}
-					}
-				}
-
 				if (!ownNode) {
 					ownNode = createTreeNode(nodeKey || nameKey || `row:${row.id}`, row.name, "territory");
 					ownNode.parent = current;
@@ -1659,7 +1641,7 @@
 
 				ownNode.row = row;
 				ownNode.label = ownNode.label || getPreferredDisplayAlias(row.name) || row.name;
-				ownNode.kind = ownNode.children.length > 0 ? "territory-group" : "territory";
+				ownNode.kind = ownNode.children.length > 0 ? "territory-group" : "territory"; 
 			}
 
 			sortTree(root);
@@ -1730,9 +1712,9 @@
 
 		function getFixedAliases(name) {
 			const aliases = {
-				"Wiedererstandenes Reich des Horas": ["Horasreich"],
-				"Heiliges Neues Kaiserreich vom Greifenthron zu Gareth": ["Mittelreich"],
-				"Theaterritterliche Republik an Born und Walsach": ["Bornland"]
+				//"Wiedererstandenes Reich des Horas": ["Horasreich"],
+				//"Heiliges Neues Kaiserreich vom Greifenthron zu Gareth": ["Mittelreich"],
+				//"Theaterritterliche Republik an Born und Walsach": ["Bornland"]
 			};
 
 			return aliases[name] || [];
