@@ -3075,40 +3075,6 @@ body.modal-dialog-open {
 	line-height: 1.25;
 }
 
-.wiki-sync-territory-tree .political-territory-parent-tree__item {
-	grid-template-columns: 18px minmax(0, 1fr);
-}
-
-.wiki-sync-territory-tree .political-territory-parent-tree__summary,
-.wiki-sync-territory-tree .political-territory-parent-tree__wiki {
-	display: none;
-}
-.wiki-sync-territory-tree .political-territory-parent-tree__meta a {
-	color: inherit;
-	text-decoration: underline;
-	text-underline-offset: 2px;
-}
-
-.wiki-sync-territory-tree__separator {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	margin: 10px 6px 6px;
-	color: #7a6048;
-	font-size: 12px;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
-}
-
-.wiki-sync-territory-tree__separator::before,
-.wiki-sync-territory-tree__separator::after {
-	content: "";
-	flex: 1 1 auto;
-	height: 1px;
-	background: rgba(122, 96, 72, 0.32);
-}
-
 .wiki-sync-panel__tabs {
 	display: flex;
 	gap: 6px;
@@ -3186,14 +3152,6 @@ body.modal-dialog-open {
 .wiki-sync-territory-tree {
 	max-height: calc(100vh - 360px);
 	min-height: 260px;
-}
-
-.wiki-sync-territory-tree__item {
-	cursor: default;
-}
-
-.wiki-sync-territory-tree__item[data-wiki-sync-territory-has-children="1"] {
-	cursor: pointer;
 }
 
 .review-report__name,
