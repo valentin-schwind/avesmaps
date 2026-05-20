@@ -164,7 +164,40 @@ function avesmapsPoliticalGetGeometryAssignment(PDO $pdo, array $query): array {
 
     $chain = [];
     $visited = [];
-    $current = avesmapsPoliticalFetchTerritoryById($pdo, $territoryId);
+
+    try {
+        $current = avesmapsPoliticalFetchTerritoryById($pdo, $territoryId);
+    } catch (InvalidArgumentException) {
+        $validTo = avesmapsPoliticalNullableInt($geometry['valid_to_bf'] ?? null);
+        $existsUntilToday = $validTo === null || $validTo >= 9999;
+
+        return [
+            'ok' => true,
+            'geometry' => avesmapsPoliticalGeometryRowToPublic($geometry),
+            'assignment' => [
+                'assignedTerritory' => null,
+                'activeDisplayNode' => null,
+                'assignedPath' => [],
+                'editedPath' => [],
+                'display' => [
+                    'name' => $geometryDisplayName,
+                    'displayName' => $geometryDisplayName,
+                    'coatOfArmsUrl' => (string) ($geometryStyle['coatOfArmsUrl'] ?? $geometryStyle['coat_of_arms_url'] ?? ''),
+                    'zoomMin' => avesmapsPoliticalNullableInt($geometry['min_zoom'] ?? null),
+                    'zoomMax' => avesmapsPoliticalNullableInt($geometry['max_zoom'] ?? null),
+                    'color' => (string) ($geometryStyle['fill'] ?? $geometryStyle['stroke'] ?? '#888888'),
+                    'opacity' => (float) ($geometryStyle['fillOpacity'] ?? 0.33),
+                ],
+                'validity' => [
+                    'startYear' => avesmapsPoliticalNullableInt($geometry['valid_from_bf'] ?? null),
+                    'endYear' => $existsUntilToday ? null : $validTo,
+                    'existsUntilToday' => $existsUntilToday,
+                ],
+                'displays' => [],
+            ],
+            'orphaned_assignment' => true,
+        ];
+    }
 
     while ($current && !isset($visited[(int) $current['id']])) {
         $visited[(int) $current['id']] = true;
