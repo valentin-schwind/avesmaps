@@ -3073,28 +3073,28 @@ body.modal-dialog-open {
 	text-underline-offset: 2px;
 }
 
-.wiki-sync-panel__tab {
-	border: 1px solid #cdb79f;
-	border-radius: 999px;
-	background: #fffaf5;
-	color: #4f4134;
-	cursor: pointer;
-	font: inherit;
-	font-size: 13px;
-	font-weight: bold;
-	padding: 6px 11px;
+.wiki-sync-panel__tabs {
+	display: flex;
+	gap: 6px;
+	margin: 10px 10px 8px;
 }
 
-.wiki-sync-panel__tab:hover,
-.wiki-sync-panel__tab:focus-visible {
-	background: #f5eadc;
-	outline: none;
+.wiki-sync-panel__tab {
+	border: 1px solid rgba(96, 72, 48, 0.24);
+	border-radius: 8px;
+	background: #f7efe4;
+	color: #4a3c2e;
+	cursor: pointer;
+	font: inherit;
+	font-size: 12px;
+	font-weight: 700;
+	padding: 7px 10px;
 }
 
 .wiki-sync-panel__tab.is-active {
-	background: #385d72;
-	border-color: #385d72;
-	color: #fff;
+	border-color: #8fa46d;
+	background: #f1f7e8;
+	color: #435724;
 }
 
 .wiki-sync-panel__tab-panel {
@@ -3104,6 +3104,26 @@ body.modal-dialog-open {
 .wiki-sync-panel__tab-panel.is-active {
 	display: block;
 }
+
+.wiki-sync-panel__actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 10px 8px;
+}
+
+.wiki-sync-panel__start {
+	white-space: normal;
+	text-align: left;
+	line-height: 1.25;
+}
+
+
+.wiki-sync-panel__tab:hover,
+.wiki-sync-panel__tab:focus-visible {
+	background: #f5eadc;
+	outline: none;
+}  
 
 .wiki-sync-territory-tree {
 	max-height: calc(100vh - 360px);
