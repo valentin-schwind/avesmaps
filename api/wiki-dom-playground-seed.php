@@ -22,18 +22,11 @@ const WIKI_DOM_MAX_PAGES = 100;
 const WIKI_DOM_MAX_RUNTIME = 35;
 
 $configPath = __DIR__ . '/config.local.php';
-if (!is_file($configPath)) {
-    jsonOut(['ok' => false, 'error' => 'config.local.php fehlt.'], 500);
-}
+if (!is_file($configPath)) jsonOut(['ok' => false, 'error' => 'config.local.php fehlt.'], 500);
 $config = require $configPath;
-if (!is_array($config) || !isset($config['database']) || !is_array($config['database'])) {
-    jsonOut(['ok' => false, 'error' => 'config.local.php liefert keine gültige database-Konfiguration.'], 500);
-}
+if (!is_array($config) || !isset($config['database']) || !is_array($config['database'])) jsonOut(['ok' => false, 'error' => 'config.local.php liefert keine gültige database-Konfiguration.'], 500);
 applyCors($config['cors']['allowed_origins'] ?? []);
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
-}
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 try {
     $pdo = createPdo($config['database']);
@@ -41,24 +34,13 @@ try {
     $action = trim((string) ($_GET['action'] ?? 'list'));
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $payload = readBody();
-        if ($action === 'run') {
-            runImport($pdo, $payload);
-        }
-        if ($action === 'clear') {
-            $pdo->exec('TRUNCATE TABLE ' . WIKI_DOM_TEST_TABLE);
-            jsonOut(['ok' => true, 'message' => 'Test-Tabelle geleert.']);
-        }
+        if ($action === 'run') runImport($pdo, $payload);
+        if ($action === 'clear') { $pdo->exec('TRUNCATE TABLE ' . WIKI_DOM_TEST_TABLE); jsonOut(['ok' => true, 'message' => 'Test-Tabelle geleert.']); }
         jsonOut(['ok' => false, 'error' => 'Unbekannte POST-Action.'], 400);
     }
-    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-        jsonOut(['ok' => false, 'error' => 'Nur GET und POST sind erlaubt.'], 405);
-    }
-    if ($action === 'defaults') {
-        jsonOut(['ok' => true, 'defaults' => defaultOptions(), 'seeds' => defaultSeeds(), 'catchwords' => defaultCatchwords()]);
-    }
-    if ($action === 'list') {
-        jsonOut(readRows($pdo));
-    }
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') jsonOut(['ok' => false, 'error' => 'Nur GET und POST sind erlaubt.'], 405);
+    if ($action === 'defaults') jsonOut(['ok' => true, 'defaults' => defaultOptions(), 'seeds' => defaultSeeds(), 'catchwords' => defaultCatchwords()]);
+    if ($action === 'list') jsonOut(readRows($pdo));
     jsonOut(['ok' => false, 'error' => 'Unbekannte GET-Action.'], 400);
 } catch (Throwable $error) {
     jsonOut(['ok' => false, 'error' => $error->getMessage()], 500);
@@ -74,12 +56,8 @@ function runImport(PDO $pdo, array $payload): void {
         $catchwords = normalizeCatchwords($payload['catchwords'] ?? null);
         $queue = [];
         $queued = [];
-        foreach (seedInputs($payload['seeds'] ?? defaultSeeds()) as $title) {
-            enqueue($queue, $queued, $title, 'entrypoint');
-        }
-        if ($queue === []) {
-            throw new RuntimeException('Mindestens ein Seed ist erforderlich.');
-        }
+        foreach (seedInputs($payload['seeds'] ?? defaultSeeds()) as $title) enqueue($queue, $queued, $title, 'entrypoint');
+        if ($queue === []) throw new RuntimeException('Mindestens ein Seed ist erforderlich.');
 
         $events = [];
         $errors = [];
@@ -89,30 +67,16 @@ function runImport(PDO $pdo, array $payload): void {
         $skipped = 0;
 
         while ($queue !== []) {
-            if (connection_aborted()) {
-                $events[] = ['type' => 'abort', 'message' => 'Client-Verbindung abgebrochen.'];
-                break;
-            }
-            if ((microtime(true) - $startedAt) >= $options['max_runtime_seconds']) {
-                $events[] = ['type' => 'limit', 'message' => 'Maximale Laufzeit erreicht.'];
-                break;
-            }
-            if ($iterations >= $options['max_iterations']) {
-                $events[] = ['type' => 'limit', 'message' => 'Maximale Iterationszahl erreicht.'];
-                break;
-            }
-            if ($stored >= $options['max_pages']) {
-                $events[] = ['type' => 'limit', 'message' => 'Maximale Territory-Seitenzahl erreicht.'];
-                break;
-            }
+            if (connection_aborted()) { $events[] = ['type' => 'abort', 'message' => 'Client-Verbindung abgebrochen.']; break; }
+            if ((microtime(true) - $startedAt) >= $options['max_runtime_seconds']) { $events[] = ['type' => 'limit', 'message' => 'Maximale Laufzeit erreicht.']; break; }
+            if ($iterations >= $options['max_iterations']) { $events[] = ['type' => 'limit', 'message' => 'Maximale Iterationszahl erreicht.']; break; }
+            if ($stored >= $options['max_pages']) { $events[] = ['type' => 'limit', 'message' => 'Maximale Territory-Seitenzahl erreicht.']; break; }
 
             $iterations++;
             $entry = array_shift($queue);
             $title = title((string) ($entry['title'] ?? ''));
             $source = (string) ($entry['source'] ?? '');
-            if ($title === '') {
-                continue;
-            }
+            if ($title === '') continue;
 
             try {
                 if ($source !== 'entrypoint' && !isEntrypoint($title) && recordExistsByWikiUrl($pdo, pageUrl($title))) {
@@ -128,9 +92,7 @@ function runImport(PDO $pdo, array $payload): void {
                 if ($source === 'entrypoint' || isEntrypoint($title) || isEntrypoint($resolvedTitle)) {
                     $entrypoints++;
                     $links = entrypointLinks($xpath);
-                    foreach ($links as $linkTitle) {
-                        enqueue($queue, $queued, $linkTitle, 'seed-list:' . $resolvedTitle);
-                    }
+                    foreach ($links as $linkTitle) enqueue($queue, $queued, $linkTitle, 'seed-list:' . $resolvedTitle);
                     $events[] = ['type' => 'entrypoint', 'title' => $resolvedTitle, 'links' => count($links), 'message' => 'Seed-Liste gelesen, aber nicht gespeichert.'];
                     sleepMs($options['sleep_ms']);
                     continue;
@@ -158,9 +120,7 @@ function runImport(PDO $pdo, array $payload): void {
         $result['run'] = ['ok' => true, 'runtime_seconds' => round(microtime(true) - $startedAt, 3), 'iterations' => $iterations, 'entrypoint_pages' => $entrypoints, 'fetched_pages' => $stored, 'skipped_existing' => $skipped, 'queued_remaining' => count($queue), 'relations' => 0, 'events' => $events, 'errors' => $errors, 'options' => $options];
         $result['relations'] = [];
         jsonOut($result);
-    } finally {
-        releaseLock($lock);
-    }
+    } finally { releaseLock($lock); }
 }
 
 function defaultSeeds(): array {
@@ -169,7 +129,7 @@ function defaultSeeds(): array {
 
 function defaultCatchwords(): array {
     return [
-        'affiliation_path_labels' => ['staat', 'zugehörigkeit', 'zugehoerigkeit', 'politisch', 'reich', 'oberherrschaft'],
+        'affiliation_path_labels' => ['staat', 'staatverlauf', 'zugehörigkeit', 'zugehoerigkeit', 'politisch', 'reich', 'oberherrschaft'],
         'founded_labels' => ['gründungsdatum', 'gruendungsdatum', 'gründung', 'gruendung', 'gründungsdaten', 'gruendungsdaten', 'unabhängigkeit', 'unabhaengigkeit', 'gegründet', 'gegruendet', 'entstehung', 'ausrufung'],
         'dissolved_labels' => ['aufgelöst', 'aufgeloest', 'auflösung', 'aufloesung', 'ende', 'untergang', 'zerfall', 'aufgegeben'],
         'period_labels' => ['zeitraum', 'bestehen', 'bestand', 'bestandszeit', 'existenz'],
@@ -179,64 +139,37 @@ function defaultCatchwords(): array {
     ];
 }
 
-function defaultOptions(): array {
-    return ['max_iterations' => 30, 'max_pages' => 20, 'max_runtime_seconds' => 20, 'sleep_ms' => 450, 'request_timeout_seconds' => 8];
-}
-
-function options(array $payload): array {
-    $d = defaultOptions();
-    return ['max_iterations' => max(1, min(WIKI_DOM_MAX_ITERATIONS, (int) ($payload['max_iterations'] ?? $d['max_iterations']))), 'max_pages' => max(1, min(WIKI_DOM_MAX_PAGES, (int) ($payload['max_pages'] ?? $d['max_pages']))), 'max_runtime_seconds' => max(3, min(WIKI_DOM_MAX_RUNTIME, (int) ($payload['max_runtime_seconds'] ?? $d['max_runtime_seconds']))), 'sleep_ms' => max(0, min(5000, (int) ($payload['sleep_ms'] ?? $d['sleep_ms']))), 'request_timeout_seconds' => max(3, min(20, (int) ($payload['request_timeout_seconds'] ?? $d['request_timeout_seconds'])))];
-}
+function defaultOptions(): array { return ['max_iterations' => 30, 'max_pages' => 20, 'max_runtime_seconds' => 20, 'sleep_ms' => 450, 'request_timeout_seconds' => 8]; }
+function options(array $payload): array { $d = defaultOptions(); return ['max_iterations' => max(1, min(WIKI_DOM_MAX_ITERATIONS, (int) ($payload['max_iterations'] ?? $d['max_iterations']))), 'max_pages' => max(1, min(WIKI_DOM_MAX_PAGES, (int) ($payload['max_pages'] ?? $d['max_pages']))), 'max_runtime_seconds' => max(3, min(WIKI_DOM_MAX_RUNTIME, (int) ($payload['max_runtime_seconds'] ?? $d['max_runtime_seconds']))), 'sleep_ms' => max(0, min(5000, (int) ($payload['sleep_ms'] ?? $d['sleep_ms']))), 'request_timeout_seconds' => max(3, min(20, (int) ($payload['request_timeout_seconds'] ?? $d['request_timeout_seconds'])))]; }
 
 function normalizeCatchwords(mixed $value): array {
-    if (is_string($value) && trim($value) !== '') {
-        $decoded = json_decode($value, true);
-        if (is_array($decoded)) {
-            $value = $decoded;
-        }
-    }
-    if (!is_array($value)) {
-        $value = [];
-    }
+    if (is_string($value) && trim($value) !== '') { $decoded = json_decode($value, true); if (is_array($decoded)) $value = $decoded; }
+    if (!is_array($value)) $value = [];
     $catchwords = defaultCatchwords();
     foreach ($catchwords as $key => $items) {
         $custom = $value[$key] ?? $items;
-        if (!is_array($custom)) {
-            $custom = $items;
-        }
+        if (!is_array($custom)) $custom = $items;
         $catchwords[$key] = array_values(array_unique(array_filter(array_map(static fn(mixed $item): string => labelKey((string) $item), $custom))));
     }
     return $catchwords;
 }
 
 function seedInputs(mixed $seeds): array {
-    if (is_string($seeds)) {
-        $seeds = preg_split('/\R+/', $seeds) ?: [];
-    }
-    if (!is_array($seeds)) {
-        return [];
-    }
+    if (is_string($seeds)) $seeds = preg_split('/\R+/', $seeds) ?: [];
+    if (!is_array($seeds)) return [];
     $titles = [];
     foreach ($seeds as $seed) {
         $seed = trim((string) $seed);
-        if ($seed === '') {
-            continue;
-        }
-        if (preg_match('/^https?:\/\/de\.wiki-aventurica\.de\/wiki\/(.+)$/i', $seed, $match) === 1) {
-            $titles[] = title(rawurldecode((string) $match[1]));
-        } elseif (preg_match('/^https?:\/\//i', $seed) !== 1) {
-            $titles[] = title($seed);
-        }
+        if ($seed === '') continue;
+        if (preg_match('/^https?:\/\/de\.wiki-aventurica\.de\/wiki\/(.+)$/i', $seed, $match) === 1) $titles[] = title(rawurldecode((string) $match[1]));
+        elseif (preg_match('/^https?:\/\//i', $seed) !== 1) $titles[] = title($seed);
     }
     return array_values(array_unique(array_filter($titles)));
 }
 
-function fetchRaw(string $pageTitle, int $timeout): string {
-    return fetchUrl(WIKI_DOM_RAW_BASE_URL . rawurlencode(str_replace(' ', '_', title($pageTitle))) . '&action=raw', $timeout, 'text/plain,text/x-wiki,text/*');
-}
-
+function fetchRaw(string $pageTitle, int $timeout): string { return fetchUrl(WIKI_DOM_RAW_BASE_URL . rawurlencode(str_replace(' ', '_', title($pageTitle))) . '&action=raw', $timeout, 'text/plain,text/x-wiki,text/*'); }
 function fetchUrl(string $url, int $timeout, string $accept): string {
-    $headers = ['User-Agent: AvesmapsWikiDomPlayground/0.5 (https://avesmaps.de/)', 'Accept: ' . $accept];
+    $headers = ['User-Agent: AvesmapsWikiDomPlayground/0.6 (https://avesmaps.de/)', 'Accept: ' . $accept];
     if (function_exists('curl_init')) {
         $curl = curl_init($url);
         if ($curl !== false) {
@@ -245,81 +178,76 @@ function fetchUrl(string $url, int $timeout, string $accept): string {
             $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
             $error = curl_error($curl);
             curl_close($curl);
-            if (is_string($content) && trim($content) !== '' && $status >= 200 && $status < 400) {
-                return $content;
-            }
+            if (is_string($content) && trim($content) !== '' && $status >= 200 && $status < 400) return $content;
             throw new RuntimeException('Abruf fehlgeschlagen: HTTP ' . $status . ($error !== '' ? ' / ' . $error : '') . ' / ' . $url);
         }
     }
     $context = stream_context_create(['http' => ['method' => 'GET', 'timeout' => $timeout, 'header' => implode("\r\n", $headers) . "\r\n"]]);
     $content = @file_get_contents($url, false, $context);
-    if (is_string($content) && trim($content) !== '') {
-        return $content;
-    }
+    if (is_string($content) && trim($content) !== '') return $content;
     throw new RuntimeException('Antwort leer oder nicht abrufbar: ' . $url);
 }
 
-function xpath(string $html): DOMXPath {
-    if (!class_exists(DOMDocument::class)) {
-        throw new RuntimeException('PHP-DOM-Erweiterung fehlt.');
-    }
-    $document = new DOMDocument();
-    @$document->loadHTML('<?xml encoding="UTF-8">' . $html);
-    return new DOMXPath($document);
-}
-
+function xpath(string $html): DOMXPath { if (!class_exists(DOMDocument::class)) throw new RuntimeException('PHP-DOM-Erweiterung fehlt.'); $document = new DOMDocument(); @$document->loadHTML('<?xml encoding="UTF-8">' . $html); return new DOMXPath($document); }
 function fieldsFromHtml(DOMXPath $xpath): array {
     $fields = [];
     foreach ($xpath->query('//tr[th and td] | //div[contains(@class,"infobox")]//tr | //table[contains(@class,"infobox")]//tr') ?: [] as $row) {
-        if (!$row instanceof DOMElement) {
-            continue;
-        }
+        if (!$row instanceof DOMElement) continue;
         $th = $row->getElementsByTagName('th')->item(0);
         $td = $row->getElementsByTagName('td')->item(0);
-        if (!$th instanceof DOMNode || !$td instanceof DOMNode) {
-            continue;
-        }
+        if (!$th instanceof DOMNode || !$td instanceof DOMNode) continue;
         $key = labelKey($th->textContent ?? '');
         $value = cleanText($td->textContent ?? '');
-        if ($key !== '' && $value !== '' && !isset($fields[$key])) {
-            $fields[$key] = $value;
-        }
+        if ($key !== '' && $value !== '' && !isset($fields[$key])) $fields[$key] = $value;
     }
     return $fields;
 }
 
 function fieldsFromInfoboxSource(string $source): array {
     $template = extractTemplate($source, 'Infobox Staat');
-    if ($template === '') {
-        return [];
-    }
+    if ($template === '') return [];
     $fields = [];
-    if (preg_match_all('/^\s*\|\s*([^=\n]+?)\s*=\s*(.*?)(?=^\s*\|\s*[^=\n]+?\s*=|\z)/msu', $template, $matches, PREG_SET_ORDER) !== false) {
-        foreach ($matches as $match) {
-            $key = labelKey((string) $match[1]);
-            $value = cleanWikiValue((string) $match[2]);
-            if ($key !== '' && $value !== '') {
-                $fields[$key] = $value;
-            }
-        }
+    foreach (parseTemplateParameters($template) as $key => $value) {
+        $cleanKey = labelKey($key);
+        $cleanValue = cleanWikiValue($value);
+        if ($cleanKey !== '' && $cleanValue !== '') $fields[$cleanKey] = $cleanValue;
     }
     return $fields;
 }
 
+function parseTemplateParameters(string $template): array {
+    $params = [];
+    $currentKey = null;
+    $currentValue = '';
+    $depth = 0;
+    foreach (preg_split('/\R/u', $template) ?: [] as $line) {
+        if ($depth === 0 && preg_match('/^\s*\|\s*([^=\n]+?)\s*=\s*(.*)$/u', $line, $match) === 1) {
+            if ($currentKey !== null) $params[$currentKey] = $currentValue;
+            $currentKey = trim((string) $match[1]);
+            $currentValue = (string) $match[2];
+        } elseif ($currentKey !== null) {
+            $currentValue .= "\n" . $line;
+        }
+        $depth = templateDepth($currentValue);
+    }
+    if ($currentKey !== null) $params[$currentKey] = $currentValue;
+    return $params;
+}
+
+function templateDepth(string $value): int {
+    $opens = preg_match_all('/\{\{/u', $value);
+    $closes = preg_match_all('/\}\}/u', $value);
+    return max(0, (int) $opens - (int) $closes);
+}
+
 function extractTemplate(string $source, string $name): string {
     $start = mb_strpos($source, '{{' . $name, 0, 'UTF-8');
-    if ($start === false) {
-        return '';
-    }
+    if ($start === false) return '';
     $length = mb_strlen($source, 'UTF-8');
     $depth = 0;
     for ($i = $start; $i < $length - 1; $i++) {
         $pair = mb_substr($source, $i, 2, 'UTF-8');
-        if ($pair === '{{') {
-            $depth++;
-            $i++;
-            continue;
-        }
+        if ($pair === '{{') { $depth++; $i++; continue; }
         if ($pair === '}}') {
             $depth--;
             if ($depth === 0) {
@@ -336,43 +264,31 @@ function entrypointLinks(DOMXPath $xpath): array {
     $links = [];
     foreach (['//div[contains(@class,"mw-parser-output")]//table//tr[td]//td[1]//a[@href]', '//div[contains(@class,"mw-parser-output")]//table//tr[td]//a[@href]', '//div[contains(@class,"mw-parser-output")]//ul//li//a[@href]'] as $query) {
         foreach ($xpath->query($query) ?: [] as $node) {
-            if (!$node instanceof DOMElement) {
-                continue;
-            }
+            if (!$node instanceof DOMElement) continue;
             $target = titleFromHref((string) $node->getAttribute('href'));
             $text = cleanText($node->textContent ?? '');
-            if ($target === '' || isEntrypoint($target) || !isRelevantTitle($target) || $text === '' || mb_strlen($text, 'UTF-8') < 2) {
-                continue;
-            }
+            if ($target === '' || isEntrypoint($target) || !isRelevantTitle($target) || $text === '' || mb_strlen($text, 'UTF-8') < 2) continue;
             $links[stableKey($target)] = $target;
         }
-        if ($links !== []) {
-            break;
-        }
+        if ($links !== []) break;
     }
     return array_values($links);
 }
 
 function affiliationPath(array $fields, array $catchwords): array {
     foreach ($catchwords['affiliation_path_labels'] as $label) {
-        if (!isset($fields[$label]) || trim((string) $fields[$label]) === '') {
-            continue;
-        }
+        if (!isset($fields[$label]) || trim((string) $fields[$label]) === '') continue;
         $raw = trim((string) $fields[$label]);
-        $value = preg_replace('/\b(?:derographisch|geographisch|geografisch)\b\s*:?\s*[^;]+;?/iu', ' ', $raw) ?? $raw;
+        $value = preg_replace('/\b(?:geographisch|geografisch)\b\s*:?\s*[^;]+;?/iu', ' ', $raw) ?? $raw;
         $value = preg_replace('/\bpolitisch\b\s*:?\s*/iu', '', $value) ?? $value;
-        $parts = preg_split('/\s*(?::|>|→|›|»|;)\s*/u', $value) ?: [];
+        $parts = preg_split('/\s*(?::|>|→|›|»|;|,\s*(?=[A-ZÄÖÜ]))\s*/u', $value) ?: [];
         $path = [];
         foreach ($parts as $part) {
             $part = cleanText($part);
-            if ($part !== '' && preg_match('/\b(unabhaengig|unabhängig|keine|unbekannt|ungeklaert|ungeklärt)\b/iu', $part) !== 1) {
-                $path[] = $part;
-            }
+            if ($part !== '' && preg_match('/\b(unabhaengig|unabhängig|keine|unbekannt|ungeklaert|ungeklärt|umstritten)\b/iu', $part) !== 1) $path[] = $part;
         }
         $path = array_values(array_unique($path));
-        if ($path !== []) {
-            return ['raw' => $raw, 'path' => $path, 'source_field' => $label];
-        }
+        if ($path !== []) return ['raw' => $raw, 'path' => $path, 'source_field' => $label];
     }
     return ['raw' => '', 'path' => [], 'source_field' => ''];
 }
@@ -380,57 +296,22 @@ function affiliationPath(array $fields, array $catchwords): array {
 function temporalData(array $fields, DOMXPath $xpath, array $catchwords): array {
     $items = [];
     foreach ($fields as $key => $value) {
-        if (in_array($key, $catchwords['founded_labels'], true)) {
-            $items[] = temporalItem('founded', (string) $value, 'field', $key, 0.96);
-        } elseif (in_array($key, $catchwords['dissolved_labels'], true)) {
-            $items[] = temporalItem('dissolved', (string) $value, 'field', $key, 0.96);
-        } elseif (in_array($key, $catchwords['period_labels'], true)) {
-            $items = array_merge($items, periodItems((string) $value, $key));
-        }
+        if (in_array($key, $catchwords['founded_labels'], true)) $items[] = temporalItem('founded', (string) $value, 'field', $key, 0.96);
+        elseif (in_array($key, $catchwords['dissolved_labels'], true)) $items[] = temporalItem('dissolved', (string) $value, 'field', $key, 0.96);
+        elseif (in_array($key, $catchwords['period_labels'], true)) $items = array_merge($items, periodItems((string) $value, $key));
     }
     foreach ($xpath->query('//p | //li | //tr[th and td]') ?: [] as $node) {
         $text = cleanText($node instanceof DOMNode ? ($node->textContent ?? '') : '');
-        if ($text === '' || bfYears($text) === []) {
-            continue;
-        }
-        if (containsAny($text, $catchwords['founded_context_words'])) {
-            $items[] = temporalItem('founded', snippet($text, $catchwords['founded_context_words']), 'sentence', '', 0.74);
-        }
-        if (containsAny($text, $catchwords['dissolved_context_words'])) {
-            $items[] = temporalItem('dissolved', snippet($text, $catchwords['dissolved_context_words']), 'sentence', '', 0.72);
-        }
+        if ($text === '' || bfYears($text) === []) continue;
+        if (containsAny($text, $catchwords['founded_context_words'])) $items[] = temporalItem('founded', snippet($text, $catchwords['founded_context_words']), 'sentence', '', 0.74);
+        if (containsAny($text, $catchwords['dissolved_context_words'])) $items[] = temporalItem('dissolved', snippet($text, $catchwords['dissolved_context_words']), 'sentence', '', 0.72);
     }
     return dedupeTemporal($items);
 }
 
-function periodItems(string $text, string $field): array {
-    $parts = preg_split('/\s*(?:-|–|—|bis)\s*/u', $text) ?: [];
-    $items = [];
-    if (isset($parts[0]) && trim($parts[0]) !== '') {
-        $items[] = temporalItem('founded', (string) $parts[0], 'field', $field, 0.76);
-    }
-    if (isset($parts[1]) && trim($parts[1]) !== '') {
-        $items[] = temporalItem('dissolved', (string) $parts[1], 'field', $field, 0.76);
-    }
-    return $items;
-}
-
-function temporalItem(string $kind, string $text, string $sourceType, string $field, float $confidence): array {
-    $years = bfYears($text);
-    return ['kind' => $kind, 'raw_text' => mb_substr(cleanText($text), 0, 500, 'UTF-8'), 'start_bf' => $years[0] ?? null, 'end_bf' => $years[1] ?? ($years[0] ?? null), 'source_type' => $sourceType, 'source_field' => $field, 'confidence' => $confidence];
-}
-
-function bfYears(string $text): array {
-    $years = [];
-    if (preg_match_all('/(?<!\d)(?:(v)\.?\s*)?(\d{1,4})(?:\s*[\/.]\s*\d{1,4})?\s*(?:v\.?\s*)?BF\b/iu', $text, $matches, PREG_SET_ORDER) !== false) {
-        foreach ($matches as $match) {
-            $value = (int) $match[2];
-            $before = trim((string) ($match[1] ?? '')) !== '' || preg_match('/\d{1,4}(?:\s*[\/.]\s*\d{1,4})?\s*v\.?\s*BF\b/iu', (string) $match[0]) === 1;
-            $years[] = $before ? -$value : $value;
-        }
-    }
-    return array_values(array_unique($years));
-}
+function periodItems(string $text, string $field): array { $parts = preg_split('/\s*(?:-|–|—|bis)\s*/u', $text) ?: []; $items = []; if (isset($parts[0]) && trim($parts[0]) !== '') $items[] = temporalItem('founded', (string) $parts[0], 'field', $field, 0.76); if (isset($parts[1]) && trim($parts[1]) !== '') $items[] = temporalItem('dissolved', (string) $parts[1], 'field', $field, 0.76); return $items; }
+function temporalItem(string $kind, string $text, string $sourceType, string $field, float $confidence): array { $years = bfYears($text); return ['kind' => $kind, 'raw_text' => mb_substr(cleanText($text), 0, 500, 'UTF-8'), 'start_bf' => $years[0] ?? null, 'end_bf' => $years[1] ?? ($years[0] ?? null), 'source_type' => $sourceType, 'source_field' => $field, 'confidence' => $confidence]; }
+function bfYears(string $text): array { $years = []; if (preg_match_all('/(?<!\d)(?:(v)\.?\s*)?(\d{1,4})(?:\s*[\/.]\s*\d{1,4})?\s*(?:v\.?\s*)?BF\b/iu', $text, $matches, PREG_SET_ORDER) !== false) { foreach ($matches as $match) { $value = (int) $match[2]; $before = trim((string) ($match[1] ?? '')) !== '' || preg_match('/\d{1,4}(?:\s*[\/.]\s*\d{1,4})?\s*v\.?\s*BF\b/iu', (string) $match[0]) === 1; $years[] = $before ? -$value : $value; } } return array_values(array_unique($years)); }
 
 function buildRecord(string $pageTitle, array $fields, array $pathInfo, array $temporal): array {
     $founded = bestTemporal($temporal, 'founded');
@@ -445,52 +326,25 @@ function upsertRecord(PDO $pdo, array $record): void {
     $pdo->prepare($sql)->execute(['wiki_key' => $record['wiki_key'], 'name' => $record['name'], 'type' => nullable($record['type']), 'continent' => nullable($record['continent']), 'affiliation_raw' => nullable($record['affiliation_raw']), 'affiliation_key' => nullable($record['affiliation_key']), 'affiliation_root' => nullable($record['affiliation_root']), 'affiliation_path_json' => jsonOrNull($record['affiliation_path_json']), 'affiliation_json' => jsonOrNull($record['affiliation_json']), 'founded_text' => nullable($record['founded_text']), 'founded_start_bf' => $record['founded_start_bf'], 'founded_end_bf' => $record['founded_end_bf'], 'founded_json' => jsonOrNull($record['founded_json']), 'dissolved_text' => nullable($record['dissolved_text']), 'dissolved_start_bf' => $record['dissolved_start_bf'], 'dissolved_end_bf' => $record['dissolved_end_bf'], 'dissolved_json' => jsonOrNull($record['dissolved_json']), 'wiki_url' => nullable($record['wiki_url']), 'raw_json' => jsonOrNull($record['raw_json'])]);
 }
 
-function readRows(PDO $pdo): array {
-    $stmt = $pdo->query('SELECT id, wiki_key, name, type, affiliation_root, affiliation_path_json, founded_text, founded_start_bf, dissolved_text, dissolved_start_bf, wiki_url, raw_json, synced_at FROM ' . WIKI_DOM_TEST_TABLE . ' ORDER BY COALESCE(affiliation_root, name), name LIMIT 500');
-    $items = [];
-    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $row['affiliation_path'] = decodeJson($row['affiliation_path_json'] ?? null);
-        $row['raw'] = decodeJson($row['raw_json'] ?? null);
-        unset($row['affiliation_path_json'], $row['raw_json']);
-        $items[] = $row;
-    }
-    return ['ok' => true, 'table' => WIKI_DOM_TEST_TABLE, 'count' => count($items), 'items' => $items];
-}
-
-function recordExistsByWikiUrl(PDO $pdo, string $url): bool {
-    $stmt = $pdo->prepare('SELECT 1 FROM ' . WIKI_DOM_TEST_TABLE . ' WHERE wiki_url = :url LIMIT 1');
-    $stmt->execute(['url' => $url]);
-    return $stmt->fetchColumn() !== false;
-}
-
-function enqueue(array &$queue, array &$queued, string $pageTitle, string $source): void {
-    $pageTitle = title($pageTitle);
-    $key = stableKey($pageTitle);
-    if ($key === '' || isset($queued[$key])) {
-        return;
-    }
-    $queued[$key] = true;
-    $queue[] = ['title' => $pageTitle, 'source' => $source];
-}
-
-function heading(DOMXPath $xpath): string {
-    $node = $xpath->query('//*[@id="firstHeading"]')->item(0);
-    return $node instanceof DOMNode ? cleanText($node->textContent ?? '') : '';
-}
+function readRows(PDO $pdo): array { $stmt = $pdo->query('SELECT id, wiki_key, name, type, affiliation_root, affiliation_path_json, founded_text, founded_start_bf, dissolved_text, dissolved_start_bf, wiki_url, raw_json, synced_at FROM ' . WIKI_DOM_TEST_TABLE . ' ORDER BY COALESCE(affiliation_root, name), name LIMIT 500'); $items = []; while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) { $row['affiliation_path'] = decodeJson($row['affiliation_path_json'] ?? null); $row['raw'] = decodeJson($row['raw_json'] ?? null); unset($row['affiliation_path_json'], $row['raw_json']); $items[] = $row; } return ['ok' => true, 'table' => WIKI_DOM_TEST_TABLE, 'count' => count($items), 'items' => $items]; }
+function recordExistsByWikiUrl(PDO $pdo, string $url): bool { $stmt = $pdo->prepare('SELECT 1 FROM ' . WIKI_DOM_TEST_TABLE . ' WHERE wiki_url = :url LIMIT 1'); $stmt->execute(['url' => $url]); return $stmt->fetchColumn() !== false; }
+function enqueue(array &$queue, array &$queued, string $pageTitle, string $source): void { $pageTitle = title($pageTitle); $key = stableKey($pageTitle); if ($key === '' || isset($queued[$key])) return; $queued[$key] = true; $queue[] = ['title' => $pageTitle, 'source' => $source]; }
+function heading(DOMXPath $xpath): string { $node = $xpath->query('//*[@id="firstHeading"]')->item(0); return $node instanceof DOMNode ? cleanText($node->textContent ?? '') : ''; }
 function isEntrypoint(string $pageTitle): bool { return preg_match('/\/Liste$/u', title($pageTitle)) === 1; }
 function titleFromHref(string $href): string { return str_starts_with(trim($href), '/wiki/') ? title(rawurldecode(substr(trim($href), 6))) : ''; }
 function isRelevantTitle(string $pageTitle): bool { return $pageTitle !== '' && !str_contains($pageTitle, '#') && preg_match('/^(Datei|File|Kategorie|Category|Spezial|Special|Hilfe|Help|Vorlage|Template|Benutzer|Diskussion):/iu', $pageTitle) !== 1; }
-function bestTemporal(array $items, string $kind): ?array { $best = null; foreach ($items as $item) { if (is_array($item) && (string) ($item['kind'] ?? '') === $kind && ($best === null || (float) ($item['confidence'] ?? 0) > (float) ($best['confidence'] ?? 0))) $best = $item; } return $best; }
-function dedupeTemporal(array $items): array { $out = []; foreach ($items as $item) { if (is_array($item)) $out[implode('|', [(string) ($item['kind'] ?? ''), (string) ($item['start_bf'] ?? ''), (string) ($item['end_bf'] ?? ''), (string) ($item['raw_text'] ?? '')])] = $item; } return array_values($out); }
-function containsAny(string $text, array $words): bool { $key = labelKey($text); foreach ($words as $word) { if ($word !== '' && str_contains($key, (string) $word)) return true; } return false; }
-function snippet(string $text, array $words): string { foreach ($words as $word) { if ($word !== '' && preg_match('/.{0,90}' . preg_quote((string) $word, '/') . '.{0,160}/iu', $text, $match) === 1) return cleanText((string) $match[0]); } return mb_substr(cleanText($text), 0, 260, 'UTF-8'); }
-function inferType(string $pageTitle, string $fallback): string { if (trim($fallback) !== '') return trim($fallback); foreach (['Kaiserreich', 'Königreich', 'Bergkönigreich', 'Imperium', 'Republik', 'Herzogtum', 'Fürstentum', 'Grafschaft', 'Baronie', 'Freiherrschaft', 'Markgrafschaft', 'Pfalzgrafschaft', 'Jarltum', 'Sultanat', 'Emirat', 'Theokratie', 'Komturei', 'Domäne', 'Ordensland', 'Reich', 'Staat'] as $type) { if (preg_match('/\b' . preg_quote($type, '/') . '\b/iu', $pageTitle) === 1) return $type; } return ''; }
+function bestTemporal(array $items, string $kind): ?array { $best = null; foreach ($items as $item) if (is_array($item) && (string) ($item['kind'] ?? '') === $kind && ($best === null || (float) ($item['confidence'] ?? 0) > (float) ($best['confidence'] ?? 0))) $best = $item; return $best; }
+function dedupeTemporal(array $items): array { $out = []; foreach ($items as $item) if (is_array($item)) $out[implode('|', [(string) ($item['kind'] ?? ''), (string) ($item['start_bf'] ?? ''), (string) ($item['end_bf'] ?? ''), (string) ($item['raw_text'] ?? '')])] = $item; return array_values($out); }
+function containsAny(string $text, array $words): bool { $key = labelKey($text); foreach ($words as $word) if ($word !== '' && str_contains($key, (string) $word)) return true; return false; }
+function snippet(string $text, array $words): string { foreach ($words as $word) if ($word !== '' && preg_match('/.{0,90}' . preg_quote((string) $word, '/') . '.{0,160}/iu', $text, $match) === 1) return cleanText((string) $match[0]); return mb_substr(cleanText($text), 0, 260, 'UTF-8'); }
+function inferType(string $pageTitle, string $fallback): string { if (trim($fallback) !== '') return trim($fallback); foreach (['Kaiserreich', 'Königreich', 'Bergkönigreich', 'Imperium', 'Republik', 'Herzogtum', 'Fürstentum', 'Grafschaft', 'Baronie', 'Freiherrschaft', 'Markgrafschaft', 'Pfalzgrafschaft', 'Jarltum', 'Sultanat', 'Emirat', 'Theokratie', 'Komturei', 'Domäne', 'Ordensland', 'Reich', 'Staat'] as $type) if (preg_match('/\b' . preg_quote($type, '/') . '\b/iu', $pageTitle) === 1) return $type; return ''; }
 function displayName(string $pageTitle): string { return trim((string) preg_replace('/\s+\((?:Staat|Reich|Historisch|Region)\)\s*$/iu', '', str_replace('_', ' ', title($pageTitle)))); }
 function title(string $pageTitle): string { $pageTitle = str_replace('_', ' ', rawurldecode(trim($pageTitle))); $pageTitle = preg_replace('/#.*$/u', '', $pageTitle) ?? $pageTitle; return trim($pageTitle); }
 function pageUrl(string $pageTitle): string { return WIKI_DOM_BASE_URL . str_replace('%2F', '/', rawurlencode(str_replace(' ', '_', title($pageTitle)))); }
 function stableKey(string $value): string { return avesmapsPoliticalSlug(title($value)); }
 function labelKey(string $value): string { $value = mb_strtolower(cleanText($value), 'UTF-8'); $value = str_replace(['ä', 'ö', 'ü', 'ß'], ['ae', 'oe', 'ue', 'ss'], $value); $value = preg_replace('/[^a-z0-9]+/u', ' ', $value) ?? ''; return trim($value); }
-function cleanWikiValue(string $text): string { $text = preg_replace('/<!--.*?-->/su', ' ', $text) ?? $text; $text = preg_replace('/\[\[([^\]|]+)\|([^\]]+)\]\]/u', '$2', $text) ?? $text; $text = preg_replace('/\[\[([^\]]+)\]\]/u', '$1', $text) ?? $text; $text = preg_replace('/\{\{(?:[^{}]|\{[^{}]*\})*\}\}/u', ' ', $text) ?? $text; $text = preg_replace('/<[^>]+>/u', ' ', $text) ?? $text; return cleanText($text); }
+function cleanWikiValue(string $text): string { $text = preg_replace('/<!--.*?-->/su', ' ', $text) ?? $text; $text = preg_replace('/<\s*br\s*\/?\s*>/iu', '; ', $text) ?? $text; $text = preg_replace('/<\s*ref\b[^>]*>.*?<\s*\/\s*ref\s*>/isu', ' ', $text) ?? $text; $text = preg_replace('/<\s*ref\b[^>]*\/\s*>/isu', ' ', $text) ?? $text; $text = preg_replace('/\[\[([^\]|]+)\|([^\]]+)\]\]/u', '$2', $text) ?? $text; $text = preg_replace('/\[\[([^\]]+)\]\]/u', '$1', $text) ?? $text; $previous = null; while ($previous !== $text && str_contains($text, '{{')) { $previous = $text; $text = preg_replace_callback('/\{\{([^{}]*)\}\}/u', static fn(array $match): string => templateText((string) $match[1]), $text) ?? $text; } $text = preg_replace('/<[^>]+>/u', ' ', $text) ?? $text; return cleanText($text); }
+function templateText(string $template): string { $parts = array_map('trim', explode('|', $template)); $name = labelKey((string) array_shift($parts)); $values = []; foreach ($parts as $part) { if ($part === '') continue; if (str_contains($part, '=')) { [$k, $v] = array_map('trim', explode('=', $part, 2)); if ($v !== '') $values[] = $v; } else { $values[] = $part; } } if ($values === []) return $name; if (in_array($name, ['datum', 'bf', 'borbarads_daemonenschlacht', 'seit'], true)) return implode(' ', $values); return end($values) ?: implode(' ', $values); }
 function cleanText(string $text): string { $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8'); $text = preg_replace('/\[[^\]]*\]/u', ' ', $text) ?? $text; $text = preg_replace('/\s+/u', ' ', $text) ?? $text; return trim($text, " \t\n\r\0\x0B,:;"); }
 function decodeJson(mixed $value): array { if ($value === null || $value === '') return []; if (is_array($value)) return $value; $decoded = json_decode((string) $value, true); return is_array($decoded) ? $decoded : []; }
 function nullable(mixed $value): ?string { $value = trim((string) ($value ?? '')); return $value === '' ? null : $value; }
