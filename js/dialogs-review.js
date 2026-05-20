@@ -3907,7 +3907,7 @@ async function loadChangeLog() {
 				}
 				return Number(right?.id || 0) - Number(left?.id || 0);
 			})
-			.slice(0, 50);
+			.slice(0, 100);
 		renderChangeLog();
 	} catch (error) {
 		console.error("Änderungsverlauf konnte nicht geladen werden:", error);
