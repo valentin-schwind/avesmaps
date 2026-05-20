@@ -35,6 +35,8 @@
 		.badge { display:inline-block; padding:2px 5px; border-radius:3px; background:var(--panel-muted); border:1px solid var(--border); }
 		.badge.ok { color:var(--ok); }
 		.badge.warn { color:var(--danger); }
+		.date-main { font-weight:700; }
+		.date-raw { display:block; margin-top:2px; color:var(--muted); }
 		pre { margin:0; white-space:pre-wrap; word-break:break-word; font-size:11px; }
 		@media (max-width:900px) { main { grid-template-columns:1fr; } .summary { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 	</style>
@@ -128,10 +130,33 @@
 				const raw = item.raw || {};
 				const tr = document.createElement('tr');
 				const path = Array.isArray(item.affiliation_path) ? item.affiliation_path.join(' > ') : '';
-				tr.innerHTML = `<td><strong>${escapeHtml(item.name || '')}</strong><br><span class="badge ${raw.synthetic ? 'warn' : 'ok'}">${raw.synthetic ? 'synthetisch' : 'geholt'}</span></td><td>${escapeHtml(item.type || '')}</td><td>${escapeHtml(path || item.affiliation_root || '')}</td><td>${escapeHtml(item.founded_text || '')}<br>${escapeHtml(item.founded_start_bf || '')}</td><td>${escapeHtml(item.dissolved_text || '')}<br>${escapeHtml(item.dissolved_start_bf || '')}</td><td>${item.wiki_url ? `<a href="${escapeAttr(item.wiki_url)}" target="_blank" rel="noreferrer">Wiki</a>` : ''}</td>`;
+				tr.innerHTML = `<td><strong>${escapeHtml(item.name || '')}</strong><br><span class="badge ${raw.synthetic ? 'warn' : 'ok'}">${raw.synthetic ? 'synthetisch' : 'geholt'}</span></td><td>${escapeHtml(item.type || '')}</td><td>${escapeHtml(path || item.affiliation_root || '')}</td><td>${formatDateCell(item, 'founded')}</td><td>${formatDateCell(item, 'dissolved')}</td><td>${item.wiki_url ? `<a href="${escapeAttr(item.wiki_url)}" target="_blank" rel="noreferrer">Wiki</a>` : ''}</td>`;
 				els.rows.appendChild(tr);
 			}
 			els.debug.textContent = JSON.stringify(buildDebug(payload, items), null, '\t');
+		}
+		function formatDateCell(item, prefix) {
+			const text = item[`${prefix}_text`] || '';
+			const start = item[`${prefix}_start_bf`];
+			const end = item[`${prefix}_end_bf`];
+			const numeric = formatBfRange(start, end);
+			if (numeric && text) return `<span class="date-main">${escapeHtml(numeric)}</span><span class="date-raw">${escapeHtml(text)}</span>`;
+			if (numeric) return `<span class="date-main">${escapeHtml(numeric)}</span>`;
+			return escapeHtml(text || '');
+		}
+		function formatBfRange(start, end) {
+			const hasStart = start !== null && start !== undefined && start !== '';
+			const hasEnd = end !== null && end !== undefined && end !== '';
+			if (!hasStart && !hasEnd) return '';
+			const startLabel = hasStart ? formatBfYear(Number(start)) : '';
+			const endLabel = hasEnd ? formatBfYear(Number(end)) : '';
+			if (startLabel && endLabel && startLabel !== endLabel) return `${startLabel}–${endLabel}`;
+			return startLabel || endLabel;
+		}
+		function formatBfYear(value) {
+			if (!Number.isFinite(value)) return '';
+			if (value < 0) return `${Math.abs(value)} v. BF`;
+			return `${value} BF`;
 		}
 		function runSummary(run, count) { if (!run) return `Tabellenstand geladen: ${count} Datensätze.`; const errors = Array.isArray(run.errors) ? run.errors.length : 0; const events = Array.isArray(run.events) ? run.events.length : 0; return `Fertig: ${count} Datensätze, ${run.fetched_pages ?? 0} neu geholt, ${run.skipped_existing ?? 0} übersprungen, ${run.queued_child_links ?? 0} Kinderlinks, ${errors} Fehler, ${events} Ereignisse, ${run.runtime_seconds ?? '?'}s.`; }
 		function buildDebug(payload, items) { return { run: payload.run || null, rows: items.map(item => { const raw = item.raw || {}; const fields = raw.fields || {}; return { name: item.name || '', wiki_url: item.wiki_url || '', missing: { type: !(item.type || ''), path: !(Array.isArray(item.affiliation_path) && item.affiliation_path.length), founded: !(item.founded_text || item.founded_start_bf), dissolved: !(item.dissolved_text || item.dissolved_start_bf) }, relevant_fields: { art: fields.art, typ: fields.typ, staat: fields.staat, staatverlauf: fields.staatverlauf, region: fields.region, gruendungsdatum: fields.gruendungsdatum, gruendung: fields.gruendung, unabhaengigkeit: fields.unabhaengigkeit, aufgeloest: fields.aufgeloest, status: fields.status }, field_keys: Object.keys(fields), path: raw.path || null, temporal: raw.temporal || [], children: raw.children || [] }; }), events: payload.run?.events || [], errors: payload.run?.errors || [] }; }
