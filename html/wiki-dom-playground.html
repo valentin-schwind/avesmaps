@@ -64,16 +64,9 @@
 			padding: 14px;
 		}
 
-		.panel h2 {
-			margin: 0 0 10px;
-			font-size: 17px;
-		}
+		.panel h2 { margin: 0 0 10px; font-size: 17px; }
 
-		label {
-			display: block;
-			font-weight: 700;
-			margin: 12px 0 5px;
-		}
+		label { display: block; font-weight: 700; margin: 12px 0 5px; }
 
 		textarea,
 		input {
@@ -91,18 +84,8 @@
 			font-size: 12px;
 		}
 
-		.grid {
-			display: grid;
-			grid-template-columns: repeat(2, minmax(0, 1fr));
-			gap: 8px;
-		}
-
-		.actions {
-			display: flex;
-			gap: 8px;
-			flex-wrap: wrap;
-			margin-top: 12px;
-		}
+		.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+		.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 
 		button {
 			border: 1px solid #5f4f40;
@@ -125,50 +108,19 @@
 			white-space: pre-wrap;
 		}
 
-		.summary {
-			display: grid;
-			grid-template-columns: repeat(4, minmax(0, 1fr));
-			gap: 8px;
-			margin-bottom: 12px;
-		}
+		.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+		.stat { background: var(--panel-muted); border: 1px solid var(--border); padding: 10px; }
+		.stat strong { display: block; font-size: 20px; }
 
-		.stat {
-			background: var(--panel-muted);
-			border: 1px solid var(--border);
-			padding: 10px;
-		}
-
-		.stat strong {
-			display: block;
-			font-size: 20px;
-		}
-
-		table {
-			width: 100%;
-			border-collapse: collapse;
-			background: #fffdf9;
-			font-size: 12px;
-		}
-
-		th,
-		td {
-			border: 1px solid var(--border);
-			padding: 6px 7px;
-			vertical-align: top;
-		}
-
+		table { width: 100%; border-collapse: collapse; background: #fffdf9; font-size: 12px; }
+		th, td { border: 1px solid var(--border); padding: 6px 7px; vertical-align: top; }
 		th { background: var(--panel-muted); text-align: left; }
 		tr.synthetic td { background: #fff5e7; }
 		.badge { display: inline-block; padding: 2px 5px; border-radius: 3px; background: var(--panel-muted); border: 1px solid var(--border); }
 		.badge.ok { color: var(--ok); }
 		.badge.warn { color: var(--danger); }
 
-		pre {
-			margin: 0;
-			white-space: pre-wrap;
-			word-break: break-word;
-			font-size: 11px;
-		}
+		pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 11px; }
 
 		@media (max-width: 900px) {
 			main { grid-template-columns: 1fr; }
@@ -197,30 +149,12 @@ https://de.wiki-aventurica.de/wiki/Seeherrschaft_Tyllos
 https://de.wiki-aventurica.de/wiki/Ordensland_Hemandu</textarea>
 
 				<div class="grid">
-					<div>
-						<label for="maxDepth">Max. Rekursionstiefe</label>
-						<input id="maxDepth" type="number" min="0" max="4" value="1">
-					</div>
-					<div>
-						<label for="maxIterations">Max. Iterationen</label>
-						<input id="maxIterations" type="number" min="1" max="80" value="12">
-					</div>
-					<div>
-						<label for="maxPages">Max. Seiten</label>
-						<input id="maxPages" type="number" min="1" max="80" value="12">
-					</div>
-					<div>
-						<label for="maxRuntime">Max. Laufzeit (s)</label>
-						<input id="maxRuntime" type="number" min="3" max="25" value="12">
-					</div>
-					<div>
-						<label for="sleepMs">Pause/Wiki-Request (ms)</label>
-						<input id="sleepMs" type="number" min="0" max="5000" value="350">
-					</div>
-					<div>
-						<label for="timeout">Request-Timeout (s)</label>
-						<input id="timeout" type="number" min="3" max="15" value="8">
-					</div>
+					<div><label for="maxDepth">Max. Rekursionstiefe</label><input id="maxDepth" type="number" min="0" max="4" value="1"></div>
+					<div><label for="maxIterations">Max. Iterationen</label><input id="maxIterations" type="number" min="1" max="80" value="12"></div>
+					<div><label for="maxPages">Max. Seiten</label><input id="maxPages" type="number" min="1" max="80" value="12"></div>
+					<div><label for="maxRuntime">Max. Laufzeit (s)</label><input id="maxRuntime" type="number" min="3" max="25" value="12"></div>
+					<div><label for="sleepMs">Pause/Wiki-Request (ms)</label><input id="sleepMs" type="number" min="0" max="5000" value="350"></div>
+					<div><label for="timeout">Request-Timeout (s)</label><input id="timeout" type="number" min="3" max="15" value="8"></div>
 				</div>
 
 				<label for="catchwords">Catchword-Konfiguration (JSON)</label>
@@ -247,16 +181,7 @@ https://de.wiki-aventurica.de/wiki/Ordensland_Hemandu</textarea>
 				<div id="runInfo" class="status">Noch kein Lauf in dieser Ansicht.</div>
 				<div style="overflow:auto; margin-top:12px; max-height:65vh;">
 					<table>
-						<thead>
-							<tr>
-								<th>Name</th>
-								<th>Typ</th>
-								<th>Pfad</th>
-								<th>Gründung</th>
-								<th>Auflösung</th>
-								<th>Quelle</th>
-							</tr>
-						</thead>
+						<thead><tr><th>Name</th><th>Typ</th><th>Pfad</th><th>Gründung</th><th>Auflösung</th><th>Quelle</th></tr></thead>
 						<tbody id="rows"></tbody>
 					</table>
 				</div>
@@ -267,55 +192,30 @@ https://de.wiki-aventurica.de/wiki/Ordensland_Hemandu</textarea>
 	</div>
 
 	<script>
-		const API_URL = '/api/wiki-dom-playground.php';
+		const API_URL = '/api/wiki-dom-playground-safe.php';
 		const els = {
-			seeds: document.getElementById('seeds'),
-			catchwords: document.getElementById('catchwords'),
-			maxDepth: document.getElementById('maxDepth'),
-			maxIterations: document.getElementById('maxIterations'),
-			maxPages: document.getElementById('maxPages'),
-			maxRuntime: document.getElementById('maxRuntime'),
-			sleepMs: document.getElementById('sleepMs'),
-			timeout: document.getElementById('timeout'),
-			status: document.getElementById('status'),
-			runInfo: document.getElementById('runInfo'),
-			rows: document.getElementById('rows'),
-			debug: document.getElementById('debug'),
-			count: document.getElementById('count'),
-			iterations: document.getElementById('iterations'),
-			pages: document.getElementById('pages'),
-			relations: document.getElementById('relations'),
-			runBtn: document.getElementById('runBtn'),
-			reloadBtn: document.getElementById('reloadBtn'),
-			defaultsBtn: document.getElementById('defaultsBtn'),
-			clearBtn: document.getElementById('clearBtn')
+			seeds: document.getElementById('seeds'), catchwords: document.getElementById('catchwords'),
+			maxDepth: document.getElementById('maxDepth'), maxIterations: document.getElementById('maxIterations'),
+			maxPages: document.getElementById('maxPages'), maxRuntime: document.getElementById('maxRuntime'),
+			sleepMs: document.getElementById('sleepMs'), timeout: document.getElementById('timeout'),
+			status: document.getElementById('status'), runInfo: document.getElementById('runInfo'), rows: document.getElementById('rows'),
+			debug: document.getElementById('debug'), count: document.getElementById('count'), iterations: document.getElementById('iterations'),
+			pages: document.getElementById('pages'), relations: document.getElementById('relations'), runBtn: document.getElementById('runBtn'),
+			reloadBtn: document.getElementById('reloadBtn'), defaultsBtn: document.getElementById('defaultsBtn'), clearBtn: document.getElementById('clearBtn')
 		};
 
-		function setBusy(isBusy) {
-			for (const button of [els.runBtn, els.reloadBtn, els.defaultsBtn, els.clearBtn]) {
-				button.disabled = isBusy;
-			}
-		}
-
-		function setStatus(message) {
-			els.status.textContent = message;
-		}
+		function setBusy(isBusy) { for (const button of [els.runBtn, els.reloadBtn, els.defaultsBtn, els.clearBtn]) button.disabled = isBusy; }
+		function setStatus(message) { els.status.textContent = message; }
 
 		function readPayload() {
 			let catchwords = null;
 			const rawCatchwords = els.catchwords.value.trim();
-			if (rawCatchwords !== '') {
-				catchwords = JSON.parse(rawCatchwords);
-			}
+			if (rawCatchwords !== '') catchwords = JSON.parse(rawCatchwords);
 			return {
 				seeds: els.seeds.value.split(/\n+/).map(line => line.trim()).filter(Boolean),
-				max_depth: Number(els.maxDepth.value),
-				max_iterations: Number(els.maxIterations.value),
-				max_pages: Number(els.maxPages.value),
-				max_runtime_seconds: Number(els.maxRuntime.value),
-				sleep_ms: Number(els.sleepMs.value),
-				request_timeout_seconds: Number(els.timeout.value),
-				catchwords
+				max_depth: Number(els.maxDepth.value), max_iterations: Number(els.maxIterations.value), max_pages: Number(els.maxPages.value),
+				max_runtime_seconds: Number(els.maxRuntime.value), sleep_ms: Number(els.sleepMs.value),
+				request_timeout_seconds: Number(els.timeout.value), catchwords
 			};
 		}
 
@@ -323,14 +223,8 @@ https://de.wiki-aventurica.de/wiki/Ordensland_Hemandu</textarea>
 			const response = await fetch(url, options);
 			const text = await response.text();
 			let payload;
-			try {
-				payload = JSON.parse(text);
-			} catch (error) {
-				throw new Error(text.slice(0, 700) || response.statusText);
-			}
-			if (!response.ok || payload.ok === false) {
-				throw new Error(payload.error || response.statusText);
-			}
+			try { payload = JSON.parse(text); } catch (error) { throw new Error(text.slice(0, 700) || response.statusText); }
+			if (!response.ok || payload.ok === false) throw new Error(payload.error || response.statusText);
 			return payload;
 		}
 
@@ -341,29 +235,17 @@ https://de.wiki-aventurica.de/wiki/Ordensland_Hemandu</textarea>
 				const payload = await fetchJson(`${API_URL}?action=defaults`);
 				els.catchwords.value = JSON.stringify(payload.catchwords, null, '\t');
 				setStatus('Defaults geladen. Du kannst die Catchwords direkt im JSON ändern.');
-			} catch (error) {
-				setStatus(`Fehler: ${error.message}`);
-			} finally {
-				setBusy(false);
-			}
+			} catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
 		}
 
 		async function runImport() {
 			setBusy(true);
 			try {
 				setStatus('Testlauf läuft. Der Server bricht hart nach den gesetzten Limits ab.');
-				const payload = await fetchJson(`${API_URL}?action=run`, {
-					method: 'POST',
-					headers: {'Content-Type': 'application/json'},
-					body: JSON.stringify(readPayload())
-				});
+				const payload = await fetchJson(`${API_URL}?action=run`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(readPayload()) });
 				render(payload);
 				setStatus('Testlauf abgeschlossen.');
-			} catch (error) {
-				setStatus(`Fehler: ${error.message}`);
-			} finally {
-				setBusy(false);
-			}
+			} catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
 		}
 
 		async function reloadRows() {
@@ -373,28 +255,18 @@ https://de.wiki-aventurica.de/wiki/Ordensland_Hemandu</textarea>
 				const payload = await fetchJson(`${API_URL}?action=list`);
 				render(payload);
 				setStatus('Testtabelle geladen.');
-			} catch (error) {
-				setStatus(`Fehler: ${error.message}`);
-			} finally {
-				setBusy(false);
-			}
+			} catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
 		}
 
 		async function clearRows() {
-			if (!confirm('political_territory_wiki_test wirklich leeren?')) {
-				return;
-			}
+			if (!confirm('political_territory_wiki_test wirklich leeren?')) return;
 			setBusy(true);
 			try {
 				setStatus('Leere Testtabelle ...');
 				await fetchJson(`${API_URL}?action=clear`, {method: 'POST'});
 				render({ok: true, items: [], count: 0});
 				setStatus('Testtabelle geleert.');
-			} catch (error) {
-				setStatus(`Fehler: ${error.message}`);
-			} finally {
-				setBusy(false);
-			}
+			} catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
 		}
 
 		function render(payload) {
@@ -405,44 +277,24 @@ https://de.wiki-aventurica.de/wiki/Ordensland_Hemandu</textarea>
 			els.relations.textContent = payload.run?.relations ?? (Array.isArray(payload.relations) ? payload.relations.length : '–');
 			els.runInfo.textContent = payload.run ? JSON.stringify(payload.run, null, '\t') : 'Nur Tabellenstand geladen.';
 			els.rows.innerHTML = '';
-
 			for (const item of items) {
 				const raw = item.raw || {};
 				const tr = document.createElement('tr');
 				if (raw.synthetic) tr.classList.add('synthetic');
 				const path = Array.isArray(item.affiliation_path) ? item.affiliation_path.join(' > ') : '';
-				tr.innerHTML = `
-					<td><strong>${escapeHtml(item.name || '')}</strong><br><span class="badge ${raw.synthetic ? 'warn' : 'ok'}">${raw.synthetic ? 'synthetisch' : 'geholt'}</span></td>
-					<td>${escapeHtml(item.type || '')}</td>
-					<td>${escapeHtml(path || item.affiliation_root || '')}</td>
-					<td>${escapeHtml(item.founded_text || '')}<br>${escapeHtml(item.founded_start_bf || '')}</td>
-					<td>${escapeHtml(item.dissolved_text || '')}<br>${escapeHtml(item.dissolved_start_bf || '')}</td>
-					<td>${item.wiki_url ? `<a href="${escapeAttr(item.wiki_url)}" target="_blank" rel="noreferrer">Wiki</a>` : ''}</td>
-				`;
+				tr.innerHTML = `<td><strong>${escapeHtml(item.name || '')}</strong><br><span class="badge ${raw.synthetic ? 'warn' : 'ok'}">${raw.synthetic ? 'synthetisch' : 'geholt'}</span></td><td>${escapeHtml(item.type || '')}</td><td>${escapeHtml(path || item.affiliation_root || '')}</td><td>${escapeHtml(item.founded_text || '')}<br>${escapeHtml(item.founded_start_bf || '')}</td><td>${escapeHtml(item.dissolved_text || '')}<br>${escapeHtml(item.dissolved_start_bf || '')}</td><td>${item.wiki_url ? `<a href="${escapeAttr(item.wiki_url)}" target="_blank" rel="noreferrer">Wiki</a>` : ''}</td>`;
 				els.rows.appendChild(tr);
 			}
-
-			const debug = {
-				relations: payload.relations || [],
-				events: payload.run?.events || [],
-				errors: payload.run?.errors || []
-			};
-			els.debug.textContent = JSON.stringify(debug, null, '\t');
+			els.debug.textContent = JSON.stringify({ relations: payload.relations || [], events: payload.run?.events || [], errors: payload.run?.errors || [] }, null, '\t');
 		}
 
-		function escapeHtml(value) {
-			return String(value ?? '').replace(/[&<>"]/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[char]));
-		}
-
-		function escapeAttr(value) {
-			return escapeHtml(value).replace(/'/g, '&#039;');
-		}
+		function escapeHtml(value) { return String(value ?? '').replace(/[&<>"]/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[char])); }
+		function escapeAttr(value) { return escapeHtml(value).replace(/'/g, '&#039;'); }
 
 		els.runBtn.addEventListener('click', runImport);
 		els.reloadBtn.addEventListener('click', reloadRows);
 		els.defaultsBtn.addEventListener('click', loadDefaults);
 		els.clearBtn.addEventListener('click', clearRows);
-
 		loadDefaults().then(reloadRows);
 	</script>
 </body>
