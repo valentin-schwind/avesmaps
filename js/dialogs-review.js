@@ -4060,7 +4060,7 @@ async function renderWikiSyncTerritoryTree() {
 
 	treeElement.innerHTML = "";
 	const tree = buildPoliticalTerritoryTree("");
-	const { regularNodes, miscNodes } = splitWikiSyncTerritoryTreeMiscNodes(tree);
+	const { regularNodes, miscNodes, hasMiscSeparator } = splitWikiSyncTerritoryTreeMiscNodes(tree);
 
 	regularNodes.forEach((node) => {
 		const renderedNode = renderWikiSyncTerritoryTreeNode(node, 0);
@@ -4069,16 +4069,16 @@ async function renderWikiSyncTerritoryTree() {
 		}
 	});
 
-	if (miscNodes.length > 0) {
+	if (hasMiscSeparator) {
 		treeElement.append(createWikiSyncTerritoryTreeSeparator("Sonstiges"));
-
-		miscNodes.forEach((node) => {
-			const renderedNode = renderWikiSyncTerritoryTreeNode(node, 0);
-			if (renderedNode) {
-				treeElement.append(renderedNode);
-			}
-		});
 	}
+
+	miscNodes.forEach((node) => {
+		const renderedNode = renderWikiSyncTerritoryTreeNode(node, 0);
+		if (renderedNode) {
+			treeElement.append(renderedNode);
+		}
+	});
 
 	if (treeElement.childElementCount === 0) {
 		const emptyElement = document.createElement("p");
@@ -4091,11 +4091,14 @@ async function renderWikiSyncTerritoryTree() {
 function splitWikiSyncTerritoryTreeMiscNodes(tree) {
 	const regularNodes = [];
 	const miscNodes = [];
+	let hasMiscSeparator = false;
 
 	(Array.isArray(tree) ? tree : []).forEach((node) => {
 		if (isWikiSyncMiscTerritoryTreeNode(node)) {
+			hasMiscSeparator = true;
+
 			const children = Array.isArray(node.children) ? node.children : [];
-			miscNodes.push(...children);
+			regularNodes.push(...children);
 			return;
 		}
 
@@ -4108,6 +4111,7 @@ function splitWikiSyncTerritoryTreeMiscNodes(tree) {
 	return {
 		regularNodes,
 		miscNodes,
+		hasMiscSeparator,
 	};
 }
 
