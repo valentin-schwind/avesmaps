@@ -1,5 +1,12 @@
 ﻿const CHANGE_LOG_FOCUS_MARKER_TTL_MS = 12000;
 
+const POLITICAL_TERRITORY_DISPLAY_SUFFIXES = [
+	"Staat",
+	"Imperium",
+	"Reich",
+	"Kalifat",
+];
+
 function getLocationReportOverlayElement() {
 	return document.getElementById("location-report-overlay");
 }
@@ -1402,8 +1409,24 @@ function createRegionParentTreeButton(territory, region, { isGroup = false, hasC
 	return button;
 }
 
+
+function formatPoliticalTerritoryDisplayBaseName(name) {
+	let normalizedName = normalizeParentheticalSpacing(name || "");
+
+	POLITICAL_TERRITORY_DISPLAY_SUFFIXES.forEach((suffix) => {
+		const pattern = new RegExp(`\\s+\\(${escapeRegExp(suffix)}\\)\\s*$`, "iu");
+		normalizedName = normalizedName.replace(pattern, "");
+	});
+
+	return normalizedName.trim();
+}
+
+function escapeRegExp(value) {
+	return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function formatPoliticalTerritoryTreeDisplayName(territory) {
-	const baseName = normalizeParentheticalSpacing(territory?.name || "Kein Parent");
+	return normalizeSearchText(formatPoliticalTerritoryDisplayBaseName(candidate.name || "")) === normalizedNameKey;
 	if (!territory || !territory.public_id || baseName === "Kein Parent") {
 		return baseName;
 	}
