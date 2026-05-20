@@ -176,6 +176,10 @@ function avesmapsWikiSyncStripParentheticalSuffixInternal(string $title, bool $p
     return trim(preg_replace('/\s+\([^)]*\)\s*$/u', '', $normalizedTitle) ?? $normalizedTitle);
 }
 
+function avesmapsWikiSyncHasTrailingParentheticalSuffix(string $value): bool {
+    return preg_match('/\([^)]*\)\s*$/u', $value) === 1;
+}
+
 function avesmapsWikiSyncEnsureCoreTables(PDO $pdo): void {
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS wiki_sync_runs (

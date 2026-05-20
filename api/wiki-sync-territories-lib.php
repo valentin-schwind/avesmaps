@@ -883,10 +883,6 @@ function avesmapsWikiSyncResolvePoliticalTerritoryName(string $rawName, string $
     return $normalizedCanonicalName;
 }
 
-function avesmapsWikiSyncHasTrailingParentheticalSuffix(string $value): bool {
-    return preg_match('/\([^)]*\)\s*$/u', $value) === 1;
-}
-
 function avesmapsWikiSyncParsePoliticalTerritoryDetailsFromContent(string $content): array {
     $fields = avesmapsWikiSyncReadWikiTemplateFields($content);
     $details = [];
