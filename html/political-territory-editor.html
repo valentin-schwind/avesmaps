@@ -1587,6 +1587,7 @@
 		function buildTerritoryTree(rows) {
 			const root = createTreeNode("root", "Herrschaftsgebiete", "root");
 			const rowIndex = buildRowIndex(rows);
+			const nodeByRowId = new Map();
 			nodeRegistry = new Map();
 
 			for (const row of rows) {
@@ -1602,14 +1603,24 @@
 					}
 
 					pathParts.push(label);
-					current = getOrCreatePathNode(current, label, pathParts, rowIndex);
+					current = getOrCreatePathNode(current, label, pathParts, rowIndex, nodeByRowId);
+					registerRowNodeById(nodeByRowId, current);
 				}
 
 				const currentIdentityKey = rowIdentityKey(current.row);
 				if (identityKey && currentIdentityKey && identityKey === currentIdentityKey) {
-					current.row = row;
-					current.label = current.label || row.name;
+					current.row = mergeRowsByIdentity(current.row || row, row);
+					current.label = current.label || getPreferredDisplayAlias(row.name) || row.name;
 					current.kind = current.children.length > 0 ? "territory-group" : "territory";
+					registerRowNodeById(nodeByRowId, current);
+					continue;
+				}
+
+				const existingRowNode = getRegisteredRowNodeById(nodeByRowId, row);
+				if (existingRowNode) {
+					existingRowNode.row = mergeRowsByIdentity(existingRowNode.row || row, row);
+					existingRowNode.label = existingRowNode.label || getPreferredDisplayAlias(row.name) || row.name;
+					existingRowNode.kind = existingRowNode.children.length > 0 ? "territory-group" : "territory";
 					continue;
 				}
 
@@ -1641,13 +1652,87 @@
 
 				ownNode.row = row;
 				ownNode.label = ownNode.label || getPreferredDisplayAlias(row.name) || row.name;
-				ownNode.kind = ownNode.children.length > 0 ? "territory-group" : "territory"; 
+				ownNode.kind = ownNode.children.length > 0 ? "territory-group" : "territory";
+				registerRowNodeById(nodeByRowId, ownNode);
 			}
 
+			pruneEmptySyntheticNodes(root);
 			sortTree(root);
 			registerTree(root);
 
 			return root;
+		}
+
+		function getRowIdKey(row) {
+			const id = normalizeText(row?.id || "");
+
+			return id ? `id:${id}` : "";
+		}
+
+		function getRegisteredRowNodeById(nodeByRowId, row) {
+			const idKey = getRowIdKey(row);
+
+			return idKey ? nodeByRowId.get(idKey) || null : null;
+		}
+
+		function registerRowNodeById(nodeByRowId, node) {
+			const idKey = getRowIdKey(node?.row);
+
+			if (!idKey || nodeByRowId.has(idKey)) {
+				return;
+			}
+
+			nodeByRowId.set(idKey, node);
+		}
+
+		function moveTreeNodeToParent(node, parent) {
+			if (!node || !parent || node.parent === parent || isAncestorNode(node, parent)) {
+				return;
+			}
+
+			if (node.parent) {
+				removeTreeNodeReference(node.parent, node);
+			}
+
+			node.parent = parent;
+
+			if (!parent.children.includes(node)) {
+				parent.children.push(node);
+			}
+		}
+
+		function removeTreeNodeReference(parent, node) {
+			parent.children = parent.children.filter(child => child !== node);
+
+			for (const [key, value] of parent.childMap.entries()) {
+				if (value === node) {
+					parent.childMap.delete(key);
+				}
+			}
+		}
+
+		function isAncestorNode(possibleAncestor, node) {
+			let current = node;
+
+			while (current) {
+				if (current === possibleAncestor) {
+					return true;
+				}
+
+				current = current.parent;
+			}
+
+			return false;
+		}
+
+		function pruneEmptySyntheticNodes(node) {
+			for (const child of [...node.children]) {
+				pruneEmptySyntheticNodes(child);
+
+				if (isSyntheticNode(child) && child.children.length === 0) {
+					removeTreeNodeReference(node, child);
+				}
+			}
 		}
 
 		function getPreferredDisplayAlias(name) {
@@ -1712,9 +1797,9 @@
 
 		function getFixedAliases(name) {
 			const aliases = {
-				//"Wiedererstandenes Reich des Horas": ["Horasreich"],
-				//"Heiliges Neues Kaiserreich vom Greifenthron zu Gareth": ["Mittelreich"],
-				//"Theaterritterliche Republik an Born und Walsach": ["Bornland"]
+				"Wiedererstandenes Reich des Horas": ["Horasreich"],
+				"Heiliges Neues Kaiserreich vom Greifenthron zu Gareth": ["Mittelreich"],
+				"Theaterritterliche Republik an Born und Walsach": ["Bornland"]
 			};
 
 			return aliases[name] || [];
@@ -1870,31 +1955,43 @@
 			}
 		}
 
-		function getOrCreatePathNode(parent, label, pathParts, rowIndex) {
+		function getOrCreatePathNode(parent, label, pathParts, rowIndex, nodeByRowId) {
 			const key = makeKey(label);
 			let node = parent.childMap.get(key);
 
 			if (!node) {
 				const matchingRow = rowIndex.get(key);
-				const nodeId = matchingRow ? rowKey(matchingRow) : `path:${pathParts.map(makeKey).join("/")}`;
+				const existingRowNode = matchingRow ? getRegisteredRowNodeById(nodeByRowId, matchingRow) : null;
 
-				node = createTreeNode(nodeId, label, matchingRow ? "territory-group" : "synthetic");
-				node.parent = parent;
-
-				if (matchingRow) {
-					node.row = matchingRow;
+				if (existingRowNode) {
+					node = existingRowNode;
+					moveTreeNodeToParent(node, parent);
 					node.label = label;
+					node.kind = node.children.length > 0 ? "territory-group" : "territory";
+				} else {
+					const nodeId = matchingRow ? rowKey(matchingRow) : `path:${pathParts.map(makeKey).join("/")}`;
+
+					node = createTreeNode(nodeId, label, matchingRow ? "territory-group" : "synthetic");
+					node.parent = parent;
+
+					if (matchingRow) {
+						node.row = matchingRow;
+						node.label = label;
+						registerRowNodeById(nodeByRowId, node);
+					}
+
+					parent.children.push(node);
 				}
 
 				parent.childMap.set(key, node);
 
-				if (nodeId && nodeId !== key) {
-					parent.childMap.set(nodeId, node);
+				if (node.id && node.id !== key) {
+					parent.childMap.set(node.id, node);
 				}
 
-				if (matchingRow) {
-					const matchingNameKey = makeKey(matchingRow.name);
-					const matchingRowKey = rowKey(matchingRow);
+				if (node.row) {
+					const matchingNameKey = makeKey(node.row.name);
+					const matchingRowKey = rowKey(node.row);
 
 					if (matchingNameKey) {
 						parent.childMap.set(matchingNameKey, node);
@@ -1904,8 +2001,6 @@
 						parent.childMap.set(matchingRowKey, node);
 					}
 				}
-
-				parent.children.push(node);
 			}
 
 			return node;
