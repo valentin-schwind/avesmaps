@@ -4309,7 +4309,7 @@ function formatWikiSyncTerritorySummaryText() {
 	const syncedRootCount = Number(wikiSyncTerritorySummary?.root_count ?? 0);
 
 	if (syncedTerritoryCount > 0 || syncedRootCount > 0) {
-		return `${syncedTerritoryCount} in ${syncedRootCount} Hauptmächte`;
+		return `${syncedTerritoryCount} Herrschaftsgebiete in ${syncedRootCount} Hauptmächte`;
 	}
 
 	const fallbackSummary = getWikiSyncTerritoryLoadedDataSummary();
