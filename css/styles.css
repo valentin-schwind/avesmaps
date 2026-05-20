@@ -2822,8 +2822,10 @@ body.modal-dialog-open {
 
 .wiki-sync-progress {
 	flex: 1;
+	margin: 0px 0px 10px 10px;
 	height: 12px;
 	accent-color: #6a7f3a;
+	padding: 10px 00px 10px 10px;
 }
 
 .wiki-sync-case-section {

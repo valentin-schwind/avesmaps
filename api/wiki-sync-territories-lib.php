@@ -2066,7 +2066,7 @@ function avesmapsWikiSyncDisplayPoliticalTerritoryName(string $name): string {
 
     return trim($normalized);
 }
-
+ 
 function avesmapsWikiSyncCreatePoliticalTreeNode(string $key, string $name, ?array $row = null): array {
     $node = [
         'id' => 0,
@@ -2095,7 +2095,6 @@ function avesmapsWikiSyncCreatePoliticalTreeNode(string $key, string $name, ?arr
         'row' => $row,
         'children' => [],
     ];
-avesmapsWikiSyncApplyPoliticalRowToTreeNode
     return $row === null ? $node : avesmapsWikiSyncApplyPoliticalRowToTreeNode($node, $row);
 }
 
@@ -2345,16 +2344,7 @@ function avesmapsWikiSyncCanonicalPoliticalPathPart(array $row, string $fallback
     );
 
     return $canonicalName !== '' ? $canonicalName : $fallback;
-}
-
-function avesmapsWikiSyncCanonicalPoliticalPathPart(array $row, string $fallback): string {
-    $canonicalName = avesmapsWikiSyncResolvePoliticalTerritoryName(
-        (string) ($row['name'] ?? ''),
-        (string) ($row['wiki_url'] ?? '')
-    );
-
-    return $canonicalName !== '' ? $canonicalName : $fallback;
-}
+} 
 
 function avesmapsWikiSyncBuildPoliticalTerritoryRowIndex(array $rows): array {
     $index = [];
