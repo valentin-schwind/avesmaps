@@ -4055,13 +4055,14 @@ function renderWikiSyncTerritoryTreeNode(node, depth) {
 		return null;
 	} 
 
+	const hasChildren = Array.isArray(node.children) && node.children.length > 0;
+
 	const wrapper = document.createElement("div");
-	wrapper.className = node.isGroup
+	wrapper.className = hasChildren
 		? "political-territory-parent-tree__node political-territory-parent-tree__node--group"
 		: "political-territory-parent-tree__node";
 	wrapper.style.setProperty("--territory-tree-depth", String(Math.min(depth, 8)));
 
-	const hasChildren = Array.isArray(node.children) && node.children.length > 0;
 	const button = createWikiSyncTerritoryTreeButton(node, hasChildren);
 	wrapper.append(button);
 

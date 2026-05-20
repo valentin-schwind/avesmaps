@@ -1492,7 +1492,7 @@ body.modal-dialog-open {
 }
 
 .political-territory-parent-tree__node--group > .political-territory-parent-tree__item {
-	background: #f8efe5;
+	background: transparent;
 	font-weight: bold;
 }
 
@@ -2825,6 +2825,7 @@ body.modal-dialog-open {
 	margin: 0px 0px 10px 10px;
 	height: 12px;
 	accent-color: #6a7f3a;
+	width: 90%;
 	padding: 10px 00px 10px 10px;
 }
 
