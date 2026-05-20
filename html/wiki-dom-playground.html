@@ -74,7 +74,7 @@
 					<div class="stat"><strong id="count">0</strong><span>Datensätze</span></div>
 					<div class="stat"><strong id="iterations">–</strong><span>Iterationen</span></div>
 					<div class="stat"><strong id="pages">–</strong><span>Territory-Seiten</span></div>
-					<div class="stat"><strong id="relations">–</strong><span>Relationen</span></div>
+					<div class="stat"><strong id="childLinks">–</strong><span>Kinderlinks</span></div>
 				</div>
 				<div id="runInfo" class="status">Noch kein Lauf in dieser Ansicht.</div>
 				<div style="overflow:auto; margin-top:12px; max-height:65vh;">
@@ -93,7 +93,7 @@
 		let pollTimer = null;
 		let pollStartedAt = 0;
 		let startCount = 0;
-		const els = { seeds: document.getElementById('seeds'), catchwords: document.getElementById('catchwords'), maxDepth: document.getElementById('maxDepth'), maxIterations: document.getElementById('maxIterations'), maxPages: document.getElementById('maxPages'), maxRuntime: document.getElementById('maxRuntime'), sleepMs: document.getElementById('sleepMs'), timeout: document.getElementById('timeout'), status: document.getElementById('status'), runInfo: document.getElementById('runInfo'), rows: document.getElementById('rows'), debug: document.getElementById('debug'), count: document.getElementById('count'), iterations: document.getElementById('iterations'), pages: document.getElementById('pages'), relations: document.getElementById('relations'), runBtn: document.getElementById('runBtn'), reloadBtn: document.getElementById('reloadBtn'), defaultsBtn: document.getElementById('defaultsBtn'), clearBtn: document.getElementById('clearBtn') };
+		const els = { seeds: document.getElementById('seeds'), catchwords: document.getElementById('catchwords'), maxDepth: document.getElementById('maxDepth'), maxIterations: document.getElementById('maxIterations'), maxPages: document.getElementById('maxPages'), maxRuntime: document.getElementById('maxRuntime'), sleepMs: document.getElementById('sleepMs'), timeout: document.getElementById('timeout'), status: document.getElementById('status'), runInfo: document.getElementById('runInfo'), rows: document.getElementById('rows'), debug: document.getElementById('debug'), count: document.getElementById('count'), iterations: document.getElementById('iterations'), pages: document.getElementById('pages'), childLinks: document.getElementById('childLinks'), runBtn: document.getElementById('runBtn'), reloadBtn: document.getElementById('reloadBtn'), defaultsBtn: document.getElementById('defaultsBtn'), clearBtn: document.getElementById('clearBtn') };
 		function setBusy(isBusy) { for (const button of [els.runBtn, els.reloadBtn, els.defaultsBtn, els.clearBtn]) button.disabled = isBusy; }
 		function setStatus(message) { els.status.textContent = message; }
 		function readPayload() {
@@ -121,8 +121,8 @@
 			const items = Array.isArray(payload.items) ? payload.items : [];
 			const count = Number(payload.count ?? items.length);
 			els.count.textContent = String(count);
-			if (live && !payload.run) { const elapsed = Math.max(0, Math.round((Date.now() - pollStartedAt) / 1000)); els.iterations.textContent = 'läuft'; els.pages.textContent = String(count); els.relations.textContent = '–'; els.runInfo.textContent = `Live-Stand nach ${elapsed}s: ${count} Datensätze${count > startCount ? `, +${count - startCount} seit Start` : ''}.`; }
-			else { const summary = runSummary(payload.run, count); els.iterations.textContent = payload.run?.iterations ?? '–'; els.pages.textContent = payload.run?.fetched_pages ?? '–'; els.relations.textContent = payload.run?.relations ?? (Array.isArray(payload.relations) ? payload.relations.length : '–'); els.runInfo.textContent = summary; }
+			if (live && !payload.run) { const elapsed = Math.max(0, Math.round((Date.now() - pollStartedAt) / 1000)); els.iterations.textContent = 'läuft'; els.pages.textContent = String(count); els.childLinks.textContent = '–'; els.runInfo.textContent = `Live-Stand nach ${elapsed}s: ${count} Datensätze${count > startCount ? `, +${count - startCount} seit Start` : ''}.`; }
+			else { const summary = runSummary(payload.run, count); els.iterations.textContent = payload.run?.iterations ?? '–'; els.pages.textContent = payload.run?.fetched_pages ?? '–'; els.childLinks.textContent = payload.run?.queued_child_links ?? '–'; els.runInfo.textContent = summary; }
 			els.rows.innerHTML = '';
 			for (const item of items) {
 				const raw = item.raw || {};
@@ -133,8 +133,8 @@
 			}
 			els.debug.textContent = JSON.stringify(buildDebug(payload, items), null, '\t');
 		}
-		function runSummary(run, count) { if (!run) return `Tabellenstand geladen: ${count} Datensätze.`; const errors = Array.isArray(run.errors) ? run.errors.length : 0; const events = Array.isArray(run.events) ? run.events.length : 0; return `Fertig: ${count} Datensätze, ${run.fetched_pages ?? 0} neu geholt, ${run.skipped_existing ?? 0} übersprungen, ${errors} Fehler, ${events} Ereignisse, ${run.runtime_seconds ?? '?'}s.`; }
-		function buildDebug(payload, items) { return { run: payload.run || null, rows: items.map(item => { const raw = item.raw || {}; const fields = raw.fields || {}; return { name: item.name || '', wiki_url: item.wiki_url || '', missing: { type: !(item.type || ''), path: !(Array.isArray(item.affiliation_path) && item.affiliation_path.length), founded: !(item.founded_text || item.founded_start_bf), dissolved: !(item.dissolved_text || item.dissolved_start_bf) }, relevant_fields: { art: fields.art, typ: fields.typ, staat: fields.staat, staatverlauf: fields.staatverlauf, region: fields.region, gruendungsdatum: fields.gruendungsdatum, gruendung: fields.gruendung, unabhaengigkeit: fields.unabhaengigkeit, aufgeloest: fields.aufgeloest, status: fields.status }, field_keys: Object.keys(fields), path: raw.path || null, temporal: raw.temporal || [] }; }), events: payload.run?.events || [], errors: payload.run?.errors || [] }; }
+		function runSummary(run, count) { if (!run) return `Tabellenstand geladen: ${count} Datensätze.`; const errors = Array.isArray(run.errors) ? run.errors.length : 0; const events = Array.isArray(run.events) ? run.events.length : 0; return `Fertig: ${count} Datensätze, ${run.fetched_pages ?? 0} neu geholt, ${run.skipped_existing ?? 0} übersprungen, ${run.queued_child_links ?? 0} Kinderlinks, ${errors} Fehler, ${events} Ereignisse, ${run.runtime_seconds ?? '?'}s.`; }
+		function buildDebug(payload, items) { return { run: payload.run || null, rows: items.map(item => { const raw = item.raw || {}; const fields = raw.fields || {}; return { name: item.name || '', wiki_url: item.wiki_url || '', missing: { type: !(item.type || ''), path: !(Array.isArray(item.affiliation_path) && item.affiliation_path.length), founded: !(item.founded_text || item.founded_start_bf), dissolved: !(item.dissolved_text || item.dissolved_start_bf) }, relevant_fields: { art: fields.art, typ: fields.typ, staat: fields.staat, staatverlauf: fields.staatverlauf, region: fields.region, gruendungsdatum: fields.gruendungsdatum, gruendung: fields.gruendung, unabhaengigkeit: fields.unabhaengigkeit, aufgeloest: fields.aufgeloest, status: fields.status }, field_keys: Object.keys(fields), path: raw.path || null, temporal: raw.temporal || [], children: raw.children || [] }; }), events: payload.run?.events || [], errors: payload.run?.errors || [] }; }
 		function escapeHtml(value) { return String(value ?? '').replace(/[&<>"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char])); }
 		function escapeAttr(value) { return escapeHtml(value).replace(/'/g, '&#039;'); }
 		els.runBtn.addEventListener('click', runImport);
