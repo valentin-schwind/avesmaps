@@ -39,7 +39,7 @@ function avesmapsWikiSyncSyncTerritoriesFromDomCache(PDO $pdo, array $user, arra
 
     if (!$dryRun) $promotedRows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache($pdo);
     $promotedRows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments($promotedRows, avesmapsWikiSyncReadPoliticalTerritoryMapAssignments($pdo));
-    $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($promotedRows);
+    $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($promotedRows, false);
     $treeSummary = avesmapsWikiSyncBuildPoliticalTerritoryTreeAssignmentSummary($promotedRows, $tree['hierarchy']);
 
     return ['ok' => true, 'source' => 'wiki-dom-cache', 'source_page' => 'wiki-dom-sync-settings.html', 'dry_run' => $dryRun, 'territory_count' => count($promotedRows), 'root_count' => count($tree['hierarchy']), 'assigned_territory_count' => $treeSummary['assigned_territory_count'], 'assigned_root_count' => $treeSummary['assigned_root_count'], 'sync' => $summary, 'territories' => $tree['territories'], 'hierarchy' => $tree['hierarchy']];
