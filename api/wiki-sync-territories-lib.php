@@ -157,23 +157,29 @@ function avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache(PDO $pdo, bool $rese
     }
 
     $wikiRows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromWiki(true);
+
+    foreach ($wikiRows as &$wikiRow) {
+        $wikiRow['name'] = avesmapsWikiSyncResolvePoliticalTerritoryName(
+            (string) ($wikiRow['name'] ?? ''),
+            (string) ($wikiRow['wiki_url'] ?? '')
+        );
+    }
+    unset($wikiRow);
+
+    $rowIndex = avesmapsWikiSyncBuildPoliticalTerritoryRowIndex($wikiRows);
     $normalizedRowsByKey = [];
 
-    foreach ($wikiRows as $row) {
-        $row['name'] = avesmapsWikiSyncResolvePoliticalTerritoryName(
-            (string) ($row['name'] ?? ''),
-            (string) ($row['wiki_url'] ?? '')
-        );
-
+    foreach ($wikiRows as $row) { 
         $temporal = avesmapsWikiSyncBuildPoliticalTemporalPayload(
             (string) ($row['founded_text'] ?? ''),
             (string) ($row['dissolved_text'] ?? '')
         );
-
         $affiliationPath = avesmapsWikiSyncReadPoliticalTerritoryPath($row);
 
         if (avesmapsWikiSyncIsIndependentPoliticalTerritoryPath($affiliationPath)) {
             $affiliationPath = [];
+        } else {
+            $affiliationPath = avesmapsWikiSyncCanonicalizePoliticalTerritoryPath($affiliationPath, $rowIndex);
         }
 
         $affiliationRoot = $affiliationPath[0] ?? '';
@@ -2345,6 +2351,32 @@ function avesmapsWikiSyncCanonicalPoliticalPathPart(array $row, string $fallback
 
     return $canonicalName !== '' ? $canonicalName : $fallback;
 } 
+
+function avesmapsWikiSyncCanonicalizePoliticalTerritoryPath(array $path, array $rowIndex): array {
+    $canonicalPath = [];
+    $seenKeys = [];
+
+    foreach ($path as $part) {
+        $canonicalPart = avesmapsWikiSyncResolvePoliticalPathPart($rowIndex, (string) $part);
+        if ($canonicalPart === '') {
+            continue;
+        }
+
+        $canonicalKey = avesmapsWikiSyncMakePoliticalTreeKey($canonicalPart);
+        if ($canonicalKey === '') {
+            continue;
+        }
+
+        if (isset($seenKeys[$canonicalKey])) {
+            continue;
+        }
+
+        $seenKeys[$canonicalKey] = true;
+        $canonicalPath[] = $canonicalPart;
+    }
+
+    return $canonicalPath;
+}
 
 function avesmapsWikiSyncBuildPoliticalTerritoryRowIndex(array $rows): array {
     $index = [];
