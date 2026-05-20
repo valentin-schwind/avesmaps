@@ -2201,7 +2201,7 @@ function avesmapsWikiSyncCollectPoliticalTreeTerritories(array $node, array &$te
 function avesmapsWikiSyncReadPoliticalTerritoryPath(array $row): array {
     $affiliation = avesmapsWikiSyncNormalizeWikiTreeText((string) ($row['affiliation'] ?? ''));
     if ($affiliation === '') {
-        return ["ungekl\u{00E4}rt"];
+        return [];
     }
 
     if (avesmapsWikiSyncIsIndependentPoliticalTerritoryPath([$affiliation])) {
