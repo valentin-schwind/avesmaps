@@ -6,6 +6,7 @@ require __DIR__ . '/auth.php';
 require_once __DIR__ . '/wiki-sync-lib.php';
 require_once __DIR__ . '/wiki-sync-locations-lib.php';
 require_once __DIR__ . '/wiki-sync-territories-lib.php';
+require_once __DIR__ . '/wiki-sync-territories-dom-lib.php';
 require_once __DIR__ . '/political-territory-lib.php';
 
 function avesmapsWikiSyncAssertEndpointScope(string $endpointScope, array $allowedScopes, string $action): void {
@@ -104,9 +105,9 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
                 return avesmapsWikiSyncResolveCase($pdo, $payload, avesmapsRequireUserWithCapability('edit'));
             })(),
 
-            'sync_territories' => (function () use ($pdo, $endpointScope, $action): array {
+            'sync_territories' => (function () use ($pdo, $payload, $endpointScope, $action): array {
                 avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'territories'], $action);
-                return avesmapsWikiSyncSyncTerritories($pdo, avesmapsRequireUserWithCapability('edit'));
+                return avesmapsWikiSyncSyncTerritoriesFromDomCache($pdo, avesmapsRequireUserWithCapability('edit'), $payload);
             })(),
 
             default => throw new InvalidArgumentException('Die WikiSync-Aktion ist unbekannt.'),
