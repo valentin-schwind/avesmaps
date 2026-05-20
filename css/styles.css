@@ -2768,20 +2768,26 @@ body.modal-dialog-open {
 }
 
 .wiki-sync-panel__start {
-	border: 1px solid #8fa46d;
-	background: #f1f7e8;
-	color: #435724;
+	border: 1px solid #3a1024;
+	background: #ead7df;
+	color: #4f1831;
+}
+
+.wiki-sync-panel__start:hover {
+	border-color: #5a1634;
+	background: #dfc2cf;
+	color: #3a1024;
 }
 
 .wiki-sync-case__action--primary {
-	border: 1px solid #8fa46d;
+	border: 1px solid #db006d;
 	background: #f1f7e8;
 	color: #435724;
 }
 
 .wiki-sync-case__action--danger {
 	border: 1px solid #b87d73;
-	background: #fff3f0;
+	background: #f4c3b6;
 	color: #8a2d22;
 }
 
@@ -3111,7 +3117,7 @@ body.modal-dialog-open {
 
 .wiki-sync-panel__tab {
 	border: 1px solid rgba(96, 72, 48, 0.24);
-	border-radius: 8px;
+	border-radius: 999px;
 	background: #f7efe4;
 	color: #4a3c2e;
 	cursor: pointer;
@@ -3122,9 +3128,9 @@ body.modal-dialog-open {
 }
 
 .wiki-sync-panel__tab.is-active {
-	border-color: #8fa46d;
-	background: #f1f7e8;
-	color: #435724;
+	border-color: #5a3518;
+	background: #f4ead8;
+	color: #5c3b1e;
 }
 
 .wiki-sync-panel__tab-panel {
