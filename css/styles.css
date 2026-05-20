@@ -2600,7 +2600,7 @@ body.modal-dialog-open {
 }
 
 .review-panel__status { 
-	padding: 10px 14px;
+	padding: 0px 0px 0px 14px;
 	color: #5a4a3b; 
 }
 
@@ -2815,8 +2815,7 @@ body.modal-dialog-open {
 
 .wiki-sync-panel__list-title {
 	margin: 8px 10px 6px;
-	color: #4a3c2e;
-	font-size: 13px;
+	color: #4a3c2e; 
 	font-weight: 700;
 	line-height: 1.25;
 }
