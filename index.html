@@ -177,11 +177,26 @@
 				<progress id="wiki-sync-progress" class="wiki-sync-progress" max="5" value="0" hidden></progress>
 			</div>
 			<p id="wiki-sync-status" class="review-panel__status" role="status" aria-live="polite">WikiSync ist bereit.</p>
-			<h3 class="wiki-sync-panel__list-title">Siedlungen aus dem Wiki</h3>
-			<div class="wiki-sync-panel__filter">
-				<input id="wiki-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="WikiSync-Fälle durchsuchen" />
+			<nav class="wiki-sync-panel__tabs" aria-label="WikiSync-Bereiche">
+				<button class="wiki-sync-panel__tab is-active" type="button" data-wiki-sync-panel-tab="locations">Siedlungen</button>
+				<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="territories">Herrschaftsgebiete</button>
+			</nav>
+
+			<div class="wiki-sync-panel__tab-panel is-active" data-wiki-sync-panel-section="locations">
+				<h3 class="wiki-sync-panel__list-title">Siedlungen aus dem Wiki</h3>
+				<div class="wiki-sync-panel__filter">
+					<input id="wiki-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="WikiSync-Fälle durchsuchen" />
+				</div>
+				<div id="wiki-sync-case-list" class="review-panel__list"></div>
 			</div>
-			<div id="wiki-sync-case-list" class="review-panel__list"></div>
+
+			<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="territories">
+				<h3 class="wiki-sync-panel__list-title">Herrschaftsgebiete aus dem Wiki</h3>
+				<div class="wiki-sync-panel__filter">
+					<input id="wiki-sync-territory-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="Herrschaftsgebiete durchsuchen" />
+				</div>
+				<div id="wiki-sync-territory-tree" class="political-territory-parent-tree wiki-sync-territory-tree" role="tree"></div>
+			</div>
 		</section>
 		<section class="review-panel__section" data-editor-panel-section="presence">
 			<p id="presence-panel-status" class="review-panel__status" role="status" aria-live="polite">Nutzerstatus wird geladen...</p>
@@ -920,6 +935,9 @@
 			wikiSyncCreateLocationCaseId = null,
 			wikiSyncFilterQuery = "",
 			wikiSyncFilterCollapseRequested = false,
+			wikiSyncTerritoryFilterQuery = "",
+			wikiSyncTerritoryExpandedKeys = new Set(),
+			activeWikiSyncPanelTab = "locations",
 			isWikiSyncCreateLocationSelectionActive = false,
 			isWikiSyncAccordionRestoring = false,
 			isWikiSyncRunning = false,
@@ -1206,8 +1224,14 @@
 		$("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));
 		$("#wiki-sync-start").on("click", () => startWikiSyncRun());
 		$("#wiki-sync-territories").on("click", () => startWikiSyncTerritoryRun());
+		$("[data-wiki-sync-panel-tab]").on("click", function () {
+			setWikiSyncPanelTab(this.dataset.wikiSyncPanelTab || "locations");
+		});
 		$("#wiki-sync-filter").on("input search", function () {
 			setWikiSyncFilterQuery(this.value || "");
+		});
+		$("#wiki-sync-territory-filter").on("input search", function () {
+			setWikiSyncTerritoryFilterQuery(this.value || "");
 		});
 		$("#wiki-sync-case-list").on("click", "[data-wiki-sync-action]", handleWikiSyncCaseActionClick);
 		$("#wiki-sync-resolve-close, #wiki-sync-resolve-cancel").on("click", () => setWikiSyncResolveDialogOpen(false, { resetForm: true }));
