@@ -3,7 +3,12 @@
 declare(strict_types=1);
 
 // Territory-specific WikiSync helpers moved from wiki-sync.php
-
+const AVESMAPS_WIKI_POLITICAL_DISPLAY_SUFFIXES = [
+    'Staat',
+    'Imperium',
+    'Reich',
+    'Kalifat',
+];
 
 function avesmapsWikiSyncReadPoliticalTerritoryTree(PDO $pdo, bool $forceRefresh = false): array {
     if ($forceRefresh) {
@@ -2048,13 +2053,27 @@ function avesmapsWikiSyncNodeKeyWithoutPrefix(string $nodeKey): string {
     return str_starts_with($nodeKey, 'wiki:') ? substr($nodeKey, 5) : $nodeKey;
 }
 
+function avesmapsWikiSyncDisplayPoliticalTerritoryName(string $name): string {
+    $normalized = avesmapsWikiSyncNormalizeWikiTreeText($name);
+    if ($normalized === '') {
+        return '';
+    }
+
+    foreach (AVESMAPS_WIKI_POLITICAL_DISPLAY_SUFFIXES as $suffix) {
+        $suffixPattern = preg_quote((string) $suffix, '/');
+        $normalized = preg_replace('/\s+\(' . $suffixPattern . '\)\s*$/iu', '', $normalized) ?? $normalized;
+    }
+
+    return trim($normalized);
+}
+
 function avesmapsWikiSyncCreatePoliticalTreeNode(string $key, string $name, ?array $row = null): array {
     $node = [
         'id' => 0,
         'wiki_key' => '',
         'key' => 'wiki:' . $key,
         'public_id' => 'wiki:' . $key,
-        'name' => $name,
+        'name' => avesmapsWikiSyncDisplayPoliticalTerritoryName($name),
         'short_name' => '',
         'type' => '',
         'status' => '',
@@ -2076,13 +2095,14 @@ function avesmapsWikiSyncCreatePoliticalTreeNode(string $key, string $name, ?arr
         'row' => $row,
         'children' => [],
     ];
-
+avesmapsWikiSyncApplyPoliticalRowToTreeNode
     return $row === null ? $node : avesmapsWikiSyncApplyPoliticalRowToTreeNode($node, $row);
 }
 
 function avesmapsWikiSyncApplyPoliticalRowToTreeNode(array $node, array $row): array {
     $node['id'] = (int) ($row['id'] ?? 0);
     $node['wiki_key'] = (string) ($row['wiki_key'] ?? '');
+    $node['name'] = avesmapsWikiSyncDisplayPoliticalTerritoryName((string) ($row['name'] ?? $node['name'] ?? ''));
     $node['type'] = (string) ($row['type'] ?? '');
     $node['status'] = (string) ($row['status'] ?? '');
     $node['form_of_government'] = (string) ($row['form_of_government'] ?? '');
@@ -2316,6 +2336,15 @@ function avesmapsWikiSyncResolvePoliticalPathPart(array $rowIndex, string $part)
     }
 
     return $normalizedPart;
+}
+
+function avesmapsWikiSyncCanonicalPoliticalPathPart(array $row, string $fallback): string {
+    $canonicalName = avesmapsWikiSyncResolvePoliticalTerritoryName(
+        (string) ($row['name'] ?? ''),
+        (string) ($row['wiki_url'] ?? '')
+    );
+
+    return $canonicalName !== '' ? $canonicalName : $fallback;
 }
 
 function avesmapsWikiSyncCanonicalPoliticalPathPart(array $row, string $fallback): string {
