@@ -3496,7 +3496,7 @@ function avesmapsPoliticalReadChangeLog(PDO $pdo, bool $canUndoChanges): array {
         LEFT JOIN users ON users.id = audit.actor_user_id
         LEFT JOIN users undone_users ON undone_users.id = audit.undone_by
         ORDER BY audit.created_at DESC, audit.id DESC
-        LIMIT 50'
+        LIMIT 100'
     );
     $rows = $statement === false ? [] : $statement->fetchAll(PDO::FETCH_ASSOC);
 
@@ -3836,7 +3836,10 @@ function avesmapsPoliticalWriteGeometryAuditLog(PDO $pdo, string $action, int $a
         'after_json' => avesmapsPoliticalEncodeJsonOrNull($afterPayload) ?? '{}',
     ]);
 
-    return (int) $pdo->lastInsertId();
+    $auditId = (int) $pdo->lastInsertId();
+    avesmapsPoliticalPruneGeometryAuditLog($pdo, 250);
+
+    return $auditId;
 }
 
 function avesmapsPoliticalDecodeAuditPayload(mixed $value): array {
@@ -3848,6 +3851,25 @@ function avesmapsPoliticalDecodeAuditPayload(mixed $value): array {
         'geometries' => $geometries,
         'territories' => $territories,
     ];
+}
+
+function avesmapsPoliticalPruneGeometryAuditLog(PDO $pdo, int $keepRows = 250): void {
+    $keepRows = max(100, min(1000, $keepRows));
+
+    $statement = $pdo->prepare(
+        'DELETE FROM political_territory_geometry_audit_log
+        WHERE id NOT IN (
+            SELECT id FROM (
+                SELECT id
+                FROM political_territory_geometry_audit_log
+                ORDER BY created_at DESC, id DESC
+                LIMIT :keep_rows
+            ) recent_entries
+        )'
+    );
+
+    $statement->bindValue('keep_rows', $keepRows, PDO::PARAM_INT);
+    $statement->execute();
 }
 
 function avesmapsPoliticalAuditSnapshotsEqual(?array $left, ?array $right): bool {
