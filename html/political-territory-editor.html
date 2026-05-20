@@ -1608,7 +1608,7 @@
 				const currentIdentityKey = rowIdentityKey(current.row);
 				if (identityKey && currentIdentityKey && identityKey === currentIdentityKey) {
 					current.row = row;
-					current.label = row.name || current.label;
+					current.label = current.label || row.name;
 					current.kind = current.children.length > 0 ? "territory-group" : "territory";
 					continue;
 				}
@@ -1877,7 +1877,7 @@
 
 				if (matchingRow) {
 					node.row = matchingRow;
-					node.label = matchingRow.name || label;
+					node.label = label;
 				}
 
 				parent.childMap.set(key, node);
@@ -2490,7 +2490,7 @@
 			const path = getNodePath(node);
 			const depth = Math.max(0, path.length - 1);
 			const zoomPreset = getZoomPreset(droppedNode ? getNodePath(droppedNode).length : path.length, depth);
-			const displayName = normalizeText(node.row?.name || node.label || "");
+			const displayName = normalizeText(node.label || node.row?.name || "");
 			const coatOfArmsUrl = normalizeText(node.row?.coat_of_arms_url || "");
 
 			return {
