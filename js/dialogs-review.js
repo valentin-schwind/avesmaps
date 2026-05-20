@@ -4022,6 +4022,7 @@ async function renderWikiSyncTerritoryTree() {
 
 	try {
 		await loadPoliticalTerritoryOptions();
+		syncWikiSyncPanelHeaderState();
 	} catch (error) {
 		console.error("Herrschaftsgebiete konnten nicht geladen werden:", error);
 		treeElement.innerHTML = "";
@@ -4356,14 +4357,45 @@ function formatWikiSyncSettlementSummaryText() {
 }
 
 function formatWikiSyncTerritorySummaryText() {
-	const territoryCount = Number(wikiSyncTerritorySummary?.territory_count ?? 0);
-	const rootCount = Number(wikiSyncTerritorySummary?.root_count ?? 0);
+	const syncedTerritoryCount = Number(wikiSyncTerritorySummary?.territory_count ?? 0);
+	const syncedRootCount = Number(wikiSyncTerritorySummary?.root_count ?? 0);
 
-	if (territoryCount < 1 && rootCount < 1) {
+	if (syncedTerritoryCount > 0 || syncedRootCount > 0) {
+		return `${syncedTerritoryCount} in ${syncedRootCount} Hauptmächte`;
+	}
+
+	const fallbackSummary = getWikiSyncTerritoryLoadedDataSummary();
+	if (fallbackSummary.territoryCount < 1 && fallbackSummary.rootCount < 1) {
 		return "Keine Herrschaftsgebietsdaten geladen";
 	}
 
-	return `${territoryCount} in ${rootCount} Hauptmächte`;
+	return `${fallbackSummary.territoryCount} in ${fallbackSummary.rootCount} Hauptmächte`;
+}
+
+function getWikiSyncTerritoryLoadedDataSummary() {
+	const territoryCount = (Array.isArray(politicalTerritoryOptions) ? politicalTerritoryOptions : [])
+		.filter((territory) => String(territory?.public_id || "").trim() !== "")
+		.length;
+
+	let rootCount = 0;
+
+	if (Array.isArray(politicalTerritoryHierarchy) && politicalTerritoryHierarchy.length > 0) {
+		rootCount = politicalTerritoryHierarchy.filter((node) => {
+			const name = String(node?.name || "").trim();
+			return name !== "" && name !== "Sonstiges";
+		}).length;
+	} else if (Array.isArray(politicalTerritoryOptions) && politicalTerritoryOptions.length > 0) {
+		rootCount = politicalTerritoryOptions.filter((territory) => {
+			const publicId = String(territory?.public_id || "").trim();
+			const parentPublicId = String(territory?.parent_public_id || "").trim();
+			return publicId !== "" && parentPublicId === "";
+		}).length;
+	}
+
+	return {
+		territoryCount,
+		rootCount,
+	};
 }
 
 function renderWikiSyncCases(latestRun = null) {
