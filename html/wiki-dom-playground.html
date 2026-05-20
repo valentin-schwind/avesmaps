@@ -13,105 +13,34 @@
 			--text: #2f251c;
 			--muted: #6c5a49;
 			--border: #d8c6b2;
-			--accent: #385d72;
 			--danger: #8a3a1b;
 			--ok: #3d6b44;
 			--shadow: rgba(0, 0, 0, 0.16);
 		}
 
 		* { box-sizing: border-box; }
-
-		body {
-			margin: 0;
-			font-family: Arial, sans-serif;
-			font-size: 14px;
-			background: var(--page-bg-deep);
-			color: var(--text);
-		}
-
-		.app {
-			width: min(1180px, 100%);
-			min-height: 100vh;
-			margin: 0 auto;
-			background: var(--page-bg);
-			box-shadow: 0 0 30px rgba(0, 0, 0, 0.28);
-		}
-
-		header {
-			padding: 20px 24px;
-			background: rgba(255, 249, 244, 0.96);
-			border-bottom: 1px solid var(--border);
-			position: sticky;
-			top: 0;
-			z-index: 10;
-		}
-
+		body { margin: 0; font-family: Arial, sans-serif; font-size: 14px; background: var(--page-bg-deep); color: var(--text); }
+		.app { width: min(1180px, 100%); min-height: 100vh; margin: 0 auto; background: var(--page-bg); box-shadow: 0 0 30px rgba(0, 0, 0, 0.28); }
+		header { padding: 20px 24px; background: rgba(255, 249, 244, 0.96); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
 		h1 { margin: 0 0 6px; font-size: 24px; }
 		p { margin: 0; color: var(--muted); line-height: 1.45; }
 		code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #235f82; }
-
-		main {
-			padding: 18px;
-			display: grid;
-			grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
-			gap: 16px;
-		}
-
-		.panel {
-			background: var(--panel);
-			border: 1px solid var(--border);
-			box-shadow: 0 8px 24px var(--shadow);
-			padding: 14px;
-		}
-
+		main { padding: 18px; display: grid; grid-template-columns: minmax(320px, 420px) minmax(0, 1fr); gap: 16px; }
+		.panel { background: var(--panel); border: 1px solid var(--border); box-shadow: 0 8px 24px var(--shadow); padding: 14px; }
 		.panel h2 { margin: 0 0 10px; font-size: 17px; }
-
 		label { display: block; font-weight: 700; margin: 12px 0 5px; }
-
-		textarea,
-		input {
-			width: 100%;
-			border: 1px solid var(--border);
-			background: #fffdf9;
-			padding: 8px;
-			font: inherit;
-		}
-
-		textarea {
-			min-height: 150px;
-			resize: vertical;
-			font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-			font-size: 12px;
-		}
-
+		textarea, input { width: 100%; border: 1px solid var(--border); background: #fffdf9; padding: 8px; font: inherit; }
+		textarea { min-height: 150px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
 		.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 		.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-
-		button {
-			border: 1px solid #5f4f40;
-			background: #565044;
-			color: #fffaf0;
-			padding: 8px 12px;
-			cursor: pointer;
-			font-weight: 700;
-		}
-
+		button { border: 1px solid #5f4f40; background: #565044; color: #fffaf0; padding: 8px 12px; cursor: pointer; font-weight: 700; }
 		button.secondary { background: #766d5d; }
 		button.danger { background: var(--danger); }
 		button:disabled { opacity: 0.55; cursor: progress; }
-
-		.status {
-			margin-top: 12px;
-			padding: 10px;
-			background: var(--panel-muted);
-			border: 1px solid var(--border);
-			white-space: pre-wrap;
-		}
-
+		.status { margin-top: 12px; padding: 10px; background: var(--panel-muted); border: 1px solid var(--border); white-space: pre-wrap; }
 		.summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
 		.stat { background: var(--panel-muted); border: 1px solid var(--border); padding: 10px; }
 		.stat strong { display: block; font-size: 20px; }
-
 		table { width: 100%; border-collapse: collapse; background: #fffdf9; font-size: 12px; }
 		th, td { border: 1px solid var(--border); padding: 6px 7px; vertical-align: top; }
 		th { background: var(--panel-muted); text-align: left; }
@@ -119,63 +48,45 @@
 		.badge { display: inline-block; padding: 2px 5px; border-radius: 3px; background: var(--panel-muted); border: 1px solid var(--border); }
 		.badge.ok { color: var(--ok); }
 		.badge.warn { color: var(--danger); }
-
 		pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 11px; }
-
-		@media (max-width: 900px) {
-			main { grid-template-columns: 1fr; }
-			.summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-		}
+		@media (max-width: 900px) { main { grid-template-columns: 1fr; } .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 	</style>
 </head>
 <body>
 	<div class="app">
 		<header>
 			<h1>Wiki-DOM-Playground</h1>
-			<p>Isolierter Testimport nach <code>political_territory_wiki_test</code>. Die echte Tabelle <code>political_territory_wiki</code> wird nicht beschrieben.</p>
+			<p>Isolierter Testimport nach <code>political_territory_wiki_test</code>. <code>/Liste</code>-Seeds sind reine Einstiegspunkte und werden nicht als Territorien gespeichert.</p>
 		</header>
-
 		<main>
 			<section class="panel">
 				<h2>Testlauf</h2>
 				<label for="seeds">Seeds / Startseiten</label>
-				<textarea id="seeds">https://de.wiki-aventurica.de/wiki/Thorwal_(Staat)
-https://de.wiki-aventurica.de/wiki/Reich_der_Gro%C3%9Fen_Schlange
-https://de.wiki-aventurica.de/wiki/Grafschaft_Waldwacht
-https://de.wiki-aventurica.de/wiki/Alanfanisches_Imperium
-https://de.wiki-aventurica.de/wiki/Baronie_Aare
-https://de.wiki-aventurica.de/wiki/Theaterritterliche_Republik_an_Born_und_Walsach
-https://de.wiki-aventurica.de/wiki/Seeherrschaft_Tyllos
-https://de.wiki-aventurica.de/wiki/Ordensland_Hemandu</textarea>
-
+				<textarea id="seeds"></textarea>
 				<div class="grid">
 					<div><label for="maxDepth">Max. Rekursionstiefe</label><input id="maxDepth" type="number" min="0" max="4" value="1"></div>
-					<div><label for="maxIterations">Max. Iterationen</label><input id="maxIterations" type="number" min="1" max="80" value="12"></div>
-					<div><label for="maxPages">Max. Seiten</label><input id="maxPages" type="number" min="1" max="80" value="12"></div>
-					<div><label for="maxRuntime">Max. Laufzeit (s)</label><input id="maxRuntime" type="number" min="3" max="25" value="12"></div>
-					<div><label for="sleepMs">Pause/Wiki-Request (ms)</label><input id="sleepMs" type="number" min="0" max="5000" value="350"></div>
+					<div><label for="maxIterations">Max. Iterationen</label><input id="maxIterations" type="number" min="1" max="120" value="30"></div>
+					<div><label for="maxPages">Max. Territory-Seiten</label><input id="maxPages" type="number" min="1" max="100" value="20"></div>
+					<div><label for="maxRuntime">Max. Laufzeit (s)</label><input id="maxRuntime" type="number" min="3" max="30" value="20"></div>
+					<div><label for="sleepMs">Pause/Wiki-Request (ms)</label><input id="sleepMs" type="number" min="0" max="5000" value="450"></div>
 					<div><label for="timeout">Request-Timeout (s)</label><input id="timeout" type="number" min="3" max="15" value="8"></div>
 				</div>
-
 				<label for="catchwords">Catchword-Konfiguration (JSON)</label>
 				<textarea id="catchwords"></textarea>
-
 				<div class="actions">
 					<button id="runBtn">Testlauf starten</button>
 					<button id="reloadBtn" class="secondary">Tabelle laden</button>
 					<button id="defaultsBtn" class="secondary">Defaults laden</button>
 					<button id="clearBtn" class="danger">Testtabelle leeren</button>
 				</div>
-
 				<div id="status" class="status">Bereit.</div>
 			</section>
-
 			<section class="panel">
 				<h2>Ergebnis</h2>
 				<div class="summary">
 					<div class="stat"><strong id="count">0</strong><span>Datensätze</span></div>
 					<div class="stat"><strong id="iterations">–</strong><span>Iterationen</span></div>
-					<div class="stat"><strong id="pages">–</strong><span>geholte Seiten</span></div>
+					<div class="stat"><strong id="pages">–</strong><span>Territory-Seiten</span></div>
 					<div class="stat"><strong id="relations">–</strong><span>Relationen</span></div>
 				</div>
 				<div id="runInfo" class="status">Noch kein Lauf in dieser Ansicht.</div>
@@ -190,35 +101,19 @@ https://de.wiki-aventurica.de/wiki/Ordensland_Hemandu</textarea>
 			</section>
 		</main>
 	</div>
-
 	<script>
-		const API_URL = '/api/wiki-dom-playground-safe.php';
+		const API_URL = '/api/wiki-dom-playground-seed.php';
 		const els = {
-			seeds: document.getElementById('seeds'), catchwords: document.getElementById('catchwords'),
-			maxDepth: document.getElementById('maxDepth'), maxIterations: document.getElementById('maxIterations'),
-			maxPages: document.getElementById('maxPages'), maxRuntime: document.getElementById('maxRuntime'),
-			sleepMs: document.getElementById('sleepMs'), timeout: document.getElementById('timeout'),
-			status: document.getElementById('status'), runInfo: document.getElementById('runInfo'), rows: document.getElementById('rows'),
-			debug: document.getElementById('debug'), count: document.getElementById('count'), iterations: document.getElementById('iterations'),
-			pages: document.getElementById('pages'), relations: document.getElementById('relations'), runBtn: document.getElementById('runBtn'),
-			reloadBtn: document.getElementById('reloadBtn'), defaultsBtn: document.getElementById('defaultsBtn'), clearBtn: document.getElementById('clearBtn')
+			seeds: document.getElementById('seeds'), catchwords: document.getElementById('catchwords'), maxDepth: document.getElementById('maxDepth'), maxIterations: document.getElementById('maxIterations'), maxPages: document.getElementById('maxPages'), maxRuntime: document.getElementById('maxRuntime'), sleepMs: document.getElementById('sleepMs'), timeout: document.getElementById('timeout'), status: document.getElementById('status'), runInfo: document.getElementById('runInfo'), rows: document.getElementById('rows'), debug: document.getElementById('debug'), count: document.getElementById('count'), iterations: document.getElementById('iterations'), pages: document.getElementById('pages'), relations: document.getElementById('relations'), runBtn: document.getElementById('runBtn'), reloadBtn: document.getElementById('reloadBtn'), defaultsBtn: document.getElementById('defaultsBtn'), clearBtn: document.getElementById('clearBtn')
 		};
-
 		function setBusy(isBusy) { for (const button of [els.runBtn, els.reloadBtn, els.defaultsBtn, els.clearBtn]) button.disabled = isBusy; }
 		function setStatus(message) { els.status.textContent = message; }
-
 		function readPayload() {
 			let catchwords = null;
 			const rawCatchwords = els.catchwords.value.trim();
 			if (rawCatchwords !== '') catchwords = JSON.parse(rawCatchwords);
-			return {
-				seeds: els.seeds.value.split(/\n+/).map(line => line.trim()).filter(Boolean),
-				max_depth: Number(els.maxDepth.value), max_iterations: Number(els.maxIterations.value), max_pages: Number(els.maxPages.value),
-				max_runtime_seconds: Number(els.maxRuntime.value), sleep_ms: Number(els.sleepMs.value),
-				request_timeout_seconds: Number(els.timeout.value), catchwords
-			};
+			return { seeds: els.seeds.value.split(/\n+/).map(line => line.trim()).filter(Boolean), max_depth: Number(els.maxDepth.value), max_iterations: Number(els.maxIterations.value), max_pages: Number(els.maxPages.value), max_runtime_seconds: Number(els.maxRuntime.value), sleep_ms: Number(els.sleepMs.value), request_timeout_seconds: Number(els.timeout.value), catchwords };
 		}
-
 		async function fetchJson(url, options = {}) {
 			const response = await fetch(url, options);
 			const text = await response.text();
@@ -227,48 +122,34 @@ https://de.wiki-aventurica.de/wiki/Ordensland_Hemandu</textarea>
 			if (!response.ok || payload.ok === false) throw new Error(payload.error || response.statusText);
 			return payload;
 		}
-
 		async function loadDefaults() {
 			setBusy(true);
 			try {
 				setStatus('Lade Defaults ...');
 				const payload = await fetchJson(`${API_URL}?action=defaults`);
 				els.catchwords.value = JSON.stringify(payload.catchwords, null, '\t');
-				setStatus('Defaults geladen. Du kannst die Catchwords direkt im JSON ändern.');
+				if (Array.isArray(payload.seeds)) els.seeds.value = payload.seeds.join('\n');
+				setStatus('Defaults geladen. Die /Liste-Seiten sind reine Einstiegspunkte.');
 			} catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
 		}
-
 		async function runImport() {
 			setBusy(true);
 			try {
-				setStatus('Testlauf läuft. Der Server bricht hart nach den gesetzten Limits ab.');
+				setStatus('Testlauf läuft. Seed-Listen zählen nicht als Ergebnis-Territorien.');
 				const payload = await fetchJson(`${API_URL}?action=run`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(readPayload()) });
 				render(payload);
 				setStatus('Testlauf abgeschlossen.');
 			} catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
 		}
-
 		async function reloadRows() {
 			setBusy(true);
-			try {
-				setStatus('Lade Testtabelle ...');
-				const payload = await fetchJson(`${API_URL}?action=list`);
-				render(payload);
-				setStatus('Testtabelle geladen.');
-			} catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
+			try { const payload = await fetchJson(`${API_URL}?action=list`); render(payload); setStatus('Testtabelle geladen.'); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
 		}
-
 		async function clearRows() {
 			if (!confirm('political_territory_wiki_test wirklich leeren?')) return;
 			setBusy(true);
-			try {
-				setStatus('Leere Testtabelle ...');
-				await fetchJson(`${API_URL}?action=clear`, {method: 'POST'});
-				render({ok: true, items: [], count: 0});
-				setStatus('Testtabelle geleert.');
-			} catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
+			try { await fetchJson(`${API_URL}?action=clear`, {method: 'POST'}); render({ok: true, items: [], count: 0}); setStatus('Testtabelle geleert.'); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
 		}
-
 		function render(payload) {
 			const items = Array.isArray(payload.items) ? payload.items : [];
 			els.count.textContent = String(payload.count ?? items.length);
@@ -287,10 +168,8 @@ https://de.wiki-aventurica.de/wiki/Ordensland_Hemandu</textarea>
 			}
 			els.debug.textContent = JSON.stringify({ relations: payload.relations || [], events: payload.run?.events || [], errors: payload.run?.errors || [] }, null, '\t');
 		}
-
 		function escapeHtml(value) { return String(value ?? '').replace(/[&<>"]/g, char => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[char])); }
 		function escapeAttr(value) { return escapeHtml(value).replace(/'/g, '&#039;'); }
-
 		els.runBtn.addEventListener('click', runImport);
 		els.reloadBtn.addEventListener('click', reloadRows);
 		els.defaultsBtn.addEventListener('click', loadDefaults);
