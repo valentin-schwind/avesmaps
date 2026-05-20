@@ -1,4 +1,4 @@
-const CHANGE_LOG_FOCUS_MARKER_TTL_MS = 12000;
+﻿const CHANGE_LOG_FOCUS_MARKER_TTL_MS = 12000;
 
 function getLocationReportOverlayElement() {
 	return document.getElementById("location-report-overlay");
@@ -3744,44 +3744,29 @@ function formatPresenceRole(role) {
 	}[normalizedRole] || normalizedRole || "Editor";
 }
 
-function setWikiSyncRunning(isRunning, run = null) {
-	isWikiSyncRunning = isRunning;
+function setWikiSyncLocationsRunning(isRunning, run = null) {
+	isWikiSyncLocationsRunning = isRunning;
 
-	const startButtonElement = document.getElementById("wiki-sync-start");
-	if (startButtonElement) {
-		startButtonElement.disabled = isRunning || isWikiSyncTerritoryRunning;
-		startButtonElement.textContent = isRunning
-			? "WikiSyncLocations..."
-			: (activeWikiSyncRunStatus === "running" ? "WikiSyncLocations fortsetzen" : "WikiSyncLocations");
+	const buttonElement = document.getElementById("wiki-sync-start");
+	if (buttonElement) {
+		buttonElement.disabled = isRunning || isWikiSyncTerritoriesRunning;
+		buttonElement.textContent = isRunning
+			? "WikiSync (Siedlungen) läuft..."
+			: formatWikiSyncSettlementActionLabel();
 	}
 
-	const progressElement = document.getElementById("wiki-sync-progress");
-	if (progressElement) {
-		progressElement.hidden = !isRunning && !run;
-		progressElement.max = Number(run?.progress_total) || 4;
-		progressElement.value = Number(run?.progress_current) || 0;
-	}
-
-	const territoriesButtonElement = document.getElementById("wiki-sync-territories");
-	if (territoriesButtonElement) {
-		territoriesButtonElement.disabled = isRunning || isWikiSyncTerritoryRunning;
-	}
+	// progress wie bisher
 }
 
-function setWikiSyncTerritoryRunning(isRunning) {
-	isWikiSyncTerritoryRunning = Boolean(isRunning);
+function setWikiSyncTerritoriesRunning(isRunning) {
+	isWikiSyncTerritoriesRunning = isRunning;
 
-	const territoriesButtonElement = document.getElementById("wiki-sync-territories");
-	if (territoriesButtonElement) {
-		territoriesButtonElement.disabled = isWikiSyncRunning || isWikiSyncTerritoryRunning;
-		territoriesButtonElement.textContent = isWikiSyncTerritoryRunning
-			? "WikiSyncTerritories..."
-			: "WikiSyncTerritories";
-	}
-
-	const startButtonElement = document.getElementById("wiki-sync-start");
-	if (startButtonElement) {
-		startButtonElement.disabled = isWikiSyncRunning || isWikiSyncTerritoryRunning;
+	const buttonElement = document.getElementById("wiki-sync-territories");
+	if (buttonElement) {
+		buttonElement.disabled = isRunning || isWikiSyncLocationsRunning;
+		buttonElement.textContent = isRunning
+			? "WikiSync (Herrschaftsgebiete) läuft..."
+			: formatWikiSyncTerritoryActionLabel();
 	}
 }
 
@@ -3933,10 +3918,10 @@ async function loadWikiSyncCases() {
 		syncWikiSyncCreateLocationContextMenuAction();
 
 		if (activeRun?.status === "running") {
-			setWikiSyncRunning(false, activeRun);
+			setWikiSyncLocationsRunning(false, activeRun);
 			setWikiSyncStatus(activeRun.message || "Ein WikiSync-Lauf kann fortgesetzt werden.", "pending");
 		} else {
-			setWikiSyncRunning(false);
+			setWikiSyncLocationsRunning(false);
 		}
 	} catch (error) {
 		console.error("WikiSyncLocations-Fälle konnten nicht geladen werden:", error);
@@ -4099,7 +4084,7 @@ function renderWikiSyncTerritoryTreeNode(node, depth) {
 	if (!doesWikiSyncTerritoryTreeNodeMatchFilter(node)) {
 		return null;
 	}
-	syncWikiSyncPanelTabLabels();
+	syncWikiSyncActionButtonLabels();
 
 	const wrapper = document.createElement("div");
 	wrapper.className = node.isGroup
@@ -4220,11 +4205,11 @@ $(document).on("dblclick", "#wiki-sync-territory-tree [data-wiki-sync-territory-
 });
 
 async function startWikiSyncRun() {
-	if (isWikiSyncRunning) {
+	if (isWikiSyncLocationsRunning) {
 		return;
 	}
 
-	setWikiSyncRunning(true);
+	setWikiSyncLocationsRunning(true);
 	setWikiSyncStatus(activeWikiSyncRunStatus === "running" ? "WikiSyncLocations wird fortgesetzt..." : "WikiSyncLocations wird gestartet...", "pending");
 
 	try {
@@ -4238,7 +4223,7 @@ async function startWikiSyncRun() {
 			run = startResult.run || null;
 		}
 		let safetyCounter = 0;
-		setWikiSyncRunning(true, run);
+		setWikiSyncLocationsRunning(true, run);
 
 		while (run && run.status !== "completed" && run.status !== "failed") {
 			if (safetyCounter > 8) {
@@ -4249,7 +4234,7 @@ async function startWikiSyncRun() {
 			run = advanceResult.run || null;
 			activeWikiSyncRunStatus = run?.status || "";
 			wikiSyncSummary = advanceResult.summary || wikiSyncSummary;
-			setWikiSyncRunning(true, run);
+			setWikiSyncLocationsRunning(true, run);
 			setWikiSyncStatus(run?.message || "WikiSync läuft...", "pending");
 			safetyCounter += 1;
 		}
@@ -4258,25 +4243,25 @@ async function startWikiSyncRun() {
 			throw new Error(run.message || "WikiSync ist fehlgeschlagen.");
 		}
 
-		setWikiSyncRunning(false);
+		setWikiSyncLocationsRunning(false);
 		activeWikiSyncRunStatus = "";
 		await loadWikiSyncCases();
 		setWikiSyncStatus(buildWikiSyncStatusMessage("WikiSyncLocations abgeschlossen."), "success");
 	} catch (error) {
 		console.error("WikiSyncLocations konnte nicht ausgeführt werden:", error);
 		activeWikiSyncRunStatus = "";
-		setWikiSyncRunning(false);
+		setWikiSyncLocationsRunning(false);
 		setWikiSyncStatus(error.message || "WikiSyncLocations konnte nicht ausgeführt werden.", "error");
 		showFeedbackToast(error.message || "WikiSyncLocations konnte nicht ausgeführt werden.", "warning");
 	}
 }
 
 async function startWikiSyncTerritoryRun() {
-	if (isWikiSyncRunning || isWikiSyncTerritoryRunning) {
+	if (isWikiSyncLocationsRunning || isWikiSyncTerritoriesRunning) {
 		return;
 	}
 
-	setWikiSyncTerritoryRunning(true);
+	setWikiSyncTerritoriesRunning(true);
 	setWikiSyncStatus("WikiSyncTerritories wird gestartet...", "pending");
 
 	try {
@@ -4287,7 +4272,7 @@ async function startWikiSyncTerritoryRun() {
 			assigned_territory_count: Number(result?.assigned_territory_count ?? 0),
 			assigned_root_count: Number(result?.assigned_root_count ?? 0),
 		};
-		syncWikiSyncPanelTabLabels();
+		syncWikiSyncActionButtonLabels();
 		await loadPoliticalTerritoryOptions();
 		schedulePoliticalTerritoryLayerReload({ immediate: true });
 		if (activeWikiSyncPanelTab === "territories") {
@@ -4299,7 +4284,7 @@ async function startWikiSyncTerritoryRun() {
 		setWikiSyncStatus(error.message || "WikiSyncTerritories konnte nicht ausgefuehrt werden.", "error");
 		showFeedbackToast(error.message || "WikiSyncTerritories konnte nicht ausgefuehrt werden.", "warning");
 	} finally {
-		setWikiSyncTerritoryRunning(false);
+		setWikiSyncTerritoriesRunning(false);
 	}
 }
 
@@ -4320,20 +4305,20 @@ function buildWikiSyncStatusMessage(message = "") {
 	return statusLines.join("\n");
 }
 
-function syncWikiSyncPanelTabLabels() {
-	const locationsTabElement = document.getElementById("wiki-sync-locations-tab");
-	const territoriesTabElement = document.getElementById("wiki-sync-territories-tab");
+function syncWikiSyncActionButtonLabels() {
+	const locationsButtonElement = document.getElementById("wiki-sync-start");
+	const territoriesButtonElement = document.getElementById("wiki-sync-territories");
 
-	if (locationsTabElement) {
-		locationsTabElement.textContent = formatWikiSyncSettlementTabLabel();
+	if (locationsButtonElement && !isWikiSyncLocationsRunning) {
+		locationsButtonElement.textContent = formatWikiSyncSettlementActionLabel();
 	}
 
-	if (territoriesTabElement) {
-		territoriesTabElement.textContent = formatWikiSyncTerritoryTabLabel();
+	if (territoriesButtonElement && !isWikiSyncTerritoriesRunning) {
+		territoriesButtonElement.textContent = formatWikiSyncTerritoryActionLabel();
 	}
 }
 
-function formatWikiSyncSettlementTabLabel() {
+function formatWikiSyncSettlementActionLabel() {
 	const openCount = Number(wikiSyncSummary?.by_status?.open ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "open").length);
 	const deferredCount = Number(wikiSyncSummary?.by_status?.deferred ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "deferred").length);
 	const archivedCount = Number(wikiSyncSummary?.by_status?.archived ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "archived").length);
@@ -4345,7 +4330,7 @@ function formatWikiSyncSettlementTabLabel() {
 	return `${openCount} offen, ${deferredCount} zurückgestellt, ${archivedCount} archiviert | WikiSync (Siedlungen)`;
 }
 
-function formatWikiSyncTerritoryTabLabel() {
+function formatWikiSyncTerritoryActionLabel() {
 	const territoryCount = Number(wikiSyncTerritorySummary?.territory_count ?? 0);
 	const rootCount = Number(wikiSyncTerritorySummary?.root_count ?? 0);
 
@@ -4354,7 +4339,7 @@ function formatWikiSyncTerritoryTabLabel() {
 	}
 
 	return `${territoryCount} in ${rootCount} Hauptmächte | WikiSync (Herrschaftsgebiete)`;
-}
+}  
 
 function formatWikiSyncSettlementSummaryLine() {
 	const openCount = Number(wikiSyncSummary?.by_status?.open ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "open").length);
@@ -4381,7 +4366,7 @@ function renderWikiSyncCases(latestRun = null) {
 	if (!listElement) {
 		return;
 	}
-	syncWikiSyncPanelTabLabels();
+	syncWikiSyncActionButtonLabels();
 
 	const previousOpenGroupKeys = getWikiSyncOpenGroupKeys();
 	const filterQuery = getWikiSyncFilterQuery();
