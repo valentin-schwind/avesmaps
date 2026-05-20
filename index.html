@@ -170,9 +170,7 @@
 			<p id="change-panel-status" class="review-panel__status" role="status" aria-live="polite">Änderungen werden geladen...</p>
 			<div id="change-log-list" class="review-panel__list"></div>
 		</section>
-		<section class="review-panel__section" data-editor-panel-section="wiki-sync">
-			<p id="wiki-sync-status" class="review-panel__status" role="status" aria-live="polite">WikiSync ist bereit.</p>
-
+		<section class="review-panel__section" data-editor-panel-section="wiki-sync"> 
 			<nav class="wiki-sync-panel__tabs" aria-label="WikiSync-Bereiche">
 				<button class="wiki-sync-panel__tab is-active" type="button" data-wiki-sync-panel-tab="locations">Siedlungen</button>
 				<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="territories">Herrschaftsgebiete</button>
@@ -180,9 +178,11 @@
 
 			<div class="wiki-sync-panel__tab-panel is-active" data-wiki-sync-panel-section="locations">
 				<div class="wiki-sync-panel__actions">
-					<button id="wiki-sync-start" class="wiki-sync-panel__start" type="button">WikiSync (Siedlungen)</button>
-					<progress id="wiki-sync-progress" class="wiki-sync-progress" max="5" value="0" hidden></progress>
+					<span id="wiki-sync-locations-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
+					<button id="wiki-sync-start" class="wiki-sync-panel__start" type="button">WikiSync</button>
 				</div>
+				<progress id="wiki-sync-progress" class="wiki-sync-progress" max="5" value="0" hidden></progress>
+
 				<div class="wiki-sync-panel__filter">
 					<input id="wiki-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="WikiSync-Fälle durchsuchen" />
 				</div>
@@ -191,8 +191,11 @@
 
 			<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="territories">
 				<div class="wiki-sync-panel__actions">
-					<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button">WikiSync (Herrschaftsgebiete)</button>
+					<span id="wiki-sync-territories-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
+					<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button">WikiSync</button>
 				</div>
+				<progress id="wiki-sync-territories-progress" class="wiki-sync-progress" max="1" value="0" hidden></progress>
+
 				<div class="wiki-sync-panel__filter">
 					<input id="wiki-sync-territory-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="Herrschaftsgebiete durchsuchen" />
 				</div>
