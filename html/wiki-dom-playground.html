@@ -113,16 +113,8 @@
 		function startPolling() { stopPolling(); pollStartedAt = Date.now(); startCount = Number(els.count.textContent) || 0; pollTimer = window.setInterval(refreshLiveRows, 1200); refreshLiveRows(); }
 		function stopPolling() { if (pollTimer !== null) { window.clearInterval(pollTimer); pollTimer = null; } }
 		async function refreshLiveRows() { try { const payload = await fetchJson(`${API_URL}?action=list&_=${Date.now()}`); render(payload, true); } catch (error) { els.runInfo.textContent = `Live-Aktualisierung fehlgeschlagen: ${error.message}`; } }
-		async function loadDefaults() {
-			setBusy(true);
-			try { setStatus('Lade Defaults ...'); const payload = await fetchJson(`${API_URL}?action=defaults`); els.catchwords.value = JSON.stringify(payload.catchwords, null, '\t'); if (Array.isArray(payload.seeds)) els.seeds.value = payload.seeds.join('\n'); setStatus('Defaults geladen. Die /Liste-Seiten sind reine Einstiegspunkte.'); }
-			catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
-		}
-		async function runImport() {
-			setBusy(true);
-			try { setStatus('Testlauf läuft. Die Tabelle aktualisiert sich live.'); startPolling(); const payload = await fetchJson(`${API_URL}?action=run`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(readPayload()) }); stopPolling(); render(payload, false); setStatus('Testlauf abgeschlossen.'); }
-			catch (error) { stopPolling(); setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); }
-		}
+		async function loadDefaults() { setBusy(true); try { setStatus('Lade Defaults ...'); const payload = await fetchJson(`${API_URL}?action=defaults`); els.catchwords.value = JSON.stringify(payload.catchwords, null, '\t'); if (Array.isArray(payload.seeds)) els.seeds.value = payload.seeds.join('\n'); setStatus('Defaults geladen. Die /Liste-Seiten sind reine Einstiegspunkte.'); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
+		async function runImport() { setBusy(true); try { setStatus('Testlauf läuft. Die Tabelle aktualisiert sich live.'); startPolling(); const payload = await fetchJson(`${API_URL}?action=run`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(readPayload()) }); stopPolling(); render(payload, false); setStatus('Testlauf abgeschlossen.'); } catch (error) { stopPolling(); setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
 		async function reloadRows() { setBusy(true); try { const payload = await fetchJson(`${API_URL}?action=list`); render(payload, false); setStatus('Testtabelle geladen.'); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
 		async function clearRows() { if (!confirm('political_territory_wiki_test wirklich leeren?')) return; setBusy(true); try { await fetchJson(`${API_URL}?action=clear`, {method: 'POST'}); render({ok: true, items: [], count: 0}, false); setStatus('Testtabelle geleert.'); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
 		function render(payload, live) {
@@ -130,7 +122,7 @@
 			const count = Number(payload.count ?? items.length);
 			els.count.textContent = String(count);
 			if (live && !payload.run) { const elapsed = Math.max(0, Math.round((Date.now() - pollStartedAt) / 1000)); els.iterations.textContent = 'läuft'; els.pages.textContent = String(count); els.relations.textContent = '–'; els.runInfo.textContent = `Live-Stand nach ${elapsed}s: ${count} Datensätze${count > startCount ? `, +${count - startCount} seit Start` : ''}.`; }
-			else { els.iterations.textContent = payload.run?.iterations ?? '–'; els.pages.textContent = payload.run?.fetched_pages ?? '–'; els.relations.textContent = payload.run?.relations ?? (Array.isArray(payload.relations) ? payload.relations.length : '–'); els.runInfo.textContent = payload.run ? JSON.stringify(payload.run, null, '\t') : 'Nur Tabellenstand geladen.'; }
+			else { const summary = runSummary(payload.run, count); els.iterations.textContent = payload.run?.iterations ?? '–'; els.pages.textContent = payload.run?.fetched_pages ?? '–'; els.relations.textContent = payload.run?.relations ?? (Array.isArray(payload.relations) ? payload.relations.length : '–'); els.runInfo.textContent = summary; }
 			els.rows.innerHTML = '';
 			for (const item of items) {
 				const raw = item.raw || {};
@@ -141,9 +133,8 @@
 			}
 			els.debug.textContent = JSON.stringify(buildDebug(payload, items), null, '\t');
 		}
-		function buildDebug(payload, items) {
-			return { run: payload.run || null, rows: items.map(item => { const raw = item.raw || {}; const fields = raw.fields || {}; return { name: item.name || '', wiki_url: item.wiki_url || '', missing: { type: !(item.type || ''), path: !(Array.isArray(item.affiliation_path) && item.affiliation_path.length), founded: !(item.founded_text || item.founded_start_bf), dissolved: !(item.dissolved_text || item.dissolved_start_bf) }, relevant_fields: { art: fields.art, typ: fields.typ, staat: fields.staat, region: fields.region, gruendungsdatum: fields.gruendungsdatum, gruendung: fields.gruendung, unabhaengigkeit: fields.unabhaengigkeit, aufgeloest: fields.aufgeloest, status: fields.status }, field_keys: Object.keys(fields), path: raw.path || null, temporal: raw.temporal || [] }; }), events: payload.run?.events || [], errors: payload.run?.errors || [] };
-		}
+		function runSummary(run, count) { if (!run) return `Tabellenstand geladen: ${count} Datensätze.`; const errors = Array.isArray(run.errors) ? run.errors.length : 0; const events = Array.isArray(run.events) ? run.events.length : 0; return `Fertig: ${count} Datensätze, ${run.fetched_pages ?? 0} neu geholt, ${run.skipped_existing ?? 0} übersprungen, ${errors} Fehler, ${events} Ereignisse, ${run.runtime_seconds ?? '?'}s.`; }
+		function buildDebug(payload, items) { return { run: payload.run || null, rows: items.map(item => { const raw = item.raw || {}; const fields = raw.fields || {}; return { name: item.name || '', wiki_url: item.wiki_url || '', missing: { type: !(item.type || ''), path: !(Array.isArray(item.affiliation_path) && item.affiliation_path.length), founded: !(item.founded_text || item.founded_start_bf), dissolved: !(item.dissolved_text || item.dissolved_start_bf) }, relevant_fields: { art: fields.art, typ: fields.typ, staat: fields.staat, staatverlauf: fields.staatverlauf, region: fields.region, gruendungsdatum: fields.gruendungsdatum, gruendung: fields.gruendung, unabhaengigkeit: fields.unabhaengigkeit, aufgeloest: fields.aufgeloest, status: fields.status }, field_keys: Object.keys(fields), path: raw.path || null, temporal: raw.temporal || [] }; }), events: payload.run?.events || [], errors: payload.run?.errors || [] }; }
 		function escapeHtml(value) { return String(value ?? '').replace(/[&<>"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char])); }
 		function escapeAttr(value) { return escapeHtml(value).replace(/'/g, '&#039;'); }
 		els.runBtn.addEventListener('click', runImport);
