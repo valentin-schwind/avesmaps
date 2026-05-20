@@ -5,12 +5,13 @@ declare(strict_types=1);
 const AVESMAPS_WIKI_API_URL = 'https://de.wiki-aventurica.de/de/api.php';
 const AVESMAPS_WIKI_PAGE_BASE_URL = 'https://de.wiki-aventurica.de/wiki/';
 const AVESMAPS_WIKI_USER_AGENT = 'Avesmaps WikiSync/1.0';
-const AVESMAPS_WIKI_TITLE_BATCH_SIZE = 50;
+const AVESMAPS_WIKI_TITLE_BATCH_SIZE = 20;
 const AVESMAPS_WIKI_SEARCH_RESULT_LIMIT = 5;
 const AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS = 30;
+const AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS = 600000;
+const AVESMAPS_WIKI_REQUEST_RETRY_COUNT = 3;
+const AVESMAPS_WIKI_REQUEST_RETRY_BASE_DELAY_MICROSECONDS = 1200000;
 const AVESMAPS_WIKI_LOCK_TTL_SECONDS = 120;
-const AVESMAPS_WIKI_SYNC_TYPE_LOCATION = 'location';
-const AVESMAPS_WIKI_SYNC_TYPE_TERRITORY = 'territory';
 
 function avesmapsWikiSyncDecodeJson(mixed $value): array {
     if ($value === null || $value === '') {
@@ -99,48 +100,112 @@ function avesmapsWikiSyncApiRequest(array $params): array {
         'formatversion' => '2',
     ] + $params;
     $url = AVESMAPS_WIKI_API_URL . '?' . http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986);
-    $context = stream_context_create([
-        'http' => [
-            'method' => 'GET',
-            'timeout' => AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS,
-            'header' => "User-Agent: " . AVESMAPS_WIKI_USER_AGENT . "\r\nAccept: application/json\r\n",
-            'ignore_errors' => true,
-        ],
-        'ssl' => [
-            'verify_peer' => true,
-            'verify_peer_name' => true,
-        ],
-    ]);
 
-    $rawResponse = @file_get_contents($url, false, $context);
-    if (!is_string($rawResponse) || $rawResponse === '') {
-        throw new RuntimeException('Wiki Aventurica konnte nicht gelesen werden.');
-    }
+    $lastRawResponse = '';
+    $lastStatusCode = 0;
 
-    try {
-        $data = json_decode($rawResponse, true, 512, JSON_THROW_ON_ERROR);
-    } catch (JsonException $exception) {
-        $responsePrefix = substr($rawResponse, 0, 500);
+    for ($attempt = 0; $attempt <= AVESMAPS_WIKI_REQUEST_RETRY_COUNT; $attempt++) {
+        if ($attempt === 0) {
+            avesmapsWikiSyncThrottleWikiRequest();
+        } else {
+            avesmapsWikiSyncBackoffWikiRequest($attempt);
+        }
 
-        avesmapsWikiSyncLogServerError('wiki_api_invalid_json', [
-            'json_error' => $exception->getMessage(),
-            'url' => $url,
-            'response_prefix' => $responsePrefix,
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'timeout' => AVESMAPS_WIKI_REQUEST_TIMEOUT_SECONDS,
+                'header' => "User-Agent: " . AVESMAPS_WIKI_USER_AGENT . "\r\nAccept: application/json\r\n",
+                'ignore_errors' => true,
+            ],
+            'ssl' => [
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+            ],
         ]);
 
-        throw new RuntimeException(
-            'Wiki Aventurica hat ungueltiges JSON geliefert. URL: '
-            . $url
-            . ' Antwort: '
-            . $responsePrefix
-        );
+        $rawResponse = @file_get_contents($url, false, $context);
+        $lastRawResponse = is_string($rawResponse) ? $rawResponse : '';
+        $lastStatusCode = avesmapsWikiSyncReadHttpStatusCode($http_response_header ?? []);
+
+        if (
+            $lastStatusCode === 429
+            || $lastStatusCode === 502
+            || $lastStatusCode === 503
+            || $lastStatusCode === 504
+        ) {
+            avesmapsWikiSyncLogServerError('wiki_api_temporary_http_error', [
+                'url' => $url,
+                'status_code' => $lastStatusCode,
+                'attempt' => $attempt + 1,
+            ]);
+            continue;
+        }
+
+        if (!is_string($rawResponse) || $rawResponse === '') {
+            continue;
+        }
+
+        try {
+            $data = json_decode($rawResponse, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            $responsePrefix = substr($rawResponse, 0, 500);
+
+            avesmapsWikiSyncLogServerError('wiki_api_invalid_json', [
+                'json_error' => $exception->getMessage(),
+                'url' => $url,
+                'status_code' => $lastStatusCode,
+                'response_prefix' => $responsePrefix,
+            ]);
+
+            if ($lastStatusCode >= 500 && $attempt < AVESMAPS_WIKI_REQUEST_RETRY_COUNT) {
+                continue;
+            }
+
+            throw new RuntimeException(
+                'Wiki Aventurica hat ungueltiges JSON geliefert. URL: '
+                . $url
+                . ' Antwort: '
+                . $responsePrefix
+            );
+        }
+
+        if (!is_array($data)) {
+            throw new RuntimeException('Wiki Aventurica hat keine gueltige Antwort geliefert.');
+        }
+
+        return $data;
     }
 
-    if (!is_array($data)) {
-        throw new RuntimeException('Wiki Aventurica hat keine gueltige Antwort geliefert.');
+    $responsePrefix = substr($lastRawResponse, 0, 500);
+    throw new RuntimeException(
+        'Wiki Aventurica konnte nicht gelesen werden. HTTP-Status: '
+        . $lastStatusCode
+        . ' URL: '
+        . $url
+        . ($responsePrefix !== '' ? ' Antwort: ' . $responsePrefix : '')
+    );
+}
+
+function avesmapsWikiSyncThrottleWikiRequest(): void {
+    $jitter = random_int(0, 250000);
+    usleep(AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS + $jitter);
+}
+
+function avesmapsWikiSyncBackoffWikiRequest(int $attempt): void {
+    $multiplier = max(1, $attempt);
+    $jitter = random_int(0, 500000);
+    usleep((AVESMAPS_WIKI_REQUEST_RETRY_BASE_DELAY_MICROSECONDS * $multiplier) + $jitter);
+}
+
+function avesmapsWikiSyncReadHttpStatusCode(array $headers): int {
+    foreach ($headers as $header) {
+        if (preg_match('/^HTTP\/\S+\s+(\d{3})\b/i', (string) $header, $matches) === 1) {
+            return (int) $matches[1];
+        }
     }
 
-    return $data;
+    return 0;
 }
 
 function avesmapsWikiSyncCreateMatchKey(string $value): string {
