@@ -4034,7 +4034,7 @@ async function renderWikiSyncTerritoryTree() {
 	}
 
 	treeElement.innerHTML = "";
-	const tree = buildWikiSyncPoliticalTerritoryTree();
+	const tree = buildPoliticalTerritoryTree("");
 	tree.forEach((node) => {
 		const renderedNode = renderWikiSyncTerritoryTreeNode(node, 0);
 		if (renderedNode) {
@@ -4049,63 +4049,11 @@ async function renderWikiSyncTerritoryTree() {
 		treeElement.append(emptyElement);
 	}
 }
-
-function buildWikiSyncPoliticalTerritoryTree() {
-	const tree = buildPoliticalTerritoryTree("");
-	const knownPublicIds = new Set();
-
-	const collectPublicIds = (nodes) => {
-		(Array.isArray(nodes) ? nodes : []).forEach((node) => {
-			const publicId = String(node?.territory?.public_id || "").trim();
-			if (publicId !== "") {
-				knownPublicIds.add(publicId);
-			}
-			collectPublicIds(node.children || []);
-		});
-	};
-
-	collectPublicIds(tree);
-
-	const remainingNodes = (Array.isArray(politicalTerritoryOptions) ? politicalTerritoryOptions : [])
-		.filter((territory) => {
-			const publicId = String(territory?.public_id || "").trim();
-			return publicId !== "" && !knownPublicIds.has(publicId);
-		})
-		.sort((left, right) => String(left.name || "").localeCompare(String(right.name || ""), "de"))
-		.map((territory) => ({
-			key: `territory:${territory.public_id}`,
-			territory,
-			children: [],
-			isGroup: false,
-		}));
-
-	if (remainingNodes.length < 1) {
-		return tree;
-	}
-
-	return [
-		...tree,
-		{
-			key: "wiki-sync-territory-group:sonstiges",
-			territory: {
-				public_id: "",
-				name: "Sonstiges",
-				type: "",
-				status: "",
-				valid_label: "",
-				wiki_url: "",
-			},
-			children: remainingNodes,
-			isGroup: true,
-		},
-	];
-}
-
+ 
 function renderWikiSyncTerritoryTreeNode(node, depth) {
 	if (!doesWikiSyncTerritoryTreeNodeMatchFilter(node)) {
 		return null;
-	}
-	syncWikiSyncPanelHeaderState();
+	} 
 
 	const wrapper = document.createElement("div");
 	wrapper.className = node.isGroup
