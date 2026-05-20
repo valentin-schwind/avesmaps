@@ -1103,6 +1103,13 @@
 		
 		const MODULE_VERSION = "2026-05-16-module-save-api";
 
+		const DISPLAY_SUFFIXES = [
+			"Staat",
+			"Imperium",
+			"Reich",
+			"Kalifat"
+		];
+
 		if (new URLSearchParams(window.location.search).get("embedded") === "1") {
 			document.body.classList.add("is-embedded");
 		}
@@ -1649,7 +1656,7 @@
 			for (const row of rows) {
 				const labels = new Set([row.name]);
 
-				for (const alias of getFixedAliases(row.name)) {
+				for (const alias of getDisplayAliases(row.name)) {
 					labels.add(alias);
 				}
 
@@ -1664,6 +1671,39 @@
 			return index;
 		}
 
+		function getDisplayAliases(name) {
+			const aliases = new Set();
+
+			for (const alias of getFixedAliases(name)) {
+				aliases.add(alias);
+			}
+
+			for (const alias of getSuffixDisplayAliases(name)) {
+				aliases.add(alias);
+			}
+
+			return [...aliases];
+		}
+
+		function getSuffixDisplayAliases(name) {
+			const normalizedName = normalizeText(name);
+			const aliases = [];
+
+			for (const suffix of DISPLAY_SUFFIXES) {
+				const suffixPattern = new RegExp(`\\s*\\(${escapeRegExp(suffix)}\\)\\s*$`, "u");
+
+				if (suffixPattern.test(normalizedName)) {
+					const alias = normalizeText(normalizedName.replace(suffixPattern, ""));
+
+					if (alias) {
+						aliases.push(alias);
+					}
+				}
+			}
+
+			return aliases;
+		}
+
 		function getFixedAliases(name) {
 			const aliases = {
 				"Wiedererstandenes Reich des Horas": ["Horasreich"],
@@ -1674,6 +1714,9 @@
 			return aliases[name] || [];
 		}
 
+		function escapeRegExp(value) {
+			return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+		}
 
 		function dedupeRowsByIdentity(rows) {
 			const dedupedByKey = new Map();
