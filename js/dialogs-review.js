@@ -4035,12 +4035,25 @@ async function renderWikiSyncTerritoryTree() {
 
 	treeElement.innerHTML = "";
 	const tree = buildPoliticalTerritoryTree("");
-	tree.forEach((node) => {
+	const { regularNodes, miscNodes } = splitWikiSyncTerritoryTreeMiscNodes(tree);
+
+	regularNodes.forEach((node) => {
 		const renderedNode = renderWikiSyncTerritoryTreeNode(node, 0);
 		if (renderedNode) {
 			treeElement.append(renderedNode);
 		}
 	});
+
+	if (miscNodes.length > 0) {
+		treeElement.append(createWikiSyncTerritoryTreeSeparator("Sonstiges"));
+
+		miscNodes.forEach((node) => {
+			const renderedNode = renderWikiSyncTerritoryTreeNode(node, 0);
+			if (renderedNode) {
+				treeElement.append(renderedNode);
+			}
+		});
+	}
 
 	if (treeElement.childElementCount === 0) {
 		const emptyElement = document.createElement("p");
@@ -4048,6 +4061,48 @@ async function renderWikiSyncTerritoryTree() {
 		emptyElement.textContent = getWikiSyncTerritoryFilterQuery() !== "" ? "Keine Treffer" : "Keine Hierarchie geladen";
 		treeElement.append(emptyElement);
 	}
+}
+
+function splitWikiSyncTerritoryTreeMiscNodes(tree) {
+	const regularNodes = [];
+	const miscNodes = [];
+
+	(Array.isArray(tree) ? tree : []).forEach((node) => {
+		if (isWikiSyncMiscTerritoryTreeNode(node)) {
+			const children = Array.isArray(node.children) ? node.children : [];
+			miscNodes.push(...children);
+			return;
+		}
+
+		regularNodes.push(node);
+	});
+
+	regularNodes.sort(compareWikiSyncTerritoryTreeNodesByName);
+	miscNodes.sort(compareWikiSyncTerritoryTreeNodesByName);
+
+	return {
+		regularNodes,
+		miscNodes,
+	};
+}
+
+function isWikiSyncMiscTerritoryTreeNode(node) {
+	const name = normalizeSearchText(node?.territory?.name || "");
+	return name === normalizeSearchText("Sonstiges");
+}
+
+function compareWikiSyncTerritoryTreeNodesByName(left, right) {
+	return String(left?.territory?.name || "").localeCompare(
+		String(right?.territory?.name || ""),
+		"de"
+	);
+}
+
+function createWikiSyncTerritoryTreeSeparator(label) {
+	const separator = document.createElement("div");
+	separator.className = "wiki-sync-territory-tree__separator";
+	separator.textContent = label;
+	return separator;
 }
  
 function renderWikiSyncTerritoryTreeNode(node, depth) {

@@ -3083,6 +3083,26 @@ body.modal-dialog-open {
 	text-underline-offset: 2px;
 }
 
+.wiki-sync-territory-tree__separator {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 10px 6px 6px;
+	color: #7a6048;
+	font-size: 12px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.wiki-sync-territory-tree__separator::before,
+.wiki-sync-territory-tree__separator::after {
+	content: "";
+	flex: 1 1 auto;
+	height: 1px;
+	background: rgba(122, 96, 72, 0.32);
+}
+
 .wiki-sync-panel__tabs {
 	display: flex;
 	gap: 6px;
