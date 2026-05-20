@@ -27,6 +27,7 @@ const AVESMAPS_WIKI_POLITICAL_TERRITORY_SEED_PAGES = [
 	'Staat/Liste',
 	'Sultanat/Liste',
 	'Theokratie/Liste',
+	'Jarltum/Liste',
 ];
 
 require __DIR__ . '/wiki-sync.php';
