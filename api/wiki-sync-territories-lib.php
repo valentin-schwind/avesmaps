@@ -2293,7 +2293,7 @@ function avesmapsWikiSyncClassifyPoliticalTerritoryPath(array $path, array $row)
         return ['Sonstiges'];
     }
 
-    return $normalizedPath !== [] ? $normalizedPath : ['Sonstiges'];
+    return $normalizedPath !== [] ? $normalizedPath : [];
 }
 
 function avesmapsWikiSyncNormalizePoliticalPathPart(string $value): string {
