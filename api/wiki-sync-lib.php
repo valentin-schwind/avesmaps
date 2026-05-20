@@ -119,7 +119,13 @@ function avesmapsWikiSyncApiRequest(array $params): array {
 
     try {
         $data = json_decode($rawResponse, true, 512, JSON_THROW_ON_ERROR);
-    } catch (JsonException) {
+    } catch (JsonException $exception) {
+        avesmapsWikiSyncLogServerError('wiki_api_invalid_json', [
+            'json_error' => $exception->getMessage(),
+            'url' => $url,
+            'response_prefix' => substr($rawResponse, 0, 500),
+        ]);
+
         throw new RuntimeException('Wiki Aventurica hat ungueltiges JSON geliefert.');
     }
 
