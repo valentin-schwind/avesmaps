@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/wiki-sync-lib.php';
 
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
@@ -276,24 +277,4 @@ function avesmapsEnrichMapFeatureWikiUrl(array $properties, array $row, array $w
     $properties['wiki_url'] = (string) ($wikiLocationLinks[$matchKey] ?? '');
 
     return $properties;
-}
-
-function avesmapsWikiSyncCreateMatchKey(string $value): string {
-    $value = avesmapsWikiSyncStripParentheticalSuffix($value);
-    $value = mb_strtolower($value);
-    $value = str_replace(['ÃƒÅ¸', 'ÃƒÂ¦', 'Ã…â€œ', 'ÃƒÂ¸', 'ÃƒÂ°', 'ÃƒÂ¾'], ['ss', 'ae', 'oe', 'o', 'd', 'th'], $value);
-    if (function_exists('iconv')) {
-        $transliteratedValue = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
-        if (is_string($transliteratedValue)) {
-            $value = $transliteratedValue;
-        }
-    }
-    $value = preg_replace('/[\s_\-\'Ã¢â‚¬â„¢ÃŠÂ¼`Ã‚Â´]+/u', '', $value) ?? '';
-    $value = preg_replace('/[^a-z0-9]+/u', '', $value) ?? '';
-
-    return $value;
-}
-
-function avesmapsWikiSyncStripParentheticalSuffix(string $title): string {
-    return trim(preg_replace('/\s+\([^)]*\)\s*$/u', '', $title) ?? $title);
 }
