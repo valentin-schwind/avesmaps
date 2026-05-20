@@ -2304,18 +2304,27 @@ function avesmapsWikiSyncResolvePoliticalPathPart(array $rowIndex, string $part)
     }
 
     $key = avesmapsWikiSyncMakePoliticalTreeKey($normalizedPart);
-    if ($key !== '' && isset($rowIndex[$key])) {
-        return $normalizedPart;
+    if ($key !== '' && isset($rowIndex[$key]) && is_array($rowIndex[$key])) {
+        return avesmapsWikiSyncCanonicalPoliticalPathPart($rowIndex[$key], $normalizedPart);
     }
 
     $candidateBeforeSemicolon = trim((string) (preg_split('/\s*(?:[;]|,\s*(?=(?:ehemals|frueher|historisch|vormals)\b))\s*/iu', $normalizedPart)[0] ?? $normalizedPart));
     $candidateKey = avesmapsWikiSyncMakePoliticalTreeKey($candidateBeforeSemicolon);
 
-    if ($candidateKey !== '' && isset($rowIndex[$candidateKey])) {
-        return $candidateBeforeSemicolon;
+    if ($candidateKey !== '' && isset($rowIndex[$candidateKey]) && is_array($rowIndex[$candidateKey])) {
+        return avesmapsWikiSyncCanonicalPoliticalPathPart($rowIndex[$candidateKey], $candidateBeforeSemicolon);
     }
 
     return $normalizedPart;
+}
+
+function avesmapsWikiSyncCanonicalPoliticalPathPart(array $row, string $fallback): string {
+    $canonicalName = avesmapsWikiSyncResolvePoliticalTerritoryName(
+        (string) ($row['name'] ?? ''),
+        (string) ($row['wiki_url'] ?? '')
+    );
+
+    return $canonicalName !== '' ? $canonicalName : $fallback;
 }
 
 function avesmapsWikiSyncBuildPoliticalTerritoryRowIndex(array $rows): array {
