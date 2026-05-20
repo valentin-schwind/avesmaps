@@ -50,12 +50,12 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
 
                 'territories_tree' => (function () use ($pdo, $forceRefresh, $endpointScope, $action): array {
                     avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'territories'], $action);
-                    return avesmapsWikiSyncReadPoliticalTerritoryTree($pdo, $forceRefresh);
+                    return avesmapsWikiSyncReadPoliticalTerritoryDomTree($pdo, $forceRefresh);
                 })(),
 
                 'political_territory_tree' => (function () use ($pdo, $forceRefresh, $endpointScope, $action): array {
                     avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'territories'], $action);
-                    return avesmapsWikiSyncReadPoliticalTerritoryTree($pdo, $forceRefresh);
+                    return avesmapsWikiSyncReadPoliticalTerritoryDomTree($pdo, $forceRefresh);
                 })(),
 
                 default => throw new InvalidArgumentException('Die WikiSync-Aktion ist unbekannt.'),
