@@ -33,6 +33,48 @@ const AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS = [
     'dorf' => 'Dorf',
 ];
 
+function avesmapsWikiSyncFetchSiedlungenIndexCategories(): array {
+    return array_keys(AVESMAPS_WIKI_CATEGORY_TO_CLASS);
+}
+
+function avesmapsWikiSyncFetchCategoryMemberTitles(string $categoryName): array {
+    $titles = [];
+    $continueToken = null;
+
+    do {
+        $params = [
+            'action' => 'query',
+            'list' => 'categorymembers',
+            'cmtitle' => 'Kategorie:' . $categoryName,
+            'cmnamespace' => 0,
+            'cmlimit' => 500,
+        ];
+
+        if ($continueToken !== null) {
+            $params['cmcontinue'] = $continueToken;
+        }
+
+        $data = avesmapsWikiSyncApiRequest($params);
+        $members = $data['query']['categorymembers'] ?? [];
+
+        if (is_array($members)) {
+            foreach ($members as $member) {
+                $title = trim((string) ($member['title'] ?? ''));
+                if ($title !== '') {
+                    $titles[$title] = $title;
+                }
+            }
+        }
+
+        $continueToken = isset($data['continue']['cmcontinue'])
+            ? (string) $data['continue']['cmcontinue']
+            : null;
+    } while ($continueToken !== null && $continueToken !== '');
+
+    natcasesort($titles);
+    return array_values($titles);
+}
+
 function avesmapsWikiSyncEnsureLocationTables(PDO $pdo): void {
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS wiki_sync_cases (
