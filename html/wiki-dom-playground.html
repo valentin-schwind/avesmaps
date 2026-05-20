@@ -8,12 +8,12 @@
 		:root { --page-bg:#f4efe7; --page-bg-deep:#2f322c; --panel:#fff9f4; --panel-muted:#f8efe4; --text:#2f251c; --muted:#6c5a49; --border:#d8c6b2; --danger:#8a3a1b; --ok:#3d6b44; --shadow:rgba(0,0,0,.16); }
 		* { box-sizing:border-box; }
 		body { margin:0; font-family:Arial,sans-serif; font-size:14px; background:var(--page-bg-deep); color:var(--text); }
-		.app { width:min(1180px,100%); min-height:100vh; margin:0 auto; background:var(--page-bg); box-shadow:0 0 30px rgba(0,0,0,.28); }
+		.app { width:min(1560px,100%); min-height:100vh; margin:0 auto; background:var(--page-bg); box-shadow:0 0 30px rgba(0,0,0,.28); }
 		header { padding:20px 24px; background:rgba(255,249,244,.96); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:10; }
 		h1 { margin:0 0 6px; font-size:24px; }
 		p { margin:0; color:var(--muted); line-height:1.45; }
 		code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:#235f82; }
-		main { padding:18px; display:grid; grid-template-columns:minmax(320px,420px) minmax(0,1fr); gap:16px; }
+		main { padding:18px; display:grid; grid-template-columns:minmax(320px,390px) minmax(0,1fr); gap:16px; }
 		.panel { background:var(--panel); border:1px solid var(--border); box-shadow:0 8px 24px var(--shadow); padding:14px; }
 		.panel h2 { margin:0 0 10px; font-size:17px; }
 		label { display:block; font-weight:700; margin:12px 0 5px; }
@@ -37,6 +37,12 @@
 		.badge.warn { color:var(--danger); }
 		.date-main { font-weight:700; }
 		.date-raw { display:block; margin-top:2px; color:var(--muted); }
+		.coat-cell { min-width:70px; text-align:center; }
+		.coat-preview { display:inline-flex; width:52px; min-height:52px; align-items:center; justify-content:center; border:1px solid var(--border); background:#fffaf0; text-decoration:none; }
+		.coat-preview img { max-width:48px; max-height:48px; object-fit:contain; display:block; }
+		.coat-preview span { display:none; font-size:11px; color:#235f82; }
+		.coat-preview.broken img { display:none; }
+		.coat-preview.broken span { display:inline; }
 		pre { margin:0; white-space:pre-wrap; word-break:break-word; font-size:11px; }
 		@media (max-width:900px) { main { grid-template-columns:1fr; } .summary { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 	</style>
@@ -81,7 +87,7 @@
 				<div id="runInfo" class="status">Noch kein Lauf in dieser Ansicht.</div>
 				<div style="overflow:auto; margin-top:12px; max-height:65vh;">
 					<table>
-						<thead><tr><th>Name</th><th>Typ</th><th>Kontinent</th><th>Pfad</th><th>Gründung</th><th>Auflösung</th><th>Quelle</th></tr></thead>
+						<thead><tr><th>Name</th><th>Wappen</th><th>Typ</th><th>Kontinent</th><th>Pfad</th><th>Gründung</th><th>Auflösung</th><th>Quelle</th></tr></thead>
 						<tbody id="rows"></tbody>
 					</table>
 				</div>
@@ -130,10 +136,15 @@
 				const raw = item.raw || {};
 				const tr = document.createElement('tr');
 				const path = Array.isArray(item.affiliation_path) ? item.affiliation_path.join(' > ') : '';
-				tr.innerHTML = `<td><strong>${escapeHtml(item.name || '')}</strong><br><span class="badge ${raw.synthetic ? 'warn' : 'ok'}">${raw.synthetic ? 'synthetisch' : 'geholt'}</span></td><td>${escapeHtml(item.type || '')}</td><td>${escapeHtml(item.continent || '')}</td><td>${escapeHtml(path || item.affiliation_root || '')}</td><td>${formatDateCell(item, 'founded')}</td><td>${formatDateCell(item, 'dissolved')}</td><td>${item.wiki_url ? `<a href="${escapeAttr(item.wiki_url)}" target="_blank" rel="noreferrer">Wiki</a>` : ''}</td>`;
+				tr.innerHTML = `<td><strong>${escapeHtml(item.name || '')}</strong><br><span class="badge ${raw.synthetic ? 'warn' : 'ok'}">${raw.synthetic ? 'synthetisch' : 'geholt'}</span></td><td class="coat-cell">${formatCoatCell(item)}</td><td>${escapeHtml(item.type || '')}</td><td>${escapeHtml(item.continent || '')}</td><td>${escapeHtml(path || item.affiliation_root || '')}</td><td>${formatDateCell(item, 'founded')}</td><td>${formatDateCell(item, 'dissolved')}</td><td>${item.wiki_url ? `<a href="${escapeAttr(item.wiki_url)}" target="_blank" rel="noreferrer">Wiki</a>` : ''}</td>`;
 				els.rows.appendChild(tr);
 			}
 			els.debug.textContent = JSON.stringify(buildDebug(payload, items), null, '\t');
+		}
+		function formatCoatCell(item) {
+			const url = item.coat_of_arms_url || '';
+			if (!url) return '';
+			return `<a class="coat-preview" href="${escapeAttr(url)}" target="_blank" rel="noreferrer" title="Wappen öffnen"><img src="${escapeAttr(url)}" alt="Wappen" loading="lazy" onerror="this.parentElement.classList.add('broken')"><span>Wappen</span></a>`;
 		}
 		function formatDateCell(item, prefix) {
 			const text = item[`${prefix}_text`] || '';
@@ -159,7 +170,7 @@
 			return `${value} BF`;
 		}
 		function runSummary(run, count) { if (!run) return `Tabellenstand geladen: ${count} Datensätze.`; const errors = Array.isArray(run.errors) ? run.errors.length : 0; const events = Array.isArray(run.events) ? run.events.length : 0; return `Fertig: ${count} Datensätze, ${run.fetched_pages ?? 0} neu geholt, ${run.skipped_existing ?? 0} übersprungen, ${run.queued_child_links ?? 0} Kinderlinks, ${errors} Fehler, ${events} Ereignisse, ${run.runtime_seconds ?? '?'}s.`; }
-		function buildDebug(payload, items) { return { run: payload.run || null, rows: items.map(item => { const raw = item.raw || {}; const fields = raw.fields || {}; return { name: item.name || '', wiki_url: item.wiki_url || '', continent: item.continent || '', missing: { type: !(item.type || ''), continent: !(item.continent || ''), path: !(Array.isArray(item.affiliation_path) && item.affiliation_path.length), founded: !(item.founded_text || item.founded_start_bf), dissolved: !(item.dissolved_text || item.dissolved_start_bf) }, relevant_fields: { art: fields.art, typ: fields.typ, staat: fields.staat, staatverlauf: fields.staatverlauf, region: fields.region, gruendungsdatum: fields.gruendungsdatum, gruendung: fields.gruendung, unabhaengigkeit: fields.unabhaengigkeit, aufgeloest: fields.aufgeloest, status: fields.status }, field_keys: Object.keys(fields), path: raw.path || null, temporal: raw.temporal || [], children: raw.children || [] }; }), events: payload.run?.events || [], errors: payload.run?.errors || [] }; }
+		function buildDebug(payload, items) { return { run: payload.run || null, rows: items.map(item => { const raw = item.raw || {}; const fields = raw.fields || {}; return { name: item.name || '', wiki_url: item.wiki_url || '', coat_of_arms_url: item.coat_of_arms_url || '', blazon: item.blazon || '', continent: item.continent || '', missing: { type: !(item.type || ''), continent: !(item.continent || ''), coat_of_arms_url: !(item.coat_of_arms_url || ''), path: !(Array.isArray(item.affiliation_path) && item.affiliation_path.length), founded: !(item.founded_text || item.founded_start_bf), dissolved: !(item.dissolved_text || item.dissolved_start_bf) }, relevant_fields: { art: fields.art, typ: fields.typ, staat: fields.staat, staatverlauf: fields.staatverlauf, region: fields.region, gruendungsdatum: fields.gruendungsdatum, gruendung: fields.gruendung, unabhaengigkeit: fields.unabhaengigkeit, aufgeloest: fields.aufgeloest, status: fields.status, blasonierung: fields.blasonierung }, field_keys: Object.keys(fields), path: raw.path || null, temporal: raw.temporal || [], heraldry: raw.heraldry || null, children: raw.children || [] }; }), events: payload.run?.events || [], errors: payload.run?.errors || [] }; }
 		function escapeHtml(value) { return String(value ?? '').replace(/[&<>"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char])); }
 		function escapeAttr(value) { return escapeHtml(value).replace(/'/g, '&#039;'); }
 		els.runBtn.addEventListener('click', runImport);
