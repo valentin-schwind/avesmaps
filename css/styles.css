@@ -1496,6 +1496,13 @@ body.modal-dialog-open {
 	font-weight: bold;
 }
 
+.political-territory-parent-tree__toggle-spacer {
+	display: inline-block;
+	width: 16px;
+	height: 16px;
+	flex: 0 0 16px;
+}
+
 .political-territory-parent-tree__toggle::before {
 	content: "";
 	display: inline-block;

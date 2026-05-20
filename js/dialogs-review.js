@@ -4096,7 +4096,7 @@ function createWikiSyncTerritoryTreeButton(node, hasChildren) {
 	button.classList.toggle("is-collapsed", hasChildren && isWikiSyncTerritoryTreeNodeCollapsed(node));
 
 	button.innerHTML = `
-		<span class="political-territory-parent-tree__toggle" aria-hidden="true"></span>
+		<span class="${hasChildren ? "political-territory-parent-tree__toggle" : "political-territory-parent-tree__toggle-spacer"}" aria-hidden="true"></span>
 		<span class="political-territory-parent-tree__name"></span>
 		<span class="political-territory-parent-tree__meta"></span>
 	`;
