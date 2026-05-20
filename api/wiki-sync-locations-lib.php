@@ -247,6 +247,167 @@ function avesmapsWikiSyncReadMapPlaces(PDO $pdo): array {
     return $places;
 }
 
+function avesmapsWikiSyncMatchMapPlaces(PDO $pdo, array $mapPlaces, array $settlementTitles): array {
+    $wikiPagesByTitle = avesmapsWikiSyncFetchPagesByTitle($pdo, $settlementTitles, false, false);
+
+    $wikiPlaces = [];
+    foreach ($settlementTitles as $title) {
+        $title = trim((string) $title);
+        if ($title === '') {
+            continue;
+        }
+
+        $page = $wikiPagesByTitle[$title] ?? null;
+        $wikiPlaces[] = [
+            'title' => $title,
+            'normalized_key' => avesmapsWikiSyncCreateMatchKey($title),
+            'settlement_class' => avesmapsWikiSyncInferSettlementClassFromPage($page, $title),
+            'url' => avesmapsWikiSyncPageUrl($title),
+            'page' => is_array($page) ? $page : null,
+        ];
+    }
+
+    $wikiByKey = [];
+    foreach ($wikiPlaces as $wikiPlace) {
+        $key = (string) ($wikiPlace['normalized_key'] ?? '');
+        if ($key !== '') {
+            $wikiByKey[$key][] = $wikiPlace;
+        }
+    }
+
+    $matchedWikiTitles = [];
+    $matches = [];
+    $unresolved = [];
+
+    foreach ($mapPlaces as $mapPlace) {
+        $mapKey = (string) ($mapPlace['normalized_key'] ?? '');
+        $candidates = $mapKey !== '' ? ($wikiByKey[$mapKey] ?? []) : [];
+
+        if (count($candidates) === 1) {
+            $wikiPlace = $candidates[0];
+            $matchedWikiTitles[(string) $wikiPlace['title']] = true;
+            $matches[] = [
+                'match_kind' => 'exact',
+                'score' => 1.0,
+                'map' => $mapPlace,
+                'wiki' => avesmapsWikiSyncBuildPublicWikiPlace($wikiPlace),
+            ];
+            continue;
+        }
+
+        if (count($candidates) > 1) {
+            $candidatePayloads = array_map(
+                static fn(array $candidate): array => [
+                    'match_kind' => 'exact',
+                    'score' => 1.0,
+                    'wiki' => avesmapsWikiSyncBuildPublicWikiPlace($candidate),
+                ],
+                $candidates
+            );
+
+            foreach ($candidates as $candidate) {
+                $matchedWikiTitles[(string) $candidate['title']] = true;
+            }
+
+            $unresolved[] = [
+                'map' => $mapPlace,
+                'candidates' => $candidatePayloads,
+            ];
+            continue;
+        }
+
+        $probableCandidates = avesmapsWikiSyncFindProbableWikiMatches($mapPlace, $wikiPlaces);
+        foreach ($probableCandidates as $candidate) {
+            $matchedWikiTitles[(string) ($candidate['wiki']['title'] ?? '')] = true;
+        }
+
+        $unresolved[] = [
+            'map' => $mapPlace,
+            'candidates' => $probableCandidates,
+        ];
+    }
+
+    return [
+        'matches' => $matches,
+        'unresolved' => $unresolved,
+        'matched_titles' => array_keys($matchedWikiTitles),
+    ];
+}
+
+function avesmapsWikiSyncBuildPublicWikiPlace(array $wikiPlace): array {
+    return [
+        'title' => (string) ($wikiPlace['title'] ?? ''),
+        'normalized_key' => (string) ($wikiPlace['normalized_key'] ?? ''),
+        'settlement_class' => (string) ($wikiPlace['settlement_class'] ?? ''),
+        'url' => (string) ($wikiPlace['url'] ?? ''),
+    ];
+}
+
+function avesmapsWikiSyncFindProbableWikiMatches(array $mapPlace, array $wikiPlaces): array {
+    $mapName = (string) ($mapPlace['name'] ?? '');
+    $mapKey = (string) ($mapPlace['normalized_key'] ?? '');
+    if ($mapName === '' || $mapKey === '') {
+        return [];
+    }
+
+    $candidates = [];
+    foreach ($wikiPlaces as $wikiPlace) {
+        $wikiKey = (string) ($wikiPlace['normalized_key'] ?? '');
+        if ($wikiKey === '') {
+            continue;
+        }
+
+        $score = avesmapsWikiSyncSimilarityScore($mapKey, $wikiKey);
+        if ($score < AVESMAPS_WIKI_FUZZY_CUTOFF) {
+            continue;
+        }
+
+        $candidates[] = [
+            'match_kind' => 'probable',
+            'score' => $score,
+            'wiki' => avesmapsWikiSyncBuildPublicWikiPlace($wikiPlace),
+        ];
+    }
+
+    usort(
+        $candidates,
+        static fn(array $left, array $right): int => ($right['score'] <=> $left['score'])
+            ?: strcasecmp((string) ($left['wiki']['title'] ?? ''), (string) ($right['wiki']['title'] ?? ''))
+    );
+
+    return array_slice($candidates, 0, AVESMAPS_WIKI_SEARCH_RESULT_LIMIT);
+}
+
+function avesmapsWikiSyncSimilarityScore(string $left, string $right): float {
+    if ($left === '' || $right === '') {
+        return 0.0;
+    }
+
+    if ($left === $right) {
+        return 1.0;
+    }
+
+    similar_text($left, $right, $percent);
+    return ((float) $percent) / 100.0;
+}
+
+function avesmapsWikiSyncInferSettlementClassFromPage(?array $page, string $fallbackTitle = ''): string {
+    if (is_array($page)) {
+        $categories = $page['categories'] ?? [];
+        if (is_array($categories)) {
+            foreach ($categories as $category) {
+                $categoryTitle = (string) ($category['title'] ?? '');
+                $categoryName = preg_replace('/^Kategorie:/u', '', $categoryTitle) ?? $categoryTitle;
+                if (isset(AVESMAPS_WIKI_CATEGORY_TO_CLASS[$categoryName])) {
+                    return AVESMAPS_WIKI_CATEGORY_TO_CLASS[$categoryName];
+                }
+            }
+        }
+    }
+
+    return 'dorf';
+}
+
 function avesmapsWikiSyncFetchMissingWikiPlaces(PDO $pdo, array $settlementTitles, array $matchedTitles): array {
     $matchedTitleSet = array_fill_keys($matchedTitles, true);
     $missingTitles = [];
