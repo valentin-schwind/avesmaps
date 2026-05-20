@@ -3753,7 +3753,22 @@ function setWikiSyncLocationsRunning(isRunning, run = null) {
 		buttonElement.textContent = isRunning ? "Synchronisiert..." : "WikiSync";
 	}
 
-	// progress wie bisher
+	const progressElement = document.getElementById("wiki-sync-progress");
+	if (progressElement) {
+		progressElement.hidden = !isRunning;
+
+		if (isRunning) {
+			const completedSteps = Number(run?.completed_steps ?? run?.processed_steps ?? run?.step ?? 0);
+			const totalSteps = Number(run?.total_steps ?? run?.steps_total ?? progressElement.max ?? 5);
+
+			progressElement.max = Number.isFinite(totalSteps) && totalSteps > 0 ? totalSteps : 5;
+			progressElement.value = Number.isFinite(completedSteps) && completedSteps >= 0 ? completedSteps : 0;
+		} else {
+			progressElement.value = 0;
+		}
+	}
+
+	syncWikiSyncPanelHeaderState();
 }
 
 function setWikiSyncTerritoriesRunning(isRunning) {
@@ -3764,6 +3779,15 @@ function setWikiSyncTerritoriesRunning(isRunning) {
 		buttonElement.disabled = isRunning || isWikiSyncLocationsRunning;
 		buttonElement.textContent = isRunning ? "Synchronisiert..." : "WikiSync";
 	}
+
+	const progressElement = document.getElementById("wiki-sync-territories-progress");
+	if (progressElement) {
+		progressElement.hidden = !isRunning;
+		progressElement.max = 1;
+		progressElement.value = isRunning ? 0 : 0;
+	}
+
+	syncWikiSyncPanelHeaderState();
 }
 
 function setEditorPanelTab(tabName) {
