@@ -4134,7 +4134,7 @@ function isWikiSyncTerritoryTreeNodeCollapsed(node) {
 	return getWikiSyncTerritoryFilterQuery() === ""
 		&& Array.isArray(node.children)
 		&& node.children.length > 0
-		&& !wikiSyncTerritoryExpandedKeys.has(node.key);
+		&& !regionParentCollapsedKeys.has(node.key);
 }
 
 function doesWikiSyncTerritoryTreeNodeMatchFilter(node) {
@@ -4154,10 +4154,10 @@ function toggleWikiSyncTerritoryTreeNode(buttonElement) {
 		return;
 	}
 
-	if (wikiSyncTerritoryExpandedKeys.has(toggleKey)) {
-		wikiSyncTerritoryExpandedKeys.delete(toggleKey);
+	if (regionParentCollapsedKeys.has(toggleKey)) {
+		regionParentCollapsedKeys.delete(toggleKey);
 	} else {
-		wikiSyncTerritoryExpandedKeys.add(toggleKey);
+		regionParentCollapsedKeys.add(toggleKey);
 	}
 	void renderWikiSyncTerritoryTree();
 }
@@ -4330,7 +4330,7 @@ function getWikiSyncTerritoryLoadedDataSummary() {
 	if (Array.isArray(politicalTerritoryHierarchy) && politicalTerritoryHierarchy.length > 0) {
 		rootCount = politicalTerritoryHierarchy.filter((node) => {
 			const name = String(node?.name || "").trim();
-			return name !== "" && name !== "Sonstiges";
+			return name !== "";
 		}).length;
 	} else if (Array.isArray(politicalTerritoryOptions) && politicalTerritoryOptions.length > 0) {
 		rootCount = politicalTerritoryOptions.filter((territory) => {
