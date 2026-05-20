@@ -1,0 +1,411 @@
+===avesmapsWikiSyncExtractCoordinatesFromContent
+start line 3393
+3393: function avesmapsWikiSyncExtractCoordinatesFromContent(string $content): array {
+3394:     if (preg_match('/\{\{DereGlobus-Link\|([^}]*)\}\}/su', $content, $dereglobusMatch) === 1) {
+3395:         $body = (string) ($dereglobusMatch[1] ?? '');
+3396:         $lonMatch = [];
+3397:         $latMatch = [];
+3398:         if (
+3399:             preg_match('/L\x{00E4}nge\(x\)\s*=\s*([-+]?\d+(?:\.\d+)?)/u', $body, $lonMatch) === 1
+3400:             && preg_match('/Breite\(y\)\s*=\s*([-+]?\d+(?:\.\d+)?)/u', $body, $latMatch) === 1
+3401:         ) {
+3402:             return [
+3403:                 'source' => 'dereglobus',
+3404:                 'x' => (float) $lonMatch[1],
+3405:                 'y' => (float) $latMatch[1],
+3406:             ];
+3407:         }
+3408:     }
+3409: 
+3410:     if (preg_match('/Positionskarte\s*=\s*\{\{Positionskarte\|([^}]*)\}\}/su', $content, $positionskarteMatch) === 1) {
+3411:         $body = (string) ($positionskarteMatch[1] ?? '');
+3412:         $xMatch = [];
+3413:         $yMatch = [];
+3414:         if (
+3415:             preg_match('/\bX\s*=\s*([-+]?\d+(?:\.\d+)?)/u', $body, $xMatch) === 1
+3416:             && preg_match('/\bY\s*=\s*([-+]?\d+(?:\.\d+)?)/u', $body, $yMatch) === 1
+3417:         ) {
+3418:             return [
+3419:                 'source' => 'positionskarte',
+3420:                 'x' => (float) $xMatch[1],
+3421:                 'y' => (float) $yMatch[1],
+3422:             ];
+3423:         }
+3424:     }
+3425: 
+3426:     return [
+3427:         'source' => 'none',
+3428:         'x' => null,
+3429:         'y' => null,
+3430:     ];
+3431: }
+3432: 
+3433: function avesmapsWikiSyncCoordinatesToMapLocation(array $coordinates): ?array {
+3434:     $source = (string) ($coordinates['source'] ?? 'none');
+3435:     $x = $coordinates['x'] ?? null;
+3436:     $y = $coordinates['y'] ?? null;
+3437:     if (!is_numeric($x) || !is_numeric($y)) {
+3438:         return null;
+3439:     }
+3440: 
+3441:     if ($source === 'dereglobus') {
+3442:         $lng = (float) $x * AVESMAPS_DEREGLOBUS_TO_MAP['x_lon']
+3443:             + (float) $y * AVESMAPS_DEREGLOBUS_TO_MAP['x_lat']
+3444:             + AVESMAPS_DEREGLOBUS_TO_MAP['x_offset'];
+3445:         $lat = (float) $x * AVESMAPS_DEREGLOBUS_TO_MAP['y_lon']
+3446:             + (float) $y * AVESMAPS_DEREGLOBUS_TO_MAP['y_lat']
+3447:             + AVESMAPS_DEREGLOBUS_TO_MAP['y_offset'];
+3448: 
+3449:         return avesmapsWikiSyncBuildConvertedMapLocation(
+3450:             'dereglobus',
+3451:             'DereGlobus',
+3452:             $lat,
+3453:             $lng,
+3454:             'high',
+3455:             [],
+3456:             ['lon' => (float) $x, 'lat' => (float) $y]
+3457:         );
+3458:     }
+3459: 
+3460:     if ($source === 'positionskarte') {
+3461:         $lng = (float) $x * AVESMAPS_POSITIONKARTE_TO_MAP['x_x']
+3462:             + (float) $y * AVESMAPS_POSITIONKARTE_TO_MAP['x_y']
+3463:             + AVESMAPS_POSITIONKARTE_TO_MAP['x_offset'];
+3464:         $lat = (float) $x * AVESMAPS_POSITIONKARTE_TO_MAP['y_x']
+3465:             + (float) $y * AVESMAPS_POSITIONKARTE_TO_MAP['y_y']
+3466:             + AVESMAPS_POSITIONKARTE_TO_MAP['y_offset'];
+3467: 
+3468:         return avesmapsWikiSyncBuildConvertedMapLocation(
+3469:             'positionskarte',
+3470:             'Positionskarte',
+3471:             $lat,
+3472:             $lng,
+3473:             'medium',
+3474:             ["Positionskarte ist gr\u{00F6}ber als DereGlobus und sollte manuell gepr\u{00FC}ft werden."],
+3475:             ['x' => (float) $x, 'y' => (float) $y]
+3476:         );
+3477:     }
+3478: 
+3479:     return null;
+3480: }
+3481: 
+3482: function avesmapsWikiSyncBuildConvertedMapLocation(
+3483:     string $source,
+3484:     string $sourceLabel,
+3485:     float $lat,
+3486:     float $lng,
+3487:     string $confidence,
+3488:     array $warnings,
+3489:     array $sourceCoordinates
+3490: ): ?array {
+3491:     if ($lat < 0 || $lat > 1024 || $lng < 0 || $lng > 1024) {
+3492:         return null;
+
+===avesmapsWikiSyncReadLocationName
+start line 3558
+3558: function avesmapsWikiSyncReadLocationName(mixed $value): string {
+3559:     $name = avesmapsNormalizeSingleLine((string) $value, 160);
+3560:     if ($name === '') {
+3561:         throw new InvalidArgumentException('Der Ortsname fehlt.');
+3562:     }
+3563: 
+3564:     return $name;
+3565: }
+3566: 
+3567: function avesmapsWikiSyncReadLocationSubtype(mixed $value): string {
+3568:     $subtype = avesmapsNormalizeSingleLine((string) ($value ?: 'dorf'), 60);
+3569:     if (!array_key_exists($subtype, AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS)) {
+3570:         throw new InvalidArgumentException('Die Ortsgroesse ist ungueltig.');
+3571:     }
+3572: 
+3573:     return $subtype;
+3574: }
+3575: 
+3576: function avesmapsWikiSyncReadSettlementClass(string $value): string {
+3577:     return array_key_exists($value, AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS) ? $value : 'dorf';
+3578: }
+3579: 
+3580: function avesmapsWikiSyncLocationSubtypeLabel(string $subtype): string {
+3581:     return match ($subtype) {
+3582:         "gebaeude" => "Besondere Bauwerke/St\u{00E4}tten",
+3583:         'metropole' => 'Metropole',
+3584:         "grossstadt" => "Gro\u{00DF}stadt",
+3585:         'stadt' => 'Stadt',
+3586:         'kleinstadt' => 'Kleinstadt',
+3587:         default => 'Dorf',
+3588:     };
+3589: }
+3590: 
+3591: function avesmapsWikiSyncNormalizeDuplicateLocationName(string $value): string {
+3592:     $normalizedValue = mb_strtolower($value);
+3593:     return preg_replace('/[^\p{L}\p{N}]+/u', '', $normalizedValue) ?? '';
+3594: }
+3595: 
+3596: function avesmapsWikiSyncAssertUniqueLocationName(PDO $pdo, string $name, ?string $excludePublicId = null): void {
+3597:     $normalizedName = avesmapsWikiSyncNormalizeDuplicateLocationName($name);
+3598:     if ($normalizedName === '') {
+3599:         return;
+3600:     }
+3601: 
+3602:     $statement = $pdo->prepare(
+3603:         'SELECT public_id, name
+3604:         FROM map_features
+3605:         WHERE feature_type = :feature_type
+3606:             AND is_active = 1'
+3607:         . ($excludePublicId !== null && $excludePublicId !== '' ? ' AND public_id <> :public_id' : '')
+3608:     );
+3609:     $params = [
+3610:         'feature_type' => 'location',
+3611:     ];
+3612:     if ($excludePublicId !== null && $excludePublicId !== '') {
+3613:         $params['public_id'] = $excludePublicId;
+3614:     }
+3615:     $statement->execute($params);
+3616: 
+3617:     foreach ($statement->fetchAll() as $row) {
+3618:         $existingName = (string) ($row['name'] ?? '');
+3619:         if ($existingName !== '' && avesmapsWikiSyncNormalizeDuplicateLocationName($existingName) === $normalizedName) {
+3620:             throw new InvalidArgumentException('Ein Ort mit diesem Namen existiert bereits.');
+3621:         }
+3622:     }
+3623: }
+3624: 
+3625: function avesmapsWikiSyncFetchEditablePointFeature(PDO $pdo, string $publicId): array {
+3626:     $statement = $pdo->prepare(
+3627:         'SELECT id, public_id, feature_type, feature_subtype, name, geometry_type, geometry_json, properties_json, style_json, revision
+3628:         FROM map_features
+3629:         WHERE public_id = :public_id
+3630:             AND is_active = 1
+3631:         LIMIT 1
+3632:         FOR UPDATE'
+3633:     );
+3634:     $statement->execute(['public_id' => $publicId]);
+3635:     $feature = $statement->fetch();
+3636:     if (!$feature) {
+3637:         throw new InvalidArgumentException('Das Kartenobjekt wurde nicht gefunden.');
+3638:     }
+3639:     if ((string) $feature['geometry_type'] !== 'Point') {
+3640:         throw new InvalidArgumentException('WikiSync kann nur Punkte bearbeiten.');
+3641:     }
+3642: 
+3643:     return $feature;
+3644: }
+3645: 
+3646: function avesmapsWikiSyncAssertFeatureCanBeEdited(PDO $pdo, array $payload, array $feature, array $user): void {
+3647:     $expectedRevision = $payload['expected_revision'] ?? null;
+3648:     if ($expectedRevision !== null && $expectedRevision !== '') {
+3649:         $parsedRevision = filter_var($expectedRevision, FILTER_VALIDATE_INT);
+3650:         if ($parsedRevision === false || $parsedRevision < 0) {
+3651:             throw new InvalidArgumentException('Die Feature-Revision ist ungueltig.');
+3652:         }
+3653:         if ((int) $parsedRevision !== (int) $feature['revision']) {
+3654:             throw new RuntimeException('Dieses Kartenobjekt wurde inzwischen geaendert. Bitte neu laden.');
+3655:         }
+3656:     }
+3657: 
+
+===avesmapsWikiSyncBuildCase
+start line 2926
+2926: function avesmapsWikiSyncBuildCase(string $caseType, array $payload): array {
+2927:     $mapPublicId = (string) ($payload['map']['public_id'] ?? '');
+2928:     $mapFeatureId = isset($payload['map']['id']) ? (int) $payload['map']['id'] : null;
+2929:     $wikiTitle = (string) ($payload['wiki']['title'] ?? '');
+2930:     $caseSeed = implode('|', [
+2931:         AVESMAPS_WIKI_SYNC_TYPE_LOCATION,
+2932:         $caseType,
+2933:         $mapPublicId,
+2934:         $wikiTitle,
+2935:         hash('sha256', avesmapsWikiSyncEncodeJson($payload['matches'] ?? $payload['candidates'] ?? [])),
+2936:     ]);
+2937:     $caseKey = hash('sha256', $caseSeed);
+2938:     $signatureHash = hash('sha256', avesmapsWikiSyncEncodeJson($payload));
+2939: 
+2940:     return [
+2941:         'case_key' => $caseKey,
+2942:         'case_type' => $caseType,
+2943:         'map_feature_id' => $mapFeatureId,
+2944:         'map_public_id' => $mapPublicId !== '' ? $mapPublicId : null,
+2945:         'wiki_title' => $wikiTitle !== '' ? $wikiTitle : null,
+2946:         'payload' => $payload,
+2947:         'signature_hash' => $signatureHash,
+2948:     ];
+2949: }
+2950: 
+2951: function avesmapsWikiSyncFindDuplicateMapPlaceNames(array $mapPlaces): array {
+2952:     $placesByName = [];
+2953:     foreach ($mapPlaces as $mapPlace) {
+2954:         $name = trim((string) ($mapPlace['name'] ?? ''));
+2955:         if ($name === '') {
+2956:             continue;
+2957:         }
+2958: 
+2959:         $placesByName[$name][] = avesmapsWikiSyncPublicDuplicateMapPlace($mapPlace);
+2960:     }
+2961: 
+2962:     uksort($placesByName, static fn(string $left, string $right): int => strcasecmp($left, $right));
+2963:     $duplicateGroups = [];
+2964:     foreach ($placesByName as $name => $places) {
+2965:         if (count($places) < 2) {
+2966:             continue;
+2967:         }
+2968: 
+2969:         usort(
+2970:             $places,
+2971:             static fn(array $left, array $right): int => strcmp((string) $left['public_id'], (string) $right['public_id'])
+2972:         );
+2973:         $duplicateGroups[] = [
+2974:             'name' => $name,
+2975:             'matches' => $places,
+2976:         ];
+2977:     }
+2978: 
+2979:     return $duplicateGroups;
+2980: }
+2981: 
+2982: function avesmapsWikiSyncPublicDuplicateMapPlace(array $mapPlace): array {
+2983:     return [
+2984:         'id' => (int) ($mapPlace['id'] ?? 0),
+2985:         'public_id' => (string) ($mapPlace['public_id'] ?? ''),
+2986:         'name' => (string) ($mapPlace['name'] ?? ''),
+2987:         'settlement_class' => (string) ($mapPlace['settlement_class'] ?? 'dorf'),
+2988:         'settlement_label' => (string) ($mapPlace['settlement_label'] ?? 'Dorf'),
+2989:         'lat' => (float) ($mapPlace['lat'] ?? 0),
+2990:         'lng' => (float) ($mapPlace['lng'] ?? 0),
+2991:         'revision' => (int) ($mapPlace['revision'] ?? 0),
+2992:     ];
+2993: }
+2994: 
+2995: function avesmapsWikiSyncUpsertCase(PDO $pdo, int $runId, array $case): void {
+2996:     $existingStatement = $pdo->prepare(
+2997:         'SELECT id, status, signature_hash
+2998:         FROM wiki_sync_cases
+2999:         WHERE case_key = :case_key
+3000:         LIMIT 1'
+3001:     );
+3002:     $existingStatement->execute(['case_key' => $case['case_key']]);
+3003:     $existing = $existingStatement->fetch();
+3004: 
+3005:     if (!$existing) {
+3006:         $insertStatement = $pdo->prepare(
+3007:             'INSERT INTO wiki_sync_cases (
+3008:                 case_key, sync_type, case_type, status, map_feature_id, map_public_id, wiki_title,
+3009:                 payload_json, signature_hash, first_seen_run_id, last_seen_run_id
+3010:             ) VALUES (
+3011:                 :case_key, :sync_type, :case_type, :status, :map_feature_id, :map_public_id, :wiki_title,
+3012:                 :payload_json, :signature_hash, :first_seen_run_id, :last_seen_run_id
+3013:             )'
+3014:         );
+3015:         $insertStatement->execute([
+3016:             'case_key' => $case['case_key'],
+3017:             'sync_type' => AVESMAPS_WIKI_SYNC_TYPE_LOCATION,
+3018:             'case_type' => $case['case_type'],
+3019:             'status' => 'open',
+3020:             'map_feature_id' => $case['map_feature_id'],
+3021:             'map_public_id' => $case['map_public_id'],
+3022:             'wiki_title' => $case['wiki_title'],
+3023:             'payload_json' => avesmapsWikiSyncEncodeJson($case['payload']),
+3024:             'signature_hash' => $case['signature_hash'],
+3025:             'first_seen_run_id' => $runId,
+
+===avesmapsWikiSyncReadPageContent
+start line 3538
+3538: function avesmapsWikiSyncReadPageContent(array $page): string {
+3539:     $revisions = $page['revisions'] ?? [];
+3540:     if (!is_array($revisions) || !isset($revisions[0]) || !is_array($revisions[0])) {
+3541:         return '';
+3542:     }
+3543: 
+3544:     return (string) ($revisions[0]['slots']['main']['content'] ?? $revisions[0]['content'] ?? '');
+3545: }
+3546: 
+3547: 
+3548: function avesmapsWikiSyncCoordinateSortValue(string $source): int {
+3549:     return match ($source) {
+3550:         'dereglobus' => 0,
+3551:         'positionskarte' => 1,
+3552:         default => 2,
+3553:     };
+3554: }
+3555: 
+3556: 
+3557: 
+3558: function avesmapsWikiSyncReadLocationName(mixed $value): string {
+3559:     $name = avesmapsNormalizeSingleLine((string) $value, 160);
+3560:     if ($name === '') {
+3561:         throw new InvalidArgumentException('Der Ortsname fehlt.');
+3562:     }
+3563: 
+3564:     return $name;
+3565: }
+3566: 
+3567: function avesmapsWikiSyncReadLocationSubtype(mixed $value): string {
+3568:     $subtype = avesmapsNormalizeSingleLine((string) ($value ?: 'dorf'), 60);
+3569:     if (!array_key_exists($subtype, AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS)) {
+3570:         throw new InvalidArgumentException('Die Ortsgroesse ist ungueltig.');
+3571:     }
+3572: 
+3573:     return $subtype;
+3574: }
+3575: 
+3576: function avesmapsWikiSyncReadSettlementClass(string $value): string {
+3577:     return array_key_exists($value, AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS) ? $value : 'dorf';
+3578: }
+3579: 
+3580: function avesmapsWikiSyncLocationSubtypeLabel(string $subtype): string {
+3581:     return match ($subtype) {
+3582:         "gebaeude" => "Besondere Bauwerke/St\u{00E4}tten",
+3583:         'metropole' => 'Metropole',
+3584:         "grossstadt" => "Gro\u{00DF}stadt",
+3585:         'stadt' => 'Stadt',
+3586:         'kleinstadt' => 'Kleinstadt',
+3587:         default => 'Dorf',
+3588:     };
+3589: }
+3590: 
+3591: function avesmapsWikiSyncNormalizeDuplicateLocationName(string $value): string {
+3592:     $normalizedValue = mb_strtolower($value);
+3593:     return preg_replace('/[^\p{L}\p{N}]+/u', '', $normalizedValue) ?? '';
+3594: }
+3595: 
+3596: function avesmapsWikiSyncAssertUniqueLocationName(PDO $pdo, string $name, ?string $excludePublicId = null): void {
+3597:     $normalizedName = avesmapsWikiSyncNormalizeDuplicateLocationName($name);
+3598:     if ($normalizedName === '') {
+3599:         return;
+3600:     }
+3601: 
+3602:     $statement = $pdo->prepare(
+3603:         'SELECT public_id, name
+3604:         FROM map_features
+3605:         WHERE feature_type = :feature_type
+3606:             AND is_active = 1'
+3607:         . ($excludePublicId !== null && $excludePublicId !== '' ? ' AND public_id <> :public_id' : '')
+3608:     );
+3609:     $params = [
+3610:         'feature_type' => 'location',
+3611:     ];
+3612:     if ($excludePublicId !== null && $excludePublicId !== '') {
+3613:         $params['public_id'] = $excludePublicId;
+3614:     }
+3615:     $statement->execute($params);
+3616: 
+3617:     foreach ($statement->fetchAll() as $row) {
+3618:         $existingName = (string) ($row['name'] ?? '');
+3619:         if ($existingName !== '' && avesmapsWikiSyncNormalizeDuplicateLocationName($existingName) === $normalizedName) {
+3620:             throw new InvalidArgumentException('Ein Ort mit diesem Namen existiert bereits.');
+3621:         }
+3622:     }
+3623: }
+3624: 
+3625: function avesmapsWikiSyncFetchEditablePointFeature(PDO $pdo, string $publicId): array {
+3626:     $statement = $pdo->prepare(
+3627:         'SELECT id, public_id, feature_type, feature_subtype, name, geometry_type, geometry_json, properties_json, style_json, revision
+3628:         FROM map_features
+3629:         WHERE public_id = :public_id
+3630:             AND is_active = 1
+3631:         LIMIT 1
+3632:         FOR UPDATE'
+3633:     );
+3634:     $statement->execute(['public_id' => $publicId]);
+3635:     $feature = $statement->fetch();
+3636:     if (!$feature) {
+3637:         throw new InvalidArgumentException('Das Kartenobjekt wurde nicht gefunden.');
