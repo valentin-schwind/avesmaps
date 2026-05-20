@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1); 
+declare(strict_types=1);
 
 require __DIR__ . '/auth.php';
 require_once __DIR__ . '/wiki-sync-lib.php';
@@ -8,185 +8,158 @@ require_once __DIR__ . '/wiki-sync-locations-lib.php';
 require_once __DIR__ . '/wiki-sync-territories-lib.php';
 require_once __DIR__ . '/political-territory-lib.php';
 
-function avesmapsWikiSyncReadLocationSubtype(mixed $value): string {
-    $subtype = avesmapsNormalizeSingleLine((string) ($value ?: 'dorf'), 60);
-    if (!array_key_exists($subtype, AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS)) {
-        throw new InvalidArgumentException('Die Ortsgroesse ist ungueltig.');
-    }
-
-    return $subtype;
-}
-
-function avesmapsWikiSyncReadSettlementClass(string $value): string {
-    return array_key_exists($value, AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS) ? $value : 'dorf';
-}
-
-function avesmapsWikiSyncLocationSubtypeLabel(string $subtype): string {
-    return match ($subtype) {
-        "gebaeude" => "Besondere Bauwerke/St\u{00E4}tten",
-        'metropole' => 'Metropole',
-        "grossstadt" => "Gro\u{00DF}stadt",
-        'stadt' => 'Stadt',
-        'kleinstadt' => 'Kleinstadt',
-        default => 'Dorf',
-    };
-}
-
-function avesmapsWikiSyncNormalizeDuplicateLocationName(string $value): string {
-    $normalizedValue = mb_strtolower($value);
-    return preg_replace('/[^\p{L}\p{N}]+/u', '', $normalizedValue) ?? '';
-}
-
-function avesmapsWikiSyncAssertUniqueLocationName(PDO $pdo, string $name, ?string $excludePublicId = null): void {
-    $normalizedName = avesmapsWikiSyncNormalizeDuplicateLocationName($name);
-    if ($normalizedName === '') {
+function avesmapsWikiSyncAssertEndpointScope(string $endpointScope, array $allowedScopes, string $action): void {
+    if (in_array($endpointScope, $allowedScopes, true)) {
         return;
     }
 
-    $statement = $pdo->prepare(
-        'SELECT public_id, name
-        FROM map_features
-        WHERE feature_type = :feature_type
-            AND is_active = 1'
-        . ($excludePublicId !== null && $excludePublicId !== '' ? ' AND public_id <> :public_id' : '')
-    );
-    $params = [
-        'feature_type' => 'location',
-    ];
-    if ($excludePublicId !== null && $excludePublicId !== '') {
-        $params['public_id'] = $excludePublicId;
-    }
-    $statement->execute($params);
+    throw new InvalidArgumentException("Diese WikiSync-Aktion ist an diesem Endpoint nicht erlaubt: {$action}");
+}
 
-    foreach ($statement->fetchAll() as $row) {
-        $existingName = (string) ($row['name'] ?? '');
-        if ($existingName !== '' && avesmapsWikiSyncNormalizeDuplicateLocationName($existingName) === $normalizedName) {
-            throw new InvalidArgumentException('Ein Ort mit diesem Namen existiert bereits.');
+function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
+    try {
+        $config = avesmapsLoadApiConfig(__DIR__);
+
+        if (!avesmapsApplyCorsPolicy($config)) {
+            avesmapsJsonResponse(403, [
+                'ok' => false,
+                'error' => 'Diese Herkunft darf WikiSync nicht verwenden.',
+            ]);
         }
-    }
-}
 
-function avesmapsWikiSyncFetchEditablePointFeature(PDO $pdo, string $publicId): array {
-    $statement = $pdo->prepare(
-        'SELECT id, public_id, feature_type, feature_subtype, name, geometry_type, geometry_json, properties_json, style_json, revision
-        FROM map_features
-        WHERE public_id = :public_id
-            AND is_active = 1
-        LIMIT 1
-        FOR UPDATE'
-    );
-    $statement->execute(['public_id' => $publicId]);
-    $feature = $statement->fetch();
-    if (!$feature) {
-        throw new InvalidArgumentException('Das Kartenobjekt wurde nicht gefunden.');
-    }
-    if ((string) $feature['geometry_type'] !== 'Point') {
-        throw new InvalidArgumentException('WikiSync kann nur Punkte bearbeiten.');
-    }
-
-    return $feature;
-}
-
-function avesmapsWikiSyncAssertFeatureCanBeEdited(PDO $pdo, array $payload, array $feature, array $user): void {
-    $expectedRevision = $payload['expected_revision'] ?? null;
-    if ($expectedRevision !== null && $expectedRevision !== '') {
-        $parsedRevision = filter_var($expectedRevision, FILTER_VALIDATE_INT);
-        if ($parsedRevision === false || $parsedRevision < 0) {
-            throw new InvalidArgumentException('Die Feature-Revision ist ungueltig.');
+        $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        if ($requestMethod === 'OPTIONS') {
+            avesmapsJsonResponse(204);
         }
-        if ((int) $parsedRevision !== (int) $feature['revision']) {
-            throw new RuntimeException('Dieses Kartenobjekt wurde inzwischen geaendert. Bitte neu laden.');
+
+        $user = avesmapsRequireUserWithCapability('review');
+        $pdo = avesmapsCreatePdo($config['database'] ?? []);
+        avesmapsWikiSyncEnsureTables($pdo);
+        avesmapsPoliticalEnsureTables($pdo);
+
+        if ($requestMethod === 'GET') {
+            $action = avesmapsNormalizeSingleLine((string) ($_GET['action'] ?? 'cases'), 80);
+            $forceRefresh = avesmapsWikiSyncReadBoolean($_GET['force_refresh'] ?? false);
+
+            $response = match ($action) {
+                'cases', '' => (function () use ($pdo, $endpointScope, $action): array {
+                    avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'locations'], $action);
+                    return avesmapsWikiSyncListCases($pdo);
+                })(),
+
+                'territories_tree' => (function () use ($pdo, $forceRefresh, $endpointScope, $action): array {
+                    avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'territories'], $action);
+                    return avesmapsWikiSyncReadPoliticalTerritoryTree($pdo, $forceRefresh);
+                })(),
+
+                'political_territory_tree' => (function () use ($pdo, $forceRefresh, $endpointScope, $action): array {
+                    avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'territories'], $action);
+                    return avesmapsWikiSyncReadPoliticalTerritoryTree($pdo, $forceRefresh);
+                })(),
+
+                default => throw new InvalidArgumentException('Die WikiSync-Aktion ist unbekannt.'),
+            };
+
+            avesmapsJsonResponse(200, $response);
         }
+
+        if ($requestMethod !== 'POST') {
+            avesmapsJsonResponse(405, [
+                'ok' => false,
+                'error' => 'Nur GET und POST sind fuer WikiSync erlaubt.',
+            ]);
+        }
+
+        $payload = avesmapsReadJsonRequest();
+        $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? ''), 60);
+
+        $response = match ($action) {
+            'start_run' => (function () use ($pdo, $user, $endpointScope, $action): array {
+                avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'locations'], $action);
+                return avesmapsWikiSyncStartRun($pdo, $user);
+            })(),
+
+            'advance_run' => (function () use ($pdo, $payload, $endpointScope, $action): array {
+                avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'locations'], $action);
+                return avesmapsWikiSyncAdvanceRun($pdo, $payload);
+            })(),
+
+            'defer_case' => (function () use ($pdo, $payload, $user, $endpointScope, $action): array {
+                avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'locations'], $action);
+                return avesmapsWikiSyncUpdateCaseStatus($pdo, $payload, $user, 'deferred');
+            })(),
+
+            'archive_case' => (function () use ($pdo, $payload, $user, $endpointScope, $action): array {
+                avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'locations'], $action);
+                return avesmapsWikiSyncUpdateCaseStatus($pdo, $payload, $user, 'archived');
+            })(),
+
+            'reopen_case' => (function () use ($pdo, $payload, $user, $endpointScope, $action): array {
+                avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'locations'], $action);
+                return avesmapsWikiSyncUpdateCaseStatus($pdo, $payload, $user, 'open');
+            })(),
+
+            'resolve_case' => (function () use ($pdo, $payload, $endpointScope, $action): array {
+                avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'locations'], $action);
+                return avesmapsWikiSyncResolveCase($pdo, $payload, avesmapsRequireUserWithCapability('edit'));
+            })(),
+
+            'sync_territories' => (function () use ($pdo, $endpointScope, $action): array {
+                avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'territories'], $action);
+                return avesmapsWikiSyncSyncTerritories($pdo, avesmapsRequireUserWithCapability('edit'));
+            })(),
+
+            default => throw new InvalidArgumentException('Die WikiSync-Aktion ist unbekannt.'),
+        };
+
+        avesmapsJsonResponse(200, $response);
+    } catch (InvalidArgumentException $exception) {
+        avesmapsJsonResponse(400, [
+            'ok' => false,
+            'error' => $exception->getMessage(),
+        ]);
+    } catch (PDOException $exception) {
+        avesmapsWikiSyncLogServerError('database_error', [
+            'exception_code' => (string) $exception->getCode(),
+            'exception_message' => $exception->getMessage(),
+            'sqlstate' => (string) ($exception->errorInfo[0] ?? ''),
+            'driver_code' => (string) ($exception->errorInfo[1] ?? ''),
+            'driver_message' => (string) ($exception->errorInfo[2] ?? ''),
+        ]);
+
+        avesmapsJsonResponse(500, [
+            'ok' => false,
+            'error' => 'WikiSync konnte die Datenbank nicht verarbeiten.',
+        ]);
+    } catch (RuntimeException $exception) {
+        avesmapsWikiSyncLogServerError('runtime_error', [
+            'exception_code' => (string) $exception->getCode(),
+            'exception_message' => $exception->getMessage(),
+        ]);
+
+        avesmapsJsonResponse(503, [
+            'ok' => false,
+            'error' => $exception->getMessage(),
+        ]);
+    } catch (Throwable $exception) {
+        avesmapsWikiSyncLogServerError('server_error', [
+            'exception_class' => $exception::class,
+            'exception_code' => (string) $exception->getCode(),
+            'exception_message' => $exception->getMessage(),
+        ]);
+
+        avesmapsJsonResponse(500, [
+            'ok' => false,
+            'error' => 'WikiSync konnte nicht verarbeitet werden.',
+        ]);
     }
-
-    $statement = $pdo->prepare(
-        'SELECT user_id, username
-        FROM map_feature_locks
-        WHERE public_id = :public_id
-            AND locked_until > NOW(3)
-        LIMIT 1'
-    );
-    $statement->execute(['public_id' => (string) $feature['public_id']]);
-    $lock = $statement->fetch();
-    if ($lock && (int) $lock['user_id'] !== (int) $user['id']) {
-        throw new RuntimeException('Dieses Kartenobjekt wird gerade von ' . (string) $lock['username'] . ' bearbeitet.');
-    }
 }
 
-function avesmapsWikiSyncEnsureMapFeatureLocksTable(PDO $pdo): void {
-    $pdo->exec(
-        "CREATE TABLE IF NOT EXISTS map_feature_locks (
-            public_id CHAR(36) NOT NULL,
-            user_id BIGINT UNSIGNED NOT NULL,
-            username VARCHAR(120) NOT NULL,
-            locked_until DATETIME(3) NOT NULL,
-            updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-            PRIMARY KEY (public_id),
-            KEY idx_map_feature_locks_locked_until (locked_until)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
+function avesmapsWikiSyncEnsureTables(PDO $pdo): void {
+    avesmapsWikiSyncEnsureCoreTables($pdo);
+    avesmapsWikiSyncEnsureLocationTables($pdo);
 }
 
-function avesmapsWikiSyncReadPointCoordinatesFromGeometry(array $geometry): array {
-    $coordinates = $geometry['coordinates'] ?? null;
-    if (!is_array($coordinates) || count($coordinates) < 2 || !is_numeric($coordinates[0]) || !is_numeric($coordinates[1])) {
-        throw new RuntimeException('Die Point-Geometrie ist ungueltig.');
-    }
-
-    return [(float) $coordinates[0], (float) $coordinates[1]];
-}
-
-function avesmapsWikiSyncNextMapRevision(PDO $pdo): int {
-    $pdo->exec(
-        'INSERT INTO map_revision (id, revision)
-        VALUES (1, 2)
-        ON DUPLICATE KEY UPDATE revision = revision + 1'
-    );
-
-    $statement = $pdo->query('SELECT revision FROM map_revision WHERE id = 1');
-    $revision = $statement !== false ? $statement->fetchColumn() : false;
-    if ($revision === false) {
-        throw new RuntimeException('Die Kartenrevision konnte nicht gelesen werden.');
-    }
-
-    return (int) $revision;
-}
-
-function avesmapsWikiSyncNextMapSortOrder(PDO $pdo): int {
-    $statement = $pdo->query('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM map_features');
-    $sortOrder = $statement !== false ? $statement->fetchColumn() : false;
-
-    return $sortOrder === false ? 1 : (int) $sortOrder;
-}
-
-function avesmapsWikiSyncWriteMapAuditLog(PDO $pdo, int $featureId, string $action, int $actorUserId, string $beforeJson, string $afterJson): void {
-    $statement = $pdo->prepare(
-        'INSERT INTO map_audit_log (feature_id, action, actor_user_id, before_json, after_json)
-        VALUES (:feature_id, :action, :actor_user_id, :before_json, :after_json)'
-    );
-    $statement->execute([
-        'feature_id' => $featureId,
-        'action' => $action,
-        'actor_user_id' => $actorUserId ?: null,
-        'before_json' => $beforeJson,
-        'after_json' => $afterJson,
-    ]);
-}
-
-function avesmapsWikiSyncBuildPointFeatureResponse(string $publicId, string $name, string $subtype, float $lat, float $lng, array $properties, int $revision): array {
-    return [
-        'public_id' => $publicId,
-        'name' => $name,
-        'feature_type' => 'location',
-        'feature_subtype' => $subtype,
-        'location_type' => $subtype,
-        'location_type_label' => avesmapsWikiSyncLocationSubtypeLabel($subtype),
-        'description' => (string) ($properties['description'] ?? ''),
-        'wiki_url' => (string) ($properties['wiki_url'] ?? ''),
-        'is_nodix' => !empty($properties['is_nodix']),
-        'is_ruined' => !empty($properties['is_ruined']),
-        'lat' => round($lat, 3),
-        'lng' => round($lng, 3),
-        'revision' => $revision,
-    ];
+if (!defined('AVESMAPS_WIKI_SYNC_NO_AUTO_HANDLE')) {
+    avesmapsWikiSyncHandleRequest('legacy');
 }
