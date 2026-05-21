@@ -9,6 +9,7 @@ function avesmapsWikiSyncReadPoliticalTerritoryDomTree(PDO $pdo, bool $forceRefr
     $rows = $domRows !== [] ? $domRows : avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache($pdo);
     if ($rows === []) $rows = avesmapsWikiSyncFetchDomTerritoryRows($pdo);
 
+    $rows = avesmapsWikiSyncSanitizeDomPoliticalTerritoryRowsForTree($rows);
     $rows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments($rows, avesmapsWikiSyncReadPoliticalTerritoryMapAssignments($pdo));
     $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($rows, false);
     $summary = avesmapsWikiSyncBuildPoliticalTerritoryTreeAssignmentSummary($rows, $tree['hierarchy']);
@@ -78,6 +79,7 @@ function avesmapsWikiSyncSyncTerritoriesFromDomCache(PDO $pdo, array $user, arra
     }
 
     if (!$dryRun) $promotedRows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache($pdo);
+    $promotedRows = avesmapsWikiSyncSanitizeDomPoliticalTerritoryRowsForTree($promotedRows);
     $promotedRows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments($promotedRows, avesmapsWikiSyncReadPoliticalTerritoryMapAssignments($pdo));
     $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($promotedRows, false);
     $treeSummary = avesmapsWikiSyncBuildPoliticalTerritoryTreeAssignmentSummary($promotedRows, $tree['hierarchy']);
@@ -105,4 +107,112 @@ function avesmapsWikiSyncFetchDomTerritoryRows(PDO $pdo): array {
     }
 
     return $rows;
+}
+
+function avesmapsWikiSyncSanitizeDomPoliticalTerritoryRowsForTree(array $rows): array {
+    return array_map(static function (array $row): array {
+        $name = (string) ($row['name'] ?? '');
+        $type = (string) ($row['type'] ?? '');
+
+        if (avesmapsWikiSyncIsDomPoliticalRootTerritory($name, $type)) {
+            $row['affiliation'] = '';
+            $row['affiliation_root'] = '';
+            $row['affiliation_path_json'] = [];
+            return $row;
+        }
+
+        $path = [];
+        if (is_array($row['affiliation_path_json'] ?? null)) {
+            $path = array_values(array_filter(array_map(
+                static fn(mixed $part): string => avesmapsWikiSyncNormalizeWikiTreeText((string) $part),
+                $row['affiliation_path_json']
+            ), static fn(string $part): bool => $part !== ''));
+        }
+
+        if ($path === []) {
+            $path = avesmapsWikiSyncReadPoliticalTerritoryPath($row);
+        }
+
+        $path = avesmapsWikiSyncSanitizeDomPoliticalTerritoryPath($path);
+
+        $row['affiliation'] = implode(' : ', $path);
+        $row['affiliation_root'] = $path[0] ?? '';
+        $row['affiliation_path_json'] = $path;
+
+        return $row;
+    }, $rows);
+}
+
+function avesmapsWikiSyncSanitizeDomPoliticalTerritoryPath(array $path): array {
+    $sanitized = [];
+    $seen = [];
+
+    foreach ($path as $part) {
+        $normalizedPart = avesmapsWikiSyncNormalizeWikiTreeText((string) $part);
+        if ($normalizedPart === '' || avesmapsWikiSyncIsInvalidDomSyntheticPoliticalPathPart($normalizedPart)) {
+            continue;
+        }
+
+        $key = avesmapsWikiSyncCreateMatchKey($normalizedPart);
+        if ($key === '' || isset($seen[$key])) {
+            continue;
+        }
+
+        $seen[$key] = true;
+        $sanitized[] = $normalizedPart;
+    }
+
+    return $sanitized;
+}
+
+function avesmapsWikiSyncIsDomPoliticalRootTerritory(string $name, string $type = ''): bool {
+    $name = avesmapsWikiSyncNormalizeWikiTreeText($name);
+    $type = avesmapsWikiSyncNormalizeWikiTreeText($type);
+    $nameKey = avesmapsWikiSyncCreateMatchKey($name);
+    $typeKey = avesmapsWikiSyncCreateMatchKey($type);
+
+    if ($nameKey === '' && $typeKey === '') {
+        return false;
+    }
+
+    return str_starts_with($nameKey, 'enklave')
+        || str_starts_with($typeKey, 'enklave')
+        || str_starts_with($nameKey, 'bergkonigreich')
+        || str_starts_with($nameKey, 'bergkoenigreich')
+        || str_starts_with($typeKey, 'bergkonigreich')
+        || str_starts_with($typeKey, 'bergkoenigreich');
+}
+
+function avesmapsWikiSyncIsInvalidDomSyntheticPoliticalPathPart(string $part): bool {
+    $part = avesmapsWikiSyncNormalizeWikiTreeText($part);
+    if ($part === '') {
+        return true;
+    }
+
+    if (preg_match('/^(?:\d{1,5}\s*(?:v\.\s*)?(?:BF|IZ)|\d{1,5})$/iu', $part) === 1) {
+        return true;
+    }
+
+    $key = avesmapsWikiSyncCreateMatchKey($part);
+    $invalidKeys = [
+        'aristrokatie',
+        'aristokratie',
+        'magokratie',
+        'geldaristrokratie',
+        'geldaristokratie',
+        'boronkratie',
+        'plutokratie',
+        'feudalherrschaft',
+        'matriachat',
+        'matriarchat',
+        'militarherrschaft',
+        'militaerherrschaft',
+        'oligarchie',
+        'theokratie',
+        'rondrakratie',
+        'desoptie',
+        'despotie',
+    ];
+
+    return in_array($key, $invalidKeys, true);
 }
