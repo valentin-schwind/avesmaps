@@ -170,12 +170,14 @@ function avesmapsWikiSyncIsDomPoliticalRootTerritory(string $name, string $type 
     $type = avesmapsWikiSyncNormalizeWikiTreeText($type);
     $nameKey = avesmapsWikiSyncCreateMatchKey($name);
     $typeKey = avesmapsWikiSyncCreateMatchKey($type);
+    $rawLabel = $name . ' ' . $type;
 
-    if ($nameKey === '' && $typeKey === '') {
+    if ($nameKey === '' && $typeKey === '' && trim($rawLabel) === '') {
         return false;
     }
 
-    return str_starts_with($nameKey, 'enklave')
+    return preg_match('/\b(?:Bergkönigreich|Bergkoenigreich|Bergkonigreich|Enklave)\b/iu', $rawLabel) === 1
+        || str_starts_with($nameKey, 'enklave')
         || str_starts_with($typeKey, 'enklave')
         || str_starts_with($nameKey, 'bergkonigreich')
         || str_starts_with($nameKey, 'bergkoenigreich')
