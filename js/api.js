@@ -319,3 +319,284 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 
 	return data;
 }
+
+(function installNoSyntheticPoliticalTerritoryWikiTreePatch() {
+	function normalizeText(value) {
+		return String(value ?? "")
+			.replace(/\u00a0/g, " ")
+			.replace(/\s+/g, " ")
+			.trim();
+	}
+
+	function makeKey(value) {
+		return normalizeText(value)
+			.toLowerCase()
+			.normalize("NFD")
+			.replace(/[\u0300-\u036f]/g, "")
+			.replace(/\u00df/g, "ss")
+			.replace(/[^a-z0-9]+/g, "-")
+			.replace(/^-+|-+$/g, "");
+	}
+
+	function rowKey(row) {
+		return makeKey(row?.name || row?.wiki_key || row?.id || "");
+	}
+
+	function wikiTitleFromUrl(url) {
+		const rawUrl = normalizeText(url);
+		if (!rawUrl) {
+			return "";
+		}
+
+		try {
+			const parsed = new URL(rawUrl, window.location?.origin || "https://avesmaps.de");
+			const marker = "/wiki/";
+			const path = parsed.pathname || "";
+			const markerIndex = path.indexOf(marker);
+			if (markerIndex < 0) {
+				return "";
+			}
+
+			return decodeURIComponent(path.slice(markerIndex + marker.length)).replace(/_/g, " ").trim();
+		} catch (error) {
+			return "";
+		}
+	}
+
+	function rowIdentityKey(row) {
+		if (!row || typeof row !== "object") {
+			return "";
+		}
+
+		const wikiKey = makeKey(row.wiki_key || "");
+		if (wikiKey !== "") {
+			return `wiki_key:${wikiKey}`;
+		}
+
+		const wikiTitle = wikiTitleFromUrl(row.wiki_url || "");
+		if (wikiTitle !== "") {
+			return `wiki_title:${makeKey(wikiTitle)}|name:${makeKey(row.name || "")}|type:${makeKey(row.type || "")}`;
+		}
+
+		const nameKey = makeKey(row.name || "");
+		const typeKey = makeKey(row.type || "");
+		if (nameKey !== "") {
+			return `name:${nameKey}|type:${typeKey}`;
+		}
+
+		const id = normalizeText(row.id);
+		return id ? `id:${id}` : "";
+	}
+
+	function stripDisplaySuffix(name) {
+		let normalizedName = normalizeText(name);
+		for (const suffix of ["Staat", "Imperium", "Reich", "Kalifat"]) {
+			const pattern = new RegExp(`\\s*\\(${suffix}\\)\\s*$`, "iu");
+			normalizedName = normalizeText(normalizedName.replace(pattern, ""));
+		}
+
+		return normalizedName;
+	}
+
+	function rowAliases(row) {
+		const aliases = new Set();
+		const name = normalizeText(row?.name);
+		if (name) {
+			aliases.add(name);
+			aliases.add(stripDisplaySuffix(name));
+		}
+
+		const title = wikiTitleFromUrl(row?.wiki_url || "");
+		if (title) {
+			aliases.add(title);
+			aliases.add(stripDisplaySuffix(title));
+		}
+
+		const fixedAliases = {
+			"Wiedererstandenes Reich des Horas": ["Horasreich"],
+			"Heiliges Neues Kaiserreich vom Greifenthron zu Gareth": ["Mittelreich"],
+			"Theaterritterliche Republik an Born und Walsach": ["Bornland"],
+		};
+
+		for (const alias of fixedAliases[name] || []) {
+			aliases.add(alias);
+		}
+
+		return [...aliases].filter(Boolean);
+	}
+
+	function buildRowIndex(rows) {
+		const index = new Map();
+		for (const row of rows) {
+			for (const alias of rowAliases(row)) {
+				const key = makeKey(alias);
+				if (key && !index.has(key)) {
+					index.set(key, row);
+				}
+			}
+		}
+
+		return index;
+	}
+
+	function createTreeNode(id, label, kind, row = null) {
+		return {
+			id,
+			label,
+			kind,
+			row,
+			parent: null,
+			children: [],
+			childMap: new Map(),
+		};
+	}
+
+	function rowMergeScore(row) {
+		let score = 0;
+		score += Number(row?.map_geometry_count || 0) * 100;
+		score += Number(row?.map_territory_count || 0) * 20;
+		for (const field of ["wiki_url", "wiki_key", "coat_of_arms_url", "founded_text", "dissolved_text", "type", "status", "affiliation_raw", "capital_name", "seat_name", "ruler"]) {
+			if (normalizeText(row?.[field]) !== "") {
+				score += 1;
+			}
+		}
+
+		return score;
+	}
+
+	function mergeRowsByIdentity(primary, secondary) {
+		const merged = rowMergeScore(secondary) > rowMergeScore(primary) ? { ...secondary } : { ...primary };
+		const fallback = merged === primary ? secondary : primary;
+		for (const key of Object.keys(fallback || {})) {
+			if ((merged[key] === null || typeof merged[key] === "undefined" || merged[key] === "")
+				&& fallback[key] !== null
+				&& typeof fallback[key] !== "undefined"
+				&& fallback[key] !== "") {
+				merged[key] = fallback[key];
+			}
+		}
+
+		merged.map_territory_count = Math.max(Number(merged.map_territory_count || 0), Number(fallback?.map_territory_count || 0));
+		merged.map_geometry_count = Math.max(Number(merged.map_geometry_count || 0), Number(fallback?.map_geometry_count || 0));
+		merged.map_assigned = Boolean(merged.map_assigned) || merged.map_geometry_count > 0;
+		return merged;
+	}
+
+	function registerNode(node, nodeRegistry) {
+		if (node.id !== "root") {
+			nodeRegistry.set(node.id, node);
+		}
+		for (const child of node.children) {
+			registerNode(child, nodeRegistry);
+		}
+	}
+
+	function sortTree(node) {
+		node.children.sort((left, right) => {
+			const leftFolder = left.children.length > 0 ? 0 : 1;
+			const rightFolder = right.children.length > 0 ? 0 : 1;
+			if (leftFolder !== rightFolder) {
+				return leftFolder - rightFolder;
+			}
+			return String(left.label || "").localeCompare(String(right.label || ""), "de");
+		});
+		for (const child of node.children) {
+			sortTree(child);
+		}
+	}
+
+	function attachChild(parent, node) {
+		if (node.parent && node.parent !== parent) {
+			node.parent.children = node.parent.children.filter((child) => child !== node);
+		}
+
+		node.parent = parent;
+		if (!parent.children.includes(node)) {
+			parent.children.push(node);
+		}
+		parent.childMap.set(node.id, node);
+		if (node.row?.name) {
+			parent.childMap.set(makeKey(node.row.name), node);
+		}
+	}
+
+	function installPatch() {
+		const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
+		if (!treeModule || treeModule.__avesmapsNoSyntheticBuildTree === true) {
+			return Boolean(treeModule?.__avesmapsNoSyntheticBuildTree);
+		}
+
+		treeModule.buildTree = function buildPoliticalTerritoryTreeWithoutSyntheticNodes(rows) {
+			const normalizedRows = Array.isArray(rows) ? rows : [];
+			const root = createTreeNode("root", "Herrschaftsgebiete", "root");
+			const rowIndex = buildRowIndex(normalizedRows);
+			const nodeByIdentity = new Map();
+
+			for (const row of normalizedRows) {
+				const identityKey = rowIdentityKey(row);
+				if (!identityKey) {
+					continue;
+				}
+
+				let current = root;
+				for (const segment of Array.isArray(row.affiliation_path) ? row.affiliation_path : []) {
+					const segmentKey = makeKey(segment);
+					if (!segmentKey) {
+						continue;
+					}
+
+					const matchingRow = rowIndex.get(segmentKey) || null;
+					if (!matchingRow) {
+						continue;
+					}
+
+					const matchingIdentityKey = rowIdentityKey(matchingRow);
+					if (!matchingIdentityKey || matchingIdentityKey === identityKey) {
+						continue;
+					}
+
+					let pathNode = nodeByIdentity.get(matchingIdentityKey) || null;
+					if (!pathNode) {
+						pathNode = createTreeNode(rowKey(matchingRow) || makeKey(matchingRow.name) || matchingIdentityKey, matchingRow.name || segment, "territory-group", matchingRow);
+						nodeByIdentity.set(matchingIdentityKey, pathNode);
+					}
+
+					attachChild(current, pathNode);
+					current = pathNode;
+				}
+
+				let ownNode = nodeByIdentity.get(identityKey) || null;
+				if (!ownNode) {
+					ownNode = createTreeNode(rowKey(row) || makeKey(row.name) || identityKey, row.name, "territory", row);
+					nodeByIdentity.set(identityKey, ownNode);
+				} else {
+					ownNode.row = mergeRowsByIdentity(ownNode.row || row, row);
+					ownNode.label = ownNode.label || row.name;
+					ownNode.kind = ownNode.children.length > 0 ? "territory-group" : "territory";
+				}
+
+				attachChild(current, ownNode);
+			}
+
+			sortTree(root);
+			const nodeRegistry = new Map();
+			registerNode(root, nodeRegistry);
+			return { root, nodeRegistry };
+		};
+
+		treeModule.__avesmapsNoSyntheticBuildTree = true;
+		return true;
+	}
+
+	if (installPatch()) {
+		return;
+	}
+
+	let attempts = 0;
+	const timerId = window.setInterval(() => {
+		attempts += 1;
+		if (installPatch() || attempts > 120) {
+			window.clearInterval(timerId);
+		}
+	}, 25);
+})();
