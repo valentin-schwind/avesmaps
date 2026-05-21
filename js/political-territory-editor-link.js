@@ -295,16 +295,49 @@ function stripWikiSyncTerritoryPeriodLabel(label) {
 
 function defaultWikiSyncTerritoryZoomRange(chainLength, index) {
 	if (chainLength <= 1) return { zoomMin: 0, zoomMax: 6 };
-	if (chainLength === 2) return index === 0 ? { zoomMin: 0, zoomMax: 2 } : { zoomMin: 3, zoomMax: 6 };
+
+	if (chainLength === 2) {
+		if (index === 0) return { zoomMin: 0, zoomMax: 2 };
+		return { zoomMin: 3, zoomMax: 6 };
+	}
+
 	if (chainLength === 3) {
 		if (index === 0) return { zoomMin: 0, zoomMax: 2 };
 		if (index === 1) return { zoomMin: 3, zoomMax: 4 };
 		return { zoomMin: 5, zoomMax: 6 };
 	}
-	if (index === 0) return { zoomMin: 0, zoomMax: 2 };
-	if (index === 1) return { zoomMin: 3, zoomMax: 4 };
-	if (index >= chainLength - 1) return { zoomMin: 6, zoomMax: 6 };
-	return { zoomMin: 5, zoomMax: 5 };
+
+	if (chainLength === 4) {
+		if (index === 0) return { zoomMin: 0, zoomMax: 2 };
+		if (index === 1) return { zoomMin: 3, zoomMax: 3 };
+		if (index === 2) return { zoomMin: 4, zoomMax: 4 };
+		return { zoomMin: 5, zoomMax: 6 };
+	}
+
+	if (chainLength === 5) {
+		if (index === 0) return { zoomMin: 0, zoomMax: 2 };
+		if (index === 1) return { zoomMin: 3, zoomMax: 3 };
+		if (index === 2) return { zoomMin: 4, zoomMax: 4 };
+		if (index === 3) return { zoomMin: 5, zoomMax: 5 };
+		return { zoomMin: 6, zoomMax: 6 };
+	}
+
+	if (chainLength === 6) {
+		if (index === 0) return { zoomMin: 0, zoomMax: 1 };
+		if (index === 1) return { zoomMin: 2, zoomMax: 2 };
+		if (index === 2) return { zoomMin: 3, zoomMax: 3 };
+		if (index === 3) return { zoomMin: 4, zoomMax: 4 };
+		if (index === 4) return { zoomMin: 5, zoomMax: 5 };
+		return { zoomMin: 6, zoomMax: 6 };
+	}
+
+	// Fallback fuer sehr tiefe Ketten:
+	if (index === 0) return { zoomMin: 0, zoomMax: 1 };
+	if (index === 1) return { zoomMin: 2, zoomMax: 2 };
+	if (index === 2) return { zoomMin: 3, zoomMax: 3 };
+	if (index === 3) return { zoomMin: 4, zoomMax: 4 };
+	if (index === 4) return { zoomMin: 5, zoomMax: 5 };
+	return { zoomMin: 6, zoomMax: 6 };
 }
 
 function installWikiSyncTerritoryTreeDisplayPatch() {
