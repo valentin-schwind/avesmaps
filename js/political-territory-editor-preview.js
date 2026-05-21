@@ -67,6 +67,63 @@ function getTreeMapStatus(node) {
 	return { kind: "none", label: "Gebiet und Untergebiete fehlen auf der Karte" };
 }
 
+function doesTerritoryEditorRowMatchSearch(row, query) {
+	const normalizedQuery = normalizePoliticalTerritoryEditorPreviewText(query).toLowerCase();
+	if (!normalizedQuery) {
+		return true;
+	}
+
+	const haystack = [
+		row?.name,
+		row?.type,
+		row?.continent,
+		row?.affiliation_raw,
+		row?.affiliation_root,
+		Array.isArray(row?.affiliation_path) ? row.affiliation_path.join(" ") : "",
+		row?.status,
+		row?.capital_name,
+		row?.seat_name,
+		row?.ruler,
+		row?.geographic,
+		row?.political,
+		row?.wiki_key,
+		row?.wiki_url,
+		row?.founded_text,
+		row?.dissolved_text,
+		row?.valid_label
+	]
+		.map((value) => normalizePoliticalTerritoryEditorPreviewText(value).toLowerCase())
+		.filter(Boolean)
+		.join(" ");
+
+	return haystack.includes(normalizedQuery);
+}
+
+function getFilteredRows() {
+	const rows = Array.isArray(allRows) ? allRows : [];
+	const searchText = document.getElementById("searchInput")?.value || "";
+	const continent = normalizePoliticalTerritoryEditorPreviewText(document.getElementById("continentFilter")?.value || "");
+	const type = normalizePoliticalTerritoryEditorPreviewText(document.getElementById("typeFilter")?.value || "");
+	const status = normalizePoliticalTerritoryEditorPreviewText(document.getElementById("statusFilter")?.value || "").toLowerCase();
+
+	return rows.filter((row) => {
+		if (continent && normalizePoliticalTerritoryEditorPreviewText(row?.continent) !== continent) {
+			return false;
+		}
+		if (type && normalizePoliticalTerritoryEditorPreviewText(row?.type) !== type) {
+			return false;
+		}
+		if (status) {
+			const rowStatus = normalizePoliticalTerritoryEditorPreviewText(row?.status).toLowerCase();
+			const rowTags = Array.isArray(row?.status_filter_tags) ? row.status_filter_tags : [];
+			if (rowStatus !== status && !rowTags.includes(status)) {
+				return false;
+			}
+		}
+		return doesTerritoryEditorRowMatchSearch(row, searchText);
+	});
+}
+
 function renderDropZone() {
 	const dropZone = document.getElementById("dropZone");
 	if (!dropZone) {
