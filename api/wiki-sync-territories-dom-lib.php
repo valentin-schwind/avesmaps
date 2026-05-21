@@ -3,11 +3,10 @@
 declare(strict_types=1);
 
 function avesmapsWikiSyncReadPoliticalTerritoryDomTree(PDO $pdo, bool $forceRefresh = false): array {
+    unset($forceRefresh);
     avesmapsWikiSyncRelaxLimits();
 
-    $domRows = $forceRefresh ? avesmapsWikiSyncFetchDomTerritoryRows($pdo) : [];
-    $rows = $domRows !== [] ? $domRows : avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache($pdo);
-    if ($rows === []) $rows = avesmapsWikiSyncFetchDomTerritoryRows($pdo);
+    $rows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache($pdo);
 
     $rows = avesmapsWikiSyncSanitizeDomPoliticalTerritoryRowsForTree($rows);
     $rows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments($rows, avesmapsWikiSyncReadPoliticalTerritoryMapAssignments($pdo));
@@ -17,8 +16,8 @@ function avesmapsWikiSyncReadPoliticalTerritoryDomTree(PDO $pdo, bool $forceRefr
 
     return [
         'ok' => true,
-        'source' => $domRows !== [] ? 'wiki-dom-prepared' : 'wiki-dom-cache',
-        'source_page' => 'wiki-dom-sync-settings.html',
+        'source' => 'wiki-dom-cache',
+        'source_page' => 'political_territory_wiki',
         'territory_count' => count($rows),
         'root_count' => count($tree['hierarchy']),
         'assigned_territory_count' => $summary['assigned_territory_count'],
