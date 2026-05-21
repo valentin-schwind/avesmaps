@@ -600,3 +600,106 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 		}
 	}, 25);
 })();
+
+(function installPoliticalGeometryDropHighlight() {
+	let highlightedLayer = null;
+	let previousStyle = null;
+
+	function hasWikiSyncTerritoryDragPayload(dataTransfer) {
+		if (!dataTransfer) return false;
+		const types = Array.from(dataTransfer.types || []);
+		return types.includes("application/x-avesmaps-territory-node-json")
+			|| types.includes("application/x-avesmaps-territory-node-id")
+			|| types.includes("application/x-avesmaps-territory");
+	}
+
+	function clearHighlightedDropLayer() {
+		if (highlightedLayer && previousStyle && typeof highlightedLayer.setStyle === "function") {
+			highlightedLayer.setStyle(previousStyle);
+		}
+		highlightedLayer = null;
+		previousStyle = null;
+	}
+
+	function readLayerStyle(layer) {
+		const options = layer?.options || {};
+		return {
+			color: options.color,
+			weight: options.weight,
+			opacity: options.opacity,
+			fillOpacity: options.fillOpacity,
+			dashArray: options.dashArray,
+			className: options.className,
+		};
+	}
+
+	function highlightDropLayer(layer) {
+		if (!layer || typeof layer.setStyle !== "function") {
+			clearHighlightedDropLayer();
+			return;
+		}
+
+		if (highlightedLayer === layer) {
+			return;
+		}
+
+		clearHighlightedDropLayer();
+		highlightedLayer = layer;
+		previousStyle = readLayerStyle(layer);
+		layer.setStyle({
+			color: "#f6d365",
+			weight: Math.max(Number(layer.options?.weight || 1) + 3, 5),
+			opacity: 1,
+			fillOpacity: Math.max(Number(layer.options?.fillOpacity || 0.2), 0.38),
+			dashArray: "6 4",
+		});
+		if (typeof layer.bringToFront === "function") {
+			layer.bringToFront();
+		}
+	}
+
+	function findDropLayer(event) {
+		if (typeof map === "undefined" || typeof L === "undefined" || typeof getOverlappingPoliticalRegionLayersAtLatLng !== "function") {
+			return null;
+		}
+		const latlng = map.mouseEventToLatLng(event);
+		const layers = getOverlappingPoliticalRegionLayersAtLatLng(latlng);
+		return layers[0] || null;
+	}
+
+	function handleDragOver(event) {
+		if (!hasWikiSyncTerritoryDragPayload(event.dataTransfer)) {
+			return;
+		}
+
+		const mapElement = document.getElementById("map");
+		if (!mapElement || !(event.target instanceof Node) || !mapElement.contains(event.target)) {
+			clearHighlightedDropLayer();
+			return;
+		}
+
+		const layer = findDropLayer(event);
+		if (!layer) {
+			clearHighlightedDropLayer();
+			return;
+		}
+
+		event.preventDefault();
+		event.dataTransfer.dropEffect = "copy";
+		highlightDropLayer(layer);
+	}
+
+	function handleDragEnd() {
+		clearHighlightedDropLayer();
+	}
+
+	document.addEventListener("dragover", handleDragOver, true);
+	document.addEventListener("dragleave", (event) => {
+		const mapElement = document.getElementById("map");
+		if (!mapElement || !(event.relatedTarget instanceof Node) || !mapElement.contains(event.relatedTarget)) {
+			clearHighlightedDropLayer();
+		}
+	}, true);
+	document.addEventListener("drop", handleDragEnd, true);
+	document.addEventListener("dragend", handleDragEnd, true);
+})();
