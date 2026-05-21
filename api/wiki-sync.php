@@ -17,6 +17,80 @@ function avesmapsWikiSyncAssertEndpointScope(string $endpointScope, array $allow
     throw new InvalidArgumentException("Diese WikiSync-Aktion ist an diesem Endpoint nicht erlaubt: {$action}");
 }
 
+function avesmapsWikiSyncSuppressSyntheticPoliticalTerritoryTreeNodes(array $response): array {
+    if (!is_array($response['hierarchy'] ?? null)) {
+        return $response;
+    }
+
+    $hierarchy = avesmapsWikiSyncFlattenSyntheticPoliticalTerritoryTreeNodes($response['hierarchy']);
+    $territories = [];
+    foreach ($hierarchy as $node) {
+        if (is_array($node)) {
+            avesmapsWikiSyncCollectNonSyntheticPoliticalTerritoryTreeNodes($node, $territories);
+        }
+    }
+
+    $response['hierarchy'] = $hierarchy;
+    $response['territories'] = array_values($territories);
+    $response['root_count'] = count($hierarchy);
+    $response['assigned_root_count'] = count(array_filter(
+        $hierarchy,
+        static fn(mixed $node): bool => is_array($node) && !empty($node['map_assigned'])
+    ));
+
+    return $response;
+}
+
+function avesmapsWikiSyncFlattenSyntheticPoliticalTerritoryTreeNodes(array $nodes): array {
+    $flattened = [];
+
+    foreach ($nodes as $node) {
+        if (!is_array($node)) {
+            continue;
+        }
+
+        $node['children'] = avesmapsWikiSyncFlattenSyntheticPoliticalTerritoryTreeNodes(
+            is_array($node['children'] ?? null) ? $node['children'] : []
+        );
+
+        if (avesmapsWikiSyncIsSyntheticPoliticalTerritoryTreeNode($node)) {
+            foreach ($node['children'] as $child) {
+                if (is_array($child)) {
+                    $flattened[] = $child;
+                }
+            }
+            continue;
+        }
+
+        $flattened[] = $node;
+    }
+
+    return $flattened;
+}
+
+function avesmapsWikiSyncIsSyntheticPoliticalTerritoryTreeNode(array $node): bool {
+    return !empty($node['is_group'])
+        && (int) ($node['id'] ?? 0) <= 0
+        && (int) ($node['wiki_id'] ?? 0) <= 0
+        && trim((string) ($node['wiki_key'] ?? '')) === ''
+        && trim((string) ($node['wiki_url'] ?? '')) === '';
+}
+
+function avesmapsWikiSyncCollectNonSyntheticPoliticalTerritoryTreeNodes(array $node, array &$territories): void {
+    if (!avesmapsWikiSyncIsSyntheticPoliticalTerritoryTreeNode($node)) {
+        $publicId = (string) ($node['public_id'] ?? '');
+        if ($publicId !== '') {
+            $territories[$publicId] = $node;
+        }
+    }
+
+    foreach (($node['children'] ?? []) as $child) {
+        if (is_array($child)) {
+            avesmapsWikiSyncCollectNonSyntheticPoliticalTerritoryTreeNodes($child, $territories);
+        }
+    }
+}
+
 function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
     try {
         $config = avesmapsLoadApiConfig(__DIR__);
@@ -50,12 +124,16 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
 
                 'territories_tree' => (function () use ($pdo, $forceRefresh, $endpointScope, $action): array {
                     avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'territories'], $action);
-                    return avesmapsWikiSyncReadPoliticalTerritoryDomTree($pdo, $forceRefresh);
+                    return avesmapsWikiSyncSuppressSyntheticPoliticalTerritoryTreeNodes(
+                        avesmapsWikiSyncReadPoliticalTerritoryDomTree($pdo, $forceRefresh)
+                    );
                 })(),
 
                 'political_territory_tree' => (function () use ($pdo, $forceRefresh, $endpointScope, $action): array {
                     avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'territories'], $action);
-                    return avesmapsWikiSyncReadPoliticalTerritoryDomTree($pdo, $forceRefresh);
+                    return avesmapsWikiSyncSuppressSyntheticPoliticalTerritoryTreeNodes(
+                        avesmapsWikiSyncReadPoliticalTerritoryDomTree($pdo, $forceRefresh)
+                    );
                 })(),
 
                 default => throw new InvalidArgumentException('Die WikiSync-Aktion ist unbekannt.'),
@@ -107,7 +185,9 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
 
             'sync_territories' => (function () use ($pdo, $payload, $endpointScope, $action): array {
                 avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'territories'], $action);
-                return avesmapsWikiSyncSyncTerritoriesFromDomCache($pdo, avesmapsRequireUserWithCapability('edit'), $payload);
+                return avesmapsWikiSyncSuppressSyntheticPoliticalTerritoryTreeNodes(
+                    avesmapsWikiSyncSyncTerritoriesFromDomCache($pdo, avesmapsRequireUserWithCapability('edit'), $payload)
+                );
             })(),
 
             'clear_territory_wiki_table' => (function () use ($pdo, $endpointScope, $action): array {
