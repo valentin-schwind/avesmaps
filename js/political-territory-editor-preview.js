@@ -67,6 +67,40 @@ function getTreeMapStatus(node) {
 	return { kind: "none", label: "Gebiet und Untergebiete fehlen auf der Karte" };
 }
 
+function renderDropZone() {
+	const dropZone = document.getElementById("dropZone");
+	if (!dropZone) {
+		return;
+	}
+
+	if (!dropZone.classList.contains("has-selection")) {
+		dropZone.textContent = "Herrschaftsgebiet aus dem Wiki hier mit Drag'n'drop zuweisen";
+	}
+}
+
+function showEmptyDetails(message = "") {
+	const detailInfo = document.getElementById("detailInfo");
+	const breadcrumb = document.getElementById("breadcrumb");
+	const infoBox = document.getElementById("infoBox");
+	const normalizedMessage = normalizePoliticalTerritoryEditorPreviewText(message);
+
+	if (detailInfo) {
+		detailInfo.textContent = normalizedMessage ? "Fehler" : "Noch kein Gebiet ausgewählt.";
+	}
+	if (breadcrumb) {
+		breadcrumb.textContent = "";
+	}
+	if (infoBox) {
+		infoBox.innerHTML = normalizedMessage
+			? `<p class="info-error"></p>`
+			: `<p class="info-empty">Wählen Sie ein Herrschaftsgebiet aus dem Baum aus.</p>`;
+		const error = infoBox.querySelector(".info-error");
+		if (error) {
+			error.textContent = normalizedMessage;
+		}
+	}
+}
+
 function renderManualCoatPreview(url) {
 	const preview = document.getElementById("manualCoatPreview");
 	if (!preview) {
