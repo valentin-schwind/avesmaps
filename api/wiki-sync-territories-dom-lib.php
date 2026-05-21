@@ -240,6 +240,7 @@ function avesmapsWikiSyncIsInvalidDomSyntheticPoliticalPathPart(string $part): b
         'unabhaengig',
         'ungeklart',
         'ungeklaert',
+        'ungeklärt',
         'unbekannt',
         'ungewiss',
         'umstritten',
