@@ -593,6 +593,11 @@ function findRegionLayerForWikiSyncDrop(event) {
 	return candidates[0] || null;
 }
 
+function isEventTargetInsideSelector(event, selector) {
+	const target = event?.target;
+	return target instanceof Element && typeof target.closest === "function" && Boolean(target.closest(selector));
+}
+
 function initializeWikiSyncTerritoryDragAssignment() {
 	installWikiSyncTerritoryTreeDisplayPatch();
 	let attempts = 0;
@@ -604,7 +609,7 @@ function initializeWikiSyncTerritoryDragAssignment() {
 	}, 25);
 
 	document.addEventListener("dragstart", (event) => {
-		if (!(event.target instanceof HTMLElement) || !event.target.closest("#wiki-sync-territory-tree, #treeView")) {
+		if (!isEventTargetInsideSelector(event, "#wiki-sync-territory-tree, #treeView")) {
 			return;
 		}
 		enhanceWikiSyncTerritoryDragEvent(event);
@@ -616,7 +621,7 @@ function initializeWikiSyncTerritoryDragAssignment() {
 			return;
 		}
 
-		if (event.target instanceof HTMLElement && (event.target.closest("#map") || event.target.closest("#region-edit-assignment-drop"))) {
+		if (isEventTargetInsideSelector(event, "#map") || isEventTargetInsideSelector(event, "#region-edit-assignment-drop")) {
 			event.preventDefault();
 			event.dataTransfer.dropEffect = "copy";
 		}
@@ -628,7 +633,7 @@ function initializeWikiSyncTerritoryDragAssignment() {
 			return;
 		}
 
-		if (event.target instanceof HTMLElement && event.target.closest("#region-edit-assignment-drop")) {
+		if (isEventTargetInsideSelector(event, "#region-edit-assignment-drop")) {
 			event.preventDefault();
 			event.stopPropagation();
 			void assignWikiSyncTerritoryPayloadInsideLegacyEditor(payload).catch((error) => {
@@ -640,7 +645,7 @@ function initializeWikiSyncTerritoryDragAssignment() {
 			return;
 		}
 
-		if (!(event.target instanceof HTMLElement) || !event.target.closest("#map")) {
+		if (!isEventTargetInsideSelector(event, "#map")) {
 			return;
 		}
 
