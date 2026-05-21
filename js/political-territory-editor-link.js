@@ -352,7 +352,7 @@ function installWikiSyncTerritoryTreeDisplayPatch() {
 		const visit = (node) => {
 			if (!node || typeof node !== "object") return;
 			if (node.row) {
-				node.label = formatWikiSyncTerritoryNodeLabel(node.row, node.label);
+				node.metaLabel = formatWikiSyncTerritoryNodePeriod(node.row);
 			}
 			(node.children || []).forEach(visit);
 		};

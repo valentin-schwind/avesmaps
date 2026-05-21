@@ -63,9 +63,16 @@
 	}
 
 	function buildTreeNodeLabel(row, fallbackLabel = "") {
-		const label = normalizeText(fallbackLabel || row?.name || "");
-		const periodLabel = buildTerritoryPeriodLabel(row);
-		return periodLabel ? `${label} (${periodLabel})` : label;
+		return normalizeText(fallbackLabel || row?.name || "");
+	}
+
+	function buildTreeNodeMetaLabel(node) {
+		const metaParts = [];
+		const rowId = Number(node?.row?.id || 0);
+		if (rowId > 0) metaParts.push(`ID: ${rowId}`);
+		const periodLabel = String(node?.metaLabel || buildTerritoryPeriodLabel(node?.row) || "").trim();
+		if (periodLabel) metaParts.push(periodLabel);
+		return metaParts.join(" · ");
 	}
 
 	function extractParentheticalContents(value) {
@@ -610,11 +617,23 @@
 		handle.className = "drag-handle";
 		handle.textContent = "⠿";
 		itemElement.appendChild(handle);
+		const labelContainer = document.createElement("span");
+		labelContainer.className = "tree-item-label";
+
 		const name = document.createElement("span");
 		name.className = "tree-item-name";
-		const rowId = Number(node?.row?.id || 0);
-		name.textContent = rowId > 0 ? `${node.label} (ID: ${rowId})` : node.label;
-		itemElement.appendChild(name);
+		name.textContent = node.label;
+		labelContainer.appendChild(name);
+
+		const metaText = buildTreeNodeMetaLabel(node);
+		if (metaText) {
+			const meta = document.createElement("span");
+			meta.className = "tree-item-meta";
+			meta.textContent = metaText;
+			labelContainer.appendChild(meta);
+		}
+
+		itemElement.appendChild(labelContainer);
 		const mapStatus = getTreeMapStatus(node);
 		const mapStatusElement = document.createElement("span");
 		mapStatusElement.className = `tree-map-status tree-map-status--${mapStatus.kind}`;
