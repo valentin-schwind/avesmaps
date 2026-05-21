@@ -248,6 +248,21 @@ function initializePoliticalTerritoryEditorPopup() {
 	});
 }
 
+function openPoliticalTerritoryWikiSyncSettings() {
+	const settingsUrl = "/html/wiki-dom-sync-settings.html";
+	const openedWindow = window.open(settingsUrl, "avesmaps-territory-wiki-sync-settings", "noopener,noreferrer");
+	if (!openedWindow) {
+		window.location.href = settingsUrl;
+	}
+}
+
+window.startWikiSyncTerritoryRun = function startWikiSyncTerritoryRunFromSettingsLink() {
+	if (typeof setWikiSyncStatus === "function") {
+		setWikiSyncStatus("Synchronisierungseinstellungen werden geöffnet...", "pending");
+	}
+	openPoliticalTerritoryWikiSyncSettings();
+};
+
 if (document.readyState === "loading") {
 	document.addEventListener("DOMContentLoaded", initializePoliticalTerritoryEditorPopup, { once: true });
 } else {
