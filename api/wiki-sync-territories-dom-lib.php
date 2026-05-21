@@ -115,9 +115,10 @@ function avesmapsWikiSyncSanitizeDomPoliticalTerritoryRowsForTree(array $rows): 
         $type = (string) ($row['type'] ?? '');
 
         if (avesmapsWikiSyncIsDomPoliticalRootTerritory($name, $type)) {
-            $row['affiliation'] = '';
-            $row['affiliation_root'] = '';
-            $row['affiliation_path_json'] = [];
+            $rootName = avesmapsWikiSyncNormalizeWikiTreeText($name);
+            $row['affiliation'] = $rootName;
+            $row['affiliation_root'] = $rootName;
+            $row['affiliation_path_json'] = $rootName !== '' ? [$rootName] : [];
             return $row;
         }
 
