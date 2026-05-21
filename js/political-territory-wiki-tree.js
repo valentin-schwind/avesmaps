@@ -1,7 +1,7 @@
 "use strict";
 
 (function initPoliticalTerritoryWikiTreeModule(globalObject) {
-	const MODULE_VERSION = "2026-05-21-build-tree-keeps-ancestors";
+	const MODULE_VERSION = "2026-05-21-drop-defaults-from-wiki";
 	const DEFAULT_API_URL = "/api/political-territory-wiki.php";
 	const DISPLAY_SUFFIXES = ["Staat", "Imperium", "Reich", "Kalifat"];
 
@@ -54,8 +54,8 @@
 	}
 
 	function buildTerritoryPeriodLabel(row) {
-		const startYear = readOptionalYear(row, ["founded_display_bf", "founded_start_bf", "founded_end_bf"]);
-		const endYear = readOptionalYear(row, ["dissolved_display_bf", "dissolved_start_bf", "dissolved_end_bf"]);
+		const startYear = readOptionalYear(row, ["founded_start_bf", "founded_display_bf", "founded_end_bf"]);
+		const endYear = readOptionalYear(row, ["dissolved_end_bf", "dissolved_display_bf", "dissolved_start_bf"]);
 		if (startYear === null && endYear === null) return "";
 		const startText = startYear === null ? "?" : formatBfYear(startYear);
 		const endText = endYear === null ? "heute" : formatBfYear(endYear);
@@ -131,6 +131,10 @@
 			.map((row) => {
 				const normalizedName = normalizeText(row?.name);
 				const normalizedStatus = normalizeText(row?.status);
+				const foundedStartBf = parseOptionalNumber(row?.founded_start_bf, null);
+				const foundedEndBf = parseOptionalNumber(row?.founded_end_bf, null);
+				const dissolvedStartBf = parseOptionalNumber(row?.dissolved_start_bf, null);
+				const dissolvedEndBf = parseOptionalNumber(row?.dissolved_end_bf, null);
 				return {
 					...(row || {}),
 					id: parseOptionalNumber(row?.id, null),
@@ -151,14 +155,14 @@
 					trade_goods: normalizeText(row?.trade_goods),
 					population: normalizeText(row?.population),
 					founded_text: normalizeText(row?.founded_text),
-					founded_start_bf: parseOptionalNumber(row?.founded_start_bf, null),
-					founded_end_bf: parseOptionalNumber(row?.founded_end_bf, null),
-					founded_display_bf: parseOptionalNumber(row?.founded_display_bf, null),
+					founded_start_bf: foundedStartBf,
+					founded_end_bf: foundedEndBf,
+					founded_display_bf: foundedStartBf,
 					founder: normalizeText(row?.founder),
 					dissolved_text: normalizeText(row?.dissolved_text),
-					dissolved_start_bf: parseOptionalNumber(row?.dissolved_start_bf, null),
-					dissolved_end_bf: parseOptionalNumber(row?.dissolved_end_bf, null),
-					dissolved_display_bf: parseOptionalNumber(row?.dissolved_display_bf, null),
+					dissolved_start_bf: dissolvedStartBf,
+					dissolved_end_bf: dissolvedEndBf,
+					dissolved_display_bf: dissolvedEndBf,
 					geographic: normalizeText(row?.geographic),
 					political: normalizeText(row?.political),
 					trade_zone: normalizeText(row?.trade_zone),
@@ -495,6 +499,7 @@
 			id: node.id,
 			key: node.row?.wiki_key || node.row?.public_id || node.id || makeKey(node.label),
 			label: node.label,
+			name: node.row?.name || node.label,
 			kind: node.kind,
 			isSynthetic: isSyntheticNode(node),
 			wikiKey: node.row?.wiki_key || "",
@@ -502,6 +507,16 @@
 			territoryPublicId: node.row?.public_id || "",
 			territoryId: node.row?.territory_id || null,
 			slug: node.row?.slug || "",
+			coatOfArmsUrl: node.row?.coat_of_arms_url || "",
+			founded_start_bf: node.row?.founded_start_bf ?? null,
+			founded_end_bf: node.row?.founded_end_bf ?? null,
+			founded_display_bf: node.row?.founded_start_bf ?? null,
+			dissolved_start_bf: node.row?.dissolved_start_bf ?? null,
+			dissolved_end_bf: node.row?.dissolved_end_bf ?? null,
+			dissolved_display_bf: node.row?.dissolved_end_bf ?? null,
+			startYear: node.row?.founded_start_bf ?? null,
+			endYear: node.row?.dissolved_end_bf ?? null,
+			existsUntilToday: node.row?.dissolved_end_bf === null || typeof node.row?.dissolved_end_bf === "undefined",
 			path: getNodePath(node).map((pathNode) => pathNode.label),
 			pathKeys: getNodePath(node).map((pathNode) => pathNode.row?.wiki_key || pathNode.row?.public_id || pathNode.id || makeKey(pathNode.label)),
 		};
@@ -625,6 +640,136 @@
 		for (const details of container.querySelectorAll("details")) details.open = Boolean(open);
 	}
 
+	function defaultEditorZoomRange(chainLength, index) {
+		if (chainLength <= 1) return { zoomMin: 0, zoomMax: 6 };
+		if (chainLength === 2) return index === 0 ? { zoomMin: 0, zoomMax: 2 } : { zoomMin: 3, zoomMax: 6 };
+		if (chainLength === 3) {
+			if (index === 0) return { zoomMin: 0, zoomMax: 2 };
+			if (index === 1) return { zoomMin: 3, zoomMax: 4 };
+			return { zoomMin: 5, zoomMax: 6 };
+		}
+		if (index === 0) return { zoomMin: 0, zoomMax: 2 };
+		if (index === 1) return { zoomMin: 3, zoomMax: 4 };
+		if (index >= chainLength - 1) return { zoomMin: 6, zoomMax: 6 };
+		return { zoomMin: 5, zoomMax: 5 };
+	}
+
+	function hashString(value) {
+		const text = String(value || "");
+		let hash = 2166136261;
+		for (let index = 0; index < text.length; index += 1) {
+			hash ^= text.charCodeAt(index);
+			hash = Math.imul(hash, 16777619);
+		}
+		return hash >>> 0;
+	}
+
+	function clampNumber(value, min, max) {
+		const number = Number(value);
+		return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : min;
+	}
+
+	function toHexByte(value) {
+		return Math.round(clampNumber(value, 0, 255)).toString(16).padStart(2, "0");
+	}
+
+	function hsvToHex(hue, saturationPercent, valuePercent) {
+		const saturation = clampNumber(saturationPercent, 0, 100) / 100;
+		const value = clampNumber(valuePercent, 0, 100) / 100;
+		const chroma = value * saturation;
+		const huePrime = (clampNumber(hue, 0, 360) % 360) / 60;
+		const secondary = chroma * (1 - Math.abs((huePrime % 2) - 1));
+		const match = value - chroma;
+		const [red, green, blue] = huePrime < 1
+			? [chroma, secondary, 0]
+			: huePrime < 2
+			? [secondary, chroma, 0]
+			: huePrime < 3
+			? [0, chroma, secondary]
+			: huePrime < 4
+			? [0, secondary, chroma]
+			: huePrime < 5
+			? [secondary, 0, chroma]
+			: [chroma, 0, secondary];
+		return `#${[red, green, blue].map((channel) => toHexByte((channel + match) * 255)).join("")}`;
+	}
+
+	function createAutoEditorColor(path, activeIndex) {
+		const activeNode = path[activeIndex] || path[path.length - 1] || null;
+		const rootNode = path[0] || activeNode;
+		const depth = Math.max(0, activeIndex);
+		const rootSeed = hashString(rootNode?.wikiKey || rootNode?.key || rootNode?.id || rootNode?.label || "Herrschaftsgebiet");
+		const nodeSeed = hashString(activeNode?.wikiKey || activeNode?.key || activeNode?.id || activeNode?.label || "Herrschaftsgebiet");
+		const baseHue = rootSeed % 360;
+		const hueOffset = depth === 0 ? 0 : ((nodeSeed % 37) - 18) + (depth * 4);
+		const hue = (baseHue + hueOffset + 360) % 360;
+		const saturation = clampNumber(58 + (rootSeed % 18) - Math.min(depth * 3, 12), 44, 74);
+		const value = clampNumber(54 + (nodeSeed % 18) + Math.min(depth * 3, 10), 48, 78);
+		return hsvToHex(hue, saturation, value);
+	}
+
+	function setInputValueById(id, value) {
+		const input = globalObject.document?.getElementById(id);
+		if (!input) return;
+		input.value = value === null || typeof value === "undefined" ? "" : String(value);
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+		input.dispatchEvent(new Event("change", { bubbles: true }));
+	}
+
+	function normalizeDroppedReferenceName(reference) {
+		return normalizeText(reference?.name || reference?.label || "").replace(/\s*\([^)]*\bBF\s*-\s*[^)]*\)\s*$/iu, "").trim();
+	}
+
+	function applyEditorDefaultsFromDragPayload(payload, previousCoatOfArmsUrl = "") {
+		const path = Array.isArray(payload?.path) ? payload.path : [];
+		if (path.length < 1) return;
+		const selectedIndex = path.length - 1;
+		const selected = path[selectedIndex] || {};
+		const selectedName = normalizeDroppedReferenceName(selected);
+		const selectedCoat = normalizeText(selected.coatOfArmsUrl || selected.coat_of_arms_url || "");
+		const zoom = defaultEditorZoomRange(path.length, selectedIndex);
+		const startYear = parseOptionalNumber(selected.founded_start_bf ?? selected.startYear, null);
+		const endYear = parseOptionalNumber(selected.dissolved_end_bf ?? selected.endYear, null);
+
+		if (selectedName) setInputValueById("displayNameInput", selectedName);
+		if (selectedCoat) setInputValueById("alternateCoatInput", selectedCoat);
+		else if (previousCoatOfArmsUrl) setInputValueById("alternateCoatInput", previousCoatOfArmsUrl);
+		else setInputValueById("alternateCoatInput", "");
+		setInputValueById("zoomFromInput", zoom.zoomMin);
+		setInputValueById("zoomToInput", zoom.zoomMax);
+		setInputValueById("colorInput", createAutoEditorColor(path, selectedIndex));
+		setInputValueById("startYearInput", startYear);
+		setInputValueById("endYearInput", endYear);
+		const existsUntilTodayInput = globalObject.document?.getElementById("existsUntilTodayInput");
+		if (existsUntilTodayInput) {
+			existsUntilTodayInput.checked = endYear === null;
+			existsUntilTodayInput.dispatchEvent(new Event("change", { bubbles: true }));
+		}
+	}
+
+	function readDragPayloadFromTransfer(dataTransfer) {
+		const rawJson = dataTransfer?.getData("application/x-avesmaps-territory-node-json") || "";
+		if (!rawJson) return null;
+		try {
+			const payload = JSON.parse(rawJson);
+			return payload && Array.isArray(payload.path) ? payload : null;
+		} catch (error) {
+			return null;
+		}
+	}
+
+	function installEditorDropDefaultHook() {
+		if (!globalObject.document || globalObject.__avesmapsEditorDropDefaultHookInstalled === true) return;
+		globalObject.__avesmapsEditorDropDefaultHookInstalled = true;
+		globalObject.document.addEventListener("drop", (event) => {
+			if (!(event.target instanceof HTMLElement) || !event.target.closest("#dropZone")) return;
+			const payload = readDragPayloadFromTransfer(event.dataTransfer);
+			if (!payload) return;
+			const previousCoatOfArmsUrl = normalizeText(globalObject.document.getElementById("alternateCoatInput")?.value || "");
+			globalObject.setTimeout(() => applyEditorDefaultsFromDragPayload(payload, previousCoatOfArmsUrl), 0);
+		}, true);
+	}
+
 	async function fetchRows(options = {}) {
 		const apiUrl = normalizeText(options.apiUrl || DEFAULT_API_URL) || DEFAULT_API_URL;
 		const requestUrl = new URL(apiUrl, globalObject.location?.href || "http://localhost");
@@ -649,6 +794,8 @@
 		const { root, nodeRegistry } = buildTree(rows);
 		return { rows, root, nodeRegistry, payload };
 	}
+
+	installEditorDropDefaultHook();
 
 	globalObject.AvesmapsPoliticalTerritoryWikiTree = {
 		version: MODULE_VERSION,
