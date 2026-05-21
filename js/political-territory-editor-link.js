@@ -251,8 +251,8 @@ function initializePoliticalTerritoryEditorPopup() {
 function openPoliticalTerritoryWikiSyncSettings() {
 	const settingsUrl = "/html/wiki-dom-sync-settings.html";
 	const openedWindow = window.open(settingsUrl, "_blank", "noopener,noreferrer");
-	if (!openedWindow) {
-		window.location.href = settingsUrl;
+	if (!openedWindow && typeof setWikiSyncStatus === "function") {
+		setWikiSyncStatus("Popup blockiert: Bitte Popups erlauben oder Link in neuem Tab öffnen.", "error");
 	}
 }
 
