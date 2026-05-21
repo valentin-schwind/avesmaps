@@ -1877,9 +1877,13 @@ function avesmapsWikiSyncBuildPoliticalTerritoryTree(array $rows, bool $includeP
 
     foreach ($rows as $index => $row) {
         $path = avesmapsWikiSyncReadPoliticalTerritoryPath($row);
-        if (avesmapsWikiSyncIsIndependentPoliticalTerritoryPath($path)) {
+
+        if (avesmapsWikiSyncShouldForcePoliticalTerritoryRoot($row)) {
+            $path = [];
+        } elseif (avesmapsWikiSyncIsIndependentPoliticalTerritoryPath($path)) {
             $path = [];
         }
+
         $path = avesmapsWikiSyncNormalizePoliticalTerritoryPathForNode($path, (string) ($row['name'] ?? ''));
 
         $current =& $root;
@@ -2452,4 +2456,43 @@ function avesmapsWikiSyncNormalizeWikiTreeText(string $value): string {
     $decoded = preg_replace('/\s+/u', ' ', $decoded) ?? $decoded;
 
     return trim($decoded);
+}
+function avesmapsWikiSyncShouldForcePoliticalTerritoryRoot(array $row): bool {
+    $rootNameKeywords = [
+        'Bergkönigreich',
+        'Bergkoenigreich',
+        'Bergkonigreich',
+        'Enklave',
+    ];
+
+    $name = avesmapsWikiSyncNormalizeWikiTreeText((string) ($row['name'] ?? ''));
+    $type = avesmapsWikiSyncNormalizeWikiTreeText((string) ($row['type'] ?? ''));
+    $wikiKey = avesmapsWikiSyncNormalizeWikiTreeText((string) ($row['wiki_key'] ?? ''));
+
+    $label = trim($name . ' ' . $type . ' ' . $wikiKey);
+    if ($label === '') {
+        return false;
+    }
+
+    foreach ($rootNameKeywords as $keyword) {
+        $keywordPattern = preg_quote($keyword, '/');
+        if (preg_match('/\b' . $keywordPattern . '\b/iu', $label) === 1) {
+            return true;
+        }
+    }
+
+    $matchKey = avesmapsWikiSyncCreateMatchKey($label);
+    $rootMatchKeys = [
+        'bergkonigreich',
+        'bergkoenigreich',
+        'enklave',
+    ];
+
+    foreach ($rootMatchKeys as $rootMatchKey) {
+        if (str_contains($matchKey, $rootMatchKey)) {
+            return true;
+        }
+    }
+
+    return false;
 }
