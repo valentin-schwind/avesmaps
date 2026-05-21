@@ -39,7 +39,8 @@ function getPoliticalTerritoryEditorElements() {
 		closeButton: document.getElementById("political-territory-editor-close"),
 		frame: document.getElementById("political-territory-editor-frame"),
 	};
-}\n
+}
+
 function setPoliticalTerritoryEditorOpen(isOpen) {
 	const { overlay, dialog } = getPoliticalTerritoryEditorElements();
 	if (!overlay) {
