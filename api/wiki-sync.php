@@ -110,6 +110,12 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
                 return avesmapsWikiSyncSyncTerritoriesFromDomCache($pdo, avesmapsRequireUserWithCapability('edit'), $payload);
             })(),
 
+            'clear_territory_wiki_table' => (function () use ($pdo, $endpointScope, $action): array {
+                avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'territories'], $action);
+                avesmapsRequireUserWithCapability('edit');
+                return avesmapsWikiSyncClearPoliticalTerritoryWikiTable($pdo);
+            })(),
+
             default => throw new InvalidArgumentException('Die WikiSync-Aktion ist unbekannt.'),
         };
 
