@@ -138,6 +138,10 @@ details[open] > summary .tree-toggle::before {
 	letter-spacing: 0.04em;
 }
 
+.tree-root ul .tree-separator {
+	display: none;
+}
+
 .tree-separator::before,
 .tree-separator::after {
 	content: "---";
