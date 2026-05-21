@@ -4,9 +4,16 @@ declare(strict_types=1);
 
 function avesmapsWikiDomPatchSource(string $source): string {
     $source = str_replace(
-        "foreach (\$xpath->query('//tr[th and td] | //tr[count(td) >= 1]') ?: [] as \$row) { if (!\$row instanceof DOMElement) continue;",
-        "foreach (\$xpath->query('//*[@id=\"mw-content-text\"]//*[contains(concat(\" \", normalize-space(@class), \" \"), \" mw-parser-output \")]//tr[(th and td) or count(td) >= 1]') ?: [] as \$row) { if (!\$row instanceof DOMElement || wikiDomIsSuppressedContentNode(\$row)) continue;",
+        'function temporalData(array $fields, DOMXPath $xpath, array $catchwords): array {',
+        'function wikiDomIsIgnoredTemporalText(string $text): bool { $key = labelKey($text); return str_contains($key, "begriffsklaerung") || str_contains($key, "hat mehrere bedeutungen") || str_contains($key, "dieser artikel steht fuer"); }\nfunction temporalData(array $fields, DOMXPath $xpath, array $catchwords): array {',
         $source
     );
+
+    $source = str_replace(
+        "if (\$text === '' || bfYears(\$text) === []) continue;",
+        "if (\$text === '' || wikiDomIsIgnoredTemporalText(\$text) || bfYears(\$text) === []) continue;",
+        $source
+    );
+
     return $source;
 }
