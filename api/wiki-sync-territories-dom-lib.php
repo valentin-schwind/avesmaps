@@ -12,6 +12,7 @@ function avesmapsWikiSyncReadPoliticalTerritoryDomTree(PDO $pdo, bool $forceRefr
     $rows = avesmapsWikiSyncSanitizeDomPoliticalTerritoryRowsForTree($rows);
     $rows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments($rows, avesmapsWikiSyncReadPoliticalTerritoryMapAssignments($pdo));
     $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($rows, false);
+    $tree = avesmapsWikiSyncHoistDomRootTerritories($tree);
     $summary = avesmapsWikiSyncBuildPoliticalTerritoryTreeAssignmentSummary($rows, $tree['hierarchy']);
 
     return [
@@ -82,6 +83,7 @@ function avesmapsWikiSyncSyncTerritoriesFromDomCache(PDO $pdo, array $user, arra
     $promotedRows = avesmapsWikiSyncSanitizeDomPoliticalTerritoryRowsForTree($promotedRows);
     $promotedRows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments($promotedRows, avesmapsWikiSyncReadPoliticalTerritoryMapAssignments($pdo));
     $tree = avesmapsWikiSyncBuildPoliticalTerritoryTree($promotedRows, false);
+    $tree = avesmapsWikiSyncHoistDomRootTerritories($tree);
     $treeSummary = avesmapsWikiSyncBuildPoliticalTerritoryTreeAssignmentSummary($promotedRows, $tree['hierarchy']);
 
     return ['ok' => true, 'source' => 'wiki-dom-cache', 'source_page' => 'wiki-dom-sync-settings.html', 'dry_run' => $dryRun, 'territory_count' => count($promotedRows), 'root_count' => count($tree['hierarchy']), 'assigned_territory_count' => $treeSummary['assigned_territory_count'], 'assigned_root_count' => $treeSummary['assigned_root_count'], 'sync' => $summary, 'territories' => $tree['territories'], 'hierarchy' => $tree['hierarchy']];
@@ -115,9 +117,10 @@ function avesmapsWikiSyncSanitizeDomPoliticalTerritoryRowsForTree(array $rows): 
         $type = (string) ($row['type'] ?? '');
 
         if (avesmapsWikiSyncIsDomPoliticalRootTerritory($name, $type)) {
-            $row['affiliation'] = '';
-            $row['affiliation_root'] = '';
-            $row['affiliation_path_json'] = [];
+            $rootName = avesmapsWikiSyncNormalizeWikiTreeText($name);
+            $row['affiliation'] = $rootName;
+            $row['affiliation_root'] = $rootName;
+            $row['affiliation_path_json'] = $rootName !== '' ? [$rootName] : [];
             return $row;
         }
 
@@ -183,6 +186,61 @@ function avesmapsWikiSyncIsDomUnresolvedPoliticalTerritoryPath(array $path): boo
     return true;
 }
 
+function avesmapsWikiSyncHoistDomRootTerritories(array $tree): array {
+    $hierarchy = is_array($tree['hierarchy'] ?? null) ? $tree['hierarchy'] : [];
+    $hoisted = [];
+    $seenHoisted = [];
+
+    $filterNodes = function (array $nodes, bool $isRootLevel) use (&$filterNodes, &$hoisted, &$seenHoisted): array {
+        $output = [];
+
+        foreach ($nodes as $node) {
+            if (!is_array($node)) {
+                continue;
+            }
+
+            $node['children'] = $filterNodes(is_array($node['children'] ?? null) ? $node['children'] : [], false);
+            $isRootTerritory = avesmapsWikiSyncIsDomPoliticalRootTerritory(
+                (string) ($node['name'] ?? $node['wiki_name'] ?? ''),
+                (string) ($node['type'] ?? '')
+            );
+
+            if (!$isRootLevel && $isRootTerritory) {
+                $key = (string) ($node['public_id'] ?? $node['key'] ?? $node['name'] ?? '');
+                if ($key !== '' && !isset($seenHoisted[$key])) {
+                    $node['parent_public_id'] = '';
+                    $node['parent_name'] = '';
+                    $hoisted[] = $node;
+                    $seenHoisted[$key] = true;
+                }
+                continue;
+            }
+
+            $output[] = $node;
+        }
+
+        return $output;
+    };
+
+    $hierarchy = $filterNodes($hierarchy, true);
+    if ($hoisted !== []) {
+        $hierarchy = array_merge($hierarchy, $hoisted);
+        usort($hierarchy, static fn(array $left, array $right): int => strnatcasecmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? '')));
+    }
+
+    $territories = [];
+    foreach ($hierarchy as $node) {
+        if (is_array($node)) {
+            avesmapsWikiSyncCollectPoliticalTreeTerritories($node, $territories);
+        }
+    }
+
+    $tree['hierarchy'] = $hierarchy;
+    $tree['territories'] = array_values($territories);
+
+    return $tree;
+}
+
 function avesmapsWikiSyncIsDomPoliticalRootTerritory(string $name, string $type = ''): bool {
     $name = avesmapsWikiSyncNormalizeWikiTreeText($name);
     $type = avesmapsWikiSyncNormalizeWikiTreeText($type);
@@ -197,10 +255,10 @@ function avesmapsWikiSyncIsDomPoliticalRootTerritory(string $name, string $type 
     return preg_match('/\b(?:Bergkönigreich|Bergkoenigreich|Bergkonigreich|Enklave)\b/iu', $rawLabel) === 1
         || str_starts_with($nameKey, 'enklave')
         || str_starts_with($typeKey, 'enklave')
-        || str_starts_with($nameKey, 'bergkonigreich')
-        || str_starts_with($nameKey, 'bergkoenigreich')
-        || str_starts_with($typeKey, 'bergkonigreich')
-        || str_starts_with($typeKey, 'bergkoenigreich');
+        || str_contains($nameKey, 'bergkonigreich')
+        || str_contains($nameKey, 'bergkoenigreich')
+        || str_contains($typeKey, 'bergkonigreich')
+        || str_contains($typeKey, 'bergkoenigreich');
 }
 
 function avesmapsWikiSyncIsInvalidDomSyntheticPoliticalPathPart(string $part): bool {
