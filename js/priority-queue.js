@@ -63,6 +63,45 @@ class PriorityQueue {
 	}
 }
 
+(function initReviewEditorTabMemory() {
+	if (new URLSearchParams(window.location.search).get("edit") !== "1") return;
+
+	const MAIN_KEY = "avesmaps.review.activeTab";
+	const WIKI_KEY = "avesmaps.review.wikiSync.activeTab";
+
+	function setActive(tabSelector, panelSelector, attributeName, value) {
+		const normalizedValue = String(value || "").trim();
+		if (!normalizedValue) return false;
+		const tab = document.querySelector(`${tabSelector}[${attributeName}="${CSS.escape(normalizedValue)}"]`);
+		const panel = document.querySelector(`${panelSelector}[${attributeName.replace("tab", "section")}="${CSS.escape(normalizedValue)}"]`);
+		if (!tab || !panel) return false;
+		document.querySelectorAll(tabSelector).forEach((element) => element.classList.toggle("is-active", element === tab));
+		document.querySelectorAll(panelSelector).forEach((element) => element.classList.toggle("is-active", element === panel));
+		return true;
+	}
+
+	function rememberClicks(tabSelector, storageKey, dataAttribute) {
+		document.querySelectorAll(tabSelector).forEach((tab) => {
+			tab.addEventListener("click", () => {
+				const value = tab.getAttribute(dataAttribute) || "";
+				if (value) localStorage.setItem(storageKey, value);
+			});
+		});
+	}
+
+	function restore() {
+		const mainTab = localStorage.getItem(MAIN_KEY) || "";
+		const wikiTab = localStorage.getItem(WIKI_KEY) || "";
+		setActive(".review-panel__tab", ".review-panel__section", "data-editor-panel-tab", mainTab);
+		setActive(".wiki-sync-panel__tab", ".wiki-sync-panel__tab-panel", "data-wiki-sync-panel-tab", wikiTab);
+		rememberClicks(".review-panel__tab", MAIN_KEY, "data-editor-panel-tab");
+		rememberClicks(".wiki-sync-panel__tab", WIKI_KEY, "data-wiki-sync-panel-tab");
+	}
+
+	if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", restore, { once: true });
+	else restore();
+})();
+
 (function initWikiSyncTerritoryTreeBridge() {
 	if (new URLSearchParams(window.location.search).get("edit") !== "1") return;
 
