@@ -39,8 +39,7 @@ function getPoliticalTerritoryEditorElements() {
 		closeButton: document.getElementById("political-territory-editor-close"),
 		frame: document.getElementById("political-territory-editor-frame"),
 	};
-}
-
+}\n
 function setPoliticalTerritoryEditorOpen(isOpen) {
 	const { overlay, dialog } = getPoliticalTerritoryEditorElements();
 	if (!overlay) {
@@ -250,7 +249,7 @@ function initializePoliticalTerritoryEditorPopup() {
 
 function openPoliticalTerritoryWikiSyncSettings() {
 	const settingsUrl = "/html/wiki-dom-sync-settings.html";
-	const openedWindow = window.open(settingsUrl, "avesmaps-territory-wiki-sync-settings", "noopener,noreferrer");
+	const openedWindow = window.open(settingsUrl, "_blank", "noopener,noreferrer");
 	if (!openedWindow) {
 		window.location.href = settingsUrl;
 	}
