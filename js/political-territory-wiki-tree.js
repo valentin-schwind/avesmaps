@@ -1,7 +1,7 @@
 "use strict";
 
 (function initPoliticalTerritoryWikiTreeModule(globalObject) {
-	const MODULE_VERSION = "2026-05-21-filter-keeps-ancestors";
+	const MODULE_VERSION = "2026-05-21-build-tree-keeps-ancestors";
 	const DEFAULT_API_URL = "/api/political-territory-wiki.php";
 	const DISPLAY_SUFFIXES = ["Staat", "Imperium", "Reich", "Kalifat"];
 
@@ -21,6 +21,7 @@
 			.normalize("NFD")
 			.replace(/[\u0300-\u036f]/g, "")
 			.replace(/\u00df/g, "ss")
+			.replace(/ß/g, "ss")
 			.replace(/[^a-z0-9]+/g, "-")
 			.replace(/^-+|-+$/g, "");
 	}
@@ -162,15 +163,38 @@
 					political: normalizeText(row?.political),
 					trade_zone: normalizeText(row?.trade_zone),
 					blazon: normalizeText(row?.blazon),
+					wiki_key: normalizeText(row?.wiki_key),
 					wiki_url: normalizeText(row?.wiki_url),
 					coat_of_arms_url: normalizeText(row?.coat_of_arms_url),
+					public_id: normalizeText(row?.public_id),
+					slug: normalizeText(row?.slug),
 					map_assigned: Boolean(row?.map_assigned) || Number(row?.map_geometry_count || 0) > 0,
 					map_territory_count: parseOptionalNumber(row?.map_territory_count, 0),
 					map_geometry_count: parseOptionalNumber(row?.map_geometry_count, 0),
 				};
 			})
 			.filter((row) => row.name);
-		return dedupeRowsByIdentity(normalizedRows);
+		const dedupedRows = dedupeRowsByIdentity(normalizedRows);
+		cacheCompleteRows(dedupedRows);
+		return dedupedRows;
+	}
+
+	function cacheCompleteRows(rows) {
+		if (!Array.isArray(rows) || rows.length === 0) return;
+		const current = Array.isArray(globalObject.AvesmapsWikiSyncTerritoryTreeRowsCache)
+			? globalObject.AvesmapsWikiSyncTerritoryTreeRowsCache
+			: [];
+		if (rows.length >= current.length) {
+			globalObject.AvesmapsWikiSyncTerritoryTreeRowsCache = rows;
+			globalObject.wikiSyncTerritoryTreeRowsCache = rows;
+		}
+	}
+
+	function getCompleteRowsForAncestorLookup(rows) {
+		const cachedRows = Array.isArray(globalObject.AvesmapsWikiSyncTerritoryTreeRowsCache)
+			? globalObject.AvesmapsWikiSyncTerritoryTreeRowsCache
+			: [];
+		return cachedRows.length > rows.length ? cachedRows : rows;
 	}
 
 	function dedupeRowsByIdentity(rows) {
@@ -288,8 +312,38 @@
 		return { id, label, kind, row, parent: null, children: [], childMap: new Map() };
 	}
 
+	function expandRowsWithAncestors(rows) {
+		const inputRows = Array.isArray(rows) ? rows : [];
+		const completeRows = getCompleteRowsForAncestorLookup(inputRows);
+		if (completeRows.length <= inputRows.length) return inputRows;
+
+		const rowIndex = buildRowIndex(completeRows);
+		const expandedRows = [];
+		const includedKeys = new Set();
+		const appendRow = (row) => {
+			const key = rowIdentityKey(row) || `row:${rowKey(row)}`;
+			if (!key || includedKeys.has(key)) return;
+			expandedRows.push(row);
+			includedKeys.add(key);
+		};
+		for (const row of inputRows) {
+			const ownIdentityKey = rowIdentityKey(row);
+			for (const segment of Array.isArray(row.affiliation_path) ? row.affiliation_path : []) {
+				const segmentKey = makeKey(segment);
+				if (!segmentKey) continue;
+				const ancestorRow = rowIndex.get(segmentKey) || null;
+				if (!ancestorRow) continue;
+				const ancestorIdentityKey = rowIdentityKey(ancestorRow);
+				if (!ancestorIdentityKey || ancestorIdentityKey === ownIdentityKey) continue;
+				appendRow(ancestorRow);
+			}
+			appendRow(row);
+		}
+		return expandedRows;
+	}
+
 	function buildTree(rows) {
-		const normalizedRows = Array.isArray(rows) ? rows : [];
+		const normalizedRows = expandRowsWithAncestors(Array.isArray(rows) ? rows : []);
 		const root = createTreeNode("root", "Herrschaftsgebiete", "root");
 		const rowIndex = buildRowIndex(normalizedRows);
 		const nodeByIdentity = new Map();
@@ -386,46 +440,12 @@
 		return haystack.includes(search);
 	}
 
-	function collectAncestorRowsForSearchResult(row, rowIndex) {
-		const ancestors = [];
-		const ownIdentityKey = rowIdentityKey(row);
-		const seenAncestorKeys = new Set();
-		for (const segment of Array.isArray(row.affiliation_path) ? row.affiliation_path : []) {
-			const segmentKey = makeKey(segment);
-			if (!segmentKey) continue;
-			const ancestorRow = rowIndex.get(segmentKey) || null;
-			if (!ancestorRow) continue;
-			const ancestorIdentityKey = rowIdentityKey(ancestorRow);
-			if (!ancestorIdentityKey || ancestorIdentityKey === ownIdentityKey || seenAncestorKeys.has(ancestorIdentityKey)) continue;
-			ancestors.push(ancestorRow);
-			seenAncestorKeys.add(ancestorIdentityKey);
-		}
-		return ancestors;
-	}
-
 	function filterRows(rows, filters = {}) {
 		const allRows = Array.isArray(rows) ? rows : [];
 		const search = normalizeText(filters.search || filters.query || "").toLowerCase();
 		const structurallyFilteredRows = allRows.filter((row) => doesRowMatchStructuralFilters(row, filters));
 		if (!search) return structurallyFilteredRows;
-
-		const rowIndex = buildRowIndex(allRows);
-		const filteredRowsWithAncestors = [];
-		const includedKeys = new Set();
-		const appendRow = (row) => {
-			const key = rowIdentityKey(row) || `row:${rowKey(row)}`;
-			if (!key || includedKeys.has(key)) return;
-			filteredRowsWithAncestors.push(row);
-			includedKeys.add(key);
-		};
-
-		for (const row of structurallyFilteredRows) {
-			if (!doesRowMatchSearch(row, search)) continue;
-			collectAncestorRowsForSearchResult(row, rowIndex).forEach(appendRow);
-			appendRow(row);
-		}
-
-		return filteredRowsWithAncestors;
+		return expandRowsWithAncestors(structurallyFilteredRows.filter((row) => doesRowMatchSearch(row, search)));
 	}
 
 	function isSyntheticNode(node) {
