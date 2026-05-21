@@ -4,6 +4,69 @@ function normalizePoliticalTerritoryEditorPreviewText(value) {
 	return String(value ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function isTreeNodeAssignedToMap(node) {
+	return Boolean(node?.row?.map_assigned) || Number(node?.row?.map_geometry_count || 0) > 0;
+}
+
+function getTreeCoverageStatus(node) {
+	const ownAssigned = isTreeNodeAssignedToMap(node);
+	const children = Array.isArray(node?.children) ? node.children : [];
+
+	if (children.length === 0) {
+		return {
+			kind: ownAssigned ? "all" : "none",
+			ownAssigned,
+			hasAnyCoverage: ownAssigned,
+			isComplete: ownAssigned
+		};
+	}
+
+	const childStatuses = children.map(getTreeCoverageStatus);
+	const hasAnyChildCoverage = childStatuses.some((status) => status.hasAnyCoverage);
+	const allChildrenComplete = childStatuses.every((status) => status.isComplete);
+	const hasAnyCoverage = ownAssigned || hasAnyChildCoverage;
+
+	if (ownAssigned && allChildrenComplete) {
+		return { kind: "all", ownAssigned, hasAnyCoverage, isComplete: true };
+	}
+	if (ownAssigned) {
+		return { kind: "own-only", ownAssigned, hasAnyCoverage, isComplete: false };
+	}
+	if (hasAnyChildCoverage && allChildrenComplete) {
+		return { kind: "all", ownAssigned, hasAnyCoverage, isComplete: true };
+	}
+	if (hasAnyChildCoverage) {
+		return { kind: "children-only", ownAssigned, hasAnyCoverage, isComplete: false };
+	}
+
+	return { kind: "none", ownAssigned, hasAnyCoverage: false, isComplete: false };
+}
+
+function getTreeMapStatus(node) {
+	const status = getTreeCoverageStatus(node);
+	if (status.kind === "all") {
+		return {
+			kind: "all",
+			label: status.ownAssigned
+				? "Gebiet und Untergebiete sind auf der Karte vorhanden"
+				: "Alle Untergebiete sind auf der Karte vorhanden"
+		};
+	}
+	if (status.kind === "own-only") {
+		return {
+			kind: "own-only",
+			label: "Gebiet ist auf der Karte vorhanden, Untergebiete fehlen oder sind nicht vollständig"
+		};
+	}
+	if (status.kind === "children-only") {
+		return {
+			kind: "children-only",
+			label: "Gebiet ist indirekt durch Untergebiete auf der Karte vorhanden, Untergebiete fehlen oder sind nicht vollständig"
+		};
+	}
+	return { kind: "none", label: "Gebiet und Untergebiete fehlen auf der Karte" };
+}
+
 function renderManualCoatPreview(url) {
 	const preview = document.getElementById("manualCoatPreview");
 	if (!preview) {
