@@ -62,3 +62,53 @@ class PriorityQueue {
 		return this.heap.length === 0;
 	}
 }
+
+(function initWikiSyncTerritoryTreeBridge() {
+	if (new URLSearchParams(window.location.search).get("edit") !== "1") return;
+
+	async function loadRows() {
+		const response = await fetch("api/political-territory-wiki.php", { cache: "no-store", headers: { Accept: "application/json" } });
+		const payload = await response.json();
+		return payload && payload.ok && Array.isArray(payload.items) ? payload.items : [];
+	}
+
+	function normalize(value) {
+		return String(value ?? "").replace(/\s+/g, " ").trim();
+	}
+
+	function filterRows(rows) {
+		const input = document.getElementById("wiki-sync-territory-filter");
+		const query = normalize(input?.value || "").toLowerCase();
+		if (!query) return rows;
+		return rows.filter((row) => [row.name, row.type, row.status, row.affiliation_raw, row.affiliation_root, row.wiki_url].map((value) => normalize(value).toLowerCase()).join(" ").includes(query));
+	}
+
+	function render(rows) {
+		const container = document.getElementById("wiki-sync-territory-tree");
+		const summary = document.getElementById("wiki-sync-territories-summary");
+		const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
+		if (!container || !treeModule || typeof treeModule.buildTree !== "function" || typeof treeModule.renderTree !== "function") return;
+		const visibleRows = filterRows(rows);
+		const tree = treeModule.buildTree(visibleRows);
+		treeModule.renderTree({ container, root: tree.root, rowCount: visibleRows.length, totalRowCount: rows.length, searchText: document.getElementById("wiki-sync-territory-filter")?.value || "", infoElement: summary, enableDrag: true });
+	}
+
+	function bind(rows) {
+		const container = document.getElementById("wiki-sync-territory-tree");
+		if (!container || container.dataset.territoryBridgeBound === "1") return;
+		container.dataset.territoryBridgeBound = "1";
+		document.getElementById("wiki-sync-territory-filter")?.addEventListener("input", () => render(rows));
+		document.getElementById("wiki-sync-territories")?.addEventListener("click", () => render(rows));
+		render(rows);
+	}
+
+	function init() {
+		loadRows().then((rows) => {
+			window.wikiSyncTerritoryTreeRowsCache = rows;
+			bind(rows);
+		}).catch((error) => console.warn("Herrschaftsgebiete konnten nicht geladen werden:", error));
+	}
+
+	if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
+	else init();
+})();
