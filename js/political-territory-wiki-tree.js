@@ -68,11 +68,11 @@
 
 	function buildTreeNodeMetaLabel(node) {
 		const metaParts = [];
-		const rowId = Number(node?.row?.id || 0);
-		if (rowId > 0) metaParts.push(`ID: ${rowId}`);
 		const periodLabel = String(node?.metaLabel || buildTerritoryPeriodLabel(node?.row) || "").trim();
+		const rowId = Number(node?.row?.id || 0);
 		if (periodLabel) metaParts.push(periodLabel);
-		return metaParts.join(" · ");
+		if (rowId > 0) metaParts.push(`ID: ${rowId}`);
+		return metaParts.length > 0 ? `(${metaParts.join(", ")})` : "";
 	}
 
 	function extractParentheticalContents(value) {
