@@ -1,7 +1,7 @@
 "use strict";
 
 (function initPoliticalTerritoryWikiTreeModule(globalObject) {
-	const MODULE_VERSION = "2026-05-21-no-synthetic-years-cache";
+	const MODULE_VERSION = "2026-05-21-filter-keeps-ancestors";
 	const DEFAULT_API_URL = "/api/political-territory-wiki.php";
 	const DISPLAY_SUFFIXES = ["Staat", "Imperium", "Reich", "Kalifat"];
 
@@ -352,23 +352,80 @@
 		for (const child of node.children) sortTree(child);
 	}
 
-	function filterRows(rows, filters = {}) {
-		const search = normalizeText(filters.search || filters.query || "").toLowerCase();
+	function doesRowMatchStructuralFilters(row, filters = {}) {
 		const continent = normalizeText(filters.continent);
 		const type = normalizeText(filters.type);
 		const status = normalizeText(filters.status).toLowerCase();
-		return (Array.isArray(rows) ? rows : []).filter((row) => {
-			if (continent && row.continent !== continent) return false;
-			if (type && row.type !== type) return false;
-			if (status) {
-				const rowStatus = normalizeText(row.status).toLowerCase();
-				const rowStatusTags = Array.isArray(row.status_filter_tags) ? row.status_filter_tags : [];
-				if (rowStatus !== status && !rowStatusTags.includes(status)) return false;
-			}
-			if (!search) return true;
-			const haystack = [row.name, row.type, row.continent, row.affiliation_raw, row.affiliation_root, Array.isArray(row.affiliation_path) ? row.affiliation_path.join(" ") : "", row.status, row.capital_name, row.seat_name, row.ruler, row.geographic, row.political, buildTerritoryPeriodLabel(row)].join(" ").toLowerCase();
-			return haystack.includes(search);
-		});
+		if (continent && row.continent !== continent) return false;
+		if (type && row.type !== type) return false;
+		if (status) {
+			const rowStatus = normalizeText(row.status).toLowerCase();
+			const rowStatusTags = Array.isArray(row.status_filter_tags) ? row.status_filter_tags : [];
+			if (rowStatus !== status && !rowStatusTags.includes(status)) return false;
+		}
+		return true;
+	}
+
+	function doesRowMatchSearch(row, search) {
+		if (!search) return true;
+		const haystack = [
+			row.name,
+			row.type,
+			row.continent,
+			row.affiliation_raw,
+			row.affiliation_root,
+			Array.isArray(row.affiliation_path) ? row.affiliation_path.join(" ") : "",
+			row.status,
+			row.capital_name,
+			row.seat_name,
+			row.ruler,
+			row.geographic,
+			row.political,
+			buildTerritoryPeriodLabel(row),
+		].join(" ").toLowerCase();
+		return haystack.includes(search);
+	}
+
+	function collectAncestorRowsForSearchResult(row, rowIndex) {
+		const ancestors = [];
+		const ownIdentityKey = rowIdentityKey(row);
+		const seenAncestorKeys = new Set();
+		for (const segment of Array.isArray(row.affiliation_path) ? row.affiliation_path : []) {
+			const segmentKey = makeKey(segment);
+			if (!segmentKey) continue;
+			const ancestorRow = rowIndex.get(segmentKey) || null;
+			if (!ancestorRow) continue;
+			const ancestorIdentityKey = rowIdentityKey(ancestorRow);
+			if (!ancestorIdentityKey || ancestorIdentityKey === ownIdentityKey || seenAncestorKeys.has(ancestorIdentityKey)) continue;
+			ancestors.push(ancestorRow);
+			seenAncestorKeys.add(ancestorIdentityKey);
+		}
+		return ancestors;
+	}
+
+	function filterRows(rows, filters = {}) {
+		const allRows = Array.isArray(rows) ? rows : [];
+		const search = normalizeText(filters.search || filters.query || "").toLowerCase();
+		const structurallyFilteredRows = allRows.filter((row) => doesRowMatchStructuralFilters(row, filters));
+		if (!search) return structurallyFilteredRows;
+
+		const rowIndex = buildRowIndex(allRows);
+		const filteredRowsWithAncestors = [];
+		const includedKeys = new Set();
+		const appendRow = (row) => {
+			const key = rowIdentityKey(row) || `row:${rowKey(row)}`;
+			if (!key || includedKeys.has(key)) return;
+			filteredRowsWithAncestors.push(row);
+			includedKeys.add(key);
+		};
+
+		for (const row of structurallyFilteredRows) {
+			if (!doesRowMatchSearch(row, search)) continue;
+			collectAncestorRowsForSearchResult(row, rowIndex).forEach(appendRow);
+			appendRow(row);
+		}
+
+		return filteredRowsWithAncestors;
 	}
 
 	function isSyntheticNode(node) {
