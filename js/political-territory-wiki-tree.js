@@ -1,15 +1,12 @@
 "use strict";
 
 (function initPoliticalTerritoryWikiTreeModule(globalObject) {
-	const MODULE_VERSION = "2026-05-21-no-synthetic-years";
+	const MODULE_VERSION = "2026-05-21-no-synthetic-years-cache";
 	const DEFAULT_API_URL = "/api/political-territory-wiki.php";
 	const DISPLAY_SUFFIXES = ["Staat", "Imperium", "Reich", "Kalifat"];
 
 	function normalizeText(value) {
-		return String(value ?? "")
-			.replace(/\u00a0/g, " ")
-			.replace(/\s+/g, " ")
-			.trim();
+		return String(value ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
 	}
 
 	function parseOptionalNumber(value, fallback = null) {
@@ -99,14 +96,12 @@
 			row.affiliation_root ? [row.affiliation_root] : null,
 			row.affiliation_raw ? [normalizeText(row.affiliation_raw).split(":")[0]] : null,
 		];
-
 		for (const candidatePath of candidatePaths) {
 			const normalized = normalizeAffiliationPathCandidate(candidatePath);
 			if (!normalized.hasSource) continue;
 			if (normalized.isIndependent) return [];
 			if (normalized.parts.length > 0) return normalized.parts;
 		}
-
 		return [];
 	}
 
@@ -175,7 +170,6 @@
 				};
 			})
 			.filter((row) => row.name);
-
 		return dedupeRowsByIdentity(normalizedRows);
 	}
 
@@ -299,12 +293,10 @@
 		const root = createTreeNode("root", "Herrschaftsgebiete", "root");
 		const rowIndex = buildRowIndex(normalizedRows);
 		const nodeByIdentity = new Map();
-
 		for (const row of normalizedRows) {
 			const identityKey = rowIdentityKey(row);
 			if (!identityKey) continue;
 			let current = root;
-
 			for (const segment of Array.isArray(row.affiliation_path) ? row.affiliation_path : []) {
 				const segmentKey = makeKey(segment);
 				if (!segmentKey) continue;
@@ -320,7 +312,6 @@
 				attachChild(current, pathNode);
 				current = pathNode;
 			}
-
 			let ownNode = nodeByIdentity.get(identityKey) || null;
 			if (!ownNode) {
 				ownNode = createTreeNode(rowKey(row) || makeKey(row.name) || identityKey, buildTreeNodeLabel(row, row.name), "territory", row);
@@ -332,7 +323,6 @@
 			}
 			attachChild(current, ownNode);
 		}
-
 		sortTree(root);
 		const nodeRegistry = new Map();
 		registerTree(root, nodeRegistry);
@@ -572,6 +562,8 @@
 		const payload = await response.json();
 		if (!response.ok || !payload?.ok) throw new Error(payload?.error || `HTTP ${response.status}`);
 		const rows = normalizeApiRows(payload.items || []);
+		globalObject.AvesmapsWikiSyncTerritoryTreeRowsCache = rows;
+		globalObject.wikiSyncTerritoryTreeRowsCache = rows;
 		return { rows, payload };
 	}
 
