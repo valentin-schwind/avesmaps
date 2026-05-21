@@ -195,6 +195,10 @@ function avesmapsWikiSyncIsInvalidDomSyntheticPoliticalPathPart(string $part): b
         return true;
     }
 
+    if (preg_match('/^(?:unabhängig|unabhaengig|ungeklärt|ungeklaert|unbekannt|ungewiss|umstritten|keine|keiner|kein|unklar)$/iu', $part) === 1) {
+        return true;
+    }
+
     $key = avesmapsWikiSyncCreateMatchKey($part);
     $invalidKeys = [
         'aristrokatie',
@@ -214,6 +218,17 @@ function avesmapsWikiSyncIsInvalidDomSyntheticPoliticalPathPart(string $part): b
         'rondrakratie',
         'desoptie',
         'despotie',
+        'unabhangig',
+        'unabhaengig',
+        'ungeklart',
+        'ungeklaert',
+        'unbekannt',
+        'ungewiss',
+        'umstritten',
+        'keine',
+        'keiner',
+        'kein',
+        'unklar',
     ];
 
     return in_array($key, $invalidKeys, true);
