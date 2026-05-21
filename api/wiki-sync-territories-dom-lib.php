@@ -26,12 +26,28 @@ function avesmapsWikiSyncReadPoliticalTerritoryDomTree(PDO $pdo, bool $forceRefr
     ];
 }
 
+function avesmapsWikiSyncClearPoliticalTerritoryWikiTable(PDO $pdo): array {
+    avesmapsWikiSyncRelaxLimits();
+    avesmapsWikiSyncResetPoliticalTerritoryWikiTable($pdo);
+    return [
+        'ok' => true,
+        'source' => 'wiki-dom-cache',
+        'territory_count' => 0,
+        'root_count' => 0,
+        'assigned_territory_count' => 0,
+        'assigned_root_count' => 0,
+        'territories' => [],
+        'hierarchy' => [],
+        'message' => 'Wiki-Herrschaftsgebiettabelle wurde geleert.',
+    ];
+}
+
 function avesmapsWikiSyncSyncTerritoriesFromDomCache(PDO $pdo, array $user, array $options = []): array {
     unset($user);
     avesmapsWikiSyncRelaxLimits();
 
     $dryRun = !empty($options['dry_run']);
-    $resetTarget = !empty($options['reset_target']);
+    $resetTarget = !empty($options['reset_target']) && !empty($options['allow_reset_target']);
     $rows = avesmapsWikiSyncFetchDomTerritoryRows($pdo);
     if ($rows === []) throw new RuntimeException('Es liegen keine synchronisierten Herrschaftsgebiete vor.');
 
