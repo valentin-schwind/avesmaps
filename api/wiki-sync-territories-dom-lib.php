@@ -133,7 +133,11 @@ function avesmapsWikiSyncSanitizeDomPoliticalTerritoryRowsForTree(array $rows): 
             $path = avesmapsWikiSyncReadPoliticalTerritoryPath($row);
         }
 
-        $path = avesmapsWikiSyncSanitizeDomPoliticalTerritoryPath($path);
+        if (avesmapsWikiSyncIsDomUnresolvedPoliticalTerritoryPath($path)) {
+            $path = [];
+        } else {
+            $path = avesmapsWikiSyncSanitizeDomPoliticalTerritoryPath($path);
+        }
 
         $row['affiliation'] = implode(' : ', $path);
         $row['affiliation_root'] = $path[0] ?? '';
@@ -163,6 +167,20 @@ function avesmapsWikiSyncSanitizeDomPoliticalTerritoryPath(array $path): array {
     }
 
     return $sanitized;
+}
+
+function avesmapsWikiSyncIsDomUnresolvedPoliticalTerritoryPath(array $path): bool {
+    if ($path === []) {
+        return false;
+    }
+
+    foreach ($path as $part) {
+        if (!avesmapsWikiSyncIsInvalidDomSyntheticPoliticalPathPart((string) $part)) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 function avesmapsWikiSyncIsDomPoliticalRootTerritory(string $name, string $type = ''): bool {
@@ -195,7 +213,7 @@ function avesmapsWikiSyncIsInvalidDomSyntheticPoliticalPathPart(string $part): b
         return true;
     }
 
-    if (preg_match('/^(?:unabhängig|unabhaengig|ungeklärt|ungeklaert|unbekannt|ungewiss|umstritten|keine|keiner|kein|unklar)$/iu', $part) === 1) {
+    if (preg_match('/\b(?:unabhängig|unabhaengig|ungeklärt|ungeklaert|unbekannt|ungewiss|umstritten|keine|keiner|kein|unklar)\b/iu', $part) === 1) {
         return true;
     }
 
@@ -231,5 +249,11 @@ function avesmapsWikiSyncIsInvalidDomSyntheticPoliticalPathPart(string $part): b
         'unklar',
     ];
 
-    return in_array($key, $invalidKeys, true);
+    foreach ($invalidKeys as $invalidKey) {
+        if ($key === $invalidKey || str_contains($key, $invalidKey)) {
+            return true;
+        }
+    }
+
+    return false;
 }
