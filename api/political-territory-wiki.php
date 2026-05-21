@@ -160,6 +160,7 @@ try {
         $items[] = normalizeTerritoryRow($row);
     }
     $items = dedupeTerritoryItems($items);
+    $items = sanitizeTerritoryItemsForTree($items);
 
     $rows = array_map('territoryItemToLegacyRow', $items);
     $hierarchy = buildLegacyTree($rows);
@@ -265,6 +266,113 @@ function dedupeTerritoryItems(array $items): array {
     }
 
     return $deduped;
+}
+
+function sanitizeTerritoryItemsForTree(array $items): array {
+    return array_map(static function (array $item): array {
+        $name = value($item['name'] ?? null);
+        $type = value($item['type'] ?? null);
+
+        if (isRootTerritoryItem($name, $type)) {
+            $item['affiliation_raw'] = null;
+            $item['affiliation_key'] = null;
+            $item['affiliation_root'] = null;
+            $item['affiliation_path'] = [];
+            if (is_array($item['affiliation'] ?? null)) {
+                $item['affiliation']['root'] = '';
+                $item['affiliation']['path'] = [];
+            }
+            return $item;
+        }
+
+        $path = is_array($item['affiliation_path'] ?? null)
+            ? $item['affiliation_path']
+            : [];
+        $path = sanitizeAffiliationPathForTree($path);
+
+        $item['affiliation_path'] = $path;
+        $item['affiliation_root'] = $path[0] ?? null;
+        $item['affiliation_key'] = isset($path[0]) ? makeStableKey($path[0]) : null;
+
+        if (is_array($item['affiliation'] ?? null)) {
+            $item['affiliation']['root'] = $path[0] ?? '';
+            $item['affiliation']['path'] = $path;
+        }
+
+        return $item;
+    }, $items);
+}
+
+function sanitizeAffiliationPathForTree(array $path): array {
+    $sanitized = [];
+    $seen = [];
+
+    foreach ($path as $part) {
+        $part = value($part);
+        if ($part === '' || isInvalidSyntheticPathPart($part)) {
+            continue;
+        }
+
+        $key = makeStableKey($part);
+        if ($key === '' || isset($seen[$key])) {
+            continue;
+        }
+
+        $seen[$key] = true;
+        $sanitized[] = $part;
+    }
+
+    return $sanitized;
+}
+
+function isRootTerritoryItem(string $name, string $type = ''): bool {
+    $nameKey = makeStableKey($name);
+    $typeKey = makeStableKey($type);
+
+    if ($nameKey === '' && $typeKey === '') {
+        return false;
+    }
+
+    return str_starts_with($nameKey, 'enklave')
+        || str_starts_with($typeKey, 'enklave')
+        || str_starts_with($nameKey, 'bergkonigreich')
+        || str_starts_with($nameKey, 'bergkoenigreich')
+        || str_starts_with($typeKey, 'bergkonigreich')
+        || str_starts_with($typeKey, 'bergkoenigreich');
+}
+
+function isInvalidSyntheticPathPart(string $part): bool {
+    $part = value($part);
+    if ($part === '') {
+        return true;
+    }
+
+    if (preg_match('/^(?:\d{1,5}\s*(?:v\.\s*)?(?:BF|IZ)|\d{1,5})$/iu', $part) === 1) {
+        return true;
+    }
+
+    $key = makeStableKey($part);
+    $invalidKeys = [
+        'aristrokatie',
+        'aristokratie',
+        'magokratie',
+        'geldaristrokratie',
+        'geldaristokratie',
+        'boronkratie',
+        'plutokratie',
+        'feudalherrschaft',
+        'matriachat',
+        'matriarchat',
+        'militarherrschaft',
+        'militaerherrschaft',
+        'oligarchie',
+        'theokratie',
+        'rondrakratie',
+        'desoptie',
+        'despotie',
+    ];
+
+    return in_array($key, $invalidKeys, true);
 }
 
 function territoryItemDedupeKey(array $item): string {
@@ -419,6 +527,11 @@ function territoryItemToLegacyRow(array $item): array {
             'path' => $affiliationPath,
             'original' => value($item['affiliation_raw'] ?? null),
         ];
+
+    if (is_array($affiliation)) {
+        $affiliation['root'] = $affiliationPath[0] ?? '';
+        $affiliation['path'] = $affiliationPath;
+    }
 
     $founded = is_array($item['founded'] ?? null) ? $item['founded'] : null;
     $dissolved = is_array($item['dissolved'] ?? null) ? $item['dissolved'] : null;
@@ -663,7 +776,7 @@ function readLegacyPath(array $row): array {
 
 function canonicalPathPart(string $part): string {
     $value = value($part);
-    if ($value === '') {
+    if ($value === '' || isInvalidSyntheticPathPart($value)) {
         return '';
     }
 
