@@ -149,6 +149,7 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 		assignment: value,
 	});
 
+	await syncPoliticalTerritoryEditorAssignmentZooms(value);
 	refreshPoliticalTerritoryEditorMapLayer();
 	if (typeof showFeedbackToast === "function") {
 		showFeedbackToast(result?.message || "Herrschaftsgebiet gespeichert.", "success");
@@ -156,6 +157,34 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 	window.setTimeout(closePoliticalTerritoryEditor, 0);
 
 	return result;
+}
+
+async function syncPoliticalTerritoryEditorAssignmentZooms(value = {}) {
+	const displays = Array.isArray(value.displays) ? value.displays : [];
+	const syncDisplays = displays.filter((display) => String(display?.territoryPublicId || "").trim() !== "");
+	if (syncDisplays.length < 1) {
+		return null;
+	}
+
+	try {
+		const response = await fetch("/api/political-territory-assignment-zoom-sync.php", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "same-origin",
+			body: JSON.stringify({ displays: syncDisplays }),
+		});
+		const result = await response.json().catch(() => null);
+		if (!response.ok || result?.ok === false) {
+			throw new Error(result?.error || "Breadcrumb-Zoomstufen konnten nicht global synchronisiert werden.");
+		}
+		return result;
+	} catch (error) {
+		console.warn("Breadcrumb-Zoomstufen konnten nicht global synchronisiert werden:", error);
+		if (typeof showFeedbackToast === "function") {
+			showFeedbackToast(error.message || "Breadcrumb-Zoomstufen konnten nicht global synchronisiert werden.", "warning");
+		}
+		return null;
+	}
 }
 
 async function unassignPoliticalTerritoryEditorGeometry(regionEntry) {
@@ -565,6 +594,7 @@ async function assignWikiSyncTerritoryPayloadToRegionGeometry(payload, regionEnt
 		validity: assignmentValue.validity,
 	});
 
+	await syncPoliticalTerritoryEditorAssignmentZooms(assignmentValue);
 	refreshPoliticalTerritoryEditorMapLayer();
 	if (typeof loadChangeLog === "function") {
 		void loadChangeLog();
