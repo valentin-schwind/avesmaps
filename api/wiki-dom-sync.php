@@ -15,8 +15,6 @@ if (!is_string($source) || trim($source) === '') {
 
 $source = preg_replace('/^\s*<\?php\s*/u', '', $source, 1) ?? $source;
 $source = str_replace('__DIR__', 'AVESMAPS_WIKI_DOM_SOURCE_DIR', $source);
-require_once __DIR__ . '/wiki-dom-sync-filter.php';
-$source = avesmapsWikiDomPatchSource($source);
 
 $tempPath = tempnam(sys_get_temp_dir(), 'avesmaps-wiki-dom-sync-');
 if (!is_string($tempPath) || $tempPath === '') {
