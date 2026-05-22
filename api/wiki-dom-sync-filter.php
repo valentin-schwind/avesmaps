@@ -4,32 +4,22 @@ declare(strict_types=1);
 
 function avesmapsWikiDomPatchSource(string $source): string {
     $defaultSeeds = [
-        'Aristokratie/Liste',
         'Baronie/Liste',
-        'Boronkratie/Liste',
-        'Despotie/Liste',
         'Emirat/Liste',
         'Freiherrschaft/Liste',
         'Fürstentum/Liste',
-        'Geldaristokratie/Liste',
         'Grafschaft/Liste',
         'Herzogtum/Liste',
         'Jarltum/Liste',
         'Kaiserreich/Liste',
         'Königreich/Liste',
-        'Magokratie/Liste',
         'Markgrafschaft/Liste',
-        'Matriarchat/Liste',
-        'Oligarchie/Liste',
         'Pfalzgrafschaft/Liste',
-        'Plutokratie/Liste',
         'Reichsmark/Liste',
         'Republik/Liste',
-        'Rondrakratie/Liste',
         'Shîkanydad/Liste',
         'Staat/Liste',
         'Sultanat/Liste',
-        'Theokratie/Liste',
     ];
 
     $defaultCatchwords = [
