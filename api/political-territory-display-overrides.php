@@ -70,6 +70,7 @@ function avesmapsPoliticalDisplayOverrideReadGeometry(PDO $pdo, array $payload):
 function avesmapsPoliticalDisplayOverrideState(PDO $pdo, array $payload): array {
     $geometry = avesmapsPoliticalDisplayOverrideReadGeometry($pdo, $payload);
     $style = avesmapsPoliticalDecodeJson($geometry['style_json'] ?? null);
+    $assignmentDisplays = avesmapsPoliticalReadAssignmentDisplaysFromStyle($style);
     $territoriesByPublicId = avesmapsPoliticalDisplayOverrideFetchDisplayTerritories($pdo, $style);
     $hasOverride = false;
     $reasons = [];
@@ -87,7 +88,12 @@ function avesmapsPoliticalDisplayOverrideState(PDO $pdo, array $payload): array 
         $reasons[] = 'geometry_zoom';
     }
 
-    foreach (avesmapsPoliticalReadAssignmentDisplaysFromStyle($style) as $display) {
+    if ($assignmentDisplays !== []) {
+        $hasOverride = true;
+        $reasons[] = 'assignment_displays_local';
+    }
+
+    foreach ($assignmentDisplays as $display) {
         $territoryPublicId = trim((string) ($display['territoryPublicId'] ?? $display['territory_public_id'] ?? ''));
         if ($territoryPublicId === '' || !isset($territoriesByPublicId[$territoryPublicId])) {
             continue;
@@ -95,7 +101,7 @@ function avesmapsPoliticalDisplayOverrideState(PDO $pdo, array $payload): array 
 
         if (avesmapsPoliticalDisplayOverrideDiffersFromTerritory($display, $territoriesByPublicId[$territoryPublicId])) {
             $hasOverride = true;
-            $reasons[] = 'assignment_display';
+            $reasons[] = 'assignment_display_changed';
             break;
         }
     }
