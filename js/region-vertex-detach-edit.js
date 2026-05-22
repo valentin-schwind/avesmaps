@@ -1,10 +1,29 @@
 (function initializeRegionVertexDetachEditing() {
 	const REGION_EDIT_VERTEX_DETACH_HIT_TOLERANCE_PX = 14;
+	const REGION_VERTEX_DETACH_INSTALL_RETRY_LIMIT = 120;
+	let installRetryCount = 0;
 	let overridesInstalled = false;
 
-	function installRegionVertexDetachEditing() {
-		if (overridesInstalled || typeof L === "undefined" || typeof window.refreshRegionEditHandles !== "function") {
+	function scheduleRegionVertexDetachInstall() {
+		if (overridesInstalled || installRetryCount >= REGION_VERTEX_DETACH_INSTALL_RETRY_LIMIT) {
 			return;
+		}
+
+		installRetryCount += 1;
+		window.setTimeout(() => {
+			if (!installRegionVertexDetachEditing()) {
+				scheduleRegionVertexDetachInstall();
+			}
+		}, 50);
+	}
+
+	function installRegionVertexDetachEditing() {
+		if (overridesInstalled) {
+			return true;
+		}
+
+		if (typeof L === "undefined" || typeof window.refreshRegionEditHandles !== "function" || typeof window.handleRegionEditMouseMove !== "function") {
+			return false;
 		}
 
 		overridesInstalled = true;
@@ -255,8 +274,11 @@
 
 			subdivideRegionEditHoveredEdge(4);
 		};
+
+		return true;
 	}
 
-	installRegionVertexDetachEditing();
-	window.setTimeout(installRegionVertexDetachEditing, 0);
+	if (!installRegionVertexDetachEditing()) {
+		scheduleRegionVertexDetachInstall();
+	}
 })();
