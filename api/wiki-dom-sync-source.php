@@ -36,6 +36,7 @@ try {
         $payload = readBody();
         if ($action === 'run') runImport($pdo, $payload);
         if ($action === 'clear') { $pdo->exec('TRUNCATE TABLE ' . WIKI_DOM_TEST_TABLE); jsonOut(['ok' => true, 'message' => 'Test-Tabelle geleert.']); }
+        if ($action === 'delete_rows') deleteRows($pdo, $payload);
         jsonOut(['ok' => false, 'error' => 'Unbekannte POST-Action.'], 400);
     }
     if ($_SERVER['REQUEST_METHOD'] !== 'GET') jsonOut(['ok' => false, 'error' => 'Nur GET und POST sind erlaubt.'], 405);
@@ -120,6 +121,47 @@ function runImport(PDO $pdo, array $payload): void {
         $result['run'] = ['ok' => true, 'runtime_seconds' => round(microtime(true) - $startedAt, 3), 'iterations' => $iterations, 'entrypoint_pages' => $entrypoints, 'fetched_pages' => $stored, 'skipped_existing' => $skipped, 'queued_child_links' => $childLinks, 'queued_remaining' => count($queue), 'events' => $events, 'errors' => $errors, 'options' => $options];
         jsonOut($result);
     } finally { releaseLock($lock); }
+}
+
+function deleteRows(PDO $pdo, array $payload): void {
+    $rawIds = $payload['ids'] ?? [];
+    if (!is_array($rawIds)) {
+        jsonOut(['ok' => false, 'error' => 'ids muss eine Liste sein.'], 400);
+    }
+
+    $ids = [];
+    foreach ($rawIds as $rawId) {
+        $id = filter_var($rawId, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+        if ($id !== false) {
+            $ids[(int) $id] = (int) $id;
+        }
+    }
+
+    $ids = array_values($ids);
+
+    if ($ids === []) {
+        jsonOut(['ok' => false, 'error' => 'Keine gültigen Einträge ausgewählt.'], 400);
+    }
+
+    if (count($ids) > 500) {
+        jsonOut(['ok' => false, 'error' => 'Bitte höchstens 500 Einträge auf einmal löschen.'], 400);
+    }
+
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $statement = $pdo->prepare(
+        'DELETE FROM ' . WIKI_DOM_TEST_TABLE . ' WHERE id IN (' . $placeholders . ')'
+    );
+    $statement->execute($ids);
+
+    $result = readRows($pdo);
+    $result['deleted_count'] = $statement->rowCount();
+    $result['message'] = $statement->rowCount() === 1
+        ? '1 vorbereiteter Eintrag wurde gelöscht.'
+        : $statement->rowCount() . ' vorbereitete Einträge wurden gelöscht.';
+
+    jsonOut($result);
 }
 
 function defaultSeeds(): array { return ['Baronie/Liste', 'Bergkönigreich/Liste', 'Domäne (Horasreich)/Liste', 'Emirat/Liste', 'Freiherrschaft/Liste', 'Fürstentum/Liste', 'Grafschaft/Liste', 'Herzogtum/Liste', 'Kaiserliches Eigengut/Liste', 'Komturei/Liste', 'Königreich/Liste', 'Markgrafschaft/Liste', 'Pfalzgrafschaft/Liste', 'Provinz (Imperium)/Liste', 'Provinz (Mittelreich)/Liste', 'Reichsmark/Liste', 'Republik/Liste', 'Shîkanydad/Liste', 'Staat/Liste', 'Sultanat/Liste', 'Theokratie/Liste']; }
