@@ -4,6 +4,7 @@
 	let installRetryCount = 0;
 	let overridesInstalled = false;
 	let isRegionVertexDetachCtrlPressed = false;
+	let activeRegionVertexDetachDrag = null;
 
 	function scheduleRegionVertexDetachInstall() {
 		if (overridesInstalled || installRetryCount >= REGION_VERTEX_DETACH_INSTALL_RETRY_LIMIT) {
@@ -20,6 +21,16 @@
 
 	function readRegionVertexDetachModifier(event = null) {
 		return Boolean(isRegionVertexDetachCtrlPressed || event?.originalEvent?.ctrlKey || event?.ctrlKey);
+	}
+
+	function stopRegionVertexDetachDomEvent(event) {
+		if (!event) {
+			return;
+		}
+
+		event.preventDefault?.();
+		event.stopPropagation?.();
+		event.stopImmediatePropagation?.();
 	}
 
 	function installRegionVertexDetachEditing() {
@@ -42,7 +53,7 @@
 		document.addEventListener("keyup", (event) => {
 			if (event.key === "Control") {
 				isRegionVertexDetachCtrlPressed = false;
-				if (activeRegionGeometryEdit?.vertexDetachHandle) {
+				if (activeRegionGeometryEdit?.vertexDetachHandle && !activeRegionVertexDetachDrag) {
 					clearRegionEditVertexDetachPreview();
 				}
 			}
@@ -50,6 +61,7 @@
 
 		window.addEventListener("blur", () => {
 			isRegionVertexDetachCtrlPressed = false;
+			finishManualRegionVertexDetachDrag();
 			if (activeRegionGeometryEdit?.vertexDetachHandle) {
 				clearRegionEditVertexDetachPreview();
 			}
@@ -153,6 +165,113 @@
 			);
 		}
 
+		function getLatLngFromDomMouseEvent(event) {
+			if (!event) {
+				return null;
+			}
+
+			const container = map.getContainer();
+			const bounds = container.getBoundingClientRect();
+			return map.containerPointToLatLng(L.point(
+				event.clientX - bounds.left,
+				event.clientY - bounds.top
+			));
+		}
+
+		function updateManualRegionVertexDetachDrag(event) {
+			if (!activeRegionVertexDetachDrag || !activeRegionGeometryEdit) {
+				return;
+			}
+
+			const latLng = getLatLngFromDomMouseEvent(event);
+			if (!latLng) {
+				return;
+			}
+
+			const { handle, index, regionEntry } = activeRegionVertexDetachDrag;
+			const latLngs = getRegionOuterLatLngs(regionEntry);
+			if (!latLngs[index]) {
+				return;
+			}
+
+			handle.setLatLng(latLng);
+			latLngs[index] = latLng;
+			setRegionOuterLatLngs(regionEntry, latLngs);
+			updateRegionLabelPosition(regionEntry);
+			clearRegionEditEdgeHover();
+			activeRegionVertexDetachDrag.didMove = true;
+		}
+
+		function finishManualRegionVertexDetachDrag(event = null) {
+			if (!activeRegionVertexDetachDrag) {
+				return;
+			}
+
+			const dragState = activeRegionVertexDetachDrag;
+			activeRegionVertexDetachDrag = null;
+			document.removeEventListener("mousemove", updateManualRegionVertexDetachDrag, true);
+			document.removeEventListener("mouseup", finishManualRegionVertexDetachDrag, true);
+			document.body.classList.remove("region-vertex-detach-dragging");
+			if (dragState.mapDraggingWasEnabled) {
+				map.dragging.enable();
+			}
+			if (dragState.handleDraggingWasEnabled) {
+				dragState.handle.dragging?.enable?.();
+			}
+
+			if (event) {
+				stopRegionVertexDetachDomEvent(event);
+				updateManualRegionVertexDetachDrag(event);
+			}
+
+			if (!activeRegionGeometryEdit || !dragState.didMove) {
+				clearRegionEditVertexDetachPreview();
+				return;
+			}
+
+			const latLngs = getRegionOuterLatLngs(dragState.regionEntry);
+			const targetLatLng = dragState.handle.getLatLng();
+			latLngs[dragState.index] = targetLatLng;
+			setRegionOuterLatLngs(dragState.regionEntry, latLngs);
+			updateRegionLabelPosition(dragState.regionEntry);
+			refreshRegionEditHandles();
+			void saveRegionGeometry(dragState.regionEntry);
+		}
+
+		function startManualRegionVertexDetachDrag(event, handle, index) {
+			const domEvent = event?.originalEvent || event;
+			if (!activeRegionGeometryEdit || !readRegionVertexDetachModifier(event) || activeRegionVertexDetachDrag) {
+				return false;
+			}
+
+			stopRegionVertexDetachDomEvent(domEvent);
+			markRegionVertexDetachHandle(handle);
+			clearRegionEditEdgeHover();
+
+			const mapDraggingWasEnabled = Boolean(map.dragging?.enabled?.());
+			if (mapDraggingWasEnabled) {
+				map.dragging.disable();
+			}
+			const handleDraggingWasEnabled = Boolean(handle.dragging?.enabled?.());
+			if (handleDraggingWasEnabled) {
+				handle.dragging.disable();
+			}
+
+			activeRegionVertexDetachDrag = {
+				handle,
+				index,
+				regionEntry: activeRegionGeometryEdit.regionEntry,
+				mapDraggingWasEnabled,
+				handleDraggingWasEnabled,
+				didMove: false,
+			};
+			document.body.classList.add("region-vertex-detach-dragging");
+			document.addEventListener("mousemove", updateManualRegionVertexDetachDrag, true);
+			document.addEventListener("mouseup", finishManualRegionVertexDetachDrag, true);
+			updateManualRegionVertexDetachDrag(domEvent);
+			return true;
+		}
+
 		window.createRegionHandleIcon = function createRegionHandleIcon() {
 			return createRegionDetachHandleIcon(false);
 		};
@@ -160,6 +279,7 @@
 		window.clearRegionGeometryEdit = function clearRegionGeometryEdit() {
 			if (!activeRegionGeometryEdit) return;
 
+			finishManualRegionVertexDetachDrag();
 			clearRegionEditVertexDetachPreview();
 			clearRegionEditEdgeHover();
 			disableRegionEditEdgeControls();
@@ -196,6 +316,10 @@
 				handle.on("mouseover", (event) => handleRegionVertexDetachMouseEvent(event, handle));
 				handle.on("mousemove", (event) => handleRegionVertexDetachMouseEvent(event, handle));
 				handle.on("mousedown", (event) => {
+					if (startManualRegionVertexDetachDrag(event, handle, index)) {
+						return;
+					}
+
 					handle._regionDetachMouseDownCtrl = readRegionVertexDetachModifier(event);
 					if (handle._regionDetachMouseDownCtrl) {
 						markRegionVertexDetachHandle(handle);
@@ -252,6 +376,9 @@
 				if (element) {
 					L.DomEvent.disableClickPropagation(element);
 					L.DomEvent.disableScrollPropagation(element);
+					element.addEventListener("mousedown", (event) => {
+						startManualRegionVertexDetachDrag(event, handle, index);
+					}, true);
 					element.addEventListener("dblclick", (event) => {
 						event.preventDefault();
 						event.stopPropagation();
@@ -264,8 +391,10 @@
 		};
 
 		window.handleRegionEditMouseMove = function handleRegionEditMouseMove(event) {
-			if (!activeRegionGeometryEdit || !readRegionVertexDetachModifier(event)) {
-				clearRegionEditVertexDetachPreview();
+			if (!activeRegionGeometryEdit || activeRegionVertexDetachDrag || !readRegionVertexDetachModifier(event)) {
+				if (!activeRegionVertexDetachDrag) {
+					clearRegionEditVertexDetachPreview();
+				}
 				clearRegionEditEdgeHover();
 				return;
 			}
@@ -279,20 +408,24 @@
 		};
 
 		window.handleRegionEditMouseOut = function handleRegionEditMouseOut() {
-			clearRegionEditVertexDetachPreview();
+			if (!activeRegionVertexDetachDrag) {
+				clearRegionEditVertexDetachPreview();
+			}
 			clearRegionEditEdgeHover();
 		};
 
 		window.handleRegionEditKeyUp = function handleRegionEditKeyUp(event) {
 			if (event.key === "Control") {
 				isRegionVertexDetachCtrlPressed = false;
-				clearRegionEditVertexDetachPreview();
+				if (!activeRegionVertexDetachDrag) {
+					clearRegionEditVertexDetachPreview();
+				}
 				clearRegionEditEdgeHover();
 			}
 		};
 
 		window.handleRegionEditClick = function handleRegionEditClick(event) {
-			if (!activeRegionGeometryEdit || !readRegionVertexDetachModifier(event)) {
+			if (!activeRegionGeometryEdit || activeRegionVertexDetachDrag || !readRegionVertexDetachModifier(event)) {
 				return;
 			}
 
