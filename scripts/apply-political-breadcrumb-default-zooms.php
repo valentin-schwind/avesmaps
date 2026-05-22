@@ -14,10 +14,12 @@ if ($arguments['help']) {
     echo "  php scripts/apply-political-breadcrumb-default-zooms.php\n";
     echo "  php scripts/apply-political-breadcrumb-default-zooms.php --apply\n";
     echo "  php scripts/apply-political-breadcrumb-default-zooms.php --geometry-public-id=<uuid> --apply\n";
+    echo "  php scripts/apply-political-breadcrumb-default-zooms.php --geometry-public-id=<uuid> --diagnose\n";
     echo "  php scripts/apply-political-breadcrumb-default-zooms.php --3layer 0-1 2-2 3-6 --apply\n";
     echo "\n";
     echo "Options:\n";
     echo "  --apply                 Write changes. Without this option the script runs as dry-run.\n";
+    echo "  --diagnose              Print geometry, territory and assignment zoom details without writing.\n";
     echo "  --limit=<n>             Process at most n matching geometries. Useful for testing.\n";
     echo "  --geometry-public-id    Process only one geometry.\n";
     echo "  --1layer ... --Nlayer   Override zoom ranges for an exact breadcrumb depth.\n";
@@ -28,6 +30,7 @@ if ($arguments['help']) {
 }
 
 $apply = $arguments['apply'];
+$diagnose = $arguments['diagnose'];
 $limit = $arguments['limit'];
 $geometryPublicId = $arguments['geometryPublicId'];
 $zoomRules = $arguments['zoomRules'];
@@ -37,6 +40,15 @@ $pdo = avesmapsCreatePdo($config['database'] ?? []);
 avesmapsPoliticalEnsureTables($pdo);
 
 $territoryCache = [];
+
+if ($diagnose) {
+    if ($geometryPublicId === '') {
+        throw new InvalidArgumentException('--diagnose braucht --geometry-public-id=<uuid>.');
+    }
+    avesmapsDiagnoseGeometryBreadcrumbZooms($pdo, $geometryPublicId, $zoomRules, $territoryCache);
+    exit(0);
+}
+
 $geometries = avesmapsFetchActivePoliticalGeometries($pdo, $geometryPublicId, $limit);
 $updateStatement = $pdo->prepare(
     'UPDATE political_territory_geometry
@@ -284,7 +296,7 @@ function avesmapsFetchTerritoryForBreadcrumb(PDO $pdo, int $territoryId, array &
     }
 
     $statement = $pdo->prepare(
-        'SELECT id, public_id, parent_id, name, short_name, type, color, opacity, coat_of_arms_url, valid_from_bf, valid_to_bf
+        'SELECT id, public_id, parent_id, name, short_name, type, color, opacity, coat_of_arms_url, valid_from_bf, valid_to_bf, min_zoom, max_zoom
         FROM political_territory
         WHERE id = :id
         LIMIT 1'
@@ -348,6 +360,99 @@ function avesmapsReadOpacity(mixed $value): float {
     return max(0.0, min(1.0, $number));
 }
 
+function avesmapsDiagnoseGeometryBreadcrumbZooms(PDO $pdo, string $geometryPublicId, array $zoomRules, array &$territoryCache): void {
+    $statement = $pdo->prepare(
+        'SELECT g.id, g.public_id, g.territory_id, g.min_zoom AS geometry_min_zoom, g.max_zoom AS geometry_max_zoom, g.style_json, g.is_active,
+            t.id AS territory_row_id, t.public_id AS territory_public_id, t.name AS territory_name, t.parent_id AS territory_parent_id,
+            t.min_zoom AS territory_min_zoom, t.max_zoom AS territory_max_zoom, t.is_active AS territory_is_active
+        FROM political_territory_geometry g
+        LEFT JOIN political_territory t ON t.id = g.territory_id
+        WHERE g.public_id = :public_id
+        LIMIT 1'
+    );
+    $statement->execute(['public_id' => $geometryPublicId]);
+    $geometry = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($geometry)) {
+        echo "No geometry found for public_id={$geometryPublicId}\n";
+        return;
+    }
+
+    $style = avesmapsDecodePoliticalStyleJson($geometry['style_json'] ?? null);
+    $displays = $style['assignmentDisplays'] ?? $style['assignment_displays'] ?? null;
+    $hasDisplays = is_array($displays) && count($displays) > 0;
+    $territoryId = avesmapsNullableInt($geometry['territory_id'] ?? null);
+    $chain = $territoryId === null ? [] : avesmapsBuildTerritoryChainForGeometry($pdo, $territoryId, $territoryCache);
+
+    echo "Diagnosis\n";
+    echo "Geometry: #" . (string) $geometry['id'] . " / " . (string) $geometry['public_id'] . "\n";
+    echo "Geometry active: " . (string) $geometry['is_active'] . "\n";
+    echo "Geometry territory_id: " . avesmapsFormatNullableValue($geometry['territory_id'] ?? null) . "\n";
+    echo "Geometry min_zoom/max_zoom: " . avesmapsFormatZoomPair($geometry['geometry_min_zoom'] ?? null, $geometry['geometry_max_zoom'] ?? null) . "\n";
+    echo "Territory row: #" . avesmapsFormatNullableValue($geometry['territory_row_id'] ?? null) . " / " . avesmapsFormatNullableValue($geometry['territory_public_id'] ?? null) . " / " . avesmapsFormatNullableValue($geometry['territory_name'] ?? null) . "\n";
+    echo "Territory active: " . avesmapsFormatNullableValue($geometry['territory_is_active'] ?? null) . "\n";
+    echo "Territory parent_id: " . avesmapsFormatNullableValue($geometry['territory_parent_id'] ?? null) . "\n";
+    echo "Territory min_zoom/max_zoom: " . avesmapsFormatZoomPair($geometry['territory_min_zoom'] ?? null, $geometry['territory_max_zoom'] ?? null) . "\n";
+    echo "style_json present: " . (is_string($geometry['style_json'] ?? null) && trim((string) $geometry['style_json']) !== '' ? 'yes' : 'no') . "\n";
+    echo "assignmentDisplays present: " . ($hasDisplays ? 'yes' : 'no') . "\n";
+    echo "assignmentDisplays count: " . ($hasDisplays ? count($displays) : 0) . "\n";
+
+    if ($chain !== []) {
+        echo "\nReconstructed territory chain:\n";
+        $chainLength = count($chain);
+        foreach ($chain as $index => $territory) {
+            $defaultZoom = avesmapsPoliticalBreadcrumbDefaultZoomRange($chainLength, (int) $index, $zoomRules);
+            echo sprintf(
+                '- Ebene %d/%d | #%s | %s | %s | territory zoom %s | default %d-%d' . "\n",
+                $index + 1,
+                $chainLength,
+                (string) ($territory['id'] ?? ''),
+                (string) ($territory['public_id'] ?? ''),
+                trim((string) ($territory['short_name'] ?? '')) ?: trim((string) ($territory['name'] ?? '')),
+                avesmapsFormatZoomPair($territory['min_zoom'] ?? null, $territory['max_zoom'] ?? null),
+                $defaultZoom['zoomMin'],
+                $defaultZoom['zoomMax']
+            );
+        }
+    } else {
+        echo "\nReconstructed territory chain: none\n";
+    }
+
+    if ($hasDisplays) {
+        echo "\nStored assignmentDisplays:\n";
+        $chainLength = count($displays);
+        foreach ($displays as $index => $display) {
+            if (!is_array($display)) {
+                continue;
+            }
+            $defaultZoom = avesmapsPoliticalBreadcrumbDefaultZoomRange($chainLength, (int) $index, $zoomRules);
+            $storedMin = $display['zoomMin'] ?? $display['zoom_min'] ?? null;
+            $storedMax = $display['zoomMax'] ?? $display['zoom_max'] ?? null;
+            echo sprintf(
+                '- Ebene %d/%d | %s | territoryPublicId=%s | stored %s | default %d-%d' . "\n",
+                $index + 1,
+                $chainLength,
+                avesmapsDescribeAssignmentDisplay($display),
+                (string) ($display['territoryPublicId'] ?? $display['territory_public_id'] ?? ''),
+                avesmapsFormatZoomPair($storedMin, $storedMax),
+                $defaultZoom['zoomMin'],
+                $defaultZoom['zoomMax']
+            );
+        }
+    }
+}
+
+function avesmapsFormatNullableValue(mixed $value): string {
+    if ($value === null || $value === '') {
+        return 'null';
+    }
+
+    return (string) $value;
+}
+
+function avesmapsFormatZoomPair(mixed $min, mixed $max): string {
+    return avesmapsFormatNullableValue($min) . '-' . avesmapsFormatNullableValue($max);
+}
+
 function avesmapsAddSkippedExample(array &$skippedExamples, array $geometry, string $reason): void {
     if (count($skippedExamples) >= 12) {
         return;
@@ -365,6 +470,7 @@ function avesmapsAddSkippedExample(array &$skippedExamples, array $geometry, str
 function avesmapsParseCommandLineArguments(array $argv): array {
     $arguments = [
         'apply' => false,
+        'diagnose' => false,
         'help' => false,
         'limit' => null,
         'geometryPublicId' => '',
@@ -377,6 +483,10 @@ function avesmapsParseCommandLineArguments(array $argv): array {
         $token = (string) $tokens[$index];
         if ($token === '--apply') {
             $arguments['apply'] = true;
+            continue;
+        }
+        if ($token === '--diagnose') {
+            $arguments['diagnose'] = true;
             continue;
         }
         if ($token === '--help' || $token === '-h') {
