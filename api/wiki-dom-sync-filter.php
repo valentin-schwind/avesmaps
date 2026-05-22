@@ -15,5 +15,12 @@ function avesmapsWikiDomPatchSource(string $source): string {
         $source
     );
 
+    $settlementNeedle = chr(40) . 'Siedlung' . chr(41);
+    $source = str_replace(
+        "\$text = cleanText(\$node->textContent ?? ''); if (\$target === ''",
+        "\$text = cleanText(\$node->textContent ?? ''); if (str_contains(\$target . ' ' . \$text, '" . $settlementNeedle . "')) continue; if (\$target === ''",
+        $source
+    );
+
     return $source;
 }
