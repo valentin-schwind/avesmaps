@@ -346,19 +346,6 @@ function installWikiSyncTerritoryTreeDisplayPatch() {
 		return Boolean(treeModule?.__avesmapsPeriodLabelPatch);
 	}
 
-	const originalBuildTree = treeModule.buildTree;
-	treeModule.buildTree = function buildTreeWithNumericPeriodLabels(rows) {
-		const result = originalBuildTree.call(this, rows);
-		const visit = (node) => {
-			if (!node || typeof node !== "object") return;
-			if (node.row) {
-				node.label = formatWikiSyncTerritoryNodeLabel(node.row, node.label);
-			}
-			(node.children || []).forEach(visit);
-		};
-		visit(result?.root);
-		return result;
-	};
 	treeModule.__avesmapsPeriodLabelPatch = true;
 	return true;
 }

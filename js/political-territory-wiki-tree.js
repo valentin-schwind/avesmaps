@@ -63,9 +63,16 @@
 	}
 
 	function buildTreeNodeLabel(row, fallbackLabel = "") {
-		const label = normalizeText(fallbackLabel || row?.name || "");
-		const periodLabel = buildTerritoryPeriodLabel(row);
-		return periodLabel ? `${label} (${periodLabel})` : label;
+		return normalizeText(fallbackLabel || row?.name || "");
+	}
+
+	function buildTreeItemMetaLabel(node) {
+		const metaParts = [];
+		const periodLabel = buildTerritoryPeriodLabel(node?.row || null);
+		if (periodLabel) metaParts.push(periodLabel);
+		const rowId = Number(node?.row?.id || 0);
+		if (rowId > 0) metaParts.push(`ID: ${rowId}`);
+		return metaParts.length > 0 ? `(${metaParts.join(", ")})` : "";
 	}
 
 	function extractParentheticalContents(value) {
@@ -612,9 +619,15 @@
 		itemElement.appendChild(handle);
 		const name = document.createElement("span");
 		name.className = "tree-item-name";
-		const rowId = Number(node?.row?.id || 0);
-		name.textContent = rowId > 0 ? `${node.label} (ID: ${rowId})` : node.label;
+		name.textContent = node.label;
 		itemElement.appendChild(name);
+		const metaLabel = buildTreeItemMetaLabel(node);
+		if (metaLabel !== "") {
+			const meta = document.createElement("span");
+			meta.className = "tree-item-meta";
+			meta.textContent = metaLabel;
+			itemElement.appendChild(meta);
+		}
 		const mapStatus = getTreeMapStatus(node);
 		const mapStatusElement = document.createElement("span");
 		mapStatusElement.className = `tree-map-status tree-map-status--${mapStatus.kind}`;

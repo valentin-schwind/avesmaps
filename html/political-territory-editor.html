@@ -1999,9 +1999,15 @@
 
 			const name = document.createElement("span");
 			name.className = "tree-item-name";
-			const rowId = Number(node?.row?.id || 0);
-			name.textContent = rowId > 0 ? `${node.label} (ID: ${rowId})` : node.label;
+			name.textContent = node.label;
 			item.appendChild(name);
+			const metaLabel = buildTreeItemMetaLabel(node);
+			if (metaLabel !== "") {
+				const meta = document.createElement("span");
+				meta.className = "tree-item-meta";
+				meta.textContent = metaLabel;
+				item.appendChild(meta);
+			}
 
 			const mapStatus = getTreeMapStatus(node);
 			const mapStatusElement = document.createElement("span");
@@ -3461,6 +3467,58 @@
 
 			const number = Number(value);
 			return Number.isFinite(number) ? number : fallback;
+		}
+
+		function readOptionalYear(row, fields) {
+			for (const field of fields) {
+				const value = row?.[field];
+				if (value === "" || value === null || typeof value === "undefined") {
+					continue;
+				}
+
+				const number = Number(value);
+				if (Number.isFinite(number)) {
+					return Math.round(number);
+				}
+			}
+
+			return null;
+		}
+
+		function formatBfYear(year) {
+			if (!Number.isFinite(year)) {
+				return "";
+			}
+
+			return year < 0 ? `${Math.abs(year)} v. BF` : `${year} BF`;
+		}
+
+		function buildTerritoryPeriodLabel(row) {
+			const startYear = readOptionalYear(row, ["founded_start_bf", "founded_display_bf", "founded_end_bf"]);
+			const endYear = readOptionalYear(row, ["dissolved_end_bf", "dissolved_display_bf", "dissolved_start_bf"]);
+
+			if (startYear === null && endYear === null) {
+				return "";
+			}
+
+			const startText = startYear === null ? "?" : formatBfYear(startYear);
+			const endText = endYear === null ? "heute" : formatBfYear(endYear);
+			return `${startText} - ${endText}`;
+		}
+
+		function buildTreeItemMetaLabel(node) {
+			const metaParts = [];
+			const periodLabel = buildTerritoryPeriodLabel(node?.row || null);
+			if (periodLabel) {
+				metaParts.push(periodLabel);
+			}
+
+			const rowId = Number(node?.row?.id || 0);
+			if (rowId > 0) {
+				metaParts.push(`ID: ${rowId}`);
+			}
+
+			return metaParts.length > 0 ? `(${metaParts.join(", ")})` : "";
 		}
 
 		function setInputValue(id, value) {

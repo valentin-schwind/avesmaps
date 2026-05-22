@@ -91,6 +91,13 @@ details[open] > summary .tree-toggle::before {
 	overflow-wrap: anywhere;
 }
 
+.tree-item-meta {
+	margin-left: 0.35em;
+	font-size: 0.85em;
+	color: var(--muted, #8a8173);
+	white-space: nowrap;
+}
+
 .tree-map-status {
 	position: relative;
 	width: 13px;
