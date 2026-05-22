@@ -220,6 +220,54 @@ const POWERLINE_RENDER_CONFIG = {
 
 document.body.classList.toggle("edit-mode", IS_EDIT_MODE);
 
+function installPoliticalRegionVisibilityBehavior() {
+	if (typeof window.syncRegionVisibility !== "function") {
+		return;
+	}
+
+	window.syncRegionVisibility = function syncRegionVisibility() {
+		const showRegions = getSelectedMapLayerMode() === "political";
+		const currentZoom = Math.round(map.getZoom());
+		syncPoliticalTimelineVisibility();
+		if (!showRegions) {
+			clearRegionGeometryEdit();
+			closeRegionCompactTooltip();
+			closeRegionContextMenu();
+			cancelPendingRegionOperation();
+		}
+
+		regionPolygons.forEach((layer) => {
+			if (showRegions) {
+				map.addLayer(layer);
+			} else {
+				map.removeLayer(layer);
+			}
+		});
+
+		regionLabels.forEach((label) => {
+			const regionEntry = regionData.find((entry) => entry?._normalizedRegionEntry?.label === label)
+				|| regionPolygons.map((polygon) => polygon?._regionEntry).find((entry) => entry?.label === label)
+				|| null;
+			const minZoom = readOptionalRegionZoom(regionEntry?.minZoom);
+			const maxZoom = readOptionalRegionZoom(regionEntry?.maxZoom);
+			const isVisibleAtZoom = (minZoom === null || minZoom <= currentZoom) && (maxZoom === null || maxZoom >= currentZoom);
+
+			if (showRegions && isVisibleAtZoom) {
+				map.addLayer(label);
+			} else {
+				map.removeLayer(label);
+			}
+		});
+
+		if (showRegions) {
+			schedulePoliticalTerritoryLayerReload();
+		}
+	};
+}
+
+[0, 50, 250].forEach((delay) => window.setTimeout(installPoliticalRegionVisibilityBehavior, delay));
+document.addEventListener("DOMContentLoaded", installPoliticalRegionVisibilityBehavior, { once: true });
+
 const DEFAULT_PLANNER_STATE = {
 	toggleMetropolen: false,
 	toggleGrossstaedte: false,
