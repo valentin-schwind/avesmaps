@@ -32,12 +32,39 @@ function avesmapsWikiDomPatchSource(string $source): string {
         'Theokratie/Liste',
     ];
 
-    $defaultSeedItems = array_map(
-        static fn(string $seed): string => "'" . addcslashes($seed, "'\\") . "'",
-        $defaultSeeds
-    );
+    $defaultCatchwords = [
+        'affiliation_path_labels' => ['staat', 'staatverlauf', 'zugehörigkeit', 'zugehoerigkeit', 'politisch', 'reich', 'oberherrschaft', 'lehnsherr', 'lehnsherrschaft', 'teil von', 'provinz', 'übergeordnet', 'uebergeordnet', 'herrschaftsgebiet', 'region'],
+        'founded_labels' => ['gründungsdatum', 'gruendungsdatum', 'gründung', 'gruendung', 'gründungsdaten', 'gruendungsdaten', 'unabhängigkeit', 'unabhaengigkeit', 'gegründet', 'gegruendet', 'entstehung', 'ausrufung', 'errichtung', 'erhebung', 'anerkennung', 'ausgliederung'],
+        'dissolved_labels' => ['aufgelöst', 'aufgeloest', 'auflösung', 'aufloesung', 'auflösungsdatum', 'aufloesungsdatum', 'ende', 'untergang', 'zerfall', 'aufgegeben', 'eingegliedert', 'annektiert', 'erobert', 'aufhebung', 'verlust'],
+        'period_labels' => ['zeitraum', 'bestehen', 'bestand', 'bestandszeit', 'existenz', 'bestanden', 'existierte', 'zeit', 'ära', 'aera'],
+        'year_markers' => ['BF', 'v. BF', 'v BF'],
+        'founded_context_words' => ['gegründet', 'gegruendet', 'gründung', 'gruendung', 'gründungsdatum', 'gruendungsdatum', 'gründungsdaten', 'gruendungsdaten', 'unabhängigkeit', 'unabhaengigkeit', 'entstand', 'entstehung', 'ausgerufen', 'ausrufung', 'errichtet', 'errichtung', 'erhoben', 'erhebung', 'anerkannt', 'anerkennung', 'abgespalten', 'ausgliederung'],
+        'dissolved_context_words' => ['aufgelöst', 'aufgeloest', 'auflösung', 'aufloesung', 'endete', 'untergang', 'zerfiel', 'zerfall', 'aufgegeben', 'eingegliedert', 'annektiert', 'erobert', 'aufgehoben', 'aufhebung', 'verlor', 'verlust', 'fiel an', 'ging an'],
+    ];
+
+    $source = str_replace('const WIKI_DOM_MAX_ITERATIONS = 160;', 'const WIKI_DOM_MAX_ITERATIONS = 3000;', $source);
+    $source = str_replace('const WIKI_DOM_MAX_PAGES = 100;', 'const WIKI_DOM_MAX_PAGES = 3000;', $source);
+    $source = str_replace('const WIKI_DOM_MAX_RUNTIME = 35;', 'const WIKI_DOM_MAX_RUNTIME = 360000;', $source);
+
+    $defaultSeedItems = array_map(static fn(string $seed): string => "'" . addcslashes($seed, "'\\") . "'", $defaultSeeds);
     $defaultSeedSource = 'function defaultSeeds(): array { return [' . implode(', ', $defaultSeedItems) . ']; }';
     $source = preg_replace('/function defaultSeeds\(\): array \{ return \[[^;]*\]; \}/u', $defaultSeedSource, $source, 1) ?? $source;
+
+    $defaultCatchwordSource = 'function defaultCatchwords(): array { return ' . var_export($defaultCatchwords, true) . '; }';
+    $source = preg_replace('/function defaultCatchwords\(\): array \{ return \[.*?\]; \}/su', $defaultCatchwordSource, $source, 1) ?? $source;
+
+    $source = preg_replace(
+        '/function defaultOptions\(\): array \{ return \[.*?\]; \}/su',
+        "function defaultOptions(): array { return ['max_iterations' => 3000, 'max_pages' => 3000, 'max_runtime_seconds' => 360000, 'sleep_ms' => 1000, 'request_timeout_seconds' => 30]; }",
+        $source,
+        1
+    ) ?? $source;
+
+    $source = str_replace(
+        "'request_timeout_seconds' => max(3, min(20, (int) (\$payload['request_timeout_seconds'] ?? \$d['request_timeout_seconds'])))",
+        "'request_timeout_seconds' => max(3, min(30, (int) (\$payload['request_timeout_seconds'] ?? \$d['request_timeout_seconds'])))",
+        $source
+    );
 
     $source = str_replace(
         'function temporalData(array $fields, DOMXPath $xpath, array $catchwords): array {',
