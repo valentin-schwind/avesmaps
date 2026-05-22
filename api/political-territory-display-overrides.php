@@ -74,6 +74,12 @@ function avesmapsPoliticalDisplayOverrideState(PDO $pdo, array $payload): array 
     $hasOverride = false;
     $reasons = [];
 
+    $source = trim((string) ($geometry['source'] ?? ''));
+    if (in_array($source, ['editor-display', 'editor-assignment'], true)) {
+        $hasOverride = true;
+        $reasons[] = 'geometry_source';
+    }
+
     $geometryMinZoom = avesmapsPoliticalNullableInt($geometry['min_zoom'] ?? null);
     $geometryMaxZoom = avesmapsPoliticalNullableInt($geometry['max_zoom'] ?? null);
     if ($geometryMinZoom !== null || $geometryMaxZoom !== null) {
