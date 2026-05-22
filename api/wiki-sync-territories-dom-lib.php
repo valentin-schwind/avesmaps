@@ -52,17 +52,34 @@ function avesmapsWikiSyncSyncTerritoriesFromDomCache(PDO $pdo, array $user, arra
     $rows = avesmapsWikiSyncFetchDomTerritoryRows($pdo);
     if ($rows === []) throw new RuntimeException('Es liegen keine synchronisierten Herrschaftsgebiete vor.');
 
-    $summary = ['dry_run' => $dryRun, 'reset_target' => $resetTarget, 'source_count' => count($rows), 'valid_count' => 0, 'created_count' => 0, 'updated_count' => 0, 'skipped_count' => 0, 'skipped' => []];
+    $summary = [
+        'dry_run' => $dryRun,
+        'reset_target' => $resetTarget,
+        'source_count' => count($rows),
+        'valid_count' => 0,
+        'created_count' => 0,
+        'updated_count' => 0,
+        'skipped_count' => 0,
+        'stale_count' => 0,
+        'stale_reference_count' => 0,
+        'deleted_count' => 0,
+        'detached_territory_count' => 0,
+        'skipped' => [],
+        'stale' => [],
+    ];
     if (!$dryRun && $resetTarget) avesmapsWikiSyncResetPoliticalTerritoryWikiTable($pdo);
 
     $promotedRows = [];
+    $validWikiKeys = [];
     foreach ($rows as $row) {
-        if (trim((string) ($row['wiki_key'] ?? '')) === '' || trim((string) ($row['name'] ?? '')) === '') {
+        $wikiKey = trim((string) ($row['wiki_key'] ?? ''));
+        if ($wikiKey === '' || trim((string) ($row['name'] ?? '')) === '') {
             $summary['skipped_count']++;
             $summary['skipped'][] = ['name' => (string) ($row['name'] ?? ''), 'reason' => 'wiki_key/name fehlt'];
             continue;
         }
 
+        $validWikiKeys[$wikiKey] = true;
         $summary['valid_count']++;
         $row['affiliation'] = (string) ($row['affiliation_raw'] ?? '');
         $row['map_assigned'] = false;
@@ -78,6 +95,25 @@ function avesmapsWikiSyncSyncTerritoriesFromDomCache(PDO $pdo, array $user, arra
         $promotedRows[] = $row;
     }
 
+    $staleRows = avesmapsWikiSyncFetchStalePoliticalTerritoryWikiRows($pdo, array_keys($validWikiKeys));
+    $summary['stale_count'] = count($staleRows);
+    $summary['stale_reference_count'] = array_sum(array_map(static fn(array $row): int => (int) ($row['map_territory_count'] ?? 0), $staleRows));
+    $summary['stale'] = array_slice(array_map(
+        static fn(array $row): array => [
+            'id' => (int) ($row['id'] ?? 0),
+            'wiki_key' => (string) ($row['wiki_key'] ?? ''),
+            'name' => (string) ($row['name'] ?? ''),
+            'map_territory_count' => (int) ($row['map_territory_count'] ?? 0),
+        ],
+        $staleRows
+    ), 0, 25);
+
+    if (!$dryRun && !$resetTarget && $staleRows !== []) {
+        $deleteSummary = avesmapsWikiSyncDeleteStalePoliticalTerritoryWikiRows($pdo, $staleRows);
+        $summary['deleted_count'] = $deleteSummary['deleted_count'];
+        $summary['detached_territory_count'] = $deleteSummary['detached_territory_count'];
+    }
+
     if (!$dryRun) $promotedRows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache($pdo);
     $promotedRows = avesmapsWikiSyncSanitizeDomPoliticalTerritoryRowsForTree($promotedRows);
     $promotedRows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments($promotedRows, avesmapsWikiSyncReadPoliticalTerritoryMapAssignments($pdo));
@@ -86,6 +122,62 @@ function avesmapsWikiSyncSyncTerritoriesFromDomCache(PDO $pdo, array $user, arra
     $treeSummary = avesmapsWikiSyncBuildPoliticalTerritoryTreeAssignmentSummary($promotedRows, $tree['hierarchy']);
 
     return ['ok' => true, 'source' => 'wiki-dom-cache', 'source_page' => 'wiki-dom-sync-settings.html', 'dry_run' => $dryRun, 'territory_count' => count($promotedRows), 'root_count' => count($tree['hierarchy']), 'assigned_territory_count' => $treeSummary['assigned_territory_count'], 'assigned_root_count' => $treeSummary['assigned_root_count'], 'sync' => $summary, 'territories' => $tree['territories'], 'hierarchy' => $tree['hierarchy']];
+}
+
+function avesmapsWikiSyncFetchStalePoliticalTerritoryWikiRows(PDO $pdo, array $validWikiKeys): array {
+    $validWikiKeys = array_values(array_unique(array_filter(array_map(
+        static fn(mixed $value): string => trim((string) $value),
+        $validWikiKeys
+    ), static fn(string $value): bool => $value !== '')));
+
+    if ($validWikiKeys === []) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($validWikiKeys), '?'));
+    $statement = $pdo->prepare(
+        'SELECT
+            wiki.id,
+            wiki.wiki_key,
+            wiki.name,
+            wiki.wiki_url,
+            COUNT(territory.id) AS map_territory_count
+        FROM political_territory_wiki wiki
+        LEFT JOIN political_territory territory ON territory.wiki_id = wiki.id
+        WHERE wiki.wiki_key NOT IN (' . $placeholders . ')
+        GROUP BY wiki.id, wiki.wiki_key, wiki.name, wiki.wiki_url
+        ORDER BY wiki.name ASC, wiki.id ASC'
+    );
+    $statement->execute($validWikiKeys);
+
+    return $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
+}
+
+function avesmapsWikiSyncDeleteStalePoliticalTerritoryWikiRows(PDO $pdo, array $staleRows): array {
+    $ids = array_values(array_unique(array_filter(array_map(
+        static fn(array $row): int => (int) ($row['id'] ?? 0),
+        $staleRows
+    ), static fn(int $id): bool => $id > 0)));
+
+    if ($ids === []) {
+        return [
+            'deleted_count' => 0,
+            'detached_territory_count' => 0,
+        ];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $detachStatement = $pdo->prepare('UPDATE political_territory SET wiki_id = NULL WHERE wiki_id IN (' . $placeholders . ')');
+    $detachStatement->execute($ids);
+    $detachedTerritoryCount = $detachStatement->rowCount();
+
+    $deleteStatement = $pdo->prepare('DELETE FROM political_territory_wiki WHERE id IN (' . $placeholders . ')');
+    $deleteStatement->execute($ids);
+
+    return [
+        'deleted_count' => $deleteStatement->rowCount(),
+        'detached_territory_count' => $detachedTerritoryCount,
+    ];
 }
 
 function avesmapsWikiSyncFetchDomTerritoryRows(PDO $pdo): array {
