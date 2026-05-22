@@ -497,3 +497,82 @@ function initializeTransportIconSelects() {
 
 	syncTransportControls();
 }
+
+function readReviewTabStorageValue(storageKey) {
+	try {
+		return String(window.localStorage?.getItem(storageKey) || "").trim();
+	} catch (error) {
+		return "";
+	}
+}
+
+function writeReviewTabStorageValue(storageKey, value) {
+	try {
+		window.localStorage?.setItem(storageKey, value);
+	} catch (error) {
+		console.warn("Review-Tab-Zustand konnte nicht gespeichert werden:", error);
+	}
+}
+
+function updateReviewPanelTabUrlParameter(parameterName, value) {
+	try {
+		const url = new URL(window.location.href);
+		if (value) {
+			url.searchParams.set(parameterName, value);
+		} else {
+			url.searchParams.delete(parameterName);
+		}
+		window.history.replaceState(window.history.state, document.title, url.toString());
+	} catch (error) {
+		// Ignore browsers or contexts without history support.
+	}
+}
+
+function initializeReviewPanelTabState() {
+	if (typeof IS_EDIT_MODE !== "undefined" && !IS_EDIT_MODE) return;
+
+	const reviewTabValues = ["review", "changes", "wiki-sync", "presence"];
+	const wikiSyncTabValues = ["locations", "territories"];
+	const reviewStorageKey = "avesmaps.review.activeTab";
+	const wikiSyncStorageKey = "avesmaps.review.wikiSync.activeTab";
+	const url = new URL(window.location.href);
+	const reviewTabFromUrl = url.searchParams.get("reviewTab") || "";
+	const wikiSyncTabFromUrl = url.searchParams.get("wikiSyncTab") || "";
+	const reviewTab = reviewTabValues.includes(reviewTabFromUrl)
+		? reviewTabFromUrl
+		: readReviewTabStorageValue(reviewStorageKey);
+	const wikiSyncTab = wikiSyncTabValues.includes(wikiSyncTabFromUrl)
+		? wikiSyncTabFromUrl
+		: readReviewTabStorageValue(wikiSyncStorageKey);
+
+	if (reviewTabValues.includes(reviewTab) && typeof window.setEditorPanelTab === "function") {
+		window.setEditorPanelTab(reviewTab);
+	}
+	if (wikiSyncTabValues.includes(wikiSyncTab) && typeof window.setWikiSyncPanelTab === "function") {
+		window.setWikiSyncPanelTab(wikiSyncTab);
+	}
+
+	document.querySelectorAll("[data-editor-panel-tab]").forEach((tabElement) => {
+		tabElement.addEventListener("click", () => {
+			const value = String(tabElement.dataset.editorPanelTab || "").trim();
+			if (!reviewTabValues.includes(value)) return;
+			writeReviewTabStorageValue(reviewStorageKey, value);
+			updateReviewPanelTabUrlParameter("reviewTab", value);
+		});
+	});
+
+	document.querySelectorAll("[data-wiki-sync-panel-tab]").forEach((tabElement) => {
+		tabElement.addEventListener("click", () => {
+			const value = String(tabElement.dataset.wikiSyncPanelTab || "").trim();
+			if (!wikiSyncTabValues.includes(value)) return;
+			writeReviewTabStorageValue(wikiSyncStorageKey, value);
+			updateReviewPanelTabUrlParameter("wikiSyncTab", value);
+		});
+	});
+}
+
+if (document.readyState === "loading") {
+	document.addEventListener("DOMContentLoaded", initializeReviewPanelTabState, { once: true });
+} else {
+	initializeReviewPanelTabState();
+}
