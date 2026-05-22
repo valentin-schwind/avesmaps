@@ -55,31 +55,42 @@ $updateStatement = $pdo->prepare(
     SET style_json = :style_json
     WHERE id = :id'
 );
+$updateTerritoryStatement = $pdo->prepare(
+    'UPDATE political_territory
+    SET min_zoom = :min_zoom,
+        max_zoom = :max_zoom
+    WHERE id = :id'
+);
 
 $scannedGeometries = 0;
 $changedGeometries = 0;
 $changedDisplays = 0;
 $createdAssignmentDisplays = 0;
+$changedGlobalTerritories = 0;
 $skippedWithoutTerritory = 0;
 $skippedWithoutChain = 0;
 $examples = [];
+$territoryExamples = [];
 $skippedExamples = [];
+$processedTerritoryIds = [];
 
 foreach ($geometries as $geometry) {
     $scannedGeometries++;
     $style = avesmapsDecodePoliticalStyleJson($geometry['style_json'] ?? null);
     $displays = $style['assignmentDisplays'] ?? $style['assignment_displays'] ?? null;
     $hadAssignmentDisplays = is_array($displays) && count($displays) > 0;
+    $territoryId = avesmapsNullableInt($geometry['territory_id'] ?? null);
+    $territoryChain = $territoryId === null
+        ? []
+        : avesmapsBuildTerritoryChainForGeometry($pdo, $territoryId, $territoryCache);
 
     if (!$hadAssignmentDisplays) {
-        $territoryId = avesmapsNullableInt($geometry['territory_id'] ?? null);
         if ($territoryId === null) {
             $skippedWithoutTerritory++;
             avesmapsAddSkippedExample($skippedExamples, $geometry, 'keine territory_id');
             continue;
         }
 
-        $territoryChain = avesmapsBuildTerritoryChainForGeometry($pdo, $territoryId, $territoryCache);
         if ($territoryChain === []) {
             $skippedWithoutChain++;
             avesmapsAddSkippedExample($skippedExamples, $geometry, 'territory_id verweist auf kein rekonstruierbares political_territory');
@@ -89,6 +100,16 @@ foreach ($geometries as $geometry) {
         $displays = avesmapsBuildAssignmentDisplaysFromTerritoryChain($territoryChain, $zoomRules);
         $createdAssignmentDisplays += count($displays);
     }
+
+    $changedGlobalTerritories += avesmapsApplyGlobalTerritoryBreadcrumbZooms(
+        $updateTerritoryStatement,
+        $territoryChain,
+        $zoomRules,
+        $apply,
+        $processedTerritoryIds,
+        $territoryExamples,
+        $territoryCache
+    );
 
     $chainLength = count($displays);
     $geometryChanged = !$hadAssignmentDisplays;
@@ -152,6 +173,7 @@ echo "Scanned active geometries: {$scannedGeometries}\n";
 echo "Changed geometries: {$changedGeometries}\n";
 echo "Changed breadcrumb displays: {$changedDisplays}\n";
 echo "Created breadcrumb displays: {$createdAssignmentDisplays}\n";
+echo "Changed global territories: {$changedGlobalTerritories}\n";
 echo "Skipped geometries without territory_id: {$skippedWithoutTerritory}\n";
 echo "Skipped geometries without reconstructable territory chain: {$skippedWithoutChain}\n";
 
@@ -168,6 +190,13 @@ if ($zoomRules !== []) {
 if ($examples !== []) {
     echo "\nExamples:\n";
     foreach ($examples as $example) {
+        echo "- {$example}\n";
+    }
+}
+
+if ($territoryExamples !== []) {
+    echo "\nGlobal territory examples:\n";
+    foreach ($territoryExamples as $example) {
         echo "- {$example}\n";
     }
 }
@@ -305,6 +334,70 @@ function avesmapsFetchTerritoryForBreadcrumb(PDO $pdo, int $territoryId, array &
     $row = $statement->fetch(PDO::FETCH_ASSOC);
     $territoryCache[$territoryId] = is_array($row) ? $row : null;
     return $territoryCache[$territoryId];
+}
+
+function avesmapsApplyGlobalTerritoryBreadcrumbZooms(
+    PDOStatement $updateStatement,
+    array $territoryChain,
+    array $zoomRules,
+    bool $apply,
+    array &$processedTerritoryIds,
+    array &$territoryExamples,
+    array &$territoryCache
+): int {
+    if ($territoryChain === []) {
+        return 0;
+    }
+
+    $changedTerritories = 0;
+    $chainLength = count($territoryChain);
+    foreach ($territoryChain as $index => $territory) {
+        $territoryId = avesmapsNullableInt($territory['id'] ?? null);
+        if ($territoryId === null || isset($processedTerritoryIds[$territoryId])) {
+            continue;
+        }
+        $processedTerritoryIds[$territoryId] = true;
+
+        $defaultZoom = avesmapsPoliticalBreadcrumbDefaultZoomRange($chainLength, (int) $index, $zoomRules);
+        $oldMin = avesmapsNullableInt($territory['min_zoom'] ?? null);
+        $oldMax = avesmapsNullableInt($territory['max_zoom'] ?? null);
+        if ($oldMin === $defaultZoom['zoomMin'] && $oldMax === $defaultZoom['zoomMax']) {
+            continue;
+        }
+
+        $changedTerritories++;
+        if (count($territoryExamples) < 12) {
+            $territoryExamples[] = sprintf(
+                '#%d | Ebene %d/%d | %s (%s): %s-%s -> %d-%d',
+                $territoryId,
+                $index + 1,
+                $chainLength,
+                trim((string) ($territory['short_name'] ?? '')) ?: trim((string) ($territory['name'] ?? 'Herrschaftsgebiet')),
+                (string) ($territory['public_id'] ?? ''),
+                $oldMin === null ? 'null' : (string) $oldMin,
+                $oldMax === null ? 'null' : (string) $oldMax,
+                $defaultZoom['zoomMin'],
+                $defaultZoom['zoomMax']
+            );
+        }
+
+        if (!$apply) {
+            continue;
+        }
+
+        $updateStatement->execute([
+            'id' => $territoryId,
+            'min_zoom' => $defaultZoom['zoomMin'],
+            'max_zoom' => $defaultZoom['zoomMax'],
+        ]);
+
+        if (isset($territoryCache[$territoryId]) && is_array($territoryCache[$territoryId])) {
+            $territoryCache[$territoryId]['min_zoom'] = $defaultZoom['zoomMin'];
+            $territoryCache[$territoryId]['max_zoom'] = $defaultZoom['zoomMax'];
+        }
+    }
+
+    return $changedTerritories;
 }
 
 function avesmapsBuildAssignmentDisplaysFromTerritoryChain(array $territoryChain, array $zoomRules): array {
