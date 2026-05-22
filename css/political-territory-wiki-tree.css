@@ -110,6 +110,25 @@ details[open] > summary .tree-toggle::before {
 	white-space: nowrap;
 }
 
+#wiki-sync-territory-tree .tree-item {
+	align-items: flex-start;
+}
+
+#wiki-sync-territory-tree .tree-item-label {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+	line-height: 1.22;
+}
+
+#wiki-sync-territory-tree .tree-item-meta {
+	font-size: 0.78em;
+	font-weight: 600;
+	line-height: 1.2;
+	white-space: normal;
+}
+
 .tree-map-status {
 	position: relative;
 	width: 13px;
