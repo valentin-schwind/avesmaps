@@ -15,5 +15,17 @@ function avesmapsWikiDomPatchSource(string $source): string {
         $source
     );
 
+    $source = str_replace(
+        '//div[contains(@class,"mw-parser-output")]//table//tr[td]//td[1]//a[@href]',
+        '//div[contains(@class,"mw-parser-output")]//table//tr[count(td) >= 4]//td[1]//a[@href]',
+        $source
+    );
+
+    $source = str_replace(
+        '//div[contains(@class,"mw-parser-output")]//table//tr[td]//a[@href]',
+        '//div[contains(@class,"mw-parser-output")]//table//tr[count(td) >= 4]//a[@href]',
+        $source
+    );
+
     return $source;
 }
