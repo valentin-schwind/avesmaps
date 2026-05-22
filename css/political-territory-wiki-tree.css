@@ -111,22 +111,39 @@ details[open] > summary .tree-toggle::before {
 }
 
 #wiki-sync-territory-tree .tree-item {
-	align-items: flex-start;
+	display: inline-grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	grid-template-rows: auto auto;
+	align-items: center;
+	column-gap: 7px;
+	row-gap: 1px;
 }
 
-#wiki-sync-territory-tree .tree-item-label {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: 2px;
+#wiki-sync-territory-tree .drag-handle {
+	grid-column: 1;
+	grid-row: 1 / span 2;
+	align-self: center;
+}
+
+#wiki-sync-territory-tree .tree-item-name {
+	grid-column: 2;
+	grid-row: 1;
 	line-height: 1.22;
 }
 
 #wiki-sync-territory-tree .tree-item-meta {
+	grid-column: 2;
+	grid-row: 2;
 	font-size: 0.78em;
 	font-weight: 600;
 	line-height: 1.2;
 	white-space: normal;
+}
+
+#wiki-sync-territory-tree .tree-map-status {
+	grid-column: 3;
+	grid-row: 1 / span 2;
+	align-self: center;
 }
 
 .tree-map-status {
