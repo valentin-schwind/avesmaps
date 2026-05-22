@@ -166,8 +166,8 @@ function avesmapsPoliticalBreadcrumbDefaultZoomRange(int $chainLength, int $inde
     if ($chainLength === 3) {
         return match ($index) {
             0 => ['zoomMin' => 0, 'zoomMax' => 1],
-            1 => ['zoomMin' => 2, 'zoomMax' => 3],
-            default => ['zoomMin' => 4, 'zoomMax' => 6],
+            1 => ['zoomMin' => 2, 'zoomMax' => 2],
+            default => ['zoomMin' => 3, 'zoomMax' => 6],
         };
     }
 
