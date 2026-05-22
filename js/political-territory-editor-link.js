@@ -1,12 +1,14 @@
 "use strict";
 
 const POLITICAL_TERRITORY_DISPLAY_OVERRIDES_API_URL = "/api/political-territory-display-overrides.php";
+const POLITICAL_TERRITORY_WIKI_API_URL = "/api/political-territory-wiki.php";
 
 let activePoliticalTerritoryEditorRegion = null;
 let pendingPoliticalTerritoryEditorFrameSetup = null;
 let activePoliticalTerritoryEditorPendingLocalOverride = false;
 let activePoliticalTerritoryEditorPromoteNextSave = false;
 let politicalTerritoryEditorFrameSetupAttempts = 0;
+let politicalTerritoryWikiRowsByIdPromise = null;
 
 function createPoliticalTerritoryEditorUrl(regionEntry = {}) {
 	const params = new URLSearchParams();
@@ -104,6 +106,7 @@ function setupPoliticalTerritoryEditorFrame() {
 	if (!frame || !regionEntry) return;
 
 	installPoliticalTerritoryEditorOverrideFooter(frame, regionEntry);
+	installPoliticalTerritoryEditorTreeMetaWikiLinks(frame);
 
 	const assignmentModule = frame.contentWindow?.AvesmapsPoliticalTerritoryAssignment;
 	if (!assignmentModule || typeof assignmentModule.configure !== "function") {
@@ -198,6 +201,99 @@ function installPoliticalTerritoryEditorOverrideFooter(frame, regionEntry) {
 			});
 		});
 	});
+}
+
+function installPoliticalTerritoryEditorTreeMetaWikiLinks(frame) {
+	const doc = getPoliticalTerritoryEditorFrameDocument(frame);
+	if (!doc || doc.__avesmapsTreeMetaWikiLinksInstalled === true) return;
+	doc.__avesmapsTreeMetaWikiLinksInstalled = true;
+
+	const style = doc.createElement("style");
+	style.textContent = `
+		.tree-item-meta a {
+			color: inherit;
+			font-weight: 700;
+			text-decoration: underline;
+			text-underline-offset: 2px;
+		}
+	`;
+	doc.head.append(style);
+
+	const update = () => {
+		void applyPoliticalTerritoryEditorTreeMetaWikiLinks(frame);
+	};
+
+	const observer = new MutationObserver(update);
+	const attachObserver = () => {
+		const treeView = doc.getElementById("treeView");
+		if (!treeView) return false;
+		observer.observe(treeView, { childList: true, subtree: true });
+		update();
+		return true;
+	};
+
+	if (!attachObserver()) {
+		[150, 500, 1200].forEach((delay) => window.setTimeout(attachObserver, delay));
+	}
+}
+
+async function loadPoliticalTerritoryWikiRowsById() {
+	if (!politicalTerritoryWikiRowsByIdPromise) {
+		politicalTerritoryWikiRowsByIdPromise = fetch(POLITICAL_TERRITORY_WIKI_API_URL, {
+			method: "GET",
+			credentials: "omit",
+			headers: { "Accept": "application/json" },
+		}).then(async (response) => {
+			const payload = await response.json();
+			if (!response.ok || payload?.ok === false) {
+				throw new Error(payload?.error || `Wiki-Daten konnten nicht geladen werden: HTTP ${response.status}`);
+			}
+			const rowsById = new Map();
+			for (const row of Array.isArray(payload?.items) ? payload.items : []) {
+				const rowId = Number(row?.id || 0);
+				if (rowId > 0) rowsById.set(rowId, row);
+			}
+			return rowsById;
+		});
+	}
+	return politicalTerritoryWikiRowsByIdPromise;
+}
+
+async function applyPoliticalTerritoryEditorTreeMetaWikiLinks(frame) {
+	const doc = getPoliticalTerritoryEditorFrameDocument(frame);
+	if (!doc) return;
+	const metaElements = [...doc.querySelectorAll("#treeView .tree-item-meta")]
+		.filter((meta) => meta instanceof HTMLElement && meta.dataset.wikiLinkFormatted !== "1");
+	if (metaElements.length < 1) return;
+
+	let rowsById = null;
+	try {
+		rowsById = await loadPoliticalTerritoryWikiRowsById();
+	} catch (error) {
+		console.warn("Wiki-Links fuer Tree-Metadaten konnten nicht geladen werden:", error);
+		return;
+	}
+
+	for (const meta of metaElements) {
+		const text = String(meta.textContent || "").trim();
+		const idMatch = text.match(/\bID:\s*(\d+)\b/u);
+		if (!idMatch) continue;
+		const row = rowsById.get(Number(idMatch[1]));
+		const wikiUrl = String(row?.wiki_url || "").trim();
+		if (!wikiUrl) continue;
+
+		const innerText = text.replace(/^\(/u, "").replace(/\)$/u, "").trim();
+		meta.textContent = "";
+		meta.append(doc.createTextNode(`(${innerText}, `));
+		const link = doc.createElement("a");
+		link.href = wikiUrl;
+		link.target = "_blank";
+		link.rel = "noopener noreferrer";
+		link.textContent = "Wiki";
+		link.addEventListener("click", (event) => event.stopPropagation());
+		meta.append(link, doc.createTextNode(")"));
+		meta.dataset.wikiLinkFormatted = "1";
+	}
 }
 
 function syncPoliticalTerritoryEditorOverrideFooterVisibility(isVisible) {
