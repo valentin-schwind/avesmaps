@@ -968,10 +968,12 @@
 			onUnassign: null,
 			onCancel: null,
 			onStatusChange: null,
-			onTerritoryDrop: null
+			onTerritoryDrop: null,
+			onAssignmentLoaded: null
 		};
 		let initialized = false;
 		let pendingValue = null;
+		let lastLoadedAssignmentInfo = null;
 
 		let allRows = [];
 		let currentTree = null;
@@ -1284,6 +1286,7 @@
 			const geometryPublicId = normalizeText(params.get("geometry_public_id") || "");
 
 			if (!geometryPublicId) {
+				notifyAssignmentLoaded();
 				return;
 			}
 			
@@ -1300,6 +1303,7 @@
 
 			if (response.status === 400 || response.status === 404) {
 				setFormStatus(payload.error || "Noch keine gespeicherten Eigenschaften für diese Geometrie vorhanden.", "pending");
+				notifyAssignmentLoaded(payload);
 				return;
 			}
 
@@ -1315,8 +1319,65 @@
 				setAssignmentValue(payload.assignment);
 				setFormStatus("Bestehende Eigenschaften geladen.", "success");
 			}
+
+			notifyAssignmentLoaded(payload);
 		}
 		
+		function readAssignmentDisplaysFromGeometryStyle(style = {}) {
+			if (!style || typeof style !== "object") {
+				return [];
+			}
+
+			if (Array.isArray(style.assignmentDisplays)) {
+				return style.assignmentDisplays;
+			}
+
+			if (Array.isArray(style.assignment_displays)) {
+				return style.assignment_displays;
+			}
+
+			return [];
+		}
+
+		function buildLoadedAssignmentInfo(payload = null) {
+			const params = new URLSearchParams(window.location.search);
+			const geometry = payload?.geometry && typeof payload.geometry === "object"
+				? payload.geometry
+				: null;
+			const geometryPublicId = normalizeText(
+				geometry?.publicId
+				|| geometry?.public_id
+				|| params.get("geometry_public_id")
+				|| ""
+			);
+			const style = geometry?.style && typeof geometry.style === "object"
+				? geometry.style
+				: {};
+			const assignmentDisplays = readAssignmentDisplaysFromGeometryStyle(style)
+				.filter((display) => display && typeof display === "object");
+
+			return {
+				geometryPublicId,
+				hasLocalAssignmentDisplays: assignmentDisplays.length > 0,
+				assignmentDisplayCount: assignmentDisplays.length,
+				payload
+			};
+		}
+
+		function notifyAssignmentLoaded(payload = null) {
+			const assignmentInfo = buildLoadedAssignmentInfo(payload);
+			lastLoadedAssignmentInfo = assignmentInfo;
+
+			if (typeof moduleOptions.onAssignmentLoaded !== "function") {
+				return;
+			}
+
+			try {
+				moduleOptions.onAssignmentLoaded(assignmentInfo);
+			} catch (error) {
+				console.warn("onAssignmentLoaded-Callback fehlgeschlagen:", error);
+			}
+		}
 		function updateGeometryDatabaseInfo(geometry = null) {
 			const params = new URLSearchParams(window.location.search);
 			const geometryPublicId = normalizeText(
@@ -2936,6 +2997,14 @@
 
 			if (options.initialValue) {
 				pendingValue = options.initialValue;
+			}
+
+			if (typeof moduleOptions.onAssignmentLoaded === "function" && lastLoadedAssignmentInfo) {
+				try {
+					moduleOptions.onAssignmentLoaded(lastLoadedAssignmentInfo);
+				} catch (error) {
+					console.warn("onAssignmentLoaded-Callback fehlgeschlagen:", error);
+				}
 			}
 		}
 

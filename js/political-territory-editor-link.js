@@ -120,11 +120,24 @@ function setupPoliticalTerritoryEditorFrame() {
 	assignmentModule.configure({
 		onSave: (value) => savePoliticalTerritoryEditorAssignment(regionEntry, value),
 		onUnassign: () => unassignPoliticalTerritoryEditorGeometry(regionEntry),
+		onAssignmentLoaded: (assignmentInfo) => handlePoliticalTerritoryEditorAssignmentLoaded(assignmentInfo),
 		onCancel: () => closePoliticalTerritoryEditor(),
 	});
 	politicalTerritoryEditorFrameSetupAttempts = 0;
 	schedulePoliticalTerritoryEditorOverrideFooterRefresh(regionEntry);
 	pendingPoliticalTerritoryEditorFrameSetup = null;
+}
+
+function handlePoliticalTerritoryEditorAssignmentLoaded(assignmentInfo = {}) {
+	const activeGeometryPublicId = getPoliticalTerritoryEditorGeometryPublicId(activePoliticalTerritoryEditorRegion || {});
+	const loadedGeometryPublicId = String(assignmentInfo?.geometryPublicId || "").trim();
+
+	if (activeGeometryPublicId && loadedGeometryPublicId && activeGeometryPublicId !== loadedGeometryPublicId) {
+		return;
+	}
+
+	activePoliticalTerritoryEditorPendingLocalOverride = Boolean(assignmentInfo?.hasLocalAssignmentDisplays);
+	syncPoliticalTerritoryEditorOverrideFooterVisibility(activePoliticalTerritoryEditorPendingLocalOverride);
 }
 
 function schedulePoliticalTerritoryEditorOverrideFooterRefresh(regionEntry = activePoliticalTerritoryEditorRegion) {
