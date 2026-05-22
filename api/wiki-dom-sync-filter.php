@@ -57,8 +57,53 @@ function avesmapsWikiDomPatchSource(string $source): string {
     );
 
     $source = str_replace(
+        "\$fields = array_replace(\$domFields, \$templateFields);\n                \$path = affiliationPath(\$fields, \$catchwords, \$resolvedTitle);",
+        "\$fields = array_replace(\$domFields, \$templateFields);\n                \$categories = wikiDomPageCategories(\$xpath);\n                \$rejectReason = wikiDomRejectedNonTerritoryReason(\$resolvedTitle, \$fields, \$categories);\n                if (\$rejectReason !== '') {\n                    \$events[] = ['type' => 'reject', 'title' => \$resolvedTitle, 'message' => \$rejectReason];\n                    sleepMs(\$options['sleep_ms']);\n                    continue;\n                }\n                if (!wikiDomLooksLikePoliticalTerritory(\$resolvedTitle, \$fields)) {\n                    \$events[] = ['type' => 'reject', 'title' => \$resolvedTitle, 'message' => 'Keine belastbaren Herrschaftsgebietssignale gefunden.'];\n                    sleepMs(\$options['sleep_ms']);\n                    continue;\n                }\n                \$path = affiliationPath(\$fields, \$catchwords, \$resolvedTitle);",
+        $source
+    );
+
+    $helperSource = <<<'PHP'
+function wikiDomPageCategories(DOMXPath $xpath): array {
+    $categories = [];
+    foreach ($xpath->query('//*[@id="mw-normal-catlinks"]//a | //div[contains(@class,"catlinks")]//a') ?: [] as $node) {
+        if (!$node instanceof DOMNode) continue;
+        $text = cleanText($node->textContent ?? '');
+        if ($text !== '') $categories[$text] = $text;
+    }
+    return array_values($categories);
+}
+
+function wikiDomRejectedNonTerritoryReason(string $title, array $fields, array $categories): string {
+    if (preg_match('/\/Chronik$/u', $title) === 1) return 'Chronik-Unterseite, kein Herrschaftsgebiet.';
+    if (preg_match('/^\d{1,4}\s*(?:v\.\s*)?BF$/u', $title) === 1) return 'Kalenderjahr, kein Herrschaftsgebiet.';
+    if (preg_match('/^Aventurischer Bote Nr\./u', $title) === 1) return 'Aventurischer-Bote-Ausgabe, kein Herrschaftsgebiet.';
+
+    $categoryKey = labelKey(implode(' ', $categories));
+    foreach (['textquelle','spielhilfe','regionalspielhilfe','weltbeschreibung','hardcover','softcover','aventurien publikation','dsa1 publikation','dsa2 publikation','dsa3 publikation','dsa4 publikation','dsa5 publikation','aventurisches archiv','aventurischer bote','kalenderjahr','liste chronik jahr','publikationsindex'] as $badCategory) {
+        if (str_contains($categoryKey, labelKey($badCategory))) return 'Ausschlusskategorie: ' . $badCategory;
+    }
+
+    $fieldKey = labelKey(implode(' ', array_keys($fields)) . ' ' . implode(' ', array_map(static fn(mixed $value): string => is_scalar($value) ? (string) $value : '', $fields)));
+    foreach (['isbn','seitenzahl','erscheinungsdatum','preis','regelsystem','verwandte publikationen','erschienen bei','autor','autoren','redaktion','cover','einband'] as $badField) {
+        if (str_contains($fieldKey, labelKey($badField))) return 'Publikationsfeld erkannt: ' . $badField;
+    }
+
+    return '';
+}
+
+function wikiDomLooksLikePoliticalTerritory(string $title, array $fields): bool {
+    if (inferType($title, firstField($fields, ['typ', 'art', 'herrschaftsgebiet'])) !== '') return true;
+    foreach (['herrschaftsform','hauptstadt','herrschaftssitz','oberhaupt','status','staat','staatverlauf','zugehoerigkeit','zugehörigkeit','politisch','reich','oberherrschaft'] as $key) {
+        if (isset($fields[$key]) && trim((string) $fields[$key]) !== '') return true;
+    }
+    return false;
+}
+
+PHP;
+
+    $source = str_replace(
         'function temporalData(array $fields, DOMXPath $xpath, array $catchwords): array {',
-        "function wikiDomIsIgnoredTemporalText(string \$text): bool { \$key = labelKey(\$text); return str_contains(\$key, 'begriffsklaerung') || str_contains(\$key, 'hat mehrere bedeutungen') || str_contains(\$key, 'dieser artikel steht fuer'); }\nfunction temporalData(array \$fields, DOMXPath \$xpath, array \$catchwords): array {",
+        $helperSource . "function wikiDomIsIgnoredTemporalText(string \$text): bool { \$key = labelKey(\$text); return str_contains(\$key, 'begriffsklaerung') || str_contains(\$key, 'hat mehrere bedeutungen') || str_contains(\$key, 'dieser artikel steht fuer'); }\nfunction temporalData(array \$fields, DOMXPath \$xpath, array \$catchwords): array {",
         $source
     );
 
