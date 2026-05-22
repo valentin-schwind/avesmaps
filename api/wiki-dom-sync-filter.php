@@ -23,6 +23,18 @@ function avesmapsWikiDomPatchSource(string $source): string {
     );
 
     $source = str_replace(
+        '//div[contains(@class,"mw-parser-output")]//table//tr[td]//td[1]//a[@href]',
+        '//div[contains(@class,"mw-parser-output")]//table//tr[td and not(td[2][contains(normalize-space(.),"Burg") or contains(normalize-space(.),"Schloss") or contains(normalize-space(.),"Ruine") or contains(normalize-space(.),"Festung")])]//td[1]//a[@href]',
+        $source
+    );
+
+    $source = str_replace(
+        '//div[contains(@class,"mw-parser-output")]//table//tr[td]//a[@href]',
+        '//div[contains(@class,"mw-parser-output")]//table//tr[td and not(td[2][contains(normalize-space(.),"Burg") or contains(normalize-space(.),"Schloss") or contains(normalize-space(.),"Ruine") or contains(normalize-space(.),"Festung")])]//a[@href]',
+        $source
+    );
+
+    $source = str_replace(
         "\$context = labelKey(implode(' ', [\$src, \$largestSrc, \$img->getAttribute('alt'), \$img->getAttribute('title'), \$img->getAttribute('class'), \$img->getAttribute('data-file-width'), \$img->getAttribute('data-file-height')]));",
         "\$context = labelKey(implode(' ', [\$src, \$largestSrc, \$img->getAttribute('alt'), \$img->getAttribute('title'), \$img->getAttribute('class'), \$img->getAttribute('data-file-width'), \$img->getAttribute('data-file-height'), \$node->textContent ?? '']));",
         $source
