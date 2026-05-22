@@ -3,6 +3,7 @@
 	const REGION_VERTEX_DETACH_INSTALL_RETRY_LIMIT = 120;
 	let installRetryCount = 0;
 	let overridesInstalled = false;
+	let isRegionVertexDetachCtrlPressed = false;
 
 	function scheduleRegionVertexDetachInstall() {
 		if (overridesInstalled || installRetryCount >= REGION_VERTEX_DETACH_INSTALL_RETRY_LIMIT) {
@@ -17,6 +18,10 @@
 		}, 50);
 	}
 
+	function readRegionVertexDetachModifier(event = null) {
+		return Boolean(isRegionVertexDetachCtrlPressed || event?.originalEvent?.ctrlKey || event?.ctrlKey);
+	}
+
 	function installRegionVertexDetachEditing() {
 		if (overridesInstalled) {
 			return true;
@@ -27,6 +32,28 @@
 		}
 
 		overridesInstalled = true;
+
+		document.addEventListener("keydown", (event) => {
+			if (event.key === "Control") {
+				isRegionVertexDetachCtrlPressed = true;
+			}
+		}, true);
+
+		document.addEventListener("keyup", (event) => {
+			if (event.key === "Control") {
+				isRegionVertexDetachCtrlPressed = false;
+				if (activeRegionGeometryEdit?.vertexDetachHandle) {
+					clearRegionEditVertexDetachPreview();
+				}
+			}
+		}, true);
+
+		window.addEventListener("blur", () => {
+			isRegionVertexDetachCtrlPressed = false;
+			if (activeRegionGeometryEdit?.vertexDetachHandle) {
+				clearRegionEditVertexDetachPreview();
+			}
+		});
 
 		function getRegionVertexDetachHandleId(index) {
 			return `outer:${index}`;
@@ -109,16 +136,17 @@
 		}
 
 		function handleRegionVertexDetachMouseEvent(event, handle) {
-			if (!event?.originalEvent?.ctrlKey) {
+			if (!readRegionVertexDetachModifier(event)) {
 				return;
 			}
 
 			markRegionVertexDetachHandle(handle);
 		}
 
-		function shouldDetachRegionVertexDrag(handle) {
+		function shouldDetachRegionVertexDrag(handle, event = null) {
 			return Boolean(
-				activeRegionGeometryEdit
+				readRegionVertexDetachModifier(event)
+				|| activeRegionGeometryEdit
 				&& handle
 				&& activeRegionGeometryEdit.vertexDetachHandleId
 				&& activeRegionGeometryEdit.vertexDetachHandleId === handle._regionVertexHandleId
@@ -163,17 +191,28 @@
 				handle._regionVertexHandleId = getRegionVertexDetachHandleId(index);
 				handle._regionDetachPreview = false;
 				handle._regionDetachDrag = false;
+				handle._regionDetachMouseDownCtrl = false;
 
 				handle.on("mouseover", (event) => handleRegionVertexDetachMouseEvent(event, handle));
 				handle.on("mousemove", (event) => handleRegionVertexDetachMouseEvent(event, handle));
+				handle.on("mousedown", (event) => {
+					handle._regionDetachMouseDownCtrl = readRegionVertexDetachModifier(event);
+					if (handle._regionDetachMouseDownCtrl) {
+						markRegionVertexDetachHandle(handle);
+					}
+				});
 
-				handle.on("dragstart", () => {
-					handle._regionDetachDrag = shouldDetachRegionVertexDrag(handle);
+				handle.on("dragstart", (event) => {
+					handle._regionDetachDrag = Boolean(handle._regionDetachMouseDownCtrl || shouldDetachRegionVertexDrag(handle, event));
 					clearRegionEditVertexDetachPreview();
 					clearRegionEditEdgeHover();
 				});
 
 				handle.on("drag", (event) => {
+					if (readRegionVertexDetachModifier(event)) {
+						handle._regionDetachDrag = true;
+					}
+
 					const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry);
 					latLngs[index] = event.target.getLatLng();
 					setRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, latLngs);
@@ -182,8 +221,9 @@
 				});
 
 				handle.on("dragend", (event) => {
-					const shouldDetachVertex = Boolean(event.target._regionDetachDrag);
+					const shouldDetachVertex = Boolean(event.target._regionDetachDrag || readRegionVertexDetachModifier(event));
 					event.target._regionDetachDrag = false;
+					event.target._regionDetachMouseDownCtrl = false;
 
 					const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry);
 					const targetLatLng = shouldDetachVertex
@@ -224,7 +264,7 @@
 		};
 
 		window.handleRegionEditMouseMove = function handleRegionEditMouseMove(event) {
-			if (!activeRegionGeometryEdit || !event?.originalEvent?.ctrlKey) {
+			if (!activeRegionGeometryEdit || !readRegionVertexDetachModifier(event)) {
 				clearRegionEditVertexDetachPreview();
 				clearRegionEditEdgeHover();
 				return;
@@ -245,13 +285,14 @@
 
 		window.handleRegionEditKeyUp = function handleRegionEditKeyUp(event) {
 			if (event.key === "Control") {
+				isRegionVertexDetachCtrlPressed = false;
 				clearRegionEditVertexDetachPreview();
 				clearRegionEditEdgeHover();
 			}
 		};
 
 		window.handleRegionEditClick = function handleRegionEditClick(event) {
-			if (!activeRegionGeometryEdit || !event?.originalEvent?.ctrlKey) {
+			if (!activeRegionGeometryEdit || !readRegionVertexDetachModifier(event)) {
 				return;
 			}
 
