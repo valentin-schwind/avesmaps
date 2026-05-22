@@ -93,6 +93,7 @@ jobs:
             "js"
             "map"
             "politics"
+            "scripts"
           )
 
           for item in "${deploy_items[@]}"; do
