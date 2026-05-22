@@ -6,6 +6,7 @@ let activePoliticalTerritoryEditorRegion = null;
 let pendingPoliticalTerritoryEditorFrameSetup = null;
 let activePoliticalTerritoryEditorPendingLocalOverride = false;
 let activePoliticalTerritoryEditorPromoteNextSave = false;
+let politicalTerritoryEditorFrameSetupAttempts = 0;
 
 function createPoliticalTerritoryEditorUrl(regionEntry = {}) {
 	const params = new URLSearchParams();
@@ -69,6 +70,7 @@ function closePoliticalTerritoryEditor() {
 	pendingPoliticalTerritoryEditorFrameSetup = null;
 	activePoliticalTerritoryEditorPendingLocalOverride = false;
 	activePoliticalTerritoryEditorPromoteNextSave = false;
+	politicalTerritoryEditorFrameSetupAttempts = 0;
 	if (frame) frame.removeAttribute("src");
 }
 
@@ -91,6 +93,7 @@ function openPoliticalTerritoryEditor(regionEntry = {}) {
 	pendingPoliticalTerritoryEditorFrameSetup = regionEntry;
 	activePoliticalTerritoryEditorPendingLocalOverride = false;
 	activePoliticalTerritoryEditorPromoteNextSave = false;
+	politicalTerritoryEditorFrameSetupAttempts = 0;
 	frame.src = createEmbeddedPoliticalTerritoryEditorUrl(regionEntry);
 	setPoliticalTerritoryEditorOpen(true);
 }
@@ -100,17 +103,33 @@ function setupPoliticalTerritoryEditorFrame() {
 	const regionEntry = pendingPoliticalTerritoryEditorFrameSetup || activePoliticalTerritoryEditorRegion;
 	if (!frame || !regionEntry) return;
 
+	installPoliticalTerritoryEditorOverrideFooter(frame, regionEntry);
+
 	const assignmentModule = frame.contentWindow?.AvesmapsPoliticalTerritoryAssignment;
-	if (!assignmentModule || typeof assignmentModule.configure !== "function") return;
+	if (!assignmentModule || typeof assignmentModule.configure !== "function") {
+		politicalTerritoryEditorFrameSetupAttempts += 1;
+		if (politicalTerritoryEditorFrameSetupAttempts < 40) {
+			window.setTimeout(setupPoliticalTerritoryEditorFrame, 100);
+		}
+		return;
+	}
 
 	assignmentModule.configure({
 		onSave: (value) => savePoliticalTerritoryEditorAssignment(regionEntry, value),
 		onUnassign: () => unassignPoliticalTerritoryEditorGeometry(regionEntry),
 		onCancel: () => closePoliticalTerritoryEditor(),
 	});
-	installPoliticalTerritoryEditorOverrideFooter(frame, regionEntry);
-	void refreshPoliticalTerritoryEditorOverrideFooter(regionEntry);
+	politicalTerritoryEditorFrameSetupAttempts = 0;
+	schedulePoliticalTerritoryEditorOverrideFooterRefresh(regionEntry);
 	pendingPoliticalTerritoryEditorFrameSetup = null;
+}
+
+function schedulePoliticalTerritoryEditorOverrideFooterRefresh(regionEntry = activePoliticalTerritoryEditorRegion) {
+	[0, 150, 500, 1200].forEach((delay) => {
+		window.setTimeout(() => {
+			void refreshPoliticalTerritoryEditorOverrideFooter(regionEntry);
+		}, delay);
+	});
 }
 
 function getPoliticalTerritoryEditorFrameDocument(frame = getPoliticalTerritoryEditorElements().frame) {
@@ -128,6 +147,7 @@ function installPoliticalTerritoryEditorOverrideFooter(frame, regionEntry) {
 			grid-template-columns: minmax(0, 1fr) auto;
 			gap: 10px;
 			align-items: center;
+			margin-top: 12px;
 			padding: 10px 12px;
 			border: 1px solid #cdb79f;
 			border-radius: 8px;
@@ -156,7 +176,12 @@ function installPoliticalTerritoryEditorOverrideFooter(frame, regionEntry) {
 			<button type="button" data-local-override-action="promote">Zu global machen</button>
 		</div>
 	`;
-	(doc.querySelector(".manual-data-box") || doc.querySelector(".manual-data-panel"))?.append(footer);
+	const footerTarget = doc.querySelector(".manual-data-box")
+		|| doc.querySelector(".manual-data-panel")
+		|| doc.querySelector("form")
+		|| doc.querySelector("main")
+		|| doc.body;
+	footerTarget?.append(footer);
 
 	footer.querySelector('[data-local-override-action="reset"]')?.addEventListener("click", () => {
 		void resetPoliticalTerritoryEditorLocalDisplay(regionEntry);
@@ -176,6 +201,10 @@ function installPoliticalTerritoryEditorOverrideFooter(frame, regionEntry) {
 }
 
 function syncPoliticalTerritoryEditorOverrideFooterVisibility(isVisible) {
+	const { frame } = getPoliticalTerritoryEditorElements();
+	if (frame && activePoliticalTerritoryEditorRegion) {
+		installPoliticalTerritoryEditorOverrideFooter(frame, activePoliticalTerritoryEditorRegion);
+	}
 	const doc = getPoliticalTerritoryEditorFrameDocument();
 	const footer = doc?.getElementById("political-territory-local-override-footer");
 	if (footer) footer.hidden = !isVisible;
