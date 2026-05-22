@@ -362,7 +362,7 @@ function avesmapsWikiSyncIsInvalidDomSyntheticPoliticalPathPart(string $part): b
         return true;
     }
 
-    if (preg_match('/\b(?:unabhängig|unabhaengig|ungeklärt|ungeklaert|unbekannt|ungewiss|umstritten|keine|keiner|kein|unklar)\b/iu', $part) === 1) {
+    if (preg_match('/\b(?:unabhängig|unabhaengig|ungeklärt|ungeklaert|unbekannt|ungewiss|umstritten|keine|keiner|kein|unklar|beansprucht)\b/iu', $part) === 1) {
         return true;
     }
 
@@ -398,6 +398,7 @@ function avesmapsWikiSyncIsInvalidDomSyntheticPoliticalPathPart(string $part): b
         'keiner',
         'kein',
         'unklar',
+        'beansprucht',
     ];
 
     foreach ($invalidKeys as $invalidKey) {
