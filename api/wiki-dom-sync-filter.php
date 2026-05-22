@@ -22,5 +22,17 @@ function avesmapsWikiDomPatchSource(string $source): string {
         $source
     );
 
+    $source = str_replace(
+        "\$context = labelKey(implode(' ', [\$src, \$largestSrc, \$img->getAttribute('alt'), \$img->getAttribute('title'), \$img->getAttribute('class'), \$img->getAttribute('data-file-width'), \$img->getAttribute('data-file-height')]));",
+        "\$context = labelKey(implode(' ', [\$src, \$largestSrc, \$img->getAttribute('alt'), \$img->getAttribute('title'), \$img->getAttribute('class'), \$img->getAttribute('data-file-width'), \$img->getAttribute('data-file-height'), \$node->textContent ?? '']));",
+        $source
+    );
+
+    $source = str_replace(
+        "'shared resources assets'] as \$bad)",
+        "'shared resources assets', 'bildgenerator', 'inoffizielle illustration', 'illustration'] as \$bad)",
+        $source
+    );
+
     return $source;
 }
