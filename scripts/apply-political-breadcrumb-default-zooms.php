@@ -5,27 +5,32 @@ declare(strict_types=1);
 require __DIR__ . '/../api/bootstrap.php';
 require_once __DIR__ . '/../api/political-territory-lib.php';
 
-$options = getopt('', ['apply', 'limit:', 'geometry-public-id:', 'help']);
+$arguments = avesmapsParseCommandLineArguments($argv ?? []);
 
-if (isset($options['help'])) {
+if ($arguments['help']) {
     echo "Avesmaps political breadcrumb default zoom migration\n";
     echo "\n";
     echo "Usage:\n";
     echo "  php scripts/apply-political-breadcrumb-default-zooms.php\n";
     echo "  php scripts/apply-political-breadcrumb-default-zooms.php --apply\n";
     echo "  php scripts/apply-political-breadcrumb-default-zooms.php --geometry-public-id=<uuid> --apply\n";
+    echo "  php scripts/apply-political-breadcrumb-default-zooms.php --3layer 0-1 2-2 3-6 --apply\n";
     echo "\n";
     echo "Options:\n";
     echo "  --apply                 Write changes. Without this option the script runs as dry-run.\n";
     echo "  --limit=<n>             Process at most n matching geometries. Useful for testing.\n";
     echo "  --geometry-public-id    Process only one geometry.\n";
+    echo "  --1layer ... --Nlayer   Override zoom ranges for an exact breadcrumb depth.\n";
+    echo "                         Example: --3layer 0-1 2-2 3-6\n";
+    echo "                         En dash is also accepted: --3layer 0–1 2–2 3–6\n";
     echo "  --help                  Show this help.\n";
     exit(0);
 }
 
-$apply = array_key_exists('apply', $options);
-$limit = isset($options['limit']) ? max(0, (int) $options['limit']) : null;
-$geometryPublicId = trim((string) ($options['geometry-public-id'] ?? ''));
+$apply = $arguments['apply'];
+$limit = $arguments['limit'];
+$geometryPublicId = $arguments['geometryPublicId'];
+$zoomRules = $arguments['zoomRules'];
 
 $config = avesmapsLoadApiConfig(__DIR__ . '/../api');
 $pdo = avesmapsCreatePdo($config['database'] ?? []);
@@ -60,7 +65,7 @@ foreach ($geometries as $geometry) {
             continue;
         }
 
-        $defaultZoom = avesmapsPoliticalBreadcrumbDefaultZoomRange($chainLength, (int) $index);
+        $defaultZoom = avesmapsPoliticalBreadcrumbDefaultZoomRange($chainLength, (int) $index, $zoomRules);
         $oldMin = avesmapsNullableInt($display['zoomMin'] ?? $display['zoom_min'] ?? null);
         $oldMax = avesmapsNullableInt($display['zoomMax'] ?? $display['zoom_max'] ?? null);
         if ($oldMin === $defaultZoom['zoomMin'] && $oldMax === $defaultZoom['zoomMax']) {
@@ -112,6 +117,16 @@ echo "Changed geometries: {$changedGeometries}\n";
 echo "Changed breadcrumb displays: {$changedDisplays}\n";
 echo "Skipped geometries without assignmentDisplays: {$skippedGeometries}\n";
 
+if ($zoomRules !== []) {
+    echo "\nCustom zoom rules:\n";
+    foreach ($zoomRules as $chainLength => $ranges) {
+        echo '- ' . $chainLength . 'layer: ' . implode(' ', array_map(
+            static fn(array $range): string => $range['zoomMin'] . '-' . $range['zoomMax'],
+            $ranges
+        )) . "\n";
+    }
+}
+
 if ($examples !== []) {
     echo "\nExamples:\n";
     foreach ($examples as $example) {
@@ -152,7 +167,11 @@ function avesmapsFetchPoliticalGeometriesWithAssignmentDisplays(PDO $pdo, string
     return $statement->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function avesmapsPoliticalBreadcrumbDefaultZoomRange(int $chainLength, int $index): array {
+function avesmapsPoliticalBreadcrumbDefaultZoomRange(int $chainLength, int $index, array $customRules = []): array {
+    if (isset($customRules[$chainLength][$index])) {
+        return $customRules[$chainLength][$index];
+    }
+
     if ($chainLength <= 1) {
         return ['zoomMin' => 0, 'zoomMax' => 6];
     }
@@ -207,6 +226,107 @@ function avesmapsPoliticalBreadcrumbDefaultZoomRange(int $chainLength, int $inde
     }
 
     return ['zoomMin' => 6, 'zoomMax' => 6];
+}
+
+function avesmapsParseCommandLineArguments(array $argv): array {
+    $arguments = [
+        'apply' => false,
+        'help' => false,
+        'limit' => null,
+        'geometryPublicId' => '',
+        'zoomRules' => [],
+    ];
+    $tokens = array_slice($argv, 1);
+    $count = count($tokens);
+
+    for ($index = 0; $index < $count; $index++) {
+        $token = (string) $tokens[$index];
+        if ($token === '--apply') {
+            $arguments['apply'] = true;
+            continue;
+        }
+        if ($token === '--help' || $token === '-h') {
+            $arguments['help'] = true;
+            continue;
+        }
+        if (str_starts_with($token, '--limit=')) {
+            $arguments['limit'] = max(0, (int) substr($token, strlen('--limit=')));
+            continue;
+        }
+        if ($token === '--limit') {
+            $value = avesmapsReadNextCliValue($tokens, $index, '--limit');
+            $arguments['limit'] = max(0, (int) $value);
+            continue;
+        }
+        if (str_starts_with($token, '--geometry-public-id=')) {
+            $arguments['geometryPublicId'] = trim(substr($token, strlen('--geometry-public-id=')));
+            continue;
+        }
+        if ($token === '--geometry-public-id') {
+            $arguments['geometryPublicId'] = trim(avesmapsReadNextCliValue($tokens, $index, '--geometry-public-id'));
+            continue;
+        }
+        if (preg_match('/^--([1-9][0-9]*)layer(?:=(.*))?$/', $token, $matches) === 1) {
+            $layerCount = (int) $matches[1];
+            $rangeTokens = [];
+            if (isset($matches[2]) && trim((string) $matches[2]) !== '') {
+                $rangeTokens = preg_split('/\s+/', trim((string) $matches[2])) ?: [];
+            }
+
+            while ($index + 1 < $count && !str_starts_with((string) $tokens[$index + 1], '--')) {
+                $index++;
+                $rangeTokens[] = (string) $tokens[$index];
+            }
+
+            $arguments['zoomRules'][$layerCount] = avesmapsParseLayerZoomRanges($layerCount, $rangeTokens);
+            continue;
+        }
+
+        throw new InvalidArgumentException("Unbekannter Parameter: {$token}");
+    }
+
+    ksort($arguments['zoomRules']);
+    return $arguments;
+}
+
+function avesmapsReadNextCliValue(array $tokens, int &$index, string $optionName): string {
+    if (!isset($tokens[$index + 1]) || str_starts_with((string) $tokens[$index + 1], '--')) {
+        throw new InvalidArgumentException("{$optionName} braucht einen Wert.");
+    }
+
+    $index++;
+    return (string) $tokens[$index];
+}
+
+function avesmapsParseLayerZoomRanges(int $layerCount, array $rangeTokens): array {
+    if ($rangeTokens === []) {
+        throw new InvalidArgumentException("--{$layerCount}layer braucht {$layerCount} Zoom-Bereiche.");
+    }
+    if (count($rangeTokens) !== $layerCount) {
+        throw new InvalidArgumentException("--{$layerCount}layer erwartet {$layerCount} Zoom-Bereiche, bekommen: " . count($rangeTokens));
+    }
+
+    $ranges = [];
+    foreach ($rangeTokens as $rangeToken) {
+        $ranges[] = avesmapsParseZoomRangeToken((string) $rangeToken);
+    }
+
+    return $ranges;
+}
+
+function avesmapsParseZoomRangeToken(string $rangeToken): array {
+    $normalized = str_replace(["\u{2010}", "\u{2011}", "\u{2012}", "\u{2013}", "\u{2014}", "\u{2212}"], '-', trim($rangeToken));
+    if (preg_match('/^(\d+)\s*-\s*(\d+)$/', $normalized, $matches) !== 1) {
+        throw new InvalidArgumentException("Ungueltiger Zoom-Bereich: {$rangeToken}. Erwartet wird z.B. 0-1.");
+    }
+
+    $zoomMin = (int) $matches[1];
+    $zoomMax = (int) $matches[2];
+    if ($zoomMin < 0 || $zoomMax > 6 || $zoomMin > $zoomMax) {
+        throw new InvalidArgumentException("Ungueltiger Zoom-Bereich: {$rangeToken}. Erlaubt sind Werte von 0 bis 6 und min <= max.");
+    }
+
+    return ['zoomMin' => $zoomMin, 'zoomMax' => $zoomMax];
 }
 
 function avesmapsDecodePoliticalStyleJson(mixed $value): array {
