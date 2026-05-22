@@ -51,6 +51,7 @@ $createdAssignmentDisplays = 0;
 $skippedWithoutTerritory = 0;
 $skippedWithoutChain = 0;
 $examples = [];
+$skippedExamples = [];
 
 foreach ($geometries as $geometry) {
     $scannedGeometries++;
@@ -62,12 +63,14 @@ foreach ($geometries as $geometry) {
         $territoryId = avesmapsNullableInt($geometry['territory_id'] ?? null);
         if ($territoryId === null) {
             $skippedWithoutTerritory++;
+            avesmapsAddSkippedExample($skippedExamples, $geometry, 'keine territory_id');
             continue;
         }
 
         $territoryChain = avesmapsBuildTerritoryChainForGeometry($pdo, $territoryId, $territoryCache);
         if ($territoryChain === []) {
             $skippedWithoutChain++;
+            avesmapsAddSkippedExample($skippedExamples, $geometry, 'territory_id verweist auf kein rekonstruierbares political_territory');
             continue;
         }
 
@@ -153,6 +156,13 @@ if ($zoomRules !== []) {
 if ($examples !== []) {
     echo "\nExamples:\n";
     foreach ($examples as $example) {
+        echo "- {$example}\n";
+    }
+}
+
+if ($skippedExamples !== []) {
+    echo "\nSkipped examples:\n";
+    foreach ($skippedExamples as $example) {
         echo "- {$example}\n";
     }
 }
@@ -336,6 +346,20 @@ function avesmapsReadOpacity(mixed $value): float {
     }
 
     return max(0.0, min(1.0, $number));
+}
+
+function avesmapsAddSkippedExample(array &$skippedExamples, array $geometry, string $reason): void {
+    if (count($skippedExamples) >= 12) {
+        return;
+    }
+
+    $skippedExamples[] = sprintf(
+        '#%s | %s | territory_id=%s | %s',
+        (string) ($geometry['id'] ?? ''),
+        (string) ($geometry['public_id'] ?? ''),
+        (string) ($geometry['territory_id'] ?? 'null'),
+        $reason
+    );
 }
 
 function avesmapsParseCommandLineArguments(array $argv): array {
