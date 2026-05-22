@@ -301,8 +301,8 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 		assignment: value,
 	});
 
-	await syncPoliticalTerritoryEditorAssignmentZooms(value);
 	if (shouldPromote) {
+		await syncPoliticalTerritoryEditorAssignmentZooms(value);
 		await clearPoliticalTerritoryEditorLocalOverrides(geometryPublicId);
 	} else {
 		await restorePoliticalTerritoryEditorGlobals(globalSnapshot);
