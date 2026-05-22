@@ -30,7 +30,7 @@ function avesmapsWikiDomPatchSource(string $source): string {
 
     $source = str_replace(
         "'shared resources assets'] as \$bad)",
-        "'shared resources assets', 'bildgenerator', 'inoffizielle illustration', 'illustration'] as \$bad)",
+        "'shared resources assets', 'bildgenerator', 'inoffizielle illustration', 'illustration', 'karte', 'lagekarte'] as \$bad)",
         $source
     );
 
