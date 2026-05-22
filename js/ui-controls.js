@@ -571,8 +571,79 @@ function initializeReviewPanelTabState() {
 	});
 }
 
-if (document.readyState === "loading") {
-	document.addEventListener("DOMContentLoaded", initializeReviewPanelTabState, { once: true });
-} else {
+function normalizeWikiSyncTerritoryMetaText(value) {
+	return String(value || "").trim().replace(/^\((.*)\)$/u, "$1").trim();
+}
+
+function getWikiSyncTerritoryRowsForMetaLinks() {
+	const candidates = [window.wikiSyncTerritoryTreeRowsCache, window.AvesmapsWikiSyncTerritoryTreeRowsCache];
+	for (const candidate of candidates) {
+		if (Array.isArray(candidate) && candidate.length > 0) return candidate;
+	}
+	return [];
+}
+
+function makeWikiSyncTerritoryLookupKey(value) {
+	return String(value || "")
+		.toLowerCase()
+		.normalize("NFD")
+		.replace(/[\u0300-\u036f]/g, "")
+		.replace(/\u00df/g, "ss")
+		.replace(/ß/g, "ss")
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+}
+
+function findWikiSyncTerritoryRowForItem(itemElement) {
+	const nodeId = makeWikiSyncTerritoryLookupKey(itemElement?.dataset?.nodeId || "");
+	const name = makeWikiSyncTerritoryLookupKey(itemElement?.querySelector(".tree-item-name")?.textContent || "");
+	return getWikiSyncTerritoryRowsForMetaLinks().find((row) => {
+		const rowName = makeWikiSyncTerritoryLookupKey(row?.name || "");
+		const rowKey = makeWikiSyncTerritoryLookupKey(row?.wiki_key || row?.public_id || row?.slug || row?.id || "");
+		return (nodeId && (nodeId === rowName || nodeId === rowKey)) || (name && name === rowName);
+	}) || null;
+}
+
+function decorateWikiSyncTerritoryMetaLinks() {
+	const treeElement = document.getElementById("wiki-sync-territory-tree");
+	if (!treeElement) return;
+	treeElement.querySelectorAll(".tree-item").forEach((itemElement) => {
+		const metaElement = itemElement.querySelector(".tree-item-meta");
+		if (!metaElement || metaElement.dataset.wikiMetaDecorated === "1") return;
+		const row = findWikiSyncTerritoryRowForItem(itemElement);
+		const wikiUrl = String(row?.wiki_url || "").trim();
+		const metaText = normalizeWikiSyncTerritoryMetaText(metaElement.textContent);
+		metaElement.textContent = metaText;
+		if (wikiUrl) {
+			const separator = document.createTextNode(metaText ? ", " : "");
+			const link = document.createElement("a");
+			link.className = "tree-item-meta-link";
+			link.href = wikiUrl;
+			link.target = "_blank";
+			link.rel = "noopener noreferrer";
+			link.textContent = "Wiki";
+			link.addEventListener("click", (event) => event.stopPropagation());
+			metaElement.append(separator, link);
+		}
+		metaElement.dataset.wikiMetaDecorated = "1";
+	});
+}
+
+function initializeWikiSyncTerritoryMetaLinks() {
+	const treeElement = document.getElementById("wiki-sync-territory-tree");
+	if (!treeElement) return;
+	decorateWikiSyncTerritoryMetaLinks();
+	const observer = new MutationObserver(() => decorateWikiSyncTerritoryMetaLinks());
+	observer.observe(treeElement, { childList: true, subtree: true });
+}
+
+function initializeReviewUiEnhancements() {
 	initializeReviewPanelTabState();
+	initializeWikiSyncTerritoryMetaLinks();
+}
+
+if (document.readyState === "loading") {
+	document.addEventListener("DOMContentLoaded", initializeReviewUiEnhancements, { once: true });
+} else {
+	initializeReviewUiEnhancements();
 }
