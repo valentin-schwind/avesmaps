@@ -64,6 +64,7 @@ details[open] > summary .tree-toggle::before {
 	align-items: center;
 	gap: 7px;
 	max-width: 100%;
+	min-width: 0;
 	padding: 7px 8px;
 	border-radius: 6px;
 	background: transparent;
@@ -86,13 +87,24 @@ details[open] > summary .tree-toggle::before {
 	color: var(--synthetic, #8b5d2a);
 }
 
+.tree-item-label {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 0.35em;
+	flex: 1 1 auto;
+	min-width: 0;
+	max-width: 100%;
+	white-space: normal;
+}
+
 .tree-item-name {
 	min-width: 0;
-	overflow-wrap: anywhere;
+	overflow-wrap: normal;
+	word-break: normal;
 }
 
 .tree-item-meta {
-	margin-left: 0.35em;
+	flex: 0 0 auto;
 	font-size: 0.85em;
 	color: var(--muted, #8a8173);
 	white-space: nowrap;
@@ -164,6 +176,7 @@ details[open] > summary .tree-toggle::before {
 }
 
 .drag-handle {
+	flex: 0 0 auto;
 	font-size: 12px;
 	color: #7a6652;
 	letter-spacing: -1px;
