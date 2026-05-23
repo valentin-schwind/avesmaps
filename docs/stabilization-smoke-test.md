@@ -42,6 +42,7 @@ The script does not create, edit, or delete map data. It checks:
 
 ## Manual Smoke Checklist
 
+- Detailed routing/transport regression cases: `docs/routing-transport-smoke-checklist.md`
 - Frontpage loads the stylized map and SQL vector data.
 - Route planning works for a simple route between two existing locations.
 - Location class toggles show and hide markers and location-name labels together.
