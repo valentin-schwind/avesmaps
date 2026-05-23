@@ -1933,38 +1933,22 @@
 		function renderInfoBox(node) {
 			els.infoBox.innerHTML = "";
 			els.detailInfo.textContent = node.row ? "Wiki-/SQL-Datensatz" : "Abgeleiteter Gruppenknoten";
-
-			const title = document.createElement("div");
-			title.className = "info-title";
-
-			if (node.row?.coat_of_arms_url) {
-				const img = document.createElement("img");
-				img.className = "wappen";
-				img.dataset.role = "wiki-coat-preview";
-				img.src = node.row.coat_of_arms_url;
-				img.alt = `Wappen ${node.label}`;
-				img.loading = "lazy";
-				title.appendChild(img);
-			}
-
-			const titleText = document.createElement("div");
-			const h3 = document.createElement("h3");
-			h3.textContent = node.label;
-			titleText.appendChild(h3);
-
-			const kind = document.createElement("div");
-			kind.className = "kind";
-			kind.textContent = node.row ? `Status: ${node.row.status || "unbekannt"}` : "Nur aus der Hierarchie abgeleitet";
-			titleText.appendChild(kind);
-			title.appendChild(titleText);
-			els.infoBox.appendChild(title);
-
-			const values = node.row ? getInfoRows(node.row) : [
-				["Name", node.label],
-				["Knotenart", "Abgeleiteter Gruppenknoten"],
-				["Hinweis", "Für diesen Knoten wurde kein eigener Wiki-/SQL-Datensatz in der aktuellen Ergebnismenge gefunden."],
-				["Hierarchie", getNodePath(node).map(pathNode => pathNode.label).join(" > ")]
-			];
+			const values = node.row
+				? [
+					["Name", node.label],
+					["Status", node.row.status || "unbekannt"],
+					["Knotenart", "Wiki-/SQL-Datensatz"],
+					["Wappen", node.row.coat_of_arms_url || "", "coat"],
+					["Hierarchie", getNodePath(node).map(pathNode => pathNode.label).join(" > ")],
+					...getInfoRows(node.row)
+				]
+				: [
+					["Name", node.label],
+					["Status", "unbekannt"],
+					["Knotenart", "Abgeleiteter Gruppenknoten"],
+					["Hinweis", "Für diesen Knoten wurde kein eigener Wiki-/SQL-Datensatz in der aktuellen Ergebnismenge gefunden."],
+					["Hierarchie", getNodePath(node).map(pathNode => pathNode.label).join(" > ")]
+				];
 
 			const grid = document.createElement("div");
 			grid.className = "info-grid";
@@ -1989,6 +1973,28 @@
 					a.rel = "noopener";
 					a.textContent = value;
 					valueElement.appendChild(a);
+				} else if (type === "coat") {
+					const coatUrl = normalizeText(value);
+					if (coatUrl) {
+						const img = document.createElement("img");
+						img.className = "wappen";
+						img.dataset.role = "wiki-coat-preview";
+						img.src = coatUrl;
+						img.alt = `Wappen ${node.label}`;
+						img.loading = "lazy";
+						valueElement.appendChild(img);
+
+						const link = document.createElement("a");
+						link.dataset.role = "wiki-coat-link";
+						link.href = coatUrl;
+						link.target = "_blank";
+						link.rel = "noopener";
+						link.textContent = coatUrl;
+						valueElement.appendChild(document.createTextNode(" "));
+						valueElement.appendChild(link);
+					} else {
+						valueElement.textContent = "-";
+					}
 				} else {
 					valueElement.textContent = formatInfoValue(value);
 				}
@@ -1998,6 +2004,7 @@
 
 			const details = document.createElement("details");
 			details.className = "info-details";
+			details.open = false;
 
 			const summary = document.createElement("summary");
 			summary.textContent = "Details";
@@ -2010,29 +2017,16 @@
 			const url = normalizeText(els.alternateCoatInput?.value || "");
 
 			renderManualCoatPreview(url);
-
-			if (!url) {
-				return;
+			const img = els.infoBox.querySelector('[data-role="wiki-coat-preview"]');
+			if (img && url) {
+				img.src = url;
 			}
 
-			const title = els.infoBox.querySelector(".info-title");
-
-			if (!title) {
-				return;
+			const link = els.infoBox.querySelector('[data-role="wiki-coat-link"]');
+			if (link && url) {
+				link.href = url;
+				link.textContent = url;
 			}
-
-			let img = title.querySelector('[data-role="wiki-coat-preview"]');
-
-			if (!img) {
-				img = document.createElement("img");
-				img.className = "wappen";
-				img.dataset.role = "wiki-coat-preview";
-				img.alt = "Wappen-Vorschau";
-				img.loading = "lazy";
-				title.insertBefore(img, title.firstChild);
-			}
-
-			img.src = url;
 		}
 
 		function getInfoRows(row) {
@@ -2054,8 +2048,7 @@
 				["Politisch", row.political],
 				["Handelszone", row.trade_zone],
 				["Blasonierung", row.blazon],
-				["Wiki-URL", row.wiki_url, "url"],
-				["Wappen-URL", row.coat_of_arms_url, "url"]
+				["Wiki-URL", row.wiki_url, "url"]
 			];
 		}
 

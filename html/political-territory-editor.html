@@ -570,14 +570,6 @@
 			font-size: 14px;
 		}
 
-		.manual-data-section-header {
-			display: flex;
-			flex-wrap: wrap;
-			justify-content: space-between;
-			align-items: baseline;
-			gap: 6px 12px;
-		}
-
 		.manual-data-grid {
 			display: grid;
 			grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -663,11 +655,28 @@
 			width: fit-content;
 		}
 
+		.manual-info-meta {
+			padding: 8px 12px 0 12px;
+			color: var(--muted);
+			font-size: 12px;
+		}
+
+		.manual-color-controls {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+		}
+
+		.manual-color-controls .manual-data-field {
+			flex: 1 1 190px;
+		}
+
 		.manual-data-variance-row {
 			display: flex;
 			flex-wrap: wrap;
 			gap: 8px 10px;
 			align-items: end;
+			justify-content: space-between;
 		}
 
 		.manual-data-variance-range {
@@ -761,6 +770,10 @@
 
 			.manual-data-variance-input {
 				min-width: 0;
+			}
+
+			.manual-color-controls .manual-data-field {
+				flex-basis: 100%;
 			}
 
 			.manual-coat-preview {
@@ -882,16 +895,12 @@
 						<span id="geometryDatabaseInfo" class="note">Geometrie in der Datenbank</span>
 					</div>
 					<div id="manualEditPath" class="breadcrumb manual-edit-path">Kein Knoten zugewiesen</div>
+					<div class="manual-info-meta">
+						<span id="detailInfo" class="note">Noch kein Gebiet ausgewählt.</span>
+					</div>
+					<div id="breadcrumb" class="breadcrumb"></div>
+					<div id="infoBox" class="info-box"></div>
 					<form class="manual-data-box" autocomplete="off">
-						<section class="manual-data-section" aria-label="Details">
-							<div class="manual-data-section-header">
-								<h3>Details</h3>
-								<span id="detailInfo" class="note">Noch kein Gebiet ausgewählt.</span>
-							</div>
-							<div id="breadcrumb" class="breadcrumb"></div>
-							<div id="infoBox" class="info-box"></div>
-						</section>
-
 						<section class="manual-data-section" aria-label="Anzeige und Wappen">
 							<h3>Anzeige</h3>
 							<div class="manual-data-grid">
@@ -927,7 +936,7 @@
 
 							<section class="manual-data-section" aria-label="Farbe und Transparenz">
 								<h3>Farbe und Transparenz</h3>
-								<div class="manual-data-grid">
+								<div class="manual-color-controls">
 									<div class="manual-data-field">
 										<label for="colorInput">Farbe</label>
 										<input id="colorInput" name="color" type="color" value="#385d72">
@@ -936,25 +945,23 @@
 										<label for="transparencyInput">Transparenz <output id="transparencyOutput" for="transparencyInput">33%</output></label>
 										<input id="transparencyInput" name="transparency" type="range" min="0" max="100" step="1" value="33">
 									</div>
-									<div class="manual-data-field manual-data-field--wide">
-										<div class="manual-data-variance-row">
-											<button id="inheritColorVarianceButton" class="secondary inherit-color-variance-button" type="button" hidden>Farbtonvarianz vererben</button>
-											<div class="manual-data-variance-range">
-												<div class="manual-data-variance-input">
-													<label for="hueVarianceMinInput">HSV-Abweichung min (0-256)</label>
-													<input id="hueVarianceMinInput" name="hue_variance_min" type="number" min="0" max="256" step="1" value="10">
-												</div>
-												<div class="manual-data-variance-input">
-													<label for="hueVarianceMaxInput">HSV-Abweichung max (0-256)</label>
-													<input id="hueVarianceMaxInput" name="hue_variance_max" type="number" min="0" max="256" step="1" value="20">
-												</div>
-											</div>
+								</div>
+								<div class="manual-data-variance-row">
+									<button id="inheritColorVarianceButton" class="secondary inherit-color-variance-button" type="button" hidden>Farbtonvarianz vererben</button>
+									<div class="manual-data-variance-range">
+										<div class="manual-data-variance-input">
+											<label for="hueVarianceMinInput">HSV-Abweichung min (0-256)</label>
+											<input id="hueVarianceMinInput" name="hue_variance_min" type="number" min="0" max="256" step="1" value="10">
 										</div>
-										<small class="manual-data-inline-hint">Hinweis: „Farbtonvarianz vererben“ schreibt die Änderungen sofort in die Datenbank (global und lokal).</small>
+										<div class="manual-data-variance-input">
+											<label for="hueVarianceMaxInput">HSV-Abweichung max (0-256)</label>
+											<input id="hueVarianceMaxInput" name="hue_variance_max" type="number" min="0" max="256" step="1" value="20">
+										</div>
 									</div>
-									<div class="manual-data-field manual-data-field--wide">
-										<button id="inheritOpacityButton" class="secondary inherit-color-variance-button" type="button" hidden>Transparenz vererben</button>
-									</div>
+								</div>
+								<small class="manual-data-inline-hint">Hinweis: „Farbtonvarianz vererben“ schreibt die Änderungen sofort in die Datenbank (global und lokal).</small>
+								<div class="manual-data-variance-row">
+									<button id="inheritOpacityButton" class="secondary inherit-color-variance-button" type="button" hidden>Transparenz vererben</button>
 								</div>
 							</section>
 
