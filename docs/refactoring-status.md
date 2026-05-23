@@ -8,7 +8,9 @@
   - `collectAndValidateSelectedLocations()`
   - `buildRouteResultFromSelectedLocations(useShortest)`
 - `js/popups.js` bleibt stabil mit lokalem Helper `pathCreationActionButtonsMarkup(publicId)`.
-- `js/dialogs-review.js` bleibt stabil mit lokalem Helper `setDialogStatus(statusElement, message = "", type = "")` fuer den `dataset.status`-Cluster.
+- `js/dialogs-review.js` bleibt stabil mit zwei getrennten Status-Clustern:
+  - `setDialogStatus(statusElement, message = "", type = "")` fuer `dataset.status`
+  - `setPanelStateStatus(statusElement, message = "", state = "")` fuer `dataset.state`
 - `js/ui-controls.js` bleibt stabil mit lokalem Helper `bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName)` fuer Review-/Wiki-Sync-Tab-Persistierung.
 
 ## 2. Recent Safe Extracts
@@ -18,6 +20,7 @@
 - `buildRouteResultFromSelectedLocations(useShortest)`
 - `pathCreationActionButtonsMarkup(publicId)`
 - `setDialogStatus(statusElement, message = "", type = "")`
+- `setPanelStateStatus(statusElement, message = "", state = "")`
 - `bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName)`
 
 ## 3. Areas To Leave Stable For Now
@@ -29,7 +32,7 @@
 - Popup-Bereich:
   - `js/popups.js` nach dem Path-Action-Extract vorerst stabil lassen.
 - Dialog-Bereich:
-  - `js/dialogs-review.js` nach dem `setDialogStatus`-Extract vorerst stabil lassen.
+  - `js/dialogs-review.js` nach der Status-Cluster-Aufteilung vorerst stabil lassen.
 - UI-Controls:
   - `js/ui-controls.js` insgesamt vorerst stabil lassen, insbesondere den Transport-Menu-/Combobox-Bereich.
 
@@ -37,7 +40,7 @@
 
 - `renderRouteResult(routeNodeNames, segments)` in `js/routing.js` (nur geplant).
 - Popups: moeglicher Powerline-Action-Button-Helper (nur analysiert).
-- Dialogs-Review: moeglicher `dataset.state`-Helper fuer Panel-Statusfunktionen (nur analysiert).
+- Dialogs-Review: Submit-/Pending-Setter-Cluster als spaeterer **Analysebereich** (kein geplanter direkter Code-Schritt).
 - UI-Controls Transport-Menue: moeglicher `bindTransportControlEvents(control, selectId)`-Extract (nur analysiert).
 - Moegliche spaetere Parameterisierung von `createGraph`/Transportlogik.
 - Moegliche spaetere Entkopplung von `getSyntheticRouteConfig`.
@@ -46,7 +49,7 @@
 
 - Produktiv auf [avesmaps.de](https://avesmaps.de/) wurde Routing/Dragging/Rerouting als funktionsfaehig bestaetigt.
 - Fuer den Popups-Extract waren Popup/Editmode-Smokes empfohlen (Path-Actions + Powerline-Aktionen).
-- Fuer den Dialog-Extract waren Dialog/Edit/Review-Smokes der Statusausgaben empfohlen.
+- Fuer die Dialog-Status-Extracts waren Dialog/Edit/Review-Smokes der Statusausgaben empfohlen.
 - Fuer den UI-Controls-Extract waren Review-Tab-/Wiki-Sync-Tab-Smokes empfohlen (URL + LocalStorage + Reload).
 - Falls spaeter Transport-Menue-Code geaendert wird, ist ein eigener Transport-Combobox-Smoke-Zyklus erforderlich (Focus/Keyboard/ARIA/Outside-Click/Resize/Scroll).
 
@@ -63,6 +66,6 @@
 - Kein sofortiger Code-Schritt.
 - Zuerst kurzes Smoke-/Stabilitaetsfenster.
 - Danach entweder:
-  - A. einen der bereits geplanten Mini-Extracts gezielt auswaehlen und isoliert umsetzen
-  - B. einen neuen Bereich nur analysieren (ohne Codeaenderung)
+  - A. einen bereits geplanten Mini-Extract gezielt und isoliert umsetzen
+  - B. einen neuen Subbereich nur analysieren (ohne Codeaenderung)
 - Explizit: Transport-Menue nicht direkt coden, solange kein gezielter Transport-Combobox-Smoke-Zyklus geplant ist.
