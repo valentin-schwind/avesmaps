@@ -139,6 +139,7 @@ function avesmapsPoliticalSubtreeDisplayInheritColors(PDO $pdo, array $payload, 
             'global_changed' => 0,
             'local_geometry_changed' => 0,
             'local_display_changed' => 0,
+            'updates' => [],
         ];
     }
 
@@ -166,6 +167,7 @@ function avesmapsPoliticalSubtreeDisplayInheritColors(PDO $pdo, array $payload, 
         'global_changed' => $globalChanged,
         'local_geometry_changed' => $localGeometryChanged,
         'local_display_changed' => $localDisplayChanged,
+        'updates' => avesmapsPoliticalSubtreeDisplayColorUpdatesForResponse($updatesByPublicId),
     ];
 }
 
@@ -192,6 +194,7 @@ function avesmapsPoliticalSubtreeDisplayInheritOpacity(PDO $pdo, array $payload,
             'global_changed' => 0,
             'local_geometry_changed' => 0,
             'local_display_changed' => 0,
+            'updates' => [],
         ];
     }
 
@@ -219,7 +222,30 @@ function avesmapsPoliticalSubtreeDisplayInheritOpacity(PDO $pdo, array $payload,
         'global_changed' => $globalChanged,
         'local_geometry_changed' => $localGeometryChanged,
         'local_display_changed' => $localDisplayChanged,
+        'updates' => avesmapsPoliticalSubtreeDisplayOpacityUpdatesForResponse($updatesByPublicId),
     ];
+}
+
+function avesmapsPoliticalSubtreeDisplayColorUpdatesForResponse(array $updatesByPublicId): array {
+    $updates = [];
+    foreach ($updatesByPublicId as $publicId => $color) {
+        $updates[] = [
+            'territoryPublicId' => (string) $publicId,
+            'color' => (string) $color,
+        ];
+    }
+    return $updates;
+}
+
+function avesmapsPoliticalSubtreeDisplayOpacityUpdatesForResponse(array $updatesByPublicId): array {
+    $updates = [];
+    foreach ($updatesByPublicId as $publicId => $opacity) {
+        $updates[] = [
+            'territoryPublicId' => (string) $publicId,
+            'opacity' => (float) $opacity,
+        ];
+    }
+    return $updates;
 }
 
 function avesmapsPoliticalSubtreeDisplayLoadHierarchy(PDO $pdo): array {
