@@ -549,10 +549,14 @@
 		}
 
 		.manual-data-columns {
-			display: grid;
-			grid-template-columns: repeat(2, minmax(0, 1fr));
+			display: flex;
+			flex-wrap: wrap;
 			gap: 14px;
-			align-items: start;
+			align-items: stretch;
+		}
+
+		.manual-data-columns > .manual-data-section {
+			flex: 1 1 320px;
 		}
 
 		.manual-data-section {
@@ -655,12 +659,6 @@
 			width: fit-content;
 		}
 
-		.manual-info-meta {
-			padding: 8px 12px 0 12px;
-			color: var(--muted);
-			font-size: 12px;
-		}
-
 		.manual-color-controls {
 			display: flex;
 			flex-wrap: wrap;
@@ -709,6 +707,14 @@
 			line-height: 1.35;
 		}
 
+		.manual-data-section-header {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: space-between;
+			align-items: baseline;
+			gap: 6px 12px;
+		}
+
 		.manual-data-checkbox {
 			display: inline-flex;
 			align-items: center;
@@ -753,9 +759,12 @@
 
 		@media (max-width: 620px) {
 			.manual-data-grid,
-			.manual-data-columns,
 			.form-status-row {
 				grid-template-columns: 1fr;
+			}
+
+			.manual-data-columns {
+				flex-direction: column;
 			}
 
 			.manual-data-inline-action--with-preview {
@@ -895,12 +904,15 @@
 						<span id="geometryDatabaseInfo" class="note">Geometrie in der Datenbank</span>
 					</div>
 					<div id="manualEditPath" class="breadcrumb manual-edit-path">Kein Knoten zugewiesen</div>
-					<div class="manual-info-meta">
-						<span id="detailInfo" class="note">Noch kein Gebiet ausgewählt.</span>
-					</div>
-					<div id="breadcrumb" class="breadcrumb"></div>
-					<div id="infoBox" class="info-box"></div>
 					<form class="manual-data-box" autocomplete="off">
+						<section class="manual-data-section" aria-label="Synchronisierte Wiki-Daten">
+							<div class="manual-data-section-header">
+								<h3>Synchronisierte Wiki-Daten</h3>
+								<span id="detailInfo" class="note">Noch kein Gebiet ausgewählt.</span>
+							</div>
+							<div id="infoBox" class="info-box"></div>
+						</section>
+
 						<section class="manual-data-section" aria-label="Anzeige und Wappen">
 							<h3>Anzeige</h3>
 							<div class="manual-data-grid">
@@ -934,16 +946,12 @@
 								</div>
 							</section>
 
-							<section class="manual-data-section" aria-label="Farbe und Transparenz">
-								<h3>Farbe und Transparenz</h3>
+							<section class="manual-data-section" aria-label="Farbe">
+								<h3>Farbe</h3>
 								<div class="manual-color-controls">
 									<div class="manual-data-field">
 										<label for="colorInput">Farbe</label>
 										<input id="colorInput" name="color" type="color" value="#385d72">
-									</div>
-									<div class="manual-data-field">
-										<label for="transparencyInput">Transparenz <output id="transparencyOutput" for="transparencyInput">33%</output></label>
-										<input id="transparencyInput" name="transparency" type="range" min="0" max="100" step="1" value="33">
 									</div>
 								</div>
 								<div class="manual-data-variance-row">
@@ -960,6 +968,16 @@
 									</div>
 								</div>
 								<small class="manual-data-inline-hint">Hinweis: „Farbtonvarianz vererben“ schreibt die Änderungen sofort in die Datenbank (global und lokal).</small>
+							</section>
+
+							<section class="manual-data-section" aria-label="Transparenz">
+								<h3>Transparenz</h3>
+								<div class="manual-color-controls">
+									<div class="manual-data-field">
+										<label for="transparencyInput">Transparenz <output id="transparencyOutput" for="transparencyInput">33%</output></label>
+										<input id="transparencyInput" name="transparency" type="range" min="0" max="100" step="1" value="33">
+									</div>
+								</div>
 								<div class="manual-data-variance-row">
 									<button id="inheritOpacityButton" class="secondary inherit-color-variance-button" type="button" hidden>Transparenz vererben</button>
 								</div>

@@ -98,7 +98,6 @@
 			treeInfo: document.getElementById("treeInfo"),
 			treeView: document.getElementById("treeView"),
 			dropZone: document.getElementById("dropZone"),
-			breadcrumb: document.getElementById("breadcrumb"),
 			manualEditPath: document.getElementById("manualEditPath"),
 			infoBox: document.getElementById("infoBox"),
 			detailInfo: document.getElementById("detailInfo"),
@@ -1418,42 +1417,10 @@
 			const activeIndex = Math.max(0, path.length - 1);
 
 			editedNode = path[activeIndex] || node;
-			renderBreadcrumb(node, activeIndex);
 			renderManualEditPath(node, activeIndex);
 			applyDisplayStateToForm(getDisplayStateForNode(editedNode));
 			updateInheritColorVarianceButtonVisibility();
-			showNodeDetails(node);
-		}
-
-		function selectBreadcrumbNode(rootNode, path, activeIndex) {
-			const pathNode = path[activeIndex];
-
-			renderBreadcrumb(rootNode, activeIndex);
-			showNodeDetails(pathNode);
-		}
-
-		function renderBreadcrumb(node, activeIndex = null) {
-			els.breadcrumb.innerHTML = "";
-
-			const path = getNodePath(node);
-			const currentIndex = Number.isInteger(activeIndex) ? activeIndex : path.length - 1;
-
-			for (let i = 0; i < path.length; i++) {
-				const pathNode = path[i];
-				const button = document.createElement("button");
-				button.type = "button";
-				button.textContent = pathNode.label;
-				button.classList.toggle("is-active", i === currentIndex);
-				button.addEventListener("click", () => selectBreadcrumbNode(node, path, i));
-				els.breadcrumb.appendChild(button);
-
-				if (i < path.length - 1) {
-					const separator = document.createElement("span");
-					separator.className = "separator";
-					separator.textContent = "›";
-					els.breadcrumb.appendChild(separator);
-				}
-			}
+			showNodeDetails(editedNode || node);
 		}
 
 		function applyZoomPresetForBreadcrumb(path, activeIndex) {
@@ -1653,6 +1620,7 @@
 			renderManualEditPath(rootNode, activeIndex);
 			applyDisplayStateToForm(getDisplayStateForNode(editedNode));
 			updateInheritColorVarianceButtonVisibility();
+			showNodeDetails(editedNode);
 		}
 
 		function updateInheritColorVarianceButtonVisibility() {
@@ -2055,7 +2023,6 @@
 		function showEmptyDetails(error = "") {
 			selectedNode = null;
 			editedNode = null;
-			els.breadcrumb.innerHTML = "";
 			renderManualEditPath(null);
 			populateManualFieldsFromNode(null);
 			els.detailInfo.textContent = "Noch kein Gebiet ausgewählt.";
@@ -2436,12 +2403,13 @@
 
 				if (nextActiveIndex >= 0 && pathNodes[nextActiveIndex]) {
 					editedNode = pathNodes[nextActiveIndex];
-					renderBreadcrumb(droppedNode, nextActiveIndex);
 					renderManualEditPath(droppedNode, nextActiveIndex);
 					applyDisplayStateToForm(getDisplayStateForNode(editedNode));
 					updateInheritColorVarianceButtonVisibility();
+					showNodeDetails(editedNode);
 				} else if (editedNode) {
 					applyDisplayStateToForm(getDisplayStateForNode(editedNode));
+					showNodeDetails(editedNode);
 				}
 			}
 
