@@ -12,6 +12,35 @@ function getLocationDistance(firstLocation, secondLocation) {
 	return calculateCoordinateDistance([firstLat, firstLng], [secondLat, secondLng]);
 }
 
+function findNearestComponentConnection(component, connectedNodeNames, locationLookup) {
+	let nearestConnection = null;
+
+	component.nodeNames.forEach((sourceName) => {
+		const sourceLocation = locationLookup.get(sourceName);
+		if (!sourceLocation) {
+			return;
+		}
+
+		connectedNodeNames.forEach((targetName) => {
+			const targetLocation = locationLookup.get(targetName);
+			if (!targetLocation) {
+				return;
+			}
+
+			const distance = getLocationDistance(sourceLocation, targetLocation);
+			if (!nearestConnection || distance < nearestConnection.distance) {
+				nearestConnection = {
+					fromLocation: sourceLocation,
+					toLocation: targetLocation,
+					distance,
+				};
+			}
+		});
+	});
+
+	return nearestConnection;
+}
+
 function findGraphComponents(graph) {
 	const visitedNodeNames = new Set();
 	const components = [];

@@ -1490,35 +1490,6 @@
 			return { routeType: SYNTHETIC_ROUTE_TYPE, speed };
 		}
 
-		function findNearestComponentConnection(component, connectedNodeNames, locationLookup) {
-			let nearestConnection = null;
-
-			component.nodeNames.forEach((sourceName) => {
-				const sourceLocation = locationLookup.get(sourceName);
-				if (!sourceLocation) {
-					return;
-				}
-
-				connectedNodeNames.forEach((targetName) => {
-					const targetLocation = locationLookup.get(targetName);
-					if (!targetLocation) {
-						return;
-					}
-
-					const distance = getLocationDistance(sourceLocation, targetLocation);
-					if (!nearestConnection || distance < nearestConnection.distance) {
-						nearestConnection = {
-							fromLocation: sourceLocation,
-							toLocation: targetLocation,
-							distance,
-						};
-					}
-				});
-			});
-
-			return nearestConnection;
-		}
-
 		function addSyntheticGraphConnection(graph, fromLocation, toLocation, distance, routeConfig) {
 			const connectionId = `synthetic-${fromLocation.name}->${toLocation.name}`;
 			const effectiveDistance = distance * SYNTHETIC_ROUTE_DISTANCE_COST_FACTOR;
