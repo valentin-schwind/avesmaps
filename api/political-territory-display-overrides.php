@@ -76,9 +76,9 @@ function avesmapsPoliticalDisplayOverrideState(PDO $pdo, array $payload): array 
     $reasons = [];
 
     $source = trim((string) ($geometry['source'] ?? ''));
-    if (in_array($source, ['editor-display', 'editor-assignment'], true)) {
+    if ($source === 'editor-display') {
         $hasOverride = true;
-        $reasons[] = 'geometry_source';
+        $reasons[] = 'geometry_source_display';
     }
 
     $geometryMinZoom = avesmapsPoliticalNullableInt($geometry['min_zoom'] ?? null);
@@ -86,11 +86,6 @@ function avesmapsPoliticalDisplayOverrideState(PDO $pdo, array $payload): array 
     if ($geometryMinZoom !== null || $geometryMaxZoom !== null) {
         $hasOverride = true;
         $reasons[] = 'geometry_zoom';
-    }
-
-    if ($assignmentDisplays !== []) {
-        $hasOverride = true;
-        $reasons[] = 'assignment_displays_local';
     }
 
     foreach ($assignmentDisplays as $display) {
@@ -106,7 +101,19 @@ function avesmapsPoliticalDisplayOverrideState(PDO $pdo, array $payload): array 
         }
     }
 
-    $topLevelDisplayFields = ['displayName', 'name', 'coatOfArmsUrl', 'coat_of_arms_url', 'fill', 'stroke', 'fillOpacity'];
+    $topLevelDisplayFields = [
+        'displayName',
+        'display_name',
+        'name',
+        'coatOfArmsUrl',
+        'coat_of_arms_url',
+        'fill',
+        'stroke',
+        'color',
+        'opacity',
+        'fillOpacity',
+        'fill_opacity',
+    ];
     foreach ($topLevelDisplayFields as $field) {
         if (array_key_exists($field, $style)) {
             $hasOverride = true;
