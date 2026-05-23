@@ -6,6 +6,12 @@ function createLocationLookup() {
 	return new Map(locationData.map((location) => [location.name, location]));
 }
 
+function getLocationDistance(firstLocation, secondLocation) {
+	const [firstLat, firstLng] = firstLocation.coordinates;
+	const [secondLat, secondLng] = secondLocation.coordinates;
+	return calculateCoordinateDistance([firstLat, firstLng], [secondLat, secondLng]);
+}
+
 function findGraphComponents(graph) {
 	const visitedNodeNames = new Set();
 	const components = [];

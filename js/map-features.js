@@ -1585,12 +1585,6 @@ function getLocationAtPathEndpoint([x, y]) {
 	return locationData.find(({ coordinates: [lat, lng] }) => Math.abs(lat - y) < THRESHOLD && Math.abs(lng - x) < THRESHOLD) || null;
 }
 
-function getLocationDistance(firstLocation, secondLocation) {
-	const [firstLat, firstLng] = firstLocation.coordinates;
-	const [secondLat, secondLng] = secondLocation.coordinates;
-	return calculateCoordinateDistance([firstLat, firstLng], [secondLat, secondLng]);
-}
-
 function calculatePathCoordinateDistance(coordinates) {
 	let distance = 0;
 	for (let index = 1; index < coordinates.length; index++) {
