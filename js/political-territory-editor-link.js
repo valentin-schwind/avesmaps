@@ -36,6 +36,12 @@ function createPoliticalTerritoryEditorUrl(regionEntry = {}) {
 	if (maxZoom !== "" && maxZoom !== null && typeof maxZoom !== "undefined") params.set("max_zoom", String(maxZoom));
 	if (validFromBf !== "" && validFromBf !== null && typeof validFromBf !== "undefined") params.set("valid_from_bf", String(validFromBf));
 	if (validToBf !== "" && validToBf !== null && typeof validToBf !== "undefined") params.set("valid_to_bf", String(validToBf));
+	if (typeof map !== "undefined" && typeof map.getZoom === "function") {
+		const currentZoom = Number(map.getZoom());
+		if (Number.isFinite(currentZoom)) {
+			params.set("current_zoom", String(currentZoom));
+		}
+	}
 
 	return `/html/political-territory-editor.html${params.toString() ? `?${params.toString()}` : ""}`;
 }

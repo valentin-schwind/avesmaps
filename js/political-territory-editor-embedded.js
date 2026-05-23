@@ -80,6 +80,8 @@
 		let editedNode = null;
 		let displayStateByNodeId = new Map();
 		let nodeRegistry = new Map();
+		const inheritColorVarianceButtonElement = document.getElementById("inheritColorVarianceButton");
+		const inheritOpacityButtonElement = ensureInheritOpacityButton(inheritColorVarianceButtonElement);
 
 		const els = {
 			reloadButton: document.getElementById("reloadButton"),
@@ -106,9 +108,29 @@
 			alternateCoatInput: document.getElementById("alternateCoatInput"),
 			manualCoatPreview: document.getElementById("manualCoatPreview"),
 			updateCoatButton: document.getElementById("updateCoatButton"),
-			inheritColorVarianceButton: document.getElementById("inheritColorVarianceButton"),
+			inheritColorVarianceButton: inheritColorVarianceButtonElement,
+			inheritOpacityButton: inheritOpacityButtonElement,
 			geometryDatabaseInfo: document.getElementById("geometryDatabaseInfo")
 		};
+
+		function ensureInheritOpacityButton(referenceButton) {
+			const existingButton = document.getElementById("inheritOpacityButton");
+			if (existingButton) {
+				return existingButton;
+			}
+			if (!(referenceButton instanceof HTMLElement)) {
+				return null;
+			}
+
+			const button = document.createElement("button");
+			button.id = "inheritOpacityButton";
+			button.type = "button";
+			button.className = referenceButton.className || "secondary";
+			button.textContent = "Transparenz vererben";
+			button.hidden = referenceButton.hidden;
+			referenceButton.insertAdjacentElement("afterend", button);
+			return button;
+		}
 
 		if (els.reloadButton) {
 			els.reloadButton.addEventListener("click", loadData);
@@ -160,6 +182,10 @@
 
 		if (els.inheritColorVarianceButton) {
 			els.inheritColorVarianceButton.addEventListener("click", inheritColorVarianceToDescendants);
+		}
+
+		if (els.inheritOpacityButton) {
+			els.inheritOpacityButton.addEventListener("click", inheritOpacityToDescendants);
 		}
 
 		const saveButton = document.getElementById("saveButton");
@@ -1608,14 +1634,15 @@
 		}
 
 		function updateInheritColorVarianceButtonVisibility() {
-			if (!els.inheritColorVarianceButton) {
-				return;
-			}
-
 			const path = droppedNode ? getNodePath(droppedNode) : [];
 			const currentIndex = editedNode ? path.findIndex(node => node.id === editedNode.id) : -1;
 			const hasDescendantsInAssignedPath = currentIndex >= 0 && currentIndex < path.length - 1;
-			els.inheritColorVarianceButton.hidden = !hasDescendantsInAssignedPath;
+			if (els.inheritColorVarianceButton) {
+				els.inheritColorVarianceButton.hidden = !hasDescendantsInAssignedPath;
+			}
+			if (els.inheritOpacityButton) {
+				els.inheritOpacityButton.hidden = !hasDescendantsInAssignedPath;
+			}
 		}
 
 		function inheritColorVarianceToDescendants() {
@@ -1638,19 +1665,48 @@
 			for (let index = currentIndex + 1; index < path.length; index += 1) {
 				const childNode = path[index];
 				const childState = getDisplayStateForNode(childNode);
-				const nextOpacity = Number.isFinite(parentState.opacity)
-					? clampNumber(parentState.opacity, 0, 1)
-					: 0.33;
 				const inheritedState = {
 					...childState,
-					color: createColorVariantFromParent(parentState.color),
-					opacity: nextOpacity
+					color: createColorVariantFromParent(parentState.color)
 				};
 				displayStateByNodeId.set(childNode.id, inheritedState);
 				parentState = inheritedState;
 			}
 
 			setFormStatus("Farbtonvarianz auf Untergebiete uebertragen.", "success");
+		}
+
+		function inheritOpacityToDescendants() {
+			if (!editedNode || !droppedNode) {
+				return;
+			}
+
+			saveCurrentDisplayState();
+
+			const path = getNodePath(droppedNode);
+			const currentIndex = path.findIndex(node => node.id === editedNode.id);
+
+			if (currentIndex < 0 || currentIndex >= path.length - 1) {
+				updateInheritColorVarianceButtonVisibility();
+				return;
+			}
+
+			let parentState = getDisplayStateForNode(path[currentIndex]);
+
+			for (let index = currentIndex + 1; index < path.length; index += 1) {
+				const childNode = path[index];
+				const childState = getDisplayStateForNode(childNode);
+				const inheritedState = {
+					...childState,
+					opacity: Number.isFinite(parentState.opacity)
+						? clampNumber(parentState.opacity, 0, 1)
+						: childState.opacity
+				};
+				displayStateByNodeId.set(childNode.id, inheritedState);
+				parentState = inheritedState;
+			}
+
+			setFormStatus("Transparenz auf Untergebiete uebertragen.", "success");
 		}
 
 		function populateManualFieldsFromNode(node) {
@@ -2346,12 +2402,42 @@
 					}
 				}
 
-				if (editedNode) {
+				const activeIndex = findDisplayIndexForCurrentZoom(value.displays);
+				if (activeIndex >= 0 && pathNodes[activeIndex]) {
+					editedNode = pathNodes[activeIndex];
+					renderBreadcrumb(droppedNode, activeIndex);
+					renderManualEditPath(droppedNode, activeIndex);
+					applyDisplayStateToForm(getDisplayStateForNode(editedNode));
+					updateInheritColorVarianceButtonVisibility();
+				} else if (editedNode) {
 					applyDisplayStateToForm(getDisplayStateForNode(editedNode));
 				}
 			}
 
 			renderManualCoatPreview(normalizeText(document.getElementById("alternateCoatInput")?.value || ""));
+		}
+
+		function findDisplayIndexForCurrentZoom(displays) {
+			const params = new URLSearchParams(window.location.search);
+			const currentZoom = Number(params.get("current_zoom"));
+			if (!Number.isFinite(currentZoom)) {
+				return -1;
+			}
+
+			return displays.findIndex((display) => {
+				const min = parseOptionalNumber(display.zoomMin);
+				const max = parseOptionalNumber(display.zoomMax);
+				if (min === null && max === null) {
+					return false;
+				}
+				if (min !== null && currentZoom < min) {
+					return false;
+				}
+				if (max !== null && currentZoom > max) {
+					return false;
+				}
+				return true;
+			});
 		}
 
 		function findNodeForDisplayState(displayState) {
