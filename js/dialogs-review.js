@@ -234,6 +234,14 @@ function setRegionEditStatus(message = "", type = "") {
 	setDialogStatus(getRegionEditStatusElement(), message, type);
 }
 
+function setFormFieldsDisabled(formElement, isPending) {
+	Array.from(formElement.elements).forEach((fieldElement) => {
+		if (fieldElement instanceof HTMLElement) {
+			fieldElement.disabled = isPending;
+		}
+	});
+}
+
 function setLocationReportSubmitPending(isPending) {
 	isLocationReportSubmissionPending = isPending;
 
@@ -242,11 +250,7 @@ function setLocationReportSubmitPending(isPending) {
 		return;
 	}
 
-	Array.from(formElement.elements).forEach((fieldElement) => {
-		if (fieldElement instanceof HTMLElement) {
-			fieldElement.disabled = isPending;
-		}
-	});
+	setFormFieldsDisabled(formElement, isPending);
 	const closeButtonElement = document.getElementById("location-report-close");
 	if (closeButtonElement) {
 		closeButtonElement.disabled = isPending;
@@ -261,11 +265,7 @@ function setLocationEditSubmitPending(isPending) {
 		return;
 	}
 
-	Array.from(formElement.elements).forEach((fieldElement) => {
-		if (fieldElement instanceof HTMLElement) {
-			fieldElement.disabled = isPending;
-		}
-	});
+	setFormFieldsDisabled(formElement, isPending);
 	const closeButtonElement = document.getElementById("location-edit-close");
 	if (closeButtonElement) {
 		closeButtonElement.disabled = isPending;
@@ -285,11 +285,7 @@ function setWikiSyncResolveSubmitPending(isPending) {
 		return;
 	}
 
-	Array.from(formElement.elements).forEach((fieldElement) => {
-		if (fieldElement instanceof HTMLElement) {
-			fieldElement.disabled = isPending;
-		}
-	});
+	setFormFieldsDisabled(formElement, isPending);
 	const closeButtonElement = document.getElementById("wiki-sync-resolve-close");
 	if (closeButtonElement) {
 		closeButtonElement.disabled = isPending;
@@ -309,11 +305,7 @@ function setPathEditSubmitPending(isPending) {
 		return;
 	}
 
-	Array.from(formElement.elements).forEach((fieldElement) => {
-		if (fieldElement instanceof HTMLElement) {
-			fieldElement.disabled = isPending;
-		}
-	});
+	setFormFieldsDisabled(formElement, isPending);
 	const closeButtonElement = document.getElementById("path-edit-close");
 	if (closeButtonElement) {
 		closeButtonElement.disabled = isPending;
@@ -333,11 +325,7 @@ function setPowerlineEditSubmitPending(isPending) {
 		return;
 	}
 
-	Array.from(formElement.elements).forEach((fieldElement) => {
-		if (fieldElement instanceof HTMLElement) {
-			fieldElement.disabled = isPending;
-		}
-	});
+	setFormFieldsDisabled(formElement, isPending);
 	const closeButtonElement = document.getElementById("powerline-edit-close");
 	if (closeButtonElement) {
 		closeButtonElement.disabled = isPending;
