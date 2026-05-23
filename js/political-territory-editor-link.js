@@ -7,6 +7,7 @@ let activePoliticalTerritoryEditorRegion = null;
 let pendingPoliticalTerritoryEditorFrameSetup = null;
 let activePoliticalTerritoryEditorPendingLocalOverride = false;
 let activePoliticalTerritoryEditorPromoteNextSave = false;
+let activePoliticalTerritoryEditorOverrideFooterSuppressedUntil = 0;
 let politicalTerritoryEditorFrameSetupAttempts = 0;
 let politicalTerritoryWikiRowsByIdPromise = null;
 
@@ -72,6 +73,7 @@ function closePoliticalTerritoryEditor() {
 	pendingPoliticalTerritoryEditorFrameSetup = null;
 	activePoliticalTerritoryEditorPendingLocalOverride = false;
 	activePoliticalTerritoryEditorPromoteNextSave = false;
+	activePoliticalTerritoryEditorOverrideFooterSuppressedUntil = 0;
 	politicalTerritoryEditorFrameSetupAttempts = 0;
 	if (frame) frame.removeAttribute("src");
 }
@@ -95,6 +97,7 @@ function openPoliticalTerritoryEditor(regionEntry = {}) {
 	pendingPoliticalTerritoryEditorFrameSetup = regionEntry;
 	activePoliticalTerritoryEditorPendingLocalOverride = false;
 	activePoliticalTerritoryEditorPromoteNextSave = false;
+	activePoliticalTerritoryEditorOverrideFooterSuppressedUntil = 0;
 	politicalTerritoryEditorFrameSetupAttempts = 0;
 	frame.src = createEmbeddedPoliticalTerritoryEditorUrl(regionEntry);
 	setPoliticalTerritoryEditorOpen(true);
@@ -136,8 +139,18 @@ function handlePoliticalTerritoryEditorAssignmentLoaded(assignmentInfo = {}) {
 		return;
 	}
 
-	activePoliticalTerritoryEditorPendingLocalOverride = Boolean(assignmentInfo?.hasLocalAssignmentDisplays);
-	syncPoliticalTerritoryEditorOverrideFooterVisibility(activePoliticalTerritoryEditorPendingLocalOverride);
+	const hasLocalAssignmentDisplays = Boolean(assignmentInfo?.hasLocalAssignmentDisplays);
+
+	if (hasLocalAssignmentDisplays && isPoliticalTerritoryEditorOverrideFooterSuppressed()) {
+		return;
+	}
+
+	if (!hasLocalAssignmentDisplays) {
+		clearPoliticalTerritoryEditorOverrideFooterSuppression();
+	}
+
+	activePoliticalTerritoryEditorPendingLocalOverride = hasLocalAssignmentDisplays;
+	syncPoliticalTerritoryEditorOverrideFooterVisibility(hasLocalAssignmentDisplays);
 }
 
 function schedulePoliticalTerritoryEditorOverrideFooterRefresh(regionEntry = activePoliticalTerritoryEditorRegion) {
@@ -319,6 +332,22 @@ function syncPoliticalTerritoryEditorOverrideFooterVisibility(isVisible) {
 	if (footer) footer.hidden = !isVisible;
 }
 
+function suppressPoliticalTerritoryEditorOverrideFooter(durationMs = 2000) {
+	const duration = Number(durationMs);
+	const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 2000;
+	activePoliticalTerritoryEditorOverrideFooterSuppressedUntil = Date.now() + safeDuration;
+	activePoliticalTerritoryEditorPendingLocalOverride = false;
+	syncPoliticalTerritoryEditorOverrideFooterVisibility(false);
+}
+
+function clearPoliticalTerritoryEditorOverrideFooterSuppression() {
+	activePoliticalTerritoryEditorOverrideFooterSuppressedUntil = 0;
+}
+
+function isPoliticalTerritoryEditorOverrideFooterSuppressed() {
+	return activePoliticalTerritoryEditorOverrideFooterSuppressedUntil > Date.now();
+}
+
 async function refreshPoliticalTerritoryEditorOverrideFooter(regionEntry = activePoliticalTerritoryEditorRegion) {
 	const geometryPublicId = getPoliticalTerritoryEditorGeometryPublicId(regionEntry || {});
 	if (!geometryPublicId) return;
@@ -327,7 +356,15 @@ async function refreshPoliticalTerritoryEditorOverrideFooter(regionEntry = activ
 			action: "state",
 			geometry_public_id: geometryPublicId,
 		});
-		syncPoliticalTerritoryEditorOverrideFooterVisibility(Boolean(state?.has_override || activePoliticalTerritoryEditorPendingLocalOverride));
+		const hasOverride = Boolean(state?.has_override || activePoliticalTerritoryEditorPendingLocalOverride);
+		if (isPoliticalTerritoryEditorOverrideFooterSuppressed()) {
+			if (!hasOverride) {
+				clearPoliticalTerritoryEditorOverrideFooterSuppression();
+			}
+			syncPoliticalTerritoryEditorOverrideFooterVisibility(false);
+			return;
+		}
+		syncPoliticalTerritoryEditorOverrideFooterVisibility(hasOverride);
 	} catch (error) {
 		console.warn("Lokaler Darstellungsstatus konnte nicht gelesen werden:", error);
 	}
@@ -342,7 +379,8 @@ async function resetPoliticalTerritoryEditorLocalDisplay(regionEntry = activePol
 		action: "reset_local",
 		geometry_public_id: geometryPublicId,
 	});
-	activePoliticalTerritoryEditorPendingLocalOverride = false;
+	activePoliticalTerritoryEditorPromoteNextSave = false;
+	suppressPoliticalTerritoryEditorOverrideFooter();
 	refreshPoliticalTerritoryEditorMapLayer();
 	if (typeof showFeedbackToast === "function") showFeedbackToast("Lokale Darstellung zurückgesetzt.", "success");
 	const assignmentModule = getPoliticalTerritoryEditorElements().frame?.contentWindow?.AvesmapsPoliticalTerritoryAssignment;
@@ -350,7 +388,7 @@ async function resetPoliticalTerritoryEditorLocalDisplay(regionEntry = activePol
 		await assignmentModule.reload();
 		installPoliticalTerritoryEditorOverrideFooter(getPoliticalTerritoryEditorElements().frame, regionEntry);
 	}
-	syncPoliticalTerritoryEditorOverrideFooterVisibility(false);
+	void refreshPoliticalTerritoryEditorOverrideFooter(regionEntry);
 }
 
 async function promotePoliticalTerritoryEditorLocalDisplay(frame = getPoliticalTerritoryEditorElements().frame) {
@@ -442,6 +480,7 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 	if (shouldPromote) {
 		await syncPoliticalTerritoryEditorAssignmentZooms(value);
 		await clearPoliticalTerritoryEditorLocalOverrides(geometryPublicId);
+		suppressPoliticalTerritoryEditorOverrideFooter();
 	} else {
 		await restorePoliticalTerritoryEditorGlobals(globalSnapshot);
 	}
