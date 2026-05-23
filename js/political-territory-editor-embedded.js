@@ -2402,11 +2402,19 @@
 					}
 				}
 
-				const activeIndex = findDisplayIndexForCurrentZoom(value.displays);
-				if (activeIndex >= 0 && pathNodes[activeIndex]) {
-					editedNode = pathNodes[activeIndex];
-					renderBreadcrumb(droppedNode, activeIndex);
-					renderManualEditPath(droppedNode, activeIndex);
+				const explicitActiveNode = value.activeDisplayNode
+					? findNodeForDisplayState(value.activeDisplayNode)
+					: null;
+				const explicitActiveIndex = explicitActiveNode
+					? pathNodes.findIndex(pathNode => pathNode.id === explicitActiveNode.id)
+					: -1;
+				const zoomActiveIndex = findDisplayIndexForCurrentZoom(value.displays);
+				const nextActiveIndex = explicitActiveIndex >= 0 ? explicitActiveIndex : zoomActiveIndex;
+
+				if (nextActiveIndex >= 0 && pathNodes[nextActiveIndex]) {
+					editedNode = pathNodes[nextActiveIndex];
+					renderBreadcrumb(droppedNode, nextActiveIndex);
+					renderManualEditPath(droppedNode, nextActiveIndex);
 					applyDisplayStateToForm(getDisplayStateForNode(editedNode));
 					updateInheritColorVarianceButtonVisibility();
 				} else if (editedNode) {
