@@ -1,12 +1,6 @@
 name: Deploy Avesmaps to STRATO
 
 on:
-  push:
-    branches:
-      - master
-      - codex/sql-map-foundation
-    paths-ignore:
-      - "tiles/**"
   workflow_dispatch:
     inputs:
       dry_run:
