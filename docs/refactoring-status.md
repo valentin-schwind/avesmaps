@@ -8,18 +8,16 @@
   - `collectAndValidateSelectedLocations()`
   - `buildRouteResultFromSelectedLocations(useShortest)`
 - `js/popups.js` bleibt stabil mit lokalem Helper `pathCreationActionButtonsMarkup(publicId)`.
-- `js/dialogs-review-status.js` ist als erster kontrollierter Datei-Split stabil und enthaelt den Status-Cluster:
-  - `setDialogStatus(statusElement, message = "", type = "")` fuer `dataset.status`
-  - `setPanelStateStatus(statusElement, message = "", state = "")` fuer `dataset.state`
-  - die zugehoerigen `set*Status`-Wrapper fuer Dialog- und Panel-Status
-- `js/dialogs-review.js` bleibt als Rest-Orchestrator fuer Dialog-/Review-/Wiki-Sync-Flows stabil:
-  - DOM-Getter
-  - Submit-/Pending-Setter
-  - Dialogflows, Panels, API-/Submit-/Init-Logik
-  - `setFormFieldsDisabled(formElement, isPending)` bleibt hier bewusst verankert
+- Dialog-Review-Split ist jetzt in drei stabile Schichten getrennt, mit klassischer Script-Reihenfolge in `index.html`:
+  1. `js/dialogs-review-status.js`
+  2. `js/dialogs-review-pending.js`
+  3. `js/dialogs-review.js`
+- `js/dialogs-review-status.js` ist stabiler Status-Cluster-Split (`dataset.status` + `dataset.state` Wrapper/Helper).
+- `js/dialogs-review-pending.js` ist stabiler Pending-Cluster-Split (`setFormFieldsDisabled(...)` + fuenf `set...SubmitPending`-Wrapper).
+- `js/dialogs-review.js` bleibt stabil als Rest-Orchestrator fuer Dialog-/Review-/Wiki-Sync-/Region-Flows (DOM-Getter, Dialogflows, Panels, API-/Submit-/Init-Logik).
 - `js/ui-controls.js` bleibt stabil mit lokalem Helper `bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName)` fuer Review-/Wiki-Sync-Tab-Persistierung.
 
-## 2. Recent Safe Extracts
+## 2. Recent Safe Extracts / Splits
 
 - `addRegularPathToGraph(graph, pathFeature)`
 - `collectAndValidateSelectedLocations()`
@@ -27,9 +25,15 @@
 - `pathCreationActionButtonsMarkup(publicId)`
 - `setDialogStatus(statusElement, message = "", type = "")`
 - `setPanelStateStatus(statusElement, message = "", state = "")`
-- `setFormFieldsDisabled(formElement, isPending)`
 - `bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName)`
-- Erster kontrollierter Datei-Split: Status-Cluster aus `js/dialogs-review.js` nach `js/dialogs-review-status.js` ausgelagert (inklusive Script-Reihenfolge in `index.html`).
+- Erster kontrollierter Datei-Split: Status-Cluster aus `js/dialogs-review.js` nach `js/dialogs-review-status.js` ausgelagert.
+- Zweiter kontrollierter Datei-Split: Pending-Cluster aus `js/dialogs-review.js` nach `js/dialogs-review-pending.js` ausgelagert.
+- Dabei wurden `setFormFieldsDisabled(formElement, isPending)` und die fuenf Pending-Wrapper ausgelagert:
+  - `setLocationReportSubmitPending`
+  - `setLocationEditSubmitPending`
+  - `setWikiSyncResolveSubmitPending`
+  - `setPathEditSubmitPending`
+  - `setPowerlineEditSubmitPending`
 
 ## 3. Areas To Leave Stable For Now
 
@@ -40,8 +44,9 @@
 - Popup-Bereich:
   - `js/popups.js` nach dem Path-Action-Extract vorerst stabil lassen.
 - Dialog-Bereich:
-  - `js/dialogs-review-status.js` vorerst stabil lassen.
-  - `js/dialogs-review.js` nicht direkt weiter zerschneiden, solange kein naechster Split-Scope klar und isoliert definiert ist.
+  - `js/dialogs-review-status.js` stabil lassen.
+  - `js/dialogs-review-pending.js` stabil lassen.
+  - `js/dialogs-review.js` nicht weiter zerschneiden ohne neue, klare Split-Analyse mit engem Scope.
 - UI-Controls:
   - `js/ui-controls.js` insgesamt vorerst stabil lassen, insbesondere den Transport-Menu-/Combobox-Bereich.
 
@@ -49,23 +54,23 @@
 
 - `renderRouteResult(routeNodeNames, segments)` in `js/routing.js` (nur geplant).
 - Popups: moeglicher Powerline-Action-Button-Helper (nur analysiert).
-- Dialogs-Review: moeglicher Pending-Cluster-Split nach `js/dialogs-review-pending.js`:
-  - `setFormFieldsDisabled(formElement, isPending)`
-  - fuenf `set...SubmitPending`-Wrapper
-  - nur nach gezieltem Smoke-/Stabilitaetsfenster
-- Dialogs-Review: Submit-/Pending-Setter-Cluster bleibt bis dahin ein spaeterer Analysebereich, kein unmittelbarer grosser Code-Schritt.
 - UI-Controls Transport-Menue: moeglicher `bindTransportControlEvents(control, selectId)`-Extract (nur analysiert).
 - Moegliche spaetere Parameterisierung von `createGraph`/Transportlogik.
 - Moegliche spaetere Entkopplung von `getSyntheticRouteConfig`.
+- Dialogs-Review (nur Analysebereiche, keine direkten Code-Schritte):
+  - Location/Path/Powerline-Dialogcluster
+  - Review/Change/Presence-Panels
+  - Wiki-Sync-Cluster
+  - Region/Territory-Cluster
 
 ## 5. Smoke-Test Status
 
 - Produktiv auf [avesmaps.de](https://avesmaps.de/) wurde Routing/Dragging/Rerouting als funktionsfaehig bestaetigt.
-- Nach dem Status-Cluster-Split (`js/dialogs-review-status.js`) wurde keine sichtbare Verhaltensaenderung gemeldet.
+- Nach dem Status-Split (`js/dialogs-review-status.js`) wurde keine sichtbare Verhaltensaenderung bemerkt.
+- Nach dem Pending-Split (`js/dialogs-review-pending.js`) sind keine unmittelbaren Regressionen bekannt; ein manueller Pending-Smoke bleibt empfohlen/offen, falls noch nicht vollstaendig durchgefuehrt.
 - Fuer den Popups-Extract waren Popup/Editmode-Smokes empfohlen (Path-Actions + Powerline-Aktionen).
-- Fuer den Dialog-Status-Split sind manuelle Status-Smokes im Edit-/Review-Kontext weiterhin empfohlen/offen, falls noch nicht vollstaendig gelaufen.
-- Pending-Smoke fuer `setFormFieldsDisabled(...)` wurde grob als unauffaellig gemeldet.
 - Fuer den UI-Controls-Extract waren Review-Tab-/Wiki-Sync-Tab-Smokes empfohlen (URL + LocalStorage + Reload).
+- Fuer jeden spaeteren Split ist ein eigener, gezielter Smoke-Zyklus erforderlich.
 - Falls spaeter Transport-Menue-Code geaendert wird, ist ein eigener Transport-Combobox-Smoke-Zyklus erforderlich (Focus/Keyboard/ARIA/Outside-Click/Resize/Scroll).
 
 ## 6. Important Clarifications
@@ -74,15 +79,16 @@
 - Echte fehlende Teilrouten laufen getrennt ueber `Keine Route zwischen ... gefunden.`
 - Querfeldein-Verbindungen reduzieren viele fruehere Unerreichbarkeitsfaelle.
 - `dataset.status`- und `dataset.state`-Statusfunktionen bleiben bewusst getrennte Cluster.
+- Ziel des Gesamt-Refactorings ist kontrollierte Modularisierung in kleine, verstaendliche Dateien.
+- Klassische globale Script-Reihenfolge bleibt zentral.
+- Keine ES-Module, kein Build-System.
 - Transport-Menue-Code ist fokus-/keyboard-/ARIA-sensibel und soll nicht ohne engen Scope plus gezielten Smoke-Zyklus geaendert werden.
-- Ziel des Gesamt-Refactorings ist kontrollierte Modularisierung in kleine, verstaendliche Dateien statt nur lokaler Helper-Entduplizierung.
-- Klassische globale Script-Reihenfolge bleibt dabei zentral; es werden weiterhin keine ES-Module eingefuehrt.
 
 ## 7. Next Recommended Step
 
-- Kein grosser sofortiger Code-Schritt.
-- Zuerst kurzes Smoke-/Stabilitaetsfenster.
+- Kein sofortiger weiterer Code-Split.
+- Zuerst Pending-Smoke abschliessen bzw. bestaetigen.
 - Danach entweder:
-  - A. Pending-Cluster-Split eng und isoliert vorbereiten/umsetzen (`js/dialogs-review-pending.js` vor `js/dialogs-review.js` laden; keine Submit-Handler/API/Dialog-Open-Close-Logik verschieben)
-  - B. einen neuen Subbereich nur analysieren (ohne Codeaenderung)
-- Explizit: Transport-Menue nicht direkt coden, solange kein gezielter Transport-Combobox-Smoke-Zyklus geplant ist.
+  - A. Stopppunkt dokumentieren und Refactoring an dieser Stelle pausieren
+  - B. nur eine Split-Analyse fuer den naechsten Dialog-Subcluster erstellen (ohne Code)
+- Explizit: kein direktes Verschieben von Wiki-Sync, Region oder Init/Event-Binding.
