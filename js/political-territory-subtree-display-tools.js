@@ -117,6 +117,32 @@
 		setStatus(buildSuccessMessage("Transparenz vererbt.", result), "success");
 	}
 
+	function wrapAssignmentConfigureForFooterState() {
+		const assignmentModule = window.AvesmapsPoliticalTerritoryAssignment;
+		if (!assignmentModule || assignmentModule.__avesmapsFooterAssignmentDisplayPatch === true || typeof assignmentModule.configure !== "function") {
+			return;
+		}
+
+		const originalConfigure = assignmentModule.configure.bind(assignmentModule);
+		assignmentModule.configure = function configureWithoutAssignmentDisplayFooter(options = {}) {
+			if (!options || typeof options.onAssignmentLoaded !== "function") {
+				return originalConfigure(options);
+			}
+
+			const originalOnAssignmentLoaded = options.onAssignmentLoaded;
+			return originalConfigure({
+				...options,
+				onAssignmentLoaded: (assignmentInfo = {}) => {
+					originalOnAssignmentLoaded({
+						...assignmentInfo,
+						hasLocalAssignmentDisplays: false
+					});
+				}
+			});
+		};
+		assignmentModule.__avesmapsFooterAssignmentDisplayPatch = true;
+	}
+
 	function getOrCreateOpacityButton(colorButton) {
 		const existingButton = document.getElementById("inheritOpacityButton");
 		if (existingButton) {
@@ -171,9 +197,14 @@
 		opacityButton.hidden = colorButton.hidden;
 	}
 
-	if (document.readyState === "loading") {
-		document.addEventListener("DOMContentLoaded", syncButtons, { once: true });
-	} else {
+	function init() {
+		wrapAssignmentConfigureForFooterState();
 		syncButtons();
+	}
+
+	if (document.readyState === "loading") {
+		document.addEventListener("DOMContentLoaded", init, { once: true });
+	} else {
+		init();
 	}
 })();
