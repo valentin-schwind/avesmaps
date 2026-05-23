@@ -124,7 +124,7 @@
 		const saturation = clampNumber(saturationPercent, 0, 100) / 100;
 		const value = clampNumber(valuePercent, 0, 100) / 100;
 		const chroma = value * saturation;
-		const huePrime = (modulo(hue, 360)) / 60;
+		const huePrime = modulo(hue, 360) / 60;
 		const secondary = chroma * (1 - Math.abs((huePrime % 2) - 1));
 		const match = value - chroma;
 		const [red, green, blue] = huePrime < 1
@@ -176,15 +176,15 @@
 		return { descendants, byParentKey, byPathKey };
 	}
 
-	function collectColorUpdates(tree, parentPath, parentColor, updates = []) {
+	function collectColorUpdates(tree, parentPath, parentColor, selectedDepth, updates = []) {
 		const parentKey = parentPath.map(makeKey).join("/");
 		const children = tree.byParentKey.get(parentKey) || [];
-		const firstChildVariance = parentPath.length <= getActiveBreadcrumbPath().length ? 20 : 10;
+		const variance = parentPath.length <= selectedDepth ? 20 : 10;
 
 		for (const child of children) {
-			const color = createHueVariant(parentColor, firstChildVariance);
+			const color = createHueVariant(parentColor, variance);
 			updates.push({ territory_public_id: normalizeText(child.public_id), color });
-			collectColorUpdates(tree, child.__path, color, updates);
+			collectColorUpdates(tree, child.__path, color, selectedDepth, updates);
 		}
 
 		return updates;
@@ -236,7 +236,7 @@
 		setStatus("Berechne Farbtonvarianz fuer Untergebiete ...", "pending");
 		const rows = await loadRows();
 		const tree = buildSubtree(rows, selectedPath);
-		const updates = collectColorUpdates(tree, selectedPath, getSelectedColor());
+		const updates = collectColorUpdates(tree, selectedPath, getSelectedColor(), selectedPath.length);
 
 		if (updates.length < 1) {
 			setStatus("Keine Untergebiete mit globalem Datensatz gefunden.", "pending");
@@ -267,18 +267,32 @@
 		window.parent?.postMessage({ type: "avesmaps:political-territory-subtree-display-updated" }, window.location.origin);
 	}
 
+	function getOrCreateOpacityButton(colorButton) {
+		const existingButton = document.getElementById("inheritOpacityButton");
+		if (existingButton) {
+			existingButton.textContent = "Transparenz vererben";
+			existingButton.className = colorButton.className;
+			return existingButton;
+		}
+
+		const button = document.createElement("button");
+		button.id = "inheritOpacityButton";
+		button.className = colorButton.className;
+		button.type = "button";
+		button.hidden = colorButton.hidden;
+		button.textContent = "Transparenz vererben";
+		colorButton.insertAdjacentElement("afterend", button);
+		return button;
+	}
+
 	function syncButtons() {
 		const colorButton = document.getElementById("inheritColorVarianceButton");
 		if (!colorButton || colorButton.dataset.subtreeDisplayTools === "1") return;
 		colorButton.dataset.subtreeDisplayTools = "1";
 		colorButton.textContent = "Farbtonvarianz vererben";
-		const opacityButton = document.createElement("button");
-		opacityButton.id = "inheritOpacityButton";
-		opacityButton.className = colorButton.className;
-		opacityButton.type = "button";
-		opacityButton.hidden = colorButton.hidden;
-		opacityButton.textContent = "Transparenz vererben";
-		colorButton.insertAdjacentElement("afterend", opacityButton);
+
+		const opacityButton = getOrCreateOpacityButton(colorButton);
+		opacityButton.dataset.subtreeDisplayTools = "1";
 
 		colorButton.addEventListener("click", (event) => {
 			event.preventDefault();
@@ -291,17 +305,18 @@
 
 		opacityButton.addEventListener("click", (event) => {
 			event.preventDefault();
-			event.stopPropagation();
+			event.stopImmediatePropagation();
 			void inheritOpacity().catch((error) => {
 				console.error("Transparenz konnte nicht vererbt werden:", error);
 				setStatus(error.message || "Transparenz konnte nicht vererbt werden.", "error");
 			});
-		});
+		}, true);
 
 		const observer = new MutationObserver(() => {
 			opacityButton.hidden = colorButton.hidden;
 		});
 		observer.observe(colorButton, { attributes: true, attributeFilter: ["hidden"] });
+		opacityButton.hidden = colorButton.hidden;
 	}
 
 	if (document.readyState === "loading") {
