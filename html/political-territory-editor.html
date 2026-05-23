@@ -428,6 +428,19 @@
 			color: var(--muted);
 		}
 
+		.tree-item-meta {
+			display: inline-flex;
+			flex-wrap: wrap;
+			gap: 2px;
+			font-size: 11px;
+			color: var(--muted);
+		}
+
+		.tree-item-meta a {
+			color: #235f82;
+			font-weight: 700;
+		}
+
 		.info-box {
 			min-height: 0;
 			padding: 14px;
@@ -557,6 +570,14 @@
 			font-size: 14px;
 		}
 
+		.manual-data-section-header {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: space-between;
+			align-items: baseline;
+			gap: 6px 12px;
+		}
+
 		.manual-data-grid {
 			display: grid;
 			grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -642,6 +663,43 @@
 			width: fit-content;
 		}
 
+		.manual-data-variance-row {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px 10px;
+			align-items: end;
+		}
+
+		.manual-data-variance-range {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			align-items: end;
+		}
+
+		.manual-data-variance-input {
+			display: grid;
+			gap: 4px;
+			min-width: 128px;
+		}
+
+		.manual-data-variance-input label {
+			font-size: 11px;
+			font-weight: 700;
+			color: var(--muted);
+		}
+
+		.manual-data-variance-input input {
+			padding: 7px 9px;
+		}
+
+		.manual-data-inline-hint {
+			display: block;
+			color: var(--muted);
+			font-size: 11px;
+			line-height: 1.35;
+		}
+
 		.manual-data-checkbox {
 			display: inline-flex;
 			align-items: center;
@@ -693,6 +751,16 @@
 
 			.manual-data-inline-action--with-preview {
 				grid-template-columns: minmax(0, 1fr) auto;
+			}
+
+			.manual-data-variance-row,
+			.manual-data-variance-range {
+				flex-direction: column;
+				align-items: stretch;
+			}
+
+			.manual-data-variance-input {
+				min-width: 0;
 			}
 
 			.manual-coat-preview {
@@ -815,6 +883,15 @@
 					</div>
 					<div id="manualEditPath" class="breadcrumb manual-edit-path">Kein Knoten zugewiesen</div>
 					<form class="manual-data-box" autocomplete="off">
+						<section class="manual-data-section" aria-label="Details">
+							<div class="manual-data-section-header">
+								<h3>Details</h3>
+								<span id="detailInfo" class="note">Noch kein Gebiet ausgewählt.</span>
+							</div>
+							<div id="breadcrumb" class="breadcrumb"></div>
+							<div id="infoBox" class="info-box"></div>
+						</section>
+
 						<section class="manual-data-section" aria-label="Anzeige und Wappen">
 							<h3>Anzeige</h3>
 							<div class="manual-data-grid">
@@ -845,6 +922,12 @@
 										<label for="zoomToInput">Zoom bis</label>
 										<input id="zoomToInput" name="zoom_to" type="number" step="1">
 									</div>
+								</div>
+							</section>
+
+							<section class="manual-data-section" aria-label="Farbe und Transparenz">
+								<h3>Farbe und Transparenz</h3>
+								<div class="manual-data-grid">
 									<div class="manual-data-field">
 										<label for="colorInput">Farbe</label>
 										<input id="colorInput" name="color" type="color" value="#385d72">
@@ -854,7 +937,23 @@
 										<input id="transparencyInput" name="transparency" type="range" min="0" max="100" step="1" value="33">
 									</div>
 									<div class="manual-data-field manual-data-field--wide">
-										<button id="inheritColorVarianceButton" class="secondary inherit-color-variance-button" type="button" hidden>Farbtonvarianz vererben</button>
+										<div class="manual-data-variance-row">
+											<button id="inheritColorVarianceButton" class="secondary inherit-color-variance-button" type="button" hidden>Farbtonvarianz vererben</button>
+											<div class="manual-data-variance-range">
+												<div class="manual-data-variance-input">
+													<label for="hueVarianceMinInput">HSV-Abweichung min (0-256)</label>
+													<input id="hueVarianceMinInput" name="hue_variance_min" type="number" min="0" max="256" step="1" value="10">
+												</div>
+												<div class="manual-data-variance-input">
+													<label for="hueVarianceMaxInput">HSV-Abweichung max (0-256)</label>
+													<input id="hueVarianceMaxInput" name="hue_variance_max" type="number" min="0" max="256" step="1" value="20">
+												</div>
+											</div>
+										</div>
+										<small class="manual-data-inline-hint">Hinweis: „Farbtonvarianz vererben“ schreibt die Änderungen sofort in die Datenbank (global und lokal).</small>
+									</div>
+									<div class="manual-data-field manual-data-field--wide">
+										<button id="inheritOpacityButton" class="secondary inherit-color-variance-button" type="button" hidden>Transparenz vererben</button>
 									</div>
 								</div>
 							</section>
@@ -878,15 +977,6 @@
 							</section>
 						</div>
 					</form>
-				</section>
-
-				<section class="panel">
-					<div class="panel-header">
-						<h2>Wiki-Daten</h2>
-						<span id="detailInfo" class="note">Noch kein Gebiet ausgewählt.</span>
-					</div>
-					<div id="breadcrumb" class="breadcrumb"></div>
-					<div id="infoBox" class="info-box"></div>
 				</section>
 
 				<section class="panel form-status-panel" aria-label="Speicherstatus und Aktionen">

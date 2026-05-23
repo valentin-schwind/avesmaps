@@ -1191,11 +1191,33 @@
 			name.className = "tree-item-name";
 			name.textContent = node.label;
 			item.appendChild(name);
-			const metaLabel = buildTreeItemMetaLabel(node);
-			if (metaLabel !== "") {
+			const metaInfo = buildTreeItemMetaInfo(node);
+			if (metaInfo.text || metaInfo.wikiUrl) {
 				const meta = document.createElement("span");
 				meta.className = "tree-item-meta";
-				meta.textContent = metaLabel;
+
+				if (metaInfo.text) {
+					const metaText = document.createElement("span");
+					metaText.textContent = metaInfo.text;
+					meta.appendChild(metaText);
+				}
+
+				if (metaInfo.wikiUrl) {
+					if (metaInfo.text) {
+						const separator = document.createElement("span");
+						separator.textContent = ", ";
+						meta.appendChild(separator);
+					}
+
+					const wikiLink = document.createElement("a");
+					wikiLink.href = metaInfo.wikiUrl;
+					wikiLink.target = "_blank";
+					wikiLink.rel = "noopener";
+					wikiLink.textContent = "Wiki";
+					wikiLink.addEventListener("click", event => event.stopPropagation());
+					meta.appendChild(wikiLink);
+				}
+
 				item.appendChild(meta);
 			}
 
@@ -2898,7 +2920,7 @@
 			return `${startText} - ${endText}`;
 		}
 
-		function buildTreeItemMetaLabel(node) {
+		function buildTreeItemMetaInfo(node) {
 			const metaParts = [];
 			const periodLabel = buildTerritoryPeriodLabel(node?.row || null);
 			if (periodLabel) {
@@ -2907,10 +2929,14 @@
 
 			const rowId = Number(node?.row?.id || 0);
 			if (rowId > 0) {
-				metaParts.push(`ID: ${rowId}`);
+				metaParts.push(`ID ${rowId}`);
 			}
 
-			return metaParts.length > 0 ? `(${metaParts.join(", ")})` : "";
+			const wikiUrl = normalizeText(node?.row?.wiki_url || "");
+			return {
+				text: metaParts.join(", "),
+				wikiUrl
+			};
 		}
 
 		function setInputValue(id, value) {

@@ -21,6 +21,38 @@
 		return Math.max(min, Math.min(max, number));
 	}
 
+	function readHueVarianceValue(input, fallback) {
+		const rawValue = Number(input?.value);
+		if (!Number.isFinite(rawValue)) {
+			return fallback;
+		}
+
+		return Math.round(clampNumber(rawValue, 0, 256));
+	}
+
+	function readHueVarianceRange256() {
+		const minInput = document.getElementById("hueVarianceMinInput");
+		const maxInput = document.getElementById("hueVarianceMaxInput");
+		const minFallback = 10;
+		const maxFallback = 20;
+		const minValue = readHueVarianceValue(minInput, minFallback);
+		const maxValue = readHueVarianceValue(maxInput, maxFallback);
+		const normalizedMin = Math.min(minValue, maxValue);
+		const normalizedMax = Math.max(minValue, maxValue);
+
+		if (minInput) {
+			minInput.value = String(normalizedMin);
+		}
+		if (maxInput) {
+			maxInput.value = String(normalizedMax);
+		}
+
+		return {
+			min256: normalizedMin,
+			max256: normalizedMax
+		};
+	}
+
 	function setStatus(message, type = "pending") {
 		const module = window.AvesmapsPoliticalTerritoryAssignment;
 		if (typeof module?.setStatus === "function") {
@@ -372,10 +404,13 @@
 		}
 
 		setStatus("Vererbe Farbtonvarianz auf Untergebiete ...", "pending");
+		const hueVarianceRange = readHueVarianceRange256();
 		const payload = {
 			action: "inherit_colors",
 			root_territory_id: root.territoryId,
-			color: getSelectedColor(root.territoryPublicId, root.territoryId)
+			color: getSelectedColor(root.territoryPublicId, root.territoryId),
+			hue_variance_min_256: hueVarianceRange.min256,
+			hue_variance_max_256: hueVarianceRange.max256
 		};
 		if (root.territoryPublicId) {
 			payload.root_territory_public_id = root.territoryPublicId;

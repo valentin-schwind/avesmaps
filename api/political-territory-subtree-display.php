@@ -134,6 +134,7 @@ function avesmapsPoliticalSubtreeDisplayUpdateOpacity(PDO $pdo, array $payload, 
 
 function avesmapsPoliticalSubtreeDisplayInheritColors(PDO $pdo, array $payload, array $user): array {
     $rootColor = avesmapsPoliticalSubtreeDisplayReadColor($payload['color'] ?? '');
+    $hueVarianceRange = avesmapsPoliticalSubtreeDisplayReadHueVarianceRange($payload);
     $hierarchy = avesmapsPoliticalSubtreeDisplayLoadHierarchy($pdo);
     $rootPublicId = trim((string) ($payload['root_territory_public_id'] ?? ''));
     $rootTerritoryId = avesmapsPoliticalSubtreeDisplayReadOptionalTerritoryId($payload['root_territory_id'] ?? null);
@@ -152,7 +153,8 @@ function avesmapsPoliticalSubtreeDisplayInheritColors(PDO $pdo, array $payload, 
     $updatesByPublicId = avesmapsPoliticalSubtreeDisplayBuildColorInheritanceUpdates(
         $hierarchy['childrenByParentId'],
         (int) $root['id'],
-        $rootColor
+        $rootColor,
+        $hueVarianceRange
     );
     $descendantsCount = count($updatesByPublicId);
 
@@ -336,7 +338,12 @@ function avesmapsPoliticalSubtreeDisplayLoadHierarchy(PDO $pdo): array {
     ];
 }
 
-function avesmapsPoliticalSubtreeDisplayBuildColorInheritanceUpdates(array $childrenByParentId, int $rootId, string $rootColor): array {
+function avesmapsPoliticalSubtreeDisplayBuildColorInheritanceUpdates(
+    array $childrenByParentId,
+    int $rootId,
+    string $rootColor,
+    array $hueVarianceRange = []
+): array {
     $updatesByPublicId = [];
     $visitedIds = [];
     $stack = [];
@@ -366,7 +373,8 @@ function avesmapsPoliticalSubtreeDisplayBuildColorInheritanceUpdates(array $chil
             (string) ($current['parent_color'] ?? '#888888'),
             (int) ($current['depth'] ?? 1),
             (int) ($current['sibling_index'] ?? 0),
-            (int) ($current['sibling_count'] ?? 1)
+            (int) ($current['sibling_count'] ?? 1),
+            $hueVarianceRange
         );
         $publicId = trim((string) ($row['public_id'] ?? ''));
         if ($publicId !== '') {
@@ -583,7 +591,8 @@ function avesmapsPoliticalSubtreeDisplayCreateHueVariant(
     string $parentColor,
     int $depth = 1,
     int $siblingIndex = 0,
-    int $siblingCount = 1
+    int $siblingCount = 1,
+    array $hueVarianceRange = []
 ): string {
     $rgb = avesmapsPoliticalSubtreeDisplayParseHexColorToRgb($parentColor);
     if ($rgb === null) {
@@ -599,6 +608,11 @@ function avesmapsPoliticalSubtreeDisplayCreateHueVariant(
     $baseSpan = 14.0 * $depthFactor;
     $densityBoost = min(12.0, max(0, $safeSiblingCount - 1) * 0.55);
     $hueSpan = min(24.0, $baseSpan + ($densityBoost * $depthFactor));
+    $minVariance256 = max(0.0, (float) ($hueVarianceRange['min256'] ?? 10.0));
+    $maxVariance256 = max($minVariance256, (float) ($hueVarianceRange['max256'] ?? 20.0));
+    $minDegrees = ($minVariance256 / 256.0) * 360.0;
+    $maxDegrees = ($maxVariance256 / 256.0) * 360.0;
+    $hueSpan = max($minDegrees, min($hueSpan, $maxDegrees));
 
     $centeredOffset = 0.0;
     if ($safeSiblingCount > 1) {
@@ -689,6 +703,39 @@ function avesmapsPoliticalSubtreeDisplayHsvToHex(float $hue, float $saturation, 
     $blue = (int) round(($b + $match) * 255.0);
 
     return sprintf('#%02x%02x%02x', max(0, min(255, $red)), max(0, min(255, $green)), max(0, min(255, $blue)));
+}
+
+function avesmapsPoliticalSubtreeDisplayReadHueVarianceRange(array $payload): array {
+    $min256 = avesmapsPoliticalSubtreeDisplayReadOptionalHueVariance256($payload['hue_variance_min_256'] ?? null);
+    $max256 = avesmapsPoliticalSubtreeDisplayReadOptionalHueVariance256($payload['hue_variance_max_256'] ?? null);
+    $normalizedMin = $min256 ?? 10.0;
+    $normalizedMax = $max256 ?? 20.0;
+
+    if ($normalizedMin > $normalizedMax) {
+        [$normalizedMin, $normalizedMax] = [$normalizedMax, $normalizedMin];
+    }
+
+    return [
+        'min256' => $normalizedMin,
+        'max256' => $normalizedMax,
+    ];
+}
+
+function avesmapsPoliticalSubtreeDisplayReadOptionalHueVariance256(mixed $value): ?float {
+    if ($value === null || $value === '') {
+        return null;
+    }
+
+    if (!is_numeric($value)) {
+        throw new InvalidArgumentException('Die HSV-Abweichung ist ungueltig.');
+    }
+
+    $numericValue = (float) $value;
+    if (!is_finite($numericValue) || $numericValue < 0.0 || $numericValue > 256.0) {
+        throw new InvalidArgumentException('Die HSV-Abweichung liegt ausserhalb des erlaubten Bereichs (0-256).');
+    }
+
+    return round($numericValue, 3);
 }
 
 function avesmapsPoliticalSubtreeDisplayReadUpdates(mixed $rawUpdates): array {
