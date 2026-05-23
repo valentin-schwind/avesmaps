@@ -62,10 +62,15 @@ try {
 
 function avesmapsPoliticalSubtreeDisplayUpdateColors(PDO $pdo, array $payload, array $user): array {
     $updates = avesmapsPoliticalSubtreeDisplayReadUpdates($payload['updates'] ?? null);
+    $supportsUpdatedBy = avesmapsPoliticalSubtreeDisplayHasTerritoryUpdatedByColumn($pdo);
     $statement = $pdo->prepare(
-        'UPDATE political_territory
+        $supportsUpdatedBy
+            ? 'UPDATE political_territory
         SET color = :color,
             updated_by = :updated_by
+        WHERE public_id = :public_id'
+            : 'UPDATE political_territory
+        SET color = :color
         WHERE public_id = :public_id'
     );
 
@@ -73,11 +78,14 @@ function avesmapsPoliticalSubtreeDisplayUpdateColors(PDO $pdo, array $payload, a
     foreach ($updates as $update) {
         $color = avesmapsPoliticalSubtreeDisplayReadColor($update['color'] ?? '');
         $publicId = avesmapsPoliticalSubtreeDisplayReadPublicId($update['territory_public_id'] ?? $update['territoryPublicId'] ?? '');
-        $statement->execute([
+        $parameters = [
             ':color' => $color,
-            ':updated_by' => (int) ($user['id'] ?? 0),
             ':public_id' => $publicId,
-        ]);
+        ];
+        if ($supportsUpdatedBy) {
+            $parameters[':updated_by'] = (int) ($user['id'] ?? 0);
+        }
+        $statement->execute($parameters);
         $changed += $statement->rowCount();
     }
 
@@ -90,10 +98,15 @@ function avesmapsPoliticalSubtreeDisplayUpdateColors(PDO $pdo, array $payload, a
 
 function avesmapsPoliticalSubtreeDisplayUpdateOpacity(PDO $pdo, array $payload, array $user): array {
     $updates = avesmapsPoliticalSubtreeDisplayReadUpdates($payload['updates'] ?? null);
+    $supportsUpdatedBy = avesmapsPoliticalSubtreeDisplayHasTerritoryUpdatedByColumn($pdo);
     $statement = $pdo->prepare(
-        'UPDATE political_territory
+        $supportsUpdatedBy
+            ? 'UPDATE political_territory
         SET opacity = :opacity,
             updated_by = :updated_by
+        WHERE public_id = :public_id'
+            : 'UPDATE political_territory
+        SET opacity = :opacity
         WHERE public_id = :public_id'
     );
 
@@ -101,11 +114,14 @@ function avesmapsPoliticalSubtreeDisplayUpdateOpacity(PDO $pdo, array $payload, 
     foreach ($updates as $update) {
         $opacity = avesmapsPoliticalSubtreeDisplayReadOpacity($update['opacity'] ?? null);
         $publicId = avesmapsPoliticalSubtreeDisplayReadPublicId($update['territory_public_id'] ?? $update['territoryPublicId'] ?? '');
-        $statement->execute([
+        $parameters = [
             ':opacity' => $opacity,
-            ':updated_by' => (int) ($user['id'] ?? 0),
             ':public_id' => $publicId,
-        ]);
+        ];
+        if ($supportsUpdatedBy) {
+            $parameters[':updated_by'] = (int) ($user['id'] ?? 0);
+        }
+        $statement->execute($parameters);
         $changed += $statement->rowCount();
     }
 
@@ -377,20 +393,28 @@ function avesmapsPoliticalSubtreeDisplayApplyGlobalColorUpdates(PDO $pdo, array 
         return 0;
     }
 
+    $supportsUpdatedBy = avesmapsPoliticalSubtreeDisplayHasTerritoryUpdatedByColumn($pdo);
     $statement = $pdo->prepare(
-        'UPDATE political_territory
+        $supportsUpdatedBy
+            ? 'UPDATE political_territory
         SET color = :color,
             updated_by = :updated_by
+        WHERE public_id = :public_id'
+            : 'UPDATE political_territory
+        SET color = :color
         WHERE public_id = :public_id'
     );
 
     $changed = 0;
     foreach ($updatesByPublicId as $publicId => $color) {
-        $statement->execute([
+        $parameters = [
             ':color' => $color,
-            ':updated_by' => $updatedBy,
             ':public_id' => $publicId,
-        ]);
+        ];
+        if ($supportsUpdatedBy) {
+            $parameters[':updated_by'] = $updatedBy;
+        }
+        $statement->execute($parameters);
         $changed += $statement->rowCount();
     }
 
@@ -402,20 +426,28 @@ function avesmapsPoliticalSubtreeDisplayApplyGlobalOpacityUpdates(PDO $pdo, arra
         return 0;
     }
 
+    $supportsUpdatedBy = avesmapsPoliticalSubtreeDisplayHasTerritoryUpdatedByColumn($pdo);
     $statement = $pdo->prepare(
-        'UPDATE political_territory
+        $supportsUpdatedBy
+            ? 'UPDATE political_territory
         SET opacity = :opacity,
             updated_by = :updated_by
+        WHERE public_id = :public_id'
+            : 'UPDATE political_territory
+        SET opacity = :opacity
         WHERE public_id = :public_id'
     );
 
     $changed = 0;
     foreach ($updatesByPublicId as $publicId => $opacity) {
-        $statement->execute([
+        $parameters = [
             ':opacity' => $opacity,
-            ':updated_by' => $updatedBy,
             ':public_id' => $publicId,
-        ]);
+        ];
+        if ($supportsUpdatedBy) {
+            $parameters[':updated_by'] = $updatedBy;
+        }
+        $statement->execute($parameters);
         $changed += $statement->rowCount();
     }
 
@@ -670,6 +702,17 @@ function avesmapsPoliticalSubtreeDisplayReadOptionalTerritoryId(mixed $value): ?
     }
 
     return $territoryId;
+}
+
+function avesmapsPoliticalSubtreeDisplayHasTerritoryUpdatedByColumn(PDO $pdo): bool {
+    static $hasUpdatedByColumn = null;
+    if ($hasUpdatedByColumn !== null) {
+        return $hasUpdatedByColumn;
+    }
+
+    $row = $pdo->query("SHOW COLUMNS FROM political_territory LIKE 'updated_by'")->fetch(PDO::FETCH_ASSOC);
+    $hasUpdatedByColumn = is_array($row);
+    return $hasUpdatedByColumn;
 }
 
 function avesmapsPoliticalSubtreeDisplayReadColor(mixed $value): string {
