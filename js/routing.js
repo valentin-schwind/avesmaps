@@ -1252,16 +1252,7 @@ const highlightError = ($input) => {
 	setTimeout(() => $input.css("border", ""), 3000);
 };
 
-/******************************************************************
- * Aktualisiert Kartenansicht und berechnet die Route
- ******************************************************************/
-function updateMapView() {
-	const useShortest = $('input[name="pathType"]:checked').val() === "shortest";
-	syncPlannerStateToUrl();
-	graphData = createGraph();
-	console.log("Graph:", graphData);
-
-	resetRoutePresentation();
+function collectAndValidateSelectedLocations() {
 	selectedLocations = [];
 	invalidLocationInputs = [];
 
@@ -1285,6 +1276,19 @@ function updateMapView() {
 			highlightError($input);
 		}
 	});
+}
+
+/******************************************************************
+ * Aktualisiert Kartenansicht und berechnet die Route
+ ******************************************************************/
+function updateMapView() {
+	const useShortest = $('input[name="pathType"]:checked').val() === "shortest";
+	syncPlannerStateToUrl();
+	graphData = createGraph();
+	console.log("Graph:", graphData);
+
+	resetRoutePresentation();
+	collectAndValidateSelectedLocations();
 
 	selectedLocations.forEach((loc) => {
 		addTooltip(loc, {
