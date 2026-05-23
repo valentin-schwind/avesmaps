@@ -528,6 +528,17 @@ function updateReviewPanelTabUrlParameter(parameterName, value) {
 	}
 }
 
+function bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName) {
+	document.querySelectorAll(selector).forEach((tabElement) => {
+		tabElement.addEventListener("click", () => {
+			const value = String(tabElement.dataset[datasetKey] || "").trim();
+			if (!allowedValues.includes(value)) return;
+			writeReviewTabStorageValue(storageKey, value);
+			updateReviewPanelTabUrlParameter(urlParameterName, value);
+		});
+	});
+}
+
 function initializeReviewPanelTabState() {
 	if (typeof IS_EDIT_MODE !== "undefined" && !IS_EDIT_MODE) return;
 
@@ -552,23 +563,21 @@ function initializeReviewPanelTabState() {
 		window.setWikiSyncPanelTab(wikiSyncTab);
 	}
 
-	document.querySelectorAll("[data-editor-panel-tab]").forEach((tabElement) => {
-		tabElement.addEventListener("click", () => {
-			const value = String(tabElement.dataset.editorPanelTab || "").trim();
-			if (!reviewTabValues.includes(value)) return;
-			writeReviewTabStorageValue(reviewStorageKey, value);
-			updateReviewPanelTabUrlParameter("reviewTab", value);
-		});
-	});
+	bindPersistedTabClickHandler(
+		"[data-editor-panel-tab]",
+		"editorPanelTab",
+		reviewTabValues,
+		reviewStorageKey,
+		"reviewTab"
+	);
 
-	document.querySelectorAll("[data-wiki-sync-panel-tab]").forEach((tabElement) => {
-		tabElement.addEventListener("click", () => {
-			const value = String(tabElement.dataset.wikiSyncPanelTab || "").trim();
-			if (!wikiSyncTabValues.includes(value)) return;
-			writeReviewTabStorageValue(wikiSyncStorageKey, value);
-			updateReviewPanelTabUrlParameter("wikiSyncTab", value);
-		});
-	});
+	bindPersistedTabClickHandler(
+		"[data-wiki-sync-panel-tab]",
+		"wikiSyncPanelTab",
+		wikiSyncTabValues,
+		wikiSyncStorageKey,
+		"wikiSyncTab"
+	);
 }
 
 function normalizeWikiSyncTerritoryMetaText(value) {
