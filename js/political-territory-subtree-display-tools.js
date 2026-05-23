@@ -182,6 +182,9 @@
 			|| value?.activeDisplayNode?.territory_public_id
 			|| value?.display?.territoryPublicId
 			|| value?.display?.territory_public_id
+			|| value?.assignedTerritory?.territoryPublicId
+			|| value?.assignedTerritory?.territory_public_id
+			|| value?.source?.assignedRow?.public_id
 			|| displays.find(display => normalizeText(display?.territoryPublicId || display?.territory_public_id || ""))?.territoryPublicId
 			|| displays.find(display => normalizeText(display?.territoryPublicId || display?.territory_public_id || ""))?.territory_public_id
 			|| ""
@@ -191,6 +194,9 @@
 			?? value?.activeDisplayNode?.territory_id
 			?? value?.display?.territoryId
 			?? value?.display?.territory_id
+			?? value?.assignedTerritory?.territoryId
+			?? value?.assignedTerritory?.territory_id
+			?? value?.source?.assignedRow?.territory_id
 			?? displays.find(display => parseTerritoryId(display?.territoryId ?? display?.territory_id ?? null) !== null)?.territoryId
 			?? displays.find(display => parseTerritoryId(display?.territoryId ?? display?.territory_id ?? null) !== null)?.territory_id
 			?? null
@@ -358,7 +364,7 @@
 	async function inheritColorVariance() {
 		const root = getRootTerritoryIdentity();
 		if (!root.territoryPublicId && !root.territoryId) {
-			setStatus("Kein aktives Gebiet mit globaler Territory-ID ausgewaehlt.", "error");
+			setStatus("Kein aktives Gebiet mit Territory-Referenz ausgewaehlt.", "error");
 			return;
 		}
 
@@ -380,7 +386,7 @@
 	async function inheritOpacity() {
 		const root = getRootTerritoryIdentity();
 		if (!root.territoryPublicId && !root.territoryId) {
-			setStatus("Kein aktives Gebiet mit globaler Territory-ID ausgewaehlt.", "error");
+			setStatus("Kein aktives Gebiet mit Territory-Referenz ausgewaehlt.", "error");
 			return;
 		}
 
