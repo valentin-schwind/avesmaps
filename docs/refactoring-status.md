@@ -8,17 +8,19 @@
   - `collectAndValidateSelectedLocations()`
   - `buildRouteResultFromSelectedLocations(useShortest)`
 - `js/popups.js` bleibt stabil mit lokalem Helper `pathCreationActionButtonsMarkup(publicId)`.
-- Dialog-Review-Split ist jetzt in fuenf stabile Schichten getrennt, mit klassischer Script-Reihenfolge in `index.html`:
+- Dialog-Review-Split ist jetzt in sechs stabile Schichten getrennt, mit klassischer Script-Reihenfolge in `index.html`:
   1. `js/dialogs-review-status.js`
   2. `js/dialogs-review-pending.js`
   3. `js/dialogs-review-paths.js`
   4. `js/dialogs-review-labels.js`
-  5. `js/dialogs-review.js`
+  5. `js/dialogs-review-locations.js`
+  6. `js/dialogs-review.js`
 - `js/dialogs-review-status.js` ist stabiler Status-Cluster-Split (`dataset.status` + `dataset.state` Wrapper/Helper).
 - `js/dialogs-review-pending.js` ist stabiler Pending-Cluster-Split (`setFormFieldsDisabled(...)` + fuenf `set...SubmitPending`-Wrapper).
 - `js/dialogs-review-paths.js` ist stabiler Path-/Powerline-Edit-Cluster-Split (Form-Population, Dialog-Open, Payload-Building, Transportoptionen, Autoname-Sync).
 - `js/dialogs-review-labels.js` ist stabiler Label-Edit-Cluster-Split (Dialog-Open/Close, Form-Population, Zoom/Priority-Output-Sync, Payload-Building).
-- `js/dialogs-review.js` bleibt stabil als Rest-Orchestrator fuer DOM-Getter, Location-/Region-/Wiki-Sync-/Review-Flows sowie Submit-/API-/Init-Logik.
+- `js/dialogs-review-locations.js` ist stabiler Location-Report-/Location-Edit-Cluster-Split (Report/Edit-Payloads, Reset/Populate/Open/Close, Service-Availability, Koordinatenformatierung).
+- `js/dialogs-review.js` bleibt stabil als Rest-Orchestrator fuer DOM-Getter, Region-/Wiki-Sync-/Review-Flows sowie Submit-/API-/Init-Logik.
 - `js/ui-controls.js` bleibt stabil mit lokalem Helper `bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName)` fuer Review-/Wiki-Sync-Tab-Persistierung.
 
 ## 2. Recent Safe Extracts / Splits
@@ -36,13 +38,9 @@
 - Dritter kontrollierter Datei-Split: Path-/Powerline-Edit-Cluster aus `js/dialogs-review.js` nach `js/dialogs-review-paths.js` ausgelagert.
 - Dabei wurden die 14 Path-/Powerline-Funktionen ausgelagert (Form-Population, Dialog-Open, Payload-Building, Transportoptionen, Autoname-Sync).
 - Vierter kontrollierter Datei-Split: Label-Edit-Cluster aus `js/dialogs-review.js` nach `js/dialogs-review-labels.js` ausgelagert.
-- Dabei wurden die Label-Funktionen ausgelagert:
-  - `setLabelEditDialogOpen`
-  - `populateLabelEditForm`
-  - `openLabelEditDialog`
-  - `syncLabelZoomRangeOutputs`
-  - `syncLabelPriorityOutput`
-  - `buildLabelEditPayload`
+- Dabei wurden die Label-Funktionen ausgelagert (`setLabelEditDialogOpen`, `populateLabelEditForm`, `openLabelEditDialog`, `syncLabelZoomRangeOutputs`, `syncLabelPriorityOutput`, `buildLabelEditPayload`).
+- Fuenfter kontrollierter Datei-Split: Location-Report-/Location-Edit-Cluster aus `js/dialogs-review.js` nach `js/dialogs-review-locations.js` ausgelagert.
+- Dabei wurden 13 Location-Funktionen ausgelagert (Report/Edit-Payloads, Reset/Populate/Open/Close, Service-Availability, Koordinatenformatierung).
 
 ## 3. Areas To Leave Stable For Now
 
@@ -55,10 +53,12 @@
 - Dialog-Bereich:
   - `js/dialogs-review-status.js` stabil lassen.
   - `js/dialogs-review-pending.js` stabil lassen.
-  - `js/dialogs-review-paths.js` vorerst stabil lassen.
-  - `js/dialogs-review-labels.js` vorerst stabil lassen.
+  - `js/dialogs-review-paths.js` stabil lassen.
+  - `js/dialogs-review-labels.js` stabil lassen.
+  - `js/dialogs-review-locations.js` vorerst stabil lassen.
   - Path-/Powerline-Cluster nicht direkt weiter veraendern.
   - Label-Cluster nicht direkt weiter veraendern.
+  - Location-Cluster nicht direkt weiter veraendern.
   - `js/dialogs-review.js` nicht weiter zerschneiden ohne neue, klare Split-Analyse mit engem Scope.
 - UI-Controls:
   - `js/ui-controls.js` insgesamt vorerst stabil lassen, insbesondere den Transport-Menu-/Combobox-Bereich.
@@ -71,25 +71,27 @@
 - Moegliche spaetere Parameterisierung von `createGraph`/Transportlogik.
 - Moegliche spaetere Entkopplung von `getSyntheticRouteConfig`.
 - Dialogs-Review (nur Analysebereiche, keine direkten Code-Schritte):
-  - Location-Dialogcluster
   - Review/Change/Presence-Panels
   - Wiki-Sync-Cluster
   - Region/Territory-Cluster
+  - DOM-Getter/Core-Helpers (nur mit separater Boundary-Analyse)
 
 ## 5. Smoke-Test Status
 
 - Produktiv auf [avesmaps.de](https://avesmaps.de/) wurde Routing/Dragging/Rerouting als funktionsfaehig bestaetigt.
 - Nach dem Status-Split (`js/dialogs-review-status.js`) wurde keine sichtbare Verhaltensaenderung bemerkt.
 - Nach dem Pending-Split (`js/dialogs-review-pending.js`) sind keine unmittelbaren Regressionen bekannt.
-- Path-/Powerline-Smoke wurde als funktionsfaehig gemeldet (Wege gehen, Kraftlinien gehen).
-- Label-Smoke ist empfohlen/offen, falls noch nicht vollstaendig gemeldet.
-- Wichtige Label-Smoke-Faelle:
-  - Label bearbeiten oeffnen
-  - Text/Typ/Groesse/Rotation pruefen
-  - Min-/Max-Zoom und Priority pruefen
-  - Label speichern
+- Path-/Powerline-Smoke bestanden (Wege gehen, Kraftlinien gehen).
+- Label-Smoke bestanden (Labels gehen).
+- Location-Smoke vor dem Split bestanden ("1-12 funzt 1a").
+- Location-Smoke nach dem Split ist empfohlen/offen, falls noch nicht gemeldet.
+- Wichtige Location-Smoke-Faelle:
+  - Ort melden oeffnen
+  - Typ Ort/Kommentar wechseln
+  - Ort bearbeiten oeffnen und Felder aendern
+  - Ruine/Nodix toggeln
+  - Speichern
   - keine neuen Konsolenfehler/ReferenceErrors
-- Fuer den Popups-Extract waren Popup/Editmode-Smokes empfohlen (Path-Actions + Powerline-Aktionen).
 - Fuer den UI-Controls-Extract waren Review-Tab-/Wiki-Sync-Tab-Smokes empfohlen (URL + LocalStorage + Reload).
 - Fuer jeden spaeteren Split ist ein eigener, gezielter Smoke-Zyklus erforderlich.
 - Falls spaeter Transport-Menue-Code geaendert wird, ist ein eigener Transport-Combobox-Smoke-Zyklus erforderlich (Focus/Keyboard/ARIA/Outside-Click/Resize/Scroll).
@@ -103,12 +105,13 @@
 - Ziel des Gesamt-Refactorings ist kontrollierte Modularisierung in kleine, verstaendliche Dateien.
 - Klassische globale Script-Reihenfolge bleibt zentral.
 - Keine ES-Module, kein Build-System.
+- Grosse Cluster wie Wiki-Sync, Region sowie Init/Event-Binding nicht ohne eigene Boundary-Analyse verschieben.
 - Transport-Menue-Code ist fokus-/keyboard-/ARIA-sensibel und soll nicht ohne engen Scope plus gezielten Smoke-Zyklus geaendert werden.
 
 ## 7. Next Recommended Step
 
 - Kein sofortiger weiterer Code-Split.
-- Zuerst Label-Smoke abschliessen bzw. bestaetigen.
-- Danach nur Analyse des naechsten Dialog-Subclusters (ohne Code).
-- Location nur nach eigener Boundary-Analyse.
+- Zuerst Location-Smoke nach dem Split abschliessen bzw. bestaetigen.
+- Danach Restdatei (`js/dialogs-review.js`) neu analysieren.
+- Review/Change/Presence-Panels nur nach Boundary-Analyse.
 - Explizit: nicht direkt Wiki-Sync, Region oder Init/Event-Binding verschieben.
