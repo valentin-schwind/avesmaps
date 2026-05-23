@@ -154,6 +154,12 @@ function avesmapsPoliticalSubtreeDisplayInheritColors(PDO $pdo, array $payload, 
         (int) $root['id'],
         $rootColor
     );
+    $descendantsCount = count($updatesByPublicId);
+
+    $normalizedRootPublicId = trim((string) ($root['public_id'] ?? ''));
+    if ($normalizedRootPublicId !== '') {
+        $updatesByPublicId[$normalizedRootPublicId] = $rootColor;
+    }
 
     if ($updatesByPublicId === []) {
         return [
@@ -186,7 +192,7 @@ function avesmapsPoliticalSubtreeDisplayInheritColors(PDO $pdo, array $payload, 
 
     return [
         'ok' => true,
-        'descendants_count' => count($updatesByPublicId),
+        'descendants_count' => $descendantsCount,
         'global_changed' => $globalChanged,
         'local_geometry_changed' => $localGeometryChanged,
         'local_display_changed' => $localDisplayChanged,
@@ -216,6 +222,12 @@ function avesmapsPoliticalSubtreeDisplayInheritOpacity(PDO $pdo, array $payload,
         (int) $root['id'],
         $rootOpacity
     );
+    $descendantsCount = count($updatesByPublicId);
+
+    $normalizedRootPublicId = trim((string) ($root['public_id'] ?? ''));
+    if ($normalizedRootPublicId !== '') {
+        $updatesByPublicId[$normalizedRootPublicId] = $rootOpacity;
+    }
 
     if ($updatesByPublicId === []) {
         return [
@@ -248,7 +260,7 @@ function avesmapsPoliticalSubtreeDisplayInheritOpacity(PDO $pdo, array $payload,
 
     return [
         'ok' => true,
-        'descendants_count' => count($updatesByPublicId),
+        'descendants_count' => $descendantsCount,
         'global_changed' => $globalChanged,
         'local_geometry_changed' => $localGeometryChanged,
         'local_display_changed' => $localDisplayChanged,
