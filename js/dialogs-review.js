@@ -3644,44 +3644,33 @@ function buildRegionEditPayload(formElement) {
 	};
 }
 
-function setReviewPanelStatus(message, state = "") {
-	const statusElement = document.getElementById("review-panel-status");
-	if (!statusElement) {
-		return;
-	}
-
-	statusElement.textContent = message || "";
-	statusElement.dataset.state = state;
+function setReviewPanelStatus(message = "", state = "") {
+	setPanelStateStatus(document.getElementById("review-panel-status"), message, state);
 }
 
-function setChangePanelStatus(message, state = "") {
-	const statusElement = document.getElementById("change-panel-status");
+function setPanelStateStatus(statusElement, message = "", state = "") {
 	if (!statusElement) {
 		return;
 	}
 
 	statusElement.textContent = message || "";
-	statusElement.dataset.state = state;
+	if (state) {
+		statusElement.dataset.state = state;
+	} else {
+		delete statusElement.dataset.state;
+	}
 }
 
-function setPresencePanelStatus(message, state = "") {
-	const statusElement = document.getElementById("presence-panel-status");
-	if (!statusElement) {
-		return;
-	}
-
-	statusElement.textContent = message || "";
-	statusElement.dataset.state = state;
+function setChangePanelStatus(message = "", state = "") {
+	setPanelStateStatus(document.getElementById("change-panel-status"), message, state);
 }
 
-function setWikiSyncStatus(message, state = "") {
-	const statusElement = document.getElementById("wiki-sync-status");
-	if (!statusElement) {
-		return;
-	}
+function setPresencePanelStatus(message = "", state = "") {
+	setPanelStateStatus(document.getElementById("presence-panel-status"), message, state);
+}
 
-	statusElement.textContent = message || "";
-	statusElement.dataset.state = state;
+function setWikiSyncStatus(message = "", state = "") {
+	setPanelStateStatus(document.getElementById("wiki-sync-status"), message, state);
 }
 
 function formatPresenceAge(secondsSinceSeen) {
