@@ -59,6 +59,17 @@ python -m http.server 8000
 
 Danach ist die Anwendung unter [http://localhost:8000](http://localhost:8000) erreichbar.
 
+Hinweis: Dieser Start ueber Python eignet sich fuer statische UI-/Asset-Tests.
+Vollstaendige SQL-Daten- und Routing-Tests benoetigen zusaetzlich konfigurierte
+Read-only-API-Endpunkte (`MAP_FEATURES_API_URL`, `MAP_SEARCH_API_URL`,
+`POLITICAL_TERRITORIES_API_URL`), zum Beispiel auf
+[https://avesmaps.de/](https://avesmaps.de/) oder per explizitem
+`window.AVESMAPS_*`-Override.
+
+Wenn ein lokales Frontend gegen eine oeffentliche API testet, muss die API CORS
+fuer den exakten lokalen Origin erlauben (zum Beispiel
+`http://localhost:8000`).
+
 Wenn auch das Ortsmelde-Formular lokal getestet werden soll, ist ein PHP-faehiger Server sinnvoll, zum Beispiel:
 
 ```bash
@@ -66,6 +77,9 @@ php -S localhost:8000
 ```
 
 Dann koennen die statischen Dateien und `api/report-location.php` direkt ueber denselben Host laufen.
+Fuer lokale PHP/API-Tests werden eine gueltige `api/config.local.php` oder die
+passenden `AVESMAPS_DB_*`- und `AVESMAPS_ALLOWED_ORIGINS`-Umgebungsvariablen
+benoetigt.
 
 ## Deployment
 
