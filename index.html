@@ -1466,6 +1466,32 @@
 			}
 		}
 
+		function addRegularPathToGraph(graph, pathFeature) {
+			const { geometry: { coordinates }, properties } = pathFeature;
+			const startNode = getLocationAtPathEndpoint(coordinates[0]);
+			const endNode = getLocationAtPathEndpoint(coordinates[coordinates.length - 1]);
+			if (startNode && endNode) {
+				const distance = calculatePathCoordinateDistance(coordinates),
+					routeType = normalizePathSubtype(properties?.feature_subtype || properties?.name),
+					transportOption = getTransportOption(routeType);
+				if (!transportOption) {
+					console.warn(`Keine Transportoption für ${routeType} gefunden. Pfad wird übersprungen.`);
+					return;
+				}
+				if (!isTransportAllowedForPath(properties, transportOption)) {
+					return;
+				}
+				const speed = SPEED_TABLE[transportOption]?.[routeType];
+				if (!speed) {
+					console.warn(`Geschwindigkeit für ${transportOption} auf ${routeType} nicht definiert. Pfad wird übersprungen.`);
+					return;
+				}
+				const connection = { distance, time: distance / speed, routeType, id: properties.id, transportOption };
+				addGraphConnection(graph, startNode.name, endNode.name, connection);
+				addGraphConnection(graph, endNode.name, startNode.name, connection);
+			}
+		}
+
 		// Erzeugt einen gewichteten Graphen aus den Locations und Pfaden
 		function createGraph() {
 			syntheticPathSegments.clear();
@@ -1473,29 +1499,8 @@
 			locationData.forEach((location) => {
 				graph[location.name] = {};
 			});
-			pathData.forEach(({ geometry: { coordinates }, properties }) => {
-				const startNode = getLocationAtPathEndpoint(coordinates[0]);
-				const endNode = getLocationAtPathEndpoint(coordinates[coordinates.length - 1]);
-				if (startNode && endNode) {
-					const distance = calculatePathCoordinateDistance(coordinates),
-						routeType = normalizePathSubtype(properties?.feature_subtype || properties?.name),
-						transportOption = getTransportOption(routeType);
-					if (!transportOption) {
-						console.warn(`Keine Transportoption für ${routeType} gefunden. Pfad wird übersprungen.`);
-						return;
-					}
-					if (!isTransportAllowedForPath(properties, transportOption)) {
-						return;
-					}
-					const speed = SPEED_TABLE[transportOption]?.[routeType];
-					if (!speed) {
-						console.warn(`Geschwindigkeit für ${transportOption} auf ${routeType} nicht definiert. Pfad wird übersprungen.`);
-						return;
-					}
-					const connection = { distance, time: distance / speed, routeType, id: properties.id, transportOption };
-					addGraphConnection(graph, startNode.name, endNode.name, connection);
-					addGraphConnection(graph, endNode.name, startNode.name, connection);
-				}
+			pathData.forEach((pathFeature) => {
+				addRegularPathToGraph(graph, pathFeature);
 			});
 			connectDetachedGraphComponents(graph);
 
