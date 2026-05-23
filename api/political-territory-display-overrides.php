@@ -6,60 +6,6 @@ require __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/political-territory-lib.php';
 
-try {
-    $config = avesmapsLoadApiConfig(__DIR__);
-
-    if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, [
-            'ok' => false,
-            'error' => 'Diese Herkunft darf Herrschaftsgebiete nicht bearbeiten.',
-        ]);
-    }
-
-    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
-    if ($requestMethod === 'OPTIONS') {
-        avesmapsJsonResponse(204);
-    }
-
-    if (!in_array($requestMethod, ['POST', 'PATCH'], true)) {
-        avesmapsJsonResponse(405, [
-            'ok' => false,
-            'error' => 'Nur POST und PATCH sind fuer Darstellungs-Overrides erlaubt.',
-        ]);
-    }
-
-    $user = avesmapsRequireUserWithCapability('edit');
-    $pdo = avesmapsCreatePdo($config['database'] ?? []);
-    avesmapsPoliticalEnsureTables($pdo);
-    $payload = avesmapsReadJsonRequest();
-    $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? ''), 80);
-
-    $response = match ($action) {
-        'state' => avesmapsPoliticalDisplayOverrideState($pdo, $payload),
-        'snapshot_globals' => avesmapsPoliticalDisplayOverrideSnapshotGlobals($pdo, $payload),
-        'restore_globals' => avesmapsPoliticalDisplayOverrideRestoreGlobals($pdo, $payload),
-        'reset_local' => avesmapsPoliticalDisplayOverrideResetLocal($pdo, $payload, $user),
-        default => throw new InvalidArgumentException('Die Darstellungs-Override-Aktion ist unbekannt.'),
-    };
-
-    avesmapsJsonResponse(200, $response);
-} catch (InvalidArgumentException $exception) {
-    avesmapsJsonResponse(400, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
-} catch (PDOException) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Die Darstellungs-Overrides konnten nicht aus der Datenbank verarbeitet werden.',
-    ]);
-} catch (Throwable) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Die Darstellungs-Overrides konnten nicht verarbeitet werden.',
-    ]);
-}
-
 if (!function_exists('avesmapsPoliticalReadPublicId')) {
     function avesmapsPoliticalReadPublicId(mixed $value): string {
         $publicId = avesmapsNormalizeSingleLine((string) $value, 36);
@@ -253,6 +199,60 @@ if (!function_exists('avesmapsPoliticalReadAssignmentDisplaysFromStyle')) {
 
         return $displays;
     }
+}
+
+try {
+    $config = avesmapsLoadApiConfig(__DIR__);
+
+    if (!avesmapsApplyCorsPolicy($config)) {
+        avesmapsJsonResponse(403, [
+            'ok' => false,
+            'error' => 'Diese Herkunft darf Herrschaftsgebiete nicht bearbeiten.',
+        ]);
+    }
+
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    if ($requestMethod === 'OPTIONS') {
+        avesmapsJsonResponse(204);
+    }
+
+    if (!in_array($requestMethod, ['POST', 'PATCH'], true)) {
+        avesmapsJsonResponse(405, [
+            'ok' => false,
+            'error' => 'Nur POST und PATCH sind fuer Darstellungs-Overrides erlaubt.',
+        ]);
+    }
+
+    $user = avesmapsRequireUserWithCapability('edit');
+    $pdo = avesmapsCreatePdo($config['database'] ?? []);
+    avesmapsPoliticalEnsureTables($pdo);
+    $payload = avesmapsReadJsonRequest();
+    $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? ''), 80);
+
+    $response = match ($action) {
+        'state' => avesmapsPoliticalDisplayOverrideState($pdo, $payload),
+        'snapshot_globals' => avesmapsPoliticalDisplayOverrideSnapshotGlobals($pdo, $payload),
+        'restore_globals' => avesmapsPoliticalDisplayOverrideRestoreGlobals($pdo, $payload),
+        'reset_local' => avesmapsPoliticalDisplayOverrideResetLocal($pdo, $payload, $user),
+        default => throw new InvalidArgumentException('Die Darstellungs-Override-Aktion ist unbekannt.'),
+    };
+
+    avesmapsJsonResponse(200, $response);
+} catch (InvalidArgumentException $exception) {
+    avesmapsJsonResponse(400, [
+        'ok' => false,
+        'error' => $exception->getMessage(),
+    ]);
+} catch (PDOException) {
+    avesmapsJsonResponse(500, [
+        'ok' => false,
+        'error' => 'Die Darstellungs-Overrides konnten nicht aus der Datenbank verarbeitet werden.',
+    ]);
+} catch (Throwable) {
+    avesmapsJsonResponse(500, [
+        'ok' => false,
+        'error' => 'Die Darstellungs-Overrides konnten nicht verarbeitet werden.',
+    ]);
 }
 
 function avesmapsPoliticalDisplayOverrideReadGeometry(PDO $pdo, array $payload): array {
