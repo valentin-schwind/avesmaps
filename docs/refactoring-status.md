@@ -2,50 +2,67 @@
 
 ## 1. Current Stable Boundaries
 
-- `js/route-graph-core.js` enthaelt derzeit den Routing-/Graph-Kern ohne direkte UI-Interaktion: Geometrie-/Smoothing-Helfer, Graph-Helfer sowie `calculateRouteCore(...)` als parametrisierter Dijkstra-Kern.
-- `createGraph(...)` bleibt als Orchestrator im Inline-Script von `index.html` und wurde durch `addRegularPathToGraph(graph, pathFeature)` entlastet.
-- `updateMapView(...)` bleibt als Orchestrator in `js/routing.js` und wurde durch `collectAndValidateSelectedLocations()` sowie `buildRouteResultFromSelectedLocations(useShortest)` entlastet.
-- Bewusst noch nicht verschoben: `createGraph`, `addRegularPathToGraph`, `updateMapView`, `calculateRoute`-Wrapper, `getTransportOption`, `connectDetachedGraphComponents`, `getSyntheticRouteConfig`.
+- `js/route-graph-core.js` bleibt als stabilisierter Routing-/Graph-Kern mit `calculateRouteCore(...)` und den bereits extrahierten Graph-/Geometrie-Helfern.
+- `createGraph(...)` bleibt stabil als Orchestrator im Inline-Script von `index.html`, mit lokalem Helper `addRegularPathToGraph(graph, pathFeature)`.
+- `updateMapView(...)` bleibt stabil als Orchestrator in `js/routing.js`, entlastet durch:
+  - `collectAndValidateSelectedLocations()`
+  - `buildRouteResultFromSelectedLocations(useShortest)`
+- `js/popups.js` bleibt stabil mit lokalem Helper `pathCreationActionButtonsMarkup(publicId)`.
+- `js/dialogs-review.js` bleibt stabil mit lokalem Helper `setDialogStatus(statusElement, message = "", type = "")` fuer den `dataset.status`-Cluster.
+- `js/ui-controls.js` bleibt stabil mit lokalem Helper `bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName)` fuer Review-/Wiki-Sync-Tab-Persistierung.
 
 ## 2. Recent Safe Extracts
 
-- `addRegularPathToGraph(graph, pathFeature)` als 1:1-Extract aus dem regulaeren `pathData`-Loop in `createGraph`.
-- `collectAndValidateSelectedLocations()` als 1:1-Extract fuer Wegpunkt-Scan und Input-Validierung aus `updateMapView`.
-- `buildRouteResultFromSelectedLocations(useShortest)` als 1:1-Extract fuer Teilroutenberechnung, `routeNodeNames`-Aufbau und Segmentsammlung.
+- `addRegularPathToGraph(graph, pathFeature)`
+- `collectAndValidateSelectedLocations()`
+- `buildRouteResultFromSelectedLocations(useShortest)`
+- `pathCreationActionButtonsMarkup(publicId)`
+- `setDialogStatus(statusElement, message = "", type = "")`
+- `bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName)`
 
 ## 3. Areas To Leave Stable For Now
 
-- `createGraph`: enthaelt weiterhin zentrale Transport- und Datenregeln; weitere Schnitte haben direkte Routing-Risiken.
-- `addRegularPathToGraph`: frisch extrahiert; sollte erst nach Stabilitaetsfenster weiter angepasst werden.
-- `updateMapView`: bleibt bewusst UI-naher Orchestrator mit klaren Seiteneffekten (URL, Alerts, Rendering, Fokus).
-- `js/route-graph-core.js`: hat nach mehreren Moves eine sinnvolle Kern-Grenze erreicht; keine neue UI-Kopplung hineinziehen.
+- Routing/Graph:
+  - `createGraph`
+  - `updateMapView`
+  - `js/route-graph-core.js`
+- Popup-Bereich:
+  - `js/popups.js` nach dem Path-Action-Extract vorerst stabil lassen.
+- Dialog-Bereich:
+  - `js/dialogs-review.js` nach dem `setDialogStatus`-Extract vorerst stabil lassen.
+- UI-Controls:
+  - `js/ui-controls.js` insgesamt vorerst stabil lassen, insbesondere den Transport-Menu-/Combobox-Bereich.
 
 ## 4. Planned But Not Yet Implemented
 
-- Geplanter spaeterer 1:1-Helper in `js/routing.js`: `renderRouteResult(routeNodeNames, segments)` (nur geplant, noch nicht umgesetzt).
-- Moegliche spaetere Parameterisierung von `createGraph` bzw. Transportlogik, um UI-Kopplung weiter zu reduzieren.
-- Moegliche spaetere Entkopplung der synthetic route config (`getSyntheticRouteConfig`) von direkter Transport-UI-Abfrage.
+- `renderRouteResult(routeNodeNames, segments)` in `js/routing.js` (nur geplant).
+- Popups: moeglicher Powerline-Action-Button-Helper (nur analysiert).
+- Dialogs-Review: moeglicher `dataset.state`-Helper fuer Panel-Statusfunktionen (nur analysiert).
+- UI-Controls Transport-Menue: moeglicher `bindTransportControlEvents(control, selectId)`-Extract (nur analysiert).
+- Moegliche spaetere Parameterisierung von `createGraph`/Transportlogik.
+- Moegliche spaetere Entkopplung von `getSyntheticRouteConfig`.
 
 ## 5. Smoke-Test Status
 
-- Manuelle produktive Pruefung auf [avesmaps.de](https://avesmaps.de/) zeigt aktuell stabile Funktion fuer Routing, Dragging und Rerouting.
-- Wichtige naechste Smoke-Faelle bei weiteren Routing-Refactorings:
-  - 2- und Mehrwegpunkt-Routen
-  - kuerzeste vs. schnellste Route
-  - Umstiege minimieren an/aus
-  - Transportarten und Transportmittel wechseln
-  - synthetische Querfeldein-Verbindungen
-  - keine neuen Konsolenfehler/Warnungen
+- Produktiv auf [avesmaps.de](https://avesmaps.de/) wurde Routing/Dragging/Rerouting als funktionsfaehig bestaetigt.
+- Fuer den Popups-Extract waren Popup/Editmode-Smokes empfohlen (Path-Actions + Powerline-Aktionen).
+- Fuer den Dialog-Extract waren Dialog/Edit/Review-Smokes der Statusausgaben empfohlen.
+- Fuer den UI-Controls-Extract waren Review-Tab-/Wiki-Sync-Tab-Smokes empfohlen (URL + LocalStorage + Reload).
+- Falls spaeter Transport-Menue-Code geaendert wird, ist ein eigener Transport-Combobox-Smoke-Zyklus erforderlich (Focus/Keyboard/ARIA/Outside-Click/Resize/Scroll).
 
 ## 6. Important Clarifications
 
-- `highlightError($input)` markiert ungueltige bzw. nicht gefundene Eingaben (Input-Validierung).
-- `highlightError` ist keine Logik fuer unerreichbare Orte.
-- Echte fehlende Teilrouten laufen separat ueber den Alert `Keine Route zwischen ... gefunden.`
+- `highlightError($input)` markiert ungueltige bzw. nicht gefundene Eingaben (Input-Validierung), nicht Unerreichbarkeit.
+- Echte fehlende Teilrouten laufen getrennt ueber `Keine Route zwischen ... gefunden.`
 - Querfeldein-Verbindungen reduzieren viele fruehere Unerreichbarkeitsfaelle.
+- `dataset.status`- und `dataset.state`-Statusfunktionen bleiben bewusst getrennte Cluster.
+- Transport-Menue-Code ist fokus-/keyboard-/ARIA-sensibel und soll nicht ohne engen Scope plus gezielten Smoke-Zyklus geaendert werden.
 
 ## 7. Next Recommended Step
 
-- Kein sofortiger Code-Schritt empfohlen.
-- Nach einem kurzen weiteren Stabilitaetsfenster optional den geplanten Rendering-Helper `renderRouteResult(routeNodeNames, segments)` als kleinen 1:1-Extract umsetzen.
-- Alternativ Routing vorerst pausieren und den naechsten Refactoring-Bereich ausserhalb von Routing/Graph analysieren.
+- Kein sofortiger Code-Schritt.
+- Zuerst kurzes Smoke-/Stabilitaetsfenster.
+- Danach entweder:
+  - A. einen der bereits geplanten Mini-Extracts gezielt auswaehlen und isoliert umsetzen
+  - B. einen neuen Bereich nur analysieren (ohne Codeaenderung)
+- Explizit: Transport-Menue nicht direkt coden, solange kein gezielter Transport-Combobox-Smoke-Zyklus geplant ist.
