@@ -76,7 +76,7 @@
 				}
 				return (Array.isArray(payload?.items) ? payload.items : [])
 					.map((row) => ({ ...row, __path: buildRowPath(row) }))
-					.filter((row) => normalizeText(row.public_id || "") && row.__path.length > 0);
+					.filter((row) => row.__path.length > 0);
 			});
 		}
 		return rowsPromise;
@@ -146,45 +146,63 @@
 		return result < 0 ? result + divisor : result;
 	}
 
-	function createHueVariant(parentColor, variance256) {
+	function randomSignedHsvOffset(min256 = 10, max256 = 20) {
+		const magnitude = min256 + Math.random() * (max256 - min256);
+		return (Math.random() < 0.5 ? -1 : 1) * (magnitude / 256) * 360;
+	}
+
+	function createHueVariant(parentColor) {
 		const rgb = parseHexToRgb(parentColor);
 		if (!rgb) return "#888888";
 		const hsv = rgbToHsv(rgb.red, rgb.green, rgb.blue);
-		const hueOffset = ((Math.random() * 2) - 1) * (variance256 / 256) * 360;
-		const saturationOffset = ((Math.random() * 2) - 1) * 4;
-		const valueOffset = ((Math.random() * 2) - 1) * 4;
 		return hsvToHex(
-			modulo(hsv.hue + hueOffset, 360),
-			clampNumber(hsv.saturation + saturationOffset, 0, 100),
-			clampNumber(hsv.value + valueOffset, 0, 100)
+			modulo(hsv.hue + randomSignedHsvOffset(10, 20), 360),
+			hsv.saturation,
+			hsv.value
 		);
 	}
 
-	function buildSubtree(rows, selectedPath) {
-		const descendants = rows.filter((row) => isPathPrefix(selectedPath, row.__path));
-		const byParentKey = new Map();
-		const byPathKey = new Map();
-
-		for (const row of descendants) {
-			const pathKey = row.__path.map(makeKey).join("/");
-			const parentKey = row.__path.slice(0, -1).map(makeKey).join("/");
-			byPathKey.set(pathKey, row);
-			if (!byParentKey.has(parentKey)) byParentKey.set(parentKey, []);
-			byParentKey.get(parentKey).push(row);
-		}
-
-		return { descendants, byParentKey, byPathKey };
+	function createVirtualNode(path) {
+		return {
+			path,
+			row: null,
+			children: new Map(),
+		};
 	}
 
-	function collectColorUpdates(tree, parentPath, parentColor, selectedDepth, updates = []) {
-		const parentKey = parentPath.map(makeKey).join("/");
-		const children = tree.byParentKey.get(parentKey) || [];
-		const variance = parentPath.length <= selectedDepth ? 20 : 10;
+	function buildVirtualSubtree(rows, selectedPath) {
+		const root = createVirtualNode([...selectedPath]);
+		const descendants = rows.filter((row) => isPathPrefix(selectedPath, row.__path));
 
-		for (const child of children) {
-			const color = createHueVariant(parentColor, variance);
-			updates.push({ territory_public_id: normalizeText(child.public_id), color });
-			collectColorUpdates(tree, child.__path, color, selectedDepth, updates);
+		for (const row of descendants) {
+			let node = root;
+			for (let index = selectedPath.length; index < row.__path.length; index += 1) {
+				const segment = row.__path[index];
+				const key = makeKey(segment);
+				if (!node.children.has(key)) {
+					node.children.set(key, createVirtualNode(row.__path.slice(0, index + 1)));
+				}
+				node = node.children.get(key);
+			}
+
+			if (normalizeText(row.public_id || "")) {
+				node.row = row;
+			}
+		}
+
+		return {
+			root,
+			descendants: descendants.filter((row) => normalizeText(row.public_id || "")),
+		};
+	}
+
+	function collectColorUpdatesFromVirtualNode(node, parentColor, updates = []) {
+		for (const child of node.children.values()) {
+			const color = createHueVariant(parentColor);
+			if (child.row && normalizeText(child.row.public_id || "")) {
+				updates.push({ territory_public_id: normalizeText(child.row.public_id), color });
+			}
+			collectColorUpdatesFromVirtualNode(child, color, updates);
 		}
 
 		return updates;
@@ -229,14 +247,24 @@
 		return Number.isFinite(percent) ? clampNumber(percent / 100, 0, 1) : 0.33;
 	}
 
+	function notifyParentDisplayUpdated() {
+		window.parent?.postMessage({ type: "avesmaps:political-territory-subtree-display-updated" }, window.location.origin);
+		try {
+			window.parent?.loadPoliticalTerritoryOptions?.({ force: true });
+			window.parent?.schedulePoliticalTerritoryLayerReload?.({ immediate: true });
+		} catch (error) {
+			console.warn("Politische Gebietsebene konnte nicht direkt neu geladen werden:", error);
+		}
+	}
+
 	async function inheritColorVariance() {
 		const selectedPath = getActiveBreadcrumbPath();
 		if (selectedPath.length < 1) return;
 
 		setStatus("Berechne Farbtonvarianz fuer Untergebiete ...", "pending");
 		const rows = await loadRows();
-		const tree = buildSubtree(rows, selectedPath);
-		const updates = collectColorUpdates(tree, selectedPath, getSelectedColor(), selectedPath.length);
+		const tree = buildVirtualSubtree(rows, selectedPath);
+		const updates = collectColorUpdatesFromVirtualNode(tree.root, getSelectedColor());
 
 		if (updates.length < 1) {
 			setStatus("Keine Untergebiete mit globalem Datensatz gefunden.", "pending");
@@ -245,7 +273,7 @@
 
 		await submit("update_colors", updates);
 		setStatus(`Farbtonvarianz fuer ${updates.length} Untergebiete global gespeichert.`, "success");
-		window.parent?.postMessage({ type: "avesmaps:political-territory-subtree-display-updated" }, window.location.origin);
+		notifyParentDisplayUpdated();
 	}
 
 	async function inheritOpacity() {
@@ -254,7 +282,7 @@
 
 		setStatus("Uebertrage Transparenz auf Untergebiete ...", "pending");
 		const rows = await loadRows();
-		const tree = buildSubtree(rows, selectedPath);
+		const tree = buildVirtualSubtree(rows, selectedPath);
 		const updates = buildOpacityUpdates(tree.descendants, getSelectedOpacity());
 
 		if (updates.length < 1) {
@@ -264,7 +292,7 @@
 
 		await submit("update_opacity", updates);
 		setStatus(`Transparenz fuer ${updates.length} Untergebiete global gespeichert.`, "success");
-		window.parent?.postMessage({ type: "avesmaps:political-territory-subtree-display-updated" }, window.location.origin);
+		notifyParentDisplayUpdated();
 	}
 
 	function getOrCreateOpacityButton(colorButton) {
