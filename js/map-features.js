@@ -2622,24 +2622,6 @@ function openLocationPopupByName(locationName) {
 	return true;
 }
 
-function buildSyntheticPathSegment(fromLocation, toLocation, connectionId, routeType) {
-	return {
-		type: "Feature",
-		geometry: {
-			type: "LineString",
-			coordinates: [
-				[fromLocation.coordinates[1], fromLocation.coordinates[0]],
-				[toLocation.coordinates[1], toLocation.coordinates[0]],
-			],
-		},
-		properties: {
-			id: connectionId,
-			name: `${routeType}-synthetic`,
-			synthetic: true,
-		},
-	};
-}
-
 function createPathPopupMarkup(path) {
 	const pathName = getPathDisplayName(path);
 	const pathType = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);

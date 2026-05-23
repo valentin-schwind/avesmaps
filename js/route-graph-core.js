@@ -46,6 +46,24 @@ function findNearestComponentConnection(component, connectedNodeNames, locationL
 	return nearestConnection;
 }
 
+function buildSyntheticPathSegment(fromLocation, toLocation, connectionId, routeType) {
+	return {
+		type: "Feature",
+		geometry: {
+			type: "LineString",
+			coordinates: [
+				[fromLocation.coordinates[1], fromLocation.coordinates[0]],
+				[toLocation.coordinates[1], toLocation.coordinates[0]],
+			],
+		},
+		properties: {
+			id: connectionId,
+			name: `${routeType}-synthetic`,
+			synthetic: true,
+		},
+	};
+}
+
 function addSyntheticGraphConnection(graph, fromLocation, toLocation, distance, routeConfig) {
 	const connectionId = `synthetic-${fromLocation.name}->${toLocation.name}`;
 	const effectiveDistance = distance * SYNTHETIC_ROUTE_DISTANCE_COST_FACTOR;
