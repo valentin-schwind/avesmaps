@@ -3,6 +3,7 @@
 (function initPoliticalTerritorySubtreeDisplayTools() {
 	const API_URL = "/api/political-territory-subtree-display.php";
 	let activeBreadcrumbTerritoryPublicId = "";
+	let activeBreadcrumbTerritoryId = null;
 	let activeBreadcrumbIndex = -1;
 
 	function normalizeText(value) {
@@ -34,6 +35,26 @@
 		return displays.find(display => normalizeText(display?.territoryPublicId || display?.territory_public_id || "") === territoryPublicId) || null;
 	}
 
+	function parseTerritoryId(value) {
+		const territoryId = Number(value);
+		if (!Number.isFinite(territoryId)) {
+			return null;
+		}
+		const normalized = Math.trunc(territoryId);
+		return normalized > 0 ? normalized : null;
+	}
+
+	function getDisplayForTerritoryId(territoryId) {
+		const normalizedTerritoryId = parseTerritoryId(territoryId);
+		if (normalizedTerritoryId === null) {
+			return null;
+		}
+
+		const value = readAssignmentValue();
+		const displays = Array.isArray(value?.displays) ? value.displays : [];
+		return displays.find(display => parseTerritoryId(display?.territoryId ?? display?.territory_id ?? null) === normalizedTerritoryId) || null;
+	}
+
 	function getPathTerritoryPublicId(value, index) {
 		const assignedPath = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
 		const editedPath = Array.isArray(value?.editedPath) ? value.editedPath : [];
@@ -49,55 +70,114 @@
 		);
 	}
 
-	function getSelectedColor(rootTerritoryPublicId = "") {
+	function getPathTerritoryId(value, index) {
+		const assignedPath = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
+		const editedPath = Array.isArray(value?.editedPath) ? value.editedPath : [];
+		const displays = Array.isArray(value?.displays) ? value.displays : [];
+		return parseTerritoryId(
+			assignedPath[index]?.territoryId
+			?? assignedPath[index]?.territory_id
+			?? editedPath[index]?.territoryId
+			?? editedPath[index]?.territory_id
+			?? displays[index]?.territoryId
+			?? displays[index]?.territory_id
+			?? null
+		);
+	}
+
+	function getSelectedColor(rootTerritoryPublicId = "", rootTerritoryId = null) {
 		const value = readAssignmentValue();
-		const activeDisplayNodePublicId = normalizeText(value?.activeDisplayNode?.territoryPublicId || "");
+		const activeDisplayNodePublicId = normalizeText(value?.activeDisplayNode?.territoryPublicId || value?.activeDisplayNode?.territory_public_id || "");
+		const activeDisplayNodeTerritoryId = parseTerritoryId(value?.activeDisplayNode?.territoryId ?? value?.activeDisplayNode?.territory_id ?? null);
 		const inputColor = normalizeText(document.getElementById("colorInput")?.value || "");
-		if (rootTerritoryPublicId && activeDisplayNodePublicId === rootTerritoryPublicId && /^#[0-9a-fA-F]{6}$/.test(inputColor)) {
-			return inputColor;
+		if (
+			(rootTerritoryPublicId && activeDisplayNodePublicId === rootTerritoryPublicId)
+			|| (parseTerritoryId(rootTerritoryId) !== null && activeDisplayNodeTerritoryId === parseTerritoryId(rootTerritoryId))
+		) {
+			if (/^#[0-9a-fA-F]{6}$/.test(inputColor)) {
+				return inputColor;
+			}
 		}
 
-		const displayColor = normalizeText(getDisplayForTerritoryPublicId(rootTerritoryPublicId)?.color || "");
-		if (/^#[0-9a-fA-F]{6}$/.test(displayColor)) {
-			return displayColor;
+		if (rootTerritoryPublicId) {
+			const displayColor = normalizeText(getDisplayForTerritoryPublicId(rootTerritoryPublicId)?.color || "");
+			if (/^#[0-9a-fA-F]{6}$/.test(displayColor)) {
+				return displayColor;
+			}
+		}
+
+		if (parseTerritoryId(rootTerritoryId) !== null) {
+			const displayColor = normalizeText(getDisplayForTerritoryId(rootTerritoryId)?.color || "");
+			if (/^#[0-9a-fA-F]{6}$/.test(displayColor)) {
+				return displayColor;
+			}
 		}
 
 		return /^#[0-9a-fA-F]{6}$/.test(inputColor) ? inputColor : "#888888";
 	}
 
-	function getSelectedOpacity(rootTerritoryPublicId = "") {
+	function getSelectedOpacity(rootTerritoryPublicId = "", rootTerritoryId = null) {
 		const value = readAssignmentValue();
-		const activeDisplayNodePublicId = normalizeText(value?.activeDisplayNode?.territoryPublicId || "");
+		const activeDisplayNodePublicId = normalizeText(value?.activeDisplayNode?.territoryPublicId || value?.activeDisplayNode?.territory_public_id || "");
+		const activeDisplayNodeTerritoryId = parseTerritoryId(value?.activeDisplayNode?.territoryId ?? value?.activeDisplayNode?.territory_id ?? null);
 		const percent = Number(document.getElementById("transparencyInput")?.value);
-		if (rootTerritoryPublicId && activeDisplayNodePublicId === rootTerritoryPublicId && Number.isFinite(percent)) {
-			return clampNumber(percent / 100, 0, 1);
+		if (
+			(rootTerritoryPublicId && activeDisplayNodePublicId === rootTerritoryPublicId)
+			|| (parseTerritoryId(rootTerritoryId) !== null && activeDisplayNodeTerritoryId === parseTerritoryId(rootTerritoryId))
+		) {
+			if (Number.isFinite(percent)) {
+				return clampNumber(percent / 100, 0, 1);
+			}
 		}
 
-		const displayOpacity = Number(getDisplayForTerritoryPublicId(rootTerritoryPublicId)?.opacity);
-		if (Number.isFinite(displayOpacity)) {
-			return clampNumber(displayOpacity, 0, 1);
+		if (rootTerritoryPublicId) {
+			const displayOpacity = Number(getDisplayForTerritoryPublicId(rootTerritoryPublicId)?.opacity);
+			if (Number.isFinite(displayOpacity)) {
+				return clampNumber(displayOpacity, 0, 1);
+			}
+		}
+
+		if (parseTerritoryId(rootTerritoryId) !== null) {
+			const displayOpacity = Number(getDisplayForTerritoryId(rootTerritoryId)?.opacity);
+			if (Number.isFinite(displayOpacity)) {
+				return clampNumber(displayOpacity, 0, 1);
+			}
 		}
 
 		return Number.isFinite(percent) ? clampNumber(percent / 100, 0, 1) : 0.33;
 	}
 
-	function getRootTerritoryPublicId() {
+	function getRootTerritoryIdentity() {
 		const value = readAssignmentValue();
+		let territoryPublicId = "";
+		let territoryId = null;
 
 		if (activeBreadcrumbIndex >= 0) {
-			const publicId = getPathTerritoryPublicId(value, activeBreadcrumbIndex);
-			if (publicId) {
-				activeBreadcrumbTerritoryPublicId = publicId;
-				return publicId;
+			territoryPublicId = getPathTerritoryPublicId(value, activeBreadcrumbIndex);
+			territoryId = getPathTerritoryId(value, activeBreadcrumbIndex);
+			if (territoryPublicId || territoryId !== null) {
+				if (territoryPublicId) {
+					activeBreadcrumbTerritoryPublicId = territoryPublicId;
+				}
+				if (territoryId !== null) {
+					activeBreadcrumbTerritoryId = territoryId;
+				}
+				return {
+					territoryPublicId,
+					territoryId
+				};
 			}
 		}
 
-		if (activeBreadcrumbTerritoryPublicId) {
-			return activeBreadcrumbTerritoryPublicId;
+		if (activeBreadcrumbTerritoryPublicId || activeBreadcrumbTerritoryId !== null) {
+			return {
+				territoryPublicId: activeBreadcrumbTerritoryPublicId,
+				territoryId: activeBreadcrumbTerritoryId
+			};
 		}
 
 		const displays = Array.isArray(value?.displays) ? value.displays : [];
-		return normalizeText(
+		territoryPublicId = normalizeText(
 			value?.activeDisplayNode?.territoryPublicId
 			|| value?.activeDisplayNode?.territory_public_id
 			|| value?.display?.territoryPublicId
@@ -106,6 +186,20 @@
 			|| displays.find(display => normalizeText(display?.territoryPublicId || display?.territory_public_id || ""))?.territory_public_id
 			|| ""
 		);
+		territoryId = parseTerritoryId(
+			value?.activeDisplayNode?.territoryId
+			?? value?.activeDisplayNode?.territory_id
+			?? value?.display?.territoryId
+			?? value?.display?.territory_id
+			?? displays.find(display => parseTerritoryId(display?.territoryId ?? display?.territory_id ?? null) !== null)?.territoryId
+			?? displays.find(display => parseTerritoryId(display?.territoryId ?? display?.territory_id ?? null) !== null)?.territory_id
+			?? null
+		);
+
+		return {
+			territoryPublicId,
+			territoryId
+		};
 	}
 
 	function rememberActiveBreadcrumbFromButton(button) {
@@ -121,12 +215,18 @@
 		}
 
 		const publicId = getPathTerritoryPublicId(readAssignmentValue(), index);
-		if (!publicId) {
+		const territoryId = getPathTerritoryId(readAssignmentValue(), index);
+		if (!publicId && territoryId === null) {
 			return;
 		}
 
 		activeBreadcrumbIndex = index;
-		activeBreadcrumbTerritoryPublicId = publicId;
+		if (publicId) {
+			activeBreadcrumbTerritoryPublicId = publicId;
+		}
+		if (territoryId !== null) {
+			activeBreadcrumbTerritoryId = territoryId;
+		}
 	}
 
 	function installActiveBreadcrumbTracker() {
@@ -207,8 +307,15 @@
 			return false;
 		}
 
-		const activePublicId = getRootTerritoryPublicId();
-		const activeDisplay = nextDisplays.find(display => normalizeText(display?.territoryPublicId || display?.territory_public_id || "") === activePublicId) || value.display || {};
+		const root = getRootTerritoryIdentity();
+		const activeDisplay = nextDisplays.find((display) => {
+			const displayPublicId = normalizeText(display?.territoryPublicId || display?.territory_public_id || "");
+			const displayTerritoryId = parseTerritoryId(display?.territoryId ?? display?.territory_id ?? null);
+			if (root.territoryPublicId && displayPublicId === root.territoryPublicId) {
+				return true;
+			}
+			return root.territoryId !== null && displayTerritoryId === root.territoryId;
+		}) || value.display || {};
 
 		assignmentModule.setValue({
 			...value,
@@ -249,36 +356,44 @@
 	}
 
 	async function inheritColorVariance() {
-		const rootTerritoryPublicId = getRootTerritoryPublicId();
-		if (!rootTerritoryPublicId) {
+		const root = getRootTerritoryIdentity();
+		if (!root.territoryPublicId && !root.territoryId) {
 			setStatus("Kein aktives Gebiet mit globaler Territory-ID ausgewaehlt.", "error");
 			return;
 		}
 
 		setStatus("Vererbe Farbtonvarianz auf Untergebiete ...", "pending");
-		const result = await submit({
+		const payload = {
 			action: "inherit_colors",
-			root_territory_public_id: rootTerritoryPublicId,
-			color: getSelectedColor(rootTerritoryPublicId)
-		});
+			root_territory_id: root.territoryId,
+			color: getSelectedColor(root.territoryPublicId, root.territoryId)
+		};
+		if (root.territoryPublicId) {
+			payload.root_territory_public_id = root.territoryPublicId;
+		}
+		const result = await submit(payload);
 		applyDisplayUpdatesToOpenEditor(normalizeUpdateList(result, "color"));
 		await reloadEditorAndParentLayers();
 		setStatus(buildSuccessMessage("Farbtonvarianz vererbt.", result), "success");
 	}
 
 	async function inheritOpacity() {
-		const rootTerritoryPublicId = getRootTerritoryPublicId();
-		if (!rootTerritoryPublicId) {
+		const root = getRootTerritoryIdentity();
+		if (!root.territoryPublicId && !root.territoryId) {
 			setStatus("Kein aktives Gebiet mit globaler Territory-ID ausgewaehlt.", "error");
 			return;
 		}
 
 		setStatus("Vererbe Transparenz auf Untergebiete ...", "pending");
-		const result = await submit({
+		const payload = {
 			action: "inherit_opacity",
-			root_territory_public_id: rootTerritoryPublicId,
-			opacity: getSelectedOpacity(rootTerritoryPublicId)
-		});
+			root_territory_id: root.territoryId,
+			opacity: getSelectedOpacity(root.territoryPublicId, root.territoryId)
+		};
+		if (root.territoryPublicId) {
+			payload.root_territory_public_id = root.territoryPublicId;
+		}
+		const result = await submit(payload);
 		applyDisplayUpdatesToOpenEditor(normalizeUpdateList(result, "opacity"));
 		await reloadEditorAndParentLayers();
 		setStatus(buildSuccessMessage("Transparenz vererbt.", result), "success");

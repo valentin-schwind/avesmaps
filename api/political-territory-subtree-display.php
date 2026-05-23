@@ -117,10 +117,17 @@ function avesmapsPoliticalSubtreeDisplayUpdateOpacity(PDO $pdo, array $payload, 
 }
 
 function avesmapsPoliticalSubtreeDisplayInheritColors(PDO $pdo, array $payload, array $user): array {
-    $rootPublicId = avesmapsPoliticalSubtreeDisplayReadPublicId($payload['root_territory_public_id'] ?? '');
     $rootColor = avesmapsPoliticalSubtreeDisplayReadColor($payload['color'] ?? '');
     $hierarchy = avesmapsPoliticalSubtreeDisplayLoadHierarchy($pdo);
-    $root = $hierarchy['rowsByPublicId'][$rootPublicId] ?? null;
+    $rootPublicId = trim((string) ($payload['root_territory_public_id'] ?? ''));
+    $rootTerritoryId = avesmapsPoliticalSubtreeDisplayReadOptionalTerritoryId($payload['root_territory_id'] ?? null);
+    $root = null;
+
+    if ($rootPublicId !== '') {
+        $root = $hierarchy['rowsByPublicId'][$rootPublicId] ?? null;
+    } elseif ($rootTerritoryId !== null) {
+        $root = $hierarchy['rowsById'][$rootTerritoryId] ?? null;
+    }
 
     if (!is_array($root)) {
         throw new InvalidArgumentException('Das ausgewaehlte Wurzelgebiet wurde nicht gefunden.');
@@ -172,10 +179,17 @@ function avesmapsPoliticalSubtreeDisplayInheritColors(PDO $pdo, array $payload, 
 }
 
 function avesmapsPoliticalSubtreeDisplayInheritOpacity(PDO $pdo, array $payload, array $user): array {
-    $rootPublicId = avesmapsPoliticalSubtreeDisplayReadPublicId($payload['root_territory_public_id'] ?? '');
     $rootOpacity = avesmapsPoliticalSubtreeDisplayReadOpacity($payload['opacity'] ?? null);
     $hierarchy = avesmapsPoliticalSubtreeDisplayLoadHierarchy($pdo);
-    $root = $hierarchy['rowsByPublicId'][$rootPublicId] ?? null;
+    $rootPublicId = trim((string) ($payload['root_territory_public_id'] ?? ''));
+    $rootTerritoryId = avesmapsPoliticalSubtreeDisplayReadOptionalTerritoryId($payload['root_territory_id'] ?? null);
+    $root = null;
+
+    if ($rootPublicId !== '') {
+        $root = $hierarchy['rowsByPublicId'][$rootPublicId] ?? null;
+    } elseif ($rootTerritoryId !== null) {
+        $root = $hierarchy['rowsById'][$rootTerritoryId] ?? null;
+    }
 
     if (!is_array($root)) {
         throw new InvalidArgumentException('Das ausgewaehlte Wurzelgebiet wurde nicht gefunden.');
@@ -257,6 +271,7 @@ function avesmapsPoliticalSubtreeDisplayLoadHierarchy(PDO $pdo): array {
     )->fetchAll(PDO::FETCH_ASSOC);
 
     $rowsByPublicId = [];
+    $rowsById = [];
     $childrenByParentId = [];
 
     foreach ($rows as $row) {
@@ -274,6 +289,8 @@ function avesmapsPoliticalSubtreeDisplayLoadHierarchy(PDO $pdo): array {
             'parent_id' => $parentId,
         ];
 
+        $rowsById[$rowId] = $normalizedRow;
+
         if ($publicId !== '') {
             $rowsByPublicId[$publicId] = $normalizedRow;
         }
@@ -286,6 +303,7 @@ function avesmapsPoliticalSubtreeDisplayLoadHierarchy(PDO $pdo): array {
 
     return [
         'rowsByPublicId' => $rowsByPublicId,
+        'rowsById' => $rowsById,
         'childrenByParentId' => $childrenByParentId,
     ];
 }
@@ -635,6 +653,23 @@ function avesmapsPoliticalSubtreeDisplayReadPublicId(mixed $value): string {
     }
 
     return $publicId;
+}
+
+function avesmapsPoliticalSubtreeDisplayReadOptionalTerritoryId(mixed $value): ?int {
+    if ($value === null || $value === '') {
+        return null;
+    }
+
+    if (!is_numeric($value)) {
+        throw new InvalidArgumentException('Die Territory-ID ist ungueltig.');
+    }
+
+    $territoryId = (int) $value;
+    if ($territoryId < 1) {
+        throw new InvalidArgumentException('Die Territory-ID ist ungueltig.');
+    }
+
+    return $territoryId;
 }
 
 function avesmapsPoliticalSubtreeDisplayReadColor(mixed $value): string {
