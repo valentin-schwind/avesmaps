@@ -60,6 +60,201 @@ try {
     ]);
 }
 
+if (!function_exists('avesmapsPoliticalReadPublicId')) {
+    function avesmapsPoliticalReadPublicId(mixed $value): string {
+        $publicId = avesmapsNormalizeSingleLine((string) $value, 36);
+        if (preg_match('/^[a-f0-9-]{36}$/i', $publicId) !== 1) {
+            throw new InvalidArgumentException('Die Herrschaftsgebiet-ID ist ungueltig.');
+        }
+
+        return strtolower($publicId);
+    }
+}
+
+if (!function_exists('avesmapsPoliticalNullableInt')) {
+    function avesmapsPoliticalNullableInt(mixed $value): ?int {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return is_numeric($value) ? (int) $value : null;
+    }
+}
+
+if (!function_exists('avesmapsPoliticalReadRequiredName')) {
+    function avesmapsPoliticalReadRequiredName(mixed $value, string $fieldLabel): string {
+        $name = avesmapsNormalizeSingleLine((string) $value, 255);
+        if ($name === '') {
+            throw new InvalidArgumentException("{$fieldLabel} fehlt.");
+        }
+
+        return $name;
+    }
+}
+
+if (!function_exists('avesmapsPoliticalReadHexColor')) {
+    function avesmapsPoliticalReadHexColor(mixed $value): string {
+        $color = avesmapsNormalizeSingleLine((string) ($value ?: '#888888'), 9);
+        if (preg_match('/^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/', $color) !== 1) {
+            throw new InvalidArgumentException('Der Farbwert ist ungueltig.');
+        }
+
+        return $color;
+    }
+}
+
+if (!function_exists('avesmapsPoliticalReadOpacity')) {
+    function avesmapsPoliticalReadOpacity(mixed $value): float {
+        $opacity = filter_var($value, FILTER_VALIDATE_FLOAT);
+        if ($opacity === false || $opacity < 0 || $opacity > 1) {
+            throw new InvalidArgumentException('Die Transparenz ist ungueltig.');
+        }
+
+        return (float) $opacity;
+    }
+}
+
+if (!function_exists('avesmapsPoliticalReadOptionalInt')) {
+    function avesmapsPoliticalReadOptionalInt(mixed $value): ?int {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $parsedValue = filter_var($value, FILTER_VALIDATE_INT);
+        if ($parsedValue === false) {
+            throw new InvalidArgumentException('Ein Zahlenwert ist ungueltig.');
+        }
+
+        return (int) $parsedValue;
+    }
+}
+
+if (!function_exists('avesmapsPoliticalReadOptionalZoom')) {
+    function avesmapsPoliticalReadOptionalZoom(mixed $value): ?int {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $zoom = filter_var($value, FILTER_VALIDATE_INT);
+        if ($zoom === false || $zoom < 0 || $zoom > 6) {
+            throw new InvalidArgumentException('Die Zoomstufe ist ungueltig.');
+        }
+
+        return (int) $zoom;
+    }
+}
+
+if (!function_exists('avesmapsPoliticalReadOptionalUrl')) {
+    function avesmapsPoliticalReadOptionalUrl(mixed $value, string $fieldLabel): string {
+        return avesmapsNormalizeOptionalUrl((string) ($value ?? ''), 500, $fieldLabel);
+    }
+}
+
+if (!function_exists('avesmapsPoliticalFetchTerritoryByPublicId')) {
+    function avesmapsPoliticalFetchTerritoryByPublicId(PDO $pdo, string $publicId): array {
+        $statement = $pdo->prepare(
+            'SELECT *
+            FROM political_territory
+            WHERE public_id = :public_id
+            LIMIT 1'
+        );
+        $statement->execute(['public_id' => $publicId]);
+        $territory = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!$territory) {
+            throw new InvalidArgumentException('Das Herrschaftsgebiet wurde nicht gefunden.');
+        }
+
+        return $territory;
+    }
+}
+
+if (!function_exists('avesmapsPoliticalFetchGeometryByPublicId')) {
+    function avesmapsPoliticalFetchGeometryByPublicId(PDO $pdo, string $publicId): array {
+        $statement = $pdo->prepare(
+            'SELECT *
+            FROM political_territory_geometry
+            WHERE public_id = :public_id
+                AND is_active = 1
+            LIMIT 1'
+        );
+        $statement->execute(['public_id' => $publicId]);
+        $geometry = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!$geometry) {
+            throw new InvalidArgumentException('Die Geometrie wurde nicht gefunden.');
+        }
+
+        return $geometry;
+    }
+}
+
+if (!function_exists('avesmapsPoliticalReadAssignmentDisplaysFromStyle')) {
+    function avesmapsPoliticalReadAssignmentDisplaysFromStyle(array $style): array {
+        $rawDisplays = $style['assignmentDisplays'] ?? $style['assignment_displays'] ?? [];
+        if (!is_array($rawDisplays)) {
+            return [];
+        }
+
+        $displays = [];
+        foreach ($rawDisplays as $rawDisplay) {
+            if (!is_array($rawDisplay)) {
+                continue;
+            }
+
+            $territoryPublicId = trim((string) (
+                $rawDisplay['territoryPublicId']
+                ?? $rawDisplay['territory_public_id']
+                ?? ''
+            ));
+
+            $nodeKey = trim((string) (
+                $rawDisplay['nodeKey']
+                ?? $rawDisplay['node_key']
+                ?? ''
+            ));
+
+            $originalName = trim((string) (
+                $rawDisplay['originalName']
+                ?? $rawDisplay['original_name']
+                ?? $rawDisplay['name']
+                ?? ''
+            ));
+
+            $displayName = trim((string) (
+                $rawDisplay['displayName']
+                ?? $rawDisplay['display_name']
+                ?? ''
+            ));
+
+            if ($territoryPublicId === '' && $nodeKey === '' && $originalName === '' && $displayName === '') {
+                continue;
+            }
+
+            $opacity = $rawDisplay['opacity'] ?? null;
+            $displays[] = [
+                'territoryPublicId' => $territoryPublicId,
+                'territory_public_id' => $territoryPublicId,
+                'nodeKey' => $nodeKey,
+                'node_key' => $nodeKey,
+                'originalName' => $originalName,
+                'original_name' => $originalName,
+                'displayName' => $displayName,
+                'display_name' => $displayName,
+                'coatOfArmsUrl' => trim((string) (
+                    $rawDisplay['coatOfArmsUrl']
+                    ?? $rawDisplay['coat_of_arms_url']
+                    ?? ''
+                )),
+                'color' => trim((string) ($rawDisplay['color'] ?? '')),
+                'opacity' => is_numeric($opacity) ? (float) $opacity : null,
+                'zoomMin' => avesmapsPoliticalNullableInt($rawDisplay['zoomMin'] ?? $rawDisplay['zoom_min'] ?? null),
+                'zoomMax' => avesmapsPoliticalNullableInt($rawDisplay['zoomMax'] ?? $rawDisplay['zoom_max'] ?? null),
+            ];
+        }
+
+        return $displays;
+    }
+}
+
 function avesmapsPoliticalDisplayOverrideReadGeometry(PDO $pdo, array $payload): array {
     return avesmapsPoliticalFetchGeometryByPublicId(
         $pdo,
