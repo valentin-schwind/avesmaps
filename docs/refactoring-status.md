@@ -8,19 +8,21 @@
   - `collectAndValidateSelectedLocations()`
   - `buildRouteResultFromSelectedLocations(useShortest)`
 - `js/popups.js` bleibt stabil mit lokalem Helper `pathCreationActionButtonsMarkup(publicId)`.
-- Dialog-Review-Split ist jetzt in sechs stabile Schichten getrennt, mit klassischer Script-Reihenfolge in `index.html`:
-  1. `js/dialogs-review-status.js`
-  2. `js/dialogs-review-pending.js`
-  3. `js/dialogs-review-paths.js`
-  4. `js/dialogs-review-labels.js`
-  5. `js/dialogs-review-locations.js`
-  6. `js/dialogs-review.js`
+- Dialog-Review-Split ist jetzt in sieben stabile Schichten getrennt, mit klassischer Script-Reihenfolge in `index.html`:
+  1. `js/dialogs-review-core.js`
+  2. `js/dialogs-review-status.js`
+  3. `js/dialogs-review-pending.js`
+  4. `js/dialogs-review-paths.js`
+  5. `js/dialogs-review-labels.js`
+  6. `js/dialogs-review-locations.js`
+  7. `js/dialogs-review.js`
+- `js/dialogs-review-core.js` ist stabiler Core-Cluster-Split (DOM-/Dialog-Getter, Form-/Status-Getter, `is...DialogOpen`, `isLocationReportServiceConfigured`, `syncModalDialogBodyState`).
 - `js/dialogs-review-status.js` ist stabiler Status-Cluster-Split (`dataset.status` + `dataset.state` Wrapper/Helper).
 - `js/dialogs-review-pending.js` ist stabiler Pending-Cluster-Split (`setFormFieldsDisabled(...)` + fuenf `set...SubmitPending`-Wrapper).
 - `js/dialogs-review-paths.js` ist stabiler Path-/Powerline-Edit-Cluster-Split (Form-Population, Dialog-Open, Payload-Building, Transportoptionen, Autoname-Sync).
 - `js/dialogs-review-labels.js` ist stabiler Label-Edit-Cluster-Split (Dialog-Open/Close, Form-Population, Zoom/Priority-Output-Sync, Payload-Building).
 - `js/dialogs-review-locations.js` ist stabiler Location-Report-/Location-Edit-Cluster-Split (Report/Edit-Payloads, Reset/Populate/Open/Close, Service-Availability, Koordinatenformatierung).
-- `js/dialogs-review.js` bleibt stabil als Rest-Orchestrator fuer DOM-Getter, Region-/Wiki-Sync-/Review-Flows sowie Submit-/API-/Init-Logik.
+- `js/dialogs-review.js` bleibt stabil als Rest-Orchestrator fuer Region-/Wiki-Sync-/Review-Flows, Submit-/API-/Init-Logik und noch nicht ausgelagerte Reset-/Hilfsfunktionen.
 - `js/ui-controls.js` bleibt stabil mit lokalem Helper `bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName)` fuer Review-/Wiki-Sync-Tab-Persistierung.
 
 ## 2. Recent Safe Extracts / Splits
@@ -41,6 +43,8 @@
 - Dabei wurden die Label-Funktionen ausgelagert (`setLabelEditDialogOpen`, `populateLabelEditForm`, `openLabelEditDialog`, `syncLabelZoomRangeOutputs`, `syncLabelPriorityOutput`, `buildLabelEditPayload`).
 - Fuenfter kontrollierter Datei-Split: Location-Report-/Location-Edit-Cluster aus `js/dialogs-review.js` nach `js/dialogs-review-locations.js` ausgelagert.
 - Dabei wurden 13 Location-Funktionen ausgelagert (Report/Edit-Payloads, Reset/Populate/Open/Close, Service-Availability, Koordinatenformatierung).
+- Sechster kontrollierter Datei-Split: Core-/Getter-/Modal-State-Cluster aus `js/dialogs-review.js` nach `js/dialogs-review-core.js` ausgelagert.
+- Die Abhaengigkeitsrichtung ist damit sauberer: Core vor Status/Pending/Feature-Dateien, Rest-Orchestrator zuletzt.
 
 ## 3. Areas To Leave Stable For Now
 
@@ -51,14 +55,17 @@
 - Popup-Bereich:
   - `js/popups.js` nach dem Path-Action-Extract vorerst stabil lassen.
 - Dialog-Bereich:
+  - `js/dialogs-review-core.js` vorerst stabil lassen.
   - `js/dialogs-review-status.js` stabil lassen.
   - `js/dialogs-review-pending.js` stabil lassen.
   - `js/dialogs-review-paths.js` stabil lassen.
   - `js/dialogs-review-labels.js` stabil lassen.
-  - `js/dialogs-review-locations.js` vorerst stabil lassen.
+  - `js/dialogs-review-locations.js` stabil lassen.
+  - Core-Cluster nicht direkt weiter veraendern.
   - Path-/Powerline-Cluster nicht direkt weiter veraendern.
   - Label-Cluster nicht direkt weiter veraendern.
   - Location-Cluster nicht direkt weiter veraendern.
+  - Keine DOM-Getter/Core-Helper weiter aufteilen ohne neue Boundary-Analyse.
   - `js/dialogs-review.js` nicht weiter zerschneiden ohne neue, klare Split-Analyse mit engem Scope.
 - UI-Controls:
   - `js/ui-controls.js` insgesamt vorerst stabil lassen, insbesondere den Transport-Menu-/Combobox-Bereich.
@@ -74,7 +81,7 @@
   - Review/Change/Presence-Panels
   - Wiki-Sync-Cluster
   - Region/Territory-Cluster
-  - DOM-Getter/Core-Helpers (nur mit separater Boundary-Analyse)
+  - Verbleibende Reset-/Helper-Funktionen (nur mit separater Boundary-Analyse)
 
 ## 5. Smoke-Test Status
 
@@ -83,14 +90,11 @@
 - Nach dem Pending-Split (`js/dialogs-review-pending.js`) sind keine unmittelbaren Regressionen bekannt.
 - Path-/Powerline-Smoke bestanden (Wege gehen, Kraftlinien gehen).
 - Label-Smoke bestanden (Labels gehen).
-- Location-Smoke vor dem Split bestanden ("1-12 funzt 1a").
-- Location-Smoke nach dem Split ist empfohlen/offen, falls noch nicht gemeldet.
-- Wichtige Location-Smoke-Faelle:
-  - Ort melden oeffnen
-  - Typ Ort/Kommentar wechseln
-  - Ort bearbeiten oeffnen und Felder aendern
-  - Ruine/Nodix toggeln
-  - Speichern
+- Location-Smoke nach Split bestanden (alles geht, keine Meldungen, Verhalten wie erwartet).
+- Core-Smoke ist empfohlen/offen, falls noch nicht gemeldet.
+- Wichtige Core-Smoke-Faelle:
+  - Dialoge oeffnen/schliessen
+  - `body.modal-dialog-open` wird korrekt gesetzt/entfernt
   - keine neuen Konsolenfehler/ReferenceErrors
 - Fuer den UI-Controls-Extract waren Review-Tab-/Wiki-Sync-Tab-Smokes empfohlen (URL + LocalStorage + Reload).
 - Fuer jeden spaeteren Split ist ein eigener, gezielter Smoke-Zyklus erforderlich.
@@ -111,7 +115,7 @@
 ## 7. Next Recommended Step
 
 - Kein sofortiger weiterer Code-Split.
-- Zuerst Location-Smoke nach dem Split abschliessen bzw. bestaetigen.
+- Zuerst Core-Smoke abschliessen bzw. bestaetigen.
 - Danach Restdatei (`js/dialogs-review.js`) neu analysieren.
-- Review/Change/Presence-Panels nur nach Boundary-Analyse.
+- Review/Change/Presence als moeglicher naechster Analysebereich.
 - Explizit: nicht direkt Wiki-Sync, Region oder Init/Event-Binding verschieben.
