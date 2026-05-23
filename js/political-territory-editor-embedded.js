@@ -1646,6 +1646,10 @@
 		}
 
 		function inheritColorVarianceToDescendants() {
+			if (window.AvesmapsPoliticalTerritorySubtreeDisplayTools?.handlesInheritanceButtons === true) {
+				return;
+			}
+
 			if (!editedNode || !droppedNode) {
 				return;
 			}
@@ -1677,6 +1681,10 @@
 		}
 
 		function inheritOpacityToDescendants() {
+			if (window.AvesmapsPoliticalTerritorySubtreeDisplayTools?.handlesInheritanceButtons === true) {
+				return;
+			}
+
 			if (!editedNode || !droppedNode) {
 				return;
 			}

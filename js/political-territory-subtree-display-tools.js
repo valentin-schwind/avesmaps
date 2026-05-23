@@ -5,6 +5,9 @@
 	let activeBreadcrumbTerritoryPublicId = "";
 	let activeBreadcrumbTerritoryId = null;
 	let activeBreadcrumbIndex = -1;
+	window.AvesmapsPoliticalTerritorySubtreeDisplayTools = {
+		handlesInheritanceButtons: true
+	};
 
 	function normalizeText(value) {
 		return String(value ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
