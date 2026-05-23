@@ -2,6 +2,41 @@ function getVisualPathLatLngCoordinates(coordinates) {
 	return smoothLineCoordinatesForDisplay(coordinates).map(([x, y]) => [y, x]);
 }
 
+function createLocationLookup() {
+	return new Map(locationData.map((location) => [location.name, location]));
+}
+
+function findGraphComponents(graph) {
+	const visitedNodeNames = new Set();
+	const components = [];
+
+	Object.keys(graph).forEach((startName) => {
+		if (visitedNodeNames.has(startName)) {
+			return;
+		}
+
+		const nodeNames = [];
+		const stack = [startName];
+		visitedNodeNames.add(startName);
+
+		while (stack.length) {
+			const currentName = stack.pop();
+			nodeNames.push(currentName);
+
+			Object.keys(graph[currentName] || {}).forEach((neighborName) => {
+				if (!visitedNodeNames.has(neighborName)) {
+					visitedNodeNames.add(neighborName);
+					stack.push(neighborName);
+				}
+			});
+		}
+
+		components.push({ nodeNames });
+	});
+
+	return components;
+}
+
 function smoothLineCoordinatesForDisplay(coordinates, config = VISUAL_LINE_SMOOTHING_CONFIG) {
 	if (!config?.enabled || !Array.isArray(coordinates) || coordinates.length < 3) {
 		return coordinates;
