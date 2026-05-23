@@ -193,8 +193,7 @@ function syncLocationReportTypeFields() {
 	}
 }
 
-function setLocationReportStatus(message = "", type = "") {
-	const statusElement = getLocationReportStatusElement();
+function setDialogStatus(statusElement, message = "", type = "") {
 	if (!statusElement) {
 		return;
 	}
@@ -205,84 +204,34 @@ function setLocationReportStatus(message = "", type = "") {
 	} else {
 		delete statusElement.dataset.status;
 	}
+}
+
+function setLocationReportStatus(message = "", type = "") {
+	setDialogStatus(getLocationReportStatusElement(), message, type);
 }
 
 function setLocationEditStatus(message = "", type = "") {
-	const statusElement = getLocationEditStatusElement();
-	if (!statusElement) {
-		return;
-	}
-
-	statusElement.textContent = message;
-	if (type) {
-		statusElement.dataset.status = type;
-	} else {
-		delete statusElement.dataset.status;
-	}
+	setDialogStatus(getLocationEditStatusElement(), message, type);
 }
 
 function setWikiSyncResolveStatus(message = "", type = "") {
-	const statusElement = getWikiSyncResolveStatusElement();
-	if (!statusElement) {
-		return;
-	}
-
-	statusElement.textContent = message;
-	if (type) {
-		statusElement.dataset.status = type;
-	} else {
-		delete statusElement.dataset.status;
-	}
+	setDialogStatus(getWikiSyncResolveStatusElement(), message, type);
 }
 
 function setPathEditStatus(message = "", type = "") {
-	const statusElement = getPathEditStatusElement();
-	if (!statusElement) {
-		return;
-	}
-
-	statusElement.textContent = message;
-	if (type) {
-		statusElement.dataset.status = type;
-	} else {
-		delete statusElement.dataset.status;
-	}
+	setDialogStatus(getPathEditStatusElement(), message, type);
 }
 
 function setPowerlineEditStatus(message = "", type = "") {
-	const statusElement = getPowerlineEditStatusElement();
-	if (!statusElement) {
-		return;
-	}
-
-	statusElement.textContent = message;
-	if (type) {
-		statusElement.dataset.status = type;
-	} else {
-		delete statusElement.dataset.status;
-	}
+	setDialogStatus(getPowerlineEditStatusElement(), message, type);
 }
 
 function setLabelEditStatus(message = "", type = "") {
-	const statusElement = getLabelEditStatusElement();
-	if (!statusElement) {
-		return;
-	}
-
-	statusElement.textContent = message;
-	if (type) {
-		statusElement.dataset.status = type;
-	} else {
-		delete statusElement.dataset.status;
-	}
+	setDialogStatus(getLabelEditStatusElement(), message, type);
 }
 
 function setRegionEditStatus(message = "", type = "") {
-	const statusElement = getRegionEditStatusElement();
-	if (!statusElement) return;
-	statusElement.textContent = message;
-	if (type) statusElement.dataset.status = type;
-	else delete statusElement.dataset.status;
+	setDialogStatus(getRegionEditStatusElement(), message, type);
 }
 
 function setLocationReportSubmitPending(isPending) {
