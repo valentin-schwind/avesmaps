@@ -1406,18 +1406,29 @@
 		const TRANSFER_PENALTY = 100;
 
 		function calculateRoute(startName, endName, useShortestPath = true) {
-			if (!graphData?.[startName] || !graphData?.[endName]) {
+			const minimizeTransfers = $("#minimizeTransfers").is(":checked");
+			return calculateRouteCore(
+				graphData,
+				startName,
+				endName,
+				useShortestPath,
+				minimizeTransfers,
+				TRANSFER_PENALTY,
+				getTransportOption
+			);
+		}
+
+		function calculateRouteCore(graph, startName, endName, useShortestPath, minimizeTransfers, transferPenalty, resolveTransportOption) {
+			if (!graph?.[startName] || !graph?.[endName]) {
 				return [];
 			}
-
-			const minimizeTransfers = $("#minimizeTransfers").is(":checked");
 
 			const distances = {};
 			const previousNodes = {};
 			const previousTransport = {};
 			const connectionUsed = {};
 
-			Object.keys(graphData).forEach(n => distances[n] = Infinity);
+			Object.keys(graph).forEach(n => distances[n] = Infinity);
 
 			distances[startName] = 0;
 
@@ -1433,11 +1444,11 @@
 
 				if (priority > distances[currentNode]) continue;
 
-				for (const [neighbor, connections] of Object.entries(graphData[currentNode])) {
+				for (const [neighbor, connections] of Object.entries(graph[currentNode])) {
 
 					for (const conn of connections) {
 
-						const transport = conn.transportOption || getTransportOption(conn.routeType);
+						const transport = conn.transportOption || resolveTransportOption(conn.routeType);
 						if (!transport) {
 							continue;
 						}
@@ -1445,7 +1456,7 @@
 						let weight = useShortestPath ? conn.distance : conn.time;
 
 						if (minimizeTransfers && currentTransport && transport !== currentTransport)
-							weight += TRANSFER_PENALTY;
+							weight += transferPenalty;
 
 						const alt = distances[currentNode] + weight;
 
