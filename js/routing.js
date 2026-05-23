@@ -1278,6 +1278,31 @@ function collectAndValidateSelectedLocations() {
 	});
 }
 
+function buildRouteResultFromSelectedLocations(useShortest) {
+	let routeNodeNames = [],
+		segments = [];
+	for (let i = 0; i < selectedLocations.length - 1; i++) {
+		const start = selectedLocations[i].name,
+			end = selectedLocations[i + 1].name,
+			route = calculateRoute(start, end, useShortest);
+		console.log("Berechnete Route:", route);
+		if (route.length) {
+			if (!routeNodeNames.length) {
+				routeNodeNames.push(route[0].from);
+			}
+			route.forEach((routeStep) => {
+				routeNodeNames.push(routeStep.to);
+			});
+			segments = [...segments, ...getRouteSegments(route)];
+		} else {
+			alert(`Keine Route zwischen ${start} und ${end} gefunden.`);
+			return null;
+		}
+	}
+
+	return { routeNodeNames, segments };
+}
+
 /******************************************************************
  * Aktualisiert Kartenansicht und berechnet die Route
  ******************************************************************/
@@ -1306,26 +1331,11 @@ function updateMapView() {
 	if (invalidLocationInputs.length) alert(`Orte nicht gefunden: ${invalidLocationInputs.join(", ")}`);
 
 	if (selectedLocations.length >= 2) {
-		let routeNodeNames = [],
-			segments = [];
-		for (let i = 0; i < selectedLocations.length - 1; i++) {
-			const start = selectedLocations[i].name,
-				end = selectedLocations[i + 1].name,
-				route = calculateRoute(start, end, useShortest);
-			console.log("Berechnete Route:", route);
-			if (route.length) {
-				if (!routeNodeNames.length) {
-					routeNodeNames.push(route[0].from);
-				}
-				route.forEach((routeStep) => {
-					routeNodeNames.push(routeStep.to);
-				});
-				segments = [...segments, ...getRouteSegments(route)];
-			} else {
-				alert(`Keine Route zwischen ${start} und ${end} gefunden.`);
-				return;
-			}
+		const routeResult = buildRouteResultFromSelectedLocations(useShortest);
+		if (!routeResult) {
+			return;
 		}
+		let { routeNodeNames, segments } = routeResult;
 		console.log("Komplette Route (Knoten):", routeNodeNames);
 		console.log("Routensegmente:", segments);
 		if (segments.length) {
