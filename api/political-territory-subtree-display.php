@@ -328,11 +328,16 @@ function avesmapsPoliticalSubtreeDisplayBuildColorInheritanceUpdates(array $chil
     $updatesByPublicId = [];
     $visitedIds = [];
     $stack = [];
+    $rootChildren = $childrenByParentId[$rootId] ?? [];
+    $rootChildCount = count($rootChildren);
 
-    foreach ($childrenByParentId[$rootId] ?? [] as $childRow) {
+    foreach ($rootChildren as $childIndex => $childRow) {
         $stack[] = [
             'row' => $childRow,
             'parent_color' => $rootColor,
+            'depth' => 1,
+            'sibling_index' => $childIndex,
+            'sibling_count' => $rootChildCount,
         ];
     }
 
@@ -345,16 +350,26 @@ function avesmapsPoliticalSubtreeDisplayBuildColorInheritanceUpdates(array $chil
         }
         $visitedIds[$rowId] = true;
 
-        $childColor = avesmapsPoliticalSubtreeDisplayCreateHueVariant((string) ($current['parent_color'] ?? '#888888'));
+        $childColor = avesmapsPoliticalSubtreeDisplayCreateHueVariant(
+            (string) ($current['parent_color'] ?? '#888888'),
+            (int) ($current['depth'] ?? 1),
+            (int) ($current['sibling_index'] ?? 0),
+            (int) ($current['sibling_count'] ?? 1)
+        );
         $publicId = trim((string) ($row['public_id'] ?? ''));
         if ($publicId !== '') {
             $updatesByPublicId[$publicId] = $childColor;
         }
 
-        foreach ($childrenByParentId[$rowId] ?? [] as $childRow) {
+        $children = $childrenByParentId[$rowId] ?? [];
+        $childCount = count($children);
+        foreach ($children as $childIndex => $childRow) {
             $stack[] = [
                 'row' => $childRow,
                 'parent_color' => $childColor,
+                'depth' => ((int) ($current['depth'] ?? 1)) + 1,
+                'sibling_index' => $childIndex,
+                'sibling_count' => $childCount,
             ];
         }
     }
@@ -552,14 +567,36 @@ function avesmapsPoliticalSubtreeDisplayApplyLocalAssignmentDisplayOverrides(PDO
     return [$localGeometryChanged, $localDisplayChanged];
 }
 
-function avesmapsPoliticalSubtreeDisplayCreateHueVariant(string $parentColor): string {
+function avesmapsPoliticalSubtreeDisplayCreateHueVariant(
+    string $parentColor,
+    int $depth = 1,
+    int $siblingIndex = 0,
+    int $siblingCount = 1
+): string {
     $rgb = avesmapsPoliticalSubtreeDisplayParseHexColorToRgb($parentColor);
     if ($rgb === null) {
         return '#888888';
     }
 
     $hsv = avesmapsPoliticalSubtreeDisplayRgbToHsv($rgb['red'], $rgb['green'], $rgb['blue']);
-    $hueOffset = avesmapsPoliticalSubtreeDisplayRandomSignedHueOffsetDegrees(10, 20);
+    $depthLevel = max(1, $depth);
+    $safeSiblingCount = max(1, $siblingCount);
+    $safeSiblingIndex = max(0, min($safeSiblingCount - 1, $siblingIndex));
+
+    $depthFactor = 1.0 / (1.0 + (($depthLevel - 1) * 0.45));
+    $baseSpan = 14.0 * $depthFactor;
+    $densityBoost = min(12.0, max(0, $safeSiblingCount - 1) * 0.55);
+    $hueSpan = min(24.0, $baseSpan + ($densityBoost * $depthFactor));
+
+    $centeredOffset = 0.0;
+    if ($safeSiblingCount > 1) {
+        $position = $safeSiblingIndex / ($safeSiblingCount - 1);
+        $centeredOffset = (($position * 2.0) - 1.0) * $hueSpan;
+    }
+
+    $jitterLimit = max(0.75, min(2.5, $hueSpan * 0.18));
+    $jitter = ((lcg_value() * 2.0) - 1.0) * $jitterLimit;
+    $hueOffset = $centeredOffset + $jitter;
     $newHue = fmod($hsv['hue'] + $hueOffset + 360.0, 360.0);
 
     return avesmapsPoliticalSubtreeDisplayHsvToHex($newHue, $hsv['saturation'], $hsv['value']);
@@ -640,12 +677,6 @@ function avesmapsPoliticalSubtreeDisplayHsvToHex(float $hue, float $saturation, 
     $blue = (int) round(($b + $match) * 255.0);
 
     return sprintf('#%02x%02x%02x', max(0, min(255, $red)), max(0, min(255, $green)), max(0, min(255, $blue)));
-}
-
-function avesmapsPoliticalSubtreeDisplayRandomSignedHueOffsetDegrees(float $min256, float $max256): float {
-    $magnitude256 = $min256 + (lcg_value() * ($max256 - $min256));
-    $degrees = ($magnitude256 / 256.0) * 360.0;
-    return random_int(0, 1) === 0 ? -$degrees : $degrees;
 }
 
 function avesmapsPoliticalSubtreeDisplayReadUpdates(mixed $rawUpdates): array {
