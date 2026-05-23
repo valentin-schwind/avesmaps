@@ -18,9 +18,9 @@
 		}
 
 		/*
-			Vorgeschlagenes DB-Schema fÃ¼r die spÃ¤tere Speicher-API.
-			Strategie: Beim Speichern wird die vollstÃ¤ndige Breadcrumb-Darstellungskette
-			fÃ¼r ein zugewiesenes Herrschaftsgebiet ersetzt.
+			Vorgeschlagenes DB-Schema für die spätere Speicher-API.
+			Strategie: Beim Speichern wird die vollständige Breadcrumb-Darstellungskette
+			für ein zugewiesenes Herrschaftsgebiet ersetzt.
 
 			CREATE TABLE political_territory_geometry_assignment (
 				id INT AUTO_INCREMENT PRIMARY KEY,
@@ -289,7 +289,7 @@
 		}
 
 		async function loadData() {
-			setStatus("LÃ¤dt");
+			setStatus("Lädt");
 			if (els.reloadButton) {
 				els.reloadButton.disabled = true;
 			}
@@ -405,7 +405,7 @@
 			const payload = await response.json();
 
 			if (response.status === 400 || response.status === 404) {
-				setFormStatus(payload.error || "Noch keine gespeicherten Eigenschaften fÃ¼r diese Geometrie vorhanden.", "pending");
+				setFormStatus(payload.error || "Noch keine gespeicherten Eigenschaften für diese Geometrie vorhanden.", "pending");
 				notifyAssignmentLoaded(payload);
 				return;
 			}
@@ -538,7 +538,7 @@
 				}
 			}
 
-			return ["ungeklÃ¤rt"];
+			return ["ungeklärt"];
 		}
 
 		function normalizeAffiliationPathCandidate(pathCandidate) {
@@ -1158,7 +1158,7 @@
 
 			const handle = document.createElement("span");
 			handle.className = "drag-handle";
-			handle.textContent = "â ¿";
+			handle.textContent = "⠿";
 			item.appendChild(handle);
 
 			const name = document.createElement("span");
@@ -1208,14 +1208,14 @@
 			if (status.kind === "own-only") {
 				return {
 					kind: "own-only",
-					label: "Gebiet ist auf der Karte vorhanden, Untergebiete fehlen oder sind nicht vollstÃ¤ndig"
+					label: "Gebiet ist auf der Karte vorhanden, Untergebiete fehlen oder sind nicht vollständig"
 				};
 			}
 
 			if (status.kind === "children-only") {
 				return {
 					kind: "children-only",
-					label: "Gebiet ist indirekt durch Untergebiete auf der Karte vorhanden, Untergebiete fehlen oder sind nicht vollstÃ¤ndig"
+					label: "Gebiet ist indirekt durch Untergebiete auf der Karte vorhanden, Untergebiete fehlen oder sind nicht vollständig"
 				};
 			}
 
@@ -1346,7 +1346,7 @@
 
 			const handle = document.createElement("span");
 			handle.className = "drag-handle";
-			handle.textContent = "â ¿";
+			handle.textContent = "⠿";
 
 			card.appendChild(text);
 			card.appendChild(handle);
@@ -1402,7 +1402,7 @@
 				if (i < path.length - 1) {
 					const separator = document.createElement("span");
 					separator.className = "separator";
-					separator.textContent = "â€º";
+					separator.textContent = "›";
 					els.breadcrumb.appendChild(separator);
 				}
 			}
@@ -1591,7 +1591,7 @@
 				if (i < path.length - 1) {
 					const separator = document.createElement("span");
 					separator.className = "separator";
-					separator.textContent = "â€º";
+					separator.textContent = "›";
 					els.manualEditPath.appendChild(separator);
 				}
 			}
@@ -1876,7 +1876,7 @@
 			const values = node.row ? getInfoRows(node.row) : [
 				["Name", node.label],
 				["Knotenart", "Abgeleiteter Gruppenknoten"],
-				["Hinweis", "FÃ¼r diesen Knoten wurde kein eigener Wiki-/SQL-Datensatz in der aktuellen Ergebnismenge gefunden."],
+				["Hinweis", "Für diesen Knoten wurde kein eigener Wiki-/SQL-Datensatz in der aktuellen Ergebnismenge gefunden."],
 				["Hierarchie", getNodePath(node).map(pathNode => pathNode.label).join(" > ")]
 			];
 
@@ -1952,18 +1952,18 @@
 		function getInfoRows(row) {
 			return [
 				["Typ", row.type],
-				["ZugehÃ¶rigkeit-Pfad", row.affiliation_path],
+				["Zugehörigkeit-Pfad", row.affiliation_path],
 				["Herrschaftsform", row.form_of_government],
 				["Hauptstadt", row.capital_name],
 				["Herrschaftssitz", row.seat_name],
 				["Oberhaupt", row.ruler],
 				["Sprache", row.language],
-				["WÃ¤hrung", row.currency],
+				["Währung", row.currency],
 				["Handelswaren", row.trade_goods],
 				["Einwohnerzahl", row.population],
-				["GrÃ¼ndungsdatum", row.founded_text],
-				["GrÃ¼nder", row.founder],
-				["AufgelÃ¶st", row.dissolved_text],
+				["Gründungsdatum", row.founded_text],
+				["Gründer", row.founder],
+				["Aufgelöst", row.dissolved_text],
 				["Geographisch", row.geographic],
 				["Politisch", row.political],
 				["Handelszone", row.trade_zone],
@@ -1979,7 +1979,7 @@
 			els.breadcrumb.innerHTML = "";
 			renderManualEditPath(null);
 			populateManualFieldsFromNode(null);
-			els.detailInfo.textContent = "Noch kein Gebiet ausgewÃ¤hlt.";
+			els.detailInfo.textContent = "Noch kein Gebiet ausgewählt.";
 			els.infoBox.innerHTML = error
 				? `<p class="error">${escapeHtml(error)}</p>`
 				: "<p class=\"note\">Ziehen Sie ein Herrschaftsgebiet in die Drop-Zone, um die Wiki-Daten anzuzeigen.</p>";
@@ -2167,7 +2167,7 @@
 				.toLowerCase()
 				.normalize("NFD")
 				.replace(/[\u0300-\u036f]/g, "")
-				.replace(/ÃŸ/g, "ss")
+				.replace(/ß/g, "ss")
 				.replace(/[^a-z0-9]+/g, "-")
 				.replace(/^-+|-+$/g, "");
 		}
@@ -2540,7 +2540,7 @@
 			const geometryPublicId = normalizeText(params.get("geometry_public_id") || "");
 
 			if (!geometryPublicId) {
-				setFormStatus("Die Geometrie-ID fehlt. Ã–ffnen Sie den Editor Ã¼ber Rechtsklick auf ein Herrschaftsgebiet.", "error");
+				setFormStatus("Die Geometrie-ID fehlt. Öffnen Sie den Editor über Rechtsklick auf ein Herrschaftsgebiet.", "error");
 				return;
 			}
 
@@ -2600,7 +2600,7 @@
 			const geometryPublicId = normalizeText(params.get("geometry_public_id") || "");
 
 			if (!geometryPublicId) {
-				throw new Error("Die Geometrie-ID fehlt. Ã–ffnen Sie den Editor Ã¼ber Rechtsklick auf ein Herrschaftsgebiet.");
+				throw new Error("Die Geometrie-ID fehlt. Öffnen Sie den Editor über Rechtsklick auf ein Herrschaftsgebiet.");
 			}
 
 			const assignedPath = Array.isArray(value.assignedPath) ? value.assignedPath : [];
@@ -2836,3 +2836,4 @@
 			normalizeRow: row => normalizeApiRows([row])[0] || null,
 			buildTree: buildTerritoryTree
 		};
+
