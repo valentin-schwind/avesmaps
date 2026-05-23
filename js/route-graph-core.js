@@ -12,6 +12,11 @@ function getLocationDistance(firstLocation, secondLocation) {
 	return calculateCoordinateDistance([firstLat, firstLng], [secondLat, secondLng]);
 }
 
+function addGraphConnection(graph, fromName, toName, connection) {
+	graph[fromName][toName] = graph[fromName][toName] || [];
+	graph[fromName][toName].push(connection);
+}
+
 function findNearestComponentConnection(component, connectedNodeNames, locationLookup) {
 	let nearestConnection = null;
 

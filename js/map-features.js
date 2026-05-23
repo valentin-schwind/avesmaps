@@ -1576,11 +1576,6 @@ const normalizeNodeName = (name) => {
 	return name || "";
 };
 
-function addGraphConnection(graph, fromName, toName, connection) {
-	graph[fromName][toName] = graph[fromName][toName] || [];
-	graph[fromName][toName].push(connection);
-}
-
 function getLocationAtPathEndpoint([x, y]) {
 	return locationData.find(({ coordinates: [lat, lng] }) => Math.abs(lat - y) < THRESHOLD && Math.abs(lng - x) < THRESHOLD) || null;
 }
