@@ -124,6 +124,38 @@ function isEligiblePowerlineEndpoint(endpoint) {
 	return Boolean(endpoint) && (Boolean(endpoint.isNodix) || endpoint.locationType === CROSSING_LOCATION_TYPE);
 }
 
+function pathCreationActionButtonsMarkup(publicId) {
+	if (pendingPathCreationStart) {
+		return [
+			popupActionButtonMarkup({
+				label: "Ort verbinden und Straße weiterführen",
+				className: "location-popup__action-button--accent",
+				attributes: {
+					"data-popup-action": "continue-path-at-location",
+					"data-public-id": publicId,
+				},
+			}),
+			popupActionButtonMarkup({
+				label: "Weg abschliessen",
+				attributes: {
+					"data-popup-action": "finish-path-at-location",
+					"data-public-id": publicId,
+				},
+			}),
+		];
+	}
+
+	return [
+		popupActionButtonMarkup({
+			label: "Neuer Weg",
+			attributes: {
+				"data-popup-action": "start-path-from-location",
+				"data-public-id": publicId,
+			},
+		}),
+	];
+}
+
 function locationActionsMarkup(name, publicId, location = null) {
 	const actionButtons = [
 		popupActionButtonMarkup({
@@ -137,35 +169,7 @@ function locationActionsMarkup(name, publicId, location = null) {
 	];
 
 	if (IS_EDIT_MODE && publicId) {
-		if (pendingPathCreationStart) {
-			actionButtons.push(
-				popupActionButtonMarkup({
-					label: "Ort verbinden und Straße weiterführen",
-					className: "location-popup__action-button--accent",
-					attributes: {
-						"data-popup-action": "continue-path-at-location",
-						"data-public-id": publicId,
-					},
-				}),
-				popupActionButtonMarkup({
-					label: "Weg abschliessen",
-					attributes: {
-						"data-popup-action": "finish-path-at-location",
-						"data-public-id": publicId,
-					},
-				})
-			);
-		} else {
-			actionButtons.push(
-				popupActionButtonMarkup({
-					label: "Neuer Weg",
-					attributes: {
-						"data-popup-action": "start-path-from-location",
-						"data-public-id": publicId,
-					},
-				})
-			);
-		}
+		actionButtons.push(...pathCreationActionButtonsMarkup(publicId));
 		if (isEligiblePowerlineEndpoint(getPowerlineEndpointByPublicId(publicId) || (location ? {
 			publicId,
 			name,
@@ -233,33 +237,7 @@ function crossingActionsMarkup(name, publicId) {
 				"data-public-id": publicId,
 			},
 		}),
-		...(pendingPathCreationStart
-			? [
-				popupActionButtonMarkup({
-					label: "Ort verbinden und Straße weiterführen",
-					className: "location-popup__action-button--accent",
-					attributes: {
-						"data-popup-action": "continue-path-at-location",
-						"data-public-id": publicId,
-					},
-				}),
-				popupActionButtonMarkup({
-					label: "Weg abschliessen",
-					attributes: {
-						"data-popup-action": "finish-path-at-location",
-						"data-public-id": publicId,
-					},
-				}),
-			]
-			: [
-				popupActionButtonMarkup({
-					label: "Neuer Weg",
-					attributes: {
-						"data-popup-action": "start-path-from-location",
-						"data-public-id": publicId,
-					},
-				}),
-			]),
+		...pathCreationActionButtonsMarkup(publicId),
 		popupActionButtonMarkup({
 			label: pendingPowerlineCreationStart ? "Kraftlinie abschliessen" : "Neue Kraftlinie",
 			attributes: {
