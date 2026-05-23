@@ -8,13 +8,15 @@
   - `collectAndValidateSelectedLocations()`
   - `buildRouteResultFromSelectedLocations(useShortest)`
 - `js/popups.js` bleibt stabil mit lokalem Helper `pathCreationActionButtonsMarkup(publicId)`.
-- Dialog-Review-Split ist jetzt in drei stabile Schichten getrennt, mit klassischer Script-Reihenfolge in `index.html`:
+- Dialog-Review-Split ist jetzt in vier stabile Schichten getrennt, mit klassischer Script-Reihenfolge in `index.html`:
   1. `js/dialogs-review-status.js`
   2. `js/dialogs-review-pending.js`
-  3. `js/dialogs-review.js`
+  3. `js/dialogs-review-paths.js`
+  4. `js/dialogs-review.js`
 - `js/dialogs-review-status.js` ist stabiler Status-Cluster-Split (`dataset.status` + `dataset.state` Wrapper/Helper).
 - `js/dialogs-review-pending.js` ist stabiler Pending-Cluster-Split (`setFormFieldsDisabled(...)` + fuenf `set...SubmitPending`-Wrapper).
-- `js/dialogs-review.js` bleibt stabil als Rest-Orchestrator fuer Dialog-/Review-/Wiki-Sync-/Region-Flows (DOM-Getter, Dialogflows, Panels, API-/Submit-/Init-Logik).
+- `js/dialogs-review-paths.js` ist stabiler Path-/Powerline-Edit-Cluster-Split (Form-Population, Dialog-Open, Payload-Building, Transportoptionen, Autoname-Sync).
+- `js/dialogs-review.js` bleibt stabil als Rest-Orchestrator fuer DOM-Getter, Location-/Label-/Region-/Wiki-Sync-/Review-Flows sowie Submit-/API-/Init-Logik.
 - `js/ui-controls.js` bleibt stabil mit lokalem Helper `bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName)` fuer Review-/Wiki-Sync-Tab-Persistierung.
 
 ## 2. Recent Safe Extracts / Splits
@@ -28,12 +30,9 @@
 - `bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName)`
 - Erster kontrollierter Datei-Split: Status-Cluster aus `js/dialogs-review.js` nach `js/dialogs-review-status.js` ausgelagert.
 - Zweiter kontrollierter Datei-Split: Pending-Cluster aus `js/dialogs-review.js` nach `js/dialogs-review-pending.js` ausgelagert.
-- Dabei wurden `setFormFieldsDisabled(formElement, isPending)` und die fuenf Pending-Wrapper ausgelagert:
-  - `setLocationReportSubmitPending`
-  - `setLocationEditSubmitPending`
-  - `setWikiSyncResolveSubmitPending`
-  - `setPathEditSubmitPending`
-  - `setPowerlineEditSubmitPending`
+- Dabei wurden `setFormFieldsDisabled(formElement, isPending)` und die fuenf Pending-Wrapper ausgelagert.
+- Dritter kontrollierter Datei-Split: Path-/Powerline-Edit-Cluster aus `js/dialogs-review.js` nach `js/dialogs-review-paths.js` ausgelagert.
+- Dabei wurden die 14 Path-/Powerline-Funktionen ausgelagert (Form-Population, Dialog-Open, Payload-Building, Transportoptionen, Autoname-Sync).
 
 ## 3. Areas To Leave Stable For Now
 
@@ -46,6 +45,8 @@
 - Dialog-Bereich:
   - `js/dialogs-review-status.js` stabil lassen.
   - `js/dialogs-review-pending.js` stabil lassen.
+  - `js/dialogs-review-paths.js` vorerst stabil lassen.
+  - Path-/Powerline-Cluster nicht direkt weiter veraendern.
   - `js/dialogs-review.js` nicht weiter zerschneiden ohne neue, klare Split-Analyse mit engem Scope.
 - UI-Controls:
   - `js/ui-controls.js` insgesamt vorerst stabil lassen, insbesondere den Transport-Menu-/Combobox-Bereich.
@@ -58,7 +59,8 @@
 - Moegliche spaetere Parameterisierung von `createGraph`/Transportlogik.
 - Moegliche spaetere Entkopplung von `getSyntheticRouteConfig`.
 - Dialogs-Review (nur Analysebereiche, keine direkten Code-Schritte):
-  - Location/Path/Powerline-Dialogcluster
+  - Location-Dialogcluster
+  - Label-Dialogcluster
   - Review/Change/Presence-Panels
   - Wiki-Sync-Cluster
   - Region/Territory-Cluster
@@ -67,7 +69,15 @@
 
 - Produktiv auf [avesmaps.de](https://avesmaps.de/) wurde Routing/Dragging/Rerouting als funktionsfaehig bestaetigt.
 - Nach dem Status-Split (`js/dialogs-review-status.js`) wurde keine sichtbare Verhaltensaenderung bemerkt.
-- Nach dem Pending-Split (`js/dialogs-review-pending.js`) sind keine unmittelbaren Regressionen bekannt; ein manueller Pending-Smoke bleibt empfohlen/offen, falls noch nicht vollstaendig durchgefuehrt.
+- Nach dem Pending-Split (`js/dialogs-review-pending.js`) sind keine unmittelbaren Regressionen bekannt.
+- Nach dem Path-/Powerline-Split (`js/dialogs-review-paths.js`) ist ein manueller Path-/Powerline-Smoke empfohlen/offen, falls noch nicht vollstaendig durchgefuehrt.
+- Wichtige Path-/Powerline-Smoke-Faelle:
+  - Weg bearbeiten oeffnen
+  - Wegtyp/Transportoptionen pruefen
+  - Autoname an/aus pruefen
+  - Weg speichern
+  - Kraftlinie bearbeiten und speichern
+  - keine neuen Konsolenfehler/ReferenceErrors
 - Fuer den Popups-Extract waren Popup/Editmode-Smokes empfohlen (Path-Actions + Powerline-Aktionen).
 - Fuer den UI-Controls-Extract waren Review-Tab-/Wiki-Sync-Tab-Smokes empfohlen (URL + LocalStorage + Reload).
 - Fuer jeden spaeteren Split ist ein eigener, gezielter Smoke-Zyklus erforderlich.
@@ -87,8 +97,6 @@
 ## 7. Next Recommended Step
 
 - Kein sofortiger weiterer Code-Split.
-- Zuerst Pending-Smoke abschliessen bzw. bestaetigen.
-- Danach entweder:
-  - A. Stopppunkt dokumentieren und Refactoring an dieser Stelle pausieren
-  - B. nur eine Split-Analyse fuer den naechsten Dialog-Subcluster erstellen (ohne Code)
-- Explizit: kein direktes Verschieben von Wiki-Sync, Region oder Init/Event-Binding.
+- Zuerst Path-/Powerline-Smoke abschliessen bzw. bestaetigen.
+- Danach nur Analyse des naechsten Dialog-Subclusters (ohne Code).
+- Explizit: nicht direkt Wiki-Sync, Region oder Init/Event-Binding verschieben.
