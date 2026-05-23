@@ -34,6 +34,21 @@
 		return displays.find(display => normalizeText(display?.territoryPublicId || display?.territory_public_id || "") === territoryPublicId) || null;
 	}
 
+	function getPathTerritoryPublicId(value, index) {
+		const assignedPath = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
+		const editedPath = Array.isArray(value?.editedPath) ? value.editedPath : [];
+		const displays = Array.isArray(value?.displays) ? value.displays : [];
+		return normalizeText(
+			assignedPath[index]?.territoryPublicId
+			|| assignedPath[index]?.territory_public_id
+			|| editedPath[index]?.territoryPublicId
+			|| editedPath[index]?.territory_public_id
+			|| displays[index]?.territoryPublicId
+			|| displays[index]?.territory_public_id
+			|| ""
+		);
+	}
+
 	function getSelectedColor(rootTerritoryPublicId = "") {
 		const value = readAssignmentValue();
 		const activeDisplayNodePublicId = normalizeText(value?.activeDisplayNode?.territoryPublicId || "");
@@ -68,10 +83,9 @@
 
 	function getRootTerritoryPublicId() {
 		const value = readAssignmentValue();
-		const assignedPath = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
 
-		if (activeBreadcrumbIndex >= 0 && assignedPath[activeBreadcrumbIndex]) {
-			const publicId = normalizeText(assignedPath[activeBreadcrumbIndex]?.territoryPublicId || "");
+		if (activeBreadcrumbIndex >= 0) {
+			const publicId = getPathTerritoryPublicId(value, activeBreadcrumbIndex);
 			if (publicId) {
 				activeBreadcrumbTerritoryPublicId = publicId;
 				return publicId;
@@ -82,9 +96,14 @@
 			return activeBreadcrumbTerritoryPublicId;
 		}
 
+		const displays = Array.isArray(value?.displays) ? value.displays : [];
 		return normalizeText(
 			value?.activeDisplayNode?.territoryPublicId
+			|| value?.activeDisplayNode?.territory_public_id
 			|| value?.display?.territoryPublicId
+			|| value?.display?.territory_public_id
+			|| displays.find(display => normalizeText(display?.territoryPublicId || display?.territory_public_id || ""))?.territoryPublicId
+			|| displays.find(display => normalizeText(display?.territoryPublicId || display?.territory_public_id || ""))?.territory_public_id
 			|| ""
 		);
 	}
@@ -101,9 +120,7 @@
 			return;
 		}
 
-		const value = readAssignmentValue();
-		const assignedPath = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
-		const publicId = normalizeText(assignedPath[index]?.territoryPublicId || "");
+		const publicId = getPathTerritoryPublicId(readAssignmentValue(), index);
 		if (!publicId) {
 			return;
 		}
