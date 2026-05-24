@@ -31,4 +31,7 @@ Smoke-Plan:
 4. Pending-Operation abbrechen/abschliessen pruefen.
 5. Reload und Konsole erneut pruefen.
 
-Browser-Smoke: ausstehend.
+Smoke-Ergebnis:
+Region-Boolean-Geometry-Smoke bestanden: Union, Difference und Intersection funktionieren; Browser-Test ohne Auffaelligkeiten.
+
+Browser-Smoke: bestanden.
