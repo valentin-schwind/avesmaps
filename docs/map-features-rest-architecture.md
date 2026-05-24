@@ -329,6 +329,7 @@ Die Region Rendering-Helfer (`prepareRegionData`, `prepareLegacyRegionData`, `cl
 Die Region Tooltip Lifecycle-Helfer (`bindRegionCompactTooltip`, `openRegionCompactTooltip`, `closeRegionCompactTooltip`, `getRegionTooltipLatLng`, `focusRegionPlace`) wurden nach `js/map-features-region-tooltip-lifecycle.js` ausgelagert.
 Die Region Boolean Geometry-Helfer (`calculateRegionBooleanGeometry`, `shouldRegionBooleanOperationConsumeTarget`, `getStoredRegionBooleanOperation`, `validateRegionBooleanResult`, `debugRegionBooleanOperation`) wurden nach `js/map-features-region-boolean-geometry.js` ausgelagert.
 Die Region Payload Builder-Helfer (`buildRegionStylePayload`, `buildExtractedRegionCreatePayload`, `buildRegionSplitPayload`, `buildIntersectionCreatePayload`, `buildRegionBooleanOperationPayload`) wurden nach `js/map-features-region-payload-builders.js` ausgelagert.
+Das Political Territory Repository (`politicalTerritoryRepository`) liegt in `js/map-features-political-territory-repository.js` und kapselt direkte `submitPoliticalTerritoryEdit`-Aufrufe ohne Orchestrierung, Toasts, Reloads oder State-Mutationen.
 Die Region Edit Edge Controls-Helfer (`enableRegionEditEdgeControls`, `disableRegionEditEdgeControls`, `handleRegionEditMouseMove`, `handleRegionEditMouseOut`, `handleRegionEditKeyUp`, `handleRegionEditClick`, `updateRegionEditEdgeHoverFromLatLng`, `clearRegionEditEdgeHover`, `renderRegionEditEdgeHighlight`, `renderRegionEditEdgeSubdivisionPreview`, `handleRegionEditEdgeClick`, `findNearestEditedRegionEdge`, `subdivideRegionEditHoveredEdge`) wurden nach `js/map-features-region-edit-edge-controls.js` ausgelagert.
 Die Region Edit Handles-Helfer (`createRegionHandleIcon`, `refreshRegionEditHandles`, `deleteRegionNode`) wurden nach `js/map-features-region-edit-handles.js` ausgelagert.
 Die Region Geometry Edit Lifecycle-Helfer (`clearRegionGeometryEdit`, `startRegionGeometryEdit`) wurden nach `js/map-features-region-geometry-edit-lifecycle.js` ausgelagert.
@@ -447,6 +448,7 @@ Aber erst, wenn klar ist, welche Initialisierung zentral bleiben soll.
 | Region-Tooltip-Lifecycle-Helfer | `js/map-features-region-tooltip-lifecycle.js` | stabiler Teil-Split |
 | Region-Boolean-Geometry-Helfer | `js/map-features-region-boolean-geometry.js` | stabiler Teil-Split |
 | Region-Payload-Builder-Helfer | `js/map-features-region-payload-builders.js` | stabiler Teil-Split |
+| Political-Territory-Repository | `js/map-features-political-territory-repository.js` | stabiler API-Zugriffssplit |
 | Region-Edit-Edge-Controls-Helfer | `js/map-features-region-edit-edge-controls.js` | stabiler Teil-Split |
 | Region-Edit-Handles-Helfer | `js/map-features-region-edit-handles.js` | stabiler Teil-Split |
 | Region-Geometry-Edit-Lifecycle-Helfer | `js/map-features-region-geometry-edit-lifecycle.js` | stabiler Teil-Split |

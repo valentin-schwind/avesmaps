@@ -752,7 +752,7 @@ async function extractRegionGeometryPartAsNewTerritory(regionEntry, selectedLaye
 	const extractedName = `${regionEntry.name || "Herrschaftsgebiet"} (Teilgebiet)`;
 
 	try {
-		await submitPoliticalTerritoryEdit(buildExtractedRegionCreatePayload(regionEntry, extractedName, extractedGeometry));
+		await politicalTerritoryRepository.createExtractedTerritory(regionEntry, extractedName, extractedGeometry);
 
 		await deleteRegionGeometryPart(regionEntry, selectedLayer);
 		void loadPoliticalTerritoryOptions({ force: true });
@@ -947,7 +947,7 @@ async function completePendingRegionSplit(operationState) {
 			.map((entry) => entry.polygon);
 		const sourcePart = [...remainingGeometry, sortedPolygons[0]];
 		const splitPart = sortedPolygons.slice(1);
-		await submitPoliticalTerritoryEdit(buildRegionSplitPayload(operationState, sourcePart, splitPart));
+		await politicalTerritoryRepository.splitGeometry(operationState, sourcePart, splitPart);
 
 		cancelPendingRegionOperation();
 		schedulePoliticalTerritoryLayerReload({ immediate: true });
@@ -1071,18 +1071,17 @@ async function completePendingRegionOperation(targetRegion, targetLayer = null) 
 		const operationGeometryGeoJson = clippingMultiPolygonToGeoJson(clippedGeometry);
 		const geometryGeoJson = clippingMultiPolygonToGeoJson([...remainingSourceGeometry, ...clippedGeometry]);
 		if (operationState.operation === "intersection") {
-			await submitPoliticalTerritoryEdit(buildIntersectionCreatePayload(operationState, targetRegion, operationGeometryGeoJson));
+			await politicalTerritoryRepository.createIntersection(operationState, targetRegion, operationGeometryGeoJson);
 		} else {
 			const remainingTargetGeometry = targetIsConsumed && !isSameGeometry && normalizedTargetLayer
 				? regionEntryToClippingMultiPolygon(targetRegion, { excludeLayers: [normalizedTargetLayer] })
 				: [];
 			const deleteTargetGeometry = targetIsConsumed && !isSameGeometry && remainingTargetGeometry.length < 1;
-			const payload = buildRegionBooleanOperationPayload(operationState, targetRegion, geometryGeoJson, {
+			await politicalTerritoryRepository.runBooleanOperation(operationState, targetRegion, geometryGeoJson, {
 				normalizedTargetLayer,
 				remainingTargetGeometry,
 				deleteTargetGeometry
 			});
-			await submitPoliticalTerritoryEdit(payload);
 		}
 
 		cancelPendingRegionOperation();
@@ -1161,18 +1160,7 @@ async function saveRegionGeometry(regionEntry) {
 }
 
 async function updatePoliticalRegionGeometry(regionEntry, geometryGeoJson) {
-	const result = await submitPoliticalTerritoryEdit({
-		action: "update_geometry",
-		public_id: regionEntry.geometryPublicId || regionEntry.publicId,
-		geometry_public_id: regionEntry.geometryPublicId || regionEntry.publicId,
-		source: "editor",
-		geometry_geojson: geometryGeoJson,
-		style_json: {
-			fill: regionEntry.color,
-			stroke: regionEntry.color,
-			fillOpacity: regionEntry.opacity,
-		},
-	});
+	const result = await politicalTerritoryRepository.updateGeometry(regionEntry, geometryGeoJson);
 	void loadChangeLog();
 	return result;
 }
@@ -1348,11 +1336,7 @@ async function deleteActiveRegion(selectedLayer = null, selectedPolygonIndex = n
 		}
 
 		try {
-			const result = await submitPoliticalTerritoryEdit({
-				action: "delete_geometry",
-				public_id: regionEditEntry.geometryPublicId || regionEditEntry.publicId,
-				geometry_public_id: regionEditEntry.geometryPublicId || regionEditEntry.publicId,
-			});
+			const result = await politicalTerritoryRepository.deleteGeometry(regionEditEntry);
 			removeRegionEntryFromMap(regionEditEntry);
 			if (result.territory_deleted) {
 				removePoliticalTerritoryOption(result.territory_public_id || regionEditEntry.territoryPublicId || "");
@@ -1453,11 +1437,7 @@ async function deleteRegionGeometryPart(regionEntry, selectedLayer) {
 
 	const remainingLayers = layers.filter((layer) => layer !== selectedLayer);
 	if (remainingLayers.length < 1) {
-		const result = await submitPoliticalTerritoryEdit({
-			action: "delete_geometry",
-			public_id: regionEntry.geometryPublicId || regionEntry.publicId,
-			geometry_public_id: regionEntry.geometryPublicId || regionEntry.publicId,
-		});
+		const result = await politicalTerritoryRepository.deleteGeometry(regionEntry);
 		removeRegionEntryFromMap(regionEntry);
 		if (result.territory_deleted) {
 			removePoliticalTerritoryOption(result.territory_public_id || regionEntry.territoryPublicId || "");
