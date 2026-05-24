@@ -57,8 +57,14 @@ Diese Funktionen sind eng mit Location Lifecycle, Popup- und Editflows sowie Per
 4. Popup-Öffnung über `openLocationPopupByName(...)` testen.
 5. Konsole auf Fehler prüfen.
 
-## 6. Status
+## 6. Smoke-Ergebnis
+
+Location-Lookup-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
+
+Geprueft wurden Kartenstart, Ortsfilter/Kreuzungen/Nodix, Suche oder Ortsfokus mit Popup-Oeffnung, Naechsten-Ort-Funktion, Kreuzungs-/Ortsnamenslogik, kurze Route mit vorhandenen Orten, Reload und Browser-Konsole.
+
+## 7. Status
 
 - Split: umgesetzt
 - Logikaenderung: keine
-- Browser-Smoke: steht aus
+- Browser-Smoke: bestanden
