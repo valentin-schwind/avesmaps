@@ -318,6 +318,8 @@ Der enge Political-Timeline-Teilschnitt (`syncPoliticalTimelineVisibility`, `syn
 
 Die Region Info/Tooltip Markup-Helfer (`createRegionCompactTooltipMarkup`, `createRegionMiniTooltipMarkup`, `hasRegionWikiInfo`, `createRegionWikiInfoBoxMarkup`, `createRegionInfoTextRow`, `createRegionInfoBoxRow`, `createRegionInfoPlaceValue`, `createRegionInfoLink`, `createRegionInfoPathValue`, `normalizeRegionInfoUrl`, `normalizeRegionStringList`, `createRegionPlaceTooltipLine`, `normalizeRegionParentheticalSpacing`) wurden nach `js/map-features-region-info-markup.js` ausgelagert.
 
+Die Region Feature Normalization-Helfer (`normalizeRegionFeature`, `getRegionFeatureName`, `getRegionFeatureColor`, `getRegionFeatureOpacity`, `getStyleDeclarationValue`, `normalizeRegionHexColor`, `readOptionalRegionZoom`) wurden nach `js/map-features-region-feature-normalization.js` ausgelagert.
+
 Die Region Overlap Selection-Helfer (`getRegionLayerGeometryPublicId`, `isLatLngInsideRegionRing`, `isLatLngInsideRegionLayer`, `getOverlappingPoliticalRegionLayersAtLatLng`, `resolveOverlappingRegionLayerSelection`, `announceOverlappingRegionSelection`) wurden nach `js/map-features-region-overlap-selection.js` ausgelagert.
 
 Die Region Context Menu DOM/State-Helfer (`getRegionContextMenuElement`, `openRegionContextMenu`, `closeRegionContextMenu`, `positionContextMenuElement`) wurden nach `js/map-features-region-context-menu.js` ausgelagert.
