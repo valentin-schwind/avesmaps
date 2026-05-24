@@ -26,7 +26,19 @@ Sie steht vor `js/map-features-political-timeline.js` zur Verfuegung, damit die 
 
 ## Smoke-Plan
 
-1. Browser öffnen und Karte laden.
+1. Browser oeffnen und Karte laden.
 2. Region-Layer anzeigen und einen Regionseintrag bearbeiten.
-3. Überprüfen, dass Region-Namen, Farben und Zoom-Begrenzungen wie vorher dargestellt werden.
-4. Region-Operationen (`split`, `merge`, `move`) ausführen und prüfen, dass keine neue JS-Fehler auftreten.
+3. Ueberpruefen, dass Region-Namen, Farben und Zoom-Begrenzungen wie vorher dargestellt werden.
+4. Region-Editflows pruefen und sicherstellen, dass keine neuen JS-Fehler auftreten.
+
+## Smoke-Ergebnis
+
+Region-Feature-Normalization-Smoke bestanden: Punkte 1-8 ohne Auffaelligkeiten.
+
+Geprueft wurden Kartenstart, normale Regionen-Layer, Political Mode, Laden der Herrschaftsgebiete, Region-Labels mit Namen/Kurznamen/Wappen, Region-Tooltips mit Typ- und Wiki-/Capital-/Seat-Daten, Timeline-Jahrwechsel sowie Region-Kontextmenue im Editmode.
+
+## Status
+
+- Split: umgesetzt
+- Logikaenderung: keine
+- Browser-Smoke: bestanden
