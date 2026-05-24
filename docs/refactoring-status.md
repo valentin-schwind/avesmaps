@@ -58,6 +58,7 @@
 - `js/map-features-powerlines.js` ist stabiler Split fuer Powerline-Helfer (1:1-Extract ohne Logikaenderung).
 - `js/map-features-layer-state.js` ist stabiler Split fuer URL-/Planner-State-Helfer (1:1-Extract ohne Logikaenderung).
 - `js/map-features-location-name-labels.js` ist stabiler Split fuer Ortsnamenlabel-Helfer (1:1-Extract ohne Logikaenderung).
+- `js/map-features-path-domain.js` ist stabiler Split fuer Path-Domain-/Basis-Helper (1:1-Extract ohne Logikaenderung).
 - `js/map-features-path-labels.js` ist stabiler Split fuer Weg-/Pfad-Textlabel-Helfer (1:1-Extract ohne Logikaenderung).
 - `js/map-features-path-rendering.js` ist stabiler Split fuer Path-Rendering-Core-Helfer (1:1-Extract ohne Logikaenderung).
 - `js/map-features-share-pin.js` ist stabiler Split fuer Share-Pin-/Clipboard-Helfer (1:1-Extract ohne Logikaenderung).
@@ -67,6 +68,7 @@
   - `js/map-features-layer-state.js`
   - `js/map-features-share-pin.js`
   - `js/map-features-location-name-labels.js`
+  - `js/map-features-path-domain.js`
   - `js/map-features-path-labels.js`
   - `js/map-features-path-rendering.js`
   - `js/map-features.js`
@@ -96,11 +98,15 @@
   - `deletePathFeature`
   - `normalizeRoutePathFeature`
   - `syncPathRendering`
-- Domain-/Basis-Helper bleiben weiterhin in `js/map-features.js`:
+- Verschoben wurden im Path-Domain-/Basis-Helper-Split nur:
+  - `normalizePathName`
+  - `normalizePathSubtype`
   - `getPathDisplayName`
   - `getPathPublicId`
-  - `normalizePathSubtype`
-  - `getPathStyleColors`
+  - `getNextPathDisplayName`
+  - `getPathDisplayNameOrGenerated`
+  - `getNextLocalPathId`
+- `getPathStyleColors` bleibt weiterhin in `js/map-features.js`, weil die Funktion Map-/Zoom-/Rendering-Kontext nutzt.
 - URL-/Planner-State-Funktionen bleiben weiterhin in `js/map-features-layer-state.js`, insbesondere:
   - `formatSharePinQueryValue`
   - `syncPlannerStateToUrl`
@@ -156,6 +162,7 @@
 - Sechsundzwanzigster kontrollierter Datei-Split: Weg-/Pfad-Textlabel-Cluster aus `js/map-features.js` nach `js/map-features-path-labels.js` (Commit `ab77d2dea65dc3fa9fa9b9ee7102ce0ab805c8f5`, 1:1-Extract ohne Logikaenderung).
 - Siebenundzwanzigster kontrollierter Datei-Split: Path-Rendering-Core-Cluster aus `js/map-features.js` nach `js/map-features-path-rendering.js` (Commit `847dcfa3562522f61abad4d578b7353e9bfca491`, 1:1-Extract ohne Logikaenderung).
 - Achtundzwanzigster kontrollierter Datei-Split: Share-Pin-/Clipboard-Cluster aus `js/map-features.js` nach `js/map-features-share-pin.js` (Commit `f8cb8c19f2be538dd0bbd299dfef53fe086a608d`, 1:1-Extract ohne Logikaenderung).
+- Neunundzwanzigster kontrollierter Datei-Split: Path-Domain-/Basis-Helper-Cluster aus `js/map-features.js` nach `js/map-features-path-domain.js` (Commit `656a4586bdf866cba91cfad57f1dbc609a61a0cc`, 1:1-Extract ohne Logikaenderung).
 - Abhaengigkeitsrichtung ist jetzt sauberer: Core vor Status/Pending/Feature/Panel/WikiSync-Dateien, Rest-Orchestrator zuletzt.
 
 ## 3. Areas To Leave Stable For Now
@@ -192,6 +199,7 @@
 - Kein weiterer Ortsnamenlabel-/Kollisions-Split rund um `js/map-features-location-name-labels.js`/`js/map-features.js` ohne neue Boundary-Analyse.
 - Kein weiterer Path-/Path-Textlabel-Split rund um `js/map-features-path-labels.js`/`js/map-features.js` ohne neue Boundary-Analyse.
 - Kein weiterer Path-Rendering-/Lifecycle-Split rund um `js/map-features-path-rendering.js`/`js/map-features.js` ohne neue Boundary-Analyse.
+- Kein weiterer Path-Domain-/Path-Lifecycle-Split rund um `js/map-features-path-domain.js`/`js/map-features.js` ohne neue Boundary-Analyse.
 - Kein weiterer Share-Pin-/URL-State-Split rund um `js/map-features-share-pin.js`/`js/map-features-layer-state.js`/`js/map-features.js` ohne neue Boundary-Analyse.
 
 ## 4. Planned But Not Yet Implemented
@@ -329,6 +337,7 @@
 - Path-/Pfad-Textlabel-Split-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-11 durchgefuehrt, keine Browser-Konsolenmeldungen).
 - Path-Rendering-Core-Split-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-13 durchgefuehrt, keine Browser-Konsolenmeldungen).
 - Share-Pin-Smoke nach Split durch Betreiber als bestanden/gut gemeldet; keine offenen Fehler gemeldet.
+- Path-Domain-/Basis-Helper-Split-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-10 durchgefuehrt, keine Browser-Konsolenmeldungen).
 - Animation war dabei nicht sichtbar, weil sie bewusst deaktiviert ist; das wurde als erwartetes Verhalten bewertet.
 - Core-Smoke empfohlen/offen, falls noch nicht gemeldet (`modal-dialog-open`, Dialoge oeffnen/schliessen).
 - Fuer jeden spaeteren Split ist ein eigener, gezielter Smoke-Zyklus erforderlich.
