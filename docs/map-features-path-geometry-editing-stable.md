@@ -73,8 +73,12 @@ Nach diesem Split sollte manuell geprueft werden:
 13. Route nach Geometrieaenderung kurz berechnen.
 14. Reload ohne Fehler.
 
+## Smoke-Ergebnis
+
+Betreiber-Smoke bestanden: Punkte 1-13 ohne Auffaelligkeiten.
+
 ## Entscheidung
 
-Der Path-Geometry-Editing-Split ist als stabile Boundary markiert und soll vorerst nicht weiter aufgeteilt werden.
+Der Path-Geometry-Editing-Split ist stabil abgeschlossen und soll vorerst nicht weiter aufgeteilt werden.
 
 Ein direkter weiterer `map-features.js`-Split wird nicht automatisch empfohlen; zuerst Restarchitektur neu bewerten oder Path-Lifecycle/CRUD als eigene Boundary analysieren.
