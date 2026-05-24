@@ -25,6 +25,12 @@ Dokumentiert den engen 1:1-Extract von `syncRegionVisibility` aus `js/map-featur
 4. Region-Editmode kurz antesten und Mode-Wechsel pruefen.
 5. Reload und Konsole erneut pruefen.
 
+## Smoke-Ergebnis
+
+Region-Visibility-Smoke bestanden: Punkte 1-11 ohne Auffaelligkeiten.
+
+Geprueft wurden Seite/Konsole, Political-Layer-Mode, Region-Polygone, Region-Labels, mehrere Zoomstufen, Political-Timeline, Rueckwechsel in einen nicht-politischen Modus, Region-/Timeline-Ausblendung, Region-Kontextmenue oder Region-Edit im Editmode, erneuter Mode-Wechsel sowie Reload.
+
 ## Entscheidung
 
-Der Split ist als enger 1:1-Extract umgesetzt. Weitere Region-Splits nur mit eigener Boundary-Analyse.
+Der Split ist als enger 1:1-Extract umgesetzt und per Betreiber-Smoke bestaetigt. Weitere Region-Splits nur mit eigener Boundary-Analyse.
