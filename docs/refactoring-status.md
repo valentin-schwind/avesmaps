@@ -51,6 +51,7 @@ Folgende Dateien sind stabile Splits aus `js/map-features.js`:
 - `js/map-features-region-context-menu.js` fuer den engen Region Context Menu DOM/State-Teilschnitt.
 - `js/map-features-region-operation-chip.js` fuer den engen Region Operation Chip UI-Teilschnitt.
 - `js/map-features-location-lookup.js` fuer den engen Location Lookup/Type/Naming-Helper.
+- `js/map-features-location-marker-entry.js` fuer den engen Location Marker Entry/Popup-Helper.
 - `js/map-features-region-info-markup.js` fuer den engen Region Info/Tooltip Markup-Teilschnitt.
 - `js/map-features-region-overlap-selection.js` fuer den engen Region Overlap Selection-Teilschnitt.
 
@@ -79,8 +80,9 @@ Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurde
 17. `js/map-features-path-lifecycle.js`
 18. `js/map-features.js`
 19. `js/map-features-location-lookup.js`
-20. `js/map-features-region-operation-chip.js`
-21. `js/map-features-region-context-menu.js`
+20. `js/map-features-location-marker-entry.js`
+21. `js/map-features-region-operation-chip.js`
+22. `js/map-features-region-context-menu.js`
 22. `js/map-features-region-overlap-selection.js`
 23. `js/map-features-region-info-markup.js`
 24. `js/map-features-political-timeline.js`
