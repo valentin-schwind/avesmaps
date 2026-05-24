@@ -57,8 +57,12 @@ Nach diesem Split sollte manuell geprueft werden:
 9. Kurzer Routing-Check nach neuem Weg.
 10. Reload/URL ohne Fehler.
 
+## Smoke-Ergebnis
+
+Betreiber-Smoke bestanden: Punkte 1-14 ohne Auffaelligkeiten.
+
 ## Entscheidung
 
-Der Path-Creation-Split ist als stabile Boundary markiert und soll vorerst nicht weiter aufgeteilt werden.
+Der Path-Creation-Split ist stabil abgeschlossen und soll vorerst nicht weiter aufgeteilt werden.
 
 Naechster Kandidat bleibt Path-Geometry-Editing mit eigener Boundary-Analyse.

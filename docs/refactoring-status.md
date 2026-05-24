@@ -166,7 +166,7 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden 
 - Feature-State-Smoke bestanden: Seite und Edit-Flows wirken normal, keine Auffaelligkeiten gemeldet.
 - Location-Marker-Rendering-Smoke bestanden: Punkte 1-11 sehen gut aus.
 - Label-Collision-Abschluss dokumentiert; der Split ist als stabile Boundary geschlossen.
-- Path-Creation-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
+- Path-Creation-Smoke bestanden: Punkte 1-14 ohne Auffaelligkeiten.
 
 Fuer den Display-Mode-Split wurden insbesondere Kartenmodi, Wege, Ortstyp-Filter, Kraftlinienmodus, Labels, URL/Reload, Route-Rehydrate, Spotlight/Search, mobile Breite und Browser-Konsole geprueft. Ergebnis: keine Browser-Konsolenmeldungen.
 
