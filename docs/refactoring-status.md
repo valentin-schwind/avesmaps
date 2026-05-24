@@ -193,7 +193,7 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden 
 - Path-Lifecycle-Smoke bestanden: Punkte 1-10 ohne Auffaelligkeiten.
 - Path-Prepare-Smoke bestanden: Punkte 1-8 ohne Auffaelligkeiten.
 - Feature-Dispatcher-Smoke bestanden: Punkte 1-8 ohne Auffaelligkeiten oder Konsolenmeldungen.
-- Region-Visibility-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
+- Region-Visibility-Smoke bestanden: Punkte 1-11 ohne Auffaelligkeiten.
 
 Fuer den Display-Mode-Split wurden insbesondere Kartenmodi, Wege, Ortstyp-Filter, Kraftlinienmodus, Labels, URL/Reload, Route-Rehydrate, Spotlight/Search, mobile Breite und Browser-Konsole geprueft. Ergebnis: keine Browser-Konsolenmeldungen.
 
