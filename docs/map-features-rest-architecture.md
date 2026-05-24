@@ -238,10 +238,10 @@ Architekturbewertung:
 
 Der Rendering-Core und die Domain-Helfer sind bereits ausgelagert. Zusaetzlich ist der enge Path-Apply/Live-Teilschnitt nach `js/map-features-path-lifecycle.js` erfolgt (`addCreatedPathFeature`, `applyLivePathFeature`, `findPathByPublicId`, `syncPathRendering`, `applyPathFeatureResponse`, `removePathFeature`).
 
+Der enge Path-Prepare-Teilschnitt ist ebenfalls ausgelagert: `normalizeRoutePathFeature(...)` und `preparePathData(...)` liegen in `js/map-features-path-prepare.js`.
+
 In `js/map-features.js` verbleiben bewusst:
 
-- `preparePathData(...)`
-- `normalizeRoutePathFeature(...)`
 - `deletePathFeature(...)`
 - Dispatcher-nahe Path-Lifecycle-Kanten
 
@@ -402,6 +402,7 @@ Aber erst, wenn klar ist, welche Initialisierung zentral bleiben soll.
 | `locationMarkers` | `js/map-features.js` | Marker-Entries, Popup- und Label-Kanten |
 | `pathData` | `js/map-features.js` | Path-Lifecycle bleibt Restverantwortung |
 | `pathLayers` | `js/map-features.js` | Rendering-Core ausgelagert, Besitz bleibt hier |
+| Path-Prepare-Helfer | `js/map-features-path-prepare.js` | stabiler Teil-Split |
 | Path-Apply/Live-Helfer | `js/map-features-path-lifecycle.js` | stabiler Teil-Split |
 | Path-Creation-Pending-State | `js/map-features-path-creation.js` | stabiler Split |
 | Path-Geometry-Edit-State | `js/map-features-path-geometry-editing.js` | stabiler Split |

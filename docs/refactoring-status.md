@@ -40,6 +40,7 @@ Folgende Dateien sind stabile Splits aus `js/map-features.js`:
 - `js/map-features-path-domain.js` fuer Path-Domain-/Basis-Helper.
 - `js/map-features-path-labels.js` fuer Weg-/Pfad-Textlabel-Helfer.
 - `js/map-features-path-rendering.js` fuer Path-Rendering-Core-Helfer.
+- `js/map-features-path-prepare.js` fuer den engen Path-Prepare-Teilschnitt.
 - `js/map-features-path-creation.js` fuer Path-Creation-Helfer.
 - `js/map-features-path-geometry-editing.js` fuer Path-Geometry-Editing-Helfer.
 - `js/map-features-path-lifecycle.js` fuer den engen Path-Apply/Live-Teilschnitt.
@@ -63,10 +64,11 @@ Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurde
 11. `js/map-features-path-domain.js`
 12. `js/map-features-path-labels.js`
 13. `js/map-features-path-rendering.js`
-14. `js/map-features-path-creation.js`
-15. `js/map-features-path-geometry-editing.js`
-16. `js/map-features-path-lifecycle.js`
-17. `js/map-features.js`
+14. `js/map-features-path-prepare.js`
+15. `js/map-features-path-creation.js`
+16. `js/map-features-path-geometry-editing.js`
+17. `js/map-features-path-lifecycle.js`
+18. `js/map-features.js`
 
 Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`export`-Syntax, kein Build-System.
 
@@ -78,6 +80,7 @@ Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`ex
 - Ortsnamenlabels: Commit `a5ba60613746df0a0960b5bf2d47bb1433d3b5c9`.
 - Path-/Pfad-Textlabels: Commit `ab77d2dea65dc3fa9fa9b9ee7102ce0ab805c8f5`.
 - Path-Rendering-Core: Commit `847dcfa3562522f61abad4d578b7353e9bfca491`.
+- Path-Prepare: Split `js/map-features-path-prepare.js` (enger 1:1-Extract; `deletePathFeature`, Dispatcher-Rest und weitere Path-Coupling-Helfer verbleiben in `js/map-features.js`).
 - Share-Pin/Clipboard: Commit `f8cb8c19f2be538dd0bbd299dfef53fe086a608d`.
 - Path-Domain-/Basis-Helper: Commit `656a4586bdf866cba91cfad57f1dbc609a61a0cc`.
 - Waypoint-UI: Commit `6a9c3ba79715f239559768506f755f07a99649fd`.
@@ -105,6 +108,7 @@ Die Detailhistorie und Boundary-Entscheidungen liegen in separaten Dokumenten. W
 - `docs/map-features-label-collisions-stable.md`
 - `docs/map-features-path-creation-boundary-check.md`
 - `docs/map-features-path-creation-stable.md`
+- `docs/map-features-path-prepare-stable.md`
 - `docs/map-features-path-geometry-editing-boundary-check.md`
 - `docs/map-features-path-geometry-editing-stable.md`
 - `docs/map-features-path-lifecycle-crud-boundary-check.md`
@@ -121,7 +125,7 @@ Weitere Einzeldateien dokumentieren die jeweiligen Boundary-Checks und Stabilita
 
 - Location-Marker-/Ortsdaten-Orchestrierung ohne reines Marker-Rendering.
 - Location-Popup-/Popup-Action-Anbindung.
-- Path-Prepare-/CRUD-/Dispatcher-Rest (inklusive `preparePathData`, `normalizeRoutePathFeature`, `deletePathFeature`).
+- Path-CRUD-/Dispatcher-Rest (inklusive `deletePathFeature`).
 - `getPathStyleColors` als zoom-/renderingabhaengiger Helper.
 - Region-/Gebiets-Orchestrierung inklusive Timeline-/Gebietsdaten-Anbindung.
 - Feature-Response-Flows und groessere Editmode-Orchestrierung.
@@ -178,6 +182,7 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden 
 - Path-Geometry-Editing-Smoke bestanden: Punkte 1-13 ohne Auffaelligkeiten.
 - Gesamt-Smoke nach Abschluss der map-features.js-Split-Serie bestanden: Punkte 1-12 ok.
 - Path-Lifecycle-Smoke bestanden: Punkte 1-10 ohne Auffaelligkeiten.
+- Path-Prepare-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
 
 Fuer den Display-Mode-Split wurden insbesondere Kartenmodi, Wege, Ortstyp-Filter, Kraftlinienmodus, Labels, URL/Reload, Route-Rehydrate, Spotlight/Search, mobile Breite und Browser-Konsole geprueft. Ergebnis: keine Browser-Konsolenmeldungen.
 
