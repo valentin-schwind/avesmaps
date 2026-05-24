@@ -91,9 +91,9 @@ Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurde
 26. `js/map-features-region-geometry-helpers.js`
 27. `js/map-features-political-timeline.js`
 28. `js/map-features-region-visibility.js`
-28. `js/map-features-political-territory-loader.js`
-29. `js/map-features-feature-dispatcher.js`
-30. `js/routing.js`
+29. `js/map-features-political-territory-loader.js`
+30. `js/map-features-feature-dispatcher.js`
+31. `js/routing.js`
 
 Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`export`-Syntax, kein Build-System.
 
@@ -154,6 +154,7 @@ Die Detailhistorie und Boundary-Entscheidungen liegen in separaten Dokumenten. W
 - `docs/map-features-region-context-menu-stable.md`
 - `docs/map-features-region-info-markup-stable.md`
 - `docs/map-features-region-feature-normalization.md`
+- `docs/map-features-region-geometry-helpers.md`
 - `docs/map-features-location-lookup-stable.md`
 - `docs/map-features-location-marker-entry-stable.md`
 - `docs/map-features-region-overlap-selection-stable.md`
@@ -236,6 +237,7 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden 
 - Region-Overlap-Selection-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Region-Context-Menu-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Region-Feature-Normalization-Smoke bestanden: Punkte 1-8 ohne Auffaelligkeiten.
+- Region-Geometry-Helpers-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Location-Lookup-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Location-Marker-Entry-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 
