@@ -20,9 +20,12 @@ Die gut isolierbaren Helper-/UI-/Rendering-Cluster wurden bereits ausgelagert:
 - Kraftlinien-/Powerline-Helfer
 - URL-/Planner-State-Helfer
 - Display-/Layer-Mode-Helfer
+- Location-Marker-Rendering-/Sichtbarkeits-Helfer
+- Feature-State-/Revision-/Softlock-Helfer
 - Share-Pin-/Clipboard-Helfer
 - Waypoint-UI-Helfer
 - Ortsnamenlabel-Helfer
+- Label-Kollisions-Helfer
 - Path-Domain-/Basis-Helfer
 - Path-Textlabel-Helfer
 - Path-Rendering-Core-Helfer
@@ -36,8 +39,9 @@ Die gut isolierbaren Helper-/UI-/Rendering-Cluster wurden bereits ausgelagert:
 - DOM-/Event-Kanten
 - Region-/Gebietslogik
 - Location-Marker- und Popup-Anbindung
+- Path-Creation-Flows
+- Path-Geometry-Editing-Flows
 - Path-Lifecycle und Live-Update-Flows
-- Label-Kollision
 
 ## 3. Leitprinzip fuer die naechste Refactoring-Phase
 
@@ -85,12 +89,11 @@ Kopplungen:
 
 Architekturbewertung:
 
-Der Gesamtblock Location-Marker und Ortsdaten bleibt zu stark gekoppelt fuer einen direkten Komplettsplit. Innerhalb des Blocks ist jedoch ein engerer Split fuer Location-Marker-Rendering und Sichtbarkeit moeglich.
+Der Gesamtblock Location-Marker und Ortsdaten bleibt zu stark gekoppelt fuer einen direkten Komplettsplit. Der engere Split fuer Location-Marker-Rendering und Sichtbarkeit wurde bereits umgesetzt und bleibt stabil. Der verbleibende Location-Block ist vor allem Lifecycle, Datenmutation und Popup-Anbindung.
 
 Moegliche Zielmodule spaeter:
 
-- `js/map-features-location-marker-rendering.js` fuer Marker-Icon-, Zoom-, Sichtbarkeits- und Render-Bounds-Helfer.
-- `js/map-features/location-markers.js` erst spaeter fuer den groesseren Lifecycle, nur nach eigener Boundary und Datenflussanalyse.
+- `js/map-features/location-markers.js` fuer den groesseren Lifecycle, nur nach eigener Boundary und Datenflussanalyse.
 
 ### 4.2 Location-Popups und Popup-Actions
 
@@ -124,7 +127,11 @@ Moegliches Zielmodul spaeter:
 
 ### 4.3 Label-Kollision
 
-Verantwortung:
+Status: abgeschlossen.
+
+Die Label-Kollisionslogik wurde aus `js/map-features.js` nach `js/map-features-label-collisions.js` verschoben.
+
+Verantwortung der ausgelagerten Datei:
 
 - Kollisionen zwischen freien Labels und Ortsnamenlabels erkennen
 - Prioritaeten bestimmen
@@ -148,13 +155,89 @@ Kopplungen:
 
 Architekturbewertung:
 
-Technisch waere ein eigenes Modul plausibel, aber visuell riskant. Ein Split braucht vorher eine genaue Collision-Boundary und einen visuellen Smoke mit dichten Label-Gebieten und mehreren Zoomstufen.
+Dieser technische Service bleibt stabil. Weitere Aenderungen an Label-Kollisionen sollten nicht mit anderen Splits vermischt werden, weil sie direkt sichtbare Labelpositionen betreffen.
+
+### 4.4 Path-Creation
+
+Verantwortung:
+
+- Pending-State fuer neue Wege verwalten
+- Startpunkt aus Ort/Kreuzung oder Kartenclick setzen
+- Preview-Marker und Preview-Linie anzeigen
+- Zwischenpunkte aufnehmen
+- Zielknoten suchen und Weg final erstellen
+- erstellten Weg lokal anwenden und Path-Edit-Dialog anschliessen
+
+Typische Daten:
+
+- `pendingPathCreationStart`
+- `pendingPathCreationPoints`
+- `pendingPathCreationPreview`
+- `pendingPathCreationLine`
+- `locationData`
+- `pathData`
+- `pathLayers`
+- Map-Layer und Map-Click-Handler
+
+Kopplungen:
+
+- `clearPendingPowerlineCreation()`
+- `refreshAllLocationMarkerPopups()`
+- `submitMapFeatureEdit(...)`
+- `addCreatedPathFeature(...)`
+- `updateRevisionFromEditResponse(...)`
+- `openPathEditDialog(...)`
+- `syncPathVisibility()`
+- `refreshPlannerAfterFeatureChange(...)`
+
+Architekturbewertung:
+
+Path-Creation ist der naechste plausible Boundary-Kandidat. Der Block ist kleiner und fachlich klarer als Path-Geometry-Editing, mutiert aber Pending-State, Map-Layer und API-Ergebnisse. Deshalb zuerst Boundary-Analyse, danach hoechstens ein enger 1:1-Extract.
 
 Moegliches Zielmodul spaeter:
 
-- `js/map-features-label-collisions.js`
+- `js/map-features-path-creation.js`
 
-### 4.4 Path-Lifecycle, Path-CRUD und Live-Updates
+### 4.5 Path-Geometry-Editing
+
+Verantwortung:
+
+- aktive Weg-Geometriebearbeitung starten und beenden
+- Edit-Handles erzeugen und synchronisieren
+- Knoten ziehen, einfuegen und loeschen
+- Endpunkte an Orte/Kreuzungen snappen
+- Weg an Zwischenknoten teilen
+- Geometrie speichern und Layer aktualisieren
+
+Typische Daten:
+
+- `activePathGeometryEdit`
+- `pendingPathSplit`
+- `pathData`
+- `pathLayers`
+- Handle-Marker
+- Map-Doppelklick-Handler
+
+Kopplungen:
+
+- Path-Creation, weil `startPathGeometryEdit(...)` laufende Path-Creation abbricht
+- `submitMapFeatureEdit(...)`
+- `createCrossingFeatureAt(...)`
+- `addCreatedCrossingMarker(...)`
+- `addCreatedPathFeature(...)`
+- `removePathFeature(...)`
+- `updateRevisionFromEditResponse(...)`
+- Feature-Softlocks
+
+Architekturbewertung:
+
+Path-Geometry-Editing ist ein plausibler Kandidat, aber erst nach Path-Creation. Der Bereich ist staerker mutierend und hat mehr Fehlerrisiko durch Handles, Split-Operationen, Softlocks und Save-Flows.
+
+Moegliches Zielmodul spaeter:
+
+- `js/map-features-path-geometry-editing.js`
+
+### 4.6 Path-Lifecycle, Path-CRUD und Live-Updates
 
 Verantwortung:
 
@@ -190,15 +273,13 @@ Der Rendering-Core und die Domain-Helfer sind bereits ausgelagert. Der Rest ist 
 
 Moegliche Zielmodule spaeter:
 
-- `js/map-features-path-creation.js`
-- `js/map-features-path-geometry-editing.js`
 - `js/map-features/path-lifecycle.js`
 - `js/map-features/path-edits.js`
 - `js/map-features/path-live-updates.js`
 
 Nicht als ein grosser Split umsetzen.
 
-### 4.5 Path-Style-Helfer
+### 4.7 Path-Style-Helfer
 
 Verantwortung:
 
@@ -225,7 +306,7 @@ Moegliches Zielmodul spaeter:
 - `js/map-features/path-style.js`
 - oder Integration in `js/map-features-path-rendering.js`
 
-### 4.6 Region-/Gebiets-Orchestrierung
+### 4.8 Region-/Gebiets-Orchestrierung
 
 Verantwortung:
 
@@ -268,7 +349,7 @@ Moegliche Zielmodule spaeter:
 
 Diese Zielstruktur ist nur eine Richtung, keine unmittelbare Umsetzungsempfehlung.
 
-### 4.7 Editmode, Softlocks und Feature-Response-Flows
+### 4.9 Editmode, Softlocks und Feature-Response-Flows
 
 Verantwortung:
 
@@ -297,14 +378,13 @@ Kopplungen:
 
 Architekturbewertung:
 
-Dieser Bereich ist ein Konsistenzkern. Direkte Splits koennen Seiteneffekte erzeugen. Innerhalb des Bereichs ist aber ein enger Split fuer Feature-Revisionen und Softlocks realistisch, weil diese Funktionen eine klare technische Verantwortung haben.
+Revisionen und Softlocks wurden bereits in `js/map-features-feature-state.js` ausgelagert. Der verbleibende Feature-Response-Dispatcher ist weiterhin ein Konsistenzkern und sollte nicht direkt gesplittet werden.
 
-Moegliche Zielmodule spaeter:
+Moegliches Zielmodul spaeter:
 
-- `js/map-features-feature-state.js` fuer Revisionen und Softlocks als naechster Boundary-Kandidat.
 - `js/map-features/feature-dispatch.js` erst spaeter fuer den groesseren Feature-Response-Dispatcher.
 
-### 4.8 DOM-/Event-Bindings und Initialisierung
+### 4.10 DOM-/Event-Bindings und Initialisierung
 
 Verantwortung:
 
@@ -346,14 +426,18 @@ Aber erst, wenn klar ist, welche Initialisierung zentral bleiben soll.
 | `locationMarkers` | `js/map-features.js` | Marker-Entries, Popup- und Label-Kanten |
 | `pathData` | `js/map-features.js` | Path-Lifecycle bleibt Restverantwortung |
 | `pathLayers` | `js/map-features.js` | Rendering-Core ausgelagert, Besitz bleibt hier |
-| freie Labels | `js/map-features-labels.js` | Kollision bleibt Restkante |
-| Ortsnamenlabels | `js/map-features-location-name-labels.js` | Kollision bleibt Restkante |
+| Path-Creation-Pending-State | `js/map-features.js` | naechster enger Boundary-Kandidat |
+| Path-Geometry-Edit-State | `js/map-features.js` | Kandidat nach Path-Creation |
+| freie Labels | `js/map-features-labels.js` | stabiler Split |
+| Ortsnamenlabels | `js/map-features-location-name-labels.js` | stabiler Split |
+| Label-Kollision | `js/map-features-label-collisions.js` | stabiler Split, DOM-/Layout-nahe Verantwortung |
 | Powerlines | `js/map-features-powerlines.js` | stabiler Split |
 | Planner-/URL-State | `js/map-features-layer-state.js` | stabiler Split |
 | Share-Pin | `js/map-features-share-pin.js` | stabiler Split |
 | Waypoint-UI | `js/map-features-waypoints.js` | stabiler Split |
+| Location-Marker-Rendering | `js/map-features-location-marker-rendering.js` | stabiler Split |
+| Locks/Revisionen | `js/map-features-feature-state.js` | stabiler Split |
 | Gebiete/Regionen | `js/map-features.js` | eigene Architekturaufgabe |
-| Locks/Revisionen | `js/map-features.js` | naechster enger Boundary-Kandidat |
 
 ## 6. Mutierende Flows, die vor jedem weiteren Split verstanden werden muessen
 
@@ -369,6 +453,33 @@ Aber erst, wenn klar ist, welche Initialisierung zentral bleiben soll.
 Risiko:
 
 - Datenkonsistenz zwischen Location, Path, Route und UI.
+
+### Path-Creation-Flow
+
+1. Startort oder Startposition wird bestimmt.
+2. Pending-State und Preview-Layer werden aufgebaut.
+3. Zwischenpunkte werden gesammelt.
+4. Zielknoten wird gesucht und hinzugefuegt.
+5. API erstellt den Weg.
+6. Lokale Path-Daten und Layer werden aktualisiert.
+7. Path-Edit-Dialog wird fuer Feineinstellungen geoeffnet.
+
+Risiko:
+
+- haengende Preview-Layer, falsche Map-Click-Handler, unvollstaendige Pending-State-Bereinigung, doppelte Path-Layer.
+
+### Path-Geometry-Edit-Flow
+
+1. Wegbearbeitung wird gestartet und Softlock wird angefordert.
+2. Edit-Handles werden erzeugt.
+3. Knoten werden gezogen, eingefuegt, geloescht oder zum Split vorbereitet.
+4. Geometrie wird lokal und serverseitig gespeichert.
+5. Layer, Route und Planner-State werden aktualisiert.
+6. Bearbeitung wird beendet und Softlock wird freigegeben.
+
+Risiko:
+
+- stale Handles, falsche Endpoint-Snaps, verlorene Geometrie, fehlende Lock-Freigabe.
 
 ### Path-Update-Flow
 
@@ -447,23 +558,17 @@ Kein unvorbereiteter Code-Split sofort.
 
 Weitere `map-features.js`-Splits sind moeglich, aber nur mit separater Boundary, engem Scope und eigenem Smoke. Die aktuell plausiblen Kandidaten sind:
 
-1. Feature-Revisionen / Softlocks.
-2. Location-Marker-Rendering / Sichtbarkeit.
-3. Label-Kollision.
-4. Path-Creation.
-5. Path-Geometry-Editing.
+1. Path-Creation.
+2. Path-Geometry-Editing.
 
-Der naechste sinnvolle technische Schritt ist die Boundary-Analyse fuer Feature-Revisionen / Softlocks.
+Der naechste sinnvolle technische Schritt ist die Boundary-Analyse fuer Path-Creation.
 
 ## 9. Konkrete naechste Boundary-Kandidaten
 
 Nur mit separater Boundary:
 
-1. Feature-Revisionen / Softlocks.
-2. Location-Marker-Rendering / Sichtbarkeit.
-3. Label-Kollision als technischer Service.
-4. Path-Creation.
-5. Path-Geometry-Editing.
+1. Path-Creation.
+2. Path-Geometry-Editing.
 
 Nicht als naechster Code-Schritt:
 
@@ -475,6 +580,6 @@ Nicht als naechster Code-Schritt:
 
 ## 10. Schlussentscheidung
 
-`js/map-features.js` bleibt vorerst bewusst gross, aber die Groesse ist jetzt genauer dokumentiert: Die Datei enthaelt Rest-Orchestrierung und Datenmutation, aber innerhalb dieser Restarchitektur existieren noch mehrere abgrenzbare Boundary-Kandidaten.
+`js/map-features.js` bleibt vorerst bewusst gross, aber die Groesse ist jetzt genauer dokumentiert: Die Datei enthaelt Rest-Orchestrierung und Datenmutation, aber innerhalb dieser Restarchitektur existieren noch abgrenzbare Boundary-Kandidaten.
 
-Weitere Entschlackung ist moeglich, aber nur als Architekturarbeit mit explizitem Datenfluss- und Smoke-Plan. Der naechste Kandidat ist Feature-Revisionen / Softlocks.
+Weitere Entschlackung ist moeglich, aber nur als Architekturarbeit mit explizitem Datenfluss- und Smoke-Plan. Der naechste Kandidat ist Path-Creation.
