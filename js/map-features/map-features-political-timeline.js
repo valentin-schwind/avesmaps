@@ -124,5 +124,5 @@ function formatPoliticalTerritoryRangeLabel(startYear, endYear, fallbackLabel = 
 		return `bis ${formatPoliticalTimelineYear(endYear)}`;
 	}
 
-	return `${formatPoliticalTimelineYear(startYear)} â€“ ${formatPoliticalTimelineYear(endYear)}`;
+	return `${formatPoliticalTimelineYear(startYear)} – ${formatPoliticalTimelineYear(endYear)}`;
 }

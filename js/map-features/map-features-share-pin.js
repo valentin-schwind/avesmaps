@@ -77,7 +77,7 @@ async function copyTextToClipboard(text) {
 			await navigator.clipboard.writeText(text);
 			return true;
 		} catch (error) {
-			console.warn("Kopieren Ã¼ber navigator.clipboard fehlgeschlagen. Es wird ein Fallback versucht.", error);
+			console.warn("Kopieren über navigator.clipboard fehlgeschlagen. Es wird ein Fallback versucht.", error);
 		}
 	}
 
