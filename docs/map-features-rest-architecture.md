@@ -316,7 +316,7 @@ Architekturbewertung:
 Der enge Region-Visibility-Teilschnitt (`syncRegionVisibility`) wurde nach `js/map-features-region-visibility.js` ausgelagert.
 Der enge Political-Timeline-Teilschnitt (`syncPoliticalTimelineVisibility`, `syncPoliticalTimelineControls`, `formatPoliticalTimelineYear`, `setPoliticalTimelineYear`, `showPoliticalTerritoryTimelineSelection`, `clearPoliticalTerritoryTimelineSelection`, `normalizePoliticalTimelineYearValue`, `formatPoliticalTerritoryRangeLabel`) wurde nach `js/map-features-political-timeline.js` ausgelagert.
 
-In `js/map-features.js` verbleiben bewusst der Territory-API-/Layer-Reload-Rest (`schedulePoliticalTerritoryLayerReload`, `cancelPoliticalTerritoryLayerReload`, `loadPoliticalTerritoryLayer`, `loadPoliticalTerritoryOptions`, `preloadPoliticalTerritoryOptions`) sowie die Region-Geometry-/Context-/Operation-Flows.
+Die Political-Territory Loader-/Reload-Funktionen (`schedulePoliticalTerritoryLayerReload`, `cancelPoliticalTerritoryLayerReload`, `loadPoliticalTerritoryLayer`, `loadPoliticalTerritoryOptions`, `preloadPoliticalTerritoryOptions`) wurden in `js/map-features-political-territory-loader.js` ausgelagert. Rendering-, Geometrie-, Tooltip- und Context-Funktionen bleiben im Rest in `js/map-features.js`.
 
 Das ist kein Rest-Split, sondern eine eigene Architekturaufgabe. Vor Codearbeit muss ein Zielbild entstehen: Datenbesitz, Ladefluss, Layer-Aufbau, Edit-Flows und UI-Bindings.
 

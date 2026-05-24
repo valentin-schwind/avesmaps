@@ -47,6 +47,7 @@ Folgende Dateien sind stabile Splits aus `js/map-features.js`:
 - `js/map-features-feature-dispatcher.js` fuer den engen Feature-Response-Dispatcher-Teilschnitt.
 - `js/map-features-region-visibility.js` fuer den engen Region-Visibility-Teilschnitt.
 - `js/map-features-political-timeline.js` fuer den engen Political-Timeline-Teilschnitt.
+- `js/map-features-political-territory-loader.js` fuer den engen Political-Territory Loader/Reload-Teilschnitt; Scriptreihenfolge aktualisiert, Smoke steht aus.
 
 Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurden nachgelagert mit gezielten Browser-Smokes oder Abschlusspruefungen bewertet.
 
