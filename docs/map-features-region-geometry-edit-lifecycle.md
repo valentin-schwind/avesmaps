@@ -23,3 +23,6 @@
 - Bearbeitung beenden und neu starten.
 - Softlock-Verhalten bei Nicht-Political-Regionen pruefen.
 - Zusammenspiel mit Handle- und Edge-Interaktionen pruefen.
+
+## Smoke-Ergebnis
+Region-Geometry-Edit-Lifecycle-Smoke bestanden: Start/Ende der Bearbeitung, Wechsel zwischen Regionen, Kontextmenue-/Eigenschaften-Flows, Handles, Ctrl-Kanten-Subdivision, Reload und Browser-Konsole ohne Auffaelligkeiten.
