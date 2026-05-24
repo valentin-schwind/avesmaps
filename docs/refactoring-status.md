@@ -229,7 +229,7 @@
   - Location-Report-Formular oeffnen, Validierung pruefen
   - Location-Report senden nur mit sicheren Testdaten
   - keine neuen Konsolenfehler/ReferenceErrors
-- Dialog-State-Smoke empfohlen/offen, falls noch nicht gemeldet.
+- Dialog-State-Smoke nach Split bestanden.
 - Wichtige Dialog-State-Smoke-Faelle:
   - Weg-Edit-Dialog oeffnen/schliessen/erneut oeffnen
   - Weg speichern mit sicherem Testweg
@@ -263,8 +263,6 @@
 
 ## 7. Next Recommended Step
 
-- Kein sofortiger weiterer Code-Split.
-- Zuerst Dialog-State-Smoke (und ggf. offenen Core-Smoke) abschliessen.
-- Danach Restdatei (`js/dialogs-review.js`) neu analysieren.
-- Naechster Analysebereich bevorzugt Konstanten/Cache/Validator-/Init-Cluster.
-- Explizit: nicht direkt Region/Init/Event-Binding ohne Boundary-Analyse verschieben.
+- Kein weiterer `dialogs-review`-Code-Split empfohlen.
+- `js/dialogs-review.js` bleibt als finaler Minimal-Rest stabil.
+- Weitere Splits nur bei konkretem fachlichem Bedarf und mit neuer Boundary-Analyse.
