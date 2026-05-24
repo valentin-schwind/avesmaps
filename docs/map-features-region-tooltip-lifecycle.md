@@ -29,3 +29,6 @@ Smoke-Plan:
 3. Tooltip schliessen/erneut oeffnen.
 4. Tooltip-Ort-Link pruefen (Fokus auf Ort).
 5. Political-Mode/Reload pruefen.
+
+Browser-Smoke: bestanden.
+Region-Tooltip-Lifecycle-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.

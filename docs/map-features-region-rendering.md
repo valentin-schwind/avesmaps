@@ -28,3 +28,6 @@ Smoke-Plan:
 3. Region-Labels und Tooltip-Verhalten kurz pruefen.
 4. Political-Moduswechsel kurz pruefen.
 5. Reload und Konsole erneut pruefen.
+
+Browser-Smoke: bestanden.
+Region-Rendering-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.

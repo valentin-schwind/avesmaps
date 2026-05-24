@@ -326,6 +326,7 @@ Die Region Geometry-Helfer (`getRegionOuterLatLngs`, `getPolygonLatLngRings`, `f
 Die Region Split Preview-Helfer (`updatePendingRegionSplitPreview`, `clearPendingRegionSplitPreview`) wurden nach `js/map-features-region-split-preview.js` ausgelagert.
 Die Region Rendering-Helfer (`prepareRegionData`, `prepareLegacyRegionData`, `clearRenderedRegionLayers`, `addRegionFeatureToMap`) wurden nach `js/map-features-region-rendering.js` ausgelagert.
 Die Region Tooltip Lifecycle-Helfer (`bindRegionCompactTooltip`, `openRegionCompactTooltip`, `closeRegionCompactTooltip`, `getRegionTooltipLatLng`, `focusRegionPlace`) wurden nach `js/map-features-region-tooltip-lifecycle.js` ausgelagert.
+Die Region Boolean Geometry-Helfer (`calculateRegionBooleanGeometry`, `shouldRegionBooleanOperationConsumeTarget`, `getStoredRegionBooleanOperation`, `validateRegionBooleanResult`, `debugRegionBooleanOperation`) wurden nach `js/map-features-region-boolean-geometry.js` ausgelagert.
 
 Die Region Overlap Selection-Helfer (`getRegionLayerGeometryPublicId`, `isLatLngInsideRegionRing`, `isLatLngInsideRegionLayer`, `getOverlappingPoliticalRegionLayersAtLatLng`, `resolveOverlappingRegionLayerSelection`, `announceOverlappingRegionSelection`) wurden nach `js/map-features-region-overlap-selection.js` ausgelagert.
 
@@ -335,7 +336,7 @@ Die Context-Menü-Actions, Region-Edit- und Pending-Operationen bleiben im Rest 
 
 Die Region Operation Chip UI-Helfer (`syncRegionOperationChip`) wurden nach `js/map-features-region-operation-chip.js` ausgelagert.
 
-Die Tooltip-Lifecycle-, Context- und Geometriezustands-Funktionen (`bindRegionCompactTooltip`, `openRegionCompactTooltip`, `closeRegionCompactTooltip`, `getRegionTooltipLatLng`, `focusRegionPlace`, `createRegionLabelMarkup`) verbleiben im Rest in `js/map-features.js`.
+Die Context- und Geometriezustands-Funktionen sowie Pending-/Persistenz-Orchestrierung verbleiben im Rest in `js/map-features.js` (u. a. `createRegionLabelMarkup`, `bindRegionPolygonEditEvents`, `startPendingRegionOperation`, `completePendingRegionOperation`).
 
 Das ist kein Rest-Split, sondern eine eigene Architekturaufgabe: Vor Codearbeit muss das Zielbild von Tooltip-Lifecycle, Context-Flow und Geometrie-Anbindung klar sein.
 
@@ -438,6 +439,7 @@ Aber erst, wenn klar ist, welche Initialisierung zentral bleiben soll.
 | Region-Pending-Highlight-Helfer | `js/map-features-region-pending-highlight.js` | stabiler Teil-Split |
 | Region-Rendering-Helfer | `js/map-features-region-rendering.js` | stabiler Teil-Split |
 | Region-Tooltip-Lifecycle-Helfer | `js/map-features-region-tooltip-lifecycle.js` | stabiler Teil-Split |
+| Region-Boolean-Geometry-Helfer | `js/map-features-region-boolean-geometry.js` | stabiler Teil-Split |
 | Path-Creation-Pending-State | `js/map-features-path-creation.js` | stabiler Split |
 | Path-Geometry-Edit-State | `js/map-features-path-geometry-editing.js` | stabiler Split |
 | freie Labels | `js/map-features-labels.js` | stabiler Split |
