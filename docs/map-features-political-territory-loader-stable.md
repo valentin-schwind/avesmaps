@@ -43,8 +43,14 @@ Diese verbleibenden Bereiche sind bewusst im Rest belassen, weil sie stark mit R
 4. Edit-Mode betreten/verlässt und sicherstellen, dass keine JavaScript-Fehler auftreten.
 5. Region-Rendering, Tooltip-Interaktionen und Timeline-Auswahl überprüfen.
 
-## 6. Status
+## 6. Smoke-Ergebnis
+
+Political-Territory-Loader-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
+
+Geprueft wurden Kartenstart, politischer Layer, Timeline-Jahr, Zoom-Wechsel, Nachladen politischer Gebiete und Browser-Konsole.
+
+## 7. Status
 
 - Split: umgesetzt
 - Logikaenderung: keine
-- Smoke: steht aus
+- Smoke: bestanden
