@@ -8,7 +8,7 @@ Die gut isolierbaren Helper-/UI-/Rendering-Cluster wurden als klassische globale
 
 Nach erneuter Pruefung ist die fruehere Stopp-Formulierung zu praezisieren: Es sollen keine unvorbereiteten Mikro-Splits mehr erfolgen. Weitere `map-features.js`-Splits sind aber moeglich, wenn sie als eigene Boundary mit Datenfluss- und Smoke-Plan vorbereitet werden.
 
-Der Feature-State-Split fuer Revisionen und Softlocks wurde umgesetzt und per Betreiber-Smoke als stabil bewertet. Der Location-Marker-Rendering-Split wurde ebenfalls umgesetzt und per Betreiber-Smoke als stabil bewertet. Der Label-Collision-Split wurde umgesetzt und als abgeschlossen dokumentiert. Naechster Boundary-Kandidat ist Path-Creation.
+Der Feature-State-Split fuer Revisionen und Softlocks wurde umgesetzt und per Betreiber-Smoke als stabil bewertet. Der Location-Marker-Rendering-Split wurde ebenfalls umgesetzt und per Betreiber-Smoke als stabil bewertet. Der Label-Collision-Split wurde umgesetzt und als abgeschlossen dokumentiert. Der Path-Creation-Split wurde als enger 1:1-Extract umgesetzt. Naechster Boundary-Kandidat ist Path-Geometry-Editing.
 
 ## 2. Stable Core Boundaries
 
@@ -40,6 +40,7 @@ Folgende Dateien sind stabile Splits aus `js/map-features.js`:
 - `js/map-features-path-domain.js` fuer Path-Domain-/Basis-Helper.
 - `js/map-features-path-labels.js` fuer Weg-/Pfad-Textlabel-Helfer.
 - `js/map-features-path-rendering.js` fuer Path-Rendering-Core-Helfer.
+- `js/map-features-path-creation.js` fuer Path-Creation-Helfer.
 
 Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurden nachgelagert mit gezielten Browser-Smokes oder Abschlusspruefungen bewertet.
 
@@ -60,7 +61,8 @@ Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurde
 11. `js/map-features-path-domain.js`
 12. `js/map-features-path-labels.js`
 13. `js/map-features-path-rendering.js`
-14. `js/map-features.js`
+14. `js/map-features-path-creation.js`
+15. `js/map-features.js`
 
 Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`export`-Syntax, kein Build-System.
 
@@ -79,6 +81,7 @@ Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`ex
 - Feature-State: Commit `699faf19cf571ab9531dace52e0559d4e318f30d`.
 - Location-Marker-Rendering: Commit `0a0f4af1e733919c189a48e6f6ece180a14d6fb9`.
 - Label-Collision: Commit `72ca6e983652c95c33267c158353a2a0e6869423`.
+- Path-Creation: Split `js/map-features-path-creation.js` (enger 1:1-Extract, `findNearestGraphEndpointToLatLng` verbleibt als Shared-Helper in `js/map-features.js`).
 
 ## 6. Stable Detail Documents
 
@@ -94,6 +97,8 @@ Die Detailhistorie und Boundary-Entscheidungen liegen in separaten Dokumenten. W
 - `docs/map-features-location-marker-rendering-stable.md`
 - `docs/map-features-label-collisions-boundary-check.md`
 - `docs/map-features-label-collisions-stable.md`
+- `docs/map-features-path-creation-boundary-check.md`
+- `docs/map-features-path-creation-stable.md`
 - `docs/map-features-final-rest-assessment.md`
 - `docs/map-features-rest-architecture.md`
 
@@ -105,7 +110,6 @@ Weitere Einzeldateien dokumentieren die jeweiligen Boundary-Checks und Stabilita
 
 - Location-Marker-/Ortsdaten-Orchestrierung ohne reines Marker-Rendering.
 - Location-Popup-/Popup-Action-Anbindung.
-- Path-Creation-Flows inklusive Pending-State, Preview-Layer und API-Anbindung.
 - Path-Geometry-Editing inklusive Handles, Split, Insert/Delete und Save-Flows.
 - Path-Lifecycle, Path-CRUD und Live-Update-Anbindung.
 - `getPathStyleColors` als zoom-/renderingabhaengiger Helper.
@@ -141,8 +145,7 @@ Nicht ohne neue Boundary-Analyse weiter aufteilen:
 
 Nach erneuter Pruefung sind weitere `map-features.js`-Splits moeglich, aber nur mit eigener Boundary. Aktuelle Kandidaten in empfohlener Reihenfolge:
 
-1. Path-Creation.
-2. Path-Geometry-Editing.
+1. Path-Geometry-Editing.
 
 Feature-Revisionen / Softlocks, Location-Marker-Rendering / Sichtbarkeit und Label-Kollision sind abgeschlossen und stabil dokumentiert.
 
@@ -163,6 +166,7 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden 
 - Feature-State-Smoke bestanden: Seite und Edit-Flows wirken normal, keine Auffaelligkeiten gemeldet.
 - Location-Marker-Rendering-Smoke bestanden: Punkte 1-11 sehen gut aus.
 - Label-Collision-Abschluss dokumentiert; der Split ist als stabile Boundary geschlossen.
+- Path-Creation-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
 
 Fuer den Display-Mode-Split wurden insbesondere Kartenmodi, Wege, Ortstyp-Filter, Kraftlinienmodus, Labels, URL/Reload, Route-Rehydrate, Spotlight/Search, mobile Breite und Browser-Konsole geprueft. Ergebnis: keine Browser-Konsolenmeldungen.
 
@@ -172,10 +176,10 @@ Kein unvorbereiteter weiterer `map-features.js`-Code-Split empfohlen.
 
 Naechste sinnvolle Arbeitspakete:
 
-1. Boundary-Analyse fuer Path-Creation anlegen.
+1. Boundary-Analyse fuer Path-Geometry-Editing anlegen.
 2. Falls die Boundary positiv ausfaellt: kleiner 1:1-Extract in eine eigene Datei.
-3. Danach gezielter Path-Creation-Smoke.
-4. Path-Geometry-Editing erst nach eigener Boundary und nach stabilem Path-Creation-Abschluss.
+3. Danach gezielter Path-Geometry-Smoke.
+4. Lifecycle-/CRUD-Rest erst nach stabiler Path-Geometry-Abgrenzung angehen.
 
 ## 12. Operating Rules
 
