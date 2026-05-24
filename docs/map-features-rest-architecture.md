@@ -316,7 +316,11 @@ Architekturbewertung:
 Der enge Region-Visibility-Teilschnitt (`syncRegionVisibility`) wurde nach `js/map-features-region-visibility.js` ausgelagert.
 Der enge Political-Timeline-Teilschnitt (`syncPoliticalTimelineVisibility`, `syncPoliticalTimelineControls`, `formatPoliticalTimelineYear`, `setPoliticalTimelineYear`, `showPoliticalTerritoryTimelineSelection`, `clearPoliticalTerritoryTimelineSelection`, `normalizePoliticalTimelineYearValue`, `formatPoliticalTerritoryRangeLabel`) wurde nach `js/map-features-political-timeline.js` ausgelagert.
 
-Die Political-Territory Loader-/Reload-Funktionen (`schedulePoliticalTerritoryLayerReload`, `cancelPoliticalTerritoryLayerReload`, `loadPoliticalTerritoryLayer`, `loadPoliticalTerritoryOptions`, `preloadPoliticalTerritoryOptions`) wurden in `js/map-features-political-territory-loader.js` ausgelagert. Rendering-, Geometrie-, Tooltip- und Context-Funktionen bleiben im Rest in `js/map-features.js`.
+Die Region Info/Tooltip Markup-Helfer (`createRegionCompactTooltipMarkup`, `createRegionMiniTooltipMarkup`, `hasRegionWikiInfo`, `createRegionWikiInfoBoxMarkup`, `createRegionInfoTextRow`, `createRegionInfoBoxRow`, `createRegionInfoPlaceValue`, `createRegionInfoLink`, `createRegionInfoPathValue`, `normalizeRegionInfoUrl`, `normalizeRegionStringList`, `createRegionPlaceTooltipLine`, `normalizeRegionParentheticalSpacing`) wurden nach `js/map-features-region-info-markup.js` ausgelagert.
+
+Die Tooltip-Lifecycle-, Context- und Geometriezustands-Funktionen (`bindRegionCompactTooltip`, `openRegionCompactTooltip`, `closeRegionCompactTooltip`, `getRegionTooltipLatLng`, `focusRegionPlace`, `createRegionLabelMarkup`, `getRegionLayerGeometryPublicId`, `isLatLngInsideRegionRing`, `isLatLngInsideRegionLayer`) verbleiben im Rest in `js/map-features.js`.
+
+Das ist kein Rest-Split, sondern eine eigene Architekturaufgabe: Vor Codearbeit muss das Zielbild von Tooltip-Lifecycle, Context-Flow und Geometrie-Anbindung klar sein.
 
 Das ist kein Rest-Split, sondern eine eigene Architekturaufgabe. Vor Codearbeit muss ein Zielbild entstehen: Datenbesitz, Ladefluss, Layer-Aufbau, Edit-Flows und UI-Bindings.
 
