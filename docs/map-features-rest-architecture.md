@@ -89,7 +89,7 @@ Kopplungen:
 
 Architekturbewertung:
 
-Der Gesamtblock Location-Marker und Ortsdaten bleibt zu stark gekoppelt fuer einen direkten Komplettsplit. Der engere Split fuer Location-Marker-Rendering und Sichtbarkeit wurde bereits umgesetzt und bleibt stabil. Der verbleibende Location-Block ist vor allem Lifecycle, Datenmutation und Popup-Anbindung.
+Der Gesamtblock Location-Marker und Ortsdaten bleibt zu stark gekoppelt fuer einen direkten Komplettsplit. Der engere Split fuer Location-Marker-Rendering und Sichtbarkeit wurde bereits umgesetzt und bleibt stabil. Location Lookup/Type/Naming-Helper wurden ausgelagert; Location Lifecycle, Popups, Move, Create/Delete, API-Persistenz und Planner-Refresh bleiben im Rest. Der verbleibende Location-Block ist vor allem Lifecycle, Datenmutation und Popup-Anbindung.
 
 Moegliche Zielmodule spaeter:
 
