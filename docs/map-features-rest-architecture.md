@@ -51,7 +51,7 @@ Stattdessen gilt:
 4. Erst danach Zielmodule definieren.
 5. Code nur in kleinen Schritten mit eigenem Smoke verschieben.
 
-Weitere Splits sind ab jetzt Architekturarbeit, keine rein mechanischen 1:1-Extracts.
+Weitere Splits sind ab jetzt Architekturarbeit, keine unvorbereiteten Mikro-Splits. Nach erneuter Pruefung sind aber weitere Splits moeglich, wenn sie jeweils eine eigene Boundary erhalten.
 
 ## 4. Restbloecke in `js/map-features.js`
 
@@ -85,12 +85,12 @@ Kopplungen:
 
 Architekturbewertung:
 
-Dieser Block ist kein guter direkter Split-Kandidat mehr. Er braucht zuerst eine Trennung zwischen Datenmutation, Marker-Rendering und UI-/Popup-Anbindung.
+Der Gesamtblock Location-Marker und Ortsdaten bleibt zu stark gekoppelt fuer einen direkten Komplettsplit. Innerhalb des Blocks ist jedoch ein engerer Split fuer Location-Marker-Rendering und Sichtbarkeit moeglich.
 
-Moegliches Zielmodul spaeter:
+Moegliche Zielmodule spaeter:
 
-- `js/map-features/location-markers.js`
-- aber nur nach eigener Boundary und Datenflussanalyse
+- `js/map-features-location-marker-rendering.js` fuer Marker-Icon-, Zoom-, Sichtbarkeits- und Render-Bounds-Helfer.
+- `js/map-features/location-markers.js` erst spaeter fuer den groesseren Lifecycle, nur nach eigener Boundary und Datenflussanalyse.
 
 ### 4.2 Location-Popups und Popup-Actions
 
@@ -152,7 +152,7 @@ Technisch waere ein eigenes Modul plausibel, aber visuell riskant. Ein Split bra
 
 Moegliches Zielmodul spaeter:
 
-- `js/map-features/label-collisions.js`
+- `js/map-features-label-collisions.js`
 
 ### 4.4 Path-Lifecycle, Path-CRUD und Live-Updates
 
@@ -190,6 +190,8 @@ Der Rendering-Core und die Domain-Helfer sind bereits ausgelagert. Der Rest ist 
 
 Moegliche Zielmodule spaeter:
 
+- `js/map-features-path-creation.js`
+- `js/map-features-path-geometry-editing.js`
 - `js/map-features/path-lifecycle.js`
 - `js/map-features/path-edits.js`
 - `js/map-features/path-live-updates.js`
@@ -295,13 +297,12 @@ Kopplungen:
 
 Architekturbewertung:
 
-Dieser Bereich ist ein Konsistenzkern. Direkte Splits koennen Seiteneffekte erzeugen. Sinnvoll waere erst eine getrennte Dokumentation von Revisionen, Locks und Dispatching.
+Dieser Bereich ist ein Konsistenzkern. Direkte Splits koennen Seiteneffekte erzeugen. Innerhalb des Bereichs ist aber ein enger Split fuer Feature-Revisionen und Softlocks realistisch, weil diese Funktionen eine klare technische Verantwortung haben.
 
 Moegliche Zielmodule spaeter:
 
-- `js/map-features/feature-revisions.js`
-- `js/map-features/feature-locks.js`
-- `js/map-features/feature-dispatch.js`
+- `js/map-features-feature-state.js` fuer Revisionen und Softlocks als naechster Boundary-Kandidat.
+- `js/map-features/feature-dispatch.js` erst spaeter fuer den groesseren Feature-Response-Dispatcher.
 
 ### 4.8 DOM-/Event-Bindings und Initialisierung
 
@@ -352,7 +353,7 @@ Aber erst, wenn klar ist, welche Initialisierung zentral bleiben soll.
 | Share-Pin | `js/map-features-share-pin.js` | stabiler Split |
 | Waypoint-UI | `js/map-features-waypoints.js` | stabiler Split |
 | Gebiete/Regionen | `js/map-features.js` | eigene Architekturaufgabe |
-| Locks/Revisionen | `js/map-features.js` | Konsistenzkern, spaeter separat analysieren |
+| Locks/Revisionen | `js/map-features.js` | naechster enger Boundary-Kandidat |
 
 ## 6. Mutierende Flows, die vor jedem weiteren Split verstanden werden muessen
 
@@ -418,13 +419,16 @@ js/
     label-collisions.js
     location-name-labels.js
     location-markers.js
+    location-marker-rendering.js
     location-popups.js
     path-domain.js
     path-style.js
     path-labels.js
     path-rendering.js
+    path-creation.js
+    path-geometry-editing.js
     path-lifecycle.js
-    feature-locks.js
+    feature-state.js
     feature-dispatch.js
     bootstrap.js
   regions/
@@ -439,36 +443,38 @@ Diese Struktur ist kein kurzfristiger Umzugsplan. Sie beschreibt nur eine moegli
 
 ## 8. Kurzfristige Empfehlung
 
-Kein weiterer Code-Split sofort.
+Kein unvorbereiteter Code-Split sofort.
 
-Naechster sinnvoller technischer Schritt waere ein separates Struktur-Audit fuer:
+Weitere `map-features.js`-Splits sind moeglich, aber nur mit separater Boundary, engem Scope und eigenem Smoke. Die aktuell plausiblen Kandidaten sind:
 
-- JS-Unterordner
-- SQL-Dateien
-- CSS-Auslagerung aus JS
-- spaetere Dead-Code- und Rename-Arbeit
+1. Feature-Revisionen / Softlocks.
+2. Location-Marker-Rendering / Sichtbarkeit.
+3. Label-Kollision.
+4. Path-Creation.
+5. Path-Geometry-Editing.
 
-Fuer `js/map-features.js` selbst sollte der naechste Code-Schritt nur aus einem konkreten Feature, Bugfix oder einer klaren Boundary heraus entstehen.
+Der naechste sinnvolle technische Schritt ist die Boundary-Analyse fuer Feature-Revisionen / Softlocks.
 
-## 9. Konkrete naechste Boundary-Kandidaten, falls spaeter weitergemacht wird
+## 9. Konkrete naechste Boundary-Kandidaten
 
 Nur mit separater Boundary:
 
-1. Label-Kollision als technischer Service.
-2. Path-Style-Helfer rund um `getPathStyleColors`.
-3. Revision-/Lock-Helfer.
-4. reine Location-Popup-Bindings.
-5. Bootstrap-/Event-Bindings.
+1. Feature-Revisionen / Softlocks.
+2. Location-Marker-Rendering / Sichtbarkeit.
+3. Label-Kollision als technischer Service.
+4. Path-Creation.
+5. Path-Geometry-Editing.
 
 Nicht als naechster Code-Schritt:
 
-- Region-/Gebietsblock
-- Feature-Response-Dispatcher
-- Location-Datenmutation
-- Path-Lifecycle-Komplettsplit
+- Region-/Gebietsblock.
+- Feature-Response-Dispatcher als Ganzes.
+- grobe Location-Datenmutation.
+- Path-Lifecycle-Komplettsplit.
+- DOM-/Init-/Event-Bindings ohne Bootstrap-Boundary.
 
 ## 10. Schlussentscheidung
 
-`js/map-features.js` bleibt vorerst bewusst gross, aber die Groesse ist jetzt dokumentiert: Die Datei enthaelt Rest-Orchestrierung und Datenmutation, nicht mehr viele einfache isolierte Helper.
+`js/map-features.js` bleibt vorerst bewusst gross, aber die Groesse ist jetzt genauer dokumentiert: Die Datei enthaelt Rest-Orchestrierung und Datenmutation, aber innerhalb dieser Restarchitektur existieren noch mehrere abgrenzbare Boundary-Kandidaten.
 
-Weitere Entschlackung ist moeglich, aber nur als Architekturarbeit mit explizitem Datenfluss- und Smoke-Plan.
+Weitere Entschlackung ist moeglich, aber nur als Architekturarbeit mit explizitem Datenfluss- und Smoke-Plan. Der naechste Kandidat ist Feature-Revisionen / Softlocks.
