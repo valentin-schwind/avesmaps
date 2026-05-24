@@ -29,10 +29,7 @@ function regionEntryToClippingMultiPolygon(regionEntry, { onlyLayer = null, excl
 	const layers = onlyLayer
 		? [onlyLayer]
 		: getRegionEntryLayers(regionEntry).filter((layer) => !excludedLayers.has(layer));
-	const geometries = layers
-		.filter(Boolean)
-		.map((layer) => layer.toGeoJSON?.().geometry)
-		.filter((geometry) => geometry && ["Polygon", "MultiPolygon"].includes(geometry.type));
+	const geometries = getRegionLayerGeoJsonGeometries(layers);
 	const polygons = [];
 	geometries.forEach((geometry) => {
 		if (geometry.type === "Polygon") {
@@ -170,12 +167,39 @@ function calculateClippingMultiPolygonArea(multiPolygon) {
 	return (multiPolygon || []).reduce((area, polygon) => area + calculateClippingPolygonArea(polygon), 0);
 }
 
-function polygonLatLngsToCoordinates(latLngs) {
-	const ring = latLngs.map((latLng) => [latLng.lng, latLng.lat]);
+function latLngToGeoJsonPosition(latLng) {
+	const normalizedLatLng = L.latLng(latLng);
+	return [normalizedLatLng.lng, normalizedLatLng.lat];
+}
+
+function geoJsonPositionToLatLng(position) {
+	if (!Array.isArray(position) || position.length < 2) {
+		return null;
+	}
+
+	const lng = Number(position[0]);
+	const lat = Number(position[1]);
+	if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+		return null;
+	}
+
+	return L.latLng(lat, lng);
+}
+
+function leafletRingToGeoJsonRing(latLngs) {
+	const ring = latLngs.map((latLng) => latLngToGeoJsonPosition(latLng));
 	const first = ring[0];
 	const last = ring[ring.length - 1];
 	if (first && last && (first[0] !== last[0] || first[1] !== last[1])) ring.push([...first]);
-	return [ring];
+	return ring;
+}
+
+function leafletOuterRingToGeoJsonPolygonCoordinates(latLngs) {
+	return [leafletRingToGeoJsonRing(latLngs)];
+}
+
+function polygonLatLngsToCoordinates(latLngs) {
+	return leafletOuterRingToGeoJsonPolygonCoordinates(latLngs);
 }
 
 function getRegionEntryBounds(regionEntry) {
@@ -318,11 +342,19 @@ function regionLayerToGeoJsonGeometry(regionEntry) {
 	return regionLayersToGeoJsonGeometry(regionEntry.layers?.length ? regionEntry.layers : [regionEntry.layer], regionEntry);
 }
 
-function regionLayersToGeoJsonGeometry(layers, fallbackRegionEntry = null) {
-	const geometries = layers
+function getLayerGeoJsonGeometry(layer) {
+	return layer?.toGeoJSON?.().geometry || null;
+}
+
+function getRegionLayerGeoJsonGeometries(layers) {
+	return layers
 		.filter(Boolean)
-		.map((layer) => layer.toGeoJSON?.().geometry)
+		.map((layer) => getLayerGeoJsonGeometry(layer))
 		.filter((geometry) => geometry && ["Polygon", "MultiPolygon"].includes(geometry.type));
+}
+
+function regionLayersToGeoJsonGeometry(layers, fallbackRegionEntry = null) {
+	const geometries = getRegionLayerGeoJsonGeometries(layers);
 	if (geometries.length < 1) {
 		if (!fallbackRegionEntry) {
 			throw new Error("Die Geometrie enthaelt keine Flaeche.");

@@ -322,6 +322,7 @@ Die Region Info/Tooltip Markup-Helfer (`createRegionCompactTooltipMarkup`, `crea
 Die Region Feature Normalization-Helfer (`normalizeRegionFeature`, `getRegionFeatureName`, `getRegionFeatureColor`, `getRegionFeatureOpacity`, `getStyleDeclarationValue`, `normalizeRegionHexColor`, `readOptionalRegionZoom`) wurden nach `js/map-features-region-feature-normalization.js` ausgelagert.
 
 Die Region Geometry-Helfer (`getRegionOuterLatLngs`, `getPolygonLatLngRings`, `flattenLatLngRings`, `isLatLngLike`, `regionLayerToGeoJsonGeometry`, `regionLayersToGeoJsonGeometry`) wurden nach `js/map-features-region-geometry-helpers.js` ausgelagert.
+Die Koordinatenkonvertierung Leaflet `LatLng` <-> GeoJSON `[lng,lat]` liegt ebenfalls bei den Region Geometry Helpers.
 
 Die Region Split Preview-Helfer (`updatePendingRegionSplitPreview`, `clearPendingRegionSplitPreview`) wurden nach `js/map-features-region-split-preview.js` ausgelagert.
 Die Region Rendering-Helfer (`prepareRegionData`, `prepareLegacyRegionData`, `clearRenderedRegionLayers`, `addRegionFeatureToMap`) wurden nach `js/map-features-region-rendering.js` ausgelagert.

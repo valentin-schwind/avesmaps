@@ -23,6 +23,16 @@ Aus `js/map-features.js` wurden folgende Helper-Funktionen verschoben:
 Diese Funktionen sind auf Region-Geometrie und Koordinatenkonvertierung fokussiert.
 Sie erscheinen als reine Hilfsfunktionen ohne top-level Ausfuehrung und sind damit gut abgrenzbar von UI-, Event- und Orchestrierungslogik in `js/map-features.js`.
 
+Zusätzlich gibt es nun explizite Konverter fuer Leaflet-LatLng <-> GeoJSON-Position:
+
+- `latLngToGeoJsonPosition(latLng)` fuer `LatLng -> [lng,lat]`
+- `geoJsonPositionToLatLng(position)` fuer `[lng,lat] -> LatLng`
+- `leafletRingToGeoJsonRing(latLngs)` fuer Ring-Konvertierung inkl. Ringschluss
+- `leafletOuterRingToGeoJsonPolygonCoordinates(latLngs)` fuer Polygon-Koordinaten aus Outer-Ring
+
+`polygonLatLngsToCoordinates(...)` bleibt als Kompatibilitaetswrapper bestehen.
+Die Payload-/Geometrie-Semantik wurde dabei nicht geaendert.
+
 ## Klassische Script-Ladung
 
 Die neue Datei `js/map-features-region-geometry-helpers.js` wird als klassisches Script in `index.html` geladen.
