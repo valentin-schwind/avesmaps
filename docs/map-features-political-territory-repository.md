@@ -24,4 +24,7 @@
 - Region-Teilflaeche loeschen.
 - Vollstaendige Region loeschen.
 
-Browser-Smoke: ausstehend.
+## Smoke-Ergebnis
+Political-Territory-Repository-Smoke bestanden: Political Mode, Herrschaftsgebiete, Geometrie-Speichern, Split, Union, Difference, Intersection, Reload und Browser-Konsole ohne Auffaelligkeiten.
+
+Browser-Smoke: bestanden.
