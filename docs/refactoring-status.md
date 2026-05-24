@@ -47,7 +47,7 @@ Folgende Dateien sind stabile Splits aus `js/map-features.js`:
 - `js/map-features-feature-dispatcher.js` fuer den engen Feature-Response-Dispatcher-Teilschnitt.
 - `js/map-features-region-visibility.js` fuer den engen Region-Visibility-Teilschnitt.
 - `js/map-features-political-timeline.js` fuer den engen Political-Timeline-Teilschnitt.
-- `js/map-features-political-territory-loader.js` fuer den engen Political-Territory Loader/Reload-Teilschnitt; Scriptreihenfolge aktualisiert, Smoke steht aus.
+- `js/map-features-political-territory-loader.js` fuer den engen Political-Territory Loader/Reload-Teilschnitt.
 
 Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurden nachgelagert mit gezielten Browser-Smokes oder Abschlusspruefungen bewertet.
 
@@ -75,8 +75,9 @@ Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurde
 18. `js/map-features.js`
 19. `js/map-features-political-timeline.js`
 20. `js/map-features-region-visibility.js`
-21. `js/map-features-feature-dispatcher.js`
-22. `js/routing.js`
+21. `js/map-features-political-territory-loader.js`
+22. `js/map-features-feature-dispatcher.js`
+23. `js/routing.js`
 
 Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`export`-Syntax, kein Build-System.
 
@@ -102,6 +103,7 @@ Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`ex
 - Feature-Response-Dispatcher: Split `js/map-features-feature-dispatcher.js` (enger 1:1-Extract; CRUD-/Domain-/Rendering-Helper bleiben in `js/map-features.js` oder den bestehenden Split-Dateien).
 - Region-Visibility: Split `js/map-features-region-visibility.js` (enger 1:1-Extract; Region-CRUD-/Timeline-/Edit-Orchestrierung bleibt in `js/map-features.js`).
 - Political-Timeline: Split `js/map-features-political-timeline.js` (enger 1:1-Extract; Territory-API/Layer-Reload und Region-Operations-Rest bleibt in `js/map-features.js`).
+- Political-Territory Loader/Reload: Split `js/map-features-political-territory-loader.js` (enger 1:1-Extract; Region-Rendering, Tooltip, Context und Geometry-Operationen bleiben in `js/map-features.js`).
 
 ## 6. Stable Detail Documents
 
@@ -127,6 +129,7 @@ Die Detailhistorie und Boundary-Entscheidungen liegen in separaten Dokumenten. W
 - `docs/map-features-feature-dispatcher-stable.md`
 - `docs/map-features-region-visibility-stable.md`
 - `docs/map-features-political-timeline-stable.md`
+- `docs/map-features-political-territory-loader-stable.md`
 - `docs/map-features-post-geometry-rest-assessment.md`
 - `docs/map-features-final-rest-assessment.md`
 - `docs/map-features-rest-architecture.md`
@@ -200,6 +203,7 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden 
 - Feature-Dispatcher-Smoke bestanden: Punkte 1-8 ohne Auffaelligkeiten oder Konsolenmeldungen.
 - Region-Visibility-Smoke bestanden: Punkte 1-11 ohne Auffaelligkeiten.
 - Political-Timeline-Smoke bestanden: Punkte 1-12 ohne Auffaelligkeiten.
+- Political-Territory-Loader-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 
 Fuer den Display-Mode-Split wurden insbesondere Kartenmodi, Wege, Ortstyp-Filter, Kraftlinienmodus, Labels, URL/Reload, Route-Rehydrate, Spotlight/Search, mobile Breite und Browser-Konsole geprueft. Ergebnis: keine Browser-Konsolenmeldungen.
 
