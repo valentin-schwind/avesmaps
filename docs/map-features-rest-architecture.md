@@ -354,7 +354,9 @@ Kopplungen:
 
 Architekturbewertung:
 
-Revisionen und Softlocks wurden bereits in `js/map-features-feature-state.js` ausgelagert. Der verbleibende Feature-Response-Dispatcher ist weiterhin ein Konsistenzkern und sollte nicht direkt gesplittet werden.
+Revisionen und Softlocks wurden bereits in `js/map-features-feature-state.js` ausgelagert. Der enge Feature-Response-Dispatcher-Teilschnitt (`removeLiveFeature`, `applyLiveMapFeatureUpdate`, `applyMapFeatureEditResult`) wurde nach `js/map-features-feature-dispatcher.js` ausgelagert.
+
+In `js/map-features.js` verbleiben bewusst die CRUD-/Domain-spezifischen Mutationen und die stark gekoppelten fachlichen Flows.
 
 Moegliches Zielmodul spaeter:
 
@@ -404,6 +406,7 @@ Aber erst, wenn klar ist, welche Initialisierung zentral bleiben soll.
 | `pathLayers` | `js/map-features.js` | Rendering-Core ausgelagert, Besitz bleibt hier |
 | Path-Prepare-Helfer | `js/map-features-path-prepare.js` | stabiler Teil-Split |
 | Path-Apply/Live-Helfer | `js/map-features-path-lifecycle.js` | stabiler Teil-Split |
+| Feature-Response-Dispatcher-Teilschnitt | `js/map-features-feature-dispatcher.js` | stabiler Teil-Split |
 | Path-Creation-Pending-State | `js/map-features-path-creation.js` | stabiler Split |
 | Path-Geometry-Edit-State | `js/map-features-path-geometry-editing.js` | stabiler Split |
 | freie Labels | `js/map-features-labels.js` | stabiler Split |
