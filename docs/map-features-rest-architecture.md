@@ -338,6 +338,7 @@ Die Region Geometry Edit Lifecycle-Helfer (`clearRegionGeometryEdit`, `startRegi
 Die Region Overlap Selection-Helfer (`getRegionLayerGeometryPublicId`, `isLatLngInsideRegionRing`, `isLatLngInsideRegionLayer`, `getOverlappingPoliticalRegionLayersAtLatLng`, `resolveOverlappingRegionLayerSelection`, `announceOverlappingRegionSelection`) wurden nach `js/map-features-region-overlap-selection.js` ausgelagert.
 
 Die Region Context Menu DOM/State-Helfer (`getRegionContextMenuElement`, `openRegionContextMenu`, `closeRegionContextMenu`, `positionContextMenuElement`) wurden nach `js/map-features-region-context-menu.js` ausgelagert.
+Der verbleibende Region-Kontextmenue-Click-Dispatcher in `js/map-features.js` wurde intern auf eine Action-Map (`REGION_CONTEXT_ACTIONS` / `REGION_BOOLEAN_CONTEXT_ACTIONS`) refactored, ohne Verhaltensaenderung.
 
 Die Context-Menü-Actions, Region-Edit- und Pending-Operationen bleiben im Rest in `js/map-features.js`, darunter `bindRegionPolygonEditEvents`, `extractRegionGeometryPartAsNewTerritory`, `startPendingRegionOperation`, `startPendingRegionSplit`, `startPendingRegionMove`, `cancelPendingRegionOperation`, `openRegionEditDialog`, `startRegionGeometryEdit`, `deleteActiveRegion`.
 

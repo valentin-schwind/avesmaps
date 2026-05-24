@@ -694,11 +694,31 @@ $(document).on("click", "[data-region-context-action]", function (event) {
 		return;
 	}
 
-	if (action === "edit-geometry") {
-		startRegionGeometryEdit(regionEntry, regionLayer);
+	if (REGION_BOOLEAN_CONTEXT_ACTIONS.has(action)) {
+		startPendingRegionOperation(action, regionEntry, regionLayer);
 		return;
 	}
-	if (action === "edit-properties") {
+
+	const contextActionHandler = REGION_CONTEXT_ACTIONS[action];
+	if (!contextActionHandler) {
+		return;
+	}
+
+	contextActionHandler({ regionEntry, regionLayer, polygonIndex });
+});
+
+const REGION_BOOLEAN_CONTEXT_ACTIONS = new Set([
+	"union",
+	"difference",
+	"difference-keep-target",
+	"intersection",
+]);
+
+const REGION_CONTEXT_ACTIONS = {
+	"edit-geometry": ({ regionEntry, regionLayer }) => {
+		startRegionGeometryEdit(regionEntry, regionLayer);
+	},
+	"edit-properties": ({ regionEntry }) => {
 		clearRegionGeometryEdit();
 
 		if (window.AvesmapsPoliticalTerritoryEditorLink) {
@@ -707,34 +727,25 @@ $(document).on("click", "[data-region-context-action]", function (event) {
 		}
 
 		openRegionEditDialog(regionEntry, { title: "Eigenschaften bearbeiten" });
-		return;
-	}
-	if (action === "show-info") {
+	},
+	"show-info": ({ regionEntry }) => {
 		openRegionCompactTooltip(regionEntry);
 		showPoliticalTerritoryTimelineSelection(regionEntry);
-		return;
-	}
-	if (action === "move") {
+	},
+	"move": ({ regionEntry }) => {
 		startPendingRegionMove(regionEntry, pendingContextMenuLatLng || regionEntry.layer?.getBounds?.().getCenter?.() || map.getCenter());
-		return;
-	}
-	if (action === "split") {
+	},
+	"split": ({ regionEntry, regionLayer }) => {
 		startPendingRegionSplit(regionEntry, regionLayer);
-		return;
-	}
-	if (["union", "difference", "difference-keep-target", "intersection"].includes(action)) {
-		startPendingRegionOperation(action, regionEntry, regionLayer);
-		return;
-	}
-	if (action === "extract") {
+	},
+	"extract": ({ regionEntry, regionLayer }) => {
 		void extractRegionGeometryPartAsNewTerritory(regionEntry, regionLayer);
-		return;
-	}
-	if (action === "delete") {
+	},
+	"delete": ({ regionEntry, regionLayer, polygonIndex }) => {
 		regionEditEntry = regionEntry;
 		void deleteActiveRegion(regionLayer, polygonIndex);
-	}
-});
+	},
+};
 
 async function extractRegionGeometryPartAsNewTerritory(regionEntry, selectedLayer) {
 	if (!regionEntry || regionEntry.source !== "political_territory") {

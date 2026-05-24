@@ -143,6 +143,7 @@ Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`ex
 - Political-Timeline: Split `js/map-features-political-timeline.js` (enger 1:1-Extract; Territory-API/Layer-Reload und Region-Operations-Rest bleibt in `js/map-features.js`).
 - Political-Territory Loader/Reload: Split `js/map-features-political-territory-loader.js` (enger 1:1-Extract; Region-Rendering, Tooltip, Context und Geometry-Operationen bleiben in `js/map-features.js`).
 - Region Context Menu: Split `js/map-features-region-context-menu.js` (enger 1:1-Extract; Context-Action-Dispatcher, Geometry-Edit und Pending Operations bleiben in `js/map-features.js`).
+- Region Context Action Map: interner Refactor in `js/map-features.js` (if-Kette des Kontextmenue-Click-Handlers auf Action-Map umgestellt, ohne Logikaenderung).
 - Region Info/Tooltip Markup: Split `js/map-features-region-info-markup.js` (enger 1:1-Extract; Tooltip-Lifecycle, Region-Context und Geometry-Operationen bleiben in `js/map-features.js`).
 - Location Lookup/Type/Naming: Split `js/map-features-location-lookup.js` (enger 1:1-Extract; Location Lifecycle, Popups, Move/Create/Delete, API-Persistenz und Planner-Refresh bleiben in `js/map-features.js`).
 - Location Marker Entry/Popup: Split `js/map-features-location-marker-entry.js` (enger 1:1-Extract; Location Move, Create/Delete, API-Persistenz und Planner-Refresh bleiben in `js/map-features.js`).
@@ -184,6 +185,7 @@ Die Detailhistorie und Boundary-Entscheidungen liegen in separaten Dokumenten. W
 - `docs/map-features-political-timeline-stable.md`
 - `docs/map-features-political-territory-loader-stable.md`
 - `docs/map-features-region-context-menu-stable.md`
+- `docs/map-features-region-context-action-map.md`
 - `docs/map-features-region-info-markup-stable.md`
 - `docs/map-features-region-feature-normalization.md`
 - `docs/map-features-region-split-preview.md`
