@@ -57,6 +57,7 @@ Folgende Dateien sind stabile Splits aus `js/map-features.js`:
 - `js/map-features-region-geometry-helpers.js` fuer den engen Region Geometry Helper-Teilschnitt.
 - `js/map-features-region-split-preview.js` fuer den engen Region Split Preview-Helfer.
 - `js/map-features-region-pending-highlight.js` fuer den engen Region Pending Target Highlight-Teilschnitt.
+- `js/map-features-region-rendering.js` fuer den engen Region Rendering-Orchestrator-Teilschnitt.
 - `js/map-features-region-overlap-selection.js` fuer den engen Region Overlap Selection-Teilschnitt.
 
 Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurden nachgelagert mit gezielten Browser-Smokes oder Abschlusspruefungen bewertet.
@@ -93,11 +94,12 @@ Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurde
 26. `js/map-features-region-geometry-helpers.js`
 27. `js/map-features-region-split-preview.js`
 28. `js/map-features-region-pending-highlight.js`
-29. `js/map-features-political-timeline.js`
-30. `js/map-features-region-visibility.js`
-31. `js/map-features-political-territory-loader.js`
-32. `js/map-features-feature-dispatcher.js`
-33. `js/routing.js`
+29. `js/map-features-region-rendering.js`
+30. `js/map-features-political-timeline.js`
+31. `js/map-features-region-visibility.js`
+32. `js/map-features-political-territory-loader.js`
+33. `js/map-features-feature-dispatcher.js`
+34. `js/routing.js`
 
 Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`export`-Syntax, kein Build-System.
 
@@ -130,6 +132,7 @@ Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`ex
 - Location Marker Entry/Popup: Split `js/map-features-location-marker-entry.js` (enger 1:1-Extract; Location Move, Create/Delete, API-Persistenz und Planner-Refresh bleiben in `js/map-features.js`).
 - Region Overlap Selection: Split `js/map-features-region-overlap-selection.js` (enger 1:1-Extract; Context-Menue, Region-Edit und Pending Operations bleiben in `js/map-features.js`).
 - Region Pending Target Highlight: Split `js/map-features-region-pending-highlight.js` (enger 1:1-Extract; Operation-Start/Split/Move, Persistenz und Geometry-/Boolean-Operationen bleiben in `js/map-features.js`).
+- Region Rendering: Split `js/map-features-region-rendering.js` (enger 1:1-Extract; Tooltip-Lifecycle, Polygon-Edit, Context/Split/Move/Boolean-Operationen und API-Persistenz bleiben in `js/map-features.js`).
 
 ## 6. Stable Detail Documents
 
@@ -161,6 +164,7 @@ Die Detailhistorie und Boundary-Entscheidungen liegen in separaten Dokumenten. W
 - `docs/map-features-region-feature-normalization.md`
 - `docs/map-features-region-split-preview.md`
 - `docs/map-features-region-pending-highlight.md`
+- `docs/map-features-region-rendering.md`
 - `docs/map-features-region-geometry-helpers.md`
 - `docs/map-features-location-lookup-stable.md`
 - `docs/map-features-location-marker-entry-stable.md`
@@ -247,6 +251,7 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden 
 - Region-Geometry-Helpers-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Region-Split-Preview-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Region-Pending-Highlight-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
+- Region-Rendering-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
 - Location-Lookup-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Location-Marker-Entry-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 

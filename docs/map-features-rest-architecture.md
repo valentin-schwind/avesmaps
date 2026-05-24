@@ -324,6 +324,7 @@ Die Region Feature Normalization-Helfer (`normalizeRegionFeature`, `getRegionFea
 Die Region Geometry-Helfer (`getRegionOuterLatLngs`, `getPolygonLatLngRings`, `flattenLatLngRings`, `isLatLngLike`, `regionLayerToGeoJsonGeometry`, `regionLayersToGeoJsonGeometry`) wurden nach `js/map-features-region-geometry-helpers.js` ausgelagert.
 
 Die Region Split Preview-Helfer (`updatePendingRegionSplitPreview`, `clearPendingRegionSplitPreview`) wurden nach `js/map-features-region-split-preview.js` ausgelagert.
+Die Region Rendering-Helfer (`prepareRegionData`, `prepareLegacyRegionData`, `clearRenderedRegionLayers`, `addRegionFeatureToMap`) wurden nach `js/map-features-region-rendering.js` ausgelagert.
 
 Die Region Overlap Selection-Helfer (`getRegionLayerGeometryPublicId`, `isLatLngInsideRegionRing`, `isLatLngInsideRegionLayer`, `getOverlappingPoliticalRegionLayersAtLatLng`, `resolveOverlappingRegionLayerSelection`, `announceOverlappingRegionSelection`) wurden nach `js/map-features-region-overlap-selection.js` ausgelagert.
 
@@ -434,6 +435,7 @@ Aber erst, wenn klar ist, welche Initialisierung zentral bleiben soll.
 | Region-Visibility-Helfer | `js/map-features-region-visibility.js` | stabiler Teil-Split |
 | Political-Timeline-Helfer | `js/map-features-political-timeline.js` | stabiler Teil-Split |
 | Region-Pending-Highlight-Helfer | `js/map-features-region-pending-highlight.js` | stabiler Teil-Split |
+| Region-Rendering-Helfer | `js/map-features-region-rendering.js` | stabiler Teil-Split |
 | Path-Creation-Pending-State | `js/map-features-path-creation.js` | stabiler Split |
 | Path-Geometry-Edit-State | `js/map-features-path-geometry-editing.js` | stabiler Split |
 | freie Labels | `js/map-features-labels.js` | stabiler Split |
