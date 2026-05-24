@@ -37,6 +37,12 @@ Dokumentiert den engen 1:1-Extract des Feature-Response-Dispatcher-Teilschnitts 
 6. Route neu berechnen.
 7. Reload und Konsole erneut pruefen.
 
+## Smoke-Ergebnis
+
+Feature-Dispatcher-Smoke bestanden: Punkte 1-8 ohne Auffaelligkeiten oder Konsolenmeldungen.
+
+Geprueft wurden Seite/Konsole, sichtbare Wege/Orte/Labels/Regionen, Path-Creation, Path-Geometry-Editing, Routing, ein verfuegbarer Edit- oder Delete-Flow sowie Reload.
+
 ## Entscheidung
 
-Der Split ist als enger 1:1-Extract umgesetzt. Weitere Dispatcher-/CRUD-Splits nur mit neuer Boundary-Analyse.
+Der Split ist als enger 1:1-Extract umgesetzt und per Betreiber-Smoke bestaetigt. Weitere Dispatcher-/CRUD-Splits nur mit neuer Boundary-Analyse.
