@@ -8,7 +8,7 @@
   - `collectAndValidateSelectedLocations()`
   - `buildRouteResultFromSelectedLocations(useShortest)`
 - `js/popups.js` bleibt stabil mit lokalem Helper `pathCreationActionButtonsMarkup(publicId)`.
-- Dialog-Review-Split ist jetzt in zwanzig stabile Schichten getrennt, mit klassischer Script-Reihenfolge in `index.html`:
+- Dialog-Review-Split ist jetzt in einundzwanzig stabile Schichten getrennt, mit klassischer Script-Reihenfolge in `index.html`:
   1. `js/dialogs-review-core.js`
   2. `js/dialogs-review-status.js`
   3. `js/dialogs-review-pending.js`
@@ -28,7 +28,8 @@
   17. `js/dialogs-review-region-submit-flow.js`
   18. `js/dialogs-review-region-events.js`
   19. `js/dialogs-review-editor-submit.js`
-  20. `js/dialogs-review.js`
+  20. `js/dialogs-review-report-flow.js`
+  21. `js/dialogs-review.js`
 - `js/dialogs-review-core.js` ist stabiler Core-Cluster-Split (DOM-/Dialog-Getter, Form-/Status-Getter, `is...DialogOpen`, `isLocationReportServiceConfigured`, `syncModalDialogBodyState`).
 - `js/dialogs-review-status.js` ist stabiler Status-Cluster-Split (`dataset.status` + `dataset.state` Wrapper/Helper).
 - `js/dialogs-review-pending.js` ist stabiler Pending-Cluster-Split (`setFormFieldsDisabled(...)` + fuenf `set...SubmitPending`-Wrapper).
@@ -48,7 +49,8 @@
 - `js/dialogs-review-region-submit-flow.js` ist stabiler Region-Submit-/Payload-Flow-Cluster-Split.
 - `js/dialogs-review-region-events.js` ist stabiler Region-/Herrschaftsgebiet-Event-Bindings-Cluster-Split.
 - `js/dialogs-review-editor-submit.js` ist stabiler Cluster fuer klassische Editor-Submit-Handler (Location/Path/Powerline/Label).
-- `js/dialogs-review.js` bleibt stabil als Rest-Orchestrator fuer Report-/Init-Logik und verbleibende Hilfsfunktionen.
+- `js/dialogs-review-report-flow.js` ist stabiler Review-/Location-Report-Flow-Cluster-Split.
+- `js/dialogs-review.js` bleibt stabil als Rest-Orchestrator fuer Validator-/Init-Logik und verbleibende Hilfsfunktionen.
 - `js/ui-controls.js` bleibt stabil mit lokalem Helper `bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName)` fuer Review-/Wiki-Sync-Tab-Persistierung.
 
 ## 2. Recent Safe Extracts / Splits
@@ -72,6 +74,7 @@
 - Siebzehnter kontrollierter Datei-Split: Region-Submit-/Payload-Flow-Cluster nach `js/dialogs-review-region-submit-flow.js`.
 - Achtzehnter kontrollierter Datei-Split: Region-/Herrschaftsgebiet-Event-Bindings-Cluster nach `js/dialogs-review-region-events.js`.
 - Neunzehnter kontrollierter Datei-Split: klassische Editor-Submit-Handler nach `js/dialogs-review-editor-submit.js`.
+- Zwanzigster kontrollierter Datei-Split: Review-/Location-Report-Flow-Cluster nach `js/dialogs-review-report-flow.js`.
 - Abhaengigkeitsrichtung ist jetzt sauberer: Core vor Status/Pending/Feature/Panel/WikiSync-Dateien, Rest-Orchestrator zuletzt.
 
 ## 3. Areas To Leave Stable For Now
@@ -98,6 +101,7 @@
   - `js/dialogs-review-region-submit-flow.js`
   - `js/dialogs-review-region-events.js`
   - `js/dialogs-review-editor-submit.js`
+  - `js/dialogs-review-report-flow.js`
 - Keine Cluster direkt weiter aufteilen ohne neue Boundary-Analyse.
 - `js/dialogs-review.js` nur mit engem, neu analysiertem Scope weiter zerschneiden.
 
@@ -204,13 +208,22 @@
   - Assignment-Summary-Felder (Zoom, Farbe, Opacity, Name, Wappen, Zeitraum) pruefen
   - Parent-Clear und anschliessendes Speichern mit sicherer Testregion pruefen
   - keine neuen Konsolenfehler/ReferenceErrors
-- Editor-Submit-Smoke empfohlen/offen, falls noch nicht gemeldet.
+- Editor-Submit-Smoke nach Split bestanden.
 - Wichtige Editor-Submit-Smoke-Faelle:
   - Ort-Edit-Dialog oeffnen und speichern (sicherer Testeintrag)
   - Weg-Edit-Dialog oeffnen und speichern (sicherer Testweg)
   - Kraftlinie-Edit-Dialog speichern (falls vorhanden, sichere Testdaten)
   - Label-Edit-Dialog oeffnen und speichern (sicherer Testeintrag)
   - optional neue Entitaeten aus Review-Meldungen mit sicheren Testdaten pruefen
+  - keine neuen Konsolenfehler/ReferenceErrors
+- Report-Flow-Smoke empfohlen/offen, falls noch nicht gemeldet.
+- Wichtige Report-Flow-Smoke-Faelle:
+  - Meldungen-/Review-Panel oeffnen
+  - sichere Location-Meldung anklicken und Ort-Edit-Vorbefuellung pruefen
+  - sichere Label-/Map-Meldung anklicken und Label-Edit-Vorbefuellung pruefen
+  - sichere Testmeldung verwerfen (falls Testdaten vorhanden)
+  - Location-Report-Formular oeffnen, Validierung pruefen
+  - Location-Report senden nur mit sicheren Testdaten
   - keine neuen Konsolenfehler/ReferenceErrors
 - Core-Smoke empfohlen/offen, falls noch nicht gemeldet (`modal-dialog-open`, Dialoge oeffnen/schliessen).
 - Fuer jeden spaeteren Split ist ein eigener, gezielter Smoke-Zyklus erforderlich.
@@ -233,11 +246,12 @@
 - Region-Event-Bindings, andere Editor-Submit-Handler sowie Init-/Bootstrapping-Logik waren explizit nicht Teil des Region-Submit-Flow-Splits.
 - Andere Editor-Submit-Handler, Report-Handler sowie Init-/Bootstrapping-Logik waren explizit nicht Teil des Region-Events-Splits.
 - Review-Report-Helfer, Location-Report-Submit sowie Init-/Bootstrapping-Logik waren explizit nicht Teil des Editor-Submit-Splits.
+- Dialog-Reset/Open-State-Helfer, Validatoren sowie Init-/Bootstrapping-Logik waren explizit nicht Teil des Report-Flow-Splits.
 
 ## 7. Next Recommended Step
 
 - Kein sofortiger weiterer Code-Split.
-- Zuerst Editor-Submit-Smoke (und ggf. offenen Core-Smoke) abschliessen.
+- Zuerst Report-Flow-Smoke (und ggf. offenen Core-Smoke) abschliessen.
 - Danach Restdatei (`js/dialogs-review.js`) neu analysieren.
-- Naechster Analysebereich bevorzugt Report-/Init-Cluster.
+- Naechster Analysebereich bevorzugt Validator-/Init-Cluster.
 - Explizit: nicht direkt Region/Init/Event-Binding ohne Boundary-Analyse verschieben.
