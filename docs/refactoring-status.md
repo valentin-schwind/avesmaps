@@ -63,6 +63,7 @@ Folgende Dateien sind stabile Splits aus `js/map-features.js`:
 - `js/map-features-region-payload-builders.js` fuer den engen Region API Payload Builder-Teilschnitt.
 - `js/map-features-region-edit-edge-controls.js` fuer den engen Region Edit Edge Controls-Teilschnitt.
 - `js/map-features-region-edit-handles.js` fuer den engen Region Edit Handles-Teilschnitt.
+- `js/map-features-region-geometry-edit-lifecycle.js` fuer den engen Region Geometry Edit Lifecycle-Teilschnitt.
 - `js/map-features-region-overlap-selection.js` fuer den engen Region Overlap Selection-Teilschnitt.
 
 Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurden nachgelagert mit gezielten Browser-Smokes oder Abschlusspruefungen bewertet.
@@ -105,6 +106,7 @@ Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurde
 32. `js/map-features-region-payload-builders.js`
 33. `js/map-features-region-edit-edge-controls.js`
 34. `js/map-features-region-edit-handles.js`
+35. `js/map-features-region-geometry-edit-lifecycle.js`
 34. `js/map-features-political-timeline.js`
 35. `js/map-features-region-visibility.js`
 36. `js/map-features-political-territory-loader.js`
@@ -148,6 +150,7 @@ Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`ex
 - Region Payload Builders: Split `js/map-features-region-payload-builders.js` (enger 1:1-Extract; Operation-Orchestrierung, API-Aufruf, Toast/Reload/Changelog bleiben in `js/map-features.js`).
 - Region Edit Edge Controls: Split `js/map-features-region-edit-edge-controls.js` (enger 1:1-Extract; Region-Geometry-Edit-Orchestrierung, Save/Update und Node-/Boundary-Operationen bleiben in `js/map-features.js`).
 - Region Edit Handles: Split `js/map-features-region-edit-handles.js` (enger 1:1-Extract; Region-Geometry-Edit-Orchestrierung, Save/Update und Boundary-/Insert-Operationen bleiben in `js/map-features.js`).
+- Region Geometry Edit Lifecycle: Split `js/map-features-region-geometry-edit-lifecycle.js` (enger 1:1-Extract; Handle-/Edge-Interaktion und Save/Update bleiben in `js/map-features.js` bzw. bereits ausgelagerten Helfern).
 
 ## 6. Stable Detail Documents
 
@@ -184,6 +187,7 @@ Die Detailhistorie und Boundary-Entscheidungen liegen in separaten Dokumenten. W
 - `docs/map-features-region-boolean-geometry.md`
 - `docs/map-features-region-edit-edge-controls.md`
 - `docs/map-features-region-edit-handles.md`
+- `docs/map-features-region-geometry-edit-lifecycle.md`
 - `docs/map-features-region-geometry-helpers.md`
 - `docs/map-features-location-lookup-stable.md`
 - `docs/map-features-location-marker-entry-stable.md`
@@ -269,6 +273,7 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden 
 - Region-Payload-Builders-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
 - Region-Edit-Edge-Controls-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
 - Region-Edit-Handles-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
+- Region-Geometry-Edit-Lifecycle-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
 - Region-Info-Markup-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Region-Overlap-Selection-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Region-Context-Menu-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
