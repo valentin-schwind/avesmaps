@@ -50,8 +50,14 @@ Diese verbleibenden Funktionen sind eng mit Tooltip-Lifecycle, Layer-Geometrie u
 4. Region-Info-Links öffnen und prüfen, ob sie im neuen Tab starten.
 5. Konsole auf Fehler prüfen.
 
-## 6. Status
+## 6. Smoke-Ergebnis
+
+Region-Info-Markup-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
+
+Geprueft wurden Regions-Tooltip, Wiki-Info/Tooltip-Inhalt, Tooltip-Knoepfe fuer Hauptstadthandling und Browser-Konsole.
+
+## 7. Status
 
 - Split: umgesetzt
 - Logikaenderung: keine
-- Smoke: steht aus
+- Smoke: bestanden
