@@ -42,8 +42,14 @@ Diese Funktionen sind eng mit Location Move-, Create/Delete-, API-Persistenz- un
 4. Dragend-Speicherung testen und sicherstellen, dass `saveMovedLocationMarker(...)` unverändert in `js/map-features.js` bleibt.
 5. Konsole auf Fehler prüfen.
 
-## 6. Status
+## 6. Smoke-Ergebnis
+
+Location-Marker-Entry-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
+
+Geprueft wurden Kartenstart, Orts- und Kreuzungs-Popups, Popup-Actions, Popup-Aktualisierung nach Bearbeitung, Marker-Dragend-Speicherung, Kreuzungserstellung, Reload und Browser-Konsole.
+
+## 7. Status
 
 - Split: umgesetzt
 - Logikaenderung: keine
-- Browser-Smoke: steht aus
+- Browser-Smoke: bestanden
