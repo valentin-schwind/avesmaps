@@ -54,6 +54,7 @@ Folgende Dateien sind stabile Splits aus `js/map-features.js`:
 - `js/map-features-location-marker-entry.js` fuer den engen Location Marker Entry/Popup-Helper.
 - `js/map-features-region-info-markup.js` fuer den engen Region Info/Tooltip Markup-Teilschnitt.
 - `js/map-features-region-feature-normalization.js` fuer den engen Region Feature Normalization-Helper.
+- `js/map-features-region-geometry-helpers.js` fuer den engen Region Geometry Helper-Teilschnitt.
 - `js/map-features-region-overlap-selection.js` fuer den engen Region Overlap Selection-Teilschnitt.
 
 Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurden nachgelagert mit gezielten Browser-Smokes oder Abschlusspruefungen bewertet.
@@ -87,8 +88,9 @@ Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurde
 23. `js/map-features-region-overlap-selection.js`
 24. `js/map-features-region-info-markup.js`
 25. `js/map-features-region-feature-normalization.js`
-26. `js/map-features-political-timeline.js`
-27. `js/map-features-region-visibility.js`
+26. `js/map-features-region-geometry-helpers.js`
+27. `js/map-features-political-timeline.js`
+28. `js/map-features-region-visibility.js`
 28. `js/map-features-political-territory-loader.js`
 29. `js/map-features-feature-dispatcher.js`
 30. `js/routing.js`
