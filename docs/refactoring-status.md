@@ -49,6 +49,7 @@ Folgende Dateien sind stabile Splits aus `js/map-features.js`:
 - `js/map-features-political-timeline.js` fuer den engen Political-Timeline-Teilschnitt.
 - `js/map-features-political-territory-loader.js` fuer den engen Political-Territory Loader/Reload-Teilschnitt.
 - `js/map-features-region-info-markup.js` fuer den engen Region Info/Tooltip Markup-Teilschnitt.
+- `js/map-features-region-overlap-selection.js` fuer den engen Region Overlap Selection-Teilschnitt.
 
 Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurden nachgelagert mit gezielten Browser-Smokes oder Abschlusspruefungen bewertet.
 

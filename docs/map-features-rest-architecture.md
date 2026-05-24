@@ -318,7 +318,11 @@ Der enge Political-Timeline-Teilschnitt (`syncPoliticalTimelineVisibility`, `syn
 
 Die Region Info/Tooltip Markup-Helfer (`createRegionCompactTooltipMarkup`, `createRegionMiniTooltipMarkup`, `hasRegionWikiInfo`, `createRegionWikiInfoBoxMarkup`, `createRegionInfoTextRow`, `createRegionInfoBoxRow`, `createRegionInfoPlaceValue`, `createRegionInfoLink`, `createRegionInfoPathValue`, `normalizeRegionInfoUrl`, `normalizeRegionStringList`, `createRegionPlaceTooltipLine`, `normalizeRegionParentheticalSpacing`) wurden nach `js/map-features-region-info-markup.js` ausgelagert.
 
-Die Tooltip-Lifecycle-, Context- und Geometriezustands-Funktionen (`bindRegionCompactTooltip`, `openRegionCompactTooltip`, `closeRegionCompactTooltip`, `getRegionTooltipLatLng`, `focusRegionPlace`, `createRegionLabelMarkup`, `getRegionLayerGeometryPublicId`, `isLatLngInsideRegionRing`, `isLatLngInsideRegionLayer`) verbleiben im Rest in `js/map-features.js`.
+Die Region Overlap Selection-Helfer (`getRegionLayerGeometryPublicId`, `isLatLngInsideRegionRing`, `isLatLngInsideRegionLayer`, `getOverlappingPoliticalRegionLayersAtLatLng`, `resolveOverlappingRegionLayerSelection`, `announceOverlappingRegionSelection`) wurden nach `js/map-features-region-overlap-selection.js` ausgelagert.
+
+Die Context-Menü-, Region-Edit- und Pending-Operationen bleiben im Rest in `js/map-features.js`, darunter `bindRegionPolygonEditEvents`, `openRegionContextMenu`, `closeRegionContextMenu`, `getRegionContextMenuElement`, `positionContextMenuElement`, `focusRegionPlace`.
+
+Die Tooltip-Lifecycle-, Context- und Geometriezustands-Funktionen (`bindRegionCompactTooltip`, `openRegionCompactTooltip`, `closeRegionCompactTooltip`, `getRegionTooltipLatLng`, `focusRegionPlace`, `createRegionLabelMarkup`) verbleiben im Rest in `js/map-features.js`.
 
 Das ist kein Rest-Split, sondern eine eigene Architekturaufgabe: Vor Codearbeit muss das Zielbild von Tooltip-Lifecycle, Context-Flow und Geometrie-Anbindung klar sein.
 
