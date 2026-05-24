@@ -55,6 +55,7 @@ Folgende Dateien sind stabile Splits aus `js/map-features.js`:
 - `js/map-features-region-info-markup.js` fuer den engen Region Info/Tooltip Markup-Teilschnitt.
 - `js/map-features-region-feature-normalization.js` fuer den engen Region Feature Normalization-Helper.
 - `js/map-features-region-geometry-helpers.js` fuer den engen Region Geometry Helper-Teilschnitt.
+- `js/map-features-region-split-preview.js` fuer den engen Region Split Preview-Helfer.
 - `js/map-features-region-overlap-selection.js` fuer den engen Region Overlap Selection-Teilschnitt.
 
 Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurden nachgelagert mit gezielten Browser-Smokes oder Abschlusspruefungen bewertet.
@@ -89,11 +90,12 @@ Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurde
 24. `js/map-features-region-info-markup.js`
 25. `js/map-features-region-feature-normalization.js`
 26. `js/map-features-region-geometry-helpers.js`
-27. `js/map-features-political-timeline.js`
-28. `js/map-features-region-visibility.js`
-29. `js/map-features-political-territory-loader.js`
-30. `js/map-features-feature-dispatcher.js`
-31. `js/routing.js`
+27. `js/map-features-region-split-preview.js`
+28. `js/map-features-political-timeline.js`
+29. `js/map-features-region-visibility.js`
+30. `js/map-features-political-territory-loader.js`
+31. `js/map-features-feature-dispatcher.js`
+32. `js/routing.js`
 
 Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`export`-Syntax, kein Build-System.
 
@@ -154,6 +156,7 @@ Die Detailhistorie und Boundary-Entscheidungen liegen in separaten Dokumenten. W
 - `docs/map-features-region-context-menu-stable.md`
 - `docs/map-features-region-info-markup-stable.md`
 - `docs/map-features-region-feature-normalization.md`
+- `docs/map-features-region-split-preview.md`
 - `docs/map-features-region-geometry-helpers.md`
 - `docs/map-features-location-lookup-stable.md`
 - `docs/map-features-location-marker-entry-stable.md`
