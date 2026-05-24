@@ -8,7 +8,7 @@
   - `collectAndValidateSelectedLocations()`
   - `buildRouteResultFromSelectedLocations(useShortest)`
 - `js/popups.js` bleibt stabil mit lokalem Helper `pathCreationActionButtonsMarkup(publicId)`.
-- Dialog-Review-Split ist jetzt in fuenfzehn stabile Schichten getrennt, mit klassischer Script-Reihenfolge in `index.html`:
+- Dialog-Review-Split ist jetzt in sechzehn stabile Schichten getrennt, mit klassischer Script-Reihenfolge in `index.html`:
   1. `js/dialogs-review-core.js`
   2. `js/dialogs-review-status.js`
   3. `js/dialogs-review-pending.js`
@@ -23,7 +23,8 @@
   12. `js/dialogs-review-region-assignment-state.js`
   13. `js/dialogs-review-region-assignment-ui.js`
   14. `js/dialogs-review-region-tabs-payload.js`
-  15. `js/dialogs-review.js`
+  15. `js/dialogs-review-region-save-flow.js`
+  16. `js/dialogs-review.js`
 - `js/dialogs-review-core.js` ist stabiler Core-Cluster-Split (DOM-/Dialog-Getter, Form-/Status-Getter, `is...DialogOpen`, `isLocationReportServiceConfigured`, `syncModalDialogBodyState`).
 - `js/dialogs-review-status.js` ist stabiler Status-Cluster-Split (`dataset.status` + `dataset.state` Wrapper/Helper).
 - `js/dialogs-review-pending.js` ist stabiler Pending-Cluster-Split (`setFormFieldsDisabled(...)` + fuenf `set...SubmitPending`-Wrapper).
@@ -38,7 +39,8 @@
 - `js/dialogs-review-region-assignment-state.js` ist stabiler Region-Assignment-State-/Breadcrumb-Cache-Cluster-Split.
 - `js/dialogs-review-region-assignment-ui.js` ist stabiler Region-Assignment-UI-/Operations-Helfer-Cluster-Split.
 - `js/dialogs-review-region-tabs-payload.js` ist stabiler Region-Tabs-/Payload-State-Helfer-Cluster-Split.
-- `js/dialogs-review.js` bleibt stabil als Rest-Orchestrator fuer Region-/Territory-Save/Submit/Dialog-Flow, Submit-/API-/Init-Logik und verbleibende Hilfsfunktionen.
+- `js/dialogs-review-region-save-flow.js` ist stabiler Region-Save-/Tab-Load-Helfer-Cluster-Split.
+- `js/dialogs-review.js` bleibt stabil als Rest-Orchestrator fuer Region-/Territory-Dialog-Population, Submit-/Event-/Init-Logik und verbleibende Hilfsfunktionen.
 - `js/ui-controls.js` bleibt stabil mit lokalem Helper `bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName)` fuer Review-/Wiki-Sync-Tab-Persistierung.
 
 ## 2. Recent Safe Extracts / Splits
@@ -57,6 +59,7 @@
 - Zwoelfter kontrollierter Datei-Split: Region-Assignment-State-/Breadcrumb-Cache-Cluster nach `js/dialogs-review-region-assignment-state.js`.
 - Dreizehnter kontrollierter Datei-Split: Region-Assignment-UI-/Operations-Helfer-Cluster nach `js/dialogs-review-region-assignment-ui.js`.
 - Vierzehnter kontrollierter Datei-Split: Region-Tabs-/Payload-State-Helfer-Cluster nach `js/dialogs-review-region-tabs-payload.js`.
+- Fuenfzehnter kontrollierter Datei-Split: Region-Save-/Tab-Load-Helfer-Cluster nach `js/dialogs-review-region-save-flow.js`.
 - Abhaengigkeitsrichtung ist jetzt sauberer: Core vor Status/Pending/Feature/Panel/WikiSync-Dateien, Rest-Orchestrator zuletzt.
 
 ## 3. Areas To Leave Stable For Now
@@ -78,6 +81,7 @@
   - `js/dialogs-review-region-assignment-state.js`
   - `js/dialogs-review-region-assignment-ui.js`
   - `js/dialogs-review-region-tabs-payload.js`
+  - `js/dialogs-review-region-save-flow.js`
 - Keine Cluster direkt weiter aufteilen ohne neue Boundary-Analyse.
 - `js/dialogs-review.js` nur mit engem, neu analysiertem Scope weiter zerschneiden.
 
@@ -144,12 +148,20 @@
   - Breadcrumb-Klick und Parent-/Assignment-Drop mit Testdaten pruefen
   - Geometrie freigeben/Speichern nur mit sicherer Testregion pruefen
   - Dialog schliessen und erneut oeffnen, Konsole pruefen
-- Region-Tabs-Payload-Smoke empfohlen/offen, falls noch nicht gemeldet.
+- Region-Tabs-Payload-Smoke nach Split bestanden.
 - Wichtige Region-Tabs-Payload-Smoke-Faelle:
   - Region/Herrschaftsgebiet-Dialog oeffnen
   - Tab-Anzeige und Tab-Wechsel pruefen
   - Feld aendern, Tab wechseln und zurueckwechseln
   - Tab schliessen und Dirty-Confirm pruefen (falls moeglich)
+  - Dialog schliessen/erneut oeffnen, Konsole pruefen
+- Region-Save-Flow-Smoke empfohlen/offen, falls noch nicht gemeldet.
+- Wichtige Region-Save-Flow-Smoke-Faelle:
+  - Region/Herrschaftsgebiet-Dialog oeffnen
+  - Breadcrumb/Assignment so nutzen, dass weiterer Territory-Tab geladen wird
+  - Dirty-Confirm beim Tab-Schliessen pruefen
+  - Speichern mit sicherer Testregion pruefen
+  - Geometrie-Zuweisung speichern (nur mit sicheren Testdaten)
   - Dialog schliessen/erneut oeffnen, Konsole pruefen
 - Core-Smoke empfohlen/offen, falls noch nicht gemeldet (`modal-dialog-open`, Dialoge oeffnen/schliessen).
 - Fuer jeden spaeteren Split ist ein eigener, gezielter Smoke-Zyklus erforderlich.
@@ -167,11 +179,12 @@
 - Region-Assignment, Region-Tabs, Region-Submit-Handler und Region-Event-Bindings waren explizit nicht Teil des Region-Parent-Tree-Splits.
 - Region-Tabs, Region-Submit-Handler und Region-Event-Bindings waren explizit nicht Teil des Region-Assignment-UI-Splits.
 - Save/Submit, Dialog-Population und Region-Event-Bindings waren explizit nicht Teil des Region-Tabs-Payload-Splits.
+- Dialog-Population, Region-Event-Bindings, Region-Submit-Handler und Init-/Bootstrapping-Logik waren explizit nicht Teil des Region-Save-Flow-Splits.
 
 ## 7. Next Recommended Step
 
 - Kein sofortiger weiterer Code-Split.
-- Zuerst Region-Tabs-Payload-Smoke (und ggf. offenen Core-Smoke) abschliessen.
+- Zuerst Region-Save-Flow-Smoke (und ggf. offenen Core-Smoke) abschliessen.
 - Danach Restdatei (`js/dialogs-review.js`) neu analysieren.
-- Naechster Analysebereich bevorzugt Region/Territory-Save/Submit/Dialog-Flow.
+- Naechster Analysebereich bevorzugt Region/Territory-Dialog-Population/Submit/Init.
 - Explizit: nicht direkt Region/Init/Event-Binding ohne Boundary-Analyse verschieben.
