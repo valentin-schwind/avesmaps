@@ -188,7 +188,7 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden 
 - Gesamt-Smoke nach Abschluss der map-features.js-Split-Serie bestanden: Punkte 1-12 ok.
 - Path-Lifecycle-Smoke bestanden: Punkte 1-10 ohne Auffaelligkeiten.
 - Path-Prepare-Smoke bestanden: Punkte 1-8 ohne Auffaelligkeiten.
-- Feature-Dispatcher-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
+- Feature-Dispatcher-Smoke bestanden: Punkte 1-8 ohne Auffaelligkeiten oder Konsolenmeldungen.
 
 Fuer den Display-Mode-Split wurden insbesondere Kartenmodi, Wege, Ortstyp-Filter, Kraftlinienmodus, Labels, URL/Reload, Route-Rehydrate, Spotlight/Search, mobile Breite und Browser-Konsole geprueft. Ergebnis: keine Browser-Konsolenmeldungen.
 
