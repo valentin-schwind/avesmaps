@@ -8,7 +8,7 @@ Die gut isolierbaren Helper-/UI-/Rendering-Cluster wurden als klassische globale
 
 Nach erneuter Pruefung ist die fruehere Stopp-Formulierung zu praezisieren: Es sollen keine unvorbereiteten Mikro-Splits mehr erfolgen. Weitere `map-features.js`-Splits sind aber moeglich, wenn sie als eigene Boundary mit Datenfluss- und Smoke-Plan vorbereitet werden.
 
-Der Feature-State-Split fuer Revisionen und Softlocks wurde umgesetzt und per Betreiber-Smoke als stabil bewertet. Naechster Boundary-Kandidat ist Location-Marker-Rendering / Sichtbarkeit.
+Der Feature-State-Split fuer Revisionen und Softlocks wurde umgesetzt und per Betreiber-Smoke als stabil bewertet. Der Location-Marker-Rendering-Split wurde ebenfalls umgesetzt und per Betreiber-Smoke als stabil bewertet. Naechster Boundary-Kandidat ist Label-Kollision.
 
 ## 2. Stable Core Boundaries
 
@@ -31,6 +31,7 @@ Folgende Dateien sind stabile Splits aus `js/map-features.js`:
 - `js/map-features-powerlines.js` fuer Kraftlinien-/Powerline-Helfer.
 - `js/map-features-layer-state.js` fuer URL-/Planner-State-Helfer.
 - `js/map-features-display-mode.js` fuer den engen Display-/Layer-Mode-Schnitt.
+- `js/map-features-location-marker-rendering.js` fuer Location-Marker-Rendering, Zoom-Skalierung und Sichtbarkeit.
 - `js/map-features-feature-state.js` fuer Feature-Revisionen, Expected-Revisions und Softlocks.
 - `js/map-features-share-pin.js` fuer Share-Pin-/Clipboard-Helfer.
 - `js/map-features-waypoints.js` fuer Waypoint-UI-Helfer.
@@ -49,14 +50,15 @@ Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurde
 2. `js/map-features-powerlines.js`
 3. `js/map-features-layer-state.js`
 4. `js/map-features-display-mode.js`
-5. `js/map-features-feature-state.js`
-6. `js/map-features-share-pin.js`
-7. `js/map-features-waypoints.js`
-8. `js/map-features-location-name-labels.js`
-9. `js/map-features-path-domain.js`
-10. `js/map-features-path-labels.js`
-11. `js/map-features-path-rendering.js`
-12. `js/map-features.js`
+5. `js/map-features-location-marker-rendering.js`
+6. `js/map-features-feature-state.js`
+7. `js/map-features-share-pin.js`
+8. `js/map-features-waypoints.js`
+9. `js/map-features-location-name-labels.js`
+10. `js/map-features-path-domain.js`
+11. `js/map-features-path-labels.js`
+12. `js/map-features-path-rendering.js`
+13. `js/map-features.js`
 
 Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`export`-Syntax, kein Build-System.
 
@@ -73,6 +75,7 @@ Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`ex
 - Waypoint-UI: Commit `6a9c3ba79715f239559768506f755f07a99649fd`.
 - Display-Mode: Commit `f4309c65875cee8320a1ac5dacb358d7fb7d480e`.
 - Feature-State: Commit `699faf19cf571ab9531dace52e0559d4e318f30d`.
+- Location-Marker-Rendering: Commit `0a0f4af1e733919c189a48e6f6ece180a14d6fb9`.
 
 ## 6. Stable Detail Documents
 
@@ -84,6 +87,8 @@ Die Detailhistorie und Boundary-Entscheidungen liegen in separaten Dokumenten. W
 - `docs/map-features-display-mode-stable.md`
 - `docs/map-features-feature-state-boundary-check.md`
 - `docs/map-features-feature-state-stable.md`
+- `docs/map-features-location-marker-rendering-boundary-check.md`
+- `docs/map-features-location-marker-rendering-stable.md`
 - `docs/map-features-final-rest-assessment.md`
 - `docs/map-features-rest-architecture.md`
 
@@ -93,7 +98,7 @@ Weitere Einzeldateien dokumentieren die jeweiligen Boundary-Checks und Stabilita
 
 `js/map-features.js` bleibt Rest-Orchestrator fuer stark gekoppelte Bereiche:
 
-- Location-Marker-/Ortsdaten-Orchestrierung.
+- Location-Marker-/Ortsdaten-Orchestrierung ohne reines Marker-Rendering.
 - Location-Popup-/Popup-Action-Anbindung.
 - Label-Kollisionslogik.
 - Path-Lifecycle, Path-CRUD und Live-Update-Anbindung.
@@ -111,6 +116,7 @@ Nicht ohne neue Boundary-Analyse weiter aufteilen:
 - `js/map-features-powerlines.js` / Kraftlinien.
 - `js/map-features-layer-state.js` / URL-/Planner-State.
 - `js/map-features-display-mode.js` / Display-/Layer-Mode.
+- `js/map-features-location-marker-rendering.js` / Location-Marker-Rendering und Sichtbarkeit.
 - `js/map-features-feature-state.js` / Feature-Revisionen und Softlocks.
 - `js/map-features-share-pin.js` / Share-Pin und URL-nahe Clipboard-Flows.
 - `js/map-features-waypoints.js` / Waypoint-UI, Routing-Anbindung und Planner-State-Kanten.
@@ -128,12 +134,11 @@ Nicht ohne neue Boundary-Analyse weiter aufteilen:
 
 Nach erneuter Pruefung sind weitere `map-features.js`-Splits moeglich, aber nur mit eigener Boundary. Aktuelle Kandidaten in empfohlener Reihenfolge:
 
-1. Location-Marker-Rendering / Sichtbarkeit.
-2. Label-Kollision.
-3. Path-Creation.
-4. Path-Geometry-Editing.
+1. Label-Kollision.
+2. Path-Creation.
+3. Path-Geometry-Editing.
 
-Feature-Revisionen / Softlocks ist abgeschlossen und stabil.
+Feature-Revisionen / Softlocks und Location-Marker-Rendering / Sichtbarkeit sind abgeschlossen und stabil.
 
 ## 10. Smoke Status
 
@@ -150,6 +155,7 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden.
 - Waypoint-UI-Smoke bestanden.
 - Display-Mode-Smoke bestanden.
 - Feature-State-Smoke bestanden: Seite und Edit-Flows wirken normal, keine Auffaelligkeiten gemeldet.
+- Location-Marker-Rendering-Smoke bestanden: Punkte 1-11 sehen gut aus.
 
 Fuer den Display-Mode-Split wurden insbesondere Kartenmodi, Wege, Ortstyp-Filter, Kraftlinienmodus, Labels, URL/Reload, Route-Rehydrate, Spotlight/Search, mobile Breite und Browser-Konsole geprueft. Ergebnis: keine Browser-Konsolenmeldungen.
 
@@ -159,10 +165,10 @@ Kein unvorbereiteter weiterer `map-features.js`-Code-Split empfohlen.
 
 Naechste sinnvolle Arbeitspakete:
 
-1. Boundary-Analyse fuer Location-Marker-Rendering / Sichtbarkeit anlegen.
+1. Boundary-Analyse fuer Label-Kollision anlegen.
 2. Falls die Boundary positiv ausfaellt: kleiner 1:1-Extract in eine eigene Datei.
-3. Danach gezielter Marker-/Zoom-/Sichtbarkeits-Smoke.
-4. Weitere Kandidaten erst nach eigener Boundary: Label-Kollision, Path-Creation, Path-Geometry-Editing.
+3. Danach gezielter Label-/Zoom-/Kollisions-Smoke.
+4. Weitere Kandidaten erst nach eigener Boundary: Path-Creation, Path-Geometry-Editing.
 
 ## 12. Operating Rules
 
