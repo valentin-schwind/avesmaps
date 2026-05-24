@@ -56,15 +56,22 @@
 - `js/ui-controls.js` bleibt stabil mit lokalem Helper `bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName)` fuer Review-/Wiki-Sync-Tab-Persistierung.
 - `js/map-features-labels.js` ist stabiler Split fuer freie Kartenlabels (1:1-Extract ohne Logikaenderung).
 - `js/map-features-powerlines.js` ist stabiler Split fuer Powerline-Helfer (1:1-Extract ohne Logikaenderung).
+- `js/map-features-layer-state.js` ist stabiler Split fuer URL-/Planner-State-Helfer (1:1-Extract ohne Logikaenderung).
 - `index.html` laedt im Map-Features-Bereich jetzt in dieser Reihenfolge:
   - `js/map-features-labels.js`
   - `js/map-features-powerlines.js`
+  - `js/map-features-layer-state.js`
   - `js/map-features.js`
 - `js/map-features.js` bleibt stabil als Orchestrator fuer:
+  - `getSelectedMapLayerMode`
+  - `setSelectedMapLayerMode`
+  - `applyDisplayOptions`
+  - Waypoint-UI-Helfer
+  - Share-Pin-Orchestrierung
   - Ortsnamenlabels
   - Label-Kollision
   - Wegnamen-/Kraftlinien-Textlabels
-  - Karten-/Edit-Orchestrierung
+  - Karten-/Feature-Orchestrierung
 
 ## 2. Recent Safe Extracts / Splits
 
@@ -91,6 +98,7 @@
 - Einundzwanzigster kontrollierter Datei-Split: Dialog-Reset-/Open-State-Cluster nach `js/dialogs-review-dialog-state.js`.
 - Zweiundzwanzigster kontrollierter Datei-Split: freier Kartenlabel-Cluster aus `js/map-features.js` nach `js/map-features-labels.js` (Commit `47e71d67a348442b1e9947bb6e7a80bfafab0bb3`, 1:1-Extract ohne Logikaenderung).
 - Dreiundzwanzigster kontrollierter Datei-Split: Powerline-Cluster aus `js/map-features.js` nach `js/map-features-powerlines.js` (Commit `f8dfe947fb57861dd79563c8418aa575a69ffd6b`, 1:1-Extract ohne Logikaenderung).
+- Vierundzwanzigster kontrollierter Datei-Split: URL-/Planner-State-Cluster aus `js/map-features.js` nach `js/map-features-layer-state.js` (Commit `b3721185d7e091109eeb4bd1ad6f3e5ecec0e54e`, 1:1-Extract ohne Logikaenderung).
 - Abhaengigkeitsrichtung ist jetzt sauberer: Core vor Status/Pending/Feature/Panel/WikiSync-Dateien, Rest-Orchestrator zuletzt.
 
 ## 3. Areas To Leave Stable For Now
@@ -123,6 +131,7 @@
 - `js/dialogs-review.js` nur mit engem, neu analysiertem Scope weiter zerschneiden.
 - Kein weiterer Label-Split rund um `js/map-features-labels.js`/`js/map-features.js` ohne neue Boundary-Analyse.
 - Kein weiterer Powerline-Split rund um `js/map-features-powerlines.js`/`js/map-features.js` ohne neue Boundary-Analyse.
+- Kein weiterer Planner-State-/Layer-Mode-Split rund um `js/map-features-layer-state.js`/`js/map-features.js` ohne neue Boundary-Analyse.
 
 ## 4. Planned But Not Yet Implemented
 
@@ -254,6 +263,7 @@
   - keine neuen Konsolenfehler/ReferenceErrors
 - Free-Labels-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-11 durchgefuehrt, keine Browser-Konsolenmeldungen).
 - Powerlines-Split-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-11 durchgefuehrt, keine Browser-Konsolenmeldungen).
+- Planner-State-Split-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-12 durchgefuehrt, keine Browser-Konsolenmeldungen).
 - Animation war dabei nicht sichtbar, weil sie bewusst deaktiviert ist; das wurde als erwartetes Verhalten bewertet.
 - Core-Smoke empfohlen/offen, falls noch nicht gemeldet (`modal-dialog-open`, Dialoge oeffnen/schliessen).
 - Fuer jeden spaeteren Split ist ein eigener, gezielter Smoke-Zyklus erforderlich.
@@ -285,3 +295,4 @@
 - `js/dialogs-review.js` bleibt als finaler Minimal-Rest stabil.
 - Weitere Splits nur bei konkretem fachlichem Bedarf und mit neuer Boundary-Analyse.
 - Kein weiterer Label-Split ohne neue Boundary-Analyse.
+- Kein weiterer Planner-State-/Layer-Mode-Split ohne neue Boundary-Analyse.
