@@ -58,11 +58,13 @@
 - `js/map-features-powerlines.js` ist stabiler Split fuer Powerline-Helfer (1:1-Extract ohne Logikaenderung).
 - `js/map-features-layer-state.js` ist stabiler Split fuer URL-/Planner-State-Helfer (1:1-Extract ohne Logikaenderung).
 - `js/map-features-location-name-labels.js` ist stabiler Split fuer Ortsnamenlabel-Helfer (1:1-Extract ohne Logikaenderung).
+- `js/map-features-path-labels.js` ist stabiler Split fuer Weg-/Pfad-Textlabel-Helfer (1:1-Extract ohne Logikaenderung).
 - `index.html` laedt im Map-Features-Bereich jetzt in dieser Reihenfolge:
   - `js/map-features-labels.js`
   - `js/map-features-powerlines.js`
   - `js/map-features-layer-state.js`
   - `js/map-features-location-name-labels.js`
+  - `js/map-features-path-labels.js`
   - `js/map-features.js`
 - `js/map-features.js` bleibt stabil als Orchestrator fuer:
   - `getSelectedMapLayerMode`
@@ -81,6 +83,16 @@
   - `getCollisionEntries`
   - `resolveLabelCollisions`
   - `scheduleLabelCollisionResolution`
+- Path-Rendering und Path-Lifecycle bleiben weiterhin in `js/map-features.js`, insbesondere:
+  - `createPathLayer`
+  - `refreshPathLayerPopup`
+  - `syncPathVisibility`
+  - `preparePathData`
+  - `applyLivePathFeature`
+  - `applyPathFeatureResponse`
+  - `getPathDisplayName`
+  - `updatePathLayerStyle`
+  - `updatePathLayerGeometry`
 
 ## 2. Recent Safe Extracts / Splits
 
@@ -109,6 +121,7 @@
 - Dreiundzwanzigster kontrollierter Datei-Split: Powerline-Cluster aus `js/map-features.js` nach `js/map-features-powerlines.js` (Commit `f8dfe947fb57861dd79563c8418aa575a69ffd6b`, 1:1-Extract ohne Logikaenderung).
 - Vierundzwanzigster kontrollierter Datei-Split: URL-/Planner-State-Cluster aus `js/map-features.js` nach `js/map-features-layer-state.js` (Commit `b3721185d7e091109eeb4bd1ad6f3e5ecec0e54e`, 1:1-Extract ohne Logikaenderung).
 - Fuenfundzwanzigster kontrollierter Datei-Split: Ortsnamenlabel-Cluster aus `js/map-features.js` nach `js/map-features-location-name-labels.js` (Commit `a5ba60613746df0a0960b5bf2d47bb1433d3b5c9`, 1:1-Extract ohne Logikaenderung).
+- Sechsundzwanzigster kontrollierter Datei-Split: Weg-/Pfad-Textlabel-Cluster aus `js/map-features.js` nach `js/map-features-path-labels.js` (Commit `ab77d2dea65dc3fa9fa9b9ee7102ce0ab805c8f5`, 1:1-Extract ohne Logikaenderung).
 - Abhaengigkeitsrichtung ist jetzt sauberer: Core vor Status/Pending/Feature/Panel/WikiSync-Dateien, Rest-Orchestrator zuletzt.
 
 ## 3. Areas To Leave Stable For Now
@@ -143,6 +156,7 @@
 - Kein weiterer Powerline-Split rund um `js/map-features-powerlines.js`/`js/map-features.js` ohne neue Boundary-Analyse.
 - Kein weiterer Planner-State-/Layer-Mode-Split rund um `js/map-features-layer-state.js`/`js/map-features.js` ohne neue Boundary-Analyse.
 - Kein weiterer Ortsnamenlabel-/Kollisions-Split rund um `js/map-features-location-name-labels.js`/`js/map-features.js` ohne neue Boundary-Analyse.
+- Kein weiterer Path-/Path-Textlabel-Split rund um `js/map-features-path-labels.js`/`js/map-features.js` ohne neue Boundary-Analyse.
 
 ## 4. Planned But Not Yet Implemented
 
@@ -276,6 +290,7 @@
 - Powerlines-Split-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-11 durchgefuehrt, keine Browser-Konsolenmeldungen).
 - Planner-State-Split-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-12 durchgefuehrt, keine Browser-Konsolenmeldungen).
 - Ortsnamenlabel-Split-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-12 durchgefuehrt, keine Browser-Konsolenmeldungen gemeldet).
+- Path-/Pfad-Textlabel-Split-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-11 durchgefuehrt, keine Browser-Konsolenmeldungen).
 - Animation war dabei nicht sichtbar, weil sie bewusst deaktiviert ist; das wurde als erwartetes Verhalten bewertet.
 - Core-Smoke empfohlen/offen, falls noch nicht gemeldet (`modal-dialog-open`, Dialoge oeffnen/schliessen).
 - Fuer jeden spaeteren Split ist ein eigener, gezielter Smoke-Zyklus erforderlich.
