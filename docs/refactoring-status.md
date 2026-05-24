@@ -62,6 +62,7 @@ Folgende Dateien sind stabile Splits aus `js/map-features.js`:
 - `js/map-features-region-boolean-geometry.js` fuer den engen Region Boolean Geometry-Teilschnitt.
 - `js/map-features-region-payload-builders.js` fuer den engen Region API Payload Builder-Teilschnitt.
 - `js/map-features-political-territory-repository.js` fuer den engen Political Territory Repository-Teilschnitt.
+- `js/map-features-region-operation-pipeline.js` fuer den engen Region Operation Pipeline-Teilschnitt.
 - `js/map-features-region-edit-edge-controls.js` fuer den engen Region Edit Edge Controls-Teilschnitt.
 - `js/map-features-region-edit-handles.js` fuer den engen Region Edit Handles-Teilschnitt.
 - `js/map-features-region-geometry-edit-lifecycle.js` fuer den engen Region Geometry Edit Lifecycle-Teilschnitt.
@@ -106,14 +107,15 @@ Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurde
 31. `js/map-features-region-boolean-geometry.js`
 32. `js/map-features-region-payload-builders.js`
 33. `js/map-features-political-territory-repository.js`
-34. `js/map-features-region-edit-edge-controls.js`
-35. `js/map-features-region-edit-handles.js`
-36. `js/map-features-region-geometry-edit-lifecycle.js`
-37. `js/map-features-political-timeline.js`
-38. `js/map-features-region-visibility.js`
-39. `js/map-features-political-territory-loader.js`
-40. `js/map-features-feature-dispatcher.js`
-41. `js/routing.js`
+34. `js/map-features-region-operation-pipeline.js`
+35. `js/map-features-region-edit-edge-controls.js`
+36. `js/map-features-region-edit-handles.js`
+37. `js/map-features-region-geometry-edit-lifecycle.js`
+38. `js/map-features-political-timeline.js`
+39. `js/map-features-region-visibility.js`
+40. `js/map-features-political-territory-loader.js`
+41. `js/map-features-feature-dispatcher.js`
+42. `js/routing.js`
 
 Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`export`-Syntax, kein Build-System.
 
@@ -151,6 +153,7 @@ Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`ex
 - Region Boolean Geometry: Split `js/map-features-region-boolean-geometry.js` (enger 1:1-Extract; Pending-Orchestrierung, Split/Move und API-/Persistenz-Orchestratoren bleiben in `js/map-features.js`).
 - Region Payload Builders: Split `js/map-features-region-payload-builders.js` (enger 1:1-Extract; Operation-Orchestrierung, API-Aufruf, Toast/Reload/Changelog bleiben in `js/map-features.js`).
 - Political Territory Repository: Split `js/map-features-political-territory-repository.js` (enger Architektur-Refactor; direkte `submitPoliticalTerritoryEdit`-Aufrufe werden gekapselt, Operation-Orchestrierung/Toasts/Reload/Changelog bleiben in `js/map-features.js`).
+- Region Operation Pipeline: Split `js/map-features-region-operation-pipeline.js` (enger 1:1-Extract; Start/Cancel/Split/Move-Orchestrierung bleibt in `js/map-features.js`).
 - Region Edit Edge Controls: Split `js/map-features-region-edit-edge-controls.js` (enger 1:1-Extract; Region-Geometry-Edit-Orchestrierung, Save/Update und Node-/Boundary-Operationen bleiben in `js/map-features.js`).
 - Region Edit Handles: Split `js/map-features-region-edit-handles.js` (enger 1:1-Extract; Region-Geometry-Edit-Orchestrierung, Save/Update und Boundary-/Insert-Operationen bleiben in `js/map-features.js`).
 - Region Geometry Edit Lifecycle: Split `js/map-features-region-geometry-edit-lifecycle.js` (enger 1:1-Extract; Handle-/Edge-Interaktion und Save/Update bleiben in `js/map-features.js` bzw. bereits ausgelagerten Helfern).
@@ -189,6 +192,7 @@ Die Detailhistorie und Boundary-Entscheidungen liegen in separaten Dokumenten. W
 - `docs/map-features-region-tooltip-lifecycle.md`
 - `docs/map-features-region-boolean-geometry.md`
 - `docs/map-features-political-territory-repository.md`
+- `docs/map-features-region-operation-pipeline.md`
 - `docs/map-features-region-edit-edge-controls.md`
 - `docs/map-features-region-edit-handles.md`
 - `docs/map-features-region-geometry-edit-lifecycle.md`
@@ -276,6 +280,7 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden 
 - Region-Boolean-Geometry-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
 - Region-Payload-Builders-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
 - Political-Territory-Repository-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
+- Region-Operation-Pipeline-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
 - Region-Edit-Edge-Controls-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
 - Region-Edit-Handles-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
 - Region-Geometry-Edit-Lifecycle-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
