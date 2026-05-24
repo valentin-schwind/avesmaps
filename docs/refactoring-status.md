@@ -151,6 +151,7 @@ Die Detailhistorie und Boundary-Entscheidungen liegen in separaten Dokumenten. W
 - `docs/map-features-political-territory-loader-stable.md`
 - `docs/map-features-region-context-menu-stable.md`
 - `docs/map-features-region-info-markup-stable.md`
+- `docs/map-features-region-feature-normalization.md`
 - `docs/map-features-location-lookup-stable.md`
 - `docs/map-features-location-marker-entry-stable.md`
 - `docs/map-features-region-overlap-selection-stable.md`
@@ -232,6 +233,7 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden 
 - Region-Info-Markup-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Region-Overlap-Selection-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Region-Context-Menu-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
+- Region-Feature-Normalization-Smoke bestanden: Punkte 1-8 ohne Auffaelligkeiten.
 - Location-Lookup-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Location-Marker-Entry-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 
