@@ -57,6 +57,7 @@
 - `js/map-features-labels.js` ist stabiler Split fuer freie Kartenlabels (1:1-Extract ohne Logikaenderung).
 - `js/map-features-powerlines.js` ist stabiler Split fuer Powerline-Helfer (1:1-Extract ohne Logikaenderung).
 - `js/map-features-layer-state.js` ist stabiler Split fuer URL-/Planner-State-Helfer (1:1-Extract ohne Logikaenderung).
+- `js/map-features-waypoints.js` ist stabiler Split fuer Waypoint-UI-Helfer (1:1-Extract ohne Logikaenderung).
 - `js/map-features-location-name-labels.js` ist stabiler Split fuer Ortsnamenlabel-Helfer (1:1-Extract ohne Logikaenderung).
 - `js/map-features-path-domain.js` ist stabiler Split fuer Path-Domain-/Basis-Helper (1:1-Extract ohne Logikaenderung).
 - `js/map-features-path-labels.js` ist stabiler Split fuer Weg-/Pfad-Textlabel-Helfer (1:1-Extract ohne Logikaenderung).
@@ -67,6 +68,7 @@
   - `js/map-features-powerlines.js`
   - `js/map-features-layer-state.js`
   - `js/map-features-share-pin.js`
+  - `js/map-features-waypoints.js`
   - `js/map-features-location-name-labels.js`
   - `js/map-features-path-domain.js`
   - `js/map-features-path-labels.js`
@@ -76,11 +78,41 @@
   - `getSelectedMapLayerMode`
   - `setSelectedMapLayerMode`
   - `applyDisplayOptions`
-  - Waypoint-UI-Helfer
   - Share-Pin-Orchestrierung
   - Label-Kollision
   - Wegnamen-/Kraftlinien-Textlabels
   - Karten-/Feature-Orchestrierung
+- Routing-Berechnung bleibt weiterhin ausserhalb des Waypoint-UI-Splits, insbesondere:
+  - `updateMapView`
+  - `collectAndValidateSelectedLocations`
+  - `buildRouteResultFromSelectedLocations`
+  - Segment-/Tooltip-Rendering
+- `js/routing.js` und `js/map-features-layer-state.js` blieben beim Waypoint-UI-Split unveraendert.
+- Verschoben wurden im Waypoint-UI-Split nur:
+  - `createWaypointId`
+  - `getWaypointContainers`
+  - `getWaypointElementById`
+  - `getWaypointAutocompleteSource`
+  - `scrollWaypointInputIntoView`
+  - `fitWaypointAutocompleteMenu`
+  - `fitOpenWaypointAutocompleteMenus`
+  - `initializeWaypointAutocompletePositioning`
+  - `initializeWaypointAutocomplete`
+  - `refreshWaypointAutocompleteSources`
+  - `replaceWaypointLocationName`
+  - `clearWaypointLocationName`
+  - `refreshPlannerAfterFeatureChange`
+  - `waypointDragHandleMarkup`
+  - `createWaypointMarkup`
+  - `refreshWaypointSorting`
+  - `appendWaypointInput`
+  - `getLastEmptyWaypointInput`
+  - `fillLastEmptyWaypointOrAppend`
+  - `resetWaypointInputs`
+  - `getWaypointInputValues`
+  - `removeWaypointElement`
+  - `removeWaypointById`
+  - `initializeWaypointSorting`
 - Kollisionslogik bleibt weiterhin in `js/map-features.js`:
   - `getLocationNameLabelPriority`
   - `getLocationNameLabelBaseOffset`
@@ -163,6 +195,7 @@
 - Siebenundzwanzigster kontrollierter Datei-Split: Path-Rendering-Core-Cluster aus `js/map-features.js` nach `js/map-features-path-rendering.js` (Commit `847dcfa3562522f61abad4d578b7353e9bfca491`, 1:1-Extract ohne Logikaenderung).
 - Achtundzwanzigster kontrollierter Datei-Split: Share-Pin-/Clipboard-Cluster aus `js/map-features.js` nach `js/map-features-share-pin.js` (Commit `f8cb8c19f2be538dd0bbd299dfef53fe086a608d`, 1:1-Extract ohne Logikaenderung).
 - Neunundzwanzigster kontrollierter Datei-Split: Path-Domain-/Basis-Helper-Cluster aus `js/map-features.js` nach `js/map-features-path-domain.js` (Commit `656a4586bdf866cba91cfad57f1dbc609a61a0cc`, 1:1-Extract ohne Logikaenderung).
+- Dreissigster kontrollierter Datei-Split: Waypoint-UI-Helfer-Cluster aus `js/map-features.js` nach `js/map-features-waypoints.js` (Commit `6a9c3ba79715f239559768506f755f07a99649fd`, 1:1-Extract ohne Logikaenderung).
 - Abhaengigkeitsrichtung ist jetzt sauberer: Core vor Status/Pending/Feature/Panel/WikiSync-Dateien, Rest-Orchestrator zuletzt.
 
 ## 3. Areas To Leave Stable For Now
@@ -201,6 +234,7 @@
 - Kein weiterer Path-Rendering-/Lifecycle-Split rund um `js/map-features-path-rendering.js`/`js/map-features.js` ohne neue Boundary-Analyse.
 - Kein weiterer Path-Domain-/Path-Lifecycle-Split rund um `js/map-features-path-domain.js`/`js/map-features.js` ohne neue Boundary-Analyse.
 - Kein weiterer Share-Pin-/URL-State-Split rund um `js/map-features-share-pin.js`/`js/map-features-layer-state.js`/`js/map-features.js` ohne neue Boundary-Analyse.
+- Kein weiterer Waypoint-/Routing-/Planner-State-Split rund um `js/map-features-waypoints.js`/`js/map-features-layer-state.js`/`js/map-features.js`/`js/routing.js` ohne neue Boundary-Analyse.
 
 ## 4. Planned But Not Yet Implemented
 
@@ -338,6 +372,18 @@
 - Path-Rendering-Core-Split-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-13 durchgefuehrt, keine Browser-Konsolenmeldungen).
 - Share-Pin-Smoke nach Split durch Betreiber als bestanden/gut gemeldet; keine offenen Fehler gemeldet.
 - Path-Domain-/Basis-Helper-Split-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-10 durchgefuehrt, keine Browser-Konsolenmeldungen).
+- Waypoint-UI-Split-Smoke nach Split bestanden:
+  - Laden
+  - initiale Wegpunkte
+  - Wegpunkt hinzufuegen
+  - Wegpunkt entfernen
+  - Drag-and-Drop
+  - Autocomplete
+  - Route berechnen
+  - URL/Reload
+  - Popup-Action zur Route
+  - mobile/kleine Breite
+  - keine Browser-Konsolenmeldungen
 - Animation war dabei nicht sichtbar, weil sie bewusst deaktiviert ist; das wurde als erwartetes Verhalten bewertet.
 - Core-Smoke empfohlen/offen, falls noch nicht gemeldet (`modal-dialog-open`, Dialoge oeffnen/schliessen).
 - Fuer jeden spaeteren Split ist ein eigener, gezielter Smoke-Zyklus erforderlich.
