@@ -51,8 +51,14 @@ Diese verbleibenden Funktionen sind eng mit Move/Split/Boolean-Operationen, Geom
 4. Operation abbrechen oder abschließen und prüfen, ob der Chip verschwindet.
 5. Konsole auf Fehler prüfen.
 
-## 6. Status
+## 6. Smoke-Ergebnis
+
+Region-Operation-Chip-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
+
+Geprueft wurden Kartenstart, Start einer Region-Operation, Sichtbarkeit und Text des Operation-Chips, Abbruch oder Abschluss der Operation, Ausblendung des Chips und Browser-Konsole.
+
+## 7. Status
 
 - Split: umgesetzt
 - Logikaenderung: keine
-- Smoke: steht aus
+- Smoke: bestanden
