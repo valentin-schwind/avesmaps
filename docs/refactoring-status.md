@@ -59,12 +59,14 @@
 - `js/map-features-layer-state.js` ist stabiler Split fuer URL-/Planner-State-Helfer (1:1-Extract ohne Logikaenderung).
 - `js/map-features-location-name-labels.js` ist stabiler Split fuer Ortsnamenlabel-Helfer (1:1-Extract ohne Logikaenderung).
 - `js/map-features-path-labels.js` ist stabiler Split fuer Weg-/Pfad-Textlabel-Helfer (1:1-Extract ohne Logikaenderung).
+- `js/map-features-path-rendering.js` ist stabiler Split fuer Path-Rendering-Core-Helfer (1:1-Extract ohne Logikaenderung).
 - `index.html` laedt im Map-Features-Bereich jetzt in dieser Reihenfolge:
   - `js/map-features-labels.js`
   - `js/map-features-powerlines.js`
   - `js/map-features-layer-state.js`
   - `js/map-features-location-name-labels.js`
   - `js/map-features-path-labels.js`
+  - `js/map-features-path-rendering.js`
   - `js/map-features.js`
 - `js/map-features.js` bleibt stabil als Orchestrator fuer:
   - `getSelectedMapLayerMode`
@@ -84,14 +86,25 @@
   - `resolveLabelCollisions`
   - `scheduleLabelCollisionResolution`
 - Path-Rendering und Path-Lifecycle bleiben weiterhin in `js/map-features.js`, insbesondere:
-  - `createPathLayer`
-  - `refreshPathLayerPopup`
   - `syncPathVisibility`
   - `preparePathData`
   - `applyLivePathFeature`
   - `applyPathFeatureResponse`
+  - `removePathFeature`
+  - `deletePathFeature`
+  - `normalizeRoutePathFeature`
+  - `syncPathRendering`
+- Domain-/Basis-Helper bleiben weiterhin in `js/map-features.js`:
   - `getPathDisplayName`
+  - `getPathPublicId`
+  - `normalizePathSubtype`
+  - `getPathStyleColors`
+- Verschoben wurden im Path-Rendering-Core-Split nur:
+  - `createPathPopupMarkup`
   - `updatePathLayerStyle`
+  - `getPathVisualLatLngCoordinates`
+  - `refreshPathLayerPopup`
+  - `createPathLayer`
   - `updatePathLayerGeometry`
 
 ## 2. Recent Safe Extracts / Splits
@@ -122,6 +135,7 @@
 - Vierundzwanzigster kontrollierter Datei-Split: URL-/Planner-State-Cluster aus `js/map-features.js` nach `js/map-features-layer-state.js` (Commit `b3721185d7e091109eeb4bd1ad6f3e5ecec0e54e`, 1:1-Extract ohne Logikaenderung).
 - Fuenfundzwanzigster kontrollierter Datei-Split: Ortsnamenlabel-Cluster aus `js/map-features.js` nach `js/map-features-location-name-labels.js` (Commit `a5ba60613746df0a0960b5bf2d47bb1433d3b5c9`, 1:1-Extract ohne Logikaenderung).
 - Sechsundzwanzigster kontrollierter Datei-Split: Weg-/Pfad-Textlabel-Cluster aus `js/map-features.js` nach `js/map-features-path-labels.js` (Commit `ab77d2dea65dc3fa9fa9b9ee7102ce0ab805c8f5`, 1:1-Extract ohne Logikaenderung).
+- Siebenundzwanzigster kontrollierter Datei-Split: Path-Rendering-Core-Cluster aus `js/map-features.js` nach `js/map-features-path-rendering.js` (Commit `847dcfa3562522f61abad4d578b7353e9bfca491`, 1:1-Extract ohne Logikaenderung).
 - Abhaengigkeitsrichtung ist jetzt sauberer: Core vor Status/Pending/Feature/Panel/WikiSync-Dateien, Rest-Orchestrator zuletzt.
 
 ## 3. Areas To Leave Stable For Now
@@ -157,6 +171,7 @@
 - Kein weiterer Planner-State-/Layer-Mode-Split rund um `js/map-features-layer-state.js`/`js/map-features.js` ohne neue Boundary-Analyse.
 - Kein weiterer Ortsnamenlabel-/Kollisions-Split rund um `js/map-features-location-name-labels.js`/`js/map-features.js` ohne neue Boundary-Analyse.
 - Kein weiterer Path-/Path-Textlabel-Split rund um `js/map-features-path-labels.js`/`js/map-features.js` ohne neue Boundary-Analyse.
+- Kein weiterer Path-Rendering-/Lifecycle-Split rund um `js/map-features-path-rendering.js`/`js/map-features.js` ohne neue Boundary-Analyse.
 
 ## 4. Planned But Not Yet Implemented
 
@@ -291,6 +306,7 @@
 - Planner-State-Split-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-12 durchgefuehrt, keine Browser-Konsolenmeldungen).
 - Ortsnamenlabel-Split-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-12 durchgefuehrt, keine Browser-Konsolenmeldungen gemeldet).
 - Path-/Pfad-Textlabel-Split-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-11 durchgefuehrt, keine Browser-Konsolenmeldungen).
+- Path-Rendering-Core-Split-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-13 durchgefuehrt, keine Browser-Konsolenmeldungen).
 - Animation war dabei nicht sichtbar, weil sie bewusst deaktiviert ist; das wurde als erwartetes Verhalten bewertet.
 - Core-Smoke empfohlen/offen, falls noch nicht gemeldet (`modal-dialog-open`, Dialoge oeffnen/schliessen).
 - Fuer jeden spaeteren Split ist ein eigener, gezielter Smoke-Zyklus erforderlich.
