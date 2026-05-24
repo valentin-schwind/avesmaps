@@ -6,6 +6,8 @@ Die risikoarme Modularisierungsphase fuer `js/map-features.js` ist abgeschlossen
 
 Die gut isolierbaren Helper-/UI-/Rendering-Cluster wurden als klassische globale Script-Dateien ausgelagert. Die verbleibenden Teile in `js/map-features.js` sind vor allem Orchestrierung, Datenmutation, Event-Bindings und stark gekoppelte UI-/Live-Update-Flows. Weitere Code-Splits sollen nur noch mit konkretem Produktnutzen und neuer Boundary-Analyse erfolgen.
 
+Nach erneuter Pruefung ist die fruehere Stopp-Formulierung zu praezisieren: Es sollen keine unvorbereiteten Mikro-Splits mehr erfolgen. Weitere `map-features.js`-Splits sind aber moeglich, wenn sie als eigene Boundary mit Datenfluss- und Smoke-Plan vorbereitet werden.
+
 ## 2. Stable Core Boundaries
 
 Diese Bereiche bleiben stabil:
@@ -76,6 +78,7 @@ Die Detailhistorie und Boundary-Entscheidungen liegen in separaten Dokumenten. W
 - `docs/map-features-display-mode-split-preflight.md`
 - `docs/map-features-display-mode-stable.md`
 - `docs/map-features-final-rest-assessment.md`
+- `docs/map-features-rest-architecture.md`
 
 Weitere Einzeldateien dokumentieren die jeweiligen Boundary-Checks und Stabilitaetsvermerke der frueheren Splits.
 
@@ -107,15 +110,25 @@ Nicht ohne neue Boundary-Analyse weiter aufteilen:
 - `js/map-features-path-domain.js` / Path-Domain und Path-Lifecycle-Kanten.
 - `js/map-features-path-labels.js` / Path-Textlabels.
 - `js/map-features-path-rendering.js` / Path-Rendering und Path-Lifecycle-Kanten.
-- Label-Kollisionsengine.
-- Location-Marker-/Ortsdaten-Flows.
-- Location-Popup-/Action-Flows.
-- Path-Lifecycle-/CRUD-/Live-Update-Flows.
 - Region-/Gebiets-Orchestrierung.
-- Editmode-/Softlock-/Feature-Response-Flows.
-- DOM-/Init-/Event-Bindings.
+- Feature-Response-Dispatcher.
+- grobe Location-Datenmutation.
+- Path-Lifecycle-Komplettsplit.
+- DOM-/Init-/Event-Bindings ohne eigene Bootstrap-Boundary.
 
-## 9. Smoke Status
+## 9. Remaining Split Candidates
+
+Nach erneuter Pruefung sind weitere `map-features.js`-Splits moeglich, aber nur mit eigener Boundary. Aktuelle Kandidaten in empfohlener Reihenfolge:
+
+1. Feature-Revisionen / Softlocks.
+2. Location-Marker-Rendering / Sichtbarkeit.
+3. Label-Kollision.
+4. Path-Creation.
+5. Path-Geometry-Editing.
+
+Der naechste Boundary-Kandidat ist Feature-Revisionen / Softlocks.
+
+## 10. Smoke Status
 
 Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden. Wichtigster aktueller Stand:
 
@@ -132,20 +145,21 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden.
 
 Fuer den Display-Mode-Split wurden insbesondere Kartenmodi, Wege, Ortstyp-Filter, Kraftlinienmodus, Labels, URL/Reload, Route-Rehydrate, Spotlight/Search, mobile Breite und Browser-Konsole geprueft. Ergebnis: keine Browser-Konsolenmeldungen.
 
-## 10. Next Recommended Step
+## 11. Next Recommended Step
 
-Kein weiterer `map-features.js`-Code-Split empfohlen.
+Kein unvorbereiteter weiterer `map-features.js`-Code-Split empfohlen.
 
 Naechste sinnvolle Arbeitspakete:
 
-1. Bei Bedarf `docs/map-features-rest-architecture.md` anlegen und die verbleibenden Orchestrator-Bloecke als spaetere Architekturaufgabe beschreiben.
-2. Danach mit Produktfeatures oder gezielten Bugfixes weitermachen.
-3. Weitere Splits nur bei konkretem Produktnutzen, Bug-Isolation, Testbarkeitsgewinn oder klarer neuer Boundary.
+1. Boundary-Analyse fuer Feature-Revisionen / Softlocks anlegen.
+2. Falls die Boundary positiv ausfaellt: kleiner 1:1-Extract in eine eigene Datei.
+3. Danach gezielter Editmode-/API-Smoke.
+4. Weitere Kandidaten erst nach eigener Boundary: Location-Marker-Rendering, Label-Kollision, Path-Creation, Path-Geometry-Editing.
 
-## 11. Operating Rules
+## 12. Operating Rules
 
 - Klassische globale Script-Reihenfolge bleibt zentral.
 - Keine ES-Module.
-- Keine weiteren direkten Code-Splits aus Aufraeumtrieb.
+- Keine direkten Code-Splits aus Aufraeumtrieb.
 - Grosse Cluster nicht ohne eigene Boundary-Analyse verschieben.
 - Fuer jeden spaeteren Split ist ein eigener gezielter Smoke-Zyklus erforderlich.
