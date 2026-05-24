@@ -75,12 +75,13 @@ Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurde
 16. `js/map-features-path-geometry-editing.js`
 17. `js/map-features-path-lifecycle.js`
 18. `js/map-features.js`
-19. `js/map-features-region-info-markup.js`
-20. `js/map-features-political-timeline.js`
-21. `js/map-features-region-visibility.js`
-22. `js/map-features-political-territory-loader.js`
-23. `js/map-features-feature-dispatcher.js`
-24. `js/routing.js`
+19. `js/map-features-region-overlap-selection.js`
+20. `js/map-features-region-info-markup.js`
+21. `js/map-features-political-timeline.js`
+22. `js/map-features-region-visibility.js`
+23. `js/map-features-political-territory-loader.js`
+24. `js/map-features-feature-dispatcher.js`
+25. `js/routing.js`
 
 Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`export`-Syntax, kein Build-System.
 
@@ -108,6 +109,7 @@ Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`ex
 - Political-Timeline: Split `js/map-features-political-timeline.js` (enger 1:1-Extract; Territory-API/Layer-Reload und Region-Operations-Rest bleibt in `js/map-features.js`).
 - Political-Territory Loader/Reload: Split `js/map-features-political-territory-loader.js` (enger 1:1-Extract; Region-Rendering, Tooltip, Context und Geometry-Operationen bleiben in `js/map-features.js`).
 - Region Info/Tooltip Markup: Split `js/map-features-region-info-markup.js` (enger 1:1-Extract; Tooltip-Lifecycle, Region-Context und Geometry-Operationen bleiben in `js/map-features.js`).
+- Region Overlap Selection: Split `js/map-features-region-overlap-selection.js` (enger 1:1-Extract; Context-Menue, Region-Edit und Pending Operations bleiben in `js/map-features.js`).
 
 ## 6. Stable Detail Documents
 
@@ -135,6 +137,7 @@ Die Detailhistorie und Boundary-Entscheidungen liegen in separaten Dokumenten. W
 - `docs/map-features-political-timeline-stable.md`
 - `docs/map-features-political-territory-loader-stable.md`
 - `docs/map-features-region-info-markup-stable.md`
+- `docs/map-features-region-overlap-selection-stable.md`
 - `docs/map-features-post-geometry-rest-assessment.md`
 - `docs/map-features-final-rest-assessment.md`
 - `docs/map-features-rest-architecture.md`
@@ -210,6 +213,7 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden 
 - Political-Timeline-Smoke bestanden: Punkte 1-12 ohne Auffaelligkeiten.
 - Political-Territory-Loader-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Region-Info-Markup-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
+- Region-Overlap-Selection-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 
 Fuer den Display-Mode-Split wurden insbesondere Kartenmodi, Wege, Ortstyp-Filter, Kraftlinienmodus, Labels, URL/Reload, Route-Rehydrate, Spotlight/Search, mobile Breite und Browser-Konsole geprueft. Ergebnis: keine Browser-Konsolenmeldungen.
 
