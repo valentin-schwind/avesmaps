@@ -33,6 +33,10 @@ Im Map-Features-Block wird `js/map-features-path-prepare.js` nach `js/map-featur
 7. Route nach Path-Aenderung erneut pruefen.
 8. Reload und Konsole erneut pruefen.
 
+## Smoke-Ergebnis
+
+Path-Prepare-Smoke bestanden: Punkte 1-8 ohne Auffaelligkeiten.
+
 ## Entscheidung
 
-Der Split ist als enger 1:1-Extract umgesetzt. Weitere Path-Lifecycle/CRUD-Schritte nur mit neuer Boundary-Analyse und eigenem Smoke-Plan.
+Der Split ist als enger 1:1-Extract umgesetzt und per Betreiber-Smoke bestaetigt. Weitere Path-Lifecycle/CRUD-Schritte nur mit neuer Boundary-Analyse und eigenem Smoke-Plan.
