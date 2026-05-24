@@ -36,8 +36,14 @@ Sie steht nach `js/map-features-region-geometry-helpers.js` und vor `js/map-feat
 4. Ueberpruefen, dass die Vorschau-Layer angezeigt und bei Abbruch entfernt werden.
 5. Sicherstellen, dass keine neuen JavaScript-Fehler auftreten.
 
+## Smoke-Ergebnis
+
+Region-Split-Preview-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
+
+Geprueft wurden Kartenstart, Political Mode, Herrschaftsgebiete, Editmode, Region-Kontextmenue, Split-Start, Schnittpunkt-Preview, Linien-Preview, Abbruch beziehungsweise unkritischer Split-Einstieg, Preview-Cleanup, Reload und Browser-Konsole.
+
 ## Status
 
 - Split: umgesetzt
 - Logikaenderung: keine
-- Browser-Smoke: ausstehend
+- Browser-Smoke: bestanden
