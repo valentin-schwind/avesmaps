@@ -42,8 +42,14 @@ Diese verbleibenden Funktionen sind eng mit den Region-Edit-Workflows, Context-A
 4. Context-Action-Klicks ausführen und sicherstellen, dass die Actions weiter funktionieren.
 5. Konsole auf Fehler prüfen.
 
-## 6. Status
+## 6. Smoke-Ergebnis
+
+Region-Context-Menu-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
+
+Geprueft wurden Kartenstart, Region-Kontextmenue, Menueposition am Rand, Context-Actions und Browser-Konsole.
+
+## 7. Status
 
 - Split: umgesetzt
 - Logikaenderung: keine
-- Smoke: steht aus
+- Smoke: bestanden
