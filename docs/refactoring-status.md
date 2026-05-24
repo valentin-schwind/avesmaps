@@ -45,6 +45,7 @@ Folgende Dateien sind stabile Splits aus `js/map-features.js`:
 - `js/map-features-path-geometry-editing.js` fuer Path-Geometry-Editing-Helfer.
 - `js/map-features-path-lifecycle.js` fuer den engen Path-Apply/Live-Teilschnitt.
 - `js/map-features-feature-dispatcher.js` fuer den engen Feature-Response-Dispatcher-Teilschnitt.
+- `js/map-features-region-visibility.js` fuer den engen Region-Visibility-Teilschnitt.
 
 Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurden nachgelagert mit gezielten Browser-Smokes oder Abschlusspruefungen bewertet.
 
@@ -70,8 +71,9 @@ Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurde
 16. `js/map-features-path-geometry-editing.js`
 17. `js/map-features-path-lifecycle.js`
 18. `js/map-features.js`
-19. `js/map-features-feature-dispatcher.js`
-20. `js/routing.js`
+19. `js/map-features-region-visibility.js`
+20. `js/map-features-feature-dispatcher.js`
+21. `js/routing.js`
 
 Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`export`-Syntax, kein Build-System.
 
@@ -95,6 +97,7 @@ Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`ex
 - Path-Geometry-Editing: Split `js/map-features-path-geometry-editing.js` (enger 1:1-Extract; `deletePathFeature` und `findNearestGraphEndpointToLatLng` verbleiben in `js/map-features.js`).
 - Path-Lifecycle (Apply/Live): Split `js/map-features-path-lifecycle.js` (enger 1:1-Extract; `preparePathData`, `normalizeRoutePathFeature`, `deletePathFeature` und Dispatcher-Rest verbleiben in `js/map-features.js`).
 - Feature-Response-Dispatcher: Split `js/map-features-feature-dispatcher.js` (enger 1:1-Extract; CRUD-/Domain-/Rendering-Helper bleiben in `js/map-features.js` oder den bestehenden Split-Dateien).
+- Region-Visibility: Split `js/map-features-region-visibility.js` (enger 1:1-Extract; Region-CRUD-/Timeline-/Edit-Orchestrierung bleibt in `js/map-features.js`).
 
 ## 6. Stable Detail Documents
 
@@ -118,6 +121,7 @@ Die Detailhistorie und Boundary-Entscheidungen liegen in separaten Dokumenten. W
 - `docs/map-features-path-lifecycle-crud-boundary-check.md`
 - `docs/map-features-path-lifecycle-stable.md`
 - `docs/map-features-feature-dispatcher-stable.md`
+- `docs/map-features-region-visibility-stable.md`
 - `docs/map-features-post-geometry-rest-assessment.md`
 - `docs/map-features-final-rest-assessment.md`
 - `docs/map-features-rest-architecture.md`
@@ -189,6 +193,7 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden 
 - Path-Lifecycle-Smoke bestanden: Punkte 1-10 ohne Auffaelligkeiten.
 - Path-Prepare-Smoke bestanden: Punkte 1-8 ohne Auffaelligkeiten.
 - Feature-Dispatcher-Smoke bestanden: Punkte 1-8 ohne Auffaelligkeiten oder Konsolenmeldungen.
+- Region-Visibility-Split umgesetzt; Betreiber-Smoke fuer den neuen Split steht als naechster Schritt aus.
 
 Fuer den Display-Mode-Split wurden insbesondere Kartenmodi, Wege, Ortstyp-Filter, Kraftlinienmodus, Labels, URL/Reload, Route-Rehydrate, Spotlight/Search, mobile Breite und Browser-Konsole geprueft. Ergebnis: keine Browser-Konsolenmeldungen.
 
