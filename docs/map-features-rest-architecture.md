@@ -315,6 +315,7 @@ Architekturbewertung:
 
 Der enge Region-Visibility-Teilschnitt (`syncRegionVisibility`) wurde nach `js/map-features-region-visibility.js` ausgelagert.
 Der enge Political-Timeline-Teilschnitt (`syncPoliticalTimelineVisibility`, `syncPoliticalTimelineControls`, `formatPoliticalTimelineYear`, `setPoliticalTimelineYear`, `showPoliticalTerritoryTimelineSelection`, `clearPoliticalTerritoryTimelineSelection`, `normalizePoliticalTimelineYearValue`, `formatPoliticalTerritoryRangeLabel`) wurde nach `js/map-features-political-timeline.js` ausgelagert.
+Der enge Region Pending Target Highlight-Teilschnitt (`setPendingRegionTargetHighlight`, `clearPendingRegionTargetHighlight`) wurde nach `js/map-features-region-pending-highlight.js` ausgelagert.
 
 Die Region Info/Tooltip Markup-Helfer (`createRegionCompactTooltipMarkup`, `createRegionMiniTooltipMarkup`, `hasRegionWikiInfo`, `createRegionWikiInfoBoxMarkup`, `createRegionInfoTextRow`, `createRegionInfoBoxRow`, `createRegionInfoPlaceValue`, `createRegionInfoLink`, `createRegionInfoPathValue`, `normalizeRegionInfoUrl`, `normalizeRegionStringList`, `createRegionPlaceTooltipLine`, `normalizeRegionParentheticalSpacing`) wurden nach `js/map-features-region-info-markup.js` ausgelagert.
 
@@ -432,6 +433,7 @@ Aber erst, wenn klar ist, welche Initialisierung zentral bleiben soll.
 | Feature-Response-Dispatcher-Teilschnitt | `js/map-features-feature-dispatcher.js` | stabiler Teil-Split |
 | Region-Visibility-Helfer | `js/map-features-region-visibility.js` | stabiler Teil-Split |
 | Political-Timeline-Helfer | `js/map-features-political-timeline.js` | stabiler Teil-Split |
+| Region-Pending-Highlight-Helfer | `js/map-features-region-pending-highlight.js` | stabiler Teil-Split |
 | Path-Creation-Pending-State | `js/map-features-path-creation.js` | stabiler Split |
 | Path-Geometry-Edit-State | `js/map-features-path-geometry-editing.js` | stabiler Split |
 | freie Labels | `js/map-features-labels.js` | stabiler Split |
