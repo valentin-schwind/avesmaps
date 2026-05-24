@@ -330,6 +330,7 @@ Die Region Tooltip Lifecycle-Helfer (`bindRegionCompactTooltip`, `openRegionComp
 Die Region Boolean Geometry-Helfer (`calculateRegionBooleanGeometry`, `shouldRegionBooleanOperationConsumeTarget`, `getStoredRegionBooleanOperation`, `validateRegionBooleanResult`, `debugRegionBooleanOperation`) wurden nach `js/map-features-region-boolean-geometry.js` ausgelagert.
 Die Region Payload Builder-Helfer (`buildRegionStylePayload`, `buildExtractedRegionCreatePayload`, `buildRegionSplitPayload`, `buildIntersectionCreatePayload`, `buildRegionBooleanOperationPayload`) wurden nach `js/map-features-region-payload-builders.js` ausgelagert.
 Die Region Edit Edge Controls-Helfer (`enableRegionEditEdgeControls`, `disableRegionEditEdgeControls`, `handleRegionEditMouseMove`, `handleRegionEditMouseOut`, `handleRegionEditKeyUp`, `handleRegionEditClick`, `updateRegionEditEdgeHoverFromLatLng`, `clearRegionEditEdgeHover`, `renderRegionEditEdgeHighlight`, `renderRegionEditEdgeSubdivisionPreview`, `handleRegionEditEdgeClick`, `findNearestEditedRegionEdge`, `subdivideRegionEditHoveredEdge`) wurden nach `js/map-features-region-edit-edge-controls.js` ausgelagert.
+Die Region Edit Handles-Helfer (`createRegionHandleIcon`, `refreshRegionEditHandles`, `deleteRegionNode`) wurden nach `js/map-features-region-edit-handles.js` ausgelagert.
 
 Die Region Overlap Selection-Helfer (`getRegionLayerGeometryPublicId`, `isLatLngInsideRegionRing`, `isLatLngInsideRegionLayer`, `getOverlappingPoliticalRegionLayersAtLatLng`, `resolveOverlappingRegionLayerSelection`, `announceOverlappingRegionSelection`) wurden nach `js/map-features-region-overlap-selection.js` ausgelagert.
 
@@ -446,6 +447,7 @@ Aber erst, wenn klar ist, welche Initialisierung zentral bleiben soll.
 | Region-Boolean-Geometry-Helfer | `js/map-features-region-boolean-geometry.js` | stabiler Teil-Split |
 | Region-Payload-Builder-Helfer | `js/map-features-region-payload-builders.js` | stabiler Teil-Split |
 | Region-Edit-Edge-Controls-Helfer | `js/map-features-region-edit-edge-controls.js` | stabiler Teil-Split |
+| Region-Edit-Handles-Helfer | `js/map-features-region-edit-handles.js` | stabiler Teil-Split |
 | Path-Creation-Pending-State | `js/map-features-path-creation.js` | stabiler Split |
 | Path-Geometry-Edit-State | `js/map-features-path-geometry-editing.js` | stabiler Split |
 | freie Labels | `js/map-features-labels.js` | stabiler Split |
