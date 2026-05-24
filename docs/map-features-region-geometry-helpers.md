@@ -35,8 +35,14 @@ Sie steht vor `js/map-features-political-timeline.js` zur Verfuegung, damit die 
 3. Region-Verschiebung oder Region-Split testen.
 4. Ueberpruefen, dass keine JavaScript-Fehler in der Konsole auftreten.
 
+## Smoke-Ergebnis
+
+Region-Geometry-Helpers-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
+
+Geprueft wurden Kartenstart, Political Mode, Herrschaftsgebiete, Region-Kontextmenue, Region-Geometry-Edit, Vertex-/Geometrie-Interaktionen, Split-/Operation-Einstieg soweit unkritisch, Reload und Browser-Konsole.
+
 ## Status
 
 - Split: umgesetzt
 - Logikaenderung: keine
-- Browser-Smoke: ausstehend
+- Browser-Smoke: bestanden
