@@ -241,6 +241,7 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden 
 - Region-Context-Menu-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Region-Feature-Normalization-Smoke bestanden: Punkte 1-8 ohne Auffaelligkeiten.
 - Region-Geometry-Helpers-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
+- Region-Split-Preview-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Location-Lookup-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Location-Marker-Entry-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 
