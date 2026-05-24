@@ -8,7 +8,7 @@ Wichtig: Dies war ein kontrollierter Extract ohne Logikaenderung.
 
 ## Verschobene Funktionen
 
-Nach `js/map-features-path-creation.js` wurden verschoben:
+Nach `js/map-features/map-features-path-creation.js` wurden verschoben:
 
 - `clearPendingPathCreation`
 - `showPendingPathCreationPreview`
@@ -34,13 +34,13 @@ Die Funktion wird weiterhin auch vom Path-Geometry-Editing genutzt und bleibt bi
 
 Im Map-Features-Bereich gilt:
 
-1. `js/map-features-path-domain.js`
-2. `js/map-features-path-labels.js`
-3. `js/map-features-path-rendering.js`
-4. `js/map-features-path-creation.js`
+1. `js/map-features/map-features-path-domain.js`
+2. `js/map-features/map-features-path-labels.js`
+3. `js/map-features/map-features-path-rendering.js`
+4. `js/map-features/map-features-path-creation.js`
 5. `js/map-features.js`
 
-`js/map-features-path-creation.js` wird vor `js/map-features.js` geladen, damit die globalen Funktionsnamen beim Aufruf verfuegbar sind.
+`js/map-features/map-features-path-creation.js` wird vor `js/map-features.js` geladen, damit die globalen Funktionsnamen beim Aufruf verfuegbar sind.
 
 ## Smoke-Plan
 

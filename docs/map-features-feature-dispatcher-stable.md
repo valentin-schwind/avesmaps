@@ -2,7 +2,7 @@
 
 ## Zweck
 
-Dokumentiert den engen 1:1-Extract des Feature-Response-Dispatcher-Teilschnitts aus `js/map-features.js` nach `js/map-features-feature-dispatcher.js`.
+Dokumentiert den engen 1:1-Extract des Feature-Response-Dispatcher-Teilschnitts aus `js/map-features.js` nach `js/map-features/map-features-feature-dispatcher.js`.
 
 ## Verschobene Funktionen
 
@@ -25,7 +25,7 @@ Dokumentiert den engen 1:1-Extract des Feature-Response-Dispatcher-Teilschnitts 
 
 ## Script-Reihenfolge
 
-`js/map-features-feature-dispatcher.js` wird nach `js/map-features.js` und vor `js/routing.js` geladen.
+`js/map-features/map-features-feature-dispatcher.js` wird nach `js/map-features.js` und vor `js/routing.js` geladen.
 
 ## Smoke-Plan
 

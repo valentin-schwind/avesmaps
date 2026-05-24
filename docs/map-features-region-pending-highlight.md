@@ -29,7 +29,7 @@ Dokumentiert den engen 1:1-Extract der Target-Highlight-Helfer fuer ausstehende 
 
 ## Script-Reihenfolge
 
-`js/map-features-region-pending-highlight.js` wird nach `js/map-features-region-split-preview.js` und vor `js/map-features-political-timeline.js` geladen.
+`js/map-features/map-features-region-pending-highlight.js` wird nach `js/map-features/map-features-region-split-preview.js` und vor `js/map-features/map-features-political-timeline.js` geladen.
 
 ## Smoke-Plan
 

@@ -102,7 +102,7 @@ Wichtige externe Funktionen/Konstanten:
 
 ### Sicher verschiebbar
 
-Ein kleiner Datei-Split nach `js/dialogs-review-panels.js` ist sinnvoll, wenn er ausschließlich reine Funktionsdefinitionen verschiebt und keine Top-Level-Ausführung enthält.
+Ein kleiner Datei-Split nach `js/review/review-panels.js` ist sinnvoll, wenn er ausschließlich reine Funktionsdefinitionen verschiebt und keine Top-Level-Ausführung enthält.
 
 Geeignet sind:
 
@@ -128,17 +128,17 @@ Nicht in diesen Split gehören:
 
 Dateiname:
 
-- `js/dialogs-review-panels.js`
+- `js/review/review-panels.js`
 
 Script-Reihenfolge in `index.html`:
 
-1. `js/dialogs-review-core.js`
-2. `js/dialogs-review-status.js`
-3. `js/dialogs-review-pending.js`
-4. `js/dialogs-review-paths.js`
-5. `js/dialogs-review-labels.js`
-6. `js/dialogs-review-locations.js`
-7. `js/dialogs-review-panels.js`
+1. `js/review/review-core.js`
+2. `js/review/review-status.js`
+3. `js/review/review-pending.js`
+4. `js/review/review-paths.js`
+5. `js/review/review-labels.js`
+6. `js/review/review-locations.js`
+7. `js/review/review-panels.js`
 8. `js/dialogs-review.js`
 
 Begründung: Die Panel-Datei verwendet Status-Helfer und bereits ausgelagerte Location-/Label-Helfer, muss aber vor dem Rest-Orchestrator geladen werden, damit spätere Event-Bindings und Init-Code weiter auf globale Funktionsnamen zugreifen können.
@@ -205,28 +205,28 @@ Browser-Smoke im Editmode:
 ```text
 Arbeite im Repository https://github.com/valentin-schwind/avesmaps/ direkt auf master. Keine Branches. Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split des Review/Change/Presence-Panel-Clusters aus js/dialogs-review.js in eine neue Datei js/dialogs-review-panels.js.
+Ziel: kontrollierter, verhaltensneutraler Split des Review/Change/Presence-Panel-Clusters aus js/dialogs-review.js in eine neue Datei js/review/review-panels.js.
 
 Erlaubte Änderungen:
 - js/dialogs-review.js
-- neue Datei js/dialogs-review-panels.js
+- neue Datei js/review/review-panels.js
 - index.html
 - docs/refactoring-status.md
 
 Nicht ändern:
-- js/dialogs-review-core.js
-- js/dialogs-review-status.js
-- js/dialogs-review-pending.js
-- js/dialogs-review-paths.js
-- js/dialogs-review-labels.js
-- js/dialogs-review-locations.js
+- js/review/review-core.js
+- js/review/review-status.js
+- js/review/review-pending.js
+- js/review/review-paths.js
+- js/review/review-labels.js
+- js/review/review-locations.js
 - Routing-Dateien
 - popups.js
 - ui-controls.js
 - map-features.js
 - API-/PHP-/SQL-Dateien
 
-Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/dialogs-review-panels.js, unverändert und in sinnvoller Reihenfolge:
+Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/review/review-panels.js, unverändert und in sinnvoller Reihenfolge:
 - formatPresenceAge
 - formatPresenceRole
 - setEditorPanelTab
@@ -266,7 +266,7 @@ Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/dia
 
 Falls beim Verschieben direkt angrenzende Review-Report-Funktionen zwingend mitgenommen werden müssten, stoppe und berichte statt eigenständig den Scope zu erweitern.
 
-Neue Datei js/dialogs-review-panels.js:
+Neue Datei js/review/review-panels.js:
 - enthält nur Funktionsdefinitionen
 - keine Top-Level-Ausführung
 - keine DOM-Reads/Writes außerhalb von Funktionen
@@ -276,28 +276,28 @@ Neue Datei js/dialogs-review-panels.js:
 
 index.html:
 - Script-Reihenfolge erweitern:
-  1. js/dialogs-review-core.js
-  2. js/dialogs-review-status.js
-  3. js/dialogs-review-pending.js
-  4. js/dialogs-review-paths.js
-  5. js/dialogs-review-labels.js
-  6. js/dialogs-review-locations.js
-  7. js/dialogs-review-panels.js
+  1. js/review/review-core.js
+  2. js/review/review-status.js
+  3. js/review/review-pending.js
+  4. js/review/review-paths.js
+  5. js/review/review-labels.js
+  6. js/review/review-locations.js
+  7. js/review/review-panels.js
   8. js/dialogs-review.js
 
 docs/refactoring-status.md:
-- neuen stabilen Split js/dialogs-review-panels.js dokumentieren
+- neuen stabilen Split js/review/review-panels.js dokumentieren
 - Smoke-Test-Empfehlung Review/Change/Presence ergänzen
 - klar festhalten, dass Wiki-Sync und Region/Territory nicht Teil dieses Splits waren
 
 Checks lokal ausführen:
 - Suche nach doppelten Funktionsdefinitionen der verschobenen Funktionen.
-- Suche nach fehlenden Referenzen/Typo bei js/dialogs-review-panels.js in index.html.
+- Suche nach fehlenden Referenzen/Typo bei js/review/review-panels.js in index.html.
 - Falls möglich: einfache Syntaxprüfung der betroffenen JS-Dateien mit node --check oder einem gleichwertigen lokalen Check ohne Build-System.
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/dialogs-review-panels.js docs/refactoring-status.md
+- git add index.html js/dialogs-review.js js/review/review-panels.js docs/refactoring-status.md
 - git commit -m "Split dialog review panel helpers"
 - git push
 

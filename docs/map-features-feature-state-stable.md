@@ -14,14 +14,14 @@ Split map features feature state helpers
 Neue Datei:
 
 ```text
-js/map-features-feature-state.js
+js/map-features/map-features-feature-state.js
 ```
 
 Geaendert:
 
 ```text
 index.html
-js/map-features-feature-state.js
+js/map-features/map-features-feature-state.js
 js/map-features.js
 ```
 
@@ -46,12 +46,12 @@ Nicht verschoben wurden:
 
 ## 3. Script-Reihenfolge
 
-`index.html` laedt die neue Datei im Map-Features-Block nach `js/map-features-display-mode.js` und vor `js/map-features-share-pin.js`:
+`index.html` laedt die neue Datei im Map-Features-Block nach `js/map-features/map-features-display-mode.js` und vor `js/map-features/map-features-share-pin.js`:
 
 ```html
-<script src="js/map-features-display-mode.js"></script>
-<script src="js/map-features-feature-state.js"></script>
-<script src="js/map-features-share-pin.js"></script>
+<script src="js/map-features/map-features-display-mode.js"></script>
+<script src="js/map-features/map-features-feature-state.js"></script>
+<script src="js/map-features/map-features-share-pin.js"></script>
 ```
 
 Damit bleibt die klassische globale Script-Tag-Architektur erhalten. Es wurden keine ES-Module, keine Imports und keine Exports eingefuehrt.
@@ -61,7 +61,7 @@ Damit bleibt die klassische globale Script-Tag-Architektur erhalten. Es wurden k
 Syntaxpruefung lokal bestanden:
 
 ```text
-node --check js/map-features-feature-state.js
+node --check js/map-features/map-features-feature-state.js
 node --check js/map-features.js
 ```
 
@@ -87,7 +87,7 @@ Damit gilt der Feature-State-Split als stabil.
 
 ## 6. Stabilitaetsregel
 
-Der Feature-State-Split bleibt stabil. Die Datei `js/map-features-feature-state.js` soll nicht ohne neue Boundary erweitert werden.
+Der Feature-State-Split bleibt stabil. Die Datei `js/map-features/map-features-feature-state.js` soll nicht ohne neue Boundary erweitert werden.
 
 Insbesondere nicht nachtraeglich in diese Datei verschieben ohne eigene Analyse:
 

@@ -1,4 +1,4 @@
-﻿# Dialogs Review Split Plan
+# Dialogs Review Split Plan
 
 ## 1. Current File Responsibilities
 
@@ -80,49 +80,49 @@ Wesentliche Abhaengigkeiten zwischen Gruppen:
 
 Vorschlag fuer spaeteren Split (klassische globale Scripts, keine Module):
 
-- `js/dialogs-review-core.js`
+- `js/review/review-core.js`
   - DOM-Getter + einfache Basishelper + gemeinsame Status/Pending-Basishelper.
   - Abhaengigkeiten: nur DOM, jQuery, globale Konstanten.
   - Lade-Reihenfolge: frueh (vor allen weiteren dialogs-review-Teilen).
   - Risiko: niedrig bis mittel.
 
-- `js/dialogs-review-status.js`
+- `js/review/review-status.js`
   - `setDialogStatus`, `setPanelStateStatus` + zugehoerige Wrapper.
   - Abhaengigkeiten: Getter aus `dialogs-review-core.js`.
   - Lade-Reihenfolge: nach `dialogs-review-core.js`, vor Subsystemen.
   - Risiko: niedrig.
 
-- `js/dialogs-review-pending.js`
+- `js/review/review-pending.js`
   - `setFormFieldsDisabled` + `set...SubmitPending`.
   - Abhaengigkeiten: Getter + globale Pending-Variablen + Statussetter.
   - Lade-Reihenfolge: nach core/status, vor Dialog-Open/Close.
   - Risiko: mittel.
 
-- `js/dialogs-review-location.js`
+- `js/review/review-location.js`
   - Location report/edit + Label/Path/Powerline einfache Dialogflows.
   - Abhaengigkeiten: status/pending/core + API-Helper.
   - Lade-Reihenfolge: nach core/status/pending.
   - Risiko: mittel.
 
-- `js/dialogs-review-region.js`
+- `js/review/review-region.js`
   - Region-/Territory-Edit-Subsystem.
   - Abhaengigkeiten: sehr hoch intern + externe Integrationen.
   - Lade-Reihenfolge: spaeter, nach core/status/pending.
   - Risiko: hoch.
 
-- `js/dialogs-review-wiki-sync.js`
+- `js/review/review-wiki-sync.js`
   - Wiki-Sync-Cases, Filter, Resolve-Actions.
   - Abhaengigkeiten: status/panel/API + map/review hooks.
   - Lade-Reihenfolge: nach core/status/pending.
   - Risiko: hoch.
 
-- `js/dialogs-review-panels.js`
+- `js/review/review-panels.js`
   - Review/change/presence panel switching/status/refresh.
   - Abhaengigkeiten: wiki-sync/location subsystems.
   - Lade-Reihenfolge: spaeter, vor finalem init.
   - Risiko: mittel bis hoch.
 
-- `js/dialogs-review-init.js`
+- `js/review/review-init.js`
   - gebuendelte Event-Bindings/Startup fuer dialogs-review.
   - Abhaengigkeiten: alle oben.
   - Lade-Reihenfolge: zuletzt im dialogs-review-Block.
@@ -132,7 +132,7 @@ Vorschlag fuer spaeteren Split (klassische globale Scripts, keine Module):
 
 Sicherster erster spaeterer Code-Schritt:
 
-- nur den bereits stabilisierten Status-Cluster in eine neue Datei auslagern, z. B. `js/dialogs-review-status.js`:
+- nur den bereits stabilisierten Status-Cluster in eine neue Datei auslagern, z. B. `js/review/review-status.js`:
   - `setDialogStatus`
   - `setPanelStateStatus`
   - alle zugehoerigen Status-Wrapper
@@ -180,7 +180,7 @@ Pro Split mindestens:
   - Dialog-Statusmeldungen (dataset.status) + Panel-Statusmeldungen (dataset.state) fuer alle betroffenen Dialoge/Panels.
 
 - Pending-Cluster-Split:
-  - alle 5 Submit-Pending-Flows: Formfelder disabled/enabled, Close disabled/enabled, Submit disabled/enabled, Textwechsel (`Speichert...`, `Speichern`, `Lösen`).
+  - alle 5 Submit-Pending-Flows: Formfelder disabled/enabled, Close disabled/enabled, Submit disabled/enabled, Textwechsel (`Speichert...`, `Speichern`, `L�sen`).
 
 - Location/Path/Powerline-Split:
   - Dialog oeffnen/befuellen/speichern/abbrechen; keine Konsolenfehler.

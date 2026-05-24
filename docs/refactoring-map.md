@@ -14,7 +14,7 @@ Avesmaps ist aktuell eine klassische, build-freie Multi-Script-Webapp:
 Script-Ladereihenfolge (aus `index.html`) ist ein zentrales Laufzeit-Contract:
 
 1. Vendor (`leaflet.js`, `jquery`, `jquery-ui`)
-2. `js/priority-queue.js`, `js/config.js`, `js/utils.js`, `js/popups.js`, `js/api.js`, `js/political-territory-wiki-tree.js`, `js/dialogs-review.js`, `js/ui-controls.js`, `polygon-clipping` (CDN), `js/political-territory-*.js`, `js/map-features.js`, `js/routing.js`, `js/spotlight-search.js`
+2. `js/priority-queue.js`, `js/config.js`, `js/utils.js`, `js/popups.js`, `js/api.js`, `js/territory/territory-wiki-tree.js`, `js/dialogs-review.js`, `js/ui-controls.js`, `polygon-clipping` (CDN), `js/territory/territory-*.js`, `js/map-features.js`, `js/routing.js`, `js/spotlight-search.js`
 3. Inline-Script mit globalem State, Map-Init, Context-Menü, Dijkstra/Graph/Smoothing-Helfern
 
 ## 2. Responsibility Clusters
@@ -78,7 +78,7 @@ Script-Ladereihenfolge (aus `index.html`) ist ein zentrales Laufzeit-Contract:
 - `js/map-features.js` (Create/Move/Update/Delete für Orte, Wege, Regionen, Labels, Kraftlinien)
 - `js/dialogs-review.js` (Edit-Dialoge, Payload-Building, Submit-Handler)
 - `js/region-vertex-detach-edit.js` (Region-Vertex-Sonderinteraktion)
-- `js/political-territory-editor-link.js`, `js/political-territory-drag-assignment.js`, `js/political-territory-override-footer.js`
+- `js/territory/territory-editor-link.js`, `js/territory/territory-drag-assignment.js`, `js/territory/territory-override-footer.js`
 - `api/map-feature-update.php`, `api/political-territories.php`, `api/political-territory-subtree-display.php`, `api/political-territory-display-overrides.php`, `api/political-territory-assignment-zoom-sync.php`
 
 ### Review/Admin

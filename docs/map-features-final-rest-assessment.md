@@ -8,16 +8,16 @@ Diese Restbewertung fasst den Zustand von `js/map-features.js` nach den abgeschl
 
 Folgende `map-features`-Cluster sind inzwischen stabil ausgelagert:
 
-- `js/map-features-labels.js`
-- `js/map-features-powerlines.js`
-- `js/map-features-layer-state.js`
-- `js/map-features-display-mode.js`
-- `js/map-features-share-pin.js`
-- `js/map-features-waypoints.js`
-- `js/map-features-location-name-labels.js`
-- `js/map-features-path-domain.js`
-- `js/map-features-path-labels.js`
-- `js/map-features-path-rendering.js`
+- `js/map-features/map-features-labels.js`
+- `js/map-features/map-features-powerlines.js`
+- `js/map-features/map-features-layer-state.js`
+- `js/map-features/map-features-display-mode.js`
+- `js/map-features/map-features-share-pin.js`
+- `js/map-features/map-features-waypoints.js`
+- `js/map-features/map-features-location-name-labels.js`
+- `js/map-features/map-features-path-domain.js`
+- `js/map-features/map-features-path-labels.js`
+- `js/map-features/map-features-path-rendering.js`
 
 Diese Splits waren jeweils als enge 1:1-Extracts ohne Logikaenderung angelegt und wurden nachgelagert mit gezielten Browser-Smokes geprueft.
 
@@ -73,7 +73,7 @@ Grund:
 - kleine Aenderungen koennen Layout/Lesbarkeit stark beeinflussen
 
 Moeglicher spaeterer Schritt:
-- eigene Datei `js/map-features-label-collisions.js` nur nach separater Collision-Boundary
+- eigene Datei `js/map-features/map-features-label-collisions.js` nur nach separater Collision-Boundary
 - vorher dedizierter visueller Smoke mit mehreren Zoomstufen und dichten Label-Regionen
 
 ### Path-Lifecycle / Path-CRUD / Live-Updates
@@ -101,7 +101,7 @@ Grund:
 
 Moeglicher spaeterer Schritt:
 - nur zusammen mit einer Path-Style-Sub-Boundary
-- Ziel waere ggf. `js/map-features-path-rendering.js` oder eine kleine `js/map-features-path-style.js`
+- Ziel waere ggf. `js/map-features/map-features-path-rendering.js` oder eine kleine `js/map-features/map-features-path-style.js`
 
 ### Region-/Gebiets-Orchestrierung
 

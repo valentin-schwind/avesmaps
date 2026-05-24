@@ -140,7 +140,7 @@ Wichtig: Der Split darf die Funktionsnamen nicht aendern. Alle Funktionen bleibe
 Empfohlene Datei:
 
 ```text
-js/map-features-feature-state.js
+js/map-features/map-features-feature-state.js
 ```
 
 Begruendung:
@@ -152,7 +152,7 @@ Begruendung:
 Alternative:
 
 ```text
-js/map-features-feature-revisions.js
+js/map-features/map-features-feature-revisions.js
 ```
 
 Diese Alternative ist weniger passend, weil `acquireFeatureSoftLock(...)` und `releaseFeatureSoftLock(...)` dann nur indirekt abgedeckt waeren.
@@ -162,10 +162,10 @@ Diese Alternative ist weniger passend, weil `acquireFeatureSoftLock(...)` und `r
 Empfohlene Position in `index.html`:
 
 ```text
-js/map-features-layer-state.js
-js/map-features-display-mode.js
-js/map-features-feature-state.js
-js/map-features-share-pin.js
+js/map-features/map-features-layer-state.js
+js/map-features/map-features-display-mode.js
+js/map-features/map-features-feature-state.js
+js/map-features/map-features-share-pin.js
 ...
 js/map-features.js
 ```
@@ -249,7 +249,7 @@ Nicht verschieben:
 Zieldatei:
 
 ```text
-js/map-features-feature-state.js
+js/map-features/map-features-feature-state.js
 ```
 
 Code-Regeln:
@@ -271,7 +271,7 @@ Split map features feature state helpers
 
 Minimaler Inhalt:
 
-- neue Datei `js/map-features-feature-state.js`
+- neue Datei `js/map-features/map-features-feature-state.js`
 - fuenf Funktionen aus `js/map-features.js` 1:1 verschoben
 - Script-Tag in `index.html` eingefuegt
 - keine weiteren Dateien

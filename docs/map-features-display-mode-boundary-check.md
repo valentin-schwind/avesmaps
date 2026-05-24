@@ -1,4 +1,4 @@
-﻿# Boundary-Analyse: Map-Display-/Layer-Mode-Cluster in `js/map-features.js`
+# Boundary-Analyse: Map-Display-/Layer-Mode-Cluster in `js/map-features.js`
 
 ## 1. Zweck der Analyse
 Diese Analyse bewertet, ob der Display-/Layer-Mode-Cluster aus `js/map-features.js` spaeter als kleiner, verhaltensneutraler 1:1-Split ausgelagert werden kann, ohne Lifecycle-/CRUD-Logik oder Routing/Planner-Parsing mitzunehmen.
@@ -23,8 +23,8 @@ Direkt angrenzend/fachlich gekoppelt (Display-Modus, aber groesserer Region-Teil
 Nicht Teil eines moeglichen engen Display-Splits:
 - Routing-Berechnung und Ergebnisdarstellung (`updateMapView`, `collectAndValidateSelectedLocations`, `buildRouteResultFromSelectedLocations`, Segment-/Tooltip-Rendering)
 - Feature-Lifecycle-/CRUD-/Live-Update-Funktionen (Location/Path/Powerline/Region)
-- URL-/Planner-State-Parsing/Serialisierung (`js/map-features-layer-state.js`)
-- Share-Pin-Cluster (`js/map-features-share-pin.js`)
+- URL-/Planner-State-Parsing/Serialisierung (`js/map-features/map-features-layer-state.js`)
+- Share-Pin-Cluster (`js/map-features/map-features-share-pin.js`)
 - Contextmenu-Dispatcher und Popup-Dispatcher
 - Detail-Region-/Political-Territory-Renderinglogik ausserhalb der Kernsichtbarkeit
 
@@ -64,9 +64,9 @@ Wesentliche externe Abhaengigkeiten:
 ## 8. Welche Funktionen vermutlich von aussen gebraucht werden
 Externe Konsumenten im Repo:
 - `getSelectedMapLayerMode()`
-  - `js/map-features-layer-state.js`, `js/map-features-powerlines.js`, `js/map-features-labels.js`, `js/spotlight-search.js`, `js/config.js`
+  - `js/map-features/map-features-layer-state.js`, `js/map-features/map-features-powerlines.js`, `js/map-features/map-features-labels.js`, `js/spotlight-search.js`, `js/config.js`
 - `setSelectedMapLayerMode()`
-  - `js/map-features-layer-state.js`, `js/map-features-powerlines.js`, `js/map-features-labels.js`, `js/spotlight-search.js`, `js/map-features.js`
+  - `js/map-features/map-features-layer-state.js`, `js/map-features/map-features-powerlines.js`, `js/map-features/map-features-labels.js`, `js/spotlight-search.js`, `js/map-features.js`
 - `applyDisplayOptions()`
   - `js/routing.js`
 - `syncPathVisibility()`
@@ -86,7 +86,7 @@ Stark gekoppelt:
 
 ## 10. Abhaengigkeit zu Powerline-/Kraftlinien-Anzeige
 `setSelectedMapLayerMode()` und `applyDisplayOptions()` triggern `syncPowerlineVisibility()`.
-Powerline-Anzeige (in `js/map-features-powerlines.js`) ist direkt vom Layer-Mode (`powerlines`) abhaengig.
+Powerline-Anzeige (in `js/map-features/map-features-powerlines.js`) ist direkt vom Layer-Mode (`powerlines`) abhaengig.
 
 ## 11. Abhaengigkeit zu Labels und Ortsnamenlabels
 - `setSelectedMapLayerMode()` / `applyDisplayOptions()` triggern `syncLabelVisibility()`.
@@ -102,11 +102,11 @@ Sehr eng:
 ## 13. Abhaengigkeit zu URL-/Planner-State
 Vorhanden:
 - `setSelectedMapLayerMode()` ruft `syncPlannerStateToUrl()`.
-- `js/map-features-layer-state.js` ruft `setSelectedMapLayerMode(...)` beim URL-Apply und liest `getSelectedMapLayerMode()` beim URL-Build.
+- `js/map-features/map-features-layer-state.js` ruft `setSelectedMapLayerMode(...)` beim URL-Apply und liest `getSelectedMapLayerMode()` beim URL-Build.
 
 ## 14. Moegliche spaetere Ziel-Datei
 Bewertung:
-- `js/map-features-display-mode.js`
+- `js/map-features/map-features-display-mode.js`
 - oder vorerst in `js/map-features.js` belassen
 
 Risikoaermer als naechster Schritt: **zunaechst belassen** oder nur sehr enger Split ohne Region-Timeline.
@@ -117,13 +117,13 @@ Begruendung:
 
 ## 15. Noetige Script-Reihenfolge (falls spaeter ausgelagert)
 Falls spaeter ausgelagert wird, dann bevorzugt:
-1. `js/map-features-layer-state.js`
-2. `js/map-features-display-mode.js` (neu)
-3. `js/map-features-waypoints.js`
-4. `js/map-features-location-name-labels.js`
-5. `js/map-features-path-domain.js`
-6. `js/map-features-path-labels.js`
-7. `js/map-features-path-rendering.js`
+1. `js/map-features/map-features-layer-state.js`
+2. `js/map-features/map-features-display-mode.js` (neu)
+3. `js/map-features/map-features-waypoints.js`
+4. `js/map-features/map-features-location-name-labels.js`
+5. `js/map-features/map-features-path-domain.js`
+6. `js/map-features/map-features-path-labels.js`
+7. `js/map-features/map-features-path-rendering.js`
 8. `js/map-features.js`
 9. `js/routing.js`
 

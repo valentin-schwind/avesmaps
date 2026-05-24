@@ -102,7 +102,7 @@ Hinweis zur Liste aus der Aufgabe:
 
 ## 6. Funktionen, die vermutlich von aussen gebraucht werden
 
-Nach Aufrufstellen in `index.html`, `js/routing.js`, `js/popups.js`, `js/dialogs-review-*`, `js/spotlight-search.js` sind mindestens diese Funktionen extern relevant:
+Nach Aufrufstellen in `index.html`, `js/routing.js`, `js/popups.js`, `js/review/review-*`, `js/spotlight-search.js` sind mindestens diese Funktionen extern relevant:
 
 - `findLabelEntryByPublicId`
 - `setLabelMoveActive`
@@ -121,9 +121,9 @@ Zusaetzlich plausibel extern relevant:
 - `applyLabelFeatureResponse` (durch Editor-Submit-Flow)
 - `refreshLabelMarkerPopup` (wird im Map-Feature-Flow mehrfach genutzt)
 
-## 7. Ziel-Datei bewerten (`js/map-features-labels.js` vs. `js/labels.js`)
+## 7. Ziel-Datei bewerten (`js/map-features/map-features-labels.js` vs. `js/labels.js`)
 
-### Option A: `js/map-features-labels.js`
+### Option A: `js/map-features/map-features-labels.js`
 
 Vorteile:
 
@@ -148,7 +148,7 @@ Nachteile:
 
 ### Bewertung
 
-Fuer den aktuellen Script-Tag- und Global-State-Aufbau ist **`js/map-features-labels.js` risikoaermer**.
+Fuer den aktuellen Script-Tag- und Global-State-Aufbau ist **`js/map-features/map-features-labels.js` risikoaermer**.
 
 ## 8. Noetige Script-Reihenfolge bei spaeterer Auslagerung
 
@@ -156,7 +156,7 @@ Falls spaeter ausgelagert wird (kein Schritt jetzt), waere eine konservative Rei
 
 1. allgemeine Basisskripte und Runtime-State (inkl. `js/runtime-state.js`)
 2. Popup-/Dialog-Helfer, die vom Label-Cluster genutzt werden
-3. `js/map-features-labels.js` (neue Split-Datei)
+3. `js/map-features/map-features-labels.js` (neue Split-Datei)
 4. `js/map-features.js` (Rest-Orchestrator)
 5. `js/routing.js` und weitere Verbraucher
 
@@ -189,11 +189,11 @@ Wichtig:
   - **Ja, aber nur als minimaler 1:1-Schnitt**, wenn unmittelbar danach ein Smoke-Zyklus geplant ist.
 
 - **Minimaler spaeterer 1:1-Schnitt (nur Vorschlag, keine Umsetzung hier):**
-  - exakt die 20 Funktionen aus Abschnitt 2 in `js/map-features-labels.js` verschieben
+  - exakt die 20 Funktionen aus Abschnitt 2 in `js/map-features/map-features-labels.js` verschieben
   - keine zusaetzlichen Label-/Kollisions-/Location-Name-Funktionen mitnehmen
   - keine Funktionsnamen aendern
   - keine Logik aendern
-  - `js/map-features-labels.js` vor `js/map-features.js` laden
+  - `js/map-features/map-features-labels.js` vor `js/map-features.js` laden
   - Aufrufer in anderen Dateien unveraendert lassen
 
 - **Falls kein direkter Split gestartet werden soll:**

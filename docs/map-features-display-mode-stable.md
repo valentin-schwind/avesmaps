@@ -17,7 +17,7 @@ Vorarbeiten:
 ## Geaenderte Dateien im Code-Split
 
 - `index.html`
-- `js/map-features-display-mode.js`
+- `js/map-features/map-features-display-mode.js`
 - `js/map-features.js`
 
 ## Charakter des Splits
@@ -26,7 +26,7 @@ Der Split war ein enger 1:1-Extract ohne Logikaenderung.
 
 Neu stabil ausgelagert:
 
-- `js/map-features-display-mode.js`
+- `js/map-features/map-features-display-mode.js`
 
 Verschoben wurden nur diese fuenf Funktionen:
 
@@ -51,20 +51,20 @@ Nicht Teil dieses Splits waren:
 
 ## Script-Reihenfolge
 
-`index.html` laedt `js/map-features-display-mode.js` nach `js/map-features-layer-state.js` und vor `js/map-features.js`.
+`index.html` laedt `js/map-features/map-features-display-mode.js` nach `js/map-features/map-features-layer-state.js` und vor `js/map-features.js`.
 
 Relevanter Map-Features-Bereich:
 
-- `js/map-features-labels.js`
-- `js/map-features-powerlines.js`
-- `js/map-features-layer-state.js`
-- `js/map-features-display-mode.js`
-- `js/map-features-share-pin.js`
-- `js/map-features-waypoints.js`
-- `js/map-features-location-name-labels.js`
-- `js/map-features-path-domain.js`
-- `js/map-features-path-labels.js`
-- `js/map-features-path-rendering.js`
+- `js/map-features/map-features-labels.js`
+- `js/map-features/map-features-powerlines.js`
+- `js/map-features/map-features-layer-state.js`
+- `js/map-features/map-features-display-mode.js`
+- `js/map-features/map-features-share-pin.js`
+- `js/map-features/map-features-waypoints.js`
+- `js/map-features/map-features-location-name-labels.js`
+- `js/map-features/map-features-path-domain.js`
+- `js/map-features/map-features-path-labels.js`
+- `js/map-features/map-features-path-rendering.js`
 - `js/map-features.js`
 
 ## Smoke-Test
@@ -88,7 +88,7 @@ Betreiber-Smoke nach Split bestanden:
 
 ## Stabilitaetsregel
 
-Kein weiterer Display-Mode-/Layer-Mode-/Regions-/Timeline-Split rund um `js/map-features-display-mode.js`, `js/map-features-layer-state.js`, `js/map-features.js`, `js/config.js` oder Gebietsansichten ohne neue Boundary-Analyse.
+Kein weiterer Display-Mode-/Layer-Mode-/Regions-/Timeline-Split rund um `js/map-features/map-features-display-mode.js`, `js/map-features/map-features-layer-state.js`, `js/map-features.js`, `js/config.js` oder Gebietsansichten ohne neue Boundary-Analyse.
 
 ## Hinweis zu `docs/refactoring-status.md`
 

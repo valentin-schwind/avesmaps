@@ -119,8 +119,8 @@ Der Kandidatenblock benoetigt:
 
 Ein Teil der Daten kommt aus bereits ausgelagerten Dateien:
 
-- freie Labels aus `js/map-features-labels.js`
-- Ortsnamenlabels aus `js/map-features-location-name-labels.js`
+- freie Labels aus `js/map-features/map-features-labels.js`
+- Ortsnamenlabels aus `js/map-features/map-features-location-name-labels.js`
 
 Deshalb muss die neue Datei nach diesen beiden Dateien geladen werden oder zumindest erst nach deren Globals verfuegbar sein. Da die Funktionen erst zur Laufzeit aufgerufen werden, ist eine Position vor `js/map-features.js`, aber nach beiden Label-Dateien am saubersten.
 
@@ -145,7 +145,7 @@ git grep -n "scheduleLabelCollisionResolution\|resolveLabelCollisions\|rectangle
 Empfohlene Datei:
 
 ```text
-js/map-features-label-collisions.js
+js/map-features/map-features-label-collisions.js
 ```
 
 Begruendung:
@@ -157,7 +157,7 @@ Begruendung:
 Nicht empfohlen:
 
 ```text
-js/map-features-labels-collisions.js
+js/map-features/map-features-labels-collisions.js
 ```
 
 Der doppelte Plural wirkt schwerer lesbar.
@@ -167,26 +167,26 @@ Der doppelte Plural wirkt schwerer lesbar.
 Empfohlene Position in `index.html`:
 
 ```text
-js/map-features-location-name-labels.js
-js/map-features-label-collisions.js
-js/map-features-path-domain.js
+js/map-features/map-features-location-name-labels.js
+js/map-features/map-features-label-collisions.js
+js/map-features/map-features-path-domain.js
 ...
 js/map-features.js
 ```
 
 Begruendung:
 
-- `js/map-features-labels.js` wird bereits frueh geladen.
-- `js/map-features-location-name-labels.js` muss vor der Kollisionsdatei liegen, weil die Kollisionslogik `locationNameLabels` und Ortsnamenlabel-Konfiguration nutzt.
+- `js/map-features/map-features-labels.js` wird bereits frueh geladen.
+- `js/map-features/map-features-location-name-labels.js` muss vor der Kollisionsdatei liegen, weil die Kollisionslogik `locationNameLabels` und Ortsnamenlabel-Konfiguration nutzt.
 - Die neue Datei muss vor `js/map-features.js` liegen, falls dort Aufrufer verbleiben.
 
 Alternative:
 
 ```text
-js/map-features-labels.js
+js/map-features/map-features-labels.js
 ...
-js/map-features-location-name-labels.js
-js/map-features-label-collisions.js
+js/map-features/map-features-location-name-labels.js
+js/map-features/map-features-label-collisions.js
 ```
 
 Die genaue Position muss mit `git grep` abgesichert werden.
@@ -263,8 +263,8 @@ Zu verschieben:
 
 Nicht verschieben:
 
-- freie Label-Lifecycle-Funktionen aus `js/map-features-labels.js`
-- Ortsnamenlabel-Lifecycle-Funktionen aus `js/map-features-location-name-labels.js`
+- freie Label-Lifecycle-Funktionen aus `js/map-features/map-features-labels.js`
+- Ortsnamenlabel-Lifecycle-Funktionen aus `js/map-features/map-features-location-name-labels.js`
 - Location-Marker-Rendering
 - Location-Marker-Lifecycle
 - DOM-/Bootstrap-Bindings als Ganzes
@@ -293,7 +293,7 @@ Split map features label collision helpers
 
 Minimaler Inhalt:
 
-- neue Datei `js/map-features-label-collisions.js`
+- neue Datei `js/map-features/map-features-label-collisions.js`
 - oben genannte Funktionen aus `js/map-features.js` 1:1 verschoben
 - Script-Tag in `index.html` eingefuegt
 - keine weiteren Dateien

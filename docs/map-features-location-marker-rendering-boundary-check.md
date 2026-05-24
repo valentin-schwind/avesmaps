@@ -146,7 +146,7 @@ isMarkerEntryInRenderBounds
 Empfohlene Datei:
 
 ```text
-js/map-features-location-marker-rendering.js
+js/map-features/map-features-location-marker-rendering.js
 ```
 
 Begruendung:
@@ -158,7 +158,7 @@ Begruendung:
 Alternative:
 
 ```text
-js/map-features-location-visibility.js
+js/map-features/map-features-location-visibility.js
 ```
 
 Diese Alternative ist zu eng, weil `createLocationMarkerIcon(...)` und Groessenlogik mehr als reine Sichtbarkeit sind.
@@ -168,10 +168,10 @@ Diese Alternative ist zu eng, weil `createLocationMarkerIcon(...)` und Groessenl
 Empfohlene Position in `index.html`:
 
 ```text
-js/map-features-display-mode.js
-js/map-features-feature-state.js
-js/map-features-location-marker-rendering.js
-js/map-features-share-pin.js
+js/map-features/map-features-display-mode.js
+js/map-features/map-features-feature-state.js
+js/map-features/map-features-location-marker-rendering.js
+js/map-features/map-features-share-pin.js
 ...
 js/map-features.js
 ```
@@ -290,7 +290,7 @@ Split map features location marker rendering helpers
 
 Minimaler Inhalt:
 
-- neue Datei `js/map-features-location-marker-rendering.js`
+- neue Datei `js/map-features/map-features-location-marker-rendering.js`
 - oben genannte Funktionen aus `js/map-features.js` 1:1 verschoben
 - Script-Tag in `index.html` eingefuegt
 - keine weiteren Dateien

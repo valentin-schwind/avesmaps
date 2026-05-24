@@ -1,9 +1,9 @@
-ï»¿<!doctype html>
+<!doctype html>
 <html lang="de">
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>Avesmaps â€“ Herrschaftsgebiete aus dem Wiki</title>
+	<title>Avesmaps – Herrschaftsgebiete aus dem Wiki</title>
 	<link rel="stylesheet" href="/css/political-territory-wiki-tree.css">
 
 	<style>
@@ -820,9 +820,9 @@
 <body>
 	<div class="app-container">
 	<header>
-		<h1>Avesmaps â€“ Herrschaftsgebiete aus dem Wiki</h1>
+		<h1>Avesmaps – Herrschaftsgebiete aus dem Wiki</h1>
 		<p>
-			LÃ¤dt die vorhandenen Daten. Zum Synchronisieren WikiSync benutzen.
+			Lädt die vorhandenen Daten. Zum Synchronisieren WikiSync benutzen.
 		</p>
 	</header>
 
@@ -834,7 +834,7 @@
 				<div id="statusValue" class="value">Bereit</div>
 			</div>
 			<div class="stat">
-				<div class="label">Geladene EintrÃ¤ge</div>
+				<div class="label">Geladene Einträge</div>
 				<div id="loadedValue" class="value">0</div>
 			</div>
 			<div class="stat">
@@ -856,7 +856,7 @@
 					</div>
 					<div class="tree-header-controls">
 						<button id="reloadButton" class="is-hidden-control" type="button">Daten laden</button>
-						<input id="searchInput" type="search" placeholder="Suchen â€¦" aria-label="Herrschaftsgebiete suchen">
+						<input id="searchInput" type="search" placeholder="Suchen …" aria-label="Herrschaftsgebiete suchen">
 						<select id="continentFilter" class="is-hidden-control" aria-hidden="true" tabindex="-1">
 							<option value="">Alle Kontinente</option>
 						</select>
@@ -870,7 +870,7 @@
 				</div>
 				<div id="treeView" class="tree-wrap"></div>
 				<div class="tree-panel-footer" aria-label="Legende und Baumaktionen">
-					<div class="legend" aria-label="Legende der Baumfarben und Karten-VollstÃ¤ndigkeit">
+					<div class="legend" aria-label="Legende der Baumfarben und Karten-Vollständigkeit">
 						<div class="legend-line">
 							<span class="legend-item"><span class="legend-swatch"></span><span>echter Wiki-/SQL-Datensatz mit Details</span></span>
 							<span class="legend-item"><span class="legend-swatch synthetic"></span><span>abgeleiteter Gruppenknoten, ohne eigenen Datensatz</span></span>
@@ -878,16 +878,16 @@
 						<div class="legend-line">
 							<span class="legend-item"><span class="legend-map-status"></span><span>fehlt</span></span>
 							<span class="legend-separator">|</span>
-							<span class="legend-item"><span class="legend-map-status legend-map-status--children-only"></span><span>indirekt vorhanden (unvollstÃ¤ndig)</span></span>
+							<span class="legend-item"><span class="legend-map-status legend-map-status--children-only"></span><span>indirekt vorhanden (unvollständig)</span></span>
 							<span class="legend-separator">|</span>
-							<span class="legend-item"><span class="legend-map-status legend-map-status--own-only"></span><span>direkt vorhanden (unvollstÃ¤ndig)</span></span>
+							<span class="legend-item"><span class="legend-map-status legend-map-status--own-only"></span><span>direkt vorhanden (unvollständig)</span></span>
 							<span class="legend-separator">|</span>
-							<span class="legend-item"><span class="legend-map-status legend-map-status--all"></span><span>vollstÃ¤ndig</span></span>
+							<span class="legend-item"><span class="legend-map-status legend-map-status--all"></span><span>vollständig</span></span>
 						</div>
 					</div>
 					<div class="tree-footer-actions">
-						<button id="expandButton" class="secondary tree-footer-button" type="button" title="Alles Ã¶ffnen" aria-label="Alles Ã¶ffnen">+</button>
-						<button id="collapseButton" class="secondary tree-footer-button" type="button" title="Alles schlieÃŸen" aria-label="Alles schlieÃŸen">âˆ’</button>
+						<button id="expandButton" class="secondary tree-footer-button" type="button" title="Alles öffnen" aria-label="Alles öffnen">+</button>
+						<button id="collapseButton" class="secondary tree-footer-button" type="button" title="Alles schließen" aria-label="Alles schließen">-</button>
 					</div>
 				</div>
 			</section>
@@ -908,7 +908,7 @@
 						<section class="manual-data-section" aria-label="Synchronisierte Wiki-Daten">
 							<div class="manual-data-section-header">
 								<h3>Synchronisierte Wiki-Daten</h3>
-								<span id="detailInfo" class="note">Noch kein Gebiet ausgewÃ¤hlt.</span>
+								<span id="detailInfo" class="note">Noch kein Gebiet ausgewählt.</span>
 							</div>
 							<div id="infoBox" class="info-box"></div>
 						</section>
@@ -967,7 +967,7 @@
 										</div>
 									</div>
 								</div>
-								<small class="manual-data-inline-hint">Hinweis: â€Farbtonvarianz vererbenâ€œ schreibt die Ã„nderungen sofort in die Datenbank (global und lokal).</small>
+								<small class="manual-data-inline-hint">Hinweis: „Farbtonvarianz vererben“ schreibt die Änderungen sofort in die Datenbank (global und lokal).</small>
 							</section>
 
 							<section class="manual-data-section" aria-label="Transparenz">
@@ -983,8 +983,8 @@
 								</div>
 							</section>
 
-							<section class="manual-data-section" aria-label="Zeitliche GÃ¼ltigkeit">
-								<h3>Zeitliche GÃ¼ltigkeit</h3>
+							<section class="manual-data-section" aria-label="Zeitliche Gültigkeit">
+								<h3>Zeitliche Gültigkeit</h3>
 								<div class="manual-data-grid">
 									<div class="manual-data-field">
 										<label for="startYearInput">Anfang</label>
@@ -1021,10 +1021,10 @@
 	</main>
 	</div>
 
-	<script src="/js/political-territory-wiki-tree.js"></script>
-	<script src="/js/political-territory-editor-embedded.js"></script>
-	<script src="/js/political-territory-subtree-display-tools.js"></script>
-	<script src="/js/political-territory-editor-ui-hints.js"></script>
+	<script src="/js/territory/territory-wiki-tree.js"></script>
+	<script src="/js/territory/territory-editor-embedded.js"></script>
+	<script src="/js/territory/territory-subtree-display-tools.js"></script>
+	<script src="/js/territory/territory-editor-ui-hints.js"></script>
 </body>
 </html>
 

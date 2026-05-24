@@ -62,8 +62,8 @@ Direkt verwendet:
 - `locationPopupActionsMarkup(...)`
 - `popupActionButtonMarkup(...)`
 - `getPathStyleColors(...)`
-- `refreshPathLayerText(...)` (aus `js/map-features-path-labels.js`)
-- `getReadablePathLabelLatLngCoordinates(...)` (aus `js/map-features-path-labels.js`)
+- `refreshPathLayerText(...)` (aus `js/map-features/map-features-path-labels.js`)
+- `getReadablePathLabelLatLngCoordinates(...)` (aus `js/map-features/map-features-path-labels.js`)
 - `smoothLineCoordinatesForDisplay(...)`
 - `handleEditablePathDoubleClick(...)`
 
@@ -78,13 +78,13 @@ Vermutlich ausserhalb von `map-features.js` direkt nicht stark genutzt:
 
 Praktisch werden sie vor allem intern von Path-Lifecycle-/Edit-Flows genutzt.
 
-## 8. Abhängigkeit zu `js/map-features-path-labels.js`
+## 8. Abhängigkeit zu `js/map-features/map-features-path-labels.js`
 Rendering-Core ist direkt an den ausgelagerten Path-Label-Cluster gekoppelt:
 - `updatePathLayerStyle(...)` -> `refreshPathLayerText(...)`
 - `createPathLayer(...)` und `updatePathLayerGeometry(...)` -> `getReadablePathLabelLatLngCoordinates(...)`
 
 Zwingende Reihenfolge:
-- `js/map-features-path-labels.js` muss vor einem moeglichen `js/map-features-path-rendering.js` geladen werden.
+- `js/map-features/map-features-path-labels.js` muss vor einem moeglichen `js/map-features/map-features-path-rendering.js` geladen werden.
 
 ## 9. Abhängigkeit zu Popup-/Editmode-Actions
 - `createPathPopupMarkup(...)` erzeugt Edit-/Delete-Actions via `data-popup-action` und `data-public-id`.
@@ -101,20 +101,20 @@ Ohne diese Orchestrierung ist der Rendering-Core nicht eigenstaendig nutzbar.
 
 ## 11. Mögliche spätere Ziel-Datei
 Bewertung:
-- `js/map-features-path-rendering.js` ist fuer den **kleinen ersten Schnitt** risikoaermer.
+- `js/map-features/map-features-path-rendering.js` ist fuer den **kleinen ersten Schnitt** risikoaermer.
   - Enge Verantwortung (Layer/Popup/Style/Geometry)
   - Kleiner Diff und klarer Scope
-- `js/map-features-paths.js` passt eher fuer einen spaeteren groesseren Gesamtsplit inkl. Lifecycle.
+- `js/map-features/map-features-paths.js` passt eher fuer einen spaeteren groesseren Gesamtsplit inkl. Lifecycle.
   - Hoehere Kopplung und groesseres Risiko im ersten Schritt
 
 ## 12. Nötige Script-Reihenfolge, falls später ausgelagert würde
 Empfohlene Reihenfolge fuer klassischen Script-Stack:
-1. `js/map-features-labels.js`
-2. `js/map-features-powerlines.js`
-3. `js/map-features-layer-state.js`
-4. `js/map-features-location-name-labels.js`
-5. `js/map-features-path-labels.js`
-6. `js/map-features-path-rendering.js` (neu, falls Split)
+1. `js/map-features/map-features-labels.js`
+2. `js/map-features/map-features-powerlines.js`
+3. `js/map-features/map-features-layer-state.js`
+4. `js/map-features/map-features-location-name-labels.js`
+5. `js/map-features/map-features-path-labels.js`
+6. `js/map-features/map-features-path-rendering.js` (neu, falls Split)
 7. `js/map-features.js`
 
 Grund: Rendering-Core braucht Funktionen aus `path-labels` und wird selbst vom Rest-Orchestrator aufgerufen.

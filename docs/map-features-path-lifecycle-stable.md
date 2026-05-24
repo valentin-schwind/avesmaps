@@ -2,7 +2,7 @@
 
 ## Zweck
 
-Dokumentiert den engen 1:1-Extract des Path-Apply/Live-Teilschnitts aus `js/map-features.js` nach `js/map-features-path-lifecycle.js`.
+Dokumentiert den engen 1:1-Extract des Path-Apply/Live-Teilschnitts aus `js/map-features.js` nach `js/map-features/map-features-path-lifecycle.js`.
 
 ## Verschobene Funktionen
 
@@ -26,7 +26,7 @@ Dokumentiert den engen 1:1-Extract des Path-Apply/Live-Teilschnitts aus `js/map-
 
 ## Script-Reihenfolge
 
-Im Map-Features-Block wird `js/map-features-path-lifecycle.js` nach `js/map-features-path-geometry-editing.js` und vor `js/map-features.js` geladen.
+Im Map-Features-Block wird `js/map-features/map-features-path-lifecycle.js` nach `js/map-features/map-features-path-geometry-editing.js` und vor `js/map-features.js` geladen.
 
 ## Smoke-Plan
 

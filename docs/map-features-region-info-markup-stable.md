@@ -2,7 +2,7 @@
 
 ## 1. Zusammenfassung
 
-Die Region Info/Tooltip Markup-Helfer wurden als enger 1:1-Extract aus `js/map-features.js` in `js/map-features-region-info-markup.js` ausgelagert.
+Die Region Info/Tooltip Markup-Helfer wurden als enger 1:1-Extract aus `js/map-features.js` in `js/map-features/map-features-region-info-markup.js` ausgelagert.
 
 Ziel ist es, die reine Markup- und Formatierungslogik von Regions-Tooltips zu separieren, während Lifecycle-, Kontext- und Geometrie-Logik im Rest verbleiben.
 
@@ -40,7 +40,7 @@ Diese verbleibenden Funktionen sind eng mit Tooltip-Lifecycle, Layer-Geometrie u
 
 ## 4. Script-Reihenfolge
 
-`index.html` lädt `js/map-features-region-info-markup.js` nach `js/map-features.js` und vor `js/map-features-political-timeline.js`.
+`index.html` lädt `js/map-features/map-features-region-info-markup.js` nach `js/map-features.js` und vor `js/map-features/map-features-political-timeline.js`.
 
 ## 5. Smoke-Plan
 

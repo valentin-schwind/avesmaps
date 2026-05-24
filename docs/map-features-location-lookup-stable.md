@@ -2,7 +2,7 @@
 
 ## 1. Zusammenfassung
 
-Der enge 1:1-Extract `js/map-features-location-lookup.js` wurde aus `js/map-features.js` ausgelagert, um reine Location Lookup-, Typ- und Namens-Helper zu trennen.
+Der enge 1:1-Extract `js/map-features/map-features-location-lookup.js` wurde aus `js/map-features.js` ausgelagert, um reine Location Lookup-, Typ- und Namens-Helper zu trennen.
 
 ## 2. Verschobene Funktionen
 
@@ -47,7 +47,7 @@ Diese Funktionen sind eng mit Location Lifecycle, Popup- und Editflows sowie Per
 
 ## 4. Script-Reihenfolge
 
-`index.html` lädt `js/map-features-location-lookup.js` nach `js/map-features.js` und vor `js/map-features-region-operation-chip.js`.
+`index.html` lädt `js/map-features/map-features-location-lookup.js` nach `js/map-features.js` und vor `js/map-features/map-features-region-operation-chip.js`.
 
 ## 5. Smoke-Plan
 

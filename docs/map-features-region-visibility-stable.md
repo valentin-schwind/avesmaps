@@ -2,7 +2,7 @@
 
 ## Zweck
 
-Dokumentiert den engen 1:1-Extract von `syncRegionVisibility` aus `js/map-features.js` nach `js/map-features-region-visibility.js`.
+Dokumentiert den engen 1:1-Extract von `syncRegionVisibility` aus `js/map-features.js` nach `js/map-features/map-features-region-visibility.js`.
 
 ## Verschobene Funktion
 
@@ -15,7 +15,7 @@ Dokumentiert den engen 1:1-Extract von `syncRegionVisibility` aus `js/map-featur
 
 ## Script-Reihenfolge
 
-`js/map-features-region-visibility.js` wird nach `js/map-features.js` und vor `js/map-features-feature-dispatcher.js` geladen.
+`js/map-features/map-features-region-visibility.js` wird nach `js/map-features.js` und vor `js/map-features/map-features-feature-dispatcher.js` geladen.
 
 ## Smoke-Plan
 

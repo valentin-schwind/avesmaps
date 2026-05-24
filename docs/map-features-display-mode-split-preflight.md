@@ -11,9 +11,9 @@ Grundlage ist `docs/map-features-display-mode-boundary-check.md`. Es wird kein C
 - Definition in `js/map-features.js`.
 - Direkte Nutzung in `js/map-features.js` selbst, insbesondere in Display-/Region-Sichtbarkeitslogik.
 - Direkte externe Nutzung laut Boundary in:
-  - `js/map-features-layer-state.js`
-  - `js/map-features-powerlines.js`
-  - `js/map-features-labels.js`
+  - `js/map-features/map-features-layer-state.js`
+  - `js/map-features/map-features-powerlines.js`
+  - `js/map-features/map-features-labels.js`
   - `js/spotlight-search.js`
   - `js/config.js`
 
@@ -21,9 +21,9 @@ Grundlage ist `docs/map-features-display-mode-boundary-check.md`. Es wird kein C
 - Definition in `js/map-features.js`.
 - Direkte Nutzung in `js/map-features.js` selbst, insbesondere im `#mapLayerModeSelect`-Change-Flow.
 - Direkte externe Nutzung laut Boundary in:
-  - `js/map-features-layer-state.js`
-  - `js/map-features-powerlines.js`
-  - `js/map-features-labels.js`
+  - `js/map-features/map-features-layer-state.js`
+  - `js/map-features/map-features-powerlines.js`
+  - `js/map-features/map-features-labels.js`
   - `js/spotlight-search.js`
 
 ### `syncPathVisibility`
@@ -51,27 +51,27 @@ Der enge moegliche Split hat eine klare interne Kante:
 
 Damit ist `shouldShowPathOnMap` eher interner Helper von `syncPathVisibility`, muss aber wegen externer Nutzung durch `spotlight-search.js` trotzdem global bleiben.
 
-## 4. Nutzung durch `js/map-features-layer-state.js`
-`js/map-features-layer-state.js` nutzt den Layer-Mode fuer URL-/Planner-State:
+## 4. Nutzung durch `js/map-features/map-features-layer-state.js`
+`js/map-features/map-features-layer-state.js` nutzt den Layer-Mode fuer URL-/Planner-State:
 - `getSelectedMapLayerMode` beim Serialisieren des Planner-State.
 - `setSelectedMapLayerMode` beim Anwenden von URL-State.
 
 Konsequenz fuer einen spaeteren Split:
-- `js/map-features-display-mode.js` muss zur Laufzeit vor den URL-Apply-Pfaden verfuegbar sein.
-- Da `js/map-features-layer-state.js` selbst `syncPlannerStateToUrl` bereitstellt und `setSelectedMapLayerMode` diese Funktion aufruft, bleibt eine funktionale Rueckkopplung bestehen.
+- `js/map-features/map-features-display-mode.js` muss zur Laufzeit vor den URL-Apply-Pfaden verfuegbar sein.
+- Da `js/map-features/map-features-layer-state.js` selbst `syncPlannerStateToUrl` bereitstellt und `setSelectedMapLayerMode` diese Funktion aufruft, bleibt eine funktionale Rueckkopplung bestehen.
 - Im klassischen Script-Tag-Aufbau ist das beherrschbar, solange nur Funktionsdefinitionen verschoben werden und keine neue Top-Level-Ausfuehrung entsteht.
 
-## 5. Nutzung durch `js/map-features-powerlines.js`
-`js/map-features-powerlines.js` nutzt den Layer-Mode zur Sichtbarkeitsentscheidung fuer Kraftlinien:
+## 5. Nutzung durch `js/map-features/map-features-powerlines.js`
+`js/map-features/map-features-powerlines.js` nutzt den Layer-Mode zur Sichtbarkeitsentscheidung fuer Kraftlinien:
 - `getSelectedMapLayerMode`
 - gegebenenfalls `setSelectedMapLayerMode` in powerlinebezogenen UI-/State-Pfaden
 
 Konsequenz:
-- Display-Mode-Helfer muessen vor `js/map-features-powerlines.js` verfuegbar sein, wenn Powerline-Code Top-Level- oder fruehe Laufzeitpfade damit verwendet.
+- Display-Mode-Helfer muessen vor `js/map-features/map-features-powerlines.js` verfuegbar sein, wenn Powerline-Code Top-Level- oder fruehe Laufzeitpfade damit verwendet.
 - Die aktuelle Boundary-Reihenfolge mit Display-Mode direkt nach Layer-State ist deshalb plausibel.
 
-## 6. Nutzung durch `js/map-features-labels.js`
-`js/map-features-labels.js` nutzt den Layer-Mode fuer freie Labels:
+## 6. Nutzung durch `js/map-features/map-features-labels.js`
+`js/map-features/map-features-labels.js` nutzt den Layer-Mode fuer freie Labels:
 - `getSelectedMapLayerMode`
 - `setSelectedMapLayerMode` laut Boundary als externer Konsument
 
@@ -88,7 +88,7 @@ Konsequenz:
 
 Konsequenz:
 - Alle vier Funktionen muessen nach einem Split global bleiben.
-- `js/map-features-display-mode.js` muss vor `js/spotlight-search.js` geladen werden. Das ist erfuellt, wenn die Datei im Map-Features-Block vor `js/map-features.js` steht, weil `spotlight-search.js` spaeter geladen wird.
+- `js/map-features/map-features-display-mode.js` muss vor `js/spotlight-search.js` geladen werden. Das ist erfuellt, wenn die Datei im Map-Features-Block vor `js/map-features.js` steht, weil `spotlight-search.js` spaeter geladen wird.
 
 ## 8. Nutzung durch `js/routing.js`
 `js/routing.js` nutzt laut Boundary:
@@ -96,7 +96,7 @@ Konsequenz:
 
 Konsequenz:
 - `applyDisplayOptions` muss global bleiben.
-- `js/map-features-display-mode.js` muss vor `js/routing.js` geladen werden.
+- `js/map-features/map-features-display-mode.js` muss vor `js/routing.js` geladen werden.
 
 ## 9. Nutzung oder Override durch `js/config.js`
 Laut Boundary nutzt `js/config.js`:
@@ -162,20 +162,20 @@ Gruende:
 
 ## 11. Welche Script-Reihenfolge bei einem spaeteren Split noetig waere
 Empfohlene Reihenfolge im Map-Features-Block:
-1. `js/map-features-layer-state.js`
-2. `js/map-features-display-mode.js` (neu)
-3. `js/map-features-share-pin.js`
-4. `js/map-features-waypoints.js`
-5. `js/map-features-location-name-labels.js`
-6. `js/map-features-path-domain.js`
-7. `js/map-features-path-labels.js`
-8. `js/map-features-path-rendering.js`
+1. `js/map-features/map-features-layer-state.js`
+2. `js/map-features/map-features-display-mode.js` (neu)
+3. `js/map-features/map-features-share-pin.js`
+4. `js/map-features/map-features-waypoints.js`
+5. `js/map-features/map-features-location-name-labels.js`
+6. `js/map-features/map-features-path-domain.js`
+7. `js/map-features/map-features-path-labels.js`
+8. `js/map-features/map-features-path-rendering.js`
 9. `js/map-features.js`
 10. spaeter: `js/routing.js`
 
-Hinweis: Falls `js/map-features-powerlines.js` oder `js/map-features-labels.js` bereits vor Layer-State geladen werden und frueh `getSelectedMapLayerMode` nutzen, muss die konkrete Reihenfolge vor dem Code-Split nochmals am aktuellen `index.html` geprueft werden. Funktional ist Display-Mode als Basis-Helfer vor allen Konsumenten am saubersten.
+Hinweis: Falls `js/map-features/map-features-powerlines.js` oder `js/map-features/map-features-labels.js` bereits vor Layer-State geladen werden und frueh `getSelectedMapLayerMode` nutzen, muss die konkrete Reihenfolge vor dem Code-Split nochmals am aktuellen `index.html` geprueft werden. Funktional ist Display-Mode als Basis-Helfer vor allen Konsumenten am saubersten.
 
-## 12. Muss `js/map-features-display-mode.js` vor oder nach `js/map-features.js` stehen?
+## 12. Muss `js/map-features/map-features-display-mode.js` vor oder nach `js/map-features.js` stehen?
 Empfehlung: vor `js/map-features.js`.
 
 Begruendung:
@@ -224,7 +224,7 @@ Zusaetzlich muessen die von diesen Funktionen aufgerufenen externen Helfer weite
 Code-Split danach: moeglich, aber nur als enger 1:1-Extract und nur, wenn die konkrete Script-Reihenfolge vorher nochmals gegen `index.html` geprueft wird.
 
 Empfohlene Datei:
-- `js/map-features-display-mode.js`
+- `js/map-features/map-features-display-mode.js`
 
 Empfohlener minimaler Scope:
 - `getSelectedMapLayerMode`

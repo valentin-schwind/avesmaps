@@ -152,7 +152,7 @@ Weitere zentrale Abhaengigkeiten:
 
 ## 7. Welche Funktionen vermutlich von außen gebraucht werden
 
-Durch Aufrufstellen in `index.html`, `js/routing.js`, `js/spotlight-search.js`, `js/config.js`, `js/map-features-labels.js`, `js/map-features-powerlines.js` sind mindestens extern relevant:
+Durch Aufrufstellen in `index.html`, `js/routing.js`, `js/spotlight-search.js`, `js/config.js`, `js/map-features/map-features-labels.js`, `js/map-features/map-features-powerlines.js` sind mindestens extern relevant:
 
 - `getSelectedMapLayerMode`
 - `setSelectedMapLayerMode`
@@ -170,7 +170,7 @@ Durch Aufrufstellen in `index.html`, `js/routing.js`, `js/spotlight-search.js`, 
 
 ## 8. Mögliche spätere Ziel-Datei bewerten
 
-### Option A: `js/map-features-layer-state.js`
+### Option A: `js/map-features/map-features-layer-state.js`
 
 Vorteile:
 
@@ -195,16 +195,16 @@ Nachteile:
 
 ### Bewertung
 
-Fuer den aktuellen Zustand ist **`js/map-features-layer-state.js` risikoaermer**.
+Fuer den aktuellen Zustand ist **`js/map-features/map-features-layer-state.js` risikoaermer**.
 
 ## 9. Nötige Script-Reihenfolge, falls später ausgelagert
 
 Konservative Reihenfolge fuer spaeteren Split:
 
 1. Basis/State/Config/Utils
-2. `js/map-features-labels.js`
-3. `js/map-features-powerlines.js`
-4. `js/map-features-layer-state.js` (neu)
+2. `js/map-features/map-features-labels.js`
+3. `js/map-features/map-features-powerlines.js`
+4. `js/map-features/map-features-layer-state.js` (neu)
 5. `js/map-features.js` (Rest-Orchestrator)
 6. `js/routing.js` / `js/spotlight-search.js`
 
@@ -237,7 +237,7 @@ Wichtig:
   - **Ja, aber nur als kleiner 1:1-Schnitt mit engem Scope.**
 
 - **Minimaler 1:1-Schnitt (spaeter):**
-  - nur URL-/Planner-State-Funktionen aus diesem Cluster in `js/map-features-layer-state.js` verschieben:
+  - nur URL-/Planner-State-Funktionen aus diesem Cluster in `js/map-features/map-features-layer-state.js` verschieben:
     - `parseBooleanQueryParam`
     - `parseNumberQueryParam`
     - `readWaypointsFromUrl`
