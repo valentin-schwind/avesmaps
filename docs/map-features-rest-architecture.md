@@ -521,17 +521,15 @@ Diese Struktur ist kein kurzfristiger Umzugsplan. Sie beschreibt nur eine moegli
 
 ## 8. Kurzfristige Empfehlung
 
-Kein unvorbereiteter Code-Split sofort.
+Kein weiterer direkter Code-Split.
 
-Weitere `map-features.js`-Splits sind moeglich, aber nur mit separater Boundary, engem Scope und eigenem Smoke.
-
-Der naechste sinnvolle technische Schritt ist eine neue Restbewertung mit Fokus auf Path-Lifecycle/CRUD.
+Die Post-Geometry-Restbewertung dokumentiert einen Stopppunkt. Weitere `map-features.js`-Splits sind nur mit separater Boundary, engem Scope und eigenem Smoke sinnvoll.
 
 ## 9. Konkrete naechste Boundary-Kandidaten
 
-Nur mit separater Boundary:
+Optional spaeter und nur mit separater Boundary:
 
-1. Path-Lifecycle/CRUD (inklusive Grenzfall `deletePathFeature`).
+1. Enger Path-Lifecycle/CRUD-Teilbereich (inklusive Grenzfall `deletePathFeature`).
 
 Nicht als naechster Code-Schritt:
 
@@ -545,4 +543,4 @@ Nicht als naechster Code-Schritt:
 
 `js/map-features.js` bleibt vorerst bewusst gross, aber die Groesse ist jetzt genauer dokumentiert: Die Datei enthaelt Rest-Orchestrierung und Datenmutation, aber innerhalb dieser Restarchitektur existieren noch abgrenzbare Boundary-Kandidaten.
 
-Weitere Entschlackung ist moeglich, aber nur als Architekturarbeit mit explizitem Datenfluss- und Smoke-Plan. Der naechste Kandidat ist eine gesonderte Path-Lifecycle/CRUD-Boundary.
+`js/map-features.js` bleibt bewusst Rest-Orchestrator. Weitere Entschlackung ist moeglich, aber nur als Architekturarbeit mit explizitem Datenfluss- und Smoke-Plan und nicht als automatischer Folgeschritt.

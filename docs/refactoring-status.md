@@ -8,7 +8,7 @@ Die gut isolierbaren Helper-/UI-/Rendering-Cluster wurden als klassische globale
 
 Nach erneuter Pruefung ist die fruehere Stopp-Formulierung zu praezisieren: Es sollen keine unvorbereiteten Mikro-Splits mehr erfolgen. Weitere `map-features.js`-Splits sind aber moeglich, wenn sie als eigene Boundary mit Datenfluss- und Smoke-Plan vorbereitet werden.
 
-Der Feature-State-Split fuer Revisionen und Softlocks wurde umgesetzt und per Betreiber-Smoke als stabil bewertet. Der Location-Marker-Rendering-Split wurde ebenfalls umgesetzt und per Betreiber-Smoke als stabil bewertet. Der Label-Collision-Split wurde umgesetzt und als abgeschlossen dokumentiert. Der Path-Creation-Split wurde als enger 1:1-Extract umgesetzt. Der Path-Geometry-Editing-Split wurde als enger 1:1-Extract umgesetzt.
+Der Feature-State-Split fuer Revisionen und Softlocks wurde umgesetzt und per Betreiber-Smoke als stabil bewertet. Der Location-Marker-Rendering-Split wurde ebenfalls umgesetzt und per Betreiber-Smoke als stabil bewertet. Der Label-Collision-Split wurde umgesetzt und als abgeschlossen dokumentiert. Der Path-Creation-Split wurde als enger 1:1-Extract umgesetzt. Der Path-Geometry-Editing-Split wurde als enger 1:1-Extract umgesetzt. Mit der Post-Geometry-Restbewertung ist die aktuelle `map-features.js`-Split-Serie abgeschlossen und ein Stopppunkt dokumentiert.
 
 ## 2. Stable Core Boundaries
 
@@ -104,6 +104,7 @@ Die Detailhistorie und Boundary-Entscheidungen liegen in separaten Dokumenten. W
 - `docs/map-features-path-creation-stable.md`
 - `docs/map-features-path-geometry-editing-boundary-check.md`
 - `docs/map-features-path-geometry-editing-stable.md`
+- `docs/map-features-post-geometry-rest-assessment.md`
 - `docs/map-features-final-rest-assessment.md`
 - `docs/map-features-rest-architecture.md`
 
@@ -147,7 +148,7 @@ Nicht ohne neue Boundary-Analyse weiter aufteilen:
 
 ## 9. Remaining Split Candidates
 
-Nach erneuter Pruefung ist kein direkter weiterer `map-features.js`-Code-Split ohne neue Boundary-Analyse empfohlen.
+Nach erneuter Pruefung ist kein direkter weiterer `map-features.js`-Code-Split empfohlen. Als moegliche spaetere Boundary bleibt nur ein enger Path-Lifecycle/CRUD-Teilbereich, und nur nach neuer Analyse.
 
 Feature-Revisionen / Softlocks, Location-Marker-Rendering / Sichtbarkeit und Label-Kollision sind abgeschlossen und stabil dokumentiert.
 
@@ -179,10 +180,9 @@ Kein direkter weiterer `map-features.js`-Code-Split ohne neue Boundary-Analyse e
 
 Naechste sinnvolle Arbeitspakete:
 
-1. Gezielten Path-Geometry-Smoke fuer den neuen Split durchfuehren.
-2. Danach Restarchitektur in `js/map-features.js` neu bewerten.
-3. Fuer weitere Splits zuerst eigene Boundary fuer Path-Lifecycle/CRUD erstellen.
-4. Erst dann ueber einen weiteren engen 1:1-Extract entscheiden.
+1. Stopppunkt respektieren und Produkt-/Feature-Arbeit fortsetzen.
+2. Falls Refactoring wieder aufgenommen wird: zuerst eigene Boundary-Analyse fuer einen engen Path-Lifecycle/CRUD-Teilbereich anlegen.
+3. Nur mit separatem Smoke-Plan ueber einen weiteren engen 1:1-Extract entscheiden.
 
 ## 12. Operating Rules
 
