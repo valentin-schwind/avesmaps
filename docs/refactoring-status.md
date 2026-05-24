@@ -198,6 +198,7 @@ Die relevanten Betreiber-Smokes fuer die `map-features`-Splits wurden bestanden 
 - Free-Labels-Smoke bestanden.
 - Powerlines-Smoke bestanden.
 - Planner-State-Smoke bestanden.
+- Region-Operation-Chip-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
 - Ortsnamenlabel-Smoke bestanden.
 - Path-Textlabel-Smoke bestanden.
 - Path-Rendering-Smoke bestanden.
