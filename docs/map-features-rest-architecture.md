@@ -320,7 +320,9 @@ Die Region Info/Tooltip Markup-Helfer (`createRegionCompactTooltipMarkup`, `crea
 
 Die Region Overlap Selection-Helfer (`getRegionLayerGeometryPublicId`, `isLatLngInsideRegionRing`, `isLatLngInsideRegionLayer`, `getOverlappingPoliticalRegionLayersAtLatLng`, `resolveOverlappingRegionLayerSelection`, `announceOverlappingRegionSelection`) wurden nach `js/map-features-region-overlap-selection.js` ausgelagert.
 
-Die Context-Menü-, Region-Edit- und Pending-Operationen bleiben im Rest in `js/map-features.js`, darunter `bindRegionPolygonEditEvents`, `openRegionContextMenu`, `closeRegionContextMenu`, `getRegionContextMenuElement`, `positionContextMenuElement`, `focusRegionPlace`.
+Die Region Context Menu DOM/State-Helfer (`getRegionContextMenuElement`, `openRegionContextMenu`, `closeRegionContextMenu`, `positionContextMenuElement`) wurden nach `js/map-features-region-context-menu.js` ausgelagert.
+
+Die Context-Menü-Actions, Region-Edit- und Pending-Operationen bleiben im Rest in `js/map-features.js`, darunter `bindRegionPolygonEditEvents`, `extractRegionGeometryPartAsNewTerritory`, `startPendingRegionOperation`, `startPendingRegionSplit`, `startPendingRegionMove`, `cancelPendingRegionOperation`, `syncRegionOperationChip`, `openRegionEditDialog`, `startRegionGeometryEdit`, `deleteActiveRegion`.
 
 Die Tooltip-Lifecycle-, Context- und Geometriezustands-Funktionen (`bindRegionCompactTooltip`, `openRegionCompactTooltip`, `closeRegionCompactTooltip`, `getRegionTooltipLatLng`, `focusRegionPlace`, `createRegionLabelMarkup`) verbleiben im Rest in `js/map-features.js`.
 
