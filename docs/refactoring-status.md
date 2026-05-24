@@ -8,7 +8,7 @@
   - `collectAndValidateSelectedLocations()`
   - `buildRouteResultFromSelectedLocations(useShortest)`
 - `js/popups.js` bleibt stabil mit lokalem Helper `pathCreationActionButtonsMarkup(publicId)`.
-- Dialog-Review-Split ist jetzt in siebzehn stabile Schichten getrennt, mit klassischer Script-Reihenfolge in `index.html`:
+- Dialog-Review-Split ist jetzt in achtzehn stabile Schichten getrennt, mit klassischer Script-Reihenfolge in `index.html`:
   1. `js/dialogs-review-core.js`
   2. `js/dialogs-review-status.js`
   3. `js/dialogs-review-pending.js`
@@ -25,7 +25,8 @@
   14. `js/dialogs-review-region-tabs-payload.js`
   15. `js/dialogs-review-region-save-flow.js`
   16. `js/dialogs-review-region-dialog-population.js`
-  17. `js/dialogs-review.js`
+  17. `js/dialogs-review-region-submit-flow.js`
+  18. `js/dialogs-review.js`
 - `js/dialogs-review-core.js` ist stabiler Core-Cluster-Split (DOM-/Dialog-Getter, Form-/Status-Getter, `is...DialogOpen`, `isLocationReportServiceConfigured`, `syncModalDialogBodyState`).
 - `js/dialogs-review-status.js` ist stabiler Status-Cluster-Split (`dataset.status` + `dataset.state` Wrapper/Helper).
 - `js/dialogs-review-pending.js` ist stabiler Pending-Cluster-Split (`setFormFieldsDisabled(...)` + fuenf `set...SubmitPending`-Wrapper).
@@ -42,7 +43,8 @@
 - `js/dialogs-review-region-tabs-payload.js` ist stabiler Region-Tabs-/Payload-State-Helfer-Cluster-Split.
 - `js/dialogs-review-region-save-flow.js` ist stabiler Region-Save-/Tab-Load-Helfer-Cluster-Split.
 - `js/dialogs-review-region-dialog-population.js` ist stabiler Region-Dialog-Population-Cluster-Split.
-- `js/dialogs-review.js` bleibt stabil als Rest-Orchestrator fuer Region-/Territory-Event-/Submit-/Init-Logik und verbleibende Hilfsfunktionen.
+- `js/dialogs-review-region-submit-flow.js` ist stabiler Region-Submit-/Payload-Flow-Cluster-Split.
+- `js/dialogs-review.js` bleibt stabil als Rest-Orchestrator fuer Region-/Territory-Event-/Init-Logik und verbleibende Hilfsfunktionen.
 - `js/ui-controls.js` bleibt stabil mit lokalem Helper `bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName)` fuer Review-/Wiki-Sync-Tab-Persistierung.
 
 ## 2. Recent Safe Extracts / Splits
@@ -63,6 +65,7 @@
 - Vierzehnter kontrollierter Datei-Split: Region-Tabs-/Payload-State-Helfer-Cluster nach `js/dialogs-review-region-tabs-payload.js`.
 - Fuenfzehnter kontrollierter Datei-Split: Region-Save-/Tab-Load-Helfer-Cluster nach `js/dialogs-review-region-save-flow.js`.
 - Sechzehnter kontrollierter Datei-Split: Region-Dialog-Population-Cluster nach `js/dialogs-review-region-dialog-population.js`.
+- Siebzehnter kontrollierter Datei-Split: Region-Submit-/Payload-Flow-Cluster nach `js/dialogs-review-region-submit-flow.js`.
 - Abhaengigkeitsrichtung ist jetzt sauberer: Core vor Status/Pending/Feature/Panel/WikiSync-Dateien, Rest-Orchestrator zuletzt.
 
 ## 3. Areas To Leave Stable For Now
@@ -86,6 +89,7 @@
   - `js/dialogs-review-region-tabs-payload.js`
   - `js/dialogs-review-region-save-flow.js`
   - `js/dialogs-review-region-dialog-population.js`
+  - `js/dialogs-review-region-submit-flow.js`
 - Keine Cluster direkt weiter aufteilen ohne neue Boundary-Analyse.
 - `js/dialogs-review.js` nur mit engem, neu analysiertem Scope weiter zerschneiden.
 
@@ -167,7 +171,7 @@
   - Speichern mit sicherer Testregion pruefen
   - Geometrie-Zuweisung speichern (nur mit sicheren Testdaten)
   - Dialog schliessen/erneut oeffnen, Konsole pruefen
-- Region-Dialog-Population-Smoke empfohlen/offen, falls noch nicht gemeldet.
+- Region-Dialog-Population-Smoke nach Split bestanden.
 - Wichtige Region-Dialog-Population-Smoke-Faelle:
   - Region/Herrschaftsgebiet-Dialog oeffnen
   - Formularwerte (Name, Kurzname, Farbe, Opacity, Wiki/Wappen, Zoom, Zeitraum, Aktiv, Notizen) pruefen
@@ -175,6 +179,14 @@
   - Tab-Wechsel sowie Parent-Baum/Assignment-Anzeige kurz pruefen
   - Political-Territory-Options-Nachladen (falls sichtbar) pruefen
   - keine neuen Konsolenfehler/ReferenceErrors
+- Region-Submit-Flow-Smoke empfohlen/offen, falls noch nicht gemeldet.
+- Wichtige Region-Submit-Flow-Smoke-Faelle:
+  - Region/Herrschaftsgebiet-Dialog oeffnen
+  - Formularwerte aendern und speichern
+  - Political-Territory-Tab speichern (sichere Testregion)
+  - mehrere Tabs speichern (falls Testdaten vorhanden)
+  - nicht-political Region-Speichern mit sicherem Testeintrag pruefen
+  - Dialog erneut oeffnen und Werte/Konsole pruefen
 - Core-Smoke empfohlen/offen, falls noch nicht gemeldet (`modal-dialog-open`, Dialoge oeffnen/schliessen).
 - Fuer jeden spaeteren Split ist ein eigener, gezielter Smoke-Zyklus erforderlich.
 
@@ -193,11 +205,12 @@
 - Save/Submit, Dialog-Population und Region-Event-Bindings waren explizit nicht Teil des Region-Tabs-Payload-Splits.
 - Dialog-Population, Region-Event-Bindings, Region-Submit-Handler und Init-/Bootstrapping-Logik waren explizit nicht Teil des Region-Save-Flow-Splits.
 - Region-Event-Bindings, Region-Submit-Handler sowie Init-/Bootstrapping-Logik waren explizit nicht Teil des Region-Dialog-Population-Splits.
+- Region-Event-Bindings, andere Editor-Submit-Handler sowie Init-/Bootstrapping-Logik waren explizit nicht Teil des Region-Submit-Flow-Splits.
 
 ## 7. Next Recommended Step
 
 - Kein sofortiger weiterer Code-Split.
-- Zuerst Region-Dialog-Population-Smoke (und ggf. offenen Core-Smoke) abschliessen.
+- Zuerst Region-Submit-Flow-Smoke (und ggf. offenen Core-Smoke) abschliessen.
 - Danach Restdatei (`js/dialogs-review.js`) neu analysieren.
-- Naechster Analysebereich bevorzugt Region/Territory-Event-/Submit-/Init-Cluster.
+- Naechster Analysebereich bevorzugt Region/Territory-Event-/Init-Cluster.
 - Explizit: nicht direkt Region/Init/Event-Binding ohne Boundary-Analyse verschieben.
