@@ -314,6 +314,9 @@ Kopplungen:
 Architekturbewertung:
 
 Der enge Region-Visibility-Teilschnitt (`syncRegionVisibility`) wurde nach `js/map-features-region-visibility.js` ausgelagert.
+Der enge Political-Timeline-Teilschnitt (`syncPoliticalTimelineVisibility`, `syncPoliticalTimelineControls`, `formatPoliticalTimelineYear`, `setPoliticalTimelineYear`, `showPoliticalTerritoryTimelineSelection`, `clearPoliticalTerritoryTimelineSelection`, `normalizePoliticalTimelineYearValue`, `formatPoliticalTerritoryRangeLabel`) wurde nach `js/map-features-political-timeline.js` ausgelagert.
+
+In `js/map-features.js` verbleiben bewusst der Territory-API-/Layer-Reload-Rest (`schedulePoliticalTerritoryLayerReload`, `cancelPoliticalTerritoryLayerReload`, `loadPoliticalTerritoryLayer`, `loadPoliticalTerritoryOptions`, `preloadPoliticalTerritoryOptions`) sowie die Region-Geometry-/Context-/Operation-Flows.
 
 Das ist kein Rest-Split, sondern eine eigene Architekturaufgabe. Vor Codearbeit muss ein Zielbild entstehen: Datenbesitz, Ladefluss, Layer-Aufbau, Edit-Flows und UI-Bindings.
 
@@ -410,6 +413,7 @@ Aber erst, wenn klar ist, welche Initialisierung zentral bleiben soll.
 | Path-Apply/Live-Helfer | `js/map-features-path-lifecycle.js` | stabiler Teil-Split |
 | Feature-Response-Dispatcher-Teilschnitt | `js/map-features-feature-dispatcher.js` | stabiler Teil-Split |
 | Region-Visibility-Helfer | `js/map-features-region-visibility.js` | stabiler Teil-Split |
+| Political-Timeline-Helfer | `js/map-features-political-timeline.js` | stabiler Teil-Split |
 | Path-Creation-Pending-State | `js/map-features-path-creation.js` | stabiler Split |
 | Path-Geometry-Edit-State | `js/map-features-path-geometry-editing.js` | stabiler Split |
 | freie Labels | `js/map-features-labels.js` | stabiler Split |
