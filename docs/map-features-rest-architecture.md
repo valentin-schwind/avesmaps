@@ -30,6 +30,7 @@ Die gut isolierbaren Helper-/UI-/Rendering-Cluster wurden bereits ausgelagert:
 - Path-Textlabel-Helfer
 - Path-Rendering-Core-Helfer
 - Path-Creation-Helfer
+- Path-Geometry-Editing-Helfer
 
 `js/map-features.js` enthaelt danach vor allem Restverantwortungen mit hoher Kopplung:
 
@@ -40,7 +41,6 @@ Die gut isolierbaren Helper-/UI-/Rendering-Cluster wurden bereits ausgelagert:
 - DOM-/Event-Kanten
 - Region-/Gebietslogik
 - Location-Marker- und Popup-Anbindung
-- Path-Geometry-Editing-Flows
 - Path-Lifecycle und Live-Update-Flows
 
 ## 3. Leitprinzip fuer die naechste Refactoring-Phase
@@ -182,7 +182,11 @@ Der Split ist als enger 1:1-Extract erfolgt. Path-Creation bleibt vorerst stabil
 
 ### 4.5 Path-Geometry-Editing
 
-Verantwortung:
+Status: abgeschlossen.
+
+Die Path-Geometry-Editing-Helfer wurden aus `js/map-features.js` nach `js/map-features-path-geometry-editing.js` verschoben.
+
+Verantwortung der ausgelagerten Datei:
 
 - aktive Weg-Geometriebearbeitung starten und beenden
 - Edit-Handles erzeugen und synchronisieren
@@ -191,33 +195,14 @@ Verantwortung:
 - Weg an Zwischenknoten teilen
 - Geometrie speichern und Layer aktualisieren
 
-Typische Daten:
+Bewusst in `js/map-features.js` belassen:
 
-- `activePathGeometryEdit`
-- `pendingPathSplit`
-- `pathData`
-- `pathLayers`
-- Handle-Marker
-- Map-Doppelklick-Handler
-
-Kopplungen:
-
-- Path-Creation, weil `startPathGeometryEdit(...)` laufende Path-Creation abbricht
-- `submitMapFeatureEdit(...)`
-- `createCrossingFeatureAt(...)`
-- `addCreatedCrossingMarker(...)`
-- `addCreatedPathFeature(...)`
-- `removePathFeature(...)`
-- `updateRevisionFromEditResponse(...)`
-- Feature-Softlocks
+- `deletePathFeature(...)` als CRUD/Lifecycle-naher Grenzfall
+- `findNearestGraphEndpointToLatLng(...)` als Shared-Helper fuer Path-Creation und Path-Geometry-Editing
 
 Architekturbewertung:
 
-Path-Geometry-Editing ist ein plausibler Kandidat nach dem abgeschlossenen Path-Creation-Split. Der Bereich ist staerker mutierend und hat mehr Fehlerrisiko durch Handles, Split-Operationen, Softlocks und Save-Flows.
-
-Moegliches Zielmodul spaeter:
-
-- `js/map-features-path-geometry-editing.js`
+Der Split ist als enger 1:1-Extract erfolgt. Path-Geometry-Editing bleibt vorerst stabil und sollte ohne neue Boundary nicht weiter aufgeteilt werden.
 
 ### 4.6 Path-Lifecycle, Path-CRUD und Live-Updates
 
@@ -409,7 +394,7 @@ Aber erst, wenn klar ist, welche Initialisierung zentral bleiben soll.
 | `pathData` | `js/map-features.js` | Path-Lifecycle bleibt Restverantwortung |
 | `pathLayers` | `js/map-features.js` | Rendering-Core ausgelagert, Besitz bleibt hier |
 | Path-Creation-Pending-State | `js/map-features-path-creation.js` | stabiler Split |
-| Path-Geometry-Edit-State | `js/map-features.js` | naechster enger Boundary-Kandidat |
+| Path-Geometry-Edit-State | `js/map-features-path-geometry-editing.js` | stabiler Split |
 | freie Labels | `js/map-features-labels.js` | stabiler Split |
 | Ortsnamenlabels | `js/map-features-location-name-labels.js` | stabiler Split |
 | Label-Kollision | `js/map-features-label-collisions.js` | stabiler Split, DOM-/Layout-nahe Verantwortung |
@@ -538,17 +523,15 @@ Diese Struktur ist kein kurzfristiger Umzugsplan. Sie beschreibt nur eine moegli
 
 Kein unvorbereiteter Code-Split sofort.
 
-Weitere `map-features.js`-Splits sind moeglich, aber nur mit separater Boundary, engem Scope und eigenem Smoke. Der aktuell plausibelste Kandidat ist:
+Weitere `map-features.js`-Splits sind moeglich, aber nur mit separater Boundary, engem Scope und eigenem Smoke.
 
-1. Path-Geometry-Editing.
-
-Der naechste sinnvolle technische Schritt ist die Boundary-Analyse fuer Path-Geometry-Editing.
+Der naechste sinnvolle technische Schritt ist eine neue Restbewertung mit Fokus auf Path-Lifecycle/CRUD.
 
 ## 9. Konkrete naechste Boundary-Kandidaten
 
 Nur mit separater Boundary:
 
-1. Path-Geometry-Editing.
+1. Path-Lifecycle/CRUD (inklusive Grenzfall `deletePathFeature`).
 
 Nicht als naechster Code-Schritt:
 
@@ -562,4 +545,4 @@ Nicht als naechster Code-Schritt:
 
 `js/map-features.js` bleibt vorerst bewusst gross, aber die Groesse ist jetzt genauer dokumentiert: Die Datei enthaelt Rest-Orchestrierung und Datenmutation, aber innerhalb dieser Restarchitektur existieren noch abgrenzbare Boundary-Kandidaten.
 
-Weitere Entschlackung ist moeglich, aber nur als Architekturarbeit mit explizitem Datenfluss- und Smoke-Plan. Der naechste Kandidat ist Path-Geometry-Editing.
+Weitere Entschlackung ist moeglich, aber nur als Architekturarbeit mit explizitem Datenfluss- und Smoke-Plan. Der naechste Kandidat ist eine gesonderte Path-Lifecycle/CRUD-Boundary.
