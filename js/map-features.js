@@ -752,22 +752,7 @@ async function extractRegionGeometryPartAsNewTerritory(regionEntry, selectedLaye
 	const extractedName = `${regionEntry.name || "Herrschaftsgebiet"} (Teilgebiet)`;
 
 	try {
-		await submitPoliticalTerritoryEdit({
-			action: "create_territory",
-			name: extractedName,
-			short_name: "",
-			type: regionEntry.type || "Herrschaftsgebiet",
-			color: regionEntry.color || "#888888",
-			opacity: Number.isFinite(Number(regionEntry.opacity)) ? Number(regionEntry.opacity) : 0.33,
-			valid_to_open: true,
-			is_active: true,
-			geometry_geojson: extractedGeometry,
-			style_json: {
-				fill: regionEntry.color || "#888888",
-				stroke: regionEntry.color || "#888888",
-				fillOpacity: Number.isFinite(Number(regionEntry.opacity)) ? Number(regionEntry.opacity) : 0.33,
-			},
-		});
+		await submitPoliticalTerritoryEdit(buildExtractedRegionCreatePayload(regionEntry, extractedName, extractedGeometry));
 
 		await deleteRegionGeometryPart(regionEntry, selectedLayer);
 		void loadPoliticalTerritoryOptions({ force: true });
@@ -962,19 +947,7 @@ async function completePendingRegionSplit(operationState) {
 			.map((entry) => entry.polygon);
 		const sourcePart = [...remainingGeometry, sortedPolygons[0]];
 		const splitPart = sortedPolygons.slice(1);
-		await submitPoliticalTerritoryEdit({
-			action: "split_geometry",
-			public_id: operationState.sourceRegion.geometryPublicId || operationState.sourceRegion.publicId,
-			geometry_public_id: operationState.sourceRegion.geometryPublicId || operationState.sourceRegion.publicId,
-			source: "editor-split",
-			geometry_geojson: clippingMultiPolygonToGeoJson(sourcePart),
-			split_geometry_geojson: clippingMultiPolygonToGeoJson(splitPart),
-			style_json: {
-				fill: operationState.sourceRegion.color,
-				stroke: operationState.sourceRegion.color,
-				fillOpacity: operationState.sourceRegion.opacity,
-			},
-		});
+		await submitPoliticalTerritoryEdit(buildRegionSplitPayload(operationState, sourcePart, splitPart));
 
 		cancelPendingRegionOperation();
 		schedulePoliticalTerritoryLayerReload({ immediate: true });
@@ -1098,40 +1071,17 @@ async function completePendingRegionOperation(targetRegion, targetLayer = null) 
 		const operationGeometryGeoJson = clippingMultiPolygonToGeoJson(clippedGeometry);
 		const geometryGeoJson = clippingMultiPolygonToGeoJson([...remainingSourceGeometry, ...clippedGeometry]);
 		if (operationState.operation === "intersection") {
-			await submitPoliticalTerritoryEdit({
-				action: "geometry_operation",
-				operation: "intersection",
-				create_territory: true,
-				name: `Schnittmenge ${operationState.sourceRegion.name} / ${targetRegion.name}`,
-				type: operationState.sourceRegion.type || "Herrschaftsgebiet",
-				color: operationState.sourceRegion.color,
-				opacity: operationState.sourceRegion.opacity,
-				valid_to_open: true,
-				is_active: true,
-				geometry_geojson: operationGeometryGeoJson,
-			});
+			await submitPoliticalTerritoryEdit(buildIntersectionCreatePayload(operationState, targetRegion, operationGeometryGeoJson));
 		} else {
 			const remainingTargetGeometry = targetIsConsumed && !isSameGeometry && normalizedTargetLayer
 				? regionEntryToClippingMultiPolygon(targetRegion, { excludeLayers: [normalizedTargetLayer] })
 				: [];
 			const deleteTargetGeometry = targetIsConsumed && !isSameGeometry && remainingTargetGeometry.length < 1;
-			const payload = {
-				action: "geometry_operation",
-				operation: getStoredRegionBooleanOperation(operationState.operation),
-				public_id: operationState.sourceRegion.geometryPublicId || operationState.sourceRegion.publicId,
-				geometry_public_id: operationState.sourceRegion.geometryPublicId || operationState.sourceRegion.publicId,
-				delete_geometry_public_id: deleteTargetGeometry ? targetRegion.geometryPublicId || targetRegion.publicId : "",
-				source: "editor",
-				geometry_geojson: geometryGeoJson,
-				style_json: {
-					fill: operationState.sourceRegion.color,
-					stroke: operationState.sourceRegion.color,
-					fillOpacity: operationState.sourceRegion.opacity,
-				},
-			};
-			if (!deleteTargetGeometry && remainingTargetGeometry.length > 0) {
-				payload.target_geometry_geojson = clippingMultiPolygonToGeoJson(remainingTargetGeometry);
-			}
+			const payload = buildRegionBooleanOperationPayload(operationState, targetRegion, geometryGeoJson, {
+				normalizedTargetLayer,
+				remainingTargetGeometry,
+				deleteTargetGeometry
+			});
 			await submitPoliticalTerritoryEdit(payload);
 		}
 
