@@ -8,7 +8,7 @@
   - `collectAndValidateSelectedLocations()`
   - `buildRouteResultFromSelectedLocations(useShortest)`
 - `js/popups.js` bleibt stabil mit lokalem Helper `pathCreationActionButtonsMarkup(publicId)`.
-- Dialog-Review-Split ist jetzt in elf stabile Schichten getrennt, mit klassischer Script-Reihenfolge in `index.html`:
+- Dialog-Review-Split ist jetzt in zwoelf stabile Schichten getrennt, mit klassischer Script-Reihenfolge in `index.html`:
   1. `js/dialogs-review-core.js`
   2. `js/dialogs-review-status.js`
   3. `js/dialogs-review-pending.js`
@@ -19,7 +19,8 @@
   8. `js/dialogs-review-wiki-sync.js`
   9. `js/dialogs-review-region-wiki-picker.js`
   10. `js/dialogs-review-region-basics.js`
-  11. `js/dialogs-review.js`
+  11. `js/dialogs-review-region-parent-tree.js`
+  12. `js/dialogs-review.js`
 - `js/dialogs-review-core.js` ist stabiler Core-Cluster-Split (DOM-/Dialog-Getter, Form-/Status-Getter, `is...DialogOpen`, `isLocationReportServiceConfigured`, `syncModalDialogBodyState`).
 - `js/dialogs-review-status.js` ist stabiler Status-Cluster-Split (`dataset.status` + `dataset.state` Wrapper/Helper).
 - `js/dialogs-review-pending.js` ist stabiler Pending-Cluster-Split (`setFormFieldsDisabled(...)` + fuenf `set...SubmitPending`-Wrapper).
@@ -30,7 +31,8 @@
 - `js/dialogs-review-wiki-sync.js` ist stabiler WikiSync-Cluster-Split (Locations-/Territories-Panel, Filter/Accordion, Resolve-Dialog-Helfer, Fokus/Preview, WikiSync-Flow-Helfer).
 - `js/dialogs-review-region-wiki-picker.js` ist stabiler Region-Wiki-Picker-Cluster-Split.
 - `js/dialogs-review-region-basics.js` ist stabiler Region-Dialog-Basics-Cluster-Split (Reset/Open-State/Opacity/Valid-To/Wappen/Required-State/Typoptionen).
-- `js/dialogs-review.js` bleibt stabil als Rest-Orchestrator fuer Region-/Territory-Parent/Assignment/Tabs/Submit-Flows, Submit-/API-/Init-Logik und verbleibende Hilfsfunktionen.
+- `js/dialogs-review-region-parent-tree.js` ist stabiler Region-Parent-Tree-/Region-Anzeige-Helfer-Cluster-Split.
+- `js/dialogs-review.js` bleibt stabil als Rest-Orchestrator fuer Region-/Territory-Assignment/Tabs/Submit-Flows, Submit-/API-/Init-Logik und verbleibende Hilfsfunktionen.
 - `js/ui-controls.js` bleibt stabil mit lokalem Helper `bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName)` fuer Review-/Wiki-Sync-Tab-Persistierung.
 
 ## 2. Recent Safe Extracts / Splits
@@ -45,6 +47,7 @@
 - Achter kontrollierter Datei-Split: WikiSync-Cluster nach `js/dialogs-review-wiki-sync.js`.
 - Neunter kontrollierter Datei-Split: Region-Wiki-Picker-Cluster nach `js/dialogs-review-region-wiki-picker.js`.
 - Zehnter kontrollierter Datei-Split: Region-Dialog-Basics-Cluster nach `js/dialogs-review-region-basics.js`.
+- Elfter kontrollierter Datei-Split: Region-Parent-Tree-/Region-Anzeige-Helfer-Cluster nach `js/dialogs-review-region-parent-tree.js`.
 - Abhaengigkeitsrichtung ist jetzt sauberer: Core vor Status/Pending/Feature/Panel/WikiSync-Dateien, Rest-Orchestrator zuletzt.
 
 ## 3. Areas To Leave Stable For Now
@@ -62,6 +65,7 @@
   - `js/dialogs-review-wiki-sync.js`
   - `js/dialogs-review-region-wiki-picker.js`
   - `js/dialogs-review-region-basics.js`
+  - `js/dialogs-review-region-parent-tree.js`
 - Keine Cluster direkt weiter aufteilen ohne neue Boundary-Analyse.
 - `js/dialogs-review.js` nur mit engem, neu analysiertem Scope weiter zerschneiden.
 
@@ -99,13 +103,20 @@
   - sichere Referenz auswaehlen (falls Testdaten vorhanden)
   - Uebernahme von Wiki-URL, Wappen-URL und Typ-Feld pruefen
   - keine neuen Konsolenfehler/ReferenceErrors
-- Region-Basics-Smoke empfohlen/offen, falls noch nicht gemeldet.
+- Region-Basics-Smoke nach Split bestanden.
 - Wichtige Region-Basics-Smoke-Faelle:
   - Region/Herrschaftsgebiet-Dialog oeffnen, schliessen, erneut oeffnen (Reset-Verhalten)
   - Opacity-Regler und Ausgabe pruefen
   - Valid-To-Open/Valid-To-Feld-Verhalten pruefen
   - Wappen-Preview pruefen
   - Region-Wiki-Picker kurz oeffnen
+  - keine neuen Konsolenfehler/ReferenceErrors
+- Region-Parent-Tree-Smoke empfohlen/offen, falls noch nicht gemeldet.
+- Wichtige Region-Parent-Tree-Smoke-Faelle:
+  - Region/Herrschaftsgebiet-Dialog oeffnen
+  - Parent-Baum, Filter, Auf-/Zuklappen und Leaf-Auswahl pruefen
+  - optional Leaf-Drag auf Parent-Drop-Ziel mit sicheren Testdaten pruefen
+  - Wiki-Referenz-, Zoom- und Zeitraum-Anzeigen kurz pruefen
   - keine neuen Konsolenfehler/ReferenceErrors
 - Core-Smoke empfohlen/offen, falls noch nicht gemeldet (`modal-dialog-open`, Dialoge oeffnen/schliessen).
 - Fuer jeden spaeteren Split ist ein eigener, gezielter Smoke-Zyklus erforderlich.
@@ -119,11 +130,12 @@
 - Region/Territory und Region-Wiki-Picker waren explizit nicht Teil des WikiSync-Splits.
 - Region/Territory-Parent/Assignment/Submit-Logik war explizit nicht Teil des Region-Wiki-Picker-Splits.
 - Region-Parent-Tree, Region-Assignment, Region-Tabs, Region-Submit-Handler und Region-Event-Bindings waren explizit nicht Teil des Region-Basics-Splits.
+- Region-Assignment, Region-Tabs, Region-Submit-Handler und Region-Event-Bindings waren explizit nicht Teil des Region-Parent-Tree-Splits.
 
 ## 7. Next Recommended Step
 
 - Kein sofortiger weiterer Code-Split.
-- Zuerst Region-Basics-Smoke (und ggf. offenen Core-Smoke) abschliessen.
+- Zuerst Region-Parent-Tree-Smoke (und ggf. offenen Core-Smoke) abschliessen.
 - Danach Restdatei (`js/dialogs-review.js`) neu analysieren.
-- Naechster Analysebereich bevorzugt Region/Territory-Parent/Assignment/Tabs/Submit.
+- Naechster Analysebereich bevorzugt Region/Territory-Assignment/Tabs/Submit.
 - Explizit: nicht direkt Region/Init/Event-Binding ohne Boundary-Analyse verschieben.
