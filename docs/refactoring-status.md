@@ -54,6 +54,12 @@
 - `js/dialogs-review-report-flow.js` ist stabiler Review-/Location-Report-Flow-Cluster-Split.
 - `js/dialogs-review.js` bleibt stabil als Rest-Orchestrator fuer Konstanten/Cache/Validator-/Init-Logik und verbleibende Hilfsfunktionen.
 - `js/ui-controls.js` bleibt stabil mit lokalem Helper `bindPersistedTabClickHandler(selector, datasetKey, allowedValues, storageKey, urlParameterName)` fuer Review-/Wiki-Sync-Tab-Persistierung.
+- `js/map-features-labels.js` ist stabiler Split fuer freie Kartenlabels (1:1-Extract ohne Logikaenderung).
+- `js/map-features.js` bleibt stabil als Orchestrator fuer:
+  - Ortsnamenlabels
+  - Label-Kollision
+  - Wegnamen-/Kraftlinien-Textlabels
+  - Karten-/Edit-Orchestrierung
 
 ## 2. Recent Safe Extracts / Splits
 
@@ -78,6 +84,7 @@
 - Neunzehnter kontrollierter Datei-Split: klassische Editor-Submit-Handler nach `js/dialogs-review-editor-submit.js`.
 - Zwanzigster kontrollierter Datei-Split: Review-/Location-Report-Flow-Cluster nach `js/dialogs-review-report-flow.js`.
 - Einundzwanzigster kontrollierter Datei-Split: Dialog-Reset-/Open-State-Cluster nach `js/dialogs-review-dialog-state.js`.
+- Zweiundzwanzigster kontrollierter Datei-Split: freier Kartenlabel-Cluster aus `js/map-features.js` nach `js/map-features-labels.js` (Commit `47e71d67a348442b1e9947bb6e7a80bfafab0bb3`, 1:1-Extract ohne Logikaenderung).
 - Abhaengigkeitsrichtung ist jetzt sauberer: Core vor Status/Pending/Feature/Panel/WikiSync-Dateien, Rest-Orchestrator zuletzt.
 
 ## 3. Areas To Leave Stable For Now
@@ -108,6 +115,7 @@
   - `js/dialogs-review-report-flow.js`
 - Keine Cluster direkt weiter aufteilen ohne neue Boundary-Analyse.
 - `js/dialogs-review.js` nur mit engem, neu analysiertem Scope weiter zerschneiden.
+- Kein weiterer Label-Split rund um `js/map-features-labels.js`/`js/map-features.js` ohne neue Boundary-Analyse.
 
 ## 4. Planned But Not Yet Implemented
 
@@ -237,6 +245,7 @@
   - Label-Edit-Dialog oeffnen/schliessen/erneut oeffnen und speichern
   - Report-Flow kurz pruefen (resetLabelEditForm setzt Report-Kontext zurueck)
   - keine neuen Konsolenfehler/ReferenceErrors
+- Free-Labels-Smoke nach Split bestanden (Betreiber-Smoke Schritte 1-11 durchgefuehrt, keine Browser-Konsolenmeldungen).
 - Core-Smoke empfohlen/offen, falls noch nicht gemeldet (`modal-dialog-open`, Dialoge oeffnen/schliessen).
 - Fuer jeden spaeteren Split ist ein eigener, gezielter Smoke-Zyklus erforderlich.
 
@@ -266,3 +275,4 @@
 - Kein weiterer `dialogs-review`-Code-Split empfohlen.
 - `js/dialogs-review.js` bleibt als finaler Minimal-Rest stabil.
 - Weitere Splits nur bei konkretem fachlichem Bedarf und mit neuer Boundary-Analyse.
+- Kein weiterer Label-Split ohne neue Boundary-Analyse.
