@@ -45,8 +45,14 @@ Diese verbleibenden Funktionen sind eng mit Kontextmenüs, Region-Edit-Flow und 
 4. Context-Menü-/Tooltip-Interaktionen prüfen, um sicherzustellen, dass nur die overlap-Logik ausgelagert ist.
 5. Konsole auf Fehler prüfen.
 
-## 6. Status
+## 6. Smoke-Ergebnis
+
+Region-Overlap-Selection-Smoke bestanden: Browser-Test ohne Auffaelligkeiten.
+
+Geprueft wurden Karte, ueberlagerte politische Regionen, Wechsel der Auswahl zwischen ueberlagerten Regionen, Tooltip-/Context-Menue-Interaktionen und Browser-Konsole.
+
+## 7. Status
 
 - Split: umgesetzt
 - Logikaenderung: keine
-- Smoke: steht aus
+- Smoke: bestanden
