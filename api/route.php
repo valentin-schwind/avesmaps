@@ -7,6 +7,7 @@ require __DIR__ . '/route-request.php';
 require __DIR__ . '/route-response.php';
 require __DIR__ . '/route-map-data.php';
 require __DIR__ . '/route-network-data.php';
+require __DIR__ . '/route-graph.php';
 
 try {
 	$config = avesmapsLoadApiConfig(__DIR__);
@@ -57,6 +58,26 @@ try {
 				'first_path' => (string) (($firstPath['name'] ?? '') !== '' ? $firstPath['name'] : ($firstPath['id'] ?? '')),
 				'first_path_subtype' => (string) ($firstPath['subtype'] ?? ''),
 				'first_path_transport_type' => avesmapsGetRouteTransportType((string) ($firstPath['subtype'] ?? '')),
+			],
+		]);
+	}
+	if ($requestMethod === 'GET' && $routeDiagnostic === 'graph-data') {
+		$routeMapData = avesmapsLoadRouteMapData($config);
+		$routeNetworkData = avesmapsBuildRouteNetworkData($routeMapData);
+		$routeGraph = avesmapsBuildRouteGraph($routeNetworkData);
+		$firstNode = $routeGraph['nodes'][0] ?? [];
+		$firstEdge = $routeGraph['edges'][0] ?? [];
+
+		avesmapsJsonResponse(200, [
+			'ok' => true,
+			'diagnostic' => 'graph-data',
+			'statistics' => [
+				'node_count' => (int) ($routeGraph['statistics']['node_count'] ?? 0),
+				'edge_count' => (int) ($routeGraph['statistics']['edge_count'] ?? 0),
+			],
+			'sample' => [
+				'first_node' => (string) ($firstNode['id'] ?? ''),
+				'first_edge_transport' => (string) ($firstEdge['transport_type'] ?? ''),
 			],
 		]);
 	}

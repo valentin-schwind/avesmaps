@@ -168,3 +168,16 @@
   - Keine beabsichtigte Aenderung am POST-501-Flow; nur Diagnose-/Klassifikationspfad angepasst.
   - Unbekannte Subtypen bleiben erhalten und werden weiterhin als `unknown` gezaehlt.
 - Smoke noetig: nein
+
+## 2026-05-25 - API Phase 4A (Graph-Rohmodell Vorbereitung)
+
+- Commit: `Prepare route graph model`
+- Schritt: `api/route-graph.php` eingefuehrt; aus Network-Pfaden werden rohe `nodes`/`edges` nur ueber Start-/Endpunkt der Geometrie aufgebaut (keine Segmentierung, keine Kreuzungslogik, keine Gewichte/Distanz). Diagnosepfad `diagnostic=graph-data` liefert Meta-Statistik und kleines Sample.
+- Dateien:
+  - `api/route.php`
+  - `api/route-graph.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Kein beabsichtigter Einfluss auf POST-501-Verhalten; neuer Diagnosepfad haengt von SQL-Mapdaten ab.
+  - Node-ID basiert auf gerundeten Koordinaten und ist ein vorlaeufiges Rohmodell fuer spaetere Graph-Phasen.
+- Smoke noetig: nein
