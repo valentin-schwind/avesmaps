@@ -12,6 +12,7 @@ function avesmapsBuildRouteNetworkData(array $routeMapData): array {
 		'sea_count' => 0,
 		'land_count' => 0,
 		'unknown_count' => 0,
+		'subtype_counts' => [],
 	];
 
 	$features = is_array($routeMapData['features'] ?? null) ? $routeMapData['features'] : [];
@@ -33,6 +34,8 @@ function avesmapsBuildRouteNetworkData(array $routeMapData): array {
 		$pathData = avesmapsBuildRoutePathData($feature);
 		$paths[] = $pathData;
 		$statistics['path_count']++;
+		$subtypeKey = (string) $pathData['subtype'];
+		$statistics['subtype_counts'][$subtypeKey] = (int) ($statistics['subtype_counts'][$subtypeKey] ?? 0) + 1;
 
 		$transportType = avesmapsGetRouteTransportType($pathData['subtype']);
 		if ($transportType === 'river') {
@@ -64,18 +67,25 @@ function avesmapsIsRoutePath(array $feature): bool {
 }
 
 function avesmapsGetRouteTransportType(string $subtype): string {
-	$normalizedSubtype = strtolower(trim($subtype));
-	if (in_array($normalizedSubtype, ['road', 'trail', 'bridge', 'pass'], true)) {
+	$normalizedSubtype = avesmapsNormalizeRouteSubtypeKey($subtype);
+	if (in_array($normalizedSubtype, ['pfad', 'weg', 'strasse', 'reichsstrasse', 'gebirgspass', 'wuestenpfad'], true)) {
 		return 'land';
 	}
-	if (in_array($normalizedSubtype, ['river', 'canal'], true)) {
+	if ($normalizedSubtype === 'flussweg') {
 		return 'river';
 	}
-	if (in_array($normalizedSubtype, ['searoute', 'ferry', 'harborroute'], true)) {
+	if ($normalizedSubtype === 'seeweg') {
 		return 'sea';
 	}
 
 	return 'unknown';
+}
+
+function avesmapsNormalizeRouteSubtypeKey(string $subtype): string {
+	$normalizedSubtype = strtolower(trim($subtype));
+	$normalizedSubtype = str_replace(['ä', 'ö', 'ü', 'ß'], ['ae', 'oe', 'ue', 'ss'], $normalizedSubtype);
+
+	return $normalizedSubtype;
 }
 
 function avesmapsBuildRouteLocationData(array $feature): array {

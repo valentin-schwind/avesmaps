@@ -55,6 +55,8 @@ try {
 			'sample' => [
 				'first_location' => (string) (($firstLocation['name'] ?? '') !== '' ? $firstLocation['name'] : ($firstLocation['id'] ?? '')),
 				'first_path' => (string) (($firstPath['name'] ?? '') !== '' ? $firstPath['name'] : ($firstPath['id'] ?? '')),
+				'first_path_subtype' => (string) ($firstPath['subtype'] ?? ''),
+				'first_path_transport_type' => avesmapsGetRouteTransportType((string) ($firstPath['subtype'] ?? '')),
 			],
 		]);
 	}

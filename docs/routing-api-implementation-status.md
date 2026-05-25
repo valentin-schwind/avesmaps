@@ -155,3 +155,16 @@
   - Keine Aenderung am POST-501-Verhalten beabsichtigt; neuer Diagnosepfad `diagnostic=network-data` haengt von SQL-Map-Datenverfuegbarkeit ab.
   - Transport-Subtypen ausserhalb der bekannten Mapping-Liste werden als `unknown` gezaehlt.
 - Smoke noetig: nein
+
+## 2026-05-25 - API Phase 3C Fix (Subtype-Klassifikation)
+
+- Commit: `Fix route network subtype classification`
+- Schritt: Subtype-Mapping in `avesmapsGetRouteTransportType(...)` auf aktuelle Avesmaps-Werte umgestellt (`Pfad/Weg/Strasse/Reichsstrasse/Gebirgspass/Wuestenpfad`, `Flussweg`, `Seeweg`), inklusive robuster Normalisierung (`trim`, `lowercase`, Umlaute/ß-Varianten). Diagnose `network-data` um `statistics.subtype_counts`, `sample.first_path_subtype` und `sample.first_path_transport_type` erweitert.
+- Dateien:
+  - `api/route-network-data.php`
+  - `api/route.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Keine beabsichtigte Aenderung am POST-501-Flow; nur Diagnose-/Klassifikationspfad angepasst.
+  - Unbekannte Subtypen bleiben erhalten und werden weiterhin als `unknown` gezaehlt.
+- Smoke noetig: nein
