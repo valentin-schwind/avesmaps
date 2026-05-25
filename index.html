@@ -1509,7 +1509,9 @@
 			return await response.json();
 		}
 
-		async function calculateRoute(routeRequest) {
+		// calculateRouteByMode(...) is prepared for future server routing integration.
+		// Current UI flow still uses calculateRouteClientLegacy(...) because server routing is async and not RouteResult-compatible yet.
+		async function calculateRouteByMode(routeRequest) {
 			if (USE_SERVER_ROUTING) {
 				return await calculateRouteServer(routeRequest);
 			}
