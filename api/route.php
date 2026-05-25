@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 require __DIR__ . '/route-request.php';
+require __DIR__ . '/route-response.php';
 
 try {
 	$config = avesmapsLoadApiConfig(__DIR__);
@@ -45,19 +46,4 @@ try {
 	avesmapsRouteErrorResponse(500, 'server_error', $exception->getMessage());
 } catch (Throwable) {
 	avesmapsRouteErrorResponse(500, 'server_error', 'Die Anfrage konnte nicht verarbeitet werden.');
-}
-
-function avesmapsRouteErrorResponse(int $statusCode, string $code, string $message, ?array $details = null): never {
-	$payload = [
-		'ok' => false,
-		'error' => [
-			'code' => $code,
-			'message' => $message,
-		],
-	];
-	if ($details !== null) {
-		$payload['error']['details'] = $details;
-	}
-
-	avesmapsJsonResponse($statusCode, $payload);
 }

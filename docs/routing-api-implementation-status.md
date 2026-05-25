@@ -83,3 +83,15 @@
 - Risiken:
   - Keine beabsichtigte Verhaltensaenderung; Risiko liegt nur in fehlerhaften Include-Pfaden oder Namenskonflikten.
 - Smoke noetig: nein
+
+## 2026-05-25 - API Phase 2B (RouteResponse Auslagerung)
+
+- Commit: `Split route response php helpers`
+- Schritt: `avesmapsRouteErrorResponse(...)` aus `api/route.php` nach `api/route-response.php` ausgelagert; Endpoint-Flow, Statuscodes und JSON-Format unveraendert.
+- Dateien:
+  - `api/route.php`
+  - `api/route-response.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Keine beabsichtigte Verhaltensaenderung; Risiko beschraenkt sich auf Include-/Dateipfadfehler.
+- Smoke noetig: nein
