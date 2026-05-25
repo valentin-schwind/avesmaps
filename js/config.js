@@ -119,7 +119,7 @@ const MAP_TILE_STYLES = {
 	stylized: { label: "Stylized", url: "./tiles/stylized/{z}/map_{x}_{y}.webp" },
 	politics: { label: "Politics", url: "./tiles/politics/{z}/map_{x}_{y}.webp", maxNativeZoom: 4 },
 };
-const MAP_FEATURE_UPDATE_API_URL = window.AVESMAPS_MAP_FEATURE_UPDATE_ENDPOINT || "api/map-feature-update.php";
+const MAP_FEATURE_UPDATE_API_URL = window.AVESMAPS_MAP_FEATURE_UPDATE_ENDPOINT || "api/edit/map/features.php";
 const LOCATION_REPORT_REVIEW_API_URL = window.AVESMAPS_LOCATION_REPORT_REVIEW_ENDPOINT || "api/edit/reports/locations.php";
 const MAP_AUDIT_LOG_API_URL = window.AVESMAPS_MAP_AUDIT_LOG_ENDPOINT || "api/edit/map/audit-log.php";
 const WIKI_SYNC_LOCATIONS_API_URL = window.AVESMAPS_WIKI_SYNC_LOCATIONS_ENDPOINT || "api/wiki-sync-locations.php";
