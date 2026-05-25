@@ -64,7 +64,13 @@ function probeServerRouteForClientSegment(start, end, useShortest, clientRoute) 
 			const serverRoute = serverRouteResult?.route || serverRouteResult || {};
 			const serverSummary = serverRoute.summary || {};
 			const serverSegments = Array.isArray(serverRoute.segments) ? serverRoute.segments : [];
-			const serverCodeVersion = String(serverRoute.debug?.code_version || serverRouteResult?.code_version || "");
+			const serverCodeVersion = String(
+				serverRoute.debug?.code_version
+				|| serverRouteResult?.raw?.route?.debug?.code_version
+				|| serverRouteResult?.raw?.code_version
+				|| serverRouteResult?.code_version
+				|| ""
+			);
 			const serverEdgeIds = Array.isArray(serverRoute.debug?.edge_ids)
 				? serverRoute.debug.edge_ids
 				: serverSegments.map((segment) => String(segment?.edge_id || "")).filter(Boolean);
