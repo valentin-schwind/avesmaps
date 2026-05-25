@@ -51,7 +51,9 @@ function probeServerRouteForClientSegment(start, end, useShortest, clientRoute) 
 	}
 
 	const clientSegmentCount = Array.isArray(clientRoute) ? clientRoute.length : 0;
+	const clientConnectionIds = Array.isArray(clientRoute) ? clientRoute.map((routeStep) => String(routeStep?.connectionId || "")).filter(Boolean) : [];
 	console.log("Server-Routing-Probe gestartet:", { from: start, to: end, client_segments: clientSegmentCount });
+	console.log("Server-Routing-Probe Client-IDs:", clientConnectionIds);
 	void calculateRouteServer({
 		from: start,
 		to: end,
@@ -70,6 +72,8 @@ function probeServerRouteForClientSegment(start, end, useShortest, clientRoute) 
 				server_cost: Number(serverRoute.cost) || 0,
 				server_found: Boolean(serverRoute.found),
 			});
+			console.log("Server-Routing-Probe Server-IDs:", serverRoute.debug?.edge_ids || []);
+			console.log("Server-Routing-Probe Server-Segmente:", serverRoute.segments || []);
 			console.log("Server-Routing-Probe Ergebnis:", serverRouteResult);
 		})
 		.catch((error) => {
