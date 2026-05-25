@@ -331,6 +331,10 @@ try {
 	}
 
 	avesmapsRouteErrorResponse(400, 'invalid_request', $message);
+} catch (AvesmapsRouteViaNotSupportedException $exception) {
+	avesmapsRouteErrorResponse(400, 'via_not_supported', $exception->getMessage());
+} catch (AvesmapsRouteLocationNotFoundException $exception) {
+	avesmapsRouteErrorResponse(404, 'location_not_found', $exception->getMessage());
 } catch (RuntimeException $exception) {
 	avesmapsRouteErrorResponse(500, 'server_error', $exception->getMessage());
 } catch (Throwable) {

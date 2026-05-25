@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+class AvesmapsRouteLocationNotFoundException extends RuntimeException {}
+class AvesmapsRouteViaNotSupportedException extends RuntimeException {}
+
 function avesmapsRouteErrorResponse(int $statusCode, string $code, string $message, ?array $details = null): never {
 	$payload = [
 		'ok' => false,
@@ -20,8 +23,12 @@ function avesmapsRouteErrorResponse(int $statusCode, string $code, string $messa
 function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $config): array {
 	$fromLocation = trim((string) ($request['from'] ?? ''));
 	$toLocation = trim((string) ($request['to'] ?? ''));
+	$via = $request['via'] ?? [];
 	if ($fromLocation === '' || $toLocation === '') {
 		throw new RuntimeException('Both from and to location names are required.');
+	}
+	if (is_array($via) && count($via) > 0) {
+		throw new AvesmapsRouteViaNotSupportedException('Via is not supported.');
 	}
 
 	$routeMapData = avesmapsLoadRouteMapData($config);
@@ -35,12 +42,12 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 
 	$fromNodeData = avesmapsFindNearestGraphNodeForLocation($routeGraphWeighted001, $routeNetworkData, $fromLocation);
 	if ($fromNodeData['found'] === false) {
-		throw new RuntimeException(sprintf('Unknown from location: %s', $fromLocation));
+		throw new AvesmapsRouteLocationNotFoundException(sprintf('Unknown from location: %s', $fromLocation));
 	}
 
 	$toNodeData = avesmapsFindNearestGraphNodeForLocation($routeGraphWeighted001, $routeNetworkData, $toLocation);
 	if ($toNodeData['found'] === false) {
-		throw new RuntimeException(sprintf('Unknown to location: %s', $toLocation));
+		throw new AvesmapsRouteLocationNotFoundException(sprintf('Unknown to location: %s', $toLocation));
 	}
 
 	$routeDijkstraResult = avesmapsFindShortestRouteInGraph(

@@ -234,6 +234,19 @@
   - Fehlende Ziele/Startpunkte lösen RuntimeExceptions aus; diese behandeln den Serverfehlerpfad, keine spezielle HTTP-404-Logik.
 - Smoke noetig: nein
 
+## 2026-05-25 - API Phase 7B (Gehärtete POST-Fehlerpfade)
+
+- Commit: `Harden server routing error handling`
+- Schritt: Spezifische RuntimeExceptions aus `avesmapsBuildMinimalRouteResultFromRequest(...)` auf HTTP-Fehlercodes abgebildet: `location_not_found` => 404, `invalid_request` => 400, `via_not_supported` => 400.
+- Dateien:
+  - `api/route.php`
+  - `api/route-response.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Kein RouteResult- oder Frontend-Feature; nur Fehlerfall-Handling im Minimal-Serverpfad.
+  - Unerwartete Ausnahmen bleiben weiterhin 500 `server_error`.
+- Smoke noetig: nein
+
 ## 2026-05-25 - API Phase 4A (Graph-Rohmodell Vorbereitung)
 
 - Commit: `Prepare route graph model`
