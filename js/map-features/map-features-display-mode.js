@@ -15,7 +15,7 @@ function shouldShowPathOnMap(path, { showPaths = true, showRivers = false, showS
 		return showRivers;
 	}
 
-	if (subtype === "Seeweg") {
+	if (subtype === "Seeweg" || subtype === "Meer") {
 		return showSeaPaths;
 	}
 
@@ -28,7 +28,7 @@ function shouldShowPathOnMap(path, { showPaths = true, showRivers = false } = {}
 		return showRivers;
 	}
 
-	return showPaths && subtype !== "Meerweg";
+	return showPaths && subtype !== "Seeweg" && subtype !== "Meer";
 }
 
 function getSelectedMapLayerMode() {
