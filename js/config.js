@@ -110,7 +110,7 @@ function getDefaultLocationReportEndpointUrl() {
 const DEFAULT_LOCATION_REPORT_ENDPOINT_URL = getDefaultLocationReportEndpointUrl();
 const LOCATION_REPORT_FORM_ENDPOINT_URL = window.AVESMAPS_LOCATION_REPORT_ENDPOINT || DEFAULT_LOCATION_REPORT_ENDPOINT_URL;
 const MAP_FEATURES_API_URL = window.AVESMAPS_MAP_FEATURES_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/map-features.php" : "");
-const POLITICAL_TERRITORIES_API_URL = window.AVESMAPS_POLITICAL_TERRITORIES_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/political-territories.php" : "");
+const POLITICAL_TERRITORIES_API_URL = window.AVESMAPS_POLITICAL_TERRITORIES_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/political-territories.php" : "");
 const MAP_SEARCH_API_URL = window.AVESMAPS_MAP_SEARCH_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/map-search.php" : "");
 const INITIAL_SEARCH_PARAMS = new URLSearchParams(window.location.search);
 const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
@@ -176,12 +176,12 @@ const PATH_RENDER_CONFIG = {
 	simplifiedCenterWeightScale: 0.85,
 };
 const LOCATION_TYPE_CONFIG = {
-	metropole: { label: "Metropolen", singularLabel: "Metropole", icon: "ðŸ›ï¸", queryParam: "toggleMetropolen", radius: 10, shape: "circle", borderWidth: 3 },
-	grossstadt: { label: "GroÃŸstÃ¤dte", singularLabel: "GroÃŸstadt", icon: "ðŸ°", queryParam: "toggleGrossstaedte", radius: 7.5, shape: "square", borderWidth: 3 },
-	stadt: { label: "StÃ¤dte", singularLabel: "Stadt", icon: "â›ª", queryParam: "toggleStaedte", radius: 6, shape: "square", borderWidth: 2 },
-	kleinstadt: { label: "KleinstÃ¤dte", singularLabel: "Kleinstadt", icon: "ðŸ˜ï¸", queryParam: "toggleKleinstaedte", radius: 4, shape: "square", borderWidth: 2 },
-	dorf: { label: "DÃ¶rfer", singularLabel: "Dorf", icon: "ðŸ¡", queryParam: "toggleDoerfer", radius: 3.5, shape: "circle", borderWidth: 2 },
-	gebaeude: { label: "Besondere Bauwerke/StÃ¤tten", singularLabel: "Besondere Bauwerke/StÃ¤tten", icon: "ðŸ›ï¸", queryParam: "toggleGebaeude", radius: 3.5, shape: "circle", borderWidth: 2 },
+	metropole: { label: "Metropolen", singularLabel: "Metropole", icon: "Ã°Å¸Ââ€ºÃ¯Â¸Â", queryParam: "toggleMetropolen", radius: 10, shape: "circle", borderWidth: 3 },
+	grossstadt: { label: "GroÃƒÅ¸stÃƒÂ¤dte", singularLabel: "GroÃƒÅ¸stadt", icon: "Ã°Å¸ÂÂ°", queryParam: "toggleGrossstaedte", radius: 7.5, shape: "square", borderWidth: 3 },
+	stadt: { label: "StÃƒÂ¤dte", singularLabel: "Stadt", icon: "Ã¢â€ºÂª", queryParam: "toggleStaedte", radius: 6, shape: "square", borderWidth: 2 },
+	kleinstadt: { label: "KleinstÃƒÂ¤dte", singularLabel: "Kleinstadt", icon: "Ã°Å¸ÂËœÃ¯Â¸Â", queryParam: "toggleKleinstaedte", radius: 4, shape: "square", borderWidth: 2 },
+	dorf: { label: "DÃƒÂ¶rfer", singularLabel: "Dorf", icon: "Ã°Å¸ÂÂ¡", queryParam: "toggleDoerfer", radius: 3.5, shape: "circle", borderWidth: 2 },
+	gebaeude: { label: "Besondere Bauwerke/StÃƒÂ¤tten", singularLabel: "Besondere Bauwerke/StÃƒÂ¤tten", icon: "Ã°Å¸Ââ€ºÃ¯Â¸Â", queryParam: "toggleGebaeude", radius: 3.5, shape: "circle", borderWidth: 2 },
 };
 const LOCATION_ICON_PATHS = {
 	metropole: "icons/small_webp/metropole.webp",
