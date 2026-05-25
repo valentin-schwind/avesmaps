@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/route-client-graph.php';
 
-const AVESMAPS_ROUTE_API_CODE_REVISION = 12;
+const AVESMAPS_ROUTE_API_CODE_REVISION = 13;
 
 class AvesmapsRouteLocationNotFoundException extends RuntimeException {}
 class AvesmapsRouteViaNotSupportedException extends RuntimeException {}
@@ -72,41 +72,9 @@ function avesmapsBuildRouteEdgeDiagnosticSegments(array $graph, array $edgeIds):
 	return $segments;
 }
 
-function avesmapsBuildRouteConnectionIdIndex(array $graph): array {
-	$connectionsById = [];
-	foreach ($graph as $fromNode => $neighbors) {
-		if (!is_array($neighbors)) {
-			continue;
-		}
-
-		foreach ($neighbors as $toNode => $connections) {
-			foreach (is_array($connections) ? $connections : [] as $connection) {
-				if (!is_array($connection)) {
-					continue;
-				}
-
-				$connectionId = (string) ($connection['id'] ?? '');
-				if ($connectionId === '') {
-					continue;
-				}
-
-				$connectionsById[$connectionId][] = [
-					'from' => (string) $fromNode,
-					'to' => (string) $toNode,
-					'route_type' => (string) ($connection['route_type'] ?? ''),
-					'transport_option' => (string) ($connection['transport_option'] ?? ''),
-				];
-			}
-		}
-	}
-
-	return $connectionsById;
-}
-
 function avesmapsAnalyzeClientRouteOnServerGraph(array $clientGraph, array $request, array $serverRoute): array {
 	$clientRoute = is_array($request['client_route'] ?? null) ? $request['client_route'] : [];
 	$graph = is_array($clientGraph['graph'] ?? null) ? $clientGraph['graph'] : [];
-	$connectionsById = avesmapsBuildRouteConnectionIdIndex($graph);
 	$useShortestPath = (string) ($request['optimize'] ?? 'fastest') === 'shortest';
 	$minimizeTransfers = !empty($request['minimize_transfers']);
 	$matchedSegments = [];
@@ -122,16 +90,22 @@ function avesmapsAnalyzeClientRouteOnServerGraph(array $clientGraph, array $requ
 		$from = (string) ($clientStep['from'] ?? '');
 		$to = (string) ($clientStep['to'] ?? '');
 		$connectionId = (string) ($clientStep['connection_id'] ?? $clientStep['connectionId'] ?? '');
+		$connections = is_array($graph[$from][$to] ?? null) ? $graph[$from][$to] : [];
 		$matchingConnection = null;
-		foreach (is_array($graph[$from][$to] ?? null) ? $graph[$from][$to] : [] as $connection) {
-			if ((string) ($connection['id'] ?? '') === $connectionId) {
+		$matchedBy = '';
+		foreach ($connections as $connection) {
+			if (is_array($connection) && (string) ($connection['id'] ?? '') === $connectionId) {
 				$matchingConnection = $connection;
+				$matchedBy = 'nodes_and_id';
 				break;
 			}
 		}
+		if (!is_array($matchingConnection) && is_array($connections[0] ?? null)) {
+			$matchingConnection = $connections[0];
+			$matchedBy = 'nodes_only';
+		}
 
 		if (!is_array($matchingConnection)) {
-			$idCandidates = is_array($connectionsById[$connectionId] ?? null) ? $connectionsById[$connectionId] : [];
 			$missingSegments[] = [
 				'index' => (int) $index,
 				'from' => $from,
@@ -139,8 +113,6 @@ function avesmapsAnalyzeClientRouteOnServerGraph(array $clientGraph, array $requ
 				'connection_id' => $connectionId,
 				'from_known' => isset($graph[$from]),
 				'to_known_from_source' => isset($graph[$from][$to]),
-				'same_id_candidate_count' => count($idCandidates),
-				'same_id_candidates' => array_slice($idCandidates, 0, 4),
 			];
 			continue;
 		}
@@ -154,7 +126,9 @@ function avesmapsAnalyzeClientRouteOnServerGraph(array $clientGraph, array $requ
 		$previousTransport = $transport;
 		$matchedSegments[] = [
 			'index' => (int) $index,
-			'edge_id' => $connectionId,
+			'client_connection_id' => $connectionId,
+			'server_connection_id' => (string) ($matchingConnection['id'] ?? ''),
+			'matched_by' => $matchedBy,
 			'from' => $from,
 			'to' => $to,
 			'route_type' => (string) ($matchingConnection['route_type'] ?? ''),
