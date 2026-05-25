@@ -27,7 +27,7 @@ function disableRegionEditEdgeControls() {
 }
 
 function handleRegionEditMouseMove(event) {
-	if (!activeRegionGeometryEdit || !event?.originalEvent?.ctrlKey) {
+	if (!activeRegionGeometryEdit || !event.originalEvent.ctrlKey) {
 		clearRegionEditEdgeHover();
 		return;
 	}
@@ -46,7 +46,7 @@ function handleRegionEditKeyUp(event) {
 } 
 
 function handleRegionEditClick(event) {
-	if (!activeRegionGeometryEdit || !event?.originalEvent?.ctrlKey) {
+	if (!activeRegionGeometryEdit || !event.originalEvent.ctrlKey) {
 		return;
 	}
 
@@ -157,7 +157,7 @@ function renderRegionEditEdgeSubdivisionPreview(edge, pointCount) {
 }
 
 function handleRegionEditEdgeClick(event) {
-	if (!activeRegionGeometryEdit || !event?.originalEvent?.ctrlKey || !activeRegionGeometryEdit.edgeHover) {
+	if (!activeRegionGeometryEdit || !event.originalEvent.ctrlKey || !activeRegionGeometryEdit.edgeHover) {
 		return;
 	}
 
@@ -200,7 +200,7 @@ function findNearestEditedRegionEdge(latLng, regionEntry) {
 }
 
 function subdivideRegionEditHoveredEdge(pointCount) {
-	if (!activeRegionGeometryEdit?.edgeHover) {
+	if (!activeRegionGeometryEdit.edgeHover) {
 		return;
 	}
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 require __DIR__ . '/../api/bootstrap.php';
 require_once __DIR__ . '/../api/political-territory-lib.php';
 
-$arguments = avesmapsParseCommandLineArguments($argv ?? []);
+$arguments = avesmapsParseCommandLineArguments($argv  []);
 
 if ($arguments['help']) {
     echo "Avesmaps political breadcrumb default zoom migration\n";
@@ -36,7 +36,7 @@ $geometryPublicId = $arguments['geometryPublicId'];
 $zoomRules = $arguments['zoomRules'];
 
 $config = avesmapsLoadApiConfig(__DIR__ . '/../api');
-$pdo = avesmapsCreatePdo($config['database'] ?? []);
+$pdo = avesmapsCreatePdo($config['database']  []);
 avesmapsPoliticalEnsureTables($pdo);
 
 $territoryCache = [];
@@ -76,12 +76,12 @@ $processedTerritoryIds = [];
 
 foreach ($geometries as $geometry) {
     $scannedGeometries++;
-    $style = avesmapsDecodePoliticalStyleJson($geometry['style_json'] ?? null);
-    $displays = $style['assignmentDisplays'] ?? $style['assignment_displays'] ?? null;
+    $style = avesmapsDecodePoliticalStyleJson($geometry['style_json']  null);
+    $displays = $style['assignmentDisplays']  $style['assignment_displays']  null;
     $hadAssignmentDisplays = is_array($displays) && count($displays) > 0;
-    $territoryId = avesmapsNullableInt($geometry['territory_id'] ?? null);
+    $territoryId = avesmapsNullableInt($geometry['territory_id']  null);
     $territoryChain = $territoryId === null
-        ? []
+         []
         : avesmapsBuildTerritoryChainForGeometry($pdo, $territoryId, $territoryCache);
 
     if (!$hadAssignmentDisplays) {
@@ -119,8 +119,8 @@ foreach ($geometries as $geometry) {
         }
 
         $defaultZoom = avesmapsPoliticalBreadcrumbDefaultZoomRange($chainLength, (int) $index, $zoomRules);
-        $oldMin = avesmapsNullableInt($display['zoomMin'] ?? $display['zoom_min'] ?? null);
-        $oldMax = avesmapsNullableInt($display['zoomMax'] ?? $display['zoom_max'] ?? null);
+        $oldMin = avesmapsNullableInt($display['zoomMin']  $display['zoom_min']  null);
+        $oldMax = avesmapsNullableInt($display['zoomMax']  $display['zoom_max']  null);
         if ($oldMin === $defaultZoom['zoomMin'] && $oldMax === $defaultZoom['zoomMax']) {
             $displays[$index]['zoomMin'] = $defaultZoom['zoomMin'];
             $displays[$index]['zoomMax'] = $defaultZoom['zoomMax'];
@@ -137,15 +137,15 @@ foreach ($geometries as $geometry) {
         if (count($examples) < 12) {
             $examples[] = sprintf(
                 '%s | Ebene %d/%d | %s: %s-%s -> %d-%d%s',
-                (string) ($geometry['public_id'] ?? ''),
+                (string) ($geometry['public_id']  ''),
                 $index + 1,
                 $chainLength,
                 avesmapsDescribeAssignmentDisplay($display),
-                $oldMin === null ? 'null' : (string) $oldMin,
-                $oldMax === null ? 'null' : (string) $oldMax,
+                $oldMin === null  'null' : (string) $oldMin,
+                $oldMax === null  'null' : (string) $oldMax,
                 $defaultZoom['zoomMin'],
                 $defaultZoom['zoomMax'],
-                $hadAssignmentDisplays ? '' : ' | assignmentDisplays neu erzeugt'
+                $hadAssignmentDisplays  '' : ' | assignmentDisplays neu erzeugt'
             );
         }
     }
@@ -167,7 +167,7 @@ foreach ($geometries as $geometry) {
     ]);
 }
 
-$mode = $apply ? 'APPLY' : 'DRY-RUN';
+$mode = $apply  'APPLY' : 'DRY-RUN';
 echo "Mode: {$mode}\n";
 echo "Scanned active geometries: {$scannedGeometries}\n";
 echo "Changed geometries: {$changedGeometries}\n";
@@ -245,7 +245,7 @@ function avesmapsPoliticalBreadcrumbDefaultZoomRange(int $chainLength, int $inde
 
     if ($chainLength === 2) {
         return $index === 0
-            ? ['zoomMin' => 0, 'zoomMax' => 1]
+             ['zoomMin' => 0, 'zoomMax' => 1]
             : ['zoomMin' => 2, 'zoomMax' => 6];
     }
 
@@ -308,7 +308,7 @@ function avesmapsBuildTerritoryChainForGeometry(PDO $pdo, int $territoryId, arra
         }
 
         $chain[] = $territory;
-        $parentId = avesmapsNullableInt($territory['parent_id'] ?? null);
+        $parentId = avesmapsNullableInt($territory['parent_id']  null);
         if ($parentId === null || $parentId === $currentTerritoryId) {
             break;
         }
@@ -332,7 +332,7 @@ function avesmapsFetchTerritoryForBreadcrumb(PDO $pdo, int $territoryId, array &
     );
     $statement->execute(['id' => $territoryId]);
     $row = $statement->fetch(PDO::FETCH_ASSOC);
-    $territoryCache[$territoryId] = is_array($row) ? $row : null;
+    $territoryCache[$territoryId] = is_array($row)  $row : null;
     return $territoryCache[$territoryId];
 }
 
@@ -352,15 +352,15 @@ function avesmapsApplyGlobalTerritoryBreadcrumbZooms(
     $changedTerritories = 0;
     $chainLength = count($territoryChain);
     foreach ($territoryChain as $index => $territory) {
-        $territoryId = avesmapsNullableInt($territory['id'] ?? null);
+        $territoryId = avesmapsNullableInt($territory['id']  null);
         if ($territoryId === null || isset($processedTerritoryIds[$territoryId])) {
             continue;
         }
         $processedTerritoryIds[$territoryId] = true;
 
         $defaultZoom = avesmapsPoliticalBreadcrumbDefaultZoomRange($chainLength, (int) $index, $zoomRules);
-        $oldMin = avesmapsNullableInt($territory['min_zoom'] ?? null);
-        $oldMax = avesmapsNullableInt($territory['max_zoom'] ?? null);
+        $oldMin = avesmapsNullableInt($territory['min_zoom']  null);
+        $oldMax = avesmapsNullableInt($territory['max_zoom']  null);
         if ($oldMin === $defaultZoom['zoomMin'] && $oldMax === $defaultZoom['zoomMax']) {
             continue;
         }
@@ -372,10 +372,10 @@ function avesmapsApplyGlobalTerritoryBreadcrumbZooms(
                 $territoryId,
                 $index + 1,
                 $chainLength,
-                trim((string) ($territory['short_name'] ?? '')) ?: trim((string) ($territory['name'] ?? 'Herrschaftsgebiet')),
-                (string) ($territory['public_id'] ?? ''),
-                $oldMin === null ? 'null' : (string) $oldMin,
-                $oldMax === null ? 'null' : (string) $oldMax,
+                trim((string) ($territory['short_name']  '')) ?: trim((string) ($territory['name']  'Herrschaftsgebiet')),
+                (string) ($territory['public_id']  ''),
+                $oldMin === null  'null' : (string) $oldMin,
+                $oldMax === null  'null' : (string) $oldMax,
                 $defaultZoom['zoomMin'],
                 $defaultZoom['zoomMax']
             );
@@ -407,8 +407,8 @@ function avesmapsBuildAssignmentDisplaysFromTerritoryChain(array $territoryChain
     $displays = [];
 
     foreach ($territoryChain as $index => $territory) {
-        $name = trim((string) ($territory['short_name'] ?? '')) ?: trim((string) ($territory['name'] ?? 'Herrschaftsgebiet'));
-        $publicId = trim((string) ($territory['public_id'] ?? ''));
+        $name = trim((string) ($territory['short_name']  '')) ?: trim((string) ($territory['name']  'Herrschaftsgebiet'));
+        $publicId = trim((string) ($territory['public_id']  ''));
         $zoomRange = avesmapsPoliticalBreadcrumbDefaultZoomRange($chainLength, (int) $index, $zoomRules);
         $path[] = $name;
         $pathKeys[] = $publicId;
@@ -419,21 +419,21 @@ function avesmapsBuildAssignmentDisplaysFromTerritoryChain(array $territoryChain
             'wikiKey' => $publicId,
             'rowId' => null,
             'territoryPublicId' => $publicId,
-            'territoryId' => avesmapsNullableInt($territory['id'] ?? null),
+            'territoryId' => avesmapsNullableInt($territory['id']  null),
             'name' => $name,
             'displayName' => $name,
-            'coatOfArmsUrl' => trim((string) ($territory['coat_of_arms_url'] ?? '')),
+            'coatOfArmsUrl' => trim((string) ($territory['coat_of_arms_url']  '')),
             'zoomMin' => $zoomRange['zoomMin'],
             'zoomMax' => $zoomRange['zoomMax'],
-            'color' => trim((string) ($territory['color'] ?? '#888888')) ?: '#888888',
-            'opacity' => avesmapsReadOpacity($territory['opacity'] ?? null),
-            'startYear' => avesmapsNullableInt($territory['valid_from_bf'] ?? null),
-            'endYear' => avesmapsNullableInt($territory['valid_to_bf'] ?? null),
-            'existsUntilToday' => avesmapsNullableInt($territory['valid_to_bf'] ?? null) === null,
+            'color' => trim((string) ($territory['color']  '#888888')) ?: '#888888',
+            'opacity' => avesmapsReadOpacity($territory['opacity']  null),
+            'startYear' => avesmapsNullableInt($territory['valid_from_bf']  null),
+            'endYear' => avesmapsNullableInt($territory['valid_to_bf']  null),
+            'existsUntilToday' => avesmapsNullableInt($territory['valid_to_bf']  null) === null,
             'depth' => $index,
             'path' => $path,
             'pathKeys' => $pathKeys,
-            'kind' => trim((string) ($territory['type'] ?? 'Herrschaftsgebiet')) ?: 'Herrschaftsgebiet',
+            'kind' => trim((string) ($territory['type']  'Herrschaftsgebiet')) ?: 'Herrschaftsgebiet',
         ];
     }
 
@@ -470,24 +470,24 @@ function avesmapsDiagnoseGeometryBreadcrumbZooms(PDO $pdo, string $geometryPubli
         return;
     }
 
-    $style = avesmapsDecodePoliticalStyleJson($geometry['style_json'] ?? null);
-    $displays = $style['assignmentDisplays'] ?? $style['assignment_displays'] ?? null;
+    $style = avesmapsDecodePoliticalStyleJson($geometry['style_json']  null);
+    $displays = $style['assignmentDisplays']  $style['assignment_displays']  null;
     $hasDisplays = is_array($displays) && count($displays) > 0;
-    $territoryId = avesmapsNullableInt($geometry['territory_id'] ?? null);
-    $chain = $territoryId === null ? [] : avesmapsBuildTerritoryChainForGeometry($pdo, $territoryId, $territoryCache);
+    $territoryId = avesmapsNullableInt($geometry['territory_id']  null);
+    $chain = $territoryId === null  [] : avesmapsBuildTerritoryChainForGeometry($pdo, $territoryId, $territoryCache);
 
     echo "Diagnosis\n";
     echo "Geometry: #" . (string) $geometry['id'] . " / " . (string) $geometry['public_id'] . "\n";
     echo "Geometry active: " . (string) $geometry['is_active'] . "\n";
-    echo "Geometry territory_id: " . avesmapsFormatNullableValue($geometry['territory_id'] ?? null) . "\n";
-    echo "Geometry min_zoom/max_zoom: " . avesmapsFormatZoomPair($geometry['geometry_min_zoom'] ?? null, $geometry['geometry_max_zoom'] ?? null) . "\n";
-    echo "Territory row: #" . avesmapsFormatNullableValue($geometry['territory_row_id'] ?? null) . " / " . avesmapsFormatNullableValue($geometry['territory_public_id'] ?? null) . " / " . avesmapsFormatNullableValue($geometry['territory_name'] ?? null) . "\n";
-    echo "Territory active: " . avesmapsFormatNullableValue($geometry['territory_is_active'] ?? null) . "\n";
-    echo "Territory parent_id: " . avesmapsFormatNullableValue($geometry['territory_parent_id'] ?? null) . "\n";
-    echo "Territory min_zoom/max_zoom: " . avesmapsFormatZoomPair($geometry['territory_min_zoom'] ?? null, $geometry['territory_max_zoom'] ?? null) . "\n";
-    echo "style_json present: " . (is_string($geometry['style_json'] ?? null) && trim((string) $geometry['style_json']) !== '' ? 'yes' : 'no') . "\n";
-    echo "assignmentDisplays present: " . ($hasDisplays ? 'yes' : 'no') . "\n";
-    echo "assignmentDisplays count: " . ($hasDisplays ? count($displays) : 0) . "\n";
+    echo "Geometry territory_id: " . avesmapsFormatNullableValue($geometry['territory_id']  null) . "\n";
+    echo "Geometry min_zoom/max_zoom: " . avesmapsFormatZoomPair($geometry['geometry_min_zoom']  null, $geometry['geometry_max_zoom']  null) . "\n";
+    echo "Territory row: #" . avesmapsFormatNullableValue($geometry['territory_row_id']  null) . " / " . avesmapsFormatNullableValue($geometry['territory_public_id']  null) . " / " . avesmapsFormatNullableValue($geometry['territory_name']  null) . "\n";
+    echo "Territory active: " . avesmapsFormatNullableValue($geometry['territory_is_active']  null) . "\n";
+    echo "Territory parent_id: " . avesmapsFormatNullableValue($geometry['territory_parent_id']  null) . "\n";
+    echo "Territory min_zoom/max_zoom: " . avesmapsFormatZoomPair($geometry['territory_min_zoom']  null, $geometry['territory_max_zoom']  null) . "\n";
+    echo "style_json present: " . (is_string($geometry['style_json']  null) && trim((string) $geometry['style_json']) !== ''  'yes' : 'no') . "\n";
+    echo "assignmentDisplays present: " . ($hasDisplays  'yes' : 'no') . "\n";
+    echo "assignmentDisplays count: " . ($hasDisplays  count($displays) : 0) . "\n";
 
     if ($chain !== []) {
         echo "\nReconstructed territory chain:\n";
@@ -498,10 +498,10 @@ function avesmapsDiagnoseGeometryBreadcrumbZooms(PDO $pdo, string $geometryPubli
                 '- Ebene %d/%d | #%s | %s | %s | territory zoom %s | default %d-%d' . "\n",
                 $index + 1,
                 $chainLength,
-                (string) ($territory['id'] ?? ''),
-                (string) ($territory['public_id'] ?? ''),
-                trim((string) ($territory['short_name'] ?? '')) ?: trim((string) ($territory['name'] ?? '')),
-                avesmapsFormatZoomPair($territory['min_zoom'] ?? null, $territory['max_zoom'] ?? null),
+                (string) ($territory['id']  ''),
+                (string) ($territory['public_id']  ''),
+                trim((string) ($territory['short_name']  '')) ?: trim((string) ($territory['name']  '')),
+                avesmapsFormatZoomPair($territory['min_zoom']  null, $territory['max_zoom']  null),
                 $defaultZoom['zoomMin'],
                 $defaultZoom['zoomMax']
             );
@@ -518,14 +518,14 @@ function avesmapsDiagnoseGeometryBreadcrumbZooms(PDO $pdo, string $geometryPubli
                 continue;
             }
             $defaultZoom = avesmapsPoliticalBreadcrumbDefaultZoomRange($chainLength, (int) $index, $zoomRules);
-            $storedMin = $display['zoomMin'] ?? $display['zoom_min'] ?? null;
-            $storedMax = $display['zoomMax'] ?? $display['zoom_max'] ?? null;
+            $storedMin = $display['zoomMin']  $display['zoom_min']  null;
+            $storedMax = $display['zoomMax']  $display['zoom_max']  null;
             echo sprintf(
                 '- Ebene %d/%d | %s | territoryPublicId=%s | stored %s | default %d-%d' . "\n",
                 $index + 1,
                 $chainLength,
                 avesmapsDescribeAssignmentDisplay($display),
-                (string) ($display['territoryPublicId'] ?? $display['territory_public_id'] ?? ''),
+                (string) ($display['territoryPublicId']  $display['territory_public_id']  ''),
                 avesmapsFormatZoomPair($storedMin, $storedMax),
                 $defaultZoom['zoomMin'],
                 $defaultZoom['zoomMax']
@@ -553,9 +553,9 @@ function avesmapsAddSkippedExample(array &$skippedExamples, array $geometry, str
 
     $skippedExamples[] = sprintf(
         '#%s | %s | territory_id=%s | %s',
-        (string) ($geometry['id'] ?? ''),
-        (string) ($geometry['public_id'] ?? ''),
-        (string) ($geometry['territory_id'] ?? 'null'),
+        (string) ($geometry['id']  ''),
+        (string) ($geometry['public_id']  ''),
+        (string) ($geometry['territory_id']  'null'),
         $reason
     );
 }
@@ -677,7 +677,7 @@ function avesmapsDecodePoliticalStyleJson(mixed $value): array {
         return [];
     }
 
-    return is_array($decoded) ? $decoded : [];
+    return is_array($decoded)  $decoded : [];
 }
 
 function avesmapsEncodeJsonOrNull(array $value): ?string {
@@ -694,12 +694,12 @@ function avesmapsNullableInt(mixed $value): ?int {
     }
 
     $number = filter_var($value, FILTER_VALIDATE_INT);
-    return $number === false ? null : (int) $number;
+    return $number === false  null : (int) $number;
 }
 
 function avesmapsDescribeAssignmentDisplay(array $display): string {
-    $name = trim((string) ($display['displayName'] ?? $display['name'] ?? $display['originalName'] ?? ''));
-    $publicId = trim((string) ($display['territoryPublicId'] ?? $display['territory_public_id'] ?? ''));
+    $name = trim((string) ($display['displayName']  $display['name']  $display['originalName']  ''));
+    $publicId = trim((string) ($display['territoryPublicId']  $display['territory_public_id']  ''));
     if ($name !== '' && $publicId !== '') {
         return "{$name} ({$publicId})";
     }

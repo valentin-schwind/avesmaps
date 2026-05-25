@@ -7,9 +7,9 @@ async function saveRegionEditTab(tab) {
 	const result = await submitPoliticalTerritoryEdit(payload);
 	let latestResult = result;
 	const liveRegion = tab.entry && typeof tab.entry === "object"
-		? tab.entry
+		 tab.entry
 		: tab.region && typeof tab.region === "object"
-			? tab.region
+			 tab.region
 			: {};
 	if (result.feature) {
 		applyRegionFeatureResponse(liveRegion, result.feature);
@@ -34,7 +34,7 @@ async function saveRegionEditTab(tab) {
 	updateRegionAssignmentBreadcrumbChain(payload.territory_public_id || liveRegion.territoryPublicId || "", result.territory || null, result.wiki || null);
 	if (tab.assignGeometryPublicId && payload.territory_public_id) {
 		latestResult = tab.assignGeometryMode === "create"
-			? await submitPoliticalTerritoryEdit({
+			 await submitPoliticalTerritoryEdit({
 				action: "create_geometry",
 				territory_public_id: payload.territory_public_id,
 				source: "editor",
@@ -54,11 +54,11 @@ async function saveRegionEditTab(tab) {
 				territory_public_id: payload.territory_public_id,
 			});
 		if (latestResult.feature) {
-			if ((tab.entry || regionEditEntry)?.source === "political_territory") {
+			if ((tab.entry || regionEditEntry).source === "political_territory") {
 				applyRegionFeatureResponse(liveRegion, latestResult.feature);
 			}
 		}
-		liveRegion.geometryPublicId = latestResult.geometry?.public_id || tab.assignGeometryPublicId;
+		liveRegion.geometryPublicId = latestResult.geometry.public_id || tab.assignGeometryPublicId;
 		tab.assignGeometryPublicId = "";
 		tab.assignGeometryMode = "";
 	}
@@ -69,8 +69,8 @@ async function saveRegionEditTab(tab) {
 		populateRegionEditForm(liveRegion || regionEditEntry, { preserveTabs: true });
 		renderRegionEditTabs();
 	}
-	const territoryPublicId = String(tab.region?.territoryPublicId || payload.territory_public_id || "").trim();
-	if (Array.isArray(latestResult?.assignment_chain) && latestResult.assignment_chain.length > 0) {
+	const territoryPublicId = String(tab.region.territoryPublicId || payload.territory_public_id || "").trim();
+	if (Array.isArray(latestResult.assignment_chain) && latestResult.assignment_chain.length > 0) {
 		applyPersistedRegionAssignmentChain(latestResult.assignment_chain, territoryPublicId || liveRegion.territoryPublicId || "");
 	}
 	if (regionAssignmentWikiPath.length > 0) {
@@ -85,33 +85,33 @@ function normalizePoliticalTerritoryForRegionEdit(territory, wiki = null) {
 		publicId: territory.public_id || "",
 		geometryPublicId: "",
 		territoryPublicId: territory.public_id || "",
-		wikiId: territory.wiki_id || wiki?.id || null,
+		wikiId: territory.wiki_id || wiki.id || null,
 		name: normalizeParentheticalSpacing(territory.name || ""),
 		displayName: normalizeParentheticalSpacing(territory.name || ""),
 		shortName: territory.short_name || "",
-		type: normalizeParentheticalSpacing(territory.type || wiki?.type || "Herrschaftsgebiet"),
+		type: normalizeParentheticalSpacing(territory.type || wiki.type || "Herrschaftsgebiet"),
 		parentPublicId: territory.parent_public_id || "",
 		parentName: territory.parent_name || "",
 		color: territory.color || "#888888",
-		opacity: territory.opacity ?? 0.33,
-		wikiUrl: territory.wiki_url || wiki?.wiki_url || "",
-		coatOfArmsUrl: territory.coat_of_arms_url || wiki?.coat_of_arms_url || "",
-		minZoom: territory.min_zoom ?? null,
-		maxZoom: territory.max_zoom ?? null,
-		validFromBf: territory.valid_from_bf ?? null,
-		validToBf: territory.valid_to_bf ?? null,
+		opacity: territory.opacity  0.33,
+		wikiUrl: territory.wiki_url || wiki.wiki_url || "",
+		coatOfArmsUrl: territory.coat_of_arms_url || wiki.coat_of_arms_url || "",
+		minZoom: territory.min_zoom  null,
+		maxZoom: territory.max_zoom  null,
+		validFromBf: territory.valid_from_bf  null,
+		validToBf: territory.valid_to_bf  null,
 		validLabel: territory.valid_label || "",
 		isActive: territory.is_active !== false,
 		editorNotes: territory.editor_notes || "",
-		wikiName: territory.wiki_name || wiki?.name || "",
-		wikiType: normalizeParentheticalSpacing(territory.wiki_type || wiki?.type || territory.type || ""),
-		wikiAffiliationRaw: territory.wiki_affiliation_raw || wiki?.affiliation_raw || "",
-		wikiAffiliationRoot: territory.wiki_affiliation_root || wiki?.affiliation_root || "",
-		wikiFoundedText: territory.wiki_founded_text || wiki?.founded_text || "",
-		wikiDissolvedText: territory.wiki_dissolved_text || wiki?.dissolved_text || "",
-		wikiCapitalName: territory.wiki_capital_name || wiki?.capital_name || "",
-		wikiSeatName: territory.wiki_seat_name || wiki?.seat_name || "",
-		assignmentChain: Array.isArray(territory.assignment_chain) ? clonePoliticalTerritoryChain(territory.assignment_chain) : [],
+		wikiName: territory.wiki_name || wiki.name || "",
+		wikiType: normalizeParentheticalSpacing(territory.wiki_type || wiki.type || territory.type || ""),
+		wikiAffiliationRaw: territory.wiki_affiliation_raw || wiki.affiliation_raw || "",
+		wikiAffiliationRoot: territory.wiki_affiliation_root || wiki.affiliation_root || "",
+		wikiFoundedText: territory.wiki_founded_text || wiki.founded_text || "",
+		wikiDissolvedText: territory.wiki_dissolved_text || wiki.dissolved_text || "",
+		wikiCapitalName: territory.wiki_capital_name || wiki.capital_name || "",
+		wikiSeatName: territory.wiki_seat_name || wiki.seat_name || "",
+		assignmentChain: Array.isArray(territory.assignment_chain)  clonePoliticalTerritoryChain(territory.assignment_chain) : [],
 	};
 }
 
@@ -132,19 +132,19 @@ async function openRegionEditTabForTerritory(territoryPublicId, { assignGeometry
 			...(response.territory || {}),
 			assignment_chain: response.assignment_chain || [],
 		}, response.wiki || null);
-		const geometryAssignment = assignGeometry ? getActiveRegionGeometryAssignment(territoryPublicId) : null;
-		const assignGeometryPublicId = geometryAssignment?.geometryPublicId || "";
+		const geometryAssignment = assignGeometry  getActiveRegionGeometryAssignment(territoryPublicId) : null;
+		const assignGeometryPublicId = geometryAssignment.geometryPublicId || "";
 		if (assignGeometryPublicId) {
 			region.geometryPublicId = assignGeometryPublicId;
 		}
 		const tab = {
 			key: territoryPublicId,
-			entry: assignGeometryPublicId ? regionEditTabs[0]?.entry || regionEditEntry || region : region,
+			entry: assignGeometryPublicId  regionEditTabs[0].entry || regionEditEntry || region : region,
 			region,
 			payload: null,
 			savedPayload: regionEditPayloadToPayload(region),
 			assignGeometryPublicId,
-			assignGeometryMode: geometryAssignment?.mode || "",
+			assignGeometryMode: geometryAssignment.mode || "",
 		};
 		regionEditTabs.push(tab);
 		activeRegionEditTabKey = territoryPublicId;
@@ -163,9 +163,9 @@ async function activatePrimaryRegionEditTabForTerritory(territoryPublicId) {
 	}
 
 	const primaryTab = regionEditTabs[0] || null;
-	const currentTerritoryId = primaryTab?.region?.territoryPublicId || "";
+	const currentTerritoryId = primaryTab.region.territoryPublicId || "";
 	if (currentTerritoryId === territoryPublicId) {
-		activeRegionEditTabKey = primaryTab?.key || territoryPublicId;
+		activeRegionEditTabKey = primaryTab.key || territoryPublicId;
 		if (primaryTab) {
 			populateRegionEditForm(primaryTab.region, { preserveTabs: true });
 			renderRegionEditTabs();
@@ -184,16 +184,16 @@ async function activatePrimaryRegionEditTabForTerritory(territoryPublicId) {
 		region.geometryPublicId = geometryPublicId;
 	}
 	const geometryAssignment = getActiveRegionGeometryAssignment(territoryPublicId);
-	const assignGeometryPublicId = geometryAssignment?.geometryPublicId || "";
+	const assignGeometryPublicId = geometryAssignment.geometryPublicId || "";
 	regionEditTabs = regionEditTabs.filter((tab, index) => index === 0 || tab.key !== territoryPublicId);
 	const nextPrimaryTab = {
 		key: territoryPublicId,
-		entry: primaryTab?.entry || regionEditEntry || region,
+		entry: primaryTab.entry || regionEditEntry || region,
 		region,
 		payload: null,
 		savedPayload: regionEditPayloadToPayload(region),
 		assignGeometryPublicId,
-		assignGeometryMode: geometryAssignment?.mode || "",
+		assignGeometryMode: geometryAssignment.mode || "",
 	};
 	if (regionEditTabs.length > 0) {
 		regionEditTabs[0] = nextPrimaryTab;
@@ -234,6 +234,6 @@ function askRegionTabCloseChoice() {
 			button.addEventListener("click", () => finish(button.dataset.regionTabCloseChoice || "cancel"));
 		});
 		document.body.append(overlay);
-		overlay.querySelector("[data-region-tab-close-choice='save']")?.focus();
+		overlay.querySelector("[data-region-tab-close-choice='save']").focus();
 	});
 }

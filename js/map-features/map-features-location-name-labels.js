@@ -10,7 +10,7 @@ const LOCATION_NAME_LABEL_SIZE_BY_ZOOM = {
 function getLocationNameLabelSize(locationType, zoomLevel = map.getZoom()) {
 	const roundedZoomLevel = getVisualZoomLevel(zoomLevel);
 	const sizeByZoom = LOCATION_NAME_LABEL_SIZE_BY_ZOOM[locationType] || LOCATION_NAME_LABEL_SIZE_BY_ZOOM.dorf;
-	return Math.max(9, Number(sizeByZoom[roundedZoomLevel] ?? sizeByZoom[VISUAL_MAX_ZOOM_LEVEL] ?? sizeByZoom[4] ?? sizeByZoom[3] ?? sizeByZoom[2] ?? sizeByZoom[1] ?? sizeByZoom[0] ?? 9));
+	return Math.max(9, Number(sizeByZoom[roundedZoomLevel]  sizeByZoom[VISUAL_MAX_ZOOM_LEVEL]  sizeByZoom[4]  sizeByZoom[3]  sizeByZoom[2]  sizeByZoom[1]  sizeByZoom[0]  9));
 }
 
 function getLocationNameLabelOffset(labelSize, zoomLevel = map.getZoom()) {
@@ -40,7 +40,7 @@ function createLocationNameLabelIcon(entry, zoomLevel = map.getZoom()) {
 	const labelSize = getLocationNameLabelSize(entry.locationType, zoomLevel);
 	const labelType = entry.locationType || "dorf";
 	const offset = getLocationNameLabelOffset(labelSize, zoomLevel);
-	const ruinedClassName = entry.location?.isRuined ? " location-name-label--ruined" : "";
+	const ruinedClassName = entry.location.isRuined  " location-name-label--ruined" : "";
 	return L.divIcon({
 		className: `location-name-label location-name-label--${labelType}${ruinedClassName}`,
 		html: `<span style="font-size:${labelSize}pt; --location-label-offset-x:${offset.x}px; --location-label-offset-y:${offset.y}px;">${escapeHtml(entry.name)}</span>`,

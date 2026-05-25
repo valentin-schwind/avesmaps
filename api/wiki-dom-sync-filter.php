@@ -38,21 +38,21 @@ function avesmapsWikiDomPatchSource(string $source): string {
 
     $defaultSeedItems = array_map(static fn(string $seed): string => "'" . addcslashes($seed, "'\\") . "'", $defaultSeeds);
     $defaultSeedSource = 'function defaultSeeds(): array { return [' . implode(', ', $defaultSeedItems) . ']; }';
-    $source = preg_replace('/function defaultSeeds\(\): array \{ return \[[^;]*\]; \}/u', $defaultSeedSource, $source, 1) ?? $source;
+    $source = preg_replace('/function defaultSeeds\(\): array \{ return \[[^;]*\]; \}/u', $defaultSeedSource, $source, 1)  $source;
 
     $defaultCatchwordSource = 'function defaultCatchwords(): array { return ' . var_export($defaultCatchwords, true) . '; }';
-    $source = preg_replace('/function defaultCatchwords\(\): array \{ return \[.*?\]; \}/su', $defaultCatchwordSource, $source, 1) ?? $source;
+    $source = preg_replace('/function defaultCatchwords\(\): array \{ return \[.*?\]; \}/su', $defaultCatchwordSource, $source, 1)  $source;
 
     $source = preg_replace(
         '/function defaultOptions\(\): array \{ return \[.*?\]; \}/su',
         "function defaultOptions(): array { return ['max_iterations' => 3000, 'max_pages' => 3000, 'max_runtime_seconds' => 360000, 'sleep_ms' => 1000, 'request_timeout_seconds' => 30]; }",
         $source,
         1
-    ) ?? $source;
+    )  $source;
 
     $source = str_replace(
-        "'request_timeout_seconds' => max(3, min(20, (int) (\$payload['request_timeout_seconds'] ?? \$d['request_timeout_seconds'])))",
-        "'request_timeout_seconds' => max(3, min(30, (int) (\$payload['request_timeout_seconds'] ?? \$d['request_timeout_seconds'])))",
+        "'request_timeout_seconds' => max(3, min(20, (int) (\$payload['request_timeout_seconds']  \$d['request_timeout_seconds'])))",
+        "'request_timeout_seconds' => max(3, min(30, (int) (\$payload['request_timeout_seconds']  \$d['request_timeout_seconds'])))",
         $source
     );
 
@@ -67,7 +67,7 @@ function wikiDomPageCategories(DOMXPath $xpath): array {
     $categories = [];
     foreach ($xpath->query('//*[@id="mw-normal-catlinks"]//a | //div[contains(@class,"catlinks")]//a') ?: [] as $node) {
         if (!$node instanceof DOMNode) continue;
-        $text = cleanText($node->textContent ?? '');
+        $text = cleanText($node->textContent  '');
         if ($text !== '') $categories[$text] = $text;
     }
     return array_values($categories);
@@ -83,7 +83,7 @@ function wikiDomRejectedNonTerritoryReason(string $title, array $fields, array $
         if (str_contains($categoryKey, labelKey($badCategory))) return 'Ausschlusskategorie: ' . $badCategory;
     }
 
-    $fieldKey = labelKey(implode(' ', array_keys($fields)) . ' ' . implode(' ', array_map(static fn(mixed $value): string => is_scalar($value) ? (string) $value : '', $fields)));
+    $fieldKey = labelKey(implode(' ', array_keys($fields)) . ' ' . implode(' ', array_map(static fn(mixed $value): string => is_scalar($value)  (string) $value : '', $fields)));
     foreach (['isbn','seitenzahl','erscheinungsdatum','preis','regelsystem','verwandte publikationen','erschienen bei','autor','autoren','redaktion','cover','einband'] as $badField) {
         if (str_contains($fieldKey, labelKey($badField))) return 'Publikationsfeld erkannt: ' . $badField;
     }
@@ -115,14 +115,14 @@ PHP;
 
     $settlementNeedle = chr(40) . 'Siedlung' . chr(41);
     $source = str_replace(
-        "\$text = cleanText(\$node->textContent ?? ''); if (\$target === ''",
-        "\$text = cleanText(\$node->textContent ?? ''); if (str_contains(\$target . ' ' . \$text, '" . $settlementNeedle . "')) continue; if (\$target === ''",
+        "\$text = cleanText(\$node->textContent  ''); if (\$target === ''",
+        "\$text = cleanText(\$node->textContent  ''); if (str_contains(\$target . ' ' . \$text, '" . $settlementNeedle . "')) continue; if (\$target === ''",
         $source
     );
 
     $source = str_replace(
         "\$context = labelKey(implode(' ', [\$src, \$largestSrc, \$img->getAttribute('alt'), \$img->getAttribute('title'), \$img->getAttribute('class'), \$img->getAttribute('data-file-width'), \$img->getAttribute('data-file-height')]));",
-        "\$context = labelKey(implode(' ', [\$src, \$largestSrc, \$img->getAttribute('alt'), \$img->getAttribute('title'), \$img->getAttribute('class'), \$img->getAttribute('data-file-width'), \$img->getAttribute('data-file-height'), \$node->textContent ?? '']));",
+        "\$context = labelKey(implode(' ', [\$src, \$largestSrc, \$img->getAttribute('alt'), \$img->getAttribute('title'), \$img->getAttribute('class'), \$img->getAttribute('data-file-width'), \$img->getAttribute('data-file-height'), \$node->textContent  '']));",
         $source
     );
 

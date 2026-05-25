@@ -27,7 +27,7 @@ function populateRegionParentSelect(region) {
 	if (treeElement.childElementCount === 0) {
 		const emptyElement = document.createElement("p");
 		emptyElement.className = "political-territory-parent-tree__empty";
-		emptyElement.textContent = regionParentFilterQuery !== "" ? "Keine Treffer" : "Keine Hierarchie geladen";
+		emptyElement.textContent = regionParentFilterQuery !== ""  "Keine Treffer" : "Keine Hierarchie geladen";
 		treeElement.append(emptyElement);
 	}
 }
@@ -74,7 +74,7 @@ function buildPoliticalTerritoryTree(excludedPublicId) {
 
 function prunePoliticalTerritoryTreeDuplicatesGlobally(nodes, seenKeys = new Set()) {
 	const result = [];
-	for (const node of Array.isArray(nodes) ? nodes : []) {
+	for (const node of Array.isArray(nodes)  nodes : []) {
 		if (!node || typeof node !== "object") {
 			continue;
 		}
@@ -100,23 +100,23 @@ function prunePoliticalTerritoryTreeDuplicatesGlobally(nodes, seenKeys = new Set
 }
 
 function dedupePoliticalTerritoryTreeNodes(nodes) {
-	const normalizedNodes = (Array.isArray(nodes) ? nodes : [])
+	const normalizedNodes = (Array.isArray(nodes)  nodes : [])
 		.map((node) => dedupePoliticalTerritoryTreeNode(node))
 		.filter(Boolean);
 	const nodesByKey = new Map();
 	for (const node of normalizedNodes) {
-		const dedupeKey = buildPoliticalTerritoryTreeDedupeKey(node?.territory);
+		const dedupeKey = buildPoliticalTerritoryTreeDedupeKey(node.territory);
 		const existingNode = nodesByKey.get(dedupeKey);
 		if (!existingNode) {
 			nodesByKey.set(dedupeKey, node);
 			continue;
 		}
 
-		const winningNode = scorePoliticalTerritoryTreeNode(node) > scorePoliticalTerritoryTreeNode(existingNode) ? node : existingNode;
-		const losingNode = winningNode === node ? existingNode : node;
+		const winningNode = scorePoliticalTerritoryTreeNode(node) > scorePoliticalTerritoryTreeNode(existingNode)  node : existingNode;
+		const losingNode = winningNode === node  existingNode : node;
 		winningNode.children = dedupePoliticalTerritoryTreeNodes([
-			...(Array.isArray(winningNode.children) ? winningNode.children : []),
-			...(Array.isArray(losingNode.children) ? losingNode.children : []),
+			...(Array.isArray(winningNode.children)  winningNode.children : []),
+			...(Array.isArray(losingNode.children)  losingNode.children : []),
 		]);
 		winningNode.territory = mergePoliticalTerritoryTreeDuplicateTerritory(winningNode.territory, losingNode.territory);
 		winningNode.key = `territory:${winningNode.territory.public_id || winningNode.territory.name}`;
@@ -124,7 +124,7 @@ function dedupePoliticalTerritoryTreeNodes(nodes) {
 	}
 
 	return Array.from(nodesByKey.values()).sort((left, right) => {
-		return String(left?.territory?.name || "").localeCompare(String(right?.territory?.name || ""), "de");
+		return String(left.territory.name || "").localeCompare(String(right.territory.name || ""), "de");
 	});
 }
 
@@ -140,8 +140,8 @@ function dedupePoliticalTerritoryTreeNode(node) {
 }
 
 function buildPoliticalTerritoryTreeDedupeKey(territory) {
-	const name = normalizeSearchText(territory?.name || "");
-	const period = normalizeSearchText(territory?.valid_label || buildWikiReferencePeriod(territory));
+	const name = normalizeSearchText(territory.name || "");
+	const period = normalizeSearchText(territory.valid_label || buildWikiReferencePeriod(territory));
 	return [name, period].filter(Boolean).join("|");
 }
 
@@ -151,7 +151,7 @@ function scorePoliticalTerritoryTreeNode(node) {
 	}
 
 	const territory = node.territory || {};
-	const directChildren = Array.isArray(node.children) ? node.children.length : 0;
+	const directChildren = Array.isArray(node.children)  node.children.length : 0;
 	const filledFields = [
 		territory.wiki_url,
 		territory.wiki_name,
@@ -169,8 +169,8 @@ function mergePoliticalTerritoryTreeDuplicateTerritory(primaryTerritory, seconda
 	const primary = primaryTerritory || {};
 	const secondary = secondaryTerritory || {};
 	const mergedAliases = Array.from(new Set([
-		...(Array.isArray(primary.aliases) ? primary.aliases : []),
-		...(Array.isArray(secondary.aliases) ? secondary.aliases : []),
+		...(Array.isArray(primary.aliases)  primary.aliases : []),
+		...(Array.isArray(secondary.aliases)  secondary.aliases : []),
 	]));
 	return {
 		...secondary,
@@ -200,7 +200,7 @@ function clonePoliticalTerritoryHierarchyNode(node) {
 	}
 
 	const isGroup = node.is_group === true || node.isGroup === true;
-	const children = Array.isArray(node.children) ? node.children.map((child) => clonePoliticalTerritoryHierarchyNode(child)).filter(Boolean) : [];
+	const children = Array.isArray(node.children)  node.children.map((child) => clonePoliticalTerritoryHierarchyNode(child)).filter(Boolean) : [];
 	const territory = {
 		public_id: node.public_id || "",
 		name: node.name || "",
@@ -226,16 +226,16 @@ function clonePoliticalTerritoryHierarchyNode(node) {
 		founded_text: node.founded_text || "",
 		dissolved_text: node.dissolved_text || "",
 		coat_of_arms_url: node.coat_of_arms_url || "",
-		aliases: Array.isArray(node.aliases) ? node.aliases : [],
+		aliases: Array.isArray(node.aliases)  node.aliases : [],
 	};
-	const option = territory.public_id ? findPoliticalTerritoryOption(territory.public_id) : null;
-	let mergedTerritory = option ? { ...option, ...territory } : territory;
+	const option = territory.public_id  findPoliticalTerritoryOption(territory.public_id) : null;
+	let mergedTerritory = option  { ...option, ...territory } : territory;
 	if (isGroup && !hasPoliticalTerritoryTreeDisplayDetails(mergedTerritory)) {
 		const representative = findRepresentativePoliticalTerritoryNode({
 			territory: mergedTerritory,
 			children,
 		});
-		if (representative?.territory?.public_id) {
+		if (representative.territory.public_id) {
 			mergedTerritory = mergePoliticalTerritoryTreeGroupNode(territory, representative.territory, option);
 		}
 	}
@@ -268,38 +268,38 @@ function hasPoliticalTerritoryTreeDisplayDetails(territory) {
 
 function mergePoliticalTerritoryTreeGroupNode(groupTerritory, representativeTerritory, option = null) {
 	const mergedAliases = Array.from(new Set([
-		...(Array.isArray(groupTerritory?.aliases) ? groupTerritory.aliases : []),
-		...(Array.isArray(representativeTerritory?.aliases) ? representativeTerritory.aliases : []),
+		...(Array.isArray(groupTerritory.aliases)  groupTerritory.aliases : []),
+		...(Array.isArray(representativeTerritory.aliases)  representativeTerritory.aliases : []),
 	]));
 
 	return {
 		...(option || {}),
 		...(representativeTerritory || {}),
 		...(groupTerritory || {}),
-		public_id: String(groupTerritory?.public_id || representativeTerritory?.public_id || ""),
-		name: groupTerritory?.name || representativeTerritory?.name || "",
-		short_name: groupTerritory?.short_name || representativeTerritory?.short_name || "",
-		type: groupTerritory?.type || representativeTerritory?.type || "",
-		status: groupTerritory?.status || representativeTerritory?.status || "",
-		form_of_government: groupTerritory?.form_of_government || representativeTerritory?.form_of_government || "",
-		valid_label: groupTerritory?.valid_label || representativeTerritory?.valid_label || "",
-		parent_public_id: groupTerritory?.parent_public_id || representativeTerritory?.parent_public_id || "",
-		parent_name: groupTerritory?.parent_name || representativeTerritory?.parent_name || "",
-		wiki_name: groupTerritory?.wiki_name || representativeTerritory?.wiki_name || representativeTerritory?.name || "",
-		wiki_affiliation_raw: groupTerritory?.wiki_affiliation_raw || representativeTerritory?.wiki_affiliation_raw || "",
-		wiki_affiliation_root: groupTerritory?.wiki_affiliation_root || representativeTerritory?.wiki_affiliation_root || "",
-		wiki_url: groupTerritory?.wiki_url || representativeTerritory?.wiki_url || "",
-		capital_name: groupTerritory?.capital_name || representativeTerritory?.capital_name || "",
-		seat_name: groupTerritory?.seat_name || representativeTerritory?.seat_name || "",
-		ruler: groupTerritory?.ruler || representativeTerritory?.ruler || "",
-		founder: groupTerritory?.founder || representativeTerritory?.founder || "",
-		language: groupTerritory?.language || representativeTerritory?.language || "",
-		currency: groupTerritory?.currency || representativeTerritory?.currency || "",
-		trade_goods: groupTerritory?.trade_goods || representativeTerritory?.trade_goods || "",
-		population: groupTerritory?.population || representativeTerritory?.population || "",
-		founded_text: groupTerritory?.founded_text || representativeTerritory?.founded_text || "",
-		dissolved_text: groupTerritory?.dissolved_text || representativeTerritory?.dissolved_text || "",
-		coat_of_arms_url: groupTerritory?.coat_of_arms_url || representativeTerritory?.coat_of_arms_url || "",
+		public_id: String(groupTerritory.public_id || representativeTerritory.public_id || ""),
+		name: groupTerritory.name || representativeTerritory.name || "",
+		short_name: groupTerritory.short_name || representativeTerritory.short_name || "",
+		type: groupTerritory.type || representativeTerritory.type || "",
+		status: groupTerritory.status || representativeTerritory.status || "",
+		form_of_government: groupTerritory.form_of_government || representativeTerritory.form_of_government || "",
+		valid_label: groupTerritory.valid_label || representativeTerritory.valid_label || "",
+		parent_public_id: groupTerritory.parent_public_id || representativeTerritory.parent_public_id || "",
+		parent_name: groupTerritory.parent_name || representativeTerritory.parent_name || "",
+		wiki_name: groupTerritory.wiki_name || representativeTerritory.wiki_name || representativeTerritory.name || "",
+		wiki_affiliation_raw: groupTerritory.wiki_affiliation_raw || representativeTerritory.wiki_affiliation_raw || "",
+		wiki_affiliation_root: groupTerritory.wiki_affiliation_root || representativeTerritory.wiki_affiliation_root || "",
+		wiki_url: groupTerritory.wiki_url || representativeTerritory.wiki_url || "",
+		capital_name: groupTerritory.capital_name || representativeTerritory.capital_name || "",
+		seat_name: groupTerritory.seat_name || representativeTerritory.seat_name || "",
+		ruler: groupTerritory.ruler || representativeTerritory.ruler || "",
+		founder: groupTerritory.founder || representativeTerritory.founder || "",
+		language: groupTerritory.language || representativeTerritory.language || "",
+		currency: groupTerritory.currency || representativeTerritory.currency || "",
+		trade_goods: groupTerritory.trade_goods || representativeTerritory.trade_goods || "",
+		population: groupTerritory.population || representativeTerritory.population || "",
+		founded_text: groupTerritory.founded_text || representativeTerritory.founded_text || "",
+		dissolved_text: groupTerritory.dissolved_text || representativeTerritory.dissolved_text || "",
+		coat_of_arms_url: groupTerritory.coat_of_arms_url || representativeTerritory.coat_of_arms_url || "",
 		aliases: mergedAliases,
 	};
 }
@@ -309,7 +309,7 @@ function findRepresentativePoliticalTerritoryNode(node) {
 		return null;
 	}
 
-	const rootName = normalizeSearchText(node.territory?.name || "");
+	const rootName = normalizeSearchText(node.territory.name || "");
 	let bestNode = null;
 	let bestScore = Number.NEGATIVE_INFINITY;
 	let bestNameMatchScore = Number.NEGATIVE_INFINITY;
@@ -320,7 +320,7 @@ function findRepresentativePoliticalTerritoryNode(node) {
 		}
 
 		let descendantCount = 0;
-		for (const child of Array.isArray(currentNode.children) ? currentNode.children : []) {
+		for (const child of Array.isArray(currentNode.children)  currentNode.children : []) {
 			descendantCount += visit(child);
 		}
 
@@ -333,7 +333,7 @@ function findRepresentativePoliticalTerritoryNode(node) {
 				territory.name,
 				territory.short_name,
 				territory.wiki_name,
-				...(Array.isArray(territory.aliases) ? territory.aliases : []),
+				...(Array.isArray(territory.aliases)  territory.aliases : []),
 			].map((value) => normalizeSearchText(value)).filter(Boolean);
 			for (const alias of aliases) {
 				if (!rootName || !alias) {
@@ -374,7 +374,7 @@ function renderPoliticalTerritoryTreeNode(node, region, depth) {
 
 	const wrapper = document.createElement("div");
 	wrapper.className = node.isGroup
-		? "political-territory-parent-tree__node political-territory-parent-tree__node--group"
+		 "political-territory-parent-tree__node political-territory-parent-tree__node--group"
 		: "political-territory-parent-tree__node";
 	wrapper.style.setProperty("--territory-tree-depth", String(Math.min(depth, 8)));
 	const hasChildren = node.children.length > 0;
@@ -383,7 +383,7 @@ function renderPoliticalTerritoryTreeNode(node, region, depth) {
 		button.dataset.regionTreeToggle = node.key;
 		const isNodeCollapsed = isPoliticalTerritoryTreeNodeCollapsed(node);
 		button.classList.toggle("is-collapsed", isNodeCollapsed);
-		button.setAttribute("aria-expanded", isNodeCollapsed ? "false" : "true");
+		button.setAttribute("aria-expanded", isNodeCollapsed  "false" : "true");
 	}
 	wrapper.append(button);
 	const isCollapsed = isPoliticalTerritoryTreeNodeCollapsed(node);
@@ -433,7 +433,7 @@ function getPoliticalTerritoryTreeSearchText(territory) {
 		territory.capital_name,
 		territory.seat_name,
 		territory.ruler,
-		...(Array.isArray(territory.aliases) ? territory.aliases : []),
+		...(Array.isArray(territory.aliases)  territory.aliases : []),
 	].filter(Boolean).join(" "));
 }
 
@@ -447,7 +447,7 @@ function createRegionParentTreeButton(territory, region, { isGroup = false, hasC
 	if (isGroup) {
 		button.dataset.regionTreeGroup = "1";
 	}
-	button.dataset.regionTreeLeaf = hasChildren ? "0" : "1";
+	button.dataset.regionTreeLeaf = hasChildren  "0" : "1";
 	button.draggable = Boolean(territory.public_id) && !hasChildren;
 	button.classList.toggle("is-selected", Boolean(territory.public_id) && territory.public_id === regionParentSelectedTreeId);
 	button.innerHTML = `
@@ -464,13 +464,13 @@ function createRegionParentTreeButton(territory, region, { isGroup = false, hasC
 	].filter(Boolean).join(" · "));
 	button.querySelector(".political-territory-parent-tree__summary").textContent = normalizeParentheticalSpacing([
 		territory.valid_label,
-		territory.capital_name ? `Hauptstadt: ${territory.capital_name}` : "",
-		territory.ruler ? `Oberhaupt: ${territory.ruler}` : "",
+		territory.capital_name  `Hauptstadt: ${territory.capital_name}` : "",
+		territory.ruler  `Oberhaupt: ${territory.ruler}` : "",
 	].filter(Boolean).join(" · "));
 	button.querySelector(".political-territory-parent-tree__wiki").textContent = normalizeParentheticalSpacing([
-		territory.wiki_name ? `Wiki: ${territory.wiki_name}` : "",
+		territory.wiki_name  `Wiki: ${territory.wiki_name}` : "",
 		territory.wiki_affiliation_root || territory.wiki_affiliation_raw || "",
-		territory.wiki_url ? "Wiki" : "",
+		territory.wiki_url  "Wiki" : "",
 	].filter(Boolean).join(" · "));
 	return button;
 }
@@ -492,7 +492,7 @@ function escapeRegExp(value) {
 }
 
 function formatPoliticalTerritoryTreeDisplayName(territory) {
-	const baseName = formatPoliticalTerritoryDisplayBaseName(territory?.name || "Kein Parent");
+	const baseName = formatPoliticalTerritoryDisplayBaseName(territory.name || "Kein Parent");
 	if (!territory || !territory.public_id || baseName === "Kein Parent") {
 		return baseName;
 	}
@@ -513,18 +513,18 @@ function formatPoliticalTerritoryTreeDisplayName(territory) {
 	});
 
 	if (duplicates.length < 1) {
-		return periodLabel ? `${baseName} [${periodLabel}]` : baseName;
+		return periodLabel  `${baseName} [${periodLabel}]` : baseName;
 	}
 
 	const disambiguator = normalizeParentheticalSpacing(territory.type || territory.wiki_name || territory.short_name || "");
 	if (disambiguator !== "") {
 		return periodLabel
-			? `${baseName} (${disambiguator}) [${periodLabel}]`
+			 `${baseName} (${disambiguator}) [${periodLabel}]`
 			: `${baseName} (${disambiguator})`;
 	}
 
 	return periodLabel
-		? `${baseName} (${String(territory.public_id).slice(0, 8)}) [${periodLabel}]`
+		 `${baseName} (${String(territory.public_id).slice(0, 8)}) [${periodLabel}]`
 		: `${baseName} (${String(territory.public_id).slice(0, 8)})`;
 }
 
@@ -542,14 +542,14 @@ function renderRegionWikiReference(region) {
 		["Zeitraum", region.validLabel || region.valid_label || buildWikiReferencePeriod(region)],
 		["Zugehoerigkeit", region.wikiAffiliationRaw || region.wiki_affiliation_raw || region.affiliation],
 		["Wurzel", region.wikiAffiliationRoot || region.wiki_affiliation_root || region.affiliationRoot],
-		["Hauptstadt", region.feature?.properties?.capital_name || region.wikiCapitalName || region.wiki_capital_name || ""],
-		["Herrschaftssitz", region.feature?.properties?.seat_name || region.wikiSeatName || region.wiki_seat_name || ""],
+		["Hauptstadt", region.feature.properties.capital_name || region.wikiCapitalName || region.wiki_capital_name || ""],
+		["Herrschaftssitz", region.feature.properties.seat_name || region.wikiSeatName || region.wiki_seat_name || ""],
 		["Wiki", wikiUrl],
 	].filter(([, value]) => String(value || "").trim() !== "");
 	listElement.innerHTML = rows.map(([label, value]) => {
 		const displayValue = normalizeParentheticalSpacing(value);
 		const valueMarkup = label === "Wiki"
-			? `<a href="${escapeHtml(displayValue)}" target="_blank" rel="noopener noreferrer">${escapeHtml(displayValue)}</a>`
+			 `<a href="${escapeHtml(displayValue)}" target="_blank" rel="noopener noreferrer">${escapeHtml(displayValue)}</a>`
 			: escapeHtml(displayValue);
 		return `<dt>${escapeHtml(label)}</dt><dd>${valueMarkup}</dd>`;
 	}).join("");
@@ -565,21 +565,21 @@ function buildWikiReferencePeriod(region) {
 }
 
 function formatPoliticalTerritoryZoomRange(minZoom, maxZoom) {
-	const parsedMin = Number.parseInt(String(minZoom ?? ""), 10);
-	const parsedMax = Number.parseInt(String(maxZoom ?? ""), 10);
-	const minValue = Number.isFinite(parsedMin) ? parsedMin : null;
-	const maxValue = Number.isFinite(parsedMax) ? parsedMax : null;
+	const parsedMin = Number.parseInt(String(minZoom  ""), 10);
+	const parsedMax = Number.parseInt(String(maxZoom  ""), 10);
+	const minValue = Number.isFinite(parsedMin)  parsedMin : null;
+	const maxValue = Number.isFinite(parsedMax)  parsedMax : null;
 	if (minValue === null && maxValue === null) {
 		return "Zoom offen";
 	}
 
-	const minText = minValue === null ? "–" : String(minValue);
-	const maxText = maxValue === null ? "–" : String(maxValue);
+	const minText = minValue === null  "–" : String(minValue);
+	const maxText = maxValue === null  "–" : String(maxValue);
 	return `Zoom ${minText}-${maxText}`;
 }
 
 function readOptionalPoliticalTerritoryZoomValue(value) {
-	const text = String(value ?? "").trim();
+	const text = String(value  "").trim();
 	if (text === "") {
 		return null;
 	}
@@ -607,29 +607,29 @@ function normalizePoliticalTerritoryZoomDraft(minValue, maxValue, changedField =
 	return {
 		minNumber: normalizedMin,
 		maxNumber: normalizedMax,
-		minText: normalizedMin === null ? "" : String(normalizedMin),
-		maxText: normalizedMax === null ? "" : String(normalizedMax),
+		minText: normalizedMin === null  "" : String(normalizedMin),
+		maxText: normalizedMax === null  "" : String(normalizedMax),
 	};
 }
 
 function clonePoliticalTerritoryPathNode(node) {
 	return {
 		territory: {
-			...(node?.territory || {}),
+			...(node.territory || {}),
 		},
 	};
 }
 
 function clonePoliticalTerritoryPath(path) {
-	return Array.isArray(path) ? path.map((node) => clonePoliticalTerritoryPathNode(node)) : [];
+	return Array.isArray(path)  path.map((node) => clonePoliticalTerritoryPathNode(node)) : [];
 }
 
 function clonePoliticalTerritoryChain(chain) {
 	return Array.isArray(chain)
-		? chain.map((node) => ({
+		 chain.map((node) => ({
 			...node,
-			territory: node?.territory ? { ...node.territory } : node?.territory || null,
-			wiki: node?.wiki ? { ...node.wiki } : node?.wiki || null,
+			territory: node.territory  { ...node.territory } : node.territory || null,
+			wiki: node.wiki  { ...node.wiki } : node.wiki || null,
 		}))
 		: [];
 }

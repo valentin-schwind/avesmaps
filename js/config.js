@@ -109,9 +109,9 @@ function getDefaultLocationReportEndpointUrl() {
 
 const DEFAULT_LOCATION_REPORT_ENDPOINT_URL = getDefaultLocationReportEndpointUrl();
 const LOCATION_REPORT_FORM_ENDPOINT_URL = window.AVESMAPS_LOCATION_REPORT_ENDPOINT || DEFAULT_LOCATION_REPORT_ENDPOINT_URL;
-const MAP_FEATURES_API_URL = window.AVESMAPS_MAP_FEATURES_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/map-features.php" : "");
-const POLITICAL_TERRITORIES_API_URL = window.AVESMAPS_POLITICAL_TERRITORIES_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/political-territories.php" : "");
-const MAP_SEARCH_API_URL = window.AVESMAPS_MAP_SEARCH_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/map-search.php" : "");
+const MAP_FEATURES_API_URL = window.AVESMAPS_MAP_FEATURES_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname)  "api/map-features.php" : "");
+const POLITICAL_TERRITORIES_API_URL = window.AVESMAPS_POLITICAL_TERRITORIES_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname)  "api/political-territories.php" : "");
+const MAP_SEARCH_API_URL = window.AVESMAPS_MAP_SEARCH_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname)  "api/map-search.php" : "");
 const INITIAL_SEARCH_PARAMS = new URLSearchParams(window.location.search);
 const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
 const MAP_TILE_STYLES = {
@@ -270,14 +270,14 @@ function clonePoliticalTerritoryGeometryFallbackFeature(feature, sourceZoom) {
 }
 
 function getPoliticalTerritoryGeometryMergeKey(feature) {
-	const properties = feature?.properties || {};
-	return String(properties.geometry_public_id || properties.public_id || feature?.id || "");
+	const properties = feature.properties || {};
+	return String(properties.geometry_public_id || properties.public_id || feature.id || "");
 }
 
 function mergePoliticalTerritoryLayerGeometryFeatures(baseLayer, fallbackLayers) {
 	const mergedLayer = {
 		...baseLayer,
-		features: Array.isArray(baseLayer.features) ? [...baseLayer.features] : [],
+		features: Array.isArray(baseLayer.features)  [...baseLayer.features] : [],
 	};
 	const existingGeometryKeys = new Set(
 		mergedLayer.features
@@ -286,8 +286,8 @@ function mergePoliticalTerritoryLayerGeometryFeatures(baseLayer, fallbackLayers)
 	);
 
 	fallbackLayers.forEach((fallbackLayer) => {
-		const sourceZoom = Number(fallbackLayer?.zoom);
-		(fallbackLayer?.features || []).forEach((feature) => {
+		const sourceZoom = Number(fallbackLayer.zoom);
+		(fallbackLayer.features || []).forEach((feature) => {
 			const geometryKey = getPoliticalTerritoryGeometryMergeKey(feature);
 			if (!geometryKey || existingGeometryKeys.has(geometryKey)) {
 				return;
@@ -309,7 +309,7 @@ async function readPoliticalTerritoryLayerFallbacks(originalFetch, requestUrl, i
 		return cachedEntry.promise;
 	}
 
-	const currentZoom = Number(currentLayer?.zoom ?? requestUrl.searchParams.get("zoom"));
+	const currentZoom = Number(currentLayer.zoom  requestUrl.searchParams.get("zoom"));
 	const fallbackPromise = Promise.all(
 		POLITICAL_TERRITORY_LAYER_ZOOM_LEVELS
 			.filter((zoomLevel) => zoomLevel !== currentZoom)
@@ -318,18 +318,18 @@ async function readPoliticalTerritoryLayerFallbacks(originalFetch, requestUrl, i
 				fallbackUrl.searchParams.set("zoom", String(zoomLevel));
 				try {
 					const response = await originalFetch(fallbackUrl.toString(), {
-						credentials: init?.credentials,
-						headers: init?.headers,
-						signal: init?.signal,
+						credentials: init.credentials,
+						headers: init.headers,
+						signal: init.signal,
 					});
 					if (!response.ok) {
 						return null;
 					}
 
 					const layer = await response.json();
-					return layer?.ok && Array.isArray(layer.features) ? layer : null;
+					return layer.ok && Array.isArray(layer.features)  layer : null;
 				} catch (error) {
-					if (error?.name !== "AbortError") {
+					if (error.name !== "AbortError") {
 						console.warn("Herrschaftsgebiets-Geometrien konnten fuer eine Zoomstufe nicht nachgeladen werden:", error);
 					}
 					return null;
@@ -367,7 +367,7 @@ function installPoliticalTerritoryLayerGeometryMerge() {
 			return response;
 		}
 
-		if (!currentLayer?.ok || !Array.isArray(currentLayer.features)) {
+		if (!currentLayer.ok || !Array.isArray(currentLayer.features)) {
 			return response;
 		}
 
@@ -417,11 +417,11 @@ function installPoliticalRegionVisibilityBehavior() {
 		});
 
 		regionLabels.forEach((label) => {
-			const regionEntry = regionData.find((entry) => entry?._normalizedRegionEntry?.label === label)
-				|| regionPolygons.map((polygon) => polygon?._regionEntry).find((entry) => entry?.label === label)
+			const regionEntry = regionData.find((entry) => entry._normalizedRegionEntry.label === label)
+				|| regionPolygons.map((polygon) => polygon._regionEntry).find((entry) => entry.label === label)
 				|| null;
-			const minZoom = readOptionalRegionZoom(regionEntry?.minZoom);
-			const maxZoom = readOptionalRegionZoom(regionEntry?.maxZoom);
+			const minZoom = readOptionalRegionZoom(regionEntry.minZoom);
+			const maxZoom = readOptionalRegionZoom(regionEntry.maxZoom);
 			const isVisibleAtZoom = (minZoom === null || minZoom <= currentZoom) && (maxZoom === null || maxZoom >= currentZoom);
 
 			if (showRegions && isVisibleAtZoom) {

@@ -53,7 +53,7 @@ function refreshRegionEditHandles() {
 			deleteRegionNode(index);
 		});
 
-		const element = handle.getElement?.();
+		const element = handle.getElement.();
 		if (element) {
 			L.DomEvent.disableClickPropagation(element);
 			L.DomEvent.disableScrollPropagation(element);

@@ -1,36 +1,36 @@
 "use strict";
 (function () {
 function normalizeWikiSyncTerritoryTransferText(value) {
-	return String(value ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+	return String(value  "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function parseWikiSyncTerritoryTransferNumber(value) {
 	if (value === "" || value === null || typeof value === "undefined") return null;
 	const number = Number(value);
-	return Number.isFinite(number) ? Math.round(number) : null;
+	return Number.isFinite(number)  Math.round(number) : null;
 }
 
 function readWikiSyncTerritoryStartYear(row = {}) {
-	return parseWikiSyncTerritoryTransferNumber(row.founded_display_bf ?? row.founded_start_bf ?? row.founded_end_bf ?? null);
+	return parseWikiSyncTerritoryTransferNumber(row.founded_display_bf  row.founded_start_bf  row.founded_end_bf  null);
 }
 
 function readWikiSyncTerritoryEndYear(row = {}) {
-	return parseWikiSyncTerritoryTransferNumber(row.dissolved_display_bf ?? row.dissolved_start_bf ?? row.dissolved_end_bf ?? null);
+	return parseWikiSyncTerritoryTransferNumber(row.dissolved_display_bf  row.dissolved_start_bf  row.dissolved_end_bf  null);
 }
 
 function formatWikiSyncTerritoryNodePeriod(row = {}) {
 	const startYear = readWikiSyncTerritoryStartYear(row);
 	const endYear = readWikiSyncTerritoryEndYear(row);
 	if (startYear === null && endYear === null) return "";
-	const startText = startYear === null ? "?" : `${startYear} BF`;
-	const endText = endYear === null ? "heute" : `${endYear} BF`;
+	const startText = startYear === null  "?" : `${startYear} BF`;
+	const endText = endYear === null  "heute" : `${endYear} BF`;
 	return `${startText} - ${endText}`;
 }
 
 function formatWikiSyncTerritoryNodeLabel(row = {}, fallbackLabel = "") {
 	const baseName = normalizeWikiSyncTerritoryTransferText(row.name || fallbackLabel || "Herrschaftsgebiet");
 	const period = formatWikiSyncTerritoryNodePeriod(row);
-	return period ? `${baseName} (${period})` : baseName;
+	return period  `${baseName} (${period})` : baseName;
 }
 
 function stripWikiSyncTerritoryPeriodLabel(label) {
@@ -39,7 +39,7 @@ function stripWikiSyncTerritoryPeriodLabel(label) {
 
 function defaultWikiSyncTerritoryZoomRange(chainLength, index) {
 	if (chainLength <= 1) return { zoomMin: 0, zoomMax: 6 };
-	if (chainLength === 2) return index === 0 ? { zoomMin: 0, zoomMax: 1 } : { zoomMin: 2, zoomMax: 6 };
+	if (chainLength === 2) return index === 0  { zoomMin: 0, zoomMax: 1 } : { zoomMin: 2, zoomMax: 6 };
 	if (chainLength === 3) {
 		if (index === 0) return { zoomMin: 0, zoomMax: 1 };
 		if (index === 1) return { zoomMin: 2, zoomMax: 2 };
@@ -69,7 +69,7 @@ function defaultWikiSyncTerritoryZoomRange(chainLength, index) {
 function installWikiSyncTerritoryTreeDisplayPatch() {
 	const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
 	if (!treeModule || treeModule.__avesmapsPeriodLabelPatch === true || typeof treeModule.buildTree !== "function") {
-		return Boolean(treeModule?.__avesmapsPeriodLabelPatch);
+		return Boolean(treeModule.__avesmapsPeriodLabelPatch);
 	}
 	treeModule.__avesmapsPeriodLabelPatch = true;
 	return true;
@@ -81,27 +81,27 @@ function readWikiSyncTerritoryDragPayload(dataTransfer) {
 	if (!rawJson) return null;
 	try {
 		const payload = JSON.parse(rawJson);
-		return payload && Array.isArray(payload.path) && payload.path.length > 0 ? payload : null;
+		return payload && Array.isArray(payload.path) && payload.path.length > 0  payload : null;
 	} catch (error) {
 		return null;
 	}
 }
 
 function createWikiSyncTerritoryTransferReference(node) {
-	const row = node?.row || {};
-	const wikiKey = normalizeWikiSyncTerritoryTransferText(row.wiki_key || node?.id || "");
-	const name = normalizeWikiSyncTerritoryTransferText(row.name || stripWikiSyncTerritoryPeriodLabel(node?.label || ""));
+	const row = node.row || {};
+	const wikiKey = normalizeWikiSyncTerritoryTransferText(row.wiki_key || node.id || "");
+	const name = normalizeWikiSyncTerritoryTransferText(row.name || stripWikiSyncTerritoryPeriodLabel(node.label || ""));
 	const endYear = readWikiSyncTerritoryEndYear(row);
 	return {
-		id: node?.id || wikiKey || name,
-		key: wikiKey || node?.id || name,
-		label: formatWikiSyncTerritoryNodeLabel(row, node?.label || name),
+		id: node.id || wikiKey || name,
+		key: wikiKey || node.id || name,
+		label: formatWikiSyncTerritoryNodeLabel(row, node.label || name),
 		name,
-		kind: node?.kind || row.type || "Herrschaftsgebiet",
+		kind: node.kind || row.type || "Herrschaftsgebiet",
 		wikiKey,
-		rowId: row.id ?? null,
+		rowId: row.id  null,
 		territoryPublicId: normalizeWikiSyncTerritoryTransferText(row.public_id || ""),
-		territoryId: row.territory_id ?? null,
+		territoryId: row.territory_id  null,
 		type: normalizeWikiSyncTerritoryTransferText(row.type || "Herrschaftsgebiet"),
 		status: normalizeWikiSyncTerritoryTransferText(row.status || ""),
 		validLabel: normalizeWikiSyncTerritoryTransferText(row.valid_label || ""),
@@ -117,7 +117,7 @@ function createWikiSyncTerritoryTransferReference(node) {
 
 function createWikiSyncTerritoryDragPayloadFromNode(node) {
 	const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
-	const pathNodes = typeof treeModule?.getNodePath === "function" ? treeModule.getNodePath(node) : [];
+	const pathNodes = typeof treeModule.getNodePath === "function"  treeModule.getNodePath(node) : [];
 	const path = pathNodes.map(createWikiSyncTerritoryTransferReference);
 	path.forEach((entry, index) => {
 		entry.path = path.slice(0, index + 1).map((part) => part.label);
@@ -128,12 +128,12 @@ function createWikiSyncTerritoryDragPayloadFromNode(node) {
 
 function enhanceWikiSyncTerritoryDragEvent(event) {
 	const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
-	const rows = Array.isArray(window.wikiSyncTerritoryTreeRowsCache) ? window.wikiSyncTerritoryTreeRowsCache : [];
+	const rows = Array.isArray(window.wikiSyncTerritoryTreeRowsCache)  window.wikiSyncTerritoryTreeRowsCache : [];
 	if (!treeModule || typeof treeModule.buildTree !== "function" || rows.length < 1 || !event.dataTransfer) return;
 	const nodeId = normalizeWikiSyncTerritoryTransferText(event.dataTransfer.getData("application/x-avesmaps-territory-node-id") || event.dataTransfer.getData("text/plain"));
 	if (!nodeId) return;
 	const fullTree = treeModule.buildTree(rows);
-	const node = fullTree?.nodeRegistry instanceof Map ? fullTree.nodeRegistry.get(nodeId) : null;
+	const node = fullTree.nodeRegistry instanceof Map  fullTree.nodeRegistry.get(nodeId) : null;
 	if (!node) return;
 	const payload = createWikiSyncTerritoryDragPayloadFromNode(node);
 	if (!payload.path.length) return;
@@ -154,14 +154,14 @@ function wikiSyncTerritoryReferenceToAssignmentNode(reference = {}) {
 			wiki_name: reference.name || stripWikiSyncTerritoryPeriodLabel(reference.label || ""),
 			wiki_url: reference.wikiUrl || "",
 			coat_of_arms_url: reference.coatOfArmsUrl || "",
-			valid_from_bf: reference.startYear ?? null,
-			valid_to_bf: reference.existsUntilToday ? null : reference.endYear ?? null,
+			valid_from_bf: reference.startYear  null,
+			valid_to_bf: reference.existsUntilToday  null : reference.endYear  null,
 		},
 	};
 }
 
 function buildWikiSyncTerritoryAssignmentValueFromPayload(payload) {
-	const path = Array.isArray(payload?.path) ? payload.path : [];
+	const path = Array.isArray(payload.path)  payload.path : [];
 	const assignedPath = path.map((entry, index) => ({
 		id: entry.id || entry.key || entry.wikiKey || entry.name || "",
 		key: entry.key || entry.wikiKey || entry.id || entry.name || "",
@@ -169,9 +169,9 @@ function buildWikiSyncTerritoryAssignmentValueFromPayload(payload) {
 		kind: entry.type || entry.kind || "Herrschaftsgebiet",
 		isSynthetic: false,
 		wikiKey: entry.wikiKey || entry.key || "",
-		rowId: entry.rowId ?? null,
+		rowId: entry.rowId  null,
 		territoryPublicId: entry.territoryPublicId || "",
-		territoryId: entry.territoryId ?? null,
+		territoryId: entry.territoryId  null,
 		path: path.slice(0, index + 1).map((part) => part.name || stripWikiSyncTerritoryPeriodLabel(part.label || "")),
 		pathKeys: path.slice(0, index + 1).map((part) => part.wikiKey || part.key || part.id || ""),
 	}));
@@ -181,9 +181,9 @@ function buildWikiSyncTerritoryAssignmentValueFromPayload(payload) {
 			nodeId: entry.id || entry.key || entry.wikiKey || entry.name || "",
 			nodeKey: entry.key || entry.wikiKey || entry.id || entry.name || "",
 			wikiKey: entry.wikiKey || entry.key || "",
-			rowId: entry.rowId ?? null,
+			rowId: entry.rowId  null,
 			territoryPublicId: entry.territoryPublicId || "",
-			territoryId: entry.territoryId ?? null,
+			territoryId: entry.territoryId  null,
 			name: entry.name || stripWikiSyncTerritoryPeriodLabel(entry.label || ""),
 			displayName: entry.name || stripWikiSyncTerritoryPeriodLabel(entry.label || ""),
 			coatOfArmsUrl: entry.coatOfArmsUrl || "",
@@ -191,8 +191,8 @@ function buildWikiSyncTerritoryAssignmentValueFromPayload(payload) {
 			zoomMax: zoom.zoomMax,
 			color: "#888888",
 			opacity: 0.33,
-			startYear: entry.startYear ?? null,
-			endYear: entry.existsUntilToday ? null : entry.endYear ?? null,
+			startYear: entry.startYear  null,
+			endYear: entry.existsUntilToday  null : entry.endYear  null,
 			existsUntilToday: Boolean(entry.existsUntilToday),
 			depth: index,
 			path: path.slice(0, index + 1).map((part) => part.name || stripWikiSyncTerritoryPeriodLabel(part.label || "")),
@@ -205,7 +205,7 @@ function buildWikiSyncTerritoryAssignmentValueFromPayload(payload) {
 		assignedPath,
 		editedPath: assignedPath,
 		displays,
-		display: selectedDisplay ? {
+		display: selectedDisplay  {
 			name: selectedDisplay.displayName,
 			displayName: selectedDisplay.displayName,
 			coatOfArmsUrl: selectedDisplay.coatOfArmsUrl,
@@ -214,7 +214,7 @@ function buildWikiSyncTerritoryAssignmentValueFromPayload(payload) {
 			color: selectedDisplay.color,
 			opacity: selectedDisplay.opacity,
 		} : {},
-		validity: selectedDisplay ? {
+		validity: selectedDisplay  {
 			startYear: selectedDisplay.startYear,
 			endYear: selectedDisplay.endYear,
 			existsUntilToday: selectedDisplay.existsUntilToday,
@@ -223,21 +223,21 @@ function buildWikiSyncTerritoryAssignmentValueFromPayload(payload) {
 }
 
 function buildWikiSyncTerritoryWikiNodesFromPayload(payload, displays) {
-	const path = Array.isArray(payload?.path) ? payload.path : [];
+	const path = Array.isArray(payload.path)  payload.path : [];
 	return path.map((entry, index) => ({
 		key: entry.wikiKey || entry.key || entry.id || "",
 		territoryPublicId: entry.territoryPublicId || "",
-		territoryId: entry.territoryId ?? null,
+		territoryId: entry.territoryId  null,
 		name: entry.name || stripWikiSyncTerritoryPeriodLabel(entry.label || ""),
 		type: entry.type || entry.kind || "Herrschaftsgebiet",
 		status: entry.status || "",
-		coat_of_arms_url: entry.coatOfArmsUrl || displays[index]?.coatOfArmsUrl || "",
+		coat_of_arms_url: entry.coatOfArmsUrl || displays[index].coatOfArmsUrl || "",
 		wiki_url: entry.wikiUrl || "",
 		valid_label: entry.validLabel || "",
-		founded_start_bf: entry.startYear ?? null,
-		founded_display_bf: entry.startYear ?? null,
-		dissolved_start_bf: entry.existsUntilToday ? null : entry.endYear ?? null,
-		dissolved_display_bf: entry.existsUntilToday ? null : entry.endYear ?? null,
+		founded_start_bf: entry.startYear  null,
+		founded_display_bf: entry.startYear  null,
+		dissolved_start_bf: entry.existsUntilToday  null : entry.endYear  null,
+		dissolved_display_bf: entry.existsUntilToday  null : entry.endYear  null,
 	}));
 }
 
@@ -264,10 +264,10 @@ async function assignWikiSyncTerritoryPayloadToRegionGeometry(payload, regionEnt
 }
 
 async function assignWikiSyncTerritoryPayloadInsideLegacyEditor(payload) {
-	if (!payload?.path?.length || typeof ensurePoliticalTerritoryChainFromWikiPath !== "function") return false;
+	if (!payload.path.length || typeof ensurePoliticalTerritoryChainFromWikiPath !== "function") return false;
 	const path = payload.path.map(wikiSyncTerritoryReferenceToAssignmentNode);
 	const selected = path[path.length - 1] || null;
-	const selectedPublicId = String(selected?.territory?.public_id || "").trim();
+	const selectedPublicId = String(selected.territory.public_id || "").trim();
 	if (!selected || !selectedPublicId) return false;
 	regionAssignmentWikiPath = path;
 	regionAssignmentEnsuredChain = [];
@@ -276,7 +276,7 @@ async function assignWikiSyncTerritoryPayloadInsideLegacyEditor(payload) {
 	renderRegionAssignment(path, regionAssignmentEnsuredChain, selectedPublicId);
 	setRegionEditStatus("Wiki-Hierarchie wird dem Gebiet zugewiesen...", "pending");
 	const response = await ensurePoliticalTerritoryChainFromWikiPath(path);
-	const selectedTerritoryId = response.selected?.territory?.public_id || "";
+	const selectedTerritoryId = response.selected.territory.public_id || "";
 	if (!selectedTerritoryId) throw new Error("Das Herrschaftsgebiet konnte nicht aus dem Wiki-Knoten erzeugt werden.");
 	regionAssignmentActiveWikiPublicId = selectedTerritoryId;
 	storeRegionAssignmentBreadcrumbCaches(path, response.chain || [], selectedTerritoryId);
@@ -294,7 +294,7 @@ function findRegionLayerForWikiSyncDrop(event) {
 }
 
 function isEventTargetInsideSelector(event, selector) {
-	const target = event?.target;
+	const target = event.target;
 	return target instanceof Element && typeof target.closest === "function" && Boolean(target.closest(selector));
 }
 
@@ -336,7 +336,7 @@ function initializeWikiSyncTerritoryDragAssignment() {
 		event.preventDefault();
 		event.stopPropagation();
 		const regionLayer = findRegionLayerForWikiSyncDrop(event);
-		const regionEntry = regionLayer?._regionEntry || null;
+		const regionEntry = regionLayer._regionEntry || null;
 		if (!regionEntry || regionEntry.source !== "political_territory") {
 			if (typeof showFeedbackToast === "function") showFeedbackToast("Bitte auf eine Herrschaftsgebiets-Geometrie ziehen.", "warning");
 			return;

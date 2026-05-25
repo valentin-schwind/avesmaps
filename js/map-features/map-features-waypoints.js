@@ -23,8 +23,8 @@ function getWaypointAutocompleteSource(term = "") {
 	return waypointNames.sort((a, b) => {
 		const normalizedA = normalizeLocationSearchName(a);
 		const normalizedB = normalizeLocationSearchName(b);
-		const aPrefix = normalizedTerm && normalizedA.startsWith(normalizedTerm) ? 0 : 1;
-		const bPrefix = normalizedTerm && normalizedB.startsWith(normalizedTerm) ? 0 : 1;
+		const aPrefix = normalizedTerm && normalizedA.startsWith(normalizedTerm)  0 : 1;
+		const bPrefix = normalizedTerm && normalizedB.startsWith(normalizedTerm)  0 : 1;
 		if (aPrefix !== bPrefix) {
 			return aPrefix - bPrefix;
 		}
@@ -33,7 +33,7 @@ function getWaypointAutocompleteSource(term = "") {
 }
 
 function scrollWaypointInputIntoView($input) {
-	const inputElement = $input?.[0];
+	const inputElement = $input.[0];
 	const searchElement = document.getElementById("search");
 	if (!inputElement || !searchElement || !searchElement.contains(inputElement)) {
 		return;
@@ -56,13 +56,13 @@ function scrollWaypointInputIntoView($input) {
 }
 
 function fitWaypointAutocompleteMenu($input) {
-	const inputElement = $input?.[0];
+	const inputElement = $input.[0];
 	if (!inputElement || !$input.data("ui-autocomplete")) {
 		return;
 	}
 
 	const $menu = $input.autocomplete("widget");
-	const menuElement = $menu?.[0];
+	const menuElement = $menu.[0];
 	if (!menuElement || !menuElement.offsetParent) {
 		return;
 	}
@@ -72,7 +72,7 @@ function fitWaypointAutocompleteMenu($input) {
 	const availableBelow = Math.max(0, window.innerHeight - inputRect.bottom - viewportPadding);
 	const availableAbove = Math.max(0, inputRect.top - viewportPadding);
 	const shouldOpenAbove = availableBelow < 160 && availableAbove > availableBelow;
-	const availableHeight = Math.max(110, Math.min(360, shouldOpenAbove ? availableAbove : availableBelow));
+	const availableHeight = Math.max(110, Math.min(360, shouldOpenAbove  availableAbove : availableBelow));
 
 	menuElement.style.maxHeight = `${availableHeight}px`;
 	menuElement.style.overflowY = "auto";
@@ -80,8 +80,8 @@ function fitWaypointAutocompleteMenu($input) {
 	menuElement.style.width = `${Math.max(inputRect.width, 220)}px`;
 
 	$menu.position({
-		my: shouldOpenAbove ? "left bottom" : "left top",
-		at: shouldOpenAbove ? "left top-4" : "left bottom+4",
+		my: shouldOpenAbove  "left bottom" : "left top",
+		at: shouldOpenAbove  "left top-4" : "left bottom+4",
 		of: inputElement,
 		collision: "fit",
 	});
@@ -102,7 +102,7 @@ function initializeWaypointAutocompletePositioning() {
 	}
 
 	initializeWaypointAutocompletePositioning.isInitialized = true;
-	document.getElementById("search")?.addEventListener("scroll", fitOpenWaypointAutocompleteMenus);
+	document.getElementById("search").addEventListener("scroll", fitOpenWaypointAutocompleteMenus);
 	window.addEventListener("resize", fitOpenWaypointAutocompleteMenus);
 }
 
@@ -284,7 +284,7 @@ function getWaypointInputValues() {
 }
 
 function removeWaypointElement($waypoint, { updateRoute = true } = {}) {
-	if (!$waypoint?.length) {
+	if (!$waypoint.length) {
 		return false;
 	}
 

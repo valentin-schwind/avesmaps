@@ -19,7 +19,7 @@ function buildLocationReportRequestPayload(formElement) {
 }
 
 function syncLocationReportTypeFields() {
-	const reportType = String(document.getElementById("location-report-type")?.value || "location");
+	const reportType = String(document.getElementById("location-report-type").value || "location");
 	const sizeFieldElement = document.getElementById("location-report-size-field");
 	const sizeSelectElement = document.getElementById("location-report-size");
 	const sourceInputElement = document.getElementById("location-report-source");
@@ -38,7 +38,7 @@ function syncLocationReportTypeFields() {
 	if (sourceInputElement) {
 		sourceInputElement.required = !isCommentReport;
 		sourceInputElement.closest(".location-report-form__field").querySelector("span").textContent = isCommentReport
-			? "Quelle (optional)"
+			 "Quelle (optional)"
 			: "Quelle (Abenteuer, Regionalband, etc.) *";
 	}
 }
@@ -66,7 +66,7 @@ function resetLocationEditForm({ preserveWikiSyncFlow = false } = {}) {
 		return;
 	}
 
-	const publicId = document.getElementById("location-edit-public-id")?.value || "";
+	const publicId = document.getElementById("location-edit-public-id").value || "";
 	formElement.reset();
 	locationEditLatLng = null;
 	locationEditMarkerEntry = null;
@@ -125,8 +125,8 @@ function setLocationReportDialogOpen(isOpen, { resetForm = false } = {}) {
 
 	if (isOpen) {
 		updateLocationReportDialogAvailability();
-		getLocationReportDialogElement()?.focus();
-		document.getElementById("location-report-name")?.focus();
+		getLocationReportDialogElement().focus();
+		document.getElementById("location-report-name").focus();
 		return;
 	}
 
@@ -144,8 +144,8 @@ function setLocationEditDialogOpen(isOpen, { resetForm = false } = {}) {
 	syncModalDialogBodyState();
 
 	if (isOpen) {
-		getLocationEditDialogElement()?.focus();
-		document.getElementById("location-edit-name")?.focus();
+		getLocationEditDialogElement().focus();
+		document.getElementById("location-edit-name").focus();
 		return;
 	}
 
@@ -168,18 +168,18 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	}
 
 	locationEditMarkerEntry = markerEntry;
-	locationEditLatLng = latlng ? L.latLng(latlng) : markerEntry?.marker.getLatLng() || null;
-	const location = markerEntry?.location || {};
-	const wikiLocationLink = getWikiLocationLink(location.name || markerEntry?.name || "", location.wikiUrl || "");
-	document.getElementById("location-edit-public-id").value = markerEntry?.publicId || "";
-	void acquireFeatureSoftLock(markerEntry?.publicId || "");
-	const isCrossingConversion = pendingCrossingConversionPublicId && pendingCrossingConversionPublicId === markerEntry?.publicId;
-	document.getElementById("location-edit-name").value = presetName || (isCrossingConversion ? pendingCrossingConversionName : "") || location.name || markerEntry?.name || "";
-	document.getElementById("location-edit-type").value = normalizeLocationType(presetLocationType || location.locationType || markerEntry?.locationType || "dorf");
+	locationEditLatLng = latlng  L.latLng(latlng) : markerEntry.marker.getLatLng() || null;
+	const location = markerEntry.location || {};
+	const wikiLocationLink = getWikiLocationLink(location.name || markerEntry.name || "", location.wikiUrl || "");
+	document.getElementById("location-edit-public-id").value = markerEntry.publicId || "";
+	void acquireFeatureSoftLock(markerEntry.publicId || "");
+	const isCrossingConversion = pendingCrossingConversionPublicId && pendingCrossingConversionPublicId === markerEntry.publicId;
+	document.getElementById("location-edit-name").value = presetName || (isCrossingConversion  pendingCrossingConversionName : "") || location.name || markerEntry.name || "";
+	document.getElementById("location-edit-type").value = normalizeLocationType(presetLocationType || location.locationType || markerEntry.locationType || "dorf");
 	document.getElementById("location-edit-description").value = presetDescription || location.description || "";
-	document.getElementById("location-edit-wiki-url").value = presetWikiUrl || location.wikiUrl || wikiLocationLink?.url || "";
+	document.getElementById("location-edit-wiki-url").value = presetWikiUrl || location.wikiUrl || wikiLocationLink.url || "";
 	document.getElementById("location-edit-is-nodix").checked = presetIsNodix === null
-		? (isCrossingConversion ? pendingCrossingConversionIsNodix : Boolean(location.isNodix))
+		 (isCrossingConversion  pendingCrossingConversionIsNodix : Boolean(location.isNodix))
 		: Boolean(presetIsNodix);
 	document.getElementById("location-edit-is-ruined").checked = Boolean(location.isRuined);
 
@@ -203,7 +203,7 @@ function openLocationEditDialog(options = {}) {
 function buildLocationEditPayload(formElement) {
 	const formData = new FormData(formElement);
 	const publicId = String(formData.get("public_id") || "").trim();
-	const action = publicId ? "update_point" : "create_point";
+	const action = publicId  "update_point" : "create_point";
 	const payload = {
 		action,
 		public_id: publicId,

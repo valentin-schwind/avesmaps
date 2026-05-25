@@ -64,7 +64,7 @@ function readSharePinFromUrl(searchParams) {
 	}
 
 	const latlng = L.latLng(lat, lng);
-	return isWithinMapBounds(latlng) ? latlng : null;
+	return isWithinMapBounds(latlng)  latlng : null;
 }
 
 function formatSharePinQueryValue(latlng) {
@@ -81,13 +81,13 @@ function applyPlannerStateFromUrl() {
 	const riverTransport = searchParams.get("riverTransport");
 	const seaTransport = searchParams.get("seaTransport");
 	const legacyLocationToggle = searchParams.has("toggleLocations")
-		? parseBooleanQueryParam(searchParams.get("toggleLocations"), false)
+		 parseBooleanQueryParam(searchParams.get("toggleLocations"), false)
 		: null;
 
 	let highestVisibleIndex = -1;
 	LOCATION_TYPE_VISIBILITY_ORDER.forEach((locationType, index) => {
 		const config = LOCATION_TYPE_CONFIG[locationType];
-		const fallback = legacyLocationToggle ?? DEFAULT_PLANNER_STATE[config.queryParam];
+		const fallback = legacyLocationToggle  DEFAULT_PLANNER_STATE[config.queryParam];
 		if (parseBooleanQueryParam(searchParams.get(config.queryParam), fallback)) {
 			highestVisibleIndex = index;
 		}
@@ -97,7 +97,7 @@ function applyPlannerStateFromUrl() {
 	});
 	syncLocationToggleButtons();
 	$("#togglePaths").prop("checked", parseBooleanQueryParam(searchParams.get("togglePaths"), DEFAULT_PLANNER_STATE.togglePaths));
-	const legacyPoliticalMode = parseBooleanQueryParam(searchParams.get("toggleBorders"), false) ? "political" : DEFAULT_PLANNER_STATE.mapLayerMode;
+	const legacyPoliticalMode = parseBooleanQueryParam(searchParams.get("toggleBorders"), false)  "political" : DEFAULT_PLANNER_STATE.mapLayerMode;
 	setSelectedMapLayerMode(searchParams.get("mapLayerMode") || legacyPoliticalMode);
 	$("#toggleCrossings").prop("checked", parseBooleanQueryParam(searchParams.get("toggleCrossings"), DEFAULT_PLANNER_STATE.toggleCrossings));
 	$("#toggleNodix").prop("checked", parseBooleanQueryParam(searchParams.get("toggleNodix"), DEFAULT_PLANNER_STATE.toggleNodix));
@@ -147,7 +147,7 @@ function getInitialPlannerSearchParams() {
 	}
 
 	try {
-		const storedQueryString = window.localStorage?.getItem(EDIT_MODE_PLANNER_STATE_STORAGE_KEY) || "";
+		const storedQueryString = window.localStorage.getItem(EDIT_MODE_PLANNER_STATE_STORAGE_KEY) || "";
 		if (!storedQueryString) {
 			return searchParams;
 		}
@@ -189,15 +189,15 @@ function buildPlannerSearchParams() {
 		const config = LOCATION_TYPE_CONFIG[locationType];
 		const isVisible = isLocationTypeVisible(locationType);
 		if (isVisible !== DEFAULT_PLANNER_STATE[config.queryParam]) {
-			searchParams.set(config.queryParam, isVisible ? "1" : "0");
+			searchParams.set(config.queryParam, isVisible  "1" : "0");
 		}
 	});
 
 	if ($("#togglePaths").is(":checked") !== DEFAULT_PLANNER_STATE.togglePaths) {
-		searchParams.set("togglePaths", $("#togglePaths").is(":checked") ? "1" : "0");
+		searchParams.set("togglePaths", $("#togglePaths").is(":checked")  "1" : "0");
 	}
 	if (IS_EDIT_MODE && $("#toggleNodix").is(":checked") !== DEFAULT_PLANNER_STATE.toggleNodix) {
-		searchParams.set("toggleNodix", $("#toggleNodix").is(":checked") ? "1" : "0");
+		searchParams.set("toggleNodix", $("#toggleNodix").is(":checked")  "1" : "0");
 	}
 
 	if (getSelectedMapLayerMode() !== DEFAULT_PLANNER_STATE.mapLayerMode) {
@@ -205,7 +205,7 @@ function buildPlannerSearchParams() {
 	}
 
 	if (IS_EDIT_MODE && $("#toggleCrossings").is(":checked") !== DEFAULT_PLANNER_STATE.toggleCrossings) {
-		searchParams.set("toggleCrossings", $("#toggleCrossings").is(":checked") ? "1" : "0");
+		searchParams.set("toggleCrossings", $("#toggleCrossings").is(":checked")  "1" : "0");
 	}
 
 	if (IS_EDIT_MODE && activeMapStyle !== "stylized") {
@@ -217,11 +217,11 @@ function buildPlannerSearchParams() {
 	}
 
 	if ($("#minimizeTransfers").is(":checked") !== DEFAULT_PLANNER_STATE.minimizeTransfers) {
-		searchParams.set("minimizeTransfers", $("#minimizeTransfers").is(":checked") ? "1" : "0");
+		searchParams.set("minimizeTransfers", $("#minimizeTransfers").is(":checked")  "1" : "0");
 	}
 
 	if ($("#includeRests").is(":checked") !== DEFAULT_PLANNER_STATE.includeRests) {
-		searchParams.set("includeRests", $("#includeRests").is(":checked") ? "1" : "0");
+		searchParams.set("includeRests", $("#includeRests").is(":checked")  "1" : "0");
 	}
 
 	if (restHours !== DEFAULT_PLANNER_STATE.restHours) {
@@ -229,7 +229,7 @@ function buildPlannerSearchParams() {
 	}
 
 	if ($("#allowLand").is(":checked") !== DEFAULT_PLANNER_STATE.allowLand) {
-		searchParams.set("allowLand", $("#allowLand").is(":checked") ? "1" : "0");
+		searchParams.set("allowLand", $("#allowLand").is(":checked")  "1" : "0");
 	}
 
 	if ($("#landTransport").val() !== DEFAULT_PLANNER_STATE.landTransport) {
@@ -237,7 +237,7 @@ function buildPlannerSearchParams() {
 	}
 
 	if ($("#allowRiver").is(":checked") !== DEFAULT_PLANNER_STATE.allowRiver) {
-		searchParams.set("allowRiver", $("#allowRiver").is(":checked") ? "1" : "0");
+		searchParams.set("allowRiver", $("#allowRiver").is(":checked")  "1" : "0");
 	}
 
 	if ($("#riverTransport").val() !== DEFAULT_PLANNER_STATE.riverTransport) {
@@ -245,7 +245,7 @@ function buildPlannerSearchParams() {
 	}
 
 	if ($("#allowSea").is(":checked") !== DEFAULT_PLANNER_STATE.allowSea) {
-		searchParams.set("allowSea", $("#allowSea").is(":checked") ? "1" : "0");
+		searchParams.set("allowSea", $("#allowSea").is(":checked")  "1" : "0");
 	}
 
 	if ($("#seaTransport").val() !== DEFAULT_PLANNER_STATE.seaTransport) {
@@ -266,12 +266,12 @@ function syncPlannerStateToUrl() {
 
 	const searchParams = buildPlannerSearchParams();
 	const queryString = searchParams.toString();
-	const nextUrl = `${window.location.pathname}${queryString ? `?${queryString}` : ""}${window.location.hash}`;
+	const nextUrl = `${window.location.pathname}${queryString  `?${queryString}` : ""}${window.location.hash}`;
 
 	window.history.replaceState(window.history.state, "", nextUrl);
 	if (IS_EDIT_MODE) {
 		try {
-			window.localStorage?.setItem(EDIT_MODE_PLANNER_STATE_STORAGE_KEY, queryString);
+			window.localStorage.setItem(EDIT_MODE_PLANNER_STATE_STORAGE_KEY, queryString);
 		} catch (error) {
 			console.warn("Editmode-Filter konnten nicht gespeichert werden:", error);
 		}

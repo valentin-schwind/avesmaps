@@ -10,7 +10,7 @@ function getRegionContextMenuElement() {
 function openRegionContextMenu(regionEntry, regionLayer, latlng, clientX, clientY) {
 	activeRegionContextEntry = regionEntry;
 	activeRegionContextLayer = regionLayer || regionEntry.layer || null;
-	activeRegionContextPolygonIndex = Number.isInteger(regionLayer?._regionPolygonIndex) ? regionLayer._regionPolygonIndex : null;
+	activeRegionContextPolygonIndex = Number.isInteger(regionLayer._regionPolygonIndex)  regionLayer._regionPolygonIndex : null;
 	pendingContextMenuLatLng = L.latLng(latlng);
 	closeMapContextMenu();
 	const menuElement = getRegionContextMenuElement();
@@ -21,7 +21,7 @@ function openRegionContextMenu(regionEntry, regionLayer, latlng, clientX, client
 	const extractActionElement = menuElement.querySelector('[data-region-context-action="extract"]');
 	if (extractActionElement) {
 		const layerCount = getRegionEntryLayers(regionEntry).length;
-		extractActionElement.hidden = !(regionEntry?.source === "political_territory" && layerCount > 1 && regionLayer);
+		extractActionElement.hidden = !(regionEntry.source === "political_territory" && layerCount > 1 && regionLayer);
 	}
 
 	menuElement.hidden = false;

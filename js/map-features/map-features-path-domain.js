@@ -15,11 +15,11 @@ const normalizePathName = (name) => {
 
 function normalizePathSubtype(value) {
 	const pathSubtype = normalizePathName(value);
-	return PATH_SUBTYPE_KEYS.includes(pathSubtype) ? pathSubtype : "Weg";
+	return PATH_SUBTYPE_KEYS.includes(pathSubtype)  pathSubtype : "Weg";
 }
 
 function getPathDisplayName(path) {
-	return path?.properties?.display_name || path?.properties?.original_name || path?.properties?.name?.replace(/-\d+$/, "") || "Weg";
+	return path.properties.display_name || path.properties.original_name || path.properties.name.replace(/-\d+$/, "") || "Weg";
 }
 
 function getNextPathDisplayName(subtype, { excludePath = null } = {}) {
@@ -29,7 +29,7 @@ function getNextPathDisplayName(subtype, { excludePath = null } = {}) {
 
 	pathData
 		.filter((path) => path !== excludePath)
-		.map((path) => String(path?.properties?.name || path?.properties?.display_name || "").trim())
+		.map((path) => String(path.properties.name || path.properties.display_name || "").trim())
 		.forEach((pathName) => {
 			const match = namePattern.exec(pathName);
 			if (!match) {
@@ -53,7 +53,7 @@ function getPathDisplayNameOrGenerated(name, subtype, { excludePath = null } = {
 
 function getNextLocalPathId() {
 	const highestPathId = pathData.reduce((highestId, path) => {
-		const match = /^path-(\d+)$/.exec(String(path?.properties?.id || ""));
+		const match = /^path-(\d+)$/.exec(String(path.properties.id || ""));
 		if (!match) {
 			return highestId;
 		}
@@ -65,5 +65,5 @@ function getNextLocalPathId() {
 }
 
 function getPathPublicId(path) {
-	return path?.properties?.public_id || path?.id || "";
+	return path.properties.public_id || path.id || "";
 }

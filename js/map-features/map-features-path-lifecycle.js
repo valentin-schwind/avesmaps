@@ -11,11 +11,11 @@ function addCreatedPathFeature(feature) {
 }
 
 function applyLivePathFeature(feature) {
-	if (feature.properties?.feature_type === "powerline") {
+	if (feature.properties.feature_type === "powerline") {
 		applyLivePowerlineFeature(feature);
 		return;
 	}
-	const publicId = feature.properties?.public_id || feature.id || "";
+	const publicId = feature.properties.public_id || feature.id || "";
 	const path = findPathByPublicId(publicId);
 	if (path) {
 		applyPathFeatureResponse(path, feature);
@@ -41,9 +41,9 @@ function syncPathRendering() {
 }
 
 function applyPathFeatureResponse(path, feature) {
-	const publicId = feature.id || feature.properties?.public_id || getPathPublicId(path);
-	const displayName = feature.properties?.display_name || feature.properties?.name || getPathDisplayName(path);
-	const pathSubtype = normalizePathSubtype(feature.properties?.feature_subtype || feature.properties?.name || path.properties?.feature_subtype);
+	const publicId = feature.id || feature.properties.public_id || getPathPublicId(path);
+	const displayName = feature.properties.display_name || feature.properties.name || getPathDisplayName(path);
+	const pathSubtype = normalizePathSubtype(feature.properties.feature_subtype || feature.properties.name || path.properties.feature_subtype);
 	path.id = publicId;
 	path.geometry = {
 		...path.geometry,
@@ -56,7 +56,7 @@ function applyPathFeatureResponse(path, feature) {
 		display_name: displayName,
 		original_name: displayName,
 		feature_subtype: pathSubtype,
-		name: `${pathSubtype}-${path.properties.id?.replace(/^path-/, "") || pathData.indexOf(path) + 1}`,
+		name: `${pathSubtype}-${path.properties.id.replace(/^path-/, "") || pathData.indexOf(path) + 1}`,
 	};
 	updatePathLayerGeometry(path);
 	updatePathLayerStyle(path);
@@ -65,7 +65,7 @@ function applyPathFeatureResponse(path, feature) {
 }
 
 function removePathFeature(path) {
-	if (path?._layerGroup) {
+	if (path._layerGroup) {
 		map.removeLayer(path._layerGroup);
 	}
 	pathData = pathData.filter((entry) => entry !== path);

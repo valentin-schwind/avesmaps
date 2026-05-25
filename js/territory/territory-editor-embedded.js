@@ -247,8 +247,8 @@
 			if (typeof componentBuildTree === "function") {
 				buildTerritoryTree = function buildTerritoryTreeFromComponent(rows) {
 					const treeResult = componentBuildTree(rows);
-					nodeRegistry = treeResult?.nodeRegistry instanceof Map ? treeResult.nodeRegistry : new Map();
-					return treeResult?.root || createTreeNode("root", "Herrschaftsgebiete", "root");
+					nodeRegistry = treeResult.nodeRegistry instanceof Map  treeResult.nodeRegistry : new Map();
+					return treeResult.root || createTreeNode("root", "Herrschaftsgebiete", "root");
 				};
 			}
 
@@ -260,7 +260,7 @@
 						root,
 						rowCount,
 						totalRowCount: allRows.length,
-						searchText: els.searchInput?.value || "",
+						searchText: els.searchInput.value || "",
 						infoElement: els.treeInfo,
 						onItemClick: (node, event) => {
 							event.stopPropagation();
@@ -418,7 +418,7 @@
 				return;
 			}
 			
-			const separator = WRITE_API_URL.includes("?") ? "&" : "?";
+			const separator = WRITE_API_URL.includes("?")  "&" : "?";
 			const response = await fetch(`${WRITE_API_URL}${separator}action=geometry_assignment&geometry_public_id=${encodeURIComponent(geometryPublicId)}`, {
 				method: "GET",
 				credentials: "same-origin",
@@ -469,17 +469,17 @@
 
 		function buildLoadedAssignmentInfo(payload = null) {
 			const params = new URLSearchParams(window.location.search);
-			const geometry = payload?.geometry && typeof payload.geometry === "object"
-				? payload.geometry
+			const geometry = payload.geometry && typeof payload.geometry === "object"
+				 payload.geometry
 				: null;
 			const geometryPublicId = normalizeText(
-				geometry?.publicId
-				|| geometry?.public_id
+				geometry.publicId
+				|| geometry.public_id
 				|| params.get("geometry_public_id")
 				|| ""
 			);
-			const style = geometry?.style && typeof geometry.style === "object"
-				? geometry.style
+			const style = geometry.style && typeof geometry.style === "object"
+				 geometry.style
 				: {};
 			const assignmentDisplays = readAssignmentDisplaysFromGeometryStyle(style)
 				.filter((display) => display && typeof display === "object");
@@ -509,15 +509,15 @@
 		function updateGeometryDatabaseInfo(geometry = null) {
 			const params = new URLSearchParams(window.location.search);
 			const geometryPublicId = normalizeText(
-				geometry?.publicId
-				|| geometry?.public_id
+				geometry.publicId
+				|| geometry.public_id
 				|| params.get("geometry_public_id")
 				|| ""
 			);
 			const geometryId = normalizeText(
-				geometry?.id
-				|| geometry?.geometryId
-				|| geometry?.geometry_id
+				geometry.id
+				|| geometry.geometryId
+				|| geometry.geometry_id
 				|| params.get("geometry_id")
 				|| ""
 			);
@@ -535,16 +535,16 @@
 			}
 
 			els.geometryDatabaseInfo.textContent = idParts.length > 0
-				? `Geometrie in der Datenbank: ${idParts.join(" / ")}`
+				 `Geometrie in der Datenbank: ${idParts.join(" / ")}`
 				: "Geometrie in der Datenbank";
 		}
 
 		function normalizeAffiliationPath(row) {
 			const candidatePaths = [
 				row.affiliation_path,
-				row.affiliation && Array.isArray(row.affiliation.path) ? row.affiliation.path : null,
-				row.affiliation_root ? [row.affiliation_root] : null,
-				row.affiliation_raw ? [normalizeText(row.affiliation_raw).split(":")[0]] : null
+				row.affiliation && Array.isArray(row.affiliation.path)  row.affiliation.path : null,
+				row.affiliation_root  [row.affiliation_root] : null,
+				row.affiliation_raw  [normalizeText(row.affiliation_raw).split(":")[0]] : null
 			];
 
 			for (const candidatePath of candidatePaths) {
@@ -664,7 +664,7 @@
 				if (identityKey && currentIdentityKey && identityKey === currentIdentityKey) {
 					current.row = mergeRowsByIdentity(current.row || row, row);
 					current.label = current.label || getPreferredDisplayAlias(row.name) || row.name;
-					current.kind = current.children.length > 0 ? "territory-group" : "territory";
+					current.kind = current.children.length > 0  "territory-group" : "territory";
 					registerRowNodeById(nodeByRowId, current);
 					continue;
 				}
@@ -673,7 +673,7 @@
 				if (existingRowNode) {
 					existingRowNode.row = mergeRowsByIdentity(existingRowNode.row || row, row);
 					existingRowNode.label = existingRowNode.label || getPreferredDisplayAlias(row.name) || row.name;
-					existingRowNode.kind = existingRowNode.children.length > 0 ? "territory-group" : "territory";
+					existingRowNode.kind = existingRowNode.children.length > 0  "territory-group" : "territory";
 					continue;
 				}
 
@@ -705,7 +705,7 @@
 
 				ownNode.row = row;
 				ownNode.label = ownNode.label || getPreferredDisplayAlias(row.name) || row.name;
-				ownNode.kind = ownNode.children.length > 0 ? "territory-group" : "territory";
+				ownNode.kind = ownNode.children.length > 0  "territory-group" : "territory";
 				registerRowNodeById(nodeByRowId, ownNode);
 			}
 
@@ -717,19 +717,19 @@
 		}
 
 		function getRowIdKey(row) {
-			const id = normalizeText(row?.id || "");
+			const id = normalizeText(row.id || "");
 
-			return id ? `id:${id}` : "";
+			return id  `id:${id}` : "";
 		}
 
 		function getRegisteredRowNodeById(nodeByRowId, row) {
 			const idKey = getRowIdKey(row);
 
-			return idKey ? nodeByRowId.get(idKey) || null : null;
+			return idKey  nodeByRowId.get(idKey) || null : null;
 		}
 
 		function registerRowNodeById(nodeByRowId, node) {
-			const idKey = getRowIdKey(node?.row);
+			const idKey = getRowIdKey(node.row);
 
 			if (!idKey || nodeByRowId.has(idKey)) {
 				return;
@@ -884,9 +884,9 @@
 
 		function mergeRowsByIdentity(primary, secondary) {
 			const merged = rowMergeScore(secondary) > rowMergeScore(primary)
-				? { ...secondary }
+				 { ...secondary }
 				: { ...primary };
-			const fallback = merged === primary ? secondary : primary;
+			const fallback = merged === primary  secondary : primary;
 
 			for (const key of Object.keys(fallback)) {
 				const mergedValue = merged[key];
@@ -1014,17 +1014,17 @@
 
 			if (!node) {
 				const matchingRow = rowIndex.get(key);
-				const existingRowNode = matchingRow ? getRegisteredRowNodeById(nodeByRowId, matchingRow) : null;
+				const existingRowNode = matchingRow  getRegisteredRowNodeById(nodeByRowId, matchingRow) : null;
 
 				if (existingRowNode) {
 					node = existingRowNode;
 					moveTreeNodeToParent(node, parent);
 					node.label = label;
-					node.kind = node.children.length > 0 ? "territory-group" : "territory";
+					node.kind = node.children.length > 0  "territory-group" : "territory";
 				} else {
-					const nodeId = matchingRow ? rowKey(matchingRow) : `path:${pathParts.map(makeKey).join("/")}`;
+					const nodeId = matchingRow  rowKey(matchingRow) : `path:${pathParts.map(makeKey).join("/")}`;
 
-					node = createTreeNode(nodeId, label, matchingRow ? "territory-group" : "synthetic");
+					node = createTreeNode(nodeId, label, matchingRow  "territory-group" : "synthetic");
 					node.parent = parent;
 
 					if (matchingRow) {
@@ -1090,8 +1090,8 @@
 		}
 
 		function compareTreeNodes(a, b) {
-			const aFolder = a.children.length > 0 ? 0 : 1;
-			const bFolder = b.children.length > 0 ? 0 : 1;
+			const aFolder = a.children.length > 0  0 : 1;
+			const bFolder = b.children.length > 0  0 : 1;
 
 			if (aFolder !== bFolder) {
 				return aFolder - bFolder;
@@ -1104,7 +1104,7 @@
 			els.treeView.innerHTML = "";
 
 			if (rowCount === 0) {
-				els.treeInfo.textContent = allRows.length === 0 ? "Noch keine Daten geladen." : "Keine Treffer.";
+				els.treeInfo.textContent = allRows.length === 0  "Noch keine Daten geladen." : "Keine Treffer.";
 				return;
 			}
 
@@ -1176,10 +1176,10 @@
 
 		function renderTreeItem(node) {
 			const item = document.createElement("span");
-			item.className = node.kind === "synthetic" ? "tree-item synthetic" : "tree-item";
+			item.className = node.kind === "synthetic"  "tree-item synthetic" : "tree-item";
 			item.draggable = true;
 			item.dataset.nodeId = node.id;
-			item.title = node.kind === "synthetic" ? "Abgeleiteter Gruppenknoten ohne eigenen Wiki-Datensatz" : "Herrschaftsgebiet";
+			item.title = node.kind === "synthetic"  "Abgeleiteter Gruppenknoten ohne eigenen Wiki-Datensatz" : "Herrschaftsgebiet";
 
 			const handle = document.createElement("span");
 			handle.className = "drag-handle";
@@ -1247,7 +1247,7 @@
 				return {
 					kind: "all",
 					label: status.ownAssigned
-						? "Gebiet und Untergebiete sind auf der Karte vorhanden"
+						 "Gebiet und Untergebiete sind auf der Karte vorhanden"
 						: "Alle Untergebiete sind auf der Karte vorhanden"
 				};
 			}
@@ -1274,11 +1274,11 @@
 
 		function getTreeCoverageStatus(node) {
 			const ownAssigned = isTreeNodeAssignedToMap(node);
-			const children = Array.isArray(node?.children) ? node.children : [];
+			const children = Array.isArray(node.children)  node.children : [];
 
 			if (children.length === 0) {
 				return {
-					kind: ownAssigned ? "all" : "none",
+					kind: ownAssigned  "all" : "none",
 					ownAssigned,
 					hasAnyCoverage: ownAssigned,
 					isComplete: ownAssigned
@@ -1335,7 +1335,7 @@
 		}
 
 		function isTreeNodeAssignedToMap(node) {
-			return Boolean(node?.row?.map_assigned) || Number(node?.row?.map_geometry_count || 0) > 0;
+			return Boolean(node.row.map_assigned) || Number(node.row.map_geometry_count || 0) > 0;
 		}
 
 		function showNodeDetails(node) {
@@ -1388,7 +1388,7 @@
 
 			const kind = document.createElement("div");
 			kind.className = "dropped-node-kind";
-			kind.textContent = droppedNode.row ? "Wiki-/SQL-Datensatz" : "Abgeleiteter Gruppenknoten";
+			kind.textContent = droppedNode.row  "Wiki-/SQL-Datensatz" : "Abgeleiteter Gruppenknoten";
 			text.appendChild(kind);
 
 			const handle = document.createElement("span");
@@ -1451,13 +1451,13 @@
 		}
 
 		function createAutoTerritoryColor(node) {
-			const path = node ? getNodePath(node) : [];
+			const path = node  getNodePath(node) : [];
 			const rootNode = path[0] || node;
 			const depth = Math.max(0, path.length - 1);
-			const rootSeed = hashString(rootNode?.row?.wiki_key || rootNode?.id || rootNode?.label || "Herrschaftsgebiet");
-			const nodeSeed = hashString(node?.row?.wiki_key || node?.id || node?.label || "Herrschaftsgebiet");
+			const rootSeed = hashString(rootNode.row.wiki_key || rootNode.id || rootNode.label || "Herrschaftsgebiet");
+			const nodeSeed = hashString(node.row.wiki_key || node.id || node.label || "Herrschaftsgebiet");
 			const baseHue = rootSeed % 360;
-			const hueOffset = depth === 0 ? 0 : ((nodeSeed % 37) - 18) + (depth * 4);
+			const hueOffset = depth === 0  0 : ((nodeSeed % 37) - 18) + (depth * 4);
 			const hue = (baseHue + hueOffset + 360) % 360;
 			const saturation = clampNumber(58 + (rootSeed % 18) - Math.min(depth * 3, 12), 44, 74);
 			const value = clampNumber(54 + (nodeSeed % 18) + Math.min(depth * 3, 10), 48, 78);
@@ -1485,15 +1485,15 @@
 			const secondary = chroma * (1 - Math.abs((huePrime % 2) - 1));
 			const match = value - chroma;
 			const [red, green, blue] = huePrime < 1
-				? [chroma, secondary, 0]
+				 [chroma, secondary, 0]
 				: huePrime < 2
-				? [secondary, chroma, 0]
+				 [secondary, chroma, 0]
 				: huePrime < 3
-				? [0, chroma, secondary]
+				 [0, chroma, secondary]
 				: huePrime < 4
-				? [0, secondary, chroma]
+				 [0, secondary, chroma]
 				: huePrime < 5
-				? [secondary, 0, chroma]
+				 [secondary, 0, chroma]
 				: [chroma, 0, secondary];
 
 			return `#${[red, green, blue].map(channel => toHexByte((channel + match) * 255)).join("")}`;
@@ -1514,7 +1514,7 @@
 
 		function normalizeHexColor(value) {
 			const color = normalizeText(value);
-			return /^#[0-9a-fA-F]{6}$/.test(color) ? color : "";
+			return /^#[0-9a-fA-F]{6}$/.test(color)  color : "";
 		}
 
 		function createColorVariantFromParent(parentColor) {
@@ -1569,7 +1569,7 @@
 
 			return {
 				hue: modulo(hue * 60, 360),
-				saturation: maxChannel === 0 ? 0 : (delta / maxChannel) * 100,
+				saturation: maxChannel === 0  0 : (delta / maxChannel) * 100,
 				value: maxChannel * 100
 			};
 		}
@@ -1580,7 +1580,7 @@
 
 		function modulo(value, divisor) {
 			const result = value % divisor;
-			return result < 0 ? result + divisor : result;
+			return result < 0  result + divisor : result;
 		}
 
 		function renderManualEditPath(node, activeIndex = null) {
@@ -1593,7 +1593,7 @@
 			}
 
 			const path = getNodePath(node);
-			const currentIndex = Number.isInteger(activeIndex) ? activeIndex : path.length - 1;
+			const currentIndex = Number.isInteger(activeIndex)  activeIndex : path.length - 1;
 
 			for (let i = 0; i < path.length; i++) {
 				const item = document.createElement("button");
@@ -1624,8 +1624,8 @@
 		}
 
 		function updateInheritColorVarianceButtonVisibility() {
-			const path = droppedNode ? getNodePath(droppedNode) : [];
-			const currentIndex = editedNode ? path.findIndex(node => node.id === editedNode.id) : -1;
+			const path = droppedNode  getNodePath(droppedNode) : [];
+			const currentIndex = editedNode  path.findIndex(node => node.id === editedNode.id) : -1;
 			const hasDescendantsInAssignedPath = currentIndex >= 0 && currentIndex < path.length - 1;
 			if (els.inheritColorVarianceButton) {
 				els.inheritColorVarianceButton.hidden = !hasDescendantsInAssignedPath;
@@ -1636,7 +1636,7 @@
 		}
 
 		function inheritColorVarianceToDescendants() {
-			if (window.AvesmapsPoliticalTerritorySubtreeDisplayTools?.handlesInheritanceButtons === true) {
+			if (window.AvesmapsPoliticalTerritorySubtreeDisplayTools.handlesInheritanceButtons === true) {
 				return;
 			}
 
@@ -1671,7 +1671,7 @@
 		}
 
 		function inheritOpacityToDescendants() {
-			if (window.AvesmapsPoliticalTerritorySubtreeDisplayTools?.handlesInheritanceButtons === true) {
+			if (window.AvesmapsPoliticalTerritorySubtreeDisplayTools.handlesInheritanceButtons === true) {
 				return;
 			}
 
@@ -1697,7 +1697,7 @@
 				const inheritedState = {
 					...childState,
 					opacity: Number.isFinite(parentState.opacity)
-						? clampNumber(parentState.opacity, 0, 1)
+						 clampNumber(parentState.opacity, 0, 1)
 						: childState.opacity
 				};
 				displayStateByNodeId.set(childNode.id, inheritedState);
@@ -1715,8 +1715,8 @@
 				return;
 			}
 
-			const wikiName = normalizeText(node.row?.name || node.label || "");
-			const wikiCoatUrl = normalizeText(node.row?.coat_of_arms_url || "");
+			const wikiName = normalizeText(node.row.name || node.label || "");
+			const wikiCoatUrl = normalizeText(node.row.coat_of_arms_url || "");
 
 			if (els.displayNameInput) {
 				els.displayNameInput.value = wikiName;
@@ -1800,28 +1800,28 @@
 		function createDefaultDisplayState(node) {
 			const path = getNodePath(node);
 			const depth = Math.max(0, path.length - 1);
-			const zoomPreset = getZoomPreset(droppedNode ? getNodePath(droppedNode).length : path.length, depth);
-			const displayName = normalizeText(node.label || node.row?.name || "");
-			const coatOfArmsUrl = normalizeText(node.row?.coat_of_arms_url || "");
+			const zoomPreset = getZoomPreset(droppedNode  getNodePath(droppedNode).length : path.length, depth);
+			const displayName = normalizeText(node.label || node.row.name || "");
+			const coatOfArmsUrl = normalizeText(node.row.coat_of_arms_url || "");
 
 			return {
 				nodeId: node.id,
 				nodeKey: makeKey(node.label),
-				wikiKey: node.row?.wiki_key || "",
-				rowId: node.row?.id || null,
-				territoryPublicId: node.row?.public_id || "",
-				territoryId: node.row?.territory_id || null,
-				slug: node.row?.slug || "",
+				wikiKey: node.row.wiki_key || "",
+				rowId: node.row.id || null,
+				territoryPublicId: node.row.public_id || "",
+				territoryId: node.row.territory_id || null,
+				slug: node.row.slug || "",
 				name: node.label,
 				displayName,
 				coatOfArmsUrl,
-				zoomMin: zoomPreset?.from ?? null,
-				zoomMax: zoomPreset?.to ?? null,
+				zoomMin: zoomPreset.from  null,
+				zoomMax: zoomPreset.to  null,
 				color: createAutoTerritoryColor(node),
 				opacity: 0.33,
-				startYear: parseOptionalNumber(node.row?.founded_start_bf),
-				endYear: parseOptionalNumber(node.row?.dissolved_end_bf),
-				existsUntilToday: !node.row?.dissolved_text || /besteht|andauernd|heute/i.test(node.row?.dissolved_text || ""),
+				startYear: parseOptionalNumber(node.row.founded_start_bf),
+				endYear: parseOptionalNumber(node.row.dissolved_end_bf),
+				existsUntilToday: !node.row.dissolved_text || /besteht|andauernd|heute/i.test(node.row.dissolved_text || ""),
 				depth,
 				path: path.map(pathNode => pathNode.label),
 				pathKeys: path.map(pathNode => makeKey(pathNode.label)),
@@ -1836,22 +1836,22 @@
 			}
 
 			const existing = displayStateByNodeId.get(editedNode.id) || createDefaultDisplayState(editedNode);
-			const opacityPercent = parseOptionalNumber(transparencyInput?.value, Math.round((existing.opacity ?? 0.33) * 100));
-			const color = normalizeHexColor(document.getElementById("colorInput")?.value)
+			const opacityPercent = parseOptionalNumber(transparencyInput.value, Math.round((existing.opacity  0.33) * 100));
+			const color = normalizeHexColor(document.getElementById("colorInput").value)
 				|| normalizeHexColor(existing.color)
 				|| createAutoTerritoryColor(editedNode);
 
 			displayStateByNodeId.set(editedNode.id, {
 				...existing,
-				displayName: normalizeText(els.displayNameInput?.value || ""),
-				coatOfArmsUrl: normalizeText(els.alternateCoatInput?.value || ""),
-				zoomMin: parseOptionalNumber(els.zoomFromInput?.value),
-				zoomMax: parseOptionalNumber(els.zoomToInput?.value),
+				displayName: normalizeText(els.displayNameInput.value || ""),
+				coatOfArmsUrl: normalizeText(els.alternateCoatInput.value || ""),
+				zoomMin: parseOptionalNumber(els.zoomFromInput.value),
+				zoomMax: parseOptionalNumber(els.zoomToInput.value),
 				color,
 				opacity: opacityPercent / 100,
-				startYear: parseOptionalNumber(document.getElementById("startYearInput")?.value),
-				endYear: existsUntilTodayInput?.checked ? null : parseOptionalNumber(endYearInput?.value),
-				existsUntilToday: Boolean(existsUntilTodayInput?.checked)
+				startYear: parseOptionalNumber(document.getElementById("startYearInput").value),
+				endYear: existsUntilTodayInput.checked  null : parseOptionalNumber(endYearInput.value),
+				existsUntilToday: Boolean(existsUntilTodayInput.checked)
 			});
 		}
 
@@ -1865,17 +1865,17 @@
 			}
 
 			if (els.zoomFromInput) {
-				els.zoomFromInput.value = state.zoomMin ?? "";
+				els.zoomFromInput.value = state.zoomMin  "";
 			}
 
 			if (els.zoomToInput) {
-				els.zoomToInput.value = state.zoomMax ?? "";
+				els.zoomToInput.value = state.zoomMax  "";
 			}
 
-			setInputValue("colorInput", normalizeHexColor(state.color) || (editedNode ? createAutoTerritoryColor(editedNode) : "#385d72"));
+			setInputValue("colorInput", normalizeHexColor(state.color) || (editedNode  createAutoTerritoryColor(editedNode) : "#385d72"));
 
 			if (transparencyInput) {
-				transparencyInput.value = String(Math.round((state.opacity ?? 0.33) * 100));
+				transparencyInput.value = String(Math.round((state.opacity  0.33) * 100));
 				syncTransparencyOutput();
 			}
 
@@ -1900,9 +1900,9 @@
 
 		function renderInfoBox(node) {
 			els.infoBox.innerHTML = "";
-			els.detailInfo.textContent = node.row ? "Wiki-/SQL-Datensatz" : "Abgeleiteter Gruppenknoten";
+			els.detailInfo.textContent = node.row  "Wiki-/SQL-Datensatz" : "Abgeleiteter Gruppenknoten";
 			const values = node.row
-				? [
+				 [
 					["Name", node.label],
 					["Status", node.row.status || "unbekannt"],
 					["Knotenart", "Wiki-/SQL-Datensatz"],
@@ -1982,7 +1982,7 @@
 		}
 
 		function updateWikiCoatPreviewFromManualInput() {
-			const url = normalizeText(els.alternateCoatInput?.value || "");
+			const url = normalizeText(els.alternateCoatInput.value || "");
 
 			renderManualCoatPreview(url);
 			const img = els.infoBox.querySelector('[data-role="wiki-coat-preview"]');
@@ -2027,7 +2027,7 @@
 			populateManualFieldsFromNode(null);
 			els.detailInfo.textContent = "Noch kein Gebiet ausgewählt.";
 			els.infoBox.innerHTML = error
-				? `<p class="error">${escapeHtml(error)}</p>`
+				 `<p class="error">${escapeHtml(error)}</p>`
 				: "<p class=\"note\">Ziehen Sie ein Herrschaftsgebiet in die Drop-Zone, um die Wiki-Daten anzuzeigen.</p>";
 		}
 
@@ -2054,7 +2054,7 @@
 				if (type && row.type !== type) return false;
 				if (status) {
 					const rowStatus = normalizeText(row.status).toLowerCase();
-					const rowStatusTags = Array.isArray(row.status_filter_tags) ? row.status_filter_tags : [];
+					const rowStatusTags = Array.isArray(row.status_filter_tags)  row.status_filter_tags : [];
 					if (rowStatus !== status && !rowStatusTags.includes(status)) return false;
 				}
 
@@ -2127,7 +2127,7 @@
 
 			for (const row of rows) {
 				addValue(row.status);
-				for (const tag of (Array.isArray(row.status_filter_tags) ? row.status_filter_tags : [])) {
+				for (const tag of (Array.isArray(row.status_filter_tags)  row.status_filter_tags : [])) {
 					addValue(tag);
 				}
 			}
@@ -2190,7 +2190,7 @@
 				return wikiTreeComponent.getDraggedNodeId(dataTransfer);
 			}
 
-			return normalizeText(dataTransfer?.getData("text/plain") || "");
+			return normalizeText(dataTransfer.getData("text/plain") || "");
 		}
 
 		function setStatus(text) {
@@ -2219,7 +2219,7 @@
 		}
 
 		function normalizeText(value) {
-			return String(value ?? "")
+			return String(value  "")
 				.replace(/\u00a0/g, " ")
 				.replace(/\s+/g, " ")
 				.trim();
@@ -2234,7 +2234,7 @@
 				return JSON.stringify(value, null, 2);
 			}
 
-			return String(value ?? "");
+			return String(value  "");
 		}
 
 		function cssEscape(value) {
@@ -2246,7 +2246,7 @@
 		}
 
 		function escapeHtml(value) {
-			return String(value ?? "")
+			return String(value  "")
 				.replace(/&/g, "&amp;")
 				.replace(/</g, "&lt;")
 				.replace(/>/g, "&gt;")
@@ -2277,10 +2277,10 @@
 		function getAssignmentValue() {
 			saveCurrentDisplayState();
 
-			const assignedPath = droppedNode ? getNodePath(droppedNode) : [];
-			const editedPath = editedNode ? getNodePath(editedNode) : [];
+			const assignedPath = droppedNode  getNodePath(droppedNode) : [];
+			const editedPath = editedNode  getNodePath(editedNode) : [];
 			const displays = getDisplayStatesForDroppedPath();
-			const activeDisplay = editedNode ? getDisplayStateForNode(editedNode) : null;
+			const activeDisplay = editedNode  getDisplayStateForNode(editedNode) : null;
 			const manualDisplay = readDisplayStateFromForm(activeDisplay || createEmptyDisplayState());
 			const effectiveDisplay = activeDisplay || manualDisplay;
 
@@ -2306,34 +2306,34 @@
 				},
 				displays,
 				source: {
-					assignedRow: droppedNode?.row || null,
-					editedRow: editedNode?.row || null
+					assignedRow: droppedNode.row || null,
+					editedRow: editedNode.row || null
 				}
 			};
 		}
 
 		function readDisplayStateFromForm(fallbackState = createEmptyDisplayState()) {
 			const opacityPercent = parseOptionalNumber(
-				transparencyInput?.value,
-				Math.round((fallbackState.opacity ?? 0.33) * 100)
+				transparencyInput.value,
+				Math.round((fallbackState.opacity  0.33) * 100)
 			);
-			const color = normalizeHexColor(document.getElementById("colorInput")?.value)
+			const color = normalizeHexColor(document.getElementById("colorInput").value)
 				|| normalizeHexColor(fallbackState.color)
 				|| "#888888";
-			const isOpenEnded = Boolean(existsUntilTodayInput?.checked);
+			const isOpenEnded = Boolean(existsUntilTodayInput.checked);
 
 			return {
 				...fallbackState,
-				displayName: normalizeText(els.displayNameInput?.value || fallbackState.displayName || fallbackState.name || ""),
-				coatOfArmsUrl: normalizeText(els.alternateCoatInput?.value || fallbackState.coatOfArmsUrl || ""),
-				zoomMin: parseOptionalNumber(els.zoomFromInput?.value, fallbackState.zoomMin),
-				zoomMax: parseOptionalNumber(els.zoomToInput?.value, fallbackState.zoomMax),
+				displayName: normalizeText(els.displayNameInput.value || fallbackState.displayName || fallbackState.name || ""),
+				coatOfArmsUrl: normalizeText(els.alternateCoatInput.value || fallbackState.coatOfArmsUrl || ""),
+				zoomMin: parseOptionalNumber(els.zoomFromInput.value, fallbackState.zoomMin),
+				zoomMax: parseOptionalNumber(els.zoomToInput.value, fallbackState.zoomMax),
 				color,
 				opacity: opacityPercent / 100,
-				startYear: parseOptionalNumber(document.getElementById("startYearInput")?.value, fallbackState.startYear),
+				startYear: parseOptionalNumber(document.getElementById("startYearInput").value, fallbackState.startYear),
 				endYear: isOpenEnded
-					? null
-					: parseOptionalNumber(endYearInput?.value, fallbackState.endYear),
+					 null
+					: parseOptionalNumber(endYearInput.value, fallbackState.endYear),
 				existsUntilToday: isOpenEnded,
 			};
 		}
@@ -2342,9 +2342,9 @@
 			pendingValue = value;
 
 			const selectedIdentifier = value.territoryWikiKey
-				|| value.assignedTerritory?.wikiKey
-				|| value.assignedTerritory?.key
-				|| value.assignedTerritory?.label
+				|| value.assignedTerritory.wikiKey
+				|| value.assignedTerritory.key
+				|| value.assignedTerritory.label
 				|| "";
 
 			let selectedFromTree = false;
@@ -2363,7 +2363,7 @@
 			setInputValue("alternateCoatInput", display.coatOfArmsUrl || display.alternateCoatOfArmsUrl);
 			setInputValue("zoomFromInput", display.zoomMin);
 			setInputValue("zoomToInput", display.zoomMax);
-			setInputValue("colorInput", normalizeHexColor(display.color) || (droppedNode ? createAutoTerritoryColor(droppedNode) : "#385d72"));
+			setInputValue("colorInput", normalizeHexColor(display.color) || (droppedNode  createAutoTerritoryColor(droppedNode) : "#385d72"));
 
 			if (typeof display.opacity === "number") {
 				setInputValue("transparencyInput", Math.round(display.opacity * 100));
@@ -2382,7 +2382,7 @@
 
 			if (Array.isArray(value.displays)) {
 				displayStateByNodeId = new Map();
-				const pathNodes = droppedNode ? getNodePath(droppedNode) : [];
+				const pathNodes = droppedNode  getNodePath(droppedNode) : [];
 
 				for (const [index, displayState] of value.displays.entries()) {
 					const node = findNodeForDisplayState(displayState) || pathNodes[index] || null;
@@ -2393,13 +2393,13 @@
 				}
 
 				const explicitActiveNode = value.activeDisplayNode
-					? findNodeForDisplayState(value.activeDisplayNode)
+					 findNodeForDisplayState(value.activeDisplayNode)
 					: null;
 				const explicitActiveIndex = explicitActiveNode
-					? pathNodes.findIndex(pathNode => pathNode.id === explicitActiveNode.id)
+					 pathNodes.findIndex(pathNode => pathNode.id === explicitActiveNode.id)
 					: -1;
 				const zoomActiveIndex = findDisplayIndexForCurrentZoom(value.displays);
-				const nextActiveIndex = explicitActiveIndex >= 0 ? explicitActiveIndex : zoomActiveIndex;
+				const nextActiveIndex = explicitActiveIndex >= 0  explicitActiveIndex : zoomActiveIndex;
 
 				if (nextActiveIndex >= 0 && pathNodes[nextActiveIndex]) {
 					editedNode = pathNodes[nextActiveIndex];
@@ -2413,7 +2413,7 @@
 				}
 			}
 
-			renderManualCoatPreview(normalizeText(document.getElementById("alternateCoatInput")?.value || ""));
+			renderManualCoatPreview(normalizeText(document.getElementById("alternateCoatInput").value || ""));
 		}
 
 		function findDisplayIndexForCurrentZoom(displays) {
@@ -2457,12 +2457,12 @@
 					const candidates = [
 						node.id,
 						node.label,
-						node.row?.wiki_key,
-						node.row?.public_id,
-						node.row?.territory_id,
-						node.row?.slug,
-						node.row?.name,
-						node.row?.id
+						node.row.wiki_key,
+						node.row.public_id,
+						node.row.territory_id,
+						node.row.slug,
+						node.row.name,
+						node.row.id
 					].filter(value => value !== null && typeof value !== "undefined");
 
 					if (candidates.some(candidate => makeKey(candidate) === key || String(candidate) === String(identifier))) {
@@ -2480,18 +2480,18 @@
 				...displayState,
 				nodeId: node.id,
 				nodeKey: makeKey(node.label),
-				wikiKey: node.row?.wiki_key || displayState.wikiKey || "",
-				rowId: node.row?.id || displayState.rowId || null,
-				territoryPublicId: node.row?.public_id || displayState.territoryPublicId || "",
-				territoryId: node.row?.territory_id || displayState.territoryId || null,
-				slug: node.row?.slug || displayState.slug || "",
+				wikiKey: node.row.wiki_key || displayState.wikiKey || "",
+				rowId: node.row.id || displayState.rowId || null,
+				territoryPublicId: node.row.public_id || displayState.territoryPublicId || "",
+				territoryId: node.row.territory_id || displayState.territoryId || null,
+				slug: node.row.slug || displayState.slug || "",
 				name: node.label,
 				displayName: normalizeText(displayState.displayName || displayState.name || node.label),
 				coatOfArmsUrl: normalizeText(displayState.coatOfArmsUrl || displayState.alternateCoatOfArmsUrl || ""),
 				zoomMin: parseOptionalNumber(displayState.zoomMin),
 				zoomMax: parseOptionalNumber(displayState.zoomMax),
 				color: normalizeHexColor(displayState.color) || createAutoTerritoryColor(node),
-				opacity: typeof displayState.opacity === "number" ? displayState.opacity : 0.33,
+				opacity: typeof displayState.opacity === "number"  displayState.opacity : 0.33,
 				startYear: parseOptionalNumber(displayState.startYear),
 				endYear: parseOptionalNumber(displayState.endYear),
 				existsUntilToday: Boolean(displayState.existsUntilToday)
@@ -2505,9 +2505,9 @@
 				const candidates = [
 					node.id,
 					node.label,
-					node.row?.wiki_key,
-					node.row?.name,
-					node.row?.id
+					node.row.wiki_key,
+					node.row.name,
+					node.row.id
 				].filter(value => value !== null && typeof value !== "undefined");
 
 				if (candidates.some(candidate => makeKey(candidate) === key || String(candidate) === String(identifier))) {
@@ -2614,7 +2614,7 @@
 					return;
 				}
 
-				setFormStatus(result?.message || "Gespeichert.", "success");
+				setFormStatus(result.message || "Gespeichert.", "success");
 			} catch (error) {
 				setFormStatus(error.message || String(error), "error");
 			}
@@ -2633,7 +2633,7 @@
 				return;
 			}
 
-			if (!window.confirm("Zuweisung zu einem Herrschaftsgebiet entfernen? Die Anzeigeeinstellungen der Geometrie bleiben erhalten.")) {
+			if (!window.confirm("Zuweisung zu einem Herrschaftsgebiet entfernen Die Anzeigeeinstellungen der Geometrie bleiben erhalten.")) {
 				return;
 			}
 
@@ -2643,7 +2643,7 @@
 				if (typeof moduleOptions.onUnassign === "function") {
 					const result = await moduleOptions.onUnassign(getAssignmentValue());
 					clearSelection();
-					setFormStatus(result?.message || "Zuweisung entfernt. Anzeigeeinstellungen bleiben erhalten.", "success");
+					setFormStatus(result.message || "Zuweisung entfernt. Anzeigeeinstellungen bleiben erhalten.", "success");
 					return;
 				}
 
@@ -2668,8 +2668,8 @@
 					result = { ok: response.ok };
 				}
 
-				if (!response.ok || result?.ok === false) {
-					throw new Error(result?.error || `Zuweisung entfernen fehlgeschlagen: HTTP ${response.status}`);
+				if (!response.ok || result.ok === false) {
+					throw new Error(result.error || `Zuweisung entfernen fehlgeschlagen: HTTP ${response.status}`);
 				}
 
 				clearSelection();
@@ -2688,8 +2688,8 @@
 				throw new Error("Die Geometrie-ID fehlt. Öffnen Sie den Editor über Rechtsklick auf ein Herrschaftsgebiet.");
 			}
 
-			const assignedPath = Array.isArray(value.assignedPath) ? value.assignedPath : [];
-			const displays = Array.isArray(value.displays) ? value.displays : [];
+			const assignedPath = Array.isArray(value.assignedPath)  value.assignedPath : [];
+			const displays = Array.isArray(value.displays)  value.displays : [];
 
 			const wikiPublicIds = assignedPath
 				.map(node => normalizeText(node.wikiKey || ""))
@@ -2709,26 +2709,26 @@
 
 			const display = {
 				...(value.display || {}),
-				name: normalizeText(displayNameInput?.value || value.display?.name || value.display?.displayName || params.get("name") || ""),
-				displayName: normalizeText(displayNameInput?.value || value.display?.displayName || value.display?.name || params.get("name") || ""),
-				coatOfArmsUrl: normalizeText(alternateCoatInput?.value || value.display?.coatOfArmsUrl || ""),
-				zoomMin: parseOptionalNumber(els.zoomFromInput?.value, value.display?.zoomMin ?? parseOptionalNumber(params.get("min_zoom"))),
-				zoomMax: parseOptionalNumber(els.zoomToInput?.value, value.display?.zoomMax ?? parseOptionalNumber(params.get("max_zoom"))),
-				color: normalizeHexColor(colorInput?.value || value.display?.color || params.get("color"))
-					|| (droppedNode ? createAutoTerritoryColor(droppedNode) : "#888888"),
+				name: normalizeText(displayNameInput.value || value.display.name || value.display.displayName || params.get("name") || ""),
+				displayName: normalizeText(displayNameInput.value || value.display.displayName || value.display.name || params.get("name") || ""),
+				coatOfArmsUrl: normalizeText(alternateCoatInput.value || value.display.coatOfArmsUrl || ""),
+				zoomMin: parseOptionalNumber(els.zoomFromInput.value, value.display.zoomMin  parseOptionalNumber(params.get("min_zoom"))),
+				zoomMax: parseOptionalNumber(els.zoomToInput.value, value.display.zoomMax  parseOptionalNumber(params.get("max_zoom"))),
+				color: normalizeHexColor(colorInput.value || value.display.color || params.get("color"))
+					|| (droppedNode  createAutoTerritoryColor(droppedNode) : "#888888"),
 				opacity: parseOptionalNumber(
-					transparencyInput?.value,
-					Math.round((value.display?.opacity ?? parseOptionalNumber(params.get("opacity"), 0.33)) * 100)
+					transparencyInput.value,
+					Math.round((value.display.opacity  parseOptionalNumber(params.get("opacity"), 0.33)) * 100)
 				) / 100
 			};
 
-			const rawEndYear = normalizeText(endYearInput?.value || "");
-			const isOpenEnded = Boolean(existsUntilTodayInput?.checked) || rawEndYear === "";
+			const rawEndYear = normalizeText(endYearInput.value || "");
+			const isOpenEnded = Boolean(existsUntilTodayInput.checked) || rawEndYear === "";
 
 			const validity = {
 				...(value.validity || {}),
-				startYear: parseOptionalNumber(startYearInput?.value, value.validity?.startYear ?? parseOptionalNumber(params.get("valid_from_bf"))),
-				endYear: isOpenEnded ? null : parseOptionalNumber(rawEndYear),
+				startYear: parseOptionalNumber(startYearInput.value, value.validity.startYear  parseOptionalNumber(params.get("valid_from_bf"))),
+				endYear: isOpenEnded  null : parseOptionalNumber(rawEndYear),
 				existsUntilToday: isOpenEnded
 			};
 
@@ -2784,8 +2784,8 @@
 				result = { ok: response.ok };
 			}
 
-			if (!response.ok || result?.ok === false) {
-				throw new Error(result?.error || `Speichern fehlgeschlagen: HTTP ${response.status}`);
+			if (!response.ok || result.ok === false) {
+				throw new Error(result.error || `Speichern fehlgeschlagen: HTTP ${response.status}`);
 			}
 
 			return result;
@@ -2821,17 +2821,17 @@
 
 			return {
 				id: node.id,
-				key: node.row?.wiki_key || node.row?.public_id || node.id || makeKey(node.label),
+				key: node.row.wiki_key || node.row.public_id || node.id || makeKey(node.label),
 				label: node.label,
 				kind: node.kind,
 				isSynthetic: isSyntheticNode(node),
-				wikiKey: node.row?.wiki_key || "",
-				rowId: node.row?.id || null,
-				territoryPublicId: node.row?.public_id || "",
-				territoryId: node.row?.territory_id || null,
-				slug: node.row?.slug || "",
+				wikiKey: node.row.wiki_key || "",
+				rowId: node.row.id || null,
+				territoryPublicId: node.row.public_id || "",
+				territoryId: node.row.territory_id || null,
+				slug: node.row.slug || "",
 				path: getNodePath(node).map(pathNode => pathNode.label),
-				pathKeys: getNodePath(node).map(pathNode => pathNode.row?.wiki_key || pathNode.row?.public_id || pathNode.id || makeKey(pathNode.label))
+				pathKeys: getNodePath(node).map(pathNode => pathNode.row.wiki_key || pathNode.row.public_id || pathNode.id || makeKey(pathNode.label))
 			};
 		}
 
@@ -2841,12 +2841,12 @@
 			}
 
 			const number = Number(value);
-			return Number.isFinite(number) ? number : fallback;
+			return Number.isFinite(number)  number : fallback;
 		}
 
 		function readOptionalYear(row, fields) {
 			for (const field of fields) {
-				const value = row?.[field];
+				const value = row.[field];
 				if (value === "" || value === null || typeof value === "undefined") {
 					continue;
 				}
@@ -2865,7 +2865,7 @@
 				return "";
 			}
 
-			return year < 0 ? `${Math.abs(year)} v. BF` : `${year} BF`;
+			return year < 0  `${Math.abs(year)} v. BF` : `${year} BF`;
 		}
 
 		function buildTerritoryPeriodLabel(row) {
@@ -2876,24 +2876,24 @@
 				return "";
 			}
 
-			const startText = startYear === null ? "?" : formatBfYear(startYear);
-			const endText = endYear === null ? "heute" : formatBfYear(endYear);
+			const startText = startYear === null  "?" : formatBfYear(startYear);
+			const endText = endYear === null  "heute" : formatBfYear(endYear);
 			return `${startText} - ${endText}`;
 		}
 
 		function buildTreeItemMetaInfo(node) {
 			const metaParts = [];
-			const periodLabel = buildTerritoryPeriodLabel(node?.row || null);
+			const periodLabel = buildTerritoryPeriodLabel(node.row || null);
 			if (periodLabel) {
 				metaParts.push(periodLabel);
 			}
 
-			const rowId = Number(node?.row?.id || 0);
+			const rowId = Number(node.row.id || 0);
 			if (rowId > 0) {
 				metaParts.push(`ID ${rowId}`);
 			}
 
-			const wikiUrl = normalizeText(node?.row?.wiki_url || "");
+			const wikiUrl = normalizeText(node.row.wiki_url || "");
 			return {
 				text: metaParts.join(", "),
 				wikiUrl

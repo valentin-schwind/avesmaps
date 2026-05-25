@@ -4,7 +4,7 @@ function openLocationEditDialogFromReport(report, latlng) {
 	activeReviewReportSource = report.report_source || "location_reports";
 	document.getElementById("location-edit-name").value = report.name || "";
 	document.getElementById("location-edit-type").value = normalizeLocationType(report.report_subtype || report.size || "dorf");
-	document.getElementById("location-edit-description").value = [report.comment, report.source ? `Quelle: ${report.source}` : ""]
+	document.getElementById("location-edit-description").value = [report.comment, report.source  `Quelle: ${report.source}` : ""]
 		.filter(Boolean)
 		.join("\n\n");
 	document.getElementById("location-edit-wiki-url").value = report.wiki_url || "";
@@ -16,8 +16,8 @@ function openLabelEditDialogFromReport(report, latlng) {
 	activeReviewReportSource = report.report_source || "map_reports";
 	document.getElementById("label-edit-text").value = report.name || "";
 	document.getElementById("label-edit-type").value = report.report_subtype || "sonstiges";
-	document.getElementById("label-edit-size").value = report.report_subtype === "region" ? 22 : 18;
-	document.getElementById("label-edit-priority").value = report.report_subtype === "region" ? 4 : 3;
+	document.getElementById("label-edit-size").value = report.report_subtype === "region"  22 : 18;
+	document.getElementById("label-edit-priority").value = report.report_subtype === "region"  4 : 3;
 	syncLabelPriorityOutput();
 }
 
@@ -59,7 +59,7 @@ function finalizeLocationReportSubmission({ ok, message }) {
 async function handleLocationReportFormSubmit(event) {
 	event.preventDefault();
 
-	const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
+	const formElement = event.currentTarget instanceof HTMLFormElement  event.currentTarget : null;
 	if (!formElement) {
 		return;
 	}

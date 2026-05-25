@@ -14,13 +14,13 @@ try {
         ]);
     }
 
-    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD']  'GET'));
     if ($requestMethod === 'OPTIONS') {
         avesmapsJsonResponse(204);
     }
 
     $user = avesmapsRequireUserWithCapability('review');
-    $pdo = avesmapsCreatePdo($config['database'] ?? []);
+    $pdo = avesmapsCreatePdo($config['database']  []);
 
     if ($requestMethod === 'GET') {
         avesmapsJsonResponse(200, avesmapsListLocationReportsForReview($pdo));
@@ -34,7 +34,7 @@ try {
     }
 
     $payload = avesmapsReadJsonRequest();
-    $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? ''), 40);
+    $action = avesmapsNormalizeSingleLine((string) ($payload['action']  ''), 40);
     $response = match ($action) {
         'update_status' => avesmapsUpdateLocationReportReviewStatus($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Review-Aktion ist unbekannt.'),
@@ -93,7 +93,7 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
 
     foreach ($mapStatement->fetchAll() as $report) {
         $report['report_source'] = 'map_reports';
-        $report['size'] = $report['report_type'] === 'location' ? $report['report_subtype'] : '';
+        $report['size'] = $report['report_type'] === 'location'  $report['report_subtype'] : '';
         $reports[] = $report;
     }
 
@@ -124,14 +124,14 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
         foreach ($statement->fetchAll() as $report) {
             $report['report_source'] = 'location_reports';
             $report['report_type'] = 'location';
-            $report['report_subtype'] = (string) ($report['size'] ?? 'dorf');
+            $report['report_subtype'] = (string) ($report['size']  'dorf');
             $reports[] = $report;
         }
     }
 
     usort(
         $reports,
-        static fn(array $left, array $right): int => [$left['created_at'] ?? '', (int) ($left['id'] ?? 0)] <=> [$right['created_at'] ?? '', (int) ($right['id'] ?? 0)]
+        static fn(array $left, array $right): int => [$left['created_at']  '', (int) ($left['id']  0)] <=> [$right['created_at']  '', (int) ($right['id']  0)]
     );
 
     return [
@@ -141,10 +141,10 @@ function avesmapsListLocationReportsForReview(PDO $pdo): array {
 }
 
 function avesmapsUpdateLocationReportReviewStatus(PDO $pdo, array $payload, array $user): array {
-    $reportId = filter_var($payload['report_id'] ?? null, FILTER_VALIDATE_INT);
-    $reportSource = avesmapsNormalizeSingleLine((string) ($payload['report_source'] ?? 'location_reports'), 40);
-    $newStatus = avesmapsNormalizeSingleLine((string) ($payload['status'] ?? ''), 20);
-    $reviewNote = avesmapsNormalizeReviewNote($payload['review_note'] ?? null);
+    $reportId = filter_var($payload['report_id']  null, FILTER_VALIDATE_INT);
+    $reportSource = avesmapsNormalizeSingleLine((string) ($payload['report_source']  'location_reports'), 40);
+    $newStatus = avesmapsNormalizeSingleLine((string) ($payload['status']  ''), 20);
+    $reviewNote = avesmapsNormalizeReviewNote($payload['review_note']  null);
 
     if ($reportId === false || $reportId <= 0) {
         throw new InvalidArgumentException('Es wurde keine gueltige report_id uebergeben.');
@@ -162,7 +162,7 @@ function avesmapsUpdateLocationReportReviewStatus(PDO $pdo, array $payload, arra
         avesmapsEnsureMapReportsTableForReview($pdo);
     }
 
-    $reviewedBySql = $reportSource === 'map_reports' ? ', reviewed_by = :reviewed_by' : '';
+    $reviewedBySql = $reportSource === 'map_reports'  ', reviewed_by = :reviewed_by' : '';
     $statement = $pdo->prepare(
         "UPDATE {$reportSource}
         SET
@@ -179,7 +179,7 @@ function avesmapsUpdateLocationReportReviewStatus(PDO $pdo, array $payload, arra
         'report_id' => $reportId,
     ];
     if ($reportSource === 'map_reports') {
-        $params['reviewed_by'] = (int) ($user['id'] ?? 0) ?: null;
+        $params['reviewed_by'] = (int) ($user['id']  0) ?: null;
     }
     $statement->execute($params);
 
@@ -193,7 +193,7 @@ function avesmapsUpdateLocationReportReviewStatus(PDO $pdo, array $payload, arra
     return [
         'ok' => true,
         'message' => 'Die Meldung wurde aktualisiert.',
-        'reviewed_by' => $user['username'] ?? '',
+        'reviewed_by' => $user['username']  '',
     ];
 }
 
@@ -235,6 +235,6 @@ function avesmapsReviewTableExists(PDO $pdo, string $tableName): bool {
 }
 
 function avesmapsNormalizeReviewNote(mixed $value): ?string {
-    $normalizedValue = avesmapsNormalizeSingleLine((string) ($value ?? ''), 500);
-    return $normalizedValue !== '' ? $normalizedValue : null;
+    $normalizedValue = avesmapsNormalizeSingleLine((string) ($value  ''), 500);
+    return $normalizedValue !== ''  $normalizedValue : null;
 }

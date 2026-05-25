@@ -1,6 +1,6 @@
 function createPathPopupMarkup(path) {
 	const pathName = getPathDisplayName(path);
-	const pathType = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+	const pathType = normalizePathSubtype(path.properties.feature_subtype || path.properties.name);
 	return locationPopupMarkup({
 		name: pathName,
 		locationType: "dorf",
@@ -9,7 +9,7 @@ function createPathPopupMarkup(path) {
 		showDescription: false,
 		showWikiLink: false,
 		showType: true,
-		actionsMarkup: IS_EDIT_MODE ? locationPopupActionsMarkup([
+		actionsMarkup: IS_EDIT_MODE  locationPopupActionsMarkup([
 			popupActionButtonMarkup({
 				label: "Details bearbeiten",
 				attributes: {
@@ -37,13 +37,13 @@ function createPathPopupMarkup(path) {
 }
 
 function updatePathLayerStyle(path) {
-	if (!path?._pathLines?.length) {
+	if (!path._pathLines.length) {
 		return;
 	}
 
 	const colors = getPathStyleColors(path);
-	path._pathLines[0]?.setStyle({ color: colors.outline, weight: colors.outlineWeight, opacity: colors.outlineOpacity });
-	path._pathLines[1]?.setStyle({ color: colors.center, weight: colors.centerWeight });
+	path._pathLines[0].setStyle({ color: colors.outline, weight: colors.outlineWeight, opacity: colors.outlineOpacity });
+	path._pathLines[1].setStyle({ color: colors.center, weight: colors.centerWeight });
 	refreshPathLayerText(path);
 }
 
@@ -52,7 +52,7 @@ function getPathVisualLatLngCoordinates(coordinates, zoomLevel = map.getZoom()) 
 }
 
 function refreshPathLayerPopup(path) {
-	if (!path?._pathLines?.length) {
+	if (!path._pathLines.length) {
 		return;
 	}
 
@@ -110,11 +110,11 @@ function createPathLayer(path) {
 }
 
 function updatePathLayerGeometry(path) {
-	if (!path?._pathLines) {
+	if (!path._pathLines) {
 		return;
 	}
 
 	const latLngCoords = getPathVisualLatLngCoordinates(path.geometry.coordinates);
 	path._pathLines.forEach((line) => line.setLatLngs(latLngCoords));
-	path._pathLabelLine?.setLatLngs(getReadablePathLabelLatLngCoordinates(latLngCoords));
+	path._pathLabelLine.setLatLngs(getReadablePathLabelLatLngCoordinates(latLngCoords));
 }

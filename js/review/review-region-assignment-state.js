@@ -1,7 +1,7 @@
 const regionAssignmentPersistedLoadPromises = new Map();
 
 function normalizePoliticalTerritoryAssignmentState(chain) {
-	const normalizedChain = clonePoliticalTerritoryChain(Array.isArray(chain) ? chain : []);
+	const normalizedChain = clonePoliticalTerritoryChain(Array.isArray(chain)  chain : []);
 	if (normalizedChain.length < 1) {
 		return {
 			path: [],
@@ -11,8 +11,8 @@ function normalizePoliticalTerritoryAssignmentState(chain) {
 	}
 
 	const path = normalizedChain.map((node) => {
-		const territory = node?.territory || {};
-		const wiki = node?.wiki || {};
+		const territory = node.territory || {};
+		const wiki = node.wiki || {};
 		const validLabel = territory.valid_label || territory.validLabel || wiki.valid_label || buildWikiReferencePeriod(wiki);
 		return {
 			territory: {
@@ -27,7 +27,7 @@ function normalizePoliticalTerritoryAssignmentState(chain) {
 		};
 	});
 
-	const activeTerritoryPublicId = String(normalizedChain[normalizedChain.length - 1]?.territory?.public_id || "").trim();
+	const activeTerritoryPublicId = String(normalizedChain[normalizedChain.length - 1].territory.public_id || "").trim();
 	return {
 		path,
 		ensuredChain: normalizedChain,
@@ -64,7 +64,7 @@ async function loadPersistedRegionAssignment(territoryPublicId) {
 				action: "get",
 				public_id: normalizedPublicId,
 			});
-			const assignmentChain = Array.isArray(response.assignment_chain) ? response.assignment_chain : [];
+			const assignmentChain = Array.isArray(response.assignment_chain)  response.assignment_chain : [];
 			if (assignmentChain.length < 1) {
 				return false;
 			}
@@ -90,14 +90,14 @@ async function loadPersistedRegionAssignment(territoryPublicId) {
 				return false;
 			}
 
-			const currentActiveTerritoryPublicId = String(regionEditEntry?.territoryPublicId || regionEditEntry?.publicId || "").trim();
+			const currentActiveTerritoryPublicId = String(regionEditEntry.territoryPublicId || regionEditEntry.publicId || "").trim();
 			if (currentActiveTerritoryPublicId === normalizedPublicId) {
 				renderRegionAssignment(regionAssignmentWikiPath, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
 			}
 
 			return true;
 		} catch (error) {
-			if (String(error?.message || "").includes("nicht gefunden")) {
+			if (String(error.message || "").includes("nicht gefunden")) {
 				return false;
 			}
 
@@ -126,7 +126,7 @@ function storeRegionAssignmentBreadcrumbCache(territoryPublicId, path, ensuredCh
 }
 
 function storeRegionAssignmentBreadcrumbCaches(path, ensuredChain = [], activeWikiPublicId = "") {
-	const normalizedPath = Array.isArray(path) ? path : [];
+	const normalizedPath = Array.isArray(path)  path : [];
 	if (normalizedPath.length < 1) {
 		return;
 	}
@@ -134,7 +134,7 @@ function storeRegionAssignmentBreadcrumbCaches(path, ensuredChain = [], activeWi
 	const snapshotPath = clonePoliticalTerritoryPath(normalizedPath);
 	const snapshotChain = clonePoliticalTerritoryChain(ensuredChain);
 	const territoryIds = Array.from(new Set(normalizedPath
-		.map((node) => String(node?.territory?.public_id || "").trim())
+		.map((node) => String(node.territory.public_id || "").trim())
 		.filter(Boolean)));
 	territoryIds.forEach((territoryId) => {
 		regionAssignmentBreadcrumbCache.set(territoryId, {
@@ -160,23 +160,23 @@ function updateRegionAssignmentBreadcrumbChain(territoryPublicId, territory = nu
 		return;
 	}
 
-	const territoryPatch = territory && typeof territory === "object" ? { ...territory } : null;
-	const wikiPatch = wiki && typeof wiki === "object" ? { ...wiki } : null;
+	const territoryPatch = territory && typeof territory === "object"  { ...territory } : null;
+	const wikiPatch = wiki && typeof wiki === "object"  { ...wiki } : null;
 	const patchChain = (chain) => chain.map((node) => {
-		if (String(node?.territory?.public_id || "").trim() !== cacheKey) {
+		if (String(node.territory.public_id || "").trim() !== cacheKey) {
 			return node;
 		}
 
 		return {
 			...node,
 			territory: territoryPatch
-				? {
+				 {
 					...(node.territory || {}),
 					...territoryPatch,
 				}
 				: node.territory,
 			wiki: wikiPatch
-				? {
+				 {
 					...(node.wiki || {}),
 					...wikiPatch,
 				}
@@ -193,8 +193,8 @@ function updateRegionAssignmentBreadcrumbChain(territoryPublicId, territory = nu
 			return;
 		}
 
-		const snapshotChain = Array.isArray(snapshot.ensuredChain) ? snapshot.ensuredChain : [];
-		const hasMatch = snapshotChain.some((node) => String(node?.territory?.public_id || "").trim() === cacheKey);
+		const snapshotChain = Array.isArray(snapshot.ensuredChain)  snapshot.ensuredChain : [];
+		const hasMatch = snapshotChain.some((node) => String(node.territory.public_id || "").trim() === cacheKey);
 		if (!hasMatch && String(snapshotKey || "").trim() !== cacheKey) {
 			return;
 		}
@@ -207,14 +207,14 @@ function updateRegionAssignmentBreadcrumbChain(territoryPublicId, territory = nu
 
 	if (Array.isArray(regionAssignmentWikiPath) && regionAssignmentWikiPath.length > 0) {
 		regionAssignmentWikiPath = regionAssignmentWikiPath.map((node) => {
-			if (String(node?.territory?.public_id || "").trim() !== cacheKey) {
+			if (String(node.territory.public_id || "").trim() !== cacheKey) {
 				return node;
 			}
 
 			return {
 				...node,
 				territory: territoryPatch
-					? {
+					 {
 						...(node.territory || {}),
 						...territoryPatch,
 					}
@@ -233,7 +233,7 @@ function restoreRegionAssignmentBreadcrumbCache(territoryPublicId) {
 	const snapshot = regionAssignmentBreadcrumbCache.get(cacheKey) || {};
 	regionAssignmentWikiPath = clonePoliticalTerritoryPath(snapshot.path);
 	regionAssignmentEnsuredChain = clonePoliticalTerritoryChain(snapshot.ensuredChain);
-	const lastBreadcrumbNode = regionAssignmentWikiPath.length > 0 ? regionAssignmentWikiPath[regionAssignmentWikiPath.length - 1] : null;
-	regionAssignmentActiveWikiPublicId = String(snapshot.activeWikiPublicId || lastBreadcrumbNode?.territory?.public_id || "").trim();
+	const lastBreadcrumbNode = regionAssignmentWikiPath.length > 0  regionAssignmentWikiPath[regionAssignmentWikiPath.length - 1] : null;
+	regionAssignmentActiveWikiPublicId = String(snapshot.activeWikiPublicId || lastBreadcrumbNode.territory.public_id || "").trim();
 	return regionAssignmentWikiPath.length > 0;
 }

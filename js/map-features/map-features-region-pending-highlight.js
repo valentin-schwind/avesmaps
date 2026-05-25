@@ -5,7 +5,7 @@ function setPendingRegionTargetHighlight(regionEntry) {
 	}
 
 	const layers = getRegionEntryLayers(regionEntry);
-	if (pendingRegionTargetHighlightLayers.length === layers.length && layers.every((layer, index) => layer === pendingRegionTargetHighlightLayers[index]?.layer)) {
+	if (pendingRegionTargetHighlightLayers.length === layers.length && layers.every((layer, index) => layer === pendingRegionTargetHighlightLayers[index].layer)) {
 		return;
 	}
 
@@ -17,7 +17,7 @@ function setPendingRegionTargetHighlight(regionEntry) {
 			opacity: 1,
 			weight: 5,
 		});
-		layer.bringToFront?.();
+		layer.bringToFront.();
 	});
 }
 

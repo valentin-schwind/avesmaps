@@ -1,17 +1,17 @@
 function shouldPathNameBeDisplayed(path) {
-	return path?.properties?.show_label === true || path?.properties?.show_label === 1 || path?.properties?.show_label === "1";
+	return path.properties.show_label === true || path.properties.show_label === 1 || path.properties.show_label === "1";
 }
 
 function isPathLabelVisibleAtCurrentZoom(path) {
-	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+	const pathSubtype = normalizePathSubtype(path.properties.feature_subtype || path.properties.name);
 	const minZoom = pathSubtype === "Flussweg" || pathSubtype === "Seeweg"
-		? 3
+		 3
 		: LOCATION_NAME_LABEL_CONFIG.dorf.minZoom;
 	return shouldPathNameBeDisplayed(path) && map.getZoom() >= minZoom;
 }
 
 function getPathLabelStyle(path) {
-	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+	const pathSubtype = normalizePathSubtype(path.properties.feature_subtype || path.properties.name);
 	const fillColors = {
 		Reichsstrasse: "#f4f4f4",
 		Strasse: "#dddddd",
@@ -23,7 +23,7 @@ function getPathLabelStyle(path) {
 		Seeweg: "#9ed0ff",
 	};
 
-	const fontSize = getLocationNameLabelSize("dorf") + (pathSubtype === "Flussweg" ? 3 : 1);
+	const fontSize = getLocationNameLabelSize("dorf") + (pathSubtype === "Flussweg"  3 : 1);
 	return {
 		fill: fillColors[pathSubtype] || fillColors.Weg,
 		stroke: "rgba(0, 0, 0, 0.75)",
@@ -37,18 +37,18 @@ function getPathLabelStyle(path) {
 }
 
 function refreshPathLayerText(path) {
-	const labelLine = path?._pathLabelLine;
-	if (!labelLine?.setText) {
+	const labelLine = path._pathLabelLine;
+	if (!labelLine.setText) {
 		return;
 	}
 
 	if (!isPathLabelVisibleAtCurrentZoom(path)) {
-		labelLine.removeText?.();
+		labelLine.removeText.();
 		return;
 	}
 
 	labelLine.setText(getPathDisplayName(path), {
-		className: `path-name-text path-name-text--${normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name)}`,
+		className: `path-name-text path-name-text--${normalizePathSubtype(path.properties.feature_subtype || path.properties.name)}`,
 		offset: "50%",
 		textAnchor: "middle",
 		dy: "-6",
@@ -67,5 +67,5 @@ function getReadablePathLabelLatLngCoordinates(latLngCoords) {
 
 	const startPoint = map.latLngToLayerPoint(latLngCoords[0]);
 	const endPoint = map.latLngToLayerPoint(latLngCoords[latLngCoords.length - 1]);
-	return endPoint.x < startPoint.x ? [...latLngCoords].reverse() : latLngCoords;
+	return endPoint.x < startPoint.x  [...latLngCoords].reverse() : latLngCoords;
 }

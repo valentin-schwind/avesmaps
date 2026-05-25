@@ -10,7 +10,7 @@
 	};
 
 	function normalizeText(value) {
-		return String(value ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+		return String(value  "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
 	}
 
 	function clampNumber(value, min, max) {
@@ -22,7 +22,7 @@
 	}
 
 	function readHueVarianceValue(input, fallback) {
-		const rawValue = Number(input?.value);
+		const rawValue = Number(input.value);
 		if (!Number.isFinite(rawValue)) {
 			return fallback;
 		}
@@ -55,19 +55,19 @@
 
 	function setStatus(message, type = "pending") {
 		const module = window.AvesmapsPoliticalTerritoryAssignment;
-		if (typeof module?.setStatus === "function") {
+		if (typeof module.setStatus === "function") {
 			module.setStatus(message, type);
 		}
 	}
 
 	function readAssignmentValue() {
-		return window.AvesmapsPoliticalTerritoryAssignment?.getValue?.() || null;
+		return window.AvesmapsPoliticalTerritoryAssignment.getValue.() || null;
 	}
 
 	function getDisplayForTerritoryPublicId(territoryPublicId) {
 		const value = readAssignmentValue();
-		const displays = Array.isArray(value?.displays) ? value.displays : [];
-		return displays.find(display => normalizeText(display?.territoryPublicId || display?.territory_public_id || "") === territoryPublicId) || null;
+		const displays = Array.isArray(value.displays)  value.displays : [];
+		return displays.find(display => normalizeText(display.territoryPublicId || display.territory_public_id || "") === territoryPublicId) || null;
 	}
 
 	function parseTerritoryId(value) {
@@ -76,7 +76,7 @@
 			return null;
 		}
 		const normalized = Math.trunc(territoryId);
-		return normalized > 0 ? normalized : null;
+		return normalized > 0  normalized : null;
 	}
 
 	function getDisplayForTerritoryId(territoryId) {
@@ -86,45 +86,45 @@
 		}
 
 		const value = readAssignmentValue();
-		const displays = Array.isArray(value?.displays) ? value.displays : [];
-		return displays.find(display => parseTerritoryId(display?.territoryId ?? display?.territory_id ?? null) === normalizedTerritoryId) || null;
+		const displays = Array.isArray(value.displays)  value.displays : [];
+		return displays.find(display => parseTerritoryId(display.territoryId  display.territory_id  null) === normalizedTerritoryId) || null;
 	}
 
 	function getPathTerritoryPublicId(value, index) {
-		const assignedPath = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
-		const editedPath = Array.isArray(value?.editedPath) ? value.editedPath : [];
-		const displays = Array.isArray(value?.displays) ? value.displays : [];
+		const assignedPath = Array.isArray(value.assignedPath)  value.assignedPath : [];
+		const editedPath = Array.isArray(value.editedPath)  value.editedPath : [];
+		const displays = Array.isArray(value.displays)  value.displays : [];
 		return normalizeText(
-			assignedPath[index]?.territoryPublicId
-			|| assignedPath[index]?.territory_public_id
-			|| editedPath[index]?.territoryPublicId
-			|| editedPath[index]?.territory_public_id
-			|| displays[index]?.territoryPublicId
-			|| displays[index]?.territory_public_id
+			assignedPath[index].territoryPublicId
+			|| assignedPath[index].territory_public_id
+			|| editedPath[index].territoryPublicId
+			|| editedPath[index].territory_public_id
+			|| displays[index].territoryPublicId
+			|| displays[index].territory_public_id
 			|| ""
 		);
 	}
 
 	function getPathTerritoryId(value, index) {
-		const assignedPath = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
-		const editedPath = Array.isArray(value?.editedPath) ? value.editedPath : [];
-		const displays = Array.isArray(value?.displays) ? value.displays : [];
+		const assignedPath = Array.isArray(value.assignedPath)  value.assignedPath : [];
+		const editedPath = Array.isArray(value.editedPath)  value.editedPath : [];
+		const displays = Array.isArray(value.displays)  value.displays : [];
 		return parseTerritoryId(
-			assignedPath[index]?.territoryId
-			?? assignedPath[index]?.territory_id
-			?? editedPath[index]?.territoryId
-			?? editedPath[index]?.territory_id
-			?? displays[index]?.territoryId
-			?? displays[index]?.territory_id
-			?? null
+			assignedPath[index].territoryId
+			 assignedPath[index].territory_id
+			 editedPath[index].territoryId
+			 editedPath[index].territory_id
+			 displays[index].territoryId
+			 displays[index].territory_id
+			 null
 		);
 	}
 
 	function getSelectedColor(rootTerritoryPublicId = "", rootTerritoryId = null) {
 		const value = readAssignmentValue();
-		const activeDisplayNodePublicId = normalizeText(value?.activeDisplayNode?.territoryPublicId || value?.activeDisplayNode?.territory_public_id || "");
-		const activeDisplayNodeTerritoryId = parseTerritoryId(value?.activeDisplayNode?.territoryId ?? value?.activeDisplayNode?.territory_id ?? null);
-		const inputColor = normalizeText(document.getElementById("colorInput")?.value || "");
+		const activeDisplayNodePublicId = normalizeText(value.activeDisplayNode.territoryPublicId || value.activeDisplayNode.territory_public_id || "");
+		const activeDisplayNodeTerritoryId = parseTerritoryId(value.activeDisplayNode.territoryId  value.activeDisplayNode.territory_id  null);
+		const inputColor = normalizeText(document.getElementById("colorInput").value || "");
 		if (
 			(rootTerritoryPublicId && activeDisplayNodePublicId === rootTerritoryPublicId)
 			|| (parseTerritoryId(rootTerritoryId) !== null && activeDisplayNodeTerritoryId === parseTerritoryId(rootTerritoryId))
@@ -135,27 +135,27 @@
 		}
 
 		if (rootTerritoryPublicId) {
-			const displayColor = normalizeText(getDisplayForTerritoryPublicId(rootTerritoryPublicId)?.color || "");
+			const displayColor = normalizeText(getDisplayForTerritoryPublicId(rootTerritoryPublicId).color || "");
 			if (/^#[0-9a-fA-F]{6}$/.test(displayColor)) {
 				return displayColor;
 			}
 		}
 
 		if (parseTerritoryId(rootTerritoryId) !== null) {
-			const displayColor = normalizeText(getDisplayForTerritoryId(rootTerritoryId)?.color || "");
+			const displayColor = normalizeText(getDisplayForTerritoryId(rootTerritoryId).color || "");
 			if (/^#[0-9a-fA-F]{6}$/.test(displayColor)) {
 				return displayColor;
 			}
 		}
 
-		return /^#[0-9a-fA-F]{6}$/.test(inputColor) ? inputColor : "#888888";
+		return /^#[0-9a-fA-F]{6}$/.test(inputColor)  inputColor : "#888888";
 	}
 
 	function getSelectedOpacity(rootTerritoryPublicId = "", rootTerritoryId = null) {
 		const value = readAssignmentValue();
-		const activeDisplayNodePublicId = normalizeText(value?.activeDisplayNode?.territoryPublicId || value?.activeDisplayNode?.territory_public_id || "");
-		const activeDisplayNodeTerritoryId = parseTerritoryId(value?.activeDisplayNode?.territoryId ?? value?.activeDisplayNode?.territory_id ?? null);
-		const percent = Number(document.getElementById("transparencyInput")?.value);
+		const activeDisplayNodePublicId = normalizeText(value.activeDisplayNode.territoryPublicId || value.activeDisplayNode.territory_public_id || "");
+		const activeDisplayNodeTerritoryId = parseTerritoryId(value.activeDisplayNode.territoryId  value.activeDisplayNode.territory_id  null);
+		const percent = Number(document.getElementById("transparencyInput").value);
 		if (
 			(rootTerritoryPublicId && activeDisplayNodePublicId === rootTerritoryPublicId)
 			|| (parseTerritoryId(rootTerritoryId) !== null && activeDisplayNodeTerritoryId === parseTerritoryId(rootTerritoryId))
@@ -166,20 +166,20 @@
 		}
 
 		if (rootTerritoryPublicId) {
-			const displayOpacity = Number(getDisplayForTerritoryPublicId(rootTerritoryPublicId)?.opacity);
+			const displayOpacity = Number(getDisplayForTerritoryPublicId(rootTerritoryPublicId).opacity);
 			if (Number.isFinite(displayOpacity)) {
 				return clampNumber(displayOpacity, 0, 1);
 			}
 		}
 
 		if (parseTerritoryId(rootTerritoryId) !== null) {
-			const displayOpacity = Number(getDisplayForTerritoryId(rootTerritoryId)?.opacity);
+			const displayOpacity = Number(getDisplayForTerritoryId(rootTerritoryId).opacity);
 			if (Number.isFinite(displayOpacity)) {
 				return clampNumber(displayOpacity, 0, 1);
 			}
 		}
 
-		return Number.isFinite(percent) ? clampNumber(percent / 100, 0, 1) : 0.33;
+		return Number.isFinite(percent)  clampNumber(percent / 100, 0, 1) : 0.33;
 	}
 
 	function getRootTerritoryIdentity() {
@@ -211,30 +211,30 @@
 			};
 		}
 
-		const displays = Array.isArray(value?.displays) ? value.displays : [];
+		const displays = Array.isArray(value.displays)  value.displays : [];
 		territoryPublicId = normalizeText(
-			value?.activeDisplayNode?.territoryPublicId
-			|| value?.activeDisplayNode?.territory_public_id
-			|| value?.display?.territoryPublicId
-			|| value?.display?.territory_public_id
-			|| value?.assignedTerritory?.territoryPublicId
-			|| value?.assignedTerritory?.territory_public_id
-			|| value?.source?.assignedRow?.public_id
-			|| displays.find(display => normalizeText(display?.territoryPublicId || display?.territory_public_id || ""))?.territoryPublicId
-			|| displays.find(display => normalizeText(display?.territoryPublicId || display?.territory_public_id || ""))?.territory_public_id
+			value.activeDisplayNode.territoryPublicId
+			|| value.activeDisplayNode.territory_public_id
+			|| value.display.territoryPublicId
+			|| value.display.territory_public_id
+			|| value.assignedTerritory.territoryPublicId
+			|| value.assignedTerritory.territory_public_id
+			|| value.source.assignedRow.public_id
+			|| displays.find(display => normalizeText(display.territoryPublicId || display.territory_public_id || "")).territoryPublicId
+			|| displays.find(display => normalizeText(display.territoryPublicId || display.territory_public_id || "")).territory_public_id
 			|| ""
 		);
 		territoryId = parseTerritoryId(
-			value?.activeDisplayNode?.territoryId
-			?? value?.activeDisplayNode?.territory_id
-			?? value?.display?.territoryId
-			?? value?.display?.territory_id
-			?? value?.assignedTerritory?.territoryId
-			?? value?.assignedTerritory?.territory_id
-			?? value?.source?.assignedRow?.territory_id
-			?? displays.find(display => parseTerritoryId(display?.territoryId ?? display?.territory_id ?? null) !== null)?.territoryId
-			?? displays.find(display => parseTerritoryId(display?.territoryId ?? display?.territory_id ?? null) !== null)?.territory_id
-			?? null
+			value.activeDisplayNode.territoryId
+			 value.activeDisplayNode.territory_id
+			 value.display.territoryId
+			 value.display.territory_id
+			 value.assignedTerritory.territoryId
+			 value.assignedTerritory.territory_id
+			 value.source.assignedRow.territory_id
+			 displays.find(display => parseTerritoryId(display.territoryId  display.territory_id  null) !== null).territoryId
+			 displays.find(display => parseTerritoryId(display.territoryId  display.territory_id  null) !== null).territory_id
+			 null
 		);
 
 		return {
@@ -244,7 +244,7 @@
 	}
 
 	function rememberActiveBreadcrumbFromButton(button) {
-		const container = button?.closest?.("#breadcrumb, #manualEditPath");
+		const container = button.closest.("#breadcrumb, #manualEditPath");
 		if (!container) {
 			return;
 		}
@@ -272,7 +272,7 @@
 
 	function installActiveBreadcrumbTracker() {
 		document.addEventListener("click", (event) => {
-			const button = event.target?.closest?.("#breadcrumb button, #manualEditPath button");
+			const button = event.target.closest.("#breadcrumb button, #manualEditPath button");
 			if (button) {
 				rememberActiveBreadcrumbFromButton(button);
 			}
@@ -290,18 +290,18 @@
 			body: JSON.stringify(payload)
 		});
 		const result = await response.json().catch(() => null);
-		if (!response.ok || result?.ok === false) {
-			throw new Error(result?.error || `Subtree-Aktualisierung fehlgeschlagen: HTTP ${response.status}`);
+		if (!response.ok || result.ok === false) {
+			throw new Error(result.error || `Subtree-Aktualisierung fehlgeschlagen: HTTP ${response.status}`);
 		}
 		return result || {};
 	}
 
 	function normalizeUpdateList(result, key) {
-		const updates = Array.isArray(result?.updates) ? result.updates : [];
+		const updates = Array.isArray(result.updates)  result.updates : [];
 		const normalized = [];
 
 		for (const update of updates) {
-			const territoryPublicId = normalizeText(update?.territoryPublicId || update?.territory_public_id || "");
+			const territoryPublicId = normalizeText(update.territoryPublicId || update.territory_public_id || "");
 			if (!territoryPublicId || !(key in (update || {}))) {
 				continue;
 			}
@@ -317,12 +317,12 @@
 		}
 
 		const assignmentModule = window.AvesmapsPoliticalTerritoryAssignment;
-		if (typeof assignmentModule?.getValue !== "function" || typeof assignmentModule?.setValue !== "function") {
+		if (typeof assignmentModule.getValue !== "function" || typeof assignmentModule.setValue !== "function") {
 			return false;
 		}
 
 		const value = assignmentModule.getValue();
-		const displays = Array.isArray(value?.displays) ? value.displays : [];
+		const displays = Array.isArray(value.displays)  value.displays : [];
 		if (displays.length < 1) {
 			return false;
 		}
@@ -330,7 +330,7 @@
 		const updatesByPublicId = new Map(updates.map(update => [update.territoryPublicId, update]));
 		let changed = false;
 		const nextDisplays = displays.map(display => {
-			const territoryPublicId = normalizeText(display?.territoryPublicId || display?.territory_public_id || "");
+			const territoryPublicId = normalizeText(display.territoryPublicId || display.territory_public_id || "");
 			const update = updatesByPublicId.get(territoryPublicId);
 			if (!update) {
 				return display;
@@ -339,8 +339,8 @@
 			changed = true;
 			return {
 				...display,
-				...(typeof update.color === "string" ? { color: update.color } : {}),
-				...(Number.isFinite(Number(update.opacity)) ? { opacity: Number(update.opacity) } : {})
+				...(typeof update.color === "string"  { color: update.color } : {}),
+				...(Number.isFinite(Number(update.opacity))  { opacity: Number(update.opacity) } : {})
 			};
 		});
 
@@ -350,8 +350,8 @@
 
 		const root = getRootTerritoryIdentity();
 		const activeDisplay = nextDisplays.find((display) => {
-			const displayPublicId = normalizeText(display?.territoryPublicId || display?.territory_public_id || "");
-			const displayTerritoryId = parseTerritoryId(display?.territoryId ?? display?.territory_id ?? null);
+			const displayPublicId = normalizeText(display.territoryPublicId || display.territory_public_id || "");
+			const displayTerritoryId = parseTerritoryId(display.territoryId  display.territory_id  null);
 			if (root.territoryPublicId && displayPublicId === root.territoryPublicId) {
 				return true;
 			}
@@ -363,8 +363,8 @@
 			displays: nextDisplays,
 			display: {
 				...value.display,
-				...(typeof activeDisplay.color === "string" ? { color: activeDisplay.color } : {}),
-				...(Number.isFinite(Number(activeDisplay.opacity)) ? { opacity: Number(activeDisplay.opacity) } : {})
+				...(typeof activeDisplay.color === "string"  { color: activeDisplay.color } : {}),
+				...(Number.isFinite(Number(activeDisplay.opacity))  { opacity: Number(activeDisplay.opacity) } : {})
 			}
 		});
 		return true;
@@ -372,14 +372,14 @@
 
 	async function reloadEditorAndParentLayers() {
 		try {
-			window.parent?.loadPoliticalTerritoryOptions?.({ force: true });
-			window.parent?.schedulePoliticalTerritoryLayerReload?.({ immediate: true });
+			window.parent.loadPoliticalTerritoryOptions.({ force: true });
+			window.parent.schedulePoliticalTerritoryLayerReload.({ immediate: true });
 		} catch (error) {
 			console.warn("Politische Gebietsebene konnte nicht direkt neu geladen werden:", error);
 		}
 
 		const assignmentModule = window.AvesmapsPoliticalTerritoryAssignment;
-		if (typeof assignmentModule?.reload === "function") {
+		if (typeof assignmentModule.reload === "function") {
 			try {
 				await assignmentModule.reload();
 			} catch (error) {
@@ -389,10 +389,10 @@
 	}
 
 	function buildSuccessMessage(prefix, result) {
-		const globalChanged = Number(result?.global_changed ?? result?.changed ?? 0);
-		const descendantCount = Number(result?.descendants_count ?? result?.received ?? 0);
-		const localGeometryChanged = Number(result?.local_geometry_changed ?? 0);
-		const localDisplayChanged = Number(result?.local_display_changed ?? 0);
+		const globalChanged = Number(result.global_changed  result.changed  0);
+		const descendantCount = Number(result.descendants_count  result.received  0);
+		const localGeometryChanged = Number(result.local_geometry_changed  0);
+		const localDisplayChanged = Number(result.local_display_changed  0);
 		return `${prefix} Untergebiete: ${descendantCount}, global: ${globalChanged}, lokal: ${localGeometryChanged} Geometrien / ${localDisplayChanged} Displays.`;
 	}
 

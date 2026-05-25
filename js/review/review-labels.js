@@ -3,8 +3,8 @@ function setLabelEditDialogOpen(isOpen, { resetForm = false } = {}) {
 	syncModalDialogBodyState();
 
 	if (isOpen) {
-		getLabelEditDialogElement()?.focus();
-		document.getElementById("label-edit-text")?.focus();
+		getLabelEditDialogElement().focus();
+		document.getElementById("label-edit-text").focus();
 		return;
 	}
 
@@ -15,17 +15,17 @@ function setLabelEditDialogOpen(isOpen, { resetForm = false } = {}) {
 
 function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 	labelEditEntry = labelEntry;
-	labelEditLatLng = latlng ? L.latLng(latlng) : labelEntry?.marker.getLatLng() || null;
-	const label = labelEntry?.label || {};
+	labelEditLatLng = latlng  L.latLng(latlng) : labelEntry.marker.getLatLng() || null;
+	const label = labelEntry.label || {};
 	document.getElementById("label-edit-public-id").value = label.publicId || "";
 	void acquireFeatureSoftLock(label.publicId || "");
 	document.getElementById("label-edit-text").value = label.text || "";
 	document.getElementById("label-edit-type").value = label.labelType || "region";
 	document.getElementById("label-edit-size").value = label.size || 18;
 	document.getElementById("label-edit-rotation").value = label.rotation || 0;
-	document.getElementById("label-edit-min-zoom").value = label.minZoom ?? 0;
-	document.getElementById("label-edit-max-zoom").value = label.maxZoom ?? 5;
-	document.getElementById("label-edit-priority").value = label.priority ?? 3;
+	document.getElementById("label-edit-min-zoom").value = label.minZoom  0;
+	document.getElementById("label-edit-max-zoom").value = label.maxZoom  5;
+	document.getElementById("label-edit-priority").value = label.priority  3;
 	document.getElementById("label-edit-is-nodix").checked = Boolean(label.isNodix);
 	syncLabelZoomRangeOutputs();
 	syncLabelPriorityOutput();
@@ -53,10 +53,10 @@ function syncLabelZoomRangeOutputs(event = null) {
 
 	let minZoom = Number.parseInt(minInputElement.value, 10);
 	let maxZoom = Number.parseInt(maxInputElement.value, 10);
-	if (event?.currentTarget === minInputElement && minZoom > maxZoom) {
+	if (event.currentTarget === minInputElement && minZoom > maxZoom) {
 		maxZoom = minZoom;
 		maxInputElement.value = String(maxZoom);
-	} else if (event?.currentTarget === maxInputElement && maxZoom < minZoom) {
+	} else if (event.currentTarget === maxInputElement && maxZoom < minZoom) {
 		minZoom = maxZoom;
 		minInputElement.value = String(minZoom);
 	}
@@ -65,7 +65,7 @@ function syncLabelZoomRangeOutputs(event = null) {
 	minOutputElement.textContent = String(minZoom);
 	maxOutputElement.value = String(maxZoom);
 	maxOutputElement.textContent = String(maxZoom);
-	if (event?.currentTarget && map.getZoom() !== Number(event.currentTarget.value)) {
+	if (event.currentTarget && map.getZoom() !== Number(event.currentTarget.value)) {
 		map.setZoom(Number(event.currentTarget.value));
 	}
 }
@@ -84,7 +84,7 @@ function syncLabelPriorityOutput() {
 function buildLabelEditPayload(formElement) {
 	const formData = new FormData(formElement);
 	const publicId = String(formData.get("public_id") || "").trim();
-	const action = publicId ? "update_label" : "create_label";
+	const action = publicId  "update_label" : "create_label";
 	const payload = {
 		action,
 		public_id: publicId,

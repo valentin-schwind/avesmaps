@@ -61,7 +61,7 @@ function avesmapsBuildApiConfigFromEnvironment(): ?array {
 }
 
 function avesmapsApplyCorsPolicy(array $config): bool {
-    $origin = avesmapsNormalizeCorsOrigin((string) ($_SERVER['HTTP_ORIGIN'] ?? ''));
+    $origin = avesmapsNormalizeCorsOrigin((string) ($_SERVER['HTTP_ORIGIN']  ''));
     if ($origin === '') {
         return true;
     }
@@ -104,13 +104,13 @@ function avesmapsNormalizeCorsOrigin(string $origin): string {
 
     $scheme = strtolower((string) $parts['scheme']);
     $host = strtolower((string) $parts['host']);
-    $port = isset($parts['port']) ? ':' . (int) $parts['port'] : '';
+    $port = isset($parts['port'])  ':' . (int) $parts['port'] : '';
 
     return "{$scheme}://{$host}{$port}";
 }
 
 function avesmapsGetAllowedOrigins(array $config): array {
-    $origins = $config['cors']['allowed_origins'] ?? [];
+    $origins = $config['cors']['allowed_origins']  [];
     if (!is_array($origins)) {
         return [];
     }
@@ -159,13 +159,13 @@ function avesmapsReadJsonRequest(): array {
 }
 
 function avesmapsCreatePdo(array $databaseConfig): PDO {
-    $driver = trim((string) ($databaseConfig['driver'] ?? ''));
-    $host = trim((string) ($databaseConfig['host'] ?? ''));
-    $port = trim((string) ($databaseConfig['port'] ?? ''));
-    $databaseName = trim((string) ($databaseConfig['name'] ?? ''));
-    $charset = trim((string) ($databaseConfig['charset'] ?? 'utf8mb4'));
-    $user = (string) ($databaseConfig['user'] ?? '');
-    $password = (string) ($databaseConfig['password'] ?? '');
+    $driver = trim((string) ($databaseConfig['driver']  ''));
+    $host = trim((string) ($databaseConfig['host']  ''));
+    $port = trim((string) ($databaseConfig['port']  ''));
+    $databaseName = trim((string) ($databaseConfig['name']  ''));
+    $charset = trim((string) ($databaseConfig['charset']  'utf8mb4'));
+    $user = (string) ($databaseConfig['user']  '');
+    $password = (string) ($databaseConfig['password']  '');
 
     if ($driver === '' || $host === '' || $port === '' || $databaseName === '' || $user === '') {
         throw new RuntimeException('Die Datenbank-Konfiguration ist unvollstaendig.');
@@ -201,12 +201,12 @@ function avesmapsCreatePdo(array $databaseConfig): PDO {
 }
 
 function avesmapsGetConfiguredImportApiToken(array $config): string {
-    return trim((string) ($config['import_api']['token'] ?? ''));
+    return trim((string) ($config['import_api']['token']  ''));
 }
 
 function avesmapsReadRequestHeader(string $headerName): string {
     $serverKey = 'HTTP_' . str_replace('-', '_', strtoupper($headerName));
-    return trim((string) ($_SERVER[$serverKey] ?? ''));
+    return trim((string) ($_SERVER[$serverKey]  ''));
 }
 
 function avesmapsReadBearerTokenFromRequest(): string {
@@ -215,7 +215,7 @@ function avesmapsReadBearerTokenFromRequest(): string {
         return '';
     }
 
-    return trim((string) ($matches[1] ?? ''));
+    return trim((string) ($matches[1]  ''));
 }
 
 function avesmapsReadImportApiTokenFromRequest(): string {
@@ -228,7 +228,7 @@ function avesmapsReadImportApiTokenFromRequest(): string {
 }
 
 function avesmapsNormalizeSingleLine(?string $value, int $maxLength): string {
-    $normalizedValue = preg_replace('/\s+/u', ' ', trim((string) $value)) ?? '';
+    $normalizedValue = preg_replace('/\s+/u', ' ', trim((string) $value))  '';
     if (mb_strlen($normalizedValue) <= $maxLength) {
         return $normalizedValue;
     }
@@ -259,7 +259,7 @@ function avesmapsNormalizeOptionalUrl(?string $value, int $maxLength, string $fi
 }
 
 function avesmapsParseMapCoordinate(mixed $value, string $fieldName): float {
-    $normalizedValue = is_string($value) ? str_replace(',', '.', trim($value)) : $value;
+    $normalizedValue = is_string($value)  str_replace(',', '.', trim($value)) : $value;
     $coordinate = filter_var($normalizedValue, FILTER_VALIDATE_FLOAT);
     if ($coordinate === false || $coordinate < 0 || $coordinate > 1024) {
         throw new InvalidArgumentException("Die Koordinate {$fieldName} ist ungueltig.");
@@ -269,7 +269,7 @@ function avesmapsParseMapCoordinate(mixed $value, string $fieldName): float {
 }
 
 function avesmapsClientIpAddress(): string {
-    $forwardedFor = trim((string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
+    $forwardedFor = trim((string) ($_SERVER['HTTP_X_FORWARDED_FOR']  ''));
     if ($forwardedFor !== '') {
         $ipCandidates = array_map('trim', explode(',', $forwardedFor));
         if ($ipCandidates !== []) {
@@ -277,5 +277,5 @@ function avesmapsClientIpAddress(): string {
         }
     }
 
-    return mb_substr(trim((string) ($_SERVER['REMOTE_ADDR'] ?? '')), 0, 64);
+    return mb_substr(trim((string) ($_SERVER['REMOTE_ADDR']  '')), 0, 64);
 }

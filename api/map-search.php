@@ -16,7 +16,7 @@ try {
         ]);
     }
 
-    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD']  'GET'));
     if ($requestMethod === 'OPTIONS') {
         avesmapsJsonResponse(204);
     }
@@ -28,8 +28,8 @@ try {
         ]);
     }
 
-    $query = avesmapsReadMapSearchQuery($_GET['q'] ?? '');
-    $limit = avesmapsReadMapSearchLimit($_GET['limit'] ?? AVESMAPS_MAP_SEARCH_MAX_LIMIT);
+    $query = avesmapsReadMapSearchQuery($_GET['q']  '');
+    $limit = avesmapsReadMapSearchLimit($_GET['limit']  AVESMAPS_MAP_SEARCH_MAX_LIMIT);
     if ($query === '') {
         avesmapsJsonResponse(200, [
             'ok' => true,
@@ -39,7 +39,7 @@ try {
         ]);
     }
 
-    $pdo = avesmapsCreatePdo($config['database'] ?? []);
+    $pdo = avesmapsCreatePdo($config['database']  []);
     $rows = avesmapsFetchMapSearchRows($pdo);
     $results = avesmapsBuildMapSearchResults($rows, $query, $limit);
 
@@ -102,7 +102,7 @@ function avesmapsFetchMapSearchRows(PDO $pdo): array {
         ORDER BY sort_order ASC, id ASC'
     );
 
-    return $statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [];
+    return $statement !== false  $statement->fetchAll(PDO::FETCH_ASSOC) : [];
 }
 
 function avesmapsBuildMapSearchResults(array $rows, string $query, int $limit): array {
@@ -125,7 +125,7 @@ function avesmapsBuildMapSearchResults(array $rows, string $query, int $limit): 
         }
 
         if ($entry['kind'] === 'path') {
-            $pathKey = (string) ($entry['group_key'] ?? '');
+            $pathKey = (string) ($entry['group_key']  '');
             if ($pathKey === '') {
                 continue;
             }
@@ -164,7 +164,7 @@ function avesmapsBuildMapSearchResults(array $rows, string $query, int $limit): 
     return array_map(
         static function (array $entry): array {
             unset($entry['score'], $entry['search_texts'], $entry['group_key']);
-            $entry['public_ids'] = array_values(array_unique($entry['public_ids'] ?? []));
+            $entry['public_ids'] = array_values(array_unique($entry['public_ids']  []));
             return $entry;
         },
         array_slice($results, 0, $limit)
@@ -172,9 +172,9 @@ function avesmapsBuildMapSearchResults(array $rows, string $query, int $limit): 
 }
 
 function avesmapsBuildSearchEntry(array $row): ?array {
-    $properties = avesmapsDecodeJsonColumnForSearch($row['properties_json'] ?? null);
-    $featureType = (string) ($row['feature_type'] ?? $properties['feature_type'] ?? '');
-    $featureSubtype = (string) ($row['feature_subtype'] ?? $properties['feature_subtype'] ?? '');
+    $properties = avesmapsDecodeJsonColumnForSearch($row['properties_json']  null);
+    $featureType = (string) ($row['feature_type']  $properties['feature_type']  '');
+    $featureSubtype = (string) ($row['feature_subtype']  $properties['feature_subtype']  '');
     $name = avesmapsGetSearchFeatureName($row, $properties);
     if ($name === '') {
         return null;
@@ -189,7 +189,7 @@ function avesmapsBuildSearchEntry(array $row): ?array {
             'kind' => 'location',
             'name' => $name,
             'type_label' => avesmapsLocationSearchTypeLabel($featureSubtype),
-            'search_texts' => [$name, $featureSubtype, $properties['settlement_class_label'] ?? '', avesmapsReadSearchWikiUrl($properties)],
+            'search_texts' => [$name, $featureSubtype, $properties['settlement_class_label']  '', avesmapsReadSearchWikiUrl($properties)],
         ]);
     }
 
@@ -199,17 +199,17 @@ function avesmapsBuildSearchEntry(array $row): ?array {
             'name' => $name,
             'type_label' => avesmapsLabelSearchTypeLabel($featureSubtype),
             'search_texts' => [$name, $featureSubtype],
-            'min_zoom' => (int) ($properties['min_zoom'] ?? 0),
-            'max_zoom' => (int) ($properties['max_zoom'] ?? 5),
+            'min_zoom' => (int) ($properties['min_zoom']  0),
+            'max_zoom' => (int) ($properties['max_zoom']  5),
         ]);
     }
 
-    if ($featureType === 'region' || ($properties['type'] ?? '') === 'region') {
+    if ($featureType === 'region' || ($properties['type']  '') === 'region') {
         return avesmapsBuildSearchResult($row, [
             'kind' => 'region',
             'name' => $name,
             'type_label' => 'Politisches Land',
-            'search_texts' => [$name, $properties['wiki_url'] ?? ''],
+            'search_texts' => [$name, $properties['wiki_url']  ''],
         ]);
     }
 
@@ -219,16 +219,16 @@ function avesmapsBuildSearchEntry(array $row): ?array {
             'name' => $name,
             'type_label' => 'Kraftlinie',
             'search_texts' => [$name, 'Kraftlinie', 'Nodix'],
-            'show_label' => avesmapsReadSearchBoolean($properties['show_label'] ?? false),
+            'show_label' => avesmapsReadSearchBoolean($properties['show_label']  false),
         ]);
     }
 
     if ($featureType === 'path') {
-        if (!avesmapsReadSearchBoolean($properties['show_label'] ?? false)) {
+        if (!avesmapsReadSearchBoolean($properties['show_label']  false)) {
             return null;
         }
 
-        $displayName = avesmapsNormalizeSingleLine((string) ($properties['display_name'] ?? $properties['original_name'] ?? $name), 160);
+        $displayName = avesmapsNormalizeSingleLine((string) ($properties['display_name']  $properties['original_name']  $name), 160);
         if ($displayName === '') {
             return null;
         }
@@ -249,19 +249,19 @@ function avesmapsBuildSearchEntry(array $row): ?array {
 }
 
 function avesmapsBuildSearchResult(array $row, array $fields): array {
-    $publicId = (string) ($row['public_id'] ?? '');
+    $publicId = (string) ($row['public_id']  '');
     $result = [
         'kind' => (string) $fields['kind'],
         'public_id' => $publicId,
-        'public_ids' => $fields['public_ids'] ?? ($publicId !== '' ? [$publicId] : []),
+        'public_ids' => $fields['public_ids']  ($publicId !== ''  [$publicId] : []),
         'name' => (string) $fields['name'],
         'type_label' => (string) $fields['type_label'],
-        'feature_subtype' => (string) ($fields['feature_subtype'] ?? $row['feature_subtype'] ?? ''),
-        'min_x' => (float) ($row['min_x'] ?? 0),
-        'min_y' => (float) ($row['min_y'] ?? 0),
-        'max_x' => (float) ($row['max_x'] ?? 0),
-        'max_y' => (float) ($row['max_y'] ?? 0),
-        'search_texts' => $fields['search_texts'] ?? [],
+        'feature_subtype' => (string) ($fields['feature_subtype']  $row['feature_subtype']  ''),
+        'min_x' => (float) ($row['min_x']  0),
+        'min_y' => (float) ($row['min_y']  0),
+        'max_x' => (float) ($row['max_x']  0),
+        'max_y' => (float) ($row['max_y']  0),
+        'search_texts' => $fields['search_texts']  [],
     ];
 
     foreach (['min_zoom', 'max_zoom', 'show_label', 'group_key'] as $optionalField) {
@@ -283,7 +283,7 @@ function avesmapsExtendSearchResultBounds(array $target, array $source): array {
 
 function avesmapsCalculateSearchScore(array $entry, string $normalizedQuery): ?int {
     $bestScore = null;
-    foreach ($entry['search_texts'] ?? [] as $searchText) {
+    foreach ($entry['search_texts']  [] as $searchText) {
         $candidate = avesmapsNormalizeSearchText((string) $searchText);
         if ($candidate === '') {
             continue;
@@ -301,7 +301,7 @@ function avesmapsCalculateSearchScore(array $entry, string $normalizedQuery): ?i
         }
 
         if ($score !== null) {
-            $bestScore = $bestScore === null ? $score : min($bestScore, $score);
+            $bestScore = $bestScore === null  $score : min($bestScore, $score);
         }
     }
 
@@ -332,7 +332,7 @@ function avesmapsNormalizeSearchText(string $value): string {
         }
     }
 
-    return trim(preg_replace('/[^a-z0-9]+/', ' ', $normalizedValue) ?? '');
+    return trim(preg_replace('/[^a-z0-9]+/', ' ', $normalizedValue)  '');
 }
 
 function avesmapsNormalizePathSearchGroupKey(string $displayName, string $subtype): string {
@@ -340,11 +340,11 @@ function avesmapsNormalizePathSearchGroupKey(string $displayName, string $subtyp
 }
 
 function avesmapsGetSearchFeatureName(array $row, array $properties): string {
-    return avesmapsNormalizeSingleLine((string) ($properties['text'] ?? $properties['display_name'] ?? $properties['name'] ?? $row['name'] ?? ''), 160);
+    return avesmapsNormalizeSingleLine((string) ($properties['text']  $properties['display_name']  $properties['name']  $row['name']  ''), 160);
 }
 
 function avesmapsReadSearchBoolean(mixed $value): bool {
-    return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
+    return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)  false;
 }
 
 function avesmapsIsCrossingName(string $name): bool {
@@ -415,14 +415,14 @@ function avesmapsDecodeJsonColumnForSearch(mixed $value): array {
         return [];
     }
 
-    return is_array($decodedValue) ? $decodedValue : [];
+    return is_array($decodedValue)  $decodedValue : [];
 }
 
 function avesmapsReadSearchWikiUrl(array $properties): string {
-    $wikiUrl = (string) ($properties['wiki_url'] ?? '');
+    $wikiUrl = (string) ($properties['wiki_url']  '');
     if ($wikiUrl !== '') {
         return $wikiUrl;
     }
 
-    return (string) ($properties['data-report-wiki-url'] ?? '');
+    return (string) ($properties['data-report-wiki-url']  '');
 }

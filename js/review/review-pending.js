@@ -36,7 +36,7 @@ function setLocationEditSubmitPending(isPending) {
 	}
 	const submitButtonElement = document.getElementById("location-edit-submit");
 	if (submitButtonElement) {
-		submitButtonElement.textContent = isPending ? "Speichert..." : "Speichern";
+		submitButtonElement.textContent = isPending  "Speichert..." : "Speichern";
 		submitButtonElement.disabled = isPending;
 	}
 }
@@ -56,7 +56,7 @@ function setWikiSyncResolveSubmitPending(isPending) {
 	}
 	const submitButtonElement = document.getElementById("wiki-sync-resolve-submit");
 	if (submitButtonElement) {
-		submitButtonElement.textContent = isPending ? "Speichert..." : "Lösen";
+		submitButtonElement.textContent = isPending  "Speichert..." : "Lösen";
 		submitButtonElement.disabled = isPending;
 	}
 }
@@ -76,7 +76,7 @@ function setPathEditSubmitPending(isPending) {
 	}
 	const submitButtonElement = document.getElementById("path-edit-submit");
 	if (submitButtonElement) {
-		submitButtonElement.textContent = isPending ? "Speichert..." : "Speichern";
+		submitButtonElement.textContent = isPending  "Speichert..." : "Speichern";
 		submitButtonElement.disabled = isPending;
 	}
 }
@@ -96,7 +96,7 @@ function setPowerlineEditSubmitPending(isPending) {
 	}
 	const submitButtonElement = document.getElementById("powerline-edit-submit");
 	if (submitButtonElement) {
-		submitButtonElement.textContent = isPending ? "Speichert..." : "Speichern";
+		submitButtonElement.textContent = isPending  "Speichert..." : "Speichern";
 		submitButtonElement.disabled = isPending;
 	}
 }

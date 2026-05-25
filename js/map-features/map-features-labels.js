@@ -1,17 +1,17 @@
 function normalizeLabelFeature(feature) {
 	const properties = feature.properties || {};
-	const [lng, lat] = feature.geometry?.coordinates || [feature.lng, feature.lat];
+	const [lng, lat] = feature.geometry.coordinates || [feature.lng, feature.lat];
 	return {
 		publicId: properties.public_id || feature.id || feature.public_id || "",
 		text: properties.text || properties.name || feature.name || "",
 		labelType: properties.feature_subtype || feature.feature_subtype || "region",
 		size: Number(properties.size || feature.size || 18),
 		rotation: Number(properties.rotation || feature.rotation || 0),
-		minZoom: Number(properties.min_zoom ?? feature.min_zoom ?? 0),
-		maxZoom: Number(properties.max_zoom ?? feature.max_zoom ?? 5),
-		priority: Number(properties.priority ?? feature.priority ?? 3),
-		isNodix: Boolean(properties.is_nodix ?? feature.is_nodix),
-		revision: Number(properties.revision ?? feature.revision) || null,
+		minZoom: Number(properties.min_zoom  feature.min_zoom  0),
+		maxZoom: Number(properties.max_zoom  feature.max_zoom  5),
+		priority: Number(properties.priority  feature.priority  3),
+		isNodix: Boolean(properties.is_nodix  feature.is_nodix),
+		revision: Number(properties.revision  feature.revision) || null,
 		coordinates: [Number(lat), Number(lng)],
 	};
 }
@@ -67,7 +67,7 @@ function findLabelEntryByPublicId(publicId) {
 }
 
 function setLabelMoveActive(entry, isActive) {
-	if (!entry?.marker?.dragging) {
+	if (!entry.marker.dragging) {
 		return;
 	}
 
@@ -85,7 +85,7 @@ function setLabelMoveActive(entry, isActive) {
 
 function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds()) {
 	const minZoom = Number(entry.label.minZoom) || 0;
-	const maxZoom = Number.isFinite(Number(entry.label.maxZoom)) ? Number(entry.label.maxZoom) : 5;
+	const maxZoom = Number.isFinite(Number(entry.label.maxZoom))  Number(entry.label.maxZoom) : 5;
 	const visualZoomLevel = getVisualZoomLevel(zoomLevel);
 	return getSelectedMapLayerMode() === "deregraphic"
 		&& visualZoomLevel >= minZoom
@@ -127,7 +127,7 @@ function syncLabelIcons() {
 
 function prepareLabelData(data) {
 	labelMarkers.forEach((entry) => map.removeLayer(entry.marker));
-	labelData = data.features.filter((feature) => feature.properties?.feature_type === "label").map(normalizeLabelFeature);
+	labelData = data.features.filter((feature) => feature.properties.feature_type === "label").map(normalizeLabelFeature);
 	labelMarkers = labelData.map(createLabelMarkerEntry);
 	syncLabelVisibility();
 }

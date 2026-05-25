@@ -54,11 +54,11 @@ function isVillageMarkerStyleLocation(locationType) {
 function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
 	const visualZoomLevel = getVisualZoomLevel(zoomLevel);
 	if (locationType === CROSSING_LOCATION_TYPE) {
-		return visualZoomLevel <= 3 ? 5 : Math.max(7, 5 + visualZoomLevel * 1.5);
+		return visualZoomLevel <= 3  5 : Math.max(7, 5 + visualZoomLevel * 1.5);
 	}
 
 	if (isVillageMarkerStyleLocation(locationType)) {
-		const villageStyle = locationType === "gebaeude" ? getBuildingMarkerStyle(zoomLevel) : getVillageMarkerStyle(zoomLevel);
+		const villageStyle = locationType === "gebaeude"  getBuildingMarkerStyle(zoomLevel) : getVillageMarkerStyle(zoomLevel);
 		return villageStyle.radius * 2 + villageStyle.borderWidth * 2;
 	}
 
@@ -69,7 +69,7 @@ function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
 function getLocationMarkerBorderWidth(locationType, zoomLevel = map.getZoom()) {
 	const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
 	if (isVillageMarkerStyleLocation(locationType)) {
-		return locationType === "gebaeude" ? getBuildingMarkerStyle(zoomLevel).borderWidth : getVillageMarkerStyle(zoomLevel).borderWidth;
+		return locationType === "gebaeude"  getBuildingMarkerStyle(zoomLevel).borderWidth : getVillageMarkerStyle(zoomLevel).borderWidth;
 	}
 
 	return config.borderWidth;
@@ -79,10 +79,10 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
 	if (locationType === CROSSING_LOCATION_TYPE) {
 		const markerSize = getLocationMarkerSize(locationType, zoomLevel);
 		const isSimpleMarker = getVisualZoomLevel(zoomLevel) <= 3;
-		const iconHtml = `<span class="location-visual-marker__shape location-visual-marker__shape--crossing${isSimpleMarker ? " location-visual-marker__shape--simple" : ""}" style="width:${markerSize}px;height:${markerSize}px;"></span>`;
+		const iconHtml = `<span class="location-visual-marker__shape location-visual-marker__shape--crossing${isSimpleMarker  " location-visual-marker__shape--simple" : ""}" style="width:${markerSize}px;height:${markerSize}px;"></span>`;
 
 		return L.divIcon({
-			className: `location-visual-marker location-visual-marker--crossing${isSimpleMarker ? " location-visual-marker--simple" : ""}`,
+			className: `location-visual-marker location-visual-marker--crossing${isSimpleMarker  " location-visual-marker--simple" : ""}`,
 			html: iconHtml,
 			iconSize: [markerSize, markerSize],
 			iconAnchor: [markerSize / 2, markerSize / 2],
@@ -93,15 +93,15 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
 	const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
 	const markerSize = getLocationMarkerSize(locationType, zoomLevel);
 	const isSimpleMarker = locationType === "dorf"
-		? getVisualZoomLevel(zoomLevel) <= 2
+		 getVisualZoomLevel(zoomLevel) <= 2
 		: locationType === "gebaeude"
-			? getVisualZoomLevel(zoomLevel) <= 3
+			 getVisualZoomLevel(zoomLevel) <= 3
 			: false;
 	const shapeClassName = config.shape === "square"
-		? `location-visual-marker__shape location-visual-marker__shape--square${isSimpleMarker ? " location-visual-marker__shape--simple" : ""}`
-		: `location-visual-marker__shape location-visual-marker__shape--circle${isSimpleMarker ? " location-visual-marker__shape--simple" : ""}`;
+		 `location-visual-marker__shape location-visual-marker__shape--square${isSimpleMarker  " location-visual-marker__shape--simple" : ""}`
+		: `location-visual-marker__shape location-visual-marker__shape--circle${isSimpleMarker  " location-visual-marker__shape--simple" : ""}`;
 	const shadowBlur = locationType === "dorf"
-		? (getVisualZoomLevel(zoomLevel) >= 4 ? 2.5 : getVisualZoomLevel(zoomLevel) === 3 ? 2.25 : 2)
+		 (getVisualZoomLevel(zoomLevel) >= 4  2.5 : getVisualZoomLevel(zoomLevel) === 3  2.25 : 2)
 		: 2;
 	const iconHtml = `<span${buildHtmlAttributes({
 		class: shapeClassName,
@@ -109,7 +109,7 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
 	})}></span>`;
 
 	return L.divIcon({
-		className: `location-visual-marker${isSimpleMarker ? " location-visual-marker--simple" : ""}`,
+		className: `location-visual-marker${isSimpleMarker  " location-visual-marker--simple" : ""}`,
 		html: iconHtml,
 		iconSize: [markerSize, markerSize],
 		iconAnchor: [markerSize / 2, markerSize / 2],
@@ -127,9 +127,9 @@ function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds
 
 	const isVisibleByNodixToggle = IS_EDIT_MODE && $("#toggleNodix").is(":checked") && isNodixLocation(entry.location);
 	const minZoomByType = entry.locationType === "dorf"
-		? 2
+		 2
 		: entry.locationType === "gebaeude"
-			? 3
+			 3
 			: 0;
 	return (isVisibleByNodixToggle || isLocationTypeVisible(entry.locationType))
 		&& zoomLevel >= minZoomByType
@@ -145,7 +145,7 @@ function syncLocationMarkerVisibility() {
 		if (shouldShow || map.hasLayer(entry.marker)) {
 			entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, zoomLevel));
 		}
-		map[shouldShow ? "addLayer" : "removeLayer"](entry.marker);
+		map[shouldShow  "addLayer" : "removeLayer"](entry.marker);
 	});
 	syncLocationNameLabelVisibility();
 }
@@ -159,7 +159,7 @@ function isLatLngInRenderBounds(latlng, renderBounds = getMapRenderBounds()) {
 }
 
 function isMarkerEntryInRenderBounds(entry, renderBounds = getMapRenderBounds()) {
-	return entry?.marker && isLatLngInRenderBounds(entry.marker.getLatLng(), renderBounds);
+	return entry.marker && isLatLngInRenderBounds(entry.marker.getLatLng(), renderBounds);
 }
 
 

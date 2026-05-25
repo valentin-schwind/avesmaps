@@ -6,13 +6,13 @@
 	const DISPLAY_SUFFIXES = ["Staat", "Imperium", "Reich", "Kalifat"];
 
 	function normalizeText(value) {
-		return String(value ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+		return String(value  "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
 	}
 
 	function parseOptionalNumber(value, fallback = null) {
 		if (value === "" || value === null || typeof value === "undefined") return fallback;
 		const number = Number(value);
-		return Number.isFinite(number) ? number : fallback;
+		return Number.isFinite(number)  number : fallback;
 	}
 
 	function makeKey(value) {
@@ -27,7 +27,7 @@
 	}
 
 	function rowKey(row) {
-		return makeKey(row?.name || row?.wiki_key || row?.id || "");
+		return makeKey(row.name || row.wiki_key || row.id || "");
 	}
 
 	function canonicalLabel(value) {
@@ -40,7 +40,7 @@
 
 	function readOptionalYear(row, fields) {
 		for (const field of fields) {
-			const value = row?.[field];
+			const value = row.[field];
 			if (value === "" || value === null || typeof value === "undefined") continue;
 			const number = Number(value);
 			if (Number.isFinite(number)) return Math.round(number);
@@ -50,31 +50,31 @@
 
 	function formatBfYear(year) {
 		if (!Number.isFinite(year)) return "";
-		return year < 0 ? `${Math.abs(year)} v. BF` : `${year} BF`;
+		return year < 0  `${Math.abs(year)} v. BF` : `${year} BF`;
 	}
 
 	function buildTerritoryPeriodLabel(row) {
 		const startYear = readOptionalYear(row, ["founded_start_bf", "founded_display_bf", "founded_end_bf"]);
 		const endYear = readOptionalYear(row, ["dissolved_end_bf", "dissolved_display_bf", "dissolved_start_bf"]);
 		if (startYear === null && endYear === null) return "";
-		const startText = startYear === null ? "?" : formatBfYear(startYear);
-		const endText = endYear === null ? "heute" : formatBfYear(endYear);
+		const startText = startYear === null  "?" : formatBfYear(startYear);
+		const endText = endYear === null  "heute" : formatBfYear(endYear);
 		return `${startText} - ${endText}`;
 	}
 
 	function buildTreeNodeLabel(row, fallbackLabel = "") {
-		return normalizeText(fallbackLabel || row?.name || "");
+		return normalizeText(fallbackLabel || row.name || "");
 	}
 
 	function buildTreeItemMetaInfo(node) {
 		const metaParts = [];
-		const periodLabel = buildTerritoryPeriodLabel(node?.row || null);
+		const periodLabel = buildTerritoryPeriodLabel(node.row || null);
 		if (periodLabel) metaParts.push(periodLabel);
-		const rowId = Number(node?.row?.id || 0);
+		const rowId = Number(node.row.id || 0);
 		if (rowId > 0) metaParts.push(`ID ${rowId}`);
 		return {
 			text: metaParts.join(", "),
-			wikiUrl: normalizeText(node?.row?.wiki_url || ""),
+			wikiUrl: normalizeText(node.row.wiki_url || ""),
 		};
 	}
 
@@ -103,9 +103,9 @@
 	function normalizeAffiliationPath(row) {
 		const candidatePaths = [
 			row.affiliation_path,
-			row.affiliation && Array.isArray(row.affiliation.path) ? row.affiliation.path : null,
-			row.affiliation_root ? [row.affiliation_root] : null,
-			row.affiliation_raw ? [normalizeText(row.affiliation_raw).split(":")[0]] : null,
+			row.affiliation && Array.isArray(row.affiliation.path)  row.affiliation.path : null,
+			row.affiliation_root  [row.affiliation_root] : null,
+			row.affiliation_raw  [normalizeText(row.affiliation_raw).split(":")[0]] : null,
 		];
 		for (const candidatePath of candidatePaths) {
 			const normalized = normalizeAffiliationPathCandidate(candidatePath);
@@ -137,54 +137,54 @@
 	}
 
 	function normalizeApiRows(rows) {
-		const normalizedRows = (Array.isArray(rows) ? rows : [])
+		const normalizedRows = (Array.isArray(rows)  rows : [])
 			.map((row) => {
-				const normalizedName = normalizeText(row?.name);
-				const normalizedStatus = normalizeText(row?.status);
-				const foundedStartBf = parseOptionalNumber(row?.founded_start_bf, null);
-				const foundedEndBf = parseOptionalNumber(row?.founded_end_bf, null);
-				const dissolvedStartBf = parseOptionalNumber(row?.dissolved_start_bf, null);
-				const dissolvedEndBf = parseOptionalNumber(row?.dissolved_end_bf, null);
+				const normalizedName = normalizeText(row.name);
+				const normalizedStatus = normalizeText(row.status);
+				const foundedStartBf = parseOptionalNumber(row.founded_start_bf, null);
+				const foundedEndBf = parseOptionalNumber(row.founded_end_bf, null);
+				const dissolvedStartBf = parseOptionalNumber(row.dissolved_start_bf, null);
+				const dissolvedEndBf = parseOptionalNumber(row.dissolved_end_bf, null);
 				return {
 					...(row || {}),
-					id: parseOptionalNumber(row?.id, null),
+					id: parseOptionalNumber(row.id, null),
 					name: normalizedName,
-					type: normalizeText(row?.type),
-					continent: normalizeText(row?.continent),
-					affiliation_raw: normalizeText(row?.affiliation_raw || row?.political),
-					affiliation_root: normalizeText(row?.affiliation_root),
+					type: normalizeText(row.type),
+					continent: normalizeText(row.continent),
+					affiliation_raw: normalizeText(row.affiliation_raw || row.political),
+					affiliation_root: normalizeText(row.affiliation_root),
 					affiliation_path: normalizeAffiliationPath(row || {}),
 					status: normalizedStatus,
 					status_filter_tags: buildRowStatusFilterTags(normalizedName, normalizedStatus),
-					form_of_government: normalizeText(row?.form_of_government),
-					capital_name: normalizeText(row?.capital_name),
-					seat_name: normalizeText(row?.seat_name),
-					ruler: normalizeText(row?.ruler),
-					language: normalizeText(row?.language),
-					currency: normalizeText(row?.currency),
-					trade_goods: normalizeText(row?.trade_goods),
-					population: normalizeText(row?.population),
-					founded_text: normalizeText(row?.founded_text),
+					form_of_government: normalizeText(row.form_of_government),
+					capital_name: normalizeText(row.capital_name),
+					seat_name: normalizeText(row.seat_name),
+					ruler: normalizeText(row.ruler),
+					language: normalizeText(row.language),
+					currency: normalizeText(row.currency),
+					trade_goods: normalizeText(row.trade_goods),
+					population: normalizeText(row.population),
+					founded_text: normalizeText(row.founded_text),
 					founded_start_bf: foundedStartBf,
 					founded_end_bf: foundedEndBf,
 					founded_display_bf: foundedStartBf,
-					founder: normalizeText(row?.founder),
-					dissolved_text: normalizeText(row?.dissolved_text),
+					founder: normalizeText(row.founder),
+					dissolved_text: normalizeText(row.dissolved_text),
 					dissolved_start_bf: dissolvedStartBf,
 					dissolved_end_bf: dissolvedEndBf,
 					dissolved_display_bf: dissolvedEndBf,
-					geographic: normalizeText(row?.geographic),
-					political: normalizeText(row?.political),
-					trade_zone: normalizeText(row?.trade_zone),
-					blazon: normalizeText(row?.blazon),
-					wiki_key: normalizeText(row?.wiki_key),
-					wiki_url: normalizeText(row?.wiki_url),
-					coat_of_arms_url: normalizeText(row?.coat_of_arms_url),
-					public_id: normalizeText(row?.public_id),
-					slug: normalizeText(row?.slug),
-					map_assigned: Boolean(row?.map_assigned) || Number(row?.map_geometry_count || 0) > 0,
-					map_territory_count: parseOptionalNumber(row?.map_territory_count, 0),
-					map_geometry_count: parseOptionalNumber(row?.map_geometry_count, 0),
+					geographic: normalizeText(row.geographic),
+					political: normalizeText(row.political),
+					trade_zone: normalizeText(row.trade_zone),
+					blazon: normalizeText(row.blazon),
+					wiki_key: normalizeText(row.wiki_key),
+					wiki_url: normalizeText(row.wiki_url),
+					coat_of_arms_url: normalizeText(row.coat_of_arms_url),
+					public_id: normalizeText(row.public_id),
+					slug: normalizeText(row.slug),
+					map_assigned: Boolean(row.map_assigned) || Number(row.map_geometry_count || 0) > 0,
+					map_territory_count: parseOptionalNumber(row.map_territory_count, 0),
+					map_geometry_count: parseOptionalNumber(row.map_geometry_count, 0),
 				};
 			})
 			.filter((row) => row.name);
@@ -196,7 +196,7 @@
 	function cacheCompleteRows(rows) {
 		if (!Array.isArray(rows) || rows.length === 0) return;
 		const current = Array.isArray(globalObject.AvesmapsWikiSyncTerritoryTreeRowsCache)
-			? globalObject.AvesmapsWikiSyncTerritoryTreeRowsCache
+			 globalObject.AvesmapsWikiSyncTerritoryTreeRowsCache
 			: [];
 		if (rows.length >= current.length) {
 			globalObject.AvesmapsWikiSyncTerritoryTreeRowsCache = rows;
@@ -206,9 +206,9 @@
 
 	function getCompleteRowsForAncestorLookup(rows) {
 		const cachedRows = Array.isArray(globalObject.AvesmapsWikiSyncTerritoryTreeRowsCache)
-			? globalObject.AvesmapsWikiSyncTerritoryTreeRowsCache
+			 globalObject.AvesmapsWikiSyncTerritoryTreeRowsCache
 			: [];
-		return cachedRows.length > rows.length ? cachedRows : rows;
+		return cachedRows.length > rows.length  cachedRows : rows;
 	}
 
 	function dedupeRowsByIdentity(rows) {
@@ -237,14 +237,14 @@
 		const typeKey = makeKey(row.type || "");
 		if (nameKey !== "") return `name:${nameKey}|type:${typeKey}`;
 		const id = normalizeText(row.id);
-		return id !== "" ? `id:${id}` : "";
+		return id !== ""  `id:${id}` : "";
 	}
 
 	function wikiTitleFromUrl(url) {
 		const rawUrl = normalizeText(url);
 		if (!rawUrl) return "";
 		try {
-			const parsed = new URL(rawUrl, globalObject.location?.origin || "http://localhost");
+			const parsed = new URL(rawUrl, globalObject.location.origin || "http://localhost");
 			const marker = "/wiki/";
 			const markerIndex = (parsed.pathname || "").indexOf(marker);
 			if (markerIndex < 0) return "";
@@ -255,8 +255,8 @@
 	}
 
 	function mergeRowsByIdentity(primary, secondary) {
-		const merged = rowMergeScore(secondary) > rowMergeScore(primary) ? { ...secondary } : { ...primary };
-		const fallback = merged === primary ? secondary : primary;
+		const merged = rowMergeScore(secondary) > rowMergeScore(primary)  { ...secondary } : { ...primary };
+		const fallback = merged === primary  secondary : primary;
 		for (const key of Object.keys(fallback || {})) {
 			const mergedValue = merged[key];
 			const fallbackValue = fallback[key];
@@ -265,20 +265,20 @@
 				merged[key] = fallbackValue;
 			}
 		}
-		merged.map_territory_count = Math.max(Number(merged.map_territory_count || 0), Number(fallback?.map_territory_count || 0));
-		merged.map_geometry_count = Math.max(Number(merged.map_geometry_count || 0), Number(fallback?.map_geometry_count || 0));
+		merged.map_territory_count = Math.max(Number(merged.map_territory_count || 0), Number(fallback.map_territory_count || 0));
+		merged.map_geometry_count = Math.max(Number(merged.map_geometry_count || 0), Number(fallback.map_geometry_count || 0));
 		merged.map_assigned = Boolean(merged.map_assigned) || merged.map_geometry_count > 0;
 		return merged;
 	}
 
 	function rowMergeScore(row) {
 		let score = 0;
-		score += Number(row?.map_geometry_count || 0) * 100;
-		score += Number(row?.map_territory_count || 0) * 20;
+		score += Number(row.map_geometry_count || 0) * 100;
+		score += Number(row.map_territory_count || 0) * 20;
 		for (const field of ["wiki_url", "wiki_key", "coat_of_arms_url", "founded_text", "dissolved_text", "type", "status", "affiliation_raw", "capital_name", "seat_name", "ruler", "language", "currency", "trade_goods", "population"]) {
-			if (normalizeText(row?.[field]) !== "") score += 1;
+			if (normalizeText(row.[field]) !== "") score += 1;
 		}
-		if (Array.isArray(row?.affiliation_path)) score += row.affiliation_path.filter(Boolean).length;
+		if (Array.isArray(row.affiliation_path)) score += row.affiliation_path.filter(Boolean).length;
 		return score;
 	}
 
@@ -327,7 +327,7 @@
 	}
 
 	function expandRowsWithAncestors(rows) {
-		const inputRows = Array.isArray(rows) ? rows : [];
+		const inputRows = Array.isArray(rows)  rows : [];
 		const completeRows = getCompleteRowsForAncestorLookup(inputRows);
 		if (completeRows.length <= inputRows.length) return inputRows;
 
@@ -342,7 +342,7 @@
 		};
 		for (const row of inputRows) {
 			const ownIdentityKey = rowIdentityKey(row);
-			for (const segment of Array.isArray(row.affiliation_path) ? row.affiliation_path : []) {
+			for (const segment of Array.isArray(row.affiliation_path)  row.affiliation_path : []) {
 				const segmentKey = makeKey(segment);
 				if (!segmentKey) continue;
 				const ancestorRow = rowIndex.get(segmentKey) || null;
@@ -357,7 +357,7 @@
 	}
 
 	function buildTree(rows) {
-		const normalizedRows = expandRowsWithAncestors(Array.isArray(rows) ? rows : []);
+		const normalizedRows = expandRowsWithAncestors(Array.isArray(rows)  rows : []);
 		const root = createTreeNode("root", "Herrschaftsgebiete", "root");
 		const rowIndex = buildRowIndex(normalizedRows);
 		const nodeByIdentity = new Map();
@@ -365,7 +365,7 @@
 			const identityKey = rowIdentityKey(row);
 			if (!identityKey) continue;
 			let current = root;
-			for (const segment of Array.isArray(row.affiliation_path) ? row.affiliation_path : []) {
+			for (const segment of Array.isArray(row.affiliation_path)  row.affiliation_path : []) {
 				const segmentKey = makeKey(segment);
 				if (!segmentKey) continue;
 				const matchingRow = rowIndex.get(segmentKey) || null;
@@ -386,8 +386,8 @@
 				nodeByIdentity.set(identityKey, ownNode);
 			} else {
 				ownNode.row = mergeRowsByIdentity(ownNode.row || row, row);
-				ownNode.label = buildTreeNodeLabel(ownNode.row, ownNode.row?.name || row.name || ownNode.label);
-				ownNode.kind = ownNode.children.length > 0 ? "territory-group" : "territory";
+				ownNode.label = buildTreeNodeLabel(ownNode.row, ownNode.row.name || row.name || ownNode.label);
+				ownNode.kind = ownNode.children.length > 0  "territory-group" : "territory";
 			}
 			attachChild(current, ownNode);
 		}
@@ -402,7 +402,7 @@
 		node.parent = parent;
 		if (!parent.children.includes(node)) parent.children.push(node);
 		parent.childMap.set(node.id, node);
-		if (node.row?.name) parent.childMap.set(makeKey(node.row.name), node);
+		if (node.row.name) parent.childMap.set(makeKey(node.row.name), node);
 	}
 
 	function registerTree(node, nodeRegistry) {
@@ -412,8 +412,8 @@
 
 	function sortTree(node) {
 		node.children.sort((left, right) => {
-			const leftFolder = left.children.length > 0 ? 0 : 1;
-			const rightFolder = right.children.length > 0 ? 0 : 1;
+			const leftFolder = left.children.length > 0  0 : 1;
+			const rightFolder = right.children.length > 0  0 : 1;
 			if (leftFolder !== rightFolder) return leftFolder - rightFolder;
 			return String(left.label || "").localeCompare(String(right.label || ""), "de");
 		});
@@ -428,7 +428,7 @@
 		if (type && row.type !== type) return false;
 		if (status) {
 			const rowStatus = normalizeText(row.status).toLowerCase();
-			const rowStatusTags = Array.isArray(row.status_filter_tags) ? row.status_filter_tags : [];
+			const rowStatusTags = Array.isArray(row.status_filter_tags)  row.status_filter_tags : [];
 			if (rowStatus !== status && !rowStatusTags.includes(status)) return false;
 		}
 		return true;
@@ -442,7 +442,7 @@
 			row.continent,
 			row.affiliation_raw,
 			row.affiliation_root,
-			Array.isArray(row.affiliation_path) ? row.affiliation_path.join(" ") : "",
+			Array.isArray(row.affiliation_path)  row.affiliation_path.join(" ") : "",
 			row.status,
 			row.capital_name,
 			row.seat_name,
@@ -455,7 +455,7 @@
 	}
 
 	function filterRows(rows, filters = {}) {
-		const allRows = Array.isArray(rows) ? rows : [];
+		const allRows = Array.isArray(rows)  rows : [];
 		const search = normalizeText(filters.search || filters.query || "").toLowerCase();
 		const structurallyFilteredRows = allRows.filter((row) => doesRowMatchStructuralFilters(row, filters));
 		if (!search) return structurallyFilteredRows;
@@ -467,13 +467,13 @@
 	}
 
 	function isTreeNodeAssignedToMap(node) {
-		return Boolean(node?.row?.map_assigned) || Number(node?.row?.map_geometry_count || 0) > 0;
+		return Boolean(node.row.map_assigned) || Number(node.row.map_geometry_count || 0) > 0;
 	}
 
 	function getTreeCoverageStatus(node) {
 		const ownAssigned = isTreeNodeAssignedToMap(node);
-		const children = Array.isArray(node?.children) ? node.children : [];
-		if (children.length === 0) return { kind: ownAssigned ? "all" : "none", ownAssigned, hasAnyCoverage: ownAssigned, isComplete: ownAssigned };
+		const children = Array.isArray(node.children)  node.children : [];
+		if (children.length === 0) return { kind: ownAssigned  "all" : "none", ownAssigned, hasAnyCoverage: ownAssigned, isComplete: ownAssigned };
 		const childStatuses = children.map(getTreeCoverageStatus);
 		const hasAnyChildCoverage = childStatuses.some((status) => status.hasAnyCoverage);
 		const allChildrenComplete = childStatuses.every((status) => status.isComplete);
@@ -487,7 +487,7 @@
 
 	function getTreeMapStatus(node) {
 		const status = getTreeCoverageStatus(node);
-		if (status.kind === "all") return { kind: "all", label: status.ownAssigned ? "Gebiet und Untergebiete sind auf der Karte vorhanden" : "Alle Untergebiete sind auf der Karte vorhanden" };
+		if (status.kind === "all") return { kind: "all", label: status.ownAssigned  "Gebiet und Untergebiete sind auf der Karte vorhanden" : "Alle Untergebiete sind auf der Karte vorhanden" };
 		if (status.kind === "own-only") return { kind: "own-only", label: "Gebiet ist auf der Karte vorhanden, Untergebiete fehlen oder sind nicht vollständig" };
 		if (status.kind === "children-only") return { kind: "children-only", label: "Gebiet ist indirekt durch Untergebiete auf der Karte vorhanden, Untergebiete fehlen oder sind nicht vollständig" };
 		return { kind: "none", label: "Gebiet und Untergebiete fehlen auf der Karte" };
@@ -507,28 +507,28 @@
 		if (!node) return null;
 		return {
 			id: node.id,
-			key: node.row?.wiki_key || node.row?.public_id || node.id || makeKey(node.label),
+			key: node.row.wiki_key || node.row.public_id || node.id || makeKey(node.label),
 			label: node.label,
-			name: node.row?.name || node.label,
+			name: node.row.name || node.label,
 			kind: node.kind,
 			isSynthetic: isSyntheticNode(node),
-			wikiKey: node.row?.wiki_key || "",
-			rowId: node.row?.id || null,
-			territoryPublicId: node.row?.public_id || "",
-			territoryId: node.row?.territory_id || null,
-			slug: node.row?.slug || "",
-			coatOfArmsUrl: node.row?.coat_of_arms_url || "",
-			founded_start_bf: node.row?.founded_start_bf ?? null,
-			founded_end_bf: node.row?.founded_end_bf ?? null,
-			founded_display_bf: node.row?.founded_start_bf ?? null,
-			dissolved_start_bf: node.row?.dissolved_start_bf ?? null,
-			dissolved_end_bf: node.row?.dissolved_end_bf ?? null,
-			dissolved_display_bf: node.row?.dissolved_end_bf ?? null,
-			startYear: node.row?.founded_start_bf ?? null,
-			endYear: node.row?.dissolved_end_bf ?? null,
-			existsUntilToday: node.row?.dissolved_end_bf === null || typeof node.row?.dissolved_end_bf === "undefined",
+			wikiKey: node.row.wiki_key || "",
+			rowId: node.row.id || null,
+			territoryPublicId: node.row.public_id || "",
+			territoryId: node.row.territory_id || null,
+			slug: node.row.slug || "",
+			coatOfArmsUrl: node.row.coat_of_arms_url || "",
+			founded_start_bf: node.row.founded_start_bf  null,
+			founded_end_bf: node.row.founded_end_bf  null,
+			founded_display_bf: node.row.founded_start_bf  null,
+			dissolved_start_bf: node.row.dissolved_start_bf  null,
+			dissolved_end_bf: node.row.dissolved_end_bf  null,
+			dissolved_display_bf: node.row.dissolved_end_bf  null,
+			startYear: node.row.founded_start_bf  null,
+			endYear: node.row.dissolved_end_bf  null,
+			existsUntilToday: node.row.dissolved_end_bf === null || typeof node.row.dissolved_end_bf === "undefined",
 			path: getNodePath(node).map((pathNode) => pathNode.label),
-			pathKeys: getNodePath(node).map((pathNode) => pathNode.row?.wiki_key || pathNode.row?.public_id || pathNode.id || makeKey(pathNode.label)),
+			pathKeys: getNodePath(node).map((pathNode) => pathNode.row.wiki_key || pathNode.row.public_id || pathNode.id || makeKey(pathNode.label)),
 		};
 	}
 
@@ -537,14 +537,14 @@
 	}
 
 	function applyDragData(event, node) {
-		const dataTransfer = event?.dataTransfer;
+		const dataTransfer = event.dataTransfer;
 		if (!dataTransfer || !node) return;
 		const nodeId = String(node.id || "").trim();
 		if (!nodeId) return;
 		dataTransfer.effectAllowed = "copy";
 		dataTransfer.setData("application/x-avesmaps-territory-node-id", nodeId);
 		dataTransfer.setData("text/plain", nodeId);
-		const territoryPublicId = normalizeText(node?.row?.public_id || "");
+		const territoryPublicId = normalizeText(node.row.public_id || "");
 		if (territoryPublicId) dataTransfer.setData("application/x-avesmaps-territory", territoryPublicId);
 		try {
 			dataTransfer.setData("application/x-avesmaps-territory-node-json", JSON.stringify(createDragPayload(node)));
@@ -563,14 +563,14 @@
 		if (!(container instanceof HTMLElement)) return;
 		const root = options.root;
 		const rowCount = Number(options.rowCount || 0);
-		const totalRowCount = Number(options.totalRowCount ?? rowCount);
+		const totalRowCount = Number(options.totalRowCount  rowCount);
 		const searchText = normalizeText(options.searchText || "");
 		const selectedNodeId = normalizeText(options.selectedNodeId || "");
-		const infoElement = options.infoElement instanceof HTMLElement ? options.infoElement : null;
+		const infoElement = options.infoElement instanceof HTMLElement  options.infoElement : null;
 		const itemClassName = normalizeText(options.itemClassName || "");
 		container.innerHTML = "";
 		if (rowCount === 0) {
-			if (infoElement) infoElement.textContent = totalRowCount === 0 ? "Noch keine Daten geladen." : "Keine Treffer.";
+			if (infoElement) infoElement.textContent = totalRowCount === 0  "Noch keine Daten geladen." : "Keine Treffer.";
 			return;
 		}
 		const treeRootElement = document.createElement("ul");
@@ -609,12 +609,12 @@
 
 	function renderTreeItem(node, options) {
 		const itemElement = document.createElement("span");
-		const classParts = [node.kind === "synthetic" ? "tree-item synthetic" : "tree-item"];
+		const classParts = [node.kind === "synthetic"  "tree-item synthetic" : "tree-item"];
 		if (options.itemClassName) classParts.push(options.itemClassName);
 		itemElement.className = classParts.join(" ");
 		itemElement.draggable = options.enableDrag === true;
 		itemElement.dataset.nodeId = node.id;
-		itemElement.title = node.kind === "synthetic" ? "Abgeleiteter Gruppenknoten ohne eigenen Wiki-Datensatz" : "Herrschaftsgebiet";
+		itemElement.title = node.kind === "synthetic"  "Abgeleiteter Gruppenknoten ohne eigenen Wiki-Datensatz" : "Herrschaftsgebiet";
 		if (options.selectedNodeId && node.id === options.selectedNodeId) itemElement.classList.add("selected");
 		const handle = document.createElement("span");
 		handle.className = "drag-handle";
@@ -676,7 +676,7 @@
 
 	function defaultEditorZoomRange(chainLength, index) {
 		if (chainLength <= 1) return { zoomMin: 0, zoomMax: 6 };
-		if (chainLength === 2) return index === 0 ? { zoomMin: 0, zoomMax: 2 } : { zoomMin: 3, zoomMax: 6 };
+		if (chainLength === 2) return index === 0  { zoomMin: 0, zoomMax: 2 } : { zoomMin: 3, zoomMax: 6 };
 		if (chainLength === 3) {
 			if (index === 0) return { zoomMin: 0, zoomMax: 2 };
 			if (index === 1) return { zoomMin: 3, zoomMax: 4 };
@@ -700,7 +700,7 @@
 
 	function clampNumber(value, min, max) {
 		const number = Number(value);
-		return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : min;
+		return Number.isFinite(number)  Math.max(min, Math.min(max, number)) : min;
 	}
 
 	function toHexByte(value) {
@@ -715,15 +715,15 @@
 		const secondary = chroma * (1 - Math.abs((huePrime % 2) - 1));
 		const match = value - chroma;
 		const [red, green, blue] = huePrime < 1
-			? [chroma, secondary, 0]
+			 [chroma, secondary, 0]
 			: huePrime < 2
-			? [secondary, chroma, 0]
+			 [secondary, chroma, 0]
 			: huePrime < 3
-			? [0, chroma, secondary]
+			 [0, chroma, secondary]
 			: huePrime < 4
-			? [0, secondary, chroma]
+			 [0, secondary, chroma]
 			: huePrime < 5
-			? [secondary, 0, chroma]
+			 [secondary, 0, chroma]
 			: [chroma, 0, secondary];
 		return `#${[red, green, blue].map((channel) => toHexByte((channel + match) * 255)).join("")}`;
 	}
@@ -732,10 +732,10 @@
 		const activeNode = path[activeIndex] || path[path.length - 1] || null;
 		const rootNode = path[0] || activeNode;
 		const depth = Math.max(0, activeIndex);
-		const rootSeed = hashString(rootNode?.wikiKey || rootNode?.key || rootNode?.id || rootNode?.label || "Herrschaftsgebiet");
-		const nodeSeed = hashString(activeNode?.wikiKey || activeNode?.key || activeNode?.id || activeNode?.label || "Herrschaftsgebiet");
+		const rootSeed = hashString(rootNode.wikiKey || rootNode.key || rootNode.id || rootNode.label || "Herrschaftsgebiet");
+		const nodeSeed = hashString(activeNode.wikiKey || activeNode.key || activeNode.id || activeNode.label || "Herrschaftsgebiet");
 		const baseHue = rootSeed % 360;
-		const hueOffset = depth === 0 ? 0 : ((nodeSeed % 37) - 18) + (depth * 4);
+		const hueOffset = depth === 0  0 : ((nodeSeed % 37) - 18) + (depth * 4);
 		const hue = (baseHue + hueOffset + 360) % 360;
 		const saturation = clampNumber(58 + (rootSeed % 18) - Math.min(depth * 3, 12), 44, 74);
 		const value = clampNumber(54 + (nodeSeed % 18) + Math.min(depth * 3, 10), 48, 78);
@@ -743,27 +743,27 @@
 	}
 
 	function setInputValueById(id, value) {
-		const input = globalObject.document?.getElementById(id);
+		const input = globalObject.document.getElementById(id);
 		if (!input) return;
-		input.value = value === null || typeof value === "undefined" ? "" : String(value);
+		input.value = value === null || typeof value === "undefined"  "" : String(value);
 		input.dispatchEvent(new Event("input", { bubbles: true }));
 		input.dispatchEvent(new Event("change", { bubbles: true }));
 	}
 
 	function normalizeDroppedReferenceName(reference) {
-		return normalizeText(reference?.name || reference?.label || "").replace(/\s*\([^)]*\bBF\s*-\s*[^)]*\)\s*$/iu, "").trim();
+		return normalizeText(reference.name || reference.label || "").replace(/\s*\([^)]*\bBF\s*-\s*[^)]*\)\s*$/iu, "").trim();
 	}
 
 	function applyEditorDefaultsFromDragPayload(payload, previousCoatOfArmsUrl = "") {
-		const path = Array.isArray(payload?.path) ? payload.path : [];
+		const path = Array.isArray(payload.path)  payload.path : [];
 		if (path.length < 1) return;
 		const selectedIndex = path.length - 1;
 		const selected = path[selectedIndex] || {};
 		const selectedName = normalizeDroppedReferenceName(selected);
 		const selectedCoat = normalizeText(selected.coatOfArmsUrl || selected.coat_of_arms_url || "");
 		const zoom = defaultEditorZoomRange(path.length, selectedIndex);
-		const startYear = parseOptionalNumber(selected.founded_start_bf ?? selected.startYear, null);
-		const endYear = parseOptionalNumber(selected.dissolved_end_bf ?? selected.endYear, null);
+		const startYear = parseOptionalNumber(selected.founded_start_bf  selected.startYear, null);
+		const endYear = parseOptionalNumber(selected.dissolved_end_bf  selected.endYear, null);
 
 		if (selectedName) setInputValueById("displayNameInput", selectedName);
 		if (selectedCoat) setInputValueById("alternateCoatInput", selectedCoat);
@@ -774,7 +774,7 @@
 		setInputValueById("colorInput", createAutoEditorColor(path, selectedIndex));
 		setInputValueById("startYearInput", startYear);
 		setInputValueById("endYearInput", endYear);
-		const existsUntilTodayInput = globalObject.document?.getElementById("existsUntilTodayInput");
+		const existsUntilTodayInput = globalObject.document.getElementById("existsUntilTodayInput");
 		if (existsUntilTodayInput) {
 			existsUntilTodayInput.checked = endYear === null;
 			existsUntilTodayInput.dispatchEvent(new Event("change", { bubbles: true }));
@@ -782,11 +782,11 @@
 	}
 
 	function readDragPayloadFromTransfer(dataTransfer) {
-		const rawJson = dataTransfer?.getData("application/x-avesmaps-territory-node-json") || "";
+		const rawJson = dataTransfer.getData("application/x-avesmaps-territory-node-json") || "";
 		if (!rawJson) return null;
 		try {
 			const payload = JSON.parse(rawJson);
-			return payload && Array.isArray(payload.path) ? payload : null;
+			return payload && Array.isArray(payload.path)  payload : null;
 		} catch (error) {
 			return null;
 		}
@@ -799,14 +799,14 @@
 			if (!(event.target instanceof HTMLElement) || !event.target.closest("#dropZone")) return;
 			const payload = readDragPayloadFromTransfer(event.dataTransfer);
 			if (!payload) return;
-			const previousCoatOfArmsUrl = normalizeText(globalObject.document.getElementById("alternateCoatInput")?.value || "");
+			const previousCoatOfArmsUrl = normalizeText(globalObject.document.getElementById("alternateCoatInput").value || "");
 			globalObject.setTimeout(() => applyEditorDefaultsFromDragPayload(payload, previousCoatOfArmsUrl), 0);
 		}, true);
 	}
 
 	async function fetchRows(options = {}) {
 		const apiUrl = normalizeText(options.apiUrl || DEFAULT_API_URL) || DEFAULT_API_URL;
-		const requestUrl = new URL(apiUrl, globalObject.location?.href || "http://localhost");
+		const requestUrl = new URL(apiUrl, globalObject.location.href || "http://localhost");
 		requestUrl.searchParams.set("_", String(Date.now()));
 		const response = await fetch(requestUrl.toString(), {
 			method: "GET",
@@ -816,7 +816,7 @@
 			signal: options.signal,
 		});
 		const payload = await response.json();
-		if (!response.ok || !payload?.ok) throw new Error(payload?.error || `HTTP ${response.status}`);
+		if (!response.ok || !payload.ok) throw new Error(payload.error || `HTTP ${response.status}`);
 		const rows = normalizeApiRows(payload.items || []);
 		globalObject.AvesmapsWikiSyncTerritoryTreeRowsCache = rows;
 		globalObject.wikiSyncTerritoryTreeRowsCache = rows;

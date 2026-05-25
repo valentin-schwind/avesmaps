@@ -4,7 +4,7 @@ function resetWikiSyncResolveForm() {
 		return;
 	}
 
-	const publicId = document.getElementById("wiki-sync-resolve-public-id")?.value || "";
+	const publicId = document.getElementById("wiki-sync-resolve-public-id").value || "";
 	formElement.reset();
 	activeWikiSyncCase = null;
 	activeWikiSyncSelectedMap = null;
@@ -30,8 +30,8 @@ function setWikiSyncResolveDialogOpen(isOpen, { resetForm = false } = {}) {
 	syncModalDialogBodyState();
 
 	if (isOpen) {
-		getWikiSyncResolveDialogElement()?.focus();
-		document.getElementById("wiki-sync-resolve-name")?.focus();
+		getWikiSyncResolveDialogElement().focus();
+		document.getElementById("wiki-sync-resolve-name").focus();
 		return;
 	}
 
@@ -46,7 +46,7 @@ function setWikiSyncLocationsRunning(isRunning, run = null) {
 	const buttonElement = document.getElementById("wiki-sync-start");
 	if (buttonElement) {
 		buttonElement.disabled = isRunning || isWikiSyncTerritoriesRunning;
-		buttonElement.textContent = isRunning ? "Synchronisiert..." : "WikiSync";
+		buttonElement.textContent = isRunning  "Synchronisiert..." : "WikiSync";
 	}
 
 	const progressElement = document.getElementById("wiki-sync-progress");
@@ -54,11 +54,11 @@ function setWikiSyncLocationsRunning(isRunning, run = null) {
 		progressElement.hidden = !isRunning;
 
 		if (isRunning) {
-			const completedSteps = Number(run?.completed_steps ?? run?.processed_steps ?? run?.step ?? 0);
-			const totalSteps = Number(run?.total_steps ?? run?.steps_total ?? progressElement.max ?? 5);
+			const completedSteps = Number(run.completed_steps  run.processed_steps  run.step  0);
+			const totalSteps = Number(run.total_steps  run.steps_total  progressElement.max  5);
 
-			progressElement.max = Number.isFinite(totalSteps) && totalSteps > 0 ? totalSteps : 5;
-			progressElement.value = Number.isFinite(completedSteps) && completedSteps >= 0 ? completedSteps : 0;
+			progressElement.max = Number.isFinite(totalSteps) && totalSteps > 0  totalSteps : 5;
+			progressElement.value = Number.isFinite(completedSteps) && completedSteps >= 0  completedSteps : 0;
 		} else {
 			progressElement.value = 0;
 		}
@@ -73,14 +73,14 @@ function setWikiSyncTerritoriesRunning(isRunning) {
 	const buttonElement = document.getElementById("wiki-sync-territories");
 	if (buttonElement) {
 		buttonElement.disabled = isRunning || isWikiSyncLocationsRunning;
-		buttonElement.textContent = isRunning ? "Synchronisiert..." : "WikiSync";
+		buttonElement.textContent = isRunning  "Synchronisiert..." : "WikiSync";
 	}
 
 	const progressElement = document.getElementById("wiki-sync-territories-progress");
 	if (progressElement) {
 		progressElement.hidden = !isRunning;
 		progressElement.max = 1;
-		progressElement.value = isRunning ? 0 : 0;
+		progressElement.value = isRunning  0 : 0;
 	}
 
 	syncWikiSyncPanelHeaderState();
@@ -95,15 +95,15 @@ async function loadWikiSyncCases() {
 	try {
 		const data = await fetchWikiSyncLocationData({ action: "cases" });
 
-		wikiSyncCases = Array.isArray(data.cases) ? data.cases : [];
+		wikiSyncCases = Array.isArray(data.cases)  data.cases : [];
 		wikiSyncSummary = data.summary || null;
 		const activeRun = data.active_run || null;
-		activeWikiSyncRunId = activeRun?.status === "running" ? activeRun.public_id : null;
-		activeWikiSyncRunStatus = activeRun?.status === "running" ? "running" : "";
+		activeWikiSyncRunId = activeRun.status === "running"  activeRun.public_id : null;
+		activeWikiSyncRunStatus = activeRun.status === "running"  "running" : "";
 		renderWikiSyncCases(data.latest_run || null);
 		syncWikiSyncCreateLocationContextMenuAction();
 
-		if (activeRun?.status === "running") {
+		if (activeRun.status === "running") {
 			setWikiSyncLocationsRunning(false, activeRun);
 			setWikiSyncStatus(activeRun.message || "Ein WikiSync-Lauf kann fortgesetzt werden.", "pending");
 		} else {
@@ -124,12 +124,12 @@ function refreshActiveWikiSyncPanel() {
 }
 
 function setWikiSyncPanelTab(tabName) {
-	activeWikiSyncPanelTab = tabName === "territories" ? "territories" : "locations";
+	activeWikiSyncPanelTab = tabName === "territories"  "territories" : "locations";
 
 	document.querySelectorAll("[data-wiki-sync-panel-tab]").forEach((tabElement) => {
 		const isActive = tabElement.dataset.wikiSyncPanelTab === activeWikiSyncPanelTab;
 		tabElement.classList.toggle("is-active", isActive);
-		tabElement.setAttribute("aria-selected", isActive ? "true" : "false");
+		tabElement.setAttribute("aria-selected", isActive  "true" : "false");
 	});
 
 	document.querySelectorAll("[data-wiki-sync-panel-section]").forEach((sectionElement) => {
@@ -182,11 +182,11 @@ async function loadWikiSyncTerritoryTreeRows({ forceReload = false } = {}) {
 		credentials: "same-origin",
 	});
 
-	wikiSyncTerritoryTreeRowsCache = Array.isArray(response?.rows) ? response.rows : [];
+	wikiSyncTerritoryTreeRowsCache = Array.isArray(response.rows)  response.rows : [];
 	wikiSyncTerritoryTreeRowsLoaded = true;
 
 	const fullTree = treeModule.buildTree(wikiSyncTerritoryTreeRowsCache);
-	wikiSyncTerritoryTreeRootCountCache = Array.isArray(fullTree?.root?.children) ? fullTree.root.children.length : 0;
+	wikiSyncTerritoryTreeRootCountCache = Array.isArray(fullTree.root.children)  fullTree.root.children.length : 0;
 
 	return wikiSyncTerritoryTreeRowsCache;
 }
@@ -235,7 +235,7 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 			treeElement.innerHTML = "";
 			const emptyElement = document.createElement("p");
 			emptyElement.className = "political-territory-parent-tree__empty";
-			emptyElement.textContent = getWikiSyncTerritoryFilterQuery() !== "" ? "Keine Treffer" : "Keine Herrschaftsgebiete geladen";
+			emptyElement.textContent = getWikiSyncTerritoryFilterQuery() !== ""  "Keine Treffer" : "Keine Herrschaftsgebiete geladen";
 			treeElement.append(emptyElement);
 		}
 
@@ -256,7 +256,7 @@ async function startWikiSyncRun() {
 	}
 
 	setWikiSyncLocationsRunning(true);
-	setWikiSyncStatus(activeWikiSyncRunStatus === "running" ? "WikiSyncLocations wird fortgesetzt..." : "WikiSyncLocations wird gestartet...", "pending");
+	setWikiSyncStatus(activeWikiSyncRunStatus === "running"  "WikiSyncLocations wird fortgesetzt..." : "WikiSyncLocations wird gestartet...", "pending");
 
 	try {
 		let run = null;
@@ -264,8 +264,8 @@ async function startWikiSyncRun() {
 			run = { public_id: activeWikiSyncRunId, status: "running" };
 		} else {
 			const startResult = await submitWikiSyncLocationAction("start_run");
-			activeWikiSyncRunId = startResult.run?.public_id || null;
-			activeWikiSyncRunStatus = startResult.run?.status || "running";
+			activeWikiSyncRunId = startResult.run.public_id || null;
+			activeWikiSyncRunStatus = startResult.run.status || "running";
 			run = startResult.run || null;
 		}
 		let safetyCounter = 0;
@@ -278,14 +278,14 @@ async function startWikiSyncRun() {
 
 			const advanceResult = await submitWikiSyncLocationAction("advance_run", { run_id: activeWikiSyncRunId });
 			run = advanceResult.run || null;
-			activeWikiSyncRunStatus = run?.status || "";
+			activeWikiSyncRunStatus = run.status || "";
 			wikiSyncSummary = advanceResult.summary || wikiSyncSummary;
 			setWikiSyncLocationsRunning(true, run);
-			setWikiSyncStatus(run?.message || "WikiSync läuft...", "pending");
+			setWikiSyncStatus(run.message || "WikiSync läuft...", "pending");
 			safetyCounter += 1;
 		}
 
-		if (run?.status === "failed") {
+		if (run.status === "failed") {
 			throw new Error(run.message || "WikiSync ist fehlgeschlagen.");
 		}
 
@@ -313,10 +313,10 @@ async function startWikiSyncTerritoryRun() {
 	try {
 		const result = await submitWikiSyncTerritoryAction("sync_territories");
 		wikiSyncTerritorySummary = {
-			territory_count: Number(result?.territory_count ?? 0),
-			root_count: Number(result?.root_count ?? 0),
-			assigned_territory_count: Number(result?.assigned_territory_count ?? 0),
-			assigned_root_count: Number(result?.assigned_root_count ?? 0),
+			territory_count: Number(result.territory_count  0),
+			root_count: Number(result.root_count  0),
+			assigned_territory_count: Number(result.assigned_territory_count  0),
+			assigned_root_count: Number(result.assigned_root_count  0),
 		};
 		syncWikiSyncPanelHeaderState();
 		await loadPoliticalTerritoryOptions();
@@ -361,18 +361,18 @@ function syncWikiSyncActionButtonLabels() {
 	const territoriesButtonElement = document.getElementById("wiki-sync-territories");
 
 	if (locationsButtonElement) {
-		locationsButtonElement.textContent = isWikiSyncLocationsRunning ? "Synchronisiert..." : "WikiSync";
+		locationsButtonElement.textContent = isWikiSyncLocationsRunning  "Synchronisiert..." : "WikiSync";
 	}
 
 	if (territoriesButtonElement) {
-		territoriesButtonElement.textContent = isWikiSyncTerritoriesRunning ? "Synchronisiert..." : "WikiSync";
+		territoriesButtonElement.textContent = isWikiSyncTerritoriesRunning  "Synchronisiert..." : "WikiSync";
 	}
 }
 
 function formatWikiSyncSettlementSummaryText() {
-	const openCount = Number(wikiSyncSummary?.by_status?.open ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "open").length);
-	const deferredCount = Number(wikiSyncSummary?.by_status?.deferred ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "deferred").length);
-	const archivedCount = Number(wikiSyncSummary?.by_status?.archived ?? wikiSyncCases.filter((caseEntry) => caseEntry.status === "archived").length);
+	const openCount = Number(wikiSyncSummary.by_status.open  wikiSyncCases.filter((caseEntry) => caseEntry.status === "open").length);
+	const deferredCount = Number(wikiSyncSummary.by_status.deferred  wikiSyncCases.filter((caseEntry) => caseEntry.status === "deferred").length);
+	const archivedCount = Number(wikiSyncSummary.by_status.archived  wikiSyncCases.filter((caseEntry) => caseEntry.status === "archived").length);
 
 	if (openCount < 1 && deferredCount < 1 && archivedCount < 1) {
 		return "Keine Siedlungsdaten geladen";
@@ -382,8 +382,8 @@ function formatWikiSyncSettlementSummaryText() {
 }
 
 function formatWikiSyncTerritorySummaryText() {
-	const syncedTerritoryCount = Number(wikiSyncTerritorySummary?.territory_count ?? 0);
-	const syncedRootCount = Number(wikiSyncTerritorySummary?.root_count ?? 0);
+	const syncedTerritoryCount = Number(wikiSyncTerritorySummary.territory_count  0);
+	const syncedRootCount = Number(wikiSyncTerritorySummary.root_count  0);
 
 	if (syncedTerritoryCount > 0 || syncedRootCount > 0) {
 		return `${syncedTerritoryCount} Herrschaftsgebiete in ${syncedRootCount} Hauptmächte`;
@@ -399,18 +399,18 @@ function formatWikiSyncTerritorySummaryText() {
 
 function getWikiSyncTerritoryLoadedDataSummary() {
 	const territoryCount = wikiSyncTerritoryTreeRowsLoaded
-		? wikiSyncTerritoryTreeRowsCache.length
-		: (Array.isArray(politicalTerritoryOptions) ? politicalTerritoryOptions : [])
-			.filter((territory) => String(territory?.public_id || "").trim() !== "")
+		 wikiSyncTerritoryTreeRowsCache.length
+		: (Array.isArray(politicalTerritoryOptions)  politicalTerritoryOptions : [])
+			.filter((territory) => String(territory.public_id || "").trim() !== "")
 			.length;
 	const rootCount = wikiSyncTerritoryTreeRowsLoaded
-		? Number(wikiSyncTerritoryTreeRootCountCache || 0)
+		 Number(wikiSyncTerritoryTreeRootCountCache || 0)
 		: (Array.isArray(politicalTerritoryHierarchy) && politicalTerritoryHierarchy.length > 0)
-			? politicalTerritoryHierarchy.filter((node) => String(node?.name || "").trim() !== "").length
-			: (Array.isArray(politicalTerritoryOptions) ? politicalTerritoryOptions : [])
+			 politicalTerritoryHierarchy.filter((node) => String(node.name || "").trim() !== "").length
+			: (Array.isArray(politicalTerritoryOptions)  politicalTerritoryOptions : [])
 				.filter((territory) => {
-					const publicId = String(territory?.public_id || "").trim();
-					const parentPublicId = String(territory?.parent_public_id || "").trim();
+					const publicId = String(territory.public_id || "").trim();
+					const parentPublicId = String(territory.parent_public_id || "").trim();
 					return publicId !== "" && parentPublicId === "";
 				}).length;
 
@@ -445,20 +445,20 @@ function renderWikiSyncCases(latestRun = null) {
 		return;
 	}
 
-	const filteredCases = hasActiveFilter ? getWikiSyncFilteredCases(wikiSyncCases, filterQuery) : wikiSyncCases;
+	const filteredCases = hasActiveFilter  getWikiSyncFilteredCases(wikiSyncCases, filterQuery) : wikiSyncCases;
 	const statusMessage = isWikiSyncCreateLocationSelectionActive
-		? "Wählen Sie den Ort aus der Liste."
+		 "Wählen Sie den Ort aus der Liste."
 		: hasActiveFilter
-		? `${filteredCases.length} Treffer für "${filterDisplayQuery}".`
+		 `${filteredCases.length} Treffer für "${filterDisplayQuery}".`
 		: "";
-	setWikiSyncStatus(buildWikiSyncStatusMessage(statusMessage), isWikiSyncCreateLocationSelectionActive ? "pending" : "success");
+	setWikiSyncStatus(buildWikiSyncStatusMessage(statusMessage), isWikiSyncCreateLocationSelectionActive  "pending" : "success");
 
 	const renderedGroupElements = new Map();
 	const openSectionElement = renderWikiSyncCaseSection(listElement, "Offen", "open", filteredCases.filter((caseEntry) => caseEntry.status !== "archived"), renderedGroupElements);
 	const deferredSectionElement = renderWikiSyncCaseSection(listElement, "Zurückgestellt", "deferred", filteredCases.filter((caseEntry) => caseEntry.status === "deferred"), renderedGroupElements);
 	const archivedSectionElement = renderWikiSyncCaseSection(listElement, "Archiviert", "archived", filteredCases.filter((caseEntry) => caseEntry.status === "archived"), renderedGroupElements);
 	if (!openSectionElement && !archivedSectionElement) {
-		setWikiSyncStatus(buildWikiSyncStatusMessage(hasActiveFilter ? `Keine Treffer für "${filterDisplayQuery}".` : "Keine WikiSync-Fälle."), "empty");
+		setWikiSyncStatus(buildWikiSyncStatusMessage(hasActiveFilter  `Keine Treffer für "${filterDisplayQuery}".` : "Keine WikiSync-Fälle."), "empty");
 		wikiSyncFilterCollapseRequested = false;
 		syncWikiSyncCreateLocationContextMenuAction();
 		return;
@@ -493,7 +493,7 @@ function renderWikiSyncCases(latestRun = null) {
 
 function getWikiSyncOpenGroupKeys() {
 	return Array.from(document.querySelectorAll("#wiki-sync-case-list .wiki-sync-case-group[open]"))
-		.map((groupElement) => (groupElement instanceof HTMLElement ? String(groupElement.dataset.groupKey || "") : ""))
+		.map((groupElement) => (groupElement instanceof HTMLElement  String(groupElement.dataset.groupKey || "") : ""))
 		.filter((groupKey) => groupKey !== "");
 }
 
@@ -563,8 +563,8 @@ function getWikiSyncCaseSearchText(caseEntry) {
 	const mapPlace = payload.map || {};
 	const resolutionFeature = getWikiSyncResolvedFeature(caseEntry) || {};
 	const wikiPage = payload.wiki || {};
-	const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
-	const matches = Array.isArray(payload.matches) ? payload.matches : [];
+	const candidates = Array.isArray(payload.candidates)  payload.candidates : [];
+	const matches = Array.isArray(payload.matches)  payload.matches : [];
 	const proposedLocation = payload.proposed_location || {};
 	const tokens = [
 		caseEntry.case_label,
@@ -583,7 +583,7 @@ function getWikiSyncCaseSearchText(caseEntry) {
 		payload.match_kind,
 		proposedLocation.source_label,
 		proposedLocation.source,
-		proposedLocation.warnings?.join(" "),
+		proposedLocation.warnings.join(" "),
 		...candidates.map((candidate) => candidate.title || ""),
 		...matches.map((match) => match.name || ""),
 	];
@@ -598,15 +598,15 @@ function getWikiSyncCaseSearchText(caseEntry) {
 function getWikiSyncFilteredCases(cases = wikiSyncCases, filterQuery = "") {
 	const normalizedQuery = normalizeWikiSyncFilterQuery(filterQuery);
 	if (!normalizedQuery) {
-		return Array.isArray(cases) ? cases.slice() : [];
+		return Array.isArray(cases)  cases.slice() : [];
 	}
 
 	const queryTokens = normalizedQuery.split(/\s+/).filter(Boolean);
 	if (queryTokens.length < 1) {
-		return Array.isArray(cases) ? cases.slice() : [];
+		return Array.isArray(cases)  cases.slice() : [];
 	}
 
-	return (Array.isArray(cases) ? cases : []).filter((caseEntry) => {
+	return (Array.isArray(cases)  cases : []).filter((caseEntry) => {
 		const searchableText = getWikiSyncCaseSearchText(caseEntry);
 		return queryTokens.every((token) => searchableText.includes(token));
 	});
@@ -631,7 +631,7 @@ function startWikiSyncCreateLocationSelection(latlng) {
 	if (isReviewPanelHidden) {
 		toggleReviewPanel();
 	}
-	window.setEditorPanelTab?.("wiki-sync");
+	window.setEditorPanelTab.("wiki-sync");
 	setWikiSyncStatus("Wählen Sie den Ort aus der Liste.", "pending");
 	showFeedbackToast("Wählen Sie den Ort aus der Liste.", "info");
 }
@@ -650,13 +650,13 @@ function resetWikiSyncCreateLocationFlowState() {
 }
 
 function openWikiSyncCreateLocationDialogFromCase(caseEntry) {
-	const latlng = wikiSyncCreateLocationContextLatLng ? L.latLng(wikiSyncCreateLocationContextLatLng) : null;
+	const latlng = wikiSyncCreateLocationContextLatLng  L.latLng(wikiSyncCreateLocationContextLatLng) : null;
 	if (!latlng) {
 		showFeedbackToast("Bitte zuerst eine Position auf der Karte wählen.", "warning");
 		return;
 	}
 
-	const wikiPage = caseEntry.payload?.wiki || {};
+	const wikiPage = caseEntry.payload.wiki || {};
 	const presetName = wikiPage.title || "";
 	const presetLocationType = normalizeLocationType(wikiPage.settlement_class || "dorf");
 	const presetWikiUrl = wikiPage.url || "";
@@ -794,7 +794,7 @@ function getWikiSyncCaseTypeLabel(caseType) {
 }
 
 function getWikiSyncResolvedFeature(caseEntry) {
-	return caseEntry?.resolution?.feature || caseEntry?.payload?.resolution?.feature || null;
+	return caseEntry.resolution.feature || caseEntry.payload.resolution.feature || null;
 }
 
 function createWikiSyncCaseElement(caseEntry) {
@@ -880,7 +880,7 @@ function appendWikiSyncCaseRows(bodyElement, caseEntry) {
 
 	if (caseEntry.case_type === "duplicate_avesmaps_name") {
 		appendWikiSyncInfoRow(bodyElement, "Name", payload.name || "Unbenannt");
-		appendWikiSyncInfoRow(bodyElement, "Treffer", String(Array.isArray(payload.matches) ? payload.matches.length : 0));
+		appendWikiSyncInfoRow(bodyElement, "Treffer", String(Array.isArray(payload.matches)  payload.matches.length : 0));
 	}
 
 	if (payload.proposed_location) {
@@ -894,8 +894,8 @@ function appendWikiSyncCaseRows(bodyElement, caseEntry) {
 
 function appendWikiSyncCaseCandidates(bodyElement, caseEntry) {
 	const payload = caseEntry.payload || {};
-	const candidates = Array.isArray(payload.candidates) ? payload.candidates : [];
-	const matches = Array.isArray(payload.matches) ? payload.matches : [];
+	const candidates = Array.isArray(payload.candidates)  payload.candidates : [];
+	const matches = Array.isArray(payload.matches)  payload.matches : [];
 
 	if (caseEntry.case_type === "duplicate_avesmaps_name" && matches.length > 0) {
 		const sectionElement = document.createElement("div");
@@ -1014,7 +1014,7 @@ function appendWikiSyncCaseCandidates(bodyElement, caseEntry) {
 			buttonElement.className = "wiki-sync-case__choice";
 			buttonElement.dataset.wikiSyncAction = "resolve";
 			buttonElement.dataset.candidateIndex = String(index);
-			buttonElement.textContent = `${candidate.title || "Wiki-Kandidat"}${candidate.score ? ` (${Math.round(Number(candidate.score) * 100)}%)` : ""}`;
+			buttonElement.textContent = `${candidate.title || "Wiki-Kandidat"}${candidate.score  ` (${Math.round(Number(candidate.score) * 100)}%)` : ""}`;
 			sectionElement.appendChild(buttonElement);
 		});
 		bodyElement.appendChild(sectionElement);
@@ -1036,8 +1036,8 @@ function appendWikiSyncCaseActions(bodyElement, caseEntry) {
 	}
 
 	if (canResolveWikiSyncCase(caseEntry)) {
-		const label = caseEntry.case_type === "missing_wiki_without_coordinates" ? "Position wählen" : "Lösen";
-		const action = caseEntry.case_type === "missing_wiki_without_coordinates" ? "pick-position" : "resolve";
+		const label = caseEntry.case_type === "missing_wiki_without_coordinates"  "Position wählen" : "Lösen";
+		const action = caseEntry.case_type === "missing_wiki_without_coordinates"  "pick-position" : "resolve";
 		actionsElement.appendChild(createWikiSyncActionButton(action, label, "wiki-sync-case__action--primary"));
 	}
 
@@ -1094,8 +1094,8 @@ function canResolveWikiSyncCase(caseEntry) {
 
 function getWikiSyncCaseTitle(caseEntry) {
 	const payload = caseEntry.payload || {};
-	const mapName = payload.map?.name || "";
-	const wikiTitle = payload.wiki?.title || "";
+	const mapName = payload.map.name || "";
+	const wikiTitle = payload.wiki.title || "";
 
 	if (caseEntry.case_type === "missing_wiki_with_coordinates" || caseEntry.case_type === "missing_wiki_without_coordinates") {
 		return wikiTitle || "Fehlender Wiki-Ort";
@@ -1106,11 +1106,11 @@ function getWikiSyncCaseTitle(caseEntry) {
 	}
 
 	if (caseEntry.case_type === "duplicate_avesmaps_name") {
-		const duplicateCount = Array.isArray(payload.matches) ? payload.matches.length : 0;
+		const duplicateCount = Array.isArray(payload.matches)  payload.matches.length : 0;
 		return `${payload.name || "Unbenannter Ort"} (${duplicateCount} Dubletten)`;
 	}
 
-	return mapName && wikiTitle ? `${mapName} ↔ ${wikiTitle}` : mapName || wikiTitle || "WikiSync-Fall";
+	return mapName && wikiTitle  `${mapName} ↔ ${wikiTitle}` : mapName || wikiTitle || "WikiSync-Fall";
 }
 
 function formatWikiSyncCaseStatus(status) {
@@ -1136,8 +1136,8 @@ function formatWikiSyncMatchKind(matchKind) {
 }
 
 function findWikiSyncCaseFromElement(element) {
-	const caseElement = element?.closest?.(".wiki-sync-case");
-	const caseId = Number(caseElement?.dataset.caseId);
+	const caseElement = element.closest.(".wiki-sync-case");
+	const caseId = Number(caseElement.dataset.caseId);
 	return wikiSyncCases.find((caseEntry) => Number(caseEntry.id) === caseId) || null;
 }
 
@@ -1231,7 +1231,7 @@ function findWikiSyncMapInCase(caseEntry, publicId = "") {
 		return resolvedFeature;
 	}
 
-	const matches = Array.isArray(payload.matches) ? payload.matches : [];
+	const matches = Array.isArray(payload.matches)  payload.matches : [];
 	return matches.find((match) => !publicId || match.public_id === publicId) || null;
 }
 
@@ -1241,14 +1241,14 @@ function findWikiSyncCandidateInCase(caseEntry, indexValue) {
 		return null;
 	}
 
-	const candidates = Array.isArray(caseEntry.payload?.candidates) ? caseEntry.payload.candidates : [];
+	const candidates = Array.isArray(caseEntry.payload.candidates)  caseEntry.payload.candidates : [];
 	return candidates[candidateIndex] || null;
 }
 
 function focusWikiSyncCase(caseEntry, { mapPlace = null } = {}) {
 	const payload = caseEntry.payload || {};
 	const selectedMap = mapPlace || findWikiSyncMapInCase(caseEntry);
-	if (selectedMap?.public_id) {
+	if (selectedMap.public_id) {
 		const markerEntry = findLocationMarkerByPublicId(selectedMap.public_id);
 		if (markerEntry) {
 			map.flyTo(markerEntry.marker.getLatLng(), Math.max(map.getZoom(), 4), { duration: 0.8 });
@@ -1258,7 +1258,7 @@ function focusWikiSyncCase(caseEntry, { mapPlace = null } = {}) {
 
 		const lat = Number(selectedMap.lat);
 		const lng = Number(selectedMap.lng);
-		const latlng = Number.isFinite(lat) && Number.isFinite(lng) ? L.latLng(lat, lng) : null;
+		const latlng = Number.isFinite(lat) && Number.isFinite(lng)  L.latLng(lat, lng) : null;
 		if (latlng && isWithinMapBounds(latlng)) {
 			map.flyTo(latlng, Math.max(map.getZoom(), 4), { duration: 0.8 });
 			return;
@@ -1292,7 +1292,7 @@ function clearWikiSyncPreviewMarker() {
 
 function showWikiSyncPreviewMarker(caseEntry, latlng) {
 	clearWikiSyncPreviewMarker();
-	const wikiPage = caseEntry.payload?.wiki || {};
+	const wikiPage = caseEntry.payload.wiki || {};
 	wikiSyncPreviewMarker = L.circleMarker(latlng, {
 		pane: "measurementHandlesPane",
 		radius: 13,
@@ -1338,22 +1338,22 @@ function openWikiSyncResolveDialogForCase(caseEntry, { mapPlace = null, wikiCand
 	resetWikiSyncResolveForm();
 	activeWikiSyncCase = caseEntry;
 	activeWikiSyncSelectedMap = mapPlace || findWikiSyncMapInCase(caseEntry);
-	activeWikiSyncSelectedWiki = wikiCandidate || caseEntry.payload?.wiki || null;
-	if (!activeWikiSyncSelectedWiki && Array.isArray(caseEntry.payload?.candidates) && caseEntry.payload.candidates.length > 0) {
+	activeWikiSyncSelectedWiki = wikiCandidate || caseEntry.payload.wiki || null;
+	if (!activeWikiSyncSelectedWiki && Array.isArray(caseEntry.payload.candidates) && caseEntry.payload.candidates.length > 0) {
 		activeWikiSyncSelectedWiki = caseEntry.payload.candidates[0];
 	}
 
 	const presets = buildWikiSyncResolvePresets(caseEntry, { mapPlace: activeWikiSyncSelectedMap, wikiPage: activeWikiSyncSelectedWiki, latlng });
 	activeWikiSyncPreset = presets;
 	document.getElementById("wiki-sync-resolve-case-id").value = String(caseEntry.id || "");
-	document.getElementById("wiki-sync-resolve-public-id").value = activeWikiSyncSelectedMap?.public_id || "";
-	document.getElementById("wiki-sync-resolve-expected-revision").value = activeWikiSyncSelectedMap?.revision || "";
-	document.getElementById("wiki-sync-resolve-lat").value = presets.wiki.lat === null ? "" : Number(presets.wiki.lat).toFixed(3);
-	document.getElementById("wiki-sync-resolve-lng").value = presets.wiki.lng === null ? "" : Number(presets.wiki.lng).toFixed(3);
+	document.getElementById("wiki-sync-resolve-public-id").value = activeWikiSyncSelectedMap.public_id || "";
+	document.getElementById("wiki-sync-resolve-expected-revision").value = activeWikiSyncSelectedMap.revision || "";
+	document.getElementById("wiki-sync-resolve-lat").value = presets.wiki.lat === null  "" : Number(presets.wiki.lat).toFixed(3);
+	document.getElementById("wiki-sync-resolve-lng").value = presets.wiki.lng === null  "" : Number(presets.wiki.lng).toFixed(3);
 	document.getElementById("wiki-sync-resolve-coordinates").textContent = presets.wiki.lat === null || presets.wiki.lng === null
-		? "-"
+		 "-"
 		: formatLocationReportCoordinates(L.latLng(presets.wiki.lat, presets.wiki.lng));
-	void acquireFeatureSoftLock(activeWikiSyncSelectedMap?.public_id || "");
+	void acquireFeatureSoftLock(activeWikiSyncSelectedMap.public_id || "");
 
 	applyWikiSyncResolvePreset("wiki");
 	setWikiSyncResolveDialogOpen(true);
@@ -1361,35 +1361,35 @@ function openWikiSyncResolveDialogForCase(caseEntry, { mapPlace = null, wikiCand
 
 function buildWikiSyncResolvePresets(caseEntry, { mapPlace = null, wikiPage = null, latlng = null } = {}) {
 	const payload = caseEntry.payload || {};
-	const mapLatLng = normalizeWikiSyncLatLng(mapPlace ? { lat: mapPlace.lat, lng: mapPlace.lng } : null);
+	const mapLatLng = normalizeWikiSyncLatLng(mapPlace  { lat: mapPlace.lat, lng: mapPlace.lng } : null);
 	const proposedLocation = latlng || payload.proposed_location || mapLatLng || null;
 	const currentLatLng = normalizeWikiSyncLatLng(mapLatLng || proposedLocation);
 	const wikiLatLng = normalizeWikiSyncLatLng(proposedLocation || mapLatLng);
-	const mapSubtype = normalizeLocationType(mapPlace?.settlement_class || "dorf");
-	const wikiSubtype = normalizeLocationType(wikiPage?.settlement_class || mapSubtype);
-	const currentWikiUrl = mapPlace?.wiki_url || wikiPage?.url || "";
-	const currentName = mapPlace?.name || wikiPage?.title || "";
+	const mapSubtype = normalizeLocationType(mapPlace.settlement_class || "dorf");
+	const wikiSubtype = normalizeLocationType(wikiPage.settlement_class || mapSubtype);
+	const currentWikiUrl = mapPlace.wiki_url || wikiPage.url || "";
+	const currentName = mapPlace.name || wikiPage.title || "";
 
 	return {
 		avesmap: {
 			name: currentName,
 			feature_subtype: mapSubtype,
-			description: mapPlace?.description || "",
+			description: mapPlace.description || "",
 			wiki_url: currentWikiUrl,
-			is_nodix: Boolean(mapPlace?.is_nodix),
-			is_ruined: Boolean(mapPlace?.is_ruined),
-			lat: currentLatLng?.lat ?? null,
-			lng: currentLatLng?.lng ?? null,
+			is_nodix: Boolean(mapPlace.is_nodix),
+			is_ruined: Boolean(mapPlace.is_ruined),
+			lat: currentLatLng.lat  null,
+			lng: currentLatLng.lng  null,
 		},
 		wiki: {
-			name: wikiPage?.title || currentName,
+			name: wikiPage.title || currentName,
 			feature_subtype: wikiSubtype,
-			description: mapPlace?.description || "",
-			wiki_url: wikiPage?.url || currentWikiUrl,
-			is_nodix: Boolean(mapPlace?.is_nodix),
-			is_ruined: Boolean(mapPlace?.is_ruined),
-			lat: wikiLatLng?.lat ?? null,
-			lng: wikiLatLng?.lng ?? null,
+			description: mapPlace.description || "",
+			wiki_url: wikiPage.url || currentWikiUrl,
+			is_nodix: Boolean(mapPlace.is_nodix),
+			is_ruined: Boolean(mapPlace.is_ruined),
+			lat: wikiLatLng.lat  null,
+			lng: wikiLatLng.lng  null,
 		},
 	};
 }
@@ -1420,15 +1420,15 @@ function applyWikiSyncResolvePreset(kind) {
 	document.getElementById("wiki-sync-resolve-wiki-url").value = preset.wiki_url || "";
 	document.getElementById("wiki-sync-resolve-is-nodix").checked = Boolean(preset.is_nodix);
 	document.getElementById("wiki-sync-resolve-is-ruined").checked = Boolean(preset.is_ruined);
-	document.getElementById("wiki-sync-resolve-lat").value = preset.lat === null ? "" : Number(preset.lat).toFixed(3);
-	document.getElementById("wiki-sync-resolve-lng").value = preset.lng === null ? "" : Number(preset.lng).toFixed(3);
+	document.getElementById("wiki-sync-resolve-lat").value = preset.lat === null  "" : Number(preset.lat).toFixed(3);
+	document.getElementById("wiki-sync-resolve-lng").value = preset.lng === null  "" : Number(preset.lng).toFixed(3);
 	document.getElementById("wiki-sync-resolve-coordinates").textContent = preset.lat === null || preset.lng === null
-		? "-"
+		 "-"
 		: formatLocationReportCoordinates(L.latLng(preset.lat, preset.lng));
 	syncWikiSyncResolveLinkButton();
 
-	document.getElementById("wiki-sync-preset-wiki")?.classList.toggle("is-active", kind === "wiki");
-	document.getElementById("wiki-sync-preset-avesmap")?.classList.toggle("is-active", kind === "avesmap");
+	document.getElementById("wiki-sync-preset-wiki").classList.toggle("is-active", kind === "wiki");
+	document.getElementById("wiki-sync-preset-avesmap").classList.toggle("is-active", kind === "avesmap");
 }
 
 function syncWikiSyncResolveLinkButton() {
@@ -1438,14 +1438,14 @@ function syncWikiSyncResolveLinkButton() {
 		return;
 	}
 
-	const urlValue = String(inputElement?.value || "").trim();
+	const urlValue = String(inputElement.value || "").trim();
 	buttonElement.disabled = urlValue === "";
-	buttonElement.title = urlValue === "" ? "Kein Wiki-Link vorhanden" : "Wiki-Link in neuem Fenster öffnen";
+	buttonElement.title = urlValue === ""  "Kein Wiki-Link vorhanden" : "Wiki-Link in neuem Fenster öffnen";
 	buttonElement.setAttribute("aria-label", buttonElement.title);
 }
 
 function openWikiSyncResolveWikiLink() {
-	const urlValue = String(document.getElementById("wiki-sync-resolve-wiki-url")?.value || "").trim();
+	const urlValue = String(document.getElementById("wiki-sync-resolve-wiki-url").value || "").trim();
 	if (urlValue === "") {
 		showFeedbackToast("Kein Wiki-Link vorhanden.", "warning");
 		return;
@@ -1465,7 +1465,7 @@ function openWikiSyncResolveWikiLink() {
 
 async function handleWikiSyncResolveFormSubmit(event) {
 	event.preventDefault();
-	const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
+	const formElement = event.currentTarget instanceof HTMLFormElement  event.currentTarget : null;
 	if (!formElement || !formElement.reportValidity()) {
 		return;
 	}
@@ -1492,7 +1492,7 @@ async function handleWikiSyncResolveFormSubmit(event) {
 
 	const duplicateLocation = findDuplicateLocationByName(payload.name, {
 		excludePublicId: payload.public_id || "",
-		allowCurrentName: activeWikiSyncSelectedMap?.name || "",
+		allowCurrentName: activeWikiSyncSelectedMap.name || "",
 	});
 	if (duplicateLocation) {
 		setWikiSyncResolveStatus(`Ein Ort namens "${duplicateLocation.name}" existiert bereits.`, "error");

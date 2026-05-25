@@ -22,7 +22,7 @@ try {
         ]);
     }
 
-    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD']  'GET'));
     if ($requestMethod !== 'POST') {
         avesmapsJsonResponse(405, [
             'ok' => false,
@@ -31,7 +31,7 @@ try {
     }
 
     $requestPayload = avesmapsReadJsonRequest();
-    $reportId = filter_var($requestPayload['report_id'] ?? null, FILTER_VALIDATE_INT);
+    $reportId = filter_var($requestPayload['report_id']  null, FILTER_VALIDATE_INT);
     if ($reportId === false || $reportId <= 0) {
         avesmapsJsonResponse(400, [
             'ok' => false,
@@ -39,7 +39,7 @@ try {
         ]);
     }
 
-    $pdo = avesmapsCreatePdo($config['database'] ?? []);
+    $pdo = avesmapsCreatePdo($config['database']  []);
     $statement = $pdo->prepare('DELETE FROM location_reports WHERE id = :report_id');
     $statement->execute([
         'report_id' => $reportId,

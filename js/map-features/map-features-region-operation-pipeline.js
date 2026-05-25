@@ -34,7 +34,7 @@ function prepareRegionOperationContext(operationState, targetRegion, targetLayer
 		onlyLayer: normalizedTargetLayer,
 	});
 	const remainingSourceGeometry = sourceLayer
-		? regionEntryToClippingMultiPolygon(operationState.sourceRegion, { excludeLayers: sourceExclusions })
+		 regionEntryToClippingMultiPolygon(operationState.sourceRegion, { excludeLayers: sourceExclusions })
 		: [];
 
 	return {
@@ -65,7 +65,7 @@ function calculateRegionOperationResult(context) {
 	const operationGeometryGeoJson = clippingMultiPolygonToGeoJson(clippedGeometry);
 	const geometryGeoJson = clippingMultiPolygonToGeoJson([...context.remainingSourceGeometry, ...clippedGeometry]);
 	const remainingTargetGeometry = context.targetIsConsumed && !context.isSameGeometry && context.normalizedTargetLayer
-		? regionEntryToClippingMultiPolygon(context.targetRegion, { excludeLayers: [context.normalizedTargetLayer] })
+		 regionEntryToClippingMultiPolygon(context.targetRegion, { excludeLayers: [context.normalizedTargetLayer] })
 		: [];
 	const deleteTargetGeometry = context.targetIsConsumed && !context.isSameGeometry && remainingTargetGeometry.length < 1;
 

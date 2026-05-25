@@ -15,7 +15,7 @@ function prepareRegionData(data) {
 function prepareLegacyRegionData(data) {
 	clearRenderedRegionLayers();
 	regionData = data.features.filter(
-		f => f.properties?.type === "region"
+		f => f.properties.type === "region"
 	);
 
 	regionData.forEach(region => {
@@ -43,11 +43,11 @@ function addRegionFeatureToMap(region, regionEntry) {
 	const fillOpacity = regionEntry.opacity;
 	let polygons = [];
 
-	if (region.geometry?.type === "Polygon") {
+	if (region.geometry.type === "Polygon") {
 		polygons = [region.geometry.coordinates];
 	}
 
-	if (region.geometry?.type === "MultiPolygon") {
+	if (region.geometry.type === "MultiPolygon") {
 		polygons = region.geometry.coordinates;
 	}
 
@@ -74,7 +74,7 @@ function addRegionFeatureToMap(region, regionEntry) {
 		regionPolygons.push(polygon);
 		if (index === 0 && regionEntry.showRegionLabel !== false) {
 			const labelLatLng = regionEntry.labelLat !== null && regionEntry.labelLng !== null
-				? L.latLng(regionEntry.labelLat, regionEntry.labelLng)
+				 L.latLng(regionEntry.labelLat, regionEntry.labelLng)
 				: polygon.getBounds().getCenter();
 			const label = L.tooltip({
 				permanent: true,

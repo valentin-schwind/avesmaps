@@ -4,7 +4,7 @@ function populatePathEditForm(path) {
 		return;
 	}
 
-	const pathSubtype = normalizePathSubtype(path.properties?.name || path.properties?.feature_subtype || "Weg");
+	const pathSubtype = normalizePathSubtype(path.properties.name || path.properties.feature_subtype || "Weg");
 	pathEditFeature = path;
 	document.getElementById("path-edit-public-id").value = path.properties.public_id || path.id || "";
 	void acquireFeatureSoftLock(document.getElementById("path-edit-public-id").value);
@@ -23,11 +23,11 @@ function populatePathEditFormFromLastSettings(path) {
 	}
 
 	const storedSettings = lastPathEditSettings || {};
-	const fallbackSubtype = normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name || "Weg");
+	const fallbackSubtype = normalizePathSubtype(path.properties.feature_subtype || path.properties.name || "Weg");
 	const pathSubtype = normalizePathSubtype(storedSettings.feature_subtype || fallbackSubtype);
-	const autoNameEnabled = storedSettings.autoname !== undefined ? Boolean(storedSettings.autoname) : true;
-	const showLabelEnabled = storedSettings.show_label !== undefined ? Boolean(storedSettings.show_label) : shouldPathNameBeDisplayed(path);
-	const allowedTransports = Array.isArray(storedSettings.allowed_transports) ? storedSettings.allowed_transports : null;
+	const autoNameEnabled = storedSettings.autoname !== undefined  Boolean(storedSettings.autoname) : true;
+	const showLabelEnabled = storedSettings.show_label !== undefined  Boolean(storedSettings.show_label) : shouldPathNameBeDisplayed(path);
+	const allowedTransports = Array.isArray(storedSettings.allowed_transports)  storedSettings.allowed_transports : null;
 
 	pathEditFeature = path;
 	document.getElementById("path-edit-public-id").value = path.properties.public_id || path.id || "";
@@ -65,9 +65,9 @@ function populatePowerlineEditForm(powerline) {
 	}
 
 	powerlineEditFeature = powerline;
-	document.getElementById("powerline-edit-public-id").value = powerline.properties?.public_id || powerline.id || "";
+	document.getElementById("powerline-edit-public-id").value = powerline.properties.public_id || powerline.id || "";
 	void acquireFeatureSoftLock(document.getElementById("powerline-edit-public-id").value);
-	document.getElementById("powerline-edit-name").value = String(powerline.properties?.name || "").trim();
+	document.getElementById("powerline-edit-name").value = String(powerline.properties.name || "").trim();
 	document.getElementById("powerline-edit-show-label").checked = shouldPowerlineNameBeDisplayed(powerline);
 }
 
@@ -92,7 +92,7 @@ function buildPathEditPayload(formElement) {
 	const featureSubtype = String(formData.get("feature_subtype") || "").trim();
 	const isAutoNameEnabled = formData.get("autoname") === "on";
 	const submittedName = isAutoNameEnabled
-		? String(formData.get("name") || "").trim()
+		 String(formData.get("name") || "").trim()
 		: getPathDisplayNameOrGenerated(formData.get("name"), featureSubtype, { excludePath: pathEditFeature });
 	return {
 		action: "update_path_details",
@@ -107,10 +107,10 @@ function buildPathEditPayload(formElement) {
 
 function rememberPathEditSettingsFromPayload(payload, { autoname = true } = {}) {
 	lastPathEditSettings = {
-		feature_subtype: String(payload?.feature_subtype || "Weg").trim() || "Weg",
-		show_label: Boolean(payload?.show_label),
+		feature_subtype: String(payload.feature_subtype || "Weg").trim() || "Weg",
+		show_label: Boolean(payload.show_label),
 		autoname: Boolean(autoname),
-		allowed_transports: Array.isArray(payload?.allowed_transports) ? [...payload.allowed_transports] : [],
+		allowed_transports: Array.isArray(payload.allowed_transports)  [...payload.allowed_transports] : [],
 	};
 }
 
@@ -121,13 +121,13 @@ function getDefaultTransportDomainForPathSubtype(pathSubtype) {
 }
 
 function getPathTransportDomain(path) {
-	return path?.properties?.transport_domain || getDefaultTransportDomainForPathSubtype(normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name));
+	return path.properties.transport_domain || getDefaultTransportDomainForPathSubtype(normalizePathSubtype(path.properties.feature_subtype || path.properties.name));
 }
 
 function getPathAllowedTransports(path) {
 	const domain = getPathTransportDomain(path);
-	const subtype = normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name);
-	const configured = Array.isArray(path?.properties?.allowed_transports) ? path.properties.allowed_transports : null;
+	const subtype = normalizePathSubtype(path.properties.feature_subtype || path.properties.name);
+	const configured = Array.isArray(path.properties.allowed_transports)  path.properties.allowed_transports : null;
 	if (configured !== null) {
 		return configured.filter((option) => getTransportOptionsForPathSubtype(subtype).includes(option));
 	}
@@ -147,9 +147,9 @@ function getTransportOptionsForPathSubtype(pathSubtype) {
 }
 
 function syncPathTransportOptions({ path = null, resetToDefault = false } = {}) {
-	const subtype = normalizePathSubtype(document.getElementById("path-edit-type")?.value || path?.properties?.feature_subtype || "Weg");
+	const subtype = normalizePathSubtype(document.getElementById("path-edit-type").value || path.properties.feature_subtype || "Weg");
 	const defaultOptions = getTransportOptionsForPathSubtype(subtype);
-	const selectedOptions = resetToDefault || !path ? defaultOptions : getPathAllowedTransports(path);
+	const selectedOptions = resetToDefault || !path  defaultOptions : getPathAllowedTransports(path);
 	document.querySelectorAll('#path-edit-transport-options input[name="allowed_transport"]').forEach((input) => {
 		const isCompatible = defaultOptions.includes(input.value);
 		input.closest("label").hidden = !isCompatible;

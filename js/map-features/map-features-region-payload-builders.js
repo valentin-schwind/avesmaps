@@ -8,7 +8,7 @@ function buildRegionStylePayload(regionEntry) {
 
 function buildExtractedRegionCreatePayload(regionEntry, extractedName, extractedGeometry) {
 	const color = regionEntry.color || "#888888";
-	const opacity = Number.isFinite(Number(regionEntry.opacity)) ? Number(regionEntry.opacity) : 0.33;
+	const opacity = Number.isFinite(Number(regionEntry.opacity))  Number(regionEntry.opacity) : 0.33;
 
 	return {
 		action: "create_territory",
@@ -67,7 +67,7 @@ function buildRegionBooleanOperationPayload(operationState, targetRegion, geomet
 		operation: getStoredRegionBooleanOperation(operationState.operation),
 		public_id: operationState.sourceRegion.geometryPublicId || operationState.sourceRegion.publicId,
 		geometry_public_id: operationState.sourceRegion.geometryPublicId || operationState.sourceRegion.publicId,
-		delete_geometry_public_id: deleteTargetGeometry ? targetRegion.geometryPublicId || targetRegion.publicId : "",
+		delete_geometry_public_id: deleteTargetGeometry  targetRegion.geometryPublicId || targetRegion.publicId : "",
 		source: "editor",
 		geometry_geojson: geometryGeoJson,
 		style_json: buildRegionStylePayload(operationState.sourceRegion),

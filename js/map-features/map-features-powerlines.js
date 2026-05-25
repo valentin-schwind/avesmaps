@@ -1,6 +1,6 @@
 function getPowerlineLatLngs(powerline) {
-	const fromEntry = findLocationMarkerByPublicId(powerline.properties?.from_public_id);
-	const toEntry = findLocationMarkerByPublicId(powerline.properties?.to_public_id);
+	const fromEntry = findLocationMarkerByPublicId(powerline.properties.from_public_id);
+	const toEntry = findLocationMarkerByPublicId(powerline.properties.to_public_id);
 	if (fromEntry && toEntry) {
 		return [fromEntry.marker.getLatLng(), toEntry.marker.getLatLng()];
 	}
@@ -8,11 +8,11 @@ function getPowerlineLatLngs(powerline) {
 }
 
 function getPowerlinePublicId(powerline) {
-	return powerline?.properties?.public_id || powerline?.id || "";
+	return powerline.properties.public_id || powerline.id || "";
 }
 
 function getPowerlineDisplayName(powerline) {
-	return String(powerline?.properties?.name || "Kraftlinie").trim() || "Kraftlinie";
+	return String(powerline.properties.name || "Kraftlinie").trim() || "Kraftlinie";
 }
 
 function createPowerlineStrandLatLngs(latLngs, strandIndex, timeSeconds = 0) {
@@ -91,7 +91,7 @@ function getPowerlineRenderStyles() {
 }
 
 function shouldPowerlineNameBeDisplayed(powerline) {
-	return powerline?.properties?.show_label === true || powerline?.properties?.show_label === 1 || powerline?.properties?.show_label === "1";
+	return powerline.properties.show_label === true || powerline.properties.show_label === 1 || powerline.properties.show_label === "1";
 }
 
 function isPowerlineLabelVisibleAtCurrentZoom(powerline) {
@@ -118,17 +118,17 @@ function getReadablePowerlineLabelLatLngCoordinates(latLngCoords) {
 
 	const startPoint = map.latLngToLayerPoint(latLngCoords[0]);
 	const endPoint = map.latLngToLayerPoint(latLngCoords[latLngCoords.length - 1]);
-	return endPoint.x < startPoint.x ? [...latLngCoords].reverse() : latLngCoords;
+	return endPoint.x < startPoint.x  [...latLngCoords].reverse() : latLngCoords;
 }
 
 function refreshPowerlineLayerText(powerline) {
-	const labelLine = powerline?._labelLine;
-	if (!labelLine?.setText) {
+	const labelLine = powerline._labelLine;
+	if (!labelLine.setText) {
 		return;
 	}
 
 	if (!isPowerlineLabelVisibleAtCurrentZoom(powerline)) {
-		labelLine.removeText?.();
+		labelLine.removeText.();
 		return;
 	}
 
@@ -154,7 +154,7 @@ function createPowerlinePopupMarkup(powerline) {
 		showDescription: false,
 		showWikiLink: false,
 		showType: true,
-		actionsMarkup: IS_EDIT_MODE ? locationPopupActionsMarkup([
+		actionsMarkup: IS_EDIT_MODE  locationPopupActionsMarkup([
 			popupActionButtonMarkup({
 				label: "Details bearbeiten",
 				attributes: {
@@ -176,7 +176,7 @@ function createPowerlinePopupMarkup(powerline) {
 
 function refreshPowerlineLayerPopup(powerline) {
 	const popupMarkup = createPowerlinePopupMarkup(powerline);
-	powerline._interactiveLines?.forEach((line) => line.bindPopup(popupMarkup));
+	powerline._interactiveLines.forEach((line) => line.bindPopup(popupMarkup));
 }
 
 function createPowerlineLayer(powerline) {
@@ -227,7 +227,7 @@ function normalizePowerlineFeature(feature) {
 
 function syncPowerlineVisibility() {
 	const showPowerlines = getSelectedMapLayerMode() === "powerlines";
-	powerlineLayers.forEach((layer) => map[showPowerlines ? "addLayer" : "removeLayer"](layer));
+	powerlineLayers.forEach((layer) => map[showPowerlines  "addLayer" : "removeLayer"](layer));
 	if (showPowerlines) {
 		ensurePowerlineAnimationLoop();
 	} else {
@@ -243,11 +243,11 @@ function refreshPowerlineLayers(timeSeconds = powerlineAnimationTimeSeconds) {
 		const latLngs = getPowerlineLatLngs(powerline);
 		powerline._layerGroup.eachLayer((layer) => {
 			if (layer === powerline._labelLine) {
-				layer.setLatLngs?.(getReadablePowerlineLabelLatLngCoordinates(latLngs));
+				layer.setLatLngs.(getReadablePowerlineLabelLatLngCoordinates(latLngs));
 				return;
 			}
 			const strandIndex = layer._powerlineStrandIndex || 0;
-			layer.setLatLngs?.(createPowerlineStrandLatLngs(latLngs, strandIndex, timeSeconds));
+			layer.setLatLngs.(createPowerlineStrandLatLngs(latLngs, strandIndex, timeSeconds));
 		});
 		refreshPowerlineLayerText(powerline);
 	});
@@ -300,7 +300,7 @@ const preparePowerlineData = (data) => {
 	powerlineLayers.forEach((layer) => map.removeLayer(layer));
 	powerlineLayers = [];
 	powerlineData = data.features
-		.filter((feature) => feature.geometry.type === "LineString" && feature.properties?.feature_type === "powerline")
+		.filter((feature) => feature.geometry.type === "LineString" && feature.properties.feature_type === "powerline")
 		.map(normalizePowerlineFeature);
 	powerlineData.forEach((powerline) => {
 		const layer = createPowerlineLayer(powerline);
@@ -310,9 +310,9 @@ const preparePowerlineData = (data) => {
 };
 
 function applyLivePowerlineFeature(feature) {
-	const publicId = feature.id || feature.properties?.public_id || "";
+	const publicId = feature.id || feature.properties.public_id || "";
 	const existingPowerline = findPowerlineByPublicId(publicId);
-	if (existingPowerline?._layerGroup) {
+	if (existingPowerline._layerGroup) {
 		map.removeLayer(existingPowerline._layerGroup);
 		powerlineLayers = powerlineLayers.filter((layer) => layer !== existingPowerline._layerGroup);
 		powerlineData = powerlineData.filter((powerline) => powerline !== existingPowerline);
@@ -325,11 +325,11 @@ function applyLivePowerlineFeature(feature) {
 }
 
 function findPowerlineByPublicId(publicId) {
-	return powerlineData.find((powerline) => (powerline.id || powerline.properties?.public_id) === publicId) || null;
+	return powerlineData.find((powerline) => (powerline.id || powerline.properties.public_id) === publicId) || null;
 }
 
 function getConnectedPowerlinesForPublicId(publicId) {
-	return powerlineData.filter((powerline) => powerline.properties?.from_public_id === publicId || powerline.properties?.to_public_id === publicId);
+	return powerlineData.filter((powerline) => powerline.properties.from_public_id === publicId || powerline.properties.to_public_id === publicId);
 }
 
 function applyPowerlineFeatureResponse(powerline, feature) {

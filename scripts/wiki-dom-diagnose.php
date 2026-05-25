@@ -33,9 +33,9 @@ if (!is_array($config) || !isset($config['database']) || !is_array($config['data
 }
 
 $pdo = createPdo($config['database']);
-$limit = max(1, min(100, (int) ($options['limit'] ?? 20)));
-$nameFilter = trim((string) ($options['name'] ?? ''));
-$urlFilter = trim((string) ($options['url'] ?? ''));
+$limit = max(1, min(100, (int) ($options['limit']  20)));
+$nameFilter = trim((string) ($options['name']  ''));
+$urlFilter = trim((string) ($options['url']  ''));
 $shouldFetch = array_key_exists('fetch', $options);
 $asJson = array_key_exists('json', $options);
 
@@ -43,7 +43,7 @@ $rows = readRows($pdo, $nameFilter, $urlFilter, $limit);
 $live = [];
 if ($shouldFetch) {
     foreach ($rows as $row) {
-        $url = (string) ($row['wiki_url'] ?? '');
+        $url = (string) ($row['wiki_url']  '');
         if ($url === '') {
             continue;
         }
@@ -66,17 +66,17 @@ if ($shouldFetch) {
 }
 
 function createPdo(array $db): PDO {
-    if ((string) ($db['driver'] ?? 'mysql') !== 'mysql') {
+    if ((string) ($db['driver']  'mysql') !== 'mysql') {
         throw new RuntimeException('Nur MySQL wird unterstuetzt.');
     }
     $dsn = sprintf(
         'mysql:host=%s;port=%d;dbname=%s;charset=%s',
-        (string) ($db['host'] ?? 'localhost'),
-        (int) ($db['port'] ?? 3306),
-        (string) ($db['name'] ?? ''),
-        (string) ($db['charset'] ?? 'utf8mb4')
+        (string) ($db['host']  'localhost'),
+        (int) ($db['port']  3306),
+        (string) ($db['name']  ''),
+        (string) ($db['charset']  'utf8mb4')
     );
-    return new PDO($dsn, (string) ($db['user'] ?? ''), (string) ($db['password'] ?? ''), [
+    return new PDO($dsn, (string) ($db['user']  ''), (string) ($db['password']  ''), [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
@@ -103,8 +103,8 @@ function readRows(PDO $pdo, string $nameFilter, string $urlFilter, int $limit): 
     $stmt->execute($params);
     $rows = [];
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $row['affiliation_path'] = decodeJson($row['affiliation_path_json'] ?? null);
-        $row['raw'] = decodeJson($row['raw_json'] ?? null);
+        $row['affiliation_path'] = decodeJson($row['affiliation_path_json']  null);
+        $row['raw'] = decodeJson($row['raw_json']  null);
         $row['diagnosis'] = diagnoseRow($row);
         unset($row['affiliation_path_json'], $row['raw_json']);
         $rows[] = $row;
@@ -113,16 +113,16 @@ function readRows(PDO $pdo, string $nameFilter, string $urlFilter, int $limit): 
 }
 
 function diagnoseRow(array $row): array {
-    $raw = is_array($row['raw'] ?? null) ? $row['raw'] : [];
-    $fields = is_array($raw['fields'] ?? null) ? $raw['fields'] : [];
-    $path = is_array($raw['path'] ?? null) ? $raw['path'] : [];
-    $temporal = is_array($raw['temporal'] ?? null) ? $raw['temporal'] : [];
+    $raw = is_array($row['raw']  null)  $row['raw'] : [];
+    $fields = is_array($raw['fields']  null)  $raw['fields'] : [];
+    $path = is_array($raw['path']  null)  $raw['path'] : [];
+    $temporal = is_array($raw['temporal']  null)  $raw['temporal'] : [];
     $problems = [];
 
-    if (($row['affiliation_root'] ?? '') === '') {
+    if (($row['affiliation_root']  '') === '') {
         $problems[] = 'Pfad leer: kein passendes Feld fuer Zugehoerigkeit/politisch/Staat/Reich erkannt oder Feldwert nicht sinnvoll splitbar.';
     }
-    if (($row['founded_start_bf'] ?? null) === null) {
+    if (($row['founded_start_bf']  null) === null) {
         $problems[] = 'Gruendung leer: kein geparstes BF/v. BF-Jahr in Gruendungsfeldern oder Gruendungssaetzen.';
     }
     if ($fields === []) {
@@ -131,8 +131,8 @@ function diagnoseRow(array $row): array {
 
     return [
         'field_keys' => array_keys($fields),
-        'path_source_field' => (string) ($path['source_field'] ?? ''),
-        'path_raw' => (string) ($path['raw'] ?? ''),
+        'path_source_field' => (string) ($path['source_field']  ''),
+        'path_raw' => (string) ($path['raw']  ''),
         'temporal_items' => count($temporal),
         'problems' => $problems,
     ];
@@ -178,7 +178,7 @@ function fetchHtml(string $url): string {
             if (is_string($html) && trim($html) !== '' && $status >= 200 && $status < 400) {
                 return $html;
             }
-            throw new RuntimeException('HTML-Abruf fehlgeschlagen: HTTP ' . $status . ($error !== '' ? ' / ' . $error : ''));
+            throw new RuntimeException('HTML-Abruf fehlgeschlagen: HTTP ' . $status . ($error !== ''  ' / ' . $error : ''));
         }
     }
     $context = stream_context_create(['http' => ['method' => 'GET', 'timeout' => 15, 'header' => implode("\r\n", $headers) . "\r\n"]]);
@@ -209,8 +209,8 @@ function extractFields(DOMXPath $xpath): array {
         if (!$th instanceof DOMNode || !$td instanceof DOMNode) {
             continue;
         }
-        $key = labelKey($th->textContent ?? '');
-        $value = cleanText($td->textContent ?? '');
+        $key = labelKey($th->textContent  '');
+        $value = cleanText($td->textContent  '');
         if ($key !== '' && $value !== '' && !isset($fields[$key])) {
             $fields[$key] = $value;
         }
@@ -221,7 +221,7 @@ function extractFields(DOMXPath $xpath): array {
 function temporalTextHits(DOMXPath $xpath): array {
     $hits = [];
     foreach ($xpath->query('//p | //li | //tr') ?: [] as $node) {
-        $text = cleanText($node instanceof DOMNode ? ($node->textContent ?? '') : '');
+        $text = cleanText($node instanceof DOMNode  ($node->textContent  '') : '');
         if ($text === '') {
             continue;
         }
@@ -249,14 +249,14 @@ function printRows(array $rows): void {
         return;
     }
     foreach ($rows as $row) {
-        echo "\n== " . ($row['name'] ?? '') . " ==\n";
-        echo "Typ: " . ($row['type'] ?? '') . "\n";
-        echo "Pfad: " . implode(' > ', is_array($row['affiliation_path'] ?? null) ? $row['affiliation_path'] : []) . "\n";
-        echo "Gruendung: " . ($row['founded_text'] ?? '') . " | " . ($row['founded_start_bf'] ?? '') . "\n";
-        echo "Aufloesung: " . ($row['dissolved_text'] ?? '') . " | " . ($row['dissolved_start_bf'] ?? '') . "\n";
-        echo "Wiki: " . ($row['wiki_url'] ?? '') . "\n";
-        echo "Feld-Keys: " . implode(', ', $row['diagnosis']['field_keys'] ?? []) . "\n";
-        foreach (($row['diagnosis']['problems'] ?? []) as $problem) {
+        echo "\n== " . ($row['name']  '') . " ==\n";
+        echo "Typ: " . ($row['type']  '') . "\n";
+        echo "Pfad: " . implode(' > ', is_array($row['affiliation_path']  null)  $row['affiliation_path'] : []) . "\n";
+        echo "Gruendung: " . ($row['founded_text']  '') . " | " . ($row['founded_start_bf']  '') . "\n";
+        echo "Aufloesung: " . ($row['dissolved_text']  '') . " | " . ($row['dissolved_start_bf']  '') . "\n";
+        echo "Wiki: " . ($row['wiki_url']  '') . "\n";
+        echo "Feld-Keys: " . implode(', ', $row['diagnosis']['field_keys']  []) . "\n";
+        foreach (($row['diagnosis']['problems']  []) as $problem) {
             echo "- " . $problem . "\n";
         }
     }
@@ -264,19 +264,19 @@ function printRows(array $rows): void {
 
 function printLive(array $live): void {
     foreach ($live as $page) {
-        echo "\n-- Live-Wiki: " . ($page['title'] ?? '') . " --\n";
-        echo "URL: " . ($page['url'] ?? '') . "\n";
-        echo "Feldzahl: " . ($page['field_count'] ?? 0) . "\n";
-        echo "Feld-Keys: " . implode(', ', $page['field_keys'] ?? []) . "\n";
-        echo "Pfadfelder:\n" . json_encode($page['possible_path_fields'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
-        echo "Datumsfelder:\n" . json_encode($page['possible_date_fields'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
-        echo "Datums-Texttreffer:\n" . json_encode($page['temporal_text_hits'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
+        echo "\n-- Live-Wiki: " . ($page['title']  '') . " --\n";
+        echo "URL: " . ($page['url']  '') . "\n";
+        echo "Feldzahl: " . ($page['field_count']  0) . "\n";
+        echo "Feld-Keys: " . implode(', ', $page['field_keys']  []) . "\n";
+        echo "Pfadfelder:\n" . json_encode($page['possible_path_fields']  [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
+        echo "Datumsfelder:\n" . json_encode($page['possible_date_fields']  [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
+        echo "Datums-Texttreffer:\n" . json_encode($page['temporal_text_hits']  [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
     }
 }
 
 function heading(DOMXPath $xpath): string {
     $node = $xpath->query('//*[@id="firstHeading"]')->item(0);
-    return $node instanceof DOMNode ? cleanText($node->textContent ?? '') : '';
+    return $node instanceof DOMNode  cleanText($node->textContent  '') : '';
 }
 
 function decodeJson(mixed $value): array {
@@ -287,19 +287,19 @@ function decodeJson(mixed $value): array {
         return $value;
     }
     $decoded = json_decode((string) $value, true);
-    return is_array($decoded) ? $decoded : [];
+    return is_array($decoded)  $decoded : [];
 }
 
 function labelKey(string $value): string {
     $value = mb_strtolower(cleanText($value), 'UTF-8');
     $value = str_replace(['ä', 'ö', 'ü', 'ß'], ['ae', 'oe', 'ue', 'ss'], $value);
-    $value = preg_replace('/[^a-z0-9]+/u', ' ', $value) ?? '';
+    $value = preg_replace('/[^a-z0-9]+/u', ' ', $value)  '';
     return trim($value);
 }
 
 function cleanText(string $text): string {
     $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-    $text = preg_replace('/\[[^\]]*\]/u', ' ', $text) ?? $text;
-    $text = preg_replace('/\s+/u', ' ', $text) ?? $text;
+    $text = preg_replace('/\[[^\]]*\]/u', ' ', $text)  $text;
+    $text = preg_replace('/\s+/u', ' ', $text)  $text;
     return trim($text, " \t\n\r\0\x0B,:;");
 }

@@ -128,8 +128,8 @@ function handleSpotlightDocumentClick(event) {
 		return;
 	}
 
-	const target = event.target instanceof Element ? event.target : null;
-	if (target?.closest("#spotlight-search-overlay, #map-context-menu")) {
+	const target = event.target instanceof Element  event.target : null;
+	if (target.closest("#spotlight-search-overlay, #map-context-menu")) {
 		return;
 	}
 
@@ -145,7 +145,7 @@ function handleSpotlightInputKeydown(event) {
 
 	if (event.key === "ArrowUp") {
 		event.preventDefault();
-		const nextIndex = spotlightActiveResultIndex <= 0 ? spotlightRenderedEntries.length - 1 : spotlightActiveResultIndex - 1;
+		const nextIndex = spotlightActiveResultIndex <= 0  spotlightRenderedEntries.length - 1 : spotlightActiveResultIndex - 1;
 		setSpotlightActiveResultIndex(nextIndex);
 		return;
 	}
@@ -160,7 +160,7 @@ function handleSpotlightInputKeydown(event) {
 }
 
 function handleSpotlightResultClick(event) {
-	const button = event.target instanceof Element ? event.target.closest("[data-spotlight-result-index]") : null;
+	const button = event.target instanceof Element  event.target.closest("[data-spotlight-result-index]") : null;
 	if (!button) {
 		return;
 	}
@@ -173,7 +173,7 @@ function handleSpotlightResultClick(event) {
 }
 
 function handleSpotlightResultMouseMove(event) {
-	const button = event.target instanceof Element ? event.target.closest("[data-spotlight-result-index]") : null;
+	const button = event.target instanceof Element  event.target.closest("[data-spotlight-result-index]") : null;
 	if (!button) {
 		return;
 	}
@@ -183,7 +183,7 @@ function handleSpotlightResultMouseMove(event) {
 
 function updateSpotlightSearchResults() {
 	const { input } = getSpotlightSearchElements();
-	const query = input?.value || "";
+	const query = input.value || "";
 	const renderToken = ++spotlightSearchRenderToken;
 	const localEntries = searchSpotlightEntries(query);
 	renderSpotlightSearchResults(localEntries);
@@ -204,7 +204,7 @@ function updateSpotlightSearchResults() {
 			}
 		})
 		.catch((error) => {
-			if (error?.name !== "AbortError") {
+			if (error.name !== "AbortError") {
 				console.warn("Spotlight-Suche konnte serverseitig nicht geladen werden:", error);
 			}
 		});
@@ -234,7 +234,7 @@ async function fetchBackendSpotlightResults(query) {
 	}
 
 	const payload = await response.json();
-	return Array.isArray(payload?.results) ? payload.results : [];
+	return Array.isArray(payload.results)  payload.results : [];
 }
 
 function resolveBackendSpotlightEntries(backendResults, localEntries) {
@@ -257,7 +257,7 @@ function resolveBackendSpotlightEntries(backendResults, localEntries) {
 		const kind = String(result.kind || "");
 		let entry = null;
 		const publicIds = Array.isArray(result.public_ids)
-			? result.public_ids
+			 result.public_ids
 			: [result.public_id].filter(Boolean);
 
 		for (const publicId of publicIds) {
@@ -304,7 +304,7 @@ function searchSpotlightEntries(query) {
 				return scoreDiff;
 			}
 
-			const typeDiff = (SPOTLIGHT_SEARCH_RESULT_TYPE_ORDER[left.entry.kind] ?? 99) - (SPOTLIGHT_SEARCH_RESULT_TYPE_ORDER[right.entry.kind] ?? 99);
+			const typeDiff = (SPOTLIGHT_SEARCH_RESULT_TYPE_ORDER[left.entry.kind]  99) - (SPOTLIGHT_SEARCH_RESULT_TYPE_ORDER[right.entry.kind]  99);
 			if (typeDiff !== 0) {
 				return typeDiff;
 			}
@@ -353,10 +353,10 @@ function renderSpotlightSearchResults(entries) {
 	results.hidden = entries.length === 0;
 	status.textContent = "";
 	status.hidden = true;
-	setSpotlightActiveResultIndex(entries.length ? 0 : -1);
+	setSpotlightActiveResultIndex(entries.length  0 : -1);
 
 	if (input) {
-		input.setAttribute("aria-expanded", entries.length ? "true" : "false");
+		input.setAttribute("aria-expanded", entries.length  "true" : "false");
 	}
 }
 
@@ -379,7 +379,7 @@ function setSpotlightActiveResultIndex(index) {
 	Array.from(results.querySelectorAll(".spotlight-search__result")).forEach((button, buttonIndex) => {
 		const isActive = buttonIndex === index;
 		button.classList.toggle("is-active", isActive);
-		button.setAttribute("aria-selected", isActive ? "true" : "false");
+		button.setAttribute("aria-selected", isActive  "true" : "false");
 		if (isActive && input) {
 			input.setAttribute("aria-activedescendant", button.id);
 			button.scrollIntoView({ block: "nearest" });
@@ -403,21 +403,21 @@ function buildSpotlightSearchEntries() {
 
 function buildSpotlightLocationEntries() {
 	return locationMarkers
-		.filter((entry) => entry?.location && !isCrossingLocation(entry.location))
+		.filter((entry) => entry.location && !isCrossingLocation(entry.location))
 		.map((entry) => ({
 			id: `location:${entry.publicId || entry.name}`,
 			kind: "location",
 			name: entry.name,
-			typeLabel: entry.locationTypeLabel || LOCATION_TYPE_CONFIG[entry.locationType]?.singularLabel || "Ort",
+			typeLabel: entry.locationTypeLabel || LOCATION_TYPE_CONFIG[entry.locationType].singularLabel || "Ort",
 			publicIds: [entry.publicId].filter(Boolean),
 			locationEntry: entry,
-			aliases: [entry.location?.description, entry.location?.wikiUrl],
+			aliases: [entry.location.description, entry.location.wikiUrl],
 		}));
 }
 
 function buildSpotlightLabelEntries() {
 	return labelMarkers
-		.filter((entry) => String(entry?.label?.text || "").trim())
+		.filter((entry) => String(entry.label.text || "").trim())
 		.map((entry) => ({
 			id: `label:${entry.label.publicId || entry.label.text}:${entry.label.coordinates.join(",")}`,
 			kind: "label",
@@ -432,8 +432,8 @@ function buildSpotlightLabelEntries() {
 function buildSpotlightRegionEntries() {
 	const regionGroups = new Map();
 	regionPolygons.forEach((polygon) => {
-		const regionEntry = polygon?._regionEntry;
-		if (!regionEntry?.name) {
+		const regionEntry = polygon._regionEntry;
+		if (!regionEntry.name) {
 			return;
 		}
 
@@ -470,7 +470,7 @@ function buildSpotlightPathEntries() {
 				return;
 			}
 
-			const subtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+			const subtype = normalizePathSubtype(path.properties.feature_subtype || path.properties.name);
 			const groupKey = getSpotlightPathGroupKey(displayName, subtype);
 			if (!pathGroups.has(groupKey)) {
 				pathGroups.set(groupKey, {
@@ -501,11 +501,11 @@ function buildSpotlightPowerlineEntries() {
 	return powerlineData
 		.filter((powerline) => String(getPowerlineDisplayName(powerline) || "").trim())
 		.map((powerline) => ({
-			id: `powerline:${powerline.id || powerline.properties?.public_id || getPowerlineDisplayName(powerline)}`,
+			id: `powerline:${powerline.id || powerline.properties.public_id || getPowerlineDisplayName(powerline)}`,
 			kind: "powerline",
 			name: getPowerlineDisplayName(powerline),
 			typeLabel: "Kraftlinie",
-			publicIds: [powerline.id || powerline.properties?.public_id].filter(Boolean),
+			publicIds: [powerline.id || powerline.properties.public_id].filter(Boolean),
 			powerline,
 			bounds: getSpotlightLatLngBounds(getPowerlineLatLngs(powerline)),
 			aliases: ["Nodix", "Kraftlinie"],
@@ -561,11 +561,11 @@ function normalizeSpotlightSearchText(value) {
 }
 
 function extendSpotlightBounds(bounds, nextBounds) {
-	if (!nextBounds?.isValid?.()) {
+	if (!nextBounds.isValid.()) {
 		return bounds;
 	}
 
-	if (!bounds?.isValid?.()) {
+	if (!bounds.isValid.()) {
 		return L.latLngBounds(nextBounds.getSouthWest(), nextBounds.getNorthEast());
 	}
 
@@ -582,7 +582,7 @@ function getSpotlightLatLngBounds(latLngs) {
 }
 
 function getSpotlightPathBounds(path) {
-	const latLngs = (path?.geometry?.coordinates || []).map(([lng, lat]) => L.latLng(lat, lng));
+	const latLngs = (path.geometry.coordinates || []).map(([lng, lat]) => L.latLng(lat, lng));
 	return getSpotlightLatLngBounds(latLngs);
 }
 
@@ -618,7 +618,7 @@ function selectSpotlightSearchEntry(entry) {
 
 function focusSpotlightLocation(entry) {
 	const markerEntry = entry.locationEntry;
-	if (!markerEntry?.marker) {
+	if (!markerEntry.marker) {
 		return;
 	}
 
@@ -637,12 +637,12 @@ function getSpotlightLocationZoom(markerEntry) {
 
 function focusSpotlightLabel(entry) {
 	const labelEntry = entry.labelEntry;
-	if (!labelEntry?.marker) {
+	if (!labelEntry.marker) {
 		return;
 	}
 
 	setSelectedMapLayerMode("deregraphic");
-	const maxZoom = Number.isFinite(Number(labelEntry.label.maxZoom)) ? Number(labelEntry.label.maxZoom) : VISUAL_MAX_ZOOM_LEVEL;
+	const maxZoom = Number.isFinite(Number(labelEntry.label.maxZoom))  Number(labelEntry.label.maxZoom) : VISUAL_MAX_ZOOM_LEVEL;
 	const targetZoom = Math.max(Number(labelEntry.label.minZoom) || 0, Math.min(maxZoom, VISUAL_MAX_ZOOM_LEVEL));
 	map.setView(labelEntry.marker.getLatLng(), targetZoom);
 	syncLabelVisibility();
@@ -650,7 +650,7 @@ function focusSpotlightLabel(entry) {
 
 function focusSpotlightRegion(entry) {
 	setSelectedMapLayerMode("political");
-	if (entry.bounds?.isValid?.()) {
+	if (entry.bounds.isValid.()) {
 		focusSpotlightBounds(entry.bounds, 4);
 	}
 }
@@ -661,14 +661,14 @@ function focusSpotlightPath(entry) {
 	syncPathLabels();
 	syncPlannerStateToUrl();
 	highlightSpotlightPaths(entry.paths || []);
-	if (entry.bounds?.isValid?.()) {
+	if (entry.bounds.isValid.()) {
 		focusSpotlightBounds(entry.bounds, getSpotlightPathZoom(entry));
 	}
 }
 
 function getSpotlightPathZoom(entry) {
 	const minZoom = entry.subtype === "Flussweg" || entry.subtype === "Seeweg"
-		? 3
+		 3
 		: LOCATION_NAME_LABEL_CONFIG.dorf.minZoom;
 	return Math.max(minZoom, Math.min(VISUAL_MAX_ZOOM_LEVEL, map.getMaxZoom()));
 }
@@ -676,14 +676,14 @@ function getSpotlightPathZoom(entry) {
 function focusSpotlightPowerline(entry) {
 	setSelectedMapLayerMode("powerlines");
 	syncPowerlineLabels();
-	if (entry.bounds?.isValid?.()) {
-		const minZoom = shouldPowerlineNameBeDisplayed(entry.powerline) ? 2 : 3;
+	if (entry.bounds.isValid.()) {
+		const minZoom = shouldPowerlineNameBeDisplayed(entry.powerline)  2 : 3;
 		focusSpotlightBounds(entry.bounds, Math.max(minZoom, Math.min(VISUAL_MAX_ZOOM_LEVEL, map.getMaxZoom())));
 	}
 }
 
 function focusSpotlightBounds(bounds, preferredZoom) {
-	if (!bounds?.isValid?.()) {
+	if (!bounds.isValid.()) {
 		return;
 	}
 
@@ -704,7 +704,7 @@ function highlightSpotlightPaths(paths) {
 
 	spotlightHighlightLayer = L.layerGroup();
 	paths.forEach((path) => {
-		const latLngs = getPathVisualLatLngCoordinates(path.geometry?.coordinates || []);
+		const latLngs = getPathVisualLatLngCoordinates(path.geometry.coordinates || []);
 		if (latLngs.length < 2) {
 			return;
 		}
@@ -717,12 +717,12 @@ function highlightSpotlightPaths(paths) {
 
 	if (spotlightHighlightLayer.getLayers().length) {
 		spotlightHighlightLayer.addTo(map);
-		spotlightHighlightLayer.eachLayer((layer) => layer.bringToFront?.());
+		spotlightHighlightLayer.eachLayer((layer) => layer.bringToFront.());
 	}
 }
 
 function getSpotlightPathHighlightWeight(path) {
-	const subtype = normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name);
+	const subtype = normalizePathSubtype(path.properties.feature_subtype || path.properties.name);
 	if (subtype === "Flussweg" || subtype === "Seeweg") {
 		return 13;
 	}

@@ -28,11 +28,11 @@ function clearPathGeometryEdit() {
 }
 
 function getActivePathLatLngs() {
-	return activePathGeometryEdit?.path ? pathCoordinatesToLatLngs(activePathGeometryEdit.path) : [];
+	return activePathGeometryEdit.path  pathCoordinatesToLatLngs(activePathGeometryEdit.path) : [];
 }
 
 function setActivePathLatLngs(latLngs) {
-	if (!activePathGeometryEdit?.path) {
+	if (!activePathGeometryEdit.path) {
 		return;
 	}
 
@@ -80,7 +80,7 @@ function refreshPathEditHandles() {
 }
 
 function preparePathSplitContextMenu(nodeIndex, latlng, originalEvent = null) {
-	if (!activePathGeometryEdit?.path) {
+	if (!activePathGeometryEdit.path) {
 		return;
 	}
 
@@ -97,13 +97,13 @@ function preparePathSplitContextMenu(nodeIndex, latlng, originalEvent = null) {
 	};
 	openMapContextMenu(
 		latlng,
-		originalEvent?.clientX ?? 0,
-		originalEvent?.clientY ?? 0
+		originalEvent.clientX  0,
+		originalEvent.clientY  0
 	);
 }
 
 function getPathSplitCoordinateGroups(path, nodeIndex) {
-	const latLngs = activePathGeometryEdit?.path === path ? getActivePathLatLngs() : pathCoordinatesToLatLngs(path);
+	const latLngs = activePathGeometryEdit.path === path  getActivePathLatLngs() : pathCoordinatesToLatLngs(path);
 	if (nodeIndex <= 0 || nodeIndex >= latLngs.length - 1) {
 		return null;
 	}
@@ -116,7 +116,7 @@ function getPathSplitCoordinateGroups(path, nodeIndex) {
 }
 
 async function splitPathAtNode(splitState) {
-	const path = splitState?.path;
+	const path = splitState.path;
 	if (!path || !pathData.includes(path)) {
 		showFeedbackToast("Weg konnte nicht gefunden werden.", "warning");
 		return;
@@ -128,7 +128,7 @@ async function splitPathAtNode(splitState) {
 		return;
 	}
 
-	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+	const pathSubtype = normalizePathSubtype(path.properties.feature_subtype || path.properties.name);
 	try {
 		const crossingResult = await createCrossingFeatureAt(coordinateGroups.splitLatLng);
 		addCreatedCrossingMarker(crossingResult.feature);
@@ -172,7 +172,7 @@ async function finishPathNodeDrag(index, handle) {
 		return;
 	}
 
-	const otherEndpointIndex = index === 0 ? latLngs.length - 1 : 0;
+	const otherEndpointIndex = index === 0  latLngs.length - 1 : 0;
 	const otherEndpointLocation = findNearestGraphEndpointToLatLng(latLngs[otherEndpointIndex]);
 	const snappedEndpoint = findNearestGraphEndpointToLatLng(handle.getLatLng(), {
 		excludeLocation: otherEndpointLocation,
@@ -225,7 +225,7 @@ function findNearestSegmentInsertIndex(path, latlng) {
 }
 
 function insertActivePathNode(latlng) {
-	if (!activePathGeometryEdit?.path) {
+	if (!activePathGeometryEdit.path) {
 		return;
 	}
 
@@ -260,7 +260,7 @@ function handleEditablePathDoubleClick(path, event) {
 }
 
 function handleMapDoubleClickWhileEditingPath(event) {
-	if (event.originalEvent?.target?.closest?.(".path-edit-handle-marker")) {
+	if (event.originalEvent.target.closest.(".path-edit-handle-marker")) {
 		return;
 	}
 
@@ -269,7 +269,7 @@ function handleMapDoubleClickWhileEditingPath(event) {
 }
 
 async function saveActivePathGeometry() {
-	if (!activePathGeometryEdit?.path) {
+	if (!activePathGeometryEdit.path) {
 		return;
 	}
 
@@ -292,7 +292,7 @@ function startPathGeometryEdit(path, { showToast = true } = {}) {
 	clearPendingPathCreation();
 	clearPathGeometryEdit();
 	void acquireFeatureSoftLock(getPathPublicId(path));
-	path._layerGroup?.closePopup();
+	path._layerGroup.closePopup();
 	activePathGeometryEdit = {
 		path,
 		handles: [],

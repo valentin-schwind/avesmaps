@@ -8,11 +8,11 @@ function isCrossingName(name) {
 }
 
 function isCrossingLocation(location) {
-	return location?.locationType === CROSSING_LOCATION_TYPE || isCrossingName(location?.name);
+	return location.locationType === CROSSING_LOCATION_TYPE || isCrossingName(location.name);
 }
 
 function isNodixLocation(location) {
-	return Boolean(location?.isNodix) || isCrossingLocation(location);
+	return Boolean(location.isNodix) || isCrossingLocation(location);
 }
 
 function getNextCrossingDisplayName() {
@@ -21,7 +21,7 @@ function getNextCrossingDisplayName() {
 		.filter(Boolean)
 		.map((match) => Number.parseInt(match[1], 10))
 		.filter(Number.isFinite);
-	const nextNumber = crossingNumbers.length ? Math.max(...crossingNumbers) + 1 : 1;
+	const nextNumber = crossingNumbers.length  Math.max(...crossingNumbers) + 1 : 1;
 	return `Kreuzung-${nextNumber}`;
 }
 
@@ -31,7 +31,7 @@ function getNextLocationDisplayName() {
 		.filter(Boolean)
 		.map((match) => Number.parseInt(match[1], 10))
 		.filter(Number.isFinite);
-	const nextNumber = locationNumbers.length ? Math.max(...locationNumbers) + 1 : 1;
+	const nextNumber = locationNumbers.length  Math.max(...locationNumbers) + 1 : 1;
 	return `Ort-${nextNumber}`;
 }
 
@@ -48,11 +48,11 @@ function findNearestLocationToLatLng(latlng) {
 	let nearestMatch = null;
 
 	const locationCandidates = locationData.length
-		? locationData
+		 locationData
 		: locationMarkers.map((entry) => entry.location).filter(Boolean);
 
 	locationCandidates
-		.filter((location) => location?.name && !isCrossingName(location.name))
+		.filter((location) => location.name && !isCrossingName(location.name))
 		.forEach((location) => {
 			const distance = getLocationDistance(location, targetLocation);
 			if (!nearestMatch || distance < nearestMatch.distance) {
@@ -60,7 +60,7 @@ function findNearestLocationToLatLng(latlng) {
 			}
 		});
 
-	return nearestMatch?.location || null;
+	return nearestMatch.location || null;
 }
 
 function findNearestGraphNodeToLatLng(latlng) {
@@ -92,7 +92,7 @@ function openLocationPopupByName(locationName) {
 	}
 
 	const markerLatLng = markerEntry.marker.getLatLng();
-	const popupContent = markerEntry.marker.getPopup()?.getContent?.() || markerEntry.name;
+	const popupContent = markerEntry.marker.getPopup().getContent.() || markerEntry.name;
 	map.panTo(markerLatLng);
 	L.popup({
 		autoPan: false,

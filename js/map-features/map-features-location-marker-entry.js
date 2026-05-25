@@ -53,7 +53,7 @@ function createEditablePointMarkerEntry(location) {
 	};
 	marker.on("dragend", async () => {
 		const saveSucceeded = await saveMovedLocationMarker(markerEntry, marker.getLatLng());
-		if (!saveSucceeded && activeLocationEdit?.originalLatLng) {
+		if (!saveSucceeded && activeLocationEdit.originalLatLng) {
 			marker.setLatLng(activeLocationEdit.originalLatLng);
 			syncLocationNameLabelVisibility();
 		}

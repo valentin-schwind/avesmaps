@@ -13,13 +13,13 @@ function createRegionCompactTooltipMarkup(regionEntry) {
 
 function createRegionMiniTooltipMarkup(regionEntry) {
 	const coatMarkup = regionEntry.coatOfArmsUrl
-		? `<img class="region-compact-tooltip__coat" src="${escapeHtml(regionEntry.coatOfArmsUrl)}" alt="">`
+		 `<img class="region-compact-tooltip__coat" src="${escapeHtml(regionEntry.coatOfArmsUrl)}" alt="">`
 		: "";
 	const meta = [normalizeRegionParentheticalSpacing(regionEntry.type), regionEntry.validLabel].filter(Boolean).join(" | ");
 	const affiliation = regionEntry.affiliationRoot || regionEntry.affiliation || "";
 	const capitalMarkup = createRegionPlaceTooltipLine("Hauptstadt", regionEntry.capitalName, regionEntry.capitalPlacePublicId);
 	const seatMarkup = createRegionPlaceTooltipLine("Herrschaftssitz", regionEntry.seatName, regionEntry.seatPlacePublicId);
-	const hasCoatClass = regionEntry.coatOfArmsUrl ? " has-coat" : "";
+	const hasCoatClass = regionEntry.coatOfArmsUrl  " has-coat" : "";
 
 	return `
 		<span class="region-compact-tooltip__content${hasCoatClass}">
@@ -52,9 +52,9 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 	const wikiName = normalizeRegionParentheticalSpacing(regionEntry.wikiName || name);
 	const type = normalizeRegionParentheticalSpacing(regionEntry.wikiType || regionEntry.type || "Herrschaftsgebiet");
 	const coatMarkup = regionEntry.coatOfArmsUrl
-		? `<img class="region-info-box__coat" src="${escapeHtml(regionEntry.coatOfArmsUrl)}" alt="">`
+		 `<img class="region-info-box__coat" src="${escapeHtml(regionEntry.coatOfArmsUrl)}" alt="">`
 		: "";
-	const hasCoatClass = coatMarkup ? " has-coat" : "";
+	const hasCoatClass = coatMarkup  " has-coat" : "";
 	const wikiLink = createRegionInfoLink(regionEntry.wikiUrl);
 	const affiliationPath = createRegionInfoPathValue(regionEntry);
 	const wikiRows = [
@@ -74,7 +74,7 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 		createRegionInfoTextRow("Zuordnung", affiliationPath)
 	].join("");
 	const detailsMarkup = detailRows
-		? `<details class="region-info-box__details"><summary>Details</summary><dl>${detailRows}</dl></details>`
+		 `<details class="region-info-box__details"><summary>Details</summary><dl>${detailRows}</dl></details>`
 		: "";
 
 	return `
@@ -147,7 +147,7 @@ function createRegionInfoPathValue(regionEntry) {
 
 function normalizeRegionInfoUrl(value) {
 	const url = String(value || "").trim();
-	return /^https?:\/\//iu.test(url) ? url : "";
+	return /^https?:\/\//iu.test(url)  url : "";
 }
 
 function normalizeRegionStringList(value) {
@@ -164,7 +164,7 @@ function normalizeRegionStringList(value) {
 		try {
 			const parsedValue = JSON.parse(rawValue);
 			return Array.isArray(parsedValue)
-				? parsedValue.map((entry) => normalizeRegionParentheticalSpacing(entry).trim()).filter(Boolean)
+				 parsedValue.map((entry) => normalizeRegionParentheticalSpacing(entry).trim()).filter(Boolean)
 				: [];
 		} catch {
 			return [];
@@ -181,7 +181,7 @@ function createRegionPlaceTooltipLine(label, placeName, placePublicId) {
 	}
 
 	const valueMarkup = placePublicId
-		? `<button type="button" class="region-compact-tooltip__place-link" data-region-place-public-id="${escapeHtml(placePublicId)}">${escapeHtml(normalizedName)}</button>`
+		 `<button type="button" class="region-compact-tooltip__place-link" data-region-place-public-id="${escapeHtml(placePublicId)}">${escapeHtml(normalizedName)}</button>`
 		: `<span>${escapeHtml(normalizedName)}</span>`;
 	return `<span class="region-compact-tooltip__meta">${escapeHtml(label)}: ${valueMarkup}</span>`;
 }

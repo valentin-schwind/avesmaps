@@ -4,7 +4,7 @@ function resetPathEditForm() {
 		return;
 	}
 
-	const publicId = document.getElementById("path-edit-public-id")?.value || "";
+	const publicId = document.getElementById("path-edit-public-id").value || "";
 	formElement.reset();
 	pathEditFeature = null;
 	void releaseFeatureSoftLock(publicId);
@@ -18,7 +18,7 @@ function resetPowerlineEditForm() {
 		return;
 	}
 
-	const publicId = document.getElementById("powerline-edit-public-id")?.value || "";
+	const publicId = document.getElementById("powerline-edit-public-id").value || "";
 	formElement.reset();
 	powerlineEditFeature = null;
 	void releaseFeatureSoftLock(publicId);
@@ -35,7 +35,7 @@ function resetLabelEditForm() {
 		pendingLabelMoveAfterEditEntry = null;
 	}
 
-	const publicId = document.getElementById("label-edit-public-id")?.value || "";
+	const publicId = document.getElementById("label-edit-public-id").value || "";
 	formElement.reset();
 	labelEditEntry = null;
 	labelEditLatLng = null;
@@ -57,8 +57,8 @@ function setPathEditDialogOpen(isOpen, { resetForm = false } = {}) {
 	syncModalDialogBodyState();
 
 	if (isOpen) {
-		getPathEditDialogElement()?.focus();
-		document.getElementById("path-edit-name")?.focus();
+		getPathEditDialogElement().focus();
+		document.getElementById("path-edit-name").focus();
 		return;
 	}
 
@@ -76,8 +76,8 @@ function setPowerlineEditDialogOpen(isOpen, { resetForm = false } = {}) {
 	syncModalDialogBodyState();
 
 	if (isOpen) {
-		getPowerlineEditDialogElement()?.focus();
-		document.getElementById("powerline-edit-name")?.focus();
+		getPowerlineEditDialogElement().focus();
+		document.getElementById("powerline-edit-name").focus();
 		return;
 	}
 

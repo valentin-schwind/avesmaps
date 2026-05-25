@@ -1,5 +1,5 @@
 function popupActionButtonMarkup({ label, className = "", attributes = {} }) {
-	const safeClassName = className ? ` ${escapeHtml(className)}` : "";
+	const safeClassName = className  ` ${escapeHtml(className)}` : "";
 	return `<button type="button" class="location-popup__action-button${safeClassName}"${buildHtmlAttributes(attributes)}>${escapeHtml(label)}</button>`;
 }
 
@@ -25,13 +25,13 @@ function getWikiLocationLink(name, wikiUrlOverride = "") {
 function wikiLocationLinkMarkup(name, wikiUrlOverride = "") {
 	const wikiLocationLink = getWikiLocationLink(name, wikiUrlOverride);
 
-	if (!wikiLocationLink?.url) {
+	if (!wikiLocationLink.url) {
 		return "";
 	}
 
 	const wikiTitle = wikiLocationLink.title || name;
 	const linkText = `${name} im Wiki Aventurica`;
-	const titleText = wikiTitle === name ? linkText : `${linkText}: ${wikiTitle}`;
+	const titleText = wikiTitle === name  linkText : `${linkText}: ${wikiTitle}`;
 	return `
 		<a class="location-popup__wiki-link" href="${escapeHtml(wikiLocationLink.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(titleText)}">
 			${escapeHtml(linkText)}
@@ -46,8 +46,8 @@ function locationIconMarkup(locationType, locationTypeLabel) {
 }
 
 function sharePinVisualMarkup(rootClassName = "", { includeDot = true } = {}) {
-	const safeRootClassName = rootClassName ? ` ${escapeHtml(rootClassName)}` : "";
-	const dotMarkup = includeDot ? '<span class="share-pin-visual__dot"></span>' : "";
+	const safeRootClassName = rootClassName  ` ${escapeHtml(rootClassName)}` : "";
+	const dotMarkup = includeDot  '<span class="share-pin-visual__dot"></span>' : "";
 	return `
 		<span class="share-pin-visual${safeRootClassName}" aria-hidden="true">
 			${dotMarkup}
@@ -70,7 +70,7 @@ function getLocationDescriptionText(name, descriptionOverride = "") {
 
 function locationDescriptionMarkup(name, descriptionOverride = "", isRuined = false) {
 	const description = getLocationDescriptionText(name, descriptionOverride);
-	const statusText = isRuined ? "Ruine oder zerstoert." : "";
+	const statusText = isRuined  "Ruine oder zerstoert." : "";
 
 	if (!description && !statusText) {
 		return "";
@@ -170,7 +170,7 @@ function locationActionsMarkup(name, publicId, location = null) {
 
 	if (IS_EDIT_MODE && publicId) {
 		actionButtons.push(...pathCreationActionButtonsMarkup(publicId));
-		if (isEligiblePowerlineEndpoint(getPowerlineEndpointByPublicId(publicId) || (location ? {
+		if (isEligiblePowerlineEndpoint(getPowerlineEndpointByPublicId(publicId) || (location  {
 			publicId,
 			name,
 			coordinates: location.coordinates,
@@ -180,9 +180,9 @@ function locationActionsMarkup(name, publicId, location = null) {
 		} : null))) {
 			actionButtons.push(
 				popupActionButtonMarkup({
-					label: pendingPowerlineCreationStart ? "Kraftlinie abschliessen" : "Neue Kraftlinie",
+					label: pendingPowerlineCreationStart  "Kraftlinie abschliessen" : "Neue Kraftlinie",
 					attributes: {
-						"data-popup-action": pendingPowerlineCreationStart ? "finish-powerline-at-location" : "start-powerline-from-location",
+						"data-popup-action": pendingPowerlineCreationStart  "finish-powerline-at-location" : "start-powerline-from-location",
 						"data-public-id": publicId,
 					},
 				})
@@ -239,9 +239,9 @@ function crossingActionsMarkup(name, publicId) {
 		}),
 		...pathCreationActionButtonsMarkup(publicId),
 		popupActionButtonMarkup({
-			label: pendingPowerlineCreationStart ? "Kraftlinie abschliessen" : "Neue Kraftlinie",
+			label: pendingPowerlineCreationStart  "Kraftlinie abschliessen" : "Neue Kraftlinie",
 			attributes: {
-				"data-popup-action": pendingPowerlineCreationStart ? "finish-powerline-at-location" : "start-powerline-from-location",
+				"data-popup-action": pendingPowerlineCreationStart  "finish-powerline-at-location" : "start-powerline-from-location",
 				"data-public-id": publicId,
 			},
 		}),
@@ -274,9 +274,9 @@ function labelActionsMarkup(publicId) {
 	if (isEligiblePowerlineEndpoint(getPowerlineEndpointByPublicId(publicId))) {
 		actionButtons.push(
 			popupActionButtonMarkup({
-				label: pendingPowerlineCreationStart ? "Kraftlinie abschliessen" : "Neue Kraftlinie",
+				label: pendingPowerlineCreationStart  "Kraftlinie abschliessen" : "Neue Kraftlinie",
 				attributes: {
-					"data-popup-action": pendingPowerlineCreationStart ? "finish-powerline-at-location" : "start-powerline-from-location",
+					"data-popup-action": pendingPowerlineCreationStart  "finish-powerline-at-location" : "start-powerline-from-location",
 					"data-public-id": publicId,
 				},
 			})
@@ -351,20 +351,20 @@ function locationPopupMarkup({
 	isRuined = false,
 	actionsMarkup = "",
 }) {
-	const popupClassName = compact ? "location-popup location-popup--compact" : "location-popup";
-	const nameClassName = isRuined ? "location-popup__name location-popup__name--ruined" : "location-popup__name";
+	const popupClassName = compact  "location-popup location-popup--compact" : "location-popup";
+	const nameClassName = isRuined  "location-popup__name location-popup__name--ruined" : "location-popup__name";
 	return `
 		<div class="${popupClassName}">
 			<div class="location-popup__header">
-				${showHeaderIcon ? (headerIconMarkup || locationIconMarkup(locationType, locationTypeLabel)) : ""}
+				${showHeaderIcon  (headerIconMarkup || locationIconMarkup(locationType, locationTypeLabel)) : ""}
 				<div class="location-popup__title-group">
 					<div class="${nameClassName}">${escapeHtml(name)}</div>
-					${showType ? `<div class="location-popup__type">${escapeHtml(locationTypeLabel)}</div>` : ""}
+					${showType  `<div class="location-popup__type">${escapeHtml(locationTypeLabel)}</div>` : ""}
 				</div>
 			</div>
-			${showDescription ? locationDescriptionMarkup(name, description, isRuined) : ""}
+			${showDescription  locationDescriptionMarkup(name, description, isRuined) : ""}
 			${actionsMarkup}
-			${showWikiLink ? wikiLocationLinkMarkup(name, wikiUrl) : ""}
+			${showWikiLink  wikiLocationLinkMarkup(name, wikiUrl) : ""}
 		</div>`;
 }
 

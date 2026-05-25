@@ -20,7 +20,7 @@
 	}
 
 	function readRegionVertexDetachModifier(event = null) {
-		return Boolean(isRegionVertexDetachCtrlPressed || event?.originalEvent?.ctrlKey || event?.ctrlKey);
+		return Boolean(isRegionVertexDetachCtrlPressed || event.originalEvent.ctrlKey || event.ctrlKey);
 	}
 
 	function stopRegionVertexDetachDomEvent(event) {
@@ -28,9 +28,9 @@
 			return;
 		}
 
-		event.preventDefault?.();
-		event.stopPropagation?.();
-		event.stopImmediatePropagation?.();
+		event.preventDefault.();
+		event.stopPropagation.();
+		event.stopImmediatePropagation.();
 	}
 
 	function installRegionVertexDetachEditing() {
@@ -53,7 +53,7 @@
 		document.addEventListener("keyup", (event) => {
 			if (event.key === "Control") {
 				isRegionVertexDetachCtrlPressed = false;
-				if (activeRegionGeometryEdit?.vertexDetachHandle && !activeRegionVertexDetachDrag) {
+				if (activeRegionGeometryEdit.vertexDetachHandle && !activeRegionVertexDetachDrag) {
 					clearRegionEditVertexDetachPreview();
 				}
 			}
@@ -62,7 +62,7 @@
 		window.addEventListener("blur", () => {
 			isRegionVertexDetachCtrlPressed = false;
 			finishManualRegionVertexDetachDrag();
-			if (activeRegionGeometryEdit?.vertexDetachHandle) {
+			if (activeRegionGeometryEdit.vertexDetachHandle) {
 				clearRegionEditVertexDetachPreview();
 			}
 		});
@@ -73,11 +73,11 @@
 
 		function createRegionDetachHandleIcon(detachPreview = false) {
 			const dotAttributes = detachPreview
-				? ' style="background:#f0c05a;border-color:#7a5200;box-shadow:0 0 0 3px rgba(240, 192, 90, 0.34);"'
+				 ' style="background:#f0c05a;border-color:#7a5200;box-shadow:0 0 0 3px rgba(240, 192, 90, 0.34);"'
 				: "";
 
 			return L.divIcon({
-				className: `path-edit-handle-marker region-edit-handle-marker${detachPreview ? " region-edit-handle-marker--detach-preview" : ""}`,
+				className: `path-edit-handle-marker region-edit-handle-marker${detachPreview  " region-edit-handle-marker--detach-preview" : ""}`,
 				html: `<span class="path-edit-handle-marker__dot"${dotAttributes}></span>`,
 				iconSize: [18, 18],
 				iconAnchor: [9, 9],
@@ -94,7 +94,7 @@
 		}
 
 		function clearRegionEditVertexDetachPreview() {
-			if (!activeRegionGeometryEdit?.vertexDetachHandle) {
+			if (!activeRegionGeometryEdit.vertexDetachHandle) {
 				return;
 			}
 
@@ -117,7 +117,7 @@
 				}
 			});
 
-			return nearest?.handle || null;
+			return nearest.handle || null;
 		}
 
 		function markRegionVertexDetachHandle(handle) {
@@ -216,7 +216,7 @@
 				map.dragging.enable();
 			}
 			if (dragState.handleDraggingWasEnabled) {
-				dragState.handle.dragging?.enable?.();
+				dragState.handle.dragging.enable.();
 			}
 
 			if (event) {
@@ -239,7 +239,7 @@
 		}
 
 		function startManualRegionVertexDetachDrag(event, handle, index) {
-			const domEvent = event?.originalEvent || event;
+			const domEvent = event.originalEvent || event;
 			if (!activeRegionGeometryEdit || !readRegionVertexDetachModifier(event) || activeRegionVertexDetachDrag) {
 				return false;
 			}
@@ -248,11 +248,11 @@
 			markRegionVertexDetachHandle(handle);
 			clearRegionEditEdgeHover();
 
-			const mapDraggingWasEnabled = Boolean(map.dragging?.enabled?.());
+			const mapDraggingWasEnabled = Boolean(map.dragging.enabled.());
 			if (mapDraggingWasEnabled) {
 				map.dragging.disable();
 			}
-			const handleDraggingWasEnabled = Boolean(handle.dragging?.enabled?.());
+			const handleDraggingWasEnabled = Boolean(handle.dragging.enabled.());
 			if (handleDraggingWasEnabled) {
 				handle.dragging.disable();
 			}
@@ -351,12 +351,12 @@
 
 					const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry);
 					const targetLatLng = shouldDetachVertex
-						? event.target.getLatLng()
+						 event.target.getLatLng()
 						: findNearestRegionSnapPoint(event.target.getLatLng(), activeRegionGeometryEdit.regionEntry) || event.target.getLatLng();
 					latLngs[index] = targetLatLng;
 					setRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, latLngs);
 					const affectedRegions = shouldDetachVertex
-						? []
+						 []
 						: applySharedBoundaryVertexMove(activeRegionGeometryEdit.regionEntry, originalLatLng, targetLatLng);
 					updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
 					refreshRegionEditHandles();
@@ -372,7 +372,7 @@
 					deleteRegionNode(index);
 				});
 
-				const element = handle.getElement?.();
+				const element = handle.getElement.();
 				if (element) {
 					L.DomEvent.disableClickPropagation(element);
 					L.DomEvent.disableScrollPropagation(element);

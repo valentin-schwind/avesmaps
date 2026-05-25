@@ -1,20 +1,20 @@
 "use strict";
 
 function normalizePoliticalTerritoryEditorPreviewText(value) {
-	return String(value ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+	return String(value  "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function isTreeNodeAssignedToMap(node) {
-	return Boolean(node?.row?.map_assigned) || Number(node?.row?.map_geometry_count || 0) > 0;
+	return Boolean(node.row.map_assigned) || Number(node.row.map_geometry_count || 0) > 0;
 }
 
 function getTreeCoverageStatus(node) {
 	const ownAssigned = isTreeNodeAssignedToMap(node);
-	const children = Array.isArray(node?.children) ? node.children : [];
+	const children = Array.isArray(node.children)  node.children : [];
 
 	if (children.length === 0) {
 		return {
-			kind: ownAssigned ? "all" : "none",
+			kind: ownAssigned  "all" : "none",
 			ownAssigned,
 			hasAnyCoverage: ownAssigned,
 			isComplete: ownAssigned
@@ -48,7 +48,7 @@ function getTreeMapStatus(node) {
 		return {
 			kind: "all",
 			label: status.ownAssigned
-				? "Gebiet und Untergebiete sind auf der Karte vorhanden"
+				 "Gebiet und Untergebiete sind auf der Karte vorhanden"
 				: "Alle Untergebiete sind auf der Karte vorhanden"
 		};
 	}
@@ -100,5 +100,5 @@ function renderManualCoatPreview(url) {
 
 function updateWikiCoatPreviewFromManualInput() {
 	const input = document.getElementById("alternateCoatInput");
-	renderManualCoatPreview(input?.value || "");
+	renderManualCoatPreview(input.value || "");
 }

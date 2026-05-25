@@ -28,7 +28,7 @@ function avesmapsWikiSyncDecodeJson(mixed $value): array {
         return [];
     }
 
-    return is_array($decodedValue) ? $decodedValue : [];
+    return is_array($decodedValue)  $decodedValue : [];
 }
 
 function avesmapsWikiSyncEncodeJson(mixed $value): string {
@@ -36,7 +36,7 @@ function avesmapsWikiSyncEncodeJson(mixed $value): string {
 }
 
 function avesmapsWikiSyncReadBoolean(mixed $value): bool {
-    return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
+    return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)  false;
 }
 
 function avesmapsWikiSyncReadPublicId(mixed $value): string {
@@ -125,8 +125,8 @@ function avesmapsWikiSyncApiRequest(array $params): array {
         ]);
 
         $rawResponse = @file_get_contents($url, false, $context);
-        $lastRawResponse = is_string($rawResponse) ? $rawResponse : '';
-        $lastStatusCode = avesmapsWikiSyncReadHttpStatusCode($http_response_header ?? []);
+        $lastRawResponse = is_string($rawResponse)  $rawResponse : '';
+        $lastStatusCode = avesmapsWikiSyncReadHttpStatusCode($http_response_header  []);
 
         if (
             $lastStatusCode === 429
@@ -183,7 +183,7 @@ function avesmapsWikiSyncApiRequest(array $params): array {
         . $lastStatusCode
         . ' URL: '
         . $url
-        . ($responsePrefix !== '' ? ' Antwort: ' . $responsePrefix : '')
+        . ($responsePrefix !== ''  ' Antwort: ' . $responsePrefix : '')
     );
 }
 
@@ -218,7 +218,7 @@ function avesmapsWikiSyncCreateMatchKeyPreservingParentheticalSuffix(string $val
 
 function avesmapsWikiSyncCreateMatchKeyInternal(string $value, bool $preserveHistoricalSuffix): string {
     $value = $preserveHistoricalSuffix
-        ? avesmapsWikiSyncStripParentheticalSuffixPreservingSuffix($value)
+         avesmapsWikiSyncStripParentheticalSuffixPreservingSuffix($value)
         : avesmapsWikiSyncStripParentheticalSuffix($value);
     $value = mb_strtolower($value);
     $value = str_replace(["\u{00DF}", "\u{00E6}", "\u{0153}", "\u{00F8}", "\u{00F0}", "\u{00FE}"], ['ss', 'ae', 'oe', 'o', 'd', 'th'], $value);
@@ -228,8 +228,8 @@ function avesmapsWikiSyncCreateMatchKeyInternal(string $value, bool $preserveHis
             $value = $transliteratedValue;
         }
     }
-    $value = preg_replace('/[\s_\-\'\x{2019}\x{02BC}`\x{00B4}]+/u', '', $value) ?? '';
-    $value = preg_replace('/[^a-z0-9]+/u', '', $value) ?? '';
+    $value = preg_replace('/[\s_\-\'\x{2019}\x{02BC}`\x{00B4}]+/u', '', $value)  '';
+    $value = preg_replace('/[^a-z0-9]+/u', '', $value)  '';
 
     return $value;
 }
@@ -252,7 +252,7 @@ function avesmapsWikiSyncStripParentheticalSuffixInternal(string $title, bool $p
         return $normalizedTitle;
     }
 
-    return trim(preg_replace('/\s+\([^)]*\)\s*$/u', '', $normalizedTitle) ?? $normalizedTitle);
+    return trim(preg_replace('/\s+\([^)]*\)\s*$/u', '', $normalizedTitle)  $normalizedTitle);
 }
 
 function avesmapsWikiSyncHasTrailingParentheticalSuffix(string $value): bool {
@@ -320,7 +320,7 @@ function avesmapsWikiSyncFetchLatestCompletedRun(PDO $pdo): ?array {
         ORDER BY completed_at DESC, id DESC
         LIMIT 1"
     );
-    $run = $statement !== false ? $statement->fetch() : false;
+    $run = $statement !== false  $statement->fetch() : false;
 
     return $run ?: null;
 }
@@ -341,11 +341,11 @@ function avesmapsWikiSyncFetchLatestActiveRun(PDO $pdo, string $syncType = AVESM
     ]);
 
     $run = $statement->fetch(PDO::FETCH_ASSOC);
-    return is_array($run) ? $run : null;
+    return is_array($run)  $run : null;
 }
 
 function avesmapsWikiSyncPublicRun(array $run): array {
-    $stats = avesmapsWikiSyncDecodeJson($run['stats_json'] ?? null);
+    $stats = avesmapsWikiSyncDecodeJson($run['stats_json']  null);
     return [
         'id' => (string) $run['public_id'],
         'public_id' => (string) $run['public_id'],
@@ -353,21 +353,21 @@ function avesmapsWikiSyncPublicRun(array $run): array {
         'phase' => (string) $run['phase'],
         'progress_current' => (int) $run['progress_current'],
         'progress_total' => (int) $run['progress_total'],
-        'message' => (string) ($run['message'] ?? ''),
+        'message' => (string) ($run['message']  ''),
         'created_at' => (string) $run['created_at'],
         'updated_at' => (string) $run['updated_at'],
-        'completed_at' => (string) ($run['completed_at'] ?? ''),
+        'completed_at' => (string) ($run['completed_at']  ''),
         'stats' => [
-            'settlement_title_count' => (int) ($stats['settlement_title_count'] ?? 0),
-            'map_place_count' => (int) ($stats['map_place_count'] ?? 0),
-            'matched_count' => (int) ($stats['matched_count'] ?? 0),
-            'unresolved_count' => (int) ($stats['unresolved_count'] ?? 0),
-            'missing_wiki_place_count' => (int) ($stats['missing_wiki_place_count'] ?? 0),
-            'case_count' => (int) ($stats['case_count'] ?? 0),
-            'political_territory_received' => (int) ($stats['political_territories']['received'] ?? 0),
-            'political_territory_created' => (int) ($stats['political_territories']['territory_created'] ?? 0),
-            'political_territory_updated' => (int) ($stats['political_territories']['wiki_updated'] ?? 0),
-            'political_territory_geometry_seeded' => (int) ($stats['political_territories']['geometry_seeded'] ?? 0),
+            'settlement_title_count' => (int) ($stats['settlement_title_count']  0),
+            'map_place_count' => (int) ($stats['map_place_count']  0),
+            'matched_count' => (int) ($stats['matched_count']  0),
+            'unresolved_count' => (int) ($stats['unresolved_count']  0),
+            'missing_wiki_place_count' => (int) ($stats['missing_wiki_place_count']  0),
+            'case_count' => (int) ($stats['case_count']  0),
+            'political_territory_received' => (int) ($stats['political_territories']['received']  0),
+            'political_territory_created' => (int) ($stats['political_territories']['territory_created']  0),
+            'political_territory_updated' => (int) ($stats['political_territories']['wiki_updated']  0),
+            'political_territory_geometry_seeded' => (int) ($stats['political_territories']['geometry_seeded']  0),
         ],
     ];
 }

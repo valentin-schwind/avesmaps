@@ -25,9 +25,9 @@ function syncRegionOperationChip() {
 		intersection: "Neues von anderem ausschneiden",
 	};
 	const instruction = pendingRegionOperation.operation === "split"
-		? (pendingRegionOperation.points?.length === 1 ? "zweiten Schnittpunkt setzen." : "ersten Schnittpunkt setzen.")
+		 (pendingRegionOperation.points.length === 1  "zweiten Schnittpunkt setzen." : "ersten Schnittpunkt setzen.")
 		: pendingRegionOperation.operation === "move"
-			? "Maus bewegen, Klick speichert."
+			 "Maus bewegen, Klick speichert."
 			: "Zielgebiet anklicken.";
 	textElement.textContent = `${labels[pendingRegionOperation.operation] || "Operation"}: ${instruction}`;
 	chipElement.hidden = false;

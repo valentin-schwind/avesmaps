@@ -36,7 +36,7 @@ function getLocationNameLabelPriority(entry) {
 		dorf: 60,
 		gebaeude: 60,
 	};
-	return priorities[entry.markerEntry?.locationType] || 50;
+	return priorities[entry.markerEntry.locationType] || 50;
 }
 
 function getLabelOffsetCandidates() {
@@ -60,10 +60,10 @@ function setLabelElementOffset(element, offsetX, offsetY) {
 
 function getLocationNameLabelBaseOffset(element) {
 	const labelElement = element.querySelector("span");
-	const style = labelElement ? window.getComputedStyle(labelElement) : null;
+	const style = labelElement  window.getComputedStyle(labelElement) : null;
 	return {
-		x: parseFloat(style?.getPropertyValue("--location-label-offset-x")) || LOCATION_LABEL_GAP,
-		y: parseFloat(style?.getPropertyValue("--location-label-offset-y")) || 0,
+		x: parseFloat(style.getPropertyValue("--location-label-offset-x")) || LOCATION_LABEL_GAP,
+		y: parseFloat(style.getPropertyValue("--location-label-offset-y")) || 0,
 	};
 }
 
@@ -98,7 +98,7 @@ function applyLocationNameLabelOffset(element, candidate) {
 
 function getLabelCollisionTarget(element) {
 	return element.classList.contains("location-name-label")
-		? element.querySelector("span") || element
+		 element.querySelector("span") || element
 		: element;
 }
 
@@ -128,7 +128,7 @@ function getCollisionEntries() {
 		.map((entry) => ({
 			element: entry.marker.getElement(),
 			priority: getLocationNameLabelPriority(entry),
-			minZoom: LOCATION_NAME_LABEL_CONFIG[entry.markerEntry?.locationType]?.minZoom || 0,
+			minZoom: LOCATION_NAME_LABEL_CONFIG[entry.markerEntry.locationType].minZoom || 0,
 		}));
 
 	return [...locationLabelEntries, ...freeLabelEntries].filter(({ element }) => element);
@@ -151,10 +151,10 @@ function resolveLabelCollisions() {
 		})
 		.forEach(({ element }) => {
 			const locationLabelRect = element.classList.contains("location-name-label")
-				? measureLabelRect(element)
+				 measureLabelRect(element)
 				: null;
 			const candidates = locationLabelRect
-				? getLocationNameLabelOffsets(element, locationLabelRect)
+				 getLocationNameLabelOffsets(element, locationLabelRect)
 				: offsetCandidates.map(([offsetX, offsetY]) => ({ dx: offsetX, dy: offsetY }));
 
 			for (const candidate of candidates) {

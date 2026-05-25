@@ -44,7 +44,7 @@ $(document).on("click", "[data-region-edit-tab-close]", async function (event) {
 	regionEditTabs.splice(tabIndex, 1);
 	if (activeRegionEditTabKey === key) {
 		const nextTab = regionEditTabs[Math.max(0, tabIndex - 1)] || regionEditTabs[0] || null;
-		activeRegionEditTabKey = nextTab?.key || "";
+		activeRegionEditTabKey = nextTab.key || "";
 		if (nextTab) {
 			populateRegionEditForm(nextTab.region, { preserveTabs: true });
 		}
@@ -57,13 +57,13 @@ $(document).on("click", "[data-region-parent-id]", function (event) {
 	const toggleKey = this.dataset.regionTreeToggle || "";
 	const territoryPublicId = this.dataset.regionTerritoryId || "";
 	const isLeaf = this.dataset.regionTreeLeaf === "1";
-	if (toggleKey && (!isLeaf || event.target?.closest?.(".political-territory-parent-tree__toggle") || (this.dataset.regionTreeGroup === "1" && !territoryPublicId))) {
+	if (toggleKey && (!isLeaf || event.target.closest.(".political-territory-parent-tree__toggle") || (this.dataset.regionTreeGroup === "1" && !territoryPublicId))) {
 		if (regionParentCollapsedKeys.has(toggleKey)) {
 			regionParentCollapsedKeys.delete(toggleKey);
 		} else {
 			regionParentCollapsedKeys.add(toggleKey);
 		}
-		populateRegionParentSelect(regionEditEntry?.region || regionEditEntry || {});
+		populateRegionParentSelect(regionEditEntry.region || regionEditEntry || {});
 		return;
 	}
 
@@ -79,7 +79,7 @@ $(document).on("click", "[data-region-parent-id]", function (event) {
 	document.querySelectorAll("#region-edit-parent-tree [data-region-parent-id]").forEach((button) => {
 		button.classList.toggle("is-selected", button === this);
 	});
-	const territoryName = this.querySelector(".political-territory-parent-tree__name")?.textContent || "Herrschaftsgebiet";
+	const territoryName = this.querySelector(".political-territory-parent-tree__name").textContent || "Herrschaftsgebiet";
 	setRegionEditStatus(`${territoryName} ausgewählt.`, "success");
 });
 
@@ -96,12 +96,12 @@ $(document).on("dblclick", "#region-edit-parent-tree [data-region-territory-id]"
 	} else {
 		regionParentCollapsedKeys.add(toggleKey);
 	}
-	populateRegionParentSelect(regionEditEntry?.region || regionEditEntry || {});
+	populateRegionParentSelect(regionEditEntry.region || regionEditEntry || {});
 });
 
 $(document).on("dragstart", "#region-edit-parent-tree [data-region-territory-id]", function (event) {
 	const territoryPublicId = this.dataset.regionTerritoryId || "";
-	if (!territoryPublicId || this.dataset.regionTreeLeaf !== "1" || !event.originalEvent?.dataTransfer) {
+	if (!territoryPublicId || this.dataset.regionTreeLeaf !== "1" || !event.originalEvent.dataTransfer) {
 		event.preventDefault();
 		return;
 	}
@@ -114,7 +114,7 @@ $(document).on("dragstart", "#region-edit-parent-tree [data-region-territory-id]
 $(document).on("dragover", "#region-edit-parent-drop", function (event) {
 	event.preventDefault();
 	this.classList.add("is-drag-over");
-	if (event.originalEvent?.dataTransfer) {
+	if (event.originalEvent.dataTransfer) {
 		event.originalEvent.dataTransfer.dropEffect = "copy";
 	}
 });
@@ -126,9 +126,9 @@ $(document).on("dragleave", "#region-edit-parent-drop", function () {
 $(document).on("drop", "#region-edit-parent-drop", function (event) {
 	event.preventDefault();
 	this.classList.remove("is-drag-over");
-	const dataTransfer = event.originalEvent?.dataTransfer;
-	const territoryPublicId = dataTransfer?.getData("application/x-avesmaps-territory") || dataTransfer?.getData("text/plain") || "";
-	const activeTerritoryId = document.getElementById("region-edit-territory-public-id")?.value || "";
+	const dataTransfer = event.originalEvent.dataTransfer;
+	const territoryPublicId = dataTransfer.getData("application/x-avesmaps-territory") || dataTransfer.getData("text/plain") || "";
+	const activeTerritoryId = document.getElementById("region-edit-territory-public-id").value || "";
 	if (territoryPublicId.startsWith("wiki:")) {
 		setRegionEditStatus("Wiki-Knoten bitte in die Zuweisungsflaeche unter dem Baum ziehen.", "pending");
 		return;
@@ -143,7 +143,7 @@ $(document).on("drop", "#region-edit-parent-drop", function (event) {
 $(document).on("dragover", "#region-edit-assignment-drop", function (event) {
 	event.preventDefault();
 	this.classList.add("is-drag-over");
-	if (event.originalEvent?.dataTransfer) {
+	if (event.originalEvent.dataTransfer) {
 		event.originalEvent.dataTransfer.dropEffect = "copy";
 	}
 });
@@ -155,8 +155,8 @@ $(document).on("dragleave", "#region-edit-assignment-drop", function () {
 $(document).on("drop", "#region-edit-assignment-drop", function (event) {
 	event.preventDefault();
 	this.classList.remove("is-drag-over");
-	const dataTransfer = event.originalEvent?.dataTransfer;
-	const territoryPublicId = dataTransfer?.getData("application/x-avesmaps-territory") || dataTransfer?.getData("text/plain") || "";
+	const dataTransfer = event.originalEvent.dataTransfer;
+	const territoryPublicId = dataTransfer.getData("application/x-avesmaps-territory") || dataTransfer.getData("text/plain") || "";
 	if (!territoryPublicId) {
 		return;
 	}
@@ -186,7 +186,7 @@ $(document).on("click", "#region-edit-assignment-clear", function (event) {
 
 $(document).on("input change", "[data-region-assignment-zoom-min], [data-region-assignment-zoom-max]", function (event) {
 	const summaryElement = this.closest("#region-edit-assignment-summary");
-	const territoryPublicId = summaryElement?.dataset?.regionAssignmentActiveId || "";
+	const territoryPublicId = summaryElement.dataset.regionAssignmentActiveId || "";
 	if (!territoryPublicId) {
 		return;
 	}
@@ -212,7 +212,7 @@ $(document).on("input change", "[data-region-assignment-zoom-min], [data-region-
 });
 
 $(document).on("input change", "#region-edit-min-zoom, #region-edit-max-zoom", function () {
-	const territoryPublicId = String(document.getElementById("region-edit-territory-public-id")?.value || "").trim();
+	const territoryPublicId = String(document.getElementById("region-edit-territory-public-id").value || "").trim();
 	if (!territoryPublicId) {
 		return;
 	}
@@ -223,7 +223,7 @@ $(document).on("input change", "#region-edit-min-zoom, #region-edit-max-zoom", f
 		return;
 	}
 
-	const changedField = this.id === "region-edit-max-zoom" ? "max" : "min";
+	const changedField = this.id === "region-edit-max-zoom"  "max" : "min";
 	const normalizedZoom = updatePoliticalTerritoryDraftZoom(territoryPublicId, minInputElement.value, maxInputElement.value, changedField);
 	if (!normalizedZoom) {
 		return;
@@ -232,7 +232,7 @@ $(document).on("input change", "#region-edit-min-zoom, #region-edit-max-zoom", f
 	minInputElement.value = normalizedZoom.minText;
 	maxInputElement.value = normalizedZoom.maxText;
 	const summaryElement = document.getElementById("region-edit-assignment-summary");
-	const summaryTerritoryId = String(summaryElement?.dataset?.regionAssignmentActiveId || "").trim();
+	const summaryTerritoryId = String(summaryElement.dataset.regionAssignmentActiveId || "").trim();
 	if (summaryTerritoryId === territoryPublicId) {
 		const summaryMinInput = summaryElement.querySelector("[data-region-assignment-zoom-min]");
 		const summaryMaxInput = summaryElement.querySelector("[data-region-assignment-zoom-max]");
@@ -247,7 +247,7 @@ $(document).on("input change", "#region-edit-min-zoom, #region-edit-max-zoom", f
 
 $(document).on("input change", "[data-region-assignment-field]", function () {
 	const summaryElement = this.closest("#region-edit-assignment-summary");
-	const territoryPublicId = String(summaryElement?.dataset?.regionAssignmentActiveId || "").trim();
+	const territoryPublicId = String(summaryElement.dataset.regionAssignmentActiveId || "").trim();
 	if (!territoryPublicId) {
 		return;
 	}
@@ -263,7 +263,7 @@ $(document).on("input change", "[data-region-assignment-field]", function () {
 	if (field === "opacity") {
 		const opacityPercent = Math.max(0, Math.min(100, Number.parseInt(String(this.value || "33"), 10) || 0));
 		const opacity = opacityPercent / 100;
-		const labelElement = this.closest(".political-territory-assignment-summary__field")?.querySelector("span");
+		const labelElement = this.closest(".political-territory-assignment-summary__field").querySelector("span");
 		if (labelElement) {
 			labelElement.textContent = `Transparenz ${opacityPercent}%`;
 		}
@@ -297,7 +297,7 @@ $(document).on("input change", "[data-region-assignment-field]", function () {
 
 	if (field === "valid-from") {
 		const value = String(this.value || "").trim();
-		const number = value === "" ? null : Number.parseInt(value, 10);
+		const number = value === ""  null : Number.parseInt(value, 10);
 		applyPoliticalTerritoryDraftPatch(territoryPublicId, { valid_from_bf: number, validFromBf: number }, { valid_from_bf: value });
 		syncRegionAssignmentFormFieldValues({ validFromBfText: value });
 		return;
@@ -312,16 +312,16 @@ $(document).on("input change", "[data-region-assignment-field]", function () {
 				validToInput.value = "";
 			}
 		}
-		applyPoliticalTerritoryDraftPatch(territoryPublicId, { valid_to_bf: isOpen ? null : null, validToBf: isOpen ? null : null }, { valid_to_open: isOpen, valid_to_bf: isOpen ? "" : String(validToInput?.value || "") });
-		syncRegionAssignmentFormFieldValues({ validToOpen: isOpen, validToBfText: isOpen ? "" : String(validToInput?.value || "") });
+		applyPoliticalTerritoryDraftPatch(territoryPublicId, { valid_to_bf: isOpen  null : null, validToBf: isOpen  null : null }, { valid_to_open: isOpen, valid_to_bf: isOpen  "" : String(validToInput.value || "") });
+		syncRegionAssignmentFormFieldValues({ validToOpen: isOpen, validToBfText: isOpen  "" : String(validToInput.value || "") });
 		return;
 	}
 
 	if (field === "valid-to") {
 		const openInput = summaryElement.querySelector("[data-region-assignment-field='valid-open']");
-		const isOpen = openInput instanceof HTMLInputElement ? openInput.checked : false;
-		const value = isOpen ? "" : String(this.value || "").trim();
-		const number = value === "" ? null : Number.parseInt(value, 10);
+		const isOpen = openInput instanceof HTMLInputElement  openInput.checked : false;
+		const value = isOpen  "" : String(this.value || "").trim();
+		const number = value === ""  null : Number.parseInt(value, 10);
 		applyPoliticalTerritoryDraftPatch(territoryPublicId, { valid_to_bf: number, validToBf: number }, { valid_to_open: isOpen, valid_to_bf: value });
 		syncRegionAssignmentFormFieldValues({ validToBfText: value, validToOpen: isOpen });
 	}
@@ -330,8 +330,8 @@ $(document).on("input change", "[data-region-assignment-field]", function () {
 $(document).on("click", "[data-region-assignment-coat-refresh]", function (event) {
 	event.preventDefault();
 	const summaryElement = this.closest("#region-edit-assignment-summary");
-	const inputElement = summaryElement?.querySelector("[data-region-assignment-field='coat']");
-	const territoryPublicId = String(summaryElement?.dataset?.regionAssignmentActiveId || "").trim();
+	const inputElement = summaryElement.querySelector("[data-region-assignment-field='coat']");
+	const territoryPublicId = String(summaryElement.dataset.regionAssignmentActiveId || "").trim();
 	if (!(inputElement instanceof HTMLInputElement) || !territoryPublicId) {
 		return;
 	}
@@ -349,5 +349,5 @@ $(document).on("click", "#region-edit-parent-clear", function (event) {
 
 function updateRegionParentFilter(value) {
 	regionParentFilterQuery = String(value || "").trim();
-	populateRegionParentSelect(regionEditEntry?.region || regionEditEntry || {});
+	populateRegionParentSelect(regionEditEntry.region || regionEditEntry || {});
 }

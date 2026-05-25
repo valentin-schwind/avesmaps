@@ -7,8 +7,8 @@ async function readJsonResponse(response, fallback = null) {
 }
 
 async function fetchWithRetry(url, options = {}, retryOptions = {}) {
-	const retries = Number.isInteger(retryOptions.retries) ? retryOptions.retries : 1;
-	const delayMs = Number.isFinite(retryOptions.delayMs) ? retryOptions.delayMs : 350;
+	const retries = Number.isInteger(retryOptions.retries)  retryOptions.retries : 1;
+	const delayMs = Number.isFinite(retryOptions.delayMs)  retryOptions.delayMs : 350;
 	const retryMethods = new Set(retryOptions.retryMethods || ["GET"]);
 	const method = String(options.method || "GET").toUpperCase();
 
@@ -50,14 +50,14 @@ async function submitLocationReportRequest(payload) {
 		if (!response.ok) {
 			return {
 				ok: false,
-				message: responsePayload?.error || "Die Meldung konnte nicht gespeichert werden.",
+				message: responsePayload.error || "Die Meldung konnte nicht gespeichert werden.",
 			};
 		}
 
 		if (!responsePayload || responsePayload.ok !== true) {
 			return {
 				ok: false,
-				message: responsePayload?.error || "Die Meldung konnte nicht verarbeitet werden.",
+				message: responsePayload.error || "Die Meldung konnte nicht verarbeitet werden.",
 			};
 		}
 
@@ -66,7 +66,7 @@ async function submitLocationReportRequest(payload) {
 			message: responsePayload.message || "Karteneintrag wurde gemeldet.",
 		};
 	} catch (error) {
-		if (error?.name === "AbortError") {
+		if (error.name === "AbortError") {
 			return {
 				ok: false,
 				message: "Der Avesmaps-Server hat zu lange nicht geantwortet.",
@@ -96,11 +96,11 @@ async function submitMapFeatureEdit(payload) {
 	});
 	const result = await readJsonResponse(response, {});
 
-	if (!response.ok || result?.ok !== true) {
+	if (!response.ok || result.ok !== true) {
 		if (response.status === 409) {
 			void pollLiveMapUpdates();
 		}
-		throw new Error(result?.error || `Speichern fehlgeschlagen (${response.status}).`);
+		throw new Error(result.error || `Speichern fehlgeschlagen (${response.status}).`);
 	}
 
 	return result;
@@ -134,8 +134,8 @@ async function fetchPoliticalTerritories(params = {}) {
 	});
 	
 	const data = await readJsonResponse(response, {});
-	if (!response.ok || data?.ok !== true) {
-		throw new Error(data?.error || `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`);
+	if (!response.ok || data.ok !== true) {
+		throw new Error(data.error || `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`);
 	}
 
 	return data;
@@ -156,7 +156,7 @@ async function submitPoliticalTerritoryEdit(payload) {
 		});
 	} catch (error) {
 		console.error("Herrschaftsgebiet-API Netzwerkfehler:", {
-			action: payload?.action || "",
+			action: payload.action || "",
 			error,
 		});
 
@@ -164,14 +164,14 @@ async function submitPoliticalTerritoryEdit(payload) {
 	}
 
 	const data = await readJsonResponse(response, {});
-	if (!response.ok || data?.ok !== true) {
+	if (!response.ok || data.ok !== true) {
 		console.error("Herrschaftsgebiet-API Fehler:", {
 			status: response.status,
-			action: payload?.action || "",
-			error: data?.error || "",
+			action: payload.action || "",
+			error: data.error || "",
 			response: data,
 		});
-		throw new Error(data?.error || `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`);
+		throw new Error(data.error || `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`);
 	}
 
 	return data;
@@ -214,8 +214,8 @@ async function updateReviewReportStatus(reportId, status, reportSource = "locati
 	});
 	const data = await readJsonResponse(response);
 
-	if (!response.ok || !data?.ok) {
-		throw new Error(data?.error || `Review-API antwortet mit HTTP ${response.status}.`);
+	if (!response.ok || !data.ok) {
+		throw new Error(data.error || `Review-API antwortet mit HTTP ${response.status}.`);
 	}
 }
 
@@ -234,11 +234,11 @@ async function submitWikiSyncLocationAction(action, payload = {}) {
 	});
 	const data = await readJsonResponse(response, {});
 
-	if (!response.ok || data?.ok !== true) {
+	if (!response.ok || data.ok !== true) {
 		if (response.status === 409) {
 			void pollLiveMapUpdates();
 		}
-		throw new Error(data?.error || `WikiSyncLocations-API antwortet mit HTTP ${response.status}.`);
+		throw new Error(data.error || `WikiSyncLocations-API antwortet mit HTTP ${response.status}.`);
 	}
 
 	return data;
@@ -264,8 +264,8 @@ async function fetchWikiSyncLocationData(params = {}) {
 	});
 	const data = await readJsonResponse(response, {});
 
-	if (!response.ok || data?.ok !== true) {
-		throw new Error(data?.error || `WikiSyncLocations-API antwortet mit HTTP ${response.status}.`);
+	if (!response.ok || data.ok !== true) {
+		throw new Error(data.error || `WikiSyncLocations-API antwortet mit HTTP ${response.status}.`);
 	}
 
 	return data;
@@ -286,8 +286,8 @@ async function submitWikiSyncTerritoryAction(action, payload = {}) {
 	});
 	const data = await readJsonResponse(response, {});
 
-	if (!response.ok || data?.ok !== true) {
-		throw new Error(data?.error || `WikiSyncTerritories-API antwortet mit HTTP ${response.status}.`);
+	if (!response.ok || data.ok !== true) {
+		throw new Error(data.error || `WikiSyncTerritories-API antwortet mit HTTP ${response.status}.`);
 	}
 
 	return data;
@@ -313,8 +313,8 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 	});
 	const data = await readJsonResponse(response, {});
 
-	if (!response.ok || data?.ok !== true) {
-		throw new Error(data?.error || `WikiSyncTerritories-API antwortet mit HTTP ${response.status}.`);
+	if (!response.ok || data.ok !== true) {
+		throw new Error(data.error || `WikiSyncTerritories-API antwortet mit HTTP ${response.status}.`);
 	}
 
 	return data;
@@ -322,7 +322,7 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 
 (function installNoSyntheticPoliticalTerritoryWikiTreePatch() {
 	function normalizeText(value) {
-		return String(value ?? "")
+		return String(value  "")
 			.replace(/\u00a0/g, " ")
 			.replace(/\s+/g, " ")
 			.trim();
@@ -339,7 +339,7 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 	}
 
 	function rowKey(row) {
-		return makeKey(row?.name || row?.wiki_key || row?.id || "");
+		return makeKey(row.name || row.wiki_key || row.id || "");
 	}
 
 	function wikiTitleFromUrl(url) {
@@ -349,7 +349,7 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 		}
 
 		try {
-			const parsed = new URL(rawUrl, window.location?.origin || "https://avesmaps.de");
+			const parsed = new URL(rawUrl, window.location.origin || "https://avesmaps.de");
 			const marker = "/wiki/";
 			const path = parsed.pathname || "";
 			const markerIndex = path.indexOf(marker);
@@ -385,7 +385,7 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 		}
 
 		const id = normalizeText(row.id);
-		return id ? `id:${id}` : "";
+		return id  `id:${id}` : "";
 	}
 
 	function stripDisplaySuffix(name) {
@@ -400,13 +400,13 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 
 	function rowAliases(row) {
 		const aliases = new Set();
-		const name = normalizeText(row?.name);
+		const name = normalizeText(row.name);
 		if (name) {
 			aliases.add(name);
 			aliases.add(stripDisplaySuffix(name));
 		}
 
-		const title = wikiTitleFromUrl(row?.wiki_url || "");
+		const title = wikiTitleFromUrl(row.wiki_url || "");
 		if (title) {
 			aliases.add(title);
 			aliases.add(stripDisplaySuffix(title));
@@ -453,10 +453,10 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 
 	function rowMergeScore(row) {
 		let score = 0;
-		score += Number(row?.map_geometry_count || 0) * 100;
-		score += Number(row?.map_territory_count || 0) * 20;
+		score += Number(row.map_geometry_count || 0) * 100;
+		score += Number(row.map_territory_count || 0) * 20;
 		for (const field of ["wiki_url", "wiki_key", "coat_of_arms_url", "founded_text", "dissolved_text", "type", "status", "affiliation_raw", "capital_name", "seat_name", "ruler"]) {
-			if (normalizeText(row?.[field]) !== "") {
+			if (normalizeText(row.[field]) !== "") {
 				score += 1;
 			}
 		}
@@ -465,8 +465,8 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 	}
 
 	function mergeRowsByIdentity(primary, secondary) {
-		const merged = rowMergeScore(secondary) > rowMergeScore(primary) ? { ...secondary } : { ...primary };
-		const fallback = merged === primary ? secondary : primary;
+		const merged = rowMergeScore(secondary) > rowMergeScore(primary)  { ...secondary } : { ...primary };
+		const fallback = merged === primary  secondary : primary;
 		for (const key of Object.keys(fallback || {})) {
 			if ((merged[key] === null || typeof merged[key] === "undefined" || merged[key] === "")
 				&& fallback[key] !== null
@@ -476,8 +476,8 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 			}
 		}
 
-		merged.map_territory_count = Math.max(Number(merged.map_territory_count || 0), Number(fallback?.map_territory_count || 0));
-		merged.map_geometry_count = Math.max(Number(merged.map_geometry_count || 0), Number(fallback?.map_geometry_count || 0));
+		merged.map_territory_count = Math.max(Number(merged.map_territory_count || 0), Number(fallback.map_territory_count || 0));
+		merged.map_geometry_count = Math.max(Number(merged.map_geometry_count || 0), Number(fallback.map_geometry_count || 0));
 		merged.map_assigned = Boolean(merged.map_assigned) || merged.map_geometry_count > 0;
 		return merged;
 	}
@@ -493,8 +493,8 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 
 	function sortTree(node) {
 		node.children.sort((left, right) => {
-			const leftFolder = left.children.length > 0 ? 0 : 1;
-			const rightFolder = right.children.length > 0 ? 0 : 1;
+			const leftFolder = left.children.length > 0  0 : 1;
+			const rightFolder = right.children.length > 0  0 : 1;
 			if (leftFolder !== rightFolder) {
 				return leftFolder - rightFolder;
 			}
@@ -515,7 +515,7 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 			parent.children.push(node);
 		}
 		parent.childMap.set(node.id, node);
-		if (node.row?.name) {
+		if (node.row.name) {
 			parent.childMap.set(makeKey(node.row.name), node);
 		}
 	}
@@ -523,11 +523,11 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 	function installPatch() {
 		const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
 		if (!treeModule || treeModule.__avesmapsNoSyntheticBuildTree === true) {
-			return Boolean(treeModule?.__avesmapsNoSyntheticBuildTree);
+			return Boolean(treeModule.__avesmapsNoSyntheticBuildTree);
 		}
 
 		treeModule.buildTree = function buildPoliticalTerritoryTreeWithoutSyntheticNodes(rows) {
-			const normalizedRows = Array.isArray(rows) ? rows : [];
+			const normalizedRows = Array.isArray(rows)  rows : [];
 			const root = createTreeNode("root", "Herrschaftsgebiete", "root");
 			const rowIndex = buildRowIndex(normalizedRows);
 			const nodeByIdentity = new Map();
@@ -539,7 +539,7 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 				}
 
 				let current = root;
-				for (const segment of Array.isArray(row.affiliation_path) ? row.affiliation_path : []) {
+				for (const segment of Array.isArray(row.affiliation_path)  row.affiliation_path : []) {
 					const segmentKey = makeKey(segment);
 					if (!segmentKey) {
 						continue;
@@ -572,7 +572,7 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 				} else {
 					ownNode.row = mergeRowsByIdentity(ownNode.row || row, row);
 					ownNode.label = ownNode.label || row.name;
-					ownNode.kind = ownNode.children.length > 0 ? "territory-group" : "territory";
+					ownNode.kind = ownNode.children.length > 0  "territory-group" : "territory";
 				}
 
 				attachChild(current, ownNode);
@@ -622,7 +622,7 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 	}
 
 	function readLayerStyle(layer) {
-		const options = layer?.options || {};
+		const options = layer.options || {};
 		return {
 			color: options.color,
 			weight: options.weight,
@@ -648,9 +648,9 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 		previousStyle = readLayerStyle(layer);
 		layer.setStyle({
 			color: "#f6d365",
-			weight: Math.max(Number(layer.options?.weight || 1) + 3, 5),
+			weight: Math.max(Number(layer.options.weight || 1) + 3, 5),
 			opacity: 1,
-			fillOpacity: Math.max(Number(layer.options?.fillOpacity || 0.2), 0.38),
+			fillOpacity: Math.max(Number(layer.options.fillOpacity || 0.2), 0.38),
 			dashArray: "6 4",
 		});
 		if (typeof layer.bringToFront === "function") {

@@ -20,10 +20,10 @@ function createPoliticalTerritoryEditorUrl(regionEntry = {}) {
 	const name = String(regionEntry.displayName || regionEntry.name || "").trim();
 	const color = String(regionEntry.color || "").trim();
 	const opacity = Number(regionEntry.opacity);
-	const minZoom = regionEntry.minZoom ?? regionEntry.min_zoom ?? "";
-	const maxZoom = regionEntry.maxZoom ?? regionEntry.max_zoom ?? "";
-	const validFromBf = regionEntry.validFromBf ?? regionEntry.valid_from_bf ?? "";
-	const validToBf = regionEntry.validToBf ?? regionEntry.valid_to_bf ?? "";
+	const minZoom = regionEntry.minZoom  regionEntry.min_zoom  "";
+	const maxZoom = regionEntry.maxZoom  regionEntry.max_zoom  "";
+	const validFromBf = regionEntry.validFromBf  regionEntry.valid_from_bf  "";
+	const validToBf = regionEntry.validToBf  regionEntry.valid_to_bf  "";
 
 	if (geometryPublicId) params.set("geometry_public_id", geometryPublicId);
 	if (geometryId) params.set("geometry_id", geometryId);
@@ -43,7 +43,7 @@ function createPoliticalTerritoryEditorUrl(regionEntry = {}) {
 		}
 	}
 
-	return `/html/political-territory-editor.html${params.toString() ? `?${params.toString()}` : ""}`;
+	return `/html/political-territory-editor.html${params.toString()  `?${params.toString()}` : ""}`;
 }
 
 function getPoliticalTerritoryEditorGeometryPublicId(regionEntry = {}) {
@@ -64,7 +64,7 @@ function setPoliticalTerritoryEditorOpen(isOpen) {
 	if (!overlay) return;
 	overlay.hidden = !isOpen;
 	if (typeof syncModalDialogBodyState === "function") syncModalDialogBodyState();
-	if (isOpen) dialog?.focus();
+	if (isOpen) dialog.focus();
 }
 
 function isPoliticalTerritoryEditorOpen() {
@@ -86,7 +86,7 @@ function closePoliticalTerritoryEditor() {
 
 function createEmbeddedPoliticalTerritoryEditorUrl(regionEntry = {}) {
 	const url = createPoliticalTerritoryEditorUrl(regionEntry);
-	const separator = url.includes("?") ? "&" : "?";
+	const separator = url.includes("?")  "&" : "?";
 	return `${url}${separator}embedded=1`;
 }
 
@@ -117,7 +117,7 @@ function setupPoliticalTerritoryEditorFrame() {
 	installPoliticalTerritoryEditorOverrideFooter(frame, regionEntry);
 	installPoliticalTerritoryEditorTreeMetaWikiLinks(frame);
 
-	const assignmentModule = frame.contentWindow?.AvesmapsPoliticalTerritoryAssignment;
+	const assignmentModule = frame.contentWindow.AvesmapsPoliticalTerritoryAssignment;
 	if (!assignmentModule || typeof assignmentModule.configure !== "function") {
 		politicalTerritoryEditorFrameSetupAttempts += 1;
 		if (politicalTerritoryEditorFrameSetupAttempts < 40) {
@@ -139,13 +139,13 @@ function setupPoliticalTerritoryEditorFrame() {
 
 function handlePoliticalTerritoryEditorAssignmentLoaded(assignmentInfo = {}) {
 	const activeGeometryPublicId = getPoliticalTerritoryEditorGeometryPublicId(activePoliticalTerritoryEditorRegion || {});
-	const loadedGeometryPublicId = String(assignmentInfo?.geometryPublicId || "").trim();
+	const loadedGeometryPublicId = String(assignmentInfo.geometryPublicId || "").trim();
 
 	if (activeGeometryPublicId && loadedGeometryPublicId && activeGeometryPublicId !== loadedGeometryPublicId) {
 		return;
 	}
 
-	const hasLocalAssignmentDisplays = Boolean(assignmentInfo?.hasLocalAssignmentDisplays);
+	const hasLocalAssignmentDisplays = Boolean(assignmentInfo.hasLocalAssignmentDisplays);
 
 	if (hasLocalAssignmentDisplays && isPoliticalTerritoryEditorOverrideFooterSuppressed()) {
 		return;
@@ -168,7 +168,7 @@ function schedulePoliticalTerritoryEditorOverrideFooterRefresh(regionEntry = act
 }
 
 function getPoliticalTerritoryEditorFrameDocument(frame = getPoliticalTerritoryEditorElements().frame) {
-	return frame?.contentDocument || frame?.contentWindow?.document || null;
+	return frame.contentDocument || frame.contentWindow.document || null;
 }
 
 function getPoliticalTerritoryOverrideFooterModule() {
@@ -176,7 +176,7 @@ function getPoliticalTerritoryOverrideFooterModule() {
 }
 function installPoliticalTerritoryEditorOverrideFooter(frame, regionEntry) {
 	const module = getPoliticalTerritoryOverrideFooterModule();
-	if (typeof module?.install === "function") {
+	if (typeof module.install === "function") {
 		module.install(frame, regionEntry);
 	}
 }
@@ -222,12 +222,12 @@ async function loadPoliticalTerritoryWikiRowsById() {
 			headers: { "Accept": "application/json" },
 		}).then(async (response) => {
 			const payload = await response.json();
-			if (!response.ok || payload?.ok === false) {
-				throw new Error(payload?.error || `Wiki-Daten konnten nicht geladen werden: HTTP ${response.status}`);
+			if (!response.ok || payload.ok === false) {
+				throw new Error(payload.error || `Wiki-Daten konnten nicht geladen werden: HTTP ${response.status}`);
 			}
 			const rowsById = new Map();
-			for (const row of Array.isArray(payload?.items) ? payload.items : []) {
-				const rowId = Number(row?.id || 0);
+			for (const row of Array.isArray(payload.items)  payload.items : []) {
+				const rowId = Number(row.id || 0);
 				if (rowId > 0) rowsById.set(rowId, row);
 			}
 			return rowsById;
@@ -256,7 +256,7 @@ async function applyPoliticalTerritoryEditorTreeMetaWikiLinks(frame) {
 		const idMatch = text.match(/\bID:\s*(\d+)\b/u);
 		if (!idMatch) continue;
 		const row = rowsById.get(Number(idMatch[1]));
-		const wikiUrl = String(row?.wiki_url || "").trim();
+		const wikiUrl = String(row.wiki_url || "").trim();
 		if (!wikiUrl) continue;
 
 		const innerText = text.replace(/^\(/u, "").replace(/\)$/u, "").trim();
@@ -275,29 +275,29 @@ async function applyPoliticalTerritoryEditorTreeMetaWikiLinks(frame) {
 
 function syncPoliticalTerritoryEditorOverrideFooterVisibility(isVisible) {
 	const module = getPoliticalTerritoryOverrideFooterModule();
-	if (typeof module?.syncVisibility === "function") {
+	if (typeof module.syncVisibility === "function") {
 		module.syncVisibility(isVisible);
 		return;
 	}
 	const doc = getPoliticalTerritoryEditorFrameDocument();
-	const footer = doc?.getElementById("political-territory-local-override-footer");
+	const footer = doc.getElementById("political-territory-local-override-footer");
 	if (footer) footer.hidden = !isVisible;
 }
 function suppressPoliticalTerritoryEditorOverrideFooter(durationMs = 2000) {
 	const module = getPoliticalTerritoryOverrideFooterModule();
-	if (typeof module?.suppress === "function") {
+	if (typeof module.suppress === "function") {
 		module.suppress(durationMs);
 		return;
 	}
 	const duration = Number(durationMs);
-	const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 2000;
+	const safeDuration = Number.isFinite(duration) && duration > 0  duration : 2000;
 	activePoliticalTerritoryEditorOverrideFooterSuppressedUntil = Date.now() + safeDuration;
 	activePoliticalTerritoryEditorPendingLocalOverride = false;
 	syncPoliticalTerritoryEditorOverrideFooterVisibility(false);
 }
 function clearPoliticalTerritoryEditorOverrideFooterSuppression() {
 	const module = getPoliticalTerritoryOverrideFooterModule();
-	if (typeof module?.clearSuppression === "function") {
+	if (typeof module.clearSuppression === "function") {
 		module.clearSuppression();
 		return;
 	}
@@ -305,49 +305,49 @@ function clearPoliticalTerritoryEditorOverrideFooterSuppression() {
 }
 function isPoliticalTerritoryEditorOverrideFooterSuppressed() {
 	const module = getPoliticalTerritoryOverrideFooterModule();
-	if (typeof module?.isSuppressed === "function") {
+	if (typeof module.isSuppressed === "function") {
 		return module.isSuppressed();
 	}
 	return activePoliticalTerritoryEditorOverrideFooterSuppressedUntil > Date.now();
 }
 async function refreshPoliticalTerritoryEditorOverrideFooter(regionEntry = activePoliticalTerritoryEditorRegion) {
 	const module = getPoliticalTerritoryOverrideFooterModule();
-	if (typeof module?.refresh !== "function") {
+	if (typeof module.refresh !== "function") {
 		return;
 	}
 	return module.refresh(regionEntry);
 }
 async function resetPoliticalTerritoryEditorLocalDisplay(regionEntry = activePoliticalTerritoryEditorRegion) {
 	const module = getPoliticalTerritoryOverrideFooterModule();
-	if (typeof module?.resetLocalDisplay !== "function") {
+	if (typeof module.resetLocalDisplay !== "function") {
 		return;
 	}
 	return module.resetLocalDisplay(regionEntry);
 }
 async function promotePoliticalTerritoryEditorLocalDisplay(frame = getPoliticalTerritoryEditorElements().frame) {
 	const module = getPoliticalTerritoryOverrideFooterModule();
-	if (typeof module?.promoteLocalDisplay !== "function") {
+	if (typeof module.promoteLocalDisplay !== "function") {
 		throw new Error("Die lokale Darstellung konnte nicht global uebernommen werden.");
 	}
 	return module.promoteLocalDisplay(frame);
 }
 async function snapshotPoliticalTerritoryEditorGlobals(value = {}) {
 	const module = getPoliticalTerritoryOverrideFooterModule();
-	if (typeof module?.snapshotGlobals !== "function") {
+	if (typeof module.snapshotGlobals !== "function") {
 		return null;
 	}
 	return module.snapshotGlobals(value);
 }
 async function restorePoliticalTerritoryEditorGlobals(snapshotResult) {
 	const module = getPoliticalTerritoryOverrideFooterModule();
-	if (typeof module?.restoreGlobals !== "function") {
+	if (typeof module.restoreGlobals !== "function") {
 		return null;
 	}
 	return module.restoreGlobals(snapshotResult);
 }
 async function clearPoliticalTerritoryEditorLocalOverrides(geometryPublicId) {
 	const module = getPoliticalTerritoryOverrideFooterModule();
-	if (typeof module?.clearLocalOverrides !== "function") {
+	if (typeof module.clearLocalOverrides !== "function") {
 		return null;
 	}
 	return module.clearLocalOverrides(geometryPublicId);
@@ -360,11 +360,11 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 
 	const shouldPromote = activePoliticalTerritoryEditorPromoteNextSave === true;
 	activePoliticalTerritoryEditorPromoteNextSave = false;
-	const globalSnapshot = shouldPromote ? null : await snapshotPoliticalTerritoryEditorGlobals(value);
-	const assignedPath = Array.isArray(value.assignedPath) ? value.assignedPath : [];
-	const displays = Array.isArray(value.displays) ? value.displays : [];
-	const wikiPublicIds = assignedPath.map((node) => String(node?.wikiKey || "").trim()).filter(Boolean);
-	const territoryPublicIds = assignedPath.map((node) => String(node?.territoryPublicId || "").trim()).filter(Boolean);
+	const globalSnapshot = shouldPromote  null : await snapshotPoliticalTerritoryEditorGlobals(value);
+	const assignedPath = Array.isArray(value.assignedPath)  value.assignedPath : [];
+	const displays = Array.isArray(value.displays)  value.displays : [];
+	const wikiPublicIds = assignedPath.map((node) => String(node.wikiKey || "").trim()).filter(Boolean);
+	const territoryPublicIds = assignedPath.map((node) => String(node.territoryPublicId || "").trim()).filter(Boolean);
 	const hasAssignedTerritory = assignedPath.length > 0 && (wikiPublicIds.length > 0 || territoryPublicIds.length > 0);
 	const display = buildPoliticalTerritoryEditorDisplayPayload(regionEntry, value);
 	const validity = buildPoliticalTerritoryEditorValidityPayload(regionEntry, value);
@@ -376,7 +376,7 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 		geometry_public_id: geometryPublicId,
 		display_only: !hasAssignedTerritory && !shouldCreateTerritoryFromGeometry,
 		create_territory_if_missing: shouldCreateTerritoryFromGeometry,
-		territory_name: shouldCreateTerritoryFromGeometry ? displayName : "",
+		territory_name: shouldCreateTerritoryFromGeometry  displayName : "",
 		display,
 		validity,
 		wiki_public_ids: wikiPublicIds,
@@ -396,15 +396,15 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 	activePoliticalTerritoryEditorPendingLocalOverride = false;
 	refreshPoliticalTerritoryEditorMapLayer();
 	if (typeof showFeedbackToast === "function") {
-		showFeedbackToast(shouldPromote ? "Lokale Darstellung global übernommen." : result?.message || "Herrschaftsgebiet gespeichert.", "success");
+		showFeedbackToast(shouldPromote  "Lokale Darstellung global übernommen." : result.message || "Herrschaftsgebiet gespeichert.", "success");
 	}
 	window.setTimeout(closePoliticalTerritoryEditor, 0);
 	return result;
 }
 
 async function syncPoliticalTerritoryEditorAssignmentZooms(value = {}) {
-	const displays = Array.isArray(value.displays) ? value.displays : [];
-	const syncDisplays = displays.filter((display) => String(display?.territoryPublicId || "").trim() !== "");
+	const displays = Array.isArray(value.displays)  value.displays : [];
+	const syncDisplays = displays.filter((display) => String(display.territoryPublicId || "").trim() !== "");
 	if (syncDisplays.length < 1) return null;
 
 	try {
@@ -415,8 +415,8 @@ async function syncPoliticalTerritoryEditorAssignmentZooms(value = {}) {
 			body: JSON.stringify({ displays: syncDisplays }),
 		});
 		const result = await response.json().catch(() => null);
-		if (!response.ok || result?.ok === false) {
-			throw new Error(result?.error || "Breadcrumb-Zoomstufen konnten nicht global synchronisiert werden.");
+		if (!response.ok || result.ok === false) {
+			throw new Error(result.error || "Breadcrumb-Zoomstufen konnten nicht global synchronisiert werden.");
 		}
 		return result;
 	} catch (error) {
@@ -439,32 +439,32 @@ async function unassignPoliticalTerritoryEditorGeometry(regionEntry) {
 		geometry_public_id: geometryPublicId,
 	});
 	refreshPoliticalTerritoryEditorMapLayer();
-	if (typeof showFeedbackToast === "function") showFeedbackToast(result?.message || "Zuweisung entfernt.", "success");
+	if (typeof showFeedbackToast === "function") showFeedbackToast(result.message || "Zuweisung entfernt.", "success");
 	window.setTimeout(closePoliticalTerritoryEditor, 0);
 	return result;
 }
 
 function buildPoliticalTerritoryEditorDisplayPayload(regionEntry, value = {}) {
 	const display = value.display || {};
-	const opacity = Number(display.opacity ?? regionEntry.opacity ?? 0.33);
+	const opacity = Number(display.opacity  regionEntry.opacity  0.33);
 	return {
 		name: String(display.name || display.displayName || regionEntry.displayName || regionEntry.name || "").trim(),
 		displayName: String(display.displayName || display.name || regionEntry.displayName || regionEntry.name || "").trim(),
 		coatOfArmsUrl: String(display.coatOfArmsUrl || display.alternateCoatOfArmsUrl || regionEntry.coatOfArmsUrl || "").trim(),
-		zoomMin: parsePoliticalTerritoryEditorNumber(display.zoomMin ?? regionEntry.minZoom ?? regionEntry.min_zoom),
-		zoomMax: parsePoliticalTerritoryEditorNumber(display.zoomMax ?? regionEntry.maxZoom ?? regionEntry.max_zoom),
+		zoomMin: parsePoliticalTerritoryEditorNumber(display.zoomMin  regionEntry.minZoom  regionEntry.min_zoom),
+		zoomMax: parsePoliticalTerritoryEditorNumber(display.zoomMax  regionEntry.maxZoom  regionEntry.max_zoom),
 		color: String(display.color || regionEntry.color || "#888888").trim() || "#888888",
-		opacity: Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : 0.33,
+		opacity: Number.isFinite(opacity)  Math.max(0, Math.min(1, opacity)) : 0.33,
 	};
 }
 
 function buildPoliticalTerritoryEditorValidityPayload(regionEntry, value = {}) {
 	const validity = value.validity || {};
-	const endYear = parsePoliticalTerritoryEditorNumber(validity.endYear ?? regionEntry.validToBf ?? regionEntry.valid_to_bf);
-	const existsUntilToday = typeof validity.existsUntilToday === "boolean" ? validity.existsUntilToday : endYear === null;
+	const endYear = parsePoliticalTerritoryEditorNumber(validity.endYear  regionEntry.validToBf  regionEntry.valid_to_bf);
+	const existsUntilToday = typeof validity.existsUntilToday === "boolean"  validity.existsUntilToday : endYear === null;
 	return {
-		startYear: parsePoliticalTerritoryEditorNumber(validity.startYear ?? regionEntry.validFromBf ?? regionEntry.valid_from_bf),
-		endYear: existsUntilToday ? null : endYear,
+		startYear: parsePoliticalTerritoryEditorNumber(validity.startYear  regionEntry.validFromBf  regionEntry.valid_from_bf),
+		endYear: existsUntilToday  null : endYear,
 		existsUntilToday,
 	};
 }
@@ -473,11 +473,11 @@ function buildPoliticalTerritoryEditorWikiNodes(assignedPath, displays, wikiPubl
 	return assignedPath.map((node, index) => {
 		const display = displays[index] || {};
 		return {
-			key: wikiPublicIds[index] || node?.wikiKey || node?.territoryPublicId || "",
-			territoryPublicId: node?.territoryPublicId || "",
-			territoryId: node?.territoryId || null,
-			name: display.displayName || node?.label || node?.key || "",
-			type: node?.kind || "Herrschaftsgebiet",
+			key: wikiPublicIds[index] || node.wikiKey || node.territoryPublicId || "",
+			territoryPublicId: node.territoryPublicId || "",
+			territoryId: node.territoryId || null,
+			name: display.displayName || node.label || node.key || "",
+			type: node.kind || "Herrschaftsgebiet",
 			status: "",
 			coat_of_arms_url: display.coatOfArmsUrl || "",
 			wiki_url: "",
@@ -488,7 +488,7 @@ function buildPoliticalTerritoryEditorWikiNodes(assignedPath, displays, wikiPubl
 function parsePoliticalTerritoryEditorNumber(value) {
 	if (value === "" || value === null || typeof value === "undefined") return null;
 	const number = Number(value);
-	return Number.isFinite(number) ? number : null;
+	return Number.isFinite(number)  number : null;
 }
 
 function refreshPoliticalTerritoryEditorMapLayer() {
@@ -501,11 +501,11 @@ function getPoliticalTerritoryDragAssignmentModule() {
 }
 function readWikiSyncTerritoryDragPayload(dataTransfer) {
 	const module = getPoliticalTerritoryDragAssignmentModule();
-	return typeof module?.readDragPayload === "function" ? module.readDragPayload(dataTransfer) : null;
+	return typeof module.readDragPayload === "function"  module.readDragPayload(dataTransfer) : null;
 }
 function buildWikiSyncTerritoryAssignmentValueFromPayload(payload) {
 	const module = getPoliticalTerritoryDragAssignmentModule();
-	if (typeof module?.buildAssignmentValueFromPayload === "function") {
+	if (typeof module.buildAssignmentValueFromPayload === "function") {
 		return module.buildAssignmentValueFromPayload(payload);
 	}
 	return {
@@ -518,29 +518,29 @@ function buildWikiSyncTerritoryAssignmentValueFromPayload(payload) {
 }
 async function assignWikiSyncTerritoryPayloadToRegionGeometry(payload, regionEntry) {
 	const module = getPoliticalTerritoryDragAssignmentModule();
-	if (typeof module?.assignPayloadToRegionGeometry !== "function") {
+	if (typeof module.assignPayloadToRegionGeometry !== "function") {
 		throw new Error("Die Drag-and-drop-Zuweisung ist nicht verfuegbar.");
 	}
 	return module.assignPayloadToRegionGeometry(payload, regionEntry);
 }
 async function assignWikiSyncTerritoryPayloadInsideLegacyEditor(payload) {
 	const module = getPoliticalTerritoryDragAssignmentModule();
-	if (typeof module?.assignPayloadInsideLegacyEditor !== "function") {
+	if (typeof module.assignPayloadInsideLegacyEditor !== "function") {
 		return false;
 	}
 	return module.assignPayloadInsideLegacyEditor(payload);
 }
 function initializeWikiSyncTerritoryDragAssignment() {
 	const module = getPoliticalTerritoryDragAssignmentModule();
-	if (typeof module?.initialize === "function") {
+	if (typeof module.initialize === "function") {
 		module.initialize();
 	}
 }
 function initializePoliticalTerritoryEditorPopup() {
 	const { overlay, closeButton, frame } = getPoliticalTerritoryEditorElements();
-	closeButton?.addEventListener("click", closePoliticalTerritoryEditor);
-	frame?.addEventListener("load", setupPoliticalTerritoryEditorFrame);
-	overlay?.addEventListener("click", (event) => {
+	closeButton.addEventListener("click", closePoliticalTerritoryEditor);
+	frame.addEventListener("load", setupPoliticalTerritoryEditorFrame);
+	overlay.addEventListener("click", (event) => {
 		if (event.target === overlay) closePoliticalTerritoryEditor();
 	});
 	initializeWikiSyncTerritoryDragAssignment();

@@ -92,7 +92,7 @@
 		}
 
 		const zoomFromInput = document.getElementById("zoomFromInput");
-		const visibilitySection = zoomFromInput?.closest?.(".manual-data-section");
+		const visibilitySection = zoomFromInput.closest.(".manual-data-section");
 		if (!visibilitySection) {
 			return;
 		}

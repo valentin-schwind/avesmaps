@@ -34,7 +34,7 @@ function closeRegionCompactTooltip() {
 
 function getRegionTooltipLatLng(regionEntry) {
 	const bounds = getRegionEntryBounds(regionEntry);
-	return regionEntry.label?.getLatLng?.() || bounds?.getCenter?.() || regionEntry.layer?.getBounds?.().getCenter?.() || map.getCenter();
+	return regionEntry.label.getLatLng.() || bounds.getCenter.() || regionEntry.layer.getBounds.().getCenter.() || map.getCenter();
 }
 
 function focusRegionPlace(publicId) {

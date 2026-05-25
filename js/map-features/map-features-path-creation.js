@@ -57,7 +57,7 @@ function updatePendingPathCreationLine() {
 
 function startPathCreationAt(latlng) {
 	const nearestMatch = findNearestGraphNodeToLatLng(L.latLng(latlng));
-	if (!nearestMatch?.location) {
+	if (!nearestMatch.location) {
 		showFeedbackToast("Kein Startknoten gefunden.", "warning");
 		return;
 	}

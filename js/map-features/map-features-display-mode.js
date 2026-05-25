@@ -3,7 +3,7 @@ function syncPathVisibility() {
 	$.each(pathLayers, (i, layer) => {
 		const path = pathData[i];
 		const shouldShow = showPaths && shouldShowPathOnMap(path);
-		map[shouldShow ? "addLayer" : "removeLayer"](layer);
+		map[shouldShow  "addLayer" : "removeLayer"](layer);
 	});
 }
 
@@ -12,7 +12,7 @@ function shouldShowPathOnMap(path) {
 		return true;
 	}
 
-	return normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name) !== "Seeweg";
+	return normalizePathSubtype(path.properties.feature_subtype || path.properties.name) !== "Seeweg";
 }
 
 function getSelectedMapLayerMode() {
@@ -20,7 +20,7 @@ function getSelectedMapLayerMode() {
 }
 
 function setSelectedMapLayerMode(mode) {
-	const normalizedMode = ["none", "political", "deregraphic", "powerlines"].includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
+	const normalizedMode = ["none", "political", "deregraphic", "powerlines"].includes(mode)  mode : DEFAULT_PLANNER_STATE.mapLayerMode;
 	$("#mapLayerModeSelect").val(normalizedMode);
 	syncTransportControl("mapLayerModeSelect");
 	if (IS_EDIT_MODE && normalizedMode === "powerlines") {

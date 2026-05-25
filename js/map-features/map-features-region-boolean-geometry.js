@@ -31,7 +31,7 @@ function shouldRegionBooleanOperationConsumeTarget(operation) {
 }
 
 function getStoredRegionBooleanOperation(operation) {
-	return operation === "difference-keep-target" ? "difference" : operation;
+	return operation === "difference-keep-target"  "difference" : operation;
 }
 
 function validateRegionBooleanResult(operation, sourceGeometry, targetGeometry, resultGeometry) {

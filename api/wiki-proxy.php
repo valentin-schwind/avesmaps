@@ -3,7 +3,7 @@
 
 header("Access-Control-Allow-Origin: *");
 
-$page = $_GET["page"] ?? "";
+$page = $_GET["page"]  "";
 
 if ($page === "") {
 	http_response_code(400);

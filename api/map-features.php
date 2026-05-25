@@ -15,7 +15,7 @@ try {
         ]);
     }
 
-    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD']  'GET'));
     if ($requestMethod === 'OPTIONS') {
         avesmapsJsonResponse(204);
     }
@@ -27,7 +27,7 @@ try {
         ]);
     }
 
-    $pdo = avesmapsCreatePdo($config['database'] ?? []);
+    $pdo = avesmapsCreatePdo($config['database']  []);
     $wikiLocationLinks = avesmapsLoadWikiSyncLocationLinks($pdo);
     $query = avesmapsBuildMapFeaturesQuery($_GET);
     $revision = avesmapsFetchMapRevision($pdo);
@@ -68,14 +68,14 @@ try {
 function avesmapsBuildMapFeaturesQuery(array $queryParams): array {
     $params = [];
 
-    $sinceRevision = avesmapsParseOptionalPositiveInt($queryParams['since_revision'] ?? null, 'since_revision');
-    $whereClauses = $sinceRevision === null ? ['is_active = 1'] : [];
+    $sinceRevision = avesmapsParseOptionalPositiveInt($queryParams['since_revision']  null, 'since_revision');
+    $whereClauses = $sinceRevision === null  ['is_active = 1'] : [];
     if ($sinceRevision !== null) {
         $whereClauses[] = 'revision > :since_revision';
         $params['since_revision'] = $sinceRevision;
     }
 
-    $bbox = avesmapsParseOptionalBoundingBox((string) ($queryParams['bbox'] ?? ''));
+    $bbox = avesmapsParseOptionalBoundingBox((string) ($queryParams['bbox']  ''));
     if ($bbox !== null) {
         $whereClauses[] = 'max_x >= :bbox_min_x';
         $whereClauses[] = 'min_x <= :bbox_max_x';
@@ -158,7 +158,7 @@ function avesmapsParseOptionalBoundingBox(string $rawBoundingBox): ?array {
 
 function avesmapsFetchMapRevision(PDO $pdo): int {
     $statement = $pdo->query('SELECT revision FROM map_revision WHERE id = 1');
-    $revision = $statement !== false ? $statement->fetchColumn() : false;
+    $revision = $statement !== false  $statement->fetchColumn() : false;
     if ($revision === false) {
         return 0;
     }
@@ -167,7 +167,7 @@ function avesmapsFetchMapRevision(PDO $pdo): int {
 }
 
 function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = []): array {
-    if ((int) ($row['is_active'] ?? 1) !== 1) {
+    if ((int) ($row['is_active']  1) !== 1) {
         return [
             'type' => 'Feature',
             'id' => (string) $row['public_id'],
@@ -181,9 +181,9 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLi
         ];
     }
 
-    $properties = avesmapsNormalizeLegacyMapFeatureProperties(avesmapsDecodeJsonColumn($row['properties_json'] ?? null));
+    $properties = avesmapsNormalizeLegacyMapFeatureProperties(avesmapsDecodeJsonColumn($row['properties_json']  null));
     $properties = avesmapsEnrichMapFeatureWikiUrl($properties, $row, $wikiLocationLinks);
-    $style = avesmapsDecodeJsonColumn($row['style_json'] ?? null);
+    $style = avesmapsDecodeJsonColumn($row['style_json']  null);
     foreach ($style as $styleKey => $styleValue) {
         $properties[$styleKey] = $styleValue;
     }
@@ -200,7 +200,7 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLi
     return [
         'type' => 'Feature',
         'id' => (string) $row['public_id'],
-        'geometry' => avesmapsDecodeJsonColumn($row['geometry_json'] ?? null),
+        'geometry' => avesmapsDecodeJsonColumn($row['geometry_json']  null),
         'properties' => $properties,
     ];
 }
@@ -220,13 +220,13 @@ function avesmapsDecodeJsonColumn(mixed $value): array {
         return [];
     }
 
-    return is_array($decodedValue) ? $decodedValue : [];
+    return is_array($decodedValue)  $decodedValue : [];
 }
 
 function avesmapsNormalizeLegacyMapFeatureProperties(array $properties): array {
     if (
-        (string) ($properties['wiki_url'] ?? '') === ''
-        && (string) ($properties['data-report-wiki-url'] ?? '') !== ''
+        (string) ($properties['wiki_url']  '') === ''
+        && (string) ($properties['data-report-wiki-url']  '') !== ''
     ) {
         $properties['wiki_url'] = trim((string) $properties['data-report-wiki-url']);
     }
@@ -247,24 +247,24 @@ function avesmapsLoadWikiSyncLocationLinks(PDO $pdo): array {
 
     $links = [];
     foreach ($statement->fetchAll() as $row) {
-        $normalizedKey = trim((string) ($row['normalized_key'] ?? ''));
-        $wikiUrl = trim((string) ($row['wiki_url'] ?? ''));
+        $normalizedKey = trim((string) ($row['normalized_key']  ''));
+        $wikiUrl = trim((string) ($row['wiki_url']  ''));
         if ($normalizedKey === '' || $wikiUrl === '') {
             continue;
         }
 
-        $links[$normalizedKey] ??= $wikiUrl;
+        $links[$normalizedKey] ?= $wikiUrl;
     }
 
     return $links;
 }
 
 function avesmapsEnrichMapFeatureWikiUrl(array $properties, array $row, array $wikiLocationLinks): array {
-    if ((string) ($properties['wiki_url'] ?? '') !== '') {
+    if ((string) ($properties['wiki_url']  '') !== '') {
         return $properties;
     }
 
-    $locationName = trim((string) ($row['name'] ?? ''));
+    $locationName = trim((string) ($row['name']  ''));
     if ($locationName === '') {
         return $properties;
     }
@@ -274,7 +274,7 @@ function avesmapsEnrichMapFeatureWikiUrl(array $properties, array $row, array $w
         return $properties;
     }
 
-    $properties['wiki_url'] = (string) ($wikiLocationLinks[$matchKey] ?? '');
+    $properties['wiki_url'] = (string) ($wikiLocationLinks[$matchKey]  '');
 
     return $properties;
 }

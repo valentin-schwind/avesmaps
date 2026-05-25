@@ -17,7 +17,7 @@
 	}
 
 	function removeTextPath(layer) {
-		if (layer._textPathElement?.parentNode) {
+		if (layer._textPathElement.parentNode) {
 			layer._textPathElement.parentNode.removeChild(layer._textPathElement);
 		}
 		layer._textPathElement = null;
@@ -72,7 +72,7 @@
 			textPathElement.textContent = this._textPathText;
 			textElement.appendChild(textPathElement);
 
-			this._path.parentNode?.appendChild(textElement);
+			this._path.parentNode.appendChild(textElement);
 			this._textPathElement = textElement;
 			this._textPathNode = textPathElement;
 		},

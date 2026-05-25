@@ -14,7 +14,7 @@ if (!is_array($config) || !isset($config['database']) || !is_array($config['data
     respondJson(['ok' => false, 'error' => 'config.local.php liefert keine gültige database-Konfiguration.'], 500);
 }
 
-applyCors($config['cors']['allowed_origins'] ?? []);
+applyCors($config['cors']['allowed_origins']  []);
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
@@ -27,18 +27,18 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 
 try {
     $db = $config['database'];
-    $driver = (string)($db['driver'] ?? 'mysql');
+    $driver = (string)($db['driver']  'mysql');
 
     if ($driver !== 'mysql') {
         throw new RuntimeException('Nur MySQL wird unterstützt.');
     }
 
-    $host = (string)($db['host'] ?? 'localhost');
-    $port = (int)($db['port'] ?? 3306);
-    $name = (string)($db['name'] ?? '');
-    $charset = (string)($db['charset'] ?? 'utf8mb4');
-    $user = (string)($db['user'] ?? '');
-    $password = (string)($db['password'] ?? '');
+    $host = (string)($db['host']  'localhost');
+    $port = (int)($db['port']  3306);
+    $name = (string)($db['name']  '');
+    $charset = (string)($db['charset']  'utf8mb4');
+    $user = (string)($db['user']  '');
+    $password = (string)($db['password']  '');
 
     if ($name === '') {
         throw new RuntimeException('Datenbankname fehlt.');
@@ -55,25 +55,25 @@ try {
     $params = [];
     $where = [];
 
-    $search = trim((string)($_GET['q'] ?? ''));
+    $search = trim((string)($_GET['q']  ''));
     if ($search !== '') {
         $where[] = '(name LIKE :q OR type LIKE :q OR affiliation_raw LIKE :q OR affiliation_root LIKE :q OR status LIKE :q OR capital_name LIKE :q OR seat_name LIKE :q OR ruler LIKE :q)';
         $params[':q'] = '%' . $search . '%';
     }
 
-    $continent = trim((string)($_GET['continent'] ?? ''));
+    $continent = trim((string)($_GET['continent']  ''));
     if ($continent !== '') {
         $where[] = 'continent = :continent';
         $params[':continent'] = $continent;
     }
 
-    $type = trim((string)($_GET['type'] ?? ''));
+    $type = trim((string)($_GET['type']  ''));
     if ($type !== '') {
         $where[] = 'type = :type';
         $params[':type'] = $type;
     }
 
-    $status = trim((string)($_GET['status'] ?? ''));
+    $status = trim((string)($_GET['status']  ''));
     if ($status !== '') {
         $where[] = 'status = :status';
         $params[':status'] = $status;
@@ -146,7 +146,7 @@ try {
 
     $sql .= ' ORDER BY COALESCE(affiliation_root, affiliation_key, name), name';
 
-    $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 0;
+    $limit = isset($_GET['limit'])  (int)$_GET['limit'] : 0;
     if ($limit > 0) {
         $limit = max(1, min($limit, 2000));
         $sql .= ' LIMIT ' . $limit;
@@ -181,56 +181,56 @@ try {
 }
 
 function normalizeTerritoryRow(array $row): array {
-    $affiliationPath = decodeJson($row['affiliation_path_json'] ?? null, []);
-    $affiliation = decodeJson($row['affiliation_json'] ?? null, null);
-    $founded = decodeJson($row['founded_json'] ?? null, null);
-    $dissolved = decodeJson($row['dissolved_json'] ?? null, null);
-    $raw = decodeJson($row['raw_json'] ?? null, null);
+    $affiliationPath = decodeJson($row['affiliation_path_json']  null, []);
+    $affiliation = decodeJson($row['affiliation_json']  null, null);
+    $founded = decodeJson($row['founded_json']  null, null);
+    $dissolved = decodeJson($row['dissolved_json']  null, null);
+    $raw = decodeJson($row['raw_json']  null, null);
 
     return [
-        'id' => intOrNull($row['id'] ?? null),
-        'wiki_key' => stringOrNull($row['wiki_key'] ?? null),
-        'name' => stringOrNull($row['name'] ?? null),
-        'type' => stringOrNull($row['type'] ?? null),
-        'continent' => stringOrNull($row['continent'] ?? null),
-        'affiliation_raw' => stringOrNull($row['affiliation_raw'] ?? null),
-        'affiliation_key' => stringOrNull($row['affiliation_key'] ?? null),
-        'affiliation_root' => stringOrNull($row['affiliation_root'] ?? null),
-        'affiliation_path' => is_array($affiliationPath) ? array_values($affiliationPath) : [],
-        'affiliation' => is_array($affiliation) ? $affiliation : null,
-        'status' => stringOrNull($row['status'] ?? null),
-        'form_of_government' => stringOrNull($row['form_of_government'] ?? null),
-        'capital_name' => stringOrNull($row['capital_name'] ?? null),
-        'seat_name' => stringOrNull($row['seat_name'] ?? null),
-        'ruler' => stringOrNull($row['ruler'] ?? null),
-        'language' => stringOrNull($row['language'] ?? null),
-        'currency' => stringOrNull($row['currency'] ?? null),
-        'trade_goods' => stringOrNull($row['trade_goods'] ?? null),
-        'population' => stringOrNull($row['population'] ?? null),
-        'founded_text' => stringOrNull($row['founded_text'] ?? null),
-        'founded_type' => stringOrNull($row['founded_type'] ?? null),
-        'founded_start_bf' => intOrNull($row['founded_start_bf'] ?? null),
-        'founded_end_bf' => intOrNull($row['founded_end_bf'] ?? null),
-        'founded_display_bf' => floatOrNull($row['founded_display_bf'] ?? null),
-        'founded' => is_array($founded) ? $founded : null,
-        'founder' => stringOrNull($row['founder'] ?? null),
-        'dissolved_text' => stringOrNull($row['dissolved_text'] ?? null),
-        'dissolved_type' => stringOrNull($row['dissolved_type'] ?? null),
-        'dissolved_start_bf' => intOrNull($row['dissolved_start_bf'] ?? null),
-        'dissolved_end_bf' => intOrNull($row['dissolved_end_bf'] ?? null),
-        'dissolved_display_bf' => floatOrNull($row['dissolved_display_bf'] ?? null),
-        'dissolved' => is_array($dissolved) ? $dissolved : null,
-        'geographic' => stringOrNull($row['geographic'] ?? null),
-        'political' => stringOrNull($row['political'] ?? null),
-        'trade_zone' => stringOrNull($row['trade_zone'] ?? null),
-        'blazon' => stringOrNull($row['blazon'] ?? null),
-        'wiki_url' => stringOrNull($row['wiki_url'] ?? null),
-        'coat_of_arms_url' => stringOrNull($row['coat_of_arms_url'] ?? null),
-        'map_assigned' => (int)($row['map_geometry_count'] ?? 0) > 0,
-        'map_territory_count' => intOrNull($row['map_territory_count'] ?? null) ?? 0,
-        'map_geometry_count' => intOrNull($row['map_geometry_count'] ?? null) ?? 0,
-        'raw' => is_array($raw) ? $raw : null,
-        'synced_at' => stringOrNull($row['synced_at'] ?? null),
+        'id' => intOrNull($row['id']  null),
+        'wiki_key' => stringOrNull($row['wiki_key']  null),
+        'name' => stringOrNull($row['name']  null),
+        'type' => stringOrNull($row['type']  null),
+        'continent' => stringOrNull($row['continent']  null),
+        'affiliation_raw' => stringOrNull($row['affiliation_raw']  null),
+        'affiliation_key' => stringOrNull($row['affiliation_key']  null),
+        'affiliation_root' => stringOrNull($row['affiliation_root']  null),
+        'affiliation_path' => is_array($affiliationPath)  array_values($affiliationPath) : [],
+        'affiliation' => is_array($affiliation)  $affiliation : null,
+        'status' => stringOrNull($row['status']  null),
+        'form_of_government' => stringOrNull($row['form_of_government']  null),
+        'capital_name' => stringOrNull($row['capital_name']  null),
+        'seat_name' => stringOrNull($row['seat_name']  null),
+        'ruler' => stringOrNull($row['ruler']  null),
+        'language' => stringOrNull($row['language']  null),
+        'currency' => stringOrNull($row['currency']  null),
+        'trade_goods' => stringOrNull($row['trade_goods']  null),
+        'population' => stringOrNull($row['population']  null),
+        'founded_text' => stringOrNull($row['founded_text']  null),
+        'founded_type' => stringOrNull($row['founded_type']  null),
+        'founded_start_bf' => intOrNull($row['founded_start_bf']  null),
+        'founded_end_bf' => intOrNull($row['founded_end_bf']  null),
+        'founded_display_bf' => floatOrNull($row['founded_display_bf']  null),
+        'founded' => is_array($founded)  $founded : null,
+        'founder' => stringOrNull($row['founder']  null),
+        'dissolved_text' => stringOrNull($row['dissolved_text']  null),
+        'dissolved_type' => stringOrNull($row['dissolved_type']  null),
+        'dissolved_start_bf' => intOrNull($row['dissolved_start_bf']  null),
+        'dissolved_end_bf' => intOrNull($row['dissolved_end_bf']  null),
+        'dissolved_display_bf' => floatOrNull($row['dissolved_display_bf']  null),
+        'dissolved' => is_array($dissolved)  $dissolved : null,
+        'geographic' => stringOrNull($row['geographic']  null),
+        'political' => stringOrNull($row['political']  null),
+        'trade_zone' => stringOrNull($row['trade_zone']  null),
+        'blazon' => stringOrNull($row['blazon']  null),
+        'wiki_url' => stringOrNull($row['wiki_url']  null),
+        'coat_of_arms_url' => stringOrNull($row['coat_of_arms_url']  null),
+        'map_assigned' => (int)($row['map_geometry_count']  0) > 0,
+        'map_territory_count' => intOrNull($row['map_territory_count']  null)  0,
+        'map_geometry_count' => intOrNull($row['map_geometry_count']  null)  0,
+        'raw' => is_array($raw)  $raw : null,
+        'synced_at' => stringOrNull($row['synced_at']  null),
     ];
 }
 
@@ -270,32 +270,32 @@ function dedupeTerritoryItems(array $items): array {
 
 function sanitizeTerritoryItemsForTree(array $items): array {
     return array_map(static function (array $item): array {
-        $name = value($item['name'] ?? null);
-        $type = value($item['type'] ?? null);
+        $name = value($item['name']  null);
+        $type = value($item['type']  null);
 
         if (isRootTerritoryItem($name, $type)) {
             $item['affiliation_raw'] = null;
             $item['affiliation_key'] = null;
             $item['affiliation_root'] = null;
             $item['affiliation_path'] = [];
-            if (is_array($item['affiliation'] ?? null)) {
+            if (is_array($item['affiliation']  null)) {
                 $item['affiliation']['root'] = '';
                 $item['affiliation']['path'] = [];
             }
             return $item;
         }
 
-        $path = is_array($item['affiliation_path'] ?? null)
-            ? $item['affiliation_path']
+        $path = is_array($item['affiliation_path']  null)
+             $item['affiliation_path']
             : [];
         $path = sanitizeAffiliationPathForTree($path);
 
         $item['affiliation_path'] = $path;
-        $item['affiliation_root'] = $path[0] ?? null;
-        $item['affiliation_key'] = isset($path[0]) ? makeStableKey($path[0]) : null;
+        $item['affiliation_root'] = $path[0]  null;
+        $item['affiliation_key'] = isset($path[0])  makeStableKey($path[0]) : null;
 
-        if (is_array($item['affiliation'] ?? null)) {
-            $item['affiliation']['root'] = $path[0] ?? '';
+        if (is_array($item['affiliation']  null)) {
+            $item['affiliation']['root'] = $path[0]  '';
             $item['affiliation']['path'] = $path;
         }
 
@@ -376,16 +376,16 @@ function isInvalidSyntheticPathPart(string $part): bool {
 }
 
 function territoryItemDedupeKey(array $item): string {
-    $wikiKey = value($item['wiki_key'] ?? null);
+    $wikiKey = value($item['wiki_key']  null);
     if ($wikiKey !== '') {
         return 'wiki_key|' . makeStableKey($wikiKey);
     }
 
-    $wikiUrl = value($item['wiki_url'] ?? null);
+    $wikiUrl = value($item['wiki_url']  null);
     if ($wikiUrl !== '') {
         $wikiTitle = wikiTitleFromUrl($wikiUrl);
-        $name = value($item['name'] ?? null);
-        $type = value($item['type'] ?? null);
+        $name = value($item['name']  null);
+        $type = value($item['type']  null);
         if ($wikiTitle !== '') {
             return 'wiki_title_name|' . makeStableKey($wikiTitle) . '|' . makeStableKey($name) . '|' . makeStableKey($type);
         }
@@ -438,28 +438,28 @@ function mergeTerritoryItems(array $left, array $right): array {
     ];
 
     foreach ($preferredFields as $field) {
-        $currentValue = value($merged[$field] ?? null);
-        $fallbackValue = value($secondary[$field] ?? null);
+        $currentValue = value($merged[$field]  null);
+        $fallbackValue = value($secondary[$field]  null);
         if ($currentValue === '' && $fallbackValue !== '') {
             $merged[$field] = $fallbackValue;
         }
     }
 
     foreach (['id', 'founded_start_bf', 'founded_end_bf', 'dissolved_start_bf', 'dissolved_end_bf'] as $field) {
-        if (($merged[$field] ?? null) === null && ($secondary[$field] ?? null) !== null) {
+        if (($merged[$field]  null) === null && ($secondary[$field]  null) !== null) {
             $merged[$field] = $secondary[$field];
         }
     }
 
     foreach (['founded_display_bf', 'dissolved_display_bf'] as $field) {
-        if (($merged[$field] ?? null) === null && ($secondary[$field] ?? null) !== null) {
+        if (($merged[$field]  null) === null && ($secondary[$field]  null) !== null) {
             $merged[$field] = $secondary[$field];
         }
     }
 
     foreach (['affiliation_path', 'affiliation', 'founded', 'dissolved', 'raw'] as $field) {
-        $current = $merged[$field] ?? null;
-        $fallback = $secondary[$field] ?? null;
+        $current = $merged[$field]  null;
+        $fallback = $secondary[$field]  null;
 
         if (empty($current) && !empty($fallback)) {
             $merged[$field] = $fallback;
@@ -467,12 +467,12 @@ function mergeTerritoryItems(array $left, array $right): array {
     }
 
     $merged['map_territory_count'] = max(
-        (int) ($left['map_territory_count'] ?? 0),
-        (int) ($right['map_territory_count'] ?? 0)
+        (int) ($left['map_territory_count']  0),
+        (int) ($right['map_territory_count']  0)
     );
     $merged['map_geometry_count'] = max(
-        (int) ($left['map_geometry_count'] ?? 0),
-        (int) ($right['map_geometry_count'] ?? 0)
+        (int) ($left['map_geometry_count']  0),
+        (int) ($right['map_geometry_count']  0)
     );
     $merged['map_assigned'] = $merged['map_geometry_count'] > 0;
 
@@ -481,8 +481,8 @@ function mergeTerritoryItems(array $left, array $right): array {
 
 function territoryItemMergeScore(array $item): int {
     $score = 0;
-    $score += max(0, (int) ($item['map_geometry_count'] ?? 0)) * 100;
-    $score += max(0, (int) ($item['map_territory_count'] ?? 0)) * 20;
+    $score += max(0, (int) ($item['map_geometry_count']  0)) * 100;
+    $score += max(0, (int) ($item['map_territory_count']  0)) * 20;
 
     $fields = [
         'wiki_url',
@@ -502,7 +502,7 @@ function territoryItemMergeScore(array $item): int {
     ];
 
     foreach ($fields as $field) {
-        if (value($item[$field] ?? null) !== '') {
+        if (value($item[$field]  null) !== '') {
             $score++;
         }
     }
@@ -515,75 +515,75 @@ function territoryItemMergeScore(array $item): int {
 }
 
 function territoryItemToLegacyRow(array $item): array {
-    $affiliationPath = is_array($item['affiliation_path'] ?? null)
-        ? array_values(array_filter(array_map('value', $item['affiliation_path']), static fn(string $part): bool => $part !== ''))
+    $affiliationPath = is_array($item['affiliation_path']  null)
+         array_values(array_filter(array_map('value', $item['affiliation_path']), static fn(string $part): bool => $part !== ''))
         : [];
 
-    $affiliation = is_array($item['affiliation'] ?? null)
-        ? $item['affiliation']
+    $affiliation = is_array($item['affiliation']  null)
+         $item['affiliation']
         : [
-            'key' => value($item['affiliation_key'] ?? null),
-            'root' => value($item['affiliation_root'] ?? null),
+            'key' => value($item['affiliation_key']  null),
+            'root' => value($item['affiliation_root']  null),
             'path' => $affiliationPath,
-            'original' => value($item['affiliation_raw'] ?? null),
+            'original' => value($item['affiliation_raw']  null),
         ];
 
     if (is_array($affiliation)) {
-        $affiliation['root'] = $affiliationPath[0] ?? '';
+        $affiliation['root'] = $affiliationPath[0]  '';
         $affiliation['path'] = $affiliationPath;
     }
 
-    $founded = is_array($item['founded'] ?? null) ? $item['founded'] : null;
-    $dissolved = is_array($item['dissolved'] ?? null) ? $item['dissolved'] : null;
+    $founded = is_array($item['founded']  null)  $item['founded'] : null;
+    $dissolved = is_array($item['dissolved']  null)  $item['dissolved'] : null;
 
     return [
         'Wappen' => '',
-        'Name' => value($item['name'] ?? null),
-        'Typ' => value($item['type'] ?? null),
-        'Kontinent' => value($item['continent'] ?? null),
-        'Zugehörigkeit' => value($item['affiliation_raw'] ?? null),
-        'Zugehörigkeit-Key' => value($item['affiliation_key'] ?? null),
-        'Zugehörigkeit-Root' => value($item['affiliation_root'] ?? null),
+        'Name' => value($item['name']  null),
+        'Typ' => value($item['type']  null),
+        'Kontinent' => value($item['continent']  null),
+        'Zugehörigkeit' => value($item['affiliation_raw']  null),
+        'Zugehörigkeit-Key' => value($item['affiliation_key']  null),
+        'Zugehörigkeit-Root' => value($item['affiliation_root']  null),
         'Zugehörigkeit-Pfad' => implode(' > ', $affiliationPath),
         'Zugehörigkeit-JSON' => encodeJson($affiliation),
-        'Status' => value($item['status'] ?? null),
-        'Herrschaftsform' => value($item['form_of_government'] ?? null),
-        'Hauptstadt' => value($item['capital_name'] ?? null),
-        'Herrschaftssitz' => value($item['seat_name'] ?? null),
-        'Oberhaupt' => value($item['ruler'] ?? null),
-        'Sprache' => value($item['language'] ?? null),
-        'Währung' => value($item['currency'] ?? null),
-        'Handelswaren' => value($item['trade_goods'] ?? null),
-        'Einwohnerzahl' => value($item['population'] ?? null),
-        'Gründungsdatum' => value($item['founded_text'] ?? null),
-        'Gründungsdatum-Text' => value($item['founded_text'] ?? null),
-        'Gründungsdatum-Typ' => value($item['founded_type'] ?? null),
-        'Gründungsdatum-StartBF' => value($item['founded_start_bf'] ?? null),
-        'Gründungsdatum-EndBF' => value($item['founded_end_bf'] ?? null),
-        'Gründungsdatum-AnzeigeBF' => value($item['founded_display_bf'] ?? null),
+        'Status' => value($item['status']  null),
+        'Herrschaftsform' => value($item['form_of_government']  null),
+        'Hauptstadt' => value($item['capital_name']  null),
+        'Herrschaftssitz' => value($item['seat_name']  null),
+        'Oberhaupt' => value($item['ruler']  null),
+        'Sprache' => value($item['language']  null),
+        'Währung' => value($item['currency']  null),
+        'Handelswaren' => value($item['trade_goods']  null),
+        'Einwohnerzahl' => value($item['population']  null),
+        'Gründungsdatum' => value($item['founded_text']  null),
+        'Gründungsdatum-Text' => value($item['founded_text']  null),
+        'Gründungsdatum-Typ' => value($item['founded_type']  null),
+        'Gründungsdatum-StartBF' => value($item['founded_start_bf']  null),
+        'Gründungsdatum-EndBF' => value($item['founded_end_bf']  null),
+        'Gründungsdatum-AnzeigeBF' => value($item['founded_display_bf']  null),
         'Gründungsdatum-JSON' => encodeJson($founded),
-        'Gründer' => value($item['founder'] ?? null),
-        'Aufgelöst' => value($item['dissolved_text'] ?? null),
-        'Aufgelöst-Text' => value($item['dissolved_text'] ?? null),
-        'Aufgelöst-Typ' => value($item['dissolved_type'] ?? null),
-        'Aufgelöst-StartBF' => value($item['dissolved_start_bf'] ?? null),
-        'Aufgelöst-EndBF' => value($item['dissolved_end_bf'] ?? null),
-        'Aufgelöst-AnzeigeBF' => value($item['dissolved_display_bf'] ?? null),
+        'Gründer' => value($item['founder']  null),
+        'Aufgelöst' => value($item['dissolved_text']  null),
+        'Aufgelöst-Text' => value($item['dissolved_text']  null),
+        'Aufgelöst-Typ' => value($item['dissolved_type']  null),
+        'Aufgelöst-StartBF' => value($item['dissolved_start_bf']  null),
+        'Aufgelöst-EndBF' => value($item['dissolved_end_bf']  null),
+        'Aufgelöst-AnzeigeBF' => value($item['dissolved_display_bf']  null),
         'Aufgelöst-JSON' => encodeJson($dissolved),
-        'Geographisch' => value($item['geographic'] ?? null),
-        'Politisch' => value($item['political'] ?? null),
-        'Handelszone' => value($item['trade_zone'] ?? null),
-        'Blasonierung' => value($item['blazon'] ?? null),
-        'Wiki-Link' => value($item['wiki_url'] ?? null),
-        'Wappen-Link' => value($item['coat_of_arms_url'] ?? null),
+        'Geographisch' => value($item['geographic']  null),
+        'Politisch' => value($item['political']  null),
+        'Handelszone' => value($item['trade_zone']  null),
+        'Blasonierung' => value($item['blazon']  null),
+        'Wiki-Link' => value($item['wiki_url']  null),
+        'Wappen-Link' => value($item['coat_of_arms_url']  null),
 
-        '_id' => value($item['id'] ?? null),
-        '_wiki_key' => value($item['wiki_key'] ?? null),
-        '_wiki_url' => value($item['wiki_url'] ?? null),
+        '_id' => value($item['id']  null),
+        '_wiki_key' => value($item['wiki_key']  null),
+        '_wiki_url' => value($item['wiki_url']  null),
         '_canonical_key' => canonicalItemKey($item),
         '_map_assigned' => !empty($item['map_assigned']),
-        '_map_territory_count' => (int)($item['map_territory_count'] ?? 0),
-        '_map_geometry_count' => (int)($item['map_geometry_count'] ?? 0),
+        '_map_territory_count' => (int)($item['map_territory_count']  0),
+        '_map_geometry_count' => (int)($item['map_geometry_count']  0),
     ];
 }
 
@@ -604,7 +604,7 @@ function buildLegacyTree(array $rows): array {
             $rowIdentityKey = 'row-' . ($index + 1);
         }
 
-        $ownName = value($row['Name'] ?? null);
+        $ownName = value($row['Name']  null);
         if ($ownName === '') {
             $ownName = 'unbenannt';
         }
@@ -623,7 +623,7 @@ function buildLegacyTree(array $rows): array {
             }
 
             if (!isset($current['children'][$partKey])) {
-                $indexedRow = $rowIndex[$partKey] ?? null;
+                $indexedRow = $rowIndex[$partKey]  null;
                 $current['children'][$partKey] = createTreeNode($partKey, $part, $indexedRow);
 
                 if ($indexedRow !== null) {
@@ -633,7 +633,7 @@ function buildLegacyTree(array $rows): array {
                     }
                 }
             } elseif (empty($current['children'][$partKey]['row'])) {
-                $indexedRow = $rowIndex[$partKey] ?? null;
+                $indexedRow = $rowIndex[$partKey]  null;
 
                 if ($indexedRow !== null) {
                     $current['children'][$partKey] = applyLegacyRowToTreeNode(
@@ -652,7 +652,7 @@ function buildLegacyTree(array $rows): array {
         }
 
         $currentRowIdentityKey = !empty($current['row']) && is_array($current['row'])
-            ? canonicalRowKey($current['row'])
+             canonicalRowKey($current['row'])
             : '';
 
         if ($currentRowIdentityKey !== '' && $currentRowIdentityKey === $rowIdentityKey) {
@@ -696,7 +696,7 @@ function buildRowIndex(array $rows): array {
 }
 
 function legacyRowAliases(array $row): array {
-    $name = value($row['Name'] ?? null);
+    $name = value($row['Name']  null);
     $aliases = [];
 
     if ($name !== '') {
@@ -708,7 +708,7 @@ function legacyRowAliases(array $row): array {
         }
     }
 
-    $wikiUrl = value($row['Wiki-Link'] ?? null);
+    $wikiUrl = value($row['Wiki-Link']  null);
     if ($wikiUrl !== '') {
         $title = wikiTitleFromUrl($wikiUrl);
         if ($title !== '') {
@@ -742,7 +742,7 @@ function legacyRowAliases(array $row): array {
         ],
     ];
 
-    foreach (($aliasMap[$name] ?? []) as $alias) {
+    foreach (($aliasMap[$name]  []) as $alias) {
         $aliases[] = $alias;
     }
 
@@ -750,7 +750,7 @@ function legacyRowAliases(array $row): array {
 }
 
 function readLegacyPath(array $row): array {
-    $rawPath = value($row['Zugehörigkeit-Pfad'] ?? null);
+    $rawPath = value($row['Zugehörigkeit-Pfad']  null);
     if ($rawPath !== '') {
         return array_values(array_filter(array_map(
             static fn(string $part): string => trim($part),
@@ -758,7 +758,7 @@ function readLegacyPath(array $row): array {
         ), static fn(string $part): bool => $part !== ''));
     }
 
-    $json = decodeJson($row['Zugehörigkeit-JSON'] ?? null, []);
+    $json = decodeJson($row['Zugehörigkeit-JSON']  null, []);
     if (is_array($json) && isset($json['path']) && is_array($json['path'])) {
         return array_values(array_filter(array_map(
             static fn(mixed $part): string => trim((string)$part),
@@ -766,7 +766,7 @@ function readLegacyPath(array $row): array {
         ), static fn(string $part): bool => $part !== ''));
     }
 
-    $fallback = value($row['Zugehörigkeit'] ?? null);
+    $fallback = value($row['Zugehörigkeit']  null);
     if ($fallback === '') {
         return [];
     }
@@ -798,7 +798,7 @@ function canonicalPathPart(string $part): string {
         'unter-der-herrschaft-des-ritterbund-orkenwacht' => 'Ritterbund Orkenwacht',
     ];
 
-    return $aliases[$key] ?? $value;
+    return $aliases[$key]  $value;
 }
 
 function createTreeNode(string $key, string $name, ?array $row): array {
@@ -830,7 +830,7 @@ function createTreeNode(string $key, string $name, ?array $row): array {
 }
 
 function applyLegacyRowToTreeNode(array $node, array $row): array {
-    $name = value($row['Name'] ?? null);
+    $name = value($row['Name']  null);
 
     $node['row'] = $row;
     $node['is_group'] = false;
@@ -839,24 +839,24 @@ function applyLegacyRowToTreeNode(array $node, array $row): array {
         $node['name'] = $name;
     }
 
-    $node['type'] = value($row['Typ'] ?? null);
-    $node['status'] = value($row['Status'] ?? null);
+    $node['type'] = value($row['Typ']  null);
+    $node['status'] = value($row['Status']  null);
     $node['valid_label'] = formatExistenceLabel($row);
-    $node['wiki_url'] = value($row['Wiki-Link'] ?? null);
-    $node['capital_name'] = value($row['Hauptstadt'] ?? null);
-    $node['ruler'] = value($row['Oberhaupt'] ?? null);
-    $node['coat_of_arms_url'] = value($row['Wappen-Link'] ?? null);
+    $node['wiki_url'] = value($row['Wiki-Link']  null);
+    $node['capital_name'] = value($row['Hauptstadt']  null);
+    $node['ruler'] = value($row['Oberhaupt']  null);
+    $node['coat_of_arms_url'] = value($row['Wappen-Link']  null);
     $node['map_assigned'] = !empty($row['_map_assigned']);
-    $node['map_territory_count'] = (int)($row['_map_territory_count'] ?? 0);
-    $node['map_geometry_count'] = (int)($row['_map_geometry_count'] ?? 0);
+    $node['map_territory_count'] = (int)($row['_map_territory_count']  0);
+    $node['map_geometry_count'] = (int)($row['_map_geometry_count']  0);
 
     return $node;
 }
 
 function flattenTree(array $children): array {
     uasort($children, function (array $left, array $right): int {
-        $leftHasRow = empty($left['row']) ? 0 : 1;
-        $rightHasRow = empty($right['row']) ? 0 : 1;
+        $leftHasRow = empty($left['row'])  0 : 1;
+        $rightHasRow = empty($right['row'])  0 : 1;
 
         if ($leftHasRow !== $rightHasRow) {
             return $leftHasRow <=> $rightHasRow;
@@ -880,17 +880,17 @@ function flattenTree(array $children): array {
 }
 
 function canonicalRowKey(array $row): string {
-    $wikiKey = value($row['_wiki_key'] ?? null);
+    $wikiKey = value($row['_wiki_key']  null);
     if ($wikiKey !== '') {
         return makeStableKey($wikiKey);
     }
 
-    $wikiUrl = value($row['_wiki_url'] ?? $row['Wiki-Link'] ?? null);
+    $wikiUrl = value($row['_wiki_url']  $row['Wiki-Link']  null);
     if ($wikiUrl !== '') {
         return makeStableKey($wikiUrl);
     }
 
-    $name = value($row['Name'] ?? null);
+    $name = value($row['Name']  null);
     if ($name !== '') {
         return makeStableKey($name);
     }
@@ -899,17 +899,17 @@ function canonicalRowKey(array $row): string {
 }
 
 function canonicalItemKey(array $item): string {
-    $wikiKey = value($item['wiki_key'] ?? null);
+    $wikiKey = value($item['wiki_key']  null);
     if ($wikiKey !== '') {
         return makeStableKey($wikiKey);
     }
 
-    $wikiUrl = value($item['wiki_url'] ?? null);
+    $wikiUrl = value($item['wiki_url']  null);
     if ($wikiUrl !== '') {
         return makeStableKey($wikiUrl);
     }
 
-    return makeStableKey(value($item['name'] ?? null));
+    return makeStableKey(value($item['name']  null));
 }
 
 function legacyNodeKey(string $value): string {
@@ -943,19 +943,19 @@ function makeStableKey(string $value): string {
         }
     }
 
-    $value = preg_replace('/[^a-z0-9]+/u', '-', $value) ?? '';
+    $value = preg_replace('/[^a-z0-9]+/u', '-', $value)  '';
     $value = trim($value, '-');
 
     return $value;
 }
 
 function formatExistenceLabel(array $row): string {
-    $founded = value($row['Gründungsdatum-Text'] ?? $row['Gründungsdatum'] ?? null);
-    $dissolved = value($row['Aufgelöst-Text'] ?? $row['Aufgelöst'] ?? null);
+    $founded = value($row['Gründungsdatum-Text']  $row['Gründungsdatum']  null);
+    $dissolved = value($row['Aufgelöst-Text']  $row['Aufgelöst']  null);
 
     if ($founded !== '' && $dissolved !== '') {
         return preg_match('/\bbesteht\b/iu', $dissolved) === 1
-            ? 'besteht seit ' . $founded
+             'besteht seit ' . $founded
             : $founded . ' - ' . $dissolved;
     }
 
@@ -965,7 +965,7 @@ function formatExistenceLabel(array $row): string {
 
     if ($dissolved !== '') {
         return preg_match('/\bbesteht\b/iu', $dissolved) === 1
-            ? 'besteht'
+             'besteht'
             : 'bis ' . $dissolved;
     }
 
@@ -973,7 +973,7 @@ function formatExistenceLabel(array $row): string {
 }
 
 function wikiTitleFromUrl(string $url): string {
-    $path = (string)(parse_url($url, PHP_URL_PATH) ?? '');
+    $path = (string)(parse_url($url, PHP_URL_PATH)  '');
     $marker = '/wiki/';
     $position = strpos($path, $marker);
 
@@ -1020,7 +1020,7 @@ function value(mixed $value): string {
     }
 
     if (is_bool($value)) {
-        return $value ? '1' : '0';
+        return $value  '1' : '0';
     }
 
     if (is_scalar($value)) {
@@ -1033,19 +1033,19 @@ function value(mixed $value): string {
 function stringOrNull(mixed $value): ?string {
     $text = value($value);
 
-    return $text === '' ? null : $text;
+    return $text === ''  null : $text;
 }
 
 function intOrNull(mixed $value): ?int {
-    return is_numeric($value) ? (int)$value : null;
+    return is_numeric($value)  (int)$value : null;
 }
 
 function floatOrNull(mixed $value): ?float {
-    return is_numeric($value) ? (float)$value : null;
+    return is_numeric($value)  (float)$value : null;
 }
 
 function applyCors(array $allowedOrigins): void {
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+    $origin = $_SERVER['HTTP_ORIGIN']  '';
 
     if ($origin !== '' && in_array($origin, $allowedOrigins, true)) {
         header('Access-Control-Allow-Origin: ' . $origin);

@@ -91,7 +91,7 @@ L.LabelTextCollision = L.Canvas
 
                 L.Renderer.prototype._update.call(this);
                 var b = this._bounds, container = this._containerText, size = b
-                        .getSize(), m = L.Browser.retina ? 2 : 1;
+                        .getSize(), m = L.Browser.retina  2 : 1;
 
                 L.DomUtil.setPosition(container, b.min);
 

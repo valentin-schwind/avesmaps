@@ -8,7 +8,7 @@ async function loadPoliticalTerritoryWikiReferences() {
 		continent: "Aventurien",
 	});
 	politicalTerritoryWikiReferences = Array.isArray(response.wiki)
-		? response.wiki.map((entry) => ({
+		 response.wiki.map((entry) => ({
 			...entry,
 			type: normalizeParentheticalSpacing(entry.type || ""),
 		}))
@@ -28,7 +28,7 @@ async function loadPoliticalTerritoryWikiReferenceFallback() {
 	}
 
 	const data = await response.json().catch(() => []);
-	return Array.isArray(data) ? data.map((entry, index) => normalizeStaticWikiReferenceRecord(entry, index)) : [];
+	return Array.isArray(data)  data.map((entry, index) => normalizeStaticWikiReferenceRecord(entry, index)) : [];
 }
 
 function normalizeStaticWikiReferenceRecord(record, index) {
@@ -156,7 +156,7 @@ function applyRegionWikiReferenceSelection(wikiReferenceId) {
 		}
 	}
 
-	const region = regionEditEntry?.region || regionEditEntry || {};
+	const region = regionEditEntry.region || regionEditEntry || {};
 	region.wikiId = wikiReference.id || null;
 	region.wikiName = wikiReference.name || "";
 	region.wikiType = wikiReference.type || "";

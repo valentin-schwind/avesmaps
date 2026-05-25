@@ -63,8 +63,8 @@ function showPoliticalTerritoryTimelineSelection(regionEntry) {
 	const maxYear = 1049;
 	const range = maxYear - minYear;
 
-	const effectiveStart = hasStart ? Math.max(startYear, minYear) : minYear;
-	const effectiveEnd = hasEnd ? Math.min(endYear, maxYear) : maxYear;
+	const effectiveStart = hasStart  Math.max(startYear, minYear) : minYear;
+	const effectiveEnd = hasEnd  Math.min(endYear, maxYear) : maxYear;
 
 	nameElement.textContent = normalizeRegionParentheticalSpacing(regionEntry.displayName || regionEntry.name || "Herrschaftsgebiet");
 	yearsElement.textContent = formatPoliticalTerritoryRangeLabel(startYear, endYear, regionEntry.validLabel);
@@ -72,7 +72,7 @@ function showPoliticalTerritoryTimelineSelection(regionEntry) {
 	const leftPercent = Math.max(0, Math.min(100, ((effectiveStart - minYear) / range) * 100));
 	const rightPercent = Math.max(0, Math.min(100, ((effectiveEnd - minYear) / range) * 100));
 	const widthPercent = rightPercent > leftPercent
-		? Math.max(1.5, rightPercent - leftPercent)
+		 Math.max(1.5, rightPercent - leftPercent)
 		: 0;
 
 	barElement.style.left = `${leftPercent}%`;
@@ -99,7 +99,7 @@ function clearPoliticalTerritoryTimelineSelection() {
 function normalizePoliticalTimelineYearValue(value) {
 	const number = Number(value);
 
-	return Number.isFinite(number) ? number : null;
+	return Number.isFinite(number)  number : null;
 }
 
 function formatPoliticalTerritoryRangeLabel(startYear, endYear, fallbackLabel = "") {

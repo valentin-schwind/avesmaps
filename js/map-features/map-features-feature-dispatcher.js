@@ -15,7 +15,7 @@ function removeLiveFeature(publicId) {
 	}
 
 	const powerline = findPowerlineByPublicId(publicId);
-	if (powerline?._layerGroup) {
+	if (powerline._layerGroup) {
 		map.removeLayer(powerline._layerGroup);
 		powerlineLayers = powerlineLayers.filter((layer) => layer !== powerline._layerGroup);
 		powerlineData = powerlineData.filter((entry) => entry !== powerline);
@@ -30,7 +30,7 @@ function removeLiveFeature(publicId) {
 		return;
 	}
 
-	const regionEntry = regionPolygons.map((polygon) => polygon._regionEntry).find((entry) => entry?.publicId === publicId);
+	const regionEntry = regionPolygons.map((polygon) => polygon._regionEntry).find((entry) => entry.publicId === publicId);
 	if (regionEntry) {
 		map.removeLayer(regionEntry.layer);
 		if (regionEntry.label) {
@@ -55,22 +55,22 @@ function applyLiveMapFeatureUpdate(feature) {
 
 	if (properties.feature_type === "powerline") {
 		applyLivePowerlineFeature(feature);
-	} else if (feature.geometry?.type === "LineString") {
+	} else if (feature.geometry.type === "LineString") {
 		applyLivePathFeature(feature);
 	} else if (properties.feature_type === "label") {
 		applyLiveLabelFeature(feature);
 	} else if (properties.feature_type === "region") {
-		const regionEntry = regionPolygons.map((polygon) => polygon._regionEntry).find((entry) => entry?.publicId === publicId);
+		const regionEntry = regionPolygons.map((polygon) => polygon._regionEntry).find((entry) => entry.publicId === publicId);
 		if (regionEntry) {
 			applyRegionFeatureResponse(regionEntry, feature);
 		}
-	} else if (feature.geometry?.type === "Point") {
+	} else if (feature.geometry.type === "Point") {
 		applyLiveLocationFeature(feature);
 	}
 }
 
 function applyMapFeatureEditResult(result) {
-	const feature = result?.feature;
+	const feature = result.feature;
 	if (!feature) {
 		return false;
 	}

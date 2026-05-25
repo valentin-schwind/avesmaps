@@ -45,12 +45,12 @@ function installPoliticalTerritoryEditorOverrideFooter(frame, regionEntry) {
 		|| doc.querySelector("form")
 		|| doc.querySelector("main")
 		|| doc.body;
-	footerTarget?.append(footer);
+	footerTarget.append(footer);
 
-	footer.querySelector('[data-local-override-action="reset"]')?.addEventListener("click", () => {
+	footer.querySelector('[data-local-override-action="reset"]').addEventListener("click", () => {
 		void resetPoliticalTerritoryEditorLocalDisplay(regionEntry);
 	});
-	footer.querySelector('[data-local-override-action="promote"]')?.addEventListener("click", () => {
+	footer.querySelector('[data-local-override-action="promote"]').addEventListener("click", () => {
 		void promotePoliticalTerritoryEditorLocalDisplay(frame);
 	});
 
@@ -69,13 +69,13 @@ function syncPoliticalTerritoryEditorOverrideFooterVisibility(isVisible) {
 		installPoliticalTerritoryEditorOverrideFooter(frame, activePoliticalTerritoryEditorRegion);
 	}
 	const doc = getPoliticalTerritoryEditorFrameDocument();
-	const footer = doc?.getElementById("political-territory-local-override-footer");
+	const footer = doc.getElementById("political-territory-local-override-footer");
 	if (footer) footer.hidden = !isVisible;
 }
 
 function suppressPoliticalTerritoryEditorOverrideFooter(durationMs = 2000) {
 	const duration = Number(durationMs);
-	const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 2000;
+	const safeDuration = Number.isFinite(duration) && duration > 0  duration : 2000;
 	activePoliticalTerritoryEditorOverrideFooterSuppressedUntil = Date.now() + safeDuration;
 	activePoliticalTerritoryEditorPendingLocalOverride = false;
 	syncPoliticalTerritoryEditorOverrideFooterVisibility(false);
@@ -97,7 +97,7 @@ async function refreshPoliticalTerritoryEditorOverrideFooter(regionEntry = activ
 			action: "state",
 			geometry_public_id: geometryPublicId,
 		});
-		const hasOverride = Boolean(state?.has_override || activePoliticalTerritoryEditorPendingLocalOverride);
+		const hasOverride = Boolean(state.has_override || activePoliticalTerritoryEditorPendingLocalOverride);
 		if (isPoliticalTerritoryEditorOverrideFooterSuppressed()) {
 			if (!hasOverride) {
 				clearPoliticalTerritoryEditorOverrideFooterSuppression();
@@ -124,8 +124,8 @@ async function resetPoliticalTerritoryEditorLocalDisplay(regionEntry = activePol
 	suppressPoliticalTerritoryEditorOverrideFooter();
 	refreshPoliticalTerritoryEditorMapLayer();
 	if (typeof showFeedbackToast === "function") showFeedbackToast("Lokale Darstellung zurückgesetzt.", "success");
-	const assignmentModule = getPoliticalTerritoryEditorElements().frame?.contentWindow?.AvesmapsPoliticalTerritoryAssignment;
-	if (typeof assignmentModule?.reload === "function") {
+	const assignmentModule = getPoliticalTerritoryEditorElements().frame.contentWindow.AvesmapsPoliticalTerritoryAssignment;
+	if (typeof assignmentModule.reload === "function") {
 		await assignmentModule.reload();
 		installPoliticalTerritoryEditorOverrideFooter(getPoliticalTerritoryEditorElements().frame, regionEntry);
 	}
@@ -134,8 +134,8 @@ async function resetPoliticalTerritoryEditorLocalDisplay(regionEntry = activePol
 
 async function promotePoliticalTerritoryEditorLocalDisplay(frame = getPoliticalTerritoryEditorElements().frame) {
 	activePoliticalTerritoryEditorPromoteNextSave = true;
-	const assignmentModule = frame?.contentWindow?.AvesmapsPoliticalTerritoryAssignment;
-	if (typeof assignmentModule?.save !== "function") {
+	const assignmentModule = frame.contentWindow.AvesmapsPoliticalTerritoryAssignment;
+	if (typeof assignmentModule.save !== "function") {
 		activePoliticalTerritoryEditorPromoteNextSave = false;
 		throw new Error("Die lokale Darstellung konnte nicht global übernommen werden.");
 	}
@@ -153,14 +153,14 @@ async function submitPoliticalTerritoryDisplayOverrideAction(payload) {
 		body: JSON.stringify(payload),
 	});
 	const result = await response.json().catch(() => null);
-	if (!response.ok || result?.ok === false) {
-		throw new Error(result?.error || `Darstellungs-Override fehlgeschlagen: HTTP ${response.status}`);
+	if (!response.ok || result.ok === false) {
+		throw new Error(result.error || `Darstellungs-Override fehlgeschlagen: HTTP ${response.status}`);
 	}
 	return result;
 }
 
 async function snapshotPoliticalTerritoryEditorGlobals(value = {}) {
-	const displays = Array.isArray(value.displays) ? value.displays : [];
+	const displays = Array.isArray(value.displays)  value.displays : [];
 	if (displays.length < 1) return null;
 	return submitPoliticalTerritoryDisplayOverrideAction({
 		action: "snapshot_globals",
@@ -169,7 +169,7 @@ async function snapshotPoliticalTerritoryEditorGlobals(value = {}) {
 }
 
 async function restorePoliticalTerritoryEditorGlobals(snapshotResult) {
-	const snapshots = Array.isArray(snapshotResult?.snapshots) ? snapshotResult.snapshots : [];
+	const snapshots = Array.isArray(snapshotResult.snapshots)  snapshotResult.snapshots : [];
 	if (snapshots.length < 1) return null;
 	return submitPoliticalTerritoryDisplayOverrideAction({
 		action: "restore_globals",

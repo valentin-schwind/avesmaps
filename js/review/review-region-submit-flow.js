@@ -40,7 +40,7 @@ function buildRegionEditPayload(formElement) {
 
 async function handleRegionEditFormSubmit(event) {
 	event.preventDefault();
-	const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
+	const formElement = event.currentTarget instanceof HTMLFormElement  event.currentTarget : null;
 	if (!formElement || !regionEditEntry) {
 		return;
 	}
@@ -51,10 +51,10 @@ async function handleRegionEditFormSubmit(event) {
 	snapshotActiveRegionEditTab();
 	const payload = buildRegionEditPayload(formElement);
 	const payloads = payload.source === "political_territory" && regionEditTabs.length > 0
-		? regionEditTabs.map((tab) => tab.payload || regionEditPayloadToPayload(tab.region)).filter(Boolean)
+		 regionEditTabs.map((tab) => tab.payload || regionEditPayloadToPayload(tab.region)).filter(Boolean)
 		: [payload];
 	const saveablePayloads = payload.source === "political_territory"
-		? payloads.filter((entry) => String(entry?.territory_public_id || "").trim() !== "")
+		 payloads.filter((entry) => String(entry.territory_public_id || "").trim() !== "")
 		: payloads;
 	if (payload.source === "political_territory" && payloads.length > 0 && saveablePayloads.length < 1) {
 		setRegionEditDialogOpen(false, { resetForm: true });
@@ -64,10 +64,10 @@ async function handleRegionEditFormSubmit(event) {
 	if (payload.source === "political_territory" && saveablePayloads.length !== payloads.length) {
 		regionEditTabs = regionEditTabs.filter((tab) => {
 			const tabPayload = tab.payload || regionEditPayloadToPayload(tab.region);
-			return String(tabPayload?.territory_public_id || "").trim() !== "";
+			return String(tabPayload.territory_public_id || "").trim() !== "";
 		});
 	}
-	if (payload.source === "political_territory" && saveablePayloads.some((entry) => String(entry?.territory_public_id || "").trim() === "")) {
+	if (payload.source === "political_territory" && saveablePayloads.some((entry) => String(entry.territory_public_id || "").trim() === "")) {
 		setRegionEditStatus("Bitte zuerst einen untersten Knoten zuweisen.", "error");
 		return;
 	}
@@ -89,7 +89,7 @@ async function handleRegionEditFormSubmit(event) {
 			void loadChangeLog();
 		}
 		setRegionEditDialogOpen(false, { resetForm: true });
-		showFeedbackToast(payloads.length > 1 ? `${payloads.length} Herrschaftsgebiete gespeichert.` : "Herrschaftsgebiet gespeichert.", "success");
+		showFeedbackToast(payloads.length > 1  `${payloads.length} Herrschaftsgebiete gespeichert.` : "Herrschaftsgebiet gespeichert.", "success");
 	} catch (error) {
 		console.error("Herrschaftsgebiet konnte nicht gespeichert werden:", error);
 		setRegionEditStatus(error.message || "Herrschaftsgebiet konnte nicht gespeichert werden.", "error");

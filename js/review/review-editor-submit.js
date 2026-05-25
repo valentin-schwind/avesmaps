@@ -1,6 +1,6 @@
 async function handleLocationEditFormSubmit(event) {
 	event.preventDefault();
-	const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
+	const formElement = event.currentTarget instanceof HTMLFormElement  event.currentTarget : null;
 	if (!formElement || !formElement.reportValidity()) {
 		return;
 	}
@@ -11,7 +11,7 @@ async function handleLocationEditFormSubmit(event) {
 	}
 	const duplicateLocation = findDuplicateLocationByName(payload.name, {
 		excludePublicId: payload.public_id || "",
-		allowCurrentName: locationEditMarkerEntry?.location?.name || locationEditMarkerEntry?.name || "",
+		allowCurrentName: locationEditMarkerEntry.location.name || locationEditMarkerEntry.name || "",
 	});
 	if (duplicateLocation) {
 		setLocationEditStatus(`Ein Ort namens "${duplicateLocation.name}" existiert bereits.`, "error");
@@ -23,7 +23,7 @@ async function handleLocationEditFormSubmit(event) {
 	try {
 		const result = await submitMapFeatureEdit(payload);
 		const responseFeature = pendingCrossingConversionPublicId === payload.public_id
-			? { ...result.feature, name: result.feature?.name || payload.name }
+			 { ...result.feature, name: result.feature.name || payload.name }
 			: result.feature;
 		if (locationEditMarkerEntry) {
 			applyFeatureResponseToMarker(locationEditMarkerEntry, responseFeature);
@@ -74,13 +74,13 @@ async function handleLocationEditFormSubmit(event) {
 
 async function handlePathEditFormSubmit(event) {
 	event.preventDefault();
-	const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
+	const formElement = event.currentTarget instanceof HTMLFormElement  event.currentTarget : null;
 	if (!formElement || !formElement.reportValidity() || !pathEditFeature) {
 		return;
 	}
 
 	const payload = buildPathEditPayload(formElement);
-	const isAutoNameEnabled = formElement.querySelector("#path-edit-autoname")?.checked === true;
+	const isAutoNameEnabled = formElement.querySelector("#path-edit-autoname").checked === true;
 	setPathEditStatus("Weg wird gespeichert...", "pending");
 	setPathEditSubmitPending(true);
 
@@ -134,7 +134,7 @@ async function handlePowerlineEditFormSubmit(event) {
 
 async function handleLabelEditFormSubmit(event) {
 	event.preventDefault();
-	const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
+	const formElement = event.currentTarget instanceof HTMLFormElement  event.currentTarget : null;
 	if (!formElement || !formElement.reportValidity()) {
 		return;
 	}

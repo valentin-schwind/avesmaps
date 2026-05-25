@@ -22,7 +22,7 @@ try {
         ]);
     }
 
-    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD']  'GET'));
     if ($requestMethod !== 'POST') {
         avesmapsJsonResponse(405, [
             'ok' => false,
@@ -31,8 +31,8 @@ try {
     }
 
     $requestPayload = avesmapsReadJsonRequest();
-    $reportId = filter_var($requestPayload['report_id'] ?? null, FILTER_VALIDATE_INT);
-    $newStatus = avesmapsNormalizeSingleLine((string) ($requestPayload['status'] ?? ''), 20);
+    $reportId = filter_var($requestPayload['report_id']  null, FILTER_VALIDATE_INT);
+    $newStatus = avesmapsNormalizeSingleLine((string) ($requestPayload['status']  ''), 20);
 
     if ($reportId === false || $reportId <= 0) {
         avesmapsJsonResponse(400, [
@@ -48,7 +48,7 @@ try {
         ]);
     }
 
-    $pdo = avesmapsCreatePdo($config['database'] ?? []);
+    $pdo = avesmapsCreatePdo($config['database']  []);
     $statement = $pdo->prepare(
         'UPDATE location_reports
         SET

@@ -4,7 +4,7 @@
  */
 
 function getRegionLayerGeometryPublicId(layer) {
-	return String(layer?._regionEntry?.geometryPublicId || layer?._regionEntry?.publicId || "").trim();
+	return String(layer._regionEntry.geometryPublicId || layer._regionEntry.publicId || "").trim();
 }
 
 function isLatLngInsideRegionRing(latlng, ring) {
@@ -12,8 +12,8 @@ function isLatLngInsideRegionRing(latlng, ring) {
 		return false;
 	}
 
-	const testLat = Number(latlng?.lat);
-	const testLng = Number(latlng?.lng);
+	const testLat = Number(latlng.lat);
+	const testLng = Number(latlng.lng);
 	if (!Number.isFinite(testLat) || !Number.isFinite(testLng)) {
 		return false;
 	}
@@ -22,10 +22,10 @@ function isLatLngInsideRegionRing(latlng, ring) {
 	for (let index = 0, previousIndex = ring.length - 1; index < ring.length; previousIndex = index, index += 1) {
 		const currentPoint = ring[index];
 		const previousPoint = ring[previousIndex];
-		const currentLat = Number(currentPoint?.lat);
-		const currentLng = Number(currentPoint?.lng);
-		const previousLat = Number(previousPoint?.lat);
-		const previousLng = Number(previousPoint?.lng);
+		const currentLat = Number(currentPoint.lat);
+		const currentLng = Number(currentPoint.lng);
+		const previousLat = Number(previousPoint.lat);
+		const previousLng = Number(previousPoint.lng);
 
 		if (!Number.isFinite(currentLat) || !Number.isFinite(currentLng) || !Number.isFinite(previousLat) || !Number.isFinite(previousLng)) {
 			continue;
@@ -47,7 +47,7 @@ function isLatLngInsideRegionLayer(layer, latlng) {
 	}
 
 	const normalizedLatLng = L.latLng(latlng);
-	if (!layer.getBounds?.().contains?.(normalizedLatLng)) {
+	if (!layer.getBounds.().contains.(normalizedLatLng)) {
 		return false;
 	}
 
@@ -56,7 +56,7 @@ function isLatLngInsideRegionLayer(layer, latlng) {
 		return layer._containsPoint(layerPoint);
 	}
 
-	const rings = layer.getLatLngs?.();
+	const rings = layer.getLatLngs.();
 	if (!Array.isArray(rings) || rings.length < 1 || !Array.isArray(rings[0])) {
 		return false;
 	}
@@ -79,7 +79,7 @@ function getOverlappingPoliticalRegionLayersAtLatLng(latlng, preferredLayer = nu
 	const candidates = [];
 
 	regionPolygons.forEach((layer) => {
-		const candidateRegion = layer?._regionEntry;
+		const candidateRegion = layer._regionEntry;
 		if (!candidateRegion || candidateRegion.source !== "political_territory") {
 			return;
 		}
@@ -106,7 +106,7 @@ function getOverlappingPoliticalRegionLayersAtLatLng(latlng, preferredLayer = nu
 
 	const hasPreferredLayer = preferredLayer && uniqueCandidates.includes(preferredLayer);
 	const orderedCandidates = hasPreferredLayer
-		? [preferredLayer, ...uniqueCandidates.filter((layer) => layer !== preferredLayer)]
+		 [preferredLayer, ...uniqueCandidates.filter((layer) => layer !== preferredLayer)]
 		: [...uniqueCandidates];
 
 	const headLayer = orderedCandidates[0] || null;
@@ -116,7 +116,7 @@ function getOverlappingPoliticalRegionLayersAtLatLng(latlng, preferredLayer = nu
 		return leftGeometry.localeCompare(rightGeometry, "de");
 	});
 
-	return headLayer ? [headLayer, ...tailLayers] : tailLayers;
+	return headLayer  [headLayer, ...tailLayers] : tailLayers;
 }
 
 function resolveOverlappingRegionLayerSelection(latlng, fallbackLayer = null) {
@@ -128,7 +128,7 @@ function resolveOverlappingRegionLayerSelection(latlng, fallbackLayer = null) {
 		recentRegionOverlapSelection = null;
 		return {
 			layer: fallbackResultLayer,
-			total: Math.max(candidateLayers.length, fallbackResultLayer ? 1 : 0),
+			total: Math.max(candidateLayers.length, fallbackResultLayer  1 : 0),
 			index: 0,
 		};
 	}
@@ -165,7 +165,7 @@ function announceOverlappingRegionSelection(selection) {
 		return;
 	}
 
-	const selectedRegion = selection.layer?._regionEntry || {};
+	const selectedRegion = selection.layer._regionEntry || {};
 	const geometryLabelParts = [];
 	if (selectedRegion.geometryId !== null && selectedRegion.geometryId !== undefined) {
 		geometryLabelParts.push(`#${selectedRegion.geometryId}`);
@@ -174,6 +174,6 @@ function announceOverlappingRegionSelection(selection) {
 		geometryLabelParts.push(selectedRegion.geometryPublicId);
 	}
 
-	const geometrySuffix = geometryLabelParts.length > 0 ? ` (${geometryLabelParts.join(" / ")})` : "";
+	const geometrySuffix = geometryLabelParts.length > 0  ` (${geometryLabelParts.join(" / ")})` : "";
 	showFeedbackToast(`Ueberlagerte Geometrien: ${selection.index + 1}/${selection.total}${geometrySuffix}`, "info");
 }

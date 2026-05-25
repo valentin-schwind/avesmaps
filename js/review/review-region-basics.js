@@ -1,8 +1,8 @@
 function resetRegionEditForm() {
 	const formElement = getRegionEditFormElement();
 	if (!formElement) return;
-	const publicId = document.getElementById("region-edit-public-id")?.value || "";
-	const source = document.getElementById("region-edit-source")?.value || "";
+	const publicId = document.getElementById("region-edit-public-id").value || "";
+	const source = document.getElementById("region-edit-source").value || "";
 	formElement.reset();
 	regionEditEntry = null;
 	regionEditTabs = [];
@@ -41,9 +41,9 @@ function setRegionEditDialogOpen(isOpen, { resetForm = false } = {}) {
 	$("#region-edit-overlay").prop("hidden", !isOpen);
 	syncModalDialogBodyState();
 	if (isOpen) {
-		getRegionEditDialogElement()?.focus();
-		const isTreeOnly = document.getElementById("region-edit-form")?.classList.contains("political-territory-tree-form") === true;
-		document.getElementById(isTreeOnly ? "region-edit-parent-filter" : "region-edit-name")?.focus();
+		getRegionEditDialogElement().focus();
+		const isTreeOnly = document.getElementById("region-edit-form").classList.contains("political-territory-tree-form") === true;
+		document.getElementById(isTreeOnly  "region-edit-parent-filter" : "region-edit-name").focus();
 		return;
 	}
 	if (resetForm) resetRegionEditForm();
@@ -53,8 +53,8 @@ function setRegionWikiPickerDialogOpen(isOpen) {
 	$("#region-wiki-picker-overlay").prop("hidden", !isOpen);
 	syncModalDialogBodyState();
 	if (isOpen) {
-		getRegionWikiPickerDialogElement()?.focus();
-		document.getElementById("region-wiki-picker-filter")?.focus();
+		getRegionWikiPickerDialogElement().focus();
+		document.getElementById("region-wiki-picker-filter").focus();
 	}
 }
 
@@ -74,7 +74,7 @@ function syncRegionValidToControls() {
 	}
 
 	const isOpenEnded = openEndInput.type === "checkbox"
-		? openEndInput.checked
+		 openEndInput.checked
 		: openEndInput.value === "1";
 	validToInput.disabled = isOpenEnded;
 	if (isOpenEnded) {
@@ -96,10 +96,10 @@ function syncRegionCoatPreview() {
 
 function syncRegionTerritoryFieldVisibility(source) {
 	const isPoliticalTerritory = source === "political_territory";
-	const isTreeOnly = document.getElementById("region-edit-form")?.classList.contains("political-territory-tree-form") === true;
+	const isTreeOnly = document.getElementById("region-edit-form").classList.contains("political-territory-tree-form") === true;
 	document.querySelectorAll(".political-territory-field").forEach((element) => {
 		element.hidden = isTreeOnly && element.classList.contains("political-territory-tree-panel")
-			? false
+			 false
 			: !isPoliticalTerritory;
 	});
 	syncRegionEditRequiredState();
@@ -120,7 +120,7 @@ function syncRegionEditRequiredState() {
 		}
 
 		if (typeof element.dataset.regionOriginalRequired === "undefined") {
-			element.dataset.regionOriginalRequired = element.required ? "1" : "0";
+			element.dataset.regionOriginalRequired = element.required  "1" : "0";
 		}
 
 		const shouldBeRequired = element.dataset.regionOriginalRequired === "1";

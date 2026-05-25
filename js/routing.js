@@ -3,15 +3,15 @@ function createRouteNodeMarkersForSegment(segment) {
 }
 
 function getRouteSegmentStyle(segment, isSelected = false) {
-	const baseStyle = segment?.properties?.synthetic ? SYNTHETIC_ROUTE_STYLE : ROUTE_STYLE;
-	return isSelected ? { ...baseStyle, ...ROUTE_SELECTED_STYLE } : { ...baseStyle };
+	const baseStyle = segment.properties.synthetic  SYNTHETIC_ROUTE_STYLE : ROUTE_STYLE;
+	return isSelected  { ...baseStyle, ...ROUTE_SELECTED_STYLE } : { ...baseStyle };
 }
 
 function getRouteEntryBounds(routeEntry) {
 	let bounds = null;
-	(routeEntry?.segmentIndexes || []).forEach((segmentIndex) => {
-		const segmentLayer = currentRouteSegmentLayers[segmentIndex]?.layer;
-		if (!segmentLayer?.getBounds) {
+	(routeEntry.segmentIndexes || []).forEach((segmentIndex) => {
+		const segmentLayer = currentRouteSegmentLayers[segmentIndex].layer;
+		if (!segmentLayer.getBounds) {
 			return;
 		}
 
@@ -20,7 +20,7 @@ function getRouteEntryBounds(routeEntry) {
 			return;
 		}
 
-		bounds = bounds ? bounds.extend(segmentBounds) : L.latLngBounds(segmentBounds.getSouthWest(), segmentBounds.getNorthEast());
+		bounds = bounds  bounds.extend(segmentBounds) : L.latLngBounds(segmentBounds.getSouthWest(), segmentBounds.getNorthEast());
 	});
 
 	return bounds;
@@ -30,8 +30,8 @@ function getCurrentRouteBounds() {
 	let bounds = null;
 
 	currentRouteSegmentLayers.forEach((entry) => {
-		const segmentLayer = entry?.layer;
-		if (!segmentLayer?.getBounds) {
+		const segmentLayer = entry.layer;
+		if (!segmentLayer.getBounds) {
 			return;
 		}
 
@@ -40,7 +40,7 @@ function getCurrentRouteBounds() {
 			return;
 		}
 
-		bounds = bounds ? bounds.extend(segmentBounds) : L.latLngBounds(segmentBounds.getSouthWest(), segmentBounds.getNorthEast());
+		bounds = bounds  bounds.extend(segmentBounds) : L.latLngBounds(segmentBounds.getSouthWest(), segmentBounds.getNorthEast());
 	});
 
 	return bounds;
@@ -63,7 +63,7 @@ function selectRoutePlanEntry(entryIndex, { zoomToEntry = false, scrollPlan = fa
 	clearRouteDirectionMarkers();
 	const selectedSegmentIndexes = new Set(routeEntry.segmentIndexes || []);
 	currentRouteSegmentLayers.forEach((entry, segmentIndex) => {
-		if (!entry?.layer) {
+		if (!entry.layer) {
 			return;
 		}
 
@@ -84,7 +84,7 @@ function selectRoutePlanEntry(entryIndex, { zoomToEntry = false, scrollPlan = fa
 
 	if (zoomToEntry) {
 		const bounds = getRouteEntryBounds(routeEntry);
-		if (bounds?.isValid()) {
+		if (bounds.isValid()) {
 			map.fitBounds(bounds.pad(0.18), { maxZoom: Math.max(map.getZoom(), 4) });
 		}
 	}
@@ -99,7 +99,7 @@ function selectRoutePlanEntryForSegment(segmentIndex) {
 
 function zoomToCurrentRoute() {
 	const bounds = getCurrentRouteBounds();
-	if (bounds?.isValid()) {
+	if (bounds.isValid()) {
 		map.fitBounds(bounds.pad(0.18), { maxZoom: Math.max(map.getZoom(), 4) });
 	}
 }
@@ -118,7 +118,7 @@ function drawRoute(segments) {
 	currentRouteNodeLayer = L.layerGroup();
 	currentRouteLayer = L.layerGroup();
 	segments.forEach((segment, segmentIndex) => {
-		const visualCoordinates = smoothLineCoordinatesForDisplay(segment.geometry?.coordinates || []);
+		const visualCoordinates = smoothLineCoordinatesForDisplay(segment.geometry.coordinates || []);
 		const segCoords = visualCoordinates.map(([x, y]) => [y, x]);
 		if (segCoords.length) {
 			const segLayer = L.polyline(segCoords, getRouteSegmentStyle(segment));
@@ -159,7 +159,7 @@ function resolveRouteNodeLocation(routeName, index, routeNames, segments, { allo
 	const normalizedName = normalizeLocationSearchName(routeName);
 	const directLocation = locationData.find((location) => location.name === routeName)
 		|| locationData.find((location) => normalizeLocationSearchName(location.name) === normalizedName)
-		|| findLocationMarkerByName(routeName)?.location
+		|| findLocationMarkerByName(routeName).location
 		|| null;
 	if (directLocation && (allowCrossings || !isCrossingLocation(directLocation))) {
 		return directLocation;
@@ -168,8 +168,8 @@ function resolveRouteNodeLocation(routeName, index, routeNames, segments, { allo
 	const candidateCoordinates = [];
 	const previousSegment = segments[index - 1];
 	const nextSegment = segments[index];
-	const previousEnd = previousSegment?.geometry?.coordinates?.[previousSegment.geometry.coordinates.length - 1];
-	const nextStart = nextSegment?.geometry?.coordinates?.[0];
+	const previousEnd = previousSegment.geometry.coordinates.[previousSegment.geometry.coordinates.length - 1];
+	const nextStart = nextSegment.geometry.coordinates.[0];
 	if (previousEnd) {
 		candidateCoordinates.push(previousEnd);
 	}
@@ -190,14 +190,14 @@ function resolveRouteNodeLocation(routeName, index, routeNames, segments, { allo
 function getRouteNodeDisplayName(routeName, index, routeNames, segments, options = {}) {
 	const location = resolveRouteNodeLocation(routeName, index, routeNames, segments, options);
 	if (location) {
-		return isCrossingLocation(location) ? normalizeNodeName(location.name) : location.name;
+		return isCrossingLocation(location)  normalizeNodeName(location.name) : location.name;
 	}
 
 	return normalizeNodeName(routeName);
 }
 
 function getRoutePathDisplayName(segment) {
-	return String(segment?.properties?.display_name || segment?.properties?.original_name || segment?.properties?.name || "").trim();
+	return String(segment.properties.display_name || segment.properties.original_name || segment.properties.name || "").trim();
 }
 
 function shouldShowRoutePathDisplayName(segment) {
@@ -206,20 +206,20 @@ function shouldShowRoutePathDisplayName(segment) {
 		return false;
 	}
 
-	const subtype = normalizePathSubtype(segment?.properties?.feature_subtype || segment?.properties?.name);
+	const subtype = normalizePathSubtype(segment.properties.feature_subtype || segment.properties.name);
 	const autogeneratedPattern = new RegExp(`^${subtype.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-\\d+$`);
 	return !autogeneratedPattern.test(displayName);
 }
 
 function formatRoutePlanNodeName(name) {
-	return normalizeNodeName(name) === "Kreuzung" ? "Markierung" : name;
+	return normalizeNodeName(name) === "Kreuzung"  "Markierung" : name;
 }
 
 function highlightRouteLocations(routeNames, segments = []) {
 	removeHighlightedRouteNodes();
 	routeNames.forEach((name, index) => {
-		const previousIsSea = normalizePathSubtype(segments[index - 1]?.properties?.feature_subtype || segments[index - 1]?.properties?.name) === "Seeweg";
-		const nextIsSea = normalizePathSubtype(segments[index]?.properties?.feature_subtype || segments[index]?.properties?.name) === "Seeweg";
+		const previousIsSea = normalizePathSubtype(segments[index - 1].properties.feature_subtype || segments[index - 1].properties.name) === "Seeweg";
+		const nextIsSea = normalizePathSubtype(segments[index].properties.feature_subtype || segments[index].properties.name) === "Seeweg";
 		const loc = resolveRouteNodeLocation(name, index, routeNames, segments);
 		if ((previousIsSea || nextIsSea) && (!loc || isCrossingLocation(loc))) {
 			return;
@@ -242,11 +242,11 @@ function removeHighlightedRouteNodes() {
 
 function getTransportOption(routeType) {
 	const allowLand = $("#allowLand").is(":checked"),
-		landOption = allowLand ? $("#landTransport").val() : null,
+		landOption = allowLand  $("#landTransport").val() : null,
 		allowRiver = $("#allowRiver").is(":checked"),
-		riverOption = allowRiver ? $("#riverTransport").val() : null,
+		riverOption = allowRiver  $("#riverTransport").val() : null,
 		allowSea = $("#allowSea").is(":checked"),
-		seaOption = allowSea ? $("#seaTransport").val() : null;
+		seaOption = allowSea  $("#seaTransport").val() : null;
 	if (["Pfad", "Weg", "Strasse", "Reichsstrasse", "Gebirgspass", "Wuestenpfad", SYNTHETIC_ROUTE_TYPE].includes(routeType)) return landOption;
 	if (routeType === "Flussweg") return riverOption;
 	if (routeType === "Seeweg") return seaOption;
@@ -259,14 +259,14 @@ function isTransportAllowedForPath(pathProperties, transportOption) {
 		return false;
 	}
 
-	const subtype = normalizePathSubtype(pathProperties?.feature_subtype || pathProperties?.name);
-	const domain = pathProperties?.transport_domain || getDefaultTransportDomainForPathSubtype(subtype);
+	const subtype = normalizePathSubtype(pathProperties.feature_subtype || pathProperties.name);
+	const domain = pathProperties.transport_domain || getDefaultTransportDomainForPathSubtype(subtype);
 	if (subtype === "Wuestenpfad" && transportOption === "horseCarriage") {
 		return false;
 	}
 
-	const allowedTransports = Array.isArray(pathProperties?.allowed_transports)
-		? pathProperties.allowed_transports
+	const allowedTransports = Array.isArray(pathProperties.allowed_transports)
+		 pathProperties.allowed_transports
 		: TRANSPORT_DOMAIN_OPTIONS[domain] || [];
 	return allowedTransports.includes(transportOption);
 }
@@ -283,13 +283,13 @@ function buildRoutePlanEntries(routeNames, segments) {
 	};
 
 	segments.forEach((segment, index) => {
-		if (!segment?.geometry?.coordinates?.length || segment.geometry.coordinates.length < 2) {
+		if (!segment.geometry.coordinates.length || segment.geometry.coordinates.length < 2) {
 			return;
 		}
 
-		const type = normalizePathSubtype(segment.properties?.feature_subtype || segment.properties?.name);
-		const transport = segment.properties?.transportOption || getTransportOption(type) || "groupFoot";
-		const speedKm = SPEED_TABLE[transport]?.[type] || 1;
+		const type = normalizePathSubtype(segment.properties.feature_subtype || segment.properties.name);
+		const transport = segment.properties.transportOption || getTransportOption(type) || "groupFoot";
+		const speedKm = SPEED_TABLE[transport].[type] || 1;
 		const speedMiles = speedKm * KM_TO_MILES;
 		let segDistance = 0;
 
@@ -304,7 +304,7 @@ function buildRoutePlanEntries(routeNames, segments) {
 		const startName = getRouteNodeDisplayName(routeNames[index], index, routeNames, segments, { allowCrossings: type !== "Flussweg" && type !== "Seeweg" });
 		const endName = getRouteNodeDisplayName(routeNames[index + 1], index + 1, routeNames, segments, { allowCrossings: type !== "Flussweg" && type !== "Seeweg" });
 		const segmentLabel = type === "Flussweg" && shouldShowRoutePathDisplayName(segment)
-			? getRoutePathDisplayName(segment)
+			 getRoutePathDisplayName(segment)
 			: "";
 
 		if (type === "Flussweg") {
@@ -387,9 +387,9 @@ function showRoutePlan(routeNames, segments) {
 	let totalRestTime = 0;
 
 	const calcDistance = (a, b) => calculateScaledDistance(a, b);
-	const startLoc = selectedLocations[0]?.coordinates;
-	const endLoc = selectedLocations[selectedLocations.length - 1]?.coordinates;
-	const airDistance = startLoc && endLoc ? calcDistance(startLoc, endLoc) : 0;
+	const startLoc = selectedLocations[0].coordinates;
+	const endLoc = selectedLocations[selectedLocations.length - 1].coordinates;
+	const airDistance = startLoc && endLoc  calcDistance(startLoc, endLoc) : 0;
 	const restPerDay = parseFloat($("#restHours").val()) || 10;
 	const travelPerDay = Math.max(24 - restPerDay, 0.5);
 	const planEntries = buildRoutePlanEntries(routeNames, segments);
@@ -410,7 +410,7 @@ function showRoutePlan(routeNames, segments) {
 		const formattedStartName = formatRoutePlanNodeName(entry.startName);
 		const formattedEndName = formatRoutePlanNodeName(entry.endName);
 		const labelSuffix = entry.type === "Flussweg" && entry.segmentLabel
-			? ` über <span class="route-plan-entry__label">${escapeHtml(entry.segmentLabel)}</span>`
+			 ` über <span class="route-plan-entry__label">${escapeHtml(entry.segmentLabel)}</span>`
 			: "";
 
 		$overview.append(`
@@ -461,11 +461,11 @@ function applyRestTimes(travelHours) {
 }
 
 function normalizeLocationType(value) {
-	return LOCATION_TYPE_KEYS.includes(value) ? value : "dorf";
+	return LOCATION_TYPE_KEYS.includes(value)  value : "dorf";
 }
 
 function locationTypeFromProperties(properties) {
-	const settlementClass = properties?.settlement_class;
+	const settlementClass = properties.settlement_class;
 	if (settlementClass) {
 		return normalizeLocationType(settlementClass);
 	}
@@ -478,7 +478,7 @@ function locationTypeFromProperties(properties) {
 		sz: "dorf",
 		d: "dorf",
 	};
-	return normalizeLocationType(placeTypeMap[String(properties?.["data-place-type"] || "d").toLowerCase()]);
+	return normalizeLocationType(placeTypeMap[String(properties.["data-place-type"] || "d").toLowerCase()]);
 }
 
 // Verarbeitung der Locations (GeoJSON Points)
@@ -488,17 +488,17 @@ const prepareLocationData = (data) => {
 	locationNameLabels = [];
 	locationMarkers = [];
 	locationData = data.features
-		.filter((feature) => feature.geometry.type === "Point" && feature.properties?.name && feature.properties?.feature_type !== "label")
+		.filter((feature) => feature.geometry.type === "Point" && feature.properties.name && feature.properties.feature_type !== "label")
 		.map((feature) => {
 			const isCrossing = feature.properties.name.startsWith("Kreuzung");
-			const locationType = isCrossing ? CROSSING_LOCATION_TYPE : locationTypeFromProperties(feature.properties);
-			const locationConfig = locationType ? LOCATION_TYPE_CONFIG[locationType] : null;
+			const locationType = isCrossing  CROSSING_LOCATION_TYPE : locationTypeFromProperties(feature.properties);
+			const locationConfig = locationType  LOCATION_TYPE_CONFIG[locationType] : null;
 			return {
 				publicId: feature.id || feature.properties.public_id || "",
-				name: isCrossing ? `Kreuzung-${crossingCount++}` : feature.properties.name,
+				name: isCrossing  `Kreuzung-${crossingCount++}` : feature.properties.name,
 				coordinates: [feature.geometry.coordinates[1], feature.geometry.coordinates[0]],
 				locationType,
-				locationTypeLabel: isCrossing ? "Kreuzung" : feature.properties.settlement_class_label || locationConfig?.singularLabel || "Dorf",
+				locationTypeLabel: isCrossing  "Kreuzung" : feature.properties.settlement_class_label || locationConfig.singularLabel || "Dorf",
 				description: feature.properties.description || "",
 				wikiUrl: readFeatureWikiUrl(feature.properties),
 				isNodix: Boolean(feature.properties.is_nodix),
@@ -515,12 +515,12 @@ const prepareLocationData = (data) => {
 				pane: "locationsPane",
 				keyboard: true,
 				draggable: false,
-				zIndexOffset: locationType === CROSSING_LOCATION_TYPE ? 1000 : 0,
+				zIndexOffset: locationType === CROSSING_LOCATION_TYPE  1000 : 0,
 			});
 			const markerEntry = { marker, locationType, name, publicId, location };
 			marker.on("dragend", async () => {
 				const saveSucceeded = await saveMovedLocationMarker(markerEntry, marker.getLatLng());
-				if (!saveSucceeded && activeLocationEdit?.originalLatLng) {
+				if (!saveSucceeded && activeLocationEdit.originalLatLng) {
 					marker.setLatLng(activeLocationEdit.originalLatLng);
 					syncLocationNameLabelVisibility();
 				}
@@ -557,10 +557,10 @@ function loadRouteDataFromApi() {
 				throw new Error("Map-Features-API liefert kein gueltiges GeoJSON.");
 			}
 
-			console.info(`SQL-Vektorkarte geladen: ${data.features.length} Features, Revision ${data.revision ?? "unbekannt"}.`);
+			console.info(`SQL-Vektorkarte geladen: ${data.features.length} Features, Revision ${data.revision  "unbekannt"}.`);
 			data.avesmapsSource = {
 				label: "SQL",
-				revision: data.revision ?? null,
+				revision: data.revision  null,
 				featureCount: data.features.length,
 			};
 			return data;
@@ -568,13 +568,13 @@ function loadRouteDataFromApi() {
 }
 
 function updateMapDataStatus(data) {
-	const source = data?.avesmapsSource || {};
+	const source = data.avesmapsSource || {};
 	mapDataSourceStatus = {
 		label: source.label || "unbekannt",
-		revision: source.revision ?? null,
-		featureCount: Number.isFinite(source.featureCount) ? source.featureCount : Array.isArray(data?.features) ? data.features.length : 0,
+		revision: source.revision  null,
+		featureCount: Number.isFinite(source.featureCount)  source.featureCount : Array.isArray(data.features)  data.features.length : 0,
 	};
-	const revisionText = mapDataSourceStatus.revision === null || mapDataSourceStatus.revision === undefined ? "-" : mapDataSourceStatus.revision;
+	const revisionText = mapDataSourceStatus.revision === null || mapDataSourceStatus.revision === undefined  "-" : mapDataSourceStatus.revision;
 
 	$("#map-data-status")
 		.text(`Map: ${mapDataSourceStatus.label} | Rev ${revisionText} | ${mapDataSourceStatus.featureCount.toLocaleString("de-DE")} Features`)
@@ -586,7 +586,7 @@ function loadRouteData() {
 }
 
 async function pollLiveMapUpdates() {
-	if (!IS_EDIT_MODE || !MAP_FEATURES_API_URL || isLiveMapUpdatePending || !mapDataSourceStatus?.revision) {
+	if (!IS_EDIT_MODE || !MAP_FEATURES_API_URL || isLiveMapUpdatePending || !mapDataSourceStatus.revision) {
 		return;
 	}
 
@@ -596,11 +596,11 @@ async function pollLiveMapUpdates() {
 		url.searchParams.set("since_revision", String(mapDataSourceStatus.revision));
 		const response = await fetch(url.toString(), { headers: { Accept: "application/json" } });
 		const data = await response.json().catch(() => ({}));
-		if (!response.ok || data?.ok !== true) {
-			throw new Error(data?.error || "Live-Aktualisierung fehlgeschlagen.");
+		if (!response.ok || data.ok !== true) {
+			throw new Error(data.error || "Live-Aktualisierung fehlgeschlagen.");
 		}
 
-		const features = Array.isArray(data.features) ? data.features : [];
+		const features = Array.isArray(data.features)  data.features : [];
 		if (features.length > 0) {
 			features.forEach(applyLiveMapFeatureUpdate);
 			refreshPlannerAfterFeatureChange({ updateRoute: true });
@@ -648,7 +648,7 @@ routeDataRequest
 			const waypointHtml = `
 					<div class="waypoint-container">
 					<input type="text" id="${waypointId}" class="waypoint-input" placeholder="Suche Ort..." />
-					${hasFirstWaypoint ? '<button class="remove-waypoint">➖</button>' : ""}
+					${hasFirstWaypoint  '<button class="remove-waypoint">➖</button>' : ""}
 					</div>`;
 			hasFirstWaypoint = true;
 			$("#waypoints").append(waypointHtml);
@@ -688,17 +688,17 @@ $("#searchButton").on("click", () => updateMapView());
 $("#search").on("change", 'input[type="checkbox"], input[type="radio"], select, input[type="number"]', () => syncPlannerStateToUrl());
 $("#search").on("input", "#restHours, .waypoint-input", () => syncPlannerStateToUrl());
 $(document).ajaxError((event, jqXHR, settings, thrownError) => {
-	const requestUrl = settings?.url || "unbekannte Anfrage";
-	const requestError = thrownError || jqXHR?.statusText || "XMLHttpRequest fehlgeschlagen";
+	const requestUrl = settings.url || "unbekannte Anfrage";
+	const requestError = thrownError || jqXHR.statusText || "XMLHttpRequest fehlgeschlagen";
 	alert(`Fehler bei der Anfrage ${requestUrl}: ${requestError}`);
 });
 
 $(document).on("click", (event) => {
-	const clickedElement = event.target instanceof Element ? event.target : null;
-	if (!clickedElement?.closest("#map-context-menu")) {
+	const clickedElement = event.target instanceof Element  event.target : null;
+	if (!clickedElement.closest("#map-context-menu")) {
 		closeMapContextMenu();
 	}
-	if (!clickedElement?.closest("#region-context-menu")) {
+	if (!clickedElement.closest("#region-context-menu")) {
 		closeRegionContextMenu();
 	}
 });
@@ -746,7 +746,7 @@ $(document).on("keydown", ".change-log-entry", function (event) {
 $(document).on("click", ".change-log-entry__undo", function (event) {
 	event.preventDefault();
 	event.stopPropagation();
-	const changeId = Number(this.closest(".change-log-entry")?.dataset.changeId || 0);
+	const changeId = Number(this.closest(".change-log-entry").dataset.changeId || 0);
 	const changeEntry = changeLogEntries.find((entry) => Number(entry.id) === changeId);
 	if (!changeEntry) {
 		showFeedbackToast("Änderung konnte nicht gefunden werden.", "warning");
@@ -802,7 +802,7 @@ $(document).on("click", ".map-context-menu__item", function (event) {
 	event.stopPropagation();
 
 	const action = this.dataset.contextAction;
-	const contextMenuLatLng = pendingContextMenuLatLng ? L.latLng(pendingContextMenuLatLng) : null;
+	const contextMenuLatLng = pendingContextMenuLatLng  L.latLng(pendingContextMenuLatLng) : null;
 	if (action === "open-spotlight-search") {
 		closeMapContextMenu();
 		openSpotlightSearch();
@@ -858,7 +858,7 @@ $(document).on("click", ".map-context-menu__item", function (event) {
 	if (action === "create-powerline" && contextMenuLatLng) {
 		closeMapContextMenu();
 		const nearest = findNearestLocationToLatLng(contextMenuLatLng);
-		startPowerlineCreationFromEndpoint(getPowerlineEndpointByPublicId(nearest?.publicId || "") || nearest);
+		startPowerlineCreationFromEndpoint(getPowerlineEndpointByPublicId(nearest.publicId || "") || nearest);
 		return;
 	}
 
@@ -1005,7 +1005,7 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		const endpoint = getPowerlineEndpointByPublicId(this.dataset.publicId)
 			|| (() => {
 				const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
-				return markerEntry?.location || null;
+				return markerEntry.location || null;
 			})();
 		startPowerlineCreationFromEndpoint(endpoint);
 		map.closePopup();
@@ -1016,7 +1016,7 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		const endpoint = getPowerlineEndpointByPublicId(this.dataset.publicId)
 			|| (() => {
 				const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
-				return markerEntry?.location || null;
+				return markerEntry.location || null;
 			})();
 		void completePendingPowerlineAtEndpoint(endpoint);
 		map.closePopup();
@@ -1137,12 +1137,12 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 });
 
 const normalizeLocationSearchName = (name) => {
-	return typeof name === "string" ? name.normalize("NFC").trim().toLowerCase() : "";
+	return typeof name === "string"  name.normalize("NFC").trim().toLowerCase() : "";
 };
 
 const normalizeLocationDuplicateName = (name) => {
 	return typeof name === "string"
-		? name
+		 name
 			.normalize("NFD")
 			.replace(/[\u0300-\u036f]/g, "")
 			.toLowerCase()
@@ -1210,7 +1210,7 @@ const addTooltip = ({
 		description,
 		wikiUrl,
 		isRuined,
-		actionsMarkup: showRemoveAction ? waypointRemoveActionMarkup(waypointId) : "",
+		actionsMarkup: showRemoveAction  waypointRemoveActionMarkup(waypointId) : "",
 	});
 
 	if (showDescription || showWikiLink) {
@@ -1231,7 +1231,7 @@ const addTooltip = ({
 		offset: [0, -10],
 		opacity: 1,
 		interactive: showRemoveAction,
-		className: showRemoveAction ? "location-tooltip location-tooltip--interactive" : "location-tooltip",
+		className: showRemoveAction  "location-tooltip location-tooltip--interactive" : "location-tooltip",
 	})
 		.setLatLng(coordinates)
 		.setContent(popupContent)

@@ -21,13 +21,13 @@ function offsetNestedLatLngs(value, delta) {
 }
 
 function getRegionEntryLayers(regionEntry) {
-	return (regionEntry?.layers?.length ? regionEntry.layers : [regionEntry?.layer]).filter(Boolean);
+	return (regionEntry.layers.length  regionEntry.layers : [regionEntry.layer]).filter(Boolean);
 }
 
 function regionEntryToClippingMultiPolygon(regionEntry, { onlyLayer = null, excludeLayers = [] } = {}) {
 	const excludedLayers = new Set(excludeLayers.filter(Boolean));
 	const layers = onlyLayer
-		? [onlyLayer]
+		 [onlyLayer]
 		: getRegionEntryLayers(regionEntry).filter((layer) => !excludedLayers.has(layer));
 	const geometries = getRegionLayerGeoJsonGeometries(layers);
 	const polygons = [];
@@ -50,7 +50,7 @@ function clippingMultiPolygonToGeoJson(multiPolygon) {
 	}
 
 	return normalizedMultiPolygon.length === 1
-		? { type: "Polygon", coordinates: normalizedMultiPolygon[0] }
+		 { type: "Polygon", coordinates: normalizedMultiPolygon[0] }
 		: { type: "MultiPolygon", coordinates: normalizedMultiPolygon };
 }
 
@@ -138,7 +138,7 @@ function normalizeClippingRing(ring) {
 		coordinates.push([...first]);
 	}
 
-	return coordinates.length >= 4 ? coordinates : null;
+	return coordinates.length >= 4  coordinates : null;
 }
 
 function roundGeometryCoordinate(value) {
@@ -148,7 +148,7 @@ function roundGeometryCoordinate(value) {
 function calculateClippingPolygonArea(polygon) {
 	return Math.abs((polygon || []).reduce((totalArea, ring, index) => {
 		const ringArea = calculateClippingRingArea(ring);
-		return index === 0 ? totalArea + ringArea : totalArea - ringArea;
+		return index === 0  totalArea + ringArea : totalArea - ringArea;
 	}, 0));
 }
 
@@ -203,7 +203,7 @@ function polygonLatLngsToCoordinates(latLngs) {
 }
 
 function getRegionEntryBounds(regionEntry) {
-	const layers = (regionEntry.layers?.length ? regionEntry.layers : [regionEntry.layer]).filter(Boolean);
+	const layers = (regionEntry.layers.length  regionEntry.layers : [regionEntry.layer]).filter(Boolean);
 	if (layers.length < 1) {
 		return null;
 	}
@@ -244,7 +244,7 @@ function findNearestRegionVertex(latLng, ownRegion) {
 			});
 		});
 	});
-	return nearest?.latLng || null;
+	return nearest.latLng || null;
 }
 
 function findNearestRegionSnapPoint(latLng, ownRegion) {
@@ -279,7 +279,7 @@ function findNearestRegionEdgePoint(latLng, ownRegion) {
 		});
 	});
 
-	return nearest?.latLng || null;
+	return nearest.latLng || null;
 }
 
 function closestPointOnSegment(point, startPoint, endPoint) {
@@ -300,18 +300,18 @@ function closestPointOnSegment(point, startPoint, endPoint) {
 }
 
 function getRegionOuterLatLngs(regionEntry) {
-	const layer = activeRegionGeometryEdit?.regionEntry === regionEntry
-		? activeRegionGeometryEdit.editLayer
+	const layer = activeRegionGeometryEdit.regionEntry === regionEntry
+		 activeRegionGeometryEdit.editLayer
 		: regionEntry.layer;
 	return getPolygonOuterLatLngs(layer);
 }
 
 function setRegionOuterLatLngs(regionEntry, outerLatLngs) {
-	const layer = activeRegionGeometryEdit?.regionEntry === regionEntry
-		? activeRegionGeometryEdit.editLayer
+	const layer = activeRegionGeometryEdit.regionEntry === regionEntry
+		 activeRegionGeometryEdit.editLayer
 		: regionEntry.layer;
 	const holes = getPolygonLatLngRings(layer).slice(1);
-	layer.setLatLngs(holes.length > 0 ? [outerLatLngs, ...holes] : [outerLatLngs]);
+	layer.setLatLngs(holes.length > 0  [outerLatLngs, ...holes] : [outerLatLngs]);
 }
 
 function getPolygonOuterLatLngs(polygon) {
@@ -339,11 +339,11 @@ function isLatLngLike(value) {
 }
 
 function regionLayerToGeoJsonGeometry(regionEntry) {
-	return regionLayersToGeoJsonGeometry(regionEntry.layers?.length ? regionEntry.layers : [regionEntry.layer], regionEntry);
+	return regionLayersToGeoJsonGeometry(regionEntry.layers.length  regionEntry.layers : [regionEntry.layer], regionEntry);
 }
 
 function getLayerGeoJsonGeometry(layer) {
-	return layer?.toGeoJSON?.().geometry || null;
+	return layer.toGeoJSON.().geometry || null;
 }
 
 function getRegionLayerGeoJsonGeometries(layers) {
@@ -377,6 +377,6 @@ function regionLayersToGeoJsonGeometry(layers, fallbackRegionEntry = null) {
 	});
 
 	return polygons.length === 1
-		? { type: "Polygon", coordinates: polygons[0] }
+		 { type: "Polygon", coordinates: polygons[0] }
 		: { type: "MultiPolygon", coordinates: polygons };
 }

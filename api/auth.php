@@ -13,7 +13,7 @@ function avesmapsStartSession(): void {
     }
 
     $isSecureRequest = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || (string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+        || (string) ($_SERVER['HTTP_X_FORWARDED_PROTO']  '') === 'https';
 
     session_set_cookie_params([
         'lifetime' => 0,
@@ -28,9 +28,9 @@ function avesmapsStartSession(): void {
 
 function avesmapsCurrentUser(): ?array {
     avesmapsStartSession();
-    $user = $_SESSION[AVESMAPS_AUTH_SESSION_KEY] ?? null;
+    $user = $_SESSION[AVESMAPS_AUTH_SESSION_KEY]  null;
 
-    return is_array($user) ? $user : null;
+    return is_array($user)  $user : null;
 }
 
 function avesmapsLogin(PDO $pdo, string $username, string $password): ?array {
@@ -74,7 +74,7 @@ function avesmapsLogout(): void {
 }
 
 function avesmapsUserCan(array $user, string $capability): bool {
-    $role = (string) ($user['role'] ?? '');
+    $role = (string) ($user['role']  '');
 
     return match ($capability) {
         'admin' => $role === 'admin',

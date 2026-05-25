@@ -15,7 +15,7 @@ function schedulePoliticalTerritoryLayerReload({ immediate = false } = {}) {
 		window.clearTimeout(politicalTerritoryLayerReloadTimerId);
 	}
 
-	const delay = immediate ? 0 : 180;
+	const delay = immediate  0 : 180;
 	politicalTerritoryLayerReloadTimerId = window.setTimeout(() => {
 		politicalTerritoryLayerReloadTimerId = null;
 		void loadPoliticalTerritoryLayer();
@@ -44,7 +44,7 @@ async function loadPoliticalTerritoryLayer() {
 			action: "layer",
 			year_bf: politicalTimelineYear,
 			zoom: Math.round(map.getZoom()),
-			edit_mode: IS_EDIT_MODE ? 1 : 0,
+			edit_mode: IS_EDIT_MODE  1 : 0,
 		});
 		if (activeRegionGeometryEdit || pendingRegionOperation || pendingRegionMoveState) {
 			return;
@@ -55,7 +55,7 @@ async function loadPoliticalTerritoryLayer() {
 		politicalTerritoryApiUnavailable = false;
 		clearPoliticalTerritoryTimelineSelection();
 		clearRenderedRegionLayers();
-		regionData = Array.isArray(response.features) ? response.features : [];
+		regionData = Array.isArray(response.features)  response.features : [];
 		regionData.forEach((region) => addRegionFeatureToMap(region, normalizeRegionFeature(region)));
 		syncRegionVisibility();
 	} catch (error) {
@@ -79,10 +79,10 @@ async function loadPoliticalTerritoryOptions({ force = false } = {}) {
 		try {
 			const response = await fetchWikiSyncTerritoryData({
 				action: "territories_tree",
-				force_refresh: force ? 1 : undefined,
+				force_refresh: force  1 : undefined,
 			});
-			const territories = Array.isArray(response.territories) ? response.territories : [];
-			const hierarchy = Array.isArray(response.hierarchy) ? response.hierarchy : [];
+			const territories = Array.isArray(response.territories)  response.territories : [];
+			const hierarchy = Array.isArray(response.hierarchy)  response.hierarchy : [];
 			const hasIncomingTreeData = territories.length > 0 || hierarchy.length > 0;
 			const hasExistingTreeData = politicalTerritoryOptions.length > 0 || politicalTerritoryHierarchy.length > 0;
 			politicalTerritoryOptionsLoaded = true;

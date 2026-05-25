@@ -14,7 +14,7 @@ Aktuell laeuft in `createGraph` (`index.html:1470`) ein `pathData.forEach(...)`,
   - bei `null`: `console.warn(...)` und `return` (skip)
 - Transportregel pruefen: `isTransportAllowedForPath(properties, transportOption)`
   - bei `false`: `return` (skip)
-- Geschwindigkeit aufloesen: `SPEED_TABLE[transportOption]?.[routeType]`
+- Geschwindigkeit aufloesen: `SPEED_TABLE[transportOption].[routeType]`
   - bei fehlender speed: `console.warn(...)` und `return` (skip)
 - Connection bauen:
   - `{ distance, time: distance / speed, routeType, id: properties.id, transportOption }`
@@ -81,7 +81,7 @@ function addRegularPathToGraph(graph, { geometry: { coordinates }, properties })
 	const endNode = getLocationAtPathEndpoint(coordinates[coordinates.length - 1]);
 	if (startNode && endNode) {
 		const distance = calculatePathCoordinateDistance(coordinates),
-			routeType = normalizePathSubtype(properties?.feature_subtype || properties?.name),
+			routeType = normalizePathSubtype(properties.feature_subtype || properties.name),
 			transportOption = getTransportOption(routeType);
 		if (!transportOption) {
 			console.warn(`Keine Transportoption fuer ${routeType} gefunden. Pfad wird uebersprungen.`);
@@ -90,7 +90,7 @@ function addRegularPathToGraph(graph, { geometry: { coordinates }, properties })
 		if (!isTransportAllowedForPath(properties, transportOption)) {
 			return;
 		}
-		const speed = SPEED_TABLE[transportOption]?.[routeType];
+		const speed = SPEED_TABLE[transportOption].[routeType];
 		if (!speed) {
 			console.warn(`Geschwindigkeit fuer ${transportOption} auf ${routeType} nicht definiert. Pfad wird uebersprungen.`);
 			return;
@@ -145,7 +145,7 @@ Wichtige Risiken bei der Extraktion:
 - `console.warn`-Texte:
   - unveraendert lassen fuer bestehende Diagnose-Workflows
 - speed lookup:
-  - `SPEED_TABLE[transportOption]?.[routeType]` exakt beibehalten
+  - `SPEED_TABLE[transportOption].[routeType]` exakt beibehalten
 - `transportOption === null`:
   - darf nicht spaeter geprueft werden als bisher
 - `Wuestenpfad + horseCarriage`:

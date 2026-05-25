@@ -72,7 +72,7 @@ function fallbackCopyTextToClipboard(text) {
 }
 
 async function copyTextToClipboard(text) {
-	if (navigator.clipboard?.writeText) {
+	if (navigator.clipboard.writeText) {
 		try {
 			await navigator.clipboard.writeText(text);
 			return true;
@@ -96,8 +96,8 @@ function copyCurrentUrlToClipboard() {
 async function copyCurrentUrlToClipboardWithFeedback() {
 	const didCopy = await copyCurrentUrlToClipboard();
 	showFeedbackToast(
-		didCopy ? "Link in die Zwischenablage kopiert." : "Link konnte nicht automatisch kopiert werden.",
-		didCopy ? "success" : "warning"
+		didCopy  "Link in die Zwischenablage kopiert." : "Link konnte nicht automatisch kopiert werden.",
+		didCopy  "success" : "warning"
 	);
 	return didCopy;
 }
