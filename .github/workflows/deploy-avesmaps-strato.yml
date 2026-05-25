@@ -34,7 +34,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy via SFTP
-    if: github.actor == 'valentin-schwind' && github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
