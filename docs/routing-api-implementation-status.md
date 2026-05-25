@@ -195,6 +195,19 @@
   - Fehlende oder unbekannte Ortsnamen liefern kontrollierte 404-Antworten.
 - Smoke noetig: nein
 
+## 2026-05-25 - API Phase 6D (Minimaler RouteResult Builder)
+
+- Commit: `Prepare minimal route result builder`
+- Schritt: Helper `avesmapsBuildMinimalRouteResultFromRequest(array $request, array $config)` eingefuehrt; baut aus einem normalisierten Request und konfiguriertem Gewichtungsgraphen ein minimales RouteResult mit Dijkstra-Analyse.
+- Dateien:
+  - `api/route.php`
+  - `api/route-response.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Kein Einfluss auf normalen POST-Routingpfad; die neue Funktion ist derzeit nur für den Diagnosepfad `request-route-data` aktiviert.
+  - Unbekannte Ortsnamen lösen eine RuntimeException aus und werden in zukünftiger HTTP-Code-Mapping-Schicht abgefangen.
+- Smoke noetig: nein
+
 ## 2026-05-25 - API Phase 4A (Graph-Rohmodell Vorbereitung)
 
 - Commit: `Prepare route graph model`
