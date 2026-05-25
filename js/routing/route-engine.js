@@ -64,6 +64,7 @@ function probeServerRouteForClientSegment(start, end, useShortest, clientRoute) 
 			const serverRoute = serverRouteResult?.route || serverRouteResult || {};
 			const serverSummary = serverRoute.summary || {};
 			const serverSegments = Array.isArray(serverRoute.segments) ? serverRoute.segments : [];
+			const serverCodeVersion = String(serverRoute.debug?.code_version || serverRouteResult?.code_version || "");
 			const serverEdgeIds = Array.isArray(serverRoute.debug?.edge_ids)
 				? serverRoute.debug.edge_ids
 				: serverSegments.map((segment) => String(segment?.edge_id || "")).filter(Boolean);
@@ -75,7 +76,9 @@ function probeServerRouteForClientSegment(start, end, useShortest, clientRoute) 
 				server_nodes: Number(serverSummary.node_count) || 0,
 				server_cost: Number(serverRoute.cost) || 0,
 				server_found: Boolean(serverRoute.found),
+				server_code_version: serverCodeVersion,
 			});
+			console.log("Server-Routing-Probe Server-Code-Version:", serverCodeVersion || "nicht vorhanden");
 			console.log("Server-Routing-Probe Server-IDs:", serverEdgeIds);
 			console.log("Server-Routing-Probe Server-Segmente:", serverSegments);
 			console.log("Server-Routing-Probe Ergebnis:", serverRouteResult);
