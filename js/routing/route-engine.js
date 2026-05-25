@@ -59,7 +59,7 @@ function probeServerRouteForClientSegment(start, end, useShortest, clientRoute) 
 		optimize: useShortest ? "shortest" : "fastest",
 	})
 		.then((serverRouteResult) => {
-			const serverRoute = serverRouteResult?.route || {};
+			const serverRoute = serverRouteResult?.route || serverRouteResult || {};
 			const serverSummary = serverRoute.summary || {};
 			console.log("Server-Routing-Probe Vergleich:", {
 				from: start,
