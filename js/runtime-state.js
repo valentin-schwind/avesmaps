@@ -17,7 +17,15 @@ const AVESMAPS_FILTERED_CONSOLE_PREFIXES = [
 	"Alle Routen-Knoten entfernt.",
 ];
 
+function avesmapsIsRouteDebugMode() {
+	return new URLSearchParams(window.location.search).get("serverrouting") === "1";
+}
+
 function avesmapsShouldFilterConsoleMessage(args) {
+	if (avesmapsIsRouteDebugMode()) {
+		return false;
+	}
+
 	const message = typeof args[0] === "string" ? args[0] : "";
 	return AVESMAPS_FILTERED_CONSOLE_PREFIXES.some((prefix) => message.startsWith(prefix))
 		|| message.includes("Querfeldein-Verbindungen für getrennte Orte hinzugefügt.");
