@@ -208,6 +208,19 @@
   - Unbekannte Ortsnamen lösen eine RuntimeException aus und werden in zukünftiger HTTP-Code-Mapping-Schicht abgefangen.
 - Smoke noetig: nein
 
+## 2026-05-25 - API Phase 6D Bugfix (Route-Name-Diagnose Konsistenz)
+
+- Commit: `Fix route name diagnostic builder`
+- Schritt: Diagnoseantwort `diagnostic` bei `route-name-data` auf `route-name-data` korrigiert und die Include-Reihenfolge in `api/route.php` so angepasst, dass `route-response.php` nach `route-map-data.php`, `route-network-data.php` und `route-graph.php` geladen wird.
+- Dateien:
+  - `api/route.php`
+  - `api/route-response.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Kein POST-Einfluss; nur Diagnosepfad und Lade-Reihenfolge korrigiert.
+  - GET ohne gültiges diagnostic bleibt weiterhin 405.
+- Smoke noetig: nein
+
 ## 2026-05-25 - API Phase 4A (Graph-Rohmodell Vorbereitung)
 
 - Commit: `Prepare route graph model`

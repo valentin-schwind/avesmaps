@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 require __DIR__ . '/bootstrap.php';
 require __DIR__ . '/route-request.php';
-require __DIR__ . '/route-response.php';
 require __DIR__ . '/route-map-data.php';
 require __DIR__ . '/route-network-data.php';
 require __DIR__ . '/route-graph.php';
+require __DIR__ . '/route-response.php';
 
 try {
 	$config = avesmapsLoadApiConfig(__DIR__);
