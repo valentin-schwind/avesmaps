@@ -15,10 +15,17 @@ function avesmapsBuildRouteNetworkData(array $routeMapData): array {
 		'subtype_counts' => [],
 	];
 
+	$clientPathIndex = 0;
 	$features = is_array($routeMapData['features'] ?? null) ? $routeMapData['features'] : [];
 	foreach ($features as $feature) {
 		if (!is_array($feature)) {
 			continue;
+		}
+
+		$clientPathId = '';
+		if (avesmapsIsClientRenderableRoutePath($feature)) {
+			$clientPathIndex++;
+			$clientPathId = 'path-' . $clientPathIndex;
 		}
 
 		if (avesmapsIsRouteLocation($feature)) {
@@ -31,7 +38,7 @@ function avesmapsBuildRouteNetworkData(array $routeMapData): array {
 			continue;
 		}
 
-		$pathData = avesmapsBuildRoutePathData($feature);
+		$pathData = avesmapsBuildRoutePathData($feature, $clientPathId);
 		$paths[] = $pathData;
 		$statistics['path_count']++;
 		$subtypeKey = (string) $pathData['subtype'];
@@ -64,6 +71,13 @@ function avesmapsIsRouteLocation(array $feature): bool {
 function avesmapsIsRoutePath(array $feature): bool {
 	$properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
 	return (string) ($properties['feature_type'] ?? '') === 'path';
+}
+
+function avesmapsIsClientRenderableRoutePath(array $feature): bool {
+	$geometry = is_array($feature['geometry'] ?? null) ? $feature['geometry'] : [];
+	$properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
+	return (string) ($geometry['type'] ?? '') === 'LineString'
+		&& (string) ($properties['feature_type'] ?? '') !== 'powerline';
 }
 
 function avesmapsGetRouteTransportType(string $subtype): string {
@@ -101,12 +115,13 @@ function avesmapsBuildRouteLocationData(array $feature): array {
 	];
 }
 
-function avesmapsBuildRoutePathData(array $feature): array {
+function avesmapsBuildRoutePathData(array $feature, string $clientPathId = ''): array {
 	$properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
 
 	return [
 		'id' => (string) ($feature['id'] ?? $properties['public_id'] ?? ''),
 		'public_id' => (string) ($properties['public_id'] ?? ''),
+		'client_path_id' => $clientPathId,
 		'name' => (string) ($properties['name'] ?? ''),
 		'subtype' => (string) ($properties['feature_subtype'] ?? ''),
 		'geometry' => is_array($feature['geometry'] ?? null) ? $feature['geometry'] : [],
