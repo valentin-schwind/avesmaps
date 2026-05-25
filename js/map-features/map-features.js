@@ -32,6 +32,12 @@ $("#mapStyleSelect").on("change", function () {
 });
 $("#togglePaths").change(syncPathVisibility);
 $("#toggleRivers").change(syncPathVisibility);
+$("#toggleSeaPaths").change(syncPathVisibility);
+if (IS_EDIT_MODE) {
+	$("#toggleSeaPathsControl").prop("hidden", false);
+}
+
+
 $("#mapLayerModeSelect").change(() => {
 	setSelectedMapLayerMode(getSelectedMapLayerMode());
 });
