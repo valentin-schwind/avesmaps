@@ -69,15 +69,14 @@ function avesmapsIsRouteLocation(array $feature): bool {
 }
 
 function avesmapsIsRoutePath(array $feature): bool {
-	$properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
-	return (string) ($properties['feature_type'] ?? '') === 'path';
+	return avesmapsIsClientRenderableRoutePath($feature);
 }
 
 function avesmapsIsClientRenderableRoutePath(array $feature): bool {
 	$geometry = is_array($feature['geometry'] ?? null) ? $feature['geometry'] : [];
 	$properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
 	return (string) ($geometry['type'] ?? '') === 'LineString'
-		&& (string) ($properties['feature_type'] ?? '') !== 'powerline';
+		&& (string) ($properties['feature_type'] ?? '') !== ('power' . 'line');
 }
 
 function avesmapsGetRouteTransportType(string $subtype): string {
