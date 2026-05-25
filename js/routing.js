@@ -598,13 +598,14 @@ function buildRoutePlanViewModel(routeResult, routeNames, routeLocations = []) {
 	const safeRouteLocations = Array.isArray(routeLocations) ? routeLocations : [];
 	const safeRouteNames = Array.isArray(routeNames) ? routeNames : [];
 
-	const routeDescription = safeRouteNames
+	const routeDescriptionSource = safeRouteLocations.length ? safeRouteLocations.map((location) => location?.name || "") : safeRouteNames;
+	const routeDescription = routeDescriptionSource
 		.map((routeName, index) => {
 			if (index === 0) {
 				return `von <strong>${routeName}</strong>`;
 			}
 
-			if (index === safeRouteNames.length - 1) {
+			if (index === routeDescriptionSource.length - 1) {
 				return `nach <strong>${routeName}</strong>`;
 			}
 
@@ -642,37 +643,23 @@ function buildRoutePlanViewModel(routeResult, routeNames, routeLocations = []) {
 
 function showRoutePlan(routeNames, segments) {
 	const $overview = $("#overview").empty();
-	let totalDistance = 0;
-	let totalTravelTime = 0;
-	let totalRestTime = 0;
-
-	const calcDistance = (a, b) => calculateScaledDistance(a, b);
-	const startLoc = selectedLocations[0]?.coordinates;
-	const endLoc = selectedLocations[selectedLocations.length - 1]?.coordinates;
-	const airDistance = startLoc && endLoc ? calcDistance(startLoc, endLoc) : 0;
 	const restPerDay = parseFloat($("#restHours").val()) || 10;
-	const travelPerDay = Math.max(24 - restPerDay, 0.5);
-	const planEntries = buildRoutePlanEntries(routeNames, segments);
 	const routeResult = buildRouteResult(selectedLocations, routeNames, segments, {
 		includeRests: $("#includeRests").is(":checked"),
 		restHoursPerDay: restPerDay,
 		optimize: $('input[name="pathType"]:checked').val() === "shortest" ? "shortest" : "fastest",
 	});
 	const routePlanViewModel = buildRoutePlanViewModel(routeResult, routeNames, selectedLocations);
+	const planEntries = routePlanViewModel.planEntries;
+	const totalDistance = routePlanViewModel.summary.distance;
+	const airDistance = routePlanViewModel.summary.airDistance;
+	const totalTravelTime = routePlanViewModel.summary.travelHours;
+	const totalRestTime = routePlanViewModel.summary.restHours;
+	const totalHours = routePlanViewModel.summary.totalHours;
+	const routeDesc = routePlanViewModel.routeDescription;
 	currentRoutePlanEntries = planEntries;
 
 	planEntries.forEach((entry, entryIndex) => {
-		totalDistance += entry.distance;
-
-		let segRestTime = 0;
-		if ($("#includeRests").is(":checked") && !["Seeweg", "Flussweg"].includes(entry.type)) {
-			const days = entry.travelTime / travelPerDay;
-			const totalSegmentHours = days * 24;
-			segRestTime = totalSegmentHours - entry.travelTime;
-		}
-
-		totalTravelTime += entry.travelTime;
-		totalRestTime += segRestTime;
 		const formattedStartName = formatRoutePlanNodeName(entry.startName);
 		const formattedEndName = formatRoutePlanNodeName(entry.endName);
 		const labelSuffix = entry.type === "Flussweg" && entry.segmentLabel
@@ -692,15 +679,6 @@ function showRoutePlan(routeNames, segments) {
 	$overview.find(".route-plan-entry[data-route-entry-index]").on("click", function () {
 		selectRoutePlanEntry(Number(this.dataset.routeEntryIndex), { zoomToEntry: true });
 	});
-	const totalHours = totalTravelTime + totalRestTime;
-
-	const routeDesc = selectedLocations
-		.map((loc, i, arr) => {
-			if (i === 0) return `von <strong>${loc.name}</strong>`;
-			else if (i === arr.length - 1) return `nach <strong>${loc.name}</strong>`;
-			else return `&uuml;ber ${loc.name}`;
-		})
-		.join(" ");
 
 	$overview.prepend(`
 		<button type="button" class="route-plan-entry route-plan-summary">

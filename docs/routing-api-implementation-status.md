@@ -47,3 +47,14 @@
 - Risiken:
   - Keine direkte Laufzeitaenderung, da die neuen Builder noch nicht in bestehende Anzeige-/Routingpfade eingebunden sind.
 - Smoke noetig: nein
+
+## 2026-05-25 - Schritt 6 (RoutePlan aus ViewModel)
+
+- Commit: `Render route plan from view model`
+- Schritt: `showRoutePlan(...)` nutzt jetzt `routePlanViewModel` fuer Plan-Eintraege und Summary-Werte, bei unveraenderter HTML-Struktur und unveraendertem Klick-/Zoom-Verhalten.
+- Dateien:
+  - `js/routing.js`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Da die Anzeige jetzt aus dem RouteResult/ViewModel gespeist wird, sind konsistente Smoke-Werte gegen die Baseline wichtig.
+- Smoke noetig: ja
