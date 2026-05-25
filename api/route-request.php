@@ -41,6 +41,7 @@ function avesmapsNormalizeRouteRequest(array $payload): array {
 	$restHoursPerDay = avesmapsRouteNormalizeRestHours($payload['rest_hours_per_day'] ?? AVESMAPS_ROUTE_DEFAULT_REQUEST['rest_hours_per_day']);
 	$minimizeTransfers = avesmapsRouteNormalizeBoolean($payload['minimize_transfers'] ?? AVESMAPS_ROUTE_DEFAULT_REQUEST['minimize_transfers'], 'minimize_transfers');
 	$transports = avesmapsRouteNormalizeTransports($payload['transports'] ?? []);
+	$clientRoute = avesmapsRouteNormalizeClientRoute($payload['client_route'] ?? []);
 
 	return [
 		'from' => $from,
@@ -54,6 +55,7 @@ function avesmapsNormalizeRouteRequest(array $payload): array {
 		'rest_hours_per_day' => $restHoursPerDay,
 		'minimize_transfers' => $minimizeTransfers,
 		'transports' => $transports,
+		'client_route' => $clientRoute,
 	];
 }
 
@@ -84,6 +86,38 @@ function avesmapsRouteNormalizeVia(mixed $value): array {
 	}
 
 	return array_values($normalizedVia);
+}
+
+function avesmapsRouteNormalizeClientRoute(mixed $value): array {
+	if ($value === null) {
+		return [];
+	}
+
+	if (!is_array($value)) {
+		throw new InvalidArgumentException('Invalid field: client_route must be an array of route steps.');
+	}
+
+	$normalizedRoute = [];
+	foreach (array_slice($value, 0, 200) as $entry) {
+		if (!is_array($entry)) {
+			continue;
+		}
+
+		$from = avesmapsNormalizeSingleLine((string) ($entry['from'] ?? ''), 120);
+		$to = avesmapsNormalizeSingleLine((string) ($entry['to'] ?? ''), 120);
+		$connectionId = avesmapsNormalizeSingleLine((string) ($entry['connection_id'] ?? $entry['connectionId'] ?? ''), 120);
+		if ($from === '' || $to === '' || $connectionId === '') {
+			continue;
+		}
+
+		$normalizedRoute[] = [
+			'from' => $from,
+			'to' => $to,
+			'connection_id' => $connectionId,
+		];
+	}
+
+	return $normalizedRoute;
 }
 
 function avesmapsRouteNormalizeBoolean(mixed $value, string $field): bool {
