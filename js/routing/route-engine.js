@@ -46,7 +46,7 @@ function shouldUseServerPrimaryRouting() {
 }
 
 function getRouteServerEndpointUrl() {
-	return window.AVESMAPS_ROUTE_ENDPOINT || "api/route.php";
+	return window.AVESMAPS_ROUTE_ENDPOINT || "api/route/";
 }
 
 function buildServerRouteProbeRequest(start, end, useShortest, clientRoute) {
