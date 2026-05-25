@@ -74,13 +74,17 @@ function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locatio
     if (!is_numeric($speed) || (float) $speed <= 0.0) return;
 
     $distance = avesmapsCalculateClientRouteCoordinateDistance($coordinates);
+    $clientPathId = (string) ($path['client_path_id'] ?? '');
+    if ($clientPathId === '') {
+        $clientPathId = 'path-' . $pathIndex;
+    }
     $connection = [
         'distance' => $distance,
         'time' => $distance / (float) $speed,
         'route_type' => $routeType,
         'transport_option' => $transportOption,
-        'id' => 'path-' . $pathIndex,
-        'path_id' => 'path-' . $pathIndex,
+        'id' => $clientPathId,
+        'path_id' => $clientPathId,
         'feature_id' => (string) ($path['id'] ?? ''),
         'public_id' => (string) ($path['public_id'] ?? ''),
         'from' => (string) $startNode['name'],
