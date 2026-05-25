@@ -43,7 +43,7 @@ function buildRouteResultFromSelectedLocations(useShortest) {
 	for (let i = 0; i < selectedLocations.length - 1; i++) {
 		const start = selectedLocations[i].name,
 			end = selectedLocations[i + 1].name,
-			route = calculateRoute(start, end, useShortest);
+			route = calculateRouteClientLegacy(start, end, useShortest);
 		console.log("Berechnete Route:", route);
 		if (route.length) {
 			if (!routeNodeNames.length) {

@@ -1474,8 +1474,9 @@
 		 * Dijkstra-Algorithmus mit optimierter PriorityQueue
 		 ******************************************************************/
 		const TRANSFER_PENALTY = 100;
+		const USE_SERVER_ROUTING = false;
 
-		function calculateRoute(startName, endName, useShortestPath = true) {
+		function calculateRouteClientLegacy(startName, endName, useShortestPath = true) {
 			const minimizeTransfers = $("#minimizeTransfers").is(":checked");
 			return calculateRouteCore(
 				graphData,
@@ -1486,6 +1487,34 @@
 				TRANSFER_PENALTY,
 				getTransportOption
 			);
+		}
+
+		async function calculateRouteClient(routeRequest) {
+			return calculateRouteClientLegacy(
+				routeRequest?.from || "",
+				routeRequest?.to || "",
+				routeRequest?.optimize === "shortest"
+			);
+		}
+
+		async function calculateRouteServer(routeRequest) {
+			const response = await fetch("https://avesmaps.de/api/route.php", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify(routeRequest),
+			});
+
+			return await response.json();
+		}
+
+		async function calculateRoute(routeRequest) {
+			if (USE_SERVER_ROUTING) {
+				return await calculateRouteServer(routeRequest);
+			}
+
+			return await calculateRouteClient(routeRequest);
 		}
 
 		function getSyntheticRouteConfig(routeOptions) {
