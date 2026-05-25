@@ -1,7 +1,7 @@
 "use strict";
 
 (function initPoliticalTerritorySubtreeDisplayTools() {
-	const API_URL = "/api/political-territory-subtree-display.php";
+	const API_URL = "/api/edit/political/subtree-display.php";
 	let activeBreadcrumbTerritoryPublicId = "";
 	let activeBreadcrumbTerritoryId = null;
 	let activeBreadcrumbIndex = -1;

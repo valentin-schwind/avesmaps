@@ -1,6 +1,6 @@
 "use strict";
 
-const POLITICAL_TERRITORY_DISPLAY_OVERRIDES_API_URL = "/api/political-territory-display-overrides.php";
+const POLITICAL_TERRITORY_DISPLAY_OVERRIDES_API_URL = "/api/edit/political/display-overrides.php";
 const POLITICAL_TERRITORY_WIKI_API_URL = "/api/political-territory-wiki.php";
 
 let activePoliticalTerritoryEditorRegion = null;
@@ -396,7 +396,7 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 	activePoliticalTerritoryEditorPendingLocalOverride = false;
 	refreshPoliticalTerritoryEditorMapLayer();
 	if (typeof showFeedbackToast === "function") {
-		showFeedbackToast(shouldPromote ? "Lokale Darstellung global übernommen." : result?.message || "Herrschaftsgebiet gespeichert.", "success");
+		showFeedbackToast(shouldPromote ? "Lokale Darstellung global Ã¼bernommen." : result?.message || "Herrschaftsgebiet gespeichert.", "success");
 	}
 	window.setTimeout(closePoliticalTerritoryEditor, 0);
 	return result;
@@ -408,7 +408,7 @@ async function syncPoliticalTerritoryEditorAssignmentZooms(value = {}) {
 	if (syncDisplays.length < 1) return null;
 
 	try {
-		const response = await fetch("/api/political-territory-assignment-zoom-sync.php", {
+		const response = await fetch("/api/edit/political/assignment-zoom-sync.php", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			credentials: "same-origin",
@@ -549,12 +549,12 @@ function initializePoliticalTerritoryEditorPopup() {
 function openPoliticalTerritoryWikiSyncSettings() {
 	const openedWindow = window.open("/html/wiki-dom-sync-settings.html", "_blank", "noopener,noreferrer");
 	if (!openedWindow && typeof setWikiSyncStatus === "function") {
-		setWikiSyncStatus("Popup blockiert: Bitte Popups erlauben oder Link in neuem Tab öffnen.", "error");
+		setWikiSyncStatus("Popup blockiert: Bitte Popups erlauben oder Link in neuem Tab Ã¶ffnen.", "error");
 	}
 }
 
 window.startWikiSyncTerritoryRun = function startWikiSyncTerritoryRunFromSettingsLink() {
-	if (typeof setWikiSyncStatus === "function") setWikiSyncStatus("Synchronisierungseinstellungen werden geöffnet...", "pending");
+	if (typeof setWikiSyncStatus === "function") setWikiSyncStatus("Synchronisierungseinstellungen werden geÃ¶ffnet...", "pending");
 	openPoliticalTerritoryWikiSyncSettings();
 };
 
