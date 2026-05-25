@@ -173,11 +173,18 @@ function hasPlannerStateSearchParams(searchParams) {
 	return false;
 }
 
+function copyRoutingModeFlags(searchParams) {
+	const currentSearchParams = new URLSearchParams(window.location.search);
+	["serverrouting", "clientrouting"].forEach((paramName) => {
+		if (currentSearchParams.get(paramName) === "1") {
+			searchParams.set(paramName, "1");
+		}
+	});
+}
+
 function buildPlannerSearchParams() {
 	const searchParams = new URLSearchParams();
-	if (new URLSearchParams(window.location.search).get("serverrouting") === "1") {
-		searchParams.set("serverrouting", "1");
-	}
+	copyRoutingModeFlags(searchParams);
 	if (IS_EDIT_MODE) {
 		searchParams.set("edit", "1");
 		searchParams.set("debugMap", "1");
