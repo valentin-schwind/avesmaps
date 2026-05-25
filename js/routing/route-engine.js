@@ -41,6 +41,28 @@ function shouldProbeServerRouting() {
 	return new URLSearchParams(window.location.search).get("serverrouting") === "1";
 }
 
+function buildServerRouteProbeRequest(start, end, useShortest) {
+	const routeOptions = buildRouteOptionsFromPlannerControls();
+	return {
+		from: start,
+		to: end,
+		via: [],
+		optimize: useShortest ? "shortest" : "fastest",
+		include_air_distance: true,
+		include_geometry: true,
+		include_steps: true,
+		include_rests: $("#includeRests").is(":checked"),
+		rest_hours_per_day: parseFloat($("#restHours").val()) || 0,
+		minimize_transfers: $("#minimizeTransfers").is(":checked"),
+		transports: {
+			land: routeOptions.landOption,
+			river: routeOptions.riverOption,
+			sea: routeOptions.seaOption,
+			synthetic: routeOptions.landOption,
+		},
+	};
+}
+
 function probeServerRouteForClientSegment(start, end, useShortest, clientRoute) {
 	if (!shouldProbeServerRouting()) {
 		return;
@@ -52,14 +74,11 @@ function probeServerRouteForClientSegment(start, end, useShortest, clientRoute) 
 
 	const clientSegmentCount = Array.isArray(clientRoute) ? clientRoute.length : 0;
 	const clientConnectionIds = Array.isArray(clientRoute) ? clientRoute.map((routeStep) => String(routeStep?.connectionId || "")).filter(Boolean) : [];
+	const serverRouteRequest = buildServerRouteProbeRequest(start, end, useShortest);
 	console.log("Server-Routing-Probe gestartet:", { from: start, to: end, client_segments: clientSegmentCount });
 	console.log("Server-Routing-Probe Client-IDs:", clientConnectionIds);
-	void calculateRouteServer({
-		from: start,
-		to: end,
-		via: [],
-		optimize: useShortest ? "shortest" : "fastest",
-	})
+	console.log("Server-Routing-Probe Request:", serverRouteRequest);
+	void calculateRouteServer(serverRouteRequest)
 		.then((serverRouteResult) => {
 			const serverRoute = serverRouteResult?.route || serverRouteResult || {};
 			const serverSummary = serverRoute.summary || {};
