@@ -67,6 +67,10 @@ async function loadPoliticalTerritoryLayer() {
 }
 
 async function loadPoliticalTerritoryOptions({ force = false } = {}) {
+	if (!IS_EDIT_MODE) {
+		politicalTerritoryOptionsLoaded = true;
+		return politicalTerritoryOptions;
+	}
 	if (!force && politicalTerritoryOptionsSource === "wiki" && politicalTerritoryOptionsLoaded) {
 		return politicalTerritoryOptions;
 	}
@@ -109,7 +113,7 @@ async function loadPoliticalTerritoryOptions({ force = false } = {}) {
 }
 
 function preloadPoliticalTerritoryOptions() {
-	if (!POLITICAL_TERRITORIES_API_URL) {
+	if (!IS_EDIT_MODE || !POLITICAL_TERRITORIES_API_URL) {
 		return;
 	}
 
