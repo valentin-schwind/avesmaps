@@ -447,7 +447,7 @@ const DEFAULT_PLANNER_STATE = {
 	toggleKleinstaedte: false,
 	toggleDoerfer: false,
 	toggleGebaeude: false,
-	ogglePaths: false,
+	togglePaths: false,
 	mapLayerMode: "deregraphic",
 	toggleCrossings: false,
 	toggleNodix: false,
