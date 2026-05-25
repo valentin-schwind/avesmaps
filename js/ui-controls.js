@@ -619,6 +619,14 @@ function decorateWikiSyncTerritoryMetaLinks() {
 	treeElement.querySelectorAll(".tree-item").forEach((itemElement) => {
 		const metaElement = itemElement.querySelector(".tree-item-meta");
 		if (!metaElement || metaElement.dataset.wikiMetaDecorated === "1") return;
+
+		const existingLink = metaElement.querySelector("a");
+		if (existingLink) {
+			existingLink.classList.add("tree-item-meta-link");
+			existingLink.rel = "noopener noreferrer";
+			metaElement.dataset.wikiMetaDecorated = "1";
+			return;
+		}
 		const row = findWikiSyncTerritoryRowForItem(itemElement);
 		const wikiUrl = String(row?.wiki_url || "").trim();
 		const metaText = normalizeWikiSyncTerritoryMetaText(metaElement.textContent);
