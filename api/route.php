@@ -101,6 +101,49 @@ try {
 			'result' => $routeLocationNode,
 		]);
 	}
+	if ($requestMethod === 'GET' && $routeDiagnostic === 'route-name-data') {
+		$fromLocation = trim((string) ($_GET['from'] ?? ''));
+		$toLocation = trim((string) ($_GET['to'] ?? ''));
+		if ($fromLocation === '' || $toLocation === '') {
+			avesmapsRouteErrorResponse(400, 'invalid_request', 'Both from and to location names are required.');
+		}
+
+		$routeMapData = avesmapsLoadRouteMapData($config);
+		$routeNetworkData = avesmapsBuildRouteNetworkData($routeMapData);
+		$routeGraphWeighted001 = avesmapsBuildRouteGraph($routeNetworkData, [
+			'endpoint_snap_tolerance' => 0.001,
+			'deduplicate_edges' => true,
+			'remove_self_loops' => true,
+			'include_edge_weights' => true,
+		]);
+
+		$fromNodeData = avesmapsFindNearestGraphNodeForLocation($routeGraphWeighted001, $routeNetworkData, $fromLocation);
+		if ($fromNodeData['found'] === false) {
+			avesmapsRouteErrorResponse(404, 'location_not_found', 'From location not found.');
+		}
+
+		$toNodeData = avesmapsFindNearestGraphNodeForLocation($routeGraphWeighted001, $routeNetworkData, $toLocation);
+		if ($toNodeData['found'] === false) {
+			avesmapsRouteErrorResponse(404, 'location_not_found', 'To location not found.');
+		}
+
+		$routeDijkstraResult = avesmapsFindShortestRouteInGraph($routeGraphWeighted001, $fromNodeData['nearest_node_id'], $toNodeData['nearest_node_id']);
+
+		avesmapsJsonResponse(200, [
+			'ok' => true,
+			'diagnostic' => 'route-name-data',
+			'from' => $fromLocation,
+			'to' => $toLocation,
+			'from_node' => $fromNodeData['nearest_node_id'],
+			'to_node' => $toNodeData['nearest_node_id'],
+			'result' => [
+				'found' => (bool) ($routeDijkstraResult['found'] ?? false),
+				'cost' => (float) ($routeDijkstraResult['cost'] ?? 0.0),
+				'node_count' => count($routeDijkstraResult['node_ids'] ?? []),
+				'edge_count' => (int) ($routeDijkstraResult['edge_count'] ?? 0),
+			],
+		]);
+	}
 	if ($requestMethod === 'GET' && $routeDiagnostic === 'dijkstra-data') {
 		$fromNodeId = trim((string) ($_GET['from_node'] ?? ''));
 		$toNodeId = trim((string) ($_GET['to_node'] ?? ''));

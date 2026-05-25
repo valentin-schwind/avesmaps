@@ -182,6 +182,19 @@
   - Name-basierte Ortssuche ist fallunabhaengig (`lowercase`) und kann bei mehreren gleichen Namen den ersten Treffer verwenden.
 - Smoke noetig: nein
 
+## 2026-05-25 - API Phase 6C (Ortsname zu Dijkstra Diagnose)
+
+- Commit: `Add route by location diagnostics`
+- Schritt: Diagnosepfad `GET /api/route.php?diagnostic=route-name-data&from=<name>&to=<name>` eingefuehrt; kombiniert Ortssuche auf Graph-Knoten mit Dijkstra-Suche im gewichteten 0.001-Graph.
+- Dateien:
+  - `api/route.php`
+  - `api/route-graph.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Kein Einfluss auf normalen POST-Routingpfad; nur neue Diagnose-Logik.
+  - Fehlende oder unbekannte Ortsnamen liefern kontrollierte 404-Antworten.
+- Smoke noetig: nein
+
 ## 2026-05-25 - API Phase 4A (Graph-Rohmodell Vorbereitung)
 
 - Commit: `Prepare route graph model`
