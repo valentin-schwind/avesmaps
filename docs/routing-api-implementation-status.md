@@ -247,6 +247,19 @@
   - Unerwartete Ausnahmen bleiben weiterhin 500 `server_error`.
 - Smoke noetig: nein
 
+## 2026-05-25 - API Phase 8A (RouteResult-Struktur vorbereiten)
+
+- Commit: `Prepare route result structure`
+- Schritt: POST-Antwort `route` in Richtung zukuenftiges RouteResult strukturiert mit `summary`, `debug` und leerem `segments`-Array, dabei alte Direktfelder (`node_count`, `edge_count`, `from_node`, `to_node`) in die neuen Strukturen verschoben.
+- Dateien:
+  - `api/route.php`
+  - `api/route-response.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Kein Frontend- oder Route-Geometrie-Feature; nur Formatanpassung der minimalen POST-Antwort.
+  - GET-Diagnosepfade bleiben unverändert.
+- Smoke noetig: nein
+
 ## 2026-05-25 - API Phase 4A (Graph-Rohmodell Vorbereitung)
 
 - Commit: `Prepare route graph model`

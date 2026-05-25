@@ -70,3 +70,21 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 		],
 	];
 }
+
+function avesmapsBuildMinimalRouteResponse(array $route): array {
+	return [
+		'found' => (bool) ($route['found'] ?? false),
+		'from' => (string) ($route['from'] ?? ''),
+		'to' => (string) ($route['to'] ?? ''),
+		'cost' => (float) ($route['cost'] ?? 0.0),
+		'summary' => [
+			'node_count' => (int) ($route['node_count'] ?? 0),
+			'edge_count' => (int) ($route['edge_count'] ?? 0),
+		],
+		'debug' => [
+			'from_node' => (string) ($route['from_node'] ?? ''),
+			'to_node' => (string) ($route['to_node'] ?? ''),
+		],
+		'segments' => [],
+	];
+}
