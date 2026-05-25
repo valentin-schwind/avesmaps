@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/route-client-graph.php';
 
-const AVESMAPS_ROUTE_API_CODE_REVISION = 10;
+const AVESMAPS_ROUTE_API_CODE_REVISION = 11;
 
 class AvesmapsRouteLocationNotFoundException extends RuntimeException {}
 class AvesmapsRouteViaNotSupportedException extends RuntimeException {}
@@ -161,6 +161,8 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 	$routeDijkstraResult = avesmapsFindClientCompatibleRoute($clientGraph, $fromLocation, $toLocation, $request);
 	$edgeIds = is_array($routeDijkstraResult['edge_ids'] ?? null) ? $routeDijkstraResult['edge_ids'] : [];
 	$nodeIds = is_array($routeDijkstraResult['node_ids'] ?? null) ? $routeDijkstraResult['node_ids'] : [];
+	$networkStatistics = is_array($routeNetworkData['statistics'] ?? null) ? $routeNetworkData['statistics'] : [];
+	$graphStatistics = is_array($clientGraph['statistics'] ?? null) ? $clientGraph['statistics'] : [];
 
 	if (!isset($clientGraph['graph'][$fromLocation])) {
 		throw new AvesmapsRouteLocationNotFoundException(sprintf('Unknown from location: %s', $fromLocation));
@@ -186,9 +188,11 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 			'debug_context' => [
 				'api_code_revision' => AVESMAPS_ROUTE_API_CODE_REVISION,
 				'map_revision' => (int) ($routeMapData['revision'] ?? 0),
+				'network_path_count' => (int) ($networkStatistics['path_count'] ?? 0),
+				'client_graph_path_feature_count' => (int) ($graphStatistics['path_feature_count'] ?? 0),
 				'request' => $request,
-				'network_statistics' => is_array($routeNetworkData['statistics'] ?? null) ? $routeNetworkData['statistics'] : [],
-				'client_graph_statistics' => is_array($clientGraph['statistics'] ?? null) ? $clientGraph['statistics'] : [],
+				'network_statistics' => $networkStatistics,
+				'client_graph_statistics' => $graphStatistics,
 				'client_route_on_server_graph' => avesmapsAnalyzeClientRouteOnServerGraph($clientGraph, $request, $routeDijkstraResult),
 			],
 		],
@@ -209,6 +213,8 @@ function avesmapsBuildMinimalRouteResponse(array $route): array {
 		'debug' => [
 			'api_code_revision' => AVESMAPS_ROUTE_API_CODE_REVISION,
 			'map_revision' => (int) ($debugContext['map_revision'] ?? 0),
+			'network_path_count' => (int) ($debugContext['network_path_count'] ?? 0),
+			'client_graph_path_feature_count' => (int) ($debugContext['client_graph_path_feature_count'] ?? 0),
 			'from_node' => (string) ($route['from_node'] ?? ''),
 			'to_node' => (string) ($route['to_node'] ?? ''),
 			'node_ids' => is_array($route['node_ids'] ?? null) ? $route['node_ids'] : [],
