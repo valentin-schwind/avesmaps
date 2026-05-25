@@ -4269,3 +4269,8 @@ body.edit-mode .map-label span {
 	padding: 10px; /* Innerer Abstand für bessere Lesbarkeit */
 	background-color: #fff9f4; /* Hintergrundfarbe für bessere Sichtbarkeit */
 }
+
+.map-context-menu__item[hidden],
+.map-context-menu__group[hidden] {
+display: none !important;
+}
