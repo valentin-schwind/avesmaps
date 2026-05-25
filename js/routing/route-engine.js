@@ -42,10 +42,15 @@ function shouldProbeServerRouting() {
 }
 
 function probeServerRouteForClientSegment(start, end, useShortest) {
-	if (!shouldProbeServerRouting() || typeof calculateRouteServer !== "function") {
+	if (!shouldProbeServerRouting()) {
+		return;
+	}
+	if (typeof calculateRouteServer !== "function") {
+		console.warn("Server-Routing-Probe uebersprungen: calculateRouteServer ist nicht verfuegbar.");
 		return;
 	}
 
+	console.log("Server-Routing-Probe gestartet:", { from: start, to: end });
 	void calculateRouteServer({
 		from: start,
 		to: end,
@@ -53,7 +58,7 @@ function probeServerRouteForClientSegment(start, end, useShortest) {
 		optimize: useShortest ? "shortest" : "fastest",
 	})
 		.then((serverRouteResult) => {
-			console.info("Server-Routing-Probe:", serverRouteResult);
+			console.log("Server-Routing-Probe Ergebnis:", serverRouteResult);
 		})
 		.catch((error) => {
 			console.warn("Server-Routing-Probe fehlgeschlagen:", error);
