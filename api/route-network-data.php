@@ -102,6 +102,16 @@ function avesmapsNormalizeRouteSubtypeKey(string $subtype): string {
 	return $normalizedSubtype;
 }
 
+function avesmapsResolveRoutePathSubtype(array $properties): string {
+	$featureSubtype = trim((string) ($properties['feature_subtype'] ?? ''));
+	$displayName = trim((string) ($properties['display_name'] ?? ''));
+	$originalName = trim((string) ($properties['original_name'] ?? ''));
+	$name = trim((string) ($properties['name'] ?? ''));
+	$subtypeCandidate = $featureSubtype !== '' ? $featureSubtype : ($displayName !== '' ? $displayName : ($originalName !== '' ? $originalName : ($name !== '' ? $name : 'Weg')));
+
+	return avesmapsNormalizeClientRouteSubtype($subtypeCandidate);
+}
+
 function avesmapsBuildRouteLocationData(array $feature): array {
 	$properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
 
@@ -117,13 +127,14 @@ function avesmapsBuildRouteLocationData(array $feature): array {
 
 function avesmapsBuildRoutePathData(array $feature, string $clientPathId = ''): array {
 	$properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
+	$routeSubtype = avesmapsResolveRoutePathSubtype($properties);
 
 	return [
 		'id' => (string) ($feature['id'] ?? $properties['public_id'] ?? ''),
 		'public_id' => (string) ($properties['public_id'] ?? ''),
 		'client_path_id' => $clientPathId,
-		'name' => (string) ($properties['name'] ?? ''),
-		'subtype' => (string) ($properties['feature_subtype'] ?? ''),
+		'name' => $routeSubtype,
+		'subtype' => $routeSubtype,
 		'geometry' => is_array($feature['geometry'] ?? null) ? $feature['geometry'] : [],
 		'properties' => is_array($properties['properties'] ?? null) ? $properties['properties'] : [],
 	];
