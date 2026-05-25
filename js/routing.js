@@ -491,6 +491,44 @@ function buildRoutePlanEntries(routeNames, segments) {
 	return entries;
 }
 
+function resolveRouteStepTransport(routeStep, fallbackTransport = null) {
+	const resolvedRouteStep = routeStep || {};
+	if (resolvedRouteStep.transport) {
+		return resolvedRouteStep.transport;
+	}
+
+	if (resolvedRouteStep.transport_option) {
+		return resolvedRouteStep.transport_option;
+	}
+
+	if (resolvedRouteStep.mode) {
+		return resolvedRouteStep.mode;
+	}
+
+	return fallbackTransport;
+}
+
+function countTransportTransfers(routeSteps) {
+	const safeRouteSteps = Array.isArray(routeSteps) ? routeSteps : [];
+	let transferCount = 0;
+	let previousTransport = null;
+
+	safeRouteSteps.forEach((routeStep) => {
+		const transport = resolveRouteStepTransport(routeStep);
+		if (!transport) {
+			return;
+		}
+
+		if (previousTransport && transport !== previousTransport) {
+			transferCount += 1;
+		}
+
+		previousTransport = transport;
+	});
+
+	return transferCount;
+}
+
 function buildRouteSteps(routeNames, segments, options = {}) {
 	const includeRests = Boolean(options.includeRests);
 	const restHoursPerDay = Number.isFinite(Number(options.restHoursPerDay)) ? Number(options.restHoursPerDay) : 10;
@@ -507,7 +545,7 @@ function buildRouteSteps(routeNames, segments, options = {}) {
 
 		return {
 			type: entry.type,
-			transport: entry.type,
+			transport: resolveRouteStepTransport(entry, entry.type),
 			from: entry.startName,
 			to: entry.endName,
 			path_name: entry.segmentLabel || "",
@@ -539,7 +577,7 @@ function buildRouteSummary(routeLocations, routeSteps, options = {}) {
 		total_hours: totalHours,
 		total_days: totalHours / 24,
 		optimize,
-		transfers: Math.max(safeRouteSteps.length - 1, 0),
+		transfers: countTransportTransfers(safeRouteSteps),
 	};
 }
 
