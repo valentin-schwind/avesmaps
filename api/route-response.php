@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/route-client-graph.php';
 
-const AVESMAPS_ROUTE_API_CODE_VERSION = 'client-graph-path-id-2026-05-25';
+const AVESMAPS_ROUTE_API_CODE_VERSION = 'client-graph-subtype-debug-2026-05-25';
 
 class AvesmapsRouteLocationNotFoundException extends RuntimeException {}
 class AvesmapsRouteViaNotSupportedException extends RuntimeException {}
@@ -111,11 +111,17 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 			'node_ids' => $nodeIds,
 			'edge_ids' => $edgeIds,
 			'segments' => avesmapsBuildClientRouteDiagnosticSegments(is_array($routeDijkstraResult['segments'] ?? null) ? $routeDijkstraResult['segments'] : []),
+			'debug_context' => [
+				'request' => $request,
+				'network_statistics' => is_array($routeNetworkData['statistics'] ?? null) ? $routeNetworkData['statistics'] : [],
+				'client_graph_statistics' => is_array($clientGraph['statistics'] ?? null) ? $clientGraph['statistics'] : [],
+			],
 		],
 	];
 }
 
 function avesmapsBuildMinimalRouteResponse(array $route): array {
+	$debugContext = is_array($route['debug_context'] ?? null) ? $route['debug_context'] : [];
 	return [
 		'found' => (bool) ($route['found'] ?? false),
 		'from' => (string) ($route['from'] ?? ''),
@@ -131,6 +137,7 @@ function avesmapsBuildMinimalRouteResponse(array $route): array {
 			'to_node' => (string) ($route['to_node'] ?? ''),
 			'node_ids' => is_array($route['node_ids'] ?? null) ? $route['node_ids'] : [],
 			'edge_ids' => is_array($route['edge_ids'] ?? null) ? $route['edge_ids'] : [],
+			'context' => $debugContext,
 		],
 		'segments' => is_array($route['segments'] ?? null) ? $route['segments'] : [],
 	];
