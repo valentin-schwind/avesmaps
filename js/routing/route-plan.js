@@ -104,12 +104,30 @@ function formatRoutePlanNodeName(name) {
 	return normalizeNodeName(name) === "Kreuzung" ? "Markierung" : name;
 }
 
+function isRoutePlanMarkerName(name) {
+	return normalizeNodeName(name) === "Kreuzung" || String(name || "") === "Markierung";
+}
+
+function appendRoutePlanLabel(labelSet, segmentLabel) {
+	const label = String(segmentLabel || "").trim();
+	if (label) {
+		labelSet.add(label);
+	}
+}
+
+function formatRoutePlanLabels(labelSet) {
+	return [...labelSet].join(", ");
+}
+
 function buildRoutePlanEntries(routeNames, segments) {
 	const entries = [];
 	let aggregateEntry = null;
 
 	const flushAggregateEntry = () => {
 		if (aggregateEntry) {
+			aggregateEntry.segmentLabel = formatRoutePlanLabels(aggregateEntry.segmentLabelSet || new Set());
+			delete aggregateEntry.segmentLabelSet;
+			delete aggregateEntry.aggregateKey;
 			entries.push(aggregateEntry);
 			aggregateEntry = null;
 		}
@@ -134,25 +152,26 @@ function buildRoutePlanEntries(routeNames, segments) {
 		}
 
 		const segTravelTime = (segDistance / speedMiles) * TIME_SCALE_FACTOR;
-		const startName = getRouteNodeDisplayName(routeNames[index], index, routeNames, segments, { allowCrossings: type !== "Flussweg" && type !== "Seeweg" });
-		const endName = getRouteNodeDisplayName(routeNames[index + 1], index + 1, routeNames, segments, { allowCrossings: type !== "Flussweg" && type !== "Seeweg" });
+		const isWaterRoute = type === "Flussweg" || type === "Seeweg";
+		const startName = getRouteNodeDisplayName(routeNames[index], index, routeNames, segments, { allowCrossings: !isWaterRoute });
+		const endName = getRouteNodeDisplayName(routeNames[index + 1], index + 1, routeNames, segments, { allowCrossings: !isWaterRoute });
 		const segmentLabel = type === "Flussweg" && shouldShowRoutePathDisplayName(segment)
 			? getRoutePathDisplayName(segment)
 			: "";
 
-		if (type === "Flussweg") {
-			const aggregateKey = `${type}:${segmentLabel}`;
-			if (aggregateEntry && aggregateEntry.aggregateKey !== aggregateKey) {
+		if (isWaterRoute) {
+			if (aggregateEntry && aggregateEntry.aggregateKey !== type) {
 				flushAggregateEntry();
 			}
 
 			if (!aggregateEntry) {
 				aggregateEntry = {
-					aggregateKey,
+					aggregateKey: type,
 					type,
 					startName,
 					endName,
-					segmentLabel,
+					segmentLabel: "",
+					segmentLabelSet: new Set(),
 					distance: 0,
 					travelTime: 0,
 					restTime: 0,
@@ -162,36 +181,10 @@ function buildRoutePlanEntries(routeNames, segments) {
 
 			aggregateEntry.distance += segDistance;
 			aggregateEntry.travelTime += segTravelTime;
-			if (endName && endName !== aggregateEntry.endName) {
+			appendRoutePlanLabel(aggregateEntry.segmentLabelSet, segmentLabel);
+			if (endName && !isRoutePlanMarkerName(endName)) {
 				aggregateEntry.endName = endName;
 			}
-			aggregateEntry.segmentIndexes.push(index);
-			return;
-		}
-
-		if (type === "Seeweg") {
-			const aggregateKey = `${type}:${segmentLabel}`;
-			if (aggregateEntry && aggregateEntry.aggregateKey !== aggregateKey) {
-				flushAggregateEntry();
-			}
-
-			if (!aggregateEntry) {
-				aggregateEntry = {
-					aggregateKey,
-					type,
-					startName,
-					endName,
-					segmentLabel,
-					distance: 0,
-					travelTime: 0,
-					restTime: 0,
-					segmentIndexes: [],
-				};
-			}
-
-			aggregateEntry.distance += segDistance;
-			aggregateEntry.travelTime += segTravelTime;
-			aggregateEntry.endName = endName;
 			aggregateEntry.segmentIndexes.push(index);
 			return;
 		}
