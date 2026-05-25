@@ -61,6 +61,36 @@ try {
 			],
 		]);
 	}
+	if ($requestMethod === 'GET' && $routeDiagnostic === 'dijkstra-data') {
+		$fromNodeId = trim((string) ($_GET['from_node'] ?? ''));
+		$toNodeId = trim((string) ($_GET['to_node'] ?? ''));
+		if ($fromNodeId === '' || $toNodeId === '') {
+			avesmapsRouteErrorResponse(400, 'invalid_request', 'Both from_node and to_node are required.');
+		}
+
+		$routeMapData = avesmapsLoadRouteMapData($config);
+		$routeNetworkData = avesmapsBuildRouteNetworkData($routeMapData);
+		$routeGraphWeighted001 = avesmapsBuildRouteGraph($routeNetworkData, [
+			'endpoint_snap_tolerance' => 0.001,
+			'deduplicate_edges' => true,
+			'remove_self_loops' => true,
+			'include_edge_weights' => true,
+		]);
+		$routeDijkstraResult = avesmapsFindShortestRouteInGraph($routeGraphWeighted001, $fromNodeId, $toNodeId);
+
+		avesmapsJsonResponse(200, [
+			'ok' => true,
+			'diagnostic' => 'dijkstra-data',
+			'from_node' => $fromNodeId,
+			'to_node' => $toNodeId,
+			'result' => [
+				'found' => (bool) ($routeDijkstraResult['found'] ?? false),
+				'cost' => (float) ($routeDijkstraResult['cost'] ?? 0.0),
+				'node_count' => count($routeDijkstraResult['node_ids'] ?? []),
+				'edge_count' => (int) ($routeDijkstraResult['edge_count'] ?? 0),
+			],
+		]);
+	}
 	if ($requestMethod === 'GET' && $routeDiagnostic === 'graph-data') {
 		$routeMapData = avesmapsLoadRouteMapData($config);
 		$routeNetworkData = avesmapsBuildRouteNetworkData($routeMapData);

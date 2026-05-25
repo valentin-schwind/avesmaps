@@ -264,3 +264,16 @@
   - Kein Dijkstra, keine Routensuche, keine Reisezeit; nur diagnostische Gewichtsfelder auf bestehenden Kanten.
   - `distance_units` basiert nur auf der euklidischen Linienlaenge in Kartenkoordinaten; keine Maßstabs- oder Meilenumrechnung.
 - Smoke noetig: nein
+
+## 2026-05-25 - API Phase 6A (Route Graph Dijkstra Diagnostic)
+
+- Commit: `Add route graph dijkstra diagnostic`
+- Schritt: `avesmapsFindShortestRouteInGraph(...)` eingefuehrt. Diagnose `dijkstra-data` führt Dijkstra auf dem gewichteten Graphen aus und berichtet `found`, `cost`, `node_count` und `edge_count`.
+- Dateien:
+  - `api/route.php`
+  - `api/route-graph.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Kein normaler POST-Routingpfad; nur neuer Diagnosezweig.
+  - Keine Frontend- oder JS-Änderungen; keine RouteRequest-Verarbeitung.
+- Smoke noetig: nein

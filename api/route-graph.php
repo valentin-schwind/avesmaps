@@ -452,6 +452,133 @@ function avesmapsBuildGraphAdjacency(array $nodes, array $edges): array {
 	return $adjacency;
 }
 
+function avesmapsFindShortestRouteInGraph(array $graph, string $startNodeId, string $endNodeId): array {
+	$nodes = [];
+	foreach (is_array($graph['nodes'] ?? null) ? $graph['nodes'] : [] as $node) {
+		if (!is_array($node)) {
+			continue;
+		}
+
+		$nodeId = (string) ($node['id'] ?? '');
+		if ($nodeId === '') {
+			continue;
+		}
+
+		$nodes[$nodeId] = true;
+	}
+
+	if ($startNodeId === '' || $endNodeId === '' || !isset($nodes[$startNodeId]) || !isset($nodes[$endNodeId])) {
+		return [
+			'found' => false,
+			'cost' => 0.0,
+			'node_ids' => [],
+			'edge_ids' => [],
+			'edge_count' => 0,
+		];
+	}
+
+	$adjacency = [];
+	foreach (is_array($graph['edges'] ?? null) ? $graph['edges'] : [] as $edge) {
+		if (!is_array($edge)) {
+			continue;
+		}
+
+		$fromNodeId = (string) ($edge['from'] ?? '');
+		$toNodeId = (string) ($edge['to'] ?? '');
+		if ($fromNodeId === '' || $toNodeId === '') {
+			continue;
+		}
+
+		$weight = filter_var($edge['weight'] ?? null, FILTER_VALIDATE_FLOAT);
+		if ($weight === false || $weight === null) {
+			$weight = 1.0;
+		}
+
+		$edgeId = (string) ($edge['id'] ?? '');
+		$adjacency[$fromNodeId][] = [
+			'node' => $toNodeId,
+			'weight' => (float) $weight,
+			'edge_id' => $edgeId,
+		];
+		$adjacency[$toNodeId][] = [
+			'node' => $fromNodeId,
+			'weight' => (float) $weight,
+			'edge_id' => $edgeId,
+		];
+	}
+
+	$distances = [$startNodeId => 0.0];
+	$previousNode = [];
+	$previousEdgeId = [];
+
+	$queue = new SplPriorityQueue();
+	$queue->setExtractFlags(SplPriorityQueue::EXTR_DATA);
+	$queue->insert($startNodeId, 0.0);
+
+	while (!$queue->isEmpty()) {
+		$currentNodeId = $queue->extract();
+		$currentDistance = $distances[$currentNodeId] ?? INF;
+
+		if ($currentNodeId === $endNodeId) {
+			break;
+		}
+
+		foreach (is_array($adjacency[$currentNodeId] ?? null) ? $adjacency[$currentNodeId] : [] as $edgeData) {
+			$nextNodeId = (string) ($edgeData['node'] ?? '');
+			$edgeWeight = (float) ($edgeData['weight'] ?? 1.0);
+			$altDistance = $currentDistance + $edgeWeight;
+
+			if (!isset($distances[$nextNodeId]) || $altDistance < $distances[$nextNodeId]) {
+				$distances[$nextNodeId] = $altDistance;
+				$previousNode[$nextNodeId] = $currentNodeId;
+				$previousEdgeId[$nextNodeId] = (string) ($edgeData['edge_id'] ?? '');
+				$queue->insert($nextNodeId, -$altDistance);
+			}
+		}
+	}
+
+	if (!isset($distances[$endNodeId])) {
+		return [
+			'found' => false,
+			'cost' => 0.0,
+			'node_ids' => [],
+			'edge_ids' => [],
+			'edge_count' => 0,
+		];
+	}
+
+	$path = [];
+	$edgeIds = [];
+	$cursor = $endNodeId;
+	while ($cursor !== $startNodeId) {
+		$path[] = $cursor;
+		$edgeId = $previousEdgeId[$cursor] ?? '';
+		if ($edgeId !== '') {
+			array_unshift($edgeIds, $edgeId);
+		}
+		$cursor = $previousNode[$cursor] ?? '';
+		if ($cursor === '') {
+			return [
+				'found' => false,
+				'cost' => 0.0,
+				'node_ids' => [],
+				'edge_ids' => [],
+				'edge_count' => 0,
+			];
+		}
+	}
+
+	array_unshift($path, $startNodeId);
+
+	return [
+		'found' => true,
+		'cost' => (float) ($distances[$endNodeId] ?? 0.0),
+		'node_ids' => $path,
+		'edge_ids' => $edgeIds,
+		'edge_count' => count($edgeIds),
+	];
+}
+
 function avesmapsFindConnectedComponents(array $adjacency): array {
 	$components = [];
 	$visitedNodes = [];
