@@ -206,3 +206,16 @@
   - Keine beabsichtigte Aenderung am POST-501-Flow; nur Diagnosepfad erweitert.
   - Neue Metriken sind diagnostisch und entfernen keine Duplikate oder Selbstschleifen aus dem Rohgraphen.
 - Smoke noetig: nein
+
+## 2026-05-25 - API Phase 4D (Endpoint Snapping Diagnostics)
+
+- Commit: `Add route endpoint snapping diagnostics`
+- Schritt: Diagnose `graph-data` um Endpoint-Snapping-Analysen erweitert, ohne den Rohgraphen zu veraendern. Bewertet Gruppen von Knoten, deren x/y-Abstand innerhalb von `0.01`, `0.05` oder `0.1` liegt.
+- Dateien:
+  - `api/route.php`
+  - `api/route-graph.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Keine beabsichtigte Aenderung am POST-501-Flow; nur Diagnosepfad erweitert.
+  - Keine echten Knoten- oder Kantenmerges; nur statistische Kandidatengruppen fuer ein spaeteres Snap-Verfahren.
+- Smoke noetig: nein

@@ -80,6 +80,113 @@ function avesmapsAnalyzeRouteGraph(array $graph): array {
 	];
 }
 
+function avesmapsAnalyzeRouteEndpointSnapping(array $graph, float $tolerance): array {
+	$nodes = [];
+	foreach (is_array($graph['nodes'] ?? null) ? $graph['nodes'] : [] as $node) {
+		if (!is_array($node)) {
+			continue;
+		}
+
+		$nodeId = (string) ($node['id'] ?? '');
+		if ($nodeId === '') {
+			continue;
+		}
+
+		$x = filter_var($node['x'] ?? null, FILTER_VALIDATE_FLOAT);
+		$y = filter_var($node['y'] ?? null, FILTER_VALIDATE_FLOAT);
+		if ($x === false || $y === false) {
+			continue;
+		}
+
+		$nodes[] = [
+			'id' => $nodeId,
+			'x' => (float) $x,
+			'y' => (float) $y,
+		];
+	}
+
+	$nodeCount = count($nodes);
+	if ($nodeCount === 0) {
+		return [
+			'tolerance' => $tolerance,
+			'merge_candidate_group_count' => 0,
+			'merge_candidate_node_count' => 0,
+			'largest_merge_group_size' => 0,
+			'sample_groups' => [],
+		];
+	}
+
+	$adjacency = [];
+	for ($i = 0; $i < $nodeCount; $i++) {
+		for ($j = $i + 1; $j < $nodeCount; $j++) {
+			if (abs($nodes[$i]['x'] - $nodes[$j]['x']) <= $tolerance && abs($nodes[$i]['y'] - $nodes[$j]['y']) <= $tolerance) {
+				$fromId = $nodes[$i]['id'];
+				$toId = $nodes[$j]['id'];
+				$adjacency[$fromId] ??= [];
+				$adjacency[$toId] ??= [];
+				$adjacency[$fromId][$toId] = true;
+				$adjacency[$toId][$fromId] = true;
+			}
+		}
+	}
+
+	$groups = [];
+	$visited = [];
+	foreach (array_keys($adjacency) as $startNodeId) {
+		if (isset($visited[$startNodeId])) {
+			continue;
+		}
+
+		$stack = [$startNodeId];
+		$group = [];
+		$visited[$startNodeId] = true;
+
+		while ($stack !== []) {
+			$currentNodeId = array_pop($stack);
+			$group[] = $currentNodeId;
+			foreach (array_keys($adjacency[$currentNodeId] ?? []) as $neighborNodeId) {
+				if (isset($visited[$neighborNodeId])) {
+					continue;
+				}
+
+				$visited[$neighborNodeId] = true;
+				$stack[] = $neighborNodeId;
+			}
+		}
+
+		if (count($group) > 1) {
+			$groups[] = $group;
+		}
+	}
+
+	$mergeCandidateNodeCount = 0;
+	$largestMergeGroupSize = 0;
+	foreach ($groups as $group) {
+		$groupSize = count($group);
+		$mergeCandidateNodeCount += $groupSize;
+		if ($groupSize > $largestMergeGroupSize) {
+			$largestMergeGroupSize = $groupSize;
+		}
+	}
+
+	usort($groups, static fn(array $a, array $b): int => count($b) <=> count($a));
+	$sampleGroups = [];
+	foreach (array_slice($groups, 0, 5) as $group) {
+		$sampleGroups[] = [
+			'size' => count($group),
+			'nodes' => array_slice($group, 0, 5),
+		];
+	}
+
+	return [
+		'tolerance' => $tolerance,
+		'merge_candidate_group_count' => count($groups),
+		'merge_candidate_node_count' => $mergeCandidateNodeCount,
+		'largest_merge_group_size' => $largestMergeGroupSize,
+		'sample_groups' => $sampleGroups,
+	];
+}
+
 function avesmapsBuildGraphAdjacency(array $nodes, array $edges): array {
 	$adjacency = [];
 	foreach ($nodes as $node) {

@@ -66,6 +66,11 @@ try {
 		$routeNetworkData = avesmapsBuildRouteNetworkData($routeMapData);
 		$routeGraph = avesmapsBuildRouteGraph($routeNetworkData);
 		$routeGraphAnalysis = avesmapsAnalyzeRouteGraph($routeGraph);
+		$routeGraphEndpointSnapping = [
+			'0.01' => avesmapsAnalyzeRouteEndpointSnapping($routeGraph, 0.01),
+			'0.05' => avesmapsAnalyzeRouteEndpointSnapping($routeGraph, 0.05),
+			'0.1' => avesmapsAnalyzeRouteEndpointSnapping($routeGraph, 0.1),
+		];
 		$firstNode = $routeGraph['nodes'][0] ?? [];
 		$firstEdge = $routeGraph['edges'][0] ?? [];
 
@@ -84,6 +89,7 @@ try {
 				'edge_transport_counts' => $routeGraphAnalysis['edge_transport_counts'] ?? [],
 				'duplicate_edge_count' => (int) ($routeGraphAnalysis['duplicate_edge_count'] ?? 0),
 				'self_loop_count' => (int) ($routeGraphAnalysis['self_loop_count'] ?? 0),
+					'endpoint_snapping' => $routeGraphEndpointSnapping,
 			],
 			'sample' => [
 				'first_node' => (string) ($firstNode['id'] ?? ''),
