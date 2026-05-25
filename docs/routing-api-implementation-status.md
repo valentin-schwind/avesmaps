@@ -355,3 +355,16 @@
   - Kein normaler POST-Routingpfad; nur neuer Diagnosezweig.
   - Keine Frontend- oder JS-Änderungen; keine RouteRequest-Verarbeitung.
 - Smoke noetig: nein
+
+## 2026-05-25 - API Phase 8A (RouteResult-Struktur Vorbereitung)
+
+- Commit: `Prepare route result structure`
+- Schritt: POST-RouteResponse auf stabile Minimalstruktur vorbereitet. `node_count`/`edge_count` wurden unter `route.summary` verschoben, `from_node`/`to_node` unter `route.debug`, und `route.segments` als leeres Array ergaenzt.
+- Dateien:
+  - `api/route.php`
+  - `api/route-response.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Keine Aenderung an Routingberechnung, Dijkstra oder Fehlerpfaden beabsichtigt; nur Response-Struktur angepasst.
+  - Clients mit Erwartung auf alte flache Debug-Felder muessen auf `summary`/`debug` umstellen.
+- Smoke noetig: nein
