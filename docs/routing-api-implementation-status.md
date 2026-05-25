@@ -240,6 +240,12 @@
 - Dateien:
   - `api/route.php`
   - `api/route-graph.php`
+
+## 2026-05-25 - API Phase 4H (Cleaned Graph Diagnostics for 0.001)
+
+- Schritt: Neues Diagnosefeld `cleaned_0_001` ergänzt für `endpoint_snap_tolerance = 0.001` mit `deduplicate_edges` und `remove_self_loops`.
+- Dateien:
+  - `api/route.php`
   - `docs/routing-api-implementation-status.md`
 - Risiken:
   - Keine beabsichtigte Aenderung am POST-501-Flow; nur diagnostische Graph-Build-Optionen.

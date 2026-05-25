@@ -69,7 +69,12 @@ try {
 		$routeGraphSnapped0001 = avesmapsBuildRouteGraph($routeNetworkData, ['endpoint_snap_tolerance' => 0.0001]);
 		$routeGraphSnapped001 = avesmapsBuildRouteGraph($routeNetworkData, ['endpoint_snap_tolerance' => 0.001]);
 		$routeGraphSnapped01 = avesmapsBuildRouteGraph($routeNetworkData, ['endpoint_snap_tolerance' => 0.01]);
-		$routeGraphCleaned = avesmapsBuildRouteGraph($routeNetworkData, [
+		$routeGraphCleaned001 = avesmapsBuildRouteGraph($routeNetworkData, [
+				'endpoint_snap_tolerance' => 0.001,
+				'deduplicate_edges' => true,
+				'remove_self_loops' => true,
+			]);
+			$routeGraphCleaned = avesmapsBuildRouteGraph($routeNetworkData, [
 			'endpoint_snap_tolerance' => 0.01,
 			'deduplicate_edges' => true,
 			'remove_self_loops' => true,
@@ -79,7 +84,8 @@ try {
 		$routeGraphSnapped0001Analysis = avesmapsAnalyzeRouteGraph($routeGraphSnapped0001);
 		$routeGraphSnapped001Analysis = avesmapsAnalyzeRouteGraph($routeGraphSnapped001);
 		$routeGraphSnapped01Analysis = avesmapsAnalyzeRouteGraph($routeGraphSnapped01);
-		$routeGraphCleanedAnalysis = avesmapsAnalyzeRouteGraph($routeGraphCleaned);
+		$routeGraphCleaned001Analysis = avesmapsAnalyzeRouteGraph($routeGraphCleaned001);
+			$routeGraphCleanedAnalysis = avesmapsAnalyzeRouteGraph($routeGraphCleaned);
 		$routeGraphEndpointSnapping = [
 			'0.00001' => avesmapsAnalyzeRouteEndpointSnapping($routeGraph, 0.00001),
 			'0.0001' => avesmapsAnalyzeRouteEndpointSnapping($routeGraph, 0.0001),
@@ -137,6 +143,15 @@ try {
 					'largest_component_ratio' => (int) ($routeGraphSnapped01['statistics']['node_count'] ?? 0) > 0 ? round((float) ($routeGraphSnapped01Analysis['largest_component_size'] ?? 0) / (int) ($routeGraphSnapped01['statistics']['node_count'] ?? 0), 6) : 0.0,
 					'duplicate_edge_count' => (int) ($routeGraphSnapped01Analysis['duplicate_edge_count'] ?? 0),
 					'self_loop_count' => (int) ($routeGraphSnapped01Analysis['self_loop_count'] ?? 0),
+				],
+				'cleaned_0_001' => [
+					'node_count' => (int) ($routeGraphCleaned001['statistics']['node_count'] ?? 0),
+					'edge_count' => (int) ($routeGraphCleaned001['statistics']['edge_count'] ?? 0),
+					'connected_component_count' => (int) ($routeGraphCleaned001Analysis['connected_component_count'] ?? 0),
+					'largest_component_size' => (int) ($routeGraphCleaned001Analysis['largest_component_size'] ?? 0),
+					'largest_component_ratio' => (int) ($routeGraphCleaned001['statistics']['node_count'] ?? 0) > 0 ? round((float) ($routeGraphCleaned001Analysis['largest_component_size'] ?? 0) / (int) ($routeGraphCleaned001['statistics']['node_count'] ?? 0), 6) : 0.0,
+					'duplicate_edge_count' => (int) ($routeGraphCleaned001Analysis['duplicate_edge_count'] ?? 0),
+					'self_loop_count' => (int) ($routeGraphCleaned001Analysis['self_loop_count'] ?? 0),
 				],
 				'cleaned_0_01' => [
 					'node_count' => (int) ($routeGraphCleaned['statistics']['node_count'] ?? 0),
