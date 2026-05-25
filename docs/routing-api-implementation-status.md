@@ -169,6 +169,19 @@
   - Unbekannte Subtypen bleiben erhalten und werden weiterhin als `unknown` gezaehlt.
 - Smoke noetig: nein
 
+## 2026-05-25 - API Phase 3D (Location-Name zu Graph-Knoten Diagnose)
+
+- Commit: `Add location to graph node diagnostics`
+- Schritt: Diagnosepfad `GET /api/route.php?diagnostic=location-node-data&name=<name>` eingefuehrt; liefert zu einem Ort den naechstgelegenen Graph-Knoten und die Distanz innerhalb des gewichteten 0.001-Toleranzgraphen, ohne Dijkstra-Auswertung.
+- Dateien:
+  - `api/route.php`
+  - `api/route-graph.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Kein Einfluss auf normalen POST-Routingpfad; nur neuer Diagnosezweig.
+  - Name-basierte Ortssuche ist fallunabhaengig (`lowercase`) und kann bei mehreren gleichen Namen den ersten Treffer verwenden.
+- Smoke noetig: nein
+
 ## 2026-05-25 - API Phase 4A (Graph-Rohmodell Vorbereitung)
 
 - Commit: `Prepare route graph model`

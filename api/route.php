@@ -61,6 +61,46 @@ try {
 			],
 		]);
 	}
+	if ($requestMethod === 'GET' && $routeDiagnostic === 'location-node-data') {
+		$locationName = trim((string) ($_GET['name'] ?? ''));
+		if ($locationName === '') {
+			avesmapsRouteErrorResponse(400, 'invalid_request', 'The location name is required.');
+		}
+
+		$routeMapData = avesmapsLoadRouteMapData($config);
+		$routeNetworkData = avesmapsBuildRouteNetworkData($routeMapData);
+		$locationFound = false;
+		foreach (is_array($routeNetworkData['locations'] ?? null) ? $routeNetworkData['locations'] : [] as $candidate) {
+			if (!is_array($candidate)) {
+				continue;
+			}
+			$name = trim((string) ($candidate['name'] ?? ''));
+			if ($name === '') {
+				continue;
+			}
+			if (mb_strtolower($name, 'UTF-8') === mb_strtolower($locationName, 'UTF-8')) {
+				$locationFound = true;
+				break;
+			}
+		}
+		if (!$locationFound) {
+			avesmapsRouteErrorResponse(404, 'location_not_found', 'Location not found.');
+		}
+
+		$routeGraphWeighted001 = avesmapsBuildRouteGraph($routeNetworkData, [
+			'endpoint_snap_tolerance' => 0.001,
+			'deduplicate_edges' => true,
+			'remove_self_loops' => true,
+			'include_edge_weights' => true,
+		]);
+		$routeLocationNode = avesmapsFindNearestGraphNodeForLocation($routeGraphWeighted001, $routeNetworkData, $locationName);
+
+		avesmapsJsonResponse(200, [
+			'ok' => true,
+			'diagnostic' => 'location-node-data',
+			'result' => $routeLocationNode,
+		]);
+	}
 	if ($requestMethod === 'GET' && $routeDiagnostic === 'dijkstra-data') {
 		$fromNodeId = trim((string) ($_GET['from_node'] ?? ''));
 		$toNodeId = trim((string) ($_GET['to_node'] ?? ''));

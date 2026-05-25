@@ -579,6 +579,92 @@ function avesmapsFindShortestRouteInGraph(array $graph, string $startNodeId, str
 	];
 }
 
+function avesmapsFindNearestGraphNodeForLocation(array $graph, array $networkData, string $locationName): array {
+	$normalizedName = trim(mb_strtolower($locationName, 'UTF-8'));
+	$location = null;
+	foreach (is_array($networkData['locations'] ?? null) ? $networkData['locations'] : [] as $candidate) {
+		if (!is_array($candidate)) {
+			continue;
+		}
+
+		$name = trim((string) ($candidate['name'] ?? ''));
+		if ($name === '') {
+			continue;
+		}
+
+		if (mb_strtolower($name, 'UTF-8') === $normalizedName) {
+			$location = $candidate;
+			break;
+		}
+	}
+
+	if (!is_array($location)) {
+		return [
+			'found' => false,
+			'location_name' => $locationName,
+			'location_coordinates' => ['x' => 0.0, 'y' => 0.0],
+			'nearest_node_id' => '',
+			'distance' => 0.0,
+		];
+	}
+
+	$coordinates = $location['geometry']['coordinates'] ?? null;
+	if (!is_array($coordinates) || count($coordinates) < 2) {
+		return [
+			'found' => false,
+			'location_name' => $locationName,
+			'location_coordinates' => ['x' => 0.0, 'y' => 0.0],
+			'nearest_node_id' => '',
+			'distance' => 0.0,
+		];
+	}
+
+	$x = filter_var($coordinates[0], FILTER_VALIDATE_FLOAT);
+	$y = filter_var($coordinates[1], FILTER_VALIDATE_FLOAT);
+	if ($x === false || $y === false) {
+		return [
+			'found' => false,
+			'location_name' => $locationName,
+			'location_coordinates' => ['x' => 0.0, 'y' => 0.0],
+			'nearest_node_id' => '',
+			'distance' => 0.0,
+		];
+	}
+
+	$locationX = (float) $x;
+	$locationY = (float) $y;
+	$nearestNodeId = '';
+	$nearestDistance = INF;
+	foreach (is_array($graph['nodes'] ?? null) ? $graph['nodes'] : [] as $node) {
+		if (!is_array($node)) {
+			continue;
+		}
+
+		$nodeId = (string) ($node['id'] ?? '');
+		$nodeX = filter_var($node['x'] ?? null, FILTER_VALIDATE_FLOAT);
+		$nodeY = filter_var($node['y'] ?? null, FILTER_VALIDATE_FLOAT);
+		if ($nodeId === '' || $nodeX === false || $nodeY === false) {
+			continue;
+		}
+
+		$dx = $locationX - (float) $nodeX;
+		$dy = $locationY - (float) $nodeY;
+		$distance = sqrt($dx * $dx + $dy * $dy);
+		if ($distance < $nearestDistance) {
+			$nearestDistance = $distance;
+			$nearestNodeId = $nodeId;
+		}
+	}
+
+	return [
+		'found' => $nearestNodeId !== '',
+		'location_name' => $locationName,
+		'location_coordinates' => ['x' => $locationX, 'y' => $locationY],
+		'nearest_node_id' => $nearestNodeId,
+		'distance' => $nearestDistance === INF ? 0.0 : $nearestDistance,
+	];
+}
+
 function avesmapsFindConnectedComponents(array $adjacency): array {
 	$components = [];
 	$visitedNodes = [];
