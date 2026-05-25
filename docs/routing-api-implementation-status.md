@@ -71,3 +71,15 @@
   - Noch keine serverseitige Routenberechnung; Clients muessen bis spaetere Phasen weiterhin auf `not_implemented` reagieren.
   - Transportwerte sind auf aktuelle Frontend-Option-IDs begrenzt und muessen bei kuenftigen UI-Optionserweiterungen synchron gehalten werden.
 - Smoke noetig: nein
+
+## 2026-05-25 - API Phase 2A (RouteRequest Auslagerung)
+
+- Commit: `Split route request php helpers`
+- Schritt: RouteRequest-Konstanten und Normalisierungsfunktionen aus `api/route.php` nach `api/route-request.php` ausgelagert, Endpoint-Flow in `api/route.php` unveraendert beibehalten.
+- Dateien:
+  - `api/route.php`
+  - `api/route-request.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Keine beabsichtigte Verhaltensaenderung; Risiko liegt nur in fehlerhaften Include-Pfaden oder Namenskonflikten.
+- Smoke noetig: nein
