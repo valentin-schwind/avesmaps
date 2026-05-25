@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>Avesmaps – Wiki-DOM-Playground</title>
+	<title>Avesmaps Ã¢â‚¬â€œ Wiki-DOM-Playground</title>
 	<style>
 		:root { --page-bg:#f4efe7; --page-bg-deep:#2f322c; --panel:#fff9f4; --panel-muted:#f8efe4; --text:#2f251c; --muted:#6c5a49; --border:#d8c6b2; --danger:#8a3a1b; --ok:#3d6b44; --shadow:rgba(0,0,0,.16); }
 		* { box-sizing:border-box; }
@@ -79,15 +79,15 @@
 			<section class="panel">
 				<h2>Ergebnis</h2>
 				<div class="summary">
-					<div class="stat"><strong id="count">0</strong><span>Datensätze</span></div>
-					<div class="stat"><strong id="iterations">–</strong><span>Iterationen</span></div>
-					<div class="stat"><strong id="pages">–</strong><span>Territory-Seiten</span></div>
-					<div class="stat"><strong id="childLinks">–</strong><span>Kinderlinks</span></div>
+					<div class="stat"><strong id="count">0</strong><span>DatensÃƒÂ¤tze</span></div>
+					<div class="stat"><strong id="iterations">Ã¢â‚¬â€œ</strong><span>Iterationen</span></div>
+					<div class="stat"><strong id="pages">Ã¢â‚¬â€œ</strong><span>Territory-Seiten</span></div>
+					<div class="stat"><strong id="childLinks">Ã¢â‚¬â€œ</strong><span>Kinderlinks</span></div>
 				</div>
 				<div id="runInfo" class="status">Noch kein Lauf in dieser Ansicht.</div>
 				<div style="overflow:auto; margin-top:12px; max-height:65vh;">
 					<table>
-						<thead><tr><th>Name</th><th>Wappen</th><th>Typ</th><th>Kontinent</th><th>Pfad</th><th>Gründung</th><th>Auflösung</th><th>Quelle</th></tr></thead>
+						<thead><tr><th>Name</th><th>Wappen</th><th>Typ</th><th>Kontinent</th><th>Pfad</th><th>GrÃƒÂ¼ndung</th><th>AuflÃƒÂ¶sung</th><th>Quelle</th></tr></thead>
 						<tbody id="rows"></tbody>
 					</table>
 				</div>
@@ -97,7 +97,7 @@
 		</main>
 	</div>
 	<script>
-		const API_URL = '/api/wiki-dom-playground-seed.php';
+		const API_URL = '/api/edit/wiki/playground-seed.php';
 		let pollTimer = null;
 		let pollStartedAt = 0;
 		let startCount = 0;
@@ -122,15 +122,15 @@
 		function stopPolling() { if (pollTimer !== null) { window.clearInterval(pollTimer); pollTimer = null; } }
 		async function refreshLiveRows() { try { const payload = await fetchJson(`${API_URL}?action=list&_=${Date.now()}`); render(payload, true); } catch (error) { els.runInfo.textContent = `Live-Aktualisierung fehlgeschlagen: ${error.message}`; } }
 		async function loadDefaults() { setBusy(true); try { setStatus('Lade Defaults ...'); const payload = await fetchJson(`${API_URL}?action=defaults`); els.catchwords.value = JSON.stringify(payload.catchwords, null, '\t'); if (Array.isArray(payload.seeds)) els.seeds.value = payload.seeds.join('\n'); setStatus('Defaults geladen. Die /Liste-Seiten sind reine Einstiegspunkte.'); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
-		async function runImport() { setBusy(true); try { setStatus('Testlauf läuft. Die Tabelle aktualisiert sich live.'); startPolling(); const payload = await fetchJson(`${API_URL}?action=run`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(readPayload()) }); stopPolling(); render(payload, false); setStatus('Testlauf abgeschlossen.'); } catch (error) { stopPolling(); setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
+		async function runImport() { setBusy(true); try { setStatus('Testlauf lÃƒÂ¤uft. Die Tabelle aktualisiert sich live.'); startPolling(); const payload = await fetchJson(`${API_URL}?action=run`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(readPayload()) }); stopPolling(); render(payload, false); setStatus('Testlauf abgeschlossen.'); } catch (error) { stopPolling(); setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
 		async function reloadRows() { setBusy(true); try { const payload = await fetchJson(`${API_URL}?action=list`); render(payload, false); setStatus('Testtabelle geladen.'); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
 		async function clearRows() { if (!confirm('political_territory_wiki_test wirklich leeren?')) return; setBusy(true); try { await fetchJson(`${API_URL}?action=clear`, {method: 'POST'}); render({ok: true, items: [], count: 0}, false); setStatus('Testtabelle geleert.'); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
 		function render(payload, live) {
 			const items = Array.isArray(payload.items) ? payload.items : [];
 			const count = Number(payload.count ?? items.length);
 			els.count.textContent = String(count);
-			if (live && !payload.run) { const elapsed = Math.max(0, Math.round((Date.now() - pollStartedAt) / 1000)); els.iterations.textContent = 'läuft'; els.pages.textContent = String(count); els.childLinks.textContent = '–'; els.runInfo.textContent = `Live-Stand nach ${elapsed}s: ${count} Datensätze${count > startCount ? `, +${count - startCount} seit Start` : ''}.`; }
-			else { const summary = runSummary(payload.run, count); els.iterations.textContent = payload.run?.iterations ?? '–'; els.pages.textContent = payload.run?.fetched_pages ?? '–'; els.childLinks.textContent = payload.run?.queued_child_links ?? '–'; els.runInfo.textContent = summary; }
+			if (live && !payload.run) { const elapsed = Math.max(0, Math.round((Date.now() - pollStartedAt) / 1000)); els.iterations.textContent = 'lÃƒÂ¤uft'; els.pages.textContent = String(count); els.childLinks.textContent = 'Ã¢â‚¬â€œ'; els.runInfo.textContent = `Live-Stand nach ${elapsed}s: ${count} DatensÃƒÂ¤tze${count > startCount ? `, +${count - startCount} seit Start` : ''}.`; }
+			else { const summary = runSummary(payload.run, count); els.iterations.textContent = payload.run?.iterations ?? 'Ã¢â‚¬â€œ'; els.pages.textContent = payload.run?.fetched_pages ?? 'Ã¢â‚¬â€œ'; els.childLinks.textContent = payload.run?.queued_child_links ?? 'Ã¢â‚¬â€œ'; els.runInfo.textContent = summary; }
 			els.rows.innerHTML = '';
 			for (const item of items) {
 				const raw = item.raw || {};
@@ -144,7 +144,7 @@
 		function formatCoatCell(item) {
 			const url = item.coat_of_arms_url || '';
 			if (!url) return '';
-			return `<a class="coat-preview" href="${escapeAttr(url)}" target="_blank" rel="noreferrer" title="Wappen öffnen"><img src="${escapeAttr(url)}" alt="Wappen" loading="lazy" onerror="this.parentElement.classList.add('broken')"><span>Wappen</span></a>`;
+			return `<a class="coat-preview" href="${escapeAttr(url)}" target="_blank" rel="noreferrer" title="Wappen ÃƒÂ¶ffnen"><img src="${escapeAttr(url)}" alt="Wappen" loading="lazy" onerror="this.parentElement.classList.add('broken')"><span>Wappen</span></a>`;
 		}
 		function formatDateCell(item, prefix) {
 			const text = item[`${prefix}_text`] || '';
@@ -161,7 +161,7 @@
 			if (!hasStart && !hasEnd) return '';
 			const startLabel = hasStart ? formatBfYear(Number(start)) : '';
 			const endLabel = hasEnd ? formatBfYear(Number(end)) : '';
-			if (startLabel && endLabel && startLabel !== endLabel) return `${startLabel}–${endLabel}`;
+			if (startLabel && endLabel && startLabel !== endLabel) return `${startLabel}Ã¢â‚¬â€œ${endLabel}`;
 			return startLabel || endLabel;
 		}
 		function formatBfYear(value) {
@@ -169,7 +169,7 @@
 			if (value < 0) return `${Math.abs(value)} v. BF`;
 			return `${value} BF`;
 		}
-		function runSummary(run, count) { if (!run) return `Tabellenstand geladen: ${count} Datensätze.`; const errors = Array.isArray(run.errors) ? run.errors.length : 0; const events = Array.isArray(run.events) ? run.events.length : 0; return `Fertig: ${count} Datensätze, ${run.fetched_pages ?? 0} neu geholt, ${run.skipped_existing ?? 0} übersprungen, ${run.queued_child_links ?? 0} Kinderlinks, ${errors} Fehler, ${events} Ereignisse, ${run.runtime_seconds ?? '?'}s.`; }
+		function runSummary(run, count) { if (!run) return `Tabellenstand geladen: ${count} DatensÃƒÂ¤tze.`; const errors = Array.isArray(run.errors) ? run.errors.length : 0; const events = Array.isArray(run.events) ? run.events.length : 0; return `Fertig: ${count} DatensÃƒÂ¤tze, ${run.fetched_pages ?? 0} neu geholt, ${run.skipped_existing ?? 0} ÃƒÂ¼bersprungen, ${run.queued_child_links ?? 0} Kinderlinks, ${errors} Fehler, ${events} Ereignisse, ${run.runtime_seconds ?? '?'}s.`; }
 		function buildDebug(payload, items) { return { run: payload.run || null, rows: items.map(item => { const raw = item.raw || {}; const fields = raw.fields || {}; return { name: item.name || '', wiki_url: item.wiki_url || '', coat_of_arms_url: item.coat_of_arms_url || '', blazon: item.blazon || '', continent: item.continent || '', missing: { type: !(item.type || ''), continent: !(item.continent || ''), coat_of_arms_url: !(item.coat_of_arms_url || ''), path: !(Array.isArray(item.affiliation_path) && item.affiliation_path.length), founded: !(item.founded_text || item.founded_start_bf), dissolved: !(item.dissolved_text || item.dissolved_start_bf) }, relevant_fields: { art: fields.art, typ: fields.typ, staat: fields.staat, staatverlauf: fields.staatverlauf, region: fields.region, gruendungsdatum: fields.gruendungsdatum, gruendung: fields.gruendung, unabhaengigkeit: fields.unabhaengigkeit, aufgeloest: fields.aufgeloest, status: fields.status, blasonierung: fields.blasonierung }, field_keys: Object.keys(fields), path: raw.path || null, temporal: raw.temporal || [], heraldry: raw.heraldry || null, children: raw.children || [] }; }), events: payload.run?.events || [], errors: payload.run?.errors || [] }; }
 		function escapeHtml(value) { return String(value ?? '').replace(/[&<>"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char])); }
 		function escapeAttr(value) { return escapeHtml(value).replace(/'/g, '&#039;'); }
