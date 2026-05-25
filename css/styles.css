@@ -3561,8 +3561,8 @@ body.edit-mode .map-label span {
 .political-timeline {
 	position: fixed;
 	left: 50%;
-	bottom: 18px;
-	z-index: 1200;
+	top: 10px;
+	z-index: 1000;
 	display: grid;
 	gap: 8px;
 	width: min(560px, calc(100vw - 32px));
