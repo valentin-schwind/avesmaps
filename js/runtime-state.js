@@ -1,3 +1,43 @@
+// Filtert gezielt laute Diagnoseausgaben aus dem Routing-Aufbau.
+const AVESMAPS_FILTERED_CONSOLE_PREFIXES = [
+	"Graph:",
+	"Alle Tooltips entfernt.",
+	"Ausgewählte Locations:",
+	"Ungültige Eingaben:",
+	"Server-Routing-Probe gestartet:",
+	"Server-Routing-Probe Client-IDs:",
+	"Server-Routing-Probe Vergleich:",
+	"Server-Routing-Probe Server-IDs:",
+	"Server-Routing-Probe Server-Segmente:",
+	"Server-Routing-Probe Ergebnis:",
+	"Berechnete Route:",
+	"Komplette Route (Knoten):",
+	"Routensegmente:",
+	"Route points:",
+	"Alle Routen-Knoten entfernt.",
+];
+
+function avesmapsShouldFilterConsoleMessage(args) {
+	const message = typeof args[0] === "string" ? args[0] : "";
+	return AVESMAPS_FILTERED_CONSOLE_PREFIXES.some((prefix) => message.startsWith(prefix))
+		|| message.includes("Querfeldein-Verbindungen für getrennte Orte hinzugefügt.");
+}
+
+const AVESMAPS_ORIGINAL_CONSOLE_LOG = console.log.bind(console);
+const AVESMAPS_ORIGINAL_CONSOLE_INFO = console.info.bind(console);
+console.log = (...args) => {
+	if (avesmapsShouldFilterConsoleMessage(args)) {
+		return;
+	}
+	AVESMAPS_ORIGINAL_CONSOLE_LOG(...args);
+};
+console.info = (...args) => {
+	if (avesmapsShouldFilterConsoleMessage(args)) {
+		return;
+	}
+	AVESMAPS_ORIGINAL_CONSOLE_INFO(...args);
+};
+
 // Globale Variablen
 let locationData = [],
 	pathData = [],
