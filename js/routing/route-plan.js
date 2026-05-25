@@ -119,8 +119,18 @@ function formatRoutePlanLabels(labelSet) {
 	return [...labelSet].join(", ");
 }
 
+function getRoutePlanWaypointNameSet() {
+	return new Set((selectedLocations || []).map((location) => normalizeLocationSearchName(location?.name || "")).filter(Boolean));
+}
+
+function isRoutePlanExplicitWaypoint(name, waypointNameSet) {
+	const normalizedName = normalizeLocationSearchName(name);
+	return normalizedName !== "" && waypointNameSet.has(normalizedName);
+}
+
 function buildRoutePlanEntries(routeNames, segments) {
 	const entries = [];
+	const explicitWaypointNames = getRoutePlanWaypointNameSet();
 	let aggregateEntry = null;
 
 	const flushAggregateEntry = () => {
@@ -128,6 +138,7 @@ function buildRoutePlanEntries(routeNames, segments) {
 			aggregateEntry.segmentLabel = formatRoutePlanLabels(aggregateEntry.segmentLabelSet || new Set());
 			delete aggregateEntry.segmentLabelSet;
 			delete aggregateEntry.aggregateKey;
+			delete aggregateEntry.transport;
 			entries.push(aggregateEntry);
 			aggregateEntry = null;
 		}
@@ -153,20 +164,24 @@ function buildRoutePlanEntries(routeNames, segments) {
 
 		const segTravelTime = (segDistance / speedMiles) * TIME_SCALE_FACTOR;
 		const isWaterRoute = type === "Flussweg" || type === "Seeweg";
-		const startName = getRouteNodeDisplayName(routeNames[index], index, routeNames, segments, { allowCrossings: !isWaterRoute });
-		const endName = getRouteNodeDisplayName(routeNames[index + 1], index + 1, routeNames, segments, { allowCrossings: !isWaterRoute });
+		const rawStartName = String(routeNames[index] || "");
+		const rawEndName = String(routeNames[index + 1] || "");
+		const startName = getRouteNodeDisplayName(rawStartName, index, routeNames, segments, { allowCrossings: !isWaterRoute });
+		const endName = getRouteNodeDisplayName(rawEndName, index + 1, routeNames, segments, { allowCrossings: !isWaterRoute });
 		const segmentLabel = type === "Flussweg" && shouldShowRoutePathDisplayName(segment)
 			? getRoutePathDisplayName(segment)
 			: "";
 
 		if (isWaterRoute) {
-			if (aggregateEntry && aggregateEntry.aggregateKey !== type) {
+			const startsAtExplicitWaypoint = isRoutePlanExplicitWaypoint(rawStartName, explicitWaypointNames);
+			if (aggregateEntry && (aggregateEntry.aggregateKey !== type || aggregateEntry.transport !== transport || startsAtExplicitWaypoint)) {
 				flushAggregateEntry();
 			}
 
 			if (!aggregateEntry) {
 				aggregateEntry = {
 					aggregateKey: type,
+					transport,
 					type,
 					startName,
 					endName,
@@ -186,6 +201,10 @@ function buildRoutePlanEntries(routeNames, segments) {
 				aggregateEntry.endName = endName;
 			}
 			aggregateEntry.segmentIndexes.push(index);
+
+			if (isRoutePlanExplicitWaypoint(rawEndName, explicitWaypointNames)) {
+				flushAggregateEntry();
+			}
 			return;
 		}
 
