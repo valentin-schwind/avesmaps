@@ -58,3 +58,16 @@
 - Risiken:
   - Da die Anzeige jetzt aus dem RouteResult/ViewModel gespeist wird, sind konsistente Smoke-Werte gegen die Baseline wichtig.
 - Smoke noetig: ja
+
+## 2026-05-25 - API Phase 1 (Route Endpoint Boundary)
+
+- Commit: `Implement routing api phase 1`
+- Schritt: `api/route.php` als Phase-1 API-Boundary eingefuehrt (POST JSON lesen, Request validieren/normalisieren, standardisierte JSON-Fehler, `501 not_implemented` fuer gueltige Requests).
+- Dateien:
+  - `api/route.php`
+  - `api/README.md`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Noch keine serverseitige Routenberechnung; Clients muessen bis spaetere Phasen weiterhin auf `not_implemented` reagieren.
+  - Transportwerte sind auf aktuelle Frontend-Option-IDs begrenzt und muessen bei kuenftigen UI-Optionserweiterungen synchron gehalten werden.
+- Smoke noetig: nein

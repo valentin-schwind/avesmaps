@@ -13,6 +13,7 @@ schreibt sie in die Tabelle `location_reports`.
 - `delete-location-report.php`: loescht Ortsmeldungen nach Ablehnung
 - `map-features.php`: liest die neue SQL-basierte Vektorkarte als GeoJSON
 - `map-search.php`: liefert die Spotlight-Kartensuche fuer Orte, Labels, Regionen, benannte Wege und Kraftlinien
+- `route.php`: Phase-1 Routing-API-Grenze (JSON-Validierung/Normalisierung, aktuell `501 not_implemented`)
 - `schema.mysql.sql`: Tabellen-Schema fuer MySQL oder MariaDB
 - `schema.pgsql.sql`: Tabellen-Schema fuer PostgreSQL
 - `schema.future.mysql.sql`: Future-Schema fuer User, Vektorkarte, Vorschlaege und Revisionen
@@ -193,3 +194,15 @@ Fehler:
   "error": "Bitte eine Quelle angeben."
 }
 ```
+
+## Routing API Phase 1
+
+`route.php` akzeptiert aktuell nur `POST` mit JSON und liefert fuer gueltige,
+normalisierte RouteRequests bewusst noch kein Routing-Ergebnis, sondern:
+
+- HTTP `501`
+- `error.code = "not_implemented"`
+- das normalisierte Request-Objekt unter `request`
+
+Damit ist der API-Vertrag fuer spaetere Routing-Phasen stabil, ohne bereits
+serverseitige Routenberechnung oder SQL-Graph-Laden zu aktivieren.
