@@ -66,8 +66,14 @@ try {
 		$routeNetworkData = avesmapsBuildRouteNetworkData($routeMapData);
 		$routeGraph = avesmapsBuildRouteGraph($routeNetworkData);
 		$routeGraphSnapped = avesmapsBuildRouteGraph($routeNetworkData, ['endpoint_snap_tolerance' => 0.01]);
+		$routeGraphCleaned = avesmapsBuildRouteGraph($routeNetworkData, [
+			'endpoint_snap_tolerance' => 0.01,
+			'deduplicate_edges' => true,
+			'remove_self_loops' => true,
+		]);
 		$routeGraphAnalysis = avesmapsAnalyzeRouteGraph($routeGraph);
 		$routeGraphSnappedAnalysis = avesmapsAnalyzeRouteGraph($routeGraphSnapped);
+		$routeGraphCleanedAnalysis = avesmapsAnalyzeRouteGraph($routeGraphCleaned);
 		$routeGraphEndpointSnapping = [
 			'0.01' => avesmapsAnalyzeRouteEndpointSnapping($routeGraph, 0.01),
 			'0.05' => avesmapsAnalyzeRouteEndpointSnapping($routeGraph, 0.05),
@@ -100,6 +106,15 @@ try {
 					'largest_component_ratio' => (int) ($routeGraphSnapped['statistics']['node_count'] ?? 0) > 0 ? round((float) ($routeGraphSnappedAnalysis['largest_component_size'] ?? 0) / (int) ($routeGraphSnapped['statistics']['node_count'] ?? 0), 6) : 0.0,
 					'duplicate_edge_count' => (int) ($routeGraphSnappedAnalysis['duplicate_edge_count'] ?? 0),
 					'self_loop_count' => (int) ($routeGraphSnappedAnalysis['self_loop_count'] ?? 0),
+				],
+				'cleaned_0_01' => [
+					'node_count' => (int) ($routeGraphCleaned['statistics']['node_count'] ?? 0),
+					'edge_count' => (int) ($routeGraphCleaned['statistics']['edge_count'] ?? 0),
+					'connected_component_count' => (int) ($routeGraphCleanedAnalysis['connected_component_count'] ?? 0),
+					'largest_component_size' => (int) ($routeGraphCleanedAnalysis['largest_component_size'] ?? 0),
+					'largest_component_ratio' => (int) ($routeGraphCleaned['statistics']['node_count'] ?? 0) > 0 ? round((float) ($routeGraphCleanedAnalysis['largest_component_size'] ?? 0) / (int) ($routeGraphCleaned['statistics']['node_count'] ?? 0), 6) : 0.0,
+					'duplicate_edge_count' => (int) ($routeGraphCleanedAnalysis['duplicate_edge_count'] ?? 0),
+					'self_loop_count' => (int) ($routeGraphCleanedAnalysis['self_loop_count'] ?? 0),
 				],
 			],
 			'sample' => [

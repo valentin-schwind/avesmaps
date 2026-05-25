@@ -232,3 +232,16 @@
   - Keine beabsichtigte Aenderung am POST-501-Flow; nur Graph-Build und Diagnosepfad erweitert.
   - Selbstschleifen und doppelte Kanten werden im gesnappten Graphen weiterhin gezählt, aber nicht entfernt.
 - Smoke noetig: nein
+
+## 2026-05-25 - API Phase 4F (Cleaned Snapped Graph)
+
+- Commit: `Add route graph edge cleanup options`
+- Schritt: `avesmapsBuildRouteGraph(...)` um `deduplicate_edges` und `remove_self_loops` erweitert. Die Diagnose `graph-data` liefert jetzt zusätzlich `cleaned_0_01` mit bereinigten Kantenstatistiken.
+- Dateien:
+  - `api/route.php`
+  - `api/route-graph.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Keine beabsichtigte Aenderung am POST-501-Flow; nur diagnostische Graph-Build-Optionen.
+  - Deduplizierung entfernt nur identische ungerichtete Kantenpaare; Gewichtung und Geometrie bleiben unverändert.
+- Smoke noetig: nein

@@ -37,6 +37,8 @@ function avesmapsBuildRouteGraph(array $networkData, array $options = []): array
 	}
 
 	$endpointSnapTolerance = (float) ($options['endpoint_snap_tolerance'] ?? 0.0);
+	$deduplicateEdges = (bool) ($options['deduplicate_edges'] ?? false);
+	$removeSelfLoops = (bool) ($options['remove_self_loops'] ?? false);
 	if ($endpointSnapTolerance > 0.0) {
 		$groups = avesmapsBuildRouteGraphEndpointSnapGroups(array_values($nodes), $endpointSnapTolerance);
 		$canonicalNodeMap = [];
@@ -79,6 +81,48 @@ function avesmapsBuildRouteGraph(array $networkData, array $options = []): array
 
 		$nodes = $canonicalNodes;
 		$edges = $snappedEdges;
+	}
+
+	if ($removeSelfLoops) {
+		$edges = array_values(array_filter($edges, static function ($edge) {
+			if (!is_array($edge)) {
+				return false;
+			}
+
+			$from = (string) ($edge['from'] ?? '');
+			$to = (string) ($edge['to'] ?? '');
+			return $from !== '' && $from !== $to;
+		}));
+	}
+
+	if ($deduplicateEdges) {
+		$seen = [];
+		$deduplicatedEdges = [];
+		foreach ($edges as $edge) {
+			if (!is_array($edge)) {
+				continue;
+			}
+
+			$from = (string) ($edge['from'] ?? '');
+			$to = (string) ($edge['to'] ?? '');
+			if ($from === '' || $to === '') {
+				$deduplicatedEdges[] = $edge;
+				continue;
+			}
+
+			$unorderedFrom = $from <= $to ? $from : $to;
+			$unorderedTo = $from <= $to ? $to : $from;
+			$key = $unorderedFrom . '|' . $unorderedTo;
+
+			if (isset($seen[$key])) {
+				continue;
+			}
+
+			$seen[$key] = true;
+			$deduplicatedEdges[] = $edge;
+		}
+
+		$edges = $deduplicatedEdges;
 	}
 
 	return [
