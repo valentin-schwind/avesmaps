@@ -16,6 +16,7 @@ function avesmapsBuildRouteNetworkData(array $routeMapData): array {
 	];
 
 	$clientPathIndex = 0;
+	$clientCrossingIndex = 1;
 	$features = is_array($routeMapData['features'] ?? null) ? $routeMapData['features'] : [];
 	foreach ($features as $feature) {
 		if (!is_array($feature)) {
@@ -29,7 +30,10 @@ function avesmapsBuildRouteNetworkData(array $routeMapData): array {
 		}
 
 		if (avesmapsIsRouteLocation($feature)) {
-			$locations[] = avesmapsBuildRouteLocationData($feature);
+			$locations[] = avesmapsBuildRouteLocationData($feature, $clientCrossingIndex);
+			if (avesmapsIsRouteCrossingLocation($feature)) {
+				$clientCrossingIndex++;
+			}
 			$statistics['location_count']++;
 			continue;
 		}
@@ -64,8 +68,17 @@ function avesmapsBuildRouteNetworkData(array $routeMapData): array {
 }
 
 function avesmapsIsRouteLocation(array $feature): bool {
+	$geometry = is_array($feature['geometry'] ?? null) ? $feature['geometry'] : [];
 	$properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
-	return (string) ($properties['feature_type'] ?? '') === 'location';
+	$name = trim((string) ($properties['name'] ?? ''));
+	return (string) ($geometry['type'] ?? '') === 'Point'
+		&& $name !== ''
+		&& (string) ($properties['feature_type'] ?? '') !== 'label';
+}
+
+function avesmapsIsRouteCrossingLocation(array $feature): bool {
+	$properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
+	return strncmp((string) ($properties['name'] ?? ''), 'Kreuzung', strlen('Kreuzung')) === 0;
 }
 
 function avesmapsIsRoutePath(array $feature): bool {
@@ -111,13 +124,17 @@ function avesmapsResolveRoutePathSubtype(array $properties): string {
 	return avesmapsNormalizeClientRouteSubtype($subtypeCandidate);
 }
 
-function avesmapsBuildRouteLocationData(array $feature): array {
+function avesmapsBuildRouteLocationData(array $feature, int $clientCrossingIndex = 1): array {
 	$properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
+	$name = (string) ($properties['name'] ?? '');
+	if (strncmp($name, 'Kreuzung', strlen('Kreuzung')) === 0) {
+		$name = 'Kreuzung-' . $clientCrossingIndex;
+	}
 
 	return [
 		'id' => (string) ($feature['id'] ?? $properties['public_id'] ?? ''),
 		'public_id' => (string) ($properties['public_id'] ?? ''),
-		'name' => (string) ($properties['name'] ?? ''),
+		'name' => $name,
 		'subtype' => (string) ($properties['feature_subtype'] ?? ''),
 		'geometry' => is_array($feature['geometry'] ?? null) ? $feature['geometry'] : [],
 		'properties' => is_array($properties['properties'] ?? null) ? $properties['properties'] : [],
