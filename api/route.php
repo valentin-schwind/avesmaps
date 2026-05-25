@@ -29,6 +29,8 @@ try {
 		avesmapsJsonResponse(200, [
 			'ok' => true,
 			'diagnostic' => 'map-data',
+			'request_method' => $requestMethod,
+			'diagnostic_param' => $routeDiagnostic,
 			'revision' => (int) ($routeMapData['revision'] ?? 0),
 			'feature_count' => (int) ($routeMapData['feature_count'] ?? 0),
 			'sample' => [
@@ -38,6 +40,7 @@ try {
 				'first_feature_geometry_type' => (string) ($firstFeatureGeometry['type'] ?? ''),
 			],
 		]);
+		exit;
 	}
 
 	if ($requestMethod !== 'POST') {

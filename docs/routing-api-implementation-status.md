@@ -120,3 +120,14 @@
   - Kein geplanter Einfluss auf normalen POST-Routingpfad; Risiko beschraenkt sich auf Diagnosezweig und SQL-Verfuegbarkeit bei Diagnoseaufrufen.
   - `GET /api/route.php` ohne Diagnostic bleibt weiterhin `405 method_not_allowed`.
 - Smoke noetig: nein
+
+## 2026-05-25 - API Phase 3B Bugfix (Diagnosezweig-Ausfuehrung)
+
+- Commit: `Fix route diagnostic execution`
+- Schritt: Diagnoseantwort in `api/route.php` um `request_method` und `diagnostic_param` erweitert und expliziten Ausfuehrungsabbruch nach Diagnoseantwort gesetzt.
+- Dateien:
+  - `api/route.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Keine beabsichtigte Aenderung am POST-/501-Verhalten; nur Diagnosezweig angepasst.
+- Smoke noetig: nein
