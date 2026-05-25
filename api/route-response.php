@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/route-client-graph.php';
 
+const AVESMAPS_ROUTE_API_CODE_VERSION = 'client-graph-path-id-2026-05-25';
+
 class AvesmapsRouteLocationNotFoundException extends RuntimeException {}
 class AvesmapsRouteViaNotSupportedException extends RuntimeException {}
 
@@ -124,6 +126,7 @@ function avesmapsBuildMinimalRouteResponse(array $route): array {
 			'edge_count' => (int) ($route['edge_count'] ?? 0),
 		],
 		'debug' => [
+			'code_version' => AVESMAPS_ROUTE_API_CODE_VERSION,
 			'from_node' => (string) ($route['from_node'] ?? ''),
 			'to_node' => (string) ($route['to_node'] ?? ''),
 			'node_ids' => is_array($route['node_ids'] ?? null) ? $route['node_ids'] : [],
