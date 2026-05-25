@@ -2451,6 +2451,10 @@ body.modal-dialog-open {
 	content: "\2229";
 }
 
+.map-context-menu__item[data-region-context-action="extract"]::before {
+	content: "\2702";
+}
+
 .map-context-menu__item[data-region-context-action="delete"]::before {
 	content: "\2715";
 }
