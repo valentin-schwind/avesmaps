@@ -31,7 +31,7 @@ $("#mapStyleSelect").on("change", function () {
 	setMapStyle(String(this.value || "stylized"), { persist: true });
 });
 $("#togglePaths").change(syncPathVisibility);
-$("#toggleRivers").change(syncRiverVisibility);
+$("#toggleRivers").change(syncPathVisibility);
 $("#mapLayerModeSelect").change(() => {
 	setSelectedMapLayerMode(getSelectedMapLayerMode());
 });
