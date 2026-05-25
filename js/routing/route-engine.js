@@ -129,18 +129,37 @@ function getServerRouteSegments(serverRouteResult) {
 		: Array.isArray(serverRouteResult?.segments) ? serverRouteResult.segments : [];
 }
 
+function getServerSegmentId(serverSegment) {
+	return String(serverSegment?.edge_id || serverSegment?.path_id || serverSegment?.id || "");
+}
+
 function getServerRouteNodeIds(serverRouteResult) {
 	const debug = getServerRouteDebug(serverRouteResult);
-	return Array.isArray(debug.node_ids) ? debug.node_ids.map((nodeId) => String(nodeId || "")).filter(Boolean) : [];
+	if (Array.isArray(debug.node_ids) && debug.node_ids.length) {
+		return debug.node_ids.map((nodeId) => String(nodeId || "")).filter(Boolean);
+	}
+
+	const nodeNames = [];
+	getServerRouteSegments(serverRouteResult).forEach((segment, index) => {
+		const fromNode = String(segment?.from_node || segment?.from || "");
+		const toNode = String(segment?.to_node || segment?.to || "");
+		if (index === 0 && fromNode) {
+			nodeNames.push(fromNode);
+		}
+		if (toNode) {
+			nodeNames.push(toNode);
+		}
+	});
+	return nodeNames;
 }
 
 function getServerRouteEdgeIds(serverRouteResult) {
 	const debug = getServerRouteDebug(serverRouteResult);
-	if (Array.isArray(debug.edge_ids)) {
+	if (Array.isArray(debug.edge_ids) && debug.edge_ids.length) {
 		return debug.edge_ids.map((edgeId) => String(edgeId || "")).filter(Boolean);
 	}
 
-	return getServerRouteSegments(serverRouteResult).map((segment) => String(segment?.edge_id || "")).filter(Boolean);
+	return getServerRouteSegments(serverRouteResult).map(getServerSegmentId).filter(Boolean);
 }
 
 function findRouteLocationByName(locationName) {
@@ -160,18 +179,18 @@ function clonePathSegmentForServerRoute(pathSegment, serverSegment) {
 		},
 		properties: {
 			...(pathSegment.properties || {}),
-			id: String(serverSegment?.edge_id || pathSegment.properties?.id || ""),
+			id: getServerSegmentId(serverSegment) || String(pathSegment.properties?.id || ""),
 			feature_subtype: subtype,
 			name: subtype,
-			transportOption: String(serverSegment?.transport_type || "") || pathSegment.properties?.transportOption || getTransportOption(subtype),
+			transportOption: String(serverSegment?.transport_type || serverSegment?.transport_option || "") || pathSegment.properties?.transportOption || getTransportOption(subtype),
 			synthetic: Boolean(pathSegment.properties?.synthetic),
 		},
 	};
 }
 
 function buildSyntheticServerRouteSegment(serverSegment, nodeIds, segmentIndex) {
-	const fromName = String(serverSegment?.from_node || nodeIds[segmentIndex] || "");
-	const toName = String(serverSegment?.to_node || nodeIds[segmentIndex + 1] || "");
+	const fromName = String(serverSegment?.from_node || serverSegment?.from || nodeIds[segmentIndex] || "");
+	const toName = String(serverSegment?.to_node || serverSegment?.to || nodeIds[segmentIndex + 1] || "");
 	const fromLocation = findRouteLocationByName(fromName);
 	const toLocation = findRouteLocationByName(toName);
 	if (!fromLocation || !toLocation) {
@@ -188,18 +207,19 @@ function buildSyntheticServerRouteSegment(serverSegment, nodeIds, segmentIndex) 
 			],
 		},
 		properties: {
-			id: String(serverSegment?.edge_id || `synthetic-${fromName}->${toName}`),
+			id: getServerSegmentId(serverSegment) || `synthetic-${fromName}->${toName}`,
 			name: SYNTHETIC_ROUTE_TYPE,
 			feature_subtype: SYNTHETIC_ROUTE_TYPE,
-			transportOption: String(serverSegment?.transport_type || "") || getTransportOption(SYNTHETIC_ROUTE_TYPE),
+			transportOption: String(serverSegment?.transport_type || serverSegment?.transport_option || "") || getTransportOption(SYNTHETIC_ROUTE_TYPE),
 			synthetic: true,
 		},
 	};
 }
 
 function resolveServerRouteDisplaySegment(serverSegment, nodeIds, segmentIndex) {
-	const edgeId = String(serverSegment?.edge_id || "");
+	const edgeId = getServerSegmentId(serverSegment);
 	if (!edgeId) {
+		console.warn("Serverroute: Segment ohne ID:", serverSegment);
 		return null;
 	}
 
@@ -207,10 +227,14 @@ function resolveServerRouteDisplaySegment(serverSegment, nodeIds, segmentIndex) 
 		return buildSyntheticServerRouteSegment(serverSegment, nodeIds, segmentIndex);
 	}
 
+	const featureId = String(serverSegment?.feature_id || "");
+	const publicId = String(serverSegment?.public_id || "");
 	const localPathSegment = pathData.find((path) =>
 		String(path.properties?.id || "") === edgeId
-		|| String(path.id || "") === String(serverSegment?.feature_id || "")
-		|| String(path.properties?.public_id || "") === String(serverSegment?.public_id || "")
+		|| String(path.id || "") === edgeId
+		|| String(path.id || "") === featureId
+		|| String(path.properties?.public_id || "") === publicId
+		|| String(path.properties?.public_id || "") === featureId
 	);
 	if (!localPathSegment) {
 		console.warn("Serverroute: lokales Segment nicht gefunden:", serverSegment);
@@ -319,6 +343,11 @@ async function buildRouteResultFromSelectedLocationsServer(useShortest) {
 
 		const serverDisplayRoute = buildRouteResultFromServerRoute(serverRouteResult);
 		if (!serverDisplayRoute.routeNodeNames.length || !serverDisplayRoute.segments.length) {
+			console.warn("Serverroute konnte nicht angezeigt werden:", {
+				serverRouteResult,
+				routeNodeNames: serverDisplayRoute.routeNodeNames,
+				segments: serverDisplayRoute.segments,
+			});
 			alert(`Die Serverroute zwischen ${start} und ${end} konnte nicht angezeigt werden.`);
 			return null;
 		}
