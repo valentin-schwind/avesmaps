@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 const AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD = 0.5;
 const AVESMAPS_ROUTE_CLIENT_TRANSFER_PENALTY = 100.0;
+const AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE = 'Querfeldein';
+const AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR = 1.2;
 
 const AVESMAPS_ROUTE_CLIENT_SPEED_TABLE = [
-    'groupFoot' => ['Reichsstrasse' => 4.5, 'Strasse' => 4.0, 'Weg' => 3.5, 'Pfad' => 3.0, 'Gebirgspass' => 1.5, 'Wuestenpfad' => 2.5],
-    'lightWalker' => ['Reichsstrasse' => 5.5, 'Strasse' => 5.0, 'Weg' => 4.5, 'Pfad' => 4.0, 'Gebirgspass' => 2.0, 'Wuestenpfad' => 3.5],
-    'groupHorse' => ['Reichsstrasse' => 7.0, 'Strasse' => 6.5, 'Weg' => 5.5, 'Pfad' => 4.5, 'Gebirgspass' => 2.5, 'Wuestenpfad' => 3.0],
-    'lightRider' => ['Reichsstrasse' => 8.5, 'Strasse' => 8.0, 'Weg' => 7.0, 'Pfad' => 6.0, 'Gebirgspass' => 3.0, 'Wuestenpfad' => 4.0],
-    'caravan' => ['Reichsstrasse' => 4.0, 'Strasse' => 3.5, 'Weg' => 3.0, 'Pfad' => 2.5, 'Gebirgspass' => 1.5, 'Wuestenpfad' => 2.0],
-    'horseCarriage' => ['Reichsstrasse' => 6.0, 'Strasse' => 5.5, 'Weg' => 4.5, 'Pfad' => 3.0, 'Gebirgspass' => 2.0, 'Wuestenpfad' => 3.0],
+    'groupFoot' => ['Reichsstrasse' => 4.5, 'Strasse' => 4.0, 'Weg' => 3.5, 'Pfad' => 3.0, 'Gebirgspass' => 1.5, 'Wuestenpfad' => 2.5, 'Querfeldein' => 1.25],
+    'lightWalker' => ['Reichsstrasse' => 5.5, 'Strasse' => 5.0, 'Weg' => 4.5, 'Pfad' => 4.0, 'Gebirgspass' => 2.0, 'Wuestenpfad' => 3.5, 'Querfeldein' => 1.7],
+    'groupHorse' => ['Reichsstrasse' => 7.0, 'Strasse' => 6.5, 'Weg' => 5.5, 'Pfad' => 4.5, 'Gebirgspass' => 2.5, 'Wuestenpfad' => 3.0, 'Querfeldein' => 2.1],
+    'lightRider' => ['Reichsstrasse' => 8.5, 'Strasse' => 8.0, 'Weg' => 7.0, 'Pfad' => 6.0, 'Gebirgspass' => 3.0, 'Wuestenpfad' => 4.0, 'Querfeldein' => 2.5],
+    'caravan' => ['Reichsstrasse' => 4.0, 'Strasse' => 3.5, 'Weg' => 3.0, 'Pfad' => 2.5, 'Gebirgspass' => 1.5, 'Wuestenpfad' => 2.0, 'Querfeldein' => 1.25],
+    'horseCarriage' => ['Reichsstrasse' => 6.0, 'Strasse' => 5.5, 'Weg' => 4.5, 'Pfad' => 3.0, 'Gebirgspass' => 2.0, 'Wuestenpfad' => 3.0, 'Querfeldein' => 1.7],
     'riverSailer' => ['Flussweg' => 7.5],
     'riverBarge' => ['Flussweg' => 5.0],
     'cargoShip' => ['Seeweg' => 10.0],
@@ -44,11 +46,14 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
         avesmapsAddClientCompatiblePathConnection($graph, $locations, $path, $pathIndex, $request);
     }
 
+    $syntheticConnectionCount = avesmapsConnectClientCompatibleDetachedGraphComponents($graph, $locations, $request);
+
     return [
         'graph' => $graph,
         'statistics' => [
             'node_count' => count($graph),
             'path_feature_count' => $pathIndex,
+            'synthetic_connection_count' => $syntheticConnectionCount,
         ],
     ];
 }
@@ -81,12 +86,127 @@ function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locatio
         'from' => (string) $startNode['name'],
         'to' => (string) $endNode['name'],
         'geometry' => is_array($path['geometry'] ?? null) ? $path['geometry'] : [],
+        'synthetic' => false,
     ];
 
-    $graph[$connection['from']][$connection['to']] ??= [];
-    $graph[$connection['from']][$connection['to']][] = $connection;
-    $graph[$connection['to']][$connection['from']] ??= [];
-    $graph[$connection['to']][$connection['from']][] = $connection;
+    avesmapsAddClientCompatibleGraphConnection($graph, $connection['from'], $connection['to'], $connection);
+    avesmapsAddClientCompatibleGraphConnection($graph, $connection['to'], $connection['from'], $connection);
+}
+
+function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, array $locations, array $request): int {
+    $components = avesmapsFindClientCompatibleGraphComponents($graph);
+    usort($components, static fn(array $a, array $b): int => count($b['node_names']) <=> count($a['node_names']));
+    if (count($components) <= 1) return 0;
+
+    $transportOption = avesmapsResolveClientRouteTransportOption(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request);
+    $speed = AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$transportOption][AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE] ?? null;
+    if ($transportOption === null || !is_numeric($speed) || (float) $speed <= 0.0) return 0;
+
+    $locationLookup = avesmapsBuildClientCompatibleLocationLookup($locations);
+    $anchorNodeNames = $components[0]['node_names'];
+    $detachedComponents = array_slice($components, 1);
+    $syntheticConnectionCount = 0;
+
+    foreach ($detachedComponents as $component) {
+        $nearestConnection = avesmapsFindNearestClientCompatibleComponentConnection($component['node_names'], $anchorNodeNames, $locationLookup);
+        if (!is_array($nearestConnection)) continue;
+
+        $distance = (float) $nearestConnection['distance'] * AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR;
+        $fromLocation = $nearestConnection['from_location'];
+        $toLocation = $nearestConnection['to_location'];
+        $connectionId = 'synthetic-' . $fromLocation['name'] . '->' . $toLocation['name'];
+        $connection = [
+            'distance' => $distance,
+            'time' => $distance / (float) $speed,
+            'route_type' => AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE,
+            'transport_option' => $transportOption,
+            'id' => $connectionId,
+            'path_id' => $connectionId,
+            'feature_id' => '',
+            'public_id' => '',
+            'from' => (string) $fromLocation['name'],
+            'to' => (string) $toLocation['name'],
+            'geometry' => [
+                'type' => 'LineString',
+                'coordinates' => [
+                    [(float) $fromLocation['route_x'], (float) $fromLocation['route_y']],
+                    [(float) $toLocation['route_x'], (float) $toLocation['route_y']],
+                ],
+            ],
+            'synthetic' => true,
+        ];
+
+        avesmapsAddClientCompatibleGraphConnection($graph, $connection['from'], $connection['to'], $connection);
+        avesmapsAddClientCompatibleGraphConnection($graph, $connection['to'], $connection['from'], $connection);
+        $syntheticConnectionCount++;
+    }
+
+    return $syntheticConnectionCount;
+}
+
+function avesmapsFindClientCompatibleGraphComponents(array $graph): array {
+    $visitedNodeNames = [];
+    $components = [];
+    foreach (array_keys($graph) as $startName) {
+        if (isset($visitedNodeNames[$startName])) continue;
+        $nodeNames = [];
+        $stack = [$startName];
+        $visitedNodeNames[$startName] = true;
+        while ($stack !== []) {
+            $currentName = array_pop($stack);
+            $nodeNames[] = $currentName;
+            foreach (array_keys(is_array($graph[$currentName] ?? null) ? $graph[$currentName] : []) as $neighborName) {
+                if (isset($visitedNodeNames[$neighborName])) continue;
+                $visitedNodeNames[$neighborName] = true;
+                $stack[] = $neighborName;
+            }
+        }
+        $components[] = ['node_names' => $nodeNames];
+    }
+    return $components;
+}
+
+function avesmapsFindNearestClientCompatibleComponentConnection(array $componentNodeNames, array $connectedNodeNames, array $locationLookup): ?array {
+    $nearestConnection = null;
+    foreach ($componentNodeNames as $sourceName) {
+        $sourceLocation = $locationLookup[$sourceName] ?? null;
+        if (!is_array($sourceLocation)) continue;
+        foreach ($connectedNodeNames as $targetName) {
+            $targetLocation = $locationLookup[$targetName] ?? null;
+            if (!is_array($targetLocation)) continue;
+            $distance = avesmapsGetClientCompatibleLocationDistance($sourceLocation, $targetLocation);
+            if (!is_array($nearestConnection) || $distance < (float) $nearestConnection['distance']) {
+                $nearestConnection = [
+                    'from_location' => $sourceLocation,
+                    'to_location' => $targetLocation,
+                    'distance' => $distance,
+                ];
+            }
+        }
+    }
+    return $nearestConnection;
+}
+
+function avesmapsBuildClientCompatibleLocationLookup(array $locations): array {
+    $lookup = [];
+    foreach ($locations as $location) {
+        if (!is_array($location)) continue;
+        $name = (string) ($location['name'] ?? '');
+        if ($name !== '') $lookup[$name] = $location;
+    }
+    return $lookup;
+}
+
+function avesmapsGetClientCompatibleLocationDistance(array $firstLocation, array $secondLocation): float {
+    return hypot(
+        (float) $firstLocation['route_x'] - (float) $secondLocation['route_x'],
+        (float) $firstLocation['route_y'] - (float) $secondLocation['route_y']
+    );
+}
+
+function avesmapsAddClientCompatibleGraphConnection(array &$graph, string $fromName, string $toName, array $connection): void {
+    $graph[$fromName][$toName] ??= [];
+    $graph[$fromName][$toName][] = $connection;
 }
 
 function avesmapsFindClientLocationAtPathEndpoint(array $locations, array $point): ?array {
@@ -122,6 +242,7 @@ function avesmapsNormalizeClientRouteSubtype(string $subtype): string {
         'Wüstenpfad', 'Wuestenpfad' => 'Wuestenpfad',
         'Flussweg' => 'Flussweg',
         'Seeweg' => 'Seeweg',
+        'Querfeldein' => 'Querfeldein',
         'Weg' => 'Weg',
         default => 'Pfad',
     };
@@ -130,6 +251,7 @@ function avesmapsNormalizeClientRouteSubtype(string $subtype): string {
 function avesmapsResolveClientRouteTransportOption(string $routeType, array $request): ?string {
     $transports = is_array($request['transports'] ?? null) ? $request['transports'] : AVESMAPS_ROUTE_DEFAULT_REQUEST['transports'];
     if (in_array($routeType, ['Pfad', 'Weg', 'Strasse', 'Reichsstrasse', 'Gebirgspass', 'Wuestenpfad'], true)) return (string) ($transports['land'] ?? 'groupFoot');
+    if ($routeType === 'Querfeldein') return (string) ($transports['synthetic'] ?? $transports['land'] ?? 'groupFoot');
     if ($routeType === 'Flussweg') return (string) ($transports['river'] ?? 'riverSailer');
     if ($routeType === 'Seeweg') return (string) ($transports['sea'] ?? 'cargoShip');
     return null;
@@ -168,7 +290,6 @@ function avesmapsFindClientCompatibleRoute(array $clientGraph, string $startName
     foreach (array_keys($graph) as $nodeName) $distances[$nodeName] = INF;
     $distances[$startName] = 0.0;
     $previousNodes = [];
-    $previousTransport = [];
     $connectionUsed = [];
 
     $queue = new SplPriorityQueue();
@@ -190,7 +311,6 @@ function avesmapsFindClientCompatibleRoute(array $clientGraph, string $startName
                 if ($alternative < ($distances[$neighbor] ?? INF)) {
                     $distances[$neighbor] = $alternative;
                     $previousNodes[$neighbor] = $currentNode;
-                    $previousTransport[$neighbor] = $transport;
                     $connectionUsed[$neighbor] = $connection;
                     $queue->insert(['node' => $neighbor, 'transport' => $transport], -$alternative);
                 }
@@ -243,6 +363,7 @@ function avesmapsBuildClientRouteDiagnosticSegments(array $segments): array {
             'distance_units' => (float) ($segment['distance'] ?? 0.0),
             'cost_units' => (float) ($segment['time'] ?? 0.0),
             'coordinate_count' => count($coordinates),
+            'synthetic' => !empty($segment['synthetic']),
         ];
     }, $segments, array_keys($segments));
 }
