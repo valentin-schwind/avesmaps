@@ -1,4 +1,4 @@
-// Konstanten
+﻿// Konstanten
 const THRESHOLD = 0.5;
 const TILE_SIZE = 256;
 const IMG_WIDTH = 1024;
@@ -121,10 +121,10 @@ const MAP_TILE_STYLES = {
 };
 const MAP_FEATURE_UPDATE_API_URL = window.AVESMAPS_MAP_FEATURE_UPDATE_ENDPOINT || "api/map-feature-update.php";
 const LOCATION_REPORT_REVIEW_API_URL = window.AVESMAPS_LOCATION_REPORT_REVIEW_ENDPOINT || "api/edit/reports/locations.php";
-const MAP_AUDIT_LOG_API_URL = window.AVESMAPS_MAP_AUDIT_LOG_ENDPOINT || "api/map-audit-log.php";
+const MAP_AUDIT_LOG_API_URL = window.AVESMAPS_MAP_AUDIT_LOG_ENDPOINT || "api/edit/map/audit-log.php";
 const WIKI_SYNC_LOCATIONS_API_URL = window.AVESMAPS_WIKI_SYNC_LOCATIONS_ENDPOINT || "api/wiki-sync-locations.php";
 const WIKI_SYNC_TERRITORIES_API_URL = window.AVESMAPS_WIKI_SYNC_TERRITORIES_ENDPOINT || "api/wiki-sync-territories.php";
-const EDITOR_PRESENCE_API_URL = window.AVESMAPS_EDITOR_PRESENCE_ENDPOINT || "api/editor-presence.php";
+const EDITOR_PRESENCE_API_URL = window.AVESMAPS_EDITOR_PRESENCE_ENDPOINT || "api/edit/map/presence.php";
 const EDIT_MODE_PLANNER_STATE_STORAGE_KEY = "avesmaps.edit.plannerState";
 const EDIT_MODE_REVIEW_PANEL_STORAGE_KEY = "avesmaps.edit.reviewPanelHidden";
 const EDIT_MODE_MAP_STYLE_STORAGE_KEY = "avesmaps.edit.mapStyle";
@@ -176,12 +176,12 @@ const PATH_RENDER_CONFIG = {
 	simplifiedCenterWeightScale: 0.85,
 };
 const LOCATION_TYPE_CONFIG = {
-	metropole: { label: "Metropolen", singularLabel: "Metropole", icon: "🏛️", queryParam: "toggleMetropolen", radius: 10, shape: "circle", borderWidth: 3 },
-	grossstadt: { label: "Großstädte", singularLabel: "Großstadt", icon: "🏰", queryParam: "toggleGrossstaedte", radius: 7.5, shape: "square", borderWidth: 3 },
-	stadt: { label: "Städte", singularLabel: "Stadt", icon: "⛪", queryParam: "toggleStaedte", radius: 6, shape: "square", borderWidth: 2 },
-	kleinstadt: { label: "Kleinstädte", singularLabel: "Kleinstadt", icon: "🏘️", queryParam: "toggleKleinstaedte", radius: 4, shape: "square", borderWidth: 2 },
-	dorf: { label: "Dörfer", singularLabel: "Dorf", icon: "🏡", queryParam: "toggleDoerfer", radius: 3.5, shape: "circle", borderWidth: 2 },
-	gebaeude: { label: "Besondere Bauwerke/Stätten", singularLabel: "Besondere Bauwerke/Stätten", icon: "🏛️", queryParam: "toggleGebaeude", radius: 3.5, shape: "circle", borderWidth: 2 },
+	metropole: { label: "Metropolen", singularLabel: "Metropole", icon: "ðŸ›ï¸", queryParam: "toggleMetropolen", radius: 10, shape: "circle", borderWidth: 3 },
+	grossstadt: { label: "GroÃŸstÃ¤dte", singularLabel: "GroÃŸstadt", icon: "ðŸ°", queryParam: "toggleGrossstaedte", radius: 7.5, shape: "square", borderWidth: 3 },
+	stadt: { label: "StÃ¤dte", singularLabel: "Stadt", icon: "â›ª", queryParam: "toggleStaedte", radius: 6, shape: "square", borderWidth: 2 },
+	kleinstadt: { label: "KleinstÃ¤dte", singularLabel: "Kleinstadt", icon: "ðŸ˜ï¸", queryParam: "toggleKleinstaedte", radius: 4, shape: "square", borderWidth: 2 },
+	dorf: { label: "DÃ¶rfer", singularLabel: "Dorf", icon: "ðŸ¡", queryParam: "toggleDoerfer", radius: 3.5, shape: "circle", borderWidth: 2 },
+	gebaeude: { label: "Besondere Bauwerke/StÃ¤tten", singularLabel: "Besondere Bauwerke/StÃ¤tten", icon: "ðŸ›ï¸", queryParam: "toggleGebaeude", radius: 3.5, shape: "circle", borderWidth: 2 },
 };
 const LOCATION_ICON_PATHS = {
 	metropole: "icons/small_webp/metropole.webp",
