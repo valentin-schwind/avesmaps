@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Avesmaps – Herrschaftsgebiete synchronisieren</title>
+	<style>
+		:root { --page-bg:#f4efe7; --page-bg-deep:#2f322c; --panel:#fff9f4; --panel-muted:#f8efe4; --text:#2f251c; --muted:#6c5a49; --border:#d8c6b2; --danger:#8a3a1b; --ok:#3d6b44; --shadow:rgba(0,0,0,.16); }
+		* { box-sizing:border-box; }
+		body { margin:0; font-family:Arial,sans-serif; font-size:14px; background:var(--page-bg-deep); color:var(--text); }
+		.app { width:min(1560px,100%); min-height:100vh; margin:0 auto; background:var(--page-bg); box-shadow:0 0 30px rgba(0,0,0,.28); }
+		header { padding:20px 24px; background:rgba(255,249,244,.96); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:10; }
+		h1 { margin:0 0 6px; font-size:24px; }
+		p { margin:0; color:var(--muted); line-height:1.45; }
+		main { padding:18px; display:grid; grid-template-columns:minmax(320px,390px) minmax(0,1fr); gap:16px; }
+		.panel { background:var(--panel); border:1px solid var(--border); box-shadow:0 8px 24px var(--shadow); padding:14px; }
+		.panel h2 { margin:0 0 10px; font-size:17px; }
+		label { display:block; font-weight:700; margin:12px 0 5px; }
+		textarea,input { width:100%; border:1px solid var(--border); background:#fffdf9; padding:8px; font:inherit; }
+		textarea { min-height:150px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; }
+		.grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+		.actions,.selection-tools { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+		.actions { margin-top:12px; }
+		button { border:1px solid #5f4f40; background:#565044; color:#fffaf0; padding:8px 12px; cursor:pointer; font-weight:700; }
+		button.secondary { background:#766d5d; }
+		button.danger { background:var(--danger); }
+		button:disabled { opacity:.55; cursor:progress; }
+		.status { margin-top:12px; padding:10px; background:var(--panel-muted); border:1px solid var(--border); white-space:pre-wrap; }
+		.summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
+		.stat { background:var(--panel-muted); border:1px solid var(--border); padding:10px; }
+		.stat strong { display:block; font-size:20px; }
+		.selection-tools { margin:12px 0; padding:10px; background:var(--panel-muted); border:1px solid var(--border); }
+		.selection-tools span { color:var(--muted); }
+		.select-cell { width:34px; text-align:center; }
+		.row-check,#selectAllRows { width:auto; cursor:pointer; }
+		tr.selected { background:#fff4df; }
+		.date-cell,.numeric-cell { white-space:nowrap; }
+		.numeric-cell { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:#235f82; }
+		table { width:100%; border-collapse:collapse; background:#fffdf9; font-size:12px; }
+		th,td { border:1px solid var(--border); padding:6px 7px; vertical-align:top; }
+		th { background:var(--panel-muted); text-align:left; }
+		.badge { display:inline-block; padding:2px 5px; border-radius:3px; background:var(--panel-muted); border:1px solid var(--border); }
+		.badge.ok { color:var(--ok); }
+		.badge.warn { color:var(--danger); }
+		.coat-cell { min-width:70px; text-align:center; }
+		.coat-preview { display:inline-flex; width:52px; min-height:52px; align-items:center; justify-content:center; border:1px solid var(--border); background:#fffaf0; text-decoration:none; }
+		.coat-preview img { max-width:48px; max-height:48px; object-fit:contain; display:block; }
+		.coat-preview span { display:none; font-size:11px; color:#235f82; }
+		.coat-preview.broken img { display:none; }
+		.coat-preview.broken span { display:inline; }
+		pre { margin:0; white-space:pre-wrap; word-break:break-word; font-size:11px; }
+		@media (max-width:900px) { main { grid-template-columns:1fr; } .summary { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+	</style>
+</head>
+<body>
+	<div class="app">
+		<header>
+			<h1>Herrschaftsgebiete – Synchronisierungseinstellungen</h1>
+			<p>Wiki-Daten werden vorbereitet und erst nach ausdruecklicher Uebernahme in den produktiven Wiki-Cache geschrieben. Kartenflaechen und Geometrien bleiben unberuehrt.</p>
+		</header>
+		<main>
+			<section class="panel">
+				<h2>Synchronisierung</h2>
+				<label for="seeds">Seeds / Startseiten</label><textarea id="seeds"></textarea>
+				<div class="grid">
+					<div><label for="maxDepth">Max. Rekursionstiefe</label><input id="maxDepth" type="number" min="0" value="3"></div>
+					<div><label for="maxIterations">Max. Iterationen</label><input id="maxIterations" type="number" min="1" value="3000"></div>
+					<div><label for="maxPages">Max. Seiten</label><input id="maxPages" type="number" min="1" value="3000"></div>
+					<div><label for="maxRuntime">Max. Laufzeit (s)</label><input id="maxRuntime" type="number" min="3" value="360000"></div>
+					<div><label for="sleepMs">Pause/Wiki-Request (ms)</label><input id="sleepMs" type="number" min="0" value="1000"></div>
+					<div><label for="timeout">Request-Timeout (s)</label><input id="timeout" type="number" min="3" value="30"></div>
+				</div>
+				<label for="catchwords">Catchword-Konfiguration (JSON)</label><textarea id="catchwords"></textarea>
+				<div class="actions">
+					<button id="runBtn">Daten aus Wiki lesen</button>
+					<button id="reloadBtn" class="secondary">Vorbereitete Daten laden</button>
+					<button id="defaultsBtn" class="secondary">Vorgaben laden</button>
+					<button id="dryRunBtn" class="secondary">Übernahme prüfen</button>
+					<button id="promoteBtn" class="secondary">Daten übernehmen</button>
+					<button id="clearWikiBtn" class="danger">Wiki-Herrschaftsgebiettabelle leeren</button>
+					<button id="clearBtn" class="danger">Vorbereitete Daten leeren</button>
+				</div>
+				<div id="status" class="status">Bereit.</div>
+			</section>
+			<section class="panel">
+				<h2>Ergebnis</h2>
+				<div class="summary">
+					<div class="stat"><strong id="count">0</strong><span>Datensätze</span></div>
+					<div class="stat"><strong id="iterations">–</strong><span>Iterationen</span></div>
+					<div class="stat"><strong id="pages">–</strong><span>Seiten</span></div>
+					<div class="stat"><strong id="childLinks">–</strong><span>Kinderlinks</span></div>
+				</div>
+				<div id="runInfo" class="status">Noch kein Lauf in dieser Ansicht.</div>
+				<div class="selection-tools">
+					<label for="nameSearch" style="margin:0">Name suchen</label>
+					<input id="nameSearch" type="search" placeholder="z. B. Al'Bor" style="max-width:260px">
+					<button id="clearNameSearchBtn" class="secondary" disabled>Suche leeren</button>
+					<button id="deleteSelectedBtn" class="danger" disabled>Ausgewählte vorbereitete Einträge löschen</button>
+					<button id="clearSelectionBtn" class="secondary" disabled>Auswahl aufheben</button>
+					<span id="selectedCount">0 ausgewählt</span>
+					<span id="visibleCount">0 sichtbar</span>
+				</div>
+				<div style="overflow:auto; margin-top:12px; max-height:65vh;">
+					<table>
+						<thead>
+							<tr>
+								<th class="select-cell"><input id="selectAllRows" type="checkbox" title="Alle sichtbaren Einträge auswählen"></th>
+								<th>Name</th><th>Wappen</th><th>Typ</th><th>Kontinent</th><th>Pfad</th>
+								<th>Gründung</th><th>founded_start_bf</th><th>Auflösung</th><th>dissolved_end_bf</th><th>Quelle</th>
+							</tr>
+						</thead>
+						<tbody id="rows"></tbody>
+					</table>
+				</div>
+				<h2 style="margin-top:16px;">Debug</h2>
+				<pre id="debug">[]</pre>
+			</section>
+		</main>
+	</div>
+	<script>
+		const API_URL = "/api/wiki-dom-sync.php";
+		const WIKI_SYNC_URL = "/api/wiki-sync-territories.php";
+		let pollTimer = null, pollStartedAt = 0, startCount = 0;
+		let latestRowsPayload = null;
+		const els = {
+			seeds: document.getElementById("seeds"), catchwords: document.getElementById("catchwords"), maxDepth: document.getElementById("maxDepth"), maxIterations: document.getElementById("maxIterations"), maxPages: document.getElementById("maxPages"), maxRuntime: document.getElementById("maxRuntime"), sleepMs: document.getElementById("sleepMs"), timeout: document.getElementById("timeout"),
+			status: document.getElementById("status"), runInfo: document.getElementById("runInfo"), rows: document.getElementById("rows"), debug: document.getElementById("debug"), count: document.getElementById("count"), iterations: document.getElementById("iterations"), pages: document.getElementById("pages"), childLinks: document.getElementById("childLinks"),
+			runBtn: document.getElementById("runBtn"), reloadBtn: document.getElementById("reloadBtn"), defaultsBtn: document.getElementById("defaultsBtn"), clearBtn: document.getElementById("clearBtn"), clearWikiBtn: document.getElementById("clearWikiBtn"), dryRunBtn: document.getElementById("dryRunBtn"), promoteBtn: document.getElementById("promoteBtn"),
+			selectAllRows: document.getElementById("selectAllRows"), deleteSelectedBtn: document.getElementById("deleteSelectedBtn"), clearSelectionBtn: document.getElementById("clearSelectionBtn"), selectedCount: document.getElementById("selectedCount"), visibleCount: document.getElementById("visibleCount"), nameSearch: document.getElementById("nameSearch"), clearNameSearchBtn: document.getElementById("clearNameSearchBtn"),
+		};
+		function setBusy(isBusy) { for (const button of Object.values(els).filter(item => item instanceof HTMLButtonElement)) button.disabled = isBusy; if (!isBusy) updateSelectionState(); }
+		function setStatus(message) { els.status.textContent = message; }
+		function readPayload() { let catchwords = null; const rawCatchwords = els.catchwords.value.trim(); if (rawCatchwords !== "") catchwords = JSON.parse(rawCatchwords); return { seeds: els.seeds.value.split(/\n+/).map(line => line.trim()).filter(Boolean), max_depth: Number(els.maxDepth.value), max_iterations: Number(els.maxIterations.value), max_pages: Number(els.maxPages.value), max_runtime_seconds: Number(els.maxRuntime.value), sleep_ms: Number(els.sleepMs.value), request_timeout_seconds: Number(els.timeout.value), catchwords }; }
+		async function fetchJson(url, options = {}) { const response = await fetch(url, options); const text = await response.text(); let payload; try { payload = JSON.parse(text); } catch (error) { throw new Error(text.slice(0, 700) || response.statusText); } if (!response.ok || payload.ok === false) throw new Error(payload.error || response.statusText); return payload; }
+		function startPolling() { stopPolling(); pollStartedAt = Date.now(); startCount = Number(els.count.textContent) || 0; pollTimer = window.setInterval(refreshLiveRows, 1200); refreshLiveRows(); }
+		function stopPolling() { if (pollTimer !== null) { window.clearInterval(pollTimer); pollTimer = null; } }
+		async function refreshLiveRows() { try { render(await fetchJson(`${API_URL}?action=list&_=${Date.now()}`), true); } catch (error) { els.runInfo.textContent = `Live-Aktualisierung fehlgeschlagen: ${error.message}`; } }
+		async function loadDefaults() { setBusy(true); try { setStatus("Lade Vorgaben ..."); const payload = await fetchJson(`${API_URL}?action=defaults`); const defaults = payload.defaults || {}; els.catchwords.value = JSON.stringify(payload.catchwords, null, "\t"); if (Array.isArray(payload.seeds)) els.seeds.value = payload.seeds.join("\n"); if (defaults.max_iterations !== undefined) els.maxIterations.value = defaults.max_iterations; if (defaults.max_pages !== undefined) els.maxPages.value = defaults.max_pages; if (defaults.max_runtime_seconds !== undefined) els.maxRuntime.value = defaults.max_runtime_seconds; if (defaults.sleep_ms !== undefined) els.sleepMs.value = defaults.sleep_ms; if (defaults.request_timeout_seconds !== undefined) els.timeout.value = defaults.request_timeout_seconds; setStatus("Vorgaben geladen."); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
+		async function runImport() { setBusy(true); try { setStatus("Synchronisierung läuft. Die vorbereiteten Daten aktualisieren sich live."); startPolling(); const payload = await fetchJson(`${API_URL}?action=run`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(readPayload()) }); stopPolling(); render(payload, false); setStatus("Synchronisierung abgeschlossen."); } catch (error) { stopPolling(); setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
+		async function reloadRows() { setBusy(true); try { render(await fetchJson(`${API_URL}?action=list`), false); setStatus("Vorbereitete Daten geladen."); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
+		async function clearRows() { if (!confirm("Vorbereitete Herrschaftsgebiets-Daten wirklich leeren?")) return; setBusy(true); try { await fetchJson(`${API_URL}?action=clear`, { method: "POST" }); render({ ok: true, items: [], count: 0 }, false); setStatus("Vorbereitete Daten geleert."); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
+		async function runWikiSync(dryRun) { if (!dryRun && !confirm("Vorbereitete Daten jetzt in den produktiven Wiki-Cache übernehmen? Kartengeometrien bleiben unberührt.")) return; setBusy(true); try { setStatus(dryRun ? "Übernahme wird geprüft ..." : "Daten werden übernommen ..."); const payload = await fetchJson(WIKI_SYNC_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync_territories", dry_run: dryRun, reset_target: false }) }); renderSyncResult(payload); setStatus(dryRun ? "Übernahme geprüft." : "Daten übernommen."); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
+		async function clearWikiTable() { if (!confirm("Achtung: Das leert die produktive Wiki-Herrschaftsgebiettabelle. Kartengeometrien bleiben erhalten, aber die Wiki-Zuordnungsliste ist danach leer, bis du Daten wieder übernimmst. Fortfahren?")) return; if (!confirm("Sicher? Diese Aktion ist nur sinnvoll vor einem kompletten Neuaufbau der Wiki-Herrschaftsgebietdaten.")) return; setBusy(true); try { const payload = await fetchJson(WIKI_SYNC_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "clear_territory_wiki_table" }) }); renderSyncResult(payload); setStatus(payload.message || "Wiki-Herrschaftsgebiettabelle geleert."); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
+		function normalizeSearchText(value) { return String(value ?? "").trim().toLocaleLowerCase("de-DE"); }
+		function filterRowsByName(items) { const query = normalizeSearchText(els.nameSearch?.value || ""); if (query === "") return items; return items.filter(item => normalizeSearchText(item.name).includes(query)); }
+		function render(payload, live) {
+			latestRowsPayload = payload;
+			const allItems = Array.isArray(payload.items) ? payload.items : [];
+			const items = filterRowsByName(allItems);
+			const count = Number(payload.count ?? allItems.length);
+			els.count.textContent = String(count);
+			els.visibleCount.textContent = `${items.length} sichtbar`;
+			els.clearNameSearchBtn.disabled = normalizeSearchText(els.nameSearch?.value || "") === "";
+			if (live && !payload.run) { const elapsed = Math.max(0, Math.round((Date.now() - pollStartedAt) / 1000)); els.iterations.textContent = "läuft"; els.pages.textContent = String(count); els.childLinks.textContent = "–"; els.runInfo.textContent = `Live-Stand nach ${elapsed}s: ${count} Datensätze${count > startCount ? `, +${count - startCount} seit Start` : ""}.`; }
+			else { els.iterations.textContent = payload.run?.iterations ?? "–"; els.pages.textContent = payload.run?.fetched_pages ?? "–"; els.childLinks.textContent = payload.run?.queued_child_links ?? "–"; els.runInfo.textContent = payload.run ? `Fertig: ${count} Datensätze, ${payload.run.fetched_pages ?? 0} Seiten, ${payload.run.queued_child_links ?? 0} Kinderlinks, ${payload.run.errors?.length ?? 0} Fehler.` : `Vorbereitete Daten geladen: ${count} Datensätze.`; }
+			els.rows.innerHTML = "";
+			for (const item of items) {
+				const raw = item.raw || {};
+				const tr = document.createElement("tr");
+				const path = Array.isArray(item.affiliation_path) ? item.affiliation_path.join(" > ") : "";
+				tr.innerHTML = `<td class="select-cell"><input class="row-check" type="checkbox" value="${escapeAttr(item.id || "")}" aria-label="${escapeAttr(item.name || "Eintrag")} auswählen"></td><td><strong>${escapeHtml(item.name || "")}</strong><br><span class="badge ${raw.synthetic ? "warn" : "ok"}">${raw.synthetic ? "synthetisch" : "geholt"}</span></td><td class="coat-cell">${formatCoatCell(item)}</td><td>${escapeHtml(item.type || "")}</td><td>${escapeHtml(item.continent || "")}</td><td>${escapeHtml(path || item.affiliation_root || "")}</td><td class="date-cell">${formatDateCell(item, "founded")}</td><td class="numeric-cell">${escapeHtml(rawNumericValue(item.founded_start_bf))}</td><td class="date-cell">${formatDateCell(item, "dissolved")}</td><td class="numeric-cell">${escapeHtml(rawNumericValue(item.dissolved_end_bf))}</td><td>${item.wiki_url ? `<a href="${escapeAttr(item.wiki_url)}" target="_blank" rel="noreferrer">Wiki</a>` : ""}</td>`;
+				els.rows.appendChild(tr);
+			}
+			updateSelectionState();
+			els.debug.textContent = JSON.stringify(payload, null, "\t");
+		}
+		function renderSyncResult(payload) { const sync = payload.sync || {}; els.iterations.textContent = "–"; els.pages.textContent = String(payload.territory_count ?? "–"); els.childLinks.textContent = String(payload.root_count ?? "–"); els.count.textContent = String(payload.territory_count ?? 0); els.runInfo.textContent = `${payload.dry_run ? "Prüfung" : "Übernahme"}: ${sync.valid_count ?? 0} gültig, ${sync.created_count ?? 0} neu, ${sync.updated_count ?? 0} aktualisiert, ${sync.skipped_count ?? 0} übersprungen. Baum: ${payload.root_count ?? 0} Wurzeln, ${payload.territory_count ?? 0} Einträge.`; els.debug.textContent = JSON.stringify(payload, null, "\t"); }
+		function formatCoatCell(item) { const url = item.coat_of_arms_url || ""; if (!url) return ""; return `<a class="coat-preview" href="${escapeAttr(url)}" target="_blank" rel="noreferrer" title="Wappen öffnen"><img src="${escapeAttr(url)}" alt="Wappen" loading="lazy" onerror="this.parentElement.classList.add('broken')"><span>Wappen</span></a>`; }
+		function formatDateCell(item, prefix) { return escapeHtml(formatBfRange(item[`${prefix}_start_bf`], item[`${prefix}_end_bf`])); }
+		function rawNumericValue(value) { return value === null || value === undefined || value === "" ? "–" : String(value); }
+		function formatBfRange(start, end) { const hasStart = start !== null && start !== undefined && start !== ""; const hasEnd = end !== null && end !== undefined && end !== ""; if (!hasStart && !hasEnd) return ""; const startLabel = hasStart ? formatBfYear(Number(start)) : ""; const endLabel = hasEnd ? formatBfYear(Number(end)) : ""; if (startLabel && endLabel && startLabel !== endLabel) return `${startLabel}–${endLabel}`; return startLabel || endLabel; }
+		function formatBfYear(value) { if (!Number.isFinite(value)) return ""; if (value < 0) return `${Math.abs(value)} v. BF`; return `${value} BF`; }
+		function selectedRowIds() { return Array.from(els.rows.querySelectorAll(".row-check:checked")).map(input => Number(input.value)).filter(Number.isInteger); }
+		function updateSelectionState() { const checks = Array.from(els.rows.querySelectorAll(".row-check")); const selected = selectedRowIds(); for (const check of checks) check.closest("tr")?.classList.toggle("selected", check.checked); els.selectedCount.textContent = `${selected.length} ausgewählt`; els.deleteSelectedBtn.disabled = selected.length === 0; els.clearSelectionBtn.disabled = selected.length === 0; els.selectAllRows.checked = checks.length > 0 && selected.length === checks.length; els.selectAllRows.indeterminate = selected.length > 0 && selected.length < checks.length; }
+		function clearSelection() { for (const check of els.rows.querySelectorAll(".row-check")) check.checked = false; updateSelectionState(); }
+		async function deleteSelectedRows() { const ids = selectedRowIds(); if (ids.length === 0) return; if (!confirm(`${ids.length} vorbereitete Einträge aus political_territory_wiki_test löschen? Produktive Daten bleiben unberührt.`)) return; setBusy(true); try { const payload = await fetchJson(`${API_URL}?action=delete_rows`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) }); render(payload, false); setStatus(payload.message || `${ids.length} vorbereitete Einträge gelöscht.`); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
+		function escapeHtml(value) { return String(value ?? "").replace(/[&<>"]/g, char => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" })[char]); }
+		function escapeAttr(value) { return escapeHtml(value).replace(/'/g, "&#039;"); }
+		els.runBtn.addEventListener("click", runImport); els.reloadBtn.addEventListener("click", reloadRows); els.defaultsBtn.addEventListener("click", loadDefaults); els.clearBtn.addEventListener("click", clearRows); els.clearWikiBtn.addEventListener("click", clearWikiTable); els.dryRunBtn.addEventListener("click", () => runWikiSync(true)); els.promoteBtn.addEventListener("click", () => runWikiSync(false));
+		els.selectAllRows.addEventListener("change", () => { for (const check of els.rows.querySelectorAll(".row-check")) check.checked = els.selectAllRows.checked; updateSelectionState(); });
+		els.rows.addEventListener("change", event => { if (event.target instanceof HTMLInputElement && event.target.classList.contains("row-check")) updateSelectionState(); });
+		els.deleteSelectedBtn.addEventListener("click", deleteSelectedRows); els.clearSelectionBtn.addEventListener("click", clearSelection);
+		els.nameSearch.addEventListener("input", () => { if (latestRowsPayload) render(latestRowsPayload, false); });
+		els.clearNameSearchBtn.addEventListener("click", () => { els.nameSearch.value = ""; if (latestRowsPayload) render(latestRowsPayload, false); });
+		loadDefaults().then(reloadRows);
+	</script>
+</body>
+</html>

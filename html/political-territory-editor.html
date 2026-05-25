@@ -1,0 +1,1030 @@
+﻿<!doctype html>
+<html lang="de">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Avesmaps – Herrschaftsgebiete aus dem Wiki</title>
+	<link rel="stylesheet" href="/css/political-territory-wiki-tree.css">
+
+	<style>
+		:root {
+			--page-bg: #f4efe7;
+			--page-bg-deep: #2f322c;
+			--panel: #fff9f4;
+			--panel-soft: #fffaf5;
+			--panel-muted: #f8efe4;
+			--panel-hover: #f5eadc;
+			--text: #2f251c;
+			--text-strong: #3f3428;
+			--muted: #6c5a49;
+			--muted-2: #806c59;
+			--border: #d8c6b2;
+			--border-strong: #cdb79f;
+			--accent: #385d72;
+			--accent-soft: #eef5f8;
+			--button: #565044;
+			--button-border: #5f4f40;
+			--danger: #8a3a1b;
+			--synthetic: #8b5d2a;
+			--shadow: rgba(0, 0, 0, 0.18);
+		}
+
+		* {
+			box-sizing: border-box;
+		}
+
+		body {
+			margin: 0;
+			font-family: "Faculty Glyphic", Arial, sans-serif;
+			font-size: 10pt;
+			background: var(--page-bg-deep);
+			color: var(--text);
+		}
+
+		body.is-embedded {
+			background: var(--page-bg);
+		}
+
+		.app-container {
+			width: min(760px, 100%);
+			min-height: 100vh;
+			margin: 0 auto;
+			background: var(--page-bg);
+			box-shadow: 0 0 30px rgba(0, 0, 0, 0.28);
+		}
+
+		body.is-embedded .app-container {
+			width: 100%;
+			box-shadow: none;
+		}
+
+		header {
+			padding: 18px 24px;
+			border-bottom: 1px solid var(--border);
+			background: rgba(255, 249, 244, 0.96);
+			position: sticky;
+			top: 0;
+			z-index: 10;
+			box-shadow: 0 3px 12px rgba(0, 0, 0, 0.18);
+			backdrop-filter: blur(6px);
+		}
+
+		body.is-embedded header {
+			display: none;
+		}
+
+		h1 {
+			margin: 0 0 6px 0;
+			font-size: 22px;
+			font-weight: 700;
+			color: var(--text-strong);
+		}
+
+		p {
+			margin: 0;
+			color: var(--muted);
+			line-height: 1.45;
+		}
+
+		code {
+			color: #235f82;
+			font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		}
+
+		main {
+			padding: 14px 16px 20px;
+			display: grid;
+			gap: 14px;
+		}
+
+		body.is-embedded main {
+			padding: 12px;
+		}
+
+		.controls,
+		.stat,
+		.panel {
+			border: 1px solid var(--border);
+			background: var(--panel);
+			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.13);
+		}
+
+		.controls {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			align-items: center;
+		}
+
+		.is-hidden-control {
+			display: none !important;
+		}
+
+		button {
+			border: 1px solid var(--button-border);
+			border-radius: 6px;
+			background: var(--button);
+			color: #fff;
+			cursor: pointer;
+			font: inherit;
+			font-weight: 700;
+			padding: 8px 11px;
+		}
+
+		button:hover,
+		button:focus-visible {
+			background: #6a6254;
+			outline: none;
+		}
+
+		button.secondary {
+			background: #f3ebdf;
+			border-color: #c6aa8c;
+			color: #513c2b;
+		}
+
+		button.secondary:hover,
+		button.secondary:focus-visible {
+			background: #ead9c2;
+			border-color: #ba9368;
+		}
+
+		button:disabled {
+			opacity: 0.6;
+			cursor: not-allowed;
+		}
+
+		input,
+		select {
+			min-width: 0;
+			border: 1px solid var(--border-strong);
+			border-radius: 8px;
+			background: #fff;
+			color: var(--text);
+			font: inherit;
+			padding: 9px 10px;
+		}
+
+		input:focus,
+		select:focus {
+			border-color: #9b7b58;
+			outline: 2px solid rgba(155, 123, 88, 0.14);
+			outline-offset: 0;
+		}
+
+		.status-grid {
+			display: none !important;
+			grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+			gap: 10px;
+		}
+
+		.stat {
+			border-radius: 8px;
+			padding: 12px;
+		}
+
+		.stat .label {
+			color: var(--muted);
+			font-size: 12px;
+			font-weight: 700;
+			margin-bottom: 4px;
+		}
+
+		.stat .value {
+			color: var(--text-strong);
+			font-size: 20px;
+			font-weight: 700;
+		}
+
+		.panel {
+			border-radius: 8px;
+			overflow: hidden;
+		}
+
+		.panel-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			gap: 12px;
+			padding: 10px 12px;
+			border-bottom: 1px solid rgba(96, 72, 48, 0.16);
+			background: var(--panel);
+		}
+
+		.tree-panel-header {
+			align-items: flex-start;
+		}
+
+		.tree-header-title {
+			display: grid;
+			gap: 3px;
+			min-width: 150px;
+		}
+
+		.tree-header-controls {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: flex-end;
+			align-items: center;
+			gap: 6px;
+		}
+
+		.tree-header-controls input[type="search"] {
+			width: min(240px, 100%);
+			padding: 7px 9px;
+		}
+
+		.tree-footer-button {
+			display: inline-grid;
+			place-items: center;
+			width: 30px;
+			height: 30px;
+			padding: 0;
+			border-radius: 6px;
+			font-size: 18px;
+			line-height: 1;
+		}
+
+		.panel-header h2 {
+			margin: 0;
+			color: var(--text-strong);
+			font-size: 16px;
+		}
+
+		.note {
+			font-size: 12px;
+			color: var(--muted);
+		}
+
+		.error {
+			color: var(--danger);
+		}
+
+		.layout {
+			display: grid;
+			grid-template-columns: 1fr;
+			gap: 14px;
+			align-items: start;
+		}
+
+		.drop-zone-row {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 8px;
+			align-items: stretch;
+		}
+
+		.drop-zone-unassign-button {
+			align-self: stretch;
+			white-space: nowrap;
+		}
+
+		.drop-zone-unassign-button[hidden] {
+			display: none !important;
+		}
+		.drop-zone {
+			margin: 0;
+			padding: 22px 18px;
+			border: 1px dashed #b99878;
+			border-radius: 8px;
+			background: var(--panel-soft);
+			text-align: center;
+			color: #5f5145;
+			font-weight: 700;
+			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+		}
+
+		.drop-zone.drag-over {
+			border-color: var(--accent);
+			background: var(--accent-soft);
+			color: var(--accent);
+		}
+
+		.drop-zone.has-node {
+			padding: 12px;
+			text-align: left;
+		}
+
+		.drop-zone-title {
+			margin-bottom: 8px;
+			text-align: center;
+		}
+
+		.dropped-node {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			padding: 10px;
+			border: 1px solid var(--border-strong);
+			border-radius: 8px;
+			background: #fff;
+			color: var(--text-strong);
+		}
+
+		.dropped-node-name {
+			font-weight: 800;
+		}
+
+		.dropped-node-kind {
+			font-size: 12px;
+			color: var(--muted);
+		}
+
+		.legend {
+			display: grid;
+			gap: 5px;
+			min-width: 0;
+		}
+
+		.legend-line {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 6px;
+			min-width: 0;
+			font-size: 12px;
+			color: var(--muted);
+		}
+
+		.legend-item {
+			display: inline-flex;
+			align-items: center;
+			gap: 5px;
+			min-width: 0;
+		}
+
+		.legend-separator {
+			color: #b79d7d;
+		}
+
+		.legend-swatch {
+			width: 12px;
+			height: 12px;
+			border-radius: 999px;
+			border: 1px solid #b79d7d;
+			background: var(--text-strong);
+			flex: 0 0 12px;
+			box-sizing: border-box;
+		}
+
+		.legend-swatch.synthetic {
+			background: var(--synthetic);
+		}
+
+		.tree-panel-footer {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 10px;
+			align-items: end;
+			padding: 8px 10px;
+			border-top: 1px solid rgba(96, 72, 48, 0.16);
+			background: var(--panel-soft);
+		}
+
+		.tree-footer-actions {
+			display: inline-flex;
+			gap: 6px;
+			justify-self: end;
+		}
+
+		.detail-stack {
+			display: grid;
+			gap: 14px;
+		}
+
+		.breadcrumb {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 6px;
+			align-items: center;
+			padding: 10px 12px;
+			background: var(--panel-soft);
+			border-bottom: 1px solid rgba(96, 72, 48, 0.16);
+		}
+
+		.breadcrumb button {
+			padding: 6px 10px;
+			border: 1px solid var(--border-strong);
+			border-radius: 8px;
+			background: #fff;
+			color: var(--text-strong);
+			font-size: 12px;
+			font-weight: 700;
+		}
+
+		.breadcrumb button:hover,
+		.breadcrumb button:focus-visible {
+			background: var(--panel-hover);
+		}
+
+		.breadcrumb button.is-active {
+			background: var(--accent);
+			border-color: var(--accent);
+			color: #fff;
+		}
+
+		.breadcrumb .separator {
+			color: var(--muted);
+		}
+
+		.tree-item-meta {
+			display: inline-flex;
+			flex-wrap: wrap;
+			gap: 2px;
+			font-size: 11px;
+			color: var(--muted);
+		}
+
+		.tree-item-meta a {
+			color: #235f82;
+			font-weight: 700;
+		}
+
+		.info-box {
+			min-height: 0;
+			padding: 14px;
+			background: var(--panel);
+		}
+
+		.info-title {
+			display: flex;
+			align-items: flex-start;
+			gap: 12px;
+			margin-bottom: 14px;
+		}
+
+		.info-title h3 {
+			margin: 0 0 4px 0;
+			color: var(--text-strong);
+			font-size: 20px;
+		}
+
+		.info-title .kind {
+			color: var(--muted);
+			font-size: 12px;
+		}
+
+		.wappen {
+			width: 58px;
+			height: 58px;
+			object-fit: contain;
+			background: transparent;
+			border: 0;
+			border-radius: 0;
+			padding: 0;
+			flex: 0 0 auto;
+		}
+
+		.info-grid {
+			display: grid;
+			grid-template-columns: minmax(150px, 0.34fr) minmax(220px, 0.66fr);
+			gap: 0;
+			border: 1px solid #dccab8;
+			border-radius: 8px;
+			overflow: hidden;
+		}
+
+		.info-details {
+			border: 1px solid #dccab8;
+			border-radius: 8px;
+			background: var(--panel-soft);
+			overflow: hidden;
+		}
+
+		.info-details summary {
+			cursor: pointer;
+			font-weight: 700;
+			color: var(--text-strong);
+			padding: 9px 10px;
+		}
+
+		.info-details summary:hover,
+		.info-details summary:focus-visible {
+			background: var(--panel-hover);
+			outline: none;
+		}
+
+		.info-details .info-grid {
+			border: 0;
+			border-top: 1px solid #dccab8;
+			border-radius: 0;
+		}
+
+		.info-key,
+		.info-value {
+			padding: 8px 10px;
+			border-bottom: 1px solid #eadbcb;
+		}
+
+		.info-key {
+			color: #6a5543;
+			background: var(--panel-soft);
+			font-weight: 700;
+		}
+
+		.info-value {
+			color: var(--text-strong);
+			background: #fff;
+			white-space: pre-wrap;
+			word-break: break-word;
+		}
+
+		.info-key:last-of-type,
+		.info-value:last-of-type {
+			border-bottom: 0;
+		}
+
+
+
+		.manual-edit-path {
+			min-height: 42px;
+		}
+
+		.manual-data-box {
+			display: grid;
+			gap: 14px;
+			padding: 14px;
+			background: var(--panel);
+		}
+
+		.manual-data-columns {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 14px;
+			align-items: stretch;
+		}
+
+		.manual-data-columns > .manual-data-section {
+			flex: 1 1 320px;
+		}
+
+		.manual-data-section {
+			display: grid;
+			gap: 10px;
+			padding: 12px;
+			border: 1px solid #dccab8;
+			border-radius: 8px;
+			background: #fff;
+		}
+
+		.manual-data-section h3 {
+			margin: 0;
+			color: var(--text-strong);
+			font-size: 14px;
+		}
+
+		.manual-data-grid {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 10px;
+		}
+
+		.manual-data-field {
+			display: grid;
+			gap: 5px;
+			min-width: 0;
+		}
+
+		.manual-data-inline-action {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 8px;
+			align-items: center;
+		}
+
+		.manual-data-inline-action--with-preview {
+			grid-template-columns: minmax(0, 1fr) auto 58px;
+		}
+
+		.manual-data-inline-action button {
+			white-space: nowrap;
+		}
+
+		.manual-coat-preview {
+			display: grid;
+			place-items: center;
+			width: 58px;
+			height: 58px;
+			border: 1px dashed #cdb79f;
+			border-radius: 8px;
+			background: transparent;
+			color: #806c59;
+			font-size: 10px;
+			line-height: 1.15;
+			text-align: center;
+			overflow: hidden;
+		}
+
+		.manual-coat-preview img {
+			display: block;
+			width: 100%;
+			height: 100%;
+			object-fit: contain;
+		}
+
+		.manual-data-field--wide {
+			grid-column: 1 / -1;
+		}
+
+		.manual-data-field label,
+		.manual-data-checkbox {
+			color: #5a4a3b;
+			font-weight: 700;
+		}
+
+		.manual-data-field small {
+			color: var(--muted-2);
+			font-size: 11px;
+		}
+
+		.manual-data-field input[type="color"] {
+			width: 100%;
+			height: 40px;
+			padding: 3px;
+		}
+
+		.manual-data-field input[type="range"] {
+			width: 100%;
+			accent-color: #385d72;
+		}
+
+		.manual-data-field output {
+			color: var(--muted);
+			font-weight: 700;
+		}
+
+		.inherit-color-variance-button {
+			justify-self: start;
+			width: fit-content;
+		}
+
+		.manual-color-controls {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+		}
+
+		.manual-color-controls .manual-data-field {
+			flex: 1 1 190px;
+		}
+
+		.manual-data-variance-row {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px 10px;
+			align-items: end;
+			justify-content: space-between;
+		}
+
+		.manual-data-variance-range {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			align-items: end;
+		}
+
+		.manual-data-variance-input {
+			display: grid;
+			gap: 4px;
+			min-width: 128px;
+		}
+
+		.manual-data-variance-input label {
+			font-size: 11px;
+			font-weight: 700;
+			color: var(--muted);
+		}
+
+		.manual-data-variance-input input {
+			padding: 7px 9px;
+		}
+
+		.manual-data-inline-hint {
+			display: block;
+			color: var(--muted);
+			font-size: 11px;
+			line-height: 1.35;
+		}
+
+		.manual-data-section-header {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: space-between;
+			align-items: baseline;
+			gap: 6px 12px;
+		}
+
+		.manual-data-checkbox {
+			display: inline-flex;
+			align-items: center;
+			gap: 8px;
+			min-height: 38px;
+		}
+
+		.manual-data-checkbox input {
+			width: auto;
+		}
+
+		.form-status-panel {
+			background: var(--panel);
+		}
+
+		.form-status-row {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 12px;
+			align-items: end;
+			padding: 12px;
+		}
+
+		.form-status-field {
+			display: grid;
+			gap: 5px;
+			min-width: 0;
+			color: #5a4a3b;
+			font-weight: 700;
+		}
+
+		.form-status-field input[readonly] {
+			background: #f8f2ec;
+			color: #5a4a3b;
+		}
+
+		.form-actions {
+			display: flex;
+			justify-content: flex-end;
+			gap: 8px;
+		}
+
+		@media (max-width: 620px) {
+			.manual-data-grid,
+			.form-status-row {
+				grid-template-columns: 1fr;
+			}
+
+			.manual-data-columns {
+				flex-direction: column;
+			}
+
+			.manual-data-inline-action--with-preview {
+				grid-template-columns: minmax(0, 1fr) auto;
+			}
+
+			.manual-data-variance-row,
+			.manual-data-variance-range {
+				flex-direction: column;
+				align-items: stretch;
+			}
+
+			.manual-data-variance-input {
+				min-width: 0;
+			}
+
+			.manual-color-controls .manual-data-field {
+				flex-basis: 100%;
+			}
+
+			.manual-coat-preview {
+				grid-column: 1 / -1;
+			}
+
+			.form-actions {
+				justify-content: stretch;
+			}
+
+			.form-actions button {
+				flex: 1;
+			}
+
+			.tree-panel-footer {
+				grid-template-columns: 1fr auto;
+			}
+		}
+
+
+		a {
+			color: #235f82;
+			text-decoration: none;
+		}
+
+		a:hover,
+		a:focus-visible {
+			color: #103f5a;
+			text-decoration: underline;
+		}
+		
+	</style>
+</head>
+
+<body>
+	<div class="app-container">
+	<header>
+		<h1>Avesmaps – Herrschaftsgebiete aus dem Wiki</h1>
+		<p>
+			Lädt die vorhandenen Daten. Zum Synchronisieren WikiSync benutzen.
+		</p>
+	</header>
+
+	<main>
+
+		<section class="status-grid">
+			<div class="stat">
+				<div class="label">Status</div>
+				<div id="statusValue" class="value">Bereit</div>
+			</div>
+			<div class="stat">
+				<div class="label">Geladene Einträge</div>
+				<div id="loadedValue" class="value">0</div>
+			</div>
+			<div class="stat">
+				<div class="label">Angezeigt</div>
+				<div id="visibleValue" class="value">0</div>
+			</div>
+			<div class="stat">
+				<div class="label">Wurzelbereiche</div>
+				<div id="rootValue" class="value">0</div>
+			</div>
+		</section>
+
+		<section class="layout">
+			<section class="panel">
+				<div class="panel-header tree-panel-header">
+					<div class="tree-header-title">
+						<h2>Herrschaftsgebiete aus dem Wiki</h2>
+						<span id="treeInfo" class="note">Noch keine Daten geladen.</span>
+					</div>
+					<div class="tree-header-controls">
+						<button id="reloadButton" class="is-hidden-control" type="button">Daten laden</button>
+						<input id="searchInput" type="search" placeholder="Suchen …" aria-label="Herrschaftsgebiete suchen">
+						<select id="continentFilter" class="is-hidden-control" aria-hidden="true" tabindex="-1">
+							<option value="">Alle Kontinente</option>
+						</select>
+						<select id="typeFilter" class="is-hidden-control" aria-hidden="true" tabindex="-1">
+							<option value="">Alle Typen</option>
+						</select>
+						<select id="statusFilter" class="is-hidden-control" aria-hidden="true" tabindex="-1">
+							<option value="">Alle Status</option>
+						</select>
+					</div>
+				</div>
+				<div id="treeView" class="tree-wrap"></div>
+				<div class="tree-panel-footer" aria-label="Legende und Baumaktionen">
+					<div class="legend" aria-label="Legende der Baumfarben und Karten-Vollständigkeit">
+						<div class="legend-line">
+							<span class="legend-item"><span class="legend-swatch"></span><span>echter Wiki-/SQL-Datensatz mit Details</span></span>
+							<span class="legend-item"><span class="legend-swatch synthetic"></span><span>abgeleiteter Gruppenknoten, ohne eigenen Datensatz</span></span>
+						</div>
+						<div class="legend-line">
+							<span class="legend-item"><span class="legend-map-status"></span><span>fehlt</span></span>
+							<span class="legend-separator">|</span>
+							<span class="legend-item"><span class="legend-map-status legend-map-status--children-only"></span><span>indirekt vorhanden (unvollständig)</span></span>
+							<span class="legend-separator">|</span>
+							<span class="legend-item"><span class="legend-map-status legend-map-status--own-only"></span><span>direkt vorhanden (unvollständig)</span></span>
+							<span class="legend-separator">|</span>
+							<span class="legend-item"><span class="legend-map-status legend-map-status--all"></span><span>vollständig</span></span>
+						</div>
+					</div>
+					<div class="tree-footer-actions">
+						<button id="expandButton" class="secondary tree-footer-button" type="button" title="Alles öffnen" aria-label="Alles öffnen">+</button>
+						<button id="collapseButton" class="secondary tree-footer-button" type="button" title="Alles schließen" aria-label="Alles schließen">−</button>
+					</div>
+				</div>
+			</section>
+
+			<section class="detail-stack">
+				<div class="drop-zone-row">
+					<div id="dropZone" class="drop-zone">Herrschaftsgebiet aus dem Wiki hier mit Drag'n'drop zuweisen</div>
+					<button id="unassignButton" class="secondary drop-zone-unassign-button" type="button" hidden>Zuweisung entfernen</button>
+				</div>
+
+				<section class="panel manual-data-panel">
+					<div class="panel-header">
+						<h2>Gebietsdarstellung</h2>
+						<span id="geometryDatabaseInfo" class="note">Geometrie in der Datenbank</span>
+					</div>
+					<div id="manualEditPath" class="breadcrumb manual-edit-path">Kein Knoten zugewiesen</div>
+					<form class="manual-data-box" autocomplete="off">
+						<section class="manual-data-section" aria-label="Synchronisierte Wiki-Daten">
+							<div class="manual-data-section-header">
+								<h3>Synchronisierte Wiki-Daten</h3>
+								<span id="detailInfo" class="note">Noch kein Gebiet ausgewählt.</span>
+							</div>
+							<div id="infoBox" class="info-box"></div>
+						</section>
+
+						<section class="manual-data-section" aria-label="Anzeige und Wappen">
+							<h3>Anzeige</h3>
+							<div class="manual-data-grid">
+								<div class="manual-data-field manual-data-field--wide">
+									<label for="displayNameInput">Anzeigename</label>
+									<input id="displayNameInput" name="display_name" type="text">
+								</div>
+								<div class="manual-data-field manual-data-field--wide">
+									<label for="alternateCoatInput">Alternativer Wappen-Link</label>
+									<div class="manual-data-inline-action manual-data-inline-action--with-preview">
+										<input id="alternateCoatInput" name="alternate_coat_url" type="url" inputmode="url">
+										<button id="updateCoatButton" class="secondary" type="button">aktualisieren</button>
+										<div id="manualCoatPreview" class="manual-coat-preview" aria-label="Wappen-Vorschau"><span>kein Wappen</span></div>
+									</div>
+								</div>
+							</div>
+						</section>
+
+						<div class="manual-data-columns">
+							<section class="manual-data-section" aria-label="Kartensichtbarkeit">
+								<h3>Kartensichtbarkeit</h3>
+								<div class="manual-data-grid">
+									<div class="manual-data-field">
+										<label for="zoomFromInput">Zoom von</label>
+										<input id="zoomFromInput" name="zoom_from" type="number" step="1">
+									</div>
+									<div class="manual-data-field">
+										<label for="zoomToInput">Zoom bis</label>
+										<input id="zoomToInput" name="zoom_to" type="number" step="1">
+									</div>
+								</div>
+							</section>
+
+							<section class="manual-data-section" aria-label="Farbe">
+								<h3>Farbe</h3>
+								<div class="manual-color-controls">
+									<div class="manual-data-field">
+										<label for="colorInput">Farbe</label>
+										<input id="colorInput" name="color" type="color" value="#385d72">
+									</div>
+								</div>
+								<div class="manual-data-variance-row">
+									<button id="inheritColorVarianceButton" class="secondary inherit-color-variance-button" type="button" hidden>Farbtonvarianz vererben</button>
+									<div class="manual-data-variance-range">
+										<div class="manual-data-variance-input">
+											<label for="hueVarianceMinInput">HSV-Abweichung min (0-256)</label>
+											<input id="hueVarianceMinInput" name="hue_variance_min" type="number" min="0" max="256" step="1" value="10">
+										</div>
+										<div class="manual-data-variance-input">
+											<label for="hueVarianceMaxInput">HSV-Abweichung max (0-256)</label>
+											<input id="hueVarianceMaxInput" name="hue_variance_max" type="number" min="0" max="256" step="1" value="20">
+										</div>
+									</div>
+								</div>
+								<small class="manual-data-inline-hint">Hinweis: „Farbtonvarianz vererben“ schreibt die Änderungen sofort in die Datenbank (global und lokal).</small>
+							</section>
+
+							<section class="manual-data-section" aria-label="Transparenz">
+								<h3>Transparenz</h3>
+								<div class="manual-color-controls">
+									<div class="manual-data-field">
+										<label for="transparencyInput">Transparenz <output id="transparencyOutput" for="transparencyInput">33%</output></label>
+										<input id="transparencyInput" name="transparency" type="range" min="0" max="100" step="1" value="33">
+									</div>
+								</div>
+								<div class="manual-data-variance-row">
+									<button id="inheritOpacityButton" class="secondary inherit-color-variance-button" type="button" hidden>Transparenz vererben</button>
+								</div>
+							</section>
+
+							<section class="manual-data-section" aria-label="Zeitliche Gültigkeit">
+								<h3>Zeitliche Gültigkeit</h3>
+								<div class="manual-data-grid">
+									<div class="manual-data-field">
+										<label for="startYearInput">Anfang</label>
+										<input id="startYearInput" name="start_year" type="number" step="1">
+									</div>
+									<div class="manual-data-field">
+										<label for="endYearInput">Ende</label>
+										<input id="endYearInput" name="end_year" type="number" step="1">
+									</div>
+									<label class="manual-data-checkbox manual-data-field--wide">
+										<input id="existsUntilTodayInput" name="exists_until_today" type="checkbox" checked>
+										<span>existiert bis heute</span>
+									</label>
+								</div>
+							</section>
+						</div>
+					</form>
+				</section>
+
+				<section class="panel form-status-panel" aria-label="Speicherstatus und Aktionen">
+					<div class="form-status-row">
+						<label class="form-status-field" for="formStatusInput">
+							<span>Statusfeld</span>
+							<input id="formStatusInput" type="text" value="Noch nicht gespeichert" readonly>
+						</label>
+						<div class="form-actions">
+							<button id="cancelButton" class="secondary" type="button">Abbrechen</button>
+							<button id="saveButton" type="button">Speichern</button>
+						</div>
+					</div>
+				</section>
+			</section>
+		</section>
+	</main>
+	</div>
+
+	<script src="/js/territory/territory-wiki-tree.js"></script>
+	<script src="/js/territory/territory-editor-embedded.js"></script>
+	<script src="/js/territory/territory-subtree-display-tools.js"></script>
+	<script src="/js/territory/territory-editor-ui-hints.js"></script>
+</body>
+</html>
+
