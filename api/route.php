@@ -65,7 +65,9 @@ try {
 		$routeMapData = avesmapsLoadRouteMapData($config);
 		$routeNetworkData = avesmapsBuildRouteNetworkData($routeMapData);
 		$routeGraph = avesmapsBuildRouteGraph($routeNetworkData);
+		$routeGraphSnapped = avesmapsBuildRouteGraph($routeNetworkData, ['endpoint_snap_tolerance' => 0.01]);
 		$routeGraphAnalysis = avesmapsAnalyzeRouteGraph($routeGraph);
+		$routeGraphSnappedAnalysis = avesmapsAnalyzeRouteGraph($routeGraphSnapped);
 		$routeGraphEndpointSnapping = [
 			'0.01' => avesmapsAnalyzeRouteEndpointSnapping($routeGraph, 0.01),
 			'0.05' => avesmapsAnalyzeRouteEndpointSnapping($routeGraph, 0.05),
@@ -89,7 +91,16 @@ try {
 				'edge_transport_counts' => $routeGraphAnalysis['edge_transport_counts'] ?? [],
 				'duplicate_edge_count' => (int) ($routeGraphAnalysis['duplicate_edge_count'] ?? 0),
 				'self_loop_count' => (int) ($routeGraphAnalysis['self_loop_count'] ?? 0),
-					'endpoint_snapping' => $routeGraphEndpointSnapping,
+				'endpoint_snapping' => $routeGraphEndpointSnapping,
+				'snapped_0_01' => [
+					'node_count' => (int) ($routeGraphSnapped['statistics']['node_count'] ?? 0),
+					'edge_count' => (int) ($routeGraphSnapped['statistics']['edge_count'] ?? 0),
+					'connected_component_count' => (int) ($routeGraphSnappedAnalysis['connected_component_count'] ?? 0),
+					'largest_component_size' => (int) ($routeGraphSnappedAnalysis['largest_component_size'] ?? 0),
+					'largest_component_ratio' => (int) ($routeGraphSnapped['statistics']['node_count'] ?? 0) > 0 ? round((float) ($routeGraphSnappedAnalysis['largest_component_size'] ?? 0) / (int) ($routeGraphSnapped['statistics']['node_count'] ?? 0), 6) : 0.0,
+					'duplicate_edge_count' => (int) ($routeGraphSnappedAnalysis['duplicate_edge_count'] ?? 0),
+					'self_loop_count' => (int) ($routeGraphSnappedAnalysis['self_loop_count'] ?? 0),
+				],
 			],
 			'sample' => [
 				'first_node' => (string) ($firstNode['id'] ?? ''),

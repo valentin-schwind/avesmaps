@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-function avesmapsBuildRouteGraph(array $networkData): array {
+function avesmapsBuildRouteGraph(array $networkData, array $options = []): array {
 	$nodes = [];
 	$edges = [];
 	$pathFeatureCount = 0;
@@ -36,6 +36,51 @@ function avesmapsBuildRouteGraph(array $networkData): array {
 		$edges[] = avesmapsBuildRouteEdge($path, $fromNodeId, $toNodeId);
 	}
 
+	$endpointSnapTolerance = (float) ($options['endpoint_snap_tolerance'] ?? 0.0);
+	if ($endpointSnapTolerance > 0.0) {
+		$groups = avesmapsBuildRouteGraphEndpointSnapGroups(array_values($nodes), $endpointSnapTolerance);
+		$canonicalNodeMap = [];
+		$canonicalNodes = [];
+		foreach ($groups as $group) {
+			$canonicalId = $group[0];
+			$sumX = 0.0;
+			$sumY = 0.0;
+			$groupSize = count($group);
+			foreach ($group as $nodeId) {
+				$groupNode = $nodes[$nodeId];
+				$sumX += $groupNode['x'];
+				$sumY += $groupNode['y'];
+				$canonicalNodeMap[$nodeId] = $canonicalId;
+			}
+
+			$canonicalNodes[$canonicalId] = [
+				'id' => $canonicalId,
+				'x' => $sumX / $groupSize,
+				'y' => $sumY / $groupSize,
+			];
+		}
+
+		$snappedEdges = [];
+		foreach ($edges as $edge) {
+			$fromNodeId = (string) ($edge['from'] ?? '');
+			$toNodeId = (string) ($edge['to'] ?? '');
+			$canonicalFrom = $canonicalNodeMap[$fromNodeId] ?? $fromNodeId;
+			$canonicalTo = $canonicalNodeMap[$toNodeId] ?? $toNodeId;
+			$snappedEdges[] = [
+				'id' => (string) ($edge['id'] ?? ''),
+				'path_id' => (string) ($edge['path_id'] ?? ''),
+				'transport_type' => (string) ($edge['transport_type'] ?? ''),
+				'from' => $canonicalFrom,
+				'to' => $canonicalTo,
+				'geometry' => is_array($edge['geometry'] ?? null) ? $edge['geometry'] : [],
+				'subtype' => (string) ($edge['subtype'] ?? ''),
+			];
+		}
+
+		$nodes = $canonicalNodes;
+		$edges = $snappedEdges;
+	}
+
 	return [
 		'nodes' => array_values($nodes),
 		'edges' => $edges,
@@ -45,6 +90,61 @@ function avesmapsBuildRouteGraph(array $networkData): array {
 			'path_feature_count' => $pathFeatureCount,
 		],
 	];
+}
+
+function avesmapsBuildRouteGraphEndpointSnapGroups(array $nodes, float $tolerance): array {
+	$nodeCount = count($nodes);
+	if ($nodeCount === 0) {
+		return [];
+	}
+
+	$adjacency = [];
+	for ($i = 0; $i < $nodeCount; $i++) {
+		for ($j = $i + 1; $j < $nodeCount; $j++) {
+			if (abs($nodes[$i]['x'] - $nodes[$j]['x']) <= $tolerance && abs($nodes[$i]['y'] - $nodes[$j]['y']) <= $tolerance) {
+				$fromId = $nodes[$i]['id'];
+				$toId = $nodes[$j]['id'];
+				$adjacency[$fromId] ??= [];
+				$adjacency[$toId] ??= [];
+				$adjacency[$fromId][$toId] = true;
+				$adjacency[$toId][$fromId] = true;
+			}
+		}
+	}
+
+	$groups = [];
+	$visited = [];
+	foreach (array_keys($adjacency) as $startNodeId) {
+		if (isset($visited[$startNodeId])) {
+			continue;
+		}
+
+		$stack = [$startNodeId];
+		$group = [];
+		$visited[$startNodeId] = true;
+
+		while ($stack !== []) {
+			$currentNodeId = array_pop($stack);
+			$group[] = $currentNodeId;
+			foreach (array_keys($adjacency[$currentNodeId] ?? []) as $neighborNodeId) {
+				if (isset($visited[$neighborNodeId])) {
+					continue;
+				}
+
+				$visited[$neighborNodeId] = true;
+				$stack[] = $neighborNodeId;
+			}
+		}
+
+		$groups[] = $group;
+	}
+
+	$remainingNodes = array_diff(array_column($nodes, 'id'), array_keys($visited));
+	foreach ($remainingNodes as $remainingNodeId) {
+		$groups[] = [$remainingNodeId];
+	}
+
+	return $groups;
 }
 
 function avesmapsAnalyzeRouteGraph(array $graph): array {

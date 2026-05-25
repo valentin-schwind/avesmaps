@@ -219,3 +219,16 @@
   - Keine beabsichtigte Aenderung am POST-501-Flow; nur Diagnosepfad erweitert.
   - Keine echten Knoten- oder Kantenmerges; nur statistische Kandidatengruppen fuer ein spaeteres Snap-Verfahren.
 - Smoke noetig: nein
+
+## 2026-05-25 - API Phase 4E (Optional Endpoint Snapping)
+
+- Commit: `Add optional route graph endpoint snapping`
+- Schritt: `avesmapsBuildRouteGraph(...)` um einen optionalen Endpoint-Snapping-Modus erweitert. Bei `endpoint_snap_tolerance > 0` werden nahe Knoten zu einem Canonical-Node zusammengefuehrt, ohne Kanten oder Geometrie zu aendern.
+- Dateien:
+  - `api/route.php`
+  - `api/route-graph.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Keine beabsichtigte Aenderung am POST-501-Flow; nur Graph-Build und Diagnosepfad erweitert.
+  - Selbstschleifen und doppelte Kanten werden im gesnappten Graphen weiterhin gezählt, aber nicht entfernt.
+- Smoke noetig: nein
