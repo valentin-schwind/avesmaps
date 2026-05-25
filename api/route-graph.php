@@ -47,6 +47,116 @@ function avesmapsBuildRouteGraph(array $networkData): array {
 	];
 }
 
+function avesmapsAnalyzeRouteGraph(array $graph): array {
+	$adjacency = avesmapsBuildGraphAdjacency($graph['nodes'] ?? [], $graph['edges'] ?? []);
+	$components = avesmapsFindConnectedComponents($adjacency);
+	$nodeCount = count($adjacency);
+	$isolatedNodeCount = 0;
+	$largestComponentSize = 0;
+
+	foreach ($adjacency as $neighbors) {
+		if (count($neighbors) === 0) {
+			$isolatedNodeCount++;
+		}
+	}
+	foreach ($components as $component) {
+		$componentSize = count($component);
+		if ($componentSize > $largestComponentSize) {
+			$largestComponentSize = $componentSize;
+		}
+	}
+
+	return [
+		'connected_component_count' => count($components),
+		'isolated_node_count' => $isolatedNodeCount,
+		'largest_component_size' => $largestComponentSize,
+		'average_degree' => avesmapsCalculateAverageDegree($adjacency),
+		'largest_component_ratio' => $nodeCount > 0 ? $largestComponentSize / $nodeCount : 0.0,
+	];
+}
+
+function avesmapsBuildGraphAdjacency(array $nodes, array $edges): array {
+	$adjacency = [];
+	foreach ($nodes as $node) {
+		if (!is_array($node)) {
+			continue;
+		}
+
+		$nodeId = (string) ($node['id'] ?? '');
+		if ($nodeId === '') {
+			continue;
+		}
+
+		$adjacency[$nodeId] = [];
+	}
+
+	foreach ($edges as $edge) {
+		if (!is_array($edge)) {
+			continue;
+		}
+
+		$fromNodeId = (string) ($edge['from'] ?? '');
+		$toNodeId = (string) ($edge['to'] ?? '');
+		if ($fromNodeId === '' || $toNodeId === '') {
+			continue;
+		}
+
+		$adjacency[$fromNodeId] ??= [];
+		$adjacency[$toNodeId] ??= [];
+		$adjacency[$fromNodeId][$toNodeId] = true;
+		$adjacency[$toNodeId][$fromNodeId] = true;
+	}
+
+	return $adjacency;
+}
+
+function avesmapsFindConnectedComponents(array $adjacency): array {
+	$components = [];
+	$visitedNodes = [];
+
+	foreach (array_keys($adjacency) as $startNodeId) {
+		if (isset($visitedNodes[$startNodeId])) {
+			continue;
+		}
+
+		$component = [];
+		$stack = [$startNodeId];
+		$visitedNodes[$startNodeId] = true;
+
+		while ($stack !== []) {
+			$currentNodeId = array_pop($stack);
+			$component[] = $currentNodeId;
+			$neighbors = array_keys($adjacency[$currentNodeId] ?? []);
+			foreach ($neighbors as $neighborNodeId) {
+				if (isset($visitedNodes[$neighborNodeId])) {
+					continue;
+				}
+
+				$visitedNodes[$neighborNodeId] = true;
+				$stack[] = $neighborNodeId;
+			}
+		}
+
+		$components[] = $component;
+	}
+
+	return $components;
+}
+
+function avesmapsCalculateAverageDegree(array $adjacency): float {
+	$nodeCount = count($adjacency);
+	if ($nodeCount === 0) {
+		return 0.0;
+	}
+
+	$degreeSum = 0;
+	foreach ($adjacency as $neighbors) {
+		$degreeSum += count($neighbors);
+	}
+
+	return $degreeSum / $nodeCount;
+}
+
 function avesmapsGetRoutePathEndpoints(mixed $geometry): ?array {
 	if (!is_array($geometry)) {
 		return null;

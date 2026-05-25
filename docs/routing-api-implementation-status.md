@@ -181,3 +181,16 @@
   - Kein beabsichtigter Einfluss auf POST-501-Verhalten; neuer Diagnosepfad haengt von SQL-Mapdaten ab.
   - Node-ID basiert auf gerundeten Koordinaten und ist ein vorlaeufiges Rohmodell fuer spaetere Graph-Phasen.
 - Smoke noetig: nein
+
+## 2026-05-25 - API Phase 4B (Graph-Diagnosemetriken)
+
+- Commit: `Add route graph diagnostics`
+- Schritt: Strukturanalyse fuer den Rohgraph eingefuehrt (`connected_component_count`, `isolated_node_count`, `largest_component_size`, `average_degree`) via ungerichteter Adjazenz plus DFS/BFS-Component-Suche; Diagnose `graph-data` um die Metriken und `largest_component_ratio` erweitert.
+- Dateien:
+  - `api/route.php`
+  - `api/route-graph.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Keine beabsichtigte Aenderung am POST-501-Verhalten; nur Diagnosepfad erweitert.
+  - Kennzahlen basieren auf dem aktuellen Rohgraph-Modell ohne Segmentierung/Snap/Kreuzungslogik.
+- Smoke noetig: nein

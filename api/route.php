@@ -65,6 +65,7 @@ try {
 		$routeMapData = avesmapsLoadRouteMapData($config);
 		$routeNetworkData = avesmapsBuildRouteNetworkData($routeMapData);
 		$routeGraph = avesmapsBuildRouteGraph($routeNetworkData);
+		$routeGraphAnalysis = avesmapsAnalyzeRouteGraph($routeGraph);
 		$firstNode = $routeGraph['nodes'][0] ?? [];
 		$firstEdge = $routeGraph['edges'][0] ?? [];
 
@@ -74,10 +75,15 @@ try {
 			'statistics' => [
 				'node_count' => (int) ($routeGraph['statistics']['node_count'] ?? 0),
 				'edge_count' => (int) ($routeGraph['statistics']['edge_count'] ?? 0),
+				'connected_component_count' => (int) ($routeGraphAnalysis['connected_component_count'] ?? 0),
+				'isolated_node_count' => (int) ($routeGraphAnalysis['isolated_node_count'] ?? 0),
+				'largest_component_size' => (int) ($routeGraphAnalysis['largest_component_size'] ?? 0),
+				'average_degree' => round((float) ($routeGraphAnalysis['average_degree'] ?? 0.0), 6),
 			],
 			'sample' => [
 				'first_node' => (string) ($firstNode['id'] ?? ''),
 				'first_edge_transport' => (string) ($firstEdge['transport_type'] ?? ''),
+				'largest_component_ratio' => round((float) ($routeGraphAnalysis['largest_component_ratio'] ?? 0.0), 6),
 			],
 		]);
 	}
