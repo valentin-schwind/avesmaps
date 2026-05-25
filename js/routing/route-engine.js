@@ -133,14 +133,10 @@ function getServerSegmentId(serverSegment) {
 	return String(serverSegment?.edge_id || serverSegment?.path_id || serverSegment?.id || "");
 }
 
-function getServerRouteNodeIds(serverRouteResult) {
-	const debug = getServerRouteDebug(serverRouteResult);
-	if (Array.isArray(debug.node_ids) && debug.node_ids.length) {
-		return debug.node_ids.map((nodeId) => String(nodeId || "")).filter(Boolean);
-	}
-
+function getServerSegmentNodeNames(serverRouteResult) {
 	const nodeNames = [];
-	getServerRouteSegments(serverRouteResult).forEach((segment, index) => {
+	const serverSegments = getServerRouteSegments(serverRouteResult);
+	serverSegments.forEach((segment, index) => {
 		const fromNode = String(segment?.from_node || segment?.from || "");
 		const toNode = String(segment?.to_node || segment?.to || "");
 		if (index === 0 && fromNode) {
@@ -151,6 +147,20 @@ function getServerRouteNodeIds(serverRouteResult) {
 		}
 	});
 	return nodeNames;
+}
+
+function getServerRouteNodeIds(serverRouteResult) {
+	const segmentNodeNames = getServerSegmentNodeNames(serverRouteResult);
+	if (segmentNodeNames.length) {
+		return segmentNodeNames;
+	}
+
+	const debug = getServerRouteDebug(serverRouteResult);
+	if (Array.isArray(debug.node_ids) && debug.node_ids.length) {
+		return debug.node_ids.map((nodeId) => String(nodeId || "")).filter(Boolean);
+	}
+
+	return [];
 }
 
 function getServerRouteEdgeIds(serverRouteResult) {
@@ -244,9 +254,24 @@ function resolveServerRouteDisplaySegment(serverSegment, nodeIds, segmentIndex) 
 	return clonePathSegmentForServerRoute(localPathSegment, serverSegment);
 }
 
-function buildRouteResultFromServerRoute(serverRouteResult) {
-	const routeNodeNames = getServerRouteNodeIds(serverRouteResult);
+function normalizeServerDisplayRouteEndpoints(routeNodeNames, explicitStartName, explicitEndName, segmentCount) {
+	const normalizedRouteNodeNames = Array.isArray(routeNodeNames) ? [...routeNodeNames] : [];
+	while (normalizedRouteNodeNames.length < segmentCount + 1) {
+		normalizedRouteNodeNames.push("");
+	}
+	if (explicitStartName) {
+		normalizedRouteNodeNames[0] = explicitStartName;
+	}
+	if (explicitEndName) {
+		normalizedRouteNodeNames[segmentCount] = explicitEndName;
+	}
+	return normalizedRouteNodeNames;
+}
+
+function buildRouteResultFromServerRoute(serverRouteResult, explicitStartName = "", explicitEndName = "") {
 	const serverSegments = getServerRouteSegments(serverRouteResult);
+	const initialRouteNodeNames = getServerRouteNodeIds(serverRouteResult);
+	const routeNodeNames = normalizeServerDisplayRouteEndpoints(initialRouteNodeNames, explicitStartName, explicitEndName, serverSegments.length);
 	const segments = serverSegments
 		.map((serverSegment, segmentIndex) => resolveServerRouteDisplaySegment(serverSegment, routeNodeNames, segmentIndex))
 		.filter(Boolean);
@@ -341,7 +366,7 @@ async function buildRouteResultFromSelectedLocationsServer(useShortest) {
 			return null;
 		}
 
-		const serverDisplayRoute = buildRouteResultFromServerRoute(serverRouteResult);
+		const serverDisplayRoute = buildRouteResultFromServerRoute(serverRouteResult, start, end);
 		if (!serverDisplayRoute.routeNodeNames.length || !serverDisplayRoute.segments.length) {
 			console.warn("Serverroute konnte nicht angezeigt werden:", {
 				serverRouteResult,
