@@ -37,6 +37,29 @@ function applyRestTimes(travelHours) {
 	return days * 24;
 }
 
+function shouldProbeServerRouting() {
+	return new URLSearchParams(window.location.search).get("serverrouting") === "1";
+}
+
+function probeServerRouteForClientSegment(start, end, useShortest) {
+	if (!shouldProbeServerRouting() || typeof calculateRouteServer !== "function") {
+		return;
+	}
+
+	void calculateRouteServer({
+		from: start,
+		to: end,
+		via: [],
+		optimize: useShortest ? "shortest" : "fastest",
+	})
+		.then((serverRouteResult) => {
+			console.info("Server-Routing-Probe:", serverRouteResult);
+		})
+		.catch((error) => {
+			console.warn("Server-Routing-Probe fehlgeschlagen:", error);
+		});
+}
+
 function buildRouteResultFromSelectedLocations(useShortest) {
 	let routeNodeNames = [],
 		segments = [];
@@ -44,6 +67,7 @@ function buildRouteResultFromSelectedLocations(useShortest) {
 		const start = selectedLocations[i].name,
 			end = selectedLocations[i + 1].name,
 			route = calculateRouteClientLegacy(start, end, useShortest);
+		probeServerRouteForClientSegment(start, end, useShortest);
 		console.log("Berechnete Route:", route);
 		if (route.length) {
 			if (!routeNodeNames.length) {
