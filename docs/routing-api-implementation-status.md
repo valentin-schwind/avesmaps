@@ -95,3 +95,16 @@
 - Risiken:
   - Keine beabsichtigte Verhaltensaenderung; Risiko beschraenkt sich auf Include-/Dateipfadfehler.
 - Smoke noetig: nein
+
+## 2026-05-25 - API Phase 3A (SQL-Kartendaten-Lader Vorbereitung)
+
+- Commit: `Prepare route map data loader`
+- Schritt: `api/route-map-data.php` mit `avesmapsLoadRouteMapData(array $config): array` eingefuehrt; SQL-Features, Revision und Feature-Anzahl werden geladen, ohne aktive Nutzung im Route-Requestpfad.
+- Dateien:
+  - `api/route.php`
+  - `api/route-map-data.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Keine Verhaltensaenderung im Endpoint-Responsepfad beabsichtigt; Risiko beschraenkt sich auf neue Include-/Loader-Funktionssyntax.
+  - Rueckgabeform kann in spaeteren Phasen bei engere Routing-Datenanforderungen noch verfeinert werden.
+- Smoke noetig: nein
