@@ -175,6 +175,9 @@ function hasPlannerStateSearchParams(searchParams) {
 
 function buildPlannerSearchParams() {
 	const searchParams = new URLSearchParams();
+	if (new URLSearchParams(window.location.search).get("serverrouting") === "1") {
+		searchParams.set("serverrouting", "1");
+	}
 	if (IS_EDIT_MODE) {
 		searchParams.set("edit", "1");
 		searchParams.set("debugMap", "1");
