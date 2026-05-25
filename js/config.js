@@ -93,18 +93,18 @@ const SQL_MAP_HOSTS = new Set([STRATO_MAP_HOST, "avesmaps.de", "www.avesmaps.de"
 
 function getDefaultLocationReportEndpointUrl() {
 	if (SQL_MAP_HOSTS.has(window.location.hostname)) {
-		return "api/report-location.php";
+		return "api/app/report-location.php";
 	}
 
 	if (window.location.protocol === "https:") {
-		return `https://${PUBLIC_API_HOST}/api/report-location.php`;
+		return `https://${PUBLIC_API_HOST}/api/app/report-location.php`;
 	}
 
 	if (window.location.protocol === "http:") {
-		return `http://${STRATO_MAP_HOST}/avesmaps/api/report-location.php`;
+		return `http://${STRATO_MAP_HOST}/avesmaps/api/app/report-location.php`;
 	}
 
-	return `https://${PUBLIC_API_HOST}/api/report-location.php`;
+	return `https://${PUBLIC_API_HOST}/api/app/report-location.php`;
 }
 
 const DEFAULT_LOCATION_REPORT_ENDPOINT_URL = getDefaultLocationReportEndpointUrl();
