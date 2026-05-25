@@ -9,10 +9,6 @@ function syncPathVisibility() {
 }
 
 function shouldShowPathOnMap(path, { showPaths = true, showRivers = false } = {}) {
-	if (IS_EDIT_MODE) {
-		return true;
-	}
-
 	const subtype = normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name);
 	if (subtype === "Flussweg") {
 		return showRivers;
