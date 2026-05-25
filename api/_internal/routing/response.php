@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/route-client-graph.php';
+require_once __DIR__ . '/client-graph.php';
 
 const AVESMAPS_ROUTE_API_CODE_REVISION = 13;
 
