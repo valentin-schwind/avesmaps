@@ -109,9 +109,9 @@ function getDefaultLocationReportEndpointUrl() {
 
 const DEFAULT_LOCATION_REPORT_ENDPOINT_URL = getDefaultLocationReportEndpointUrl();
 const LOCATION_REPORT_FORM_ENDPOINT_URL = window.AVESMAPS_LOCATION_REPORT_ENDPOINT || DEFAULT_LOCATION_REPORT_ENDPOINT_URL;
-const MAP_FEATURES_API_URL = window.AVESMAPS_MAP_FEATURES_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/map-features.php" : "");
+const MAP_FEATURES_API_URL = window.AVESMAPS_MAP_FEATURES_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/map-features.php" : "");
 const POLITICAL_TERRITORIES_API_URL = window.AVESMAPS_POLITICAL_TERRITORIES_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/political-territories.php" : "");
-const MAP_SEARCH_API_URL = window.AVESMAPS_MAP_SEARCH_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/map-search.php" : "");
+const MAP_SEARCH_API_URL = window.AVESMAPS_MAP_SEARCH_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/map-search.php" : "");
 const INITIAL_SEARCH_PARAMS = new URLSearchParams(window.location.search);
 const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
 const MAP_TILE_STYLES = {
@@ -447,7 +447,7 @@ const DEFAULT_PLANNER_STATE = {
 	toggleKleinstaedte: false,
 	toggleDoerfer: false,
 	toggleGebaeude: false,
-	togglePaths: false,
+	ogglePaths: false,
 	mapLayerMode: "deregraphic",
 	toggleCrossings: false,
 	toggleNodix: false,
