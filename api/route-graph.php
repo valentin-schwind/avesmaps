@@ -71,6 +71,11 @@ function avesmapsAnalyzeRouteGraph(array $graph): array {
 		'isolated_node_count' => $isolatedNodeCount,
 		'largest_component_size' => $largestComponentSize,
 		'average_degree' => avesmapsCalculateAverageDegree($adjacency),
+		'degree_histogram' => avesmapsBuildRouteGraphDegreeHistogram($adjacency),
+		'component_size_histogram' => avesmapsBuildRouteGraphComponentSizeHistogram($components),
+		'edge_transport_counts' => avesmapsBuildRouteGraphEdgeTransportCounts($graph['edges'] ?? []),
+		'duplicate_edge_count' => avesmapsCountRouteGraphDuplicates($graph['edges'] ?? []),
+		'self_loop_count' => avesmapsCountRouteGraphSelfLoops($graph['edges'] ?? []),
 		'largest_component_ratio' => $nodeCount > 0 ? $largestComponentSize / $nodeCount : 0.0,
 	];
 }
@@ -155,6 +160,141 @@ function avesmapsCalculateAverageDegree(array $adjacency): float {
 	}
 
 	return $degreeSum / $nodeCount;
+}
+
+function avesmapsBuildRouteGraphDegreeHistogram(array $adjacency): array {
+	$histogram = [
+		'0' => 0,
+		'1' => 0,
+		'2' => 0,
+		'3' => 0,
+		'4+' => 0,
+	];
+
+	foreach ($adjacency as $neighbors) {
+		$degree = count($neighbors);
+		if ($degree === 0) {
+			$histogram['0']++;
+			continue;
+		}
+		if ($degree === 1) {
+			$histogram['1']++;
+			continue;
+		}
+		if ($degree === 2) {
+			$histogram['2']++;
+			continue;
+		}
+		if ($degree === 3) {
+			$histogram['3']++;
+			continue;
+		}
+		$histogram['4+']++;
+	}
+
+	return $histogram;
+}
+
+function avesmapsBuildRouteGraphComponentSizeHistogram(array $components): array {
+	$histogram = [
+		'1' => 0,
+		'2' => 0,
+		'3-10' => 0,
+		'11-100' => 0,
+		'101+' => 0,
+	];
+
+	foreach ($components as $component) {
+		$size = count($component);
+		if ($size === 1) {
+			$histogram['1']++;
+			continue;
+		}
+		if ($size === 2) {
+			$histogram['2']++;
+			continue;
+		}
+		if ($size <= 10) {
+			$histogram['3-10']++;
+			continue;
+		}
+		if ($size <= 100) {
+			$histogram['11-100']++;
+			continue;
+		}
+		$histogram['101+']++;
+	}
+
+	return $histogram;
+}
+
+function avesmapsBuildRouteGraphEdgeTransportCounts(array $edges): array {
+	$counts = [
+		'land' => 0,
+		'river' => 0,
+		'sea' => 0,
+		'unknown' => 0,
+	];
+
+	foreach ($edges as $edge) {
+		if (!is_array($edge)) {
+			continue;
+		}
+
+		$type = (string) ($edge['transport_type'] ?? 'unknown');
+		if (!isset($counts[$type])) {
+			$type = 'unknown';
+		}
+		$counts[$type]++;
+	}
+
+	return $counts;
+}
+
+function avesmapsCountRouteGraphDuplicates(array $edges): int {
+	$seen = [];
+	$duplicateCount = 0;
+
+	foreach ($edges as $edge) {
+		if (!is_array($edge)) {
+			continue;
+		}
+
+		$from = (string) ($edge['from'] ?? '');
+		$to = (string) ($edge['to'] ?? '');
+		if ($from === '' || $to === '') {
+			continue;
+		}
+
+		$unorderedFrom = $from <= $to ? $from : $to;
+		$unorderedTo = $from <= $to ? $to : $from;
+		$key = $unorderedFrom . '|' . $unorderedTo;
+
+		if (isset($seen[$key])) {
+			$duplicateCount++;
+		} else {
+			$seen[$key] = true;
+		}
+	}
+
+	return $duplicateCount;
+}
+
+function avesmapsCountRouteGraphSelfLoops(array $edges): int {
+	$selfLoopCount = 0;
+	foreach ($edges as $edge) {
+		if (!is_array($edge)) {
+			continue;
+		}
+
+		$from = (string) ($edge['from'] ?? '');
+		$to = (string) ($edge['to'] ?? '');
+		if ($from !== '' && $from === $to) {
+			$selfLoopCount++;
+		}
+	}
+
+	return $selfLoopCount;
 }
 
 function avesmapsGetRoutePathEndpoints(mixed $geometry): ?array {

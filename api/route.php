@@ -79,6 +79,11 @@ try {
 				'isolated_node_count' => (int) ($routeGraphAnalysis['isolated_node_count'] ?? 0),
 				'largest_component_size' => (int) ($routeGraphAnalysis['largest_component_size'] ?? 0),
 				'average_degree' => round((float) ($routeGraphAnalysis['average_degree'] ?? 0.0), 6),
+				'degree_histogram' => $routeGraphAnalysis['degree_histogram'] ?? [],
+				'component_size_histogram' => $routeGraphAnalysis['component_size_histogram'] ?? [],
+				'edge_transport_counts' => $routeGraphAnalysis['edge_transport_counts'] ?? [],
+				'duplicate_edge_count' => (int) ($routeGraphAnalysis['duplicate_edge_count'] ?? 0),
+				'self_loop_count' => (int) ($routeGraphAnalysis['self_loop_count'] ?? 0),
 			],
 			'sample' => [
 				'first_node' => (string) ($firstNode['id'] ?? ''),

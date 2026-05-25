@@ -194,3 +194,15 @@
   - Keine beabsichtigte Aenderung am POST-501-Verhalten; nur Diagnosepfad erweitert.
   - Kennzahlen basieren auf dem aktuellen Rohgraph-Modell ohne Segmentierung/Snap/Kreuzungslogik.
 - Smoke noetig: nein
+## 2026-05-25 - API Phase 4C (Graph Readiness Diagnostics)
+
+- Commit: `Add route graph readiness diagnostics`
+- Schritt: Diagnose `graph-data` um Graph-Bereitschaftsmetriken erweitert, ohne Routensuche, Gewichte, Distanzen oder Geometriepflege. Neue Statistiken: `degree_histogram`, `component_size_histogram`, `edge_transport_counts`, `duplicate_edge_count`, `self_loop_count`.
+- Dateien:
+  - `api/route.php`
+  - `api/route-graph.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Keine beabsichtigte Aenderung am POST-501-Flow; nur Diagnosepfad erweitert.
+  - Neue Metriken sind diagnostisch und entfernen keine Duplikate oder Selbstschleifen aus dem Rohgraphen.
+- Smoke noetig: nein
