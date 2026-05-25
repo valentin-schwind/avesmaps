@@ -237,19 +237,21 @@ function avesmapsReadRoutePathLineCoordinates(mixed $geometry): array {
     return [];
 }
 
+function avesmapsRouteStringStartsWith(string $value, string $prefix): bool {
+    return strncmp($value, $prefix, strlen($prefix)) === 0;
+}
+
 function avesmapsNormalizeClientRouteSubtype(string $subtype): string {
     $normalized = trim($subtype);
-    return match ($normalized) {
-        'Reichsstraße', 'Reichsstrasse' => 'Reichsstrasse',
-        'Straße', 'Strasse' => 'Strasse',
-        'Gebirgspfad', 'Gebirgspass' => 'Gebirgspass',
-        'Wüstenpfad', 'Wuestenpfad' => 'Wuestenpfad',
-        'Flussweg' => 'Flussweg',
-        'Seeweg' => 'Seeweg',
-        'Querfeldein' => 'Querfeldein',
-        'Weg' => 'Weg',
-        default => 'Pfad',
-    };
+    if (avesmapsRouteStringStartsWith($normalized, 'Reichsstrasse') || avesmapsRouteStringStartsWith($normalized, 'Reichsstraße')) return 'Reichsstrasse';
+    if (avesmapsRouteStringStartsWith($normalized, 'Strasse') || avesmapsRouteStringStartsWith($normalized, 'Straße')) return 'Strasse';
+    if (avesmapsRouteStringStartsWith($normalized, 'Gebirgspass') || avesmapsRouteStringStartsWith($normalized, 'Gebirgspfad')) return 'Gebirgspass';
+    if (avesmapsRouteStringStartsWith($normalized, 'Wueste') || avesmapsRouteStringStartsWith($normalized, 'Wuestenpfad') || avesmapsRouteStringStartsWith($normalized, 'Wüstenpfad')) return 'Wuestenpfad';
+    if (avesmapsRouteStringStartsWith($normalized, 'Pfad')) return 'Pfad';
+    if (avesmapsRouteStringStartsWith($normalized, 'Flussweg')) return 'Flussweg';
+    if (avesmapsRouteStringStartsWith($normalized, 'Meer') || avesmapsRouteStringStartsWith($normalized, 'Seeweg')) return 'Seeweg';
+    if (avesmapsRouteStringStartsWith($normalized, AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE)) return AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE;
+    return 'Weg';
 }
 
 function avesmapsResolveClientRouteTransportOption(string $routeType, array $request): ?string {
