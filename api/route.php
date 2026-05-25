@@ -117,7 +117,7 @@ try {
 
 		avesmapsJsonResponse(200, [
 			'ok' => true,
-			'diagnostic' => 'request-route-data',
+			'diagnostic' => 'route-name-data',
 			'from' => $syntheticRequest['from'],
 			'to' => $syntheticRequest['to'],
 			'route' => $routeResult['route'],
