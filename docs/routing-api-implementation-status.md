@@ -36,3 +36,14 @@
 - Risiken:
   - Kein Laufzeitrisiko durch diesen Schritt (nur Doku), aber die naechsten Code-Schritte muessen strikt verhaltensneutral bleiben.
 - Smoke noetig: nein
+
+## 2026-05-25 - Schritt 5 Vorbereitung (RouteResult Builder)
+
+- Commit: `Prepare route result builders`
+- Schritt: Vorbereitende Helper `buildRouteSummary(...)` und `buildRouteSteps(...)` eingefuehrt, ohne Runtime-Umschaltung.
+- Dateien:
+  - `js/routing.js`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Keine direkte Laufzeitaenderung, da die neuen Builder noch nicht in bestehende Anzeige-/Routingpfade eingebunden sind.
+- Smoke noetig: nein
