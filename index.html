@@ -1481,8 +1481,8 @@
 			);
 		}
 
-		function getSyntheticRouteConfig() {
-			const transportOption = getTransportOption(SYNTHETIC_ROUTE_TYPE);
+		function getSyntheticRouteConfig(routeOptions) {
+			const transportOption = getTransportOptionForRouteType(SYNTHETIC_ROUTE_TYPE, routeOptions);
 			const speed = SPEED_TABLE[transportOption]?.[SYNTHETIC_ROUTE_TYPE];
 			if (!transportOption || !speed) {
 				return null;
@@ -1491,13 +1491,13 @@
 			return { routeType: SYNTHETIC_ROUTE_TYPE, speed };
 		}
 
-		function connectDetachedGraphComponents(graph) {
+		function connectDetachedGraphComponents(graph, routeOptions) {
 			const components = findGraphComponents(graph).sort((a, b) => b.nodeNames.length - a.nodeNames.length);
 			if (components.length <= 1) {
 				return;
 			}
 
-			const routeConfig = getSyntheticRouteConfig();
+			const routeConfig = getSyntheticRouteConfig(routeOptions);
 			if (!routeConfig) {
 				console.warn("Querfeldein-Verbindungen werden übersprungen, weil kein Land-Transportmittel aktiv ist.");
 				return;
@@ -1529,14 +1529,14 @@
 			}
 		}
 
-		function addRegularPathToGraph(graph, pathFeature) {
+		function addRegularPathToGraph(graph, pathFeature, routeOptions) {
 			const { geometry: { coordinates }, properties } = pathFeature;
 			const startNode = getLocationAtPathEndpoint(coordinates[0]);
 			const endNode = getLocationAtPathEndpoint(coordinates[coordinates.length - 1]);
 			if (startNode && endNode) {
 				const distance = calculatePathCoordinateDistance(coordinates),
 					routeType = normalizePathSubtype(properties?.feature_subtype || properties?.name),
-					transportOption = getTransportOption(routeType);
+					transportOption = getTransportOptionForRouteType(routeType, routeOptions);
 				if (!transportOption) {
 					console.warn(`Keine Transportoption für ${routeType} gefunden. Pfad wird übersprungen.`);
 					return;
@@ -1556,16 +1556,16 @@
 		}
 
 		// Erzeugt einen gewichteten Graphen aus den Locations und Pfaden
-		function createGraph() {
+		function createGraph(routeOptions = buildRouteOptionsFromPlannerControls()) {
 			syntheticPathSegments.clear();
 			const graph = {};
 			locationData.forEach((location) => {
 				graph[location.name] = {};
 			});
 			pathData.forEach((pathFeature) => {
-				addRegularPathToGraph(graph, pathFeature);
+				addRegularPathToGraph(graph, pathFeature, routeOptions);
 			});
-			connectDetachedGraphComponents(graph);
+			connectDetachedGraphComponents(graph, routeOptions);
 
 			const unconnectedNames = Object.keys(graph).filter((locName) => !Object.keys(graph[locName]).length);
 			if (unconnectedNames.length) {

@@ -240,18 +240,36 @@ function removeHighlightedRouteNodes() {
 	console.log("Alle Routen-Knoten entfernt.");
 }
 
-function getTransportOption(routeType) {
+function buildRouteOptionsFromPlannerControls() {
 	const allowLand = $("#allowLand").is(":checked"),
-		landOption = allowLand ? $("#landTransport").val() : null,
 		allowRiver = $("#allowRiver").is(":checked"),
-		riverOption = allowRiver ? $("#riverTransport").val() : null,
-		allowSea = $("#allowSea").is(":checked"),
-		seaOption = allowSea ? $("#seaTransport").val() : null;
+		allowSea = $("#allowSea").is(":checked");
+
+	return {
+		allowLand,
+		landOption: allowLand ? $("#landTransport").val() : null,
+		allowRiver,
+		riverOption: allowRiver ? $("#riverTransport").val() : null,
+		allowSea,
+		seaOption: allowSea ? $("#seaTransport").val() : null,
+	};
+}
+
+function getTransportOptionForRouteType(routeType, routeOptions) {
+	const resolvedRouteOptions = routeOptions || buildRouteOptionsFromPlannerControls();
+	const landOption = resolvedRouteOptions.allowLand ? resolvedRouteOptions.landOption : null;
+	const riverOption = resolvedRouteOptions.allowRiver ? resolvedRouteOptions.riverOption : null;
+	const seaOption = resolvedRouteOptions.allowSea ? resolvedRouteOptions.seaOption : null;
+
 	if (["Pfad", "Weg", "Strasse", "Reichsstrasse", "Gebirgspass", "Wuestenpfad", SYNTHETIC_ROUTE_TYPE].includes(routeType)) return landOption;
 	if (routeType === "Flussweg") return riverOption;
 	if (routeType === "Seeweg") return seaOption;
 	console.warn(`Kein gueltiges Transportmittel fuer ${routeType}.`);
 	return null;
+}
+
+function getTransportOption(routeType) {
+	return getTransportOptionForRouteType(routeType, buildRouteOptionsFromPlannerControls());
 }
 
 function isTransportAllowedForPath(pathProperties, transportOption) {
