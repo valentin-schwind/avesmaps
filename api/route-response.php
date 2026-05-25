@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/route-client-graph.php';
+
 class AvesmapsRouteLocationNotFoundException extends RuntimeException {}
 class AvesmapsRouteViaNotSupportedException extends RuntimeException {}
 
@@ -81,29 +83,17 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 
 	$routeMapData = avesmapsLoadRouteMapData($config);
 	$routeNetworkData = avesmapsBuildRouteNetworkData($routeMapData);
-	$routeGraphWeighted001 = avesmapsBuildRouteGraph($routeNetworkData, [
-		'endpoint_snap_tolerance' => 0.001,
-		'deduplicate_edges' => true,
-		'remove_self_loops' => true,
-		'include_edge_weights' => true,
-	]);
+	$clientGraph = avesmapsBuildClientCompatibleRouteGraph($routeNetworkData, $request);
+	$routeDijkstraResult = avesmapsFindClientCompatibleRoute($clientGraph, $fromLocation, $toLocation, $request);
+	$edgeIds = is_array($routeDijkstraResult['edge_ids'] ?? null) ? $routeDijkstraResult['edge_ids'] : [];
+	$nodeIds = is_array($routeDijkstraResult['node_ids'] ?? null) ? $routeDijkstraResult['node_ids'] : [];
 
-	$fromNodeData = avesmapsFindNearestGraphNodeForLocation($routeGraphWeighted001, $routeNetworkData, $fromLocation);
-	if ($fromNodeData['found'] === false) {
+	if (!isset($clientGraph['graph'][$fromLocation])) {
 		throw new AvesmapsRouteLocationNotFoundException(sprintf('Unknown from location: %s', $fromLocation));
 	}
-
-	$toNodeData = avesmapsFindNearestGraphNodeForLocation($routeGraphWeighted001, $routeNetworkData, $toLocation);
-	if ($toNodeData['found'] === false) {
+	if (!isset($clientGraph['graph'][$toLocation])) {
 		throw new AvesmapsRouteLocationNotFoundException(sprintf('Unknown to location: %s', $toLocation));
 	}
-
-	$routeDijkstraResult = avesmapsFindShortestRouteInGraph(
-		$routeGraphWeighted001,
-		$fromNodeData['nearest_node_id'],
-		$toNodeData['nearest_node_id']
-	);
-	$edgeIds = is_array($routeDijkstraResult['edge_ids'] ?? null) ? $routeDijkstraResult['edge_ids'] : [];
 
 	return [
 		'ok' => true,
@@ -112,13 +102,13 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 			'from' => $fromLocation,
 			'to' => $toLocation,
 			'cost' => (float) ($routeDijkstraResult['cost'] ?? 0.0),
-			'node_count' => count($routeDijkstraResult['node_ids'] ?? []),
+			'node_count' => count($nodeIds),
 			'edge_count' => (int) ($routeDijkstraResult['edge_count'] ?? 0),
-			'from_node' => (string) ($fromNodeData['nearest_node_id'] ?? ''),
-			'to_node' => (string) ($toNodeData['nearest_node_id'] ?? ''),
-			'node_ids' => is_array($routeDijkstraResult['node_ids'] ?? null) ? $routeDijkstraResult['node_ids'] : [],
+			'from_node' => $fromLocation,
+			'to_node' => $toLocation,
+			'node_ids' => $nodeIds,
 			'edge_ids' => $edgeIds,
-			'segments' => avesmapsBuildRouteEdgeDiagnosticSegments($routeGraphWeighted001, $edgeIds),
+			'segments' => avesmapsBuildClientRouteDiagnosticSegments(is_array($routeDijkstraResult['segments'] ?? null) ? $routeDijkstraResult['segments'] : []),
 		],
 	];
 }
