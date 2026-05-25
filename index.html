@@ -1483,7 +1483,7 @@
 
 		function getSyntheticRouteConfig(routeOptions) {
 			const transportOption = getTransportOptionForRouteType(SYNTHETIC_ROUTE_TYPE, routeOptions);
-			const speed = SPEED_TABLE[transportOption]?.[SYNTHETIC_ROUTE_TYPE];
+			const speed = resolveSpeedForRouteType(SYNTHETIC_ROUTE_TYPE, transportOption);
 			if (!transportOption || !speed) {
 				return null;
 			}
@@ -1544,7 +1544,7 @@
 				if (!isTransportAllowedForPath(properties, transportOption)) {
 					return;
 				}
-				const speed = SPEED_TABLE[transportOption]?.[routeType];
+				const speed = resolveSpeedForRouteType(routeType, transportOption);
 				if (!speed) {
 					console.warn(`Geschwindigkeit für ${transportOption} auf ${routeType} nicht definiert. Pfad wird übersprungen.`);
 					return;

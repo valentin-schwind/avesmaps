@@ -272,6 +272,10 @@ function getTransportOption(routeType) {
 	return getTransportOptionForRouteType(routeType, buildRouteOptionsFromPlannerControls());
 }
 
+function resolveSpeedForRouteType(routeType, transportOption) {
+	return SPEED_TABLE[transportOption]?.[routeType];
+}
+
 function isTransportAllowedForPath(pathProperties, transportOption) {
 	if (!transportOption) {
 		return false;
