@@ -142,3 +142,16 @@
 - Risiken:
   - Keine beabsichtigte Verhaltensaenderung fuer POST/GET-Statuspfade; Fix zielt nur auf stabilen Endpoint-Flow.
 - Smoke noetig: nein
+
+## 2026-05-25 - API Phase 3C (Route-Network-Extraktion Vorbereitung)
+
+- Commit: `Prepare route network extraction`
+- Schritt: `api/route-network-data.php` eingefuehrt; Routing-relevante Daten (`locations`, `paths`) aus SQL-Feature-Daten extrahiert und Transportklassifikation/Statistik vorbereitet, ohne Graph- oder Routenberechnung.
+- Dateien:
+  - `api/route.php`
+  - `api/route-network-data.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Keine Aenderung am POST-501-Verhalten beabsichtigt; neuer Diagnosepfad `diagnostic=network-data` haengt von SQL-Map-Datenverfuegbarkeit ab.
+  - Transport-Subtypen ausserhalb der bekannten Mapping-Liste werden als `unknown` gezaehlt.
+- Smoke noetig: nein

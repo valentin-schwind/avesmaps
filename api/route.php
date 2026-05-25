@@ -6,6 +6,7 @@ require __DIR__ . '/bootstrap.php';
 require __DIR__ . '/route-request.php';
 require __DIR__ . '/route-response.php';
 require __DIR__ . '/route-map-data.php';
+require __DIR__ . '/route-network-data.php';
 
 try {
 	$config = avesmapsLoadApiConfig(__DIR__);
@@ -38,6 +39,22 @@ try {
 				'first_feature_type' => (string) ($firstFeatureProperties['feature_type'] ?? ''),
 				'first_feature_subtype' => (string) ($firstFeatureProperties['feature_subtype'] ?? ''),
 				'first_feature_geometry_type' => (string) ($firstFeatureGeometry['type'] ?? ''),
+			],
+		]);
+	}
+	if ($requestMethod === 'GET' && $routeDiagnostic === 'network-data') {
+		$routeMapData = avesmapsLoadRouteMapData($config);
+		$routeNetworkData = avesmapsBuildRouteNetworkData($routeMapData);
+		$firstLocation = $routeNetworkData['locations'][0] ?? [];
+		$firstPath = $routeNetworkData['paths'][0] ?? [];
+
+		avesmapsJsonResponse(200, [
+			'ok' => true,
+			'diagnostic' => 'network-data',
+			'statistics' => $routeNetworkData['statistics'],
+			'sample' => [
+				'first_location' => (string) (($firstLocation['name'] ?? '') !== '' ? $firstLocation['name'] : ($firstLocation['id'] ?? '')),
+				'first_path' => (string) (($firstPath['name'] ?? '') !== '' ? $firstPath['name'] : ($firstPath['id'] ?? '')),
 			],
 		]);
 	}
