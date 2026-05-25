@@ -92,6 +92,7 @@ function probeServerRouteForClientSegment(start, end, useShortest, clientRoute) 
 			const rawDebug = serverRouteResult?.raw?.route?.debug || {};
 			const rawContext = rawDebug.context || {};
 			const parity = rawContext.client_route_on_server_graph || {};
+			const missingSegments = Array.isArray(parity.missing_segments) ? parity.missing_segments : [];
 			const serverCodeRevision = Number(rawDebug.api_code_revision || serverRoute.debug?.api_code_revision || 0);
 			const mapRevision = Number(rawDebug.map_revision || serverRoute.debug?.map_revision || 0);
 			const serverEdgeIds = Array.isArray(serverRoute.debug?.edge_ids)
@@ -107,10 +108,14 @@ function probeServerRouteForClientSegment(start, end, useShortest, clientRoute) 
 				server_found: Boolean(serverRoute.found),
 				api_code_revision: serverCodeRevision,
 				map_revision: mapRevision,
+				network_path_count: Number(rawDebug.network_path_count) || 0,
+				client_graph_path_feature_count: Number(rawDebug.client_graph_path_feature_count) || 0,
 			});
 			console.log("Server-Routing-Probe Paritaet:", {
 				api_code_revision: serverCodeRevision,
 				map_revision: mapRevision,
+				network_path_count: Number(rawDebug.network_path_count) || 0,
+				client_graph_path_feature_count: Number(rawDebug.client_graph_path_feature_count) || 0,
 				client_route_received: Number(parity.received_segment_count) || 0,
 				client_route_matched: Number(parity.matched_segment_count) || 0,
 				client_route_missing: Number(parity.missing_segment_count) || 0,
@@ -119,7 +124,8 @@ function probeServerRouteForClientSegment(start, end, useShortest, clientRoute) 
 				cost_delta_server_minus_client_route: Number(parity.cost_delta_server_minus_client_route) || 0,
 				all_client_edges_found: Boolean(parity.all_client_edges_found),
 			});
-			console.log("Server-Routing-Probe Fehlende Client-Segmente:", Array.isArray(parity.missing_segments) ? parity.missing_segments : []);
+			console.log("Server-Routing-Probe Fehlende Client-Segmente:", missingSegments);
+			console.log("Server-Routing-Probe Fehlende Client-Segmente JSON:", JSON.stringify(missingSegments, null, 2));
 			console.log("Server-Routing-Probe Server-IDs:", serverEdgeIds);
 			console.log("Server-Routing-Probe Server-Segmente:", serverSegments);
 			console.log("Server-Routing-Probe Ergebnis:", serverRouteResult);
