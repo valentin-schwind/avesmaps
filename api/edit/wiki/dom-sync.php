@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-define('AVESMAPS_WIKI_DOM_SOURCE_DIR', dirname(__DIR__, 3));
+define('AVESMAPS_WIKI_DOM_SOURCE_DIR', dirname(__DIR__, 2));
 
 $sourcePath = __DIR__ . '/dom-source.php';
 $source = file_get_contents($sourcePath);
@@ -22,7 +22,7 @@ $tempPath = tempnam(sys_get_temp_dir(), 'avesmaps-wiki-dom-sync-');
 if (!is_string($tempPath) || $tempPath === '') {
     http_response_code(500);
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['ok' => false, 'error' => 'TemporÃƒÂ¤re Sync-Datei konnte nicht erzeugt werden.'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    echo json_encode(['ok' => false, 'error' => 'TemporÃƒÆ’Ã‚Â¤re Sync-Datei konnte nicht erzeugt werden.'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 file_put_contents($tempPath, "<?php\n" . $source);
