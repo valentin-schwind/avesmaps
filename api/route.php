@@ -315,14 +315,12 @@ try {
 
 	$requestPayload = avesmapsReadJsonRequest();
 	$normalizedRequest = avesmapsNormalizeRouteRequest($requestPayload);
+	$routeResult = avesmapsBuildMinimalRouteResultFromRequest($normalizedRequest, $config);
 
-	avesmapsJsonResponse(501, [
-		'ok' => false,
-		'error' => [
-			'code' => 'not_implemented',
-			'message' => 'Server-side routing is not implemented yet.',
-		],
-		'request' => $normalizedRequest,
+	avesmapsJsonResponse(200, [
+		'ok' => true,
+		'routing_engine' => 'server-minimal',
+		'route' => $routeResult['route'],
 	]);
 } catch (JsonException) {
 	avesmapsRouteErrorResponse(500, 'server_error', 'Die Antwort konnte nicht serialisiert werden.');

@@ -221,6 +221,19 @@
   - GET ohne gültiges diagnostic bleibt weiterhin 405.
 - Smoke noetig: nein
 
+## 2026-05-25 - API Phase 7A (Minimaler POST-Routingpfad)
+
+- Commit: `Activate minimal server routing`
+- Schritt: POST `/api/route.php` nutzt `avesmapsBuildMinimalRouteResultFromRequest(...)`, gibt `200` mit `routing_engine: "server-minimal"` und dem minimalen `route`-Ergebnis zurück.
+- Dateien:
+  - `api/route.php`
+  - `api/route-response.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Kein Frontend- oder RouteResult-Kompatibilitäts-Feature; nur der Minimalpfad für POST wird freigeschaltet.
+  - Fehlende Ziele/Startpunkte lösen RuntimeExceptions aus; diese behandeln den Serverfehlerpfad, keine spezielle HTTP-404-Logik.
+- Smoke noetig: nein
+
 ## 2026-05-25 - API Phase 4A (Graph-Rohmodell Vorbereitung)
 
 - Commit: `Prepare route graph model`
