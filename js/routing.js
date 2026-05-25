@@ -256,7 +256,7 @@ function buildRouteOptionsFromPlannerControls() {
 }
 
 function getTransportOptionForRouteType(routeType, routeOptions) {
-	const resolvedRouteOptions = routeOptions || buildRouteOptionsFromPlannerControls();
+	const resolvedRouteOptions = routeOptions || {};
 	const landOption = resolvedRouteOptions.allowLand ? resolvedRouteOptions.landOption : null;
 	const riverOption = resolvedRouteOptions.allowRiver ? resolvedRouteOptions.riverOption : null;
 	const seaOption = resolvedRouteOptions.allowSea ? resolvedRouteOptions.seaOption : null;
@@ -1326,8 +1326,9 @@ function buildRouteResultFromSelectedLocations(useShortest) {
  ******************************************************************/
 function updateMapView() {
 	const useShortest = $('input[name="pathType"]:checked').val() === "shortest";
+	const routeOptions = buildRouteOptionsFromPlannerControls();
 	syncPlannerStateToUrl();
-	graphData = createGraph();
+	graphData = createGraph(routeOptions);
 	console.log("Graph:", graphData);
 
 	resetRoutePresentation();

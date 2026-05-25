@@ -1556,7 +1556,7 @@
 		}
 
 		// Erzeugt einen gewichteten Graphen aus den Locations und Pfaden
-		function createGraph(routeOptions = buildRouteOptionsFromPlannerControls()) {
+		function createGraph(routeOptions) {
 			syntheticPathSegments.clear();
 			const graph = {};
 			locationData.forEach((location) => {
