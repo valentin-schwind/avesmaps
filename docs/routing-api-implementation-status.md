@@ -25,3 +25,14 @@
   - Bei zukuenftigen neuen Aufrufern von `createGraph` muss `routeOptions` explizit uebergeben werden.
   - Fehlende oder unvollstaendige `routeOptions` koennen dazu fuehren, dass Pfade uebersprungen werden.
 - Smoke noetig: ja
+
+## 2026-05-25 - Schritt 3 Vorbereitung (Transportregel-Boundary)
+
+- Commit: `Prepare transport rule boundary`
+- Schritt: Boundary fuer die Zentralisierung von Transportregeln/Geschwindigkeiten dokumentiert, ohne Laufzeitlogik zu aendern.
+- Dateien:
+  - `docs/routing-transport-rule-boundary.md`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Kein Laufzeitrisiko durch diesen Schritt (nur Doku), aber die naechsten Code-Schritte muessen strikt verhaltensneutral bleiben.
+- Smoke noetig: nein
