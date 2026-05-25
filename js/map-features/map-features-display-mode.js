@@ -1,18 +1,24 @@
 function syncPathVisibility() {
 	const showPaths = $("#togglePaths").is(":checked");
+	const showRivers = $("#toggleRivers").is(":checked");
 	$.each(pathLayers, (i, layer) => {
 		const path = pathData[i];
-		const shouldShow = showPaths && shouldShowPathOnMap(path);
+		const shouldShow = shouldShowPathOnMap(path, { showPaths, showRivers });
 		map[shouldShow ? "addLayer" : "removeLayer"](layer);
 	});
 }
 
-function shouldShowPathOnMap(path) {
+function shouldShowPathOnMap(path, { showPaths = true, showRivers = false } = {}) {
 	if (IS_EDIT_MODE) {
 		return true;
 	}
 
-	return normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name) !== "Seeweg";
+	const subtype = normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name);
+	if (subtype === "Flussweg") {
+		return showRivers;
+	}
+
+	return showPaths && subtype !== "Seeweg";
 }
 
 function getSelectedMapLayerMode() {

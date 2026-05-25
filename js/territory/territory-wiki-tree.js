@@ -628,13 +628,14 @@
 		if (metaInfo.text || metaInfo.wikiUrl) {
 			const meta = document.createElement("span");
 			meta.className = "tree-item-meta";
-			if (metaInfo.text) {
+			const shouldShowMetaText = metaInfo.text && normalizeText(metaInfo.text) !== "Wiki";
+			if (shouldShowMetaText) {
 				const metaText = document.createElement("span");
 				metaText.textContent = metaInfo.text;
 				meta.appendChild(metaText);
 			}
 			if (metaInfo.wikiUrl) {
-				if (metaInfo.text) {
+				if (shouldShowMetaText) {
 					const separator = document.createElement("span");
 					separator.textContent = ", ";
 					meta.appendChild(separator);

@@ -117,7 +117,7 @@
 		<button type="button" class="map-context-menu__item" data-context-action="open-spotlight-search">🔎 Suchen</button>
 		<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location">📌 Nächsten Ort finden</button>
 		<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement">📏 Entfernung messen</button>
-		<button type="button" class="map-context-menu__item" data-context-action="clear-distance-measurement">🗑️ Entfernungsmessung löschen</button>
+		<button type="button" class="map-context-menu__item" data-context-action="clear-distance-measurement" hidden>🗑️ Entfernungsmessung löschen</button>
 	</div>
 	<div id="region-context-menu" class="map-context-menu region-context-menu" hidden>
 		<button type="button" class="map-context-menu__item" data-region-context-action="edit-geometry">Grenzen bearbeiten</button>
@@ -756,6 +756,7 @@
 			</div>
 			<div class="display-options__row display-options__row--wrap">
 				<label id="togglePathsControl"><input type="checkbox" id="togglePaths" /> Wege</label>
+				<label id="toggleRiversControl"><input type="checkbox" id="toggleRivers" /> Flüsse</label>
 				<label id="toggleCrossingsControl" hidden><input type="checkbox" id="toggleCrossings" /> Kreuzungen</label>
 				<label id="toggleNodixControl" hidden><input type="checkbox" id="toggleNodix" /> Nodices</label>
 			</div>
