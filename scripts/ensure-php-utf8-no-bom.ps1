@@ -5,9 +5,28 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$resolvedRoot = Resolve-Path $Root
+$resolvedRootPath = (Resolve-Path $Root).Path.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-$phpFiles = Get-ChildItem -Path $resolvedRoot -Recurse -File -Filter "*.php" |
+
+function Get-RelativePathFromRoot {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RootPath,
+        [Parameter(Mandatory = $true)]
+        [string]$FullPath
+    )
+
+    $normalizedRoot = $RootPath.TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+    $normalizedFullPath = $FullPath
+
+    if ($normalizedFullPath.StartsWith($normalizedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $normalizedFullPath.Substring($normalizedRoot.Length).TrimStart([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+    }
+
+    return $normalizedFullPath
+}
+
+$phpFiles = Get-ChildItem -Path $resolvedRootPath -Recurse -File -Filter "*.php" |
     Where-Object {
         $_.FullName -notmatch "[\\/](\.git|vendor|node_modules)[\\/]"
     }
@@ -23,7 +42,7 @@ foreach ($file in $phpFiles) {
         continue
     }
 
-    $relativePath = [System.IO.Path]::GetRelativePath($resolvedRoot, $file.FullName)
+    $relativePath = Get-RelativePathFromRoot -RootPath $resolvedRootPath -FullPath $file.FullName
     $changedFiles.Add($relativePath)
 
     if ($CheckOnly) {
@@ -35,7 +54,7 @@ foreach ($file in $phpFiles) {
 }
 
 foreach ($file in $phpFiles) {
-    $relativePath = [System.IO.Path]::GetRelativePath($resolvedRoot, $file.FullName)
+    $relativePath = Get-RelativePathFromRoot -RootPath $resolvedRootPath -FullPath $file.FullName
     $content = [System.IO.File]::ReadAllText($file.FullName, [System.Text.Encoding]::UTF8)
 
     if (-not $content.StartsWith("<?php")) {
