@@ -41,7 +41,7 @@ function shouldProbeServerRouting() {
 	return new URLSearchParams(window.location.search).get("serverrouting") === "1";
 }
 
-function probeServerRouteForClientSegment(start, end, useShortest) {
+function probeServerRouteForClientSegment(start, end, useShortest, clientRoute) {
 	if (!shouldProbeServerRouting()) {
 		return;
 	}
@@ -50,7 +50,8 @@ function probeServerRouteForClientSegment(start, end, useShortest) {
 		return;
 	}
 
-	console.log("Server-Routing-Probe gestartet:", { from: start, to: end });
+	const clientSegmentCount = Array.isArray(clientRoute) ? clientRoute.length : 0;
+	console.log("Server-Routing-Probe gestartet:", { from: start, to: end, client_segments: clientSegmentCount });
 	void calculateRouteServer({
 		from: start,
 		to: end,
@@ -58,6 +59,17 @@ function probeServerRouteForClientSegment(start, end, useShortest) {
 		optimize: useShortest ? "shortest" : "fastest",
 	})
 		.then((serverRouteResult) => {
+			const serverRoute = serverRouteResult?.route || {};
+			const serverSummary = serverRoute.summary || {};
+			console.log("Server-Routing-Probe Vergleich:", {
+				from: start,
+				to: end,
+				client_segments: clientSegmentCount,
+				server_edges: Number(serverSummary.edge_count) || 0,
+				server_nodes: Number(serverSummary.node_count) || 0,
+				server_cost: Number(serverRoute.cost) || 0,
+				server_found: Boolean(serverRoute.found),
+			});
 			console.log("Server-Routing-Probe Ergebnis:", serverRouteResult);
 		})
 		.catch((error) => {
@@ -72,7 +84,7 @@ function buildRouteResultFromSelectedLocations(useShortest) {
 		const start = selectedLocations[i].name,
 			end = selectedLocations[i + 1].name,
 			route = calculateRouteClientLegacy(start, end, useShortest);
-		probeServerRouteForClientSegment(start, end, useShortest);
+		probeServerRouteForClientSegment(start, end, useShortest, route);
 		console.log("Berechnete Route:", route);
 		if (route.length) {
 			if (!routeNodeNames.length) {
