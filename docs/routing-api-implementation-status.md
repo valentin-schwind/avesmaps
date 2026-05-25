@@ -108,3 +108,15 @@
   - Keine Verhaltensaenderung im Endpoint-Responsepfad beabsichtigt; Risiko beschraenkt sich auf neue Include-/Loader-Funktionssyntax.
   - Rueckgabeform kann in spaeteren Phasen bei engere Routing-Datenanforderungen noch verfeinert werden.
 - Smoke noetig: nein
+
+## 2026-05-25 - API Phase 3B (Map-Daten Diagnosepfad)
+
+- Commit: `Add route map data diagnostic`
+- Schritt: Diagnosepfad `GET /api/route.php?diagnostic=map-data` eingefuehrt; liefert nur Metadaten (`revision`, `feature_count`) plus kleines Sample, ohne Feature-Array im Response.
+- Dateien:
+  - `api/route.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Kein geplanter Einfluss auf normalen POST-Routingpfad; Risiko beschraenkt sich auf Diagnosezweig und SQL-Verfuegbarkeit bei Diagnoseaufrufen.
+  - `GET /api/route.php` ohne Diagnostic bleibt weiterhin `405 method_not_allowed`.
+- Smoke noetig: nein

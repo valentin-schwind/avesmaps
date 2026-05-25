@@ -19,6 +19,27 @@ try {
 		avesmapsJsonResponse(204);
 	}
 
+	$routeDiagnostic = trim((string) ($_GET['diagnostic'] ?? ''));
+	if ($requestMethod === 'GET' && $routeDiagnostic === 'map-data') {
+		$routeMapData = avesmapsLoadRouteMapData($config);
+		$firstFeature = $routeMapData['features'][0] ?? [];
+		$firstFeatureProperties = is_array($firstFeature['properties'] ?? null) ? $firstFeature['properties'] : [];
+		$firstFeatureGeometry = is_array($firstFeature['geometry'] ?? null) ? $firstFeature['geometry'] : [];
+
+		avesmapsJsonResponse(200, [
+			'ok' => true,
+			'diagnostic' => 'map-data',
+			'revision' => (int) ($routeMapData['revision'] ?? 0),
+			'feature_count' => (int) ($routeMapData['feature_count'] ?? 0),
+			'sample' => [
+				'first_feature_id' => (string) ($firstFeature['id'] ?? ''),
+				'first_feature_type' => (string) ($firstFeatureProperties['feature_type'] ?? ''),
+				'first_feature_subtype' => (string) ($firstFeatureProperties['feature_subtype'] ?? ''),
+				'first_feature_geometry_type' => (string) ($firstFeatureGeometry['type'] ?? ''),
+			],
+		]);
+	}
+
 	if ($requestMethod !== 'POST') {
 		avesmapsRouteErrorResponse(405, 'method_not_allowed', 'Nur POST-Anfragen sind fuer Routing erlaubt.');
 	}
