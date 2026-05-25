@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - codex/sql-map-foundation
     paths-ignore:
       - "tiles/**"
   workflow_dispatch:
@@ -25,6 +24,9 @@ on:
         default: false
         type: boolean
 
+permissions:
+  contents: read
+
 concurrency:
   group: avesmaps-strato-deploy
   cancel-in-progress: false
@@ -32,6 +34,7 @@ concurrency:
 jobs:
   deploy:
     name: Deploy via SFTP
+    if: github.actor == 'valentin-schwind' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -75,7 +78,6 @@ jobs:
           deploy_items=(
             ".htaccess"
             "index.html"
-            "CNAME"
             "favicon.ico"
             "og-image.png"
             "llms.txt"
