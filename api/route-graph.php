@@ -39,6 +39,7 @@ function avesmapsBuildRouteGraph(array $networkData, array $options = []): array
 	$endpointSnapTolerance = (float) ($options['endpoint_snap_tolerance'] ?? 0.0);
 	$deduplicateEdges = (bool) ($options['deduplicate_edges'] ?? false);
 	$removeSelfLoops = (bool) ($options['remove_self_loops'] ?? false);
+	$includeEdgeWeights = (bool) ($options['include_edge_weights'] ?? false);
 	if ($endpointSnapTolerance > 0.0) {
 		$groups = avesmapsBuildRouteGraphEndpointSnapGroups(array_values($nodes), $endpointSnapTolerance);
 		$canonicalNodeMap = [];
@@ -125,6 +126,24 @@ function avesmapsBuildRouteGraph(array $networkData, array $options = []): array
 		$edges = $deduplicatedEdges;
 	}
 
+	if ($includeEdgeWeights) {
+		foreach ($edges as &$edge) {
+			if (!is_array($edge)) {
+				continue;
+			}
+
+			$distanceUnits = avesmapsCalculateRouteGeometryLength($edge['geometry'] ?? null);
+			$speedFactor = avesmapsGetRouteSubtypeWeightFactor((string) ($edge['subtype'] ?? ''));
+			$weight = $distanceUnits * $speedFactor;
+
+			$edge['distance_units'] = $distanceUnits;
+			$edge['speed_factor'] = $speedFactor;
+			$edge['weight'] = $weight;
+			$edge['cost_units'] = $weight;
+		}
+		unset($edge);
+	}
+
 	return [
 		'nodes' => array_values($nodes),
 		'edges' => $edges,
@@ -189,6 +208,73 @@ function avesmapsBuildRouteGraphEndpointSnapGroups(array $nodes, float $toleranc
 	}
 
 	return $groups;
+}
+
+function avesmapsCalculateRouteGeometryLength(array|null $geometry): float {
+	if (!is_array($geometry)) {
+		return 0.0;
+	}
+
+	$type = (string) ($geometry['type'] ?? '');
+	$coordinates = $geometry['coordinates'] ?? null;
+	$length = 0.0;
+
+	if ($type === 'LineString' && is_array($coordinates)) {
+		$previousPoint = null;
+		foreach ($coordinates as $point) {
+			if (!is_array($point) || count($point) < 2) {
+				continue;
+			}
+
+			$x = filter_var($point[0] ?? null, FILTER_VALIDATE_FLOAT);
+			$y = filter_var($point[1] ?? null, FILTER_VALIDATE_FLOAT);
+			if ($x === false || $y === false) {
+				continue;
+			}
+
+			if ($previousPoint !== null) {
+				$dx = $x - $previousPoint[0];
+				$dy = $y - $previousPoint[1];
+				$length += sqrt($dx * $dx + $dy * $dy);
+			}
+
+			$previousPoint = [$x, $y];
+		}
+	} elseif ($type === 'MultiLineString' && is_array($coordinates)) {
+		foreach ($coordinates as $line) {
+			$length += avesmapsCalculateRouteGeometryLength([
+				'type' => 'LineString',
+				'coordinates' => $line,
+			]);
+		}
+	}
+
+	return $length;
+}
+
+function avesmapsGetRouteSubtypeWeightFactor(string $subtype): float {
+	switch (trim(mb_strtolower($subtype, 'UTF-8'))) {
+		case 'reichsstrasse':
+		case 'reichsstraße':
+		case 'reichsstrassen':
+		case 'reichsstraßen':
+		case 'flussweg':
+		case 'seeweg':
+			return 1.0;
+		case 'strasse':
+		case 'straße':
+			return 1.1;
+		case 'weg':
+			return 1.2;
+		case 'pfad':
+			return 1.4;
+		case 'gebirgspass':
+			return 1.8;
+		case 'wuestenpfad':
+			return 2.0;
+		default:
+			return 1.5;
+	}
 }
 
 function avesmapsAnalyzeRouteGraph(array $graph): array {

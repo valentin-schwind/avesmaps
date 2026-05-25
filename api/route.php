@@ -70,11 +70,17 @@ try {
 		$routeGraphSnapped001 = avesmapsBuildRouteGraph($routeNetworkData, ['endpoint_snap_tolerance' => 0.001]);
 		$routeGraphSnapped01 = avesmapsBuildRouteGraph($routeNetworkData, ['endpoint_snap_tolerance' => 0.01]);
 		$routeGraphCleaned001 = avesmapsBuildRouteGraph($routeNetworkData, [
-				'endpoint_snap_tolerance' => 0.001,
-				'deduplicate_edges' => true,
-				'remove_self_loops' => true,
-			]);
-			$routeGraphCleaned = avesmapsBuildRouteGraph($routeNetworkData, [
+			'endpoint_snap_tolerance' => 0.001,
+			'deduplicate_edges' => true,
+			'remove_self_loops' => true,
+		]);
+		$routeGraphWeighted001 = avesmapsBuildRouteGraph($routeNetworkData, [
+			'endpoint_snap_tolerance' => 0.001,
+			'deduplicate_edges' => true,
+			'remove_self_loops' => true,
+			'include_edge_weights' => true,
+		]);
+		$routeGraphCleaned = avesmapsBuildRouteGraph($routeNetworkData, [
 			'endpoint_snap_tolerance' => 0.01,
 			'deduplicate_edges' => true,
 			'remove_self_loops' => true,
@@ -85,7 +91,38 @@ try {
 		$routeGraphSnapped001Analysis = avesmapsAnalyzeRouteGraph($routeGraphSnapped001);
 		$routeGraphSnapped01Analysis = avesmapsAnalyzeRouteGraph($routeGraphSnapped01);
 		$routeGraphCleaned001Analysis = avesmapsAnalyzeRouteGraph($routeGraphCleaned001);
-			$routeGraphCleanedAnalysis = avesmapsAnalyzeRouteGraph($routeGraphCleaned);
+		$routeGraphCleanedAnalysis = avesmapsAnalyzeRouteGraph($routeGraphCleaned);
+		$weightedEdges = is_array($routeGraphWeighted001['edges'] ?? null) ? $routeGraphWeighted001['edges'] : [];
+		$weightedEdgeCount = count($weightedEdges);
+		$minWeight = INF;
+		$maxWeight = 0.0;
+		$sumWeight = 0.0;
+		$zeroWeightCount = 0;
+
+		foreach ($weightedEdges as $weightedEdge) {
+			if (!is_array($weightedEdge)) {
+				continue;
+			}
+
+			$weight = (float) ($weightedEdge['weight'] ?? 0.0);
+			$sumWeight += $weight;
+			if ($weight < $minWeight) {
+				$minWeight = $weight;
+			}
+			if ($weight > $maxWeight) {
+				$maxWeight = $weight;
+			}
+			if ($weight === 0.0) {
+				$zeroWeightCount++;
+			}
+		}
+
+		if ($weightedEdgeCount === 0 || $minWeight === INF) {
+			$minWeight = 0.0;
+		}
+
+		$averageWeight = $weightedEdgeCount > 0 ? $sumWeight / $weightedEdgeCount : 0.0;
+
 		$routeGraphEndpointSnapping = [
 			'0.00001' => avesmapsAnalyzeRouteEndpointSnapping($routeGraph, 0.00001),
 			'0.0001' => avesmapsAnalyzeRouteEndpointSnapping($routeGraph, 0.0001),
@@ -152,6 +189,15 @@ try {
 					'largest_component_ratio' => (int) ($routeGraphCleaned001['statistics']['node_count'] ?? 0) > 0 ? round((float) ($routeGraphCleaned001Analysis['largest_component_size'] ?? 0) / (int) ($routeGraphCleaned001['statistics']['node_count'] ?? 0), 6) : 0.0,
 					'duplicate_edge_count' => (int) ($routeGraphCleaned001Analysis['duplicate_edge_count'] ?? 0),
 					'self_loop_count' => (int) ($routeGraphCleaned001Analysis['self_loop_count'] ?? 0),
+				],
+				'weighted_0_001' => [
+					'node_count' => (int) ($routeGraphWeighted001['statistics']['node_count'] ?? 0),
+					'edge_count' => (int) ($routeGraphWeighted001['statistics']['edge_count'] ?? 0),
+					'weighted_edge_count' => $weightedEdgeCount,
+					'min_weight' => $minWeight,
+					'max_weight' => $maxWeight,
+					'average_weight' => $averageWeight,
+					'zero_weight_count' => $zeroWeightCount,
 				],
 				'cleaned_0_01' => [
 					'node_count' => (int) ($routeGraphCleaned['statistics']['node_count'] ?? 0),

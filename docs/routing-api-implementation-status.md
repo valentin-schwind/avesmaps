@@ -251,3 +251,16 @@
   - Keine beabsichtigte Aenderung am POST-501-Flow; nur diagnostische Graph-Build-Optionen.
   - Deduplizierung entfernt nur identische ungerichtete Kantenpaare; Gewichtung und Geometrie bleiben unverändert.
 - Smoke noetig: nein
+
+## 2026-05-25 - API Phase 5A (Route Graph Edge Weight Diagnostics)
+
+- Commit: `Add route graph edge weight diagnostics`
+- Schritt: `avesmapsBuildRouteGraph(...)` um `include_edge_weights` erweitert. Die Diagnose `graph-data` liefert jetzt `weighted_0_001` mit Gewichtsstatisiken auf bereinigtem, gesnapptem Graph.
+- Dateien:
+  - `api/route.php`
+  - `api/route-graph.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Kein Dijkstra, keine Routensuche, keine Reisezeit; nur diagnostische Gewichtsfelder auf bestehenden Kanten.
+  - `distance_units` basiert nur auf der euklidischen Linienlaenge in Kartenkoordinaten; keine Maßstabs- oder Meilenumrechnung.
+- Smoke noetig: nein
