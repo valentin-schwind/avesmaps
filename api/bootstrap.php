@@ -2,9 +2,28 @@
 
 declare(strict_types=1);
 
+if (!defined('AVESMAPS_API_ROOT')) {
+    $avesmapsBootstrapDirectory = __DIR__;
+    $avesmapsApiRoot = basename($avesmapsBootstrapDirectory) === '_internal'
+        ? dirname($avesmapsBootstrapDirectory)
+        : $avesmapsBootstrapDirectory;
+
+    define('AVESMAPS_API_ROOT', $avesmapsApiRoot);
+
+    unset($avesmapsBootstrapDirectory, $avesmapsApiRoot);
+}
+
+function avesmapsApiRoot(): string {
+    return AVESMAPS_API_ROOT;
+}
+
 function avesmapsLoadApiConfig(string $apiDirectory): array {
-    $localConfigPath = $apiDirectory . DIRECTORY_SEPARATOR . 'config.local.php';
-    if (is_file($localConfigPath)) {
+    foreach (avesmapsBuildApiConfigSearchDirectories($apiDirectory) as $configDirectory) {
+        $localConfigPath = $configDirectory . DIRECTORY_SEPARATOR . 'config.local.php';
+        if (!is_file($localConfigPath)) {
+            continue;
+        }
+
         $config = require $localConfigPath;
         if (is_array($config)) {
             return $config;
@@ -19,6 +38,20 @@ function avesmapsLoadApiConfig(string $apiDirectory): array {
     }
 
     throw new RuntimeException('Es wurde keine API-Konfiguration gefunden.');
+}
+
+function avesmapsBuildApiConfigSearchDirectories(string $apiDirectory): array {
+    $configDirectories = [];
+    foreach ([$apiDirectory, avesmapsApiRoot()] as $candidateDirectory) {
+        $normalizedDirectory = rtrim((string) $candidateDirectory, DIRECTORY_SEPARATOR);
+        if ($normalizedDirectory === '' || isset($configDirectories[$normalizedDirectory])) {
+            continue;
+        }
+
+        $configDirectories[$normalizedDirectory] = $normalizedDirectory;
+    }
+
+    return array_values($configDirectories);
 }
 
 function avesmapsBuildApiConfigFromEnvironment(): ?array {
