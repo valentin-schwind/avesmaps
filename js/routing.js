@@ -581,6 +581,16 @@ function buildRouteSummary(routeLocations, routeSteps, options = {}) {
 	};
 }
 
+function buildRouteResult(routeLocations, routeNames, segments, options = {}) {
+	const routeSteps = buildRouteSteps(routeNames, segments, options);
+	const routeSummary = buildRouteSummary(routeLocations, routeSteps, options);
+
+	return {
+		summary: routeSummary,
+		steps: routeSteps,
+	};
+}
+
 function showRoutePlan(routeNames, segments) {
 	const $overview = $("#overview").empty();
 	let totalDistance = 0;
