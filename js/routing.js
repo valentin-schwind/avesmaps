@@ -653,6 +653,12 @@ function showRoutePlan(routeNames, segments) {
 	const restPerDay = parseFloat($("#restHours").val()) || 10;
 	const travelPerDay = Math.max(24 - restPerDay, 0.5);
 	const planEntries = buildRoutePlanEntries(routeNames, segments);
+	const routeResult = buildRouteResult(selectedLocations, routeNames, segments, {
+		includeRests: $("#includeRests").is(":checked"),
+		restHoursPerDay: restPerDay,
+		optimize: $('input[name="pathType"]:checked').val() === "shortest" ? "shortest" : "fastest",
+	});
+	const routePlanViewModel = buildRoutePlanViewModel(routeResult, routeNames, selectedLocations);
 	currentRoutePlanEntries = planEntries;
 
 	planEntries.forEach((entry, entryIndex) => {
