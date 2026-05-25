@@ -40,7 +40,6 @@ try {
 				'first_feature_geometry_type' => (string) ($firstFeatureGeometry['type'] ?? ''),
 			],
 		]);
-		exit;
 	}
 
 	if ($requestMethod !== 'POST') {

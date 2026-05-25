@@ -131,3 +131,14 @@
 - Risiken:
   - Keine beabsichtigte Aenderung am POST-/501-Verhalten; nur Diagnosezweig angepasst.
 - Smoke noetig: nein
+
+## 2026-05-25 - API Phase 3B Critical Fix (Endpoint 500)
+
+- Commit: `Fix route endpoint fatal error`
+- Schritt: Zusaetzliches `exit;` im Diagnosezweig von `api/route.php` entfernt; `avesmapsJsonResponse(...)` beendet laut `api/bootstrap.php` bereits selbst die Ausfuehrung.
+- Dateien:
+  - `api/route.php`
+  - `docs/routing-api-implementation-status.md`
+- Risiken:
+  - Keine beabsichtigte Verhaltensaenderung fuer POST/GET-Statuspfade; Fix zielt nur auf stabilen Endpoint-Flow.
+- Smoke noetig: nein
