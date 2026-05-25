@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/route-client-graph.php';
 
-const AVESMAPS_ROUTE_API_CODE_VERSION = 'client-graph-prefix-normalizer-2026-05-25';
+const AVESMAPS_ROUTE_API_CODE_REVISION = 10;
 
 class AvesmapsRouteLocationNotFoundException extends RuntimeException {}
 class AvesmapsRouteViaNotSupportedException extends RuntimeException {}
@@ -72,6 +72,78 @@ function avesmapsBuildRouteEdgeDiagnosticSegments(array $graph, array $edgeIds):
 	return $segments;
 }
 
+function avesmapsAnalyzeClientRouteOnServerGraph(array $clientGraph, array $request, array $serverRoute): array {
+	$clientRoute = is_array($request['client_route'] ?? null) ? $request['client_route'] : [];
+	$graph = is_array($clientGraph['graph'] ?? null) ? $clientGraph['graph'] : [];
+	$useShortestPath = (string) ($request['optimize'] ?? 'fastest') === 'shortest';
+	$minimizeTransfers = !empty($request['minimize_transfers']);
+	$matchedSegments = [];
+	$missingSegments = [];
+	$totalCost = 0.0;
+	$previousTransport = null;
+
+	foreach ($clientRoute as $index => $clientStep) {
+		if (!is_array($clientStep)) {
+			continue;
+		}
+
+		$from = (string) ($clientStep['from'] ?? '');
+		$to = (string) ($clientStep['to'] ?? '');
+		$connectionId = (string) ($clientStep['connection_id'] ?? $clientStep['connectionId'] ?? '');
+		$matchingConnection = null;
+		foreach (is_array($graph[$from][$to] ?? null) ? $graph[$from][$to] : [] as $connection) {
+			if ((string) ($connection['id'] ?? '') === $connectionId) {
+				$matchingConnection = $connection;
+				break;
+			}
+		}
+
+		if (!is_array($matchingConnection)) {
+			$missingSegments[] = [
+				'index' => (int) $index,
+				'from' => $from,
+				'to' => $to,
+				'connection_id' => $connectionId,
+				'from_known' => isset($graph[$from]),
+				'to_known_from_source' => isset($graph[$from][$to]),
+			];
+			continue;
+		}
+
+		$transport = (string) ($matchingConnection['transport_option'] ?? '');
+		$segmentCost = $useShortestPath ? (float) ($matchingConnection['distance'] ?? 0.0) : (float) ($matchingConnection['time'] ?? 0.0);
+		if ($minimizeTransfers && $previousTransport !== null && $transport !== $previousTransport) {
+			$segmentCost += AVESMAPS_ROUTE_CLIENT_TRANSFER_PENALTY;
+		}
+		$totalCost += $segmentCost;
+		$previousTransport = $transport;
+		$matchedSegments[] = [
+			'index' => (int) $index,
+			'edge_id' => $connectionId,
+			'from' => $from,
+			'to' => $to,
+			'route_type' => (string) ($matchingConnection['route_type'] ?? ''),
+			'transport_option' => $transport,
+			'distance' => (float) ($matchingConnection['distance'] ?? 0.0),
+			'time' => (float) ($matchingConnection['time'] ?? 0.0),
+			'cost' => $segmentCost,
+		];
+	}
+
+	$serverCost = (float) ($serverRoute['cost'] ?? 0.0);
+	return [
+		'received_segment_count' => count($clientRoute),
+		'matched_segment_count' => count($matchedSegments),
+		'missing_segment_count' => count($missingSegments),
+		'cost' => $totalCost,
+		'server_winner_cost' => $serverCost,
+		'cost_delta_server_minus_client_route' => $serverCost - $totalCost,
+		'all_client_edges_found' => count($clientRoute) > 0 && count($missingSegments) === 0,
+		'missing_segments' => array_slice($missingSegments, 0, 8),
+		'matched_segments_sample' => array_slice($matchedSegments, 0, 8),
+	];
+}
+
 function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $config): array {
 	$fromLocation = trim((string) ($request['from'] ?? ''));
 	$toLocation = trim((string) ($request['to'] ?? ''));
@@ -112,9 +184,12 @@ function avesmapsBuildMinimalRouteResultFromRequest(array $request, array $confi
 			'edge_ids' => $edgeIds,
 			'segments' => avesmapsBuildClientRouteDiagnosticSegments(is_array($routeDijkstraResult['segments'] ?? null) ? $routeDijkstraResult['segments'] : []),
 			'debug_context' => [
+				'api_code_revision' => AVESMAPS_ROUTE_API_CODE_REVISION,
+				'map_revision' => (int) ($routeMapData['revision'] ?? 0),
 				'request' => $request,
 				'network_statistics' => is_array($routeNetworkData['statistics'] ?? null) ? $routeNetworkData['statistics'] : [],
 				'client_graph_statistics' => is_array($clientGraph['statistics'] ?? null) ? $clientGraph['statistics'] : [],
+				'client_route_on_server_graph' => avesmapsAnalyzeClientRouteOnServerGraph($clientGraph, $request, $routeDijkstraResult),
 			],
 		],
 	];
@@ -132,7 +207,8 @@ function avesmapsBuildMinimalRouteResponse(array $route): array {
 			'edge_count' => (int) ($route['edge_count'] ?? 0),
 		],
 		'debug' => [
-			'code_version' => AVESMAPS_ROUTE_API_CODE_VERSION,
+			'api_code_revision' => AVESMAPS_ROUTE_API_CODE_REVISION,
+			'map_revision' => (int) ($debugContext['map_revision'] ?? 0),
 			'from_node' => (string) ($route['from_node'] ?? ''),
 			'to_node' => (string) ($route['to_node'] ?? ''),
 			'node_ids' => is_array($route['node_ids'] ?? null) ? $route['node_ids'] : [],
