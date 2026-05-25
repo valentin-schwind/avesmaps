@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/route-client-graph.php';
 
-const AVESMAPS_ROUTE_API_CODE_VERSION = 'client-graph-subtype-debug-2026-05-25';
+const AVESMAPS_ROUTE_API_CODE_VERSION = 'client-graph-prefix-normalizer-2026-05-25';
 
 class AvesmapsRouteLocationNotFoundException extends RuntimeException {}
 class AvesmapsRouteViaNotSupportedException extends RuntimeException {}
