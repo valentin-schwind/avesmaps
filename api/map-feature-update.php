@@ -20,7 +20,7 @@ try {
         ]);
     }
 
-    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD']  'POST'));
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'POST'));
     if ($requestMethod === 'OPTIONS') {
         avesmapsJsonResponse(204);
     }
@@ -34,8 +34,8 @@ try {
 
     $user = avesmapsRequireUserWithCapability('edit');
     $payload = avesmapsReadJsonRequest();
-    $action = avesmapsNormalizeSingleLine((string) ($payload['action']  'move_point'), 40);
-    $pdo = avesmapsCreatePdo($config['database']  []);
+    $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? 'move_point'), 40);
+    $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsEnsureMapFeatureLocksTable($pdo);
 
     $result = match ($action) {
@@ -112,7 +112,7 @@ function avesmapsReadLocationName(mixed $value): string {
 
 function avesmapsNormalizeDuplicateLocationName(string $value): string {
     $normalizedValue = mb_strtolower($value);
-    return preg_replace('/[^\p{L}\p{N}]+/u', '', $normalizedValue)  '';
+    return preg_replace('/[^\p{L}\p{N}]+/u', '', $normalizedValue) ?? '';
 }
 
 function avesmapsAssertUniqueLocationName(PDO $pdo, string $name, ?string $excludePublicId = null): void {
@@ -126,7 +126,7 @@ function avesmapsAssertUniqueLocationName(PDO $pdo, string $name, ?string $exclu
         FROM map_features
         WHERE feature_type = :feature_type
           AND is_active = 1'
-        . ($excludePublicId !== null && $excludePublicId !== ''  ' AND public_id <> :public_id' : '')
+        . ($excludePublicId !== null && $excludePublicId !== '' ? ' AND public_id <> :public_id' : '')
     );
     $parameters = [
         'feature_type' => 'location',
@@ -137,7 +137,7 @@ function avesmapsAssertUniqueLocationName(PDO $pdo, string $name, ?string $exclu
     $statement->execute($parameters);
 
     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $existingName = (string) ($row['name']  '');
+        $existingName = (string) ($row['name'] ?? '');
         if ($existingName === '') {
             continue;
         }
@@ -220,7 +220,7 @@ function avesmapsAllowedTransportOptionsForPathSubtype(string $subtype): array {
 
 function avesmapsReadTransportDomain(mixed $value, string $subtype): string {
     $domain = avesmapsNormalizeSingleLine((string) ($value ?: avesmapsDefaultTransportDomainForPathSubtype($subtype)), 20);
-    return in_array($domain, ['land', 'river', 'sea', 'none'], true)  $domain : avesmapsDefaultTransportDomainForPathSubtype($subtype);
+    return in_array($domain, ['land', 'river', 'sea', 'none'], true) ? $domain : avesmapsDefaultTransportDomainForPathSubtype($subtype);
 }
 
 function avesmapsReadAllowedTransports(mixed $value, string $domain, ?string $subtype = null): array {
@@ -246,7 +246,7 @@ function avesmapsReadAllowedTransports(mixed $value, string $domain, ?string $su
 }
 
 function avesmapsReadBoolean(mixed $value): bool {
-    return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE)  false;
+    return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
 }
 
 function avesmapsReadOptionalRevision(mixed $value): ?int {
@@ -296,8 +296,8 @@ function avesmapsFetchTableColumnNames(PDO $pdo, string $tableName): array {
 
     $statement = $pdo->query("SHOW COLUMNS FROM {$tableName}");
     $columns = [];
-    foreach ($statement !== false  $statement->fetchAll(PDO::FETCH_ASSOC) : [] as $row) {
-        $columnName = (string) ($row['Field']  '');
+    foreach ($statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [] as $row) {
+        $columnName = (string) ($row['Field'] ?? '');
         if ($columnName !== '') {
             $columns[$columnName] = true;
         }
@@ -307,8 +307,8 @@ function avesmapsFetchTableColumnNames(PDO $pdo, string $tableName): array {
 }
 
 function avesmapsBuildAuditAfterSnapshot(array $snapshot, array $payload): array {
-    $reviewReportId = filter_var($payload['review_report_id']  null, FILTER_VALIDATE_INT);
-    $reviewReportSource = avesmapsNormalizeSingleLine((string) ($payload['review_report_source']  ''), 40);
+    $reviewReportId = filter_var($payload['review_report_id'] ?? null, FILTER_VALIDATE_INT);
+    $reviewReportSource = avesmapsNormalizeSingleLine((string) ($payload['review_report_source'] ?? ''), 40);
     if ($reviewReportId !== false && $reviewReportId > 0 && in_array($reviewReportSource, ['location_reports', 'map_reports'], true)) {
         $snapshot['audit_context'] = [
             'review_report' => [
@@ -364,7 +364,7 @@ function avesmapsUndoColumnsForAuditAction(string $action): array {
 }
 
 function avesmapsUndoAuditChange(PDO $pdo, array $payload, array $user): array {
-    $auditId = avesmapsReadAuditLogId($payload['audit_id']  null);
+    $auditId = avesmapsReadAuditLogId($payload['audit_id'] ?? null);
     avesmapsEnsureMapAuditUndoColumns($pdo);
 
     $pdo->beginTransaction();
@@ -378,15 +378,15 @@ function avesmapsUndoAuditChange(PDO $pdo, array $payload, array $user): array {
             throw new InvalidArgumentException('Diese Änderung wurde bereits rückgängig gemacht.');
         }
 
-        $featureId = (int) ($auditEntry['feature_id']  0);
+        $featureId = (int) ($auditEntry['feature_id'] ?? 0);
         if ($featureId <= 0) {
             throw new InvalidArgumentException('Diese Änderung ist keinem Kartenobjekt zugeordnet.');
         }
 
         $featureBeforeUndo = avesmapsFetchFeatureByIdForUpdate($pdo, $featureId);
         avesmapsAssertFeatureCanBeEdited($pdo, [], $featureBeforeUndo, $user);
-        $beforeSnapshot = avesmapsDecodeJsonColumnForEdit($auditEntry['before_json']  null);
-        $afterSnapshot = avesmapsDecodeJsonColumnForEdit($auditEntry['after_json']  null);
+        $beforeSnapshot = avesmapsDecodeJsonColumnForEdit($auditEntry['before_json'] ?? null);
+        $afterSnapshot = avesmapsDecodeJsonColumnForEdit($auditEntry['after_json'] ?? null);
         $revision = avesmapsNextMapRevision($pdo);
         $updates = avesmapsBuildUndoFeatureUpdates($action, $featureBeforeUndo, $beforeSnapshot, $afterSnapshot, $revision, (int) $user['id']);
         avesmapsAssertUndoNameIsAvailable($pdo, $featureBeforeUndo, $updates);
@@ -447,7 +447,7 @@ function avesmapsFetchFeatureByIdForUpdate(PDO $pdo, int $featureId): array {
 
 function avesmapsBuildUndoFeatureUpdates(string $action, array $feature, array $beforeSnapshot, array $afterSnapshot, int $revision, int $userId): array {
     if (avesmapsIsCreateAuditAction($action)) {
-        if ((int) ($feature['is_active']  1) !== 1) {
+        if ((int) ($feature['is_active'] ?? 1) !== 1) {
             throw new AvesmapsConflictException('Das erstellte Objekt ist bereits nicht mehr aktiv.');
         }
 
@@ -461,13 +461,13 @@ function avesmapsBuildUndoFeatureUpdates(string $action, array $feature, array $
     }
 
     $columns = $action === 'delete_feature'
-         ['feature_type', 'feature_subtype', 'name', 'geometry_type', 'geometry_json', 'properties_json', 'style_json', 'min_x', 'min_y', 'max_x', 'max_y', 'is_active']
+        ? ['feature_type', 'feature_subtype', 'name', 'geometry_type', 'geometry_json', 'properties_json', 'style_json', 'min_x', 'min_y', 'max_x', 'max_y', 'is_active']
         : avesmapsUndoColumnsForAuditAction($action);
     if ($columns === []) {
         throw new InvalidArgumentException('Diese Änderung kann nicht rückgängig gemacht werden.');
     }
 
-    $conflictColumns = $action === 'delete_feature'  ['is_active'] : array_values(array_unique([...$columns, 'is_active']));
+    $conflictColumns = $action === 'delete_feature' ? ['is_active'] : array_values(array_unique([...$columns, 'is_active']));
     avesmapsAssertUndoPatchStillCurrent($action, $feature, $afterSnapshot, $conflictColumns);
     $updates = avesmapsBuildFeatureRestoreValues($beforeSnapshot, $columns);
     if ($action === 'delete_feature') {
@@ -489,7 +489,7 @@ function avesmapsBuildUndoFeatureUpdates(string $action, array $feature, array $
 function avesmapsAssertUndoPatchStillCurrent(string $action, array $feature, array $afterSnapshot, array $columns): void {
     foreach ($columns as $column) {
         if (array_key_exists($column, $afterSnapshot)) {
-            $afterValue = $afterSnapshot[$column]  null;
+            $afterValue = $afterSnapshot[$column] ?? null;
         } else {
             $inferredAfterValue = avesmapsInferUndoAfterColumnValue($action, $column);
             if (!$inferredAfterValue['found']) {
@@ -499,7 +499,7 @@ function avesmapsAssertUndoPatchStillCurrent(string $action, array $feature, arr
             $afterValue = $inferredAfterValue['value'];
         }
 
-        $currentValue = avesmapsNormalizeFeatureColumnValue($column, $feature[$column]  null);
+        $currentValue = avesmapsNormalizeFeatureColumnValue($column, $feature[$column] ?? null);
         $normalizedAfterValue = avesmapsNormalizeFeatureColumnValue($column, $afterValue);
         if ($currentValue !== $normalizedAfterValue) {
             throw new AvesmapsConflictException('Diese Änderung kann nicht unabhängig rückgängig gemacht werden, weil das Objekt inzwischen erneut geändert wurde.');
@@ -578,7 +578,7 @@ function avesmapsPrepareFeatureColumnValue(string $column, mixed $value): mixed 
         return avesmapsEncodeJson(avesmapsDecodeFeatureJsonValue($value));
     }
     if ($column === 'is_active') {
-        return (int) $value === 1  1 : 0;
+        return (int) $value === 1 ? 1 : 0;
     }
     if (in_array($column, ['min_x', 'min_y', 'max_x', 'max_y'], true)) {
         return round((float) $value, 4);
@@ -592,7 +592,7 @@ function avesmapsNormalizeFeatureColumnValue(string $column, mixed $value): stri
         return avesmapsEncodeJson(avesmapsDecodeFeatureJsonValue($value));
     }
     if ($column === 'is_active') {
-        return (string) ((int) $value === 1  1 : 0);
+        return (string) ((int) $value === 1 ? 1 : 0);
     }
     if (in_array($column, ['min_x', 'min_y', 'max_x', 'max_y'], true)) {
         return number_format((float) $value, 4, '.', '');
@@ -613,7 +613,7 @@ function avesmapsDecodeFeatureJsonValue(mixed $value): mixed {
     }
 
     $decoded = json_decode((string) $value, true);
-    return is_array($decoded)  $decoded : null;
+    return is_array($decoded) ? $decoded : null;
 }
 
 function avesmapsReadGeometryFromColumnValue(mixed $value): array {
@@ -627,7 +627,7 @@ function avesmapsReadGeometryFromColumnValue(mixed $value): array {
 
 function avesmapsCalculateGeometryBounds(array $geometry): array {
     $coordinatePairs = [];
-    avesmapsCollectGeometryCoordinatePairs($geometry['coordinates']  null, $coordinatePairs);
+    avesmapsCollectGeometryCoordinatePairs($geometry['coordinates'] ?? null, $coordinatePairs);
     if ($coordinatePairs === []) {
         throw new RuntimeException('Die Geometrie enthaelt keine Koordinaten.');
     }
@@ -647,7 +647,7 @@ function avesmapsCollectGeometryCoordinatePairs(mixed $coordinates, array &$coor
     if (!is_array($coordinates)) {
         return;
     }
-    if (count($coordinates) >= 2 && is_numeric($coordinates[0]  null) && is_numeric($coordinates[1]  null)) {
+    if (count($coordinates) >= 2 && is_numeric($coordinates[0] ?? null) && is_numeric($coordinates[1] ?? null)) {
         $coordinatePairs[] = [(float) $coordinates[0], (float) $coordinates[1]];
         return;
     }
@@ -658,9 +658,9 @@ function avesmapsCollectGeometryCoordinatePairs(mixed $coordinates, array &$coor
 }
 
 function avesmapsAssertUndoNameIsAvailable(PDO $pdo, array $feature, array $updates): void {
-    $featureType = (string) ($updates['feature_type']  $feature['feature_type']  '');
-    $isActive = (int) ($updates['is_active']  $feature['is_active']  1) === 1;
-    $name = (string) ($updates['name']  $feature['name']  '');
+    $featureType = (string) ($updates['feature_type'] ?? $feature['feature_type'] ?? '');
+    $isActive = (int) ($updates['is_active'] ?? $feature['is_active'] ?? 1) === 1;
+    $name = (string) ($updates['name'] ?? $feature['name'] ?? '');
     if ($isActive && $featureType === 'location' && $name !== '') {
         avesmapsAssertUniqueLocationName($pdo, $name, (string) $feature['public_id']);
     }
@@ -727,7 +727,7 @@ function avesmapsMarkAuditEntryUndone(PDO $pdo, int $auditId, int $userId, int $
 }
 
 function avesmapsRestoreExternalReviewStateAfterUndo(PDO $pdo, string $action, array $beforeSnapshot, array $afterSnapshot): void {
-    $wikiSyncCaseId = avesmapsReadAuditContextId($afterSnapshot, 'wiki_sync_case_id')  avesmapsReadAuditContextId($beforeSnapshot, 'wiki_sync_case_id');
+    $wikiSyncCaseId = avesmapsReadAuditContextId($afterSnapshot, 'wiki_sync_case_id') ?? avesmapsReadAuditContextId($beforeSnapshot, 'wiki_sync_case_id');
     if ($wikiSyncCaseId !== null && str_starts_with($action, 'wiki_sync_') && avesmapsTableExistsForAudit($pdo, 'wiki_sync_cases')) {
         $statement = $pdo->prepare(
             "UPDATE wiki_sync_cases
@@ -740,9 +740,9 @@ function avesmapsRestoreExternalReviewStateAfterUndo(PDO $pdo, string $action, a
         $statement->execute(['id' => $wikiSyncCaseId]);
     }
 
-    $reviewReport = avesmapsReadAuditReviewReportContext($afterSnapshot)  avesmapsReadAuditReviewReportContext($beforeSnapshot);
+    $reviewReport = avesmapsReadAuditReviewReportContext($afterSnapshot) ?? avesmapsReadAuditReviewReportContext($beforeSnapshot);
     if ($reviewReport !== null && avesmapsIsCreateAuditAction($action) && avesmapsTableExistsForAudit($pdo, $reviewReport['source'])) {
-        $reviewedBySql = $reviewReport['source'] === 'map_reports'  ', reviewed_by = NULL' : '';
+        $reviewedBySql = $reviewReport['source'] === 'map_reports' ? ', reviewed_by = NULL' : '';
         $statement = $pdo->prepare(
             "UPDATE {$reviewReport['source']}
             SET status = 'neu',
@@ -756,17 +756,17 @@ function avesmapsRestoreExternalReviewStateAfterUndo(PDO $pdo, string $action, a
 }
 
 function avesmapsReadAuditContextId(array $snapshot, string $key): ?int {
-    $context = is_array($snapshot['audit_context']  null)  $snapshot['audit_context'] : [];
-    $value = $snapshot[$key]  $context[$key]  null;
+    $context = is_array($snapshot['audit_context'] ?? null) ? $snapshot['audit_context'] : [];
+    $value = $snapshot[$key] ?? $context[$key] ?? null;
     $id = filter_var($value, FILTER_VALIDATE_INT);
-    return $id !== false && $id > 0  (int) $id : null;
+    return $id !== false && $id > 0 ? (int) $id : null;
 }
 
 function avesmapsReadAuditReviewReportContext(array $snapshot): ?array {
-    $context = is_array($snapshot['audit_context']  null)  $snapshot['audit_context'] : [];
-    $reviewReport = is_array($context['review_report']  null)  $context['review_report'] : [];
-    $id = filter_var($snapshot['review_report_id']  $reviewReport['id']  null, FILTER_VALIDATE_INT);
-    $source = avesmapsNormalizeSingleLine((string) ($snapshot['review_report_source']  $reviewReport['source']  ''), 40);
+    $context = is_array($snapshot['audit_context'] ?? null) ? $snapshot['audit_context'] : [];
+    $reviewReport = is_array($context['review_report'] ?? null) ? $context['review_report'] : [];
+    $id = filter_var($snapshot['review_report_id'] ?? $reviewReport['id'] ?? null, FILTER_VALIDATE_INT);
+    $source = avesmapsNormalizeSingleLine((string) ($snapshot['review_report_source'] ?? $reviewReport['source'] ?? ''), 40);
     if ($id === false || $id <= 0 || !in_array($source, ['location_reports', 'map_reports'], true)) {
         return null;
     }
@@ -789,7 +789,7 @@ function avesmapsTableExistsForAudit(PDO $pdo, string $tableName): bool {
 function avesmapsBuildFeatureResponseFromStoredFeature(array $feature): array {
     $publicId = (string) $feature['public_id'];
     $revision = (int) $feature['revision'];
-    if ((int) ($feature['is_active']  1) !== 1) {
+    if ((int) ($feature['is_active'] ?? 1) !== 1) {
         return [
             'public_id' => $publicId,
             'deleted' => true,
@@ -797,11 +797,11 @@ function avesmapsBuildFeatureResponseFromStoredFeature(array $feature): array {
         ];
     }
 
-    $geometry = avesmapsReadGeometryFromColumnValue($feature['geometry_json']  null);
-    $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json']  null);
-    $featureType = (string) ($feature['feature_type']  $properties['feature_type']  '');
-    $featureSubtype = (string) ($feature['feature_subtype']  $properties['feature_subtype']  '');
-    $name = (string) ($feature['name']  $properties['name']  '');
+    $geometry = avesmapsReadGeometryFromColumnValue($feature['geometry_json'] ?? null);
+    $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
+    $featureType = (string) ($feature['feature_type'] ?? $properties['feature_type'] ?? '');
+    $featureSubtype = (string) ($feature['feature_subtype'] ?? $properties['feature_subtype'] ?? '');
+    $name = (string) ($feature['name'] ?? $properties['name'] ?? '');
 
     if ($featureType === 'label') {
         [$lng, $lat] = avesmapsReadPointCoordinatesFromGeometry($geometry);
@@ -810,14 +810,14 @@ function avesmapsBuildFeatureResponseFromStoredFeature(array $feature): array {
     if ($featureType === 'powerline') {
         return avesmapsBuildPowerlineFeatureResponse($publicId, $name, $geometry, $properties, $revision);
     }
-    if ($featureType === 'region' || ($geometry['type']  '') === 'Polygon') {
-        $style = avesmapsDecodeJsonColumnForEdit($feature['style_json']  null);
+    if ($featureType === 'region' || ($geometry['type'] ?? '') === 'Polygon') {
+        $style = avesmapsDecodeJsonColumnForEdit($feature['style_json'] ?? null);
         return avesmapsBuildRegionFeatureResponse($publicId, $name, $geometry, $properties + $style, $revision);
     }
-    if (($geometry['type']  '') === 'LineString') {
+    if (($geometry['type'] ?? '') === 'LineString') {
         return avesmapsBuildLineStringFeatureResponse($publicId, $name, $featureSubtype, $geometry, $properties, $revision);
     }
-    if (($geometry['type']  '') === 'Point') {
+    if (($geometry['type'] ?? '') === 'Point') {
         [$lng, $lat] = avesmapsReadPointCoordinatesFromGeometry($geometry);
         return avesmapsBuildPointFeatureResponse($publicId, $name, $featureSubtype, $lat, $lng, $properties, $revision);
     }
@@ -894,7 +894,7 @@ function avesmapsReadOpacity(mixed $value): float {
 }
 
 function avesmapsReadPolygonCoordinates(mixed $value): array {
-    if (!is_array($value) || count($value) < 1 || !is_array($value[0]  null) || count($value[0]) < 4) {
+    if (!is_array($value) || count($value) < 1 || !is_array($value[0] ?? null) || count($value[0]) < 4) {
         throw new InvalidArgumentException('Eine Region braucht mindestens drei Punkte.');
     }
 
@@ -970,7 +970,7 @@ function avesmapsEnsureMapFeatureLocksTable(PDO $pdo): void {
 }
 
 function avesmapsAssertFeatureCanBeEdited(PDO $pdo, array $payload, array $feature, array $user): void {
-    $expectedRevision = avesmapsReadOptionalRevision($payload['expected_revision']  null);
+    $expectedRevision = avesmapsReadOptionalRevision($payload['expected_revision'] ?? null);
     if ($expectedRevision !== null && $expectedRevision !== (int) $feature['revision']) {
         throw new AvesmapsConflictException('Dieses Kartenobjekt wurde inzwischen geaendert. Bitte neu laden.');
     }
@@ -990,7 +990,7 @@ function avesmapsAssertFeatureCanBeEdited(PDO $pdo, array $payload, array $featu
 }
 
 function avesmapsAcquireMapFeatureLock(PDO $pdo, array $payload, array $user): array {
-    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id']  '');
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
     avesmapsEnsureMapFeatureLocksTable($pdo);
 
     $pdo->beginTransaction();
@@ -1008,14 +1008,14 @@ function avesmapsAcquireMapFeatureLock(PDO $pdo, array $payload, array $user): a
         $statement->execute([
             'public_id' => $publicId,
             'user_id' => (int) $user['id'],
-            'username' => (string) ($user['username']  'Editor'),
+            'username' => (string) ($user['username'] ?? 'Editor'),
         ]);
         $pdo->commit();
 
         return [
             'public_id' => $publicId,
             'locked' => true,
-            'locked_by' => (string) ($user['username']  'Editor'),
+            'locked_by' => (string) ($user['username'] ?? 'Editor'),
             'locked_until_seconds' => AVESMAPS_FEATURE_LOCK_TTL_SECONDS,
             'revision' => (int) $feature['revision'],
         ];
@@ -1025,7 +1025,7 @@ function avesmapsAcquireMapFeatureLock(PDO $pdo, array $payload, array $user): a
 }
 
 function avesmapsReleaseMapFeatureLock(PDO $pdo, array $payload, array $user): array {
-    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id']  '');
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
     avesmapsEnsureMapFeatureLocksTable($pdo);
     $statement = $pdo->prepare('DELETE FROM map_feature_locks WHERE public_id = :public_id AND user_id = :user_id');
     $statement->execute([
@@ -1040,9 +1040,9 @@ function avesmapsReleaseMapFeatureLock(PDO $pdo, array $payload, array $user): a
 }
 
 function avesmapsMovePointFeature(PDO $pdo, array $payload, array $user): array {
-    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id']  '');
-    $lat = avesmapsParseMapCoordinate($payload['lat']  null, 'lat');
-    $lng = avesmapsParseMapCoordinate($payload['lng']  null, 'lng');
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
+    $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
 
     $pdo->beginTransaction();
     try {
@@ -1083,35 +1083,35 @@ function avesmapsMovePointFeature(PDO $pdo, array $payload, array $user): array 
         ]));
         $pdo->commit();
 
-        return avesmapsBuildPointFeatureResponse($publicId, (string) ($feature['name']  ''), (string) $feature['feature_subtype'], $lat, $lng, avesmapsDecodeJsonColumnForEdit($feature['properties_json']  null), $revision);
+        return avesmapsBuildPointFeatureResponse($publicId, (string) ($feature['name'] ?? ''), (string) $feature['feature_subtype'], $lat, $lng, avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null), $revision);
     } catch (Throwable $exception) {
         avesmapsRollbackAndRethrow($pdo, $exception);
     }
 }
 
 function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user): array {
-    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id']  '');
-    $name = avesmapsReadLocationName($payload['name']  '');
-    $subtype = avesmapsReadLocationSubtype($payload['feature_subtype']  $payload['location_type']  'dorf');
-    $description = avesmapsReadLocationDescription($payload['description']  '');
-    $wikiUrl = avesmapsReadOptionalWikiUrl($payload['wiki_url']  '');
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $name = avesmapsReadLocationName($payload['name'] ?? '');
+    $subtype = avesmapsReadLocationSubtype($payload['feature_subtype'] ?? $payload['location_type'] ?? 'dorf');
+    $description = avesmapsReadLocationDescription($payload['description'] ?? '');
+    $wikiUrl = avesmapsReadOptionalWikiUrl($payload['wiki_url'] ?? '');
 
     $pdo->beginTransaction();
     try {
         $feature = avesmapsFetchEditablePointFeature($pdo, $publicId);
         avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
-        $currentName = (string) ($feature['name']  '');
+        $currentName = (string) ($feature['name'] ?? '');
         if (avesmapsNormalizeDuplicateLocationName($currentName) !== avesmapsNormalizeDuplicateLocationName($name)) {
             avesmapsAssertUniqueLocationName($pdo, $name, $publicId);
         }
-        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json']  null);
+        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
         $properties['name'] = $name;
         $properties['feature_type'] = 'location';
         $properties['feature_subtype'] = $subtype;
         $properties['settlement_class'] = $subtype;
         $properties['settlement_class_label'] = avesmapsLocationSubtypeLabel($subtype);
-        $properties['is_nodix'] = avesmapsReadBoolean($payload['is_nodix']  false);
-        $properties['is_ruined'] = avesmapsReadBoolean($payload['is_ruined']  false);
+        $properties['is_nodix'] = avesmapsReadBoolean($payload['is_nodix'] ?? false);
+        $properties['is_ruined'] = avesmapsReadBoolean($payload['is_ruined'] ?? false);
         if ($description === '') {
             unset($properties['description']);
         } else {
@@ -1123,7 +1123,7 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
             $properties['wiki_url'] = $wikiUrl;
         }
 
-        $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json']  null);
+        $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         [$lng, $lat] = avesmapsReadPointCoordinatesFromGeometry($geometry);
         $revision = avesmapsNextMapRevision($pdo);
 
@@ -1166,12 +1166,12 @@ function avesmapsUpdatePointFeatureDetails(PDO $pdo, array $payload, array $user
 }
 
 function avesmapsCreatePointFeature(PDO $pdo, array $payload, array $user): array {
-    $name = avesmapsReadLocationName($payload['name']  '');
-    $subtype = avesmapsReadLocationSubtype($payload['feature_subtype']  $payload['location_type']  'dorf');
-    $description = avesmapsReadLocationDescription($payload['description']  '');
-    $wikiUrl = avesmapsReadOptionalWikiUrl($payload['wiki_url']  '');
-    $lat = avesmapsParseMapCoordinate($payload['lat']  null, 'lat');
-    $lng = avesmapsParseMapCoordinate($payload['lng']  null, 'lng');
+    $name = avesmapsReadLocationName($payload['name'] ?? '');
+    $subtype = avesmapsReadLocationSubtype($payload['feature_subtype'] ?? $payload['location_type'] ?? 'dorf');
+    $description = avesmapsReadLocationDescription($payload['description'] ?? '');
+    $wikiUrl = avesmapsReadOptionalWikiUrl($payload['wiki_url'] ?? '');
+    $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
+    $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
     $publicId = avesmapsUuidV4();
     $geometry = [
         'type' => 'Point',
@@ -1183,8 +1183,8 @@ function avesmapsCreatePointFeature(PDO $pdo, array $payload, array $user): arra
         'feature_subtype' => $subtype,
         'settlement_class' => $subtype,
         'settlement_class_label' => avesmapsLocationSubtypeLabel($subtype),
-        'is_nodix' => avesmapsReadBoolean($payload['is_nodix']  false),
-        'is_ruined' => avesmapsReadBoolean($payload['is_ruined']  false),
+        'is_nodix' => avesmapsReadBoolean($payload['is_nodix'] ?? false),
+        'is_ruined' => avesmapsReadBoolean($payload['is_ruined'] ?? false),
     ];
     if ($description !== '') {
         $properties['description'] = $description;
@@ -1246,8 +1246,8 @@ function avesmapsCreatePointFeature(PDO $pdo, array $payload, array $user): arra
 }
 
 function avesmapsCreateCrossingFeature(PDO $pdo, array $payload, array $user): array {
-    $lat = avesmapsParseMapCoordinate($payload['lat']  null, 'lat');
-    $lng = avesmapsParseMapCoordinate($payload['lng']  null, 'lng');
+    $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
+    $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
     $publicId = avesmapsUuidV4();
     $name = 'Kreuzung';
     $geometry = [
@@ -1311,8 +1311,8 @@ function avesmapsCreateCrossingFeature(PDO $pdo, array $payload, array $user): a
 }
 
 function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): array {
-    $fromPublicId = avesmapsReadMapFeaturePublicId($payload['from_public_id']  '');
-    $toPublicId = avesmapsReadMapFeaturePublicId($payload['to_public_id']  '');
+    $fromPublicId = avesmapsReadMapFeaturePublicId($payload['from_public_id'] ?? '');
+    $toPublicId = avesmapsReadMapFeaturePublicId($payload['to_public_id'] ?? '');
     if ($fromPublicId === $toPublicId) {
         throw new InvalidArgumentException('Start und Ziel muessen verschieden sein.');
     }
@@ -1321,20 +1321,20 @@ function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): 
     try {
         $fromFeature = avesmapsFetchEditablePointFeature($pdo, $fromPublicId);
         $toFeature = avesmapsFetchEditablePointFeature($pdo, $toPublicId);
-        $fromProperties = avesmapsDecodeJsonColumnForEdit($fromFeature['properties_json']  null);
-        $toProperties = avesmapsDecodeJsonColumnForEdit($toFeature['properties_json']  null);
-        $fromIsEligibleEndpoint = !empty($fromProperties['is_nodix']) || (string) ($fromFeature['feature_subtype']  '') === 'crossing';
-        $toIsEligibleEndpoint = !empty($toProperties['is_nodix']) || (string) ($toFeature['feature_subtype']  '') === 'crossing';
+        $fromProperties = avesmapsDecodeJsonColumnForEdit($fromFeature['properties_json'] ?? null);
+        $toProperties = avesmapsDecodeJsonColumnForEdit($toFeature['properties_json'] ?? null);
+        $fromIsEligibleEndpoint = !empty($fromProperties['is_nodix']) || (string) ($fromFeature['feature_subtype'] ?? '') === 'crossing';
+        $toIsEligibleEndpoint = !empty($toProperties['is_nodix']) || (string) ($toFeature['feature_subtype'] ?? '') === 'crossing';
         if (!$fromIsEligibleEndpoint || !$toIsEligibleEndpoint) {
             throw new InvalidArgumentException('Kraftlinien koennen nur Nodix-Orte verbinden.');
         }
 
-        $fromGeometry = avesmapsDecodeJsonColumnForEdit($fromFeature['geometry_json']  null);
-        $toGeometry = avesmapsDecodeJsonColumnForEdit($toFeature['geometry_json']  null);
+        $fromGeometry = avesmapsDecodeJsonColumnForEdit($fromFeature['geometry_json'] ?? null);
+        $toGeometry = avesmapsDecodeJsonColumnForEdit($toFeature['geometry_json'] ?? null);
         [$fromLng, $fromLat] = avesmapsReadPointCoordinatesFromGeometry($fromGeometry);
         [$toLng, $toLat] = avesmapsReadPointCoordinatesFromGeometry($toGeometry);
         $publicId = avesmapsUuidV4();
-        $name = trim((string) ($fromFeature['name']  'Nodix') . ' - ' . (string) ($toFeature['name']  'Nodix'));
+        $name = trim((string) ($fromFeature['name'] ?? 'Nodix') . ' - ' . (string) ($toFeature['name'] ?? 'Nodix'));
         $geometry = [
             'type' => 'LineString',
             'coordinates' => [[$fromLng, $fromLat], [$toLng, $toLat]],
@@ -1397,20 +1397,20 @@ function avesmapsCreatePowerlineFeature(PDO $pdo, array $payload, array $user): 
 }
 
 function avesmapsUpdatePowerlineFeatureDetails(PDO $pdo, array $payload, array $user): array {
-    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id']  '');
-    $name = avesmapsReadFeatureName($payload['name']  '', 'Der Name der Kraftlinie');
-    $showLabel = avesmapsReadBoolean($payload['show_label']  false);
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $name = avesmapsReadFeatureName($payload['name'] ?? '', 'Der Name der Kraftlinie');
+    $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
 
     $pdo->beginTransaction();
     try {
         $feature = avesmapsFetchEditableLineStringFeature($pdo, $publicId);
         avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
-        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json']  null);
+        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
         $properties['name'] = $name;
         $properties['feature_type'] = 'powerline';
         $properties['feature_subtype'] = 'powerline';
         $properties['show_label'] = $showLabel;
-        $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json']  null);
+        $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         $revision = avesmapsNextMapRevision($pdo);
 
         $statement = $pdo->prepare(
@@ -1451,12 +1451,12 @@ function avesmapsUpdatePowerlineFeatureDetails(PDO $pdo, array $payload, array $
 }
 
 function avesmapsCreatePathFeature(PDO $pdo, array $payload, array $user): array {
-    $subtype = avesmapsReadPathSubtype($payload['feature_subtype']  'Weg');
-    $name = avesmapsReadFeatureName($payload['name']  $subtype, 'Der Wegname');
-    $showLabel = avesmapsReadBoolean($payload['show_label']  false);
+    $subtype = avesmapsReadPathSubtype($payload['feature_subtype'] ?? 'Weg');
+    $name = avesmapsReadFeatureName($payload['name'] ?? $subtype, 'Der Wegname');
+    $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
     $transportDomain = avesmapsDefaultTransportDomainForPathSubtype($subtype);
-    $allowedTransports = avesmapsReadAllowedTransports($payload['allowed_transports']  null, $transportDomain, $subtype);
-    $coordinates = avesmapsReadLineStringCoordinates($payload['coordinates']  null);
+    $allowedTransports = avesmapsReadAllowedTransports($payload['allowed_transports'] ?? null, $transportDomain, $subtype);
+    $coordinates = avesmapsReadLineStringCoordinates($payload['coordinates'] ?? null);
     $bounds = avesmapsCalculateLineStringBounds($coordinates);
 
     $publicId = avesmapsUuidV4();
@@ -1526,18 +1526,18 @@ function avesmapsCreatePathFeature(PDO $pdo, array $payload, array $user): array
 }
 
 function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user): array {
-    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id']  '');
-    $name = avesmapsReadFeatureName($payload['name']  '', 'Der Wegname');
-    $subtype = avesmapsReadPathSubtype($payload['feature_subtype']  'Weg');
-    $showLabel = avesmapsReadBoolean($payload['show_label']  false);
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $name = avesmapsReadFeatureName($payload['name'] ?? '', 'Der Wegname');
+    $subtype = avesmapsReadPathSubtype($payload['feature_subtype'] ?? 'Weg');
+    $showLabel = avesmapsReadBoolean($payload['show_label'] ?? false);
     $transportDomain = avesmapsDefaultTransportDomainForPathSubtype($subtype);
-    $allowedTransports = avesmapsReadAllowedTransports($payload['allowed_transports']  null, $transportDomain, $subtype);
+    $allowedTransports = avesmapsReadAllowedTransports($payload['allowed_transports'] ?? null, $transportDomain, $subtype);
 
     $pdo->beginTransaction();
     try {
         $feature = avesmapsFetchEditableLineStringFeature($pdo, $publicId);
         avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
-        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json']  null);
+        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
         $properties['name'] = $name;
         $properties['display_name'] = $name;
         $properties['feature_type'] = 'path';
@@ -1545,7 +1545,7 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         $properties['show_label'] = $showLabel;
         $properties['transport_domain'] = $transportDomain;
         $properties['allowed_transports'] = $allowedTransports;
-        $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json']  null);
+        $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         $revision = avesmapsNextMapRevision($pdo);
 
         $statement = $pdo->prepare(
@@ -1588,17 +1588,17 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
 }
 
 function avesmapsUpdatePathFeatureGeometry(PDO $pdo, array $payload, array $user): array {
-    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id']  '');
-    $coordinates = avesmapsReadLineStringCoordinates($payload['coordinates']  null);
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $coordinates = avesmapsReadLineStringCoordinates($payload['coordinates'] ?? null);
     $bounds = avesmapsCalculateLineStringBounds($coordinates);
 
     $pdo->beginTransaction();
     try {
         $feature = avesmapsFetchEditableLineStringFeature($pdo, $publicId);
         avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
-        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json']  null);
-        $name = avesmapsNormalizeSingleLine((string) ($feature['name']  $properties['name']  'Weg'), 160) ?: 'Weg';
-        $subtype = avesmapsReadPathSubtype($feature['feature_subtype']  $properties['feature_subtype']  'Weg');
+        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
+        $name = avesmapsNormalizeSingleLine((string) ($feature['name'] ?? $properties['name'] ?? 'Weg'), 160) ?: 'Weg';
+        $subtype = avesmapsReadPathSubtype($feature['feature_subtype'] ?? $properties['feature_subtype'] ?? 'Weg');
         $geometry = [
             'type' => 'LineString',
             'coordinates' => $coordinates,
@@ -1641,18 +1641,18 @@ function avesmapsUpdatePathFeatureGeometry(PDO $pdo, array $payload, array $user
 }
 
 function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): array {
-    $text = avesmapsReadLabelText($payload['text']  '');
-    $subtype = avesmapsReadLabelSubtype($payload['feature_subtype']  'region');
-    $size = avesmapsReadLabelSize($payload['size']  18);
-    $rotation = avesmapsReadLabelRotation($payload['rotation']  0);
-    $minZoom = avesmapsReadLabelZoom($payload['min_zoom']  0);
-    $maxZoom = avesmapsReadLabelZoom($payload['max_zoom']  5);
+    $text = avesmapsReadLabelText($payload['text'] ?? '');
+    $subtype = avesmapsReadLabelSubtype($payload['feature_subtype'] ?? 'region');
+    $size = avesmapsReadLabelSize($payload['size'] ?? 18);
+    $rotation = avesmapsReadLabelRotation($payload['rotation'] ?? 0);
+    $minZoom = avesmapsReadLabelZoom($payload['min_zoom'] ?? 0);
+    $maxZoom = avesmapsReadLabelZoom($payload['max_zoom'] ?? 5);
     if ($maxZoom < $minZoom) {
         throw new InvalidArgumentException('Die Label-Zoomspanne ist ungueltig.');
     }
-    $priority = avesmapsReadLabelPriority($payload['priority']  3);
-    $lat = avesmapsParseMapCoordinate($payload['lat']  null, 'lat');
-    $lng = avesmapsParseMapCoordinate($payload['lng']  null, 'lng');
+    $priority = avesmapsReadLabelPriority($payload['priority'] ?? 3);
+    $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
+    $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
     $publicId = avesmapsUuidV4();
     $geometry = [
         'type' => 'Point',
@@ -1668,7 +1668,7 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
         'min_zoom' => $minZoom,
         'max_zoom' => $maxZoom,
         'priority' => $priority,
-        'is_nodix' => avesmapsReadBoolean($payload['is_nodix']  false),
+        'is_nodix' => avesmapsReadBoolean($payload['is_nodix'] ?? false),
     ];
 
     $pdo->beginTransaction();
@@ -1722,17 +1722,17 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
 }
 
 function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): array {
-    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id']  '');
-    $text = avesmapsReadLabelText($payload['text']  '');
-    $subtype = avesmapsReadLabelSubtype($payload['feature_subtype']  'region');
-    $size = avesmapsReadLabelSize($payload['size']  18);
-    $rotation = avesmapsReadLabelRotation($payload['rotation']  0);
-    $minZoom = avesmapsReadLabelZoom($payload['min_zoom']  0);
-    $maxZoom = avesmapsReadLabelZoom($payload['max_zoom']  5);
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $text = avesmapsReadLabelText($payload['text'] ?? '');
+    $subtype = avesmapsReadLabelSubtype($payload['feature_subtype'] ?? 'region');
+    $size = avesmapsReadLabelSize($payload['size'] ?? 18);
+    $rotation = avesmapsReadLabelRotation($payload['rotation'] ?? 0);
+    $minZoom = avesmapsReadLabelZoom($payload['min_zoom'] ?? 0);
+    $maxZoom = avesmapsReadLabelZoom($payload['max_zoom'] ?? 5);
     if ($maxZoom < $minZoom) {
         throw new InvalidArgumentException('Die Label-Zoomspanne ist ungueltig.');
     }
-    $priority = avesmapsReadLabelPriority($payload['priority']  3);
+    $priority = avesmapsReadLabelPriority($payload['priority'] ?? 3);
 
     $pdo->beginTransaction();
     try {
@@ -1741,7 +1741,7 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
         if ((string) $feature['feature_type'] !== 'label') {
             throw new InvalidArgumentException('Dieses Kartenobjekt ist kein Label.');
         }
-        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json']  null);
+        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
         $properties['name'] = $text;
         $properties['text'] = $text;
         $properties['feature_type'] = 'label';
@@ -1751,9 +1751,9 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
         $properties['min_zoom'] = $minZoom;
         $properties['max_zoom'] = $maxZoom;
         $properties['priority'] = $priority;
-        $properties['is_nodix'] = avesmapsReadBoolean($payload['is_nodix']  false);
-        $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json']  null);
-        $coordinates = is_array($geometry['coordinates']  null)  $geometry['coordinates'] : [0, 0];
+        $properties['is_nodix'] = avesmapsReadBoolean($payload['is_nodix'] ?? false);
+        $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
+        $coordinates = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [0, 0];
         $revision = avesmapsNextMapRevision($pdo);
         $statement = $pdo->prepare(
             'UPDATE map_features
@@ -1789,9 +1789,9 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
 }
 
 function avesmapsMoveLabelFeature(PDO $pdo, array $payload, array $user): array {
-    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id']  '');
-    $lat = avesmapsParseMapCoordinate($payload['lat']  null, 'lat');
-    $lng = avesmapsParseMapCoordinate($payload['lng']  null, 'lng');
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
+    $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
 
     $pdo->beginTransaction();
     try {
@@ -1804,7 +1804,7 @@ function avesmapsMoveLabelFeature(PDO $pdo, array $payload, array $user): array 
             'type' => 'Point',
             'coordinates' => [$lng, $lat],
         ];
-        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json']  null);
+        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
         $revision = avesmapsNextMapRevision($pdo);
         $statement = $pdo->prepare(
             'UPDATE map_features
@@ -1841,11 +1841,11 @@ function avesmapsMoveLabelFeature(PDO $pdo, array $payload, array $user): array 
 }
 
 function avesmapsCreateRegionFeature(PDO $pdo, array $payload, array $user): array {
-    $name = avesmapsReadFeatureName($payload['name']  'Neue Region', 'Der Regionsname');
-    $color = avesmapsReadHexColor($payload['color']  '#888888');
-    $opacity = avesmapsReadOpacity($payload['opacity']  0.33);
-    $wikiUrl = avesmapsReadOptionalWikiUrl($payload['wiki_url']  '');
-    $coordinates = avesmapsReadPolygonCoordinates($payload['coordinates']  null);
+    $name = avesmapsReadFeatureName($payload['name'] ?? 'Neue Region', 'Der Regionsname');
+    $color = avesmapsReadHexColor($payload['color'] ?? '#888888');
+    $opacity = avesmapsReadOpacity($payload['opacity'] ?? 0.33);
+    $wikiUrl = avesmapsReadOptionalWikiUrl($payload['wiki_url'] ?? '');
+    $coordinates = avesmapsReadPolygonCoordinates($payload['coordinates'] ?? null);
     $bounds = avesmapsCalculateLineStringBounds($coordinates[0]);
     $publicId = avesmapsUuidV4();
     $geometry = ['type' => 'Polygon', 'coordinates' => $coordinates];
@@ -1912,17 +1912,17 @@ function avesmapsCreateRegionFeature(PDO $pdo, array $payload, array $user): arr
 }
 
 function avesmapsUpdateRegionFeature(PDO $pdo, array $payload, array $user): array {
-    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id']  '');
-    $name = avesmapsReadFeatureName($payload['name']  '', 'Der Regionsname');
-    $color = avesmapsReadHexColor($payload['color']  '#888888');
-    $opacity = avesmapsReadOpacity($payload['opacity']  0.33);
-    $wikiUrl = avesmapsReadOptionalWikiUrl($payload['wiki_url']  '');
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $name = avesmapsReadFeatureName($payload['name'] ?? '', 'Der Regionsname');
+    $color = avesmapsReadHexColor($payload['color'] ?? '#888888');
+    $opacity = avesmapsReadOpacity($payload['opacity'] ?? 0.33);
+    $wikiUrl = avesmapsReadOptionalWikiUrl($payload['wiki_url'] ?? '');
 
     $pdo->beginTransaction();
     try {
         $feature = avesmapsFetchEditableFeature($pdo, $publicId);
         avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
-        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json']  null);
+        $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
         $properties['type'] = 'region';
         $properties['name'] = $name;
         $properties['fill'] = $color;
@@ -1933,7 +1933,7 @@ function avesmapsUpdateRegionFeature(PDO $pdo, array $payload, array $user): arr
         } else {
             $properties['wiki_url'] = $wikiUrl;
         }
-        $style = avesmapsDecodeJsonColumnForEdit($feature['style_json']  null);
+        $style = avesmapsDecodeJsonColumnForEdit($feature['style_json'] ?? null);
         $style['fill'] = $color;
         $style['stroke'] = $color;
         $style['fillOpacity'] = $opacity;
@@ -1948,15 +1948,15 @@ function avesmapsUpdateRegionFeature(PDO $pdo, array $payload, array $user): arr
             'revision' => $revision,
         ]));
         $pdo->commit();
-        return avesmapsBuildRegionFeatureResponse($publicId, $name, avesmapsDecodeJsonColumnForEdit($feature['geometry_json']  null), $properties + $style, $revision);
+        return avesmapsBuildRegionFeatureResponse($publicId, $name, avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null), $properties + $style, $revision);
     } catch (Throwable $exception) {
         avesmapsRollbackAndRethrow($pdo, $exception);
     }
 }
 
 function avesmapsUpdateRegionFeatureGeometry(PDO $pdo, array $payload, array $user): array {
-    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id']  '');
-    $coordinates = avesmapsReadPolygonCoordinates($payload['coordinates']  null);
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
+    $coordinates = avesmapsReadPolygonCoordinates($payload['coordinates'] ?? null);
     $bounds = avesmapsCalculateLineStringBounds($coordinates[0]);
     $geometry = ['type' => 'Polygon', 'coordinates' => $coordinates];
     $pdo->beginTransaction();
@@ -1972,14 +1972,14 @@ function avesmapsUpdateRegionFeatureGeometry(PDO $pdo, array $payload, array $us
             'revision' => $revision,
         ]));
         $pdo->commit();
-        return avesmapsBuildRegionFeatureResponse($publicId, (string) $feature['name'], $geometry, avesmapsDecodeJsonColumnForEdit($feature['properties_json']  null), $revision);
+        return avesmapsBuildRegionFeatureResponse($publicId, (string) $feature['name'], $geometry, avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null), $revision);
     } catch (Throwable $exception) {
         avesmapsRollbackAndRethrow($pdo, $exception);
     }
 }
 
 function avesmapsDeleteMapFeature(PDO $pdo, array $payload, array $user): array {
-    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id']  '');
+    $publicId = avesmapsReadMapFeaturePublicId($payload['public_id'] ?? '');
 
     $pdo->beginTransaction();
     try {
@@ -2017,7 +2017,7 @@ function avesmapsDeleteMapFeature(PDO $pdo, array $payload, array $user): array 
 }
 
 function avesmapsReadPointCoordinatesFromGeometry(array $geometry): array {
-    $coordinates = $geometry['coordinates']  null;
+    $coordinates = $geometry['coordinates'] ?? null;
     if (!is_array($coordinates) || count($coordinates) < 2 || !is_numeric($coordinates[0]) || !is_numeric($coordinates[1])) {
         throw new RuntimeException('Die Point-Geometrie ist ungueltig.');
     }
@@ -2036,8 +2036,8 @@ function avesmapsReadLineStringCoordinates(mixed $value): array {
             throw new InvalidArgumentException('Die Wegkoordinaten sind ungueltig.');
         }
 
-        $lat = avesmapsParseMapCoordinate($coordinatePair[0]  null, "coordinates[{$index}][0]");
-        $lng = avesmapsParseMapCoordinate($coordinatePair[1]  null, "coordinates[{$index}][1]");
+        $lat = avesmapsParseMapCoordinate($coordinatePair[0] ?? null, "coordinates[{$index}][0]");
+        $lng = avesmapsParseMapCoordinate($coordinatePair[1] ?? null, "coordinates[{$index}][1]");
         $coordinates[] = [$lng, $lat];
     }
 
@@ -2064,9 +2064,9 @@ function avesmapsCalculateLineStringBounds(array $coordinates): array {
 
 function avesmapsNextMapSortOrder(PDO $pdo): int {
     $statement = $pdo->query('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM map_features');
-    $sortOrder = $statement !== false  $statement->fetchColumn() : false;
+    $sortOrder = $statement !== false ? $statement->fetchColumn() : false;
 
-    return $sortOrder === false  1 : (int) $sortOrder;
+    return $sortOrder === false ? 1 : (int) $sortOrder;
 }
 
 function avesmapsNextMapRevision(PDO $pdo): int {
@@ -2077,7 +2077,7 @@ function avesmapsNextMapRevision(PDO $pdo): int {
     );
 
     $statement = $pdo->query('SELECT revision FROM map_revision WHERE id = 1');
-    $revision = $statement !== false  $statement->fetchColumn() : false;
+    $revision = $statement !== false ? $statement->fetchColumn() : false;
     if ($revision === false) {
         throw new RuntimeException('Die Kartenrevision konnte nicht gelesen werden.');
     }
@@ -2109,8 +2109,8 @@ function avesmapsBuildPointFeatureResponse(string $publicId, string $name, strin
         'feature_subtype' => $subtype,
         'location_type' => $subtype,
         'location_type_label' => avesmapsLocationSubtypeLabel($subtype),
-        'description' => (string) ($properties['description']  ''),
-        'wiki_url' => (string) ($properties['wiki_url']  ''),
+        'description' => (string) ($properties['description'] ?? ''),
+        'wiki_url' => (string) ($properties['wiki_url'] ?? ''),
         'is_nodix' => !empty($properties['is_nodix']),
         'is_ruined' => !empty($properties['is_ruined']),
         'lat' => $lat,
@@ -2196,7 +2196,7 @@ function avesmapsDecodeJsonColumnForEdit(mixed $value): array {
     }
 
     $decoded = json_decode((string) $value, true);
-    return is_array($decoded)  $decoded : [];
+    return is_array($decoded) ? $decoded : [];
 }
 
 function avesmapsEncodeAuditJson(array $value): string {

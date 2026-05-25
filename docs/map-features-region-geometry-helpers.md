@@ -35,8 +35,8 @@ Die Payload-/Geometrie-Semantik wurde dabei nicht geaendert.
 
 ## Klassische Script-Ladung
 
-Die neue Datei `js/map-features/map-features-region-geometry-helpers.js` wird als klassisches Script in `index.html` geladen.
-Sie steht vor `js/map-features/map-features-political-timeline.js` zur Verfuegung, damit die globalen Helper-Funktionen zur Laufzeit bereits definiert sind.
+Die neue Datei `js/map-features-region-geometry-helpers.js` wird als klassisches Script in `index.html` geladen.
+Sie steht vor `js/map-features-political-timeline.js` zur Verfuegung, damit die globalen Helper-Funktionen zur Laufzeit bereits definiert sind.
 
 ## Smoke-Plan
 

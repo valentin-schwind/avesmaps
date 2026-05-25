@@ -6,13 +6,13 @@ Nach dem bestätigten Review/Change/Presence-Panel-Split ist `js/dialogs-review.
 
 Die aktuelle Script-Reihenfolge in `index.html` ist weiterhin klassisch/global und endet im Dialog-Bereich mit:
 
-1. `js/review/review-core.js`
-2. `js/review/review-status.js`
-3. `js/review/review-pending.js`
-4. `js/review/review-paths.js`
-5. `js/review/review-labels.js`
-6. `js/review/review-locations.js`
-7. `js/review/review-panels.js`
+1. `js/dialogs-review-core.js`
+2. `js/dialogs-review-status.js`
+3. `js/dialogs-review-pending.js`
+4. `js/dialogs-review-paths.js`
+5. `js/dialogs-review-labels.js`
+6. `js/dialogs-review-locations.js`
+7. `js/dialogs-review-panels.js`
 8. `js/dialogs-review.js`
 
 ## Gelesene Bereiche
@@ -90,7 +90,7 @@ Diese drei Funktionen bleiben im Rest-Orchestrator, weil sie Review-Report-Detai
 
 ### Sicher verschiebbar
 
-Ein WikiSync-Split ist sinnvoll, aber nur als enger Datei-Split nach `js/review/review-wiki-sync.js`.
+Ein WikiSync-Split ist sinnvoll, aber nur als enger Datei-Split nach `js/dialogs-review-wiki-sync.js`.
 
 Sicher verschiebbar sind reine Funktionsdefinitionen fuer:
 
@@ -121,18 +121,18 @@ Nicht in diesen Split gehoeren:
 
 Dateiname:
 
-- `js/review/review-wiki-sync.js`
+- `js/dialogs-review-wiki-sync.js`
 
 Script-Reihenfolge in `index.html`:
 
-1. `js/review/review-core.js`
-2. `js/review/review-status.js`
-3. `js/review/review-pending.js`
-4. `js/review/review-paths.js`
-5. `js/review/review-labels.js`
-6. `js/review/review-locations.js`
-7. `js/review/review-panels.js`
-8. `js/review/review-wiki-sync.js`
+1. `js/dialogs-review-core.js`
+2. `js/dialogs-review-status.js`
+3. `js/dialogs-review-pending.js`
+4. `js/dialogs-review-paths.js`
+5. `js/dialogs-review-labels.js`
+6. `js/dialogs-review-locations.js`
+7. `js/dialogs-review-panels.js`
+8. `js/dialogs-review-wiki-sync.js`
 9. `js/dialogs-review.js`
 
 Begruendung: WikiSync verwendet Core-/Status-/Pending-/Location-/Panel-Helfer und muss vor dem Rest-Orchestrator geladen werden, damit Event-Bindings und Submit-Flows im Rest-Orchestrator weiterhin auf globale Funktionsnamen zugreifen koennen.
@@ -240,33 +240,33 @@ Browser-Smoke im Editmode:
 ```text
 Arbeite im Repository https://github.com/valentin-schwind/avesmaps/ direkt auf master. Keine Branches. Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split des WikiSync-Clusters aus js/dialogs-review.js in eine neue Datei js/review/review-wiki-sync.js.
+Ziel: kontrollierter, verhaltensneutraler Split des WikiSync-Clusters aus js/dialogs-review.js in eine neue Datei js/dialogs-review-wiki-sync.js.
 
 Erlaubte Änderungen:
 - js/dialogs-review.js
-- neue Datei js/review/review-wiki-sync.js
+- neue Datei js/dialogs-review-wiki-sync.js
 - index.html
 - docs/refactoring-status.md
 
 Nicht ändern:
-- js/review/review-core.js
-- js/review/review-status.js
-- js/review/review-pending.js
-- js/review/review-paths.js
-- js/review/review-labels.js
-- js/review/review-locations.js
-- js/review/review-panels.js
+- js/dialogs-review-core.js
+- js/dialogs-review-status.js
+- js/dialogs-review-pending.js
+- js/dialogs-review-paths.js
+- js/dialogs-review-labels.js
+- js/dialogs-review-locations.js
+- js/dialogs-review-panels.js
 - Routing-Dateien
 - popups.js
 - ui-controls.js
 - map-features.js
 - API-/PHP-/SQL-Dateien
 
-Verschiebe ausschließlich die in docs/dialogs-review-wiki-sync-split-boundary-check.md unter "Exakter zulaessiger Funktionsumfang" genannten Funktionen aus js/dialogs-review.js nach js/review/review-wiki-sync.js. Funktionen unverändert lassen und in sinnvoller Reihenfolge verschieben.
+Verschiebe ausschließlich die in docs/dialogs-review-wiki-sync-split-boundary-check.md unter "Exakter zulaessiger Funktionsumfang" genannten Funktionen aus js/dialogs-review.js nach js/dialogs-review-wiki-sync.js. Funktionen unverändert lassen und in sinnvoller Reihenfolge verschieben.
 
 Falls beim Verschieben weitere Funktionen zwingend mitgenommen werden müssten, stoppe und berichte statt eigenständig den Scope zu erweitern.
 
-Neue Datei js/review/review-wiki-sync.js:
+Neue Datei js/dialogs-review-wiki-sync.js:
 - enthält nur Funktionsdefinitionen
 - keine Top-Level-Ausführung
 - keine DOM-Reads/Writes außerhalb von Funktionen
@@ -276,31 +276,31 @@ Neue Datei js/review/review-wiki-sync.js:
 
 index.html:
 - Script-Reihenfolge erweitern:
-  1. js/review/review-core.js
-  2. js/review/review-status.js
-  3. js/review/review-pending.js
-  4. js/review/review-paths.js
-  5. js/review/review-labels.js
-  6. js/review/review-locations.js
-  7. js/review/review-panels.js
-  8. js/review/review-wiki-sync.js
+  1. js/dialogs-review-core.js
+  2. js/dialogs-review-status.js
+  3. js/dialogs-review-pending.js
+  4. js/dialogs-review-paths.js
+  5. js/dialogs-review-labels.js
+  6. js/dialogs-review-locations.js
+  7. js/dialogs-review-panels.js
+  8. js/dialogs-review-wiki-sync.js
   9. js/dialogs-review.js
 
 docs/refactoring-status.md:
-- neuen stabilen Split js/review/review-wiki-sync.js dokumentieren
+- neuen stabilen Split js/dialogs-review-wiki-sync.js dokumentieren
 - Smoke-Test-Empfehlung WikiSync ergänzen
 - klar festhalten, dass Region/Territory und Region-Wiki-Picker nicht Teil dieses Splits waren
 
 Checks lokal ausführen:
 - Suche nach doppelten Funktionsdefinitionen der verschobenen Funktionen.
-- Suche nach fehlenden Referenzen/Typo bei js/review/review-wiki-sync.js in index.html.
+- Suche nach fehlenden Referenzen/Typo bei js/dialogs-review-wiki-sync.js in index.html.
 - Syntaxprüfung:
-  - node --check js/review/review-wiki-sync.js
+  - node --check js/dialogs-review-wiki-sync.js
   - node --check js/dialogs-review.js
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/review/review-wiki-sync.js docs/refactoring-status.md
+- git add index.html js/dialogs-review.js js/dialogs-review-wiki-sync.js docs/refactoring-status.md
 - git commit -m "Split dialog review WikiSync helpers"
 - git push
 

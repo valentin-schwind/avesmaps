@@ -22,7 +22,7 @@ try {
         ]);
     }
 
-    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD']  'GET'));
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
     if ($requestMethod !== 'GET') {
         avesmapsJsonResponse(405, [
             'ok' => false,
@@ -30,7 +30,7 @@ try {
         ]);
     }
 
-    $statusFilter = avesmapsNormalizeSingleLine((string) ($_GET['status']  'neu'), 20);
+    $statusFilter = avesmapsNormalizeSingleLine((string) ($_GET['status'] ?? 'neu'), 20);
     if ($statusFilter === '') {
         avesmapsJsonResponse(400, [
             'ok' => false,
@@ -38,7 +38,7 @@ try {
         ]);
     }
 
-    $pdo = avesmapsCreatePdo($config['database']  []);
+    $pdo = avesmapsCreatePdo($config['database'] ?? []);
     $statement = $pdo->prepare(
         'SELECT
             id,

@@ -5,20 +5,20 @@ declare(strict_types=1);
 require __DIR__ . '/../api/auth.php';
 
 $config = avesmapsLoadApiConfig(dirname(__DIR__) . '/api');
-$pdo = avesmapsCreatePdo($config['database']  []);
+$pdo = avesmapsCreatePdo($config['database'] ?? []);
 $loginError = '';
 
-$requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD']  'GET'));
+$requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 if ($requestMethod === 'POST') {
-    $action = avesmapsNormalizeSingleLine((string) ($_POST['action']  'login'), 20);
+    $action = avesmapsNormalizeSingleLine((string) ($_POST['action'] ?? 'login'), 20);
     if ($action === 'logout') {
         avesmapsLogout();
         header('Location: ./');
         exit;
     }
 
-    $username = (string) ($_POST['username']  '');
-    $password = (string) ($_POST['password']  '');
+    $username = (string) ($_POST['username'] ?? '');
+    $password = (string) ($_POST['password'] ?? '');
     $user = avesmapsLogin($pdo, $username, $password);
     if ($user !== null && avesmapsUserCan($user, 'edit')) {
         header('Location: ./');

@@ -31,6 +31,3 @@ Die Handler-Semantik bleibt unveraendert:
 - Jede Aktion einmal ausloesen (`edit-geometry`, `edit-properties`, `show-info`, `move`, `split`, `extract`, `delete`).
 - Boolean-Aktionen pruefen (`union`, `difference`, `difference-keep-target`, `intersection`).
 - Browser-Konsole auf Fehler pruefen.
-
-## Smoke-Ergebnis
-Region-Context-Action-Map-Smoke bestanden: Kontextmenue-Aktionen, Boolean-Aktionen, Move/Split-Abbruch, Reload und Browser-Konsole ohne Auffaelligkeiten.

@@ -14,12 +14,12 @@ Diese Bestandsaufnahme beschreibt den aktuellen Restzuschnitt von `js/map-featur
 - Umfangreicher Region-/Political-Territory-Block.
 
 ## 3. Bereits ausgelagerte Cluster und Zieldateien
-- Freie Kartenlabels: `js/map-features/map-features-labels.js`
-- Powerline-Helfer: `js/map-features/map-features-powerlines.js`
-- URL-/Planner-State-Helfer: `js/map-features/map-features-layer-state.js`
-- Ortsnamenlabel-Helfer: `js/map-features/map-features-location-name-labels.js`
-- Weg-/Pfad-Textlabel-Helfer: `js/map-features/map-features-path-labels.js`
-- Path-Rendering-Core-Helfer: `js/map-features/map-features-path-rendering.js`
+- Freie Kartenlabels: `js/map-features-labels.js`
+- Powerline-Helfer: `js/map-features-powerlines.js`
+- URL-/Planner-State-Helfer: `js/map-features-layer-state.js`
+- Ortsnamenlabel-Helfer: `js/map-features-location-name-labels.js`
+- Weg-/Pfad-Textlabel-Helfer: `js/map-features-path-labels.js`
+- Path-Rendering-Core-Helfer: `js/map-features-path-rendering.js`
 
 ## 4. Cluster, die weiterhin in `js/map-features.js` liegen
 - Location-Marker / Ortsdaten

@@ -51,7 +51,7 @@ function addMapScaleBandControl() {
 	scaleBandControl.onAdd = () => {
 		const container = L.DomUtil.create("div", "map-scale-band leaflet-control");
 		const tickMarkup = Array.from({ length: 11 }, (_, index) => {
-			const tickType = index % 5 === 0  "major" : "minor";
+			const tickType = index % 5 === 0 ? "major" : "minor";
 			return `<span class="map-scale-band__tick map-scale-band__tick--${tickType}" style="--tick-position:${index * 10}%;"></span>`;
 		}).join("");
 		container.innerHTML = `<div class="map-scale-band__bar" aria-hidden="true">${tickMarkup}</div><div class="map-scale-band__label"></div>`;
@@ -247,7 +247,7 @@ function getTransportIconPath(selectId, transportValue) {
 
 function getTransportControl(selectId) {
 	const selectElement = document.getElementById(selectId);
-	const containerElement = selectElement.closest(".transport-icon-select");
+	const containerElement = selectElement?.closest(".transport-icon-select");
 	if (!selectElement || !containerElement) {
 		return null;
 	}
@@ -269,7 +269,7 @@ function getSelectedTransportOption(selectElement) {
 
 function getTransportOptionButtons(selectId) {
 	const control = getTransportControl(selectId);
-	if (!control.menuElement) {
+	if (!control?.menuElement) {
 		return [];
 	}
 
@@ -278,7 +278,7 @@ function getTransportOptionButtons(selectId) {
 
 function closeTransportMenu(selectId) {
 	const control = getTransportControl(selectId);
-	if (!control.menuElement || !control.buttonElement) {
+	if (!control?.menuElement || !control.buttonElement) {
 		return;
 	}
 
@@ -288,7 +288,7 @@ function closeTransportMenu(selectId) {
 
 function positionTransportMenu(selectId) {
 	const control = getTransportControl(selectId);
-	if (!control.menuElement || !control.buttonElement || control.menuElement.hidden) {
+	if (!control?.menuElement || !control.buttonElement || control.menuElement.hidden) {
 		return;
 	}
 
@@ -305,7 +305,7 @@ function positionTransportMenu(selectId) {
 	const belowTop = buttonRect.bottom + 2;
 	const aboveTop = buttonRect.top - menuHeight - 2;
 	const top = belowTop + menuHeight <= window.innerHeight - viewportPadding
-		 belowTop
+		? belowTop
 		: Math.max(viewportPadding, aboveTop);
 
 	control.menuElement.style.left = `${left}px`;
@@ -315,7 +315,7 @@ function positionTransportMenu(selectId) {
 function positionOpenTransportMenus() {
 	ICON_TRANSPORT_SELECT_IDS.forEach((selectId) => {
 		const control = getTransportControl(selectId);
-		if (control.menuElement && !control.menuElement.hidden) {
+		if (control?.menuElement && !control.menuElement.hidden) {
 			positionTransportMenu(selectId);
 		}
 	});
@@ -331,7 +331,7 @@ function closeAllTransportMenus(exceptSelectId = null) {
 
 function setTransportMenuOpen(selectId, isOpen) {
 	const control = getTransportControl(selectId);
-	if (!control.menuElement || !control.buttonElement) {
+	if (!control?.menuElement || !control.buttonElement) {
 		return;
 	}
 
@@ -340,7 +340,7 @@ function setTransportMenuOpen(selectId, isOpen) {
 	}
 
 	control.menuElement.hidden = !isOpen;
-	control.buttonElement.setAttribute("aria-expanded", isOpen  "true" : "false");
+	control.buttonElement.setAttribute("aria-expanded", isOpen ? "true" : "false");
 	if (isOpen) {
 		positionTransportMenu(selectId);
 	}
@@ -348,8 +348,8 @@ function setTransportMenuOpen(selectId, isOpen) {
 
 function focusSelectedTransportOption(selectId) {
 	const control = getTransportControl(selectId);
-	const selectedOption = control.menuElement.querySelector(".transport-combobox__option.is-active")
-		|| control.menuElement.querySelector(".transport-combobox__option");
+	const selectedOption = control?.menuElement?.querySelector(".transport-combobox__option.is-active")
+		|| control?.menuElement?.querySelector(".transport-combobox__option");
 	if (selectedOption) {
 		selectedOption.focus();
 	}
@@ -357,7 +357,7 @@ function focusSelectedTransportOption(selectId) {
 
 function syncTransportControl(selectId) {
 	const control = getTransportControl(selectId);
-	if (!control.selectElement) {
+	if (!control?.selectElement) {
 		return;
 	}
 
@@ -373,7 +373,7 @@ function syncTransportControl(selectId) {
 	getTransportOptionButtons(selectId).forEach((optionButton) => {
 		const isSelected = optionButton.dataset.transportValue === selectedTransport;
 		optionButton.classList.toggle("is-active", isSelected);
-		optionButton.setAttribute("aria-selected", isSelected  "true" : "false");
+		optionButton.setAttribute("aria-selected", isSelected ? "true" : "false");
 	});
 }
 
@@ -420,19 +420,19 @@ function handleTransportMenuKeydown(event, selectId) {
 	if (event.key === "Escape") {
 		event.preventDefault();
 		closeTransportMenu(selectId);
-		control.buttonElement.focus();
+		control?.buttonElement?.focus();
 		return;
 	}
 
 	if (event.key === "Enter" || event.key === " ") {
 		event.preventDefault();
-		document.activeElement.click();
+		document.activeElement?.click();
 		return;
 	}
 
 	if (event.key === "Home" || event.key === "End") {
 		event.preventDefault();
-		optionButtons[event.key === "Home"  0 : optionButtons.length - 1].focus();
+		optionButtons[event.key === "Home" ? 0 : optionButtons.length - 1]?.focus();
 		return;
 	}
 
@@ -441,14 +441,14 @@ function handleTransportMenuKeydown(event, selectId) {
 	}
 
 	event.preventDefault();
-	const direction = event.key === "ArrowDown"  1 : -1;
+	const direction = event.key === "ArrowDown" ? 1 : -1;
 	const nextIndex = (currentIndex + direction + optionButtons.length) % optionButtons.length;
 	optionButtons[nextIndex].focus();
 }
 
 function initializeTransportIconSelect(selectId) {
 	const control = getTransportControl(selectId);
-	if (!control.selectElement || !control.buttonElement || !control.menuElement) {
+	if (!control?.selectElement || !control.buttonElement || !control.menuElement) {
 		return;
 	}
 
@@ -465,8 +465,8 @@ function initializeTransportIconSelect(selectId) {
 	});
 	control.buttonElement.addEventListener("keydown", (event) => handleTransportButtonKeydown(event, selectId));
 	control.menuElement.addEventListener("click", (event) => {
-		const clickedElement = event.target instanceof Element  event.target : null;
-		const optionButton = clickedElement.closest(".transport-combobox__option");
+		const clickedElement = event.target instanceof Element ? event.target : null;
+		const optionButton = clickedElement?.closest(".transport-combobox__option");
 		if (!optionButton || optionButton.disabled) {
 			return;
 		}
@@ -487,20 +487,20 @@ function initializeTransportIconSelects() {
 	});
 
 	document.addEventListener("click", (event) => {
-		const clickedElement = event.target instanceof Element  event.target : null;
+		const clickedElement = event.target instanceof Element ? event.target : null;
 		if (!clickedElement || !clickedElement.closest(".transport-icon-select")) {
 			closeAllTransportMenus();
 		}
 	});
 	window.addEventListener("resize", positionOpenTransportMenus);
-	document.getElementById("search").addEventListener("scroll", positionOpenTransportMenus);
+	document.getElementById("search")?.addEventListener("scroll", positionOpenTransportMenus);
 
 	syncTransportControls();
 }
 
 function readReviewTabStorageValue(storageKey) {
 	try {
-		return String(window.localStorage.getItem(storageKey) || "").trim();
+		return String(window.localStorage?.getItem(storageKey) || "").trim();
 	} catch (error) {
 		return "";
 	}
@@ -508,7 +508,7 @@ function readReviewTabStorageValue(storageKey) {
 
 function writeReviewTabStorageValue(storageKey, value) {
 	try {
-		window.localStorage.setItem(storageKey, value);
+		window.localStorage?.setItem(storageKey, value);
 	} catch (error) {
 		console.warn("Review-Tab-Zustand konnte nicht gespeichert werden:", error);
 	}
@@ -550,10 +550,10 @@ function initializeReviewPanelTabState() {
 	const reviewTabFromUrl = url.searchParams.get("reviewTab") || "";
 	const wikiSyncTabFromUrl = url.searchParams.get("wikiSyncTab") || "";
 	const reviewTab = reviewTabValues.includes(reviewTabFromUrl)
-		 reviewTabFromUrl
+		? reviewTabFromUrl
 		: readReviewTabStorageValue(reviewStorageKey);
 	const wikiSyncTab = wikiSyncTabValues.includes(wikiSyncTabFromUrl)
-		 wikiSyncTabFromUrl
+		? wikiSyncTabFromUrl
 		: readReviewTabStorageValue(wikiSyncStorageKey);
 
 	if (reviewTabValues.includes(reviewTab) && typeof window.setEditorPanelTab === "function") {
@@ -604,11 +604,11 @@ function makeWikiSyncTerritoryLookupKey(value) {
 }
 
 function findWikiSyncTerritoryRowForItem(itemElement) {
-	const nodeId = makeWikiSyncTerritoryLookupKey(itemElement.dataset.nodeId || "");
-	const name = makeWikiSyncTerritoryLookupKey(itemElement.querySelector(".tree-item-name").textContent || "");
+	const nodeId = makeWikiSyncTerritoryLookupKey(itemElement?.dataset?.nodeId || "");
+	const name = makeWikiSyncTerritoryLookupKey(itemElement?.querySelector(".tree-item-name")?.textContent || "");
 	return getWikiSyncTerritoryRowsForMetaLinks().find((row) => {
-		const rowName = makeWikiSyncTerritoryLookupKey(row.name || "");
-		const rowKey = makeWikiSyncTerritoryLookupKey(row.wiki_key || row.public_id || row.slug || row.id || "");
+		const rowName = makeWikiSyncTerritoryLookupKey(row?.name || "");
+		const rowKey = makeWikiSyncTerritoryLookupKey(row?.wiki_key || row?.public_id || row?.slug || row?.id || "");
 		return (nodeId && (nodeId === rowName || nodeId === rowKey)) || (name && name === rowName);
 	}) || null;
 }
@@ -620,11 +620,11 @@ function decorateWikiSyncTerritoryMetaLinks() {
 		const metaElement = itemElement.querySelector(".tree-item-meta");
 		if (!metaElement || metaElement.dataset.wikiMetaDecorated === "1") return;
 		const row = findWikiSyncTerritoryRowForItem(itemElement);
-		const wikiUrl = String(row.wiki_url || "").trim();
+		const wikiUrl = String(row?.wiki_url || "").trim();
 		const metaText = normalizeWikiSyncTerritoryMetaText(metaElement.textContent);
 		metaElement.textContent = metaText;
 		if (wikiUrl) {
-			const separator = document.createTextNode(metaText  ", " : "");
+			const separator = document.createTextNode(metaText ? ", " : "");
 			const link = document.createElement("a");
 			link.className = "tree-item-meta-link";
 			link.href = wikiUrl;

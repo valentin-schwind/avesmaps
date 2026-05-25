@@ -83,13 +83,13 @@ Nicht direkt in den Kernfunktionen gelesen:
 
 ## 6. Externe Funktionsaufrufe des Clusters
 Direkt aufgerufen:
-- `refreshPathLayerText(...)` (aus `js/map-features/map-features-path-labels.js`)
-- `getReadablePathLabelLatLngCoordinates(...)` (aus `js/map-features/map-features-path-labels.js`)
+- `refreshPathLayerText(...)` (aus `js/map-features-path-labels.js`)
+- `getReadablePathLabelLatLngCoordinates(...)` (aus `js/map-features-path-labels.js`)
 - `smoothLineCoordinatesForDisplay(...)`
 - `locationPopupMarkup(...)`
 - `locationPopupActionsMarkup(...)`
 - `popupActionButtonMarkup(...)`
-- `syncPathLabels()` (aus `js/map-features/map-features-path-labels.js`, via `syncPathVisibility`)
+- `syncPathLabels()` (aus `js/map-features-path-labels.js`, via `syncPathVisibility`)
 - `syncPathTransportOptions(...)`
 - `refreshPlannerAfterFeatureChange(...)`
 - `submitMapFeatureEdit(...)`
@@ -114,14 +114,14 @@ Vermutlich intern gebunden, aber global verfuegbar:
 - `updatePathLayerGeometry(...)`
 - `removePathFeature(...)`
 
-## 8. Abhaengigkeit zu `js/map-features/map-features-path-labels.js`
-Vom Rendering-/Lifecycle-Cluster werden aus `js/map-features/map-features-path-labels.js` genutzt:
+## 8. Abhaengigkeit zu `js/map-features-path-labels.js`
+Vom Rendering-/Lifecycle-Cluster werden aus `js/map-features-path-labels.js` genutzt:
 - `refreshPathLayerText(...)`
 - `getReadablePathLabelLatLngCoordinates(...)`
 - `syncPathLabels()`
 
 Zwingende Reihenfolge:
-- `js/map-features/map-features-path-labels.js` muss vor `js/map-features.js` geladen werden.
+- `js/map-features-path-labels.js` muss vor `js/map-features.js` geladen werden.
 
 ## 9. Abhaengigkeit zu Routing und Spotlight/Search
 Direkte Nutzungen in anderen Bereichen:
@@ -140,7 +140,7 @@ Erhaltenswerte Globals fuer Kompatibilitaet:
 - oben genannte Funktionsnamen muessen global verfuegbar bleiben.
 
 ## 10. Moegliche spaetere Ziel-Datei bewerten
-Option A: `js/map-features/map-features-paths.js`
+Option A: `js/map-features-paths.js`
 - Vorteil: fachlich kohaerenter Path-Cluster (Rendering + Lifecycle + CRUD-nahe Pfadlogik).
 - Risiko: groesserer Diff, viele Querverweise (Routing/Spotlight/Dialog/Edit/Popup).
 
@@ -148,16 +148,16 @@ Option B: vorerst in `js/map-features.js` belassen
 - Vorteil: geringstes Risiko kurzfristig.
 
 Risikoaermste Fortschrittsvariante:
-- spaeterer enger 1:1-Extract nach `js/map-features/map-features-paths.js`, aber nur nach weiterer Sub-Boundary/Smoke-Vorbereitung.
+- spaeterer enger 1:1-Extract nach `js/map-features-paths.js`, aber nur nach weiterer Sub-Boundary/Smoke-Vorbereitung.
 
 ## 11. Noetige Script-Reihenfolge bei spaeterer Auslagerung
-Bei spaeterem Split in `js/map-features/map-features-paths.js`:
-1. `js/map-features/map-features-labels.js`
-2. `js/map-features/map-features-powerlines.js`
-3. `js/map-features/map-features-layer-state.js`
-4. `js/map-features/map-features-location-name-labels.js`
-5. `js/map-features/map-features-path-labels.js`
-6. `js/map-features/map-features-paths.js` (neu)
+Bei spaeterem Split in `js/map-features-paths.js`:
+1. `js/map-features-labels.js`
+2. `js/map-features-powerlines.js`
+3. `js/map-features-layer-state.js`
+4. `js/map-features-location-name-labels.js`
+5. `js/map-features-path-labels.js`
+6. `js/map-features-paths.js` (neu)
 7. `js/map-features.js` (Rest-Orchestrator)
 
 ## 12. Risikoanalyse

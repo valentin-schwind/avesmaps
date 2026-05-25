@@ -16,7 +16,7 @@ try {
         ]);
     }
 
-    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD']  'GET'));
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
     if ($requestMethod === 'OPTIONS') {
         avesmapsJsonResponse(204);
     }
@@ -28,7 +28,7 @@ try {
         ]);
     }
 
-    $pdo = avesmapsCreatePdo($config['database']  []);
+    $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
     // Bewusst admin statt edit, weil Schema- und Beispieldaten sensibel sind.
     avesmapsRequireUserWithCapability('admin');
@@ -63,7 +63,7 @@ try {
         }
     }
 
-    $geometryPublicId = avesmapsNormalizeSingleLine((string) ($_GET['geometry_public_id']  ''), 80);
+    $geometryPublicId = avesmapsNormalizeSingleLine((string) ($_GET['geometry_public_id'] ?? ''), 80);
     if ($geometryPublicId !== '' && in_array('political_territory_geometry', $tableNames, true)) {
         $selectedGeometry = avesmapsDebugFetchAll(
             $pdo,
@@ -76,7 +76,7 @@ try {
 
         $samples['selected_geometry'] = $selectedGeometry;
 
-        $territoryId = (int) ($selectedGeometry[0]['territory_id']  0);
+        $territoryId = (int) ($selectedGeometry[0]['territory_id'] ?? 0);
         if ($territoryId > 0 && in_array('political_territory', $tableNames, true)) {
             $samples['selected_territory'] = avesmapsDebugFetchAll(
                 $pdo,
@@ -139,13 +139,13 @@ function avesmapsDebugFetchTerritoryChain(PDO $pdo, int $territoryId): array {
             ['id' => $currentId]
         );
 
-        $row = $rows[0]  null;
+        $row = $rows[0] ?? null;
         if (!$row) {
             break;
         }
 
         array_unshift($chain, $row);
-        $currentId = (int) ($row['parent_id']  0);
+        $currentId = (int) ($row['parent_id'] ?? 0);
     }
 
     return $chain;

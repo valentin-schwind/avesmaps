@@ -11,7 +11,7 @@
 Aufgaben innerhalb von `calculateRoute`:
 
 - Start-/Endpruefung:
-  - `if (!graphData.[startName] || !graphData.[endName]) return [];`
+  - `if (!graphData?.[startName] || !graphData?.[endName]) return [];`
 - UI-Status lesen:
   - `const minimizeTransfers = $("#minimizeTransfers").is(":checked");`
 - Distanztabelle initialisieren:
@@ -25,7 +25,7 @@ Aufgaben innerhalb von `calculateRoute`:
 - Transportoption bestimmen:
   - `const transport = conn.transportOption || getTransportOption(conn.routeType);`
 - Gewicht berechnen:
-  - `useShortestPath  conn.distance : conn.time`
+  - `useShortestPath ? conn.distance : conn.time`
 - Transfer-Penalty anwenden:
   - bei aktiviertem `minimizeTransfers` und Transportwechsel `+ TRANSFER_PENALTY`
 - Vorgaenger rekonstruieren:

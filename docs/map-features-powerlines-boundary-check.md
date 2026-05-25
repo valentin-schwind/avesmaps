@@ -155,7 +155,7 @@ Weitere wichtige externe Abhaengigkeiten:
 
 ## 7. Welche Funktionen vermutlich von aussen gebraucht werden
 
-Durch Aufrufstellen in `index.html`, `js/routing.js`, `js/spotlight-search.js`, `js/review/review-paths.js` und `js/review/review-editor-submit.js` sind mindestens diese Funktionen extern relevant:
+Durch Aufrufstellen in `index.html`, `js/routing.js`, `js/spotlight-search.js`, `js/dialogs-review-paths.js` und `js/dialogs-review-editor-submit.js` sind mindestens diese Funktionen extern relevant:
 
 - `syncPowerlineLabels`
 - `ensurePowerlineAnimationLoop`
@@ -172,7 +172,7 @@ Durch Aufrufstellen in `index.html`, `js/routing.js`, `js/spotlight-search.js`, 
 
 ## 8. Moegliche spaetere Ziel-Datei bewerten
 
-### Option A: `js/map-features/map-features-powerlines.js`
+### Option A: `js/map-features-powerlines.js`
 
 Vorteile:
 
@@ -197,7 +197,7 @@ Nachteile:
 
 ### Bewertung
 
-Fuer den aktuellen klassischen Script-Tag-Aufbau ist **`js/map-features/map-features-powerlines.js` risikoaermer**.
+Fuer den aktuellen klassischen Script-Tag-Aufbau ist **`js/map-features-powerlines.js` risikoaermer**.
 
 ## 9. Noetige Script-Reihenfolge, falls spaeter ausgelagert
 
@@ -205,8 +205,8 @@ Konservativ und risikoarm waere:
 
 1. Basis-/State-/Utility-Skripte
 2. Popup-/Dialog-Helfer, die der Cluster nutzt
-3. `js/map-features/map-features-labels.js` (bereits vorhanden)
-4. `js/map-features/map-features-powerlines.js` (neue Split-Datei)
+3. `js/map-features-labels.js` (bereits vorhanden)
+4. `js/map-features-powerlines.js` (neue Split-Datei)
 5. `js/map-features.js` (Rest-Orchestrator)
 6. nachgelagerte Verbraucher (`js/routing.js`, `js/spotlight-search.js`)
 
@@ -239,10 +239,10 @@ Wichtig:
   - **Ja, als minimaler 1:1-Schnitt** ist der Cluster geeignet.
 
 - **Minimaler spaeterer 1:1-Schnitt:**
-  - exakt die oben gelisteten 30 Powerline-Funktionen nach `js/map-features/map-features-powerlines.js`
+  - exakt die oben gelisteten 30 Powerline-Funktionen nach `js/map-features-powerlines.js`
   - keine zusaetzlichen Location-/Label-/Path-/Region-Funktionen mitnehmen
   - keine Logikaenderung
-  - `js/map-features/map-features-powerlines.js` vor `js/map-features.js` laden
+  - `js/map-features-powerlines.js` vor `js/map-features.js` laden
 
 - **Was vorher klar sein muss:**
   - enger Smoke-Zyklus fuer Powerline-Modus, Animation, Popup-Aktionen, Nodix-Start/Ziel, Erstellen/Loeschen, Live-Update und Konsole

@@ -2,7 +2,7 @@
 
 ## 1. Zusammenfassung
 
-Der Region Operation Chip UI-Helfer `syncRegionOperationChip` wurde als enger 1:1-Extract aus `js/map-features.js` in `js/map-features/map-features-region-operation-chip.js` ausgelagert.
+Der Region Operation Chip UI-Helfer `syncRegionOperationChip` wurde als enger 1:1-Extract aus `js/map-features.js` in `js/map-features-region-operation-chip.js` ausgelagert.
 
 Ziel ist es, die UI-Visualisierung des aktuellen Pending-Region-Operations-Chips zu trennen, während die eigentlichen Pending-Operationen, Move/Split/Boolean-Logik, Preview-Handling und Persistenz im Rest verbleiben.
 
@@ -41,7 +41,7 @@ Diese verbleibenden Funktionen sind eng mit Move/Split/Boolean-Operationen, Geom
 
 ## 4. Script-Reihenfolge
 
-`index.html` lädt `js/map-features/map-features-region-operation-chip.js` nach `js/map-features.js` und vor `js/map-features/map-features-region-context-menu.js`.
+`index.html` lädt `js/map-features-region-operation-chip.js` nach `js/map-features.js` und vor `js/map-features-region-context-menu.js`.
 
 ## 5. Smoke-Plan
 

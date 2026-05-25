@@ -2,7 +2,7 @@
 
 ## Zweck
 
-Dokumentiert den engen 1:1-Extract der Political-Timeline-Helfer aus `js/map-features.js` nach `js/map-features/map-features-political-timeline.js`.
+Dokumentiert den engen 1:1-Extract der Political-Timeline-Helfer aus `js/map-features.js` nach `js/map-features-political-timeline.js`.
 
 ## Verschobene Funktionen
 
@@ -29,7 +29,7 @@ Dokumentiert den engen 1:1-Extract der Political-Timeline-Helfer aus `js/map-fea
 
 ## Script-Reihenfolge
 
-`js/map-features/map-features-political-timeline.js` wird nach `js/map-features.js` und vor `js/map-features/map-features-region-visibility.js` geladen.
+`js/map-features-political-timeline.js` wird nach `js/map-features.js` und vor `js/map-features-region-visibility.js` geladen.
 
 ## Smoke-Plan
 

@@ -126,17 +126,17 @@
 		async function reloadRows() { setBusy(true); try { const payload = await fetchJson(`${API_URL}?action=list`); render(payload, false); setStatus('Testtabelle geladen.'); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
 		async function clearRows() { if (!confirm('political_territory_wiki_test wirklich leeren?')) return; setBusy(true); try { await fetchJson(`${API_URL}?action=clear`, {method: 'POST'}); render({ok: true, items: [], count: 0}, false); setStatus('Testtabelle geleert.'); } catch (error) { setStatus(`Fehler: ${error.message}`); } finally { setBusy(false); } }
 		function render(payload, live) {
-			const items = Array.isArray(payload.items)  payload.items : [];
-			const count = Number(payload.count  items.length);
+			const items = Array.isArray(payload.items) ? payload.items : [];
+			const count = Number(payload.count ?? items.length);
 			els.count.textContent = String(count);
-			if (live && !payload.run) { const elapsed = Math.max(0, Math.round((Date.now() - pollStartedAt) / 1000)); els.iterations.textContent = 'läuft'; els.pages.textContent = String(count); els.childLinks.textContent = '–'; els.runInfo.textContent = `Live-Stand nach ${elapsed}s: ${count} Datensätze${count > startCount  `, +${count - startCount} seit Start` : ''}.`; }
-			else { const summary = runSummary(payload.run, count); els.iterations.textContent = payload.run.iterations  '–'; els.pages.textContent = payload.run.fetched_pages  '–'; els.childLinks.textContent = payload.run.queued_child_links  '–'; els.runInfo.textContent = summary; }
+			if (live && !payload.run) { const elapsed = Math.max(0, Math.round((Date.now() - pollStartedAt) / 1000)); els.iterations.textContent = 'läuft'; els.pages.textContent = String(count); els.childLinks.textContent = '–'; els.runInfo.textContent = `Live-Stand nach ${elapsed}s: ${count} Datensätze${count > startCount ? `, +${count - startCount} seit Start` : ''}.`; }
+			else { const summary = runSummary(payload.run, count); els.iterations.textContent = payload.run?.iterations ?? '–'; els.pages.textContent = payload.run?.fetched_pages ?? '–'; els.childLinks.textContent = payload.run?.queued_child_links ?? '–'; els.runInfo.textContent = summary; }
 			els.rows.innerHTML = '';
 			for (const item of items) {
 				const raw = item.raw || {};
 				const tr = document.createElement('tr');
-				const path = Array.isArray(item.affiliation_path)  item.affiliation_path.join(' > ') : '';
-				tr.innerHTML = `<td><strong>${escapeHtml(item.name || '')}</strong><br><span class="badge ${raw.synthetic  'warn' : 'ok'}">${raw.synthetic  'synthetisch' : 'geholt'}</span></td><td class="coat-cell">${formatCoatCell(item)}</td><td>${escapeHtml(item.type || '')}</td><td>${escapeHtml(item.continent || '')}</td><td>${escapeHtml(path || item.affiliation_root || '')}</td><td>${formatDateCell(item, 'founded')}</td><td>${formatDateCell(item, 'dissolved')}</td><td>${item.wiki_url  `<a href="${escapeAttr(item.wiki_url)}" target="_blank" rel="noreferrer">Wiki</a>` : ''}</td>`;
+				const path = Array.isArray(item.affiliation_path) ? item.affiliation_path.join(' > ') : '';
+				tr.innerHTML = `<td><strong>${escapeHtml(item.name || '')}</strong><br><span class="badge ${raw.synthetic ? 'warn' : 'ok'}">${raw.synthetic ? 'synthetisch' : 'geholt'}</span></td><td class="coat-cell">${formatCoatCell(item)}</td><td>${escapeHtml(item.type || '')}</td><td>${escapeHtml(item.continent || '')}</td><td>${escapeHtml(path || item.affiliation_root || '')}</td><td>${formatDateCell(item, 'founded')}</td><td>${formatDateCell(item, 'dissolved')}</td><td>${item.wiki_url ? `<a href="${escapeAttr(item.wiki_url)}" target="_blank" rel="noreferrer">Wiki</a>` : ''}</td>`;
 				els.rows.appendChild(tr);
 			}
 			els.debug.textContent = JSON.stringify(buildDebug(payload, items), null, '\t');
@@ -159,8 +159,8 @@
 			const hasStart = start !== null && start !== undefined && start !== '';
 			const hasEnd = end !== null && end !== undefined && end !== '';
 			if (!hasStart && !hasEnd) return '';
-			const startLabel = hasStart  formatBfYear(Number(start)) : '';
-			const endLabel = hasEnd  formatBfYear(Number(end)) : '';
+			const startLabel = hasStart ? formatBfYear(Number(start)) : '';
+			const endLabel = hasEnd ? formatBfYear(Number(end)) : '';
 			if (startLabel && endLabel && startLabel !== endLabel) return `${startLabel}–${endLabel}`;
 			return startLabel || endLabel;
 		}
@@ -169,9 +169,9 @@
 			if (value < 0) return `${Math.abs(value)} v. BF`;
 			return `${value} BF`;
 		}
-		function runSummary(run, count) { if (!run) return `Tabellenstand geladen: ${count} Datensätze.`; const errors = Array.isArray(run.errors)  run.errors.length : 0; const events = Array.isArray(run.events)  run.events.length : 0; return `Fertig: ${count} Datensätze, ${run.fetched_pages  0} neu geholt, ${run.skipped_existing  0} übersprungen, ${run.queued_child_links  0} Kinderlinks, ${errors} Fehler, ${events} Ereignisse, ${run.runtime_seconds  '?'}s.`; }
-		function buildDebug(payload, items) { return { run: payload.run || null, rows: items.map(item => { const raw = item.raw || {}; const fields = raw.fields || {}; return { name: item.name || '', wiki_url: item.wiki_url || '', coat_of_arms_url: item.coat_of_arms_url || '', blazon: item.blazon || '', continent: item.continent || '', missing: { type: !(item.type || ''), continent: !(item.continent || ''), coat_of_arms_url: !(item.coat_of_arms_url || ''), path: !(Array.isArray(item.affiliation_path) && item.affiliation_path.length), founded: !(item.founded_text || item.founded_start_bf), dissolved: !(item.dissolved_text || item.dissolved_start_bf) }, relevant_fields: { art: fields.art, typ: fields.typ, staat: fields.staat, staatverlauf: fields.staatverlauf, region: fields.region, gruendungsdatum: fields.gruendungsdatum, gruendung: fields.gruendung, unabhaengigkeit: fields.unabhaengigkeit, aufgeloest: fields.aufgeloest, status: fields.status, blasonierung: fields.blasonierung }, field_keys: Object.keys(fields), path: raw.path || null, temporal: raw.temporal || [], heraldry: raw.heraldry || null, children: raw.children || [] }; }), events: payload.run.events || [], errors: payload.run.errors || [] }; }
-		function escapeHtml(value) { return String(value  '').replace(/[&<>"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char])); }
+		function runSummary(run, count) { if (!run) return `Tabellenstand geladen: ${count} Datensätze.`; const errors = Array.isArray(run.errors) ? run.errors.length : 0; const events = Array.isArray(run.events) ? run.events.length : 0; return `Fertig: ${count} Datensätze, ${run.fetched_pages ?? 0} neu geholt, ${run.skipped_existing ?? 0} übersprungen, ${run.queued_child_links ?? 0} Kinderlinks, ${errors} Fehler, ${events} Ereignisse, ${run.runtime_seconds ?? '?'}s.`; }
+		function buildDebug(payload, items) { return { run: payload.run || null, rows: items.map(item => { const raw = item.raw || {}; const fields = raw.fields || {}; return { name: item.name || '', wiki_url: item.wiki_url || '', coat_of_arms_url: item.coat_of_arms_url || '', blazon: item.blazon || '', continent: item.continent || '', missing: { type: !(item.type || ''), continent: !(item.continent || ''), coat_of_arms_url: !(item.coat_of_arms_url || ''), path: !(Array.isArray(item.affiliation_path) && item.affiliation_path.length), founded: !(item.founded_text || item.founded_start_bf), dissolved: !(item.dissolved_text || item.dissolved_start_bf) }, relevant_fields: { art: fields.art, typ: fields.typ, staat: fields.staat, staatverlauf: fields.staatverlauf, region: fields.region, gruendungsdatum: fields.gruendungsdatum, gruendung: fields.gruendung, unabhaengigkeit: fields.unabhaengigkeit, aufgeloest: fields.aufgeloest, status: fields.status, blasonierung: fields.blasonierung }, field_keys: Object.keys(fields), path: raw.path || null, temporal: raw.temporal || [], heraldry: raw.heraldry || null, children: raw.children || [] }; }), events: payload.run?.events || [], errors: payload.run?.errors || [] }; }
+		function escapeHtml(value) { return String(value ?? '').replace(/[&<>"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[char])); }
 		function escapeAttr(value) { return escapeHtml(value).replace(/'/g, '&#039;'); }
 		els.runBtn.addEventListener('click', runImport);
 		els.reloadBtn.addEventListener('click', reloadRows);

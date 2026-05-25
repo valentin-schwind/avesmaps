@@ -29,17 +29,17 @@
 
 ## 2. Candidate Split Files
 
-### A. `js/review/review-locations.js` (Report + Edit gemeinsam)
+### A. `js/dialogs-review-locations.js` (Report + Edit gemeinsam)
 - Vorteil: gemeinsamer, fachlich konsistenter Dialogbereich (Report + Edit + gemeinsame Koordinatenformatierung).
 - Risiko: mittel (mehr Funktionen, aber weiterhin reiner 1:1-Transfer moeglich).
 - Eignung: gut, wenn strikt nur die Location-Dialogfunktionen verschoben werden.
 
-### B. `js/review/review-location-report.js` (nur Report)
+### B. `js/dialogs-review-location-report.js` (nur Report)
 - Vorteil: sehr klarer Scope.
 - Nachteil: trennt eng gekoppelten gemeinsamen Utility-Teil (`formatLocationReportCoordinates`) von Edit/Review-Nutzung.
 - Eignung: mittel.
 
-### C. `js/review/review-location-edit.js` (nur Edit)
+### C. `js/dialogs-review-location-edit.js` (nur Edit)
 - Vorteil: fokussiert auf Create/Edit-Payload und Formularbefuellung.
 - Nachteil: Edit ist stark mit Review/Wiki-Sync/Crossing-Conversion verzahnt.
 - Eignung: mittel bis niedrig als erster Schritt.
@@ -98,7 +98,7 @@ Wahrscheinlich intern (nur `dialogs-review.js`):
 
 ## 5. Safest Possible First Move
 
-Empfehlung fuer spaeteren ersten Code-Schritt: **Variante A** als enger 1:1-Datei-Split nach `js/review/review-locations.js`.
+Empfehlung fuer spaeteren ersten Code-Schritt: **Variante A** als enger 1:1-Datei-Split nach `js/dialogs-review-locations.js`.
 
 ### Exakt zu verschiebende Funktionen
 - `buildLocationReportRequestPayload`
@@ -116,11 +116,11 @@ Empfehlung fuer spaeteren ersten Code-Schritt: **Variante A** als enger 1:1-Date
 - `buildLocationEditPayload`
 
 ### Script-Reihenfolge (vorgeschlagen)
-- `js/review/review-status.js`
-- `js/review/review-pending.js`
-- `js/review/review-paths.js`
-- `js/review/review-labels.js`
-- `js/review/review-locations.js`
+- `js/dialogs-review-status.js`
+- `js/dialogs-review-pending.js`
+- `js/dialogs-review-paths.js`
+- `js/dialogs-review-labels.js`
+- `js/dialogs-review-locations.js`
 - `js/dialogs-review.js`
 
 Begruendung: reine Funktionsdefinitionen; Abhaengigkeiten duerfen spaeter aufgeloest werden, solange kein Top-Level-Code in der neuen Datei laeuft.
@@ -150,6 +150,6 @@ Begruendung: reine Funktionsdefinitionen; Abhaengigkeiten duerfen spaeter aufgel
 ## 8. Recommendation
 
 - **Location-Split ist als naechster Split geeignet.**
-- **Report und Edit sollten im ersten Schritt gemeinsam** in `js/review/review-locations.js` ausgelagert werden (kleinster konsistenter fachlicher Schnitt ohne neue Querschnittsdateien).
+- **Report und Edit sollten im ersten Schritt gemeinsam** in `js/dialogs-review-locations.js` ausgelagert werden (kleinster konsistenter fachlicher Schnitt ohne neue Querschnittsdateien).
 - Vor Umsetzung: kein weiterer Bereich parallel splitten.
 - Nach Umsetzung: gezielter Location-Smoke, dann erst den naechsten Subcluster analysieren.

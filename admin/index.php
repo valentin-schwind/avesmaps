@@ -5,14 +5,14 @@ declare(strict_types=1);
 require __DIR__ . '/../api/auth.php';
 
 $config = avesmapsLoadApiConfig(dirname(__DIR__) . '/api');
-$pdo = avesmapsCreatePdo($config['database']  []);
+$pdo = avesmapsCreatePdo($config['database'] ?? []);
 $loginError = '';
 $adminMessage = '';
 $adminError = '';
 
-$requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD']  'GET'));
+$requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 if ($requestMethod === 'POST') {
-    $action = avesmapsNormalizeSingleLine((string) ($_POST['action']  'login'), 30);
+    $action = avesmapsNormalizeSingleLine((string) ($_POST['action'] ?? 'login'), 30);
 
     try {
         if ($action === 'logout') {
@@ -22,7 +22,7 @@ if ($requestMethod === 'POST') {
         }
 
         if ($action === 'login') {
-            $user = avesmapsLogin($pdo, (string) ($_POST['username']  ''), (string) ($_POST['password']  ''));
+            $user = avesmapsLogin($pdo, (string) ($_POST['username'] ?? ''), (string) ($_POST['password'] ?? ''));
             if ($user !== null && avesmapsUserCan($user, 'admin')) {
                 header('Location: ./');
                 exit;
@@ -53,7 +53,7 @@ if ($requestMethod === 'POST') {
 
 $currentUser = avesmapsCurrentUser();
 $isAdmin = $currentUser !== null && avesmapsUserCan($currentUser, 'admin');
-$users = $isAdmin  avesmapsAdminFetchUsers($pdo) : [];
+$users = $isAdmin ? avesmapsAdminFetchUsers($pdo) : [];
 
 function avesmapsAdminFetchUsers(PDO $pdo): array {
     $statement = $pdo->query(
@@ -66,11 +66,11 @@ function avesmapsAdminFetchUsers(PDO $pdo): array {
 }
 
 function avesmapsAdminSaveUser(PDO $pdo): void {
-    $userId = filter_var($_POST['user_id']  null, FILTER_VALIDATE_INT);
-    $username = avesmapsNormalizeSingleLine((string) ($_POST['username']  ''), 80);
-    $role = avesmapsValidateRole((string) ($_POST['role']  'editor'));
-    $isActive = isset($_POST['is_active'])  1 : 0;
-    $password = (string) ($_POST['password']  '');
+    $userId = filter_var($_POST['user_id'] ?? null, FILTER_VALIDATE_INT);
+    $username = avesmapsNormalizeSingleLine((string) ($_POST['username'] ?? ''), 80);
+    $role = avesmapsValidateRole((string) ($_POST['role'] ?? 'editor'));
+    $isActive = isset($_POST['is_active']) ? 1 : 0;
+    $password = (string) ($_POST['password'] ?? '');
 
     if ($username === '') {
         throw new InvalidArgumentException('Der Benutzername fehlt.');
@@ -131,7 +131,7 @@ function avesmapsAdminSaveUser(PDO $pdo): void {
 }
 
 function avesmapsAdminDeleteUser(PDO $pdo, array $currentUser): void {
-    $userId = filter_var($_POST['user_id']  null, FILTER_VALIDATE_INT);
+    $userId = filter_var($_POST['user_id'] ?? null, FILTER_VALIDATE_INT);
     if ($userId === false || $userId === null) {
         throw new InvalidArgumentException('Der Benutzer fehlt.');
     }
@@ -164,7 +164,7 @@ function avesmapsHashAdminPassword(string $password): string {
 function avesmapsAdminRoleOptions(string $selectedRole): string {
     $html = '';
     foreach (AVESMAPS_AUTH_ROLES as $role) {
-        $selectedAttribute = $role === $selectedRole  ' selected' : '';
+        $selectedAttribute = $role === $selectedRole ? ' selected' : '';
         $escapedRole = htmlspecialchars($role, ENT_QUOTES, 'UTF-8');
         $html .= "<option value=\"{$escapedRole}\"{$selectedAttribute}>{$escapedRole}</option>";
     }
@@ -262,7 +262,7 @@ function avesmapsAdminRoleOptions(string $selectedRole): string {
                                 <input type="password" name="password" minlength="12" placeholder="unveraendert" />
                             </label>
                             <label class="admin-checkbox">
-                                <input type="checkbox" name="is_active" <?php echo (int) $user['is_active'] === 1  'checked' : ''; ?> />
+                                <input type="checkbox" name="is_active" <?php echo (int) $user['is_active'] === 1 ? 'checked' : ''; ?> />
                                 <span>aktiv</span>
                             </label>
                             <button type="submit" name="action" value="save_user">Speichern</button>

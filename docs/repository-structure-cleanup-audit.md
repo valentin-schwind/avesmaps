@@ -240,16 +240,16 @@ Ein Style darf nur ausgelagert werden, wenn:
 Ziel:
 
 ```text
-js/map-features/map-features-labels.js                  -> js/map-features/labels.js
-js/map-features/map-features-powerlines.js              -> js/map-features/powerlines.js
-js/map-features/map-features-layer-state.js             -> js/map-features/layer-state.js
-js/map-features/map-features-display-mode.js            -> js/map-features/display-mode.js
-js/map-features/map-features-share-pin.js               -> js/map-features/share-pin.js
-js/map-features/map-features-waypoints.js               -> js/map-features/waypoints.js
-js/map-features/map-features-location-name-labels.js    -> js/map-features/location-name-labels.js
-js/map-features/map-features-path-domain.js             -> js/map-features/path-domain.js
-js/map-features/map-features-path-labels.js             -> js/map-features/path-labels.js
-js/map-features/map-features-path-rendering.js          -> js/map-features/path-rendering.js
+js/map-features-labels.js                  -> js/map-features/labels.js
+js/map-features-powerlines.js              -> js/map-features/powerlines.js
+js/map-features-layer-state.js             -> js/map-features/layer-state.js
+js/map-features-display-mode.js            -> js/map-features/display-mode.js
+js/map-features-share-pin.js               -> js/map-features/share-pin.js
+js/map-features-waypoints.js               -> js/map-features/waypoints.js
+js/map-features-location-name-labels.js    -> js/map-features/location-name-labels.js
+js/map-features-path-domain.js             -> js/map-features/path-domain.js
+js/map-features-path-labels.js             -> js/map-features/path-labels.js
+js/map-features-path-rendering.js          -> js/map-features/path-rendering.js
 ```
 
 Nicht verschieben:
@@ -280,8 +280,8 @@ Erst nach erfolgreichem Schritt 1.
 Ziel:
 
 ```text
-js/review/review-core.js       -> js/dialogs-review/core.js
-js/review/review-status.js     -> js/dialogs-review/status.js
+js/dialogs-review-core.js       -> js/dialogs-review/core.js
+js/dialogs-review-status.js     -> js/dialogs-review/status.js
 ...
 ```
 

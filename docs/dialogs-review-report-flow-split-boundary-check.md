@@ -63,30 +63,30 @@ Nicht Teil dieses Splits:
 
 Dateiname:
 
-- `js/review/review-report-flow.js`
+- `js/dialogs-review-report-flow.js`
 
 Script-Reihenfolge in `index.html`:
 
-1. `js/review/review-core.js`
-2. `js/review/review-status.js`
-3. `js/review/review-pending.js`
-4. `js/review/review-paths.js`
-5. `js/review/review-labels.js`
-6. `js/review/review-locations.js`
-7. `js/review/review-panels.js`
-8. `js/review/review-wiki-sync.js`
-9. `js/review/review-region-wiki-picker.js`
-10. `js/review/review-region-basics.js`
-11. `js/review/review-region-parent-tree.js`
-12. `js/review/review-region-assignment-state.js`
-13. `js/review/review-region-assignment-ui.js`
-14. `js/review/review-region-tabs-payload.js`
-15. `js/review/review-region-save-flow.js`
-16. `js/review/review-region-dialog-population.js`
-17. `js/review/review-region-submit-flow.js`
-18. `js/review/review-region-events.js`
-19. `js/review/review-editor-submit.js`
-20. `js/review/review-report-flow.js`
+1. `js/dialogs-review-core.js`
+2. `js/dialogs-review-status.js`
+3. `js/dialogs-review-pending.js`
+4. `js/dialogs-review-paths.js`
+5. `js/dialogs-review-labels.js`
+6. `js/dialogs-review-locations.js`
+7. `js/dialogs-review-panels.js`
+8. `js/dialogs-review-wiki-sync.js`
+9. `js/dialogs-review-region-wiki-picker.js`
+10. `js/dialogs-review-region-basics.js`
+11. `js/dialogs-review-region-parent-tree.js`
+12. `js/dialogs-review-region-assignment-state.js`
+13. `js/dialogs-review-region-assignment-ui.js`
+14. `js/dialogs-review-region-tabs-payload.js`
+15. `js/dialogs-review-region-save-flow.js`
+16. `js/dialogs-review-region-dialog-population.js`
+17. `js/dialogs-review-region-submit-flow.js`
+18. `js/dialogs-review-region-events.js`
+19. `js/dialogs-review-editor-submit.js`
+20. `js/dialogs-review-report-flow.js`
 21. `js/dialogs-review.js`
 
 Begruendung: Report-Flow-Funktionen werden von verbleibenden Event-/Init-Flows referenziert und benoetigen vorher geladene Location-/Label-/Panel-/Status-/Pending-Helfer.
@@ -128,41 +128,41 @@ git pull --ff-only origin master
 
 Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split des Review-/Location-Report-Flows aus js/dialogs-review.js in eine neue Datei js/review/review-report-flow.js.
+Ziel: kontrollierter, verhaltensneutraler Split des Review-/Location-Report-Flows aus js/dialogs-review.js in eine neue Datei js/dialogs-review-report-flow.js.
 
 Erlaubte Änderungen:
 - js/dialogs-review.js
-- neue Datei js/review/review-report-flow.js
+- neue Datei js/dialogs-review-report-flow.js
 - index.html
 - docs/refactoring-status.md
 
 Nicht ändern:
-- js/review/review-core.js
-- js/review/review-status.js
-- js/review/review-pending.js
-- js/review/review-paths.js
-- js/review/review-labels.js
-- js/review/review-locations.js
-- js/review/review-panels.js
-- js/review/review-wiki-sync.js
-- js/review/review-region-wiki-picker.js
-- js/review/review-region-basics.js
-- js/review/review-region-parent-tree.js
-- js/review/review-region-assignment-state.js
-- js/review/review-region-assignment-ui.js
-- js/review/review-region-tabs-payload.js
-- js/review/review-region-save-flow.js
-- js/review/review-region-dialog-population.js
-- js/review/review-region-submit-flow.js
-- js/review/review-region-events.js
-- js/review/review-editor-submit.js
+- js/dialogs-review-core.js
+- js/dialogs-review-status.js
+- js/dialogs-review-pending.js
+- js/dialogs-review-paths.js
+- js/dialogs-review-labels.js
+- js/dialogs-review-locations.js
+- js/dialogs-review-panels.js
+- js/dialogs-review-wiki-sync.js
+- js/dialogs-review-region-wiki-picker.js
+- js/dialogs-review-region-basics.js
+- js/dialogs-review-region-parent-tree.js
+- js/dialogs-review-region-assignment-state.js
+- js/dialogs-review-region-assignment-ui.js
+- js/dialogs-review-region-tabs-payload.js
+- js/dialogs-review-region-save-flow.js
+- js/dialogs-review-region-dialog-population.js
+- js/dialogs-review-region-submit-flow.js
+- js/dialogs-review-region-events.js
+- js/dialogs-review-editor-submit.js
 - Routing-Dateien
 - popups.js
 - ui-controls.js
 - map-features.js
 - API-/PHP-/SQL-Dateien
 
-Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/review/review-report-flow.js, unverändert und in sinnvoller Reihenfolge:
+Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/dialogs-review-report-flow.js, unverändert und in sinnvoller Reihenfolge:
 - openLocationEditDialogFromReport
 - openLabelEditDialogFromReport
 - rejectReviewReport
@@ -185,7 +185,7 @@ Nicht verschieben:
 
 Falls beim Verschieben weitere Funktionen zwingend mitgenommen werden müssten, stoppe und berichte statt eigenständig den Scope zu erweitern.
 
-Neue Datei js/review/review-report-flow.js:
+Neue Datei js/dialogs-review-report-flow.js:
 - enthält nur Funktionsdefinitionen
 - keine Top-Level-Ausführung
 - keine Event-Bindings
@@ -195,44 +195,44 @@ Neue Datei js/review/review-report-flow.js:
 
 index.html:
 - Script-Reihenfolge erweitern:
-  1. js/review/review-core.js
-  2. js/review/review-status.js
-  3. js/review/review-pending.js
-  4. js/review/review-paths.js
-  5. js/review/review-labels.js
-  6. js/review/review-locations.js
-  7. js/review/review-panels.js
-  8. js/review/review-wiki-sync.js
-  9. js/review/review-region-wiki-picker.js
-  10. js/review/review-region-basics.js
-  11. js/review/review-region-parent-tree.js
-  12. js/review/review-region-assignment-state.js
-  13. js/review/review-region-assignment-ui.js
-  14. js/review/review-region-tabs-payload.js
-  15. js/review/review-region-save-flow.js
-  16. js/review/review-region-dialog-population.js
-  17. js/review/review-region-submit-flow.js
-  18. js/review/review-region-events.js
-  19. js/review/review-editor-submit.js
-  20. js/review/review-report-flow.js
+  1. js/dialogs-review-core.js
+  2. js/dialogs-review-status.js
+  3. js/dialogs-review-pending.js
+  4. js/dialogs-review-paths.js
+  5. js/dialogs-review-labels.js
+  6. js/dialogs-review-locations.js
+  7. js/dialogs-review-panels.js
+  8. js/dialogs-review-wiki-sync.js
+  9. js/dialogs-review-region-wiki-picker.js
+  10. js/dialogs-review-region-basics.js
+  11. js/dialogs-review-region-parent-tree.js
+  12. js/dialogs-review-region-assignment-state.js
+  13. js/dialogs-review-region-assignment-ui.js
+  14. js/dialogs-review-region-tabs-payload.js
+  15. js/dialogs-review-region-save-flow.js
+  16. js/dialogs-review-region-dialog-population.js
+  17. js/dialogs-review-region-submit-flow.js
+  18. js/dialogs-review-region-events.js
+  19. js/dialogs-review-editor-submit.js
+  20. js/dialogs-review-report-flow.js
   21. js/dialogs-review.js
 
 docs/refactoring-status.md:
 - Editor-Submit-Smoke als bestanden markieren
-- neuen stabilen Split js/review/review-report-flow.js dokumentieren
+- neuen stabilen Split js/dialogs-review-report-flow.js dokumentieren
 - Smoke-Test-Empfehlung Report-Flow ergänzen
 - klar festhalten, dass Dialog-Reset/Open-State-Helfer, Validatoren und Init-/Bootstrapping-Logik nicht Teil dieses Splits waren
 
 Checks lokal ausführen:
 - Suche nach doppelten Funktionsdefinitionen der verschobenen Funktionen.
-- Suche nach fehlender Referenz/Typo bei js/review/review-report-flow.js in index.html.
+- Suche nach fehlender Referenz/Typo bei js/dialogs-review-report-flow.js in index.html.
 - Syntaxprüfung:
-  - node --check js/review/review-report-flow.js
+  - node --check js/dialogs-review-report-flow.js
   - node --check js/dialogs-review.js
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/review/review-report-flow.js docs/refactoring-status.md
+- git add index.html js/dialogs-review.js js/dialogs-review-report-flow.js docs/refactoring-status.md
 - git commit -m "Split dialog review report flow helpers"
 - git push
 

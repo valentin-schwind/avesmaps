@@ -95,7 +95,7 @@ Angrenzende Kollisionslogik (nur Abhaengigkeit, nicht Teil dieses Clusters):
 ## 7. Vermutlich extern benoetigte Funktionen
 Ausserhalb von `map-features.js` verwendet:
 - `addLocationNameLabel(...)` (z. B. in `js/routing.js`)
-- `ensureLocationNameLabel(...)` (z. B. in `js/review/review-editor-submit.js`)
+- `ensureLocationNameLabel(...)` (z. B. in `js/dialogs-review-editor-submit.js`)
 - `syncLocationNameLabelVisibility()` (z. B. in `js/routing.js`, intern vielfach)
 
 Primär intern genutzt, aber weiter global verfuegbar:
@@ -106,8 +106,8 @@ Primär intern genutzt, aber weiter global verfuegbar:
 - `getLocationNameLabelOffset(...)`
 - `getLocationNameLabelSize(...)`
 
-## 8. Abhaengigkeit zu freien Labels (`js/map-features/map-features-labels.js`)
-- Freie Labels sind bereits nach `js/map-features/map-features-labels.js` ausgelagert (`labelData`, `labelMarkers`, freie Label-CRUD/Visibility/Icon-Flow).
+## 8. Abhaengigkeit zu freien Labels (`js/map-features-labels.js`)
+- Freie Labels sind bereits nach `js/map-features-labels.js` ausgelagert (`labelData`, `labelMarkers`, freie Label-CRUD/Visibility/Icon-Flow).
 - Ortsnamenlabels arbeiten weiterhin mit separatem State (`locationNameLabels`) und eigener Icon-/Lifecycle-Logik.
 - Beruehrungspunkt freie Labels <-> Ortsnamenlabels ist vor allem die Kollisionslogik in `map-features.js`:
   - `getCollisionEntries()` kombiniert `labelMarkers` (freie Labels) und `locationNameLabels` (Ortsnamenlabels).
@@ -115,19 +115,19 @@ Primär intern genutzt, aber weiter global verfuegbar:
 
 ## 9. Moegliche spaetere Ziel-Datei
 Bewertung:
-- `js/map-features/map-features-location-name-labels.js`: **risikoaermer**
+- `js/map-features-location-name-labels.js`: **risikoaermer**
   - klare fachliche Trennung (freie Labels vs. Ortsnamenlabels)
   - keine Aufweichung des bereits stabilisierten Free-Label-Splits
-- Erweiterung von `js/map-features/map-features-labels.js`: hoeheres Risiko
+- Erweiterung von `js/map-features-labels.js`: hoeheres Risiko
   - mischt zwei verschiedene Label-Subdomänen wieder zusammen
   - erschwert spaetere, getrennte Aenderungen und Smoke-Zyklen
 
 ## 10. Nötige Script-Reihenfolge bei spaeterer Auslagerung
 Risikoarme Reihenfolge (klassische globale Scripts):
-1. `js/map-features/map-features-labels.js`
-2. `js/map-features/map-features-powerlines.js`
-3. `js/map-features/map-features-layer-state.js`
-4. `js/map-features/map-features-location-name-labels.js` (neu)
+1. `js/map-features-labels.js`
+2. `js/map-features-powerlines.js`
+3. `js/map-features-layer-state.js`
+4. `js/map-features-location-name-labels.js` (neu)
 5. `js/map-features.js`
 
 Begruendung:
@@ -153,7 +153,7 @@ Begruendung:
 
 ## 12. Empfehlung
 - **Jetzt kein Code-Split direkt nach dieser Analyse.**
-- Erstes sinnvolles Folgefenster: kleiner, 1:1-Split **nur** des Ortsnamenlabel-Clusters (die 10 oben gelisteten Konstanten/Funktionen) nach `js/map-features/map-features-location-name-labels.js`.
+- Erstes sinnvolles Folgefenster: kleiner, 1:1-Split **nur** des Ortsnamenlabel-Clusters (die 10 oben gelisteten Konstanten/Funktionen) nach `js/map-features-location-name-labels.js`.
 - Kollisionslogik (`getCollisionEntries`, `resolveLabelCollisions`, Offsets/Prioritaeten) vorerst in `js/map-features.js` belassen und nur als bestehende Abhaengigkeit nutzen.
 - Vorarbeit vor Code-Split:
   - enger Smoke-Plan fuer Location-Lifecycle + Label-Sichtbarkeit + Collision-Verhalten

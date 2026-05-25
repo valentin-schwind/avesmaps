@@ -16,7 +16,7 @@ try {
         ]);
     }
 
-    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD']  'GET'));
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
     if ($requestMethod === 'OPTIONS') {
         avesmapsJsonResponse(204);
     }
@@ -29,7 +29,7 @@ try {
     }
 
     $user = avesmapsRequireUserWithCapability('review');
-    $pdo = avesmapsCreatePdo($config['database']  []);
+    $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsEnsureEditorPresenceTable($pdo);
 
     if ($requestMethod === 'POST') {
@@ -86,10 +86,10 @@ function avesmapsWriteEditorPresenceHeartbeat(PDO $pdo, array $user): void {
     );
     $statement->execute([
         'user_id' => (int) $user['id'],
-        'username' => (string) ($user['username']  'Editor'),
-        'role' => (string) ($user['role']  ''),
-        'request_origin' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_ORIGIN']  ''), 255),
-        'user_agent' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_USER_AGENT']  ''), 500),
+        'username' => (string) ($user['username'] ?? 'Editor'),
+        'role' => (string) ($user['role'] ?? ''),
+        'request_origin' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_ORIGIN'] ?? ''), 255),
+        'user_agent' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 500),
     ]);
 }
 
@@ -118,8 +118,8 @@ function avesmapsListOnlineEditors(PDO $pdo): array {
             'id' => (int) $row['user_id'],
             'username' => (string) $row['username'],
             'role' => (string) $row['role'],
-            'last_seen' => $row['last_seen'] !== null  (string) $row['last_seen'] : null,
-            'seconds_since_seen' => $row['seconds_since_seen'] !== null  (int) $row['seconds_since_seen'] : null,
+            'last_seen' => $row['last_seen'] !== null ? (string) $row['last_seen'] : null,
+            'seconds_since_seen' => $row['seconds_since_seen'] !== null ? (int) $row['seconds_since_seen'] : null,
             'is_online' => (int) $row['is_online'] === 1,
         ],
         $statement->fetchAll()

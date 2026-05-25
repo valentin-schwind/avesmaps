@@ -120,8 +120,8 @@ Per grep identifizierte Aufrufer:
 - `preparePathData`
   - `js/routing.js`
 - `addCreatedPathFeature`
-  - `js/map-features/map-features-path-creation.js`
-  - `js/map-features/map-features-path-geometry-editing.js`
+  - `js/map-features-path-creation.js`
+  - `js/map-features-path-geometry-editing.js`
 - `applyLivePathFeature`
   - intern in `applyLiveMapFeatureUpdate`
 - `findPathByPublicId`
@@ -130,10 +130,10 @@ Per grep identifizierte Aufrufer:
 - `syncPathRendering`
   - keine externen Treffer, aktuell interner Utility-Helfer
 - `applyPathFeatureResponse`
-  - `js/map-features/map-features-path-geometry-editing.js`
+  - `js/map-features-path-geometry-editing.js`
   - intern in `applyLivePathFeature`
 - `removePathFeature`
-  - `js/map-features/map-features-path-geometry-editing.js`
+  - `js/map-features-path-geometry-editing.js`
   - intern in `removeLiveFeature` und `deletePathFeature`
 - `deletePathFeature`
   - `js/routing.js`
@@ -168,7 +168,7 @@ Darf die neue Datei Top-Level-Ausfuehrung enthalten?
 ## 9. Vorgeschlagene Zieldatei
 Empfohlener Name fuer den ersten Schritt:
 
-- `js/map-features/map-features-path-updates.js`
+- `js/map-features-path-updates.js`
 
 Begruendung:
 
@@ -177,18 +177,18 @@ Begruendung:
 
 Alternativen:
 
-- `js/map-features/map-features-path-lifecycle.js` fuer spaeteren groesseren Scope
-- `js/map-features/map-features-path-crud.js` erst sinnvoll, wenn Delete-Flow mit Boundary sauber entschieden ist
+- `js/map-features-path-lifecycle.js` fuer spaeteren groesseren Scope
+- `js/map-features-path-crud.js` erst sinnvoll, wenn Delete-Flow mit Boundary sauber entschieden ist
 
 ## 10. Script-Reihenfolge
 Falls spaeter umgesetzt, sichere Position:
 
-- nach `js/map-features/map-features-path-geometry-editing.js`
+- nach `js/map-features-path-geometry-editing.js`
 - vor `js/map-features.js`
 
 Begruendung:
 
-- `js/map-features/map-features-path-creation.js` und `js/map-features/map-features-path-geometry-editing.js` nutzen `addCreatedPathFeature`, `applyPathFeatureResponse`, `removePathFeature`.
+- `js/map-features-path-creation.js` und `js/map-features-path-geometry-editing.js` nutzen `addCreatedPathFeature`, `applyPathFeatureResponse`, `removePathFeature`.
 - Diese Funktionen muessen vor der Laufzeitnutzung global verfuegbar sein.
 
 ## 11. Risiko

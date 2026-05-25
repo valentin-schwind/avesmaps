@@ -21,52 +21,52 @@ Diese Bereiche bleiben stabil:
   - `buildRouteResultFromSelectedLocations(useShortest)`
 - `js/popups.js` mit lokalem Helper `pathCreationActionButtonsMarkup(publicId)`.
 - `js/ui-controls.js` mit lokalem Helper `bindPersistedTabClickHandler(...)`.
-- Dialog-/Review-Bereich mit den bereits stabilen `js/review/review-*`-Schichten.
+- Dialog-/Review-Bereich mit den bereits stabilen `js/dialogs-review-*`-Schichten.
 
 ## 3. Stable `map-features` Splits
 
 Folgende Dateien sind stabile Splits aus `js/map-features.js`:
 
-- `js/map-features/map-features-labels.js` fuer freie Kartenlabels.
-- `js/map-features/map-features-powerlines.js` fuer Kraftlinien-/Powerline-Helfer.
-- `js/map-features/map-features-layer-state.js` fuer URL-/Planner-State-Helfer.
-- `js/map-features/map-features-display-mode.js` fuer den engen Display-/Layer-Mode-Schnitt.
-- `js/map-features/map-features-location-marker-rendering.js` fuer Location-Marker-Rendering, Zoom-Skalierung und Sichtbarkeit.
-- `js/map-features/map-features-feature-state.js` fuer Feature-Revisionen, Expected-Revisions und Softlocks.
-- `js/map-features/map-features-share-pin.js` fuer Share-Pin-/Clipboard-Helfer.
-- `js/map-features/map-features-waypoints.js` fuer Waypoint-UI-Helfer.
-- `js/map-features/map-features-location-name-labels.js` fuer Ortsnamenlabel-Helfer.
-- `js/map-features/map-features-label-collisions.js` fuer Label-Kollisionsauflosung zwischen freien Labels und Ortsnamenlabels.
-- `js/map-features/map-features-path-domain.js` fuer Path-Domain-/Basis-Helper.
-- `js/map-features/map-features-path-labels.js` fuer Weg-/Pfad-Textlabel-Helfer.
-- `js/map-features/map-features-path-rendering.js` fuer Path-Rendering-Core-Helfer.
-- `js/map-features/map-features-path-prepare.js` fuer den engen Path-Prepare-Teilschnitt.
-- `js/map-features/map-features-path-creation.js` fuer Path-Creation-Helfer.
-- `js/map-features/map-features-path-geometry-editing.js` fuer Path-Geometry-Editing-Helfer.
-- `js/map-features/map-features-path-lifecycle.js` fuer den engen Path-Apply/Live-Teilschnitt.
-- `js/map-features/map-features-feature-dispatcher.js` fuer den engen Feature-Response-Dispatcher-Teilschnitt.
-- `js/map-features/map-features-region-visibility.js` fuer den engen Region-Visibility-Teilschnitt.
-- `js/map-features/map-features-political-timeline.js` fuer den engen Political-Timeline-Teilschnitt.
-- `js/map-features/map-features-political-territory-loader.js` fuer den engen Political-Territory Loader/Reload-Teilschnitt.
-- `js/map-features/map-features-region-context-menu.js` fuer den engen Region Context Menu DOM/State-Teilschnitt.
-- `js/map-features/map-features-region-operation-chip.js` fuer den engen Region Operation Chip UI-Teilschnitt.
-- `js/map-features/map-features-location-lookup.js` fuer den engen Location Lookup/Type/Naming-Helper.
-- `js/map-features/map-features-location-marker-entry.js` fuer den engen Location Marker Entry/Popup-Helper.
-- `js/map-features/map-features-region-info-markup.js` fuer den engen Region Info/Tooltip Markup-Teilschnitt.
-- `js/map-features/map-features-region-feature-normalization.js` fuer den engen Region Feature Normalization-Helper.
-- `js/map-features/map-features-region-geometry-helpers.js` fuer den engen Region Geometry Helper-Teilschnitt.
-- `js/map-features/map-features-region-split-preview.js` fuer den engen Region Split Preview-Helfer.
-- `js/map-features/map-features-region-pending-highlight.js` fuer den engen Region Pending Target Highlight-Teilschnitt.
-- `js/map-features/map-features-region-rendering.js` fuer den engen Region Rendering-Orchestrator-Teilschnitt.
-- `js/map-features/map-features-region-tooltip-lifecycle.js` fuer den engen Region Tooltip Lifecycle-Teilschnitt.
-- `js/map-features/map-features-region-boolean-geometry.js` fuer den engen Region Boolean Geometry-Teilschnitt.
-- `js/map-features/map-features-region-payload-builders.js` fuer den engen Region API Payload Builder-Teilschnitt.
-- `js/map-features/map-features-political-territory-repository.js` fuer den engen Political Territory Repository-Teilschnitt.
-- `js/map-features/map-features-region-operation-pipeline.js` fuer den engen Region Operation Pipeline-Teilschnitt.
-- `js/map-features/map-features-region-edit-edge-controls.js` fuer den engen Region Edit Edge Controls-Teilschnitt.
-- `js/map-features/map-features-region-edit-handles.js` fuer den engen Region Edit Handles-Teilschnitt.
-- `js/map-features/map-features-region-geometry-edit-lifecycle.js` fuer den engen Region Geometry Edit Lifecycle-Teilschnitt.
-- `js/map-features/map-features-region-overlap-selection.js` fuer den engen Region Overlap Selection-Teilschnitt.
+- `js/map-features-labels.js` fuer freie Kartenlabels.
+- `js/map-features-powerlines.js` fuer Kraftlinien-/Powerline-Helfer.
+- `js/map-features-layer-state.js` fuer URL-/Planner-State-Helfer.
+- `js/map-features-display-mode.js` fuer den engen Display-/Layer-Mode-Schnitt.
+- `js/map-features-location-marker-rendering.js` fuer Location-Marker-Rendering, Zoom-Skalierung und Sichtbarkeit.
+- `js/map-features-feature-state.js` fuer Feature-Revisionen, Expected-Revisions und Softlocks.
+- `js/map-features-share-pin.js` fuer Share-Pin-/Clipboard-Helfer.
+- `js/map-features-waypoints.js` fuer Waypoint-UI-Helfer.
+- `js/map-features-location-name-labels.js` fuer Ortsnamenlabel-Helfer.
+- `js/map-features-label-collisions.js` fuer Label-Kollisionsauflosung zwischen freien Labels und Ortsnamenlabels.
+- `js/map-features-path-domain.js` fuer Path-Domain-/Basis-Helper.
+- `js/map-features-path-labels.js` fuer Weg-/Pfad-Textlabel-Helfer.
+- `js/map-features-path-rendering.js` fuer Path-Rendering-Core-Helfer.
+- `js/map-features-path-prepare.js` fuer den engen Path-Prepare-Teilschnitt.
+- `js/map-features-path-creation.js` fuer Path-Creation-Helfer.
+- `js/map-features-path-geometry-editing.js` fuer Path-Geometry-Editing-Helfer.
+- `js/map-features-path-lifecycle.js` fuer den engen Path-Apply/Live-Teilschnitt.
+- `js/map-features-feature-dispatcher.js` fuer den engen Feature-Response-Dispatcher-Teilschnitt.
+- `js/map-features-region-visibility.js` fuer den engen Region-Visibility-Teilschnitt.
+- `js/map-features-political-timeline.js` fuer den engen Political-Timeline-Teilschnitt.
+- `js/map-features-political-territory-loader.js` fuer den engen Political-Territory Loader/Reload-Teilschnitt.
+- `js/map-features-region-context-menu.js` fuer den engen Region Context Menu DOM/State-Teilschnitt.
+- `js/map-features-region-operation-chip.js` fuer den engen Region Operation Chip UI-Teilschnitt.
+- `js/map-features-location-lookup.js` fuer den engen Location Lookup/Type/Naming-Helper.
+- `js/map-features-location-marker-entry.js` fuer den engen Location Marker Entry/Popup-Helper.
+- `js/map-features-region-info-markup.js` fuer den engen Region Info/Tooltip Markup-Teilschnitt.
+- `js/map-features-region-feature-normalization.js` fuer den engen Region Feature Normalization-Helper.
+- `js/map-features-region-geometry-helpers.js` fuer den engen Region Geometry Helper-Teilschnitt.
+- `js/map-features-region-split-preview.js` fuer den engen Region Split Preview-Helfer.
+- `js/map-features-region-pending-highlight.js` fuer den engen Region Pending Target Highlight-Teilschnitt.
+- `js/map-features-region-rendering.js` fuer den engen Region Rendering-Orchestrator-Teilschnitt.
+- `js/map-features-region-tooltip-lifecycle.js` fuer den engen Region Tooltip Lifecycle-Teilschnitt.
+- `js/map-features-region-boolean-geometry.js` fuer den engen Region Boolean Geometry-Teilschnitt.
+- `js/map-features-region-payload-builders.js` fuer den engen Region API Payload Builder-Teilschnitt.
+- `js/map-features-political-territory-repository.js` fuer den engen Political Territory Repository-Teilschnitt.
+- `js/map-features-region-operation-pipeline.js` fuer den engen Region Operation Pipeline-Teilschnitt.
+- `js/map-features-region-edit-edge-controls.js` fuer den engen Region Edit Edge Controls-Teilschnitt.
+- `js/map-features-region-edit-handles.js` fuer den engen Region Edit Handles-Teilschnitt.
+- `js/map-features-region-geometry-edit-lifecycle.js` fuer den engen Region Geometry Edit Lifecycle-Teilschnitt.
+- `js/map-features-region-overlap-selection.js` fuer den engen Region Overlap Selection-Teilschnitt.
 
 Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurden nachgelagert mit gezielten Browser-Smokes oder Abschlusspruefungen bewertet.
 
@@ -74,47 +74,47 @@ Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurde
 
 `index.html` laedt den Map-Features-Bereich in dieser Reihenfolge:
 
-1. `js/map-features/map-features-labels.js`
-2. `js/map-features/map-features-powerlines.js`
-3. `js/map-features/map-features-layer-state.js`
-4. `js/map-features/map-features-display-mode.js`
-5. `js/map-features/map-features-location-marker-rendering.js`
-6. `js/map-features/map-features-feature-state.js`
-7. `js/map-features/map-features-share-pin.js`
-8. `js/map-features/map-features-waypoints.js`
-9. `js/map-features/map-features-location-name-labels.js`
-10. `js/map-features/map-features-label-collisions.js`
-11. `js/map-features/map-features-path-domain.js`
-12. `js/map-features/map-features-path-labels.js`
-13. `js/map-features/map-features-path-rendering.js`
-14. `js/map-features/map-features-path-prepare.js`
-15. `js/map-features/map-features-path-creation.js`
-16. `js/map-features/map-features-path-geometry-editing.js`
-17. `js/map-features/map-features-path-lifecycle.js`
+1. `js/map-features-labels.js`
+2. `js/map-features-powerlines.js`
+3. `js/map-features-layer-state.js`
+4. `js/map-features-display-mode.js`
+5. `js/map-features-location-marker-rendering.js`
+6. `js/map-features-feature-state.js`
+7. `js/map-features-share-pin.js`
+8. `js/map-features-waypoints.js`
+9. `js/map-features-location-name-labels.js`
+10. `js/map-features-label-collisions.js`
+11. `js/map-features-path-domain.js`
+12. `js/map-features-path-labels.js`
+13. `js/map-features-path-rendering.js`
+14. `js/map-features-path-prepare.js`
+15. `js/map-features-path-creation.js`
+16. `js/map-features-path-geometry-editing.js`
+17. `js/map-features-path-lifecycle.js`
 18. `js/map-features.js`
-19. `js/map-features/map-features-location-lookup.js`
-20. `js/map-features/map-features-location-marker-entry.js`
-21. `js/map-features/map-features-region-operation-chip.js`
-22. `js/map-features/map-features-region-context-menu.js`
-23. `js/map-features/map-features-region-overlap-selection.js`
-24. `js/map-features/map-features-region-info-markup.js`
-25. `js/map-features/map-features-region-feature-normalization.js`
-26. `js/map-features/map-features-region-geometry-helpers.js`
-27. `js/map-features/map-features-region-split-preview.js`
-28. `js/map-features/map-features-region-pending-highlight.js`
-29. `js/map-features/map-features-region-rendering.js`
-30. `js/map-features/map-features-region-tooltip-lifecycle.js`
-31. `js/map-features/map-features-region-boolean-geometry.js`
-32. `js/map-features/map-features-region-payload-builders.js`
-33. `js/map-features/map-features-political-territory-repository.js`
-34. `js/map-features/map-features-region-operation-pipeline.js`
-35. `js/map-features/map-features-region-edit-edge-controls.js`
-36. `js/map-features/map-features-region-edit-handles.js`
-37. `js/map-features/map-features-region-geometry-edit-lifecycle.js`
-38. `js/map-features/map-features-political-timeline.js`
-39. `js/map-features/map-features-region-visibility.js`
-40. `js/map-features/map-features-political-territory-loader.js`
-41. `js/map-features/map-features-feature-dispatcher.js`
+19. `js/map-features-location-lookup.js`
+20. `js/map-features-location-marker-entry.js`
+21. `js/map-features-region-operation-chip.js`
+22. `js/map-features-region-context-menu.js`
+23. `js/map-features-region-overlap-selection.js`
+24. `js/map-features-region-info-markup.js`
+25. `js/map-features-region-feature-normalization.js`
+26. `js/map-features-region-geometry-helpers.js`
+27. `js/map-features-region-split-preview.js`
+28. `js/map-features-region-pending-highlight.js`
+29. `js/map-features-region-rendering.js`
+30. `js/map-features-region-tooltip-lifecycle.js`
+31. `js/map-features-region-boolean-geometry.js`
+32. `js/map-features-region-payload-builders.js`
+33. `js/map-features-political-territory-repository.js`
+34. `js/map-features-region-operation-pipeline.js`
+35. `js/map-features-region-edit-edge-controls.js`
+36. `js/map-features-region-edit-handles.js`
+37. `js/map-features-region-geometry-edit-lifecycle.js`
+38. `js/map-features-political-timeline.js`
+39. `js/map-features-region-visibility.js`
+40. `js/map-features-political-territory-loader.js`
+41. `js/map-features-feature-dispatcher.js`
 42. `js/routing.js`
 
 Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`export`-Syntax, kein Build-System.
@@ -127,7 +127,7 @@ Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`ex
 - Ortsnamenlabels: Commit `a5ba60613746df0a0960b5bf2d47bb1433d3b5c9`.
 - Path-/Pfad-Textlabels: Commit `ab77d2dea65dc3fa9fa9b9ee7102ce0ab805c8f5`.
 - Path-Rendering-Core: Commit `847dcfa3562522f61abad4d578b7353e9bfca491`.
-- Path-Prepare: Split `js/map-features/map-features-path-prepare.js` (enger 1:1-Extract; `deletePathFeature`, Dispatcher-Rest und weitere Path-Coupling-Helfer verbleiben in `js/map-features.js`).
+- Path-Prepare: Split `js/map-features-path-prepare.js` (enger 1:1-Extract; `deletePathFeature`, Dispatcher-Rest und weitere Path-Coupling-Helfer verbleiben in `js/map-features.js`).
 - Share-Pin/Clipboard: Commit `f8cb8c19f2be538dd0bbd299dfef53fe086a608d`.
 - Path-Domain-/Basis-Helper: Commit `656a4586bdf866cba91cfad57f1dbc609a61a0cc`.
 - Waypoint-UI: Commit `6a9c3ba79715f239559768506f755f07a99649fd`.
@@ -135,29 +135,29 @@ Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`ex
 - Feature-State: Commit `699faf19cf571ab9531dace52e0559d4e318f30d`.
 - Location-Marker-Rendering: Commit `0a0f4af1e733919c189a48e6f6ece180a14d6fb9`.
 - Label-Collision: Commit `72ca6e983652c95c33267c158353a2a0e6869423`.
-- Path-Creation: Split `js/map-features/map-features-path-creation.js` (enger 1:1-Extract, `findNearestGraphEndpointToLatLng` verbleibt als Shared-Helper in `js/map-features.js`).
-- Path-Geometry-Editing: Split `js/map-features/map-features-path-geometry-editing.js` (enger 1:1-Extract; `deletePathFeature` und `findNearestGraphEndpointToLatLng` verbleiben in `js/map-features.js`).
-- Path-Lifecycle (Apply/Live): Split `js/map-features/map-features-path-lifecycle.js` (enger 1:1-Extract; `preparePathData`, `normalizeRoutePathFeature`, `deletePathFeature` und Dispatcher-Rest verbleiben in `js/map-features.js`).
-- Feature-Response-Dispatcher: Split `js/map-features/map-features-feature-dispatcher.js` (enger 1:1-Extract; CRUD-/Domain-/Rendering-Helper bleiben in `js/map-features.js` oder den bestehenden Split-Dateien).
-- Region-Visibility: Split `js/map-features/map-features-region-visibility.js` (enger 1:1-Extract; Region-CRUD-/Timeline-/Edit-Orchestrierung bleibt in `js/map-features.js`).
-- Political-Timeline: Split `js/map-features/map-features-political-timeline.js` (enger 1:1-Extract; Territory-API/Layer-Reload und Region-Operations-Rest bleibt in `js/map-features.js`).
-- Political-Territory Loader/Reload: Split `js/map-features/map-features-political-territory-loader.js` (enger 1:1-Extract; Region-Rendering, Tooltip, Context und Geometry-Operationen bleiben in `js/map-features.js`).
-- Region Context Menu: Split `js/map-features/map-features-region-context-menu.js` (enger 1:1-Extract; Context-Action-Dispatcher, Geometry-Edit und Pending Operations bleiben in `js/map-features.js`).
+- Path-Creation: Split `js/map-features-path-creation.js` (enger 1:1-Extract, `findNearestGraphEndpointToLatLng` verbleibt als Shared-Helper in `js/map-features.js`).
+- Path-Geometry-Editing: Split `js/map-features-path-geometry-editing.js` (enger 1:1-Extract; `deletePathFeature` und `findNearestGraphEndpointToLatLng` verbleiben in `js/map-features.js`).
+- Path-Lifecycle (Apply/Live): Split `js/map-features-path-lifecycle.js` (enger 1:1-Extract; `preparePathData`, `normalizeRoutePathFeature`, `deletePathFeature` und Dispatcher-Rest verbleiben in `js/map-features.js`).
+- Feature-Response-Dispatcher: Split `js/map-features-feature-dispatcher.js` (enger 1:1-Extract; CRUD-/Domain-/Rendering-Helper bleiben in `js/map-features.js` oder den bestehenden Split-Dateien).
+- Region-Visibility: Split `js/map-features-region-visibility.js` (enger 1:1-Extract; Region-CRUD-/Timeline-/Edit-Orchestrierung bleibt in `js/map-features.js`).
+- Political-Timeline: Split `js/map-features-political-timeline.js` (enger 1:1-Extract; Territory-API/Layer-Reload und Region-Operations-Rest bleibt in `js/map-features.js`).
+- Political-Territory Loader/Reload: Split `js/map-features-political-territory-loader.js` (enger 1:1-Extract; Region-Rendering, Tooltip, Context und Geometry-Operationen bleiben in `js/map-features.js`).
+- Region Context Menu: Split `js/map-features-region-context-menu.js` (enger 1:1-Extract; Context-Action-Dispatcher, Geometry-Edit und Pending Operations bleiben in `js/map-features.js`).
 - Region Context Action Map: interner Refactor in `js/map-features.js` (if-Kette des Kontextmenue-Click-Handlers auf Action-Map umgestellt, ohne Logikaenderung).
-- Region Info/Tooltip Markup: Split `js/map-features/map-features-region-info-markup.js` (enger 1:1-Extract; Tooltip-Lifecycle, Region-Context und Geometry-Operationen bleiben in `js/map-features.js`).
-- Location Lookup/Type/Naming: Split `js/map-features/map-features-location-lookup.js` (enger 1:1-Extract; Location Lifecycle, Popups, Move/Create/Delete, API-Persistenz und Planner-Refresh bleiben in `js/map-features.js`).
-- Location Marker Entry/Popup: Split `js/map-features/map-features-location-marker-entry.js` (enger 1:1-Extract; Location Move, Create/Delete, API-Persistenz und Planner-Refresh bleiben in `js/map-features.js`).
-- Region Overlap Selection: Split `js/map-features/map-features-region-overlap-selection.js` (enger 1:1-Extract; Context-Menue, Region-Edit und Pending Operations bleiben in `js/map-features.js`).
-- Region Pending Target Highlight: Split `js/map-features/map-features-region-pending-highlight.js` (enger 1:1-Extract; Operation-Start/Split/Move, Persistenz und Geometry-/Boolean-Operationen bleiben in `js/map-features.js`).
-- Region Rendering: Split `js/map-features/map-features-region-rendering.js` (enger 1:1-Extract; Tooltip-Lifecycle, Polygon-Edit, Context/Split/Move/Boolean-Operationen und API-Persistenz bleiben in `js/map-features.js`).
-- Region Tooltip Lifecycle: Split `js/map-features/map-features-region-tooltip-lifecycle.js` (enger 1:1-Extract; Markup-Erzeugung, Region-Edit/Context/Split/Move/Boolean-Operationen und API-Persistenz bleiben in `js/map-features.js` oder Split-Dateien).
-- Region Boolean Geometry: Split `js/map-features/map-features-region-boolean-geometry.js` (enger 1:1-Extract; Pending-Orchestrierung, Split/Move und API-/Persistenz-Orchestratoren bleiben in `js/map-features.js`).
-- Region Payload Builders: Split `js/map-features/map-features-region-payload-builders.js` (enger 1:1-Extract; Operation-Orchestrierung, API-Aufruf, Toast/Reload/Changelog bleiben in `js/map-features.js`).
-- Political Territory Repository: Split `js/map-features/map-features-political-territory-repository.js` (enger Architektur-Refactor; direkte `submitPoliticalTerritoryEdit`-Aufrufe werden gekapselt, Operation-Orchestrierung/Toasts/Reload/Changelog bleiben in `js/map-features.js`).
-- Region Operation Pipeline: Split `js/map-features/map-features-region-operation-pipeline.js` (enger 1:1-Extract; Start/Cancel/Split/Move-Orchestrierung bleibt in `js/map-features.js`).
-- Region Edit Edge Controls: Split `js/map-features/map-features-region-edit-edge-controls.js` (enger 1:1-Extract; Region-Geometry-Edit-Orchestrierung, Save/Update und Node-/Boundary-Operationen bleiben in `js/map-features.js`).
-- Region Edit Handles: Split `js/map-features/map-features-region-edit-handles.js` (enger 1:1-Extract; Region-Geometry-Edit-Orchestrierung, Save/Update und Boundary-/Insert-Operationen bleiben in `js/map-features.js`).
-- Region Geometry Edit Lifecycle: Split `js/map-features/map-features-region-geometry-edit-lifecycle.js` (enger 1:1-Extract; Handle-/Edge-Interaktion und Save/Update bleiben in `js/map-features.js` bzw. bereits ausgelagerten Helfern).
+- Region Info/Tooltip Markup: Split `js/map-features-region-info-markup.js` (enger 1:1-Extract; Tooltip-Lifecycle, Region-Context und Geometry-Operationen bleiben in `js/map-features.js`).
+- Location Lookup/Type/Naming: Split `js/map-features-location-lookup.js` (enger 1:1-Extract; Location Lifecycle, Popups, Move/Create/Delete, API-Persistenz und Planner-Refresh bleiben in `js/map-features.js`).
+- Location Marker Entry/Popup: Split `js/map-features-location-marker-entry.js` (enger 1:1-Extract; Location Move, Create/Delete, API-Persistenz und Planner-Refresh bleiben in `js/map-features.js`).
+- Region Overlap Selection: Split `js/map-features-region-overlap-selection.js` (enger 1:1-Extract; Context-Menue, Region-Edit und Pending Operations bleiben in `js/map-features.js`).
+- Region Pending Target Highlight: Split `js/map-features-region-pending-highlight.js` (enger 1:1-Extract; Operation-Start/Split/Move, Persistenz und Geometry-/Boolean-Operationen bleiben in `js/map-features.js`).
+- Region Rendering: Split `js/map-features-region-rendering.js` (enger 1:1-Extract; Tooltip-Lifecycle, Polygon-Edit, Context/Split/Move/Boolean-Operationen und API-Persistenz bleiben in `js/map-features.js`).
+- Region Tooltip Lifecycle: Split `js/map-features-region-tooltip-lifecycle.js` (enger 1:1-Extract; Markup-Erzeugung, Region-Edit/Context/Split/Move/Boolean-Operationen und API-Persistenz bleiben in `js/map-features.js` oder Split-Dateien).
+- Region Boolean Geometry: Split `js/map-features-region-boolean-geometry.js` (enger 1:1-Extract; Pending-Orchestrierung, Split/Move und API-/Persistenz-Orchestratoren bleiben in `js/map-features.js`).
+- Region Payload Builders: Split `js/map-features-region-payload-builders.js` (enger 1:1-Extract; Operation-Orchestrierung, API-Aufruf, Toast/Reload/Changelog bleiben in `js/map-features.js`).
+- Political Territory Repository: Split `js/map-features-political-territory-repository.js` (enger Architektur-Refactor; direkte `submitPoliticalTerritoryEdit`-Aufrufe werden gekapselt, Operation-Orchestrierung/Toasts/Reload/Changelog bleiben in `js/map-features.js`).
+- Region Operation Pipeline: Split `js/map-features-region-operation-pipeline.js` (enger 1:1-Extract; Start/Cancel/Split/Move-Orchestrierung bleibt in `js/map-features.js`).
+- Region Edit Edge Controls: Split `js/map-features-region-edit-edge-controls.js` (enger 1:1-Extract; Region-Geometry-Edit-Orchestrierung, Save/Update und Node-/Boundary-Operationen bleiben in `js/map-features.js`).
+- Region Edit Handles: Split `js/map-features-region-edit-handles.js` (enger 1:1-Extract; Region-Geometry-Edit-Orchestrierung, Save/Update und Boundary-/Insert-Operationen bleiben in `js/map-features.js`).
+- Region Geometry Edit Lifecycle: Split `js/map-features-region-geometry-edit-lifecycle.js` (enger 1:1-Extract; Handle-/Edge-Interaktion und Save/Update bleiben in `js/map-features.js` bzw. bereits ausgelagerten Helfern).
 
 ## 6. Stable Detail Documents
 
@@ -225,19 +225,19 @@ Weitere Einzeldateien dokumentieren die jeweiligen Boundary-Checks und Stabilita
 
 Nicht ohne neue Boundary-Analyse weiter aufteilen:
 
-- `js/map-features/map-features-labels.js` / freie Labels.
-- `js/map-features/map-features-powerlines.js` / Kraftlinien.
-- `js/map-features/map-features-layer-state.js` / URL-/Planner-State.
-- `js/map-features/map-features-display-mode.js` / Display-/Layer-Mode.
-- `js/map-features/map-features-location-marker-rendering.js` / Location-Marker-Rendering und Sichtbarkeit.
-- `js/map-features/map-features-feature-state.js` / Feature-Revisionen und Softlocks.
-- `js/map-features/map-features-share-pin.js` / Share-Pin und URL-nahe Clipboard-Flows.
-- `js/map-features/map-features-waypoints.js` / Waypoint-UI, Routing-Anbindung und Planner-State-Kanten.
-- `js/map-features/map-features-location-name-labels.js` / Ortsnamenlabels.
-- `js/map-features/map-features-label-collisions.js` / Label-Kollision, DOM-Messung und Offset-Anwendung.
-- `js/map-features/map-features-path-domain.js` / Path-Domain und Path-Lifecycle-Kanten.
-- `js/map-features/map-features-path-labels.js` / Path-Textlabels.
-- `js/map-features/map-features-path-rendering.js` / Path-Rendering und Path-Lifecycle-Kanten.
+- `js/map-features-labels.js` / freie Labels.
+- `js/map-features-powerlines.js` / Kraftlinien.
+- `js/map-features-layer-state.js` / URL-/Planner-State.
+- `js/map-features-display-mode.js` / Display-/Layer-Mode.
+- `js/map-features-location-marker-rendering.js` / Location-Marker-Rendering und Sichtbarkeit.
+- `js/map-features-feature-state.js` / Feature-Revisionen und Softlocks.
+- `js/map-features-share-pin.js` / Share-Pin und URL-nahe Clipboard-Flows.
+- `js/map-features-waypoints.js` / Waypoint-UI, Routing-Anbindung und Planner-State-Kanten.
+- `js/map-features-location-name-labels.js` / Ortsnamenlabels.
+- `js/map-features-label-collisions.js` / Label-Kollision, DOM-Messung und Offset-Anwendung.
+- `js/map-features-path-domain.js` / Path-Domain und Path-Lifecycle-Kanten.
+- `js/map-features-path-labels.js` / Path-Textlabels.
+- `js/map-features-path-rendering.js` / Path-Rendering und Path-Lifecycle-Kanten.
 - Region-/Gebiets-Orchestrierung.
 - Feature-Response-Dispatcher.
 - grobe Location-Datenmutation.

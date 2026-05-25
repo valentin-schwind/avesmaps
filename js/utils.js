@@ -54,7 +54,7 @@ function withAssetVersion(sourcePath) {
 		return sourcePath;
 	}
 
-	const separator = sourcePath.includes("?")  "&" : "?";
+	const separator = sourcePath.includes("?") ? "&" : "?";
 	return `${sourcePath}${separator}v=${ICON_ASSET_VERSION}`;
 }
 

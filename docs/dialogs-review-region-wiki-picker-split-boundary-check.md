@@ -59,19 +59,19 @@ Nicht Teil dieses Splits:
 
 Dateiname:
 
-- `js/review/review-region-wiki-picker.js`
+- `js/dialogs-review-region-wiki-picker.js`
 
 Script-Reihenfolge in `index.html`:
 
-1. `js/review/review-core.js`
-2. `js/review/review-status.js`
-3. `js/review/review-pending.js`
-4. `js/review/review-paths.js`
-5. `js/review/review-labels.js`
-6. `js/review/review-locations.js`
-7. `js/review/review-panels.js`
-8. `js/review/review-wiki-sync.js`
-9. `js/review/review-region-wiki-picker.js`
+1. `js/dialogs-review-core.js`
+2. `js/dialogs-review-status.js`
+3. `js/dialogs-review-pending.js`
+4. `js/dialogs-review-paths.js`
+5. `js/dialogs-review-labels.js`
+6. `js/dialogs-review-locations.js`
+7. `js/dialogs-review-panels.js`
+8. `js/dialogs-review-wiki-sync.js`
+9. `js/dialogs-review-region-wiki-picker.js`
 10. `js/dialogs-review.js`
 
 Begruendung: Der Picker verwendet Core-/Status-/Region-Helfer aus dem bestehenden globalen Kontext und muss vor dem Rest-Orchestrator geladen werden, damit Event-Bindings/Submit-Flows dort weiterhin auf globale Funktionsnamen zugreifen koennen.
@@ -117,30 +117,30 @@ git pull --ff-only origin master
 
 Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split des Region-Wiki-Picker-Clusters aus js/dialogs-review.js in eine neue Datei js/review/review-region-wiki-picker.js.
+Ziel: kontrollierter, verhaltensneutraler Split des Region-Wiki-Picker-Clusters aus js/dialogs-review.js in eine neue Datei js/dialogs-review-region-wiki-picker.js.
 
 Erlaubte Änderungen:
 - js/dialogs-review.js
-- neue Datei js/review/review-region-wiki-picker.js
+- neue Datei js/dialogs-review-region-wiki-picker.js
 - index.html
 - docs/refactoring-status.md
 
 Nicht ändern:
-- js/review/review-core.js
-- js/review/review-status.js
-- js/review/review-pending.js
-- js/review/review-paths.js
-- js/review/review-labels.js
-- js/review/review-locations.js
-- js/review/review-panels.js
-- js/review/review-wiki-sync.js
+- js/dialogs-review-core.js
+- js/dialogs-review-status.js
+- js/dialogs-review-pending.js
+- js/dialogs-review-paths.js
+- js/dialogs-review-labels.js
+- js/dialogs-review-locations.js
+- js/dialogs-review-panels.js
+- js/dialogs-review-wiki-sync.js
 - Routing-Dateien
 - popups.js
 - ui-controls.js
 - map-features.js
 - API-/PHP-/SQL-Dateien
 
-Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/review/review-region-wiki-picker.js, unverändert und in sinnvoller Reihenfolge:
+Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/dialogs-review-region-wiki-picker.js, unverändert und in sinnvoller Reihenfolge:
 - loadPoliticalTerritoryWikiReferences
 - loadPoliticalTerritoryWikiReferenceFallback
 - normalizeStaticWikiReferenceRecord
@@ -162,7 +162,7 @@ Nicht verschieben:
 
 Falls beim Verschieben weitere Funktionen zwingend mitgenommen werden müssten, stoppe und berichte statt eigenständig den Scope zu erweitern.
 
-Neue Datei js/review/review-region-wiki-picker.js:
+Neue Datei js/dialogs-review-region-wiki-picker.js:
 - enthält nur Funktionsdefinitionen
 - keine Top-Level-Ausführung
 - keine DOM-Reads/Writes außerhalb von Funktionen
@@ -172,33 +172,33 @@ Neue Datei js/review/review-region-wiki-picker.js:
 
 index.html:
 - Script-Reihenfolge erweitern:
-  1. js/review/review-core.js
-  2. js/review/review-status.js
-  3. js/review/review-pending.js
-  4. js/review/review-paths.js
-  5. js/review/review-labels.js
-  6. js/review/review-locations.js
-  7. js/review/review-panels.js
-  8. js/review/review-wiki-sync.js
-  9. js/review/review-region-wiki-picker.js
+  1. js/dialogs-review-core.js
+  2. js/dialogs-review-status.js
+  3. js/dialogs-review-pending.js
+  4. js/dialogs-review-paths.js
+  5. js/dialogs-review-labels.js
+  6. js/dialogs-review-locations.js
+  7. js/dialogs-review-panels.js
+  8. js/dialogs-review-wiki-sync.js
+  9. js/dialogs-review-region-wiki-picker.js
   10. js/dialogs-review.js
 
 docs/refactoring-status.md:
 - WikiSync-Smoke als bestanden markieren
-- neuen stabilen Split js/review/review-region-wiki-picker.js dokumentieren
+- neuen stabilen Split js/dialogs-review-region-wiki-picker.js dokumentieren
 - Smoke-Test-Empfehlung Region-Wiki-Picker ergänzen
 - klar festhalten, dass Region/Territory-Parent/Assignment/Submit nicht Teil dieses Splits waren
 
 Checks lokal ausführen:
 - Suche nach doppelten Funktionsdefinitionen der verschobenen Funktionen.
-- Suche nach fehlenden Referenzen/Typo bei js/review/review-region-wiki-picker.js in index.html.
+- Suche nach fehlenden Referenzen/Typo bei js/dialogs-review-region-wiki-picker.js in index.html.
 - Syntaxprüfung:
-  - node --check js/review/review-region-wiki-picker.js
+  - node --check js/dialogs-review-region-wiki-picker.js
   - node --check js/dialogs-review.js
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/review/review-region-wiki-picker.js docs/refactoring-status.md
+- git add index.html js/dialogs-review.js js/dialogs-review-region-wiki-picker.js docs/refactoring-status.md
 - git commit -m "Split dialog review region Wiki picker helpers"
 - git push
 

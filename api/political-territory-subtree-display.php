@@ -16,7 +16,7 @@ try {
         ]);
     }
 
-    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD']  'GET'));
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
     if ($requestMethod === 'OPTIONS') {
         avesmapsJsonResponse(204);
     }
@@ -29,10 +29,10 @@ try {
     }
 
     $user = avesmapsRequireUserWithCapability('edit');
-    $pdo = avesmapsCreatePdo($config['database']  []);
+    $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsPoliticalEnsureTables($pdo);
     $payload = avesmapsReadJsonRequest();
-    $action = avesmapsNormalizeSingleLine((string) ($payload['action']  ''), 80);
+    $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? ''), 80);
 
     $response = match ($action) {
         'update_colors' => avesmapsPoliticalSubtreeDisplayUpdateColors($pdo, $payload, $user),
@@ -61,11 +61,11 @@ try {
 }
 
 function avesmapsPoliticalSubtreeDisplayUpdateColors(PDO $pdo, array $payload, array $user): array {
-    $updates = avesmapsPoliticalSubtreeDisplayReadUpdates($payload['updates']  null);
+    $updates = avesmapsPoliticalSubtreeDisplayReadUpdates($payload['updates'] ?? null);
     $supportsUpdatedBy = avesmapsPoliticalSubtreeDisplayHasTerritoryUpdatedByColumn($pdo);
     $statement = $pdo->prepare(
         $supportsUpdatedBy
-             'UPDATE political_territory
+            ? 'UPDATE political_territory
         SET color = :color,
             updated_by = :updated_by
         WHERE public_id = :public_id'
@@ -76,14 +76,14 @@ function avesmapsPoliticalSubtreeDisplayUpdateColors(PDO $pdo, array $payload, a
 
     $changed = 0;
     foreach ($updates as $update) {
-        $color = avesmapsPoliticalSubtreeDisplayReadColor($update['color']  '');
-        $publicId = avesmapsPoliticalSubtreeDisplayReadPublicId($update['territory_public_id']  $update['territoryPublicId']  '');
+        $color = avesmapsPoliticalSubtreeDisplayReadColor($update['color'] ?? '');
+        $publicId = avesmapsPoliticalSubtreeDisplayReadPublicId($update['territory_public_id'] ?? $update['territoryPublicId'] ?? '');
         $parameters = [
             ':color' => $color,
             ':public_id' => $publicId,
         ];
         if ($supportsUpdatedBy) {
-            $parameters[':updated_by'] = (int) ($user['id']  0);
+            $parameters[':updated_by'] = (int) ($user['id'] ?? 0);
         }
         $statement->execute($parameters);
         $changed += $statement->rowCount();
@@ -97,11 +97,11 @@ function avesmapsPoliticalSubtreeDisplayUpdateColors(PDO $pdo, array $payload, a
 }
 
 function avesmapsPoliticalSubtreeDisplayUpdateOpacity(PDO $pdo, array $payload, array $user): array {
-    $updates = avesmapsPoliticalSubtreeDisplayReadUpdates($payload['updates']  null);
+    $updates = avesmapsPoliticalSubtreeDisplayReadUpdates($payload['updates'] ?? null);
     $supportsUpdatedBy = avesmapsPoliticalSubtreeDisplayHasTerritoryUpdatedByColumn($pdo);
     $statement = $pdo->prepare(
         $supportsUpdatedBy
-             'UPDATE political_territory
+            ? 'UPDATE political_territory
         SET opacity = :opacity,
             updated_by = :updated_by
         WHERE public_id = :public_id'
@@ -112,14 +112,14 @@ function avesmapsPoliticalSubtreeDisplayUpdateOpacity(PDO $pdo, array $payload, 
 
     $changed = 0;
     foreach ($updates as $update) {
-        $opacity = avesmapsPoliticalSubtreeDisplayReadOpacity($update['opacity']  null);
-        $publicId = avesmapsPoliticalSubtreeDisplayReadPublicId($update['territory_public_id']  $update['territoryPublicId']  '');
+        $opacity = avesmapsPoliticalSubtreeDisplayReadOpacity($update['opacity'] ?? null);
+        $publicId = avesmapsPoliticalSubtreeDisplayReadPublicId($update['territory_public_id'] ?? $update['territoryPublicId'] ?? '');
         $parameters = [
             ':opacity' => $opacity,
             ':public_id' => $publicId,
         ];
         if ($supportsUpdatedBy) {
-            $parameters[':updated_by'] = (int) ($user['id']  0);
+            $parameters[':updated_by'] = (int) ($user['id'] ?? 0);
         }
         $statement->execute($parameters);
         $changed += $statement->rowCount();
@@ -133,17 +133,17 @@ function avesmapsPoliticalSubtreeDisplayUpdateOpacity(PDO $pdo, array $payload, 
 }
 
 function avesmapsPoliticalSubtreeDisplayInheritColors(PDO $pdo, array $payload, array $user): array {
-    $rootColor = avesmapsPoliticalSubtreeDisplayReadColor($payload['color']  '');
+    $rootColor = avesmapsPoliticalSubtreeDisplayReadColor($payload['color'] ?? '');
     $hueVarianceRange = avesmapsPoliticalSubtreeDisplayReadHueVarianceRange($payload);
     $hierarchy = avesmapsPoliticalSubtreeDisplayLoadHierarchy($pdo);
-    $rootPublicId = trim((string) ($payload['root_territory_public_id']  ''));
-    $rootTerritoryId = avesmapsPoliticalSubtreeDisplayReadOptionalTerritoryId($payload['root_territory_id']  null);
+    $rootPublicId = trim((string) ($payload['root_territory_public_id'] ?? ''));
+    $rootTerritoryId = avesmapsPoliticalSubtreeDisplayReadOptionalTerritoryId($payload['root_territory_id'] ?? null);
     $root = null;
 
     if ($rootPublicId !== '') {
-        $root = $hierarchy['rowsByPublicId'][$rootPublicId]  null;
+        $root = $hierarchy['rowsByPublicId'][$rootPublicId] ?? null;
     } elseif ($rootTerritoryId !== null) {
-        $root = $hierarchy['rowsById'][$rootTerritoryId]  null;
+        $root = $hierarchy['rowsById'][$rootTerritoryId] ?? null;
     }
 
     if (!is_array($root)) {
@@ -158,7 +158,7 @@ function avesmapsPoliticalSubtreeDisplayInheritColors(PDO $pdo, array $payload, 
     );
     $descendantsCount = count($updatesByPublicId);
 
-    $normalizedRootPublicId = trim((string) ($root['public_id']  ''));
+    $normalizedRootPublicId = trim((string) ($root['public_id'] ?? ''));
     if ($normalizedRootPublicId !== '') {
         $updatesByPublicId[$normalizedRootPublicId] = $rootColor;
     }
@@ -174,7 +174,7 @@ function avesmapsPoliticalSubtreeDisplayInheritColors(PDO $pdo, array $payload, 
         ];
     }
 
-    $userId = (int) ($user['id']  0);
+    $userId = (int) ($user['id'] ?? 0);
     $pdo->beginTransaction();
     try {
         $globalChanged = avesmapsPoliticalSubtreeDisplayApplyGlobalColorUpdates($pdo, $updatesByPublicId, $userId);
@@ -203,16 +203,16 @@ function avesmapsPoliticalSubtreeDisplayInheritColors(PDO $pdo, array $payload, 
 }
 
 function avesmapsPoliticalSubtreeDisplayInheritOpacity(PDO $pdo, array $payload, array $user): array {
-    $rootOpacity = avesmapsPoliticalSubtreeDisplayReadOpacity($payload['opacity']  null);
+    $rootOpacity = avesmapsPoliticalSubtreeDisplayReadOpacity($payload['opacity'] ?? null);
     $hierarchy = avesmapsPoliticalSubtreeDisplayLoadHierarchy($pdo);
-    $rootPublicId = trim((string) ($payload['root_territory_public_id']  ''));
-    $rootTerritoryId = avesmapsPoliticalSubtreeDisplayReadOptionalTerritoryId($payload['root_territory_id']  null);
+    $rootPublicId = trim((string) ($payload['root_territory_public_id'] ?? ''));
+    $rootTerritoryId = avesmapsPoliticalSubtreeDisplayReadOptionalTerritoryId($payload['root_territory_id'] ?? null);
     $root = null;
 
     if ($rootPublicId !== '') {
-        $root = $hierarchy['rowsByPublicId'][$rootPublicId]  null;
+        $root = $hierarchy['rowsByPublicId'][$rootPublicId] ?? null;
     } elseif ($rootTerritoryId !== null) {
-        $root = $hierarchy['rowsById'][$rootTerritoryId]  null;
+        $root = $hierarchy['rowsById'][$rootTerritoryId] ?? null;
     }
 
     if (!is_array($root)) {
@@ -226,7 +226,7 @@ function avesmapsPoliticalSubtreeDisplayInheritOpacity(PDO $pdo, array $payload,
     );
     $descendantsCount = count($updatesByPublicId);
 
-    $normalizedRootPublicId = trim((string) ($root['public_id']  ''));
+    $normalizedRootPublicId = trim((string) ($root['public_id'] ?? ''));
     if ($normalizedRootPublicId !== '') {
         $updatesByPublicId[$normalizedRootPublicId] = $rootOpacity;
     }
@@ -242,7 +242,7 @@ function avesmapsPoliticalSubtreeDisplayInheritOpacity(PDO $pdo, array $payload,
         ];
     }
 
-    $userId = (int) ($user['id']  0);
+    $userId = (int) ($user['id'] ?? 0);
     $pdo->beginTransaction();
     try {
         $globalChanged = avesmapsPoliticalSubtreeDisplayApplyGlobalOpacityUpdates($pdo, $updatesByPublicId, $userId);
@@ -305,13 +305,13 @@ function avesmapsPoliticalSubtreeDisplayLoadHierarchy(PDO $pdo): array {
     $childrenByParentId = [];
 
     foreach ($rows as $row) {
-        $rowId = (int) ($row['id']  0);
+        $rowId = (int) ($row['id'] ?? 0);
         if ($rowId < 1) {
             continue;
         }
 
-        $publicId = trim((string) ($row['public_id']  ''));
-        $parentId = is_numeric($row['parent_id']  null)  (int) $row['parent_id'] : 0;
+        $publicId = trim((string) ($row['public_id'] ?? ''));
+        $parentId = is_numeric($row['parent_id'] ?? null) ? (int) $row['parent_id'] : 0;
 
         $normalizedRow = [
             'id' => $rowId,
@@ -347,7 +347,7 @@ function avesmapsPoliticalSubtreeDisplayBuildColorInheritanceUpdates(
     $updatesByPublicId = [];
     $visitedIds = [];
     $stack = [];
-    $rootChildren = $childrenByParentId[$rootId]  [];
+    $rootChildren = $childrenByParentId[$rootId] ?? [];
     $rootChildCount = count($rootChildren);
 
     foreach ($rootChildren as $childIndex => $childRow) {
@@ -363,31 +363,31 @@ function avesmapsPoliticalSubtreeDisplayBuildColorInheritanceUpdates(
     while ($stack !== []) {
         $current = array_pop($stack);
         $row = $current['row'];
-        $rowId = (int) ($row['id']  0);
+        $rowId = (int) ($row['id'] ?? 0);
         if ($rowId < 1 || isset($visitedIds[$rowId])) {
             continue;
         }
         $visitedIds[$rowId] = true;
 
         $childColor = avesmapsPoliticalSubtreeDisplayCreateHueVariant(
-            (string) ($current['parent_color']  '#888888'),
-            (int) ($current['depth']  1),
-            (int) ($current['sibling_index']  0),
-            (int) ($current['sibling_count']  1),
+            (string) ($current['parent_color'] ?? '#888888'),
+            (int) ($current['depth'] ?? 1),
+            (int) ($current['sibling_index'] ?? 0),
+            (int) ($current['sibling_count'] ?? 1),
             $hueVarianceRange
         );
-        $publicId = trim((string) ($row['public_id']  ''));
+        $publicId = trim((string) ($row['public_id'] ?? ''));
         if ($publicId !== '') {
             $updatesByPublicId[$publicId] = $childColor;
         }
 
-        $children = $childrenByParentId[$rowId]  [];
+        $children = $childrenByParentId[$rowId] ?? [];
         $childCount = count($children);
         foreach ($children as $childIndex => $childRow) {
             $stack[] = [
                 'row' => $childRow,
                 'parent_color' => $childColor,
-                'depth' => ((int) ($current['depth']  1)) + 1,
+                'depth' => ((int) ($current['depth'] ?? 1)) + 1,
                 'sibling_index' => $childIndex,
                 'sibling_count' => $childCount,
             ];
@@ -400,22 +400,22 @@ function avesmapsPoliticalSubtreeDisplayBuildColorInheritanceUpdates(
 function avesmapsPoliticalSubtreeDisplayBuildOpacityInheritanceUpdates(array $childrenByParentId, int $rootId, float $rootOpacity): array {
     $updatesByPublicId = [];
     $visitedIds = [];
-    $stack = $childrenByParentId[$rootId]  [];
+    $stack = $childrenByParentId[$rootId] ?? [];
 
     while ($stack !== []) {
         $row = array_pop($stack);
-        $rowId = (int) ($row['id']  0);
+        $rowId = (int) ($row['id'] ?? 0);
         if ($rowId < 1 || isset($visitedIds[$rowId])) {
             continue;
         }
         $visitedIds[$rowId] = true;
 
-        $publicId = trim((string) ($row['public_id']  ''));
+        $publicId = trim((string) ($row['public_id'] ?? ''));
         if ($publicId !== '') {
             $updatesByPublicId[$publicId] = $rootOpacity;
         }
 
-        foreach ($childrenByParentId[$rowId]  [] as $childRow) {
+        foreach ($childrenByParentId[$rowId] ?? [] as $childRow) {
             $stack[] = $childRow;
         }
     }
@@ -431,7 +431,7 @@ function avesmapsPoliticalSubtreeDisplayApplyGlobalColorUpdates(PDO $pdo, array 
     $supportsUpdatedBy = avesmapsPoliticalSubtreeDisplayHasTerritoryUpdatedByColumn($pdo);
     $statement = $pdo->prepare(
         $supportsUpdatedBy
-             'UPDATE political_territory
+            ? 'UPDATE political_territory
         SET color = :color,
             updated_by = :updated_by
         WHERE public_id = :public_id'
@@ -464,7 +464,7 @@ function avesmapsPoliticalSubtreeDisplayApplyGlobalOpacityUpdates(PDO $pdo, arra
     $supportsUpdatedBy = avesmapsPoliticalSubtreeDisplayHasTerritoryUpdatedByColumn($pdo);
     $statement = $pdo->prepare(
         $supportsUpdatedBy
-             'UPDATE political_territory
+            ? 'UPDATE political_territory
         SET opacity = :opacity,
             updated_by = :updated_by
         WHERE public_id = :public_id'
@@ -490,8 +490,8 @@ function avesmapsPoliticalSubtreeDisplayApplyGlobalOpacityUpdates(PDO $pdo, arra
 }
 
 function avesmapsPoliticalSubtreeDisplayApplyLocalAssignmentDisplayOverrides(PDO $pdo, ?array $colorsByPublicId, ?array $opacityByPublicId, int $updatedBy): array {
-    $colorsByPublicId = is_array($colorsByPublicId)  $colorsByPublicId : [];
-    $opacityByPublicId = is_array($opacityByPublicId)  $opacityByPublicId : [];
+    $colorsByPublicId = is_array($colorsByPublicId) ? $colorsByPublicId : [];
+    $opacityByPublicId = is_array($opacityByPublicId) ? $opacityByPublicId : [];
 
     if ($colorsByPublicId === [] && $opacityByPublicId === []) {
         return [0, 0];
@@ -514,12 +514,12 @@ function avesmapsPoliticalSubtreeDisplayApplyLocalAssignmentDisplayOverrides(PDO
     $localDisplayChanged = 0;
 
     foreach ($selectStatement->fetchAll(PDO::FETCH_ASSOC) as $geometry) {
-        $style = avesmapsPoliticalDecodeJson($geometry['style_json']  null);
+        $style = avesmapsPoliticalDecodeJson($geometry['style_json'] ?? null);
         $displays = null;
 
-        if (is_array($style['assignmentDisplays']  null)) {
+        if (is_array($style['assignmentDisplays'] ?? null)) {
             $displays = $style['assignmentDisplays'];
-        } elseif (is_array($style['assignment_displays']  null)) {
+        } elseif (is_array($style['assignment_displays'] ?? null)) {
             $displays = $style['assignment_displays'];
         }
 
@@ -534,7 +534,7 @@ function avesmapsPoliticalSubtreeDisplayApplyLocalAssignmentDisplayOverrides(PDO
                 continue;
             }
 
-            $territoryPublicId = trim((string) ($display['territoryPublicId']  $display['territory_public_id']  ''));
+            $territoryPublicId = trim((string) ($display['territoryPublicId'] ?? $display['territory_public_id'] ?? ''));
             if ($territoryPublicId === '') {
                 continue;
             }
@@ -543,7 +543,7 @@ function avesmapsPoliticalSubtreeDisplayApplyLocalAssignmentDisplayOverrides(PDO
 
             if (isset($colorsByPublicId[$territoryPublicId])) {
                 $newColor = (string) $colorsByPublicId[$territoryPublicId];
-                $oldColor = trim((string) ($display['color']  ''));
+                $oldColor = trim((string) ($display['color'] ?? ''));
                 if ($oldColor !== $newColor) {
                     $display['color'] = $newColor;
                     $displayChanged = true;
@@ -552,8 +552,8 @@ function avesmapsPoliticalSubtreeDisplayApplyLocalAssignmentDisplayOverrides(PDO
 
             if (isset($opacityByPublicId[$territoryPublicId])) {
                 $newOpacity = (float) $opacityByPublicId[$territoryPublicId];
-                $oldOpacity = is_numeric($display['opacity']  null)
-                     round((float) $display['opacity'], 3)
+                $oldOpacity = is_numeric($display['opacity'] ?? null)
+                    ? round((float) $display['opacity'], 3)
                     : null;
                 if ($oldOpacity === null || abs($oldOpacity - $newOpacity) > 0.0005) {
                     $display['opacity'] = $newOpacity;
@@ -608,8 +608,8 @@ function avesmapsPoliticalSubtreeDisplayCreateHueVariant(
     $baseSpan = 14.0 * $depthFactor;
     $densityBoost = min(12.0, max(0, $safeSiblingCount - 1) * 0.55);
     $hueSpan = min(24.0, $baseSpan + ($densityBoost * $depthFactor));
-    $minVariance256 = max(0.0, (float) ($hueVarianceRange['min256']  10.0));
-    $maxVariance256 = max($minVariance256, (float) ($hueVarianceRange['max256']  20.0));
+    $minVariance256 = max(0.0, (float) ($hueVarianceRange['min256'] ?? 10.0));
+    $maxVariance256 = max($minVariance256, (float) ($hueVarianceRange['max256'] ?? 20.0));
     $minDegrees = ($minVariance256 / 256.0) * 360.0;
     $maxDegrees = ($maxVariance256 / 256.0) * 360.0;
     $hueSpan = max($minDegrees, min($hueSpan, $maxDegrees));
@@ -665,7 +665,7 @@ function avesmapsPoliticalSubtreeDisplayRgbToHsv(int $red, int $green, int $blue
         }
     }
 
-    $saturation = $max <= 0.0  0.0 : $delta / $max;
+    $saturation = $max <= 0.0 ? 0.0 : $delta / $max;
 
     return [
         'hue' => $hue,
@@ -706,10 +706,10 @@ function avesmapsPoliticalSubtreeDisplayHsvToHex(float $hue, float $saturation, 
 }
 
 function avesmapsPoliticalSubtreeDisplayReadHueVarianceRange(array $payload): array {
-    $min256 = avesmapsPoliticalSubtreeDisplayReadOptionalHueVariance256($payload['hue_variance_min_256']  null);
-    $max256 = avesmapsPoliticalSubtreeDisplayReadOptionalHueVariance256($payload['hue_variance_max_256']  null);
-    $normalizedMin = $min256  10.0;
-    $normalizedMax = $max256  20.0;
+    $min256 = avesmapsPoliticalSubtreeDisplayReadOptionalHueVariance256($payload['hue_variance_min_256'] ?? null);
+    $max256 = avesmapsPoliticalSubtreeDisplayReadOptionalHueVariance256($payload['hue_variance_max_256'] ?? null);
+    $normalizedMin = $min256 ?? 10.0;
+    $normalizedMax = $max256 ?? 20.0;
 
     if ($normalizedMin > $normalizedMax) {
         [$normalizedMin, $normalizedMax] = [$normalizedMax, $normalizedMin];
@@ -749,7 +749,7 @@ function avesmapsPoliticalSubtreeDisplayReadUpdates(mixed $rawUpdates): array {
             continue;
         }
 
-        $publicId = trim((string) ($update['territory_public_id']  $update['territoryPublicId']  ''));
+        $publicId = trim((string) ($update['territory_public_id'] ?? $update['territoryPublicId'] ?? ''));
         if ($publicId === '') {
             continue;
         }

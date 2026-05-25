@@ -2,7 +2,7 @@
 
 ## 1. Zusammenfassung
 
-Die Region Overlap Selection-Helfer wurden als enger 1:1-Extract aus `js/map-features.js` in `js/map-features/map-features-region-overlap-selection.js` ausgelagert.
+Die Region Overlap Selection-Helfer wurden als enger 1:1-Extract aus `js/map-features.js` in `js/map-features-region-overlap-selection.js` ausgelagert.
 
 Ziel ist es, die reine Treffer- und Auswahllogik für überlagerte politische Regionen zu separieren, während Context-Menü-Handling, Region-Edit und Pending-Operationen im Rest verbleiben.
 
@@ -35,7 +35,7 @@ Diese verbleibenden Funktionen sind eng mit Kontextmenüs, Region-Edit-Flow und 
 
 ## 4. Script-Reihenfolge
 
-`index.html` lädt `js/map-features/map-features-region-overlap-selection.js` nach `js/map-features.js` und vor `js/map-features/map-features-region-info-markup.js`.
+`index.html` lädt `js/map-features-region-overlap-selection.js` nach `js/map-features.js` und vor `js/map-features-region-info-markup.js`.
 
 ## 5. Smoke-Plan
 

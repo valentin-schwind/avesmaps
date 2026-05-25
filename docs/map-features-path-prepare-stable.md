@@ -2,7 +2,7 @@
 
 ## Zweck
 
-Dokumentiert den engen 1:1-Extract des Path-Prepare-Teilschnitts aus `js/map-features.js` nach `js/map-features/map-features-path-prepare.js`.
+Dokumentiert den engen 1:1-Extract des Path-Prepare-Teilschnitts aus `js/map-features.js` nach `js/map-features-path-prepare.js`.
 
 ## Verschobene Funktionen
 
@@ -20,7 +20,7 @@ Dokumentiert den engen 1:1-Extract des Path-Prepare-Teilschnitts aus `js/map-fea
 
 ## Script-Reihenfolge
 
-Im Map-Features-Block wird `js/map-features/map-features-path-prepare.js` nach `js/map-features/map-features-path-rendering.js` und vor `js/map-features/map-features-path-creation.js` geladen.
+Im Map-Features-Block wird `js/map-features-path-prepare.js` nach `js/map-features-path-rendering.js` und vor `js/map-features-path-creation.js` geladen.
 
 ## Smoke-Plan
 

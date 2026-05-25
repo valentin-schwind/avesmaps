@@ -28,19 +28,19 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
             ]);
         }
 
-        $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD']  'GET'));
+        $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
         if ($requestMethod === 'OPTIONS') {
             avesmapsJsonResponse(204);
         }
 
         $user = avesmapsRequireUserWithCapability('review');
-        $pdo = avesmapsCreatePdo($config['database']  []);
+        $pdo = avesmapsCreatePdo($config['database'] ?? []);
         avesmapsWikiSyncEnsureTables($pdo);
         avesmapsPoliticalEnsureTables($pdo);
 
         if ($requestMethod === 'GET') {
-            $action = avesmapsNormalizeSingleLine((string) ($_GET['action']  'cases'), 80);
-            $forceRefresh = avesmapsWikiSyncReadBoolean($_GET['force_refresh']  false);
+            $action = avesmapsNormalizeSingleLine((string) ($_GET['action'] ?? 'cases'), 80);
+            $forceRefresh = avesmapsWikiSyncReadBoolean($_GET['force_refresh'] ?? false);
 
             $response = match ($action) {
                 'cases', '' => (function () use ($pdo, $endpointScope, $action): array {
@@ -72,7 +72,7 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
         }
 
         $payload = avesmapsReadJsonRequest();
-        $action = avesmapsNormalizeSingleLine((string) ($payload['action']  ''), 60);
+        $action = avesmapsNormalizeSingleLine((string) ($payload['action'] ?? ''), 60);
 
         $response = match ($action) {
             'start_run' => (function () use ($pdo, $user, $endpointScope, $action): array {
@@ -129,9 +129,9 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
         avesmapsWikiSyncLogServerError('database_error', [
             'exception_code' => (string) $exception->getCode(),
             'exception_message' => $exception->getMessage(),
-            'sqlstate' => (string) ($exception->errorInfo[0]  ''),
-            'driver_code' => (string) ($exception->errorInfo[1]  ''),
-            'driver_message' => (string) ($exception->errorInfo[2]  ''),
+            'sqlstate' => (string) ($exception->errorInfo[0] ?? ''),
+            'driver_code' => (string) ($exception->errorInfo[1] ?? ''),
+            'driver_message' => (string) ($exception->errorInfo[2] ?? ''),
         ]);
 
         avesmapsJsonResponse(500, [

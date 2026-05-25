@@ -72,23 +72,23 @@ function avesmapsWikiSyncSyncTerritoriesFromDomCache(PDO $pdo, array $user, arra
     $promotedRows = [];
     $validWikiKeys = [];
     foreach ($rows as $row) {
-        $wikiKey = trim((string) ($row['wiki_key']  ''));
-        if ($wikiKey === '' || trim((string) ($row['name']  '')) === '') {
+        $wikiKey = trim((string) ($row['wiki_key'] ?? ''));
+        if ($wikiKey === '' || trim((string) ($row['name'] ?? '')) === '') {
             $summary['skipped_count']++;
-            $summary['skipped'][] = ['name' => (string) ($row['name']  ''), 'reason' => 'wiki_key/name fehlt'];
+            $summary['skipped'][] = ['name' => (string) ($row['name'] ?? ''), 'reason' => 'wiki_key/name fehlt'];
             continue;
         }
 
         $validWikiKeys[$wikiKey] = true;
         $summary['valid_count']++;
-        $row['affiliation'] = (string) ($row['affiliation_raw']  '');
+        $row['affiliation'] = (string) ($row['affiliation_raw'] ?? '');
         $row['map_assigned'] = false;
         $row['map_territory_count'] = 0;
         $row['map_geometry_count'] = 0;
 
         if (!$dryRun) {
             $upsert = avesmapsPoliticalUpsertWikiRecord($pdo, $row);
-            $row['id'] = (int) ($upsert['id']  0);
+            $row['id'] = (int) ($upsert['id'] ?? 0);
             if (!empty($upsert['created'])) $summary['created_count']++;
             else $summary['updated_count']++;
         }
@@ -97,13 +97,13 @@ function avesmapsWikiSyncSyncTerritoriesFromDomCache(PDO $pdo, array $user, arra
 
     $staleRows = avesmapsWikiSyncFetchStalePoliticalTerritoryWikiRows($pdo, array_keys($validWikiKeys));
     $summary['stale_count'] = count($staleRows);
-    $summary['stale_reference_count'] = array_sum(array_map(static fn(array $row): int => (int) ($row['map_territory_count']  0), $staleRows));
+    $summary['stale_reference_count'] = array_sum(array_map(static fn(array $row): int => (int) ($row['map_territory_count'] ?? 0), $staleRows));
     $summary['stale'] = array_slice(array_map(
         static fn(array $row): array => [
-            'id' => (int) ($row['id']  0),
-            'wiki_key' => (string) ($row['wiki_key']  ''),
-            'name' => (string) ($row['name']  ''),
-            'map_territory_count' => (int) ($row['map_territory_count']  0),
+            'id' => (int) ($row['id'] ?? 0),
+            'wiki_key' => (string) ($row['wiki_key'] ?? ''),
+            'name' => (string) ($row['name'] ?? ''),
+            'map_territory_count' => (int) ($row['map_territory_count'] ?? 0),
         ],
         $staleRows
     ), 0, 25);
@@ -155,7 +155,7 @@ function avesmapsWikiSyncFetchStalePoliticalTerritoryWikiRows(PDO $pdo, array $v
 
 function avesmapsWikiSyncDeleteStalePoliticalTerritoryWikiRows(PDO $pdo, array $staleRows): array {
     $ids = array_values(array_unique(array_filter(array_map(
-        static fn(array $row): int => (int) ($row['id']  0),
+        static fn(array $row): int => (int) ($row['id'] ?? 0),
         $staleRows
     ), static fn(int $id): bool => $id > 0)));
 
@@ -193,7 +193,7 @@ function avesmapsWikiSyncFetchDomTerritoryRows(PDO $pdo): array {
     $floatFields = ['founded_display_bf', 'dissolved_display_bf'];
     $rows = [];
     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        foreach ($jsonFields as $field) if (array_key_exists($field, $row)) $row[$field] = avesmapsWikiSyncDecodeJson($row[$field]  null);
+        foreach ($jsonFields as $field) if (array_key_exists($field, $row)) $row[$field] = avesmapsWikiSyncDecodeJson($row[$field] ?? null);
         foreach ($intFields as $field) if (isset($row[$field]) && $row[$field] !== '') $row[$field] = (int) $row[$field];
         foreach ($floatFields as $field) if (isset($row[$field]) && $row[$field] !== '') $row[$field] = (float) $row[$field];
         $rows[] = $row;
@@ -204,19 +204,19 @@ function avesmapsWikiSyncFetchDomTerritoryRows(PDO $pdo): array {
 
 function avesmapsWikiSyncSanitizeDomPoliticalTerritoryRowsForTree(array $rows): array {
     return array_map(static function (array $row): array {
-        $name = (string) ($row['name']  '');
-        $type = (string) ($row['type']  '');
+        $name = (string) ($row['name'] ?? '');
+        $type = (string) ($row['type'] ?? '');
 
         if (avesmapsWikiSyncIsDomPoliticalRootTerritory($name, $type)) {
             $rootName = avesmapsWikiSyncNormalizeWikiTreeText($name);
             $row['affiliation'] = $rootName;
             $row['affiliation_root'] = $rootName;
-            $row['affiliation_path_json'] = $rootName !== ''  [$rootName] : [];
+            $row['affiliation_path_json'] = $rootName !== '' ? [$rootName] : [];
             return $row;
         }
 
         $path = [];
-        if (is_array($row['affiliation_path_json']  null)) {
+        if (is_array($row['affiliation_path_json'] ?? null)) {
             $path = array_values(array_filter(array_map(
                 static fn(mixed $part): string => avesmapsWikiSyncNormalizeWikiTreeText((string) $part),
                 $row['affiliation_path_json']
@@ -234,7 +234,7 @@ function avesmapsWikiSyncSanitizeDomPoliticalTerritoryRowsForTree(array $rows): 
         }
 
         $row['affiliation'] = implode(' : ', $path);
-        $row['affiliation_root'] = $path[0]  '';
+        $row['affiliation_root'] = $path[0] ?? '';
         $row['affiliation_path_json'] = $path;
 
         return $row;
@@ -278,7 +278,7 @@ function avesmapsWikiSyncIsDomUnresolvedPoliticalTerritoryPath(array $path): boo
 }
 
 function avesmapsWikiSyncHoistDomRootTerritories(array $tree): array {
-    $hierarchy = is_array($tree['hierarchy']  null)  $tree['hierarchy'] : [];
+    $hierarchy = is_array($tree['hierarchy'] ?? null) ? $tree['hierarchy'] : [];
     $hoisted = [];
     $seenHoisted = [];
 
@@ -290,14 +290,14 @@ function avesmapsWikiSyncHoistDomRootTerritories(array $tree): array {
                 continue;
             }
 
-            $node['children'] = $filterNodes(is_array($node['children']  null)  $node['children'] : [], false);
+            $node['children'] = $filterNodes(is_array($node['children'] ?? null) ? $node['children'] : [], false);
             $isRootTerritory = avesmapsWikiSyncIsDomPoliticalRootTerritory(
-                (string) ($node['name']  $node['wiki_name']  ''),
-                (string) ($node['type']  '')
+                (string) ($node['name'] ?? $node['wiki_name'] ?? ''),
+                (string) ($node['type'] ?? '')
             );
 
             if (!$isRootLevel && $isRootTerritory) {
-                $key = (string) ($node['public_id']  $node['key']  $node['name']  '');
+                $key = (string) ($node['public_id'] ?? $node['key'] ?? $node['name'] ?? '');
                 if ($key !== '' && !isset($seenHoisted[$key])) {
                     $node['parent_public_id'] = '';
                     $node['parent_name'] = '';
@@ -316,7 +316,7 @@ function avesmapsWikiSyncHoistDomRootTerritories(array $tree): array {
     $hierarchy = $filterNodes($hierarchy, true);
     if ($hoisted !== []) {
         $hierarchy = array_merge($hierarchy, $hoisted);
-        usort($hierarchy, static fn(array $left, array $right): int => strnatcasecmp((string) ($left['name']  ''), (string) ($right['name']  '')));
+        usort($hierarchy, static fn(array $left, array $right): int => strnatcasecmp((string) ($left['name'] ?? ''), (string) ($right['name'] ?? '')));
     }
 
     $territories = [];

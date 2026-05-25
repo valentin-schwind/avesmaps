@@ -84,7 +84,7 @@ function addSyntheticGraphConnection(graph, fromLocation, toLocation, distance, 
 }
 
 function calculateRouteCore(graph, startName, endName, useShortestPath, minimizeTransfers, transferPenalty, resolveTransportOption) {
-	if (!graph.[startName] || !graph.[endName]) {
+	if (!graph?.[startName] || !graph?.[endName]) {
 		return [];
 	}
 
@@ -118,7 +118,7 @@ function calculateRouteCore(graph, startName, endName, useShortestPath, minimize
 					continue;
 				}
 
-				let weight = useShortestPath  conn.distance : conn.time;
+				let weight = useShortestPath ? conn.distance : conn.time;
 
 				if (minimizeTransfers && currentTransport && transport !== currentTransport)
 					weight += transferPenalty;
@@ -188,7 +188,7 @@ function findGraphComponents(graph) {
 }
 
 function smoothLineCoordinatesForDisplay(coordinates, config = VISUAL_LINE_SMOOTHING_CONFIG) {
-	if (!config.enabled || !Array.isArray(coordinates) || coordinates.length < 3) {
+	if (!config?.enabled || !Array.isArray(coordinates) || coordinates.length < 3) {
 		return coordinates;
 	}
 
@@ -283,16 +283,16 @@ function getCatmullRomPoint(previous, current, next, following, t, tension) {
 }
 
 function getCoordinateDistance(first, second) {
-	const deltaX = Number(first.[0]) - Number(second.[0]);
-	const deltaY = Number(first.[1]) - Number(second.[1]);
+	const deltaX = Number(first?.[0]) - Number(second?.[0]);
+	const deltaY = Number(first?.[1]) - Number(second?.[1]);
 	return Math.hypot(deltaX, deltaY);
 }
 
 function getCornerSmoothingMultiplier(prev, curr, next) {
-	const incomingX = Number(curr.[0]) - Number(prev.[0]);
-	const incomingY = Number(curr.[1]) - Number(prev.[1]);
-	const outgoingX = Number(next.[0]) - Number(curr.[0]);
-	const outgoingY = Number(next.[1]) - Number(curr.[1]);
+	const incomingX = Number(curr?.[0]) - Number(prev?.[0]);
+	const incomingY = Number(curr?.[1]) - Number(prev?.[1]);
+	const outgoingX = Number(next?.[0]) - Number(curr?.[0]);
+	const outgoingY = Number(next?.[1]) - Number(curr?.[1]);
 	const incomingLength = Math.hypot(incomingX, incomingY);
 	const outgoingLength = Math.hypot(outgoingX, outgoingY);
 	if (incomingLength === 0 || outgoingLength === 0) {

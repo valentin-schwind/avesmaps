@@ -2,7 +2,7 @@
 
 (function installWikiSyncTerritoryAssignmentDropFix(globalObject) {
 	function normalizeText(value) {
-		return String(value  "")
+		return String(value ?? "")
 			.replace(/\u00a0/g, " ")
 			.replace(/\s+/g, " ")
 			.trim();
@@ -14,15 +14,15 @@
 		}
 
 		const number = Number(value);
-		return Number.isFinite(number)  Math.round(number) : null;
+		return Number.isFinite(number) ? Math.round(number) : null;
 	}
 
 	function readStartYear(row = {}) {
-		return parseOptionalYear(row.founded_display_bf  row.founded_start_bf  row.founded_end_bf  null);
+		return parseOptionalYear(row.founded_display_bf ?? row.founded_start_bf ?? row.founded_end_bf ?? null);
 	}
 
 	function readEndYear(row = {}) {
-		return parseOptionalYear(row.dissolved_display_bf  row.dissolved_start_bf  row.dissolved_end_bf  null);
+		return parseOptionalYear(row.dissolved_display_bf ?? row.dissolved_start_bf ?? row.dissolved_end_bf ?? null);
 	}
 
 	function formatYear(year) {
@@ -30,7 +30,7 @@
 			return "";
 		}
 
-		return year < 0  `${Math.abs(year)} v. BF` : `${year} BF`;
+		return year < 0 ? `${Math.abs(year)} v. BF` : `${year} BF`;
 	}
 
 	function formatPeriod(row = {}) {
@@ -40,7 +40,7 @@
 			return "";
 		}
 
-		return `${startYear === null  "?" : formatYear(startYear)} - ${endYear === null  "heute" : formatYear(endYear)}`;
+		return `${startYear === null ? "?" : formatYear(startYear)} - ${endYear === null ? "heute" : formatYear(endYear)}`;
 	}
 
 	function makeKey(value) {
@@ -101,7 +101,7 @@
 
 		const normalizedId = makeKey(nodeId.replace(/^wiki:/i, ""));
 		for (const node of registry.values()) {
-			const row = node.row || {};
+			const row = node?.row || {};
 			const candidates = [
 				node.id,
 				row.wiki_key,
@@ -125,16 +125,16 @@
 		}
 
 		const tree = treeModule.buildTree(rows);
-		return findNodeInRegistry(tree.nodeRegistry, nodeId);
+		return findNodeInRegistry(tree?.nodeRegistry, nodeId);
 	}
 
 	function nodeToLegacyAssignmentPathEntry(node) {
-		const row = node.row || {};
-		const name = normalizeText(row.name || node.label || "Herrschaftsgebiet").replace(/\s*\([^)]*\bBF\s*-\s*[^)]*\)\s*$/iu, "").trim();
+		const row = node?.row || {};
+		const name = normalizeText(row.name || node?.label || "Herrschaftsgebiet").replace(/\s*\([^)]*\bBF\s*-\s*[^)]*\)\s*$/iu, "").trim();
 		const period = formatPeriod(row);
 		const startYear = readStartYear(row);
 		const endYear = readEndYear(row);
-		const wikiKey = normalizeText(row.wiki_key || node.id || name);
+		const wikiKey = normalizeText(row.wiki_key || node?.id || name);
 
 		return {
 			territory: {
@@ -147,8 +147,8 @@
 				wiki_name: name,
 				wiki_url: normalizeText(row.wiki_url || ""),
 				coat_of_arms_url: normalizeText(row.coat_of_arms_url || ""),
-				founded_text: startYear === null  normalizeText(row.founded_text || "") : formatYear(startYear),
-				dissolved_text: endYear === null  normalizeText(row.dissolved_text || "") : formatYear(endYear),
+				founded_text: startYear === null ? normalizeText(row.founded_text || "") : formatYear(startYear),
+				dissolved_text: endYear === null ? normalizeText(row.dissolved_text || "") : formatYear(endYear),
 				valid_from_bf: startYear,
 				valid_to_bf: endYear,
 			},
@@ -158,7 +158,7 @@
 	function buildFullLegacyPathFromDrop(dataTransfer) {
 		const node = resolveFullWikiSyncNodeFromDrop(dataTransfer);
 		const treeModule = globalObject.AvesmapsPoliticalTerritoryWikiTree;
-		if (!node || typeof treeModule.getNodePath !== "function") {
+		if (!node || typeof treeModule?.getNodePath !== "function") {
 			return [];
 		}
 
@@ -171,7 +171,7 @@
 		}
 
 		const selected = path[path.length - 1] || null;
-		const selectedPublicId = normalizeText(selected.territory.public_id || "");
+		const selectedPublicId = normalizeText(selected?.territory?.public_id || "");
 		if (!selectedPublicId) {
 			throw new Error("Der gezogene Wiki-Knoten hat keinen WikiKey.");
 		}
@@ -184,7 +184,7 @@
 		setRegionEditStatus("Wiki-Hierarchie wird dem Gebiet zugewiesen...", "pending");
 
 		const response = await ensurePoliticalTerritoryChainFromWikiPath(path);
-		const selectedTerritoryId = response.selected.territory.public_id || "";
+		const selectedTerritoryId = response.selected?.territory?.public_id || "";
 		if (!selectedTerritoryId) {
 			throw new Error("Das Herrschaftsgebiet konnte nicht aus dem Wiki-Knoten erzeugt werden.");
 		}

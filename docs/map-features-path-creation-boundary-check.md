@@ -1,4 +1,4 @@
-# Map-Features Path-Creation Boundary Check
+﻿# Map-Features Path-Creation Boundary Check
 
 ## 1. Zweck
 Diese Analyse bewertet einen moeglichen spaeteren Split des Path-Creation-Blocks aus `js/map-features.js`.
@@ -124,11 +124,11 @@ Top-Level-Ausfuehrung in neuer Datei?
 
 ## 9. Vorgeschlagene Zieldatei
 Falls positiv:
-- `js/map-features/map-features-path-creation.js`
+- `js/map-features-path-creation.js`
 
 ## 10. Script-Reihenfolge
 Aus Abhaengigkeiten folgt als sicherer spaeterer Platz:
-- nach `js/map-features/map-features-path-rendering.js`
+- nach `js/map-features-path-rendering.js`
 - vor `js/map-features.js`
 
 Begruendung:

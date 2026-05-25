@@ -18,7 +18,7 @@
 - Route-Type normalisieren (`normalizePathSubtype`)
 - Transportoption bestimmen (`getTransportOption(routeType)`)
 - Transport fuer Pfad erlauben/ablehnen (`isTransportAllowedForPath(properties, transportOption)`)
-- Geschwindigkeit bestimmen (`SPEED_TABLE[transportOption].[routeType]`)
+- Geschwindigkeit bestimmen (`SPEED_TABLE[transportOption]?.[routeType]`)
 - Graph-Kanten schreiben (`addGraphConnection` in beide Richtungen)
 - getrennte Komponenten verbinden (`connectDetachedGraphComponents`)
 - unverbundene Orte loggen

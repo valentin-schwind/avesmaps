@@ -64,11 +64,11 @@ function avesmapsWikiSyncFetchCategoryMemberTitles(string $categoryName): array 
         }
 
         $data = avesmapsWikiSyncApiRequest($params);
-        $members = $data['query']['categorymembers']  [];
+        $members = $data['query']['categorymembers'] ?? [];
 
         if (is_array($members)) {
             foreach ($members as $member) {
-                $title = trim((string) ($member['title']  ''));
+                $title = trim((string) ($member['title'] ?? ''));
                 if ($title !== '') {
                     $titles[$title] = $title;
                 }
@@ -76,7 +76,7 @@ function avesmapsWikiSyncFetchCategoryMemberTitles(string $categoryName): array 
         }
 
         $continueToken = isset($data['continue']['cmcontinue'])
-             (string) $data['continue']['cmcontinue']
+            ? (string) $data['continue']['cmcontinue']
             : null;
     } while ($continueToken !== null && $continueToken !== '');
 
@@ -130,7 +130,7 @@ function avesmapsWikiSyncStartRun(PDO $pdo, array $user): array {
         'phase' => 'settlement_titles',
         'message' => 'Wiki-Siedlungstitel werden gelesen.',
         'stats_json' => avesmapsWikiSyncEncodeJson([]),
-        'created_by' => (int) ($user['id']  0) ?: null,
+        'created_by' => (int) ($user['id'] ?? 0) ?: null,
     ]);
 
     return [
@@ -141,7 +141,7 @@ function avesmapsWikiSyncStartRun(PDO $pdo, array $user): array {
 
 function avesmapsWikiSyncAdvanceRun(PDO $pdo, array $payload): array {
     avesmapsWikiSyncRelaxLimits();
-    $runPublicId = avesmapsWikiSyncReadPublicId($payload['run_id']  '');
+    $runPublicId = avesmapsWikiSyncReadPublicId($payload['run_id'] ?? '');
     $run = avesmapsWikiSyncFetchRunByPublicId($pdo, $runPublicId);
     if ($run['status'] === 'completed') {
         return [
@@ -155,7 +155,7 @@ function avesmapsWikiSyncAdvanceRun(PDO $pdo, array $payload): array {
         throw new RuntimeException('Dieser WikiSync-Lauf ist nicht aktiv.');
     }
 
-    $stats = avesmapsWikiSyncDecodeJson($run['stats_json']  null);
+    $stats = avesmapsWikiSyncDecodeJson($run['stats_json'] ?? null);
     $phase = (string) $run['phase'];
 
     if ($phase === 'settlement_titles') {
@@ -165,7 +165,7 @@ function avesmapsWikiSyncAdvanceRun(PDO $pdo, array $payload): array {
         avesmapsWikiSyncUpdateRun($pdo, (int) $run['id'], 'running', 'match_map_places', 1, 'Avesmaps-Orte werden mit Wiki-Titeln abgeglichen.', $stats);
     } elseif ($phase === 'match_map_places') {
         $mapPlaces = avesmapsWikiSyncReadMapPlaces($pdo);
-        $matchResult = avesmapsWikiSyncMatchMapPlaces($pdo, $mapPlaces, $stats['settlement_titles']  []);
+        $matchResult = avesmapsWikiSyncMatchMapPlaces($pdo, $mapPlaces, $stats['settlement_titles'] ?? []);
         $stats['map_places'] = $mapPlaces;
         $stats['matches'] = $matchResult['matches'];
         $stats['unresolved'] = $matchResult['unresolved'];
@@ -175,10 +175,10 @@ function avesmapsWikiSyncAdvanceRun(PDO $pdo, array $payload): array {
         avesmapsWikiSyncUpdateRun($pdo, (int) $run['id'], 'running', 'missing_wiki_places', 2, 'Fehlende Wiki-Orte werden geladen.', $stats);
     } elseif ($phase === 'missing_wiki_places') {
         $matchedTitles = [];
-        foreach (($stats['matches']  []) as $match) {
-            $matchedTitles[(string) ($match['wiki']['title']  '')] = true;
+        foreach (($stats['matches'] ?? []) as $match) {
+            $matchedTitles[(string) ($match['wiki']['title'] ?? '')] = true;
         }
-        $missingPlaces = avesmapsWikiSyncFetchMissingWikiPlaces($pdo, $stats['settlement_titles']  [], array_keys($matchedTitles));
+        $missingPlaces = avesmapsWikiSyncFetchMissingWikiPlaces($pdo, $stats['settlement_titles'] ?? [], array_keys($matchedTitles));
         $stats['missing_wiki_places'] = $missingPlaces;
         $stats['missing_wiki_place_count'] = count($missingPlaces);
         avesmapsWikiSyncUpdateRun($pdo, (int) $run['id'], 'running', 'build_cases', 3, "WikiSync-F\u{00E4}lle werden aufgebaut.", $stats);
@@ -195,7 +195,7 @@ function avesmapsWikiSyncAdvanceRun(PDO $pdo, array $payload): array {
     return [
         'ok' => true,
         'run' => avesmapsWikiSyncPublicRun($updatedRun),
-        'summary' => $updatedRun['status'] === 'completed'  avesmapsWikiSyncBuildSummary($pdo, (int) $updatedRun['id']) : null,
+        'summary' => $updatedRun['status'] === 'completed' ? avesmapsWikiSyncBuildSummary($pdo, (int) $updatedRun['id']) : null,
     ];
 }
 
@@ -226,30 +226,30 @@ function avesmapsWikiSyncReadMapPlaces(PDO $pdo): array {
 
     $places = [];
     foreach ($statement->fetchAll() as $row) {
-        $name = avesmapsNormalizeSingleLine((string) ($row['name']  ''), 160);
+        $name = avesmapsNormalizeSingleLine((string) ($row['name'] ?? ''), 160);
         if ($name === '') {
             continue;
         }
 
-        $properties = avesmapsWikiSyncDecodeJson($row['properties_json']  null);
-        $geometry = avesmapsWikiSyncDecodeJson($row['geometry_json']  null);
+        $properties = avesmapsWikiSyncDecodeJson($row['properties_json'] ?? null);
+        $geometry = avesmapsWikiSyncDecodeJson($row['geometry_json'] ?? null);
         $wikiUrl = avesmapsNormalizeSingleLine((string) (
             $properties['wiki_url']
-             $properties['data-report-wiki-url']
-             ''
+            ?? $properties['data-report-wiki-url']
+            ?? ''
         ), 500);
 
         $places[] = [
-            'id' => (int) ($row['id']  0),
-            'public_id' => (string) ($row['public_id']  ''),
+            'id' => (int) ($row['id'] ?? 0),
+            'public_id' => (string) ($row['public_id'] ?? ''),
             'name' => $name,
             'normalized_key' => avesmapsWikiSyncCreateMatchKey($name),
-            'settlement_class' => avesmapsWikiSyncReadSettlementClass((string) ($row['feature_subtype']  'dorf')),
-            'feature_subtype' => (string) ($row['feature_subtype']  ''),
+            'settlement_class' => avesmapsWikiSyncReadSettlementClass((string) ($row['feature_subtype'] ?? 'dorf')),
+            'feature_subtype' => (string) ($row['feature_subtype'] ?? ''),
             'wiki_url' => $wikiUrl,
             'geometry' => $geometry,
             'properties' => $properties,
-            'revision' => (int) ($row['revision']  0),
+            'revision' => (int) ($row['revision'] ?? 0),
         ];
     }
 
@@ -266,19 +266,19 @@ function avesmapsWikiSyncMatchMapPlaces(PDO $pdo, array $mapPlaces, array $settl
             continue;
         }
 
-        $page = $wikiPagesByTitle[$title]  null;
+        $page = $wikiPagesByTitle[$title] ?? null;
         $wikiPlaces[] = [
             'title' => $title,
             'normalized_key' => avesmapsWikiSyncCreateMatchKey($title),
             'settlement_class' => avesmapsWikiSyncInferSettlementClassFromPage($page, $title),
             'url' => avesmapsWikiSyncPageUrl($title),
-            'page' => is_array($page)  $page : null,
+            'page' => is_array($page) ? $page : null,
         ];
     }
 
     $wikiByKey = [];
     foreach ($wikiPlaces as $wikiPlace) {
-        $key = (string) ($wikiPlace['normalized_key']  '');
+        $key = (string) ($wikiPlace['normalized_key'] ?? '');
         if ($key !== '') {
             $wikiByKey[$key][] = $wikiPlace;
         }
@@ -289,8 +289,8 @@ function avesmapsWikiSyncMatchMapPlaces(PDO $pdo, array $mapPlaces, array $settl
     $unresolved = [];
 
     foreach ($mapPlaces as $mapPlace) {
-        $mapKey = (string) ($mapPlace['normalized_key']  '');
-        $candidates = $mapKey !== ''  ($wikiByKey[$mapKey]  []) : [];
+        $mapKey = (string) ($mapPlace['normalized_key'] ?? '');
+        $candidates = $mapKey !== '' ? ($wikiByKey[$mapKey] ?? []) : [];
 
         if (count($candidates) === 1) {
             $wikiPlace = $candidates[0];
@@ -327,7 +327,7 @@ function avesmapsWikiSyncMatchMapPlaces(PDO $pdo, array $mapPlaces, array $settl
 
         $probableCandidates = avesmapsWikiSyncFindProbableWikiMatches($mapPlace, $wikiPlaces);
         foreach ($probableCandidates as $candidate) {
-            $matchedWikiTitles[(string) ($candidate['wiki']['title']  '')] = true;
+            $matchedWikiTitles[(string) ($candidate['wiki']['title'] ?? '')] = true;
         }
 
         $unresolved[] = [
@@ -345,23 +345,23 @@ function avesmapsWikiSyncMatchMapPlaces(PDO $pdo, array $mapPlaces, array $settl
 
 function avesmapsWikiSyncBuildPublicWikiPlace(array $wikiPlace): array {
     return [
-        'title' => (string) ($wikiPlace['title']  ''),
-        'normalized_key' => (string) ($wikiPlace['normalized_key']  ''),
-        'settlement_class' => (string) ($wikiPlace['settlement_class']  ''),
-        'url' => (string) ($wikiPlace['url']  ''),
+        'title' => (string) ($wikiPlace['title'] ?? ''),
+        'normalized_key' => (string) ($wikiPlace['normalized_key'] ?? ''),
+        'settlement_class' => (string) ($wikiPlace['settlement_class'] ?? ''),
+        'url' => (string) ($wikiPlace['url'] ?? ''),
     ];
 }
 
 function avesmapsWikiSyncFindProbableWikiMatches(array $mapPlace, array $wikiPlaces): array {
-    $mapName = (string) ($mapPlace['name']  '');
-    $mapKey = (string) ($mapPlace['normalized_key']  '');
+    $mapName = (string) ($mapPlace['name'] ?? '');
+    $mapKey = (string) ($mapPlace['normalized_key'] ?? '');
     if ($mapName === '' || $mapKey === '') {
         return [];
     }
 
     $candidates = [];
     foreach ($wikiPlaces as $wikiPlace) {
-        $wikiKey = (string) ($wikiPlace['normalized_key']  '');
+        $wikiKey = (string) ($wikiPlace['normalized_key'] ?? '');
         if ($wikiKey === '') {
             continue;
         }
@@ -381,7 +381,7 @@ function avesmapsWikiSyncFindProbableWikiMatches(array $mapPlace, array $wikiPla
     usort(
         $candidates,
         static fn(array $left, array $right): int => ($right['score'] <=> $left['score'])
-            ?: strcasecmp((string) ($left['wiki']['title']  ''), (string) ($right['wiki']['title']  ''))
+            ?: strcasecmp((string) ($left['wiki']['title'] ?? ''), (string) ($right['wiki']['title'] ?? ''))
     );
 
     return array_slice($candidates, 0, AVESMAPS_WIKI_SEARCH_RESULT_LIMIT);
@@ -402,11 +402,11 @@ function avesmapsWikiSyncSimilarityScore(string $left, string $right): float {
 
 function avesmapsWikiSyncInferSettlementClassFromPage(?array $page, string $fallbackTitle = ''): string {
     if (is_array($page)) {
-        $categories = $page['categories']  [];
+        $categories = $page['categories'] ?? [];
         if (is_array($categories)) {
             foreach ($categories as $category) {
-                $categoryTitle = (string) ($category['title']  '');
-                $categoryName = preg_replace('/^Kategorie:/u', '', $categoryTitle)  $categoryTitle;
+                $categoryTitle = (string) ($category['title'] ?? '');
+                $categoryName = preg_replace('/^Kategorie:/u', '', $categoryTitle) ?? $categoryTitle;
                 if (isset(AVESMAPS_WIKI_CATEGORY_TO_CLASS[$categoryName])) {
                     return AVESMAPS_WIKI_CATEGORY_TO_CLASS[$categoryName];
                 }
@@ -430,7 +430,7 @@ function avesmapsWikiSyncFetchMissingWikiPlaces(PDO $pdo, array $settlementTitle
     foreach (array_chunk($missingTitles, AVESMAPS_WIKI_TITLE_BATCH_SIZE) as $batch) {
         $pages = avesmapsWikiSyncFetchPagesByTitle($pdo, $batch, true, true);
         foreach ($batch as $title) {
-            $page = $pages[$title]  null;
+            $page = $pages[$title] ?? null;
             if (!is_array($page)) {
                 continue;
             }
@@ -446,8 +446,8 @@ function avesmapsWikiSyncFetchMissingWikiPlaces(PDO $pdo, array $settlementTitle
     usort(
         $missingPlaces,
         static function (array $left, array $right): int {
-            $sourceComparison = avesmapsWikiSyncCoordinateSortValue((string) ($left['wiki']['coordinates']['source']  'none'))
-                <=> avesmapsWikiSyncCoordinateSortValue((string) ($right['wiki']['coordinates']['source']  'none'));
+            $sourceComparison = avesmapsWikiSyncCoordinateSortValue((string) ($left['wiki']['coordinates']['source'] ?? 'none'))
+                <=> avesmapsWikiSyncCoordinateSortValue((string) ($right['wiki']['coordinates']['source'] ?? 'none'));
 
             if ($sourceComparison !== 0) {
                 return $sourceComparison;
@@ -462,10 +462,10 @@ function avesmapsWikiSyncFetchMissingWikiPlaces(PDO $pdo, array $settlementTitle
 
 function avesmapsWikiSyncBuildAndStoreCases(PDO $pdo, int $runId, array $stats): int {
     $cases = [];
-    $mapPlaces = is_array($stats['map_places']  null)  $stats['map_places'] : [];
-    $matches = is_array($stats['matches']  null)  $stats['matches'] : [];
-    $unresolved = is_array($stats['unresolved']  null)  $stats['unresolved'] : [];
-    $missingPlaces = is_array($stats['missing_wiki_places']  null)  $stats['missing_wiki_places'] : [];
+    $mapPlaces = is_array($stats['map_places'] ?? null) ? $stats['map_places'] : [];
+    $matches = is_array($stats['matches'] ?? null) ? $stats['matches'] : [];
+    $unresolved = is_array($stats['unresolved'] ?? null) ? $stats['unresolved'] : [];
+    $missingPlaces = is_array($stats['missing_wiki_places'] ?? null) ? $stats['missing_wiki_places'] : [];
 
     try {
         foreach (avesmapsWikiSyncFindDuplicateMapPlaceNames($mapPlaces) as $duplicateGroup) {
@@ -479,24 +479,24 @@ function avesmapsWikiSyncBuildAndStoreCases(PDO $pdo, int $runId, array $stats):
     }
 
     foreach ($matches as $match) {
-        if (($match['match_kind']  '') !== 'exact') {
+        if (($match['match_kind'] ?? '') !== 'exact') {
             $cases[] = avesmapsWikiSyncBuildCase('canonical_name_difference', $match);
         }
-        $wikiClass = (string) ($match['wiki']['settlement_class']  '');
-        $mapClass = (string) ($match['map']['settlement_class']  '');
+        $wikiClass = (string) ($match['wiki']['settlement_class'] ?? '');
+        $mapClass = (string) ($match['map']['settlement_class'] ?? '');
         if ($wikiClass !== '' && $mapClass !== '' && $wikiClass !== $mapClass) {
             $cases[] = avesmapsWikiSyncBuildCase('type_conflict', $match);
         }
     }
 
     foreach ($unresolved as $result) {
-        $caseType = !empty($result['candidates'])  'probable_match' : 'unresolved_without_candidate';
+        $caseType = !empty($result['candidates']) ? 'probable_match' : 'unresolved_without_candidate';
         $cases[] = avesmapsWikiSyncBuildCase($caseType, $result);
     }
 
     $matchesByTitle = [];
     foreach ($matches as $match) {
-        $title = (string) ($match['wiki']['title']  '');
+        $title = (string) ($match['wiki']['title'] ?? '');
         if ($title === '') {
             continue;
         }
@@ -505,7 +505,7 @@ function avesmapsWikiSyncBuildAndStoreCases(PDO $pdo, int $runId, array $stats):
     foreach ($matchesByTitle as $title => $titleMatches) {
         $mapNames = [];
         foreach ($titleMatches as $match) {
-            $mapNames[(string) ($match['map']['name']  '')] = true;
+            $mapNames[(string) ($match['map']['name'] ?? '')] = true;
         }
         if (count($mapNames) > 1) {
             $cases[] = avesmapsWikiSyncBuildCase('duplicate_wiki_title', [
@@ -516,10 +516,10 @@ function avesmapsWikiSyncBuildAndStoreCases(PDO $pdo, int $runId, array $stats):
     }
 
     foreach ($missingPlaces as $missingPlace) {
-        $source = (string) ($missingPlace['wiki']['coordinates']['source']  'none');
+        $source = (string) ($missingPlace['wiki']['coordinates']['source'] ?? 'none');
         $payload = $missingPlace;
-        $proposedLocation = $source === 'none'  null : avesmapsWikiSyncCoordinatesToMapLocation($missingPlace['wiki']['coordinates']);
-        $caseType = $proposedLocation === null  'missing_wiki_without_coordinates' : 'missing_wiki_with_coordinates';
+        $proposedLocation = $source === 'none' ? null : avesmapsWikiSyncCoordinatesToMapLocation($missingPlace['wiki']['coordinates']);
+        $caseType = $proposedLocation === null ? 'missing_wiki_without_coordinates' : 'missing_wiki_with_coordinates';
         if ($proposedLocation !== null) {
             $payload['proposed_location'] = $proposedLocation;
         }
@@ -531,7 +531,7 @@ function avesmapsWikiSyncBuildAndStoreCases(PDO $pdo, int $runId, array $stats):
         try {
             avesmapsWikiSyncUpsertCase($pdo, $runId, $case);
         } catch (Throwable $exception) {
-            if ((string) ($case['case_type']  '') !== 'duplicate_avesmaps_name') {
+            if ((string) ($case['case_type'] ?? '') !== 'duplicate_avesmaps_name') {
                 throw $exception;
             }
 
@@ -550,12 +550,12 @@ function avesmapsWikiSyncBuildAndStoreCases(PDO $pdo, int $runId, array $stats):
 
 function avesmapsWikiSyncExtractCoordinatesFromContent(string $content): array {
     if (preg_match('/\{\{DereGlobus-Link\|([^}]*)\}\}/su', $content, $dereglobusMatch) === 1) {
-        $body = (string) ($dereglobusMatch[1]  '');
+        $body = (string) ($dereglobusMatch[1] ?? '');
         $lonMatch = [];
         $latMatch = [];
         if (
-            preg_match('/L\x{00E4}nge\(x\)\s*=\s*([-+]?\d+(?:\.\d+) )/u', $body, $lonMatch) === 1
-            && preg_match('/Breite\(y\)\s*=\s*([-+]?\d+(?:\.\d+) )/u', $body, $latMatch) === 1
+            preg_match('/L\x{00E4}nge\(x\)\s*=\s*([-+]?\d+(?:\.\d+)?)/u', $body, $lonMatch) === 1
+            && preg_match('/Breite\(y\)\s*=\s*([-+]?\d+(?:\.\d+)?)/u', $body, $latMatch) === 1
         ) {
             return [
                 'source' => 'dereglobus',
@@ -566,12 +566,12 @@ function avesmapsWikiSyncExtractCoordinatesFromContent(string $content): array {
     }
 
     if (preg_match('/Positionskarte\s*=\s*\{\{Positionskarte\|([^}]*)\}\}/su', $content, $positionskarteMatch) === 1) {
-        $body = (string) ($positionskarteMatch[1]  '');
+        $body = (string) ($positionskarteMatch[1] ?? '');
         $xMatch = [];
         $yMatch = [];
         if (
-            preg_match('/\bX\s*=\s*([-+]?\d+(?:\.\d+) )/u', $body, $xMatch) === 1
-            && preg_match('/\bY\s*=\s*([-+]?\d+(?:\.\d+) )/u', $body, $yMatch) === 1
+            preg_match('/\bX\s*=\s*([-+]?\d+(?:\.\d+)?)/u', $body, $xMatch) === 1
+            && preg_match('/\bY\s*=\s*([-+]?\d+(?:\.\d+)?)/u', $body, $yMatch) === 1
         ) {
             return [
                 'source' => 'positionskarte',
@@ -589,15 +589,15 @@ function avesmapsWikiSyncExtractCoordinatesFromContent(string $content): array {
 }
 
 function avesmapsWikiSyncBuildCase(string $caseType, array $payload): array {
-    $mapPublicId = (string) ($payload['map']['public_id']  '');
-    $mapFeatureId = isset($payload['map']['id'])  (int) $payload['map']['id'] : null;
-    $wikiTitle = (string) ($payload['wiki']['title']  '');
+    $mapPublicId = (string) ($payload['map']['public_id'] ?? '');
+    $mapFeatureId = isset($payload['map']['id']) ? (int) $payload['map']['id'] : null;
+    $wikiTitle = (string) ($payload['wiki']['title'] ?? '');
     $caseSeed = implode('|', [
         AVESMAPS_WIKI_SYNC_TYPE_LOCATION,
         $caseType,
         $mapPublicId,
         $wikiTitle,
-        hash('sha256', avesmapsWikiSyncEncodeJson($payload['matches']  $payload['candidates']  [])),
+        hash('sha256', avesmapsWikiSyncEncodeJson($payload['matches'] ?? $payload['candidates'] ?? [])),
     ]);
     $caseKey = hash('sha256', $caseSeed);
     $signatureHash = hash('sha256', avesmapsWikiSyncEncodeJson($payload));
@@ -606,20 +606,20 @@ function avesmapsWikiSyncBuildCase(string $caseType, array $payload): array {
         'case_key' => $caseKey,
         'case_type' => $caseType,
         'map_feature_id' => $mapFeatureId,
-        'map_public_id' => $mapPublicId !== ''  $mapPublicId : null,
-        'wiki_title' => $wikiTitle !== ''  $wikiTitle : null,
+        'map_public_id' => $mapPublicId !== '' ? $mapPublicId : null,
+        'wiki_title' => $wikiTitle !== '' ? $wikiTitle : null,
         'payload' => $payload,
         'signature_hash' => $signatureHash,
     ];
 }
 
 function avesmapsWikiSyncReadPageContent(array $page): string {
-    $revisions = $page['revisions']  [];
+    $revisions = $page['revisions'] ?? [];
     if (!is_array($revisions) || !isset($revisions[0]) || !is_array($revisions[0])) {
         return '';
     }
 
-    return (string) ($revisions[0]['slots']['main']['content']  $revisions[0]['content']  '');
+    return (string) ($revisions[0]['slots']['main']['content'] ?? $revisions[0]['content'] ?? '');
 }
 
 function avesmapsWikiSyncCoordinateSortValue(string $source): int {
@@ -646,7 +646,7 @@ function avesmapsWikiSyncListCases(PDO $pdo): array {
         return [
             'ok' => true,
             'latest_run' => null,
-            'active_run' => $activeRun === null  null : avesmapsWikiSyncPublicRun($activeRun),
+            'active_run' => $activeRun === null ? null : avesmapsWikiSyncPublicRun($activeRun),
             'summary' => [
                 'case_count' => 0,
                 'visible_count' => 0,
@@ -672,16 +672,16 @@ function avesmapsWikiSyncListCases(PDO $pdo): array {
 
     $cases = [];
     foreach ($statement->fetchAll() as $row) {
-        $payload = avesmapsWikiSyncDecodeJson($row['payload_json']  null);
+        $payload = avesmapsWikiSyncDecodeJson($row['payload_json'] ?? null);
         $cases[] = [
             'id' => (int) $row['id'],
             'case_type' => (string) $row['case_type'],
             'case_label' => avesmapsWikiSyncCaseLabel((string) $row['case_type']),
             'status' => (string) $row['status'],
-            'map_public_id' => (string) ($row['map_public_id']  ''),
-            'wiki_title' => (string) ($row['wiki_title']  ''),
+            'map_public_id' => (string) ($row['map_public_id'] ?? ''),
+            'wiki_title' => (string) ($row['wiki_title'] ?? ''),
             'payload' => $payload,
-            'resolution' => avesmapsWikiSyncDecodeJson($row['resolution_json']  null),
+            'resolution' => avesmapsWikiSyncDecodeJson($row['resolution_json'] ?? null),
             'signature_hash' => (string) $row['signature_hash'],
             'updated_at' => (string) $row['updated_at'],
         ];
@@ -690,19 +690,19 @@ function avesmapsWikiSyncListCases(PDO $pdo): array {
     return [
         'ok' => true,
         'latest_run' => avesmapsWikiSyncPublicRun($run),
-        'active_run' => $activeRun === null  null : avesmapsWikiSyncPublicRun($activeRun),
+        'active_run' => $activeRun === null ? null : avesmapsWikiSyncPublicRun($activeRun),
         'summary' => avesmapsWikiSyncBuildSummary($pdo, (int) $run['id']),
         'cases' => $cases,
     ];
 }
 
 function avesmapsWikiSyncUpdateCaseStatus(PDO $pdo, array $payload, array $user, string $status): array {
-    $caseId = avesmapsWikiSyncReadPositiveInt($payload['case_id']  null, 'case_id');
+    $caseId = avesmapsWikiSyncReadPositiveInt($payload['case_id'] ?? null, 'case_id');
     if (!in_array($status, ['open', 'deferred', 'archived'], true)) {
         throw new InvalidArgumentException('Der WikiSync-Status ist ungueltig.');
     }
 
-    $resolution = isset($payload['resolution']) && is_array($payload['resolution'])  $payload['resolution'] : null;
+    $resolution = isset($payload['resolution']) && is_array($payload['resolution']) ? $payload['resolution'] : null;
 
     $statement = $pdo->prepare(
         'UPDATE wiki_sync_cases
@@ -715,8 +715,8 @@ function avesmapsWikiSyncUpdateCaseStatus(PDO $pdo, array $payload, array $user,
     $statement->execute([
         'id' => $caseId,
         'status' => $status,
-        'reviewed_by' => (int) ($user['id']  0) ?: null,
-        'resolution_json' => $resolution !== null  avesmapsWikiSyncEncodeJson($resolution) : null,
+        'reviewed_by' => (int) ($user['id'] ?? 0) ?: null,
+        'resolution_json' => $resolution !== null ? avesmapsWikiSyncEncodeJson($resolution) : null,
     ]);
 
     if ($statement->rowCount() < 1) {
@@ -731,30 +731,30 @@ function avesmapsWikiSyncUpdateCaseStatus(PDO $pdo, array $payload, array $user,
 }
 
 function avesmapsWikiSyncResolveCase(PDO $pdo, array $payload, array $user): array {
-    $caseId = avesmapsWikiSyncReadPositiveInt($payload['case_id']  null, 'case_id');
+    $caseId = avesmapsWikiSyncReadPositiveInt($payload['case_id'] ?? null, 'case_id');
     $case = avesmapsWikiSyncFetchCase($pdo, $caseId);
-    $casePayload = avesmapsWikiSyncDecodeJson($case['payload_json']  null);
+    $casePayload = avesmapsWikiSyncDecodeJson($case['payload_json'] ?? null);
 
-    $publicId = avesmapsNormalizeSingleLine((string) ($payload['public_id']  ''), 36);
-    $name = avesmapsWikiSyncReadLocationName($payload['name']  '');
-    $subtype = avesmapsWikiSyncReadLocationSubtype($payload['feature_subtype']  'dorf');
-    $description = avesmapsNormalizeMultiline((string) ($payload['description']  ''), 1200);
-    $wikiUrl = avesmapsNormalizeOptionalUrl((string) ($payload['wiki_url']  ''), 500, 'Der Wiki-Aventurica-Link');
-    $isNodix = avesmapsWikiSyncReadBoolean($payload['is_nodix']  false);
-    $isRuined = avesmapsWikiSyncReadBoolean($payload['is_ruined']  false);
+    $publicId = avesmapsNormalizeSingleLine((string) ($payload['public_id'] ?? ''), 36);
+    $name = avesmapsWikiSyncReadLocationName($payload['name'] ?? '');
+    $subtype = avesmapsWikiSyncReadLocationSubtype($payload['feature_subtype'] ?? 'dorf');
+    $description = avesmapsNormalizeMultiline((string) ($payload['description'] ?? ''), 1200);
+    $wikiUrl = avesmapsNormalizeOptionalUrl((string) ($payload['wiki_url'] ?? ''), 500, 'Der Wiki-Aventurica-Link');
+    $isNodix = avesmapsWikiSyncReadBoolean($payload['is_nodix'] ?? false);
+    $isRuined = avesmapsWikiSyncReadBoolean($payload['is_ruined'] ?? false);
 
     $pdo->beginTransaction();
     try {
         $feature = $publicId !== ''
-             avesmapsWikiSyncUpdateLocationFeature($pdo, $payload, $user, $publicId, $name, $subtype, $description, $wikiUrl, $isNodix, $isRuined)
+            ? avesmapsWikiSyncUpdateLocationFeature($pdo, $payload, $user, $publicId, $name, $subtype, $description, $wikiUrl, $isNodix, $isRuined)
             : avesmapsWikiSyncCreateLocationFeature($pdo, $user, $payload, $name, $subtype, $description, $wikiUrl, $isNodix, $isRuined);
 
         $resolution = [
             'resolved_at' => gmdate('c'),
-            'resolved_by' => (string) ($user['username']  ''),
+            'resolved_by' => (string) ($user['username'] ?? ''),
             'feature' => $feature,
-            'case_type' => (string) ($case['case_type']  ''),
-            'wiki_title' => (string) ($casePayload['wiki']['title']  $case['wiki_title']  ''),
+            'case_type' => (string) ($case['case_type'] ?? ''),
+            'wiki_title' => (string) ($casePayload['wiki']['title'] ?? $case['wiki_title'] ?? ''),
         ];
 
         $statement = $pdo->prepare(
@@ -768,7 +768,7 @@ function avesmapsWikiSyncResolveCase(PDO $pdo, array $payload, array $user): arr
         $statement->execute([
             'id' => $caseId,
             'status' => 'archived',
-            'reviewed_by' => (int) ($user['id']  0) ?: null,
+            'reviewed_by' => (int) ($user['id'] ?? 0) ?: null,
             'resolution_json' => avesmapsWikiSyncEncodeJson($resolution),
         ]);
 
@@ -805,9 +805,9 @@ function avesmapsWikiSyncUpdateLocationFeature(
         throw new InvalidArgumentException('WikiSync kann nur Orts-Punkte bearbeiten.');
     }
 
-    $currentName = (string) ($feature['name']  '');
-    $properties = avesmapsWikiSyncDecodeJson($feature['properties_json']  null);
-    $geometry = avesmapsWikiSyncDecodeJson($feature['geometry_json']  null);
+    $currentName = (string) ($feature['name'] ?? '');
+    $properties = avesmapsWikiSyncDecodeJson($feature['properties_json'] ?? null);
+    $geometry = avesmapsWikiSyncDecodeJson($feature['geometry_json'] ?? null);
     [$lng, $lat] = avesmapsWikiSyncReadPointCoordinatesFromGeometry($geometry);
     $nextProperties = avesmapsWikiSyncBuildLocationProperties($properties, $name, $subtype, $description, $wikiUrl, $isNodix, $isRuined);
 
@@ -839,12 +839,12 @@ function avesmapsWikiSyncUpdateLocationFeature(
         'feature_subtype' => $subtype,
         'properties_json' => avesmapsWikiSyncEncodeJson($nextProperties),
         'revision' => $revision,
-        'updated_by' => (int) ($user['id']  0) ?: null,
+        'updated_by' => (int) ($user['id'] ?? 0) ?: null,
     ]);
 
-    avesmapsWikiSyncWriteMapAuditLog($pdo, (int) $feature['id'], 'wiki_sync_update_point', (int) ($user['id']  0), avesmapsWikiSyncEncodeJson($feature), avesmapsWikiSyncEncodeJson([
+    avesmapsWikiSyncWriteMapAuditLog($pdo, (int) $feature['id'], 'wiki_sync_update_point', (int) ($user['id'] ?? 0), avesmapsWikiSyncEncodeJson($feature), avesmapsWikiSyncEncodeJson([
         'public_id' => $publicId,
-        'wiki_sync_case_id' => (int) ($payload['case_id']  0),
+        'wiki_sync_case_id' => (int) ($payload['case_id'] ?? 0),
         'feature_type' => 'location',
         'name' => $name,
         'feature_subtype' => $subtype,
@@ -896,14 +896,14 @@ function avesmapsWikiSyncLocationFeatureNeedsUpdate(
     bool $isNodix,
     bool $isRuined
 ): bool {
-    $currentSubtype = avesmapsWikiSyncReadSettlementClass((string) ($feature['feature_subtype']  $properties['settlement_class']  'dorf'));
+    $currentSubtype = avesmapsWikiSyncReadSettlementClass((string) ($feature['feature_subtype'] ?? $properties['settlement_class'] ?? 'dorf'));
 
-    return (string) ($feature['name']  '') !== $name
+    return (string) ($feature['name'] ?? '') !== $name
         || $currentSubtype !== $subtype
-        || (string) ($properties['description']  '') !== $description
-        || (string) ($properties['wiki_url']  '') !== $wikiUrl
-        || avesmapsWikiSyncReadBoolean($properties['is_nodix']  false) !== $isNodix
-        || avesmapsWikiSyncReadBoolean($properties['is_ruined']  false) !== $isRuined;
+        || (string) ($properties['description'] ?? '') !== $description
+        || (string) ($properties['wiki_url'] ?? '') !== $wikiUrl
+        || avesmapsWikiSyncReadBoolean($properties['is_nodix'] ?? false) !== $isNodix
+        || avesmapsWikiSyncReadBoolean($properties['is_ruined'] ?? false) !== $isRuined;
 }
 
 function avesmapsWikiSyncCreateLocationFeature(
@@ -917,8 +917,8 @@ function avesmapsWikiSyncCreateLocationFeature(
     bool $isNodix,
     bool $isRuined
 ): array {
-    $lat = avesmapsParseMapCoordinate($payload['lat']  null, 'lat');
-    $lng = avesmapsParseMapCoordinate($payload['lng']  null, 'lng');
+    $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
+    $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
     $publicId = avesmapsWikiSyncUuidV4();
     $geometry = [
         'type' => 'Point',
@@ -968,14 +968,14 @@ function avesmapsWikiSyncCreateLocationFeature(
         'max_y' => $lat,
         'sort_order' => $sortOrder,
         'revision' => $revision,
-        'created_by' => (int) ($user['id']  0) ?: null,
-        'updated_by' => (int) ($user['id']  0) ?: null,
+        'created_by' => (int) ($user['id'] ?? 0) ?: null,
+        'updated_by' => (int) ($user['id'] ?? 0) ?: null,
     ]);
 
     $featureId = (int) $pdo->lastInsertId();
-    avesmapsWikiSyncWriteMapAuditLog($pdo, $featureId, 'wiki_sync_create_point', (int) ($user['id']  0), '{}', avesmapsWikiSyncEncodeJson([
+    avesmapsWikiSyncWriteMapAuditLog($pdo, $featureId, 'wiki_sync_create_point', (int) ($user['id'] ?? 0), '{}', avesmapsWikiSyncEncodeJson([
         'public_id' => $publicId,
-        'wiki_sync_case_id' => (int) ($payload['case_id']  0),
+        'wiki_sync_case_id' => (int) ($payload['case_id'] ?? 0),
         'feature_type' => 'location',
         'name' => $name,
         'feature_subtype' => $subtype,
@@ -1024,7 +1024,7 @@ function avesmapsWikiSyncBuildSummary(PDO $pdo, int $runId): array {
         if (in_array($status, ['open', 'deferred'], true)) {
             $summary['by_type'][$caseType]['visible_count'] += $count;
         }
-        $summary['by_status'][$status] = ($summary['by_status'][$status]  0) + $count;
+        $summary['by_status'][$status] = ($summary['by_status'][$status] ?? 0) + $count;
     }
 
     $summary['by_type'] = array_values($summary['by_type']);
@@ -1038,11 +1038,11 @@ function avesmapsWikiSyncBuildSummary(PDO $pdo, int $runId): array {
 
 function avesmapsWikiSyncCaseTypeOrder(string $caseType): int {
     $order = array_flip(array_keys(AVESMAPS_WIKI_CASE_LABELS));
-    return $order[$caseType]  999;
+    return $order[$caseType] ?? 999;
 }
 
 function avesmapsWikiSyncCaseLabel(string $caseType): string {
-    return AVESMAPS_WIKI_CASE_LABELS[$caseType]  $caseType;
+    return AVESMAPS_WIKI_CASE_LABELS[$caseType] ?? $caseType;
 }
 
 function avesmapsWikiSyncReadLocationSubtype(mixed $value): string {
@@ -1055,7 +1055,7 @@ function avesmapsWikiSyncReadLocationSubtype(mixed $value): string {
 }
 
 function avesmapsWikiSyncReadSettlementClass(string $value): string {
-    return array_key_exists($value, AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS)  $value : 'dorf';
+    return array_key_exists($value, AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS) ? $value : 'dorf';
 }
 
 function avesmapsWikiSyncLocationSubtypeLabel(string $subtype): string {
@@ -1071,7 +1071,7 @@ function avesmapsWikiSyncLocationSubtypeLabel(string $subtype): string {
 
 function avesmapsWikiSyncNormalizeDuplicateLocationName(string $value): string {
     $normalizedValue = mb_strtolower($value);
-    return preg_replace('/[^\p{L}\p{N}]+/u', '', $normalizedValue)  '';
+    return preg_replace('/[^\p{L}\p{N}]+/u', '', $normalizedValue) ?? '';
 }
 
 function avesmapsWikiSyncAssertUniqueLocationName(PDO $pdo, string $name, ?string $excludePublicId = null): void {
@@ -1085,7 +1085,7 @@ function avesmapsWikiSyncAssertUniqueLocationName(PDO $pdo, string $name, ?strin
         FROM map_features
         WHERE feature_type = :feature_type
             AND is_active = 1'
-        . ($excludePublicId !== null && $excludePublicId !== ''  ' AND public_id <> :public_id' : '')
+        . ($excludePublicId !== null && $excludePublicId !== '' ? ' AND public_id <> :public_id' : '')
     );
     $params = [
         'feature_type' => 'location',
@@ -1096,7 +1096,7 @@ function avesmapsWikiSyncAssertUniqueLocationName(PDO $pdo, string $name, ?strin
     $statement->execute($params);
 
     foreach ($statement->fetchAll() as $row) {
-        $existingName = (string) ($row['name']  '');
+        $existingName = (string) ($row['name'] ?? '');
         if ($existingName !== '' && avesmapsWikiSyncNormalizeDuplicateLocationName($existingName) === $normalizedName) {
             throw new InvalidArgumentException('Ein Ort mit diesem Namen existiert bereits.');
         }
@@ -1125,7 +1125,7 @@ function avesmapsWikiSyncFetchEditablePointFeature(PDO $pdo, string $publicId): 
 }
 
 function avesmapsWikiSyncAssertFeatureCanBeEdited(PDO $pdo, array $payload, array $feature, array $user): void {
-    $expectedRevision = $payload['expected_revision']  null;
+    $expectedRevision = $payload['expected_revision'] ?? null;
     if ($expectedRevision !== null && $expectedRevision !== '') {
         $parsedRevision = filter_var($expectedRevision, FILTER_VALIDATE_INT);
         if ($parsedRevision === false || $parsedRevision < 0) {
@@ -1165,7 +1165,7 @@ function avesmapsWikiSyncEnsureMapFeatureLocksTable(PDO $pdo): void {
 }
 
 function avesmapsWikiSyncReadPointCoordinatesFromGeometry(array $geometry): array {
-    $coordinates = $geometry['coordinates']  null;
+    $coordinates = $geometry['coordinates'] ?? null;
     if (!is_array($coordinates) || count($coordinates) < 2 || !is_numeric($coordinates[0]) || !is_numeric($coordinates[1])) {
         throw new RuntimeException('Die Point-Geometrie ist ungueltig.');
     }
@@ -1181,7 +1181,7 @@ function avesmapsWikiSyncNextMapRevision(PDO $pdo): int {
     );
 
     $statement = $pdo->query('SELECT revision FROM map_revision WHERE id = 1');
-    $revision = $statement !== false  $statement->fetchColumn() : false;
+    $revision = $statement !== false ? $statement->fetchColumn() : false;
     if ($revision === false) {
         throw new RuntimeException('Die Kartenrevision konnte nicht gelesen werden.');
     }
@@ -1191,9 +1191,9 @@ function avesmapsWikiSyncNextMapRevision(PDO $pdo): int {
 
 function avesmapsWikiSyncNextMapSortOrder(PDO $pdo): int {
     $statement = $pdo->query('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM map_features');
-    $sortOrder = $statement !== false  $statement->fetchColumn() : false;
+    $sortOrder = $statement !== false ? $statement->fetchColumn() : false;
 
-    return $sortOrder === false  1 : (int) $sortOrder;
+    return $sortOrder === false ? 1 : (int) $sortOrder;
 }
 
 function avesmapsWikiSyncWriteMapAuditLog(PDO $pdo, int $featureId, string $action, int $actorUserId, string $beforeJson, string $afterJson): void {
@@ -1218,8 +1218,8 @@ function avesmapsWikiSyncBuildPointFeatureResponse(string $publicId, string $nam
         'feature_subtype' => $subtype,
         'location_type' => $subtype,
         'location_type_label' => avesmapsWikiSyncLocationSubtypeLabel($subtype),
-        'description' => (string) ($properties['description']  ''),
-        'wiki_url' => (string) ($properties['wiki_url']  ''),
+        'description' => (string) ($properties['description'] ?? ''),
+        'wiki_url' => (string) ($properties['wiki_url'] ?? ''),
         'is_nodix' => !empty($properties['is_nodix']),
         'is_ruined' => !empty($properties['is_ruined']),
         'lat' => round($lat, 3),

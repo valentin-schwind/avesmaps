@@ -2,7 +2,7 @@
 
 ## 1. Zusammenfassung
 
-Die Region Context Menu DOM/State-Helfer wurden als enger 1:1-Extract aus `js/map-features.js` in `js/map-features/map-features-region-context-menu.js` ausgelagert.
+Die Region Context Menu DOM/State-Helfer wurden als enger 1:1-Extract aus `js/map-features.js` in `js/map-features-region-context-menu.js` ausgelagert.
 
 Ziel ist es, die reine DOM- und Positionierungslogik des Region-Kontextmenüs zu separieren, während die eigentlichen Actions, Geometry-Edit-Flow-Logik und Pending-Operationen im Rest verbleiben.
 
@@ -32,7 +32,7 @@ Diese verbleibenden Funktionen sind eng mit den Region-Edit-Workflows, Context-A
 
 ## 4. Script-Reihenfolge
 
-`index.html` lädt `js/map-features/map-features-region-context-menu.js` nach `js/map-features.js` und vor `js/map-features/map-features-region-overlap-selection.js`.
+`index.html` lädt `js/map-features-region-context-menu.js` nach `js/map-features.js` und vor `js/map-features-region-overlap-selection.js`.
 
 ## 5. Smoke-Plan
 

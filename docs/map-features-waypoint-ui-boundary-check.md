@@ -1,4 +1,4 @@
-# Boundary-Analyse: Waypoint-UI-Helfer-Cluster in `js/map-features.js`
+﻿# Boundary-Analyse: Waypoint-UI-Helfer-Cluster in `js/map-features.js`
 
 ## 1. Zweck der Analyse
 Diese Analyse bewertet, ob der Waypoint-UI-Helfer-Cluster in `js/map-features.js` spaeter als kleiner, verhaltensneutraler 1:1-Split ausgelagert werden kann. Ziel ist ausdruecklich nur die Boundary- und Risikoanalyse, keine Implementierung.
@@ -35,8 +35,8 @@ Zusammenhaengende Event-Anbindungen in `js/routing.js` nutzen diesen Cluster (z.
 ## 3. Welche Funktionen bewusst nicht Teil des Clusters sind
 Bewusst ausserhalb des Waypoint-UI-Clusters:
 - Routing-Berechnung und Darstellung (`updateMapView`, `collectAndValidateSelectedLocations`, `buildRouteResultFromSelectedLocations`, Segment-/Tooltip-Rendering)
-- URL-/Planner-State-Parsen/Serialisieren in `js/map-features/map-features-layer-state.js`
-- Share-Pin-Cluster in `js/map-features/map-features-share-pin.js`
+- URL-/Planner-State-Parsen/Serialisieren in `js/map-features-layer-state.js`
+- Share-Pin-Cluster in `js/map-features-share-pin.js`
 - Contextmenu-Dispatcher und sonstige Popup-Actions (nur Konsumenten der Waypoint-Helfer)
 - Feature-/Live-Update-Flows (Location/Path/Powerline/Region)
 
@@ -77,7 +77,7 @@ Direkte externe Aufrufe aus dem Cluster:
 - `normalizeLocationSearchName(...)`
 - `isCrossingName(...)`
 - `escapeHtml(...)`
-- `syncPlannerStateToUrl(...)` (aus `js/map-features/map-features-layer-state.js`)
+- `syncPlannerStateToUrl(...)` (aus `js/map-features-layer-state.js`)
 - `updateMapView(...)` (Routing-Orchestrierung in `js/routing.js`)
 
 ## 8. Welche Funktionen vermutlich von aussen gebraucht werden
@@ -102,7 +102,7 @@ Klar externe Schnittstelle (wird von anderen Dateien genutzt):
 
 Fazit: enge, aber stabile Kopplung ueber globale Funktionsnamen.
 
-## 10. Abhaengigkeit zu `js/map-features/map-features-layer-state.js`
+## 10. Abhaengigkeit zu `js/map-features-layer-state.js`
 Zweiseitige Abhaengigkeit:
 - `applyPlannerStateFromUrl()` ruft `resetWaypointInputs(...)` auf
 - `buildPlannerSearchParams()` nutzt `getWaypointInputValues()`
@@ -120,11 +120,11 @@ Das macht den Cluster sensibel fuer Location-Name-Aenderungen und fuer Live-Upda
 
 ## 12. Moegliche spaetere Ziel-Datei
 Bewertet:
-- `js/map-features/map-features-waypoints.js`
+- `js/map-features-waypoints.js`
 - `js/routing-waypoints-ui.js`
 
 Risikoaermer im aktuellen Setup:
-- `js/map-features/map-features-waypoints.js`
+- `js/map-features-waypoints.js`
 
 Begruendung:
 - Der Cluster haengt nicht nur an Routing, sondern auch an Planner-State-URL-Sync und Feature-Change-Refresh in `map-features`.
@@ -132,8 +132,8 @@ Begruendung:
 
 ## 13. Noetige Script-Reihenfolge (falls spaeter ausgelagert)
 Empfehlung fuer klassischen Script-Tag-Aufbau:
-1. `js/map-features/map-features-layer-state.js` (stellt `syncPlannerStateToUrl` bereit)
-2. `js/map-features/map-features-waypoints.js` (neu)
+1. `js/map-features-layer-state.js` (stellt `syncPlannerStateToUrl` bereit)
+2. `js/map-features-waypoints.js` (neu)
 3. `js/map-features.js` (Rest-Orchestrator)
 4. `js/routing.js` (Konsument der Waypoint-Globals)
 

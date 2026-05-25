@@ -19,7 +19,7 @@
 
 ## 2. Current Consumers
 
-### `js/review/review-status.js`
+### `js/dialogs-review-status.js`
 - Nutzt DOM-Getter fuer Status-Elemente:
   - `getLocationReportStatusElement`
   - `getLocationEditStatusElement`
@@ -29,7 +29,7 @@
   - `getLabelEditStatusElement`
   - `getRegionEditStatusElement`
 
-### `js/review/review-pending.js`
+### `js/dialogs-review-pending.js`
 - Nutzt DOM-Getter fuer Formulare:
   - `getLocationReportFormElement`
   - `getLocationEditFormElement`
@@ -37,17 +37,17 @@
   - `getPathEditFormElement`
   - `getPowerlineEditFormElement`
 
-### `js/review/review-paths.js`
+### `js/dialogs-review-paths.js`
 - Nutzt DOM-Getter fuer Formulare:
   - `getPathEditFormElement`
   - `getPowerlineEditFormElement`
 
-### `js/review/review-labels.js`
+### `js/dialogs-review-labels.js`
 - Nutzt Core/Dialog-Zustand:
   - `syncModalDialogBodyState`
   - `getLabelEditDialogElement`
 
-### `js/review/review-locations.js`
+### `js/dialogs-review-locations.js`
 - Nutzt Core/Getters:
   - `getLocationReportFormElement`
   - `getLocationEditFormElement`
@@ -62,18 +62,18 @@
 
 ## 3. Candidate Split File
 
-### A. `js/review/review-core.js` mit DOM-Gettern + `is...DialogOpen` + `isLocationReportServiceConfigured` + `syncModalDialogBodyState`
+### A. `js/dialogs-review-core.js` mit DOM-Gettern + `is...DialogOpen` + `isLocationReportServiceConfigured` + `syncModalDialogBodyState`
 - Vorteil: saubere Abhaengigkeitsrichtung fuer alle bereits ausgelagerten Cluster.
 - Vorteil: rein definierende Funktionen, keine Top-Level-UI-Aktionen.
 - Risiko: niedrig bis mittel (viele Funktionsnamen, aber mechanischer 1:1-Move).
 - Bewertung: **beste Option**.
 
-### B. `js/review/review-dom.js` nur mit DOM-Gettern
+### B. `js/dialogs-review-dom.js` nur mit DOM-Gettern
 - Vorteil: sehr kleiner Scope.
 - Nachteil: `syncModalDialogBodyState` und `is...DialogOpen` bleiben in Restdatei, Abhaengigkeiten bleiben verteilt.
 - Bewertung: brauchbar, aber architektonisch nur Teilerfolg.
 
-### C. `js/review/review-modal-state.js` nur mit `is...DialogOpen` + `syncModalDialogBodyState`
+### C. `js/dialogs-review-modal-state.js` nur mit `is...DialogOpen` + `syncModalDialogBodyState`
 - Vorteil: explizite Modal-Logikdatei.
 - Nachteil: trennt stark zusammengehoerige Basisfunktionen kuenstlich auf zwei Dateien.
 - Bewertung: weniger sinnvoll als A.
@@ -85,12 +85,12 @@
 ## 4. Script-Reihenfolge
 
 Empfohlene Reihenfolge fuer spaeteren Split:
-1. `js/review/review-core.js`
-2. `js/review/review-status.js`
-3. `js/review/review-pending.js`
-4. `js/review/review-paths.js`
-5. `js/review/review-labels.js`
-6. `js/review/review-locations.js`
+1. `js/dialogs-review-core.js`
+2. `js/dialogs-review-status.js`
+3. `js/dialogs-review-pending.js`
+4. `js/dialogs-review-paths.js`
+5. `js/dialogs-review-labels.js`
+6. `js/dialogs-review-locations.js`
 7. `js/dialogs-review.js`
 
 Bewertung:
@@ -110,7 +110,7 @@ Bewertung:
 Empfehlung: **ein gemeinsamer Core-Split nach Variante A**.
 
 ### Neue Datei
-- `js/review/review-core.js`
+- `js/dialogs-review-core.js`
 
 ### Exakt zu verschiebende Funktionen
 - Alle genannten DOM-Getter
@@ -152,5 +152,5 @@ Warum sicher:
 ## 9. Recommendation
 
 - **Core-Split ist als naechster Code-Schritt sinnvoll.**
-- Die genannten Funktionen sollten **gemeinsam** in eine Datei (`js/review/review-core.js`) verschoben werden, nicht in mehrere Mini-Dateien.
+- Die genannten Funktionen sollten **gemeinsam** in eine Datei (`js/dialogs-review-core.js`) verschoben werden, nicht in mehrere Mini-Dateien.
 - Nach diesem Split: als naechsten Analysebereich `Review/Change/Presence` pruefen (kein direkter weiterer Verschiebe-Schritt ohne neue Boundary-Analyse).

@@ -14,7 +14,7 @@ try {
         ]);
     }
 
-    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD']  'GET'));
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
     if ($requestMethod === 'OPTIONS') {
         avesmapsJsonResponse(204);
     }
@@ -27,7 +27,7 @@ try {
     }
 
     $user = avesmapsRequireUserWithCapability('review');
-    $pdo = avesmapsCreatePdo($config['database']  []);
+    $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsEnsureMapAuditUndoColumns($pdo);
     avesmapsJsonResponse(200, avesmapsListMapAuditLog($pdo, avesmapsUserCan($user, 'edit')));
 } catch (InvalidArgumentException $exception) {
@@ -82,7 +82,7 @@ function avesmapsListMapAuditLog(PDO $pdo, bool $canUndoChanges): array {
         ORDER BY audit.created_at DESC, audit.id DESC
         LIMIT 50'
     );
-    $rows = $statement !== false  $statement->fetchAll() : [];
+    $rows = $statement !== false ? $statement->fetchAll() : [];
 
     return [
         'ok' => true,
@@ -94,25 +94,25 @@ function avesmapsListMapAuditLog(PDO $pdo, bool $canUndoChanges): array {
 }
 
 function avesmapsNormalizeAuditRow(array $row, bool $canUndoChanges): array {
-    $after = avesmapsDecodeAuditJson($row['after_json']  null);
-    $before = avesmapsDecodeAuditJson($row['before_json']  null);
-    $isUndone = (string) ($row['undone_at']  '') !== '';
+    $after = avesmapsDecodeAuditJson($row['after_json'] ?? null);
+    $before = avesmapsDecodeAuditJson($row['before_json'] ?? null);
+    $isUndone = (string) ($row['undone_at'] ?? '') !== '';
     $action = (string) $row['action'];
 
     return [
         'id' => (int) $row['id'],
         'action' => $action,
         'created_at' => (string) $row['created_at'],
-        'username' => (string) ($row['username']  ''),
+        'username' => (string) ($row['username'] ?? ''),
         'undone' => $isUndone,
-        'undone_at' => (string) ($row['undone_at']  ''),
-        'undone_username' => (string) ($row['undone_username']  ''),
-        'undo_audit_id' => (int) ($row['undo_audit_id']  0),
+        'undone_at' => (string) ($row['undone_at'] ?? ''),
+        'undone_username' => (string) ($row['undone_username'] ?? ''),
+        'undo_audit_id' => (int) ($row['undo_audit_id'] ?? 0),
         'can_undo' => $canUndoChanges && !$isUndone && avesmapsCanUndoAuditAction($action),
-        'public_id' => (string) ($row['public_id']  ($after['public_id']  $before['public_id']  '')),
-        'feature_type' => (string) ($row['feature_type']  ($after['feature_type']  $before['feature_type']  '')),
-        'feature_subtype' => (string) ($row['feature_subtype']  ($after['feature_subtype']  $before['feature_subtype']  '')),
-        'name' => (string) ($row['name']  ($after['name']  $before['name']  '')),
+        'public_id' => (string) ($row['public_id'] ?? ($after['public_id'] ?? $before['public_id'] ?? '')),
+        'feature_type' => (string) ($row['feature_type'] ?? ($after['feature_type'] ?? $before['feature_type'] ?? '')),
+        'feature_subtype' => (string) ($row['feature_subtype'] ?? ($after['feature_subtype'] ?? $before['feature_subtype'] ?? '')),
+        'name' => (string) ($row['name'] ?? ($after['name'] ?? $before['name'] ?? '')),
         'focus' => avesmapsBuildAuditFocusTarget($row, $before, $after),
     ];
 }
@@ -142,8 +142,8 @@ function avesmapsFetchTableColumnNames(PDO $pdo, string $tableName): array {
 
     $statement = $pdo->query("SHOW COLUMNS FROM {$tableName}");
     $columns = [];
-    foreach ($statement !== false  $statement->fetchAll(PDO::FETCH_ASSOC) : [] as $row) {
-        $columnName = (string) ($row['Field']  '');
+    foreach ($statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [] as $row) {
+        $columnName = (string) ($row['Field'] ?? '');
         if ($columnName !== '') {
             $columns[$columnName] = true;
         }
@@ -181,16 +181,16 @@ function avesmapsCanUndoAuditAction(string $action): bool {
 
 function avesmapsBuildAuditFocusTarget(array $row, array $before, array $after): ?array {
     $current = [
-        'geometry_json' => $row['current_geometry_json']  null,
-        'min_x' => $row['current_min_x']  null,
-        'min_y' => $row['current_min_y']  null,
-        'max_x' => $row['current_max_x']  null,
-        'max_y' => $row['current_max_y']  null,
-        'is_active' => $row['current_is_active']  null,
+        'geometry_json' => $row['current_geometry_json'] ?? null,
+        'min_x' => $row['current_min_x'] ?? null,
+        'min_y' => $row['current_min_y'] ?? null,
+        'max_x' => $row['current_max_x'] ?? null,
+        'max_y' => $row['current_max_y'] ?? null,
+        'is_active' => $row['current_is_active'] ?? null,
     ];
     $snapshots = avesmapsFocusSnapshotOrder((string) $row['action'], $before, $after, $current);
     foreach ($snapshots as $snapshot) {
-        $geometry = avesmapsReadAuditGeometry($snapshot['geometry_json']  null);
+        $geometry = avesmapsReadAuditGeometry($snapshot['geometry_json'] ?? null);
         if ($geometry === null) {
             continue;
         }
@@ -218,7 +218,7 @@ function avesmapsReadAuditGeometry(mixed $value): ?array {
         return null;
     }
     if (is_array($value)) {
-        return isset($value['type'])  $value : null;
+        return isset($value['type']) ? $value : null;
     }
 
     try {
@@ -227,12 +227,12 @@ function avesmapsReadAuditGeometry(mixed $value): ?array {
         return null;
     }
 
-    return is_array($decoded) && isset($decoded['type'])  $decoded : null;
+    return is_array($decoded) && isset($decoded['type']) ? $decoded : null;
 }
 
 function avesmapsBuildGeometryFocusTarget(array $geometry): ?array {
     $coordinatePairs = [];
-    avesmapsCollectAuditCoordinatePairs($geometry['coordinates']  null, $coordinatePairs);
+    avesmapsCollectAuditCoordinatePairs($geometry['coordinates'] ?? null, $coordinatePairs);
     if ($coordinatePairs === []) {
         return null;
     }
@@ -269,7 +269,7 @@ function avesmapsCollectAuditCoordinatePairs(mixed $coordinates, array &$coordin
     if (!is_array($coordinates)) {
         return;
     }
-    if (count($coordinates) >= 2 && is_numeric($coordinates[0]  null) && is_numeric($coordinates[1]  null)) {
+    if (count($coordinates) >= 2 && is_numeric($coordinates[0] ?? null) && is_numeric($coordinates[1] ?? null)) {
         $coordinatePairs[] = [(float) $coordinates[0], (float) $coordinates[1]];
         return;
     }
@@ -290,5 +290,5 @@ function avesmapsDecodeAuditJson(mixed $value): array {
         return [];
     }
 
-    return is_array($decoded)  $decoded : [];
+    return is_array($decoded) ? $decoded : [];
 }

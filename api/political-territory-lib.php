@@ -104,7 +104,7 @@ function avesmapsPoliticalEnsureTables(PDO $pdo): void {
     );
 
     $column = $pdo->query("SHOW COLUMNS FROM political_territory_geometry LIKE 'territory_id'")->fetch(PDO::FETCH_ASSOC);
-    if (is_array($column) && strtoupper((string) ($column['Null']  'NO')) !== 'YES') {
+    if (is_array($column) && strtoupper((string) ($column['Null'] ?? 'NO')) !== 'YES') {
         $pdo->exec('ALTER TABLE political_territory_geometry MODIFY territory_id BIGINT UNSIGNED NULL');
     }
 }
@@ -265,21 +265,21 @@ function avesmapsPoliticalUpsertWikiRecord(PDO $pdo, array $record): array {
     ]);
 
     return [
-        'id' => avesmapsPoliticalFetchWikiIdByKey($pdo, (string) $record['wiki_key'])  (int) $pdo->lastInsertId(),
+        'id' => avesmapsPoliticalFetchWikiIdByKey($pdo, (string) $record['wiki_key']) ?? (int) $pdo->lastInsertId(),
         'created' => $existingId === null,
     ];
 }
 
 function avesmapsPoliticalCreateTerritoryFromWiki(PDO $pdo, array $wikiRecord, array $user): array {
-    $validFrom = $wikiRecord['founded_start_bf']  $wikiRecord['founded_display_bf']  null;
+    $validFrom = $wikiRecord['founded_start_bf'] ?? $wikiRecord['founded_display_bf'] ?? null;
     $validTo = avesmapsPoliticalReadDissolvedValidTo($wikiRecord);
-    $validLabel = avesmapsPoliticalBuildValidLabel($wikiRecord['founded_text']  '', $wikiRecord['dissolved_text']  '');
-    $zoomRange = avesmapsPoliticalDefaultZoomRange((string) ($wikiRecord['type']  ''));
+    $validLabel = avesmapsPoliticalBuildValidLabel($wikiRecord['founded_text'] ?? '', $wikiRecord['dissolved_text'] ?? '');
+    $zoomRange = avesmapsPoliticalDefaultZoomRange((string) ($wikiRecord['type'] ?? ''));
     $publicId = avesmapsPoliticalUuidV4();
     $slug = avesmapsPoliticalUniqueSlug($pdo, (string) $wikiRecord['slug']);
     $color = avesmapsPoliticalColorFromText((string) $wikiRecord['name']);
-    $capitalPlaceId = avesmapsPoliticalFindLocationFeatureId($pdo, (string) ($wikiRecord['capital_name']  ''));
-    $seatPlaceId = avesmapsPoliticalFindLocationFeatureId($pdo, (string) ($wikiRecord['seat_name']  ''));
+    $capitalPlaceId = avesmapsPoliticalFindLocationFeatureId($pdo, (string) ($wikiRecord['capital_name'] ?? ''));
+    $seatPlaceId = avesmapsPoliticalFindLocationFeatureId($pdo, (string) ($wikiRecord['seat_name'] ?? ''));
     $sortOrder = avesmapsPoliticalNextSortOrder($pdo);
 
     $statement = $pdo->prepare(
@@ -310,7 +310,7 @@ function avesmapsPoliticalCreateTerritoryFromWiki(PDO $pdo, array $wikiRecord, a
         'wiki_url' => avesmapsPoliticalNullableString($wikiRecord['wiki_url']),
         'capital_place_id' => $capitalPlaceId,
         'seat_place_id' => $seatPlaceId,
-        'valid_from_bf' => $validFrom === null  null : (int) round((float) $validFrom),
+        'valid_from_bf' => $validFrom === null ? null : (int) round((float) $validFrom),
         'valid_to_bf' => $validTo,
         'valid_label' => avesmapsPoliticalNullableString($validLabel),
         'min_zoom' => $zoomRange['min_zoom'],
@@ -366,7 +366,7 @@ function avesmapsPoliticalSeedGeometryFromMapFeature(PDO $pdo, int $territoryId,
         );
         $existingStatement->execute(['territory_id' => $territoryId]);
         $existingGeometries = $existingStatement->fetchAll(PDO::FETCH_ASSOC);
-        $existingSources = array_map(static fn(array $row): string => (string) ($row['source']  ''), $existingGeometries);
+        $existingSources = array_map(static fn(array $row): string => (string) ($row['source'] ?? ''), $existingGeometries);
         $hasEditorialGeometry = $existingSources !== [] && array_filter(
             $existingSources,
             static fn(string $source): bool => $source !== 'legacy_region_seed'
@@ -405,8 +405,8 @@ function avesmapsPoliticalSeedGeometryFromMapFeature(PDO $pdo, int $territoryId,
     }
 
     $color = avesmapsPoliticalColorFromText((string) $wikiRecord['name']);
-    $zoomRange = avesmapsPoliticalDefaultZoomRange((string) ($wikiRecord['type']  ''));
-    $validFrom = $wikiRecord['founded_start_bf']  $wikiRecord['founded_display_bf']  null;
+    $zoomRange = avesmapsPoliticalDefaultZoomRange((string) ($wikiRecord['type'] ?? ''));
+    $validFrom = $wikiRecord['founded_start_bf'] ?? $wikiRecord['founded_display_bf'] ?? null;
     $insertStatement = $pdo->prepare(
         'INSERT INTO political_territory_geometry (
             public_id, territory_id, geometry_geojson, valid_from_bf, valid_to_bf,
@@ -421,8 +421,8 @@ function avesmapsPoliticalSeedGeometryFromMapFeature(PDO $pdo, int $territoryId,
 
     $inserted = 0;
     foreach ($features as $feature) {
-        $geometry = avesmapsPoliticalDecodeJson($feature['geometry_json']  null);
-        if (!in_array((string) ($geometry['type']  ''), ['Polygon', 'MultiPolygon'], true)) {
+        $geometry = avesmapsPoliticalDecodeJson($feature['geometry_json'] ?? null);
+        if (!in_array((string) ($geometry['type'] ?? ''), ['Polygon', 'MultiPolygon'], true)) {
             continue;
         }
 
@@ -436,7 +436,7 @@ function avesmapsPoliticalSeedGeometryFromMapFeature(PDO $pdo, int $territoryId,
             'public_id' => avesmapsPoliticalUuidV4(),
             'territory_id' => $territoryId,
             'geometry_geojson' => avesmapsPoliticalEncodeJsonOrNull($geometry),
-            'valid_from_bf' => $validFrom === null  null : (int) round((float) $validFrom),
+            'valid_from_bf' => $validFrom === null ? null : (int) round((float) $validFrom),
             'valid_to_bf' => avesmapsPoliticalReadDissolvedValidTo($wikiRecord),
             'min_zoom' => $zoomRange['min_zoom'],
             'max_zoom' => $zoomRange['max_zoom'],
@@ -446,8 +446,8 @@ function avesmapsPoliticalSeedGeometryFromMapFeature(PDO $pdo, int $territoryId,
             'max_y' => $bounds['max_y'],
             'source' => 'legacy_region_seed',
             'style_json' => avesmapsPoliticalEncodeJsonOrNull($style),
-            'created_by' => (int) ($user['id']  0) ?: null,
-            'updated_by' => (int) ($user['id']  0) ?: null,
+            'created_by' => (int) ($user['id'] ?? 0) ?: null,
+            'updated_by' => (int) ($user['id'] ?? 0) ?: null,
         ]);
         $inserted++;
     }
@@ -458,11 +458,11 @@ function avesmapsPoliticalSeedGeometryFromMapFeature(PDO $pdo, int $territoryId,
 function avesmapsPoliticalCountGeometryPartsInRows(array $rows, string $geometryKey): int {
     $count = 0;
     foreach ($rows as $row) {
-        $geometry = avesmapsPoliticalDecodeJson($row[$geometryKey]  null);
-        if (($geometry['type']  '') === 'Polygon') {
+        $geometry = avesmapsPoliticalDecodeJson($row[$geometryKey] ?? null);
+        if (($geometry['type'] ?? '') === 'Polygon') {
             $count++;
-        } elseif (($geometry['type']  '') === 'MultiPolygon') {
-            $count += is_array($geometry['coordinates']  null)  count($geometry['coordinates']) : 0;
+        } elseif (($geometry['type'] ?? '') === 'MultiPolygon') {
+            $count += is_array($geometry['coordinates'] ?? null) ? count($geometry['coordinates']) : 0;
         }
     }
 
@@ -501,7 +501,7 @@ function avesmapsPoliticalFindLegacyRegionFeaturesForWikiRecord(PDO $pdo, array 
     $features = $statement->fetchAll(PDO::FETCH_ASSOC);
     $matches = [];
     foreach ($features as $feature) {
-        $featureSlug = avesmapsPoliticalSlug((string) ($feature['name']  ''));
+        $featureSlug = avesmapsPoliticalSlug((string) ($feature['name'] ?? ''));
         if ($featureSlug !== '' && isset($candidateSlugs[$featureSlug])) {
             $matches[] = $feature;
         }
@@ -519,7 +519,7 @@ function avesmapsPoliticalFindFuzzyLegacyRegionFeatures(array $features, array $
     $bestFeatures = [];
 
     foreach ($features as $feature) {
-        $featureSlug = avesmapsPoliticalSlug((string) ($feature['name']  ''));
+        $featureSlug = avesmapsPoliticalSlug((string) ($feature['name'] ?? ''));
         if ($featureSlug === '') {
             continue;
         }
@@ -540,7 +540,7 @@ function avesmapsPoliticalFindFuzzyLegacyRegionFeatures(array $features, array $
         }
     }
 
-    return $bestDistance <= 2  $bestFeatures : [];
+    return $bestDistance <= 2 ? $bestFeatures : [];
 }
 
 function avesmapsPoliticalBestLegacySlugDistance(string $featureSlug, array $candidateSlugs): ?int {
@@ -557,7 +557,7 @@ function avesmapsPoliticalBestLegacySlugDistance(string $featureSlug, array $can
 
 function avesmapsPoliticalBuildLegacyRegionCandidateSlugs(array $wikiRecord): array {
     $values = [
-        (string) ($wikiRecord['name']  ''),
+        (string) ($wikiRecord['name'] ?? ''),
     ];
 
     $slugs = [];
@@ -576,20 +576,20 @@ function avesmapsPoliticalBuildLegacyRegionCandidateSlugs(array $wikiRecord): ar
 }
 
 function avesmapsPoliticalBuildSeedGeometryStyle(array $feature, string $fallbackColor): array {
-    $style = avesmapsPoliticalDecodeJson($feature['style_json']  null);
-    $properties = avesmapsPoliticalDecodeJson($feature['properties_json']  null);
+    $style = avesmapsPoliticalDecodeJson($feature['style_json'] ?? null);
+    $properties = avesmapsPoliticalDecodeJson($feature['properties_json'] ?? null);
 
     return [
-        'fill' => (string) ($style['fill']  $properties['fill']  $fallbackColor),
-        'stroke' => (string) ($style['stroke']  $properties['stroke']  $fallbackColor),
-        'fillOpacity' => (float) ($style['fillOpacity']  $properties['fillOpacity']  0.33),
-        'weight' => (int) ($style['weight']  $properties['weight']  2),
+        'fill' => (string) ($style['fill'] ?? $properties['fill'] ?? $fallbackColor),
+        'stroke' => (string) ($style['stroke'] ?? $properties['stroke'] ?? $fallbackColor),
+        'fillOpacity' => (float) ($style['fillOpacity'] ?? $properties['fillOpacity'] ?? 0.33),
+        'weight' => (int) ($style['weight'] ?? $properties['weight'] ?? 2),
     ];
 }
 
 function avesmapsPoliticalReadSeedBounds(array $feature, array $geometry): ?array {
     foreach (['min_x', 'min_y', 'max_x', 'max_y'] as $key) {
-        if (!is_numeric($feature[$key]  null)) {
+        if (!is_numeric($feature[$key] ?? null)) {
             return avesmapsPoliticalCalculateSeedBounds($geometry);
         }
     }
@@ -604,7 +604,7 @@ function avesmapsPoliticalReadSeedBounds(array $feature, array $geometry): ?arra
 
 function avesmapsPoliticalCalculateSeedBounds(array $geometry): ?array {
     $coordinatePairs = [];
-    avesmapsPoliticalCollectSeedCoordinatePairs($geometry['coordinates']  null, $coordinatePairs);
+    avesmapsPoliticalCollectSeedCoordinatePairs($geometry['coordinates'] ?? null, $coordinatePairs);
     if ($coordinatePairs === []) {
         return null;
     }
@@ -625,7 +625,7 @@ function avesmapsPoliticalCollectSeedCoordinatePairs(mixed $coordinates, array &
         return;
     }
 
-    if (count($coordinates) >= 2 && is_numeric($coordinates[0]  null) && is_numeric($coordinates[1]  null)) {
+    if (count($coordinates) >= 2 && is_numeric($coordinates[0] ?? null) && is_numeric($coordinates[1] ?? null)) {
         $coordinatePairs[] = [(float) $coordinates[0], (float) $coordinates[1]];
         return;
     }
@@ -643,7 +643,7 @@ function avesmapsPoliticalReadParentNameFromWikiRecord(array $wikiRecord): strin
 
     $parentName = (string) end($path);
     if (avesmapsPoliticalSlug($parentName) === (string) $wikiRecord['slug']) {
-        $parentName = count($path) > 1  (string) $path[count($path) - 2] : '';
+        $parentName = count($path) > 1 ? (string) $path[count($path) - 2] : '';
     }
 
     return trim($parentName);
@@ -654,7 +654,7 @@ function avesmapsPoliticalFetchWikiIdByKey(PDO $pdo, string $wikiKey): ?int {
     $statement->execute(['wiki_key' => $wikiKey]);
     $id = $statement->fetchColumn();
 
-    return $id === false  null : (int) $id;
+    return $id === false ? null : (int) $id;
 }
 
 function avesmapsPoliticalFindLocationFeatureId(PDO $pdo, string $name): ?int {
@@ -682,18 +682,18 @@ function avesmapsPoliticalFindLocationFeatureId(PDO $pdo, string $name): ?int {
     }
 
     $id = $statement->fetchColumn();
-    return $id === false  null : (int) $id;
+    return $id === false ? null : (int) $id;
 }
 
 function avesmapsPoliticalNextSortOrder(PDO $pdo): int {
     $statement = $pdo->query('SELECT COALESCE(MAX(sort_order), 0) + 1 FROM political_territory');
-    $sortOrder = $statement !== false  $statement->fetchColumn() : false;
+    $sortOrder = $statement !== false ? $statement->fetchColumn() : false;
 
-    return $sortOrder === false  1 : (int) $sortOrder;
+    return $sortOrder === false ? 1 : (int) $sortOrder;
 }
 
 function avesmapsPoliticalUniqueSlug(PDO $pdo, string $baseSlug, ?int $excludeId = null): string {
-    $candidate = $baseSlug !== ''  $baseSlug : 'herrschaftsgebiet';
+    $candidate = $baseSlug !== '' ? $baseSlug : 'herrschaftsgebiet';
     $suffix = 2;
 
     while (avesmapsPoliticalSlugExists($pdo, $candidate, $excludeId)) {
@@ -736,14 +736,14 @@ function avesmapsPoliticalDefaultZoomRange(string $type): array {
 }
 
 function avesmapsPoliticalReadDissolvedValidTo(array $wikiRecord): ?int {
-    $text = mb_strtolower((string) ($wikiRecord['dissolved_text']  ''));
-    $type = mb_strtolower((string) ($wikiRecord['dissolved_type']  ''));
+    $text = mb_strtolower((string) ($wikiRecord['dissolved_text'] ?? ''));
+    $type = mb_strtolower((string) ($wikiRecord['dissolved_type'] ?? ''));
     if ($text === '' || str_contains($text, 'besteht') || $type === 'ongoing' || $type === 'unknown') {
         return null;
     }
 
     foreach (['dissolved_end_bf', 'dissolved_display_bf', 'dissolved_start_bf'] as $key) {
-        $value = $wikiRecord[$key]  null;
+        $value = $wikiRecord[$key] ?? null;
         if (is_numeric($value)) {
             return (int) round((float) $value);
         }
@@ -757,7 +757,7 @@ function avesmapsPoliticalBuildValidLabel(string $foundedText, string $dissolved
     $dissolved = trim($dissolvedText);
     if ($founded !== '' && $dissolved !== '') {
         return str_contains(mb_strtolower($dissolved), 'besteht')
-             'besteht seit ' . $founded
+            ? 'besteht seit ' . $founded
             : $founded . ' - ' . $dissolved;
     }
 
@@ -766,7 +766,7 @@ function avesmapsPoliticalBuildValidLabel(string $foundedText, string $dissolved
     }
 
     if ($dissolved !== '') {
-        return str_contains(mb_strtolower($dissolved), 'besteht')  'besteht' : 'bis ' . $dissolved;
+        return str_contains(mb_strtolower($dissolved), 'besteht') ? 'besteht' : 'bis ' . $dissolved;
     }
 
     return '';
@@ -787,7 +787,7 @@ function avesmapsPoliticalHslToRgb(float $hue, float $saturation, float $lightne
     }
 
     $q = $lightness < 0.5
-         $lightness * (1 + $saturation)
+        ? $lightness * (1 + $saturation)
         : $lightness + $saturation - $lightness * $saturation;
     $p = 2 * $lightness - $q;
 
@@ -846,7 +846,7 @@ function avesmapsPoliticalBuildWikiKey(string $wikiUrl, string $name): string {
         $path = parse_url($wikiUrl, PHP_URL_PATH);
         if (is_string($path) && $path !== '') {
             $decodedPath = rawurldecode($path);
-            $page = preg_replace('/^.*\/wiki\//', '', $decodedPath)  $decodedPath;
+            $page = preg_replace('/^.*\/wiki\//', '', $decodedPath) ?? $decodedPath;
             $slug = avesmapsPoliticalSlug(str_replace('_', ' ', $page));
             if ($slug !== '') {
                 return 'wiki:' . $slug;
@@ -863,7 +863,7 @@ function avesmapsPoliticalReadAffiliationPathJson(array $record, array $affiliat
         return array_values(array_filter(array_map('trim', preg_split('/\s*>\s*/', $pathText) ?: [])));
     }
 
-    $path = $affiliationJson['path']  null;
+    $path = $affiliationJson['path'] ?? null;
     if (is_array($path)) {
         return array_values(array_filter(array_map(static fn(mixed $value): string => trim((string) $value), $path)));
     }
@@ -932,16 +932,16 @@ function avesmapsPoliticalReadWikiJson(array $record, array $keys): array {
             return [];
         }
 
-        return is_array($decoded)  $decoded : [];
+        return is_array($decoded) ? $decoded : [];
     }
 
     return [];
 }
 
 function avesmapsPoliticalNullableString(mixed $value): ?string {
-    $text = is_string($value)  trim($value) : trim((string) ($value  ''));
+    $text = is_string($value) ? trim($value) : trim((string) ($value ?? ''));
 
-    return $text === ''  null : $text;
+    return $text === '' ? null : $text;
 }
 
 function avesmapsPoliticalEncodeJsonOrNull(mixed $value): ?string {
@@ -967,7 +967,7 @@ function avesmapsPoliticalDecodeJson(mixed $value): array {
         return [];
     }
 
-    return is_array($decoded)  $decoded : [];
+    return is_array($decoded) ? $decoded : [];
 }
 
 function avesmapsPoliticalSlug(string $value): string {
@@ -979,7 +979,7 @@ function avesmapsPoliticalSlug(string $value): string {
             $slug = $transliterated;
         }
     }
-    $slug = preg_replace('/[^a-z0-9]+/i', '-', $slug)  '';
+    $slug = preg_replace('/[^a-z0-9]+/i', '-', $slug) ?? '';
     $slug = trim($slug, '-');
     $slug = str_replace('marktgrafschaft', 'markgrafschaft', $slug);
 

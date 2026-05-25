@@ -11,7 +11,7 @@ Der Split wurde auf Basis von `docs/map-features-label-collisions-boundary-check
 Neue Datei:
 
 ```text
-js/map-features/map-features-label-collisions.js
+js/map-features-label-collisions.js
 ```
 
 Commit:
@@ -50,9 +50,9 @@ Folgende Funktionen wurden als enger 1:1-Extract ausgelagert:
 `index.html` laedt die neue Datei im Map-Features-Bereich in dieser Reihenfolge:
 
 ```text
-js/map-features/map-features-location-name-labels.js
-js/map-features/map-features-label-collisions.js
-js/map-features/map-features-path-domain.js
+js/map-features-location-name-labels.js
+js/map-features-label-collisions.js
+js/map-features-path-domain.js
 ```
 
 Diese Reihenfolge bleibt wichtig, weil die Kollisionslogik freie Labels, Ortsnamenlabels und globale Label-Konfigurationen nutzt.
@@ -61,7 +61,7 @@ Diese Reihenfolge bleibt wichtig, weil die Kollisionslogik freie Labels, Ortsnam
 
 Die Boundary ist fachlich abgeschlossen.
 
-`js/map-features/map-features-label-collisions.js` bleibt stabil und soll nicht ohne neue Boundary-Analyse weiter aufgeteilt oder mit anderen Refactorings vermischt werden.
+`js/map-features-label-collisions.js` bleibt stabil und soll nicht ohne neue Boundary-Analyse weiter aufgeteilt oder mit anderen Refactorings vermischt werden.
 
 Weitere Aenderungen an diesem Bereich brauchen einen eigenen visuellen Label-/Zoom-/Kollisions-Smoke, weil kleine Aenderungen an DOM-Messung, Prioritaeten oder Offsets direkt sichtbare Labelpositionen beeinflussen koennen.
 

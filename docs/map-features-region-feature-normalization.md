@@ -21,8 +21,8 @@ Sie sind gut abgrenzbar von der Restlogik in `js/map-features.js`, die sich auf 
 
 ## Klassische Script-Ladung
 
-Die neue Datei `js/map-features/map-features-region-feature-normalization.js` wird als klassisches Script in `index.html` geladen.
-Sie steht vor `js/map-features/map-features-political-timeline.js` zur Verfuegung, damit die globalen Helper-Funktionen zur Laufzeit bereits definiert sind.
+Die neue Datei `js/map-features-region-feature-normalization.js` wird als klassisches Script in `index.html` geladen.
+Sie steht vor `js/map-features-political-timeline.js` zur Verfuegung, damit die globalen Helper-Funktionen zur Laufzeit bereits definiert sind.
 
 ## Smoke-Plan
 

@@ -136,7 +136,7 @@ Per grep identifizierte Aufrufer:
 - `clearPathGeometryEdit`
   - intern mehrfach in `js/map-features.js`
 - `handleEditablePathDoubleClick`
-  - `js/map-features/map-features-path-rendering.js` (Leaflet-Layer-Doppelklick)
+  - `js/map-features-path-rendering.js` (Leaflet-Layer-Doppelklick)
 - `deletePathFeature`
   - `js/routing.js`
 - `splitPathAtNode`
@@ -164,7 +164,7 @@ Welche Funktionen duerfen in eine neue Datei?
 
 Risiken durch Script-Reihenfolge und Globals:
 
-- mittelhoch, weil der Block stark auf globale Zustandsobjekte und auf Funktionen aus `js/map-features.js`, `js/map-features/map-features-path-rendering.js` und `js/routing.js` zugreift.
+- mittelhoch, weil der Block stark auf globale Zustandsobjekte und auf Funktionen aus `js/map-features.js`, `js/map-features-path-rendering.js` und `js/routing.js` zugreift.
 
 Darf die neue Datei Top-Level-Ausfuehrung enthalten?
 
@@ -173,17 +173,17 @@ Darf die neue Datei Top-Level-Ausfuehrung enthalten?
 ## 9. Vorgeschlagene Zieldatei
 Falls positiver Schritt:
 
-- `js/map-features/map-features-path-geometry-editing.js`
+- `js/map-features-path-geometry-editing.js`
 
 ## 10. Script-Reihenfolge
 Sinnvolle spaetere Position:
 
-- nach `js/map-features/map-features-path-creation.js`
+- nach `js/map-features-path-creation.js`
 - vor `js/map-features.js`
 
 Begruendung:
 
-- `js/map-features/map-features-path-rendering.js` bindet Doppelklick-Handler, die `handleEditablePathDoubleClick(...)` zur Laufzeit aufrufen.
+- `js/map-features-path-rendering.js` bindet Doppelklick-Handler, die `handleEditablePathDoubleClick(...)` zur Laufzeit aufrufen.
 - `js/routing.js` ruft `startPathGeometryEdit`, `deletePathFeature`, `splitPathAtNode` auf und wird bereits nach `js/map-features.js` geladen.
 - Der Geometry-Block muss daher vor `js/map-features.js` und damit vor den spaeteren Aufrufern global verfuegbar sein, ohne Top-Level-Ausfuehrung.
 

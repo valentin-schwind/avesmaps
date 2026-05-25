@@ -28,7 +28,7 @@
   - `#location-edit-close` -> `disabled = isPending`
 - Submit-Button:
   - `#location-edit-submit`
-  - `textContent = isPending  "Speichert..." : "Speichern"`
+  - `textContent = isPending ? "Speichert..." : "Speichern"`
   - `disabled = isPending`
 
 ### `setWikiSyncResolveSubmitPending(isPending)`
@@ -43,7 +43,7 @@
   - `#wiki-sync-resolve-close` -> `disabled = isPending`
 - Submit-Button:
   - `#wiki-sync-resolve-submit`
-  - `textContent = isPending  "Speichert..." : "Lösen"`
+  - `textContent = isPending ? "Speichert..." : "Lösen"`
   - `disabled = isPending`
 
 ### `setPathEditSubmitPending(isPending)`
@@ -58,7 +58,7 @@
   - `#path-edit-close` -> `disabled = isPending`
 - Submit-Button:
   - `#path-edit-submit`
-  - `textContent = isPending  "Speichert..." : "Speichern"`
+  - `textContent = isPending ? "Speichert..." : "Speichern"`
   - `disabled = isPending`
 
 ### `setPowerlineEditSubmitPending(isPending)`
@@ -73,7 +73,7 @@
   - `#powerline-edit-close` -> `disabled = isPending`
 - Submit-Button:
   - `#powerline-edit-submit`
-  - `textContent = isPending  "Speichert..." : "Speichern"`
+  - `textContent = isPending ? "Speichert..." : "Speichern"`
   - `disabled = isPending`
 
 Weitere aehnliche Pending-Funktionen:

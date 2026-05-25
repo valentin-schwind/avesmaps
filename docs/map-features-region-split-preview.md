@@ -25,8 +25,8 @@ Die eigentliche Split-Steuerung bleibt weiterhin in `js/map-features.js`:
 
 ## Klassische Script-Ladung
 
-Die neue Datei `js/map-features/map-features-region-split-preview.js` wird als klassisches Script in `index.html` geladen.
-Sie steht nach `js/map-features/map-features-region-geometry-helpers.js` und vor `js/map-features/map-features-political-timeline.js` zur Verfuegung.
+Die neue Datei `js/map-features-region-split-preview.js` wird als klassisches Script in `index.html` geladen.
+Sie steht nach `js/map-features-region-geometry-helpers.js` und vor `js/map-features-political-timeline.js` zur Verfuegung.
 
 ## Smoke-Plan
 

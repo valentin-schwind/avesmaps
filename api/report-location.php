@@ -34,7 +34,7 @@ try {
         ]);
     }
 
-    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD']  'GET'));
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
     if ($requestMethod === 'OPTIONS') {
         avesmapsJsonResponse(204);
     }
@@ -55,7 +55,7 @@ try {
         ]);
     }
 
-    $pdo = avesmapsCreatePdo($config['database']  []);
+    $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsEnsureMapReportsTable($pdo);
     if ($mapReport['report_type'] === 'location' && avesmapsLocationNameExists($pdo, $mapReport['name'])) {
         avesmapsJsonResponse(409, [
@@ -127,11 +127,11 @@ try {
         'comment' => $mapReport['comment'],
         'page_url' => $mapReport['page_url'],
         'client_version' => $mapReport['client_version'],
-        'review_note' => $mapReport['review_note']  '',
-        'request_origin' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_ORIGIN']  ''), 255),
+        'review_note' => $mapReport['review_note'] ?? '',
+        'request_origin' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_ORIGIN'] ?? ''), 255),
         'remote_ip' => '',
         'ip_hash' => $ipHash,
-        'user_agent' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_USER_AGENT']  ''), 500),
+        'user_agent' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 500),
     ]);
 
     avesmapsJsonResponse(201, [
@@ -147,10 +147,10 @@ try {
     avesmapsLogLocationReportServerError('database_error', [
         'exception_code' => (string) $exception->getCode(),
         'exception_message' => $exception->getMessage(),
-        'sqlstate' => (string) ($exception->errorInfo[0]  ''),
-        'driver_code' => (string) ($exception->errorInfo[1]  ''),
-        'driver_message' => (string) ($exception->errorInfo[2]  ''),
-        'request_origin' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_ORIGIN']  ''), 255),
+        'sqlstate' => (string) ($exception->errorInfo[0] ?? ''),
+        'driver_code' => (string) ($exception->errorInfo[1] ?? ''),
+        'driver_message' => (string) ($exception->errorInfo[2] ?? ''),
+        'request_origin' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_ORIGIN'] ?? ''), 255),
         'remote_ip' => avesmapsClientIpAddress(),
     ]);
 
@@ -162,7 +162,7 @@ try {
     avesmapsLogLocationReportServerError('runtime_error', [
         'exception_code' => (string) $exception->getCode(),
         'exception_message' => $exception->getMessage(),
-        'request_origin' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_ORIGIN']  ''), 255),
+        'request_origin' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_ORIGIN'] ?? ''), 255),
         'remote_ip' => avesmapsClientIpAddress(),
     ]);
 
@@ -175,7 +175,7 @@ try {
         'exception_class' => $exception::class,
         'exception_code' => (string) $exception->getCode(),
         'exception_message' => $exception->getMessage(),
-        'request_origin' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_ORIGIN']  ''), 255),
+        'request_origin' => avesmapsNormalizeSingleLine((string) ($_SERVER['HTTP_ORIGIN'] ?? ''), 255),
         'remote_ip' => avesmapsClientIpAddress(),
     ]);
 
@@ -186,32 +186,32 @@ try {
 }
 
 function avesmapsValidateMapReport(array $payload): array {
-    $honeypotValue = avesmapsNormalizeSingleLine((string) ($payload['website']  ''), 100);
+    $honeypotValue = avesmapsNormalizeSingleLine((string) ($payload['website'] ?? ''), 100);
     if ($honeypotValue !== '') {
         return [
             'is_spam' => true,
         ];
     }
 
-    $elapsedMilliseconds = filter_var($payload['elapsed_ms']  null, FILTER_VALIDATE_INT);
+    $elapsedMilliseconds = filter_var($payload['elapsed_ms'] ?? null, FILTER_VALIDATE_INT);
     if ($elapsedMilliseconds !== false && $elapsedMilliseconds > 0 && $elapsedMilliseconds < 3000) {
         return [
             'is_spam' => true,
         ];
     }
 
-    $name = avesmapsNormalizeSingleLine((string) ($payload['name']  ''), 80);
+    $name = avesmapsNormalizeSingleLine((string) ($payload['name'] ?? ''), 80);
     if ($name === '') {
         throw new InvalidArgumentException('Bitte einen Namen angeben.');
     }
 
-    $requestedType = avesmapsNormalizeSingleLine((string) ($payload['report_type']  'location'), 40);
+    $requestedType = avesmapsNormalizeSingleLine((string) ($payload['report_type'] ?? 'location'), 40);
     if (!array_key_exists($requestedType, AVESMAPS_REPORT_TYPES)) {
         throw new InvalidArgumentException('Die Art der Meldung ist ungueltig.');
     }
 
     $reportConfig = AVESMAPS_REPORT_TYPES[$requestedType];
-    $size = strtolower(avesmapsNormalizeSingleLine((string) ($payload['size']  ''), 40));
+    $size = strtolower(avesmapsNormalizeSingleLine((string) ($payload['size'] ?? ''), 40));
     if ($requestedType === 'location') {
         if (!in_array($size, AVESMAPS_LOCATION_SUBTYPES, true)) {
             throw new InvalidArgumentException('Die Ortsgroesse ist ungueltig.');
@@ -225,19 +225,19 @@ function avesmapsValidateMapReport(array $payload): array {
         throw new InvalidArgumentException('Die Ortsgroesse ist ungueltig.');
     }
 
-    $source = avesmapsNormalizeSingleLine((string) ($payload['source']  ''), 200);
+    $source = avesmapsNormalizeSingleLine((string) ($payload['source'] ?? ''), 200);
     if ($source === '' && $requestedType !== 'comment') {
         throw new InvalidArgumentException('Bitte eine Quelle angeben.');
     }
-    $comment = avesmapsNormalizeMultiline((string) ($payload['comment']  ''), 800);
-    $wikiUrl = avesmapsNormalizeOptionalUrl((string) ($payload['wiki_url']  ''), 300, 'Der Wiki-Link');
-    $lat = avesmapsParseMapCoordinate($payload['lat']  null, 'lat');
-    $lng = avesmapsParseMapCoordinate($payload['lng']  null, 'lng');
+    $comment = avesmapsNormalizeMultiline((string) ($payload['comment'] ?? ''), 800);
+    $wikiUrl = avesmapsNormalizeOptionalUrl((string) ($payload['wiki_url'] ?? ''), 300, 'Der Wiki-Link');
+    $lat = avesmapsParseMapCoordinate($payload['lat'] ?? null, 'lat');
+    $lng = avesmapsParseMapCoordinate($payload['lng'] ?? null, 'lng');
     if ($lat < 0 || $lat > AVESMAPS_REPORT_MAP_MAX_COORDINATE || $lng < 0 || $lng > AVESMAPS_REPORT_MAP_MAX_COORDINATE) {
         throw new InvalidArgumentException('Die Meldung ist ungueltig.');
     }
 
-    $spamText = implode(' ', [$name, $source, $wikiUrl, $comment, (string) ($payload['reporter_name']  '')]);
+    $spamText = implode(' ', [$name, $source, $wikiUrl, $comment, (string) ($payload['reporter_name'] ?? '')]);
     if (avesmapsContainsSpamText($spamText) || avesmapsIsLinkOnlyText($comment)) {
         return [
             'is_spam' => true,
@@ -249,14 +249,14 @@ function avesmapsValidateMapReport(array $payload): array {
         'report_type' => $reportConfig['type'],
         'report_subtype' => $reportConfig['subtype'],
         'name' => $name,
-        'reporter_name' => avesmapsNormalizeSingleLine((string) ($payload['reporter_name']  ''), 80),
+        'reporter_name' => avesmapsNormalizeSingleLine((string) ($payload['reporter_name'] ?? ''), 80),
         'source' => $source,
         'wiki_url' => $wikiUrl,
         'comment' => $comment,
         'lat' => $lat,
         'lng' => $lng,
-        'page_url' => avesmapsNormalizeOptionalUrl((string) ($payload['page_url']  ''), 500, 'Die Seiten-URL'),
-        'client_version' => avesmapsNormalizeSingleLine((string) ($payload['client_version']  ''), 80),
+        'page_url' => avesmapsNormalizeOptionalUrl((string) ($payload['page_url'] ?? ''), 500, 'Die Seiten-URL'),
+        'client_version' => avesmapsNormalizeSingleLine((string) ($payload['client_version'] ?? ''), 80),
     ];
 }
 
@@ -284,7 +284,7 @@ function avesmapsIsLinkOnlyText(string $value): bool {
 function avesmapsBuildPrivacyIpHash(array $config): string {
     $secret = avesmapsGetConfiguredImportApiToken($config);
     if ($secret === '') {
-        $secret = (string) ($config['database']['name']  'avesmaps');
+        $secret = (string) ($config['database']['name'] ?? 'avesmaps');
     }
 
     return hash_hmac('sha256', avesmapsClientIpAddress(), $secret);
@@ -326,7 +326,7 @@ function avesmapsIsNearDuplicateReport(PDO $pdo, array $mapReport): bool {
 
     $normalizedName = avesmapsNormalizeDuplicateText($mapReport['name']);
     foreach ($statement->fetchAll() as $existingReport) {
-        $existingName = avesmapsNormalizeDuplicateText((string) ($existingReport['name']  ''));
+        $existingName = avesmapsNormalizeDuplicateText((string) ($existingReport['name'] ?? ''));
         if ($existingName === $normalizedName || levenshtein($existingName, $normalizedName) <= 2) {
             return true;
         }
@@ -337,7 +337,7 @@ function avesmapsIsNearDuplicateReport(PDO $pdo, array $mapReport): bool {
 
 function avesmapsNormalizeDuplicateText(string $value): string {
     $normalizedValue = mb_strtolower($value);
-    return preg_replace('/[^\p{L}\p{N}]+/u', '', $normalizedValue)  '';
+    return preg_replace('/[^\p{L}\p{N}]+/u', '', $normalizedValue) ?? '';
 }
 
 function avesmapsLocationNameExists(PDO $pdo, string $name): bool {
@@ -355,7 +355,7 @@ function avesmapsLocationNameExists(PDO $pdo, string $name): bool {
         'feature_type' => 'location',
     ]);
     foreach ($featureStatement->fetchAll() as $featureRow) {
-        if (avesmapsNormalizeDuplicateText((string) ($featureRow['name']  '')) === $normalizedName) {
+        if (avesmapsNormalizeDuplicateText((string) ($featureRow['name'] ?? '')) === $normalizedName) {
             return true;
         }
     }
@@ -371,7 +371,7 @@ function avesmapsLocationNameExists(PDO $pdo, string $name): bool {
         'report_type' => 'location',
     ]);
     foreach ($reportStatement->fetchAll() as $reportRow) {
-        if (avesmapsNormalizeDuplicateText((string) ($reportRow['name']  '')) === $normalizedName) {
+        if (avesmapsNormalizeDuplicateText((string) ($reportRow['name'] ?? '')) === $normalizedName) {
             return true;
         }
     }
@@ -426,7 +426,7 @@ function avesmapsEnsureMapReportColumn(PDO $pdo, string $columnName, string $col
 
 function avesmapsEnsureMapReportIndex(PDO $pdo, string $indexName, string $indexDefinition): void {
     foreach ($pdo->query('SHOW INDEX FROM map_reports') as $indexRow) {
-        if (($indexRow['Key_name']  '') === $indexName) {
+        if (($indexRow['Key_name'] ?? '') === $indexName) {
             return;
         }
     }
@@ -435,8 +435,8 @@ function avesmapsEnsureMapReportIndex(PDO $pdo, string $indexName, string $index
 }
 
 function avesmapsBuildDatabaseErrorMessage(PDOException $exception): string {
-    $sqlState = strtoupper((string) ($exception->errorInfo[0]  $exception->getCode()  ''));
-    $driverCode = (string) ($exception->errorInfo[1]  '');
+    $sqlState = strtoupper((string) ($exception->errorInfo[0] ?? $exception->getCode() ?? ''));
+    $driverCode = (string) ($exception->errorInfo[1] ?? '');
 
     if (in_array($sqlState, ['42S02', '42P01'], true)) {
         return 'Die Tabelle fuer Meldungen fehlt auf dem Server.';

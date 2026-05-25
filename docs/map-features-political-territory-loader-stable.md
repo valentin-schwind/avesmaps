@@ -2,7 +2,7 @@
 
 ## 1. Zusammenfassung
 
-Der Political-Territory Loader/Reload wurde als enger 1:1-Extract aus `js/map-features.js` in `js/map-features/map-features-political-territory-loader.js` ausgelagert.
+Der Political-Territory Loader/Reload wurde als enger 1:1-Extract aus `js/map-features.js` in `js/map-features-political-territory-loader.js` ausgelagert.
 
 Das Ziel dieser Separation ist, die API-/Reload-Logik vom Rest der `js/map-features.js`-Regionen- und Timeline-Logik zu trennen, ohne Rendering-, Geometrie-, Tooltip- oder Context-Funktionalität zu verschieben.
 
@@ -33,7 +33,7 @@ Diese verbleibenden Bereiche sind bewusst im Rest belassen, weil sie stark mit R
 
 ## 4. Script-Reihenfolge
 
-`index.html` lädt `js/map-features/map-features-political-territory-loader.js` nach `js/map-features/map-features-region-visibility.js` und vor `js/map-features/map-features-feature-dispatcher.js`.
+`index.html` lädt `js/map-features-political-territory-loader.js` nach `js/map-features-region-visibility.js` und vor `js/map-features-feature-dispatcher.js`.
 
 ## 5. Smoke-Plan
 
