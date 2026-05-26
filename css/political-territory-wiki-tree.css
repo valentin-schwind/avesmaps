@@ -329,3 +329,72 @@ details[open] > summary .tree-toggle::before {
 #waypoints .waypoint-container:last-child .waypoint-drag-handle:focus-visible::before {
 	border-color: #e33b35;
 }
+
+/* Route planner waypoint compact grid alignment */
+#waypoints,
+#search .input-options {
+	grid-template-columns: 34px minmax(0, 1fr);
+	column-gap: 5px;
+}
+
+#waypoints .waypoint-container {
+	display: grid;
+	grid-template-columns: 34px minmax(0, 1fr);
+	gap: 5px;
+	min-height: 32px;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+}
+
+#waypoints .waypoint-container:focus-within {
+	box-shadow: none;
+}
+
+#waypoints .waypoint-container:not(:last-child)::after {
+	left: 15.5px;
+	top: calc(50% + 9px);
+	bottom: calc(-5px - 50% + 9px);
+	width: 3px;
+	background-size: 3px 7px;
+}
+
+#waypoints .waypoint-drag-handle {
+	grid-column: 1;
+	grid-row: 1;
+	width: 34px;
+	height: 32px;
+	border-radius: 0;
+	background: transparent !important;
+}
+
+#waypoints .waypoint-input {
+	grid-column: 2;
+	grid-row: 1;
+	height: 32px;
+	padding-right: 30px;
+	border: 1px solid #d8c6b2;
+	border-radius: 8px;
+	box-shadow: 0 3px 8px rgba(52, 41, 32, 0.08);
+}
+
+#waypoints .waypoint-container:focus-within .waypoint-input {
+	border-color: #b99878;
+	box-shadow: 0 5px 14px rgba(52, 41, 32, 0.13), 0 0 0 2px rgba(255, 216, 88, 0.18);
+}
+
+#waypoints .remove-waypoint {
+	position: absolute;
+	right: 4px;
+	top: 50%;
+	width: 24px;
+	height: 24px;
+	transform: translateY(-50%);
+	z-index: 2;
+}
+
+#waypoints .waypoint-drag-handle::before {
+	background: transparent;
+}
