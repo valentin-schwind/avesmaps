@@ -3,11 +3,11 @@
 declare(strict_types=1);
 
 require __DIR__ . '/auth.php';
-require_once __DIR__ . '/wiki-sync-lib.php';
-require_once __DIR__ . '/wiki-sync-locations-lib.php';
-require_once __DIR__ . '/wiki-sync-territories-lib.php';
-require_once __DIR__ . '/wiki-sync-territories-dom-lib.php';
-require_once __DIR__ . '/political-territory-lib.php';
+require_once __DIR__ . '/_internal/wiki/sync.php';
+require_once __DIR__ . '/_internal/wiki/locations.php';
+require_once __DIR__ . '/_internal/wiki/territories.php';
+require_once __DIR__ . '/_internal/wiki/territories-dom.php';
+require_once __DIR__ . '/_internal/political/territory.php';
 
 function avesmapsWikiSyncAssertEndpointScope(string $endpointScope, array $allowedScopes, string $action): void {
     if (in_array($endpointScope, $allowedScopes, true)) {
