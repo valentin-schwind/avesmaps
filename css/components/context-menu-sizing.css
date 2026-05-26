@@ -1,0 +1,13 @@
+.map-context-menu,
+.map-context-submenu {
+	width: fit-content;
+}
+
+.map-context-menu__item {
+	grid-template-columns: 1.45em fit-content(42rem) auto;
+}
+
+.map-context-menu__label {
+	overflow: visible;
+	text-overflow: clip;
+}
