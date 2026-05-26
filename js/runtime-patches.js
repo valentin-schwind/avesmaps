@@ -217,4 +217,5 @@ function installPoliticalRegionVisibilityBehavior() {
 
 installPoliticalTerritoryLayerGeometryMerge();
 document.body.classList.toggle("edit-mode", IS_EDIT_MODE);
-installPoliticalRegionVisibilityBehavior();
+[0, 50, 250].forEach((delay) => window.setTimeout(installPoliticalRegionVisibilityBehavior, delay));
+document.addEventListener("DOMContentLoaded", installPoliticalRegionVisibilityBehavior, { once: true });
