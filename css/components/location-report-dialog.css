@@ -235,6 +235,75 @@
 	width: auto;
 }
 
+.location-report-form__honeypot {
+	position: absolute;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.location-report-form__service-note {
+	margin: -2px 0 0 0;
+	color: #8b5d2a;
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.location-report-form__status {
+	min-height: 1.4em;
+	margin: 0;
+	color: var(--color-button-border);
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.location-report-form__status[data-status="error"] {
+	color: #8a3a1b;
+}
+
+.location-report-form__status[data-status="pending"] {
+	color: #6b583f;
+}
+
+.location-report-form__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+.location-report-form__button {
+	padding: 8px 14px;
+	border: 1px solid #c6aa8c;
+	border-radius: 999px;
+	cursor: pointer;
+	font: inherit;
+	font-weight: bold;
+}
+
+.location-report-form__button:disabled {
+	cursor: wait;
+	opacity: 0.65;
+}
+
+.location-report-form__button--secondary {
+	background: #f3ebdf;
+	color: #513c2b;
+}
+
+.location-report-form__button--primary {
+	background: #e8dac7;
+	color: var(--color-text-strong);
+}
+
+.location-report-form__button:not(:disabled):hover,
+.location-report-form__button:not(:disabled):focus-visible {
+	border-color: #b48d68;
+	background: #ead7bf;
+	outline: none;
+}
+
 #location-report-comment-field,
 #location-report-service-note,
 #location-report-status,
