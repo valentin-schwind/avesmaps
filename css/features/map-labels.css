@@ -1,0 +1,119 @@
+.map-label,
+.location-name-label {
+	width: 0 !important;
+	height: 0 !important;
+	margin: 0 !important;
+	border: 0 !important;
+	background: transparent;
+	pointer-events: none;
+	white-space: nowrap;
+}
+
+.map-label span,
+.location-name-label span {
+	display: inline-block;
+	position: absolute;
+	color: #ffffff;
+	font-family: Georgia, "Times New Roman", serif;
+	font-weight: 400;
+	line-height: 1;
+	pointer-events: none;
+	text-shadow:
+		0 1px 1px rgba(0, 0, 0, 0.95),
+		0 0 2px rgba(0, 0, 0, 0.78);
+}
+
+.map-label span {
+	left: 0;
+	top: 0;
+	color: #f5f0d6;
+	transform-origin: center center;
+}
+
+body.edit-mode .map-label,
+body.edit-mode .map-label span {
+	cursor: move;
+	pointer-events: auto;
+}
+
+.map-label.is-colliding,
+.location-name-label.is-colliding {
+	display: none;
+}
+
+.map-label--meer span,
+.map-label--fluss span,
+.map-label--see span {
+	color: #b9e7ff;
+}
+
+.map-label--gebirge span {
+	color: #e2ddd2;
+}
+
+.map-label--berggipfel span {
+	color: #f1efe7;
+}
+
+.map-label--berggipfel span::after {
+	content: "";
+	position: absolute;
+	left: 50%;
+	top: calc(100% + 3px);
+	width: 0;
+	height: 0;
+	border-right: 4px solid transparent;
+	border-bottom: 6px solid currentColor;
+	border-left: 4px solid transparent;
+	filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9));
+	pointer-events: none;
+	transform: translateX(-50%);
+}
+
+.map-label--wald span {
+	color: #bfeec8;
+}
+
+.map-label--kontinent span,
+.map-label--insel span,
+.map-label--region span {
+	color: #ffffff;
+}
+
+.map-label--wueste span {
+	color: #ffe0a6;
+}
+
+.map-label--suempfe_moore span {
+	color: #c4ead8;
+}
+
+.map-label--gebirge span,
+.map-label--insel span,
+.map-label--region span,
+.location-name-label--metropole span {
+	text-transform: uppercase;
+}
+
+.path-name-text {
+	pointer-events: none;
+	text-rendering: optimizeLegibility;
+}
+
+.leaflet-popup-pane {
+	z-index: 900;
+}
+
+.leaflet-tooltip-pane {
+	z-index: 875;
+}
+
+.location-name-label span {
+	left: calc(var(--location-label-offset-x, 11px) + var(--label-offset-x, 0px));
+	top: calc(var(--location-label-offset-y, -9px) + var(--label-offset-y, 0px));
+}
+
+.location-name-label--ruined span,
+.location-popup__name--ruined {
+	font-style: italic;
+}
