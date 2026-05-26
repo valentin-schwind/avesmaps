@@ -1,0 +1,58 @@
+.measurement-handle-marker {
+	border: 0;
+	background: transparent;
+}
+
+.measurement-handle-marker__outer {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	border: 2px solid #8a6644;
+	border-radius: 50%;
+	background: #ffffff;
+	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.22);
+}
+
+.measurement-handle-marker__inner {
+	display: block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: #8a6644;
+}
+
+.measurement-value-marker {
+	position: relative;
+	width: 0 !important;
+	height: 0 !important;
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	pointer-events: none;
+}
+
+.measurement-value-marker > span {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+}
+
+.measurement-value-marker__text {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 6px 10px;
+	border: 2px solid #8a6644;
+	border-radius: 999px;
+	background: #ffffff;
+	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+	color: #4a392c;
+	font-size: 12px;
+	font-weight: bold;
+	line-height: 1.2;
+	text-align: center;
+	white-space: nowrap;
+}
