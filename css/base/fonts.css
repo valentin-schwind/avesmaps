@@ -1,0 +1,6 @@
+@font-face {
+	font-family: "Faculty Glyphic";
+	src: url("../../fonts/FacultyGlyphic-Regular.woff") format("woff"),
+		 url("../../fonts/FacultyGlyphic-Regular.ttf") format("truetype");
+	font-display: swap;
+}
