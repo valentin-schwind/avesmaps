@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../bootstrap.php';
 require_once __DIR__ . '/../auth.php';
-require_once __DIR__ . '/../political-territory-lib.php';
+require_once __DIR__ . '/../_internal/political/territory.php';
 require_once __DIR__ . '/../_internal/political/assignment.php';
 
 $debugErrors = filter_var($_GET['debug_errors'] ?? false, FILTER_VALIDATE_BOOL);
