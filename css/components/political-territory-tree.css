@@ -252,4 +252,114 @@
 
 .political-territory-assignment-summary__content {
 	display: flex;
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.political-territory-assignment-summary__panes {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+
+.political-territory-assignment-summary__wiki-box,
+.political-territory-assignment-summary__settings-box {
+	padding: 8px;
+	border: 1px solid #dccab8;
+	border-radius: var(--radius-md);
+	background: #fff;
+}
+
+.political-territory-assignment-summary__wiki-box {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	align-items: start;
+	gap: 8px;
+}
+
+.political-territory-assignment-summary dl {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 3px 8px;
+	margin: 0;
+}
+
+.political-territory-assignment-summary dt {
+	font-weight: bold;
+}
+
+.political-territory-assignment-summary dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.political-territory-assignment-summary__controls {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(160px, 1fr));
+	align-items: end;
+	gap: 8px;
+}
+
+.political-territory-assignment-summary__field {
+	display: grid;
+	gap: 4px;
+	min-width: 0;
+}
+
+.political-territory-assignment-summary__field span {
+	font-weight: 700;
+}
+
+.political-territory-assignment-summary__field input {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 32px;
+}
+
+.political-territory-assignment-summary__field input[type="color"] {
+	min-height: 36px;
+	padding: 2px;
+}
+
+.political-territory-assignment-summary__inline-control {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 8px;
+}
+
+.political-territory-assignment-summary__field--wide {
+	grid-column: 1 / -1;
+}
+
+.political-territory-assignment-summary__checkbox {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding-top: 6px;
+}
+
+.political-territory-assignment-summary__checkbox input {
+	width: auto;
+}
+
+.political-territory-assignment-summary__checkbox span {
+	font-weight: 400;
+}
+
+@media (max-width: 860px) {
+	.political-territory-assignment-actions {
+		justify-content: flex-start;
+		margin-left: 0;
+	}
+
+	.political-territory-assignment-summary__content {
+		flex-direction: column;
+	}
+
+	.political-territory-assignment-summary__controls {
+		grid-template-columns: minmax(0, 1fr);
+	}
 }
