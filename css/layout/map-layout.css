@@ -29,6 +29,15 @@ body {
 	left: 305px;
 }
 
+/* Temporary compatibility with the legacy jQuery toggle animation in js/app/bootstrap.js. */
+#search[style*="left: -300px"] {
+	left: -305px !important;
+}
+
+#toggle-button[style*="left: 300px"] {
+	left: 305px !important;
+}
+
 @media (max-width: 640px) {
 	#search {
 		max-height: calc(140dvh - 20px);
