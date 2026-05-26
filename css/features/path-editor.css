@@ -1,0 +1,8 @@
+#path-edit-transport-options label {
+	display: block;
+	font-size: 13px;
+}
+
+#path-edit-transport-options input {
+	width: auto;
+}
