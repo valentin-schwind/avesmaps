@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../../auth.php';
+require __DIR__ . '/../auth.php';
 require_once __DIR__ . '/sync.php';
 require_once __DIR__ . '/locations.php';
 require_once __DIR__ . '/territories.php';

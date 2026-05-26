@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../../bootstrap.php';
-require_once __DIR__ . '/../../auth.php';
+require __DIR__ . '/../../_internal/bootstrap.php';
+require_once __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../political-territory-lib.php';
 
 try {

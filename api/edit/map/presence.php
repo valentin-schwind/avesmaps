@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../../auth.php';
+require __DIR__ . '/../../_internal/auth.php';
 
 const AVESMAPS_EDITOR_PRESENCE_ONLINE_SECONDS = 90;
 

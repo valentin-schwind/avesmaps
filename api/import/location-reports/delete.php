@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../../bootstrap.php';
+require __DIR__ . '/../../_internal/bootstrap.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());

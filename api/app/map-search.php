@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../bootstrap.php';
+require __DIR__ . '/../_internal/bootstrap.php';
 
 const AVESMAPS_MAP_SEARCH_MAX_LIMIT = 20;
 

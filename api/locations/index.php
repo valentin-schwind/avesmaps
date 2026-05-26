@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/../bootstrap.php';
+require __DIR__ . '/../_internal/bootstrap.php';
 require __DIR__ . '/../_internal/routing/client-graph.php';
 require __DIR__ . '/../_internal/routing/map-data.php';
 require __DIR__ . '/../_internal/routing/network-data.php';
