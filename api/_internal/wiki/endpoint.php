@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-require __DIR__ . '/auth.php';
-require_once __DIR__ . '/_internal/wiki/sync.php';
-require_once __DIR__ . '/_internal/wiki/locations.php';
-require_once __DIR__ . '/_internal/wiki/territories.php';
-require_once __DIR__ . '/_internal/wiki/territories-dom.php';
-require_once __DIR__ . '/_internal/political/territory.php';
+require __DIR__ . '/../../auth.php';
+require_once __DIR__ . '/sync.php';
+require_once __DIR__ . '/locations.php';
+require_once __DIR__ . '/territories.php';
+require_once __DIR__ . '/territories-dom.php';
+require_once __DIR__ . '/../political/territory.php';
 
 function avesmapsWikiSyncAssertEndpointScope(string $endpointScope, array $allowedScopes, string $action): void {
     if (in_array($endpointScope, $allowedScopes, true)) {
