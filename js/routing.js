@@ -211,30 +211,6 @@ routeDataRequest
 		prepareRegionData(data);
 		prepareLabelData(data);
 
-
-		// Waypoint hinzufügen
-		$("#inputLocation").on("click", function () {
-			const waypointId = `inputLocation-${Date.now()}`;
-			const waypointHtml = `
-					<div class="waypoint-container">
-					<input type="text" id="${waypointId}" class="waypoint-input" placeholder="Suche Ort..." />
-					${hasFirstWaypoint ? '<button class="remove-waypoint">➖</button>' : ""}
-					</div>`;
-			hasFirstWaypoint = true;
-			$("#waypoints").append(waypointHtml);
-			$(`#${waypointId}`).autocomplete({
-				source: locationData
-					.map((loc) => loc.name)
-					.filter((name) => !isCrossingName(name))
-					.sort((a, b) => a.localeCompare(b)),
-			});
-			$(`#${waypointId}`)
-				.next(".remove-waypoint")
-				.on("click", function () {
-					$(this).parent().remove();
-					updateMapView();
-				});
-		});
 		// Standardmäßig ersten Waypoint hinzufügen
 		initializeWaypointSorting();
 		$("#inputLocation").off("click").on("click", () => {
