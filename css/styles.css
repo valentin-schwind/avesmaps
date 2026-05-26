@@ -8,4 +8,4 @@
  * Move rules from this file into scoped files under base/, layout/,
  * components/, features/ and pages/ step by step.
  */
-@import url("legacy/styles-legacy.css");
+@import url("styles-legacy.css");
