@@ -1,0 +1,205 @@
+.political-timeline[hidden],
+.region-operation-chip[hidden] {
+	display: none !important;
+}
+
+.political-timeline {
+	position: fixed;
+	top: 10px;
+	left: 50%;
+	z-index: 1000;
+	display: grid;
+	gap: 8px;
+	width: min(560px, calc(100vw - 32px));
+	padding: 10px 12px;
+	border: 1px solid #b79d7d;
+	border-radius: 8px;
+	background: rgba(250, 243, 236, 0.96);
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+	color: #3f3428;
+	transform: translateX(-50%);
+}
+
+.political-timeline__controls {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+}
+
+.political-territory-range[hidden],
+.political-territory-range__bar[hidden] {
+	display: none !important;
+}
+
+.political-territory-range {
+	display: grid;
+	gap: 5px;
+	padding-bottom: 7px;
+	border-bottom: 1px solid rgba(90, 70, 50, 0.22);
+}
+
+.political-territory-range__header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	min-width: 0;
+	font-size: 12px;
+	line-height: 1.25;
+}
+
+.political-territory-range__name {
+	min-width: 0;
+	overflow: hidden;
+	color: #3f3428;
+	font-weight: 700;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.political-territory-range__years {
+	flex: 0 0 auto;
+	color: #6c5a49;
+	font-weight: 700;
+}
+
+.political-timeline__range-wrap {
+	position: relative;
+	display: flex;
+	align-items: center;
+	flex: 1;
+	min-width: 120px;
+	height: 24px;
+}
+
+.political-timeline__range-wrap::before {
+	content: "";
+	position: absolute;
+	top: 50%;
+	right: 0;
+	left: 0;
+	z-index: 0;
+	box-sizing: border-box;
+	height: 9px;
+	border: 1px solid rgba(80, 60, 40, 0.28);
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.92);
+	transform: translateY(-50%);
+}
+
+.political-timeline__range-wrap input[type="range"] {
+	position: relative;
+	z-index: 2;
+	width: 100%;
+	height: 24px;
+	margin: 0;
+	background: transparent;
+	appearance: none;
+	-webkit-appearance: none;
+}
+
+.political-territory-range__bar {
+	position: absolute;
+	top: 50%;
+	left: 0;
+	z-index: 1;
+	width: 0;
+	height: 9px;
+	border-radius: 999px;
+	background: #888888;
+	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+	pointer-events: none;
+	transform: translateY(-50%);
+}
+
+#political-timeline-range::-webkit-slider-runnable-track {
+	height: 9px;
+	border-radius: 999px;
+	background: transparent;
+}
+
+#political-timeline-range::-moz-range-track,
+#political-timeline-range::-moz-range-progress {
+	height: 9px;
+	border-radius: 999px;
+	background: transparent;
+}
+
+#political-timeline-range::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	width: 16px;
+	height: 16px;
+	margin-top: -3.5px;
+	border: 2px solid #ffffff;
+	border-radius: 50%;
+	background: #5b4633;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+	cursor: pointer;
+}
+
+#political-timeline-range::-moz-range-thumb {
+	width: 16px;
+	height: 16px;
+	border: 2px solid #ffffff;
+	border-radius: 50%;
+	background: #5b4633;
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+	cursor: pointer;
+}
+
+.political-timeline__field {
+	display: flex;
+	align-items: center;
+	flex: 1;
+	gap: 8px;
+	min-width: 0;
+	font-size: 13px;
+	font-weight: bold;
+}
+
+.political-timeline__field input {
+	flex: 1;
+	min-width: 120px;
+}
+
+.political-timeline__year {
+	width: 50px;
+	padding: 6px 8px;
+	border: 1px solid #cdb79f;
+	border-radius: 6px;
+	font: inherit;
+}
+
+.political-timeline__label {
+	font-weight: bold;
+	text-align: right;
+}
+
+.region-operation-chip {
+	position: fixed;
+	left: 50%;
+	bottom: 86px;
+	z-index: 1450;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	max-width: min(520px, calc(100vw - 32px));
+	padding: 10px 12px;
+	border: 1px solid #b79d7d;
+	border-radius: 8px;
+	background: rgba(255, 249, 244, 0.98);
+	box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+	color: #3f3428;
+	transform: translateX(-50%);
+}
+
+.region-operation-chip button {
+	padding: 6px 8px;
+	border: 1px solid #b79d7d;
+	border-radius: 6px;
+	background: #f4eadf;
+	color: #3f3428;
+	cursor: pointer;
+	font: inherit;
+}
