@@ -2,12 +2,13 @@
 @import url("base/tokens.css");
 @import url("base/reset.css");
 @import url("base/base.css");
-@import url("layout/map-layout.css");
-@import url("features/route-planner.css");
 
 /*
  * Legacy stylesheet kept during the incremental CSS refactoring.
- * Move rules from this file into scoped files under base/, layout/,
- * components/, features/ and pages/ step by step.
+ * It is loaded before migrated layout/component/feature files so the
+ * extracted rules can override their legacy counterparts immediately.
  */
 @import url("styles-legacy.css");
+
+@import url("layout/map-layout.css");
+@import url("features/route-planner.css");
