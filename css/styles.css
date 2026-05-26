@@ -14,6 +14,7 @@
 @import url("components/dialog-overlays.css");
 @import url("components/legal-dialog.css");
 @import url("components/map-context-menu.css");
+@import url("components/context-menu-sizing.css");
 @import url("features/map-decorations.css");
 @import url("features/map-scale-band.css");
 @import url("features/route-planner.css");
