@@ -2,6 +2,7 @@
 @import url("base/tokens.css");
 @import url("base/reset.css");
 @import url("base/base.css");
+@import url("base/utilities.css");
 
 /*
  * Legacy stylesheet kept during the incremental CSS refactoring.
@@ -27,6 +28,7 @@
 @import url("features/map-decorations.css");
 @import url("features/map-scale-band.css");
 @import url("features/map-labels.css");
+@import url("features/political-timeline.css");
 @import url("features/route-planner.css");
 @import url("features/path-editor.css");
 @import url("features/powerlines.css");
