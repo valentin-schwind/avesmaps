@@ -170,6 +170,32 @@
 	font: inherit;
 }
 
+.location-report-form__field textarea {
+	min-height: 96px;
+	resize: vertical;
+}
+
+.location-report-form__field input:focus,
+.location-report-form__field select:focus,
+.location-report-form__field textarea:focus {
+	border-color: #9b7b58;
+	outline: 2px solid rgba(155, 123, 88, 0.14);
+	outline-offset: 0;
+}
+
+.location-report-form__field input:disabled,
+.location-report-form__field select:disabled,
+.location-report-form__field textarea:disabled {
+	background: #f3ede7;
+	cursor: wait;
+}
+
+.location-report-form__field input[readonly] {
+	background: #f8f2ec;
+	color: #5a4a3b;
+	cursor: default;
+}
+
 #location-report-dialog .location-report-form__field input,
 #location-report-dialog .location-report-form__field select,
 #location-report-dialog .location-report-form__field textarea {
