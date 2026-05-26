@@ -1,0 +1,100 @@
+.political-territory-coat-field {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 48px;
+	align-items: center;
+	gap: 8px;
+}
+
+.political-territory-coat-preview {
+	width: 44px;
+	height: 44px;
+	object-fit: contain;
+	padding: 3px;
+	border: 1px solid #dccab8;
+	border-radius: var(--radius-sm);
+	background: #fff;
+}
+
+.political-territory-wiki-reference {
+	padding: 8px 10px;
+	border: 1px solid #dccab8;
+	border-radius: var(--radius-md);
+	background: #fffaf5;
+	color: #4f4134;
+}
+
+.political-territory-wiki-reference__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	margin-bottom: 8px;
+}
+
+.political-territory-wiki-reference__header h3 {
+	margin: 0;
+	font-size: 14px;
+}
+
+.political-territory-wiki-reference dl {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 4px 10px;
+	margin: 0;
+	font-size: 12px;
+}
+
+.political-territory-wiki-reference dt {
+	color: #6a5543;
+	font-weight: bold;
+}
+
+.political-territory-wiki-reference dd {
+	margin: 0;
+	word-break: break-word;
+}
+
+.political-territory-wiki-reference a {
+	color: #235f82;
+}
+
+.political-territory-wiki-picker-list {
+	display: grid;
+	gap: 4px;
+	max-height: 420px;
+	overflow: auto;
+	padding: 6px;
+	border: 1px solid #cdb79f;
+	border-radius: var(--radius-md);
+	background: #fff;
+}
+
+.political-territory-wiki-picker-list__item {
+	display: grid;
+	gap: 2px;
+	padding: 7px 8px;
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--color-text-strong);
+	cursor: pointer;
+	font: inherit;
+	text-align: left;
+}
+
+.political-territory-wiki-picker-list__item:hover,
+.political-territory-wiki-picker-list__item:focus-visible {
+	background: #f5eadc;
+}
+
+.political-territory-wiki-picker-list__name {
+	font-weight: bold;
+	overflow-wrap: anywhere;
+}
+
+.political-territory-wiki-picker-list__meta,
+.political-territory-wiki-picker-list__empty {
+	color: #7a6756;
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}
