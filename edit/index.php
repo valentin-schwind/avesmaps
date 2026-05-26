@@ -39,7 +39,7 @@ $isEditor = $currentUser !== null && avesmapsUserCan($currentUser, 'edit');
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Avesmaps Edit</title>
-    <link rel="stylesheet" href="../css/styles.css?v=20260506-edit-login" />
+    <link rel="stylesheet" href="../css/pages/edit.css?v=20260526-page-css" />
 </head>
 
 <body class="edit-page">

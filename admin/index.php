@@ -179,7 +179,7 @@ function avesmapsAdminRoleOptions(string $selectedRole): string {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Avesmaps Admin</title>
-    <link rel="stylesheet" href="../css/styles.css?v=20260506-admin" />
+    <link rel="stylesheet" href="../css/pages/admin.css?v=20260526-page-css" />
 </head>
 
 <body class="edit-page">
