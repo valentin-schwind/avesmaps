@@ -1,0 +1,84 @@
+body.legal-dialog-open,
+body.modal-dialog-open {
+	overflow: hidden;
+}
+
+#legal-overlay[hidden],
+#spotlight-search-overlay[hidden],
+#political-territory-editor-overlay[hidden],
+#location-report-overlay[hidden],
+#location-edit-overlay[hidden],
+#wiki-sync-resolve-overlay[hidden],
+#path-edit-overlay[hidden],
+#powerline-edit-overlay[hidden],
+#label-edit-overlay[hidden],
+#region-edit-overlay[hidden],
+#region-wiki-picker-overlay[hidden] {
+	display: none !important;
+}
+
+#legal-overlay,
+#location-report-overlay,
+#location-edit-overlay,
+#wiki-sync-resolve-overlay,
+#path-edit-overlay,
+#powerline-edit-overlay,
+#label-edit-overlay,
+#region-edit-overlay,
+#region-wiki-picker-overlay {
+	position: fixed;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	background: rgba(20, 16, 12, 0.56);
+}
+
+#legal-overlay {
+	z-index: 1200;
+}
+
+#location-report-overlay {
+	z-index: 1250;
+}
+
+#location-edit-overlay,
+#wiki-sync-resolve-overlay,
+#path-edit-overlay,
+#powerline-edit-overlay,
+#label-edit-overlay,
+#region-edit-overlay,
+#region-wiki-picker-overlay {
+	z-index: 1260;
+}
+
+#spotlight-search-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: var(--z-dialog);
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding: min(16vh, 116px) 16px 24px;
+	background: rgba(18, 15, 12, 0.34);
+	backdrop-filter: blur(4px);
+}
+
+.political-territory-editor-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: var(--z-dialog-high);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 18px;
+	background: rgba(20, 16, 12, 0.6);
+	backdrop-filter: blur(3px);
+}
+
+@media (max-width: 680px) {
+	.political-territory-editor-overlay {
+		padding: 8px;
+	}
+}
