@@ -11,12 +11,18 @@
 	z-index: var(--z-dialog-high);
 }
 
-.map-context-menu[hidden] {
+.map-context-menu[hidden],
+.map-context-menu__group[hidden] {
 	display: none !important;
+}
+
+.region-context-menu {
+	z-index: 1410;
 }
 
 .map-context-menu__group {
 	position: relative;
+	width: 100%;
 }
 
 .map-context-menu__item {
@@ -41,11 +47,88 @@
 .map-context-menu__item::before {
 	display: block;
 	width: 1.45em;
+	color: #6c5a46;
 	text-align: center;
 }
 
 .map-context-menu__item:has(.map-context-menu__icon)::before {
 	content: none;
+}
+
+.map-context-menu__item[data-context-action="create-region"]::before {
+	content: "\25B2";
+}
+
+.map-context-menu__item[data-context-action="add-here"]::before {
+	content: "\2795";
+}
+
+.map-context-menu__item[data-context-action="create-location"]::before {
+	content: "\25CF";
+}
+
+.map-context-menu__item[data-context-action="create-location-from-wiki"]::before {
+	content: "\2605";
+}
+
+.map-context-menu__item[data-context-action="create-crossing"]::before {
+	content: "\271A";
+}
+
+.map-context-menu__item[data-context-action="split-path-at-node"]::before {
+	content: "\2702";
+}
+
+.map-context-menu__item[data-context-action="create-path"]::before {
+	content: "\2501";
+}
+
+.map-context-menu__item[data-context-action="create-label"]::before {
+	content: "\0041";
+}
+
+.map-context-menu__item[data-region-context-action="edit-geometry"]::before {
+	content: "\270E";
+}
+
+.map-context-menu__item[data-region-context-action="edit-properties"]::before {
+	content: "\2699";
+}
+
+.map-context-menu__item[data-region-context-action="show-info"]::before {
+	content: "\2139";
+}
+
+.map-context-menu__item[data-region-context-action="move"]::before {
+	content: "\2725";
+}
+
+.map-context-menu__item[data-region-context-action="split"]::before {
+	content: "\2571";
+}
+
+.map-context-menu__item[data-region-context-action="union"]::before {
+	content: "\222A";
+}
+
+.map-context-menu__item[data-region-context-action="difference"]::before {
+	content: "\2212";
+}
+
+.map-context-menu__item[data-region-context-action="difference-keep-target"]::before {
+	content: "\2296";
+}
+
+.map-context-menu__item[data-region-context-action="intersection"]::before {
+	content: "\2229";
+}
+
+.map-context-menu__item[data-region-context-action="extract"]::before {
+	content: "\2702";
+}
+
+.map-context-menu__item[data-region-context-action="delete"]::before {
+	content: "\2715";
 }
 
 .map-context-menu__icon {
@@ -63,6 +146,17 @@
 .map-context-menu__item:hover,
 .map-context-menu__item:focus-visible {
 	background: var(--color-panel-muted);
+	outline: none;
+}
+
+.map-context-menu__item:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+
+.map-context-menu__item:disabled:hover,
+.map-context-menu__item:disabled:focus-visible {
+	background: transparent;
 	outline: none;
 }
 
