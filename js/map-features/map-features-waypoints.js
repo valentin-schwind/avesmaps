@@ -8,6 +8,7 @@ let waypointAutocompleteSourceCacheLength = -1;
 injectRoutePlannerWaypointStyles();
 correctDerographyLabels();
 enhanceRoutePlannerOptionPanel();
+enhanceRoutePlannerTypography();
 
 function injectRoutePlannerWaypointStyles() {
 	if (document.getElementById("route-planner-waypoint-polish-styles")) {
@@ -17,6 +18,25 @@ function injectRoutePlannerWaypointStyles() {
 	const style = document.createElement("style");
 	style.id = "route-planner-waypoint-polish-styles";
 	style.textContent = `
+		#search,
+		#search p,
+		#search label,
+		#search button,
+		#search input,
+		#search select,
+		#overview,
+		#overview *,
+		.ui-autocomplete,
+		.ui-autocomplete * {
+			font-family: inherit !important;
+		}
+
+		.project-summary p {
+			color: #4f4134;
+			font-size: 12px;
+			line-height: 1.35;
+		}
+
 		#waypoints {
 			display: grid;
 			gap: 5px;
@@ -141,7 +161,8 @@ function injectRoutePlannerWaypointStyles() {
 			box-sizing: border-box;
 		}
 
-		.route-planner-options-panel__title {
+		.route-planner-options-panel__title,
+		.transport-options__title {
 			margin: 0 0 1px;
 			color: #6a5543;
 			font-size: 11px;
@@ -268,6 +289,13 @@ function injectRoutePlannerWaypointStyles() {
 			overflow: hidden;
 		}
 
+		.route-plan-entry,
+		.route-plan-summary__time {
+			font-family: inherit !important;
+			font-size: 12px;
+			line-height: 1.32;
+		}
+
 		.ui-autocomplete {
 			z-index: 1600 !important;
 			max-height: min(54vh, 360px);
@@ -289,7 +317,7 @@ function injectRoutePlannerWaypointStyles() {
 			border-radius: 6px;
 			background: transparent;
 			color: #2f251c;
-			font-family: Georgia, "Times New Roman", serif !important;
+			font-family: inherit !important;
 			font-size: 15px;
 			line-height: 1.25;
 			padding: 6px 9px;
@@ -329,6 +357,20 @@ function correctDerographyLabels() {
 	}
 
 	updateLabel();
+}
+
+function enhanceRoutePlannerTypography() {
+	const enhance = () => {
+		const transportTitle = document.querySelector("#transport-options > label:first-child");
+		transportTitle?.classList.add("transport-options__title");
+	};
+
+	if (document.readyState === "loading") {
+		document.addEventListener("DOMContentLoaded", enhance, { once: true });
+		return;
+	}
+
+	enhance();
 }
 
 function enhanceRoutePlannerOptionPanel() {
@@ -546,6 +588,13 @@ function initializeWaypointAutocomplete($input) {
 			scrollWaypointInputIntoView($activeInput);
 			window.requestAnimationFrame(() => fitWaypointAutocompleteMenu($activeInput));
 		},
+	});
+	$input.off("keydown.waypointSearch").on("keydown.waypointSearch", (event) => {
+		if (event.key !== "Enter") {
+			return;
+		}
+
+		window.setTimeout(() => updateMapView(), 0);
 	});
 }
 
