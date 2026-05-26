@@ -6,3 +6,34 @@
 #path-edit-transport-options input {
 	width: auto;
 }
+
+.region-edit-edge-highlight {
+	stroke: #f0c05a;
+	stroke-width: 4;
+	stroke-opacity: 0.95;
+	stroke-dasharray: 8 5;
+	pointer-events: none;
+}
+
+.path-edit-handle-marker {
+	border: 0;
+	background: transparent;
+}
+
+.path-edit-handle-marker__dot {
+	display: block;
+	box-sizing: border-box;
+	width: 18px;
+	height: 18px;
+	border: 3px solid #1452f7;
+	border-radius: 50%;
+	background: #ffffff;
+	box-shadow:
+		0 0 0 1px rgba(20, 82, 247, 0.35),
+		0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
+.path-creation-cursor,
+.path-creation-cursor .leaflet-interactive {
+	cursor: crosshair !important;
+}
