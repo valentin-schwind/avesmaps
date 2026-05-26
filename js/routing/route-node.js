@@ -33,13 +33,13 @@ function resolveRouteNodeLocation(routeName, index, routeNames, segments, { allo
 function getRouteNodeDisplayName(routeName, index, routeNames, segments, options = {}) {
 	const allowCrossings = options.allowCrossings !== false;
 	const normalizedRouteName = normalizeNodeName(routeName);
-	if (!allowCrossings && normalizedRouteName === "Kreuzung") {
-		return "Markierung";
-	}
-
 	const location = resolveRouteNodeLocation(routeName, index, routeNames, segments, options);
 	if (location) {
 		return isCrossingLocation(location) ? normalizeNodeName(location.name) : location.name;
+	}
+
+	if (!allowCrossings && normalizedRouteName === "Kreuzung") {
+		return "Markierung";
 	}
 
 	return normalizedRouteName;
