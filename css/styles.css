@@ -11,4 +11,6 @@
 @import url("styles-legacy.css");
 
 @import url("layout/map-layout.css");
+@import url("features/map-decorations.css");
+@import url("features/map-scale-band.css");
 @import url("features/route-planner.css");
