@@ -37,7 +37,82 @@ function normalizeHardcodedMapContextMenuIcons() {
     });
 }
 
+function normalizeRouteDistanceLabels() {
+    const overviewElement = document.getElementById("overview");
+    if (!overviewElement) {
+        return;
+    }
+
+    const replaceLabel = () => {
+        overviewElement.querySelectorAll(".route-plan-summary").forEach((summaryElement) => {
+            summaryElement.childNodes.forEach((node) => {
+                if (node.nodeType === Node.TEXT_NODE && node.textContent.includes("Luftlinie")) {
+                    node.textContent = node.textContent.replaceAll("Luftlinie", "Drachenflug");
+                }
+            });
+        });
+    };
+
+    replaceLabel();
+    new MutationObserver(replaceLabel).observe(overviewElement, { childList: true, subtree: true });
+}
+
+function enableWaypointTouchSorting() {
+    const waypointsElement = document.getElementById("waypoints");
+    if (!waypointsElement || !window.jQuery || !jQuery.fn?.sortable) {
+        return;
+    }
+
+    waypointsElement.addEventListener("touchstart", (event) => {
+        const handle = event.target.closest(".waypoint-drag-handle");
+        if (!handle || !waypointsElement.contains(handle)) {
+            return;
+        }
+
+        const touch = event.changedTouches[0];
+        if (!touch) {
+            return;
+        }
+
+        const simulatedEvent = new MouseEvent("mousedown", {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: touch.clientX,
+            clientY: touch.clientY,
+            screenX: touch.screenX,
+            screenY: touch.screenY,
+            button: 0,
+        });
+        handle.dispatchEvent(simulatedEvent);
+        event.preventDefault();
+    }, { passive: false });
+
+    ["touchmove", "touchend", "touchcancel"].forEach((eventName) => {
+        document.addEventListener(eventName, (event) => {
+            const touch = event.changedTouches[0];
+            if (!touch) {
+                return;
+            }
+
+            const mouseEventName = eventName === "touchmove" ? "mousemove" : "mouseup";
+            document.dispatchEvent(new MouseEvent(mouseEventName, {
+                bubbles: true,
+                cancelable: true,
+                view: window,
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                screenX: touch.screenX,
+                screenY: touch.screenY,
+                button: 0,
+            }));
+        }, { passive: false });
+    });
+}
+
 normalizeHardcodedMapContextMenuIcons();
+normalizeRouteDistanceLabels();
+enableWaypointTouchSorting();
 
 $("#toggle-button").off("click").on("click", () => {
     const panelWidth = getRoutePlannerPanelWidth();
