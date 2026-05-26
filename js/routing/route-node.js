@@ -1,3 +1,21 @@
+function findRouteLocationAtPathEndpoint(coordinate, { allowCrossings = true } = {}) {
+	if (!Array.isArray(coordinate) || coordinate.length < 2) {
+		return null;
+	}
+
+	const [x, y] = coordinate;
+	const matchingLocations = locationData.filter(({ coordinates: [lat, lng] }) => Math.abs(lat - y) < THRESHOLD && Math.abs(lng - x) < THRESHOLD);
+	if (!matchingLocations.length) {
+		return null;
+	}
+
+	if (!allowCrossings) {
+		return matchingLocations.find((location) => !isCrossingLocation(location)) || null;
+	}
+
+	return matchingLocations.find((location) => !isCrossingLocation(location)) || matchingLocations[0] || null;
+}
+
 function resolveRouteNodeLocation(routeName, index, routeNames, segments, { allowCrossings = true } = {}) {
 	const normalizedName = normalizeLocationSearchName(routeName);
 	const directLocation = locationData.find((location) => location.name === routeName)
@@ -21,8 +39,8 @@ function resolveRouteNodeLocation(routeName, index, routeNames, segments, { allo
 	}
 
 	for (const coordinate of candidateCoordinates) {
-		const location = getLocationAtPathEndpoint(coordinate);
-		if (location && (allowCrossings || !isCrossingLocation(location))) {
+		const location = findRouteLocationAtPathEndpoint(coordinate, { allowCrossings });
+		if (location) {
 			return location;
 		}
 	}
