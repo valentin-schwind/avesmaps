@@ -398,3 +398,109 @@ details[open] > summary .tree-toggle::before {
 #waypoints .waypoint-drag-handle::before {
 	background: transparent;
 }
+
+/* Route planner waypoint drag handle + marker columns */
+#waypoints .waypoint-container {
+	grid-template-columns: 24px 24px minmax(0, 1fr) 26px;
+	column-gap: 5px;
+	align-items: center;
+}
+
+#waypoints .waypoint-drag-handle {
+	grid-column: 1;
+	width: 24px;
+	height: 32px;
+	color: #7c6957 !important;
+	font-size: 17px !important;
+	font-weight: 700;
+	line-height: 1;
+}
+
+#waypoints .waypoint-drag-handle::before,
+#waypoints .waypoint-drag-handle::after {
+	content: none !important;
+}
+
+#waypoints .waypoint-container::before {
+	content: "";
+	position: absolute;
+	left: 41px;
+	top: 50%;
+	width: 13px;
+	height: 13px;
+	border: 2px solid #565044;
+	border-radius: 50%;
+	background: transparent;
+	box-sizing: border-box;
+	transform: translate(-50%, -50%);
+	z-index: 1;
+	pointer-events: none;
+}
+
+#waypoints .waypoint-container:not(:last-child)::after {
+	left: 39.5px;
+	top: calc(50% + 9px);
+	bottom: calc(-5px - 50% + 9px);
+	width: 3px;
+	background-image: radial-gradient(circle, #565044 1.35px, transparent 1.55px);
+	background-repeat: repeat-y;
+	background-size: 3px 7px;
+	pointer-events: none;
+	z-index: 0;
+}
+
+#waypoints .waypoint-container:last-child::before {
+	width: 14px;
+	height: 14px;
+	border-color: #e33b35;
+	border-radius: 50% 50% 50% 0;
+	transform: translate(-50%, -58%) rotate(-45deg);
+}
+
+#waypoints .waypoint-container:last-child::after {
+	content: "";
+	position: absolute;
+	left: 41px;
+	top: 50%;
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: #e33b35;
+	transform: translate(-50%, -82%);
+	z-index: 2;
+	pointer-events: none;
+}
+
+#waypoints .waypoint-input {
+	grid-column: 3;
+	padding-right: 3px;
+}
+
+#waypoints .remove-waypoint {
+	position: static;
+	grid-column: 4;
+	grid-row: 1;
+	width: 24px;
+	height: 24px;
+	transform: none;
+	justify-self: center;
+	z-index: 1;
+}
+
+#search .input-options {
+	grid-template-columns: 24px 24px minmax(0, 1fr) 26px;
+	column-gap: 5px;
+}
+
+#search .input-options #inputLocation {
+	grid-column: 2;
+	width: 24px;
+	min-width: 0;
+	padding: 0;
+	justify-self: center;
+}
+
+#search .input-options #searchButton {
+	grid-column: 3;
+	width: 100%;
+}
