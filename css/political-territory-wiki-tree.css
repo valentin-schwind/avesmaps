@@ -405,3 +405,34 @@ details[open] > summary .tree-toggle::before {
 	grid-column: 3;
 	width: 100%;
 }
+
+/* Route planner waypoint width fix */
+#waypoints,
+#waypoints .waypoint-container,
+#search .input-options {
+	width: 100% !important;
+	box-sizing: border-box;
+}
+
+#waypoints .waypoint-container {
+	grid-template-columns: 24px 24px minmax(0, 1fr) 26px !important;
+	justify-content: stretch;
+}
+
+#waypoints .waypoint-input {
+	width: 100% !important;
+	max-width: none !important;
+	justify-self: stretch;
+}
+
+#search .input-options #inputLocation {
+	grid-column: 1 / 3;
+	width: 100% !important;
+	justify-self: stretch;
+}
+
+#search .input-options #searchButton {
+	grid-column: 3 / 5;
+	width: 100% !important;
+	justify-self: stretch;
+}
