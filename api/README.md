@@ -1,6 +1,3 @@
-# Avesmaps API
-
-Diese API stellt die PHP-Endpunkte fuer Avesmaps bereit. Sie enthaelt oeffentliche App-Endpunkte, geschuetzte Editor- und Import-Endpunkte sowie interne PHP-Bibliotheken.
 
 ## Stabile Entwickler-API
 

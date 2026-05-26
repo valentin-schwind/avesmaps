@@ -185,8 +185,8 @@ class SmokeTester:
 
     def check_auth_boundaries(self) -> None:
         protected_paths = [
-            "api/map-audit-log.php",
-            "api/location-report-review.php",
+            "api/edit/map/audit-log.php",
+            "api/edit/reports/locations.php",
         ]
         failures = []
         for path in protected_paths:
