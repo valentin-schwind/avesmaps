@@ -1,4 +1,6 @@
 const SPOTLIGHT_SEARCH_MAX_RESULTS = 20;
+const SPOTLIGHT_SEARCH_INPUT_DEBOUNCE_MS = 140;
+const SPOTLIGHT_BACKEND_MIN_QUERY_LENGTH = 2;
 const SPOTLIGHT_SEARCH_RESULT_TYPE_ORDER = {
 	location: 0,
 	label: 1,
@@ -24,6 +26,10 @@ let spotlightHighlightLayer = null;
 let spotlightActiveSelectionId = "";
 let spotlightSearchRenderToken = 0;
 let spotlightBackendAbortController = null;
+let spotlightSearchInputTimeout = null;
+let spotlightSearchEntryCache = null;
+let spotlightSearchEntryCacheSignature = "";
+let spotlightSearchLookupCache = null;
 
 function getSpotlightSearchElements() {
 	return {
@@ -66,6 +72,8 @@ function closeSpotlightSearch({ resetInput = false } = {}) {
 	spotlightSearchRenderToken++;
 	spotlightRenderedEntries = [];
 	spotlightActiveResultIndex = -1;
+	clearTimeout(spotlightSearchInputTimeout);
+	spotlightSearchInputTimeout = null;
 	if (resetInput && input) {
 		input.value = "";
 	}
@@ -90,7 +98,7 @@ function initializeSpotlightSearch() {
 		return;
 	}
 
-	input.addEventListener("input", updateSpotlightSearchResults);
+	input.addEventListener("input", scheduleSpotlightSearchResultsUpdate);
 	input.addEventListener("keydown", handleSpotlightInputKeydown);
 	results.addEventListener("click", handleSpotlightResultClick);
 	results.addEventListener("mousemove", handleSpotlightResultMouseMove);
@@ -181,6 +189,14 @@ function handleSpotlightResultMouseMove(event) {
 	setSpotlightActiveResultIndex(Number(button.dataset.spotlightResultIndex));
 }
 
+function scheduleSpotlightSearchResultsUpdate() {
+	clearTimeout(spotlightSearchInputTimeout);
+	spotlightSearchInputTimeout = setTimeout(() => {
+		spotlightSearchInputTimeout = null;
+		updateSpotlightSearchResults();
+	}, SPOTLIGHT_SEARCH_INPUT_DEBOUNCE_MS);
+}
+
 function updateSpotlightSearchResults() {
 	const { input } = getSpotlightSearchElements();
 	const query = input?.value || "";
@@ -189,6 +205,10 @@ function updateSpotlightSearchResults() {
 	renderSpotlightSearchResults(localEntries);
 
 	if (!shouldUseBackendSpotlightSearch(query)) {
+		if (spotlightBackendAbortController) {
+			spotlightBackendAbortController.abort();
+			spotlightBackendAbortController = null;
+		}
 		return;
 	}
 
@@ -211,7 +231,8 @@ function updateSpotlightSearchResults() {
 }
 
 function shouldUseBackendSpotlightSearch(query) {
-	return Boolean(String(MAP_SEARCH_API_URL || "").trim() && normalizeSpotlightSearchText(query));
+	const normalizedQuery = normalizeSpotlightSearchText(query);
+	return Boolean(String(MAP_SEARCH_API_URL || "").trim() && normalizedQuery.length >= SPOTLIGHT_BACKEND_MIN_QUERY_LENGTH);
 }
 
 async function fetchBackendSpotlightResults(query) {
@@ -238,20 +259,9 @@ async function fetchBackendSpotlightResults(query) {
 }
 
 function resolveBackendSpotlightEntries(backendResults, localEntries) {
-	const allLocalEntries = buildSpotlightSearchEntries();
-	const byPublicId = new Map();
-	const byPathGroup = new Map();
+	const { byPublicId, byPathGroup } = getSpotlightSearchLookup();
 	const resolvedEntries = [];
 	const seenEntryIds = new Set();
-
-	allLocalEntries.forEach((entry) => {
-		(entry.publicIds || []).forEach((publicId) => {
-			byPublicId.set(`${entry.kind}:${publicId}`, entry);
-		});
-		if (entry.kind === "path") {
-			byPathGroup.set(getSpotlightPathGroupKey(entry.name, entry.subtype), entry);
-		}
-	});
 
 	backendResults.forEach((result) => {
 		const kind = String(result.kind || "");
@@ -292,7 +302,7 @@ function searchSpotlightEntries(query) {
 		return [];
 	}
 
-	return buildSpotlightSearchEntries()
+	return getSpotlightSearchEntries()
 		.map((entry) => ({
 			entry,
 			score: getSpotlightSearchScore(entry, normalizedQuery),
@@ -316,7 +326,7 @@ function searchSpotlightEntries(query) {
 }
 
 function getSpotlightSearchScore(entry, normalizedQuery) {
-	const candidates = [entry.name, entry.typeLabel, ...(entry.aliases || [])]
+	const candidates = entry.normalizedSearchTexts || [entry.name, entry.typeLabel, ...(entry.aliases || [])]
 		.map(normalizeSpotlightSearchText)
 		.filter(Boolean);
 	let bestScore = Infinity;
@@ -389,6 +399,59 @@ function setSpotlightActiveResultIndex(index) {
 	if (index < 0 && input) {
 		input.removeAttribute("aria-activedescendant");
 	}
+}
+
+function getSpotlightSearchEntryCacheSignature() {
+	return [
+		locationMarkers.length,
+		labelMarkers.length,
+		regionPolygons.length,
+		pathData.length,
+		powerlineData.length,
+	].join(":");
+}
+
+function invalidateSpotlightSearchEntryCache() {
+	spotlightSearchEntryCache = null;
+	spotlightSearchEntryCacheSignature = "";
+	spotlightSearchLookupCache = null;
+}
+
+function getSpotlightSearchEntries() {
+	const signature = getSpotlightSearchEntryCacheSignature();
+	if (!spotlightSearchEntryCache || spotlightSearchEntryCacheSignature !== signature) {
+		spotlightSearchEntryCache = buildSpotlightSearchEntries().map((entry) => ({
+			...entry,
+			normalizedSearchTexts: [entry.name, entry.typeLabel, ...(entry.aliases || [])]
+				.map(normalizeSpotlightSearchText)
+				.filter(Boolean),
+		}));
+		spotlightSearchEntryCacheSignature = signature;
+		spotlightSearchLookupCache = null;
+	}
+
+	return spotlightSearchEntryCache;
+}
+
+function getSpotlightSearchLookup() {
+	getSpotlightSearchEntries();
+	if (spotlightSearchLookupCache) {
+		return spotlightSearchLookupCache;
+	}
+
+	const byPublicId = new Map();
+	const byPathGroup = new Map();
+	getSpotlightSearchEntries().forEach((entry) => {
+		(entry.publicIds || []).forEach((publicId) => {
+			byPublicId.set(`${entry.kind}:${publicId}`, entry);
+		});
+		if (entry.kind === "path") {
+			byPathGroup.set(getSpotlightPathGroupKey(entry.name, entry.subtype), entry);
+		}
+	});
+
+	spotlightSearchLookupCache = { byPublicId, byPathGroup };
+	return spotlightSearchLookupCache;
 }
 
 function buildSpotlightSearchEntries() {
