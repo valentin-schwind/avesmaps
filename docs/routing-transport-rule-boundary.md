@@ -9,8 +9,8 @@ Schritt 3 vorbereiten: Transportregeln und Geschwindigkeiten fachlich zentralisi
 Aktuelle Regel- und Geschwindigkeitsstellen:
 
 - `SPEED_TABLE` in `js/config.js`
-- `getTransportOptionForRouteType(routeType, routeOptions)` in `js/routing.js`
-- `isTransportAllowedForPath(pathProperties, transportOption)` in `js/routing.js`
+- `getTransportOptionForRouteType(routeType, routeOptions)` in `js/routing/routing.js`
+- `isTransportAllowedForPath(pathProperties, transportOption)` in `js/routing/routing.js`
 - `createGraph(routeOptions)` im Inline-Script von `index.html`:
   - `isTransportAllowedForPath(...)`
   - `SPEED_TABLE[transportOption]?.[routeType]`
@@ -39,7 +39,7 @@ Nicht-Ziele fuer den naechsten Code-Schritt:
 
 Kleiner verhaltensneutraler Schritt:
 
-1. In `js/routing.js` einen reinen Helper einfuehren:
+1. In `js/routing/routing.js` einen reinen Helper einfuehren:
    - `resolveSpeedForRouteType(routeType, transportOption)`
    - intern exakt `SPEED_TABLE[transportOption]?.[routeType]`
 2. In `index.html` nur die beiden direkten `SPEED_TABLE`-Zugriffe auf diesen Helper umstellen:

@@ -134,7 +134,7 @@ Empfohlene Reihenfolge im Map-Features-Block:
 9. `js/map-features.js`
 
 Zusätzlich wichtig:
-- `js/map-features-path-domain.js` muss auch vor `js/routing.js` und `js/spotlight-search.js` bleiben (beide folgen bereits nach `js/map-features.js`).
+- `js/map-features-path-domain.js` muss auch vor `js/routing/routing.js` und `js/spotlight-search.js` bleiben (beide folgen bereits nach `js/map-features.js`).
 - Das Inline-Graph-Script in `index.html` nutzt `normalizePathSubtype`; diese Funktion muss dort weiterhin global verfügbar sein.
 
 ## 14. Risikoanalyse

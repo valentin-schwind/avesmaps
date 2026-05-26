@@ -24,7 +24,7 @@ Bewertung:
 
 - sinnvoll als kleiner 1:1-Extract
 - reduziert Komplexitaet in `updateMapView`, ohne Verantwortung zu verlagern
-- verbleibt bewusst in `js/routing.js` (UI-/Rendering-nah)
+- verbleibt bewusst in `js/routing/routing.js` (UI-/Rendering-nah)
 
 ## 3. Exact Proposed Function
 
@@ -99,7 +99,7 @@ Empfehlung:
 
 Wenn spaeter umgesetzt:
 
-1. nur `js/routing.js` aendern
+1. nur `js/routing/routing.js` aendern
 2. nur `renderRouteResult(routeNodeNames, segments)` neu einfuegen
 3. in `updateMapView` den bestehenden Rendering-Block 1:1 durch `renderRouteResult(routeNodeNames, segments)` ersetzen
 4. keine sonstigen Aenderungen

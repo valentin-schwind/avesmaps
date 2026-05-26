@@ -94,11 +94,11 @@ Angrenzende Kollisionslogik (nur Abhaengigkeit, nicht Teil dieses Clusters):
 
 ## 7. Vermutlich extern benoetigte Funktionen
 Ausserhalb von `map-features.js` verwendet:
-- `addLocationNameLabel(...)` (z. B. in `js/routing.js`)
+- `addLocationNameLabel(...)` (z. B. in `js/routing/routing.js`)
 - `ensureLocationNameLabel(...)` (z. B. in `js/dialogs-review-editor-submit.js`)
-- `syncLocationNameLabelVisibility()` (z. B. in `js/routing.js`, intern vielfach)
+- `syncLocationNameLabelVisibility()` (z. B. in `js/routing/routing.js`, intern vielfach)
 
-Primär intern genutzt, aber weiter global verfuegbar:
+Primï¿½r intern genutzt, aber weiter global verfuegbar:
 - `removeLocationNameLabel(...)`
 - `createLocationNameLabelEntry(...)`
 - `createLocationNameLabelIcon(...)`
@@ -119,10 +119,10 @@ Bewertung:
   - klare fachliche Trennung (freie Labels vs. Ortsnamenlabels)
   - keine Aufweichung des bereits stabilisierten Free-Label-Splits
 - Erweiterung von `js/map-features-labels.js`: hoeheres Risiko
-  - mischt zwei verschiedene Label-Subdomänen wieder zusammen
+  - mischt zwei verschiedene Label-Subdomï¿½nen wieder zusammen
   - erschwert spaetere, getrennte Aenderungen und Smoke-Zyklen
 
-## 10. Nötige Script-Reihenfolge bei spaeterer Auslagerung
+## 10. Nï¿½tige Script-Reihenfolge bei spaeterer Auslagerung
 Risikoarme Reihenfolge (klassische globale Scripts):
 1. `js/map-features-labels.js`
 2. `js/map-features-powerlines.js`

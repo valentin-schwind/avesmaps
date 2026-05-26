@@ -31,7 +31,7 @@
   - keine direkten DOM-/Leaflet-/API-/map-Zugriffe
   - **indirekte UI-Abhaengigkeit**:
     - `getSyntheticRouteConfig(...)` ruft `getTransportOption(...)`
-    - `getTransportOption(...)` (in `js/routing.js`) liest jQuery-UI-Controls (`#allowLand`, `#landTransport`, etc.).
+    - `getTransportOption(...)` (in `js/routing/routing.js`) liest jQuery-UI-Controls (`#allowLand`, `#landTransport`, etc.).
 
 ## 3. Call Sites
 
@@ -50,7 +50,7 @@ Weitere Aufrufe in `js/*.js` wurden nicht gefunden.
   - bildet `routeType/speed` aus aktueller Transportauswahl.
   - haengt indirekt an UI (via `getTransportOption`).
 
-- `getTransportOption` (`js/routing.js:243`)
+- `getTransportOption` (`js/routing/routing.js:243`)
   - jQuery-gebunden an Routing-Formularzustand.
   - liefert aktives Transportmittel fuer einen `routeType`.
 
@@ -68,7 +68,7 @@ Weitere Aufrufe in `js/*.js` wurden nicht gefunden.
 
 - `syntheticPathSegments` (`js/runtime-state.js:19`)
   - globale Map fuer synthetische Segmente.
-  - wird in `js/routing.js:getRouteSegments(...)` gelesen (`js/routing.js:151`).
+  - wird in `js/routing/routing.js:getRouteSegments(...)` gelesen (`js/routing/routing.js:151`).
 
 ## 5. Extraction Recommendation
 

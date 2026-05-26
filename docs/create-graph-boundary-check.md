@@ -31,8 +31,8 @@ Direkte Abhaengigkeiten von `createGraph`:
   - `getLocationAtPathEndpoint` (`js/map-features.js:1584`)
   - `calculatePathCoordinateDistance` (`js/map-features.js:1588`)
   - `normalizePathSubtype` (`js/map-features.js:1516`)
-  - `getTransportOption` (`js/routing.js:243`)
-  - `isTransportAllowedForPath` (`js/routing.js:257`)
+  - `getTransportOption` (`js/routing/routing.js:243`)
+  - `isTransportAllowedForPath` (`js/routing/routing.js:257`)
   - `addGraphConnection` (`js/map-features.js:1579`)
   - `connectDetachedGraphComponents` (`index.html:1493`)
 - UI-/jQuery-Abhaengigkeiten:
@@ -44,9 +44,9 @@ Direkte Abhaengigkeiten von `createGraph`:
 
 Indirekte Ketten rund um `createGraph`:
 
-- `getTransportOption` (`js/routing.js:243`)
+- `getTransportOption` (`js/routing/routing.js:243`)
   - jQuery-gekoppelt an Routing-Controls.
-- `isTransportAllowedForPath` (`js/routing.js:257`)
+- `isTransportAllowedForPath` (`js/routing/routing.js:257`)
   - nutzt `normalizePathSubtype(...)` und `getDefaultTransportDomainForPathSubtype(...)`.
   - `getDefaultTransportDomainForPathSubtype` liegt in `js/dialogs-review.js:3543` (cross-file Kopplung in Richtung Review/UI-Datei).
 - `connectDetachedGraphComponents` (`index.html:1493`)

@@ -9,7 +9,7 @@
 ## Changed files reviewed
 
 - `index.html`
-- `js/routing.js`
+- `js/routing/routing.js`
 
 ## Boundary assessment
 
@@ -17,7 +17,7 @@ This commit matches the transport-rule boundary documented in `docs/routing-tran
 
 Observed changes:
 
-- Added `resolveSpeedForRouteType(routeType, transportOption)` in `js/routing.js`.
+- Added `resolveSpeedForRouteType(routeType, transportOption)` in `js/routing/routing.js`.
 - The helper returns exactly `SPEED_TABLE[transportOption]?.[routeType]`.
 - Replaced the direct `SPEED_TABLE` access in `getSyntheticRouteConfig(...)` with the helper.
 - Replaced the direct `SPEED_TABLE` access in `addRegularPathToGraph(...)` with the helper.
@@ -25,7 +25,7 @@ Observed changes:
 
 ## Checks reported by Codex
 
-- `node --check js/routing.js`: OK
+- `node --check js/routing/routing.js`: OK
 - No PHP files changed.
 
 ## Validation notes

@@ -102,7 +102,7 @@ Hinweis zur Liste aus der Aufgabe:
 
 ## 6. Funktionen, die vermutlich von aussen gebraucht werden
 
-Nach Aufrufstellen in `index.html`, `js/routing.js`, `js/popups.js`, `js/dialogs-review-*`, `js/spotlight-search.js` sind mindestens diese Funktionen extern relevant:
+Nach Aufrufstellen in `index.html`, `js/routing/routing.js`, `js/popups.js`, `js/dialogs-review-*`, `js/spotlight-search.js` sind mindestens diese Funktionen extern relevant:
 
 - `findLabelEntryByPublicId`
 - `setLabelMoveActive`
@@ -158,7 +158,7 @@ Falls spaeter ausgelagert wird (kein Schritt jetzt), waere eine konservative Rei
 2. Popup-/Dialog-Helfer, die vom Label-Cluster genutzt werden
 3. `js/map-features-labels.js` (neue Split-Datei)
 4. `js/map-features.js` (Rest-Orchestrator)
-5. `js/routing.js` und weitere Verbraucher
+5. `js/routing/routing.js` und weitere Verbraucher
 
 Wichtig:
 

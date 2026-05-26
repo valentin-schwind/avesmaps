@@ -25,7 +25,7 @@ Nicht Teil eines moeglichen Share-Pin-Splits:
 - `applyPlannerStateFromUrl` (liegt in `js/map-features-layer-state.js`)
 - `readSharePinFromUrl` (liegt in `js/map-features-layer-state.js`)
 - Routen-/Waypoint-Statusverwaltung
-- Kontextmenue-/Popup-Dispatcher (z. B. in `js/routing.js`)
+- Kontextmenue-/Popup-Dispatcher (z. B. in `js/routing/routing.js`)
 - allgemeine Feedback-UI (`showFeedbackToast`) als globaler Querschnitt
 
 ## 4. Welche globalen Daten gelesen werden
@@ -51,11 +51,11 @@ Direkt gelesen:
 - `showFeedbackToast(...)` (in `copyCurrentUrlToClipboardWithFeedback`)
 - Browser-/DOM-API: `document.createElement`, `document.execCommand`, `navigator.clipboard.writeText`
 
-## 7. Welche Funktionen vermutlich von außen gebraucht werden
+## 7. Welche Funktionen vermutlich von auï¿½en gebraucht werden
 Sicher extern genutzt:
-- `setSharePin(...)` (u. a. aus `js/routing.js`, Kontextmenue-Aktion)
-- `clearSharePin(...)` (u. a. aus `js/routing.js`, Clear-Aktion)
-- `copyCurrentUrlToClipboardWithFeedback(...)` (u. a. aus `js/routing.js`, Share-Aktion)
+- `setSharePin(...)` (u. a. aus `js/routing/routing.js`, Kontextmenue-Aktion)
+- `clearSharePin(...)` (u. a. aus `js/routing/routing.js`, Clear-Aktion)
+- `copyCurrentUrlToClipboardWithFeedback(...)` (u. a. aus `js/routing/routing.js`, Share-Aktion)
 
 Wahrscheinlich intern relevant:
 - `createSharePinIcon(...)`
@@ -63,7 +63,7 @@ Wahrscheinlich intern relevant:
 - `copyTextToClipboard(...)`
 - `fallbackCopyTextToClipboard(...)`
 
-## 8. Abhängigkeit zu `js/map-features-layer-state.js`
+## 8. Abhï¿½ngigkeit zu `js/map-features-layer-state.js`
 Direkte Kopplung:
 - `clearSharePin(...)` und `setSharePin(...)` rufen `syncPlannerStateToUrl(...)` auf.
 - `applyPlannerStateFromUrl(...)` in `js/map-features-layer-state.js` ruft wiederum `setSharePin(...)`/`clearSharePin(...)`.
@@ -71,24 +71,24 @@ Direkte Kopplung:
 
 Damit besteht bidirektionale Laufzeitkopplung zwischen Share-Pin-Cluster und Layer-State-Cluster.
 
-## 9. Abhängigkeit zu Routen-/Waypoint-State und URL-Sync
+## 9. Abhï¿½ngigkeit zu Routen-/Waypoint-State und URL-Sync
 - Share-Pin ist Teil des URL-Zustands (Query-Parameter via Layer-State-Helfer).
-- Route-/Waypoint-Änderungen triggern denselben URL-Sync-Pfad; Share-Pin darf diesen Fluss nicht brechen.
+- Route-/Waypoint-ï¿½nderungen triggern denselben URL-Sync-Pfad; Share-Pin darf diesen Fluss nicht brechen.
 - Wiederherstellung nach Reload erfolgt ueber `applyPlannerStateFromUrl` + `readSharePinFromUrl`.
 
-## 10. Abhängigkeit zu Popup-/Kontextmenü-Flows
+## 10. Abhï¿½ngigkeit zu Popup-/Kontextmenï¿½-Flows
 - Share-Pin wird im Kontextmenue gesetzt (`routing.js`, `data-context-action="share-pin"`).
 - Nach dem Setzen wird Clipboard-Feedback gestartet (`copyCurrentUrlToClipboardWithFeedback`).
 - Popup/Feedback-UX haengt von `showFeedbackToast(...)` und Marker-Popup-Verhalten ab.
 
-## 11. Mögliche spätere Ziel-Datei
+## 11. Mï¿½gliche spï¿½tere Ziel-Datei
 Bewertung:
 - `js/map-features-share-pin.js`: risikoaermer fuer einen kleinen, klaren 1:1-Extract (UI/Marker/Clipboard rund um Share-Pin).
 - Integration in `js/map-features-layer-state.js`: funktional moeglich, aber Scope-Mischung (URL-Parsing/Serialisierung + Marker/Clipboard/UI) wird groesser.
 
 Fuer klassischen Script-Tag-Aufbau ist `js/map-features-share-pin.js` als enger Mini-Schnitt risikoaermer.
 
-## 12. Nötige Script-Reihenfolge, falls später ausgelagert würde
+## 12. Nï¿½tige Script-Reihenfolge, falls spï¿½ter ausgelagert wï¿½rde
 Empfohlene Reihenfolge bei spaeterem Split:
 1. `js/map-features-layer-state.js`
 2. `js/map-features-share-pin.js` (neu)

@@ -14,7 +14,7 @@ Avesmaps ist aktuell eine klassische, build-freie Multi-Script-Webapp:
 Script-Ladereihenfolge (aus `index.html`) ist ein zentrales Laufzeit-Contract:
 
 1. Vendor (`leaflet.js`, `jquery`, `jquery-ui`)
-2. `js/priority-queue.js`, `js/config.js`, `js/utils.js`, `js/popups.js`, `js/api.js`, `js/political-territory-wiki-tree.js`, `js/dialogs-review.js`, `js/ui-controls.js`, `polygon-clipping` (CDN), `js/political-territory-*.js`, `js/map-features.js`, `js/routing.js`, `js/spotlight-search.js`
+2. `js/priority-queue.js`, `js/config.js`, `js/utils.js`, `js/popups.js`, `js/api.js`, `js/political-territory-wiki-tree.js`, `js/dialogs-review.js`, `js/ui-controls.js`, `polygon-clipping` (CDN), `js/political-territory-*.js`, `js/map-features.js`, `js/routing/routing.js`, `js/spotlight-search.js`
 3. Inline-Script mit globalem State, Map-Init, Context-Men�, Dijkstra/Graph/Smoothing-Helfern
 
 ## 2. Responsibility Clusters
@@ -23,7 +23,7 @@ Script-Ladereihenfolge (aus `index.html`) ist ein zentrales Laufzeit-Contract:
 
 - `index.html` (DOM-Struktur, Script-Order, Map-Init, Pane-Setup, globale Runtime-Variablen)
 - `js/config.js` (Runtime-Konfiguration, Endpoints, Tile-Styles, Default-States)
-- `js/routing.js` (initialer Daten-Load + Start der Frontend-Pipeline)
+- `js/routing/routing.js` (initialer Daten-Load + Start der Frontend-Pipeline)
 
 ### Kartenlogik
 
@@ -33,7 +33,7 @@ Script-Ladereihenfolge (aus `index.html`) ist ein zentrales Laufzeit-Contract:
 
 ### Datenladen
 
-- `js/routing.js` (`loadRouteDataFromApi`, Start-Load, Polling)
+- `js/routing/routing.js` (`loadRouteDataFromApi`, Start-Load, Polling)
 - `js/api.js` (Fetch-Wrapper f�r Edit/Review/WikiSync/Political)
 - `api/map-features.php` (FeatureCollection + Revision, optional `since_revision`/`bbox`)
 - `api/political-territories.php` (`action=layer|list|get|...`)
@@ -41,20 +41,20 @@ Script-Ladereihenfolge (aus `index.html`) ist ein zentrales Laufzeit-Contract:
 ### Routing
 
 - `index.html` (Dijkstra/Graph-Aufbau, Smoothing-Helfer, Synthetic-Connections)
-- `js/routing.js` (Routensegmente, Plan-Eintr�ge, Marker-Highlighting, Restzeiten)
+- `js/routing/routing.js` (Routensegmente, Plan-Eintr�ge, Marker-Highlighting, Restzeiten)
 - `js/priority-queue.js` (Min-Heap)
 
 ### Routing-UI
 
 - `index.html` (Routing-Controls/Sidebar-Elemente)
-- `js/routing.js` (Waypoint-Input, Button-Handler, Route-Plan-Rendering)
+- `js/routing/routing.js` (Waypoint-Input, Button-Handler, Route-Plan-Rendering)
 - `css/styles.css` (Route-Plan/Waypoint-Styles)
 
 ### Popups
 
 - `js/popups.js` (Popup-Markup-Builder)
 - `js/map-features.js` (Popup-Bindings/Refresh an Layern)
-- `js/routing.js` (Popup-Action-Delegation)
+- `js/routing/routing.js` (Popup-Action-Delegation)
 
 ### Suche
 
@@ -128,7 +128,7 @@ Script-Ladereihenfolge (aus `index.html`) ist ein zentrales Laufzeit-Contract:
 - Viele wechselseitige Abh�ngigkeiten auf globale Runtime-Variablen.
 - Regressionen schwer lokal einzugrenzen.
 
-4. `js/routing.js`
+4. `js/routing/routing.js`
 - Enth�lt nicht nur Routing, sondern auch Data-Bootstrap, Event-Delegation, Context-Men�-Aktionen, Review-Aktionen.
 - �Side-effects at load time� (top-level `routeDataRequest` + Binding).
 
@@ -151,27 +151,27 @@ Wichtige globale Zustandsgruppen und abh�ngige Module:
 ### Datenbest�nde
 
 - `locationData`, `pathData`, `powerlineData`, `labelData`, `regionData`
-- Verwendet in: `index.html`, `js/map-features.js`, `js/routing.js`, `js/spotlight-search.js`, teilweise `js/config.js`
+- Verwendet in: `index.html`, `js/map-features.js`, `js/routing/routing.js`, `js/spotlight-search.js`, teilweise `js/config.js`
 
 ### Leaflet-Layer/Visual Caches
 
 - `locationMarkers`, `locationNameLabels`, `pathLayers`, `powerlineLayers`, `labelMarkers`, `regionPolygons`, `regionLabels`
-- Verwendet in: prim�r `js/map-features.js`, zus�tzlich `js/routing.js`, `js/spotlight-search.js`, `js/config.js`
+- Verwendet in: prim�r `js/map-features.js`, zus�tzlich `js/routing/routing.js`, `js/spotlight-search.js`, `js/config.js`
 
 ### Routing/Planner State
 
 - `graphData`, `selectedLocations`, `invalidLocationInputs`, `currentRouteLayer`, `currentRouteSegmentLayers`, `activeTooltips`
-- Verwendet in: `index.html` (Dijkstra/Graph), `js/routing.js`, `js/map-features.js`
+- Verwendet in: `index.html` (Dijkstra/Graph), `js/routing/routing.js`, `js/map-features.js`
 
 ### Share/URL/Context
 
 - `sharePinCoordinates`, `sharePinMarker`, `pendingContextMenuLatLng`
-- Verwendet in: `js/map-features.js`, `index.html`, `js/routing.js`
+- Verwendet in: `js/map-features.js`, `index.html`, `js/routing/routing.js`
 
 ### Review/WikiSync State
 
 - `reviewReports`, `changeLogEntries`, `wikiSyncCases`, `wikiSyncSummary`, `wikiSyncTerritorySummary`, `activeWikiSync*`
-- Verwendet in: haupts�chlich `js/dialogs-review.js`, teilweise `js/routing.js`, `index.html`
+- Verwendet in: haupts�chlich `js/dialogs-review.js`, teilweise `js/routing/routing.js`, `index.html`
 
 ### Edit-Session State
 
@@ -181,7 +181,7 @@ Wichtige globale Zustandsgruppen und abh�ngige Module:
 ### Live-Update/Presence
 
 - `mapDataSourceStatus`, `liveMapUpdateTimerId`, `editorPresenceTimerId`, `activeFeatureLocks`
-- Verwendet in: `js/routing.js`, `js/dialogs-review.js`, `js/map-features.js`, `index.html`
+- Verwendet in: `js/routing/routing.js`, `js/dialogs-review.js`, `js/map-features.js`, `index.html`
 
 ### Measurement
 
@@ -199,7 +199,7 @@ Wichtige globale Zustandsgruppen und abh�ngige Module:
 
 1. SQL-Tabellen (`map_features`, `map_revision`, `political_territory*`, `map_reports`, `map_audit_log`, `wiki_sync*`) sind operative Quelle.
 2. Frontend l�dt `api/map-features.php` (FeatureCollection + Revision).
-3. `js/routing.js` verteilt Features an:
+3. `js/routing/routing.js` verteilt Features an:
 - `prepareLocationData`
 - `preparePowerlineData`
 - `preparePathData`
@@ -207,8 +207,8 @@ Wichtige globale Zustandsgruppen und abh�ngige Module:
 - `prepareLabelData`
 4. `js/map-features.js` baut daraus Leaflet-Layer (Marker, Polylines, Polygons, Tooltips/Labels).
 5. Darauf arbeiten Funktionsbereiche auf:
-- Routing (`index.html` Dijkstra + `js/routing.js` UI/Plan)
-- Popups/Interaktionen (`js/popups.js`, `js/routing.js` Delegation)
+- Routing (`index.html` Dijkstra + `js/routing/routing.js` UI/Plan)
+- Popups/Interaktionen (`js/popups.js`, `js/routing/routing.js` Delegation)
 - Suche (`js/spotlight-search.js`, optional Backend via `api/map-search.php`)
 - Editmode (`js/dialogs-review.js` + `js/map-features.js` -> `api/map-feature-update.php` / `api/political-territories.php`)
 
@@ -263,10 +263,10 @@ Zielgrenzen ohne Framework- oder Build-Migration:
 - Testbarkeit: Mehrpunkt-Route, Transportoptionen, �Umsteigen minimieren�.
 - Reversibel: Neues Script entfernen, alte Inline-Funktionen zur�ckkopieren.
 
-### Step 3: Routing-Bindings in `js/routing.js` kapseln
+### Step 3: Routing-Bindings in `js/routing/routing.js` kapseln
 
 - Ziel: Top-level Event-Bindings und Startsequenz in `initializeRoutingRuntime()` b�ndeln, einmalig aufrufen.
-- Betroffene Dateien: `js/routing.js` (optional eine kleine Aufrufstelle in `index.html` falls n�tig).
+- Betroffene Dateien: `js/routing/routing.js` (optional eine kleine Aufrufstelle in `index.html` falls n�tig).
 - Verhalten: Unver�ndert, aber klarer Einstieg und weniger implizite Side-Effects.
 - Testbarkeit: Waypoints hinzuf�gen/entfernen/sortieren, Route berechnen, Popup-Aktionen.
 - Reversibel: Wrapper aufl�sen, bisherige Top-level-Aufrufe wiederherstellen.

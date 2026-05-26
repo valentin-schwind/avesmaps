@@ -9,7 +9,7 @@
 ## Changed files reviewed
 
 - `index.html`
-- `js/routing.js`
+- `js/routing/routing.js`
 - `js/routing/route-render.js`
 
 ## Boundary assessment
@@ -19,8 +19,8 @@ This commit matches the requested route-render module split.
 Observed changes:
 
 - Added `js/routing/route-render.js`.
-- Moved route rendering/highlighting helpers from `js/routing.js` into `js/routing/route-render.js`.
-- Added the new script include in `index.html` before `js/routing.js`.
+- Moved route rendering/highlighting helpers from `js/routing/routing.js` into `js/routing/route-render.js`.
+- Added the new script include in `index.html` before `js/routing/routing.js`.
 - Kept global-script architecture; no ES modules or build system were introduced.
 
 Moved functions include:
@@ -43,13 +43,13 @@ The script order is correct:
 4. `js/routing/route-plan.js`
 5. `js/routing/route-engine.js`
 6. `js/routing/route-render.js`
-7. `js/routing.js`
+7. `js/routing/routing.js`
 
 This ensures `routing.js` can call the moved render helpers.
 
 ## Checks reported by Codex
 
-- `node --check js/routing.js`: OK
+- `node --check js/routing/routing.js`: OK
 - `node --check js/routing/route-render.js`: OK
 - duplicate check for `drawRoute`, `highlightRouteLocations`, `removeHighlightedRouteNodes`: OK
 - `git diff`: checked by Codex

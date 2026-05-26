@@ -85,17 +85,17 @@ Fuer den Start aus Kontextmenue-Flow relevant (aus Aufruferseite):
 Repo-weite Aufrufer (per `grep`) fuer die angefragten Funktionen:
 
 - `startPathCreationAt`
-  - `js/routing.js` (Kontextmenue-Action)
+  - `js/routing/routing.js` (Kontextmenue-Action)
 - `startPathCreationFromLocation`
-  - `js/routing.js` (Popup-/Action-Flow)
+  - `js/routing/routing.js` (Popup-/Action-Flow)
 - `clearPendingPathCreation`
   - `index.html` (ESC/Cancel-Keydown-Flow)
   - `js/map-features.js` intern mehrfach
   - `js/map-features.js` in `startPathGeometryEdit(...)` (Cross-Boundary-Kante)
 - `extendPendingPathCreationAtLocation`
-  - `js/routing.js`
+  - `js/routing/routing.js`
 - `completePendingPathCreationAtLocation`
-  - `js/routing.js`
+  - `js/routing/routing.js`
   - intern aus `handlePendingPathCreationClick(...)`
 - `handlePendingPathCreationClick`
   - intern via `map.on/off` in `js/map-features.js`

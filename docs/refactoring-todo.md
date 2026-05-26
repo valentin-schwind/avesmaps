@@ -4,11 +4,11 @@ Diese Liste sammelt konkrete Refactoring- und Aufraeumpunkte, die bei der strukt
 
 ## Erledigt
 
-### `js/routing.js`: alter `#inputLocation`-Click-Handler
+### `js/routing/routing.js`: alter `#inputLocation`-Click-Handler
 
 Status: erledigt.
 
-Der alte, spaeter ueberschriebene Click-Handler fuer `#inputLocation` ist im produktiven Code nicht mehr vorhanden. `hasFirstWaypoint`, die manuelle `waypointHtml`-Erzeugung und die alte Inline-Autocomplete-/Remove-Button-Logik wurden im aktuellen Stand nicht mehr in `js/routing.js` gefunden.
+Der alte, spaeter ueberschriebene Click-Handler fuer `#inputLocation` ist im produktiven Code nicht mehr vorhanden. `hasFirstWaypoint`, die manuelle `waypointHtml`-Erzeugung und die alte Inline-Autocomplete-/Remove-Button-Logik wurden im aktuellen Stand nicht mehr in `js/routing/routing.js` gefunden.
 
 Aktueller Stand in `routeDataRequest.then(...)`:
 

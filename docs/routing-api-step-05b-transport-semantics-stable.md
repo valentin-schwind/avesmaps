@@ -8,7 +8,7 @@
 
 ## Changed files reviewed
 
-- `js/routing.js`
+- `js/routing/routing.js`
 
 ## Boundary assessment
 
@@ -29,7 +29,7 @@ The changed code only affects the preparatory RouteResult helpers introduced in 
 
 ## Checks reported by Codex
 
-- `node --check js/routing.js`: OK
+- `node --check js/routing/routing.js`: OK
 - No PHP files changed.
 
 ## Validation notes

@@ -30,7 +30,7 @@ Im aktuellen Stand umfasst der Waypoint-UI-Cluster funktional folgende Helfer:
 - `removeWaypointById`
 - `initializeWaypointSorting`
 
-Zusammenhaengende Event-Anbindungen in `js/routing.js` nutzen diesen Cluster (z. B. `.remove-waypoint`, Popup-Actions fuer Waypoints).
+Zusammenhaengende Event-Anbindungen in `js/routing/routing.js` nutzen diesen Cluster (z. B. `.remove-waypoint`, Popup-Actions fuer Waypoints).
 
 ## 3. Welche Funktionen bewusst nicht Teil des Clusters sind
 Bewusst ausserhalb des Waypoint-UI-Clusters:
@@ -78,7 +78,7 @@ Direkte externe Aufrufe aus dem Cluster:
 - `isCrossingName(...)`
 - `escapeHtml(...)`
 - `syncPlannerStateToUrl(...)` (aus `js/map-features-layer-state.js`)
-- `updateMapView(...)` (Routing-Orchestrierung in `js/routing.js`)
+- `updateMapView(...)` (Routing-Orchestrierung in `js/routing/routing.js`)
 
 ## 8. Welche Funktionen vermutlich von aussen gebraucht werden
 Klar externe Schnittstelle (wird von anderen Dateien genutzt):
@@ -92,8 +92,8 @@ Klar externe Schnittstelle (wird von anderen Dateien genutzt):
 - `getWaypointContainers`
 - `refreshPlannerAfterFeatureChange`
 
-## 9. Abhaengigkeit zu `js/routing.js`
-`js/routing.js` ist ein direkter Konsument:
+## 9. Abhaengigkeit zu `js/routing/routing.js`
+`js/routing/routing.js` ist ein direkter Konsument:
 - Event-Binding `.remove-waypoint` ruft `removeWaypointElement(...)` auf
 - Popup-Action `add-location-to-route` nutzt `fillLastEmptyWaypointOrAppend(...)`
 - Popup-Action `remove-waypoint` nutzt `removeWaypointById(...)`
@@ -135,7 +135,7 @@ Empfehlung fuer klassischen Script-Tag-Aufbau:
 1. `js/map-features-layer-state.js` (stellt `syncPlannerStateToUrl` bereit)
 2. `js/map-features-waypoints.js` (neu)
 3. `js/map-features.js` (Rest-Orchestrator)
-4. `js/routing.js` (Konsument der Waypoint-Globals)
+4. `js/routing/routing.js` (Konsument der Waypoint-Globals)
 
 Wichtig: keine Top-Level-Ausfuehrung in der neuen Datei, nur Definitionen.
 

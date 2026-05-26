@@ -2,7 +2,7 @@
 
 ## 1. Current Split
 
-- `updateMapView` bleibt zentraler Orchestrator in `js/routing.js`.
+- `updateMapView` bleibt zentraler Orchestrator in `js/routing/routing.js`.
 - `collectAndValidateSelectedLocations()` kapselt jetzt die Wegpunkt-Sammlung/Validierung (1:1 aus `updateMapView` extrahiert).
 - Verbleibende Aufgaben in `updateMapView`:
   - Routentyp lesen, URL sync, Graph neu bauen
@@ -128,7 +128,7 @@ Prioritaeten bleiben erfuellt:
 
 Kleinster spaeterer Code-Commit:
 
-1. In `js/routing.js` Helper einfuegen, z. B. `buildRouteResultFromSelectedLocations(useShortest)`.
+1. In `js/routing/routing.js` Helper einfuegen, z. B. `buildRouteResultFromSelectedLocations(useShortest)`.
 2. Den bestehenden Block innerhalb `if (selectedLocations.length >= 2)` (Teilrouten-Loop + Sammeln von `routeNodeNames`/`segments` + "Keine Route zwischen ...") 1:1 in den Helper verschieben.
 3. Helper liefert bei Erfolg `{ routeNodeNames, segments }`, bei Fehler `null`.
 4. `updateMapView` ersetzt den Loop durch einen Helper-Aufruf und behaelt bestehende Alerts/Logs/Darstellung unveraendert.

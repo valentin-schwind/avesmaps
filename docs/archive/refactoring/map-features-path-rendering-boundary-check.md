@@ -125,7 +125,7 @@ Zwingende Reihenfolge:
 
 ## 9. Abhaengigkeit zu Routing und Spotlight/Search
 Direkte Nutzungen in anderen Bereichen:
-- Routing (`js/routing.js`):
+- Routing (`js/routing/routing.js`):
   - `preparePathData(...)`
   - `deletePathFeature(...)`
   - `normalizePathSubtype(...)`

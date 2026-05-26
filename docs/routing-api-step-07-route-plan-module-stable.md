@@ -9,7 +9,7 @@
 ## Changed files reviewed
 
 - `index.html`
-- `js/routing.js`
+- `js/routing/routing.js`
 - `js/routing/route-plan.js`
 
 ## Boundary assessment
@@ -19,8 +19,8 @@ This commit matches the requested route-plan module split.
 Observed changes:
 
 - Added `js/routing/route-plan.js`.
-- Moved route-plan and route-selection helpers from `js/routing.js` into `js/routing/route-plan.js`.
-- Added the new script include in `index.html` before `js/routing.js`.
+- Moved route-plan and route-selection helpers from `js/routing/routing.js` into `js/routing/route-plan.js`.
+- Added the new script include in `index.html` before `js/routing/routing.js`.
 - Kept the project in global-script mode; no ES modules or build system were introduced.
 
 Moved functions include:
@@ -46,13 +46,13 @@ The script order is correct:
 2. `js/routing/route-result.js`
 3. `js/routing/route-view-model.js`
 4. `js/routing/route-plan.js`
-5. `js/routing.js`
+5. `js/routing/routing.js`
 
 This ensures `route-plan.js` can use RouteResult/ViewModel helpers and `routing.js` can call route-plan functions later.
 
 ## Checks reported by Codex
 
-- `node --check js/routing.js`: OK
+- `node --check js/routing/routing.js`: OK
 - `node --check js/routing/route-plan.js`: OK
 - duplicate check for `buildRoutePlanEntries`, `showRoutePlan`, `selectRoutePlanEntry`: OK
 - `git diff`: checked by Codex

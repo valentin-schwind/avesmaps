@@ -68,11 +68,11 @@ Externe Konsumenten im Repo:
 - `setSelectedMapLayerMode()`
   - `js/map-features-layer-state.js`, `js/map-features-powerlines.js`, `js/map-features-labels.js`, `js/spotlight-search.js`, `js/map-features.js`
 - `applyDisplayOptions()`
-  - `js/routing.js`
+  - `js/routing/routing.js`
 - `syncPathVisibility()`
   - `js/spotlight-search.js`, `js/map-features.js`
 - `syncLocationMarkerVisibility()`
-  - `js/routing.js`, `js/spotlight-search.js`, `js/map-features.js`
+  - `js/routing/routing.js`, `js/spotlight-search.js`, `js/map-features.js`
 - `shouldShowPathOnMap()`
   - `js/spotlight-search.js`
 - `syncRegionVisibility()`
@@ -125,9 +125,9 @@ Falls spaeter ausgelagert wird, dann bevorzugt:
 6. `js/map-features-path-labels.js`
 7. `js/map-features-path-rendering.js`
 8. `js/map-features.js`
-9. `js/routing.js`
+9. `js/routing/routing.js`
 
-Kernregel: neue Datei vor `js/map-features.js` und vor `js/routing.js`; keine neue Top-Level-Ausfuehrung in der Split-Datei.
+Kernregel: neue Datei vor `js/map-features.js` und vor `js/routing/routing.js`; keine neue Top-Level-Ausfuehrung in der Split-Datei.
 
 ## 16. Risikoanalyse
 - UI-/DOM-Kopplung: **hoch**

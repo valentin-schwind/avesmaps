@@ -40,8 +40,8 @@ Aufgerufene Funktionen:
 - `getLocationAtPathEndpoint` (`js/map-features.js`)
 - `calculatePathCoordinateDistance` (`js/map-features.js`)
 - `normalizePathSubtype` (`js/map-features.js`)
-- `getTransportOption` (`js/routing.js`)
-- `isTransportAllowedForPath` (`js/routing.js`)
+- `getTransportOption` (`js/routing/routing.js`)
+- `isTransportAllowedForPath` (`js/routing/routing.js`)
 - `addGraphConnection` (`js/routing/route-graph-core.js`)
 - `connectDetachedGraphComponents` (Inline-Script)
 

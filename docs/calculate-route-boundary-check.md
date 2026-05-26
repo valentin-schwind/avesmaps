@@ -45,7 +45,7 @@ Globale Konstanten:
 
 Aufgerufene Funktionen/Klassen:
 
-- `getTransportOption(routeType)` aus `js/routing.js`
+- `getTransportOption(routeType)` aus `js/routing/routing.js`
 - `PriorityQueue` aus `js/priority-queue.js`
 
 DOM-/jQuery-/UI-Abhaengigkeiten:
@@ -64,13 +64,13 @@ Abhaengigkeiten auf `routing/route-graph-core.js`:
 Abhaengigkeiten auf `routing.js`:
 
 - direkte Abhaengigkeit auf `getTransportOption`
-- Aufrufkontext in `updateMapView` (`js/routing.js:1310`)
+- Aufrufkontext in `updateMapView` (`js/routing/routing.js:1310`)
 
 ## 4. Call Sites
 
 Gefundene Aufrufstellen von `calculateRoute`:
 
-- `js/routing.js:1310` in `updateMapView()`
+- `js/routing/routing.js:1310` in `updateMapView()`
   - pro Wegpunkt-Paar: `route = calculateRoute(start, end, useShortest);`
 
 Weitere Aufrufstellen wurden per Suche nicht gefunden.

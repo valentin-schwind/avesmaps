@@ -16,7 +16,7 @@ Diese Bereiche bleiben stabil:
 
 - `js/routing/route-graph-core.js` als Routing-/Graph-Kern mit `calculateRouteCore(...)` und extrahierten Graph-/Geometrie-Helfern.
 - `createGraph(...)` als Orchestrator im Inline-Script von `index.html`.
-- `updateMapView(...)` als Routing-Orchestrator in `js/routing.js`, entlastet durch:
+- `updateMapView(...)` als Routing-Orchestrator in `js/routing/routing.js`, entlastet durch:
   - `collectAndValidateSelectedLocations()`
   - `buildRouteResultFromSelectedLocations(useShortest)`
 - `js/popups.js` mit lokalem Helper `pathCreationActionButtonsMarkup(publicId)`.
@@ -115,7 +115,7 @@ Alle oben genannten Splits waren enge 1:1-Extracts ohne Logikaenderung und wurde
 39. `js/map-features-region-visibility.js`
 40. `js/map-features-political-territory-loader.js`
 41. `js/map-features-feature-dispatcher.js`
-42. `js/routing.js`
+42. `js/routing/routing.js`
 
 Klassische Script-Tags bleiben verbindlich. Keine ES-Module, keine `import`-/`export`-Syntax, kein Build-System.
 

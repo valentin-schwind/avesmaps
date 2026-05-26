@@ -29,7 +29,7 @@ Alle Treffer von `getLocationDistance(...)`:
 
 2. `js/map-features.js:2585`
    - Kontext: `findNearestLocationToLatLng(...)`
-   - Zweck: Naechsten Ort zu einer Kartenposition bestimmen (u. a. Kontextmenue-Aktionen in `js/routing.js`).
+   - Zweck: Naechsten Ort zu einer Kartenposition bestimmen (u. a. Kontextmenue-Aktionen in `js/routing/routing.js`).
 
 3. `js/map-features.js:2599`
    - Kontext: `findNearestGraphNodeToLatLng(...)`

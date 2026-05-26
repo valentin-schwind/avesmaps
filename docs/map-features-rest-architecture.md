@@ -230,7 +230,7 @@ Kopplungen:
 - `js/map-features-path-domain.js`
 - `js/map-features-path-rendering.js`
 - `js/map-features-path-labels.js`
-- `js/routing.js`
+- `js/routing/routing.js`
 - Review-/Editor-Flows
 - Popup-Actions
 

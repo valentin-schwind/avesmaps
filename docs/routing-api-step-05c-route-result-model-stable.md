@@ -8,7 +8,7 @@
 
 ## Changed files reviewed
 
-- `js/routing.js`
+- `js/routing/routing.js`
 - `js/territory/territory-wiki-tree.js`
 
 ## Routing boundary assessment
@@ -60,7 +60,7 @@ At minimum, run:
 
 ## Checks reported by Codex
 
-- `node --check js/routing.js`: OK
+- `node --check js/routing/routing.js`: OK
 - No PHP files changed.
 - No check was reported for `js/territory/territory-wiki-tree.js`.
 

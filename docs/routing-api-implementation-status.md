@@ -5,7 +5,7 @@
 - Commit: `Extract route option resolution boundary`
 - Schritt: Route-Options-Boundary eingefuehrt mit kompatiblem Wrapper.
 - Dateien:
-  - `js/routing.js`
+  - `js/routing/routing.js`
   - `index.html`
   - `docs/routing-api-implementation-status.md`
 - Risiken:
@@ -18,7 +18,7 @@
 - Commit: `Decouple createGraph route options from DOM fallback`
 - Schritt: `createGraph(routeOptions)` auf explizite Uebergabe umgestellt, ohne impliziten DOM-Fallback.
 - Dateien:
-  - `js/routing.js`
+  - `js/routing/routing.js`
   - `index.html`
   - `docs/routing-api-implementation-status.md`
 - Risiken:
@@ -42,7 +42,7 @@
 - Commit: `Prepare route result builders`
 - Schritt: Vorbereitende Helper `buildRouteSummary(...)` und `buildRouteSteps(...)` eingefuehrt, ohne Runtime-Umschaltung.
 - Dateien:
-  - `js/routing.js`
+  - `js/routing/routing.js`
   - `docs/routing-api-implementation-status.md`
 - Risiken:
   - Keine direkte Laufzeitaenderung, da die neuen Builder noch nicht in bestehende Anzeige-/Routingpfade eingebunden sind.
@@ -53,7 +53,7 @@
 - Commit: `Render route plan from view model`
 - Schritt: `showRoutePlan(...)` nutzt jetzt `routePlanViewModel` fuer Plan-Eintraege und Summary-Werte, bei unveraenderter HTML-Struktur und unveraendertem Klick-/Zoom-Verhalten.
 - Dateien:
-  - `js/routing.js`
+  - `js/routing/routing.js`
   - `docs/routing-api-implementation-status.md`
 - Risiken:
   - Da die Anzeige jetzt aus dem RouteResult/ViewModel gespeist wird, sind konsistente Smoke-Werte gegen die Baseline wichtig.

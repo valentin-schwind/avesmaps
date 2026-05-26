@@ -9,7 +9,7 @@
 ## Changed files reviewed
 
 - `index.html`
-- `js/routing.js`
+- `js/routing/routing.js`
 - `js/routing/route-engine.js`
 
 ## Boundary assessment
@@ -19,8 +19,8 @@ This commit matches the requested route-engine helper split.
 Observed changes:
 
 - Added `js/routing/route-engine.js`.
-- Moved selected engine/planner helpers from `js/routing.js` into `js/routing/route-engine.js`.
-- Added the new script include in `index.html` before `js/routing.js`.
+- Moved selected engine/planner helpers from `js/routing/routing.js` into `js/routing/route-engine.js`.
+- Added the new script include in `index.html` before `js/routing/routing.js`.
 - Kept global-script architecture; no ES modules or build system were introduced.
 
 Moved functions include:
@@ -42,13 +42,13 @@ The script order is correct:
 3. `js/routing/route-view-model.js`
 4. `js/routing/route-plan.js`
 5. `js/routing/route-engine.js`
-6. `js/routing.js`
+6. `js/routing/routing.js`
 
 This ensures `routing.js` can still call the moved helpers.
 
 ## Checks reported by Codex
 
-- `node --check js/routing.js`: OK
+- `node --check js/routing/routing.js`: OK
 - `node --check js/routing/route-engine.js`: OK
 - duplicate check for `getRouteSegments`, `buildRouteResultFromSelectedLocations`, `getTransportOption`: OK
 - `git diff`: checked by Codex

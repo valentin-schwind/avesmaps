@@ -83,7 +83,7 @@
 ## 4. External Surface
 
 Wahrscheinlich extern benoetigt (Call-Sites ausserhalb `dialogs-review.js`):
-- `openLocationReportDialog` (`js/routing.js`).
+- `openLocationReportDialog` (`js/routing/routing.js`).
 - `openLocationEditDialog` (`js/map-features.js`).
 - `setLocationReportDialogOpen` und `setLocationEditDialogOpen` (Inline-Bindings in `index.html`).
 - `syncLocationReportTypeFields` (Inline-Binding in `index.html`).

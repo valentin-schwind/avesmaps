@@ -21,8 +21,8 @@
 
 Verbleibende Kopplungen:
 
-- `getTransportOption` (aus `js/routing.js`, UI/jQuery-gebunden)
-- `isTransportAllowedForPath` (aus `js/routing.js`, datenregel-gebunden)
+- `getTransportOption` (aus `js/routing/routing.js`, UI/jQuery-gebunden)
+- `isTransportAllowedForPath` (aus `js/routing/routing.js`, datenregel-gebunden)
 - `SPEED_TABLE` (aus `js/config.js`)
 - `getLocationAtPathEndpoint` (aus `js/map-features.js`)
 - `calculatePathCoordinateDistance` (aus `js/map-features.js`)

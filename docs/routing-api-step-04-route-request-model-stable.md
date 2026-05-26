@@ -8,7 +8,7 @@
 
 ## Changed files reviewed
 
-- `js/routing.js`
+- `js/routing/routing.js`
 
 ## Boundary assessment
 
@@ -49,7 +49,7 @@ Therefore the commit should not alter routing, rendering, aggregation, rest-time
 
 ## Checks reported by Codex
 
-- `node --check js/routing.js`: OK
+- `node --check js/routing/routing.js`: OK
 - No PHP files changed.
 
 ## Validation notes

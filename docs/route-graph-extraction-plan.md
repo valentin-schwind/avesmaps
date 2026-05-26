@@ -25,7 +25,7 @@ Diese Funktionen sehen nach Routing aus, greifen aber aktuell direkt oder indire
   - Direkter DOM-Zugriff: `$("#minimizeTransfers").is(":checked")`
   - Koppelt Dijkstra-Kern an UI-Checkbox.
 - `getSyntheticRouteConfig` (index.html:1517)
-  - Indirekter DOM/UI-Zugriff ueber `getTransportOption(...)` aus `js/routing.js`.
+  - Indirekter DOM/UI-Zugriff ueber `getTransportOption(...)` aus `js/routing/routing.js`.
 - `connectDetachedGraphComponents` (index.html:1575)
   - Haengt an `getSyntheticRouteConfig`, damit indirekt an UI-Transportauswahl.
 - `createGraph` (index.html:1614)
@@ -140,7 +140,7 @@ Empfohlene Reihenfolge fuer minimale Regressionen:
 
 - Script-Reihenfolge:
   - `js/routing/route-graph-core.js` muss vor erster Nutzung geladen sein.
-  - Kritisch sind Aufrufe aus `js/routing.js` (`createGraph`, `calculateRoute`, `smoothLineCoordinatesForDisplay`) und `js/map-features.js` (`smoothLineCoordinatesForDisplay`, `getVisualLatLngCoordinates`).
+  - Kritisch sind Aufrufe aus `js/routing/routing.js` (`createGraph`, `calculateRoute`, `smoothLineCoordinatesForDisplay`) und `js/map-features.js` (`smoothLineCoordinatesForDisplay`, `getVisualLatLngCoordinates`).
 - Globale Namen:
   - Funktionsnamen bleiben global; doppelte Deklarationen zwischen Inline-Script und neuer Datei fuehren zu Shadowing/Override-Risiken.
   - Extraktion muss in einem Schritt mit Entfernen der Originaldefinitionen erfolgen.

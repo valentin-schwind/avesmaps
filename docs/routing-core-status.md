@@ -8,8 +8,8 @@
 - `calculateRouteCore` liegt als parametrisierter Kern in `js/routing/route-graph-core.js` (`js/routing/route-graph-core.js:86`):
   - keine direkte DOM-/jQuery-/Leaflet-/API-Nutzung
   - arbeitet nur mit uebergebenen Werten/Funktionen
-- `getTransportOption` bleibt UI-/jQuery-nah in `js/routing.js` (`js/routing.js:243`)
-- `updateMapView` bleibt Aufrufer (`js/routing.js:1258`) und ruft weiterhin `calculateRoute(...)` auf (`js/routing.js:1310`)
+- `getTransportOption` bleibt UI-/jQuery-nah in `js/routing/routing.js` (`js/routing/routing.js:243`)
+- `updateMapView` bleibt Aufrufer (`js/routing/routing.js:1258`) und ruft weiterhin `calculateRoute(...)` auf (`js/routing/routing.js:1310`)
 
 ## 2. Current Dependencies
 
@@ -20,7 +20,7 @@ Abhaengigkeiten von `calculateRoute` (Wrapper):
 - jQuery/UI: `#minimizeTransfers`
 - Funktionsabhaengigkeiten:
   - `calculateRouteCore(...)` (global aus `js/routing/route-graph-core.js`)
-  - `getTransportOption(...)` (aus `js/routing.js`)
+  - `getTransportOption(...)` (aus `js/routing/routing.js`)
 
 Abhaengigkeiten von `calculateRouteCore`:
 
@@ -47,7 +47,7 @@ Gezielte Abhaengigkeiten laut Auftrag:
 - `TRANSFER_PENALTY`:
   - bleibt im Wrapper definiert und geht nur als Parameter in den Kern
 - `getTransportOption`:
-  - UI-gekoppelt in `js/routing.js`, wird in den Kern nur als Resolver injiziert
+  - UI-gekoppelt in `js/routing/routing.js`, wird in den Kern nur als Resolver injiziert
 
 ## 3. Boundary Quality
 

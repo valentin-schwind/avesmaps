@@ -2,10 +2,10 @@
 
 ## 1. Current Definition
 
-- `updateMapView` ist in `js/routing.js` definiert (`js/routing.js:1258`).
+- `updateMapView` ist in `js/routing/routing.js` definiert (`js/routing/routing.js:1258`).
 - Die Funktion wird als zentraler Orchestrator fuer Routen-Neuberechnung und Darstellung verwendet.
 - Aufrufstellen (Suche):
-  - `js/routing.js`: u. a. bei Button-Klick, Waypoint-Entfernung, Shared-Route-Wiederherstellung, Kontextaktionen
+  - `js/routing/routing.js`: u. a. bei Button-Klick, Waypoint-Entfernung, Shared-Route-Wiederherstellung, Kontextaktionen
   - `js/map-features.js`: bei mehreren Edit-/Geometrie-Updates und Sortier-/Drag-Updates
 
 ## 2. Responsibilities
@@ -118,7 +118,7 @@ Empfehlung: **B als kleinster verhaltensneutraler Schritt**.
 
 Konkret:
 
-- lokalen Wegpunkt-Scan/Validierungsblock in einen Helper in `js/routing.js` extrahieren (nahe bei `updateMapView`).
+- lokalen Wegpunkt-Scan/Validierungsblock in einen Helper in `js/routing/routing.js` extrahieren (nahe bei `updateMapView`).
 - `updateMapView` bleibt Orchestrator und ruft den Helper auf.
 
 Warum:
@@ -198,7 +198,7 @@ Kritische Punkte:
 
 Kleinster spaeterer Code-Commit:
 
-1. In `js/routing.js` neuen Helper `collectAndValidateSelectedLocations()` nahe `updateMapView` einfuegen.
+1. In `js/routing/routing.js` neuen Helper `collectAndValidateSelectedLocations()` nahe `updateMapView` einfuegen.
 2. Bisherigen Wegpunkt-Scan/Validierungsblock in `updateMapView` 1:1 in den Helper verschieben.
 3. In `updateMapView` den Block durch einen einzigen Helper-Aufruf ersetzen.
 4. Keine weiteren Aenderungen.

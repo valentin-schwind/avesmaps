@@ -9,12 +9,12 @@
 ## Changed files reviewed
 
 - `index.html`
-- `js/routing.js`
+- `js/routing/routing.js`
 - `js/routing/route-node.js`
 
 ## Boundary assessment
 
-This commit mechanically moves route-node helper functions from `js/routing.js` into `js/routing/route-node.js`.
+This commit mechanically moves route-node helper functions from `js/routing/routing.js` into `js/routing/route-node.js`.
 
 Moved functions:
 
@@ -38,7 +38,7 @@ However, the current script order is semantically suboptimal:
 5. `js/routing/route-engine.js`
 6. `js/routing/route-render.js`
 7. `js/routing/route-node.js`
-8. `js/routing.js`
+8. `js/routing/routing.js`
 
 `route-plan.js` references `getRouteNodeDisplayName(...)` and `shouldShowRoutePathDisplayName(...)` inside `buildRoutePlanEntries(...)`.
 
@@ -48,7 +48,7 @@ Because these references happen when the functions are executed, not when they a
 
 ## Checks reported by Codex
 
-- `node --check js/routing.js`: OK
+- `node --check js/routing/routing.js`: OK
 - `node --check js/routing/route-node.js`: OK
 - duplicate check for `resolveRouteNodeLocation`, `getRouteNodeDisplayName`, `shouldShowRoutePathDisplayName`: OK
 - `git diff`: checked by Codex

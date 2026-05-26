@@ -41,7 +41,7 @@ Grundlage ist `docs/map-features-display-mode-boundary-check.md`. Es wird kein C
 ### `applyDisplayOptions`
 - Definition in `js/map-features.js`.
 - Direkte externe Nutzung laut Boundary in:
-  - `js/routing.js`
+  - `js/routing/routing.js`
 
 ## 3. Welche Funktionen nur intern zusammenhaengen
 Der enge moegliche Split hat eine klare interne Kante:
@@ -90,13 +90,13 @@ Konsequenz:
 - Alle vier Funktionen muessen nach einem Split global bleiben.
 - `js/map-features-display-mode.js` muss vor `js/spotlight-search.js` geladen werden. Das ist erfuellt, wenn die Datei im Map-Features-Block vor `js/map-features.js` steht, weil `spotlight-search.js` spaeter geladen wird.
 
-## 8. Nutzung durch `js/routing.js`
-`js/routing.js` nutzt laut Boundary:
+## 8. Nutzung durch `js/routing/routing.js`
+`js/routing/routing.js` nutzt laut Boundary:
 - `applyDisplayOptions`
 
 Konsequenz:
 - `applyDisplayOptions` muss global bleiben.
-- `js/map-features-display-mode.js` muss vor `js/routing.js` geladen werden.
+- `js/map-features-display-mode.js` muss vor `js/routing/routing.js` geladen werden.
 
 ## 9. Nutzung oder Override durch `js/config.js`
 Laut Boundary nutzt `js/config.js`:
@@ -171,7 +171,7 @@ Empfohlene Reihenfolge im Map-Features-Block:
 7. `js/map-features-path-labels.js`
 8. `js/map-features-path-rendering.js`
 9. `js/map-features.js`
-10. spaeter: `js/routing.js`
+10. spaeter: `js/routing/routing.js`
 
 Hinweis: Falls `js/map-features-powerlines.js` oder `js/map-features-labels.js` bereits vor Layer-State geladen werden und frueh `getSelectedMapLayerMode` nutzen, muss die konkrete Reihenfolge vor dem Code-Split nochmals am aktuellen `index.html` geprueft werden. Funktional ist Display-Mode als Basis-Helfer vor allen Konsumenten am saubersten.
 

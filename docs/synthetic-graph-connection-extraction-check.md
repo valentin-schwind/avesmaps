@@ -58,7 +58,7 @@ Keine weiteren Aufrufstellen in `js/*`.
 
 - `syntheticPathSegments` (`js/runtime-state.js:19`)
   - globale `Map`, in die `addSyntheticGraphConnection` schreibt.
-  - wird in `js/routing.js:getRouteSegments(...)` gelesen (`js/routing.js:151`), um Segmente fuer synthetische Kanten aufloesen zu koennen.
+  - wird in `js/routing/routing.js:getRouteSegments(...)` gelesen (`js/routing/routing.js:151`), um Segmente fuer synthetische Kanten aufloesen zu koennen.
 
 ## 5. Extraction Recommendation
 

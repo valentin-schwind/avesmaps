@@ -2,7 +2,7 @@
 
 ## 1. Current Split
 
-- `updateMapView` bleibt Orchestrator in `js/routing.js`.
+- `updateMapView` bleibt Orchestrator in `js/routing/routing.js`.
 - `collectAndValidateSelectedLocations()` kapselt Wegpunkt-Sammlung/Validierung.
 - `buildRouteResultFromSelectedLocations(useShortest)` kapselt Teilrouten-Loop inkl. Segmentaufbau und Abbruch bei fehlender Teilroute.
 - Verbleibende Aufgaben in `updateMapView`:

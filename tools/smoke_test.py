@@ -27,7 +27,7 @@ FRONTEND_SCRIPT_PATHS = [
     "js/dialogs-review.js",
     "js/ui-controls.js",
     "js/map-features.js",
-    "js/routing.js",
+    "js/routing/routing.js",
 ]
 
 

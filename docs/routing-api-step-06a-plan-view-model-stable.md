@@ -8,7 +8,7 @@
 
 ## Changed files reviewed
 
-- `js/routing.js`
+- `js/routing/routing.js`
 
 ## Boundary assessment
 
@@ -37,8 +37,8 @@ Therefore this commit should not change visible routing behavior.
 
 ## Checks reported by Codex
 
-- `node --check js/routing.js`: OK
-- `git status` before commit reportedly showed only the expected `js/routing.js` change.
+- `node --check js/routing/routing.js`: OK
+- `git status` before commit reportedly showed only the expected `js/routing/routing.js` change.
 - No PHP files changed.
 
 ## Validation notes
