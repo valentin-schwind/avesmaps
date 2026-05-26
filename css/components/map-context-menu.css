@@ -32,7 +32,7 @@
 	line-height: 1.25;
 	text-align: left;
 	white-space: nowrap;
-	word-spacing: 0.25em;
+	word-spacing: normal;
 }
 
 .map-context-menu__item:hover,
@@ -49,7 +49,6 @@
 	content: "›";
 	float: right;
 	padding-left: 12px;
-	word-spacing: normal;
 }
 
 .map-context-submenu {
