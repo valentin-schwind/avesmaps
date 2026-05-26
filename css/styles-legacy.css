@@ -1,0 +1,27 @@
+@font-face {
+	font-family: "Faculty Glyphic";
+	src: url("../fonts/FacultyGlyphic-Regular.woff") format("woff"), 
+		 url("../fonts/FacultyGlyphic-Regular.ttf") format("ttf");
+}
+
+
+* {
+	font-family: "Faculty Glyphic", "Arial", sans-serif !important;
+}
+
+body,
+html {
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	font-family: "Faculty Glyphic", "Arial", sans-serif;
+	font-size: 10pt;
+	margin: 0;
+	padding: 0;
+	height: 100%;
+}
+
+#map {
+	height: 100%;
+	width: 100%;
+}
