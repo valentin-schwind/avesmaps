@@ -30,6 +30,6 @@ const AVESMAPS_WIKI_POLITICAL_TERRITORY_SEED_PAGES = [
 	'Jarltum/Liste',
 ];
 
-require __DIR__ . '/../../wiki-sync.php';
+require __DIR__ . '/../../_internal/wiki/endpoint.php';
 
 avesmapsWikiSyncHandleRequest('territories');

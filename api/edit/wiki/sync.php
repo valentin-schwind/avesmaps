@@ -63,6 +63,6 @@ const AVESMAPS_POSITIONKARTE_TO_MAP = [
 	'y_offset' => 1018.3819994023,
 ];
 
-require __DIR__ . '/../../wiki-sync.php';
+require __DIR__ . '/../../_internal/wiki/endpoint.php';
 
 avesmapsWikiSyncHandleRequest('locations');
