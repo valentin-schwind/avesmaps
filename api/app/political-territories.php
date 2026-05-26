@@ -5,7 +5,7 @@ declare(strict_types=1);
 require __DIR__ . '/../bootstrap.php';
 require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/../political-territory-lib.php';
-require_once __DIR__ . '/../political-territory-assignment.php';
+require_once __DIR__ . '/../_internal/political/assignment.php';
 
 $debugErrors = filter_var($_GET['debug_errors'] ?? false, FILTER_VALIDATE_BOOL);
 
@@ -4173,7 +4173,7 @@ function avesmapsPoliticalNormalizeHierarchyRootKey(string $value): string {
         $normalized = strtolower($normalized);
     }
 
-    $normalized = str_replace('ÃŸ', 'ss', $normalized);
+    $normalized = str_replace('ÃƒÅ¸', 'ss', $normalized);
     if (function_exists('iconv')) {
         $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalized);
         if (is_string($transliterated)) {
@@ -4192,7 +4192,7 @@ function avesmapsPoliticalExtractCurrentPoliticalParentName(string $affiliation)
         return '';
     }
 
-    $clauses = preg_split('/\s*[;Â·]\s*/u', $affiliation) ?: [];
+    $clauses = preg_split('/\s*[;Ã‚Â·]\s*/u', $affiliation) ?: [];
     $clauses = array_values(array_filter(array_map('trim', $clauses)));
 
     foreach ($clauses as $clause) {
@@ -4203,7 +4203,7 @@ function avesmapsPoliticalExtractCurrentPoliticalParentName(string $affiliation)
     }
 
     foreach ($clauses as $clause) {
-        if (preg_match('/^(?:derographisch|geographisch|ehemals|frÃ¼her|frueher|historisch)\b/iu', $clause) === 1) {
+        if (preg_match('/^(?:derographisch|geographisch|ehemals|frÃƒÂ¼her|frueher|historisch)\b/iu', $clause) === 1) {
             continue;
         }
 
