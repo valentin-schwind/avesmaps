@@ -130,18 +130,16 @@ OPTIONS CORS/Preflight
 
 ## App-Endpunkte
 
-Die folgenden Endpunkte werden von der Avesmaps-App verwendet. Sie sind erreichbar, aber noch nicht als externe Entwickler-API stabilisiert:
+Die folgenden Endpunkte werden von der Avesmaps-App verwendet. Sie sind erreichbar, aber nicht als externe Entwickler-API stabilisiert:
 
-```text
-/api/map-features.php
-/api/map-search.php
-/api/report-location.php
-/api/political-territories.php
-/api/political-territory-wiki.php
-/api/wiki-proxy.php
-```
+/api/app/map-features.php
+/api/app/map-search.php
+/api/app/report-location.php
+/api/app/political-territories.php
+/api/app/political-territory-wiki.php
+/api/app/wiki-proxy.php
 
-Diese Dateien werden schrittweise in die neue Zielstruktur unter `api/app/` migriert. Alte URLs bleiben dabei als Wrapper erhalten.
+Alte Root-Wrapper wie /api/map-features.php, /api/map-search.php, /api/report-location.php und /api/wiki-proxy.php werden nicht mehr als kanonische Pfade gefuehrt.
 
 ## Editor-, Import- und Diagnosebereiche
 
@@ -233,7 +231,6 @@ Syntaxchecks:
 
 ```powershell
 php -l api/bootstrap.php
-php -l api/route.php
 php -l api/route/index.php
 php -l api/locations/index.php
 php -l api/_internal/routing/request.php
@@ -248,7 +245,6 @@ HTTP-Smoke-Tests nach Deployment:
 
 ```powershell
 Invoke-WebRequest -Method Options -Uri "https://avesmaps.de/api/route/"
-Invoke-WebRequest -Method Options -Uri "https://avesmaps.de/api/route.php"
 Invoke-WebRequest -Method Options -Uri "https://avesmaps.de/api/locations/"
 
 $locations = Invoke-RestMethod -Method Get -Uri "https://avesmaps.de/api/locations/"
