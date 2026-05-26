@@ -11,6 +11,7 @@
 @import url("styles-legacy.css");
 
 @import url("layout/map-layout.css");
+@import url("components/dialog-overlays.css");
 @import url("components/map-context-menu.css");
 @import url("features/map-decorations.css");
 @import url("features/map-scale-band.css");
