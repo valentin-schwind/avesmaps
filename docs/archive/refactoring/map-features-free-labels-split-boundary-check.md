@@ -102,7 +102,7 @@ Hinweis zur Liste aus der Aufgabe:
 
 ## 6. Funktionen, die vermutlich von aussen gebraucht werden
 
-Nach Aufrufstellen in `index.html`, `js/routing/routing.js`, `js/popups.js`, `js/dialogs-review-*`, `js/spotlight-search.js` sind mindestens diese Funktionen extern relevant:
+Nach Aufrufstellen in `index.html`, `js/routing/routing.js`, `js/ui/popups.js`, `js/dialogs-review-*`, `js/ui/spotlight-search.js` sind mindestens diese Funktionen extern relevant:
 
 - `findLabelEntryByPublicId`
 - `setLabelMoveActive`
@@ -154,7 +154,7 @@ Fuer den aktuellen Script-Tag- und Global-State-Aufbau ist **`js/map-features-la
 
 Falls spaeter ausgelagert wird (kein Schritt jetzt), waere eine konservative Reihenfolge:
 
-1. allgemeine Basisskripte und Runtime-State (inkl. `js/runtime-state.js`)
+1. allgemeine Basisskripte und Runtime-State (inkl. `js/app/runtime-state.js`)
 2. Popup-/Dialog-Helfer, die vom Label-Cluster genutzt werden
 3. `js/map-features-labels.js` (neue Split-Datei)
 4. `js/map-features.js` (Rest-Orchestrator)

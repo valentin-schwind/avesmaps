@@ -2,7 +2,7 @@
 
 ## Ausgangspunkt
 
-Nach dem bestaetigten Region-Parent-Tree-Split ist `js/dialogs-review.js` weiter Rest-Orchestrator fuer Region-/Territory-Assignment/Tabs/Submit-Flows.
+Nach dem bestaetigten Region-Parent-Tree-Split ist `js/review/review-region-util.js` weiter Rest-Orchestrator fuer Region-/Territory-Assignment/Tabs/Submit-Flows.
 
 Der verbleibende Bereich ist nicht als ein einziger Block sicher zu verschieben, weil Assignment, Tabs, Parent-Drop-Event-Bindings, Region-Submit und Dialog-Population stark ineinandergreifen.
 
@@ -36,7 +36,7 @@ Die Assignment-State-Helfer sind als eigene Datei geeignet:
 
 Sie sind keine Event-Bindings und enthalten keine unmittelbare Top-Level-DOM-Aktion.
 
-Der Top-Level-Cache `regionAssignmentPersistedLoadPromises` kann in diesem Split entweder in `js/dialogs-review.js` bleiben oder mitverschoben werden. Empfehlung: mitverschieben, weil er fachlich nur zu `loadPersistedRegionAssignment(...)` gehoert. Das ist eine Top-Level-Initialisierung, aber keine DOM-/API-Ausfuehrung und entspricht einem lokalen Modul-State im klassischen Script-Modell.
+Der Top-Level-Cache `regionAssignmentPersistedLoadPromises` kann in diesem Split entweder in `js/review/review-region-util.js` bleiben oder mitverschoben werden. Empfehlung: mitverschieben, weil er fachlich nur zu `loadPersistedRegionAssignment(...)` gehoert. Das ist eine Top-Level-Initialisierung, aber keine DOM-/API-Ausfuehrung und entspricht einem lokalen Modul-State im klassischen Script-Modell.
 
 ### Nicht im selben Schritt verschieben
 
@@ -86,7 +86,7 @@ Script-Reihenfolge in `index.html`:
 10. `js/dialogs-review-region-basics.js`
 11. `js/dialogs-review-region-parent-tree.js`
 12. `js/dialogs-review-region-assignment-state.js`
-13. `js/dialogs-review.js`
+13. `js/review/review-region-util.js`
 
 Begruendung: Die State-/Cache-Helfer werden von Rest-Orchestrator, Tab-/Save-Logik und Assignment-UI zur Laufzeit referenziert. Sie muessen vor `dialogs-review.js` geladen werden.
 
@@ -131,10 +131,10 @@ git pull --ff-only origin master
 
 Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split der Region-Assignment-State-/Breadcrumb-Cache-Helfer aus js/dialogs-review.js in eine neue Datei js/dialogs-review-region-assignment-state.js.
+Ziel: kontrollierter, verhaltensneutraler Split der Region-Assignment-State-/Breadcrumb-Cache-Helfer aus js/review/review-region-util.js in eine neue Datei js/dialogs-review-region-assignment-state.js.
 
 Erlaubte Änderungen:
-- js/dialogs-review.js
+- js/review/review-region-util.js
 - neue Datei js/dialogs-review-region-assignment-state.js
 - index.html
 - docs/refactoring-status.md
@@ -157,7 +157,7 @@ Nicht ändern:
 - map-features.js
 - API-/PHP-/SQL-Dateien
 
-Verschiebe ausschließlich diese Konstante und Funktionen aus js/dialogs-review.js nach js/dialogs-review-region-assignment-state.js, unverändert und in sinnvoller Reihenfolge:
+Verschiebe ausschließlich diese Konstante und Funktionen aus js/review/review-region-util.js nach js/dialogs-review-region-assignment-state.js, unverändert und in sinnvoller Reihenfolge:
 - const regionAssignmentPersistedLoadPromises = new Map();
 - normalizePoliticalTerritoryAssignmentState
 - applyPersistedRegionAssignmentChain
@@ -215,7 +215,7 @@ index.html:
   10. js/dialogs-review-region-basics.js
   11. js/dialogs-review-region-parent-tree.js
   12. js/dialogs-review-region-assignment-state.js
-  13. js/dialogs-review.js
+  13. js/review/review-region-util.js
 
 docs/refactoring-status.md:
 - Region-Parent-Tree-Smoke als bestanden markieren
@@ -229,11 +229,11 @@ Checks lokal ausführen:
 - Suche nach fehlenden Referenzen/Typo bei js/dialogs-review-region-assignment-state.js in index.html.
 - Syntaxprüfung:
   - node --check js/dialogs-review-region-assignment-state.js
-  - node --check js/dialogs-review.js
+  - node --check js/review/review-region-util.js
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/dialogs-review-region-assignment-state.js docs/refactoring-status.md
+- git add index.html js/review/review-region-util.js js/dialogs-review-region-assignment-state.js docs/refactoring-status.md
 - git commit -m "Split dialog review region assignment state helpers"
 - git push
 

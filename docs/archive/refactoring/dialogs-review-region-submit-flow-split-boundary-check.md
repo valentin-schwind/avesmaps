@@ -2,9 +2,9 @@
 
 ## Ausgangspunkt
 
-Nach dem bestaetigten Region-Dialog-Population-Split bleibt `js/dialogs-review.js` Rest-Orchestrator fuer Region-/Territory-Event-Bindings, Region-Submit, weitere Editor-Submit-Flows, Init-/Bootstrapping-Logik und verbleibende Hilfsfunktionen.
+Nach dem bestaetigten Region-Dialog-Population-Split bleibt `js/review/review-region-util.js` Rest-Orchestrator fuer Region-/Territory-Event-Bindings, Region-Submit, weitere Editor-Submit-Flows, Init-/Bootstrapping-Logik und verbleibende Hilfsfunktionen.
 
-Der naechste sichere Split ist bewusst eng: Region-Payload-Building und Region-Submit-Handler. Die allgemeinen jQuery-Event-Bindings, Location/Path/Powerline/Label-Submit-Flows sowie Init-/Bootstrapping-Logik bleiben in `js/dialogs-review.js`.
+Der naechste sichere Split ist bewusst eng: Region-Payload-Building und Region-Submit-Handler. Die allgemeinen jQuery-Event-Bindings, Location/Path/Powerline/Label-Submit-Flows sowie Init-/Bootstrapping-Logik bleiben in `js/review/review-region-util.js`.
 
 ## Gelesene Bereiche
 
@@ -66,7 +66,7 @@ Script-Reihenfolge in `index.html`:
 15. `js/dialogs-review-region-save-flow.js`
 16. `js/dialogs-review-region-dialog-population.js`
 17. `js/dialogs-review-region-submit-flow.js`
-18. `js/dialogs-review.js`
+18. `js/review/review-region-util.js`
 
 Begruendung: Region-Submit wird von Event-Bindings in `dialogs-review.js` referenziert. Die Datei muss deshalb vor `dialogs-review.js` geladen werden.
 
@@ -105,10 +105,10 @@ git pull --ff-only origin master
 
 Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split des Region-Submit-/Payload-Flows aus js/dialogs-review.js in eine neue Datei js/dialogs-review-region-submit-flow.js.
+Ziel: kontrollierter, verhaltensneutraler Split des Region-Submit-/Payload-Flows aus js/review/review-region-util.js in eine neue Datei js/dialogs-review-region-submit-flow.js.
 
 Erlaubte Änderungen:
-- js/dialogs-review.js
+- js/review/review-region-util.js
 - neue Datei js/dialogs-review-region-submit-flow.js
 - index.html
 - docs/refactoring-status.md
@@ -136,7 +136,7 @@ Nicht ändern:
 - map-features.js
 - API-/PHP-/SQL-Dateien
 
-Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/dialogs-review-region-submit-flow.js, unverändert und in sinnvoller Reihenfolge:
+Verschiebe ausschließlich diese Funktionen aus js/review/review-region-util.js nach js/dialogs-review-region-submit-flow.js, unverändert und in sinnvoller Reihenfolge:
 - buildRegionEditPayload
 - handleRegionEditFormSubmit
 
@@ -178,7 +178,7 @@ index.html:
   15. js/dialogs-review-region-save-flow.js
   16. js/dialogs-review-region-dialog-population.js
   17. js/dialogs-review-region-submit-flow.js
-  18. js/dialogs-review.js
+  18. js/review/review-region-util.js
 
 docs/refactoring-status.md:
 - Region-Dialog-Population-Smoke als bestanden markieren
@@ -191,11 +191,11 @@ Checks lokal ausführen:
 - Suche nach fehlenden Referenzen/Typo bei js/dialogs-review-region-submit-flow.js in index.html.
 - Syntaxprüfung:
   - node --check js/dialogs-review-region-submit-flow.js
-  - node --check js/dialogs-review.js
+  - node --check js/review/review-region-util.js
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/dialogs-review-region-submit-flow.js docs/refactoring-status.md
+- git add index.html js/review/review-region-util.js js/dialogs-review-region-submit-flow.js docs/refactoring-status.md
 - git commit -m "Split dialog review region submit flow helpers"
 - git push
 

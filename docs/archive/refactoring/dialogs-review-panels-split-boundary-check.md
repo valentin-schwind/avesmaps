@@ -2,13 +2,13 @@
 
 ## Ausgangspunkt
 
-Aktueller Stand: `js/dialogs-review.js` ist nach Core-/Status-/Pending-/Path-/Label-/Location-Splits weiterhin der Rest-Orchestrator. Die Datei enthält noch Region/Territory, Wiki-Sync, Review-/Change-/Presence-Flows, Submit-/API-/Init-Logik sowie einzelne Reset-/Helper-Funktionen.
+Aktueller Stand: `js/review/review-region-util.js` ist nach Core-/Status-/Pending-/Path-/Label-/Location-Splits weiterhin der Rest-Orchestrator. Die Datei enthält noch Region/Territory, Wiki-Sync, Review-/Change-/Presence-Flows, Submit-/API-/Init-Logik sowie einzelne Reset-/Helper-Funktionen.
 
-Der aktuelle Status in `docs/refactoring-status.md` hält fest, dass `js/dialogs-review.js` vorerst nur mit neuer Boundary-Analyse weiter zerschnitten werden soll. Als nächster Analysebereich ist Review/Change/Presence genannt. Wiki-Sync, Region/Territory sowie Init/Event-Binding sollen nicht ohne eigene Analyse verschoben werden.
+Der aktuelle Status in `docs/refactoring-status.md` hält fest, dass `js/review/review-region-util.js` vorerst nur mit neuer Boundary-Analyse weiter zerschnitten werden soll. Als nächster Analysebereich ist Review/Change/Presence genannt. Wiki-Sync, Region/Territory sowie Init/Event-Binding sollen nicht ohne eigene Analyse verschoben werden.
 
 ## Gelesene Bereiche
 
-Relevant für Review/Change/Presence sind in `js/dialogs-review.js` insbesondere diese Funktionsgruppen:
+Relevant für Review/Change/Presence sind in `js/review/review-region-util.js` insbesondere diese Funktionsgruppen:
 
 - Panel-Orchestrierung:
   - `setEditorPanelTab(tabName)`
@@ -118,7 +118,7 @@ Der Split ist verhaltensneutral möglich, weil die Funktionen bereits global def
 
 Nicht in diesen Split gehören:
 
-- Wiki-Sync-Cluster. `setEditorPanelTab` und `refreshActiveEditorPanel` dürfen `refreshActiveWikiSyncPanel()` nur weiter aufrufen; die Wiki-Sync-Funktion selbst bleibt in `js/dialogs-review.js`.
+- Wiki-Sync-Cluster. `setEditorPanelTab` und `refreshActiveEditorPanel` dürfen `refreshActiveWikiSyncPanel()` nur weiter aufrufen; die Wiki-Sync-Funktion selbst bleibt in `js/review/review-region-util.js`.
 - Region/Territory-Cluster.
 - Init-/Event-Binding-Code. Die Event-Bindings können weiterhin Funktionen aus der neuen Datei aufrufen, aber selbst im Orchestrator bleiben.
 - Submit-Handler für Location/Label/Region/Path/Powerline.
@@ -139,7 +139,7 @@ Script-Reihenfolge in `index.html`:
 5. `js/dialogs-review-labels.js`
 6. `js/dialogs-review-locations.js`
 7. `js/dialogs-review-panels.js`
-8. `js/dialogs-review.js`
+8. `js/review/review-region-util.js`
 
 Begründung: Die Panel-Datei verwendet Status-Helfer und bereits ausgelagerte Location-/Label-Helfer, muss aber vor dem Rest-Orchestrator geladen werden, damit spätere Event-Bindings und Init-Code weiter auf globale Funktionsnamen zugreifen können.
 
@@ -205,10 +205,10 @@ Browser-Smoke im Editmode:
 ```text
 Arbeite im Repository https://github.com/valentin-schwind/avesmaps/ direkt auf master. Keine Branches. Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split des Review/Change/Presence-Panel-Clusters aus js/dialogs-review.js in eine neue Datei js/dialogs-review-panels.js.
+Ziel: kontrollierter, verhaltensneutraler Split des Review/Change/Presence-Panel-Clusters aus js/review/review-region-util.js in eine neue Datei js/dialogs-review-panels.js.
 
 Erlaubte Änderungen:
-- js/dialogs-review.js
+- js/review/review-region-util.js
 - neue Datei js/dialogs-review-panels.js
 - index.html
 - docs/refactoring-status.md
@@ -226,7 +226,7 @@ Nicht ändern:
 - map-features.js
 - API-/PHP-/SQL-Dateien
 
-Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/dialogs-review-panels.js, unverändert und in sinnvoller Reihenfolge:
+Verschiebe ausschließlich diese Funktionen aus js/review/review-region-util.js nach js/dialogs-review-panels.js, unverändert und in sinnvoller Reihenfolge:
 - formatPresenceAge
 - formatPresenceRole
 - setEditorPanelTab
@@ -283,7 +283,7 @@ index.html:
   5. js/dialogs-review-labels.js
   6. js/dialogs-review-locations.js
   7. js/dialogs-review-panels.js
-  8. js/dialogs-review.js
+  8. js/review/review-region-util.js
 
 docs/refactoring-status.md:
 - neuen stabilen Split js/dialogs-review-panels.js dokumentieren
@@ -297,7 +297,7 @@ Checks lokal ausführen:
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/dialogs-review-panels.js docs/refactoring-status.md
+- git add index.html js/review/review-region-util.js js/dialogs-review-panels.js docs/refactoring-status.md
 - git commit -m "Split dialog review panel helpers"
 - git push
 

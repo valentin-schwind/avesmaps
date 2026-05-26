@@ -2,7 +2,7 @@
 
 ## 1. Current Responsibilities
 
-`js/ui-controls.js` deckt aktuell mehrere Themenbereiche ab:
+`js/ui/ui-controls.js` deckt aktuell mehrere Themenbereiche ab:
 
 - Karten-/Leaflet-Controls:
   - Map-Dekorationen und Scale-Band (`getMapDecorationBounds`, `addMapScaleBandControl`, `initializeMapDecorations`).
@@ -150,7 +150,7 @@ function bindPersistedTabClickHandler(selector, datasetKey, allowedValues, stora
 
 Falls Code spaeter umgesetzt wird:
 
-- Scope: nur `js/ui-controls.js`
+- Scope: nur `js/ui/ui-controls.js`
 - Art: kleinster 1:1-Extract der beiden Tab-Click-Bloecke auf einen lokalen Helper
 - keine Aenderung an URL-Parametern, Storage-Keys, erlaubten Values, Event-Reihenfolge
 

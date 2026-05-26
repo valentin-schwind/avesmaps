@@ -66,7 +66,7 @@ Weitere Aufrufe in `js/*.js` wurden nicht gefunden.
 - `findNearestComponentConnection` (`js/routing/route-graph-core.js:15`)
   - berechnet die naechste Verbindung zweier Komponenten.
 
-- `syntheticPathSegments` (`js/runtime-state.js:19`)
+- `syntheticPathSegments` (`js/app/runtime-state.js:19`)
   - globale Map fuer synthetische Segmente.
   - wird in `js/routing/routing.js:getRouteSegments(...)` gelesen (`js/routing/routing.js:151`).
 

@@ -2,7 +2,7 @@
 
 ## Ausgangspunkt
 
-Nach dem bestaetigten Region-Tabs-/Payload-State-Split ist `js/dialogs-review.js` Rest-Orchestrator fuer Region-/Territory-Save/Submit/Dialog-Flow, Dialog-Population, jQuery-Event-Bindings, API-/Init-Logik und verbleibende Hilfsfunktionen.
+Nach dem bestaetigten Region-Tabs-/Payload-State-Split ist `js/review/review-region-util.js` Rest-Orchestrator fuer Region-/Territory-Save/Submit/Dialog-Flow, Dialog-Population, jQuery-Event-Bindings, API-/Init-Logik und verbleibende Hilfsfunktionen.
 
 Der naechste moegliche Split ist riskanter als die vorherigen, weil Save, Tab-Laden, Dialog-Population und Event-Bindings eng zusammenarbeiten. Deshalb wird ein bewusst enger Save-Flow-Helfer-Split empfohlen. Dialog-Population (`populateRegionEditForm`, `openRegionEditDialog`) und alle Event-Bindings bleiben im Rest-Orchestrator.
 
@@ -69,7 +69,7 @@ Script-Reihenfolge in `index.html`:
 13. `js/dialogs-review-region-assignment-ui.js`
 14. `js/dialogs-review-region-tabs-payload.js`
 15. `js/dialogs-review-region-save-flow.js`
-16. `js/dialogs-review.js`
+16. `js/review/review-region-util.js`
 
 Begruendung: Save-/Tab-Load-Helfer werden von Rest-Orchestrator und Event-Bindings zur Laufzeit referenziert. Die Datei muss vor `dialogs-review.js` geladen werden.
 
@@ -111,10 +111,10 @@ git pull --ff-only origin master
 
 Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split der Region-Save-/Tab-Load-Helfer aus js/dialogs-review.js in eine neue Datei js/dialogs-review-region-save-flow.js.
+Ziel: kontrollierter, verhaltensneutraler Split der Region-Save-/Tab-Load-Helfer aus js/review/review-region-util.js in eine neue Datei js/dialogs-review-region-save-flow.js.
 
 Erlaubte Änderungen:
-- js/dialogs-review.js
+- js/review/review-region-util.js
 - neue Datei js/dialogs-review-region-save-flow.js
 - index.html
 - docs/refactoring-status.md
@@ -140,7 +140,7 @@ Nicht ändern:
 - map-features.js
 - API-/PHP-/SQL-Dateien
 
-Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/dialogs-review-region-save-flow.js, unverändert und in sinnvoller Reihenfolge:
+Verschiebe ausschließlich diese Funktionen aus js/review/review-region-util.js nach js/dialogs-review-region-save-flow.js, unverändert und in sinnvoller Reihenfolge:
 - saveRegionEditTab
 - normalizePoliticalTerritoryForRegionEdit
 - openRegionEditTabForTerritory
@@ -183,7 +183,7 @@ index.html:
   13. js/dialogs-review-region-assignment-ui.js
   14. js/dialogs-review-region-tabs-payload.js
   15. js/dialogs-review-region-save-flow.js
-  16. js/dialogs-review.js
+  16. js/review/review-region-util.js
 
 docs/refactoring-status.md:
 - Region-Tabs-Payload-Smoke als bestanden markieren
@@ -196,11 +196,11 @@ Checks lokal ausführen:
 - Suche nach fehlenden Referenzen/Typo bei js/dialogs-review-region-save-flow.js in index.html.
 - Syntaxprüfung:
   - node --check js/dialogs-review-region-save-flow.js
-  - node --check js/dialogs-review.js
+  - node --check js/review/review-region-util.js
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/dialogs-review-region-save-flow.js docs/refactoring-status.md
+- git add index.html js/review/review-region-util.js js/dialogs-review-region-save-flow.js docs/refactoring-status.md
 - git commit -m "Split dialog review region save flow helpers"
 - git push
 

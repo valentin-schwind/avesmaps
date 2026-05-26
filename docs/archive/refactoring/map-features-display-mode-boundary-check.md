@@ -64,17 +64,17 @@ Wesentliche externe Abhaengigkeiten:
 ## 8. Welche Funktionen vermutlich von aussen gebraucht werden
 Externe Konsumenten im Repo:
 - `getSelectedMapLayerMode()`
-  - `js/map-features-layer-state.js`, `js/map-features-powerlines.js`, `js/map-features-labels.js`, `js/spotlight-search.js`, `js/config.js`
+  - `js/map-features-layer-state.js`, `js/map-features-powerlines.js`, `js/map-features-labels.js`, `js/ui/spotlight-search.js`, `js/config.js`
 - `setSelectedMapLayerMode()`
-  - `js/map-features-layer-state.js`, `js/map-features-powerlines.js`, `js/map-features-labels.js`, `js/spotlight-search.js`, `js/map-features.js`
+  - `js/map-features-layer-state.js`, `js/map-features-powerlines.js`, `js/map-features-labels.js`, `js/ui/spotlight-search.js`, `js/map-features.js`
 - `applyDisplayOptions()`
   - `js/routing/routing.js`
 - `syncPathVisibility()`
-  - `js/spotlight-search.js`, `js/map-features.js`
+  - `js/ui/spotlight-search.js`, `js/map-features.js`
 - `syncLocationMarkerVisibility()`
-  - `js/routing/routing.js`, `js/spotlight-search.js`, `js/map-features.js`
+  - `js/routing/routing.js`, `js/ui/spotlight-search.js`, `js/map-features.js`
 - `shouldShowPathOnMap()`
-  - `js/spotlight-search.js`
+  - `js/ui/spotlight-search.js`
 - `syncRegionVisibility()`
   - `js/config.js` (override-hook), `js/map-features.js`
 

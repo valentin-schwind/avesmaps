@@ -129,7 +129,7 @@ Begruendung:
 
 Vorgeschlagener spaeterer Mini-Commit:
 
-- nur `js/dialogs-review.js` aendern
+- nur `js/review/review-region-util.js` aendern
 - neuen Helper `setDialogStatus(statusElement, message = "", type = "")` einfuegen
 - nur die 7 Fokusfunktionen intern auf den Helper umstellen
 - keine weiteren `set*Status`-Funktionen anfassen (insb. nicht die `dataset.state`-Varianten)

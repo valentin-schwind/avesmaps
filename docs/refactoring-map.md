@@ -14,7 +14,7 @@ Avesmaps ist aktuell eine klassische, build-freie Multi-Script-Webapp:
 Script-Ladereihenfolge (aus `index.html`) ist ein zentrales Laufzeit-Contract:
 
 1. Vendor (`leaflet.js`, `jquery`, `jquery-ui`)
-2. `js/priority-queue.js`, `js/config.js`, `js/utils.js`, `js/popups.js`, `js/api.js`, `js/political-territory-wiki-tree.js`, `js/dialogs-review.js`, `js/ui-controls.js`, `polygon-clipping` (CDN), `js/political-territory-*.js`, `js/map-features.js`, `js/routing/routing.js`, `js/spotlight-search.js`
+2. `js/routing/route-priority-queue.js`, `js/config.js`, `js/app/utils.js`, `js/ui/popups.js`, `js/app/api-client.js`, `js/political-territory-wiki-tree.js`, `js/review/review-region-util.js`, `js/ui/ui-controls.js`, `polygon-clipping` (CDN), `js/political-territory-*.js`, `js/map-features.js`, `js/routing/routing.js`, `js/ui/spotlight-search.js`
 3. Inline-Script mit globalem State, Map-Init, Context-Men�, Dijkstra/Graph/Smoothing-Helfern
 
 ## 2. Responsibility Clusters
@@ -34,7 +34,7 @@ Script-Ladereihenfolge (aus `index.html`) ist ein zentrales Laufzeit-Contract:
 ### Datenladen
 
 - `js/routing/routing.js` (`loadRouteDataFromApi`, Start-Load, Polling)
-- `js/api.js` (Fetch-Wrapper f�r Edit/Review/WikiSync/Political)
+- `js/app/api-client.js` (Fetch-Wrapper f�r Edit/Review/WikiSync/Political)
 - `api/map-features.php` (FeatureCollection + Revision, optional `since_revision`/`bbox`)
 - `api/political-territories.php` (`action=layer|list|get|...`)
 
@@ -42,7 +42,7 @@ Script-Ladereihenfolge (aus `index.html`) ist ein zentrales Laufzeit-Contract:
 
 - `index.html` (Dijkstra/Graph-Aufbau, Smoothing-Helfer, Synthetic-Connections)
 - `js/routing/routing.js` (Routensegmente, Plan-Eintr�ge, Marker-Highlighting, Restzeiten)
-- `js/priority-queue.js` (Min-Heap)
+- `js/routing/route-priority-queue.js` (Min-Heap)
 
 ### Routing-UI
 
@@ -52,38 +52,38 @@ Script-Ladereihenfolge (aus `index.html`) ist ein zentrales Laufzeit-Contract:
 
 ### Popups
 
-- `js/popups.js` (Popup-Markup-Builder)
+- `js/ui/popups.js` (Popup-Markup-Builder)
 - `js/map-features.js` (Popup-Bindings/Refresh an Layern)
 - `js/routing/routing.js` (Popup-Action-Delegation)
 
 ### Suche
 
-- `js/spotlight-search.js` (Spotlight-Overlay, lokale + API-Suche, Fokuslogik)
+- `js/ui/spotlight-search.js` (Spotlight-Overlay, lokale + API-Suche, Fokuslogik)
 - `api/map-search.php` (Backend-Suchindex �ber `map_features`)
 - `index.html` (Spotlight-DOM)
 
 ### Messwerkzeuge
 
-- `js/ui-controls.js` (Entfernungsmessung, Handles, Label, Clear/Complete)
+- `js/ui/ui-controls.js` (Entfernungsmessung, Handles, Label, Clear/Complete)
 - `index.html` (Context-Men�-Aktionen + Klick-Routing)
 
 ### URL-Sharing
 
 - `js/map-features.js` (`applyPlannerStateFromUrl`, `syncPlannerStateToUrl`, Pin-Handling)
-- `js/ui-controls.js` (Review/WikiSync-Tab-URL-Parameter)
+- `js/ui/ui-controls.js` (Review/WikiSync-Tab-URL-Parameter)
 - `index.html` (Share-Pin Kontextaktion)
 
 ### Editmode
 
 - `js/map-features.js` (Create/Move/Update/Delete f�r Orte, Wege, Regionen, Labels, Kraftlinien)
-- `js/dialogs-review.js` (Edit-Dialoge, Payload-Building, Submit-Handler)
-- `js/region-vertex-detach-edit.js` (Region-Vertex-Sonderinteraktion)
+- `js/review/review-region-util.js` (Edit-Dialoge, Payload-Building, Submit-Handler)
+- `js/map-features/map-features-region-vertex-detach-edit.js` (Region-Vertex-Sonderinteraktion)
 - `js/political-territory-editor-link.js`, `js/political-territory-drag-assignment.js`, `js/political-territory-override-footer.js`
 - `api/map-feature-update.php`, `api/political-territories.php`, `api/political-territory-subtree-display.php`, `api/political-territory-display-overrides.php`, `api/political-territory-assignment-zoom-sync.php`
 
 ### Review/Admin
 
-- `js/dialogs-review.js` (Review-Panel, Change-Log, Presence, WikiSync-Case-UI)
+- `js/review/review-region-util.js` (Review-Panel, Change-Log, Presence, WikiSync-Case-UI)
 - `api/location-report-review.php` (Meldungsreview)
 - `api/map-audit-log.php` (�nderungsverlauf + Undo-Metadaten)
 - `api/editor-presence.php` (Heartbeat/Online-Liste)
@@ -123,7 +123,7 @@ Script-Ladereihenfolge (aus `index.html`) ist ein zentrales Laufzeit-Contract:
 - Hohe Kopplung zu globalen Zust�nden (`regionData`, `pathData`, `activeRegionGeometryEdit`, etc.).
 - Ein Fehler kann mehrere Domains gleichzeitig beeinflussen (Route, Edit, Timeline, Popups).
 
-3. `js/dialogs-review.js` (6256 Zeilen, 271 Funktionen)
+3. `js/review/review-region-util.js` (6256 Zeilen, 271 Funktionen)
 - Vereint sehr viele Dialog-/Review-/WikiSync-/Presence-/Edit-Submit-Verantwortlichkeiten.
 - Viele wechselseitige Abh�ngigkeiten auf globale Runtime-Variablen.
 - Regressionen schwer lokal einzugrenzen.
@@ -151,12 +151,12 @@ Wichtige globale Zustandsgruppen und abh�ngige Module:
 ### Datenbest�nde
 
 - `locationData`, `pathData`, `powerlineData`, `labelData`, `regionData`
-- Verwendet in: `index.html`, `js/map-features.js`, `js/routing/routing.js`, `js/spotlight-search.js`, teilweise `js/config.js`
+- Verwendet in: `index.html`, `js/map-features.js`, `js/routing/routing.js`, `js/ui/spotlight-search.js`, teilweise `js/config.js`
 
 ### Leaflet-Layer/Visual Caches
 
 - `locationMarkers`, `locationNameLabels`, `pathLayers`, `powerlineLayers`, `labelMarkers`, `regionPolygons`, `regionLabels`
-- Verwendet in: prim�r `js/map-features.js`, zus�tzlich `js/routing/routing.js`, `js/spotlight-search.js`, `js/config.js`
+- Verwendet in: prim�r `js/map-features.js`, zus�tzlich `js/routing/routing.js`, `js/ui/spotlight-search.js`, `js/config.js`
 
 ### Routing/Planner State
 
@@ -171,27 +171,27 @@ Wichtige globale Zustandsgruppen und abh�ngige Module:
 ### Review/WikiSync State
 
 - `reviewReports`, `changeLogEntries`, `wikiSyncCases`, `wikiSyncSummary`, `wikiSyncTerritorySummary`, `activeWikiSync*`
-- Verwendet in: haupts�chlich `js/dialogs-review.js`, teilweise `js/routing/routing.js`, `index.html`
+- Verwendet in: haupts�chlich `js/review/review-region-util.js`, teilweise `js/routing/routing.js`, `index.html`
 
 ### Edit-Session State
 
 - `activeLocationEdit`, `pendingPathCreation*`, `pathEditFeature`, `powerlineEditFeature`, `labelEditEntry`, `regionEditEntry`, `activeRegionGeometryEdit`, `pendingRegionOperation`
-- Verwendet in: `js/map-features.js`, `js/dialogs-review.js`, `js/region-vertex-detach-edit.js`, `index.html`
+- Verwendet in: `js/map-features.js`, `js/review/review-region-util.js`, `js/map-features/map-features-region-vertex-detach-edit.js`, `index.html`
 
 ### Live-Update/Presence
 
 - `mapDataSourceStatus`, `liveMapUpdateTimerId`, `editorPresenceTimerId`, `activeFeatureLocks`
-- Verwendet in: `js/routing/routing.js`, `js/dialogs-review.js`, `js/map-features.js`, `index.html`
+- Verwendet in: `js/routing/routing.js`, `js/review/review-region-util.js`, `js/map-features.js`, `index.html`
 
 ### Measurement
 
 - `distanceMeasurementStartLatLng`, `distanceMeasurementEndLatLng`, `isAwaitingDistanceMeasurementEnd` (+ Handle/Line/Label Variablen)
-- Verwendet in: `js/ui-controls.js`, `index.html`
+- Verwendet in: `js/ui/ui-controls.js`, `index.html`
 
 ### Political Territory Runtime
 
 - `politicalTerritoryOptions`, `politicalTerritoryHierarchy`, `politicalTimelineYear`, `politicalTerritoryFallbackData`
-- Verwendet in: `js/map-features.js`, `js/dialogs-review.js`, `index.html`
+- Verwendet in: `js/map-features.js`, `js/review/review-region-util.js`, `index.html`
 
 ## 5. Data Flow
 
@@ -208,13 +208,13 @@ Wichtige globale Zustandsgruppen und abh�ngige Module:
 4. `js/map-features.js` baut daraus Leaflet-Layer (Marker, Polylines, Polygons, Tooltips/Labels).
 5. Darauf arbeiten Funktionsbereiche auf:
 - Routing (`index.html` Dijkstra + `js/routing/routing.js` UI/Plan)
-- Popups/Interaktionen (`js/popups.js`, `js/routing/routing.js` Delegation)
-- Suche (`js/spotlight-search.js`, optional Backend via `api/map-search.php`)
-- Editmode (`js/dialogs-review.js` + `js/map-features.js` -> `api/map-feature-update.php` / `api/political-territories.php`)
+- Popups/Interaktionen (`js/ui/popups.js`, `js/routing/routing.js` Delegation)
+- Suche (`js/ui/spotlight-search.js`, optional Backend via `api/map-search.php`)
+- Editmode (`js/review/review-region-util.js` + `js/map-features.js` -> `api/map-feature-update.php` / `api/political-territories.php`)
 
 ### Live-Edit-Loop
 
-1. Mutationen gehen per `js/api.js` an PHP-Endpunkte.
+1. Mutationen gehen per `js/app/api-client.js` an PHP-Endpunkte.
 2. API schreibt SQL + Audit + Revision.
 3. Frontend aktualisiert lokal per Antwort (`apply*FeatureResponse`) und periodisch via `since_revision` Polling (`pollLiveMapUpdates`).
 
@@ -249,8 +249,8 @@ Zielgrenzen ohne Framework- oder Build-Migration:
 
 ### Step 1: Global State aus Inline-Script auslagern
 
-- Ziel: Nur die gro�e `let ...`-State-Deklaration in eine neue Datei `js/runtime-state.js` verschieben.
-- Betroffene Dateien: `index.html`, `js/runtime-state.js`.
+- Ziel: Nur die gro�e `let ...`-State-Deklaration in eine neue Datei `js/app/runtime-state.js` verschieben.
+- Betroffene Dateien: `index.html`, `js/app/runtime-state.js`.
 - Verhalten: Unver�ndert, nur Initialisierungsort �ndert sich.
 - Testbarkeit: Seite laden, Konsole pr�fen, Kernfunktionen aufrufen.
 - Reversibel: Script-Tag entfernen + Block zur�ck in `index.html`.

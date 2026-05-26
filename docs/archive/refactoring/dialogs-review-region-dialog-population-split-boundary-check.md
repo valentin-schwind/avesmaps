@@ -2,7 +2,7 @@
 
 ## Ausgangspunkt
 
-Nach dem bestaetigten Region-Save-Flow-Split bleibt `js/dialogs-review.js` Rest-Orchestrator fuer Region-/Territory-Dialog-Population, jQuery-Event-Bindings, Submit-Handler, Init-/Bootstrapping-Logik und verbleibende Hilfsfunktionen.
+Nach dem bestaetigten Region-Save-Flow-Split bleibt `js/review/review-region-util.js` Rest-Orchestrator fuer Region-/Territory-Dialog-Population, jQuery-Event-Bindings, Submit-Handler, Init-/Bootstrapping-Logik und verbleibende Hilfsfunktionen.
 
 Der naechste sichere Split ist bewusst klein: nur Region-Dialog-Population. Die jQuery-Event-Bindings liegen im Rest-Orchestrator teils vor und teils nach den beiden Funktionen, bleiben aber unangetastet. Funktionsdeklarationen sind im klassischen Script-Modell trotzdem vor Laufzeit nutzbar, sofern die neue Datei vor `dialogs-review.js` geladen wird.
 
@@ -61,7 +61,7 @@ Script-Reihenfolge in `index.html`:
 14. `js/dialogs-review-region-tabs-payload.js`
 15. `js/dialogs-review-region-save-flow.js`
 16. `js/dialogs-review-region-dialog-population.js`
-17. `js/dialogs-review.js`
+17. `js/review/review-region-util.js`
 
 Begruendung: Dialog-Population wird von Event-Bindings, Save-Flow und Open-Flows referenziert. Die Datei muss vor `dialogs-review.js` geladen werden.
 
@@ -100,10 +100,10 @@ git pull --ff-only origin master
 
 Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split der Region-Dialog-Population aus js/dialogs-review.js in eine neue Datei js/dialogs-review-region-dialog-population.js.
+Ziel: kontrollierter, verhaltensneutraler Split der Region-Dialog-Population aus js/review/review-region-util.js in eine neue Datei js/dialogs-review-region-dialog-population.js.
 
 Erlaubte Änderungen:
-- js/dialogs-review.js
+- js/review/review-region-util.js
 - neue Datei js/dialogs-review-region-dialog-population.js
 - index.html
 - docs/refactoring-status.md
@@ -130,7 +130,7 @@ Nicht ändern:
 - map-features.js
 - API-/PHP-/SQL-Dateien
 
-Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/dialogs-review-region-dialog-population.js, unverändert und in sinnvoller Reihenfolge:
+Verschiebe ausschließlich diese Funktionen aus js/review/review-region-util.js nach js/dialogs-review-region-dialog-population.js, unverändert und in sinnvoller Reihenfolge:
 - populateRegionEditForm
 - openRegionEditDialog
 
@@ -170,7 +170,7 @@ index.html:
   14. js/dialogs-review-region-tabs-payload.js
   15. js/dialogs-review-region-save-flow.js
   16. js/dialogs-review-region-dialog-population.js
-  17. js/dialogs-review.js
+  17. js/review/review-region-util.js
 
 docs/refactoring-status.md:
 - Region-Save-Flow-Smoke als bestanden markieren
@@ -183,11 +183,11 @@ Checks lokal ausführen:
 - Suche nach fehlenden Referenzen/Typo bei js/dialogs-review-region-dialog-population.js in index.html.
 - Syntaxprüfung:
   - node --check js/dialogs-review-region-dialog-population.js
-  - node --check js/dialogs-review.js
+  - node --check js/review/review-region-util.js
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/dialogs-review-region-dialog-population.js docs/refactoring-status.md
+- git add index.html js/review/review-region-util.js js/dialogs-review-region-dialog-population.js docs/refactoring-status.md
 - git commit -m "Split dialog review region dialog population helpers"
 - git push
 

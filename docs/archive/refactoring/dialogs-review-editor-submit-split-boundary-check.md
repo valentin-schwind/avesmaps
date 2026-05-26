@@ -2,9 +2,9 @@
 
 ## Ausgangspunkt
 
-Nach dem bestaetigten Region-Events-Split bleibt `js/dialogs-review.js` Rest-Orchestrator fuer Report-Helfer, klassische Editor-Submit-Handler, Location-Report-Submit, Validatoren und Init-/Bootstrapping-Logik.
+Nach dem bestaetigten Region-Events-Split bleibt `js/review/review-region-util.js` Rest-Orchestrator fuer Report-Helfer, klassische Editor-Submit-Handler, Location-Report-Submit, Validatoren und Init-/Bootstrapping-Logik.
 
-Der naechste sinnvolle Split ist ein enger Editor-Submit-Split. Er betrifft nur die klassischen Bearbeiten-Formulare fuer vorhandene/neu erzeugte Kartenfeatures. Region-Submit ist bereits ausgelagert und bleibt unveraendert. Location-Report-Submit und Review-Report-Helfer bleiben in `js/dialogs-review.js`.
+Der naechste sinnvolle Split ist ein enger Editor-Submit-Split. Er betrifft nur die klassischen Bearbeiten-Formulare fuer vorhandene/neu erzeugte Kartenfeatures. Region-Submit ist bereits ausgelagert und bleibt unveraendert. Location-Report-Submit und Review-Report-Helfer bleiben in `js/review/review-region-util.js`.
 
 ## Gelesene Bereiche
 
@@ -75,7 +75,7 @@ Script-Reihenfolge in `index.html`:
 17. `js/dialogs-review-region-submit-flow.js`
 18. `js/dialogs-review-region-events.js`
 19. `js/dialogs-review-editor-submit.js`
-20. `js/dialogs-review.js`
+20. `js/review/review-region-util.js`
 
 Begruendung: Editor-Submit-Handler werden von Event-Bindings/Init in `dialogs-review.js` referenziert. Die Datei muss deshalb vor `dialogs-review.js` geladen werden und nach den Dateien, die Payload-Builder/Status-/Pending-Helfer bereitstellen.
 
@@ -114,10 +114,10 @@ git pull --ff-only origin master
 
 Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split der klassischen Editor-Submit-Handler aus js/dialogs-review.js in eine neue Datei js/dialogs-review-editor-submit.js.
+Ziel: kontrollierter, verhaltensneutraler Split der klassischen Editor-Submit-Handler aus js/review/review-region-util.js in eine neue Datei js/dialogs-review-editor-submit.js.
 
 Erlaubte Änderungen:
-- js/dialogs-review.js
+- js/review/review-region-util.js
 - neue Datei js/dialogs-review-editor-submit.js
 - index.html
 - docs/refactoring-status.md
@@ -147,7 +147,7 @@ Nicht ändern:
 - map-features.js
 - API-/PHP-/SQL-Dateien
 
-Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/dialogs-review-editor-submit.js, unverändert und in sinnvoller Reihenfolge:
+Verschiebe ausschließlich diese Funktionen aus js/review/review-region-util.js nach js/dialogs-review-editor-submit.js, unverändert und in sinnvoller Reihenfolge:
 - handleLocationEditFormSubmit
 - handlePathEditFormSubmit
 - handlePowerlineEditFormSubmit
@@ -193,7 +193,7 @@ index.html:
   17. js/dialogs-review-region-submit-flow.js
   18. js/dialogs-review-region-events.js
   19. js/dialogs-review-editor-submit.js
-  20. js/dialogs-review.js
+  20. js/review/review-region-util.js
 
 docs/refactoring-status.md:
 - Region-Events-Smoke als bestanden markieren
@@ -206,11 +206,11 @@ Checks lokal ausführen:
 - Suche nach fehlender Referenz/Typo bei js/dialogs-review-editor-submit.js in index.html.
 - Syntaxprüfung:
   - node --check js/dialogs-review-editor-submit.js
-  - node --check js/dialogs-review.js
+  - node --check js/review/review-region-util.js
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/dialogs-review-editor-submit.js docs/refactoring-status.md
+- git add index.html js/review/review-region-util.js js/dialogs-review-editor-submit.js docs/refactoring-status.md
 - git commit -m "Split dialog review editor submit handlers"
 - git push
 

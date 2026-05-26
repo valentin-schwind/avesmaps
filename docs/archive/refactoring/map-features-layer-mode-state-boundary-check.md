@@ -152,7 +152,7 @@ Weitere zentrale Abhaengigkeiten:
 
 ## 7. Welche Funktionen vermutlich von au�en gebraucht werden
 
-Durch Aufrufstellen in `index.html`, `js/routing/routing.js`, `js/spotlight-search.js`, `js/config.js`, `js/map-features-labels.js`, `js/map-features-powerlines.js` sind mindestens extern relevant:
+Durch Aufrufstellen in `index.html`, `js/routing/routing.js`, `js/ui/spotlight-search.js`, `js/config.js`, `js/map-features-labels.js`, `js/map-features-powerlines.js` sind mindestens extern relevant:
 
 - `getSelectedMapLayerMode`
 - `setSelectedMapLayerMode`
@@ -206,7 +206,7 @@ Konservative Reihenfolge fuer spaeteren Split:
 3. `js/map-features-powerlines.js`
 4. `js/map-features-layer-state.js` (neu)
 5. `js/map-features.js` (Rest-Orchestrator)
-6. `js/routing/routing.js` / `js/spotlight-search.js`
+6. `js/routing/routing.js` / `js/ui/spotlight-search.js`
 
 Wichtig:
 

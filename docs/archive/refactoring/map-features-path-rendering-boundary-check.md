@@ -129,7 +129,7 @@ Direkte Nutzungen in anderen Bereichen:
   - `preparePathData(...)`
   - `deletePathFeature(...)`
   - `normalizePathSubtype(...)`
-- Spotlight/Search (`js/spotlight-search.js`):
+- Spotlight/Search (`js/ui/spotlight-search.js`):
   - `syncPathVisibility()`
   - `getPathDisplayName(...)`
   - `getPathPublicId(...)`

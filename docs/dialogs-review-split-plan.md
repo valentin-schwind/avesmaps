@@ -2,7 +2,7 @@
 
 ## 1. Current File Responsibilities
 
-`js/dialogs-review.js` (ca. 5400+ Zeilen) vereint aktuell mehrere Subsysteme:
+`js/review/review-region-util.js` (ca. 5400+ Zeilen) vereint aktuell mehrere Subsysteme:
 
 - DOM-Getter/Grundhelper:
   - viele `get...Element`-Funktionen fuer Overlays, Formulare, Statusfelder.
@@ -33,7 +33,7 @@
 
 ### Sicher extern genutzt
 
-Diese Funktionen werden nachweisbar ausserhalb von `js/dialogs-review.js` verwendet:
+Diese Funktionen werden nachweisbar ausserhalb von `js/review/review-region-util.js` verwendet:
 
 - `setRegionEditStatus`
 - `setRegionEditDialogOpen`
@@ -136,7 +136,7 @@ Sicherster erster spaeterer Code-Schritt:
   - `setDialogStatus`
   - `setPanelStateStatus`
   - alle zugehoerigen Status-Wrapper
-- `index.html` um genau einen zusaetzlichen Script-Tag erweitern, der **vor** dem verbleibenden `js/dialogs-review.js` geladen wird.
+- `index.html` um genau einen zusaetzlichen Script-Tag erweitern, der **vor** dem verbleibenden `js/review/review-region-util.js` geladen wird.
 - keine Funktionsumbenennung, keine Aufruferaenderung.
 
 Warum dieser Schritt am sichersten ist:

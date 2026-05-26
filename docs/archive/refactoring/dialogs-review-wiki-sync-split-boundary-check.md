@@ -2,7 +2,7 @@
 
 ## Ausgangspunkt
 
-Nach dem bestätigten Review/Change/Presence-Panel-Split ist `js/dialogs-review.js` weiterhin der Rest-Orchestrator. Der aktuelle `docs/refactoring-status.md` nennt als naechste Analysebereiche Wiki-Sync, Region/Territory und verbleibende Reset-/Helper-Funktionen. Direkte Code-Splits ohne neue Boundary-Analyse sind dort ausdruecklich ausgeschlossen.
+Nach dem bestätigten Review/Change/Presence-Panel-Split ist `js/review/review-region-util.js` weiterhin der Rest-Orchestrator. Der aktuelle `docs/refactoring-status.md` nennt als naechste Analysebereiche Wiki-Sync, Region/Territory und verbleibende Reset-/Helper-Funktionen. Direkte Code-Splits ohne neue Boundary-Analyse sind dort ausdruecklich ausgeschlossen.
 
 Die aktuelle Script-Reihenfolge in `index.html` ist weiterhin klassisch/global und endet im Dialog-Bereich mit:
 
@@ -13,13 +13,13 @@ Die aktuelle Script-Reihenfolge in `index.html` ist weiterhin klassisch/global u
 5. `js/dialogs-review-labels.js`
 6. `js/dialogs-review-locations.js`
 7. `js/dialogs-review-panels.js`
-8. `js/dialogs-review.js`
+8. `js/review/review-region-util.js`
 
 ## Gelesene Bereiche
 
 ### Rest-Orchestrator-Anfang
 
-Am Anfang von `js/dialogs-review.js` liegen noch gemischte Reset-/Dialog-Helfer:
+Am Anfang von `js/review/review-region-util.js` liegen noch gemischte Reset-/Dialog-Helfer:
 
 - `resetWikiSyncResolveForm()`
 - `resetPathEditForm()`
@@ -133,7 +133,7 @@ Script-Reihenfolge in `index.html`:
 6. `js/dialogs-review-locations.js`
 7. `js/dialogs-review-panels.js`
 8. `js/dialogs-review-wiki-sync.js`
-9. `js/dialogs-review.js`
+9. `js/review/review-region-util.js`
 
 Begruendung: WikiSync verwendet Core-/Status-/Pending-/Location-/Panel-Helfer und muss vor dem Rest-Orchestrator geladen werden, damit Event-Bindings und Submit-Flows im Rest-Orchestrator weiterhin auf globale Funktionsnamen zugreifen koennen.
 
@@ -240,10 +240,10 @@ Browser-Smoke im Editmode:
 ```text
 Arbeite im Repository https://github.com/valentin-schwind/avesmaps/ direkt auf master. Keine Branches. Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split des WikiSync-Clusters aus js/dialogs-review.js in eine neue Datei js/dialogs-review-wiki-sync.js.
+Ziel: kontrollierter, verhaltensneutraler Split des WikiSync-Clusters aus js/review/review-region-util.js in eine neue Datei js/dialogs-review-wiki-sync.js.
 
 Erlaubte Änderungen:
-- js/dialogs-review.js
+- js/review/review-region-util.js
 - neue Datei js/dialogs-review-wiki-sync.js
 - index.html
 - docs/refactoring-status.md
@@ -262,7 +262,7 @@ Nicht ändern:
 - map-features.js
 - API-/PHP-/SQL-Dateien
 
-Verschiebe ausschließlich die in docs/dialogs-review-wiki-sync-split-boundary-check.md unter "Exakter zulaessiger Funktionsumfang" genannten Funktionen aus js/dialogs-review.js nach js/dialogs-review-wiki-sync.js. Funktionen unverändert lassen und in sinnvoller Reihenfolge verschieben.
+Verschiebe ausschließlich die in docs/dialogs-review-wiki-sync-split-boundary-check.md unter "Exakter zulaessiger Funktionsumfang" genannten Funktionen aus js/review/review-region-util.js nach js/dialogs-review-wiki-sync.js. Funktionen unverändert lassen und in sinnvoller Reihenfolge verschieben.
 
 Falls beim Verschieben weitere Funktionen zwingend mitgenommen werden müssten, stoppe und berichte statt eigenständig den Scope zu erweitern.
 
@@ -284,7 +284,7 @@ index.html:
   6. js/dialogs-review-locations.js
   7. js/dialogs-review-panels.js
   8. js/dialogs-review-wiki-sync.js
-  9. js/dialogs-review.js
+  9. js/review/review-region-util.js
 
 docs/refactoring-status.md:
 - neuen stabilen Split js/dialogs-review-wiki-sync.js dokumentieren
@@ -296,11 +296,11 @@ Checks lokal ausführen:
 - Suche nach fehlenden Referenzen/Typo bei js/dialogs-review-wiki-sync.js in index.html.
 - Syntaxprüfung:
   - node --check js/dialogs-review-wiki-sync.js
-  - node --check js/dialogs-review.js
+  - node --check js/review/review-region-util.js
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/dialogs-review-wiki-sync.js docs/refactoring-status.md
+- git add index.html js/review/review-region-util.js js/dialogs-review-wiki-sync.js docs/refactoring-status.md
 - git commit -m "Split dialog review WikiSync helpers"
 - git push
 

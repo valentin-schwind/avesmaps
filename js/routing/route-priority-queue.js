@@ -70,7 +70,7 @@ class PriorityQueue {
 		}
 
 		const script = document.createElement("script");
-		script.src = "js/region-vertex-detach-edit.js";
+		script.src = "js/map-features/map-features-region-vertex-detach-edit.js";
 		script.dataset.avesmapsRegionVertexDetach = "1";
 		document.head.append(script);
 	}, 0);

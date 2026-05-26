@@ -2,9 +2,9 @@
 
 ## Ausgangspunkt
 
-Nach dem bestaetigten Report-Flow-Split ist `js/dialogs-review.js` nur noch ein sehr kleiner Rest. Enthalten sind Konstanten/Cache-Variablen, einige Dialog-Reset-/Open-State-Helfer sowie Normalizer/Validatoren.
+Nach dem bestaetigten Report-Flow-Split ist `js/review/review-region-util.js` nur noch ein sehr kleiner Rest. Enthalten sind Konstanten/Cache-Variablen, einige Dialog-Reset-/Open-State-Helfer sowie Normalizer/Validatoren.
 
-Der letzte noch sinnvoll enge Code-Split ist ein Dialog-State-Split fuer Path/Powerline/Label-Dialoge. Konstanten, Cache-Variablen, Normalizer und Validatoren bleiben in `js/dialogs-review.js`.
+Der letzte noch sinnvoll enge Code-Split ist ein Dialog-State-Split fuer Path/Powerline/Label-Dialoge. Konstanten, Cache-Variablen, Normalizer und Validatoren bleiben in `js/review/review-region-util.js`.
 
 ## Gelesene Bereiche
 
@@ -82,7 +82,7 @@ Script-Reihenfolge in `index.html`:
 19. `js/dialogs-review-dialog-state.js`
 20. `js/dialogs-review-editor-submit.js`
 21. `js/dialogs-review-report-flow.js`
-22. `js/dialogs-review.js`
+22. `js/review/review-region-util.js`
 
 Begruendung: Dialog-State-Helfer sollten vor Editor-Submit und Report-Flow geladen werden, weil diese Flows Dialoge schliessen/oeffnen koennen. Die Datei benoetigt vorher geladene Core-/Path-/Label-/Pending-Helfer.
 
@@ -123,10 +123,10 @@ git pull --ff-only origin master
 
 Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split der Dialog-Reset-/Open-State-Helfer aus js/dialogs-review.js in eine neue Datei js/dialogs-review-dialog-state.js.
+Ziel: kontrollierter, verhaltensneutraler Split der Dialog-Reset-/Open-State-Helfer aus js/review/review-region-util.js in eine neue Datei js/dialogs-review-dialog-state.js.
 
 Erlaubte Änderungen:
-- js/dialogs-review.js
+- js/review/review-region-util.js
 - neue Datei js/dialogs-review-dialog-state.js
 - index.html
 - docs/refactoring-status.md
@@ -158,7 +158,7 @@ Nicht ändern:
 - map-features.js
 - API-/PHP-/SQL-Dateien
 
-Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/dialogs-review-dialog-state.js, unverändert und in sinnvoller Reihenfolge:
+Verschiebe ausschließlich diese Funktionen aus js/review/review-region-util.js nach js/dialogs-review-dialog-state.js, unverändert und in sinnvoller Reihenfolge:
 - resetPathEditForm
 - resetPowerlineEditForm
 - resetLabelEditForm
@@ -207,7 +207,7 @@ index.html:
   19. js/dialogs-review-dialog-state.js
   20. js/dialogs-review-editor-submit.js
   21. js/dialogs-review-report-flow.js
-  22. js/dialogs-review.js
+  22. js/review/review-region-util.js
 
 docs/refactoring-status.md:
 - Report-Flow-Smoke als bestanden markieren
@@ -220,11 +220,11 @@ Checks lokal ausführen:
 - Suche nach fehlender Referenz/Typo bei js/dialogs-review-dialog-state.js in index.html.
 - Syntaxprüfung:
   - node --check js/dialogs-review-dialog-state.js
-  - node --check js/dialogs-review.js
+  - node --check js/review/review-region-util.js
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/dialogs-review-dialog-state.js docs/refactoring-status.md
+- git add index.html js/review/review-region-util.js js/dialogs-review-dialog-state.js docs/refactoring-status.md
 - git commit -m "Split dialog review dialog state helpers"
 - git push
 
@@ -241,4 +241,4 @@ Smoke-Test, den ich danach im Browser mache:
 
 ## Ergebnis
 
-Der Dialog-State-Cluster ist als letzter sinnvoller Code-Split geeignet. Danach sollte `js/dialogs-review.js` als kleiner finaler Rest mit Konstanten, Cache-Variablen, Normalizern und Validator stehen bleiben, statt kuenstlich weiter zerlegt zu werden.
+Der Dialog-State-Cluster ist als letzter sinnvoller Code-Split geeignet. Danach sollte `js/review/review-region-util.js` als kleiner finaler Rest mit Konstanten, Cache-Variablen, Normalizern und Validator stehen bleiben, statt kuenstlich weiter zerlegt zu werden.

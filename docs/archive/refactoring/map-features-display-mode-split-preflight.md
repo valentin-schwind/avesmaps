@@ -14,7 +14,7 @@ Grundlage ist `docs/map-features-display-mode-boundary-check.md`. Es wird kein C
   - `js/map-features-layer-state.js`
   - `js/map-features-powerlines.js`
   - `js/map-features-labels.js`
-  - `js/spotlight-search.js`
+  - `js/ui/spotlight-search.js`
   - `js/config.js`
 
 ### `setSelectedMapLayerMode`
@@ -24,19 +24,19 @@ Grundlage ist `docs/map-features-display-mode-boundary-check.md`. Es wird kein C
   - `js/map-features-layer-state.js`
   - `js/map-features-powerlines.js`
   - `js/map-features-labels.js`
-  - `js/spotlight-search.js`
+  - `js/ui/spotlight-search.js`
 
 ### `syncPathVisibility`
 - Definition in `js/map-features.js`.
 - Direkte Nutzung in `js/map-features.js`, insbesondere in `applyDisplayOptions` und im `#togglePaths`-Change-Flow.
 - Direkte externe Nutzung laut Boundary in:
-  - `js/spotlight-search.js`
+  - `js/ui/spotlight-search.js`
 
 ### `shouldShowPathOnMap`
 - Definition in `js/map-features.js`.
 - Direkte Nutzung in `syncPathVisibility`.
 - Direkte externe Nutzung laut Boundary in:
-  - `js/spotlight-search.js`
+  - `js/ui/spotlight-search.js`
 
 ### `applyDisplayOptions`
 - Definition in `js/map-features.js`.
@@ -79,8 +79,8 @@ Konsequenz:
 - Display-Mode-Helfer muessen vor Label-Sichtbarkeitspfaden global verfuegbar sein.
 - Der Split darf `syncLabelVisibility` nicht mitnehmen, weil diese Funktion in der bereits stabilen Label-Datei liegt und nur aufgerufen wird.
 
-## 7. Nutzung durch `js/spotlight-search.js`
-`js/spotlight-search.js` nutzt Display-/Visibility-Helfer fuer Such-/Spotlight-Fokus:
+## 7. Nutzung durch `js/ui/spotlight-search.js`
+`js/ui/spotlight-search.js` nutzt Display-/Visibility-Helfer fuer Such-/Spotlight-Fokus:
 - `getSelectedMapLayerMode`
 - `setSelectedMapLayerMode`
 - `syncPathVisibility`
@@ -88,7 +88,7 @@ Konsequenz:
 
 Konsequenz:
 - Alle vier Funktionen muessen nach einem Split global bleiben.
-- `js/map-features-display-mode.js` muss vor `js/spotlight-search.js` geladen werden. Das ist erfuellt, wenn die Datei im Map-Features-Block vor `js/map-features.js` steht, weil `spotlight-search.js` spaeter geladen wird.
+- `js/map-features-display-mode.js` muss vor `js/ui/spotlight-search.js` geladen werden. Das ist erfuellt, wenn die Datei im Map-Features-Block vor `js/map-features.js` steht, weil `spotlight-search.js` spaeter geladen wird.
 
 ## 8. Nutzung durch `js/routing/routing.js`
 `js/routing/routing.js` nutzt laut Boundary:

@@ -2,13 +2,13 @@
 
 ## Ausgangspunkt
 
-Nach dem bestaetigten Region-Wiki-Picker-Split ist `js/dialogs-review.js` weiter der Rest-Orchestrator. Der verbleibende Region/Territory-Bereich ist gross und sollte nicht in einem Schritt verschoben werden.
+Nach dem bestaetigten Region-Wiki-Picker-Split ist `js/review/review-region-util.js` weiter der Rest-Orchestrator. Der verbleibende Region/Territory-Bereich ist gross und sollte nicht in einem Schritt verschoben werden.
 
 Der kleinste naechste sichere Kandidat ist ein Region-Dialog-Basics-Split: einfache Dialog-/Form-/Anzeigehelfer fuer den Region-Dialog, aber ohne Parent-Tree, Assignment, Tabs, Submit oder Event-Bindings.
 
 ## Gelesene Bereiche
 
-Im aktuellen `js/dialogs-review.js` liegen am Anfang unter anderem:
+Im aktuellen `js/review/review-region-util.js` liegen am Anfang unter anderem:
 
 - `resetRegionEditForm()`
 - `setRegionEditDialogOpen(...)`
@@ -69,7 +69,7 @@ Script-Reihenfolge in `index.html`:
 8. `js/dialogs-review-wiki-sync.js`
 9. `js/dialogs-review-region-wiki-picker.js`
 10. `js/dialogs-review-region-basics.js`
-11. `js/dialogs-review.js`
+11. `js/review/review-region-util.js`
 
 Begruendung: Die Region-Basics werden von Rest-Orchestrator und Region-Wiki-Picker-Flows zur Laufzeit genutzt. Eine globale Funktionsdatei direkt vor `dialogs-review.js` ist ausreichend und bleibt kompatibel mit der klassischen Script-Reihenfolge.
 
@@ -116,10 +116,10 @@ git pull --ff-only origin master
 
 Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split der Region-Dialog-Basishelfer aus js/dialogs-review.js in eine neue Datei js/dialogs-review-region-basics.js.
+Ziel: kontrollierter, verhaltensneutraler Split der Region-Dialog-Basishelfer aus js/review/review-region-util.js in eine neue Datei js/dialogs-review-region-basics.js.
 
 Erlaubte Änderungen:
-- js/dialogs-review.js
+- js/review/review-region-util.js
 - neue Datei js/dialogs-review-region-basics.js
 - index.html
 - docs/refactoring-status.md
@@ -140,7 +140,7 @@ Nicht ändern:
 - map-features.js
 - API-/PHP-/SQL-Dateien
 
-Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/dialogs-review-region-basics.js, unverändert und in sinnvoller Reihenfolge:
+Verschiebe ausschließlich diese Funktionen aus js/review/review-region-util.js nach js/dialogs-review-region-basics.js, unverändert und in sinnvoller Reihenfolge:
 - resetRegionEditForm
 - setRegionEditDialogOpen
 - setRegionWikiPickerDialogOpen
@@ -188,7 +188,7 @@ index.html:
   8. js/dialogs-review-wiki-sync.js
   9. js/dialogs-review-region-wiki-picker.js
   10. js/dialogs-review-region-basics.js
-  11. js/dialogs-review.js
+  11. js/review/review-region-util.js
 
 docs/refactoring-status.md:
 - Region-Wiki-Picker-Smoke als bestanden markieren
@@ -201,11 +201,11 @@ Checks lokal ausführen:
 - Suche nach fehlenden Referenzen/Typo bei js/dialogs-review-region-basics.js in index.html.
 - Syntaxprüfung:
   - node --check js/dialogs-review-region-basics.js
-  - node --check js/dialogs-review.js
+  - node --check js/review/review-region-util.js
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/dialogs-review-region-basics.js docs/refactoring-status.md
+- git add index.html js/review/review-region-util.js js/dialogs-review-region-basics.js docs/refactoring-status.md
 - git commit -m "Split dialog review region basics helpers"
 - git push
 

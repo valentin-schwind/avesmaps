@@ -2,7 +2,7 @@
 
 ## Ausgangspunkt
 
-Nach dem bestaetigten Region-Basics-Split ist `js/dialogs-review.js` weiter Rest-Orchestrator fuer Region-/Territory-Parent/Assignment/Tabs/Submit-Flows.
+Nach dem bestaetigten Region-Basics-Split ist `js/review/review-region-util.js` weiter Rest-Orchestrator fuer Region-/Territory-Parent/Assignment/Tabs/Submit-Flows.
 
 Der naechste sinnvolle enge Kandidat ist der Region-Parent-Tree-/Region-Anzeige-Helferblock direkt nach `normalizeParentheticalSpacing(...)` und vor `const regionAssignmentPersistedLoadPromises = new Map();`.
 
@@ -31,7 +31,7 @@ Der Assignment-Block beginnt danach mit:
 
 Der Parent-Tree-/Display-Helferblock ist als eigene Datei sinnvoll, solange Event-Bindings, Assignment, Tabs und Submit nicht mitgenommen werden.
 
-Die Funktionen sind globale Funktionsdefinitionen ohne Top-Level-DOM-Aktionen. Die einzige Top-Level-Konstante in diesem Bereich ist bereits am Dateianfang `POLITICAL_TERRITORY_DISPLAY_SUFFIXES`; sie bleibt vorerst in `js/dialogs-review.js`, weil ein Konstanten-Umzug kein noetiger Teil dieses Splits ist.
+Die Funktionen sind globale Funktionsdefinitionen ohne Top-Level-DOM-Aktionen. Die einzige Top-Level-Konstante in diesem Bereich ist bereits am Dateianfang `POLITICAL_TERRITORY_DISPLAY_SUFFIXES`; sie bleibt vorerst in `js/review/review-region-util.js`, weil ein Konstanten-Umzug kein noetiger Teil dieses Splits ist.
 
 ### Nicht im selben Schritt verschieben
 
@@ -70,7 +70,7 @@ Script-Reihenfolge in `index.html`:
 9. `js/dialogs-review-region-wiki-picker.js`
 10. `js/dialogs-review-region-basics.js`
 11. `js/dialogs-review-region-parent-tree.js`
-12. `js/dialogs-review.js`
+12. `js/review/review-region-util.js`
 
 Begruendung: Parent-Tree-Helfer werden von Region-Basics und Rest-Orchestrator zur Laufzeit referenziert. Die Datei muss vor `dialogs-review.js` geladen werden.
 
@@ -137,10 +137,10 @@ git pull --ff-only origin master
 
 Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split des Region-Parent-Tree-/Region-Anzeige-Helferblocks aus js/dialogs-review.js in eine neue Datei js/dialogs-review-region-parent-tree.js.
+Ziel: kontrollierter, verhaltensneutraler Split des Region-Parent-Tree-/Region-Anzeige-Helferblocks aus js/review/review-region-util.js in eine neue Datei js/dialogs-review-region-parent-tree.js.
 
 Erlaubte Änderungen:
-- js/dialogs-review.js
+- js/review/review-region-util.js
 - neue Datei js/dialogs-review-region-parent-tree.js
 - index.html
 - docs/refactoring-status.md
@@ -162,7 +162,7 @@ Nicht ändern:
 - map-features.js
 - API-/PHP-/SQL-Dateien
 
-Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/dialogs-review-region-parent-tree.js, unverändert und in sinnvoller Reihenfolge:
+Verschiebe ausschließlich diese Funktionen aus js/review/review-region-util.js nach js/dialogs-review-region-parent-tree.js, unverändert und in sinnvoller Reihenfolge:
 - populateRegionParentSelect
 - buildPoliticalTerritoryTree
 - prunePoliticalTerritoryTreeDuplicatesGlobally
@@ -229,7 +229,7 @@ index.html:
   9. js/dialogs-review-region-wiki-picker.js
   10. js/dialogs-review-region-basics.js
   11. js/dialogs-review-region-parent-tree.js
-  12. js/dialogs-review.js
+  12. js/review/review-region-util.js
 
 docs/refactoring-status.md:
 - Region-Basics-Smoke als bestanden markieren
@@ -242,11 +242,11 @@ Checks lokal ausführen:
 - Suche nach fehlenden Referenzen/Typo bei js/dialogs-review-region-parent-tree.js in index.html.
 - Syntaxprüfung:
   - node --check js/dialogs-review-region-parent-tree.js
-  - node --check js/dialogs-review.js
+  - node --check js/review/review-region-util.js
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/dialogs-review-region-parent-tree.js docs/refactoring-status.md
+- git add index.html js/review/review-region-util.js js/dialogs-review-region-parent-tree.js docs/refactoring-status.md
 - git commit -m "Split dialog review region parent tree helpers"
 - git push
 

@@ -46,7 +46,7 @@ Globale Konstanten:
 Aufgerufene Funktionen/Klassen:
 
 - `getTransportOption(routeType)` aus `js/routing/routing.js`
-- `PriorityQueue` aus `js/priority-queue.js`
+- `PriorityQueue` aus `js/routing/route-priority-queue.js`
 
 DOM-/jQuery-/UI-Abhaengigkeiten:
 

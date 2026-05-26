@@ -121,7 +121,7 @@ Empfehlung fuer spaeteren ersten Code-Schritt: **Variante A** als enger 1:1-Date
 - `js/dialogs-review-paths.js`
 - `js/dialogs-review-labels.js`
 - `js/dialogs-review-locations.js`
-- `js/dialogs-review.js`
+- `js/review/review-region-util.js`
 
 Begruendung: reine Funktionsdefinitionen; Abhaengigkeiten duerfen spaeter aufgeloest werden, solange kein Top-Level-Code in der neuen Datei laeuft.
 

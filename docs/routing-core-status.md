@@ -27,7 +27,7 @@ Abhaengigkeiten von `calculateRouteCore`:
 - Parameter:
   - `graph`, `startName`, `endName`, `useShortestPath`, `minimizeTransfers`, `transferPenalty`, `resolveTransportOption`
 - globale Klasse:
-  - `PriorityQueue` (aus `js/priority-queue.js`)
+  - `PriorityQueue` (aus `js/routing/route-priority-queue.js`)
 - interne Datenannahmen:
   - `graph[currentNode][neighbor]` enthaelt Verbindungen mit `distance`, `time`, `id`, optional `transportOption`, `routeType`
 
@@ -41,7 +41,7 @@ Abhaengigkeiten von `updateMapView`:
 Gezielte Abhaengigkeiten laut Auftrag:
 
 - `graphData`:
-  - global in `js/runtime-state.js`, geschrieben in `updateMapView`, gelesen im Wrapper
+  - global in `js/app/runtime-state.js`, geschrieben in `updateMapView`, gelesen im Wrapper
 - `PriorityQueue`:
   - genutzt im Kern
 - `TRANSFER_PENALTY`:

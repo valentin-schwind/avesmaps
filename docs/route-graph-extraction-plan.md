@@ -168,7 +168,7 @@ Kleinstmoeglicher erster Extraktions-Commit (ohne Verhaltensaenderung):
    - `smoothLineCoordinatesForDisplay`
    - optional `getVisualPathLatLngCoordinates`
 3. Script-Einbindung in `index.html`:
-   - `js/routing/route-graph-core.js` zwischen `js/utils.js` und `js/map-features.js` einbinden.
+   - `js/routing/route-graph-core.js` zwischen `js/app/utils.js` und `js/map-features.js` einbinden.
 4. Inline-Script:
    - nur die exakt verschobenen Funktionsdefinitionen entfernen.
 5. Manuelle Smoke-Checks:

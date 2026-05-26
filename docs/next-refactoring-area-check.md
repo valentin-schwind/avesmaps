@@ -8,17 +8,17 @@
 
 ## 2. Candidate Areas
 
-A. `js/popups.js`
+A. `js/ui/popups.js`
 
 - Kleinster Kandidat (ca. 393 Zeilen).
 - Hauptsaechlich Markup-/Action-Builder fuer Popups.
 
-B. `js/ui-controls.js`
+B. `js/ui/ui-controls.js`
 
 - Mittelgross (ca. 554 Zeilen).
 - Mischt Karten-Controls, Messwerkzeug, Transport-UI, Review-Tab-UI und Startlogik.
 
-C. `js/dialogs-review.js`
+C. `js/review/review-region-util.js`
 
 - Sehr gross (ca. 5491 Zeilen).
 - Starkes Mixing aus Dialog-UI, Form-Validierung, Persistenz, API-Aufrufen, Review/Wiki-Sync/Presence.
@@ -30,7 +30,7 @@ D. `js/map-features.js`
 
 ## 3. For Each Candidate
 
-### A) `js/popups.js`
+### A) `js/ui/popups.js`
 
 - Dateigroesse / Komplexitaet:
   - klein, fokussiert, gut ueberschaubar.
@@ -42,11 +42,11 @@ D. `js/map-features.js`
 - Risiko fuer produktive Karte:
   - niedrig bis mittel (primär Popup-Aktionen/Labels betroffen, kein Routing-Kern).
 - Moegliche kleine 1-Commit-Schritte:
-  - rein lokaler 1:1-Extract wiederholter Action-Button-Bloecke (z. B. Pfad-Weiterfuehren/Abschliessen oder Powerline-Start/Abschluss) innerhalb von `js/popups.js`.
+  - rein lokaler 1:1-Extract wiederholter Action-Button-Bloecke (z. B. Pfad-Weiterfuehren/Abschliessen oder Powerline-Start/Abschluss) innerhalb von `js/ui/popups.js`.
 - Doku oder direkt Code:
   - direkter kleiner Code-Schritt ist vertretbar.
 
-### B) `js/ui-controls.js`
+### B) `js/ui/ui-controls.js`
 
 - Dateigroesse / Komplexitaet:
   - mittel, aber mehrere Themen in einer Datei.
@@ -61,7 +61,7 @@ D. `js/map-features.js`
 - Doku oder direkt Code:
   - eher zuerst Mini-Analyse fuer einen ganz konkreten Subblock.
 
-### C) `js/dialogs-review.js`
+### C) `js/review/review-region-util.js`
 
 - Dateigroesse / Komplexitaet:
   - sehr hoch; faktisch eigener Subsystem-Cluster.
@@ -93,7 +93,7 @@ D. `js/map-features.js`
 
 ## 4. Recommendation
 
-Empfehlung: **A. `js/popups.js` als naechster Refactoring-Bereich**.
+Empfehlung: **A. `js/ui/popups.js` als naechster Refactoring-Bereich**.
 
 Begruendung nach Prioritaeten:
 
@@ -107,7 +107,7 @@ Begruendung nach Prioritaeten:
 
 Empfohlener naechster sicherer Code-Schritt:
 
-- Datei: nur `js/popups.js`
+- Datei: nur `js/ui/popups.js`
 - Art: rein lokaler 1:1-Extract eines wiederverwendeten Action-Button-Blocks, z. B.:
   - Helper fuer Pfad-Weiterfuehren/Abschliessen vs. Neuer Weg
   - ohne Aenderung von Labels, `data-popup-action`-Werten oder Reihenfolge
@@ -118,4 +118,4 @@ Empfohlener naechster sicherer Code-Schritt:
 
 Falls maximal konservativ vorgegangen werden soll:
 
-- alternativ zuerst eine kurze Detail-Planung nur fuer `js/popups.js` (z. B. `docs/popups-helper-extraction-plan.md`) und danach den 1-Commit-Extract.
+- alternativ zuerst eine kurze Detail-Planung nur fuer `js/ui/popups.js` (z. B. `docs/popups-helper-extraction-plan.md`) und danach den 1-Commit-Extract.

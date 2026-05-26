@@ -48,7 +48,7 @@ Indirekte Ketten rund um `createGraph`:
   - jQuery-gekoppelt an Routing-Controls.
 - `isTransportAllowedForPath` (`js/routing/routing.js:257`)
   - nutzt `normalizePathSubtype(...)` und `getDefaultTransportDomainForPathSubtype(...)`.
-  - `getDefaultTransportDomainForPathSubtype` liegt in `js/dialogs-review.js:3543` (cross-file Kopplung in Richtung Review/UI-Datei).
+  - `getDefaultTransportDomainForPathSubtype` liegt in `js/review/review-region-util.js:3543` (cross-file Kopplung in Richtung Review/UI-Datei).
 - `connectDetachedGraphComponents` (`index.html:1493`)
   - ruft `getSyntheticRouteConfig(...)` (`index.html:1483`) auf.
 - `getSyntheticRouteConfig`

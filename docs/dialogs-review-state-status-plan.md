@@ -68,7 +68,7 @@ Empfehlung: **kein sofortiger Code-Schritt**.
 
 Falls spaeter umgesetzt, kleinster sicherer Schritt:
 
-- nur `js/dialogs-review.js` aendern
+- nur `js/review/review-region-util.js` aendern
 - neuen Helper `setPanelStateStatus(statusElement, message = "", state = "")` einfuegen
 - nur diese vier Wrapper intern delegieren:
   - `setReviewPanelStatus`

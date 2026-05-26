@@ -56,7 +56,7 @@ Keine weiteren Aufrufstellen in `js/*`.
   - baut regulare Kanten
   - ruft `connectDetachedGraphComponents(graph)` auf.
 
-- `syntheticPathSegments` (`js/runtime-state.js:19`)
+- `syntheticPathSegments` (`js/app/runtime-state.js:19`)
   - globale `Map`, in die `addSyntheticGraphConnection` schreibt.
   - wird in `js/routing/routing.js:getRouteSegments(...)` gelesen (`js/routing/routing.js:151`), um Segmente fuer synthetische Kanten aufloesen zu koennen.
 
@@ -69,7 +69,7 @@ Begruendung:
 - Kein direkter DOM/Leaflet/API-Zugriff in der Funktion selbst.
 - `getLocationDistance` und weitere Graph-Helfer liegen bereits in `js/routing/route-graph-core.js`.
 - Aktuelle Laufzeitreihenfolge ist kompatibel:
-  - `js/runtime-state.js` vor `js/routing/route-graph-core.js` (damit `syntheticPathSegments` existiert)
+  - `js/app/runtime-state.js` vor `js/routing/route-graph-core.js` (damit `syntheticPathSegments` existiert)
   - `js/map-features.js` wird vor dem Inline-Script geladen (damit `addGraphConnection` und `buildSyntheticPathSegment` vor erstem Aufruf vorhanden sind).
 
 Wichtige Einschraenkung:

@@ -57,7 +57,7 @@
   - `getLocationReportDialogElement`
   - `getLocationEditDialogElement`
 
-### `js/dialogs-review.js`
+### `js/review/review-region-util.js`
 - Nutzt weiterhin den Core breit fuer Reset/Open/Close-/Escape-/Review-/Region-/WikiSync-Logik.
 
 ## 3. Candidate Split File
@@ -79,7 +79,7 @@
 - Bewertung: weniger sinnvoll als A.
 
 ### D. vorerst kein Core-Split
-- Stabil, aber haelt kuenstliche Rueckwaertsabhaengigkeit auf `js/dialogs-review.js` aufrecht.
+- Stabil, aber haelt kuenstliche Rueckwaertsabhaengigkeit auf `js/review/review-region-util.js` aufrecht.
 - Bewertung: nur sinnvoll, wenn aktuell keine weiteren Dialog-Splits geplant sind.
 
 ## 4. Script-Reihenfolge
@@ -91,7 +91,7 @@ Empfohlene Reihenfolge fuer spaeteren Split:
 4. `js/dialogs-review-paths.js`
 5. `js/dialogs-review-labels.js`
 6. `js/dialogs-review-locations.js`
-7. `js/dialogs-review.js`
+7. `js/review/review-region-util.js`
 
 Bewertung:
 - Diese Reihenfolge ist sinnvoll und risikoarm, weil alle konsumierenden Dateien dann ihre Basishilfen garantiert vorfinden.
@@ -103,7 +103,7 @@ Bewertung:
 - Konfig-Abhaengigkeit: `isLocationReportServiceConfigured` nutzt `LOCATION_REPORT_FORM_ENDPOINT_URL`; Zugriff erfolgt zur Laufzeit.
 - DOM-Verfuegbarkeit: Getter greifen erst beim Aufruf auf DOM zu, nicht beim Dateiladen.
 - Kein Top-Level-DOM-Sideeffect: Core-Funktionen sind deklarativ und damit gut splitbar.
-- Verbesserte Abhaengigkeitsrichtung: ausgelagerte Cluster haengen dann nicht mehr von Definitionsresten in `js/dialogs-review.js` ab.
+- Verbesserte Abhaengigkeitsrichtung: ausgelagerte Cluster haengen dann nicht mehr von Definitionsresten in `js/review/review-region-util.js` ab.
 
 ## 6. Safest Possible First Move
 

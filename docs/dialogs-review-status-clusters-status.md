@@ -2,7 +2,7 @@
 
 ## 1. Current Split
 
-In `js/dialogs-review.js` sind die Status-Setter jetzt in zwei klar getrennte Helper-Cluster aufgeteilt:
+In `js/review/review-region-util.js` sind die Status-Setter jetzt in zwei klar getrennte Helper-Cluster aufgeteilt:
 
 - `setDialogStatus(statusElement, message = "", type = "")`
   - fuer Dialog-Status mit `dataset.status`.

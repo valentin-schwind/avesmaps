@@ -2,9 +2,9 @@
 
 ## Ausgangspunkt
 
-Nach dem bestaetigten Region-Assignment-UI-Split ist `js/dialogs-review.js` weiter Rest-Orchestrator fuer Region-/Territory-Tabs, Submit-Flows, Dialog-Population, Event-Bindings und verbleibende Hilfsfunktionen.
+Nach dem bestaetigten Region-Assignment-UI-Split ist `js/review/review-region-util.js` weiter Rest-Orchestrator fuer Region-/Territory-Tabs, Submit-Flows, Dialog-Population, Event-Bindings und verbleibende Hilfsfunktionen.
 
-Der naechste sichere Kandidat ist ein enger Region-Tabs-/Payload-State-Split. Der eigentliche Save-/Submit-Flow bleibt bewusst in `js/dialogs-review.js`, weil er API-Aufrufe, Feature-Response-Anwendung, Layer-Reloads und Dialog-Repopulation verbindet.
+Der naechste sichere Kandidat ist ein enger Region-Tabs-/Payload-State-Split. Der eigentliche Save-/Submit-Flow bleibt bewusst in `js/review/review-region-util.js`, weil er API-Aufrufe, Feature-Response-Anwendung, Layer-Reloads und Dialog-Repopulation verbindet.
 
 ## Gelesene Bereiche
 
@@ -61,7 +61,7 @@ Script-Reihenfolge in `index.html`:
 12. `js/dialogs-review-region-assignment-state.js`
 13. `js/dialogs-review-region-assignment-ui.js`
 14. `js/dialogs-review-region-tabs-payload.js`
-15. `js/dialogs-review.js`
+15. `js/review/review-region-util.js`
 
 Begruendung: Tab-/Payload-Helfer werden von Rest-Orchestrator, Save-Flow und Event-Bindings zur Laufzeit referenziert. Die Datei muss vor `dialogs-review.js` geladen werden.
 
@@ -111,10 +111,10 @@ git pull --ff-only origin master
 
 Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split der Region-Tabs-/Payload-State-Helfer aus js/dialogs-review.js in eine neue Datei js/dialogs-review-region-tabs-payload.js.
+Ziel: kontrollierter, verhaltensneutraler Split der Region-Tabs-/Payload-State-Helfer aus js/review/review-region-util.js in eine neue Datei js/dialogs-review-region-tabs-payload.js.
 
 Erlaubte Änderungen:
-- js/dialogs-review.js
+- js/review/review-region-util.js
 - neue Datei js/dialogs-review-region-tabs-payload.js
 - index.html
 - docs/refactoring-status.md
@@ -139,7 +139,7 @@ Nicht ändern:
 - map-features.js
 - API-/PHP-/SQL-Dateien
 
-Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/dialogs-review-region-tabs-payload.js, unverändert und in sinnvoller Reihenfolge:
+Verschiebe ausschließlich diese Funktionen aus js/review/review-region-util.js nach js/dialogs-review-region-tabs-payload.js, unverändert und in sinnvoller Reihenfolge:
 - getRegionEditTabKey
 - initializeRegionEditTabs
 - getPrimaryRegionGeometryPublicId
@@ -192,7 +192,7 @@ index.html:
   12. js/dialogs-review-region-assignment-state.js
   13. js/dialogs-review-region-assignment-ui.js
   14. js/dialogs-review-region-tabs-payload.js
-  15. js/dialogs-review.js
+  15. js/review/review-region-util.js
 
 docs/refactoring-status.md:
 - Region-Assignment-UI-Smoke als bestanden markieren
@@ -205,11 +205,11 @@ Checks lokal ausführen:
 - Suche nach fehlenden Referenzen/Typo bei js/dialogs-review-region-tabs-payload.js in index.html.
 - Syntaxprüfung:
   - node --check js/dialogs-review-region-tabs-payload.js
-  - node --check js/dialogs-review.js
+  - node --check js/review/review-region-util.js
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/dialogs-review-region-tabs-payload.js docs/refactoring-status.md
+- git add index.html js/review/review-region-util.js js/dialogs-review-region-tabs-payload.js docs/refactoring-status.md
 - git commit -m "Split dialog review region tabs payload helpers"
 - git push
 

@@ -2,9 +2,9 @@
 
 ## Ausgangspunkt
 
-Nach dem bestaetigten Region-Assignment-State-Split ist `js/dialogs-review.js` weiter Rest-Orchestrator fuer Region-/Territory-Assignment-UI, Tabs, Submit-Flows, Event-Bindings und verbleibende Hilfsfunktionen.
+Nach dem bestaetigten Region-Assignment-State-Split ist `js/review/review-region-util.js` weiter Rest-Orchestrator fuer Region-/Territory-Assignment-UI, Tabs, Submit-Flows, Event-Bindings und verbleibende Hilfsfunktionen.
 
-Der naechste sichere Kandidat ist der Region-Assignment-UI-/Operations-Block. Dieser Split bleibt bewusst enger als der gesamte verbleibende Region/Territory-Bereich: Tab-Funktionen, Save-/Submit-Logik, Dialog-Population und Event-Bindings bleiben in `js/dialogs-review.js`.
+Der naechste sichere Kandidat ist der Region-Assignment-UI-/Operations-Block. Dieser Split bleibt bewusst enger als der gesamte verbleibende Region/Territory-Bereich: Tab-Funktionen, Save-/Submit-Logik, Dialog-Population und Event-Bindings bleiben in `js/review/review-region-util.js`.
 
 ## Gelesene Bereiche
 
@@ -77,7 +77,7 @@ Script-Reihenfolge in `index.html`:
 11. `js/dialogs-review-region-parent-tree.js`
 12. `js/dialogs-review-region-assignment-state.js`
 13. `js/dialogs-review-region-assignment-ui.js`
-14. `js/dialogs-review.js`
+14. `js/review/review-region-util.js`
 
 Begruendung: Assignment-UI wird von Rest-Orchestrator, Event-Bindings und Tab-/Save-Logik zur Laufzeit referenziert. Die Datei muss vor `dialogs-review.js` geladen werden.
 
@@ -135,10 +135,10 @@ git pull --ff-only origin master
 
 Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split der Region-Assignment-UI-/Operations-Helfer aus js/dialogs-review.js in eine neue Datei js/dialogs-review-region-assignment-ui.js.
+Ziel: kontrollierter, verhaltensneutraler Split der Region-Assignment-UI-/Operations-Helfer aus js/review/review-region-util.js in eine neue Datei js/dialogs-review-region-assignment-ui.js.
 
 Erlaubte Änderungen:
-- js/dialogs-review.js
+- js/review/review-region-util.js
 - neue Datei js/dialogs-review-region-assignment-ui.js
 - index.html
 - docs/refactoring-status.md
@@ -162,7 +162,7 @@ Nicht ändern:
 - map-features.js
 - API-/PHP-/SQL-Dateien
 
-Verschiebe ausschließlich diese Funktionen aus js/dialogs-review.js nach js/dialogs-review-region-assignment-ui.js, unverändert und in sinnvoller Reihenfolge:
+Verschiebe ausschließlich diese Funktionen aus js/review/review-region-util.js nach js/dialogs-review-region-assignment-ui.js, unverändert und in sinnvoller Reihenfolge:
 - findPoliticalTerritoryOption
 - updateRegionParentDropTarget
 - findPoliticalTerritoryTreePath
@@ -233,7 +233,7 @@ index.html:
   11. js/dialogs-review-region-parent-tree.js
   12. js/dialogs-review-region-assignment-state.js
   13. js/dialogs-review-region-assignment-ui.js
-  14. js/dialogs-review.js
+  14. js/review/review-region-util.js
 
 docs/refactoring-status.md:
 - Region-Assignment-State-Smoke als bestanden markieren
@@ -246,11 +246,11 @@ Checks lokal ausführen:
 - Suche nach fehlenden Referenzen/Typo bei js/dialogs-review-region-assignment-ui.js in index.html.
 - Syntaxprüfung:
   - node --check js/dialogs-review-region-assignment-ui.js
-  - node --check js/dialogs-review.js
+  - node --check js/review/review-region-util.js
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/dialogs-review-region-assignment-ui.js docs/refactoring-status.md
+- git add index.html js/review/review-region-util.js js/dialogs-review-region-assignment-ui.js docs/refactoring-status.md
 - git commit -m "Split dialog review region assignment UI helpers"
 - git push
 

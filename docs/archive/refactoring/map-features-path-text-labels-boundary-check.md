@@ -57,8 +57,8 @@ Nicht direkt verwendet im untersuchten Cluster (aber in angrenzenden Rendering-B
 
 ## 7. Vermutlich von aussen gebrauchte Funktionen
 Direkt ausserhalb von `map-features.js` genutzt:
-- `shouldPathNameBeDisplayed(...)` (z. B. `js/dialogs-review-paths.js`, `js/spotlight-search.js`)
-- `syncPathLabels()` (z. B. `js/spotlight-search.js`)
+- `shouldPathNameBeDisplayed(...)` (z. B. `js/dialogs-review-paths.js`, `js/ui/spotlight-search.js`)
+- `syncPathLabels()` (z. B. `js/ui/spotlight-search.js`)
 
 Innerhalb `map-features.js` genutzt:
 - `getReadablePathLabelLatLngCoordinates(...)`

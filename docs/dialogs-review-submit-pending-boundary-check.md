@@ -183,7 +183,7 @@ Geplante Nutzung (ebenfalls nur skizziert):
 
 Falls spaeter umgesetzt:
 
-- nur `js/dialogs-review.js`
+- nur `js/review/review-region-util.js`
 - genau ein sehr kleiner Helper: `setFormFieldsDisabled(formElement, isPending)`
 - nur die 5 Fokusfunktionen intern auf diesen einen Teil umstellen
 - keine Aufrufer aendern

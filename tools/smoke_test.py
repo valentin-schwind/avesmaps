@@ -19,13 +19,13 @@ MAP_MIN = 0
 MAP_MAX = 1024
 SCRIPT_SRC_PATTERN = re.compile(r'<script\s+src="([^"]+)"')
 FRONTEND_SCRIPT_PATHS = [
-    "js/priority-queue.js",
+    "js/routing/route-priority-queue.js",
     "js/config.js",
-    "js/utils.js",
-    "js/popups.js",
-    "js/api.js",
-    "js/dialogs-review.js",
-    "js/ui-controls.js",
+    "js/app/utils.js",
+    "js/ui/popups.js",
+    "js/app/api-client.js",
+    "js/review/review-region-util.js",
+    "js/ui/ui-controls.js",
     "js/map-features.js",
     "js/routing/routing.js",
 ]

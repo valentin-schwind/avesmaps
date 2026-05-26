@@ -176,7 +176,7 @@ Aufgabe:
 - Ziel: Selektoren nur an einer Stelle pro Dialog pflegen.
 - Das erleichtert Codex/Copilot-Aenderungen und reduziert Tippfehler bei DOM-IDs.
 
-## Prioritaet 10: `js/ui-controls.js` splitten
+## Prioritaet 10: `js/ui/ui-controls.js` splitten
 
 `ui-controls.js` enthaelt mehrere unabhaengige UI-Domaenen: Kartendekoration, Massstabsband, Entfernungsmessung und Transport-Comboboxen.
 

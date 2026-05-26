@@ -2,9 +2,9 @@
 
 ## Ausgangspunkt
 
-Nach dem bestaetigten Region-Submit-/Payload-Flow-Split bleibt `js/dialogs-review.js` Rest-Orchestrator fuer Region-/Territory-Event-Bindings, weitere Editor-Submit-Flows, Report-Handler, Init-/Bootstrapping-Logik und verbleibende Hilfsfunktionen.
+Nach dem bestaetigten Region-Submit-/Payload-Flow-Split bleibt `js/review/review-region-util.js` Rest-Orchestrator fuer Region-/Territory-Event-Bindings, weitere Editor-Submit-Flows, Report-Handler, Init-/Bootstrapping-Logik und verbleibende Hilfsfunktionen.
 
-Der naechste sinnvolle Split ist ein enger Region-Events-Split. Er betrifft nur die jQuery-Event-Bindings und den kleinen Filter-Helper fuer Region-/Herrschaftsgebiet-Interaktion. Andere Editor-Submit-Handler, Report-Handler und Init-/Bootstrapping bleiben in `js/dialogs-review.js`.
+Der naechste sinnvolle Split ist ein enger Region-Events-Split. Er betrifft nur die jQuery-Event-Bindings und den kleinen Filter-Helper fuer Region-/Herrschaftsgebiet-Interaktion. Andere Editor-Submit-Handler, Report-Handler und Init-/Bootstrapping bleiben in `js/review/review-region-util.js`.
 
 ## Gelesene Bereiche
 
@@ -66,7 +66,7 @@ Script-Reihenfolge in `index.html`:
 16. `js/dialogs-review-region-dialog-population.js`
 17. `js/dialogs-review-region-submit-flow.js`
 18. `js/dialogs-review-region-events.js`
-19. `js/dialogs-review.js`
+19. `js/review/review-region-util.js`
 
 Begruendung: Die Event-Bindings referenzieren alle vorher ausgelagerten Region-Helfer. Sie muessen nach diesen Dateien, aber vor der Restdatei geladen werden.
 
@@ -127,10 +127,10 @@ git pull --ff-only origin master
 
 Keine ES-Module, kein Build-System, kein type="module". Klassische globale Script-Reihenfolge beibehalten.
 
-Ziel: kontrollierter, verhaltensneutraler Split der Region-/Herrschaftsgebiet-Event-Bindings aus js/dialogs-review.js in eine neue Datei js/dialogs-review-region-events.js.
+Ziel: kontrollierter, verhaltensneutraler Split der Region-/Herrschaftsgebiet-Event-Bindings aus js/review/review-region-util.js in eine neue Datei js/dialogs-review-region-events.js.
 
 Erlaubte Änderungen:
-- js/dialogs-review.js
+- js/review/review-region-util.js
 - neue Datei js/dialogs-review-region-events.js
 - index.html
 - docs/refactoring-status.md
@@ -210,7 +210,7 @@ index.html:
   16. js/dialogs-review-region-dialog-population.js
   17. js/dialogs-review-region-submit-flow.js
   18. js/dialogs-review-region-events.js
-  19. js/dialogs-review.js
+  19. js/review/review-region-util.js
 
 docs/refactoring-status.md:
 - Region-Submit-Flow-Smoke als bestanden markieren
@@ -224,11 +224,11 @@ Checks lokal ausführen:
 - Suche nach fehlender Referenz/Typo bei js/dialogs-review-region-events.js in index.html.
 - Syntaxprüfung:
   - node --check js/dialogs-review-region-events.js
-  - node --check js/dialogs-review.js
+  - node --check js/review/review-region-util.js
 
 Danach:
 - git status zeigen
-- git add index.html js/dialogs-review.js js/dialogs-review-region-events.js docs/refactoring-status.md
+- git add index.html js/review/review-region-util.js js/dialogs-review-region-events.js docs/refactoring-status.md
 - git commit -m "Split dialog review region event bindings"
 - git push
 

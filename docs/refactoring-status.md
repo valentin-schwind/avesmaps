@@ -19,8 +19,8 @@ Diese Bereiche bleiben stabil:
 - `updateMapView(...)` als Routing-Orchestrator in `js/routing/routing.js`, entlastet durch:
   - `collectAndValidateSelectedLocations()`
   - `buildRouteResultFromSelectedLocations(useShortest)`
-- `js/popups.js` mit lokalem Helper `pathCreationActionButtonsMarkup(publicId)`.
-- `js/ui-controls.js` mit lokalem Helper `bindPersistedTabClickHandler(...)`.
+- `js/ui/popups.js` mit lokalem Helper `pathCreationActionButtonsMarkup(publicId)`.
+- `js/ui/ui-controls.js` mit lokalem Helper `bindPersistedTabClickHandler(...)`.
 - Dialog-/Review-Bereich mit den bereits stabilen `js/dialogs-review-*`-Schichten.
 
 ## 3. Stable `map-features` Splits

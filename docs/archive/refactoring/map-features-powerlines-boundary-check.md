@@ -155,7 +155,7 @@ Weitere wichtige externe Abhaengigkeiten:
 
 ## 7. Welche Funktionen vermutlich von aussen gebraucht werden
 
-Durch Aufrufstellen in `index.html`, `js/routing/routing.js`, `js/spotlight-search.js`, `js/dialogs-review-paths.js` und `js/dialogs-review-editor-submit.js` sind mindestens diese Funktionen extern relevant:
+Durch Aufrufstellen in `index.html`, `js/routing/routing.js`, `js/ui/spotlight-search.js`, `js/dialogs-review-paths.js` und `js/dialogs-review-editor-submit.js` sind mindestens diese Funktionen extern relevant:
 
 - `syncPowerlineLabels`
 - `ensurePowerlineAnimationLoop`
@@ -208,7 +208,7 @@ Konservativ und risikoarm waere:
 3. `js/map-features-labels.js` (bereits vorhanden)
 4. `js/map-features-powerlines.js` (neue Split-Datei)
 5. `js/map-features.js` (Rest-Orchestrator)
-6. nachgelagerte Verbraucher (`js/routing/routing.js`, `js/spotlight-search.js`)
+6. nachgelagerte Verbraucher (`js/routing/routing.js`, `js/ui/spotlight-search.js`)
 
 Wichtig:
 

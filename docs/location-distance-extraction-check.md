@@ -15,7 +15,7 @@
 - Schreibt globale Variablen:
   - keine
 - Aufgerufene Funktionen:
-  - `calculateCoordinateDistance(...)` aus `js/utils.js` (`js/utils.js:32`)
+  - `calculateCoordinateDistance(...)` aus `js/app/utils.js` (`js/app/utils.js:32`)
 - DOM/Leaflet/jQuery/API/map-Abhaengigkeiten:
   - keine direkte Abhaengigkeit
 
@@ -46,11 +46,11 @@ Begruendung:
 
 - Die Funktion ist rein rechnerisch und frei von DOM/Leaflet/API.
 - `js/routing/route-graph-core.js` wird bereits vor `js/map-features.js` geladen (`index.html:875` vs. `index.html:885`), daher bleiben bestehende Aufrufe aus `js/map-features.js` gueltig.
-- `calculateCoordinateDistance` bleibt aus `js/utils.js` verfuegbar (`index.html:874`), also ist die Abhaengigkeit bereits vor dem Aufruf vorhanden.
+- `calculateCoordinateDistance` bleibt aus `js/app/utils.js` verfuegbar (`index.html:874`), also ist die Abhaengigkeit bereits vor dem Aufruf vorhanden.
 - Fuer den naechsten Schritt (`findNearestComponentConnection` in `routing/route-graph-core.js`) wird die Rueckwaertsabhaengigkeit auf `js/map-features.js` reduziert.
 
 Alternative:
-- `js/utils.js` waere technisch ebenfalls moeglich, ist aber weniger klar, weil `getLocationDistance` ein domain-spezifisches Location-Objekt (`coordinates`) erwartet.
+- `js/app/utils.js` waere technisch ebenfalls moeglich, ist aber weniger klar, weil `getLocationDistance` ein domain-spezifisches Location-Objekt (`coordinates`) erwartet.
 
 ## 5. Risk Assessment
 

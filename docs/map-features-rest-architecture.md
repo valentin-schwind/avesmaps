@@ -107,12 +107,12 @@ Typische Daten:
 
 - Marker-Entries
 - Location-Properties
-- Popup-Markup aus `js/popups.js`
+- Popup-Markup aus `js/ui/popups.js`
 - Editmode-/Action-Zustaende
 
 Kopplungen:
 
-- `js/popups.js`
+- `js/ui/popups.js`
 - Routing-/Waypoint-Flows
 - Review-/Edit-Flows
 - Spotlight/Search

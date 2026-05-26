@@ -2,7 +2,7 @@
 
 ## 1. Current Responsibilities
 
-Der Transport-Menu-/Combobox-Bereich in `js/ui-controls.js` verantwortet aktuell:
+Der Transport-Menu-/Combobox-Bereich in `js/ui/ui-controls.js` verantwortet aktuell:
 
 - Oeffnen/Schliessen der Menues (`setTransportMenuOpen`, `closeTransportMenu`, `closeAllTransportMenus`).
 - Menuepositionierung relativ zum Trigger-Button (`positionTransportMenu`, `positionOpenTransportMenus`).
@@ -107,7 +107,7 @@ Begruendung:
 
 Falls als spaeterer Code-Schritt umgesetzt:
 
-- nur `js/ui-controls.js`
+- nur `js/ui/ui-controls.js`
 - genau ein lokaler Helper, z. B. `bindTransportControlEvents(control, selectId)`
 - Inhalt: nur bestehende Listener-Registrierungen aus `initializeTransportIconSelect` 1:1 verschieben
 - keine Handler-Logik aendern
