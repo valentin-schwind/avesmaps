@@ -1,3 +1,10 @@
+const WAYPOINT_AUTOCOMPLETE_MAX_RESULTS = 20;
+const WAYPOINT_AUTOCOMPLETE_MIN_LENGTH = 2;
+const WAYPOINT_AUTOCOMPLETE_DELAY_MS = 120;
+
+let waypointAutocompleteSourceCache = null;
+let waypointAutocompleteSourceCacheLength = -1;
+
 function createWaypointId() {
 	return `waypoint-${Date.now()}-${waypointCounter++}`;
 }
@@ -14,22 +21,67 @@ function getWaypointElementById(waypointId) {
 		.first();
 }
 
-function getWaypointAutocompleteSource(term = "") {
-	const waypointNames = locationData
-		.map((loc) => loc.name)
-		.filter((name) => !isCrossingName(name));
-	const normalizedTerm = normalizeLocationSearchName(term);
+function invalidateWaypointAutocompleteSourceCache() {
+	waypointAutocompleteSourceCache = null;
+	waypointAutocompleteSourceCacheLength = -1;
+}
 
-	return waypointNames.sort((a, b) => {
-		const normalizedA = normalizeLocationSearchName(a);
-		const normalizedB = normalizeLocationSearchName(b);
-		const aPrefix = normalizedTerm && normalizedA.startsWith(normalizedTerm) ? 0 : 1;
-		const bPrefix = normalizedTerm && normalizedB.startsWith(normalizedTerm) ? 0 : 1;
-		if (aPrefix !== bPrefix) {
-			return aPrefix - bPrefix;
-		}
-		return a.localeCompare(b);
-	});
+function getWaypointAutocompleteEntries() {
+	if (waypointAutocompleteSourceCache && waypointAutocompleteSourceCacheLength === locationData.length) {
+		return waypointAutocompleteSourceCache;
+	}
+
+	waypointAutocompleteSourceCache = locationData
+		.map((loc) => String(loc?.name || "").trim())
+		.filter((name) => name && !isCrossingName(name))
+		.map((name) => ({
+			name,
+			normalizedName: normalizeLocationSearchName(name),
+		}))
+		.filter((entry) => entry.normalizedName)
+		.sort((a, b) => a.name.localeCompare(b.name, "de"));
+	waypointAutocompleteSourceCacheLength = locationData.length;
+	return waypointAutocompleteSourceCache;
+}
+
+function getWaypointAutocompleteScore(entry, normalizedTerm) {
+	if (entry.normalizedName === normalizedTerm) {
+		return 0;
+	}
+	if (entry.normalizedName.startsWith(normalizedTerm)) {
+		return 1;
+	}
+	if (entry.normalizedName.split(" ").some((part) => part.startsWith(normalizedTerm))) {
+		return 2;
+	}
+	if (entry.normalizedName.includes(normalizedTerm)) {
+		return 3;
+	}
+
+	return Infinity;
+}
+
+function getWaypointAutocompleteSource(term = "") {
+	const normalizedTerm = normalizeLocationSearchName(term);
+	if (normalizedTerm.length < WAYPOINT_AUTOCOMPLETE_MIN_LENGTH) {
+		return [];
+	}
+
+	return getWaypointAutocompleteEntries()
+		.map((entry) => ({
+			entry,
+			score: getWaypointAutocompleteScore(entry, normalizedTerm),
+		}))
+		.filter((match) => Number.isFinite(match.score))
+		.sort((left, right) => {
+			const scoreDiff = left.score - right.score;
+			if (scoreDiff !== 0) {
+				return scoreDiff;
+			}
+			return left.entry.name.localeCompare(right.entry.name, "de");
+		})
+		.slice(0, WAYPOINT_AUTOCOMPLETE_MAX_RESULTS)
+		.map((match) => match.entry.name);
 }
 
 function scrollWaypointInputIntoView($input) {
@@ -110,6 +162,8 @@ function initializeWaypointAutocomplete($input) {
 	initializeWaypointAutocompletePositioning();
 	$input.autocomplete({
 		appendTo: document.body,
+		delay: WAYPOINT_AUTOCOMPLETE_DELAY_MS,
+		minLength: WAYPOINT_AUTOCOMPLETE_MIN_LENGTH,
 		position: {
 			my: "left top",
 			at: "left bottom+4",
@@ -130,6 +184,7 @@ function initializeWaypointAutocomplete($input) {
 }
 
 function refreshWaypointAutocompleteSources() {
+	invalidateWaypointAutocompleteSourceCache();
 	$(".waypoint-input").each(function () {
 		const $input = $(this);
 		if ($input.data("ui-autocomplete")) {
