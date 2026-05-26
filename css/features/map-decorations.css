@@ -1,0 +1,5 @@
+.map-decoration-overlay {
+	pointer-events: none;
+	object-fit: contain;
+	user-select: none;
+}
