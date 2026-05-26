@@ -29,6 +29,8 @@
 @import url("features/map-scale-band.css");
 @import url("features/map-labels.css");
 @import url("features/political-timeline.css");
+@import url("features/location-popups-markers.css");
+@import url("features/measurement-tool.css");
 @import url("features/route-planner.css");
 @import url("features/path-editor.css");
 @import url("features/powerlines.css");
