@@ -3,6 +3,7 @@
 @import url("base/reset.css");
 @import url("base/base.css");
 @import url("layout/map-layout.css");
+@import url("features/route-planner.css");
 
 /*
  * Legacy stylesheet kept during the incremental CSS refactoring.
