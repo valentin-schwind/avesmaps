@@ -16,60 +16,42 @@ function injectRoutePlannerWaypointStyles() {
 	const style = document.createElement("style");
 	style.id = "route-planner-waypoint-polish-styles";
 	style.textContent = `
-		#search {
-			width: 300px;
-			padding: 12px;
-			gap: 10px;
-			border: 1px solid rgba(141, 121, 98, 0.32);
-			border-left: 0;
-			border-radius: 0 12px 12px 0;
-			background: rgba(255, 255, 255, 0.96);
-			box-shadow: 0 16px 36px rgba(31, 25, 20, 0.28);
-			backdrop-filter: blur(3px);
-			box-sizing: border-box;
-		}
-
-		.project-summary {
-			border-radius: 10px;
-			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
-		}
-
 		#waypoints {
 			display: grid;
-			gap: 8px;
+			gap: 5px;
 		}
 
 		.waypoint-container {
 			display: grid;
-			grid-template-columns: 28px minmax(0, 1fr) 30px;
+			grid-template-columns: 24px minmax(0, 1fr) 26px;
 			align-items: center;
-			gap: 7px;
-			min-height: 42px;
-			padding: 6px;
+			gap: 4px;
+			min-height: 36px;
+			padding: 3px 4px;
 			border: 1px solid #d8c6b2;
-			border-radius: 10px;
+			border-radius: 8px;
 			background: #ffffff;
-			box-shadow: 0 4px 14px rgba(52, 41, 32, 0.09);
+			box-shadow: 0 3px 8px rgba(52, 41, 32, 0.08);
 			transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
 			box-sizing: border-box;
 		}
 
 		.waypoint-container:focus-within {
 			border-color: #b99878;
-			box-shadow: 0 7px 20px rgba(52, 41, 32, 0.15), 0 0 0 3px rgba(255, 216, 88, 0.2);
+			box-shadow: 0 5px 14px rgba(52, 41, 32, 0.13), 0 0 0 2px rgba(255, 216, 88, 0.18);
 		}
 
 		.waypoint-container.is-dragging {
-			transform: scale(1.01);
-			box-shadow: 0 12px 24px rgba(52, 41, 32, 0.22);
+			transform: scale(1.005);
+			box-shadow: 0 10px 20px rgba(52, 41, 32, 0.2);
 		}
 
 		.waypoint-drag-handle,
 		.remove-waypoint {
-			width: 28px;
-			height: 28px;
+			width: 24px;
+			height: 24px;
 			border: 0;
-			border-radius: 8px;
+			border-radius: 7px;
 			background: transparent;
 			color: #7c6957;
 			cursor: pointer;
@@ -90,7 +72,7 @@ function injectRoutePlannerWaypointStyles() {
 
 		.waypoint-drag-handle__dots {
 			display: grid;
-			grid-template-columns: repeat(2, 4px);
+			grid-template-columns: repeat(2, 3px);
 			gap: 3px 4px;
 			justify-content: center;
 			align-content: center;
@@ -98,8 +80,8 @@ function injectRoutePlannerWaypointStyles() {
 		}
 
 		.waypoint-drag-handle__dots span {
-			width: 4px;
-			height: 4px;
+			width: 3px;
+			height: 3px;
 			border-radius: 999px;
 			background: currentColor;
 			opacity: 0.72;
@@ -107,16 +89,16 @@ function injectRoutePlannerWaypointStyles() {
 
 		.waypoint-input {
 			width: 100%;
-			height: 34px;
+			height: 30px;
 			min-width: 0;
 			border: 0;
-			border-radius: 8px;
+			border-radius: 7px;
 			background: #ffffff;
 			color: #2f251c;
 			font-family: Georgia, "Times New Roman", serif !important;
-			font-size: 16px;
+			font-size: 15px;
 			line-height: 1.2;
-			padding: 0 4px;
+			padding: 0 3px;
 			box-sizing: border-box;
 			outline: none;
 		}
@@ -127,33 +109,33 @@ function injectRoutePlannerWaypointStyles() {
 
 		.input-options {
 			display: grid;
-			grid-template-columns: 42px minmax(0, 1fr);
-			gap: 8px;
+			grid-template-columns: 34px minmax(0, 1fr);
+			gap: 5px;
 		}
 
 		.input-options button,
 		#searchButton,
 		#inputLocation {
-			min-height: 36px;
+			min-height: 32px;
 			border: 1px solid #8d7962;
-			border-radius: 9px;
+			border-radius: 8px;
 			background: #565044;
 			color: #fff;
 			cursor: pointer;
 			font: inherit;
-			box-shadow: 0 4px 10px rgba(52, 41, 32, 0.18);
+			box-shadow: 0 3px 8px rgba(52, 41, 32, 0.16);
 			transition: background 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
 		}
 
 		#inputLocation {
-			font-size: 18px;
+			font-size: 17px;
 			font-weight: 700;
 		}
 
 		.input-options button:hover,
 		.input-options button:focus-visible {
 			background: #6a604f;
-			box-shadow: 0 6px 14px rgba(52, 41, 32, 0.24);
+			box-shadow: 0 5px 12px rgba(52, 41, 32, 0.22);
 			outline: none;
 			transform: translateY(-1px);
 		}
@@ -161,10 +143,10 @@ function injectRoutePlannerWaypointStyles() {
 		.display-options,
 		#transport-options {
 			display: grid;
-			gap: 9px;
-			padding: 10px;
+			gap: 5px;
+			padding: 6px;
 			border: 1px solid #e1d1bf;
-			border-radius: 12px;
+			border-radius: 8px;
 			background: #fffaf5;
 			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 			box-sizing: border-box;
@@ -175,7 +157,7 @@ function injectRoutePlannerWaypointStyles() {
 		.transport-filter-label {
 			display: flex;
 			align-items: center;
-			gap: 8px;
+			gap: 6px;
 			color: #4f4134;
 			font-size: 12px;
 			line-height: 1.25;
@@ -188,33 +170,33 @@ function injectRoutePlannerWaypointStyles() {
 
 		.display-options__row--wrap {
 			flex-wrap: wrap;
-			gap: 7px;
+			gap: 5px 8px;
 		}
 
 		.display-options__row--wrap label,
 		.transport-filter-label {
-			min-height: 26px;
-			padding: 3px 7px;
-			border: 1px solid #dccab8;
-			border-radius: 999px;
-			background: #fff;
+			min-height: auto;
+			padding: 0;
+			border: 0;
+			border-radius: 0;
+			background: transparent;
 			box-sizing: border-box;
 		}
 
 		.location-toggle-group {
 			display: grid;
 			grid-template-columns: repeat(6, minmax(0, 1fr));
-			gap: 5px;
+			gap: 3px;
 			width: 100%;
 		}
 
 		.location-toggle {
 			min-width: 0;
-			min-height: 34px;
-			border-radius: 9px;
-			border: 1px solid #d8c6b2;
-			background: #fff;
-			box-shadow: 0 2px 6px rgba(52, 41, 32, 0.08);
+			min-height: 30px;
+			border-radius: 7px;
+			border: 1px solid transparent;
+			background: transparent;
+			box-shadow: none;
 			transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
 		}
 
@@ -222,7 +204,7 @@ function injectRoutePlannerWaypointStyles() {
 		.location-toggle:focus-visible,
 		.location-toggle.is-active {
 			border-color: #b99878;
-			background: rgba(255, 216, 88, 0.18);
+			background: rgba(255, 216, 88, 0.14);
 			outline: none;
 		}
 
@@ -235,12 +217,12 @@ function injectRoutePlannerWaypointStyles() {
 		}
 
 		.transport-combobox {
-			min-height: 34px;
+			min-height: 32px;
 			border: 1px solid #d8c6b2;
-			border-radius: 9px;
+			border-radius: 8px;
 			background: #fff;
 			color: #2f251c;
-			box-shadow: 0 2px 6px rgba(52, 41, 32, 0.08);
+			box-shadow: 0 2px 5px rgba(52, 41, 32, 0.08);
 		}
 
 		.transport-combobox:hover,
@@ -252,7 +234,7 @@ function injectRoutePlannerWaypointStyles() {
 
 		.transport-combobox__menu {
 			border: 1px solid #d8c6b2;
-			border-radius: 10px;
+			border-radius: 9px;
 			background: #fff;
 			box-shadow: 0 12px 26px rgba(52, 41, 32, 0.2);
 			overflow: hidden;
@@ -263,9 +245,9 @@ function injectRoutePlannerWaypointStyles() {
 			max-height: min(54vh, 360px);
 			overflow-y: auto;
 			overflow-x: hidden;
-			padding: 5px;
+			padding: 4px;
 			border: 1px solid #d8c6b2 !important;
-			border-radius: 10px;
+			border-radius: 9px;
 			background: #ffffff;
 			box-shadow: 0 16px 38px rgba(31, 25, 20, 0.26);
 			color: #2f251c;
@@ -274,15 +256,15 @@ function injectRoutePlannerWaypointStyles() {
 
 		.ui-autocomplete .ui-menu-item-wrapper {
 			display: block;
-			min-height: 22px;
+			min-height: 20px;
 			border: 0 !important;
-			border-radius: 7px;
+			border-radius: 6px;
 			background: transparent;
 			color: #2f251c;
 			font-family: Georgia, "Times New Roman", serif !important;
 			font-size: 15px;
 			line-height: 1.25;
-			padding: 7px 10px;
+			padding: 6px 9px;
 		}
 
 		.ui-autocomplete .ui-menu-item-wrapper.ui-state-active {
