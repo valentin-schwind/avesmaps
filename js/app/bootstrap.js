@@ -163,13 +163,7 @@ if (IS_EDIT_MODE) {
 }
 
 // UI-Interaktionen und Events
-$("#toggle-button").on("click", () => {
-    const leftPos = isSearchPanelHidden ? "0px" : "-300px",
-        btnPos = isSearchPanelHidden ? "300px" : "0px";
-    $("#search").animate({ left: leftPos }, 500);
-    $("#toggle-button").animate({ left: btnPos }, 500);
-    isSearchPanelHidden = !isSearchPanelHidden;
-});
+
 $("#review-panel-toggle").on("click", toggleReviewPanel);
 window.addEventListener("beforeunload", () => {
     activeFeatureLocks.forEach((timerId) => window.clearInterval(timerId));
