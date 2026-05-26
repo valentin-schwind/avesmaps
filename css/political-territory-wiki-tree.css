@@ -443,3 +443,41 @@ details[open] > summary .tree-toggle::before {
 	font-size: 13px !important;
 	line-height: 1.2 !important;
 }
+
+/* Route planner panel order */
+#search .project-summary {
+	order: 0;
+}
+
+#search .display-options {
+	order: 1;
+}
+
+#search #waypoints {
+	order: 2;
+}
+
+#search .input-options {
+	order: 3;
+}
+
+#search .route-planner-options-panel {
+	order: 4;
+}
+
+#search #transport-options {
+	order: 5;
+}
+
+#transport-options > label:first-child {
+	font-size: 0 !important;
+}
+
+#transport-options > label:first-child::before {
+	content: "Transportmittel";
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	line-height: 1.15;
+	text-transform: uppercase;
+}
