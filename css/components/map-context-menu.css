@@ -41,6 +41,17 @@
 	text-align: center;
 }
 
+.map-context-menu__item:has(.map-context-menu__icon)::before {
+	content: none;
+}
+
+.map-context-menu__icon {
+	display: inline-block;
+	width: 1.45em;
+	margin-right: 0.8em;
+	text-align: center;
+}
+
 .map-context-menu__item:hover,
 .map-context-menu__item:focus-visible {
 	background: var(--color-panel-muted);
