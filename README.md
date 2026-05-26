@@ -113,7 +113,7 @@ Die Datei `api/report-location.php` nimmt neue Ortsmeldungen als JSON entgegen u
 ### Einmaliges Setup
 
 1. Passendes SQL-Schema aus `api/schema.mysql.sql` oder `api/schema.pgsql.sql` ausfuehren.
-2. `api/config.example.php` nach `api/config.local.php` kopieren.
+2. `config/api.config.example.php` nach `api/config.local.php` kopieren.
 3. Dort Datenbank-Zugang und erlaubte Frontend-Origins eintragen.
 4. Den Ordner `api/` auf einem PHP-faehigen Server ausliefern.
 

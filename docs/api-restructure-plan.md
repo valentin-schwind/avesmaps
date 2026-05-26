@@ -98,7 +98,7 @@ api/
     future.mysql.sql
 ```
 
-`api/config.example.php` bleibt vorerst direkt unter `api/`, weil es ein bewusst sichtbares Beispiel fuer Betreiber ist. `api/config.local.php` bleibt ebenfalls der lokale/serverseitige Konfigurationsort, wird aber nicht committed und vom Deploy weiterhin ausgeschlossen.
+`config/api.config.example.php` liegt ausserhalb des API-Roots; die produktive lokale Runtime-Konfiguration bleibt als nicht versionierte Datei `api/config.local.php` beim Deployment.
 
 ## Dokumentierte Entwickler-API
 

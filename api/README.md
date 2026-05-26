@@ -158,7 +158,7 @@ api/_schema/                SQL-Schemata
 
 ## Konfiguration
 
-1. `config.example.php` nach `config.local.php` kopieren
+1. `../config/api.config.example.php` nach `config.local.php` kopieren
 2. echte Datenbankwerte eintragen
 3. `config.local.php` nicht committen
 4. Frontend-Origin in `cors.allowed_origins` eintragen
@@ -203,7 +203,7 @@ Solange alte Schema-Dateien noch im flachen API-Ordner liegen, bleiben sie fuer 
 
 Das lokale Python-Skript `map/import_reported_locations.py` kann ueber serverseitige Admin-Endpunkte arbeiten. Dafuer wird ein separates Import-Token verwendet.
 
-Beispiel in `config.local.php`:
+Beispiel in `api/config.local.php`:
 
 ```php
 'import_api' => [
