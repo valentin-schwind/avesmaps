@@ -122,27 +122,33 @@
 	box-shadow: 0 3px 8px rgba(52, 41, 32, 0.16);
 	transition: background 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
 }
+
 #inputLocation {
+	width: 24px;
+	height: 24px;
+	min-height: 24px;
 	align-self: center;
-	justify-self: center; 
+	justify-self: center;
 	border: 1px solid #cbbeaf;
+	border-radius: 7px;
 	background: #fff9f4;
 	color: #7c6957;
 	font-size: 18px;
-	font-weight: 800; 
+	font-weight: 800;
+	line-height: 1;
 	padding: 0;
-	cursor: pointer; 
+	cursor: pointer;
 	box-shadow: none;
 	transition: background 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
-} 
+}
 
 #inputLocation:hover,
 #inputLocation:focus-visible {
 	background: rgba(255, 216, 88, 0.18);
-	box-shadow: none;
+	box-shadow: 0 5px 12px rgba(52, 41, 32, 0.14);
 	color: #3f3428;
 	outline: none;
-	transform: none;
+	transform: translateY(-1px);
 }
 
 .input-options button:hover,
