@@ -2,7 +2,7 @@
 
 (function initPoliticalTerritoryWikiTreeModule(globalObject) {
 	const MODULE_VERSION = "2026-05-21-drop-defaults-from-wiki";
-	const DEFAULT_API_URL = "/api/political-territory-wiki.php";
+	const DEFAULT_API_URL = "/api/app/political-territory-wiki.php";
 	const DISPLAY_SUFFIXES = ["Staat", "Imperium", "Reich", "Kalifat"];
 
 	function normalizeText(value) {

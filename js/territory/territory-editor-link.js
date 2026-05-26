@@ -1,7 +1,7 @@
 "use strict";
 
 const POLITICAL_TERRITORY_DISPLAY_OVERRIDES_API_URL = "/api/edit/political/display-overrides.php";
-const POLITICAL_TERRITORY_WIKI_API_URL = "/api/political-territory-wiki.php";
+const POLITICAL_TERRITORY_WIKI_API_URL = "/api/app/political-territory-wiki.php";
 
 let activePoliticalTerritoryEditorRegion = null;
 let pendingPoliticalTerritoryEditorFrameSetup = null;

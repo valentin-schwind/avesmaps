@@ -1,7 +1,7 @@
 ﻿"use strict";
 
-		const API_URL = "/api/political-territory-wiki.php";
-		const WRITE_API_URL = "/api/political-territories.php?debug_errors=1";
+		const API_URL = "/api/app/political-territory-wiki.php";
+		const WRITE_API_URL = "/api/app/political-territories.php?debug_errors=1";
 		
 		const MODULE_VERSION = "2026-05-16-module-save-api";
 		const wikiTreeComponent = window.AvesmapsPoliticalTerritoryWikiTree || null;

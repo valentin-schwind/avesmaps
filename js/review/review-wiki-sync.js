@@ -178,7 +178,7 @@ async function loadWikiSyncTerritoryTreeRows({ forceReload = false } = {}) {
 	}
 
 	const response = await treeModule.fetchRows({
-		apiUrl: treeModule.defaultApiUrl || "/api/political-territory-wiki.php",
+		apiUrl: treeModule.defaultApiUrl || "/api/app/political-territory-wiki.php",
 		credentials: "same-origin",
 	});
 
