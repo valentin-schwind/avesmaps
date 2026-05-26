@@ -5,10 +5,8 @@
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title>Avesmaps | Aventurien-Routenplaner fuer Das Schwarze Auge (DSA)</title>
-	<meta
-		name="description"
-		content="Avesmaps ist ein Aventurien-Routenplaner fuer Das Schwarze Auge (DSA) mit Orten, Wegen, politischer Karte, Reichsgrenzen und teilbaren Routen-URLs."
-	/>
+	<meta name="description"
+		content="Avesmaps ist ein Aventurien-Routenplaner fuer Das Schwarze Auge (DSA) mit Orten, Wegen, politischer Karte, Reichsgrenzen und teilbaren Routen-URLs." />
 	<meta name="author" content="Valentin Schwind" />
 	<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 	<meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
@@ -19,10 +17,7 @@
 	<meta property="og:type" content="website" />
 	<meta property="og:site_name" content="Avesmaps" />
 	<meta property="og:title" content="Avesmaps – Interaktive Aventurien-Karte" />
-	<meta
-		property="og:description"
-		content="Orte finden, Routen planen und Aventurien erkunden."
-	/>
+	<meta property="og:description" content="Orte finden, Routen planen und Aventurien erkunden." />
 	<meta property="og:url" content="https://avesmaps.de/" />
 	<meta property="og:image" content="https://avesmaps.de/og-image.jpg" />
 	<meta property="og:image:width" content="1200" />
@@ -30,10 +25,7 @@
 	<meta property="og:image:alt" content="Avesmaps mit Aventurien-Karte und Routenplaner" />
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content="Avesmaps – Interaktive Aventurien-Karte" />
-	<meta
-		name="twitter:description"
-		content="Orte finden, Routen planen und Aventurien erkunden."
-	/>
+	<meta name="twitter:description" content="Orte finden, Routen planen und Aventurien erkunden." />
 	<meta name="twitter:image" content="https://avesmaps.de/og-image.jpg" />
 	<link rel="stylesheet" href="css/leaflet.css" />
 	<link rel="stylesheet" href="css/third-party/jquery-ui.css" />
@@ -97,63 +89,96 @@
 	<script src="js/third-party/jquery-ui.min.js"></script>
 </head>
 
-	<body>
-		<div id="map" style="width: 100%; height: 100%"></div>
+<body>
+	<div id="map" style="width: 100%; height: 100%"></div>
 	<div id="map-context-menu" class="map-context-menu" hidden>
 		<div class="map-context-menu__group" data-context-action="add-here" hidden>
-			<button type="button" class="map-context-menu__item map-context-menu__item--submenu" data-context-action="add-here">Hier hinzufuegen</button>
+			<button type="button" class="map-context-menu__item map-context-menu__item--submenu"
+				data-context-action="add-here">Hier hinzufuegen</button>
 			<div class="map-context-submenu">
-				<button type="button" class="map-context-menu__item" data-context-action="create-location">Neuer Ort</button>
-				<button type="button" class="map-context-menu__item" data-context-action="create-location-from-wiki" hidden>Neuer Ort aus dem Wiki</button>
-				<button type="button" class="map-context-menu__item" data-context-action="create-crossing">Neue Kreuzung</button>
-				<button type="button" class="map-context-menu__item" data-context-action="split-path-at-node" hidden>Neue Kreuzung und Weg teilen</button>
-				<button type="button" class="map-context-menu__item" data-context-action="create-path">Neuer Weg</button>
-				<button type="button" class="map-context-menu__item" data-context-action="create-label">Neues Label</button>
-				<button type="button" class="map-context-menu__item" data-context-action="create-region">Neues Herrschaftsgebiet</button>
+				<button type="button" class="map-context-menu__item" data-context-action="create-location">Neuer
+					Ort</button>
+				<button type="button" class="map-context-menu__item" data-context-action="create-location-from-wiki"
+					hidden>Neuer Ort aus dem Wiki</button>
+				<button type="button" class="map-context-menu__item" data-context-action="create-crossing">Neue
+					Kreuzung</button>
+				<button type="button" class="map-context-menu__item" data-context-action="split-path-at-node"
+					hidden>Neue Kreuzung und Weg teilen</button>
+				<button type="button" class="map-context-menu__item" data-context-action="create-path">Neuer
+					Weg</button>
+				<button type="button" class="map-context-menu__item" data-context-action="create-label">Neues
+					Label</button>
+				<button type="button" class="map-context-menu__item" data-context-action="create-region">Neues
+					Herrschaftsgebiet</button>
 			</div>
 		</div>
-		<button type="button" class="map-context-menu__item" data-context-action="share-pin">📍 Stelle markieren und teilen</button>
-		<button type="button" class="map-context-menu__item" data-context-action="report-location">📝 Hier melden...</button>
-		<button type="button" class="map-context-menu__item" data-context-action="open-spotlight-search">🔎 Suchen</button>
-		<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location">📌 Nächsten Ort finden</button>
-		<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement">📏 Entfernung messen</button>
-		<button type="button" class="map-context-menu__item" data-context-action="clear-distance-measurement" hidden>🗑️ Entfernungsmessung löschen</button>
+		<button type="button" class="map-context-menu__item" data-context-action="share-pin">📍 Stelle markieren und
+			teilen</button>
+		<button type="button" class="map-context-menu__item" data-context-action="report-location">📝 Hier
+			melden...</button>
+		<button type="button" class="map-context-menu__item" data-context-action="open-spotlight-search">🔎
+			Suchen</button>
+		<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location">📌 Nächsten Ort
+			finden</button>
+		<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement">📏
+			Entfernung messen</button>
+		<button type="button" class="map-context-menu__item" data-context-action="clear-distance-measurement" hidden>🗑️
+			Entfernungsmessung löschen</button>
 	</div>
 	<div id="region-context-menu" class="map-context-menu region-context-menu" hidden>
-		<button type="button" class="map-context-menu__item" data-region-context-action="edit-geometry">Grenzen bearbeiten</button>
-		<button type="button" class="map-context-menu__item" data-region-context-action="edit-properties">Eigenschaften bearbeiten</button>
-		<button type="button" class="map-context-menu__item" data-region-context-action="show-info">Infobox anzeigen</button>
+		<button type="button" class="map-context-menu__item" data-region-context-action="edit-geometry">Grenzen
+			bearbeiten</button>
+		<button type="button" class="map-context-menu__item" data-region-context-action="edit-properties">Eigenschaften
+			bearbeiten</button>
+		<button type="button" class="map-context-menu__item" data-region-context-action="show-info">Infobox
+			anzeigen</button>
 		<button type="button" class="map-context-menu__item" data-region-context-action="move">Verschieben</button>
-		<button type="button" class="map-context-menu__item" data-region-context-action="split">Gebiet zerschneiden</button>
-		<button type="button" class="map-context-menu__item" data-region-context-action="union">Mit anderem vereinigen</button>
-		<button type="button" class="map-context-menu__item" data-region-context-action="difference">Von anderem ausschneiden</button>
-		<button type="button" class="map-context-menu__item" data-region-context-action="difference-keep-target">Von anderem ausschneiden und anderes beibehalten</button>
-		<button type="button" class="map-context-menu__item" data-region-context-action="intersection">Neues von anderem ausschneiden</button>
-		<button type="button" class="map-context-menu__item" data-region-context-action="extract">Neues Gebiet herausloesen</button>
-		<button type="button" class="map-context-menu__item map-context-menu__item--danger" data-region-context-action="delete">Loeschen</button>
+		<button type="button" class="map-context-menu__item" data-region-context-action="split">Gebiet
+			zerschneiden</button>
+		<button type="button" class="map-context-menu__item" data-region-context-action="union">Mit anderem
+			vereinigen</button>
+		<button type="button" class="map-context-menu__item" data-region-context-action="difference">Von anderem
+			ausschneiden</button>
+		<button type="button" class="map-context-menu__item" data-region-context-action="difference-keep-target">Von
+			anderem ausschneiden und anderes beibehalten</button>
+		<button type="button" class="map-context-menu__item" data-region-context-action="intersection">Neues von anderem
+			ausschneiden</button>
+		<button type="button" class="map-context-menu__item" data-region-context-action="extract">Neues Gebiet
+			herausloesen</button>
+		<button type="button" class="map-context-menu__item map-context-menu__item--danger"
+			data-region-context-action="delete">Loeschen</button>
 	</div>
 	<div id="political-territory-editor-overlay" class="political-territory-editor-overlay" hidden>
-		<div id="political-territory-editor-dialog" class="political-territory-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="political-territory-editor-title" tabindex="-1">
+		<div id="political-territory-editor-dialog" class="political-territory-editor-dialog" role="dialog"
+			aria-modal="true" aria-labelledby="political-territory-editor-title" tabindex="-1">
 			<div class="political-territory-editor-dialog__header">
 				<h2 id="political-territory-editor-title">Herrschaftsgebiet-Eigenschaften</h2>
-				<button id="political-territory-editor-close" class="political-territory-editor-dialog__close" type="button" aria-label="Eigenschaften schliessen">x</button>
+				<button id="political-territory-editor-close" class="political-territory-editor-dialog__close"
+					type="button" aria-label="Eigenschaften schliessen">x</button>
 			</div>
-			<iframe id="political-territory-editor-frame" class="political-territory-editor-dialog__frame" title="Herrschaftsgebiet-Eigenschaften"></iframe>
+			<iframe id="political-territory-editor-frame" class="political-territory-editor-dialog__frame"
+				title="Herrschaftsgebiet-Eigenschaften"></iframe>
 		</div>
 	</div>
 	<div id="spotlight-search-overlay" class="spotlight-search-overlay" hidden>
-		<div id="spotlight-search-dialog" class="spotlight-search" role="dialog" aria-modal="true" aria-labelledby="spotlight-search-title">
+		<div id="spotlight-search-dialog" class="spotlight-search" role="dialog" aria-modal="true"
+			aria-labelledby="spotlight-search-title">
 			<h2 id="spotlight-search-title" class="spotlight-search__title">Suchen</h2>
-			<input id="spotlight-search-input" class="spotlight-search__input" type="search" autocomplete="off" spellcheck="false" placeholder="Karte durchsuchen" aria-controls="spotlight-search-results" aria-autocomplete="list" />
-			<div id="spotlight-search-results" class="spotlight-search__results" role="listbox" aria-label="Suchtreffer" hidden></div>
-			<p id="spotlight-search-status" class="spotlight-search__status" role="status" aria-live="polite" hidden></p>
+			<input id="spotlight-search-input" class="spotlight-search__input" type="search" autocomplete="off"
+				spellcheck="false" placeholder="Karte durchsuchen" aria-controls="spotlight-search-results"
+				aria-autocomplete="list" />
+			<div id="spotlight-search-results" class="spotlight-search__results" role="listbox" aria-label="Suchtreffer"
+				hidden></div>
+			<p id="spotlight-search-status" class="spotlight-search__status" role="status" aria-live="polite" hidden>
+			</p>
 		</div>
 	</div>
 	<aside id="review-panel" class="review-panel" aria-labelledby="review-panel-title" hidden>
 		<header class="review-panel__header">
 			<h2 id="review-panel-title">Review</h2>
 			<div class="review-panel__header-actions">
-				<button id="review-panel-refresh" class="review-panel__icon-button" type="button" title="Neu laden">↻</button>
+				<button id="review-panel-refresh" class="review-panel__icon-button" type="button"
+					title="Neu laden">↻</button>
 			</div>
 		</header>
 		<p id="map-data-status" class="map-data-status" role="status" aria-live="polite" hidden></p>
@@ -164,17 +189,21 @@
 			<button class="review-panel__tab" type="button" data-editor-panel-tab="presence">Status</button>
 		</nav>
 		<section class="review-panel__section is-active" data-editor-panel-section="review">
-			<p id="review-panel-status" class="review-panel__status" role="status" aria-live="polite">Meldungen werden geladen...</p>
+			<p id="review-panel-status" class="review-panel__status" role="status" aria-live="polite">Meldungen werden
+				geladen...</p>
 			<div id="review-report-list" class="review-panel__list"></div>
 		</section>
 		<section class="review-panel__section" data-editor-panel-section="changes">
-			<p id="change-panel-status" class="review-panel__status" role="status" aria-live="polite">Änderungen werden geladen...</p>
+			<p id="change-panel-status" class="review-panel__status" role="status" aria-live="polite">Änderungen werden
+				geladen...</p>
 			<div id="change-log-list" class="review-panel__list"></div>
 		</section>
-		<section class="review-panel__section" data-editor-panel-section="wiki-sync"> 
+		<section class="review-panel__section" data-editor-panel-section="wiki-sync">
 			<nav class="wiki-sync-panel__tabs" aria-label="WikiSync-Bereiche">
-				<button class="wiki-sync-panel__tab is-active" type="button" data-wiki-sync-panel-tab="locations">Siedlungen</button>
-				<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="territories">Herrschaftsgebiete</button>
+				<button class="wiki-sync-panel__tab is-active" type="button"
+					data-wiki-sync-panel-tab="locations">Siedlungen</button>
+				<button class="wiki-sync-panel__tab" type="button"
+					data-wiki-sync-panel-tab="territories">Herrschaftsgebiete</button>
 			</nav>
 
 			<div class="wiki-sync-panel__tab-panel is-active" data-wiki-sync-panel-section="locations">
@@ -185,7 +214,8 @@
 				<progress id="wiki-sync-progress" class="wiki-sync-progress" max="5" value="0" hidden></progress>
 
 				<div class="wiki-sync-panel__filter">
-					<input id="wiki-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="WikiSync-Fälle durchsuchen" />
+					<input id="wiki-sync-filter" class="wiki-sync-panel__filter-input" type="search"
+						placeholder="Suchen ..." aria-label="WikiSync-Fälle durchsuchen" />
 				</div>
 				<div id="wiki-sync-case-list" class="review-panel__list"></div>
 			</div>
@@ -195,16 +225,19 @@
 					<span id="wiki-sync-territories-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
 					<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button">WikiSync</button>
 				</div>
-				<progress id="wiki-sync-territories-progress" class="wiki-sync-progress" max="1" value="0" hidden></progress>
+				<progress id="wiki-sync-territories-progress" class="wiki-sync-progress" max="1" value="0"
+					hidden></progress>
 
 				<div class="wiki-sync-panel__filter">
-					<input id="wiki-sync-territory-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="Herrschaftsgebiete durchsuchen" />
+					<input id="wiki-sync-territory-filter" class="wiki-sync-panel__filter-input" type="search"
+						placeholder="Suchen ..." aria-label="Herrschaftsgebiete durchsuchen" />
 				</div>
 				<div id="wiki-sync-territory-tree" class="tree-wrap wiki-sync-territory-tree" role="tree"></div>
 			</div>
 		</section>
 		<section class="review-panel__section" data-editor-panel-section="presence">
-			<p id="presence-panel-status" class="review-panel__status" role="status" aria-live="polite">Nutzerstatus wird geladen...</p>
+			<p id="presence-panel-status" class="review-panel__status" role="status" aria-live="polite">Nutzerstatus
+				wird geladen...</p>
 			<div id="presence-user-list" class="review-panel__list"></div>
 		</section>
 	</aside>
@@ -214,12 +247,12 @@
 		<span id="region-operation-chip-text"></span>
 		<button id="region-operation-cancel" type="button">Abbrechen</button>
 	</div>
-	<div id="political-timeline" class="political-timeline" hidden> 
+	<div id="political-timeline" class="political-timeline" hidden>
 		<div id="political-territory-range" class="political-territory-range" hidden>
 			<div class="political-territory-range__header">
 				<span id="political-territory-range-name" class="political-territory-range__name"></span>
 				<span id="political-territory-range-years" class="political-territory-range__years"></span>
-			</div> 
+			</div>
 		</div>
 		<div class="political-timeline__controls">
 			<label class="political-timeline__field">
@@ -229,17 +262,22 @@
 					<input id="political-timeline-range" type="range" min="0" max="1049" step="1" value="1049" />
 				</span>
 			</label>
-			<input id="political-timeline-year" class="political-timeline__year" type="number" min="0" max="1049" step="1" value="1049" aria-label="Jahr" />
+			<input id="political-timeline-year" class="political-timeline__year" type="number" min="0" max="1049"
+				step="1" value="1049" aria-label="Jahr" />
 			<span id="political-timeline-label" class="political-timeline__label">1049 BF</span>
 		</div>
 	</div>
 	<div id="location-report-overlay" hidden>
-		<div id="location-report-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="location-report-title" tabindex="-1">
+		<div id="location-report-dialog" class="location-report-dialog" role="dialog" aria-modal="true"
+			aria-labelledby="location-report-title" tabindex="-1">
 			<div class="location-report-dialog__header">
 				<h2 id="location-report-title">Karteneintrag melden</h2>
-				<button id="location-report-close" class="location-report-dialog__close" type="button" aria-label="Meldung schließen">×</button>
+				<button id="location-report-close" class="location-report-dialog__close" type="button"
+					aria-label="Meldung schließen">×</button>
 			</div>
-			<p class="location-report-dialog__intro">Hilf mit, Avesmaps zu erweitern. Alle Meldungen werden gesammelt und geprüft. Bitte melde nur Einträge mit sicherer Quellenlage und beschreibe die Stelle, wenn die Position nicht eindeutig ist.</p>
+			<p class="location-report-dialog__intro">Hilf mit, Avesmaps zu erweitern. Alle Meldungen werden gesammelt
+				und geprüft. Bitte melde nur Einträge mit sicherer Quellenlage und beschreibe die Stelle, wenn die
+				Position nicht eindeutig ist.</p>
 			<form id="location-report-form" class="location-report-form" novalidate>
 				<div class="location-report-form__meta">
 					<div class="location-report-form__meta-item">
@@ -286,11 +324,13 @@
 				</label>
 				<label class="location-report-form__field">
 					<span>Dein Name/Pseudonym (optional)</span>
-					<input id="location-report-reporter-name" name="reporter_name" type="text" maxlength="80" autocomplete="nickname" />
+					<input id="location-report-reporter-name" name="reporter_name" type="text" maxlength="80"
+						autocomplete="nickname" />
 				</label>
 				<label class="location-report-form__field">
 					<span>Wiki-Link (wenn vorhanden)</span>
-					<input id="location-report-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="300" placeholder="https://..." />
+					<input id="location-report-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="300"
+						placeholder="https://..." />
 				</label>
 				<label id="location-report-comment-field" class="location-report-form__field">
 					<span>Kommentar (zur näheren Beschreibung)</span>
@@ -301,21 +341,30 @@
 				<input id="location-report-page-url" name="page_url" type="hidden" />
 				<input id="location-report-client-version" name="client_version" type="hidden" />
 				<input id="location-report-opened-at" name="opened_at" type="hidden" />
-				<input id="location-report-honeypot" class="location-report-form__honeypot" name="website" type="text" tabindex="-1" autocomplete="off" />
-				<p id="location-report-service-note" class="location-report-form__service-note" hidden>Das Meldeformular ist hier noch nicht mit einem Avesmaps-Server verbunden.</p>
-				<p id="location-report-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+				<input id="location-report-honeypot" class="location-report-form__honeypot" name="website" type="text"
+					tabindex="-1" autocomplete="off" />
+				<p id="location-report-service-note" class="location-report-form__service-note" hidden>Das Meldeformular
+					ist hier noch nicht mit einem Avesmaps-Server verbunden.</p>
+				<p id="location-report-status" class="location-report-form__status" role="status" aria-live="polite">
+				</p>
 				<div class="location-report-form__actions">
-					<button id="location-report-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
-					<button id="location-report-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Melden</button>
+					<button id="location-report-cancel"
+						class="location-report-form__button location-report-form__button--secondary"
+						type="button">Abbrechen</button>
+					<button id="location-report-submit"
+						class="location-report-form__button location-report-form__button--primary"
+						type="submit">Melden</button>
 				</div>
 			</form>
 		</div>
 	</div>
 	<div id="location-edit-overlay" hidden>
-		<div id="location-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="location-edit-title" tabindex="-1">
+		<div id="location-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true"
+			aria-labelledby="location-edit-title" tabindex="-1">
 			<div class="location-report-dialog__header">
 				<h2 id="location-edit-title">Ort bearbeiten</h2>
-				<button id="location-edit-close" class="location-report-dialog__close" type="button" aria-label="Ortsbearbeitung schliessen">x</button>
+				<button id="location-edit-close" class="location-report-dialog__close" type="button"
+					aria-label="Ortsbearbeitung schliessen">x</button>
 			</div>
 			<form id="location-edit-form" class="location-report-form" novalidate>
 				<input id="location-edit-public-id" name="public_id" type="hidden" />
@@ -348,7 +397,8 @@
 				</label>
 				<label class="location-report-form__field">
 					<span>Wiki-Aventurica-Link</span>
-					<input id="location-edit-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
+					<input id="location-edit-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="500"
+						placeholder="https://..." />
 				</label>
 				<label class="location-report-form__field location-report-form__field--checkbox">
 					<input id="location-edit-is-nodix" name="is_nodix" type="checkbox" />
@@ -360,17 +410,23 @@
 				</label>
 				<p id="location-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions">
-					<button id="location-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
-					<button id="location-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
+					<button id="location-edit-cancel"
+						class="location-report-form__button location-report-form__button--secondary"
+						type="button">Abbrechen</button>
+					<button id="location-edit-submit"
+						class="location-report-form__button location-report-form__button--primary"
+						type="submit">Speichern</button>
 				</div>
 			</form>
 		</div>
 	</div>
 	<div id="wiki-sync-resolve-overlay" hidden>
-		<div id="wiki-sync-resolve-dialog" class="location-report-dialog wiki-sync-resolve-dialog" role="dialog" aria-modal="true" aria-labelledby="wiki-sync-resolve-title" tabindex="-1">
+		<div id="wiki-sync-resolve-dialog" class="location-report-dialog wiki-sync-resolve-dialog" role="dialog"
+			aria-modal="true" aria-labelledby="wiki-sync-resolve-title" tabindex="-1">
 			<div class="location-report-dialog__header">
 				<h2 id="wiki-sync-resolve-title">WikiSync-Fall lösen</h2>
-				<button id="wiki-sync-resolve-close" class="location-report-dialog__close" type="button" aria-label="WikiSync-Fall schliessen">x</button>
+				<button id="wiki-sync-resolve-close" class="location-report-dialog__close" type="button"
+					aria-label="WikiSync-Fall schliessen">x</button>
 			</div>
 			<form id="wiki-sync-resolve-form" class="location-report-form" novalidate>
 				<input id="wiki-sync-resolve-case-id" name="case_id" type="hidden" />
@@ -379,8 +435,12 @@
 				<input id="wiki-sync-resolve-lat" name="lat" type="hidden" />
 				<input id="wiki-sync-resolve-lng" name="lng" type="hidden" />
 				<div class="wiki-sync-resolve-presets" role="group" aria-label="WikiSync-Vorlagen">
-					<button id="wiki-sync-preset-wiki" class="location-report-form__button location-report-form__button--secondary" type="button">Wiki-Einstellung</button>
-					<button id="wiki-sync-preset-avesmap" class="location-report-form__button location-report-form__button--secondary" type="button">Avesmap Einstellung</button>
+					<button id="wiki-sync-preset-wiki"
+						class="location-report-form__button location-report-form__button--secondary"
+						type="button">Wiki-Einstellung</button>
+					<button id="wiki-sync-preset-avesmap"
+						class="location-report-form__button location-report-form__button--secondary"
+						type="button">Avesmap Einstellung</button>
 				</div>
 				<div class="location-report-form__meta">
 					<div class="location-report-form__meta-item">
@@ -405,13 +465,18 @@
 				</label>
 				<label class="location-report-form__field">
 					<span>Beschreibung</span>
-					<textarea id="wiki-sync-resolve-description" name="description" rows="4" maxlength="1200"></textarea>
+					<textarea id="wiki-sync-resolve-description" name="description" rows="4"
+						maxlength="1200"></textarea>
 				</label>
 				<label class="location-report-form__field">
 					<span>Wiki-Aventurica-Link</span>
 					<div class="wiki-sync-resolve-link-row">
-						<input id="wiki-sync-resolve-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
-						<button id="wiki-sync-resolve-wiki-open" class="location-report-form__button location-report-form__button--secondary wiki-sync-resolve-link-button" type="button" title="Wiki-Link in neuem Fenster öffnen" aria-label="Wiki-Link in neuem Fenster öffnen">↗</button>
+						<input id="wiki-sync-resolve-wiki-url" name="wiki_url" type="url" inputmode="url"
+							maxlength="500" placeholder="https://..." />
+						<button id="wiki-sync-resolve-wiki-open"
+							class="location-report-form__button location-report-form__button--secondary wiki-sync-resolve-link-button"
+							type="button" title="Wiki-Link in neuem Fenster öffnen"
+							aria-label="Wiki-Link in neuem Fenster öffnen">↗</button>
 					</div>
 				</label>
 				<label class="location-report-form__field location-report-form__field--checkbox">
@@ -422,19 +487,26 @@
 					<input id="wiki-sync-resolve-is-ruined" name="is_ruined" type="checkbox" />
 					<span>Ruine/zerstoert</span>
 				</label>
-				<p id="wiki-sync-resolve-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+				<p id="wiki-sync-resolve-status" class="location-report-form__status" role="status" aria-live="polite">
+				</p>
 				<div class="location-report-form__actions">
-					<button id="wiki-sync-resolve-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
-					<button id="wiki-sync-resolve-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Lösen</button>
+					<button id="wiki-sync-resolve-cancel"
+						class="location-report-form__button location-report-form__button--secondary"
+						type="button">Abbrechen</button>
+					<button id="wiki-sync-resolve-submit"
+						class="location-report-form__button location-report-form__button--primary"
+						type="submit">Lösen</button>
 				</div>
 			</form>
 		</div>
 	</div>
 	<div id="path-edit-overlay" hidden>
-		<div id="path-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="path-edit-title" tabindex="-1">
+		<div id="path-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true"
+			aria-labelledby="path-edit-title" tabindex="-1">
 			<div class="location-report-dialog__header">
 				<h2 id="path-edit-title">Weg bearbeiten</h2>
-				<button id="path-edit-close" class="location-report-dialog__close" type="button" aria-label="Wegbearbeitung schliessen">x</button>
+				<button id="path-edit-close" class="location-report-dialog__close" type="button"
+					aria-label="Wegbearbeitung schliessen">x</button>
 			</div>
 			<form id="path-edit-form" class="location-report-form" novalidate>
 				<input id="path-edit-public-id" name="public_id" type="hidden" />
@@ -466,10 +538,12 @@
 				<div id="path-edit-transport-options" class="location-report-form__field">
 					<span>Erlaubte Transportmittel</span>
 					<label><input type="checkbox" name="allowed_transport" value="caravan" /> Karawane</label>
-					<label><input type="checkbox" name="allowed_transport" value="groupFoot" /> Reisegruppe zu Fuss</label>
+					<label><input type="checkbox" name="allowed_transport" value="groupFoot" /> Reisegruppe zu
+						Fuss</label>
 					<label><input type="checkbox" name="allowed_transport" value="lightWalker" /> Zu Fuss</label>
 					<label><input type="checkbox" name="allowed_transport" value="horseCarriage" /> Kutsche</label>
-					<label><input type="checkbox" name="allowed_transport" value="groupHorse" /> Reisegruppe beritten</label>
+					<label><input type="checkbox" name="allowed_transport" value="groupHorse" /> Reisegruppe
+						beritten</label>
 					<label><input type="checkbox" name="allowed_transport" value="lightRider" /> Reiter</label>
 					<label><input type="checkbox" name="allowed_transport" value="riverSailer" /> Flusssegler</label>
 					<label><input type="checkbox" name="allowed_transport" value="riverBarge" /> Flusskahn</label>
@@ -479,17 +553,23 @@
 				</div>
 				<p id="path-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions">
-					<button id="path-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
-					<button id="path-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
+					<button id="path-edit-cancel"
+						class="location-report-form__button location-report-form__button--secondary"
+						type="button">Abbrechen</button>
+					<button id="path-edit-submit"
+						class="location-report-form__button location-report-form__button--primary"
+						type="submit">Speichern</button>
 				</div>
 			</form>
 		</div>
 	</div>
 	<div id="powerline-edit-overlay" hidden>
-		<div id="powerline-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="powerline-edit-title" tabindex="-1">
+		<div id="powerline-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true"
+			aria-labelledby="powerline-edit-title" tabindex="-1">
 			<div class="location-report-dialog__header">
 				<h2 id="powerline-edit-title">Kraftlinie bearbeiten</h2>
-				<button id="powerline-edit-close" class="location-report-dialog__close" type="button" aria-label="Kraftlinienbearbeitung schliessen">x</button>
+				<button id="powerline-edit-close" class="location-report-dialog__close" type="button"
+					aria-label="Kraftlinienbearbeitung schliessen">x</button>
 			</div>
 			<form id="powerline-edit-form" class="location-report-form" novalidate>
 				<input id="powerline-edit-public-id" name="public_id" type="hidden" />
@@ -503,18 +583,26 @@
 				</label>
 				<p id="powerline-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions">
-					<button id="powerline-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
-					<button id="powerline-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Loeschen</button>
-					<button id="powerline-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
+					<button id="powerline-edit-cancel"
+						class="location-report-form__button location-report-form__button--secondary"
+						type="button">Abbrechen</button>
+					<button id="powerline-edit-delete"
+						class="location-report-form__button location-report-form__button--secondary"
+						type="button">Loeschen</button>
+					<button id="powerline-edit-submit"
+						class="location-report-form__button location-report-form__button--primary"
+						type="submit">Speichern</button>
 				</div>
 			</form>
 		</div>
 	</div>
 	<div id="label-edit-overlay" hidden>
-		<div id="label-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="label-edit-title" tabindex="-1">
+		<div id="label-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true"
+			aria-labelledby="label-edit-title" tabindex="-1">
 			<div class="location-report-dialog__header">
 				<h2 id="label-edit-title">Label bearbeiten</h2>
-				<button id="label-edit-close" class="location-report-dialog__close" type="button" aria-label="Labelbearbeitung schliessen">x</button>
+				<button id="label-edit-close" class="location-report-dialog__close" type="button"
+					aria-label="Labelbearbeitung schliessen">x</button>
 			</div>
 			<form id="label-edit-form" class="location-report-form" novalidate>
 				<input id="label-edit-public-id" name="public_id" type="hidden" />
@@ -547,7 +635,8 @@
 				</label>
 				<label class="location-report-form__field">
 					<span>Rotation</span>
-					<input id="label-edit-rotation" name="rotation" type="number" min="-180" max="180" step="1" value="0" />
+					<input id="label-edit-rotation" name="rotation" type="number" min="-180" max="180" step="1"
+						value="0" />
 				</label>
 				<label class="location-report-form__field">
 					<span>Sichtbar ab Zoom <output id="label-edit-min-zoom-output">0</output></span>
@@ -567,18 +656,26 @@
 				</label>
 				<p id="label-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions">
-					<button id="label-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Loeschen</button>
-					<button id="label-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
-					<button id="label-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
+					<button id="label-edit-delete"
+						class="location-report-form__button location-report-form__button--secondary"
+						type="button">Loeschen</button>
+					<button id="label-edit-cancel"
+						class="location-report-form__button location-report-form__button--secondary"
+						type="button">Abbrechen</button>
+					<button id="label-edit-submit"
+						class="location-report-form__button location-report-form__button--primary"
+						type="submit">Speichern</button>
 				</div>
 			</form>
 		</div>
 	</div>
 	<div id="region-edit-overlay" hidden>
-		<div id="region-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="region-edit-title" tabindex="-1">
+		<div id="region-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true"
+			aria-labelledby="region-edit-title" tabindex="-1">
 			<div class="location-report-dialog__header">
 				<h2 id="region-edit-title">Herrschaftsgebiet bearbeiten</h2>
-				<button id="region-edit-close" class="location-report-dialog__close" type="button" aria-label="Herrschaftsgebiet schliessen">x</button>
+				<button id="region-edit-close" class="location-report-dialog__close" type="button"
+					aria-label="Herrschaftsgebiet schliessen">x</button>
 			</div>
 			<form id="region-edit-form" class="location-report-form political-territory-tree-form" novalidate>
 				<input id="region-edit-public-id" name="public_id" type="hidden" />
@@ -586,32 +683,43 @@
 				<input id="region-edit-territory-public-id" name="territory_public_id" type="hidden" />
 				<input id="region-edit-geometry-public-id" name="geometry_public_id" type="hidden" />
 				<input id="region-edit-wiki-id" name="wiki_id" type="hidden" />
-				<section id="region-edit-wiki-reference" class="political-territory-wiki-reference political-territory-field" aria-labelledby="region-edit-wiki-reference-title">
+				<section id="region-edit-wiki-reference"
+					class="political-territory-wiki-reference political-territory-field"
+					aria-labelledby="region-edit-wiki-reference-title">
 					<div class="political-territory-wiki-reference__header">
 						<h3 id="region-edit-wiki-reference-title">Wiki-Referenz</h3>
-						<button id="region-edit-change-wiki" class="location-report-form__button location-report-form__button--secondary" type="button">Wiki-Referenz ändern</button>
+						<button id="region-edit-change-wiki"
+							class="location-report-form__button location-report-form__button--secondary"
+							type="button">Wiki-Referenz ändern</button>
 					</div>
 					<dl id="region-edit-wiki-reference-list"></dl>
 				</section>
 				<section class="location-report-form__field political-territory-field political-territory-tree-panel">
 					<span>Parent/Hierarchie</span>
 					<div class="political-territory-parent-search">
-						<input id="region-edit-parent-filter" type="search" autocomplete="off" placeholder="Hierarchie durchsuchen" />
+						<input id="region-edit-parent-filter" type="search" autocomplete="off"
+							placeholder="Hierarchie durchsuchen" />
 						<button id="region-edit-parent-filter-clear" type="button" aria-label="Suche leeren">x</button>
 					</div>
 					<div id="region-edit-parent-tree" class="political-territory-parent-tree" role="tree"></div>
 					<div id="region-edit-assignment-drop" class="political-territory-assignment-drop" tabindex="0">
-						<span id="region-edit-assignment-drop-label">Untersten Knoten hierher ziehen, um die Geometrie zuzuweisen</span>
+						<span id="region-edit-assignment-drop-label">Untersten Knoten hierher ziehen, um die Geometrie
+							zuzuweisen</span>
 					</div>
 					<div class="political-territory-assignment-toolbar">
-						<nav id="region-edit-assignment-breadcrumb" class="political-territory-assignment-breadcrumb" aria-label="Zugehoerigkeit"></nav>
+						<nav id="region-edit-assignment-breadcrumb" class="political-territory-assignment-breadcrumb"
+							aria-label="Zugehoerigkeit"></nav>
 						<div class="political-territory-assignment-actions">
-							<button id="region-edit-assignment-clear" type="button" class="location-report-form__button location-report-form__button--secondary">Zuweisung aufheben</button>
+							<button id="region-edit-assignment-clear" type="button"
+								class="location-report-form__button location-report-form__button--secondary">Zuweisung
+								aufheben</button>
 						</div>
 					</div>
-					<div id="region-edit-assignment-summary" class="political-territory-assignment-summary" hidden></div>
+					<div id="region-edit-assignment-summary" class="political-territory-assignment-summary" hidden>
+					</div>
 				</section>
-				<div id="region-edit-tabs" class="political-territory-tabs political-territory-field" role="tablist" aria-label="Offene Herrschaftsgebiete"></div>
+				<div id="region-edit-tabs" class="political-territory-tabs political-territory-field" role="tablist"
+					aria-label="Offene Herrschaftsgebiete"></div>
 				<label class="location-report-form__field">
 					<span>Name * <small>Anzeige, falls kein Kurzname gesetzt ist</small></span>
 					<input id="region-edit-name" name="name" type="text" maxlength="160" required />
@@ -639,17 +747,20 @@
 					</label>
 					<label class="location-report-form__field">
 						<span>Transparenz <output id="region-edit-opacity-output">33%</output></span>
-						<input id="region-edit-opacity" name="opacity" type="range" min="0" max="100" step="1" value="33" />
+						<input id="region-edit-opacity" name="opacity" type="range" min="0" max="100" step="1"
+							value="33" />
 					</label>
 				</div>
 				<label class="location-report-form__field">
 					<span>Wiki-Aventurica-Link</span>
-					<input id="region-edit-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
+					<input id="region-edit-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="500"
+						placeholder="https://..." />
 				</label>
 				<label class="location-report-form__field political-territory-field">
 					<span>Wappen-Link</span>
 					<div class="political-territory-coat-field">
-						<input id="region-edit-coat-url" name="coat_of_arms_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
+						<input id="region-edit-coat-url" name="coat_of_arms_url" type="url" inputmode="url"
+							maxlength="500" placeholder="https://..." />
 						<img id="region-edit-coat-preview" class="political-territory-coat-preview" alt="" hidden />
 					</div>
 				</label>
@@ -691,28 +802,40 @@
 				</label>
 				<p id="region-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 				<div class="location-report-form__actions">
-					<button id="region-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Loeschen</button>
-					<button id="region-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
-					<button id="region-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
+					<button id="region-edit-delete"
+						class="location-report-form__button location-report-form__button--secondary"
+						type="button">Loeschen</button>
+					<button id="region-edit-cancel"
+						class="location-report-form__button location-report-form__button--secondary"
+						type="button">Abbrechen</button>
+					<button id="region-edit-submit"
+						class="location-report-form__button location-report-form__button--primary"
+						type="submit">Speichern</button>
 				</div>
 			</form>
 		</div>
 	</div>
 	<div id="region-wiki-picker-overlay" hidden>
-		<div id="region-wiki-picker-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="region-wiki-picker-title" tabindex="-1">
+		<div id="region-wiki-picker-dialog" class="location-report-dialog" role="dialog" aria-modal="true"
+			aria-labelledby="region-wiki-picker-title" tabindex="-1">
 			<div class="location-report-dialog__header">
 				<h2 id="region-wiki-picker-title">Wiki-Referenz ändern</h2>
-				<button id="region-wiki-picker-close" class="location-report-dialog__close" type="button" aria-label="Wiki-Referenz schliessen">x</button>
+				<button id="region-wiki-picker-close" class="location-report-dialog__close" type="button"
+					aria-label="Wiki-Referenz schliessen">x</button>
 			</div>
 			<div class="location-report-form">
 				<label class="location-report-form__field">
 					<span>Wiki-Eintrag suchen</span>
-					<input id="region-wiki-picker-filter" type="search" autocomplete="off" placeholder="Name, Typ, Zugehörigkeit" />
+					<input id="region-wiki-picker-filter" type="search" autocomplete="off"
+						placeholder="Name, Typ, Zugehörigkeit" />
 				</label>
 				<div id="region-wiki-picker-list" class="political-territory-wiki-picker-list" role="listbox"></div>
-				<p id="region-wiki-picker-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+				<p id="region-wiki-picker-status" class="location-report-form__status" role="status" aria-live="polite">
+				</p>
 				<div class="location-report-form__actions">
-					<button id="region-wiki-picker-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+					<button id="region-wiki-picker-cancel"
+						class="location-report-form__button location-report-form__button--secondary"
+						type="button">Abbrechen</button>
 				</div>
 			</div>
 		</div>
@@ -731,34 +854,62 @@
 		<div class="display-options">
 			<label class="display-options__row display-options__select-row">Deregraphie
 				<div class="transport-select-with-icon transport-icon-select display-options__icon-select">
-					<select id="mapLayerModeSelect" class="display-options__select transport-native-select" aria-label="Deregraphie">
+					<select id="mapLayerModeSelect" class="display-options__select transport-native-select"
+						aria-label="Deregraphie">
 						<option value="none">Nur Karte</option>
 						<option value="political" disabled>Politisch</option>
 						<option value="deregraphic" selected>Regionen</option>
 						<option value="powerlines">Kraftlinien</option>
 					</select>
-					<button type="button" id="mapLayerModeButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="mapLayerModeMenu">
-						<img id="mapLayerModeIcon" class="transport-option-inline-icon" src="icons/small_webp/RegionenKarte.webp" data-source-src="icons/small_webp/RegionenKarte.webp" alt="" />
+					<button type="button" id="mapLayerModeButton" class="transport-combobox" aria-haspopup="listbox"
+						aria-expanded="false" aria-controls="mapLayerModeMenu">
+						<img id="mapLayerModeIcon" class="transport-option-inline-icon"
+							src="icons/small_webp/RegionenKarte.webp"
+							data-source-src="icons/small_webp/RegionenKarte.webp" alt="" />
 						<span id="mapLayerModeLabel" class="transport-combobox__label">Regionen</span>
 					</button>
-					<div id="mapLayerModeMenu" class="transport-combobox__menu" role="listbox" aria-label="Deregraphie" hidden></div>
+					<div id="mapLayerModeMenu" class="transport-combobox__menu" role="listbox" aria-label="Deregraphie"
+						hidden></div>
 				</div>
 			</label>
 			<div class="display-options__row">
 				<div class="location-toggle-group" role="group" aria-label="Ortsklassen anzeigen">
-					<button type="button" class="location-toggle" data-location-type="metropole" title="Metropolen anzeigen oder ausblenden" aria-label="Metropolen anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/small_webp/metropole.webp" data-source-src="icons/small_webp/metropole.webp" alt="" /></button>
-					<button type="button" class="location-toggle" data-location-type="grossstadt" title="Großstädte anzeigen oder ausblenden" aria-label="Großstädte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/small_webp/grossstadt.webp" data-source-src="icons/small_webp/grossstadt.webp" alt="" /></button>
-					<button type="button" class="location-toggle" data-location-type="stadt" title="Städte anzeigen oder ausblenden" aria-label="Städte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/small_webp/stadt.webp" data-source-src="icons/small_webp/stadt.webp" alt="" /></button>
-					<button type="button" class="location-toggle" data-location-type="kleinstadt" title="Kleinstädte anzeigen oder ausblenden" aria-label="Kleinstädte anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/small_webp/kleinstadt.webp" data-source-src="icons/small_webp/kleinstadt.webp" alt="" /></button>
-					<button type="button" class="location-toggle" data-location-type="dorf" title="Dörfer anzeigen oder ausblenden" aria-label="Dörfer anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/small_webp/dorf.webp" data-source-src="icons/small_webp/dorf.webp" alt="" /></button>
-					<button type="button" class="location-toggle" data-location-type="gebaeude" title="Besondere Bauwerke/Stätten anzeigen oder ausblenden" aria-label="Besondere Bauwerke/Stätten anzeigen oder ausblenden"><img class="location-toggle__icon" src="icons/small_webp/bauwerk.webp" data-source-src="icons/small_webp/bauwerk.webp" alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="metropole"
+						title="Metropolen anzeigen oder ausblenden"
+						aria-label="Metropolen anzeigen oder ausblenden"><img class="location-toggle__icon"
+							src="icons/small_webp/metropole.webp" data-source-src="icons/small_webp/metropole.webp"
+							alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="grossstadt"
+						title="Großstädte anzeigen oder ausblenden"
+						aria-label="Großstädte anzeigen oder ausblenden"><img class="location-toggle__icon"
+							src="icons/small_webp/grossstadt.webp" data-source-src="icons/small_webp/grossstadt.webp"
+							alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="stadt"
+						title="Städte anzeigen oder ausblenden" aria-label="Städte anzeigen oder ausblenden"><img
+							class="location-toggle__icon" src="icons/small_webp/stadt.webp"
+							data-source-src="icons/small_webp/stadt.webp" alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="kleinstadt"
+						title="Kleinstädte anzeigen oder ausblenden"
+						aria-label="Kleinstädte anzeigen oder ausblenden"><img class="location-toggle__icon"
+							src="icons/small_webp/kleinstadt.webp" data-source-src="icons/small_webp/kleinstadt.webp"
+							alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="dorf"
+						title="Dörfer anzeigen oder ausblenden" aria-label="Dörfer anzeigen oder ausblenden"><img
+							class="location-toggle__icon" src="icons/small_webp/dorf.webp"
+							data-source-src="icons/small_webp/dorf.webp" alt="" /></button>
+					<button type="button" class="location-toggle" data-location-type="gebaeude"
+						title="Besondere Bauwerke/Stätten anzeigen oder ausblenden"
+						aria-label="Besondere Bauwerke/Stätten anzeigen oder ausblenden"><img
+							class="location-toggle__icon" src="icons/small_webp/bauwerk.webp"
+							data-source-src="icons/small_webp/bauwerk.webp" alt="" /></button>
 				</div>
 			</div>
 			<div class="display-options__row display-options__row--wrap">
 				<label id="togglePathsControl"><input type="checkbox" id="togglePaths" /> Wege</label>
 				<label id="toggleRiversControl"><input type="checkbox" id="toggleRivers" /> Flüsse</label>
 				<label id="toggleSeaPathsControl" hidden><input type="checkbox" id="toggleSeaPaths" /> Seewege</label>
-				<label id="toggleCrossingsControl" hidden><input type="checkbox" id="toggleCrossings" /> Kreuzungen</label>
+				<label id="toggleCrossingsControl" hidden><input type="checkbox" id="toggleCrossings" />
+					Kreuzungen</label>
 				<label id="toggleNodixControl" hidden><input type="checkbox" id="toggleNodix" /> Nodices</label>
 			</div>
 			<label id="mapStyleControl" class="display-options__row display-options__select-row" hidden>Mapstil
@@ -772,9 +923,12 @@
 		<div id="transport-options">
 			<label>Transportmittel:</label>
 			<div></div>
-			<label class="transport-filter-label"><input type="checkbox" id="allowLand" checked /> <img class="transport-filter-icon" src="icons/small_webp/landweg.webp" data-source-src="icons/small_webp/landweg.webp" alt="" /> Land</label>
+			<label class="transport-filter-label"><input type="checkbox" id="allowLand" checked /> <img
+					class="transport-filter-icon" src="icons/small_webp/landweg.webp"
+					data-source-src="icons/small_webp/landweg.webp" alt="" /> Land</label>
 			<div class="transport-select-with-icon transport-icon-select">
-				<select id="landTransport" class="transportOptionSelect transport-native-select" aria-label="Land-Transportmittel">
+				<select id="landTransport" class="transportOptionSelect transport-native-select"
+					aria-label="Land-Transportmittel">
 					<option value="caravan">Karawane (3.5 km/h)</option>
 					<option value="groupFoot" selected>Reisegruppe zu Fuß (4 km/h)</option>
 					<option value="lightWalker">Zu Fuß mit leichtem Gepäck (5 km/h)</option>
@@ -782,36 +936,54 @@
 					<option value="groupHorse">Reisegruppe zu Pferd (6.5 km/h)</option>
 					<option value="lightRider">Reiter zu Pferd mit leichtem Gepäck (8 km/h)</option>
 				</select>
-				<button type="button" id="landTransportButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="landTransportMenu">
-					<img id="landTransportIcon" class="transport-option-inline-icon" src="icons/small_webp/Reisegruppe.webp" data-source-src="icons/small_webp/Reisegruppe.webp" alt="" />
+				<button type="button" id="landTransportButton" class="transport-combobox" aria-haspopup="listbox"
+					aria-expanded="false" aria-controls="landTransportMenu">
+					<img id="landTransportIcon" class="transport-option-inline-icon"
+						src="icons/small_webp/Reisegruppe.webp" data-source-src="icons/small_webp/Reisegruppe.webp"
+						alt="" />
 					<span id="landTransportLabel" class="transport-combobox__label">Reisegruppe zu Fuß (4 km/h)</span>
 				</button>
-				<div id="landTransportMenu" class="transport-combobox__menu" role="listbox" aria-label="Land-Transportmittel" hidden></div>
+				<div id="landTransportMenu" class="transport-combobox__menu" role="listbox"
+					aria-label="Land-Transportmittel" hidden></div>
 			</div>
-			<label class="transport-filter-label"><input type="checkbox" id="allowRiver" checked /> <img class="transport-filter-icon" src="icons/small_webp/flussweg.webp" data-source-src="icons/small_webp/flussweg.webp" alt="" /> Fluss</label>
+			<label class="transport-filter-label"><input type="checkbox" id="allowRiver" checked /> <img
+					class="transport-filter-icon" src="icons/small_webp/flussweg.webp"
+					data-source-src="icons/small_webp/flussweg.webp" alt="" /> Fluss</label>
 			<div class="transport-select-with-icon transport-icon-select">
-				<select id="riverTransport" class="transportOptionSelect transport-native-select" aria-label="Fluss-Transportmittel">
+				<select id="riverTransport" class="transportOptionSelect transport-native-select"
+					aria-label="Fluss-Transportmittel">
 					<option value="riverSailer" selected>Flusssegler</option>
 					<option value="riverBarge">Flusskahn</option>
 				</select>
-				<button type="button" id="riverTransportButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="riverTransportMenu">
-					<img id="riverTransportIcon" class="transport-option-inline-icon" src="icons/small_webp/Flusssegler.webp" data-source-src="icons/small_webp/Flusssegler.webp" alt="" />
+				<button type="button" id="riverTransportButton" class="transport-combobox" aria-haspopup="listbox"
+					aria-expanded="false" aria-controls="riverTransportMenu">
+					<img id="riverTransportIcon" class="transport-option-inline-icon"
+						src="icons/small_webp/Flusssegler.webp" data-source-src="icons/small_webp/Flusssegler.webp"
+						alt="" />
 					<span id="riverTransportLabel" class="transport-combobox__label">Flusssegler</span>
 				</button>
-				<div id="riverTransportMenu" class="transport-combobox__menu" role="listbox" aria-label="Fluss-Transportmittel" hidden></div>
+				<div id="riverTransportMenu" class="transport-combobox__menu" role="listbox"
+					aria-label="Fluss-Transportmittel" hidden></div>
 			</div>
-			<label class="transport-filter-label"><input type="checkbox" id="allowSea" checked /> <img class="transport-filter-icon" src="icons/small_webp/meerweg.webp" data-source-src="icons/small_webp/meerweg.webp" alt="" /> Meer</label>
+			<label class="transport-filter-label"><input type="checkbox" id="allowSea" checked /> <img
+					class="transport-filter-icon" src="icons/small_webp/meerweg.webp"
+					data-source-src="icons/small_webp/meerweg.webp" alt="" /> Meer</label>
 			<div class="transport-select-with-icon transport-icon-select">
-				<select id="seaTransport" class="transportOptionSelect transport-native-select" aria-label="Meer-Transportmittel">
+				<select id="seaTransport" class="transportOptionSelect transport-native-select"
+					aria-label="Meer-Transportmittel">
 					<option value="cargoShip" selected>Lastensegler</option>
 					<option value="fastShip">Schnellsegler</option>
 					<option value="galley">Galeere</option>
 				</select>
-				<button type="button" id="seaTransportButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="seaTransportMenu">
-					<img id="seaTransportIcon" class="transport-option-inline-icon" src="icons/small_webp/Lastensegler.webp" data-source-src="icons/small_webp/Lastensegler.webp" alt="" />
+				<button type="button" id="seaTransportButton" class="transport-combobox" aria-haspopup="listbox"
+					aria-expanded="false" aria-controls="seaTransportMenu">
+					<img id="seaTransportIcon" class="transport-option-inline-icon"
+						src="icons/small_webp/Lastensegler.webp" data-source-src="icons/small_webp/Lastensegler.webp"
+						alt="" />
 					<span id="seaTransportLabel" class="transport-combobox__label">Lastensegler</span>
 				</button>
-				<div id="seaTransportMenu" class="transport-combobox__menu" role="listbox" aria-label="Meer-Transportmittel" hidden></div>
+				<div id="seaTransportMenu" class="transport-combobox__menu" role="listbox"
+					aria-label="Meer-Transportmittel" hidden></div>
 			</div>
 		</div>
 		<button id="toggle-button">Routenplaner</button>
@@ -842,31 +1014,92 @@
 		</div>
 		<div id="overview">Wegpunkte und Dauer der Reise werden hier angezeigt.</div>
 	</div>
-	<button id="legal-button" type="button" aria-haspopup="dialog" aria-controls="legal-dialog" aria-expanded="false">Hinweise</button>
+	<button id="legal-button" type="button" aria-haspopup="dialog" aria-controls="legal-dialog"
+		aria-expanded="false">Hinweise</button>
 	<div id="legal-overlay" hidden>
-		<div id="legal-dialog" class="legal-dialog" role="dialog" aria-modal="true" aria-labelledby="legal-title" tabindex="-1">
+		<div id="legal-dialog" class="legal-dialog" role="dialog" aria-modal="true" aria-labelledby="legal-title"
+			tabindex="-1">
 			<div class="legal-dialog__header">
 				<h2 id="legal-title">Hinweise</h2>
-				<button id="legal-close" class="legal-dialog__close" type="button" aria-label="Rechtliches schließen">×</button>
+				<button id="legal-close" class="legal-dialog__close" type="button"
+					aria-label="Rechtliches schließen">×</button>
 			</div>
 			<div class="legal-dialog__badge">
-				<img src="img/dsa-fanprojekt-logo.png" data-source-src="img/dsa-fanprojekt-logo.png" alt="DSA-Fanprojekt-Logo" />
+				<img src="img/dsa-fanprojekt-logo.png" data-source-src="img/dsa-fanprojekt-logo.png"
+					alt="DSA-Fanprojekt-Logo" />
 				<span>Nicht-kommerzielles Fanprojekt</span>
 			</div>
 			<div class="legal-dialog__content">
-				<p><strong>Fanprojekt.</strong> Avesmaps ist ein privates, offenes und nicht-kommerzielles Fanprojekt von Valentin Schwind. Avesmaps ist keine offizielle Publikation zu Das Schwarze Auge und steht in keiner offiziellen Verbindung zu Ulisses Spiele, der Ulisses Medien & Spiel Distribution GmbH oder anderen Rechteinhabern. Die auf dieser Website enthaltenen Informationen zu Das Schwarze Auge, Aventurien und Dere sind inoffiziell, können unvollständig oder fehlerhaft sein und können offiziellen Publikationen widersprechen.</p>
-				<p><strong>Verantwortlicher.</strong> Entwicklung, Gestaltung, Programmierung, redaktionelle Pflege und Betrieb erfolgen durch Valentin Schwind.</p>
-				<p><strong>Kartenmaterial.</strong> Die interaktive Karte basiert auf bearbeitetem Kartenmaterial und daraus abgeleiteten Orts-, Wege- und Geometriedaten. Soweit offizielles DSA-Kartenmaterial von Ulisses verwendet wird, erfolgt dies nach bestem Wissen ausschließlich im Rahmen der von Ulisses für nicht-kommerzielle Fanprojekte und Online-Nutzung bereitgestellten Bedingungen, insbesondere der einschlägigen Fanrichtlinien und, soweit anwendbar, der Kartenpaket-Lizenz. Bearbeitungen des Kartenmaterials dienen ausschließlich der technischen Umsetzung als interaktive Karte und der nicht-kommerziellen Nutzung im Umfeld von Das Schwarze Auge.</p>
-				<p><strong>Keine freie Lizenz für DSA-Material.</strong> DSA-bezogenes Karten-, Bild-, Marken-, Namens- und Hintergrundmaterial wird auf Avesmaps nicht unter Creative Commons, Open Data, Open Source oder einer vergleichbaren freien Lizenz veröffentlicht. Dies gilt insbesondere für Inhalte, die auf offiziellen Publikationen, Karten, Namen, Begriffen, Marken oder sonstigem geschütztem Material von Ulisses oder anderen Rechteinhabern beruhen. Eine Weiterverwendung solcher Inhalte ist nur im Rahmen der jeweils einschlägigen Rechte und Lizenzbedingungen zulässig.</p>
-				<p><strong>Fanrichtlinien und Fanprojekt-Kennzeichnung.</strong> Avesmaps kennzeichnet sich als Fanprojekt. Die Verwendung des DSA-FANPROJEKT-Logos und der rechtlichen Hinweise erfolgt nach bestem Wissen im Sinne der von Ulisses veröffentlichten Fanrichtlinien beziehungsweise der einschlägigen Lizenzbedingungen für Fan- und Kartenmaterial. Die Erlaubnis zur Nutzung bestimmter Materialien kann von den Rechteinhabern widerrufen oder im Einzelfall untersagt werden. Bei einem entsprechenden Hinweis durch Rechteinhaber werden betroffene Inhalte geprüft und, soweit erforderlich, entfernt oder angepasst.</p>
-				<p><strong>Orts-, Wege- und Routendaten.</strong> Orts-, Kreuzungs-, Wege- und Routendaten wurden aus verschiedenen öffentlich zugänglichen Fan- und Referenzquellen teilweise abgeleitet, redaktionell überarbeitet, ergänzt und technisch für Avesmaps aufbereitet. Teile der Ausgangsdaten orientieren sich nach bisheriger Quellenlage an avespfade.de; dort werden Oliver Hackstein und Florian Mazur als Quelle genannt. Nach Angaben von avespfade.de wurden einzelne Ortspositionen teilweise an das DereGlobus-Projekt angelehnt. Avesmaps erhebt keinen Anspruch auf Vollständigkeit, Kanonizität oder offizielle Verbindlichkeit dieser Daten.</p>
-				<p><strong>Community-Meldungen.</strong> Von Nutzerinnen und Nutzern gemeldete Orte, Korrekturen oder Ergänzungen werden nicht automatisch veröffentlicht. Sie werden redaktionell geprüft und nur übernommen, wenn sie nach Einschätzung des Betreibers inhaltlich, technisch und rechtlich vertretbar sind. Mit dem Absenden einer Meldung wird keine Veröffentlichung zugesagt.</p>
-				<p><strong>Marken- und Rechtehinweis.</strong> Artwork © Ulisses Spiele, soweit nicht anders angegeben. DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA, RIESLAND und THE DARK EYE sind eingetragene Marken der Ulisses Spiele GmbH, Waldems. Die Verwendung von Grafiken, Kartenmaterial, Namen und sonstigem DSA-bezogenem Material erfolgt ausschließlich im Rahmen der von Ulisses Spiele erlaubten Richtlinien beziehungsweise einschlägigen Lizenzbedingungen. Eine Verwendung über diese Richtlinien hinaus darf nur nach vorheriger schriftlicher Genehmigung der Ulisses Medien und Spiel Distribution GmbH erfolgen.</p>
-				<p><strong>Distanzierung von offizieller Verbindlichkeit.</strong> Avesmaps ist ein Hilfsmittel für Spielrunden, Recherche und private Nutzung. Die Website ersetzt keine offiziellen DSA-Publikationen. Maßgeblich für Kanon, Regeln, Geographie, Namen, Grenzen und Beschreibungen bleiben ausschließlich die offiziellen Veröffentlichungen der jeweiligen Rechteinhaber.</p>
-				<p><strong>Software und Open-Source-Komponenten.</strong> Avesmaps verwendet Leaflet, eine Open-Source-JavaScript-Bibliothek für interaktive Karten, und polygon-clipping für boolesche Polygonoperationen im Herrschaftsgebiete-Editor. Leaflet steht unter der BSD-2-Clause-Lizenz; polygon-clipping steht unter der MIT-Lizenz. Die Nutzung dieser Bibliotheken betrifft ausschließlich die technische Darstellung und Bedienung der interaktiven Karte und begründet keine Rechte an DSA-bezogenem Karten-, Namens-, Marken- oder Hintergrundmaterial.</p>
-                <p><strong>Quellen.</strong> <a href="https://avespfade.de/" target="_blank" rel="noopener noreferrer">avespfade.de</a> · <a href="https://www.orkenspalter.de/filebase/index.php/File/46-Aventurienkarte-aus-Regionalpl%C3%A4nen/" target="_blank" rel="noopener noreferrer">Orkenspalter Kartenmaterial</a> · <a href="https://ulisses-spiele.de/fan-richtlinie/" target="_blank" rel="noopener noreferrer">Ulisses Fan-Richtlinie</a> · <a href="https://leafletjs.com/" target="_blank" rel="noopener noreferrer">Leaflet</a> · <a href="https://github.com/mfogel/polygon-clipping" target="_blank" rel="noopener noreferrer">polygon-clipping</a> · <a href="https://github.com/valentin-schwind/avesmaps" target="_blank" rel="noopener noreferrer">GitHub-Repository</a></p>
-				<p class="legal-dialog__note">Hinweis: Diese Zusammenfassung dient der Quellen- und Lizenzangabe im Projekt.</p>
-</div>
+				<p><strong>Fanprojekt.</strong> Avesmaps ist ein privates, offenes und nicht-kommerzielles Fanprojekt
+					von Valentin Schwind. Avesmaps ist keine offizielle Publikation zu Das Schwarze Auge und steht in
+					keiner offiziellen Verbindung zu Ulisses Spiele, der Ulisses Medien & Spiel Distribution GmbH oder
+					anderen Rechteinhabern. Die auf dieser Website enthaltenen Informationen zu Das Schwarze Auge,
+					Aventurien und Dere sind inoffiziell, können unvollständig oder fehlerhaft sein und können
+					offiziellen Publikationen widersprechen.</p>
+				<p><strong>Verantwortlicher.</strong> Entwicklung, Gestaltung, Programmierung, redaktionelle Pflege und
+					Betrieb erfolgen durch Valentin Schwind.</p>
+				<p><strong>Kartenmaterial.</strong> Die interaktive Karte basiert auf bearbeitetem Kartenmaterial und
+					daraus abgeleiteten Orts-, Wege- und Geometriedaten. Soweit offizielles DSA-Kartenmaterial von
+					Ulisses verwendet wird, erfolgt dies nach bestem Wissen ausschließlich im Rahmen der von Ulisses für
+					nicht-kommerzielle Fanprojekte und Online-Nutzung bereitgestellten Bedingungen, insbesondere der
+					einschlägigen Fanrichtlinien und, soweit anwendbar, der Kartenpaket-Lizenz. Bearbeitungen des
+					Kartenmaterials dienen ausschließlich der technischen Umsetzung als interaktive Karte und der
+					nicht-kommerziellen Nutzung im Umfeld von Das Schwarze Auge.</p>
+				<p><strong>Keine freie Lizenz für DSA-Material.</strong> DSA-bezogenes Karten-, Bild-, Marken-, Namens-
+					und Hintergrundmaterial wird auf Avesmaps nicht unter Creative Commons, Open Data, Open Source oder
+					einer vergleichbaren freien Lizenz veröffentlicht. Dies gilt insbesondere für Inhalte, die auf
+					offiziellen Publikationen, Karten, Namen, Begriffen, Marken oder sonstigem geschütztem Material von
+					Ulisses oder anderen Rechteinhabern beruhen. Eine Weiterverwendung solcher Inhalte ist nur im Rahmen
+					der jeweils einschlägigen Rechte und Lizenzbedingungen zulässig.</p>
+				<p><strong>Fanrichtlinien und Fanprojekt-Kennzeichnung.</strong> Avesmaps kennzeichnet sich als
+					Fanprojekt. Die Verwendung des DSA-FANPROJEKT-Logos und der rechtlichen Hinweise erfolgt nach bestem
+					Wissen im Sinne der von Ulisses veröffentlichten Fanrichtlinien beziehungsweise der einschlägigen
+					Lizenzbedingungen für Fan- und Kartenmaterial. Die Erlaubnis zur Nutzung bestimmter Materialien kann
+					von den Rechteinhabern widerrufen oder im Einzelfall untersagt werden. Bei einem entsprechenden
+					Hinweis durch Rechteinhaber werden betroffene Inhalte geprüft und, soweit erforderlich, entfernt
+					oder angepasst.</p>
+				<p><strong>Orts-, Wege- und Routendaten.</strong> Orts-, Kreuzungs-, Wege- und Routendaten wurden aus
+					verschiedenen öffentlich zugänglichen Fan- und Referenzquellen teilweise abgeleitet, redaktionell
+					überarbeitet, ergänzt und technisch für Avesmaps aufbereitet. Teile der Ausgangsdaten orientieren
+					sich nach bisheriger Quellenlage an avespfade.de; dort werden Oliver Hackstein und Florian Mazur als
+					Quelle genannt. Nach Angaben von avespfade.de wurden einzelne Ortspositionen teilweise an das
+					DereGlobus-Projekt angelehnt. Avesmaps erhebt keinen Anspruch auf Vollständigkeit, Kanonizität oder
+					offizielle Verbindlichkeit dieser Daten.</p>
+				<p><strong>Community-Meldungen.</strong> Von Nutzerinnen und Nutzern gemeldete Orte, Korrekturen oder
+					Ergänzungen werden nicht automatisch veröffentlicht. Sie werden redaktionell geprüft und nur
+					übernommen, wenn sie nach Einschätzung des Betreibers inhaltlich, technisch und rechtlich vertretbar
+					sind. Mit dem Absenden einer Meldung wird keine Veröffentlichung zugesagt.</p>
+				<p><strong>Marken- und Rechtehinweis.</strong> Artwork © Ulisses Spiele, soweit nicht anders angegeben.
+					DAS SCHWARZE AUGE, AVENTURIEN, DERE, MYRANOR, THARUN, UTHURIA, RIESLAND und THE DARK EYE sind
+					eingetragene Marken der Ulisses Spiele GmbH, Waldems. Die Verwendung von Grafiken, Kartenmaterial,
+					Namen und sonstigem DSA-bezogenem Material erfolgt ausschließlich im Rahmen der von Ulisses Spiele
+					erlaubten Richtlinien beziehungsweise einschlägigen Lizenzbedingungen. Eine Verwendung über diese
+					Richtlinien hinaus darf nur nach vorheriger schriftlicher Genehmigung der Ulisses Medien und Spiel
+					Distribution GmbH erfolgen.</p>
+				<p><strong>Distanzierung von offizieller Verbindlichkeit.</strong> Avesmaps ist ein Hilfsmittel für
+					Spielrunden, Recherche und private Nutzung. Die Website ersetzt keine offiziellen DSA-Publikationen.
+					Maßgeblich für Kanon, Regeln, Geographie, Namen, Grenzen und Beschreibungen bleiben ausschließlich
+					die offiziellen Veröffentlichungen der jeweiligen Rechteinhaber.</p>
+				<p><strong>Software und Open-Source-Komponenten.</strong> Avesmaps verwendet Leaflet, eine
+					Open-Source-JavaScript-Bibliothek für interaktive Karten, und polygon-clipping für boolesche
+					Polygonoperationen im Herrschaftsgebiete-Editor. Leaflet steht unter der BSD-2-Clause-Lizenz;
+					polygon-clipping steht unter der MIT-Lizenz. Die Nutzung dieser Bibliotheken betrifft ausschließlich
+					die technische Darstellung und Bedienung der interaktiven Karte und begründet keine Rechte an
+					DSA-bezogenem Karten-, Namens-, Marken- oder Hintergrundmaterial.</p>
+				<p><strong>Quellen.</strong> <a href="https://avespfade.de/" target="_blank"
+						rel="noopener noreferrer">avespfade.de</a> · <a
+						href="https://www.orkenspalter.de/filebase/index.php/File/46-Aventurienkarte-aus-Regionalpl%C3%A4nen/"
+						target="_blank" rel="noopener noreferrer">Orkenspalter Kartenmaterial</a> · <a
+						href="https://ulisses-spiele.de/fan-richtlinie/" target="_blank"
+						rel="noopener noreferrer">Ulisses Fan-Richtlinie</a> · <a href="https://leafletjs.com/"
+						target="_blank" rel="noopener noreferrer">Leaflet</a> · <a
+						href="https://github.com/mfogel/polygon-clipping" target="_blank"
+						rel="noopener noreferrer">polygon-clipping</a> · <a
+						href="https://github.com/valentin-schwind/avesmaps" target="_blank"
+						rel="noopener noreferrer">GitHub-Repository</a></p>
+				<p class="legal-dialog__note">Hinweis: Diese Zusammenfassung dient der Quellen- und Lizenzangabe im
+					Projekt.</p>
+			</div>
 		</div>
 	</div>
 
@@ -953,6 +1186,7 @@
 	<script src="js/routing/route-plan.js"></script>
 	<script src="js/routing/route-engine.js"></script>
 	<script src="js/routing/route-render.js"></script>
+	<script src="js/routing/client-graph-routing.js"></script>
 	<script src="js/routing.js"></script>
 	<script src="js/spotlight-search.js"></script>
 	<script src="js/app/bootstrap.js"></script>
