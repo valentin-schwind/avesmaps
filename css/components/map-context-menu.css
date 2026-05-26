@@ -22,7 +22,6 @@
 .map-context-menu__item {
 	width: 100%;
 	display: block;
-	padding: 7px 12px;
 	border: 0;
 	border-radius: 6px;
 	background: transparent;
@@ -38,7 +37,7 @@
 .map-context-menu__item::before {
 	display: inline-block;
 	width: 1.45em;
-	margin-right: 0.28em;
+	margin-right: 0.8em;
 	text-align: center;
 }
 
