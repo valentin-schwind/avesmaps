@@ -7,6 +7,7 @@ let waypointAutocompleteSourceCacheLength = -1;
 
 injectRoutePlannerWaypointStyles();
 correctDerographyLabels();
+enhanceRoutePlannerOptionPanel();
 
 function injectRoutePlannerWaypointStyles() {
 	if (document.getElementById("route-planner-waypoint-polish-styles")) {
@@ -61,6 +62,11 @@ function injectRoutePlannerWaypointStyles() {
 			transition: background 0.12s ease, color 0.12s ease;
 		}
 
+		.waypoint-drag-handle {
+			font-size: 17px;
+			font-weight: 700;
+		}
+
 		.waypoint-drag-handle:hover,
 		.waypoint-drag-handle:focus-visible,
 		.remove-waypoint:hover,
@@ -68,23 +74,6 @@ function injectRoutePlannerWaypointStyles() {
 			background: rgba(255, 216, 88, 0.18);
 			color: #3f3428;
 			outline: none;
-		}
-
-		.waypoint-drag-handle__dots {
-			display: grid;
-			grid-template-columns: repeat(2, 3px);
-			gap: 3px 4px;
-			justify-content: center;
-			align-content: center;
-			height: 100%;
-		}
-
-		.waypoint-drag-handle__dots span {
-			width: 3px;
-			height: 3px;
-			border-radius: 999px;
-			background: currentColor;
-			opacity: 0.72;
 		}
 
 		.waypoint-input {
@@ -95,7 +84,6 @@ function injectRoutePlannerWaypointStyles() {
 			border-radius: 7px;
 			background: #ffffff;
 			color: #2f251c;
-			font-family: Georgia, "Times New Roman", serif !important;
 			font-size: 15px;
 			line-height: 1.2;
 			padding: 0 3px;
@@ -141,7 +129,8 @@ function injectRoutePlannerWaypointStyles() {
 		}
 
 		.display-options,
-		#transport-options {
+		#transport-options,
+		.route-planner-options-panel {
 			display: grid;
 			gap: 5px;
 			padding: 6px;
@@ -149,6 +138,45 @@ function injectRoutePlannerWaypointStyles() {
 			border-radius: 8px;
 			background: #fffaf5;
 			box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+			box-sizing: border-box;
+		}
+
+		.route-planner-options-panel__title {
+			margin: 0 0 1px;
+			color: #6a5543;
+			font-size: 11px;
+			font-weight: 700;
+			letter-spacing: 0.04em;
+			line-height: 1.15;
+			text-transform: uppercase;
+		}
+
+		.route-planner-options-panel__row {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 5px 8px;
+			color: #4f4134;
+			font-size: 12px;
+			line-height: 1.25;
+		}
+
+		.route-planner-options-panel label {
+			display: inline-flex;
+			align-items: center;
+			gap: 4px;
+			margin: 0;
+			white-space: nowrap;
+		}
+
+		.route-planner-options-panel input[type="number"] {
+			height: 25px;
+			border: 1px solid #d8c6b2;
+			border-radius: 6px;
+			background: #fff;
+			color: #2f251c;
+			font: inherit;
+			padding: 0 4px;
 			box-sizing: border-box;
 		}
 
@@ -197,14 +225,14 @@ function injectRoutePlannerWaypointStyles() {
 			border: 1px solid transparent;
 			background: transparent;
 			box-shadow: none;
-			transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+			transition: border-color 0.12s ease, transform 0.12s ease;
 		}
 
 		.location-toggle:hover,
 		.location-toggle:focus-visible,
 		.location-toggle.is-active {
 			border-color: #b99878;
-			background: rgba(255, 216, 88, 0.14);
+			background: transparent;
 			outline: none;
 		}
 
@@ -301,6 +329,46 @@ function correctDerographyLabels() {
 	}
 
 	updateLabel();
+}
+
+function enhanceRoutePlannerOptionPanel() {
+	const enhance = () => {
+		if (document.querySelector(".route-planner-options-panel")) {
+			return;
+		}
+
+		const fastestPath = document.getElementById("fastestPath");
+		const shortestPath = document.getElementById("shortestPath");
+		const minimizeTransfers = document.getElementById("minimizeTransfers");
+		const includeRests = document.getElementById("includeRests");
+		const optionRows = [
+			fastestPath?.closest("div"),
+			minimizeTransfers?.closest("div"),
+			includeRests?.closest("div"),
+		].filter(Boolean);
+
+		if (!fastestPath || !shortestPath || !minimizeTransfers || !includeRests || !optionRows.length) {
+			return;
+		}
+
+		const panel = document.createElement("section");
+		panel.className = "route-planner-options-panel";
+		panel.setAttribute("aria-labelledby", "route-planner-options-title");
+		panel.innerHTML = '<h2 id="route-planner-options-title" class="route-planner-options-panel__title">Routenoptionen</h2>';
+		optionRows[0].parentNode.insertBefore(panel, optionRows[0]);
+
+		optionRows.forEach((row) => {
+			row.classList.add("route-planner-options-panel__row");
+			panel.appendChild(row);
+		});
+	};
+
+	if (document.readyState === "loading") {
+		document.addEventListener("DOMContentLoaded", enhance, { once: true });
+		return;
+	}
+
+	enhance();
 }
 
 function createWaypointId() {
@@ -539,16 +607,7 @@ function refreshPlannerAfterFeatureChange({ updateRoute = false } = {}) {
 
 function waypointDragHandleMarkup() {
 	return `
-		<button type="button" class="waypoint-drag-handle" aria-label="Wegpunkt verschieben" title="Wegpunkt verschieben">
-			<span class="waypoint-drag-handle__dots" aria-hidden="true">
-				<span></span>
-				<span></span>
-				<span></span>
-				<span></span>
-				<span></span>
-				<span></span>
-			</span>
-		</button>`;
+		<button type="button" class="waypoint-drag-handle" aria-label="Wegpunkt verschieben" title="Wegpunkt verschieben">⠿</button>`;
 }
 
 function createWaypointMarkup(waypointId) {
