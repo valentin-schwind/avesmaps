@@ -35,6 +35,13 @@
 	word-spacing: normal;
 }
 
+.map-context-menu__item::before {
+	display: inline-block;
+	width: 1.45em;
+	margin-right: 0.28em;
+	text-align: center;
+}
+
 .map-context-menu__item:hover,
 .map-context-menu__item:focus-visible {
 	background: var(--color-panel-muted);
