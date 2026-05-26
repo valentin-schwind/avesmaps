@@ -1,10 +1,10 @@
 .map-context-menu,
 .map-context-submenu {
-	width: fit-content;
+	width: max-content;
 }
 
 .map-context-menu__item {
-	grid-template-columns: 1.45em fit-content(42rem) auto;
+	grid-template-columns: 1.45em max-content auto;
 }
 
 .map-context-menu__label {
