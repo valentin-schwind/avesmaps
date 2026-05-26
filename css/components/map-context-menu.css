@@ -22,7 +22,7 @@
 .map-context-menu__item {
 	width: 100%;
 	display: block;
-	padding: 7px 9px;
+	padding: 7px 12px;
 	border: 0;
 	border-radius: 6px;
 	background: transparent;
@@ -32,6 +32,7 @@
 	line-height: 1.25;
 	text-align: left;
 	white-space: nowrap;
+	word-spacing: 0.25em;
 }
 
 .map-context-menu__item:hover,
@@ -48,18 +49,28 @@
 	content: "›";
 	float: right;
 	padding-left: 12px;
+	word-spacing: normal;
 }
 
 .map-context-submenu {
 	position: absolute;
 	top: -5px;
-	left: calc(100% + 5px);
+	left: 100%;
 	min-width: 190px;
 	padding: 5px;
 	border: 1px solid var(--color-border-strong);
 	border-radius: var(--radius-md);
 	background: rgba(255, 249, 244, 0.98);
 	box-shadow: var(--shadow-panel);
+}
+
+.map-context-menu__group::after {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 100%;
+	width: 8px;
 }
 
 .map-context-menu__group:not(:hover):not(:focus-within) .map-context-submenu {
@@ -88,5 +99,9 @@
 		min-width: 0;
 		margin-top: 5px;
 		box-shadow: none;
+	}
+
+	.map-context-menu__group::after {
+		display: none;
 	}
 }
