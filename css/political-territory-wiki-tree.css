@@ -436,3 +436,10 @@ details[open] > summary .tree-toggle::before {
 	width: 100% !important;
 	justify-self: stretch;
 }
+
+/* Route planner waypoint autocomplete typography */
+.ui-autocomplete .ui-menu-item-wrapper {
+	font-family: inherit !important;
+	font-size: 15px !important;
+	line-height: 1.2 !important;
+}
