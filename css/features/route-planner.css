@@ -1,3 +1,63 @@
 .waypoint-input {
 	text-indent: 10px;
 }
+
+#waypoints,
+#waypoints .waypoint-container,
+#search .input-options {
+	padding: 0 0 5px 0;
+}
+
+#transport-options {
+	grid-template-columns: 90px 210px;
+}
+
+.transport-select-with-icon {
+	width: 192px;
+}
+
+#inputLocation {
+	width: 24px;
+	height: 24px;
+	min-height: 24px;
+	align-self: center;
+	justify-self: center;
+	border: 0;
+	border-radius: 7px;
+	background: transparent;
+	box-shadow: none;
+	color: #7c6957;
+	font-size: 17px;
+	font-weight: 700;
+	line-height: 1;
+	padding: 0;
+}
+
+#inputLocation:hover,
+#inputLocation:focus-visible {
+	background: rgba(255, 216, 88, 0.18);
+	box-shadow: none;
+	color: #3f3428;
+	outline: none;
+	transform: none;
+}
+
+#searchButton:hover,
+#searchButton:focus-visible {
+	border-color: #7c6957;
+	background: #6a604f;
+	box-shadow: 0 5px 12px rgba(52, 41, 32, 0.22), 0 0 0 2px rgba(255, 216, 88, 0.18);
+	outline: none;
+	transform: translateY(-1px);
+}
+
+.route-plan-entry.is-active {
+	border-color: #b99878;
+	background: rgba(255, 213, 74, 0.32);
+	box-shadow: none;
+}
+
+.waypoint-drag-handle {
+	touch-action: none;
+	user-select: none;
+}
