@@ -101,7 +101,7 @@ Prioritaeten bleiben erfuellt:
 - lauffaehige Version
 - keine Verhaltensaenderung
 - kleiner Diff
-- keine neue Kopplung in `route-graph-core.js`
+- keine neue Kopplung in `routing/route-graph-core.js`
 - kein Build-System / keine ES-Module
 - keine Fehlinterpretation von roter Markierung als Unerreichbarkeitslogik
 

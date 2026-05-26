@@ -67,7 +67,7 @@ Bewusst verbleibende Seiteneffekte in `routing.js`:
 - Layer-Rendering und Highlighting
 - Plan-UI-Aufbau
 
-Warum nicht nach `route-graph-core.js`:
+Warum nicht nach `routing/route-graph-core.js`:
 
 - der Block ist rein UI/Rendering-orientiert
 - keine Core-Graph-Verantwortung

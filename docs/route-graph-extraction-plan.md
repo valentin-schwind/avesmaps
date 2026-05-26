@@ -2,7 +2,7 @@
 
 ## 1. Candidate Functions
 
-Die folgenden Funktionen aus dem Inline-Script in `index.html` sind gute Kandidaten fuer `js/route-graph-core.js`, weil sie Routing-/Graph-Kernlogik oder reine Geometrie-Helfer sind und keine direkten DOM-/Leaflet-Layer-Manipulationen enthalten:
+Die folgenden Funktionen aus dem Inline-Script in `index.html` sind gute Kandidaten fuer `js/routing/route-graph-core.js`, weil sie Routing-/Graph-Kernlogik oder reine Geometrie-Helfer sind und keine direkten DOM-/Leaflet-Layer-Manipulationen enthalten:
 
 - `createLocationLookup` (index.html:1482)
 - `findGraphComponents` (index.html:1486)
@@ -134,12 +134,12 @@ Empfohlene Reihenfolge fuer minimale Regressionen:
 4. `calculateRoute` spaeter:
    - erst nach Entscheidung, ob `minimizeTransfers` als Parameter injiziert wird oder der aktuelle DOM-Zugriff absichtlich beibehalten wird.
 5. Riskante Funktion zuletzt:
-   - `getVisualLatLngCoordinates` (Leaflet-Kopplung) ggf. gar nicht in `route-graph-core.js`, sondern in UI-/Map-naher Datei lassen.
+   - `getVisualLatLngCoordinates` (Leaflet-Kopplung) ggf. gar nicht in `routing/route-graph-core.js`, sondern in UI-/Map-naher Datei lassen.
 
 ## 5. Risk Assessment
 
 - Script-Reihenfolge:
-  - `js/route-graph-core.js` muss vor erster Nutzung geladen sein.
+  - `js/routing/route-graph-core.js` muss vor erster Nutzung geladen sein.
   - Kritisch sind Aufrufe aus `js/routing.js` (`createGraph`, `calculateRoute`, `smoothLineCoordinatesForDisplay`) und `js/map-features.js` (`smoothLineCoordinatesForDisplay`, `getVisualLatLngCoordinates`).
 - Globale Namen:
   - Funktionsnamen bleiben global; doppelte Deklarationen zwischen Inline-Script und neuer Datei fuehren zu Shadowing/Override-Risiken.
@@ -157,7 +157,7 @@ Empfohlene Reihenfolge fuer minimale Regressionen:
 
 Kleinstmoeglicher erster Extraktions-Commit (ohne Verhaltensaenderung):
 
-1. Neue Datei `js/route-graph-core.js` anlegen.
+1. Neue Datei `js/routing/route-graph-core.js` anlegen.
 2. Nur die reinen Smoothing-/Geometrie-Funktionen aus `index.html` dorthin verschieben:
    - `getCoordinateDistance`
    - `getCornerSmoothingMultiplier`
@@ -168,7 +168,7 @@ Kleinstmoeglicher erster Extraktions-Commit (ohne Verhaltensaenderung):
    - `smoothLineCoordinatesForDisplay`
    - optional `getVisualPathLatLngCoordinates`
 3. Script-Einbindung in `index.html`:
-   - `js/route-graph-core.js` zwischen `js/utils.js` und `js/map-features.js` einbinden.
+   - `js/routing/route-graph-core.js` zwischen `js/utils.js` und `js/map-features.js` einbinden.
 4. Inline-Script:
    - nur die exakt verschobenen Funktionsdefinitionen entfernen.
 5. Manuelle Smoke-Checks:

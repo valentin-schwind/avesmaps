@@ -54,7 +54,7 @@ DOM-/jQuery-/UI-Abhaengigkeiten:
 - indirekt zusaetzlich ueber `getTransportOption`, das weitere UI-Controls liest:
   - `#allowLand`, `#landTransport`, `#allowRiver`, `#riverTransport`, `#allowSea`, `#seaTransport`
 
-Abhaengigkeiten auf `route-graph-core.js`:
+Abhaengigkeiten auf `routing/route-graph-core.js`:
 
 - keine direkte Funktionsabhaengigkeit
 - indirekte Datenform-Abhaengigkeit:
@@ -97,7 +97,7 @@ Auswirkungen:
 
 ## 6. Refactoring Options
 
-A. `calculateRoute` unveraendert nach `js/route-graph-core.js` verschieben
+A. `calculateRoute` unveraendert nach `js/routing/route-graph-core.js` verschieben
 
 - Technisch moeglich.
 - Architektur: unguenstig, weil direkte UI/jQuery-Kopplung mitgezogen wird.
@@ -129,13 +129,13 @@ F. Vorerst nur Tests/Smoke-Check erweitern
 
 ## 7. Recommendation
 
-Empfohlener naechster Schritt: **C + D in einem kleinen, verhaltensneutralen Wrapper-Schritt vorbereiten, aber `calculateRoute` selbst vorerst nicht nach `route-graph-core.js` verschieben.**
+Empfohlener naechster Schritt: **C + D in einem kleinen, verhaltensneutralen Wrapper-Schritt vorbereiten, aber `calculateRoute` selbst vorerst nicht nach `routing/route-graph-core.js` verschieben.**
 
 Konkret:
 
 - `calculateRoute` bleibt als UI-Wrapper im Inline-Script.
 - neuer reiner Kern bekommt alle benoetigten Werte als Parameter.
-- keine neue UI-Kopplung in `route-graph-core.js`.
+- keine neue UI-Kopplung in `routing/route-graph-core.js`.
 
 Explizit: Ein spaeterer Code-Schritt ohne Verhaltensaenderung ist moeglich.
 

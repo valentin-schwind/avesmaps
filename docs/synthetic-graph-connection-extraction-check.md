@@ -62,19 +62,19 @@ Keine weiteren Aufrufstellen in `js/*`.
 
 ## 5. Extraction Recommendation
 
-Empfehlung: **sicher unveraendert nach `js/route-graph-core.js` verschiebbar**, mit kleiner Architektur-Warnung.
+Empfehlung: **sicher unveraendert nach `js/routing/route-graph-core.js` verschiebbar**, mit kleiner Architektur-Warnung.
 
 Begruendung:
 
 - Kein direkter DOM/Leaflet/API-Zugriff in der Funktion selbst.
-- `getLocationDistance` und weitere Graph-Helfer liegen bereits in `js/route-graph-core.js`.
+- `getLocationDistance` und weitere Graph-Helfer liegen bereits in `js/routing/route-graph-core.js`.
 - Aktuelle Laufzeitreihenfolge ist kompatibel:
-  - `js/runtime-state.js` vor `js/route-graph-core.js` (damit `syntheticPathSegments` existiert)
+  - `js/runtime-state.js` vor `js/routing/route-graph-core.js` (damit `syntheticPathSegments` existiert)
   - `js/map-features.js` wird vor dem Inline-Script geladen (damit `addGraphConnection` und `buildSyntheticPathSegment` vor erstem Aufruf vorhanden sind).
 
 Wichtige Einschraenkung:
 
-- Nach der Verschiebung enthaelt `route-graph-core.js` weiterhin indirekte Abhaengigkeiten auf zwei Funktionen aus `js/map-features.js`.
+- Nach der Verschiebung enthaelt `routing/route-graph-core.js` weiterhin indirekte Abhaengigkeiten auf zwei Funktionen aus `js/map-features.js`.
 - Das ist aktuell funktional unkritisch, aber keine saubere Endgrenze fuer ein „vollstaendig neutrales“ Core-Modul.
 
 ## 6. Risk Assessment
@@ -94,7 +94,7 @@ Moegliche Regressionen:
   - Reihenfolge von `clear()` (in `createGraph`) und `set()` darf nicht veraendert werden.
 
 - Script-Reihenfolge:
-  - `route-graph-core.js` wird vor `map-features.js` geladen; das bleibt ok, solange `addSyntheticGraphConnection` erst spaeter aufgerufen wird (aktuell der Fall).
+  - `routing/route-graph-core.js` wird vor `map-features.js` geladen; das bleibt ok, solange `addSyntheticGraphConnection` erst spaeter aufgerufen wird (aktuell der Fall).
 
 - Routing-Regressionen:
   - betriff vor allem getrennte Graph-Komponenten; Standardrouten koennen unauffaellig bleiben, waehrend Querfeldein-Verbindungen brechen.
@@ -103,14 +103,14 @@ Moegliche Regressionen:
 
 Kleinstmoeglicher sicherer Code-Commit, wenn der Schritt gemacht werden soll:
 
-1. `addSyntheticGraphConnection` unveraendert nach `js/route-graph-core.js` verschieben.
+1. `addSyntheticGraphConnection` unveraendert nach `js/routing/route-graph-core.js` verschieben.
 2. Originaldefinition aus `index.html` entfernen.
 3. `connectDetachedGraphComponents` unveraendert lassen (ruft weiter global auf).
 4. Checks:
    - `rg -n "function addSyntheticGraphConnection|addSyntheticGraphConnection\\(" index.html js`
    - sicherstellen: genau 1 Definition, Aufrufstelle in `connectDetachedGraphComponents` vorhanden
-   - `node --check js/route-graph-core.js`
-   - Diff nur `index.html` und `js/route-graph-core.js`.
+   - `node --check js/routing/route-graph-core.js`
+   - Diff nur `index.html` und `js/routing/route-graph-core.js`.
 
 Fazit:
 

@@ -68,7 +68,7 @@ Begruendung:
 - keine Verhaltensaenderung noetig (Warntexte, Skip-Reihenfolge, Datenfluss bleiben identisch)
 - gute Lesbarkeit: `createGraph` wird sichtbar orchestrierend
 - geringe Regressionflaeche: nur eine lokale Extraktion im selben Inline-Script
-- keine neue UI-Kopplung in `js/route-graph-core.js` (Helper bleibt vorerst in `index.html`)
+- keine neue UI-Kopplung in `js/routing/route-graph-core.js` (Helper bleibt vorerst in `index.html`)
 - guter spaeterer Nutzen fuer Parameterisierung, weil der regulaere Pfadblock klar abgegrenzt ist
 
 ## 4. Exact Proposed Function

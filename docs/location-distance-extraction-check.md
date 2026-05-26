@@ -40,14 +40,14 @@ Hinweis zur Definition:
 
 ## 4. Extraction Recommendation
 
-Empfehlung: **sicher nach `js/route-graph-core.js` verschiebbar** (ohne Verhaltensaenderung), mit unveraendertem Funktionsnamen und unveraenderter Logik.
+Empfehlung: **sicher nach `js/routing/route-graph-core.js` verschiebbar** (ohne Verhaltensaenderung), mit unveraendertem Funktionsnamen und unveraenderter Logik.
 
 Begruendung:
 
 - Die Funktion ist rein rechnerisch und frei von DOM/Leaflet/API.
-- `js/route-graph-core.js` wird bereits vor `js/map-features.js` geladen (`index.html:875` vs. `index.html:885`), daher bleiben bestehende Aufrufe aus `js/map-features.js` gueltig.
+- `js/routing/route-graph-core.js` wird bereits vor `js/map-features.js` geladen (`index.html:875` vs. `index.html:885`), daher bleiben bestehende Aufrufe aus `js/map-features.js` gueltig.
 - `calculateCoordinateDistance` bleibt aus `js/utils.js` verfuegbar (`index.html:874`), also ist die Abhaengigkeit bereits vor dem Aufruf vorhanden.
-- Fuer den naechsten Schritt (`findNearestComponentConnection` in `route-graph-core.js`) wird die Rueckwaertsabhaengigkeit auf `js/map-features.js` reduziert.
+- Fuer den naechsten Schritt (`findNearestComponentConnection` in `routing/route-graph-core.js`) wird die Rueckwaertsabhaengigkeit auf `js/map-features.js` reduziert.
 
 Alternative:
 - `js/utils.js` waere technisch ebenfalls moeglich, ist aber weniger klar, weil `getLocationDistance` ein domain-spezifisches Location-Objekt (`coordinates`) erwartet.
@@ -71,13 +71,13 @@ Moegliche Regressionen bei spaeterer Verschiebung:
 
 Kleinster sichere Folge-Commit (falls umgesetzt werden soll):
 
-1. `getLocationDistance` unveraendert von `js/map-features.js` nach `js/route-graph-core.js` verschieben.
+1. `getLocationDistance` unveraendert von `js/map-features.js` nach `js/routing/route-graph-core.js` verschieben.
 2. Originaldefinition in `js/map-features.js` entfernen.
 3. Keine weiteren Funktionen anfassen.
 4. Checks:
    - `rg -n "function getLocationDistance|getLocationDistance\\(" index.html js`
    - sicherstellen: genau 1 Definition, Call Sites unveraendert
-   - `node --check js/route-graph-core.js`
+   - `node --check js/routing/route-graph-core.js`
    - optional: `node --check js/map-features.js`
 
 Fazit:

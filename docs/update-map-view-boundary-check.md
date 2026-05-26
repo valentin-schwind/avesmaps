@@ -106,7 +106,7 @@ F. `updateMapView` in `routing.js` lassen, aber in klar benannte lokale Schritte
 
 - gutes Zielbild; B ist der kleinste erste Schritt in diese Richtung
 
-G. `updateMapView` verschieben oder nach `route-graph-core.js` verschieben
+G. `updateMapView` verschieben oder nach `routing/route-graph-core.js` verschieben
 
 - nicht sinnvoll:
   - starke UI-/DOM-Kopplung
@@ -124,7 +124,7 @@ Konkret:
 Warum:
 
 - kleiner Diff
-- keine neue UI-Kopplung in `route-graph-core.js`
+- keine neue UI-Kopplung in `routing/route-graph-core.js`
 - gute Lesbarkeit
 - geringe Regressionflaeche
 

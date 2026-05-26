@@ -22,11 +22,11 @@
     - `graph`-Objekt wird erweitert
     - globale `syntheticPathSegments` wird beschrieben
 - Aufgerufene Funktionen:
-  - `findGraphComponents(...)` (jetzt in `js/route-graph-core.js`)
+  - `findGraphComponents(...)` (jetzt in `js/routing/route-graph-core.js`)
   - `getSyntheticRouteConfig(...)` (Inline-Script)
-  - `createLocationLookup(...)` (jetzt in `js/route-graph-core.js`)
-  - `findNearestComponentConnection(...)` (jetzt in `js/route-graph-core.js`)
-  - `addSyntheticGraphConnection(...)` (jetzt in `js/route-graph-core.js`)
+  - `createLocationLookup(...)` (jetzt in `js/routing/route-graph-core.js`)
+  - `findNearestComponentConnection(...)` (jetzt in `js/routing/route-graph-core.js`)
+  - `addSyntheticGraphConnection(...)` (jetzt in `js/routing/route-graph-core.js`)
 - DOM/Leaflet/jQuery/API/map-Abhaengigkeiten:
   - keine direkten DOM-/Leaflet-/API-/map-Zugriffe
   - **indirekte UI-Abhaengigkeit**:
@@ -59,11 +59,11 @@ Weitere Aufrufe in `js/*.js` wurden nicht gefunden.
   - baut regulare Kanten,
   - ruft danach `connectDetachedGraphComponents(graph)`.
 
-- `addSyntheticGraphConnection` (`js/route-graph-core.js:44`)
+- `addSyntheticGraphConnection` (`js/routing/route-graph-core.js:44`)
   - fuegt bidirektionale synthetische Kanten hinzu,
   - schreibt Segmentdaten in `syntheticPathSegments`.
 
-- `findNearestComponentConnection` (`js/route-graph-core.js:15`)
+- `findNearestComponentConnection` (`js/routing/route-graph-core.js:15`)
   - berechnet die naechste Verbindung zweier Komponenten.
 
 - `syntheticPathSegments` (`js/runtime-state.js:19`)
@@ -78,7 +78,7 @@ Begruendung:
 
 - Rein technisch ist eine unveraenderte Verschiebung von `connectDetachedGraphComponents` moeglich (keine direkten DOM-/Leaflet-/API-Zugriffe, Aufruf nur zur Laufzeit aus `createGraph`).
 - Die Funktion bleibt aber indirekt UI-gekoppelt durch `getSyntheticRouteConfig -> getTransportOption (jQuery)`.
-- Ohne diesen Schritt wuerde `js/route-graph-core.js` weiter Richtung UI-gekoppelter Orchestrierung wachsen statt ein klarer Graph-Kern zu bleiben.
+- Ohne diesen Schritt wuerde `js/routing/route-graph-core.js` weiter Richtung UI-gekoppelter Orchestrierung wachsen statt ein klarer Graph-Kern zu bleiben.
 
 Explizit:
 - **Verschiebung ohne Verhaltensaenderung ist moeglich**, aber als Architekturgrenze derzeit nur bedingt sauber.

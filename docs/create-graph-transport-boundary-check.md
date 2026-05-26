@@ -42,7 +42,7 @@ Aufgerufene Funktionen:
 - `normalizePathSubtype` (`js/map-features.js`)
 - `getTransportOption` (`js/routing.js`)
 - `isTransportAllowedForPath` (`js/routing.js`)
-- `addGraphConnection` (`js/route-graph-core.js`)
+- `addGraphConnection` (`js/routing/route-graph-core.js`)
 - `connectDetachedGraphComponents` (Inline-Script)
 
 DOM-/jQuery-/UI-Abhaengigkeiten:
@@ -50,7 +50,7 @@ DOM-/jQuery-/UI-Abhaengigkeiten:
 - keine direkte DOM-/jQuery-Nutzung in `createGraph`
 - indirekte UI-Kopplung ueber `getTransportOption` (liest Routing-Controls)
 
-Abhaengigkeiten auf `route-graph-core.js`:
+Abhaengigkeiten auf `routing/route-graph-core.js`:
 
 - `addGraphConnection`
 - indirekt ueber `connectDetachedGraphComponents`:
@@ -128,7 +128,7 @@ A. `createGraph` unveraendert lassen
 
 - maximal stabil, kein Grenzgewinn
 
-B. `createGraph` unveraendert nach `js/route-graph-core.js` verschieben
+B. `createGraph` unveraendert nach `js/routing/route-graph-core.js` verschieben
 
 - technisch moeglich, aber architektonisch schlecht
 - zieht indirekte UI-Kopplung in den Core
@@ -166,7 +166,7 @@ Begruendung:
 
 - kleinster risikoarmer Schritt bei hohem Nutzen
 - stabilisiert kommende Code-Schritte an der Transportkopplung
-- keine neue UI-Kopplung in `js/route-graph-core.js`
+- keine neue UI-Kopplung in `js/routing/route-graph-core.js`
 - kein Verhalten, keine Laufzeitlogik wird angefasst
 
 Explizit: Ein spaeterer Code-Schritt ohne Verhaltensaenderung ist moeglich.

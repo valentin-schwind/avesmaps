@@ -53,7 +53,7 @@ Indirekte Ketten rund um `createGraph`:
   - ruft `getSyntheticRouteConfig(...)` (`index.html:1483`) auf.
 - `getSyntheticRouteConfig`
   - ruft wiederum `getTransportOption(SYNTHETIC_ROUTE_TYPE)` auf, also indirekt UI-Status.
-- `addSyntheticGraphConnection` (`js/route-graph-core.js:44`)
+- `addSyntheticGraphConnection` (`js/routing/route-graph-core.js:44`)
   - schreibt in globale `syntheticPathSegments`
   - ruft `addGraphConnection(...)` (aktuell `js/map-features.js`) und `buildSyntheticPathSegment(...)` (aktuell `js/map-features.js:2630`) auf.
 
@@ -74,7 +74,7 @@ Indirekte Ketten rund um `createGraph`:
 
 ### B. `getSyntheticRouteConfig` verschieben
 - Technisch: moeglich, aber explizite Abhaengigkeit auf `getTransportOption` bleibt.
-- Boundary: wuerde UI-Logik staerker in `route-graph-core.js` verankern.
+- Boundary: wuerde UI-Logik staerker in `routing/route-graph-core.js` verankern.
 - Bewertung: nicht empfohlen.
 
 ### C. `createGraph` parameterisieren
@@ -82,12 +82,12 @@ Indirekte Ketten rund um `createGraph`:
 - Diff-Risiko: fuer "naechster kleiner Schritt" zu gross (Signatur, Aufrufer, Testflaeche).
 - Bewertung: jetzt zu riskant/gross.
 
-### D. `addGraphConnection` nach `js/route-graph-core.js` verschieben
+### D. `addGraphConnection` nach `js/routing/route-graph-core.js` verschieben
 - Technisch: sehr klein, rein, keine UI/DOM/Leaflet/API-Abhaengigkeit.
-- Nutzen: reduziert Rueckwaertsabhaengigkeit von `route-graph-core.js` auf `map-features.js`.
+- Nutzen: reduziert Rueckwaertsabhaengigkeit von `routing/route-graph-core.js` auf `map-features.js`.
 - Bewertung: guter naechster Minischritt.
 
-### E. `buildSyntheticPathSegment` nach `js/route-graph-core.js` verschieben
+### E. `buildSyntheticPathSegment` nach `js/routing/route-graph-core.js` verschieben
 - Technisch: ebenfalls rein und ohne UI/DOM/Leaflet/API.
 - Nutzen: weiterer Abhaengigkeitsabbau.
 - Bewertung: sinnvoll, aber groesser als D; besser als Folgeschritt nach D.
@@ -99,7 +99,7 @@ Indirekte Ketten rund um `createGraph`:
 
 ## 6. Recommendation
 
-Empfehlung fuer **genau den naechsten Schritt**: **Option D (`addGraphConnection` unveraendert nach `js/route-graph-core.js` verschieben).**
+Empfehlung fuer **genau den naechsten Schritt**: **Option D (`addGraphConnection` unveraendert nach `js/routing/route-graph-core.js` verschieben).**
 
 Begruendung:
 
@@ -129,12 +129,12 @@ Moegliche Regressionen beim naechsten Grenzbereich:
 
 Kleinstmoeglicher sinnvoller Code-Commit:
 
-1. `addGraphConnection` unveraendert von `js/map-features.js` nach `js/route-graph-core.js` verschieben.
+1. `addGraphConnection` unveraendert von `js/map-features.js` nach `js/routing/route-graph-core.js` verschieben.
 2. Definition in `js/map-features.js` entfernen (keine weitere Logik aendern).
 3. Checks:
    - genau eine Definition von `addGraphConnection` in `index.html + js/*.js`
-   - Aufrufstellen unveraendert vorhanden (`index.html`, `js/route-graph-core.js`)
-   - `node --check js/route-graph-core.js`
+   - Aufrufstellen unveraendert vorhanden (`index.html`, `js/routing/route-graph-core.js`)
+   - `node --check js/routing/route-graph-core.js`
    - `node --check js/map-features.js`
    - Diff nur in den beiden betroffenen Dateien.
 

@@ -2,7 +2,7 @@
 
 ## 1. Current Contents
 
-Aktuelle Funktionen in `js/route-graph-core.js` (`rg -n "^function "`):
+Aktuelle Funktionen in `js/routing/route-graph-core.js` (`rg -n "^function "`):
 
 - `getVisualPathLatLngCoordinates`
 - `createLocationLookup`
@@ -45,7 +45,7 @@ Gruppierung:
 
 ## 2. Remaining Dependencies
 
-Direkte Abhaengigkeiten von `js/route-graph-core.js`:
+Direkte Abhaengigkeiten von `js/routing/route-graph-core.js`:
 
 - `runtime-state.js`:
   - `locationData` (fuer `createLocationLookup`)
@@ -60,7 +60,7 @@ Direkte Abhaengigkeiten von `js/route-graph-core.js`:
 Beziehung zu weiteren Dateien:
 
 - `map-features.js`:
-  - keine direkte Rueckwaertsabhaengigkeit mehr von `route-graph-core.js` auf `map-features.js`
+  - keine direkte Rueckwaertsabhaengigkeit mehr von `routing/route-graph-core.js` auf `map-features.js`
   - umgekehrt nutzt `map-features.js` inzwischen Core-Funktionen (`getLocationDistance`, `smoothLineCoordinatesForDisplay`)
 - `routing.js`:
   - keine direkte Abhaengigkeit von Core zu Routing
@@ -71,7 +71,7 @@ Beziehung zu weiteren Dateien:
 
 Script-Reihenfolge in `index.html` ist korrekt fuer aktuelle Abhaengigkeiten:
 
-- `runtime-state.js` -> `config.js` -> `utils.js` -> `route-graph-core.js` -> `map-features.js` -> `routing.js` -> Inline-Script
+- `runtime-state.js` -> `config.js` -> `utils.js` -> `routing/route-graph-core.js` -> `map-features.js` -> `routing.js` -> Inline-Script
 
 ## 3. Boundary Quality
 
@@ -79,11 +79,11 @@ Was jetzt sauber ist:
 
 - die zuvor problematische Rueckwaertsabhaengigkeit auf `addGraphConnection` und `buildSyntheticPathSegment` aus `map-features.js` wurde abgebaut
 - Graph-Helfer und Geometrie-Helfer liegen konsolidiert an einer Stelle
-- keine direkten DOM-/Leaflet-/jQuery-/API-Zugriffe in `route-graph-core.js`
+- keine direkten DOM-/Leaflet-/jQuery-/API-Zugriffe in `routing/route-graph-core.js`
 
 Was noch unsauber ist:
 
-- `route-graph-core.js` arbeitet weiterhin komplett ueber globale Namen (kein Namespace/kein Modul)
+- `routing/route-graph-core.js` arbeitet weiterhin komplett ueber globale Namen (kein Namespace/kein Modul)
 - Datei mischt zwei Themen: Graph-Kern + Linien-Smoothing (technisch ok, architektonisch breit)
 - `getVisualPathLatLngCoordinates` ist aktuell nur lokal definiert und hat keine externe Aufrufstelle
 
@@ -105,7 +105,7 @@ Funktional unkritisch, aber architektonisch relevant:
 
 ## 5. Candidate Next Steps
 
-- A. `route-graph-core.js` vorerst stabil lassen und zum naechsten Refactoring-Bereich wechseln:
+- A. `routing/route-graph-core.js` vorerst stabil lassen und zum naechsten Refactoring-Bereich wechseln:
   - sehr sicher, kein neues Risiko im Core.
 - B. `connectDetachedGraphComponents` verschieben:
   - technisch moeglich, zieht aber weiterhin indirekte UI-Kopplung in den Core.
@@ -125,7 +125,7 @@ Empfehlung: **A (Core vorerst stabil lassen) und als naechsten Bereich D (`calcu
 Begruendung:
 
 - lauffaehige Version bleibt priorisiert sicher
-- kein weiterer Code-Move erzwingt UI-Kopplung in `route-graph-core.js`
+- kein weiterer Code-Move erzwingt UI-Kopplung in `routing/route-graph-core.js`
 - kleinster sinnvoller Fortschritt ist jetzt ein Analyse-Schritt vor dem naechsten Code-Eingriff
 
 Explizit: **Aktuell wird kein weiterer direkter Code-Schritt im Core empfohlen.**

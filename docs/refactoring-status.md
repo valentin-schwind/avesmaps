@@ -14,7 +14,7 @@ Der Feature-State-Split fuer Revisionen und Softlocks wurde umgesetzt und per Be
 
 Diese Bereiche bleiben stabil:
 
-- `js/route-graph-core.js` als Routing-/Graph-Kern mit `calculateRouteCore(...)` und extrahierten Graph-/Geometrie-Helfern.
+- `js/routing/route-graph-core.js` als Routing-/Graph-Kern mit `calculateRouteCore(...)` und extrahierten Graph-/Geometrie-Helfern.
 - `createGraph(...)` als Orchestrator im Inline-Script von `index.html`.
 - `updateMapView(...)` als Routing-Orchestrator in `js/routing.js`, entlastet durch:
   - `collectAndValidateSelectedLocations()`

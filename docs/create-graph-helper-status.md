@@ -57,7 +57,7 @@ A. `createGraph`/`addRegularPathToGraph` vorerst stabil lassen
 
 - sehr risikoarm, nach frischem Refactoring oft sinnvoll
 
-B. `addRegularPathToGraph` nach `route-graph-core.js` verschieben
+B. `addRegularPathToGraph` nach `routing/route-graph-core.js` verschieben
 
 - derzeit nicht ideal: wuerde indirekte UI-Kopplung in den Core ziehen
 
@@ -94,7 +94,7 @@ Warum:
 
 - lauffaehige Version bleibt priorisiert
 - kein Verhalten aendern
-- kein UI-Leak in `route-graph-core.js`
+- kein UI-Leak in `routing/route-graph-core.js`
 - kleinste Regressionflaeche
 
 ## 6. Risk Assessment

@@ -3,7 +3,7 @@
 ## 1. Current Routing Stop Point
 
 - Der Routing-Bereich bleibt vorerst stabil.
-- `createGraph`, `addRegularPathToGraph`, `updateMapView`, `collectAndValidateSelectedLocations`, `buildRouteResultFromSelectedLocations` und `route-graph-core.js` werden aktuell nicht weiter umgebaut.
+- `createGraph`, `addRegularPathToGraph`, `updateMapView`, `collectAndValidateSelectedLocations`, `buildRouteResultFromSelectedLocations` und `routing/route-graph-core.js` werden aktuell nicht weiter umgebaut.
 - Ziel fuer den naechsten Schritt ist ein kleiner, verhaltensneutraler Bereich ausserhalb des Routings.
 
 ## 2. Candidate Areas

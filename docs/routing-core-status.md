@@ -5,7 +5,7 @@
 - `calculateRoute` bleibt als UI-naher Wrapper im Inline-Script (`index.html:1408`):
   - liest `$("#minimizeTransfers").is(":checked")`
   - uebergibt `graphData`, `TRANSFER_PENALTY` und `getTransportOption` an den Kern
-- `calculateRouteCore` liegt als parametrisierter Kern in `js/route-graph-core.js` (`js/route-graph-core.js:86`):
+- `calculateRouteCore` liegt als parametrisierter Kern in `js/routing/route-graph-core.js` (`js/routing/route-graph-core.js:86`):
   - keine direkte DOM-/jQuery-/Leaflet-/API-Nutzung
   - arbeitet nur mit uebergebenen Werten/Funktionen
 - `getTransportOption` bleibt UI-/jQuery-nah in `js/routing.js` (`js/routing.js:243`)
@@ -19,7 +19,7 @@ Abhaengigkeiten von `calculateRoute` (Wrapper):
 - `TRANSFER_PENALTY` (Inline-Konstante in `index.html`)
 - jQuery/UI: `#minimizeTransfers`
 - Funktionsabhaengigkeiten:
-  - `calculateRouteCore(...)` (global aus `js/route-graph-core.js`)
+  - `calculateRouteCore(...)` (global aus `js/routing/route-graph-core.js`)
   - `getTransportOption(...)` (aus `js/routing.js`)
 
 Abhaengigkeiten von `calculateRouteCore`:
@@ -55,7 +55,7 @@ Was jetzt sauberer ist:
 
 - Dijkstra-Kern ist aus dem Inline-Wrapper herausgeloest.
 - Kernlogik ist parameterisiert und dadurch besser isoliert.
-- UI-Kopplung wurde nicht in `js/route-graph-core.js` hineingezogen.
+- UI-Kopplung wurde nicht in `js/routing/route-graph-core.js` hineingezogen.
 
 Bewusst verbleibende UI-Kopplungen im Wrapper:
 

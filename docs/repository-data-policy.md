@@ -52,7 +52,7 @@ Dokumentation darf beschreiben, welche Endpunkte es gibt, welche Methoden und Fe
 Erlaubt:
 
 ```text
-api/config.example.php
+config/api.config.example.php
 .env.example
 Beispielwerte wie example.org, localhost, replace-with-token
 ```
@@ -331,6 +331,6 @@ Fuer den geplanten Umbau bedeutet diese Policy:
 - `_internal` und `_schema` duerfen im Repo liegen.
 - `_internal` und `_schema` muessen im Web gesperrt werden.
 - `config.local.php` bleibt ausserhalb des Repos.
-- `config.example.php` darf im Repo bleiben.
+- `config/api.config.example.php` darf im Repo bleiben.
 - Die Route- und Locations-API darf dokumentiert werden.
 - App-, Edit-, Import- und Diagnose-Endpunkte werden klar von der dokumentierten Entwickler-API getrennt.
