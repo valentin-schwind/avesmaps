@@ -2,21 +2,25 @@
 
 Diese Liste sammelt konkrete Refactoring- und Aufraeumpunkte, die bei der strukturellen Sichtung des Avesmaps-Repositories aufgefallen sind. Fokus: Zukunftsfaehigkeit, Bearbeitbarkeit durch Menschen und Coding-Agenten, Lesbarkeit, DRY/Clean Code und sicher entfernbarer Dead Code.
 
-## Prioritaet 1: Sicherer DCE
+## Erledigt
 
 ### `js/routing.js`: alter `#inputLocation`-Click-Handler
 
-In `routeDataRequest.then(...)` wird zuerst ein Click-Handler fuer `#inputLocation` registriert, der manuell `waypointHtml` erzeugt, Autocomplete initialisiert und `hasFirstWaypoint` verwendet.
+Status: erledigt.
 
-Kurz danach wird derselbe Button mit `$("#inputLocation").off("click").on("click", ...)` neu belegt. Der zuerst registrierte Handler ist dadurch zur Laufzeit sicher tot.
+Der alte, spaeter ueberschriebene Click-Handler fuer `#inputLocation` ist im produktiven Code nicht mehr vorhanden. `hasFirstWaypoint`, die manuelle `waypointHtml`-Erzeugung und die alte Inline-Autocomplete-/Remove-Button-Logik wurden im aktuellen Stand nicht mehr in `js/routing.js` gefunden.
 
-Aufgabe:
+Aktueller Stand in `routeDataRequest.then(...)`:
 
-- Den alten `$("#inputLocation").on("click", function () { ... })`-Block entfernen.
-- Die spaetere, aktuelle Variante mit `appendWaypointInput().trigger("focus")` behalten.
-- Danach pruefen, ob `hasFirstWaypoint` nur noch fuer diesen entfernten Block existiert. Falls ja: ebenfalls entfernen.
+```js
+initializeWaypointSorting();
+$("#inputLocation").off("click").on("click", () => {
+	appendWaypointInput().trigger("focus");
+});
+resetWaypointInputs();
+```
 
-## Prioritaet 2: Potentieller DCE / Debug- und Legacy-Pfade
+## Prioritaet 1: Potentieller DCE / Debug- und Legacy-Pfade
 
 ### `js/routing/route-engine.js`: Server-Routing-Probe
 
@@ -38,7 +42,7 @@ Aufgabe:
 - Falls Server-Routing endgueltig primaer ist: Fallback entfernen oder in ein Debug-/Dev-Modul auslagern.
 - Falls der Fallback bleiben soll: Namen und Struktur expliziter machen, damit klar ist, dass es sich um einen bewusst erhaltenen Legacy-Pfad handelt.
 
-## Prioritaet 3: CSS-DCE und CSS-DRY
+## Prioritaet 2: CSS-DCE und CSS-DRY
 
 ### `css/styles.css`: doppelte Deklarationen in `body, html`
 
@@ -69,7 +73,7 @@ Aufgabe:
 - Nur abweichende Werte wie `z-index` separat lassen.
 - Markup entsprechend angleichen.
 
-## Prioritaet 4: CSS aus HTML herausziehen
+## Prioritaet 3: CSS aus HTML herausziehen
 
 ### `html/political-territory-editor.html`: grosser Inline-Styleblock
 
@@ -88,7 +92,7 @@ Aufgabe:
 - `css/political-territory-wiki-tree.css` separat behalten, weil es als wiederverwendbare Tree-Komponente wirkt.
 - Danach pruefen, ob zwischen `styles.css`, `political-territory-wiki-tree.css` und `political-territory-editor.css` doppelte Regeln existieren.
 
-## Prioritaet 5: CSS-Scope trennen
+## Prioritaet 4: CSS-Scope trennen
 
 ### Admin- und Edit-Styles aus `css/styles.css` auslagern
 
@@ -103,7 +107,7 @@ Aufgabe:
 - Die entsprechenden Regeln aus `css/styles.css` herausziehen.
 - In den jeweiligen PHP/HTML-Einstiegen die neuen CSS-Dateien laden.
 
-## Prioritaet 6: `index.html` entlasten
+## Prioritaet 5: `index.html` entlasten
 
 `index.html` ist weiterhin App-Shell, grosses Dialog-Markup, Review-/Editor-Markup, Legal-Text, Script-Liste und Bootstrap-Code zugleich.
 
@@ -113,31 +117,30 @@ Aufgabe:
 - Dialog- und Panel-Markup langfristig auslagern oder in Template-Funktionen ueberfuehren.
 - Ziel: `index.html` als moeglichst kleine App-Shell.
 
-## Prioritaet 7: `js/config.js` in echte Config und Verhalten trennen
+## Prioritaet 6: `js/config.js` in echte Config und Verhalten trennen
 
-`js/config.js` enthaelt nicht nur Konstanten, sondern auch aktive Laufzeitlogik, z. B. Fetch-Monkeypatching und zeitversetztes Override von Region-Visibility-Verhalten.
+Status: teilweise erledigt.
 
-Aufgabe:
+Die Runtime-Patches wurden aus `js/config.js` entfernt und in den politischen Territory-/Layer-Kontext verschoben. `config.js` ist dadurch wieder deutlich naeher an einer reinen Konstanten-/Default-Datei.
 
-- Reine Konstanten in kleinere Dateien aufteilen, z. B.:
+Noch offen:
+
+- Reine Konstanten weiter in kleinere Dateien aufteilen, z. B.:
   - `js/config/app-constants.js`
   - `js/config/api-endpoints.js`
   - `js/config/transport-config.js`
   - `js/config/tile-config.js`
   - `js/config/planner-defaults.js`
-- Verhalten auslagern, z. B.:
-  - `js/map-features/political-territory-fetch-cache.js`
-  - `js/map-features/region-visibility-behavior.js`
 - Langfristig keine Verhalten installierenden Funktionen in einer Datei namens `config.js` belassen.
 
-## Prioritaet 8: globale Overrides reduzieren
+## Prioritaet 7: globale Overrides reduzieren
 
 Aktuell gibt es Stellen, an denen globale Funktionen nachtraeglich ersetzt oder per Timeout installiert werden.
 
 Beispiele:
 
 - `route-engine.js` ersetzt `window.updateMapView` durch `updateMapViewServerPrimary`.
-- `config.js` ueberschreibt/installiert `window.syncRegionVisibility` zeitversetzt.
+- Region-Visibility-Verhalten wird zeitversetzt installiert.
 
 Aufgabe:
 
@@ -145,7 +148,7 @@ Aufgabe:
 - Beispiel: `routingController.setEngine(serverEngine)` statt spaeterem Global-Override.
 - Beispiel: `regionVisibilityController.install(policy)` statt Timeout-basiertem Override.
 
-## Prioritaet 9: PHP-API weiter splitten
+## Prioritaet 8: PHP-API weiter splitten
 
 `api/edit/map/features.php` ist Dispatcher, Validierung, Repository-/DB-Zugriff, Locking, Audit und Feature-Domainlogik in einer Datei.
 
@@ -160,7 +163,7 @@ Aufgabe:
   - `api/_internal/map-features/geometry.php`
 - `api/edit/map/features.php` langfristig auf Request-Handling, Action-Dispatch und Fehlerbehandlung reduzieren.
 
-## Prioritaet 10: DOM-Selektoren zentralisieren
+## Prioritaet 9: DOM-Selektoren zentralisieren
 
 Viele Dialoge verwenden wiederkehrende DOM-IDs und Selektoren direkt in Event- und Dialoglogik.
 
@@ -173,7 +176,7 @@ Aufgabe:
 - Ziel: Selektoren nur an einer Stelle pro Dialog pflegen.
 - Das erleichtert Codex/Copilot-Aenderungen und reduziert Tippfehler bei DOM-IDs.
 
-## Prioritaet 11: `js/ui-controls.js` splitten
+## Prioritaet 10: `js/ui-controls.js` splitten
 
 `ui-controls.js` enthaelt mehrere unabhaengige UI-Domaenen: Kartendekoration, Massstabsband, Entfernungsmessung und Transport-Comboboxen.
 
@@ -185,7 +188,7 @@ Aufgabe:
   - `js/ui/distance-measurement.js`
   - `js/ui/transport-combobox.js`
 
-## Prioritaet 12: Encoding pruefen
+## Prioritaet 11: Encoding pruefen
 
 In `js/config.js` wurden mojibake-artige Strings gesehen, z. B. `GroÃƒÅ¸stÃƒÂ¤dte`.
 
@@ -201,5 +204,5 @@ Folgende Bereiche sind nicht als DCE einzustufen, auch wenn sie auf den ersten B
 - `.status-grid` und `.stat` im Territory-Editor: Markup existiert, UI ist nur versteckt.
 - Review-, WikiSync-, Route-Plan- und Context-Menu-Klassen: Viele werden dynamisch per JS erzeugt.
 - Political-Territory-Klassen: Viele sind dynamisch oder editor-spezifisch.
-- `installPoliticalTerritoryLayerGeometryMerge()`: kein DCE, sondern aktive Laufzeitlogik an strukturell fragwuerdiger Stelle.
-- `installPoliticalRegionVisibilityBehavior()`: kein DCE, sondern aktives Verhalten an strukturell fragwuerdiger Stelle.
+- `installPoliticalTerritoryLayerGeometryMerge()`: kein DCE, sondern aktive Laufzeitlogik.
+- `installPoliticalRegionVisibilityBehavior()`: kein DCE, sondern aktives Verhalten.
