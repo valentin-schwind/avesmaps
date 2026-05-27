@@ -326,7 +326,7 @@ function waypointRemoveActionMarkup(waypointId) {
 
 	return locationPopupActionsMarkup([
 		popupActionButtonMarkup({
-			label: "➖ Aus Route entfernen",
+			label: "✕ Aus Route entfernen",
 			className: "location-popup__action-button--danger",
 			attributes: {
 				"data-popup-action": "remove-waypoint",
