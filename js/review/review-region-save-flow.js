@@ -62,6 +62,10 @@ async function saveRegionEditTab(tab) {
 		tab.assignGeometryPublicId = "";
 		tab.assignGeometryMode = "";
 	}
+	const territoryPublicId = String(tab.region?.territoryPublicId || payload.territory_public_id || "").trim();
+	if (payload.action === "update_territory" && territoryPublicId) {
+		await syncPoliticalTerritoryDisplayStyles(territoryPublicId);
+	}
 	tab.savedPayload = getComparableRegionEditPayload(payload);
 	tab.payload = null;
 	if (tab.key === activeRegionEditTabKey) {
@@ -69,7 +73,6 @@ async function saveRegionEditTab(tab) {
 		populateRegionEditForm(liveRegion || regionEditEntry, { preserveTabs: true });
 		renderRegionEditTabs();
 	}
-	const territoryPublicId = String(tab.region?.territoryPublicId || payload.territory_public_id || "").trim();
 	if (Array.isArray(latestResult?.assignment_chain) && latestResult.assignment_chain.length > 0) {
 		applyPersistedRegionAssignmentChain(latestResult.assignment_chain, territoryPublicId || liveRegion.territoryPublicId || "");
 	}
@@ -179,61 +182,19 @@ async function activatePrimaryRegionEditTabForTerritory(territoryPublicId) {
 		...(response.territory || {}),
 		assignment_chain: response.assignment_chain || [],
 	}, response.wiki || null);
-	const geometryPublicId = getPrimaryRegionGeometryPublicId();
-	if (geometryPublicId) {
-		region.geometryPublicId = geometryPublicId;
-	}
-	const geometryAssignment = getActiveRegionGeometryAssignment(territoryPublicId);
-	const assignGeometryPublicId = geometryAssignment?.geometryPublicId || "";
-	regionEditTabs = regionEditTabs.filter((tab, index) => index === 0 || tab.key !== territoryPublicId);
-	const nextPrimaryTab = {
+	region.geometryPublicId = primaryTab?.region?.geometryPublicId || primaryTab?.entry?.geometryPublicId || "";
+	const tab = {
 		key: territoryPublicId,
 		entry: primaryTab?.entry || regionEditEntry || region,
 		region,
 		payload: null,
 		savedPayload: regionEditPayloadToPayload(region),
-		assignGeometryPublicId,
-		assignGeometryMode: geometryAssignment?.mode || "",
+		assignGeometryPublicId: region.geometryPublicId || "",
+		assignGeometryMode: region.geometryPublicId ? "assign" : "",
 	};
-	if (regionEditTabs.length > 0) {
-		regionEditTabs[0] = nextPrimaryTab;
-	} else {
-		regionEditTabs = [nextPrimaryTab];
-	}
+	regionEditTabs.push(tab);
 	activeRegionEditTabKey = territoryPublicId;
-	populateRegionEditForm(nextPrimaryTab.region, { preserveTabs: true });
+	populateRegionEditForm(region, { preserveTabs: true });
 	renderRegionEditTabs();
 	setRegionEditStatus();
-}
-
-function askRegionTabCloseChoice() {
-	return new Promise((resolve) => {
-		const overlay = document.createElement("div");
-		overlay.className = "political-territory-confirm";
-		overlay.innerHTML = `
-			<div class="political-territory-confirm__dialog" role="dialog" aria-modal="true" aria-labelledby="region-tab-close-title">
-				<h3 id="region-tab-close-title">Änderungen speichern?</h3>
-				<p>Der Tab enthält ungespeicherte Änderungen.</p>
-				<div class="political-territory-confirm__actions">
-					<button type="button" data-region-tab-close-choice="save">Ja</button>
-					<button type="button" data-region-tab-close-choice="discard">Nein</button>
-					<button type="button" data-region-tab-close-choice="cancel">Abbrechen</button>
-				</div>
-			</div>
-		`;
-		const finish = (choice) => {
-			overlay.remove();
-			resolve(choice);
-		};
-		overlay.addEventListener("click", (event) => {
-			if (event.target === overlay) {
-				finish("cancel");
-			}
-		});
-		overlay.querySelectorAll("[data-region-tab-close-choice]").forEach((button) => {
-			button.addEventListener("click", () => finish(button.dataset.regionTabCloseChoice || "cancel"));
-		});
-		document.body.append(overlay);
-		overlay.querySelector("[data-region-tab-close-choice='save']")?.focus();
-	});
 }
