@@ -2,9 +2,12 @@ const API_URL = "/api/edit/wiki/dom-sync.php";
 const WIKI_SYNC_URL = "/api/edit/wiki/territories.php";
 
 let pollTimer = null;
+let statusTimer = null;
 let pollStartedAt = 0;
 let startCount = 0;
 let latestRowsPayload = null;
+let runRequestActive = false;
+let externalImportActive = false;
 
 const els = {
 	seeds: document.getElementById("seeds"),
@@ -101,11 +104,62 @@ function stopPolling() {
 	}
 }
 
+function startStatusPolling() {
+	stopStatusPolling();
+	statusTimer = window.setInterval(checkImportStatus, 3000);
+}
+
+function stopStatusPolling() {
+	if (statusTimer !== null) {
+		window.clearInterval(statusTimer);
+		statusTimer = null;
+	}
+}
+
+function formatSeconds(seconds) {
+	if (!Number.isFinite(seconds) || seconds < 0) return "unbekannter Laufzeit";
+	if (seconds < 60) return `${Math.round(seconds)}s`;
+	const minutes = Math.floor(seconds / 60);
+	const rest = Math.round(seconds % 60);
+	return `${minutes}m ${rest}s`;
+}
+
 async function refreshLiveRows() {
 	try {
 		render(await fetchJson(`${API_URL}?action=list&_=${Date.now()}`), true);
 	} catch (error) {
 		els.runInfo.textContent = `Live-Aktualisierung fehlgeschlagen: ${error.message}`;
+	}
+}
+
+async function checkImportStatus() {
+	try {
+		const payload = await fetchJson(`${API_URL}?action=status&_=${Date.now()}`);
+		if (payload.running) {
+			if (!externalImportActive && !runRequestActive) {
+				externalImportActive = true;
+				setBusy(true);
+				setStatus(`Import läuft noch auf dem Server (${formatSeconds(Number(payload.lock_age_seconds))}). Live-Aktualisierung aktiv.`);
+				startPolling();
+			} else if (externalImportActive) {
+				setStatus(`Import läuft noch auf dem Server (${formatSeconds(Number(payload.lock_age_seconds))}). Live-Aktualisierung aktiv.`);
+			}
+			startStatusPolling();
+			return;
+		}
+
+		if (externalImportActive) {
+			externalImportActive = false;
+			stopPolling();
+			stopStatusPolling();
+			setBusy(false);
+			await reloadRows();
+			setStatus("Server-Import abgeschlossen. Vorbereitete Daten wurden aktualisiert.");
+		}
+	} catch (error) {
+		if (externalImportActive) {
+			els.runInfo.textContent = `Statusprüfung fehlgeschlagen: ${error.message}`;
+		}
 	}
 }
 
@@ -126,27 +180,33 @@ async function loadDefaults() {
 	} catch (error) {
 		setStatus(`Fehler: ${error.message}`);
 	} finally {
-		setBusy(false);
+		if (!externalImportActive && !runRequestActive) setBusy(false);
 	}
 }
 
 async function runImport() {
+	runRequestActive = true;
 	setBusy(true);
 	try {
 		setStatus("Synchronisierung läuft. Die vorbereiteten Daten aktualisieren sich live.");
 		startPolling();
+		startStatusPolling();
 		const payload = await fetchJson(`${API_URL}?action=run`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(readPayload()),
 		});
 		stopPolling();
+		stopStatusPolling();
 		render(payload, false);
 		setStatus("Synchronisierung abgeschlossen.");
 	} catch (error) {
 		stopPolling();
+		stopStatusPolling();
 		setStatus(`Fehler: ${error.message}`);
 	} finally {
+		runRequestActive = false;
+		externalImportActive = false;
 		setBusy(false);
 	}
 }
@@ -159,7 +219,7 @@ async function reloadRows() {
 	} catch (error) {
 		setStatus(`Fehler: ${error.message}`);
 	} finally {
-		setBusy(false);
+		if (!externalImportActive && !runRequestActive) setBusy(false);
 	}
 }
 
@@ -173,7 +233,7 @@ async function clearRows() {
 	} catch (error) {
 		setStatus(`Fehler: ${error.message}`);
 	} finally {
-		setBusy(false);
+		if (!externalImportActive && !runRequestActive) setBusy(false);
 	}
 }
 
@@ -192,7 +252,7 @@ async function runWikiSync(dryRun) {
 	} catch (error) {
 		setStatus(`Fehler: ${error.message}`);
 	} finally {
-		setBusy(false);
+		if (!externalImportActive && !runRequestActive) setBusy(false);
 	}
 }
 
@@ -211,7 +271,7 @@ async function clearWikiTable() {
 	} catch (error) {
 		setStatus(`Fehler: ${error.message}`);
 	} finally {
-		setBusy(false);
+		if (!externalImportActive && !runRequestActive) setBusy(false);
 	}
 }
 
@@ -310,8 +370,8 @@ function updateSelectionState() {
 		check.closest("tr")?.classList.toggle("selected", check.checked);
 	}
 	els.selectedCount.textContent = `${selected.length} ausgewählt`;
-	els.deleteSelectedBtn.disabled = selected.length === 0;
-	els.clearSelectionBtn.disabled = selected.length === 0;
+	els.deleteSelectedBtn.disabled = selected.length === 0 || externalImportActive || runRequestActive;
+	els.clearSelectionBtn.disabled = selected.length === 0 || externalImportActive || runRequestActive;
 	els.selectAllRows.checked = checks.length > 0 && selected.length === checks.length;
 	els.selectAllRows.indeterminate = selected.length > 0 && selected.length < checks.length;
 }
@@ -339,7 +399,7 @@ async function deleteSelectedRows() {
 	} catch (error) {
 		setStatus(`Fehler: ${error.message}`);
 	} finally {
-		setBusy(false);
+		if (!externalImportActive && !runRequestActive) setBusy(false);
 	}
 }
 
@@ -379,4 +439,6 @@ els.clearNameSearchBtn.addEventListener("click", () => {
 	if (latestRowsPayload) render(latestRowsPayload, false);
 });
 
-loadDefaults().then(reloadRows);
+loadDefaults()
+	.then(reloadRows)
+	.then(checkImportStatus);
