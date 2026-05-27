@@ -6,7 +6,7 @@ require_once __DIR__ . '/wiki-browser-support.php';
 require_once __DIR__ . '/wiki-browser-normalize.php';
 require_once __DIR__ . '/wiki-browser-tree.php';
 
-$configPath = dirname(__DIR__) . '/config.local.php';
+$configPath = dirname(__DIR__, 2) . '/config.local.php';
 
 if (!is_file($configPath)) {
     respondJson(['ok' => false, 'error' => 'config.local.php fehlt.'], 500);
@@ -183,4 +183,3 @@ try {
         'error' => $error->getMessage(),
     ], 500);
 }
-
