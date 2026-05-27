@@ -77,6 +77,7 @@ function updateRegionEditEdgeHoverFromLatLng(latLng) {
 		return;
 	}
 
+	activeRegionGeometryEdit.editRingIndex = edge.ringIndex;
 	activeRegionGeometryEdit.edgeHover = edge;
 	renderRegionEditEdgeHighlight(edge);
 }
@@ -168,33 +169,36 @@ function handleRegionEditEdgeClick(event) {
 }
 
 function findNearestEditedRegionEdge(latLng, regionEntry) {
-	const ring = getRegionOuterLatLngs(regionEntry);
+	const rings = getPolygonLatLngRings(activeRegionGeometryEdit?.editLayer || regionEntry.layer);
 	const targetPoint = map.latLngToContainerPoint(latLng);
 	let nearest = null;
 
-	for (let index = 0; index < ring.length; index += 1) {
-		const start = L.latLng(ring[index]);
-		const end = L.latLng(ring[(index + 1) % ring.length]);
+	rings.forEach((ring, ringIndex) => {
+		for (let index = 0; index < ring.length; index += 1) {
+			const start = L.latLng(ring[index]);
+			const end = L.latLng(ring[(index + 1) % ring.length]);
 
-		if (start.distanceTo(end) <= 0.001) {
-			continue;
+			if (start.distanceTo(end) <= 0.001) {
+				continue;
+			}
+
+			const startPoint = map.latLngToContainerPoint(start);
+			const endPoint = map.latLngToContainerPoint(end);
+			const projectedPoint = closestPointOnSegment(targetPoint, startPoint, endPoint);
+			const distance = targetPoint.distanceTo(projectedPoint);
+
+			if (distance <= REGION_EDIT_EDGE_HIT_TOLERANCE_PX && (!nearest || distance < nearest.distance)) {
+				nearest = {
+					ringIndex,
+					index,
+					start,
+					end,
+					distance,
+					projectedLatLng: map.containerPointToLatLng(projectedPoint),
+				};
+			}
 		}
-
-		const startPoint = map.latLngToContainerPoint(start);
-		const endPoint = map.latLngToContainerPoint(end);
-		const projectedPoint = closestPointOnSegment(targetPoint, startPoint, endPoint);
-		const distance = targetPoint.distanceTo(projectedPoint);
-
-		if (distance <= REGION_EDIT_EDGE_HIT_TOLERANCE_PX && (!nearest || distance < nearest.distance)) {
-			nearest = {
-				index,
-				start,
-				end,
-				distance,
-				projectedLatLng: map.containerPointToLatLng(projectedPoint),
-			};
-		}
-	}
+	});
 
 	return nearest;
 }
@@ -212,12 +216,14 @@ function subdivideRegionEditHoveredEdge(pointCount) {
 
 	const regionEntry = activeRegionGeometryEdit.regionEntry;
 	const edge = activeRegionGeometryEdit.edgeHover;
-	const latLngs = getRegionOuterLatLngs(regionEntry).map(latLng => L.latLng(latLng));
+	const ringIndex = Number.isInteger(edge.ringIndex) ? edge.ringIndex : getRegionEditRingIndex(regionEntry, 0);
+	const latLngs = getRegionOuterLatLngs(regionEntry, ringIndex).map(latLng => L.latLng(latLng));
 
 	if (latLngs.length < 3 || edge.index < 0 || edge.index >= latLngs.length) {
 		return;
 	}
 
+	activeRegionGeometryEdit.editRingIndex = ringIndex;
 	const start = L.latLng(latLngs[edge.index]);
 	const endIndex = (edge.index + 1) % latLngs.length;
 	const end = L.latLng(latLngs[endIndex]);
@@ -233,7 +239,7 @@ function subdivideRegionEditHoveredEdge(pointCount) {
 
 	latLngs.splice(edge.index + 1, 0, ...insertedPoints);
 
-	setRegionOuterLatLngs(regionEntry, latLngs);
+	setRegionOuterLatLngs(regionEntry, latLngs, ringIndex);
 	updateRegionLabelPosition(regionEntry);
 	refreshRegionEditHandles();
 	clearRegionEditEdgeHover();

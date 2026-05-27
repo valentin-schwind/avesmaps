@@ -49,6 +49,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
 
       - name: Validate deployment secrets
         shell: bash
@@ -98,14 +100,64 @@ jobs:
             "scripts"
           )
 
-          for item in "${deploy_items[@]}"; do
-            if [[ -e "$item" ]]; then
-              cp -a "$item" "$DEPLOY_DIR/"
-            fi
-          done
+          copy_item() {
+            local item="$1"
 
-          if [[ "${{ inputs.upload_tiles }}" == "true" && -e "tiles" ]]; then
-            cp -a "tiles" "$DEPLOY_DIR/"
+            if [[ -e "$item" ]]; then
+              mkdir -p "$DEPLOY_DIR/$(dirname "$item")"
+              cp -a "$item" "$DEPLOY_DIR/$item"
+            fi
+          }
+
+          should_deploy_file() {
+            local file="$1"
+            local item
+
+            for item in "${deploy_items[@]}"; do
+              if [[ "$file" == "$item" || "$file" == "$item/"* ]]; then
+                return 0
+              fi
+            done
+
+            return 1
+          }
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "Preparing full deploy package."
+
+            for item in "${deploy_items[@]}"; do
+              copy_item "$item"
+            done
+
+            if [[ "${{ inputs.upload_tiles }}" == "true" && -e "tiles" ]]; then
+              copy_item "tiles"
+            fi
+          else
+            echo "Preparing changed-files deploy package."
+
+            base_sha="${{ github.event.before }}"
+            head_sha="${{ github.sha }}"
+
+            if [[ -z "$base_sha" || "$base_sha" =~ ^0+$ ]]; then
+              echo "No usable base SHA found; preparing full deploy package instead."
+
+              for item in "${deploy_items[@]}"; do
+                copy_item "$item"
+              done
+            else
+              changed_files=$(git diff --name-only --diff-filter=ACMRT "$base_sha" "$head_sha")
+
+              if [[ -z "$changed_files" ]]; then
+                echo "No changed deployable files found."
+                echo "SKIP_DEPLOY=true" >> "$GITHUB_ENV"
+              else
+                while IFS= read -r file; do
+                  if should_deploy_file "$file"; then
+                    copy_item "$file"
+                  fi
+                done <<< "$changed_files"
+              fi
+            fi
           fi
 
           rm -f "$DEPLOY_DIR/.env"
@@ -120,10 +172,17 @@ jobs:
           find "$DEPLOY_DIR" -type d -name "__pycache__" -prune -exec rm -rf {} +
           find "$DEPLOY_DIR" -type f \( -name "*.pyc" -o -name "*.pyo" -o -name "Aventurien_routes.backup-*.svg" \) -delete
 
+          if ! find "$DEPLOY_DIR" -mindepth 1 -print -quit | grep -q .; then
+            echo "Deploy package is empty."
+            echo "SKIP_DEPLOY=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
           echo "Deploy package:"
           find "$DEPLOY_DIR" -maxdepth 2 -mindepth 1 | sort
 
       - name: Install SFTP client
+        if: env.SKIP_DEPLOY != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -131,6 +190,7 @@ jobs:
           sudo apt-get install --yes lftp
 
       - name: Deploy package
+        if: env.SKIP_DEPLOY != 'true'
         shell: bash
         run: |
           set -euo pipefail

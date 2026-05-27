@@ -67,8 +67,8 @@
 			}
 		});
 
-		function getRegionVertexDetachHandleId(index) {
-			return `outer:${index}`;
+		function getRegionVertexDetachHandleId(ringIndex, index) {
+			return `${ringIndex}:${index}`;
 		}
 
 		function createRegionDetachHandleIcon(detachPreview = false) {
@@ -132,6 +132,7 @@
 
 			activeRegionGeometryEdit.vertexDetachHandle = handle;
 			activeRegionGeometryEdit.vertexDetachHandleId = handle._regionVertexHandleId || null;
+			activeRegionGeometryEdit.editRingIndex = Number.isInteger(handle._regionRingIndex) ? handle._regionRingIndex : getRegionEditRingIndex(activeRegionGeometryEdit.regionEntry, 0);
 			setRegionDetachedVertexHandle(handle, true);
 			clearRegionEditEdgeHover();
 			return true;
@@ -188,15 +189,15 @@
 				return;
 			}
 
-			const { handle, index, regionEntry } = activeRegionVertexDetachDrag;
-			const latLngs = getRegionOuterLatLngs(regionEntry);
+			const { handle, index, ringIndex, regionEntry } = activeRegionVertexDetachDrag;
+			const latLngs = getRegionOuterLatLngs(regionEntry, ringIndex);
 			if (!latLngs[index]) {
 				return;
 			}
 
 			handle.setLatLng(latLng);
 			latLngs[index] = latLng;
-			setRegionOuterLatLngs(regionEntry, latLngs);
+			setRegionOuterLatLngs(regionEntry, latLngs, ringIndex);
 			updateRegionLabelPosition(regionEntry);
 			clearRegionEditEdgeHover();
 			activeRegionVertexDetachDrag.didMove = true;
@@ -229,21 +230,22 @@
 				return;
 			}
 
-			const latLngs = getRegionOuterLatLngs(dragState.regionEntry);
+			const latLngs = getRegionOuterLatLngs(dragState.regionEntry, dragState.ringIndex);
 			const targetLatLng = dragState.handle.getLatLng();
 			latLngs[dragState.index] = targetLatLng;
-			setRegionOuterLatLngs(dragState.regionEntry, latLngs);
+			setRegionOuterLatLngs(dragState.regionEntry, latLngs, dragState.ringIndex);
 			updateRegionLabelPosition(dragState.regionEntry);
 			refreshRegionEditHandles();
 			void saveRegionGeometry(dragState.regionEntry);
 		}
 
-		function startManualRegionVertexDetachDrag(event, handle, index) {
+		function startManualRegionVertexDetachDrag(event, handle, index, ringIndex = 0) {
 			const domEvent = event?.originalEvent || event;
 			if (!activeRegionGeometryEdit || !readRegionVertexDetachModifier(event) || activeRegionVertexDetachDrag) {
 				return false;
 			}
 
+			activeRegionGeometryEdit.editRingIndex = ringIndex;
 			stopRegionVertexDetachDomEvent(domEvent);
 			markRegionVertexDetachHandle(handle);
 			clearRegionEditEdgeHover();
@@ -260,6 +262,7 @@
 			activeRegionVertexDetachDrag = {
 				handle,
 				index,
+				ringIndex,
 				regionEntry: activeRegionGeometryEdit.regionEntry,
 				mapDraggingWasEnabled,
 				handleDraggingWasEnabled,
@@ -299,94 +302,103 @@
 			activeRegionGeometryEdit.vertexDetachHandle = null;
 			activeRegionGeometryEdit.vertexDetachHandleId = null;
 
-			getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry).forEach((latLng, index) => {
-				const originalLatLng = L.latLng(latLng);
-				const handle = L.marker(latLng, {
-					icon: createRegionDetachHandleIcon(false),
-					pane: "measurementHandlesPane",
-					draggable: true,
-					keyboard: false,
-					bubblingMouseEvents: false,
-				}).addTo(map);
-				handle._regionVertexHandleId = getRegionVertexDetachHandleId(index);
-				handle._regionDetachPreview = false;
-				handle._regionDetachDrag = false;
-				handle._regionDetachMouseDownCtrl = false;
+			const rings = getPolygonLatLngRings(activeRegionGeometryEdit.editLayer);
+			rings.forEach((ringLatLngs, ringIndex) => {
+				ringLatLngs.forEach((latLng, index) => {
+					const originalLatLng = L.latLng(latLng);
+					const handle = L.marker(latLng, {
+						icon: createRegionDetachHandleIcon(false),
+						pane: "measurementHandlesPane",
+						draggable: true,
+						keyboard: false,
+						bubblingMouseEvents: false,
+					}).addTo(map);
+					handle._regionRingIndex = ringIndex;
+					handle._regionVertexIndex = index;
+					handle._regionVertexHandleId = getRegionVertexDetachHandleId(ringIndex, index);
+					handle._regionDetachPreview = false;
+					handle._regionDetachDrag = false;
+					handle._regionDetachMouseDownCtrl = false;
 
-				handle.on("mouseover", (event) => handleRegionVertexDetachMouseEvent(event, handle));
-				handle.on("mousemove", (event) => handleRegionVertexDetachMouseEvent(event, handle));
-				handle.on("mousedown", (event) => {
-					if (startManualRegionVertexDetachDrag(event, handle, index)) {
-						return;
-					}
+					handle.on("mouseover", (event) => handleRegionVertexDetachMouseEvent(event, handle));
+					handle.on("mousemove", (event) => handleRegionVertexDetachMouseEvent(event, handle));
+					handle.on("mousedown", (event) => {
+						if (startManualRegionVertexDetachDrag(event, handle, index, ringIndex)) {
+							return;
+						}
 
-					handle._regionDetachMouseDownCtrl = readRegionVertexDetachModifier(event);
-					if (handle._regionDetachMouseDownCtrl) {
-						markRegionVertexDetachHandle(handle);
-					}
-				});
-
-				handle.on("dragstart", (event) => {
-					handle._regionDetachDrag = Boolean(handle._regionDetachMouseDownCtrl || shouldDetachRegionVertexDrag(handle, event));
-					clearRegionEditVertexDetachPreview();
-					clearRegionEditEdgeHover();
-				});
-
-				handle.on("drag", (event) => {
-					if (readRegionVertexDetachModifier(event)) {
-						handle._regionDetachDrag = true;
-					}
-
-					const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry);
-					latLngs[index] = event.target.getLatLng();
-					setRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, latLngs);
-					updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
-					clearRegionEditEdgeHover();
-				});
-
-				handle.on("dragend", (event) => {
-					const shouldDetachVertex = Boolean(event.target._regionDetachDrag || readRegionVertexDetachModifier(event));
-					event.target._regionDetachDrag = false;
-					event.target._regionDetachMouseDownCtrl = false;
-
-					const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry);
-					const targetLatLng = shouldDetachVertex
-						? event.target.getLatLng()
-						: findNearestRegionSnapPoint(event.target.getLatLng(), activeRegionGeometryEdit.regionEntry) || event.target.getLatLng();
-					latLngs[index] = targetLatLng;
-					setRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, latLngs);
-					const affectedRegions = shouldDetachVertex
-						? []
-						: applySharedBoundaryVertexMove(activeRegionGeometryEdit.regionEntry, originalLatLng, targetLatLng);
-					updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
-					refreshRegionEditHandles();
-					void saveRegionGeometry(activeRegionGeometryEdit.regionEntry);
-					affectedRegions.forEach((region) => {
-						void saveRegionGeometry(region);
+						handle._regionDetachMouseDownCtrl = readRegionVertexDetachModifier(event);
+						if (handle._regionDetachMouseDownCtrl) {
+							activeRegionGeometryEdit.editRingIndex = ringIndex;
+							markRegionVertexDetachHandle(handle);
+						}
 					});
-				});
 
-				handle.on("dblclick", (event) => {
-					L.DomEvent.stop(event);
-					L.DomEvent.preventDefault(event);
-					deleteRegionNode(index);
-				});
-
-				const element = handle.getElement?.();
-				if (element) {
-					L.DomEvent.disableClickPropagation(element);
-					L.DomEvent.disableScrollPropagation(element);
-					element.addEventListener("mousedown", (event) => {
-						startManualRegionVertexDetachDrag(event, handle, index);
-					}, true);
-					element.addEventListener("dblclick", (event) => {
-						event.preventDefault();
-						event.stopPropagation();
-						deleteRegionNode(index);
+					handle.on("dragstart", (event) => {
+						activeRegionGeometryEdit.editRingIndex = ringIndex;
+						handle._regionDetachDrag = Boolean(handle._regionDetachMouseDownCtrl || shouldDetachRegionVertexDrag(handle, event));
+						clearRegionEditVertexDetachPreview();
+						clearRegionEditEdgeHover();
 					});
-				}
 
-				activeRegionGeometryEdit.handles.push(handle);
+					handle.on("drag", (event) => {
+						activeRegionGeometryEdit.editRingIndex = ringIndex;
+						if (readRegionVertexDetachModifier(event)) {
+							handle._regionDetachDrag = true;
+						}
+
+						const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, ringIndex);
+						latLngs[index] = event.target.getLatLng();
+						setRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, latLngs, ringIndex);
+						updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
+						clearRegionEditEdgeHover();
+					});
+
+					handle.on("dragend", (event) => {
+						activeRegionGeometryEdit.editRingIndex = ringIndex;
+						const shouldDetachVertex = Boolean(event.target._regionDetachDrag || readRegionVertexDetachModifier(event));
+						event.target._regionDetachDrag = false;
+						event.target._regionDetachMouseDownCtrl = false;
+
+						const latLngs = getRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, ringIndex);
+						const targetLatLng = shouldDetachVertex
+							? event.target.getLatLng()
+							: findNearestRegionSnapPoint(event.target.getLatLng(), activeRegionGeometryEdit.regionEntry) || event.target.getLatLng();
+						latLngs[index] = targetLatLng;
+						setRegionOuterLatLngs(activeRegionGeometryEdit.regionEntry, latLngs, ringIndex);
+						const affectedRegions = shouldDetachVertex
+							? []
+							: applySharedBoundaryVertexMove(activeRegionGeometryEdit.regionEntry, originalLatLng, targetLatLng);
+						updateRegionLabelPosition(activeRegionGeometryEdit.regionEntry);
+						refreshRegionEditHandles();
+						void saveRegionGeometry(activeRegionGeometryEdit.regionEntry);
+						affectedRegions.forEach((region) => {
+							void saveRegionGeometry(region);
+						});
+					});
+
+					handle.on("dblclick", (event) => {
+						L.DomEvent.stop(event);
+						L.DomEvent.preventDefault(event);
+						deleteRegionNode(index, ringIndex);
+					});
+
+					const element = handle.getElement?.();
+					if (element) {
+						L.DomEvent.disableClickPropagation(element);
+						L.DomEvent.disableScrollPropagation(element);
+						element.addEventListener("mousedown", (event) => {
+							startManualRegionVertexDetachDrag(event, handle, index, ringIndex);
+						}, true);
+						element.addEventListener("dblclick", (event) => {
+							event.preventDefault();
+							event.stopPropagation();
+							deleteRegionNode(index, ringIndex);
+						});
+					}
+
+					activeRegionGeometryEdit.handles.push(handle);
+				});
 			});
 		};
 

@@ -23,6 +23,7 @@ function startRegionGeometryEdit(regionEntry, editLayer = null) {
 	activeRegionGeometryEdit = {
 		regionEntry,
 		editLayer: editLayer || regionEntry.layer,
+		editRingIndex: 0,
 		handles: [],
 		edgeHover: null,
 		edgeHighlightLayer: null,

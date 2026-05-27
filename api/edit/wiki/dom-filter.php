@@ -16,6 +16,7 @@ function avesmapsWikiDomPatchSource(string $source): string {
         'Markgrafschaft/Liste',
         'Pfalzgrafschaft/Liste',
         'Reichsmark/Liste',
+        'Reichsstadt/Liste',
         'Republik/Liste',
         'Shîkanydad/Liste',
         'Staat/Liste',
@@ -23,13 +24,13 @@ function avesmapsWikiDomPatchSource(string $source): string {
     ];
 
     $defaultCatchwords = [
-        'affiliation_path_labels' => ['staat', 'staatverlauf', 'zugehörigkeit', 'zugehoerigkeit', 'politisch', 'reich', 'oberherrschaft', 'lehnsherr', 'lehnsherrschaft', 'teil von', 'provinz', 'übergeordnet', 'uebergeordnet', 'herrschaftsgebiet', 'region'],
-        'founded_labels' => ['gründungsdatum', 'gruendungsdatum', 'gründung', 'gruendung', 'gründungsdaten', 'gruendungsdaten', 'unabhängigkeit', 'unabhaengigkeit', 'gegründet', 'gegruendet', 'entstehung', 'ausrufung', 'errichtung', 'erhebung', 'anerkennung', 'ausgliederung'],
-        'dissolved_labels' => ['aufgelöst', 'aufgeloest', 'auflösung', 'aufloesung', 'auflösungsdatum', 'aufloesungsdatum', 'ende', 'untergang', 'zerfall', 'aufgegeben', 'eingegliedert', 'annektiert', 'erobert', 'aufhebung', 'verlust'],
-        'period_labels' => ['zeitraum', 'bestehen', 'bestand', 'bestandszeit', 'existenz', 'bestanden', 'existierte', 'zeit', 'ära', 'aera'],
+        'affiliation_path_labels' => ['staat', 'staatverlauf', 'zugehörigkeit', 'politisch', 'reich', 'oberherrschaft', 'lehnsherr', 'lehnsherrschaft', 'teil von', 'provinz', 'übergeordnet', 'herrschaftsgebiet', 'region'],
+        'founded_labels' => ['gründungsdatum', 'gründung', 'gründungsdaten', 'unabhängigkeit', 'gegründet', 'entstehung', 'ausrufung', 'errichtung', 'erhebung', 'anerkennung', 'ausgliederung'],
+        'dissolved_labels' => ['aufgelöst', 'auflösung', 'auflösungsdatum', 'ende', 'untergang', 'zerfall', 'aufgegeben', 'eingegliedert', 'annektiert', 'erobert', 'aufhebung', 'verlust'],
+        'period_labels' => ['zeitraum', 'bestehen', 'bestand', 'bestandszeit', 'existenz', 'bestanden', 'existierte', 'zeit', 'ära'],
         'year_markers' => ['BF', 'v. BF', 'v BF'],
-        'founded_context_words' => ['gegründet', 'gegruendet', 'gründung', 'gruendung', 'gründungsdatum', 'gruendungsdatum', 'gründungsdaten', 'gruendungsdaten', 'unabhängigkeit', 'unabhaengigkeit', 'entstand', 'entstehung', 'ausgerufen', 'ausrufung', 'errichtet', 'errichtung', 'erhoben', 'erhebung', 'anerkannt', 'anerkennung', 'abgespalten', 'ausgliederung'],
-        'dissolved_context_words' => ['aufgelöst', 'aufgeloest', 'auflösung', 'aufloesung', 'endete', 'untergang', 'zerfiel', 'zerfall', 'aufgegeben', 'eingegliedert', 'annektiert', 'erobert', 'aufgehoben', 'aufhebung', 'verlor', 'verlust', 'fiel an', 'ging an'],
+        'founded_context_words' => ['gegründet', 'gründung', 'gründungsdatum', 'gründungsdaten', 'unabhängigkeit', 'entstand', 'entstehung', 'ausgerufen', 'ausrufung', 'errichtet', 'errichtung', 'erhoben', 'erhebung', 'anerkannt', 'anerkennung', 'abgespalten', 'ausgliederung'],
+        'dissolved_context_words' => ['aufgelöst', 'auflösung', 'endete', 'untergang', 'zerfiel', 'zerfall', 'aufgegeben', 'eingegliedert', 'annektiert', 'erobert', 'aufgehoben', 'aufhebung', 'verlor', 'verlust', 'fiel an', 'ging an'],
     ];
 
     $source = str_replace('const WIKI_DOM_MAX_ITERATIONS = 160;', 'const WIKI_DOM_MAX_ITERATIONS = 3000;', $source);
@@ -53,6 +54,70 @@ function avesmapsWikiDomPatchSource(string $source): string {
     $source = str_replace(
         "'request_timeout_seconds' => max(3, min(20, (int) (\$payload['request_timeout_seconds'] ?? \$d['request_timeout_seconds'])))",
         "'request_timeout_seconds' => max(3, min(30, (int) (\$payload['request_timeout_seconds'] ?? \$d['request_timeout_seconds'])))",
+        $source
+    );
+
+    $historicalConflictSource = <<<'PHP'
+function wikiDomIsHistoricalRecord(array $record): bool {
+    $url = rawurldecode(str_replace('_', ' ', (string) ($record['wiki_url'] ?? '')));
+    return preg_match('/\(\s*historisch\s*\)/iu', $url) === 1;
+}
+
+function wikiDomCanonicalWikiKeyForHistoricalRecord(array $record): string {
+    $name = trim((string) ($record['name'] ?? ''));
+    $slug = $name !== '' ? avesmapsPoliticalSlug($name) : '';
+    return $slug !== '' ? 'wiki:' . $slug : '';
+}
+
+function wikiDomHistoricalWikiKeyForCanonicalRecord(array $record): string {
+    $name = trim((string) ($record['name'] ?? ''));
+    $slug = $name !== '' ? avesmapsPoliticalSlug($name . ' Historisch') : '';
+    return $slug !== '' ? 'wiki:' . $slug : '';
+}
+
+function wikiDomRecordExistsByWikiKey(PDO $pdo, string $wikiKey): bool {
+    if ($wikiKey === '') return false;
+    $stmt = $pdo->prepare('SELECT 1 FROM ' . WIKI_DOM_TEST_TABLE . ' WHERE wiki_key = :wiki_key LIMIT 1');
+    $stmt->execute(['wiki_key' => $wikiKey]);
+    return $stmt->fetchColumn() !== false;
+}
+
+function wikiDomDeleteHistoricalFallbackForCanonicalRecord(PDO $pdo, array $record): void {
+    $historicalKey = wikiDomHistoricalWikiKeyForCanonicalRecord($record);
+    if ($historicalKey === '') return;
+    $stmt = $pdo->prepare('DELETE FROM ' . WIKI_DOM_TEST_TABLE . ' WHERE wiki_key = :wiki_key');
+    $stmt->execute(['wiki_key' => $historicalKey]);
+}
+
+PHP;
+
+    $source = str_replace(
+        <<<'PHP'
+function upsertRecord(PDO $pdo, array $record): void { $columns = tableColumns($pdo); $write = []; foreach ($record as $key => $value) { if (isset($columns[$key]) && !in_array($key, ['id', 'synced_at'], true)) $write[$key] = $value; } if (!isset($write['wiki_key'], $write['name'])) throw new RuntimeException('Datensatz ohne wiki_key/name kann nicht gespeichert werden.'); $names = array_keys($write); $insertCols = implode(', ', $names); $insertValues = ':' . implode(', :', $names); $updates = implode(', ', array_map(static fn(string $col): string => $col . '=VALUES(' . $col . ')', array_filter($names, static fn(string $col): bool => $col !== 'wiki_key'))); $sql = 'INSERT INTO ' . WIKI_DOM_TEST_TABLE . ' (' . $insertCols . ', synced_at) VALUES (' . $insertValues . ', CURRENT_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE ' . $updates . ', synced_at=CURRENT_TIMESTAMP(3)'; $params = []; foreach ($write as $key => $value) { if (is_array($value)) $params[$key] = jsonOrNull($value); elseif (is_string($value)) $params[$key] = nullable($value); else $params[$key] = $value; } $pdo->prepare($sql)->execute($params); }
+PHP,
+        $historicalConflictSource . <<<'PHP'
+function upsertRecord(PDO $pdo, array $record): void { if (wikiDomIsHistoricalRecord($record)) { $canonicalKey = wikiDomCanonicalWikiKeyForHistoricalRecord($record); if ($canonicalKey !== '' && $canonicalKey !== (string) ($record['wiki_key'] ?? '') && wikiDomRecordExistsByWikiKey($pdo, $canonicalKey)) return; } else { wikiDomDeleteHistoricalFallbackForCanonicalRecord($pdo, $record); } $columns = tableColumns($pdo); $write = []; foreach ($record as $key => $value) { if (isset($columns[$key]) && !in_array($key, ['id', 'synced_at'], true)) $write[$key] = $value; } if (!isset($write['wiki_key'], $write['name'])) throw new RuntimeException('Datensatz ohne wiki_key/name kann nicht gespeichert werden.'); $names = array_keys($write); $insertCols = implode(', ', $names); $insertValues = ':' . implode(', :', $names); $updates = implode(', ', array_map(static fn(string $col): string => $col . '=VALUES(' . $col . ')', array_filter($names, static fn(string $col): bool => $col !== 'wiki_key'))); $sql = 'INSERT INTO ' . WIKI_DOM_TEST_TABLE . ' (' . $insertCols . ', synced_at) VALUES (' . $insertValues . ', CURRENT_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE ' . $updates . ', synced_at=CURRENT_TIMESTAMP(3)'; $params = []; foreach ($write as $key => $value) { if (is_array($value)) $params[$key] = jsonOrNull($value); elseif (is_string($value)) $params[$key] = nullable($value); else $params[$key] = $value; } $pdo->prepare($sql)->execute($params); }
+PHP,
+        $source
+    );
+
+    $source = str_replace(
+        <<<'PHP'
+function childSections(DOMXPath $xpath): array { $sections = []; foreach ($xpath->query('//dl/dt') ?: [] as $dt) { if (!$dt instanceof DOMElement) continue; $label = cleanText($dt->textContent ?? ''); if (!isChildSectionLabel($label)) continue; $dd = nextElementSibling($dt, 'dd'); if (!$dd instanceof DOMElement) continue; $items = []; foreach ($dd->getElementsByTagName('a') as $link) { if (!$link instanceof DOMElement) continue; $title = titleFromHref((string) $link->getAttribute('href')); $text = cleanText($link->textContent ?? ''); if ($title === '' || $text === '' || !isRelevantTitle($title)) continue; $items[stableKey($title)] = ['title' => $title, 'label' => $text, 'wiki_url' => pageUrl($title)]; } if ($items !== []) $sections[] = ['label' => $label, 'label_key' => labelKey($label), 'items' => array_values($items)]; } return $sections; }
+PHP,
+        <<<'PHP'
+function childSections(DOMXPath $xpath): array { $sections = []; foreach ($xpath->query('//dl/dt') ?: [] as $dt) { if (!$dt instanceof DOMElement) continue; $label = cleanText($dt->textContent ?? ''); if (!isChildSectionLabel($label)) continue; $items = []; $current = $dt->nextSibling; while ($current instanceof DOMNode) { if ($current instanceof DOMElement) { $tagName = mb_strtolower($current->tagName, 'UTF-8'); if ($tagName === 'dt') break; if ($tagName !== 'dd') break; foreach ($current->getElementsByTagName('a') as $link) { if (!$link instanceof DOMElement) continue; $title = titleFromHref((string) $link->getAttribute('href')); $text = cleanText($link->textContent ?? ''); if ($title === '' || $text === '' || !isRelevantTitle($title)) continue; $items[stableKey($title)] = ['title' => $title, 'label' => $text, 'wiki_url' => pageUrl($title)]; } } $current = $current->nextSibling; } if ($items !== []) $sections[] = ['label' => $label, 'label_key' => labelKey($label), 'items' => array_values($items)]; } return $sections; }
+PHP,
+        $source
+    );
+
+    $source = str_replace(
+        <<<'PHP'
+function isChildSectionLabel(string $label): bool { $key = labelKey($label); if ($key === '') return false; foreach (['nachbarn','siedlungen','staedte','orte','fluesse','gewaesser','gebirge','berge','meere','inseln','waelder','strassen','wege'] as $bad) if (str_contains($key, $bad)) return false; foreach (['provinz','provinzen','untergebiet','untergebiete','teilgebiet','teilgebiete','gliedstaat','gliedstaaten','landesteil','landesteile','baronie','baronien','grafschaft','grafschaften','markgrafschaft','markgrafschaften','pfalzgrafschaft','pfalzgrafschaften','herzogtum','herzogtuemer','fuerstentum','fuerstentuemer','domaene','domaenen','emirat','emirate','sultanat','sultanate','jarltum','jarltuemer','haranydad','haranydate','shikanydad','shikanydate','historische herrschaftsgebiete'] as $good) if (str_contains($key, $good)) return true; return false; }
+PHP,
+        <<<'PHP'
+function isChildSectionLabel(string $label): bool { $key = labelKey($label); if ($key === '') return false; foreach (['nachbarn','siedlungen','staedte','orte','fluesse','gewaesser','gebirge','berge','meere','inseln','waelder','strassen','wege'] as $bad) if (str_contains($key, $bad)) return false; foreach (['provinz','provinzen','amt','aemter','aemtern','untergebiet','untergebiete','teilgebiet','teilgebiete','gliedstaat','gliedstaaten','landesteil','landesteile','baronie','baronien','grafschaft','grafschaften','markgrafschaft','markgrafschaften','pfalzgrafschaft','pfalzgrafschaften','herzogtum','herzogtuemer','fuerstentum','fuerstentuemer','domaene','domaenen','emirat','emirate','sultanat','sultanate','jarltum','jarltuemer','haranydad','haranydate','shikanydad','shikanydate','historische herrschaftsgebiete'] as $good) if (str_contains($key, $good)) return true; return false; }
+PHP,
         $source
     );
 
