@@ -526,3 +526,7 @@
 	background: rgba(255, 216, 88, 0.2);
 	color: #2f251c;
 }
+
+.transportOptionSelect {
+	width: 170px;
+}
