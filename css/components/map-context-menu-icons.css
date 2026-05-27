@@ -3,7 +3,7 @@
 .map-context-menu__item[data-context-action="open-spotlight-search"],
 .map-context-menu__item[data-context-action="find-nearest-location"],
 .map-context-menu__item[data-context-action="start-distance-measurement"] {
-	grid-template-columns: 24px max-content auto;
+	grid-template-columns: 1.45em max-content auto;
 	font-size: 0;
 }
 
@@ -15,8 +15,9 @@
 	content: "";
 	grid-column: 1;
 	grid-row: 1;
-	width: 20px;
-	height: 20px;
+	justify-self: center;
+	width: 18px;
+	height: 18px;
 	background-position: center;
 	background-repeat: no-repeat;
 	background-size: contain;
@@ -50,6 +51,7 @@
 	grid-column: 2;
 	grid-row: 1;
 	justify-self: start;
+	padding-left: 3px;
 	font: inherit;
 	font-size: 14px;
 	white-space: nowrap;
