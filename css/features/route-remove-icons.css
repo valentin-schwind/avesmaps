@@ -1,0 +1,17 @@
+.remove-waypoint,
+.location-popup__action-button[data-popup-action="remove-waypoint"] {
+	font-size: 0;
+}
+
+.remove-waypoint::before {
+	content: "\1F7AA";
+	font: inherit;
+	font-size: 15px;
+	line-height: 1;
+}
+
+.location-popup__action-button[data-popup-action="remove-waypoint"]::before {
+	content: "\1F7AA  Aus Route entfernen";
+	font: inherit;
+	font-size: 13px;
+}
