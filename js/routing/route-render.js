@@ -16,7 +16,7 @@ function drawRoute(segments) {
 	currentRouteNodeLayer = L.layerGroup();
 	currentRouteLayer = L.layerGroup();
 	segments.forEach((segment, segmentIndex) => {
-		const visualCoordinates = smoothLineCoordinatesForDisplay(segment.geometry?.coordinates || []);
+		const visualCoordinates = smoothLineCoordinatesForDisplay(segment.geometry?.coordinates || [], VISUAL_LINE_CATMULL_ROM_CONFIG);
 		const segCoords = visualCoordinates.map(([x, y]) => [y, x]);
 		if (segCoords.length) {
 			const segLayer = L.polyline(segCoords, getRouteSegmentStyle(segment));
