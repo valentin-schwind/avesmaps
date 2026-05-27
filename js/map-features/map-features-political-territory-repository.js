@@ -14,6 +14,7 @@ const politicalTerritoryRepository = {
 			geometry_geojson: geometryGeoJson,
 			style_json: stylePayload,
 		});
+		await syncRegionEntryDisplayStyles(regionEntry);
 		registerRegionEntryStyleOverride(regionEntry, stylePayload);
 		return result;
 	},
@@ -33,6 +34,7 @@ const politicalTerritoryRepository = {
 			...buildRegionSplitPayload(operationState, sourcePart, splitPart),
 			style_json: stylePayload,
 		});
+		await syncRegionEntryDisplayStyles(operationState.sourceRegion);
 		registerRegionEntryStyleOverride(operationState.sourceRegion, stylePayload);
 		return result;
 	},
@@ -48,6 +50,7 @@ const politicalTerritoryRepository = {
 			...buildRegionBooleanOperationPayload(operationState, targetRegion, geometryGeoJson, options),
 			style_json: stylePayload,
 		});
+		await syncRegionEntryDisplayStyles(operationState.sourceRegion);
 		registerRegionEntryStyleOverride(operationState.sourceRegion, stylePayload);
 		return result;
 	},
@@ -90,6 +93,15 @@ async function buildPoliticalGeometryStylePayload(regionEntry) {
 	}
 
 	return localStylePayload;
+}
+
+async function syncRegionEntryDisplayStyles(regionEntry) {
+	const territoryPublicId = String(regionEntry?.territoryPublicId || "").trim();
+	if (!territoryPublicId || typeof syncPoliticalTerritoryDisplayStyles !== "function") {
+		return;
+	}
+
+	await syncPoliticalTerritoryDisplayStyles(territoryPublicId);
 }
 
 function registerRegionEntryStyleOverride(regionEntry, stylePayload = buildRegionStylePayload(regionEntry)) {
