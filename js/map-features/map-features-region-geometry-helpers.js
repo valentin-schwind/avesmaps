@@ -299,19 +299,42 @@ function closestPointOnSegment(point, startPoint, endPoint) {
 	);
 }
 
-function getRegionOuterLatLngs(regionEntry) {
-	const layer = activeRegionGeometryEdit?.regionEntry === regionEntry
+function getRegionEditLayer(regionEntry) {
+	return activeRegionGeometryEdit?.regionEntry === regionEntry
 		? activeRegionGeometryEdit.editLayer
 		: regionEntry.layer;
-	return getPolygonOuterLatLngs(layer);
 }
 
-function setRegionOuterLatLngs(regionEntry, outerLatLngs) {
-	const layer = activeRegionGeometryEdit?.regionEntry === regionEntry
-		? activeRegionGeometryEdit.editLayer
-		: regionEntry.layer;
-	const holes = getPolygonLatLngRings(layer).slice(1);
-	layer.setLatLngs(holes.length > 0 ? [outerLatLngs, ...holes] : [outerLatLngs]);
+function getRegionEditRingIndex(regionEntry, fallbackRingIndex = 0) {
+	const requestedRingIndex = activeRegionGeometryEdit?.regionEntry === regionEntry
+		? activeRegionGeometryEdit.editRingIndex
+		: fallbackRingIndex;
+	const ringIndex = Number.isInteger(requestedRingIndex) ? requestedRingIndex : fallbackRingIndex;
+	return Math.max(0, ringIndex);
+}
+
+function getRegionOuterLatLngs(regionEntry, ringIndex = null) {
+	const layer = getRegionEditLayer(regionEntry);
+	const rings = getPolygonLatLngRings(layer);
+	const resolvedRingIndex = ringIndex === null
+		? getRegionEditRingIndex(regionEntry, 0)
+		: Math.max(0, Number(ringIndex) || 0);
+	return rings[resolvedRingIndex] || rings[0] || [];
+}
+
+function setRegionOuterLatLngs(regionEntry, outerLatLngs, ringIndex = null) {
+	const layer = getRegionEditLayer(regionEntry);
+	const rings = getPolygonLatLngRings(layer);
+	const resolvedRingIndex = ringIndex === null
+		? getRegionEditRingIndex(regionEntry, 0)
+		: Math.max(0, Number(ringIndex) || 0);
+
+	rings[resolvedRingIndex] = outerLatLngs;
+	layer.setLatLngs(rings);
+
+	if (activeRegionGeometryEdit?.regionEntry === regionEntry) {
+		activeRegionGeometryEdit.editRingIndex = resolvedRingIndex;
+	}
 }
 
 function getPolygonOuterLatLngs(polygon) {
