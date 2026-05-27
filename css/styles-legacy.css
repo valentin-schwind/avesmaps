@@ -74,27 +74,6 @@
 	text-orientation: mixed;
 }
 
-#legal-button {
-	position: fixed;
-	right: 12px;
-	bottom: 12px;
-	padding: 7px 10px;
-	border: 1px solid #8d7962;
-	border-radius: 6px;
-	background: rgba(255, 249, 244, 0.94);
-	color: #3f3428;
-	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
-	cursor: pointer;
-	z-index: 1000;
-	font-size: 13px;
-}
-
-#legal-button:hover,
-#legal-button:focus-visible {
-	background: rgba(255, 249, 244, 1);
-	outline: none;
-}
-
 .map-data-status {
 	margin: 0 14px 10px;
 	color: #5a4a3b;
