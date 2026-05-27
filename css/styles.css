@@ -9,7 +9,6 @@
  * It is loaded before migrated layout/component/feature files so the
  * extracted rules can override their legacy counterparts immediately.
  */
-@import url("styles-legacy.css");
 
 @import url("layout/map-layout.css");
 @import url("components/dialog-overlays.css");
