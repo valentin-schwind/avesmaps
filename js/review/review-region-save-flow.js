@@ -64,6 +64,14 @@ async function saveRegionEditTab(tab) {
 	}
 	const territoryPublicId = String(tab.region?.territoryPublicId || payload.territory_public_id || "").trim();
 	if (payload.action === "update_territory" && territoryPublicId) {
+		if (typeof registerPoliticalTerritoryPendingStyleOverride === "function") {
+			registerPoliticalTerritoryPendingStyleOverride(territoryPublicId, {
+				color: payload.color,
+				opacity: payload.opacity,
+				minZoom: payload.min_zoom,
+				maxZoom: payload.max_zoom,
+			});
+		}
 		await syncPoliticalTerritoryDisplayStyles(territoryPublicId);
 	}
 	tab.savedPayload = getComparableRegionEditPayload(payload);
