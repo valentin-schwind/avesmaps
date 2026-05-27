@@ -78,128 +78,15 @@ function getRegionFeatureName(properties) {
 }
 
 function getRegionFeatureColor(properties) {
-	const apiColor = normalizeRegionHexColor(
+	return normalizeRegionHexColor(
 		properties.fill
 		|| getStyleDeclarationValue(properties.style, "fill")
 		|| properties.stroke
 		|| getStyleDeclarationValue(properties.style, "stroke")
 		|| "#888888"
 	);
-	if (apiColor !== "#888888") {
-		return apiColor;
-	}
-
-	const territoryColor = getLoadedPoliticalTerritoryColor(properties);
-	if (territoryColor !== "") {
-		return territoryColor;
-	}
-
-	return getPoliticalTerritoryDeterministicColor(properties);
 }
-
-function getLoadedPoliticalTerritoryColor(properties) {
-	if (typeof politicalTerritoryOptions === "undefined" || !Array.isArray(politicalTerritoryOptions)) {
-		return "";
-	}
-
-	const territoryPublicId = String(
-		properties.territory_public_id
-		|| properties.label_territory_public_id
-		|| properties.aggregate_source_territory_public_id
-		|| ""
-	).trim();
-	if (!territoryPublicId) {
-		return "";
-	}
-
-	const territory = findLoadedPoliticalTerritoryByPublicId(politicalTerritoryOptions, territoryPublicId);
-	if (!territory) {
-		return "";
-	}
-
-	const color = normalizeRegionHexColor(territory.color || territory.fill || "");
-	return color === "#888888" && !/^#888888$/i.test(String(territory.color || territory.fill || "")) ? "" : color;
-}
-
-function findLoadedPoliticalTerritoryByPublicId(entries, territoryPublicId) {
-	for (const entry of entries) {
-		if (!entry || typeof entry !== "object") {
-			continue;
-		}
-
-		const entryPublicId = String(entry.public_id || entry.publicId || entry.territory_public_id || entry.territoryPublicId || "").trim();
-		if (entryPublicId === territoryPublicId) {
-			return entry;
-		}
-
-		for (const key of ["children", "items", "territories"]) {
-			if (!Array.isArray(entry[key])) {
-				continue;
-			}
-			const match = findLoadedPoliticalTerritoryByPublicId(entry[key], territoryPublicId);
-			if (match) {
-				return match;
-			}
-		}
-	}
-
-	return null;
-}
-
-function getPoliticalTerritoryDeterministicColor(properties) {
-	if ((properties.source || properties.feature_type) !== "political_territory" && properties.feature_type !== "political_territory") {
-		return "#888888";
-	}
-
-	const seed = String(
-		properties.territory_public_id
-		|| properties.label_territory_public_id
-		|| properties.aggregate_source_territory_public_id
-		|| properties.slug
-		|| properties.wiki_name
-		|| properties.name
-		|| properties.display_name
-		|| "Herrschaftsgebiet"
-	);
-	const hash = hashRegionColorSeed(seed);
-	const hue = hash % 360;
-	const saturation = 52 + (hash % 18);
-	const value = 50 + ((hash >>> 8) % 20);
-	return hsvRegionColorToHex(hue, saturation, value);
-}
-
-function hashRegionColorSeed(value) {
-	const text = String(value || "");
-	let hash = 2166136261;
-	for (let index = 0; index < text.length; index += 1) {
-		hash ^= text.charCodeAt(index);
-		hash = Math.imul(hash, 16777619);
-	}
-	return hash >>> 0;
-}
-
-function hsvRegionColorToHex(hue, saturationPercent, valuePercent) {
-	const saturation = Math.max(0, Math.min(100, Number(saturationPercent))) / 100;
-	const value = Math.max(0, Math.min(100, Number(valuePercent))) / 100;
-	const chroma = value * saturation;
-	const huePrime = (Math.max(0, Math.min(360, Number(hue))) % 360) / 60;
-	const secondary = chroma * (1 - Math.abs((huePrime % 2) - 1));
-	const match = value - chroma;
-	const channels = huePrime < 1
-		? [chroma, secondary, 0]
-		: huePrime < 2
-		? [secondary, chroma, 0]
-		: huePrime < 3
-		? [0, chroma, secondary]
-		: huePrime < 4
-		? [0, secondary, chroma]
-		: huePrime < 5
-		? [secondary, 0, chroma]
-		: [chroma, 0, secondary];
-
-	return `#${channels.map(channel => Math.round((channel + match) * 255).toString(16).padStart(2, "0")).join("")}`;
-}
-
+ 
 function getRegionFeatureOpacity(properties) {
 	const rawOpacity = properties.fillOpacity
 		?? properties.fill_opacity
