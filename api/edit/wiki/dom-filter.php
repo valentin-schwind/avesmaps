@@ -57,6 +57,16 @@ function avesmapsWikiDomPatchSource(string $source): string {
     );
 
     $source = str_replace(
+        <<<'PHP'
+function displayName(string $pageTitle): string { return trim((string) preg_replace('/\s+\((?:Staat|Reich|Historisch|Region)\)\s*$/iu', '', str_replace('_', ' ', title($pageTitle)))); }
+PHP,
+        <<<'PHP'
+function displayName(string $pageTitle): string { return trim((string) preg_replace('/\s+\((?:Staat|Reich|Region)\)\s*$/iu', '', str_replace('_', ' ', title($pageTitle)))); }
+PHP,
+        $source
+    );
+
+    $source = str_replace(
         "\$fields = array_replace(\$domFields, \$templateFields);\n                \$path = affiliationPath(\$fields, \$catchwords, \$resolvedTitle);",
         "\$fields = array_replace(\$domFields, \$templateFields);\n                \$categories = wikiDomPageCategories(\$xpath);\n                \$rejectReason = wikiDomRejectedNonTerritoryReason(\$resolvedTitle, \$fields, \$categories);\n                if (\$rejectReason !== '') {\n                    \$events[] = ['type' => 'reject', 'title' => \$resolvedTitle, 'message' => \$rejectReason];\n                    sleepMs(\$options['sleep_ms']);\n                    continue;\n                }\n                if (!wikiDomLooksLikePoliticalTerritory(\$resolvedTitle, \$fields)) {\n                    \$events[] = ['type' => 'reject', 'title' => \$resolvedTitle, 'message' => 'Keine belastbaren Herrschaftsgebietssignale gefunden.'];\n                    sleepMs(\$options['sleep_ms']);\n                    continue;\n                }\n                \$path = affiliationPath(\$fields, \$catchwords, \$resolvedTitle);",
         $source
