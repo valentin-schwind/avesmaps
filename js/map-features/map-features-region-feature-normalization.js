@@ -85,9 +85,16 @@ function getRegionFeatureColor(properties) {
 		|| getStyleDeclarationValue(properties.style, "stroke")
 		|| "#888888"
 	);
-	const territoryColor = getLoadedPoliticalTerritoryColor(properties);
+	if (apiColor !== "#888888") {
+		return apiColor;
+	}
 
-	return apiColor === "#888888" && territoryColor !== "" ? territoryColor : apiColor;
+	const territoryColor = getLoadedPoliticalTerritoryColor(properties);
+	if (territoryColor !== "") {
+		return territoryColor;
+	}
+
+	return getPoliticalTerritoryDeterministicColor(properties);
 }
 
 function getLoadedPoliticalTerritoryColor(properties) {
@@ -137,6 +144,60 @@ function findLoadedPoliticalTerritoryByPublicId(entries, territoryPublicId) {
 	}
 
 	return null;
+}
+
+function getPoliticalTerritoryDeterministicColor(properties) {
+	if ((properties.source || properties.feature_type) !== "political_territory" && properties.feature_type !== "political_territory") {
+		return "#888888";
+	}
+
+	const seed = String(
+		properties.territory_public_id
+		|| properties.label_territory_public_id
+		|| properties.aggregate_source_territory_public_id
+		|| properties.slug
+		|| properties.wiki_name
+		|| properties.name
+		|| properties.display_name
+		|| "Herrschaftsgebiet"
+	);
+	const hash = hashRegionColorSeed(seed);
+	const hue = hash % 360;
+	const saturation = 52 + (hash % 18);
+	const value = 50 + ((hash >>> 8) % 20);
+	return hsvRegionColorToHex(hue, saturation, value);
+}
+
+function hashRegionColorSeed(value) {
+	const text = String(value || "");
+	let hash = 2166136261;
+	for (let index = 0; index < text.length; index += 1) {
+		hash ^= text.charCodeAt(index);
+		hash = Math.imul(hash, 16777619);
+	}
+	return hash >>> 0;
+}
+
+function hsvRegionColorToHex(hue, saturationPercent, valuePercent) {
+	const saturation = Math.max(0, Math.min(100, Number(saturationPercent))) / 100;
+	const value = Math.max(0, Math.min(100, Number(valuePercent))) / 100;
+	const chroma = value * saturation;
+	const huePrime = (Math.max(0, Math.min(360, Number(hue))) % 360) / 60;
+	const secondary = chroma * (1 - Math.abs((huePrime % 2) - 1));
+	const match = value - chroma;
+	const channels = huePrime < 1
+		? [chroma, secondary, 0]
+		: huePrime < 2
+		? [secondary, chroma, 0]
+		: huePrime < 3
+		? [0, chroma, secondary]
+		: huePrime < 4
+		? [0, secondary, chroma]
+		: huePrime < 5
+		? [secondary, 0, chroma]
+		: [chroma, 0, secondary];
+
+	return `#${channels.map(channel => Math.round((channel + match) * 255).toString(16).padStart(2, "0")).join("")}`;
 }
 
 function getRegionFeatureOpacity(properties) {
