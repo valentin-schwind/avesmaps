@@ -12,6 +12,7 @@
 }
 
 .map-context-menu[hidden],
+.map-context-menu__item[hidden],
 .map-context-menu__group[hidden] {
 	display: none !important;
 }
