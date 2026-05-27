@@ -13,6 +13,8 @@
 .map-context-menu__item[data-context-action="find-nearest-location"]::before,
 .map-context-menu__item[data-context-action="start-distance-measurement"]::before {
 	content: "";
+	grid-column: 1;
+	grid-row: 1;
 	width: 20px;
 	height: 20px;
 	background-position: center;
@@ -45,9 +47,12 @@
 .map-context-menu__item[data-context-action="open-spotlight-search"]::after,
 .map-context-menu__item[data-context-action="find-nearest-location"]::after,
 .map-context-menu__item[data-context-action="start-distance-measurement"]::after {
+	grid-column: 2;
+	grid-row: 1;
 	justify-self: start;
 	font: inherit;
 	font-size: 14px;
+	white-space: nowrap;
 }
 
 .map-context-menu__item[data-context-action="share-pin"]::after {
