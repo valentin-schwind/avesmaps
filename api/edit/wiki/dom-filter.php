@@ -101,6 +101,26 @@ PHP,
     );
 
     $source = str_replace(
+        <<<'PHP'
+function childSections(DOMXPath $xpath): array { $sections = []; foreach ($xpath->query('//dl/dt') ?: [] as $dt) { if (!$dt instanceof DOMElement) continue; $label = cleanText($dt->textContent ?? ''); if (!isChildSectionLabel($label)) continue; $dd = nextElementSibling($dt, 'dd'); if (!$dd instanceof DOMElement) continue; $items = []; foreach ($dd->getElementsByTagName('a') as $link) { if (!$link instanceof DOMElement) continue; $title = titleFromHref((string) $link->getAttribute('href')); $text = cleanText($link->textContent ?? ''); if ($title === '' || $text === '' || !isRelevantTitle($title)) continue; $items[stableKey($title)] = ['title' => $title, 'label' => $text, 'wiki_url' => pageUrl($title)]; } if ($items !== []) $sections[] = ['label' => $label, 'label_key' => labelKey($label), 'items' => array_values($items)]; } return $sections; }
+PHP,
+        <<<'PHP'
+function childSections(DOMXPath $xpath): array { $sections = []; foreach ($xpath->query('//dl/dt') ?: [] as $dt) { if (!$dt instanceof DOMElement) continue; $label = cleanText($dt->textContent ?? ''); if (!isChildSectionLabel($label)) continue; $items = []; $current = $dt->nextSibling; while ($current instanceof DOMNode) { if ($current instanceof DOMElement) { $tagName = mb_strtolower($current->tagName, 'UTF-8'); if ($tagName === 'dt') break; if ($tagName !== 'dd') break; foreach ($current->getElementsByTagName('a') as $link) { if (!$link instanceof DOMElement) continue; $title = titleFromHref((string) $link->getAttribute('href')); $text = cleanText($link->textContent ?? ''); if ($title === '' || $text === '' || !isRelevantTitle($title)) continue; $items[stableKey($title)] = ['title' => $title, 'label' => $text, 'wiki_url' => pageUrl($title)]; } } $current = $current->nextSibling; } if ($items !== []) $sections[] = ['label' => $label, 'label_key' => labelKey($label), 'items' => array_values($items)]; } return $sections; }
+PHP,
+        $source
+    );
+
+    $source = str_replace(
+        <<<'PHP'
+function isChildSectionLabel(string $label): bool { $key = labelKey($label); if ($key === '') return false; foreach (['nachbarn','siedlungen','staedte','orte','fluesse','gewaesser','gebirge','berge','meere','inseln','waelder','strassen','wege'] as $bad) if (str_contains($key, $bad)) return false; foreach (['provinz','provinzen','untergebiet','untergebiete','teilgebiet','teilgebiete','gliedstaat','gliedstaaten','landesteil','landesteile','baronie','baronien','grafschaft','grafschaften','markgrafschaft','markgrafschaften','pfalzgrafschaft','pfalzgrafschaften','herzogtum','herzogtuemer','fuerstentum','fuerstentuemer','domaene','domaenen','emirat','emirate','sultanat','sultanate','jarltum','jarltuemer','haranydad','haranydate','shikanydad','shikanydate','historische herrschaftsgebiete'] as $good) if (str_contains($key, $good)) return true; return false; }
+PHP,
+        <<<'PHP'
+function isChildSectionLabel(string $label): bool { $key = labelKey($label); if ($key === '') return false; foreach (['nachbarn','siedlungen','staedte','orte','fluesse','gewaesser','gebirge','berge','meere','inseln','waelder','strassen','wege'] as $bad) if (str_contains($key, $bad)) return false; foreach (['provinz','provinzen','amt','aemter','aemtern','untergebiet','untergebiete','teilgebiet','teilgebiete','gliedstaat','gliedstaaten','landesteil','landesteile','baronie','baronien','grafschaft','grafschaften','markgrafschaft','markgrafschaften','pfalzgrafschaft','pfalzgrafschaften','herzogtum','herzogtuemer','fuerstentum','fuerstentuemer','domaene','domaenen','emirat','emirate','sultanat','sultanate','jarltum','jarltuemer','haranydad','haranydate','shikanydad','shikanydate','historische herrschaftsgebiete'] as $good) if (str_contains($key, $good)) return true; return false; }
+PHP,
+        $source
+    );
+
+    $source = str_replace(
         "\$fields = array_replace(\$domFields, \$templateFields);\n                \$path = affiliationPath(\$fields, \$catchwords, \$resolvedTitle);",
         "\$fields = array_replace(\$domFields, \$templateFields);\n                \$categories = wikiDomPageCategories(\$xpath);\n                \$rejectReason = wikiDomRejectedNonTerritoryReason(\$resolvedTitle, \$fields, \$categories);\n                if (\$rejectReason !== '') {\n                    \$events[] = ['type' => 'reject', 'title' => \$resolvedTitle, 'message' => \$rejectReason];\n                    sleepMs(\$options['sleep_ms']);\n                    continue;\n                }\n                if (!wikiDomLooksLikePoliticalTerritory(\$resolvedTitle, \$fields)) {\n                    \$events[] = ['type' => 'reject', 'title' => \$resolvedTitle, 'message' => 'Keine belastbaren Herrschaftsgebietssignale gefunden.'];\n                    sleepMs(\$options['sleep_ms']);\n                    continue;\n                }\n                \$path = affiliationPath(\$fields, \$catchwords, \$resolvedTitle);",
         $source
