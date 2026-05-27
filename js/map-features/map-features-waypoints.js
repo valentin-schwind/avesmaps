@@ -342,7 +342,7 @@ function createWaypointMarkup(waypointId) {
 		<div class="waypoint-container" data-waypoint-id="${escapeHtml(waypointId)}">
 			${waypointDragHandleMarkup()}
 			<input type="text" id="${escapeHtml(inputId)}" class="waypoint-input" placeholder="Suche Ort..." />
-			<button type="button" class="remove-waypoint" aria-label="Wegpunkt entfernen" title="Wegpunkt entfernen">➖</button>
+			<button type="button" class="remove-waypoint" aria-label="Wegpunkt entfernen" title="Wegpunkt entfernen">git push</button>
 		</div>`;
 }
 
