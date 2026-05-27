@@ -4,7 +4,7 @@
 .map-context-menu__item[data-context-action="find-nearest-location"],
 .map-context-menu__item[data-context-action="start-distance-measurement"] {
 	grid-template-columns: 1.45em max-content auto;
-	font-size: 0;
+	font-size: 13px;
 }
 
 .map-context-menu__item[data-context-action="share-pin"]::before,
@@ -41,37 +41,4 @@
 
 .map-context-menu__item[data-context-action="start-distance-measurement"]::before {
 	background-image: url("../../icons/small_webp/lineal.webp");
-}
-
-.map-context-menu__item[data-context-action="share-pin"]::after,
-.map-context-menu__item[data-context-action="report-location"]::after,
-.map-context-menu__item[data-context-action="open-spotlight-search"]::after,
-.map-context-menu__item[data-context-action="find-nearest-location"]::after,
-.map-context-menu__item[data-context-action="start-distance-measurement"]::after {
-	grid-column: 2;
-	grid-row: 1;
-	justify-self: start;
-	padding-left: 3px;
-	font: inherit;
-	white-space: nowrap;
-}
-
-.map-context-menu__item[data-context-action="share-pin"]::after {
-	content: "Stelle markieren und teilen";
-}
-
-.map-context-menu__item[data-context-action="report-location"]::after {
-	content: "Hier melden";
-}
-
-.map-context-menu__item[data-context-action="open-spotlight-search"]::after {
-	content: "Suchen";
-}
-
-.map-context-menu__item[data-context-action="find-nearest-location"]::after {
-	content: "Naechsten Ort finden";
-}
-
-.map-context-menu__item[data-context-action="start-distance-measurement"]::after {
-	content: "Entfernung messen";
 }
