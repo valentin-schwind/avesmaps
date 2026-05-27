@@ -16,6 +16,7 @@ function avesmapsWikiDomPatchSource(string $source): string {
         'Markgrafschaft/Liste',
         'Pfalzgrafschaft/Liste',
         'Reichsmark/Liste',
+        'Reichsstadt/Liste',
         'Republik/Liste',
         'Shîkanydad/Liste',
         'Staat/Liste',
