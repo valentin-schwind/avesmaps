@@ -4,14 +4,18 @@ const politicalTerritoryRepository = {
 	},
 
 	async updateGeometry(regionEntry, geometryGeoJson) {
-		return submitPoliticalTerritoryEdit({
+		const stylePayload = buildRegionStylePayload(regionEntry);
+		registerRegionEntryStyleOverride(regionEntry, stylePayload);
+		const result = await submitPoliticalTerritoryEdit({
 			action: "update_geometry",
 			public_id: regionEntry.geometryPublicId || regionEntry.publicId,
 			geometry_public_id: regionEntry.geometryPublicId || regionEntry.publicId,
 			source: "editor",
 			geometry_geojson: geometryGeoJson,
-			style_json: buildRegionStylePayload(regionEntry),
+			style_json: stylePayload,
 		});
+		registerRegionEntryStyleOverride(regionEntry, stylePayload);
+		return result;
 	},
 
 	async deleteGeometry(regionEntry) {
@@ -23,7 +27,11 @@ const politicalTerritoryRepository = {
 	},
 
 	async splitGeometry(operationState, sourcePart, splitPart) {
-		return submitPoliticalTerritoryEdit(buildRegionSplitPayload(operationState, sourcePart, splitPart));
+		const stylePayload = buildRegionStylePayload(operationState.sourceRegion);
+		registerRegionEntryStyleOverride(operationState.sourceRegion, stylePayload);
+		const result = await submitPoliticalTerritoryEdit(buildRegionSplitPayload(operationState, sourcePart, splitPart));
+		registerRegionEntryStyleOverride(operationState.sourceRegion, stylePayload);
+		return result;
 	},
 
 	async createIntersection(operationState, targetRegion, operationGeometryGeoJson) {
@@ -31,7 +39,11 @@ const politicalTerritoryRepository = {
 	},
 
 	async runBooleanOperation(operationState, targetRegion, geometryGeoJson, options) {
-		return submitPoliticalTerritoryEdit(buildRegionBooleanOperationPayload(operationState, targetRegion, geometryGeoJson, options));
+		const stylePayload = buildRegionStylePayload(operationState.sourceRegion);
+		registerRegionEntryStyleOverride(operationState.sourceRegion, stylePayload);
+		const result = await submitPoliticalTerritoryEdit(buildRegionBooleanOperationPayload(operationState, targetRegion, geometryGeoJson, options));
+		registerRegionEntryStyleOverride(operationState.sourceRegion, stylePayload);
+		return result;
 	},
 
 	async createExtractedTerritory(regionEntry, extractedName, extractedGeometry) {
@@ -42,3 +54,16 @@ const politicalTerritoryRepository = {
 		return submitPoliticalTerritoryEdit(payload);
 	},
 };
+
+function registerRegionEntryStyleOverride(regionEntry, stylePayload = buildRegionStylePayload(regionEntry)) {
+	if (typeof registerPoliticalTerritoryPendingStyleOverride !== "function") {
+		return;
+	}
+
+	registerPoliticalTerritoryPendingStyleOverride(regionEntry?.territoryPublicId || "", {
+		color: stylePayload.fill || regionEntry?.color,
+		opacity: stylePayload.fillOpacity ?? regionEntry?.opacity,
+		minZoom: regionEntry?.minZoom,
+		maxZoom: regionEntry?.maxZoom,
+	});
+}
