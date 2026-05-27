@@ -1,51 +1,10 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="de">
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Avesmaps Ã¢â‚¬â€œ Wiki-DOM-Playground</title>
-	<style>
-		:root { --page-bg:#f4efe7; --page-bg-deep:#2f322c; --panel:#fff9f4; --panel-muted:#f8efe4; --text:#2f251c; --muted:#6c5a49; --border:#d8c6b2; --danger:#8a3a1b; --ok:#3d6b44; --shadow:rgba(0,0,0,.16); }
-		* { box-sizing:border-box; }
-		body { margin:0; font-family:Arial,sans-serif; font-size:14px; background:var(--page-bg-deep); color:var(--text); }
-		.app { width:min(1560px,100%); min-height:100vh; margin:0 auto; background:var(--page-bg); box-shadow:0 0 30px rgba(0,0,0,.28); }
-		header { padding:20px 24px; background:rgba(255,249,244,.96); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:10; }
-		h1 { margin:0 0 6px; font-size:24px; }
-		p { margin:0; color:var(--muted); line-height:1.45; }
-		code { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:#235f82; }
-		main { padding:18px; display:grid; grid-template-columns:minmax(320px,390px) minmax(0,1fr); gap:16px; }
-		.panel { background:var(--panel); border:1px solid var(--border); box-shadow:0 8px 24px var(--shadow); padding:14px; }
-		.panel h2 { margin:0 0 10px; font-size:17px; }
-		label { display:block; font-weight:700; margin:12px 0 5px; }
-		textarea,input { width:100%; border:1px solid var(--border); background:#fffdf9; padding:8px; font:inherit; }
-		textarea { min-height:150px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; }
-		.grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
-		.actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
-		button { border:1px solid #5f4f40; background:#565044; color:#fffaf0; padding:8px 12px; cursor:pointer; font-weight:700; }
-		button.secondary { background:#766d5d; }
-		button.danger { background:var(--danger); }
-		button:disabled { opacity:.55; cursor:progress; }
-		.status { margin-top:12px; padding:10px; background:var(--panel-muted); border:1px solid var(--border); white-space:pre-wrap; }
-		.summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
-		.stat { background:var(--panel-muted); border:1px solid var(--border); padding:10px; }
-		.stat strong { display:block; font-size:20px; }
-		table { width:100%; border-collapse:collapse; background:#fffdf9; font-size:12px; }
-		th,td { border:1px solid var(--border); padding:6px 7px; vertical-align:top; }
-		th { background:var(--panel-muted); text-align:left; }
-		.badge { display:inline-block; padding:2px 5px; border-radius:3px; background:var(--panel-muted); border:1px solid var(--border); }
-		.badge.ok { color:var(--ok); }
-		.badge.warn { color:var(--danger); }
-		.date-main { font-weight:700; }
-		.date-raw { display:block; margin-top:2px; color:var(--muted); }
-		.coat-cell { min-width:70px; text-align:center; }
-		.coat-preview { display:inline-flex; width:52px; min-height:52px; align-items:center; justify-content:center; border:1px solid var(--border); background:#fffaf0; text-decoration:none; }
-		.coat-preview img { max-width:48px; max-height:48px; object-fit:contain; display:block; }
-		.coat-preview span { display:none; font-size:11px; color:#235f82; }
-		.coat-preview.broken img { display:none; }
-		.coat-preview.broken span { display:inline; }
-		pre { margin:0; white-space:pre-wrap; word-break:break-word; font-size:11px; }
-		@media (max-width:900px) { main { grid-template-columns:1fr; } .summary { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-	</style>
+	<link rel="stylesheet" href="/css/pages/wiki-dom-playground.css">
 </head>
 <body>
 	<div class="app">
