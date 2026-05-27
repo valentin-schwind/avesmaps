@@ -4,13 +4,8 @@
 @import url("base/base.css");
 @import url("base/utilities.css");
 
-/*
- * Legacy stylesheet kept during the incremental CSS refactoring.
- * It is loaded before migrated layout/component/feature files so the
- * extracted rules can override their legacy counterparts immediately.
- */
-
 @import url("layout/map-layout.css");
+
 @import url("components/dialog-overlays.css");
 @import url("components/legal-dialog.css");
 @import url("components/map-context-menu.css");
@@ -24,6 +19,7 @@
 @import url("components/political-territory-tree.css");
 @import url("components/political-territory-controls.css");
 @import url("components/political-territory-wiki.css");
+
 @import url("features/map-decorations.css");
 @import url("features/map-scale-band.css");
 @import url("features/map-labels.css");
