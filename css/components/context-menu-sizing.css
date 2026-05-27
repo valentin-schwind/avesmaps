@@ -1,3 +1,5 @@
+@import url("map-context-menu-icons.css");
+
 .map-context-menu,
 .map-context-submenu {
 	width: max-content;
