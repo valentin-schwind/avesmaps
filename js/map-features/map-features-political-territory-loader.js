@@ -4,6 +4,7 @@
  */
 
 const politicalTerritoryLayerFetchCache = new Map();
+const politicalTerritoryPendingStyleOverrides = new Map();
 
 function getPoliticalTerritoryFetchUrl(input) {
 	if (typeof Request !== "undefined" && input instanceof Request) {
@@ -28,6 +29,60 @@ function isPoliticalTerritoryLayerRequest(input) {
 	} catch (error) {
 		return false;
 	}
+}
+
+function registerPoliticalTerritoryPendingStyleOverride(territoryPublicId, { color, opacity, minZoom = null, maxZoom = null } = {}) {
+	const normalizedTerritoryPublicId = String(territoryPublicId || "").trim();
+	const rawColor = String(color || "").trim();
+	const normalizedColor = normalizeRegionHexColor(rawColor);
+	if (!normalizedTerritoryPublicId || normalizedColor === "#888888" && !/^#888888$/i.test(rawColor)) {
+		return;
+	}
+
+	politicalTerritoryPendingStyleOverrides.set(normalizedTerritoryPublicId, {
+		color: normalizedColor,
+		opacity: Number.isFinite(Number(opacity)) ? Math.min(1, Math.max(0, Number(opacity))) : null,
+		minZoom: readOptionalRegionZoom(minZoom),
+		maxZoom: readOptionalRegionZoom(maxZoom),
+		createdAt: Date.now(),
+	});
+}
+
+function applyPoliticalTerritoryPendingStyleOverrides(feature) {
+	const properties = feature?.properties;
+	if (!properties || typeof properties !== "object") {
+		return feature;
+	}
+
+	const territoryPublicId = String(
+		properties.territory_public_id
+		|| properties.label_territory_public_id
+		|| properties.aggregate_source_territory_public_id
+		|| ""
+	).trim();
+	if (!territoryPublicId || !politicalTerritoryPendingStyleOverrides.has(territoryPublicId)) {
+		return feature;
+	}
+
+	const override = politicalTerritoryPendingStyleOverrides.get(territoryPublicId);
+	if (Date.now() - override.createdAt > 5 * 60 * 1000) {
+		politicalTerritoryPendingStyleOverrides.delete(territoryPublicId);
+		return feature;
+	}
+
+	properties.fill = override.color;
+	properties.stroke = override.color;
+	if (override.opacity !== null) {
+		properties.fillOpacity = override.opacity;
+	}
+	if (override.minZoom !== null) {
+		properties.min_zoom = override.minZoom;
+	}
+	if (override.maxZoom !== null) {
+		properties.max_zoom = override.maxZoom;
+	}
+
+	return feature;
 }
 
 function buildPoliticalTerritoryLayerCacheKey(url) {
@@ -274,7 +329,10 @@ async function loadPoliticalTerritoryLayer() {
 		clearPoliticalTerritoryTimelineSelection();
 		clearRenderedRegionLayers();
 		regionData = Array.isArray(response.features) ? response.features : [];
-		regionData.forEach((region) => addRegionFeatureToMap(region, normalizeRegionFeature(region)));
+		regionData.forEach((region) => {
+			applyPoliticalTerritoryPendingStyleOverrides(region);
+			addRegionFeatureToMap(region, normalizeRegionFeature(region));
+		});
 		syncRegionVisibility();
 	} catch (error) {
 		console.warn("Herrschaftsgebiete konnten nicht geladen werden:", error);
