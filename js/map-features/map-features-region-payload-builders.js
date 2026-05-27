@@ -1,9 +1,33 @@
 function buildRegionStylePayload(regionEntry) {
-	return {
-		fill: regionEntry.color,
-		stroke: regionEntry.color,
-		fillOpacity: regionEntry.opacity,
+	const color = normalizeRegionHexColor(regionEntry?.color || "#888888");
+	const opacity = Number.isFinite(Number(regionEntry?.opacity)) ? Math.min(1, Math.max(0, Number(regionEntry.opacity))) : 0.33;
+	const territoryPublicId = String(regionEntry?.territoryPublicId || "").trim();
+	const territoryId = Number(regionEntry?.territoryId);
+	const nodeKey = String(regionEntry?.wikiName || regionEntry?.name || regionEntry?.displayName || "").trim();
+	const style = {
+		fill: color,
+		stroke: color,
+		fillOpacity: opacity,
 	};
+
+	if (territoryPublicId) {
+		style.assignmentDisplays = [
+			{
+				territoryPublicId,
+				territoryId: Number.isFinite(territoryId) && territoryId > 0 ? territoryId : undefined,
+				nodeKey,
+				originalName: String(regionEntry?.wikiName || regionEntry?.name || "").trim(),
+				displayName: String(regionEntry?.displayName || regionEntry?.name || "").trim(),
+				coatOfArmsUrl: String(regionEntry?.labelCoatOfArmsUrl || regionEntry?.coatOfArmsUrl || "").trim(),
+				zoomMin: readOptionalRegionZoom(regionEntry?.minZoom),
+				zoomMax: readOptionalRegionZoom(regionEntry?.maxZoom),
+				color,
+				opacity,
+			}
+		];
+	}
+
+	return style;
 }
 
 function buildExtractedRegionCreatePayload(regionEntry, extractedName, extractedGeometry) {
