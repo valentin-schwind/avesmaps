@@ -3,6 +3,7 @@
 .map-context-menu__item[data-context-action="open-spotlight-search"],
 .map-context-menu__item[data-context-action="find-nearest-location"],
 .map-context-menu__item[data-context-action="start-distance-measurement"] {
+	grid-template-columns: 1.45em max-content auto;
 	font-size: 0;
 }
 
@@ -12,8 +13,11 @@
 .map-context-menu__item[data-context-action="find-nearest-location"]::before,
 .map-context-menu__item[data-context-action="start-distance-measurement"]::before {
 	content: "";
-	width: 1.45em;
-	height: 1.45em;
+	grid-column: 1;
+	grid-row: 1;
+	justify-self: center;
+	width: 18px;
+	height: 18px;
 	background-position: center;
 	background-repeat: no-repeat;
 	background-size: contain;
@@ -44,9 +48,12 @@
 .map-context-menu__item[data-context-action="open-spotlight-search"]::after,
 .map-context-menu__item[data-context-action="find-nearest-location"]::after,
 .map-context-menu__item[data-context-action="start-distance-measurement"]::after {
+	grid-column: 2;
+	grid-row: 1;
 	justify-self: start;
+	padding-left: 3px;
 	font: inherit;
-	font-size: 14px;
+	white-space: nowrap;
 }
 
 .map-context-menu__item[data-context-action="share-pin"]::after {

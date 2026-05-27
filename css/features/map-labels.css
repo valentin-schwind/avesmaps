@@ -151,6 +151,7 @@ body.edit-mode .map-label span {
 	border-radius: 6px;
 	background: rgba(255, 255, 255, 0.3);
 	color: #2f251c;
+	font-size: calc(1em - 2pt);
 }
 
 .region-label__coat {
