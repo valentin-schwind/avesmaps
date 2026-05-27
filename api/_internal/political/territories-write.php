@@ -1,0 +1,605 @@
+<?php
+
+declare(strict_types=1);
+
+function avesmapsPoliticalReadAssignmentDisplaysFromStyle(array $style): array {
+    $rawDisplays = $style['assignmentDisplays'] ?? $style['assignment_displays'] ?? [];
+    if (!is_array($rawDisplays)) {
+        return [];
+    }
+
+    $displays = [];
+    foreach ($rawDisplays as $rawDisplay) {
+        if (!is_array($rawDisplay)) {
+            continue;
+        }
+
+        $territoryPublicId = trim((string) (
+            $rawDisplay['territoryPublicId']
+            ?? $rawDisplay['territory_public_id']
+            ?? ''
+        ));
+
+        $nodeKey = trim((string) (
+            $rawDisplay['nodeKey']
+            ?? $rawDisplay['node_key']
+            ?? ''
+        ));
+
+        $originalName = trim((string) (
+            $rawDisplay['originalName']
+            ?? $rawDisplay['original_name']
+            ?? $rawDisplay['name']
+            ?? ''
+        ));
+
+        $displayName = trim((string) (
+            $rawDisplay['displayName']
+            ?? $rawDisplay['display_name']
+            ?? ''
+        ));
+
+        if ($territoryPublicId === '' && $nodeKey === '' && $originalName === '' && $displayName === '') {
+            continue;
+        }
+
+        $opacity = $rawDisplay['opacity'] ?? null;
+        $displays[] = [
+            'territoryPublicId' => $territoryPublicId,
+            'territory_public_id' => $territoryPublicId,
+            'nodeKey' => $nodeKey,
+            'node_key' => $nodeKey,
+            'originalName' => $originalName,
+            'original_name' => $originalName,
+            'displayName' => $displayName,
+            'display_name' => $displayName,
+            'coatOfArmsUrl' => trim((string) (
+                $rawDisplay['coatOfArmsUrl']
+                ?? $rawDisplay['coat_of_arms_url']
+                ?? ''
+            )),
+            'color' => trim((string) ($rawDisplay['color'] ?? '')),
+            'opacity' => is_numeric($opacity) ? (float) $opacity : null,
+            'zoomMin' => avesmapsPoliticalNullableInt($rawDisplay['zoomMin'] ?? $rawDisplay['zoom_min'] ?? null),
+            'zoomMax' => avesmapsPoliticalNullableInt($rawDisplay['zoomMax'] ?? $rawDisplay['zoom_max'] ?? null),
+        ];
+    }
+
+    return $displays;
+}
+
+function avesmapsPoliticalFindAssignmentDisplayForTerritory(array $style, string $territoryPublicId, string $nodeKey = ''): ?array {
+    $territoryPublicId = trim($territoryPublicId);
+    $nodeKey = trim($nodeKey);
+
+    foreach (avesmapsPoliticalReadAssignmentDisplaysFromStyle($style) as $display) {
+        $displayTerritoryPublicId = trim((string) ($display['territoryPublicId'] ?? $display['territory_public_id'] ?? ''));
+        $displayNodeKey = trim((string) ($display['nodeKey'] ?? $display['node_key'] ?? ''));
+
+        if ($territoryPublicId !== '' && $displayTerritoryPublicId === $territoryPublicId) {
+            return $display;
+        }
+
+        if ($nodeKey !== '' && $displayNodeKey === $nodeKey) {
+            return $display;
+        }
+    }
+
+    return null;
+}
+
+function avesmapsPoliticalResolveAssignmentDisplayName(?array $display, string $fallbackName): string {
+    if ($display === null) {
+        return trim($fallbackName);
+    }
+
+    $displayName = trim((string) ($display['displayName'] ?? $display['display_name'] ?? ''));
+    if ($displayName !== '' && !avesmapsPoliticalIsGenericHierarchyRootName($displayName)) {
+        return $displayName;
+    }
+
+    $originalName = trim((string) ($display['originalName'] ?? $display['original_name'] ?? ''));
+    if ($originalName !== '' && !avesmapsPoliticalIsGenericHierarchyRootName($originalName)) {
+        return $originalName;
+    }
+
+    return trim($fallbackName);
+}
+
+function avesmapsPoliticalBuildStoredAssignmentDisplay(array $territory, array $display, int $depth): array {
+    $originalName = trim((string) ($territory['wiki_name'] ?? ''))
+        ?: trim((string) ($territory['name'] ?? ''));
+
+    $displayName = trim((string) ($display['displayName'] ?? $display['name'] ?? ''));
+
+    if ($displayName === $originalName) {
+        $displayName = '';
+    }
+
+    return [
+        'territoryPublicId' => (string) ($territory['public_id'] ?? ''),
+        'territoryId' => (int) ($territory['id'] ?? 0),
+        'nodeKey' => trim((string) (
+            $display['nodeKey']
+            ?? $display['nodeId']
+            ?? $territory['wiki_key']
+            ?? $territory['slug']
+            ?? ''
+        )),
+        'originalName' => $originalName,
+        'displayName' => $displayName,
+        'coatOfArmsUrl' => trim((string) ($display['coatOfArmsUrl'] ?? $territory['coat_of_arms_url'] ?? '')),
+        'zoomMin' => avesmapsPoliticalReadOptionalZoom($display['zoomMin'] ?? $territory['min_zoom'] ?? null),
+        'zoomMax' => avesmapsPoliticalReadOptionalZoom($display['zoomMax'] ?? $territory['max_zoom'] ?? null),
+        'color' => avesmapsPoliticalReadHexColor($display['color'] ?? $territory['color'] ?? '#888888'),
+        'opacity' => avesmapsPoliticalReadOpacity($display['opacity'] ?? $territory['opacity'] ?? 0.33),
+        'startYear' => avesmapsPoliticalReadOptionalInt($display['startYear'] ?? $territory['valid_from_bf'] ?? null),
+        'endYear' => !empty($display['existsUntilToday'])
+            ? null
+            : avesmapsPoliticalReadOptionalInt($display['endYear'] ?? $territory['valid_to_bf'] ?? null),
+        'existsUntilToday' => !empty($display['existsUntilToday']),
+        'depth' => $depth,
+    ];
+}
+
+function avesmapsPoliticalCreateTerritory(PDO $pdo, array $payload, array $user): array {
+    $requestedName = avesmapsPoliticalReadRequiredName($payload['name'] ?? '', 'Der Name des Herrschaftsgebiets');
+    $shortName = avesmapsNormalizeSingleLine((string) ($payload['short_name'] ?? ''), 160);
+    $type = avesmapsPoliticalNormalizeParentheticalSpacing(avesmapsNormalizeSingleLine((string) ($payload['type'] ?? 'Herrschaftsgebiet'), 160));
+    $parentId = avesmapsPoliticalReadOptionalTerritoryId($pdo, $payload['parent_public_id'] ?? null);
+    $wikiId = avesmapsPoliticalReadOptionalWikiId($pdo, $payload['wiki_id'] ?? null);
+    $color = avesmapsPoliticalReadHexColor($payload['color'] ?? '#888888');
+    $opacity = avesmapsPoliticalReadOpacity($payload['opacity'] ?? 0.33);
+    $validFrom = avesmapsPoliticalReadOptionalInt($payload['valid_from_bf'] ?? null);
+    $validTo = avesmapsPoliticalReadOpenEndedValidTo($payload);
+    $minZoom = avesmapsPoliticalReadOptionalZoom($payload['min_zoom'] ?? null);
+    $maxZoom = avesmapsPoliticalReadOptionalZoom($payload['max_zoom'] ?? null);
+    avesmapsPoliticalAssertZoomRange($minZoom, $maxZoom);
+    $wikiUrl = avesmapsPoliticalReadOptionalUrl($payload['wiki_url'] ?? '', 'Der Wiki-Aventurica-Link');
+    $coatOfArmsUrl = avesmapsPoliticalReadOptionalUrl($payload['coat_of_arms_url'] ?? '', 'Der Wappen-Link');
+    if ($coatOfArmsUrl !== '' && !avesmapsPoliticalIsLikelyCoatOfArmsUrl($coatOfArmsUrl)) {
+        $coatOfArmsUrl = '';
+    }
+    $geometry = isset($payload['geometry_geojson']) ? avesmapsPoliticalReadGeoJsonGeometry($payload['geometry_geojson']) : null;
+
+    $pdo->beginTransaction();
+    try {
+        $publicId = avesmapsPoliticalUuidV4();
+        $name = avesmapsPoliticalUniqueName($pdo, $requestedName);
+        $slug = avesmapsPoliticalUniqueSlug($pdo, avesmapsPoliticalSlug((string) ($payload['slug'] ?? $name)));
+        $sortOrder = avesmapsPoliticalNextSortOrder($pdo);
+        $statement = $pdo->prepare(
+            'INSERT INTO political_territory (
+                public_id, wiki_id, slug, name, short_name, type, parent_id, continent, status, color,
+                opacity, coat_of_arms_url, wiki_url, valid_from_bf, valid_to_bf, valid_label,
+                min_zoom, max_zoom, is_active, editor_notes, sort_order
+            ) VALUES (
+                :public_id, :wiki_id, :slug, :name, :short_name, :type, :parent_id, :continent, :status, :color,
+                :opacity, :coat_of_arms_url, :wiki_url, :valid_from_bf, :valid_to_bf, :valid_label,
+                :min_zoom, :max_zoom, :is_active, :editor_notes, :sort_order
+            )'
+        );
+        $statement->execute([
+            'public_id' => $publicId,
+            'wiki_id' => $wikiId,
+            'slug' => $slug,
+            'name' => $name,
+            'short_name' => avesmapsPoliticalNullableString($shortName),
+            'type' => avesmapsPoliticalNullableString($type),
+            'parent_id' => $parentId,
+            'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+            'status' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['status'] ?? ''), 255)),
+            'color' => $color,
+            'opacity' => $opacity,
+            'coat_of_arms_url' => avesmapsPoliticalNullableString($coatOfArmsUrl),
+            'wiki_url' => avesmapsPoliticalNullableString($wikiUrl),
+            'valid_from_bf' => $validFrom,
+            'valid_to_bf' => $validTo,
+            'valid_label' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['valid_label'] ?? ''), 500)),
+            'min_zoom' => $minZoom,
+            'max_zoom' => $maxZoom,
+            'is_active' => avesmapsPoliticalReadBoolean($payload['is_active'] ?? true) ? 1 : 0,
+            'editor_notes' => avesmapsPoliticalNullableString(avesmapsNormalizeMultiline((string) ($payload['editor_notes'] ?? ''), 3000)),
+            'sort_order' => $sortOrder,
+        ]);
+        $territoryId = (int) $pdo->lastInsertId();
+        if ($geometry !== null) {
+            avesmapsPoliticalInsertGeometry($pdo, $territoryId, $geometry, $payload, $user);
+        }
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $exception;
+    }
+
+    return avesmapsPoliticalResponseForTerritory($pdo, $publicId);
+}
+
+function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user): array {
+    $territory = avesmapsPoliticalFetchTerritoryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['territory_public_id'] ?? $payload['public_id'] ?? ''));
+    $name = avesmapsPoliticalReadRequiredName($payload['name'] ?? $territory['name'], 'Der Name des Herrschaftsgebiets');
+    $parentId = avesmapsPoliticalReadOptionalTerritoryId($pdo, $payload['parent_public_id'] ?? null);
+    $wikiId = avesmapsPoliticalReadOptionalWikiId($pdo, $payload['wiki_id'] ?? $territory['wiki_id'] ?? null);
+    if ($parentId === (int) $territory['id']) {
+        throw new InvalidArgumentException('Ein Herrschaftsgebiet kann nicht sein eigener Parent sein.');
+    }
+    $minZoom = avesmapsPoliticalReadOptionalZoom($payload['min_zoom'] ?? null);
+    $maxZoom = avesmapsPoliticalReadOptionalZoom($payload['max_zoom'] ?? null);
+    avesmapsPoliticalAssertZoomRange($minZoom, $maxZoom);
+    $coatOfArmsUrl = avesmapsPoliticalReadOptionalUrl($payload['coat_of_arms_url'] ?? $territory['coat_of_arms_url'] ?? '', 'Der Wappen-Link');
+    if ($coatOfArmsUrl !== '' && !avesmapsPoliticalIsLikelyCoatOfArmsUrl($coatOfArmsUrl)) {
+        $coatOfArmsUrl = '';
+    }
+    $color = avesmapsPoliticalReadHexColor($payload['color'] ?? '#888888');
+    $opacity = avesmapsPoliticalReadOpacity($payload['opacity'] ?? 0.33);
+
+    $statement = $pdo->prepare(
+        'UPDATE political_territory
+        SET name = :name,
+            wiki_id = :wiki_id,
+            short_name = :short_name,
+            type = :type,
+            parent_id = :parent_id,
+            status = :status,
+            color = :color,
+            opacity = :opacity,
+            coat_of_arms_url = :coat_of_arms_url,
+            wiki_url = :wiki_url,
+            valid_from_bf = :valid_from_bf,
+            valid_to_bf = :valid_to_bf,
+            valid_label = :valid_label,
+            min_zoom = :min_zoom,
+            max_zoom = :max_zoom,
+            is_active = :is_active,
+            editor_notes = :editor_notes
+        WHERE id = :id'
+    );
+    $statement->execute([
+        'id' => (int) $territory['id'],
+        'name' => $name,
+        'wiki_id' => $wikiId,
+        'short_name' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['short_name'] ?? ''), 160)),
+        'type' => avesmapsPoliticalNullableString(avesmapsPoliticalNormalizeParentheticalSpacing(avesmapsNormalizeSingleLine((string) ($payload['type'] ?? ''), 160))),
+        'parent_id' => $parentId,
+        'status' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['status'] ?? ''), 255)),
+        'color' => $color,
+        'opacity' => $opacity,
+        'coat_of_arms_url' => avesmapsPoliticalNullableString($coatOfArmsUrl),
+        'wiki_url' => avesmapsPoliticalNullableString(avesmapsPoliticalReadOptionalUrl($payload['wiki_url'] ?? '', 'Der Wiki-Aventurica-Link')),
+        'valid_from_bf' => avesmapsPoliticalReadOptionalInt($payload['valid_from_bf'] ?? null),
+        'valid_to_bf' => avesmapsPoliticalReadOpenEndedValidTo($payload),
+        'valid_label' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['valid_label'] ?? ''), 500)),
+        'min_zoom' => $minZoom,
+        'max_zoom' => $maxZoom,
+        'is_active' => avesmapsPoliticalReadBoolean($payload['is_active'] ?? true) ? 1 : 0,
+        'editor_notes' => avesmapsPoliticalNullableString(avesmapsNormalizeMultiline((string) ($payload['editor_notes'] ?? ''), 3000)),
+    ]);
+    avesmapsPoliticalSyncTerritoryGeometryStyle($pdo, (int) $territory['id'], $color, $opacity);
+    avesmapsPoliticalClearTerritoryGeometryZoomOverrides($pdo, (int) $territory['id']);
+
+    return avesmapsPoliticalResponseForTerritory($pdo, (string) $territory['public_id']);
+}
+
+function avesmapsPoliticalEnsureWikiTerritoryChain(PDO $pdo, array $payload, array $user): array {
+    $wikiPublicIds = $payload['wiki_public_ids'] ?? null;
+    if (!is_array($wikiPublicIds) || $wikiPublicIds === []) {
+        throw new InvalidArgumentException('Die Wiki-Hierarchie fehlt.');
+    }
+
+    $chain = [];
+    $parentId = null;
+    $chainLength = count($wikiPublicIds);
+    $wikiNodes = is_array($payload['wiki_nodes'] ?? null) ? array_values($payload['wiki_nodes']) : [];
+    $pdo->beginTransaction();
+    try {
+        foreach ($wikiPublicIds as $index => $wikiPublicId) {
+            $wikiKey = avesmapsPoliticalReadWikiTreeKey($wikiPublicId);
+            $node = is_array($wikiNodes[$index] ?? null) ? $wikiNodes[$index] : [];
+            $wiki = null;
+            try {
+                $wiki = avesmapsPoliticalFetchWikiByKey($pdo, $wikiKey);
+            } catch (InvalidArgumentException) {
+                $wiki = null;
+            }
+
+            if ($wiki !== null) {
+                $slug = avesmapsPoliticalSlug((string) ($wiki['name'] ?? $wikiKey));
+                $territory = avesmapsPoliticalFindTerritoryByWikiOrSlug($pdo, (int) $wiki['id'], $slug);
+                if (!$territory) {
+                    $created = avesmapsPoliticalCreateTerritoryFromWiki($pdo, [
+                        ...$wiki,
+                        'slug' => $slug,
+                    ], $user);
+                    $territory = avesmapsPoliticalFetchTerritoryById($pdo, (int) $created['id']);
+                } else {
+                    avesmapsPoliticalLinkTerritoryToWiki($pdo, (int) $territory['id'], (int) $wiki['id']);
+                }
+            } else {
+                $territory = avesmapsPoliticalEnsureSyntheticTreeTerritory($pdo, $node, $wikiKey);
+            }
+
+            if ($parentId !== null && $parentId !== (int) $territory['id']) {
+                $parentTerritory = avesmapsPoliticalFetchTerritoryById($pdo, (int) $parentId);
+                $isGenericParent = avesmapsPoliticalIsGenericHierarchyRootName((string) ($parentTerritory['name'] ?? ''))
+                    || avesmapsPoliticalIsGenericHierarchyRootName((string) ($parentTerritory['slug'] ?? ''));
+
+                if ($isGenericParent) {
+                    $parentId = null;
+                }
+            }
+
+            if ($parentId !== null && $parentId !== (int) $territory['id']) {
+                $statement = $pdo->prepare('UPDATE political_territory SET parent_id = :parent_id WHERE id = :id');
+                $statement->execute([
+                    'id' => (int) $territory['id'],
+                    'parent_id' => $parentId,
+                ]);
+                $territory['parent_id'] = $parentId;
+            }
+
+            $zoomRange = avesmapsPoliticalDefaultAssignmentZoomRange($chainLength, $index);
+            avesmapsPoliticalUpdateTerritoryZoomRange($pdo, (int) $territory['id'], $zoomRange['min'], $zoomRange['max']);
+
+            $chain[] = [
+                'territory' => avesmapsPoliticalTerritoryRowToPublic(avesmapsPoliticalFetchTerritoryById($pdo, (int) $territory['id'])),
+                'wiki' => $wiki !== null ? avesmapsPoliticalWikiRowToPublic($wiki) : $node,
+                'wiki_public_id' => (string) $wikiPublicId,
+            ];
+            $parentId = (int) $territory['id'];
+        }
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $exception;
+    }
+
+    return [
+        'ok' => true,
+        'chain' => $chain,
+        'selected' => $chain[count($chain) - 1] ?? null,
+    ];
+}
+
+function avesmapsPoliticalDefaultAssignmentZoomRange(int $chainLength, int $index): array {
+    if ($chainLength <= 1) {
+        return ['min' => 0, 'max' => 6];
+    }
+
+    if ($chainLength === 2) {
+        return $index === 0
+            ? ['min' => 0, 'max' => 2]
+            : ['min' => 3, 'max' => 6];
+    }
+
+    if ($chainLength === 3) {
+        return match ($index) {
+            0 => ['min' => 0, 'max' => 2],
+            1 => ['min' => 3, 'max' => 4],
+            default => ['min' => 5, 'max' => 6],
+        };
+    }
+
+    if ($index === 0) {
+        return ['min' => 0, 'max' => 2];
+    }
+
+    if ($index === 1) {
+        return ['min' => 3, 'max' => 4];
+    }
+
+    if ($index >= $chainLength - 1) {
+        return ['min' => 6, 'max' => 6];
+    }
+
+    return ['min' => 5, 'max' => 5];
+}
+
+function avesmapsPoliticalUpdateTerritoryZoomRange(PDO $pdo, int $territoryId, int $minZoom, int $maxZoom): void {
+    $statement = $pdo->prepare(
+        'UPDATE political_territory
+        SET min_zoom = :min_zoom,
+            max_zoom = :max_zoom
+        WHERE id = :id'
+    );
+    $statement->execute([
+        'id' => $territoryId,
+        'min_zoom' => $minZoom,
+        'max_zoom' => $maxZoom,
+    ]);
+    avesmapsPoliticalClearTerritoryGeometryZoomOverrides($pdo, $territoryId);
+}
+
+function avesmapsPoliticalEnsureSyntheticTreeTerritory(PDO $pdo, array $node, string $wikiKey): array {
+    $name = avesmapsPoliticalReadRequiredName($node['name'] ?? $wikiKey, 'Der Name des Herrschaftsgebiets');
+    $slug = avesmapsPoliticalSlug($name);
+    $territory = avesmapsPoliticalFindTerritoryBySlug($pdo, $slug);
+    if ($territory) {
+        return $territory;
+    }
+
+    $publicId = avesmapsPoliticalUuidV4();
+    $sortOrder = avesmapsPoliticalNextSortOrder($pdo);
+    $statement = $pdo->prepare(
+        'INSERT INTO political_territory (
+            public_id, wiki_id, slug, name, short_name, type, continent, status, color,
+            opacity, coat_of_arms_url, wiki_url, valid_label, min_zoom, max_zoom,
+            is_active, editor_notes, sort_order
+        ) VALUES (
+            :public_id, NULL, :slug, :name, NULL, :type, :continent, :status, :color,
+            :opacity, :coat_of_arms_url, :wiki_url, :valid_label, NULL, NULL,
+            1, :editor_notes, :sort_order
+        )'
+    );
+    $statement->execute([
+        'public_id' => $publicId,
+        'slug' => avesmapsPoliticalUniqueSlug($pdo, $slug),
+        'name' => $name,
+        'type' => avesmapsPoliticalNullableString(avesmapsPoliticalNormalizeParentheticalSpacing(avesmapsNormalizeSingleLine((string) ($node['type'] ?? 'Herrschaftsgebiet'), 160))),
+        'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+        'status' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($node['status'] ?? ''), 255)),
+        'color' => avesmapsPoliticalColorFromText($name),
+        'opacity' => 0.33,
+        'coat_of_arms_url' => avesmapsPoliticalNullableString(avesmapsPoliticalReadOptionalUrl($node['coat_of_arms_url'] ?? '', 'Der Wappen-Link')),
+        'wiki_url' => avesmapsPoliticalNullableString(avesmapsPoliticalReadOptionalUrl($node['wiki_url'] ?? '', 'Der Wiki-Aventurica-Link')),
+        'valid_label' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($node['valid_label'] ?? ''), 500)),
+        'editor_notes' => avesmapsPoliticalNullableString('Aus Wiki-Hierarchie ohne eigenen Referenzdatensatz erzeugt: ' . $wikiKey),
+        'sort_order' => $sortOrder,
+    ]);
+
+    return avesmapsPoliticalFetchTerritoryById($pdo, (int) $pdo->lastInsertId());
+}
+
+function avesmapsPoliticalDeleteTerritory(PDO $pdo, array $payload): array {
+    $territory = avesmapsPoliticalFetchTerritoryByPublicId(
+        $pdo,
+        avesmapsPoliticalReadPublicId($payload['territory_public_id'] ?? $payload['public_id'] ?? '')
+    );
+
+    $pdo->beginTransaction();
+    try {
+        $geometryStatement = $pdo->prepare(
+            'UPDATE political_territory_geometry
+            SET is_active = 0
+            WHERE territory_id = :territory_id'
+        );
+        $geometryStatement->execute([
+            'territory_id' => (int) $territory['id'],
+        ]);
+
+        $territoryStatement = $pdo->prepare(
+            'UPDATE political_territory
+            SET is_active = 0
+            WHERE id = :id'
+        );
+        $territoryStatement->execute([
+            'id' => (int) $territory['id'],
+        ]);
+
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $exception;
+    }
+
+    return [
+        'ok' => true,
+        'deleted' => true,
+        'territory_public_id' => (string) $territory['public_id'],
+    ];
+}
+
+function avesmapsPoliticalSaveHierarchy(PDO $pdo, array $payload): array {
+    $items = $payload['items'] ?? null;
+    if (!is_array($items)) {
+        throw new InvalidArgumentException('Die Hierarchie-Daten fehlen.');
+    }
+
+    $updated = 0;
+    $pdo->beginTransaction();
+    try {
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $territoryId = avesmapsPoliticalReadOptionalTerritoryId($pdo, $item['public_id'] ?? null);
+            if ($territoryId === null) {
+                continue;
+            }
+            $parentId = avesmapsPoliticalReadOptionalTerritoryId($pdo, $item['parent_public_id'] ?? null);
+            if ($parentId === $territoryId) {
+                continue;
+            }
+            $statement = $pdo->prepare('UPDATE political_territory SET parent_id = :parent_id WHERE id = :id');
+            $statement->execute([
+                'id' => $territoryId,
+                'parent_id' => $parentId,
+            ]);
+            $updated += $statement->rowCount();
+        }
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $exception;
+    }
+
+    return [
+        'ok' => true,
+        'updated' => $updated,
+    ];
+}
+
+function avesmapsPoliticalCreateLegacyRegionTerritory(PDO $pdo, array $feature, string $name, array $user): array {
+    $properties = avesmapsPoliticalDecodeJson($feature['properties_json'] ?? null);
+    $style = avesmapsPoliticalBuildSeedGeometryStyle($feature, '#888888');
+    $publicId = avesmapsPoliticalUuidV4();
+    $statement = $pdo->prepare(
+        'INSERT INTO political_territory (
+            public_id, wiki_id, slug, name, short_name, type, parent_id, continent, status, color,
+            opacity, coat_of_arms_url, wiki_url, valid_from_bf, valid_to_bf, valid_label,
+            min_zoom, max_zoom, is_active, editor_notes, sort_order
+        ) VALUES (
+            :public_id, NULL, :slug, :name, NULL, :type, NULL, :continent, NULL, :color,
+            :opacity, NULL, NULL, NULL, NULL, NULL,
+            :min_zoom, :max_zoom, 1, :editor_notes, :sort_order
+        )'
+    );
+    $statement->execute([
+        'public_id' => $publicId,
+        'slug' => avesmapsPoliticalUniqueSlug($pdo, avesmapsPoliticalSlug($name)),
+        'name' => avesmapsPoliticalUniqueName($pdo, $name),
+        'type' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($properties['feature_subtype'] ?? $properties['layer'] ?? 'Herrschaftsgebiet'), 160)),
+        'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+        'color' => (string) ($style['fill'] ?? '#888888'),
+        'opacity' => (float) ($style['fillOpacity'] ?? 0.33),
+        'min_zoom' => 0,
+        'max_zoom' => 6,
+        'editor_notes' => 'Aus urspruenglichem Regionen-Layer wiederhergestellt.',
+        'sort_order' => avesmapsPoliticalNextSortOrder($pdo),
+    ]);
+
+    return avesmapsPoliticalFetchTerritoryByPublicId($pdo, $publicId);
+}
+
+function avesmapsPoliticalBuildAssignmentChain(PDO $pdo, array $territory): array {
+    $chain = [];
+    $current = $territory;
+    $visitedIds = [];
+    $safety = 0;
+
+    while (is_array($current) && $safety < 64) {
+        $currentId = (int) ($current['id'] ?? 0);
+        if ($currentId < 1 || isset($visitedIds[$currentId])) {
+            break;
+        }
+
+        $visitedIds[$currentId] = true;
+        $wiki = !empty($current['wiki_id']) ? avesmapsPoliticalFetchWikiById($pdo, (int) $current['wiki_id']) : null;
+        $chain[] = [
+            'territory' => avesmapsPoliticalTerritoryRowToPublic($current),
+            'wiki' => $wiki === null ? null : avesmapsPoliticalWikiRowToPublic($wiki),
+            'wiki_public_id' => $wiki === null ? '' : (string) ($wiki['wiki_key'] ?? ''),
+        ];
+
+        $parentId = (int) ($current['parent_id'] ?? 0);
+        if ($parentId < 1) {
+            break;
+        }
+
+        $current = avesmapsPoliticalFetchTerritoryById($pdo, $parentId);
+        $safety++;
+    }
+
+    return array_reverse($chain);
+}
