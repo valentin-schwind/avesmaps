@@ -280,8 +280,22 @@ th {
 	display: inline;
 }
 
-.debug-title {
+.debug-accordion {
 	margin-top: 16px;
+	border: 1px solid var(--border);
+	background: var(--panel-muted);
+}
+
+.debug-accordion summary {
+	padding: 10px;
+	cursor: pointer;
+	font-weight: 700;
+}
+
+.debug-accordion pre {
+	padding: 10px;
+	border-top: 1px solid var(--border);
+	background: #fffdf9;
 }
 
 pre {

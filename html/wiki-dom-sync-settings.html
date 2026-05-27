@@ -29,6 +29,7 @@
 				<textarea id="catchwords"></textarea>
 				<div class="actions">
 					<button id="runBtn">Daten aus Wiki lesen</button>
+					<button id="cancelRunBtn" class="danger" hidden>Import abbrechen</button>
 					<button id="reloadBtn" class="secondary">Vorbereitete Daten laden</button>
 					<button id="defaultsBtn" class="secondary">Vorgaben laden</button>
 					<button id="dryRunBtn" class="secondary">Übernahme prüfen</button>
@@ -68,11 +69,14 @@
 						<tbody id="rows"></tbody>
 					</table>
 				</div>
-				<h2 class="debug-title">Debug</h2>
-				<pre id="debug">[]</pre>
+				<details class="debug-accordion">
+					<summary>Debug-Ausgabe anzeigen</summary>
+					<pre id="debug">[]</pre>
+				</details>
 			</section>
 		</main>
 	</div>
 	<script src="../js/pages/wiki-dom-sync-settings.js"></script>
+	<script src="../js/pages/wiki-dom-sync-cancel.js"></script>
 </body>
 </html>
