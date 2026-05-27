@@ -40,7 +40,7 @@ try {
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsPoliticalEnsureTables($pdo);
-    $territory = avesmapsPoliticalFetchTerritoryByPublicId($pdo, $territoryPublicId);
+    $territory = avesmapsPoliticalDisplaySyncFetchTerritoryByPublicId($pdo, $territoryPublicId);
     $updated = avesmapsPoliticalDisplaySyncTerritoryGeometryStyles($pdo, $territory);
 
     avesmapsJsonResponse(200, [
@@ -59,6 +59,27 @@ try {
         'ok' => false,
         'error' => $message,
     ]);
+}
+
+function avesmapsPoliticalDisplaySyncFetchTerritoryByPublicId(PDO $pdo, string $publicId): array {
+    $normalizedPublicId = avesmapsNormalizeSingleLine($publicId, 80);
+    if ($normalizedPublicId === '') {
+        throw new InvalidArgumentException('Die ID des Herrschaftsgebiets fehlt.');
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT *
+        FROM political_territory
+        WHERE public_id = :public_id
+        LIMIT 1'
+    );
+    $statement->execute(['public_id' => $normalizedPublicId]);
+    $territory = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!$territory) {
+        throw new InvalidArgumentException('Das Herrschaftsgebiet wurde nicht gefunden.');
+    }
+
+    return $territory;
 }
 
 function avesmapsPoliticalDisplaySyncTerritoryGeometryStyles(PDO $pdo, array $territory): int {
