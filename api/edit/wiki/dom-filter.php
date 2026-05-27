@@ -74,6 +74,12 @@ function avesmapsWikiDomPatchSource(string $source): string {
         $source
     );
 
+    $source = str_replace(
+        "\$part = cleanText(\$part); if (\$part !== '' && preg_match('/\\b(unabhaengig|",
+        "\$part = cleanText(\$part); if (wikiDomStartsWithPathContinuation(\$part)) break; if (\$part !== '' && preg_match('/\\b(unabhaengig|",
+        $source
+    );
+
     $historicalConflictSource = <<<'PHP'
 function wikiDomCancelRequested(): bool {
     return defined('WIKI_DOM_CANCEL_FILE') && is_file(WIKI_DOM_CANCEL_FILE);
@@ -81,6 +87,10 @@ function wikiDomCancelRequested(): bool {
 
 function wikiDomClearCancelRequest(): void {
     if (defined('WIKI_DOM_CANCEL_FILE')) @unlink(WIKI_DOM_CANCEL_FILE);
+}
+
+function wikiDomStartsWithPathContinuation(string $part): bool {
+    return preg_match('/^\s*(?:sowie|und|oder)\b/iu', $part) === 1;
 }
 
 function wikiDomIsHistoricalRecord(array $record): bool {
