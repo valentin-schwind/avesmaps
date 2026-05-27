@@ -56,12 +56,46 @@ function avesmapsWikiDomPatchSource(string $source): string {
         $source
     );
 
+    $historicalConflictSource = <<<'PHP'
+function wikiDomIsHistoricalRecord(array $record): bool {
+    $url = rawurldecode(str_replace('_', ' ', (string) ($record['wiki_url'] ?? '')));
+    return preg_match('/\(\s*historisch\s*\)/iu', $url) === 1;
+}
+
+function wikiDomCanonicalWikiKeyForHistoricalRecord(array $record): string {
+    $name = trim((string) ($record['name'] ?? ''));
+    $slug = $name !== '' ? avesmapsPoliticalSlug($name) : '';
+    return $slug !== '' ? 'wiki:' . $slug : '';
+}
+
+function wikiDomHistoricalWikiKeyForCanonicalRecord(array $record): string {
+    $name = trim((string) ($record['name'] ?? ''));
+    $slug = $name !== '' ? avesmapsPoliticalSlug($name . ' Historisch') : '';
+    return $slug !== '' ? 'wiki:' . $slug : '';
+}
+
+function wikiDomRecordExistsByWikiKey(PDO $pdo, string $wikiKey): bool {
+    if ($wikiKey === '') return false;
+    $stmt = $pdo->prepare('SELECT 1 FROM ' . WIKI_DOM_TEST_TABLE . ' WHERE wiki_key = :wiki_key LIMIT 1');
+    $stmt->execute(['wiki_key' => $wikiKey]);
+    return $stmt->fetchColumn() !== false;
+}
+
+function wikiDomDeleteHistoricalFallbackForCanonicalRecord(PDO $pdo, array $record): void {
+    $historicalKey = wikiDomHistoricalWikiKeyForCanonicalRecord($record);
+    if ($historicalKey === '') return;
+    $stmt = $pdo->prepare('DELETE FROM ' . WIKI_DOM_TEST_TABLE . ' WHERE wiki_key = :wiki_key');
+    $stmt->execute(['wiki_key' => $historicalKey]);
+}
+
+PHP;
+
     $source = str_replace(
         <<<'PHP'
-function displayName(string $pageTitle): string { return trim((string) preg_replace('/\s+\((?:Staat|Reich|Historisch|Region)\)\s*$/iu', '', str_replace('_', ' ', title($pageTitle)))); }
+function upsertRecord(PDO $pdo, array $record): void { $columns = tableColumns($pdo); $write = []; foreach ($record as $key => $value) { if (isset($columns[$key]) && !in_array($key, ['id', 'synced_at'], true)) $write[$key] = $value; } if (!isset($write['wiki_key'], $write['name'])) throw new RuntimeException('Datensatz ohne wiki_key/name kann nicht gespeichert werden.'); $names = array_keys($write); $insertCols = implode(', ', $names); $insertValues = ':' . implode(', :', $names); $updates = implode(', ', array_map(static fn(string $col): string => $col . '=VALUES(' . $col . ')', array_filter($names, static fn(string $col): bool => $col !== 'wiki_key'))); $sql = 'INSERT INTO ' . WIKI_DOM_TEST_TABLE . ' (' . $insertCols . ', synced_at) VALUES (' . $insertValues . ', CURRENT_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE ' . $updates . ', synced_at=CURRENT_TIMESTAMP(3)'; $params = []; foreach ($write as $key => $value) { if (is_array($value)) $params[$key] = jsonOrNull($value); elseif (is_string($value)) $params[$key] = nullable($value); else $params[$key] = $value; } $pdo->prepare($sql)->execute($params); }
 PHP,
-        <<<'PHP'
-function displayName(string $pageTitle): string { return trim((string) preg_replace('/\s+\((?:Staat|Reich|Region)\)\s*$/iu', '', str_replace('_', ' ', title($pageTitle)))); }
+        $historicalConflictSource . <<<'PHP'
+function upsertRecord(PDO $pdo, array $record): void { if (wikiDomIsHistoricalRecord($record)) { $canonicalKey = wikiDomCanonicalWikiKeyForHistoricalRecord($record); if ($canonicalKey !== '' && $canonicalKey !== (string) ($record['wiki_key'] ?? '') && wikiDomRecordExistsByWikiKey($pdo, $canonicalKey)) return; } else { wikiDomDeleteHistoricalFallbackForCanonicalRecord($pdo, $record); } $columns = tableColumns($pdo); $write = []; foreach ($record as $key => $value) { if (isset($columns[$key]) && !in_array($key, ['id', 'synced_at'], true)) $write[$key] = $value; } if (!isset($write['wiki_key'], $write['name'])) throw new RuntimeException('Datensatz ohne wiki_key/name kann nicht gespeichert werden.'); $names = array_keys($write); $insertCols = implode(', ', $names); $insertValues = ':' . implode(', :', $names); $updates = implode(', ', array_map(static fn(string $col): string => $col . '=VALUES(' . $col . ')', array_filter($names, static fn(string $col): bool => $col !== 'wiki_key'))); $sql = 'INSERT INTO ' . WIKI_DOM_TEST_TABLE . ' (' . $insertCols . ', synced_at) VALUES (' . $insertValues . ', CURRENT_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE ' . $updates . ', synced_at=CURRENT_TIMESTAMP(3)'; $params = []; foreach ($write as $key => $value) { if (is_array($value)) $params[$key] = jsonOrNull($value); elseif (is_string($value)) $params[$key] = nullable($value); else $params[$key] = $value; } $pdo->prepare($sql)->execute($params); }
 PHP,
         $source
     );
