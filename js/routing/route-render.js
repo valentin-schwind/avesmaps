@@ -67,3 +67,22 @@ function removeHighlightedRouteNodes() {
 	highlightedRouteNodes = [];
 	console.log("Alle Routen-Knoten entfernt.");
 }
+
+function updateRouteKeepingCurrentMapView() {
+	const previousCenter = map.getCenter();
+	const previousZoom = map.getZoom();
+	const routeUpdate = updateMapView();
+	Promise.resolve(routeUpdate).finally(() => {
+		map.setView(previousCenter, previousZoom, { animate: false });
+	});
+}
+
+function refreshPlannerAfterFeatureChange({ updateRoute = false } = {}) {
+	graphData = null;
+	refreshWaypointAutocompleteSources();
+	syncPlannerStateToUrl();
+
+	if (updateRoute && getWaypointInputValues().length) {
+		updateRouteKeepingCurrentMapView();
+	}
+}
