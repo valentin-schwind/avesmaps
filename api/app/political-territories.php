@@ -418,8 +418,19 @@ function avesmapsPoliticalBuildRawEditorLayerFeatures(array $rows, int $yearBf, 
                 ? $customLabelName
                 : $fallbackLabelName;
 
-            $feature['properties']['fill'] = (string) ($displayTerritory['color'] ?? $feature['properties']['fill'] ?? '#888888');
-            $feature['properties']['stroke'] = (string) ($displayTerritory['color'] ?? $feature['properties']['stroke'] ?? '#888888');
+            $editorColor = avesmapsPoliticalResolveLayerDisplayColor(
+                $displayTerritory['color'] ?? '',
+                [
+                    'fill' => $feature['properties']['fill'] ?? null,
+                    'stroke' => $feature['properties']['stroke'] ?? null,
+                ],
+                [],
+                $featureRow
+            );
+
+            $feature['properties']['fill'] = $editorColor;
+            $feature['properties']['stroke'] = $editorColor;
+
             $feature['properties']['fillOpacity'] = (float) ($displayTerritory['opacity'] ?? $feature['properties']['fillOpacity'] ?? 0.33);
 
             $feature['properties']['label_name'] = $labelName;
