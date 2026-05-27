@@ -78,13 +78,65 @@ function getRegionFeatureName(properties) {
 }
 
 function getRegionFeatureColor(properties) {
-	return normalizeRegionHexColor(
+	const apiColor = normalizeRegionHexColor(
 		properties.fill
 		|| getStyleDeclarationValue(properties.style, "fill")
 		|| properties.stroke
 		|| getStyleDeclarationValue(properties.style, "stroke")
 		|| "#888888"
 	);
+	const territoryColor = getLoadedPoliticalTerritoryColor(properties);
+
+	return apiColor === "#888888" && territoryColor !== "" ? territoryColor : apiColor;
+}
+
+function getLoadedPoliticalTerritoryColor(properties) {
+	if (typeof politicalTerritoryOptions === "undefined" || !Array.isArray(politicalTerritoryOptions)) {
+		return "";
+	}
+
+	const territoryPublicId = String(
+		properties.territory_public_id
+		|| properties.label_territory_public_id
+		|| properties.aggregate_source_territory_public_id
+		|| ""
+	).trim();
+	if (!territoryPublicId) {
+		return "";
+	}
+
+	const territory = findLoadedPoliticalTerritoryByPublicId(politicalTerritoryOptions, territoryPublicId);
+	if (!territory) {
+		return "";
+	}
+
+	const color = normalizeRegionHexColor(territory.color || territory.fill || "");
+	return color === "#888888" && !/^#888888$/i.test(String(territory.color || territory.fill || "")) ? "" : color;
+}
+
+function findLoadedPoliticalTerritoryByPublicId(entries, territoryPublicId) {
+	for (const entry of entries) {
+		if (!entry || typeof entry !== "object") {
+			continue;
+		}
+
+		const entryPublicId = String(entry.public_id || entry.publicId || entry.territory_public_id || entry.territoryPublicId || "").trim();
+		if (entryPublicId === territoryPublicId) {
+			return entry;
+		}
+
+		for (const key of ["children", "items", "territories"]) {
+			if (!Array.isArray(entry[key])) {
+				continue;
+			}
+			const match = findLoadedPoliticalTerritoryByPublicId(entry[key], territoryPublicId);
+			if (match) {
+				return match;
+			}
+		}
+	}
+
+	return null;
 }
 
 function getRegionFeatureOpacity(properties) {
