@@ -363,7 +363,7 @@
 	background: #fff;
 	color: #2f251c;
 	cursor: pointer;
-	font: inherit;
+	font-size: 13px;
 	text-align: left;
 	box-shadow: 0 2px 5px rgba(52, 41, 32, 0.08);
 }
@@ -393,6 +393,7 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	font-size: 12px;
 }
 
 .transport-combobox__menu {
@@ -421,13 +422,13 @@
 	background: transparent;
 	color: #2f251c;
 	cursor: pointer;
-	font: inherit;
 	text-align: left;
 	white-space: nowrap;
 }
 
 .transport-combobox__option span {
 	overflow: visible;
+	font-size: 12px;
 }
 
 .transport-combobox__option:hover,
