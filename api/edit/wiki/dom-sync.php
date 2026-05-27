@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 define('AVESMAPS_WIKI_DOM_SOURCE_DIR', dirname(__DIR__, 2));
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && trim((string) ($_GET['action'] ?? '')) === 'status') {
+function wikiDomLockStatusPayload(): array {
     $lockPath = AVESMAPS_WIKI_DOM_SOURCE_DIR . '/wiki-dom-playground.lock';
+    $cancelPath = AVESMAPS_WIKI_DOM_SOURCE_DIR . '/wiki-dom-playground.cancel';
     $running = false;
     $lockMtime = is_file($lockPath) ? filemtime($lockPath) : false;
     $lockAgeSeconds = $lockMtime !== false ? max(0, time() - (int) $lockMtime) : null;
@@ -24,16 +25,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && trim((string) ($_GET['action'] ?? ''
         }
     }
 
-    http_response_code(200);
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([
+    return [
         'ok' => true,
         'running' => $running,
         'lock_exists' => is_file($lockPath),
+        'cancel_requested' => is_file($cancelPath),
         'lock_age_seconds' => $lockAgeSeconds,
         'checked_at' => date(DATE_ATOM),
-    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+    ];
+}
+
+function wikiDomJsonOut(array $payload, int $status = 200): never {
+    http_response_code($status);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
     exit;
+}
+
+$action = trim((string) ($_GET['action'] ?? ''));
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && $action === 'status') {
+    wikiDomJsonOut(wikiDomLockStatusPayload());
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'cancel') {
+    $cancelPath = AVESMAPS_WIKI_DOM_SOURCE_DIR . '/wiki-dom-playground.cancel';
+    if (@file_put_contents($cancelPath, date(DATE_ATOM) . "\n") === false) {
+        wikiDomJsonOut(['ok' => false, 'error' => 'Abbruchsignal konnte nicht geschrieben werden.'], 500);
+    }
+    $payload = wikiDomLockStatusPayload();
+    $payload['message'] = $payload['running']
+        ? 'Abbruch angefordert. Der Import stoppt nach der aktuellen Seite.'
+        : 'Abbruchsignal gesetzt. Es läuft aktuell kein Import.';
+    wikiDomJsonOut($payload);
 }
 
 $sourcePath = __DIR__ . '/dom-source.php';
