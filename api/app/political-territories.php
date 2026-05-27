@@ -1039,7 +1039,12 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         )
     );
 
-    $displayColor = trim((string) ($assignmentDisplay['color'] ?? ''));
+    $displayColor = avesmapsPoliticalResolveLayerDisplayColor(
+        $assignmentDisplay['color'] ?? '',
+        $style,
+        $geometryStyle,
+        $row
+    );
     $displayOpacity = $assignmentDisplay['opacity'] ?? null;
 
     $resolvedType = trim((string) ($row['type'] ?? '')) ?: 'Herrschaftsgebiet';
@@ -1062,8 +1067,8 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         'feature_subtype' => $resolvedType,
         'territory_type' => trim((string) ($row['type'] ?? '')),
         'status' => (string) ($row['status'] ?? ''),
-        'fill' => (string) ($displayColor ?: ($style['fill'] ?? $geometryStyle['fill'] ?? $row['color'] ?? '#888888')),
-        'stroke' => (string) ($displayColor ?: ($style['stroke'] ?? $geometryStyle['stroke'] ?? $row['color'] ?? '#888888')),
+        'fill' => $displayColor,
+        'stroke' => $displayColor,
         'fillOpacity' => (float) ($displayOpacity ?? $style['fillOpacity'] ?? $geometryStyle['fillOpacity'] ?? $row['opacity'] ?? 0.33),
         'coat_of_arms_url' => $visibleCoatOfArmsUrl,
         'wiki_url' => (string) ($row['wiki_url'] ?? ''),
@@ -1105,6 +1110,84 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         'geometry' => avesmapsPoliticalDecodeJson($row['geometry_geojson'] ?? null),
         'properties' => $properties,
     ];
+}
+
+function avesmapsPoliticalResolveLayerDisplayColor(mixed $assignmentColor, array $style, array $geometryStyle, array $row): string {
+    $candidateColors = [
+        $assignmentColor,
+        $style['fill'] ?? null,
+        $geometryStyle['fill'] ?? null,
+        $style['stroke'] ?? null,
+        $geometryStyle['stroke'] ?? null,
+        $row['color'] ?? null,
+    ];
+
+    foreach ($candidateColors as $candidateColor) {
+        $color = avesmapsPoliticalNormalizeLayerHexColor($candidateColor);
+        if ($color !== '' && strcasecmp($color, '#888888') !== 0) {
+            return $color;
+        }
+    }
+
+    return avesmapsPoliticalDeterministicLayerColor($row);
+}
+
+function avesmapsPoliticalNormalizeLayerHexColor(mixed $value): string {
+    $color = trim((string) ($value ?? ''));
+    return preg_match('/^#[0-9a-fA-F]{6}$/', $color) === 1 ? $color : '';
+}
+
+function avesmapsPoliticalDeterministicLayerColor(array $row): string {
+    $seed = trim((string) (
+        $row['territory_public_id']
+        ?? $row['geometry_public_id']
+        ?? $row['slug']
+        ?? $row['name']
+        ?? 'Herrschaftsgebiet'
+    ));
+
+    $hash = 2166136261;
+    $length = strlen($seed);
+    for ($index = 0; $index < $length; $index++) {
+        $hash ^= ord($seed[$index]);
+        $hash = ($hash * 16777619) & 0xffffffff;
+    }
+
+    $hue = $hash % 360;
+    $saturation = 52 + ($hash % 18);
+    $value = 50 + (($hash >> 8) % 20);
+
+    return avesmapsPoliticalHsvLayerColorToHex($hue, $saturation, $value);
+}
+
+function avesmapsPoliticalHsvLayerColorToHex(int $hue, int $saturationPercent, int $valuePercent): string {
+    $saturation = max(0, min(100, $saturationPercent)) / 100;
+    $value = max(0, min(100, $valuePercent)) / 100;
+    $chroma = $value * $saturation;
+    $huePrime = (max(0, min(360, $hue)) % 360) / 60;
+    $secondary = $chroma * (1 - abs(fmod($huePrime, 2) - 1));
+    $match = $value - $chroma;
+
+    if ($huePrime < 1) {
+        $channels = [$chroma, $secondary, 0];
+    } elseif ($huePrime < 2) {
+        $channels = [$secondary, $chroma, 0];
+    } elseif ($huePrime < 3) {
+        $channels = [0, $chroma, $secondary];
+    } elseif ($huePrime < 4) {
+        $channels = [0, $secondary, $chroma];
+    } elseif ($huePrime < 5) {
+        $channels = [$secondary, 0, $chroma];
+    } else {
+        $channels = [$chroma, 0, $secondary];
+    }
+
+    return sprintf(
+        '#%02x%02x%02x',
+        (int) round(($channels[0] + $match) * 255),
+        (int) round(($channels[1] + $match) * 255),
+        (int) round(($channels[2] + $match) * 255)
+    );
 }
 
 function avesmapsPoliticalMergeLayerGeometries(?array $leftGeometry, ?array $rightGeometry): ?array {
