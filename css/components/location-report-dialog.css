@@ -29,7 +29,7 @@
 
 .location-report-dialog__close {
 	border: none;
-	background: transparent;
+	background: #fff;
 	color: var(--color-button-border);
 	cursor: pointer;
 	font-size: 28px;
