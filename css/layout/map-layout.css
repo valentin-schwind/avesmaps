@@ -27,10 +27,24 @@ body {
 	box-sizing: border-box;
 	z-index: var(--z-map-ui);
 }
-
 #toggle-button {
+	position: fixed;
+	top: 30px;
 	left: 320px;
+	width: 30px;
+	height: 140px;
+	border: none;
+	border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+	background-color: #565044;
+	box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.5);
+	color: white;
+	cursor: pointer;
+	font-size: 13px;
+	text-orientation: mixed;
+	writing-mode: vertical-rl;
+	z-index: var(--z-map-ui);
 }
+
 
 @media (max-width: 640px) {
 	#search {
