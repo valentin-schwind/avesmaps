@@ -36,6 +36,11 @@ function avesmapsWikiDomPatchSource(string $source): string {
     $source = str_replace('const WIKI_DOM_MAX_ITERATIONS = 160;', 'const WIKI_DOM_MAX_ITERATIONS = 3000;', $source);
     $source = str_replace('const WIKI_DOM_MAX_PAGES = 100;', 'const WIKI_DOM_MAX_PAGES = 3000;', $source);
     $source = str_replace('const WIKI_DOM_MAX_RUNTIME = 35;', 'const WIKI_DOM_MAX_RUNTIME = 360000;', $source);
+    $source = str_replace(
+        "define('WIKI_DOM_LOCK_FILE', AVESMAPS_WIKI_DOM_SOURCE_DIR . '/wiki-dom-playground.lock');",
+        "define('WIKI_DOM_LOCK_FILE', AVESMAPS_WIKI_DOM_SOURCE_DIR . '/wiki-dom-playground.lock');\ndefine('WIKI_DOM_CANCEL_FILE', AVESMAPS_WIKI_DOM_SOURCE_DIR . '/wiki-dom-playground.cancel');",
+        $source
+    );
 
     $defaultSeedItems = array_map(static fn(string $seed): string => "'" . addcslashes($seed, "'\\") . "'", $defaultSeeds);
     $defaultSeedSource = 'function defaultSeeds(): array { return [' . implode(', ', $defaultSeedItems) . ']; }';
@@ -57,7 +62,27 @@ function avesmapsWikiDomPatchSource(string $source): string {
         $source
     );
 
+    $source = str_replace(
+        "\$lock = acquireLock();\n    \$startedAt = microtime(true);",
+        "\$lock = acquireLock();\n    wikiDomClearCancelRequest();\n    \$startedAt = microtime(true);",
+        $source
+    );
+
+    $source = str_replace(
+        "if (connection_aborted()) { \$events[] = ['type' => 'abort', 'message' => 'Client-Verbindung abgebrochen.']; break; }\n            if ((microtime(true) - \$startedAt) >= \$options['max_runtime_seconds'])",
+        "if (connection_aborted()) { \$events[] = ['type' => 'abort', 'message' => 'Client-Verbindung abgebrochen.']; break; }\n            if (wikiDomCancelRequested()) { \$events[] = ['type' => 'cancel', 'message' => 'Import wurde manuell abgebrochen.']; break; }\n            if ((microtime(true) - \$startedAt) >= \$options['max_runtime_seconds'])",
+        $source
+    );
+
     $historicalConflictSource = <<<'PHP'
+function wikiDomCancelRequested(): bool {
+    return defined('WIKI_DOM_CANCEL_FILE') && is_file(WIKI_DOM_CANCEL_FILE);
+}
+
+function wikiDomClearCancelRequest(): void {
+    if (defined('WIKI_DOM_CANCEL_FILE')) @unlink(WIKI_DOM_CANCEL_FILE);
+}
+
 function wikiDomIsHistoricalRecord(array $record): bool {
     $url = rawurldecode(str_replace('_', ' ', (string) ($record['wiki_url'] ?? '')));
     return preg_match('/\(\s*historisch\s*\)/iu', $url) === 1;
