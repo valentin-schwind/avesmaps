@@ -39,7 +39,7 @@ const MAP_DECORATION_CONFIG = {
 };
 const MAP_SCALE_BAND_MILES_BY_ZOOM = [100, 100, 100, 100, 10, 10, 10];
 
-const ROUTE_STYLE = { pane: "routePane", color: "#1452F7", weight: 10, opacity: 1, interactive: true, lineCap: "round", lineJoin: "round" };
+const ROUTE_STYLE = { pane: "routePane", color: "#1452F7", weight: 8, opacity: 1, interactive: true, lineCap: "round", lineJoin: "round" };
 const ROUTE_SELECTED_STYLE = { color: "#ffd54a", weight: ROUTE_STYLE.weight, opacity: 1 };
 const SYNTHETIC_ROUTE_STYLE = { ...ROUTE_STYLE, dashArray: "14 10", opacity: 0.7 };
 const MEASUREMENT_LINE_STYLE = { pane: "measurementPane", color: "#FFFFFF", weight: 4, opacity: 0.95, interactive: false, dashArray: "10 8", lineCap: "round", lineJoin: "round" };
