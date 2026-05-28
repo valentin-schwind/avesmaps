@@ -17,6 +17,7 @@ function avesmapsPoliticalEnsureDerivedGeometryTables(PDO $pdo): void {
             min_y DECIMAL(10, 4) NOT NULL,
             max_x DECIMAL(10, 4) NOT NULL,
             max_y DECIMAL(10, 4) NOT NULL,
+            show_inner_boundaries TINYINT(1) NOT NULL DEFAULT 1,
             source_revision VARCHAR(255) NULL,
             generated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
             is_active TINYINT(1) NOT NULL DEFAULT 1,
@@ -31,6 +32,11 @@ function avesmapsPoliticalEnsureDerivedGeometryTables(PDO $pdo): void {
             KEY idx_political_territory_derived_bbox (min_x, min_y, max_x, max_y)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+
+    $column = $pdo->query("SHOW COLUMNS FROM political_territory_derived_geometry LIKE 'show_inner_boundaries'")->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($column)) {
+        $pdo->exec('ALTER TABLE political_territory_derived_geometry ADD show_inner_boundaries TINYINT(1) NOT NULL DEFAULT 1 AFTER max_y');
+    }
 }
 
 function avesmapsPoliticalReadDerivedGeometry(PDO $pdo, array $query): array {
@@ -100,6 +106,7 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
     avesmapsPoliticalAssertZoomRange($minZoom, $maxZoom);
 
     $labelCenter = avesmapsPoliticalReadDerivedGeometryLabelCenter($payload, $geometry);
+    $showInnerBoundaries = avesmapsPoliticalReadBoolean($payload['show_inner_boundaries'] ?? true);
     $sourceRevision = avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['source_revision'] ?? $payload['source_signature'] ?? ''), 255));
     $userId = (int) ($user['id'] ?? 0) ?: null;
     $publicId = avesmapsPoliticalUuidV4();
@@ -121,11 +128,11 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
         $insertStatement = $pdo->prepare(
             'INSERT INTO political_territory_derived_geometry (
                 public_id, territory_id, geometry_geojson, label_lng, label_lat,
-                min_zoom, max_zoom, min_x, min_y, max_x, max_y,
+                min_zoom, max_zoom, min_x, min_y, max_x, max_y, show_inner_boundaries,
                 source_revision, generated_at, is_active, created_by, updated_by
             ) VALUES (
                 :public_id, :territory_id, :geometry_geojson, :label_lng, :label_lat,
-                :min_zoom, :max_zoom, :min_x, :min_y, :max_x, :max_y,
+                :min_zoom, :max_zoom, :min_x, :min_y, :max_x, :max_y, :show_inner_boundaries,
                 :source_revision, CURRENT_TIMESTAMP(3), 1, :created_by, :updated_by
             )'
         );
@@ -141,6 +148,7 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
             'min_y' => $bounds['min_y'],
             'max_x' => $bounds['max_x'],
             'max_y' => $bounds['max_y'],
+            'show_inner_boundaries' => $showInnerBoundaries ? 1 : 0,
             'source_revision' => $sourceRevision,
             'created_by' => $userId,
             'updated_by' => $userId,
@@ -429,6 +437,7 @@ function avesmapsPoliticalDerivedGeometryRowToPublic(array $row): array {
         'label_lat' => is_numeric($row['label_lat'] ?? null) ? (float) $row['label_lat'] : null,
         'min_zoom' => avesmapsPoliticalNullableInt($row['min_zoom'] ?? null),
         'max_zoom' => avesmapsPoliticalNullableInt($row['max_zoom'] ?? null),
+        'show_inner_boundaries' => (int) ($row['show_inner_boundaries'] ?? 1) === 1,
         'source_revision' => (string) ($row['source_revision'] ?? ''),
         'generated_at' => (string) ($row['generated_at'] ?? ''),
         'is_active' => (int) ($row['is_active'] ?? 0) === 1,
