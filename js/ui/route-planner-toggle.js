@@ -110,9 +110,70 @@ function enableWaypointTouchSorting() {
     });
 }
 
+function enableBlankEditMapStyle() {
+    if (!window.IS_EDIT_MODE && typeof IS_EDIT_MODE !== "undefined" && !IS_EDIT_MODE) {
+        return;
+    }
+
+    const selectElement = document.getElementById("mapStyleSelect");
+    const mapElement = document.getElementById("map");
+    if (!selectElement || !mapElement || typeof map === "undefined") {
+        return;
+    }
+
+    if (!selectElement.querySelector('option[value="none"]')) {
+        const optionElement = document.createElement("option");
+        optionElement.value = "none";
+        optionElement.textContent = "None";
+        selectElement.insertBefore(optionElement, selectElement.firstChild);
+    }
+
+    const originalSetMapStyle = typeof setMapStyle === "function" ? setMapStyle : null;
+
+    window.setMapStyle = function setMapStyleWithBlankOption(mapStyle, options = {}) {
+        if (mapStyle !== "none") {
+            mapElement.style.backgroundColor = "";
+            return originalSetMapStyle?.(mapStyle, options);
+        }
+
+        if (typeof baseTileLayer !== "undefined" && baseTileLayer) {
+            map.removeLayer(baseTileLayer);
+            baseTileLayer = null;
+        }
+
+        activeMapStyle = "none";
+        mapElement.style.backgroundColor = "#fff";
+        selectElement.value = "none";
+
+        if (options.persist) {
+            try {
+                window.localStorage?.setItem(EDIT_MODE_MAP_STYLE_STORAGE_KEY, "none");
+            } catch (error) {
+                console.warn("Mapstyle konnte nicht gespeichert werden:", error);
+            }
+            if (typeof syncPlannerStateToUrl === "function") {
+                syncPlannerStateToUrl();
+            }
+        }
+    };
+
+    const requestedStyle = new URLSearchParams(window.location.search).get("mapstyle");
+    let storedStyle = "";
+    try {
+        storedStyle = window.localStorage?.getItem(EDIT_MODE_MAP_STYLE_STORAGE_KEY) || "";
+    } catch (error) {
+        console.warn("Mapstyle konnte nicht gelesen werden:", error);
+    }
+
+    if (requestedStyle === "none" || storedStyle === "none") {
+        window.setMapStyle("none");
+    }
+}
+
 normalizeHardcodedMapContextMenuIcons();
 normalizeRouteDistanceLabels();
 enableWaypointTouchSorting();
+enableBlankEditMapStyle();
 
 $("#toggle-button").off("click").on("click", () => {
     const panelWidth = getRoutePlannerPanelWidth();
