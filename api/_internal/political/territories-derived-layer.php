@@ -14,19 +14,26 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
 
     $derivedTerritoryIds = [];
     $hiddenByTerritoryPublicId = [];
-    foreach ($derivedFeatures as $feature) {
+    foreach ($derivedFeatures as &$feature) {
         $territoryPublicId = trim((string) ($feature['properties']['territory_public_id'] ?? ''));
         if ($territoryPublicId !== '') {
             $derivedTerritoryIds[$territoryPublicId] = true;
         }
         if (($feature['properties']['show_inner_boundaries'] ?? true) === false) {
-            $hiddenByTerritoryPublicId += avesmapsPoliticalFindInnerBoundaryFeaturesForDerivedTarget(
-                $pdo,
-                (array) ($response['features'] ?? []),
-                $feature
-            );
+            $sourceTerritoryPublicIds = avesmapsPoliticalReadDerivedSourceTerritoryPublicIds($pdo, $feature);
+            $feature['properties']['derived_source_territory_public_ids'] = $sourceTerritoryPublicIds;
+            foreach ($sourceTerritoryPublicIds as $sourceTerritoryPublicId) {
+                $hiddenByTerritoryPublicId[$sourceTerritoryPublicId] = $territoryPublicId;
+            }
+            if ($sourceTerritoryPublicIds === []) {
+                $hiddenByTerritoryPublicId += avesmapsPoliticalFindInnerBoundaryFeaturesInLayer(
+                    (array) ($response['features'] ?? []),
+                    $feature
+                );
+            }
         }
     }
+    unset($feature);
 
     $baseFeatures = [];
     foreach ((array) ($response['features'] ?? []) as $feature) {
@@ -205,21 +212,6 @@ function avesmapsPoliticalDerivedLayerSupportsInnerBoundaries(PDO $pdo): bool {
     }
 
     return $supportsInnerBoundaries;
-}
-
-function avesmapsPoliticalFindInnerBoundaryFeaturesForDerivedTarget(PDO $pdo, array $baseFeatures, array $derivedFeature): array {
-    $sourceTerritoryPublicIds = avesmapsPoliticalReadDerivedSourceTerritoryPublicIds($pdo, $derivedFeature);
-    $hidden = [];
-    $derivedTerritoryPublicId = trim((string) ($derivedFeature['properties']['territory_public_id'] ?? ''));
-    foreach ($sourceTerritoryPublicIds as $publicId) {
-        $hidden[$publicId] = $derivedTerritoryPublicId;
-    }
-
-    if ($hidden !== []) {
-        return $hidden;
-    }
-
-    return avesmapsPoliticalFindInnerBoundaryFeaturesInLayer($baseFeatures, $derivedFeature);
 }
 
 function avesmapsPoliticalReadDerivedSourceTerritoryPublicIds(PDO $pdo, array $derivedFeature): array {
