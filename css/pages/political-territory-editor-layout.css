@@ -1,0 +1,33 @@
+/* Layout override for the territory display property panels.
+   The editor panels should keep content-driven heights instead of stretching
+   to match neighbouring grid or flex-row heights. */
+
+.manual-data-columns {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px;
+	align-items: flex-start;
+}
+
+.manual-data-columns > .manual-data-section {
+	flex: 1 1 calc(50% - 7px);
+	min-width: min(320px, 100%);
+	align-self: flex-start;
+	height: auto;
+}
+
+.manual-data-section {
+	align-self: flex-start;
+	height: auto;
+}
+
+@media (max-width: 620px) {
+	.manual-data-columns {
+		flex-direction: column;
+	}
+
+	.manual-data-columns > .manual-data-section {
+		flex-basis: auto;
+		width: 100%;
+	}
+}
