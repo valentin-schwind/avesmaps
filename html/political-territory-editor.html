@@ -113,10 +113,11 @@
 									<input id="displayNameInput" name="display_name" type="text">
 								</div>
 								<div class="manual-data-field manual-data-field--wide">
-									<label for="alternateCoatInput">Alternativer Wappen-Link</label>
+									<label for="alternateCoatInput">Wappen-Link</label>
 									<div class="manual-data-inline-action manual-data-inline-action--with-preview">
 										<input id="alternateCoatInput" name="alternate_coat_url" type="url" inputmode="url">
 										<button id="updateCoatButton" class="secondary" type="button">aktualisieren</button>
+										<button id="restoreCoatButton" class="secondary" type="button" hidden>wiederherstellen</button>
 										<div id="manualCoatPreview" class="manual-coat-preview" aria-label="Wappen-Vorschau"><span>kein Wappen</span></div>
 									</div>
 								</div>
@@ -217,6 +218,7 @@
 	<script src="/js/territory/territory-editor-embedded.js"></script>
 	<script src="/js/territory/territory-subtree-display-tools.js"></script>
 	<script src="/js/territory/territory-deferred-subtree-display-tools.js"></script>
+	<script src="/js/territory/territory-editor-coat-restore.js"></script>
 	<script src="/js/territory/territory-editor-ui-hints.js"></script>
 </body>
 </html>
