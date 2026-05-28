@@ -9,7 +9,6 @@
 		"inheritValidityToDescendantsCheckbox"
 	];
 
-	let externalOnSave = null;
 	let territoryRows = [];
 	let territoryRowsLoaded = false;
 
@@ -22,6 +21,10 @@
 
 	function getAssignmentModule() {
 		return window.AvesmapsPoliticalTerritoryAssignment || null;
+	}
+
+	function getSavePipeline() {
+		return window.AvesmapsPoliticalTerritoryEditorSave || null;
 	}
 
 	function getSubtreeService() {
@@ -317,28 +320,7 @@
 		preview.innerHTML = `<div class="deferred-subtree-preview-title">Geplante Farben ab „${escapeHtml(plan.root.name)}“</div><table class="deferred-subtree-table"><thead><tr><th>Tiefe</th><th>Farbe pro Ebene</th></tr></thead><tbody>${rows}</tbody></table>`;
 	}
 
-	async function saveWithInheritance(value) {
-		if (typeof externalOnSave !== "function") return value;
-		const adjustedValue = await buildValueWithLocalDisplayInheritance(value);
-		const result = await externalOnSave(adjustedValue);
-		const root = readRootSelection();
-		const service = getSubtreeService();
-		const messages = [];
-		if (root && document.getElementById("inheritColorToDescendantsCheckbox")?.checked && service?.applyColorHierarchy) {
-			const range = service.readHueVarianceRange256?.() || { min256: 10, max256: 20 };
-			messages.push(service.formatInheritanceMessage?.("Farbhierarchie", await service.applyColorHierarchy(root, { hueVarianceRange: range })) || "Farbhierarchie angewendet.");
-		}
-		if (root && document.getElementById("inheritOpacityToDescendantsCheckbox")?.checked && service?.applyOpacityInheritance) {
-			messages.push(service.formatInheritanceMessage?.("Transparenz", await service.applyOpacityInheritance(root)) || "Transparenz angewendet.");
-		}
-		if (messages.length > 0) {
-			service?.reloadEditorAndParentLayers?.();
-			return { ...(result || {}), message: `${result?.message || "Gespeichert."} ${messages.join(" ")}` };
-		}
-		return result;
-	}
-
-	async function buildValueWithLocalDisplayInheritance(value) {
+	async function applyLocalInheritanceToValue(value) {
 		const root = readRootSelection();
 		if (!root || (!document.getElementById("inheritZoomToDescendantsCheckbox")?.checked && !document.getElementById("inheritValidityToDescendantsCheckbox")?.checked)) return value;
 		const nextValue = { ...value, displays: Array.isArray(value.displays) ? value.displays.map(display => ({ ...display })) : [] };
@@ -358,23 +340,37 @@
 		return nextValue;
 	}
 
-	function patchSaveHook() {
-		const module = getAssignmentModule();
-		if (!module || module.__avesmapsInheritanceSavePatch === true || typeof module.configure !== "function") return;
-		const originalConfigure = module.configure.bind(module);
-		module.configure = function configureInheritance(options = {}) {
-			if (typeof options.onSave === "function" && options.onSave !== saveWithInheritance) {
-				externalOnSave = options.onSave;
-				return originalConfigure({ ...options, onSave: saveWithInheritance });
-			}
-			return originalConfigure(options);
-		};
-		module.__avesmapsInheritanceSavePatch = true;
+	async function applyGlobalInheritanceAfterSave(context) {
+		const root = readRootSelection();
+		const service = getSubtreeService();
+		const messages = [];
+		if (root && document.getElementById("inheritColorToDescendantsCheckbox")?.checked && service?.applyColorHierarchy) {
+			const range = service.readHueVarianceRange256?.() || { min256: 10, max256: 20 };
+			messages.push(service.formatInheritanceMessage?.("Farbhierarchie", await service.applyColorHierarchy(root, { hueVarianceRange: range })) || "Farbhierarchie angewendet.");
+		}
+		if (root && document.getElementById("inheritOpacityToDescendantsCheckbox")?.checked && service?.applyOpacityInheritance) {
+			messages.push(service.formatInheritanceMessage?.("Transparenz", await service.applyOpacityInheritance(root)) || "Transparenz angewendet.");
+		}
+		if (messages.length < 1) return context.result;
+		service?.reloadEditorAndParentLayers?.();
+		return { ...(context.result || {}), message: `${context.result?.message || "Gespeichert."} ${messages.join(" ")}` };
+	}
+
+	function registerSaveHooks() {
+		const pipeline = getSavePipeline();
+		if (!pipeline) return false;
+		pipeline.registerBeforeSaveTransform?.(applyLocalInheritanceToValue);
+		pipeline.registerAfterSaveHook?.(applyGlobalInheritanceAfterSave);
+		return true;
+	}
+
+	function registerSaveHooksWhenReady() {
+		if (!registerSaveHooks()) window.setTimeout(registerSaveHooksWhenReady, 50);
 	}
 
 	function init() {
 		installUi();
-		patchSaveHook();
+		registerSaveHooksWhenReady();
 	}
 
 	if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
