@@ -676,8 +676,7 @@ details[open] > summary .tree-toggle::before {
 	object-fit: contain;
 }
 
-.info-box {
-	padding: 12px;
+.info-box { 
 	min-height: 90px;
 	background: #fffdf9;
 }
@@ -1259,8 +1258,7 @@ details[open] > summary .tree-toggle::before {
 		}
 
 		.info-box {
-			min-height: 0;
-			padding: 14px;
+			min-height: 0; 
 			background: var(--panel);
 		}
 
