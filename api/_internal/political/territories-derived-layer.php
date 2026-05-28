@@ -46,7 +46,6 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
 }
 
 function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $zoom, ?array $bbox): array {
-    $normalizedTerritoryValidToSql = avesmapsPoliticalNormalizedValidToSql('territory.valid_to_bf', 'wiki.dissolved_type', 'wiki.dissolved_text');
     $supportsInnerBoundaries = avesmapsPoliticalDerivedLayerSupportsInnerBoundaries($pdo);
     $showInnerBoundariesSql = $supportsInnerBoundaries ? 'derived.show_inner_boundaries' : '1 AS show_inner_boundaries';
     $conditions = [
@@ -54,7 +53,7 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
         'derived.is_active = 1',
         'territory.continent = :continent',
         '(territory.valid_from_bf IS NULL OR territory.valid_from_bf <= :year_bf_start)',
-        '(' . $normalizedTerritoryValidToSql . ' IS NULL OR ' . $normalizedTerritoryValidToSql . ' >= :year_bf_end)',
+        '(territory.valid_to_bf IS NULL OR territory.valid_to_bf = 0 OR territory.valid_to_bf >= :year_bf_end)',
         '(derived.min_zoom IS NULL OR derived.min_zoom <= :zoom)',
         '(derived.max_zoom IS NULL OR derived.max_zoom >= :zoom)',
     ];
