@@ -86,6 +86,41 @@
 		document.head.appendChild(style);
 	}
 
+	function installAssignmentDropZoneStyle() {
+		if (document.getElementById("assignmentDropZoneStyle")) {
+			return;
+		}
+
+		const style = document.createElement("style");
+		style.id = "assignmentDropZoneStyle";
+		style.textContent = `
+			.drop-zone.has-node {
+				justify-content: stretch;
+				text-align: left;
+			}
+
+			.drop-zone.has-node .dropped-node {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 10px;
+				width: 100%;
+				min-width: 0;
+				box-sizing: border-box;
+			}
+
+			.drop-zone.has-node .dropped-node > div {
+				min-width: 0;
+			}
+
+			.drop-zone.has-node .dropped-node-name,
+			.drop-zone.has-node .dropped-node-kind {
+				overflow-wrap: anywhere;
+			}
+		`;
+		document.head.appendChild(style);
+	}
+
 	function installDefaultZoomRulesTable() {
 		if (document.getElementById("defaultZoomRulesTable")) {
 			return;
@@ -170,6 +205,7 @@
 
 	function install() {
 		installDefaultZoomRulesStyle();
+		installAssignmentDropZoneStyle();
 		installDefaultZoomRulesTable();
 		installAssignmentDropZoneHintObserver();
 	}
