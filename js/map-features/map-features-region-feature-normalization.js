@@ -53,6 +53,10 @@ function normalizeRegionFeature(feature) {
 		showRegionLabel: properties.show_region_label !== false,
 		minZoom: readOptionalRegionZoom(properties.min_zoom),
 		maxZoom: readOptionalRegionZoom(properties.max_zoom),
+		isDerivedGeometry: properties.is_derived_geometry === true,
+		showInnerBoundaries: properties.show_inner_boundaries !== false,
+		visualHiddenByDerivedBoundary: properties.visual_hidden_by_derived_boundary === true,
+		hiddenByDerivedTerritoryPublicId: properties.hidden_by_derived_territory_public_id || "",
 		isActive: properties.is_active !== false,
 		editorNotes: properties.editor_notes || "",
 		revision: Number(properties.revision) || null,
@@ -86,11 +90,12 @@ function getRegionFeatureColor(properties) {
 		|| "#888888"
 	);
 }
- 
+  
 function getRegionFeatureOpacity(properties) {
 	const rawOpacity = properties.fillOpacity
 		?? properties.fill_opacity
 		?? properties["fill-opacity"]
+		?? properties.opacity
 		?? getStyleDeclarationValue(properties.style, "fill-opacity")
 		?? 0.33;
 	const opacity = Number(rawOpacity);
