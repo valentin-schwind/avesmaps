@@ -241,14 +241,15 @@
 			return;
 		}
 		await loadTerritories();
-		const updates = buildColorUpdates(root, findDescendants(root));
+		const descendants = findDescendants(root);
+		const updates = buildColorUpdates(root, descendants);
 		colorPlan = { root, updates };
 		if (checkCheckbox) {
 			const checkbox = document.getElementById("inheritColorToDescendantsCheckbox");
 			if (checkbox) checkbox.checked = true;
 		}
 		renderPreview(colorPlan);
-		setStatus(updates.length > 0 ? `Farbhierarchie vorbereitet: ${updates.length} Unterregionen.` : "Keine Unterregionen fuer das aktive Breadcrumb gefunden.", updates.length > 0 ? "pending" : "error");
+		setStatus(descendants.length > 0 ? `Farbhierarchie vorbereitet: ${descendants.length} Unterregionen.` : "Keine Unterregionen fuer das aktive Breadcrumb gefunden.", descendants.length > 0 ? "pending" : "error");
 	}
 
 	function findRootRow(root) {
@@ -304,9 +305,14 @@
 	}
 
 	function buildColorUpdates(root, descendants) {
+		const updates = [{
+			territoryPublicId: root.territoryPublicId,
+			name: root.name || root.territoryPublicId || "Aktive Ebene",
+			depth: 1,
+			color: root.color
+		}];
 		const byDepth = new Map();
-		for (const row of descendants) addToMapList(byDepth, Math.max(1, Number(row.depth || 1)), row);
-		const updates = [];
+		for (const row of descendants) addToMapList(byDepth, Math.max(1, Number(row.depth || 1)) + 1, row);
 		for (const depth of [...byDepth.keys()].sort((a, b) => a - b)) {
 			const rows = byDepth.get(depth);
 			for (let index = 0; index < rows.length; index += 1) {
@@ -314,7 +320,7 @@
 				updates.push({ territoryPublicId: row.publicId, name: row.name || row.publicId, depth, color: createHueVariant(root.color, depth, index, rows.length, row.publicId || row.name) });
 			}
 		}
-		return updates.filter(update => update.territoryPublicId);
+		return updates.filter(update => update.territoryPublicId || update.depth === 1);
 	}
 
 	function readHueVarianceRange() {
@@ -329,15 +335,11 @@
 		const rgb = parseHexToRgb(parentColor) || { red: 136, green: 136, blue: 136 };
 		const hsv = rgbToHsv(rgb.red, rgb.green, rgb.blue);
 		const range = readHueVarianceRange();
-		let span = Math.min(24, 14 / (1 + ((Math.max(1, depth) - 1) * 0.45)) + Math.min(12, Math.max(0, siblingCount - 1) * 0.55));
+		let span = Math.min(24, 14 / (1 + ((Math.max(1, depth) - 2) * 0.45)) + Math.min(12, Math.max(0, siblingCount - 1) * 0.55));
 		span = Math.max(range.minDegrees, Math.min(span, range.maxDegrees));
-		let position = siblingCount > 1 ? siblingIndex / (siblingCount - 1) : null;
-		let offset = position === null ? 0 : ((position * 2) - 1) * span;
-		const jitterDirection = seededUnit(seedText) >= 0.5 ? 1 : -1;
+		const position = siblingCount > 1 ? siblingIndex / (siblingCount - 1) : 0.5;
+		const offset = ((position * 2) - 1) * span;
 		const jitter = (((seededUnit(`${seedText}:jitter`) * 2) - 1) * Math.max(0.75, Math.min(2.5, span * 0.18)));
-		if (Math.abs(offset) < Math.max(4, range.minDegrees * 0.6)) {
-			offset = jitterDirection * Math.max(4, range.minDegrees * 0.6);
-		}
 		return hsvToHex((hsv.hue + offset + jitter + 360) % 360, hsv.saturation, hsv.value);
 	}
 
