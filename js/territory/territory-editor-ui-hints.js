@@ -173,6 +173,38 @@
 		visibilitySection.appendChild(wrapper);
 	}
 
+	function loadScriptOnce(src) {
+		return new Promise((resolve, reject) => {
+			const existingScript = document.querySelector(`script[src="${src}"]`);
+			if (existingScript) {
+				if (existingScript.dataset.loaded === "1") {
+					resolve();
+					return;
+				}
+				existingScript.addEventListener("load", () => resolve(), { once: true });
+				existingScript.addEventListener("error", () => reject(new Error(`${src} konnte nicht geladen werden.`)), { once: true });
+				return;
+			}
+
+			const script = document.createElement("script");
+			script.src = src;
+			script.onload = () => {
+				script.dataset.loaded = "1";
+				resolve();
+			};
+			script.onerror = () => reject(new Error(`${src} konnte nicht geladen werden.`));
+			document.body.appendChild(script);
+		});
+	}
+
+	function installDerivedGeometryEditorPanel() {
+		void loadScriptOnce("/js/third-party/polygon-clipping.umd.min.js")
+			.then(() => loadScriptOnce("/js/territory/territory-derived-geometry-iframe-editor.js"))
+			.catch((error) => {
+				console.warn("Derived-Geometry-Panel konnte nicht geladen werden:", error);
+			});
+	}
+
 	function syncAssignmentDropZoneHint() {
 		const dropZone = document.getElementById("dropZone");
 		if (!dropZone) {
@@ -208,6 +240,7 @@
 		installAssignmentDropZoneStyle();
 		installDefaultZoomRulesTable();
 		installAssignmentDropZoneHintObserver();
+		installDerivedGeometryEditorPanel();
 	}
 
 	window.AvesmapsPoliticalTerritoryEditorUiHints = {
