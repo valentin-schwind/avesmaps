@@ -81,6 +81,9 @@ async function handleRegionEditFormSubmit(event) {
 			for (const tab of regionEditTabs) {
 				latestResult = await saveRegionEditTab(tab);
 			}
+			if (typeof saveDerivedGeometryEditorIfNeeded === "function") {
+				await saveDerivedGeometryEditorIfNeeded();
+			}
 			void loadPoliticalTerritoryOptions({ force: true });
 			schedulePoliticalTerritoryLayerReload({ immediate: true });
 		} else {
