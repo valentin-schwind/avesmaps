@@ -7,7 +7,7 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
     $yearBf = avesmapsPoliticalReadOptionalInt($query['year_bf'] ?? null) ?? AVESMAPS_POLITICAL_DEFAULT_YEAR_BF;
     $zoom = avesmapsPoliticalReadOptionalZoom($query['zoom'] ?? null) ?? 0;
     $bbox = avesmapsPoliticalReadOptionalBoundingBox((string) ($query['bbox'] ?? ''));
-    $derivedFeatures = avesmapsPoliticalReadDerivedLayerFeatures($pdo, $yearBf, $zoom, $bbox);
+    $derivedFeatures = avesmapsPoliticalReadDerivedLayerFeaturesSafely($pdo, $yearBf, $zoom, $bbox, $response);
     if ($derivedFeatures === []) {
         return $response;
     }
@@ -45,9 +45,19 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
     return $response;
 }
 
+function avesmapsPoliticalReadDerivedLayerFeaturesSafely(PDO $pdo, int $yearBf, int $zoom, ?array $bbox, array &$response): array {
+    try {
+        return avesmapsPoliticalReadDerivedLayerFeatures($pdo, $yearBf, $zoom, $bbox);
+    } catch (Throwable $exception) {
+        $response['derived_geometry_warning'] = 'Abgeleitete Außengrenzen konnten nicht geladen werden; normale Herrschaftsgebiete wurden ohne Außengrenzen geladen.';
+        $response['derived_geometry_error'] = $exception->getMessage();
+        return [];
+    }
+}
+
 function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $zoom, ?array $bbox): array {
     $supportsInnerBoundaries = avesmapsPoliticalDerivedLayerSupportsInnerBoundaries($pdo);
-    $showInnerBoundariesSql = $supportsInnerBoundaries ? 'derived.show_inner_boundaries' : '1 AS show_inner_boundaries';
+    $showInnerBoundariesSql = $supportsInnerBoundaries ? 'derived.show_inner_boundaries AS show_inner_boundaries' : '1 AS show_inner_boundaries';
     $conditions = [
         'territory.is_active = 1',
         'derived.is_active = 1',
@@ -58,10 +68,10 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
         '(derived.max_zoom IS NULL OR derived.max_zoom >= :zoom)',
     ];
     $params = [
-        'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
-        'year_bf_start' => $yearBf,
-        'year_bf_end' => $yearBf,
-        'zoom' => $zoom,
+        ':continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+        ':year_bf_start' => $yearBf,
+        ':year_bf_end' => $yearBf,
+        ':zoom' => $zoom,
     ];
 
     if ($bbox !== null) {
@@ -70,10 +80,10 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
         $conditions[] = 'derived.max_y >= :bbox_min_y';
         $conditions[] = 'derived.min_y <= :bbox_max_y';
         $params += [
-            'bbox_min_x' => $bbox['min_x'],
-            'bbox_min_y' => $bbox['min_y'],
-            'bbox_max_x' => $bbox['max_x'],
-            'bbox_max_y' => $bbox['max_y'],
+            ':bbox_min_x' => $bbox['min_x'],
+            ':bbox_min_y' => $bbox['min_y'],
+            ':bbox_max_x' => $bbox['max_x'],
+            ':bbox_max_y' => $bbox['max_y'],
         ];
     }
 
@@ -135,7 +145,10 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
         WHERE ' . implode(' AND ', $conditions) . '
         ORDER BY territory.sort_order ASC, territory.name ASC, derived.id ASC'
     );
-    $statement->execute($params);
+    foreach ($params as $name => $value) {
+        $statement->bindValue($name, $value);
+    }
+    $statement->execute();
 
     $features = [];
     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
