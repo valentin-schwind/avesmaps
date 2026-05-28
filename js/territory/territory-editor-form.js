@@ -1,12 +1,16 @@
 "use strict";
 
 (function initPoliticalTerritoryEditorFormModule() {
+	function getDisplayState() {
+		return window.AvesmapsPoliticalTerritoryEditorDisplayState || null;
+	}
+
 	function normalizeText(value) {
-		return String(value ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+		return getDisplayState()?.normalizeText?.(value) || String(value ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
 	}
 
 	function makeKey(value) {
-		return normalizeText(value)
+		return getDisplayState()?.makeKey?.(value) || normalizeText(value)
 			.toLowerCase()
 			.normalize("NFD")
 			.replace(/[\u0300-\u036f]/g, "")
@@ -43,43 +47,16 @@
 		getAssignmentModule()?.setStatus?.(message, type);
 	}
 
-	function referenceValues(value) {
-		return [
-			value?.territoryPublicId,
-			value?.territory_public_id,
-			value?.territoryId,
-			value?.territory_id,
-			value?.wikiKey,
-			value?.wiki_key,
-			value?.key,
-			value?.id,
-			value?.label,
-			value?.name
-		].map(normalizeText).filter(Boolean);
-	}
-
-	function sameReference(left, right) {
-		const leftValues = referenceValues(left);
-		const rightValues = referenceValues(right);
-		return leftValues.some(leftValue => rightValues.some(rightValue => leftValue === rightValue || makeKey(leftValue) === makeKey(rightValue)));
-	}
-
 	function getActivePathIndex(value = readAssignmentValue()) {
-		const path = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
-		const active = value?.activeDisplayNode || null;
-		if (active) {
-			const index = path.findIndex(node => sameReference(node, active));
-			if (index >= 0) return index;
-		}
-		return path.length - 1;
+		return getDisplayState()?.getActivePathIndex?.(value) ?? -1;
 	}
 
 	function readRootSelection(value = readAssignmentValue()) {
-		const path = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
-		const displays = Array.isArray(value?.displays) ? value.displays : [];
+		const displayState = getDisplayState();
+		const path = displayState?.readPath?.(value) || [];
 		const activeIndex = getActivePathIndex(value);
-		const rootNode = path[activeIndex] || null;
-		const rootDisplay = displays[activeIndex] || value?.display || {};
+		const rootNode = displayState?.readActiveNode?.(value) || null;
+		const rootDisplay = displayState?.readActiveDisplay?.(value) || {};
 		if (!rootNode) return null;
 
 		const opacityPercent = parseOptionalNumber(
@@ -105,26 +82,19 @@
 	}
 
 	function hasLowerBreadcrumb(value = readAssignmentValue()) {
-		const path = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
-		const activeIndex = getActivePathIndex(value);
-		return activeIndex >= 0 && activeIndex < path.length - 1;
+		return Boolean(getDisplayState()?.hasLowerBreadcrumb?.(value));
 	}
 
 	async function applyLocalDisplayInheritance(value) {
 		const root = readRootSelection(value);
-		if (!root) return value;
+		const displayState = getDisplayState();
+		if (!root || !displayState?.updateDescendantDisplays) return value;
 
 		const inheritZoom = Boolean(document.getElementById("inheritZoomToDescendantsCheckbox")?.checked);
 		const inheritValidity = Boolean(document.getElementById("inheritValidityToDescendantsCheckbox")?.checked);
 		if (!inheritZoom && !inheritValidity) return value;
 
-		const nextValue = {
-			...value,
-			displays: Array.isArray(value.displays) ? value.displays.map(display => ({ ...display })) : []
-		};
-
-		for (let index = root.activeIndex + 1; index < nextValue.displays.length; index += 1) {
-			const display = nextValue.displays[index] || {};
+		return displayState.updateDescendantDisplays(value, root.activeIndex, display => {
 			if (inheritZoom) {
 				display.zoomMin = root.zoomMin;
 				display.zoomMax = root.zoomMax;
@@ -134,10 +104,8 @@
 				display.endYear = root.endYear;
 				display.existsUntilToday = root.existsUntilToday;
 			}
-			nextValue.displays[index] = display;
-		}
-
-		return nextValue;
+			return display;
+		});
 	}
 
 	window.AvesmapsPoliticalTerritoryEditorForm = {
