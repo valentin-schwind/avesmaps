@@ -12,15 +12,8 @@
 	let territoryRows = [];
 	let territoryRowsLoaded = false;
 
-	const normalizeText = value => String(value ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
-	const makeKey = value => normalizeText(value).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-	const clampNumber = (value, min, max) => Number.isFinite(Number(value)) ? Math.max(min, Math.min(max, Number(value))) : min;
-	const parseOptionalNumber = (value, fallback = null) => value === "" || value === null || typeof value === "undefined" ? fallback : (Number.isFinite(Number(value)) ? Number(value) : fallback);
-	const normalizeHexColor = value => /^#[0-9a-fA-F]{6}$/.test(normalizeText(value)) ? normalizeText(value).toLowerCase() : "";
-	const escapeHtml = value => String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-
-	function getAssignmentModule() {
-		return window.AvesmapsPoliticalTerritoryAssignment || null;
+	function getFormModule() {
+		return window.AvesmapsPoliticalTerritoryEditorForm || null;
 	}
 
 	function getSavePipeline() {
@@ -31,12 +24,32 @@
 		return window.AvesmapsPoliticalTerritorySubtreeDisplayTools || null;
 	}
 
+	function normalizeText(value) {
+		return getFormModule()?.normalizeText?.(value) || String(value ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+	}
+
+	function makeKey(value) {
+		return getFormModule()?.makeKey?.(value) || normalizeText(value).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+	}
+
+	function parseOptionalNumber(value, fallback = null) {
+		return getFormModule()?.parseOptionalNumber?.(value, fallback) ?? fallback;
+	}
+
+	function escapeHtml(value) {
+		return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+	}
+
 	function readAssignmentValue() {
-		return getAssignmentModule()?.getValue?.() || null;
+		return getFormModule()?.readAssignmentValue?.() || null;
+	}
+
+	function readRootSelection() {
+		return getFormModule()?.readRootSelection?.() || null;
 	}
 
 	function setStatus(message, type = "pending") {
-		getAssignmentModule()?.setStatus?.(message, type);
+		getFormModule()?.setStatus?.(message, type);
 	}
 
 	function installUi() {
@@ -64,10 +77,7 @@
 	}
 
 	function syncInheritanceVisibility() {
-		const value = readAssignmentValue();
-		const path = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
-		const index = getActivePathIndex(value);
-		const hasLowerBreadcrumb = index >= 0 && index < path.length - 1;
+		const hasLowerBreadcrumb = Boolean(getFormModule()?.hasLowerBreadcrumb?.());
 		const colorButton = document.getElementById("inheritColorVarianceButton");
 		if (colorButton) colorButton.hidden = !hasLowerBreadcrumb;
 
@@ -84,54 +94,18 @@
 		}
 	}
 
-	function getActivePathIndex(value) {
-		const path = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
-		const active = value?.activeDisplayNode || null;
-		if (active) {
-			const index = path.findIndex(node => sameReference(node, active));
-			if (index >= 0) return index;
-		}
-		return path.length - 1;
-	}
-
-	function sameReference(left, right) {
-		const leftValues = [left?.territoryPublicId, left?.territoryId, left?.wikiKey, left?.key, left?.id, left?.label, left?.name].map(normalizeText).filter(Boolean);
-		const rightValues = [right?.territoryPublicId, right?.territoryId, right?.wikiKey, right?.key, right?.id, right?.label, right?.name].map(normalizeText).filter(Boolean);
-		return leftValues.some(leftValue => rightValues.some(rightValue => leftValue === rightValue || makeKey(leftValue) === makeKey(rightValue)));
-	}
-
-	function readRootSelection() {
-		const value = readAssignmentValue();
-		const path = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
-		const displays = Array.isArray(value?.displays) ? value.displays : [];
-		const activeIndex = getActivePathIndex(value);
-		const rootNode = path[activeIndex] || null;
-		const rootDisplay = displays[activeIndex] || value?.display || {};
-		if (!rootNode) return null;
-		const percent = parseOptionalNumber(document.getElementById("transparencyInput")?.value, Math.round((rootDisplay.opacity ?? 0.33) * 100));
-		return {
-			activeIndex,
-			pathPrefix: path.slice(0, activeIndex + 1).map(node => normalizeText(node.label || node.name || node.key || "")).filter(Boolean),
-			territoryId: parseOptionalNumber(rootNode.territoryId ?? rootNode.territory_id),
-			territoryPublicId: normalizeText(rootNode.territoryPublicId || rootNode.territory_public_id || rootNode.key || ""),
-			wikiKey: normalizeText(rootNode.wikiKey || rootNode.wiki_key || rootNode.key || ""),
-			name: normalizeText(rootNode.label || rootDisplay.name || rootDisplay.displayName || ""),
-			color: normalizeHexColor(document.getElementById("colorInput")?.value || rootDisplay.color) || "#888888",
-			opacity: clampNumber(percent / 100, 0, 1),
-			zoomMin: parseOptionalNumber(document.getElementById("zoomFromInput")?.value, rootDisplay.zoomMin),
-			zoomMax: parseOptionalNumber(document.getElementById("zoomToInput")?.value, rootDisplay.zoomMax),
-			startYear: parseOptionalNumber(document.getElementById("startYearInput")?.value, rootDisplay.startYear),
-			endYear: document.getElementById("existsUntilTodayInput")?.checked ? null : parseOptionalNumber(document.getElementById("endYearInput")?.value, rootDisplay.endYear),
-			existsUntilToday: Boolean(document.getElementById("existsUntilTodayInput")?.checked)
-		};
-	}
-
 	async function loadTerritories() {
 		if (territoryRowsLoaded) return territoryRows;
 		const separator = WRITE_API_URL.includes("?") ? "&" : "?";
-		const response = await fetch(`${WRITE_API_URL}${separator}action=hierarchy`, { method: "GET", credentials: "same-origin", headers: { "Accept": "application/json" } });
+		const response = await fetch(`${WRITE_API_URL}${separator}action=hierarchy`, {
+			method: "GET",
+			credentials: "same-origin",
+			headers: { "Accept": "application/json" }
+		});
 		const payload = await response.json().catch(() => null);
-		if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `Herrschaftsgebiete konnten nicht geladen werden: HTTP ${response.status}`);
+		if (!response.ok || payload?.ok === false) {
+			throw new Error(payload?.error || `Herrschaftsgebiete konnten nicht geladen werden: HTTP ${response.status}`);
+		}
 		territoryRows = readTerritoriesFromPayload(payload).map(normalizeTerritoryRow).filter(row => row.name || row.publicId);
 		territoryRowsLoaded = true;
 		return territoryRows;
@@ -237,7 +211,8 @@
 	}
 
 	function appendMissingBreadcrumbDepths(root, updates) {
-		const path = Array.isArray(readAssignmentValue()?.assignedPath) ? readAssignmentValue().assignedPath : [];
+		const value = readAssignmentValue();
+		const path = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
 		path.slice(root.activeIndex).forEach((node, index) => {
 			const depth = index + 1;
 			if (updates.some(update => update.depth === depth)) return;
@@ -282,7 +257,7 @@
 	}
 
 	function parseHexToRgb(color) {
-		const normalized = normalizeHexColor(color);
+		const normalized = getFormModule()?.normalizeHexColor?.(color) || (/^#[0-9a-fA-F]{6}$/.test(normalizeText(color)) ? normalizeText(color).toLowerCase() : "");
 		return normalized ? { red: Number.parseInt(normalized.slice(1, 3), 16), green: Number.parseInt(normalized.slice(3, 5), 16), blue: Number.parseInt(normalized.slice(5, 7), 16) } : null;
 	}
 
@@ -320,26 +295,6 @@
 		preview.innerHTML = `<div class="deferred-subtree-preview-title">Geplante Farben ab „${escapeHtml(plan.root.name)}“</div><table class="deferred-subtree-table"><thead><tr><th>Tiefe</th><th>Farbe pro Ebene</th></tr></thead><tbody>${rows}</tbody></table>`;
 	}
 
-	async function applyLocalInheritanceToValue(value) {
-		const root = readRootSelection();
-		if (!root || (!document.getElementById("inheritZoomToDescendantsCheckbox")?.checked && !document.getElementById("inheritValidityToDescendantsCheckbox")?.checked)) return value;
-		const nextValue = { ...value, displays: Array.isArray(value.displays) ? value.displays.map(display => ({ ...display })) : [] };
-		for (let index = root.activeIndex + 1; index < nextValue.displays.length; index += 1) {
-			const display = nextValue.displays[index] || {};
-			if (document.getElementById("inheritZoomToDescendantsCheckbox")?.checked) {
-				display.zoomMin = root.zoomMin;
-				display.zoomMax = root.zoomMax;
-			}
-			if (document.getElementById("inheritValidityToDescendantsCheckbox")?.checked) {
-				display.startYear = root.startYear;
-				display.endYear = root.endYear;
-				display.existsUntilToday = root.existsUntilToday;
-			}
-			nextValue.displays[index] = display;
-		}
-		return nextValue;
-	}
-
 	async function applyGlobalInheritanceAfterSave(context) {
 		const root = readRootSelection();
 		const service = getSubtreeService();
@@ -358,8 +313,9 @@
 
 	function registerSaveHooks() {
 		const pipeline = getSavePipeline();
-		if (!pipeline) return false;
-		pipeline.registerBeforeSaveTransform?.(applyLocalInheritanceToValue);
+		const form = getFormModule();
+		if (!pipeline || !form) return false;
+		pipeline.registerBeforeSaveTransform?.(form.applyLocalDisplayInheritance);
 		pipeline.registerAfterSaveHook?.(applyGlobalInheritanceAfterSave);
 		return true;
 	}
