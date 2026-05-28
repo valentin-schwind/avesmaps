@@ -331,7 +331,26 @@
 				updates.push({ territoryPublicId: row.publicId, name: row.name || row.publicId, depth, color: createHueVariant(root.color, depth, index, rows.length, row.publicId || row.name) });
 			}
 		}
-		return updates.filter(update => update.territoryPublicId || update.depth === 1);
+		appendMissingBreadcrumbDepths(root, updates);
+		return updates.filter(update => update.territoryPublicId || update.depth === 1).sort(compareByDepthAndName);
+	}
+
+	function appendMissingBreadcrumbDepths(root, updates) {
+		const value = readAssignmentValue();
+		const path = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
+		const tail = path.slice(root.activeIndex);
+		for (let index = 0; index < tail.length; index += 1) {
+			const depth = index + 1;
+			if (updates.some(update => update.depth === depth)) continue;
+			const node = tail[index] || {};
+			const name = normalizeText(node.label || node.name || node.key || node.territoryPublicId || `Ebene ${depth}`);
+			updates.push({
+				territoryPublicId: normalizeText(node.territoryPublicId || node.territory_public_id || node.key || ""),
+				name,
+				depth,
+				color: depth === 1 ? root.color : createHueVariant(root.color, depth, 0, 1, node.territoryPublicId || node.key || name)
+			});
+		}
 	}
 
 	function readHueVarianceRange() {
