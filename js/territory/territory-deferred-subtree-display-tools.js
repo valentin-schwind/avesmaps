@@ -53,7 +53,7 @@
 		}
 		const style = document.createElement("style");
 		style.id = "deferredSubtreeDisplayStyles";
-		style.textContent = `.deferred-subtree-checkbox{display:inline-flex;align-items:center;gap:7px;margin-top:2px;color:var(--muted-2,#806c59);font-weight:700}.deferred-subtree-checkbox input{width:auto;padding:0}.deferred-subtree-checkbox--bottom{order:99}.deferred-subtree-preview{display:grid;gap:7px;margin-top:4px}.deferred-subtree-preview[hidden]{display:none!important}.deferred-subtree-preview-title{color:var(--muted-2,#806c59);font-size:11px;font-weight:700}.deferred-subtree-table{width:100%;border-collapse:collapse;border:1px solid #dccab8;border-radius:8px;overflow:hidden;background:#fff}.deferred-subtree-table th,.deferred-subtree-table td{padding:7px 8px;border-bottom:1px solid #eadbcb;vertical-align:top;text-align:left}.deferred-subtree-table th{background:var(--panel-soft,#fffaf5);color:#6a5543;font-size:11px}.deferred-subtree-table tr:last-child th,.deferred-subtree-table tr:last-child td{border-bottom:0}.deferred-subtree-swatches{display:flex;flex-wrap:wrap;gap:4px}.deferred-subtree-swatch{width:9px;height:9px;border:1px solid rgba(0,0,0,.25);border-radius:2px}.deferred-subtree-empty{color:var(--muted,#6c5a49);font-size:11px;line-height:1.35}`;
+		style.textContent = `.deferred-subtree-checkbox{display:inline-flex;align-items:center;gap:7px;margin-top:2px;color:var(--muted-2,#806c59);font-weight:700}.deferred-subtree-checkbox input{width:auto;padding:0}.deferred-subtree-checkbox--bottom{order:99}.deferred-subtree-preview{display:grid;gap:7px;margin-top:4px}.deferred-subtree-preview[hidden],.deferred-subtree-checkbox[hidden]{display:none!important}.deferred-subtree-preview-title{color:var(--muted-2,#806c59);font-size:11px;font-weight:700}.deferred-subtree-table{width:100%;border-collapse:collapse;border:1px solid #dccab8;border-radius:8px;overflow:hidden;background:#fff}.deferred-subtree-table th,.deferred-subtree-table td{padding:7px 8px;border-bottom:1px solid #eadbcb;vertical-align:top;text-align:left}.deferred-subtree-table th{background:var(--panel-soft,#fffaf5);color:#6a5543;font-size:11px}.deferred-subtree-table tr:last-child th,.deferred-subtree-table tr:last-child td{border-bottom:0}.deferred-subtree-swatches{display:flex;flex-wrap:wrap;gap:4px}.deferred-subtree-swatch{width:9px;height:9px;border:1px solid rgba(0,0,0,.25);border-radius:2px}.deferred-subtree-empty{color:var(--muted,#6c5a49);font-size:11px;line-height:1.35}`;
 		document.head.appendChild(style);
 	}
 
@@ -126,8 +126,24 @@
 		const value = readAssignmentValue();
 		const path = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
 		const index = getActivePathIndex(value);
+		const hasLowerBreadcrumb = index >= 0 && index < path.length - 1;
 		if (button) {
-			button.hidden = !(index >= 0 && index < path.length - 1);
+			button.hidden = !hasLowerBreadcrumb;
+		}
+		syncInheritanceControlVisibility(hasLowerBreadcrumb);
+	}
+
+	function syncInheritanceControlVisibility(hasLowerBreadcrumb) {
+		for (const id of ["inheritZoomToDescendantsCheckbox", "inheritColorToDescendantsCheckbox", "inheritOpacityToDescendantsCheckbox", "inheritValidityToDescendantsCheckbox"]) {
+			const input = document.getElementById(id);
+			const label = input?.closest(".deferred-subtree-checkbox");
+			if (!input || !label) continue;
+			label.hidden = !hasLowerBreadcrumb;
+			if (!hasLowerBreadcrumb) input.checked = false;
+		}
+		if (!hasLowerBreadcrumb) {
+			const preview = document.getElementById("deferredColorHierarchyPreview");
+			if (preview) preview.hidden = true;
 		}
 	}
 
@@ -305,12 +321,7 @@
 	}
 
 	function buildColorUpdates(root, descendants) {
-		const updates = [{
-			territoryPublicId: root.territoryPublicId,
-			name: root.name || root.territoryPublicId || "Aktive Ebene",
-			depth: 1,
-			color: root.color
-		}];
+		const updates = [{ territoryPublicId: root.territoryPublicId, name: root.name || root.territoryPublicId || "Aktive Ebene", depth: 1, color: root.color }];
 		const byDepth = new Map();
 		for (const row of descendants) addToMapList(byDepth, Math.max(1, Number(row.depth || 1)) + 1, row);
 		for (const depth of [...byDepth.keys()].sort((a, b) => a - b)) {
@@ -389,7 +400,7 @@
 		for (const update of plan.updates) addToMapList(byDepth, update.depth, update);
 		const rows = [...byDepth.entries()].sort((a, b) => a[0] - b[0]).map(([depth, updates]) => {
 			const swatches = updates.map(update => `<span class="deferred-subtree-swatch" style="background:${escapeHtml(update.color)}" title="${escapeHtml(`${update.name}: ${update.color}`)}"></span>`).join("");
-			return `<tr><th>${depth} ${depth === 1 ? "Ebene" : "Ebenen"}</th><td><div class="deferred-subtree-swatches">${swatches}</div></td></tr>`;
+			return `<tr><th>${depth}. Ebene</th><td><div class="deferred-subtree-swatches">${swatches}</div></td></tr>`;
 		}).join("");
 		preview.innerHTML = `<div class="deferred-subtree-preview-title">Geplante Farben ab „${escapeHtml(plan.root.name)}“</div><table class="deferred-subtree-table"><thead><tr><th>Tiefe</th><th>Farbe pro Ebene</th></tr></thead><tbody>${rows}</tbody></table>`;
 	}
