@@ -46,6 +46,62 @@ function avesmapsPoliticalReadDerivedGeometry(PDO $pdo, array $query): array {
     ];
 }
 
+function avesmapsPoliticalReadDerivedGeometrySources(PDO $pdo, array $query): array {
+    $territory = avesmapsPoliticalFetchTerritoryByPublicId(
+        $pdo,
+        avesmapsPoliticalReadPublicId($query['territory_public_id'] ?? $query['public_id'] ?? '')
+    );
+    $territories = avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo);
+    $descendantIds = avesmapsPoliticalCollectDerivedGeometryDescendantIds((int) $territory['id'], $territories);
+
+    if ($descendantIds === []) {
+        return [
+            'ok' => true,
+            'territory_public_id' => (string) $territory['public_id'],
+            'source_geometries' => [],
+            'source_count' => 0,
+        ];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($descendantIds), '?'));
+    $statement = $pdo->prepare(
+        'SELECT
+            geometry.*,
+            territory.public_id AS territory_public_id,
+            territory.name AS territory_name,
+            territory.short_name AS territory_short_name,
+            territory.parent_id AS territory_parent_id
+        FROM political_territory_geometry geometry
+        INNER JOIN political_territory territory ON territory.id = geometry.territory_id
+        WHERE geometry.is_active = 1
+            AND territory.is_active = 1
+            AND geometry.territory_id IN (' . $placeholders . ')
+        ORDER BY territory.sort_order ASC, territory.name ASC, geometry.id ASC'
+    );
+    $statement->execute($descendantIds);
+
+    $sourceGeometries = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $sourceGeometries[] = [
+            'geometry_public_id' => (string) $row['public_id'],
+            'territory_public_id' => (string) $row['territory_public_id'],
+            'territory_name' => (string) ($row['territory_name'] ?? ''),
+            'territory_short_name' => (string) ($row['territory_short_name'] ?? ''),
+            'geometry' => avesmapsPoliticalDecodeJson($row['geometry_geojson'] ?? null),
+            'source' => (string) ($row['source'] ?? ''),
+            'updated_at' => (string) ($row['updated_at'] ?? ''),
+        ];
+    }
+
+    return [
+        'ok' => true,
+        'territory_public_id' => (string) $territory['public_id'],
+        'source_geometries' => $sourceGeometries,
+        'source_count' => count($sourceGeometries),
+        'descendant_territory_count' => count($descendantIds),
+    ];
+}
+
 function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $user): array {
     $territory = avesmapsPoliticalFetchTerritoryByPublicId(
         $pdo,
@@ -220,4 +276,54 @@ function avesmapsPoliticalDerivedGeometryRowToPublic(array $row): array {
         'generated_at' => (string) ($row['generated_at'] ?? ''),
         'is_active' => (int) ($row['is_active'] ?? 0) === 1,
     ];
+}
+
+function avesmapsPoliticalFetchDerivedGeometrySourceTerritories(PDO $pdo): array {
+    $statement = $pdo->prepare(
+        'SELECT id, public_id, parent_id, name, short_name, sort_order
+        FROM political_territory
+        WHERE is_active = 1
+            AND continent = :continent
+        ORDER BY sort_order ASC, name ASC'
+    );
+    $statement->execute(['continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT]);
+
+    $territories = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $territories[(int) $row['id']] = $row;
+    }
+
+    return $territories;
+}
+
+function avesmapsPoliticalCollectDerivedGeometryDescendantIds(int $territoryId, array $territories): array {
+    $childrenByParent = [];
+    foreach ($territories as $candidateId => $territory) {
+        $parentId = (int) ($territory['parent_id'] ?? 0);
+        if ($parentId > 0) {
+            $childrenByParent[$parentId][] = (int) $candidateId;
+        }
+    }
+
+    $descendantIds = [];
+    $queue = $childrenByParent[$territoryId] ?? [];
+    $visited = [$territoryId => true];
+
+    while ($queue !== []) {
+        $currentId = (int) array_shift($queue);
+        if ($currentId < 1 || isset($visited[$currentId])) {
+            continue;
+        }
+
+        $visited[$currentId] = true;
+        $descendantIds[] = $currentId;
+
+        foreach ($childrenByParent[$currentId] ?? [] as $childId) {
+            if (!isset($visited[(int) $childId])) {
+                $queue[] = (int) $childId;
+            }
+        }
+    }
+
+    return $descendantIds;
 }
