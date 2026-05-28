@@ -152,7 +152,6 @@
 									</div>
 								</div>
 								<div class="manual-data-variance-row">
-									<button id="inheritColorVarianceButton" class="secondary inherit-color-variance-button" type="button" hidden>Farbhierarchie erstellen</button>
 									<div class="manual-data-variance-range">
 										<div class="manual-data-variance-input">
 											<label for="hueVarianceMinInput">HSV-Abweichung min (0-256)</label>
@@ -163,6 +162,7 @@
 											<input id="hueVarianceMaxInput" name="hue_variance_max" type="number" min="0" max="256" step="1" value="20">
 										</div>
 									</div>
+									<button id="inheritColorVarianceButton" class="secondary inherit-color-variance-button" type="button" hidden>Farbhierarchie erstellen</button>
 								</div>
 								<div id="deferredColorHierarchyPreview" class="deferred-subtree-preview" hidden></div>
 								<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden>
@@ -178,12 +178,12 @@
 									<div class="manual-data-field">
 										<label for="transparencyInput">Transparenz <output id="transparencyOutput" for="transparencyInput">33%</output></label>
 										<input id="transparencyInput" name="transparency" type="range" min="0" max="100" step="1" value="33">
+										<label class="deferred-subtree-checkbox deferred-subtree-checkbox--inline" hidden>
+											<input id="inheritOpacityToDescendantsCheckbox" type="checkbox">
+											<span>Für alle Unterregionen übernehmen</span>
+										</label>
 									</div>
 								</div>
-								<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden>
-									<input id="inheritOpacityToDescendantsCheckbox" type="checkbox">
-									<span>Für alle Unterregionen übernehmen</span>
-								</label>
 							</section>
 
 							<section class="manual-data-section" aria-label="Zeitliche Gültigkeit">
