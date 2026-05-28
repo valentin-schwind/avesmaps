@@ -191,6 +191,10 @@ function buildPoliticalTerritoryLayerCacheKey(url) {
 	return cacheUrl.toString();
 }
 
+function isPoliticalTerritoryDerivedFeature(feature) {
+	return feature?.properties?.is_derived_geometry === true;
+}
+
 function clonePoliticalTerritoryGeometryFallbackFeature(feature, sourceZoom) {
 	const properties = {
 		...(feature.properties || {}),
@@ -226,6 +230,9 @@ function mergePoliticalTerritoryLayerGeometryFeatures(baseLayer, fallbackLayers)
 	fallbackLayers.forEach((fallbackLayer) => {
 		const sourceZoom = Number(fallbackLayer?.zoom);
 		(fallbackLayer?.features || []).forEach((feature) => {
+			if (isPoliticalTerritoryDerivedFeature(feature) || feature?.properties?.visual_hidden_by_derived_boundary === true) {
+				return;
+			}
 			const geometryKey = getPoliticalTerritoryGeometryMergeKey(feature);
 			if (!geometryKey || existingGeometryKeys.has(geometryKey)) {
 				return;
