@@ -26,7 +26,8 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
         if (($feature['properties']['show_inner_boundaries'] ?? true) === false) {
             $hiddenInnerBoundaryTerritoryIds += avesmapsPoliticalReadDerivedInnerBoundaryTerritoryIds(
                 $pdo,
-                (int) ($feature['properties']['derived_territory_id'] ?? 0)
+                (int) ($feature['properties']['derived_territory_id'] ?? 0),
+                $territoryPublicId
             );
         }
     }
@@ -38,7 +39,8 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
             continue;
         }
         if ($territoryPublicId !== '' && isset($hiddenInnerBoundaryTerritoryIds[$territoryPublicId])) {
-            continue;
+            $feature['properties']['visual_hidden_by_derived_boundary'] = true;
+            $feature['properties']['hidden_by_derived_territory_public_id'] = $hiddenInnerBoundaryTerritoryIds[$territoryPublicId];
         }
         $baseFeatures[] = $feature;
     }
@@ -154,6 +156,8 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
         $feature['properties']['show_region_label'] = true;
         if ($showInnerBoundaries) {
             $feature['properties']['opacity'] = 0;
+            $feature['properties']['fillOpacity'] = 0;
+            $feature['properties']['fill_opacity'] = 0;
         }
         $feature['properties']['label_lng'] = is_numeric($row['label_lng'] ?? null)
             ? (float) $row['label_lng']
@@ -167,7 +171,7 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
     return $features;
 }
 
-function avesmapsPoliticalReadDerivedInnerBoundaryTerritoryIds(PDO $pdo, int $territoryId): array {
+function avesmapsPoliticalReadDerivedInnerBoundaryTerritoryIds(PDO $pdo, int $territoryId, string $derivedTerritoryPublicId = ''): array {
     if ($territoryId < 1) {
         return [];
     }
@@ -197,7 +201,7 @@ function avesmapsPoliticalReadDerivedInnerBoundaryTerritoryIds(PDO $pdo, int $te
         if ($currentId < 1 || $publicId === '') {
             continue;
         }
-        $hidden[$publicId] = true;
+        $hidden[$publicId] = $derivedTerritoryPublicId;
         foreach ($childrenByParent[$currentId] ?? [] as $child) {
             $queue[] = $child;
         }
