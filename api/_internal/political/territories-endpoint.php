@@ -12,6 +12,7 @@ require_once __DIR__ . '/territories-layer.php';
 require_once __DIR__ . '/territories-read.php';
 require_once __DIR__ . '/territories-write.php';
 require_once __DIR__ . '/territories-geometry.php';
+require_once __DIR__ . '/territories-derived-geometry.php';
 require_once __DIR__ . '/territories-audit.php';
 require_once __DIR__ . '/territories-debug.php';
 
@@ -34,6 +35,7 @@ try {
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsPoliticalEnsureTables($pdo);
+    avesmapsPoliticalEnsureDerivedGeometryTables($pdo);
 
     if ($requestMethod === 'GET') {
         $action = avesmapsNormalizeSingleLine((string) ($_GET['action'] ?? 'layer'), 60);
@@ -51,6 +53,7 @@ try {
             'wiki_list' => avesmapsPoliticalListWikiReferences($pdo, $_GET),
             'hierarchy' => avesmapsPoliticalReadHierarchy($pdo),
             'geometries' => avesmapsPoliticalReadGeometries($pdo, $_GET),
+            'derived_geometry' => avesmapsPoliticalReadDerivedGeometry($pdo, $_GET),
             'geometry_assignment' => avesmapsPoliticalGetGeometryAssignment($pdo, $_GET),
             'debug' => avesmapsPoliticalReadDebug($pdo, $_GET),
             'audit' => avesmapsPoliticalReadAudit($pdo, $_GET),
@@ -80,6 +83,8 @@ try {
         'split_geometry' => avesmapsPoliticalSplitGeometry($pdo, $payload, $user),
         'assign_geometry' => avesmapsPoliticalAssignGeometryToTerritory($pdo, $payload),
         'save_geometry_assignment' => avesmapsPoliticalSaveGeometryAssignmentSafely($pdo, $payload, $user),
+        'save_derived_geometry' => avesmapsPoliticalSaveDerivedGeometry($pdo, $payload, $user),
+        'delete_derived_geometry' => avesmapsPoliticalDeleteDerivedGeometry($pdo, $payload, $user),
         'unassign_geometry' => avesmapsPoliticalUnassignGeometry($pdo, $payload),
         'delete_geometry' => avesmapsPoliticalDeleteGeometry($pdo, $payload, $user),
         'delete_geometry_part' => avesmapsPoliticalDeleteGeometryPart($pdo, $payload, $user),
