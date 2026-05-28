@@ -6,6 +6,7 @@ require __DIR__ . '/../bootstrap.php';
 require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/territory.php';
 require_once __DIR__ . '/assignment.php';
+require_once __DIR__ . '/assignment-save-guard.php';
 require_once __DIR__ . '/territories-support.php';
 require_once __DIR__ . '/territories-layer.php';
 require_once __DIR__ . '/territories-read.php';
@@ -78,7 +79,7 @@ try {
         'update_geometry' => avesmapsPoliticalUpdateGeometry($pdo, $payload, $user),
         'split_geometry' => avesmapsPoliticalSplitGeometry($pdo, $payload, $user),
         'assign_geometry' => avesmapsPoliticalAssignGeometryToTerritory($pdo, $payload),
-        'save_geometry_assignment' => avesmapsPoliticalSaveGeometryAssignment($pdo, $payload, $user),
+        'save_geometry_assignment' => avesmapsPoliticalSaveGeometryAssignmentSafely($pdo, $payload, $user),
         'unassign_geometry' => avesmapsPoliticalUnassignGeometry($pdo, $payload),
         'delete_geometry' => avesmapsPoliticalDeleteGeometry($pdo, $payload, $user),
         'delete_geometry_part' => avesmapsPoliticalDeleteGeometryPart($pdo, $payload, $user),
@@ -128,4 +129,3 @@ try {
     }
     avesmapsJsonResponse(500, $response);
 }
-
