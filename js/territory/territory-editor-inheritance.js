@@ -66,8 +66,8 @@
 			}, true);
 		}
 
-		const opacityButton = document.getElementById("inheritOpacityButton");
-		if (opacityButton) opacityButton.hidden = true;
+		moveOpacityInheritanceButton();
+		cleanValidityInheritanceLabel();
 
 		document.getElementById("inheritColorToDescendantsCheckbox")?.addEventListener("change", event => {
 			if (event.currentTarget.checked) void createColorPlan(false);
@@ -78,6 +78,24 @@
 		});
 		document.addEventListener("click", () => window.setTimeout(syncInheritanceVisibility, 0), true);
 		syncInheritanceVisibility();
+	}
+
+	function moveOpacityInheritanceButton() {
+		const transparencyInput = document.getElementById("transparencyInput");
+		const opacityButton = document.getElementById("inheritOpacityButton");
+		if (!(transparencyInput instanceof HTMLElement) || !(opacityButton instanceof HTMLElement)) return;
+
+		opacityButton.textContent = "Transparenz vererben";
+		opacityButton.classList.add("secondary", "inherit-opacity-button");
+		transparencyInput.insertAdjacentElement("afterend", opacityButton);
+	}
+
+	function cleanValidityInheritanceLabel() {
+		const label = document.getElementById("inheritValidityToDescendantsCheckbox")?.closest("label");
+		if (!label) return;
+		for (const node of [...label.childNodes]) {
+			if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() !== "") node.remove();
+		}
 	}
 
 	function syncInheritanceVisibility() {
