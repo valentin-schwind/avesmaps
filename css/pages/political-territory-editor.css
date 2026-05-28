@@ -676,10 +676,6 @@ details[open] > summary .tree-toggle::before {
 	object-fit: contain;
 }
 
-.info-box {
-	min-height: 90px;
-	background: #fffdf9;
-}
 
 .info-title {
 	font-size: 16px;
@@ -1259,7 +1255,7 @@ select:focus {
 
 .info-box {
 	min-height: 0;
-	background: var(--panel);
+	background: transparent;
 }
 
 .info-title {
@@ -1303,7 +1299,7 @@ select:focus {
 .info-details {
 	border: 1px solid #dccab8;
 	border-radius: 8px;
-	background: var(--panel-soft);
+	background: #ffffff;
 	overflow: hidden;
 }
 
@@ -1312,11 +1308,12 @@ select:focus {
 	font-weight: 700;
 	color: var(--text-strong);
 	padding: 9px 10px;
+	width: 100%;
 }
 
 .info-details summary:hover,
 .info-details summary:focus-visible {
-	background: var(--panel-hover);
+	
 	outline: none;
 }
 
