@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): array {
     $response = avesmapsPoliticalReadLayer($pdo, $query);
-    if (avesmapsPoliticalReadBoolean($query['edit_mode'] ?? false)) {
-        return $response;
-    }
-
     $yearBf = avesmapsPoliticalReadOptionalInt($query['year_bf'] ?? null) ?? AVESMAPS_POLITICAL_DEFAULT_YEAR_BF;
     $zoom = avesmapsPoliticalReadOptionalZoom($query['zoom'] ?? null) ?? 0;
     $bbox = avesmapsPoliticalReadOptionalBoundingBox((string) ($query['bbox'] ?? ''));
@@ -176,6 +172,13 @@ function avesmapsPoliticalReadDerivedInnerBoundaryTerritoryIds(PDO $pdo, int $te
         return [];
     }
 
+    $hidden = avesmapsPoliticalReadDerivedHierarchyInnerBoundaryTerritoryIds($pdo, $territoryId, $derivedTerritoryPublicId);
+    $wikiHidden = avesmapsPoliticalReadDerivedWikiInnerBoundaryTerritoryIds($pdo, $territoryId, $derivedTerritoryPublicId);
+
+    return $hidden + $wikiHidden;
+}
+
+function avesmapsPoliticalReadDerivedHierarchyInnerBoundaryTerritoryIds(PDO $pdo, int $territoryId, string $derivedTerritoryPublicId = ''): array {
     $statement = $pdo->prepare(
         'SELECT id, public_id, parent_id
         FROM political_territory
@@ -204,6 +207,39 @@ function avesmapsPoliticalReadDerivedInnerBoundaryTerritoryIds(PDO $pdo, int $te
         $hidden[$publicId] = $derivedTerritoryPublicId;
         foreach ($childrenByParent[$currentId] ?? [] as $child) {
             $queue[] = $child;
+        }
+    }
+
+    return $hidden;
+}
+
+function avesmapsPoliticalReadDerivedWikiInnerBoundaryTerritoryIds(PDO $pdo, int $territoryId, string $derivedTerritoryPublicId = ''): array {
+    $territory = avesmapsPoliticalFetchTerritoryById($pdo, $territoryId);
+    $wikiId = (int) ($territory['wiki_id'] ?? 0);
+    if ($wikiId < 1) {
+        return [];
+    }
+
+    $wiki = avesmapsPoliticalFetchWikiById($pdo, $wikiId);
+    $ids = avesmapsPoliticalCollectDerivedGeometryWikiDescendantIds($pdo, $wiki);
+    if ($ids === []) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $statement = $pdo->prepare(
+        'SELECT public_id
+        FROM political_territory
+        WHERE id IN (' . $placeholders . ')
+            AND is_active = 1'
+    );
+    $statement->execute($ids);
+
+    $hidden = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $publicId = trim((string) ($row['public_id'] ?? ''));
+        if ($publicId !== '') {
+            $hidden[$publicId] = $derivedTerritoryPublicId;
         }
     }
 
