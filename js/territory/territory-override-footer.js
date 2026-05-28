@@ -159,22 +159,12 @@ async function submitPoliticalTerritoryDisplayOverrideAction(payload) {
 	return result;
 }
 
-async function snapshotPoliticalTerritoryEditorGlobals(value = {}) {
-	const displays = Array.isArray(value.displays) ? value.displays : [];
-	if (displays.length < 1) return null;
-	return submitPoliticalTerritoryDisplayOverrideAction({
-		action: "snapshot_globals",
-		displays,
-	});
+async function snapshotPoliticalTerritoryEditorGlobals() {
+	return null;
 }
 
-async function restorePoliticalTerritoryEditorGlobals(snapshotResult) {
-	const snapshots = Array.isArray(snapshotResult?.snapshots) ? snapshotResult.snapshots : [];
-	if (snapshots.length < 1) return null;
-	return submitPoliticalTerritoryDisplayOverrideAction({
-		action: "restore_globals",
-		snapshots,
-	});
+async function restorePoliticalTerritoryEditorGlobals() {
+	return null;
 }
 
 async function clearPoliticalTerritoryEditorLocalOverrides(geometryPublicId) {
