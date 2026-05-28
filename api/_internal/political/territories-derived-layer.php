@@ -47,6 +47,8 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
 
 function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $zoom, ?array $bbox): array {
     $normalizedTerritoryValidToSql = avesmapsPoliticalNormalizedValidToSql('territory.valid_to_bf', 'wiki.dissolved_type', 'wiki.dissolved_text');
+    $supportsInnerBoundaries = avesmapsPoliticalDerivedLayerSupportsInnerBoundaries($pdo);
+    $showInnerBoundariesSql = $supportsInnerBoundaries ? 'derived.show_inner_boundaries' : '1 AS show_inner_boundaries';
     $conditions = [
         'territory.is_active = 1',
         'derived.is_active = 1',
@@ -124,7 +126,7 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
             derived.public_id AS derived_geometry_public_id,
             derived.label_lng,
             derived.label_lat,
-            derived.show_inner_boundaries
+            ' . $showInnerBoundariesSql . '
         FROM political_territory_derived_geometry derived
         INNER JOIN political_territory territory ON territory.id = derived.territory_id
         LEFT JOIN political_territory parent ON parent.id = territory.parent_id
@@ -164,6 +166,22 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
     }
 
     return $features;
+}
+
+function avesmapsPoliticalDerivedLayerSupportsInnerBoundaries(PDO $pdo): bool {
+    static $supportsInnerBoundaries = null;
+    if ($supportsInnerBoundaries !== null) {
+        return $supportsInnerBoundaries;
+    }
+
+    try {
+        $statement = $pdo->query("SHOW COLUMNS FROM political_territory_derived_geometry LIKE 'show_inner_boundaries'");
+        $supportsInnerBoundaries = is_array($statement->fetch(PDO::FETCH_ASSOC));
+    } catch (Throwable) {
+        $supportsInnerBoundaries = false;
+    }
+
+    return $supportsInnerBoundaries;
 }
 
 function avesmapsPoliticalFindInnerBoundaryFeaturesInLayer(array $baseFeatures, array $derivedFeature): array {
