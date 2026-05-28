@@ -15,16 +15,10 @@ const politicalTerritoryRepository = {
 	},
 
 	async getDerivedGeometry(territoryPublicId) {
-		const params = new URLSearchParams({
+		return fetchPoliticalTerritories({
 			action: "derived_geometry",
 			territory_public_id: territoryPublicId,
 		});
-		const response = await fetch(`${POLITICAL_TERRITORIES_API_URL}?${params.toString()}`, {
-			method: "GET",
-			credentials: "include",
-			headers: { Accept: "application/json" },
-		});
-		return readPoliticalTerritoryJsonResponse(response);
 	},
 
 	async saveDerivedGeometry(payload) {
