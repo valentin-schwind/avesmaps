@@ -2,94 +2,65 @@
 
 (function initPoliticalTerritoryEditorInheritance() {
 	const WRITE_API_URL = "/api/app/political-territories.php?debug_errors=1";
+	const CHECKBOX_IDS = [
+		"inheritZoomToDescendantsCheckbox",
+		"inheritColorToDescendantsCheckbox",
+		"inheritOpacityToDescendantsCheckbox",
+		"inheritValidityToDescendantsCheckbox"
+	];
+
+	let externalOnSave = null;
 	let territoryRows = [];
 	let territoryRowsLoaded = false;
-	let externalOnSave = null;
-	let patchingConfigure = false;
-	let colorPlan = null;
 
-	function normalizeText(value) {
-		return String(value ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
-	}
+	const normalizeText = value => String(value ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
+	const makeKey = value => normalizeText(value).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+	const clampNumber = (value, min, max) => Number.isFinite(Number(value)) ? Math.max(min, Math.min(max, Number(value))) : min;
+	const parseOptionalNumber = (value, fallback = null) => value === "" || value === null || typeof value === "undefined" ? fallback : (Number.isFinite(Number(value)) ? Number(value) : fallback);
+	const normalizeHexColor = value => /^#[0-9a-fA-F]{6}$/.test(normalizeText(value)) ? normalizeText(value).toLowerCase() : "";
+	const escapeHtml = value => String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 
-	function makeKey(value) {
-		return normalizeText(value).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ß/g, "ss").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-	}
-
-	function normalizeHexColor(value) {
-		const color = normalizeText(value);
-		return /^#[0-9a-fA-F]{6}$/.test(color) ? color.toLowerCase() : "";
-	}
-
-	function parseOptionalNumber(value, fallback = null) {
-		if (value === "" || value === null || typeof value === "undefined") return fallback;
-		const number = Number(value);
-		return Number.isFinite(number) ? number : fallback;
-	}
-
-	function clampNumber(value, min, max) {
-		const number = Number(value);
-		return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : min;
-	}
-
-	function escapeHtml(value) {
-		return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-	}
-
-	function readAssignmentValue() {
-		return window.AvesmapsPoliticalTerritoryAssignment?.getValue?.() || null;
-	}
-
-	function setStatus(message, type = "pending") {
-		window.AvesmapsPoliticalTerritoryAssignment?.setStatus?.(message, type);
+	function getAssignmentModule() {
+		return window.AvesmapsPoliticalTerritoryAssignment || null;
 	}
 
 	function getSubtreeService() {
 		return window.AvesmapsPoliticalTerritorySubtreeDisplayTools || null;
 	}
 
+	function readAssignmentValue() {
+		return getAssignmentModule()?.getValue?.() || null;
+	}
+
+	function setStatus(message, type = "pending") {
+		getAssignmentModule()?.setStatus?.(message, type);
+	}
+
 	function installUi() {
 		const colorButton = document.getElementById("inheritColorVarianceButton");
 		if (colorButton) {
 			colorButton.textContent = "Farbhierarchie erstellen";
-			colorButton.addEventListener("click", handleColorButtonClick, true);
+			colorButton.addEventListener("click", event => {
+				event.preventDefault();
+				event.stopImmediatePropagation();
+				void createColorPlan(true);
+			}, true);
 		}
 
 		const opacityButton = document.getElementById("inheritOpacityButton");
-		if (opacityButton) {
-			opacityButton.hidden = true;
-		}
+		if (opacityButton) opacityButton.hidden = true;
 
-		bindCheckbox("inheritZoomToDescendantsCheckbox");
-		bindCheckbox("inheritColorToDescendantsCheckbox");
-		bindCheckbox("inheritOpacityToDescendantsCheckbox");
-		bindCheckbox("inheritValidityToDescendantsCheckbox");
-
+		document.getElementById("inheritColorToDescendantsCheckbox")?.addEventListener("change", event => {
+			if (event.currentTarget.checked) void createColorPlan(false);
+		});
 		document.getElementById("colorInput")?.addEventListener("input", () => {
-			if (document.getElementById("inheritColorToDescendantsCheckbox")?.checked) {
-				void createColorPlan(false);
-			}
+			if (document.getElementById("inheritColorToDescendantsCheckbox")?.checked) void createColorPlan(false);
 		});
-
-		document.addEventListener("click", () => window.setTimeout(syncVisibility, 0), true);
-		syncVisibility();
+		document.addEventListener("click", () => window.setTimeout(syncInheritanceVisibility, 0), true);
+		syncInheritanceVisibility();
 	}
 
-	function bindCheckbox(id) {
-		document.getElementById(id)?.addEventListener("change", () => {
-			if (id === "inheritColorToDescendantsCheckbox" && document.getElementById(id)?.checked) {
-				void createColorPlan(false);
-			}
-		});
-	}
-
-	function handleColorButtonClick(event) {
-		event.preventDefault();
-		event.stopImmediatePropagation();
-		void createColorPlan();
-	}
-
-	function syncVisibility() {
+	function syncInheritanceVisibility() {
 		const value = readAssignmentValue();
 		const path = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
 		const index = getActivePathIndex(value);
@@ -97,14 +68,13 @@
 		const colorButton = document.getElementById("inheritColorVarianceButton");
 		if (colorButton) colorButton.hidden = !hasLowerBreadcrumb;
 
-		for (const id of ["inheritZoomToDescendantsCheckbox", "inheritColorToDescendantsCheckbox", "inheritOpacityToDescendantsCheckbox", "inheritValidityToDescendantsCheckbox"]) {
+		for (const id of CHECKBOX_IDS) {
 			const input = document.getElementById(id);
 			const label = input?.closest(".deferred-subtree-checkbox");
 			if (!input || !label) continue;
 			label.hidden = !hasLowerBreadcrumb;
 			if (!hasLowerBreadcrumb) input.checked = false;
 		}
-
 		if (!hasLowerBreadcrumb) {
 			const preview = document.getElementById("deferredColorHierarchyPreview");
 			if (preview) preview.hidden = true;
@@ -122,13 +92,9 @@
 	}
 
 	function sameReference(left, right) {
-		const leftValues = referenceValues(left);
-		const rightValues = referenceValues(right);
+		const leftValues = [left?.territoryPublicId, left?.territoryId, left?.wikiKey, left?.key, left?.id, left?.label, left?.name].map(normalizeText).filter(Boolean);
+		const rightValues = [right?.territoryPublicId, right?.territoryId, right?.wikiKey, right?.key, right?.id, right?.label, right?.name].map(normalizeText).filter(Boolean);
 		return leftValues.some(leftValue => rightValues.some(rightValue => leftValue === rightValue || makeKey(leftValue) === makeKey(rightValue)));
-	}
-
-	function referenceValues(value) {
-		return [value?.territoryPublicId, value?.territory_public_id, value?.territoryId, value?.territory_id, value?.wikiKey, value?.wiki_key, value?.key, value?.id, value?.label, value?.name].map(normalizeText).filter(Boolean);
 	}
 
 	function readRootSelection() {
@@ -139,7 +105,6 @@
 		const rootNode = path[activeIndex] || null;
 		const rootDisplay = displays[activeIndex] || value?.display || {};
 		if (!rootNode) return null;
-
 		const percent = parseOptionalNumber(document.getElementById("transparencyInput")?.value, Math.round((rootDisplay.opacity ?? 0.33) * 100));
 		return {
 			activeIndex,
@@ -161,15 +126,9 @@
 	async function loadTerritories() {
 		if (territoryRowsLoaded) return territoryRows;
 		const separator = WRITE_API_URL.includes("?") ? "&" : "?";
-		const response = await fetch(`${WRITE_API_URL}${separator}action=hierarchy`, {
-			method: "GET",
-			credentials: "same-origin",
-			headers: { "Accept": "application/json" }
-		});
+		const response = await fetch(`${WRITE_API_URL}${separator}action=hierarchy`, { method: "GET", credentials: "same-origin", headers: { "Accept": "application/json" } });
 		const payload = await response.json().catch(() => null);
-		if (!response.ok || payload?.ok === false) {
-			throw new Error(payload?.error || `Herrschaftsgebiete konnten nicht geladen werden: HTTP ${response.status}`);
-		}
+		if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `Herrschaftsgebiete konnten nicht geladen werden: HTTP ${response.status}`);
 		territoryRows = readTerritoriesFromPayload(payload).map(normalizeTerritoryRow).filter(row => row.name || row.publicId);
 		territoryRowsLoaded = true;
 		return territoryRows;
@@ -213,7 +172,7 @@
 		return Array.isArray(value) ? value.map(item => typeof item === "object" ? normalizeText(item.name || item.label || item.key || "") : normalizeText(item)).filter(Boolean) : [];
 	}
 
-	async function createColorPlan(checkCheckbox = true) {
+	async function createColorPlan(checkCheckbox) {
 		const root = readRootSelection();
 		if (!root) {
 			setStatus("Kein aktives Herrschaftsgebiet ausgewaehlt.", "error");
@@ -222,24 +181,15 @@
 		await loadTerritories();
 		const descendants = findDescendants(root);
 		const updates = buildColorUpdates(root, descendants);
-		colorPlan = { root, updates };
-		if (checkCheckbox) {
-			const checkbox = document.getElementById("inheritColorToDescendantsCheckbox");
-			if (checkbox) checkbox.checked = true;
-		}
-		renderPreview(colorPlan);
+		if (checkCheckbox) document.getElementById("inheritColorToDescendantsCheckbox")?.click();
+		renderPreview({ root, updates });
 		setStatus(descendants.length > 0 ? `Farbhierarchie vorbereitet: ${descendants.length} Unterregionen.` : "Keine Unterregionen fuer das aktive Breadcrumb gefunden.", descendants.length > 0 ? "pending" : "error");
-		return colorPlan;
-	}
-
-	function findRootRow(root) {
-		return territoryRows.find(row => (root.territoryPublicId && row.publicId === root.territoryPublicId) || (root.territoryId !== null && row.id === root.territoryId) || (root.wikiKey && row.wikiKey === root.wikiKey) || (root.name && makeKey(row.name) === makeKey(root.name))) || null;
+		return { root, updates };
 	}
 
 	function findDescendants(root) {
-		const rootRow = findRootRow(root);
+		const rootRow = territoryRows.find(row => (root.territoryPublicId && row.publicId === root.territoryPublicId) || (root.territoryId !== null && row.id === root.territoryId) || (root.wikiKey && row.wikiKey === root.wikiKey) || (root.name && makeKey(row.name) === makeKey(root.name))) || null;
 		const descendants = [];
-		const visited = new Set();
 		if (rootRow) {
 			const byParentId = new Map();
 			const byParentPublicId = new Map();
@@ -248,7 +198,8 @@
 				addToMapList(byParentPublicId, row.parentPublicId, row);
 			}
 			const stack = [...(byParentId.get(rootRow.id) || []), ...(byParentPublicId.get(rootRow.publicId) || [])].map(row => ({ row, depth: 1 }));
-			while (stack.length > 0) {
+			const visited = new Set();
+			while (stack.length) {
 				const current = stack.pop();
 				const key = current.row.publicId || current.row.id || current.row.name;
 				if (!key || visited.has(key)) continue;
@@ -267,23 +218,6 @@
 		}).filter(Boolean).sort(compareByDepthAndName);
 	}
 
-	function addToMapList(map, key, value) {
-		if (key === null || key === "") return;
-		if (!map.has(key)) map.set(key, []);
-		map.get(key).push(value);
-	}
-
-	function findSubsequence(values, sequence) {
-		for (let start = 0; start <= values.length - sequence.length; start += 1) {
-			if (sequence.every((item, index) => values[start + index] === item)) return start;
-		}
-		return -1;
-	}
-
-	function compareByDepthAndName(left, right) {
-		return (left.depth - right.depth) || left.name.localeCompare(right.name, "de");
-	}
-
 	function buildColorUpdates(root, descendants) {
 		const updates = [{ territoryPublicId: root.territoryPublicId, name: root.name || root.territoryPublicId || "Aktive Ebene", depth: 1, color: root.color }];
 		const byDepth = new Map();
@@ -300,35 +234,35 @@
 	}
 
 	function appendMissingBreadcrumbDepths(root, updates) {
-		const value = readAssignmentValue();
-		const path = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
-		const tail = path.slice(root.activeIndex);
-		for (let index = 0; index < tail.length; index += 1) {
+		const path = Array.isArray(readAssignmentValue()?.assignedPath) ? readAssignmentValue().assignedPath : [];
+		path.slice(root.activeIndex).forEach((node, index) => {
 			const depth = index + 1;
-			if (updates.some(update => update.depth === depth)) continue;
-			const node = tail[index] || {};
+			if (updates.some(update => update.depth === depth)) return;
 			const name = normalizeText(node.label || node.name || node.key || node.territoryPublicId || `Ebene ${depth}`);
-			updates.push({
-				territoryPublicId: normalizeText(node.territoryPublicId || node.territory_public_id || node.key || ""),
-				name,
-				depth,
-				color: depth === 1 ? root.color : createHueVariant(root.color, depth, 0, 1, node.territoryPublicId || node.key || name)
-			});
-		}
+			updates.push({ territoryPublicId: normalizeText(node.territoryPublicId || node.territory_public_id || node.key || ""), name, depth, color: depth === 1 ? root.color : createHueVariant(root.color, depth, 0, 1, node.territoryPublicId || node.key || name) });
+		});
 	}
 
-	function readHueVarianceRange() {
-		const service = getSubtreeService();
-		const range256 = service?.readHueVarianceRange256?.() || { min256: 10, max256: 20 };
-		return { ...range256, minDegrees: (range256.min256 / 256) * 360, maxDegrees: (range256.max256 / 256) * 360 };
+	function addToMapList(map, key, value) {
+		if (key === null || key === "") return;
+		if (!map.has(key)) map.set(key, []);
+		map.get(key).push(value);
 	}
+
+	function findSubsequence(values, sequence) {
+		for (let start = 0; start <= values.length - sequence.length; start += 1) if (sequence.every((item, index) => values[start + index] === item)) return start;
+		return -1;
+	}
+
+	const compareByDepthAndName = (left, right) => (left.depth - right.depth) || left.name.localeCompare(right.name, "de");
 
 	function createHueVariant(parentColor, depth, siblingIndex, siblingCount, seedText) {
 		const rgb = parseHexToRgb(parentColor) || { red: 136, green: 136, blue: 136 };
 		const hsv = rgbToHsv(rgb.red, rgb.green, rgb.blue);
-		const range = readHueVarianceRange();
+		const service = getSubtreeService();
+		const range = service?.readHueVarianceRange256?.() || { min256: 10, max256: 20 };
 		let span = Math.min(24, 14 / (1 + ((Math.max(1, depth) - 2) * 0.45)) + Math.min(12, Math.max(0, siblingCount - 1) * 0.55));
-		span = Math.max(range.minDegrees, Math.min(span, range.maxDegrees));
+		span = Math.max((range.min256 / 256) * 360, Math.min(span, (range.max256 / 256) * 360));
 		const position = siblingCount > 1 ? siblingIndex / (siblingCount - 1) : 0.5;
 		const offset = ((position * 2) - 1) * span;
 		const jitter = (((seededUnit(`${seedText}:jitter`) * 2) - 1) * Math.max(0.75, Math.min(2.5, span * 0.18)));
@@ -379,22 +313,19 @@
 		}
 		const byDepth = new Map();
 		for (const update of plan.updates) addToMapList(byDepth, update.depth, update);
-		const rows = [...byDepth.entries()].sort((a, b) => a[0] - b[0]).map(([depth, updates]) => {
-			const swatches = updates.map(update => `<span class="deferred-subtree-swatch" style="background:${escapeHtml(update.color)}" title="${escapeHtml(`${update.name}: ${update.color}`)}"></span>`).join("");
-			return `<tr><th>${depth}. Ebene</th><td><div class="deferred-subtree-swatches">${swatches}</div></td></tr>`;
-		}).join("");
+		const rows = [...byDepth.entries()].sort((a, b) => a[0] - b[0]).map(([depth, updates]) => `<tr><th>${depth}. Ebene</th><td><div class="deferred-subtree-swatches">${updates.map(update => `<span class="deferred-subtree-swatch" style="background:${escapeHtml(update.color)}" title="${escapeHtml(`${update.name}: ${update.color}`)}"></span>`).join("")}</div></td></tr>`).join("");
 		preview.innerHTML = `<div class="deferred-subtree-preview-title">Geplante Farben ab „${escapeHtml(plan.root.name)}“</div><table class="deferred-subtree-table"><thead><tr><th>Tiefe</th><th>Farbe pro Ebene</th></tr></thead><tbody>${rows}</tbody></table>`;
 	}
 
 	async function saveWithInheritance(value) {
+		if (typeof externalOnSave !== "function") return value;
 		const adjustedValue = await buildValueWithLocalDisplayInheritance(value);
-		const result = typeof externalOnSave === "function" ? await externalOnSave(adjustedValue) : adjustedValue;
+		const result = await externalOnSave(adjustedValue);
 		const root = readRootSelection();
 		const service = getSubtreeService();
 		const messages = [];
-
 		if (root && document.getElementById("inheritColorToDescendantsCheckbox")?.checked && service?.applyColorHierarchy) {
-			const range = readHueVarianceRange();
+			const range = service.readHueVarianceRange256?.() || { min256: 10, max256: 20 };
 			messages.push(service.formatInheritanceMessage?.("Farbhierarchie", await service.applyColorHierarchy(root, { hueVarianceRange: range })) || "Farbhierarchie angewendet.");
 		}
 		if (root && document.getElementById("inheritOpacityToDescendantsCheckbox")?.checked && service?.applyOpacityInheritance) {
@@ -411,8 +342,7 @@
 		const root = readRootSelection();
 		if (!root || (!document.getElementById("inheritZoomToDescendantsCheckbox")?.checked && !document.getElementById("inheritValidityToDescendantsCheckbox")?.checked)) return value;
 		const nextValue = { ...value, displays: Array.isArray(value.displays) ? value.displays.map(display => ({ ...display })) : [] };
-		const startIndex = root.activeIndex + 1;
-		for (let index = startIndex; index < nextValue.displays.length; index += 1) {
+		for (let index = root.activeIndex + 1; index < nextValue.displays.length; index += 1) {
 			const display = nextValue.displays[index] || {};
 			if (document.getElementById("inheritZoomToDescendantsCheckbox")?.checked) {
 				display.zoomMin = root.zoomMin;
@@ -429,18 +359,17 @@
 	}
 
 	function patchSaveHook() {
-		const module = window.AvesmapsPoliticalTerritoryAssignment;
+		const module = getAssignmentModule();
 		if (!module || module.__avesmapsInheritanceSavePatch === true || typeof module.configure !== "function") return;
 		const originalConfigure = module.configure.bind(module);
 		module.configure = function configureInheritance(options = {}) {
-			if (!patchingConfigure && typeof options.onSave === "function" && options.onSave !== saveWithInheritance) {
+			if (typeof options.onSave === "function" && options.onSave !== saveWithInheritance) {
 				externalOnSave = options.onSave;
+				return originalConfigure({ ...options, onSave: saveWithInheritance });
 			}
-			return originalConfigure({ ...options, onSave: saveWithInheritance });
+			return originalConfigure(options);
 		};
 		module.__avesmapsInheritanceSavePatch = true;
-		patchingConfigure = true;
-		try { module.configure({ onSave: saveWithInheritance }); } finally { patchingConfigure = false; }
 	}
 
 	function init() {
