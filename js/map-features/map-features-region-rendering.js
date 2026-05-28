@@ -72,25 +72,19 @@ function shouldHideRegionForDerivedBoundary(region, regionEntry) {
 	const properties = region.properties || {};
 	const territoryPublicId = String(properties.territory_public_id || regionEntry.territoryPublicId || "").trim();
 	const aggregateSourceTerritoryPublicId = String(properties.aggregate_source_territory_public_id || "").trim();
-	const regionBounds = readRegionGeometryBounds(region.geometry);
-	if (!regionBounds) {
+	if (!territoryPublicId && !aggregateSourceTerritoryPublicId) {
 		return false;
 	}
 
 	return getActiveOuterBoundaryHideTargets().some((target) => {
-		if (!target.bounds) {
-			return false;
-		}
 		if (territoryPublicId && territoryPublicId === target.territoryPublicId) {
 			return false;
 		}
 		if (aggregateSourceTerritoryPublicId && aggregateSourceTerritoryPublicId === target.territoryPublicId) {
 			return false;
 		}
-		if (target.sourceTerritoryPublicIds.has(territoryPublicId) || target.sourceTerritoryPublicIds.has(aggregateSourceTerritoryPublicId)) {
-			return true;
-		}
-		return regionBoundsAreInsideOrMostlyCovered(regionBounds, target.bounds);
+		return target.sourceTerritoryPublicIds.has(territoryPublicId)
+			|| target.sourceTerritoryPublicIds.has(aggregateSourceTerritoryPublicId);
 	});
 }
 
@@ -101,11 +95,10 @@ function getActiveOuterBoundaryHideTargets() {
 			const properties = feature.properties || {};
 			return {
 				territoryPublicId: String(properties.territory_public_id || "").trim(),
-				bounds: readRegionGeometryBounds(feature.geometry),
 				sourceTerritoryPublicIds: readDerivedBoundarySourceTerritoryIds(properties),
 			};
 		})
-		.filter((target) => target.bounds);
+		.filter((target) => target.sourceTerritoryPublicIds.size > 0);
 }
 
 function readDerivedBoundarySourceTerritoryIds(properties) {
@@ -119,52 +112,6 @@ function readDerivedBoundarySourceTerritoryIds(properties) {
 		}
 	});
 	return ids;
-}
-
-function readRegionGeometryBounds(geometry) {
-	const coordinates = [];
-	collectRegionGeometryCoordinates(geometry?.coordinates, coordinates);
-	if (coordinates.length < 1) {
-		return null;
-	}
-	const xValues = coordinates.map(([x]) => x);
-	const yValues = coordinates.map(([, y]) => y);
-	return {
-		minX: Math.min(...xValues),
-		maxX: Math.max(...xValues),
-		minY: Math.min(...yValues),
-		maxY: Math.max(...yValues),
-		centerX: (Math.min(...xValues) + Math.max(...xValues)) / 2,
-		centerY: (Math.min(...yValues) + Math.max(...yValues)) / 2,
-	};
-}
-
-function collectRegionGeometryCoordinates(value, coordinates) {
-	if (!Array.isArray(value)) {
-		return;
-	}
-	if (value.length >= 2 && Number.isFinite(Number(value[0])) && Number.isFinite(Number(value[1]))) {
-		coordinates.push([Number(value[0]), Number(value[1])]);
-		return;
-	}
-	value.forEach((entry) => collectRegionGeometryCoordinates(entry, coordinates));
-}
-
-function regionBoundsAreInsideOrMostlyCovered(regionBounds, outerBounds) {
-	const tolerance = 0.000001;
-	const centerInside = regionBounds.centerX >= outerBounds.minX - tolerance
-		&& regionBounds.centerX <= outerBounds.maxX + tolerance
-		&& regionBounds.centerY >= outerBounds.minY - tolerance
-		&& regionBounds.centerY <= outerBounds.maxY + tolerance;
-	if (!centerInside) {
-		return false;
-	}
-
-	const xOverlap = Math.max(0, Math.min(regionBounds.maxX, outerBounds.maxX) - Math.max(regionBounds.minX, outerBounds.minX));
-	const yOverlap = Math.max(0, Math.min(regionBounds.maxY, outerBounds.maxY) - Math.max(regionBounds.minY, outerBounds.minY));
-	const regionArea = Math.max(0.000001, (regionBounds.maxX - regionBounds.minX) * (regionBounds.maxY - regionBounds.minY));
-	const overlapRatio = (xOverlap * yOverlap) / regionArea;
-	return overlapRatio >= 0.6;
 }
 
 function addRegionFeatureToMap(region, regionEntry) {
