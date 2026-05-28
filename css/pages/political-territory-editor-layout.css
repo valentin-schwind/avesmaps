@@ -21,6 +21,33 @@
 	height: auto;
 }
 
+.manual-data-inline-action--with-preview {
+	grid-template-columns: minmax(220px, 1fr) max-content max-content 42px;
+}
+
+.manual-data-inline-action--with-preview > input {
+	min-width: 0;
+}
+
+.manual-data-inline-action--with-preview > button {
+	white-space: nowrap;
+	min-width: max-content;
+}
+
+#restoreCoatButton {
+	min-width: 118px;
+}
+
+@media (max-width: 760px) {
+	.manual-data-inline-action--with-preview {
+		grid-template-columns: minmax(0, 1fr) 42px;
+	}
+
+	.manual-data-inline-action--with-preview > input {
+		grid-column: 1 / -1;
+	}
+}
+
 @media (max-width: 620px) {
 	.manual-data-columns {
 		flex-direction: column;
