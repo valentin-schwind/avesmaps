@@ -54,6 +54,7 @@ try {
             'hierarchy' => avesmapsPoliticalReadHierarchy($pdo),
             'geometries' => avesmapsPoliticalReadGeometries($pdo, $_GET),
             'derived_geometry', 'get_derived_geometry' => avesmapsPoliticalReadDerivedGeometry($pdo, $_GET),
+            'derived_geometry_sources', 'get_derived_geometry_sources' => avesmapsPoliticalReadDerivedGeometrySources($pdo, $_GET),
             'geometry_assignment' => avesmapsPoliticalGetGeometryAssignment($pdo, $_GET),
             'debug' => avesmapsPoliticalReadDebug($pdo, $_GET),
             'audit' => avesmapsPoliticalReadAudit($pdo, $_GET),
