@@ -9,6 +9,7 @@ require_once __DIR__ . '/assignment.php';
 require_once __DIR__ . '/assignment-save-guard.php';
 require_once __DIR__ . '/territories-support.php';
 require_once __DIR__ . '/territories-layer.php';
+require_once __DIR__ . '/territories-derived-layer.php';
 require_once __DIR__ . '/territories-read.php';
 require_once __DIR__ . '/territories-write.php';
 require_once __DIR__ . '/territories-geometry.php';
@@ -46,7 +47,7 @@ try {
         }
 
         $response = match ($action) {
-            'layer' => avesmapsPoliticalReadLayer($pdo, $_GET),
+            'layer' => avesmapsPoliticalReadLayerWithDerivedGeometry($pdo, $_GET),
             'list' => avesmapsPoliticalListTerritories($pdo, $_GET),
             'get' => avesmapsPoliticalGetTerritory($pdo, $_GET),
             'wiki' => avesmapsPoliticalGetWikiReference($pdo, $_GET),
