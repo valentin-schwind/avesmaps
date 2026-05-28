@@ -3,6 +3,9 @@ function resetRegionEditForm() {
 	if (!formElement) return;
 	const publicId = document.getElementById("region-edit-public-id")?.value || "";
 	const source = document.getElementById("region-edit-source")?.value || "";
+	if (typeof resetDerivedGeometryEditor === "function") {
+		resetDerivedGeometryEditor();
+	}
 	formElement.reset();
 	regionEditEntry = null;
 	regionEditTabs = [];
@@ -88,7 +91,6 @@ function syncRegionCoatPreview() {
 	if (!inputElement || !imageElement) {
 		return;
 	}
-
 	const url = String(inputElement.value || "").trim();
 	imageElement.hidden = url === "";
 	imageElement.src = url;
