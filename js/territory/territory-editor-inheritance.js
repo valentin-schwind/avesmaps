@@ -67,7 +67,7 @@
 		}
 
 		removeOpacityInheritanceButton();
-		cleanValidityInheritanceLabel();
+		cleanStrayCheckboxLabelText();
 
 		document.getElementById("inheritColorToDescendantsCheckbox")?.addEventListener("change", event => {
 			if (event.currentTarget.checked) void createColorPlan(false);
@@ -84,11 +84,18 @@
 		document.getElementById("inheritOpacityButton")?.remove();
 	}
 
-	function cleanValidityInheritanceLabel() {
-		const label = document.getElementById("inheritValidityToDescendantsCheckbox")?.closest("label");
-		if (!label) return;
-		for (const node of [...label.childNodes]) {
-			if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() !== "") node.remove();
+	function cleanStrayCheckboxLabelText() {
+		const checkboxIds = [
+			"existsUntilTodayInput",
+			"inheritValidityToDescendantsCheckbox"
+		];
+
+		for (const checkboxId of checkboxIds) {
+			const label = document.getElementById(checkboxId)?.closest("label");
+			if (!label) continue;
+			for (const node of [...label.childNodes]) {
+				if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() !== "") node.remove();
+			}
 		}
 	}
 
