@@ -69,6 +69,24 @@
 		return submitSubtreeUpdate(payload);
 	}
 
+	async function applyExplicitColorUpdates(updates) {
+		const payloadUpdates = (Array.isArray(updates) ? updates : [])
+			.map(update => ({
+				territory_public_id: normalizeText(update.territoryPublicId || update.territory_public_id || ""),
+				color: normalizeText(update.color || "")
+			}))
+			.filter(update => update.territory_public_id && update.color);
+
+		if (payloadUpdates.length < 1) {
+			return { ok: true, changed: 0, received: 0, updates: [] };
+		}
+
+		return submitSubtreeUpdate({
+			action: "update_colors",
+			updates: payloadUpdates
+		});
+	}
+
 	async function applyOpacityInheritance(root) {
 		const payload = {
 			action: "inherit_opacity",
@@ -96,7 +114,12 @@
 	}
 
 	function formatInheritanceMessage(label, result) {
-		return `${label}: ${Number(result?.descendants_count ?? 0)} Unterregionen, ${Number(result?.global_changed ?? 0)} global, ${Number(result?.local_display_changed ?? 0)} lokale Anzeigen.`;
+		const changed = Number(result?.descendants_count ?? result?.changed ?? 0);
+		const received = Number(result?.received ?? changed);
+		if (typeof result?.changed !== "undefined") {
+			return `${label}: ${received} geplante Farben, ${changed} gespeichert.`;
+		}
+		return `${label}: ${changed} Unterregionen, ${Number(result?.global_changed ?? 0)} global, ${Number(result?.local_display_changed ?? 0)} lokale Anzeigen.`;
 	}
 
 	window.AvesmapsPoliticalTerritorySubtreeDisplayTools = {
@@ -104,6 +127,7 @@
 		readHueVarianceRange256,
 		submitSubtreeUpdate,
 		applyColorHierarchy,
+		applyExplicitColorUpdates,
 		applyOpacityInheritance,
 		reloadEditorAndParentLayers,
 		formatInheritanceMessage,
