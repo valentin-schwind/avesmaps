@@ -38,6 +38,88 @@
 	min-width: 118px;
 }
 
+.deferred-subtree-checkbox {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	margin-top: 2px;
+	color: var(--muted-2, #806c59);
+	font-weight: 700;
+}
+
+.deferred-subtree-checkbox[hidden],
+.deferred-subtree-preview[hidden] {
+	display: none !important;
+}
+
+.deferred-subtree-checkbox input {
+	width: auto;
+	padding: 0;
+}
+
+.deferred-subtree-checkbox--bottom {
+	order: 99;
+}
+
+.deferred-subtree-preview {
+	display: grid;
+	gap: 7px;
+	margin-top: 4px;
+}
+
+.deferred-subtree-preview-title {
+	color: var(--muted-2, #806c59);
+	font-size: 11px;
+	font-weight: 700;
+}
+
+.deferred-subtree-table {
+	width: 100%;
+	border-collapse: collapse;
+	border: 1px solid #dccab8;
+	border-radius: 8px;
+	overflow: hidden;
+	background: #fff;
+}
+
+.deferred-subtree-table th,
+.deferred-subtree-table td {
+	padding: 7px 8px;
+	border-bottom: 1px solid #eadbcb;
+	vertical-align: top;
+	text-align: left;
+}
+
+.deferred-subtree-table th {
+	background: var(--panel-soft, #fffaf5);
+	color: #6a5543;
+	font-size: 11px;
+}
+
+.deferred-subtree-table tr:last-child th,
+.deferred-subtree-table tr:last-child td {
+	border-bottom: 0;
+}
+
+.deferred-subtree-swatches {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.deferred-subtree-swatch {
+	width: 9px;
+	height: 9px;
+	border: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: 2px;
+}
+
+.deferred-subtree-empty {
+	color: var(--muted, #6c5a49);
+	font-size: 11px;
+	line-height: 1.35;
+}
+
 @media (max-width: 760px) {
 	.manual-data-inline-action--with-preview {
 		grid-template-columns: minmax(0, 1fr) 42px;
