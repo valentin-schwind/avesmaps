@@ -76,6 +76,10 @@
 					<span>Außengrenzen darstellen</span>
 				</label>
 				<label class="manual-data-checkbox">
+					<input id="derivedGeometryInnerBoundariesInput" type="checkbox" checked>
+					<span>Innengrenzen darstellen</span>
+				</label>
+				<label class="manual-data-checkbox">
 					<input id="derivedGeometryDescendantsInput" type="checkbox" disabled>
 					<span>Für alle Unterregionen erzeugen <small>folgt im nächsten Schritt</small></span>
 				</label>
@@ -104,8 +108,9 @@
 			state.dirty = true;
 			void rebuildPreview().catch(handlePreviewError);
 		});
-		["derivedGeometryZoomFromInput", "derivedGeometryZoomToInput"].forEach((id) => {
+		["derivedGeometryZoomFromInput", "derivedGeometryZoomToInput", "derivedGeometryInnerBoundariesInput"].forEach((id) => {
 			document.getElementById(id)?.addEventListener("input", () => { state.dirty = true; });
+			document.getElementById(id)?.addEventListener("change", () => { state.dirty = true; });
 		});
 	}
 
@@ -142,8 +147,10 @@
 
 	function handlePreviewError(error) {
 		console.warn("Außengrenzen-Vorschau konnte nicht berechnet werden:", error);
-		setThumbnail(null);
-		drawParentPreview(null);
+		if (!state.geometry) {
+			setThumbnail(null);
+			drawParentPreview(null);
+		}
 		setStatus(error.message || "Außengrenze konnte nicht berechnet werden.", "error");
 	}
 
@@ -151,6 +158,7 @@
 		ensurePanel();
 		const targetKey = getTargetKey(value || undefined);
 		state = { targetKey, territoryPublicId: "", geometry: null, labelCenter: null, existingPublicId: "", dirty: false };
+		document.getElementById("derivedGeometryInnerBoundariesInput").checked = true;
 		if (!targetKey) {
 			document.getElementById("derivedGeometryEnabledInput").checked = false;
 			setThumbnail(null);
@@ -171,6 +179,7 @@
 				return;
 			}
 			document.getElementById("derivedGeometryEnabledInput").checked = true;
+			document.getElementById("derivedGeometryInnerBoundariesInput").checked = derived.show_inner_boundaries !== false;
 			document.getElementById("derivedGeometryZoomFromInput").value = derived.min_zoom ?? "";
 			document.getElementById("derivedGeometryZoomToInput").value = derived.max_zoom ?? "";
 			state.existingPublicId = derived.public_id || "";
@@ -300,6 +309,7 @@
 			label_lat: labelCenter?.lat ?? null,
 			min_zoom: normalizeText(document.getElementById("derivedGeometryZoomFromInput")?.value || ""),
 			max_zoom: normalizeText(document.getElementById("derivedGeometryZoomToInput")?.value || ""),
+			show_inner_boundaries: document.getElementById("derivedGeometryInnerBoundariesInput")?.checked === true,
 			is_active: true,
 		});
 	}
