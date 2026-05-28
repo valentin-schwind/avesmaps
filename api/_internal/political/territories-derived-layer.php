@@ -17,10 +17,17 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
     }
 
     $derivedTerritoryIds = [];
+    $hiddenInnerBoundaryTerritoryIds = [];
     foreach ($derivedFeatures as $feature) {
         $territoryPublicId = trim((string) ($feature['properties']['territory_public_id'] ?? ''));
         if ($territoryPublicId !== '') {
             $derivedTerritoryIds[$territoryPublicId] = true;
+        }
+        if (($feature['properties']['show_inner_boundaries'] ?? true) === false) {
+            $hiddenInnerBoundaryTerritoryIds += avesmapsPoliticalReadDerivedInnerBoundaryTerritoryIds(
+                $pdo,
+                (int) ($feature['properties']['derived_territory_id'] ?? 0)
+            );
         }
     }
 
@@ -28,6 +35,9 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
     foreach ((array) ($response['features'] ?? []) as $feature) {
         $territoryPublicId = trim((string) ($feature['properties']['territory_public_id'] ?? ''));
         if ($territoryPublicId !== '' && isset($derivedTerritoryIds[$territoryPublicId])) {
+            continue;
+        }
+        if ($territoryPublicId !== '' && isset($hiddenInnerBoundaryTerritoryIds[$territoryPublicId])) {
             continue;
         }
         $baseFeatures[] = $feature;
@@ -116,7 +126,8 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
             derived.updated_at,
             derived.public_id AS derived_geometry_public_id,
             derived.label_lng,
-            derived.label_lat
+            derived.label_lat,
+            derived.show_inner_boundaries
         FROM political_territory_derived_geometry derived
         INNER JOIN political_territory territory ON territory.id = derived.territory_id
         LEFT JOIN political_territory parent ON parent.id = territory.parent_id
@@ -130,14 +141,20 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
 
     $features = [];
     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $showInnerBoundaries = (int) ($row['show_inner_boundaries'] ?? 1) === 1;
         $feature = avesmapsPoliticalLayerRowToFeature($row, $yearBf, $zoom);
         $feature['id'] = 'derived:' . (string) $row['geometry_public_id'];
         $feature['properties']['public_id'] = (string) $row['geometry_public_id'];
         $feature['properties']['geometry_public_id'] = (string) $row['geometry_public_id'];
         $feature['properties']['derived_geometry_public_id'] = (string) $row['derived_geometry_public_id'];
+        $feature['properties']['derived_territory_id'] = (int) $row['territory_id'];
         $feature['properties']['is_derived_geometry'] = true;
         $feature['properties']['is_aggregate'] = true;
+        $feature['properties']['show_inner_boundaries'] = $showInnerBoundaries;
         $feature['properties']['show_region_label'] = true;
+        if ($showInnerBoundaries) {
+            $feature['properties']['opacity'] = 0;
+        }
         $feature['properties']['label_lng'] = is_numeric($row['label_lng'] ?? null)
             ? (float) $row['label_lng']
             : ($feature['properties']['label_lng'] ?? null);
@@ -148,4 +165,43 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
     }
 
     return $features;
+}
+
+function avesmapsPoliticalReadDerivedInnerBoundaryTerritoryIds(PDO $pdo, int $territoryId): array {
+    if ($territoryId < 1) {
+        return [];
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT id, public_id, parent_id
+        FROM political_territory
+        WHERE is_active = 1
+            AND continent = :continent'
+    );
+    $statement->execute(['continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT]);
+
+    $childrenByParent = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $parentId = (int) ($row['parent_id'] ?? 0);
+        if ($parentId > 0) {
+            $childrenByParent[$parentId][] = $row;
+        }
+    }
+
+    $hidden = [];
+    $queue = $childrenByParent[$territoryId] ?? [];
+    while ($queue !== []) {
+        $current = array_shift($queue);
+        $currentId = (int) ($current['id'] ?? 0);
+        $publicId = trim((string) ($current['public_id'] ?? ''));
+        if ($currentId < 1 || $publicId === '') {
+            continue;
+        }
+        $hidden[$publicId] = true;
+        foreach ($childrenByParent[$currentId] ?? [] as $child) {
+            $queue[] = $child;
+        }
+    }
+
+    return $hidden;
 }
