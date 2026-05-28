@@ -53,7 +53,7 @@
 		}
 		const style = document.createElement("style");
 		style.id = "deferredSubtreeDisplayStyles";
-		style.textContent = `.deferred-subtree-checkbox{display:inline-flex;align-items:center;gap:7px;color:var(--muted-2,#806c59);font-weight:700}.deferred-subtree-checkbox input{width:auto;padding:0}.deferred-subtree-preview{display:grid;gap:7px;margin-top:4px}.deferred-subtree-preview[hidden]{display:none!important}.deferred-subtree-preview-title{color:var(--muted-2,#806c59);font-size:11px;font-weight:700}.deferred-subtree-table{width:100%;border-collapse:collapse;border:1px solid #dccab8;border-radius:8px;overflow:hidden;background:#fff}.deferred-subtree-table th,.deferred-subtree-table td{padding:7px 8px;border-bottom:1px solid #eadbcb;vertical-align:top;text-align:left}.deferred-subtree-table th{background:var(--panel-soft,#fffaf5);color:#6a5543;font-size:11px}.deferred-subtree-table tr:last-child th,.deferred-subtree-table tr:last-child td{border-bottom:0}.deferred-subtree-swatches{display:flex;flex-wrap:wrap;gap:5px}.deferred-subtree-swatch{width:18px;height:18px;border:1px solid rgba(0,0,0,.22);border-radius:4px}.deferred-subtree-empty{color:var(--muted,#6c5a49);font-size:11px;line-height:1.35}`;
+		style.textContent = `.deferred-subtree-checkbox{display:inline-flex;align-items:center;gap:7px;margin-top:2px;color:var(--muted-2,#806c59);font-weight:700}.deferred-subtree-checkbox input{width:auto;padding:0}.deferred-subtree-checkbox--bottom{order:99}.deferred-subtree-preview{display:grid;gap:7px;margin-top:4px}.deferred-subtree-preview[hidden]{display:none!important}.deferred-subtree-preview-title{color:var(--muted-2,#806c59);font-size:11px;font-weight:700}.deferred-subtree-table{width:100%;border-collapse:collapse;border:1px solid #dccab8;border-radius:8px;overflow:hidden;background:#fff}.deferred-subtree-table th,.deferred-subtree-table td{padding:7px 8px;border-bottom:1px solid #eadbcb;vertical-align:top;text-align:left}.deferred-subtree-table th{background:var(--panel-soft,#fffaf5);color:#6a5543;font-size:11px}.deferred-subtree-table tr:last-child th,.deferred-subtree-table tr:last-child td{border-bottom:0}.deferred-subtree-swatches{display:flex;flex-wrap:wrap;gap:4px}.deferred-subtree-swatch{width:9px;height:9px;border:1px solid rgba(0,0,0,.25);border-radius:2px}.deferred-subtree-empty{color:var(--muted,#6c5a49);font-size:11px;line-height:1.35}`;
 		document.head.appendChild(style);
 	}
 
@@ -67,17 +67,26 @@
 		}
 		document.getElementById("inheritOpacityButton")?.remove();
 
+		const zoomSection = findSection("Kartensichtbarkeit");
 		const colorSection = findSection("Farbe");
 		const opacitySection = findSection("Transparenz");
+		const validitySection = findSection("Zeitliche Gültigkeit");
+		addCheckbox(zoomSection, "inheritZoomToDescendantsCheckbox");
 		addCheckbox(colorSection, "inheritColorToDescendantsCheckbox");
 		addCheckbox(opacitySection, "inheritOpacityToDescendantsCheckbox");
+		addCheckbox(validitySection, "inheritValidityToDescendantsCheckbox");
 
 		if (colorSection && !document.getElementById("deferredColorHierarchyPreview")) {
 			const preview = document.createElement("div");
 			preview.id = "deferredColorHierarchyPreview";
 			preview.className = "deferred-subtree-preview";
 			preview.hidden = true;
-			colorSection.appendChild(preview);
+			const checkbox = document.getElementById("inheritColorToDescendantsCheckbox")?.closest(".deferred-subtree-checkbox");
+			if (checkbox) {
+				colorSection.insertBefore(preview, checkbox);
+			} else {
+				colorSection.appendChild(preview);
+			}
 		}
 
 		const hint = colorSection?.querySelector(".manual-data-inline-hint");
@@ -107,7 +116,7 @@
 			return;
 		}
 		const label = document.createElement("label");
-		label.className = "deferred-subtree-checkbox";
+		label.className = "deferred-subtree-checkbox deferred-subtree-checkbox--bottom";
 		label.innerHTML = `<input id="${id}" type="checkbox"><span>Für alle Unterregionen übernehmen</span>`;
 		section.appendChild(label);
 	}
@@ -163,7 +172,12 @@
 			wikiKey: normalizeText(rootNode.wikiKey || rootNode.wiki_key || rootNode.key || ""),
 			name: normalizeText(rootNode.label || rootDisplay.name || rootDisplay.displayName || ""),
 			color: normalizeHexColor(document.getElementById("colorInput")?.value || rootDisplay.color) || "#888888",
-			opacity: clampNumber(percent / 100, 0, 1)
+			opacity: clampNumber(percent / 100, 0, 1),
+			zoomMin: parseOptionalNumber(document.getElementById("zoomFromInput")?.value, rootDisplay.zoomMin),
+			zoomMax: parseOptionalNumber(document.getElementById("zoomToInput")?.value, rootDisplay.zoomMax),
+			startYear: parseOptionalNumber(document.getElementById("startYearInput")?.value, rootDisplay.startYear),
+			endYear: document.getElementById("existsUntilTodayInput")?.checked ? null : parseOptionalNumber(document.getElementById("endYearInput")?.value, rootDisplay.endYear),
+			existsUntilToday: Boolean(document.getElementById("existsUntilTodayInput")?.checked)
 		};
 	}
 
@@ -317,9 +331,14 @@
 		const range = readHueVarianceRange();
 		let span = Math.min(24, 14 / (1 + ((Math.max(1, depth) - 1) * 0.45)) + Math.min(12, Math.max(0, siblingCount - 1) * 0.55));
 		span = Math.max(range.minDegrees, Math.min(span, range.maxDegrees));
-		const position = siblingCount > 1 ? siblingIndex / (siblingCount - 1) : 0.5;
-		const offset = (((position * 2) - 1) * span) + (((seededUnit(seedText) * 2) - 1) * Math.max(0.75, Math.min(2.5, span * 0.18)));
-		return hsvToHex((hsv.hue + offset + 360) % 360, hsv.saturation, hsv.value);
+		let position = siblingCount > 1 ? siblingIndex / (siblingCount - 1) : null;
+		let offset = position === null ? 0 : ((position * 2) - 1) * span;
+		const jitterDirection = seededUnit(seedText) >= 0.5 ? 1 : -1;
+		const jitter = (((seededUnit(`${seedText}:jitter`) * 2) - 1) * Math.max(0.75, Math.min(2.5, span * 0.18)));
+		if (Math.abs(offset) < Math.max(4, range.minDegrees * 0.6)) {
+			offset = jitterDirection * Math.max(4, range.minDegrees * 0.6);
+		}
+		return hsvToHex((hsv.hue + offset + jitter + 360) % 360, hsv.saturation, hsv.value);
 	}
 
 	function seededUnit(value) {
@@ -374,7 +393,8 @@
 	}
 
 	async function saveWithDeferredInheritance(value) {
-		const result = typeof externalOnSave === "function" ? await externalOnSave(value) : await defaultSaveAssignment(value);
+		const adjustedValue = await buildValueWithLocalDisplayInheritance(value);
+		const result = typeof externalOnSave === "function" ? await externalOnSave(adjustedValue) : await defaultSaveAssignment(adjustedValue);
 		const root = readRootSelection();
 		const messages = [];
 		if (root && document.getElementById("inheritColorToDescendantsCheckbox")?.checked) {
@@ -390,6 +410,29 @@
 			return { ...(result || {}), message: `${result?.message || "Gespeichert."} ${messages.join(" ")}` };
 		}
 		return result;
+	}
+
+	async function buildValueWithLocalDisplayInheritance(value) {
+		const root = readRootSelection();
+		if (!root || (!document.getElementById("inheritZoomToDescendantsCheckbox")?.checked && !document.getElementById("inheritValidityToDescendantsCheckbox")?.checked)) {
+			return value;
+		}
+		const nextValue = { ...value, displays: Array.isArray(value.displays) ? value.displays.map(display => ({ ...display })) : [] };
+		const startIndex = root.activeIndex + 1;
+		for (let index = startIndex; index < nextValue.displays.length; index += 1) {
+			const display = nextValue.displays[index] || {};
+			if (document.getElementById("inheritZoomToDescendantsCheckbox")?.checked) {
+				display.zoomMin = root.zoomMin;
+				display.zoomMax = root.zoomMax;
+			}
+			if (document.getElementById("inheritValidityToDescendantsCheckbox")?.checked) {
+				display.startYear = root.startYear;
+				display.endYear = root.endYear;
+				display.existsUntilToday = root.existsUntilToday;
+			}
+			nextValue.displays[index] = display;
+		}
+		return nextValue;
 	}
 
 	async function defaultSaveAssignment(value) {
