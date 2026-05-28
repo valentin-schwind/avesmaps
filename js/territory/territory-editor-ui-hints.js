@@ -138,9 +138,40 @@
 		visibilitySection.appendChild(wrapper);
 	}
 
+	function syncAssignmentDropZoneHint() {
+		const dropZone = document.getElementById("dropZone");
+		if (!dropZone) {
+			return;
+		}
+
+		const hasAssignment = Boolean(dropZone.querySelector(".dropped-node"));
+		const title = dropZone.querySelector(".drop-zone-title");
+
+		if (hasAssignment && title) {
+			title.remove();
+		}
+	}
+
+	function installAssignmentDropZoneHintObserver() {
+		const dropZone = document.getElementById("dropZone");
+		if (!dropZone || dropZone.dataset.assignmentHintObserver === "1") {
+			return;
+		}
+
+		dropZone.dataset.assignmentHintObserver = "1";
+		syncAssignmentDropZoneHint();
+
+		const observer = new MutationObserver(syncAssignmentDropZoneHint);
+		observer.observe(dropZone, {
+			childList: true,
+			subtree: true
+		});
+	}
+
 	function install() {
 		installDefaultZoomRulesStyle();
 		installDefaultZoomRulesTable();
+		installAssignmentDropZoneHintObserver();
 	}
 
 	window.AvesmapsPoliticalTerritoryEditorUiHints = {
