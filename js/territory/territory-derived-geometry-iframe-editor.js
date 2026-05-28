@@ -15,10 +15,6 @@
 			|| String(value ?? "").replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim();
 	}
 
-	function parseOptionalNumber(value, fallback = null) {
-		return window.AvesmapsPoliticalTerritoryEditorForm?.parseOptionalNumber?.(value, fallback) ?? fallback;
-	}
-
 	function apiUrl(params = {}) {
 		const separator = WRITE_API_URL.includes("?") ? "&" : "?";
 		const search = new URLSearchParams(params);
@@ -101,11 +97,11 @@
 
 		document.getElementById("derivedGeometryEnabledInput")?.addEventListener("change", () => {
 			state.dirty = true;
-			void syncPreview();
+			void syncPreview().catch(handlePreviewError);
 		});
 		document.getElementById("derivedGeometryRefreshButton")?.addEventListener("click", () => {
 			state.dirty = true;
-			void rebuildPreview();
+			void rebuildPreview().catch(handlePreviewError);
 		});
 		["derivedGeometryZoomFromInput", "derivedGeometryZoomToInput"].forEach((id) => {
 			document.getElementById(id)?.addEventListener("input", () => { state.dirty = true; });
@@ -126,9 +122,36 @@
 		document.head.append(style);
 	}
 
-	function getTargetTerritoryPublicId(value = window.AvesmapsPoliticalTerritoryEditorForm?.readAssignmentValue?.()) {
+	function isSqlTerritoryPublicId(value) {
+		return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(normalizeText(value));
+	}
+
+	function getTargetTerritoryCandidate(value = window.AvesmapsPoliticalTerritoryEditorForm?.readAssignmentValue?.()) {
 		const root = window.AvesmapsPoliticalTerritoryEditorForm?.readRootSelection?.(value);
 		return normalizeText(root?.territoryPublicId || new URLSearchParams(window.location.search).get("territory_public_id") || "");
+	}
+
+	async function resolveTargetTerritoryPublicId(value = window.AvesmapsPoliticalTerritoryEditorForm?.readAssignmentValue?.()) {
+		const candidate = getTargetTerritoryCandidate(value);
+		if (isSqlTerritoryPublicId(candidate)) {
+			return candidate;
+		}
+
+		const rows = await window.AvesmapsPoliticalTerritoryEditorApi?.loadTerritoryHierarchy?.();
+		const normalizedCandidate = normalizeText(candidate);
+		const resolvedRow = Array.isArray(rows)
+			? rows.find((row) => isSqlTerritoryPublicId(row.publicId) && (
+				normalizeText(row.publicId) === normalizedCandidate
+				|| normalizeText(row.wikiKey) === normalizedCandidate
+				|| normalizeText(row.key) === normalizedCandidate
+			))
+			: null;
+
+		if (resolvedRow?.publicId) {
+			return normalizeText(resolvedRow.publicId);
+		}
+
+		throw new Error("Dieses Breadcrumb-Territorium hat noch keine gespeicherte SQL-ID. Bitte das Herrschaftsgebiet zuerst speichern bzw. einem vorhandenen SQL-Territorium zuweisen.");
 	}
 
 	function setStatus(message = "", type = "") {
@@ -138,14 +161,27 @@
 		status.dataset.status = type;
 	}
 
+	function handlePreviewError(error) {
+		console.warn("Außengrenzen-Vorschau konnte nicht berechnet werden:", error);
+		setThumbnail(null);
+		drawParentPreview(null);
+		setStatus(error.message || "Außengrenze konnte nicht berechnet werden.", "error");
+	}
+
 	async function loadForCurrentTerritory(value = null) {
 		ensurePanel();
-		const territoryPublicId = getTargetTerritoryPublicId(value);
-		state = { territoryPublicId, geometry: null, labelCenter: null, existingPublicId: "", dirty: false };
-		if (!territoryPublicId) {
-			setStatus("Kein Breadcrumb-Territorium ausgewählt.", "info");
+		let territoryPublicId = "";
+		try {
+			territoryPublicId = await resolveTargetTerritoryPublicId(value || undefined);
+		} catch (error) {
+			state = { territoryPublicId: "", geometry: null, labelCenter: null, existingPublicId: "", dirty: false };
+			document.getElementById("derivedGeometryEnabledInput").checked = false;
+			setThumbnail(null);
+			setStatus(error.message || "Kein gespeichertes SQL-Territorium ausgewählt.", "info");
 			return;
 		}
+
+		state = { territoryPublicId, geometry: null, labelCenter: null, existingPublicId: "", dirty: false };
 		document.getElementById("derivedGeometryZoomFromInput").value = document.getElementById("zoomFromInput")?.value || "";
 		document.getElementById("derivedGeometryZoomToInput").value = document.getElementById("zoomToInput")?.value || "";
 		setStatus("Bestehende Außengrenze wird geprüft...", "pending");
@@ -186,8 +222,7 @@
 	}
 
 	async function rebuildPreview() {
-		const territoryPublicId = getTargetTerritoryPublicId();
-		if (!territoryPublicId) throw new Error("Kein Breadcrumb-Territorium ausgewählt.");
+		const territoryPublicId = await resolveTargetTerritoryPublicId();
 		if (!window.polygonClipping?.union) throw new Error("Polygon-Clipping-Bibliothek ist nicht geladen.");
 		setStatus("Außengrenze wird berechnet...", "pending");
 		const response = await fetchDerivedGeometrySources(territoryPublicId);
@@ -271,8 +306,7 @@
 	}
 	async function saveIfNeeded(context = {}) {
 		const enabled = document.getElementById("derivedGeometryEnabledInput")?.checked === true;
-		const territoryPublicId = getTargetTerritoryPublicId(context.value);
-		if (!territoryPublicId) return null;
+		const territoryPublicId = await resolveTargetTerritoryPublicId(context.value);
 		if (!enabled) {
 			if (!state.dirty && !state.existingPublicId) return null;
 			return submitDerivedGeometry({ action: "delete_derived_geometry", territory_public_id: territoryPublicId });
@@ -298,12 +332,11 @@
 			await saveIfNeeded(context);
 			return context.result;
 		});
-		const originalLoaded = window.AvesmapsPoliticalTerritoryAssignment?.configure;
 		void loadForCurrentTerritory();
 	}
 
 	if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install, { once: true });
 	else install();
 
-	window.AvesmapsPoliticalDerivedGeometryEditor = { loadForCurrentTerritory, rebuildPreview, saveIfNeeded };
+	window.AvesmapsPoliticalDerivedGeometryEditor = { loadForCurrentTerritory, rebuildPreview, saveIfNeeded, resolveTargetTerritoryPublicId };
 })();
