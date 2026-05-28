@@ -54,7 +54,7 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 
 	return {
 		color: regionEntry.color,
-		weight: 2,
+		weight: regionEntry.isDerivedGeometry ? 3 : 2,
 		opacity: 1,
 		fillColor: regionEntry.color,
 		fillOpacity,
@@ -144,7 +144,11 @@ function addRegionFeatureToMap(region, regionEntry) {
 			regionEntry.layer = polygon;
 		}
 		bindRegionPolygonEditEvents(polygon, regionEntry);
-		polygon.bringToBack();
+		if (regionEntry.isDerivedGeometry) {
+			polygon.bringToFront();
+		} else {
+			polygon.bringToBack();
+		}
 		regionPolygons.push(polygon);
 		if (index === 0 && regionEntry.showRegionLabel !== false && !visuallyHidden) {
 			const labelLatLng = regionEntry.labelLat !== null && regionEntry.labelLng !== null
