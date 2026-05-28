@@ -9,6 +9,7 @@
 	];
 
 	let territoryRows = [];
+	let pendingColorPlan = null;
 
 	function getFormModule() {
 		return window.AvesmapsPoliticalTerritoryEditorForm || null;
@@ -70,6 +71,7 @@
 
 		document.getElementById("inheritColorToDescendantsCheckbox")?.addEventListener("change", event => {
 			if (event.currentTarget.checked) void createColorPlan(false);
+			else pendingColorPlan = null;
 		});
 		document.getElementById("colorInput")?.addEventListener("input", () => {
 			if (document.getElementById("inheritColorToDescendantsCheckbox")?.checked) void createColorPlan(false);
@@ -91,6 +93,7 @@
 			if (!hasLowerBreadcrumb) input.checked = false;
 		}
 		if (!hasLowerBreadcrumb) {
+			pendingColorPlan = null;
 			const preview = document.getElementById("deferredColorHierarchyPreview");
 			if (preview) preview.hidden = true;
 		}
@@ -112,10 +115,11 @@
 		await loadTerritories();
 		const descendants = findDescendants(root);
 		const updates = buildColorUpdates(root, descendants);
+		pendingColorPlan = { root, updates };
 		if (checkCheckbox) document.getElementById("inheritColorToDescendantsCheckbox")?.click();
-		renderPreview({ root, updates });
+		renderPreview(pendingColorPlan);
 		setStatus(descendants.length > 0 ? `Farbhierarchie vorbereitet: ${descendants.length} Unterregionen.` : "Keine Unterregionen fuer das aktive Breadcrumb gefunden.", descendants.length > 0 ? "pending" : "error");
-		return { root, updates };
+		return pendingColorPlan;
 	}
 
 	function findDescendants(root) {
@@ -219,14 +223,15 @@
 		const root = readRootSelection();
 		const service = getSubtreeService();
 		const messages = [];
-		if (root && document.getElementById("inheritColorToDescendantsCheckbox")?.checked && service?.applyColorHierarchy) {
-			const range = service.readHueVarianceRange256?.() || { min256: 10, max256: 20 };
-			messages.push(service.formatInheritanceMessage?.("Farbhierarchie", await service.applyColorHierarchy(root, { hueVarianceRange: range })) || "Farbhierarchie angewendet.");
+		if (root && document.getElementById("inheritColorToDescendantsCheckbox")?.checked && service?.applyExplicitColorUpdates) {
+			const plan = pendingColorPlan || await createColorPlan(false);
+			messages.push(service.formatInheritanceMessage?.("Farbhierarchie", await service.applyExplicitColorUpdates(plan?.updates || [])) || "Farbhierarchie angewendet.");
 		}
 		if (root && document.getElementById("inheritOpacityToDescendantsCheckbox")?.checked && service?.applyOpacityInheritance) {
 			messages.push(service.formatInheritanceMessage?.("Transparenz", await service.applyOpacityInheritance(root)) || "Transparenz angewendet.");
 		}
 		if (messages.length < 1) return context.result;
+		pendingColorPlan = null;
 		service?.reloadEditorAndParentLayers?.();
 		return { ...(context.result || {}), message: `${context.result?.message || "Gespeichert."} ${messages.join(" ")}` };
 	}
