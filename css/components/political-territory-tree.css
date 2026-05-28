@@ -157,6 +157,10 @@
 	background: #f6efe7;
 }
 
+.political-territory-assignment-drop.has-node .drop-zone-title {
+	display: none;
+}
+
 .political-territory-assignment-breadcrumb {
 	display: flex;
 	flex: 1 1 520px;
