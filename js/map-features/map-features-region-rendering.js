@@ -36,11 +36,33 @@ function clearRenderedRegionLayers() {
 	clearRegionGeometryEdit();
 }
 
+function buildRegionPolygonStyle(regionEntry) {
+	if (regionEntry.visualHiddenByDerivedBoundary) {
+		return {
+			color: regionEntry.color,
+			weight: 2,
+			opacity: 0,
+			fillColor: regionEntry.color,
+			fillOpacity: 0,
+		};
+	}
+
+	const fillOpacity = regionEntry.isDerivedGeometry && regionEntry.showInnerBoundaries
+		? 0
+		: regionEntry.opacity;
+
+	return {
+		color: regionEntry.color,
+		weight: 2,
+		opacity: 1,
+		fillColor: regionEntry.color,
+		fillOpacity,
+	};
+}
+
 function addRegionFeatureToMap(region, regionEntry) {
 	const name = regionEntry.name;
-	const fill = regionEntry.color;
-	const stroke = regionEntry.color;
-	const fillOpacity = regionEntry.opacity;
+	const polygonStyle = buildRegionPolygonStyle(regionEntry);
 	let polygons = [];
 
 	if (region.geometry?.type === "Polygon") {
@@ -57,10 +79,7 @@ function addRegionFeatureToMap(region, regionEntry) {
 		);
 		const polygon = L.polygon(latlngs, {
 			pane: "regionsPane",
-			color: stroke,
-			weight: 2,
-			fillColor: fill,
-			fillOpacity,
+			...polygonStyle,
 			interactive: IS_EDIT_MODE || regionEntry.source === "political_territory",
 		});
 		polygon._regionEntry = regionEntry;
@@ -72,7 +91,7 @@ function addRegionFeatureToMap(region, regionEntry) {
 		bindRegionPolygonEditEvents(polygon, regionEntry);
 		polygon.bringToBack();
 		regionPolygons.push(polygon);
-		if (index === 0 && regionEntry.showRegionLabel !== false) {
+		if (index === 0 && regionEntry.showRegionLabel !== false && !regionEntry.visualHiddenByDerivedBoundary) {
 			const labelLatLng = regionEntry.labelLat !== null && regionEntry.labelLng !== null
 				? L.latLng(regionEntry.labelLat, regionEntry.labelLng)
 				: polygon.getBounds().getCenter();
