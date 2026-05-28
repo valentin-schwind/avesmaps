@@ -13,17 +13,16 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
     }
 
     $derivedTerritoryIds = [];
-    $hiddenInnerBoundaryTerritoryIds = [];
+    $hiddenByTerritoryPublicId = [];
     foreach ($derivedFeatures as $feature) {
         $territoryPublicId = trim((string) ($feature['properties']['territory_public_id'] ?? ''));
         if ($territoryPublicId !== '') {
             $derivedTerritoryIds[$territoryPublicId] = true;
         }
         if (($feature['properties']['show_inner_boundaries'] ?? true) === false) {
-            $hiddenInnerBoundaryTerritoryIds += avesmapsPoliticalReadDerivedInnerBoundaryTerritoryIds(
-                $pdo,
-                (int) ($feature['properties']['derived_territory_id'] ?? 0),
-                $territoryPublicId
+            $hiddenByTerritoryPublicId += avesmapsPoliticalFindInnerBoundaryFeaturesInLayer(
+                (array) ($response['features'] ?? []),
+                $feature
             );
         }
     }
@@ -34,9 +33,9 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
         if ($territoryPublicId !== '' && isset($derivedTerritoryIds[$territoryPublicId])) {
             continue;
         }
-        if ($territoryPublicId !== '' && isset($hiddenInnerBoundaryTerritoryIds[$territoryPublicId])) {
+        if ($territoryPublicId !== '' && isset($hiddenByTerritoryPublicId[$territoryPublicId])) {
             $feature['properties']['visual_hidden_by_derived_boundary'] = true;
-            $feature['properties']['hidden_by_derived_territory_public_id'] = $hiddenInnerBoundaryTerritoryIds[$territoryPublicId];
+            $feature['properties']['hidden_by_derived_territory_public_id'] = $hiddenByTerritoryPublicId[$territoryPublicId];
         }
         $baseFeatures[] = $feature;
     }
@@ -167,81 +166,61 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
     return $features;
 }
 
-function avesmapsPoliticalReadDerivedInnerBoundaryTerritoryIds(PDO $pdo, int $territoryId, string $derivedTerritoryPublicId = ''): array {
-    if ($territoryId < 1) {
-        return [];
-    }
-
-    $hidden = avesmapsPoliticalReadDerivedHierarchyInnerBoundaryTerritoryIds($pdo, $territoryId, $derivedTerritoryPublicId);
-    $wikiHidden = avesmapsPoliticalReadDerivedWikiInnerBoundaryTerritoryIds($pdo, $territoryId, $derivedTerritoryPublicId);
-
-    return $hidden + $wikiHidden;
-}
-
-function avesmapsPoliticalReadDerivedHierarchyInnerBoundaryTerritoryIds(PDO $pdo, int $territoryId, string $derivedTerritoryPublicId = ''): array {
-    $statement = $pdo->prepare(
-        'SELECT id, public_id, parent_id
-        FROM political_territory
-        WHERE is_active = 1
-            AND continent = :continent'
-    );
-    $statement->execute(['continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT]);
-
-    $childrenByParent = [];
-    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $parentId = (int) ($row['parent_id'] ?? 0);
-        if ($parentId > 0) {
-            $childrenByParent[$parentId][] = $row;
-        }
-    }
-
+function avesmapsPoliticalFindInnerBoundaryFeaturesInLayer(array $baseFeatures, array $derivedFeature): array {
+    $derivedProperties = (array) ($derivedFeature['properties'] ?? []);
+    $derivedTerritoryPublicId = trim((string) ($derivedProperties['territory_public_id'] ?? ''));
+    $derivedName = avesmapsPoliticalLayerNormalizeComparisonText((string) ($derivedProperties['name'] ?? $derivedProperties['display_name'] ?? $derivedProperties['wiki_name'] ?? ''));
+    $derivedWikiName = avesmapsPoliticalLayerNormalizeComparisonText((string) ($derivedProperties['wiki_name'] ?? ''));
     $hidden = [];
-    $queue = $childrenByParent[$territoryId] ?? [];
-    while ($queue !== []) {
-        $current = array_shift($queue);
-        $currentId = (int) ($current['id'] ?? 0);
-        $publicId = trim((string) ($current['public_id'] ?? ''));
-        if ($currentId < 1 || $publicId === '') {
+
+    foreach ($baseFeatures as $feature) {
+        $properties = (array) ($feature['properties'] ?? []);
+        $territoryPublicId = trim((string) ($properties['territory_public_id'] ?? ''));
+        if ($territoryPublicId === '' || $territoryPublicId === $derivedTerritoryPublicId) {
             continue;
         }
-        $hidden[$publicId] = $derivedTerritoryPublicId;
-        foreach ($childrenByParent[$currentId] ?? [] as $child) {
-            $queue[] = $child;
+
+        $parentPublicId = trim((string) ($properties['parent_public_id'] ?? ''));
+        if ($parentPublicId !== '' && $parentPublicId === $derivedTerritoryPublicId) {
+            $hidden[$territoryPublicId] = $derivedTerritoryPublicId;
+            continue;
+        }
+
+        $affiliationValues = avesmapsPoliticalLayerReadAffiliationValues($properties);
+        foreach ($affiliationValues as $value) {
+            $normalized = avesmapsPoliticalLayerNormalizeComparisonText($value);
+            if ($normalized !== '' && ($normalized === $derivedName || $normalized === $derivedWikiName)) {
+                $hidden[$territoryPublicId] = $derivedTerritoryPublicId;
+                break;
+            }
         }
     }
 
     return $hidden;
 }
 
-function avesmapsPoliticalReadDerivedWikiInnerBoundaryTerritoryIds(PDO $pdo, int $territoryId, string $derivedTerritoryPublicId = ''): array {
-    $territory = avesmapsPoliticalFetchTerritoryById($pdo, $territoryId);
-    $wikiId = (int) ($territory['wiki_id'] ?? 0);
-    if ($wikiId < 1) {
-        return [];
-    }
-
-    $wiki = avesmapsPoliticalFetchWikiById($pdo, $wikiId);
-    $ids = avesmapsPoliticalCollectDerivedGeometryWikiDescendantIds($pdo, $wiki);
-    if ($ids === []) {
-        return [];
-    }
-
-    $placeholders = implode(',', array_fill(0, count($ids), '?'));
-    $statement = $pdo->prepare(
-        'SELECT public_id
-        FROM political_territory
-        WHERE id IN (' . $placeholders . ')
-            AND is_active = 1'
-    );
-    $statement->execute($ids);
-
-    $hidden = [];
-    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $publicId = trim((string) ($row['public_id'] ?? ''));
-        if ($publicId !== '') {
-            $hidden[$publicId] = $derivedTerritoryPublicId;
+function avesmapsPoliticalLayerReadAffiliationValues(array $properties): array {
+    $values = [];
+    foreach (['affiliation', 'affiliation_root', 'wiki_affiliation_raw', 'wiki_affiliation_root'] as $key) {
+        if (!empty($properties[$key])) {
+            $values[] = (string) $properties[$key];
         }
     }
 
-    return $hidden;
+    foreach (['affiliation_path', 'wiki_affiliation_path'] as $key) {
+        $rawPath = $properties[$key] ?? null;
+        if (is_array($rawPath)) {
+            foreach ($rawPath as $value) {
+                if (is_scalar($value)) {
+                    $values[] = (string) $value;
+                }
+            }
+        }
+    }
+
+    return array_values(array_unique(array_filter(array_map('trim', $values))));
+}
+
+function avesmapsPoliticalLayerNormalizeComparisonText(string $value): string {
+    return avesmapsPoliticalSlug(trim($value));
 }
