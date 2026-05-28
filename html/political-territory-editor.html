@@ -137,6 +137,10 @@
 										<input id="zoomToInput" name="zoom_to" type="number" step="1">
 									</div>
 								</div>
+								<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden>
+									<input id="inheritZoomToDescendantsCheckbox" type="checkbox">
+									<span>Für alle Unterregionen übernehmen</span>
+								</label>
 							</section>
 
 							<section class="manual-data-section" aria-label="Farbe">
@@ -148,7 +152,7 @@
 									</div>
 								</div>
 								<div class="manual-data-variance-row">
-									<button id="inheritColorVarianceButton" class="secondary inherit-color-variance-button" type="button" hidden>Farbtonvarianz vererben</button>
+									<button id="inheritColorVarianceButton" class="secondary inherit-color-variance-button" type="button" hidden>Farbhierarchie erstellen</button>
 									<div class="manual-data-variance-range">
 										<div class="manual-data-variance-input">
 											<label for="hueVarianceMinInput">HSV-Abweichung min (0-256)</label>
@@ -160,7 +164,12 @@
 										</div>
 									</div>
 								</div>
-								<small class="manual-data-inline-hint">Hinweis: „Farbtonvarianz vererben“ schreibt die Änderungen sofort in die Datenbank (global und lokal).</small>
+								<div id="deferredColorHierarchyPreview" class="deferred-subtree-preview" hidden></div>
+								<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden>
+									<input id="inheritColorToDescendantsCheckbox" type="checkbox">
+									<span>Für alle Unterregionen übernehmen</span>
+								</label>
+								<small class="manual-data-inline-hint">Hinweis: Die Farbhierarchie wird vorbereitet und erst beim Speichern auf die ausgewählten Unterregionen übertragen.</small>
 							</section>
 
 							<section class="manual-data-section" aria-label="Transparenz">
@@ -171,9 +180,10 @@
 										<input id="transparencyInput" name="transparency" type="range" min="0" max="100" step="1" value="33">
 									</div>
 								</div>
-								<div class="manual-data-variance-row">
-									<button id="inheritOpacityButton" class="secondary inherit-color-variance-button" type="button" hidden>Transparenz vererben</button>
-								</div>
+								<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden>
+									<input id="inheritOpacityToDescendantsCheckbox" type="checkbox">
+									<span>Für alle Unterregionen übernehmen</span>
+								</label>
 							</section>
 
 							<section class="manual-data-section" aria-label="Zeitliche Gültigkeit">
@@ -192,6 +202,10 @@
 										<span>existiert bis heute</span>
 									</label>
 								</div>
+								<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden>
+									<input id="inheritValidityToDescendantsCheckbox" type="checkbox">
+									<span>Für alle Unterregionen übernehmen</span>
+								</label>
 							</section>
 						</div>
 					</form>
@@ -217,7 +231,7 @@
 	<script src="/js/territory/territory-wiki-tree.js"></script>
 	<script src="/js/territory/territory-editor-embedded.js"></script>
 	<script src="/js/territory/territory-subtree-display-tools.js"></script>
-	<script src="/js/territory/territory-deferred-subtree-display-tools.js"></script>
+	<script src="/js/territory/territory-editor-inheritance.js"></script>
 	<script src="/js/territory/territory-editor-coat-restore.js"></script>
 	<script src="/js/territory/territory-editor-ui-hints.js"></script>
 </body>
