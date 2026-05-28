@@ -50,7 +50,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Validate deployment secrets
         shell: bash
@@ -109,6 +109,14 @@ jobs:
             fi
           }
 
+          copy_full_deploy_package() {
+            local item
+
+            for item in "${deploy_items[@]}"; do
+              copy_item "$item"
+            done
+          }
+
           should_deploy_file() {
             local file="$1"
             local item
@@ -125,9 +133,7 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "Preparing full deploy package."
 
-            for item in "${deploy_items[@]}"; do
-              copy_item "$item"
-            done
+            copy_full_deploy_package
 
             if [[ "${{ inputs.upload_tiles }}" == "true" && -e "tiles" ]]; then
               copy_item "tiles"
@@ -141,21 +147,24 @@ jobs:
             if [[ -z "$base_sha" || "$base_sha" =~ ^0+$ ]]; then
               echo "No usable base SHA found; preparing full deploy package instead."
 
-              for item in "${deploy_items[@]}"; do
-                copy_item "$item"
-              done
+              copy_full_deploy_package
             else
-              changed_files=$(git diff --name-only --diff-filter=ACMRT "$base_sha" "$head_sha")
-
-              if [[ -z "$changed_files" ]]; then
-                echo "No changed deployable files found."
-                echo "SKIP_DEPLOY=true" >> "$GITHUB_ENV"
+              if ! git cat-file -e "$base_sha^{commit}" 2>/dev/null; then
+                echo "Base commit $base_sha is not available locally; preparing full deploy package instead."
+                copy_full_deploy_package
               else
-                while IFS= read -r file; do
-                  if should_deploy_file "$file"; then
-                    copy_item "$file"
-                  fi
-                done <<< "$changed_files"
+                changed_files=$(git diff --name-only --diff-filter=ACMRT "$base_sha" "$head_sha")
+
+                if [[ -z "$changed_files" ]]; then
+                  echo "No changed deployable files found."
+                  echo "SKIP_DEPLOY=true" >> "$GITHUB_ENV"
+                else
+                  while IFS= read -r file; do
+                    if should_deploy_file "$file"; then
+                      copy_item "$file"
+                    fi
+                  done <<< "$changed_files"
+                fi
               fi
             fi
           fi
