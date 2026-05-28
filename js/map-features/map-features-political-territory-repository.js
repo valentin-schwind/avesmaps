@@ -70,3 +70,13 @@ const politicalTerritoryRepository = {
 		return submitPoliticalTerritoryEdit(payload);
 	},
 };
+
+(function loadDerivedGeometryEditorModule() {
+	if (typeof document === "undefined" || document.querySelector('script[src="js/territory/territory-derived-geometry-editor.js"]')) {
+		return;
+	}
+	const script = document.createElement("script");
+	script.src = "js/territory/territory-derived-geometry-editor.js";
+	script.defer = true;
+	document.head.appendChild(script);
+})();
