@@ -66,7 +66,7 @@
 			}, true);
 		}
 
-		moveOpacityInheritanceButton();
+		removeOpacityInheritanceButton();
 		cleanValidityInheritanceLabel();
 
 		document.getElementById("inheritColorToDescendantsCheckbox")?.addEventListener("change", event => {
@@ -80,14 +80,8 @@
 		syncInheritanceVisibility();
 	}
 
-	function moveOpacityInheritanceButton() {
-		const transparencyInput = document.getElementById("transparencyInput");
-		const opacityButton = document.getElementById("inheritOpacityButton");
-		if (!(transparencyInput instanceof HTMLElement) || !(opacityButton instanceof HTMLElement)) return;
-
-		opacityButton.textContent = "Transparenz vererben";
-		opacityButton.classList.add("secondary", "inherit-opacity-button");
-		transparencyInput.insertAdjacentElement("afterend", opacityButton);
+	function removeOpacityInheritanceButton() {
+		document.getElementById("inheritOpacityButton")?.remove();
 	}
 
 	function cleanValidityInheritanceLabel() {
