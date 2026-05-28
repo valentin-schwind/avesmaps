@@ -35,6 +35,9 @@ function populateRegionEditForm(entry, { preserveTabs = false } = {}) {
 	populateRegionParentSelect(region);
 	renderRegionWikiReference(region);
 	syncRegionAssignmentForRegion(region);
+	if (typeof syncDerivedGeometryEditorForRegion === "function") {
+		syncDerivedGeometryEditorForRegion(region);
+	}
 	document.getElementById("region-edit-delete").hidden = !entry;
 	syncRegionOpacityOutput();
 	syncRegionValidToControls();
