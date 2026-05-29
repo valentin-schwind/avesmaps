@@ -165,7 +165,7 @@
 		if (!input) return;
 		input.disabled = !state.canShowInnerBoundaries;
 		if (!state.canShowInnerBoundaries) {
-			input.checked = false;
+			input.checked = true;
 		}
 		label?.classList.toggle("derived-geometry-inner-boundaries-disabled", !state.canShowInnerBoundaries);
 	}
