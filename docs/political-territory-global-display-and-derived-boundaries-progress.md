@@ -35,7 +35,7 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 | Phase 6: Außengrenzen-UI vervollstaendigen | begonnen | `f06cb07b10da78ccd12f8ff6e8bb5e5936171542` | Alle drei Ziel-Schalter sind sichtbar; rekursiver Modus bleibt bis zum Backend-Vertrag deaktiviert; Hinweistext wurde nutzerverstaendlicher formuliert. |
 | Phase 7: Backend-Modi fuer Außengrenzen | offen | - | `flat`/`hierarchical`-Vertrag und rekursive Planung fehlen noch. |
 | Phase 8: Quellenprotokoll | offen | - | Optional, aber fuer Diagnose/Reproduktion sinnvoll. |
-| Phase 9: Tests und manuelle Pruefung | begonnen | `99b5f9830f320101c935810eb419cafa0830486e` | Erster Browser-Smoke-Test erfolgreich; erwartbar fehlende Geometry-Assignments liefern nun leeren 200-Zustand statt rotem 400. |
+| Phase 9: Tests und manuelle Pruefung | begonnen | `99b5f9830f320101c935810eb419cafa0830486e` | Browser-Smoke-Test und Nachtest erfolgreich; erwartbar fehlende Geometry-Assignments liefern nun leeren 200-Zustand ohne Konsolenfehler. |
 | Phase 10: Legacy-Aufraeumung | blockiert | - | Erst nach stabiler Testphase und expliziter Freigabe. |
 
 ## Commit-Log
@@ -67,10 +67,11 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 
 - Commit `99b5f9830f320101c935810eb419cafa0830486e` wurde von GitHub bestaetigt und ueber `fetch_commit` verifiziert.
 - Der Commit-Diff ist auf `api/_internal/political/territories-endpoint.php` und die GET-Action `geometry_assignment` begrenzt.
+- Browser-Nachtest bestanden: normales Verhalten, keine Konsolenfehler.
 
 **Offene Risiken:**
 
-- Browser-Pruefung steht aus: der zuvor rote 400-Request sollte nun als 200 erscheinen.
+- Keine aus dem Browser-Nachtest bekannt.
 
 ### 2026-05-29 — `f06cb07b10da78ccd12f8ff6e8bb5e5936171542`
 
@@ -279,8 +280,16 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 
 **Auffaellig:**
 
-- `geometry_assignment` liefert beim Oeffnen fuer `geometry_public_id=887c6744-f898-4096-a4aa-3b23da1a908a` HTTP 400. Das Frontend behandelt 400/404 an dieser Stelle bereits als fehlende gespeicherte Eigenschaften und laeuft weiter. Mit Commit `99b5f9830f320101c935810eb419cafa0830486e` wurde fuer syntaktisch gueltige, aber fehlende Geometrien ein leerer HTTP-200-Zustand eingefuehrt.
+- `geometry_assignment` lieferte beim Oeffnen fuer `geometry_public_id=887c6744-f898-4096-a4aa-3b23da1a908a` HTTP 400. Das Frontend behandelte 400/404 an dieser Stelle bereits als fehlende gespeicherte Eigenschaften und lief weiter. Mit Commit `99b5f9830f320101c935810eb419cafa0830486e` wurde fuer syntaktisch gueltige, aber fehlende Geometrien ein leerer HTTP-200-Zustand eingefuehrt.
 - Der urspruengliche Hinweistext zum flachen Modus war fuer Endnutzer unverstaendlich und wurde mit Commit `f06cb07b10da78ccd12f8ff6e8bb5e5936171542` ersetzt.
+
+### 2026-05-29 — Browser-Nachtest nach Assignment-Status-Fix
+
+**Bestanden:**
+
+- Anwendung verhaelt sich normal.
+- Es erscheinen keine Konsolenfehler.
+- Der zuvor auffaellige `geometry_assignment`-Fall ist damit fuer den Smoke-Test bereinigt.
 
 ## Aktuelle Altlasten / DCE-Kandidaten
 
@@ -292,7 +301,7 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 | Derived-Geometry-Ziel | `territory-derived-geometry-iframe-editor.js::getTargetKey()` | Prinzipiell richtig, aber Reload bei Breadcrumb-Wechsel muss garantiert sein. | Nach Breadcrumb-Wechsel explizit `loadForCurrentTerritory()` aufrufen; Browser-Test ausstehend. |
 | Innengrenzen-UI | `updateInnerBoundaryControl()` | Blattknoten-UI wurde auf disabled, checked, ausgegraut korrigiert; Browser-Test bestanden. | Nach weiterem Regressionstest als erledigt markieren. |
 | Außengrenzen-Modus | Frontend/Backend | UI-Schalter ist sichtbar, aber der rekursive Modus ist bewusst deaktiviert. | Phase 7: Backend-Vertrag `flat`/`hierarchical` und rekursive Source-Planung einfuehren. |
-| Assignment-Ladefehler | `geometry_assignment` GET | HTTP 400 erschien in der Konsole, obwohl das Frontend den Fall als fehlende gespeicherte Eigenschaften behandelte. | Mit Commit `99b5f9830f320101c935810eb419cafa0830486e` fuer syntaktisch gueltige fehlende Geometrien auf leeren 200-Zustand umgestellt; Browser-Test ausstehend. |
+| Assignment-Ladefehler | `geometry_assignment` GET | HTTP 400 erschien in der Konsole, obwohl das Frontend den Fall als fehlende gespeicherte Eigenschaften behandelte. | Mit Commit `99b5f9830f320101c935810eb419cafa0830486e` fuer syntaktisch gueltige fehlende Geometrien auf leeren 200-Zustand umgestellt und im Browser nachgetestet. |
 | Quellenprotokoll | Backend | Erzeugte Derived-Geometrien sind schwer reproduzierbar. | Optional Tabelle `political_territory_derived_geometry_source` oder aequivalentes Protokoll. |
 
 ## Manuelle Testfaelle
