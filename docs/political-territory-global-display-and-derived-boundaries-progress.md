@@ -20,7 +20,7 @@ Die abgeleiteten Außengrenzen werden langfristig immer hierarchisch konsistent 
 
 ```text
 Außengrenzen darstellen
-= dieses Gebiet zeigt eine berechnete Außengrenze. Berechnet wird sie trotzdem immer, wenn das Gebiet eine Außengrenze erzeugen kann.
+= dieses Gebiet zeigt eine berechnete Außengrenze. Berechnet wird sie unabhängig vom Anzeige-Häkchen, sobald das Gebiet im redaktionellen Boundary-Recompute betroffen ist und eine Außengrenze erzeugen kann.
 
 Innengrenzen darstellen
 = dieses Gebiet zeigt seine inneren Grenzlinien. Diese Einstellung ist territory-lokal und wirkt nicht automatisch auf Kinder.
@@ -63,7 +63,7 @@ Zoomen und Pannen duerfen keine Grenzberechnung und moeglichst keine kleinteilig
 
 Avesmaps bevorzugt fuer politische Grenzen deshalb einen einmaligen, sichtbaren Ladezustand mit ausreichend vollstaendigem Payload gegenueber haeufigem spaeten Nachladen. Lieber etwas mehr Grenzdaten initial oder layerweise uebertragen und lokal cachen, als beim Zoomen zu wenig Daten haben und dadurch Ruckler, Nachladepausen oder Rechenlast erzeugen.
 
-Die normale Kartenansicht soll vorberechnete Derived Boundaries laden, revisioniert cachen und beim Zoomen nur Sichtbarkeit, Layergruppen und Styles umschalten. Polygon-Union gehoert in den Editor-/Backend-Berechnungspfad, nicht in Zoom- oder Pan-Events der Endnutzerkarte.
+Die normale Kartenansicht soll vorberechnete Derived Boundaries laden, revisioniert cachen und beim Zoomen nur Sichtbarkeit, Layergruppen und Styles umschalten. Polygon-Union gehoert in den redaktionellen Editor-Berechnungspfad; das PHP-Backend plant, validiert und speichert, solange keine robuste serverseitige Geometrie-Engine verfuegbar ist.
 
 ## Arbeitsregeln
 
@@ -84,7 +84,7 @@ Die normale Kartenansicht soll vorberechnete Derived Boundaries laden, revisioni
 | Phase 4: Eigenschaften global lesen/schreiben | offen | - | `assignmentDisplays` entmachten, nicht sofort loeschen. |
 | Phase 5: Geometrie-Panel auf aktiven Breadcrumb fixieren | begonnen | `07786f443da4271bf0a2628e0a3f99f69b775f32` | Reload nach Breadcrumb-Wechsel umgesetzt; UI-Schalter und Backend-Modi fehlen noch. |
 | Phase 6: Außengrenzen-UI vervollstaendigen | begonnen | `f06cb07b10da78ccd12f8ff6e8bb5e5936171542` | Alle drei Ziel-Schalter sind sichtbar; rekursiver Modus bleibt bis zum Backend-Vertrag deaktiviert; Hinweistext wurde nutzerverstaendlicher formuliert. |
-| Phase 7: Backend-Modi fuer Außengrenzen | offen | - | `flat`/`hierarchical`-Vertrag wurde durch den hierarchischen Grenz-Vertrag ersetzt; rekursive bottom-up-Planung fehlt noch. |
+| Phase 7: Hierarchische Außengrenzen-Planung und Speicherung | offen | - | Der alte `flat`/`hierarchical`-Vertrag wurde durch den hierarchischen Grenz-Vertrag ersetzt; rekursive bottom-up-Planung und Batch-Speicherung fehlen noch. |
 | Phase 8: Quellenprotokoll | offen | - | Optional, aber fuer Diagnose/Reproduktion sinnvoll. |
 | Phase 9: Tests und manuelle Pruefung | begonnen | `99b5f9830f320101c935810eb419cafa0830486e` | Browser-Smoke-Test und Nachtest erfolgreich; erwartbar fehlende Geometry-Assignments liefern nun leeren 200-Zustand ohne Konsolenfehler. |
 | Phase 10: Legacy-Aufraeumung | blockiert | - | Erst nach stabiler Testphase und expliziter Freigabe. |
@@ -351,7 +351,7 @@ Die normale Kartenansicht soll vorberechnete Derived Boundaries laden, revisioni
 | Aktiver Breadcrumb | `activeDisplayNode`, `readRootSelection()` | Fallback auf letztes Breadcrumb-Element kann falsches Territorium adressieren. | Breadcrumb-Wechsel explizit setzen und Panels neu synchronisieren; Fallback spaeter haerter absichern. |
 | Derived-Geometry-Ziel | `territory-derived-geometry-iframe-editor.js::getTargetKey()` | Prinzipiell richtig, aber Reload bei Breadcrumb-Wechsel muss garantiert sein. | Nach Breadcrumb-Wechsel explizit `loadForCurrentTerritory()` aufrufen; Browser-Test ausstehend. |
 | Innengrenzen-UI | `updateInnerBoundaryControl()` | Blattknoten-UI wurde auf disabled, checked, ausgegraut korrigiert; Browser-Test bestanden. | Nach weiterem Regressionstest als erledigt markieren. |
-| Außengrenzen-Modus | Frontend/Backend | UI-Schalter ist sichtbar, aber der rekursive Modus ist bewusst deaktiviert. | Phase 7: Backend-Vertrag `flat`/`hierarchical` und rekursive Source-Planung einfuehren. |
+| Außengrenzen-Modus | Frontend/Backend | UI-Schalter ist sichtbar, aber der rekursive Modus ist bewusst deaktiviert. | Phase 7: hierarchische Grenz-Planung, Editor-Client-Berechnung und Batch-Speicherung einfuehren. |
 | Assignment-Ladefehler | `geometry_assignment` GET | HTTP 400 erschien in der Konsole, obwohl das Frontend den Fall als fehlende gespeicherte Eigenschaften behandelte. | Mit Commit `99b5f9830f320101c935810eb419cafa0830486e` fuer syntaktisch gueltige fehlende Geometrien auf leeren 200-Zustand umgestellt und im Browser nachgetestet. |
 | Quellenprotokoll | Backend | Erzeugte Derived-Geometrien sind schwer reproduzierbar. | Optional Tabelle `political_territory_derived_geometry_source` oder aequivalentes Protokoll. |
 
