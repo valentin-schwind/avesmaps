@@ -86,6 +86,11 @@
 					<input id="derivedGeometryInnerBoundariesInput" type="checkbox" checked>
 					<span>Innengrenzen darstellen</span>
 				</label>
+				<label class="manual-data-checkbox derived-geometry-recursive-control" id="derivedGeometryRecursiveLabel" title="Der hierarchische Modus wird nach dem Backend-Vertrag aktiviert.">
+					<input id="derivedGeometryRecursiveInput" type="checkbox" disabled>
+					<span>Für alle Unterregionen übernehmen</span>
+				</label>
+				<small class="derived-geometry-mode-note">Aktuell wird die flache Außengrenze für den aktiven Breadcrumb-Knoten erzeugt.</small>
 				<div id="derivedGeometryPreviewRow" class="derived-geometry-preview-row" hidden>
 					<div id="derivedGeometryThumbnail" class="derived-geometry-thumbnail" aria-label="Vorschau der Außengrenze"></div>
 					<p id="derivedGeometryStatus" class="note" role="status" aria-live="polite"></p>
@@ -120,7 +125,9 @@
 			.derived-geometry-preview-row { display: grid; grid-template-columns: 1fr; gap: 8px; align-items: start; }
 			.derived-geometry-thumbnail { display: grid; place-items: center; min-height: 116px; border: 1px solid var(--border, #c8bda8); border-radius: 8px; background: rgba(255,255,255,0.55); color: #5b432b; font-size: 12px; overflow: hidden; }
 			.derived-geometry-thumbnail svg { width: 100%; max-width: 180px; height: 110px; }
-			.derived-geometry-inner-boundaries-disabled { opacity: .5; cursor: not-allowed; }
+			.derived-geometry-inner-boundaries-disabled,
+			.derived-geometry-recursive-control { opacity: .5; cursor: not-allowed; }
+			.derived-geometry-mode-note { display: block; color: var(--muted, #806c59); font-size: 11px; line-height: 1.35; }
 		`;
 		document.head.append(style);
 	}
