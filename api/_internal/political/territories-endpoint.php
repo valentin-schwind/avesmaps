@@ -15,6 +15,7 @@ require_once __DIR__ . '/territories-read.php';
 require_once __DIR__ . '/territories-write.php';
 require_once __DIR__ . '/territories-geometry.php';
 require_once __DIR__ . '/territories-derived-geometry.php';
+require_once __DIR__ . '/territories-derived-geometry-sources-fallback.php';
 require_once __DIR__ . '/territories-derived-geometry-plan.php';
 require_once __DIR__ . '/territories-audit.php';
 require_once __DIR__ . '/territories-debug.php';
@@ -79,7 +80,7 @@ try {
             'hierarchy' => avesmapsPoliticalReadHierarchy($pdo),
             'geometries' => avesmapsPoliticalReadGeometries($pdo, $_GET),
             'derived_geometry', 'get_derived_geometry' => avesmapsPoliticalReadDerivedGeometry($pdo, $_GET),
-            'derived_geometry_sources', 'get_derived_geometry_sources' => avesmapsPoliticalReadDerivedGeometrySources($pdo, $_GET),
+            'derived_geometry_sources', 'get_derived_geometry_sources' => avesmapsPoliticalReadDerivedGeometrySourcesWithGeometryFallback($pdo, $_GET),
             'derived_geometry_plan', 'get_derived_geometry_plan' => avesmapsPoliticalReadDerivedGeometryPlan($pdo, $_GET),
             'debug' => avesmapsPoliticalReadDebug($pdo, $_GET),
             'audit' => avesmapsPoliticalReadAudit($pdo, $_GET),
