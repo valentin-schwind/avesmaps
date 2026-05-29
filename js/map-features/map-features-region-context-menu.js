@@ -49,3 +49,48 @@ function positionContextMenuElement(menuElement, clientX, clientY) {
 	menuElement.style.left = `${left}px`;
 	menuElement.style.top = `${top}px`;
 }
+
+async function deleteDerivedRegionGeometry(regionEntry) {
+	const territoryPublicId = String(regionEntry?.territoryPublicId || "").trim();
+	if (!territoryPublicId) {
+		showFeedbackToast("Die Außengeometrie hat kein Ziel-Herrschaftsgebiet.", "warning");
+		return;
+	}
+
+	const name = regionEntry.name || "Herrschaftsgebiet";
+	if (!window.confirm(`${name} wirklich loeschen?`)) {
+		return;
+	}
+
+	try {
+		const result = await politicalTerritoryRepository.deleteDerivedGeometry(territoryPublicId);
+		removeRegionEntryFromMap(regionEntry);
+		regionData = regionData.filter((feature) => {
+			const properties = feature.properties || {};
+			return properties.derived_geometry_public_id !== regionEntry.geometryPublicId
+				&& properties.geometry_public_id !== regionEntry.geometryPublicId
+				&& properties.public_id !== regionEntry.geometryPublicId;
+		});
+		clearRegionGeometryEdit();
+		schedulePoliticalTerritoryLayerReload({ immediate: true });
+		void loadChangeLog();
+		showFeedbackToast((result?.affected || 0) > 0 ? "Geometrie geloescht." : "Keine aktive Geometrie gefunden.", "success");
+	} catch (error) {
+		console.error("Geometrie konnte nicht geloescht werden:", error);
+		showFeedbackToast(error.message || "Geometrie konnte nicht geloescht werden.", "warning");
+	}
+}
+
+document.addEventListener("click", (event) => {
+	const actionElement = event.target?.closest?.('[data-region-context-action="delete"]');
+	if (!actionElement || activeRegionContextEntry?.isDerivedGeometry !== true) {
+		return;
+	}
+
+	event.preventDefault();
+	event.stopPropagation();
+	event.stopImmediatePropagation();
+	const regionEntry = activeRegionContextEntry;
+	closeRegionContextMenu();
+	void deleteDerivedRegionGeometry(regionEntry);
+}, true);
