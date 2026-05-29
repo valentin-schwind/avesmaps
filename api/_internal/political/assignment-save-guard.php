@@ -18,6 +18,34 @@ function avesmapsPoliticalPayloadHasAssignmentChain(array $payload): bool {
     return false;
 }
 
+function avesmapsPoliticalStripImplicitDragDefaultDisplays(array $payload): array {
+    $assignment = is_array($payload['assignment'] ?? null) ? $payload['assignment'] : [];
+    $displays = is_array($assignment['displays'] ?? null) ? array_values($assignment['displays']) : [];
+    if ($displays === []) {
+        return $payload;
+    }
+
+    $explicitDisplays = [];
+    foreach ($displays as $display) {
+        if (!is_array($display)) {
+            continue;
+        }
+        if (!empty($display['implicitDragDefault']) || !empty($display['implicit_drag_default'])) {
+            continue;
+        }
+        $explicitDisplays[] = $display;
+    }
+
+    if (count($explicitDisplays) === count($displays)) {
+        return $payload;
+    }
+
+    $assignment['displays'] = $explicitDisplays;
+    $payload['assignment'] = $assignment;
+    $payload['implicit_drag_defaults_stripped'] = true;
+    return $payload;
+}
+
 function avesmapsPoliticalSaveGeometryAssignmentSafely(PDO $pdo, array $payload, array $user): array {
     $geometry = avesmapsPoliticalFetchGeometryByPublicId(
         $pdo,
@@ -36,5 +64,5 @@ function avesmapsPoliticalSaveGeometryAssignmentSafely(PDO $pdo, array $payload,
         ], $user, $geometry);
     }
 
-    return avesmapsPoliticalSaveGeometryAssignment($pdo, $payload, $user);
+    return avesmapsPoliticalSaveGeometryAssignment($pdo, avesmapsPoliticalStripImplicitDragDefaultDisplays($payload), $user);
 }
