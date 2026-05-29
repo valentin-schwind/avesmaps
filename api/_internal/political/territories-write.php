@@ -52,6 +52,13 @@ function avesmapsPoliticalReadAssignmentDisplaysFromStyle(array $style): array {
                     : false
             );
 
+        $isLocalOverride = filter_var(
+            $rawDisplay['localOverride']
+            ?? $rawDisplay['local_override']
+            ?? false,
+            FILTER_VALIDATE_BOOL
+        );
+
         $displays[] = [
             'territoryPublicId' => $territoryPublicId,
             'territory_public_id' => $territoryPublicId,
@@ -73,6 +80,8 @@ function avesmapsPoliticalReadAssignmentDisplaysFromStyle(array $style): array {
             'startYear' => avesmapsPoliticalNullableInt($rawDisplay['startYear'] ?? $rawDisplay['start_year'] ?? null),
             'endYear' => $existsUntilToday ? null : avesmapsPoliticalNullableInt($rawDisplay['endYear'] ?? $rawDisplay['end_year'] ?? null),
             'existsUntilToday' => $existsUntilToday,
+            'localOverride' => $isLocalOverride,
+            'local_override' => $isLocalOverride,
         ];
     }
 
@@ -84,6 +93,10 @@ function avesmapsPoliticalFindAssignmentDisplayForTerritory(array $style, string
     $nodeKey = trim($nodeKey);
 
     foreach (avesmapsPoliticalReadAssignmentDisplaysFromStyle($style) as $display) {
+        if (empty($display['localOverride']) && empty($display['local_override'])) {
+            continue;
+        }
+
         $displayTerritoryPublicId = trim((string) ($display['territoryPublicId'] ?? $display['territory_public_id'] ?? ''));
         $displayNodeKey = trim((string) ($display['nodeKey'] ?? $display['node_key'] ?? ''));
 
