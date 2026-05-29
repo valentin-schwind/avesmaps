@@ -6,14 +6,19 @@ require __DIR__ . '/../bootstrap.php';
 require_once __DIR__ . '/../auth.php';
 require_once __DIR__ . '/territory.php';
 require_once __DIR__ . '/assignment.php';
+require_once __DIR__ . '/assignment-geometry-validity.php';
 require_once __DIR__ . '/assignment-save-guard.php';
 require_once __DIR__ . '/territories-support.php';
 require_once __DIR__ . '/territories-layer.php';
+require_once __DIR__ . '/territories-derived-geometry-shared.php';
 require_once __DIR__ . '/territories-derived-layer.php';
 require_once __DIR__ . '/territories-read.php';
 require_once __DIR__ . '/territories-write.php';
 require_once __DIR__ . '/territories-geometry.php';
 require_once __DIR__ . '/territories-derived-geometry.php';
+require_once __DIR__ . '/territories-derived-geometry-sources-fallback.php';
+require_once __DIR__ . '/territories-derived-geometry-plan.php';
+require_once __DIR__ . '/territories-boundary-debug.php';
 require_once __DIR__ . '/territories-audit.php';
 require_once __DIR__ . '/territories-debug.php';
 
@@ -46,6 +51,28 @@ try {
             avesmapsJsonResponse(200, $response);
         }
 
+        if ($action === 'geometry_assignment') {
+            try {
+                $response = avesmapsPoliticalGetGeometryAssignment($pdo, $_GET);
+            } catch (InvalidArgumentException $exception) {
+                $geometryPublicId = avesmapsNormalizeSingleLine((string) ($_GET['geometry_public_id'] ?? $_GET['public_id'] ?? ''), 80);
+                if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $geometryPublicId) !== 1) {
+                    throw $exception;
+                }
+
+                $response = [
+                    'ok' => true,
+                    'geometry' => null,
+                    'assignment' => null,
+                    'geometry_public_id' => $geometryPublicId,
+                    'missing_geometry_assignment' => true,
+                    'message' => 'Noch keine gespeicherten Eigenschaften für diese Geometrie vorhanden.',
+                ];
+            }
+
+            avesmapsJsonResponse(200, $response);
+        }
+
         $response = match ($action) {
             'layer' => avesmapsPoliticalReadLayerWithDerivedGeometry($pdo, $_GET),
             'list' => avesmapsPoliticalListTerritories($pdo, $_GET),
@@ -55,8 +82,9 @@ try {
             'hierarchy' => avesmapsPoliticalReadHierarchy($pdo),
             'geometries' => avesmapsPoliticalReadGeometries($pdo, $_GET),
             'derived_geometry', 'get_derived_geometry' => avesmapsPoliticalReadDerivedGeometry($pdo, $_GET),
-            'derived_geometry_sources', 'get_derived_geometry_sources' => avesmapsPoliticalReadDerivedGeometrySources($pdo, $_GET),
-            'geometry_assignment' => avesmapsPoliticalGetGeometryAssignment($pdo, $_GET),
+            'derived_geometry_sources', 'get_derived_geometry_sources' => avesmapsPoliticalReadDerivedGeometrySourcesWithGeometryFallback($pdo, $_GET),
+            'derived_geometry_plan', 'get_derived_geometry_plan' => avesmapsPoliticalReadDerivedGeometryPlan($pdo, $_GET),
+            'debug_boundary_contract', 'boundary_contract_debug' => avesmapsPoliticalReadBoundaryContractDebug($pdo, $_GET),
             'debug' => avesmapsPoliticalReadDebug($pdo, $_GET),
             'audit' => avesmapsPoliticalReadAudit($pdo, $_GET),
             default => throw new InvalidArgumentException('Die Herrschaftsgebiet-Aktion ist unbekannt.'),
@@ -83,10 +111,11 @@ try {
         'create_geometry' => avesmapsPoliticalCreateGeometry($pdo, $payload, $user),
         'update_geometry' => avesmapsPoliticalUpdateGeometry($pdo, $payload, $user),
         'split_geometry' => avesmapsPoliticalSplitGeometry($pdo, $payload, $user),
-        'assign_geometry' => avesmapsPoliticalAssignGeometryToTerritory($pdo, $payload),
+        'assign_geometry' => avesmapsPoliticalAssignGeometryToTerritoryWithValidity($pdo, $payload, $user),
         'save_geometry_assignment' => avesmapsPoliticalSaveGeometryAssignmentSafely($pdo, $payload, $user),
         'save_derived_geometry' => avesmapsPoliticalSaveDerivedGeometry($pdo, $payload, $user),
         'delete_derived_geometry' => avesmapsPoliticalDeleteDerivedGeometry($pdo, $payload, $user),
+        'delete_derived_geometry_tree' => avesmapsPoliticalDeleteDerivedGeometryTree($pdo, $payload, $user),
         'unassign_geometry' => avesmapsPoliticalUnassignGeometry($pdo, $payload),
         'delete_geometry' => avesmapsPoliticalDeleteGeometry($pdo, $payload, $user),
         'delete_geometry_part' => avesmapsPoliticalDeleteGeometryPart($pdo, $payload, $user),

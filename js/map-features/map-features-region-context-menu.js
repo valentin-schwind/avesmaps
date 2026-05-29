@@ -49,3 +49,69 @@ function positionContextMenuElement(menuElement, clientX, clientY) {
 	menuElement.style.left = `${left}px`;
 	menuElement.style.top = `${top}px`;
 }
+
+function countVisibleChildDerivedBoundaries(regionEntry) {
+	const territoryPublicId = String(regionEntry?.territoryPublicId || "").trim();
+	if (!territoryPublicId) {
+		return 0;
+	}
+
+	return regionPolygons
+		.map((polygon) => polygon?._regionEntry)
+		.filter((entry) => entry?.isDerivedGeometry === true)
+		.filter((entry) => String(entry.territoryPublicId || "").trim() !== territoryPublicId)
+		.filter((entry) => String(entry.hiddenByDerivedTerritoryPublicId || "").trim() === territoryPublicId)
+		.length;
+}
+
+async function deleteDerivedRegionGeometry(regionEntry) {
+	const territoryPublicId = String(regionEntry?.territoryPublicId || "").trim();
+	if (!territoryPublicId) {
+		showFeedbackToast("Die Außengeometrie hat kein Ziel-Herrschaftsgebiet.", "warning");
+		return;
+	}
+
+	const name = regionEntry.name || "Herrschaftsgebiet";
+	const visibleChildBoundaryCount = countVisibleChildDerivedBoundaries(regionEntry);
+	const confirmation = visibleChildBoundaryCount > 0
+		? `${name} wirklich loeschen?\n\nEs wurden ${visibleChildBoundaryCount} sichtbare Unter-Außengrenzen gefunden. Diese werden ebenfalls deaktiviert.`
+		: `${name} wirklich loeschen?`;
+	if (!window.confirm(confirmation)) {
+		return;
+	}
+
+	try {
+		const result = await politicalTerritoryRepository.deleteDerivedGeometryTree(territoryPublicId);
+		removeRegionEntryFromMap(regionEntry);
+		const affectedTerritoryIds = new Set((result?.affected_territories || []).map((entry) => String(entry?.territory_public_id || "").trim()).filter(Boolean));
+		regionData = regionData.filter((feature) => {
+			const properties = feature.properties || {};
+			const featureTerritoryPublicId = String(properties.territory_public_id || "").trim();
+			return properties.derived_geometry_public_id !== regionEntry.geometryPublicId
+				&& properties.geometry_public_id !== regionEntry.geometryPublicId
+				&& properties.public_id !== regionEntry.geometryPublicId
+				&& !affectedTerritoryIds.has(featureTerritoryPublicId);
+		});
+		clearRegionGeometryEdit();
+		schedulePoliticalTerritoryLayerReload({ immediate: true });
+		void loadChangeLog();
+		showFeedbackToast((result?.affected || 0) > 0 ? "Außengrenze geloescht." : "Keine aktive Außengrenze gefunden.", "success");
+	} catch (error) {
+		console.error("Geometrie konnte nicht geloescht werden:", error);
+		showFeedbackToast(error.message || "Geometrie konnte nicht geloescht werden.", "warning");
+	}
+}
+
+document.addEventListener("click", (event) => {
+	const actionElement = event.target?.closest?.('[data-region-context-action="delete"]');
+	if (!actionElement || activeRegionContextEntry?.isDerivedGeometry !== true) {
+		return;
+	}
+
+	event.preventDefault();
+	event.stopPropagation();
+	event.stopImmediatePropagation();
+	const regionEntry = activeRegionContextEntry;
+	closeRegionContextMenu();
+	void deleteDerivedRegionGeometry(regionEntry);
+}, true);

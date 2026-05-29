@@ -3,7 +3,8 @@ let derivedGeometryEditorState = {
 	existingPublicId: "",
 	geometry: null,
 	labelCenter: null,
-	previewLayer: null,	dirty: false,
+	previewLayer: null,
+	dirty: false,
 	loading: false,
 };
 
@@ -21,7 +22,7 @@ function ensureDerivedGeometryEditorPanel() {
 		<section id="region-edit-derived-geometry-panel" class="political-territory-derived-geometry-panel political-territory-field" hidden>
 			<div class="political-territory-derived-geometry-panel__header">
 				<h3>Geometrie</h3>
-				<button id="region-edit-derived-geometry-refresh" class="location-report-form__button location-report-form__button--secondary" type="button">Vorschau neu berechnen</button>
+				<button id="region-edit-derived-geometry-refresh" class="location-report-form__button location-report-form__button--secondary" type="button">Außengrenze erzeugen/aktualisieren</button>
 			</div>
 			<label class="location-report-form__checkbox">
 				<input id="region-edit-derived-geometry-enabled" name="derived_geometry_enabled" type="checkbox" />
@@ -29,7 +30,7 @@ function ensureDerivedGeometryEditorPanel() {
 			</label>
 			<label class="location-report-form__checkbox">
 				<input id="region-edit-derived-geometry-all-descendants" name="derived_geometry_all_descendants" type="checkbox" disabled />
-				<span>Für alle Unterregionen erzeugen <small>folgt nach dem Einzelgebiet-Durchstich</small></span>
+				<span>Für alle Unterregionen übernehmen <small>folgt nach dem Einzelgebiet-Durchstich</small></span>
 			</label>
 			<div class="location-report-form__grid">
 				<label class="location-report-form__field">
@@ -43,7 +44,10 @@ function ensureDerivedGeometryEditorPanel() {
 			</div>
 			<div class="political-territory-derived-geometry-preview">
 				<div id="region-edit-derived-geometry-thumbnail" class="political-territory-derived-geometry-thumbnail" aria-label="Vorschau der Außengrenze"></div>
-				<p id="region-edit-derived-geometry-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+				<div class="political-territory-derived-geometry-status-box">
+					<p id="region-edit-derived-geometry-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+					<progress id="region-edit-derived-geometry-progress" class="political-territory-derived-geometry-progress" max="100" value="0" hidden></progress>
+				</div>
 			</div>
 		</section>
 	`);
@@ -53,8 +57,7 @@ function ensureDerivedGeometryEditorPanel() {
 		void syncDerivedGeometryEditorPreview();
 	});
 	document.getElementById("region-edit-derived-geometry-refresh")?.addEventListener("click", () => {
-		derivedGeometryEditorState.dirty = true;
-		void rebuildDerivedGeometryEditorPreview();
+		void generateOrUpdateDerivedBoundaryForCurrentEditorRegion();
 	});
 	document.getElementById("region-edit-derived-geometry-min-zoom")?.addEventListener("input", () => {
 		derivedGeometryEditorState.dirty = true;
@@ -80,6 +83,7 @@ function resetDerivedGeometryEditor() {
 		panel.hidden = true;
 	}
 	setDerivedGeometryEditorStatus();
+	setDerivedGeometryEditorProgress(0, false);
 	setDerivedGeometryThumbnail(null);
 }
 
@@ -110,6 +114,7 @@ function syncDerivedGeometryEditorForRegion(region) {
 	document.getElementById("region-edit-derived-geometry-min-zoom").value = region?.minZoom ?? "";
 	document.getElementById("region-edit-derived-geometry-max-zoom").value = region?.maxZoom ?? "";
 	setDerivedGeometryThumbnail(null);
+	setDerivedGeometryEditorProgress(0, false);
 	setDerivedGeometryEditorStatus("Bestehende Außengrenze wird geprüft...", "pending");
 
 	void politicalTerritoryRepository.getDerivedGeometry(territoryPublicId)
@@ -168,8 +173,25 @@ async function rebuildDerivedGeometryEditorPreview() {
 		return null;
 	}
 
+	setDerivedGeometryEditorProgress(12, true);
 	setDerivedGeometryEditorStatus("Außengrenze wird aus Unterflächen berechnet...", "pending");
 	const response = await politicalTerritoryRepository.getDerivedGeometrySources(territoryPublicId);
+	const result = buildDerivedBoundaryFromSourceResponse(response);
+	setDerivedGeometryEditorProgress(78, true);
+
+	derivedGeometryEditorState.territoryPublicId = territoryPublicId;
+	derivedGeometryEditorState.geometry = result.geometry;
+	derivedGeometryEditorState.labelCenter = result.labelCenter;
+	derivedGeometryEditorState.dirty = true;
+	drawDerivedGeometryPreview(result.geometry);
+	setDerivedGeometryThumbnail(result.geometry);
+	setDerivedGeometryEditorProgress(100, false);
+	setDerivedGeometryEditorStatus(`${result.sourceCount} Unterflächen zu einer Außengrenze vereinigt.`, "success");
+
+	return result.geometry;
+}
+
+function buildDerivedBoundaryFromSourceResponse(response) {
 	const sourceGeometries = Array.isArray(response?.source_geometries) ? response.source_geometries : [];
 	const clippingGeometries = sourceGeometries
 		.map((entry) => geoJsonGeometryToClippingMultiPolygon(entry.geometry))
@@ -178,26 +200,137 @@ async function rebuildDerivedGeometryEditorPreview() {
 	if (clippingGeometries.length < 1) {
 		clearDerivedGeometryPreviewLayer();
 		setDerivedGeometryThumbnail(null);
-		setDerivedGeometryEditorStatus("Keine Unterflächen für eine automatische Außengrenze gefunden.", "error");
-		return null;
+		throw new Error("Keine Unterflächen für eine automatische Außengrenze gefunden.");
 	}
 
 	const unionGeometry = normalizeClippingMultiPolygon(
 		window.polygonClipping.union(...clippingGeometries),
 		"Automatische Außengrenze"
 	);
-	const geoJsonGeometry = clippingMultiPolygonToGeoJson(unionGeometry);
-	const labelCenter = readDerivedGeometryLabelCenter(geoJsonGeometry);
+	const geometry = clippingMultiPolygonToGeoJson(unionGeometry);
+	return {
+		geometry,
+		labelCenter: readDerivedGeometryLabelCenter(geometry),
+		sourceCount: sourceGeometries.length,
+	};
+}
 
-	derivedGeometryEditorState.territoryPublicId = territoryPublicId;
-	derivedGeometryEditorState.geometry = geoJsonGeometry;
-	derivedGeometryEditorState.labelCenter = labelCenter;
-	derivedGeometryEditorState.dirty = true;
-	drawDerivedGeometryPreview(geoJsonGeometry);
-	setDerivedGeometryThumbnail(geoJsonGeometry);
-	setDerivedGeometryEditorStatus(`${sourceGeometries.length} Unterflächen zu einer Außengrenze vereinigt.`, "success");
+async function generateOrUpdateDerivedBoundaryForCurrentEditorRegion() {
+	const territoryPublicId = getDerivedGeometryEditorTerritoryPublicId();
+	if (!territoryPublicId) {
+		setDerivedGeometryEditorStatus("Kein Herrschaftsgebiet für die Außengrenze ausgewählt.", "error");
+		return null;
+	}
 
-	return geoJsonGeometry;
+	return generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, {
+		regionEntry: regionEditEntry,
+		applyToSubregions: document.getElementById("region-edit-derived-geometry-all-descendants")?.checked === true,
+		drawPreview: true,
+	});
+}
+
+async function generateOrUpdateDerivedBoundaryForRegion(regionEntry, options = {}) {
+	const territoryPublicId = String(regionEntry?.territoryPublicId || regionEntry?.publicId || "").trim();
+	if (!territoryPublicId) {
+		showFeedbackToast("Das Herrschaftsgebiet hat keine Territory-ID.", "warning");
+		return null;
+	}
+
+	return generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, { ...options, regionEntry });
+}
+
+async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, options = {}) {
+	if (!window.polygonClipping) {
+		throw new Error("Polygon-Clipping-Bibliothek ist nicht geladen.");
+	}
+
+	const applyToSubregions = options.applyToSubregions === true;
+	const shouldDrawPreview = options.drawPreview !== false;
+	const selectedYearBf = Number.isFinite(Number(options.selectedYearBf))
+		? Number(options.selectedYearBf)
+		: Number.isFinite(Number(politicalTimelineYear)) ? Number(politicalTimelineYear) : null;
+	const regionEntry = options.regionEntry || null;
+	const targetName = regionEntry?.name || "Herrschaftsgebiet";
+	if (!shouldDrawPreview) {
+		clearDerivedGeometryPreviewLayer();
+	}
+	setDerivedGeometryEditorBusy(true);
+	setDerivedGeometryEditorProgress(5, true);
+	setDerivedGeometryEditorStatus(`${targetName}: Boundary-Plan wird geladen...`, "pending");
+	showFeedbackToast("Außengrenze wird erzeugt...", "info");
+
+	try {
+		const plan = await politicalTerritoryRepository.getDerivedGeometryPlan(territoryPublicId, { selectedYearBf, applyToSubregions });
+		if (Array.isArray(plan?.blocking_warnings) && plan.blocking_warnings.length > 0) {
+			throw new Error(plan.blocking_warnings[0]?.message || "Boundary-Plan hat blockierende Warnungen.");
+		}
+		setDerivedGeometryEditorProgress(22, true);
+		setDerivedGeometryEditorStatus(`${targetName}: Quellflächen werden geladen...`, "pending");
+
+		const sources = await politicalTerritoryRepository.getDerivedGeometrySources(territoryPublicId);
+		setDerivedGeometryEditorProgress(44, true);
+		setDerivedGeometryEditorStatus(`${targetName}: Polygon-Union wird berechnet...`, "pending");
+		await waitForNextFrame();
+		const result = buildDerivedBoundaryFromSourceResponse(sources);
+		setDerivedGeometryEditorProgress(76, true);
+		setDerivedGeometryEditorStatus(`${targetName}: Außengrenze wird gespeichert...`, "pending");
+
+		const sourceRevision = findDerivedBoundaryPlanSourceRevision(plan, territoryPublicId);
+		const saved = await politicalTerritoryRepository.saveDerivedGeometry({
+			territory_public_id: territoryPublicId,
+			geometry_geojson: result.geometry,
+			label_lng: result.labelCenter?.lng ?? null,
+			label_lat: result.labelCenter?.lat ?? null,
+			min_zoom: readDerivedBoundaryMinZoom(regionEntry),
+			max_zoom: readDerivedBoundaryMaxZoom(regionEntry),
+			show_inner_boundaries: true,
+			source_revision: sourceRevision,
+			is_active: true,
+		});
+
+		derivedGeometryEditorState.territoryPublicId = territoryPublicId;
+		derivedGeometryEditorState.geometry = result.geometry;
+		derivedGeometryEditorState.labelCenter = result.labelCenter;
+		derivedGeometryEditorState.existingPublicId = saved?.derived_geometry?.public_id || derivedGeometryEditorState.existingPublicId || "";
+		derivedGeometryEditorState.dirty = false;
+		document.getElementById("region-edit-derived-geometry-enabled") && (document.getElementById("region-edit-derived-geometry-enabled").checked = true);
+		if (shouldDrawPreview) {
+			drawDerivedGeometryPreview(result.geometry);
+		}
+		setDerivedGeometryThumbnail(result.geometry);
+		setDerivedGeometryEditorProgress(100, false);
+		setDerivedGeometryEditorStatus(`${result.sourceCount} Unterflächen vereinigt und gespeichert.`, "success");
+		schedulePoliticalTerritoryLayerReload({ immediate: true });
+		void loadChangeLog();
+		showFeedbackToast("Außengrenze erzeugt/aktualisiert.", "success");
+		return saved;
+	} catch (error) {
+		console.error("Außengrenze konnte nicht erzeugt werden:", error);
+		setDerivedGeometryEditorProgress(0, false);
+		setDerivedGeometryEditorStatus(error.message || "Außengrenze konnte nicht erzeugt werden.", "error");
+		showFeedbackToast(error.message || "Außengrenze konnte nicht erzeugt werden.", "warning");
+		throw error;
+	} finally {
+		setDerivedGeometryEditorBusy(false);
+	}
+}
+
+function findDerivedBoundaryPlanSourceRevision(plan, territoryPublicId) {
+	const nodes = Array.isArray(plan?.plan_nodes) ? plan.plan_nodes : [];
+	const targetNode = nodes.find((node) => String(node?.territory_public_id || "") === String(territoryPublicId || ""));
+	return String(targetNode?.source_revision_hint || "").trim();
+}
+
+function readDerivedBoundaryMinZoom(regionEntry) {
+	return String(document.getElementById("region-edit-derived-geometry-min-zoom")?.value || regionEntry?.minZoom || "").trim();
+}
+
+function readDerivedBoundaryMaxZoom(regionEntry) {
+	return String(document.getElementById("region-edit-derived-geometry-max-zoom")?.value || regionEntry?.maxZoom || "").trim();
+}
+
+function waitForNextFrame() {
+	return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
 }
 
 function getDerivedGeometryEditorTerritoryPublicId() {
@@ -347,6 +480,21 @@ function setDerivedGeometryEditorStatus(message = "", type = "") {
 	status.dataset.status = type;
 }
 
+function setDerivedGeometryEditorProgress(value = 0, visible = false) {
+	const progress = document.getElementById("region-edit-derived-geometry-progress");
+	if (!progress) {
+		return;
+	}
+	progress.value = Math.max(0, Math.min(100, Number(value) || 0));
+	progress.hidden = !visible;
+}
+
+function setDerivedGeometryEditorBusy(isBusy) {
+	derivedGeometryEditorState.loading = isBusy;
+	document.getElementById("region-edit-derived-geometry-refresh")?.toggleAttribute("disabled", isBusy);
+	document.getElementById("region-edit-derived-geometry-enabled")?.toggleAttribute("disabled", isBusy);
+}
+
 async function saveDerivedGeometryEditorIfNeeded() {
 	const panel = document.getElementById("region-edit-derived-geometry-panel");
 	if (!panel || panel.hidden) {
@@ -414,6 +562,14 @@ function injectDerivedGeometryEditorStyles() {
 			gap: 10px;
 			align-items: center;
 		}
+		.political-territory-derived-geometry-status-box {
+			display: grid;
+			gap: 6px;
+		}
+		.political-territory-derived-geometry-progress {
+			width: 100%;
+			height: 10px;
+		}
 		.political-territory-derived-geometry-thumbnail {
 			display: grid;
 			place-items: center;
@@ -441,3 +597,8 @@ $(document).ready(() => {
 	injectDerivedGeometryEditorStyles();
 	ensureDerivedGeometryEditorPanel();
 });
+
+window.AvesmapsDerivedBoundaryEditor = {
+	generateOrUpdateForRegion: generateOrUpdateDerivedBoundaryForRegion,
+	generateOrUpdateForTerritory: generateOrUpdateDerivedBoundaryForTerritory,
+};
