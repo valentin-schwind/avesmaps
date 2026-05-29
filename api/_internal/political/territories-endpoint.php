@@ -46,6 +46,28 @@ try {
             avesmapsJsonResponse(200, $response);
         }
 
+        if ($action === 'geometry_assignment') {
+            try {
+                $response = avesmapsPoliticalGetGeometryAssignment($pdo, $_GET);
+            } catch (InvalidArgumentException $exception) {
+                $geometryPublicId = avesmapsNormalizeSingleLine((string) ($_GET['geometry_public_id'] ?? $_GET['public_id'] ?? ''), 80);
+                if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $geometryPublicId) !== 1) {
+                    throw $exception;
+                }
+
+                $response = [
+                    'ok' => true,
+                    'geometry' => null,
+                    'assignment' => null,
+                    'geometry_public_id' => $geometryPublicId,
+                    'missing_geometry_assignment' => true,
+                    'message' => 'Noch keine gespeicherten Eigenschaften für diese Geometrie vorhanden.',
+                ];
+            }
+
+            avesmapsJsonResponse(200, $response);
+        }
+
         $response = match ($action) {
             'layer' => avesmapsPoliticalReadLayerWithDerivedGeometry($pdo, $_GET),
             'list' => avesmapsPoliticalListTerritories($pdo, $_GET),
@@ -56,7 +78,6 @@ try {
             'geometries' => avesmapsPoliticalReadGeometries($pdo, $_GET),
             'derived_geometry', 'get_derived_geometry' => avesmapsPoliticalReadDerivedGeometry($pdo, $_GET),
             'derived_geometry_sources', 'get_derived_geometry_sources' => avesmapsPoliticalReadDerivedGeometrySources($pdo, $_GET),
-            'geometry_assignment' => avesmapsPoliticalGetGeometryAssignment($pdo, $_GET),
             'debug' => avesmapsPoliticalReadDebug($pdo, $_GET),
             'audit' => avesmapsPoliticalReadAudit($pdo, $_GET),
             default => throw new InvalidArgumentException('Die Herrschaftsgebiet-Aktion ist unbekannt.'),
