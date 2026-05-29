@@ -1,0 +1,110 @@
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . '/../_internal/bootstrap.php';
+require_once __DIR__ . '/../_internal/auth.php';
+require_once __DIR__ . '/../_internal/political/territory.php';
+require_once __DIR__ . '/../_internal/political/territories-support.php';
+require_once __DIR__ . '/../_internal/political/territories-derived-geometry.php';
+require_once __DIR__ . '/../_internal/political/territories-debug.php';
+
+try {
+    $config = avesmapsLoadApiConfig(avesmapsApiRoot());
+
+    if (!avesmapsApplyCorsPolicy($config)) {
+        avesmapsJsonResponse(403, [
+            'ok' => false,
+            'error' => 'Diese Herkunft darf Herrschaftsgebiets-Diagnosen nicht laden.',
+        ]);
+    }
+
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    if ($requestMethod === 'OPTIONS') {
+        avesmapsJsonResponse(204);
+    }
+    if ($requestMethod !== 'GET') {
+        avesmapsJsonResponse(405, [
+            'ok' => false,
+            'error' => 'Nur GET ist fuer diese Diagnose erlaubt.',
+        ]);
+    }
+
+    $pdo = avesmapsCreatePdo($config['database'] ?? []);
+    avesmapsPoliticalEnsureDerivedGeometryTables($pdo);
+
+    $summaryStatement = $pdo->query(
+        'SELECT
+            COUNT(*) AS total_count,
+            SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS active_count,
+            MIN(updated_at) AS oldest_updated_at,
+            MAX(updated_at) AS newest_updated_at
+        FROM political_territory_derived_geometry'
+    );
+    $summary = $summaryStatement !== false ? ($summaryStatement->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+
+    $rowsStatement = $pdo->query(
+        'SELECT
+            derived.id,
+            derived.public_id,
+            derived.territory_id,
+            territory.public_id AS territory_public_id,
+            territory.name AS territory_name,
+            territory.short_name AS territory_short_name,
+            territory.is_active AS territory_is_active,
+            territory.valid_from_bf,
+            territory.valid_to_bf,
+            derived.min_zoom,
+            derived.max_zoom,
+            derived.show_inner_boundaries,
+            derived.is_active,
+            derived.generated_at,
+            derived.created_at,
+            derived.updated_at,
+            JSON_TYPE(derived.geometry_geojson) AS geometry_json_type
+        FROM political_territory_derived_geometry derived
+        LEFT JOIN political_territory territory ON territory.id = derived.territory_id
+        ORDER BY derived.updated_at DESC, derived.id DESC
+        LIMIT 50'
+    );
+
+    $rows = [];
+    foreach (($rowsStatement !== false ? $rowsStatement->fetchAll(PDO::FETCH_ASSOC) : []) as $row) {
+        $rows[] = [
+            'id' => (int) ($row['id'] ?? 0),
+            'public_id' => (string) ($row['public_id'] ?? ''),
+            'territory_id' => (int) ($row['territory_id'] ?? 0),
+            'territory_public_id' => (string) ($row['territory_public_id'] ?? ''),
+            'territory_name' => (string) ($row['territory_name'] ?? ''),
+            'territory_short_name' => (string) ($row['territory_short_name'] ?? ''),
+            'territory_is_active' => (int) ($row['territory_is_active'] ?? 0) === 1,
+            'valid_from_bf' => avesmapsPoliticalNullableInt($row['valid_from_bf'] ?? null),
+            'valid_to_bf' => avesmapsPoliticalNullableInt($row['valid_to_bf'] ?? null),
+            'min_zoom' => avesmapsPoliticalNullableInt($row['min_zoom'] ?? null),
+            'max_zoom' => avesmapsPoliticalNullableInt($row['max_zoom'] ?? null),
+            'show_inner_boundaries' => (int) ($row['show_inner_boundaries'] ?? 1) === 1,
+            'is_active' => (int) ($row['is_active'] ?? 0) === 1,
+            'generated_at' => (string) ($row['generated_at'] ?? ''),
+            'created_at' => (string) ($row['created_at'] ?? ''),
+            'updated_at' => (string) ($row['updated_at'] ?? ''),
+            'geometry_json_type' => (string) ($row['geometry_json_type'] ?? ''),
+        ];
+    }
+
+    avesmapsJsonResponse(200, [
+        'ok' => true,
+        'summary' => [
+            'total_count' => (int) ($summary['total_count'] ?? 0),
+            'active_count' => (int) ($summary['active_count'] ?? 0),
+            'oldest_updated_at' => (string) ($summary['oldest_updated_at'] ?? ''),
+            'newest_updated_at' => (string) ($summary['newest_updated_at'] ?? ''),
+        ],
+        'rows' => $rows,
+    ]);
+} catch (Throwable $exception) {
+    avesmapsJsonResponse(500, [
+        'ok' => false,
+        'error' => 'Die Derived-Geometry-Diagnose konnte nicht geladen werden.',
+        'exception' => avesmapsPoliticalDebugExceptionPayload($exception),
+    ]);
+}
