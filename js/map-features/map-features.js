@@ -1156,7 +1156,7 @@ function applyRegionFeatureResponse(regionEntry, feature) {
 async function createRegionAt(latlng) {
 	setSelectedMapLayerMode("political");
 	const center = L.latLng(latlng);
-	const radius = 50;
+	const radius = 10;
 	const points = Array.from({ length: 6 }, (_, index) => {
 		const angle = Math.PI / 3 * index;
 		return [center.lng + Math.cos(angle) * radius, center.lat + Math.sin(angle) * radius];
