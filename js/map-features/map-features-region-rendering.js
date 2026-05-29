@@ -40,11 +40,12 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 	const visuallyHidden = shouldHideRegionForDerivedBoundary(region, regionEntry);
 	if (visuallyHidden) {
 		return {
-			color: regionEntry.color,
-			weight: 0,
-			opacity: 0,
-			fillColor: regionEntry.color,
-			fillOpacity: 0,
+			color: "#ff00ff",
+			weight: 6,
+			opacity: 1,
+			fillColor: "#ffff00",
+			fillOpacity: 0.55,
+			dashArray: "8 6",
 		};
 	}
 
