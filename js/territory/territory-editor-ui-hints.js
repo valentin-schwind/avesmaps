@@ -10,6 +10,10 @@
 		["6+ Ebenen", "0–1, 2–2, 3–3, 4–4, 5–5, 6–6"]
 	];
 
+	let derivedGeometryBreadcrumbSyncInstalled = false;
+	let derivedGeometryBreadcrumbSyncTimer = null;
+	let lastDerivedGeometryBreadcrumbTargetKey = "";
+
 	function installDefaultZoomRulesStyle() {
 		if (document.getElementById("defaultZoomRulesStyle")) {
 			return;
@@ -200,9 +204,61 @@
 	function installDerivedGeometryEditorPanel() {
 		void loadScriptOnce("/js/third-party/polygon-clipping.umd.min.js")
 			.then(() => loadScriptOnce("/js/territory/territory-derived-geometry-iframe-editor.js"))
+			.then(installActiveBreadcrumbDerivedGeometrySync)
 			.catch((error) => {
 				console.warn("Derived-Geometry-Panel konnte nicht geladen werden:", error);
 			});
+	}
+
+	function installActiveBreadcrumbDerivedGeometrySync() {
+		const breadcrumb = document.getElementById("manualEditPath");
+		if (!breadcrumb || derivedGeometryBreadcrumbSyncInstalled) {
+			return;
+		}
+
+		derivedGeometryBreadcrumbSyncInstalled = true;
+
+		const scheduleSync = () => {
+			if (derivedGeometryBreadcrumbSyncTimer) {
+				window.clearTimeout(derivedGeometryBreadcrumbSyncTimer);
+			}
+
+			derivedGeometryBreadcrumbSyncTimer = window.setTimeout(syncDerivedGeometryForActiveBreadcrumb, 0);
+		};
+
+		const observer = new MutationObserver(scheduleSync);
+		observer.observe(breadcrumb, {
+			attributes: true,
+			attributeFilter: ["class"],
+			childList: true,
+			subtree: true
+		});
+
+		scheduleSync();
+	}
+
+	function syncDerivedGeometryForActiveBreadcrumb() {
+		const editor = window.AvesmapsPoliticalDerivedGeometryEditor || null;
+		const assignment = window.AvesmapsPoliticalTerritoryAssignment || null;
+
+		if (typeof editor?.loadForCurrentTerritory !== "function" || typeof assignment?.getValue !== "function") {
+			return;
+		}
+
+		const value = assignment.getValue();
+		const targetKey = typeof editor.getTargetKey === "function"
+			? editor.getTargetKey(value)
+			: "";
+
+		if (targetKey && targetKey === lastDerivedGeometryBreadcrumbTargetKey) {
+			return;
+		}
+
+		lastDerivedGeometryBreadcrumbTargetKey = targetKey || "";
+
+		void editor.loadForCurrentTerritory(value).catch((error) => {
+			console.warn("Derived-Geometry-Panel konnte nach Breadcrumb-Wechsel nicht synchronisiert werden:", error);
+		});
 	}
 
 	function syncAssignmentDropZoneHint() {
