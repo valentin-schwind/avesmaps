@@ -36,6 +36,39 @@
 		return url.pathname + url.search + url.hash;
 	}
 
+	function rewriteDerivedGeometryBody(options) {
+		if (!options || typeof options !== "object" || typeof options.body !== "string") {
+			return options;
+		}
+
+		let payload = null;
+		try {
+			payload = JSON.parse(options.body);
+		} catch (error) {
+			return options;
+		}
+
+		const action = String(payload?.action || "").trim();
+		if (action !== "save_derived_geometry" && action !== "delete_derived_geometry") {
+			return options;
+		}
+
+		const targetKey = String(payload.target_key || "").trim();
+		const resolvedTarget = targetKey ? window.__avesmapsResolvedDerivedGeometryTargetByRequestKey.get(targetKey) : "";
+		if (!resolvedTarget) {
+			return options;
+		}
+
+		return {
+			...options,
+			body: JSON.stringify({
+				...payload,
+				target_key: resolvedTarget,
+				territory_public_id: resolvedTarget,
+			}),
+		};
+	}
+
 	function maybeRememberResolvedTarget(resource, response) {
 		if (typeof resource !== "string") {
 			return response;
@@ -69,19 +102,21 @@
 	}
 
 	window.fetch = function fetchWithDerivedGeometrySourceContext(resource, options) {
+		const nextOptions = rewriteDerivedGeometryBody(options);
+
 		if (typeof resource === "string") {
 			const nextResource = appendGeometryPublicId(resource);
-			return originalFetch(nextResource, options).then((response) => maybeRememberResolvedTarget(nextResource, response));
+			return originalFetch(nextResource, nextOptions).then((response) => maybeRememberResolvedTarget(nextResource, response));
 		}
 
 		if (resource instanceof Request) {
 			const nextUrl = appendGeometryPublicId(resource.url);
 			if (nextUrl !== resource.url) {
 				const nextRequest = new Request(nextUrl, resource);
-				return originalFetch(nextRequest, options).then((response) => maybeRememberResolvedTarget(nextUrl, response));
+				return originalFetch(nextRequest, nextOptions).then((response) => maybeRememberResolvedTarget(nextUrl, response));
 			}
 		}
 
-		return originalFetch(resource, options);
+		return originalFetch(resource, nextOptions);
 	};
 })();
