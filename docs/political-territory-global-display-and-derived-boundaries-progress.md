@@ -40,7 +40,7 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 
 ## Commit-Log
 
-### 2026-05-29 — ausstehend
+### 2026-05-29 — `2d5771705f9917ae821b804dd4c0c40faf4b871d`
 
 **Ziel:** Fortschritts- und Altlastenprotokoll fuer den Umbau anlegen.
 
@@ -65,7 +65,7 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 
 **Verifikation:**
 
-- Ausstehend nach Commit.
+- Commit `2d5771705f9917ae821b804dd4c0c40faf4b871d` wurde von GitHub bestaetigt und ueber `fetch_commit` verifiziert.
 
 **Offene Risiken:**
 
