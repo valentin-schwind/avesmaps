@@ -221,6 +221,7 @@ function buildWikiSyncTerritoryAssignmentValueFromPayload(payload) {
 			startYear: entry.startYear ?? null,
 			endYear: entry.existsUntilToday ? null : entry.endYear ?? null,
 			existsUntilToday: Boolean(entry.existsUntilToday),
+			implicitDragDefault: true,
 			depth: index,
 			path: path.slice(0, index + 1).map((part) => part.name || stripWikiSyncTerritoryPeriodLabel(part.label || "")),
 			pathKeys: path.slice(0, index + 1).map((part) => part.wikiKey || part.key || part.id || ""),
