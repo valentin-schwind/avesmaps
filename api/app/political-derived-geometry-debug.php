@@ -6,6 +6,7 @@ require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/auth.php';
 require_once __DIR__ . '/../_internal/political/territory.php';
 require_once __DIR__ . '/../_internal/political/territories-support.php';
+require_once __DIR__ . '/../_internal/political/territories-read.php';
 require_once __DIR__ . '/../_internal/political/territories-layer.php';
 require_once __DIR__ . '/../_internal/political/territories-derived-geometry.php';
 require_once __DIR__ . '/../_internal/political/territories-derived-layer.php';
