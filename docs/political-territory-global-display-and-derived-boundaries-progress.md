@@ -14,6 +14,33 @@ Zentrale Regel:
 Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestimmt Territorium -> Eigenschaften und Außengrenzen werden global an diesem Territorium gelesen/geschrieben.
 ```
 
+## Verbindlicher Grenz-Vertrag
+
+Die abgeleiteten Außengrenzen werden langfristig immer hierarchisch konsistent berechnet. Eine Änderung an einer unteren Geometrie muss auch alle betroffenen oberen Außengrenzen aktualisieren. Berechnung und Anzeige sind getrennt.
+
+```text
+Außengrenzen darstellen
+= dieses Gebiet zeigt eine berechnete Außengrenze. Berechnet wird sie trotzdem immer, wenn das Gebiet eine Außengrenze erzeugen kann.
+
+Innengrenzen darstellen
+= dieses Gebiet zeigt seine inneren Grenzlinien. Diese Einstellung ist territory-lokal und wirkt nicht automatisch auf Kinder.
+
+Für alle Unterregionen übernehmen
+= wendet die aktuellen Grenz-Einstellungen rekursiv auf Unterregionen an.
+```
+
+Der UI-Hilfetext fuer die rekursive Aktion lautet:
+
+```text
+Berechnet und übernimmt diese Grenz-Einstellungen rekursiv für alle Unterregionen.
+```
+
+Die Berechnung arbeitet gemischt: Ein Elterngebiet darf aus gespeicherten Kind-Außengrenzen und aus echten Kind-/Blatt-Geometrien vereinigt werden. Dadurch koennen Blattknoten ohne eigene Außengrenze weiterhin korrekt in die Außengrenze des Elterngebiets eingehen.
+
+`Für alle Unterregionen übernehmen` ist eine bewusste Massenaktion. Nur wenn diese Option aktiv ist, werden `Außengrenzen darstellen` und `Innengrenzen darstellen` rekursiv auf Kinder und Kindeskinder übertragen.
+
+Innengrenzen werden relativ zum aktuell dargestellten Breadcrumb-Kontext gestuft. Die unterste sichtbare Rekursionsstufe beginnt mit Index 1; darüber folgen 2, 3, 4 usw. Die äußerste Grenze des angezeigten Gebiets ist immer `X`. Die maximale sichtbare Innengrenzen-Tiefe soll als zentraler Parameter konfigurierbar bleiben.
+
 ## Arbeitsregeln
 
 - Bestehende echte Karten-Geometrien werden nicht geloescht, umgeschrieben oder neu zugeordnet.
@@ -33,7 +60,7 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 | Phase 4: Eigenschaften global lesen/schreiben | offen | - | `assignmentDisplays` entmachten, nicht sofort loeschen. |
 | Phase 5: Geometrie-Panel auf aktiven Breadcrumb fixieren | begonnen | `07786f443da4271bf0a2628e0a3f99f69b775f32` | Reload nach Breadcrumb-Wechsel umgesetzt; UI-Schalter und Backend-Modi fehlen noch. |
 | Phase 6: Außengrenzen-UI vervollstaendigen | begonnen | `f06cb07b10da78ccd12f8ff6e8bb5e5936171542` | Alle drei Ziel-Schalter sind sichtbar; rekursiver Modus bleibt bis zum Backend-Vertrag deaktiviert; Hinweistext wurde nutzerverstaendlicher formuliert. |
-| Phase 7: Backend-Modi fuer Außengrenzen | offen | - | `flat`/`hierarchical`-Vertrag und rekursive Planung fehlen noch. |
+| Phase 7: Backend-Modi fuer Außengrenzen | offen | - | `flat`/`hierarchical`-Vertrag wird durch den neuen hierarchischen Grenz-Vertrag ersetzt; rekursive Planung fehlt noch. |
 | Phase 8: Quellenprotokoll | offen | - | Optional, aber fuer Diagnose/Reproduktion sinnvoll. |
 | Phase 9: Tests und manuelle Pruefung | begonnen | `99b5f9830f320101c935810eb419cafa0830486e` | Browser-Smoke-Test und Nachtest erfolgreich; erwartbar fehlende Geometry-Assignments liefern nun leeren 200-Zustand ohne Konsolenfehler. |
 | Phase 10: Legacy-Aufraeumung | blockiert | - | Erst nach stabiler Testphase und expliziter Freigabe. |
