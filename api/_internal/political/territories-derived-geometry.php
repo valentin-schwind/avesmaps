@@ -252,8 +252,6 @@ function avesmapsPoliticalDeleteDerivedGeometryTree(PDO $pdo, array $payload, ar
     }
 
     $activePlaceholders = implode(',', array_fill(0, count($activeTerritoryIds), '?'));
-    $params = $activeTerritoryIds;
-    $params[] = (int) ($user['id'] ?? 0) ?: null;
     $statement = $pdo->prepare(
         'UPDATE political_territory_derived_geometry
         SET is_active = 0,
@@ -311,7 +309,19 @@ function avesmapsPoliticalResolveDerivedGeometryTarget(PDO $pdo, array $input, b
     }
 
     if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $targetKey) === 1) {
-        $territory = avesmapsPoliticalFetchTerritoryByPublicId($pdo, avesmapsPoliticalReadPublicId($targetKey));
+        try {
+            $territory = avesmapsPoliticalFetchTerritoryByPublicId($pdo, avesmapsPoliticalReadPublicId($targetKey));
+        } catch (InvalidArgumentException) {
+            if ($createMissing) {
+                throw new InvalidArgumentException('Fuer die abgeleitete Geometrie wurde kein gespeichertes Ziel-Herrschaftsgebiet gefunden.');
+            }
+            return [
+                'territory' => null,
+                'wiki' => null,
+                'target_key' => $targetKey,
+                'target_name' => $targetKey,
+            ];
+        }
         return [
             'territory' => $territory,
             'wiki' => !empty($territory['wiki_id']) ? avesmapsPoliticalFetchWikiById($pdo, (int) $territory['wiki_id']) : null,
@@ -356,6 +366,10 @@ function avesmapsPoliticalNormalizeDerivedTargetKey(string $value): string {
         return strtolower($value);
     }
 
+    if (str_starts_with(strtolower($value), 'wiki:')) {
+        $value = substr($value, 5);
+    }
+
     return avesmapsPoliticalSlug($value);
 }
 
@@ -368,13 +382,13 @@ function avesmapsPoliticalFindDerivedGeometryWikiTarget(PDO $pdo, string $target
         'SELECT *
         FROM political_territory_wiki
         WHERE wiki_key = :wiki_key
-            OR slug = :slug
+            OR name = :name
         ORDER BY id ASC
         LIMIT 1'
     );
     $statement->execute([
         'wiki_key' => $targetKey,
-        'slug' => avesmapsPoliticalSlug($targetKey),
+        'name' => str_replace('-', ' ', $targetKey),
     ]);
     $row = $statement->fetch(PDO::FETCH_ASSOC);
 
