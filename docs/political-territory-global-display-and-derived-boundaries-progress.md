@@ -35,7 +35,11 @@ Der UI-Hilfetext fuer die rekursive Aktion lautet:
 Berechnet und übernimmt diese Grenz-Einstellungen rekursiv für alle Unterregionen.
 ```
 
-Die Berechnung arbeitet gemischt: Ein Elterngebiet darf aus gespeicherten Kind-Außengrenzen und aus echten Kind-/Blatt-Geometrien vereinigt werden. Dadurch koennen Blattknoten ohne eigene Außengrenze weiterhin korrekt in die Außengrenze des Elterngebiets eingehen.
+`political_territory_geometry` bleibt die redaktionelle Quellgeometrie. `political_territory_derived_geometry` ist die berechnete politische Außengrenze eines Hierarchieknotens. Sobald ein Territory als Hierarchieknoten existiert und aus echten Geometrien oder Kind-Außengrenzen eine gueltige Außengrenze erzeugen kann, kann es eine Derived Boundary bekommen. Das gilt auch fuer Blattknoten mit eigener echter Geometrie.
+
+Die Berechnung laeuft bottom-up. Blatt- oder Quellknoten werden aus echten Geometrien abgeleitet. Elterngebiete werden bevorzugt aus den frisch berechneten Kind-Außengrenzen vereinigt. Echte Kind-/Blatt-Geometrien bleiben als Fallback und Quelle relevant, duerfen aber nicht ueberschrieben werden.
+
+Enklaven, Exklaven und innere Ringe sind Bestandteil der Außengrenze. Eine gueltige Außengrenze kann daher ein `Polygon` mit inneren Ringen oder ein `MultiPolygon` mit inneren Ringen sein. Diese Ringe duerfen bei Union, Speicherung und Rendering nicht entfernt oder als normale Innengrenze umgedeutet werden.
 
 `Für alle Unterregionen übernehmen` ist eine bewusste Massenaktion. Nur wenn diese Option aktiv ist, werden `Außengrenzen darstellen` und `Innengrenzen darstellen` rekursiv auf Kinder und Kindeskinder übertragen.
 
@@ -60,7 +64,7 @@ Innengrenzen werden relativ zum aktuell dargestellten Breadcrumb-Kontext gestuft
 | Phase 4: Eigenschaften global lesen/schreiben | offen | - | `assignmentDisplays` entmachten, nicht sofort loeschen. |
 | Phase 5: Geometrie-Panel auf aktiven Breadcrumb fixieren | begonnen | `07786f443da4271bf0a2628e0a3f99f69b775f32` | Reload nach Breadcrumb-Wechsel umgesetzt; UI-Schalter und Backend-Modi fehlen noch. |
 | Phase 6: Außengrenzen-UI vervollstaendigen | begonnen | `f06cb07b10da78ccd12f8ff6e8bb5e5936171542` | Alle drei Ziel-Schalter sind sichtbar; rekursiver Modus bleibt bis zum Backend-Vertrag deaktiviert; Hinweistext wurde nutzerverstaendlicher formuliert. |
-| Phase 7: Backend-Modi fuer Außengrenzen | offen | - | `flat`/`hierarchical`-Vertrag wird durch den neuen hierarchischen Grenz-Vertrag ersetzt; rekursive Planung fehlt noch. |
+| Phase 7: Backend-Modi fuer Außengrenzen | offen | - | `flat`/`hierarchical`-Vertrag wurde durch den hierarchischen Grenz-Vertrag ersetzt; rekursive bottom-up-Planung fehlt noch. |
 | Phase 8: Quellenprotokoll | offen | - | Optional, aber fuer Diagnose/Reproduktion sinnvoll. |
 | Phase 9: Tests und manuelle Pruefung | begonnen | `99b5f9830f320101c935810eb419cafa0830486e` | Browser-Smoke-Test und Nachtest erfolgreich; erwartbar fehlende Geometry-Assignments liefern nun leeren 200-Zustand ohne Konsolenfehler. |
 | Phase 10: Legacy-Aufraeumung | blockiert | - | Erst nach stabiler Testphase und expliziter Freigabe. |
