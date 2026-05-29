@@ -90,7 +90,7 @@
 					<input id="derivedGeometryRecursiveInput" type="checkbox" disabled>
 					<span>Für alle Unterregionen übernehmen</span>
 				</label>
-				<small class="derived-geometry-mode-note">Aktuell wird die flache Außengrenze für den aktiven Breadcrumb-Knoten erzeugt.</small>
+				<small class="derived-geometry-mode-note">Erzeugt derzeit nur die Außengrenze des oben ausgewählten Gebiets. Unterregionen werden nicht einzeln neu berechnet.</small>
 				<div id="derivedGeometryPreviewRow" class="derived-geometry-preview-row" hidden>
 					<div id="derivedGeometryThumbnail" class="derived-geometry-thumbnail" aria-label="Vorschau der Außengrenze"></div>
 					<p id="derivedGeometryStatus" class="note" role="status" aria-live="polite"></p>
