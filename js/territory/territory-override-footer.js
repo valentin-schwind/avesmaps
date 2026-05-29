@@ -1,6 +1,15 @@
 "use strict";
 (function () {
+const LOCAL_OVERRIDE_UI_ENABLED = false;
+function removePoliticalTerritoryEditorOverrideFooter(frame = null) {
+	const doc = getPoliticalTerritoryEditorFrameDocument(frame);
+	doc?.getElementById("political-territory-local-override-footer")?.remove();
+}
 function installPoliticalTerritoryEditorOverrideFooter(frame, regionEntry) {
+	if (!LOCAL_OVERRIDE_UI_ENABLED) {
+		removePoliticalTerritoryEditorOverrideFooter(frame);
+		return;
+	}
 	const doc = getPoliticalTerritoryEditorFrameDocument(frame);
 	if (!doc || doc.getElementById("political-territory-local-override-footer")) return;
 
@@ -65,6 +74,11 @@ function installPoliticalTerritoryEditorOverrideFooter(frame, regionEntry) {
 }
 function syncPoliticalTerritoryEditorOverrideFooterVisibility(isVisible) {
 	const { frame } = getPoliticalTerritoryEditorElements();
+	if (!LOCAL_OVERRIDE_UI_ENABLED) {
+		activePoliticalTerritoryEditorPendingLocalOverride = false;
+		removePoliticalTerritoryEditorOverrideFooter(frame);
+		return;
+	}
 	if (frame && activePoliticalTerritoryEditorRegion) {
 		installPoliticalTerritoryEditorOverrideFooter(frame, activePoliticalTerritoryEditorRegion);
 	}
@@ -90,6 +104,10 @@ function isPoliticalTerritoryEditorOverrideFooterSuppressed() {
 }
 
 async function refreshPoliticalTerritoryEditorOverrideFooter(regionEntry = activePoliticalTerritoryEditorRegion) {
+	if (!LOCAL_OVERRIDE_UI_ENABLED) {
+		syncPoliticalTerritoryEditorOverrideFooterVisibility(false);
+		return;
+	}
 	const geometryPublicId = getPoliticalTerritoryEditorGeometryPublicId(regionEntry || {});
 	if (!geometryPublicId) return;
 	try {
