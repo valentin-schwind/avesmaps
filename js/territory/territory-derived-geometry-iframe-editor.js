@@ -7,6 +7,7 @@
 	function createEmptyState(overrides = {}) {
 		return {
 			targetKey: "",
+			resolvedTargetKey: "",
 			territoryPublicId: "",
 			geometry: null,
 			labelCenter: null,
@@ -142,6 +143,10 @@
 		);
 	}
 
+	function readResolvedSaveTargetKey(fallbackTargetKey = "") {
+		return normalizeText(state.territoryPublicId || state.resolvedTargetKey || fallbackTargetKey);
+	}
+
 	function setPreviewVisible(visible) {
 		const previewRow = document.getElementById("derivedGeometryPreviewRow");
 		if (previewRow) previewRow.hidden = !visible;
@@ -162,7 +167,7 @@
 		}
 		const descendantCount = Number(sourceResponse.descendant_territory_count);
 		const sourceMode = String(sourceResponse.source_mode || "").trim();
-		state.canShowInnerBoundaries = !(sourceMode === "target_territory" || Number.isFinite(descendantCount) && descendantCount < 1);
+		state.canShowInnerBoundaries = !(sourceMode === "target_territory" || sourceMode === "geometry_context_target_territory" || sourceMode === "geometry_fallback" || Number.isFinite(descendantCount) && descendantCount < 1);
 		updateInnerBoundaryControl();
 	}
 
@@ -206,6 +211,7 @@
 			const response = await fetchDerivedGeometry(targetKey);
 			const derived = response?.derived_geometry || null;
 			state.territoryPublicId = response?.territory_public_id || "";
+			state.resolvedTargetKey = response?.territory_public_id || response?.target_key || "";
 			if (!derived) {
 				document.getElementById("derivedGeometryEnabledInput").checked = false;
 				setPreviewVisible(false);
@@ -234,6 +240,8 @@
 		try {
 			const response = await fetchDerivedGeometrySources(targetKey);
 			state.sourceGeometries = Array.isArray(response?.source_geometries) ? response.source_geometries : [];
+			state.territoryPublicId = response?.territory_public_id || state.territoryPublicId || "";
+			state.resolvedTargetKey = response?.territory_public_id || response?.target_key || state.resolvedTargetKey || "";
 			updateInnerBoundaryCapability(response);
 			renderPreview();
 		} catch (error) {
@@ -269,7 +277,8 @@
 		const unionGeometry = normalizeClippingMultiPolygon(window.polygonClipping.union(...clippingInputs));
 		const geometry = clippingMultiPolygonToGeoJson(unionGeometry);
 		state.targetKey = targetKey;
-		state.territoryPublicId = response?.territory_public_id || "";
+		state.territoryPublicId = response?.territory_public_id || state.territoryPublicId || "";
+		state.resolvedTargetKey = response?.territory_public_id || response?.target_key || state.resolvedTargetKey || targetKey;
 		state.geometry = geometry;
 		state.labelCenter = readLabelCenter(geometry);
 		state.sourceGeometries = sources;
@@ -377,13 +386,15 @@
 		const targetKey = getTargetKey(context.value);
 		if (!targetKey) return null;
 		if (!enabled) {
-			return submitDerivedGeometry({ action: "delete_derived_geometry", target_key: targetKey });
+			return submitDerivedGeometry({ action: "delete_derived_geometry", target_key: readResolvedSaveTargetKey(targetKey) });
 		}
 		const geometry = state.geometry || await rebuildPreview();
 		const labelCenter = state.labelCenter || readLabelCenter(geometry);
+		const saveTargetKey = readResolvedSaveTargetKey(targetKey);
 		return submitDerivedGeometry({
 			action: "save_derived_geometry",
-			target_key: targetKey,
+			target_key: saveTargetKey,
+			territory_public_id: saveTargetKey,
 			geometry_geojson: geometry,
 			label_lng: labelCenter?.lng ?? null,
 			label_lat: labelCenter?.lat ?? null,
