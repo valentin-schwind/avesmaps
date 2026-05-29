@@ -2,14 +2,20 @@
 
 (function initDerivedGeometryIframeEditor() {
 	const WRITE_API_URL = window.AvesmapsPoliticalTerritoryEditorApi?.writeApiUrl || "/api/app/political-territories.php?debug_errors=1";
-	let state = {
-		targetKey: "",
-		territoryPublicId: "",
-		geometry: null,
-		labelCenter: null,
-		existingPublicId: "",
-		dirty: false,
-	};
+	let state = createEmptyState();
+
+	function createEmptyState(overrides = {}) {
+		return {
+			targetKey: "",
+			territoryPublicId: "",
+			geometry: null,
+			labelCenter: null,
+			existingPublicId: "",
+			sourceGeometries: [],
+			dirty: false,
+			...overrides,
+		};
+	}
 
 	function normalizeText(value) {
 		return window.AvesmapsPoliticalTerritoryEditorForm?.normalizeText?.(value)
@@ -63,14 +69,14 @@
 
 	function ensurePanel() {
 		if (document.getElementById("derivedGeometryPanel")) return;
+		const manualDataColumns = document.querySelector(".manual-data-columns");
 		const manualDataForm = document.querySelector(".manual-data-box");
-		if (!manualDataForm) return;
-		manualDataForm.insertAdjacentHTML("beforeend", `
+		const targetContainer = manualDataColumns || manualDataForm;
+		if (!targetContainer) return;
+
+		const panelHtml = `
 			<section id="derivedGeometryPanel" class="manual-data-section derived-geometry-panel" aria-label="Automatische Außengrenzen">
-				<div class="manual-data-section-header">
-					<h3>Geometrie</h3>
-					<button id="derivedGeometryRefreshButton" class="secondary" type="button">Vorschau neu berechnen</button>
-				</div>
+				<h3>Geometrie</h3>
 				<label class="manual-data-checkbox">
 					<input id="derivedGeometryEnabledInput" type="checkbox">
 					<span>Außengrenzen darstellen</span>
@@ -79,39 +85,28 @@
 					<input id="derivedGeometryInnerBoundariesInput" type="checkbox" checked>
 					<span>Innengrenzen darstellen</span>
 				</label>
-				<label class="manual-data-checkbox">
-					<input id="derivedGeometryDescendantsInput" type="checkbox" disabled>
-					<span>Für alle Unterregionen erzeugen <small>folgt im nächsten Schritt</small></span>
-				</label>
-				<div class="manual-data-grid">
-					<div class="manual-data-field">
-						<label for="derivedGeometryZoomFromInput">Außengrenze Zoom von</label>
-						<input id="derivedGeometryZoomFromInput" type="number" min="0" max="6" step="1">
-					</div>
-					<div class="manual-data-field">
-						<label for="derivedGeometryZoomToInput">Außengrenze Zoom bis</label>
-						<input id="derivedGeometryZoomToInput" type="number" min="0" max="6" step="1">
-					</div>
-				</div>
-				<div class="derived-geometry-preview-row">
-					<div id="derivedGeometryThumbnail" class="derived-geometry-thumbnail"><span>Keine Vorschau</span></div>
+				<div id="derivedGeometryPreviewRow" class="derived-geometry-preview-row" hidden>
+					<div id="derivedGeometryThumbnail" class="derived-geometry-thumbnail" aria-label="Vorschau der Außengrenze"></div>
 					<p id="derivedGeometryStatus" class="note" role="status" aria-live="polite"></p>
 				</div>
 			</section>
-		`);
+		`;
+
+		if (manualDataColumns?.firstElementChild) {
+			manualDataColumns.firstElementChild.insertAdjacentHTML("afterend", panelHtml);
+		} else {
+			targetContainer.insertAdjacentHTML("beforeend", panelHtml);
+		}
 
 		document.getElementById("derivedGeometryEnabledInput")?.addEventListener("change", () => {
 			state.dirty = true;
 			void syncPreview().catch(handlePreviewError);
 		});
-		document.getElementById("derivedGeometryRefreshButton")?.addEventListener("click", () => {
+		document.getElementById("derivedGeometryInnerBoundariesInput")?.addEventListener("change", () => {
 			state.dirty = true;
-			void rebuildPreview().catch(handlePreviewError);
+			renderPreview();
 		});
-		["derivedGeometryZoomFromInput", "derivedGeometryZoomToInput", "derivedGeometryInnerBoundariesInput"].forEach((id) => {
-			document.getElementById(id)?.addEventListener("input", () => { state.dirty = true; });
-			document.getElementById(id)?.addEventListener("change", () => { state.dirty = true; });
-		});
+		setPreviewVisible(false);
 	}
 
 	function injectStyles() {
@@ -119,11 +114,10 @@
 		const style = document.createElement("style");
 		style.id = "derivedGeometryIframeStyles";
 		style.textContent = `
-			.derived-geometry-panel { margin-top: 12px; }
-			.derived-geometry-preview-row { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 12px; align-items: center; }
-			.derived-geometry-thumbnail { display: grid; place-items: center; min-height: 116px; border: 1px solid var(--border, #c8bda8); border-radius: 8px; background: rgba(255,255,255,0.55); color: #5b432b; font-size: 12px; }
-			.derived-geometry-thumbnail svg { width: 180px; height: 110px; }
-			@media (max-width: 720px) { .derived-geometry-preview-row { grid-template-columns: 1fr; } }
+			.derived-geometry-panel { gap: 10px; }
+			.derived-geometry-preview-row { display: grid; grid-template-columns: 1fr; gap: 8px; align-items: start; }
+			.derived-geometry-thumbnail { display: grid; place-items: center; min-height: 116px; border: 1px solid var(--border, #c8bda8); border-radius: 8px; background: rgba(255,255,255,0.55); color: #5b432b; font-size: 12px; overflow: hidden; }
+			.derived-geometry-thumbnail svg { width: 100%; max-width: 180px; height: 110px; }
 		`;
 		document.head.append(style);
 	}
@@ -136,6 +130,11 @@
 			|| new URLSearchParams(window.location.search).get("territory_public_id")
 			|| ""
 		);
+	}
+
+	function setPreviewVisible(visible) {
+		const previewRow = document.getElementById("derivedGeometryPreviewRow");
+		if (previewRow) previewRow.hidden = !visible;
 	}
 
 	function setStatus(message = "", type = "") {
@@ -151,46 +150,58 @@
 			setThumbnail(null);
 			drawParentPreview(null);
 		}
+		setPreviewVisible(true);
 		setStatus(error.message || "Außengrenze konnte nicht berechnet werden.", "error");
 	}
 
 	async function loadForCurrentTerritory(value = null) {
 		ensurePanel();
 		const targetKey = getTargetKey(value || undefined);
-		state = { targetKey, territoryPublicId: "", geometry: null, labelCenter: null, existingPublicId: "", dirty: false };
+		state = createEmptyState({ targetKey });
 		document.getElementById("derivedGeometryInnerBoundariesInput").checked = true;
 		if (!targetKey) {
 			document.getElementById("derivedGeometryEnabledInput").checked = false;
+			setPreviewVisible(false);
 			setThumbnail(null);
-			setStatus("Kein Breadcrumb-Territorium ausgewählt.", "info");
+			setStatus("", "");
 			return;
 		}
-		document.getElementById("derivedGeometryZoomFromInput").value = document.getElementById("zoomFromInput")?.value || "";
-		document.getElementById("derivedGeometryZoomToInput").value = document.getElementById("zoomToInput")?.value || "";
-		setStatus("Bestehende Außengrenze wird geprüft...", "pending");
+
 		try {
 			const response = await fetchDerivedGeometry(targetKey);
 			const derived = response?.derived_geometry || null;
 			state.territoryPublicId = response?.territory_public_id || "";
 			if (!derived) {
 				document.getElementById("derivedGeometryEnabledInput").checked = false;
+				setPreviewVisible(false);
 				setThumbnail(null);
-				setStatus(response?.territory_public_id ? "Keine gespeicherte Außengrenze." : "Noch keine gespeicherte Außengrenze; Ziel wird beim Speichern angelegt.", "info");
+				setStatus("", "");
 				return;
 			}
 			document.getElementById("derivedGeometryEnabledInput").checked = true;
 			document.getElementById("derivedGeometryInnerBoundariesInput").checked = derived.show_inner_boundaries !== false;
-			document.getElementById("derivedGeometryZoomFromInput").value = derived.min_zoom ?? "";
-			document.getElementById("derivedGeometryZoomToInput").value = derived.max_zoom ?? "";
 			state.existingPublicId = derived.public_id || "";
 			state.geometry = derived.geometry || null;
 			state.labelCenter = readLabelCenter(derived.geometry || null, derived);
-			setThumbnail(state.geometry);
-			drawParentPreview(state.geometry);
+			state.dirty = false;
+			setPreviewVisible(true);
+			renderPreview();
 			setStatus("Gespeicherte Außengrenze geladen.", "success");
+			void loadSourceGeometriesForPreview(targetKey);
 		} catch (error) {
 			console.warn("Außengrenze konnte nicht geladen werden:", error);
+			setPreviewVisible(true);
 			setStatus(error.message || "Außengrenze konnte nicht geladen werden.", "error");
+		}
+	}
+
+	async function loadSourceGeometriesForPreview(targetKey) {
+		try {
+			const response = await fetchDerivedGeometrySources(targetKey);
+			state.sourceGeometries = Array.isArray(response?.source_geometries) ? response.source_geometries : [];
+			renderPreview();
+		} catch (error) {
+			console.warn("Quellgeometrien fuer die Vorschau konnten nicht geladen werden:", error);
 		}
 	}
 
@@ -198,11 +209,14 @@
 		if (!document.getElementById("derivedGeometryEnabledInput")?.checked) {
 			state.geometry = null;
 			state.labelCenter = null;
+			state.sourceGeometries = [];
 			setThumbnail(null);
 			drawParentPreview(null);
-			setStatus("Außengrenze wird beim Speichern deaktiviert.", "info");
+			setStatus("", "");
+			setPreviewVisible(false);
 			return null;
 		}
+		setPreviewVisible(true);
 		return rebuildPreview();
 	}
 
@@ -221,9 +235,9 @@
 		state.territoryPublicId = response?.territory_public_id || "";
 		state.geometry = geometry;
 		state.labelCenter = readLabelCenter(geometry);
+		state.sourceGeometries = sources;
 		state.dirty = true;
-		setThumbnail(geometry);
-		drawParentPreview(geometry);
+		renderPreview();
 		setStatus(`${sources.length} Unterflächen vereinigt.`, "success");
 		return geometry;
 	}
@@ -267,20 +281,50 @@
 		const bounds = readBounds(geometry);
 		return bounds ? { lng: (bounds.minX + bounds.maxX) / 2, lat: (bounds.minY + bounds.maxY) / 2 } : null;
 	}
-	function setThumbnail(geometry) {
-		const container = document.getElementById("derivedGeometryThumbnail");
-		if (!container) return;
-		const bounds = readBounds(geometry);
-		if (!bounds) { container.innerHTML = `<span>Keine Vorschau</span>`; return; }
-		const width = 180, height = 110, padding = 8;
-		const scale = Math.min((width - padding * 2) / Math.max(0.000001, bounds.maxX - bounds.minX), (height - padding * 2) / Math.max(0.000001, bounds.maxY - bounds.minY));
-		const polygons = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
-		const path = polygons.flatMap((polygon) => polygon.map((ring) => `${ring.map((coordinate, index) => {
+
+	function renderPreview() {
+		setThumbnail(state.geometry, state.sourceGeometries);
+		drawParentPreview(state.geometry);
+	}
+
+	function geometryToPolygons(geometry) {
+		if (geometry?.type === "Polygon") return [geometry.coordinates];
+		if (geometry?.type === "MultiPolygon") return geometry.coordinates;
+		return [];
+	}
+
+	function pathForRing(ring, bounds, scale, padding, height) {
+		return `${ring.map((coordinate, index) => {
 			const x = padding + (Number(coordinate[0]) - bounds.minX) * scale;
 			const y = height - padding - (Number(coordinate[1]) - bounds.minY) * scale;
 			return `${index === 0 ? "M" : "L"}${Math.round(x * 1000) / 1000} ${Math.round(y * 1000) / 1000}`;
-		}).join(" ")} Z`)).join(" ");
-		container.innerHTML = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Abgeleitete Außengrenze"><path d="${path}" fill="rgba(201,169,104,.45)" stroke="currentColor" stroke-width="1.5"></path></svg>`;
+		}).join(" ")} Z`;
+	}
+
+	function normalizeSourceColor(entry) {
+		const color = String(entry?.color || entry?.fill || entry?.stroke || "").trim();
+		return /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(color) ? color : "#5b432b";
+	}
+
+	function setThumbnail(geometry, sourceGeometries = []) {
+		const container = document.getElementById("derivedGeometryThumbnail");
+		if (!container) return;
+		const enabled = document.getElementById("derivedGeometryEnabledInput")?.checked === true;
+		const bounds = enabled ? readBounds(geometry) : null;
+		if (!bounds) { container.innerHTML = `<span>Keine Vorschau</span>`; return; }
+		const width = 180, height = 110, padding = 8;
+		const scale = Math.min((width - padding * 2) / Math.max(0.000001, bounds.maxX - bounds.minX), (height - padding * 2) / Math.max(0.000001, bounds.maxY - bounds.minY));
+		const outerPath = geometryToPolygons(geometry).flatMap((polygon) => polygon.map((ring) => pathForRing(ring, bounds, scale, padding, height))).join(" ");
+		const showInnerBoundaries = document.getElementById("derivedGeometryInnerBoundariesInput")?.checked === true;
+		const innerPaths = showInnerBoundaries
+			? (sourceGeometries || []).flatMap((source) => geometryToPolygons(source.geometry).flatMap((polygon) => polygon.map((ring) => ({ path: pathForRing(ring, bounds, scale, padding, height), color: normalizeSourceColor(source) }))))
+			: [];
+		container.innerHTML = `
+			<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Abgeleitete Außengrenze">
+				<path d="${outerPath}" fill="rgba(201,169,104,.35)" stroke="currentColor" stroke-width="2"></path>
+				${innerPaths.map((entry) => `<path d="${entry.path}" fill="none" stroke="${entry.color}" stroke-width="1"></path>`).join("")}
+			</svg>
+		`;
 	}
 	function drawParentPreview(geometry) {
 		try {
@@ -296,7 +340,6 @@
 		const targetKey = getTargetKey(context.value);
 		if (!targetKey) return null;
 		if (!enabled) {
-			if (!state.dirty && !state.existingPublicId) return null;
 			return submitDerivedGeometry({ action: "delete_derived_geometry", target_key: targetKey });
 		}
 		const geometry = state.geometry || await rebuildPreview();
@@ -307,8 +350,8 @@
 			geometry_geojson: geometry,
 			label_lng: labelCenter?.lng ?? null,
 			label_lat: labelCenter?.lat ?? null,
-			min_zoom: normalizeText(document.getElementById("derivedGeometryZoomFromInput")?.value || ""),
-			max_zoom: normalizeText(document.getElementById("derivedGeometryZoomToInput")?.value || ""),
+			min_zoom: normalizeText(document.getElementById("zoomFromInput")?.value || ""),
+			max_zoom: normalizeText(document.getElementById("zoomToInput")?.value || ""),
 			show_inner_boundaries: document.getElementById("derivedGeometryInnerBoundariesInput")?.checked === true,
 			is_active: true,
 		});
