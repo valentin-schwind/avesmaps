@@ -32,13 +32,44 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 | Phase 3: Lokale Override-UI deaktivieren | begonnen | `06c27359c079e6d2a417975adf82b6fb68b91b17` | Footer-Installation, Anzeige und Refresh sind in der aktiven UI deaktiviert; API-/Legacy-Funktionen bleiben erhalten. |
 | Phase 4: Eigenschaften global lesen/schreiben | offen | - | `assignmentDisplays` entmachten, nicht sofort loeschen. |
 | Phase 5: Geometrie-Panel auf aktiven Breadcrumb fixieren | begonnen | `07786f443da4271bf0a2628e0a3f99f69b775f32` | Reload nach Breadcrumb-Wechsel umgesetzt; UI-Schalter und Backend-Modi fehlen noch. |
-| Phase 6: Außengrenzen-UI vervollstaendigen | begonnen | `5a39fcb9fc7a3472dd01b316729ff2eb96f861bd` | Alle drei Ziel-Schalter sind sichtbar; rekursiver Modus bleibt bis zum Backend-Vertrag deaktiviert. |
+| Phase 6: Außengrenzen-UI vervollstaendigen | begonnen | `f06cb07b10da78ccd12f8ff6e8bb5e5936171542` | Alle drei Ziel-Schalter sind sichtbar; rekursiver Modus bleibt bis zum Backend-Vertrag deaktiviert; Hinweistext wurde nutzerverstaendlicher formuliert. |
 | Phase 7: Backend-Modi fuer Außengrenzen | offen | - | `flat`/`hierarchical`-Vertrag und rekursive Planung fehlen noch. |
 | Phase 8: Quellenprotokoll | offen | - | Optional, aber fuer Diagnose/Reproduktion sinnvoll. |
-| Phase 9: Tests und manuelle Pruefung | offen | - | Testfaelle werden pro Commit ergaenzt. |
+| Phase 9: Tests und manuelle Pruefung | begonnen | - | Erster Browser-Smoke-Test erfolgreich; ein 400-Status beim Assignment-Laden bleibt als separates Komfort-/API-Status-Thema offen. |
 | Phase 10: Legacy-Aufraeumung | blockiert | - | Erst nach stabiler Testphase und expliziter Freigabe. |
 
 ## Commit-Log
+
+### 2026-05-29 — `f06cb07b10da78ccd12f8ff6e8bb5e5936171542`
+
+**Ziel:** Hinweistext zum derzeit deaktivierten Unterregionen-Modus nutzerverstaendlicher formulieren.
+
+**Geaenderte Dateien:**
+
+- `js/territory/territory-derived-geometry-iframe-editor.js`
+
+**Was wurde geaendert:**
+
+- Technischer Hinweis `flache Außengrenze für den aktiven Breadcrumb-Knoten` ersetzt.
+- Neuer Text: `Erzeugt derzeit nur die Außengrenze des oben ausgewählten Gebiets. Unterregionen werden nicht einzeln neu berechnet.`
+
+**Nicht geaendert:**
+
+- Keine API.
+- Keine Datenbank.
+- Keine Geometrien.
+- Keine Territorien oder Hierarchien.
+- Keine Save-Semantik.
+
+**Verifikation:**
+
+- Commit `f06cb07b10da78ccd12f8ff6e8bb5e5936171542` wurde von GitHub bestaetigt und ueber `fetch_commit` verifiziert.
+- Der Commit-Diff enthaelt nur die sichtbare Hinweiszeile in `js/territory/territory-derived-geometry-iframe-editor.js`.
+
+**Offene Risiken:**
+
+- Erneute Browser-Pruefung des Hinweistexts steht aus.
+- Der rekursive Modus ist bewusst noch deaktiviert.
 
 ### 2026-05-29 — `5a39fcb9fc7a3472dd01b316729ff2eb96f861bd`
 
@@ -71,7 +102,6 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 
 **Offene Risiken:**
 
-- Manuelle Browser-Pruefung steht aus.
 - Der rekursive Modus ist bewusst noch deaktiviert.
 - Phase 7 muss den Backend-Vertrag `flat`/`hierarchical` sauber einfuehren.
 
@@ -103,7 +133,7 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 
 **Offene Risiken:**
 
-- Manuelle Browser-Pruefung steht aus.
+- Keine aus dem ersten Browser-Smoke-Test bekannt.
 
 ### 2026-05-29 — `06c27359c079e6d2a417975adf82b6fb68b91b17`
 
@@ -136,7 +166,6 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 
 **Offene Risiken:**
 
-- Manuelle Browser-Pruefung steht aus.
 - Backend-/API-Pfade fuer lokale Overrides existieren weiterhin als Legacy-/Diagnosepfad.
 - Endgueltige Entfernung/DCE darf erst nach Diagnose und expliziter Freigabe erfolgen.
 
@@ -170,7 +199,6 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 
 **Offene Risiken:**
 
-- Manuelle Browser-Pruefung steht aus.
 - `activeDisplayNode` hat weiterhin einen Fallback auf das letzte Breadcrumb-Element, falls kein aktiver Knoten gesetzt ist.
 
 ### 2026-05-29 — `2d5771705f9917ae821b804dd4c0c40faf4b871d`
@@ -204,6 +232,24 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 
 - Keine technischen Risiken; reiner Dokumentations-Commit.
 
+## Testbefunde
+
+### 2026-05-29 — Browser-Smoke-Test nach Phase 2/3/5/6
+
+**Bestanden:**
+
+- Breadcrumb-Wechsel funktioniert.
+- Geometrie-Panel zeigt die drei erwarteten Optionen.
+- `Für alle Unterregionen übernehmen` ist sichtbar und deaktiviert.
+- Blattknoten zeigen `Innengrenzen darstellen` deaktiviert, abgehakt und ausgegraut.
+- Lokale Override-UI erscheint nicht mehr.
+- Vorsichtiger Speichertest funktioniert.
+
+**Auffaellig:**
+
+- `geometry_assignment` liefert beim Oeffnen fuer `geometry_public_id=887c6744-f898-4096-a4aa-3b23da1a908a` HTTP 400. Das Frontend behandelt 400/404 an dieser Stelle bereits als fehlende gespeicherte Eigenschaften und laeuft weiter. Das bleibt als separates Komfort-/API-Status-Thema offen.
+- Der urspruengliche Hinweistext zum flachen Modus war fuer Endnutzer unverstaendlich und wurde mit Commit `f06cb07b10da78ccd12f8ff6e8bb5e5936171542` ersetzt.
+
 ## Aktuelle Altlasten / DCE-Kandidaten
 
 | Bereich | Datei/Funktion | Risiko | Behandlung |
@@ -212,8 +258,9 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 | Legacy-Snapshots | `style_json.assignmentDisplays` / `assignment_displays` | Doppelte Wahrheit gegenueber globalen Territory-Werten. | Nur noch als Legacy-Fallback/Diagnose lesen; nicht als aktive Wahrheit speichern. |
 | Aktiver Breadcrumb | `activeDisplayNode`, `readRootSelection()` | Fallback auf letztes Breadcrumb-Element kann falsches Territorium adressieren. | Breadcrumb-Wechsel explizit setzen und Panels neu synchronisieren; Fallback spaeter haerter absichern. |
 | Derived-Geometry-Ziel | `territory-derived-geometry-iframe-editor.js::getTargetKey()` | Prinzipiell richtig, aber Reload bei Breadcrumb-Wechsel muss garantiert sein. | Nach Breadcrumb-Wechsel explizit `loadForCurrentTerritory()` aufrufen; Browser-Test ausstehend. |
-| Innengrenzen-UI | `updateInnerBoundaryControl()` | Blattknoten-UI wurde auf disabled, checked, ausgegraut korrigiert; Browser-Test ausstehend. | Nach manueller Pruefung als erledigt markieren. |
+| Innengrenzen-UI | `updateInnerBoundaryControl()` | Blattknoten-UI wurde auf disabled, checked, ausgegraut korrigiert; Browser-Test bestanden. | Nach weiterem Regressionstest als erledigt markieren. |
 | Außengrenzen-Modus | Frontend/Backend | UI-Schalter ist sichtbar, aber der rekursive Modus ist bewusst deaktiviert. | Phase 7: Backend-Vertrag `flat`/`hierarchical` und rekursive Source-Planung einfuehren. |
+| Assignment-Ladefehler | `geometry_assignment` GET | HTTP 400 erscheint in der Konsole, obwohl das Frontend den Fall als fehlende gespeicherte Eigenschaften behandelt. | Separater Komfort-/API-Status-Fix: fuer erwartbare Nicht-Zuordnungen 200/404-Vertrag klaeren. |
 | Quellenprotokoll | Backend | Erzeugte Derived-Geometrien sind schwer reproduzierbar. | Optional Tabelle `political_territory_derived_geometry_source` oder aequivalentes Protokoll. |
 
 ## Manuelle Testfaelle
@@ -221,7 +268,7 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 - Klick auf Olrong-Flaeche, dann Breadcrumb `Lorgolosch`: Eigenschaften und Derived Geometry betreffen `Lorgolosch`.
 - Klick auf Kibrom-Asch, dann Breadcrumb `Kibrom`: Eigenschaften und Derived Geometry betreffen `Kibrom`.
 - Blattknoten ohne Unterregionen: `Innengrenzen darstellen` ist deaktiviert, abgehakt und ausgegraut.
-- Geometrie-Panel zeigt `Für alle Unterregionen übernehmen` deaktiviert mit Hinweis auf flache Außengrenze.
+- Geometrie-Panel zeigt `Für alle Unterregionen übernehmen` deaktiviert mit Hinweis auf die nur fuer das ausgewaehlte Gebiet erzeugte Außengrenze.
 - `Außengrenzen darstellen` deaktivieren und speichern: Nur aktive Derived Geometry des Territoriums wird deaktiviert; echte Geometrien bleiben unveraendert.
 - Lokale Override-UI erscheint nicht mehr in der aktiven Bedienoberflaeche.
 - Bestehende echte Polygone bleiben nach jedem Commit unveraendert.
