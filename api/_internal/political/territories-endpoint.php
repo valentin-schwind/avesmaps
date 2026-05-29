@@ -9,6 +9,7 @@ require_once __DIR__ . '/assignment.php';
 require_once __DIR__ . '/assignment-save-guard.php';
 require_once __DIR__ . '/territories-support.php';
 require_once __DIR__ . '/territories-layer.php';
+require_once __DIR__ . '/territories-derived-geometry-shared.php';
 require_once __DIR__ . '/territories-derived-layer.php';
 require_once __DIR__ . '/territories-read.php';
 require_once __DIR__ . '/territories-write.php';
