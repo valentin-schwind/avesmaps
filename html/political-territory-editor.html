@@ -3,232 +3,140 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>Avesmaps – Herrschaftsgebiete aus dem Wiki</title>
+	<title>Avesmaps - Herrschaftsgebiete aus dem Wiki</title>
 	<link rel="stylesheet" href="/css/pages/political-territory-editor.css">
 	<link rel="stylesheet" href="/css/pages/political-territory-editor-layout.css">
 	<link rel="stylesheet" href="/css/pages/political-territory-wiki-tree.css">
 </head>
-
 <body>
 	<div class="app-container">
-	<header>
-		<h1>Avesmaps – Herrschaftsgebiete aus dem Wiki</h1>
-		<p>
-			Lädt die vorhandenen Daten. Zum Synchronisieren WikiSync benutzen.
-		</p>
-	</header>
-
-	<main>
-
-		<section class="status-grid">
-			<div class="stat">
-				<div class="label">Status</div>
-				<div id="statusValue" class="value">Bereit</div>
-			</div>
-			<div class="stat">
-				<div class="label">Geladene Einträge</div>
-				<div id="loadedValue" class="value">0</div>
-			</div>
-			<div class="stat">
-				<div class="label">Angezeigt</div>
-				<div id="visibleValue" class="value">0</div>
-			</div>
-			<div class="stat">
-				<div class="label">Wurzelbereiche</div>
-				<div id="rootValue" class="value">0</div>
-			</div>
-		</section>
-
-		<section class="layout">
-			<section class="panel">
-				<div class="panel-header tree-panel-header">
-					<div class="tree-header-title">
-						<h2>Herrschaftsgebiete aus dem Wiki</h2>
-						<span id="treeInfo" class="note">Noch keine Daten geladen.</span>
-					</div>
-					<div class="tree-header-controls">
-						<button id="reloadButton" class="is-hidden-control" type="button">Daten laden</button>
-						<input id="searchInput" type="search" placeholder="Suchen …" aria-label="Herrschaftsgebiete suchen">
-						<select id="continentFilter" class="is-hidden-control" aria-hidden="true" tabindex="-1">
-							<option value="">Alle Kontinente</option>
-						</select>
-						<select id="typeFilter" class="is-hidden-control" aria-hidden="true" tabindex="-1">
-							<option value="">Alle Typen</option>
-						</select>
-						<select id="statusFilter" class="is-hidden-control" aria-hidden="true" tabindex="-1">
-							<option value="">Alle Status</option>
-						</select>
-					</div>
-				</div>
-				<div id="treeView" class="tree-wrap"></div>
-				<div class="tree-panel-footer" aria-label="Legende und Baumaktionen">
-					<div class="legend" aria-label="Legende der Baumfarben und Karten-Vollständigkeit">
-						<div class="legend-line">
-							<span class="legend-item"><span class="legend-swatch"></span><span>echter Wiki-/SQL-Datensatz mit Details</span></span>
-							<span class="legend-item"><span class="legend-swatch synthetic"></span><span>abgeleiteter Gruppenknoten, ohne eigenen Datensatz</span></span>
-						</div>
-						<div class="legend-line">
-							<span class="legend-item"><span class="legend-map-status"></span><span>fehlt</span></span>
-							<span class="legend-separator">|</span>
-							<span class="legend-item"><span class="legend-map-status legend-map-status--children-only"></span><span>indirekt vorhanden (unvollständig)</span></span>
-							<span class="legend-separator">|</span>
-							<span class="legend-item"><span class="legend-map-status legend-map-status--own-only"></span><span>direkt vorhanden (unvollständig)</span></span>
-							<span class="legend-separator">|</span>
-							<span class="legend-item"><span class="legend-map-status legend-map-status--all"></span><span>vollständig</span></span>
-						</div>
-					</div>
-					<div class="tree-footer-actions">
-						<button id="expandButton" class="secondary tree-footer-button" type="button" title="Alles öffnen" aria-label="Alles öffnen">+</button>
-						<button id="collapseButton" class="secondary tree-footer-button" type="button" title="Alles schließen" aria-label="Alles schließen">−</button>
-					</div>
-				</div>
+		<header>
+			<h1>Avesmaps - Herrschaftsgebiete aus dem Wiki</h1>
+			<p>Laedt die vorhandenen Daten. Zum Synchronisieren WikiSync benutzen.</p>
+		</header>
+		<main>
+			<section class="status-grid">
+				<div class="stat"><div class="label">Status</div><div id="statusValue" class="value">Bereit</div></div>
+				<div class="stat"><div class="label">Geladene Eintraege</div><div id="loadedValue" class="value">0</div></div>
+				<div class="stat"><div class="label">Angezeigt</div><div id="visibleValue" class="value">0</div></div>
+				<div class="stat"><div class="label">Wurzelbereiche</div><div id="rootValue" class="value">0</div></div>
 			</section>
-
-			<section class="detail-stack">
-				<div class="drop-zone-row">
-					<div id="dropZone" class="drop-zone">Herrschaftsgebiet aus dem Wiki hier mit Drag'n'drop zuweisen</div>
-					<button id="unassignButton" class="secondary drop-zone-unassign-button" type="button" hidden>Zuweisung entfernen</button>
-				</div>
-
-				<section class="panel manual-data-panel">
-					<div class="panel-header">
-						<h2>Gebietsdarstellung</h2>
-						<span id="geometryDatabaseInfo" class="note">Geometrie in der Datenbank</span>
-					</div>
-					<div id="manualEditPath" class="breadcrumb manual-edit-path">Kein Knoten zugewiesen</div>
-					<form class="manual-data-box" autocomplete="off">
-						<section class="manual-data-section" aria-label="Synchronisierte Wiki-Daten">
-							<div class="manual-data-section-header">
-								<h3>Synchronisierte Wiki-Daten</h3>
-								<span id="detailInfo" class="note">Noch kein Gebiet ausgewählt.</span>
-							</div>
-							<div id="infoBox" class="info-box"></div>
-						</section>
-
-						<section class="manual-data-section" aria-label="Anzeige und Wappen">
-							<h3>Anzeige</h3>
-							<div class="manual-data-grid">
-								<div class="manual-data-field manual-data-field--wide">
-									<label for="displayNameInput">Anzeigename</label>
-									<input id="displayNameInput" name="display_name" type="text">
-								</div>
-								<div class="manual-data-field manual-data-field--wide">
-									<label for="alternateCoatInput">Wappen-Link</label>
-									<div class="manual-data-inline-action manual-data-inline-action--with-preview">
-										<input id="alternateCoatInput" name="alternate_coat_url" type="url" inputmode="url">
-										<button id="updateCoatButton" class="secondary" type="button">aktualisieren</button>
-										<button id="restoreCoatButton" class="secondary" type="button" hidden>wiederherstellen</button>
-										<div id="manualCoatPreview" class="manual-coat-preview" aria-label="Wappen-Vorschau"><span>kein Wappen</span></div>
-									</div>
-								</div>
-							</div>
-						</section>
-
-						<div class="manual-data-columns">
-							<section class="manual-data-section" aria-label="Kartensichtbarkeit">
-								<h3>Kartensichtbarkeit</h3>
-								<div class="manual-data-grid">
-									<div class="manual-data-field">
-										<label for="zoomFromInput">Zoom von</label>
-										<input id="zoomFromInput" name="zoom_from" type="number" step="1">
-									</div>
-									<div class="manual-data-field">
-										<label for="zoomToInput">Zoom bis</label>
-										<input id="zoomToInput" name="zoom_to" type="number" step="1">
-									</div>
-								</div>
-								<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden>
-									<input id="inheritZoomToDescendantsCheckbox" type="checkbox">
-									<span>Für alle Unterregionen übernehmen</span>
-								</label>
-							</section>
-
-							<section class="manual-data-section" aria-label="Farbe">
-								<h3>Farbe</h3>
-								<div class="manual-color-controls">
-									<div class="manual-data-field">
-										<label for="colorInput">Farbe</label>
-										<input id="colorInput" name="color" type="color" value="#385d72">
-									</div>
-								</div>
-								<div class="manual-data-variance-row">
-									<div class="manual-data-variance-range">
-										<div class="manual-data-variance-input">
-											<label for="hueVarianceMinInput">HSV-Abweichung min (0-256)</label>
-											<input id="hueVarianceMinInput" name="hue_variance_min" type="number" min="0" max="256" step="1" value="10">
-										</div>
-										<div class="manual-data-variance-input">
-											<label for="hueVarianceMaxInput">HSV-Abweichung max (0-256)</label>
-											<input id="hueVarianceMaxInput" name="hue_variance_max" type="number" min="0" max="256" step="1" value="20">
-										</div>
-									</div>
-									<button id="inheritColorVarianceButton" class="secondary inherit-color-variance-button" type="button" hidden>Farbhierarchie erstellen</button>
-								</div>
-								<div id="deferredColorHierarchyPreview" class="deferred-subtree-preview" hidden></div>
-								<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden>
-									<input id="inheritColorToDescendantsCheckbox" type="checkbox">
-									<span>Für alle Unterregionen übernehmen</span>
-								</label>
-								<small class="manual-data-inline-hint">Hinweis: Die Farbhierarchie wird vorbereitet und erst beim Speichern auf die ausgewählten Unterregionen übertragen.</small>
-							</section>
-
-							<section class="manual-data-section" aria-label="Transparenz">
-								<h3>Transparenz</h3>
-								<div class="manual-color-controls">
-									<div class="manual-data-field">
-										<label for="transparencyInput">Transparenz <output id="transparencyOutput" for="transparencyInput">33%</output></label>
-										<input id="transparencyInput" name="transparency" type="range" min="0" max="100" step="1" value="33">
-										<button id="inheritOpacityButton" class="secondary inherit-opacity-button" type="button" hidden>Transparenz vererben</button>
-									</div>
-								</div>
-								<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden>
-					տ			<input id="inheritOpacityToDescendantsCheckbox" type="checkbox">
-									<span>Für alle Unterregionen übernehmen</span>
-								</label>
-							</section>
-
-							<section class="manual-data-section" aria-label="Zeitliche Gültigkeit">
-								<h3>Zeitliche Gültigkeit</h3>
-								<div class="manual-data-grid">
-									<div class="manual-data-field">
-										<label for="startYearInput">Anfang</label>
-										<input id="startYearInput" name="start_year" type="number" step="1">
-									</div>
-									<div class="manual-data-field">
-										<label for="endYearInput">Ende</label>
-										<input id="endYearInput" name="end_year" type="number" step="1">
-									</div>
-									<label class="manual-data-checkbox manual-data-field--wide">
-										<input id="existsUntilTodayInput" name="exists_until_today" type="checkbox" checked>
-										<span>existiert bis heute</span>
-									</label>
-								</div>
-								<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden>
-									<input id="inheritValidityToDescendantsCheckbox" type="checkbox">
-									<span>Für alle Unterregionen übernehmen</span>
-								</label>
-							</section>
+			<section class="layout">
+				<section class="panel">
+					<div class="panel-header tree-panel-header">
+						<div class="tree-header-title">
+							<h2>Herrschaftsgebiete aus dem Wiki</h2>
+							<span id="treeInfo" class="note">Noch keine Daten geladen.</span>
 						</div>
-					</form>
-				</section>
-
-				<section class="panel form-status-panel" aria-label="Speicherstatus und Aktionen">
-					<div class="form-status-row">
-						<label class="form-status-field" for="formStatusInput">
-							<span>Statusfeld</span>
-							<input id="formStatusInput" type="text" value="Noch nicht gespeichert" readonly>
-						</label>
-						<div class="form-actions">
-							<button id="cancelButton" class="secondary" type="button">Abbrechen</button>
-							<button id="saveButton" type="button">Speichern</button>
+						<div class="tree-header-controls">
+							<button id="reloadButton" class="is-hidden-control" type="button">Daten laden</button>
+							<input id="searchInput" type="search" placeholder="Suchen ..." aria-label="Herrschaftsgebiete suchen">
+							<select id="continentFilter" class="is-hidden-control" aria-hidden="true" tabindex="-1"><option value="">Alle Kontinente</option></select>
+							<select id="typeFilter" class="is-hidden-control" aria-hidden="true" tabindex="-1"><option value="">Alle Typen</option></select>
+							<select id="statusFilter" class="is-hidden-control" aria-hidden="true" tabindex="-1"><option value="">Alle Status</option></select>
+						</div>
+					</div>
+					<div id="treeView" class="tree-wrap"></div>
+					<div class="tree-panel-footer" aria-label="Legende und Baumaktionen">
+						<div class="legend" aria-label="Legende der Baumfarben und Karten-Vollstaendigkeit">
+							<div class="legend-line">
+								<span class="legend-item"><span class="legend-swatch"></span><span>echter Wiki-/SQL-Datensatz mit Details</span></span>
+								<span class="legend-item"><span class="legend-swatch synthetic"></span><span>abgeleiteter Gruppenknoten, ohne eigenen Datensatz</span></span>
+							</div>
+							<div class="legend-line">
+								<span class="legend-item"><span class="legend-map-status"></span><span>fehlt</span></span>
+								<span class="legend-separator">|</span>
+								<span class="legend-item"><span class="legend-map-status legend-map-status--children-only"></span><span>indirekt vorhanden (unvollstaendig)</span></span>
+								<span class="legend-separator">|</span>
+								<span class="legend-item"><span class="legend-map-status legend-map-status--own-only"></span><span>direkt vorhanden (unvollstaendig)</span></span>
+								<span class="legend-separator">|</span>
+								<span class="legend-item"><span class="legend-map-status legend-map-status--all"></span><span>vollstaendig</span></span>
+							</div>
+						</div>
+						<div class="tree-footer-actions">
+							<button id="expandButton" class="secondary tree-footer-button" type="button" title="Alles oeffnen" aria-label="Alles oeffnen">+</button>
+							<button id="collapseButton" class="secondary tree-footer-button" type="button" title="Alles schliessen" aria-label="Alles schliessen">-</button>
 						</div>
 					</div>
 				</section>
+				<section class="detail-stack">
+					<div class="drop-zone-row">
+						<div id="dropZone" class="drop-zone">Herrschaftsgebiet aus dem Wiki hier mit Drag'n'drop zuweisen</div>
+						<button id="unassignButton" class="secondary drop-zone-unassign-button" type="button" hidden>Zuweisung entfernen</button>
+					</div>
+					<section class="panel manual-data-panel">
+						<div class="panel-header"><h2>Gebietsdarstellung</h2><span id="geometryDatabaseInfo" class="note">Geometrie in der Datenbank</span></div>
+						<div id="manualEditPath" class="breadcrumb manual-edit-path">Kein Knoten zugewiesen</div>
+						<form class="manual-data-box" autocomplete="off">
+							<section class="manual-data-section" aria-label="Synchronisierte Wiki-Daten">
+								<div class="manual-data-section-header"><h3>Synchronisierte Wiki-Daten</h3><span id="detailInfo" class="note">Noch kein Gebiet ausgewaehlt.</span></div>
+								<div id="infoBox" class="info-box"></div>
+							</section>
+							<section class="manual-data-section" aria-label="Anzeige und Wappen">
+								<h3>Anzeige</h3>
+								<div class="manual-data-grid">
+									<div class="manual-data-field manual-data-field--wide"><label for="displayNameInput">Anzeigename</label><input id="displayNameInput" name="display_name" type="text"></div>
+									<div class="manual-data-field manual-data-field--wide">
+										<label for="alternateCoatInput">Wappen-Link</label>
+										<div class="manual-data-inline-action manual-data-inline-action--with-preview">
+											<input id="alternateCoatInput" name="alternate_coat_url" type="url" inputmode="url">
+											<button id="updateCoatButton" class="secondary" type="button">aktualisieren</button>
+											<button id="restoreCoatButton" class="secondary" type="button" hidden>wiederherstellen</button>
+											<div id="manualCoatPreview" class="manual-coat-preview" aria-label="Wappen-Vorschau"><span>kein Wappen</span></div>
+										</div>
+									</div>
+								</div>
+							</section>
+							<div class="manual-data-columns">
+								<section class="manual-data-section" aria-label="Kartensichtbarkeit">
+									<h3>Kartensichtbarkeit</h3>
+									<div class="manual-data-grid">
+										<div class="manual-data-field"><label for="zoomFromInput">Zoom von</label><input id="zoomFromInput" name="zoom_from" type="number" step="1"></div>
+										<div class="manual-data-field"><label for="zoomToInput">Zoom bis</label><input id="zoomToInput" name="zoom_to" type="number" step="1"></div>
+									</div>
+									<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden><input id="inheritZoomToDescendantsCheckbox" type="checkbox"><span>Fuer alle Unterregionen uebernehmen</span></label>
+								</section>
+								<section class="manual-data-section" aria-label="Farbe">
+									<h3>Farbe</h3>
+									<div class="manual-color-controls"><div class="manual-data-field"><label for="colorInput">Farbe</label><input id="colorInput" name="color" type="color" value="#385d72"></div></div>
+									<div class="manual-data-variance-row">
+										<div class="manual-data-variance-range">
+											<div class="manual-data-variance-input"><label for="hueVarianceMinInput">HSV-Abweichung min (0-256)</label><input id="hueVarianceMinInput" name="hue_variance_min" type="number" min="0" max="256" step="1" value="10"></div>
+											<div class="manual-data-variance-input"><label for="hueVarianceMaxInput">HSV-Abweichung max (0-256)</label><input id="hueVarianceMaxInput" name="hue_variance_max" type="number" min="0" max="256" step="1" value="20"></div>
+										</div>
+										<button id="inheritColorVarianceButton" class="secondary inherit-color-variance-button" type="button" hidden>Farbhierarchie erstellen</button>
+									</div>
+									<div id="deferredColorHierarchyPreview" class="deferred-subtree-preview" hidden></div>
+									<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden><input id="inheritColorToDescendantsCheckbox" type="checkbox"><span>Fuer alle Unterregionen uebernehmen</span></label>
+									<small class="manual-data-inline-hint">Hinweis: Die Farbhierarchie wird vorbereitet und erst beim Speichern auf die ausgewaehlten Unterregionen uebertragen.</small>
+								</section>
+								<section class="manual-data-section" aria-label="Transparenz">
+									<h3>Transparenz</h3>
+									<div class="manual-color-controls"><div class="manual-data-field"><label for="transparencyInput">Transparenz <output id="transparencyOutput" for="transparencyInput">33%</output></label><input id="transparencyInput" name="transparency" type="range" min="0" max="100" step="1" value="33"><button id="inheritOpacityButton" class="secondary inherit-opacity-button" type="button" hidden>Transparenz vererben</button></div></div>
+									<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden><input id="inheritOpacityToDescendantsCheckbox" type="checkbox"><span>Fuer alle Unterregionen uebernehmen</span></label>
+								</section>
+								<section class="manual-data-section" aria-label="Zeitliche Gueltigkeit">
+									<h3>Zeitliche Gueltigkeit</h3>
+									<div class="manual-data-grid">
+										<div class="manual-data-field"><label for="startYearInput">Anfang</label><input id="startYearInput" name="start_year" type="number" step="1"></div>
+										<div class="manual-data-field"><label for="endYearInput">Ende</label><input id="endYearInput" name="end_year" type="number" step="1"></div>
+										<label class="manual-data-checkbox manual-data-field--wide"><input id="existsUntilTodayInput" name="exists_until_today" type="checkbox" checked><span>existiert bis heute</span></label>
+									</div>
+									<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden><input id="inheritValidityToDescendantsCheckbox" type="checkbox"><span>Fuer alle Unterregionen uebernehmen</span></label>
+								</section>
+							</div>
+						</form>
+					</section>
+					<section class="panel form-status-panel" aria-label="Speicherstatus und Aktionen">
+						<div class="form-status-row">
+							<label class="form-status-field" for="formStatusInput"><span>Statusfeld</span><input id="formStatusInput" type="text" value="Noch nicht gespeichert" readonly></label>
+							<div class="form-actions"><button id="cancelButton" class="secondary" type="button">Abbrechen</button><button id="saveButton" type="button">Speichern</button></div>
+						</div>
+					</section>
+				</section>
 			</section>
-		</section>
-	</main>
+		</main>
 	</div>
-
 	<script src="/js/territory/territory-wiki-tree.js"></script>
 	<script src="/js/territory/territory-editor-embedded.js"></script>
 	<script src="/js/territory/territory-editor-drop-compat.js"></script>
