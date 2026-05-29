@@ -28,6 +28,15 @@ const politicalTerritoryRepository = {
 		});
 	},
 
+	async getDerivedGeometryPlan(territoryPublicId, options = {}) {
+		return fetchPoliticalTerritories({
+			action: "derived_geometry_plan",
+			territory_public_id: territoryPublicId,
+			selected_year_bf: options.selectedYearBf ?? "",
+			apply_to_subregions: options.applyToSubregions ? 1 : 0,
+		});
+	},
+
 	async saveDerivedGeometry(payload) {
 		return submitPoliticalTerritoryEdit({
 			action: "save_derived_geometry",
