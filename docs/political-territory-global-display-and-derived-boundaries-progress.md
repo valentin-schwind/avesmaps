@@ -41,6 +41,10 @@ Die Berechnung laeuft bottom-up. Blatt- oder Quellknoten werden aus echten Geome
 
 Enklaven, Exklaven und innere Ringe sind Bestandteil der Außengrenze. Eine gueltige Außengrenze kann daher ein `Polygon` mit inneren Ringen oder ein `MultiPolygon` mit inneren Ringen sein. Diese Ringe duerfen bei Union, Speicherung und Rendering nicht entfernt oder als normale Innengrenze umgedeutet werden.
 
+Boundary-relevante Änderungen werden beim Editor-Speichern direkt fuer die betroffenen Hierarchien neu berechnet. Relevante Änderungen sind insbesondere echte Geometrie, Geometrie-Zuordnung, Territory-Hierarchie, Gültigkeitsjahre und die Option `existiert bis heute`. Betroffen sind das geänderte Territory, erzeugbare Unterknoten bei rekursiver Übernahme und alle Ancestors, deren Außengrenze von der Änderung abhängt.
+
+Derived Boundaries sind historisch gültig. Sie werden nur aus Quellen gebildet, die im betrachteten Jahr oder Intervall gültig sind. Eine Änderung an Gültigkeitsjahren oder `existiert bis heute` invalidiert daher dieselben abhängigen Außengrenzen wie eine Geometrieänderung.
+
 `Für alle Unterregionen übernehmen` ist eine bewusste Massenaktion. Nur wenn diese Option aktiv ist, werden `Außengrenzen darstellen` und `Innengrenzen darstellen` rekursiv auf Kinder und Kindeskinder übertragen.
 
 Innengrenzen werden relativ zum aktuell dargestellten Breadcrumb-Kontext gestuft. Die unterste sichtbare Rekursionsstufe beginnt mit Index 1; darüber folgen 2, 3, 4 usw. Die äußerste Grenze des angezeigten Gebiets ist immer `X`. Die maximale sichtbare Innengrenzen-Tiefe soll als zentraler Parameter konfigurierbar bleiben.
