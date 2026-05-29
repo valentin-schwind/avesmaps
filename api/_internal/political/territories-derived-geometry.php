@@ -65,16 +65,31 @@ function avesmapsPoliticalReadDerivedGeometrySources(PDO $pdo, array $query): ar
     $target = avesmapsPoliticalResolveDerivedGeometryTarget($pdo, $query, false);
     $territories = avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo);
     $descendantIds = [];
+    $sourceTerritoryIds = [];
+    $sourceMode = 'none';
 
     if (($target['territory'] ?? null) !== null) {
         $descendantIds = avesmapsPoliticalCollectDerivedGeometryDescendantIds((int) $target['territory']['id'], $territories);
+        $sourceTerritoryIds = $descendantIds;
+        if ($sourceTerritoryIds !== []) {
+            $sourceMode = 'descendants';
+        }
     }
 
-    if ($descendantIds === [] && ($target['wiki'] ?? null) !== null) {
+    if ($sourceTerritoryIds === [] && ($target['wiki'] ?? null) !== null) {
         $descendantIds = avesmapsPoliticalCollectDerivedGeometryWikiDescendantIds($pdo, $target['wiki']);
+        $sourceTerritoryIds = $descendantIds;
+        if ($sourceTerritoryIds !== []) {
+            $sourceMode = 'wiki_descendants';
+        }
     }
 
-    $sourceGeometries = avesmapsPoliticalFetchDerivedSourceGeometries($pdo, $descendantIds);
+    if ($sourceTerritoryIds === [] && ($target['territory'] ?? null) !== null) {
+        $sourceTerritoryIds = [(int) $target['territory']['id']];
+        $sourceMode = 'target_territory';
+    }
+
+    $sourceGeometries = avesmapsPoliticalFetchDerivedSourceGeometries($pdo, $sourceTerritoryIds);
 
     return [
         'ok' => true,
@@ -83,6 +98,8 @@ function avesmapsPoliticalReadDerivedGeometrySources(PDO $pdo, array $query): ar
         'target_name' => $target['target_name'],
         'source_geometries' => $sourceGeometries,
         'source_count' => count($sourceGeometries),
+        'source_mode' => $sourceMode,
+        'source_territory_ids' => $sourceTerritoryIds,
         'descendant_territory_count' => count($descendantIds),
     ];
 }
