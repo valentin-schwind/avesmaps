@@ -90,6 +90,16 @@ const politicalTerritoryRepository = {
 	document.head.appendChild(script);
 })();
 
+(function loadDerivedBoundaryContextActionModule() {
+	if (typeof document === "undefined" || document.querySelector('script[src="js/map-features/map-features-derived-boundary-context-action.js"]')) {
+		return;
+	}
+	const script = document.createElement("script");
+	script.src = "js/map-features/map-features-derived-boundary-context-action.js";
+	script.defer = true;
+	document.head.appendChild(script);
+})();
+
 (function loadDerivedBoundaryRuntimeFixesModule() {
 	if (typeof document === "undefined" || document.querySelector('script[src="js/map-features/map-features-derived-boundary-runtime-fix.js"]')) {
 		return;
