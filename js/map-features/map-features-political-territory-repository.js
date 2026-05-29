@@ -80,3 +80,13 @@ const politicalTerritoryRepository = {
 	script.defer = true;
 	document.head.appendChild(script);
 })();
+
+(function loadDerivedBoundaryRuntimeFixesModule() {
+	if (typeof document === "undefined" || document.querySelector('script[src="js/map-features/map-features-derived-boundary-runtime-fix.js"]')) {
+		return;
+	}
+	const script = document.createElement("script");
+	script.src = "js/map-features/map-features-derived-boundary-runtime-fix.js";
+	script.defer = true;
+	document.head.appendChild(script);
+})();
