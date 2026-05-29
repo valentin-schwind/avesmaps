@@ -126,15 +126,42 @@ function createWikiSyncTerritoryDragPayloadFromNode(node) {
 	return { node: path[path.length - 1] || createWikiSyncTerritoryTransferReference(node), path };
 }
 
-function enhanceWikiSyncTerritoryDragEvent(event) {
+function findWikiSyncTerritoryTreeElement(event) {
+	const target = event?.target;
+	if (!(target instanceof Element)) return null;
+	return target.closest("#wiki-sync-territory-tree, #treeView, [data-wiki-sync-panel-section='territories']");
+}
+
+function findDraggedTreeItem(event) {
+	const target = event?.target;
+	if (!(target instanceof Element)) return null;
+	return target.closest(".tree-item[data-node-id], .wiki-sync-territory-tree__item[data-node-id]");
+}
+
+function findWikiSyncTerritoryNodeForEvent(event) {
 	const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
 	const rows = Array.isArray(window.wikiSyncTerritoryTreeRowsCache) ? window.wikiSyncTerritoryTreeRowsCache : [];
-	if (!treeModule || typeof treeModule.buildTree !== "function" || rows.length < 1 || !event.dataTransfer) return;
-	const nodeId = normalizeWikiSyncTerritoryTransferText(event.dataTransfer.getData("application/x-avesmaps-territory-node-id") || event.dataTransfer.getData("text/plain"));
-	if (!nodeId) return;
+	if (!treeModule || typeof treeModule.buildTree !== "function" || rows.length < 1) return null;
+	const draggedItem = findDraggedTreeItem(event);
+	const nodeId = normalizeWikiSyncTerritoryTransferText(
+		event?.dataTransfer?.getData("application/x-avesmaps-territory-node-id")
+		|| event?.dataTransfer?.getData("text/plain")
+		|| draggedItem?.dataset?.nodeId
+		|| ""
+	);
+	if (!nodeId) return null;
 	const fullTree = treeModule.buildTree(rows);
-	const node = fullTree?.nodeRegistry instanceof Map ? fullTree.nodeRegistry.get(nodeId) : null;
+	return fullTree?.nodeRegistry instanceof Map ? fullTree.nodeRegistry.get(nodeId) || null : null;
+}
+
+function enhanceWikiSyncTerritoryDragEvent(event) {
+	if (!event?.dataTransfer) return;
+	const node = findWikiSyncTerritoryNodeForEvent(event);
 	if (!node) return;
+	const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
+	if (typeof treeModule?.applyDragData === "function") {
+		treeModule.applyDragData(event, node);
+	}
 	const payload = createWikiSyncTerritoryDragPayloadFromNode(node);
 	if (!payload.path.length) return;
 	const selected = payload.node || payload.path[payload.path.length - 1];
@@ -298,6 +325,10 @@ function isEventTargetInsideSelector(event, selector) {
 	return target instanceof Element && typeof target.closest === "function" && Boolean(target.closest(selector));
 }
 
+function isEventOnPoliticalTerritoryMap(event) {
+	return isEventTargetInsideSelector(event, "#map, .leaflet-container");
+}
+
 function initializeWikiSyncTerritoryDragAssignment() {
 	installWikiSyncTerritoryTreeDisplayPatch();
 	let attempts = 0;
@@ -307,14 +338,14 @@ function initializeWikiSyncTerritoryDragAssignment() {
 	}, 25);
 
 	document.addEventListener("dragstart", (event) => {
-		if (!isEventTargetInsideSelector(event, "#wiki-sync-territory-tree, #treeView")) return;
+		if (!findWikiSyncTerritoryTreeElement(event) && !findDraggedTreeItem(event)) return;
 		enhanceWikiSyncTerritoryDragEvent(event);
 	});
 
 	document.addEventListener("dragover", (event) => {
 		const payload = readWikiSyncTerritoryDragPayload(event.dataTransfer);
 		if (!payload) return;
-		if (isEventTargetInsideSelector(event, "#map") || isEventTargetInsideSelector(event, "#region-edit-assignment-drop")) {
+		if (isEventOnPoliticalTerritoryMap(event) || isEventTargetInsideSelector(event, "#region-edit-assignment-drop")) {
 			event.preventDefault();
 			event.dataTransfer.dropEffect = "copy";
 		}
@@ -332,7 +363,7 @@ function initializeWikiSyncTerritoryDragAssignment() {
 			});
 			return;
 		}
-		if (!isEventTargetInsideSelector(event, "#map")) return;
+		if (!isEventOnPoliticalTerritoryMap(event)) return;
 		event.preventDefault();
 		event.stopPropagation();
 		const regionLayer = findRegionLayerForWikiSyncDrop(event);
