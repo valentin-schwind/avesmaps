@@ -202,7 +202,8 @@
 	}
 
 	function installDerivedGeometryEditorPanel() {
-		void loadScriptOnce("/js/third-party/polygon-clipping.umd.min.js")
+		void loadScriptOnce("/js/territory/territory-derived-geometry-source-context.js")
+			.then(() => loadScriptOnce("/js/third-party/polygon-clipping.umd.min.js"))
 			.then(() => loadScriptOnce("/js/territory/territory-derived-geometry-iframe-editor.js"))
 			.then(installActiveBreadcrumbDerivedGeometrySync)
 			.catch((error) => {
