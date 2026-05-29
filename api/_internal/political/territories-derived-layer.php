@@ -12,21 +12,19 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
         return $response;
     }
 
-    $derivedTerritoryIds = [];
     $hiddenByTerritoryPublicId = [];
     $hiddenByGeometryPublicId = [];
     foreach ($derivedFeatures as &$feature) {
         $territoryPublicId = trim((string) ($feature['properties']['territory_public_id'] ?? ''));
-        if ($territoryPublicId !== '') {
-            $derivedTerritoryIds[$territoryPublicId] = true;
-        }
         if (($feature['properties']['show_inner_boundaries'] ?? true) === false) {
             $sourceTerritoryPublicIds = avesmapsPoliticalReadDerivedSourceTerritoryPublicIds($pdo, $feature);
             $sourceGeometryPublicIds = avesmapsPoliticalReadDerivedSourceGeometryPublicIds($pdo, $feature);
             $feature['properties']['derived_source_territory_public_ids'] = $sourceTerritoryPublicIds;
             $feature['properties']['derived_source_geometry_public_ids'] = $sourceGeometryPublicIds;
             foreach ($sourceTerritoryPublicIds as $sourceTerritoryPublicId) {
-                $hiddenByTerritoryPublicId[$sourceTerritoryPublicId] = $territoryPublicId;
+                if ($sourceTerritoryPublicId !== $territoryPublicId) {
+                    $hiddenByTerritoryPublicId[$sourceTerritoryPublicId] = $territoryPublicId;
+                }
             }
             foreach ($sourceGeometryPublicIds as $sourceGeometryPublicId) {
                 $hiddenByGeometryPublicId[$sourceGeometryPublicId] = $territoryPublicId;
@@ -47,9 +45,6 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
         $territoryPublicId = trim((string) ($properties['territory_public_id'] ?? ''));
         $aggregateSourceTerritoryPublicId = trim((string) ($properties['aggregate_source_territory_public_id'] ?? ''));
         $geometryPublicId = trim((string) ($properties['geometry_public_id'] ?? $properties['public_id'] ?? ''));
-        if ($territoryPublicId !== '' && isset($derivedTerritoryIds[$territoryPublicId])) {
-            continue;
-        }
         $hiddenBy = '';
         if ($geometryPublicId !== '' && isset($hiddenByGeometryPublicId[$geometryPublicId])) {
             $hiddenBy = $hiddenByGeometryPublicId[$geometryPublicId];
