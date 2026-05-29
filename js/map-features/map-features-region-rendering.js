@@ -72,11 +72,15 @@ function shouldHideRegionForDerivedBoundary(region, regionEntry) {
 	const properties = region.properties || {};
 	const territoryPublicId = String(properties.territory_public_id || regionEntry.territoryPublicId || "").trim();
 	const aggregateSourceTerritoryPublicId = String(properties.aggregate_source_territory_public_id || "").trim();
-	if (!territoryPublicId && !aggregateSourceTerritoryPublicId) {
+	const geometryPublicId = String(properties.geometry_public_id || properties.public_id || regionEntry.geometryPublicId || regionEntry.publicId || region.id || "").trim();
+	if (!territoryPublicId && !aggregateSourceTerritoryPublicId && !geometryPublicId) {
 		return false;
 	}
 
 	return getActiveOuterBoundaryHideTargets().some((target) => {
+		if (geometryPublicId && target.sourceGeometryPublicIds.has(geometryPublicId)) {
+			return true;
+		}
 		if (territoryPublicId && territoryPublicId === target.territoryPublicId) {
 			return false;
 		}
@@ -96,14 +100,28 @@ function getActiveOuterBoundaryHideTargets() {
 			return {
 				territoryPublicId: String(properties.territory_public_id || "").trim(),
 				sourceTerritoryPublicIds: readDerivedBoundarySourceTerritoryIds(properties),
+				sourceGeometryPublicIds: readDerivedBoundarySourceGeometryIds(properties),
 			};
 		})
-		.filter((target) => target.sourceTerritoryPublicIds.size > 0);
+		.filter((target) => target.sourceTerritoryPublicIds.size > 0 || target.sourceGeometryPublicIds.size > 0);
 }
 
 function readDerivedBoundarySourceTerritoryIds(properties) {
 	const ids = new Set();
 	[properties.hidden_source_territory_public_ids, properties.source_territory_public_ids, properties.derived_source_territory_public_ids].forEach((value) => {
+		if (Array.isArray(value)) {
+			value.forEach((entry) => {
+				const id = String(entry || "").trim();
+				if (id) ids.add(id);
+			});
+		}
+	});
+	return ids;
+}
+
+function readDerivedBoundarySourceGeometryIds(properties) {
+	const ids = new Set();
+	[properties.hidden_source_geometry_public_ids, properties.source_geometry_public_ids, properties.derived_source_geometry_public_ids].forEach((value) => {
 		if (Array.isArray(value)) {
 			value.forEach((entry) => {
 				const id = String(entry || "").trim();
