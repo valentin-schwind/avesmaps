@@ -18,78 +18,6 @@
 		}
 	}
 
-	function getParentWindow() {
-		try {
-			return window.parent && window.parent !== window ? window.parent : null;
-		} catch (error) {
-			return null;
-		}
-	}
-
-	function createParentCompletionController() {
-		const parentWindow = getParentWindow();
-		if (!parentWindow) {
-			return {
-				restore() {},
-				complete() {},
-			};
-		}
-
-		const originalClose = typeof parentWindow.closePoliticalTerritoryEditor === "function"
-			? parentWindow.closePoliticalTerritoryEditor
-			: null;
-		let closeRequested = false;
-		let restored = false;
-
-		if (originalClose) {
-			try {
-				parentWindow.closePoliticalTerritoryEditor = function deferPoliticalTerritoryEditorClose() {
-					closeRequested = true;
-				};
-			} catch (error) {
-				// If the parent cannot be patched, saving still continues normally.
-			}
-		}
-
-		function restore() {
-			if (restored) return;
-			restored = true;
-			if (originalClose) {
-				try {
-					parentWindow.closePoliticalTerritoryEditor = originalClose;
-				} catch (error) {
-					// Ignore restore failures; the iframe may already be detached.
-				}
-			}
-		}
-
-		function complete() {
-			restore();
-			try {
-				if (typeof parentWindow.drawDerivedGeometryPreview === "function") {
-					parentWindow.drawDerivedGeometryPreview(null);
-				}
-				if (typeof parentWindow.refreshPoliticalTerritoryEditorMapLayer === "function") {
-					parentWindow.refreshPoliticalTerritoryEditorMapLayer();
-				} else if (typeof parentWindow.schedulePoliticalTerritoryLayerReload === "function") {
-					parentWindow.schedulePoliticalTerritoryLayerReload({ immediate: true });
-				}
-			} catch (error) {
-				// Parent reload is best-effort; the save result remains authoritative.
-			}
-
-			if (closeRequested && originalClose) {
-				try {
-					parentWindow.setTimeout(originalClose, 0);
-				} catch (error) {
-					try { originalClose(); } catch (innerError) {}
-				}
-			}
-		}
-
-		return { restore, complete };
-	}
-
 	async function runBeforeSaveTransforms(value) {
 		let nextValue = value;
 		for (const transform of beforeSaveTransforms) {
@@ -114,17 +42,9 @@
 			return value;
 		}
 
-		const completionController = createParentCompletionController();
-		try {
-			const transformedValue = await runBeforeSaveTransforms(value);
-			const result = await externalOnSave(transformedValue);
-			const finalResult = await runAfterSaveHooks({ value: transformedValue, originalValue: value, result });
-			completionController.complete();
-			return finalResult;
-		} catch (error) {
-			completionController.restore();
-			throw error;
-		}
+		const transformedValue = await runBeforeSaveTransforms(value);
+		const result = await externalOnSave(transformedValue);
+		return runAfterSaveHooks({ value: transformedValue, originalValue: value, result });
 	}
 
 	function installOnAssignmentModule(module) {
