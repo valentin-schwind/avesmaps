@@ -19,6 +19,132 @@ function avesmapsPoliticalReadDerivedGeometrySourcesWithGeometryFallback(PDO $pd
         return $response;
     }
 
+    $contextResponse = avesmapsPoliticalReadDerivedGeometrySourcesFromGeometryContext($pdo, $query, $response, $geometry);
+    if ((int) ($contextResponse['source_count'] ?? 0) > 0) {
+        return $contextResponse;
+    }
+
+    return avesmapsPoliticalReadDerivedGeometrySourcesFromSingleGeometryFallback($response, $geometry);
+}
+
+function avesmapsPoliticalReadDerivedGeometrySourcesFromGeometryContext(PDO $pdo, array $query, array $response, array $geometry): array {
+    $geometryTerritoryId = (int) ($geometry['territory_id'] ?? 0);
+    if ($geometryTerritoryId < 1) {
+        return $response;
+    }
+
+    $territories = avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo);
+    if (!isset($territories[$geometryTerritoryId])) {
+        return $response;
+    }
+
+    $targetKey = avesmapsPoliticalNormalizeDerivedSourceTargetKey((string) ($response['target_key'] ?? $query['target_key'] ?? ''));
+    $targetTerritory = avesmapsPoliticalResolveDerivedSourceContextTerritory($territories, $geometryTerritoryId, $targetKey);
+    if (!is_array($targetTerritory)) {
+        return $response;
+    }
+
+    $targetTerritoryId = (int) ($targetTerritory['id'] ?? 0);
+    if ($targetTerritoryId < 1) {
+        return $response;
+    }
+
+    $sourceTerritoryIds = avesmapsPoliticalCollectDerivedGeometryDescendantIds($targetTerritoryId, $territories);
+    if ($sourceTerritoryIds === []) {
+        $sourceTerritoryIds = [$targetTerritoryId];
+    }
+
+    $sourceGeometries = avesmapsPoliticalFetchDerivedSourceGeometries($pdo, $sourceTerritoryIds);
+    if ($sourceGeometries === []) {
+        return $response;
+    }
+
+    $response['territory_public_id'] = (string) ($targetTerritory['public_id'] ?? '');
+    $response['target_key'] = (string) ($targetTerritory['public_id'] ?? $response['target_key'] ?? '');
+    $response['target_name'] = (string) ($targetTerritory['name'] ?? $response['target_name'] ?? '');
+    $response['source_geometries'] = $sourceGeometries;
+    $response['source_count'] = count($sourceGeometries);
+    $response['source_mode'] = count($sourceTerritoryIds) > 1 ? 'geometry_context_descendants' : 'geometry_context_target_territory';
+    $response['source_territory_ids'] = $sourceTerritoryIds;
+    $response['descendant_territory_count'] = count(avesmapsPoliticalCollectDerivedGeometryDescendantIds($targetTerritoryId, $territories));
+    $response['geometry_context_public_id'] = (string) ($geometry['public_id'] ?? '');
+
+    return $response;
+}
+
+function avesmapsPoliticalResolveDerivedSourceContextTerritory(array $territories, int $geometryTerritoryId, string $targetKey): ?array {
+    $chain = [];
+    $currentId = $geometryTerritoryId;
+    while ($currentId > 0 && isset($territories[$currentId])) {
+        $territory = $territories[$currentId];
+        $chain[] = $territory;
+        $currentId = (int) ($territory['parent_id'] ?? 0);
+    }
+
+    if ($chain === []) {
+        return null;
+    }
+
+    foreach ($chain as $territory) {
+        if (avesmapsPoliticalDerivedSourceTerritoryMatchesTarget($territory, $targetKey)) {
+            return $territory;
+        }
+    }
+
+    $directParentId = (int) ($chain[0]['parent_id'] ?? 0);
+    if ($directParentId > 0 && isset($territories[$directParentId])) {
+        return $territories[$directParentId];
+    }
+
+    return $chain[0];
+}
+
+function avesmapsPoliticalDerivedSourceTerritoryMatchesTarget(array $territory, string $targetKey): bool {
+    if ($targetKey === '') {
+        return false;
+    }
+
+    $candidates = [
+        (string) ($territory['public_id'] ?? ''),
+        (string) ($territory['slug'] ?? ''),
+        (string) ($territory['name'] ?? ''),
+        avesmapsPoliticalSlug((string) ($territory['name'] ?? '')),
+    ];
+
+    foreach ($candidates as $candidate) {
+        $candidateKey = avesmapsPoliticalNormalizeDerivedSourceTargetKey($candidate);
+        if ($candidateKey === '') {
+            continue;
+        }
+        if ($candidateKey === $targetKey) {
+            return true;
+        }
+        if (levenshtein($candidateKey, $targetKey) <= 3) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function avesmapsPoliticalNormalizeDerivedSourceTargetKey(string $value): string {
+    $value = trim($value);
+    if ($value === '') {
+        return '';
+    }
+
+    if (str_starts_with(strtolower($value), 'wiki:')) {
+        $value = substr($value, 5);
+    }
+
+    if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value) === 1) {
+        return strtolower($value);
+    }
+
+    return avesmapsPoliticalSlug($value);
+}
+
+function avesmapsPoliticalReadDerivedGeometrySourcesFromSingleGeometryFallback(array $response, array $geometry): array {
     $geometryGeoJson = avesmapsPoliticalDecodeJson($geometry['geometry_geojson'] ?? null);
     if (!is_array($geometryGeoJson)) {
         return $response;
