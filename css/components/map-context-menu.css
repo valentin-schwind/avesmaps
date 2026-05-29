@@ -96,6 +96,10 @@
 	content: "\2699";
 }
 
+.map-context-menu__item[data-region-context-action="refresh-derived-boundary"]::before {
+	content: "\27F3";
+}
+
 .map-context-menu__item[data-region-context-action="show-info"]::before {
 	content: "\2139";
 }
