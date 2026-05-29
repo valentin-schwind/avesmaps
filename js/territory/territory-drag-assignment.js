@@ -293,6 +293,12 @@ function buildWikiSyncTerritoryWikiNodesFromPayload(payload, displays) {
 	}));
 }
 
+async function refreshWikiSyncTerritoryTreeAfterAssignment() {
+	if (typeof renderWikiSyncTerritoryTree === "function") {
+		await renderWikiSyncTerritoryTree({ forceReload: true });
+	}
+}
+
 async function assignWikiSyncTerritoryPayloadToRegionGeometry(payload, regionEntry) {
 	const geometryPublicId = getPoliticalTerritoryEditorGeometryPublicId(regionEntry || {});
 	if (!geometryPublicId) throw new Error("Die Ziel-Geometrie hat keine Geometrie-ID.");
@@ -311,6 +317,7 @@ async function assignWikiSyncTerritoryPayloadToRegionGeometry(payload, regionEnt
 	});
 	await syncPoliticalTerritoryEditorAssignmentZooms(assignmentValue);
 	refreshPoliticalTerritoryEditorMapLayer();
+	await refreshWikiSyncTerritoryTreeAfterAssignment();
 	if (typeof loadChangeLog === "function") void loadChangeLog();
 	return result;
 }
