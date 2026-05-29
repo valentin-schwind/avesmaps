@@ -225,6 +225,7 @@ async function generateOrUpdateDerivedBoundaryForCurrentEditorRegion() {
 	return generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, {
 		regionEntry: regionEditEntry,
 		applyToSubregions: document.getElementById("region-edit-derived-geometry-all-descendants")?.checked === true,
+		drawPreview: true,
 	});
 }
 
@@ -244,11 +245,15 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 	}
 
 	const applyToSubregions = options.applyToSubregions === true;
+	const shouldDrawPreview = options.drawPreview !== false;
 	const selectedYearBf = Number.isFinite(Number(options.selectedYearBf))
 		? Number(options.selectedYearBf)
 		: Number.isFinite(Number(politicalTimelineYear)) ? Number(politicalTimelineYear) : null;
 	const regionEntry = options.regionEntry || null;
 	const targetName = regionEntry?.name || "Herrschaftsgebiet";
+	if (!shouldDrawPreview) {
+		clearDerivedGeometryPreviewLayer();
+	}
 	setDerivedGeometryEditorBusy(true);
 	setDerivedGeometryEditorProgress(5, true);
 	setDerivedGeometryEditorStatus(`${targetName}: Boundary-Plan wird geladen...`, "pending");
@@ -289,7 +294,9 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 		derivedGeometryEditorState.existingPublicId = saved?.derived_geometry?.public_id || derivedGeometryEditorState.existingPublicId || "";
 		derivedGeometryEditorState.dirty = false;
 		document.getElementById("region-edit-derived-geometry-enabled") && (document.getElementById("region-edit-derived-geometry-enabled").checked = true);
-		drawDerivedGeometryPreview(result.geometry);
+		if (shouldDrawPreview) {
+			drawDerivedGeometryPreview(result.geometry);
+		}
 		setDerivedGeometryThumbnail(result.geometry);
 		setDerivedGeometryEditorProgress(100, false);
 		setDerivedGeometryEditorStatus(`${result.sourceCount} Unterflächen vereinigt und gespeichert.`, "success");
