@@ -32,13 +32,44 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 | Phase 3: Lokale Override-UI deaktivieren | begonnen | `06c27359c079e6d2a417975adf82b6fb68b91b17` | Footer-Installation, Anzeige und Refresh sind in der aktiven UI deaktiviert; API-/Legacy-Funktionen bleiben erhalten. |
 | Phase 4: Eigenschaften global lesen/schreiben | offen | - | `assignmentDisplays` entmachten, nicht sofort loeschen. |
 | Phase 5: Geometrie-Panel auf aktiven Breadcrumb fixieren | begonnen | `07786f443da4271bf0a2628e0a3f99f69b775f32` | Reload nach Breadcrumb-Wechsel umgesetzt; UI-Schalter und Backend-Modi fehlen noch. |
-| Phase 6: Außengrenzen-UI vervollstaendigen | offen | - | Dritter Schalter `Fuer alle Unterregionen uebernehmen` fehlt noch. |
+| Phase 6: Außengrenzen-UI vervollstaendigen | begonnen | `b4c8d4ea801c8bab2cee8fac7d2580b85423e14c` | Blattknoten zeigen Innengrenzen jetzt disabled, checked, ausgegraut; dritter Schalter fehlt noch. |
 | Phase 7: Backend-Modi fuer Außengrenzen | offen | - | `flat`/`hierarchical`-Vertrag und rekursive Planung fehlen noch. |
 | Phase 8: Quellenprotokoll | offen | - | Optional, aber fuer Diagnose/Reproduktion sinnvoll. |
 | Phase 9: Tests und manuelle Pruefung | offen | - | Testfaelle werden pro Commit ergaenzt. |
 | Phase 10: Legacy-Aufraeumung | blockiert | - | Erst nach stabiler Testphase und expliziter Freigabe. |
 
 ## Commit-Log
+
+### 2026-05-29 — `b4c8d4ea801c8bab2cee8fac7d2580b85423e14c`
+
+**Ziel:** Blattknoten ohne Unterregionen im Geometrie-Panel korrekt darstellen.
+
+**Geaenderte Dateien:**
+
+- `js/territory/territory-derived-geometry-iframe-editor.js`
+
+**Was wurde geaendert:**
+
+- `updateInnerBoundaryControl()` setzt `Innengrenzen darstellen` bei nicht verfuegbaren Innengrenzen auf `checked` statt `unchecked`.
+- Die Checkbox bleibt deaktiviert und ueber die bestehende CSS-Klasse ausgegraut.
+
+**Nicht geaendert:**
+
+- Keine API.
+- Keine Datenbank.
+- Keine Geometrien.
+- Keine Territorien oder Hierarchien.
+- Keine Save-Semantik fuer `show_inner_boundaries`: Blattknoten speichern weiterhin `false`, weil keine Innengrenzen vorhanden sind.
+
+**Verifikation:**
+
+- Commit `b4c8d4ea801c8bab2cee8fac7d2580b85423e14c` wurde von GitHub bestaetigt und ueber `fetch_commit` verifiziert.
+- Der Commit-Diff enthaelt nur die Checkbox-Statusaenderung in `js/territory/territory-derived-geometry-iframe-editor.js`.
+
+**Offene Risiken:**
+
+- Manuelle Browser-Pruefung steht aus.
+- Der dritte Schalter `Fuer alle Unterregionen uebernehmen` fehlt weiterhin.
 
 ### 2026-05-29 — `06c27359c079e6d2a417975adf82b6fb68b91b17`
 
@@ -147,7 +178,7 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 | Legacy-Snapshots | `style_json.assignmentDisplays` / `assignment_displays` | Doppelte Wahrheit gegenueber globalen Territory-Werten. | Nur noch als Legacy-Fallback/Diagnose lesen; nicht als aktive Wahrheit speichern. |
 | Aktiver Breadcrumb | `activeDisplayNode`, `readRootSelection()` | Fallback auf letztes Breadcrumb-Element kann falsches Territorium adressieren. | Breadcrumb-Wechsel explizit setzen und Panels neu synchronisieren; Fallback spaeter haerter absichern. |
 | Derived-Geometry-Ziel | `territory-derived-geometry-iframe-editor.js::getTargetKey()` | Prinzipiell richtig, aber Reload bei Breadcrumb-Wechsel muss garantiert sein. | Nach Breadcrumb-Wechsel explizit `loadForCurrentTerritory()` aufrufen; Browser-Test ausstehend. |
-| Innengrenzen-UI | `updateInnerBoundaryControl()` | Blattknoten werden aktuell disabled und unchecked; Ziel ist disabled, checked, ausgegraut. | In Phase 6 korrigieren. |
+| Innengrenzen-UI | `updateInnerBoundaryControl()` | Blattknoten-UI wurde auf disabled, checked, ausgegraut korrigiert; Browser-Test ausstehend. | Nach manueller Pruefung als erledigt markieren. |
 | Außengrenzen-Modus | Frontend/Backend | `flat` und `hierarchical` sind noch nicht fachlich getrennt. | Generation-Mode und rekursive Source-Planung einfuehren. |
 | Quellenprotokoll | Backend | Erzeugte Derived-Geometrien sind schwer reproduzierbar. | Optional Tabelle `political_territory_derived_geometry_source` oder aequivalentes Protokoll. |
 
