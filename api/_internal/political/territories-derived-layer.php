@@ -84,14 +84,15 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
         'territory.continent = :continent',
         '(territory.valid_from_bf IS NULL OR territory.valid_from_bf <= :year_bf_start)',
         '(territory.valid_to_bf IS NULL OR territory.valid_to_bf = 0 OR territory.valid_to_bf >= :year_bf_end)',
-        '(derived.min_zoom IS NULL OR derived.min_zoom <= :zoom)',
-        '(derived.max_zoom IS NULL OR derived.max_zoom >= :zoom)',
+        '(derived.min_zoom IS NULL OR derived.min_zoom <= :zoom_min)',
+        '(derived.max_zoom IS NULL OR derived.max_zoom >= :zoom_max)',
     ];
     $params = [
         ':continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
         ':year_bf_start' => $yearBf,
         ':year_bf_end' => $yearBf,
-        ':zoom' => $zoom,
+        ':zoom_min' => $zoom,
+        ':zoom_max' => $zoom,
     ];
 
     if ($bbox !== null) {
