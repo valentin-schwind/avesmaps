@@ -6,7 +6,9 @@ require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/auth.php';
 require_once __DIR__ . '/../_internal/political/territory.php';
 require_once __DIR__ . '/../_internal/political/territories-support.php';
+require_once __DIR__ . '/../_internal/political/territories-layer.php';
 require_once __DIR__ . '/../_internal/political/territories-derived-geometry.php';
+require_once __DIR__ . '/../_internal/political/territories-derived-layer.php';
 require_once __DIR__ . '/../_internal/political/territories-debug.php';
 
 try {
@@ -33,6 +35,9 @@ try {
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsPoliticalEnsureDerivedGeometryTables($pdo);
 
+    $yearBf = avesmapsPoliticalReadOptionalInt($_GET['year_bf'] ?? null) ?? AVESMAPS_POLITICAL_DEFAULT_YEAR_BF;
+    $zoom = avesmapsPoliticalReadOptionalZoom($_GET['zoom'] ?? null) ?? 0;
+
     $summaryStatement = $pdo->query(
         'SELECT
             COUNT(*) AS total_count,
@@ -43,6 +48,44 @@ try {
     );
     $summary = $summaryStatement !== false ? ($summaryStatement->fetch(PDO::FETCH_ASSOC) ?: []) : [];
 
+    $matchingRowsStatement = $pdo->prepare(
+        'SELECT
+            COUNT(*) AS matching_count
+        FROM political_territory_derived_geometry derived
+        INNER JOIN political_territory territory ON territory.id = derived.territory_id
+        WHERE territory.is_active = 1
+            AND derived.is_active = 1
+            AND territory.continent = :continent
+            AND (territory.valid_from_bf IS NULL OR territory.valid_from_bf <= :year_bf_start)
+            AND (territory.valid_to_bf IS NULL OR territory.valid_to_bf = 0 OR territory.valid_to_bf >= :year_bf_end)
+            AND (derived.min_zoom IS NULL OR derived.min_zoom <= :zoom)
+            AND (derived.max_zoom IS NULL OR derived.max_zoom >= :zoom)'
+    );
+    $matchingRowsStatement->execute([
+        'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+        'year_bf_start' => $yearBf,
+        'year_bf_end' => $yearBf,
+        'zoom' => $zoom,
+    ]);
+    $matchingRows = $matchingRowsStatement->fetch(PDO::FETCH_ASSOC) ?: [];
+
+    $layerFeatureProbe = [];
+    try {
+        $probeFeatures = avesmapsPoliticalReadDerivedLayerFeatures($pdo, $yearBf, $zoom, null);
+        $layerFeatureProbe = [
+            'ok' => true,
+            'count' => count($probeFeatures),
+            'ids' => array_values(array_map(static fn(array $feature): string => (string) ($feature['id'] ?? ''), $probeFeatures)),
+            'territory_public_ids' => array_values(array_map(static fn(array $feature): string => (string) ($feature['properties']['territory_public_id'] ?? ''), $probeFeatures)),
+            'show_inner_boundaries' => array_values(array_map(static fn(array $feature): bool => (bool) ($feature['properties']['show_inner_boundaries'] ?? true), $probeFeatures)),
+        ];
+    } catch (Throwable $exception) {
+        $layerFeatureProbe = [
+            'ok' => false,
+            'exception' => avesmapsPoliticalDebugExceptionPayload($exception),
+        ];
+    }
+
     $rowsStatement = $pdo->query(
         'SELECT
             derived.id,
@@ -52,6 +95,7 @@ try {
             territory.name AS territory_name,
             territory.short_name AS territory_short_name,
             territory.is_active AS territory_is_active,
+            territory.continent,
             territory.valid_from_bf,
             territory.valid_to_bf,
             derived.min_zoom,
@@ -78,6 +122,7 @@ try {
             'territory_name' => (string) ($row['territory_name'] ?? ''),
             'territory_short_name' => (string) ($row['territory_short_name'] ?? ''),
             'territory_is_active' => (int) ($row['territory_is_active'] ?? 0) === 1,
+            'continent' => (string) ($row['continent'] ?? ''),
             'valid_from_bf' => avesmapsPoliticalNullableInt($row['valid_from_bf'] ?? null),
             'valid_to_bf' => avesmapsPoliticalNullableInt($row['valid_to_bf'] ?? null),
             'min_zoom' => avesmapsPoliticalNullableInt($row['min_zoom'] ?? null),
@@ -93,6 +138,12 @@ try {
 
     avesmapsJsonResponse(200, [
         'ok' => true,
+        'probe' => [
+            'year_bf' => $yearBf,
+            'zoom' => $zoom,
+            'matching_sql_count' => (int) ($matchingRows['matching_count'] ?? 0),
+            'layer_features' => $layerFeatureProbe,
+        ],
         'summary' => [
             'total_count' => (int) ($summary['total_count'] ?? 0),
             'active_count' => (int) ($summary['active_count'] ?? 0),
