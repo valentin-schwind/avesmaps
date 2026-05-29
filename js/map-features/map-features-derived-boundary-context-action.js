@@ -108,6 +108,76 @@
 		}, 650);
 	}
 
+	function resolveBoundaryActionRegion(regionEntry) {
+		if (!regionEntry || regionEntry.isDerivedGeometry === true) {
+			return regionEntry;
+		}
+
+		const hiddenByTerritoryPublicId = String(regionEntry.hiddenByDerivedTerritoryPublicId || "").trim();
+		if (hiddenByTerritoryPublicId) {
+			const hiddenByRegion = findDerivedRegionByTerritoryPublicId(hiddenByTerritoryPublicId);
+			if (hiddenByRegion) {
+				return hiddenByRegion;
+			}
+		}
+
+		const enclosingDerivedRegion = findSmallestEnclosingDerivedRegion(regionEntry);
+		return enclosingDerivedRegion || regionEntry;
+	}
+
+	function findDerivedRegionByTerritoryPublicId(territoryPublicId) {
+		return (regionData || []).map((feature) => normalizeRegionFeature(feature)).find((entry) => (
+			entry.isDerivedGeometry === true
+			&& String(entry.territoryPublicId || "").trim() === territoryPublicId
+		)) || null;
+	}
+
+	function findSmallestEnclosingDerivedRegion(regionEntry) {
+		const bounds = getRegionEntryBounds(regionEntry);
+		const center = bounds?.getCenter?.();
+		if (!bounds || !center) {
+			return null;
+		}
+
+		const clickedTerritoryPublicId = String(regionEntry.territoryPublicId || regionEntry.publicId || "").trim();
+		return (regionData || [])
+			.map((feature) => normalizeRegionFeature(feature))
+			.filter((entry) => entry.isDerivedGeometry === true)
+			.map((entry) => {
+				const renderedEntry = findRenderedRegionEntry(entry);
+				const candidateBounds = getRegionEntryBounds(renderedEntry || entry);
+				return { entry: renderedEntry || entry, bounds: candidateBounds, area: calculateBoundsArea(candidateBounds) };
+			})
+			.filter((candidate) => (
+				candidate.bounds
+				&& candidate.bounds.contains(center)
+				&& String(candidate.entry.territoryPublicId || "").trim() !== clickedTerritoryPublicId
+			))
+			.sort((left, right) => left.area - right.area)[0]?.entry || null;
+	}
+
+	function findRenderedRegionEntry(regionEntry) {
+		const territoryPublicId = String(regionEntry.territoryPublicId || "").trim();
+		const geometryPublicId = String(regionEntry.geometryPublicId || regionEntry.publicId || "").trim();
+		return regionPolygons
+			.map((polygon) => polygon?._regionEntry)
+			.find((entry) => entry && (
+				String(entry.geometryPublicId || entry.publicId || "").trim() === geometryPublicId
+				|| String(entry.territoryPublicId || "").trim() === territoryPublicId
+			)) || null;
+	}
+
+	function calculateBoundsArea(bounds) {
+		if (!bounds) {
+			return Number.POSITIVE_INFINITY;
+		}
+		const west = bounds.getWest?.() ?? 0;
+		const east = bounds.getEast?.() ?? 0;
+		const south = bounds.getSouth?.() ?? 0;
+		const north = bounds.getNorth?.() ?? 0;
+		return Math.abs((east - west) * (north - south));
+	}
+
 	async function handleContextAction(event) {
 		const actionElement = event.target?.closest?.(`[data-region-context-action="${ACTION}"]`);
 		if (!actionElement) {
@@ -118,9 +188,10 @@
 		event.stopPropagation();
 		event.stopImmediatePropagation();
 
-		const regionEntry = activeRegionContextEntry;
+		const clickedRegionEntry = activeRegionContextEntry;
+		const targetRegionEntry = resolveBoundaryActionRegion(clickedRegionEntry);
 		closeRegionContextMenu();
-		if (!regionEntry) {
+		if (!targetRegionEntry) {
 			showFeedbackToast("Kein Herrschaftsgebiet ausgewählt.", "warning");
 			return;
 		}
@@ -130,9 +201,10 @@
 		}
 
 		try {
-			setProgress("Boundary-Plan und Quellflächen werden geladen...", 12, true);
-			await window.AvesmapsDerivedBoundaryEditor.generateOrUpdateForRegion(regionEntry);
-			setProgress("Außengrenze gespeichert. Karte wird neu geladen...", 100, true);
+			const targetName = targetRegionEntry.name || "Herrschaftsgebiet";
+			setProgress(`${targetName}: Boundary-Plan und Quellflächen werden geladen...`, 12, true);
+			await window.AvesmapsDerivedBoundaryEditor.generateOrUpdateForRegion(targetRegionEntry, { drawPreview: false });
+			setProgress(`${targetName}: Außengrenze gespeichert. Karte wird neu geladen...`, 100, true);
 			hideProgressSoon();
 		} catch (error) {
 			console.error("Außengrenze konnte nicht erzeugt werden:", error);
