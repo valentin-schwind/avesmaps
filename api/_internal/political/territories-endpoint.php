@@ -110,6 +110,7 @@ try {
         'save_geometry_assignment' => avesmapsPoliticalSaveGeometryAssignmentSafely($pdo, $payload, $user),
         'save_derived_geometry' => avesmapsPoliticalSaveDerivedGeometry($pdo, $payload, $user),
         'delete_derived_geometry' => avesmapsPoliticalDeleteDerivedGeometry($pdo, $payload, $user),
+        'delete_derived_geometry_tree' => avesmapsPoliticalDeleteDerivedGeometryTree($pdo, $payload, $user),
         'unassign_geometry' => avesmapsPoliticalUnassignGeometry($pdo, $payload),
         'delete_geometry' => avesmapsPoliticalDeleteGeometry($pdo, $payload, $user),
         'delete_geometry_part' => avesmapsPoliticalDeleteGeometryPart($pdo, $payload, $user),
