@@ -49,6 +49,14 @@ Derived Boundaries sind historisch gültig. Sie werden nur aus Quellen gebildet,
 
 Innengrenzen werden relativ zum aktuell dargestellten Breadcrumb-Kontext gestuft. Die unterste sichtbare Rekursionsstufe beginnt mit Index 1; darüber folgen 2, 3, 4 usw. Die äußerste Grenze des angezeigten Gebiets ist immer `X`. Die maximale sichtbare Innengrenzen-Tiefe soll als zentraler Parameter konfigurierbar bleiben.
 
+## Berechnungsort und Bedienung
+
+Die Polygon-Union wird nicht in reinem PHP implementiert. Solange keine robuste serverseitige Geometrie-Engine verfuegbar ist, erzeugt oder aktualisiert der Editor-Client die Außengrenzen mit der vorhandenen JavaScript-Geometrie-Logik. Das PHP-Backend plant, liefert Quellen, validiert Metadaten und speichert die fertigen Derived Boundaries transaktional.
+
+Waehrend der Editor-Client Außengrenzen berechnet, zeigt die UI einen sichtbaren Ladebalken oder Fortschrittszustand. Die Berechnung ist eine redaktionelle Aktion und darf Zeit kosten; die normale Endnutzerkarte darf dadurch nicht belastet werden.
+
+Im Kontextmenue soll ein expliziter Eintrag `Außengrenzen erzeugen/aktualisieren` angeboten werden. Dieser Eintrag startet dieselbe Berechnungsfunktion wie das Geometrie-Panel beziehungsweise der Save-Hook. Es darf keine zweite, abweichende Berechnungslogik geben.
+
 ## Performance-Vertrag fuer Grenz-Rendering
 
 Zoomen und Pannen duerfen keine Grenzberechnung und moeglichst keine kleinteiligen Nachladevorgaenge ausloesen. Nutzer wechseln Zoomstufen schnell; die Uebergaenge muessen fluessig bleiben.
