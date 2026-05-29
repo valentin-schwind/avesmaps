@@ -28,10 +28,10 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 | Phase | Status | Commit | Bemerkung |
 |---|---|---|---|
 | Phase 1: Diagnose | offen | - | Diagnose fuer Datenkonflikte und Legacy-Snapshots noch ausstehend. |
-| Phase 2: Aktiver Breadcrumb als harte Wahrheit | geplant | - | Breadcrumb-Wechsel muss abhaengige Panels neu synchronisieren. |
+| Phase 2: Aktiver Breadcrumb als harte Wahrheit | begonnen | `07786f443da4271bf0a2628e0a3f99f69b775f32` | Breadcrumb-Wechsel synchronisiert das Derived-Geometry-Panel gegen den aktiven Knoten; weitere Absicherung des Fallbacks steht aus. |
 | Phase 3: Lokale Override-UI deaktivieren | geplant | - | Footer/Buttons stilllegen, APIs und Daten behalten. |
 | Phase 4: Eigenschaften global lesen/schreiben | offen | - | `assignmentDisplays` entmachten, nicht sofort loeschen. |
-| Phase 5: Geometrie-Panel auf aktiven Breadcrumb fixieren | geplant | - | Derived Geometry muss immer gegen den aktiven Breadcrumb-Knoten laufen. |
+| Phase 5: Geometrie-Panel auf aktiven Breadcrumb fixieren | begonnen | `07786f443da4271bf0a2628e0a3f99f69b775f32` | Reload nach Breadcrumb-Wechsel umgesetzt; UI-Schalter und Backend-Modi fehlen noch. |
 | Phase 6: Außengrenzen-UI vervollstaendigen | offen | - | Dritter Schalter `Fuer alle Unterregionen uebernehmen` fehlt noch. |
 | Phase 7: Backend-Modi fuer Außengrenzen | offen | - | `flat`/`hierarchical`-Vertrag und rekursive Planung fehlen noch. |
 | Phase 8: Quellenprotokoll | offen | - | Optional, aber fuer Diagnose/Reproduktion sinnvoll. |
@@ -39,6 +39,40 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 | Phase 10: Legacy-Aufraeumung | blockiert | - | Erst nach stabiler Testphase und expliziter Freigabe. |
 
 ## Commit-Log
+
+### 2026-05-29 — `07786f443da4271bf0a2628e0a3f99f69b775f32`
+
+**Ziel:** Derived-Geometry-Panel nach Breadcrumb-Wechsel gegen den aktiven Breadcrumb-Knoten synchronisieren.
+
+**Geaenderte Dateien:**
+
+- `js/territory/territory-editor-ui-hints.js`
+
+**Was wurde geaendert:**
+
+- Nach dem Laden des Derived-Geometry-Iframe-Editors wird ein Breadcrumb-Observer installiert.
+- Der Observer reagiert auf Aenderungen in `#manualEditPath`.
+- Bei einem aktiven Breadcrumb-Wechsel wird der aktuelle Assignment-State gelesen und `AvesmapsPoliticalDerivedGeometryEditor.loadForCurrentTerritory(value)` aufgerufen.
+- Wiederholte Reloads fuer denselben Target-Key werden vermieden.
+
+**Nicht geaendert:**
+
+- Keine API.
+- Keine Datenbank.
+- Keine Geometrien.
+- Keine Territorien oder Hierarchien.
+- Kein Override- oder Legacy-Datenpfad.
+
+**Verifikation:**
+
+- Commit `07786f443da4271bf0a2628e0a3f99f69b775f32` wurde von GitHub bestaetigt und ueber `fetch_commit` verifiziert.
+- Der Commit-Diff enthaelt nur `js/territory/territory-editor-ui-hints.js`.
+
+**Offene Risiken:**
+
+- Manuelle Browser-Pruefung steht aus.
+- `activeDisplayNode` hat weiterhin einen Fallback auf das letzte Breadcrumb-Element, falls kein aktiver Knoten gesetzt ist.
+- Der lokale Override-Footer ist weiterhin aktiv und muss separat stillgelegt werden.
 
 ### 2026-05-29 — `2d5771705f9917ae821b804dd4c0c40faf4b871d`
 
