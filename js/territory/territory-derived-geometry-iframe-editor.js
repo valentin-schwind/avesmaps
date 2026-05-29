@@ -12,6 +12,7 @@
 			labelCenter: null,
 			existingPublicId: "",
 			sourceGeometries: [],
+			canShowInnerBoundaries: true,
 			dirty: false,
 			...overrides,
 		};
@@ -81,7 +82,7 @@
 					<input id="derivedGeometryEnabledInput" type="checkbox">
 					<span>Außengrenzen darstellen</span>
 				</label>
-				<label class="manual-data-checkbox">
+				<label class="manual-data-checkbox" id="derivedGeometryInnerBoundariesLabel">
 					<input id="derivedGeometryInnerBoundariesInput" type="checkbox" checked>
 					<span>Innengrenzen darstellen</span>
 				</label>
@@ -107,6 +108,7 @@
 			renderPreview();
 		});
 		setPreviewVisible(false);
+		updateInnerBoundaryControl();
 	}
 
 	function injectStyles() {
@@ -118,6 +120,7 @@
 			.derived-geometry-preview-row { display: grid; grid-template-columns: 1fr; gap: 8px; align-items: start; }
 			.derived-geometry-thumbnail { display: grid; place-items: center; min-height: 116px; border: 1px solid var(--border, #c8bda8); border-radius: 8px; background: rgba(255,255,255,0.55); color: #5b432b; font-size: 12px; overflow: hidden; }
 			.derived-geometry-thumbnail svg { width: 100%; max-width: 180px; height: 110px; }
+			.derived-geometry-inner-boundaries-disabled { opacity: .5; cursor: not-allowed; }
 		`;
 		document.head.append(style);
 	}
@@ -144,6 +147,29 @@
 		status.dataset.status = type;
 	}
 
+	function updateInnerBoundaryCapability(sourceResponse = null) {
+		if (!sourceResponse || typeof sourceResponse !== "object") {
+			state.canShowInnerBoundaries = true;
+			updateInnerBoundaryControl();
+			return;
+		}
+		const descendantCount = Number(sourceResponse.descendant_territory_count);
+		const sourceMode = String(sourceResponse.source_mode || "").trim();
+		state.canShowInnerBoundaries = !(sourceMode === "target_territory" || Number.isFinite(descendantCount) && descendantCount < 1);
+		updateInnerBoundaryControl();
+	}
+
+	function updateInnerBoundaryControl() {
+		const input = document.getElementById("derivedGeometryInnerBoundariesInput");
+		const label = document.getElementById("derivedGeometryInnerBoundariesLabel");
+		if (!input) return;
+		input.disabled = !state.canShowInnerBoundaries;
+		if (!state.canShowInnerBoundaries) {
+			input.checked = false;
+		}
+		label?.classList.toggle("derived-geometry-inner-boundaries-disabled", !state.canShowInnerBoundaries);
+	}
+
 	function handlePreviewError(error) {
 		console.warn("Außengrenzen-Vorschau konnte nicht berechnet werden:", error);
 		if (!state.geometry) {
@@ -159,6 +185,7 @@
 		const targetKey = getTargetKey(value || undefined);
 		state = createEmptyState({ targetKey });
 		document.getElementById("derivedGeometryInnerBoundariesInput").checked = true;
+		updateInnerBoundaryControl();
 		if (!targetKey) {
 			document.getElementById("derivedGeometryEnabledInput").checked = false;
 			setPreviewVisible(false);
@@ -167,6 +194,7 @@
 			return;
 		}
 
+		void loadSourceGeometriesForPreview(targetKey);
 		try {
 			const response = await fetchDerivedGeometry(targetKey);
 			const derived = response?.derived_geometry || null;
@@ -180,6 +208,7 @@
 			}
 			document.getElementById("derivedGeometryEnabledInput").checked = true;
 			document.getElementById("derivedGeometryInnerBoundariesInput").checked = derived.show_inner_boundaries !== false;
+			updateInnerBoundaryControl();
 			state.existingPublicId = derived.public_id || "";
 			state.geometry = derived.geometry || null;
 			state.labelCenter = readLabelCenter(derived.geometry || null, derived);
@@ -187,7 +216,6 @@
 			setPreviewVisible(true);
 			renderPreview();
 			setStatus("Gespeicherte Außengrenze geladen.", "success");
-			void loadSourceGeometriesForPreview(targetKey);
 		} catch (error) {
 			console.warn("Außengrenze konnte nicht geladen werden:", error);
 			setPreviewVisible(true);
@@ -199,6 +227,7 @@
 		try {
 			const response = await fetchDerivedGeometrySources(targetKey);
 			state.sourceGeometries = Array.isArray(response?.source_geometries) ? response.source_geometries : [];
+			updateInnerBoundaryCapability(response);
 			renderPreview();
 		} catch (error) {
 			console.warn("Quellgeometrien fuer die Vorschau konnten nicht geladen werden:", error);
@@ -227,6 +256,7 @@
 		setStatus("Außengrenze wird berechnet...", "pending");
 		const response = await fetchDerivedGeometrySources(targetKey);
 		const sources = Array.isArray(response?.source_geometries) ? response.source_geometries : [];
+		updateInnerBoundaryCapability(response);
 		const clippingInputs = sources.map((entry) => geometryToClippingMultiPolygon(entry.geometry)).filter((entry) => entry.length > 0);
 		if (clippingInputs.length < 1) throw new Error("Keine Unterflächen für eine Außengrenze gefunden.");
 		const unionGeometry = normalizeClippingMultiPolygon(window.polygonClipping.union(...clippingInputs));
@@ -315,7 +345,7 @@
 		const width = 180, height = 110, padding = 8;
 		const scale = Math.min((width - padding * 2) / Math.max(0.000001, bounds.maxX - bounds.minX), (height - padding * 2) / Math.max(0.000001, bounds.maxY - bounds.minY));
 		const outerPath = geometryToPolygons(geometry).flatMap((polygon) => polygon.map((ring) => pathForRing(ring, bounds, scale, padding, height))).join(" ");
-		const showInnerBoundaries = document.getElementById("derivedGeometryInnerBoundariesInput")?.checked === true;
+		const showInnerBoundaries = state.canShowInnerBoundaries && document.getElementById("derivedGeometryInnerBoundariesInput")?.checked === true;
 		const innerPaths = showInnerBoundaries
 			? (sourceGeometries || []).flatMap((source) => geometryToPolygons(source.geometry).flatMap((polygon) => polygon.map((ring) => ({ path: pathForRing(ring, bounds, scale, padding, height), color: normalizeSourceColor(source) }))))
 			: [];
@@ -352,7 +382,7 @@
 			label_lat: labelCenter?.lat ?? null,
 			min_zoom: normalizeText(document.getElementById("zoomFromInput")?.value || ""),
 			max_zoom: normalizeText(document.getElementById("zoomToInput")?.value || ""),
-			show_inner_boundaries: document.getElementById("derivedGeometryInnerBoundariesInput")?.checked === true,
+			show_inner_boundaries: state.canShowInnerBoundaries && document.getElementById("derivedGeometryInnerBoundariesInput")?.checked === true,
 			is_active: true,
 		});
 	}
