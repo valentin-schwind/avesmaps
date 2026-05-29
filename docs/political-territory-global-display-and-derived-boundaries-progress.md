@@ -32,13 +32,48 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 | Phase 3: Lokale Override-UI deaktivieren | begonnen | `06c27359c079e6d2a417975adf82b6fb68b91b17` | Footer-Installation, Anzeige und Refresh sind in der aktiven UI deaktiviert; API-/Legacy-Funktionen bleiben erhalten. |
 | Phase 4: Eigenschaften global lesen/schreiben | offen | - | `assignmentDisplays` entmachten, nicht sofort loeschen. |
 | Phase 5: Geometrie-Panel auf aktiven Breadcrumb fixieren | begonnen | `07786f443da4271bf0a2628e0a3f99f69b775f32` | Reload nach Breadcrumb-Wechsel umgesetzt; UI-Schalter und Backend-Modi fehlen noch. |
-| Phase 6: Außengrenzen-UI vervollstaendigen | begonnen | `b4c8d4ea801c8bab2cee8fac7d2580b85423e14c` | Blattknoten zeigen Innengrenzen jetzt disabled, checked, ausgegraut; dritter Schalter fehlt noch. |
+| Phase 6: Außengrenzen-UI vervollstaendigen | begonnen | `5a39fcb9fc7a3472dd01b316729ff2eb96f861bd` | Alle drei Ziel-Schalter sind sichtbar; rekursiver Modus bleibt bis zum Backend-Vertrag deaktiviert. |
 | Phase 7: Backend-Modi fuer Außengrenzen | offen | - | `flat`/`hierarchical`-Vertrag und rekursive Planung fehlen noch. |
 | Phase 8: Quellenprotokoll | offen | - | Optional, aber fuer Diagnose/Reproduktion sinnvoll. |
 | Phase 9: Tests und manuelle Pruefung | offen | - | Testfaelle werden pro Commit ergaenzt. |
 | Phase 10: Legacy-Aufraeumung | blockiert | - | Erst nach stabiler Testphase und expliziter Freigabe. |
 
 ## Commit-Log
+
+### 2026-05-29 — `5a39fcb9fc7a3472dd01b316729ff2eb96f861bd`
+
+**Ziel:** Dritten Ziel-Schalter im Geometrie-Panel sichtbar machen, ohne eine noch nicht implementierte Backend-Funktion zu simulieren.
+
+**Geaenderte Dateien:**
+
+- `js/territory/territory-derived-geometry-iframe-editor.js`
+
+**Was wurde geaendert:**
+
+- Checkbox `Für alle Unterregionen übernehmen` im Geometrie-Panel ergänzt.
+- Die Checkbox ist deaktiviert, bis der Backend-Modus fuer rekursive/hierarchische Derived-Geometrien implementiert ist.
+- Hinweistext ergänzt: aktuell wird die flache Außengrenze fuer den aktiven Breadcrumb-Knoten erzeugt.
+- CSS fuer deaktivierten rekursiven Modus ergänzt.
+
+**Nicht geaendert:**
+
+- Keine API.
+- Keine Datenbank.
+- Keine Geometrien.
+- Keine Territorien oder Hierarchien.
+- Keine Save-Semantik.
+- Kein Payload fuer `flat`/`hierarchical`.
+
+**Verifikation:**
+
+- Commit `5a39fcb9fc7a3472dd01b316729ff2eb96f861bd` wurde von GitHub bestaetigt und ueber `fetch_commit` verifiziert.
+- Der Commit-Diff enthaelt nur UI-Markup und CSS in `js/territory/territory-derived-geometry-iframe-editor.js`.
+
+**Offene Risiken:**
+
+- Manuelle Browser-Pruefung steht aus.
+- Der rekursive Modus ist bewusst noch deaktiviert.
+- Phase 7 muss den Backend-Vertrag `flat`/`hierarchical` sauber einfuehren.
 
 ### 2026-05-29 — `b4c8d4ea801c8bab2cee8fac7d2580b85423e14c`
 
@@ -69,7 +104,6 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 **Offene Risiken:**
 
 - Manuelle Browser-Pruefung steht aus.
-- Der dritte Schalter `Fuer alle Unterregionen uebernehmen` fehlt weiterhin.
 
 ### 2026-05-29 — `06c27359c079e6d2a417975adf82b6fb68b91b17`
 
@@ -179,7 +213,7 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 | Aktiver Breadcrumb | `activeDisplayNode`, `readRootSelection()` | Fallback auf letztes Breadcrumb-Element kann falsches Territorium adressieren. | Breadcrumb-Wechsel explizit setzen und Panels neu synchronisieren; Fallback spaeter haerter absichern. |
 | Derived-Geometry-Ziel | `territory-derived-geometry-iframe-editor.js::getTargetKey()` | Prinzipiell richtig, aber Reload bei Breadcrumb-Wechsel muss garantiert sein. | Nach Breadcrumb-Wechsel explizit `loadForCurrentTerritory()` aufrufen; Browser-Test ausstehend. |
 | Innengrenzen-UI | `updateInnerBoundaryControl()` | Blattknoten-UI wurde auf disabled, checked, ausgegraut korrigiert; Browser-Test ausstehend. | Nach manueller Pruefung als erledigt markieren. |
-| Außengrenzen-Modus | Frontend/Backend | `flat` und `hierarchical` sind noch nicht fachlich getrennt. | Generation-Mode und rekursive Source-Planung einfuehren. |
+| Außengrenzen-Modus | Frontend/Backend | UI-Schalter ist sichtbar, aber der rekursive Modus ist bewusst deaktiviert. | Phase 7: Backend-Vertrag `flat`/`hierarchical` und rekursive Source-Planung einfuehren. |
 | Quellenprotokoll | Backend | Erzeugte Derived-Geometrien sind schwer reproduzierbar. | Optional Tabelle `political_territory_derived_geometry_source` oder aequivalentes Protokoll. |
 
 ## Manuelle Testfaelle
@@ -187,6 +221,7 @@ Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestim
 - Klick auf Olrong-Flaeche, dann Breadcrumb `Lorgolosch`: Eigenschaften und Derived Geometry betreffen `Lorgolosch`.
 - Klick auf Kibrom-Asch, dann Breadcrumb `Kibrom`: Eigenschaften und Derived Geometry betreffen `Kibrom`.
 - Blattknoten ohne Unterregionen: `Innengrenzen darstellen` ist deaktiviert, abgehakt und ausgegraut.
+- Geometrie-Panel zeigt `Für alle Unterregionen übernehmen` deaktiviert mit Hinweis auf flache Außengrenze.
 - `Außengrenzen darstellen` deaktivieren und speichern: Nur aktive Derived Geometry des Territoriums wird deaktiviert; echte Geometrien bleiben unveraendert.
 - Lokale Override-UI erscheint nicht mehr in der aktiven Bedienoberflaeche.
 - Bestehende echte Polygone bleiben nach jedem Commit unveraendert.
