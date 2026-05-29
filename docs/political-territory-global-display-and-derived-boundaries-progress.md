@@ -49,6 +49,14 @@ Derived Boundaries sind historisch gültig. Sie werden nur aus Quellen gebildet,
 
 Innengrenzen werden relativ zum aktuell dargestellten Breadcrumb-Kontext gestuft. Die unterste sichtbare Rekursionsstufe beginnt mit Index 1; darüber folgen 2, 3, 4 usw. Die äußerste Grenze des angezeigten Gebiets ist immer `X`. Die maximale sichtbare Innengrenzen-Tiefe soll als zentraler Parameter konfigurierbar bleiben.
 
+## Performance-Vertrag fuer Grenz-Rendering
+
+Zoomen und Pannen duerfen keine Grenzberechnung und moeglichst keine kleinteiligen Nachladevorgaenge ausloesen. Nutzer wechseln Zoomstufen schnell; die Uebergaenge muessen fluessig bleiben.
+
+Avesmaps bevorzugt fuer politische Grenzen deshalb einen einmaligen, sichtbaren Ladezustand mit ausreichend vollstaendigem Payload gegenueber haeufigem spaeten Nachladen. Lieber etwas mehr Grenzdaten initial oder layerweise uebertragen und lokal cachen, als beim Zoomen zu wenig Daten haben und dadurch Ruckler, Nachladepausen oder Rechenlast erzeugen.
+
+Die normale Kartenansicht soll vorberechnete Derived Boundaries laden, revisioniert cachen und beim Zoomen nur Sichtbarkeit, Layergruppen und Styles umschalten. Polygon-Union gehoert in den Editor-/Backend-Berechnungspfad, nicht in Zoom- oder Pan-Events der Endnutzerkarte.
+
 ## Arbeitsregeln
 
 - Bestehende echte Karten-Geometrien werden nicht geloescht, umgeschrieben oder neu zugeordnet.
