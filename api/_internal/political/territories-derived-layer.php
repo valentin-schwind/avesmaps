@@ -14,6 +14,7 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
 
     $derivedTerritoryIds = [];
     $hiddenByTerritoryPublicId = [];
+    $hiddenByGeometryPublicId = [];
     foreach ($derivedFeatures as &$feature) {
         $territoryPublicId = trim((string) ($feature['properties']['territory_public_id'] ?? ''));
         if ($territoryPublicId !== '') {
@@ -21,11 +22,16 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
         }
         if (($feature['properties']['show_inner_boundaries'] ?? true) === false) {
             $sourceTerritoryPublicIds = avesmapsPoliticalReadDerivedSourceTerritoryPublicIds($pdo, $feature);
+            $sourceGeometryPublicIds = avesmapsPoliticalReadDerivedSourceGeometryPublicIds($pdo, $feature);
             $feature['properties']['derived_source_territory_public_ids'] = $sourceTerritoryPublicIds;
+            $feature['properties']['derived_source_geometry_public_ids'] = $sourceGeometryPublicIds;
             foreach ($sourceTerritoryPublicIds as $sourceTerritoryPublicId) {
                 $hiddenByTerritoryPublicId[$sourceTerritoryPublicId] = $territoryPublicId;
             }
-            if ($sourceTerritoryPublicIds === []) {
+            foreach ($sourceGeometryPublicIds as $sourceGeometryPublicId) {
+                $hiddenByGeometryPublicId[$sourceGeometryPublicId] = $territoryPublicId;
+            }
+            if ($sourceTerritoryPublicIds === [] && $sourceGeometryPublicIds === []) {
                 $hiddenByTerritoryPublicId += avesmapsPoliticalFindInnerBoundaryFeaturesInLayer(
                     (array) ($response['features'] ?? []),
                     $feature
@@ -40,17 +46,21 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
         $properties = (array) ($feature['properties'] ?? []);
         $territoryPublicId = trim((string) ($properties['territory_public_id'] ?? ''));
         $aggregateSourceTerritoryPublicId = trim((string) ($properties['aggregate_source_territory_public_id'] ?? ''));
+        $geometryPublicId = trim((string) ($properties['geometry_public_id'] ?? $properties['public_id'] ?? ''));
         if ($territoryPublicId !== '' && isset($derivedTerritoryIds[$territoryPublicId])) {
             continue;
         }
-        if (
-            ($territoryPublicId !== '' && isset($hiddenByTerritoryPublicId[$territoryPublicId]))
-            || ($aggregateSourceTerritoryPublicId !== '' && isset($hiddenByTerritoryPublicId[$aggregateSourceTerritoryPublicId]))
-        ) {
+        $hiddenBy = '';
+        if ($geometryPublicId !== '' && isset($hiddenByGeometryPublicId[$geometryPublicId])) {
+            $hiddenBy = $hiddenByGeometryPublicId[$geometryPublicId];
+        } elseif ($territoryPublicId !== '' && isset($hiddenByTerritoryPublicId[$territoryPublicId])) {
+            $hiddenBy = $hiddenByTerritoryPublicId[$territoryPublicId];
+        } elseif ($aggregateSourceTerritoryPublicId !== '' && isset($hiddenByTerritoryPublicId[$aggregateSourceTerritoryPublicId])) {
+            $hiddenBy = $hiddenByTerritoryPublicId[$aggregateSourceTerritoryPublicId];
+        }
+        if ($hiddenBy !== '') {
             $feature['properties']['visual_hidden_by_derived_boundary'] = true;
-            $feature['properties']['hidden_by_derived_territory_public_id'] = $territoryPublicId !== '' && isset($hiddenByTerritoryPublicId[$territoryPublicId])
-                ? $hiddenByTerritoryPublicId[$territoryPublicId]
-                : $hiddenByTerritoryPublicId[$aggregateSourceTerritoryPublicId];
+            $feature['properties']['hidden_by_derived_territory_public_id'] = $hiddenBy;
         }
         $baseFeatures[] = $feature;
     }
@@ -215,36 +225,19 @@ function avesmapsPoliticalDerivedLayerSupportsInnerBoundaries(PDO $pdo): bool {
 }
 
 function avesmapsPoliticalReadDerivedSourceTerritoryPublicIds(PDO $pdo, array $derivedFeature): array {
-    $properties = (array) ($derivedFeature['properties'] ?? []);
-    $territoryId = (int) ($properties['derived_territory_id'] ?? $properties['territory_id'] ?? 0);
-    $descendantIds = [];
-
-    try {
-        if ($territoryId > 0) {
-            $territories = avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo);
-            $descendantIds = avesmapsPoliticalCollectDerivedGeometryDescendantIds($territoryId, $territories);
-        }
-
-        if ($descendantIds === [] && !empty($properties['derived_wiki_id'])) {
-            $wiki = avesmapsPoliticalFetchWikiById($pdo, (int) $properties['derived_wiki_id']);
-            $descendantIds = avesmapsPoliticalCollectDerivedGeometryWikiDescendantIds($pdo, $wiki);
-        }
-    } catch (Throwable) {
+    $sourceTerritoryIds = avesmapsPoliticalCollectDerivedLayerSourceTerritoryIds($pdo, $derivedFeature);
+    if ($sourceTerritoryIds === []) {
         return [];
     }
 
-    if ($descendantIds === []) {
-        return [];
-    }
-
-    $placeholders = implode(',', array_fill(0, count($descendantIds), '?'));
+    $placeholders = implode(',', array_fill(0, count($sourceTerritoryIds), '?'));
     $statement = $pdo->prepare(
         'SELECT public_id
         FROM political_territory
         WHERE id IN (' . $placeholders . ')
             AND is_active = 1'
     );
-    $statement->execute($descendantIds);
+    $statement->execute($sourceTerritoryIds);
 
     $publicIds = [];
     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
@@ -255,6 +248,60 @@ function avesmapsPoliticalReadDerivedSourceTerritoryPublicIds(PDO $pdo, array $d
     }
 
     return array_values(array_unique($publicIds));
+}
+
+function avesmapsPoliticalReadDerivedSourceGeometryPublicIds(PDO $pdo, array $derivedFeature): array {
+    $sourceTerritoryIds = avesmapsPoliticalCollectDerivedLayerSourceTerritoryIds($pdo, $derivedFeature);
+    if ($sourceTerritoryIds === []) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($sourceTerritoryIds), '?'));
+    $statement = $pdo->prepare(
+        'SELECT geometry.public_id
+        FROM political_territory_geometry geometry
+        INNER JOIN political_territory territory ON territory.id = geometry.territory_id
+        WHERE geometry.is_active = 1
+            AND territory.is_active = 1
+            AND geometry.territory_id IN (' . $placeholders . ')'
+    );
+    $statement->execute($sourceTerritoryIds);
+
+    $publicIds = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $publicId = trim((string) ($row['public_id'] ?? ''));
+        if ($publicId !== '') {
+            $publicIds[] = $publicId;
+        }
+    }
+
+    return array_values(array_unique($publicIds));
+}
+
+function avesmapsPoliticalCollectDerivedLayerSourceTerritoryIds(PDO $pdo, array $derivedFeature): array {
+    $properties = (array) ($derivedFeature['properties'] ?? []);
+    $territoryId = (int) ($properties['derived_territory_id'] ?? $properties['territory_id'] ?? 0);
+    $sourceTerritoryIds = [];
+
+    try {
+        if ($territoryId > 0) {
+            $territories = avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo);
+            $sourceTerritoryIds = avesmapsPoliticalCollectDerivedGeometryDescendantIds($territoryId, $territories);
+        }
+
+        if ($sourceTerritoryIds === [] && !empty($properties['derived_wiki_id'])) {
+            $wiki = avesmapsPoliticalFetchWikiById($pdo, (int) $properties['derived_wiki_id']);
+            $sourceTerritoryIds = avesmapsPoliticalCollectDerivedGeometryWikiDescendantIds($pdo, $wiki);
+        }
+
+        if ($sourceTerritoryIds === [] && $territoryId > 0) {
+            $sourceTerritoryIds = [$territoryId];
+        }
+    } catch (Throwable) {
+        return [];
+    }
+
+    return array_values(array_unique(array_filter($sourceTerritoryIds, static fn(int $id): bool => $id > 0)));
 }
 
 function avesmapsPoliticalFindInnerBoundaryFeaturesInLayer(array $baseFeatures, array $derivedFeature): array {
