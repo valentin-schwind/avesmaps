@@ -59,13 +59,14 @@ try {
             AND territory.continent = :continent
             AND (territory.valid_from_bf IS NULL OR territory.valid_from_bf <= :year_bf_start)
             AND (territory.valid_to_bf IS NULL OR territory.valid_to_bf = 0 OR territory.valid_to_bf >= :year_bf_end)
-            AND (derived.min_zoom IS NULL OR derived.min_zoom <= :zoom)
-            AND (derived.max_zoom IS NULL OR derived.max_zoom >= :zoom)'
+            AND (derived.min_zoom IS NULL OR derived.min_zoom <= :zoom_min)
+            AND (derived.max_zoom IS NULL OR derived.max_zoom >= :zoom_max)'
     );
     $matchingRowsStatement->bindValue(':continent', AVESMAPS_POLITICAL_DEFAULT_CONTINENT);
     $matchingRowsStatement->bindValue(':year_bf_start', $yearBf, PDO::PARAM_INT);
     $matchingRowsStatement->bindValue(':year_bf_end', $yearBf, PDO::PARAM_INT);
-    $matchingRowsStatement->bindValue(':zoom', $zoom, PDO::PARAM_INT);
+    $matchingRowsStatement->bindValue(':zoom_min', $zoom, PDO::PARAM_INT);
+    $matchingRowsStatement->bindValue(':zoom_max', $zoom, PDO::PARAM_INT);
     $matchingRowsStatement->execute();
     $matchingRows = $matchingRowsStatement->fetch(PDO::FETCH_ASSOC) ?: [];
 
