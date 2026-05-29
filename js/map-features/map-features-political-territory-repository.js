@@ -51,6 +51,13 @@ const politicalTerritoryRepository = {
 		});
 	},
 
+	async deleteDerivedGeometryTree(territoryPublicId) {
+		return submitPoliticalTerritoryEdit({
+			action: "delete_derived_geometry_tree",
+			territory_public_id: territoryPublicId,
+		});
+	},
+
 	async deleteGeometry(regionEntry) {
 		return submitPoliticalTerritoryEdit({
 			action: "delete_geometry",
