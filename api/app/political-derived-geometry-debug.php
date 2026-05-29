@@ -62,12 +62,11 @@ try {
             AND (derived.min_zoom IS NULL OR derived.min_zoom <= :zoom)
             AND (derived.max_zoom IS NULL OR derived.max_zoom >= :zoom)'
     );
-    $matchingRowsStatement->execute([
-        'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
-        'year_bf_start' => $yearBf,
-        'year_bf_end' => $yearBf,
-        'zoom' => $zoom,
-    ]);
+    $matchingRowsStatement->bindValue(':continent', AVESMAPS_POLITICAL_DEFAULT_CONTINENT);
+    $matchingRowsStatement->bindValue(':year_bf_start', $yearBf, PDO::PARAM_INT);
+    $matchingRowsStatement->bindValue(':year_bf_end', $yearBf, PDO::PARAM_INT);
+    $matchingRowsStatement->bindValue(':zoom', $zoom, PDO::PARAM_INT);
+    $matchingRowsStatement->execute();
     $matchingRows = $matchingRowsStatement->fetch(PDO::FETCH_ASSOC) ?: [];
 
     $layerFeatureProbe = [];
