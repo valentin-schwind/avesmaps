@@ -7,6 +7,7 @@
 	}
 
 	window.__avesmapsDerivedGeometrySourceContextInstalled = true;
+	window.__avesmapsResolvedDerivedGeometryTargetByRequestKey ||= new Map();
 
 	function readCurrentGeometryPublicId() {
 		return new URLSearchParams(window.location.search).get("geometry_public_id") || "";
@@ -35,15 +36,49 @@
 		return url.pathname + url.search + url.hash;
 	}
 
+	function maybeRememberResolvedTarget(resource, response) {
+		if (typeof resource !== "string") {
+			return response;
+		}
+
+		let url = null;
+		try {
+			url = new URL(resource, window.location.href);
+		} catch (error) {
+			return response;
+		}
+
+		if (url.searchParams.get("action") !== "derived_geometry_sources") {
+			return response;
+		}
+
+		const requestTargetKey = String(url.searchParams.get("target_key") || "").trim();
+		if (!requestTargetKey) {
+			return response;
+		}
+
+		const clone = response.clone();
+		clone.json().then((payload) => {
+			const territoryPublicId = String(payload?.territory_public_id || "").trim();
+			if (payload?.ok !== false && territoryPublicId) {
+				window.__avesmapsResolvedDerivedGeometryTargetByRequestKey.set(requestTargetKey, territoryPublicId);
+			}
+		}).catch(() => {});
+
+		return response;
+	}
+
 	window.fetch = function fetchWithDerivedGeometrySourceContext(resource, options) {
 		if (typeof resource === "string") {
-			return originalFetch(appendGeometryPublicId(resource), options);
+			const nextResource = appendGeometryPublicId(resource);
+			return originalFetch(nextResource, options).then((response) => maybeRememberResolvedTarget(nextResource, response));
 		}
 
 		if (resource instanceof Request) {
 			const nextUrl = appendGeometryPublicId(resource.url);
 			if (nextUrl !== resource.url) {
-				return originalFetch(new Request(nextUrl, resource), options);
+				const nextRequest = new Request(nextUrl, resource);
+				return originalFetch(nextRequest, options).then((response) => maybeRememberResolvedTarget(nextUrl, response));
 			}
 		}
 
