@@ -366,3 +366,35 @@ Die normale Kartenansicht soll vorberechnete Derived Boundaries laden, revisioni
 - Lokale Override-UI erscheint nicht mehr in der aktiven Bedienoberflaeche.
 - Bestehende echte Polygone bleiben nach jedem Commit unveraendert.
 - Bestehende Territorien und Hierarchien bleiben nach jedem Commit unveraendert.
+
+## Identitaets- und Schichten-Vertrag (2026-05-30, vom Nutzer bestaetigt)
+
+Dieser Vertrag ist die Wahrheit fuer alle weiteren Arbeiten am Editor und an den Aussengrenzen. Vorgaenger (Codex/ChatGPT) sind gescheitert, weil sie diese Schichtung vermischt haben.
+
+### 1. Identitaet ist stabil ueber wiki_key
+
+`political_territory_wiki` ist die unveraenderliche Wahrheit fuer Hierarchie, Namen, Details, Wappen (Quelle: Wiki-Aventurica). Der Wiki-Resync (`avesmapsPoliticalUpsertWikiRecord`, territory.php:166) macht `ON DUPLICATE KEY UPDATE` per `wiki_key` -- er aktualisiert, loescht nie. Daher bleibt `political_territory_wiki.id` stabil.
+
+### 2. Geometrie gehoert zur Identitaet, nicht zur Baum-Position
+
+`political_territory_geometry.territory_id -> political_territory.id`, und `political_territory.wiki_id -> political_territory_wiki.id`. Diese Kette ueberlebt jede Hierarchie-Aenderung im Wiki. Bayern-Szenario: Wechselt Bayern beim Resync von Deutschland zu Oesterreich, aendert sich nur `affiliation_path` im Wiki-Datensatz. Die Geometrie-Zuweisung bleibt. Editoren muessen damit nichts tun -- ausser optional umfaerben (Farbhierarchie zieht Unterreiche automatisch nach).
+
+### 3. Breadcrumb-Baum = Wiki-Affiliation, NICHT political_territory.parent_id
+
+Der globale Breadcrumb-/Hierarchie-Zustand bezieht sich auf den Wiki-Affiliation-Baum (`political_territory_wiki.affiliation_path_json` / affiliation_*). `political_territory.parent_id` ist nur eine teilbefuellte Schattenkopie (live: 255 "Wurzeln" bei 459 aktiven Territorien) und darf NICHT als Pfadquelle fuer den Breadcrumb dienen. Der aktive-Knoten-Store bindet an die Wiki-Identitaet (wiki_key/wiki_id).
+
+### 4. Geometrien gehoeren an Blattknoten
+
+Im Idealmodell tragen nur die untersten Knoten echte Geometrien (Editoren modellieren die untersten Regionen). Ausnahme: ein Editor hat keine Information ueber die Teilung eines Reichs und erklaert eine Flaeche zum ganzen Reich -- deshalb kann jeder Knoten auf eine Geometrie gezogen werden. Aussengrenzen uebergeordneter Knoten werden aus den Kindern abgeleitet (bottom-up).
+
+### 5. Aussengrenze ist immer da -- kein An/Aus-Haekchen
+
+Jeder Knoten, der eine Aussengrenze erzeugen kann, bekommt automatisch eine. Das fruehere "Aussengrenzen darstellen"-Haekchen war nur ein Test und entfaellt als Schalter. Stattdessen: waehlbarer Linien-STIL (dick/duenn/gestrichelt, Presets), idealerweise pro Ebene/Typ (Reichsgrenze != Grafschaftsgrenze, analog Landes- vs. Bundesgrenze) mit optionalem Einzel-Override pro Territorium. Die FUELLUNG kommt weiterhin aus `color`/`opacity`.
+
+### 6. Innengrenzen
+
+"Innengrenzen darstellen" zeigt die (Aussen-)Grenzen der darunterliegenden Knoten, damit die Karte beim Zoomen detaillierter wird. Das spaetere Mergen doppelter, deckungsgleicher Grenzlinien (Editoren modellieren benachbarte Regionen mit Snapping -> Koordinaten liegen exakt aufeinander) ist ein EIGENES, spaeteres Feature und nicht Teil des aktuellen Schritts.
+
+### 7. Vertragsaenderung gegenueber dem alten Grenz-Vertrag
+
+Der alte Grenz-Vertrag oben behandelt "Aussengrenzen darstellen" noch als An/Aus-Schalter. Punkt 5 ersetzt das: Aussengrenze ist Default, der Schalter wird zur Stil-Wahl. Linien-Stil-Spalten existieren heute NICHT im Schema (nur color/opacity = Fuellung) und muessen neu eingefuehrt werden -- genau hier sind Vorgaenger "schon an den Farben gescheitert".
