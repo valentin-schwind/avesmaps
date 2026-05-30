@@ -549,7 +549,7 @@
 
 			els.geometryDatabaseInfo.textContent = idParts.length > 0
 				? `Geometrie in der Datenbank: ${idParts.join(" / ")}`
-				: "Geometrie in der Datenbank";
+				: "Keine Geometrie zugewiesen";
 		}
 
 		function normalizeAffiliationPath(row) {
@@ -1370,6 +1370,17 @@
 			}
 
 			renderInfoBox(node);
+
+			// Geometrie-Statuszeile pro aktivem Wiki-Knoten aktualisieren: bei Knoten
+			// mit Geometrie die DB-Info (aus URL-Params der geoeffneten Geometrie),
+			// sonst den Hinweis "Keine Geometrie zugewiesen".
+			try {
+				if (isTreeNodeAssignedToMap(node)) {
+					updateGeometryDatabaseInfo();
+				} else if (els.geometryDatabaseInfo) {
+					els.geometryDatabaseInfo.textContent = "Keine Geometrie zugewiesen";
+				}
+			} catch (error) { /* Statuszeile ist optional. */ }
 		}
 
 		function renderDropZone() {
