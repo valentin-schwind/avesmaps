@@ -129,3 +129,26 @@
 #political-territory-editor-host .manual-data-inline-action--with-preview > input {
 	flex: 1 1 100%;
 }
+
+/* "Synchronisierte Wiki-Daten" > Details: das Detail-Raster ist KEINE Tabelle,
+ * sondern <dl class="info-grid"> (display:grid). Die generischen table-Overrides
+ * oben greifen daher nicht. Live gemessen (Lorgolosch): die <dd>-Werte stehen auf
+ * white-space:nowrap -> lange Token (Wiki-Schluessel, Wappen-/Wiki-URLs) brechen
+ * nicht um und sprengen ihre Spalte (scrollWidth 543 in 363px Panel). Hier auf die
+ * Panelbreite zwingen: Wertespalte darf schrumpfen, Inhalte duerfen umbrechen. */
+#political-territory-editor-host .info-grid {
+	max-width: 100%;
+	min-width: 0;
+	grid-template-columns: minmax(72px, max-content) minmax(0, 1fr);
+}
+#political-territory-editor-host .info-grid dt {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	white-space: normal;
+}
+#political-territory-editor-host .info-grid dd {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	word-break: break-word;
+	white-space: normal;
+}
