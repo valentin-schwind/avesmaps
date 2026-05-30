@@ -2496,7 +2496,11 @@
 					? pathNodes.findIndex(pathNode => pathNode.id === explicitActiveNode.id)
 					: -1;
 				const zoomActiveIndex = findDisplayIndexForCurrentZoom(value.displays);
-				const nextActiveIndex = explicitActiveIndex >= 0 ? explicitActiveIndex : zoomActiveIndex;
+				// Breadcrumb-Default = geklickte Anzeige-Ebene: das Zoom-Band, das die aktuelle
+				// Kartenzoomstufe traegt, gewinnt (z.B. Zoom 0 -> aggregierender Wurzelknoten),
+				// nicht der vom Backend gelieferte Geometrie-Besitzer (tiefster Knoten). Der
+				// explizite activeDisplayNode greift nur, wenn die Zoomstufe nichts liefert.
+				const nextActiveIndex = zoomActiveIndex >= 0 ? zoomActiveIndex : explicitActiveIndex;
 
 				if (nextActiveIndex >= 0 && pathNodes[nextActiveIndex]) {
 					editedNode = pathNodes[nextActiveIndex];
