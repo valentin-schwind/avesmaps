@@ -99,8 +99,9 @@
 
 	function reloadEditorAndParentLayers() {
 		try {
-			window.parent?.loadPoliticalTerritoryOptions?.({ force: true });
-			window.parent?.schedulePoliticalTerritoryLayerReload?.({ immediate: true });
+			const host = window.AvesmapsEditorContext?.host?.() || window.parent;
+			host?.loadPoliticalTerritoryOptions?.({ force: true });
+			host?.schedulePoliticalTerritoryLayerReload?.({ immediate: true });
 		} catch (error) {
 			console.warn("Politische Gebietsebene konnte nicht direkt neu geladen werden:", error);
 		}

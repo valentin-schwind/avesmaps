@@ -20,7 +20,9 @@
 
 	function getParentWindow() {
 		try {
-			return window.parent && window.parent !== window ? window.parent : null;
+			const host = window.AvesmapsEditorContext?.host?.();
+				if (host) return host;
+				return window.parent && window.parent !== window ? window.parent : null;
 		} catch (error) {
 			return null;
 		}
