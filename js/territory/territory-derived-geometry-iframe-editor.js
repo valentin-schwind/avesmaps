@@ -374,8 +374,9 @@
 	}
 	function drawParentPreview(geometry) {
 		try {
-			if (typeof window.parent?.drawDerivedGeometryPreview === "function") {
-				window.parent.drawDerivedGeometryPreview(geometry);
+			const host = window.AvesmapsEditorContext?.host?.() || window.parent;
+			if (typeof host?.drawDerivedGeometryPreview === "function") {
+				host.drawDerivedGeometryPreview(geometry);
 			}
 		} catch (error) {
 			console.warn("Karten-Vorschau konnte nicht aktualisiert werden:", error);
