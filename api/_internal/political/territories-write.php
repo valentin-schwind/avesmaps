@@ -57,6 +57,7 @@ function avesmapsPoliticalCreateTerritory(PDO $pdo, array $payload, array $user)
     $type = avesmapsPoliticalNormalizeParentheticalSpacing(avesmapsNormalizeSingleLine((string) ($payload['type'] ?? 'Herrschaftsgebiet'), 160));
     $parentId = avesmapsPoliticalReadOptionalTerritoryId($pdo, $payload['parent_public_id'] ?? null);
     $wikiId = avesmapsPoliticalReadOptionalWikiId($pdo, $payload['wiki_id'] ?? null);
+    $wikiKey = avesmapsPoliticalFetchWikiKeyById($pdo, $wikiId);
     $color = avesmapsPoliticalReadHexColor($payload['color'] ?? '#888888');
     $opacity = avesmapsPoliticalReadOpacity($payload['opacity'] ?? 0.33);
     $validFrom = avesmapsPoliticalReadOptionalInt($payload['valid_from_bf'] ?? null);
@@ -79,11 +80,11 @@ function avesmapsPoliticalCreateTerritory(PDO $pdo, array $payload, array $user)
         $sortOrder = avesmapsPoliticalNextSortOrder($pdo);
         $statement = $pdo->prepare(
             'INSERT INTO political_territory (
-                public_id, wiki_id, slug, name, short_name, type, parent_id, continent, status, color,
+                public_id, wiki_id, wiki_key, slug, name, short_name, type, parent_id, continent, status, color,
                 opacity, coat_of_arms_url, wiki_url, valid_from_bf, valid_to_bf, valid_label,
                 min_zoom, max_zoom, is_active, editor_notes, sort_order
             ) VALUES (
-                :public_id, :wiki_id, :slug, :name, :short_name, :type, :parent_id, :continent, :status, :color,
+                :public_id, :wiki_id, :wiki_key, :slug, :name, :short_name, :type, :parent_id, :continent, :status, :color,
                 :opacity, :coat_of_arms_url, :wiki_url, :valid_from_bf, :valid_to_bf, :valid_label,
                 :min_zoom, :max_zoom, :is_active, :editor_notes, :sort_order
             )'
@@ -91,6 +92,7 @@ function avesmapsPoliticalCreateTerritory(PDO $pdo, array $payload, array $user)
         $statement->execute([
             'public_id' => $publicId,
             'wiki_id' => $wikiId,
+            'wiki_key' => $wikiKey,
             'slug' => $slug,
             'name' => $name,
             'short_name' => avesmapsPoliticalNullableString($shortName),
@@ -132,6 +134,7 @@ function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user)
     $name = avesmapsPoliticalReadRequiredName($payload['name'] ?? $territory['name'], 'Der Name des Herrschaftsgebiets');
     $parentId = avesmapsPoliticalReadOptionalTerritoryId($pdo, $payload['parent_public_id'] ?? null);
     $wikiId = avesmapsPoliticalReadOptionalWikiId($pdo, $payload['wiki_id'] ?? $territory['wiki_id'] ?? null);
+    $wikiKey = avesmapsPoliticalFetchWikiKeyById($pdo, $wikiId);
     if ($parentId === (int) $territory['id']) {
         throw new InvalidArgumentException('Ein Herrschaftsgebiet kann nicht sein eigener Parent sein.');
     }
@@ -149,6 +152,7 @@ function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user)
         'UPDATE political_territory
         SET name = :name,
             wiki_id = :wiki_id,
+            wiki_key = :wiki_key,
             short_name = :short_name,
             type = :type,
             parent_id = :parent_id,
@@ -170,6 +174,7 @@ function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user)
         'id' => (int) $territory['id'],
         'name' => $name,
         'wiki_id' => $wikiId,
+        'wiki_key' => $wikiKey,
         'short_name' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['short_name'] ?? ''), 160)),
         'type' => avesmapsPoliticalNullableString(avesmapsPoliticalNormalizeParentheticalSpacing(avesmapsNormalizeSingleLine((string) ($payload['type'] ?? ''), 160))),
         'parent_id' => $parentId,
@@ -224,7 +229,7 @@ function avesmapsPoliticalEnsureWikiTerritoryChain(PDO $pdo, array $payload, arr
                     ], $user);
                     $territory = avesmapsPoliticalFetchTerritoryById($pdo, (int) $created['id']);
                 } else {
-                    avesmapsPoliticalLinkTerritoryToWiki($pdo, (int) $territory['id'], (int) $wiki['id']);
+                    avesmapsPoliticalLinkTerritoryToWiki($pdo, (int) $territory['id'], (int) $wiki['id'], avesmapsPoliticalNullableString($wiki['wiki_key'] ?? null));
                 }
             } else {
                 $territory = avesmapsPoliticalEnsureSyntheticTreeTerritory($pdo, $node, $wikiKey);
@@ -336,17 +341,18 @@ function avesmapsPoliticalEnsureSyntheticTreeTerritory(PDO $pdo, array $node, st
     $sortOrder = avesmapsPoliticalNextSortOrder($pdo);
     $statement = $pdo->prepare(
         'INSERT INTO political_territory (
-            public_id, wiki_id, slug, name, short_name, type, continent, status, color,
+            public_id, wiki_id, wiki_key, slug, name, short_name, type, continent, status, color,
             opacity, coat_of_arms_url, wiki_url, valid_label, min_zoom, max_zoom,
             is_active, editor_notes, sort_order
         ) VALUES (
-            :public_id, NULL, :slug, :name, NULL, :type, :continent, :status, :color,
+            :public_id, NULL, :wiki_key, :slug, :name, NULL, :type, :continent, :status, :color,
             :opacity, :coat_of_arms_url, :wiki_url, :valid_label, NULL, NULL,
             1, :editor_notes, :sort_order
         )'
     );
     $statement->execute([
         'public_id' => $publicId,
+        'wiki_key' => avesmapsPoliticalNullableString($wikiKey),
         'slug' => avesmapsPoliticalUniqueSlug($pdo, $slug),
         'name' => $name,
         'type' => avesmapsPoliticalNullableString(avesmapsPoliticalNormalizeParentheticalSpacing(avesmapsNormalizeSingleLine((string) ($node['type'] ?? 'Herrschaftsgebiet'), 160))),

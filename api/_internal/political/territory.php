@@ -296,12 +296,12 @@ function avesmapsPoliticalCreateTerritoryFromWiki(PDO $pdo, array $wikiRecord, a
 
     $statement = $pdo->prepare(
         'INSERT INTO political_territory (
-            public_id, wiki_id, slug, name, short_name, type, continent, status, color,
+            public_id, wiki_id, wiki_key, slug, name, short_name, type, continent, status, color,
             opacity, coat_of_arms_url, wiki_url, capital_place_id, seat_place_id,
             valid_from_bf, valid_to_bf, valid_label, min_zoom, max_zoom, is_active,
             editor_notes, sort_order
         ) VALUES (
-            :public_id, :wiki_id, :slug, :name, :short_name, :type, :continent, :status, :color,
+            :public_id, :wiki_id, :wiki_key, :slug, :name, :short_name, :type, :continent, :status, :color,
             :opacity, :coat_of_arms_url, :wiki_url, :capital_place_id, :seat_place_id,
             :valid_from_bf, :valid_to_bf, :valid_label, :min_zoom, :max_zoom, 1,
             :editor_notes, :sort_order
@@ -310,6 +310,7 @@ function avesmapsPoliticalCreateTerritoryFromWiki(PDO $pdo, array $wikiRecord, a
     $statement->execute([
         'public_id' => $publicId,
         'wiki_id' => (int) $wikiRecord['id'],
+        'wiki_key' => avesmapsPoliticalNullableString($wikiRecord['wiki_key'] ?? null),
         'slug' => $slug,
         'name' => $wikiRecord['name'],
         'short_name' => null,
@@ -356,15 +357,17 @@ function avesmapsPoliticalFindTerritoryByWikiOrSlug(PDO $pdo, int $wikiId, strin
     return $territory ?: null;
 }
 
-function avesmapsPoliticalLinkTerritoryToWiki(PDO $pdo, int $territoryId, int $wikiId): void {
+function avesmapsPoliticalLinkTerritoryToWiki(PDO $pdo, int $territoryId, int $wikiId, ?string $wikiKey = null): void {
     $statement = $pdo->prepare(
         'UPDATE political_territory
-        SET wiki_id = COALESCE(wiki_id, :wiki_id)
+        SET wiki_id = COALESCE(wiki_id, :wiki_id),
+            wiki_key = COALESCE(wiki_key, :wiki_key)
         WHERE id = :id'
     );
     $statement->execute([
         'id' => $territoryId,
         'wiki_id' => $wikiId,
+        'wiki_key' => avesmapsPoliticalNullableString($wikiKey),
     ]);
 }
 
@@ -667,6 +670,17 @@ function avesmapsPoliticalFetchWikiIdByKey(PDO $pdo, string $wikiKey): ?int {
     $id = $statement->fetchColumn();
 
     return $id === false ? null : (int) $id;
+}
+
+function avesmapsPoliticalFetchWikiKeyById(PDO $pdo, ?int $wikiId): ?string {
+    if ($wikiId === null) {
+        return null;
+    }
+    $statement = $pdo->prepare('SELECT wiki_key FROM political_territory_wiki WHERE id = :id LIMIT 1');
+    $statement->execute(['id' => $wikiId]);
+    $key = $statement->fetchColumn();
+
+    return ($key === false || $key === null || $key === '') ? null : (string) $key;
 }
 
 function avesmapsPoliticalFindLocationFeatureId(PDO $pdo, string $name): ?int {
