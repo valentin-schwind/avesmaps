@@ -116,7 +116,15 @@ function getOverlappingPoliticalRegionLayersAtLatLng(latlng, preferredLayer = nu
 		return leftGeometry.localeCompare(rightGeometry, "de");
 	});
 
-	return headLayer ? [headLayer, ...tailLayers] : tailLayers;
+	const orderedResult = headLayer ? [headLayer, ...tailLayers] : tailLayers;
+
+	// Quellgeometrien vor abgeleiteten Außengrenzen: ein Klick/Rechtsklick in die Mitte soll
+	// die editierbare Quellfläche treffen, nicht die per bringToFront() darüberliegende Kontur
+	// der Außengrenze. Die Außengrenze bleibt per Durchklicken (Zyklus) erreichbar und ist bei
+	// niedrigem Zoom (keine Quelle sichtbar -> nur 1 Kandidat) ohnehin die einzige Auswahl.
+	const sourceLayers = orderedResult.filter((layer) => layer?._regionEntry?.isDerivedGeometry !== true);
+	const derivedLayers = orderedResult.filter((layer) => layer?._regionEntry?.isDerivedGeometry === true);
+	return [...sourceLayers, ...derivedLayers];
 }
 
 function resolveOverlappingRegionLayerSelection(latlng, fallbackLayer = null) {
