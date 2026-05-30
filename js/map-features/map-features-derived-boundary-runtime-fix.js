@@ -128,7 +128,13 @@
 			const input = getInnerBoundariesInput();
 			return originalSaveDerivedGeometry({
 				...payload,
-				show_inner_boundaries: input ? input.checked === true : payload?.show_inner_boundaries,
+				// Ein explizit übergebener Boolean gewinnt (iframe-Häkchen-Wert beim Erzeugen,
+			// Kaskade-Default false). Nur wenn der Aufrufer nichts mitgibt, das (inline)
+			// Häkchen als Fallback lesen. Verhindert, dass dieser Patch den gewünschten Wert
+			// und die Kaskade-false überschreibt (= Innengrenzen blieben sonst an).
+			show_inner_boundaries: typeof payload?.show_inner_boundaries === "boolean"
+				? payload.show_inner_boundaries
+				: (input ? input.checked === true : payload?.show_inner_boundaries),
 			});
 		};
 		politicalTerritoryRepository.__avesmapsDerivedBoundarySavePatched = true;
