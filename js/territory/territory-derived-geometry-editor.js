@@ -407,25 +407,12 @@ function geoJsonGeometryToClippingMultiPolygon(geometry) {
 	return [];
 }
 
-function drawDerivedGeometryPreview(geometry) {
+function drawDerivedGeometryPreview() {
+	// Karten-Vorschau-Overlay entfernt (Nutzerwunsch 2026-05-30): die gestrichelte
+	// Parent-Vorschau auf der Karte doppelte die echte gerenderte Außengrenze (Doppellinie)
+	// und blieb nach dem Speichern stehen. Feedback über mögliche Lücken gibt jetzt nur noch
+	// das Thumbnail im Editor (setDerivedGeometryThumbnail). Wir entfernen nur etwaige Alt-Layer.
 	clearDerivedGeometryPreviewLayer();
-	if (!geometry || !map) {
-		return;
-	}
-	const preview = L.geoJSON({ type: "Feature", geometry, properties: {} }, {
-		pane: "regionsPane",
-		interactive: false,
-		style: {
-			color: "#3b2f1f",
-			weight: 4,
-			dashArray: "8 5",
-			fillColor: "#c9a968",
-			fillOpacity: 0.18,
-		},
-	});
-	preview.addTo(map);
-	preview.bringToFront?.();
-	derivedGeometryEditorState.previewLayer = preview;
 }
 
 function clearDerivedGeometryPreviewLayer() {
