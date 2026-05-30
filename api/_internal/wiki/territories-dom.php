@@ -64,6 +64,7 @@ function avesmapsWikiSyncSyncTerritoriesFromDomCache(PDO $pdo, array $user, arra
         'stale_reference_count' => 0,
         'deleted_count' => 0,
         'detached_territory_count' => 0,
+        'relinked_territory_count' => 0,
         'skipped' => [],
         'stale' => [],
     ];
@@ -114,6 +115,7 @@ function avesmapsWikiSyncSyncTerritoriesFromDomCache(PDO $pdo, array $user, arra
         $summary['detached_territory_count'] = $deleteSummary['detached_territory_count'];
     }
 
+    if (!$dryRun) $summary['relinked_territory_count'] = avesmapsWikiSyncRelinkPoliticalTerritoryByWikiKey($pdo);
     if (!$dryRun) $promotedRows = avesmapsWikiSyncFetchPoliticalTerritoryRowsFromCache($pdo);
     $promotedRows = avesmapsWikiSyncSanitizeDomPoliticalTerritoryRowsForTree($promotedRows);
     $promotedRows = avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments($promotedRows, avesmapsWikiSyncReadPoliticalTerritoryMapAssignments($pdo));

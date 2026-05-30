@@ -255,6 +255,8 @@ function avesmapsWikiSyncRefreshPoliticalTerritoryWikiCache(PDO $pdo, bool $rese
     }
     unset($record);
 
+    avesmapsWikiSyncRelinkPoliticalTerritoryByWikiKey($pdo);
+
     return $normalizedRows;
 }
 
@@ -286,6 +288,23 @@ function avesmapsWikiSyncSyncTerritories(PDO $pdo, array $user): array {
 function avesmapsWikiSyncResetPoliticalTerritoryWikiTable(PDO $pdo): void {
     $pdo->exec('DROP TABLE IF EXISTS political_territory_wiki');
     avesmapsPoliticalEnsureTables($pdo);
+}
+
+// Bindet political_territory.wiki_id ueber den stabilen wiki_key wieder an die (ggf. neu
+// vergebene) wiki.id an, nachdem die Wiki-Tabelle resettet/neu befuellt wurde. Idempotent;
+// Zeilen ohne passende wiki_key-Entsprechung bleiben unangetastet (echtes Stale bleibt detached).
+function avesmapsWikiSyncRelinkPoliticalTerritoryByWikiKey(PDO $pdo): int {
+    $statement = $pdo->prepare(
+        'UPDATE political_territory pt
+        JOIN political_territory_wiki w ON w.wiki_key = pt.wiki_key
+        SET pt.wiki_id = w.id
+        WHERE pt.wiki_key IS NOT NULL
+            AND pt.wiki_key <> \'\'
+            AND (pt.wiki_id IS NULL OR pt.wiki_id <> w.id)'
+    );
+    $statement->execute();
+
+    return $statement->rowCount();
 }
 
 function avesmapsWikiSyncBuildPoliticalTemporalPayload(string $foundedTextRaw, string $dissolvedTextRaw): array {
