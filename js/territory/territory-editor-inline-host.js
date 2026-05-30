@@ -36,6 +36,7 @@
 		"/js/territory/territory-editor-coat-restore.js",
 		"/js/territory/territory-boundary-debug-tools.js",
 		"/js/territory/territory-editor-ui-hints.js",
+		"/js/territory/territory-editor-panel-columns.js",
 	];
 
 	let loadPromise = null;
