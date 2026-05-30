@@ -1,5 +1,7 @@
 ﻿"use strict";
 
+(function initPoliticalTerritoryEditorEmbeddedModule() {
+
 		const API_URL = "/api/app/political-territory-wiki.php";
 		const WRITE_API_URL = "/api/app/political-territories.php?debug_errors=1";
 		
@@ -2937,3 +2939,4 @@
 			buildTree: buildTerritoryTree
 		};
 
+})();
