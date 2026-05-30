@@ -18,6 +18,12 @@
 	const EDITOR_HTML_URL = "/html/political-territory-editor.html";
 	const SCOPED_CSS_URL = "/css/pages/political-territory-editor-inline.css";
 	const HOST_ID = "political-territory-editor-host";
+	// Cache-Buster fuer die dynamisch geladenen Editor-Assets: bei jeder Aenderung
+	// an Editor-JS/CSS hochzaehlen, damit Deploys sofort greifen (kein Hard-Reload).
+	const ASSET_VERSION = "20260530a";
+	function withVersion(url) {
+		return url + (url.indexOf("?") >= 0 ? "&" : "?") + "v=" + ASSET_VERSION;
+	}
 
 	// Reihenfolge wie im bisherigen iframe-HTML (Abhaengigkeiten beachtet).
 	const EDITOR_SCRIPTS = [
@@ -49,7 +55,7 @@
 		if (document.querySelector(`link[data-avesmaps-editor-inline-css]`)) return;
 		const link = document.createElement("link");
 		link.rel = "stylesheet";
-		link.href = SCOPED_CSS_URL;
+		link.href = withVersion(SCOPED_CSS_URL);
 		link.setAttribute("data-avesmaps-editor-inline-css", "1");
 		document.head.appendChild(link);
 
@@ -58,7 +64,7 @@
 		if (!document.querySelector("link[data-avesmaps-editor-columns-css]")) {
 			const columnsLink = document.createElement("link");
 			columnsLink.rel = "stylesheet";
-			columnsLink.href = "/css/components/political-territory-editor-columns.css";
+			columnsLink.href = withVersion("/css/components/political-territory-editor-columns.css");
 			columnsLink.setAttribute("data-avesmaps-editor-columns-css", "1");
 			document.head.appendChild(columnsLink);
 		}
@@ -73,7 +79,7 @@
 				return;
 			}
 			const script = document.createElement("script");
-			script.src = src;
+			script.src = withVersion(src);
 			script.setAttribute("data-avesmaps-editor-src", src);
 			script.addEventListener("load", () => { script.dataset.loaded = "1"; resolve(); }, { once: true });
 			script.addEventListener("error", () => reject(new Error(`Editor-Skript konnte nicht geladen werden: ${src}`)), { once: true });
