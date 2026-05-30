@@ -316,6 +316,10 @@ async function assignWikiSyncTerritoryPayloadToRegionGeometry(payload, regionEnt
 		validity: assignmentValue.validity,
 	});
 	await syncPoliticalTerritoryEditorAssignmentZooms(assignmentValue);
+	// Ein aktiver Geometrie-Edit unterdrueckt sonst den Re-Render im Layer-Reload
+	// (loadPoliticalTerritoryLayer bricht bei activeRegionGeometryEdit vor dem Neuzeichnen ab),
+	// sodass das Label den alten/generischen Namen behaelt bis zum naechsten Render.
+	if (typeof clearRegionGeometryEdit === "function") clearRegionGeometryEdit();
 	refreshPoliticalTerritoryEditorMapLayer();
 	await refreshWikiSyncTerritoryTreeAfterAssignment();
 	if (typeof loadChangeLog === "function") void loadChangeLog();
