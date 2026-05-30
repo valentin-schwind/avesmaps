@@ -138,7 +138,7 @@
 		return normalizeText(
 			root?.territoryPublicId
 			|| root?.wikiKey
-			|| new URLSearchParams(window.location.search).get("territory_public_id")
+			|| window.AvesmapsEditorContext?.param?.("territory_public_id", "")
 			|| ""
 		);
 	}

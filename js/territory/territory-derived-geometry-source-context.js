@@ -10,7 +10,7 @@
 	window.__avesmapsResolvedDerivedGeometryTargetByRequestKey ||= new Map();
 
 	function readCurrentGeometryPublicId() {
-		return new URLSearchParams(window.location.search).get("geometry_public_id") || "";
+		return window.AvesmapsEditorContext?.param?.("geometry_public_id", "") || "";
 	}
 
 	function appendGeometryPublicId(resource) {

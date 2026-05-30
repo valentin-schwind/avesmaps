@@ -6,7 +6,7 @@
 	}
 
 	function geometryId() {
-		return text(new URLSearchParams(window.location.search).get("geometry_public_id"));
+		return text(window.AvesmapsEditorContext?.param?.("geometry_public_id", null));
 	}
 
 	function assignmentValue() {

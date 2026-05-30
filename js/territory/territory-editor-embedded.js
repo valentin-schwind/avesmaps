@@ -6,6 +6,17 @@
 		const MODULE_VERSION = "2026-05-16-module-save-api";
 		const wikiTreeComponent = window.AvesmapsPoliticalTerritoryWikiTree || null;
 
+		// Eingabeparameter ueber die Kontext-Abstraktion lesen (iframe -> URL-Query,
+		// inline -> gesetztes Kontext-Objekt). Liefert ein URLSearchParams-aehnliches
+		// Objekt mit .get(), damit die bestehenden Aufrufstellen unveraendert bleiben.
+		function editorParams() {
+			return {
+				get(key) {
+					return window.AvesmapsEditorContext?.param?.(key, null) ?? null;
+				},
+			};
+		}
+
 		const DISPLAY_SUFFIXES = [
 			"Staat",
 			"Imperium",
@@ -13,7 +24,7 @@
 			"Kalifat"
 		];
 
-		if (new URLSearchParams(window.location.search).get("embedded") === "1") {
+		if (editorParams().get("embedded") === "1") {
 			document.body.classList.add("is-embedded");
 		}
 
@@ -410,7 +421,7 @@
 		async function loadExistingGeometryAssignmentFromUrl() {
 			updateGeometryDatabaseInfo();
 
-			const params = new URLSearchParams(window.location.search);
+			const params = editorParams();
 			const geometryPublicId = normalizeText(params.get("geometry_public_id") || "");
 
 			if (!geometryPublicId) {
@@ -468,7 +479,7 @@
 		}
 
 		function buildLoadedAssignmentInfo(payload = null) {
-			const params = new URLSearchParams(window.location.search);
+			const params = editorParams();
 			const geometry = payload?.geometry && typeof payload.geometry === "object"
 				? payload.geometry
 				: null;
@@ -507,7 +518,7 @@
 			}
 		}
 		function updateGeometryDatabaseInfo(geometry = null) {
-			const params = new URLSearchParams(window.location.search);
+			const params = editorParams();
 			const geometryPublicId = normalizeText(
 				geometry?.publicId
 				|| geometry?.public_id
@@ -2417,7 +2428,7 @@
 		}
 
 		function findDisplayIndexForCurrentZoom(displays) {
-			const params = new URLSearchParams(window.location.search);
+			const params = editorParams();
 			const currentZoom = Number(params.get("current_zoom"));
 			if (!Number.isFinite(currentZoom)) {
 				return -1;
@@ -2621,7 +2632,7 @@
 		}
 		
 		async function handleUnassign() {
-			const params = new URLSearchParams(window.location.search);
+			const params = editorParams();
 			const geometryPublicId = normalizeText(params.get("geometry_public_id") || "");
 
 			if (!geometryPublicId) {
@@ -2681,7 +2692,7 @@
 		}
 
 		async function defaultSaveAssignment(value) {
-			const params = new URLSearchParams(window.location.search);
+			const params = editorParams();
 			const geometryPublicId = normalizeText(params.get("geometry_public_id") || "");
 
 			if (!geometryPublicId) {
