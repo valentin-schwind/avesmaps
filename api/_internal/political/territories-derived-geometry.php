@@ -341,6 +341,19 @@ function avesmapsPoliticalResolveDerivedGeometryTarget(PDO $pdo, array $input, b
     }
 
     $wiki = avesmapsPoliticalFindDerivedGeometryWikiTarget($pdo, $targetKey);
+    if ($wiki === null && $rawTarget !== '') {
+        // Kanonischer Fallback: der lokale Finder oben matcht den wiki_key ohne
+        // "wiki:"-Praefix und manglet Umlaute im Namen (z. B. Bergkoenigreich ->
+        // "bergk nigreich"), wodurch Knoten mit Umlaut/Praefix nie aufgeloest
+        // wurden. avesmapsPoliticalFetchWikiByKey ist der robuste, gemeinsame
+        // Resolver (versteht wiki:/name:-Praefix, Slug- und Namens-Fallback) und
+        // haelt damit Laden, Quellen und Speichern auf demselben Ziel.
+        try {
+            $wiki = avesmapsPoliticalFetchWikiByKey($pdo, $rawTarget);
+        } catch (InvalidArgumentException) {
+            $wiki = null;
+        }
+    }
     $territory = null;
     if ($wiki !== null) {
         $territory = avesmapsPoliticalFindTerritoryByWikiOrSlug($pdo, (int) $wiki['id'], avesmapsPoliticalSlug((string) ($wiki['name'] ?? $targetKey)));
