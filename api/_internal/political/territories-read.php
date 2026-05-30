@@ -756,6 +756,134 @@ function avesmapsPoliticalResolveHierarchyDisplayRootName(
     return $displayRootName;
 }
 
+function avesmapsPoliticalReadAssignmentDisplaysFromStyle(array $style): array {
+    $rawDisplays = $style['assignmentDisplays'] ?? $style['assignment_displays'] ?? [];
+    if (!is_array($rawDisplays)) {
+        return [];
+    }
+
+    $displays = [];
+    foreach ($rawDisplays as $rawDisplay) {
+        if (!is_array($rawDisplay)) {
+            continue;
+        }
+
+        $territoryPublicId = trim((string) (
+            $rawDisplay['territoryPublicId']
+            ?? $rawDisplay['territory_public_id']
+            ?? ''
+        ));
+
+        $nodeKey = trim((string) (
+            $rawDisplay['nodeKey']
+            ?? $rawDisplay['node_key']
+            ?? ''
+        ));
+
+        $originalName = trim((string) (
+            $rawDisplay['originalName']
+            ?? $rawDisplay['original_name']
+            ?? $rawDisplay['name']
+            ?? ''
+        ));
+
+        $displayName = trim((string) (
+            $rawDisplay['displayName']
+            ?? $rawDisplay['display_name']
+            ?? ''
+        ));
+
+        if ($territoryPublicId === '' && $nodeKey === '' && $originalName === '' && $displayName === '') {
+            continue;
+        }
+
+        $opacity = $rawDisplay['opacity'] ?? null;
+        $existsUntilToday = array_key_exists('existsUntilToday', $rawDisplay)
+            ? filter_var($rawDisplay['existsUntilToday'], FILTER_VALIDATE_BOOL)
+            : (
+                array_key_exists('exists_until_today', $rawDisplay)
+                    ? filter_var($rawDisplay['exists_until_today'], FILTER_VALIDATE_BOOL)
+                    : false
+            );
+
+        $isLocalOverride = filter_var(
+            $rawDisplay['localOverride']
+            ?? $rawDisplay['local_override']
+            ?? false,
+            FILTER_VALIDATE_BOOL
+        );
+
+        $displays[] = [
+            'territoryPublicId' => $territoryPublicId,
+            'territory_public_id' => $territoryPublicId,
+            'nodeKey' => $nodeKey,
+            'node_key' => $nodeKey,
+            'originalName' => $originalName,
+            'original_name' => $originalName,
+            'displayName' => $displayName,
+            'display_name' => $displayName,
+            'coatOfArmsUrl' => trim((string) (
+                $rawDisplay['coatOfArmsUrl']
+                ?? $rawDisplay['coat_of_arms_url']
+                ?? ''
+            )),
+            'color' => trim((string) ($rawDisplay['color'] ?? '')),
+            'opacity' => is_numeric($opacity) ? (float) $opacity : null,
+            'zoomMin' => avesmapsPoliticalNullableInt($rawDisplay['zoomMin'] ?? $rawDisplay['zoom_min'] ?? null),
+            'zoomMax' => avesmapsPoliticalNullableInt($rawDisplay['zoomMax'] ?? $rawDisplay['zoom_max'] ?? null),
+            'startYear' => avesmapsPoliticalNullableInt($rawDisplay['startYear'] ?? $rawDisplay['start_year'] ?? null),
+            'endYear' => $existsUntilToday ? null : avesmapsPoliticalNullableInt($rawDisplay['endYear'] ?? $rawDisplay['end_year'] ?? null),
+            'existsUntilToday' => $existsUntilToday,
+            'localOverride' => $isLocalOverride,
+            'local_override' => $isLocalOverride,
+        ];
+    }
+
+    return $displays;
+}
+
+function avesmapsPoliticalFindAssignmentDisplayForTerritory(array $style, string $territoryPublicId, string $nodeKey = ''): ?array {
+    $territoryPublicId = trim($territoryPublicId);
+    $nodeKey = trim($nodeKey);
+
+    foreach (avesmapsPoliticalReadAssignmentDisplaysFromStyle($style) as $display) {
+        if (empty($display['localOverride']) && empty($display['local_override'])) {
+            continue;
+        }
+
+        $displayTerritoryPublicId = trim((string) ($display['territoryPublicId'] ?? $display['territory_public_id'] ?? ''));
+        $displayNodeKey = trim((string) ($display['nodeKey'] ?? $display['node_key'] ?? ''));
+
+        if ($territoryPublicId !== '' && $displayTerritoryPublicId === $territoryPublicId) {
+            return $display;
+        }
+
+        if ($nodeKey !== '' && $displayNodeKey === $nodeKey) {
+            return $display;
+        }
+    }
+
+    return null;
+}
+
+function avesmapsPoliticalResolveAssignmentDisplayName(?array $display, string $fallbackName): string {
+    if ($display === null) {
+        return trim($fallbackName);
+    }
+
+    $displayName = trim((string) ($display['displayName'] ?? $display['display_name'] ?? ''));
+    if ($displayName !== '' && !avesmapsPoliticalIsGenericHierarchyRootName($displayName)) {
+        return $displayName;
+    }
+
+    $originalName = trim((string) ($display['originalName'] ?? $display['original_name'] ?? ''));
+    if ($originalName !== '' && !avesmapsPoliticalIsGenericHierarchyRootName($originalName)) {
+        return $originalName;
+    }
+
+    return trim($fallbackName);
+}
+
 function avesmapsPoliticalIsGenericHierarchyRootName(string $rootName): bool {
     $normalizedRootName = trim($rootName);
     if ($normalizedRootName === '') {
