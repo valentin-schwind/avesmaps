@@ -383,6 +383,12 @@
 		}
 	}
 	async function saveIfNeeded(context = {}) {
+		// Schutz gegen den Teufelskreis: nur eingreifen, wenn der Nutzer den
+		// Außengrenzen-Bereich in DIESER Editor-Sitzung bewusst geändert hat.
+		// Sonst würde ein normales Speichern (z. B. nur Farbe/Name) die bestehende
+		// Außengrenze versehentlich per delete_derived_geometry deaktivieren, weil
+		// das Häkchen beim Öffnen über einen Blattknoten faelschlich aus war.
+		if (!state.dirty) return null;
 		const enabled = document.getElementById("derivedGeometryEnabledInput")?.checked === true;
 		const targetKey = getTargetKey(context.value);
 		if (!targetKey) return null;
