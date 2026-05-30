@@ -225,6 +225,23 @@ function buildDerivedBoundaryFromSourceResponse(response) {
 	return result;
 }
 
+// Liest das bestehende Innengrenzen-Flag eines Ziels, damit Neuberechnung/Kaskade es
+// ERHALTEN statt es hart auf false zu klobbern (sonst verliert ein Elterngebiet beim
+// Bearbeiten eines Kindes seine bewusste "Innengrenzen an"-Wahl). Default false nur,
+// wenn das Ziel noch keine Außengrenze hat (neue Außengrenze = innen aus).
+async function readExistingShowInnerBoundaries(territoryPublicId) {
+	try {
+		const existing = await politicalTerritoryRepository.getDerivedGeometry(territoryPublicId);
+		const derived = existing?.derived_geometry;
+		if (derived) {
+			return derived.show_inner_boundaries !== false;
+		}
+	} catch (error) {
+		// Fallback unten.
+	}
+	return false;
+}
+
 // Berechnet und speichert die Außengrenze EINES Targets ohne UI-/Vorschau-Seiteneffekte.
 // Wird von der Kaskade benutzt, um Ancestors (und optional Unterregionen) mitzuziehen.
 async function recomputeDerivedBoundaryForTargetSilently(targetPublicId, plan) {
@@ -233,6 +250,7 @@ async function recomputeDerivedBoundaryForTargetSilently(targetPublicId, plan) {
 	if (!result) {
 		return { skipped: true };
 	}
+	const showInnerBoundaries = await readExistingShowInnerBoundaries(targetPublicId);
 	await politicalTerritoryRepository.saveDerivedGeometry({
 		territory_public_id: targetPublicId,
 		geometry_geojson: result.geometry,
@@ -241,8 +259,8 @@ async function recomputeDerivedBoundaryForTargetSilently(targetPublicId, plan) {
 		// Leeres Zoom-Band: das Backend uebernimmt das globale Band des Territoriums.
 		min_zoom: "",
 		max_zoom: "",
-		// Default Innengrenzen AUS (Nutzer-Modell: Außen=an, Innen=aus); inner kommt später als eigenes Feature.
-		show_inner_boundaries: false,
+		// Inner-Flag des Ziels ERHALTEN (Default false nur für neue Außengrenzen, s. readExistingShowInnerBoundaries).
+		show_inner_boundaries: showInnerBoundaries,
 		source_revision: findDerivedBoundaryPlanSourceRevision(plan, targetPublicId),
 		is_active: true,
 	});
@@ -310,6 +328,7 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 		setDerivedGeometryEditorStatus(`${targetName}: Außengrenze wird gespeichert...`, "pending");
 
 		const sourceRevision = findDerivedBoundaryPlanSourceRevision(plan, territoryPublicId);
+		const showInnerBoundaries = await readExistingShowInnerBoundaries(territoryPublicId);
 		const saved = await politicalTerritoryRepository.saveDerivedGeometry({
 			territory_public_id: territoryPublicId,
 			geometry_geojson: result.geometry,
@@ -317,8 +336,8 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 			label_lat: result.labelCenter?.lat ?? null,
 			min_zoom: "",
 			max_zoom: "",
-			// Default Innengrenzen AUS (Nutzer-Modell: Außen=an, Innen=aus); inner kommt später als eigenes Feature.
-			show_inner_boundaries: false,
+			// Inner-Flag des Ziels ERHALTEN (Default false nur für neue Außengrenzen, s. readExistingShowInnerBoundaries).
+			show_inner_boundaries: showInnerBoundaries,
 			source_revision: sourceRevision,
 			is_active: true,
 		});
