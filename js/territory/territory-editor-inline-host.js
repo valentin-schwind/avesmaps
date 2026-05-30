@@ -51,6 +51,16 @@
 		link.href = SCOPED_CSS_URL;
 		link.setAttribute("data-avesmaps-editor-inline-css", "1");
 		document.head.appendChild(link);
+
+		// Additive Layout-Ergaenzung (volle Breite + zweispaltige Panels) NACH dem
+		// generierten Scoped-Sheet laden, damit sie bei gleicher Spezifitaet gewinnt.
+		if (!document.querySelector("link[data-avesmaps-editor-columns-css]")) {
+			const columnsLink = document.createElement("link");
+			columnsLink.rel = "stylesheet";
+			columnsLink.href = "/css/components/political-territory-editor-columns.css";
+			columnsLink.setAttribute("data-avesmaps-editor-columns-css", "1");
+			document.head.appendChild(columnsLink);
+		}
 	}
 
 	function loadScriptOnce(src) {

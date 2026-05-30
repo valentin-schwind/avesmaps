@@ -1,0 +1,58 @@
+/*
+ * Additive Layout-Ergaenzung fuer den inline geladenen Herrschaftsgebiet-Editor.
+ *
+ * Zweck:
+ * 1. Volle Breite: der .app-container war auf min(760px) begrenzt -> dunkle
+ *    Balken links/rechts im Dialog. Hier auf 100 % Breite gesetzt.
+ * 2. Zweispaltiges Panel-Layout: die .manual-data-section-Panels (Synchronisierte
+ *    Wiki-Daten, Anzeige, Kartensichtbarkeit, Geometrie, Farbe, Transparenz,
+ *    Zeitliche Gueltigkeit) liegen im Container #manualEditFields
+ *    (.manual-data-columns) und nehmen bisher je volle Breite ein. Per Flexbox
+ *    bekommt jeder Panel ~50 % Breite, sodass zwei Spalten entstehen.
+ *
+ * Rein additiv: keine bestehenden Klassen/IDs geaendert, kein Eingriff in die
+ * inneren Formularstrukturen. Wird vom Inline-Host NACH dem generierten
+ * Scoped-Stylesheet geladen, damit gleiche Spezifitaet per Quellreihenfolge
+ * gewinnt. Alle Regeln sind unter #political-territory-editor-host gescoped.
+ */
+
+/* 1) Volle Breite des Editor-Inhalts (dunkle Seitenbalken entfernen) */
+#political-territory-editor-host .app-container {
+	width: 100%;
+	max-width: none;
+	min-height: 0;
+	box-shadow: none;
+}
+
+/* 2) Zweispaltiges Panel-Layout via Flexbox */
+#political-territory-editor-host .manual-data-columns {
+	display: flex;
+	flex-wrap: wrap;
+	align-content: flex-start;
+	align-items: flex-start;
+	gap: 14px;
+	width: 100%;
+}
+
+/* Die zwei vorhandenen, leeren .manual-data-column-Platzhalter werden nicht
+   genutzt (Panels liegen direkt im Container) -> ausblenden, damit sie das
+   Flow-Layout nicht stoeren. */
+#political-territory-editor-host .manual-data-columns > .manual-data-column {
+	display: none;
+}
+
+/* Jedes Panel ~halbe Breite -> zwei Spalten. min-width sorgt fuer sauberen
+   Umbruch in eine Spalte auf schmalen Dialogen. */
+#political-territory-editor-host .manual-data-columns > .manual-data-section {
+	flex: 1 1 calc(50% - 14px);
+	min-width: 280px;
+	margin: 0;
+	box-sizing: border-box;
+}
+
+/* Schmaler Dialog (z. B. Mobil): eine Spalte. */
+@media (max-width: 680px) {
+	#political-territory-editor-host .manual-data-columns > .manual-data-section {
+		flex-basis: 100%;
+	}
+}
