@@ -1293,7 +1293,7 @@
 
 #political-territory-editor-host .info-grid {
 	display: grid;
-	grid-template-columns: minmax(150px, 0.34fr) minmax(220px, 0.66fr);
+	/* grid-template-columns: minmax(150px, 0.34fr) minmax(220px, 0.66fr); */
 	gap: 0;
 	border: 1px solid #dccab8;
 	border-radius: 8px;
