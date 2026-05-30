@@ -119,6 +119,36 @@ function buildPoliticalTerritoryEditorContext(regionEntry = {}) {
 	return context;
 }
 
+// Feature #1.2: Wenn der aktive Breadcrumb-Knoten gerenderte Geometrie hat, die
+// Karte darauf fokussieren; geometrielose (zeilenlose/synthetische) Knoten lassen
+// die Ansicht ruhig. Laeuft im Host-Scope (map/regionPolygons/L sind hier global).
+let politicalTerritoryEditorActiveNodeFocusBound = false;
+
+function focusMapOnActiveTerritoryNode(activeNode) {
+	try {
+		if (!activeNode || typeof map === "undefined" || typeof regionPolygons === "undefined") return;
+		const territoryPublicId = String(activeNode.territoryPublicId || activeNode.territory_public_id || "").trim();
+		if (!territoryPublicId) return; // kein eigener Datensatz/keine Geometrie -> Ansicht ruhig
+		const bounds = L.latLngBounds([]);
+		for (const layer of regionPolygons) {
+			if (String(layer?._regionEntry?.territoryPublicId || "").trim() !== territoryPublicId) continue;
+			const layerBounds = layer.getBounds?.();
+			if (layerBounds && layerBounds.isValid?.()) bounds.extend(layerBounds);
+		}
+		if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50] });
+	} catch (error) {
+		console.warn("Karten-Fokus auf aktiven Knoten fehlgeschlagen:", error);
+	}
+}
+
+function ensurePoliticalTerritoryEditorActiveNodeFocus() {
+	if (politicalTerritoryEditorActiveNodeFocusBound) return;
+	const store = window.AvesmapsEditorActiveNode;
+	if (!store || typeof store.subscribe !== "function") return;
+	politicalTerritoryEditorActiveNodeFocusBound = true;
+	store.subscribe(focusMapOnActiveTerritoryNode);
+}
+
 function openPoliticalTerritoryEditor(regionEntry = {}) {
 	const { overlay, host } = getPoliticalTerritoryEditorElements();
 	const inlineHost = window.AvesmapsPoliticalTerritoryEditorInlineHost;
@@ -168,6 +198,8 @@ function setupPoliticalTerritoryEditorInline(regionEntry) {
 		onAssignmentLoaded: (assignmentInfo) => handlePoliticalTerritoryEditorAssignmentLoaded(assignmentInfo),
 		onCancel: () => closePoliticalTerritoryEditor(),
 	});
+
+	ensurePoliticalTerritoryEditorActiveNodeFocus();
 
 	// Wiki-Links im Baum-Meta inline beobachten (zuvor iframe-dokumentbezogen).
 	try {

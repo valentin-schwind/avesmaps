@@ -1353,6 +1353,11 @@
 
 		function showNodeDetails(node) {
 			selectedNode = node;
+			// Aktiven Knoten SOFORT in den beobachtbaren Store publizieren (Funnel aller
+			// Selektionswechsel: Tree-Klick, Breadcrumb-Sprung, Geschwister-Blaettern).
+			// Ersetzt das Warten auf den asynchronen ui-hints-MutationObserver -> der
+			// Karten-Fokus (Host) bekommt den gewaehlten Knoten verlaesslich & synchron.
+			try { window.AvesmapsEditorActiveNode?.set?.(createNodeReference(node)); } catch (error) { /* Store ist optional. */ }
 
 			for (const element of els.treeView.querySelectorAll(".tree-item.selected")) {
 				element.classList.remove("selected");
