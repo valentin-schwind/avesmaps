@@ -112,3 +112,20 @@
 	max-width: 100%;
 	box-sizing: border-box;
 }
+
+/* Wappen-Aktionszeile (Anzeige-Panel): das feste Grid
+ * (minmax(220px,1fr) max-content max-content 42px) sprengt die schmale Spalte.
+ * In den zweispaltigen Panels auf eine umbrechende Flex-Zeile umstellen, damit
+ * Eingabefeld + Buttons + Vorschau innerhalb der Panelbreite bleiben. */
+#political-territory-editor-host .manual-data-inline-action--with-preview {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+}
+#political-territory-editor-host .manual-data-inline-action--with-preview > * {
+	min-width: 0;
+}
+#political-territory-editor-host .manual-data-inline-action--with-preview > input {
+	flex: 1 1 100%;
+}
