@@ -120,6 +120,16 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
     $bounds = avesmapsPoliticalCalculateGeometryBounds($geometry);
     $minZoom = avesmapsPoliticalReadOptionalZoom($payload['min_zoom'] ?? null);
     $maxZoom = avesmapsPoliticalReadOptionalZoom($payload['max_zoom'] ?? null);
+    // Das Zoom-Band der Außengrenze folgt der globalen Territoriumssichtbarkeit,
+    // wenn es nicht explizit mitgegeben wird. Das haelt die Baender ueber
+    // Neuberechnungen hinweg konsistent (Quelle: political_territory) und vermeidet
+    // die fruehere Drift aus Formularfeldern.
+    if ($minZoom === null) {
+        $minZoom = avesmapsPoliticalReadOptionalZoom($territory['min_zoom'] ?? null);
+    }
+    if ($maxZoom === null) {
+        $maxZoom = avesmapsPoliticalReadOptionalZoom($territory['max_zoom'] ?? null);
+    }
     avesmapsPoliticalAssertZoomRange($minZoom, $maxZoom);
 
     $labelCenter = avesmapsPoliticalReadDerivedGeometryLabelCenter($payload, $geometry);

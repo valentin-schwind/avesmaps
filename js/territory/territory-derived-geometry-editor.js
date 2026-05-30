@@ -191,16 +191,16 @@ async function rebuildDerivedGeometryEditorPreview() {
 	return result.geometry;
 }
 
-function buildDerivedBoundaryFromSourceResponse(response) {
+// Reine Union ohne UI-Seiteneffekte. Liefert null, wenn keine Quellflächen vorliegen.
+// Dies ist die EINE Berechnungslogik, die Vorschau, Save-Hook und Kaskade gemeinsam nutzen.
+function unionDerivedSources(response) {
 	const sourceGeometries = Array.isArray(response?.source_geometries) ? response.source_geometries : [];
 	const clippingGeometries = sourceGeometries
 		.map((entry) => geoJsonGeometryToClippingMultiPolygon(entry.geometry))
 		.filter((geometry) => Array.isArray(geometry) && geometry.length > 0);
 
 	if (clippingGeometries.length < 1) {
-		clearDerivedGeometryPreviewLayer();
-		setDerivedGeometryThumbnail(null);
-		throw new Error("Keine Unterflächen für eine automatische Außengrenze gefunden.");
+		return null;
 	}
 
 	const unionGeometry = normalizeClippingMultiPolygon(
@@ -213,6 +213,39 @@ function buildDerivedBoundaryFromSourceResponse(response) {
 		labelCenter: readDerivedGeometryLabelCenter(geometry),
 		sourceCount: sourceGeometries.length,
 	};
+}
+
+function buildDerivedBoundaryFromSourceResponse(response) {
+	const result = unionDerivedSources(response);
+	if (!result) {
+		clearDerivedGeometryPreviewLayer();
+		setDerivedGeometryThumbnail(null);
+		throw new Error("Keine Unterflächen für eine automatische Außengrenze gefunden.");
+	}
+	return result;
+}
+
+// Berechnet und speichert die Außengrenze EINES Targets ohne UI-/Vorschau-Seiteneffekte.
+// Wird von der Kaskade benutzt, um Ancestors (und optional Unterregionen) mitzuziehen.
+async function recomputeDerivedBoundaryForTargetSilently(targetPublicId, plan) {
+	const sources = await politicalTerritoryRepository.getDerivedGeometrySources(targetPublicId);
+	const result = unionDerivedSources(sources);
+	if (!result) {
+		return { skipped: true };
+	}
+	await politicalTerritoryRepository.saveDerivedGeometry({
+		territory_public_id: targetPublicId,
+		geometry_geojson: result.geometry,
+		label_lng: result.labelCenter?.lng ?? null,
+		label_lat: result.labelCenter?.lat ?? null,
+		// Leeres Zoom-Band: das Backend uebernimmt das globale Band des Territoriums.
+		min_zoom: "",
+		max_zoom: "",
+		show_inner_boundaries: true,
+		source_revision: findDerivedBoundaryPlanSourceRevision(plan, targetPublicId),
+		is_active: true,
+	});
+	return { saved: true };
 }
 
 async function generateOrUpdateDerivedBoundaryForCurrentEditorRegion() {
