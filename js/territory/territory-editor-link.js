@@ -123,19 +123,31 @@ function buildPoliticalTerritoryEditorContext(regionEntry = {}) {
 // Karte darauf fokussieren; geometrielose (zeilenlose/synthetische) Knoten lassen
 // die Ansicht ruhig. Laeuft im Host-Scope (map/regionPolygons/L sind hier global).
 let politicalTerritoryEditorActiveNodeFocusBound = false;
+let politicalTerritoryEditorFocusToken = 0;
 
 function focusMapOnActiveTerritoryNode(activeNode) {
 	try {
-		if (!activeNode || typeof map === "undefined" || typeof regionPolygons === "undefined") return;
+		if (!activeNode || typeof map === "undefined") return;
 		const territoryPublicId = String(activeNode.territoryPublicId || activeNode.territory_public_id || "").trim();
-		if (!territoryPublicId) return; // kein eigener Datensatz/keine Geometrie -> Ansicht ruhig
-		const bounds = L.latLngBounds([]);
-		for (const layer of regionPolygons) {
-			if (String(layer?._regionEntry?.territoryPublicId || "").trim() !== territoryPublicId) continue;
-			const layerBounds = layer.getBounds?.();
-			if (layerBounds && layerBounds.isValid?.()) bounds.extend(layerBounds);
-		}
-		if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50] });
+		if (!territoryPublicId) return; // zeilenloser Knoten / keine Geometrie -> Ansicht ruhig
+		if (typeof POLITICAL_TERRITORIES_API_URL === "undefined" || !POLITICAL_TERRITORIES_API_URL) return;
+
+		// Bounding-Box render-unabhaengig vom Backend holen (gerenderte Layer sind
+		// zoom-/aggregationsgefiltert und enthalten den aktiven Knoten oft gar nicht).
+		const token = ++politicalTerritoryEditorFocusToken;
+		const separator = POLITICAL_TERRITORIES_API_URL.indexOf("?") >= 0 ? "&" : "?";
+		const url = `${POLITICAL_TERRITORIES_API_URL}${separator}action=territory_bounds&public_id=${encodeURIComponent(territoryPublicId)}`;
+		fetch(url, { credentials: "same-origin" })
+			.then((response) => (response.ok ? response.json() : null))
+			.then((result) => {
+				if (token !== politicalTerritoryEditorFocusToken) return; // veraltet (schnelles Blaettern)
+				const b = result && result.bounds;
+				if (!b) return; // keine Geometrie -> Ansicht ruhig
+				// Simple-CRS: lat = y, lng = x.
+				const bounds = L.latLngBounds([[b.min_y, b.min_x], [b.max_y, b.max_x]]);
+				if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50] });
+			})
+			.catch(() => {});
 	} catch (error) {
 		console.warn("Karten-Fokus auf aktiven Knoten fehlgeschlagen:", error);
 	}

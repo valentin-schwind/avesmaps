@@ -77,6 +77,7 @@ try {
             'layer' => avesmapsPoliticalReadLayerWithDerivedGeometry($pdo, $_GET),
             'list' => avesmapsPoliticalListTerritories($pdo, $_GET),
             'get' => avesmapsPoliticalGetTerritory($pdo, $_GET),
+            'territory_bounds' => avesmapsPoliticalReadTerritoryBounds($pdo, $_GET),
             'wiki' => avesmapsPoliticalGetWikiReference($pdo, $_GET),
             'wiki_list' => avesmapsPoliticalListWikiReferences($pdo, $_GET),
             'hierarchy' => avesmapsPoliticalReadHierarchy($pdo),

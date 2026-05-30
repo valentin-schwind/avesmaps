@@ -957,6 +957,56 @@ function avesmapsPoliticalInferPublicTerritoryParentId(array $territory, array $
     return $parentId === (int) ($territory['id'] ?? 0) ? 0 : $parentId;
 }
 
+// Feature #1.2: render-unabhaengige Bounding-Box eines Territoriums (Quell- UND
+// Derived-Geometrie vereint) fuer den Karten-Fokus beim Breadcrumb-Durchwechseln.
+// Liefert bounds=null, wenn das Territorium keine (aktive) Geometrie hat -> Ansicht ruhig.
+function avesmapsPoliticalReadTerritoryBounds(PDO $pdo, array $query): array {
+    $publicId = avesmapsPoliticalReadPublicId($query['public_id'] ?? $query['territory_public_id'] ?? '');
+
+    try {
+        $territory = avesmapsPoliticalFetchTerritoryByPublicId($pdo, $publicId);
+    } catch (InvalidArgumentException) {
+        return ['ok' => true, 'bounds' => null];
+    }
+
+    $territoryId = (int) ($territory['id'] ?? 0);
+    if ($territoryId < 1) {
+        return ['ok' => true, 'bounds' => null];
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT MIN(min_x) AS min_x, MIN(min_y) AS min_y, MAX(max_x) AS max_x, MAX(max_y) AS max_y
+        FROM (
+            SELECT min_x, min_y, max_x, max_y
+            FROM political_territory_geometry
+            WHERE territory_id = :tid_geometry AND is_active = 1
+            UNION ALL
+            SELECT min_x, min_y, max_x, max_y
+            FROM political_territory_derived_geometry
+            WHERE territory_id = :tid_derived AND is_active = 1
+        ) AS combined'
+    );
+    $statement->execute([
+        'tid_geometry' => $territoryId,
+        'tid_derived' => $territoryId,
+    ]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+    if (!$row || $row['min_x'] === null || $row['min_y'] === null || $row['max_x'] === null || $row['max_y'] === null) {
+        return ['ok' => true, 'bounds' => null];
+    }
+
+    return [
+        'ok' => true,
+        'bounds' => [
+            'min_x' => (float) $row['min_x'],
+            'min_y' => (float) $row['min_y'],
+            'max_x' => (float) $row['max_x'],
+            'max_y' => (float) $row['max_y'],
+        ],
+    ];
+}
+
 function avesmapsPoliticalFetchTerritoryByRequest(PDO $pdo, array $query): array {
     $publicId = avesmapsPoliticalReadPublicId($query['public_id'] ?? $query['territory_public_id'] ?? '');
 
