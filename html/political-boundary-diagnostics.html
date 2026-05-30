@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="robots" content="noindex, nofollow" />
+	<title>Avesmaps – Außengrenzen-Diagnose</title>
+	<link rel="stylesheet" href="../css/leaflet.css" />
+	<style>
+		* { box-sizing: border-box; }
+		html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; font-size: 13px; }
+		#app { display: flex; height: 100vh; }
+		#map { flex: 1 1 60%; background: #0b1c2c; }
+		#panel { flex: 0 0 40%; max-width: 620px; overflow: auto; padding: 10px 14px; border-left: 1px solid #ccc; }
+		#controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px; border-bottom: 1px solid #ddd; position: sticky; top: 0; background: #fff; z-index: 5; }
+		#controls input { padding: 3px 5px; }
+		#controls input.id { width: 280px; font-family: monospace; }
+		#controls input.year { width: 70px; }
+		button { padding: 4px 8px; cursor: pointer; }
+		.zoombtn.active { background: #1452F7; color: #fff; font-weight: bold; }
+		h2 { font-size: 14px; margin: 14px 0 4px; border-bottom: 2px solid #1452F7; padding-bottom: 2px; }
+		table { border-collapse: collapse; width: 100%; margin: 4px 0; }
+		th, td { border: 1px solid #ddd; padding: 2px 5px; text-align: left; vertical-align: top; }
+		th { background: #f3f3f3; }
+		td.num { text-align: right; font-variant-numeric: tabular-nums; }
+		.tag { display: inline-block; padding: 0 5px; border-radius: 3px; font-size: 11px; color: #fff; }
+		.tag.derived { background: #d6336c; }
+		.tag.aggregate { background: #e8590c; }
+		.tag.source { background: #1971c2; }
+		.tag.inactive { background: #868e96; }
+		.tag.active { background: #2f9e44; }
+		pre { background: #f7f7f9; border: 1px solid #e1e1e8; padding: 6px; overflow: auto; max-height: 280px; font-size: 11px; }
+		.legend { font-size: 11px; }
+		.swatch { display: inline-block; width: 12px; height: 12px; vertical-align: middle; margin-right: 3px; border: 1px solid #333; }
+		.warn { color: #c92a2a; font-weight: bold; }
+		.muted { color: #888; }
+	</style>
+</head>
+<body>
+	<div id="app">
+		<div style="flex:1 1 60%; display:flex; flex-direction:column;">
+			<div id="controls">
+				<label>Territory&nbsp;<input class="id" id="focusId" value="206f47f3-a0f6-4a7b-87b7-b036c39b361a" /></label>
+				<label>Jahr&nbsp;<input class="year" id="yearBf" value="1049" /></label>
+				<button id="loadBtn">Laden</button>
+				<span>Zoom:</span>
+				<span id="zoomButtons"></span>
+				<label><input type="checkbox" id="drawAll" /> alle zeichnen</label>
+				<span id="status" class="muted"></span>
+			</div>
+			<div id="map"></div>
+		</div>
+		<div id="panel">
+			<div class="legend">
+				<span class="swatch" style="background:#d6336c"></span>Derived (Außengrenze)
+				<span class="swatch" style="background:#e8590c"></span>Aggregat-Quelle
+				<span class="swatch" style="background:#1971c2"></span>Quellgeometrie
+			</div>
+			<div id="report"></div>
+		</div>
+	</div>
+
+	<script src="../js/third-party/leaflet.js"></script>
+	<script>
+	"use strict";
+	const API = "../api/app/political-territories.php";
+	const DERIVED_DEBUG = "../api/app/political-derived-geometry-debug.php";
+	const MAP_SIZE = 1024;
+	const BOUNDS = [[0, 0], [MAP_SIZE, MAP_SIZE]];
+
+	const map = L.map("map", { crs: L.CRS.Simple, minZoom: 0, maxZoom: 6, noWrap: true, zoomControl: true }).setView([MAP_SIZE / 2, MAP_SIZE / 2], 0);
+	L.tileLayer("../tiles/politics/{z}/map_{x}_{y}.webp", { tileSize: 256, maxNativeZoom: 4, noWrap: true, bounds: BOUNDS }).addTo(map);
+	map.setMaxBounds(BOUNDS);
+	const drawLayerGroup = L.layerGroup().addTo(map);
+
+	window.DIAG = { summary: null, plan: null, derivedRows: null, layerByZoom: {}, focusSubtreeIds: [], currentZoom: 0 };
+	let currentZoom = 0;
+
+	function setStatus(text) { document.getElementById("status").textContent = text; }
+	async function fetchJson(url) {
+		const res = await fetch(url, { credentials: "same-origin", headers: { Accept: "application/json" } });
+		const data = await res.json().catch(() => null);
+		return { ok: res.ok, status: res.status, data };
+	}
+	function focusId() { return document.getElementById("focusId").value.trim(); }
+	function yearBf() { return document.getElementById("yearBf").value.trim() || "1049"; }
+	function esc(v) { return String(v == null ? "" : v).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+
+	// Sammelt rekursiv alle territory_public_id/territoryPublicId aus beliebigem JSON.
+	function collectIds(obj, set) {
+		if (!obj || typeof obj !== "object") return set;
+		if (Array.isArray(obj)) { obj.forEach((x) => collectIds(x, set)); return set; }
+		for (const [k, v] of Object.entries(obj)) {
+			if ((k === "territory_public_id" || k === "territoryPublicId") && typeof v === "string" && v.trim()) set.add(v.trim());
+			else if (v && typeof v === "object") collectIds(v, set);
+		}
+		return set;
+	}
+
+	function featureType(p) {
+		if (p.is_derived_geometry === true) return "derived";
+		if (p.is_aggregate === true) return "aggregate";
+		return "source";
+	}
+	const TYPE_STYLE = {
+		derived: { color: "#d6336c", weight: 4, fillOpacity: 0.10 },
+		aggregate: { color: "#e8590c", weight: 2, fillOpacity: 0.12 },
+		source: { color: "#1971c2", weight: 2, fillOpacity: 0.20 },
+	};
+
+	function geomToLatLngs(geometry) {
+		// Geometrie-Koordinaten sind [x, y]; Leaflet erwartet [lat=y, lng=x].
+		const toRings = (polygon) => polygon.map((ring) => ring.map(([x, y]) => [y, x]));
+		if (geometry.type === "Polygon") return [toRings(geometry.coordinates)];
+		if (geometry.type === "MultiPolygon") return geometry.coordinates.map(toRings);
+		return [];
+	}
+
+	async function drawZoom(zoom) {
+		currentZoom = zoom;
+		window.DIAG.currentZoom = zoom;
+		document.querySelectorAll(".zoombtn").forEach((b) => b.classList.toggle("active", Number(b.dataset.zoom) === zoom));
+		setStatus("lade Layer zoom " + zoom + " …");
+		const { data } = await fetchJson(`${API}?action=layer&zoom=${zoom}&year_bf=${encodeURIComponent(yearBf())}&_=${Date.now()}`);
+		drawLayerGroup.clearLayers();
+		const features = (data && Array.isArray(data.features)) ? data.features : [];
+		const subtree = new Set(window.DIAG.focusSubtreeIds);
+		const drawAll = document.getElementById("drawAll").checked;
+		const rows = [];
+		let drawnBounds = null;
+		features.forEach((f) => {
+			const p = f.properties || {};
+			const tpid = String(p.territory_public_id || "").trim();
+			const apid = String(p.aggregate_source_territory_public_id || "").trim();
+			const inFocus = subtree.has(tpid) || subtree.has(apid);
+			if (!drawAll && !inFocus) return;
+			const type = featureType(p);
+			rows.push({
+				name: p.name || p.display_name || "", type, territory_public_id: tpid,
+				aggregate_source: apid, min_zoom: p.min_zoom ?? null, max_zoom: p.max_zoom ?? null,
+				show_inner_boundaries: p.show_inner_boundaries, geometry: f.geometry?.type || "",
+				visual_hidden: p.visual_hidden_by_derived_boundary === true,
+			});
+			if (!f.geometry) return;
+			const latlngs = geomToLatLngs(f.geometry);
+			const style = TYPE_STYLE[type];
+			latlngs.forEach((rings) => {
+				const poly = L.polygon(rings, { color: style.color, weight: style.weight, fillColor: style.color, fillOpacity: drawAll && !inFocus ? 0.03 : style.fillOpacity });
+				poly.bindTooltip(`${esc(p.name || "")} [${type}] z${p.min_zoom ?? "?"}-${p.max_zoom ?? "?"}`, { sticky: true });
+				poly.addTo(drawLayerGroup);
+				if (inFocus) { const b = poly.getBounds(); drawnBounds = drawnBounds ? drawnBounds.extend(b) : b; }
+			});
+		});
+		window.DIAG.layerByZoom[zoom] = { total: features.length, drawn: rows.length, rows };
+		if (drawnBounds && drawnBounds.isValid()) map.setView(drawnBounds.getCenter(), zoom);
+		else map.setZoom(zoom);
+		setStatus(`zoom ${zoom}: ${rows.length} fokus-features von ${features.length} gesamt`);
+		renderLayerPanel();
+	}
+
+	function renderLayerPanel() {
+		const z = window.DIAG.layerByZoom[currentZoom];
+		const el = document.getElementById("layerPanel");
+		if (!el) return;
+		if (!z) { el.innerHTML = ""; return; }
+		const rowsHtml = z.rows.map((r) => `<tr>
+			<td>${esc(r.name)}</td>
+			<td><span class="tag ${r.type}">${r.type}</span>${r.visual_hidden ? ' <span class="tag inactive">hidden</span>' : ""}</td>
+			<td class="num">${r.min_zoom ?? "–"}–${r.max_zoom ?? "–"}</td>
+			<td>${esc(r.geometry)}</td>
+			<td>${r.show_inner_boundaries === undefined ? "" : r.show_inner_boundaries}</td>
+		</tr>`).join("");
+		el.innerHTML = `<p><b>Layer @ zoom ${currentZoom}</b> — Fokus-Features: ${z.drawn} / gesamt ${z.total}</p>
+			<table><thead><tr><th>Name</th><th>Typ</th><th>Zoom</th><th>Geom</th><th>inner</th></tr></thead><tbody>${rowsHtml || '<tr><td colspan="5" class="muted">keine Fokus-Features auf dieser Zoomstufe</td></tr>'}</tbody></table>`;
+	}
+
+	function renderSummary(s) {
+		if (!s) return '<p class="warn">debug summary nicht geladen</p>';
+		const f = (k) => s[k] ?? "–";
+		const conflicts = Array.isArray(s.display_snapshot_conflicts) ? s.display_snapshot_conflicts : [];
+		const multi = Array.isArray(s.territories_with_multiple_active_derived) ? s.territories_with_multiple_active_derived : [];
+		const confRows = conflicts.slice(0, 12).map((c) => `<tr><td class="muted" style="font-family:monospace">${esc((c.geometry_public_id || "").slice(0, 8))}</td><td>${esc(c.territory_name)}</td><td>${esc(Object.keys(c.fields || {}).join(", "))}</td></tr>`).join("");
+		return `<table>
+			<tr><th>Territorien (aktiv)</th><td class="num">${f("territory_count")} (${f("active_territory_count")})</td></tr>
+			<tr><th>Quellgeometrien (aktiv)</th><td class="num">${f("geometry_count")} (${f("active_geometry_count")})</td></tr>
+			<tr><th>Derived gesamt</th><td class="num">${f("derived_geometry_count")}</td></tr>
+			<tr><th>Derived aktiv</th><td class="num">${f("active_derived_geometry_count")}</td></tr>
+			<tr><th>&gt;1 aktive Derived</th><td class="num ${multi.length ? "warn" : ""}">${multi.length}</td></tr>
+			<tr><th>Geometrien mit Snapshots</th><td class="num">${f("geometries_with_assignment_displays")}</td></tr>
+			<tr><th>localOverride-Snapshots</th><td class="num">${f("local_override_display_count")}</td></tr>
+			<tr><th>Snapshot↔Global-Konflikte</th><td class="num ${Number(f("display_snapshot_conflict_count")) ? "warn" : ""}">${f("display_snapshot_conflict_count")}</td></tr>
+		</table>
+		<details><summary>Konflikte (erste 12)</summary><table><thead><tr><th>Geom</th><th>Territorium</th><th>Felder</th></tr></thead><tbody>${confRows}</tbody></table></details>`;
+	}
+
+	function renderDerivedRows(rows, focus) {
+		if (!Array.isArray(rows)) return '<p class="warn">derived-debug nicht geladen</p>';
+		const mine = rows.filter((r) => String(r.territory_public_id || "").trim() === focus);
+		const active = mine.filter((r) => r.is_active).length;
+		const body = mine.map((r) => `<tr>
+			<td>${r.is_active ? '<span class="tag active">aktiv</span>' : '<span class="tag inactive">Leiche</span>'}</td>
+			<td class="num">${r.min_zoom ?? "–"}–${r.max_zoom ?? "–"}</td>
+			<td>${r.show_inner_boundaries}</td>
+			<td>${esc(r.geometry_json_type)}</td>
+			<td class="muted">${esc((r.generated_at || r.updated_at || "").slice(0, 19))}</td>
+		</tr>`).join("");
+		return `<p>Für dieses Territorium: <b>${mine.length}</b> Derived-Zeilen, davon <b>${active}</b> aktiv${active > 1 ? ' <span class="warn">(MEHRDEUTIG!)</span>' : ""}.</p>
+			<table><thead><tr><th>Status</th><th>Zoom</th><th>inner</th><th>Geom</th><th>generiert</th></tr></thead><tbody>${body || '<tr><td colspan="5" class="muted">keine</td></tr>'}</tbody></table>`;
+	}
+
+	async function loadAll() {
+		const focus = focusId();
+		setStatus("lade Diagnose …");
+		const [summaryRes, planRes, derivedRes] = await Promise.all([
+			fetchJson(`${API}?action=debug&public_id=${encodeURIComponent(focus)}&_=${Date.now()}`),
+			fetchJson(`${API}?action=derived_geometry_plan&territory_public_id=${encodeURIComponent(focus)}&_=${Date.now()}`),
+			fetchJson(`${DERIVED_DEBUG}?year_bf=${encodeURIComponent(yearBf())}&_=${Date.now()}`),
+		]);
+		window.DIAG.summary = summaryRes.data?.summary || summaryRes.data || null;
+		window.DIAG.plan = planRes.data || null;
+		window.DIAG.derivedRows = derivedRes.data?.rows || null;
+		window.DIAG.focusSubtreeIds = Array.from(collectIds(planRes.data, new Set([focus])));
+
+		document.getElementById("report").innerHTML = `
+			<h2>Gesamt-Diagnose (action=debug)</h2>${renderSummary(window.DIAG.summary)}
+			<h2>Derived-Zeilen dieses Territoriums</h2>${renderDerivedRows(window.DIAG.derivedRows, focus)}
+			<h2>Layer pro Zoom</h2><div id="layerPanel" class="muted">Zoom-Knopf wählen…</div>
+			<h2>Plan (derived_geometry_plan)</h2>
+			<p class="muted">Fokus-Subtree-IDs: ${window.DIAG.focusSubtreeIds.length}</p>
+			<pre>${esc(JSON.stringify(window.DIAG.plan, null, 2))}</pre>`;
+		await drawZoom(currentZoom);
+		setStatus("bereit.");
+	}
+
+	const zb = document.getElementById("zoomButtons");
+	for (let z = 0; z <= 6; z++) {
+		const b = document.createElement("button");
+		b.className = "zoombtn"; b.dataset.zoom = z; b.textContent = z;
+		b.addEventListener("click", () => drawZoom(z));
+		zb.appendChild(b);
+	}
+	document.getElementById("loadBtn").addEventListener("click", loadAll);
+	document.getElementById("drawAll").addEventListener("change", () => drawZoom(currentZoom));
+	loadAll();
+	</script>
+</body>
+</html>
