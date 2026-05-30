@@ -48,7 +48,9 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 		};
 	}
 
-	const fillOpacity = regionEntry.isDerivedGeometry && regionEntry.showInnerBoundaries
+	// Feature #2: abgeleitete Aussengrenze fuellt nur im eigenen Zoom-Band. Ausserhalb
+	// (derivedFillActive=false) oder bei sichtbaren Innengrenzen bleibt sie reine Kontur.
+	const fillOpacity = regionEntry.isDerivedGeometry && (regionEntry.showInnerBoundaries || !regionEntry.derivedFillActive)
 		? 0
 		: regionEntry.opacity;
 

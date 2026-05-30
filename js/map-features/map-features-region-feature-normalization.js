@@ -55,6 +55,7 @@ function normalizeRegionFeature(feature) {
 		maxZoom: readOptionalRegionZoom(properties.max_zoom),
 		isDerivedGeometry: properties.is_derived_geometry === true,
 		showInnerBoundaries: properties.show_inner_boundaries !== false,
+		derivedFillActive: properties.derived_fill_active !== false,
 		visualHiddenByDerivedBoundary: properties.visual_hidden_by_derived_boundary === true,
 		hiddenByDerivedTerritoryPublicId: properties.hidden_by_derived_territory_public_id || "",
 		isActive: properties.is_active !== false,
