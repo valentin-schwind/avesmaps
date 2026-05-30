@@ -118,13 +118,15 @@ function getOverlappingPoliticalRegionLayersAtLatLng(latlng, preferredLayer = nu
 
 	const orderedResult = headLayer ? [headLayer, ...tailLayers] : tailLayers;
 
-	// Quellgeometrien vor abgeleiteten Außengrenzen: ein Klick/Rechtsklick in die Mitte soll
-	// die editierbare Quellfläche treffen, nicht die per bringToFront() darüberliegende Kontur
-	// der Außengrenze. Die Außengrenze bleibt per Durchklicken (Zyklus) erreichbar und ist bei
-	// niedrigem Zoom (keine Quelle sichtbar -> nur 1 Kandidat) ohnehin die einzige Auswahl.
+	// Idiotensicher: Liegt unter dem Klick eine Quellfläche, biete NUR die Quelle(n) als
+	// Klickziel an — die per bringToFront() darüberliegende Außengrenzen-Kontur fängt keine
+	// Innenklicks mehr ab (1 Klick = Quelle, kein Durchklicken nötig). Liegt KEINE Quelle
+	// darunter (z. B. niedriger Zoom, Quellen ausgeblendet), bleibt die Außengrenze die
+	// (einzige) Auswahl. Die Außengrenze selbst bleibt über das Kontextmenü „erzeugen/
+	// aktualisieren" (resolveBoundaryActionRegion ermittelt sie aus der Quelle) erreichbar.
 	const sourceLayers = orderedResult.filter((layer) => layer?._regionEntry?.isDerivedGeometry !== true);
 	const derivedLayers = orderedResult.filter((layer) => layer?._regionEntry?.isDerivedGeometry === true);
-	return [...sourceLayers, ...derivedLayers];
+	return sourceLayers.length > 0 ? sourceLayers : derivedLayers;
 }
 
 function resolveOverlappingRegionLayerSelection(latlng, fallbackLayer = null) {
