@@ -1609,12 +1609,44 @@
 			const currentIndex = Number.isInteger(activeIndex) ? activeIndex : path.length - 1;
 
 			for (let i = 0; i < path.length; i++) {
+				const segment = document.createElement("span");
+				segment.className = "breadcrumb-segment";
+
+				const siblings = (path[i] && path[i].parent && Array.isArray(path[i].parent.children))
+					? path[i].parent.children
+					: [];
+
+				if (siblings.length > 1) {
+					const prevButton = document.createElement("button");
+					prevButton.type = "button";
+					prevButton.className = "breadcrumb-cycle breadcrumb-cycle--prev";
+					prevButton.textContent = "‹";
+					prevButton.title = "Vorheriges Geschwister";
+					prevButton.setAttribute("aria-label", "Vorheriges Geschwister");
+					prevButton.addEventListener("click", () => cycleBreadcrumbSegment(path, i, -1));
+					segment.appendChild(prevButton);
+				}
+
 				const item = document.createElement("button");
 				item.type = "button";
+				item.className = "breadcrumb-label";
 				item.classList.toggle("is-active", i === currentIndex);
 				item.textContent = path[i].label;
 				item.addEventListener("click", () => selectManualBreadcrumbNode(node, path, i));
-				els.manualEditPath.appendChild(item);
+				segment.appendChild(item);
+
+				if (siblings.length > 1) {
+					const nextButton = document.createElement("button");
+					nextButton.type = "button";
+					nextButton.className = "breadcrumb-cycle breadcrumb-cycle--next";
+					nextButton.textContent = "›";
+					nextButton.title = "Nächstes Geschwister";
+					nextButton.setAttribute("aria-label", "Nächstes Geschwister");
+					nextButton.addEventListener("click", () => cycleBreadcrumbSegment(path, i, 1));
+					segment.appendChild(nextButton);
+				}
+
+				els.manualEditPath.appendChild(segment);
 
 				if (i < path.length - 1) {
 					const separator = document.createElement("span");
@@ -1634,6 +1666,32 @@
 			applyDisplayStateToForm(getDisplayStateForNode(editedNode));
 			updateInheritColorVarianceButtonVisibility();
 			showNodeDetails(editedNode);
+		}
+
+		function descendToFirstLeaf(node) {
+			let current = node;
+			while (current && Array.isArray(current.children) && current.children.length > 0) {
+				current = current.children[0];
+			}
+			return current;
+		}
+
+		// Feature #1: ein Breadcrumb-Segment durch seine Wiki-Geschwister (gleiche
+		// Ebene, gleicher Eltern-Knoten) zirkulaer durchwechseln. Der gewaehlte
+		// Knoten wird aktiv; der Pfad fuellt sich darunter ueber das jeweils erste
+		// Kind bis zum Blatt. Reine Wiki-Affiliations-Navigation (keine Zuweisung).
+		function cycleBreadcrumbSegment(path, index, direction) {
+			const segmentNode = path[index];
+			if (!segmentNode || !segmentNode.parent) return;
+			const siblings = Array.isArray(segmentNode.parent.children) ? segmentNode.parent.children : [];
+			if (siblings.length <= 1) return;
+			const currentPos = siblings.indexOf(segmentNode);
+			if (currentPos < 0) return;
+			const nextPos = (currentPos + direction + siblings.length) % siblings.length;
+			const sibling = siblings[nextPos];
+			if (!sibling) return;
+			const leaf = descendToFirstLeaf(sibling);
+			selectManualBreadcrumbNode(leaf, getNodePath(leaf), index);
 		}
 
 		function updateInheritColorVarianceButtonVisibility() {
