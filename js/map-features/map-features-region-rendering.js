@@ -52,13 +52,23 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 		? 0
 		: regionEntry.opacity;
 
-	return {
+	// Ebenenbasierter Linienstil fuer abgeleitete Aussengrenzen (Phase B, additiv).
+	// Faellt auf das bisherige Verhalten zurueck, wenn das Modul fehlt oder
+	// keinen Stil vorgibt (z. B. normale Quellgeometrien).
+	const levelLineStyle = window.AvesmapsBoundaryStyle?.lineStyleFor?.(regionEntry) || null;
+	const weight = levelLineStyle ? levelLineStyle.weight : (regionEntry.isDerivedGeometry ? 3 : 2);
+
+	const style = {
 		color: regionEntry.color,
-		weight: regionEntry.isDerivedGeometry ? 3 : 2,
+		weight,
 		opacity: 1,
 		fillColor: regionEntry.color,
 		fillOpacity,
 	};
+	if (levelLineStyle && levelLineStyle.dashArray) {
+		style.dashArray = levelLineStyle.dashArray;
+	}
+	return style;
 }
 
 function shouldHideRegionForDerivedBoundary(region, regionEntry) {
