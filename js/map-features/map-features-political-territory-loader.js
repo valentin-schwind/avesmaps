@@ -486,7 +486,10 @@ async function loadPoliticalTerritoryLayer() {
 			zoom: Math.round(map.getZoom()),
 			edit_mode: IS_EDIT_MODE ? 1 : 0,
 		});
-		const territoryStyleCache = await refreshPoliticalTerritoryStyleCache({ force: Boolean(IS_EDIT_MODE) });
+		// Kein Force pro Layer-Load mehr: der 1s-TTL haelt den Style-Cache aktuell,
+		// und frisch gespeicherte Eigenschaften kommen sofort ueber den Pending-Style-Override.
+		// Das spart im Edit-Modus einen action=list-Komplettabruf bei jedem Zoom/Pan.
+		const territoryStyleCache = await refreshPoliticalTerritoryStyleCache();
 		if (activeRegionGeometryEdit || pendingRegionOperation || pendingRegionMoveState) {
 			return;
 		}

@@ -394,6 +394,23 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 	}
 
 	activePoliticalTerritoryEditorPendingLocalOverride = false;
+	// Optimistisches Sofort-Update: die soeben gespeicherten Display-Werte des aktiven
+	// Knotens als Pending-Override registrieren, damit der naechste Layer-Render sie zeigt,
+	// ohne auf einen erneuten Komplettabruf der Territorienliste warten zu muessen.
+	const savedTerritoryPublicId = String(
+		value.activeDisplayNode?.territoryPublicId
+		|| value.activeDisplayNode?.territory_public_id
+		|| territoryPublicIds[territoryPublicIds.length - 1]
+		|| ""
+	).trim();
+	if (savedTerritoryPublicId && typeof registerPoliticalTerritoryPendingStyleOverride === "function") {
+		registerPoliticalTerritoryPendingStyleOverride(savedTerritoryPublicId, {
+			color: display.color,
+			opacity: display.opacity,
+			minZoom: display.zoomMin,
+			maxZoom: display.zoomMax,
+		});
+	}
 	refreshPoliticalTerritoryEditorMapLayer();
 	if (typeof showFeedbackToast === "function") {
 		showFeedbackToast(shouldPromote ? "Lokale Darstellung global Ã¼bernommen." : result?.message || "Herrschaftsgebiet gespeichert.", "success");
@@ -492,7 +509,8 @@ function parsePoliticalTerritoryEditorNumber(value) {
 }
 
 function refreshPoliticalTerritoryEditorMapLayer() {
-	if (typeof loadPoliticalTerritoryOptions === "function") void loadPoliticalTerritoryOptions({ force: true });
+	// Nur den Karten-Layer neu laden. Der Wiki-Optionsbaum aendert sich bei einer
+	// Eigenschafts-/Zuweisungs-Bearbeitung nicht und muss hier nicht neu geholt werden.
 	if (typeof schedulePoliticalTerritoryLayerReload === "function") schedulePoliticalTerritoryLayerReload({ immediate: true });
 }
 
