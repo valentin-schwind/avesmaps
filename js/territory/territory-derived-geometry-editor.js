@@ -241,7 +241,8 @@ async function recomputeDerivedBoundaryForTargetSilently(targetPublicId, plan) {
 		// Leeres Zoom-Band: das Backend uebernimmt das globale Band des Territoriums.
 		min_zoom: "",
 		max_zoom: "",
-		show_inner_boundaries: true,
+		// Default Innengrenzen AUS (Nutzer-Modell: Außen=an, Innen=aus); inner kommt später als eigenes Feature.
+		show_inner_boundaries: false,
 		source_revision: findDerivedBoundaryPlanSourceRevision(plan, targetPublicId),
 		is_active: true,
 	});
@@ -316,7 +317,8 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 			label_lat: result.labelCenter?.lat ?? null,
 			min_zoom: "",
 			max_zoom: "",
-			show_inner_boundaries: true,
+			// Default Innengrenzen AUS (Nutzer-Modell: Außen=an, Innen=aus); inner kommt später als eigenes Feature.
+			show_inner_boundaries: false,
 			source_revision: sourceRevision,
 			is_active: true,
 		});
