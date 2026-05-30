@@ -197,6 +197,76 @@ function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user)
     return avesmapsPoliticalResponseForTerritory($pdo, (string) $territory['public_id']);
 }
 
+function avesmapsPoliticalSaveWikiNodeSettings(PDO $pdo, array $payload, array $user): array {
+    $wikiKey = trim(avesmapsNormalizeSingleLine((string) ($payload['wiki_key'] ?? $payload['wiki_public_id'] ?? ''), 200));
+    if ($wikiKey === '') {
+        throw new InvalidArgumentException('Der Wiki-Schluessel fehlt.');
+    }
+    $wiki = avesmapsPoliticalFetchWikiByKey($pdo, $wikiKey);
+    $slug = avesmapsPoliticalSlug((string) ($wiki['name'] ?? $wikiKey));
+
+    $display = is_array($payload['display'] ?? null) ? $payload['display'] : [];
+    $color = avesmapsPoliticalReadHexColor($display['color'] ?? '#888888');
+    $opacity = avesmapsPoliticalReadOpacity($display['opacity'] ?? 0.33);
+    $minZoom = avesmapsPoliticalReadOptionalZoom($display['zoomMin'] ?? null);
+    $maxZoom = avesmapsPoliticalReadOptionalZoom($display['zoomMax'] ?? null);
+    avesmapsPoliticalAssertZoomRange($minZoom, $maxZoom);
+    $coatOfArmsUrl = avesmapsPoliticalReadOptionalUrl($display['coatOfArmsUrl'] ?? '', 'Der Wappen-Link');
+    if ($coatOfArmsUrl !== '' && !avesmapsPoliticalIsLikelyCoatOfArmsUrl($coatOfArmsUrl)) {
+        $coatOfArmsUrl = '';
+    }
+
+    $validity = is_array($payload['validity'] ?? null) ? $payload['validity'] : [];
+    $validFrom = avesmapsPoliticalReadOptionalInt($validity['startYear'] ?? null);
+    $existsUntilToday = array_key_exists('existsUntilToday', $validity)
+        ? filter_var($validity['existsUntilToday'], FILTER_VALIDATE_BOOL)
+        : !array_key_exists('endYear', $validity);
+    $validTo = $existsUntilToday ? null : avesmapsPoliticalReadOptionalInt($validity['endYear'] ?? null);
+
+    $pdo->beginTransaction();
+    try {
+        $territory = avesmapsPoliticalFindTerritoryByWikiOrSlug($pdo, (int) $wiki['id'], $slug);
+        if (!$territory) {
+            $created = avesmapsPoliticalCreateTerritoryFromWiki($pdo, [...$wiki, 'slug' => $slug], $user);
+            $territory = avesmapsPoliticalFetchTerritoryById($pdo, (int) $created['id']);
+        } else {
+            avesmapsPoliticalLinkTerritoryToWiki($pdo, (int) $territory['id'], (int) $wiki['id'], avesmapsPoliticalNullableString($wiki['wiki_key'] ?? null));
+        }
+
+        $statement = $pdo->prepare(
+            'UPDATE political_territory
+            SET color = :color,
+                opacity = :opacity,
+                coat_of_arms_url = :coat_of_arms_url,
+                min_zoom = :min_zoom,
+                max_zoom = :max_zoom,
+                valid_from_bf = :valid_from_bf,
+                valid_to_bf = :valid_to_bf
+            WHERE id = :id'
+        );
+        $statement->execute([
+            'id' => (int) $territory['id'],
+            'color' => $color,
+            'opacity' => $opacity,
+            'coat_of_arms_url' => avesmapsPoliticalNullableString($coatOfArmsUrl),
+            'min_zoom' => $minZoom,
+            'max_zoom' => $maxZoom,
+            'valid_from_bf' => $validFrom,
+            'valid_to_bf' => $validTo,
+        ]);
+
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+
+        throw $exception;
+    }
+
+    return avesmapsPoliticalResponseForTerritory($pdo, (string) $territory['public_id']);
+}
+
 function avesmapsPoliticalEnsureWikiTerritoryChain(PDO $pdo, array $payload, array $user): array {
     $wikiPublicIds = $payload['wiki_public_ids'] ?? null;
     if (!is_array($wikiPublicIds) || $wikiPublicIds === []) {

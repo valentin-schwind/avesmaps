@@ -107,6 +107,7 @@ try {
     $response = match ($action) {
         'create_territory' => avesmapsPoliticalCreateTerritory($pdo, $payload, $user),
         'update_territory' => avesmapsPoliticalUpdateTerritory($pdo, $payload, $user),
+        'save_wiki_node_settings' => avesmapsPoliticalSaveWikiNodeSettings($pdo, $payload, $user),
         'delete_territory' => avesmapsPoliticalDeleteTerritory($pdo, $payload),
         'save_hierarchy' => avesmapsPoliticalSaveHierarchy($pdo, $payload),
         'create_geometry' => avesmapsPoliticalCreateGeometry($pdo, $payload, $user),
