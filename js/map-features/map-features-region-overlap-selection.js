@@ -132,7 +132,11 @@ function getOverlappingPoliticalRegionLayersAtLatLng(latlng, preferredLayer = nu
 function resolveOverlappingRegionLayerSelection(latlng, fallbackLayer = null) {
 	const normalizedLatLng = L.latLng(latlng);
 	const candidateLayers = getOverlappingPoliticalRegionLayersAtLatLng(normalizedLatLng, fallbackLayer);
-	const fallbackResultLayer = fallbackLayer || candidateLayers[0] || null;
+	// Den ermittelten Kandidaten (nach Quelle-bevorzugter Filterung) dem rohen angeklickten
+	// Layer vorziehen: fallbackLayer ist die oberste angeklickte Geometrie (oft die per
+	// bringToFront() darüberliegende Außengrenze). Stünde fallbackLayer zuerst, gewänne bei
+	// genau 1 Kandidat (der Quelle) trotzdem die angeklickte Außengrenze -> falsche Auswahl.
+	const fallbackResultLayer = candidateLayers[0] || fallbackLayer || null;
 
 	if (candidateLayers.length < 2) {
 		recentRegionOverlapSelection = null;
