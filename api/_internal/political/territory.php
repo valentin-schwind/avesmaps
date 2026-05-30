@@ -106,7 +106,13 @@ function avesmapsPoliticalEnsureTables(PDO $pdo): void {
     $wikiKeyColumn = $pdo->query("SHOW COLUMNS FROM political_territory LIKE 'wiki_key'")->fetch(PDO::FETCH_ASSOC);
     if (!is_array($wikiKeyColumn)) {
         $pdo->exec('ALTER TABLE political_territory ADD COLUMN wiki_key VARCHAR(255) NULL AFTER wiki_id, ADD KEY idx_political_territory_wiki_key (wiki_key)');
+    }
+
+    if ($pdo->query("SELECT 1 FROM political_territory WHERE wiki_key IS NULL OR wiki_key = '' LIMIT 1")->fetchColumn() !== false) {
+        // Backfill ueber den stabilen Link wiki_id -> wiki.id.
         $pdo->exec('UPDATE political_territory pt JOIN political_territory_wiki w ON w.id = pt.wiki_id SET pt.wiki_key = w.wiki_key WHERE pt.wiki_id IS NOT NULL AND (pt.wiki_key IS NULL OR pt.wiki_key = \'\')');
+        // Recovery bereits verwaister Zeilen (wiki_id = NULL) ueber die noch vorhandene wiki_url.
+        $pdo->exec('UPDATE political_territory pt JOIN political_territory_wiki w ON w.wiki_url = pt.wiki_url SET pt.wiki_key = w.wiki_key, pt.wiki_id = w.id WHERE pt.wiki_id IS NULL AND pt.wiki_url IS NOT NULL AND pt.wiki_url <> \'\'');
     }
 
     $column = $pdo->query("SHOW COLUMNS FROM political_territory_geometry LIKE 'territory_id'")->fetch(PDO::FETCH_ASSOC);
