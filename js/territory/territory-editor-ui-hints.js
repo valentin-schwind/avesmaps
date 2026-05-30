@@ -247,6 +247,9 @@
 		}
 
 		const value = assignment.getValue();
+		// A2: aktiven Breadcrumb-Knoten in den globalen Store publizieren (Sentinel: A2-PUBLISH-ACTIVE-NODE).
+		// Quelle ist der echte activeDisplayNode (= createNodeReference(editedNode)), kein Fallback.
+		window.AvesmapsEditorActiveNode?.set?.(value?.activeDisplayNode || null);
 		const targetKey = typeof editor.getTargetKey === "function"
 			? editor.getTargetKey(value)
 			: "";
