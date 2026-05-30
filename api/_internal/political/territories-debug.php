@@ -182,13 +182,194 @@ function avesmapsPoliticalReadDebugSummary(PDO $pdo): array {
     );
     $geometrySummary = $geometryStatement !== false ? ($geometryStatement->fetch(PDO::FETCH_ASSOC) ?: []) : [];
 
+    return array_merge(
+        [
+            'territory_count' => (int) ($summary['territory_count'] ?? 0),
+            'active_territory_count' => (int) ($summary['active_territory_count'] ?? 0),
+            'root_count' => (int) ($summary['root_count'] ?? 0),
+            'geometry_count' => (int) ($geometrySummary['geometry_count'] ?? 0),
+            'active_geometry_count' => (int) ($geometrySummary['active_geometry_count'] ?? 0),
+        ],
+        avesmapsPoliticalReadDerivedGeometryDiagnostics($pdo),
+        avesmapsPoliticalReadDisplaySnapshotDiagnostics($pdo)
+    );
+}
+
+// Phase-1-Diagnose: abgeleitete Außengrenzen zaehlen und Mehrdeutigkeiten
+// (mehr als eine aktive Derived-Geometrie pro Territorium) aufdecken. Read-only.
+function avesmapsPoliticalReadDerivedGeometryDiagnostics(PDO $pdo): array {
+    $countStatement = $pdo->query(
+        'SELECT
+            COUNT(*) AS derived_geometry_count,
+            SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS active_derived_geometry_count
+        FROM political_territory_derived_geometry'
+    );
+    $counts = $countStatement !== false ? ($countStatement->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+
+    $multiStatement = $pdo->query(
+        'SELECT
+            derived.territory_id,
+            territory.public_id AS territory_public_id,
+            territory.name AS territory_name,
+            COUNT(*) AS active_count
+        FROM political_territory_derived_geometry derived
+        LEFT JOIN political_territory territory ON territory.id = derived.territory_id
+        WHERE derived.is_active = 1
+        GROUP BY derived.territory_id, territory.public_id, territory.name
+        HAVING COUNT(*) > 1
+        ORDER BY active_count DESC, territory.name ASC'
+    );
+    $territoriesWithMultiple = [];
+    foreach (($multiStatement !== false ? $multiStatement->fetchAll(PDO::FETCH_ASSOC) : []) as $row) {
+        $territoriesWithMultiple[] = [
+            'territory_id' => (int) ($row['territory_id'] ?? 0),
+            'territory_public_id' => (string) ($row['territory_public_id'] ?? ''),
+            'territory_name' => (string) ($row['territory_name'] ?? ''),
+            'active_count' => (int) ($row['active_count'] ?? 0),
+        ];
+    }
+
     return [
-        'territory_count' => (int) ($summary['territory_count'] ?? 0),
-        'active_territory_count' => (int) ($summary['active_territory_count'] ?? 0),
-        'root_count' => (int) ($summary['root_count'] ?? 0),
-        'geometry_count' => (int) ($geometrySummary['geometry_count'] ?? 0),
-        'active_geometry_count' => (int) ($geometrySummary['active_geometry_count'] ?? 0),
+        'derived_geometry_count' => (int) ($counts['derived_geometry_count'] ?? 0),
+        'active_derived_geometry_count' => (int) ($counts['active_derived_geometry_count'] ?? 0),
+        'territories_with_multiple_active_derived' => $territoriesWithMultiple,
     ];
+}
+
+// Phase-1-Diagnose: Legacy-Snapshots in style_json.assignmentDisplays zaehlen und
+// Abweichungen gegenueber der globalen Territoriumswahrheit (political_territory)
+// listen. Veraendert keine Daten.
+function avesmapsPoliticalReadDisplaySnapshotDiagnostics(PDO $pdo, int $conflictLimit = 100): array {
+    $globals = [];
+    $territoryStatement = $pdo->query(
+        'SELECT public_id, name, color, opacity, min_zoom, max_zoom, valid_from_bf, valid_to_bf
+        FROM political_territory
+        WHERE continent = ' . $pdo->quote(AVESMAPS_POLITICAL_DEFAULT_CONTINENT)
+    );
+    foreach (($territoryStatement !== false ? $territoryStatement->fetchAll(PDO::FETCH_ASSOC) : []) as $row) {
+        $globals[(string) ($row['public_id'] ?? '')] = $row;
+    }
+
+    $statement = $pdo->query(
+        "SELECT
+            geometry.public_id AS geometry_public_id,
+            geometry.is_active,
+            geometry.style_json
+        FROM political_territory_geometry geometry
+        WHERE geometry.style_json IS NOT NULL
+            AND (
+                JSON_CONTAINS_PATH(geometry.style_json, 'one', '$.assignmentDisplays')
+                OR JSON_CONTAINS_PATH(geometry.style_json, 'one', '$.assignment_displays')
+            )"
+    );
+
+    $geometriesWithDisplays = 0;
+    $localOverrideDisplayCount = 0;
+    $conflictCount = 0;
+    $conflicts = [];
+
+    foreach (($statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : []) as $row) {
+        $geometriesWithDisplays++;
+        $style = avesmapsPoliticalDecodeJson($row['style_json'] ?? null);
+        if ($style === []) {
+            continue;
+        }
+
+        foreach (avesmapsPoliticalReadAssignmentDisplaysFromStyle($style) as $display) {
+            $isOverride = !empty($display['localOverride']) || !empty($display['local_override']);
+            if ($isOverride) {
+                $localOverrideDisplayCount++;
+            }
+
+            $displayTerritoryPublicId = (string) ($display['territoryPublicId'] ?? $display['territory_public_id'] ?? '');
+            $global = $globals[$displayTerritoryPublicId] ?? null;
+            if ($global === null) {
+                continue;
+            }
+
+            $fields = avesmapsPoliticalCompareDisplaySnapshotToGlobal($display, $global);
+            if ($fields === []) {
+                continue;
+            }
+
+            $conflictCount++;
+            if (count($conflicts) < $conflictLimit) {
+                $conflicts[] = [
+                    'geometry_public_id' => (string) ($row['geometry_public_id'] ?? ''),
+                    'geometry_is_active' => (int) ($row['is_active'] ?? 0) === 1,
+                    'territory_public_id' => $displayTerritoryPublicId,
+                    'territory_name' => (string) ($global['name'] ?? ''),
+                    'local_override' => $isOverride,
+                    'fields' => $fields,
+                ];
+            }
+        }
+    }
+
+    return [
+        'geometries_with_assignment_displays' => $geometriesWithDisplays,
+        'local_override_display_count' => $localOverrideDisplayCount,
+        'display_snapshot_conflict_count' => $conflictCount,
+        'display_snapshot_conflict_limit' => $conflictLimit,
+        'display_snapshot_conflicts' => $conflicts,
+    ];
+}
+
+// Vergleicht einen Snapshot-Display gegen die globalen Territoriumswerte.
+// Liefert pro abweichendem Feld {snapshot, global}. Nur gesetzte Snapshot-Werte
+// werden geprueft, damit fehlende Felder keine Scheinkonflikte erzeugen.
+function avesmapsPoliticalCompareDisplaySnapshotToGlobal(array $display, array $global): array {
+    $fields = [];
+
+    $snapshotColor = trim((string) ($display['color'] ?? ''));
+    if ($snapshotColor !== '') {
+        $globalColor = avesmapsPoliticalReadHexColor($global['color'] ?? '');
+        if (strtolower($snapshotColor) !== strtolower($globalColor)) {
+            $fields['color'] = ['snapshot' => $snapshotColor, 'global' => $globalColor];
+        }
+    }
+
+    if (($display['opacity'] ?? null) !== null && isset($global['opacity'])) {
+        $snapshotOpacity = round((float) $display['opacity'], 3);
+        $globalOpacity = round((float) $global['opacity'], 3);
+        if (abs($snapshotOpacity - $globalOpacity) > 0.0005) {
+            $fields['opacity'] = ['snapshot' => $snapshotOpacity, 'global' => $globalOpacity];
+        }
+    }
+
+    $snapshotZoomMin = $display['zoomMin'] ?? null;
+    if ($snapshotZoomMin !== null) {
+        $globalZoomMin = avesmapsPoliticalNullableInt($global['min_zoom'] ?? null);
+        if ($snapshotZoomMin !== $globalZoomMin) {
+            $fields['zoom_min'] = ['snapshot' => $snapshotZoomMin, 'global' => $globalZoomMin];
+        }
+    }
+
+    $snapshotZoomMax = $display['zoomMax'] ?? null;
+    if ($snapshotZoomMax !== null) {
+        $globalZoomMax = avesmapsPoliticalNullableInt($global['max_zoom'] ?? null);
+        if ($snapshotZoomMax !== $globalZoomMax) {
+            $fields['zoom_max'] = ['snapshot' => $snapshotZoomMax, 'global' => $globalZoomMax];
+        }
+    }
+
+    $snapshotStartYear = $display['startYear'] ?? null;
+    if ($snapshotStartYear !== null) {
+        $globalStartYear = avesmapsPoliticalNullableInt($global['valid_from_bf'] ?? null);
+        if ($snapshotStartYear !== $globalStartYear) {
+            $fields['start_year'] = ['snapshot' => $snapshotStartYear, 'global' => $globalStartYear];
+        }
+    }
+
+    $snapshotEndYear = !empty($display['existsUntilToday']) ? null : ($display['endYear'] ?? null);
+    if ($snapshotEndYear !== null) {
+        $globalEndYear = avesmapsPoliticalNullableInt($global['valid_to_bf'] ?? null);
+        if ($snapshotEndYear !== $globalEndYear) {
+            $fields['end_year'] = ['snapshot' => $snapshotEndYear, 'global' => $globalEndYear];
+        }
+    }
+
+    return $fields;
 }
 
 function avesmapsPoliticalBuildDebugParentChain(array $territories, int $territoryId): array {
