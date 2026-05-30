@@ -131,7 +131,8 @@
 }
 
 /* "Synchronisierte Wiki-Daten" > Details: das Detail-Raster ist KEINE Tabelle,
- * sondern <dl class="info-grid"> (display:grid). Die generischen table-Overrides
+ * sondern <div class="info-grid"> (display:grid) mit .info-key/.info-value-Zellen.
+ * Die generischen table-Overrides
  * oben greifen daher nicht. Live gemessen (Lorgolosch): die <dd>-Werte stehen auf
  * white-space:nowrap -> lange Token (Wiki-Schluessel, Wappen-/Wiki-URLs) brechen
  * nicht um und sprengen ihre Spalte (scrollWidth 543 in 363px Panel). Hier auf die
@@ -141,12 +142,12 @@
 	min-width: 0;
 	grid-template-columns: minmax(72px, max-content) minmax(0, 1fr);
 }
-#political-territory-editor-host .info-grid dt {
+#political-territory-editor-host .info-grid .info-key {
 	min-width: 0;
 	overflow-wrap: anywhere;
 	white-space: normal;
 }
-#political-territory-editor-host .info-grid dd {
+#political-territory-editor-host .info-grid .info-value {
 	min-width: 0;
 	overflow-wrap: anywhere;
 	word-break: break-word;
