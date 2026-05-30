@@ -61,3 +61,54 @@
 		width: 100%;
 	}
 }
+
+/* 3) Keine feste Breite darf ein Panel sprengen.
+ * Das Quell-CSS erzeugt (durch fehlerhaft verschachtelte Regeln) faktisch eine
+ * globale table { min-width:520px; table-layout:fixed } sowie scrollende
+ * .detail-table-wrap. In den schmalen Spalten ragt das heraus. Generische,
+ * additive Overrides (zuletzt geladen -> gewinnen) erzwingen, dass Inhalte sich
+ * an die Panel-/Spaltenbreite halten. */
+#political-territory-editor-host .manual-data-section {
+	max-width: 100%;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+/* Akkordeon-/Detail-Tabellen: an die Panelbreite binden statt feste 520px. */
+#political-territory-editor-host .detail-table-wrap {
+	max-width: 100%;
+	overflow-x: auto;
+}
+#political-territory-editor-host .detail-table-wrap table,
+#political-territory-editor-host .manual-data-section table {
+	width: 100%;
+	min-width: 0;
+	table-layout: auto;
+}
+#political-territory-editor-host .manual-data-section td,
+#political-territory-editor-host .manual-data-section th {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	white-space: normal;
+}
+
+/* Wappen-Vorschau darf nicht aus dem Rahmen fallen. */
+#political-territory-editor-host #manualCoatPreview,
+#political-territory-editor-host .manual-coat-preview {
+	max-width: 100%;
+	overflow: hidden;
+}
+#political-territory-editor-host #manualCoatPreview img,
+#political-territory-editor-host .manual-coat-preview img,
+#political-territory-editor-host .manual-data-section img {
+	max-width: 100%;
+	height: auto;
+}
+
+/* Generischer Schutz: Form-Controls fuellen die Breite statt sie zu sprengen. */
+#political-territory-editor-host .manual-data-section input,
+#political-territory-editor-host .manual-data-section select,
+#political-territory-editor-host .manual-data-section textarea {
+	max-width: 100%;
+	box-sizing: border-box;
+}
