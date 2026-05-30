@@ -49,7 +49,23 @@
 		if (!regionEntry || regionEntry.isDerivedGeometry !== true) {
 			return null;
 		}
+		// SICHERHEIT: Die verlaessliche Hierarchie-Tiefe-Quelle ist noch offen.
+		// affiliationPath ist der Wiki-Zugehoerigkeitspfad und entspricht NICHT
+		// der politischen Ebenen-Tiefe (Wurzel-Reiche haben dort schon Laenge >0).
+		// Bis die Tiefe-Quelle mit dem Nutzer geklaert ist, geben wir keinen
+		// ebenenbasierten Stil vor -> Renderer faellt auf das bewaehrte Verhalten
+		// zurueck. So rendert nichts mit falscher Ebene.
+		if (!levelSourceIsReliable()) {
+			return null;
+		}
 		return presetForLevel(levelOf(regionEntry));
+	}
+
+	// Solange false: ebenenbasierter Stil ist deaktiviert (kein Live-Risiko).
+	// Wird true, sobald eine verlaessliche Tiefe-Quelle feststeht (z. B. eine
+	// politische Ancestor-Kette oder ein explizites level-Feld im Layer-Feature).
+	function levelSourceIsReliable() {
+		return false;
 	}
 
 	window.AvesmapsBoundaryStyle = {
