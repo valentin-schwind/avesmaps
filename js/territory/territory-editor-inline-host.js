@@ -22,6 +22,7 @@
 	// Reihenfolge wie im bisherigen iframe-HTML (Abhaengigkeiten beachtet).
 	const EDITOR_SCRIPTS = [
 		"/js/territory/territory-editor-context.js",
+		"/js/territory/territory-editor-active-node.js",
 		"/js/territory/territory-wiki-tree.js",
 		"/js/territory/territory-editor-embedded.js",
 		"/js/territory/territory-editor-drop-compat.js",
