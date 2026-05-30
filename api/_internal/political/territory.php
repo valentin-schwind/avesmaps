@@ -103,6 +103,12 @@ function avesmapsPoliticalEnsureTables(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
+    $wikiKeyColumn = $pdo->query("SHOW COLUMNS FROM political_territory LIKE 'wiki_key'")->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($wikiKeyColumn)) {
+        $pdo->exec('ALTER TABLE political_territory ADD COLUMN wiki_key VARCHAR(255) NULL AFTER wiki_id, ADD KEY idx_political_territory_wiki_key (wiki_key)');
+        $pdo->exec('UPDATE political_territory pt JOIN political_territory_wiki w ON w.id = pt.wiki_id SET pt.wiki_key = w.wiki_key WHERE pt.wiki_id IS NOT NULL AND (pt.wiki_key IS NULL OR pt.wiki_key = \'\')');
+    }
+
     $column = $pdo->query("SHOW COLUMNS FROM political_territory_geometry LIKE 'territory_id'")->fetch(PDO::FETCH_ASSOC);
     if (is_array($column) && strtoupper((string) ($column['Null'] ?? 'NO')) !== 'YES') {
         $pdo->exec('ALTER TABLE political_territory_geometry MODIFY territory_id BIGINT UNSIGNED NULL');
