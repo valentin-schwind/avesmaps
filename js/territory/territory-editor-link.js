@@ -56,6 +56,7 @@ function getPoliticalTerritoryEditorElements() {
 		dialog: document.getElementById("political-territory-editor-dialog"),
 		closeButton: document.getElementById("political-territory-editor-close"),
 		frame: document.getElementById("political-territory-editor-frame"),
+		host: document.getElementById("political-territory-editor-host"),
 	};
 }
 
@@ -82,6 +83,8 @@ function closePoliticalTerritoryEditor() {
 	activePoliticalTerritoryEditorOverrideFooterSuppressedUntil = 0;
 	politicalTerritoryEditorFrameSetupAttempts = 0;
 	if (frame) frame.removeAttribute("src");
+	// Inline-Editor: Markup bleibt geladen (Wiederverwendung); nur den Kontext leeren.
+	window.AvesmapsPoliticalTerritoryEditorContext = null;
 }
 
 function createEmbeddedPoliticalTerritoryEditorUrl(regionEntry = {}) {
@@ -90,9 +93,36 @@ function createEmbeddedPoliticalTerritoryEditorUrl(regionEntry = {}) {
 	return `${url}${separator}embedded=1`;
 }
 
+// Baut das Kontext-Objekt, das der inline geladene Editor statt der iframe-URL liest.
+function buildPoliticalTerritoryEditorContext(regionEntry = {}) {
+	const context = { embedded: "1" };
+	const set = (key, value) => {
+		if (value === "" || value === null || typeof value === "undefined") return;
+		context[key] = String(value);
+	};
+	set("geometry_public_id", getPoliticalTerritoryEditorGeometryPublicId(regionEntry));
+	set("geometry_id", regionEntry.geometryId ?? regionEntry.geometry_id);
+	set("territory_public_id", regionEntry.territoryPublicId ?? regionEntry.territory_public_id);
+	set("wiki_key", regionEntry.wikiKey ?? regionEntry.wiki_key ?? regionEntry.wikiId ?? regionEntry.wiki_id);
+	set("name", regionEntry.displayName ?? regionEntry.name);
+	set("color", regionEntry.color);
+	const opacity = Number(regionEntry.opacity);
+	if (Number.isFinite(opacity)) set("opacity", opacity);
+	set("min_zoom", regionEntry.minZoom ?? regionEntry.min_zoom);
+	set("max_zoom", regionEntry.maxZoom ?? regionEntry.max_zoom);
+	set("valid_from_bf", regionEntry.validFromBf ?? regionEntry.valid_from_bf);
+	set("valid_to_bf", regionEntry.validToBf ?? regionEntry.valid_to_bf);
+	if (typeof map !== "undefined" && typeof map.getZoom === "function") {
+		const currentZoom = Number(map.getZoom());
+		if (Number.isFinite(currentZoom)) set("current_zoom", currentZoom);
+	}
+	return context;
+}
+
 function openPoliticalTerritoryEditor(regionEntry = {}) {
-	const { overlay, frame } = getPoliticalTerritoryEditorElements();
-	if (!overlay || !frame) {
+	const { overlay, host } = getPoliticalTerritoryEditorElements();
+	const inlineHost = window.AvesmapsPoliticalTerritoryEditorInlineHost;
+	if (!overlay || !host || !inlineHost) {
 		if (typeof openRegionEditDialog === "function") {
 			openRegionEditDialog(regionEntry, { title: "Eigenschaften bearbeiten" });
 		}
@@ -105,8 +135,63 @@ function openPoliticalTerritoryEditor(regionEntry = {}) {
 	activePoliticalTerritoryEditorPromoteNextSave = false;
 	activePoliticalTerritoryEditorOverrideFooterSuppressedUntil = 0;
 	politicalTerritoryEditorFrameSetupAttempts = 0;
-	frame.src = createEmbeddedPoliticalTerritoryEditorUrl(regionEntry);
+
+	// Eingabe ueber das Kontext-Objekt bereitstellen (ersetzt die iframe-URL).
+	window.AvesmapsPoliticalTerritoryEditorContext = buildPoliticalTerritoryEditorContext(regionEntry);
 	setPoliticalTerritoryEditorOpen(true);
+
+	inlineHost.load()
+		.then(() => setupPoliticalTerritoryEditorInline(regionEntry))
+		.catch((error) => {
+			console.error("Inline-Editor konnte nicht geladen werden:", error);
+			if (typeof showFeedbackToast === "function") {
+				showFeedbackToast("Editor konnte nicht geladen werden.", "error");
+			}
+		});
+}
+
+// Verdrahtet den inline geladenen Editor direkt (kein iframe-Polling/Monkeypatch).
+function setupPoliticalTerritoryEditorInline(regionEntry) {
+	const assignmentModule = window.AvesmapsPoliticalTerritoryAssignment;
+	if (!assignmentModule || typeof assignmentModule.configure !== "function") {
+		politicalTerritoryEditorFrameSetupAttempts += 1;
+		if (politicalTerritoryEditorFrameSetupAttempts < 40) {
+			window.setTimeout(() => setupPoliticalTerritoryEditorInline(regionEntry), 50);
+		}
+		return;
+	}
+	politicalTerritoryEditorFrameSetupAttempts = 0;
+
+	assignmentModule.configure({
+		onSave: (value) => savePoliticalTerritoryEditorAssignment(regionEntry, value),
+		onUnassign: () => unassignPoliticalTerritoryEditorGeometry(regionEntry),
+		onAssignmentLoaded: (assignmentInfo) => handlePoliticalTerritoryEditorAssignmentLoaded(assignmentInfo),
+		onCancel: () => closePoliticalTerritoryEditor(),
+	});
+
+	// Wiki-Links im Baum-Meta inline beobachten (zuvor iframe-dokumentbezogen).
+	try {
+		const hostEl = getPoliticalTerritoryEditorElements().host;
+		if (hostEl && !hostEl.dataset.wikiLinkObserverBound) {
+			hostEl.dataset.wikiLinkObserverBound = "1";
+			const applyWikiLinks = () => {
+				for (const link of hostEl.querySelectorAll('[data-role="tree-meta"] a, .tree-item-meta a, .info-box a')) {
+					if (link.dataset.wikiLinkBound === "1") continue;
+					link.dataset.wikiLinkBound = "1";
+					link.setAttribute("target", "_blank");
+					link.setAttribute("rel", "noopener noreferrer");
+				}
+			};
+			applyWikiLinks();
+			new MutationObserver(applyWikiLinks).observe(hostEl, { childList: true, subtree: true });
+		}
+	} catch (error) { /* Wiki-Link-Verschoenerung ist optional. */ }
+
+	// Frisch fuer die aktuelle Geometrie laden, falls der Editor schon einmal offen war.
+	if (typeof assignmentModule.reload === "function") {
+		try { assignmentModule.reload(); } catch (error) { /* erster Lauf laedt selbst */ }
+	}
+	pendingPoliticalTerritoryEditorFrameSetup = null;
 }
 
 function setupPoliticalTerritoryEditorFrame() {
