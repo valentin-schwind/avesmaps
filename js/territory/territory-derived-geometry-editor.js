@@ -314,8 +314,8 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 			geometry_geojson: result.geometry,
 			label_lng: result.labelCenter?.lng ?? null,
 			label_lat: result.labelCenter?.lat ?? null,
-			min_zoom: readDerivedBoundaryMinZoom(regionEntry),
-			max_zoom: readDerivedBoundaryMaxZoom(regionEntry),
+			min_zoom: "",
+			max_zoom: "",
 			show_inner_boundaries: true,
 			source_revision: sourceRevision,
 			is_active: true,
@@ -333,7 +333,25 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 		setDerivedGeometryThumbnail(result.geometry);
 		setDerivedGeometryEditorProgress(100, false);
 		setDerivedGeometryEditorStatus(`${result.sourceCount} Unterflächen vereinigt und gespeichert.`, "success");
-		schedulePoliticalTerritoryLayerReload({ immediate: true });
+		// Kaskade: betroffene Übergebiete (Ancestors) und bei applyToSubregions die
+			// Unterregionen aus dem Plan bottom-up neu berechnen und speichern. So aktualisiert
+			// eine Änderung an einem Kind automatisch die Außengrenze des Elterngebiets.
+			const cascadeTargets = (Array.isArray(plan?.recompute_targets) ? plan.recompute_targets : [])
+				.map((entry) => String(entry?.territory_public_id || "").trim())
+				.filter((publicId) => publicId && publicId !== territoryPublicId);
+			let cascadeSaved = 0;
+			for (const cascadeTargetPublicId of cascadeTargets) {
+				try {
+					const cascadeResult = await recomputeDerivedBoundaryForTargetSilently(cascadeTargetPublicId, plan);
+					if (cascadeResult && cascadeResult.saved) cascadeSaved += 1;
+				} catch (cascadeError) {
+					console.warn("Kaskaden-Neuberechnung fehlgeschlagen für", cascadeTargetPublicId, cascadeError);
+				}
+			}
+			if (cascadeSaved > 0) {
+				setDerivedGeometryEditorStatus(`Außengrenze gespeichert; ${cascadeSaved} Übergebiet(e) automatisch aktualisiert.`, "success");
+			}
+			schedulePoliticalTerritoryLayerReload({ immediate: true });
 		void loadChangeLog();
 		showFeedbackToast("Außengrenze erzeugt/aktualisiert.", "success");
 		return saved;
