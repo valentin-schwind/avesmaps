@@ -500,6 +500,28 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 	const displayName = String(display.displayName || display.name || "").trim();
 	const shouldCreateTerritoryFromGeometry = !hasAssignedTerritory && displayName !== "";
 
+	// Aktiver Wiki-Knoten OHNE eigene Geometrie: nur die Eigenschaften per wiki_key
+	// speichern (legt bei Bedarf on-demand eine political_territory-Zeile an), ohne die
+	// geoeffnete Geometrie anzufassen. Knoten mit eigener Geometrie laufen den normalen
+	// Zuweisungspfad unten. Drag'n'drop-Zuweisung (assignedPath gefuellt) ebenfalls unten.
+	const activeNodeRef = value.activeDisplayNode || {};
+	const activeWikiKey = String(activeNodeRef.wikiKey || activeNodeRef.wiki_key || "").trim();
+	const activeNodeHasGeometry = activeNodeRef.hasGeometry === true;
+	if (activeWikiKey && !activeNodeHasGeometry && assignedPath.length === 0) {
+		const wikiNodeResult = await submitPoliticalTerritoryEdit({
+			action: "save_wiki_node_settings",
+			wiki_key: activeWikiKey,
+			display,
+			validity,
+		});
+		refreshPoliticalTerritoryEditorMapLayer();
+		if (typeof showFeedbackToast === "function") {
+			showFeedbackToast(wikiNodeResult?.message || "Eigenschaften gespeichert.", "success");
+		}
+		window.setTimeout(closePoliticalTerritoryEditor, 0);
+		return wikiNodeResult;
+	}
+
 	const result = await submitPoliticalTerritoryEdit({
 		action: "save_geometry_assignment",
 		geometry_public_id: geometryPublicId,

@@ -2918,6 +2918,7 @@
 				territoryId: node.row?.territory_id || null,
 				slug: node.row?.slug || "",
 				path: getNodePath(node).map(pathNode => pathNode.label),
+				hasGeometry: isTreeNodeAssignedToMap(node),
 				pathKeys: getNodePath(node).map(pathNode => pathNode.row?.wiki_key || pathNode.row?.public_id || pathNode.id || makeKey(pathNode.label))
 			};
 		}
