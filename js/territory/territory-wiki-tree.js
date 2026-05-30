@@ -675,6 +675,31 @@
 		for (const details of container.querySelectorAll("details")) details.open = Boolean(open);
 	}
 
+	function cssEscapeNodeId(value) {
+		const text = String(value ?? "");
+		return globalObject.CSS && typeof globalObject.CSS.escape === "function"
+			? globalObject.CSS.escape(text)
+			: text.replace(/[^a-zA-Z0-9_-]/g, "\\$&");
+	}
+
+	function revealNode(container, nodeId) {
+		// Macht den Tree-Eintrag zu nodeId sichtbar: klappt alle eingeklappten
+		// Vorfahren-<details> auf (Collapse versteckt nur per details.open, die
+		// Kind-DOM-Knoten bleiben erhalten) und scrollt das Item in den Bereich.
+		if (!(container instanceof HTMLElement)) return null;
+		const id = String(nodeId ?? "").trim();
+		if (!id) return null;
+		const item = container.querySelector(`.tree-item[data-node-id="${cssEscapeNodeId(id)}"]`);
+		if (!item) return null;
+		let ancestor = item.parentElement;
+		while (ancestor && ancestor !== container) {
+			if (ancestor.tagName === "DETAILS") ancestor.open = true;
+			ancestor = ancestor.parentElement;
+		}
+		if (typeof item.scrollIntoView === "function") item.scrollIntoView({ block: "nearest", inline: "nearest" });
+		return item;
+	}
+
 	function defaultEditorZoomRange(chainLength, index) {
 		if (chainLength <= 1) return { zoomMin: 0, zoomMax: 6 };
 		if (chainLength === 2) return index === 0 ? { zoomMin: 0, zoomMax: 2 } : { zoomMin: 3, zoomMax: 6 };
@@ -846,6 +871,7 @@
 		buildTree,
 		renderTree,
 		setAllTreeDetailsOpen,
+		revealNode,
 		getTreeCoverageStatus,
 		getTreeMapStatus,
 		isTreeNodeAssignedToMap,

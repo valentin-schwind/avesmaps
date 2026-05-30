@@ -191,6 +191,36 @@ async function loadWikiSyncTerritoryTreeRows({ forceReload = false } = {}) {
 	return wikiSyncTerritoryTreeRowsCache;
 }
 
+function waitForWikiSyncTreeComponent(timeoutMs = 8000) {
+	// Die geteilte Baumkomponente (territory-wiki-tree.js) wird dynamisch und damit
+	// teils NACH review-wiki-sync.js geladen. Frueher scheiterte der erste Render-
+	// Versuch hart ("Komponente konnte nicht geladen werden") und wurde nie wiederholt.
+	// Hier warten wir kurz, bis die Komponente bereitsteht (Polling), bevor wir aufgeben.
+	const ready = () => {
+		const module = window.AvesmapsPoliticalTerritoryWikiTree;
+		return module
+			&& typeof module.filterRows === "function"
+			&& typeof module.buildTree === "function"
+			&& typeof module.renderTree === "function"
+			? module
+			: null;
+	};
+	const immediate = ready();
+	if (immediate) {
+		return Promise.resolve(immediate);
+	}
+	return new Promise((resolve) => {
+		const start = Date.now();
+		const timer = window.setInterval(() => {
+			const module = ready();
+			if (module || Date.now() - start >= timeoutMs) {
+				window.clearInterval(timer);
+				resolve(module);
+			}
+		}, 50);
+	});
+}
+
 async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 	const treeElement = document.getElementById("wiki-sync-territory-tree");
 	if (!treeElement) {
@@ -208,7 +238,7 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 	}
 
 	try {
-		const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
+		const treeModule = await waitForWikiSyncTreeComponent();
 		if (!treeModule || typeof treeModule.filterRows !== "function" || typeof treeModule.buildTree !== "function" || typeof treeModule.renderTree !== "function") {
 			throw new Error("Die gemeinsame Herrschaftsgebiet-Baumkomponente konnte nicht geladen werden.");
 		}
