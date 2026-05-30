@@ -1369,6 +1369,16 @@
 				selectedElement.classList.add("selected");
 			}
 
+			// Den selektierten Knoten im Baum SICHTBAR machen: eingeklappte
+			// Vorfahren aufklappen + ins Sichtfeld scrollen. Gilt einheitlich fuer
+			// Tree-Klick, Breadcrumb-Sprung und Pfeil-Cycling. Defensiv gekapselt,
+			// damit nichts bricht, falls die Tree-Komponente fehlt.
+			try {
+				if (wikiTreeComponent && typeof wikiTreeComponent.revealNode === "function") {
+					wikiTreeComponent.revealNode(els.treeView, node.id);
+				}
+			} catch (error) { /* Reveal ist optional. */ }
+
 			renderInfoBox(node);
 
 			// Geometrie-Statuszeile pro aktivem Wiki-Knoten aktualisieren: bei Knoten
