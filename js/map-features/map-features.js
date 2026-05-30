@@ -648,6 +648,13 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 		const selectedLayer = selection.layer || polygon;
 		const selectedRegionEntry = selectedLayer._regionEntry || regionEntry;
 		announceOverlappingRegionSelection(selection);
+		// Liefert der Resolver eine abgeleitete Außengrenze, liegt an dieser Stelle KEINE Quelle
+		// darunter (sonst hätte er die Quelle bevorzugt). Abgeleitete Hüllen sind nicht editierbar
+		// (sie werden aus den Unterflächen neu berechnet) -> Hinweis statt nutzloser Editor.
+		if (selectedRegionEntry?.isDerivedGeometry === true) {
+			showFeedbackToast("Das ist eine abgeleitete Außengrenze. Bitte die untergeordnete Geometrie (das Unterreich) anklicken.", "info");
+			return;
+		}
 		startRegionGeometryEdit(selectedRegionEntry, selectedLayer);
 	});
 	polygon.on("dblclick", (event) => {
@@ -657,7 +664,15 @@ function bindRegionPolygonEditEvents(polygon, regionEntry) {
 			return;
 		}
 		L.DomEvent.stop(event);
-		startRegionGeometryEdit(regionEntry, polygon);
+		const selection = resolveOverlappingRegionLayerSelection(event.latlng, polygon);
+		const selectedLayer = selection.layer || polygon;
+		const selectedRegionEntry = selectedLayer._regionEntry || regionEntry;
+		// Wie beim Einfach-Klick: eine abgeleitete Außengrenze bedeutet hier "keine Quelle drunter".
+		if (selectedRegionEntry?.isDerivedGeometry === true) {
+			showFeedbackToast("Das ist eine abgeleitete Außengrenze. Bitte die untergeordnete Geometrie (das Unterreich) anklicken.", "info");
+			return;
+		}
+		startRegionGeometryEdit(selectedRegionEntry, selectedLayer);
 	});
 	polygon.on("contextmenu", (event) => {
 		L.DomEvent.stop(event);
@@ -726,6 +741,12 @@ const REGION_CONTEXT_ACTIONS = {
 		startRegionGeometryEdit(regionEntry, regionLayer);
 	},
 	"edit-properties": ({ regionEntry }) => {
+		// Abgeleitete Außengrenzen haben keine eigenen editierbaren Eigenschaften/Zuweisung
+		// (sie werden aus den Unterflächen berechnet) -> Hinweis statt leerem "kein Knoten"-Editor.
+		if (regionEntry?.isDerivedGeometry === true) {
+			showFeedbackToast("Das ist eine abgeleitete Außengrenze. Bitte die untergeordnete Geometrie (das Unterreich) bearbeiten.", "info");
+			return;
+		}
 		clearRegionGeometryEdit();
 
 		if (window.AvesmapsPoliticalTerritoryEditorLink) {
