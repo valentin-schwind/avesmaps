@@ -20,7 +20,7 @@
 	const HOST_ID = "political-territory-editor-host";
 	// Cache-Buster fuer die dynamisch geladenen Editor-Assets: bei jeder Aenderung
 	// an Editor-JS/CSS hochzaehlen, damit Deploys sofort greifen (kein Hard-Reload).
-	const ASSET_VERSION = "20260530c";
+	const ASSET_VERSION = "20260530d";
 	function withVersion(url) {
 		return url + (url.indexOf("?") >= 0 ? "&" : "?") + "v=" + ASSET_VERSION;
 	}
@@ -102,7 +102,7 @@
 			const host = document.getElementById(HOST_ID);
 			if (!host) throw new Error("Editor-Host-Container fehlt.");
 
-			const response = await fetch(EDITOR_HTML_URL, { credentials: "same-origin" });
+			const response = await fetch(withVersion(EDITOR_HTML_URL), { credentials: "same-origin" });
 			if (!response.ok) throw new Error(`Editor-Markup konnte nicht geladen werden: HTTP ${response.status}`);
 			const html = await response.text();
 			host.innerHTML = extractEditorMarkup(html);
