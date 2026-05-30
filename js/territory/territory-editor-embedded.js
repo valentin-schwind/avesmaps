@@ -1625,7 +1625,7 @@
 					const prevButton = document.createElement("button");
 					prevButton.type = "button";
 					prevButton.className = "breadcrumb-cycle breadcrumb-cycle--prev";
-					prevButton.textContent = "‹";
+					prevButton.textContent = "▲";
 					prevButton.title = "Vorheriges Geschwister";
 					prevButton.setAttribute("aria-label", "Vorheriges Geschwister");
 					prevButton.addEventListener("click", () => cycleBreadcrumbSegment(path, i, -1));
@@ -1644,7 +1644,7 @@
 					const nextButton = document.createElement("button");
 					nextButton.type = "button";
 					nextButton.className = "breadcrumb-cycle breadcrumb-cycle--next";
-					nextButton.textContent = "›";
+					nextButton.textContent = "▼";
 					nextButton.title = "Nächstes Geschwister";
 					nextButton.setAttribute("aria-label", "Nächstes Geschwister");
 					nextButton.addEventListener("click", () => cycleBreadcrumbSegment(path, i, 1));
