@@ -16,7 +16,8 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
     $hiddenByGeometryPublicId = [];
     foreach ($derivedFeatures as &$feature) {
         $territoryPublicId = trim((string) ($feature['properties']['territory_public_id'] ?? ''));
-        if (($feature['properties']['show_inner_boundaries'] ?? true) === false) {
+        if (($feature['properties']['show_inner_boundaries'] ?? true) === false
+            && ($feature['properties']['derived_fill_active'] ?? true) === true) {
             $sourceTerritoryPublicIds = avesmapsPoliticalReadDerivedSourceTerritoryPublicIds($pdo, $feature);
             $sourceGeometryPublicIds = avesmapsPoliticalReadDerivedSourceGeometryPublicIds($pdo, $feature);
             $feature['properties']['derived_source_territory_public_ids'] = $sourceTerritoryPublicIds;
@@ -84,15 +85,14 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
         'territory.continent = :continent',
         '(territory.valid_from_bf IS NULL OR territory.valid_from_bf <= :year_bf_start)',
         '(territory.valid_to_bf IS NULL OR territory.valid_to_bf = 0 OR territory.valid_to_bf >= :year_bf_end)',
-        '(derived.min_zoom IS NULL OR derived.min_zoom <= :zoom_min)',
-        '(derived.max_zoom IS NULL OR derived.max_zoom >= :zoom_max)',
+        // Feature #2: KEIN Zoom-Gate mehr. Die abgeleitete Aussenkontur wird auf
+        // ALLEN Zoomstufen geliefert (als Umriss); Fuellung + Label nur im eigenen
+        // Zoom-Band (siehe derived_fill_active weiter unten).
     ];
     $params = [
         ':continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
         ':year_bf_start' => $yearBf,
         ':year_bf_end' => $yearBf,
-        ':zoom_min' => $zoom,
-        ':zoom_max' => $zoom,
     ];
 
     if ($bbox !== null) {
@@ -175,6 +175,12 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
     $features = [];
     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $showInnerBoundaries = (int) ($row['show_inner_boundaries'] ?? 1) === 1;
+        // Feature #2: liegt der aktuelle Zoom im Fuellband dieser Aussengrenze?
+        // Innerhalb -> gefuellt + Label; ausserhalb -> nur Umriss (Fuellung/Label aus).
+        $derivedMinZoom = avesmapsPoliticalNullableInt($row['geometry_min_zoom'] ?? null);
+        $derivedMaxZoom = avesmapsPoliticalNullableInt($row['geometry_max_zoom'] ?? null);
+        $inFillBand = ($derivedMinZoom === null || $derivedMinZoom <= $zoom)
+            && ($derivedMaxZoom === null || $derivedMaxZoom >= $zoom);
         $feature = avesmapsPoliticalLayerRowToFeature($row, $yearBf, $zoom);
         $feature['id'] = 'derived:' . (string) $row['geometry_public_id'];
         $feature['properties']['public_id'] = (string) $row['geometry_public_id'];
@@ -186,8 +192,11 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
         $feature['properties']['is_derived_geometry'] = true;
         $feature['properties']['is_aggregate'] = true;
         $feature['properties']['show_inner_boundaries'] = $showInnerBoundaries;
-        $feature['properties']['show_region_label'] = true;
-        if ($showInnerBoundaries) {
+        $feature['properties']['derived_fill_active'] = $inFillBand;
+        // Label nur im eigenen Fuellband; ausserhalb ist die Derived nur ein Umriss.
+        $feature['properties']['show_region_label'] = $inFillBand;
+        // Fuellung aus, wenn Innengrenzen sichtbar (Umriss-Modus) ODER ausserhalb des Bands.
+        if ($showInnerBoundaries || !$inFillBand) {
             $feature['properties']['opacity'] = 0;
             $feature['properties']['fillOpacity'] = 0;
             $feature['properties']['fill_opacity'] = 0;
