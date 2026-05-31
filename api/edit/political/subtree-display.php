@@ -38,6 +38,7 @@ try {
         'update_colors' => avesmapsPoliticalSubtreeDisplayUpdateColors($pdo, $payload, $user),
         'update_opacity' => avesmapsPoliticalSubtreeDisplayUpdateOpacity($pdo, $payload, $user),
         'update_zoom' => avesmapsPoliticalSubtreeDisplayUpdateZoom($pdo, $payload, $user),
+        'update_validity' => avesmapsPoliticalSubtreeDisplayUpdateValidity($pdo, $payload, $user),
         'inherit_colors' => avesmapsPoliticalSubtreeDisplayInheritColors($pdo, $payload, $user),
         'inherit_opacity' => avesmapsPoliticalSubtreeDisplayInheritOpacity($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Subtree-Darstellungsaktion ist unbekannt.'),
@@ -168,6 +169,60 @@ function avesmapsPoliticalSubtreeDisplayUpdateZoom(PDO $pdo, array $payload, arr
         $parameters = [
             ':min_zoom' => $minZoom,
             ':max_zoom' => $maxZoom,
+            ':public_id' => $publicId,
+        ];
+        if ($supportsUpdatedBy) {
+            $parameters[':updated_by'] = (int) ($user['id'] ?? 0);
+        }
+        $statement->execute($parameters);
+        $changed += $statement->rowCount();
+    }
+
+    return [
+        'ok' => true,
+        'changed' => $changed,
+        'received' => count($updates),
+    ];
+}
+
+function avesmapsPoliticalSubtreeDisplayReadOptionalYear(mixed $value): ?int {
+    if ($value === null || $value === '') {
+        return null;
+    }
+    $year = filter_var($value, FILTER_VALIDATE_INT);
+    if ($year === false) {
+        throw new InvalidArgumentException('Das Jahr ist ungueltig.');
+    }
+    return (int) $year;
+}
+
+function avesmapsPoliticalSubtreeDisplayUpdateValidity(PDO $pdo, array $payload, array $user): array {
+    $updates = avesmapsPoliticalSubtreeDisplayReadUpdates($payload['updates'] ?? null);
+    $supportsUpdatedBy = avesmapsPoliticalSubtreeDisplayHasTerritoryUpdatedByColumn($pdo);
+    $statement = $pdo->prepare(
+        $supportsUpdatedBy
+            ? 'UPDATE political_territory
+        SET valid_from_bf = :valid_from_bf,
+            valid_to_bf = :valid_to_bf,
+            updated_by = :updated_by
+        WHERE public_id = :public_id'
+            : 'UPDATE political_territory
+        SET valid_from_bf = :valid_from_bf,
+            valid_to_bf = :valid_to_bf
+        WHERE public_id = :public_id'
+    );
+
+    $changed = 0;
+    foreach ($updates as $update) {
+        $validFrom = avesmapsPoliticalSubtreeDisplayReadOptionalYear($update['valid_from_bf'] ?? $update['startYear'] ?? null);
+        $existsUntilToday = filter_var($update['exists_until_today'] ?? $update['existsUntilToday'] ?? false, FILTER_VALIDATE_BOOL);
+        $validTo = $existsUntilToday
+            ? null
+            : avesmapsPoliticalSubtreeDisplayReadOptionalYear($update['valid_to_bf'] ?? $update['endYear'] ?? null);
+        $publicId = avesmapsPoliticalSubtreeDisplayReadPublicId($update['territory_public_id'] ?? $update['territoryPublicId'] ?? '');
+        $parameters = [
+            ':valid_from_bf' => $validFrom,
+            ':valid_to_bf' => $validTo,
             ':public_id' => $publicId,
         ];
         if ($supportsUpdatedBy) {

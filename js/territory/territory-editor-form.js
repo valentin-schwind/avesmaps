@@ -91,7 +91,7 @@
 		if (!root || !displayState?.updateDescendantDisplays) return value;
 
 		const inheritZoom = false; // Zoom wird jetzt auf Geschwister angewendet (inheritance.js), nicht mehr ueber den Breadcrumb-Pfad.
-		const inheritValidity = Boolean(document.getElementById("inheritValidityToDescendantsCheckbox")?.checked);
+		const inheritValidity = false; // Gueltigkeit wird jetzt auf den ganzen Teilbaum angewendet (inheritance.js), nicht mehr ueber den Breadcrumb-Pfad.
 		if (!inheritZoom && !inheritValidity) return value;
 
 		return displayState.updateDescendantDisplays(value, root.activeIndex, display => {

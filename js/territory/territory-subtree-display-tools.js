@@ -124,6 +124,26 @@
 		});
 	}
 
+	async function applyExplicitValidityUpdates(updates) {
+		const payloadUpdates = (Array.isArray(updates) ? updates : [])
+			.map(update => ({
+				territory_public_id: normalizeText(update.territoryPublicId || update.territory_public_id || ""),
+				valid_from_bf: update.startYear ?? update.valid_from_bf ?? "",
+				valid_to_bf: update.endYear ?? update.valid_to_bf ?? "",
+				exists_until_today: update.existsUntilToday === true || update.exists_until_today === true
+			}))
+			.filter(update => update.territory_public_id);
+
+		if (payloadUpdates.length < 1) {
+			return { ok: true, changed: 0, received: 0, updates: [] };
+		}
+
+		return submitSubtreeUpdate({
+			action: "update_validity",
+			updates: payloadUpdates
+		});
+	}
+
 	async function applyOpacityInheritance(root) {
 		const payload = {
 			action: "inherit_opacity",
@@ -168,6 +188,7 @@
 		applyExplicitColorUpdates,
 		applyExplicitOpacityUpdates,
 		applyExplicitZoomUpdates,
+		applyExplicitValidityUpdates,
 		applyOpacityInheritance,
 		reloadEditorAndParentLayers,
 		formatInheritanceMessage,

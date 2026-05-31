@@ -283,6 +283,12 @@
 			const zoomResult = await service.applyExplicitZoomUpdates(siblingZoomUpdates);
 			messages.push(`Zoom auf ${siblingZoomUpdates.length} Geschwisterregionen angewendet (${zoomResult && zoomResult.changed != null ? zoomResult.changed : 0} gespeichert).`);
 		}
+		if (root && document.getElementById("inheritValidityToDescendantsCheckbox")?.checked && service?.applyExplicitValidityUpdates) {
+			await loadTerritories();
+			const validityUpdates = findDescendants(root).map(row => ({ territoryPublicId: row.publicId, startYear: root.startYear, endYear: root.endYear, existsUntilToday: root.existsUntilToday })).filter(update => update.territoryPublicId);
+			const validityResult = await service.applyExplicitValidityUpdates(validityUpdates);
+			messages.push(`Gültigkeit auf ${validityUpdates.length} Untergebiete angewendet (${validityResult && validityResult.changed != null ? validityResult.changed : 0} gespeichert).`);
+		}
 		if (messages.length < 1) return context.result;
 		pendingColorPlan = null;
 		service?.reloadEditorAndParentLayers?.();
