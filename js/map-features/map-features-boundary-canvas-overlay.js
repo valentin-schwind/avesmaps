@@ -14,7 +14,7 @@
  */
 (function initBoundaryCanvasOverlay() {
 	const PANE = "avesmapsBoundaryCanvasPane";
-	const OUTER_LINE_WIDTH = 6; // doppelte sichtbare Breite (innere Haelfte ~3px nach Clip)
+	const OUTER_LINE_WIDTH = 4; // doppelt gestrokt, Clip zeigt innere Haelfte -> sichtbar ~2px
 
 	function ready() {
 		return typeof map !== "undefined" && map && typeof map.createPane === "function" && typeof L !== "undefined";
