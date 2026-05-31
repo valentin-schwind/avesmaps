@@ -18,6 +18,7 @@ function avesmapsPoliticalEnsureDerivedGeometryTables(PDO $pdo): void {
             max_x DECIMAL(10, 4) NOT NULL,
             max_y DECIMAL(10, 4) NOT NULL,
             show_inner_boundaries TINYINT(1) NOT NULL DEFAULT 1,
+            inner_boundary_geojson JSON NULL,
             source_revision VARCHAR(255) NULL,
             generated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
             is_active TINYINT(1) NOT NULL DEFAULT 1,
@@ -36,6 +37,11 @@ function avesmapsPoliticalEnsureDerivedGeometryTables(PDO $pdo): void {
     $column = $pdo->query("SHOW COLUMNS FROM political_territory_derived_geometry LIKE 'show_inner_boundaries'")->fetch(PDO::FETCH_ASSOC);
     if (!is_array($column)) {
         $pdo->exec('ALTER TABLE political_territory_derived_geometry ADD show_inner_boundaries TINYINT(1) NOT NULL DEFAULT 1 AFTER max_y');
+    }
+
+    $innerBoundaryColumn = $pdo->query("SHOW COLUMNS FROM political_territory_derived_geometry LIKE 'inner_boundary_geojson'")->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($innerBoundaryColumn)) {
+        $pdo->exec('ALTER TABLE political_territory_derived_geometry ADD inner_boundary_geojson JSON NULL AFTER show_inner_boundaries');
     }
 }
 
@@ -134,6 +140,13 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
 
     $labelCenter = avesmapsPoliticalReadDerivedGeometryLabelCenter($payload, $geometry);
     $showInnerBoundaries = avesmapsPoliticalReadBoolean($payload['show_inner_boundaries'] ?? true);
+    // Vorberechnete Innengrenzen (deduppte Trennlinien der direkten Kinder, 1 Tiefe) als
+    // GeoJSON MultiLineString; null wenn das Ziel keine hat (z. B. < 2 Kinder, keine
+    // geteilten Kanten). Wird im Frontend (Kaskade) berechnet und hier nur durchgereicht.
+    $innerBoundaryPayload = $payload['inner_boundary_geojson'] ?? null;
+    $innerBoundaryGeometry = (is_array($innerBoundaryPayload) && isset($innerBoundaryPayload['type']))
+        ? $innerBoundaryPayload
+        : null;
     $sourceRevision = avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['source_revision'] ?? $payload['source_signature'] ?? ''), 255));
     $userId = (int) ($user['id'] ?? 0) ?: null;
     $publicId = avesmapsPoliticalUuidV4();
@@ -156,11 +169,11 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
             'INSERT INTO political_territory_derived_geometry (
                 public_id, territory_id, geometry_geojson, label_lng, label_lat,
                 min_zoom, max_zoom, min_x, min_y, max_x, max_y, show_inner_boundaries,
-                source_revision, generated_at, is_active, created_by, updated_by
+                inner_boundary_geojson, source_revision, generated_at, is_active, created_by, updated_by
             ) VALUES (
                 :public_id, :territory_id, :geometry_geojson, :label_lng, :label_lat,
                 :min_zoom, :max_zoom, :min_x, :min_y, :max_x, :max_y, :show_inner_boundaries,
-                :source_revision, CURRENT_TIMESTAMP(3), 1, :created_by, :updated_by
+                :inner_boundary_geojson, :source_revision, CURRENT_TIMESTAMP(3), 1, :created_by, :updated_by
             )'
         );
         $insertStatement->execute([
@@ -176,6 +189,7 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
             'max_x' => $bounds['max_x'],
             'max_y' => $bounds['max_y'],
             'show_inner_boundaries' => $showInnerBoundaries ? 1 : 0,
+            'inner_boundary_geojson' => avesmapsPoliticalEncodeJsonOrNull($innerBoundaryGeometry),
             'source_revision' => $sourceRevision,
             'created_by' => $userId,
             'updated_by' => $userId,
@@ -568,6 +582,9 @@ function avesmapsPoliticalDerivedGeometryRowToPublic(array $row): array {
         'min_zoom' => $row['min_zoom'] !== null ? (int) $row['min_zoom'] : null,
         'max_zoom' => $row['max_zoom'] !== null ? (int) $row['max_zoom'] : null,
         'show_inner_boundaries' => !array_key_exists('show_inner_boundaries', $row) || (int) $row['show_inner_boundaries'] === 1,
+        'inner_boundary_geojson' => array_key_exists('inner_boundary_geojson', $row) && $row['inner_boundary_geojson'] !== null && $row['inner_boundary_geojson'] !== ''
+            ? avesmapsPoliticalDecodeJson($row['inner_boundary_geojson'])
+            : null,
         'source_revision' => (string) ($row['source_revision'] ?? ''),
         'generated_at' => (string) ($row['generated_at'] ?? ''),
         'is_active' => (int) ($row['is_active'] ?? 0) === 1,
