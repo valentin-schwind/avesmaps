@@ -316,6 +316,18 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 		if (Array.isArray(plan?.blocking_warnings) && plan.blocking_warnings.length > 0) {
 			throw new Error(plan.blocking_warnings[0]?.message || "Boundary-Plan hat blockierende Warnungen.");
 		}
+		// Cause-Fix: Blätter (keine Kind-Quellen) bekommen KEINE eigene Außengrenze –
+		// ihre Grenze ist bereits ihre Quellgeometrie. Verhindert die redundante
+		// doppelte Kontur + das doppelte Label (z. B. Moghulat Oron, Kibrom, Olrong).
+		const targetPlanNode = (Array.isArray(plan?.plan_nodes) ? plan.plan_nodes : [])
+			.find((node) => String(node?.territory_public_id || "") === String(territoryPublicId));
+		if (targetPlanNode && Number(targetPlanNode.child_boundary_source_count || 0) === 0) {
+			setDerivedGeometryEditorBusy(false);
+			setDerivedGeometryEditorProgress(0, false);
+			setDerivedGeometryEditorStatus("Blätter brauchen keine eigene Außengrenze – ihre Grenze ist die Quellgeometrie.", "info");
+			showFeedbackToast("Dieses Gebiet hat keine Unterregionen – keine eigene Außengrenze nötig.", "info");
+			return null;
+		}
 		setDerivedGeometryEditorProgress(22, true);
 		setDerivedGeometryEditorStatus(`${targetName}: Quellflächen werden geladen...`, "pending");
 

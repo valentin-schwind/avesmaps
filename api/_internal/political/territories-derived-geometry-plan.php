@@ -91,11 +91,14 @@ function avesmapsPoliticalReadDerivedGeometryPlan(PDO $pdo, array $query): array
         ];
     }
 
+    // Cause-Fix (Blatt-Außengrenzen): NUR aggregierende Knoten (mind. ein Kind mit
+    // eigener Quelle/Boundary) bekommen eine abgeleitete Außengrenze. Ein Blatt hat
+    // child_boundary_source_count === 0 -> seine Grenze IST seine Quellgeometrie;
+    // eine eigene Derived würde sie nur verdoppeln (zwei Konturen / zwei Labels).
+    $aggregatesChildren = static fn(int $id): bool => (int) ($nodeStates[$id]['child_boundary_source_count'] ?? 0) > 0;
     $recomputeIds = $applyToSubregions
-        ? array_values(array_filter($subtreeIds, static fn(int $id): bool => ($nodeStates[$id]['can_generate_boundary'] ?? false) === true))
-        : [
-            (int) $territory['id'],
-        ];
+        ? array_values(array_filter($subtreeIds, $aggregatesChildren))
+        : ($aggregatesChildren((int) $territory['id']) ? [(int) $territory['id']] : []);
     $recomputeIds = array_values(array_unique(array_merge($recomputeIds, $ancestorIds)));
 
     return [
