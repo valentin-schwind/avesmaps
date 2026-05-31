@@ -41,7 +41,7 @@ function avesmapsPoliticalBuildStoredAssignmentDisplay(array $territory, array $
         'zoomMin' => avesmapsPoliticalReadOptionalZoom($display['zoomMin'] ?? $territory['min_zoom'] ?? null),
         'zoomMax' => avesmapsPoliticalReadOptionalZoom($display['zoomMax'] ?? $territory['max_zoom'] ?? null),
         'color' => avesmapsPoliticalReadHexColor($display['color'] ?? $territory['color'] ?? '#888888'),
-        'opacity' => avesmapsPoliticalReadOpacity($display['opacity'] ?? $territory['opacity'] ?? 0.33),
+        'opacity' => avesmapsPoliticalReadOpacity($display['opacity'] ?? $territory['opacity'] ?? 0.5),
         'startYear' => avesmapsPoliticalReadOptionalInt($display['startYear'] ?? $territory['valid_from_bf'] ?? null),
         'endYear' => $existsUntilToday
             ? null
@@ -59,7 +59,7 @@ function avesmapsPoliticalCreateTerritory(PDO $pdo, array $payload, array $user)
     $wikiId = avesmapsPoliticalReadOptionalWikiId($pdo, $payload['wiki_id'] ?? null);
     $wikiKey = avesmapsPoliticalFetchWikiKeyById($pdo, $wikiId);
     $color = avesmapsPoliticalReadHexColor($payload['color'] ?? '#888888');
-    $opacity = avesmapsPoliticalReadOpacity($payload['opacity'] ?? 0.33);
+    $opacity = avesmapsPoliticalReadOpacity($payload['opacity'] ?? 0.5);
     $validFrom = avesmapsPoliticalReadOptionalInt($payload['valid_from_bf'] ?? null);
     $validTo = avesmapsPoliticalReadOpenEndedValidTo($payload);
     $minZoom = avesmapsPoliticalReadOptionalZoom($payload['min_zoom'] ?? null);
@@ -146,7 +146,7 @@ function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user)
         $coatOfArmsUrl = '';
     }
     $color = avesmapsPoliticalReadHexColor($payload['color'] ?? '#888888');
-    $opacity = avesmapsPoliticalReadOpacity($payload['opacity'] ?? 0.33);
+    $opacity = avesmapsPoliticalReadOpacity($payload['opacity'] ?? 0.5);
 
     $statement = $pdo->prepare(
         'UPDATE political_territory
@@ -207,7 +207,7 @@ function avesmapsPoliticalSaveWikiNodeSettings(PDO $pdo, array $payload, array $
 
     $display = is_array($payload['display'] ?? null) ? $payload['display'] : [];
     $color = avesmapsPoliticalReadHexColor($display['color'] ?? '#888888');
-    $opacity = avesmapsPoliticalReadOpacity($display['opacity'] ?? 0.33);
+    $opacity = avesmapsPoliticalReadOpacity($display['opacity'] ?? 0.5);
     $minZoom = avesmapsPoliticalReadOptionalZoom($display['zoomMin'] ?? null);
     $maxZoom = avesmapsPoliticalReadOptionalZoom($display['zoomMax'] ?? null);
     avesmapsPoliticalAssertZoomRange($minZoom, $maxZoom);
@@ -429,7 +429,7 @@ function avesmapsPoliticalEnsureSyntheticTreeTerritory(PDO $pdo, array $node, st
         'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
         'status' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($node['status'] ?? ''), 255)),
         'color' => avesmapsPoliticalColorFromText($name),
-        'opacity' => 0.33,
+        'opacity' => 0.5,
         'coat_of_arms_url' => avesmapsPoliticalNullableString(avesmapsPoliticalReadOptionalUrl($node['coat_of_arms_url'] ?? '', 'Der Wappen-Link')),
         'wiki_url' => avesmapsPoliticalNullableString(avesmapsPoliticalReadOptionalUrl($node['wiki_url'] ?? '', 'Der Wiki-Aventurica-Link')),
         'valid_label' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($node['valid_label'] ?? ''), 500)),
@@ -547,7 +547,7 @@ function avesmapsPoliticalCreateLegacyRegionTerritory(PDO $pdo, array $feature, 
         'type' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($properties['feature_subtype'] ?? $properties['layer'] ?? 'Herrschaftsgebiet'), 160)),
         'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
         'color' => (string) ($style['fill'] ?? '#888888'),
-        'opacity' => (float) ($style['fillOpacity'] ?? 0.33),
+        'opacity' => (float) ($style['fillOpacity'] ?? 0.5),
         'min_zoom' => 0,
         'max_zoom' => 6,
         'editor_notes' => 'Aus urspruenglichem Regionen-Layer wiederhergestellt.',
