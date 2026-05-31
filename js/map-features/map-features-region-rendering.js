@@ -128,7 +128,10 @@ function shouldHideRegionForDerivedBoundary(region, regionEntry) {
 
 function getActiveOuterBoundaryHideTargets() {
 	return (Array.isArray(regionData) ? regionData : [])
-		.filter((feature) => feature?.properties?.is_derived_geometry === true && feature.properties.show_inner_boundaries === false)
+		// Quellen nur ausblenden, wenn die Außengrenze im eigenen Fuellband fuellt
+		// (derived_fill_active). Ausserhalb (nur Kontur) bleiben die Kinder sichtbar
+		// und werden als Innengrenzen gestrichelt-weiss gezeichnet.
+		.filter((feature) => feature?.properties?.is_derived_geometry === true && feature.properties.show_inner_boundaries === false && feature.properties.derived_fill_active !== false)
 		.map((feature) => {
 			const properties = feature.properties || {};
 			return {
