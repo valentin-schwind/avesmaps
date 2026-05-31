@@ -8,6 +8,8 @@
 		"inheritValidityToDescendantsCheckbox"
 	];
 
+	// Diese vererben an GESCHWISTER (gleiche Ebene) -> auch fuer unterste Breadcrumbs/Blaetter sinnvoll.
+	const SIBLING_CHECKBOX_IDS = ["inheritZoomToDescendantsCheckbox", "inheritOpacityToDescendantsCheckbox"];
 	let territoryRows = [];
 	let pendingColorPlan = null;
 
@@ -101,6 +103,7 @@
 
 	function syncInheritanceVisibility() {
 		const hasLowerBreadcrumb = Boolean(getFormModule()?.hasLowerBreadcrumb?.());
+		const hasActiveNode = Boolean(getFormModule()?.readRootSelection?.());
 		const colorButton = document.getElementById("inheritColorVarianceButton");
 		if (colorButton) colorButton.hidden = !hasLowerBreadcrumb;
 
@@ -108,8 +111,9 @@
 			const input = document.getElementById(id);
 			const label = input?.closest(".deferred-subtree-checkbox");
 			if (!input || !label) continue;
-			label.hidden = !hasLowerBreadcrumb;
-			if (!hasLowerBreadcrumb) input.checked = false;
+			const inheritVisible = SIBLING_CHECKBOX_IDS.includes(id) ? hasActiveNode : hasLowerBreadcrumb;
+			label.hidden = !inheritVisible;
+			if (!inheritVisible) input.checked = false;
 		}
 		if (!hasLowerBreadcrumb) {
 			pendingColorPlan = null;
