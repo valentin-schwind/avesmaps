@@ -16,12 +16,16 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
     $hiddenByGeometryPublicId = [];
     foreach ($derivedFeatures as &$feature) {
         $territoryPublicId = trim((string) ($feature['properties']['territory_public_id'] ?? ''));
+        // C (Innengrenzen-Styling): die Quell-IDs der Außengrenze IMMER mitliefern, damit
+        // das Frontend diese Quellen als Innengrenzen (gestrichelt-weiß) zeichnen kann –
+        // unabhaengig vom Innengrenzen-Haekchen und vom Zoom-Band.
+        $sourceTerritoryPublicIds = avesmapsPoliticalReadDerivedSourceTerritoryPublicIds($pdo, $feature);
+        $sourceGeometryPublicIds = avesmapsPoliticalReadDerivedSourceGeometryPublicIds($pdo, $feature);
+        $feature['properties']['derived_source_territory_public_ids'] = $sourceTerritoryPublicIds;
+        $feature['properties']['derived_source_geometry_public_ids'] = $sourceGeometryPublicIds;
+        // Ausblenden der Quellflaechen NUR wenn Innengrenzen aus UND im Fuellband (Aggregat fuellt).
         if (($feature['properties']['show_inner_boundaries'] ?? true) === false
             && ($feature['properties']['derived_fill_active'] ?? true) === true) {
-            $sourceTerritoryPublicIds = avesmapsPoliticalReadDerivedSourceTerritoryPublicIds($pdo, $feature);
-            $sourceGeometryPublicIds = avesmapsPoliticalReadDerivedSourceGeometryPublicIds($pdo, $feature);
-            $feature['properties']['derived_source_territory_public_ids'] = $sourceTerritoryPublicIds;
-            $feature['properties']['derived_source_geometry_public_ids'] = $sourceGeometryPublicIds;
             foreach ($sourceTerritoryPublicIds as $sourceTerritoryPublicId) {
                 if ($sourceTerritoryPublicId !== $territoryPublicId) {
                     $hiddenByTerritoryPublicId[$sourceTerritoryPublicId] = $territoryPublicId;

@@ -76,6 +76,22 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 	if (levelLineStyle && levelLineStyle.dashArray) {
 		style.dashArray = levelLineStyle.dashArray;
 	}
+
+	// C: Innengrenzen-Stil – Quellflaechen, die Quelle einer aktiven Außengrenze sind,
+	// bekommen einen gestrichelt-transparenten weissen Rand. Er liegt unter der soliden
+	// Außenkontur (Derived = bringToFront), die den Perimeter abdeckt -> nur die echten
+	// inneren Trennlinien bleiben weiss-gestrichelt. Die Fuellung bleibt unveraendert.
+	if (!regionEntry.isDerivedGeometry) {
+		const innerIds = getActiveInnerBoundarySourceIds();
+		const geomId = String(regionEntry.geometryPublicId || regionEntry.publicId || "").trim();
+		const terrId = String(regionEntry.territoryPublicId || "").trim();
+		if ((geomId && innerIds.geometryIds.has(geomId)) || (terrId && innerIds.territoryIds.has(terrId))) {
+			style.color = "#ffffff";
+			style.opacity = 0.6;
+			style.weight = 1.5;
+			style.dashArray = "5 4";
+		}
+	}
 	return style;
 }
 
@@ -122,6 +138,21 @@ function getActiveOuterBoundaryHideTargets() {
 			};
 		})
 		.filter((target) => target.sourceTerritoryPublicIds.size > 0 || target.sourceGeometryPublicIds.size > 0);
+}
+
+// C: Quell-IDs aller aktiven Außengrenzen (unabhaengig vom Innengrenzen-Haekchen) – ihre
+// Quellflaechen werden als Innengrenzen (gestrichelt-weiss) gezeichnet.
+function getActiveInnerBoundarySourceIds() {
+	const geometryIds = new Set();
+	const territoryIds = new Set();
+	(Array.isArray(regionData) ? regionData : [])
+		.filter((feature) => feature?.properties?.is_derived_geometry === true)
+		.forEach((feature) => {
+			const properties = feature.properties || {};
+			readDerivedBoundarySourceGeometryIds(properties).forEach((id) => geometryIds.add(id));
+			readDerivedBoundarySourceTerritoryIds(properties).forEach((id) => territoryIds.add(id));
+		});
+	return { geometryIds, territoryIds };
 }
 
 function readDerivedBoundarySourceTerritoryIds(properties) {
