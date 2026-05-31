@@ -13,8 +13,15 @@ let politicalRegionDerivedTerritoryKeys = null;
 function indexPoliticalRegionDerivedTerritoryKeys() {
 	politicalRegionDerivedTerritoryKeys = new Set();
 	(Array.isArray(regionData) ? regionData : []).forEach((feature) => {
-		if (feature?.properties?.is_derived_geometry === true) {
-			const key = String(feature.properties.territory_public_id || "").trim();
+		const properties = feature?.properties;
+		// Nur Derived, die in diesem Render auch wirklich ein Label tragen (show_region_label
+		// nicht false, nicht visuell versteckt). Sonst würde eine Quelle zu einer Derived
+		// ausweichen, die selbst kein Label setzt -> Gebiet bliebe ganz ohne Label
+		// (z. B. Herzogtum Weiden bei Zoom 2: Derived außerhalb ihres Füllbands).
+		if (properties && properties.is_derived_geometry === true
+			&& properties.show_region_label !== false
+			&& properties.visual_hidden_by_derived_boundary !== true) {
+			const key = String(properties.territory_public_id || "").trim();
 			if (key) politicalRegionDerivedTerritoryKeys.add(key);
 		}
 	});
