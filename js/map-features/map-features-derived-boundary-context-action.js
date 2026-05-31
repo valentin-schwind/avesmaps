@@ -15,7 +15,7 @@
 		button.type = "button";
 		button.className = "map-context-menu__item";
 		button.dataset.regionContextAction = ACTION;
-		button.textContent = "Außengrenzen erzeugen/aktualisieren";
+		button.textContent = "Grenzen berechnen";
 		if (propertiesButton) {
 			propertiesButton.insertAdjacentElement("afterend", button);
 			return;
@@ -203,7 +203,9 @@
 		try {
 			const targetName = targetRegionEntry.name || "Herrschaftsgebiet";
 			setProgress(`${targetName}: Boundary-Plan und Quellflächen werden geladen...`, 12, true);
-			await window.AvesmapsDerivedBoundaryEditor.generateOrUpdateForRegion(targetRegionEntry, { drawPreview: false });
+			// Ganzer Teilbaum: recomputet auch Zwischen-Aggregatoren (sonst bleibt deren
+			// eigene Außengrenze stale, wenn eine tiefer liegende Quelle geändert wurde).
+			await window.AvesmapsDerivedBoundaryEditor.generateOrUpdateForRegion(targetRegionEntry, { drawPreview: false, applyToSubregions: true });
 			setProgress(`${targetName}: Außengrenze gespeichert. Karte wird neu geladen...`, 100, true);
 			hideProgressSoon();
 		} catch (error) {
