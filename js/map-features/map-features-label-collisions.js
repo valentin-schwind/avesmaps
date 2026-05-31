@@ -6,7 +6,67 @@ function scheduleLabelCollisionResolution() {
 	labelCollisionFrameId = window.requestAnimationFrame(() => {
 		labelCollisionFrameId = null;
 		resolveLabelCollisions();
+		resolveRegionLabelCollisions();
 	});
+}
+
+// Territorie-Labels: gegenseitiges Abstoßen bis zu einer max. "Tension" (Verschiebung),
+// damit sie sich nicht überlappen. Eigener Pass (eigene acceptedRects) -> stört Orts-/Frei-
+// Label-Declutter nicht. Wird NICHT versteckt: passt nichts innerhalb der Tension, bleibt
+// das Label zentriert (kleineres Übel als ein fehlendes Gebiets-Label).
+const REGION_LABEL_MAX_TENSION = 28;   // max. Verschiebung in px
+const REGION_LABEL_TENSION_STEP = 7;   // Ring-Schrittweite
+
+function getRegionLabelOffsetCandidates() {
+	const candidates = [{ dx: 0, dy: 0 }];
+	const directions = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]];
+	for (let radius = REGION_LABEL_TENSION_STEP; radius <= REGION_LABEL_MAX_TENSION; radius += REGION_LABEL_TENSION_STEP) {
+		for (const [unitX, unitY] of directions) {
+			// vertikal etwas geringer ausweichen (Labels sind breiter als hoch).
+			candidates.push({ dx: unitX * radius, dy: unitY * Math.round(radius * 0.7) });
+		}
+	}
+	return candidates;
+}
+
+function resolveRegionLabelCollisions() {
+	const labels = typeof regionLabels !== "undefined" && Array.isArray(regionLabels) ? regionLabels : [];
+	const entries = labels
+		.filter((label) => label && typeof label.getElement === "function" && map.hasLayer(label) && label.getElement())
+		.map((label) => ({ element: label.getElement(), priority: Number(label._regionLabelPriority) || 0 }));
+	if (entries.length < 2) {
+		entries.forEach(({ element }) => setLabelElementOffset(element, 0, 0));
+		return;
+	}
+
+	entries.forEach(({ element }) => setLabelElementOffset(element, 0, 0));
+
+	const candidates = getRegionLabelOffsetCandidates();
+	const acceptedRects = [];
+	entries
+		.sort((left, right) => right.priority - left.priority)
+		.forEach(({ element }) => {
+			let placed = false;
+			for (const candidate of candidates) {
+				setLabelElementOffset(element, candidate.dx, candidate.dy);
+				const rect = measureLabelCollisionRect(element);
+				if (rect.width <= 0 || rect.height <= 0) {
+					placed = true;
+					break;
+				}
+				if (!acceptedRects.some((acceptedRect) => rectanglesOverlap(rect, acceptedRect))) {
+					acceptedRects.push(rect);
+					placed = true;
+					break;
+				}
+			}
+			if (!placed) {
+				// Tension erschöpft -> zentriert lassen (nicht verstecken) und Rechteck trotzdem
+				// vormerken, damit nachfolgende Labels darum herum ausweichen.
+				setLabelElementOffset(element, 0, 0);
+				acceptedRects.push(measureLabelCollisionRect(element));
+			}
+		});
 }
 
 function rectanglesOverlap(firstRect, secondRect) {
@@ -97,9 +157,14 @@ function applyLocationNameLabelOffset(element, candidate) {
 }
 
 function getLabelCollisionTarget(element) {
-	return element.classList.contains("location-name-label")
-		? element.querySelector("span") || element
-		: element;
+	if (element.classList.contains("location-name-label")) {
+		return element.querySelector("span") || element;
+	}
+	if (element.classList.contains("region-label")) {
+		// Der sichtbare (und per --label-offset verschobene) Teil ist der Inhalt.
+		return element.querySelector(".region-label__content") || element;
+	}
+	return element;
 }
 
 function measureLabelRect(element) {

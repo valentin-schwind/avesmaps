@@ -39,5 +39,10 @@ function syncRegionVisibility() {
 
 	if (showRegions) {
 		schedulePoliticalTerritoryLayerReload();
+		// Territorie-Labels gegeneinander abstoßen (kein Overlap), nachdem ihre Sichtbarkeit
+		// für den aktuellen Zoom feststeht.
+		if (typeof scheduleLabelCollisionResolution === "function") {
+			scheduleLabelCollisionResolution();
+		}
 	}
 }

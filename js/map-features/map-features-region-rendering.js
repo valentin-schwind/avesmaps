@@ -250,7 +250,7 @@ function addRegionFeatureToMap(region, regionEntry) {
 				.setContent(createRegionLabelMarkup(regionEntry, name));
 
 			regionEntry.label = label;
-			regionLabels.push(label);
+			label._regionLabelPriority = labelPoi ? labelPoi.distance : 0; regionLabels.push(label);
 		}
 		bindRegionCompactTooltip(polygon, regionEntry);
 	});

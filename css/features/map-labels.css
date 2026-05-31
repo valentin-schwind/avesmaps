@@ -152,6 +152,8 @@ body.edit-mode .map-label span {
 	background: rgba(255, 255, 255, 0.3);
 	color: #2f251c;
 	font-size: calc(1em - 2pt);
+	/* Collision-Abstoßung: verschiebt das Label um die berechnete Tension (Pixel). */
+	transform: translate(var(--label-offset-x, 0px), var(--label-offset-y, 0px));
 }
 
 .region-label__coat {
