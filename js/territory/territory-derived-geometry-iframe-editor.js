@@ -107,6 +107,7 @@
 
 		document.getElementById("derivedGeometryEnabledInput")?.addEventListener("change", () => {
 			state.dirty = true;
+			updateModeNote();
 			void syncPreview().catch(handlePreviewError);
 		});
 		document.getElementById("derivedGeometryInnerBoundariesInput")?.addEventListener("change", () => {
@@ -183,6 +184,27 @@
 			input.checked = false;
 		}
 		label?.classList.toggle("derived-geometry-inner-boundaries-disabled", !state.canShowInnerBoundaries);
+		updateModeNote();
+	}
+
+	// Erklaert im Info-Feld unter den Haekchen den konkreten Fall des aktiven Knotens.
+	function updateModeNote() {
+		const note = document.querySelector(".derived-geometry-mode-note");
+		if (!note) return;
+		const enabled = document.getElementById("derivedGeometryEnabledInput")?.checked === true;
+		const sourceCount = Array.isArray(state.sourceGeometries) ? state.sourceGeometries.length : 0;
+		if (!state.canShowInnerBoundaries) {
+			note.textContent = "Blatt ohne Unterflächen: keine Innengrenzen und keine eigene abgeleitete Außengrenze – die Grenze ist die eigene Quellfläche.";
+			return;
+		}
+		const parts = [];
+		parts.push(sourceCount > 0 ? `Außengrenze = Vereinigung von ${sourceCount} Unterflächen.` : "Außengrenze = Vereinigung der Unterflächen.");
+		parts.push("„Innengrenzen darstellen“ zeigt die Trennlinien dazwischen (aus = verschmolzene Fläche).");
+		parts.push("„Für alle Unterregionen übernehmen“ berechnet zusätzlich die Außengrenzen der Untergebiete neu.");
+		if (!enabled) {
+			parts.push("Außengrenze ist derzeit aus – beim Speichern wird sie entfernt; die Optionen darüber wirken dann nicht.");
+		}
+		note.textContent = parts.join(" ");
 	}
 
 	function handlePreviewError(error) {
