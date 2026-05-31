@@ -81,15 +81,22 @@
 		const depth = Math.max(1, Number(options.depth || 1));
 		const siblingIndex = Math.max(0, Number(options.siblingIndex || 0));
 		const siblingCount = Math.max(1, Number(options.siblingCount || 1));
-		const range = options.range || { min256: 10, max256: 20 };
-		let span = Math.min(24, 14 / (1 + ((depth - 2) * 0.45)) + Math.min(12, Math.max(0, siblingCount - 1) * 0.55));
-
-		span = Math.max((range.min256 / 256) * 360, Math.min(span, (range.max256 / 256) * 360));
+		const range = options.range || { min256: 24, max256: 72 };
+		// Spreizung wird VOLL von der Range gesteuert (kein harter 24°-Deckel mehr, der den
+		// UI-Regler frueher wirkungslos machte): wenige Geschwister -> min, viele -> bis max.
+		const minDegrees = (Math.min(range.min256, range.max256) / 256) * 360;
+		const maxDegrees = (Math.max(range.min256, range.max256) / 256) * 360;
+		const crowd = Math.min(1, Math.max(0, siblingCount - 1) / 8);
+		const span = minDegrees + (maxDegrees - minDegrees) * crowd;
 		const position = siblingCount > 1 ? siblingIndex / (siblingCount - 1) : 0.5;
 		const offset = ((position * 2) - 1) * span;
-		const jitter = (((seededUnit(`${options.seedText || ""}:jitter`) * 2) - 1) * Math.max(0.75, Math.min(2.5, span * 0.18)));
+		const jitter = (((seededUnit(`${options.seedText || ""}:jitter`) * 2) - 1) * Math.max(0.75, Math.min(3, span * 0.12)));
+		// Helligkeit je Tiefe leicht staffeln, damit Ebenen auch bei aehnlichem Farbton
+		// trennbar bleiben (dunkle Basis wird tiefer heller, helle Basis tiefer dunkler).
+		const valueShift = Math.min(0.24, (depth - 1) * 0.06);
+		const value = Math.max(0.35, Math.min(1, hsv.value + (hsv.value < 0.6 ? valueShift : -valueShift)));
 
-		return hsvToHex((hsv.hue + offset + jitter + 360) % 360, hsv.saturation, hsv.value);
+		return hsvToHex((hsv.hue + offset + jitter + 360) % 360, hsv.saturation, value);
 	}
 
 	window.AvesmapsPoliticalTerritoryEditorColorUtils = {

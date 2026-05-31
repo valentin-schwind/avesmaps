@@ -23,8 +23,8 @@
 	function readHueVarianceRange256() {
 		const minInput = document.getElementById("hueVarianceMinInput");
 		const maxInput = document.getElementById("hueVarianceMaxInput");
-		const minValue = readHueVarianceValue(minInput, 10);
-		const maxValue = readHueVarianceValue(maxInput, 20);
+		const minValue = readHueVarianceValue(minInput, 24);
+		const maxValue = readHueVarianceValue(maxInput, 72);
 		const normalizedMin = Math.min(minValue, maxValue);
 		const normalizedMax = Math.max(minValue, maxValue);
 
