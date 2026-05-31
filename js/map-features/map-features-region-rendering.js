@@ -64,7 +64,9 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 	// Faellt auf das bisherige Verhalten zurueck, wenn das Modul fehlt oder
 	// keinen Stil vorgibt (z. B. normale Quellgeometrien).
 	const levelLineStyle = window.AvesmapsBoundaryStyle?.lineStyleFor?.(regionEntry) || null;
-	const weight = levelLineStyle ? levelLineStyle.weight : (regionEntry.isDerivedGeometry ? 3 : 2);
+	// Abgeleitete Außengrenzen zeichnet jetzt das Canvas-Overlay (clip-inside); die
+	// SVG-Kontur der derived wird daher unterdrueckt (weight 0), Fuellung bleibt.
+	const weight = regionEntry.isDerivedGeometry ? 0 : (levelLineStyle ? levelLineStyle.weight : 2);
 
 	const style = {
 		color: regionEntry.color,
