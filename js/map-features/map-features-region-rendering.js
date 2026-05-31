@@ -5,27 +5,28 @@
 // Territorium erzeugt nie zwei Labels (z. B. wenn Derived + Quelle koexistieren).
 let politicalRegionLabeledTerritoryKeys = new Set();
 
-// Territorien, die ein Derived-Feature (Außengrenze = volle Hülle) haben. Deren Label
-// gehört auf die Derived (zentraler polylabel-Punkt), NICHT auf ein zufälliges Quell-
-// Fragment, das in regionData zufällig früher kommt. Lazy pro Render aufgebaut (null = stale).
-let politicalRegionDerivedTerritoryKeys = null;
+// Index pro Render: territory_public_id -> { labelable, geometry } des Derived-Features.
+// `geometry` = volle Hülle (für den zentralen polylabel-Label-Anker, egal welches Feature
+// das Label trägt). `labelable` = trägt die Derived in diesem Render selbst ein Label
+// (show_region_label nicht false, nicht versteckt) -> nur dann weicht eine Quelle aus.
+// Lazy pro Render aufgebaut (null = stale).
+let politicalRegionDerivedByTerritory = null;
 
-function indexPoliticalRegionDerivedTerritoryKeys() {
-	politicalRegionDerivedTerritoryKeys = new Set();
+function indexPoliticalRegionDerivedByTerritory() {
+	politicalRegionDerivedByTerritory = new Map();
 	(Array.isArray(regionData) ? regionData : []).forEach((feature) => {
 		const properties = feature?.properties;
-		// Nur Derived, die in diesem Render auch wirklich ein Label tragen (show_region_label
-		// nicht false, nicht visuell versteckt). Sonst würde eine Quelle zu einer Derived
-		// ausweichen, die selbst kein Label setzt -> Gebiet bliebe ganz ohne Label
-		// (z. B. Herzogtum Weiden bei Zoom 2: Derived außerhalb ihres Füllbands).
-		if (properties && properties.is_derived_geometry === true
-			&& properties.show_region_label !== false
-			&& properties.visual_hidden_by_derived_boundary !== true) {
-			const key = String(properties.territory_public_id || "").trim();
-			if (key) politicalRegionDerivedTerritoryKeys.add(key);
+		if (!properties || properties.is_derived_geometry !== true) {
+			return;
 		}
+		const key = String(properties.territory_public_id || "").trim();
+		if (!key || politicalRegionDerivedByTerritory.has(key)) {
+			return;
+		}
+		const labelable = properties.show_region_label !== false && properties.visual_hidden_by_derived_boundary !== true;
+		politicalRegionDerivedByTerritory.set(key, { labelable, geometry: feature.geometry });
 	});
-	return politicalRegionDerivedTerritoryKeys;
+	return politicalRegionDerivedByTerritory;
 }
 
 function prepareRegionData(data) {
@@ -62,7 +63,7 @@ function clearRenderedRegionLayers() {
 	regionLabels = [];
 	regionData = [];
 	politicalRegionLabeledTerritoryKeys = new Set();
-	politicalRegionDerivedTerritoryKeys = null;
+	politicalRegionDerivedByTerritory = null;
 	clearRegionGeometryEdit();
 }
 
@@ -230,15 +231,16 @@ function addRegionFeatureToMap(region, regionEntry) {
 		const territoryAlreadyLabeled = territoryLabelKey !== "" && politicalRegionLabeledTerritoryKeys.has(territoryLabelKey);
 		// Wenn das Gebiet eine Derived (volle Hülle) hat, soll NUR die das Label tragen
 		// (zentraler polylabel-Punkt) — Quell-Fragmente weichen aus, auch wenn sie früher kommen.
-		const derivedKeys = politicalRegionDerivedTerritoryKeys || indexPoliticalRegionDerivedTerritoryKeys();
-		const deferLabelToDerived = !regionEntry.isDerivedGeometry && territoryLabelKey !== "" && derivedKeys.has(territoryLabelKey);
+		const derivedKeys = politicalRegionDerivedByTerritory || indexPoliticalRegionDerivedByTerritory();
+		const derivedInfo = derivedKeys.get(territoryLabelKey) || null;
+		const deferLabelToDerived = !regionEntry.isDerivedGeometry && territoryLabelKey !== "" && derivedInfo !== null && derivedInfo.labelable === true;
 		if (index === 0 && regionEntry.showRegionLabel !== false && !visuallyHidden && !territoryAlreadyLabeled && !deferLabelToDerived) {
 			if (territoryLabelKey !== "") politicalRegionLabeledTerritoryKeys.add(territoryLabelKey);
 			// Label-Anker = Pole of Inaccessibility (polylabel) der Feature-Geometrie: liegt in
 			// der "dicksten" Stelle (bei MultiPolygon im groessten Teil), auch bei konkaven Formen
 			// sicher INNEN. Fallback: gespeicherter Wert, dann BBox-Mitte.
 			const labelPoi = typeof avesmapsComputeLabelPoint === "function"
-				? avesmapsComputeLabelPoint(region.geometry)
+				? avesmapsComputeLabelPoint((derivedInfo && derivedInfo.geometry) ? derivedInfo.geometry : region.geometry)
 				: null;
 			const labelLatLng = labelPoi
 				? L.latLng(labelPoi.y, labelPoi.x)
