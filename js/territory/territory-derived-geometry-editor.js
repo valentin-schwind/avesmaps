@@ -625,6 +625,14 @@ function readDerivedGeometryLabelCenter(geometry, derivedGeometry = {}) {
 	if (Number.isFinite(labelLng) && Number.isFinite(labelLat)) {
 		return { lng: labelLng, lat: labelLat };
 	}
+	// Pole of Inaccessibility (polylabel): Punkt mit max. Abstand zu allen Kanten -> liegt
+	// in der "dicksten" Stelle (auch bei konkaven/MultiPolygon-Flaechen), statt BBox-Mitte.
+	const poi = typeof window !== "undefined" && typeof window.avesmapsComputeLabelPoint === "function"
+		? window.avesmapsComputeLabelPoint(geometry)
+		: null;
+	if (poi) {
+		return { lng: poi.x, lat: poi.y };
+	}
 	const bounds = calculateGeoJsonGeometryBounds(geometry);
 	if (!bounds) {
 		return null;

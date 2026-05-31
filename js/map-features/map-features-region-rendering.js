@@ -206,9 +206,17 @@ function addRegionFeatureToMap(region, regionEntry) {
 		const territoryAlreadyLabeled = territoryLabelKey !== "" && politicalRegionLabeledTerritoryKeys.has(territoryLabelKey);
 		if (index === 0 && regionEntry.showRegionLabel !== false && !visuallyHidden && !territoryAlreadyLabeled) {
 			if (territoryLabelKey !== "") politicalRegionLabeledTerritoryKeys.add(territoryLabelKey);
-			const labelLatLng = regionEntry.labelLat !== null && regionEntry.labelLng !== null
-				? L.latLng(regionEntry.labelLat, regionEntry.labelLng)
-				: polygon.getBounds().getCenter();
+			// Label-Anker = Pole of Inaccessibility (polylabel) der Feature-Geometrie: liegt in
+			// der "dicksten" Stelle (bei MultiPolygon im groessten Teil), auch bei konkaven Formen
+			// sicher INNEN. Fallback: gespeicherter Wert, dann BBox-Mitte.
+			const labelPoi = typeof avesmapsComputeLabelPoint === "function"
+				? avesmapsComputeLabelPoint(region.geometry)
+				: null;
+			const labelLatLng = labelPoi
+				? L.latLng(labelPoi.y, labelPoi.x)
+				: (regionEntry.labelLat !== null && regionEntry.labelLng !== null
+					? L.latLng(regionEntry.labelLat, regionEntry.labelLng)
+					: polygon.getBounds().getCenter());
 			const label = L.tooltip({
 				permanent: true,
 				direction: "center",
