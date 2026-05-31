@@ -76,7 +76,13 @@ function avesmapsPoliticalReadDerivedGeometrySources(PDO $pdo, array $query): ar
 
     if (($target['territory'] ?? null) !== null) {
         $descendantIds = avesmapsPoliticalCollectDerivedGeometryDescendantIds((int) $target['territory']['id'], $territories);
-        $sourceTerritoryIds = $descendantIds;
+        // Dual-Rolle: ein Knoten MIT Kindern, der ZUSÄTZLICH eine eigene Geometrie hat, nimmt
+        // seine Eigengeometrie in die Union auf (sonst fehlt sie in der Außengrenze UND wird
+        // separat doppelt gezeichnet). Hat das Ziel keine eigene Geometrie, liefert der Fetch
+        // dafuer schlicht nichts -> kein Effekt fuer normale Aggregatoren.
+        $sourceTerritoryIds = $descendantIds !== []
+            ? array_merge([(int) $target['territory']['id']], $descendantIds)
+            : [];
         if ($sourceTerritoryIds !== []) {
             $sourceMode = 'descendants';
         }

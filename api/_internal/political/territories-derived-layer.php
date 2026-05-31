@@ -349,7 +349,13 @@ function avesmapsPoliticalCollectDerivedLayerSourceTerritoryIds(PDO $pdo, array 
     try {
         if ($territoryId > 0) {
             $territories = avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo);
-            $sourceTerritoryIds = avesmapsPoliticalCollectDerivedGeometryDescendantIds($territoryId, $territories);
+            $descendantIds = avesmapsPoliticalCollectDerivedGeometryDescendantIds($territoryId, $territories);
+            // Dual-Rolle: hat der Knoten Kinder, gehoert seine EIGENE Geometrie zu den Quellen
+            // der Derived -> sie wird so (ueber die Geometrie-public_id) versteckt und nicht
+            // doppelt gezeichnet. Spiegelt die Union in territories-derived-geometry.php.
+            if ($descendantIds !== []) {
+                $sourceTerritoryIds = array_merge([$territoryId], $descendantIds);
+            }
         }
 
         if ($sourceTerritoryIds === [] && !empty($properties['derived_wiki_id'])) {
