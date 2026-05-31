@@ -14,7 +14,7 @@ function scheduleLabelCollisionResolution() {
 // damit sie sich nicht überlappen. Eigener Pass (eigene acceptedRects) -> stört Orts-/Frei-
 // Label-Declutter nicht. Wird NICHT versteckt: passt nichts innerhalb der Tension, bleibt
 // das Label zentriert (kleineres Übel als ein fehlendes Gebiets-Label).
-const REGION_LABEL_MAX_TENSION = 28;   // max. Verschiebung in px
+const REGION_LABEL_MAX_TENSION = 40;   // max. Verschiebung in px
 const REGION_LABEL_TENSION_STEP = 7;   // Ring-Schrittweite
 
 function getRegionLabelOffsetCandidates() {
@@ -22,8 +22,9 @@ function getRegionLabelOffsetCandidates() {
 	const directions = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]];
 	for (let radius = REGION_LABEL_TENSION_STEP; radius <= REGION_LABEL_MAX_TENSION; radius += REGION_LABEL_TENSION_STEP) {
 		for (const [unitX, unitY] of directions) {
-			// vertikal etwas geringer ausweichen (Labels sind breiter als hoch).
-			candidates.push({ dx: unitX * radius, dy: unitY * Math.round(radius * 0.7) });
+			// Volle vertikale Reichweite: breite Labels überlappen oft stark horizontal,
+			// aber nur wenig vertikal -> ein vertikaler Versatz ist der kürzeste Ausweg.
+			candidates.push({ dx: unitX * radius, dy: unitY * radius });
 		}
 	}
 	return candidates;
