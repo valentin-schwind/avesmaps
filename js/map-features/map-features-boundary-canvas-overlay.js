@@ -110,13 +110,19 @@
 	map.on("moveend zoomend viewreset resize", () => { redraw(); scheduleSettleRedraws(); });
 	window.AvesmapsBoundaryCanvasOverlay = { redraw, paneName: PANE };
 
-	// Erst-Paint: pollt bis regionData derived-Features hat (asynchroner Initial-Load),
-	// danach übernehmen Karten-Events. Robust gegen die ?v=-Cache-Falle der loader.js.
-	let initialAttempts = 0;
-	(function tryInitialPaint() {
-		redraw();
-		if (!hasDerivedData() && initialAttempts++ < 40) {
-			window.setTimeout(tryInitialPaint, 400);
+	// Signatur-Poll: zeichnet neu, sobald sich der derived-Satz ändert (z. B. nach
+	// 'Grenzen berechnen' + Layer-Reload erhalten die Derived neue public_ids). Deckt auch
+	// den asynchronen Erst-Load ab und ist robust gegen den cache-fragilen Loader-Hook.
+	// redraw() ist billig (wenige Polygone); gezeichnet wird nur bei tatsächlicher Änderung.
+	let lastDerivedSignature = null;
+	window.setInterval(function () {
+		const rd = Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []);
+		let sig = rd.length + "|";
+		for (let i = 0; i < rd.length; i += 1) {
+			const f = rd[i];
+			if (f && f.properties && f.properties.is_derived_geometry === true) sig += (f.properties.public_id || "") + ",";
 		}
-	})();
+		if (sig !== lastDerivedSignature) { lastDerivedSignature = sig; redraw(); }
+	}, 500);
+	redraw();
 })();
