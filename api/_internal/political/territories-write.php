@@ -466,6 +466,10 @@ function avesmapsPoliticalDeleteTerritory(PDO $pdo, array $payload): array {
             'id' => (int) $territory['id'],
         ]);
 
+        // Abgeleitete Aussengrenze des Gebiets UND seiner Vorfahren mit deaktivieren,
+        // sonst bleibt eine veraltete Kontur stehen.
+        avesmapsPoliticalDeactivateDerivedGeometryForTerritoryChain($pdo, (int) $territory['id']);
+
         $pdo->commit();
     } catch (Throwable $exception) {
         if ($pdo->inTransaction()) {

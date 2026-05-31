@@ -461,6 +461,13 @@ function avesmapsPoliticalDeleteGeometry(PDO $pdo, array $payload, array $user =
     try {
         avesmapsPoliticalSoftDeleteGeometryById($pdo, (int) $geometry['id']);
 
+        // Abgeleitete Aussengrenze des Gebiets UND seiner Vorfahren deaktivieren: die
+        // Quelle hat sich geaendert -> jedes daraus aggregierte Aggregat ist veraltet und
+        // wuerde sonst als "Grenze, die nicht verschwinden will" weiterleben.
+        if ($territoryId > 0) {
+            avesmapsPoliticalDeactivateDerivedGeometryForTerritoryChain($pdo, $territoryId, (int) ($user['id'] ?? 0) ?: null);
+        }
+
         if ($territoryId > 0 && $territory !== null) {
             $remainingGeometryCount = avesmapsPoliticalCountActiveGeometriesForTerritory($pdo, $territoryId);
 

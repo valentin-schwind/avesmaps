@@ -318,6 +318,35 @@ function avesmapsPoliticalDeleteDerivedGeometryForTerritory(PDO $pdo, array $ter
     ];
 }
 
+// Beim Loeschen einer Geometrie/eines Territoriums: die abgeleitete Aussengrenze des
+// betroffenen Gebiets UND seiner Vorfahren deaktivieren. Sonst bleibt eine (jetzt veraltete)
+// Derived aktiv und rendert weiter ("Grenze, die nicht verschwinden will"). Die Vorfahren
+// aggregieren das geloeschte Gebiet -> ihr Aggregat ist stale; ihre Aussengrenze muss per
+// "Grenzen berechnen" neu erzeugt werden. Gibt die Anzahl deaktivierter Derived zurueck.
+function avesmapsPoliticalDeactivateDerivedGeometryForTerritoryChain(PDO $pdo, int $territoryId, ?int $userId = null): int {
+    if ($territoryId < 1) {
+        return 0;
+    }
+    $territories = avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo);
+    $ids = array_merge([$territoryId], avesmapsPoliticalCollectDerivedGeometryAncestorIds($territoryId, $territories));
+    $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn(int $id): bool => $id > 0)));
+    if ($ids === []) {
+        return 0;
+    }
+
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $statement = $pdo->prepare(
+        'UPDATE political_territory_derived_geometry
+        SET is_active = 0,
+            updated_by = ?
+        WHERE is_active = 1
+            AND territory_id IN (' . $placeholders . ')'
+    );
+    $statement->execute(array_merge([$userId ?: null], $ids));
+
+    return $statement->rowCount();
+}
+
 function avesmapsPoliticalResolveDerivedGeometryTarget(PDO $pdo, array $input, bool $createMissing = false, array $user = []): array {
     $rawTarget = avesmapsNormalizeSingleLine((string) (
         $input['territory_public_id']
