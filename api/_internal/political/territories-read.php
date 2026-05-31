@@ -1188,7 +1188,7 @@ function avesmapsPoliticalReadOptionalInt(mixed $value): ?int {
 
 function avesmapsPoliticalReadEditorValidTo(array $state, mixed $fallback = null): ?int {
     if (!empty($state['existsUntilToday'])) {
-        return 9999;
+        return null;
     }
 
     if (array_key_exists('endYear', $state)) {

@@ -357,7 +357,7 @@ function avesmapsPoliticalSaveExistingGeometryAssignment(PDO $pdo, array $payloa
             'max_zoom' => $maxZoom,
             'valid_from_bf' => avesmapsPoliticalReadOptionalInt($display['startYear'] ?? $territory['valid_from_bf'] ?? null),
             'valid_to_bf' => !empty($display['existsUntilToday'])
-                ? 9999
+                ? null
                 : avesmapsPoliticalReadOptionalInt($display['endYear'] ?? $territory['valid_to_bf'] ?? null),
         ]);
     }
@@ -510,7 +510,7 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
             'max_zoom' => $maxZoom,
             'valid_from_bf' => avesmapsPoliticalReadOptionalInt($display['startYear'] ?? $territory['valid_from_bf'] ?? null),
             'valid_to_bf' => !empty($display['existsUntilToday'])
-                ? 9999
+                ? null
                 : avesmapsPoliticalReadOptionalInt($display['endYear'] ?? $territory['valid_to_bf'] ?? null),
         ]);
     }
