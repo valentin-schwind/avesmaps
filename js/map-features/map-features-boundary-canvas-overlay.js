@@ -15,7 +15,7 @@
 (function initBoundaryCanvasOverlay() {
 	const PANE = "avesmapsBoundaryCanvasPane";
 	const OUTER_LINE_WIDTH = 4; // doppelt gestrokt, Clip zeigt innere Haelfte -> sichtbar ~2px
-	const INNER_LINE_WIDTH = 1.5;       // Innengrenzen: weiss-gestrichelt, leicht transparent
+	const INNER_LINE_WIDTH = 2;         // Innengrenzen: weiss-gestrichelt, leicht transparent
 	const INNER_LINE_COLOR = "#ffffff";
 	const INNER_LINE_ALPHA = 0.6;
 	const INNER_LINE_DASH = [5, 4];
