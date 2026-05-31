@@ -99,4 +99,7 @@
 	map.on("moveend zoomend viewreset resize", redraw);
 	window.AvesmapsBoundaryCanvasOverlay = { redraw, paneName: PANE };
 	redraw();
+	// Erst-Lade-Race abfangen: der politische Layer lädt asynchron; falls regionData
+	// beim Init noch leer war (und der Loader-Hook vor uns lief), holen wir es nach.
+	[400, 1200, 2500].forEach((delay) => window.setTimeout(redraw, delay));
 })();
