@@ -5,6 +5,22 @@
 // Territorium erzeugt nie zwei Labels (z. B. wenn Derived + Quelle koexistieren).
 let politicalRegionLabeledTerritoryKeys = new Set();
 
+// Territorien, die ein Derived-Feature (Außengrenze = volle Hülle) haben. Deren Label
+// gehört auf die Derived (zentraler polylabel-Punkt), NICHT auf ein zufälliges Quell-
+// Fragment, das in regionData zufällig früher kommt. Lazy pro Render aufgebaut (null = stale).
+let politicalRegionDerivedTerritoryKeys = null;
+
+function indexPoliticalRegionDerivedTerritoryKeys() {
+	politicalRegionDerivedTerritoryKeys = new Set();
+	(Array.isArray(regionData) ? regionData : []).forEach((feature) => {
+		if (feature?.properties?.is_derived_geometry === true) {
+			const key = String(feature.properties.territory_public_id || "").trim();
+			if (key) politicalRegionDerivedTerritoryKeys.add(key);
+		}
+	});
+	return politicalRegionDerivedTerritoryKeys;
+}
+
 function prepareRegionData(data) {
 	politicalTerritoryFallbackData = data;
 	clearRenderedRegionLayers();
@@ -39,6 +55,7 @@ function clearRenderedRegionLayers() {
 	regionLabels = [];
 	regionData = [];
 	politicalRegionLabeledTerritoryKeys = new Set();
+	politicalRegionDerivedTerritoryKeys = null;
 	clearRegionGeometryEdit();
 }
 
@@ -204,7 +221,11 @@ function addRegionFeatureToMap(region, regionEntry) {
 		regionPolygons.push(polygon);
 		const territoryLabelKey = String(regionEntry.territoryPublicId || "").trim();
 		const territoryAlreadyLabeled = territoryLabelKey !== "" && politicalRegionLabeledTerritoryKeys.has(territoryLabelKey);
-		if (index === 0 && regionEntry.showRegionLabel !== false && !visuallyHidden && !territoryAlreadyLabeled) {
+		// Wenn das Gebiet eine Derived (volle Hülle) hat, soll NUR die das Label tragen
+		// (zentraler polylabel-Punkt) — Quell-Fragmente weichen aus, auch wenn sie früher kommen.
+		const derivedKeys = politicalRegionDerivedTerritoryKeys || indexPoliticalRegionDerivedTerritoryKeys();
+		const deferLabelToDerived = !regionEntry.isDerivedGeometry && territoryLabelKey !== "" && derivedKeys.has(territoryLabelKey);
+		if (index === 0 && regionEntry.showRegionLabel !== false && !visuallyHidden && !territoryAlreadyLabeled && !deferLabelToDerived) {
 			if (territoryLabelKey !== "") politicalRegionLabeledTerritoryKeys.add(territoryLabelKey);
 			// Label-Anker = Pole of Inaccessibility (polylabel) der Feature-Geometrie: liegt in
 			// der "dicksten" Stelle (bei MultiPolygon im groessten Teil), auch bei konkaven Formen
