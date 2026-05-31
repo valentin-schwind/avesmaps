@@ -15,6 +15,10 @@
 (function initBoundaryCanvasOverlay() {
 	const PANE = "avesmapsBoundaryCanvasPane";
 	const OUTER_LINE_WIDTH = 4; // doppelt gestrokt, Clip zeigt innere Haelfte -> sichtbar ~2px
+	const INNER_LINE_WIDTH = 1.5;       // Innengrenzen: weiss-gestrichelt, leicht transparent
+	const INNER_LINE_COLOR = "#ffffff";
+	const INNER_LINE_ALPHA = 0.6;
+	const INNER_LINE_DASH = [5, 4];
 
 	function ready() {
 		return typeof map !== "undefined" && map && typeof map.createPane === "function" && typeof L !== "undefined";
@@ -64,6 +68,33 @@
 		return /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(c) ? c : "#4a3620";
 	}
 
+	// Innengrenzen: vorberechnete, deduppte Trennlinien der direkten Kinder (genau 1 Tiefe)
+	// als weiss-gestrichelte, nicht-geclippte Polyline. setLineDash/globalAlpha werden vom
+	// ctx.save()/restore() mit-gesichert und danach zurueckgesetzt.
+	function drawInnerBoundaries(geojson) {
+		if (!geojson) return;
+		const lines = geojson.type === "MultiLineString" ? geojson.coordinates
+			: geojson.type === "LineString" ? [geojson.coordinates]
+			: null;
+		if (!Array.isArray(lines) || !lines.length) return;
+		ctx.save();
+		ctx.beginPath();
+		lines.forEach((line) => {
+			if (!Array.isArray(line) || line.length < 2) return;
+			for (let i = 0; i < line.length; i += 1) {
+				const p = map.latLngToContainerPoint(L.latLng(Number(line[i][1]), Number(line[i][0])));
+				if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+			}
+		});
+		ctx.lineWidth = INNER_LINE_WIDTH;
+		ctx.strokeStyle = INNER_LINE_COLOR;
+		ctx.globalAlpha = INNER_LINE_ALPHA;
+		ctx.setLineDash(INNER_LINE_DASH);
+		ctx.lineJoin = "round";
+		ctx.stroke();
+		ctx.restore();
+	}
+
 	function redraw() {
 		if (!map.getPane(PANE)) return;
 		const size = map.getSize();
@@ -93,6 +124,13 @@
 			ctx.lineJoin = "round";
 			ctx.stroke();
 			ctx.restore();
+
+			// Innengrenzen: nur wenn "Innengrenzen an" UND diese Derived im aktuellen
+			// Fuellband (= aktive Anzeige-Ebene). Beim Reinzoomen uebernehmen die Kinder
+			// das Fuellband und zeigen ihrerseits ihre Innenlinien (rekursiv, Feature #2).
+			if (f.properties.show_inner_boundaries === true && f.properties.derived_fill_active !== false) {
+				drawInnerBoundaries(f.properties.inner_boundary_geojson);
+			}
 		});
 	}
 
