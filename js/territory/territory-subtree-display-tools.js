@@ -87,6 +87,24 @@
 		});
 	}
 
+	async function applyExplicitOpacityUpdates(updates) {
+		const payloadUpdates = (Array.isArray(updates) ? updates : [])
+			.map(update => ({
+				territory_public_id: normalizeText(update.territoryPublicId || update.territory_public_id || ""),
+				opacity: Number(update.opacity)
+			}))
+			.filter(update => update.territory_public_id && Number.isFinite(update.opacity));
+
+		if (payloadUpdates.length < 1) {
+			return { ok: true, changed: 0, received: 0, updates: [] };
+		}
+
+		return submitSubtreeUpdate({
+			action: "update_opacity",
+			updates: payloadUpdates
+		});
+	}
+
 	async function applyOpacityInheritance(root) {
 		const payload = {
 			action: "inherit_opacity",
@@ -129,6 +147,7 @@
 		submitSubtreeUpdate,
 		applyColorHierarchy,
 		applyExplicitColorUpdates,
+		applyExplicitOpacityUpdates,
 		applyOpacityInheritance,
 		reloadEditorAndParentLayers,
 		formatInheritanceMessage,

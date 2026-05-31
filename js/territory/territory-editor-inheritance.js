@@ -172,6 +172,27 @@
 		}).filter(Boolean).sort(compareByDepthAndName);
 	}
 
+	// Geschwister des aktiven Knotens (gleicher Elternknoten), ohne den Knoten selbst.
+	// Für Zoom/Transparenz: alle gleichrangigen Gebiete auf denselben Wert normen.
+	function findSiblings(root) {
+		const rootRow = territoryRows.find(row => (root.territoryPublicId && row.publicId === root.territoryPublicId) || (root.territoryId !== null && row.id === root.territoryId) || (root.wikiKey && row.wikiKey === root.wikiKey) || (root.name && makeKey(row.name) === makeKey(root.name))) || null;
+		if (!rootRow) return [];
+		const rootKey = rootRow.publicId || rootRow.id || rootRow.name;
+		const hasParentId = rootRow.parentId !== null && rootRow.parentId !== undefined && rootRow.parentId !== "";
+		const hasParentPublicId = Boolean(rootRow.parentPublicId);
+		if (!hasParentId && !hasParentPublicId) return [];
+		const seen = new Set();
+		return territoryRows.filter(row => {
+			const key = row.publicId || row.id || row.name;
+			if (!key || key === rootKey || seen.has(key)) return false;
+			const sameParentId = hasParentId && row.parentId === rootRow.parentId;
+			const sameParentPublicId = hasParentPublicId && row.parentPublicId === rootRow.parentPublicId;
+			if (!sameParentId && !sameParentPublicId) return false;
+			seen.add(key);
+			return true;
+		});
+	}
+
 	function buildColorUpdates(root, descendants) {
 		const updates = [{ territoryPublicId: root.territoryPublicId, name: root.name || root.territoryPublicId || "Aktive Ebene", depth: 1, color: root.color }];
 		const byDepth = new Map();
@@ -246,8 +267,11 @@
 			const plan = pendingColorPlan || await createColorPlan(false);
 			messages.push(service.formatInheritanceMessage?.("Farbhierarchie", await service.applyExplicitColorUpdates(plan?.updates || [])) || "Farbhierarchie angewendet.");
 		}
-		if (root && document.getElementById("inheritOpacityToDescendantsCheckbox")?.checked && service?.applyOpacityInheritance) {
-			messages.push(service.formatInheritanceMessage?.("Transparenz", await service.applyOpacityInheritance(root)) || "Transparenz angewendet.");
+		if (root && document.getElementById("inheritOpacityToDescendantsCheckbox")?.checked && service?.applyExplicitOpacityUpdates) {
+			await loadTerritories();
+			const siblingOpacityUpdates = findSiblings(root).map(row => ({ territoryPublicId: row.publicId, opacity: root.opacity })).filter(update => update.territoryPublicId);
+			const opacityResult = await service.applyExplicitOpacityUpdates(siblingOpacityUpdates);
+			messages.push(`Transparenz auf ${siblingOpacityUpdates.length} Geschwisterregionen angewendet (${opacityResult && opacityResult.changed != null ? opacityResult.changed : 0} gespeichert).`);
 		}
 		if (messages.length < 1) return context.result;
 		pendingColorPlan = null;
