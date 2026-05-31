@@ -1072,7 +1072,10 @@ function applySharedBoundaryVertexMove(ownRegion, originalLatLng, targetLatLng) 
 	const affectedRegions = new Set();
 	regionPolygons.forEach((polygon) => {
 		const regionEntry = polygon._regionEntry;
-		if (!regionEntry || regionEntry === ownRegion || regionEntry.source !== "political_territory") {
+		if (!regionEntry || regionEntry === ownRegion || regionEntry.source !== "political_territory" || regionEntry.isDerivedGeometry === true) {
+			// Abgeleitete Außengrenzen NICHT per Shared-Vertex-Edit mitschieben/speichern:
+			// sie sind berechnet (update_geometry auf eine Derived-ID -> 400) und werden
+			// über "Grenzen berechnen" aktualisiert.
 			return;
 		}
 
