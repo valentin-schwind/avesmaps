@@ -101,6 +101,26 @@ function avesmapsPoliticalReadDerivedGeometryPlan(PDO $pdo, array $query): array
         : ($aggregatesChildren((int) $territory['id']) ? [(int) $territory['id']] : []);
     $recomputeIds = array_values(array_unique(array_merge($recomputeIds, $ancestorIds)));
 
+    // Innengrenzen-Compute (Frontend) braucht pro Recompute-Ziel die DIREKTEN Kinder –
+    // auch fuer Ancestors, die nicht in plan_nodes stehen. children_index liefert je
+    // geplanter territory_public_id die public_ids ihrer direkten Kinder (aus der
+    // zuverlaessigen backend-parent_id-Hierarchie).
+    $childrenIndex = [];
+    foreach ($plannedIds as $plannedId) {
+        $row = $territories[(int) $plannedId] ?? null;
+        if (!is_array($row)) {
+            continue;
+        }
+        $childPublicIds = [];
+        foreach ($childrenByParent[(int) $plannedId] ?? [] as $childId) {
+            $childPublicId = (string) ($territories[(int) $childId]['public_id'] ?? '');
+            if ($childPublicId !== '') {
+                $childPublicIds[] = $childPublicId;
+            }
+        }
+        $childrenIndex[(string) ($row['public_id'] ?? '')] = $childPublicIds;
+    }
+
     return [
         'ok' => true,
         'target_key' => $target['target_key'],
@@ -109,6 +129,7 @@ function avesmapsPoliticalReadDerivedGeometryPlan(PDO $pdo, array $query): array
         'selected_year_bf' => $selectedYear,
         'apply_to_subregions' => $applyToSubregions,
         'plan_nodes' => array_values($nodeStates),
+        'children_index' => (object) $childrenIndex,
         'recompute_targets' => avesmapsPoliticalDescribePlanTerritories($recomputeIds, $territories),
         'ancestors_to_refresh' => avesmapsPoliticalDescribePlanTerritories($ancestorIds, $territories),
         'warnings' => $warnings,

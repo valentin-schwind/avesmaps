@@ -225,6 +225,145 @@ function buildDerivedBoundaryFromSourceResponse(response) {
 	return result;
 }
 
+// ===== Innengrenzen (Plan-Schritt 1): deduppte Trennlinien der DIREKTEN Kinder =====
+// Genau 1 Rekursionstiefe: pro direktem Kind dessen saubere Außenkontur (Union ALLER
+// seiner Blatt-Quellen, beliebig tief -> tiefere Nähte werden von der Union aufgelöst),
+// dann Segment-Dedup (eine Kante, die sich genau zwei Kinder teilen = Innengrenze) und
+// zu Linienzügen gestitcht. Ergebnis = GeoJSON MultiLineString (oder null, wenn < 2
+// Kinder oder keine geteilten Kanten). Rendering respektiert separat das Innen-Häkchen.
+const INNER_BOUNDARY_SNAP_DECIMALS = 3;
+
+function roundInnerBoundaryCoordinate(value) {
+	const factor = Math.pow(10, INNER_BOUNDARY_SNAP_DECIMALS);
+	return Math.round(Number(value) * factor) / factor;
+}
+
+function innerBoundaryPointKey(point) {
+	return roundInnerBoundaryCoordinate(point[0]) + "," + roundInnerBoundaryCoordinate(point[1]);
+}
+
+// Alle Ring-Kanten einer GeoJSON-Polygon/MultiPolygon-Geometrie als [a, b]-Punktpaare.
+function collectInnerBoundaryEdges(geometry) {
+	const polygons = geometry?.type === "Polygon"
+		? [geometry.coordinates]
+		: geometry?.type === "MultiPolygon"
+			? geometry.coordinates
+			: [];
+	const edges = [];
+	polygons.forEach((rings) => (rings || []).forEach((ring) => {
+		for (let i = 0; i + 1 < ring.length; i += 1) {
+			edges.push([ring[i], ring[i + 1]]);
+		}
+	}));
+	return edges;
+}
+
+// Greedy-Stitch: geteilte Kanten (jeweils [a, b], bereits gerundet) zu möglichst langen
+// Linienzügen verbinden -> saubere, durchgehende Strich-Phase beim Rendern.
+function stitchInnerBoundaryEdges(edges) {
+	const keyOf = (point) => point[0] + "," + point[1];
+	const adjacency = new Map();
+	edges.forEach((edge, index) => {
+		const ka = keyOf(edge[0]);
+		const kb = keyOf(edge[1]);
+		if (!adjacency.has(ka)) adjacency.set(ka, []);
+		if (!adjacency.has(kb)) adjacency.set(kb, []);
+		adjacency.get(ka).push({ index, to: edge[1], toKey: kb });
+		adjacency.get(kb).push({ index, to: edge[0], toKey: ka });
+	});
+
+	const used = new Array(edges.length).fill(false);
+	const lines = [];
+	for (let start = 0; start < edges.length; start += 1) {
+		if (used[start]) continue;
+		used[start] = true;
+		const line = [edges[start][0], edges[start][1]];
+		let endKey = keyOf(edges[start][1]);
+		for (;;) {
+			const next = (adjacency.get(endKey) || []).find((entry) => !used[entry.index]);
+			if (!next) break;
+			used[next.index] = true;
+			line.push(next.to);
+			endKey = next.toKey;
+		}
+		let startKey = keyOf(edges[start][0]);
+		for (;;) {
+			const prev = (adjacency.get(startKey) || []).find((entry) => !used[entry.index]);
+			if (!prev) break;
+			used[prev.index] = true;
+			line.unshift(prev.to);
+			startKey = prev.toKey;
+		}
+		lines.push(line);
+	}
+	return lines;
+}
+
+// Berechnet die Innengrenzen-MultiLineString eines Ziels aus den Außenkonturen seiner
+// DIREKTEN Kinder (plan.children_index). Liefert null bei < 2 Kindern / keinen geteilten
+// Kanten. Pro Kind: Quellen holen + unioncen (Option A) -> saubere Außenkontur.
+async function computeInnerBoundaryMultiLineString(targetPublicId, plan) {
+	const index = plan && plan.children_index ? plan.children_index : null;
+	const childPublicIds = index && Array.isArray(index[targetPublicId]) ? index[targetPublicId] : [];
+	if (childPublicIds.length < 2) {
+		return null;
+	}
+
+	const childOutlines = [];
+	for (const childPublicId of childPublicIds) {
+		try {
+			const sources = await politicalTerritoryRepository.getDerivedGeometrySources(childPublicId);
+			const result = unionDerivedSources(sources);
+			if (result && result.geometry) {
+				childOutlines.push(result.geometry);
+			}
+		} catch (error) {
+			console.warn("Innengrenzen: Kind-Außenkontur fehlgeschlagen für", childPublicId, error);
+		}
+	}
+	if (childOutlines.length < 2) {
+		return null;
+	}
+
+	// Segment-Dedup: jede Kante normalisiert zählen; Kanten mit Zähler === 2 sind von
+	// zwei Kindern geteilt = echte Innengrenze. Zähler === 1 = Außenrand (verwerfen).
+	const edgeCounts = new Map();
+	const edgeCoords = new Map();
+	childOutlines.forEach((geometry) => {
+		collectInnerBoundaryEdges(geometry).forEach(([a, b]) => {
+			const keyA = innerBoundaryPointKey(a);
+			const keyB = innerBoundaryPointKey(b);
+			if (keyA === keyB) {
+				return; // gerundet zusammengefallene Null-Kante
+			}
+			const edgeKey = keyA < keyB ? keyA + "|" + keyB : keyB + "|" + keyA;
+			edgeCounts.set(edgeKey, (edgeCounts.get(edgeKey) || 0) + 1);
+			if (!edgeCoords.has(edgeKey)) {
+				edgeCoords.set(edgeKey, [
+					[roundInnerBoundaryCoordinate(a[0]), roundInnerBoundaryCoordinate(a[1])],
+					[roundInnerBoundaryCoordinate(b[0]), roundInnerBoundaryCoordinate(b[1])],
+				]);
+			}
+		});
+	});
+
+	const sharedEdges = [];
+	edgeCounts.forEach((count, edgeKey) => {
+		if (count === 2) {
+			sharedEdges.push(edgeCoords.get(edgeKey));
+		}
+	});
+	if (sharedEdges.length < 1) {
+		return null;
+	}
+
+	const lineStrings = stitchInnerBoundaryEdges(sharedEdges).filter((line) => Array.isArray(line) && line.length >= 2);
+	if (lineStrings.length < 1) {
+		return null;
+	}
+	return { type: "MultiLineString", coordinates: lineStrings };
+}
+
 // Liest das bestehende Innengrenzen-Flag eines Ziels, damit Neuberechnung/Kaskade es
 // ERHALTEN statt es hart auf false zu klobbern (sonst verliert ein Elterngebiet beim
 // Bearbeiten eines Kindes seine bewusste "Innengrenzen an"-Wahl). Default false nur,
@@ -251,6 +390,7 @@ async function recomputeDerivedBoundaryForTargetSilently(targetPublicId, plan) {
 		return { skipped: true };
 	}
 	const showInnerBoundaries = await readExistingShowInnerBoundaries(targetPublicId);
+	const innerBoundary = await computeInnerBoundaryMultiLineString(targetPublicId, plan);
 	await politicalTerritoryRepository.saveDerivedGeometry({
 		territory_public_id: targetPublicId,
 		geometry_geojson: result.geometry,
@@ -261,6 +401,8 @@ async function recomputeDerivedBoundaryForTargetSilently(targetPublicId, plan) {
 		max_zoom: "",
 		// Inner-Flag des Ziels ERHALTEN (Default false nur für neue Außengrenzen, s. readExistingShowInnerBoundaries).
 		show_inner_boundaries: showInnerBoundaries,
+		// Vorberechnete Innengrenzen (deduppte Trennlinien der direkten Kinder, 1 Tiefe).
+		inner_boundary_geojson: innerBoundary,
 		source_revision: findDerivedBoundaryPlanSourceRevision(plan, targetPublicId),
 		is_active: true,
 	});
@@ -341,6 +483,7 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 
 		const sourceRevision = findDerivedBoundaryPlanSourceRevision(plan, territoryPublicId);
 		const showInnerBoundaries = typeof options.showInnerBoundaries === "boolean" ? options.showInnerBoundaries : await readExistingShowInnerBoundaries(territoryPublicId);
+		const innerBoundary = await computeInnerBoundaryMultiLineString(territoryPublicId, plan);
 		const saved = await politicalTerritoryRepository.saveDerivedGeometry({
 			territory_public_id: territoryPublicId,
 			geometry_geojson: result.geometry,
@@ -350,6 +493,8 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 			max_zoom: "",
 			// Inner-Flag des Ziels ERHALTEN (Default false nur für neue Außengrenzen, s. readExistingShowInnerBoundaries).
 			show_inner_boundaries: showInnerBoundaries,
+			// Vorberechnete Innengrenzen (deduppte Trennlinien der direkten Kinder, 1 Tiefe).
+			inner_boundary_geojson: innerBoundary,
 			source_revision: sourceRevision,
 			is_active: true,
 		});
