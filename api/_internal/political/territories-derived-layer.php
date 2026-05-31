@@ -45,10 +45,10 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
                     $feature
                 );
             }
-        } elseif (($feature['properties']['show_inner_boundaries'] ?? true) === true
-            && ($feature['properties']['derived_fill_active'] ?? true) === true) {
-            // Innengrenzen AN + im Fuellband: Quellraender stumm schalten (nur Fuellung bleibt),
-            // das Canvas malt aussen solid + innen weiss-gestrichelt.
+        } elseif (($feature['properties']['show_inner_boundaries'] ?? true) === true) {
+            // Innengrenzen AN (an die Aussenkontur gekoppelt, NICHT ans Fuellband): Quellraender
+            // ueber ALLE Zoomstufen stumm schalten (nur Fuellung bleibt), das Canvas malt aussen
+            // solid + innen weiss-gestrichelt. So verschwinden die Unterteilungen nicht am Bandrand.
             foreach ($sourceTerritoryPublicIds as $sourceTerritoryPublicId) {
                 if ($sourceTerritoryPublicId !== $territoryPublicId) {
                     $strokeHiddenByTerritoryPublicId[$sourceTerritoryPublicId] = $territoryPublicId;

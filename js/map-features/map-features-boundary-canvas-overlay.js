@@ -125,10 +125,10 @@
 			ctx.stroke();
 			ctx.restore();
 
-			// Innengrenzen: nur wenn "Innengrenzen an" UND diese Derived im aktuellen
-			// Fuellband (= aktive Anzeige-Ebene). Beim Reinzoomen uebernehmen die Kinder
-			// das Fuellband und zeigen ihrerseits ihre Innenlinien (rekursiv, Feature #2).
-			if (f.properties.show_inner_boundaries === true && f.properties.derived_fill_active !== false) {
+			// Innengrenzen: sichtbar wann immer die Derived existiert UND "Innengrenzen an"
+			// (an die Außenkontur gekoppelt, NICHT ans Fuellband) -> die Unterteilungen
+			// bleiben ueber alle Zoomstufen konsistent statt am Bandrand zu verschwinden.
+			if (f.properties.show_inner_boundaries === true) {
 				drawInnerBoundaries(f.properties.inner_boundary_geojson);
 			}
 		});
