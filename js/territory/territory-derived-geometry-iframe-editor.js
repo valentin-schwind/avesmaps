@@ -84,7 +84,7 @@
 					<span>Außengrenzen darstellen</span>
 				</label>
 				<label class="manual-data-checkbox" id="derivedGeometryInnerBoundariesLabel">
-					<input id="derivedGeometryInnerBoundariesInput" type="checkbox" checked>
+					<input id="derivedGeometryInnerBoundariesInput" type="checkbox">
 					<span>Innengrenzen darstellen</span>
 				</label>
 				<label class="manual-data-checkbox" id="derivedGeometryRecursiveLabel">
@@ -178,7 +178,9 @@
 		if (!input) return;
 		input.disabled = !state.canShowInnerBoundaries;
 		if (!state.canShowInnerBoundaries) {
-			input.checked = true;
+			// Ein Knoten ohne Kind-/Unterflächen (Blatt) hat keine Innengrenzen –
+			// das Häkchen leer + deaktiviert zeigen, NICHT auf "an" zwingen.
+			input.checked = false;
 		}
 		label?.classList.toggle("derived-geometry-inner-boundaries-disabled", !state.canShowInnerBoundaries);
 	}
@@ -197,7 +199,7 @@
 		ensurePanel();
 		const targetKey = getTargetKey(value || undefined);
 		state = createEmptyState({ targetKey });
-		document.getElementById("derivedGeometryInnerBoundariesInput").checked = true;
+		document.getElementById("derivedGeometryInnerBoundariesInput").checked = false;
 		updateInnerBoundaryControl();
 		if (!targetKey) {
 			document.getElementById("derivedGeometryEnabledInput").checked = false;
