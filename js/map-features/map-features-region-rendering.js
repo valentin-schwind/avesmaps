@@ -66,7 +66,9 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 	const levelLineStyle = window.AvesmapsBoundaryStyle?.lineStyleFor?.(regionEntry) || null;
 	// Abgeleitete Außengrenzen zeichnet jetzt das Canvas-Overlay (clip-inside); die
 	// SVG-Kontur der derived wird daher unterdrueckt (weight 0), Fuellung bleibt.
-	const weight = regionEntry.isDerivedGeometry ? 0 : (levelLineStyle ? levelLineStyle.weight : 2);
+	// Ebenso Quellflaechen unter einer aktiven Innen-Derived (strokeHidden): nur Fuellung,
+	// keinen soliden Rand – das Canvas malt aussen solid + innen weiss-gestrichelt.
+	const weight = regionEntry.isDerivedGeometry || regionEntry.strokeHiddenByDerivedBoundary ? 0 : (levelLineStyle ? levelLineStyle.weight : 2);
 
 	const style = {
 		color: regionEntry.color,

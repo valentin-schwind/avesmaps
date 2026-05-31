@@ -58,6 +58,7 @@ function normalizeRegionFeature(feature) {
 		derivedFillActive: properties.derived_fill_active !== false,
 		visualHiddenByDerivedBoundary: properties.visual_hidden_by_derived_boundary === true,
 		hiddenByDerivedTerritoryPublicId: properties.hidden_by_derived_territory_public_id || "",
+		strokeHiddenByDerivedBoundary: properties.stroke_hidden_by_derived_boundary === true,
 		isActive: properties.is_active !== false,
 		editorNotes: properties.editor_notes || "",
 		revision: Number(properties.revision) || null,

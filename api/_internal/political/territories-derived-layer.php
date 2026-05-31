@@ -14,6 +14,11 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
 
     $hiddenByTerritoryPublicId = [];
     $hiddenByGeometryPublicId = [];
+    // Stroke-Hide (Innengrenzen AN): Quellflaechen unter einer aktiven Innen-Derived behalten
+    // ihre Fuellung, aber KEINEN soliden Rand (weight 0) – das Canvas-Overlay zeichnet alle
+    // Grenzen (aussen solid, innen weiss-gestrichelt). Sonst kaemen die rohen Quellraender durch.
+    $strokeHiddenByTerritoryPublicId = [];
+    $strokeHiddenByGeometryPublicId = [];
     foreach ($derivedFeatures as &$feature) {
         $territoryPublicId = trim((string) ($feature['properties']['territory_public_id'] ?? ''));
         // C (Innengrenzen-Styling): die Quell-IDs der Außengrenze IMMER mitliefern, damit
@@ -40,6 +45,18 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
                     $feature
                 );
             }
+        } elseif (($feature['properties']['show_inner_boundaries'] ?? true) === true
+            && ($feature['properties']['derived_fill_active'] ?? true) === true) {
+            // Innengrenzen AN + im Fuellband: Quellraender stumm schalten (nur Fuellung bleibt),
+            // das Canvas malt aussen solid + innen weiss-gestrichelt.
+            foreach ($sourceTerritoryPublicIds as $sourceTerritoryPublicId) {
+                if ($sourceTerritoryPublicId !== $territoryPublicId) {
+                    $strokeHiddenByTerritoryPublicId[$sourceTerritoryPublicId] = $territoryPublicId;
+                }
+            }
+            foreach ($sourceGeometryPublicIds as $sourceGeometryPublicId) {
+                $strokeHiddenByGeometryPublicId[$sourceGeometryPublicId] = $territoryPublicId;
+            }
         }
     }
     unset($feature);
@@ -61,6 +78,20 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
         if ($hiddenBy !== '') {
             $feature['properties']['visual_hidden_by_derived_boundary'] = true;
             $feature['properties']['hidden_by_derived_territory_public_id'] = $hiddenBy;
+        } else {
+            // Voll-Hide hat Vorrang; sonst Stroke-Hide pruefen (Innengrenzen AN).
+            $strokeHiddenBy = '';
+            if ($geometryPublicId !== '' && isset($strokeHiddenByGeometryPublicId[$geometryPublicId])) {
+                $strokeHiddenBy = $strokeHiddenByGeometryPublicId[$geometryPublicId];
+            } elseif ($territoryPublicId !== '' && isset($strokeHiddenByTerritoryPublicId[$territoryPublicId])) {
+                $strokeHiddenBy = $strokeHiddenByTerritoryPublicId[$territoryPublicId];
+            } elseif ($aggregateSourceTerritoryPublicId !== '' && isset($strokeHiddenByTerritoryPublicId[$aggregateSourceTerritoryPublicId])) {
+                $strokeHiddenBy = $strokeHiddenByTerritoryPublicId[$aggregateSourceTerritoryPublicId];
+            }
+            if ($strokeHiddenBy !== '') {
+                $feature['properties']['stroke_hidden_by_derived_boundary'] = true;
+                $feature['properties']['stroke_hidden_by_derived_territory_public_id'] = $strokeHiddenBy;
+            }
         }
         $baseFeatures[] = $feature;
     }
