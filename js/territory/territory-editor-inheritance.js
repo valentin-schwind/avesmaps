@@ -199,15 +199,44 @@
 
 	function buildColorUpdates(root, descendants) {
 		const updates = [{ territoryPublicId: root.territoryPublicId, name: root.name || root.territoryPublicId || "Aktive Ebene", depth: 1, color: root.color }];
-		const byDepth = new Map();
-		for (const row of descendants) addToMapList(byDepth, Math.max(1, Number(row.depth || 1)) + 1, row);
-		for (const depth of [...byDepth.keys()].sort((a, b) => a - b)) {
-			const rows = byDepth.get(depth);
-			for (let index = 0; index < rows.length; index += 1) {
-				const row = rows[index];
-				updates.push({ territoryPublicId: row.publicId, name: row.name || row.publicId, depth, color: createHueVariant(root.color, depth, index, rows.length, row.publicId || row.name) });
-			}
+
+		// Rekursive Ableitung: jede Ebene variiert die bereits zugewiesene Farbe IHRES
+		// direkten Elternknotens (Variation von Variation), statt alle aus der Wurzel-Farbe
+		// zu rechnen -> die Farbe "wandert" mit leichten Abweichungen die Hierarchie hinab.
+		// Wurzel-Keys aus den direkten Kindern ableiten (root.territoryPublicId kann ein
+		// wiki:-Key sein, die echten parent-Keys der Kinder zeigen auf die UUID/ID).
+		const directChildren = descendants.filter(row => Number(row.depth || 0) === 1);
+		const rootPublicId = String(directChildren[0]?.parentPublicId || root.territoryPublicId || "").trim();
+		const rootId = directChildren[0]?.parentId ?? root.territoryId ?? null;
+
+		const colorByKey = new Map();
+		const rememberColor = (publicId, id, color) => {
+			if (publicId) colorByKey.set("pid:" + publicId, color);
+			if (id !== null && id !== undefined && id !== "") colorByKey.set("id:" + id, color);
+		};
+		rememberColor(rootPublicId, rootId, root.color);
+
+		// Geschwister je Elternknoten (fuer die Hue-Spreizung innerhalb einer Familie).
+		const siblingsByParent = new Map();
+		for (const row of descendants) {
+			addToMapList(siblingsByParent, String(row.parentPublicId || row.parentId || "").trim(), row);
 		}
+
+		// In Tiefen-Reihenfolge, damit die Elternfarbe vor den Kindern feststeht.
+		const ordered = [...descendants].sort((left, right) => (Number(left.depth || 0) - Number(right.depth || 0)) || String(left.name || "").localeCompare(String(right.name || ""), "de"));
+		for (const row of ordered) {
+			const parentColor = colorByKey.get("pid:" + String(row.parentPublicId || "").trim())
+				?? colorByKey.get("id:" + (row.parentId ?? ""))
+				?? root.color;
+			const siblings = siblingsByParent.get(String(row.parentPublicId || row.parentId || "").trim()) || [row];
+			const siblingIndex = Math.max(0, siblings.findIndex(entry => (entry.publicId && entry.publicId === row.publicId) || (entry.id != null && entry.id === row.id)));
+			// depth: 2 = "eine Ebene unter dem Elternknoten" -> konstante, leichte Abweichung pro
+			// Schritt; die Helligkeitsstaffelung in createHueVariant kumuliert ueber die Tiefe.
+			const color = createHueVariant(parentColor, 2, siblingIndex, siblings.length, row.publicId || row.name);
+			rememberColor(row.publicId, row.id, color);
+			updates.push({ territoryPublicId: row.publicId, name: row.name || row.publicId, depth: Math.max(1, Number(row.depth || 1)) + 1, color });
+		}
+
 		appendMissingBreadcrumbDepths(root, updates);
 		return updates.filter(update => update.territoryPublicId || update.depth === 1).sort(compareByDepthAndName);
 	}
