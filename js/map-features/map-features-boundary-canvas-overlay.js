@@ -96,10 +96,27 @@
 		});
 	}
 
-	map.on("moveend zoomend viewreset resize", redraw);
+	function hasDerivedData() {
+		const rd = Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []);
+		return rd.some((f) => f && f.properties && f.properties.is_derived_geometry === true);
+	}
+
+	// Nach Karten-Interaktion lädt der politische Layer debounced+async neu -> ein paar
+	// "settle"-Redraws holen den frischen regionData-Stand nach (unabhängig vom Loader-Hook).
+	function scheduleSettleRedraws() {
+		[120, 350, 800].forEach((delay) => window.setTimeout(redraw, delay));
+	}
+
+	map.on("moveend zoomend viewreset resize", () => { redraw(); scheduleSettleRedraws(); });
 	window.AvesmapsBoundaryCanvasOverlay = { redraw, paneName: PANE };
-	redraw();
-	// Erst-Lade-Race abfangen: der politische Layer lädt asynchron; falls regionData
-	// beim Init noch leer war (und der Loader-Hook vor uns lief), holen wir es nach.
-	[400, 1200, 2500].forEach((delay) => window.setTimeout(redraw, delay));
+
+	// Erst-Paint: pollt bis regionData derived-Features hat (asynchroner Initial-Load),
+	// danach übernehmen Karten-Events. Robust gegen die ?v=-Cache-Falle der loader.js.
+	let initialAttempts = 0;
+	(function tryInitialPaint() {
+		redraw();
+		if (!hasDerivedData() && initialAttempts++ < 40) {
+			window.setTimeout(tryInitialPaint, 400);
+		}
+	})();
 })();
