@@ -47,6 +47,14 @@
 			try {
 				parentWindow.closePoliticalTerritoryEditor = function deferPoliticalTerritoryEditorClose() {
 					closeRequested = true;
+					// Der Save fordert den Close per setTimeout(0) an -> dieser Recorder kann
+					// als Macrotask ERST NACH complete() feuern (das closeRequested synchron
+					// prueft). Ist die Completion schon durch (restored), holen wir den echten
+					// Close hier direkt nach, sonst bliebe der Editor nach dem Speichern offen.
+					if (restored && originalClose) {
+						try { parentWindow.setTimeout(originalClose, 0); }
+						catch (error) { try { originalClose(); } catch (innerError) {} }
+					}
 				};
 			} catch (error) {
 				// If the parent cannot be patched, saving still continues normally.
