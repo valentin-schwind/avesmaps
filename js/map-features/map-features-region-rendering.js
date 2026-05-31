@@ -207,7 +207,11 @@ function addRegionFeatureToMap(region, regionEntry) {
 		const polygon = L.polygon(latlngs, {
 			pane: "regionsPane",
 			...polygonStyle,
-			interactive: IS_EDIT_MODE || regionEntry.source === "political_territory",
+			// Abgeleitete Außengrenzen sind nicht-interaktiv: ihre Kontur zeichnet das
+			// Canvas-Overlay, das SVG-Polygon ist nur (ggf. unsichtbare) Füllung und darf
+			// keine Klicks/Vertex-Edits abfangen (sonst landet update_geometry auf einer
+			// Derived-ID -> "Geometrie nicht gefunden"). Klicks gehen an die Quellen.
+			interactive: (IS_EDIT_MODE || regionEntry.source === "political_territory") && !regionEntry.isDerivedGeometry,
 		});
 		polygon._regionEntry = regionEntry;
 		polygon._regionPolygonIndex = index;
