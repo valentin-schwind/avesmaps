@@ -87,11 +87,11 @@
 					<input id="derivedGeometryInnerBoundariesInput" type="checkbox" checked>
 					<span>Innengrenzen darstellen</span>
 				</label>
-				<label class="manual-data-checkbox derived-geometry-recursive-control" id="derivedGeometryRecursiveLabel" title="Der hierarchische Modus wird nach dem Backend-Vertrag aktiviert.">
-					<input id="derivedGeometryRecursiveInput" type="checkbox" disabled>
+				<label class="manual-data-checkbox" id="derivedGeometryRecursiveLabel">
+					<input id="derivedGeometryRecursiveInput" type="checkbox">
 					<span>Für alle Unterregionen übernehmen</span>
 				</label>
-				<small class="derived-geometry-mode-note">Erzeugt derzeit nur die Außengrenze des oben ausgewählten Gebiets. Unterregionen werden nicht einzeln neu berechnet.</small>
+				<small class="derived-geometry-mode-note">Erzeugt die Außengrenze des oben ausgewählten Gebiets (inkl. automatischer Aktualisierung der Übergebiete). Mit aktivem Häkchen werden auch die Außengrenzen der Unterregionen neu berechnet.</small>
 				<div id="derivedGeometryPreviewRow" class="derived-geometry-preview-row" hidden>
 					<div id="derivedGeometryThumbnail" class="derived-geometry-thumbnail" aria-label="Vorschau der Außengrenze"></div>
 					<p id="derivedGeometryStatus" class="note" role="status" aria-live="polite"></p>
@@ -113,6 +113,7 @@
 			state.dirty = true;
 			renderPreview();
 		});
+		document.getElementById("derivedGeometryRecursiveInput")?.addEventListener("change", () => { state.dirty = true; });
 		setPreviewVisible(false);
 		updateInnerBoundaryControl();
 	}
@@ -393,11 +394,14 @@
 		const targetKey = getTargetKey(context.value);
 		if (!targetKey) return null;
 		if (!enabled) {
-			return submitDerivedGeometry({ action: "delete_derived_geometry", target_key: readResolvedSaveTargetKey(targetKey) });
+			state.dirty = false; return submitDerivedGeometry({ action: "delete_derived_geometry", target_key: readResolvedSaveTargetKey(targetKey) });
 		}
 		const geometry = state.geometry || await rebuildPreview();
 		const labelCenter = state.labelCenter || readLabelCenter(geometry);
 		const saveTargetKey = readResolvedSaveTargetKey(targetKey);
+		const cascadeEngine = window.AvesmapsDerivedBoundaryEditor;
+		if (cascadeEngine && typeof cascadeEngine.generateOrUpdateForTerritory === "function") { state.dirty = false; return cascadeEngine.generateOrUpdateForTerritory(saveTargetKey, { applyToSubregions: document.getElementById("derivedGeometryRecursiveInput")?.checked === true, drawPreview: false, showInnerBoundaries: state.canShowInnerBoundaries && document.getElementById("derivedGeometryInnerBoundariesInput")?.checked === true }); }
+		// Fallback (Kaskaden-Engine nicht geladen): alter Direkt-Save ohne Kaskade.
 		return submitDerivedGeometry({
 			action: "save_derived_geometry",
 			target_key: saveTargetKey,

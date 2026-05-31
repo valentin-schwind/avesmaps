@@ -340,7 +340,7 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 		setDerivedGeometryEditorStatus(`${targetName}: Außengrenze wird gespeichert...`, "pending");
 
 		const sourceRevision = findDerivedBoundaryPlanSourceRevision(plan, territoryPublicId);
-		const showInnerBoundaries = await readExistingShowInnerBoundaries(territoryPublicId);
+		const showInnerBoundaries = typeof options.showInnerBoundaries === "boolean" ? options.showInnerBoundaries : await readExistingShowInnerBoundaries(territoryPublicId);
 		const saved = await politicalTerritoryRepository.saveDerivedGeometry({
 			territory_public_id: territoryPublicId,
 			geometry_geojson: result.geometry,
