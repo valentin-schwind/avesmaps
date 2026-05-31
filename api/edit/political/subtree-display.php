@@ -37,6 +37,7 @@ try {
     $response = match ($action) {
         'update_colors' => avesmapsPoliticalSubtreeDisplayUpdateColors($pdo, $payload, $user),
         'update_opacity' => avesmapsPoliticalSubtreeDisplayUpdateOpacity($pdo, $payload, $user),
+        'update_zoom' => avesmapsPoliticalSubtreeDisplayUpdateZoom($pdo, $payload, $user),
         'inherit_colors' => avesmapsPoliticalSubtreeDisplayInheritColors($pdo, $payload, $user),
         'inherit_opacity' => avesmapsPoliticalSubtreeDisplayInheritOpacity($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Subtree-Darstellungsaktion ist unbekannt.'),
@@ -116,6 +117,57 @@ function avesmapsPoliticalSubtreeDisplayUpdateOpacity(PDO $pdo, array $payload, 
         $publicId = avesmapsPoliticalSubtreeDisplayReadPublicId($update['territory_public_id'] ?? $update['territoryPublicId'] ?? '');
         $parameters = [
             ':opacity' => $opacity,
+            ':public_id' => $publicId,
+        ];
+        if ($supportsUpdatedBy) {
+            $parameters[':updated_by'] = (int) ($user['id'] ?? 0);
+        }
+        $statement->execute($parameters);
+        $changed += $statement->rowCount();
+    }
+
+    return [
+        'ok' => true,
+        'changed' => $changed,
+        'received' => count($updates),
+    ];
+}
+
+function avesmapsPoliticalSubtreeDisplayReadOptionalZoom(mixed $value): ?int {
+    if ($value === null || $value === '') {
+        return null;
+    }
+    $zoom = filter_var($value, FILTER_VALIDATE_INT);
+    if ($zoom === false || $zoom < 0 || $zoom > 6) {
+        throw new InvalidArgumentException('Die Zoomstufe ist ungueltig.');
+    }
+    return (int) $zoom;
+}
+
+function avesmapsPoliticalSubtreeDisplayUpdateZoom(PDO $pdo, array $payload, array $user): array {
+    $updates = avesmapsPoliticalSubtreeDisplayReadUpdates($payload['updates'] ?? null);
+    $supportsUpdatedBy = avesmapsPoliticalSubtreeDisplayHasTerritoryUpdatedByColumn($pdo);
+    $statement = $pdo->prepare(
+        $supportsUpdatedBy
+            ? 'UPDATE political_territory
+        SET min_zoom = :min_zoom,
+            max_zoom = :max_zoom,
+            updated_by = :updated_by
+        WHERE public_id = :public_id'
+            : 'UPDATE political_territory
+        SET min_zoom = :min_zoom,
+            max_zoom = :max_zoom
+        WHERE public_id = :public_id'
+    );
+
+    $changed = 0;
+    foreach ($updates as $update) {
+        $minZoom = avesmapsPoliticalSubtreeDisplayReadOptionalZoom($update['min_zoom'] ?? $update['minZoom'] ?? null);
+        $maxZoom = avesmapsPoliticalSubtreeDisplayReadOptionalZoom($update['max_zoom'] ?? $update['maxZoom'] ?? null);
+        $publicId = avesmapsPoliticalSubtreeDisplayReadPublicId($update['territory_public_id'] ?? $update['territoryPublicId'] ?? '');
+        $parameters = [
+            ':min_zoom' => $minZoom,
+            ':max_zoom' => $maxZoom,
             ':public_id' => $publicId,
         ];
         if ($supportsUpdatedBy) {

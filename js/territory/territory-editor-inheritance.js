@@ -273,6 +273,12 @@
 			const opacityResult = await service.applyExplicitOpacityUpdates(siblingOpacityUpdates);
 			messages.push(`Transparenz auf ${siblingOpacityUpdates.length} Geschwisterregionen angewendet (${opacityResult && opacityResult.changed != null ? opacityResult.changed : 0} gespeichert).`);
 		}
+		if (root && document.getElementById("inheritZoomToDescendantsCheckbox")?.checked && service?.applyExplicitZoomUpdates) {
+			await loadTerritories();
+			const siblingZoomUpdates = findSiblings(root).map(row => ({ territoryPublicId: row.publicId, minZoom: root.zoomMin, maxZoom: root.zoomMax })).filter(update => update.territoryPublicId);
+			const zoomResult = await service.applyExplicitZoomUpdates(siblingZoomUpdates);
+			messages.push(`Zoom auf ${siblingZoomUpdates.length} Geschwisterregionen angewendet (${zoomResult && zoomResult.changed != null ? zoomResult.changed : 0} gespeichert).`);
+		}
 		if (messages.length < 1) return context.result;
 		pendingColorPlan = null;
 		service?.reloadEditorAndParentLayers?.();

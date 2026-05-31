@@ -105,6 +105,25 @@
 		});
 	}
 
+	async function applyExplicitZoomUpdates(updates) {
+		const payloadUpdates = (Array.isArray(updates) ? updates : [])
+			.map(update => ({
+				territory_public_id: normalizeText(update.territoryPublicId || update.territory_public_id || ""),
+				min_zoom: update.minZoom ?? update.min_zoom ?? "",
+				max_zoom: update.maxZoom ?? update.max_zoom ?? ""
+			}))
+			.filter(update => update.territory_public_id);
+
+		if (payloadUpdates.length < 1) {
+			return { ok: true, changed: 0, received: 0, updates: [] };
+		}
+
+		return submitSubtreeUpdate({
+			action: "update_zoom",
+			updates: payloadUpdates
+		});
+	}
+
 	async function applyOpacityInheritance(root) {
 		const payload = {
 			action: "inherit_opacity",
@@ -148,6 +167,7 @@
 		applyColorHierarchy,
 		applyExplicitColorUpdates,
 		applyExplicitOpacityUpdates,
+		applyExplicitZoomUpdates,
 		applyOpacityInheritance,
 		reloadEditorAndParentLayers,
 		formatInheritanceMessage,

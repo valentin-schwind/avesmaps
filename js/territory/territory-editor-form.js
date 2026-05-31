@@ -90,7 +90,7 @@
 		const displayState = getDisplayState();
 		if (!root || !displayState?.updateDescendantDisplays) return value;
 
-		const inheritZoom = Boolean(document.getElementById("inheritZoomToDescendantsCheckbox")?.checked);
+		const inheritZoom = false; // Zoom wird jetzt auf Geschwister angewendet (inheritance.js), nicht mehr ueber den Breadcrumb-Pfad.
 		const inheritValidity = Boolean(document.getElementById("inheritValidityToDescendantsCheckbox")?.checked);
 		if (!inheritZoom && !inheritValidity) return value;
 
