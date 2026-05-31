@@ -1,5 +1,10 @@
 // Verarbeitung der Regionen
 // Regions
+
+// B: pro Render-Durchlauf merken, welche Territorien schon ein Label haben -> ein
+// Territorium erzeugt nie zwei Labels (z. B. wenn Derived + Quelle koexistieren).
+let politicalRegionLabeledTerritoryKeys = new Set();
+
 function prepareRegionData(data) {
 	politicalTerritoryFallbackData = data;
 	clearRenderedRegionLayers();
@@ -33,6 +38,7 @@ function clearRenderedRegionLayers() {
 	regionPolygons = [];
 	regionLabels = [];
 	regionData = [];
+	politicalRegionLabeledTerritoryKeys = new Set();
 	clearRegionGeometryEdit();
 }
 
@@ -180,7 +186,10 @@ function addRegionFeatureToMap(region, regionEntry) {
 			polygon.bringToBack();
 		}
 		regionPolygons.push(polygon);
-		if (index === 0 && regionEntry.showRegionLabel !== false && !visuallyHidden) {
+		const territoryLabelKey = String(regionEntry.territoryPublicId || "").trim();
+		const territoryAlreadyLabeled = territoryLabelKey !== "" && politicalRegionLabeledTerritoryKeys.has(territoryLabelKey);
+		if (index === 0 && regionEntry.showRegionLabel !== false && !visuallyHidden && !territoryAlreadyLabeled) {
+			if (territoryLabelKey !== "") politicalRegionLabeledTerritoryKeys.add(territoryLabelKey);
 			const labelLatLng = regionEntry.labelLat !== null && regionEntry.labelLng !== null
 				? L.latLng(regionEntry.labelLat, regionEntry.labelLng)
 				: polygon.getBounds().getCenter();
