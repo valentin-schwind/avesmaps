@@ -142,7 +142,7 @@ function enableBlankEditMapStyle() {
         }
 
         activeMapStyle = "none";
-        mapElement.style.backgroundColor = "#fff";
+        mapElement.style.backgroundColor = "#e8e8e8"; // dezentes Grau statt Weiss als leerer Hintergrund
         selectElement.value = "none";
 
         if (options.persist) {
