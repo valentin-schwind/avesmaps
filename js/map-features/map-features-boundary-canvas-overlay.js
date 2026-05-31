@@ -79,7 +79,7 @@
 		feats.forEach((f) => {
 			const polys = polygonsOf(f.geometry);
 			if (!polys.length) return;
-			const color = normalizeColor(f.properties.color);
+			const color = normalizeColor(f.properties.fill || f.properties.stroke || f.properties.color);
 			// "inside"-Kontur: auf das Polygon-Innere clippen, dann doppelt breit stroken
 			// -> sichtbar bleibt die innere Haelfte, exakt auf der Grenze.
 			ctx.save();
