@@ -383,13 +383,17 @@ async function readExistingShowInnerBoundaries(territoryPublicId) {
 
 // Berechnet und speichert die Außengrenze EINES Targets ohne UI-/Vorschau-Seiteneffekte.
 // Wird von der Kaskade benutzt, um Ancestors (und optional Unterregionen) mitzuziehen.
-async function recomputeDerivedBoundaryForTargetSilently(targetPublicId, plan) {
+async function recomputeDerivedBoundaryForTargetSilently(targetPublicId, plan, showInnerOverride = null) {
 	const sources = await politicalTerritoryRepository.getDerivedGeometrySources(targetPublicId);
 	const result = unionDerivedSources(sources);
 	if (!result) {
 		return { skipped: true };
 	}
-	const showInnerBoundaries = await readExistingShowInnerBoundaries(targetPublicId);
+	// Innen-Flag: bei "Fuer alle Unterregionen" wird die Wahl des geklickten Knotens auf den
+	// Teilbaum vererbt (showInnerOverride); sonst pro Knoten den Bestand ERHALTEN.
+	const showInnerBoundaries = typeof showInnerOverride === "boolean"
+		? showInnerOverride
+		: await readExistingShowInnerBoundaries(targetPublicId);
 	const innerBoundary = await computeInnerBoundaryMultiLineString(targetPublicId, plan);
 	await politicalTerritoryRepository.saveDerivedGeometry({
 		territory_public_id: targetPublicId,
@@ -517,10 +521,20 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 			const cascadeTargets = (Array.isArray(plan?.recompute_targets) ? plan.recompute_targets : [])
 				.map((entry) => String(entry?.territory_public_id || "").trim())
 				.filter((publicId) => publicId && publicId !== territoryPublicId);
+			// "Fuer alle Unterregionen" + explizit gesetztes Innen-Haekchen -> dessen Wert auf
+			// den ganzen Teilbaum vererben (an ODER aus). Vorfahren (ancestors_to_refresh)
+			// bleiben unberuehrt; ohne explizites Haekchen (z. B. Rechtsklick) wird nichts vererbt.
+			const ancestorSet = new Set((Array.isArray(plan?.ancestors_to_refresh) ? plan.ancestors_to_refresh : [])
+				.map((entry) => String(entry?.territory_public_id || "").trim())
+				.filter(Boolean));
+			const propagateInner = applyToSubregions && typeof options.showInnerBoundaries === "boolean"
+				? options.showInnerBoundaries
+				: null;
 			let cascadeSaved = 0;
 			for (const cascadeTargetPublicId of cascadeTargets) {
 				try {
-					const cascadeResult = await recomputeDerivedBoundaryForTargetSilently(cascadeTargetPublicId, plan);
+					const overrideForTarget = (propagateInner !== null && !ancestorSet.has(cascadeTargetPublicId)) ? propagateInner : null;
+					const cascadeResult = await recomputeDerivedBoundaryForTargetSilently(cascadeTargetPublicId, plan, overrideForTarget);
 					if (cascadeResult && cascadeResult.saved) cascadeSaved += 1;
 				} catch (cascadeError) {
 					console.warn("Kaskaden-Neuberechnung fehlgeschlagen für", cascadeTargetPublicId, cascadeError);
