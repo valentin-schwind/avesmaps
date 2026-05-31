@@ -83,6 +83,8 @@ function avesmapsPoliticalReadDerivedLayerFeaturesSafely(PDO $pdo, int $yearBf, 
 function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $zoom, ?array $bbox): array {
     $supportsInnerBoundaries = avesmapsPoliticalDerivedLayerSupportsInnerBoundaries($pdo);
     $showInnerBoundariesSql = $supportsInnerBoundaries ? 'derived.show_inner_boundaries AS show_inner_boundaries' : '1 AS show_inner_boundaries';
+    $supportsInnerBoundaryGeojson = avesmapsPoliticalDerivedLayerSupportsInnerBoundaryGeojson($pdo);
+    $innerBoundaryGeojsonSql = $supportsInnerBoundaryGeojson ? 'derived.inner_boundary_geojson AS inner_boundary_geojson' : 'NULL AS inner_boundary_geojson';
     $conditions = [
         'territory.is_active = 1',
         'derived.is_active = 1',
@@ -161,7 +163,8 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
             derived.public_id AS derived_geometry_public_id,
             derived.label_lng,
             derived.label_lat,
-            ' . $showInnerBoundariesSql . '
+            ' . $showInnerBoundariesSql . ',
+            ' . $innerBoundaryGeojsonSql . '
         FROM political_territory_derived_geometry derived
         INNER JOIN political_territory territory ON territory.id = derived.territory_id
         LEFT JOIN political_territory parent ON parent.id = territory.parent_id
@@ -196,6 +199,10 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
         $feature['properties']['is_derived_geometry'] = true;
         $feature['properties']['is_aggregate'] = true;
         $feature['properties']['show_inner_boundaries'] = $showInnerBoundaries;
+        // Vorberechnete Innengrenzen (deduppte Trennlinien der direkten Kinder, 1 Tiefe);
+        // null wenn das Ziel keine hat. Das Canvas-Overlay zeichnet sie weiss-gestrichelt.
+        $innerBoundaryGeojson = avesmapsPoliticalDecodeJson($row['inner_boundary_geojson'] ?? null);
+        $feature['properties']['inner_boundary_geojson'] = $innerBoundaryGeojson === [] ? null : $innerBoundaryGeojson;
         $feature['properties']['derived_fill_active'] = $inFillBand;
         // Label nur im eigenen Fuellband; ausserhalb ist die Derived nur ein Umriss.
         $feature['properties']['show_region_label'] = $inFillBand;
@@ -231,6 +238,22 @@ function avesmapsPoliticalDerivedLayerSupportsInnerBoundaries(PDO $pdo): bool {
     }
 
     return $supportsInnerBoundaries;
+}
+
+function avesmapsPoliticalDerivedLayerSupportsInnerBoundaryGeojson(PDO $pdo): bool {
+    static $supportsInnerBoundaryGeojson = null;
+    if ($supportsInnerBoundaryGeojson !== null) {
+        return $supportsInnerBoundaryGeojson;
+    }
+
+    try {
+        $statement = $pdo->query("SHOW COLUMNS FROM political_territory_derived_geometry LIKE 'inner_boundary_geojson'");
+        $supportsInnerBoundaryGeojson = is_array($statement->fetch(PDO::FETCH_ASSOC));
+    } catch (Throwable) {
+        $supportsInnerBoundaryGeojson = false;
+    }
+
+    return $supportsInnerBoundaryGeojson;
 }
 
 function avesmapsPoliticalReadDerivedSourceTerritoryPublicIds(PDO $pdo, array $derivedFeature): array {
