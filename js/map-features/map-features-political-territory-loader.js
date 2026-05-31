@@ -510,6 +510,11 @@ async function loadPoliticalTerritoryLayer() {
 		});
 		syncRegionVisibility();
 		window.AvesmapsBoundaryCanvasOverlay?.redraw?.();
+		// Territorie-Label-Abstoßung NACH dem Label-Render auslösen (sonst überschreibt der
+		// Reload das Ergebnis wieder -> Label "springt" und die Abstoßung bleibt wirkungslos).
+		if (typeof scheduleLabelCollisionResolution === "function") {
+			scheduleLabelCollisionResolution();
+		}
 	} catch (error) {
 		console.warn("Herrschaftsgebiete konnten nicht geladen werden:", error);
 		politicalTerritoryApiUnavailable = false;
