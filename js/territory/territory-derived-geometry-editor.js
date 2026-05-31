@@ -462,16 +462,21 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 		if (Array.isArray(plan?.blocking_warnings) && plan.blocking_warnings.length > 0) {
 			throw new Error(plan.blocking_warnings[0]?.message || "Boundary-Plan hat blockierende Warnungen.");
 		}
-		// Cause-Fix: Blätter (keine Kind-Quellen) bekommen KEINE eigene Außengrenze –
-		// ihre Grenze ist bereits ihre Quellgeometrie. Verhindert die redundante
-		// doppelte Kontur + das doppelte Label (z. B. Moghulat Oron, Kibrom, Olrong).
+		// Cause-Fix: Blätter MIT Elternknoten bekommen KEINE eigene Außengrenze – ihre Grenze
+		// zeigt bereits das aggregierende Elterngebiet (sonst redundante doppelte Kontur/Label,
+		// z. B. Moghulat Oron, Kibrom, Olrong). AUSNAHME: ein ROOT ohne Kinder (eigenständiges
+		// Reich wie Bergkönigreich Koschim) hat keinen Elternknoten, der es zeichnet -> es darf
+		// eine Derived aus seiner EIGENEN Geometrie erzeugen und so die saubere Canvas-Kontur
+		// (clip-inside) bekommen. Innengrenzen bleiben dort sinnvoll deaktiviert (0 Kinder).
 		const targetPlanNode = (Array.isArray(plan?.plan_nodes) ? plan.plan_nodes : [])
 			.find((node) => String(node?.territory_public_id || "") === String(territoryPublicId));
-		if (targetPlanNode && Number(targetPlanNode.child_boundary_source_count || 0) === 0) {
+		const isLeaf = targetPlanNode && Number(targetPlanNode.child_boundary_source_count || 0) === 0;
+		const isRoot = targetPlanNode && Number(targetPlanNode.parent_id || 0) === 0;
+		if (isLeaf && !isRoot) {
 			setDerivedGeometryEditorBusy(false);
 			setDerivedGeometryEditorProgress(0, false);
-			setDerivedGeometryEditorStatus("Blätter brauchen keine eigene Außengrenze – ihre Grenze ist die Quellgeometrie.", "info");
-			showFeedbackToast("Dieses Gebiet hat keine Unterregionen – keine eigene Außengrenze nötig.", "info");
+			setDerivedGeometryEditorStatus("Untergebiete-Blätter brauchen keine eigene Außengrenze – ihre Grenze zeigt das übergeordnete Gebiet.", "info");
+			showFeedbackToast("Dieses Untergebiet hat keine Unterregionen – seine Grenze kommt vom übergeordneten Gebiet.", "info");
 			return null;
 		}
 		setDerivedGeometryEditorProgress(22, true);
