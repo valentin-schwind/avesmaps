@@ -14,12 +14,12 @@
  */
 (function initBoundaryCanvasOverlay() {
 	const PANE = "avesmapsBoundaryCanvasPane";
-	const OUTER_LINE_WIDTH = 4; // doppelt gestrokt, Clip zeigt innere Haelfte -> sichtbar ~2px
+	const OUTER_LINE_WIDTH = 2; // doppelt gestrokt, Clip zeigt innere Haelfte -> sichtbar ~1px
 	const INNER_LINE_WIDTH = 2;         // Innengrenzen: weiss-gestrichelt, leicht transparent
 	const INNER_LINE_COLOR = "#ffffff";
 	const INNER_LINE_ALPHA = 0.6;
 	const INNER_LINE_DASH = [5, 4];
-	const OUTER_LINE_COLOR = "#ffffff";              // Aussenkontur statisch weiss (null = Territoriumsfarbe)
+	const OUTER_LINE_COLOR = "#d3d3d3";              // Aussenkontur statisch hellgrau (null = Territoriumsfarbe)
 
 	function ready() {
 		return typeof map !== "undefined" && map && typeof map.createPane === "function" && typeof L !== "undefined";
