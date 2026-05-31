@@ -79,7 +79,7 @@ function avesmapsPoliticalSubtreeDisplayUpdateColors(PDO $pdo, array $payload, a
     $changed = 0;
     foreach ($updates as $update) {
         $color = avesmapsPoliticalSubtreeDisplayReadColor($update['color'] ?? '');
-        $publicId = avesmapsPoliticalSubtreeDisplayReadPublicId($update['territory_public_id'] ?? $update['territoryPublicId'] ?? '');
+        $publicId = avesmapsPoliticalSubtreeDisplayResolveTerritoryPublicId($pdo, $update['territory_public_id'] ?? $update['territoryPublicId'] ?? '');
         $parameters = [
             ':color' => $color,
             ':public_id' => $publicId,
@@ -115,7 +115,7 @@ function avesmapsPoliticalSubtreeDisplayUpdateOpacity(PDO $pdo, array $payload, 
     $changed = 0;
     foreach ($updates as $update) {
         $opacity = avesmapsPoliticalSubtreeDisplayReadOpacity($update['opacity'] ?? null);
-        $publicId = avesmapsPoliticalSubtreeDisplayReadPublicId($update['territory_public_id'] ?? $update['territoryPublicId'] ?? '');
+        $publicId = avesmapsPoliticalSubtreeDisplayResolveTerritoryPublicId($pdo, $update['territory_public_id'] ?? $update['territoryPublicId'] ?? '');
         $parameters = [
             ':opacity' => $opacity,
             ':public_id' => $publicId,
@@ -165,7 +165,7 @@ function avesmapsPoliticalSubtreeDisplayUpdateZoom(PDO $pdo, array $payload, arr
     foreach ($updates as $update) {
         $minZoom = avesmapsPoliticalSubtreeDisplayReadOptionalZoom($update['min_zoom'] ?? $update['minZoom'] ?? null);
         $maxZoom = avesmapsPoliticalSubtreeDisplayReadOptionalZoom($update['max_zoom'] ?? $update['maxZoom'] ?? null);
-        $publicId = avesmapsPoliticalSubtreeDisplayReadPublicId($update['territory_public_id'] ?? $update['territoryPublicId'] ?? '');
+        $publicId = avesmapsPoliticalSubtreeDisplayResolveTerritoryPublicId($pdo, $update['territory_public_id'] ?? $update['territoryPublicId'] ?? '');
         $parameters = [
             ':min_zoom' => $minZoom,
             ':max_zoom' => $maxZoom,
@@ -219,7 +219,7 @@ function avesmapsPoliticalSubtreeDisplayUpdateValidity(PDO $pdo, array $payload,
         $validTo = $existsUntilToday
             ? null
             : avesmapsPoliticalSubtreeDisplayReadOptionalYear($update['valid_to_bf'] ?? $update['endYear'] ?? null);
-        $publicId = avesmapsPoliticalSubtreeDisplayReadPublicId($update['territory_public_id'] ?? $update['territoryPublicId'] ?? '');
+        $publicId = avesmapsPoliticalSubtreeDisplayResolveTerritoryPublicId($pdo, $update['territory_public_id'] ?? $update['territoryPublicId'] ?? '');
         $parameters = [
             ':valid_from_bf' => $validFrom,
             ':valid_to_bf' => $validTo,
@@ -882,6 +882,41 @@ function avesmapsPoliticalSubtreeDisplayReadPublicId(mixed $value): string {
     }
 
     return $publicId;
+}
+
+// Loest eine Update-Ziel-ID auf die echte territory.public_id (UUID) auf. UUIDs werden direkt
+// verwendet; ein stabiler wiki:-Key (aus wiki-aventurica, ueberlebt Baum-/DB-Aenderungen) wird
+// ueber wiki_key auf die aktuelle Territory-UUID gemappt. So greift z. B. der Wurzelknoten der
+// Farbhierarchie, der bewusst per wiki_key statt per fluechtiger UUID adressiert wird.
+function avesmapsPoliticalSubtreeDisplayResolveTerritoryPublicId(PDO $pdo, mixed $value): string {
+    $raw = avesmapsPoliticalSubtreeDisplayReadPublicId($value);
+    if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $raw) === 1) {
+        return strtolower($raw);
+    }
+
+    $wikiKey = $raw;
+    if (stripos($wikiKey, 'wiki:') === 0) {
+        $wikiKey = substr($wikiKey, 5);
+    }
+    $wikiKey = trim($wikiKey);
+    if ($wikiKey !== '') {
+        $statement = $pdo->prepare(
+            'SELECT territory.public_id
+            FROM political_territory territory
+            INNER JOIN political_territory_wiki wiki ON wiki.id = territory.wiki_id
+            WHERE territory.is_active = 1 AND wiki.wiki_key = :wiki_key
+            ORDER BY territory.id ASC
+            LIMIT 1'
+        );
+        $statement->execute([':wiki_key' => $wikiKey]);
+        $resolved = trim((string) ($statement->fetchColumn() ?: ''));
+        if ($resolved !== '') {
+            return $resolved;
+        }
+    }
+
+    // Fallback: roh zurueck (matcht ggf. nichts -> wie bisher, keine Regression).
+    return $raw;
 }
 
 function avesmapsPoliticalSubtreeDisplayReadOptionalTerritoryId(mixed $value): ?int {
