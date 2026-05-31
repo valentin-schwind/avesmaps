@@ -1,7 +1,7 @@
 "use strict";
 
 function openPoliticalTerritoryWikiSyncSettingsInNewTab() {
-	const settingsUrl = "/html/wiki-dom-sync-settings.html";
+	const settingsUrl = "/html/wiki-dom-playground.html";
 	const openedWindow = window.open(settingsUrl, "_blank");
 	if (openedWindow) {
 		openedWindow.opener = null;
