@@ -1351,7 +1351,7 @@
 			return Boolean(node?.row?.map_assigned) || Number(node?.row?.map_geometry_count || 0) > 0;
 		}
 
-		function showNodeDetails(node) {
+		function showNodeDetails(node, options = {}) {
 			selectedNode = node;
 			// Aktiven Knoten SOFORT in den beobachtbaren Store publizieren (Funnel aller
 			// Selektionswechsel: Tree-Klick, Breadcrumb-Sprung, Geschwister-Blaettern).
@@ -1373,8 +1373,18 @@
 			// Vorfahren aufklappen + ins Sichtfeld scrollen. Gilt einheitlich fuer
 			// Tree-Klick, Breadcrumb-Sprung und Pfeil-Cycling. Defensiv gekapselt,
 			// damit nichts bricht, falls die Tree-Komponente fehlt.
+			// Bei Breadcrumb-Navigation (scrollTreeIntoView=false) NUR die Vorfahren
+			// aufklappen, damit der Baum den Knoten zeigt, aber den Editor NICHT
+			// automatisch dorthin scrollen (sonst springt die Ansicht auf den Baum).
 			try {
-				if (wikiTreeComponent && typeof wikiTreeComponent.revealNode === "function") {
+				if (options.scrollTreeIntoView === false) {
+					const item = els.treeView.querySelector(`.tree-item[data-node-id="${cssEscape(node.id)}"]`);
+					let ancestor = item ? item.parentElement : null;
+					while (ancestor && ancestor !== els.treeView) {
+						if (ancestor.tagName === "DETAILS") ancestor.open = true;
+						ancestor = ancestor.parentElement;
+					}
+				} else if (wikiTreeComponent && typeof wikiTreeComponent.revealNode === "function") {
 					wikiTreeComponent.revealNode(els.treeView, node.id);
 				}
 			} catch (error) { /* Reveal ist optional. */ }
@@ -1691,7 +1701,8 @@
 			renderManualEditPath(rootNode, activeIndex);
 			applyDisplayStateToForm(getDisplayStateForNode(editedNode));
 			updateInheritColorVarianceButtonVisibility();
-			showNodeDetails(editedNode);
+			// Breadcrumb-Navigation: Baum aktualisieren, aber Editor nicht auto-scrollen.
+			showNodeDetails(editedNode, { scrollTreeIntoView: false });
 		}
 
 		function descendToFirstLeaf(node) {
