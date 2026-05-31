@@ -178,6 +178,10 @@
 	}
 
 	function loadScriptOnce(src) {
+		const editorAssetVersion = window.AvesmapsPoliticalTerritoryEditorInlineHost && window.AvesmapsPoliticalTerritoryEditorInlineHost.assetVersion;
+		if (editorAssetVersion && src.indexOf("v=") < 0) {
+			src += (src.indexOf("?") >= 0 ? "&" : "?") + "v=" + editorAssetVersion;
+		}
 		return new Promise((resolve, reject) => {
 			const existingScript = document.querySelector(`script[src="${src}"]`);
 			if (existingScript) {
