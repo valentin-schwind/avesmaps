@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Inside-Outline Prototyp — Breitenbruck vs. Weihenhorst</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 20px; background:#f5f3ee; color:#2b2b2b; }
+  h1 { font-size: 18px; }
+  .row { display:flex; gap:24px; flex-wrap:wrap; }
+  .panel { background:#fff; border:1px solid #ccc; border-radius:8px; padding:10px; }
+  .panel h2 { font-size:14px; margin:0 0 6px; }
+  .panel p { font-size:12px; color:#666; margin:6px 0 0; max-width:360px; }
+  canvas { background:#e9e6df; border-radius:4px; display:block; }
+  .controls { margin:12px 0; font-size:13px; }
+  .controls label { margin-right:14px; }
+  code { background:#eee; padding:1px 4px; border-radius:3px; }
+</style>
+</head>
+<body>
+<h1>Inside-Outline Prototyp — Baronie Breitenbruck (rot) & Weihenhorst (grün)</h1>
+<div class="controls">
+  <label>Linienbreite W: <input id="w" type="range" min="1" max="14" value="5"> <span id="wv">5</span>px</label>
+  <label>Inset-Distanz d (nur B): <input id="d" type="range" min="1" max="14" value="5"> <span id="dv">5</span>px</label>
+  <label><input id="flip" type="checkbox" checked> Y nach oben (Norden oben)</label>
+  <label>Benchmark Polygone: <input id="bn" type="number" value="1000" min="100" step="100" style="width:70px"></label>
+  <button id="bench">Benchmark Naiv vs. Clip</button>
+  <span id="benchOut" style="font-weight:bold"></span>
+</div>
+<div class="row">
+  <div class="panel"><h2>Naiv (Stroke zentriert)</h2><canvas id="cNaive" width="380" height="380"></canvas>
+    <p>Beide Konturen liegen mittig auf der Grenze → an der gemeinsamen Kante überlappen sie, eine Farbe „gewinnt" (Z-Order). Das ist der Ist-Zustand.</p></div>
+  <div class="panel"><h2>A · Clip (innen, auf der Grenze)</h2><canvas id="cClip" width="380" height="380"></canvas>
+    <p>Stroke doppelt breit, auf das Polygon-Innere geclippt → sichtbar bleibt die innere Hälfte, exakt auf der Grenze. Zwei Nachbarn: je eine Farblinie auf ihrer Seite, kein Overlap.</p></div>
+  <div class="panel"><h2>B · Inset (negativer Buffer)</h2><canvas id="cInset" width="380" height="380"></canvas>
+    <p>Verkleinertes Polygon (Miter-Inset um d) wird gestrokt. Achte auf konkave Ecken / schmale Stellen — dort entstehen Spikes/Selbstüberschneidungen.</p></div>
+</div>
+
+<script src="geom.js"></script>
+<script>
+(function(){
+  const COLORS = { breitenbruck: "#d23b3b", weihenhorst: "#2a9d54" };
+  const G = window.PROTO_GEOM || {};
+  const polys = Object.keys(G).map(k => ({
+    name: k, color: COLORS[k] || "#3366cc",
+    ring: outerRing(G[k] && G[k].geometry)
+  })).filter(p => p.ring && p.ring.length >= 3);
+
+  function outerRing(geom){
+    if(!geom) return null;
+    if(geom.type === "Polygon") return dedupeClose(geom.coordinates[0]);
+    if(geom.type === "MultiPolygon") return dedupeClose(geom.coordinates[0][0]);
+    return null;
+  }
+  function dedupeClose(ring){
+    if(!Array.isArray(ring)) return null;
+    const r = ring.map(p => [Number(p[0]), Number(p[1])]);
+    // letztes Element entfernen, wenn es das erste dupliziert (offener Ring)
+    if(r.length>1 && r[0][0]===r[r.length-1][0] && r[0][1]===r[r.length-1][1]) r.pop();
+    return r;
+  }
+
+  // gemeinsame Bounding-Box ueber beide Polygone
+  function bounds(){
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    polys.forEach(p=>p.ring.forEach(([x,y])=>{minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y);}));
+    return {minX,minY,maxX,maxY};
+  }
+
+  function makeTransform(W,H,pad){
+    const b = bounds();
+    const flip = document.getElementById("flip").checked;
+    const sx = (W-2*pad)/Math.max(1e-6,(b.maxX-b.minX));
+    const sy = (H-2*pad)/Math.max(1e-6,(b.maxY-b.minY));
+    const s = Math.min(sx,sy);
+    return ([x,y]) => {
+      const px = pad + (x-b.minX)*s;
+      const py = pad + (y-b.minY)*s;
+      return [px, flip ? (H-py) : py];
+    };
+  }
+
+  function toPixels(ring, tf){ return ring.map(tf); }
+
+  function pathRing(ctx, pts){
+    ctx.beginPath();
+    pts.forEach((p,i)=> i? ctx.lineTo(p[0],p[1]) : ctx.moveTo(p[0],p[1]));
+    ctx.closePath();
+  }
+
+  function fill(ctx, pts, color){
+    pathRing(ctx, pts);
+    ctx.globalAlpha = 0.33;
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Miter-Inset im Pixelraum (zeigt bewusst Spikes an konkaven Ecken)
+  function inset(pts, d){
+    const n = pts.length; if(n<3) return pts.slice();
+    let cx=0,cy=0; pts.forEach(p=>{cx+=p[0];cy+=p[1];}); cx/=n; cy/=n;
+    function inwardNormal(a,b){
+      let dx=b[0]-a[0], dy=b[1]-a[1]; const L=Math.hypot(dx,dy)||1;
+      let nx=-dy/L, ny=dx/L;
+      const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2;
+      if((cx-mx)*nx+(cy-my)*ny < 0){ nx=-nx; ny=-ny; }
+      return [nx,ny];
+    }
+    const out=[];
+    for(let i=0;i<n;i++){
+      const prev=pts[(i-1+n)%n], cur=pts[i], next=pts[(i+1)%n];
+      const n1=inwardNormal(prev,cur), n2=inwardNormal(cur,next);
+      let bx=n1[0]+n2[0], by=n1[1]+n2[1];
+      const bl=Math.hypot(bx,by)||1; bx/=bl; by/=bl;
+      let dot=bx*n1[0]+by*n1[1];
+      if(Math.abs(dot)<0.25) dot = 0.25*(dot<0?-1:1); // Miter-Limit gegen extreme Spikes
+      const off=d/dot;
+      out.push([cur[0]+bx*off, cur[1]+by*off]);
+    }
+    return out;
+  }
+
+  function clear(ctx){ ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height); }
+
+  function drawNaive(ctx, W){
+    clear(ctx);
+    const tf = makeTransform(ctx.canvas.width, ctx.canvas.height, 24);
+    polys.forEach(p=>{ const px=toPixels(p.ring,tf); fill(ctx,px,p.color); });
+    polys.forEach(p=>{
+      const px=toPixels(p.ring,tf);
+      pathRing(ctx,px); ctx.lineWidth=W; ctx.strokeStyle=p.color; ctx.lineJoin="round"; ctx.stroke();
+    });
+  }
+
+  function drawClip(ctx, W){
+    clear(ctx);
+    const tf = makeTransform(ctx.canvas.width, ctx.canvas.height, 24);
+    polys.forEach(p=>{ const px=toPixels(p.ring,tf); fill(ctx,px,p.color); });
+    polys.forEach(p=>{
+      const px=toPixels(p.ring,tf);
+      ctx.save();
+      pathRing(ctx,px); ctx.clip();           // nur Inneres
+      pathRing(ctx,px);
+      ctx.lineWidth=W*2; ctx.strokeStyle=p.color; ctx.lineJoin="round"; ctx.stroke(); // doppelt -> innere Haelfte sichtbar
+      ctx.restore();
+    });
+  }
+
+  function drawInset(ctx, W, d){
+    clear(ctx);
+    const tf = makeTransform(ctx.canvas.width, ctx.canvas.height, 24);
+    polys.forEach(p=>{ const px=toPixels(p.ring,tf); fill(ctx,px,p.color); });
+    polys.forEach(p=>{
+      const px=toPixels(p.ring,tf);
+      const ins=inset(px,d);
+      pathRing(ctx,ins); ctx.lineWidth=W; ctx.strokeStyle=p.color; ctx.lineJoin="round"; ctx.stroke();
+    });
+  }
+
+  function renderAll(){
+    const W=+document.getElementById("w").value;
+    const d=+document.getElementById("d").value;
+    document.getElementById("wv").textContent=W;
+    document.getElementById("dv").textContent=d;
+    drawNaive(document.getElementById("cNaive").getContext("2d"), W);
+    drawClip(document.getElementById("cClip").getContext("2d"), W);
+    drawInset(document.getElementById("cInset").getContext("2d"), W, d);
+  }
+
+  if(!polys.length){
+    document.body.insertAdjacentHTML("beforeend","<p style='color:#c00'>Keine Geometrie geladen — liegt geom.js neben der HTML?</p>");
+    return;
+  }
+  // Benchmark: dieselben Polygone N-mal zeichnen, Naiv vs. Clip in ms messen.
+  // Off-Screen-Canvas, gleiche Pixelmenge, damit nur die Zeichen-Technik verglichen wird.
+  function benchmark(){
+    const N = Math.max(100, +document.getElementById("bn").value || 1000);
+    const W = +document.getElementById("w").value;
+    const cv = document.createElement("canvas"); cv.width=380; cv.height=380;
+    const ctx = cv.getContext("2d");
+    const tf = makeTransform(cv.width, cv.height, 24);
+    const pix = polys.map(p => ({ color:p.color, px: toPixels(p.ring, tf) }));
+    // jeweils N gesamte Durchläufe beider Polygone
+    function runNaive(){
+      for(let k=0;k<N;k++){ ctx.clearRect(0,0,cv.width,cv.height);
+        pix.forEach(p=>{ fill(ctx,p.px,p.color); });
+        pix.forEach(p=>{ pathRing(ctx,p.px); ctx.lineWidth=W; ctx.strokeStyle=p.color; ctx.lineJoin="round"; ctx.stroke(); });
+      }
+    }
+    function runClip(){
+      for(let k=0;k<N;k++){ ctx.clearRect(0,0,cv.width,cv.height);
+        pix.forEach(p=>{ fill(ctx,p.px,p.color); });
+        pix.forEach(p=>{ ctx.save(); pathRing(ctx,p.px); ctx.clip(); pathRing(ctx,p.px); ctx.lineWidth=W*2; ctx.strokeStyle=p.color; ctx.lineJoin="round"; ctx.stroke(); ctx.restore(); });
+      }
+    }
+    runNaive(); runClip(); // warmup
+    let t0=performance.now(); runNaive(); const tN=performance.now()-t0;
+    t0=performance.now(); runClip(); const tC=performance.now()-t0;
+    const perPolyN = tN/(N*pix.length), perPolyC = tC/(N*pix.length);
+    document.getElementById("benchOut").textContent =
+      `${N}× je ${pix.length} Polygone — Naiv ${tN.toFixed(0)}ms | Clip ${tC.toFixed(0)}ms | Faktor ${(tC/tN).toFixed(2)}× | pro Polygon: Naiv ${(perPolyN*1000).toFixed(1)}µs, Clip ${(perPolyC*1000).toFixed(1)}µs`;
+  }
+  document.getElementById("bench").addEventListener("click", benchmark);
+  ["w","d","flip"].forEach(id=>document.getElementById(id).addEventListener("input",renderAll));
+  renderAll();
+})();
+</script>
+</body>
+</html>
