@@ -509,6 +509,7 @@ async function loadPoliticalTerritoryLayer() {
 			addRegionFeatureToMap(region, normalizeRegionFeature(region));
 		});
 		syncRegionVisibility();
+		window.AvesmapsBoundaryCanvasOverlay?.redraw?.();
 	} catch (error) {
 		console.warn("Herrschaftsgebiete konnten nicht geladen werden:", error);
 		politicalTerritoryApiUnavailable = false;
