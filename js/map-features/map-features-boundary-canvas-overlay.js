@@ -19,8 +19,7 @@
 	const INNER_LINE_COLOR = "#ffffff";
 	const INNER_LINE_ALPHA = 0.6;
 	const INNER_LINE_DASH = [5, 4];
-	const OUTER_GLOW_BLUR = 3;                       // schmaler, leichter weisser Glow auf der Aussenkontur
-	const OUTER_GLOW_COLOR = "rgba(255, 255, 255, 0.6)";
+	const OUTER_LINE_COLOR = "#ffffff";              // Aussenkontur statisch weiss (null = Territoriumsfarbe)
 
 	function ready() {
 		return typeof map !== "undefined" && map && typeof map.createPane === "function" && typeof L !== "undefined";
@@ -122,11 +121,8 @@
 			ctx.beginPath();
 			tracePolys(polys);
 			ctx.lineWidth = OUTER_LINE_WIDTH;
-			ctx.strokeStyle = color;
+			ctx.strokeStyle = OUTER_LINE_COLOR || color;
 			ctx.lineJoin = "round";
-			// schmaler, leichter weisser Glow (nur Aussenkontur; durch den Clip nach innen).
-			ctx.shadowColor = OUTER_GLOW_COLOR;
-			ctx.shadowBlur = OUTER_GLOW_BLUR;
 			ctx.stroke();
 			ctx.restore();
 
