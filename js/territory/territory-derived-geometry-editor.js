@@ -29,8 +29,8 @@ function ensureDerivedGeometryEditorPanel() {
 				<span>Außengrenzen darstellen</span>
 			</label>
 			<label class="location-report-form__checkbox">
-				<input id="region-edit-derived-geometry-all-descendants" name="derived_geometry_all_descendants" type="checkbox" disabled />
-				<span>Für alle Unterregionen übernehmen <small>folgt nach dem Einzelgebiet-Durchstich</small></span>
+				<input id="region-edit-derived-geometry-all-descendants" name="derived_geometry_all_descendants" type="checkbox" />
+				<span>Für alle Unterregionen übernehmen <small>berechnet auch die Außengrenzen der Untergebiete neu</small></span>
 			</label>
 			<div class="location-report-form__grid">
 				<label class="location-report-form__field">

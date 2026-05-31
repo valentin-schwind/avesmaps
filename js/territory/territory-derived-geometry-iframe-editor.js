@@ -420,23 +420,19 @@
 		if (!enabled) {
 			state.dirty = false; return submitDerivedGeometry({ action: "delete_derived_geometry", target_key: readResolvedSaveTargetKey(targetKey) });
 		}
-		const geometry = state.geometry || await rebuildPreview();
-		const labelCenter = state.labelCenter || readLabelCenter(geometry);
+		// Außengrenze erzeugen/aktualisieren läuft IMMER über die geteilte Kaskaden-Engine
+		// (Modul B, AvesmapsDerivedBoundaryEditor) — gleiches Verhalten wie der Rechtsklick:
+		// Ziel + Ancestors, mit Häkchen auch Unterregionen, Blatt-Skip, Inner-Flag.
 		const saveTargetKey = readResolvedSaveTargetKey(targetKey);
 		const cascadeEngine = window.AvesmapsDerivedBoundaryEditor;
-		if (cascadeEngine && typeof cascadeEngine.generateOrUpdateForTerritory === "function") { state.dirty = false; return cascadeEngine.generateOrUpdateForTerritory(saveTargetKey, { applyToSubregions: document.getElementById("derivedGeometryRecursiveInput")?.checked === true, drawPreview: false, showInnerBoundaries: state.canShowInnerBoundaries && document.getElementById("derivedGeometryInnerBoundariesInput")?.checked === true }); }
-		// Fallback (Kaskaden-Engine nicht geladen): alter Direkt-Save ohne Kaskade.
-		return submitDerivedGeometry({
-			action: "save_derived_geometry",
-			target_key: saveTargetKey,
-			territory_public_id: saveTargetKey,
-			geometry_geojson: geometry,
-			label_lng: labelCenter?.lng ?? null,
-			label_lat: labelCenter?.lat ?? null,
-			min_zoom: normalizeText(document.getElementById("zoomFromInput")?.value || ""),
-			max_zoom: normalizeText(document.getElementById("zoomToInput")?.value || ""),
-			show_inner_boundaries: state.canShowInnerBoundaries && document.getElementById("derivedGeometryInnerBoundariesInput")?.checked === true,
-			is_active: true,
+		if (!cascadeEngine || typeof cascadeEngine.generateOrUpdateForTerritory !== "function") {
+			throw new Error("Außengrenzen-Kaskade ist nicht verfügbar (AvesmapsDerivedBoundaryEditor nicht geladen).");
+		}
+		state.dirty = false;
+		return cascadeEngine.generateOrUpdateForTerritory(saveTargetKey, {
+			applyToSubregions: document.getElementById("derivedGeometryRecursiveInput")?.checked === true,
+			drawPreview: false,
+			showInnerBoundaries: state.canShowInnerBoundaries && document.getElementById("derivedGeometryInnerBoundariesInput")?.checked === true,
 		});
 	}
 
