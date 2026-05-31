@@ -123,6 +123,6 @@
 			if (f && f.properties && f.properties.is_derived_geometry === true) sig += (f.properties.public_id || "") + ",";
 		}
 		if (sig !== lastDerivedSignature) { lastDerivedSignature = sig; redraw(); }
-	}, 500);
+	}, 200);
 	redraw();
 })();
