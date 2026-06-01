@@ -1548,6 +1548,12 @@ function avesmapsWikiSyncMonitorWikiRows(PDO $pdo): array {
         if (isset($excluded[$wikiKey])) {
             continue;
         }
+        // Nur Aventurien (leerer Kontinent = Default Aventurien); Fremdkontinente bleiben gesynct,
+        // aber nicht im Editor-Tree.
+        $continent = (string) ($s['continent'] ?? '');
+        if ($continent !== '' && stripos($continent, 'aventurien') === false) {
+            continue;
+        }
         // Ahnen-Kette (root-first) ueber parent_wiki_key, zyklensicher.
         $chain = [];
         $seen = [];

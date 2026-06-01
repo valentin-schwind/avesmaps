@@ -178,7 +178,9 @@ async function loadWikiSyncTerritoryTreeRows({ forceReload = false } = {}) {
 	}
 
 	const response = await treeModule.fetchRows({
-		apiUrl: treeModule.defaultApiUrl || "/api/app/political-territory-wiki.php",
+		// Modell-Hierarchie aus dem Sync-Monitor (parent_wiki_key -> affiliation_path) statt der
+		// alten flachen Wiki-Affiliation. Re-Parenting passiert NUR im Sync-Monitor (read-only hier).
+		apiUrl: "/api/edit/wiki/sync-monitor.php?action=wiki_rows",
 		credentials: "same-origin",
 	});
 
