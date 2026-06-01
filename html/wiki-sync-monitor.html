@@ -61,6 +61,7 @@
     <button id="btnDiff">Diff</button>
     <button id="btnCache">parent_id Dry-Run</button>
     <button id="btnReload">Modell laden</button>
+    <label style="margin-left:12px" title="Andere Kontinente bleiben gesynct, werden nur ausgeblendet"><input type="checkbox" id="aventurienOnly" checked> nur Aventurien</label>
     <span id="busy" class="muted"></span>
   </div>
 </header>
@@ -186,6 +187,9 @@ function periodLabel(n){
 }
 
 function isGap(n){ return !!(n.parent_wiki_key && !n.parent_in_model); }
+function aventurienOnly(){ const el=$('aventurienOnly'); return !el || el.checked; }
+function isAventurien(n){ return !n.continent || /aventurien/i.test(n.continent); }
+function visibleByContinent(n){ return !aventurienOnly() || isAventurien(n); }
 function matchesFilter(n, f) {
   if (f==='excluded') return !!n.excluded;
   if (n.excluded) return false;                    // Aussortierte nur im „Aussortiert"-Filter
@@ -203,6 +207,7 @@ function renderList() {
   const out = [];
   let shown = 0;
   for (const n of NODES) {
+    if (!visibleByContinent(n)) continue;
     if (!matchesFilter(n, f)) continue;
     if (q && !(n.name.toLowerCase().includes(q) || n.wiki_key.toLowerCase().includes(q)
         || (n.aliases||[]).some(a=>a.includes(q)) || (n.affiliation_raw||'').toLowerCase().includes(q))) continue;
@@ -217,12 +222,12 @@ function renderList() {
 
 const expanded = new Set();
 function renderTree() {
-  const excl = new Set(NODES.filter(n=>n.excluded).map(n=>n.wiki_key));
+  const hidden = new Set(NODES.filter(n=>n.excluded || !visibleByContinent(n)).map(n=>n.wiki_key));
   const children = new Map();
   const roots = [];
   for (const n of NODES) {
-    if (n.excluded) continue;                       // aussortierte sind nicht in der Hierarchie
-    const p = (n.parent_wiki_key && n.parent_in_model && !excl.has(n.parent_wiki_key)) ? n.parent_wiki_key : null;
+    if (n.excluded || !visibleByContinent(n)) continue;   // aussortiert / anderer Kontinent = nicht im Baum
+    const p = (n.parent_wiki_key && n.parent_in_model && !hidden.has(n.parent_wiki_key)) ? n.parent_wiki_key : null;
     if (p) { if(!children.has(p)) children.set(p,[]); children.get(p).push(n); }
     else roots.push(n);
   }
@@ -239,8 +244,9 @@ function renderTree() {
   $('tree').innerHTML = `<ul class="tree">${roots.map(r=>build(r,0)).join('')}</ul>`;
 }
 function render(){
-  const gaps = NODES.filter(n=>!n.excluded && isGap(n)).length;
-  const conf = NODES.filter(n=>!n.excluded && n.has_conflict).length;
+  const vis = NODES.filter(n=>!n.excluded && visibleByContinent(n));
+  const gaps = vis.filter(isGap).length;
+  const conf = vis.filter(n=>n.has_conflict).length;
   const excl = NODES.filter(n=>n.excluded).length;
   $('attn').textContent = NODES.length ? `${gaps} Lücken · ${conf} Konflikte${excl?` · ${excl} aussortiert`:''}` : '';
   renderList(); renderTree();
@@ -304,6 +310,7 @@ $('btnCache').onclick = async()=>{ busy(true); try{ const c=await api('sync_pare
 $('btnReload').onclick = ()=>loadModel().catch(e=>setStatus('Fehler: '+e.message));
 $('search').oninput = renderList;
 $('filter').onchange = renderList;
+$('aventurienOnly').onchange = render;
 
 loadModel().catch(e=>setStatus('Modell laden fehlgeschlagen: '+e.message));
 </script>
