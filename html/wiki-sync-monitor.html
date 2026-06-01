@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WikiSync-Monitor — Herrschaftsgebiete</title>
+<style>
+  :root { --bg:#1e1f22; --panel:#2a2c30; --line:#3a3d42; --fg:#e6e6e6; --mut:#9aa0a6; --accent:#6db3f2; --warn:#e2b341; --bad:#e26d6d; --ok:#6fcf8e; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:13px/1.4 system-ui,sans-serif; background:var(--bg); color:var(--fg); }
+  header { padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); }
+  h1 { font-size:15px; margin:0 0 8px; }
+  .controls { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  button { background:#3a3d42; color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:5px 10px; cursor:pointer; }
+  button:hover { background:#45494f; }
+  button:disabled { opacity:.5; cursor:default; }
+  button.primary { background:#2b5d8a; border-color:#2b5d8a; }
+  textarea { width:100%; height:54px; background:#202225; color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:6px; font:12px monospace; resize:vertical; }
+  #status { padding:6px 14px; color:var(--mut); border-bottom:1px solid var(--line); white-space:pre-wrap; }
+  .cols { display:flex; height:calc(100vh - 200px); }
+  .col { flex:1; overflow:auto; padding:8px; }
+  #left { border-right:1px solid var(--line); max-width:46%; }
+  .bar { display:flex; gap:6px; align-items:center; margin-bottom:6px; position:sticky; top:0; background:var(--bg); padding-bottom:4px; }
+  input[type=search], select { background:#202225; color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:4px 6px; }
+  input[type=search] { flex:1; }
+  .row { display:flex; align-items:center; gap:6px; padding:3px 5px; border-radius:4px; cursor:grab; }
+  .row:hover { background:#33363b; }
+  .row .nm { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tag { font-size:10px; padding:1px 5px; border-radius:8px; border:1px solid var(--line); color:var(--mut); }
+  .tag.lock { color:var(--accent); border-color:var(--accent); }
+  .tag.div { color:var(--warn); border-color:var(--warn); }
+  .tag.conf { color:var(--bad); border-color:var(--bad); }
+  .tag.gap { color:var(--bad); border-color:var(--bad); }
+  .tag.sied { color:#c08bf0; border-color:#c08bf0; }
+  .dot { width:8px; height:8px; border-radius:50%; flex:none; }
+  .dot.public_domain { background:var(--ok); } .dot.attribution_required { background:var(--warn); } .dot.unknown { background:#555; } .dot.none { background:transparent; }
+  ul.tree { list-style:none; margin:0; padding-left:14px; }
+  ul.tree li { margin:1px 0; }
+  .node { display:inline-flex; align-items:center; gap:5px; padding:2px 6px; border-radius:4px; cursor:grab; }
+  .node:hover { background:#33363b; }
+  .node.drop { outline:2px dashed var(--accent); }
+  .twist { cursor:pointer; color:var(--mut); width:12px; display:inline-block; user-select:none; }
+  .muted { color:var(--mut); }
+  .count { color:var(--mut); font-size:11px; }
+  #dropRoot { margin:6px 0; padding:6px; border:1px dashed var(--line); border-radius:5px; text-align:center; color:var(--mut); }
+  #dropRoot.drop { outline:2px dashed var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>WikiSync-Monitor — Herrschaftsgebiete <span class="muted">(Sandbox: Crawl → Staging → Modell)</span></h1>
+  <textarea id="seeds" spellcheck="false"></textarea>
+  <div class="controls" style="margin-top:6px">
+    <button class="primary" id="btnCrawl">Crawl starten</button>
+    <button id="btnModel">Modell bauen</button>
+    <button id="btnLic">Lizenzen</button>
+    <button id="btnDiff">Diff</button>
+    <button id="btnCache">parent_id Dry-Run</button>
+    <button id="btnReload">Modell laden</button>
+    <span id="busy" class="muted"></span>
+  </div>
+</header>
+<div id="status">Bereit.</div>
+<div class="cols">
+  <div class="col" id="left">
+    <div class="bar">
+      <input type="search" id="search" placeholder="Suche Name/wiki_key…">
+      <select id="filter">
+        <option value="attention">Zu prüfen (10%)</option>
+        <option value="all">Alle</option>
+        <option value="gap">Lücken-Eltern</option>
+        <option value="diverges">Divergenzen</option>
+        <option value="conflict">Konflikte</option>
+        <option value="locked">Gesperrt</option>
+        <option value="siedlung">Stadtstaaten</option>
+      </select>
+    </div>
+    <div id="dropRoot">▶ Hierher ziehen = zur Wurzel machen (Eltern entfernen)</div>
+    <div id="list"></div>
+  </div>
+  <div class="col" id="right">
+    <div class="bar"><b>Hierarchie-Modell</b> <span id="treeCount" class="count"></span></div>
+    <div id="tree"></div>
+  </div>
+</div>
+<script>
+const API = '/api/edit/wiki/sync-monitor.php';
+const DEFAULT_SEEDS = [
+  'Kategorie:Staat','Kategorie:Provinz','Kategorie:Anspruchsgebiet','Kategorie:Bund','Kategorie:Kirchenprovinz','Kategorie:Kolonie',
+  'Baronie/Liste','Emirat/Liste','Freiherrschaft/Liste','Fürstentum/Liste','Grafschaft/Liste','Herzogtum/Liste','Jarltum/Liste',
+  'Kaiserreich/Liste','Königreich/Liste','Markgrafschaft/Liste','Pfalzgrafschaft/Liste','Reichsmark/Liste','Reichsstadt/Liste',
+  'Republik/Liste','Shîkanydad/Liste','Staat/Liste','Sultanat/Liste'
+];
+const $ = (id) => document.getElementById(id);
+$('seeds').value = DEFAULT_SEEDS.join('\n');
+let NODES = [], BYKEY = new Map();
+
+async function api(action, opts={}) {
+  const method = opts.method || 'GET';
+  const init = { method, credentials:'include', cache:'no-store' };
+  let url = `${API}?action=${encodeURIComponent(action)}`;
+  if (method === 'POST') { init.headers = {'Content-Type':'application/json'}; init.body = JSON.stringify(Object.assign({action}, opts.body||{})); }
+  else if (opts.query) { url += '&' + opts.query; }
+  const r = await fetch(url, init);
+  const t = await r.text();
+  let j; try { j = JSON.parse(t); } catch(e) { throw new Error('Ungültige Antwort: '+t.slice(0,200)); }
+  if (!r.ok || j.ok === false) throw new Error(j.error || ('HTTP '+r.status));
+  return j;
+}
+function setStatus(msg) { $('status').textContent = msg; }
+function busy(on) { $('busy').textContent = on ? '⏳ läuft…' : ''; document.querySelectorAll('header button').forEach(b=>b.disabled=on); }
+
+async function runCrawl() {
+  busy(true);
+  try {
+    const seeds = $('seeds').value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    const start = await api('start_run', {method:'POST', body:{seeds}});
+    const run = start.run_id;
+    setStatus(`Run ${run.slice(0,8)} gestartet: ${start.seeded} Seeds. Crawle…`);
+    let guard = 0;
+    while (guard++ < 400) {
+      const step = await api('crawl_step', {method:'POST', body:{run_id:run, options:{batch_limit:40, step_runtime:20, sleep_ms:120}}});
+      const s = step.status;
+      setStatus(`Crawl ${run.slice(0,8)}: pending ${s.pending}, done ${s.done}, pages ${s.by_role.page||0}, stored ${step.stored}, errors ${s.error}`);
+      if ((s.pending||0) === 0) break;
+    }
+    setStatus(`Crawl fertig. Baue Modell…`);
+    await api('rebuild_model', {method:'POST'});
+    await loadModel();
+    setStatus(`Crawl + Modell fertig.`);
+  } catch(e) { setStatus('Fehler: '+e.message); }
+  busy(false);
+}
+
+async function runLicenses() {
+  busy(true);
+  try {
+    let guard=0, last;
+    do { last = await api('enrich_licenses', {method:'POST', body:{options:{batch_limit:40, sleep_ms:60}}});
+      setStatus(`Lizenzen: PD ${last.by_status.public_domain}, CC/GFDL ${last.by_status.attribution_required}, unbekannt ${last.by_status.unknown}, offen ${last.remaining}`);
+    } while ((last.remaining||0) > 0 && guard++ < 200);
+    await loadModel();
+  } catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+}
+
+async function loadModel() {
+  const j = await api('model_tree');
+  NODES = j.nodes; BYKEY = new Map(NODES.map(n=>[n.wiki_key, n]));
+  $('treeCount').textContent = `${j.count} Knoten`;
+  render();
+}
+
+function statusTags(n) {
+  const t = [];
+  if (n.parent_locked) t.push('<span class="tag lock">🔒</span>');
+  if (n.diverges) t.push('<span class="tag div" title="Maschine schlägt '+(n.auto_parent_wiki_key||'')+' vor">⚠</span>');
+  if (n.has_conflict) t.push('<span class="tag conf" title="konkurrierende Eltern">◆</span>');
+  if (n.parent_wiki_key && !n.parent_in_model) t.push('<span class="tag gap" title="Eltern nicht gecrawlt">Lücke</span>');
+  if (n.source_origin==='siedlung') t.push('<span class="tag sied">Stadt</span>');
+  return t.join('');
+}
+function licDot(n){ const s=n.license_status||'none'; return `<span class="dot ${s}" title="Lizenz: ${n.license_status||'—'}"></span>`; }
+
+function matchesFilter(n, f) {
+  if (f==='all') return true;
+  if (f==='gap') return n.parent_wiki_key && !n.parent_in_model;
+  if (f==='diverges') return n.diverges;
+  if (f==='conflict') return n.has_conflict;
+  if (f==='locked') return n.parent_locked;
+  if (f==='siedlung') return n.source_origin==='siedlung';
+  if (f==='attention') return n.diverges || n.has_conflict || (n.parent_wiki_key && !n.parent_in_model);
+  return true;
+}
+
+function renderList() {
+  const f = $('filter').value, q = $('search').value.trim().toLowerCase();
+  const out = [];
+  let shown = 0;
+  for (const n of NODES) {
+    if (!matchesFilter(n, f)) continue;
+    if (q && !(n.name.toLowerCase().includes(q) || n.wiki_key.toLowerCase().includes(q))) continue;
+    if (shown++ > 600) { out.push('<div class="muted">… mehr (Suche eingrenzen)</div>'); break; }
+    out.push(`<div class="row" draggable="true" data-key="${n.wiki_key}">${licDot(n)}<span class="nm">${esc(n.name)}</span>${statusTags(n)}</div>`);
+  }
+  $('list').innerHTML = out.join('') || '<div class="muted">— keine —</div>';
+}
+
+const expanded = new Set();
+function renderTree() {
+  const children = new Map();
+  const roots = [];
+  for (const n of NODES) {
+    const p = (n.parent_wiki_key && n.parent_in_model) ? n.parent_wiki_key : null;
+    if (p) { if(!children.has(p)) children.set(p,[]); children.get(p).push(n); }
+    else roots.push(n);
+  }
+  const build = (n, depth) => {
+    const kids = children.get(n.wiki_key) || [];
+    const hasKids = kids.length>0;
+    const open = expanded.has(n.wiki_key) || depth<1;
+    const tw = hasKids ? `<span class="twist" data-tw="${n.wiki_key}">${open?'▾':'▸'}</span>` : '<span class="twist"></span>';
+    let html = `<li><span class="node" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${licDot(n)}<span>${esc(n.name)}</span>${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
+    if (hasKids && open) html += `<ul class="tree">${kids.map(k=>build(k,depth+1)).join('')}</ul>`;
+    return html + '</li>';
+  };
+  roots.sort((a,b)=>a.name.localeCompare(b.name));
+  $('tree').innerHTML = `<ul class="tree">${roots.map(r=>build(r,0)).join('')}</ul>`;
+}
+function render(){ renderList(); renderTree(); }
+function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function setParent(childKey, parentKey) {
+  if (childKey === parentKey) return;
+  busy(true);
+  try {
+    await api('set_parent', {method:'POST', body:{wiki_key:childKey, parent_wiki_key:parentKey, lock:true}});
+    const c = BYKEY.get(childKey);
+    setStatus(`Gesetzt: „${c?c.name:childKey}" → Eltern „${parentKey?(BYKEY.get(parentKey)?.name||parentKey):'(Wurzel)'}" (gesperrt).`);
+    await loadModel();
+  } catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+}
+
+// Drag'n'drop
+let dragKey = null;
+document.addEventListener('dragstart', e => { const el=e.target.closest('[data-key]'); if(el){ dragKey=el.dataset.key; e.dataTransfer.effectAllowed='move'; } });
+document.addEventListener('dragover', e => { const el=e.target.closest('[data-drop]')||e.target.closest('#dropRoot'); if(el){ e.preventDefault(); el.classList.add('drop'); } });
+document.addEventListener('dragleave', e => { const el=e.target.closest('[data-drop]')||e.target.closest('#dropRoot'); if(el) el.classList.remove('drop'); });
+document.addEventListener('drop', e => {
+  const root = e.target.closest('#dropRoot');
+  const node = e.target.closest('[data-drop]');
+  if (root){ root.classList.remove('drop'); e.preventDefault(); if(dragKey) setParent(dragKey, null); dragKey=null; return; }
+  if (node){ node.classList.remove('drop'); e.preventDefault(); const p=node.dataset.drop; if(dragKey && dragKey!==p) setParent(dragKey, p); dragKey=null; }
+});
+document.addEventListener('click', e => { const tw=e.target.closest('[data-tw]'); if(tw){ const k=tw.dataset.tw; if(expanded.has(k))expanded.delete(k); else expanded.add(k); renderTree(); } });
+
+$('btnCrawl').onclick = runCrawl;
+$('btnModel').onclick = async()=>{ busy(true); try{ const r=await api('rebuild_model',{method:'POST'}); setStatus(`Modell: ${r.summary.total} Knoten, ${r.summary.resolved_parents} Eltern aufgelöst, ${r.summary.gap_parents} Lücken, ${r.summary.roots} Wurzeln.`); await loadModel(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
+$('btnLic').onclick = runLicenses;
+$('btnDiff').onclick = async()=>{ busy(true); try{ const d=await api('diff'); setStatus(`Diff (Staging vs Wiki): neu ${d.new}, verschwunden ${d.disappeared}, geändert ${d.changed}.`); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
+$('btnCache').onclick = async()=>{ busy(true); try{ const c=await api('sync_parent_cache',{method:'POST',body:{}}); setStatus(`parent_id Dry-Run: auffüllbar ${c.fillable}, deckungsgleich ${c.already_aligned}, divergent ${c.divergent_existing} (nichts geschrieben).`); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
+$('btnReload').onclick = ()=>loadModel().catch(e=>setStatus('Fehler: '+e.message));
+$('search').oninput = renderList;
+$('filter').onchange = renderList;
+
+loadModel().catch(e=>setStatus('Modell laden fehlgeschlagen: '+e.message));
+</script>
+</body>
+</html>

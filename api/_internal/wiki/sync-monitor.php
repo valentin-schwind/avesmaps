@@ -1137,6 +1137,48 @@ function avesmapsWikiSyncMonitorSetParent(PDO $pdo, string $wikiKey, ?string $pa
     return ['ok' => true, 'wiki_key' => $wikiKey, 'parent_wiki_key' => $parentWikiKey, 'parent_locked' => $lock];
 }
 
+// Komplettes Modell flach (fuers UI: Baum + Status-Marker). Markiert Luecken (parent
+// referenziert, aber selbst kein Knoten) + Konflikte + Lizenz-Status.
+function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $rows = $pdo->query(
+        'SELECT m.wiki_key, m.parent_wiki_key, m.parent_locked, m.auto_parent_wiki_key, m.source_origin,
+                m.parent_conflict_json, s.name, s.type, s.coat_of_arms_url, s.coat_of_arms_license_status
+        FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' m
+        LEFT JOIN ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . ' s ON s.wiki_key = m.wiki_key
+        ORDER BY COALESCE(s.name, m.wiki_key) ASC'
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    $present = [];
+    foreach ($rows as $row) {
+        $present[(string) $row['wiki_key']] = true;
+    }
+
+    $nodes = [];
+    foreach ($rows as $row) {
+        $parent = $row['parent_wiki_key'] !== null ? (string) $row['parent_wiki_key'] : null;
+        $diverges = $parent !== null
+            && $row['auto_parent_wiki_key'] !== null
+            && (string) $row['auto_parent_wiki_key'] !== $parent;
+        $nodes[] = [
+            'wiki_key' => (string) $row['wiki_key'],
+            'name' => $row['name'] !== null ? (string) $row['name'] : (string) $row['wiki_key'],
+            'type' => (string) ($row['type'] ?? ''),
+            'parent_wiki_key' => $parent,
+            'parent_in_model' => $parent !== null ? isset($present[$parent]) : true,
+            'parent_locked' => (int) $row['parent_locked'] === 1,
+            'auto_parent_wiki_key' => $row['auto_parent_wiki_key'],
+            'diverges' => $diverges,
+            'source_origin' => (string) ($row['source_origin'] ?? ''),
+            'has_conflict' => trim((string) ($row['parent_conflict_json'] ?? '')) !== '',
+            'coat_of_arms_url' => (string) ($row['coat_of_arms_url'] ?? ''),
+            'license_status' => (string) ($row['coat_of_arms_license_status'] ?? ''),
+        ];
+    }
+
+    return ['ok' => true, 'count' => count($nodes), 'nodes' => $nodes];
+}
+
 // Sandbox-Cleanup. target = queue|staging|model. queue optional je run_id.
 function avesmapsWikiSyncMonitorClear(PDO $pdo, string $target, string $runId = ''): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
