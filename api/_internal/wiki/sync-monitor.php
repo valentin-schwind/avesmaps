@@ -1270,6 +1270,101 @@ function avesmapsWikiSyncMonitorDiff(PDO $pdo): array {
     ];
 }
 
+// Hierarchie-Diff: Modell-Eltern (wiki_territory_model.parent_wiki_key) vs. LIVE-Hierarchie
+// (political_territory.parent_id, ueber wiki_key aufgeloest). Zeigt, was sich aendern WUERDE
+// (rein lesend), inkl. Blattknoten mit Geometrie, die im Modell fehlen. Aendert NICHTS.
+function avesmapsWikiSyncMonitorHierarchyDiff(PDO $pdo): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+
+    $territories = $pdo->query(
+        'SELECT id, wiki_key, name, parent_id FROM political_territory WHERE is_active = 1'
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    $byId = [];
+    foreach ($territories as $t) {
+        $byId[(int) $t['id']] = $t;
+    }
+
+    $hasGeometry = [];
+    foreach ($pdo->query('SELECT DISTINCT territory_id FROM political_territory_geometry WHERE is_active = 1 AND territory_id IS NOT NULL') ?: [] as $g) {
+        $hasGeometry[(int) $g['territory_id']] = true;
+    }
+
+    $model = [];
+    foreach ($pdo->query('SELECT wiki_key, parent_wiki_key FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE) ?: [] as $m) {
+        $model[(string) $m['wiki_key']] = $m['parent_wiki_key'] !== null ? (string) $m['parent_wiki_key'] : null;
+    }
+
+    $stagingName = [];
+    foreach ($pdo->query('SELECT wiki_key, name FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE) ?: [] as $s) {
+        $stagingName[(string) $s['wiki_key']] = (string) $s['name'];
+    }
+    $nameOf = static function (?string $wikiKey) use ($byId, $stagingName): string {
+        if ($wikiKey === null || $wikiKey === '') {
+            return '(keiner)';
+        }
+        foreach ($byId as $row) {
+            if ((string) $row['wiki_key'] === $wikiKey) {
+                return (string) $row['name'];
+            }
+        }
+        return $stagingName[$wikiKey] ?? $wikiKey;
+    };
+
+    $changed = [];
+    $missingWithGeometry = [];
+    $missingNoGeometry = 0;
+    $inModel = 0;
+    $totalWithKey = 0;
+
+    foreach ($territories as $t) {
+        $wikiKey = (string) ($t['wiki_key'] ?? '');
+        if ($wikiKey === '') {
+            continue;
+        }
+        $totalWithKey++;
+
+        $liveParentWikiKey = null;
+        if ($t['parent_id'] !== null && isset($byId[(int) $t['parent_id']])) {
+            $liveParentWikiKey = (string) $byId[(int) $t['parent_id']]['wiki_key'];
+            if ($liveParentWikiKey === '') {
+                $liveParentWikiKey = null;
+            }
+        }
+
+        if (!array_key_exists($wikiKey, $model)) {
+            if (isset($hasGeometry[(int) $t['id']])) {
+                $missingWithGeometry[] = ['name' => (string) $t['name'], 'wiki_key' => $wikiKey];
+            } else {
+                $missingNoGeometry++;
+            }
+            continue;
+        }
+        $inModel++;
+
+        $modelParentWikiKey = $model[$wikiKey];
+        if ($liveParentWikiKey !== $modelParentWikiKey) {
+            $changed[] = [
+                'name' => (string) $t['name'],
+                'live_parent' => $nameOf($liveParentWikiKey),
+                'model_parent' => $nameOf($modelParentWikiKey),
+                'has_geometry' => isset($hasGeometry[(int) $t['id']]),
+            ];
+        }
+    }
+
+    return [
+        'ok' => true,
+        'territories_with_wiki_key' => $totalWithKey,
+        'in_model' => $inModel,
+        'parent_changed' => count($changed),
+        'missing_in_model_with_geometry' => count($missingWithGeometry),
+        'missing_in_model_no_geometry' => $missingNoGeometry,
+        'sample_changed' => array_slice($changed, 0, 40),
+        'sample_missing_with_geometry' => array_slice($missingWithGeometry, 0, 40),
+    ];
+}
+
 // Drag'n'drop-Write: setzt parent_wiki_key (+ Lock) eines Knotens. NUR wiki_territory_model.
 function avesmapsWikiSyncMonitorSetParent(PDO $pdo, string $wikiKey, ?string $parentWikiKey, bool $lock = true): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);

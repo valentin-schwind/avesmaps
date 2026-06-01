@@ -101,6 +101,7 @@ try {
             (int) ($_GET['limit'] ?? 40)
         ),
         'diff' => avesmapsWikiSyncMonitorDiff($pdo),
+        'hierarchy_diff' => avesmapsWikiSyncMonitorHierarchyDiff($pdo),
         'model_tree' => avesmapsWikiSyncMonitorModelTree($pdo),
         default => null,
     };
