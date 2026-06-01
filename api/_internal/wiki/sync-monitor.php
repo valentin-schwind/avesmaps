@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 const AVESMAPS_WIKI_SYNC_MONITOR_QUEUE_TABLE = 'wiki_crawl_queue';
 const AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE = 'wiki_territory_model';
+const AVESMAPS_WIKI_SYNC_MONITOR_ALIAS_TABLE = 'wiki_redirect_alias';
 const AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE = 'political_territory_wiki_test';
 const AVESMAPS_WIKI_SYNC_MONITOR_MAX_DEPTH = 5;
 
@@ -75,6 +76,20 @@ function avesmapsWikiSyncMonitorEnsureTables(PDO $pdo): void {
             PRIMARY KEY (id),
             UNIQUE KEY uq_wiki_territory_model_key (wiki_key),
             KEY idx_wiki_territory_model_parent (parent_wiki_key)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+
+    // Redirect-Alias-Karte: alias_slug (Titel-Slug, mit dem eine Seite referenziert wird) ->
+    // canonical_wiki_key (Schluessel der echten Zielseite). Beim Crawl aus der Redirect-
+    // Aufloesung mitgeschrieben; rebuild_model loest Eltern-Referenzen darueber auf, damit
+    // Kinder, die auf einen Alias ("Horasreich") zeigen, am kanonischen Knoten landen.
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS ' . AVESMAPS_WIKI_SYNC_MONITOR_ALIAS_TABLE . ' (
+            alias_slug VARCHAR(255) NOT NULL,
+            canonical_wiki_key VARCHAR(255) NOT NULL,
+            updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+            PRIMARY KEY (alias_slug),
+            KEY idx_wiki_redirect_alias_canonical (canonical_wiki_key)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
 }
@@ -512,9 +527,11 @@ function avesmapsWikiSyncMonitorCrawlStep(PDO $pdo, string $runId, array $option
                     continue;
                 }
 
-                $parsed = avesmapsWikiSyncMonitorParsePage($title, $content, (string) ($canonical[$title] ?? $title));
+                $canonicalTitle = (string) ($canonical[$title] ?? $title);
+                $parsed = avesmapsWikiSyncMonitorParsePage($title, $content, $canonicalTitle);
                 if (!empty($parsed['is_territory']) && is_array($parsed['record'] ?? null)) {
                     avesmapsWikiSyncMonitorUpsertTestRecord($pdo, $parsed['record']);
+                    avesmapsWikiSyncMonitorStoreAlias($pdo, [$title, $canonicalTitle], (string) ($parsed['record']['wiki_key'] ?? ''));
                     $stored++;
                     if ($depth < $maxDepth) {
                         foreach (($parsed['parent_titles'] ?? []) as $parentTitle) {
@@ -751,9 +768,45 @@ function avesmapsWikiSyncMonitorDetectContinent(string $context): string {
     return defined('AVESMAPS_POLITICAL_DEFAULT_CONTINENT') ? AVESMAPS_POLITICAL_DEFAULT_CONTINENT : 'Aventurien';
 }
 
-// Parst den politischen Affiliation-String (Param `Staat`). Liefert bereinigten raw,
-// Pfad (primaere Klausel, auf ':'/'>' gesplittet), root, [[Links]] (Eltern-Kandidaten)
-// und die Konflikt-Klauseln (alles hinter dem ersten '/').
+// Reine Qualifizierer-/Unabhaengigkeits-Klausel = KEIN Elternteil (umstritten, unabhaengig,
+// vakant, ehemals, …). Wird beim Survey aller G/B als systematisches Muster bestaetigt.
+function avesmapsWikiSyncMonitorIsQualifierOnly(string $text): bool {
+    $key = avesmapsWikiSyncMonitorFieldKey($text);
+    if ($key === '') {
+        return true;
+    }
+    foreach ([
+        'unabhangig', 'unabh', 'keine', 'unbekannt', 'ungeklart', 'umstritten', 'strittig',
+        'vakant', 'niemand', 'souveran', 'eigenstandig', 'eigenstand', 'independent',
+        'ehemals', 'ehemalig', 'fruher', 'vormals', 'zuvor', 'ehem',
+    ] as $word) {
+        if ($key === $word || str_starts_with($key, $word)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// Bereinigt ein einzelnes Ketten-Element: Klammer-Zusaetze weg + ERSTER Komma-Teil
+// (Survey: der erste Komma-Teil ist immer der echte Name; nur 1/781 hatte ueberhaupt ein
+// Komma ohne Qualifizierer, auch das loest korrekt auf).
+function avesmapsWikiSyncMonitorCleanAffiliationPart(string $part): string {
+    $part = trim(preg_replace('/\([^)]*\)/u', ' ', $part) ?? $part);
+    if ($part !== '' && str_contains($part, ',')) {
+        $first = trim((string) (explode(',', $part)[0] ?? ''));
+        if ($first !== '') {
+            $part = $first;
+        }
+    }
+
+    return trim($part);
+}
+
+// Parst den politischen Affiliation-String (Param `Staat`). Regel (Survey-validiert):
+// In Klauseln auf ';' UND '/' trennen -> erste NICHT-reine-Qualifizierer-Klausel = primaere
+// Eltern-Kette ('beansprucht von' davor abschneiden); auf ':'/'>' splitten; je Element
+// Klammern weg + erster Komma-Teil. Rest-Klauseln = conflicts. [[Links]] = Eltern-Kandidaten.
 function avesmapsWikiSyncMonitorParseAffiliation(string $staatRaw): array {
     $raw = trim($staatRaw);
     if ($raw === '') {
@@ -771,33 +824,27 @@ function avesmapsWikiSyncMonitorParseAffiliation(string $staatRaw): array {
     }
 
     $clean = avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($raw);
-    $cleanKey = avesmapsWikiSyncMonitorFieldKey($clean);
-    $independent = str_contains($cleanKey, 'unabh')
-        || str_contains($cleanKey, 'eigenstand')
-        || str_contains($cleanKey, 'souveran');
 
     $clauses = array_values(array_filter(
-        array_map('trim', preg_split('#\s*/\s*#u', $clean) ?: []),
+        array_map('trim', preg_split('#\s*[;/]\s*#u', $clean) ?: []),
         static fn(string $clause): bool => $clause !== ''
     ));
-    $primary = $clauses[0] ?? '';
-    $conflicts = array_slice($clauses, 1);
+
+    $primary = '';
+    $conflicts = [];
+    foreach ($clauses as $clause) {
+        $stripped = trim((string) (preg_replace('/^\s*beansprucht\s+von\s+/iu', '', $clause) ?? $clause));
+        if ($primary === '' && !avesmapsWikiSyncMonitorIsQualifierOnly($stripped)) {
+            $primary = $stripped;
+        } else {
+            $conflicts[] = $clause;
+        }
+    }
 
     $path = [];
     foreach (preg_split('/\s*(?::|>|»|›)\s*/u', $primary) ?: [] as $part) {
-        $part = trim(preg_replace('/\([^)]*\)/u', ' ', $part) ?? $part);
-        $part = trim($part);
-        if ($part === '') {
-            continue;
-        }
-        $partKey = avesmapsWikiSyncMonitorFieldKey($part);
-        if (
-            str_starts_with($partKey, 'unabh')
-            || str_starts_with($partKey, 'keine')
-            || str_starts_with($partKey, 'unbekannt')
-            || str_starts_with($partKey, 'ungeklart')
-            || str_starts_with($partKey, 'umstritten')
-        ) {
+        $part = avesmapsWikiSyncMonitorCleanAffiliationPart($part);
+        if ($part === '' || avesmapsWikiSyncMonitorIsQualifierOnly($part)) {
             continue;
         }
         $path[] = $part;
@@ -810,7 +857,7 @@ function avesmapsWikiSyncMonitorParseAffiliation(string $staatRaw): array {
         'root' => $path[0] ?? '',
         'links' => array_values($links),
         'conflicts' => $conflicts,
-        'independent' => $independent,
+        'independent' => $path === [],
     ];
 }
 
@@ -843,22 +890,28 @@ function avesmapsWikiSyncMonitorParsePage(string $title, string $wikitext, strin
     if ($isTerritoryInfobox) {
         $sourceOrigin = 'staat';
     } elseif ($isSettlementInfobox) {
+        // Siedlung nur als Herrschaftsgebiet behalten, wenn (a) Reichsstadt-Marker (aktiv ODER
+        // ex, z.B. {{Reichsstadt|ex|..}}) ODER (b) eigenstaendig/Stadtstaat. Sonst = reine
+        // Siedlung (Havena, Nivesel) -> raus. (Nutzer-Regel, an Harben/Nivesel festgezurrt.)
+        $staatRaw = avesmapsWikiSyncMonitorField($norm, ['staat', 'staatpolitisch', 'zugehorigkeitpolitisch', 'politischezugehorigkeit', 'politisch']);
+        $isReichsstadt = preg_match('/\{\{\s*Reichsstadt\b/iu', $staatRaw) === 1
+            || str_contains(avesmapsWikiSyncMonitorFieldKey($statusText . ' ' . $infobox), 'reichsstadt');
         $independenceKey = avesmapsWikiSyncMonitorFieldKey($statusText . ' ' . $affiliation['raw']);
         $independentSettlement = $affiliation['independent']
             || str_contains($independenceKey, 'stadtstaat')
             || str_contains($independenceKey, 'eigenstand')
             || str_contains($independenceKey, 'unabh')
             || str_contains($independenceKey, 'souveran');
-        if (!$independentSettlement) {
+        if (!$isReichsstadt && !$independentSettlement) {
             return [
                 'is_territory' => false,
-                'reason' => 'Infobox ' . ($infobox !== '' ? $infobox : '?') . ' (abhaengige Siedlung)',
+                'reason' => 'Infobox ' . ($infobox !== '' ? $infobox : '?') . ' (reine Siedlung)',
                 'record' => null,
                 'parent_titles' => [],
                 'source_origin' => 'siedlung',
             ];
         }
-        $sourceOrigin = 'siedlung';
+        $sourceOrigin = $isReichsstadt ? 'reichsstadt' : 'siedlung';
     } else {
         return [
             'is_territory' => false,
@@ -962,15 +1015,52 @@ function avesmapsWikiSyncMonitorStagingColumns(PDO $pdo): array {
 // Schreibt NUR in die Sandbox-Tabelle; political_territory bleibt unberuehrt.
 // ---------------------------------------------------------------------------
 
-// Loest einen Eltern-Namen/Klausel gegen den Slug-Index der Staging-Knoten auf.
-// Nimmt das letzte ':'-Segment (Kette) und entfernt Klammer-Zusaetze ("(Widerspr.)").
-function avesmapsWikiSyncMonitorResolveParentKey(string $name, array $index): array {
+function avesmapsWikiSyncMonitorStoreAlias(PDO $pdo, array $titles, string $wikiKey): void {
+    $wikiKey = trim($wikiKey);
+    if ($wikiKey === '') {
+        return;
+    }
+    $statement = $pdo->prepare(
+        'INSERT INTO ' . AVESMAPS_WIKI_SYNC_MONITOR_ALIAS_TABLE . ' (alias_slug, canonical_wiki_key, updated_at)
+        VALUES (:alias, :wiki_key, CURRENT_TIMESTAMP(3))
+        ON DUPLICATE KEY UPDATE canonical_wiki_key = VALUES(canonical_wiki_key), updated_at = CURRENT_TIMESTAMP(3)'
+    );
+    $seen = [];
+    foreach ($titles as $title) {
+        $slug = avesmapsPoliticalSlug(avesmapsWikiSyncMonitorNormalizeTitle((string) $title));
+        if ($slug === '' || isset($seen[$slug])) {
+            continue;
+        }
+        $seen[$slug] = true;
+        $statement->execute(['alias' => $slug, 'wiki_key' => $wikiKey]);
+    }
+}
+
+function avesmapsWikiSyncMonitorReadAliasMap(PDO $pdo): array {
+    $map = [];
+    foreach ($pdo->query('SELECT alias_slug, canonical_wiki_key FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_ALIAS_TABLE) ?: [] as $row) {
+        $map[(string) $row['alias_slug']] = (string) $row['canonical_wiki_key'];
+    }
+
+    return $map;
+}
+
+// Loest einen Eltern-Namen/Klausel gegen Alias-Karte + Slug-Index der Staging-Knoten auf.
+// Nimmt das letzte ':'-Segment (Kette), Klammer-Zusaetze + Komma-Zusatz weg. Alias gewinnt
+// (Redirect -> kanonischer Knoten), dann der Knoten-Index.
+function avesmapsWikiSyncMonitorResolveParentKey(string $name, array $index, array $aliasMap = []): array {
     $segments = preg_split('/\s*:\s*/u', $name) ?: [$name];
-    $name = trim((string) end($segments));
-    $name = trim(preg_replace('/\([^)]*\)/u', ' ', $name) ?? $name);
+    $name = avesmapsWikiSyncMonitorCleanAffiliationPart((string) end($segments));
     $slug = avesmapsPoliticalSlug($name);
     if ($slug === '') {
         return ['name' => $name, 'wiki_key' => null, 'resolved' => false];
+    }
+    if (isset($aliasMap[$slug])) {
+        // Alias -> kanonischer wiki_key (sofern der kanonische Knoten existiert).
+        $canonicalSlug = preg_replace('/^wiki:/', '', $aliasMap[$slug]) ?? $aliasMap[$slug];
+        if (isset($index[$canonicalSlug])) {
+            return ['name' => $name, 'wiki_key' => $index[$canonicalSlug], 'resolved' => true];
+        }
     }
     if (isset($index[$slug])) {
         return ['name' => $name, 'wiki_key' => $index[$slug], 'resolved' => true];
@@ -1002,6 +1092,8 @@ function avesmapsWikiSyncMonitorRebuildModel(PDO $pdo): array {
             $index[$keySlug] = $wikiKey;
         }
     }
+
+    $aliasMap = avesmapsWikiSyncMonitorReadAliasMap($pdo);
 
     $upsert = $pdo->prepare(
         'INSERT INTO ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . '
@@ -1037,7 +1129,7 @@ function avesmapsWikiSyncMonitorRebuildModel(PDO $pdo): array {
 
         $autoParent = null;
         if ($path !== []) {
-            $resolved = avesmapsWikiSyncMonitorResolveParentKey((string) $path[count($path) - 1], $index);
+            $resolved = avesmapsWikiSyncMonitorResolveParentKey((string) $path[count($path) - 1], $index, $aliasMap);
             $autoParent = $resolved['wiki_key'];
             if ($autoParent === $wikiKey) {
                 $autoParent = null;
@@ -1053,7 +1145,7 @@ function avesmapsWikiSyncMonitorRebuildModel(PDO $pdo): array {
 
         $conflictKeys = [];
         foreach ($conflictsRaw as $conflict) {
-            $resolved = avesmapsWikiSyncMonitorResolveParentKey((string) $conflict, $index);
+            $resolved = avesmapsWikiSyncMonitorResolveParentKey((string) $conflict, $index, $aliasMap);
             $conflictKeys[] = ['name' => $resolved['name'], 'wiki_key' => $resolved['wiki_key'], 'resolved' => $resolved['resolved']];
         }
         if ($conflictKeys !== []) {
@@ -1249,8 +1341,18 @@ function avesmapsWikiSyncMonitorClear(PDO $pdo, string $target, string $runId = 
     } elseif ($target === 'model') {
         $pdo->exec('TRUNCATE TABLE ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE);
         $cleared['model'] = 'truncated';
+    } elseif ($target === 'alias') {
+        $pdo->exec('TRUNCATE TABLE ' . AVESMAPS_WIKI_SYNC_MONITOR_ALIAS_TABLE);
+        $cleared['alias'] = 'truncated';
+    } elseif ($target === 'all') {
+        // Kompletter Neustart der Sandbox (NICHT political_territory_wiki/_geometry).
+        $pdo->exec('TRUNCATE TABLE ' . AVESMAPS_WIKI_SYNC_MONITOR_QUEUE_TABLE);
+        $pdo->exec('TRUNCATE TABLE ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE);
+        $pdo->exec('TRUNCATE TABLE ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE);
+        $pdo->exec('TRUNCATE TABLE ' . AVESMAPS_WIKI_SYNC_MONITOR_ALIAS_TABLE);
+        $cleared = ['queue' => 'truncated', 'staging' => 'truncated', 'model' => 'truncated', 'alias' => 'truncated'];
     } else {
-        throw new RuntimeException('Unbekanntes clear-target (queue|staging|model).');
+        throw new RuntimeException('Unbekanntes clear-target (queue|staging|model|alias|all).');
     }
 
     return ['ok' => true, 'cleared' => $cleared];
