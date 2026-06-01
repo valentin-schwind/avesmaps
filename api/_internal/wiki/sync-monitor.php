@@ -1230,6 +1230,29 @@ function avesmapsWikiSyncMonitorTerritoryLookup(PDO $pdo, array $wikiKeys, array
     return ['ok' => true, 'items' => $statement->fetchAll(PDO::FETCH_ASSOC)];
 }
 
+// Read-only: Fuzzy-Suche in political_territory (name LIKE %q%). Fuer die Frage,
+// ob ein Modell-Parent unter abweichendem Namen schon als Live-Territorium existiert.
+function avesmapsWikiSyncMonitorTerritorySearch(PDO $pdo, string $query, int $limit): array {
+    $query = trim($query);
+    if ($query === '') {
+        return ['ok' => true, 'query' => '', 'items' => []];
+    }
+    $limit = max(1, min(100, $limit));
+    $statement = $pdo->prepare(
+        'SELECT t.id, t.public_id, t.wiki_key, t.name, t.is_active, t.parent_id,
+            par.name AS parent_name, par.wiki_key AS parent_wiki_key,
+            EXISTS(SELECT 1 FROM political_territory_geometry g WHERE g.territory_id = t.id AND g.is_active = 1) AS has_geometry
+        FROM political_territory t
+        LEFT JOIN political_territory par ON par.id = t.parent_id
+        WHERE t.name LIKE ?
+        ORDER BY t.is_active DESC, t.name
+        LIMIT ' . $limit
+    );
+    $statement->execute(['%' . $query . '%']);
+
+    return ['ok' => true, 'query' => $query, 'items' => $statement->fetchAll(PDO::FETCH_ASSOC)];
+}
+
 // Read-only: schlaegt eine Geometrie per id ODER public_id nach -> an welchem
 // Territorium haengt sie (territory_id + name + wiki_key), is_active, Quelle/Typ.
 function avesmapsWikiSyncMonitorGeometryLookup(PDO $pdo, string $geometryId, string $publicId, array $territoryIds = []): array {

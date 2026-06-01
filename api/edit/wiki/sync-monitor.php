@@ -122,6 +122,11 @@ try {
             array_filter(array_map('trim', explode('|', (string) ($_GET['wiki_keys'] ?? '')))),
             array_filter(array_map('trim', explode('|', (string) ($_GET['names'] ?? ''))))
         ),
+        'territory_search' => avesmapsWikiSyncMonitorTerritorySearch(
+            $pdo,
+            (string) ($_GET['q'] ?? ''),
+            (int) ($_GET['limit'] ?? 50)
+        ),
         'geometry_lookup' => avesmapsWikiSyncMonitorGeometryLookup(
             $pdo,
             (string) ($_GET['geometry_id'] ?? ''),
