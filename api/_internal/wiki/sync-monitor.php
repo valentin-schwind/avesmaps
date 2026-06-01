@@ -853,7 +853,13 @@ function avesmapsWikiSyncMonitorParseAffiliation(string $staatRaw): array {
     $primary = '';
     $conflicts = [];
     foreach ($clauses as $clause) {
-        $stripped = trim((string) (preg_replace('/^\s*beansprucht\s+von\s+/iu', '', $clause) ?? $clause));
+        // Zeit-/Historik-Klausel ("bis ING 1021 BF Teil von …", "seit 1000 BF …") = KEIN aktueller
+        // Elternteil (nur die heutige Zugehoerigkeit zaehlt fuer die Hierarchie).
+        if (preg_match('/^\s*(?:bis|seit)\s+/iu', $clause) === 1) {
+            continue;
+        }
+        // Prefixe abschneiden -> dahinter steht der eigentliche Elternteil.
+        $stripped = trim((string) (preg_replace('/^\s*(?:beansprucht\s+von|teil\s+von|teil\s+des|geh[oö]rt\s+zu)\s+/iu', '', $clause) ?? $clause));
         if (avesmapsWikiSyncMonitorIsQualifierOnly($stripped)) {
             continue; // reiner Status-/Zeit-Zusatz (ehemalige Reichsstadt, umstritten) = weder Eltern noch Konflikt
         }
