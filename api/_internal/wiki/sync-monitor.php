@@ -1217,7 +1217,7 @@ function avesmapsWikiSyncMonitorTerritoryLookup(PDO $pdo, array $wikiKeys, array
         return ['ok' => true, 'items' => []];
     }
 
-    $sql = 'SELECT t.id, t.wiki_key, t.name, t.slug, t.is_active, t.parent_id,
+    $sql = 'SELECT t.id, t.public_id, t.wiki_key, t.name, t.slug, t.is_active, t.parent_id,
             par.name AS parent_name, par.wiki_key AS parent_wiki_key,
             EXISTS(SELECT 1 FROM political_territory_geometry g WHERE g.territory_id = t.id AND g.is_active = 1) AS has_geometry
         FROM political_territory t
