@@ -43,8 +43,13 @@
 	canvas.style.pointerEvents = "none";
 	canvas.style.top = "0";
 	canvas.style.left = "0";
+	canvas.style.transformOrigin = "0 0"; // Skalierung waehrend der Zoom-Animation um die obere linke Ecke
 	map.getPane(PANE).appendChild(canvas);
 	const ctx = canvas.getContext("2d");
+
+	// LatLng der oberen linken Canvas-Ecke (Container 0,0) beim letzten Redraw — Anker fuer
+	// die Zoom-Animations-Transform (wie L.ImageOverlay._animateZoom).
+	let canvasTopLeftLatLng = null;
 
 	function polygonsOf(geom) {
 		if (!geom) return [];
@@ -101,7 +106,8 @@
 		if (!map.getPane(PANE)) return;
 		const size = map.getSize();
 		const topLeft = map.containerPointToLayerPoint([0, 0]);
-		L.DomUtil.setPosition(canvas, topLeft);
+		L.DomUtil.setPosition(canvas, topLeft); // reine Translation -> setzt eine evtl. Zoom-Skalierung zurueck
+		canvasTopLeftLatLng = map.containerPointToLatLng([0, 0]);
 		if (canvas.width !== size.x) canvas.width = size.x;
 		if (canvas.height !== size.y) canvas.height = size.y;
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -150,6 +156,22 @@
 	}
 
 	map.on("moveend zoomend viewreset resize", () => { redraw(); scheduleSettleRedraws(); });
+
+	// Während der Zoom-ANIMATION skaliert Leaflet seine Flaechen/Kacheln fluessig; das Canvas
+	// zeichnet sonst erst auf zoomend neu -> Grenzen und Flaechen passen waehrend des Zooms kurz
+	// nicht aufeinander (hakelig). Hier bekommt das Canvas dieselbe Transform wie eine
+	// L.ImageOverlay (_animateZoom): Bitmap mitskalieren/-verschieben, damit Grenzen waehrend des
+	// Zooms deckungsgleich mitwandern. Auf zoomend setzt redraw() die Position neu (ohne scale)
+	// und zeichnet scharf.
+	map.on("zoomanim", function (event) {
+		if (!canvasTopLeftLatLng || typeof map._latLngToNewLayerPoint !== "function") {
+			return;
+		}
+		const scale = map.getZoomScale(event.zoom);
+		const offset = map._latLngToNewLayerPoint(canvasTopLeftLatLng, event.zoom, event.center);
+		L.DomUtil.setTransform(canvas, offset, scale);
+	});
+
 	window.AvesmapsBoundaryCanvasOverlay = { redraw, paneName: PANE };
 
 	// Signatur-Poll: zeichnet neu, sobald sich der derived-Satz ändert (z. B. nach
