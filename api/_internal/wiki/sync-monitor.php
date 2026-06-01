@@ -1187,7 +1187,8 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     $rows = $pdo->query(
         'SELECT m.wiki_key, m.parent_wiki_key, m.parent_locked, m.auto_parent_wiki_key, m.source_origin,
-                m.parent_conflict_json, s.name, s.type, s.coat_of_arms_url, s.coat_of_arms_license_status
+                m.parent_conflict_json, s.name, s.type, s.continent, s.affiliation_raw,
+                s.founded_text, s.dissolved_text, s.coat_of_arms_url, s.coat_of_arms_license_status
         FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' m
         LEFT JOIN ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . ' s ON s.wiki_key = m.wiki_key
         ORDER BY COALESCE(s.name, m.wiki_key) ASC'
@@ -1208,6 +1209,10 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'wiki_key' => (string) $row['wiki_key'],
             'name' => $row['name'] !== null ? (string) $row['name'] : (string) $row['wiki_key'],
             'type' => (string) ($row['type'] ?? ''),
+            'continent' => (string) ($row['continent'] ?? ''),
+            'affiliation_raw' => (string) ($row['affiliation_raw'] ?? ''),
+            'founded_text' => (string) ($row['founded_text'] ?? ''),
+            'dissolved_text' => (string) ($row['dissolved_text'] ?? ''),
             'parent_wiki_key' => $parent,
             'parent_in_model' => $parent !== null ? isset($present[$parent]) : true,
             'parent_locked' => (int) $row['parent_locked'] === 1,
