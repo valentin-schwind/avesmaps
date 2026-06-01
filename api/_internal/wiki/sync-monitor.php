@@ -1196,6 +1196,40 @@ function avesmapsWikiSyncMonitorRebuildModel(PDO $pdo): array {
     return ['ok' => true, 'summary' => $summary];
 }
 
+// Read-only: schlaegt political_territory-Zeilen per wiki_key ODER Name nach.
+// Liefert id, wiki_key, name, parent (id+name), Geometrie ja/nein. Fuer Diagnose
+// (Rommilys-Cluster, blockierte Hierarchie-Korrekturen). Schreibt NICHTS.
+function avesmapsWikiSyncMonitorTerritoryLookup(PDO $pdo, array $wikiKeys, array $names): array {
+    $wikiKeys = array_values(array_filter(array_map(static fn($v): string => trim((string) $v), $wikiKeys), static fn(string $v): bool => $v !== ''));
+    $names = array_values(array_filter(array_map(static fn($v): string => trim((string) $v), $names), static fn(string $v): bool => $v !== ''));
+
+    $clauses = [];
+    $params = [];
+    if ($wikiKeys !== []) {
+        $clauses[] = 't.wiki_key IN (' . implode(',', array_fill(0, count($wikiKeys), '?')) . ')';
+        $params = array_merge($params, $wikiKeys);
+    }
+    if ($names !== []) {
+        $clauses[] = 't.name IN (' . implode(',', array_fill(0, count($names), '?')) . ')';
+        $params = array_merge($params, $names);
+    }
+    if ($clauses === []) {
+        return ['ok' => true, 'items' => []];
+    }
+
+    $sql = 'SELECT t.id, t.wiki_key, t.name, t.slug, t.is_active, t.parent_id,
+            par.name AS parent_name, par.wiki_key AS parent_wiki_key,
+            EXISTS(SELECT 1 FROM political_territory_geometry g WHERE g.territory_id = t.id AND g.is_active = 1) AS has_geometry
+        FROM political_territory t
+        LEFT JOIN political_territory par ON par.id = t.parent_id
+        WHERE (' . implode(' OR ', $clauses) . ')
+        ORDER BY t.name';
+    $statement = $pdo->prepare($sql);
+    $statement->execute($params);
+
+    return ['ok' => true, 'items' => $statement->fetchAll(PDO::FETCH_ASSOC)];
+}
+
 // Phase 2b: Sync parent_wiki_key (Modell) -> political_territory.parent_id-CACHE.
 // Semantik: NUR auffuellen (child.parent_id IS NULL), bestehende parent_id NIE ueberschreiben
 // (korrigierte Hierarchie bleibt). Divergenzen werden nur gemeldet. dry_run=true schreibt NICHT.

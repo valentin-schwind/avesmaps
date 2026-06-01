@@ -110,6 +110,11 @@ try {
         'hierarchy_diff' => avesmapsWikiSyncMonitorHierarchyDiff($pdo),
         'model_tree' => avesmapsWikiSyncMonitorModelTree($pdo),
         'wiki_rows' => avesmapsWikiSyncMonitorWikiRows($pdo),
+        'territory_lookup' => avesmapsWikiSyncMonitorTerritoryLookup(
+            $pdo,
+            array_filter(array_map('trim', explode('|', (string) ($_GET['wiki_keys'] ?? '')))),
+            array_filter(array_map('trim', explode('|', (string) ($_GET['names'] ?? ''))))
+        ),
         default => null,
     };
 
