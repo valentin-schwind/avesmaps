@@ -115,6 +115,11 @@ try {
             array_filter(array_map('trim', explode('|', (string) ($_GET['wiki_keys'] ?? '')))),
             array_filter(array_map('trim', explode('|', (string) ($_GET['names'] ?? ''))))
         ),
+        'geometry_lookup' => avesmapsWikiSyncMonitorGeometryLookup(
+            $pdo,
+            (string) ($_GET['geometry_id'] ?? ''),
+            (string) ($_GET['public_id'] ?? '')
+        ),
         default => null,
     };
 

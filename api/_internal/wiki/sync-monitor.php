@@ -1230,6 +1230,39 @@ function avesmapsWikiSyncMonitorTerritoryLookup(PDO $pdo, array $wikiKeys, array
     return ['ok' => true, 'items' => $statement->fetchAll(PDO::FETCH_ASSOC)];
 }
 
+// Read-only: schlaegt eine Geometrie per id ODER public_id nach -> an welchem
+// Territorium haengt sie (territory_id + name + wiki_key), is_active, Quelle/Typ.
+function avesmapsWikiSyncMonitorGeometryLookup(PDO $pdo, string $geometryId, string $publicId): array {
+    $geometryId = trim($geometryId);
+    $publicId = trim($publicId);
+    $clauses = [];
+    $params = [];
+    if ($geometryId !== '' && ctype_digit($geometryId)) {
+        $clauses[] = 'g.id = ?';
+        $params[] = (int) $geometryId;
+    }
+    if ($publicId !== '') {
+        $clauses[] = 'g.public_id = ?';
+        $params[] = $publicId;
+    }
+    if ($clauses === []) {
+        return ['ok' => true, 'items' => []];
+    }
+
+    $sql = 'SELECT g.id, g.public_id, g.territory_id, g.is_active,
+            t.name AS territory_name, t.wiki_key AS territory_wiki_key, t.is_active AS territory_active,
+            par.name AS territory_parent_name
+        FROM political_territory_geometry g
+        LEFT JOIN political_territory t ON t.id = g.territory_id
+        LEFT JOIN political_territory par ON par.id = t.parent_id
+        WHERE (' . implode(' OR ', $clauses) . ')
+        ORDER BY g.is_active DESC, g.id';
+    $statement = $pdo->prepare($sql);
+    $statement->execute($params);
+
+    return ['ok' => true, 'items' => $statement->fetchAll(PDO::FETCH_ASSOC)];
+}
+
 // Phase 2b: Sync parent_wiki_key (Modell) -> political_territory.parent_id-CACHE.
 // Semantik: NUR auffuellen (child.parent_id IS NULL), bestehende parent_id NIE ueberschreiben
 // (korrigierte Hierarchie bleibt). Divergenzen werden nur gemeldet. dry_run=true schreibt NICHT.
