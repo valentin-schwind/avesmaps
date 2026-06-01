@@ -65,8 +65,9 @@
   <div class="col" id="left">
     <div class="bar">
       <input type="search" id="search" placeholder="Suche Name/wiki_key…">
+      <span id="attn" class="count" title="Knoten mit Lücke/Konflikt/Divergenz"></span>
       <select id="filter">
-        <option value="attention">Zu prüfen (10%)</option>
+        <option value="attention">Zu prüfen</option>
         <option value="all">Alle</option>
         <option value="gap">Lücken-Eltern</option>
         <option value="diverges">Divergenzen</option>
@@ -207,7 +208,12 @@ function renderTree() {
   roots.sort((a,b)=>a.name.localeCompare(b.name));
   $('tree').innerHTML = `<ul class="tree">${roots.map(r=>build(r,0)).join('')}</ul>`;
 }
-function render(){ renderList(); renderTree(); }
+function render(){
+  const att = NODES.filter(n => n.diverges || n.has_conflict || (n.parent_wiki_key && !n.parent_in_model)).length;
+  const pct = NODES.length ? Math.round(att / NODES.length * 100) : 0;
+  $('attn').textContent = NODES.length ? `${att} zu prüfen (${pct}%)` : '';
+  renderList(); renderTree();
+}
 function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 async function setParent(childKey, parentKey) {
