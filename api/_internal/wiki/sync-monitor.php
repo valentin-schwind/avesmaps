@@ -1308,12 +1308,38 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
         $present[(string) $row['wiki_key']] = true;
     }
 
+    // Reverse-Alias-Karte: kanonischer wiki_key -> [alias_slugs] (fuer alias-bewusste Suche,
+    // z.B. "mittelreich" findet den kanonischen Knoten).
+    $aliasesByKey = [];
+    foreach ($pdo->query('SELECT alias_slug, canonical_wiki_key FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_ALIAS_TABLE) ?: [] as $row) {
+        $aliasesByKey[(string) $row['canonical_wiki_key']][] = (string) $row['alias_slug'];
+    }
+
     $nodes = [];
     foreach ($rows as $row) {
         $parent = $row['parent_wiki_key'] !== null ? (string) $row['parent_wiki_key'] : null;
         $diverges = $parent !== null
             && $row['auto_parent_wiki_key'] !== null
             && (string) $row['auto_parent_wiki_key'] !== $parent;
+
+        $wikiKey = (string) $row['wiki_key'];
+        $selfSlug = preg_replace('/^wiki:/', '', $wikiKey) ?? $wikiKey;
+        $aliases = array_values(array_unique(array_filter(
+            $aliasesByKey[$wikiKey] ?? [],
+            static fn(string $alias): bool => $alias !== '' && $alias !== $selfSlug
+        )));
+
+        $conflictNames = [];
+        $conflictDecoded = json_decode((string) ($row['parent_conflict_json'] ?? ''), true);
+        if (is_array($conflictDecoded)) {
+            foreach ($conflictDecoded as $conflict) {
+                $conflictName = is_array($conflict) ? (string) ($conflict['name'] ?? '') : (string) $conflict;
+                if ($conflictName !== '') {
+                    $conflictNames[] = $conflictName;
+                }
+            }
+        }
+
         $nodes[] = [
             'wiki_key' => (string) $row['wiki_key'],
             'name' => $row['name'] !== null ? (string) $row['name'] : (string) $row['wiki_key'],
@@ -1332,7 +1358,9 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'auto_parent_wiki_key' => $row['auto_parent_wiki_key'],
             'diverges' => $diverges,
             'source_origin' => (string) ($row['source_origin'] ?? ''),
-            'has_conflict' => trim((string) ($row['parent_conflict_json'] ?? '')) !== '',
+            'has_conflict' => $conflictNames !== [],
+            'conflicts' => $conflictNames,
+            'aliases' => $aliases,
             'coat_of_arms_url' => (string) ($row['coat_of_arms_url'] ?? ''),
             'license_status' => (string) ($row['coat_of_arms_license_status'] ?? ''),
         ];

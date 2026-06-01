@@ -67,15 +67,14 @@
   <div class="col" id="left">
     <div class="bar">
       <input type="search" id="search" placeholder="Suche Name/wiki_key…">
-      <span id="attn" class="count" title="Knoten mit Lücke/Konflikt/Divergenz"></span>
+      <span id="attn" class="count" title="offene Lücken · Konflikte"></span>
       <select id="filter">
-        <option value="attention">Zu prüfen</option>
-        <option value="all">Alle</option>
-        <option value="gap">Lücken-Eltern</option>
+        <option value="gap">Offene Lücken</option>
+        <option value="conflict">Konflikte (platziert)</option>
         <option value="diverges">Divergenzen</option>
-        <option value="conflict">Konflikte</option>
         <option value="locked">Gesperrt</option>
         <option value="siedlung">Stadtstaaten</option>
+        <option value="all">Alle</option>
       </select>
     </div>
     <div id="dropRoot">▶ Hierher ziehen = zur Wurzel machen (Eltern entfernen)</div>
@@ -165,6 +164,7 @@ function statusTags(n) {
 }
 function licDot(n){ const s=n.license_status||'none'; const t=n.coat_of_arms_attribution||n.coat_of_arms_author||n.license_status||'—'; return `<span class="dot ${s}" title="Wappen-Lizenz: ${esc(t)}"></span>`; }
 function wikiLink(n){ return n.wiki_url ? ` <a class="wl" href="${esc(n.wiki_url)}" target="_blank" rel="noopener" draggable="false" title="Wiki-Seite öffnen">↗</a>` : ''; }
+function aliasHint(n){ if(!(n.aliases && n.aliases.length)) return ''; const a=n.aliases.slice().sort((x,y)=>x.length-y.length)[0].replace(/-/g,' '); return ` <span class="muted" title="auch bekannt als (Redirect)">≈${esc(a)}</span>`; }
 function bfYear(t){ if(!t) return null; const m=String(t).match(/(\d{1,4})\s*(v\.?\s*BF|BF)/i); if(!m) return null; const y=parseInt(m[1],10); return /v\.?\s*BF/i.test(m[2])?-y:y; }
 function fmtBF(y){ return y<0 ? (Math.abs(y)+' v.BF') : (y+' BF'); }
 function periodLabel(n){
@@ -181,14 +181,14 @@ function periodLabel(n){
   return ` <span class="count" title="Zeitraum (von/bis)">· ${s}</span>`;
 }
 
+function isGap(n){ return !!(n.parent_wiki_key && !n.parent_in_model); }
 function matchesFilter(n, f) {
   if (f==='all') return true;
-  if (f==='gap') return n.parent_wiki_key && !n.parent_in_model;
+  if (f==='gap') return isGap(n);                 // Default = echte offene Lücken
   if (f==='diverges') return n.diverges;
-  if (f==='conflict') return n.has_conflict;
+  if (f==='conflict') return n.has_conflict;       // platziert, aber Wiki nennt Zweitelternteil
   if (f==='locked') return n.parent_locked;
   if (f==='siedlung') return n.source_origin==='siedlung';
-  if (f==='attention') return n.diverges || n.has_conflict || (n.parent_wiki_key && !n.parent_in_model);
   return true;
 }
 
@@ -198,9 +198,11 @@ function renderList() {
   let shown = 0;
   for (const n of NODES) {
     if (!matchesFilter(n, f)) continue;
-    if (q && !(n.name.toLowerCase().includes(q) || n.wiki_key.toLowerCase().includes(q))) continue;
+    if (q && !(n.name.toLowerCase().includes(q) || n.wiki_key.toLowerCase().includes(q)
+        || (n.aliases||[]).some(a=>a.includes(q)) || (n.affiliation_raw||'').toLowerCase().includes(q))) continue;
     if (shown++ > 600) { out.push('<div class="muted">… mehr (Suche eingrenzen)</div>'); break; }
-    out.push(`<div class="row" draggable="true" data-key="${n.wiki_key}">${licDot(n)}<span class="nm">${esc(n.name)}${periodLabel(n)}</span>${wikiLink(n)}${statusTags(n)}</div>`);
+    const lock = n.parent_locked ? ' <span class="tag lock" title="gesperrt">🔒</span>' : '';
+    out.push(`<div class="row" draggable="true" data-key="${n.wiki_key}">${licDot(n)}<span class="nm">${esc(n.name)}${periodLabel(n)}${aliasHint(n)}</span>${wikiLink(n)}${parentLabel(n)}${conflictLabel(n)}${lock}</div>`);
   }
   $('list').innerHTML = out.join('') || '<div class="muted">— keine —</div>';
 }
@@ -219,7 +221,7 @@ function renderTree() {
     const hasKids = kids.length>0;
     const open = expanded.has(n.wiki_key);
     const tw = hasKids ? `<span class="twist" data-tw="${n.wiki_key}">${open?'▾':'▸'}</span>` : '<span class="twist"></span>';
-    let html = `<li><span class="node" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${licDot(n)}<span>${esc(n.name)}${periodLabel(n)}</span>${wikiLink(n)}${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
+    let html = `<li><span class="node" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${licDot(n)}<span>${esc(n.name)}${periodLabel(n)}${aliasHint(n)}</span>${wikiLink(n)}${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
     if (hasKids && open) html += `<ul class="tree">${kids.map(k=>build(k,depth+1)).join('')}</ul>`;
     return html + '</li>';
   };
@@ -227,10 +229,20 @@ function renderTree() {
   $('tree').innerHTML = `<ul class="tree">${roots.map(r=>build(r,0)).join('')}</ul>`;
 }
 function render(){
-  const att = NODES.filter(n => n.diverges || n.has_conflict || (n.parent_wiki_key && !n.parent_in_model)).length;
-  const pct = NODES.length ? Math.round(att / NODES.length * 100) : 0;
-  $('attn').textContent = NODES.length ? `${att} zu prüfen (${pct}%)` : '';
+  const gaps = NODES.filter(isGap).length;
+  const conf = NODES.filter(n=>n.has_conflict).length;
+  $('attn').textContent = NODES.length ? `${gaps} Lücken · ${conf} Konflikte` : '';
   renderList(); renderTree();
+}
+function parentLabel(n){
+  if(!n.parent_wiki_key) return ' <span class="muted">· Wurzel</span>';
+  const nm = (BYKEY.get(n.parent_wiki_key)||{}).name || n.parent_wiki_key.replace(/^wiki:/,'');
+  if(!n.parent_in_model) return ` <span class="tag gap" title="Eltern referenziert, aber nicht gecrawlt">→ ${esc(nm)}?</span>`;
+  return ` <span class="muted">→ ${esc(nm)}</span>`;
+}
+function conflictLabel(n){
+  if(!(n.conflicts && n.conflicts.length)) return '';
+  return ` <span class="tag conf" title="strittiger Zweit-Elternteil laut Wiki — nur bestätigen, nicht zwingend ändern">◆ ${esc(n.conflicts[0])}${n.conflicts.length>1?' +'+(n.conflicts.length-1):''}</span>`;
 }
 function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
