@@ -1254,7 +1254,7 @@ function avesmapsWikiSyncMonitorGeometryLookup(PDO $pdo, string $geometryId, str
         return ['ok' => true, 'items' => []];
     }
 
-    $sql = 'SELECT g.id, g.public_id, g.territory_id, g.is_active,
+    $sql = 'SELECT g.id, g.public_id, g.territory_id, g.is_active, g.geometry_geojson,
             t.name AS territory_name, t.wiki_key AS territory_wiki_key, t.is_active AS territory_active,
             par.name AS territory_parent_name
         FROM political_territory_geometry g
@@ -1265,7 +1265,39 @@ function avesmapsWikiSyncMonitorGeometryLookup(PDO $pdo, string $geometryId, str
     $statement = $pdo->prepare($sql);
     $statement->execute($params);
 
-    return ['ok' => true, 'items' => $statement->fetchAll(PDO::FETCH_ASSOC)];
+    $items = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        // Form-Signatur (BBox gerundet + Punktzahl) zum Vergleich, OHNE die volle Geometrie auszuliefern.
+        $geo = json_decode((string) ($row['geometry_geojson'] ?? ''), true);
+        unset($row['geometry_geojson']);
+        $points = [];
+        if (is_array($geo)) {
+            if (($geo['type'] ?? '') === 'Polygon') {
+                $points = avesmapsPoliticalCollectGeometryPoints($geo['coordinates'] ?? null);
+            } elseif (($geo['type'] ?? '') === 'MultiPolygon') {
+                foreach ((array) ($geo['coordinates'] ?? []) as $poly) {
+                    $points = array_merge($points, avesmapsPoliticalCollectGeometryPoints($poly));
+                }
+            }
+        }
+        if ($points !== []) {
+            $lngs = array_column($points, 0);
+            $lats = array_column($points, 1);
+            $row['point_count'] = count($points);
+            $row['bbox'] = [
+                'min_lng' => round(min($lngs), 4),
+                'min_lat' => round(min($lats), 4),
+                'max_lng' => round(max($lngs), 4),
+                'max_lat' => round(max($lats), 4),
+            ];
+        } else {
+            $row['point_count'] = 0;
+            $row['bbox'] = null;
+        }
+        $items[] = $row;
+    }
+
+    return ['ok' => true, 'items' => $items];
 }
 
 // Phase 2b: Sync parent_wiki_key (Modell) -> political_territory.parent_id-CACHE.
