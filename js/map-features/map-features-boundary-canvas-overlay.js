@@ -44,6 +44,10 @@
 	canvas.style.top = "0";
 	canvas.style.left = "0";
 	canvas.style.transformOrigin = "0 0"; // Skalierung waehrend der Zoom-Animation um die obere linke Ecke
+	// Dieselbe Easing wie Leaflets Ebenen: die Klasse aktiviert (unter .leaflet-zoom-anim) die
+	// transition transform 0.25s cubic-bezier(0,0,0.25,1) -> Canvas easet im Gleichschritt mit
+	// Kacheln/Flaechen/SVG-Linien statt sofort auf die Endgroesse zu springen.
+	canvas.classList.add("leaflet-zoom-animated");
 	map.getPane(PANE).appendChild(canvas);
 	const ctx = canvas.getContext("2d");
 
