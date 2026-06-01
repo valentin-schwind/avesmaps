@@ -834,10 +834,13 @@ function avesmapsWikiSyncMonitorParseAffiliation(string $staatRaw): array {
     $conflicts = [];
     foreach ($clauses as $clause) {
         $stripped = trim((string) (preg_replace('/^\s*beansprucht\s+von\s+/iu', '', $clause) ?? $clause));
-        if ($primary === '' && !avesmapsWikiSyncMonitorIsQualifierOnly($stripped)) {
+        if (avesmapsWikiSyncMonitorIsQualifierOnly($stripped)) {
+            continue; // reiner Status-/Zeit-Zusatz (ehemalige Reichsstadt, umstritten) = weder Eltern noch Konflikt
+        }
+        if ($primary === '') {
             $primary = $stripped;
         } else {
-            $conflicts[] = $clause;
+            $conflicts[] = $stripped; // echte konkurrierende Eltern-Klausel
         }
     }
 
@@ -1145,6 +1148,9 @@ function avesmapsWikiSyncMonitorRebuildModel(PDO $pdo): array {
 
         $conflictKeys = [];
         foreach ($conflictsRaw as $conflict) {
+            if (avesmapsWikiSyncMonitorIsQualifierOnly((string) $conflict)) {
+                continue; // Status-/Zeit-Zusatz aus Alt-Crawl-Daten -> kein echter Konflikt
+            }
             $resolved = avesmapsWikiSyncMonitorResolveParentKey((string) $conflict, $index, $aliasMap);
             $conflictKeys[] = ['name' => $resolved['name'], 'wiki_key' => $resolved['wiki_key'], 'resolved' => $resolved['resolved']];
         }
