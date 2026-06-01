@@ -335,6 +335,14 @@ async function startWikiSyncRun() {
 }
 
 async function startWikiSyncTerritoryRun() {
+	// Alter sync_territories-Pfad stillgelegt: der Button öffnet jetzt den Sync-Editor
+	// (Crawl → Staging → Modell, Diff, Drag'n'drop). Promotion ist dort ein bewusster Schritt.
+	const opened = window.open("/html/wiki-sync-monitor.html", "_blank", "noopener,noreferrer");
+	if (!opened && typeof setWikiSyncStatus === "function") {
+		setWikiSyncStatus("Popup blockiert: Bitte Popups erlauben oder Link in neuem Tab öffnen.", "error");
+	}
+	return;
+	// eslint-disable-next-line no-unreachable
 	if (isWikiSyncLocationsRunning || isWikiSyncTerritoriesRunning) {
 		return;
 	}
