@@ -41,6 +41,8 @@
   .node.drop { outline:2px dashed var(--accent); }
   .twist { cursor:pointer; color:var(--mut); width:12px; display:inline-block; user-select:none; }
   .muted { color:var(--mut); }
+  a.wl { color:var(--mut); text-decoration:none; font-size:11px; padding:0 2px; }
+  a.wl:hover { color:var(--accent); }
   .count { color:var(--mut); font-size:11px; }
   #dropRoot { margin:6px 0; padding:6px; border:1px dashed var(--line); border-radius:5px; text-align:center; color:var(--mut); }
   #dropRoot.drop { outline:2px dashed var(--accent); }
@@ -161,7 +163,8 @@ function statusTags(n) {
   if (n.source_origin==='siedlung') t.push('<span class="tag sied">Stadt</span>');
   return t.join('');
 }
-function licDot(n){ const s=n.license_status||'none'; return `<span class="dot ${s}" title="Lizenz: ${n.license_status||'—'}"></span>`; }
+function licDot(n){ const s=n.license_status||'none'; const t=n.coat_of_arms_attribution||n.coat_of_arms_author||n.license_status||'—'; return `<span class="dot ${s}" title="Wappen-Lizenz: ${esc(t)}"></span>`; }
+function wikiLink(n){ return n.wiki_url ? ` <a class="wl" href="${esc(n.wiki_url)}" target="_blank" rel="noopener" draggable="false" title="Wiki-Seite öffnen">↗</a>` : ''; }
 function bfYear(t){ if(!t) return null; const m=String(t).match(/(\d{1,4})\s*(v\.?\s*BF|BF)/i); if(!m) return null; const y=parseInt(m[1],10); return /v\.?\s*BF/i.test(m[2])?-y:y; }
 function fmtBF(y){ return y<0 ? (Math.abs(y)+' v.BF') : (y+' BF'); }
 function periodLabel(n){
@@ -197,7 +200,7 @@ function renderList() {
     if (!matchesFilter(n, f)) continue;
     if (q && !(n.name.toLowerCase().includes(q) || n.wiki_key.toLowerCase().includes(q))) continue;
     if (shown++ > 600) { out.push('<div class="muted">… mehr (Suche eingrenzen)</div>'); break; }
-    out.push(`<div class="row" draggable="true" data-key="${n.wiki_key}">${licDot(n)}<span class="nm">${esc(n.name)}${periodLabel(n)}</span>${statusTags(n)}</div>`);
+    out.push(`<div class="row" draggable="true" data-key="${n.wiki_key}">${licDot(n)}<span class="nm">${esc(n.name)}${periodLabel(n)}</span>${wikiLink(n)}${statusTags(n)}</div>`);
   }
   $('list').innerHTML = out.join('') || '<div class="muted">— keine —</div>';
 }
@@ -216,7 +219,7 @@ function renderTree() {
     const hasKids = kids.length>0;
     const open = expanded.has(n.wiki_key);
     const tw = hasKids ? `<span class="twist" data-tw="${n.wiki_key}">${open?'▾':'▸'}</span>` : '<span class="twist"></span>';
-    let html = `<li><span class="node" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${licDot(n)}<span>${esc(n.name)}${periodLabel(n)}</span>${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
+    let html = `<li><span class="node" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${licDot(n)}<span>${esc(n.name)}${periodLabel(n)}</span>${wikiLink(n)}${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
     if (hasKids && open) html += `<ul class="tree">${kids.map(k=>build(k,depth+1)).join('')}</ul>`;
     return html + '</li>';
   };

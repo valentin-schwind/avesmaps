@@ -557,6 +557,15 @@ function avesmapsWikiSyncMonitorCrawlStep(PDO $pdo, string $runId, array $option
         avesmapsWikiSyncMonitorSleep($sleepMs);
     }
 
+    // Lizenz-Ermittlung ist Teil des Crawls: jede Runde enricht eine kleine Charge frisch
+    // gespeicherter Wappen (File-Seite -> Lizenz/Urheber), bis nichts mehr offen ist.
+    $licenses = ['by_status' => [], 'remaining' => 0];
+    try {
+        $licenses = avesmapsWikiSyncMonitorEnrichLicenses($pdo, ['batch_limit' => 15, 'sleep_ms' => $sleepMs, 'step_runtime' => 8]);
+    } catch (Throwable $error) {
+        $events[] = ['type' => 'error', 'title' => '(licenses)', 'message' => $error->getMessage()];
+    }
+
     return [
         'ok' => true,
         'run_id' => $runId,
@@ -565,6 +574,7 @@ function avesmapsWikiSyncMonitorCrawlStep(PDO $pdo, string $runId, array $option
         'stored' => $stored,
         'skipped' => $skipped,
         'errors' => $errors,
+        'licenses_remaining' => $licenses['remaining'] ?? 0,
         'runtime_seconds' => round(microtime(true) - $startedAt, 3),
         'events' => array_slice($events, 0, 60),
         'status' => avesmapsWikiSyncMonitorRunStatus($pdo, $runId),
@@ -1285,8 +1295,9 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     $rows = $pdo->query(
         'SELECT m.wiki_key, m.parent_wiki_key, m.parent_locked, m.auto_parent_wiki_key, m.source_origin,
-                m.parent_conflict_json, s.name, s.type, s.continent, s.affiliation_raw,
-                s.founded_text, s.dissolved_text, s.coat_of_arms_url, s.coat_of_arms_license_status
+                m.parent_conflict_json, s.name, s.type, s.continent, s.affiliation_raw, s.wiki_url,
+                s.founded_text, s.dissolved_text, s.coat_of_arms_url, s.coat_of_arms_license,
+                s.coat_of_arms_author, s.coat_of_arms_attribution, s.coat_of_arms_license_status
         FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' m
         LEFT JOIN ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . ' s ON s.wiki_key = m.wiki_key
         ORDER BY COALESCE(s.name, m.wiki_key) ASC'
@@ -1309,8 +1320,12 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'type' => (string) ($row['type'] ?? ''),
             'continent' => (string) ($row['continent'] ?? ''),
             'affiliation_raw' => (string) ($row['affiliation_raw'] ?? ''),
+            'wiki_url' => (string) ($row['wiki_url'] ?? ''),
             'founded_text' => (string) ($row['founded_text'] ?? ''),
             'dissolved_text' => (string) ($row['dissolved_text'] ?? ''),
+            'coat_of_arms_license' => (string) ($row['coat_of_arms_license'] ?? ''),
+            'coat_of_arms_author' => (string) ($row['coat_of_arms_author'] ?? ''),
+            'coat_of_arms_attribution' => (string) ($row['coat_of_arms_attribution'] ?? ''),
             'parent_wiki_key' => $parent,
             'parent_in_model' => $parent !== null ? isset($present[$parent]) : true,
             'parent_locked' => (int) $row['parent_locked'] === 1,
