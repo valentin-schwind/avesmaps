@@ -334,13 +334,43 @@ async function startWikiSyncRun() {
 	}
 }
 
+// Inline-Overlay (statt neuem Fenster) fuer den Sync-Editor: Vollbild-iframe im selben Tab.
+window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || function openAvesmapsSyncEditorOverlay() {
+	const overlayId = "avesmaps-sync-editor-overlay";
+	let overlay = document.getElementById(overlayId);
+	if (overlay) {
+		overlay.hidden = false;
+		document.body.style.overflow = "hidden";
+		return;
+	}
+	overlay = document.createElement("div");
+	overlay.id = overlayId;
+	overlay.style.cssText = "position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;background:#1e1f22;";
+	const bar = document.createElement("div");
+	bar.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:#2a2c30;border-bottom:1px solid #3a3d42;color:#e6e6e6;font:13px system-ui,sans-serif;";
+	const titleEl = document.createElement("span");
+	titleEl.textContent = "Avesmaps – Herrschaftsgebiete synchronisieren und editieren";
+	const closeButton = document.createElement("button");
+	closeButton.type = "button";
+	closeButton.textContent = "✕ Schließen";
+	closeButton.style.cssText = "background:#3a3d42;color:#e6e6e6;border:1px solid #555;border-radius:5px;padding:6px 12px;cursor:pointer;";
+	closeButton.addEventListener("click", () => { overlay.hidden = true; document.body.style.overflow = ""; });
+	bar.appendChild(titleEl);
+	bar.appendChild(closeButton);
+	const frame = document.createElement("iframe");
+	frame.src = "/html/wiki-sync-monitor.html";
+	frame.title = "Sync-Editor";
+	frame.style.cssText = "flex:1;border:0;width:100%;";
+	overlay.appendChild(bar);
+	overlay.appendChild(frame);
+	document.body.appendChild(overlay);
+	document.body.style.overflow = "hidden";
+};
+
 async function startWikiSyncTerritoryRun() {
 	// Alter sync_territories-Pfad stillgelegt: der Button öffnet jetzt den Sync-Editor
 	// (Crawl → Staging → Modell, Diff, Drag'n'drop). Promotion ist dort ein bewusster Schritt.
-	const opened = window.open("/html/wiki-sync-monitor.html", "_blank", "noopener,noreferrer");
-	if (!opened && typeof setWikiSyncStatus === "function") {
-		setWikiSyncStatus("Popup blockiert: Bitte Popups erlauben oder Link in neuem Tab öffnen.", "error");
-	}
+	openAvesmapsSyncEditorOverlay();
 	return;
 	// eslint-disable-next-line no-unreachable
 	if (isWikiSyncLocationsRunning || isWikiSyncTerritoriesRunning) {

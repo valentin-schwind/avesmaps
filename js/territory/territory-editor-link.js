@@ -716,9 +716,12 @@ function initializePoliticalTerritoryEditorPopup() {
 }
 
 function openPoliticalTerritoryWikiSyncSettings() {
-	// Der WikiSync-Button (Herrschaftsgebiete) öffnet den neuen Sync-Monitor: Crawl ->
-	// Staging -> Hierarchie-Modell, inkl. Lizenz-Ermittlung im Crawl, Diff und Drag'n'drop-
-	// Modellierung. (Ersetzt das alte Crawler-Playground wiki-dom-playground.html.)
+	// Der WikiSync-Button (Herrschaftsgebiete) öffnet den Sync-Editor INLINE (Vollbild-Overlay
+	// im selben Tab): Crawl -> Staging -> Hierarchie-Modell, Lizenzen im Crawl, Diff, Drag'n'drop.
+	if (typeof window.openAvesmapsSyncEditorOverlay === "function") {
+		window.openAvesmapsSyncEditorOverlay();
+		return;
+	}
 	const openedWindow = window.open("/html/wiki-sync-monitor.html", "_blank", "noopener,noreferrer");
 	if (!openedWindow && typeof setWikiSyncStatus === "function") {
 		setWikiSyncStatus("Popup blockiert: Bitte Popups erlauben oder Link in neuem Tab Ã¶ffnen.", "error");
