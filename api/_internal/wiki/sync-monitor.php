@@ -1141,9 +1141,14 @@ function avesmapsWikiSyncMonitorFileTitleFromCoatUrl(string $url): string {
 }
 
 function avesmapsWikiSyncMonitorExtractFileField(string $wikitext, array $labels): string {
+    // Bis Zeilenende erfassen (NICHT bis zum ersten '|'): der Wert ist oft {{Benutzer|Name}},
+    // dessen Pipe ein '[^|]'-Match sonst mittendrin abschneidet ("{{Benutzer").
     foreach ($labels as $label) {
-        if (preg_match('/\|\s*' . preg_quote($label, '/') . '\s*=\s*([^\n|]+)/iu', $wikitext, $match) === 1) {
+        if (preg_match('/\|\s*' . preg_quote($label, '/') . '\s*=\s*([^\n]+)/iu', $wikitext, $match) === 1) {
             $value = trim((string) $match[1]);
+            // nachfolgende Parameter derselben Zeile abschneiden (|Naechstes=...), den Wert behalten
+            $value = (string) (preg_replace('/\s*\|\s*[A-Za-zÄÖÜäöü][^=|]*=.*$/u', '', $value) ?? $value);
+            $value = trim($value);
             if ($value !== '') {
                 return $value;
             }
