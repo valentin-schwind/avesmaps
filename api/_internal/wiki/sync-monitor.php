@@ -1404,12 +1404,12 @@ function avesmapsWikiSyncMonitorApplyParentCache(PDO $pdo, array $skipKeys, bool
     // Diagnostik: divergente Kinder (nicht geskippt), deren Modell-Parent NICHT als
     // political_territory-Zeile mit passendem wiki_key existiert -> nicht anwendbar.
     $unresolvedSql = 'SELECT child.name AS child, child.parent_id AS live_parent_id,
-            m.parent_wiki_key AS model_parent_key, pm.name AS model_parent_name,
+            m.parent_wiki_key AS model_parent_key, ps.name AS model_parent_name,
             EXISTS(SELECT 1 FROM political_territory p WHERE p.wiki_key = m.parent_wiki_key AND p.is_active = 1) AS parent_is_territory,
-            (SELECT p2.wiki_key FROM political_territory p2 WHERE p2.name = pm.name AND p2.is_active = 1 LIMIT 1) AS territory_key_by_name
+            (SELECT p2.wiki_key FROM political_territory p2 WHERE p2.name = ps.name AND p2.is_active = 1 LIMIT 1) AS territory_key_by_name
         FROM political_territory child
         JOIN ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' m ON m.wiki_key = child.wiki_key
-        LEFT JOIN ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' pm ON pm.wiki_key = m.parent_wiki_key
+        LEFT JOIN ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . ' ps ON ps.wiki_key = m.parent_wiki_key
         WHERE child.is_active = 1 AND m.parent_wiki_key IS NOT NULL' . $skipClause . '
           AND NOT EXISTS (SELECT 1 FROM political_territory parent WHERE parent.wiki_key = m.parent_wiki_key AND parent.is_active = 1 AND parent.id <> child.id)
         ORDER BY child.name LIMIT 50';
