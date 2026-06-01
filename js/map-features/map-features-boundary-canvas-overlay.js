@@ -108,6 +108,11 @@
 
 	function redraw() {
 		if (!map.getPane(PANE)) return;
+		// Während der Zoom-Animation NICHT neu zeichnen/positionieren: ein setPosition würde
+		// (unter .leaflet-zoom-anim) mit-transitionieren und gegen die zoomanim-Transform
+		// kämpfen -> Springen. In dieser Phase besitzt allein zoomanim das Canvas; zoomend
+		// hebt das Flag auf und zeichnet scharf.
+		if (isZoomAnimating) return;
 		const size = map.getSize();
 		const topLeft = map.containerPointToLayerPoint([0, 0]);
 		L.DomUtil.setPosition(canvas, topLeft); // reine Translation -> setzt eine evtl. Zoom-Skalierung zurueck
@@ -159,7 +164,11 @@
 		[120, 350, 800].forEach((delay) => window.setTimeout(redraw, delay));
 	}
 
-	map.on("moveend zoomend viewreset resize", () => { redraw(); scheduleSettleRedraws(); });
+	// Flag: läuft gerade eine Zoom-Animation? (blockt interferierende Redraws, s. redraw()).
+	let isZoomAnimating = false;
+	map.on("zoomstart", () => { isZoomAnimating = true; });
+	// Bei diesen Events ist die Animation vorbei -> Flag zuerst lösen, DANN scharf neu zeichnen.
+	map.on("moveend zoomend viewreset resize", () => { isZoomAnimating = false; redraw(); scheduleSettleRedraws(); });
 
 	// Während der Zoom-ANIMATION skaliert Leaflet seine Flaechen/Kacheln fluessig; das Canvas
 	// zeichnet sonst erst auf zoomend neu -> Grenzen und Flaechen passen waehrend des Zooms kurz
