@@ -10,9 +10,23 @@ declare(strict_types=1);
 
 const AVESMAPS_WIKI_SYNC_MONITOR_QUEUE_TABLE = 'wiki_crawl_queue';
 const AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE = 'wiki_territory_model';
+const AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE = 'political_territory_wiki_test';
 const AVESMAPS_WIKI_SYNC_MONITOR_MAX_DEPTH = 5;
 
 function avesmapsWikiSyncMonitorEnsureTables(PDO $pdo): void {
+    // Basis-Wiki-Spiegel sicherstellen (idempotent) + Staging-Tabelle als Kopie davon.
+    // Der Crawler schreibt NUR ins Staging (_test); Promotion ins political_territory_wiki
+    // ist ein separater Schritt (Phase 3). geometry wird nie angefasst.
+    if (function_exists('avesmapsPoliticalEnsureTables')) {
+        avesmapsPoliticalEnsureTables($pdo);
+    }
+    if (
+        $pdo->query("SHOW TABLES LIKE 'political_territory_wiki'")->fetchColumn() !== false
+        && $pdo->query("SHOW TABLES LIKE '" . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . "'")->fetchColumn() === false
+    ) {
+        $pdo->exec('CREATE TABLE ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . ' LIKE political_territory_wiki');
+    }
+
     // Resumierbare BFS-Frontier + Visited in einem. Pro (run_id, dedup_key) genau ein Eintrag
     // (dedup_key = stabiler Slug aus dem Titel, beim Enqueue berechnet).
     $pdo->exec(
@@ -374,8 +388,11 @@ function avesmapsWikiSyncMonitorCrawlStep(PDO $pdo, string $runId, array $option
 
     $processed = 0;
     $discovered = 0;
+    $stored = 0;
+    $skipped = 0;
     $errors = 0;
     $events = [];
+    $pageBatch = [];
     foreach ($rows as $row) {
         if ((microtime(true) - $startedAt) >= $stepRuntime) {
             break;
@@ -385,6 +402,13 @@ function avesmapsWikiSyncMonitorCrawlStep(PDO $pdo, string $runId, array $option
         $title = (string) $row['wiki_title'];
         $depth = (int) $row['depth'];
         $role = (string) $row['role'];
+
+        if ($role === 'page') {
+            // Pages werden gesammelt und gebuendelt verarbeitet (1 API-Call je 20 Titel).
+            $pageBatch[] = ['id' => $id, 'title' => $title, 'depth' => $depth];
+            continue;
+        }
+
         try {
             if ($role === 'category') {
                 $members = avesmapsWikiSyncMonitorFetchCategoryMembers($title);
@@ -405,7 +429,6 @@ function avesmapsWikiSyncMonitorCrawlStep(PDO $pdo, string $runId, array $option
                 $events[] = ['type' => 'list', 'title' => $title, 'links' => count($links)];
                 avesmapsWikiSyncMonitorSleep($sleepMs);
             }
-            // role 'page': Commit A enumeriert nur (markiert done); Parsing/Upsert folgt Commit B.
 
             $markDone->execute(['status' => 'done', 'error_text' => null, 'id' => $id]);
             $processed++;
@@ -420,11 +443,63 @@ function avesmapsWikiSyncMonitorCrawlStep(PDO $pdo, string $runId, array $option
         }
     }
 
+    if ($pageBatch !== []) {
+        $titles = array_values(array_unique(array_map(static fn(array $p): string => (string) $p['title'], $pageBatch)));
+        try {
+            $contents = avesmapsWikiSyncFetchPoliticalTerritoryPageContents($titles);
+        } catch (Throwable $error) {
+            $contents = [];
+            $events[] = ['type' => 'error', 'title' => '(batch)', 'message' => $error->getMessage()];
+        }
+
+        foreach ($pageBatch as $page) {
+            $id = (int) $page['id'];
+            $title = (string) $page['title'];
+            $depth = (int) $page['depth'];
+            try {
+                $content = (string) ($contents[$title] ?? '');
+                if (trim($content) === '') {
+                    $markDone->execute(['status' => 'done', 'error_text' => 'kein Wiki-Inhalt', 'id' => $id]);
+                    $skipped++;
+                    $processed++;
+                    continue;
+                }
+
+                $parsed = avesmapsWikiSyncMonitorParsePage($title, $content);
+                if (!empty($parsed['is_territory']) && is_array($parsed['record'] ?? null)) {
+                    avesmapsWikiSyncMonitorUpsertTestRecord($pdo, $parsed['record']);
+                    $stored++;
+                    if ($depth < $maxDepth) {
+                        foreach (($parsed['parent_titles'] ?? []) as $parentTitle) {
+                            $discovered += avesmapsWikiSyncMonitorEnqueue($pdo, $runId, $parentTitle, $depth + 1, 'page', 'affiliation:' . $title);
+                        }
+                    }
+                    $markDone->execute(['status' => 'done', 'error_text' => null, 'id' => $id]);
+                } else {
+                    $skipped++;
+                    $markDone->execute(['status' => 'done', 'error_text' => mb_substr((string) ($parsed['reason'] ?? 'kein Herrschaftsgebiet'), 0, 500, 'UTF-8'), 'id' => $id]);
+                }
+                $processed++;
+            } catch (Throwable $error) {
+                $errors++;
+                $markDone->execute([
+                    'status' => 'error',
+                    'error_text' => mb_substr($error->getMessage(), 0, 500, 'UTF-8'),
+                    'id' => $id,
+                ]);
+                $events[] = ['type' => 'error', 'title' => $title, 'message' => $error->getMessage()];
+            }
+        }
+        avesmapsWikiSyncMonitorSleep($sleepMs);
+    }
+
     return [
         'ok' => true,
         'run_id' => $runId,
         'processed' => $processed,
         'discovered' => $discovered,
+        'stored' => $stored,
+        'skipped' => $skipped,
         'errors' => $errors,
         'runtime_seconds' => round(microtime(true) - $startedAt, 3),
         'events' => array_slice($events, 0, 60),
@@ -464,4 +539,360 @@ function avesmapsWikiSyncMonitorRunStatus(PDO $pdo, string $runId): array {
         'done' => $byStatus['done'] ?? 0,
         'error' => $byStatus['error'] ?? 0,
     ];
+}
+
+// ---------------------------------------------------------------------------
+// Commit B: Page-Parsing. Aus dem Infobox-Wikitext (echte Parameter Art/Staat/
+// Region/Wappen) einen Wiki-Spiegel-Datensatz bauen und ins Staging (_test)
+// upserten. Affiliation = Param `Staat` (politisch, = Elternkette) -> path/root +
+// [[Links]] fuer Eltern-Rekursion + Konflikt-Hinweise. Eigenstaendige Stadtstaaten
+// (Infobox Siedlung) werden mitgenommen (source_origin=siedlung).
+// ---------------------------------------------------------------------------
+
+function avesmapsWikiSyncMonitorFieldKey(string $key): string {
+    $key = mb_strtolower(trim($key), 'UTF-8');
+    $key = strtr($key, [
+        'ä' => 'a', 'ö' => 'o', 'ü' => 'u', 'ß' => 'ss',
+        'á' => 'a', 'à' => 'a', 'â' => 'a', 'é' => 'e', 'è' => 'e', 'ê' => 'e',
+        'î' => 'i', 'í' => 'i', 'ô' => 'o', 'ó' => 'o', 'û' => 'u', 'ú' => 'u',
+    ]);
+
+    return preg_replace('/[^a-z0-9]+/u', '', $key) ?? '';
+}
+
+function avesmapsWikiSyncMonitorNormFields(array $fields): array {
+    $norm = [];
+    foreach ($fields as $key => $value) {
+        $normalizedKey = avesmapsWikiSyncMonitorFieldKey((string) $key);
+        if ($normalizedKey !== '' && !isset($norm[$normalizedKey])) {
+            $norm[$normalizedKey] = (string) $value;
+        }
+    }
+
+    return $norm;
+}
+
+function avesmapsWikiSyncMonitorField(array $norm, array $aliases): string {
+    foreach ($aliases as $alias) {
+        if (isset($norm[$alias]) && trim($norm[$alias]) !== '') {
+            return $norm[$alias];
+        }
+    }
+
+    return '';
+}
+
+function avesmapsWikiSyncMonitorInfoboxName(string $wikitext): string {
+    if (preg_match('/\{\{\s*Infobox\s+([^\n|}]+)/u', $wikitext, $match) === 1) {
+        return trim(preg_replace('/\s+/u', ' ', (string) $match[1]) ?? (string) $match[1]);
+    }
+
+    return '';
+}
+
+function avesmapsWikiSyncMonitorCoatOfArmsUrl(string $rawValue): string {
+    $value = trim($rawValue);
+    if ($value === '') {
+        return '';
+    }
+
+    if (preg_match('/\{\{\s*(?:Boximage|Bild|Infoboxbild|Bildeinbindung)\s*\|\s*([^|}\n]+)/iu', $value, $match) === 1) {
+        return avesmapsWikiSyncPoliticalTerritoryFilePathUrl(trim((string) $match[1]));
+    }
+
+    return avesmapsWikiSyncExtractPoliticalTerritoryCoatOfArmsUrl($value);
+}
+
+function avesmapsWikiSyncMonitorDetectContinent(string $context): string {
+    $key = avesmapsWikiSyncMonitorFieldKey($context);
+    $continents = [
+        'Myranor / Güldenland' => ['myranor', 'guldenland', 'gueldenland', 'rastabor', 'vesayama'],
+        'Rakshazar / Riesland' => ['rakshazar', 'riesland'],
+        'Uthuria' => ['uthuria'],
+        'Tharun' => ['tharun'],
+        'Lahmaria' => ['lahmaria'],
+        'Aventurien' => ['aventurien'],
+    ];
+    foreach ($continents as $continent => $needles) {
+        foreach ($needles as $needle) {
+            if ($needle !== '' && str_contains($key, $needle)) {
+                return $continent;
+            }
+        }
+    }
+
+    return defined('AVESMAPS_POLITICAL_DEFAULT_CONTINENT') ? AVESMAPS_POLITICAL_DEFAULT_CONTINENT : 'Aventurien';
+}
+
+// Parst den politischen Affiliation-String (Param `Staat`). Liefert bereinigten raw,
+// Pfad (primaere Klausel, auf ':'/'>' gesplittet), root, [[Links]] (Eltern-Kandidaten)
+// und die Konflikt-Klauseln (alles hinter dem ersten '/').
+function avesmapsWikiSyncMonitorParseAffiliation(string $staatRaw): array {
+    $raw = trim($staatRaw);
+    if ($raw === '') {
+        return ['raw' => '', 'path' => [], 'root' => '', 'links' => [], 'conflicts' => [], 'independent' => false];
+    }
+
+    $links = [];
+    if (preg_match_all('/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/u', $raw, $linkMatches) !== false) {
+        foreach (($linkMatches[1] ?? []) as $linkTarget) {
+            $linkTitle = avesmapsWikiSyncMonitorNormalizeTitle((string) $linkTarget);
+            if ($linkTitle !== '' && avesmapsWikiSyncMonitorIsRelevantTitle($linkTitle)) {
+                $links[avesmapsPoliticalSlug($linkTitle)] = $linkTitle;
+            }
+        }
+    }
+
+    $clean = avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($raw);
+    $cleanKey = avesmapsWikiSyncMonitorFieldKey($clean);
+    $independent = str_contains($cleanKey, 'unabh')
+        || str_contains($cleanKey, 'eigenstand')
+        || str_contains($cleanKey, 'souveran');
+
+    $clauses = array_values(array_filter(
+        array_map('trim', preg_split('#\s*/\s*#u', $clean) ?: []),
+        static fn(string $clause): bool => $clause !== ''
+    ));
+    $primary = $clauses[0] ?? '';
+    $conflicts = array_slice($clauses, 1);
+
+    $path = [];
+    foreach (preg_split('/\s*(?::|>|»|›)\s*/u', $primary) ?: [] as $part) {
+        $part = trim(preg_replace('/\([^)]*\)/u', ' ', $part) ?? $part);
+        $part = trim($part);
+        if ($part === '') {
+            continue;
+        }
+        $partKey = avesmapsWikiSyncMonitorFieldKey($part);
+        if (
+            str_starts_with($partKey, 'unabh')
+            || str_starts_with($partKey, 'keine')
+            || str_starts_with($partKey, 'unbekannt')
+            || str_starts_with($partKey, 'ungeklart')
+            || str_starts_with($partKey, 'umstritten')
+        ) {
+            continue;
+        }
+        $path[] = $part;
+    }
+    $path = array_values(array_unique($path));
+
+    return [
+        'raw' => $clean,
+        'path' => $path,
+        'root' => $path[0] ?? '',
+        'links' => array_values($links),
+        'conflicts' => $conflicts,
+        'independent' => $independent,
+    ];
+}
+
+function avesmapsWikiSyncMonitorParsePage(string $title, string $wikitext): array {
+    $title = avesmapsWikiSyncMonitorNormalizeTitle($title);
+    $infobox = avesmapsWikiSyncMonitorInfoboxName($wikitext);
+    $infoboxKey = avesmapsWikiSyncMonitorFieldKey($infobox);
+    $fields = avesmapsWikiSyncReadWikiTemplateFields($wikitext);
+    $norm = avesmapsWikiSyncMonitorNormFields($fields);
+
+    $field = static fn(array $aliases): string => avesmapsWikiSyncCleanPoliticalTerritoryWikiValue(avesmapsWikiSyncMonitorField($norm, $aliases));
+
+    $affiliation = avesmapsWikiSyncMonitorParseAffiliation(
+        avesmapsWikiSyncMonitorField($norm, ['staat', 'staatpolitisch', 'zugehorigkeitpolitisch', 'politischezugehorigkeit', 'politisch'])
+    );
+    $statusText = $field(['status']);
+
+    $isTerritoryInfobox = $infoboxKey !== '' && (
+        str_contains($infoboxKey, 'staat')
+        || str_contains($infoboxKey, 'herrschaftsgebiet')
+        || str_contains($infoboxKey, 'reich')
+    );
+    $isSettlementInfobox = $infoboxKey !== '' && (
+        str_contains($infoboxKey, 'siedlung')
+        || str_contains($infoboxKey, 'stadt')
+        || str_contains($infoboxKey, 'ort')
+    );
+
+    if ($isTerritoryInfobox) {
+        $sourceOrigin = 'staat';
+    } elseif ($isSettlementInfobox) {
+        $independenceKey = avesmapsWikiSyncMonitorFieldKey($statusText . ' ' . $affiliation['raw']);
+        $independentSettlement = $affiliation['independent']
+            || str_contains($independenceKey, 'stadtstaat')
+            || str_contains($independenceKey, 'eigenstand')
+            || str_contains($independenceKey, 'unabh')
+            || str_contains($independenceKey, 'souveran');
+        if (!$independentSettlement) {
+            return [
+                'is_territory' => false,
+                'reason' => 'Infobox ' . ($infobox !== '' ? $infobox : '?') . ' (abhaengige Siedlung)',
+                'record' => null,
+                'parent_titles' => [],
+                'source_origin' => 'siedlung',
+            ];
+        }
+        $sourceOrigin = 'siedlung';
+    } else {
+        return [
+            'is_territory' => false,
+            'reason' => $infobox === '' ? 'kein Infobox' : ('Infobox ' . $infobox),
+            'record' => null,
+            'parent_titles' => [],
+            'source_origin' => 'andere',
+        ];
+    }
+
+    $name = $field(['name']);
+    if ($name === '') {
+        $name = $title;
+    }
+    $continent = $field(['kontinent']);
+    if ($continent === '') {
+        $continent = avesmapsWikiSyncMonitorDetectContinent(
+            $title . ' ' . avesmapsWikiSyncMonitorField($norm, ['region', 'geographisch']) . ' ' . $affiliation['raw']
+        );
+    }
+
+    $german = [
+        'Name' => $name,
+        'Typ' => $field(['art', 'typ', 'herrschaftsgebiet']),
+        'Kontinent' => $continent,
+        'Zugehörigkeit' => $affiliation['raw'],
+        'Zugehörigkeit-Root' => $affiliation['root'],
+        'Zugehörigkeit-Pfad' => implode(' > ', $affiliation['path']),
+        'Zugehörigkeit-JSON' => ['path' => $affiliation['path'], 'source' => 'wiki-sync-monitor', 'source_field' => 'Staat'],
+        'Status' => $statusText,
+        'Herrschaftsform' => $field(['herrschaftsform']),
+        'Hauptstadt' => $field(['hauptstadt']),
+        'Herrschaftssitz' => $field(['herrschaftssitz']),
+        'Oberhaupt' => $field(['oberhaupt']),
+        'Sprache' => $field(['sprache']),
+        'Währung' => $field(['wahrung', 'wahrungen']),
+        'Handelswaren' => $field(['handelswaren']),
+        'Einwohnerzahl' => $field(['einwohnerzahl', 'einwohner']),
+        'Gründer' => $field(['grunder']),
+        'Gründungsdatum' => $field(['grundungsdatum', 'grundung', 'gegrundet', 'unabhangigkeit', 'entstehung']),
+        'Aufgelöst' => $field(['aufgelost', 'auflosung', 'besetzt', 'untergang', 'ende']),
+        'Geographisch' => $field(['region', 'geographisch']),
+        'Blasonierung' => $field(['blasonierung']),
+        'Wiki-Link' => avesmapsWikiSyncMonitorPageUrl($title),
+        'Wappen-Link' => avesmapsWikiSyncMonitorCoatOfArmsUrl(avesmapsWikiSyncMonitorField($norm, ['wappen', 'wappenbild', 'wappendatei', 'wappenbilddatei'])),
+    ];
+
+    $record = avesmapsPoliticalNormalizeWikiRecord($german);
+
+    $temporal = avesmapsWikiSyncBuildPoliticalTemporalPayload((string) $record['founded_text'], (string) $record['dissolved_text']);
+    $record['founded_text'] = (string) $temporal['founded_text'];
+    $record['founded_type'] = (string) $temporal['founded_type'];
+    $record['founded_start_bf'] = (int) $temporal['founded_start_bf'];
+    $record['founded_end_bf'] = (int) $temporal['founded_end_bf'];
+    $record['founded_display_bf'] = (float) $temporal['founded_display_bf'];
+    $record['dissolved_text'] = (string) $temporal['dissolved_text'];
+    $record['dissolved_type'] = (string) $temporal['dissolved_type'];
+    $record['dissolved_start_bf'] = (int) $temporal['dissolved_start_bf'];
+    $record['dissolved_end_bf'] = (int) $temporal['dissolved_end_bf'];
+    $record['dissolved_display_bf'] = (float) $temporal['dissolved_display_bf'];
+    $record['affiliation_root'] = $affiliation['root'];
+    $record['affiliation_path_json'] = $affiliation['path'];
+    $record['raw_json'] = [
+        'source' => 'wiki-sync-monitor',
+        'infobox' => $infobox,
+        'source_origin' => $sourceOrigin,
+        'affiliation' => $affiliation,
+    ];
+
+    return [
+        'is_territory' => true,
+        'reason' => '',
+        'record' => $record,
+        'parent_titles' => $affiliation['links'],
+        'source_origin' => $sourceOrigin,
+    ];
+}
+
+function avesmapsWikiSyncMonitorStagingColumns(PDO $pdo): array {
+    static $columns = null;
+    if ($columns !== null) {
+        return $columns;
+    }
+
+    $columns = [];
+    foreach ($pdo->query('SHOW COLUMNS FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE) ?: [] as $row) {
+        $field = (string) ($row['Field'] ?? '');
+        if ($field !== '') {
+            $columns[$field] = true;
+        }
+    }
+
+    return $columns;
+}
+
+// Stichprobe/Zaehlung aus dem Staging (_test) zur Verifikation + spaeter fuers Diff/UI.
+function avesmapsWikiSyncMonitorStagingSample(PDO $pdo, array $wikiKeys = [], int $limit = 40): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $total = (int) ($pdo->query('SELECT COUNT(*) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE)->fetchColumn() ?: 0);
+
+    $cols = 'wiki_key, name, type, continent, affiliation_root, affiliation_path_json, status, capital_name, seat_name, coat_of_arms_url, founded_text, dissolved_text, raw_json, synced_at';
+    $wikiKeys = array_values(array_filter(array_map(static fn($v): string => trim((string) $v), $wikiKeys), static fn(string $v): bool => $v !== ''));
+    if ($wikiKeys !== []) {
+        $placeholders = implode(',', array_fill(0, count($wikiKeys), '?'));
+        $statement = $pdo->prepare('SELECT ' . $cols . ' FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . ' WHERE wiki_key IN (' . $placeholders . ') ORDER BY name ASC');
+        $statement->execute($wikiKeys);
+    } else {
+        $limit = max(1, min(500, $limit));
+        $statement = $pdo->query('SELECT ' . $cols . ' FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . ' ORDER BY synced_at DESC LIMIT ' . $limit);
+    }
+
+    $items = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $raw = json_decode((string) ($row['raw_json'] ?? ''), true);
+        $row['source_origin'] = is_array($raw) ? (string) ($raw['source_origin'] ?? '') : '';
+        $row['affiliation_path'] = json_decode((string) ($row['affiliation_path_json'] ?? ''), true) ?: [];
+        unset($row['raw_json'], $row['affiliation_path_json']);
+        $items[] = $row;
+    }
+
+    return ['ok' => true, 'staging_table' => AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE, 'total' => $total, 'count' => count($items), 'items' => $items];
+}
+
+// Schreibt den normalisierten Datensatz spaltenbewusst ins Staging (_test). Crawler-only;
+// political_territory_wiki bleibt unberuehrt (Promotion ist ein separater Schritt).
+function avesmapsWikiSyncMonitorUpsertTestRecord(PDO $pdo, array $record): void {
+    $columns = avesmapsWikiSyncMonitorStagingColumns($pdo);
+    $write = [];
+    foreach ($record as $key => $value) {
+        if (isset($columns[$key]) && !in_array($key, ['id', 'synced_at'], true)) {
+            $write[$key] = $value;
+        }
+    }
+
+    if (
+        !isset($write['wiki_key'], $write['name'])
+        || trim((string) $write['wiki_key']) === ''
+        || trim((string) $write['name']) === ''
+    ) {
+        throw new RuntimeException('Staging-Datensatz ohne wiki_key/name.');
+    }
+
+    $names = array_keys($write);
+    $insertColumns = implode(', ', $names);
+    $insertValues = ':' . implode(', :', $names);
+    $updates = implode(', ', array_map(
+        static fn(string $col): string => $col . ' = VALUES(' . $col . ')',
+        array_values(array_filter($names, static fn(string $col): bool => $col !== 'wiki_key'))
+    ));
+    $sql = 'INSERT INTO ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . ' (' . $insertColumns . ', synced_at) VALUES ('
+        . $insertValues . ', CURRENT_TIMESTAMP(3)) ON DUPLICATE KEY UPDATE ' . $updates . ', synced_at = CURRENT_TIMESTAMP(3)';
+
+    $params = [];
+    foreach ($write as $key => $value) {
+        if (is_array($value)) {
+            $params[$key] = $value === [] ? null : json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        } elseif (is_string($value)) {
+            $params[$key] = $value === '' ? null : $value;
+        } else {
+            $params[$key] = $value;
+        }
+    }
+
+    $pdo->prepare($sql)->execute($params);
 }
