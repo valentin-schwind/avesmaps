@@ -185,6 +185,11 @@ function avesmapsWikiSyncMonitorIsRelevantTitle(string $title): bool {
     ) !== 1;
 }
 
+function avesmapsWikiSyncMonitorPageUrl(string $title): string {
+    return AVESMAPS_WIKI_SYNC_MONITOR_PAGE_BASE_URL
+        . str_replace('%2F', '/', rawurlencode(str_replace(' ', '_', avesmapsWikiSyncMonitorNormalizeTitle($title))));
+}
+
 function avesmapsWikiSyncMonitorTitleFromHref(string $href): string {
     $href = trim($href);
     if (str_starts_with($href, '/wiki/')) {
