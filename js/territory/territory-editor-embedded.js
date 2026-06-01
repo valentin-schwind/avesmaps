@@ -3,6 +3,9 @@
 (function initPoliticalTerritoryEditorEmbeddedModule() {
 
 		const API_URL = "/api/app/political-territory-wiki.php";
+		// Tree-Daten kommen aus dem Sync-Monitor-Modell (parent_wiki_key -> affiliation_path),
+		// NICHT mehr aus dem alten flachen Wiki-Spiegel. (API_URL bleibt fuer das Drag-Payload.)
+		const TREE_API_URL = "/api/edit/wiki/sync-monitor.php?action=wiki_rows";
 		const WRITE_API_URL = "/api/app/political-territories.php?debug_errors=1";
 		
 		const MODULE_VERSION = "2026-05-16-module-save-api";
@@ -333,9 +336,9 @@
 			}
 
 			try {
-				const response = await fetch(API_URL, {
+				const response = await fetch(TREE_API_URL, {
 					method: "GET",
-					credentials: "omit",
+					credentials: "same-origin",
 					headers: {
 						"Accept": "application/json"
 					}
