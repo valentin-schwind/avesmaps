@@ -117,3 +117,334 @@ function avesmapsWikiSyncMonitorBuildStatus(PDO $pdo): array {
         ],
     ];
 }
+
+// ---------------------------------------------------------------------------
+// Resumierbare Crawl-Engine (Commit A: Enumeration). Quellen ueber die
+// MediaWiki-API (/de/api.php, avesmapsWikiSyncApiRequest): Kategorien via
+// categorymembers (vollstaendig, DPL-unabhaengig), /Liste via parse-HTML.
+// Seeds + entdeckte Member landen in wiki_crawl_queue (BFS, depth<=MAX_DEPTH).
+// Das eigentliche Page-Parsing (Infobox/Affiliation/Wappen) folgt in Commit B.
+// ---------------------------------------------------------------------------
+
+const AVESMAPS_WIKI_SYNC_MONITOR_PAGE_BASE_URL = 'https://de.wiki-aventurica.de/wiki/';
+const AVESMAPS_WIKI_SYNC_MONITOR_BATCH_LIMIT = 40;
+const AVESMAPS_WIKI_SYNC_MONITOR_STEP_RUNTIME = 22;
+const AVESMAPS_WIKI_SYNC_MONITOR_SLEEP_MS = 250;
+const AVESMAPS_WIKI_SYNC_MONITOR_CATEGORY_PAGE_LIMIT = 500;
+const AVESMAPS_WIKI_SYNC_MONITOR_CATEGORY_MAX = 6000;
+
+function avesmapsWikiSyncMonitorReadMaxDepth(array $options): int {
+    return max(1, min(AVESMAPS_WIKI_SYNC_MONITOR_MAX_DEPTH, (int) ($options['max_depth'] ?? AVESMAPS_WIKI_SYNC_MONITOR_MAX_DEPTH)));
+}
+
+function avesmapsWikiSyncMonitorSleep(int $ms): void {
+    if ($ms > 0) {
+        usleep($ms * 1000);
+    }
+}
+
+function avesmapsWikiSyncMonitorNormalizeTitle(string $title): string {
+    $title = str_replace('_', ' ', trim($title));
+    $title = preg_replace('/#.*$/u', '', $title) ?? $title;
+    return trim($title);
+}
+
+function avesmapsWikiSyncMonitorClassifyRole(string $title): string {
+    if (preg_match('/^(Kategorie|Category):/iu', $title) === 1) {
+        return 'category';
+    }
+    if (preg_match('#/Liste$#u', $title) === 1) {
+        return 'list';
+    }
+
+    return 'page';
+}
+
+function avesmapsWikiSyncMonitorIsRelevantTitle(string $title): bool {
+    if ($title === '' || str_contains($title, '#')) {
+        return false;
+    }
+
+    return preg_match(
+        '/^(Datei|File|Kategorie|Category|Spezial|Special|Hilfe|Help|Vorlage|Template|Benutzer|User|Diskussion|Talk|Portal|MediaWiki):/iu',
+        $title
+    ) !== 1;
+}
+
+function avesmapsWikiSyncMonitorTitleFromHref(string $href): string {
+    $href = trim($href);
+    if (str_starts_with($href, '/wiki/')) {
+        return avesmapsWikiSyncMonitorNormalizeTitle(rawurldecode(substr($href, 6)));
+    }
+
+    return '';
+}
+
+function avesmapsWikiSyncMonitorSeedsFromInput(mixed $value): array {
+    if (is_array($value)) {
+        return $value;
+    }
+    if (is_string($value) && trim($value) !== '') {
+        return preg_split('/\R+/u', trim($value)) ?: [];
+    }
+
+    return [];
+}
+
+// INSERT IGNORE auf UNIQUE(run_id, dedup_key) = idempotentes Enqueue + Visited in einem.
+function avesmapsWikiSyncMonitorEnqueue(PDO $pdo, string $runId, string $title, int $depth, string $role, string $source): int {
+    $title = avesmapsWikiSyncMonitorNormalizeTitle($title);
+    if ($title === '') {
+        return 0;
+    }
+
+    $dedupKey = avesmapsPoliticalSlug($title);
+    if ($dedupKey === '') {
+        return 0;
+    }
+
+    $statement = $pdo->prepare(
+        'INSERT IGNORE INTO ' . AVESMAPS_WIKI_SYNC_MONITOR_QUEUE_TABLE . '
+            (run_id, dedup_key, wiki_title, wiki_key, depth, role, source, status, created_at)
+        VALUES (:run_id, :dedup_key, :wiki_title, :wiki_key, :depth, :role, :source, \'pending\', CURRENT_TIMESTAMP(3))'
+    );
+    $statement->execute([
+        'run_id' => $runId,
+        'dedup_key' => $dedupKey,
+        'wiki_title' => mb_substr($title, 0, 255, 'UTF-8'),
+        'wiki_key' => $role === 'page' ? $dedupKey : null,
+        'depth' => $depth,
+        'role' => $role,
+        'source' => mb_substr($source, 0, 255, 'UTF-8'),
+    ]);
+
+    return $statement->rowCount();
+}
+
+function avesmapsWikiSyncMonitorStartRun(PDO $pdo, array $seeds, array $options = []): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $runId = avesmapsPoliticalUuidV4();
+    $maxDepth = avesmapsWikiSyncMonitorReadMaxDepth($options);
+
+    $seeded = 0;
+    $byRole = ['category' => 0, 'list' => 0, 'page' => 0];
+    foreach ($seeds as $seed) {
+        $title = avesmapsWikiSyncMonitorNormalizeTitle((string) $seed);
+        if ($title === '') {
+            continue;
+        }
+
+        $role = avesmapsWikiSyncMonitorClassifyRole($title);
+        $inserted = avesmapsWikiSyncMonitorEnqueue($pdo, $runId, $title, 0, $role, 'seed');
+        if ($inserted > 0) {
+            $seeded += $inserted;
+            $byRole[$role] = ($byRole[$role] ?? 0) + $inserted;
+        }
+    }
+
+    if ($seeded === 0) {
+        throw new RuntimeException('Mindestens ein gueltiger Seed ist erforderlich.');
+    }
+
+    return [
+        'ok' => true,
+        'run_id' => $runId,
+        'max_depth' => $maxDepth,
+        'seeded' => $seeded,
+        'seeded_by_role' => $byRole,
+    ];
+}
+
+// Vollstaendige Member-Enumeration einer Kategorie ueber categorymembers (cmcontinue).
+function avesmapsWikiSyncMonitorFetchCategoryMembers(string $categoryTitle): array {
+    $title = avesmapsWikiSyncMonitorNormalizeTitle($categoryTitle);
+    if (preg_match('/^(Kategorie|Category):/iu', $title) !== 1) {
+        $title = 'Kategorie:' . $title;
+    }
+
+    $members = [];
+    $continue = null;
+    $guard = 0;
+    do {
+        $params = [
+            'action' => 'query',
+            'list' => 'categorymembers',
+            'cmtitle' => $title,
+            'cmlimit' => (string) AVESMAPS_WIKI_SYNC_MONITOR_CATEGORY_PAGE_LIMIT,
+            'cmtype' => 'page',
+            'format' => 'json',
+        ];
+        if ($continue !== null) {
+            $params['cmcontinue'] = $continue;
+        }
+
+        $data = avesmapsWikiSyncApiRequest($params);
+        foreach (($data['query']['categorymembers'] ?? []) as $member) {
+            $memberTitle = avesmapsWikiSyncMonitorNormalizeTitle((string) ($member['title'] ?? ''));
+            if ($memberTitle !== '' && avesmapsWikiSyncMonitorIsRelevantTitle($memberTitle)) {
+                $members[avesmapsPoliticalSlug($memberTitle)] = $memberTitle;
+            }
+        }
+
+        $continue = isset($data['continue']['cmcontinue']) ? (string) $data['continue']['cmcontinue'] : null;
+        $guard++;
+    } while ($continue !== null && $guard < 40 && count($members) < AVESMAPS_WIKI_SYNC_MONITOR_CATEGORY_MAX);
+
+    return array_values($members);
+}
+
+// Links einer DPL-/Liste-Seite aus dem gerenderten HTML (action=parse).
+function avesmapsWikiSyncMonitorFetchListLinks(string $listTitle): array {
+    $html = avesmapsWikiSyncFetchParsedWikiHtml(avesmapsWikiSyncMonitorNormalizeTitle($listTitle));
+    if (!class_exists(DOMDocument::class)) {
+        return [];
+    }
+
+    $document = new DOMDocument();
+    @$document->loadHTML('<?xml encoding="UTF-8">' . $html);
+    $xpath = new DOMXPath($document);
+
+    $links = [];
+    $query = '//div[contains(@class,"mw-parser-output")]//table//a[@href] | //div[contains(@class,"mw-parser-output")]//ul//li//a[@href]';
+    foreach ($xpath->query($query) ?: [] as $node) {
+        if (!$node instanceof DOMElement) {
+            continue;
+        }
+
+        $title = avesmapsWikiSyncMonitorTitleFromHref((string) $node->getAttribute('href'));
+        if ($title === '' || !avesmapsWikiSyncMonitorIsRelevantTitle($title)) {
+            continue;
+        }
+        if (preg_match('#/Liste$#u', $title) === 1) {
+            continue;
+        }
+
+        $links[avesmapsPoliticalSlug($title)] = $title;
+    }
+
+    return array_values($links);
+}
+
+function avesmapsWikiSyncMonitorCrawlStep(PDO $pdo, string $runId, array $options = []): array {
+    $runId = trim($runId);
+    if ($runId === '') {
+        throw new RuntimeException('run_id fehlt.');
+    }
+
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $maxDepth = avesmapsWikiSyncMonitorReadMaxDepth($options);
+    $batchLimit = max(1, min(200, (int) ($options['batch_limit'] ?? AVESMAPS_WIKI_SYNC_MONITOR_BATCH_LIMIT)));
+    $stepRuntime = max(3, min(28, (int) ($options['step_runtime'] ?? AVESMAPS_WIKI_SYNC_MONITOR_STEP_RUNTIME)));
+    $sleepMs = max(0, min(3000, (int) ($options['sleep_ms'] ?? AVESMAPS_WIKI_SYNC_MONITOR_SLEEP_MS)));
+    @set_time_limit($stepRuntime + 15);
+    $startedAt = microtime(true);
+
+    // Entrypoints (category/list, depth 0) zuerst, dann Pages nach Tiefe (BFS).
+    $select = $pdo->prepare(
+        'SELECT id, wiki_title, depth, role FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_QUEUE_TABLE . '
+        WHERE run_id = :run_id AND status = \'pending\'
+        ORDER BY FIELD(role, \'category\', \'list\', \'page\'), depth ASC, id ASC
+        LIMIT ' . $batchLimit
+    );
+    $select->execute(['run_id' => $runId]);
+    $rows = $select->fetchAll(PDO::FETCH_ASSOC);
+
+    $markDone = $pdo->prepare(
+        'UPDATE ' . AVESMAPS_WIKI_SYNC_MONITOR_QUEUE_TABLE . '
+        SET status = :status, attempts = attempts + 1, error_text = :error_text, processed_at = CURRENT_TIMESTAMP(3)
+        WHERE id = :id'
+    );
+
+    $processed = 0;
+    $discovered = 0;
+    $errors = 0;
+    $events = [];
+    foreach ($rows as $row) {
+        if ((microtime(true) - $startedAt) >= $stepRuntime) {
+            break;
+        }
+
+        $id = (int) $row['id'];
+        $title = (string) $row['wiki_title'];
+        $depth = (int) $row['depth'];
+        $role = (string) $row['role'];
+        try {
+            if ($role === 'category') {
+                $members = avesmapsWikiSyncMonitorFetchCategoryMembers($title);
+                if ($depth < $maxDepth) {
+                    foreach ($members as $member) {
+                        $discovered += avesmapsWikiSyncMonitorEnqueue($pdo, $runId, $member, $depth + 1, 'page', 'category:' . $title);
+                    }
+                }
+                $events[] = ['type' => 'category', 'title' => $title, 'members' => count($members)];
+                avesmapsWikiSyncMonitorSleep($sleepMs);
+            } elseif ($role === 'list') {
+                $links = avesmapsWikiSyncMonitorFetchListLinks($title);
+                if ($depth < $maxDepth) {
+                    foreach ($links as $link) {
+                        $discovered += avesmapsWikiSyncMonitorEnqueue($pdo, $runId, $link, $depth + 1, 'page', 'list:' . $title);
+                    }
+                }
+                $events[] = ['type' => 'list', 'title' => $title, 'links' => count($links)];
+                avesmapsWikiSyncMonitorSleep($sleepMs);
+            }
+            // role 'page': Commit A enumeriert nur (markiert done); Parsing/Upsert folgt Commit B.
+
+            $markDone->execute(['status' => 'done', 'error_text' => null, 'id' => $id]);
+            $processed++;
+        } catch (Throwable $error) {
+            $errors++;
+            $markDone->execute([
+                'status' => 'error',
+                'error_text' => mb_substr($error->getMessage(), 0, 500, 'UTF-8'),
+                'id' => $id,
+            ]);
+            $events[] = ['type' => 'error', 'title' => $title, 'message' => $error->getMessage()];
+        }
+    }
+
+    return [
+        'ok' => true,
+        'run_id' => $runId,
+        'processed' => $processed,
+        'discovered' => $discovered,
+        'errors' => $errors,
+        'runtime_seconds' => round(microtime(true) - $startedAt, 3),
+        'events' => array_slice($events, 0, 60),
+        'status' => avesmapsWikiSyncMonitorRunStatus($pdo, $runId),
+    ];
+}
+
+function avesmapsWikiSyncMonitorRunStatus(PDO $pdo, string $runId): array {
+    $runId = trim($runId);
+    if ($runId === '') {
+        throw new RuntimeException('run_id fehlt.');
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT role, status, COUNT(*) AS c FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_QUEUE_TABLE . '
+        WHERE run_id = :run_id GROUP BY role, status'
+    );
+    $statement->execute(['run_id' => $runId]);
+
+    $byRole = [];
+    $byStatus = [];
+    $total = 0;
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $count = (int) $r['c'];
+        $total += $count;
+        $byRole[(string) $r['role']] = ($byRole[(string) $r['role']] ?? 0) + $count;
+        $byStatus[(string) $r['status']] = ($byStatus[(string) $r['status']] ?? 0) + $count;
+    }
+
+    return [
+        'ok' => true,
+        'run_id' => $runId,
+        'total' => $total,
+        'by_role' => $byRole,
+        'by_status' => $byStatus,
+        'pending' => $byStatus['pending'] ?? 0,
+        'done' => $byStatus['done'] ?? 0,
+        'error' => $byStatus['error'] ?? 0,
+    ];
+}

@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 // Authed Endpoint der neuen Sync-Monitor-Surface (Herrschaftsgebiete-Crawler-Rework).
 // Bewusst isoliert vom Legacy-WikiSync-Dispatcher (endpoint.php). Nutzt die geteilte
-// authed Plumbing (bootstrap/auth) und die Sandbox-Logik in _internal/wiki/sync-monitor.php.
+// authed Plumbing (bootstrap/auth) + den vorhandenen Wiki-API-Client/Parser und die
+// Sandbox-Logik in _internal/wiki/sync-monitor.php.
 
 require __DIR__ . '/../../_internal/auth.php';
+require_once __DIR__ . '/../../_internal/wiki/sync.php';
+require_once __DIR__ . '/../../_internal/wiki/locations.php';
+require_once __DIR__ . '/../../_internal/wiki/territories.php';
+require_once __DIR__ . '/../../_internal/political/territory.php';
 require_once __DIR__ . '/../../_internal/wiki/sync-monitor.php';
 
 try {
@@ -27,18 +32,46 @@ try {
     $user = avesmapsRequireUserWithCapability('review');
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
+    if ($requestMethod === 'POST') {
+        $payload = avesmapsReadJsonRequest();
+        $action = trim((string) ($payload['action'] ?? ($_GET['action'] ?? '')));
+        $options = is_array($payload['options'] ?? null) ? $payload['options'] : $payload;
+
+        $response = match ($action) {
+            'start_run' => avesmapsWikiSyncMonitorStartRun(
+                $pdo,
+                avesmapsWikiSyncMonitorSeedsFromInput($payload['seeds'] ?? ''),
+                $options
+            ),
+            'crawl_step' => avesmapsWikiSyncMonitorCrawlStep(
+                $pdo,
+                trim((string) ($payload['run_id'] ?? '')),
+                $options
+            ),
+            default => null,
+        };
+
+        if ($response === null) {
+            avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Unbekannte Sync-Monitor-POST-Action: ' . $action]);
+        }
+
+        avesmapsJsonResponse(200, $response);
+    }
+
+    if ($requestMethod !== 'GET') {
+        avesmapsJsonResponse(405, ['ok' => false, 'error' => 'Nur GET und POST sind erlaubt.']);
+    }
+
     $action = trim((string) ($_GET['action'] ?? 'status'));
 
     $response = match ($action) {
         'status', '' => avesmapsWikiSyncMonitorBuildStatus($pdo),
+        'run_status' => avesmapsWikiSyncMonitorRunStatus($pdo, trim((string) ($_GET['run_id'] ?? ''))),
         default => null,
     };
 
     if ($response === null) {
-        avesmapsJsonResponse(400, [
-            'ok' => false,
-            'error' => 'Unbekannte Sync-Monitor-Action: ' . $action,
-        ]);
+        avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Unbekannte Sync-Monitor-Action: ' . $action]);
     }
 
     avesmapsJsonResponse(200, $response);
