@@ -103,6 +103,7 @@ try {
         'diff' => avesmapsWikiSyncMonitorDiff($pdo),
         'hierarchy_diff' => avesmapsWikiSyncMonitorHierarchyDiff($pdo),
         'model_tree' => avesmapsWikiSyncMonitorModelTree($pdo),
+        'wiki_rows' => avesmapsWikiSyncMonitorWikiRows($pdo),
         default => null,
     };
 

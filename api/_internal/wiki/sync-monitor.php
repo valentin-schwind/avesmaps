@@ -1502,6 +1502,107 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
     return ['ok' => true, 'count' => count($nodes), 'nodes' => $nodes];
 }
 
+// Block 2: liefert die Modell-Knoten im Format des Wiki-Tree (political-territory-wiki.php),
+// ABER mit der HIERARCHIE AUS DEM MODELL: affiliation_path = Ahnen-Kette (root-first) aus
+// parent_wiki_key. So nistet der bestehende buildTree nach dem Modell, ohne Tree-Modul-Umbau.
+// Aussortierte Knoten raus. map_assigned aus political_territory-Geometriezuweisung.
+function avesmapsWikiSyncMonitorWikiRows(PDO $pdo): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+
+    $parent = [];
+    $excluded = [];
+    foreach ($pdo->query('SELECT wiki_key, parent_wiki_key, excluded FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE) ?: [] as $m) {
+        $wk = (string) $m['wiki_key'];
+        $parent[$wk] = $m['parent_wiki_key'] !== null ? (string) $m['parent_wiki_key'] : null;
+        if ((int) ($m['excluded'] ?? 0) === 1) {
+            $excluded[$wk] = true;
+        }
+    }
+
+    $assigned = [];
+    foreach ($pdo->query(
+        'SELECT pt.wiki_key, COUNT(g.id) AS gc
+        FROM political_territory pt
+        JOIN political_territory_geometry g ON g.territory_id = pt.id AND g.is_active = 1
+        WHERE pt.is_active = 1 AND pt.wiki_key IS NOT NULL AND pt.wiki_key <> \'\'
+        GROUP BY pt.wiki_key'
+    ) ?: [] as $a) {
+        $assigned[(string) $a['wiki_key']] = (int) $a['gc'];
+    }
+
+    $rowsByKey = [];
+    foreach ($pdo->query(
+        'SELECT wiki_key, name, type, continent, affiliation_raw, status, form_of_government, capital_name,
+                seat_name, ruler, language, currency, trade_goods, population, founded_text, founded_start_bf,
+                founded_end_bf, dissolved_text, dissolved_start_bf, dissolved_end_bf, geographic, political,
+                trade_zone, blazon, wiki_url, coat_of_arms_url
+        FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE
+    )->fetchAll(PDO::FETCH_ASSOC) as $s) {
+        $rowsByKey[(string) $s['wiki_key']] = $s;
+    }
+    $nameOf = static fn(string $wk): string => isset($rowsByKey[$wk]) ? (string) $rowsByKey[$wk]['name'] : '';
+
+    $items = [];
+    $id = 1;
+    foreach ($rowsByKey as $wikiKey => $s) {
+        if (isset($excluded[$wikiKey])) {
+            continue;
+        }
+        // Ahnen-Kette (root-first) ueber parent_wiki_key, zyklensicher.
+        $chain = [];
+        $seen = [];
+        $cur = $parent[$wikiKey] ?? null;
+        $guard = 0;
+        while ($cur !== null && !isset($seen[$cur]) && $guard++ < 25) {
+            $seen[$cur] = true;
+            $name = $nameOf($cur);
+            if ($name !== '') {
+                array_unshift($chain, $name);
+            }
+            $cur = $parent[$cur] ?? null;
+        }
+
+        $geometryCount = $assigned[$wikiKey] ?? 0;
+        $items[] = [
+            'id' => $id++,
+            'wiki_key' => $wikiKey,
+            'parent_wiki_key' => $parent[$wikiKey] ?? null,
+            'name' => (string) $s['name'],
+            'type' => (string) $s['type'],
+            'continent' => (string) $s['continent'],
+            'affiliation_raw' => (string) $s['affiliation_raw'],
+            'affiliation_root' => $chain[0] ?? '',
+            'affiliation_path' => $chain,
+            'affiliation_path_json' => $chain,
+            'status' => (string) $s['status'],
+            'form_of_government' => (string) $s['form_of_government'],
+            'capital_name' => (string) $s['capital_name'],
+            'seat_name' => (string) $s['seat_name'],
+            'ruler' => (string) $s['ruler'],
+            'language' => (string) $s['language'],
+            'currency' => (string) $s['currency'],
+            'trade_goods' => (string) $s['trade_goods'],
+            'population' => (string) $s['population'],
+            'founded_text' => (string) $s['founded_text'],
+            'founded_start_bf' => $s['founded_start_bf'],
+            'founded_end_bf' => $s['founded_end_bf'],
+            'dissolved_text' => (string) $s['dissolved_text'],
+            'dissolved_start_bf' => $s['dissolved_start_bf'],
+            'dissolved_end_bf' => $s['dissolved_end_bf'],
+            'geographic' => (string) $s['geographic'],
+            'political' => (string) $s['political'],
+            'trade_zone' => (string) $s['trade_zone'],
+            'blazon' => (string) $s['blazon'],
+            'wiki_url' => (string) $s['wiki_url'],
+            'coat_of_arms_url' => (string) $s['coat_of_arms_url'],
+            'map_assigned' => $geometryCount > 0,
+            'map_geometry_count' => $geometryCount,
+        ];
+    }
+
+    return ['ok' => true, 'count' => count($items), 'items' => $items];
+}
+
 // Sandbox-Cleanup. target = queue|staging|model. queue optional je run_id.
 function avesmapsWikiSyncMonitorClear(PDO $pdo, string $target, string $runId = ''): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
