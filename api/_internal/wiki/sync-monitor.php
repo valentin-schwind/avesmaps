@@ -177,7 +177,8 @@ function avesmapsWikiSyncMonitorClassifyRole(string $title): string {
 }
 
 function avesmapsWikiSyncMonitorIsRelevantTitle(string $title): bool {
-    if ($title === '' || str_contains($title, '#')) {
+    // '/' = Unterseite (…/Liste, …/Provinzhistorie, …/Ableitung) = kein Herrschaftsgebiet.
+    if ($title === '' || str_contains($title, '#') || str_contains($title, '/')) {
         return false;
     }
 
@@ -363,6 +364,44 @@ function avesmapsWikiSyncMonitorFetchListLinks(string $listTitle): array {
     return array_values($links);
 }
 
+// Loest Anfrage-Titel auf ihren kanonischen Titel auf (normalized + redirects), damit
+// derselbe Artikel ueber Redirect-Aliase ("Mittelreich") und Voll-Titel NICHT als zwei
+// wiki_keys landet. Eine API-Abfrage je 40 Titel.
+function avesmapsWikiSyncMonitorResolveCanonicalTitles(array $titles): array {
+    $map = [];
+    foreach (array_chunk(array_values($titles), 40) as $batch) {
+        try {
+            $data = avesmapsWikiSyncApiRequest([
+                'action' => 'query',
+                'redirects' => '1',
+                'titles' => implode('|', $batch),
+                'format' => 'json',
+            ]);
+        } catch (Throwable $error) {
+            continue;
+        }
+        $query = $data['query'] ?? [];
+        $normalized = [];
+        foreach (($query['normalized'] ?? []) as $item) {
+            if (!empty($item['from']) && !empty($item['to'])) {
+                $normalized[(string) $item['from']] = (string) $item['to'];
+            }
+        }
+        $redirects = [];
+        foreach (($query['redirects'] ?? []) as $item) {
+            if (!empty($item['from']) && !empty($item['to'])) {
+                $redirects[(string) $item['from']] = (string) $item['to'];
+            }
+        }
+        foreach ($batch as $title) {
+            $step = $normalized[$title] ?? $title;
+            $map[$title] = $redirects[$step] ?? $redirects[$title] ?? $step;
+        }
+    }
+
+    return $map;
+}
+
 function avesmapsWikiSyncMonitorCrawlStep(PDO $pdo, string $runId, array $options = []): array {
     $runId = trim($runId);
     if ($runId === '') {
@@ -458,6 +497,7 @@ function avesmapsWikiSyncMonitorCrawlStep(PDO $pdo, string $runId, array $option
             $contents = [];
             $events[] = ['type' => 'error', 'title' => '(batch)', 'message' => $error->getMessage()];
         }
+        $canonical = avesmapsWikiSyncMonitorResolveCanonicalTitles($titles);
 
         foreach ($pageBatch as $page) {
             $id = (int) $page['id'];
@@ -472,7 +512,7 @@ function avesmapsWikiSyncMonitorCrawlStep(PDO $pdo, string $runId, array $option
                     continue;
                 }
 
-                $parsed = avesmapsWikiSyncMonitorParsePage($title, $content);
+                $parsed = avesmapsWikiSyncMonitorParsePage($title, $content, (string) ($canonical[$title] ?? $title));
                 if (!empty($parsed['is_territory']) && is_array($parsed['record'] ?? null)) {
                     avesmapsWikiSyncMonitorUpsertTestRecord($pdo, $parsed['record']);
                     $stored++;
@@ -774,8 +814,9 @@ function avesmapsWikiSyncMonitorParseAffiliation(string $staatRaw): array {
     ];
 }
 
-function avesmapsWikiSyncMonitorParsePage(string $title, string $wikitext): array {
+function avesmapsWikiSyncMonitorParsePage(string $title, string $wikitext, string $canonicalTitle = ''): array {
     $title = avesmapsWikiSyncMonitorNormalizeTitle($title);
+    $canonical = $canonicalTitle !== '' ? avesmapsWikiSyncMonitorNormalizeTitle($canonicalTitle) : $title;
     $infobox = avesmapsWikiSyncMonitorInfoboxName($wikitext);
     $infoboxKey = avesmapsWikiSyncMonitorFieldKey($infobox);
     $fields = avesmapsWikiSyncMonitorParseTemplateParams(avesmapsWikiSyncMonitorExtractInfoboxBlock($wikitext));
@@ -830,7 +871,7 @@ function avesmapsWikiSyncMonitorParsePage(string $title, string $wikitext): arra
 
     $name = $field(['name']);
     if ($name === '') {
-        $name = $title;
+        $name = $canonical;
     }
     $continent = $field(['kontinent']);
     if ($continent === '') {
@@ -861,7 +902,7 @@ function avesmapsWikiSyncMonitorParsePage(string $title, string $wikitext): arra
         'Aufgelöst' => avesmapsWikiSyncMonitorTemporalText(avesmapsWikiSyncMonitorField($norm, ['aufgelost', 'auflosung', 'besetzt', 'untergang', 'ende'])),
         'Geographisch' => $field(['region', 'geographisch']),
         'Blasonierung' => $field(['blasonierung']),
-        'Wiki-Link' => avesmapsWikiSyncMonitorPageUrl($title),
+        'Wiki-Link' => avesmapsWikiSyncMonitorPageUrl($canonical),
         'Wappen-Link' => avesmapsWikiSyncMonitorCoatOfArmsUrl(avesmapsWikiSyncMonitorField($norm, ['wappen', 'wappenbild', 'wappendatei', 'wappenbilddatei'])),
     ];
 
@@ -998,7 +1039,10 @@ function avesmapsWikiSyncMonitorRebuildModel(PDO $pdo): array {
         if ($path !== []) {
             $resolved = avesmapsWikiSyncMonitorResolveParentKey((string) $path[count($path) - 1], $index);
             $autoParent = $resolved['wiki_key'];
-            if ($resolved['resolved']) {
+            if ($autoParent === $wikiKey) {
+                $autoParent = null;
+                $summary['roots']++;
+            } elseif ($resolved['resolved']) {
                 $summary['resolved_parents']++;
             } else {
                 $summary['gap_parents']++;

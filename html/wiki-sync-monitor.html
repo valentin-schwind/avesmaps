@@ -199,7 +199,7 @@ function renderTree() {
   const build = (n, depth) => {
     const kids = children.get(n.wiki_key) || [];
     const hasKids = kids.length>0;
-    const open = expanded.has(n.wiki_key) || depth<1;
+    const open = expanded.has(n.wiki_key);
     const tw = hasKids ? `<span class="twist" data-tw="${n.wiki_key}">${open?'▾':'▸'}</span>` : '<span class="twist"></span>';
     let html = `<li><span class="node" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${licDot(n)}<span>${esc(n.name)}</span>${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
     if (hasKids && open) html += `<ul class="tree">${kids.map(k=>build(k,depth+1)).join('')}</ul>`;
