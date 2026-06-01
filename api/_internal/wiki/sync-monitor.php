@@ -895,7 +895,7 @@ function avesmapsWikiSyncMonitorStagingSample(PDO $pdo, array $wikiKeys = [], in
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     $total = (int) ($pdo->query('SELECT COUNT(*) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE)->fetchColumn() ?: 0);
 
-    $cols = 'wiki_key, name, type, continent, affiliation_root, affiliation_path_json, status, capital_name, seat_name, coat_of_arms_url, founded_text, dissolved_text, raw_json, synced_at';
+    $cols = 'wiki_key, name, type, continent, affiliation_raw, affiliation_key, affiliation_root, affiliation_path_json, status, capital_name, seat_name, coat_of_arms_url, founded_text, founded_type, founded_start_bf, founded_end_bf, dissolved_text, dissolved_type, dissolved_start_bf, dissolved_end_bf, raw_json, synced_at';
     $wikiKeys = array_values(array_filter(array_map(static fn($v): string => trim((string) $v), $wikiKeys), static fn(string $v): bool => $v !== ''));
     if ($wikiKeys !== []) {
         $placeholders = implode(',', array_fill(0, count($wikiKeys), '?'));
