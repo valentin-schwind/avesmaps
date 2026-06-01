@@ -304,22 +304,39 @@ function avesmapsWikiSyncMonitorFetchListLinks(string $listTitle): array {
     @$document->loadHTML('<?xml encoding="UTF-8">' . $html);
     $xpath = new DOMXPath($document);
 
+    // Nur den ERSTEN gueltigen Link je Zeile/Listenpunkt nehmen (= die Namensspalte).
+    // Sonst saugt man auch die verlinkten Spalten Hauptstadt/Herrschaftssitz ein (=Siedlungen,
+    // keine Herrschaftsgebiete) und blaeht die Queue ~3x auf.
     $links = [];
-    $query = '//div[contains(@class,"mw-parser-output")]//table//a[@href] | //div[contains(@class,"mw-parser-output")]//ul//li//a[@href]';
-    foreach ($xpath->query($query) ?: [] as $node) {
-        if (!$node instanceof DOMElement) {
-            continue;
-        }
+    $addFirstLink = static function (DOMElement $scope) use (&$links, $xpath): void {
+        foreach ($xpath->query('.//a[@href]', $scope) ?: [] as $anchor) {
+            if (!$anchor instanceof DOMElement) {
+                continue;
+            }
+            $title = avesmapsWikiSyncMonitorTitleFromHref((string) $anchor->getAttribute('href'));
+            if ($title === '' || !avesmapsWikiSyncMonitorIsRelevantTitle($title) || preg_match('#/Liste$#u', $title) === 1) {
+                continue;
+            }
+            $links[avesmapsPoliticalSlug($title)] = $title;
 
-        $title = avesmapsWikiSyncMonitorTitleFromHref((string) $node->getAttribute('href'));
-        if ($title === '' || !avesmapsWikiSyncMonitorIsRelevantTitle($title)) {
-            continue;
+            return;
         }
-        if (preg_match('#/Liste$#u', $title) === 1) {
-            continue;
-        }
+    };
 
-        $links[avesmapsPoliticalSlug($title)] = $title;
+    foreach ($xpath->query('//div[contains(@class,"mw-parser-output")]//table//tr') ?: [] as $tableRow) {
+        if (!$tableRow instanceof DOMElement) {
+            continue;
+        }
+        $firstCell = $xpath->query('./td[1]', $tableRow)->item(0) ?? $xpath->query('./th[1]', $tableRow)->item(0);
+        if ($firstCell instanceof DOMElement) {
+            $addFirstLink($firstCell);
+        }
+    }
+
+    foreach ($xpath->query('//div[contains(@class,"mw-parser-output")]//ul/li') ?: [] as $listItem) {
+        if ($listItem instanceof DOMElement) {
+            $addFirstLink($listItem);
+        }
     }
 
     return array_values($links);
