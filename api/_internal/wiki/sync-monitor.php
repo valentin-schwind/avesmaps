@@ -1314,6 +1314,76 @@ function avesmapsWikiSyncMonitorGeometryLookup(PDO $pdo, string $geometryId, str
     return ['ok' => true, 'items' => $items];
 }
 
+// "Ewiger Papierkorb" (nur neuer Modell-Editor): schaltet political_territory.is_active
+// per wiki_key um (trashed=true -> 0, false -> 1) und spiegelt das Modell-`excluded`-Flag.
+// Voll reversibel: Layer-Query verlangt territory.is_active=1, d.h. ein inaktives
+// Territorium blendet automatisch alle eigenen Geometrien aus; Restore bringt sie zurueck
+// (Geometrie-is_active bleibt unberuehrt). Gated: Schreiben nur bei dry_run:false UND
+// confirm:"apply". Verweigert das Wegwerfen, wenn aktive Unterknoten dranhaengen (Waisenschutz).
+function avesmapsWikiSyncMonitorSetTerritoryTrashed(PDO $pdo, string $wikiKey, bool $trashed, bool $dryRun): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $wikiKey = trim($wikiKey);
+    if ($wikiKey === '') {
+        return ['ok' => false, 'error' => 'wiki_key fehlt.'];
+    }
+
+    $stmt = $pdo->prepare(
+        'SELECT t.id, t.public_id, t.name, t.is_active, t.parent_id, par.name AS parent_name,
+            EXISTS(SELECT 1 FROM political_territory_geometry g WHERE g.territory_id = t.id AND g.is_active = 1) AS has_geometry,
+            (SELECT COUNT(*) FROM political_territory c WHERE c.parent_id = t.id AND c.is_active = 1) AS active_children
+        FROM political_territory t
+        LEFT JOIN political_territory par ON par.id = t.parent_id
+        WHERE t.wiki_key = ?
+        ORDER BY t.is_active DESC, t.id
+        LIMIT 1'
+    );
+    $stmt->execute([$wikiKey]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        return ['ok' => false, 'error' => 'Kein political_territory mit wiki_key ' . $wikiKey . '.'];
+    }
+
+    $targetActive = $trashed ? 0 : 1;
+    $activeChildren = (int) ($row['active_children'] ?? 0);
+    $result = [
+        'ok' => true,
+        'dry_run' => $dryRun,
+        'wiki_key' => $wikiKey,
+        'trashed' => $trashed,
+        'territory' => [
+            'id' => (int) $row['id'],
+            'name' => $row['name'],
+            'public_id' => $row['public_id'],
+            'parent_name' => $row['parent_name'],
+            'was_active' => (int) $row['is_active'],
+            'will_be_active' => $targetActive,
+            'has_geometry' => (int) $row['has_geometry'],
+            'active_children' => $activeChildren,
+        ],
+        'applied' => false,
+        'model_excluded_rows' => 0,
+    ];
+
+    // Waisenschutz: ein Knoten mit aktiven Kindern darf nicht in den Papierkorb.
+    if ($trashed && $activeChildren > 0) {
+        $result['ok'] = false;
+        $result['error'] = 'Territorium hat ' . $activeChildren . ' aktive Unterknoten - erst diese verschieben oder aussortieren.';
+        return $result;
+    }
+
+    if (!$dryRun) {
+        $pdo->prepare('UPDATE political_territory SET is_active = ? WHERE id = ?')
+            ->execute([$targetActive, (int) $row['id']]);
+        // Modell-Flag spiegeln (kein Treffer, wenn der Knoten gar nicht im Modell ist -> ok).
+        $modelStmt = $pdo->prepare('UPDATE ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' SET excluded = ? WHERE wiki_key = ?');
+        $modelStmt->execute([$trashed ? 1 : 0, $wikiKey]);
+        $result['applied'] = true;
+        $result['model_excluded_rows'] = $modelStmt->rowCount();
+    }
+
+    return $result;
+}
+
 // Phase 2b: Sync parent_wiki_key (Modell) -> political_territory.parent_id-CACHE.
 // Semantik: NUR auffuellen (child.parent_id IS NULL), bestehende parent_id NIE ueberschreiben
 // (korrigierte Hierarchie bleibt). Divergenzen werden nur gemeldet. dry_run=true schreibt NICHT.

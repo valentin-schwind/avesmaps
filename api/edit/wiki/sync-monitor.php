@@ -61,6 +61,13 @@ try {
                 // Schreiben NUR bei dry_run:false UND confirm:"apply"; sonst immer lesender Dry-Run.
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
             ),
+            'set_territory_trashed' => avesmapsWikiSyncMonitorSetTerritoryTrashed(
+                $pdo,
+                (string) ($payload['wiki_key'] ?? ''),
+                (bool) ($payload['trashed'] ?? true),
+                // Schreiben NUR bei dry_run:false UND confirm:"apply"; sonst lesender Dry-Run.
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+            ),
             'set_parent' => avesmapsWikiSyncMonitorSetParent(
                 $pdo,
                 (string) ($payload['wiki_key'] ?? ''),
