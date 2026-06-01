@@ -1232,7 +1232,7 @@ function avesmapsWikiSyncMonitorTerritoryLookup(PDO $pdo, array $wikiKeys, array
 
 // Read-only: schlaegt eine Geometrie per id ODER public_id nach -> an welchem
 // Territorium haengt sie (territory_id + name + wiki_key), is_active, Quelle/Typ.
-function avesmapsWikiSyncMonitorGeometryLookup(PDO $pdo, string $geometryId, string $publicId): array {
+function avesmapsWikiSyncMonitorGeometryLookup(PDO $pdo, string $geometryId, string $publicId, array $territoryIds = []): array {
     $geometryId = trim($geometryId);
     $publicId = trim($publicId);
     $clauses = [];
@@ -1244,6 +1244,11 @@ function avesmapsWikiSyncMonitorGeometryLookup(PDO $pdo, string $geometryId, str
     if ($publicId !== '') {
         $clauses[] = 'g.public_id = ?';
         $params[] = $publicId;
+    }
+    $territoryIds = array_values(array_filter(array_map('intval', $territoryIds), static fn(int $v): bool => $v > 0));
+    if ($territoryIds !== []) {
+        $clauses[] = 'g.territory_id IN (' . implode(',', array_fill(0, count($territoryIds), '?')) . ')';
+        $params = array_merge($params, $territoryIds);
     }
     if ($clauses === []) {
         return ['ok' => true, 'items' => []];

@@ -118,7 +118,8 @@ try {
         'geometry_lookup' => avesmapsWikiSyncMonitorGeometryLookup(
             $pdo,
             (string) ($_GET['geometry_id'] ?? ''),
-            (string) ($_GET['public_id'] ?? '')
+            (string) ($_GET['public_id'] ?? ''),
+            array_filter(array_map('trim', explode('|', (string) ($_GET['territory_ids'] ?? ''))))
         ),
         default => null,
     };
