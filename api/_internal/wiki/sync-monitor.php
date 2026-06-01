@@ -1073,6 +1073,98 @@ function avesmapsWikiSyncMonitorSyncParentCache(PDO $pdo, bool $dryRun = true): 
     ];
 }
 
+// ---------------------------------------------------------------------------
+// Phase 3: Diff/Report + Modell-Editieren (Drag'n'drop-Backend) + Sandbox-Clear.
+// ---------------------------------------------------------------------------
+
+// Diff Staging (neuer Crawl) vs political_territory_wiki (aktueller Spiegel) je wiki_key:
+// neu / verschwunden / geaendert. = der Promotion-Vorschau-Report.
+function avesmapsWikiSyncMonitorDiff(PDO $pdo): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $staging = AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE;
+    $wiki = 'political_territory_wiki';
+
+    $changedWhere = "COALESCE(s.name,'') <> COALESCE(w.name,'')
+        OR COALESCE(s.type,'') <> COALESCE(w.type,'')
+        OR COALESCE(s.affiliation_root,'') <> COALESCE(w.affiliation_root,'')
+        OR COALESCE(s.affiliation_path_json,'') <> COALESCE(w.affiliation_path_json,'')";
+
+    $new = (int) ($pdo->query("SELECT COUNT(*) FROM $staging s LEFT JOIN $wiki w ON w.wiki_key = s.wiki_key WHERE w.wiki_key IS NULL")->fetchColumn() ?: 0);
+    $disappeared = (int) ($pdo->query("SELECT COUNT(*) FROM $wiki w LEFT JOIN $staging s ON s.wiki_key = w.wiki_key WHERE s.wiki_key IS NULL")->fetchColumn() ?: 0);
+    $changed = (int) ($pdo->query("SELECT COUNT(*) FROM $staging s JOIN $wiki w ON w.wiki_key = s.wiki_key WHERE $changedWhere")->fetchColumn() ?: 0);
+
+    $sampleNew = $pdo->query("SELECT s.wiki_key, s.name, s.type FROM $staging s LEFT JOIN $wiki w ON w.wiki_key = s.wiki_key WHERE w.wiki_key IS NULL ORDER BY s.name LIMIT 15")->fetchAll(PDO::FETCH_ASSOC);
+    $sampleGone = $pdo->query("SELECT w.wiki_key, w.name, w.type FROM $wiki w LEFT JOIN $staging s ON s.wiki_key = w.wiki_key WHERE s.wiki_key IS NULL ORDER BY w.name LIMIT 15")->fetchAll(PDO::FETCH_ASSOC);
+    $sampleChanged = $pdo->query("SELECT s.wiki_key, s.name, w.affiliation_root AS old_root, s.affiliation_root AS new_root FROM $staging s JOIN $wiki w ON w.wiki_key = s.wiki_key WHERE $changedWhere ORDER BY s.name LIMIT 15")->fetchAll(PDO::FETCH_ASSOC);
+
+    return [
+        'ok' => true,
+        'new' => $new,
+        'disappeared' => $disappeared,
+        'changed' => $changed,
+        'sample_new' => $sampleNew,
+        'sample_disappeared' => $sampleGone,
+        'sample_changed' => $sampleChanged,
+    ];
+}
+
+// Drag'n'drop-Write: setzt parent_wiki_key (+ Lock) eines Knotens. NUR wiki_territory_model.
+function avesmapsWikiSyncMonitorSetParent(PDO $pdo, string $wikiKey, ?string $parentWikiKey, bool $lock = true): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $wikiKey = trim($wikiKey);
+    if ($wikiKey === '') {
+        throw new RuntimeException('wiki_key fehlt.');
+    }
+    $parentWikiKey = $parentWikiKey !== null ? trim($parentWikiKey) : null;
+    if ($parentWikiKey === '') {
+        $parentWikiKey = null;
+    }
+    if ($parentWikiKey !== null && $parentWikiKey === $wikiKey) {
+        throw new RuntimeException('Ein Knoten kann nicht sein eigener Elternknoten sein.');
+    }
+
+    $statement = $pdo->prepare(
+        'INSERT INTO ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . '
+            (wiki_key, parent_wiki_key, parent_locked, created_at, updated_at)
+        VALUES (:wiki_key, :parent, :lock, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))
+        ON DUPLICATE KEY UPDATE
+            parent_wiki_key = VALUES(parent_wiki_key),
+            parent_locked = VALUES(parent_locked),
+            updated_at = CURRENT_TIMESTAMP(3)'
+    );
+    $statement->execute(['wiki_key' => $wikiKey, 'parent' => $parentWikiKey, 'lock' => $lock ? 1 : 0]);
+
+    return ['ok' => true, 'wiki_key' => $wikiKey, 'parent_wiki_key' => $parentWikiKey, 'parent_locked' => $lock];
+}
+
+// Sandbox-Cleanup. target = queue|staging|model. queue optional je run_id.
+function avesmapsWikiSyncMonitorClear(PDO $pdo, string $target, string $runId = ''): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $cleared = [];
+    $runId = trim($runId);
+
+    if ($target === 'queue') {
+        if ($runId !== '') {
+            $statement = $pdo->prepare('DELETE FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_QUEUE_TABLE . ' WHERE run_id = :run_id');
+            $statement->execute(['run_id' => $runId]);
+            $cleared['queue_rows_deleted'] = $statement->rowCount();
+        } else {
+            $pdo->exec('TRUNCATE TABLE ' . AVESMAPS_WIKI_SYNC_MONITOR_QUEUE_TABLE);
+            $cleared['queue'] = 'truncated';
+        }
+    } elseif ($target === 'staging') {
+        $pdo->exec('TRUNCATE TABLE ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE);
+        $cleared['staging'] = 'truncated';
+    } elseif ($target === 'model') {
+        $pdo->exec('TRUNCATE TABLE ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE);
+        $cleared['model'] = 'truncated';
+    } else {
+        throw new RuntimeException('Unbekanntes clear-target (queue|staging|model).');
+    }
+
+    return ['ok' => true, 'cleared' => $cleared];
+}
+
 function avesmapsWikiSyncMonitorModelSample(PDO $pdo, array $wikiKeys = [], int $limit = 40): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     $total = (int) ($pdo->query('SELECT COUNT(*) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE)->fetchColumn() ?: 0);
