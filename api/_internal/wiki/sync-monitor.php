@@ -654,6 +654,27 @@ function avesmapsWikiSyncMonitorParseTemplateParams(string $block): array {
     return $params;
 }
 
+// WICHTIG (Audit 2026-06-01): avesmapsWikiSyncCleanPoliticalTerritoryWikiValue strippt
+// {{BF|177}}->"177" und {{Datum|Jahr|Monat|Tag}}->"Jahr Monat Tag" und entfernt damit den
+// "BF"-Marker, BEVOR avesmapsWikiSyncBuildPoliticalTemporalPayload die Jahre extrahiert ->
+// founded_start_bf wurde 0. Diese Funktion ueberfuehrt die Templates VOR dem Cleaning in
+// "JAHR BF", sodass der Payload-Extractor wieder greift. (Vorlage:Datum = Jahr|Monat|Tag.)
+function avesmapsWikiSyncMonitorTemporalText(string $rawValue): string {
+    $value = trim($rawValue);
+    if ($value === '') {
+        return '';
+    }
+
+    $value = preg_replace('/\{\{\s*BF\s*\|\s*(-?\d{1,5})[^}]*\}\}/iu', '$1 BF', $value) ?? $value;
+    $value = preg_replace_callback('/\{\{\s*Datum\s*\|([^}]*)\}\}/iu', static function (array $match): string {
+        $parts = array_map('trim', explode('|', (string) $match[1]));
+        $year = $parts[0] ?? '';
+        return preg_match('/^-?\d{1,5}$/', $year) === 1 ? ($year . ' BF') : '';
+    }, $value) ?? $value;
+
+    return avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($value);
+}
+
 function avesmapsWikiSyncMonitorCoatOfArmsUrl(string $rawValue): string {
     $value = trim($rawValue);
     if ($value === '') {
@@ -834,8 +855,8 @@ function avesmapsWikiSyncMonitorParsePage(string $title, string $wikitext): arra
         'Handelswaren' => $field(['handelswaren']),
         'Einwohnerzahl' => $field(['einwohnerzahl', 'einwohner']),
         'Gründer' => $field(['grunder']),
-        'Gründungsdatum' => $field(['grundungsdatum', 'grundung', 'gegrundet', 'unabhangigkeit', 'entstehung']),
-        'Aufgelöst' => $field(['aufgelost', 'auflosung', 'besetzt', 'untergang', 'ende']),
+        'Gründungsdatum' => avesmapsWikiSyncMonitorTemporalText(avesmapsWikiSyncMonitorField($norm, ['grundungsdatum', 'grundung', 'gegrundet', 'unabhangigkeit', 'entstehung'])),
+        'Aufgelöst' => avesmapsWikiSyncMonitorTemporalText(avesmapsWikiSyncMonitorField($norm, ['aufgelost', 'auflosung', 'besetzt', 'untergang', 'ende'])),
         'Geographisch' => $field(['region', 'geographisch']),
         'Blasonierung' => $field(['blasonierung']),
         'Wiki-Link' => avesmapsWikiSyncMonitorPageUrl($title),
