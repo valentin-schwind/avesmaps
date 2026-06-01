@@ -911,6 +911,152 @@ function avesmapsWikiSyncMonitorStagingColumns(PDO $pdo): array {
     return $columns;
 }
 
+// ---------------------------------------------------------------------------
+// Phase 2: Modell-Ableitung. Baut das Hierarchie-Modell (wiki_territory_model)
+// aus dem Staging. parent_wiki_key = letztes Pfad-Element, gegen die vorhandenen
+// Staging-wiki_keys aufgeloest. parent_locked schuetzt Editor-Korrekturen vor
+// Re-Ableitung (auto_parent_wiki_key wird trotzdem aktualisiert = Divergenz-Hinweis).
+// Schreibt NUR in die Sandbox-Tabelle; political_territory bleibt unberuehrt.
+// ---------------------------------------------------------------------------
+
+// Loest einen Eltern-Namen/Klausel gegen den Slug-Index der Staging-Knoten auf.
+// Nimmt das letzte ':'-Segment (Kette) und entfernt Klammer-Zusaetze ("(Widerspr.)").
+function avesmapsWikiSyncMonitorResolveParentKey(string $name, array $index): array {
+    $segments = preg_split('/\s*:\s*/u', $name) ?: [$name];
+    $name = trim((string) end($segments));
+    $name = trim(preg_replace('/\([^)]*\)/u', ' ', $name) ?? $name);
+    $slug = avesmapsPoliticalSlug($name);
+    if ($slug === '') {
+        return ['name' => $name, 'wiki_key' => null, 'resolved' => false];
+    }
+    if (isset($index[$slug])) {
+        return ['name' => $name, 'wiki_key' => $index[$slug], 'resolved' => true];
+    }
+
+    return ['name' => $name, 'wiki_key' => 'wiki:' . $slug, 'resolved' => false];
+}
+
+function avesmapsWikiSyncMonitorRebuildModel(PDO $pdo): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+
+    $rows = $pdo->query(
+        'SELECT wiki_key, name, affiliation_path_json, raw_json FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    // Slug-Index: Namens-Slug UND wiki_key-Slug -> wiki_key (deckt Page-Titel + Anzeigename ab).
+    $index = [];
+    foreach ($rows as $row) {
+        $wikiKey = (string) ($row['wiki_key'] ?? '');
+        if ($wikiKey === '') {
+            continue;
+        }
+        $nameSlug = avesmapsPoliticalSlug((string) ($row['name'] ?? ''));
+        if ($nameSlug !== '' && !isset($index[$nameSlug])) {
+            $index[$nameSlug] = $wikiKey;
+        }
+        $keySlug = preg_replace('/^wiki:/', '', $wikiKey) ?? $wikiKey;
+        if ($keySlug !== '' && !isset($index[$keySlug])) {
+            $index[$keySlug] = $wikiKey;
+        }
+    }
+
+    $upsert = $pdo->prepare(
+        'INSERT INTO ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . '
+            (wiki_key, parent_wiki_key, auto_parent_wiki_key, parent_conflict_json, source_origin, created_at, updated_at)
+        VALUES (:wiki_key, :parent, :auto, :conflict, :origin, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))
+        ON DUPLICATE KEY UPDATE
+            auto_parent_wiki_key = VALUES(auto_parent_wiki_key),
+            parent_conflict_json = VALUES(parent_conflict_json),
+            source_origin = VALUES(source_origin),
+            parent_wiki_key = IF(parent_locked = 1, parent_wiki_key, VALUES(parent_wiki_key)),
+            updated_at = CURRENT_TIMESTAMP(3)'
+    );
+
+    $summary = ['total' => 0, 'roots' => 0, 'resolved_parents' => 0, 'gap_parents' => 0, 'with_conflicts' => 0];
+    foreach ($rows as $row) {
+        $wikiKey = (string) ($row['wiki_key'] ?? '');
+        if ($wikiKey === '') {
+            continue;
+        }
+        $summary['total']++;
+
+        $path = json_decode((string) ($row['affiliation_path_json'] ?? ''), true);
+        if (!is_array($path)) {
+            $path = [];
+        }
+        $raw = json_decode((string) ($row['raw_json'] ?? ''), true);
+        if (!is_array($raw)) {
+            $raw = [];
+        }
+        $affiliation = is_array($raw['affiliation'] ?? null) ? $raw['affiliation'] : [];
+        $origin = (string) ($raw['source_origin'] ?? '');
+        $conflictsRaw = is_array($affiliation['conflicts'] ?? null) ? $affiliation['conflicts'] : [];
+
+        $autoParent = null;
+        if ($path !== []) {
+            $resolved = avesmapsWikiSyncMonitorResolveParentKey((string) $path[count($path) - 1], $index);
+            $autoParent = $resolved['wiki_key'];
+            if ($resolved['resolved']) {
+                $summary['resolved_parents']++;
+            } else {
+                $summary['gap_parents']++;
+            }
+        } else {
+            $summary['roots']++;
+        }
+
+        $conflictKeys = [];
+        foreach ($conflictsRaw as $conflict) {
+            $resolved = avesmapsWikiSyncMonitorResolveParentKey((string) $conflict, $index);
+            $conflictKeys[] = ['name' => $resolved['name'], 'wiki_key' => $resolved['wiki_key'], 'resolved' => $resolved['resolved']];
+        }
+        if ($conflictKeys !== []) {
+            $summary['with_conflicts']++;
+        }
+
+        $upsert->execute([
+            'wiki_key' => $wikiKey,
+            'parent' => $autoParent,
+            'auto' => $autoParent,
+            'conflict' => $conflictKeys === [] ? null : json_encode($conflictKeys, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'origin' => $origin === '' ? null : $origin,
+        ]);
+    }
+
+    return ['ok' => true, 'summary' => $summary];
+}
+
+function avesmapsWikiSyncMonitorModelSample(PDO $pdo, array $wikiKeys = [], int $limit = 40): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $total = (int) ($pdo->query('SELECT COUNT(*) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE)->fetchColumn() ?: 0);
+    $locked = (int) ($pdo->query('SELECT COUNT(*) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' WHERE parent_locked = 1')->fetchColumn() ?: 0);
+
+    $cols = 'm.wiki_key, m.parent_wiki_key, m.auto_parent_wiki_key, m.parent_locked, m.source_origin, m.parent_conflict_json, s.name, p.name AS parent_name';
+    $join = ' FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' m
+        LEFT JOIN ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . ' s ON s.wiki_key = m.wiki_key
+        LEFT JOIN ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . ' p ON p.wiki_key = m.parent_wiki_key';
+
+    $wikiKeys = array_values(array_filter(array_map(static fn($v): string => trim((string) $v), $wikiKeys), static fn(string $v): bool => $v !== ''));
+    if ($wikiKeys !== []) {
+        $placeholders = implode(',', array_fill(0, count($wikiKeys), '?'));
+        $statement = $pdo->prepare('SELECT ' . $cols . $join . ' WHERE m.wiki_key IN (' . $placeholders . ') ORDER BY s.name ASC');
+        $statement->execute($wikiKeys);
+    } else {
+        $limit = max(1, min(500, $limit));
+        $statement = $pdo->query('SELECT ' . $cols . $join . ' ORDER BY m.updated_at DESC LIMIT ' . $limit);
+    }
+
+    $items = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $row['parent_conflict'] = json_decode((string) ($row['parent_conflict_json'] ?? ''), true) ?: [];
+        $row['parent_resolved'] = $row['parent_wiki_key'] !== null && $row['parent_name'] !== null;
+        unset($row['parent_conflict_json']);
+        $items[] = $row;
+    }
+
+    return ['ok' => true, 'model_table' => AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE, 'total' => $total, 'locked' => $locked, 'count' => count($items), 'items' => $items];
+}
+
 // Stichprobe/Zaehlung aus dem Staging (_test) zur Verifikation + spaeter fuers Diff/UI.
 function avesmapsWikiSyncMonitorStagingSample(PDO $pdo, array $wikiKeys = [], int $limit = 40): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);

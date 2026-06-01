@@ -48,6 +48,7 @@ try {
                 trim((string) ($payload['run_id'] ?? '')),
                 $options
             ),
+            'rebuild_model' => avesmapsWikiSyncMonitorRebuildModel($pdo),
             default => null,
         };
 
@@ -68,6 +69,11 @@ try {
         'status', '' => avesmapsWikiSyncMonitorBuildStatus($pdo),
         'run_status' => avesmapsWikiSyncMonitorRunStatus($pdo, trim((string) ($_GET['run_id'] ?? ''))),
         'staging_sample' => avesmapsWikiSyncMonitorStagingSample(
+            $pdo,
+            array_filter(array_map('trim', explode('|', (string) ($_GET['wiki_keys'] ?? '')))),
+            (int) ($_GET['limit'] ?? 40)
+        ),
+        'model_sample' => avesmapsWikiSyncMonitorModelSample(
             $pdo,
             array_filter(array_map('trim', explode('|', (string) ($_GET['wiki_keys'] ?? '')))),
             (int) ($_GET['limit'] ?? 40)
