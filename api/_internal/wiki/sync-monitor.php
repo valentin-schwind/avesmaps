@@ -595,6 +595,65 @@ function avesmapsWikiSyncMonitorInfoboxName(string $wikitext): string {
     return '';
 }
 
+// Schneidet GENAU den Infobox-Template-Block per Klammer-Matching aus (nicht den ersten
+// beliebigen Template-Block der Seite — grosse Artikel haben davor Wartungs-Templates).
+// Byte-basiertes Matching ist sicher: {{ }} sind ASCII, kommen in UTF-8-Folgebytes nie vor.
+function avesmapsWikiSyncMonitorExtractInfoboxBlock(string $wikitext): string {
+    if (preg_match('/\{\{\s*Infobox\s+/u', $wikitext, $match, PREG_OFFSET_CAPTURE) !== 1) {
+        return '';
+    }
+
+    $start = (int) $match[0][1];
+    $length = strlen($wikitext);
+    $depth = 0;
+    for ($i = $start; $i < $length - 1; $i++) {
+        $pair = substr($wikitext, $i, 2);
+        if ($pair === '{{') {
+            $depth++;
+            $i++;
+            continue;
+        }
+        if ($pair === '}}') {
+            $depth--;
+            $i++;
+            if ($depth === 0) {
+                return substr($wikitext, $start, ($i + 1) - $start);
+            }
+        }
+    }
+
+    return substr($wikitext, $start);
+}
+
+// Parst die |key=value-Parameter eines Template-Blocks tiefen-bewusst, sodass '|' innerhalb
+// verschachtelter {{...}} keine Parameter zerschneidet.
+function avesmapsWikiSyncMonitorParseTemplateParams(string $block): array {
+    $params = [];
+    $currentKey = null;
+    $currentValue = '';
+    $depth = 0;
+    foreach (preg_split('/\R/u', $block) ?: [] as $line) {
+        if ($depth === 0 && preg_match('/^\s*\|\s*([^=\n]+?)\s*=\s*(.*)$/u', $line, $match) === 1) {
+            if ($currentKey !== null) {
+                $params[$currentKey] = $currentValue;
+            }
+            $currentKey = trim((string) $match[1]);
+            $currentValue = (string) $match[2];
+        } elseif ($currentKey !== null) {
+            $currentValue .= "\n" . $line;
+        }
+
+        $opens = (int) preg_match_all('/\{\{/u', $currentValue);
+        $closes = (int) preg_match_all('/\}\}/u', $currentValue);
+        $depth = max(0, $opens - $closes);
+    }
+    if ($currentKey !== null) {
+        $params[$currentKey] = preg_replace('/\}\}\s*$/u', '', $currentValue) ?? $currentValue;
+    }
+
+    return $params;
+}
+
 function avesmapsWikiSyncMonitorCoatOfArmsUrl(string $rawValue): string {
     $value = trim($rawValue);
     if ($value === '') {
@@ -696,7 +755,7 @@ function avesmapsWikiSyncMonitorParsePage(string $title, string $wikitext): arra
     $title = avesmapsWikiSyncMonitorNormalizeTitle($title);
     $infobox = avesmapsWikiSyncMonitorInfoboxName($wikitext);
     $infoboxKey = avesmapsWikiSyncMonitorFieldKey($infobox);
-    $fields = avesmapsWikiSyncReadWikiTemplateFields($wikitext);
+    $fields = avesmapsWikiSyncMonitorParseTemplateParams(avesmapsWikiSyncMonitorExtractInfoboxBlock($wikitext));
     $norm = avesmapsWikiSyncMonitorNormFields($fields);
 
     $field = static fn(array $aliases): string => avesmapsWikiSyncCleanPoliticalTerritoryWikiValue(avesmapsWikiSyncMonitorField($norm, $aliases));
