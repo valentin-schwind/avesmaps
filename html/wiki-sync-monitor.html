@@ -44,8 +44,10 @@
   a.wl { color:var(--mut); text-decoration:none; font-size:11px; padding:0 2px; }
   a.wl:hover { color:var(--accent); }
   .count { color:var(--mut); font-size:11px; }
-  #dropRoot { margin:6px 0; padding:6px; border:1px dashed var(--line); border-radius:5px; text-align:center; color:var(--mut); }
-  #dropRoot.drop { outline:2px dashed var(--accent); }
+  #dropRoot, #dropExclude { margin:6px 0; padding:6px; border:1px dashed var(--line); border-radius:5px; text-align:center; color:var(--mut); }
+  #dropExclude { border-color:#7a4a4a; }
+  #dropRoot.drop, #dropExclude.drop { outline:2px dashed var(--accent); }
+  .tag.excl { color:#c08bf0; border-color:#7a4a4a; }
 </style>
 </head>
 <body>
@@ -74,10 +76,12 @@
         <option value="diverges">Divergenzen</option>
         <option value="locked">Gesperrt</option>
         <option value="siedlung">Stadtstaaten</option>
+        <option value="excluded">Aussortiert</option>
         <option value="all">Alle</option>
       </select>
     </div>
     <div id="dropRoot">▶ Hierher ziehen = zur Wurzel machen (Eltern entfernen)</div>
+    <div id="dropExclude">✕ Hierher ziehen = aussortieren (kein Herrschaftsgebiet)</div>
     <div id="list"></div>
   </div>
   <div class="col" id="right">
@@ -183,8 +187,10 @@ function periodLabel(n){
 
 function isGap(n){ return !!(n.parent_wiki_key && !n.parent_in_model); }
 function matchesFilter(n, f) {
+  if (f==='excluded') return !!n.excluded;
+  if (n.excluded) return false;                    // Aussortierte nur im „Aussortiert"-Filter
   if (f==='all') return true;
-  if (f==='gap') return isGap(n);                 // Default = echte offene Lücken
+  if (f==='gap') return isGap(n);                  // Default = echte offene Lücken
   if (f==='diverges') return n.diverges;
   if (f==='conflict') return n.has_conflict;       // platziert, aber Wiki nennt Zweitelternteil
   if (f==='locked') return n.parent_locked;
@@ -202,17 +208,21 @@ function renderList() {
         || (n.aliases||[]).some(a=>a.includes(q)) || (n.affiliation_raw||'').toLowerCase().includes(q))) continue;
     if (shown++ > 600) { out.push('<div class="muted">… mehr (Suche eingrenzen)</div>'); break; }
     const lock = n.parent_locked ? ' <span class="tag lock" title="gesperrt">🔒</span>' : '';
-    out.push(`<div class="row" draggable="true" data-key="${n.wiki_key}">${licDot(n)}<span class="nm">${esc(n.name)}${periodLabel(n)}${aliasHint(n)}</span>${wikiLink(n)}${parentLabel(n)}${conflictLabel(n)}${lock}</div>`);
+    const exclTag = n.excluded ? ' <span class="tag excl" title="aussortiert – in den Baum/Wurzel ziehen holt zurück">✕ aussortiert</span>' : '';
+    const meta = n.excluded ? '' : `${parentLabel(n)}${conflictLabel(n)}`;
+    out.push(`<div class="row" draggable="true" data-key="${n.wiki_key}">${licDot(n)}<span class="nm">${esc(n.name)}${periodLabel(n)}${aliasHint(n)}</span>${wikiLink(n)}${meta}${lock}${exclTag}</div>`);
   }
   $('list').innerHTML = out.join('') || '<div class="muted">— keine —</div>';
 }
 
 const expanded = new Set();
 function renderTree() {
+  const excl = new Set(NODES.filter(n=>n.excluded).map(n=>n.wiki_key));
   const children = new Map();
   const roots = [];
   for (const n of NODES) {
-    const p = (n.parent_wiki_key && n.parent_in_model) ? n.parent_wiki_key : null;
+    if (n.excluded) continue;                       // aussortierte sind nicht in der Hierarchie
+    const p = (n.parent_wiki_key && n.parent_in_model && !excl.has(n.parent_wiki_key)) ? n.parent_wiki_key : null;
     if (p) { if(!children.has(p)) children.set(p,[]); children.get(p).push(n); }
     else roots.push(n);
   }
@@ -229,9 +239,10 @@ function renderTree() {
   $('tree').innerHTML = `<ul class="tree">${roots.map(r=>build(r,0)).join('')}</ul>`;
 }
 function render(){
-  const gaps = NODES.filter(isGap).length;
-  const conf = NODES.filter(n=>n.has_conflict).length;
-  $('attn').textContent = NODES.length ? `${gaps} Lücken · ${conf} Konflikte` : '';
+  const gaps = NODES.filter(n=>!n.excluded && isGap(n)).length;
+  const conf = NODES.filter(n=>!n.excluded && n.has_conflict).length;
+  const excl = NODES.filter(n=>n.excluded).length;
+  $('attn').textContent = NODES.length ? `${gaps} Lücken · ${conf} Konflikte${excl?` · ${excl} aussortiert`:''}` : '';
   renderList(); renderTree();
 }
 function parentLabel(n){
@@ -258,14 +269,28 @@ async function setParent(childKey, parentKey) {
   busy(false);
 }
 
+async function setExcluded(wikiKey, excluded) {
+  busy(true);
+  try {
+    await api('set_excluded', {method:'POST', body:{wiki_key:wikiKey, excluded}});
+    const c = BYKEY.get(wikiKey);
+    setStatus(excluded ? `„${c?c.name:wikiKey}" aussortiert (aus der Hierarchie genommen, bleibt im Sync).` : `„${c?c.name:wikiKey}" zurückgeholt.`);
+    await loadModel();
+  } catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+}
+
 // Drag'n'drop
 let dragKey = null;
+const dropZone = (t) => t.closest('[data-drop]') || t.closest('#dropRoot') || t.closest('#dropExclude');
 document.addEventListener('dragstart', e => { const el=e.target.closest('[data-key]'); if(el){ dragKey=el.dataset.key; e.dataTransfer.effectAllowed='move'; } });
-document.addEventListener('dragover', e => { const el=e.target.closest('[data-drop]')||e.target.closest('#dropRoot'); if(el){ e.preventDefault(); el.classList.add('drop'); } });
-document.addEventListener('dragleave', e => { const el=e.target.closest('[data-drop]')||e.target.closest('#dropRoot'); if(el) el.classList.remove('drop'); });
+document.addEventListener('dragover', e => { const el=dropZone(e.target); if(el){ e.preventDefault(); el.classList.add('drop'); } });
+document.addEventListener('dragleave', e => { const el=dropZone(e.target); if(el) el.classList.remove('drop'); });
 document.addEventListener('drop', e => {
+  const excl = e.target.closest('#dropExclude');
   const root = e.target.closest('#dropRoot');
   const node = e.target.closest('[data-drop]');
+  if (excl){ excl.classList.remove('drop'); e.preventDefault(); if(dragKey) setExcluded(dragKey, true); dragKey=null; return; }
   if (root){ root.classList.remove('drop'); e.preventDefault(); if(dragKey) setParent(dragKey, null); dragKey=null; return; }
   if (node){ node.classList.remove('drop'); e.preventDefault(); const p=node.dataset.drop; if(dragKey && dragKey!==p) setParent(dragKey, p); dragKey=null; }
 });

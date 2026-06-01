@@ -92,6 +92,16 @@ function avesmapsWikiSyncMonitorEnsureTables(PDO $pdo): void {
             KEY idx_wiki_redirect_alias_canonical (canonical_wiki_key)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
+
+    // excluded = Editor-„aussortiert": Knoten bleibt im Modell (wird gesynct), aus der
+    // aktiven Hierarchie aber raus. Ueberlebt Re-Crawl wie parent_locked. Additiv.
+    $modelColumns = [];
+    foreach ($pdo->query('SHOW COLUMNS FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE) ?: [] as $column) {
+        $modelColumns[(string) ($column['Field'] ?? '')] = true;
+    }
+    if (!isset($modelColumns['excluded'])) {
+        $pdo->exec('ALTER TABLE ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' ADD COLUMN excluded TINYINT(1) NOT NULL DEFAULT 0 AFTER parent_locked');
+    }
 }
 
 function avesmapsWikiSyncMonitorTableExists(PDO $pdo, string $table): bool {
@@ -1275,13 +1285,15 @@ function avesmapsWikiSyncMonitorSetParent(PDO $pdo, string $wikiKey, ?string $pa
         throw new RuntimeException('Ein Knoten kann nicht sein eigener Elternknoten sein.');
     }
 
+    // Platzieren hebt ein etwaiges „aussortiert" auf (Knoten kommt zurueck in die Hierarchie).
     $statement = $pdo->prepare(
         'INSERT INTO ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . '
-            (wiki_key, parent_wiki_key, parent_locked, created_at, updated_at)
-        VALUES (:wiki_key, :parent, :lock, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))
+            (wiki_key, parent_wiki_key, parent_locked, excluded, created_at, updated_at)
+        VALUES (:wiki_key, :parent, :lock, 0, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))
         ON DUPLICATE KEY UPDATE
             parent_wiki_key = VALUES(parent_wiki_key),
             parent_locked = VALUES(parent_locked),
+            excluded = 0,
             updated_at = CURRENT_TIMESTAMP(3)'
     );
     $statement->execute(['wiki_key' => $wikiKey, 'parent' => $parentWikiKey, 'lock' => $lock ? 1 : 0]);
@@ -1289,12 +1301,31 @@ function avesmapsWikiSyncMonitorSetParent(PDO $pdo, string $wikiKey, ?string $pa
     return ['ok' => true, 'wiki_key' => $wikiKey, 'parent_wiki_key' => $parentWikiKey, 'parent_locked' => $lock];
 }
 
+// Editor-„aussortieren": Knoten aus der aktiven Hierarchie nehmen (bleibt im Modell + Sync).
+// excluded=false holt ihn zurueck. Nur wiki_territory_model.
+function avesmapsWikiSyncMonitorSetExcluded(PDO $pdo, string $wikiKey, bool $excluded): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $wikiKey = trim($wikiKey);
+    if ($wikiKey === '') {
+        throw new RuntimeException('wiki_key fehlt.');
+    }
+    $statement = $pdo->prepare(
+        'INSERT INTO ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . '
+            (wiki_key, excluded, created_at, updated_at)
+        VALUES (:wiki_key, :excluded, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))
+        ON DUPLICATE KEY UPDATE excluded = VALUES(excluded), updated_at = CURRENT_TIMESTAMP(3)'
+    );
+    $statement->execute(['wiki_key' => $wikiKey, 'excluded' => $excluded ? 1 : 0]);
+
+    return ['ok' => true, 'wiki_key' => $wikiKey, 'excluded' => $excluded];
+}
+
 // Komplettes Modell flach (fuers UI: Baum + Status-Marker). Markiert Luecken (parent
 // referenziert, aber selbst kein Knoten) + Konflikte + Lizenz-Status.
 function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     $rows = $pdo->query(
-        'SELECT m.wiki_key, m.parent_wiki_key, m.parent_locked, m.auto_parent_wiki_key, m.source_origin,
+        'SELECT m.wiki_key, m.parent_wiki_key, m.parent_locked, m.excluded, m.auto_parent_wiki_key, m.source_origin,
                 m.parent_conflict_json, s.name, s.type, s.continent, s.affiliation_raw, s.wiki_url,
                 s.founded_text, s.dissolved_text, s.coat_of_arms_url, s.coat_of_arms_license,
                 s.coat_of_arms_author, s.coat_of_arms_attribution, s.coat_of_arms_license_status
@@ -1355,6 +1386,7 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'parent_wiki_key' => $parent,
             'parent_in_model' => $parent !== null ? isset($present[$parent]) : true,
             'parent_locked' => (int) $row['parent_locked'] === 1,
+            'excluded' => (int) ($row['excluded'] ?? 0) === 1,
             'auto_parent_wiki_key' => $row['auto_parent_wiki_key'],
             'diverges' => $diverges,
             'source_origin' => (string) ($row['source_origin'] ?? ''),

@@ -61,6 +61,11 @@ try {
                 array_key_exists('parent_wiki_key', $payload) ? ($payload['parent_wiki_key'] !== null ? (string) $payload['parent_wiki_key'] : null) : null,
                 (bool) ($payload['lock'] ?? true)
             ),
+            'set_excluded' => avesmapsWikiSyncMonitorSetExcluded(
+                $pdo,
+                (string) ($payload['wiki_key'] ?? ''),
+                (bool) ($payload['excluded'] ?? true)
+            ),
             'clear' => avesmapsWikiSyncMonitorClear(
                 $pdo,
                 (string) ($payload['target'] ?? ''),
