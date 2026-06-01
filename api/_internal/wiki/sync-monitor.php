@@ -64,10 +64,15 @@ function avesmapsWikiSyncMonitorEnsureTables(PDO $pdo): void {
 }
 
 function avesmapsWikiSyncMonitorTableExists(PDO $pdo, string $table): bool {
-    $statement = $pdo->prepare('SHOW TABLES LIKE :table');
+    // SHOW TABLES LIKE ? scheitert mit native Prepares an MariaDB (1064); information_schema
+    // vertraegt den Platzhalter.
+    $statement = $pdo->prepare(
+        'SELECT COUNT(*) FROM information_schema.tables
+        WHERE table_schema = DATABASE() AND table_name = :table'
+    );
     $statement->execute(['table' => $table]);
 
-    return $statement->fetchColumn() !== false;
+    return (int) ($statement->fetchColumn() ?: 0) > 0;
 }
 
 function avesmapsWikiSyncMonitorCountRows(PDO $pdo, string $table): int {
