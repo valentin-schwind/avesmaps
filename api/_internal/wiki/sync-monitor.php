@@ -1107,8 +1107,29 @@ function avesmapsWikiSyncMonitorFileTitleFromCoatUrl(string $url): string {
     if ($position !== false) {
         $file = rawurldecode(substr($url, $position + strlen($marker)));
     } else {
-        $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
-        $file = rawurldecode(basename($path));
+        // Direkte/Thumbnail-Bild-URL: /images/[thumb/]x/xy/Datei.png[/NNNpx-Datei.png].
+        // Den ECHTEN Dateinamen nehmen (Bild-Endung, kein NNNpx-Thumb-Praefix), nicht das
+        // letzte Segment (das ist bei Thumbs die verkleinerte Variante).
+        $path = rawurldecode((string) (parse_url($url, PHP_URL_PATH) ?? ''));
+        $segments = array_values(array_filter(explode('/', $path), static fn(string $s): bool => $s !== ''));
+        $imageSegments = array_values(array_filter(
+            $segments,
+            static fn(string $s): bool => preg_match('/\.(?:png|jpe?g|gif|svg|webp)$/iu', $s) === 1
+        ));
+        $file = '';
+        foreach ($imageSegments as $segment) {
+            if (preg_match('/^\d+px-/u', $segment) !== 1) {
+                $file = $segment;
+                break;
+            }
+        }
+        if ($file === '' && $imageSegments !== []) {
+            $last = (string) end($imageSegments);
+            $file = preg_replace('/^\d+px-/u', '', $last) ?? $last;
+        }
+        if ($file === '') {
+            $file = (string) (end($segments) ?: '');
+        }
     }
 
     $file = trim(str_replace('_', ' ', $file));
@@ -1194,6 +1215,15 @@ function avesmapsWikiSyncMonitorEnrichLicenses(PDO $pdo, array $options = []): a
     $sleepMs = max(0, min(3000, (int) ($options['sleep_ms'] ?? AVESMAPS_WIKI_SYNC_MONITOR_SLEEP_MS)));
     $stepRuntime = max(3, min(28, (int) ($options['step_runtime'] ?? AVESMAPS_WIKI_SYNC_MONITOR_STEP_RUNTIME)));
     @set_time_limit($stepRuntime + 15);
+
+    if (!empty($options['reset'])) {
+        $pdo->exec(
+            'UPDATE ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . '
+            SET coat_of_arms_license = NULL, coat_of_arms_author = NULL, coat_of_arms_attribution = NULL,
+                coat_of_arms_license_status = NULL, coat_of_arms_license_url = NULL
+            WHERE coat_of_arms_license_status IS NOT NULL'
+        );
+    }
 
     $rows = $pdo->query(
         'SELECT wiki_key, coat_of_arms_url FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . '
