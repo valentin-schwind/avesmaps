@@ -367,7 +367,8 @@ window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || f
 	header.appendChild(closeButton);
 	const frame = document.createElement("iframe");
 	frame.className = "political-territory-editor-dialog__frame";
-	frame.src = "/html/wiki-sync-monitor.html";
+	// Cache-Buster: das Tool-HTML laedt sonst gecacht (kein ?v=) -> immer frisch holen.
+	frame.src = "/html/wiki-sync-monitor.html?v=" + Date.now();
 	frame.title = "Sync-Editor";
 	dialog.appendChild(header);
 	dialog.appendChild(frame);

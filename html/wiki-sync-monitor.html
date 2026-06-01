@@ -4,50 +4,52 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Avesmaps – Herrschaftsgebiete synchronisieren und editieren</title>
+<link rel="stylesheet" href="/css/base/fonts.css">
 <style>
-  :root { --bg:#1e1f22; --panel:#2a2c30; --line:#3a3d42; --fg:#e6e6e6; --mut:#9aa0a6; --accent:#6db3f2; --warn:#e2b341; --bad:#e26d6d; --ok:#6fcf8e; }
+  :root { --bg:#f4efe7; --panel:#fff9f4; --soft:#fffaf5; --line:#d8c6b2; --line2:#cdb79f; --fg:#2f251c; --mut:#6c5a49; --accent:#235f82; --warn:#b8860b; --bad:#9d3a2e; --ok:#2e7d32; --font-ui:"Faculty Glyphic","Arial",sans-serif; }
   * { box-sizing:border-box; }
-  body { margin:0; font:13px/1.4 system-ui,sans-serif; background:var(--bg); color:var(--fg); }
+  body { margin:0; font:13px/1.45 var(--font-ui); background:var(--bg); color:var(--fg); }
   header { padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); }
-  h1 { font-size:15px; margin:0 0 8px; }
+  h1 { font-size:15px; margin:0 0 8px; color:#3f3428; }
   .controls { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-  button { background:#3a3d42; color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:5px 10px; cursor:pointer; }
-  button:hover { background:#45494f; }
+  button { background:#f3ebdf; color:#513c2b; border:1px solid #b99a78; border-radius:5px; padding:5px 10px; cursor:pointer; font:inherit; }
+  button:hover { background:#ead9c2; }
   button:disabled { opacity:.5; cursor:default; }
-  button.primary { background:#2b5d8a; border-color:#2b5d8a; }
-  textarea { width:100%; height:54px; background:#202225; color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:6px; font:12px monospace; resize:vertical; }
+  button.primary { background:#565044; border-color:#5f4f40; color:#fff9f4; }
+  button.primary:hover { background:#4a463b; }
+  textarea { width:100%; height:54px; background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:6px; font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; resize:vertical; }
   #status { padding:6px 14px; color:var(--mut); border-bottom:1px solid var(--line); white-space:pre-wrap; }
   .cols { display:flex; height:calc(100vh - 200px); }
   .col { flex:1; overflow:auto; padding:8px; }
   #left { border-right:1px solid var(--line); max-width:46%; }
   .bar { display:flex; gap:6px; align-items:center; margin-bottom:6px; position:sticky; top:0; background:var(--bg); padding-bottom:4px; }
-  input[type=search], select { background:#202225; color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:4px 6px; }
+  input[type=search], select { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:4px 6px; font:inherit; }
   input[type=search] { flex:1; }
   .row { display:flex; align-items:center; gap:6px; padding:3px 5px; border-radius:4px; cursor:grab; }
-  .row:hover { background:#33363b; }
+  .row:hover { background:#f0e6d8; }
   .row .nm { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .tag { font-size:10px; padding:1px 5px; border-radius:8px; border:1px solid var(--line); color:var(--mut); }
+  .tag { font-size:10px; padding:1px 5px; border-radius:8px; border:1px solid var(--line2); color:var(--mut); }
   .tag.lock { color:var(--accent); border-color:var(--accent); }
   .tag.div { color:var(--warn); border-color:var(--warn); }
   .tag.conf { color:var(--bad); border-color:var(--bad); }
   .tag.gap { color:var(--bad); border-color:var(--bad); }
-  .tag.sied { color:#c08bf0; border-color:#c08bf0; }
+  .tag.sied { color:#7a4fa0; border-color:#b79fce; }
   .dot { width:8px; height:8px; border-radius:50%; flex:none; }
-  .dot.public_domain { background:var(--ok); } .dot.attribution_required { background:var(--warn); } .dot.unknown { background:#555; } .dot.none { background:transparent; }
+  .dot.public_domain { background:var(--ok); } .dot.attribution_required { background:var(--warn); } .dot.unknown { background:#b0a392; } .dot.none { background:transparent; }
   ul.tree { list-style:none; margin:0; padding-left:14px; }
   ul.tree li { margin:1px 0; }
   .node { display:inline-flex; align-items:center; gap:5px; padding:2px 6px; border-radius:4px; cursor:grab; }
-  .node:hover { background:#33363b; }
+  .node:hover { background:#f0e6d8; }
   .node.drop { outline:2px dashed var(--accent); }
   .twist { cursor:pointer; color:var(--mut); width:12px; display:inline-block; user-select:none; }
   .muted { color:var(--mut); }
   a.wl { color:var(--mut); text-decoration:none; font-size:11px; padding:0 2px; }
   a.wl:hover { color:var(--accent); }
   .count { color:var(--mut); font-size:11px; }
-  #dropRoot, #dropExclude { margin:6px 0; padding:6px; border:1px dashed var(--line); border-radius:5px; text-align:center; color:var(--mut); }
-  #dropExclude { border-color:#7a4a4a; }
+  #dropRoot, #dropExclude { margin:6px 0; padding:6px; border:1px dashed var(--line2); border-radius:5px; text-align:center; color:var(--mut); }
+  #dropExclude { border-color:#c0998f; }
   #dropRoot.drop, #dropExclude.drop { outline:2px dashed var(--accent); }
-  .tag.excl { color:#c08bf0; border-color:#7a4a4a; }
+  .tag.excl { color:#7a4fa0; border-color:#c0998f; }
 </style>
 </head>
 <body>
