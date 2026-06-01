@@ -1270,13 +1270,27 @@ function avesmapsWikiSyncMonitorGeometryLookup(PDO $pdo, string $geometryId, str
         // Form-Signatur (BBox gerundet + Punktzahl) zum Vergleich, OHNE die volle Geometrie auszuliefern.
         $geo = json_decode((string) ($row['geometry_geojson'] ?? ''), true);
         unset($row['geometry_geojson']);
+        $collect = static function (mixed $polygon): array {
+            $out = [];
+            foreach ((array) $polygon as $ring) {
+                if (!is_array($ring)) {
+                    continue;
+                }
+                foreach ($ring as $point) {
+                    if (is_array($point) && count($point) >= 2) {
+                        $out[] = [(float) $point[0], (float) $point[1]];
+                    }
+                }
+            }
+            return $out;
+        };
         $points = [];
         if (is_array($geo)) {
             if (($geo['type'] ?? '') === 'Polygon') {
-                $points = avesmapsPoliticalCollectGeometryPoints($geo['coordinates'] ?? null);
+                $points = $collect($geo['coordinates'] ?? null);
             } elseif (($geo['type'] ?? '') === 'MultiPolygon') {
                 foreach ((array) ($geo['coordinates'] ?? []) as $poly) {
-                    $points = array_merge($points, avesmapsPoliticalCollectGeometryPoints($poly));
+                    $points = array_merge($points, $collect($poly));
                 }
             }
         }
