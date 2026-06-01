@@ -334,7 +334,8 @@ async function startWikiSyncRun() {
 	}
 }
 
-// Inline-Overlay (statt neuem Fenster) fuer den Sync-Editor: Vollbild-iframe im selben Tab.
+// Inline-Dialog (statt neuem Fenster) fuer den Sync-Editor — im Stil des Herrschaftsgebiet-
+// Eigenschaften-Editors (gleiche CSS-Klassen), nur etwas breiter fuer die zwei Spalten.
 window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || function openAvesmapsSyncEditorOverlay() {
 	const overlayId = "avesmaps-sync-editor-overlay";
 	let overlay = document.getElementById(overlayId);
@@ -345,24 +346,33 @@ window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || f
 	}
 	overlay = document.createElement("div");
 	overlay.id = overlayId;
-	overlay.style.cssText = "position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;background:#1e1f22;";
-	const bar = document.createElement("div");
-	bar.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:6px 12px;background:#2a2c30;border-bottom:1px solid #3a3d42;color:#e6e6e6;font:13px system-ui,sans-serif;";
-	const titleEl = document.createElement("span");
-	titleEl.textContent = "Avesmaps – Herrschaftsgebiete synchronisieren und editieren";
+	overlay.className = "political-territory-editor-overlay";
+	overlay.style.zIndex = "1500";
+	const dialog = document.createElement("div");
+	dialog.className = "political-territory-editor-dialog";
+	dialog.style.width = "min(1200px, calc(100vw - 24px))";
+	dialog.style.height = "min(880px, calc(100vh - 24px))";
+	const header = document.createElement("div");
+	header.className = "political-territory-editor-dialog__header";
+	const headingEl = document.createElement("h2");
+	headingEl.textContent = "Herrschaftsgebiete synchronisieren und editieren";
 	const closeButton = document.createElement("button");
 	closeButton.type = "button";
-	closeButton.textContent = "✕ Schließen";
-	closeButton.style.cssText = "background:#3a3d42;color:#e6e6e6;border:1px solid #555;border-radius:5px;padding:6px 12px;cursor:pointer;";
-	closeButton.addEventListener("click", () => { overlay.hidden = true; document.body.style.overflow = ""; });
-	bar.appendChild(titleEl);
-	bar.appendChild(closeButton);
+	closeButton.className = "political-territory-editor-dialog__close";
+	closeButton.setAttribute("aria-label", "Schließen");
+	closeButton.textContent = "✕";
+	const closeOverlay = () => { overlay.hidden = true; document.body.style.overflow = ""; };
+	closeButton.addEventListener("click", closeOverlay);
+	header.appendChild(headingEl);
+	header.appendChild(closeButton);
 	const frame = document.createElement("iframe");
+	frame.className = "political-territory-editor-dialog__frame";
 	frame.src = "/html/wiki-sync-monitor.html";
 	frame.title = "Sync-Editor";
-	frame.style.cssText = "flex:1;border:0;width:100%;";
-	overlay.appendChild(bar);
-	overlay.appendChild(frame);
+	dialog.appendChild(header);
+	dialog.appendChild(frame);
+	overlay.appendChild(dialog);
+	overlay.addEventListener("click", (event) => { if (event.target === overlay) closeOverlay(); });
 	document.body.appendChild(overlay);
 	document.body.style.overflow = "hidden";
 };
