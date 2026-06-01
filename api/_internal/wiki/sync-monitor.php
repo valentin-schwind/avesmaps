@@ -1371,6 +1371,53 @@ function avesmapsWikiSyncMonitorHierarchyDiff(PDO $pdo): array {
     ];
 }
 
+// Apply: uebernimmt das Modell-parent_wiki_key in political_territory.parent_id (Cache) fuer
+// DIVERGENTE Faelle (Modell != Live), ausser einer Skip-Liste (wiki_keys). UEBERSCHREIBT also
+// bewusst die gewaehlten Faelle. Schreibt NUR bei dry_run:false UND confirm:"apply".
+// Erster echter political_territory-Write -> nur mit explizitem Nutzer-OK.
+function avesmapsWikiSyncMonitorApplyParentCache(PDO $pdo, array $skipKeys, bool $dryRun): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $skipKeys = array_values(array_filter(array_map(static fn($v): string => trim((string) $v), $skipKeys), static fn(string $v): bool => $v !== ''));
+    $skipClause = '';
+    if ($skipKeys !== []) {
+        $skipClause = ' AND child.wiki_key NOT IN (' . implode(',', array_fill(0, count($skipKeys), '?')) . ')';
+    }
+
+    $where = 'WHERE child.is_active = 1 AND m.parent_wiki_key IS NOT NULL
+        AND (child.parent_id IS NULL OR child.parent_id <> parent.id)' . $skipClause;
+    $joins = 'political_territory child
+        JOIN ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' m ON m.wiki_key = child.wiki_key
+        JOIN political_territory parent ON parent.wiki_key = m.parent_wiki_key AND parent.is_active = 1 AND parent.id <> child.id';
+
+    $countStmt = $pdo->prepare('SELECT COUNT(*) FROM ' . $joins . ' ' . $where);
+    $countStmt->execute($skipKeys);
+    $willApply = (int) ($countStmt->fetchColumn() ?: 0);
+
+    $sampleStmt = $pdo->prepare(
+        'SELECT child.name AS child, parent.name AS new_parent,
+            EXISTS(SELECT 1 FROM political_territory_geometry g WHERE g.territory_id = child.id AND g.is_active = 1) AS has_geometry
+        FROM ' . $joins . ' ' . $where . ' ORDER BY child.name LIMIT 50'
+    );
+    $sampleStmt->execute($skipKeys);
+    $sample = $sampleStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $applied = 0;
+    if (!$dryRun) {
+        $updateStmt = $pdo->prepare('UPDATE ' . $joins . ' SET child.parent_id = parent.id ' . $where);
+        $updateStmt->execute($skipKeys);
+        $applied = $updateStmt->rowCount();
+    }
+
+    return [
+        'ok' => true,
+        'dry_run' => $dryRun,
+        'will_apply' => $willApply,
+        'applied' => $applied,
+        'skipped_keys' => $skipKeys,
+        'sample' => $sample,
+    ];
+}
+
 // Drag'n'drop-Write: setzt parent_wiki_key (+ Lock) eines Knotens. NUR wiki_territory_model.
 function avesmapsWikiSyncMonitorSetParent(PDO $pdo, string $wikiKey, ?string $parentWikiKey, bool $lock = true): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);

@@ -55,6 +55,12 @@ try {
                 // Schreiben NUR bei dry_run:false UND confirm:"apply"; sonst immer lesender Dry-Run.
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
             ),
+            'apply_parent_cache' => avesmapsWikiSyncMonitorApplyParentCache(
+                $pdo,
+                is_array($payload['skip'] ?? null) ? $payload['skip'] : [],
+                // Schreiben NUR bei dry_run:false UND confirm:"apply"; sonst immer lesender Dry-Run.
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+            ),
             'set_parent' => avesmapsWikiSyncMonitorSetParent(
                 $pdo,
                 (string) ($payload['wiki_key'] ?? ''),
