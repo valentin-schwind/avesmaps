@@ -49,6 +49,7 @@ try {
                 $options
             ),
             'rebuild_model' => avesmapsWikiSyncMonitorRebuildModel($pdo),
+            'enrich_licenses' => avesmapsWikiSyncMonitorEnrichLicenses($pdo, $options),
             default => null,
         };
 

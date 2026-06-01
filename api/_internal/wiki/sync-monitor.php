@@ -27,6 +27,8 @@ function avesmapsWikiSyncMonitorEnsureTables(PDO $pdo): void {
         $pdo->exec('CREATE TABLE ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . ' LIKE political_territory_wiki');
     }
 
+    avesmapsWikiSyncMonitorEnsureLicenseColumns($pdo);
+
     // Resumierbare BFS-Frontier + Visited in einem. Pro (run_id, dedup_key) genau ein Eintrag
     // (dedup_key = stabiler Slug aus dem Titel, beim Enqueue berechnet).
     $pdo->exec(
@@ -1057,12 +1059,211 @@ function avesmapsWikiSyncMonitorModelSample(PDO $pdo, array $wikiKeys = [], int 
     return ['ok' => true, 'model_table' => AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE, 'total' => $total, 'locked' => $locked, 'count' => count($items), 'items' => $items];
 }
 
+// ---------------------------------------------------------------------------
+// Phase 1: Wappen-Lizenzen. Pro Wappen die Datei:-Seite holen, Lizenz + Urheber
+// ermitteln, license_status setzen (public_domain = direkt zeigbar / attribution_
+// required = nur mit Zitat / unknown = ausblenden). Additive Spalten auf _wiki +
+// _test. Resumierbar (enrich_licenses). Viewer-Enforcement ist nachgelagert.
+// ---------------------------------------------------------------------------
+
+function avesmapsWikiSyncMonitorLicenseColumnDefs(): array {
+    return [
+        'coat_of_arms_license' => 'VARCHAR(120) NULL',
+        'coat_of_arms_author' => 'VARCHAR(255) NULL',
+        'coat_of_arms_attribution' => 'VARCHAR(500) NULL',
+        'coat_of_arms_license_status' => 'VARCHAR(40) NULL',
+        'coat_of_arms_license_url' => 'VARCHAR(500) NULL',
+    ];
+}
+
+function avesmapsWikiSyncMonitorEnsureLicenseColumns(PDO $pdo): void {
+    $defs = avesmapsWikiSyncMonitorLicenseColumnDefs();
+    foreach (['political_territory_wiki', AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE] as $table) {
+        if ($pdo->query("SHOW TABLES LIKE '" . $table . "'")->fetchColumn() === false) {
+            continue;
+        }
+        $existing = [];
+        foreach ($pdo->query('SHOW COLUMNS FROM ' . $table) ?: [] as $column) {
+            $existing[(string) ($column['Field'] ?? '')] = true;
+        }
+        foreach ($defs as $name => $type) {
+            if (!isset($existing[$name])) {
+                $pdo->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $name . ' ' . $type . ' AFTER coat_of_arms_url');
+            }
+        }
+    }
+}
+
+// Leitet den Datei:-Titel aus der gespeicherten coat_of_arms_url ab (umkehrung von
+// Spezial:Dateipfad/<Datei>); Fallback = letztes Pfad-Segment.
+function avesmapsWikiSyncMonitorFileTitleFromCoatUrl(string $url): string {
+    $url = trim($url);
+    if ($url === '') {
+        return '';
+    }
+
+    $marker = 'Spezial:Dateipfad/';
+    $position = strpos($url, $marker);
+    if ($position !== false) {
+        $file = rawurldecode(substr($url, $position + strlen($marker)));
+    } else {
+        $path = (string) (parse_url($url, PHP_URL_PATH) ?? '');
+        $file = rawurldecode(basename($path));
+    }
+
+    $file = trim(str_replace('_', ' ', $file));
+    if ($file === '') {
+        return '';
+    }
+
+    return preg_match('/^(Datei|File)\s*:/iu', $file) === 1 ? $file : 'Datei:' . $file;
+}
+
+function avesmapsWikiSyncMonitorExtractFileField(string $wikitext, array $labels): string {
+    foreach ($labels as $label) {
+        if (preg_match('/\|\s*' . preg_quote($label, '/') . '\s*=\s*([^\n|]+)/iu', $wikitext, $match) === 1) {
+            $value = trim((string) $match[1]);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+    }
+
+    return '';
+}
+
+// Klassifiziert die Lizenz aus dem File-Wikitext. Liefert label/status/url + author/attribution.
+function avesmapsWikiSyncMonitorParseLicense(string $wikitext): array {
+    $author = avesmapsWikiSyncMonitorExtractFileField($wikitext, ['Urheber', 'Autor', 'Rechteinhaber', 'author']);
+    if ($author !== '') {
+        $author = preg_replace('/\{\{\s*Benutzer\s*\|\s*([^}|]+)[^}]*\}\}/iu', '$1', $author) ?? $author;
+        $author = avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($author);
+    }
+
+    $license = 'unknown';
+    $status = 'unknown';
+    $licenseUrl = '';
+
+    if (preg_match('/\{\{\s*(?:public[\s_-]*domain|gemeinfrei|pd[\s_}-]|pd-self|bild-frei)\b/iu', $wikitext) === 1
+        || preg_match('/\bgemeinfrei\b/iu', $wikitext) === 1) {
+        $license = 'public domain';
+        $status = 'public_domain';
+    } elseif (preg_match('/cc[\s_-]?by[\s_-]?sa[\s_-]?([0-9]\.[0-9])?/iu', $wikitext, $match) === 1) {
+        $version = $match[1] ?? '';
+        $license = 'CC-BY-SA' . ($version !== '' ? '-' . $version : '');
+        $status = 'attribution_required';
+        $licenseUrl = 'https://creativecommons.org/licenses/by-sa/' . ($version !== '' ? $version : '3.0') . '/';
+    } elseif (preg_match('/cc[\s_-]?by[\s_-]?([0-9]\.[0-9])?/iu', $wikitext, $match) === 1) {
+        $version = $match[1] ?? '';
+        $license = 'CC-BY' . ($version !== '' ? '-' . $version : '');
+        $status = 'attribution_required';
+        $licenseUrl = 'https://creativecommons.org/licenses/by/' . ($version !== '' ? $version : '3.0') . '/';
+    } elseif (preg_match('/creative\s*commons/iu', $wikitext) === 1) {
+        $license = 'Creative Commons';
+        $status = 'attribution_required';
+    } elseif (preg_match('/\bGFDL\b|GNU.{0,40}Free.{0,40}Documentation/iu', $wikitext) === 1) {
+        $license = 'GFDL';
+        $status = 'attribution_required';
+        $licenseUrl = 'https://www.gnu.org/licenses/fdl-1.3.html';
+    }
+
+    $attribution = '';
+    if ($status === 'attribution_required') {
+        $attribution = trim(($author !== '' ? $author : 'Unbekannter Urheber') . ' (' . $license . ')');
+    }
+
+    return [
+        'license' => $license,
+        'status' => $status,
+        'author' => $author,
+        'attribution' => $attribution,
+        'license_url' => $licenseUrl,
+    ];
+}
+
+function avesmapsWikiSyncMonitorCountPendingLicenses(PDO $pdo): int {
+    return (int) ($pdo->query(
+        'SELECT COUNT(*) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . '
+        WHERE coat_of_arms_url IS NOT NULL AND coat_of_arms_url <> \'\' AND coat_of_arms_license_status IS NULL'
+    )->fetchColumn() ?: 0);
+}
+
+function avesmapsWikiSyncMonitorEnrichLicenses(PDO $pdo, array $options = []): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $batchLimit = max(1, min(60, (int) ($options['batch_limit'] ?? 25)));
+    $sleepMs = max(0, min(3000, (int) ($options['sleep_ms'] ?? AVESMAPS_WIKI_SYNC_MONITOR_SLEEP_MS)));
+    $stepRuntime = max(3, min(28, (int) ($options['step_runtime'] ?? AVESMAPS_WIKI_SYNC_MONITOR_STEP_RUNTIME)));
+    @set_time_limit($stepRuntime + 15);
+
+    $rows = $pdo->query(
+        'SELECT wiki_key, coat_of_arms_url FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . '
+        WHERE coat_of_arms_url IS NOT NULL AND coat_of_arms_url <> \'\' AND coat_of_arms_license_status IS NULL
+        ORDER BY wiki_key ASC LIMIT ' . $batchLimit
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    $fileByWikiKey = [];
+    $titles = [];
+    foreach ($rows as $row) {
+        $fileTitle = avesmapsWikiSyncMonitorFileTitleFromCoatUrl((string) ($row['coat_of_arms_url'] ?? ''));
+        if ($fileTitle !== '') {
+            $fileByWikiKey[(string) $row['wiki_key']] = $fileTitle;
+            $titles[$fileTitle] = $fileTitle;
+        }
+    }
+
+    $contents = [];
+    if ($titles !== []) {
+        try {
+            $contents = avesmapsWikiSyncFetchPoliticalTerritoryPageContents(array_values($titles));
+        } catch (Throwable $error) {
+            $contents = [];
+        }
+    }
+
+    $update = $pdo->prepare(
+        'UPDATE ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . '
+        SET coat_of_arms_license = :license, coat_of_arms_author = :author,
+            coat_of_arms_attribution = :attribution, coat_of_arms_license_status = :status,
+            coat_of_arms_license_url = :license_url
+        WHERE wiki_key = :wiki_key'
+    );
+
+    $processed = 0;
+    $byStatus = ['public_domain' => 0, 'attribution_required' => 0, 'unknown' => 0];
+    foreach ($rows as $row) {
+        $wikiKey = (string) $row['wiki_key'];
+        $fileTitle = $fileByWikiKey[$wikiKey] ?? '';
+        $content = $fileTitle !== '' ? (string) ($contents[$fileTitle] ?? '') : '';
+        $license = avesmapsWikiSyncMonitorParseLicense($content);
+        $update->execute([
+            'license' => $license['license'],
+            'author' => $license['author'] !== '' ? $license['author'] : null,
+            'attribution' => $license['attribution'] !== '' ? $license['attribution'] : null,
+            'status' => $license['status'],
+            'license_url' => $license['license_url'] !== '' ? $license['license_url'] : null,
+            'wiki_key' => $wikiKey,
+        ]);
+        $processed++;
+        $byStatus[$license['status']] = ($byStatus[$license['status']] ?? 0) + 1;
+    }
+    if ($titles !== []) {
+        avesmapsWikiSyncMonitorSleep($sleepMs);
+    }
+
+    return [
+        'ok' => true,
+        'processed' => $processed,
+        'by_status' => $byStatus,
+        'remaining' => avesmapsWikiSyncMonitorCountPendingLicenses($pdo),
+    ];
+}
+
 // Stichprobe/Zaehlung aus dem Staging (_test) zur Verifikation + spaeter fuers Diff/UI.
 function avesmapsWikiSyncMonitorStagingSample(PDO $pdo, array $wikiKeys = [], int $limit = 40): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     $total = (int) ($pdo->query('SELECT COUNT(*) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE)->fetchColumn() ?: 0);
 
-    $cols = 'wiki_key, name, type, continent, affiliation_raw, affiliation_key, affiliation_root, affiliation_path_json, status, capital_name, seat_name, coat_of_arms_url, founded_text, founded_type, founded_start_bf, founded_end_bf, dissolved_text, dissolved_type, dissolved_start_bf, dissolved_end_bf, raw_json, synced_at';
+    $cols = 'wiki_key, name, type, continent, affiliation_raw, affiliation_key, affiliation_root, affiliation_path_json, status, capital_name, seat_name, coat_of_arms_url, coat_of_arms_license, coat_of_arms_author, coat_of_arms_attribution, coat_of_arms_license_status, coat_of_arms_license_url, founded_text, founded_type, founded_start_bf, founded_end_bf, dissolved_text, dissolved_type, dissolved_start_bf, dissolved_end_bf, raw_json, synced_at';
     $wikiKeys = array_values(array_filter(array_map(static fn($v): string => trim((string) $v), $wikiKeys), static fn(string $v): bool => $v !== ''));
     if ($wikiKeys !== []) {
         $placeholders = implode(',', array_fill(0, count($wikiKeys), '?'));
