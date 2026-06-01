@@ -1028,6 +1028,51 @@ function avesmapsWikiSyncMonitorRebuildModel(PDO $pdo): array {
     return ['ok' => true, 'summary' => $summary];
 }
 
+// Phase 2b: Sync parent_wiki_key (Modell) -> political_territory.parent_id-CACHE.
+// Semantik: NUR auffuellen (child.parent_id IS NULL), bestehende parent_id NIE ueberschreiben
+// (korrigierte Hierarchie bleibt). Divergenzen werden nur gemeldet. dry_run=true schreibt NICHT.
+// ACHTUNG: einziger Pfad, der political_territory schreibt -> nur mit explizitem Nutzer-OK apply.
+function avesmapsWikiSyncMonitorSyncParentCache(PDO $pdo, bool $dryRun = true): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+
+    $base = ' FROM political_territory child
+        JOIN ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' m ON m.wiki_key = child.wiki_key
+        JOIN political_territory parent ON parent.wiki_key = m.parent_wiki_key AND parent.is_active = 1 AND parent.id <> child.id
+        WHERE child.is_active = 1 AND m.parent_wiki_key IS NOT NULL';
+
+    $count = static fn(string $where): int => (int) ($pdo->query('SELECT COUNT(*)' . $base . $where)->fetchColumn() ?: 0);
+    $fillable = $count(' AND child.parent_id IS NULL');
+    $divergent = $count(' AND child.parent_id IS NOT NULL AND child.parent_id <> parent.id');
+    $aligned = $count(' AND child.parent_id = parent.id');
+
+    $sampleFill = $pdo->query('SELECT child.name AS child, parent.name AS parent' . $base . ' AND child.parent_id IS NULL ORDER BY child.name LIMIT 15')->fetchAll(PDO::FETCH_ASSOC);
+    $sampleDivergent = $pdo->query('SELECT child.name AS child, parent.name AS model_parent' . $base . ' AND child.parent_id IS NOT NULL AND child.parent_id <> parent.id ORDER BY child.name LIMIT 15')->fetchAll(PDO::FETCH_ASSOC);
+
+    $applied = 0;
+    if (!$dryRun) {
+        $statement = $pdo->prepare(
+            'UPDATE political_territory child
+            JOIN ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' m ON m.wiki_key = child.wiki_key
+            JOIN political_territory parent ON parent.wiki_key = m.parent_wiki_key AND parent.is_active = 1 AND parent.id <> child.id
+            SET child.parent_id = parent.id
+            WHERE child.is_active = 1 AND m.parent_wiki_key IS NOT NULL AND child.parent_id IS NULL'
+        );
+        $statement->execute();
+        $applied = $statement->rowCount();
+    }
+
+    return [
+        'ok' => true,
+        'dry_run' => $dryRun,
+        'fillable' => $fillable,
+        'divergent_existing' => $divergent,
+        'already_aligned' => $aligned,
+        'applied' => $applied,
+        'sample_fill' => $sampleFill,
+        'sample_divergent' => $sampleDivergent,
+    ];
+}
+
 function avesmapsWikiSyncMonitorModelSample(PDO $pdo, array $wikiKeys = [], int $limit = 40): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     $total = (int) ($pdo->query('SELECT COUNT(*) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE)->fetchColumn() ?: 0);

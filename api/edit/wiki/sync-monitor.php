@@ -50,6 +50,11 @@ try {
             ),
             'rebuild_model' => avesmapsWikiSyncMonitorRebuildModel($pdo),
             'enrich_licenses' => avesmapsWikiSyncMonitorEnrichLicenses($pdo, $options),
+            'sync_parent_cache' => avesmapsWikiSyncMonitorSyncParentCache(
+                $pdo,
+                // Schreiben NUR bei dry_run:false UND confirm:"apply"; sonst immer lesender Dry-Run.
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+            ),
             default => null,
         };
 
