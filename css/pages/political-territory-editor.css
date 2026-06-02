@@ -246,7 +246,7 @@ select:focus {
 	display: flex;
 	align-items: center;
 	flex-wrap: wrap;
-	gap: 6px 8px;
+	gap: 6px;
 	margin: 8px 12px 0;
 	font-size: 12px;
 	color: #5b4b36;
