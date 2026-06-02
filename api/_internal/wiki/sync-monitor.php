@@ -2001,6 +2001,18 @@ function avesmapsWikiSyncMonitorResolveCapitals(PDO $pdo, array $byName, array $
 // Vergleich gegen die aktive Live-Zeile. Schreibt NICHTS. Kernfelder: name, type, status,
 // valid_from_bf(<-founded_start_bf), valid_to_bf(<-dissolved_end_bf; 9999/null=besteht). excluded -> skip.
 // Kontinent (mit Vererbung)/Hauptstadt/Wappen folgen in einem spaeteren Schritt.
+// Klammer-Qualifizierer aus der Wiki-Disambiguierung am Ende des Typs entfernen
+// ("Herzogtum (Mittelreichische Provinz)" -> "Herzogtum"). Mehrfach-/verschachtelt-tolerant.
+function avesmapsWikiSyncMonitorCleanType(string $type): string {
+    $prev = null;
+    $t = trim($type);
+    while ($prev !== $t) {
+        $prev = $t;
+        $t = trim((string) preg_replace('/\s*\([^()]*\)\s*$/u', '', $t));
+    }
+    return $t;
+}
+
 function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     $staging = AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE;
@@ -2061,7 +2073,7 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
         $s = $st[$wk];
 
         $effName = array_key_exists('name', $ov) ? (string) $ov['name'] : (string) ($s['name'] ?? '');
-        $effType = array_key_exists('type', $ov) ? (string) $ov['type'] : (string) ($s['type'] ?? '');
+        $effType = array_key_exists('type', $ov) ? (string) $ov['type'] : avesmapsWikiSyncMonitorCleanType((string) ($s['type'] ?? ''));
         $effStatus = array_key_exists('status', $ov) ? (string) $ov['status'] : (string) ($s['status'] ?? '');
         $effFromV = $effFrom($ov, $s);
         $effToV = $effTo($ov, $s);

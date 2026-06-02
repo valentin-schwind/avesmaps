@@ -154,6 +154,23 @@
   fieldset.fld legend { color:var(--mut); padding:0 4px; }
   fieldset.fld label { display:block; margin:3px 0; }
   .modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+  /* Identitäts-Vorschau-Modal */
+  .ident-box { width:920px; max-width:94vw; }
+  .ident-controls { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:6px 0 8px; }
+  .ident-chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .ident-chip { font-size:11px; padding:3px 9px; border:1px solid var(--line); border-radius:999px; background:var(--panel); cursor:pointer; }
+  .ident-chip.active { background:#385d72; color:#fff; border-color:#385d72; }
+  #identSearch { font-size:12px; padding:4px 8px; flex:1 1 180px; min-width:140px; }
+  .ident-table { max-height:60vh; overflow:auto; border:1px solid var(--line); border-radius:6px; }
+  .ident-row { padding:6px 9px; border-bottom:1px solid var(--line); font-size:12px; }
+  .ident-row:last-child { border-bottom:none; }
+  .ident-name { font-weight:bold; color:#3f3428; }
+  .ident-wk { color:var(--mut); font-size:11px; margin-left:6px; }
+  .ident-changes { display:grid; grid-template-columns:auto 1fr; gap:1px 8px; margin-top:3px; }
+  .ident-fld { color:var(--mut); white-space:nowrap; }
+  .ident-old { color:var(--bad); }
+  .ident-arrow { color:var(--mut); }
+  .ident-new { color:#2f6b2f; }
 </style>
 </head>
 <body>
@@ -167,6 +184,7 @@
     <button class="btn2" id="btnModel" title="Berechnet die Hierarchie aus dem Staging neu (Locks + Aussortiert bleiben erhalten)"><span class="t1">Hierarchie ableiten</span><span class="t2" id="stModel">—</span></button>
     <button class="btn2" id="btnDiff" title="Vergleicht Staging gegen das aktuelle Wiki: gelöscht / geändert / neu"><span class="t1">Zeige Unterschiede</span><span class="t2" id="stDiff">—</span></button>
     <button class="btn2" id="btnCache" title="Testweise zeigen, was die Übertragung nach Avesmaps ändern würde – schreibt nichts"><span class="t1">Testübertragung in Avesmaps</span><span class="t2" id="stTest">—</span></button>
+    <button class="btn2" id="btnIdentPreview" title="Read-only: was ein Identitäts-Apply (Name, Staatsform, Status, Gegründet/Aufgelöst) in political_territory ändern würde – schreibt nichts"><span class="t1">Identitäts-Vorschau</span><span class="t2" id="stIdent">—</span></button>
     <button class="btn2 primary" id="btnApply" title="Übernimmt die kuratierte Hierarchie in Avesmaps – schreibt Eltern-Zuweisungen, Geometrien bleiben unberührt"><span class="t1">Modell speichern und übernehmen</span><span class="t2" id="stApply">—</span></button>
     <span id="busy" class="muted"></span>
   </div>
@@ -233,6 +251,20 @@
     <div class="modal-actions">
       <button id="wappenCancel">Abbrechen</button>
       <button class="primary" id="wappenUpload">Hochladen</button>
+    </div>
+  </div>
+</div>
+<div id="identModal" class="modal" hidden>
+  <div class="modal-box ident-box">
+    <div class="modal-title">Identitäts-Vorschau (read-only)</div>
+    <div class="modal-sub" id="identSummary">—</div>
+    <div class="ident-controls">
+      <div class="ident-chips" id="identChips"></div>
+      <input type="search" id="identSearch" placeholder="Name / wiki_key suchen…">
+    </div>
+    <div class="ident-table" id="identTable"></div>
+    <div class="modal-actions">
+      <button class="primary" id="identClose">Schließen</button>
     </div>
   </div>
 </div>
@@ -850,6 +882,57 @@ $('detailBody').addEventListener('change', e=>{
 });
 document.addEventListener('change', e=>{ if(e.target.name==='wpLic') $('wpAuthor').disabled = e.target.value!=='attribution_required'; });
 $('wappenUpload').onclick = ()=>{ setStatus('Wappen-Upload folgt in Phase 2 (lokaler Ordner + Endpoint). Auswahl gemerkt.'); closeWappenDialog(); };
+
+// --- Identitäts-Vorschau (Apply-Flow Phase A, read-only) ---
+let IDENT=null, identFieldFilter='';
+const IDENT_LABELS={ name:'Name', type:'Staatsform', status:'Status', valid_from_bf:'Gegründet', valid_to_bf:'Aufgelöst' };
+function fmtIdentVal(field, v){
+  if(v===null||v===undefined||v==='') return '—';
+  if(field==='valid_from_bf'||field==='valid_to_bf'){ const n=Number(v); return n<0?(Math.abs(n)+' v.BF'):(n+' BF'); }
+  return String(v);
+}
+async function openIdentPreview(){
+  busy(true);
+  try{
+    IDENT = await api('apply_identity_preview');
+    const s=IDENT.summary;
+    $('stIdent').textContent = `${s.rows_with_changes} Änderungen`;
+    renderIdentModal();
+    $('identModal').hidden=false;
+  }catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+}
+function renderIdentChips(){
+  const fc=IDENT.field_counts||{};
+  const chips=[`<span class="ident-chip${identFieldFilter===''?' active':''}" data-fld="">Alle (${IDENT.summary.rows_with_changes})</span>`];
+  for(const f of ['name','type','status','valid_from_bf','valid_to_bf']){ if(!fc[f]) continue; chips.push(`<span class="ident-chip${identFieldFilter===f?' active':''}" data-fld="${f}">${IDENT_LABELS[f]} (${fc[f]})</span>`); }
+  $('identChips').innerHTML=chips.join('');
+}
+function renderIdentRows(){
+  const q=($('identSearch').value||'').trim().toLowerCase();
+  const all=IDENT.rows||[];
+  const rows=all.filter(r=>{
+    if(identFieldFilter && !(r.changes && r.changes[identFieldFilter])) return false;
+    if(q && !((r.name||'').toLowerCase().includes(q) || (r.wiki_key||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  const out=rows.map(r=>{
+    const ch=Object.keys(r.changes).filter(f=>!identFieldFilter||f===identFieldFilter).map(f=>{ const c=r.changes[f]; return `<div class="ident-fld">${IDENT_LABELS[f]||f}</div><div><span class="ident-old">${esc(fmtIdentVal(f,c.from))}</span> <span class="ident-arrow">→</span> <span class="ident-new">${esc(fmtIdentVal(f,c.to))}</span></div>`; }).join('');
+    return `<div class="ident-row"><span class="ident-name">${esc(r.name||'')}</span><span class="ident-wk">${esc(r.wiki_key||'')}</span><div class="ident-changes">${ch}</div></div>`;
+  }).join('');
+  const trunc = all.length>=300 ? `<div class="muted" style="padding:6px 9px">… nur die ersten ${all.length} Zeilen geladen (Backend-Limit)</div>` : '';
+  $('identTable').innerHTML = (out||'<div class="muted" style="padding:8px">— keine —</div>') + trunc;
+}
+function renderIdentModal(){
+  const s=IDENT.summary;
+  $('identSummary').textContent = `${s.live_with_wiki_key} Live-Gebiete · ${s.rows_with_changes} würden sich ändern · ${s.unchanged} unverändert · ${s.excluded_skipped} aussortiert · ${s.no_staging} ohne Staging — read-only, schreibt nichts.`;
+  renderIdentChips(); renderIdentRows();
+}
+$('btnIdentPreview').onclick = openIdentPreview;
+$('identClose').onclick = ()=>{ $('identModal').hidden=true; };
+$('identModal').addEventListener('click', e=>{ if(e.target.id==='identModal') $('identModal').hidden=true; });
+$('identChips').addEventListener('click', e=>{ const c=e.target.closest('.ident-chip'); if(c){ identFieldFilter=c.dataset.fld; renderIdentChips(); renderIdentRows(); } });
+$('identSearch').oninput = renderIdentRows;
 
 buildSeedMenu();
 updateFilterInfo();
