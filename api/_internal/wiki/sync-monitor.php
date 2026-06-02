@@ -1714,7 +1714,11 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
         'SELECT m.wiki_key, m.parent_wiki_key, m.parent_locked, m.excluded, m.auto_parent_wiki_key, m.source_origin,
                 m.parent_conflict_json, s.name, s.type, s.continent, s.affiliation_raw, s.wiki_url,
                 s.founded_text, s.dissolved_text, s.coat_of_arms_url, s.coat_of_arms_license,
-                s.coat_of_arms_author, s.coat_of_arms_attribution, s.coat_of_arms_license_status
+                s.coat_of_arms_author, s.coat_of_arms_attribution, s.coat_of_arms_license_status,
+                s.status, s.capital_name, s.seat_name,
+                (SELECT COUNT(*) FROM political_territory_geometry g
+                    JOIN political_territory pt ON pt.id = g.territory_id
+                    WHERE pt.wiki_key = m.wiki_key AND pt.is_active = 1 AND g.is_active = 1) AS map_geometry_count
         FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' m
         LEFT JOIN ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . ' s ON s.wiki_key = m.wiki_key
         ORDER BY COALESCE(s.name, m.wiki_key) ASC'
@@ -1781,6 +1785,11 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'aliases' => $aliases,
             'coat_of_arms_url' => (string) ($row['coat_of_arms_url'] ?? ''),
             'license_status' => (string) ($row['coat_of_arms_license_status'] ?? ''),
+            'status' => (string) ($row['status'] ?? ''),
+            'capital_name' => (string) ($row['capital_name'] ?? ''),
+            'seat_name' => (string) ($row['seat_name'] ?? ''),
+            'map_geometry_count' => (int) ($row['map_geometry_count'] ?? 0),
+            'map_assigned' => ((int) ($row['map_geometry_count'] ?? 0)) > 0,
         ];
     }
 

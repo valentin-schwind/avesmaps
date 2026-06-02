@@ -65,6 +65,35 @@
   .listhead { font-size:13px; font-weight:bold; margin:0 0 6px; color:#3f3428; }
   .info { font-size:11px; color:var(--mut); background:var(--soft); border:1px solid var(--line); border-radius:5px; padding:4px 7px; margin-bottom:6px; }
   label.ck { font-size:12px; color:var(--mut); display:inline-flex; align-items:center; gap:4px; }
+  /* 3-Spalten-Layout */
+  .cols { height:calc(100vh - 96px); }
+  #left { max-width:none; flex:0 0 28%; }
+  #right { flex:1 1 auto; }
+  #detail { flex:0 0 31%; border-left:1px solid var(--line); background:var(--soft); }
+  /* Abdeckungs-Kreis (Geometrie auf der Karte), rekursiv – übernommen aus dem alten Editor-Tree */
+  .cov { position:relative; width:12px; height:12px; flex:0 0 12px; border:2px solid #6a7f3a; border-radius:50%; background:var(--soft); box-sizing:border-box; color:#6a7f3a; overflow:hidden; display:inline-block; vertical-align:middle; }
+  .cov.all { background:currentColor; }
+  .cov.own-only::before, .cov.children-only::before { content:""; position:absolute; top:1px; bottom:1px; background:currentColor; }
+  .cov.children-only::before { left:1px; right:50%; border-radius:999px 0 0 999px; }
+  .cov.own-only::before { left:50%; right:1px; border-radius:0 999px 999px 0; }
+  /* kleines Wappen */
+  .wp { width:15px; height:15px; flex:0 0 15px; object-fit:contain; vertical-align:middle; border-radius:2px; background:#fff; }
+  .wp.pd { box-shadow:0 0 0 1.5px #6a7f3a; }
+  .wp.gray { filter:grayscale(1); opacity:.45; }
+  .row.sel, .node.sel { background:#e7d6bd !important; outline:1px solid var(--line2); }
+  /* Detail-Panel */
+  .dt-empty { color:var(--mut); padding:6px; }
+  .dt-head { display:flex; gap:10px; align-items:flex-start; margin-bottom:6px; }
+  .dt-wappen { width:56px; height:56px; flex:0 0 56px; object-fit:contain; background:#fff; border:1px solid var(--line); border-radius:6px; }
+  .dt-wappen.gray { filter:grayscale(1); opacity:.5; }
+  .dt-title { font-size:15px; font-weight:bold; color:#3f3428; line-height:1.2; }
+  .dt-sub { color:var(--mut); font-size:12px; margin-top:2px; }
+  .dt-grid { display:grid; grid-template-columns:auto 1fr; gap:3px 10px; font-size:12px; margin:8px 0; }
+  .dt-grid .k { color:var(--mut); white-space:nowrap; }
+  .dt-lic { margin-top:8px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--panel); font-size:11px; }
+  .dt-lic.pd { border-color:#9fb87a; }
+  .dt-lic.cc { border-color:var(--warn); }
+  .dt-conf { color:var(--bad); }
 </style>
 </head>
 <body>
@@ -111,6 +140,10 @@
     <h2 class="listhead">Hierarchie der Herrschaftsgebiete <span id="treeCount" class="count"></span></h2>
     <div id="dropRoot">▶ Hierher ziehen = zur Wurzel machen (Eltern entfernen)</div>
     <div id="tree"></div>
+  </div>
+  <div class="col" id="detail">
+    <h2 class="listhead">Wiki-Details</h2>
+    <div id="detailBody"><div class="dt-empty">Links oder im Baum ein Herrschaftsgebiet anklicken, um die gecrawlten Wiki-Details zu sehen.</div></div>
   </div>
 </div>
 <script>
@@ -209,8 +242,10 @@ async function loadModel() {
   const j = await api('model_tree');
   NODES = j.nodes; BYKEY = new Map(NODES.map(n=>[n.wiki_key, n]));
   $('treeCount').textContent = `${j.count} Knoten`;
+  buildChildren();
   buildContMenu();
   render();
+  renderDetail();
 }
 
 function statusTags(n) {
@@ -241,6 +276,73 @@ function periodLabel(n){
   return ` <span class="count" title="Zeitraum (von/bis)">· ${s}</span>`;
 }
 
+// --- Auswahl, Kinder-Map, rekursive Karten-Abdeckung, Wappen, Detail ---
+let selectedKey = null;
+let CHILDREN = new Map();
+const covCache = new Map();
+function buildChildren(){ CHILDREN = new Map(); covCache.clear(); for(const n of NODES){ const p=(n.parent_wiki_key && n.parent_in_model)?n.parent_wiki_key:null; if(p){ if(!CHILDREN.has(p)) CHILDREN.set(p,[]); CHILDREN.get(p).push(n);} } }
+function coverage(n){
+  if(covCache.has(n.wiki_key)) return covCache.get(n.wiki_key);
+  const own = !!(n.map_assigned || n.map_geometry_count>0);
+  const kids = CHILDREN.get(n.wiki_key) || [];
+  let r;
+  if(!kids.length){ r={kind: own?'all':'none', complete:own, any:own}; }
+  else {
+    covCache.set(n.wiki_key,{kind:'none',complete:false,any:false}); // Zyklus-Guard
+    const cs = kids.map(coverage);
+    const anyChild = cs.some(c=>c.any), allComplete = cs.every(c=>c.complete), any = own||anyChild;
+    if(own && allComplete) r={kind:'all',complete:true,any};
+    else if(own) r={kind:'own-only',complete:false,any};
+    else if(anyChild && allComplete) r={kind:'all',complete:true,any};
+    else if(anyChild) r={kind:'children-only',complete:false,any};
+    else r={kind:'none',complete:false,any:false};
+  }
+  covCache.set(n.wiki_key, r);
+  return r;
+}
+const COV_LABEL = {all:'Gebiet + alle Untergebiete auf der Karte', 'own-only':'Gebiet auf der Karte, Untergebiete unvollständig', 'children-only':'nur über Untergebiete (unvollständig)', none:'nicht auf der Karte'};
+function covCircle(n){ const c=coverage(n); return `<span class="cov ${c.kind}" title="${COV_LABEL[c.kind]}"></span>`; }
+function licClass(n){ const s=n.license_status; if(s==='public_domain') return 'pd'; if(!s||s==='unknown') return 'gray'; return ''; }
+function wappenThumb(n){ if(!n.coat_of_arms_url) return ''; return `<img class="wp ${licClass(n)}" src="${esc(n.coat_of_arms_url)}" alt="" loading="lazy" draggable="false" title="${esc(n.coat_of_arms_author||n.license_status||'Wappen')}">`; }
+function selectKey(k){
+  selectedKey = k;
+  document.querySelectorAll('.row.sel, .node.sel').forEach(el=>el.classList.remove('sel'));
+  try { document.querySelectorAll(`[data-key="${CSS.escape(k)}"]`).forEach(el=>el.classList.add('sel')); } catch(e){}
+  renderDetail();
+}
+function periodText(n){ return (periodLabel(n)||'').replace(/^.*?· /,'').replace(/<[^>]*>/g,'').trim(); }
+function renderDetail(){
+  const n = selectedKey ? BYKEY.get(selectedKey) : null;
+  const box = $('detailBody');
+  if(!n){ box.innerHTML='<div class="dt-empty">Links oder im Baum ein Herrschaftsgebiet anklicken, um die gecrawlten Wiki-Details zu sehen.</div>'; return; }
+  const c = coverage(n);
+  const parentNm = n.parent_wiki_key ? ((BYKEY.get(n.parent_wiki_key)||{}).name || n.parent_wiki_key.replace(/^wiki:/,'')) : '(Wurzel)';
+  const rows = [];
+  const add=(k,v)=>{ if(v) rows.push(`<div class="k">${k}</div><div>${v}</div>`); };
+  add('Typ', esc(n.type||'—'));
+  add('Zeitraum', esc(periodText(n)||'—'));
+  add('Status', esc(n.status||''));
+  add('Kontinent', esc(n.continent||''));
+  add('Hauptstadt', esc(n.capital_name||''));
+  add('Herrschaftssitz', esc(n.seat_name||''));
+  add('Eltern', esc(parentNm)+(n.parent_locked?' 🔒':'')+(n.parent_wiki_key&&!n.parent_in_model?' <span class="dt-conf">(nicht im Modell)</span>':''));
+  if(n.diverges) add('Maschinen-Vorschlag', esc((BYKEY.get(n.auto_parent_wiki_key)||{}).name||n.auto_parent_wiki_key||''));
+  if(n.conflicts && n.conflicts.length) add('Strittig', `<span class="dt-conf">${n.conflicts.map(esc).join(', ')}</span>`);
+  if(n.aliases && n.aliases.length) add('Auch bekannt als', n.aliases.map(a=>esc(a.replace(/-/g,' '))).join(', '));
+  add('Zugehörigkeit (roh)', esc(n.affiliation_raw||''));
+  add('Karten-Abdeckung', `${COV_LABEL[c.kind]}${n.map_geometry_count?` (${n.map_geometry_count} Geometrie${n.map_geometry_count>1?'n':''})`:''}`);
+  let lic='';
+  const ls=n.license_status;
+  if(n.coat_of_arms_url){
+    if(ls==='public_domain') lic=`<div class="dt-lic pd"><b>Gemeinfrei</b> – frei darstellbar.${n.coat_of_arms_author?' Urheber: '+esc(n.coat_of_arms_author):''}</div>`;
+    else if(ls==='attribution_required') lic=`<div class="dt-lic cc"><b>Namensnennung nötig</b>${n.coat_of_arms_author?' – Urheber: '+esc(n.coat_of_arms_author):''}${n.coat_of_arms_attribution?'<br>'+esc(n.coat_of_arms_attribution):''}</div>`;
+    else lic=`<div class="dt-lic unknown">Lizenz unbekannt – Wappen ausgegraut.</div>`;
+  }
+  const wpClass = (n.coat_of_arms_url && (ls==='unknown'||!ls))?'dt-wappen gray':'dt-wappen';
+  const wappen = n.coat_of_arms_url ? `<img class="${wpClass}" src="${esc(n.coat_of_arms_url)}" alt="">` : '';
+  box.innerHTML = `<div class="dt-head">${wappen}<div><div class="dt-title">${esc(n.name)}</div><div class="dt-sub">${esc(n.wiki_key)}${n.wiki_url?` · <a class="wl" href="${esc(n.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`:''}</div></div></div><div class="dt-grid">${rows.join('')}</div>${lic}`;
+}
+
 function isGap(n){ return !!(n.parent_wiki_key && !n.parent_in_model); }
 function visibleByContinent(n){ if(!contSel || contSel.size===0) return true; return contSel.has(n.continent||'Aventurien'); }
 function matchesFilter(n, f) {
@@ -268,7 +370,7 @@ function renderList() {
     const lock = n.parent_locked ? ' <span class="tag lock" title="gesperrt">🔒</span>' : '';
     const exclTag = n.excluded ? ' <span class="tag excl" title="aussortiert – in den Baum/Wurzel ziehen holt zurück">✕ aussortiert</span>' : '';
     const meta = n.excluded ? '' : `${parentLabel(n)}${conflictLabel(n)}`;
-    out.push(`<div class="row" draggable="true" data-key="${n.wiki_key}">${licDot(n)}<span class="nm">${esc(n.name)}${periodLabel(n)}${aliasHint(n)}</span>${wikiLink(n)}${meta}${lock}${exclTag}</div>`);
+    out.push(`<div class="row${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}">${covCircle(n)}${wappenThumb(n)}<span class="nm">${esc(n.name)}${periodLabel(n)}${aliasHint(n)}</span>${wikiLink(n)}${meta}${lock}${exclTag}</div>`);
   }
   $('list').innerHTML = out.join('') || '<div class="muted">— keine —</div>';
 }
@@ -289,7 +391,7 @@ function renderTree() {
     const hasKids = kids.length>0;
     const open = expanded.has(n.wiki_key);
     const tw = hasKids ? `<span class="twist" data-tw="${n.wiki_key}">${open?'▾':'▸'}</span>` : '<span class="twist"></span>';
-    let html = `<li><span class="node" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${licDot(n)}<span>${esc(n.name)}${periodLabel(n)}${aliasHint(n)}</span>${wikiLink(n)}${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
+    let html = `<li><span class="node${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${covCircle(n)}${wappenThumb(n)}<span>${esc(n.name)}${periodLabel(n)}${aliasHint(n)}</span>${wikiLink(n)}${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
     if (hasKids && open) html += `<ul class="tree">${kids.map(k=>build(k,depth+1)).join('')}</ul>`;
     return html + '</li>';
   };
@@ -353,7 +455,13 @@ document.addEventListener('drop', e => {
   if (root){ root.classList.remove('drop'); e.preventDefault(); if(dragKey) setParent(dragKey, null); dragKey=null; return; }
   if (node){ node.classList.remove('drop'); e.preventDefault(); const p=node.dataset.drop; if(dragKey && dragKey!==p) setParent(dragKey, p); dragKey=null; }
 });
-document.addEventListener('click', e => { const tw=e.target.closest('[data-tw]'); if(tw){ const k=tw.dataset.tw; if(expanded.has(k))expanded.delete(k); else expanded.add(k); renderTree(); } });
+document.addEventListener('click', e => {
+  const tw=e.target.closest('[data-tw]');
+  if(tw){ const k=tw.dataset.tw; if(expanded.has(k))expanded.delete(k); else expanded.add(k); renderTree(); return; }
+  if(e.target.closest('a.wl')) return;            // Wiki-Link nicht abfangen
+  const el=e.target.closest('[data-key]');
+  if(el) selectKey(el.dataset.key);               // Klick = auswählen -> Detail-Panel
+});
 
 $('btnCrawl').onclick = runCrawl;
 $('btnModel').onclick = async()=>{ busy(true); try{ const r=await api('rebuild_model',{method:'POST'}); setStatus(`Hierarchie: ${r.summary.total} Knoten, ${r.summary.resolved_parents} Eltern aufgelöst, ${r.summary.gap_parents} Lücken, ${r.summary.roots} Wurzeln.`); await loadModel(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
