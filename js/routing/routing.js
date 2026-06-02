@@ -240,6 +240,18 @@ function applyPlaceFocusFromUrl() {
 	}
 }
 
+// Nur fuer Editoren (?edit=1): bei Zoom-Aenderung kurz die aktuelle Zoom-Stufe einblenden,
+// damit man weiss, welcher Wert in "Zoom von/bis" der Sichtbarkeit entspricht (ganzzahlig).
+function notifyEditorZoomLevel() {
+	if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) {
+		return;
+	}
+	if (typeof map === "undefined" || typeof showFeedbackToast !== "function") {
+		return;
+	}
+	showFeedbackToast(`Zoom-Stufe ${Math.round(map.getZoom())}`, "info");
+}
+
 // Laden und Verarbeiten der GeoJSON-Daten aus SQL.
 const routeDataRequest = loadRouteData();
 
@@ -267,7 +279,7 @@ routeDataRequest
 		} else {
 			focusMapOnActiveTargets();
 		}
-		startLiveMapUpdates(); applyPlaceFocusFromUrl();
+		startLiveMapUpdates(); applyPlaceFocusFromUrl(); map.on("zoomend", notifyEditorZoomLevel);
 	})
 	.catch((err) => console.error("Fehler beim Laden der GeoJSON-Datei:", err));
 
