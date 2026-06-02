@@ -210,6 +210,7 @@
           <option value="siedlung">Stadtstaaten</option>
           <option value="excluded">Aussortiert</option>
           <option value="historisch">Historisch</option>
+          <option value="kirchen">Kirchen</option>
           <option value="all">Alle</option>
         </select>
         <input type="search" id="search" placeholder="In dieser Auswahl suchen…">
@@ -316,6 +317,7 @@ const FILTER_INFO = {
   siedlung:'Stadtstaaten: als Siedlung erkannt, aber als Herrschaftsgebiet behalten.',
   excluded:'Aussortiert: aus der Hierarchie genommen (bleibt im Sync, jederzeit zurückholbar).',
   historisch:'Historisch: hat ein echtes Auflösungsjahr (Aufgelöst) – existiert heute nicht mehr, auf der Karte nur für seinen Zeitraum sichtbar (Jahr-Slider). Hier prüfbar, ob das Auflösungsdatum stimmt.',
+  kirchen:'Kirchen: kirchliche Verwaltungseinheiten (Kirchenprovinzen, Ordines, Lichteien – Praios/Rondra/Efferd …). Die Karte führt die WELTLICHE Hierarchie, deshalb sind sie aus dem Baum genommen. Editoren entscheiden, was damit passiert.',
   all:'Alle Knoten der aktuellen Kontinent-Auswahl.'
 };
 function updateFilterInfo(){ $('filterInfo').textContent = FILTER_INFO[$('filter').value] || ''; }
@@ -633,6 +635,10 @@ async function capSearch(q){
 }
 
 function isGap(n){ return !!(n.parent_wiki_key && !n.parent_in_model); }
+// Kirchliche Verwaltungseinheit (Praios/Rondra/Efferd-Kirche, Ordines, Lichteien, Kirchenprovinzen).
+// Die Karte führt die WELTLICHE Hierarchie -> diese kommen in die eigene Kategorie „Kirchen", raus
+// aus dem Hierarchie-Baum. Editoren entscheiden, was damit passiert.
+function isKirche(n){ return /kirchenprovinz/i.test(n.status||'') || /\b(kirche|ordo)\b/i.test(n.affiliation_raw||''); }
 function visibleByContinent(n){ if(!contSel || contSel.size===0) return true; return contSel.has(n.continent||'Aventurien'); }
 // Zeitfilter: aus / heute / Bereich [von,bis] (BF). Knoten ohne Daten werden nicht versteckt.
 const leftTime={mode:'off',from:-Infinity,to:Infinity};
@@ -657,6 +663,8 @@ function applyTime(prefix, state, rerender){
 function matchesFilter(n, f) {
   if (f==='excluded') return !!n.excluded;
   if (n.excluded) return false;                    // Aussortierte nur im „Aussortiert"-Filter
+  if (f==='kirchen') return isKirche(n);
+  if (f!=='all' && isKirche(n)) return false;      // Kirchliches nur unter „Kirchen" (und „Alle")
   if (f==='all') return true;
   if (f==='gap') return isGap(n);                  // Default = echte offene Lücken
   if (f==='diverges') return n.diverges;
@@ -702,7 +710,7 @@ function buildTreeNode(n, depth) {
 function renderTree() {
   // Lücken (Eltern nicht im Modell) erscheinen NICHT im Hierarchie-Baum – nur in der linken
   // Liste. Sie tauchen erst auf, wenn sie per Drag einem echten Eltern-Knoten zugewiesen werden.
-  const hide = (n)=> n.excluded || isGap(n) || !visibleByContinent(n) || !visibleByTime(n, rightTime);
+  const hide = (n)=> n.excluded || isKirche(n) || isGap(n) || !visibleByContinent(n) || !visibleByTime(n, rightTime);
   const hidden = new Set(NODES.filter(hide).map(n=>n.wiki_key));
   treeChildren = new Map();
   const roots = [];
