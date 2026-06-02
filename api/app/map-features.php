@@ -28,13 +28,30 @@ try {
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
+    $revision = avesmapsFetchMapRevision($pdo);
+
+    // HTTP-Caching (#2): ETag aus Revision + payload-bestimmenden Query-Params (bbox/since_revision).
+    // Bei unveraenderten Daten antwortet der Server mit 304 -> der Client nutzt seine Kopie; die teure
+    // Query UND der 14-MB-Transfer entfallen komplett. Cache-Control: no-cache = jedes Mal revalidieren,
+    // aber 304 statt Vollantwort, solange die Revision gleich bleibt.
+    $etag = avesmapsMapFeaturesETag($revision, $_GET);
+    header('ETag: ' . $etag);
+    header('Cache-Control: no-cache, must-revalidate');
+    header('Vary: Accept-Encoding', false);
+    $ifNoneMatch = (string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
+    if ($ifNoneMatch !== '' && avesmapsETagMatches($ifNoneMatch, $etag)) {
+        http_response_code(304);
+        exit;
+    }
+
     $wikiLocationLinks = avesmapsLoadWikiSyncLocationLinks($pdo);
     $query = avesmapsBuildMapFeaturesQuery($_GET);
-    $revision = avesmapsFetchMapRevision($pdo);
     $statement = $pdo->prepare($query['sql']);
     $statement->execute($query['params']);
 
-    avesmapsJsonResponse(200, [
+    // Kompression (#1): diese Antwort wird vom Server nicht komprimiert (gemessen: content-encoding none)
+    // -> hier explizit gzip, wenn der Client es akzeptiert. ~14 MB JSON -> ~1,5-2,5 MB.
+    avesmapsMapFeaturesRespond([
         'ok' => true,
         'revision' => $revision,
         'type' => 'FeatureCollection',
@@ -164,6 +181,52 @@ function avesmapsFetchMapRevision(PDO $pdo): int {
     }
 
     return (int) $revision;
+}
+
+// Schwacher ETag aus Revision + payload-bestimmenden Query-Parametern. Schwach (W/), weil gzip- und
+// Identity-Variante semantisch dieselbe Ressource sind. Stabil pro Revision -> 304 bei Reloads.
+function avesmapsMapFeaturesETag(int $revision, array $queryParams): string {
+    $seed = (string) ($queryParams['since_revision'] ?? '') . '|' . (string) ($queryParams['bbox'] ?? '');
+    return 'W/"mf-' . $revision . '-' . substr(hash('sha1', $seed), 0, 10) . '"';
+}
+
+// Vergleicht If-None-Match (kann Liste sein, "*" oder W/-praefixiert) gegen unseren ETag.
+function avesmapsETagMatches(string $ifNoneMatch, string $etag): bool {
+    if (trim($ifNoneMatch) === '*') {
+        return true;
+    }
+    $normalize = static fn(string $value): string => trim(preg_replace('/^W\//i', '', trim($value)) ?? trim($value));
+    $target = $normalize($etag);
+    foreach (explode(',', $ifNoneMatch) as $candidate) {
+        if ($normalize($candidate) === $target) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// Gibt die GeoJSON-Antwort aus, gzip-komprimiert wenn der Client es akzeptiert (sonst identity).
+// Content-Length passend zur tatsaechlich gesendeten (ggf. komprimierten) Groesse.
+function avesmapsMapFeaturesRespond(array $payload): never {
+    $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    http_response_code(200);
+    header('Content-Type: application/json; charset=utf-8');
+
+    $acceptsGzip = stripos((string) ($_SERVER['HTTP_ACCEPT_ENCODING'] ?? ''), 'gzip') !== false;
+    if ($acceptsGzip && function_exists('gzencode')) {
+        $compressed = gzencode($json, 6);
+        if ($compressed !== false) {
+            header('Content-Encoding: gzip');
+            header('Content-Length: ' . strlen($compressed));
+            echo $compressed;
+            exit;
+        }
+    }
+
+    header('Content-Length: ' . strlen($json));
+    echo $json;
+    exit;
 }
 
 function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = []): array {
