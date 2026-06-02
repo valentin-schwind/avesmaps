@@ -307,6 +307,31 @@
 	margin: 0 10px 8px;
 }
 
+.wiki-sync-panel__timefilter {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 0 10px 8px;
+	font-size: 12px;
+	color: #5b4b36;
+}
+
+.wiki-sync-panel__timefilter input[type="number"] {
+	width: 72px;
+	padding: 5px 7px;
+	border: 1px solid #cdb79f;
+	border-radius: 6px;
+	background: #fff;
+	font: inherit;
+}
+
+.wiki-sync-panel__timefilter label {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
 .wiki-sync-panel__filter-input {
 	flex: 1 1 auto;
 	min-width: 0;

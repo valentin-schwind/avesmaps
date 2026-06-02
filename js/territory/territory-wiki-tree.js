@@ -420,6 +420,42 @@
 		for (const child of node.children) sortTree(child);
 	}
 
+	// Zeit-Intervall einer Zeile in BF. dissolved 9999 = NULL = "besteht bis heute" (Ongoing-Sentinel,
+	// konsistent zum Sync-Editor). f/d null = unbekannt; ongoing = kein Ende.
+	function rowTimeIntervalBf(row) {
+		const foundedBf = readOptionalYear(row, ["founded_start_bf", "founded_display_bf", "founded_end_bf"]);
+		let dissolvedBf = readOptionalYear(row, ["dissolved_end_bf", "dissolved_display_bf", "dissolved_start_bf"]);
+		if (dissolvedBf === 9999) dissolvedBf = null;
+		return { foundedBf, dissolvedBf, ongoing: dissolvedBf === null };
+	}
+
+	// Zeitfenster-Filter: time = {mode:'off'|'today'|'range', from, to}. Knoten ohne Datum werden
+	// im Range-Modus NICHT versteckt (wie im Sync-Editor). 'today' = besteht noch (kein Ende).
+	function doesRowMatchTimeFilter(row, time) {
+		if (!time || !time.mode || time.mode === "off") return true;
+		const interval = rowTimeIntervalBf(row);
+		if (time.mode === "today") return interval.ongoing;
+		if (interval.foundedBf === null && interval.dissolvedBf === null) return true;
+		const start = interval.foundedBf === null ? -Infinity : interval.foundedBf;
+		const end = interval.ongoing ? Infinity : (interval.dissolvedBf === null ? Infinity : interval.dissolvedBf);
+		const from = typeof time.from === "number" ? time.from : -Infinity;
+		const to = typeof time.to === "number" ? time.to : Infinity;
+		return start <= to && end >= from;
+	}
+
+	// UI-Helfer: liest die drei Zeitfilter-Eingaben (von/bis-Zahl + "heute"-Checkbox) und liefert das
+	// time-Objekt; deaktiviert die Jahr-Felder, wenn "heute" aktiv ist. Fuer beide Consumer wiederverwendbar.
+	function readTimeFilter(fromElement, toElement, todayElement) {
+		const today = Boolean(todayElement && todayElement.checked);
+		if (fromElement) fromElement.disabled = today;
+		if (toElement) toElement.disabled = today;
+		if (today) return { mode: "today", from: -Infinity, to: Infinity };
+		const fromValue = fromElement ? parseInt(fromElement.value, 10) : NaN;
+		const toValue = toElement ? parseInt(toElement.value, 10) : NaN;
+		if (Number.isNaN(fromValue) && Number.isNaN(toValue)) return { mode: "off", from: -Infinity, to: Infinity };
+		return { mode: "range", from: Number.isNaN(fromValue) ? -Infinity : fromValue, to: Number.isNaN(toValue) ? Infinity : toValue };
+	}
+
 	function doesRowMatchStructuralFilters(row, filters = {}) {
 		const continent = normalizeText(filters.continent);
 		const type = normalizeText(filters.type);
@@ -431,6 +467,7 @@
 			const rowStatusTags = Array.isArray(row.status_filter_tags) ? row.status_filter_tags : [];
 			if (rowStatus !== status && !rowStatusTags.includes(status)) return false;
 		}
+		if (!doesRowMatchTimeFilter(row, filters.time)) return false;
 		return true;
 	}
 
@@ -868,6 +905,8 @@
 		canonicalLabel,
 		normalizeApiRows,
 		filterRows,
+		doesRowMatchTimeFilter,
+		readTimeFilter,
 		buildTree,
 		renderTree,
 		setAllTreeDetailsOpen,

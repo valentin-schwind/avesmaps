@@ -167,6 +167,19 @@ function getWikiSyncTerritoryFilterQuery() {
 	return normalizeSearchText(wikiSyncTerritoryFilterQuery);
 }
 
+// Liest den Zeitfilter (von/bis/heute) aus den DOM-Eingaben via geteilter Baumkomponente.
+function getWikiSyncTerritoryTimeFilter() {
+	const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
+	if (!treeModule || typeof treeModule.readTimeFilter !== "function") {
+		return { mode: "off" };
+	}
+	return treeModule.readTimeFilter(
+		document.getElementById("wiki-sync-territory-time-from"),
+		document.getElementById("wiki-sync-territory-time-to"),
+		document.getElementById("wiki-sync-territory-time-today")
+	);
+}
+
 async function loadWikiSyncTerritoryTreeRows({ forceReload = false } = {}) {
 	const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
 	if (!treeModule || typeof treeModule.fetchRows !== "function" || typeof treeModule.buildTree !== "function") {
@@ -247,7 +260,7 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 
 		const rows = await loadWikiSyncTerritoryTreeRows({ forceReload });
 		const filteredRows = treeModule.filterRows(rows, {
-			search: getWikiSyncTerritoryFilterQuery(),
+			search: getWikiSyncTerritoryFilterQuery(), time: getWikiSyncTerritoryTimeFilter(),
 		});
 		const treeResult = treeModule.buildTree(filteredRows);
 

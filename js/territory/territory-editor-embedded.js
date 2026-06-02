@@ -125,7 +125,10 @@
 			updateCoatButton: document.getElementById("updateCoatButton"),
 			inheritColorVarianceButton: inheritColorVarianceButtonElement,
 			inheritOpacityButton: inheritOpacityButtonElement,
-			geometryDatabaseInfo: document.getElementById("geometryDatabaseInfo")
+			geometryDatabaseInfo: document.getElementById("geometryDatabaseInfo"),
+			treeTimeFrom: document.getElementById("treeTimeFrom"),
+			treeTimeTo: document.getElementById("treeTimeTo"),
+			treeTimeToday: document.getElementById("treeTimeToday")
 		};
 
 		function ensureInheritOpacityButton(referenceButton) {
@@ -155,6 +158,9 @@
 		els.continentFilter.addEventListener("change", render);
 		els.typeFilter.addEventListener("change", render);
 		els.statusFilter.addEventListener("change", render);
+		if (els.treeTimeFrom) els.treeTimeFrom.addEventListener("input", render);
+		if (els.treeTimeTo) els.treeTimeTo.addEventListener("input", render);
+		if (els.treeTimeToday) els.treeTimeToday.addEventListener("change", render);
 
 		const existsUntilTodayInput = document.getElementById("existsUntilTodayInput");
 		const endYearInput = document.getElementById("endYearInput");
@@ -2159,8 +2165,14 @@
 			const continent = els.continentFilter.value;
 			const type = els.typeFilter.value;
 			const status = normalizeText(els.statusFilter.value).toLowerCase();
+			const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
+			const timeFilter = (treeModule && typeof treeModule.readTimeFilter === "function")
+				? treeModule.readTimeFilter(els.treeTimeFrom, els.treeTimeTo, els.treeTimeToday)
+				: null;
 
 			return allRows.filter(row => {
+				if (timeFilter && treeModule && typeof treeModule.doesRowMatchTimeFilter === "function"
+					&& !treeModule.doesRowMatchTimeFilter(row, timeFilter)) return false;
 				if (continent && row.continent !== continent) return false;
 				if (type && row.type !== type) return false;
 				if (status) {

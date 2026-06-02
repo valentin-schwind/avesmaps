@@ -208,6 +208,12 @@ $("#wiki-sync-filter").on("input search", function () {
 $("#wiki-sync-territory-filter").on("input search", function () {
     setWikiSyncTerritoryFilterQuery(this.value || "");
 });
+$("#wiki-sync-territory-time-from, #wiki-sync-territory-time-to").on("input", function () {
+    void renderWikiSyncTerritoryTree();
+});
+$("#wiki-sync-territory-time-today").on("change", function () {
+    void renderWikiSyncTerritoryTree();
+});
 $("#wiki-sync-case-list").on("click", "[data-wiki-sync-action]", handleWikiSyncCaseActionClick);
 $("#wiki-sync-resolve-close, #wiki-sync-resolve-cancel").on("click", () => setWikiSyncResolveDialogOpen(false, { resetForm: true }));
 $("#wiki-sync-preset-wiki").on("click", () => applyWikiSyncResolvePreset("wiki"));

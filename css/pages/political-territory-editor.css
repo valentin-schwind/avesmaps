@@ -242,6 +242,31 @@ select:focus {
 	min-width: min(280px, 45%);
 }
 
+.tree-time-filter {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 6px 0 0;
+	font-size: 12px;
+	color: #5b4b36;
+}
+
+.tree-time-filter input[type="number"] {
+	width: 76px;
+	padding: 4px 7px;
+	border: 1px solid #cdb79f;
+	border-radius: 6px;
+	background: #fff;
+	font: inherit;
+}
+
+.tree-time-filter label {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
 .tree-wrap {
 	max-height: 30vh;
 	overflow: auto;
