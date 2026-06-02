@@ -2066,7 +2066,8 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
         $effFromV = $effFrom($ov, $s);
         $effToV = $effTo($ov, $s);
         $liveFrom = $L['valid_from_bf'] === null ? null : (int) $L['valid_from_bf'];
-        $liveTo = $L['valid_to_bf'] === null ? null : (int) $L['valid_to_bf'];
+        // Live nutzt 9999 als "besteht heute"-Sentinel = null -> sonst falsche 9999<->null-Diffs.
+        $liveTo = $normBf($L['valid_to_bf']);
 
         $changes = [];
         if ($cmpStr($L['name'], $effName)) {
