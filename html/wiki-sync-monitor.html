@@ -148,10 +148,6 @@
 <div id="status">
   <span id="statusText">Bereit.</span>
   <span class="globalfilters">
-    <span class="timefilter">Zeige nur:
-      <label><input type="checkbox" id="timeToday"> heute</label>
-      <input type="number" id="timeFrom" placeholder="von"> – <input type="number" id="timeTo" placeholder="bis"> BF
-    </span>
     <details id="contDD" class="dd">
       <summary title="Filtert beide Listen nach Kontinent">Kontinente <span id="contCount" class="count"></span></summary>
       <div class="dd-menu" id="contMenu"></div>
@@ -174,6 +170,7 @@
         </select>
         <input type="search" id="search" placeholder="In dieser Auswahl suchen…">
       </div>
+      <div class="timefilter">Zeige nur: <input type="number" id="timeLeftFrom" placeholder="von"> – <input type="number" id="timeLeftTo" placeholder="bis"> BF <label><input type="checkbox" id="timeLeftToday"> heute</label></div>
       <div id="filterInfo" class="info"></div>
       <div id="dropExclude">✕ Hierher ziehen = aussortieren (kein Herrschaftsgebiet)</div>
     </div>
@@ -183,6 +180,7 @@
     <div class="colhead">
       <h2 class="listhead">Hierarchie der Herrschaftsgebiete <span id="treeCount" class="count"></span></h2>
       <div class="bar"><input type="search" id="treeSearch" placeholder="In dieser Auswahl suchen…"></div>
+      <div class="timefilter">Zeige nur: <input type="number" id="timeRightFrom" placeholder="von"> – <input type="number" id="timeRightTo" placeholder="bis"> BF <label><input type="checkbox" id="timeRightToday"> heute</label></div>
       <div id="dropRoot">▶ Hierher ziehen = zur Wurzel machen (Eltern entfernen)</div>
     </div>
     <div id="tree"></div>
@@ -235,7 +233,7 @@ function buildSeedMenu(){
   updateSeedCount();
 }
 function selectedSeeds(){ return [...document.querySelectorAll('.seedck:checked')].map(c=>c.value); }
-function updateSeedCount(){ const n=selectedSeeds().length, t=DEFAULT_SEEDS.length; $('seedCount').textContent = n===t?`alle ${t}`:`${n} ausgewählt`; }
+function updateSeedCount(){ const n=selectedSeeds().length, t=DEFAULT_SEEDS.length; $('seedCount').textContent = n===t?`alle ${t} Quellen`:`${n} von ${t} Quellen`; }
 
 // --- Kontinente-Dropdown (Filter für beide Listen) ---
 let contSel = null;   // null = noch nicht initialisiert
@@ -420,24 +418,24 @@ function renderDetail(){
 function isGap(n){ return !!(n.parent_wiki_key && !n.parent_in_model); }
 function visibleByContinent(n){ if(!contSel || contSel.size===0) return true; return contSel.has(n.continent||'Aventurien'); }
 // Zeitfilter: aus / heute / Bereich [von,bis] (BF). Knoten ohne Daten werden nicht versteckt.
-let timeMode='off', timeFrom=-Infinity, timeTo=Infinity;
+const leftTime={mode:'off',from:-Infinity,to:Infinity};
+const rightTime={mode:'off',from:-Infinity,to:Infinity};
 function nodeBF(n){ const f=bfYear(n.founded_text); const ongoing=/\b(besteht|heute|gegenwart)\b/i.test(n.dissolved_text||''); const d=ongoing?Infinity:bfYear(n.dissolved_text); return {f, d:(d==null?null:d), ongoing}; }
-function visibleByTime(n){
-  if(timeMode==='off') return true;
+function visibleByTime(n, t){
+  if(t.mode==='off') return true;
   const iv=nodeBF(n);
-  if(timeMode==='today') return iv.ongoing || iv.d==null;
+  if(t.mode==='today') return iv.ongoing || iv.d==null;
   if(iv.f==null && iv.d==null && !iv.ongoing) return true;
   const s=(iv.f==null?-Infinity:iv.f), e=(iv.ongoing?Infinity:(iv.d==null?Infinity:iv.d));
-  return s<=timeTo && e>=timeFrom;
+  return s<=t.to && e>=t.from;
 }
-function applyTimeFilter(){
-  const today=$('timeToday').checked;
-  $('timeFrom').disabled=today; $('timeTo').disabled=today;
-  if(today){ timeMode='today'; }
-  else { const a=parseInt($('timeFrom').value,10), b=parseInt($('timeTo').value,10);
-    if(!isNaN(a)||!isNaN(b)){ timeMode='range'; timeFrom=isNaN(a)?-Infinity:a; timeTo=isNaN(b)?Infinity:b; }
-    else { timeMode='off'; } }
-  render();
+function applyTime(prefix, state, rerender){
+  const today=$(prefix+'Today').checked;
+  $(prefix+'From').disabled=today; $(prefix+'To').disabled=today;
+  if(today){ state.mode='today'; }
+  else { const a=parseInt($(prefix+'From').value,10), b=parseInt($(prefix+'To').value,10);
+    if(!isNaN(a)||!isNaN(b)){ state.mode='range'; state.from=isNaN(a)?-Infinity:a; state.to=isNaN(b)?Infinity:b; } else { state.mode='off'; } }
+  rerender();
 }
 function matchesFilter(n, f) {
   if (f==='excluded') return !!n.excluded;
@@ -457,7 +455,7 @@ function renderList() {
   let shown = 0;
   for (const n of NODES) {
     if (!visibleByContinent(n)) continue;
-    if (!visibleByTime(n)) continue;
+    if (!visibleByTime(n, leftTime)) continue;
     if (!matchesFilter(n, f)) continue;
     if (q && !(n.name.toLowerCase().includes(q) || n.wiki_key.toLowerCase().includes(q)
         || (n.aliases||[]).some(a=>a.includes(q)) || (n.affiliation_raw||'').toLowerCase().includes(q))) continue;
@@ -473,7 +471,7 @@ function renderList() {
 const expanded = new Set();
 let treeQuery = '';
 function renderTree() {
-  const hide = (n)=> n.excluded || !visibleByContinent(n) || !visibleByTime(n);
+  const hide = (n)=> n.excluded || !visibleByContinent(n) || !visibleByTime(n, rightTime);
   const hidden = new Set(NODES.filter(hide).map(n=>n.wiki_key));
   const children = new Map();
   const roots = [];
@@ -592,9 +590,12 @@ $('btnApply').onclick = async()=>{
 $('search').oninput = renderList;
 $('filter').onchange = ()=>{ updateFilterInfo(); renderList(); };
 $('treeSearch').oninput = ()=>{ treeQuery = $('treeSearch').value; renderTree(); };
-$('timeToday').onchange = applyTimeFilter;
-$('timeFrom').oninput = applyTimeFilter;
-$('timeTo').oninput = applyTimeFilter;
+$('timeLeftToday').onchange = ()=>applyTime('timeLeft', leftTime, renderList);
+$('timeLeftFrom').oninput = ()=>applyTime('timeLeft', leftTime, renderList);
+$('timeLeftTo').oninput = ()=>applyTime('timeLeft', leftTime, renderList);
+$('timeRightToday').onchange = ()=>applyTime('timeRight', rightTime, renderTree);
+$('timeRightFrom').oninput = ()=>applyTime('timeRight', rightTime, renderTree);
+$('timeRightTo').oninput = ()=>applyTime('timeRight', rightTime, renderTree);
 
 // Seed-Dropdown
 $('seedMenu').addEventListener('click', e=>{
