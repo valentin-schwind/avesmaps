@@ -72,6 +72,11 @@
   .dd[open] > summary { background:#ead9c2; }
   .dd-menu { position:absolute; z-index:20; top:100%; left:0; margin-top:3px; background:var(--panel); border:1px solid var(--line2); border-radius:6px; padding:6px; min-width:230px; max-height:320px; overflow:auto; box-shadow:0 6px 18px rgba(0,0,0,.18); }
   #contDD .dd-menu { left:auto; right:0; }   /* rechter Dropdown öffnet linksbündig -> kein Überlauf/Reflow im schmalen iframe */
+  .dropdown2 { position:relative; }
+  .ddbtn { background:#f3ebdf; color:#513c2b; border:1px solid #b99a78; border-radius:5px; padding:5px 10px; cursor:pointer; font:inherit; display:inline-flex; align-items:center; gap:5px; }
+  .ddbtn:hover { background:#ead9c2; }
+  .ddcaret { font-size:10px; color:var(--mut); }
+  .dropdown2 .dd-menu[hidden] { display:none; }
   .dd-menu label { display:block; padding:2px 4px; white-space:nowrap; cursor:pointer; }
   .dd-menu .grp { font-size:11px; color:var(--mut); margin:5px 2px 2px; border-top:1px solid var(--line); padding-top:4px; }
   .dd-menu .grp:first-child { border-top:none; margin-top:0; }
@@ -149,10 +154,10 @@
 <div id="status">
   <span id="statusText">Bereit.</span>
   <span class="globalfilters">
-    <details id="contDD" class="dd">
-      <summary title="Filtert beide Listen nach Kontinent">Kontinente <span id="contCount" class="count"></span></summary>
-      <div class="dd-menu" id="contMenu"></div>
-    </details>
+    <div id="contDD" class="dropdown2">
+      <button type="button" id="contBtn" class="ddbtn" title="Filtert beide Listen nach Kontinent">Kontinente <span id="contCount" class="count"></span><span class="ddcaret">▾</span></button>
+      <div class="dd-menu" id="contMenu" hidden></div>
+    </div>
   </span>
 </div>
 <div class="cols">
@@ -241,9 +246,10 @@ function updateSeedCount(){ const n=selectedSeeds().length, t=DEFAULT_SEEDS.leng
 // --- Kontinente-Dropdown (Filter für beide Listen) ---
 let contSel = null;   // null = noch nicht initialisiert
 function buildContMenu(){
+  const counts={}; for(const n of NODES){ const c=n.continent||'Aventurien'; counts[c]=(counts[c]||0)+1; }
   const found = [...new Set(NODES.map(n=>n.continent||'Aventurien'))].sort((a,b)=>/aventurien/i.test(a)?-1:/aventurien/i.test(b)?1:a.localeCompare(b));
   if (contSel === null) contSel = new Set(found.filter(c=>/aventurien/i.test(c)));   // Default: nur Aventurien
-  const row=(c)=>`<label><input type="checkbox" class="contck" value="${esc(c)}" ${contSel.has(c)?'checked':''}> ${esc(c)}</label>`;
+  const row=(c)=>`<label><input type="checkbox" class="contck" value="${esc(c)}" ${contSel.has(c)?'checked':''}> ${esc(c)} <span class="muted">(${counts[c]||0})</span></label>`;
   $('contMenu').innerHTML = `<div class="ddtools"><a data-cont-all="1">Alle</a><a data-cont-none="1">Keine</a></div>` + (found.length?found.map(row).join(''):'<span class="muted">— noch keine Daten —</span>');
   updateContCount(found.length);
 }
@@ -633,6 +639,8 @@ $('contMenu').addEventListener('click', e=>{
   else if(e.target.matches('[data-cont-none]')){ document.querySelectorAll('.contck').forEach(c=>c.checked=false); applyCont(); }
 });
 $('contMenu').addEventListener('change', e=>{ if(e.target.matches('.contck')) applyCont(); });
+$('contBtn').onclick = (e)=>{ e.stopPropagation(); $('contMenu').hidden = !$('contMenu').hidden; };
+document.addEventListener('click', (e)=>{ if(!e.target.closest('#contDD')) $('contMenu').hidden = true; });
 
 // Wappen-Upload-Dialog (visuell – Backend folgt in Phase 2)
 function openWappenDialog(){ const n=selectedKey?BYKEY.get(selectedKey):null; $('wappenFor').textContent = n?`für „${n.name}"`:''; $('wappenDialog').hidden=false; }
