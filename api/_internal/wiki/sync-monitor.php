@@ -1824,13 +1824,171 @@ function avesmapsWikiSyncMonitorSetExcluded(PDO $pdo, string $wikiKey, bool $exc
     return ['ok' => true, 'wiki_key' => $wikiKey, 'excluded' => $excluded];
 }
 
+// Editierbare Wiki-Details-Felder (Allowlist). Manuelle Overrides liegen als JSON in
+// wiki_territory_model.metadata_overrides_json; der synchronisierte Wiki-Wert in _wiki_test
+// bleibt unangetastet und gewinnt nie gegen einen vorhandenen Override. capital_location_id =
+// Sonderfeld: verknuepfte Siedlung aus map_features (read-only Lookup, kein Schreibzugriff dort).
+function avesmapsWikiSyncMonitorEditableFields(): array {
+    return [
+        'name' => 'Anzeigename', 'type' => 'Staatsform', 'status' => 'Status',
+        'form_of_government' => 'Herrschaftsform', 'continent' => 'Kontinent',
+        'capital_name' => 'Hauptstadt', 'seat_name' => 'Herrschaftssitz', 'ruler' => 'Oberhaupt',
+        'language' => 'Sprache', 'currency' => 'Währung', 'population' => 'Einwohnerzahl',
+        'founder' => 'Gründer', 'political' => 'Politisch', 'trade_zone' => 'Handelszone',
+        'trade_goods' => 'Handelswaren', 'geographic' => 'Geographisch',
+        'affiliation_raw' => 'Zugehörigkeit (roh)', 'founded_text' => 'Gegründet',
+        'dissolved_text' => 'Aufgelöst', 'capital_location_id' => 'Hauptstadt-Verknüpfung',
+    ];
+}
+
+// Liest die Override-Map (wiki_key -> {field_key: value}) aus dem Modell. Fuer model_tree.
+function avesmapsWikiSyncMonitorReadOverridesMap(PDO $pdo): array {
+    $map = [];
+    $rows = $pdo->query(
+        'SELECT wiki_key, metadata_overrides_json FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE
+        . ' WHERE metadata_overrides_json IS NOT NULL'
+    ) ?: [];
+    foreach ($rows as $row) {
+        $decoded = json_decode((string) ($row['metadata_overrides_json'] ?? ''), true);
+        if (is_array($decoded) && $decoded !== []) {
+            $map[(string) $row['wiki_key']] = $decoded;
+        }
+    }
+    return $map;
+}
+
+// Manuellen Override fuer EIN Feld setzen (value darf '' sein = bewusst geleert). Nur Sandbox-
+// Modelltabelle. field_key muss in der Allowlist stehen. Legt die Modellzeile bei Bedarf an.
+function avesmapsWikiSyncMonitorSetFieldOverride(PDO $pdo, string $wikiKey, string $fieldKey, ?string $value): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $wikiKey = trim($wikiKey);
+    $fieldKey = trim($fieldKey);
+    if ($wikiKey === '') {
+        throw new RuntimeException('wiki_key fehlt.');
+    }
+    if (!isset(avesmapsWikiSyncMonitorEditableFields()[$fieldKey])) {
+        throw new RuntimeException('Feld „' . $fieldKey . '" ist nicht editierbar.');
+    }
+
+    $current = $pdo->prepare('SELECT metadata_overrides_json FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' WHERE wiki_key = :k');
+    $current->execute(['k' => $wikiKey]);
+    $overrides = json_decode((string) ($current->fetchColumn() ?: ''), true);
+    if (!is_array($overrides)) {
+        $overrides = [];
+    }
+    $overrides[$fieldKey] = $value === null ? '' : $value;
+
+    $statement = $pdo->prepare(
+        'INSERT INTO ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . '
+            (wiki_key, metadata_overrides_json, created_at, updated_at)
+        VALUES (:k, :json, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))
+        ON DUPLICATE KEY UPDATE metadata_overrides_json = VALUES(metadata_overrides_json), updated_at = CURRENT_TIMESTAMP(3)'
+    );
+    $statement->execute(['k' => $wikiKey, 'json' => json_encode($overrides, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
+
+    return ['ok' => true, 'wiki_key' => $wikiKey, 'field_key' => $fieldKey, 'value' => $overrides[$fieldKey], 'overrides' => $overrides];
+}
+
+// Override fuer EIN Feld entfernen -> Feld zeigt wieder den synchronisierten Wiki-Stand. Nur Sandbox.
+function avesmapsWikiSyncMonitorClearFieldOverride(PDO $pdo, string $wikiKey, string $fieldKey): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $wikiKey = trim($wikiKey);
+    $fieldKey = trim($fieldKey);
+    if ($wikiKey === '') {
+        throw new RuntimeException('wiki_key fehlt.');
+    }
+    $current = $pdo->prepare('SELECT metadata_overrides_json FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' WHERE wiki_key = :k');
+    $current->execute(['k' => $wikiKey]);
+    $overrides = json_decode((string) ($current->fetchColumn() ?: ''), true);
+    if (!is_array($overrides)) {
+        $overrides = [];
+    }
+    unset($overrides[$fieldKey]);
+
+    $statement = $pdo->prepare(
+        'UPDATE ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . '
+            SET metadata_overrides_json = :json, updated_at = CURRENT_TIMESTAMP(3) WHERE wiki_key = :k'
+    );
+    $statement->execute(['k' => $wikiKey, 'json' => $overrides === [] ? null : json_encode($overrides, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
+
+    return ['ok' => true, 'wiki_key' => $wikiKey, 'field_key' => $fieldKey, 'overrides' => $overrides];
+}
+
+// Read-only Siedlungs-Suche fuer den Hauptstadt-Picker. Liest NUR aus map_features (location).
+function avesmapsWikiSyncMonitorLocationSearch(PDO $pdo, string $query, int $limit): array {
+    $query = trim($query);
+    $limit = max(1, min(50, $limit));
+    if ($query === '') {
+        return ['ok' => true, 'items' => []];
+    }
+    $statement = $pdo->prepare(
+        'SELECT id, public_id, name FROM map_features
+        WHERE feature_type = :ft AND is_active = 1 AND name LIKE :q
+        ORDER BY (name = :exact) DESC, CHAR_LENGTH(name) ASC, name ASC LIMIT ' . $limit
+    );
+    $statement->execute(['ft' => 'location', 'q' => '%' . $query . '%', 'exact' => $query]);
+    $items = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $items[] = ['id' => (int) $row['id'], 'public_id' => (string) ($row['public_id'] ?? ''), 'name' => (string) ($row['name'] ?? '')];
+    }
+    return ['ok' => true, 'items' => $items];
+}
+
+// Loest Hauptstadt-Namen / explizite location_id-Overrides gegen map_features auf (Batch).
+// Liefert wiki_key -> {id, public_id, name}. Read-only.
+function avesmapsWikiSyncMonitorResolveCapitals(PDO $pdo, array $byName, array $byId): array {
+    $result = [];
+    if ($byId !== []) {
+        $ids = array_values(array_unique(array_map('intval', array_keys($byId))));
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $statement = $pdo->prepare('SELECT id, public_id, name FROM map_features WHERE feature_type = ? AND id IN (' . $placeholders . ')');
+        $statement->execute(array_merge(['location'], $ids));
+        $byIdResolved = [];
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $byIdResolved[(int) $row['id']] = ['id' => (int) $row['id'], 'public_id' => (string) ($row['public_id'] ?? ''), 'name' => (string) ($row['name'] ?? '')];
+        }
+        foreach ($byId as $id => $wikiKeys) {
+            if (!isset($byIdResolved[(int) $id])) {
+                continue;
+            }
+            foreach ($wikiKeys as $wk) {
+                $result[$wk] = $byIdResolved[(int) $id];
+            }
+        }
+    }
+    $names = array_values(array_filter(array_keys($byName), static fn(string $n): bool => $n !== ''));
+    if ($names !== []) {
+        $placeholders = implode(',', array_fill(0, count($names), '?'));
+        $statement = $pdo->prepare('SELECT id, public_id, name FROM map_features WHERE feature_type = ? AND is_active = 1 AND name IN (' . $placeholders . ')');
+        $statement->execute(array_merge(['location'], $names));
+        $byNameResolved = [];
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $nm = (string) ($row['name'] ?? '');
+            if (!isset($byNameResolved[$nm])) {
+                $byNameResolved[$nm] = ['id' => (int) $row['id'], 'public_id' => (string) ($row['public_id'] ?? ''), 'name' => $nm];
+            }
+        }
+        foreach ($byName as $nm => $wikiKeys) {
+            if (!isset($byNameResolved[$nm])) {
+                continue;
+            }
+            foreach ($wikiKeys as $wk) {
+                if (!isset($result[$wk])) { // expliziter id-Override hat Vorrang
+                    $result[$wk] = $byNameResolved[$nm];
+                }
+            }
+        }
+    }
+    return $result;
+}
+
 // Komplettes Modell flach (fuers UI: Baum + Status-Marker). Markiert Luecken (parent
 // referenziert, aber selbst kein Knoten) + Konflikte + Lizenz-Status.
 function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     $rows = $pdo->query(
         'SELECT m.wiki_key, m.parent_wiki_key, m.parent_locked, m.excluded, m.auto_parent_wiki_key, m.source_origin,
-                m.parent_conflict_json, s.name, s.type, s.continent, s.affiliation_raw, s.wiki_url,
+                m.parent_conflict_json, m.metadata_overrides_json, s.name, s.type, s.continent, s.affiliation_raw, s.wiki_url,
                 s.founded_text, s.dissolved_text, s.coat_of_arms_url, s.coat_of_arms_license,
                 s.coat_of_arms_author, s.coat_of_arms_attribution, s.coat_of_arms_license_status,
                 s.status, s.capital_name, s.seat_name,
@@ -1919,6 +2077,10 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'trade_goods' => (string) ($row['trade_goods'] ?? ''),
             'geographic' => (string) ($row['geographic'] ?? ''),
             'blazon' => (string) ($row['blazon'] ?? ''),
+            'overrides' => (static function () use ($row): array {
+                $d = json_decode((string) ($row['metadata_overrides_json'] ?? ''), true);
+                return is_array($d) ? $d : [];
+            })(),
             'map_geometry_count' => (int) ($row['map_geometry_count'] ?? 0),
             'map_assigned' => ((int) ($row['map_geometry_count'] ?? 0)) > 0,
         ];
@@ -1948,6 +2110,28 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             }
             $cur = $nodes[$indexByKey[$cur]]['parent_wiki_key'] ?? null;
         }
+    }
+
+    // Hauptstadt -> map_features (location) aufloesen: expliziter location_id-Override hat Vorrang,
+    // sonst der effektive Name (Override ?? Wiki). Batch, read-only. capital_location = {id,public_id,name}.
+    $byName = [];
+    $byId = [];
+    foreach ($nodes as $i => $node) {
+        $ov = is_array($node['overrides'] ?? null) ? $node['overrides'] : [];
+        $explicitId = isset($ov['capital_location_id']) ? trim((string) $ov['capital_location_id']) : '';
+        if ($explicitId !== '' && ctype_digit($explicitId)) {
+            $byId[$explicitId][] = (string) $node['wiki_key'];
+            continue;
+        }
+        $capName = isset($ov['capital_name']) ? (string) $ov['capital_name'] : (string) ($node['capital_name'] ?? '');
+        $capName = trim($capName);
+        if ($capName !== '') {
+            $byName[$capName][] = (string) $node['wiki_key'];
+        }
+    }
+    $capitals = avesmapsWikiSyncMonitorResolveCapitals($pdo, $byName, $byId);
+    foreach ($nodes as $i => $node) {
+        $nodes[$i]['capital_location'] = $capitals[(string) $node['wiki_key']] ?? null;
     }
 
     return ['ok' => true, 'count' => count($nodes), 'nodes' => $nodes];

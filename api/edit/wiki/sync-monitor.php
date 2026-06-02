@@ -79,6 +79,17 @@ try {
                 (string) ($payload['wiki_key'] ?? ''),
                 (bool) ($payload['excluded'] ?? true)
             ),
+            'set_field_override' => avesmapsWikiSyncMonitorSetFieldOverride(
+                $pdo,
+                (string) ($payload['wiki_key'] ?? ''),
+                (string) ($payload['field_key'] ?? ''),
+                array_key_exists('value', $payload) ? ($payload['value'] !== null ? (string) $payload['value'] : '') : null
+            ),
+            'clear_field_override' => avesmapsWikiSyncMonitorClearFieldOverride(
+                $pdo,
+                (string) ($payload['wiki_key'] ?? ''),
+                (string) ($payload['field_key'] ?? '')
+            ),
             'clear' => avesmapsWikiSyncMonitorClear(
                 $pdo,
                 (string) ($payload['target'] ?? ''),
@@ -143,6 +154,11 @@ try {
             array_filter(array_map('trim', explode('|', (string) ($_GET['territory_ids'] ?? ''))))
         ),
         'editor_state' => avesmapsWikiSyncMonitorEditorState($pdo),
+        'location_search' => avesmapsWikiSyncMonitorLocationSearch(
+            $pdo,
+            (string) ($_GET['q'] ?? ''),
+            (int) ($_GET['limit'] ?? 20)
+        ),
         default => null,
     };
 

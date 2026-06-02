@@ -118,8 +118,21 @@
   .dt-lic.pd { border-color:#9fb87a; }
   .dt-lic.cc { border-color:var(--warn); }
   .dt-conf { color:var(--bad); }
-  .dt-actions { margin:7px 0 2px; }
-  .lockbtn { font-size:11px; padding:3px 9px; }
+  .dt-actions { margin:7px 0 2px; display:flex; gap:6px; flex-wrap:wrap; }
+  .lockbtn, .edbtn { font-size:11px; padding:3px 9px; }
+  /* Edit-Modus Wiki-Details */
+  .ov-badge { font-size:10px; color:#fff; background:#9a6a2f; border-radius:3px; padding:0 4px; margin-left:5px; cursor:help; }
+  .dt-reset { cursor:pointer; color:var(--mut); font-size:11px; margin-left:6px; text-decoration:underline; }
+  .dt-grid input.dt-in { width:100%; font-size:12px; padding:2px 5px; box-sizing:border-box; font-family:inherit; }
+  .dt-grid .k.ovr { color:#9a6a2f; font-weight:bold; }
+  .dt-edit-hint { font-size:11px; color:var(--mut); margin:6px 0; }
+  .dt-cap-link { font-size:11px; margin-left:6px; }
+  .dt-cap-pick { margin-top:4px; }
+  .dt-cap-pick input { width:100%; font-size:12px; padding:2px 5px; box-sizing:border-box; }
+  .dt-cap-results { border:1px solid var(--line); border-radius:5px; margin-top:3px; max-height:140px; overflow:auto; background:var(--panel); }
+  .dt-cap-results div { padding:3px 6px; cursor:pointer; font-size:12px; }
+  .dt-cap-results div:hover { background:#e7d6bd; }
+  .dt-save-row { display:flex; gap:8px; margin:10px 0 2px; }
   .dt-wappen-box { position:relative; flex:0 0 56px; width:56px; height:56px; }
   .dt-wappen-edit { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(47,37,28,.62); color:#fff9f4; font-size:10px; border-radius:6px; cursor:pointer; text-align:center; padding:2px; }
   .dt-wappen-box:hover .dt-wappen-edit { display:flex; }
@@ -397,59 +410,152 @@ async function lockNode(k, lock){
   busy(false);
 }
 function selectKey(k){
+  if(k!==selectedKey){ editMode=false; pendingCapital=undefined; capResults=[]; }
   selectedKey = k;
   document.querySelectorAll('.row.sel, .node.sel').forEach(el=>el.classList.remove('sel'));
   try { document.querySelectorAll(`[data-key="${CSS.escape(k)}"]`).forEach(el=>el.classList.add('sel')); } catch(e){}
   renderDetail();
 }
 function periodText(n){ return (periodLabel(n)||'').replace(/^.*?· /,'').replace(/<[^>]*>/g,'').trim(); }
+// --- Wiki-Details: Anzeige + manuelles Editieren ---------------------------------
+// Overrides liegen als JSON am Sandbox-Modell (metadata_overrides_json). Der synchronisierte
+// Wiki-Wert bleibt erhalten und wird bei Sync aufgefrischt; der Override gewinnt für Anzeige/
+// Anwendung. „↺" löscht den Override -> Feld zeigt wieder den Wiki-Stand.
+let editMode=false, pendingCapital=undefined, capResults=[];
+const DETAIL_FIELDS=[
+  {key:'type',label:'Staatsform'},
+  {key:'status',label:'Status'},
+  {key:'form_of_government',label:'Herrschaftsform'},
+  {key:'continent',label:'Kontinent'},
+  {key:'capital_name',label:'Hauptstadt',capital:true},
+  {key:'seat_name',label:'Herrschaftssitz'},
+  {key:'ruler',label:'Oberhaupt'},
+  {key:'language',label:'Sprache'},
+  {key:'currency',label:'Währung'},
+  {key:'population',label:'Einwohnerzahl'},
+  {key:'founder',label:'Gründer'},
+  {key:'political',label:'Politisch'},
+  {key:'trade_zone',label:'Handelszone'},
+  {key:'trade_goods',label:'Handelswaren'},
+  {key:'geographic',label:'Geographisch'},
+  {key:'founded_text',label:'Gegründet'},
+  {key:'dissolved_text',label:'Aufgelöst'},
+  {key:'affiliation_raw',label:'Zugehörigkeit (roh)'}
+];
+function isOvr(n,k){ return !!(n.overrides && Object.prototype.hasOwnProperty.call(n.overrides,k)); }
+function wikiVal(n,k){ const v=n[k]; return v==null?'':String(v); }
+function effVal(n,k){ return isOvr(n,k)?String(n.overrides[k]==null?'':n.overrides[k]):wikiVal(n,k); }
+function ovrBadge(n,k){ if(!isOvr(n,k)) return ''; const w=wikiVal(n,k); return ` <span class="ov-badge" title="Manuell überschrieben. Wiki-Stand: ${esc(w||'(leer)')}">✎ manuell</span>`; }
+function capChip(n){ const cl=n.capital_location; if(!cl||!cl.name) return ''; return ` <span class="muted" title="In Locations gefunden (public_id: ${esc(cl.public_id||'?')}). Karten-Sprung folgt.">🔗 ${esc(cl.name)}</span>`; }
+function buildDetailHead(n){
+  const ls=n.license_status;
+  const wpClass=(n.coat_of_arms_url && (ls==='unknown'||!ls))?'dt-wappen gray':'dt-wappen';
+  const wappenImg=n.coat_of_arms_url
+    ? `<img class="${wpClass}" src="${esc(n.coat_of_arms_url)}" alt="">`
+    : `<div class="dt-wappen gray" style="display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:18px">∅</div>`;
+  return `<div class="dt-head"><div class="dt-wappen-box">${wappenImg}<div class="dt-wappen-edit" title="Eigenes Wappen hochladen">Bild ändern</div></div><div style="flex:1;min-width:0"><div class="dt-title">${esc(n.name)}</div><div class="dt-sub">${esc(n.wiki_key)}${n.wiki_url?` · <a class="wl" href="${esc(n.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`:''}</div></div></div>`;
+}
+function buildDetailLicense(n){
+  const ls=n.license_status; if(!n.coat_of_arms_url) return '';
+  let lic='';
+  if(ls==='public_domain') lic=`<div class="dt-lic pd"><b>Gemeinfrei</b> – frei darstellbar.${n.coat_of_arms_author?' Urheber: '+esc(n.coat_of_arms_author):''}</div>`;
+  else if(ls==='attribution_required') lic=`<div class="dt-lic cc"><b>Namensnennung nötig</b>${n.coat_of_arms_author?' – Urheber: '+esc(n.coat_of_arms_author):''}${n.coat_of_arms_attribution?'<br>'+esc(n.coat_of_arms_attribution):''}</div>`;
+  else lic=`<div class="dt-lic unknown">Lizenz unbekannt – Wappen ausgegraut.</div>`;
+  return `<div class="dt-lic-wrap">${lic}</div>`;
+}
 function renderDetail(){
   const n = selectedKey ? BYKEY.get(selectedKey) : null;
   const box = $('detailBody');
   if(!n){ box.innerHTML='<div class="dt-empty">Links oder im Baum ein Herrschaftsgebiet anklicken, um die gecrawlten Wiki-Details zu sehen.</div>'; return; }
+  const head = buildDetailHead(n);
+  if(editMode){ box.innerHTML = head + renderEditForm(n); return; }
   const c = coverage(n);
   const parentNm = n.parent_wiki_key ? ((BYKEY.get(n.parent_wiki_key)||{}).name || n.parent_wiki_key.replace(/^wiki:/,'')) : '(Wurzel)';
   const rows = [];
   const add=(k,v)=>{ if(v) rows.push(`<div class="k">${k}</div><div>${v}</div>`); };
-  add('Staatsform', esc(n.type||'—'));
-  add('Zeitraum', esc(periodText(n)||'—'));
-  add('Status', esc(n.status||''));
-  add('Herrschaftsform', esc(n.form_of_government||''));
-  add('Kontinent', esc(n.continent||''));
-  add('Hauptstadt', esc(n.capital_name||''));
-  add('Herrschaftssitz', esc(n.seat_name||''));
-  add('Oberhaupt', esc(n.ruler||''));
-  add('Sprache', esc(n.language||''));
-  add('Währung', esc(n.currency||''));
-  add('Einwohnerzahl', esc(n.population||''));
-  add('Gründer', esc(n.founder||''));
-  add('Politisch', esc(n.political||''));
-  add('Handelszone', esc(n.trade_zone||''));
-  add('Handelswaren', esc(n.trade_goods||''));
-  add('Geographisch', esc(n.geographic||''));
+  const addF=(f)=>{ const v=effVal(n,f.key); if(!v && !isOvr(n,f.key)) return; let val=esc(v||'—')+ovrBadge(n,f.key); if(f.capital) val+=capChip(n); rows.push(`<div class="k">${f.label}</div><div>${val}</div>`); };
+  addF(DETAIL_FIELDS[0]); // Staatsform
+  const nEff={...n, founded_text:effVal(n,'founded_text'), dissolved_text:effVal(n,'dissolved_text')};
+  add('Zeitraum', esc(periodText(nEff)||'—'));
+  for(let i=1;i<DETAIL_FIELDS.length;i++){ const f=DETAIL_FIELDS[i]; if(f.key==='founded_text'||f.key==='dissolved_text') continue; addF(f); }
   add('Eltern', esc(parentNm)+(n.parent_locked?' 🔒':'')+(n.parent_wiki_key&&!n.parent_in_model?' <span class="dt-conf">(nicht im Modell)</span>':''));
   if(n.diverges) add('Maschinen-Vorschlag', esc((BYKEY.get(n.auto_parent_wiki_key)||{}).name||n.auto_parent_wiki_key||''));
   if(n.conflicts && n.conflicts.length) add('Strittig', `<span class="dt-conf">${n.conflicts.map(esc).join(', ')}</span>`);
   if(n.aliases && n.aliases.length) add('Auch bekannt als', n.aliases.map(a=>esc(a.replace(/-/g,' '))).join(', '));
-  add('Zugehörigkeit (roh)', esc(n.affiliation_raw||''));
   add('Karten-Abdeckung', `${COV_LABEL[c.kind]}${n.map_geometry_count?` (${n.map_geometry_count} Geometrie${n.map_geometry_count>1?'n':''})`:''}`);
-  let lic='';
-  const ls=n.license_status;
-  if(n.coat_of_arms_url){
-    if(ls==='public_domain') lic=`<div class="dt-lic pd"><b>Gemeinfrei</b> – frei darstellbar.${n.coat_of_arms_author?' Urheber: '+esc(n.coat_of_arms_author):''}</div>`;
-    else if(ls==='attribution_required') lic=`<div class="dt-lic cc"><b>Namensnennung nötig</b>${n.coat_of_arms_author?' – Urheber: '+esc(n.coat_of_arms_author):''}${n.coat_of_arms_attribution?'<br>'+esc(n.coat_of_arms_attribution):''}</div>`;
-    else lic=`<div class="dt-lic unknown">Lizenz unbekannt – Wappen ausgegraut.</div>`;
-  }
-  const wpClass = (n.coat_of_arms_url && (ls==='unknown'||!ls))?'dt-wappen gray':'dt-wappen';
-  const wappenImg = n.coat_of_arms_url
-    ? `<img class="${wpClass}" src="${esc(n.coat_of_arms_url)}" alt="">`
-    : `<div class="dt-wappen gray" style="display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:18px">∅</div>`;
-  const head = `<div class="dt-head"><div class="dt-wappen-box">${wappenImg}<div class="dt-wappen-edit" title="Eigenes Wappen hochladen">Bild ändern</div></div><div style="flex:1;min-width:0"><div class="dt-title">${esc(n.name)}</div><div class="dt-sub">${esc(n.wiki_key)}${n.wiki_url?` · <a class="wl" href="${esc(n.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`:''}</div></div></div>`;
+  const lic = buildDetailLicense(n);
   const lockTip = n.parent_locked
     ? 'Aktuell gesperrt: dieser Elternteil bleibt bei „Hierarchie ableiten" und jedem Sync erhalten. Klicken = entsperren → wird dann wieder automatisch aus dem Wiki bestimmt (Maschinen-Vorschlag).'
     : 'Sperrt den aktuellen Elternteil fest, ohne ihn zu verschieben. Gesperrte Eltern überstehen „Hierarchie ableiten" und jeden Sync; der automatische Maschinen-Vorschlag wird für diesen Knoten ignoriert. Klicken = sperren.';
-  const lockBtn = `<div class="dt-actions"><button class="lockbtn" title="${esc(lockTip)}" data-lockkey="${esc(n.wiki_key)}" data-locknow="${n.parent_locked?'1':'0'}">${n.parent_locked?'🔒 Eltern gesperrt – entsperren':'🔓 Eltern hier sperren'}</button></div>`;
-  box.innerHTML = head + (lic?`<div class="dt-lic-wrap">${lic}</div>`:'') + lockBtn + `<div class="dt-grid">${rows.join('')}</div>`;
+  const lockBtn = `<button class="lockbtn" title="${esc(lockTip)}" data-lockkey="${esc(n.wiki_key)}" data-locknow="${n.parent_locked?'1':'0'}">${n.parent_locked?'🔒 Eltern gesperrt – entsperren':'🔓 Eltern hier sperren'}</button>`;
+  const editBtn = `<button class="edbtn" data-edit-start="1" title="Wiki-Details manuell überschreiben – Wiki-Stand bleibt erhalten und ist jederzeit rücksetzbar">✎ Editieren</button>`;
+  box.innerHTML = head + lic + `<div class="dt-actions">${lockBtn}${editBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>`;
+}
+function renderCapResults(){
+  if(!capResults.length) return '';
+  return capResults.map(r=>`<div data-cap-id="${r.id}" data-cap-name="${esc(r.name)}" data-cap-pub="${esc(r.public_id)}">${esc(r.name)} <span class="muted">${esc(r.public_id)}</span></div>`).join('');
+}
+function renderEditForm(n){
+  const capPicked = (pendingCapital!==undefined) ? pendingCapital : n.capital_location;
+  const capName = (pendingCapital!==undefined) ? (pendingCapital?pendingCapital.name:'') : effVal(n,'capital_name');
+  const rowsH = DETAIL_FIELDS.map(f=>{
+    const ov=isOvr(n,f.key);
+    const val = f.capital ? capName : effVal(n,f.key);
+    const reset = ov?` <span class="dt-reset" data-reset="${esc(f.key)}" title="Auf Wiki-Stand zurücksetzen">↺</span>`:'';
+    let extra='';
+    if(f.capital){
+      extra = `<div class="dt-cap-pick"><button type="button" class="edbtn" data-cap-toggle="1">🔗 Stadt aus Locations wählen</button>`
+        + `<span class="muted" data-cap-label>${capPicked?(' verknüpft: '+esc(capPicked.name)):''}</span>`
+        + `<div data-cap-box hidden><input type="search" data-cap-search placeholder="Siedlung suchen…"><div class="dt-cap-results" data-cap-results>${renderCapResults()}</div></div></div>`;
+    }
+    return `<div class="k${ov?' ovr':''}">${f.label}${reset}</div><div><input class="dt-in" data-fk="${esc(f.key)}" value="${esc(val)}">${extra}</div>`;
+  }).join('');
+  return `<div class="dt-edit-hint">Manuelle Werte überschreiben den Wiki-Stand und gelten für die Anwendung. „↺" setzt ein Feld zurück. Feld leeren + Speichern = bewusst leer.</div>`
+    + `<div class="dt-grid">${rowsH}</div>`
+    + `<div class="dt-save-row"><button type="button" class="primary" data-edit-save="1">Speichern</button><button type="button" data-edit-cancel="1">Abbrechen</button></div>`;
+}
+function startEdit(){ editMode=true; pendingCapital=undefined; capResults=[]; renderDetail(); }
+function cancelEdit(){ editMode=false; pendingCapital=undefined; capResults=[]; renderDetail(); }
+async function resetField(fk){
+  const n=BYKEY.get(selectedKey); if(!n) return;
+  busy(true);
+  try{ await api('clear_field_override',{method:'POST',body:{wiki_key:n.wiki_key, field_key:fk}}); if(fk==='capital_name'||fk==='capital_location_id') pendingCapital=undefined; await loadModel(); }
+  catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+}
+async function saveEdits(){
+  const n=BYKEY.get(selectedKey); if(!n) return;
+  busy(true);
+  try{
+    for(const inp of document.querySelectorAll('#detailBody .dt-in')){
+      const fk=inp.dataset.fk;
+      if(fk==='capital_name' && pendingCapital!==undefined) continue; // unten zusammen mit dem Link gesetzt
+      const val=inp.value, wiki=wikiVal(n,fk), ov=isOvr(n,fk);
+      if(val===wiki){ if(ov) await api('clear_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:fk}}); }
+      else { await api('set_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:fk,value:val}}); }
+    }
+    if(pendingCapital!==undefined){
+      if(pendingCapital){
+        await api('set_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:'capital_location_id',value:String(pendingCapital.id)}});
+        await api('set_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:'capital_name',value:pendingCapital.name}});
+      } else {
+        await api('clear_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:'capital_location_id'}});
+      }
+    }
+    editMode=false; pendingCapital=undefined; capResults=[];
+    setStatus(`„${n.name}": manuelle Änderungen gespeichert.`);
+    await loadModel();
+  }catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+}
+let capSearchTimer=null;
+async function capSearch(q){
+  q=(q||'').trim();
+  const box=document.querySelector('#detailBody [data-cap-results]');
+  if(q.length<2){ capResults=[]; if(box) box.innerHTML=''; return; }
+  try{ const j=await api('location_search',{query:'q='+encodeURIComponent(q)+'&limit=15'}); capResults=j.items||[]; }
+  catch(e){ capResults=[]; }
+  if(box) box.innerHTML=renderCapResults();
 }
 
 function isGap(n){ return !!(n.parent_wiki_key && !n.parent_in_model); }
@@ -674,8 +780,29 @@ function closeWappenDialog(){ $('wappenDialog').hidden=true; }
 $('wappenCancel').onclick = closeWappenDialog;
 $('wappenDialog').addEventListener('click', e=>{ if(e.target.id==='wappenDialog') closeWappenDialog(); });
 $('detailBody').addEventListener('click', e=>{
-  if(e.target.closest('.dt-wappen-edit')) openWappenDialog();
-  const lb=e.target.closest('.lockbtn'); if(lb) lockNode(lb.dataset.lockkey, lb.dataset.locknow!=='1');
+  if(e.target.closest('.dt-wappen-edit')){ openWappenDialog(); return; }
+  const lb=e.target.closest('.lockbtn'); if(lb){ lockNode(lb.dataset.lockkey, lb.dataset.locknow!=='1'); return; }
+  if(e.target.closest('[data-edit-start]')){ startEdit(); return; }
+  if(e.target.closest('[data-edit-cancel]')){ cancelEdit(); return; }
+  if(e.target.closest('[data-edit-save]')){ saveEdits(); return; }
+  const rs=e.target.closest('[data-reset]'); if(rs){ resetField(rs.dataset.reset); return; }
+  if(e.target.closest('[data-cap-toggle]')){
+    const bx=document.querySelector('#detailBody [data-cap-box]');
+    if(bx){ bx.hidden=!bx.hidden; const s=bx.querySelector('[data-cap-search]'); if(!bx.hidden && s) s.focus(); }
+    return;
+  }
+  const cr=e.target.closest('[data-cap-id]');
+  if(cr){
+    pendingCapital={id:parseInt(cr.dataset.capId,10), name:cr.dataset.capName, public_id:cr.dataset.capPub};
+    const capInput=document.querySelector('#detailBody .dt-in[data-fk="capital_name"]'); if(capInput) capInput.value=pendingCapital.name;
+    const lbl=document.querySelector('#detailBody [data-cap-label]'); if(lbl) lbl.textContent=' verknüpft: '+pendingCapital.name;
+    const bx=document.querySelector('#detailBody [data-cap-box]'); if(bx) bx.hidden=true;
+    capResults=[];
+    return;
+  }
+});
+$('detailBody').addEventListener('input', e=>{
+  if(e.target.matches('[data-cap-search]')){ clearTimeout(capSearchTimer); const q=e.target.value; capSearchTimer=setTimeout(()=>capSearch(q),220); }
 });
 document.addEventListener('change', e=>{ if(e.target.name==='wpLic') $('wpAuthor').disabled = e.target.value!=='attribution_required'; });
 $('wappenUpload').onclick = ()=>{ setStatus('Wappen-Upload folgt in Phase 2 (lokaler Ordner + Endpoint). Auswahl gemerkt.'); closeWappenDialog(); };
