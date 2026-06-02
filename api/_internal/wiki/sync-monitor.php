@@ -1836,9 +1836,16 @@ function avesmapsWikiSyncMonitorEditableFields(): array {
         'language' => 'Sprache', 'currency' => 'Währung', 'population' => 'Einwohnerzahl',
         'founder' => 'Gründer', 'political' => 'Politisch', 'trade_zone' => 'Handelszone',
         'trade_goods' => 'Handelswaren', 'geographic' => 'Geographisch',
-        'affiliation_raw' => 'Zugehörigkeit (roh)', 'founded_text' => 'Gegründet',
-        'dissolved_text' => 'Aufgelöst', 'capital_location_id' => 'Hauptstadt-Verknüpfung',
+        'affiliation_raw' => 'Zugehörigkeit (roh)',
+        'founded_start_bf' => 'Gegründet (BF)', 'dissolved_end_bf' => 'Aufgelöst (BF)',
+        'founded_text' => 'Gegründet (Text)', 'dissolved_text' => 'Aufgelöst (Text)',
+        'capital_location_id' => 'Hauptstadt-Verknüpfung',
     ];
+}
+
+// BF-Override-Felder erwarten eine (optional negative) Ganzzahl ODER leer (= unbekannt/„besteht").
+function avesmapsWikiSyncMonitorIsBfField(string $fieldKey): bool {
+    return in_array($fieldKey, ['founded_start_bf', 'founded_end_bf', 'founded_display_bf', 'dissolved_start_bf', 'dissolved_end_bf', 'dissolved_display_bf'], true);
 }
 
 // Liest die Override-Map (wiki_key -> {field_key: value}) aus dem Modell. Fuer model_tree.
@@ -1869,6 +1876,13 @@ function avesmapsWikiSyncMonitorSetFieldOverride(PDO $pdo, string $wikiKey, stri
     if (!isset(avesmapsWikiSyncMonitorEditableFields()[$fieldKey])) {
         throw new RuntimeException('Feld „' . $fieldKey . '" ist nicht editierbar.');
     }
+    $value = $value === null ? '' : trim($value);
+    if (avesmapsWikiSyncMonitorIsBfField($fieldKey) && $value !== '' && !preg_match('/^-?\d{1,5}$/', $value)) {
+        throw new RuntimeException('BF-Wert muss eine (optional negative) Ganzzahl oder leer sein.');
+    }
+    if ($fieldKey === 'capital_location_id' && $value !== '' && !ctype_digit($value)) {
+        throw new RuntimeException('capital_location_id muss numerisch oder leer sein.');
+    }
 
     $current = $pdo->prepare('SELECT metadata_overrides_json FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' WHERE wiki_key = :k');
     $current->execute(['k' => $wikiKey]);
@@ -1876,7 +1890,7 @@ function avesmapsWikiSyncMonitorSetFieldOverride(PDO $pdo, string $wikiKey, stri
     if (!is_array($overrides)) {
         $overrides = [];
     }
-    $overrides[$fieldKey] = $value === null ? '' : $value;
+    $overrides[$fieldKey] = $value;
 
     $statement = $pdo->prepare(
         'INSERT INTO ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . '
@@ -1989,7 +2003,10 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
     $rows = $pdo->query(
         'SELECT m.wiki_key, m.parent_wiki_key, m.parent_locked, m.excluded, m.auto_parent_wiki_key, m.source_origin,
                 m.parent_conflict_json, m.metadata_overrides_json, s.name, s.type, s.continent, s.affiliation_raw, s.wiki_url,
-                s.founded_text, s.dissolved_text, s.coat_of_arms_url, s.coat_of_arms_license,
+                s.founded_text, s.dissolved_text,
+                s.founded_start_bf, s.founded_end_bf, s.founded_display_bf,
+                s.dissolved_start_bf, s.dissolved_end_bf, s.dissolved_display_bf,
+                s.coat_of_arms_url, s.coat_of_arms_license,
                 s.coat_of_arms_author, s.coat_of_arms_attribution, s.coat_of_arms_license_status,
                 s.status, s.capital_name, s.seat_name,
                 s.form_of_government, s.ruler, s.language, s.currency, s.population,
@@ -2048,6 +2065,12 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'wiki_url' => (string) ($row['wiki_url'] ?? ''),
             'founded_text' => (string) ($row['founded_text'] ?? ''),
             'dissolved_text' => (string) ($row['dissolved_text'] ?? ''),
+            'founded_start_bf' => $row['founded_start_bf'] === null ? null : (int) $row['founded_start_bf'],
+            'founded_end_bf' => $row['founded_end_bf'] === null ? null : (int) $row['founded_end_bf'],
+            'founded_display_bf' => $row['founded_display_bf'] === null ? null : (int) $row['founded_display_bf'],
+            'dissolved_start_bf' => $row['dissolved_start_bf'] === null ? null : (int) $row['dissolved_start_bf'],
+            'dissolved_end_bf' => $row['dissolved_end_bf'] === null ? null : (int) $row['dissolved_end_bf'],
+            'dissolved_display_bf' => $row['dissolved_display_bf'] === null ? null : (int) $row['dissolved_display_bf'],
             'coat_of_arms_license' => (string) ($row['coat_of_arms_license'] ?? ''),
             'coat_of_arms_author' => (string) ($row['coat_of_arms_author'] ?? ''),
             'coat_of_arms_attribution' => (string) ($row['coat_of_arms_attribution'] ?? ''),

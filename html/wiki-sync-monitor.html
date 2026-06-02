@@ -133,6 +133,11 @@
   .dt-cap-results div { padding:3px 6px; cursor:pointer; font-size:12px; }
   .dt-cap-results div:hover { background:#e7d6bd; }
   .dt-save-row { display:flex; gap:8px; margin:10px 0 2px; }
+  .dt-bf { width:84px; font-size:12px; padding:2px 5px; box-sizing:border-box; font-family:inherit; }
+  .dt-bf-sign { font-size:12px; margin-left:4px; }
+  .dt-bf-wiki { margin-top:2px; }
+  .dt-bf-today { display:inline-flex; align-items:center; gap:4px; font-size:12px; margin-bottom:3px; }
+  .dt-bf-today input { margin:0; }
   .dt-wappen-box { position:relative; flex:0 0 56px; width:56px; height:56px; }
   .dt-wappen-edit { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(47,37,28,.62); color:#fff9f4; font-size:10px; border-radius:6px; cursor:pointer; text-align:center; padding:2px; }
   .dt-wappen-box:hover .dt-wappen-edit { display:flex; }
@@ -357,19 +362,9 @@ function wikiLink(n){ return n.wiki_url ? ` <a class="wl" href="${esc(n.wiki_url
 function aliasHint(n){ if(!(n.aliases && n.aliases.length)) return ''; const a=n.aliases.slice().sort((x,y)=>x.length-y.length)[0].replace(/-/g,' '); return ` <span class="muted" title="auch bekannt als (Redirect)">≈${esc(a)}</span>`; }
 function bfYear(t){ if(!t) return null; const m=String(t).match(/(\d{1,4})\s*(v\.?\s*BF|BF)/i); if(!m) return null; const y=parseInt(m[1],10); return /v\.?\s*BF/i.test(m[2])?-y:y; }
 function fmtBF(y){ return y<0 ? (Math.abs(y)+' v.BF') : (y+' BF'); }
-function periodLabel(n){
-  const f=bfYear(n.founded_text);
-  const ongoing=/\b(besteht|heute|gegenwart)\b/i.test(n.dissolved_text||'');
-  const d=ongoing?null:bfYear(n.dissolved_text);
-  let s='';
-  if(f!=null && d!=null){ const lo=Math.min(f,d), hi=Math.max(f,d); s=fmtBF(lo)+'–'+fmtBF(hi); }   // chronologisch (früher zuerst)
-  else if(f!=null && ongoing) s=fmtBF(f)+'–heute';
-  else if(f!=null) s='ab '+fmtBF(f);
-  else if(d!=null) s='bis '+fmtBF(d);
-  else if(ongoing) s='besteht';
-  if(!s) return '';
-  return ` <span class="count" title="Zeitraum (von/bis)">· ${s}</span>`;
-}
+// Zeitraum aus den effektiven BF-Zahlen (Override ?? Wiki-BF, Fallback Text). periodFromBf
+// + effFoundedBf/effDissolvedBf sind im Detail-Block definiert (Funktionsdeklarationen, gehoisted).
+function periodLabel(n){ const s=periodFromBf(n); return s?` <span class="count" title="Zeitraum (von/bis)">· ${s}</span>`:''; }
 
 // --- Auswahl, Kinder-Map, rekursive Karten-Abdeckung, Wappen, Detail ---
 let selectedKey = null;
@@ -438,14 +433,30 @@ const DETAIL_FIELDS=[
   {key:'trade_zone',label:'Handelszone'},
   {key:'trade_goods',label:'Handelswaren'},
   {key:'geographic',label:'Geographisch'},
-  {key:'founded_text',label:'Gegründet'},
-  {key:'dissolved_text',label:'Aufgelöst'},
   {key:'affiliation_raw',label:'Zugehörigkeit (roh)'}
 ];
+// Zeit: numerische BF-Werte sind die kontrollierenden (Filter/Karte), signed (negativ = v.BF).
+// Gegründet = founded_start_bf, Aufgelöst = dissolved_end_bf (null/leer = besteht bis heute).
+// Fallback auf Wiki-Text-Parsing, wo keine BF-Spalte vorliegt. Der Wiki-Text bleibt als Kontext.
+function bfFromCols(n, keys){ for(const k of keys){ const v=n[k]; if(v!=null) return Number(v); } return undefined; }
+function wikiFoundedBf(n){ const v=bfFromCols(n,['founded_start_bf','founded_display_bf','founded_end_bf']); return v!==undefined?v:bfYear(n.founded_text); }
+function wikiDissolvedBf(n){ const v=bfFromCols(n,['dissolved_end_bf','dissolved_display_bf','dissolved_start_bf']); if(v!==undefined) return v; if(/\b(besteht|heute|gegenwart)\b/i.test(n.dissolved_text||'')) return null; return bfYear(n.dissolved_text); }
+function parseOvrBf(s){ if(s==null) return null; s=String(s).trim(); if(s==='') return null; const x=parseInt(s,10); return isNaN(x)?null:x; }
+function effFoundedBf(n){ return isOvr(n,'founded_start_bf')?parseOvrBf(n.overrides.founded_start_bf):wikiFoundedBf(n); }
+function effDissolvedBf(n){ return isOvr(n,'dissolved_end_bf')?parseOvrBf(n.overrides.dissolved_end_bf):wikiDissolvedBf(n); }
+function timeOverridden(n){ return isOvr(n,'founded_start_bf')||isOvr(n,'dissolved_end_bf'); }
+function periodFromBf(n){
+  const f=effFoundedBf(n), d=effDissolvedBf(n);
+  if(f!=null && d!=null){ const lo=Math.min(f,d),hi=Math.max(f,d); return fmtBF(lo)+'–'+fmtBF(hi); }
+  if(f!=null && d==null) return fmtBF(f)+'–heute';
+  if(f==null && d!=null) return 'bis '+fmtBF(d);
+  return '';
+}
 function isOvr(n,k){ return !!(n.overrides && Object.prototype.hasOwnProperty.call(n.overrides,k)); }
 function wikiVal(n,k){ const v=n[k]; return v==null?'':String(v); }
 function effVal(n,k){ return isOvr(n,k)?String(n.overrides[k]==null?'':n.overrides[k]):wikiVal(n,k); }
 function ovrBadge(n,k){ if(!isOvr(n,k)) return ''; const w=wikiVal(n,k); return ` <span class="ov-badge" title="Manuell überschrieben. Wiki-Stand: ${esc(w||'(leer)')}">✎ manuell</span>`; }
+function ovrTimeBadge(){ return ` <span class="ov-badge" title="Manuell überschriebener BF-Wert (kontrolliert Filter/Karte). Wiki-Text bleibt als Kontext.">✎ manuell</span>`; }
 function capChip(n){ const cl=n.capital_location; if(!cl||!cl.name) return ''; return ` <span class="muted" title="In Locations gefunden (public_id: ${esc(cl.public_id||'?')}). Karten-Sprung folgt.">🔗 ${esc(cl.name)}</span>`; }
 function buildDetailHead(n){
   const ls=n.license_status;
@@ -475,9 +486,15 @@ function renderDetail(){
   const add=(k,v)=>{ if(v) rows.push(`<div class="k">${k}</div><div>${v}</div>`); };
   const addF=(f)=>{ const v=effVal(n,f.key); if(!v && !isOvr(n,f.key)) return; let val=esc(v||'—')+ovrBadge(n,f.key); if(f.capital) val+=capChip(n); rows.push(`<div class="k">${f.label}</div><div>${val}</div>`); };
   addF(DETAIL_FIELDS[0]); // Staatsform
-  const nEff={...n, founded_text:effVal(n,'founded_text'), dissolved_text:effVal(n,'dissolved_text')};
-  add('Zeitraum', esc(periodText(nEff)||'—'));
-  for(let i=1;i<DETAIL_FIELDS.length;i++){ const f=DETAIL_FIELDS[i]; if(f.key==='founded_text'||f.key==='dissolved_text') continue; addF(f); }
+  // Zeit: effektive BF-Zahlen (kontrollierend) + Wiki-Text als Kontext
+  const effF=effFoundedBf(n), effD=effDissolvedBf(n);
+  const fTxt=n.founded_text?` <span class="muted">· ${esc(n.founded_text)}</span>`:'';
+  const dTxt=n.dissolved_text?` <span class="muted">· ${esc(n.dissolved_text)}</span>`:'';
+  const fBadge=isOvr(n,'founded_start_bf')?ovrTimeBadge():'';
+  const dBadge=isOvr(n,'dissolved_end_bf')?ovrTimeBadge():'';
+  if(effF!=null || n.founded_text) add('Gegründet', (effF!=null?esc(fmtBF(effF)):'—')+fBadge+fTxt);
+  if(effD!=null || n.dissolved_text || effF!=null) add('Aufgelöst', (effD!=null?esc(fmtBF(effD)):'besteht')+dBadge+dTxt);
+  for(let i=1;i<DETAIL_FIELDS.length;i++){ addF(DETAIL_FIELDS[i]); }
   add('Eltern', esc(parentNm)+(n.parent_locked?' 🔒':'')+(n.parent_wiki_key&&!n.parent_in_model?' <span class="dt-conf">(nicht im Modell)</span>':''));
   if(n.diverges) add('Maschinen-Vorschlag', esc((BYKEY.get(n.auto_parent_wiki_key)||{}).name||n.auto_parent_wiki_key||''));
   if(n.conflicts && n.conflicts.length) add('Strittig', `<span class="dt-conf">${n.conflicts.map(esc).join(', ')}</span>`);
@@ -510,8 +527,20 @@ function renderEditForm(n){
     }
     return `<div class="k${ov?' ovr':''}">${f.label}${reset}</div><div><input class="dt-in" data-fk="${esc(f.key)}" value="${esc(val)}">${extra}</div>`;
   }).join('');
-  return `<div class="dt-edit-hint">Manuelle Werte überschreiben den Wiki-Stand und gelten für die Anwendung. „↺" setzt ein Feld zurück. Feld leeren + Speichern = bewusst leer.</div>`
-    + `<div class="dt-grid">${rowsH}</div>`
+  // Zeit-Controls: numerische BF-Werte (kontrollierend) + BF/v.BF-Umschalter + „besteht"-Häkchen.
+  const effF=effFoundedBf(n), effD=effDissolvedBf(n);
+  const ovF=isOvr(n,'founded_start_bf'), ovD=isOvr(n,'dissolved_end_bf');
+  const absF=(effF!=null)?Math.abs(effF):'', absD=(effD!=null)?Math.abs(effD):'', dToday=(effD==null);
+  const resetF=ovF?` <span class="dt-reset" data-reset="founded_start_bf" title="Auf Wiki-Stand zurücksetzen">↺</span>`:'';
+  const resetD=ovD?` <span class="dt-reset" data-reset="dissolved_end_bf" title="Auf Wiki-Stand zurücksetzen">↺</span>`:'';
+  const signSel=(id,vbf)=>`<select class="dt-bf-sign" data-bf-sign="${id}"><option value="bf"${vbf?'':' selected'}>BF</option><option value="vbf"${vbf?' selected':''}>v. BF</option></select>`;
+  const fWiki=n.founded_text?`<div class="muted dt-bf-wiki">Wiki: ${esc(n.founded_text)}</div>`:'';
+  const dWiki=n.dissolved_text?`<div class="muted dt-bf-wiki">Wiki: ${esc(n.dissolved_text)}</div>`:'';
+  const timeRows =
+      `<div class="k${ovF?' ovr':''}">Gegründet${resetF}</div><div><input class="dt-bf" data-bf="founded" type="number" step="1" value="${absF}" placeholder="Jahr">${signSel('founded',effF!=null&&effF<0)}${fWiki}</div>`
+    + `<div class="k${ovD?' ovr':''}">Aufgelöst${resetD}</div><div><label class="dt-bf-today"><input type="checkbox" data-bf-today="1"${dToday?' checked':''}> besteht bis heute</label><div data-bf-year-wrap${dToday?' hidden':''}><input class="dt-bf" data-bf="dissolved" type="number" step="1" value="${absD}" placeholder="Jahr">${signSel('dissolved',effD!=null&&effD<0)}</div>${dWiki}</div>`;
+  return `<div class="dt-edit-hint">Manuelle Werte überschreiben den Wiki-Stand und gelten für die Anwendung. Bei „Gegründet/Aufgelöst" zählt die BF-Zahl (steuert Filter/Karte), der Wiki-Text bleibt als Kontext. „↺" setzt ein Feld zurück.</div>`
+    + `<div class="dt-grid">${rowsH}${timeRows}</div>`
     + `<div class="dt-save-row"><button type="button" class="primary" data-edit-save="1">Speichern</button><button type="button" data-edit-cancel="1">Abbrechen</button></div>`;
 }
 function startEdit(){ editMode=true; pendingCapital=undefined; capResults=[]; renderDetail(); }
@@ -529,11 +558,19 @@ async function saveEdits(){
   try{
     for(const inp of document.querySelectorAll('#detailBody .dt-in')){
       const fk=inp.dataset.fk;
+      if(!fk) continue;
       if(fk==='capital_name' && pendingCapital!==undefined) continue; // unten zusammen mit dem Link gesetzt
       const val=inp.value, wiki=wikiVal(n,fk), ov=isOvr(n,fk);
       if(val===wiki){ if(ov) await api('clear_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:fk}}); }
       else { await api('set_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:fk,value:val}}); }
     }
+    // Zeit-Controls: Gegründet=founded_start_bf, Aufgelöst=dissolved_end_bf (leer/besteht = '')
+    const readBf=(which)=>{ const inp=document.querySelector('#detailBody .dt-bf[data-bf="'+which+'"]'); const sel=document.querySelector('#detailBody .dt-bf-sign[data-bf-sign="'+which+'"]'); if(!inp) return undefined; const raw=inp.value.trim(); if(raw==='') return null; const x=Math.abs(parseInt(raw,10)); if(isNaN(x)) return null; return (sel&&sel.value==='vbf')?-x:x; };
+    const sameBf=(a,b)=> (a==null&&b==null)||(a===b);
+    const saveBf=async(fk,target,wiki)=>{ const ov=isOvr(n,fk); if(sameBf(target,wiki)){ if(ov) await api('clear_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:fk}}); } else { await api('set_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:fk,value:(target==null?'':String(target))}}); } };
+    if(document.querySelector('#detailBody .dt-bf[data-bf="founded"]')) await saveBf('founded_start_bf', readBf('founded'), wikiFoundedBf(n));
+    const todayBox=document.querySelector('#detailBody [data-bf-today]');
+    if(todayBox) await saveBf('dissolved_end_bf', (todayBox.checked?null:readBf('dissolved')), wikiDissolvedBf(n));
     if(pendingCapital!==undefined){
       if(pendingCapital){
         await api('set_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:'capital_location_id',value:String(pendingCapital.id)}});
@@ -563,7 +600,7 @@ function visibleByContinent(n){ if(!contSel || contSel.size===0) return true; re
 // Zeitfilter: aus / heute / Bereich [von,bis] (BF). Knoten ohne Daten werden nicht versteckt.
 const leftTime={mode:'off',from:-Infinity,to:Infinity};
 const rightTime={mode:'off',from:-Infinity,to:Infinity};
-function nodeBF(n){ const f=bfYear(n.founded_text); const ongoing=/\b(besteht|heute|gegenwart)\b/i.test(n.dissolved_text||''); const d=ongoing?Infinity:bfYear(n.dissolved_text); return {f, d:(d==null?null:d), ongoing}; }
+function nodeBF(n){ const f=effFoundedBf(n); const d=effDissolvedBf(n); return {f:(f==null?null:f), d:(d==null?null:d), ongoing:(d==null)}; }
 function visibleByTime(n, t){
   if(t.mode==='off') return true;
   const iv=nodeBF(n);
@@ -803,6 +840,9 @@ $('detailBody').addEventListener('click', e=>{
 });
 $('detailBody').addEventListener('input', e=>{
   if(e.target.matches('[data-cap-search]')){ clearTimeout(capSearchTimer); const q=e.target.value; capSearchTimer=setTimeout(()=>capSearch(q),220); }
+});
+$('detailBody').addEventListener('change', e=>{
+  if(e.target.matches('[data-bf-today]')){ const w=document.querySelector('#detailBody [data-bf-year-wrap]'); if(w) w.hidden=e.target.checked; }
 });
 document.addEventListener('change', e=>{ if(e.target.name==='wpLic') $('wpAuthor').disabled = e.target.value!=='attribution_required'; });
 $('wappenUpload').onclick = ()=>{ setStatus('Wappen-Upload folgt in Phase 2 (lokaler Ordner + Endpoint). Auswahl gemerkt.'); closeWappenDialog(); };
