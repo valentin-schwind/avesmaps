@@ -967,8 +967,15 @@ function avesmapsWikiSyncMonitorParsePage(string $title, string $wikitext, strin
     }
     $continent = $field(['kontinent']);
     if ($continent === '') {
+        // Kontinent-Marker stehen meist NICHT in der Infobox, sondern als Nav-/Marker-Template
+        // oben auf der Seite (z.B. {{Nav Staaten Myranor}}, {{Aventurien}}). Diese Hinweise in den
+        // Erkennungs-Kontext geben, sonst faellt alles ohne Region-Feld auf Aventurien (Default).
+        $navHints = '';
+        if (preg_match_all('/\{\{\s*(Nav\s+[^}|]+|Aventurien|Myranor|G[üu]ldenland|Gueldenland|Rakshazar|Riesland|Tharun|Uthuria|Lahmaria)\b/iu', $wikitext, $navMatches) >= 1) {
+            $navHints = implode(' ', $navMatches[1]);
+        }
         $continent = avesmapsWikiSyncMonitorDetectContinent(
-            $title . ' ' . avesmapsWikiSyncMonitorField($norm, ['region', 'geographisch']) . ' ' . $affiliation['raw']
+            $title . ' ' . avesmapsWikiSyncMonitorField($norm, ['region', 'geographisch']) . ' ' . $affiliation['raw'] . ' ' . $navHints
         );
     }
 
