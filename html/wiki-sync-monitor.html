@@ -466,7 +466,7 @@ function renderList() {
     const lock = n.parent_locked ? ' <span class="tag lock" title="gesperrt">🔒</span>' : '';
     const exclTag = n.excluded ? ' <span class="tag excl" title="aussortiert – in den Baum/Wurzel ziehen holt zurück">✕ aussortiert</span>' : '';
     const meta = n.excluded ? '' : `${parentLabel(n)}${conflictLabel(n)}`;
-    out.push(`<div class="row${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}">${covCircle(n)}${wappenThumb(n)}<span class="nm">${esc(n.name)}${periodLabel(n)}${aliasHint(n)}</span>${wikiLink(n)}${meta}${lock}${exclTag}</div>`);
+    out.push(`<div class="row${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}">${covCircle(n)}${wappenThumb(n)}<span class="nm">${esc(n.name)}${periodLabel(n)}</span>${wikiLink(n)}${meta}${lock}${exclTag}</div>`);
   }
   $('list').innerHTML = out.join('') || '<div class="muted">— keine —</div>';
 }
@@ -502,7 +502,7 @@ function renderTree() {
     const hasKids = kids.length>0;
     const open = (forceOpen && forceOpen.has(n.wiki_key)) || expanded.has(n.wiki_key);
     const tw = hasKids ? `<span class="twist" data-tw="${n.wiki_key}">${open?'▾':'▸'}</span>` : '<span class="twist"></span>';
-    let html = `<li><span class="node${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${covCircle(n)}${wappenThumb(n)}<span>${esc(n.name)}${periodLabel(n)}${aliasHint(n)}</span>${wikiLink(n)}${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
+    let html = `<li><span class="node${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${covCircle(n)}${wappenThumb(n)}<span>${esc(n.name)}${periodLabel(n)}</span>${wikiLink(n)}${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
     if (hasKids && open) html += `<ul class="tree">${kids.map(k=>build(k,depth+1)).join('')}</ul>`;
     return html + '</li>';
   };
