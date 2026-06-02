@@ -60,7 +60,7 @@
   a.wl { color:var(--mut); text-decoration:none; font-size:11px; padding:0 2px; }
   a.wl:hover { color:var(--accent); }
   .count { color:var(--mut); font-size:11px; }
-  #dropRoot, #dropExclude { margin:6px 0; padding:6px; border:1px dashed var(--line2); border-radius:5px; text-align:center; color:var(--mut); }
+  #dropRoot, #dropExclude { margin:6px 0 0; padding:6px; border:1px dashed var(--line2); border-radius:5px; text-align:center; color:var(--mut); }
   #dropExclude { border-color:#c0998f; }
   #dropRoot.drop, #dropExclude.drop { outline:2px dashed var(--accent); }
   .tag.excl { color:#7a4fa0; border-color:#c0998f; }
@@ -92,7 +92,7 @@
   #left { max-width:none; flex:1 1 0; }
   #right { flex:1 1 0; }
   #detail { flex:1 1 0; border-left:1px solid var(--line); background:var(--soft); }
-  .colhead { margin-bottom:6px; padding-bottom:5px; border-bottom:1px solid var(--line); }
+  .colhead { margin-bottom:0; padding-bottom:0; }
   .listsub { font-size:11px; color:var(--mut); margin:-4px 0 6px; }
   /* Abdeckungs-Kreis (Geometrie auf der Karte), rekursiv – übernommen aus dem alten Editor-Tree */
   .cov { position:relative; width:12px; height:12px; flex:0 0 12px; border:2px solid #6a7f3a; border-radius:50%; background:var(--soft); box-sizing:border-box; color:#6a7f3a; overflow:hidden; display:inline-block; vertical-align:middle; }
@@ -349,7 +349,7 @@ function periodLabel(n){
   const ongoing=/\b(besteht|heute|gegenwart)\b/i.test(n.dissolved_text||'');
   const d=ongoing?null:bfYear(n.dissolved_text);
   let s='';
-  if(f!=null && d!=null) s=fmtBF(f)+'–'+fmtBF(d);
+  if(f!=null && d!=null){ const lo=Math.min(f,d), hi=Math.max(f,d); s=fmtBF(lo)+'–'+fmtBF(hi); }   // chronologisch (früher zuerst)
   else if(f!=null && ongoing) s=fmtBF(f)+'–heute';
   else if(f!=null) s='ab '+fmtBF(f);
   else if(d!=null) s='bis '+fmtBF(d);
