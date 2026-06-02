@@ -2023,9 +2023,13 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
         $st[(string) $r['wiki_key']] = $r;
     }
     $mo = [];
-    foreach ($pdo->query('SELECT wiki_key, metadata_overrides_json, excluded FROM ' . $model) ?: [] as $r) {
+    foreach ($pdo->query('SELECT wiki_key, parent_wiki_key, metadata_overrides_json, excluded FROM ' . $model) ?: [] as $r) {
         $ov = json_decode((string) ($r['metadata_overrides_json'] ?? ''), true);
-        $mo[(string) $r['wiki_key']] = ['ov' => is_array($ov) ? $ov : [], 'excluded' => (int) ($r['excluded'] ?? 0) === 1];
+        $mo[(string) $r['wiki_key']] = [
+            'ov' => is_array($ov) ? $ov : [],
+            'excluded' => (int) ($r['excluded'] ?? 0) === 1,
+            'parent' => $r['parent_wiki_key'] !== null ? (string) $r['parent_wiki_key'] : null,
+        ];
     }
     $live = $pdo->query('SELECT id, wiki_key, name, type, status, valid_from_bf, valid_to_bf FROM political_territory WHERE wiki_key IS NOT NULL AND wiki_key <> \'\' AND is_active = 1') ?: [];
 
@@ -2036,13 +2040,41 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
         $i = (int) round((float) $v);
         return $i === 9999 ? null : $i;
     };
-    $effFrom = static function (array $ov, array $s) {
+    // "Echtes" eigenes Gruendungsjahr: Override (auch 0 = bewusst gesetzt) ?? Staging-BF wenn != 0.
+    // Staging "0 BF" ist der Parser-Default fuer "kein Datum im Wiki" -> kein echtes Datum.
+    $realFounded = static function (string $wk) use ($st, $mo): ?int {
+        $ov = $mo[$wk]['ov'] ?? [];
         if (array_key_exists('founded_start_bf', $ov)) {
             $t = trim((string) $ov['founded_start_bf']);
             return $t === '' ? null : (int) $t;
         }
-        $v = $s['founded_start_bf'] ?? $s['founded_display_bf'] ?? null;
-        return $v === null ? null : (int) round((float) $v);
+        $s = $st[$wk] ?? null;
+        if ($s === null) {
+            return null;
+        }
+        $v = $s['founded_start_bf'];
+        if ($v !== null && (int) $v !== 0) {
+            return (int) $v;
+        }
+        $d = $s['founded_display_bf'];
+        if ($d !== null && (int) round((float) $d) !== 0) {
+            return (int) round((float) $d);
+        }
+        return null;
+    };
+    // Effektives Gruendungsjahr mit Vererbung: eigenes echtes ?? naechster Vorfahr mit echtem ?? 0 BF.
+    $effFoundedInherited = static function (string $wk) use ($mo, $realFounded): int {
+        $seen = [];
+        $cur = $wk;
+        while ($cur !== null && !isset($seen[$cur])) {
+            $seen[$cur] = true;
+            $r = $realFounded($cur);
+            if ($r !== null) {
+                return $r;
+            }
+            $cur = $mo[$cur]['parent'] ?? null;
+        }
+        return 0;
     };
     $effTo = static function (array $ov, array $s) use ($normBf) {
         if (array_key_exists('dissolved_end_bf', $ov)) {
@@ -2075,7 +2107,7 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
         $effName = array_key_exists('name', $ov) ? (string) $ov['name'] : (string) ($s['name'] ?? '');
         $effType = array_key_exists('type', $ov) ? (string) $ov['type'] : avesmapsWikiSyncMonitorCleanType((string) ($s['type'] ?? ''));
         $effStatus = array_key_exists('status', $ov) ? (string) $ov['status'] : (string) ($s['status'] ?? '');
-        $effFromV = $effFrom($ov, $s);
+        $effFromV = $effFoundedInherited($wk);
         $effToV = $effTo($ov, $s);
         $liveFrom = $L['valid_from_bf'] === null ? null : (int) $L['valid_from_bf'];
         // Live nutzt 9999 als "besteht heute"-Sentinel = null -> sonst falsche 9999<->null-Diffs.
