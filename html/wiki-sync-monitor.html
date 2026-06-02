@@ -17,6 +17,10 @@
   button:disabled { opacity:.5; cursor:default; }
   button.primary { background:#565044; border-color:#5f4f40; color:#fff9f4; }
   button.primary:hover { background:#4a463b; }
+  .btn2 { display:flex; flex-direction:column; justify-content:center; align-items:flex-start; text-align:left; min-height:48px; padding:5px 11px; gap:1px; line-height:1.15; }
+  .btn2 .t1 { font-size:13px; font-weight:bold; }
+  .btn2 .t2 { font-size:10px; color:var(--mut); white-space:nowrap; }
+  .btn2.primary .t2 { color:#e9ddcb; }
   textarea { width:100%; height:54px; background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:6px; font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; resize:vertical; }
   #status { padding:6px 14px; color:var(--mut); border-bottom:1px solid var(--line); white-space:pre-wrap; }
   .cols { display:flex; height:calc(100vh - 200px); }
@@ -123,12 +127,11 @@
       <summary title="Aus welchen Wiki-Kategorien und Typ-Listen die Herrschaftsgebiete gezogen werden">Wiki-Quellen <span id="seedCount" class="count"></span></summary>
       <div class="dd-menu" id="seedMenu"></div>
     </details>
-    <button class="primary" id="btnCrawl">Sync starten</button>
-    <label class="ck" title="Standardmäßig aus: damit die Hierarchie nach dem Sync nicht automatisch neu gebaut wird (Locks/Aussortiert bleiben ohnehin erhalten)"><input type="checkbox" id="autoModel"> Hierarchie danach neu bauen</label>
-    <button id="btnModel" title="Baut die Hierarchie aus dem Staging neu (Locks + Aussortiert bleiben erhalten)">Modell bauen</button>
-    <button id="btnDiff">Diff</button>
-    <button id="btnCache" title="Testweise zeigen, was die Übertragung der Hierarchie nach Avesmaps ändern würde – schreibt nichts">Testübertragung in Avesmaps</button>
-    <button class="primary" id="btnApply" title="Übernimmt die kuratierte Hierarchie in Avesmaps – schreibt Eltern-Zuweisungen, Geometrien bleiben unberührt">Modell speichern und übernehmen</button>
+    <button class="btn2 primary" id="btnCrawl"><span class="t1">Sync starten</span><span class="t2" id="stSync">—</span></button>
+    <button class="btn2" id="btnModel" title="Berechnet die Hierarchie aus dem Staging neu (Locks + Aussortiert bleiben erhalten)"><span class="t1">Hierarchie ableiten</span><span class="t2" id="stModel">—</span></button>
+    <button class="btn2" id="btnDiff" title="Vergleicht Staging gegen das aktuelle Wiki: gelöscht / geändert / neu"><span class="t1">Find Differences</span><span class="t2" id="stDiff">—</span></button>
+    <button class="btn2" id="btnCache" title="Testweise zeigen, was die Übertragung nach Avesmaps ändern würde – schreibt nichts"><span class="t1">Testübertragung in Avesmaps</span><span class="t2" id="stTest">—</span></button>
+    <button class="btn2 primary" id="btnApply" title="Übernimmt die kuratierte Hierarchie in Avesmaps – schreibt Eltern-Zuweisungen, Geometrien bleiben unberührt"><span class="t1">Modell speichern und übernehmen</span><span class="t2" id="stApply">—</span></button>
     <details id="contDD" class="dd">
       <summary title="Filtert beide Listen nach Kontinent">Kontinente <span id="contCount" class="count"></span></summary>
       <div class="dd-menu" id="contMenu"></div>
@@ -266,20 +269,25 @@ async function runCrawl() {
     while (guard++ < 400) {
       const step = await api('crawl_step', {method:'POST', body:{run_id:run, options:{batch_limit:40, step_runtime:20, sleep_ms:120}}});
       const s = step.status;
+      $('stSync').textContent = `läuft… offen ${s.pending}, Seiten ${s.by_role.page||0}`;
       setStatus(`Sync ${run.slice(0,8)}: offen ${s.pending}, fertig ${s.done}, Seiten ${s.by_role.page||0}, gespeichert ${step.stored}, Fehler ${s.error}`);
       if ((s.pending||0) === 0) break;
     }
-    if ($('autoModel').checked) {
-      setStatus('Sync fertig. Baue Hierarchie neu…');
-      await api('rebuild_model', {method:'POST'});
-      await loadModel();
-      setStatus('Sync + Hierarchie fertig.');
-    } else {
-      await loadModel();
-      setStatus('Sync fertig. Hierarchie wurde NICHT neu gebaut – Häkchen „Hierarchie danach neu bauen" setzen oder „Modell bauen" klicken.');
-    }
+    await loadModel();
+    await loadEditorState();
+    setStatus('Sync fertig. „Hierarchie ableiten" klicken, um die Hierarchie zu aktualisieren.');
   } catch(e) { setStatus('Fehler: '+e.message); }
   busy(false);
+}
+
+function fmtDT(s){ if(!s) return null; const m=String(s).match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/); return m?`${m[3]}.${m[2]}.${m[1]} ${m[4]}:${m[5]}`:String(s); }
+async function loadEditorState(){ try{ renderEditorState(await api('editor_state')); }catch(e){} }
+function renderEditorState(s){
+  $('stSync').textContent  = s.last_sync_at ? `letzte Sync: ${fmtDT(s.last_sync_at)}` : 'noch nie gesynct';
+  $('stModel').textContent = s.model_fresh ? '✓ Modell aktuell' : 'Modell nicht aktuell';
+  $('stDiff').textContent  = (s.diff_fresh && s.last_diff_at) ? `gelöscht ${s.diff.deleted??0}, geändert ${s.diff.changed??0}, neu ${s.diff.new??0}` : 'noch nicht verglichen';
+  $('stTest').textContent  = s.test_fresh ? '✓ Test durchgeführt' : 'Test nicht durchgeführt';
+  $('stApply').textContent = s.apply_fresh ? '✓ gespeichert und übernommen' : 'noch nicht übernommen';
 }
 
 async function loadModel() {
@@ -511,9 +519,9 @@ document.addEventListener('click', e => {
 });
 
 $('btnCrawl').onclick = runCrawl;
-$('btnModel').onclick = async()=>{ busy(true); try{ const r=await api('rebuild_model',{method:'POST'}); setStatus(`Hierarchie: ${r.summary.total} Knoten, ${r.summary.resolved_parents} Eltern aufgelöst, ${r.summary.gap_parents} Lücken, ${r.summary.roots} Wurzeln.`); await loadModel(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
-$('btnDiff').onclick = async()=>{ busy(true); try{ const d=await api('diff'); setStatus(`Diff (Staging vs Wiki): neu ${d.new}, verschwunden ${d.disappeared}, geändert ${d.changed}.`); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
-$('btnCache').onclick = async()=>{ busy(true); try{ const c=await api('sync_parent_cache',{method:'POST',body:{}}); setStatus(`Testübertragung: auffüllbar ${c.fillable}, deckungsgleich ${c.already_aligned}, divergent ${c.divergent_existing} – es wurde nichts geschrieben.`); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
+$('btnModel').onclick = async()=>{ busy(true); try{ const r=await api('rebuild_model',{method:'POST'}); setStatus(`Hierarchie: ${r.summary.total} Knoten, ${r.summary.resolved_parents} Eltern aufgelöst, ${r.summary.gap_parents} Lücken, ${r.summary.roots} Wurzeln.`); await loadModel(); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
+$('btnDiff').onclick = async()=>{ busy(true); try{ const d=await api('diff'); setStatus(`Find Differences (Staging vs Wiki): neu ${d.new}, verschwunden ${d.disappeared}, geändert ${d.changed}.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
+$('btnCache').onclick = async()=>{ busy(true); try{ const c=await api('sync_parent_cache',{method:'POST',body:{}}); setStatus(`Testübertragung: auffüllbar ${c.fillable}, deckungsgleich ${c.already_aligned}, divergent ${c.divergent_existing} – es wurde nichts geschrieben.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnApply').onclick = async()=>{
   busy(true); let dry;
   try { dry = await api('apply_parent_cache', {method:'POST', body:{dry_run:true}}); }
@@ -522,7 +530,7 @@ $('btnApply').onclick = async()=>{
   const unres = (dry.unresolved||[]).length;
   if (!confirm(`Modell in Avesmaps übernehmen?\n\n• ${dry.will_apply} Eltern-Zuweisungen werden gesetzt/überschrieben\n• ${unres} nicht auflösbar (übersprungen – Eltern fehlt live)\n• Geometrien bleiben unberührt\n\nJetzt schreiben?`)) { setStatus('Übernahme abgebrochen.'); return; }
   busy(true);
-  try { const r = await api('apply_parent_cache', {method:'POST', body:{dry_run:false, confirm:'apply'}}); setStatus(`Übernommen: ${r.applied} Eltern-Zuweisungen in Avesmaps geschrieben.`); await loadModel(); }
+  try { const r = await api('apply_parent_cache', {method:'POST', body:{dry_run:false, confirm:'apply'}}); setStatus(`Übernommen: ${r.applied} Eltern-Zuweisungen in Avesmaps geschrieben.`); await loadModel(); await loadEditorState(); }
   catch(e){ setStatus('Fehler: '+e.message); }
   busy(false);
 };
@@ -554,6 +562,7 @@ $('wappenUpload').onclick = ()=>{ setStatus('Wappen-Upload folgt in Phase 2 (lok
 buildSeedMenu();
 updateFilterInfo();
 loadModel().catch(e=>setStatus('Modell laden fehlgeschlagen: '+e.message));
+loadEditorState();
 </script>
 </body>
 </html>

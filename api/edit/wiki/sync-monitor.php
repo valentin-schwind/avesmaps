@@ -91,6 +91,15 @@ try {
             avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Unbekannte Sync-Monitor-POST-Action: ' . $action]);
         }
 
+        // Editor-Status mitschreiben (Buttons zeigen frisch/veraltet relativ zur letzten Sync).
+        if ($action === 'rebuild_model') {
+            avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'rebuild');
+        } elseif ($action === 'sync_parent_cache') {
+            avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'test');
+        } elseif ($action === 'apply_parent_cache' && is_array($response) && ($response['dry_run'] ?? true) === false) {
+            avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'apply');
+        }
+
         avesmapsJsonResponse(200, $response);
     }
 
@@ -133,11 +142,21 @@ try {
             (string) ($_GET['public_id'] ?? ''),
             array_filter(array_map('trim', explode('|', (string) ($_GET['territory_ids'] ?? ''))))
         ),
+        'editor_state' => avesmapsWikiSyncMonitorEditorState($pdo),
         default => null,
     };
 
     if ($response === null) {
         avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Unbekannte Sync-Monitor-Action: ' . $action]);
+    }
+
+    // "Find Differences" merkt sein Ergebnis (Zahlen) fuer die Button-Statuszeile.
+    if ($action === 'diff' && is_array($response)) {
+        avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'diff', [
+            'new' => $response['new'] ?? 0,
+            'changed' => $response['changed'] ?? 0,
+            'deleted' => $response['disappeared'] ?? 0,
+        ]);
     }
 
     avesmapsJsonResponse(200, $response);

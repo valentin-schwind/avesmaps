@@ -12,6 +12,7 @@ const AVESMAPS_WIKI_SYNC_MONITOR_QUEUE_TABLE = 'wiki_crawl_queue';
 const AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE = 'wiki_territory_model';
 const AVESMAPS_WIKI_SYNC_MONITOR_ALIAS_TABLE = 'wiki_redirect_alias';
 const AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE = 'political_territory_wiki_test';
+const AVESMAPS_WIKI_SYNC_MONITOR_STATE_TABLE = 'wiki_sync_editor_state';
 const AVESMAPS_WIKI_SYNC_MONITOR_MAX_DEPTH = 5;
 
 function avesmapsWikiSyncMonitorEnsureTables(PDO $pdo): void {
@@ -102,6 +103,79 @@ function avesmapsWikiSyncMonitorEnsureTables(PDO $pdo): void {
     if (!isset($modelColumns['excluded'])) {
         $pdo->exec('ALTER TABLE ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' ADD COLUMN excluded TINYINT(1) NOT NULL DEFAULT 0 AFTER parent_locked');
     }
+
+    // Editor-Status (1 Zeile): wann zuletzt welche Aktion lief -> Buttons zeigen "frisch/veraltet"
+    // relativ zur letzten Sync. last_sync wird aus max(staging.synced_at) abgeleitet, nicht gespeichert.
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS ' . AVESMAPS_WIKI_SYNC_MONITOR_STATE_TABLE . ' (
+            id TINYINT UNSIGNED NOT NULL,
+            last_rebuild_at DATETIME(3) NULL,
+            last_diff_at DATETIME(3) NULL,
+            diff_new INT NULL,
+            diff_changed INT NULL,
+            diff_deleted INT NULL,
+            last_test_at DATETIME(3) NULL,
+            last_apply_at DATETIME(3) NULL,
+            updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+            PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+    $pdo->exec('INSERT IGNORE INTO ' . AVESMAPS_WIKI_SYNC_MONITOR_STATE_TABLE . ' (id) VALUES (1)');
+}
+
+// Zeitstempel einer Editor-Aktion festhalten (rebuild/diff/test/apply). Bei diff zusaetzlich Zahlen.
+function avesmapsWikiSyncMonitorRecordEditorAction(PDO $pdo, string $what, array $counts = []): void {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $col = [
+        'rebuild' => 'last_rebuild_at',
+        'diff' => 'last_diff_at',
+        'test' => 'last_test_at',
+        'apply' => 'last_apply_at',
+    ][$what] ?? null;
+    if ($col === null) {
+        return;
+    }
+    if ($what === 'diff') {
+        $stmt = $pdo->prepare('UPDATE ' . AVESMAPS_WIKI_SYNC_MONITOR_STATE_TABLE . '
+            SET last_diff_at = NOW(3), diff_new = :n, diff_changed = :c, diff_deleted = :d WHERE id = 1');
+        $stmt->execute([
+            'n' => (int) ($counts['new'] ?? 0),
+            'c' => (int) ($counts['changed'] ?? 0),
+            'd' => (int) ($counts['deleted'] ?? 0),
+        ]);
+        return;
+    }
+    $pdo->exec('UPDATE ' . AVESMAPS_WIKI_SYNC_MONITOR_STATE_TABLE . ' SET ' . $col . ' = NOW(3) WHERE id = 1');
+}
+
+// Liefert die Editor-Stati + abgeleitete "frisch seit letzter Sync"-Flags.
+function avesmapsWikiSyncMonitorEditorState(PDO $pdo): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $row = $pdo->query('SELECT last_rebuild_at, last_diff_at, diff_new, diff_changed, diff_deleted, last_test_at, last_apply_at FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STATE_TABLE . ' WHERE id = 1')->fetch(PDO::FETCH_ASSOC) ?: [];
+    $lastSync = $pdo->query('SELECT MAX(synced_at) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE)->fetchColumn();
+    $lastSync = $lastSync ? (string) $lastSync : null;
+    $fresh = static function (?string $actionAt) use ($lastSync): bool {
+        if ($actionAt === null || $actionAt === '') {
+            return false;
+        }
+        if ($lastSync === null) {
+            return true;
+        }
+        return strtotime($actionAt) >= strtotime($lastSync);
+    };
+    return [
+        'ok' => true,
+        'last_sync_at' => $lastSync,
+        'last_rebuild_at' => $row['last_rebuild_at'] ?? null,
+        'last_diff_at' => $row['last_diff_at'] ?? null,
+        'diff' => ['new' => $row['diff_new'], 'changed' => $row['diff_changed'], 'deleted' => $row['diff_deleted']],
+        'last_test_at' => $row['last_test_at'] ?? null,
+        'last_apply_at' => $row['last_apply_at'] ?? null,
+        'model_fresh' => $fresh($row['last_rebuild_at'] ?? null),
+        'diff_fresh' => $fresh($row['last_diff_at'] ?? null),
+        'test_fresh' => $fresh($row['last_test_at'] ?? null),
+        'apply_fresh' => $fresh($row['last_apply_at'] ?? null),
+    ];
 }
 
 function avesmapsWikiSyncMonitorTableExists(PDO $pdo, string $table): bool {
