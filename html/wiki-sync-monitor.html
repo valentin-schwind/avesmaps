@@ -88,6 +88,7 @@
   #right { flex:1 1 0; }
   #detail { flex:1 1 0; border-left:1px solid var(--line); background:var(--soft); }
   .colhead { margin-bottom:6px; padding-bottom:5px; border-bottom:1px solid var(--line); }
+  .listsub { font-size:11px; color:var(--mut); margin:-4px 0 6px; }
   /* Abdeckungs-Kreis (Geometrie auf der Karte), rekursiv – übernommen aus dem alten Editor-Tree */
   .cov { position:relative; width:12px; height:12px; flex:0 0 12px; border:2px solid #6a7f3a; border-radius:50%; background:var(--soft); box-sizing:border-box; color:#6a7f3a; overflow:hidden; display:inline-block; vertical-align:middle; }
   .cov.all { background:currentColor; }
@@ -157,7 +158,8 @@
 <div class="cols">
   <div class="col" id="left">
     <div class="colhead">
-      <h2 class="listhead">Nicht zugewiesene Herrschaftsgebiete <span id="attn" class="count"></span></h2>
+      <h2 class="listhead">Nicht zugewiesene Herrschaftsgebiete</h2>
+      <div class="listsub" id="attn"></div>
       <div class="bar">
         <select id="filter">
           <option value="gap">Offene Lücken</option>
@@ -170,15 +172,16 @@
         </select>
         <input type="search" id="search" placeholder="In dieser Auswahl suchen…">
       </div>
-      <div class="timefilter">Zeige nur: <input type="number" id="timeLeftFrom" placeholder="von"> – <input type="number" id="timeLeftTo" placeholder="bis"> BF <label><input type="checkbox" id="timeLeftToday"> heute</label></div>
       <div id="filterInfo" class="info"></div>
+      <div class="timefilter">Zeige nur: <input type="number" id="timeLeftFrom" placeholder="von"> – <input type="number" id="timeLeftTo" placeholder="bis"> BF <label><input type="checkbox" id="timeLeftToday"> heute</label></div>
       <div id="dropExclude">✕ Hierher ziehen = aussortieren (kein Herrschaftsgebiet)</div>
     </div>
     <div id="list"></div>
   </div>
   <div class="col" id="right">
     <div class="colhead">
-      <h2 class="listhead">Hierarchie der Herrschaftsgebiete <span id="treeCount" class="count"></span></h2>
+      <h2 class="listhead">Hierarchie der Herrschaftsgebiete</h2>
+      <div class="listsub" id="treeCount"></div>
       <div class="bar"><input type="search" id="treeSearch" placeholder="In dieser Auswahl suchen…"></div>
       <div class="timefilter">Zeige nur: <input type="number" id="timeRightFrom" placeholder="von"> – <input type="number" id="timeRightTo" placeholder="bis"> BF <label><input type="checkbox" id="timeRightToday"> heute</label></div>
       <div id="dropRoot">▶ Hierher ziehen = zur Wurzel machen (Eltern entfernen)</div>
@@ -504,6 +507,7 @@ function renderTree() {
     return html + '</li>';
   };
   const shown = roots.filter(r=>!keep || keep.has(r.wiki_key)).sort((a,b)=>a.name.localeCompare(b.name));
+  $('treeCount').textContent = `${NODES.length} Knoten · ${roots.length} Wurzelknoten`;
   $('tree').innerHTML = shown.length ? `<ul class="tree">${shown.map(r=>build(r,0)).join('')}</ul>` : '<div class="muted">— keine —</div>';
 }
 function render(){
