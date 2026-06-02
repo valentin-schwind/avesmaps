@@ -50,29 +50,47 @@
   #dropExclude { border-color:#c0998f; }
   #dropRoot.drop, #dropExclude.drop { outline:2px dashed var(--accent); }
   .tag.excl { color:#7a4fa0; border-color:#c0998f; }
+  .dd { position:relative; }
+  .dd > summary { list-style:none; cursor:pointer; background:#f3ebdf; color:#513c2b; border:1px solid #b99a78; border-radius:5px; padding:5px 10px; }
+  .dd > summary::-webkit-details-marker { display:none; }
+  .dd[open] > summary { background:#ead9c2; }
+  .dd-menu { position:absolute; z-index:20; top:100%; left:0; margin-top:3px; background:var(--panel); border:1px solid var(--line2); border-radius:6px; padding:6px; min-width:230px; max-height:320px; overflow:auto; box-shadow:0 6px 18px rgba(0,0,0,.18); }
+  .dd-menu label { display:block; padding:2px 4px; white-space:nowrap; cursor:pointer; }
+  .dd-menu .grp { font-size:11px; color:var(--mut); margin:5px 2px 2px; border-top:1px solid var(--line); padding-top:4px; }
+  .dd-menu .grp:first-child { border-top:none; margin-top:0; }
+  .dd-menu .ddtools { display:flex; gap:8px; margin:2px 2px 4px; }
+  .dd-menu .ddtools a { color:var(--accent); cursor:pointer; font-size:11px; text-decoration:underline; }
+  .listhead { font-size:13px; font-weight:bold; margin:0 0 6px; color:#3f3428; }
+  .info { font-size:11px; color:var(--mut); background:var(--soft); border:1px solid var(--line); border-radius:5px; padding:4px 7px; margin-bottom:6px; }
+  label.ck { font-size:12px; color:var(--mut); display:inline-flex; align-items:center; gap:4px; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Avesmaps – Herrschaftsgebiete synchronisieren und editieren <span class="muted">(Crawl → Staging → Modell)</span></h1>
-  <textarea id="seeds" spellcheck="false"></textarea>
-  <div class="controls" style="margin-top:6px">
-    <button class="primary" id="btnCrawl">Crawl starten</button>
-    <button id="btnModel">Modell bauen</button>
-    <button id="btnLic">Lizenzen</button>
+  <h1>Avesmaps – Herrschaftsgebiete synchronisieren und editieren</h1>
+  <div class="controls">
+    <details id="seedDD" class="dd">
+      <summary>Was synchronisieren? <span id="seedCount" class="count"></span></summary>
+      <div class="dd-menu" id="seedMenu"></div>
+    </details>
+    <button class="primary" id="btnCrawl">Sync starten</button>
+    <label class="ck" title="Standardmäßig aus: damit die Hierarchie nach dem Sync nicht automatisch neu gebaut wird (Locks/Aussortiert bleiben ohnehin erhalten)"><input type="checkbox" id="autoModel"> Hierarchie danach neu bauen</label>
+    <button id="btnModel" title="Baut die Hierarchie aus dem Staging neu (Locks + Aussortiert bleiben erhalten)">Modell bauen</button>
     <button id="btnDiff">Diff</button>
-    <button id="btnCache">parent_id Dry-Run</button>
-    <button id="btnReload">Modell laden</button>
-    <label style="margin-left:12px" title="Andere Kontinente bleiben gesynct, werden nur ausgeblendet"><input type="checkbox" id="aventurienOnly" checked> nur Aventurien</label>
+    <button id="btnCache" title="Testweise zeigen, was die Übertragung der Hierarchie nach Avesmaps ändern würde – schreibt nichts">Testübertragung in Avesmaps</button>
+    <button id="btnReload" title="Lädt die beiden Listen neu aus dem aktuellen Modell – kein Sync, keine Datenänderung">Modell laden</button>
+    <details id="contDD" class="dd">
+      <summary>Kontinente <span id="contCount" class="count"></span></summary>
+      <div class="dd-menu" id="contMenu"></div>
+    </details>
     <span id="busy" class="muted"></span>
   </div>
 </header>
 <div id="status">Bereit.</div>
 <div class="cols">
   <div class="col" id="left">
+    <h2 class="listhead">Nicht zugewiesene Herrschaftsgebiete <span id="attn" class="count"></span></h2>
     <div class="bar">
-      <input type="search" id="search" placeholder="Suche Name/wiki_key…">
-      <span id="attn" class="count" title="offene Lücken · Konflikte"></span>
       <select id="filter">
         <option value="gap">Offene Lücken</option>
         <option value="conflict">Konflikte (platziert)</option>
@@ -82,13 +100,15 @@
         <option value="excluded">Aussortiert</option>
         <option value="all">Alle</option>
       </select>
+      <input type="search" id="search" placeholder="In dieser Auswahl suchen…">
     </div>
-    <div id="dropRoot">▶ Hierher ziehen = zur Wurzel machen (Eltern entfernen)</div>
+    <div id="filterInfo" class="info"></div>
     <div id="dropExclude">✕ Hierher ziehen = aussortieren (kein Herrschaftsgebiet)</div>
     <div id="list"></div>
   </div>
   <div class="col" id="right">
-    <div class="bar"><b>Hierarchie-Modell</b> <span id="treeCount" class="count"></span></div>
+    <h2 class="listhead">Hierarchie der Herrschaftsgebiete <span id="treeCount" class="count"></span></h2>
+    <div id="dropRoot">▶ Hierher ziehen = zur Wurzel machen (Eltern entfernen)</div>
     <div id="tree"></div>
   </div>
 </div>
@@ -101,8 +121,45 @@ const DEFAULT_SEEDS = [
   'Republik/Liste','Shîkanydad/Liste','Staat/Liste','Sultanat/Liste'
 ];
 const $ = (id) => document.getElementById(id);
-$('seeds').value = DEFAULT_SEEDS.join('\n');
 let NODES = [], BYKEY = new Map();
+
+// --- Seed-Dropdown („Was synchronisieren?") ---
+function buildSeedMenu(){
+  const cats = DEFAULT_SEEDS.filter(s=>s.startsWith('Kategorie:'));
+  const lists = DEFAULT_SEEDS.filter(s=>!s.startsWith('Kategorie:'));
+  const row = (s)=>`<label><input type="checkbox" class="seedck" value="${esc(s)}" checked> ${esc(s)}</label>`;
+  $('seedMenu').innerHTML =
+    `<div class="ddtools"><a data-seed-all="1">Alle</a><a data-seed-none="1">Keine</a></div>`
+    + `<div class="grp">Kategorien (vollständige Buckets)</div>` + cats.map(row).join('')
+    + `<div class="grp">Listen (ergänzend)</div>` + lists.map(row).join('');
+  updateSeedCount();
+}
+function selectedSeeds(){ return [...document.querySelectorAll('.seedck:checked')].map(c=>c.value); }
+function updateSeedCount(){ const n=selectedSeeds().length, t=DEFAULT_SEEDS.length; $('seedCount').textContent = n===t?`(alle ${t})`:`(${n}/${t})`; }
+
+// --- Kontinente-Dropdown (Filter für beide Listen) ---
+let contSel = null;   // null = noch nicht initialisiert
+function buildContMenu(){
+  const found = [...new Set(NODES.map(n=>n.continent||'Aventurien'))].sort((a,b)=>/aventurien/i.test(a)?-1:/aventurien/i.test(b)?1:a.localeCompare(b));
+  if (contSel === null) contSel = new Set(found.filter(c=>/aventurien/i.test(c)));   // Default: nur Aventurien
+  const row=(c)=>`<label><input type="checkbox" class="contck" value="${esc(c)}" ${contSel.has(c)?'checked':''}> ${esc(c)}</label>`;
+  $('contMenu').innerHTML = `<div class="ddtools"><a data-cont-all="1">Alle</a><a data-cont-none="1">Keine</a></div>` + (found.length?found.map(row).join(''):'<span class="muted">— noch keine Daten —</span>');
+  updateContCount(found.length);
+}
+function updateContCount(total){ const n=contSel?contSel.size:0; $('contCount').textContent = (total && n>=total)?'(alle)':`(${n})`; }
+function applyCont(){ contSel = new Set([...document.querySelectorAll('.contck:checked')].map(c=>c.value)); updateContCount(document.querySelectorAll('.contck').length); render(); }
+
+// --- Filter-Erklärung (steht unter dem Konflikt-Dropdown) ---
+const FILTER_INFO = {
+  gap:'Offene Lücken: Eltern im Wiki referenziert, aber (noch) nicht im Modell. Per Drag in den Baum oder auf „zur Wurzel" einsortieren.',
+  conflict:'Konflikte: bereits platziert, aber das Wiki nennt einen strittigen Zweit-Elternteil – nur prüfen, nicht zwingend ändern.',
+  diverges:'Divergenzen: der Maschinen-Vorschlag weicht vom aktuell gesetzten Elternteil ab.',
+  locked:'Gesperrt: manuell fixierte Eltern – überstehen jeden Re-Sync/Modellbau.',
+  siedlung:'Stadtstaaten: als Siedlung erkannt, aber als Herrschaftsgebiet behalten.',
+  excluded:'Aussortiert: aus der Hierarchie genommen (bleibt im Sync, jederzeit zurückholbar).',
+  all:'Alle Knoten der aktuellen Kontinent-Auswahl.'
+};
+function updateFilterInfo(){ $('filterInfo').textContent = FILTER_INFO[$('filter').value] || ''; }
 
 async function api(action, opts={}) {
   const method = opts.method || 'GET';
@@ -120,36 +177,30 @@ function setStatus(msg) { $('status').textContent = msg; }
 function busy(on) { $('busy').textContent = on ? '⏳ läuft…' : ''; document.querySelectorAll('header button').forEach(b=>b.disabled=on); }
 
 async function runCrawl() {
+  const seeds = selectedSeeds();
+  if (!seeds.length) { setStatus('Bitte oben unter „Was synchronisieren?" mindestens eine Quelle auswählen.'); return; }
   busy(true);
   try {
-    const seeds = $('seeds').value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
     const start = await api('start_run', {method:'POST', body:{seeds}});
     const run = start.run_id;
-    setStatus(`Run ${run.slice(0,8)} gestartet: ${start.seeded} Seeds. Crawle…`);
+    setStatus(`Sync ${run.slice(0,8)} gestartet: ${start.seeded} Quellen. Lade Wiki (inkl. Wappen-Lizenzen)…`);
     let guard = 0;
     while (guard++ < 400) {
       const step = await api('crawl_step', {method:'POST', body:{run_id:run, options:{batch_limit:40, step_runtime:20, sleep_ms:120}}});
       const s = step.status;
-      setStatus(`Crawl ${run.slice(0,8)}: pending ${s.pending}, done ${s.done}, pages ${s.by_role.page||0}, stored ${step.stored}, errors ${s.error}`);
+      setStatus(`Sync ${run.slice(0,8)}: offen ${s.pending}, fertig ${s.done}, Seiten ${s.by_role.page||0}, gespeichert ${step.stored}, Fehler ${s.error}`);
       if ((s.pending||0) === 0) break;
     }
-    setStatus(`Crawl fertig. Baue Modell…`);
-    await api('rebuild_model', {method:'POST'});
-    await loadModel();
-    setStatus(`Crawl + Modell fertig.`);
+    if ($('autoModel').checked) {
+      setStatus('Sync fertig. Baue Hierarchie neu…');
+      await api('rebuild_model', {method:'POST'});
+      await loadModel();
+      setStatus('Sync + Hierarchie fertig.');
+    } else {
+      await loadModel();
+      setStatus('Sync fertig. Hierarchie wurde NICHT neu gebaut – Häkchen „Hierarchie danach neu bauen" setzen oder „Modell bauen" klicken.');
+    }
   } catch(e) { setStatus('Fehler: '+e.message); }
-  busy(false);
-}
-
-async function runLicenses() {
-  busy(true);
-  try {
-    let guard=0, last;
-    do { last = await api('enrich_licenses', {method:'POST', body:{options:{batch_limit:40, sleep_ms:60}}});
-      setStatus(`Lizenzen: PD ${last.by_status.public_domain}, CC/GFDL ${last.by_status.attribution_required}, unbekannt ${last.by_status.unknown}, offen ${last.remaining}`);
-    } while ((last.remaining||0) > 0 && guard++ < 200);
-    await loadModel();
-  } catch(e){ setStatus('Fehler: '+e.message); }
   busy(false);
 }
 
@@ -157,6 +208,7 @@ async function loadModel() {
   const j = await api('model_tree');
   NODES = j.nodes; BYKEY = new Map(NODES.map(n=>[n.wiki_key, n]));
   $('treeCount').textContent = `${j.count} Knoten`;
+  buildContMenu();
   render();
 }
 
@@ -189,9 +241,7 @@ function periodLabel(n){
 }
 
 function isGap(n){ return !!(n.parent_wiki_key && !n.parent_in_model); }
-function aventurienOnly(){ const el=$('aventurienOnly'); return !el || el.checked; }
-function isAventurien(n){ return !n.continent || /aventurien/i.test(n.continent); }
-function visibleByContinent(n){ return !aventurienOnly() || isAventurien(n); }
+function visibleByContinent(n){ if(!contSel || contSel.size===0) return true; return contSel.has(n.continent||'Aventurien'); }
 function matchesFilter(n, f) {
   if (f==='excluded') return !!n.excluded;
   if (n.excluded) return false;                    // Aussortierte nur im „Aussortiert"-Filter
@@ -305,15 +355,28 @@ document.addEventListener('drop', e => {
 document.addEventListener('click', e => { const tw=e.target.closest('[data-tw]'); if(tw){ const k=tw.dataset.tw; if(expanded.has(k))expanded.delete(k); else expanded.add(k); renderTree(); } });
 
 $('btnCrawl').onclick = runCrawl;
-$('btnModel').onclick = async()=>{ busy(true); try{ const r=await api('rebuild_model',{method:'POST'}); setStatus(`Modell: ${r.summary.total} Knoten, ${r.summary.resolved_parents} Eltern aufgelöst, ${r.summary.gap_parents} Lücken, ${r.summary.roots} Wurzeln.`); await loadModel(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
-$('btnLic').onclick = runLicenses;
+$('btnModel').onclick = async()=>{ busy(true); try{ const r=await api('rebuild_model',{method:'POST'}); setStatus(`Hierarchie: ${r.summary.total} Knoten, ${r.summary.resolved_parents} Eltern aufgelöst, ${r.summary.gap_parents} Lücken, ${r.summary.roots} Wurzeln.`); await loadModel(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnDiff').onclick = async()=>{ busy(true); try{ const d=await api('diff'); setStatus(`Diff (Staging vs Wiki): neu ${d.new}, verschwunden ${d.disappeared}, geändert ${d.changed}.`); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
-$('btnCache').onclick = async()=>{ busy(true); try{ const c=await api('sync_parent_cache',{method:'POST',body:{}}); setStatus(`parent_id Dry-Run: auffüllbar ${c.fillable}, deckungsgleich ${c.already_aligned}, divergent ${c.divergent_existing} (nichts geschrieben).`); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
+$('btnCache').onclick = async()=>{ busy(true); try{ const c=await api('sync_parent_cache',{method:'POST',body:{}}); setStatus(`Testübertragung: auffüllbar ${c.fillable}, deckungsgleich ${c.already_aligned}, divergent ${c.divergent_existing} – es wurde nichts geschrieben.`); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnReload').onclick = ()=>loadModel().catch(e=>setStatus('Fehler: '+e.message));
 $('search').oninput = renderList;
-$('filter').onchange = renderList;
-$('aventurienOnly').onchange = render;
+$('filter').onchange = ()=>{ updateFilterInfo(); renderList(); };
 
+// Seed-Dropdown
+$('seedMenu').addEventListener('click', e=>{
+  if(e.target.matches('[data-seed-all]')){ document.querySelectorAll('.seedck').forEach(c=>c.checked=true); updateSeedCount(); }
+  else if(e.target.matches('[data-seed-none]')){ document.querySelectorAll('.seedck').forEach(c=>c.checked=false); updateSeedCount(); }
+});
+$('seedMenu').addEventListener('change', e=>{ if(e.target.matches('.seedck')) updateSeedCount(); });
+// Kontinente-Dropdown
+$('contMenu').addEventListener('click', e=>{
+  if(e.target.matches('[data-cont-all]')){ document.querySelectorAll('.contck').forEach(c=>c.checked=true); applyCont(); }
+  else if(e.target.matches('[data-cont-none]')){ document.querySelectorAll('.contck').forEach(c=>c.checked=false); applyCont(); }
+});
+$('contMenu').addEventListener('change', e=>{ if(e.target.matches('.contck')) applyCont(); });
+
+buildSeedMenu();
+updateFilterInfo();
 loadModel().catch(e=>setStatus('Modell laden fehlgeschlagen: '+e.message));
 </script>
 </body>
