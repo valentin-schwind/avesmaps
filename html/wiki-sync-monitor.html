@@ -21,6 +21,16 @@
   .btn2 .t1 { font-size:13px; font-weight:bold; }
   .btn2 .t2 { font-size:10px; color:var(--mut); white-space:nowrap; }
   .btn2.primary .t2 { color:#e9ddcb; }
+  #status { display:flex; align-items:center; gap:14px; }
+  #statusText { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .globalfilters { display:flex; align-items:center; gap:12px; flex:0 0 auto; }
+  .timefilter { font-size:12px; color:var(--mut); display:flex; align-items:center; gap:5px; }
+  .timefilter input[type=number] { width:62px; }
+  .timefilter input:disabled { opacity:.4; }
+  #seedDD > summary { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; min-height:48px; line-height:1.15; gap:1px; position:relative; padding-right:22px; }
+  #seedDD > summary .t1 { font-size:13px; font-weight:bold; }
+  #seedDD > summary .t2 { font-size:10px; color:var(--mut); }
+  #seedDD > summary::after { position:absolute; right:9px; top:50%; transform:translateY(-50%); margin:0; }
   textarea { width:100%; height:54px; background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:6px; font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; resize:vertical; }
   #status { padding:6px 14px; color:var(--mut); border-bottom:1px solid var(--line); white-space:pre-wrap; }
   .cols { display:flex; height:calc(100vh - 200px); }
@@ -124,22 +134,30 @@
 <header>
   <div class="controls">
     <details id="seedDD" class="dd">
-      <summary title="Aus welchen Wiki-Kategorien und Typ-Listen die Herrschaftsgebiete gezogen werden">Wiki-Quellen <span id="seedCount" class="count"></span></summary>
+      <summary title="Aus welchen Wiki-Kategorien und Typ-Listen die Herrschaftsgebiete gezogen werden"><span class="t1">Wiki-Quelle</span><span class="t2" id="seedCount">—</span></summary>
       <div class="dd-menu" id="seedMenu"></div>
     </details>
     <button class="btn2 primary" id="btnCrawl"><span class="t1">Sync starten</span><span class="t2" id="stSync">—</span></button>
     <button class="btn2" id="btnModel" title="Berechnet die Hierarchie aus dem Staging neu (Locks + Aussortiert bleiben erhalten)"><span class="t1">Hierarchie ableiten</span><span class="t2" id="stModel">—</span></button>
-    <button class="btn2" id="btnDiff" title="Vergleicht Staging gegen das aktuelle Wiki: gelöscht / geändert / neu"><span class="t1">Find Differences</span><span class="t2" id="stDiff">—</span></button>
+    <button class="btn2" id="btnDiff" title="Vergleicht Staging gegen das aktuelle Wiki: gelöscht / geändert / neu"><span class="t1">Zeige Unterschiede</span><span class="t2" id="stDiff">—</span></button>
     <button class="btn2" id="btnCache" title="Testweise zeigen, was die Übertragung nach Avesmaps ändern würde – schreibt nichts"><span class="t1">Testübertragung in Avesmaps</span><span class="t2" id="stTest">—</span></button>
     <button class="btn2 primary" id="btnApply" title="Übernimmt die kuratierte Hierarchie in Avesmaps – schreibt Eltern-Zuweisungen, Geometrien bleiben unberührt"><span class="t1">Modell speichern und übernehmen</span><span class="t2" id="stApply">—</span></button>
+    <span id="busy" class="muted"></span>
+  </div>
+</header>
+<div id="status">
+  <span id="statusText">Bereit.</span>
+  <span class="globalfilters">
+    <span class="timefilter">Zeige nur:
+      <label><input type="checkbox" id="timeToday"> heute</label>
+      <input type="number" id="timeFrom" placeholder="von"> – <input type="number" id="timeTo" placeholder="bis"> BF
+    </span>
     <details id="contDD" class="dd">
       <summary title="Filtert beide Listen nach Kontinent">Kontinente <span id="contCount" class="count"></span></summary>
       <div class="dd-menu" id="contMenu"></div>
     </details>
-    <span id="busy" class="muted"></span>
-  </div>
-</header>
-<div id="status">Bereit.</div>
+  </span>
+</div>
 <div class="cols">
   <div class="col" id="left">
     <div class="colhead">
@@ -164,6 +182,7 @@
   <div class="col" id="right">
     <div class="colhead">
       <h2 class="listhead">Hierarchie der Herrschaftsgebiete <span id="treeCount" class="count"></span></h2>
+      <div class="bar"><input type="search" id="treeSearch" placeholder="In dieser Auswahl suchen…"></div>
       <div id="dropRoot">▶ Hierher ziehen = zur Wurzel machen (Eltern entfernen)</div>
     </div>
     <div id="tree"></div>
@@ -216,7 +235,7 @@ function buildSeedMenu(){
   updateSeedCount();
 }
 function selectedSeeds(){ return [...document.querySelectorAll('.seedck:checked')].map(c=>c.value); }
-function updateSeedCount(){ const n=selectedSeeds().length, t=DEFAULT_SEEDS.length; $('seedCount').textContent = n===t?`(alle)`:`(${n} von ${t})`; }
+function updateSeedCount(){ const n=selectedSeeds().length, t=DEFAULT_SEEDS.length; $('seedCount').textContent = n===t?`alle ${t}`:`${n} ausgewählt`; }
 
 // --- Kontinente-Dropdown (Filter für beide Listen) ---
 let contSel = null;   // null = noch nicht initialisiert
@@ -254,7 +273,7 @@ async function api(action, opts={}) {
   if (!r.ok || j.ok === false) throw new Error(j.error || ('HTTP '+r.status));
   return j;
 }
-function setStatus(msg) { $('status').textContent = msg; }
+function setStatus(msg) { $('statusText').textContent = msg; }
 function busy(on) { $('busy').textContent = on ? '⏳ läuft…' : ''; document.querySelectorAll('header button').forEach(b=>b.disabled=on); }
 
 async function runCrawl() {
@@ -400,6 +419,26 @@ function renderDetail(){
 
 function isGap(n){ return !!(n.parent_wiki_key && !n.parent_in_model); }
 function visibleByContinent(n){ if(!contSel || contSel.size===0) return true; return contSel.has(n.continent||'Aventurien'); }
+// Zeitfilter: aus / heute / Bereich [von,bis] (BF). Knoten ohne Daten werden nicht versteckt.
+let timeMode='off', timeFrom=-Infinity, timeTo=Infinity;
+function nodeBF(n){ const f=bfYear(n.founded_text); const ongoing=/\b(besteht|heute|gegenwart)\b/i.test(n.dissolved_text||''); const d=ongoing?Infinity:bfYear(n.dissolved_text); return {f, d:(d==null?null:d), ongoing}; }
+function visibleByTime(n){
+  if(timeMode==='off') return true;
+  const iv=nodeBF(n);
+  if(timeMode==='today') return iv.ongoing || iv.d==null;
+  if(iv.f==null && iv.d==null && !iv.ongoing) return true;
+  const s=(iv.f==null?-Infinity:iv.f), e=(iv.ongoing?Infinity:(iv.d==null?Infinity:iv.d));
+  return s<=timeTo && e>=timeFrom;
+}
+function applyTimeFilter(){
+  const today=$('timeToday').checked;
+  $('timeFrom').disabled=today; $('timeTo').disabled=today;
+  if(today){ timeMode='today'; }
+  else { const a=parseInt($('timeFrom').value,10), b=parseInt($('timeTo').value,10);
+    if(!isNaN(a)||!isNaN(b)){ timeMode='range'; timeFrom=isNaN(a)?-Infinity:a; timeTo=isNaN(b)?Infinity:b; }
+    else { timeMode='off'; } }
+  render();
+}
 function matchesFilter(n, f) {
   if (f==='excluded') return !!n.excluded;
   if (n.excluded) return false;                    // Aussortierte nur im „Aussortiert"-Filter
@@ -418,6 +457,7 @@ function renderList() {
   let shown = 0;
   for (const n of NODES) {
     if (!visibleByContinent(n)) continue;
+    if (!visibleByTime(n)) continue;
     if (!matchesFilter(n, f)) continue;
     if (q && !(n.name.toLowerCase().includes(q) || n.wiki_key.toLowerCase().includes(q)
         || (n.aliases||[]).some(a=>a.includes(q)) || (n.affiliation_raw||'').toLowerCase().includes(q))) continue;
@@ -431,27 +471,42 @@ function renderList() {
 }
 
 const expanded = new Set();
+let treeQuery = '';
 function renderTree() {
-  const hidden = new Set(NODES.filter(n=>n.excluded || !visibleByContinent(n)).map(n=>n.wiki_key));
+  const hide = (n)=> n.excluded || !visibleByContinent(n) || !visibleByTime(n);
+  const hidden = new Set(NODES.filter(hide).map(n=>n.wiki_key));
   const children = new Map();
   const roots = [];
   for (const n of NODES) {
-    if (n.excluded || !visibleByContinent(n)) continue;   // aussortiert / anderer Kontinent = nicht im Baum
+    if (hide(n)) continue;
     const p = (n.parent_wiki_key && n.parent_in_model && !hidden.has(n.parent_wiki_key)) ? n.parent_wiki_key : null;
     if (p) { if(!children.has(p)) children.set(p,[]); children.get(p).push(n); }
     else roots.push(n);
   }
+  // Suche: nur Treffer + ihre Vorfahren behalten, Vorfahren aufklappen
+  const q = treeQuery.trim().toLowerCase();
+  let keep=null, forceOpen=null;
+  if(q){
+    keep=new Set(); forceOpen=new Set();
+    const match=(n)=> n.name.toLowerCase().includes(q) || n.wiki_key.toLowerCase().includes(q) || (n.aliases||[]).some(a=>a.includes(q));
+    for(const n of NODES){
+      if(hide(n) || !match(n)) continue;
+      let c=n;
+      while(c){ keep.add(c.wiki_key); const p=(c.parent_wiki_key && c.parent_in_model && !hidden.has(c.parent_wiki_key)) ? BYKEY.get(c.parent_wiki_key) : null; if(p) forceOpen.add(p.wiki_key); c=p; }
+    }
+  }
   const build = (n, depth) => {
-    const kids = children.get(n.wiki_key) || [];
+    if(keep && !keep.has(n.wiki_key)) return '';
+    const kids = (children.get(n.wiki_key) || []).filter(k=>!keep || keep.has(k.wiki_key));
     const hasKids = kids.length>0;
-    const open = expanded.has(n.wiki_key);
+    const open = (forceOpen && forceOpen.has(n.wiki_key)) || expanded.has(n.wiki_key);
     const tw = hasKids ? `<span class="twist" data-tw="${n.wiki_key}">${open?'▾':'▸'}</span>` : '<span class="twist"></span>';
     let html = `<li><span class="node${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${covCircle(n)}${wappenThumb(n)}<span>${esc(n.name)}${periodLabel(n)}${aliasHint(n)}</span>${wikiLink(n)}${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
     if (hasKids && open) html += `<ul class="tree">${kids.map(k=>build(k,depth+1)).join('')}</ul>`;
     return html + '</li>';
   };
-  roots.sort((a,b)=>a.name.localeCompare(b.name));
-  $('tree').innerHTML = `<ul class="tree">${roots.map(r=>build(r,0)).join('')}</ul>`;
+  const shown = roots.filter(r=>!keep || keep.has(r.wiki_key)).sort((a,b)=>a.name.localeCompare(b.name));
+  $('tree').innerHTML = shown.length ? `<ul class="tree">${shown.map(r=>build(r,0)).join('')}</ul>` : '<div class="muted">— keine —</div>';
 }
 function render(){
   const vis = NODES.filter(n=>!n.excluded && visibleByContinent(n));
@@ -520,7 +575,7 @@ document.addEventListener('click', e => {
 
 $('btnCrawl').onclick = runCrawl;
 $('btnModel').onclick = async()=>{ busy(true); try{ const r=await api('rebuild_model',{method:'POST'}); setStatus(`Hierarchie: ${r.summary.total} Knoten, ${r.summary.resolved_parents} Eltern aufgelöst, ${r.summary.gap_parents} Lücken, ${r.summary.roots} Wurzeln.`); await loadModel(); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
-$('btnDiff').onclick = async()=>{ busy(true); try{ const d=await api('diff'); setStatus(`Find Differences (Staging vs Wiki): neu ${d.new}, verschwunden ${d.disappeared}, geändert ${d.changed}.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
+$('btnDiff').onclick = async()=>{ busy(true); try{ const d=await api('diff'); setStatus(`Unterschiede (Staging vs Wiki): neu ${d.new}, verschwunden ${d.disappeared}, geändert ${d.changed}.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnCache').onclick = async()=>{ busy(true); try{ const c=await api('sync_parent_cache',{method:'POST',body:{}}); setStatus(`Testübertragung: auffüllbar ${c.fillable}, deckungsgleich ${c.already_aligned}, divergent ${c.divergent_existing} – es wurde nichts geschrieben.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnApply').onclick = async()=>{
   busy(true); let dry;
@@ -536,6 +591,10 @@ $('btnApply').onclick = async()=>{
 };
 $('search').oninput = renderList;
 $('filter').onchange = ()=>{ updateFilterInfo(); renderList(); };
+$('treeSearch').oninput = ()=>{ treeQuery = $('treeSearch').value; renderTree(); };
+$('timeToday').onchange = applyTimeFilter;
+$('timeFrom').oninput = applyTimeFilter;
+$('timeTo').oninput = applyTimeFilter;
 
 // Seed-Dropdown
 $('seedMenu').addEventListener('click', e=>{
