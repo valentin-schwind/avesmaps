@@ -21,9 +21,7 @@
   .btn2 .t1 { font-size:13px; font-weight:bold; }
   .btn2 .t2 { font-size:10px; color:var(--mut); white-space:nowrap; }
   .btn2.primary .t2 { color:#e9ddcb; }
-  #status { display:flex; align-items:center; gap:14px; position:relative; padding:6px 175px 6px 14px; }
-  #statusText { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .globalfilters { position:absolute; right:14px; top:50%; transform:translateY(-50%); display:flex; align-items:center; gap:12px; }
+  #statusText { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #contDD { align-self:center; }
   .timefilter { font-size:12px; color:var(--mut); display:flex; align-items:center; gap:5px; }
   .timefilter input[type=number] { width:62px; }
@@ -150,17 +148,15 @@
     <button class="btn2" id="btnDiff" title="Vergleicht Staging gegen das aktuelle Wiki: gelöscht / geändert / neu"><span class="t1">Zeige Unterschiede</span><span class="t2" id="stDiff">—</span></button>
     <button class="btn2" id="btnCache" title="Testweise zeigen, was die Übertragung nach Avesmaps ändern würde – schreibt nichts"><span class="t1">Testübertragung in Avesmaps</span><span class="t2" id="stTest">—</span></button>
     <button class="btn2 primary" id="btnApply" title="Übernimmt die kuratierte Hierarchie in Avesmaps – schreibt Eltern-Zuweisungen, Geometrien bleiben unberührt"><span class="t1">Modell speichern und übernehmen</span><span class="t2" id="stApply">—</span></button>
+    <div id="contDD" class="dropdown2">
+      <button type="button" id="contBtn" class="ddbtn" title="Filtert beide Listen nach Kontinent">Kontinente <span id="contCount" class="count"></span><span class="ddcaret">▾</span></button>
+      <div class="dd-menu" id="contMenu" hidden></div>
+    </div>
     <span id="busy" class="muted"></span>
   </div>
 </header>
 <div id="status">
   <span id="statusText">Bereit.</span>
-  <span class="globalfilters">
-    <div id="contDD" class="dropdown2">
-      <button type="button" id="contBtn" class="ddbtn" title="Filtert beide Listen nach Kontinent">Kontinente <span id="contCount" class="count"></span><span class="ddcaret">▾</span></button>
-      <div class="dd-menu" id="contMenu" hidden></div>
-    </div>
-  </span>
 </div>
 <div class="cols">
   <div class="col" id="left">
