@@ -744,11 +744,21 @@ function avesmapsWikiSyncMonitorTemporalText(string $rawValue): string {
         return '';
     }
 
-    $value = preg_replace('/\{\{\s*BF\s*\|\s*(-?\d{1,5})[^}]*\}\}/iu', '$1 BF', $value) ?? $value;
+    // Negative (v.BF) Jahre KANONISCH als "N v. BF" ausgeben, NICHT "-N BF": der
+    // Payload-Extractor erkennt nur "v. BF" als Vor-BF-Marker; ein fuehrendes Minus
+    // wuerde sonst verschluckt (-870 BF -> faelschlich +870). DSA-Notation zugleich sauber.
+    $value = preg_replace_callback('/\{\{\s*BF\s*\|\s*(-?\d{1,5})[^}]*\}\}/iu', static function (array $match): string {
+        $year = (int) $match[1];
+        return $year < 0 ? (abs($year) . ' v. BF') : ($year . ' BF');
+    }, $value) ?? $value;
     $value = preg_replace_callback('/\{\{\s*Datum\s*\|([^}]*)\}\}/iu', static function (array $match): string {
         $parts = array_map('trim', explode('|', (string) $match[1]));
         $year = $parts[0] ?? '';
-        return preg_match('/^-?\d{1,5}$/', $year) === 1 ? ($year . ' BF') : '';
+        if (preg_match('/^-?\d{1,5}$/', $year) !== 1) {
+            return '';
+        }
+        $yearInt = (int) $year;
+        return $yearInt < 0 ? (abs($yearInt) . ' v. BF') : ($yearInt . ' BF');
     }, $value) ?? $value;
 
     return avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($value);
