@@ -153,7 +153,7 @@
 }
 #political-territory-editor-host .breadcrumb-segment {
 	display: grid;
-	grid-template-rows: 20px minmax(0, 1fr) 20px;
+	grid-template-rows: 20px auto 20px;
 	align-items: stretch;
 	min-width: 0;
 	gap: 3px;
@@ -175,7 +175,8 @@
 	-webkit-line-clamp: 3;
 	-webkit-box-orient: vertical;
 	overflow: hidden;
-	min-height: calc(1.2em * 3);
+	box-sizing: border-box;
+	height: 54px;
 }
 #political-territory-editor-host .breadcrumb-cycle--next {
 	grid-row: 3;
