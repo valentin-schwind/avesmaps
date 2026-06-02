@@ -211,10 +211,33 @@ const PLACE_FOCUS_PUBLIC_ID = (function () {
 	}
 })();
 function applyPlaceFocusFromUrl() {
-	if (!PLACE_FOCUS_PUBLIC_ID || typeof focusRegionPlace !== "function") {
+	if (!PLACE_FOCUS_PUBLIC_ID) {
 		return;
 	}
-	focusRegionPlace(PLACE_FOCUS_PUBLIC_ID);
+	const entry = typeof findLocationMarkerByPublicId === "function" ? findLocationMarkerByPublicId(PLACE_FOCUS_PUBLIC_ID) : null;
+	if (!entry) {
+		// Marker (noch) nicht geladen -> vorhandene Logik (zeigt ggf. Hinweis-Toast).
+		if (typeof focusRegionPlace === "function") {
+			focusRegionPlace(PLACE_FOCUS_PUBLIC_ID);
+		}
+		return;
+	}
+	// setView (synchron) statt flyTo: laeuft als letzte View-Operation des Ladens und wird
+	// nicht vom Overview-fitBounds ueberfahren. Marker einblenden + Popup oeffnen.
+	const targetLatLng = entry.marker.getLatLng();
+	map.setView(targetLatLng, Math.max(map.getZoom(), 4), { animate: false });
+	if (!map.hasLayer(entry.marker)) {
+		try {
+			map.addLayer(entry.marker);
+		} catch (error) {
+			/* Sichtbarkeit wird ohnehin per zoomend synchronisiert */
+		}
+	}
+	try {
+		entry.marker.openPopup();
+	} catch (error) {
+		/* Popup ist optional */
+	}
 }
 
 // Laden und Verarbeiten der GeoJSON-Daten aus SQL.
