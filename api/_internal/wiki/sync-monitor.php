@@ -2019,7 +2019,7 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
     $model = AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE;
 
     $st = [];
-    foreach ($pdo->query('SELECT wiki_key, name, type, status, founded_start_bf, founded_display_bf, dissolved_start_bf, dissolved_end_bf, dissolved_display_bf FROM ' . $staging) ?: [] as $r) {
+    foreach ($pdo->query('SELECT wiki_key, name, type, status, founded_text, founded_start_bf, founded_display_bf, dissolved_start_bf, dissolved_end_bf, dissolved_display_bf FROM ' . $staging) ?: [] as $r) {
         $st[(string) $r['wiki_key']] = $r;
     }
     $mo = [];
@@ -2059,6 +2059,12 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
         $d = $s['founded_display_bf'];
         if ($d !== null && (int) round((float) $d) !== 0) {
             return (int) round((float) $d);
+        }
+        // Myranor: "N IZ" (Imperiale Zeitrechnung) -> BF = IZ - 3747. Der Parser kann IZ (noch) nicht,
+        // der founded_text hat es aber. Erste Jahreszahl im IZ-Kontext nehmen (Range -> Startjahr).
+        $txt = (string) ($s['founded_text'] ?? '');
+        if (stripos($txt, 'IZ') !== false && preg_match('/(\d{1,4})/', $txt, $mm)) {
+            return (int) $mm[1] - 3747;
         }
         return null;
     };
