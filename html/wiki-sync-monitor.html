@@ -57,6 +57,7 @@
   .dd[open] > summary::after { content:"▴"; }
   .dd[open] > summary { background:#ead9c2; }
   .dd-menu { position:absolute; z-index:20; top:100%; left:0; margin-top:3px; background:var(--panel); border:1px solid var(--line2); border-radius:6px; padding:6px; min-width:230px; max-height:320px; overflow:auto; box-shadow:0 6px 18px rgba(0,0,0,.18); }
+  #contDD .dd-menu { left:auto; right:0; }   /* rechter Dropdown öffnet linksbündig -> kein Überlauf/Reflow im schmalen iframe */
   .dd-menu label { display:block; padding:2px 4px; white-space:nowrap; cursor:pointer; }
   .dd-menu .grp { font-size:11px; color:var(--mut); margin:5px 2px 2px; border-top:1px solid var(--line); padding-top:4px; }
   .dd-menu .grp:first-child { border-top:none; margin-top:0; }
