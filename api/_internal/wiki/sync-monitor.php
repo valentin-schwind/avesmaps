@@ -943,11 +943,16 @@ function avesmapsWikiSyncMonitorParseAffiliation(string $staatRaw): array {
             continue;
         }
         // Prefixe abschneiden -> dahinter steht der eigentliche Elternteil.
+        // "beansprucht von/vom ..." = Anspruchsgebiet -> als KONFLIKT, NIE fester Elternteil
+        // (Nutzer-Entscheidung: umstrittene/beanspruchte Gebiete haengen nicht fest unterm Beansprucher).
+        $isClaim = preg_match('/^\s*beansprucht\s+vo[nm]\b/iu', $clause) === 1;
         $stripped = trim((string) (preg_replace('/^\s*(?:beansprucht\s+vo[nm]|teil\s+vo[nm]|teil\s+des|geh[oö]rt\s+zu)(?:\s+de[rmsn])?\s+/iu', '', $clause) ?? $clause));
         if (avesmapsWikiSyncMonitorIsQualifierOnly($stripped)) {
             continue; // reiner Status-/Zeit-Zusatz (ehemalige Reichsstadt, umstritten) = weder Eltern noch Konflikt
         }
-        if ($primary === '') {
+        if ($isClaim) {
+            $conflicts[] = $stripped; // Anspruch -> Konflikt
+        } elseif ($primary === '') {
             $primary = $stripped;
         } else {
             $conflicts[] = $stripped; // echte konkurrierende Eltern-Klausel
