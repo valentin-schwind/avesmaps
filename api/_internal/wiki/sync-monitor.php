@@ -1168,7 +1168,7 @@ function avesmapsWikiSyncMonitorReadAliasMap(PDO $pdo): array {
 // Loest einen Eltern-Namen/Klausel gegen Alias-Karte + Slug-Index der Staging-Knoten auf.
 // Nimmt das letzte ':'-Segment (Kette), Klammer-Zusaetze + Komma-Zusatz weg. Alias gewinnt
 // (Redirect -> kanonischer Knoten), dann der Knoten-Index.
-function avesmapsWikiSyncMonitorResolveParentKey(string $name, array $index, array $aliasMap = []): array {
+function avesmapsWikiSyncMonitorResolveParentKey(string $name, array $index, array $aliasMap = [], array $candidates = [], array $chainSlugs = []): array {
     $segments = preg_split('/\s*:\s*/u', $name) ?: [$name];
     $name = avesmapsWikiSyncMonitorCleanAffiliationPart((string) end($segments));
     $slug = avesmapsPoliticalSlug($name);
@@ -1180,6 +1180,20 @@ function avesmapsWikiSyncMonitorResolveParentKey(string $name, array $index, arr
         $canonicalSlug = preg_replace('/^wiki:/', '', $aliasMap[$slug]) ?? $aliasMap[$slug];
         if (isset($index[$canonicalSlug])) {
             return ['name' => $name, 'wiki_key' => $index[$canonicalSlug], 'resolved' => true];
+        }
+    }
+    // Disambiguierung: teilen sich mehrere Knoten den Namens-Slug (z.B. "Herzogtum Tobrien
+    // (Mittelreich)" vs "(Bosparanisches Reich)"), den waehlen, dessen Titel-Qualifier in der
+    // Affiliation-Kette vorkommt (z.B. Wurzel "Mittelreich"). Sonst arbitraerer First-Win.
+    if ($chainSlugs !== [] && isset($candidates[$slug]) && count($candidates[$slug]) > 1) {
+        foreach ($candidates[$slug] as $candKey) {
+            $candSlug = preg_replace('/^wiki:/', '', $candKey) ?? $candKey;
+            $qualifier = str_starts_with($candSlug, $slug) ? substr($candSlug, strlen($slug)) : $candSlug;
+            foreach ($chainSlugs as $ancestorSlug) {
+                if (strlen($ancestorSlug) >= 4 && str_contains($qualifier, $ancestorSlug)) {
+                    return ['name' => $name, 'wiki_key' => $candKey, 'resolved' => true];
+                }
+            }
         }
     }
     if (isset($index[$slug])) {
@@ -1210,6 +1224,16 @@ function avesmapsWikiSyncMonitorRebuildModel(PDO $pdo): array {
         $keySlug = preg_replace('/^wiki:/', '', $wikiKey) ?? $wikiKey;
         if ($keySlug !== '' && !isset($index[$keySlug])) {
             $index[$keySlug] = $wikiKey;
+        }
+    }
+
+    // Namens-Slug -> ALLE Knoten mit dem Namen (fuer Disambiguierung gleichnamiger Zwillinge).
+    $candidates = [];
+    foreach ($rows as $row) {
+        $wikiKey = (string) ($row['wiki_key'] ?? '');
+        $nameSlug = avesmapsPoliticalSlug((string) ($row['name'] ?? ''));
+        if ($wikiKey !== '' && $nameSlug !== '') {
+            $candidates[$nameSlug][] = $wikiKey;
         }
     }
 
@@ -1249,7 +1273,15 @@ function avesmapsWikiSyncMonitorRebuildModel(PDO $pdo): array {
 
         $autoParent = null;
         if ($path !== []) {
-            $resolved = avesmapsWikiSyncMonitorResolveParentKey((string) $path[count($path) - 1], $index, $aliasMap);
+            // Vorfahren-Slugs (alle Ketten-Glieder VOR dem direkten Elternteil) als Disambiguierungs-Kontext.
+            $chainSlugs = [];
+            for ($pi = 0; $pi < count($path) - 1; $pi++) {
+                $aSlug = avesmapsPoliticalSlug(avesmapsWikiSyncMonitorCleanAffiliationPart((string) $path[$pi]));
+                if ($aSlug !== '') {
+                    $chainSlugs[] = $aSlug;
+                }
+            }
+            $resolved = avesmapsWikiSyncMonitorResolveParentKey((string) $path[count($path) - 1], $index, $aliasMap, $candidates, $chainSlugs);
             $autoParent = $resolved['wiki_key'];
             if ($autoParent === $wikiKey) {
                 $autoParent = null;
