@@ -154,6 +154,7 @@ try {
             array_filter(array_map('trim', explode('|', (string) ($_GET['territory_ids'] ?? ''))))
         ),
         'editor_state' => avesmapsWikiSyncMonitorEditorState($pdo),
+        'apply_identity_preview' => avesmapsWikiSyncMonitorApplyIdentityPreview($pdo),
         'location_search' => avesmapsWikiSyncMonitorLocationSearch(
             $pdo,
             (string) ($_GET['q'] ?? ''),

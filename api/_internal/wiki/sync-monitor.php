@@ -1996,6 +1996,113 @@ function avesmapsWikiSyncMonitorResolveCapitals(PDO $pdo, array $byName, array $
     return $result;
 }
 
+// Apply-Flow Phase A: READ-ONLY Vorschau, was ein Identitaets-Apply in political_territory
+// aendern WUERDE. Effektiv = Override (metadata_overrides_json) ?? Staging-Wiki, Match per wiki_key,
+// Vergleich gegen die aktive Live-Zeile. Schreibt NICHTS. Kernfelder: name, type, status,
+// valid_from_bf(<-founded_start_bf), valid_to_bf(<-dissolved_end_bf; 9999/null=besteht). excluded -> skip.
+// Kontinent (mit Vererbung)/Hauptstadt/Wappen folgen in einem spaeteren Schritt.
+function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $staging = AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE;
+    $model = AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE;
+
+    $st = [];
+    foreach ($pdo->query('SELECT wiki_key, name, type, status, founded_start_bf, founded_display_bf, dissolved_start_bf, dissolved_end_bf, dissolved_display_bf FROM ' . $staging) ?: [] as $r) {
+        $st[(string) $r['wiki_key']] = $r;
+    }
+    $mo = [];
+    foreach ($pdo->query('SELECT wiki_key, metadata_overrides_json, excluded FROM ' . $model) ?: [] as $r) {
+        $ov = json_decode((string) ($r['metadata_overrides_json'] ?? ''), true);
+        $mo[(string) $r['wiki_key']] = ['ov' => is_array($ov) ? $ov : [], 'excluded' => (int) ($r['excluded'] ?? 0) === 1];
+    }
+    $live = $pdo->query('SELECT id, wiki_key, name, type, status, valid_from_bf, valid_to_bf FROM political_territory WHERE wiki_key IS NOT NULL AND wiki_key <> \'\' AND is_active = 1') ?: [];
+
+    $normBf = static function ($v): ?int {
+        if ($v === null || $v === '') {
+            return null;
+        }
+        $i = (int) round((float) $v);
+        return $i === 9999 ? null : $i;
+    };
+    $effFrom = static function (array $ov, array $s) {
+        if (array_key_exists('founded_start_bf', $ov)) {
+            $t = trim((string) $ov['founded_start_bf']);
+            return $t === '' ? null : (int) $t;
+        }
+        $v = $s['founded_start_bf'] ?? $s['founded_display_bf'] ?? null;
+        return $v === null ? null : (int) round((float) $v);
+    };
+    $effTo = static function (array $ov, array $s) use ($normBf) {
+        if (array_key_exists('dissolved_end_bf', $ov)) {
+            $t = trim((string) $ov['dissolved_end_bf']);
+            return $t === '' ? null : $normBf($t);
+        }
+        return $normBf($s['dissolved_end_bf'] ?? $s['dissolved_display_bf'] ?? $s['dissolved_start_bf'] ?? null);
+    };
+    $cmpStr = static fn($a, $b): bool => trim((string) $a) !== trim((string) $b);
+
+    $fieldCounts = ['name' => 0, 'type' => 0, 'status' => 0, 'valid_from_bf' => 0, 'valid_to_bf' => 0];
+    $rows = [];
+    $summary = ['live_with_wiki_key' => 0, 'no_staging' => 0, 'excluded_skipped' => 0, 'rows_with_changes' => 0, 'unchanged' => 0];
+
+    foreach ($live as $L) {
+        $summary['live_with_wiki_key']++;
+        $wk = (string) $L['wiki_key'];
+        if (!isset($st[$wk])) {
+            $summary['no_staging']++;
+            continue;
+        }
+        $m = $mo[$wk] ?? ['ov' => [], 'excluded' => false];
+        if ($m['excluded']) {
+            $summary['excluded_skipped']++;
+            continue;
+        }
+        $ov = $m['ov'];
+        $s = $st[$wk];
+
+        $effName = array_key_exists('name', $ov) ? (string) $ov['name'] : (string) ($s['name'] ?? '');
+        $effType = array_key_exists('type', $ov) ? (string) $ov['type'] : (string) ($s['type'] ?? '');
+        $effStatus = array_key_exists('status', $ov) ? (string) $ov['status'] : (string) ($s['status'] ?? '');
+        $effFromV = $effFrom($ov, $s);
+        $effToV = $effTo($ov, $s);
+        $liveFrom = $L['valid_from_bf'] === null ? null : (int) $L['valid_from_bf'];
+        $liveTo = $L['valid_to_bf'] === null ? null : (int) $L['valid_to_bf'];
+
+        $changes = [];
+        if ($cmpStr($L['name'], $effName)) {
+            $changes['name'] = ['from' => (string) $L['name'], 'to' => $effName];
+            $fieldCounts['name']++;
+        }
+        if ($cmpStr($L['type'], $effType)) {
+            $changes['type'] = ['from' => (string) ($L['type'] ?? ''), 'to' => $effType];
+            $fieldCounts['type']++;
+        }
+        if ($cmpStr($L['status'], $effStatus)) {
+            $changes['status'] = ['from' => (string) ($L['status'] ?? ''), 'to' => $effStatus];
+            $fieldCounts['status']++;
+        }
+        if ($liveFrom !== $effFromV) {
+            $changes['valid_from_bf'] = ['from' => $liveFrom, 'to' => $effFromV];
+            $fieldCounts['valid_from_bf']++;
+        }
+        if ($liveTo !== $effToV) {
+            $changes['valid_to_bf'] = ['from' => $liveTo, 'to' => $effToV];
+            $fieldCounts['valid_to_bf']++;
+        }
+
+        if ($changes === []) {
+            $summary['unchanged']++;
+            continue;
+        }
+        $summary['rows_with_changes']++;
+        if (count($rows) < 300) {
+            $rows[] = ['wiki_key' => $wk, 'name' => $effName, 'changes' => $changes];
+        }
+    }
+
+    return ['ok' => true, 'summary' => $summary, 'field_counts' => $fieldCounts, 'rows' => $rows];
+}
+
 // Komplettes Modell flach (fuers UI: Baum + Status-Marker). Markiert Luecken (parent
 // referenziert, aber selbst kein Knoten) + Konflikte + Lizenz-Status.
 function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
