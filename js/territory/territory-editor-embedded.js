@@ -1650,7 +1650,10 @@
 			els.manualEditPath.innerHTML = "";
 
 			if (!node) {
-				els.manualEditPath.textContent = "Kein Knoten zugewiesen";
+				const emptyHint = document.createElement("span");
+				emptyHint.className = "breadcrumb-empty";
+				emptyHint.textContent = "Kein Knoten zugewiesen";
+				els.manualEditPath.appendChild(emptyHint);
 				updateInheritColorVarianceButtonVisibility();
 				return;
 			}

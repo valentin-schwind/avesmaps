@@ -131,18 +131,58 @@
 }
 
 /* 4) Breadcrumb-Segmente mit Geschwister-Blaettern (Feature #1):
- * Jedes Segment ist ein vertikaler Stapel [ ‹ / Label / › ]. Die Pfeile
- * blaettern zirkulaer durch die Wiki-Geschwister derselben Ebene; sie stehen
- * ueber/unter dem Text und kollidieren so nicht mit dem ›-Trenner zwischen
- * den Segmenten. */
+ * FESTES 6-Spalten-Raster mit stabiler Spaltenbreite (immer 1/6), damit die
+ * Pfeil-Buttons beim Durchwechseln NICHT verrutschen, egal wie sich der Pfad
+ * darunter aendert. Jedes Segment ist ein vertikaler Stapel [ ▲ / Label / ▼ ]
+ * ueber die volle Spaltenbreite; ▲/▼ liegen in FESTEN Zeilen (auch wenn sie
+ * fehlen, bleibt der Platz reserviert -> alle Labels und Pfeile fluchten). Das
+ * Label bricht auf max. 3 Zeilen mit fester Hoehe um. Der ›-Trenner entfaellt
+ * (das Raster zeigt die Ebenen). */
+#political-territory-editor-host .breadcrumb.manual-edit-path {
+	display: grid;
+	grid-template-columns: repeat(6, minmax(0, 1fr));
+	gap: 6px;
+	align-items: start;
+}
+#political-territory-editor-host .manual-edit-path .separator {
+	display: none;
+}
+#political-territory-editor-host .breadcrumb-empty {
+	grid-column: 1 / -1;
+	color: var(--muted);
+}
 #political-territory-editor-host .breadcrumb-segment {
-	display: inline-flex;
-	flex-direction: column;
+	display: grid;
+	grid-template-rows: 20px minmax(0, 1fr) 20px;
 	align-items: stretch;
-	gap: 2px;
+	min-width: 0;
+	gap: 3px;
+}
+#political-territory-editor-host .breadcrumb-cycle--prev {
+	grid-row: 1;
+}
+#political-territory-editor-host .breadcrumb-label {
+	grid-row: 2;
+	width: 100%;
+	min-width: 0;
+	padding: 4px 6px;
+	font-size: 12px;
+	line-height: 1.2;
+	text-align: center;
+	white-space: normal;
+	overflow-wrap: anywhere;
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	min-height: calc(1.2em * 3);
+}
+#political-territory-editor-host .breadcrumb-cycle--next {
+	grid-row: 3;
 }
 #political-territory-editor-host .breadcrumb-cycle {
-	padding: 1px 10px;
+	width: 100%;
+	padding: 0 4px;
 	line-height: 1.05;
 	font-size: 12px;
 	opacity: 0.55;
