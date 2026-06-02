@@ -943,7 +943,7 @@ function avesmapsWikiSyncMonitorParseAffiliation(string $staatRaw): array {
             continue;
         }
         // Prefixe abschneiden -> dahinter steht der eigentliche Elternteil.
-        $stripped = trim((string) (preg_replace('/^\s*(?:beansprucht\s+von|teil\s+von|teil\s+des|geh[oö]rt\s+zu)\s+/iu', '', $clause) ?? $clause));
+        $stripped = trim((string) (preg_replace('/^\s*(?:beansprucht\s+vo[nm]|teil\s+vo[nm]|teil\s+des|geh[oö]rt\s+zu)(?:\s+de[rmsn])?\s+/iu', '', $clause) ?? $clause));
         if (avesmapsWikiSyncMonitorIsQualifierOnly($stripped)) {
             continue; // reiner Status-/Zeit-Zusatz (ehemalige Reichsstadt, umstritten) = weder Eltern noch Konflikt
         }
