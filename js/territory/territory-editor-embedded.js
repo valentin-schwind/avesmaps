@@ -160,7 +160,12 @@
 		els.statusFilter.addEventListener("change", render);
 		if (els.treeTimeFrom) els.treeTimeFrom.addEventListener("input", render);
 		if (els.treeTimeTo) els.treeTimeTo.addEventListener("input", render);
-		if (els.treeTimeToday) els.treeTimeToday.addEventListener("change", render);
+		if (els.treeTimeToday) els.treeTimeToday.addEventListener("change", () => {
+			const today = els.treeTimeToday.checked;
+			if (els.treeTimeFrom) els.treeTimeFrom.disabled = today;
+			if (els.treeTimeTo) els.treeTimeTo.disabled = today;
+			render();
+		});
 
 		const existsUntilTodayInput = document.getElementById("existsUntilTodayInput");
 		const endYearInput = document.getElementById("endYearInput");

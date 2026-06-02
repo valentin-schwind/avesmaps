@@ -212,6 +212,11 @@ $("#wiki-sync-territory-time-from, #wiki-sync-territory-time-to").on("input", fu
     void renderWikiSyncTerritoryTree();
 });
 $("#wiki-sync-territory-time-today").on("change", function () {
+    const today = this.checked;
+    const fromInput = document.getElementById("wiki-sync-territory-time-from");
+    const toInput = document.getElementById("wiki-sync-territory-time-to");
+    if (fromInput) fromInput.disabled = today;
+    if (toInput) toInput.disabled = today;
     void renderWikiSyncTerritoryTree();
 });
 $("#wiki-sync-case-list").on("click", "[data-wiki-sync-action]", handleWikiSyncCaseActionClick);

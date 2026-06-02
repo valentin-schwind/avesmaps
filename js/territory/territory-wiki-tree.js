@@ -55,7 +55,8 @@
 
 	function buildTerritoryPeriodLabel(row) {
 		const startYear = readOptionalYear(row, ["founded_start_bf", "founded_display_bf", "founded_end_bf"]);
-		const endYear = readOptionalYear(row, ["dissolved_end_bf", "dissolved_display_bf", "dissolved_start_bf"]);
+		let endYear = readOptionalYear(row, ["dissolved_end_bf", "dissolved_display_bf", "dissolved_start_bf"]);
+		if (endYear === 9999) endYear = null; // 9999 = NULL = besteht bis heute
 		if (startYear === null && endYear === null) return "";
 		const startText = startYear === null ? "?" : formatBfYear(startYear);
 		const endText = endYear === null ? "heute" : formatBfYear(endYear);
