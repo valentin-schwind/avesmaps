@@ -201,17 +201,20 @@ function startLiveMapUpdates() {
 
 // Deep-Link ?place=<public_id>: nach dem Laden zur verknuepften Siedlung springen
 // (z. B. Hauptstadt-Link aus dem Wiki-Sync-Editor). Read-only Fokus, keine Seiteneffekte.
-function applyPlaceFocusFromUrl() {
-	let publicId = "";
+// Param FRUEH abfangen: der Routenplaner schreibt die URL beim Laden um (entfernt ?place),
+// daher beim Script-Load lesen (synchron, vor dem async Daten-Load) und merken.
+const PLACE_FOCUS_PUBLIC_ID = (function () {
 	try {
-		publicId = new URLSearchParams(window.location.search).get("place") || "";
+		return new URLSearchParams(window.location.search).get("place") || "";
 	} catch (error) {
-		publicId = "";
+		return "";
 	}
-	if (!publicId || typeof focusRegionPlace !== "function") {
+})();
+function applyPlaceFocusFromUrl() {
+	if (!PLACE_FOCUS_PUBLIC_ID || typeof focusRegionPlace !== "function") {
 		return;
 	}
-	focusRegionPlace(publicId);
+	focusRegionPlace(PLACE_FOCUS_PUBLIC_ID);
 }
 
 // Laden und Verarbeiten der GeoJSON-Daten aus SQL.
