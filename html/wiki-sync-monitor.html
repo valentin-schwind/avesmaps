@@ -440,10 +440,13 @@ const DETAIL_FIELDS=[
 // Fallback auf Wiki-Text-Parsing, wo keine BF-Spalte vorliegt. Der Wiki-Text bleibt als Kontext.
 function bfFromCols(n, keys){ for(const k of keys){ const v=n[k]; if(v!=null) return Number(v); } return undefined; }
 function wikiFoundedBf(n){ const v=bfFromCols(n,['founded_start_bf','founded_display_bf','founded_end_bf']); return v!==undefined?v:bfYear(n.founded_text); }
-function wikiDissolvedBf(n){ const v=bfFromCols(n,['dissolved_end_bf','dissolved_display_bf','dissolved_start_bf']); if(v!==undefined) return v; if(/\b(besteht|heute|gegenwart)\b/i.test(n.dissolved_text||'')) return null; return bfYear(n.dissolved_text); }
+// 9999 = Ongoing-Sentinel (wie NULL) = „besteht bis heute". Überall null-gleich behandeln.
+const ONGOING_BF = 9999;
+function normDissolved(v){ return (v===ONGOING_BF)?null:v; }
+function wikiDissolvedBf(n){ const v=bfFromCols(n,['dissolved_end_bf','dissolved_display_bf','dissolved_start_bf']); if(v!==undefined) return normDissolved(v); if(/\b(besteht|heute|gegenwart)\b/i.test(n.dissolved_text||'')) return null; return normDissolved(bfYear(n.dissolved_text)); }
 function parseOvrBf(s){ if(s==null) return null; s=String(s).trim(); if(s==='') return null; const x=parseInt(s,10); return isNaN(x)?null:x; }
 function effFoundedBf(n){ return isOvr(n,'founded_start_bf')?parseOvrBf(n.overrides.founded_start_bf):wikiFoundedBf(n); }
-function effDissolvedBf(n){ return isOvr(n,'dissolved_end_bf')?parseOvrBf(n.overrides.dissolved_end_bf):wikiDissolvedBf(n); }
+function effDissolvedBf(n){ const v=isOvr(n,'dissolved_end_bf')?parseOvrBf(n.overrides.dissolved_end_bf):wikiDissolvedBf(n); return normDissolved(v); }
 function timeOverridden(n){ return isOvr(n,'founded_start_bf')||isOvr(n,'dissolved_end_bf'); }
 function periodFromBf(n){
   const f=effFoundedBf(n), d=effDissolvedBf(n);
@@ -570,7 +573,7 @@ async function saveEdits(){
     const saveBf=async(fk,target,wiki)=>{ const ov=isOvr(n,fk); if(sameBf(target,wiki)){ if(ov) await api('clear_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:fk}}); } else { await api('set_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:fk,value:(target==null?'':String(target))}}); } };
     if(document.querySelector('#detailBody .dt-bf[data-bf="founded"]')) await saveBf('founded_start_bf', readBf('founded'), wikiFoundedBf(n));
     const todayBox=document.querySelector('#detailBody [data-bf-today]');
-    if(todayBox) await saveBf('dissolved_end_bf', (todayBox.checked?null:readBf('dissolved')), wikiDissolvedBf(n));
+    if(todayBox) await saveBf('dissolved_end_bf', (todayBox.checked?null:normDissolved(readBf('dissolved'))), wikiDissolvedBf(n));
     if(pendingCapital!==undefined){
       if(pendingCapital){
         await api('set_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:'capital_location_id',value:String(pendingCapital.id)}});
@@ -843,6 +846,7 @@ $('detailBody').addEventListener('input', e=>{
 });
 $('detailBody').addEventListener('change', e=>{
   if(e.target.matches('[data-bf-today]')){ const w=document.querySelector('#detailBody [data-bf-year-wrap]'); if(w) w.hidden=e.target.checked; }
+  else if(e.target.matches('.dt-bf[data-bf="dissolved"]')){ const v=e.target.value.trim(); if(v===''||v===String(ONGOING_BF)){ const cb=document.querySelector('#detailBody [data-bf-today]'); const w=document.querySelector('#detailBody [data-bf-year-wrap]'); if(cb) cb.checked=true; if(w) w.hidden=true; } }
 });
 document.addEventListener('change', e=>{ if(e.target.name==='wpLic') $('wpAuthor').disabled = e.target.value!=='attribution_required'; });
 $('wappenUpload').onclick = ()=>{ setStatus('Wappen-Upload folgt in Phase 2 (lokaler Ordner + Endpoint). Auswahl gemerkt.'); closeWappenDialog(); };
