@@ -79,6 +79,14 @@ try {
                 (string) ($payload['wiki_key'] ?? ''),
                 (bool) ($payload['excluded'] ?? true)
             ),
+            'apply_identity' => avesmapsWikiSyncMonitorApplyIdentity(
+                $pdo,
+                is_array($payload['skip'] ?? null) ? $payload['skip'] : [],
+                is_array($payload['only'] ?? null) ? $payload['only'] : [],
+                (int) ($payload['limit'] ?? 0),
+                // Schreiben NUR bei dry_run:false UND confirm:"apply"; sonst immer lesender Dry-Run.
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+            ),
             'set_field_override' => avesmapsWikiSyncMonitorSetFieldOverride(
                 $pdo,
                 (string) ($payload['wiki_key'] ?? ''),
@@ -108,6 +116,8 @@ try {
         } elseif ($action === 'sync_parent_cache') {
             avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'test');
         } elseif ($action === 'apply_parent_cache' && is_array($response) && ($response['dry_run'] ?? true) === false) {
+            avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'apply');
+        } elseif ($action === 'apply_identity' && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'apply');
         }
 

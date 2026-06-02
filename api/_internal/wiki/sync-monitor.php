@@ -2093,6 +2093,7 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
 
     $fieldCounts = ['name' => 0, 'type' => 0, 'status' => 0, 'valid_from_bf' => 0, 'valid_to_bf' => 0];
     $rows = [];
+    $changed = [];
     $summary = ['live_with_wiki_key' => 0, 'no_staging' => 0, 'excluded_skipped' => 0, 'rows_with_changes' => 0, 'unchanged' => 0];
 
     foreach ($live as $L) {
@@ -2146,12 +2147,88 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
             continue;
         }
         $summary['rows_with_changes']++;
+        $changed[] = [
+            'id' => (int) $L['id'],
+            'wiki_key' => $wk,
+            'name' => $effName,
+            'changes' => $changes,
+            'eff' => ['name' => $effName, 'type' => $effType, 'status' => $effStatus, 'valid_from_bf' => $effFromV, 'valid_to_bf' => $effToV],
+        ];
         if (count($rows) < 300) {
             $rows[] = ['wiki_key' => $wk, 'name' => $effName, 'changes' => $changes];
         }
     }
 
-    return ['ok' => true, 'summary' => $summary, 'field_counts' => $fieldCounts, 'rows' => $rows];
+    return ['ok' => true, 'summary' => $summary, 'field_counts' => $fieldCounts, 'rows' => $rows, 'changed' => $changed];
+}
+
+// Apply-Flow Phase C: schreibt die Identitaets-Felder (name/type/status/valid_from_bf/valid_to_bf)
+// nach political_territory. GATED -> echter Write nur bei $dryRun=false. Geometrie/Zoom/Farbe/
+// short_name werden NIE angefasst. skip = wiki_keys auslassen (Zeitzwillinge!), only = nur diese
+// (Testlauf), limit = max. Anzahl. valid_to null (=besteht) wird als 9999-Sentinel geschrieben
+// (Live-Konvention). Override > Wiki, Gruendungs-Vererbung + IZ stecken bereits in der Berechnung.
+function avesmapsWikiSyncMonitorApplyIdentity(PDO $pdo, array $skip, array $only, int $limit, bool $dryRun): array {
+    $preview = avesmapsWikiSyncMonitorApplyIdentityPreview($pdo);
+    $changed = is_array($preview['changed'] ?? null) ? $preview['changed'] : [];
+    $skipSet = array_fill_keys(array_map('strval', $skip), true);
+    $onlySet = $only === [] ? null : array_fill_keys(array_map('strval', $only), true);
+
+    $targets = [];
+    $skippedSkiplist = 0;
+    foreach ($changed as $c) {
+        $wk = (string) $c['wiki_key'];
+        if (isset($skipSet[$wk])) {
+            $skippedSkiplist++;
+            continue;
+        }
+        if ($onlySet !== null && !isset($onlySet[$wk])) {
+            continue;
+        }
+        $targets[] = $c;
+    }
+    if ($limit > 0 && count($targets) > $limit) {
+        $targets = array_slice($targets, 0, $limit);
+    }
+
+    $written = 0;
+    if (!$dryRun && $targets !== []) {
+        $stmt = $pdo->prepare(
+            'UPDATE political_territory
+                SET name = :name, type = :type, status = :status, valid_from_bf = :vfrom, valid_to_bf = :vto
+                WHERE id = :id AND is_active = 1'
+        );
+        $pdo->beginTransaction();
+        try {
+            foreach ($targets as $c) {
+                $eff = $c['eff'];
+                $stmt->execute([
+                    'name' => (string) $eff['name'],
+                    'type' => $eff['type'] === '' ? null : (string) $eff['type'],
+                    'status' => $eff['status'] === '' ? null : (string) $eff['status'],
+                    'vfrom' => $eff['valid_from_bf'],
+                    'vto' => $eff['valid_to_bf'] === null ? 9999 : (int) $eff['valid_to_bf'],
+                    'id' => (int) $c['id'],
+                ]);
+                $written += $stmt->rowCount() > 0 ? 1 : 0;
+            }
+            $pdo->commit();
+        } catch (Throwable $error) {
+            $pdo->rollBack();
+            throw $error;
+        }
+    }
+
+    return [
+        'ok' => true,
+        'dry_run' => $dryRun,
+        'targets' => count($targets),
+        'written' => $written,
+        'skipped_skiplist' => $skippedSkiplist,
+        'sample' => array_slice(array_map(
+            static fn(array $c): array => ['wiki_key' => $c['wiki_key'], 'name' => $c['name'], 'eff' => $c['eff']],
+            $targets
+        ), 0, 12),
+    ];
 }
 
 // Komplettes Modell flach (fuers UI: Baum + Status-Marker). Markiert Luecken (parent
