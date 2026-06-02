@@ -209,6 +209,7 @@
           <option value="locked">Gesperrt</option>
           <option value="siedlung">Stadtstaaten</option>
           <option value="excluded">Aussortiert</option>
+          <option value="historisch">Historisch</option>
           <option value="all">Alle</option>
         </select>
         <input type="search" id="search" placeholder="In dieser Auswahl suchen…">
@@ -314,6 +315,7 @@ const FILTER_INFO = {
   locked:'Gesperrt: manuell fixierte Eltern – überstehen jeden Re-Sync/Modellbau.',
   siedlung:'Stadtstaaten: als Siedlung erkannt, aber als Herrschaftsgebiet behalten.',
   excluded:'Aussortiert: aus der Hierarchie genommen (bleibt im Sync, jederzeit zurückholbar).',
+  historisch:'Historisch: hat ein echtes Auflösungsjahr (Aufgelöst) – existiert heute nicht mehr, auf der Karte nur für seinen Zeitraum sichtbar (Jahr-Slider). Hier prüfbar, ob das Auflösungsdatum stimmt.',
   all:'Alle Knoten der aktuellen Kontinent-Auswahl.'
 };
 function updateFilterInfo(){ $('filterInfo').textContent = FILTER_INFO[$('filter').value] || ''; }
@@ -661,6 +663,7 @@ function matchesFilter(n, f) {
   if (f==='conflict') return n.has_conflict;       // platziert, aber Wiki nennt Zweitelternteil
   if (f==='locked') return n.parent_locked;
   if (f==='siedlung') return n.source_origin==='siedlung';
+  if (f==='historisch') return effDissolvedBf(n)!=null;   // echtes Auflösungsjahr in der Vergangenheit
   return true;
 }
 
