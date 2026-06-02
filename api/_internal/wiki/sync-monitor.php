@@ -1060,7 +1060,7 @@ function avesmapsWikiSyncMonitorParsePage(string $title, string $wikitext, strin
 
     $german = [
         'Name' => $name,
-        'Typ' => $field(['art', 'typ', 'herrschaftsgebiet']),
+        'Typ' => $field(['art', 'typ', 'herrschaftsgebiet', 'staatsform']),
         'Kontinent' => $continent,
         'Zugehörigkeit' => $affiliation['raw'],
         'Zugehörigkeit-Root' => $affiliation['root'],
@@ -1834,6 +1834,8 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
                 s.founded_text, s.dissolved_text, s.coat_of_arms_url, s.coat_of_arms_license,
                 s.coat_of_arms_author, s.coat_of_arms_attribution, s.coat_of_arms_license_status,
                 s.status, s.capital_name, s.seat_name,
+                s.form_of_government, s.ruler, s.language, s.currency, s.population,
+                s.founder, s.political, s.trade_zone, s.trade_goods, s.geographic, s.blazon,
                 (SELECT COUNT(*) FROM political_territory_geometry g
                     JOIN political_territory pt ON pt.id = g.territory_id
                     WHERE pt.wiki_key = m.wiki_key AND pt.is_active = 1 AND g.is_active = 1) AS map_geometry_count
@@ -1906,6 +1908,17 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'status' => (string) ($row['status'] ?? ''),
             'capital_name' => (string) ($row['capital_name'] ?? ''),
             'seat_name' => (string) ($row['seat_name'] ?? ''),
+            'form_of_government' => (string) ($row['form_of_government'] ?? ''),
+            'ruler' => (string) ($row['ruler'] ?? ''),
+            'language' => (string) ($row['language'] ?? ''),
+            'currency' => (string) ($row['currency'] ?? ''),
+            'population' => (string) ($row['population'] ?? ''),
+            'founder' => (string) ($row['founder'] ?? ''),
+            'political' => (string) ($row['political'] ?? ''),
+            'trade_zone' => (string) ($row['trade_zone'] ?? ''),
+            'trade_goods' => (string) ($row['trade_goods'] ?? ''),
+            'geographic' => (string) ($row['geographic'] ?? ''),
+            'blazon' => (string) ($row['blazon'] ?? ''),
             'map_geometry_count' => (int) ($row['map_geometry_count'] ?? 0),
             'map_assigned' => ((int) ($row['map_geometry_count'] ?? 0)) > 0,
         ];

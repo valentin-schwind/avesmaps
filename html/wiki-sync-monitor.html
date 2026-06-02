@@ -411,12 +411,22 @@ function renderDetail(){
   const parentNm = n.parent_wiki_key ? ((BYKEY.get(n.parent_wiki_key)||{}).name || n.parent_wiki_key.replace(/^wiki:/,'')) : '(Wurzel)';
   const rows = [];
   const add=(k,v)=>{ if(v) rows.push(`<div class="k">${k}</div><div>${v}</div>`); };
-  add('Typ', esc(n.type||'—'));
+  add('Staatsform', esc(n.type||'—'));
   add('Zeitraum', esc(periodText(n)||'—'));
   add('Status', esc(n.status||''));
+  add('Herrschaftsform', esc(n.form_of_government||''));
   add('Kontinent', esc(n.continent||''));
   add('Hauptstadt', esc(n.capital_name||''));
   add('Herrschaftssitz', esc(n.seat_name||''));
+  add('Oberhaupt', esc(n.ruler||''));
+  add('Sprache', esc(n.language||''));
+  add('Währung', esc(n.currency||''));
+  add('Einwohnerzahl', esc(n.population||''));
+  add('Gründer', esc(n.founder||''));
+  add('Politisch', esc(n.political||''));
+  add('Handelszone', esc(n.trade_zone||''));
+  add('Handelswaren', esc(n.trade_goods||''));
+  add('Geographisch', esc(n.geographic||''));
   add('Eltern', esc(parentNm)+(n.parent_locked?' 🔒':'')+(n.parent_wiki_key&&!n.parent_in_model?' <span class="dt-conf">(nicht im Modell)</span>':''));
   if(n.diverges) add('Maschinen-Vorschlag', esc((BYKEY.get(n.auto_parent_wiki_key)||{}).name||n.auto_parent_wiki_key||''));
   if(n.conflicts && n.conflicts.length) add('Strittig', `<span class="dt-conf">${n.conflicts.map(esc).join(', ')}</span>`);
@@ -509,7 +519,9 @@ function buildTreeNode(n, depth) {
   return html + '</li>';
 }
 function renderTree() {
-  const hide = (n)=> n.excluded || !visibleByContinent(n) || !visibleByTime(n, rightTime);
+  // Lücken (Eltern nicht im Modell) erscheinen NICHT im Hierarchie-Baum – nur in der linken
+  // Liste. Sie tauchen erst auf, wenn sie per Drag einem echten Eltern-Knoten zugewiesen werden.
+  const hide = (n)=> n.excluded || isGap(n) || !visibleByContinent(n) || !visibleByTime(n, rightTime);
   const hidden = new Set(NODES.filter(hide).map(n=>n.wiki_key));
   treeChildren = new Map();
   const roots = [];
