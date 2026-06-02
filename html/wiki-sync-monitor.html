@@ -22,7 +22,7 @@
   .cols { display:flex; height:calc(100vh - 200px); }
   .col { flex:1; overflow:auto; padding:8px; }
   #left { border-right:1px solid var(--line); max-width:46%; }
-  .bar { display:flex; gap:6px; align-items:center; margin-bottom:6px; position:sticky; top:0; background:var(--bg); padding-bottom:4px; }
+  .bar { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
   input[type=search], select { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:4px 6px; font:inherit; }
   input[type=search] { flex:1; }
   .row { display:flex; align-items:center; gap:6px; padding:3px 5px; border-radius:4px; cursor:grab; }
@@ -65,11 +65,15 @@
   .listhead { font-size:13px; font-weight:bold; margin:0 0 6px; color:#3f3428; }
   .info { font-size:11px; color:var(--mut); background:var(--soft); border:1px solid var(--line); border-radius:5px; padding:4px 7px; margin-bottom:6px; }
   label.ck { font-size:12px; color:var(--mut); display:inline-flex; align-items:center; gap:4px; }
-  /* 3-Spalten-Layout */
+  /* 3-Spalten-Layout (gleich breit) */
   .cols { height:calc(100vh - 96px); }
-  #left { max-width:none; flex:0 0 28%; }
-  #right { flex:1 1 auto; }
-  #detail { flex:0 0 31%; border-left:1px solid var(--line); background:var(--soft); }
+  .col { min-width:0; }
+  #left, #right { background:var(--bg); }
+  #left { max-width:none; flex:1 1 0; }
+  #right { flex:1 1 0; }
+  #detail { flex:1 1 0; border-left:1px solid var(--line); background:var(--soft); }
+  .colhead { position:sticky; top:0; z-index:5; background:var(--bg); margin:-8px -8px 6px; padding:8px 8px 5px; border-bottom:1px solid var(--line); }
+  #detail .colhead { background:var(--soft); }
   /* Abdeckungs-Kreis (Geometrie auf der Karte), rekursiv – übernommen aus dem alten Editor-Tree */
   .cov { position:relative; width:12px; height:12px; flex:0 0 12px; border:2px solid #6a7f3a; border-radius:50%; background:var(--soft); box-sizing:border-box; color:#6a7f3a; overflow:hidden; display:inline-block; vertical-align:middle; }
   .cov.all { background:currentColor; }
@@ -94,6 +98,22 @@
   .dt-lic.pd { border-color:#9fb87a; }
   .dt-lic.cc { border-color:var(--warn); }
   .dt-conf { color:var(--bad); }
+  .dt-wappen-box { position:relative; flex:0 0 56px; width:56px; height:56px; }
+  .dt-wappen-edit { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(47,37,28,.62); color:#fff9f4; font-size:10px; border-radius:6px; cursor:pointer; text-align:center; padding:2px; }
+  .dt-wappen-box:hover .dt-wappen-edit { display:flex; }
+  .dt-lic-wrap { margin-top:6px; }
+  /* Upload-Dialog */
+  .modal { position:fixed; inset:0; background:rgba(47,37,28,.45); display:flex; align-items:center; justify-content:center; z-index:100; }
+  .modal[hidden] { display:none; }
+  .modal-box { background:var(--panel); border:1px solid var(--line2); border-radius:10px; padding:16px; width:390px; max-width:92vw; box-shadow:0 14px 40px rgba(0,0,0,.28); }
+  .modal-title { font-size:15px; font-weight:bold; color:#3f3428; margin-bottom:2px; }
+  .modal-sub { color:var(--mut); font-size:12px; margin-bottom:10px; }
+  .fld { display:block; margin:8px 0; font-size:12px; }
+  .fld input[type=text], .fld input[type=file] { display:block; width:100%; margin-top:4px; }
+  fieldset.fld { border:1px solid var(--line); border-radius:6px; padding:8px; }
+  fieldset.fld legend { color:var(--mut); padding:0 4px; }
+  fieldset.fld label { display:block; margin:3px 0; }
+  .modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
 </style>
 </head>
 <body>
@@ -119,31 +139,55 @@
 <div id="status">Bereit.</div>
 <div class="cols">
   <div class="col" id="left">
-    <h2 class="listhead">Nicht zugewiesene Herrschaftsgebiete <span id="attn" class="count"></span></h2>
-    <div class="bar">
-      <select id="filter">
-        <option value="gap">Offene Lücken</option>
-        <option value="conflict">Konflikte (platziert)</option>
-        <option value="diverges">Divergenzen</option>
-        <option value="locked">Gesperrt</option>
-        <option value="siedlung">Stadtstaaten</option>
-        <option value="excluded">Aussortiert</option>
-        <option value="all">Alle</option>
-      </select>
-      <input type="search" id="search" placeholder="In dieser Auswahl suchen…">
+    <div class="colhead">
+      <h2 class="listhead">Nicht zugewiesene Herrschaftsgebiete <span id="attn" class="count"></span></h2>
+      <div class="bar">
+        <select id="filter">
+          <option value="gap">Offene Lücken</option>
+          <option value="conflict">Konflikte (platziert)</option>
+          <option value="diverges">Divergenzen</option>
+          <option value="locked">Gesperrt</option>
+          <option value="siedlung">Stadtstaaten</option>
+          <option value="excluded">Aussortiert</option>
+          <option value="all">Alle</option>
+        </select>
+        <input type="search" id="search" placeholder="In dieser Auswahl suchen…">
+      </div>
+      <div id="filterInfo" class="info"></div>
+      <div id="dropExclude">✕ Hierher ziehen = aussortieren (kein Herrschaftsgebiet)</div>
     </div>
-    <div id="filterInfo" class="info"></div>
-    <div id="dropExclude">✕ Hierher ziehen = aussortieren (kein Herrschaftsgebiet)</div>
     <div id="list"></div>
   </div>
   <div class="col" id="right">
-    <h2 class="listhead">Hierarchie der Herrschaftsgebiete <span id="treeCount" class="count"></span></h2>
-    <div id="dropRoot">▶ Hierher ziehen = zur Wurzel machen (Eltern entfernen)</div>
+    <div class="colhead">
+      <h2 class="listhead">Hierarchie der Herrschaftsgebiete <span id="treeCount" class="count"></span></h2>
+      <div id="dropRoot">▶ Hierher ziehen = zur Wurzel machen (Eltern entfernen)</div>
+    </div>
     <div id="tree"></div>
   </div>
   <div class="col" id="detail">
-    <h2 class="listhead">Wiki-Details</h2>
+    <div class="colhead"><h2 class="listhead">Wiki-Details</h2></div>
     <div id="detailBody"><div class="dt-empty">Links oder im Baum ein Herrschaftsgebiet anklicken, um die gecrawlten Wiki-Details zu sehen.</div></div>
+  </div>
+</div>
+<div id="wappenDialog" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-title">Eigenes Wappen hochladen</div>
+    <div class="modal-sub" id="wappenFor">—</div>
+    <label class="fld">Bilddatei (PNG / JPG / SVG)
+      <input type="file" id="wappenFile" accept="image/png,image/jpeg,image/svg+xml">
+    </label>
+    <div class="muted" id="wappenLimits" style="font-size:11px">Maximale Dateigröße: wird beim Hochladen vom Server geprüft.</div>
+    <fieldset class="fld">
+      <legend>Unter welcher Lizenz lädst du hoch?</legend>
+      <label><input type="radio" name="wpLic" value="public_domain" checked> Gemeinfrei (frei verwendbar)</label>
+      <label><input type="radio" name="wpLic" value="attribution_required"> CC-BY (Namensnennung)</label>
+      <input type="text" id="wpAuthor" placeholder="Urheber / Namensnennung" disabled>
+    </fieldset>
+    <div class="modal-actions">
+      <button id="wappenCancel">Abbrechen</button>
+      <button class="primary" id="wappenUpload">Hochladen</button>
+    </div>
   </div>
 </div>
 <script>
@@ -339,8 +383,11 @@ function renderDetail(){
     else lic=`<div class="dt-lic unknown">Lizenz unbekannt – Wappen ausgegraut.</div>`;
   }
   const wpClass = (n.coat_of_arms_url && (ls==='unknown'||!ls))?'dt-wappen gray':'dt-wappen';
-  const wappen = n.coat_of_arms_url ? `<img class="${wpClass}" src="${esc(n.coat_of_arms_url)}" alt="">` : '';
-  box.innerHTML = `<div class="dt-head">${wappen}<div><div class="dt-title">${esc(n.name)}</div><div class="dt-sub">${esc(n.wiki_key)}${n.wiki_url?` · <a class="wl" href="${esc(n.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`:''}</div></div></div><div class="dt-grid">${rows.join('')}</div>${lic}`;
+  const wappenImg = n.coat_of_arms_url
+    ? `<img class="${wpClass}" src="${esc(n.coat_of_arms_url)}" alt="">`
+    : `<div class="dt-wappen gray" style="display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:18px">∅</div>`;
+  const head = `<div class="dt-head"><div class="dt-wappen-box">${wappenImg}<div class="dt-wappen-edit" title="Eigenes Wappen hochladen">Bild ändern</div></div><div style="flex:1;min-width:0"><div class="dt-title">${esc(n.name)}</div><div class="dt-sub">${esc(n.wiki_key)}${n.wiki_url?` · <a class="wl" href="${esc(n.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`:''}</div></div></div>`;
+  box.innerHTML = head + (lic?`<div class="dt-lic-wrap">${lic}</div>`:'') + `<div class="dt-grid">${rows.join('')}</div>`;
 }
 
 function isGap(n){ return !!(n.parent_wiki_key && !n.parent_in_model); }
@@ -494,6 +541,15 @@ $('contMenu').addEventListener('click', e=>{
   else if(e.target.matches('[data-cont-none]')){ document.querySelectorAll('.contck').forEach(c=>c.checked=false); applyCont(); }
 });
 $('contMenu').addEventListener('change', e=>{ if(e.target.matches('.contck')) applyCont(); });
+
+// Wappen-Upload-Dialog (visuell – Backend folgt in Phase 2)
+function openWappenDialog(){ const n=selectedKey?BYKEY.get(selectedKey):null; $('wappenFor').textContent = n?`für „${n.name}"`:''; $('wappenDialog').hidden=false; }
+function closeWappenDialog(){ $('wappenDialog').hidden=true; }
+$('wappenCancel').onclick = closeWappenDialog;
+$('wappenDialog').addEventListener('click', e=>{ if(e.target.id==='wappenDialog') closeWappenDialog(); });
+$('detailBody').addEventListener('click', e=>{ if(e.target.closest('.dt-wappen-edit')) openWappenDialog(); });
+document.addEventListener('change', e=>{ if(e.target.name==='wpLic') $('wpAuthor').disabled = e.target.value!=='attribution_required'; });
+$('wappenUpload').onclick = ()=>{ setStatus('Wappen-Upload folgt in Phase 2 (lokaler Ordner + Endpoint). Auswahl gemerkt.'); closeWappenDialog(); };
 
 buildSeedMenu();
 updateFilterInfo();
