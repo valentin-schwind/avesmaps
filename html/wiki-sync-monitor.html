@@ -320,9 +320,13 @@ async function loadModel() {
   renderDetail();
 }
 
+function lockTitle(n){
+  const p = n.parent_wiki_key ? ((BYKEY.get(n.parent_wiki_key)||{}).name || n.parent_wiki_key.replace(/^wiki:/,'')) : '(Wurzel)';
+  return `Gesperrt: Eltern manuell auf „${esc(p)}" festgelegt (z. B. per Drag) – bleibt bei Re-Sync und Modellbau erhalten; der Maschinen-Vorschlag wird ignoriert.`;
+}
 function statusTags(n) {
   const t = [];
-  if (n.parent_locked) t.push('<span class="tag lock">🔒</span>');
+  if (n.parent_locked) t.push(`<span class="tag lock" title="${lockTitle(n)}">🔒</span>`);
   if (n.diverges) t.push('<span class="tag div" title="Maschine schlägt '+(n.auto_parent_wiki_key||'')+' vor">⚠</span>');
   if (n.has_conflict) t.push('<span class="tag conf" title="konkurrierende Eltern">◆</span>');
   if (n.parent_wiki_key && !n.parent_in_model) t.push('<span class="tag gap" title="Eltern nicht gecrawlt">Lücke</span>');
@@ -463,7 +467,7 @@ function renderList() {
     if (q && !(n.name.toLowerCase().includes(q) || n.wiki_key.toLowerCase().includes(q)
         || (n.aliases||[]).some(a=>a.includes(q)) || (n.affiliation_raw||'').toLowerCase().includes(q))) continue;
     if (shown++ > 600) { out.push('<div class="muted">… mehr (Suche eingrenzen)</div>'); break; }
-    const lock = n.parent_locked ? ' <span class="tag lock" title="gesperrt">🔒</span>' : '';
+    const lock = n.parent_locked ? ` <span class="tag lock" title="${lockTitle(n)}">🔒</span>` : '';
     const exclTag = n.excluded ? ' <span class="tag excl" title="aussortiert – in den Baum/Wurzel ziehen holt zurück">✕ aussortiert</span>' : '';
     const meta = n.excluded ? '' : `${parentLabel(n)}${conflictLabel(n)}`;
     out.push(`<div class="row${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}">${covCircle(n)}${wappenThumb(n)}<span class="nm">${esc(n.name)}${periodLabel(n)}</span>${wikiLink(n)}${meta}${lock}${exclTag}</div>`);
@@ -473,42 +477,58 @@ function renderList() {
 
 const expanded = new Set();
 let treeQuery = '';
+let treeChildren = new Map(), treeKeep = null, treeForceOpen = null;
+function buildTreeNode(n, depth) {
+  if(treeKeep && !treeKeep.has(n.wiki_key)) return '';
+  const kids = (treeChildren.get(n.wiki_key) || []).filter(k=>!treeKeep || treeKeep.has(k.wiki_key));
+  const hasKids = kids.length>0;
+  const open = (treeForceOpen && treeForceOpen.has(n.wiki_key)) || expanded.has(n.wiki_key);
+  const tw = hasKids ? `<span class="twist" data-tw="${n.wiki_key}">${open?'▾':'▸'}</span>` : '<span class="twist"></span>';
+  let html = `<li data-li="${n.wiki_key}"><span class="node${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${covCircle(n)}${wappenThumb(n)}<span>${esc(n.name)}${periodLabel(n)}</span>${wikiLink(n)}${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
+  if (hasKids && open) html += `<ul class="tree">${kids.map(k=>buildTreeNode(k,depth+1)).join('')}</ul>`;
+  return html + '</li>';
+}
 function renderTree() {
   const hide = (n)=> n.excluded || !visibleByContinent(n) || !visibleByTime(n, rightTime);
   const hidden = new Set(NODES.filter(hide).map(n=>n.wiki_key));
-  const children = new Map();
+  treeChildren = new Map();
   const roots = [];
   for (const n of NODES) {
     if (hide(n)) continue;
     const p = (n.parent_wiki_key && n.parent_in_model && !hidden.has(n.parent_wiki_key)) ? n.parent_wiki_key : null;
-    if (p) { if(!children.has(p)) children.set(p,[]); children.get(p).push(n); }
+    if (p) { if(!treeChildren.has(p)) treeChildren.set(p,[]); treeChildren.get(p).push(n); }
     else roots.push(n);
   }
   // Suche: nur Treffer + ihre Vorfahren behalten, Vorfahren aufklappen
   const q = treeQuery.trim().toLowerCase();
-  let keep=null, forceOpen=null;
+  treeKeep=null; treeForceOpen=null;
   if(q){
-    keep=new Set(); forceOpen=new Set();
+    treeKeep=new Set(); treeForceOpen=new Set();
     const match=(n)=> n.name.toLowerCase().includes(q) || n.wiki_key.toLowerCase().includes(q) || (n.aliases||[]).some(a=>a.includes(q));
     for(const n of NODES){
       if(hide(n) || !match(n)) continue;
       let c=n;
-      while(c){ keep.add(c.wiki_key); const p=(c.parent_wiki_key && c.parent_in_model && !hidden.has(c.parent_wiki_key)) ? BYKEY.get(c.parent_wiki_key) : null; if(p) forceOpen.add(p.wiki_key); c=p; }
+      while(c){ treeKeep.add(c.wiki_key); const p=(c.parent_wiki_key && c.parent_in_model && !hidden.has(c.parent_wiki_key)) ? BYKEY.get(c.parent_wiki_key) : null; if(p) treeForceOpen.add(p.wiki_key); c=p; }
     }
   }
-  const build = (n, depth) => {
-    if(keep && !keep.has(n.wiki_key)) return '';
-    const kids = (children.get(n.wiki_key) || []).filter(k=>!keep || keep.has(k.wiki_key));
-    const hasKids = kids.length>0;
-    const open = (forceOpen && forceOpen.has(n.wiki_key)) || expanded.has(n.wiki_key);
-    const tw = hasKids ? `<span class="twist" data-tw="${n.wiki_key}">${open?'▾':'▸'}</span>` : '<span class="twist"></span>';
-    let html = `<li><span class="node${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${covCircle(n)}${wappenThumb(n)}<span>${esc(n.name)}${periodLabel(n)}</span>${wikiLink(n)}${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
-    if (hasKids && open) html += `<ul class="tree">${kids.map(k=>build(k,depth+1)).join('')}</ul>`;
-    return html + '</li>';
-  };
-  const shown = roots.filter(r=>!keep || keep.has(r.wiki_key)).sort((a,b)=>a.name.localeCompare(b.name));
+  const shown = roots.filter(r=>!treeKeep || treeKeep.has(r.wiki_key)).sort((a,b)=>a.name.localeCompare(b.name));
   $('treeCount').textContent = `${NODES.length} Knoten · ${roots.length} Wurzelknoten`;
-  $('tree').innerHTML = shown.length ? `<ul class="tree">${shown.map(r=>build(r,0)).join('')}</ul>` : '<div class="muted">— keine —</div>';
+  $('tree').innerHTML = shown.length ? `<ul class="tree">${shown.map(r=>buildTreeNode(r,0)).join('')}</ul>` : '<div class="muted">— keine —</div>';
+}
+// Chirurgisches Auf-/Zuklappen: nur den betroffenen Teilbaum anfassen -> kein Wappen-Flackern.
+function toggleNode(k){
+  const wasOpen = expanded.has(k);
+  if(wasOpen) expanded.delete(k); else expanded.add(k);
+  if(treeQuery.trim()){ renderTree(); return; }
+  let li; try { li = document.querySelector(`#tree li[data-li="${CSS.escape(k)}"]`); } catch(e){ li=null; }
+  if(!li){ renderTree(); return; }
+  const tw = li.querySelector(':scope > .node > .twist');
+  const existingUl = li.querySelector(':scope > ul.tree');
+  if(wasOpen){ if(existingUl) existingUl.remove(); if(tw) tw.textContent='▸'; }
+  else {
+    if(!existingUl){ const kids = treeChildren.get(k) || []; if(kids.length){ const ul=document.createElement('ul'); ul.className='tree'; ul.innerHTML=kids.map(c=>buildTreeNode(c,0)).join(''); li.appendChild(ul); } }
+    if(tw) tw.textContent='▾';
+  }
 }
 function render(){
   const vis = NODES.filter(n=>!n.excluded && visibleByContinent(n));
@@ -569,7 +589,7 @@ document.addEventListener('drop', e => {
 });
 document.addEventListener('click', e => {
   const tw=e.target.closest('[data-tw]');
-  if(tw){ const k=tw.dataset.tw; if(expanded.has(k))expanded.delete(k); else expanded.add(k); renderTree(); return; }
+  if(tw){ toggleNode(tw.dataset.tw); return; }
   if(e.target.closest('a.wl')) return;            // Wiki-Link nicht abfangen
   const el=e.target.closest('[data-key]');
   if(el) selectKey(el.dataset.key);               // Klick = auswählen -> Detail-Panel

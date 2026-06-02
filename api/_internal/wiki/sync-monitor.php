@@ -1874,6 +1874,32 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
         ];
     }
 
+    // Kontinent-Vererbung: Knoten mit Aventurien-Default (oder leer) erbt den ersten
+    // Nicht-Aventurien-Kontinent eines Vorfahren (Provinz liegt im selben Kontinent wie ihr
+    // Reich). Behebt Myranor-Provinzen, deren eigene Seite keinen {{Myranor}}-Marker traegt.
+    $indexByKey = [];
+    foreach ($nodes as $i => $node) {
+        $indexByKey[(string) $node['wiki_key']] = $i;
+    }
+    $isAventurien = static fn(string $c): bool => $c === '' || stripos($c, 'aventurien') !== false;
+    foreach ($nodes as $i => $node) {
+        if (!$isAventurien((string) $node['continent'])) {
+            continue;
+        }
+        $seen = [];
+        $cur = $node['parent_wiki_key'] ?? null;
+        while ($cur !== null && isset($indexByKey[$cur]) && !isset($seen[$cur])) {
+            $seen[$cur] = true;
+            $parentContinent = (string) $nodes[$indexByKey[$cur]]['continent'];
+            if (!$isAventurien($parentContinent)) {
+                $nodes[$i]['continent'] = $parentContinent;
+                $nodes[$i]['continent_inherited'] = true;
+                break;
+            }
+            $cur = $nodes[$indexByKey[$cur]]['parent_wiki_key'] ?? null;
+        }
+    }
+
     return ['ok' => true, 'count' => count($nodes), 'nodes' => $nodes];
 }
 
