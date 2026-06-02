@@ -225,7 +225,7 @@
       <h2 class="listhead">Hierarchie der Herrschaftsgebiete</h2>
       <div class="listsub" id="treeCount"></div>
       <div class="bar"><input type="search" id="treeSearch" placeholder="In dieser Auswahl suchen…"></div>
-      <div class="timefilter">Zeige nur: <input type="number" id="timeRightFrom" placeholder="von"> – <input type="number" id="timeRightTo" placeholder="bis"> BF <label><input type="checkbox" id="timeRightToday"> heute</label></div>
+      <div class="timefilter">Zeige nur: <input type="number" id="timeRightFrom" placeholder="von" disabled> – <input type="number" id="timeRightTo" placeholder="bis" disabled> BF <label><input type="checkbox" id="timeRightToday" checked> heute</label></div>
       <div id="dropRoot">▶ Hierher ziehen = zur Wurzel machen (Eltern entfernen)</div>
     </div>
     <div id="tree"></div>
@@ -636,7 +636,7 @@ function isGap(n){ return !!(n.parent_wiki_key && !n.parent_in_model); }
 function visibleByContinent(n){ if(!contSel || contSel.size===0) return true; return contSel.has(n.continent||'Aventurien'); }
 // Zeitfilter: aus / heute / Bereich [von,bis] (BF). Knoten ohne Daten werden nicht versteckt.
 const leftTime={mode:'off',from:-Infinity,to:Infinity};
-const rightTime={mode:'off',from:-Infinity,to:Infinity};
+const rightTime={mode:'today',from:-Infinity,to:Infinity};   // Hierarchie-Baum startet auf "heute" (historische über Filter einblendbar)
 function nodeBF(n){ const f=effFoundedBf(n); const d=effDissolvedBf(n); return {f:(f==null?null:f), d:(d==null?null:d), ongoing:(d==null)}; }
 function visibleByTime(n, t){
   if(t.mode==='off') return true;
