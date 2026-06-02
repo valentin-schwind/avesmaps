@@ -435,7 +435,10 @@ function renderDetail(){
     ? `<img class="${wpClass}" src="${esc(n.coat_of_arms_url)}" alt="">`
     : `<div class="dt-wappen gray" style="display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:18px">∅</div>`;
   const head = `<div class="dt-head"><div class="dt-wappen-box">${wappenImg}<div class="dt-wappen-edit" title="Eigenes Wappen hochladen">Bild ändern</div></div><div style="flex:1;min-width:0"><div class="dt-title">${esc(n.name)}</div><div class="dt-sub">${esc(n.wiki_key)}${n.wiki_url?` · <a class="wl" href="${esc(n.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`:''}</div></div></div>`;
-  const lockBtn = `<div class="dt-actions"><button class="lockbtn" data-lockkey="${esc(n.wiki_key)}" data-locknow="${n.parent_locked?'1':'0'}">${n.parent_locked?'🔒 Eltern gesperrt – entsperren':'🔓 Eltern hier sperren'}</button></div>`;
+  const lockTip = n.parent_locked
+    ? 'Aktuell gesperrt: dieser Elternteil bleibt bei „Hierarchie ableiten" und jedem Sync erhalten. Klicken = entsperren → wird dann wieder automatisch aus dem Wiki bestimmt (Maschinen-Vorschlag).'
+    : 'Sperrt den aktuellen Elternteil fest, ohne ihn zu verschieben. Gesperrte Eltern überstehen „Hierarchie ableiten" und jeden Sync; der automatische Maschinen-Vorschlag wird für diesen Knoten ignoriert. Klicken = sperren.';
+  const lockBtn = `<div class="dt-actions"><button class="lockbtn" title="${esc(lockTip)}" data-lockkey="${esc(n.wiki_key)}" data-locknow="${n.parent_locked?'1':'0'}">${n.parent_locked?'🔒 Eltern gesperrt – entsperren':'🔓 Eltern hier sperren'}</button></div>`;
   box.innerHTML = head + (lic?`<div class="dt-lic-wrap">${lic}</div>`:'') + lockBtn + `<div class="dt-grid">${rows.join('')}</div>`;
 }
 
