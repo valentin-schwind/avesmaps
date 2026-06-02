@@ -199,6 +199,21 @@ function startLiveMapUpdates() {
 	}, 15000);
 }
 
+// Deep-Link ?place=<public_id>: nach dem Laden zur verknuepften Siedlung springen
+// (z. B. Hauptstadt-Link aus dem Wiki-Sync-Editor). Read-only Fokus, keine Seiteneffekte.
+function applyPlaceFocusFromUrl() {
+	let publicId = "";
+	try {
+		publicId = new URLSearchParams(window.location.search).get("place") || "";
+	} catch (error) {
+		publicId = "";
+	}
+	if (!publicId || typeof focusRegionPlace !== "function") {
+		return;
+	}
+	focusRegionPlace(publicId);
+}
+
 // Laden und Verarbeiten der GeoJSON-Daten aus SQL.
 const routeDataRequest = loadRouteData();
 
@@ -226,7 +241,7 @@ routeDataRequest
 		} else {
 			focusMapOnActiveTargets();
 		}
-		startLiveMapUpdates();
+		startLiveMapUpdates(); applyPlaceFocusFromUrl();
 	})
 	.catch((err) => console.error("Fehler beim Laden der GeoJSON-Datei:", err));
 

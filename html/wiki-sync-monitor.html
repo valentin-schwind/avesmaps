@@ -460,7 +460,7 @@ function wikiVal(n,k){ const v=n[k]; return v==null?'':String(v); }
 function effVal(n,k){ return isOvr(n,k)?String(n.overrides[k]==null?'':n.overrides[k]):wikiVal(n,k); }
 function ovrBadge(n,k){ if(!isOvr(n,k)) return ''; const w=wikiVal(n,k); return ` <span class="ov-badge" title="Manuell überschrieben. Wiki-Stand: ${esc(w||'(leer)')}">✎ manuell</span>`; }
 function ovrTimeBadge(){ return ` <span class="ov-badge" title="Manuell überschriebener BF-Wert (kontrolliert Filter/Karte). Wiki-Text bleibt als Kontext.">✎ manuell</span>`; }
-function capChip(n){ const cl=n.capital_location; if(!cl||!cl.name) return ''; return ` <span class="muted" title="In Locations gefunden (public_id: ${esc(cl.public_id||'?')}). Karten-Sprung folgt.">🔗 ${esc(cl.name)}</span>`; }
+function capChip(n){ const cl=n.capital_location; if(!cl||!cl.name) return ''; if(!cl.public_id) return ` <span class="muted" title="In Locations gefunden, aber ohne public_id.">🔗 ${esc(cl.name)}</span>`; const href='/?place='+encodeURIComponent(cl.public_id); return ` <a class="wl dt-cap-link" href="${esc(href)}" target="_blank" rel="noopener" title="Auf der Karte zur Stadt „${esc(cl.name)}" springen">🔗 ${esc(cl.name)}</a>`; }
 function buildDetailHead(n){
   const ls=n.license_status;
   const wpClass=(n.coat_of_arms_url && (ls==='unknown'||!ls))?'dt-wappen gray':'dt-wappen';
