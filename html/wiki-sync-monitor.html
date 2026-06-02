@@ -53,6 +53,8 @@
   .dd { position:relative; }
   .dd > summary { list-style:none; cursor:pointer; background:#f3ebdf; color:#513c2b; border:1px solid #b99a78; border-radius:5px; padding:5px 10px; }
   .dd > summary::-webkit-details-marker { display:none; }
+  .dd > summary::after { content:"▾"; margin-left:6px; font-size:10px; color:var(--mut); }
+  .dd[open] > summary::after { content:"▴"; }
   .dd[open] > summary { background:#ead9c2; }
   .dd-menu { position:absolute; z-index:20; top:100%; left:0; margin-top:3px; background:var(--panel); border:1px solid var(--line2); border-radius:6px; padding:6px; min-width:230px; max-height:320px; overflow:auto; box-shadow:0 6px 18px rgba(0,0,0,.18); }
   .dd-menu label { display:block; padding:2px 4px; white-space:nowrap; cursor:pointer; }
@@ -67,10 +69,9 @@
 </head>
 <body>
 <header>
-  <h1>Avesmaps – Herrschaftsgebiete synchronisieren und editieren</h1>
   <div class="controls">
     <details id="seedDD" class="dd">
-      <summary>Was synchronisieren? <span id="seedCount" class="count"></span></summary>
+      <summary title="Aus welchen Wiki-Kategorien und Typ-Listen die Herrschaftsgebiete gezogen werden">Wiki-Quellen <span id="seedCount" class="count"></span></summary>
       <div class="dd-menu" id="seedMenu"></div>
     </details>
     <button class="primary" id="btnCrawl">Sync starten</button>
@@ -78,9 +79,9 @@
     <button id="btnModel" title="Baut die Hierarchie aus dem Staging neu (Locks + Aussortiert bleiben erhalten)">Modell bauen</button>
     <button id="btnDiff">Diff</button>
     <button id="btnCache" title="Testweise zeigen, was die Übertragung der Hierarchie nach Avesmaps ändern würde – schreibt nichts">Testübertragung in Avesmaps</button>
-    <button id="btnReload" title="Lädt die beiden Listen neu aus dem aktuellen Modell – kein Sync, keine Datenänderung">Modell laden</button>
+    <button class="primary" id="btnApply" title="Übernimmt die kuratierte Hierarchie in Avesmaps – schreibt Eltern-Zuweisungen, Geometrien bleiben unberührt">Modell speichern und übernehmen</button>
     <details id="contDD" class="dd">
-      <summary>Kontinente <span id="contCount" class="count"></span></summary>
+      <summary title="Filtert beide Listen nach Kontinent">Kontinente <span id="contCount" class="count"></span></summary>
       <div class="dd-menu" id="contMenu"></div>
     </details>
     <span id="busy" class="muted"></span>
@@ -135,7 +136,7 @@ function buildSeedMenu(){
   updateSeedCount();
 }
 function selectedSeeds(){ return [...document.querySelectorAll('.seedck:checked')].map(c=>c.value); }
-function updateSeedCount(){ const n=selectedSeeds().length, t=DEFAULT_SEEDS.length; $('seedCount').textContent = n===t?`(alle ${t})`:`(${n}/${t})`; }
+function updateSeedCount(){ const n=selectedSeeds().length, t=DEFAULT_SEEDS.length; $('seedCount').textContent = n===t?`(alle)`:`(${n} von ${t})`; }
 
 // --- Kontinente-Dropdown (Filter für beide Listen) ---
 let contSel = null;   // null = noch nicht initialisiert
@@ -358,7 +359,18 @@ $('btnCrawl').onclick = runCrawl;
 $('btnModel').onclick = async()=>{ busy(true); try{ const r=await api('rebuild_model',{method:'POST'}); setStatus(`Hierarchie: ${r.summary.total} Knoten, ${r.summary.resolved_parents} Eltern aufgelöst, ${r.summary.gap_parents} Lücken, ${r.summary.roots} Wurzeln.`); await loadModel(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnDiff').onclick = async()=>{ busy(true); try{ const d=await api('diff'); setStatus(`Diff (Staging vs Wiki): neu ${d.new}, verschwunden ${d.disappeared}, geändert ${d.changed}.`); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnCache').onclick = async()=>{ busy(true); try{ const c=await api('sync_parent_cache',{method:'POST',body:{}}); setStatus(`Testübertragung: auffüllbar ${c.fillable}, deckungsgleich ${c.already_aligned}, divergent ${c.divergent_existing} – es wurde nichts geschrieben.`); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
-$('btnReload').onclick = ()=>loadModel().catch(e=>setStatus('Fehler: '+e.message));
+$('btnApply').onclick = async()=>{
+  busy(true); let dry;
+  try { dry = await api('apply_parent_cache', {method:'POST', body:{dry_run:true}}); }
+  catch(e){ setStatus('Fehler: '+e.message); busy(false); return; }
+  busy(false);
+  const unres = (dry.unresolved||[]).length;
+  if (!confirm(`Modell in Avesmaps übernehmen?\n\n• ${dry.will_apply} Eltern-Zuweisungen werden gesetzt/überschrieben\n• ${unres} nicht auflösbar (übersprungen – Eltern fehlt live)\n• Geometrien bleiben unberührt\n\nJetzt schreiben?`)) { setStatus('Übernahme abgebrochen.'); return; }
+  busy(true);
+  try { const r = await api('apply_parent_cache', {method:'POST', body:{dry_run:false, confirm:'apply'}}); setStatus(`Übernommen: ${r.applied} Eltern-Zuweisungen in Avesmaps geschrieben.`); await loadModel(); }
+  catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+};
 $('search').oninput = renderList;
 $('filter').onchange = ()=>{ updateFilterInfo(); renderList(); };
 
