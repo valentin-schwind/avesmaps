@@ -20,7 +20,7 @@
 	const HOST_ID = "political-territory-editor-host";
 	// Cache-Buster fuer die dynamisch geladenen Editor-Assets: bei jeder Aenderung
 	// an Editor-JS/CSS hochzaehlen, damit Deploys sofort greifen (kein Hard-Reload).
-	const ASSET_VERSION = "20260603c";
+	const ASSET_VERSION = "20260603d";
 	function withVersion(url) {
 		return url + (url.indexOf("?") >= 0 ? "&" : "?") + "v=" + ASSET_VERSION;
 	}
