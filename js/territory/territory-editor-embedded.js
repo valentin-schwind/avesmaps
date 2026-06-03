@@ -2138,15 +2138,8 @@
 				grid.appendChild(valueElement);
 			}
 
-			const details = document.createElement("details");
-			details.className = "info-details";
-			details.open = false;
-
-			const summary = document.createElement("summary");
-			summary.textContent = "Details";
-			details.appendChild(summary);
-			details.appendChild(grid);
-			els.infoBox.appendChild(details);
+			// Tabelle direkt anzeigen (kein "Details"-Accordion mehr).
+			els.infoBox.appendChild(grid);
 			appendEffectiveWikiRows(node, grid);
 		}
 

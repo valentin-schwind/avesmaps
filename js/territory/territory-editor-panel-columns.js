@@ -66,7 +66,7 @@
 		// Waehrend des Umsortierens den Observer pausieren (kein Re-Trigger).
 		if (observer) observer.disconnect();
 		for (const section of sections) {
-			const target = (left.offsetHeight <= right.offsetHeight) ? left : right;
+			const target = section.querySelector("#infoBox") ? right : left;
 			target.appendChild(section); // verschiebt das Panel, Listener bleiben
 		}
 		if (observer) observer.observe(form, { childList: true, subtree: true });
