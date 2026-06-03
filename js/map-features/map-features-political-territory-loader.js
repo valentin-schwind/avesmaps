@@ -258,6 +258,7 @@ function getResolvedPoliticalTerritoryLayerFallbacks(url) {
 function buildPoliticalTerritoryLayerCacheKey(url) {
 	const cacheUrl = new URL(url.toString());
 	cacheUrl.searchParams.delete("zoom");
+	cacheUrl.searchParams.delete("_");
 	return cacheUrl.toString();
 }
 
