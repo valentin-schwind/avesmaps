@@ -139,6 +139,14 @@ try {
             avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'apply');
         }
 
+        // Map-Cache invalidieren: Identitaets-/Coat-Apply (+Revert) aendern political_territory,
+        // das die Map-Features-API liefert. Ohne Revisions-Bump bekommen Clients per ETag 304
+        // und sehen die Aenderung (Wappen/Name/...) nicht. Bump bei jedem echten (non-dry-run) Lauf.
+        if (in_array($action, ['apply_identity', 'apply_coats', 'revert_identity', 'revert_coats'], true)
+            && is_array($response) && ($response['dry_run'] ?? true) === false) {
+            avesmapsWikiSyncNextMapRevision($pdo);
+        }
+
         avesmapsJsonResponse(200, $response);
     }
 
