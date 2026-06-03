@@ -244,10 +244,14 @@
   <div class="modal-box">
     <div class="modal-title">Eigenes Wappen hochladen</div>
     <div class="modal-sub" id="wappenFor">—</div>
-    <label class="fld">Bilddatei (PNG / JPG / SVG)
-      <input type="file" id="wappenFile" accept="image/png,image/jpeg,image/svg+xml">
+    <div class="muted" id="wappenCur" style="font-size:11px"></div>
+    <label class="fld">Bilddatei (PNG / JPG / SVG / GIF / WEBP)
+      <input type="file" id="wappenFile" accept="image/png,image/jpeg,image/svg+xml,image/gif,image/webp">
     </label>
-    <div class="muted" id="wappenLimits" style="font-size:11px">Maximale Dateigröße: wird beim Hochladen vom Server geprüft.</div>
+    <label class="fld">…oder Bild-URL
+      <input type="url" id="wappenUrl" placeholder="https://…/wappen.png">
+    </label>
+    <div class="muted" id="wappenLimits" style="font-size:11px">Datei ODER URL angeben. Maximale Größe 5 MB.</div>
     <fieldset class="fld">
       <legend>Unter welcher Lizenz lädst du hoch?</legend>
       <label><input type="radio" name="wpLic" value="public_domain" checked> Gemeinfrei (frei verwendbar)</label>
@@ -470,6 +474,19 @@ async function saveCoatLocal(k){
   } catch(e){ setStatus('Fehler: '+e.message); }
   busy(false);
 }
+// #4: eigenes/lokales Wappen wieder entfernen -> Wiki-Stand. Loescht die drei Wappen-Overrides.
+async function restoreCoat(k){
+  const n=BYKEY.get(k); if(!n) return;
+  busy(true);
+  try{
+    for(const f of ['coat_of_arms_url','coat_of_arms_license_status','coat_of_arms_author']){
+      if(isOvr(n,f)) await api('clear_field_override',{method:'POST',body:{wiki_key:k, field_key:f}});
+    }
+    setStatus('Wappen auf den Wiki-Stand zurückgesetzt.');
+    await loadModel();
+  } catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+}
 function selectKey(k){
   if(k!==selectedKey){ editMode=false; pendingCapital=undefined; capResults=[]; }
   selectedKey = k;
@@ -525,16 +542,21 @@ function periodFromBf(n){
 function isOvr(n,k){ return !!(n.overrides && Object.prototype.hasOwnProperty.call(n.overrides,k)); }
 function wikiVal(n,k){ const v=n[k]; return v==null?'':String(v); }
 function effVal(n,k){ return isOvr(n,k)?String(n.overrides[k]==null?'':n.overrides[k]):wikiVal(n,k); }
+// Effektives Wappen/Lizenz/Urheber = Override ?? Wiki-Stand (Wappen-Override per #3/#4 oder set_field_override).
+function effCoat(n){ return isOvr(n,'coat_of_arms_url')?String(n.overrides.coat_of_arms_url||''):(n.coat_of_arms_url||''); }
+function effLic(n){ return isOvr(n,'coat_of_arms_license_status')?String(n.overrides.coat_of_arms_license_status||''):(n.license_status||''); }
+function effAuthor(n){ return isOvr(n,'coat_of_arms_author')?String(n.overrides.coat_of_arms_author||''):(n.coat_of_arms_author||''); }
+function licName(s){ return s==='public_domain'?'Gemeinfrei':(s==='attribution_required'?'Namensnennung nötig':'Lizenz unbekannt'); }
 // Anzeigename = Override ?? Wiki-Name (Fallback wiki_key). Fuer Knoten-Label in Liste + Baum + Detail-Titel.
 function dispName(n){ return (effVal(n,'name')||n.name||n.wiki_key||'').toString(); }
 function ovrBadge(n,k){ if(!isOvr(n,k)) return ''; const w=wikiVal(n,k); return ` <span class="ov-badge" title="Manuell überschrieben. Wiki-Stand: ${esc(w||'(leer)')}">✎ manuell</span>`; }
 function ovrTimeBadge(){ return ` <span class="ov-badge" title="Manuell überschriebener BF-Wert (kontrolliert Filter/Karte). Wiki-Text bleibt als Kontext.">✎ manuell</span>`; }
 function capChip(n){ const cl=n.capital_location; if(!cl||!cl.name) return ''; if(!cl.public_id) return ` <span class="muted" title="In Locations gefunden, aber ohne public_id.">🔗 ${esc(cl.name)}</span>`; const href='/?place='+encodeURIComponent(cl.public_id); return ` <a class="wl dt-cap-link" href="${esc(href)}" target="_blank" rel="noopener" title="Auf der Karte zur Stadt „${esc(cl.name)}" springen">🔗 ${esc(cl.name)}</a>`; }
 function buildDetailHead(n){
-  const ls=n.license_status;
-  const wpClass=(n.coat_of_arms_url && (ls==='unknown'||!ls))?'dt-wappen gray':'dt-wappen';
-  const wappenImg=n.coat_of_arms_url
-    ? `<img class="${wpClass}" src="${esc(n.coat_of_arms_url)}" alt="">`
+  const coat=effCoat(n), ls=effLic(n);
+  const wpClass=(coat && (ls==='unknown'||!ls))?'dt-wappen gray':'dt-wappen';
+  const wappenImg=coat
+    ? `<img class="${wpClass}" src="${esc(coat)}" alt="">`
     : `<div class="dt-wappen gray" style="display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:18px">∅</div>`;
   const nameOv=isOvr(n,'name');
   const titleNm=nameOv?(effVal(n,'name')||n.name):n.name;
@@ -542,12 +564,15 @@ function buildDetailHead(n){
   return `<div class="dt-head"><div class="dt-wappen-box">${wappenImg}<div class="dt-wappen-edit" title="Eigenes Wappen hochladen">Bild ändern</div></div><div style="flex:1;min-width:0"><div class="dt-title">${esc(titleNm)}</div><div class="dt-sub">${oldNm}${esc(n.wiki_key)}${n.wiki_url?` · <a class="wl" href="${esc(n.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`:''}</div></div></div>`;
 }
 function buildDetailLicense(n){
-  const ls=n.license_status; if(!n.coat_of_arms_url) return '';
+  if(!effCoat(n)) return '';
+  const ls=effLic(n), licOv=isOvr(n,'coat_of_arms_license_status'), author=effAuthor(n);
   let lic='';
-  if(ls==='public_domain') lic=`<div class="dt-lic pd"><b>Gemeinfrei</b> – frei darstellbar.${n.coat_of_arms_author?' Urheber: '+esc(n.coat_of_arms_author):''}</div>`;
-  else if(ls==='attribution_required') lic=`<div class="dt-lic cc"><b>Namensnennung nötig</b>${n.coat_of_arms_author?' – Urheber: '+esc(n.coat_of_arms_author):''}${n.coat_of_arms_attribution?'<br>'+esc(n.coat_of_arms_attribution):''}</div>`;
+  if(ls==='public_domain') lic=`<div class="dt-lic pd"><b>Gemeinfrei</b> – frei darstellbar.${author?' Urheber: '+esc(author):''}</div>`;
+  else if(ls==='attribution_required') lic=`<div class="dt-lic cc"><b>Namensnennung nötig</b>${author?' – Urheber: '+esc(author):''}${(n.coat_of_arms_attribution&&!licOv)?'<br>'+esc(n.coat_of_arms_attribution):''}</div>`;
   else lic=`<div class="dt-lic unknown">Lizenz unbekannt – Wappen ausgegraut.</div>`;
-  return `<div class="dt-lic-wrap">${lic}</div>`;
+  // Bei eigenem Lizenz-Override: alte (Wiki-)Lizenz durchgestrichen -> neue.
+  const strike=licOv?`<div style="font-size:11px;margin-top:2px"><span class="dt-old">${esc(licName(n.license_status))}</span><span class="dt-arrow">→</span><span class="dt-new">${esc(licName(ls))}</span></div>`:'';
+  return `<div class="dt-lic-wrap">${lic}${strike}</div>`;
 }
 function renderDetail(){
   const n = selectedKey ? BYKEY.get(selectedKey) : null;
@@ -587,7 +612,9 @@ function renderDetail(){
   const effCoatUrl = isOvr(n,'coat_of_arms_url') ? String(n.overrides.coat_of_arms_url||'') : (n.coat_of_arms_url||'');
   const coatLocalBtn = (n.license_status==='public_domain' && effCoatUrl && effCoatUrl.indexOf('/uploads/wappen/')!==0)
     ? `<button class="edbtn" data-save-coat-local="${esc(n.wiki_key)}" title="Lädt das gemeinfreie Wiki-Wappen auf den Avesmaps-Server und nutzt künftig die lokale Kopie (Override)">📥 Wappen lokal speichern</button>` : '';
-  box.innerHTML = head + lic + `<div class="dt-actions">${lockBtn}${editBtn}${coatLocalBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>`;
+  const coatRestoreBtn = (isOvr(n,'coat_of_arms_url')||isOvr(n,'coat_of_arms_license_status')||isOvr(n,'coat_of_arms_author'))
+    ? `<button class="edbtn" data-restore-coat="${esc(n.wiki_key)}" title="Eigenes/lokal gespeichertes Wappen + Lizenz-Override entfernen und wieder den Wiki-Stand verwenden">↺ Wappen zurücksetzen</button>` : '';
+  box.innerHTML = head + lic + `<div class="dt-actions">${lockBtn}${editBtn}${coatLocalBtn}${coatRestoreBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>`;
 }
 function renderCapResults(){
   if(!capResults.length) return '';
@@ -899,8 +926,17 @@ $('contMenu').addEventListener('change', e=>{ if(e.target.matches('.contck')) ap
 $('contBtn').onclick = (e)=>{ e.stopPropagation(); $('contMenu').hidden = !$('contMenu').hidden; };
 document.addEventListener('click', (e)=>{ if(!e.target.closest('#contDD')) $('contMenu').hidden = true; });
 
-// Wappen-Upload-Dialog (visuell – Backend folgt in Phase 2)
-function openWappenDialog(){ const n=selectedKey?BYKEY.get(selectedKey):null; $('wappenFor').textContent = n?`für „${n.name}"`:''; $('wappenDialog').hidden=false; }
+// Wappen-Upload-Dialog (#4): Datei ODER URL + selbst gewählte Lizenz -> /uploads/wappen/, als Override.
+function openWappenDialog(){
+  const n=selectedKey?BYKEY.get(selectedKey):null;
+  $('wappenFor').textContent = n?`für „${n.name}"`:'';
+  $('wappenFile').value=''; $('wappenUrl').value=''; $('wpAuthor').value='';
+  const pd=document.querySelector('input[name=wpLic][value=public_domain]'); if(pd) pd.checked=true;
+  $('wpAuthor').disabled=true;
+  const curLs=n?effLic(n):''; const curCoat=n?effCoat(n):'';
+  $('wappenCur').innerHTML = (n&&curCoat)?`Aktuell: ${esc(licName(curLs))}${isOvr(n,'coat_of_arms_url')?' (eigener Override)':' (Wiki)'}` : 'Aktuell kein Wappen hinterlegt.';
+  $('wappenDialog').hidden=false;
+}
 function closeWappenDialog(){ $('wappenDialog').hidden=true; }
 $('wappenCancel').onclick = closeWappenDialog;
 $('wappenDialog').addEventListener('click', e=>{ if(e.target.id==='wappenDialog') closeWappenDialog(); });
@@ -908,6 +944,7 @@ $('detailBody').addEventListener('click', e=>{
   if(e.target.closest('.dt-wappen-edit')){ openWappenDialog(); return; }
   const rp=e.target.closest('[data-restore-parent]'); if(rp){ restoreWikiParent(rp.dataset.restoreParent); return; }
   const sc=e.target.closest('[data-save-coat-local]'); if(sc){ saveCoatLocal(sc.dataset.saveCoatLocal); return; }
+  const rcoat=e.target.closest('[data-restore-coat]'); if(rcoat){ restoreCoat(rcoat.dataset.restoreCoat); return; }
   const lb=e.target.closest('.lockbtn'); if(lb){ lockNode(lb.dataset.lockkey, lb.dataset.locknow!=='1'); return; }
   if(e.target.closest('[data-edit-start]')){ startEdit(); return; }
   if(e.target.closest('[data-edit-cancel]')){ cancelEdit(); return; }
@@ -936,7 +973,32 @@ $('detailBody').addEventListener('change', e=>{
   else if(e.target.matches('.dt-bf[data-bf="dissolved"]')){ const v=e.target.value.trim(); if(v===''||v===String(ONGOING_BF)){ const cb=document.querySelector('#detailBody [data-bf-today]'); const w=document.querySelector('#detailBody [data-bf-year-wrap]'); if(cb) cb.checked=true; if(w) w.hidden=true; } }
 });
 document.addEventListener('change', e=>{ if(e.target.name==='wpLic') $('wpAuthor').disabled = e.target.value!=='attribution_required'; });
-$('wappenUpload').onclick = ()=>{ setStatus('Wappen-Upload folgt in Phase 2 (lokaler Ordner + Endpoint). Auswahl gemerkt.'); closeWappenDialog(); };
+async function uploadCoat(){
+  const k=selectedKey, n=k?BYKEY.get(k):null;
+  if(!n){ setStatus('Bitte zuerst ein Herrschaftsgebiet wählen.'); return; }
+  const file=$('wappenFile').files[0];
+  const url=$('wappenUrl').value.trim();
+  if(!file && !url){ setStatus('Bitte eine Bilddatei wählen oder eine Bild-URL angeben.'); return; }
+  const lic=(document.querySelector('input[name=wpLic]:checked')||{}).value||'public_domain';
+  const author=$('wpAuthor').value.trim();
+  if(lic==='attribution_required' && !author){ setStatus('Für „Namensnennung" bitte den Urheber angeben.'); return; }
+  const fd=new FormData();
+  fd.append('action','upload_coat'); fd.append('wiki_key',k); fd.append('license',lic);
+  if(author) fd.append('author',author);
+  if(url) fd.append('source_url',url);
+  if(file) fd.append('coat_file',file);
+  busy(true);
+  try{
+    const r=await fetch(`${API}?action=upload_coat`,{method:'POST',credentials:'include',cache:'no-store',body:fd});
+    const t=await r.text(); let j; try{ j=JSON.parse(t); }catch(e){ throw new Error('Ungültige Antwort: '+t.slice(0,200)); }
+    if(!r.ok||j.ok===false) throw new Error(j.error||('HTTP '+r.status));
+    setStatus(`Wappen hochgeladen: ${j.local_url||''}${j.bytes?(' ('+Math.round(j.bytes/1024)+' KB)'):''}.`);
+    closeWappenDialog();
+    await loadModel();
+  } catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+}
+$('wappenUpload').onclick = uploadCoat;
 
 // --- Identitäts-Vorschau (Apply-Flow Phase A, read-only) ---
 let IDENT=null, identFieldFilter='';

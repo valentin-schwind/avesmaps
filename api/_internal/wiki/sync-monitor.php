@@ -1888,6 +1888,7 @@ function avesmapsWikiSyncMonitorEditableFields(): array {
         'founded_text' => 'Gegründet (Text)', 'dissolved_text' => 'Aufgelöst (Text)',
         'capital_location_id' => 'Hauptstadt-Verknüpfung',
         'coat_of_arms_url' => 'Wappen-Bild', 'coat_of_arms_license_status' => 'Wappen-Lizenz',
+        'coat_of_arms_author' => 'Wappen-Urheber',
     ];
 }
 
@@ -2006,6 +2007,90 @@ function avesmapsWikiSyncMonitorSaveCoatLocal(PDO $pdo, string $wikiKey): array 
     $localUrl = '/uploads/wappen/' . $filename;
     avesmapsWikiSyncMonitorSetFieldOverride($pdo, $wikiKey, 'coat_of_arms_url', $localUrl);
     return ['ok' => true, 'wiki_key' => $wikiKey, 'local_url' => $localUrl, 'bytes' => strlen($downloaded['bytes']), 'source' => $coatUrl];
+}
+
+// #4 "Eigenes Wappen hochladen": nimmt eine hochgeladene Datei ODER eine Bild-URL, speichert sie als
+// /uploads/wappen/<slug>-custom.<ext> und setzt coat_of_arms_url + coat_of_arms_license_status (+ optional
+// coat_of_arms_author) als Override. Die Lizenz waehlt der Nutzer selbst. Restore = clear_field_override (↺).
+// Anders als save_coat_local (#3): keine Quell-/Lizenz-Beschraenkung, da es das eigene Wappen ist.
+function avesmapsWikiSyncMonitorUploadCoat(PDO $pdo, string $wikiKey, string $sourceUrl, string $license, string $author, ?array $file): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $wikiKey = trim($wikiKey);
+    $sourceUrl = trim($sourceUrl);
+    $license = trim($license);
+    $author = trim($author);
+    if ($wikiKey === '') {
+        return ['ok' => false, 'error' => 'wiki_key fehlt.'];
+    }
+    if (!in_array($license, ['public_domain', 'attribution_required'], true)) {
+        return ['ok' => false, 'error' => 'Bitte eine gueltige Lizenz waehlen (gemeinfrei oder Namensnennung).'];
+    }
+
+    $maxBytes = 5 * 1024 * 1024;
+    $bytes = null;
+    $contentType = '';
+    $nameHint = $sourceUrl;
+    if ($file !== null && (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+        $tmp = (string) ($file['tmp_name'] ?? '');
+        if ($tmp === '' || !is_uploaded_file($tmp)) {
+            return ['ok' => false, 'error' => 'Hochgeladene Datei ist ungueltig.'];
+        }
+        if ((int) ($file['size'] ?? 0) > $maxBytes) {
+            return ['ok' => false, 'error' => 'Datei ist zu gross (max. 5 MB).'];
+        }
+        $bytes = (string) @file_get_contents($tmp);
+        $nameHint = (string) ($file['name'] ?? '');
+        if (function_exists('finfo_open')) {
+            $fi = finfo_open(FILEINFO_MIME_TYPE);
+            if ($fi !== false) {
+                $contentType = (string) finfo_file($fi, $tmp);
+                finfo_close($fi);
+            }
+        }
+        if ($contentType === '') {
+            $contentType = (string) ($file['type'] ?? '');
+        }
+    } elseif ($sourceUrl !== '') {
+        $scheme = strtolower((string) parse_url($sourceUrl, PHP_URL_SCHEME));
+        if ($scheme !== 'http' && $scheme !== 'https') {
+            return ['ok' => false, 'error' => 'Bild-URL muss mit http(s):// beginnen.'];
+        }
+        $downloaded = avesmapsWikiSyncMonitorHttpGetBinary($sourceUrl);
+        if ($downloaded === null) {
+            return ['ok' => false, 'error' => 'Bild konnte von der URL nicht geladen werden.'];
+        }
+        $bytes = $downloaded['bytes'];
+        $contentType = $downloaded['content_type'];
+        if (strlen($bytes) > $maxBytes) {
+            return ['ok' => false, 'error' => 'Bild ist zu gross (max. 5 MB).'];
+        }
+    } else {
+        return ['ok' => false, 'error' => 'Bitte eine Bilddatei hochladen oder eine Bild-URL angeben.'];
+    }
+
+    if ($bytes === null || $bytes === '') {
+        return ['ok' => false, 'error' => 'Leeres Bild.'];
+    }
+    $ext = avesmapsWikiSyncMonitorImageExtension($contentType, $nameHint);
+    if ($ext === null) {
+        return ['ok' => false, 'error' => 'Kein erlaubtes Bildformat (png/jpg/svg/gif/webp).'];
+    }
+    $docroot = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 3)), '/');
+    $dir = $docroot . '/uploads/wappen';
+    if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+        return ['ok' => false, 'error' => 'Upload-Ordner /uploads/wappen konnte nicht angelegt werden (Schreibrechte?).'];
+    }
+    $slug = strtolower((string) preg_replace('/[^a-z0-9_-]+/i', '-', (string) preg_replace('/^wiki:/', '', $wikiKey)));
+    $slug = trim($slug, '-') ?: 'wappen';
+    $filename = $slug . '-custom.' . $ext;
+    if (@file_put_contents($dir . '/' . $filename, $bytes) === false) {
+        return ['ok' => false, 'error' => 'Wappen konnte nicht gespeichert werden (Schreibrechte auf /uploads/wappen?).'];
+    }
+    $localUrl = '/uploads/wappen/' . $filename;
+    avesmapsWikiSyncMonitorSetFieldOverride($pdo, $wikiKey, 'coat_of_arms_url', $localUrl);
+    avesmapsWikiSyncMonitorSetFieldOverride($pdo, $wikiKey, 'coat_of_arms_license_status', $license);
+    avesmapsWikiSyncMonitorSetFieldOverride($pdo, $wikiKey, 'coat_of_arms_author', $author);
+    return ['ok' => true, 'wiki_key' => $wikiKey, 'local_url' => $localUrl, 'bytes' => strlen($bytes), 'license' => $license];
 }
 
 // Liest die Override-Map (wiki_key -> {field_key: value}) aus dem Modell. Fuer model_tree.

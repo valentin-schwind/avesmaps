@@ -33,7 +33,10 @@ try {
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
     if ($requestMethod === 'POST') {
-        $payload = avesmapsReadJsonRequest();
+        // upload_coat kommt als multipart/form-data (Datei-Upload) -> dann liegen die Felder in $_POST
+        // und die Datei in $_FILES; php://input ist leer und waere kein gueltiges JSON. Sonst JSON-Body.
+        $isMultipart = strpos(strtolower((string) ($_SERVER['CONTENT_TYPE'] ?? '')), 'multipart/form-data') !== false;
+        $payload = $isMultipart ? $_POST : avesmapsReadJsonRequest();
         $action = trim((string) ($payload['action'] ?? ($_GET['action'] ?? '')));
         $options = is_array($payload['options'] ?? null) ? $payload['options'] : $payload;
 
@@ -117,6 +120,14 @@ try {
             'save_coat_local' => avesmapsWikiSyncMonitorSaveCoatLocal(
                 $pdo,
                 (string) ($payload['wiki_key'] ?? '')
+            ),
+            'upload_coat' => avesmapsWikiSyncMonitorUploadCoat(
+                $pdo,
+                (string) ($payload['wiki_key'] ?? ''),
+                (string) ($payload['source_url'] ?? ''),
+                (string) ($payload['license'] ?? ''),
+                (string) ($payload['author'] ?? ''),
+                is_array($_FILES['coat_file'] ?? null) ? $_FILES['coat_file'] : null
             ),
             'clear' => avesmapsWikiSyncMonitorClear(
                 $pdo,
