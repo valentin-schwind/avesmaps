@@ -2749,6 +2749,17 @@ function avesmapsWikiSyncMonitorGeometryModelAudit(PDO $pdo): array {
     ];
 }
 
+// Invalidiert den model_tree-Cache hart (Key auf NULL) -> der naechste model_tree-Fetch baut garantiert
+// frisch. Nach JEDER WikiSync-Mutation aufgerufen, damit Aenderungen sofort in Editor/Review/Trees
+// erscheinen (unabhaengig von Subtilitaeten des updated_at-basierten Cache-Keys). Darf nie werfen.
+function avesmapsWikiSyncMonitorInvalidateModelTreeCache(PDO $pdo): void {
+    try {
+        $pdo->exec('UPDATE ' . AVESMAPS_WIKI_SYNC_MONITOR_STATE_TABLE . ' SET model_tree_cache_key = NULL WHERE id = 1');
+    } catch (Throwable $cacheError) {
+        // Cache-Invalidierung darf die eigentliche Aktion nie brechen.
+    }
+}
+
 function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     // Cache: Key aus Modell/Staging/Map-Revision -> bei jeder Aenderung frisch, sonst sofort aus dem Cache.

@@ -162,6 +162,12 @@ try {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
 
+        // WikiSync-Mutationen sofort in Editor/Review/Trees sichtbar machen: model_tree-Cache nach
+        // jeder (nicht-dry-run) Aktion hart invalidieren -> naechster model_tree-Fetch baut frisch.
+        if (is_array($response) && ($response['dry_run'] ?? false) !== true) {
+            avesmapsWikiSyncMonitorInvalidateModelTreeCache($pdo);
+        }
+
         avesmapsJsonResponse(200, $response);
     }
 

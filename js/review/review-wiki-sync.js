@@ -387,7 +387,21 @@ window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || f
 	closeButton.className = "political-territory-editor-dialog__close";
 	closeButton.setAttribute("aria-label", "Schließen");
 	closeButton.textContent = "✕";
-	const closeOverlay = () => { overlay.hidden = true; document.body.style.overflow = ""; };
+	// Nach dem Schliessen des Sync-Editors die abhaengigen Oberflaechen sofort auffrischen, damit
+	// WikiSync-Aenderungen gleich im Territoriumseditor + Review-Tree erscheinen (kein manuelles Reload).
+	const closeOverlay = () => {
+		overlay.hidden = true;
+		document.body.style.overflow = "";
+		try {
+			if (typeof renderWikiSyncTerritoryTree === "function") {
+				void renderWikiSyncTerritoryTree({ forceReload: true });
+			}
+		} catch (refreshError) { /* Review-Tree-Refresh ist optional. */ }
+		try {
+			const editorReload = document.getElementById("reloadButton");
+			if (editorReload) editorReload.click();
+		} catch (editorError) { /* Editor evtl. nicht offen. */ }
+	};
 	closeButton.addEventListener("click", closeOverlay);
 	header.appendChild(headingEl);
 	header.appendChild(closeButton);
