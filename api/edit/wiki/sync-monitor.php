@@ -114,6 +114,10 @@ try {
                 (string) ($payload['wiki_key'] ?? ''),
                 (string) ($payload['field_key'] ?? '')
             ),
+            'save_coat_local' => avesmapsWikiSyncMonitorSaveCoatLocal(
+                $pdo,
+                (string) ($payload['wiki_key'] ?? '')
+            ),
             'clear' => avesmapsWikiSyncMonitorClear(
                 $pdo,
                 (string) ($payload['target'] ?? ''),

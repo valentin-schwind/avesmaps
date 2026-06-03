@@ -1887,12 +1887,125 @@ function avesmapsWikiSyncMonitorEditableFields(): array {
         'founded_start_bf' => 'Gegründet (BF)', 'dissolved_end_bf' => 'Aufgelöst (BF)',
         'founded_text' => 'Gegründet (Text)', 'dissolved_text' => 'Aufgelöst (Text)',
         'capital_location_id' => 'Hauptstadt-Verknüpfung',
+        'coat_of_arms_url' => 'Wappen-Bild', 'coat_of_arms_license_status' => 'Wappen-Lizenz',
     ];
 }
 
 // BF-Override-Felder erwarten eine (optional negative) Ganzzahl ODER leer (= unbekannt/„besteht").
 function avesmapsWikiSyncMonitorIsBfField(string $fieldKey): bool {
     return in_array($fieldKey, ['founded_start_bf', 'founded_end_bf', 'founded_display_bf', 'dissolved_start_bf', 'dissolved_end_bf', 'dissolved_display_bf'], true);
+}
+
+// Laedt eine Bild-URL serverseitig (cURL, folgt Redirects). Gibt [bytes, content_type] oder null.
+function avesmapsWikiSyncMonitorHttpGetBinary(string $url): ?array {
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 5,
+            CURLOPT_TIMEOUT => 20,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_USERAGENT => 'AvesmapsWappenBot/1.0 (+https://avesmaps.de)',
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        $body = curl_exec($ch);
+        $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $type = (string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+        curl_close($ch);
+        if ($body === false || $code < 200 || $code >= 300 || $body === '') {
+            return null;
+        }
+        return ['bytes' => (string) $body, 'content_type' => $type];
+    }
+    if (ini_get('allow_url_fopen')) {
+        $ctx = stream_context_create(['http' => ['timeout' => 20, 'user_agent' => 'AvesmapsWappenBot/1.0']]);
+        $body = @file_get_contents($url, false, $ctx);
+        if ($body === false || $body === '') {
+            return null;
+        }
+        $type = '';
+        foreach ($http_response_header ?? [] as $h) {
+            if (stripos($h, 'content-type:') === 0) {
+                $type = trim(substr($h, strlen('content-type:')));
+            }
+        }
+        return ['bytes' => $body, 'content_type' => $type];
+    }
+    return null;
+}
+
+// Erlaubte Bildformate -> Dateiendung. null = nicht erlaubt.
+function avesmapsWikiSyncMonitorImageExtension(string $contentType, string $url): ?string {
+    $map = [
+        'image/png' => 'png', 'image/jpeg' => 'jpg', 'image/jpg' => 'jpg',
+        'image/svg+xml' => 'svg', 'image/gif' => 'gif', 'image/webp' => 'webp',
+    ];
+    $ct = strtolower(trim(explode(';', $contentType)[0]));
+    if (isset($map[$ct])) {
+        return $map[$ct];
+    }
+    // Fallback ueber die URL-Endung.
+    $ext = strtolower((string) pathinfo((string) parse_url($url, PHP_URL_PATH), PATHINFO_EXTENSION));
+    $allowed = ['png', 'jpg', 'jpeg', 'svg', 'gif', 'webp'];
+    if (in_array($ext, $allowed, true)) {
+        return $ext === 'jpeg' ? 'jpg' : $ext;
+    }
+    return null;
+}
+
+// #3 "Wappen lokal speichern": laedt das gemeinfreie Wiki-Wappen herunter -> /uploads/wappen/<slug>.<ext>,
+// setzt coat_of_arms_url-Override auf die lokale URL. Nur public_domain, nur Wiki-Aventurica-Quelle.
+function avesmapsWikiSyncMonitorSaveCoatLocal(PDO $pdo, string $wikiKey): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $wikiKey = trim($wikiKey);
+    if ($wikiKey === '') {
+        return ['ok' => false, 'error' => 'wiki_key fehlt.'];
+    }
+    $s = $pdo->prepare('SELECT coat_of_arms_url, coat_of_arms_license_status FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . ' WHERE wiki_key = :wk LIMIT 1');
+    $s->execute(['wk' => $wikiKey]);
+    $staging = $s->fetch(PDO::FETCH_ASSOC) ?: [];
+    $o = $pdo->prepare('SELECT metadata_overrides_json FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' WHERE wiki_key = :wk LIMIT 1');
+    $o->execute(['wk' => $wikiKey]);
+    $ov = json_decode((string) ($o->fetchColumn() ?: ''), true);
+    $ov = is_array($ov) ? $ov : [];
+    $coatUrl = array_key_exists('coat_of_arms_url', $ov) ? trim((string) $ov['coat_of_arms_url']) : trim((string) ($staging['coat_of_arms_url'] ?? ''));
+    $license = array_key_exists('coat_of_arms_license_status', $ov) ? trim((string) $ov['coat_of_arms_license_status']) : trim((string) ($staging['coat_of_arms_license_status'] ?? ''));
+    if ($coatUrl === '') {
+        return ['ok' => false, 'error' => 'Kein Wappen vorhanden.'];
+    }
+    if (strpos($coatUrl, '/uploads/wappen/') === 0) {
+        return ['ok' => true, 'wiki_key' => $wikiKey, 'local_url' => $coatUrl, 'already_local' => true];
+    }
+    if ($license !== 'public_domain') {
+        return ['ok' => false, 'error' => 'Nur gemeinfreie Wappen koennen automatisch lokal gespeichert werden (Lizenz: ' . ($license !== '' ? $license : 'unbekannt') . ').'];
+    }
+    $host = (string) parse_url($coatUrl, PHP_URL_HOST);
+    if (stripos($host, 'wiki-aventurica.de') === false) {
+        return ['ok' => false, 'error' => 'Wappen-URL ist keine Wiki-Aventurica-Quelle.'];
+    }
+    $downloaded = avesmapsWikiSyncMonitorHttpGetBinary($coatUrl);
+    if ($downloaded === null) {
+        return ['ok' => false, 'error' => 'Wappen konnte nicht heruntergeladen werden.'];
+    }
+    $ext = avesmapsWikiSyncMonitorImageExtension($downloaded['content_type'], $coatUrl);
+    if ($ext === null) {
+        return ['ok' => false, 'error' => 'Kein erlaubtes Bildformat (png/jpg/svg/gif/webp).'];
+    }
+    $docroot = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 3)), '/');
+    $dir = $docroot . '/uploads/wappen';
+    if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+        return ['ok' => false, 'error' => 'Upload-Ordner /uploads/wappen konnte nicht angelegt werden (Schreibrechte?).'];
+    }
+    $slug = strtolower((string) preg_replace('/[^a-z0-9_-]+/i', '-', (string) preg_replace('/^wiki:/', '', $wikiKey)));
+    $slug = trim($slug, '-') ?: 'wappen';
+    $filename = $slug . '.' . $ext;
+    if (@file_put_contents($dir . '/' . $filename, $downloaded['bytes']) === false) {
+        return ['ok' => false, 'error' => 'Wappen konnte nicht gespeichert werden (Schreibrechte auf /uploads/wappen?).'];
+    }
+    $localUrl = '/uploads/wappen/' . $filename;
+    avesmapsWikiSyncMonitorSetFieldOverride($pdo, $wikiKey, 'coat_of_arms_url', $localUrl);
+    return ['ok' => true, 'wiki_key' => $wikiKey, 'local_url' => $localUrl, 'bytes' => strlen($downloaded['bytes']), 'source' => $coatUrl];
 }
 
 // Liest die Override-Map (wiki_key -> {field_key: value}) aus dem Modell. Fuer model_tree.
