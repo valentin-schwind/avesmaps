@@ -246,6 +246,15 @@ function applyPoliticalTerritoryDerivedBoundaryVisibility(features) {
 	return features;
 }
 
+function getResolvedPoliticalTerritoryLayerFallbacks(url) {
+	const cacheKey = buildPoliticalTerritoryLayerCacheKey(url);
+	const cachedEntry = politicalTerritoryLayerFetchCache.get(cacheKey);
+	if (cachedEntry && Array.isArray(cachedEntry.promise?.__resolvedLayers) && Date.now() - cachedEntry.createdAt < POLITICAL_TERRITORY_LAYER_FETCH_CACHE_TTL_MS) {
+		return cachedEntry.promise.__resolvedLayers;
+	}
+	return null;
+}
+
 function buildPoliticalTerritoryLayerCacheKey(url) {
 	const cacheUrl = new URL(url.toString());
 	cacheUrl.searchParams.delete("zoom");
@@ -342,6 +351,9 @@ async function readPoliticalTerritoryLayerFallbacks(originalFetch, requestUrl, i
 				}
 			})
 	).then((layers) => layers.filter(Boolean));
+	// Aufgeloesten Wert am Promise vermerken, damit der Interceptor den Fan-out-Cache synchron (nicht blockierend) lesen kann.
+	fallbackPromise.__resolvedLayers = null;
+	fallbackPromise.then((layers) => { fallbackPromise.__resolvedLayers = layers; });
 
 	politicalTerritoryLayerFetchCache.set(cacheKey, {
 		createdAt: now,
@@ -377,8 +389,15 @@ function installPoliticalTerritoryLayerGeometryMerge() {
 			return response;
 		}
 
-		const fallbackLayers = await readPoliticalTerritoryLayerFallbacks(originalFetch, requestUrl, init, currentLayer);
-		const mergedLayer = fallbackLayers.length < 1
+		// Fan-out (Nachbarzoom-Geometrien) NICHT blockierend: nur aus dem Cache mergen, sonst den
+		// Primaer-Layer (alle Labels + aktuelle Geometrien) SOFORT liefern und den Fan-out im
+		// Hintergrund vorwaermen. Spart ~1.5s pro Zoom; der Fan-out ergaenzt nur wenige Geometrien
+		// von Nachbar-Zoomstufen und KEINE Labels -> erscheint beim naechsten Cache-Treffer.
+		const fallbackLayers = getResolvedPoliticalTerritoryLayerFallbacks(requestUrl);
+		if (!fallbackLayers) {
+			void readPoliticalTerritoryLayerFallbacks(originalFetch, requestUrl, init, currentLayer);
+		}
+		const mergedLayer = (!fallbackLayers || fallbackLayers.length < 1)
 			? { ...currentLayer, features: [...currentLayer.features] }
 			: mergePoliticalTerritoryLayerGeometryFeatures(currentLayer, fallbackLayers);
 		applyPoliticalTerritoryDerivedBoundaryVisibility(mergedLayer.features);
