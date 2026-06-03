@@ -192,3 +192,29 @@
 #political-territory-editor-host .breadcrumb-cycle:focus-visible {
 	opacity: 1;
 }
+
+/* 5) Filter-/Suchzeile (tree-time-filter): das generische Input-Stretch im inline-host
+ * macht die von/bis-Zahlenfelder riesig. Hier id-gescopt (gewinnt per Spezifitaet/Reihenfolge)
+ * die richtigen Breiten erzwingen: Suche flexibel, von/bis schmal, kompakte Zeile. */
+#political-territory-editor-host .tree-time-filter {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 8px 12px 10px;
+}
+#political-territory-editor-host .tree-time-filter .tree-search-input {
+	flex: 1 1 200px;
+	min-width: 160px;
+	width: auto;
+}
+#political-territory-editor-host .tree-time-filter input[type="number"] {
+	flex: 0 0 58px;
+	width: 58px;
+	min-width: 0;
+	box-sizing: border-box;
+}
+#political-territory-editor-host .tree-time-filter label {
+	flex: 0 0 auto;
+	white-space: nowrap;
+}
