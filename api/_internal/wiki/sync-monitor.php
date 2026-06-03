@@ -2497,6 +2497,51 @@ function avesmapsWikiSyncMonitorRevertCoats(PDO $pdo, string $batchId, bool $dry
 
 // Komplettes Modell flach (fuers UI: Baum + Status-Marker). Markiert Luecken (parent
 // referenziert, aber selbst kein Knoten) + Konflikte + Lizenz-Status.
+// Read-only Sicherheits-Audit fuer die Tree-Vereinheitlichung: jede aktive Karten-Geometrie muss im
+// Modell (per wiki_key) vorkommen, sonst ginge sie beim Wechsel auf model_tree verloren.
+function avesmapsWikiSyncMonitorGeometryModelAudit(PDO $pdo): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $model = AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE;
+    $rows = $pdo->query(
+        'SELECT pt.id, pt.public_id, pt.name, pt.wiki_key,
+                (SELECT COUNT(*) FROM political_territory_geometry g WHERE g.territory_id = pt.id AND g.is_active = 1) AS geom
+           FROM political_territory pt
+          WHERE pt.is_active = 1
+            AND EXISTS (SELECT 1 FROM political_territory_geometry g2 WHERE g2.territory_id = pt.id AND g2.is_active = 1)'
+    )->fetchAll(PDO::FETCH_ASSOC);
+    $modelKeys = [];
+    foreach ($pdo->query('SELECT wiki_key FROM ' . $model) ?: [] as $r) {
+        $modelKeys[(string) $r['wiki_key']] = true;
+    }
+    $total = 0;
+    $geomTotal = 0;
+    $inModel = 0;
+    $noWikiKey = [];
+    $notInModel = [];
+    foreach ($rows as $r) {
+        $total++;
+        $geomTotal += (int) $r['geom'];
+        $wk = (string) ($r['wiki_key'] ?? '');
+        if ($wk === '') {
+            $noWikiKey[] = ['name' => $r['name'], 'public_id' => $r['public_id'], 'geom' => (int) $r['geom']];
+        } elseif (isset($modelKeys[$wk])) {
+            $inModel++;
+        } else {
+            $notInModel[] = ['name' => $r['name'], 'wiki_key' => $wk, 'public_id' => $r['public_id'], 'geom' => (int) $r['geom']];
+        }
+    }
+    return [
+        'ok' => true,
+        'territories_with_geometry' => $total,
+        'geometries_total' => $geomTotal,
+        'in_model' => $inModel,
+        'no_wiki_key_count' => count($noWikiKey),
+        'no_wiki_key' => array_slice($noWikiKey, 0, 80),
+        'wiki_key_not_in_model_count' => count($notInModel),
+        'wiki_key_not_in_model' => array_slice($notInModel, 0, 80),
+    ];
+}
+
 function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
     $rows = $pdo->query(

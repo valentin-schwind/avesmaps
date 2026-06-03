@@ -192,6 +192,7 @@ try {
         'editor_state' => avesmapsWikiSyncMonitorEditorState($pdo),
         'apply_identity_preview' => avesmapsWikiSyncMonitorApplyIdentityPreview($pdo),
         'apply_coats_preview' => avesmapsWikiSyncMonitorApplyCoatsPreview($pdo),
+        'geometry_model_audit' => avesmapsWikiSyncMonitorGeometryModelAudit($pdo),
         'location_search' => avesmapsWikiSyncMonitorLocationSearch(
             $pdo,
             (string) ($_GET['q'] ?? ''),
