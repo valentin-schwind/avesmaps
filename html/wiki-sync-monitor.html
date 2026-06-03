@@ -1053,7 +1053,18 @@ $('identSearch').oninput = renderIdentRows;
 
 buildSeedMenu();
 updateFilterInfo();
-loadModel().catch(e=>setStatus('Modell laden fehlgeschlagen: '+e.message));
+loadModel().then(()=>{
+  // Deep-Link vom Territoriumseditor („Im Wiki-Sync bearbeiten"): ?key=wiki:xxx vorselektieren.
+  const k=new URLSearchParams(location.search).get('key');
+  if(k && BYKEY.has(k)){
+    const n=BYKEY.get(k);
+    $('search').value = n.name || '';
+    renderList();
+    selectKey(k);
+    setStatus(`Aus dem Editor geöffnet: „${n.name||k}".`);
+    try{ const el=document.querySelector(`.row[data-key="${CSS.escape(k)}"]`)||document.querySelector(`[data-key="${CSS.escape(k)}"]`); if(el) el.scrollIntoView({block:'center'}); }catch(e){}
+  }
+}).catch(e=>setStatus('Modell laden fehlgeschlagen: '+e.message));
 loadEditorState();
 </script>
 </body>

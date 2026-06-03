@@ -2034,6 +2034,30 @@
 		function renderInfoBox(node) {
 			els.infoBox.innerHTML = "";
 			els.detailInfo.textContent = node.row ? "Wiki-/SQL-Datensatz" : "Abgeleiteter Gruppenknoten";
+
+			// Phase D: Herkunfts-Badge + Deep-Link „Im Wiki-Sync bearbeiten". Identität (Name, Wappen,
+			// Gegründet/Aufgelöst, Status …) ist hier read-only und wird im Wiki-Sync gepflegt.
+			const wikiKeyForLink = normalizeText(node.row?.wiki_key || "");
+			const originBar = document.createElement("div");
+			originBar.className = "info-origin-bar";
+			originBar.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px";
+			const originBadge = document.createElement("span");
+			originBadge.className = "info-origin-badge";
+			originBadge.style.cssText = "font-size:11px;background:#e8e0d4;color:#6b5a44;border-radius:10px;padding:2px 8px";
+			originBadge.textContent = "aus Wiki-Sync (read-only)";
+			originBar.appendChild(originBadge);
+			if (wikiKeyForLink) {
+				const originLink = document.createElement("a");
+				originLink.className = "info-origin-link";
+				originLink.style.cssText = "font-size:12px";
+				originLink.href = `/html/wiki-sync-monitor.html?key=${encodeURIComponent(wikiKeyForLink)}`;
+				originLink.target = "_blank";
+				originLink.rel = "noopener";
+				originLink.textContent = "Im Wiki-Sync bearbeiten ↗";
+				originBar.appendChild(originLink);
+			}
+			els.infoBox.appendChild(originBar);
+
 			const values = node.row
 				? [
 					["Wappen", node.row.coat_of_arms_url || "", "coat"],
@@ -2928,16 +2952,23 @@
 			const hasAssignedTerritory = assignedPath.length > 0 && (wikiPublicIds.length > 0 || territoryPublicIds.length > 0);
 
 			const displayNameInput = document.getElementById("displayNameInput");
-			const alternateCoatInput = document.getElementById("alternateCoatInput");
 			const colorInput = document.getElementById("colorInput");
-			const startYearInput = document.getElementById("startYearInput");
-			const endYearInput = document.getElementById("endYearInput");
+
+			// Phase D: Wappen + zeitliche Gültigkeit gehören dem Wiki-Sync (Identität). Der Editor
+			// schreibt sie NICHT mehr nach political_territory -> diese Schlüssel werden bewusst aus
+			// dem Payload weggelassen. Der Server bewahrt dann den Bestandswert (… ?? territory[…]).
+			const stripIdentityFields = (entry) => {
+				if (!entry || typeof entry !== "object") {
+					return entry;
+				}
+				const { coatOfArmsUrl, startYear, endYear, existsUntilToday, ...rest } = entry;
+				return rest;
+			};
 
 			const display = {
 				...(value.display || {}),
 				name: normalizeText(displayNameInput?.value || value.display?.name || value.display?.displayName || params.get("name") || ""),
 				displayName: normalizeText(displayNameInput?.value || value.display?.displayName || value.display?.name || params.get("name") || ""),
-				coatOfArmsUrl: normalizeText(alternateCoatInput?.value || value.display?.coatOfArmsUrl || ""),
 				zoomMin: parseOptionalNumber(els.zoomFromInput?.value, value.display?.zoomMin ?? parseOptionalNumber(params.get("min_zoom"))),
 				zoomMax: parseOptionalNumber(els.zoomToInput?.value, value.display?.zoomMax ?? parseOptionalNumber(params.get("max_zoom"))),
 				color: normalizeHexColor(colorInput?.value || value.display?.color || params.get("color"))
@@ -2948,15 +2979,12 @@
 				) / 100
 			};
 
-			const rawEndYear = normalizeText(endYearInput?.value || "");
-			const isOpenEnded = Boolean(existsUntilTodayInput?.checked) || rawEndYear === "";
-
-			const validity = {
-				...(value.validity || {}),
-				startYear: parseOptionalNumber(startYearInput?.value, value.validity?.startYear ?? parseOptionalNumber(params.get("valid_from_bf"))),
-				endYear: isOpenEnded ? null : parseOptionalNumber(rawEndYear),
-				existsUntilToday: isOpenEnded
+			const sanitizedAssignment = {
+				...value,
+				display: value.display ? stripIdentityFields(value.display) : value.display,
+				displays: Array.isArray(value.displays) ? value.displays.map(stripIdentityFields) : value.displays
 			};
+			delete sanitizedAssignment.validity;
 
 			const response = await fetch(moduleOptions.saveUrl || WRITE_API_URL, {
 				method: "PATCH",
@@ -2972,33 +3000,27 @@
 					display: {
 						name: display.name || display.displayName || "",
 						displayName: display.displayName || display.name || "",
-						coatOfArmsUrl: display.coatOfArmsUrl || "",
 						zoomMin: display.zoomMin,
 						zoomMax: display.zoomMax,
 						color: normalizeHexColor(display.color) || "#888888",
 						opacity: display.opacity,
 					},
-					validity: {
-						startYear: validity.startYear,
-						endYear: validity.endYear,
-						existsUntilToday: validity.existsUntilToday,
-					},
 					wiki_public_ids: wikiPublicIds,
 					territory_public_ids: territoryPublicIds,
 					wiki_nodes: assignedPath.map((node, index) => {
-						const display = displays[index] || {};
+						const nodeDisplay = displays[index] || {};
 						return {
 							key: wikiPublicIds[index] || node.wikiKey || node.territoryPublicId || node.id || node.key || node.label || "",
 							territoryPublicId: node.territoryPublicId || "",
 							territoryId: node.territoryId || null,
-							name: display.displayName || node.label || node.key || "",
+							name: nodeDisplay.displayName || node.label || node.key || "",
 							type: node.kind || "Herrschaftsgebiet",
 							status: "",
-							coat_of_arms_url: display.coatOfArmsUrl || "",
+							coat_of_arms_url: nodeDisplay.coatOfArmsUrl || "",
 							wiki_url: ""
 						};
 					}),
-					assignment: value
+					assignment: sanitizedAssignment
 				})
 			});
 
