@@ -2049,11 +2049,25 @@
 			if (wikiKeyForLink) {
 				const originLink = document.createElement("a");
 				originLink.className = "info-origin-link";
-				originLink.style.cssText = "font-size:12px";
+				originLink.style.cssText = "font-size:12px;cursor:pointer";
+				// Fallback-URL (Mittel-/Strg-Klick oeffnet weiterhin den Tab); normaler Klick oeffnet
+				// den Sync-Editor INLINE als Overlay im selben Tab (kein Seitenwechsel).
 				originLink.href = `/html/wiki-sync-monitor.html?key=${encodeURIComponent(wikiKeyForLink)}`;
 				originLink.target = "_blank";
 				originLink.rel = "noopener";
 				originLink.textContent = "Im Wiki-Sync bearbeiten ↗";
+				originLink.addEventListener("click", (event) => {
+					// Modifier-Klicks (neuer Tab/Fenster) der Standardbehandlung ueberlassen.
+					if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button === 1) {
+						return;
+					}
+					const opener = (typeof window.openAvesmapsSyncEditorOverlay === "function" && window.openAvesmapsSyncEditorOverlay)
+						|| (window.parent && typeof window.parent.openAvesmapsSyncEditorOverlay === "function" && window.parent.openAvesmapsSyncEditorOverlay);
+					if (opener) {
+						event.preventDefault();
+						opener(wikiKeyForLink);
+					}
+				});
 				originBar.appendChild(originLink);
 			}
 			els.infoBox.appendChild(originBar);

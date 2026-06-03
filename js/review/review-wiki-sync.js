@@ -354,10 +354,18 @@ async function startWikiSyncRun() {
 
 // Inline-Dialog (statt neuem Fenster) fuer den Sync-Editor — im Stil des Herrschaftsgebiet-
 // Eigenschaften-Editors (gleiche CSS-Klassen), nur etwas breiter fuer die zwei Spalten.
-window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || function openAvesmapsSyncEditorOverlay() {
+window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || function openAvesmapsSyncEditorOverlay(wikiKey) {
 	const overlayId = "avesmaps-sync-editor-overlay";
+	// Cache-Buster: das Tool-HTML laedt sonst gecacht (kein ?v=) -> immer frisch holen.
+	// Optionaler Deep-Link ?key=wiki:xxx (z. B. aus dem Territoriumseditor) selektiert den Knoten.
+	const buildSyncEditorSrc = () => "/html/wiki-sync-monitor.html?v=" + Date.now()
+		+ (wikiKey ? "&key=" + encodeURIComponent(wikiKey) : "");
 	let overlay = document.getElementById(overlayId);
 	if (overlay) {
+		if (wikiKey) {
+			const existingFrame = overlay.querySelector("iframe");
+			if (existingFrame) existingFrame.src = buildSyncEditorSrc();
+		}
 		overlay.hidden = false;
 		document.body.style.overflow = "hidden";
 		return;
@@ -385,8 +393,7 @@ window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || f
 	header.appendChild(closeButton);
 	const frame = document.createElement("iframe");
 	frame.className = "political-territory-editor-dialog__frame";
-	// Cache-Buster: das Tool-HTML laedt sonst gecacht (kein ?v=) -> immer frisch holen.
-	frame.src = "/html/wiki-sync-monitor.html?v=" + Date.now();
+	frame.src = buildSyncEditorSrc();
 	frame.title = "Sync-Editor";
 	dialog.appendChild(header);
 	dialog.appendChild(frame);
