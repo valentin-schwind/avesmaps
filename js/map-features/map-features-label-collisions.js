@@ -30,6 +30,22 @@ function getRegionLabelOffsetCandidates() {
 	return candidates;
 }
 
+// Ein Label-Offset ist ein reiner CSS-Pixel-Translate (.region-label__content bzw. die
+// per left/top verschobene Orts-Label-span). Die verschobene Box ist also die gemessene
+// Box, nur um (dx, dy) verschoben -> wir koennen Kandidaten in JS berechnen, statt nach
+// jedem Offset erneut getBoundingClientRect aufzurufen (Layout-Thrashing, ~12k erzwungene
+// Reflows pro Zoom). measure-once -> rechnen -> einmal schreiben.
+function translateLabelRect(rect, dx, dy) {
+	return {
+		left: rect.left + dx,
+		right: rect.right + dx,
+		top: rect.top + dy,
+		bottom: rect.bottom + dy,
+		width: rect.width,
+		height: rect.height,
+	};
+}
+
 function resolveRegionLabelCollisions() {
 	const labels = typeof regionLabels !== "undefined" && Array.isArray(regionLabels) ? regionLabels : [];
 	const entries = labels
@@ -40,34 +56,43 @@ function resolveRegionLabelCollisions() {
 		return;
 	}
 
+	// Schreibphase 1: alle Offsets auf 0 zuruecksetzen, damit die Basis-Box bei Offset 0 gemessen wird.
 	entries.forEach(({ element }) => setLabelElementOffset(element, 0, 0));
+
+	// Lesephase: jede Box GENAU EINMAL messen (gebatcht -> ein Reflow statt tausender).
+	const measured = entries.map(({ element, priority }) => ({ element, priority, base: measureLabelCollisionRect(element) }));
 
 	const candidates = getRegionLabelOffsetCandidates();
 	const acceptedRects = [];
-	entries
+	const writes = [];
+	measured
 		.sort((left, right) => right.priority - left.priority)
-		.forEach(({ element }) => {
-			let placed = false;
+		.forEach(({ element, base }) => {
+			if (base.width <= 0 || base.height <= 0) {
+				writes.push({ element, dx: 0, dy: 0 });
+				return;
+			}
+			let chosen = null;
 			for (const candidate of candidates) {
-				setLabelElementOffset(element, candidate.dx, candidate.dy);
-				const rect = measureLabelCollisionRect(element);
-				if (rect.width <= 0 || rect.height <= 0) {
-					placed = true;
-					break;
-				}
+				const rect = translateLabelRect(base, candidate.dx, candidate.dy);
 				if (!acceptedRects.some((acceptedRect) => rectanglesOverlap(rect, acceptedRect))) {
 					acceptedRects.push(rect);
-					placed = true;
+					chosen = candidate;
 					break;
 				}
 			}
-			if (!placed) {
+			if (!chosen) {
 				// Tension erschöpft -> zentriert lassen (nicht verstecken) und Rechteck trotzdem
 				// vormerken, damit nachfolgende Labels darum herum ausweichen.
-				setLabelElementOffset(element, 0, 0);
-				acceptedRects.push(measureLabelCollisionRect(element));
+				acceptedRects.push(base);
+				writes.push({ element, dx: 0, dy: 0 });
+			} else {
+				writes.push({ element, dx: chosen.dx, dy: chosen.dy });
 			}
 		});
+
+	// Schreibphase 2: alle gewaehlten Offsets in einem Rutsch anwenden (kein Reflow bis zum naechsten Lesen).
+	writes.forEach(({ element, dx, dy }) => setLabelElementOffset(element, dx, dy));
 }
 
 function rectanglesOverlap(firstRect, secondRect) {
@@ -152,9 +177,15 @@ function getLocationNameLabelOffsets(element, labelRect) {
 	];
 }
 
-function applyLocationNameLabelOffset(element, candidate) {
-	const baseOffset = getLocationNameLabelBaseOffset(element);
-	setLabelElementOffset(element, candidate.dx - baseOffset.x, candidate.dy - baseOffset.y);
+function setLabelElementChosenOffset(element, isLocation, baseOffset, candidate) {
+	// Orts-Labels: left/top = location-label-offset + label-offset; Kandidat ist die Zielposition
+	// relativ zum Marker, der angewandte --label-offset also (Kandidat - Basis-Offset). Frei-Labels:
+	// Kandidat ist direkt der Offset.
+	if (isLocation) {
+		setLabelElementOffset(element, candidate.dx - baseOffset.x, candidate.dy - baseOffset.y);
+		return;
+	}
+	setLabelElementOffset(element, candidate.dx, candidate.dy);
 }
 
 function getLabelCollisionTarget(element) {
@@ -204,43 +235,63 @@ function resolveLabelCollisions() {
 	const visibleEntries = getCollisionEntries();
 	const offsetCandidates = getLabelOffsetCandidates();
 
+	// Schreibphase 1: alle Offsets zuruecksetzen, damit die Basis-Box bei Offset 0 gemessen wird.
 	visibleEntries.forEach(({ element }) => {
 		element.classList.remove("is-colliding");
 		setLabelElementOffset(element, 0, 0);
 	});
 
-	const acceptedRects = [];
-	visibleEntries
+	// Lesephase: jedes Label GENAU EINMAL messen + Kandidaten vorberechnen (gebatcht -> ein Reflow
+	// statt N x Kandidaten erzwungener Reflows). Kandidaten werden anschliessend rein in JS getestet.
+	const measured = visibleEntries
 		.sort((left, right) => {
 			const priorityDiff = right.priority - left.priority;
 			return priorityDiff || left.minZoom - right.minZoom;
 		})
-		.forEach(({ element }) => {
-			const locationLabelRect = element.classList.contains("location-name-label")
-				? measureLabelRect(element)
-				: null;
-			const candidates = locationLabelRect
-				? getLocationNameLabelOffsets(element, locationLabelRect)
+		.map(({ element }) => {
+			const isLocation = element.classList.contains("location-name-label");
+			const baseRect = measureLabelRect(element);
+			const collisionRect = measureLabelCollisionRect(element);
+			const baseOffset = isLocation ? getLocationNameLabelBaseOffset(element) : { x: 0, y: 0 };
+			const candidates = isLocation
+				? getLocationNameLabelOffsets(element, baseRect)
 				: offsetCandidates.map(([offsetX, offsetY]) => ({ dx: offsetX, dy: offsetY }));
-
-			for (const candidate of candidates) {
-				if (locationLabelRect) {
-					applyLocationNameLabelOffset(element, candidate);
-				} else {
-					setLabelElementOffset(element, candidate.dx, candidate.dy);
-				}
-				const rect = measureLabelCollisionRect(element);
-				if (rect.width <= 0 || rect.height <= 0) {
-					return;
-				}
-
-				if (!acceptedRects.some((acceptedRect) => rectanglesOverlap(rect, acceptedRect))) {
-					acceptedRects.push(rect);
-					return;
-				}
-			}
-
-			element.classList.add("is-colliding");
+			return { element, isLocation, collisionRect, baseOffset, candidates };
 		});
-}
 
+	const acceptedRects = [];
+	const writes = [];
+	measured.forEach(({ element, isLocation, collisionRect, baseOffset, candidates }) => {
+		if (collisionRect.width <= 0 || collisionRect.height <= 0) {
+			writes.push({ element, isLocation, baseOffset, candidate: candidates[0], colliding: false });
+			return;
+		}
+
+		let chosen = null;
+		for (const candidate of candidates) {
+			// Translation in px relativ zur bei Offset 0 gemessenen Basis-Box.
+			const translateX = isLocation ? (candidate.dx - baseOffset.x) : candidate.dx;
+			const translateY = isLocation ? (candidate.dy - baseOffset.y) : candidate.dy;
+			const rect = translateLabelRect(collisionRect, translateX, translateY);
+			if (!acceptedRects.some((acceptedRect) => rectanglesOverlap(rect, acceptedRect))) {
+				acceptedRects.push(rect);
+				chosen = candidate;
+				break;
+			}
+		}
+
+		if (chosen) {
+			writes.push({ element, isLocation, baseOffset, candidate: chosen, colliding: false });
+		} else {
+			writes.push({ element, isLocation, baseOffset, candidate: candidates[0], colliding: true });
+		}
+	});
+
+	// Schreibphase 2: gewaehlte Offsets + Kollisions-Klasse in einem Rutsch anwenden.
+	writes.forEach(({ element, isLocation, baseOffset, candidate, colliding }) => {
+		setLabelElementChosenOffset(element, isLocation, baseOffset, candidate);
+		if (colliding) {
+			element.classList.add("is-colliding");
+		}
+	});
+}
