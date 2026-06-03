@@ -261,8 +261,13 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 		const rows = await loadWikiSyncTerritoryTreeRows({ forceReload });
 		const filteredRows = treeModule.filterRows(rows, {
 			search: getWikiSyncTerritoryFilterQuery(), time: getWikiSyncTerritoryTimeFilter(),
-		});
+		}).filter((row) => row && row.continent === "Aventurien");
 		const treeResult = treeModule.buildTree(filteredRows);
+		// Summary identisch zum Sync-Monitor: alle Knoten gesamt, sichtbare Wurzeln (Aventurien+heute = 53).
+		wikiSyncTerritorySummary = {
+			territory_count: Array.isArray(rows) ? rows.length : 0,
+			root_count: Array.isArray(treeResult?.root?.children) ? treeResult.root.children.length : 0,
+		};
 
 		treeModule.renderTree({
 			container: treeElement,
@@ -480,7 +485,7 @@ function formatWikiSyncTerritorySummaryText() {
 	const syncedRootCount = Number(wikiSyncTerritorySummary?.root_count ?? 0);
 
 	if (syncedTerritoryCount > 0 || syncedRootCount > 0) {
-		return `${syncedTerritoryCount} Herrschaftsgebiete in ${syncedRootCount} Hauptmächte`;
+		return `${syncedTerritoryCount} Knoten · ${syncedRootCount} Wurzelknoten`;
 	}
 
 	const fallbackSummary = getWikiSyncTerritoryLoadedDataSummary();
@@ -488,7 +493,7 @@ function formatWikiSyncTerritorySummaryText() {
 		return "Keine Herrschaftsgebietsdaten geladen";
 	}
 
-	return `${fallbackSummary.territoryCount} in ${fallbackSummary.rootCount} Hauptmächte`;
+	return `${fallbackSummary.territoryCount} Knoten · ${fallbackSummary.rootCount} Wurzelknoten`;
 }
 
 function getWikiSyncTerritoryLoadedDataSummary() {
