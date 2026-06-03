@@ -357,6 +357,19 @@
 		return expandedRows;
 	}
 
+	// Strukturelles Ausblenden wie im Sync-Monitor (model-intrinsisch, NICHT Kontinent/Zeit):
+	// aussortiert (excluded), Kirchen (Kirchenprovinz/Kirche/Ordo) und Luecken (Eltern nicht im Modell).
+	// Versteckte Knoten erzeugen keine Tree-Knoten -> ihre Kinder ruecken zu Wurzeln auf (wie Sync-Monitor).
+	function isModelNodeHidden(row) {
+		if (!row) return false;
+		if (row.excluded === true || row.excluded === 1) return true;
+		const status = String(row.status || "");
+		const affiliation = String(row.affiliation_raw || row.political || "");
+		if (/kirchenprovinz/i.test(status) || /\b(kirche|ordo)\b/i.test(affiliation)) return true;
+		if (row.parent_wiki_key && row.parent_in_model === false) return true;
+		return false;
+	}
+
 	// Baum aus der KURATIERTEN Modell-Hierarchie (parent_wiki_key), identisch zum Sync-Monitor.
 	// Frueher namensbasiert ueber affiliation_path -> zu viele Wurzeln/Dubletten. Jetzt exakt per wiki_key.
 	function buildTree(rows) {
@@ -366,7 +379,7 @@
 		const order = [];
 		for (const row of inputRows) {
 			const wikiKey = normalizeText(row?.wiki_key);
-			if (!wikiKey) continue;
+			if (!wikiKey || isModelNodeHidden(row)) continue;
 			const existing = nodeByKey.get(wikiKey);
 			if (existing) {
 				existing.row = mergeRowsByIdentity(existing.row || row, row);
@@ -610,7 +623,7 @@
 		treeRootElement.className = "tree-root";
 		renderTreeChildren(treeRootElement, root.children, 0, { searchText, selectedNodeId, itemClassName, onItemClick: options.onItemClick, onItemDragStart: options.onItemDragStart, enableDrag: options.enableDrag !== false });
 		container.appendChild(treeRootElement);
-		if (infoElement) infoElement.textContent = `${rowCount} Knoten · ${root.children.length} Wurzelknoten`;
+		if (infoElement) infoElement.textContent = `${totalRowCount} Knoten · ${root.children.length} Wurzelknoten`;
 	}
 
 	function renderTreeChildren(parentElement, children, depth, options) {
