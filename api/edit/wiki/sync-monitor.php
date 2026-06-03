@@ -87,6 +87,12 @@ try {
                 // Schreiben NUR bei dry_run:false UND confirm:"apply"; sonst immer lesender Dry-Run.
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
             ),
+            'revert_identity' => avesmapsWikiSyncMonitorRevertIdentity(
+                $pdo,
+                (string) ($payload['batch_id'] ?? ''),
+                // Schreiben NUR bei dry_run:false UND confirm:"apply"; sonst immer lesender Dry-Run.
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+            ),
             'set_field_override' => avesmapsWikiSyncMonitorSetFieldOverride(
                 $pdo,
                 (string) ($payload['wiki_key'] ?? ''),
@@ -170,6 +176,7 @@ try {
             (string) ($_GET['q'] ?? ''),
             (int) ($_GET['limit'] ?? 20)
         ),
+        'identity_backups' => avesmapsWikiSyncMonitorIdentityBackups($pdo, (int) ($_GET['limit'] ?? 20)),
         default => null,
     };
 

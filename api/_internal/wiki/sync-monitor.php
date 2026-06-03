@@ -13,6 +13,7 @@ const AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE = 'wiki_territory_model';
 const AVESMAPS_WIKI_SYNC_MONITOR_ALIAS_TABLE = 'wiki_redirect_alias';
 const AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE = 'political_territory_wiki_test';
 const AVESMAPS_WIKI_SYNC_MONITOR_STATE_TABLE = 'wiki_sync_editor_state';
+const AVESMAPS_WIKI_SYNC_MONITOR_IDENTITY_BACKUP_TABLE = 'political_territory_identity_backup';
 const AVESMAPS_WIKI_SYNC_MONITOR_MAX_DEPTH = 5;
 
 function avesmapsWikiSyncMonitorEnsureTables(PDO $pdo): void {
@@ -121,6 +122,32 @@ function avesmapsWikiSyncMonitorEnsureTables(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
     $pdo->exec('INSERT IGNORE INTO ' . AVESMAPS_WIKI_SYNC_MONITOR_STATE_TABLE . ' (id) VALUES (1)');
+
+    // Identitaets-Apply-Backup: Snapshot der Live-Werte VOR jedem apply_identity-Write,
+    // damit ein Apply per revert_identity rueckgaengig gemacht werden kann (batch_id = ein Apply-Lauf).
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS ' . AVESMAPS_WIKI_SYNC_MONITOR_IDENTITY_BACKUP_TABLE . ' (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            batch_id VARCHAR(32) NOT NULL,
+            territory_id INT NOT NULL,
+            wiki_key VARCHAR(255) NULL,
+            old_name VARCHAR(255) NULL,
+            old_type VARCHAR(255) NULL,
+            old_status VARCHAR(255) NULL,
+            old_valid_from_bf INT NULL,
+            old_valid_to_bf INT NULL,
+            new_name VARCHAR(255) NULL,
+            new_type VARCHAR(255) NULL,
+            new_status VARCHAR(255) NULL,
+            new_valid_from_bf INT NULL,
+            new_valid_to_bf INT NULL,
+            reverted_at DATETIME(3) NULL,
+            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            PRIMARY KEY (id),
+            KEY idx_batch (batch_id),
+            KEY idx_territory (territory_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
 }
 
 // Zeitstempel einer Editor-Aktion festhalten (rebuild/diff/test/apply). Bei diff zusaetzlich Zahlen.
@@ -2191,7 +2218,24 @@ function avesmapsWikiSyncMonitorApplyIdentity(PDO $pdo, array $skip, array $only
     }
 
     $written = 0;
+    $batchId = '';
     if (!$dryRun && $targets !== []) {
+        $batchId = date('YmdHis') . '-' . substr(bin2hex(random_bytes(2)), 0, 4);
+        // Aktuelle Live-Werte der Ziele VOR dem Write holen (Snapshot = Undo-Quelle).
+        $ids = array_map(static fn(array $c): int => (int) $c['id'], $targets);
+        $place = implode(',', array_fill(0, count($ids), '?'));
+        $sel = $pdo->prepare('SELECT id, name, type, status, valid_from_bf, valid_to_bf FROM political_territory WHERE id IN (' . $place . ')');
+        $sel->execute($ids);
+        $cur = [];
+        foreach ($sel->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $cur[(int) $r['id']] = $r;
+        }
+        $backupStmt = $pdo->prepare(
+            'INSERT INTO ' . AVESMAPS_WIKI_SYNC_MONITOR_IDENTITY_BACKUP_TABLE . '
+                (batch_id, territory_id, wiki_key, old_name, old_type, old_status, old_valid_from_bf, old_valid_to_bf,
+                 new_name, new_type, new_status, new_valid_from_bf, new_valid_to_bf)
+                VALUES (:batch, :tid, :wk, :on, :ot, :os, :ovf, :ovt, :nn, :nt, :ns, :nvf, :nvt)'
+        );
         $stmt = $pdo->prepare(
             'UPDATE political_territory
                 SET name = :name, type = :type, status = :status, valid_from_bf = :vfrom, valid_to_bf = :vto
@@ -2201,13 +2245,35 @@ function avesmapsWikiSyncMonitorApplyIdentity(PDO $pdo, array $skip, array $only
         try {
             foreach ($targets as $c) {
                 $eff = $c['eff'];
+                $id = (int) $c['id'];
+                $newType = $eff['type'] === '' ? null : (string) $eff['type'];
+                $newStatus = $eff['status'] === '' ? null : (string) $eff['status'];
+                $newVto = $eff['valid_to_bf'] === null ? 9999 : (int) $eff['valid_to_bf'];
+                $old = $cur[$id] ?? null;
+                if ($old !== null) {
+                    $backupStmt->execute([
+                        'batch' => $batchId,
+                        'tid' => $id,
+                        'wk' => (string) $c['wiki_key'],
+                        'on' => $old['name'],
+                        'ot' => $old['type'],
+                        'os' => $old['status'],
+                        'ovf' => $old['valid_from_bf'],
+                        'ovt' => $old['valid_to_bf'],
+                        'nn' => (string) $eff['name'],
+                        'nt' => $newType,
+                        'ns' => $newStatus,
+                        'nvf' => $eff['valid_from_bf'],
+                        'nvt' => $newVto,
+                    ]);
+                }
                 $stmt->execute([
                     'name' => (string) $eff['name'],
-                    'type' => $eff['type'] === '' ? null : (string) $eff['type'],
-                    'status' => $eff['status'] === '' ? null : (string) $eff['status'],
+                    'type' => $newType,
+                    'status' => $newStatus,
                     'vfrom' => $eff['valid_from_bf'],
-                    'vto' => $eff['valid_to_bf'] === null ? 9999 : (int) $eff['valid_to_bf'],
-                    'id' => (int) $c['id'],
+                    'vto' => $newVto,
+                    'id' => $id,
                 ]);
                 $written += $stmt->rowCount() > 0 ? 1 : 0;
             }
@@ -2221,6 +2287,7 @@ function avesmapsWikiSyncMonitorApplyIdentity(PDO $pdo, array $skip, array $only
     return [
         'ok' => true,
         'dry_run' => $dryRun,
+        'batch_id' => $batchId,
         'targets' => count($targets),
         'written' => $written,
         'skipped_skiplist' => $skippedSkiplist,
@@ -2229,6 +2296,79 @@ function avesmapsWikiSyncMonitorApplyIdentity(PDO $pdo, array $skip, array $only
             $targets
         ), 0, 12),
     ];
+}
+
+// Apply-Flow Undo: stellt die Live-Werte eines apply_identity-Laufs aus dem Backup wieder her.
+// $batchId leer/"latest" -> juengster noch nicht zurueckgesetzter Lauf. GATED ($dryRun=false = echter Write).
+function avesmapsWikiSyncMonitorRevertIdentity(PDO $pdo, string $batchId, bool $dryRun): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $tbl = AVESMAPS_WIKI_SYNC_MONITOR_IDENTITY_BACKUP_TABLE;
+    $batchId = trim($batchId);
+    if ($batchId === '' || strtolower($batchId) === 'latest') {
+        $batchId = (string) ($pdo->query('SELECT batch_id FROM ' . $tbl . ' WHERE reverted_at IS NULL ORDER BY id DESC LIMIT 1')->fetchColumn() ?: '');
+    }
+    if ($batchId === '') {
+        return ['ok' => false, 'error' => 'Kein wiederherstellbarer Apply-Lauf gefunden.'];
+    }
+    $sel = $pdo->prepare('SELECT id, territory_id, old_name, old_type, old_status, old_valid_from_bf, old_valid_to_bf FROM ' . $tbl . ' WHERE batch_id = :b AND reverted_at IS NULL ORDER BY id ASC');
+    $sel->execute(['b' => $batchId]);
+    $rows = $sel->fetchAll(PDO::FETCH_ASSOC);
+    $restored = 0;
+    if (!$dryRun && $rows !== []) {
+        $upd = $pdo->prepare('UPDATE political_territory SET name = :name, type = :type, status = :status, valid_from_bf = :vfrom, valid_to_bf = :vto WHERE id = :id');
+        $mark = $pdo->prepare('UPDATE ' . $tbl . ' SET reverted_at = NOW(3) WHERE id = :bid');
+        $pdo->beginTransaction();
+        try {
+            foreach ($rows as $r) {
+                $upd->execute([
+                    'name' => $r['old_name'],
+                    'type' => $r['old_type'],
+                    'status' => $r['old_status'],
+                    'vfrom' => $r['old_valid_from_bf'] === null ? null : (int) $r['old_valid_from_bf'],
+                    'vto' => $r['old_valid_to_bf'] === null ? null : (int) $r['old_valid_to_bf'],
+                    'id' => (int) $r['territory_id'],
+                ]);
+                $mark->execute(['bid' => (int) $r['id']]);
+                $restored += $upd->rowCount() > 0 ? 1 : 0;
+            }
+            $pdo->commit();
+        } catch (Throwable $error) {
+            $pdo->rollBack();
+            throw $error;
+        }
+    }
+    return ['ok' => true, 'dry_run' => $dryRun, 'batch_id' => $batchId, 'rows' => count($rows), 'restored' => $restored];
+}
+
+// Liste der Apply-Backups (fuers UI/Undo-Button): je batch_id Anzahl Zeilen + Zeitstempel + ob schon zurueckgesetzt.
+function avesmapsWikiSyncMonitorIdentityBackups(PDO $pdo, int $limit): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $tbl = AVESMAPS_WIKI_SYNC_MONITOR_IDENTITY_BACKUP_TABLE;
+    $limit = $limit > 0 ? min($limit, 100) : 20;
+    $rows = $pdo->query(
+        'SELECT batch_id,
+                COUNT(*) AS rows_total,
+                SUM(reverted_at IS NOT NULL) AS rows_reverted,
+                MIN(created_at) AS created_at,
+                MAX(reverted_at) AS reverted_at
+           FROM ' . $tbl . '
+          GROUP BY batch_id
+          ORDER BY MIN(id) DESC
+          LIMIT ' . $limit
+    )->fetchAll(PDO::FETCH_ASSOC);
+    $out = array_map(static function (array $r): array {
+        $total = (int) $r['rows_total'];
+        $rev = (int) $r['rows_reverted'];
+        return [
+            'batch_id' => (string) $r['batch_id'],
+            'rows_total' => $total,
+            'rows_reverted' => $rev,
+            'reverted' => $rev >= $total && $total > 0,
+            'created_at' => $r['created_at'],
+            'reverted_at' => $r['reverted_at'],
+        ];
+    }, $rows);
+    return ['ok' => true, 'backups' => $out];
 }
 
 // Komplettes Modell flach (fuers UI: Baum + Status-Marker). Markiert Luecken (parent

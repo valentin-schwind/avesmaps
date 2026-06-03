@@ -125,6 +125,9 @@
   .dt-reset { cursor:pointer; color:var(--mut); font-size:11px; margin-left:6px; text-decoration:underline; }
   .dt-grid input.dt-in { width:100%; font-size:12px; padding:2px 5px; box-sizing:border-box; font-family:inherit; }
   .dt-grid .k.ovr { color:#9a6a2f; font-weight:bold; }
+  .dt-old { color:var(--bad); text-decoration:line-through; }
+  .dt-arrow { color:var(--mut); margin:0 3px; }
+  .dt-new { font-weight:600; }
   .dt-edit-hint { font-size:11px; color:var(--mut); margin:6px 0; }
   .dt-cap-link { font-size:11px; margin-left:6px; }
   .dt-cap-pick { margin-top:4px; }
@@ -523,7 +526,7 @@ function renderDetail(){
   const parentNm = n.parent_wiki_key ? ((BYKEY.get(n.parent_wiki_key)||{}).name || n.parent_wiki_key.replace(/^wiki:/,'')) : '(Wurzel)';
   const rows = [];
   const add=(k,v)=>{ if(v) rows.push(`<div class="k">${k}</div><div>${v}</div>`); };
-  const addF=(f)=>{ const v=effVal(n,f.key); if(!v && !isOvr(n,f.key)) return; let val=esc(v||'—')+ovrBadge(n,f.key); if(f.capital) val+=capChip(n); rows.push(`<div class="k">${f.label}</div><div>${val}</div>`); };
+  const addF=(f)=>{ const v=effVal(n,f.key); if(!v && !isOvr(n,f.key)) return; let val; if(isOvr(n,f.key)){ const w=wikiVal(n,f.key); val=`<span class="dt-old">${esc(w||'(leer)')}</span><span class="dt-arrow">→</span><span class="dt-new">${esc(v||'(leer)')}</span>`; } else { val=esc(v||'—'); } if(f.capital) val+=capChip(n); rows.push(`<div class="k">${f.label}</div><div>${val}</div>`); };
   addF(DETAIL_FIELDS[0]); // Staatsform
   // Zeit: effektive BF-Zahlen (kontrollierend) + Wiki-Text als Kontext
   const effF=effFoundedBf(n), effD=effDissolvedBf(n);
@@ -531,8 +534,8 @@ function renderDetail(){
   const dTxt=n.dissolved_text?` <span class="muted">· ${esc(n.dissolved_text)}</span>`:'';
   const fBadge=isOvr(n,'founded_start_bf')?ovrTimeBadge():'';
   const dBadge=isOvr(n,'dissolved_end_bf')?ovrTimeBadge():'';
-  if(effF!=null || n.founded_text) add('Gegründet', (effF!=null?esc(fmtBF(effF)):'—')+fBadge+fTxt);
-  if(effD!=null || n.dissolved_text || effF!=null) add('Aufgelöst', (effD!=null?esc(fmtBF(effD)):'besteht')+dBadge+dTxt);
+  if(effF!=null || n.founded_text){ const wF=wikiFoundedBf(n); const cell=isOvr(n,'founded_start_bf')?`<span class="dt-old">${wF!=null?esc(fmtBF(wF)):'—'}</span><span class="dt-arrow">→</span><span class="dt-new">${effF!=null?esc(fmtBF(effF)):'—'}</span>`:(effF!=null?esc(fmtBF(effF)):'—'); add('Gegründet', cell+fTxt); }
+  if(effD!=null || n.dissolved_text || effF!=null){ const wD=wikiDissolvedBf(n); const cell=isOvr(n,'dissolved_end_bf')?`<span class="dt-old">${wD!=null?esc(fmtBF(wD)):'besteht'}</span><span class="dt-arrow">→</span><span class="dt-new">${effD!=null?esc(fmtBF(effD)):'besteht'}</span>`:(effD!=null?esc(fmtBF(effD)):'besteht'); add('Aufgelöst', cell+dTxt); }
   for(let i=1;i<DETAIL_FIELDS.length;i++){ addF(DETAIL_FIELDS[i]); }
   add('Eltern', esc(parentNm)+(n.parent_locked?' 🔒':'')+(n.parent_wiki_key&&!n.parent_in_model?' <span class="dt-conf">(nicht im Modell)</span>':''));
   if(n.diverges) add('Maschinen-Vorschlag', esc((BYKEY.get(n.auto_parent_wiki_key)||{}).name||n.auto_parent_wiki_key||''));
