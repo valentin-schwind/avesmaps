@@ -2033,7 +2033,7 @@
 					["Knotenart", "Wiki-/SQL-Datensatz"],
 					["Wappen", node.row.coat_of_arms_url || "", "coat"],
 					["Hierarchie", getNodePath(node).map(pathNode => pathNode.label).join(" > ")],
-					...getInfoRows(node.row)
+					// Wiki-Datenzeilen kommen read-only effektiv (Override ?? Wiki) via appendEffectiveWikiRows
 				]
 				: [
 					["Name", node.label],
@@ -2104,6 +2104,7 @@
 			details.appendChild(summary);
 			details.appendChild(grid);
 			els.infoBox.appendChild(details);
+			appendEffectiveWikiRows(node, grid);
 		}
 
 		function updateWikiCoatPreviewFromManualInput() {
@@ -2143,6 +2144,69 @@
 				["Blasonierung", row.blazon],
 				["Wiki-URL", row.wiki_url, "url"]
 			];
+		}
+
+		const WIKI_DETAIL_FIELDS = [
+			["name", "Name (Wiki)"], ["type", "Staatsform"], ["status", "Status"],
+			["founded_text", "Gegründet"], ["dissolved_text", "Aufgelöst"],
+			["form_of_government", "Herrschaftsform"], ["continent", "Kontinent"],
+			["capital_name", "Hauptstadt"], ["seat_name", "Herrschaftssitz"], ["ruler", "Oberhaupt"],
+			["language", "Sprache"], ["currency", "Währung"], ["population", "Einwohnerzahl"],
+			["founder", "Gründer"], ["political", "Politisch"], ["trade_zone", "Handelszone"],
+			["trade_goods", "Handelswaren"], ["geographic", "Geographisch"], ["blazon", "Blasonierung"],
+			["affiliation_raw", "Zugehörigkeit"], ["wiki_url", "Wiki-URL", "url"]
+		];
+
+		function appendInfoRow(grid, key, value, type) {
+			if (value === "" || value === null || typeof value === "undefined") {
+				return;
+			}
+			const keyElement = document.createElement("div");
+			keyElement.className = "info-key";
+			keyElement.textContent = key;
+			grid.appendChild(keyElement);
+			const valueElement = document.createElement("div");
+			valueElement.className = "info-value";
+			if (type === "url") {
+				const a = document.createElement("a");
+				a.href = value;
+				a.target = "_blank";
+				a.rel = "noopener";
+				a.textContent = value;
+				valueElement.appendChild(a);
+			} else {
+				valueElement.textContent = formatInfoValue(value);
+			}
+			grid.appendChild(valueElement);
+		}
+
+		// Zeigt die effektiven Wiki-Daten (Override ?? Wiki) read-only an - exakt wie der Sync-Monitor.
+		function appendEffectiveWikiRows(node, grid) {
+			if (!node || !node.row) {
+				return;
+			}
+			const publicId = normalizeText(node.row.public_id || "");
+			if (!publicId) {
+				for (const [key, value, type] of getInfoRows(node.row)) {
+					appendInfoRow(grid, key, value, type);
+				}
+				return;
+			}
+			fetch(`/api/app/territory-detail.php?territory=${encodeURIComponent(publicId)}`)
+				.then(response => response.json())
+				.then(data => {
+					if (!data || data.ok === false) {
+						return;
+					}
+					if (normalizeText(selectedNode?.row?.public_id || "") !== publicId) {
+						return;
+					}
+					const fields = data.fields || {};
+					for (const [key, label, type] of WIKI_DETAIL_FIELDS) {
+						appendInfoRow(grid, label, fields[key], type);
+					}
+				})
+				.catch(() => {});
 		}
 
 		function showEmptyDetails(error = "") {

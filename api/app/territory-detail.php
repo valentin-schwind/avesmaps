@@ -18,7 +18,15 @@ const AVESMAPS_TERRITORY_DETAIL_MODEL_TABLE = 'wiki_territory_model';
 
 // Felder, die wir in die Infobox heben. Schluessel = Staging-Spalte = Override-Schluessel.
 const AVESMAPS_TERRITORY_DETAIL_FIELDS = [
+    'name',
+    'type',
+    'status',
+    'continent',
+    'founded_text',
+    'dissolved_text',
     'form_of_government',
+    'capital_name',
+    'seat_name',
     'ruler',
     'language',
     'currency',
@@ -29,6 +37,8 @@ const AVESMAPS_TERRITORY_DETAIL_FIELDS = [
     'trade_goods',
     'geographic',
     'blazon',
+    'affiliation_raw',
+    'wiki_url',
 ];
 
 // Lizenz-Status, bei denen ein Wappen im Frontend gezeigt werden darf.
@@ -75,8 +85,9 @@ try {
     if ($wikiKey !== '') {
         // 2) Staging (gecrawlte Wiki-Daten) + Modell-Overrides je wiki_key.
         $sStmt = $pdo->prepare(
-            'SELECT form_of_government, ruler, language, currency, population, founder, political,
-                    trade_zone, trade_goods, geographic, blazon, coat_of_arms_url,
+            'SELECT name, type, status, continent, founded_text, dissolved_text, capital_name, seat_name,
+                    form_of_government, ruler, language, currency, population, founder, political,
+                    trade_zone, trade_goods, geographic, blazon, affiliation_raw, wiki_url, coat_of_arms_url,
                     coat_of_arms_license_status, coat_of_arms_author, coat_of_arms_attribution
                FROM ' . AVESMAPS_TERRITORY_DETAIL_STAGING_TABLE . '
               WHERE wiki_key = :wk LIMIT 1'
