@@ -569,7 +569,7 @@ function buildDetailLicense(n){
   let lic='';
   if(ls==='public_domain') lic=`<div class="dt-lic pd"><b>Gemeinfrei</b> – frei darstellbar.${author?' Urheber: '+esc(author):''}</div>`;
   else if(ls==='attribution_required') lic=`<div class="dt-lic cc"><b>Namensnennung nötig</b>${author?' – Urheber: '+esc(author):''}${(n.coat_of_arms_attribution&&!licOv)?'<br>'+esc(n.coat_of_arms_attribution):''}</div>`;
-  else lic=`<div class="dt-lic unknown">Lizenz unbekannt – Wappen ausgegraut.</div>`;
+  else lic=`<div class="dt-lic unknown">Lizenz unbekannt – Wappen wird im Frontend nicht angezeigt.</div>`;
   // Bei eigenem Lizenz-Override: alte (Wiki-)Lizenz durchgestrichen -> neue.
   const strike=licOv?`<div style="font-size:11px;margin-top:2px"><span class="dt-old">${esc(licName(n.license_status))}</span><span class="dt-arrow">→</span><span class="dt-new">${esc(licName(ls))}</span></div>`:'';
   return `<div class="dt-lic-wrap">${lic}${strike}</div>`;
