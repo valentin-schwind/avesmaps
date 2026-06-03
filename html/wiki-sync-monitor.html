@@ -506,7 +506,10 @@ function buildDetailHead(n){
   const wappenImg=n.coat_of_arms_url
     ? `<img class="${wpClass}" src="${esc(n.coat_of_arms_url)}" alt="">`
     : `<div class="dt-wappen gray" style="display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:18px">∅</div>`;
-  return `<div class="dt-head"><div class="dt-wappen-box">${wappenImg}<div class="dt-wappen-edit" title="Eigenes Wappen hochladen">Bild ändern</div></div><div style="flex:1;min-width:0"><div class="dt-title">${esc(n.name)}</div><div class="dt-sub">${esc(n.wiki_key)}${n.wiki_url?` · <a class="wl" href="${esc(n.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`:''}</div></div></div>`;
+  const nameOv=isOvr(n,'name');
+  const titleNm=nameOv?(effVal(n,'name')||n.name):n.name;
+  const oldNm=nameOv?`<span class="dt-old">${esc(wikiVal(n,'name')||'(leer)')}</span> <span class="dt-arrow">→</span> `:'';
+  return `<div class="dt-head"><div class="dt-wappen-box">${wappenImg}<div class="dt-wappen-edit" title="Eigenes Wappen hochladen">Bild ändern</div></div><div style="flex:1;min-width:0"><div class="dt-title">${esc(titleNm)}</div><div class="dt-sub">${oldNm}${esc(n.wiki_key)}${n.wiki_url?` · <a class="wl" href="${esc(n.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`:''}</div></div></div>`;
 }
 function buildDetailLicense(n){
   const ls=n.license_status; if(!n.coat_of_arms_url) return '';
