@@ -8,7 +8,7 @@
 <style>
   :root { --bg:#f4efe7; --panel:#fff9f4; --soft:#fffaf5; --line:#d8c6b2; --line2:#cdb79f; --fg:#2f251c; --mut:#6c5a49; --accent:#235f82; --warn:#b8860b; --bad:#9d3a2e; --ok:#2e7d32; --font-ui:"Faculty Glyphic","Arial",sans-serif; }
   * { box-sizing:border-box; }
-  body { margin:0; font:13px/1.45 var(--font-ui); background:var(--bg); color:var(--fg); }
+  body { margin:0; font:13px/1.45 var(--font-ui); background:var(--bg); color:var(--fg); height:100vh; display:flex; flex-direction:column; }
   header { padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); }
   h1 { font-size:15px; margin:0 0 8px; color:#3f3428; }
   .controls { display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:6px; align-items:stretch; }
@@ -33,7 +33,7 @@
   #seedDD > summary::after { position:absolute; right:9px; top:50%; transform:translateY(-50%); margin:0; }
   textarea { width:100%; height:54px; background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:6px; font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; resize:vertical; }
   #status { padding:6px 14px; color:var(--mut); border-bottom:1px solid var(--line); white-space:nowrap; display:flex; align-items:center; gap:14px; }
-  .cols { display:flex; height:calc(100vh - 200px); }
+  .cols { display:flex; flex:1 1 auto; min-height:0; }
   .col { flex:1; overflow:hidden; padding:8px; display:flex; flex-direction:column; min-height:0; }
   #list, #tree, #detailBody { flex:1 1 auto; overflow:auto; min-height:0; }
   #left { border-right:1px solid var(--line); max-width:46%; }
@@ -87,7 +87,7 @@
   .info { font-size:11px; color:var(--mut); background:var(--soft); border:1px solid var(--line); border-radius:5px; padding:4px 7px; margin-bottom:6px; }
   label.ck { font-size:12px; color:var(--mut); display:inline-flex; align-items:center; gap:4px; }
   /* 3-Spalten-Layout (gleich breit) */
-  .cols { height:calc(100vh - 96px); }
+  .cols { flex:1 1 auto; min-height:0; }
   .col { min-width:0; }
   #left, #right { background:var(--bg); }
   #left { max-width:none; flex:1 1 0; }
