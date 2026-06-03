@@ -44,6 +44,15 @@ const AVESMAPS_TERRITORY_DETAIL_FIELDS = [
 // Lizenz-Status, bei denen ein Wappen im Frontend gezeigt werden darf.
 const AVESMAPS_TERRITORY_DETAIL_COAT_ALLOWED = ['public_domain', 'attribution_required'];
 
+// Formatiert ein BF-Jahr fuer die Anzeige. 9999 (Ongoing-Sentinel) -> "besteht",
+// negativ -> "<n> v. BF", sonst "<n> BF" (0 BF = Bosparans Fall ist gueltig).
+function avesmapsTerritoryDetailFormatBf(int $year): string {
+    if ($year >= 9999) {
+        return 'besteht';
+    }
+    return $year < 0 ? (abs($year) . ' v. BF') : ($year . ' BF');
+}
+
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
@@ -98,7 +107,8 @@ try {
             'SELECT name, type, status, continent, founded_text, dissolved_text, capital_name, seat_name,
                     form_of_government, ruler, language, currency, population, founder, political,
                     trade_zone, trade_goods, geographic, blazon, affiliation_raw, wiki_url, coat_of_arms_url,
-                    coat_of_arms_license_status, coat_of_arms_author, coat_of_arms_attribution
+                    coat_of_arms_license_status, coat_of_arms_author, coat_of_arms_attribution,
+                    founded_start_bf, dissolved_end_bf
                FROM ' . AVESMAPS_TERRITORY_DETAIL_STAGING_TABLE . '
               WHERE wiki_key = :wk LIMIT 1'
         );
@@ -122,6 +132,25 @@ try {
             if ($value !== '') {
                 $fields[$key] = $value;
             }
+        }
+
+        // 3b) Gegruendet/Aufgeloest: die STEUERNDEN Werte sind die BF-Spalten (founded_start_bf/
+        //     dissolved_end_bf) — Overrides liegen i.d.R. dort, nicht auf dem *_text. Die Schleife oben
+        //     traegt nur den Text-Override??Staging-Text ein; hier den BF-Override nachziehen, damit die
+        //     Infobox/Editor-Wiki-Daten den effektiven (ueberschriebenen) Zeitwert zeigen.
+        //     Prioritaet: Text-Override (bewusst gesetzt) > BF-Override > Staging-Text.
+        if (!array_key_exists('founded_text', $overrides) && array_key_exists('founded_start_bf', $overrides)) {
+            $bf = trim((string) $overrides['founded_start_bf']);
+            if ($bf === '') {
+                unset($fields['founded_text']);
+            } else {
+                $fields['founded_text'] = avesmapsTerritoryDetailFormatBf((int) $bf);
+            }
+        }
+        if (!array_key_exists('dissolved_text', $overrides) && array_key_exists('dissolved_end_bf', $overrides)) {
+            $bf = trim((string) $overrides['dissolved_end_bf']);
+            // Leerer Override = bewusst "besteht" (z.B. Besatzungs-Korrektur), nicht "kein Wert".
+            $fields['dissolved_text'] = $bf === '' ? 'besteht' : avesmapsTerritoryDetailFormatBf((int) $bf);
         }
 
         // 4) Wappen-Lizenz (Gate). license_status kann ueberschrieben sein.
