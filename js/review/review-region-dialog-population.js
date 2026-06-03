@@ -43,7 +43,7 @@ function populateRegionEditForm(entry, { preserveTabs = false } = {}) {
 	syncRegionValidToControls();
 }
 
-function openRegionEditDialog(entry, { title = "Eigenschaften bearbeiten" } = {}) {
+function openRegionEditDialog(entry, { title = "Territoriumseditor" } = {}) {
 	const region = entry?.region || entry || {};
 	const canOpenPoliticalTerritoryEditor = region.source === "political_territory"
 		&& typeof window.AvesmapsPoliticalTerritoryEditorLink?.open === "function"

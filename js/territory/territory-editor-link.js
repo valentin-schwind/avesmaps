@@ -166,7 +166,7 @@ function openPoliticalTerritoryEditor(regionEntry = {}) {
 	const inlineHost = window.AvesmapsPoliticalTerritoryEditorInlineHost;
 	if (!overlay || !host || !inlineHost) {
 		if (typeof openRegionEditDialog === "function") {
-			openRegionEditDialog(regionEntry, { title: "Eigenschaften bearbeiten" });
+			openRegionEditDialog(regionEntry, { title: "Territoriumseditor" });
 		}
 		return;
 	}

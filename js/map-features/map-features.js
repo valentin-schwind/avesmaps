@@ -754,7 +754,7 @@ const REGION_CONTEXT_ACTIONS = {
 			return;
 		}
 
-		openRegionEditDialog(regionEntry, { title: "Eigenschaften bearbeiten" });
+		openRegionEditDialog(regionEntry, { title: "Territoriumseditor" });
 	},
 	"show-info": ({ regionEntry }) => {
 		openRegionCompactTooltip(regionEntry);

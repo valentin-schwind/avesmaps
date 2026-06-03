@@ -60,24 +60,34 @@ try {
     }
 
     $publicId = trim((string) ($_GET['territory'] ?? ''));
-    if ($publicId === '') {
-        avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Parameter "territory" (public_id) fehlt.']);
+    $wikiKeyParam = trim((string) ($_GET['wiki_key'] ?? ''));
+    if ($publicId === '' && $wikiKeyParam === '') {
+        avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Parameter "territory" (public_id) oder "wiki_key" fehlt.']);
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
-    // 1) Live-Territorium -> wiki_key + Wappen-URL (das, was die Karte zeigt).
-    $tStmt = $pdo->prepare(
-        'SELECT wiki_key, coat_of_arms_url FROM political_territory WHERE public_id = :pid AND is_active = 1 LIMIT 1'
-    );
-    $tStmt->execute(['pid' => $publicId]);
-    $territory = $tStmt->fetch(PDO::FETCH_ASSOC);
-    if ($territory === false) {
-        avesmapsJsonResponse(404, ['ok' => false, 'error' => 'Herrschaftsgebiet nicht gefunden.']);
+    // 1) Live-Territorium -> wiki_key + Wappen-URL. Match per public_id ODER (z.B. aus dem Territoriums-
+    //    editor, wo die public_id fehlt) per wiki_key.
+    if ($publicId !== '') {
+        $tStmt = $pdo->prepare(
+            'SELECT wiki_key, coat_of_arms_url FROM political_territory WHERE public_id = :pid AND is_active = 1 LIMIT 1'
+        );
+        $tStmt->execute(['pid' => $publicId]);
+        $territory = $tStmt->fetch(PDO::FETCH_ASSOC);
+        if ($territory === false) {
+            avesmapsJsonResponse(404, ['ok' => false, 'error' => 'Herrschaftsgebiet nicht gefunden.']);
+        }
+        $wikiKey = (string) ($territory['wiki_key'] ?? '');
+        $coatUrl = trim((string) ($territory['coat_of_arms_url'] ?? ''));
+    } else {
+        $wikiKey = $wikiKeyParam;
+        $cStmt = $pdo->prepare(
+            'SELECT coat_of_arms_url FROM political_territory WHERE wiki_key = :wk AND is_active = 1 LIMIT 1'
+        );
+        $cStmt->execute(['wk' => $wikiKey]);
+        $coatUrl = trim((string) ($cStmt->fetchColumn() ?: ''));
     }
-
-    $wikiKey = (string) ($territory['wiki_key'] ?? '');
-    $coatUrl = trim((string) ($territory['coat_of_arms_url'] ?? ''));
 
     $fields = [];
     $coat = ['url' => '', 'license_status' => '', 'author' => '', 'attribution' => '', 'allowed' => false];

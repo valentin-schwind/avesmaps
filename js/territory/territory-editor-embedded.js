@@ -2178,32 +2178,54 @@
 		}
 
 		// Zeigt die effektiven Wiki-Daten (Override ?? Wiki) read-only an - exakt wie der Sync-Monitor.
+		// Match bevorzugt per wiki_key (im Editor ist node.row.public_id oft leer), sonst public_id.
 		function appendEffectiveWikiRows(node, grid) {
 			if (!node || !node.row) {
 				return;
 			}
+			const wikiKey = normalizeText(node.row.wiki_key || "");
 			const publicId = normalizeText(node.row.public_id || "");
-			if (!publicId) {
+			const refId = wikiKey || publicId;
+			const renderLocalFallback = () => {
 				for (const [key, value, type] of getInfoRows(node.row)) {
 					appendInfoRow(grid, key, value, type);
 				}
+			};
+			if (!refId) {
+				renderLocalFallback();
 				return;
 			}
-			fetch(`/api/app/territory-detail.php?territory=${encodeURIComponent(publicId)}`)
+			const query = wikiKey
+				? `wiki_key=${encodeURIComponent(wikiKey)}`
+				: `territory=${encodeURIComponent(publicId)}`;
+			const stillSelected = () => (normalizeText(selectedNode?.row?.wiki_key || "") || normalizeText(selectedNode?.row?.public_id || "")) === refId;
+			fetch(`/api/app/territory-detail.php?${query}`)
 				.then(response => response.json())
 				.then(data => {
-					if (!data || data.ok === false) {
+					if (!stillSelected()) {
 						return;
 					}
-					if (normalizeText(selectedNode?.row?.public_id || "") !== publicId) {
+					if (!data || data.ok === false || !data.fields) {
+						renderLocalFallback();
 						return;
 					}
-					const fields = data.fields || {};
+					let any = false;
 					for (const [key, label, type] of WIKI_DETAIL_FIELDS) {
-						appendInfoRow(grid, label, fields[key], type);
+						const before = grid.childElementCount;
+						appendInfoRow(grid, label, data.fields[key], type);
+						if (grid.childElementCount > before) {
+							any = true;
+						}
+					}
+					if (!any) {
+						renderLocalFallback();
 					}
 				})
-				.catch(() => {});
+				.catch(() => {
+					if (stillSelected()) {
+						renderLocalFallback();
+					}
+				});
 		}
 
 		function showEmptyDetails(error = "") {
