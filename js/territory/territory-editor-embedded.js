@@ -2028,12 +2028,9 @@
 			els.detailInfo.textContent = node.row ? "Wiki-/SQL-Datensatz" : "Abgeleiteter Gruppenknoten";
 			const values = node.row
 				? [
-					["Name", node.label],
-					["Status", node.row.status || "unbekannt"],
-					["Knotenart", "Wiki-/SQL-Datensatz"],
 					["Wappen", node.row.coat_of_arms_url || "", "coat"],
 					["Hierarchie", getNodePath(node).map(pathNode => pathNode.label).join(" > ")],
-					// Wiki-Datenzeilen kommen read-only effektiv (Override ?? Wiki) via appendEffectiveWikiRows
+					// Name/Staatsform/Status/... kommen read-only effektiv (Override ?? Wiki) via appendEffectiveWikiRows
 				]
 				: [
 					["Name", node.label],
@@ -2147,7 +2144,7 @@
 		}
 
 		const WIKI_DETAIL_FIELDS = [
-			["name", "Name (Wiki)"], ["type", "Staatsform"], ["status", "Status"],
+			["name", "Name"], ["type", "Staatsform"], ["status", "Status"],
 			["founded_text", "Gegründet"], ["dissolved_text", "Aufgelöst"],
 			["form_of_government", "Herrschaftsform"], ["continent", "Kontinent"],
 			["capital_name", "Hauptstadt"], ["seat_name", "Herrschaftssitz"], ["ruler", "Oberhaupt"],
