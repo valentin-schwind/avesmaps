@@ -13,7 +13,7 @@ function createRegionCompactTooltipMarkup(regionEntry) {
 
 function createRegionMiniTooltipMarkup(regionEntry) {
 	const coatMarkup = regionEntry.coatOfArmsUrl
-		? `<img class="region-compact-tooltip__coat" src="${escapeHtml(regionEntry.coatOfArmsUrl)}" alt="">`
+		? `<img class="region-compact-tooltip__coat" src="${escapeHtml(regionEntry.coatOfArmsUrl)}" alt="" loading="lazy" decoding="async">`
 		: "";
 	const meta = [normalizeRegionParentheticalSpacing(regionEntry.type), regionEntry.validLabel].filter(Boolean).join(" | ");
 	const affiliation = regionEntry.affiliationRoot || regionEntry.affiliation || "";
@@ -58,7 +58,7 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 	// #2/#5 Wappen lizenz-gegatet: sobald die Detaildaten da sind, gilt detail.coat.url (leer ohne Lizenz).
 	const coatUrl = detail ? String((detail.coat && detail.coat.url) || "") : (regionEntry.coatOfArmsUrl || "");
 	const coatMarkup = coatUrl
-		? `<img class="region-info-box__coat" src="${escapeHtml(coatUrl)}" alt="">`
+		? `<img class="region-info-box__coat" src="${escapeHtml(coatUrl)}" alt="" loading="lazy" decoding="async">`
 		: "";
 	const hasCoatClass = coatMarkup ? " has-coat" : "";
 	const wikiLink = createRegionInfoLink(regionEntry.wikiUrl || f.wiki_url);

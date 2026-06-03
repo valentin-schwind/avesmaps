@@ -616,7 +616,7 @@ function createRegionLabelMarkup(regionEntry, fallbackName) {
 	const name = escapeHtml(labelText);
 	const coatUrl = regionEntry.labelCoatOfArmsUrl || regionEntry.coatOfArmsUrl || "";
 	const coatMarkup = coatUrl
-		? `<img class="region-label__coat" src="${escapeHtml(coatUrl)}" alt="">`
+		? `<img class="region-label__coat" src="${escapeHtml(coatUrl)}" alt="" loading="lazy" decoding="async">`
 		: "";
 
 	return `<span class="region-label__content">${coatMarkup}<span>${name}</span></span>`;
