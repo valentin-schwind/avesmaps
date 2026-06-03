@@ -444,6 +444,20 @@ async function lockNode(k, lock){
   } catch(e){ setStatus('Fehler: '+e.message); }
   busy(false);
 }
+// Vom Wiki geplanten Elternteil (auto_parent_wiki_key) wiederherstellen: set_parent setzt den Parent
+// UND hebt „aussortiert" auf (excluded=0) -> holt aussortierte/entnommene Knoten zurueck in die Hierarchie.
+// lock:false = bleibt wiki-getrieben (beim Ableiten weiter automatisch bestimmt).
+async function restoreWikiParent(k){
+  const n=BYKEY.get(k); if(!n) return;
+  if(!n.auto_parent_wiki_key){ setStatus('Kein vom Wiki geplanter Elternteil vorhanden.'); return; }
+  busy(true);
+  try{
+    await api('set_parent',{method:'POST',body:{wiki_key:k, parent_wiki_key:n.auto_parent_wiki_key, lock:false}});
+    setStatus(`Wiki-Elternteil wiederhergestellt: „${n.name}" → „${(BYKEY.get(n.auto_parent_wiki_key)||{}).name||n.auto_parent_wiki_key.replace(/^wiki:/,'')}".`);
+    await loadModel();
+  } catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+}
 function selectKey(k){
   if(k!==selectedKey){ editMode=false; pendingCapital=undefined; capResults=[]; }
   selectedKey = k;
@@ -543,7 +557,9 @@ function renderDetail(){
   if(effF!=null || n.founded_text){ const wF=wikiFoundedBf(n); const cell=isOvr(n,'founded_start_bf')?`<span class="dt-old">${wF!=null?esc(fmtBF(wF)):'—'}</span><span class="dt-arrow">→</span><span class="dt-new">${effF!=null?esc(fmtBF(effF)):'—'}</span>`:(effF!=null?esc(fmtBF(effF)):'—'); add('Gegründet', cell+fTxt); }
   if(effD!=null || n.dissolved_text || effF!=null){ const wD=wikiDissolvedBf(n); const cell=isOvr(n,'dissolved_end_bf')?`<span class="dt-old">${wD!=null?esc(fmtBF(wD)):'besteht'}</span><span class="dt-arrow">→</span><span class="dt-new">${effD!=null?esc(fmtBF(effD)):'besteht'}</span>`:(effD!=null?esc(fmtBF(effD)):'besteht'); add('Aufgelöst', cell+dTxt); }
   for(let i=2;i<DETAIL_FIELDS.length;i++){ addF(DETAIL_FIELDS[i]); }
-  add('Eltern', esc(parentNm)+(n.parent_locked?' 🔒':'')+(n.parent_wiki_key&&!n.parent_in_model?' <span class="dt-conf">(nicht im Modell)</span>':''));
+  const autoK=n.auto_parent_wiki_key||''; const autoNm=autoK?((BYKEY.get(autoK)||{}).name||autoK.replace(/^wiki:/,'')):''; const canRestoreParent=autoK&&(n.parent_wiki_key!==autoK||n.excluded);
+  const restoreParentBtn=canRestoreParent?` <button class="edbtn dt-restore-parent" data-restore-parent="${esc(n.wiki_key)}" title="Setzt den vom Wiki vorgesehenen Elternteil (${esc(autoNm)}) und holt den Knoten zurück in die Hierarchie">↩ Wiki-Eltern: ${esc(autoNm)}</button>`:'';
+  add('Eltern', esc(parentNm)+(n.parent_locked?' 🔒':'')+(n.parent_wiki_key&&!n.parent_in_model?' <span class="dt-conf">(nicht im Modell)</span>':'')+restoreParentBtn);
   if(n.diverges) add('Maschinen-Vorschlag', esc((BYKEY.get(n.auto_parent_wiki_key)||{}).name||n.auto_parent_wiki_key||''));
   if(n.conflicts && n.conflicts.length) add('Strittig', `<span class="dt-conf">${n.conflicts.map(esc).join(', ')}</span>`);
   if(n.aliases && n.aliases.length) add('Auch bekannt als', n.aliases.map(a=>esc(a.replace(/-/g,' '))).join(', '));
@@ -873,6 +889,7 @@ $('wappenCancel').onclick = closeWappenDialog;
 $('wappenDialog').addEventListener('click', e=>{ if(e.target.id==='wappenDialog') closeWappenDialog(); });
 $('detailBody').addEventListener('click', e=>{
   if(e.target.closest('.dt-wappen-edit')){ openWappenDialog(); return; }
+  const rp=e.target.closest('[data-restore-parent]'); if(rp){ restoreWikiParent(rp.dataset.restoreParent); return; }
   const lb=e.target.closest('.lockbtn'); if(lb){ lockNode(lb.dataset.lockkey, lb.dataset.locknow!=='1'); return; }
   if(e.target.closest('[data-edit-start]')){ startEdit(); return; }
   if(e.target.closest('[data-edit-cancel]')){ cancelEdit(); return; }
