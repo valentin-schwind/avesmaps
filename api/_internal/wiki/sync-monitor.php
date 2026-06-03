@@ -159,6 +159,15 @@ function avesmapsWikiSyncMonitorEnsureTables(PDO $pdo): void {
     if (!isset($backupCols['old_coat_of_arms_url'])) {
         $pdo->exec('ALTER TABLE ' . AVESMAPS_WIKI_SYNC_MONITOR_IDENTITY_BACKUP_TABLE . ' ADD COLUMN old_coat_of_arms_url TEXT NULL, ADD COLUMN new_coat_of_arms_url TEXT NULL, ADD COLUMN kind VARCHAR(16) NOT NULL DEFAULT \'identity\'');
     }
+
+    // Cache fuer model_tree (schwerer Endpoint, von Editor + Review-WikiSync + Sync-Monitor genutzt).
+    $stateCols = [];
+    foreach ($pdo->query('SHOW COLUMNS FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STATE_TABLE) ?: [] as $c) {
+        $stateCols[(string) $c['Field']] = true;
+    }
+    if (!isset($stateCols['model_tree_cache'])) {
+        $pdo->exec('ALTER TABLE ' . AVESMAPS_WIKI_SYNC_MONITOR_STATE_TABLE . ' ADD COLUMN model_tree_cache LONGTEXT NULL, ADD COLUMN model_tree_cache_key VARCHAR(80) NULL');
+    }
 }
 
 // Zeitstempel einer Editor-Aktion festhalten (rebuild/diff/test/apply). Bei diff zusaetzlich Zahlen.
@@ -2544,6 +2553,28 @@ function avesmapsWikiSyncMonitorGeometryModelAudit(PDO $pdo): array {
 
 function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
     avesmapsWikiSyncMonitorEnsureTables($pdo);
+    // Cache: Key aus Modell/Staging/Map-Revision -> bei jeder Aenderung frisch, sonst sofort aus dem Cache.
+    $cacheKey = '';
+    try {
+        $cacheKey = (string) ($pdo->query(
+            'SELECT CONCAT(
+                COALESCE((SELECT MAX(updated_at) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . '), \'\'), \'|\',
+                COALESCE((SELECT MAX(synced_at) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . '), \'\'), \'|\',
+                COALESCE((SELECT revision FROM map_revision WHERE id = 1), 0)
+            )'
+        )->fetchColumn() ?: '');
+        if ($cacheKey !== '') {
+            $cachedRow = $pdo->query('SELECT model_tree_cache, model_tree_cache_key FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STATE_TABLE . ' WHERE id = 1')->fetch(PDO::FETCH_ASSOC) ?: [];
+            if (($cachedRow['model_tree_cache_key'] ?? null) === $cacheKey && !empty($cachedRow['model_tree_cache'])) {
+                $decoded = json_decode((string) $cachedRow['model_tree_cache'], true);
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+            }
+        }
+    } catch (Throwable $cacheError) {
+        $cacheKey = '';
+    }
     $rows = $pdo->query(
         'SELECT m.wiki_key, m.parent_wiki_key, m.parent_locked, m.excluded, m.auto_parent_wiki_key, m.source_origin,
                 m.parent_conflict_json, m.metadata_overrides_json, s.name, s.type, s.continent, s.affiliation_raw, s.wiki_url,
@@ -2706,7 +2737,16 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
         $nodes[$i]['capital_location'] = $capitals[(string) $node['wiki_key']] ?? null;
     }
 
-    return ['ok' => true, 'count' => count($nodes), 'nodes' => $nodes];
+    $result = ['ok' => true, 'count' => count($nodes), 'nodes' => $nodes];
+    if ($cacheKey !== '') {
+        try {
+            $store = $pdo->prepare('UPDATE ' . AVESMAPS_WIKI_SYNC_MONITOR_STATE_TABLE . ' SET model_tree_cache = :c, model_tree_cache_key = :k WHERE id = 1');
+            $store->execute(['c' => json_encode($result), 'k' => $cacheKey]);
+        } catch (Throwable $storeError) {
+            // Cache-Schreiben darf den Request nie brechen.
+        }
+    }
+    return $result;
 }
 
 // Block 2: liefert die Modell-Knoten im Format des Wiki-Tree (political-territory-wiki.php),
