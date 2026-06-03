@@ -193,7 +193,7 @@ async function loadWikiSyncTerritoryTreeRows({ forceReload = false } = {}) {
 	const response = await treeModule.fetchRows({
 		// Modell-Hierarchie aus dem Sync-Monitor (parent_wiki_key -> affiliation_path) statt der
 		// alten flachen Wiki-Affiliation. Re-Parenting passiert NUR im Sync-Monitor (read-only hier).
-		apiUrl: "/api/edit/wiki/sync-monitor.php?action=wiki_rows",
+		apiUrl: "/api/edit/wiki/sync-monitor.php?action=model_tree",
 		credentials: "same-origin",
 	});
 

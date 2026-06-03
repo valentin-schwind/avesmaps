@@ -5,7 +5,7 @@
 		const API_URL = "/api/app/political-territory-wiki.php";
 		// Tree-Daten kommen aus dem Sync-Monitor-Modell (parent_wiki_key -> affiliation_path),
 		// NICHT mehr aus dem alten flachen Wiki-Spiegel. (API_URL bleibt fuer das Drag-Payload.)
-		const TREE_API_URL = "/api/edit/wiki/sync-monitor.php?action=wiki_rows";
+		const TREE_API_URL = "/api/edit/wiki/sync-monitor.php?action=model_tree";
 		const WRITE_API_URL = "/api/app/political-territories.php?debug_errors=1";
 		
 		const MODULE_VERSION = "2026-05-16-module-save-api";
@@ -361,7 +361,7 @@
 					throw new Error(payload.error || `HTTP ${response.status}`);
 				}
 
-				allRows = normalizeApiRows(payload.items || []);
+				allRows = normalizeApiRows(payload.nodes || payload.items || []);
 				setStatus("Fertig");
 				updateFilters();
 				render();
@@ -1141,7 +1141,7 @@
 			renderTreeChildren(ul, root.children, 0);
 
 			els.treeView.appendChild(ul);
-			els.treeInfo.textContent = `${rowCount} Herrschaftsgebiete in ${root.children.length} Wurzelbereichen.`;
+			els.treeInfo.textContent = `${rowCount} Knoten · ${root.children.length} Wurzelknoten`;
 		}
 
 		function renderTreeChildren(ul, children, depth) {

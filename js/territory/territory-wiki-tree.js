@@ -357,40 +357,35 @@
 		return expandedRows;
 	}
 
+	// Baum aus der KURATIERTEN Modell-Hierarchie (parent_wiki_key), identisch zum Sync-Monitor.
+	// Frueher namensbasiert ueber affiliation_path -> zu viele Wurzeln/Dubletten. Jetzt exakt per wiki_key.
 	function buildTree(rows) {
-		const normalizedRows = expandRowsWithAncestors(Array.isArray(rows) ? rows : []);
+		const inputRows = Array.isArray(rows) ? rows : [];
 		const root = createTreeNode("root", "Herrschaftsgebiete", "root");
-		const rowIndex = buildRowIndex(normalizedRows);
-		const nodeByIdentity = new Map();
-		for (const row of normalizedRows) {
-			const identityKey = rowIdentityKey(row);
-			if (!identityKey) continue;
-			let current = root;
-			for (const segment of Array.isArray(row.affiliation_path) ? row.affiliation_path : []) {
-				const segmentKey = makeKey(segment);
-				if (!segmentKey) continue;
-				const matchingRow = rowIndex.get(segmentKey) || null;
-				if (!matchingRow) continue;
-				const matchingIdentityKey = rowIdentityKey(matchingRow);
-				if (!matchingIdentityKey || matchingIdentityKey === identityKey) continue;
-				let pathNode = nodeByIdentity.get(matchingIdentityKey) || null;
-				if (!pathNode) {
-					pathNode = createTreeNode(rowKey(matchingRow) || makeKey(matchingRow.name) || matchingIdentityKey, buildTreeNodeLabel(matchingRow, matchingRow.name || segment), "territory-group", matchingRow);
-					nodeByIdentity.set(matchingIdentityKey, pathNode);
-				}
-				attachChild(current, pathNode);
-				current = pathNode;
+		const nodeByKey = new Map();
+		const order = [];
+		for (const row of inputRows) {
+			const wikiKey = normalizeText(row?.wiki_key);
+			if (!wikiKey) continue;
+			const existing = nodeByKey.get(wikiKey);
+			if (existing) {
+				existing.row = mergeRowsByIdentity(existing.row || row, row);
+				continue;
 			}
-			let ownNode = nodeByIdentity.get(identityKey) || null;
-			if (!ownNode) {
-				ownNode = createTreeNode(rowKey(row) || makeKey(row.name) || identityKey, buildTreeNodeLabel(row, row.name), "territory", row);
-				nodeByIdentity.set(identityKey, ownNode);
-			} else {
-				ownNode.row = mergeRowsByIdentity(ownNode.row || row, row);
-				ownNode.label = buildTreeNodeLabel(ownNode.row, ownNode.row?.name || row.name || ownNode.label);
-				ownNode.kind = ownNode.children.length > 0 ? "territory-group" : "territory";
-			}
-			attachChild(current, ownNode);
+			const node = createTreeNode(wikiKey, buildTreeNodeLabel(row, row?.name || wikiKey), "territory", row);
+			nodeByKey.set(wikiKey, node);
+			order.push(node);
+		}
+		for (const node of order) {
+			const parentKey = normalizeText(node.row?.parent_wiki_key);
+			const parentNode = parentKey && nodeByKey.has(parentKey) && nodeByKey.get(parentKey) !== node
+				? nodeByKey.get(parentKey)
+				: root;
+			attachChild(parentNode, node);
+		}
+		for (const node of order) {
+			node.kind = node.children.length > 0 ? "territory-group" : "territory";
+			node.label = buildTreeNodeLabel(node.row, node.row?.name || node.label);
 		}
 		sortTree(root);
 		const nodeRegistry = new Map();
@@ -615,7 +610,7 @@
 		treeRootElement.className = "tree-root";
 		renderTreeChildren(treeRootElement, root.children, 0, { searchText, selectedNodeId, itemClassName, onItemClick: options.onItemClick, onItemDragStart: options.onItemDragStart, enableDrag: options.enableDrag !== false });
 		container.appendChild(treeRootElement);
-		if (infoElement) infoElement.textContent = `${rowCount} Herrschaftsgebiete in ${root.children.length} Wurzelbereichen.`;
+		if (infoElement) infoElement.textContent = `${rowCount} Knoten · ${root.children.length} Wurzelknoten`;
 	}
 
 	function renderTreeChildren(parentElement, children, depth, options) {
@@ -881,7 +876,7 @@
 		});
 		const payload = await response.json();
 		if (!response.ok || !payload?.ok) throw new Error(payload?.error || `HTTP ${response.status}`);
-		const rows = normalizeApiRows(payload.items || []);
+		const rows = normalizeApiRows(payload.nodes || payload.items || []);
 		globalObject.AvesmapsWikiSyncTerritoryTreeRowsCache = rows;
 		globalObject.wikiSyncTerritoryTreeRowsCache = rows;
 		return { rows, payload };
