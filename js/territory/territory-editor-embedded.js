@@ -375,7 +375,6 @@
 				render();
 
 				try {
-					try{var _a=allRows.find(function(r){return /baronie-albumin/i.test(r.wiki_key||"");});var _tm=window.AvesmapsPoliticalTerritoryWikiTree;var _tf=(_tm&&_tm.readTimeFilter)?_tm.readTimeFilter(els.treeTimeFrom,els.treeTimeTo,els.treeTimeToday):null;var _m=(_a&&_tm&&_tm.doesRowMatchTimeFilter)?_tm.doesRowMatchTimeFilter(_a,_tf):null;var _inReg=false;for(var _n of nodeRegistry.values()){if(_n.row&&/baronie-albumin/i.test(_n.row.wiki_key||"")){_inReg=true;break;}}console.log("ARROWDBG row",_a?{name:_a.name,continent:_a.continent,ds_start:_a.dissolved_start_bf,ds_end:_a.dissolved_end_bf,ds_disp:_a.dissolved_display_bf,f_start:_a.founded_start_bf}:"NOT IN allRows","timeFilter",_tf,"matchesTime",_m,"inNodeRegistry",_inReg,"allRows",allRows.length,"regSize",nodeRegistry.size);}catch(_e){console.log("ARROWDBG err",_e);}
 					await loadExistingGeometryAssignmentFromUrl();
 				} catch (assignmentError) {
 					console.warn("Bestehende Eigenschaften konnten nicht geladen werden:", assignmentError);
@@ -2621,7 +2620,6 @@
 				selectedFromTree = setSelectedTerritory(selectedIdentifier);
 			}
 
-			console.log("ARROWDBG assign","identifier",selectedIdentifier,"setSelectedTerritory",selectedFromTree,"regSize",nodeRegistry.size);
 			if (!selectedFromTree && Array.isArray(value.assignedPath) && value.assignedPath.length > 0) {
 				selectedFromTree = setFallbackAssignedPath(value.assignedPath);
 			}
