@@ -2555,11 +2555,16 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
                 s.status, s.capital_name, s.seat_name,
                 s.form_of_government, s.ruler, s.language, s.currency, s.population,
                 s.founder, s.political, s.trade_zone, s.trade_goods, s.geographic, s.blazon,
-                (SELECT COUNT(*) FROM political_territory_geometry g
-                    JOIN political_territory pt ON pt.id = g.territory_id
-                    WHERE pt.wiki_key = m.wiki_key AND pt.is_active = 1 AND g.is_active = 1) AS map_geometry_count
+                COALESCE(gmap.cnt, 0) AS map_geometry_count
         FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' m
         LEFT JOIN ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . ' s ON s.wiki_key = m.wiki_key
+        LEFT JOIN (
+            SELECT pt.wiki_key AS wk, COUNT(*) AS cnt
+            FROM political_territory_geometry g
+            JOIN political_territory pt ON pt.id = g.territory_id
+            WHERE pt.is_active = 1 AND g.is_active = 1 AND pt.wiki_key IS NOT NULL AND pt.wiki_key <> \'\'
+            GROUP BY pt.wiki_key
+        ) gmap ON gmap.wk = m.wiki_key
         ORDER BY COALESCE(s.name, m.wiki_key) ASC'
     )->fetchAll(PDO::FETCH_ASSOC);
 
