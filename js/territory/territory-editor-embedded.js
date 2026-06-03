@@ -401,6 +401,12 @@
 		function normalizeApiRows(rows) {
 			const normalizedRows = rows
 				.map(row => {
+					// Effektiv = Override ?? Staging: Wiki-Sync-Overrides (metadata_overrides_json) ueber die
+					// Staging-Felder legen, sonst nutzt der Editor-Baum rohe Staging-Werte -> via Override auf
+					// "besteht" gesetzte Knoten werden bei time=heute ausgefiltert -> fehlen in der nodeRegistry
+					// -> setSelectedTerritory findet sie nicht -> Fallback-Breadcrumb ohne Geschwisterpfeile.
+					const ovr = (row && row.overrides && typeof row.overrides === "object" && !Array.isArray(row.overrides)) ? row.overrides : {};
+					row = Object.assign({}, row, ovr);
 					const normalizedName = normalizeText(row.name);
 					const normalizedStatus = normalizeText(row.status);
 					const statusFilterTags = buildRowStatusFilterTags(normalizedName, normalizedStatus);
@@ -432,6 +438,12 @@
 						blazon: normalizeText(row.blazon),
 						wiki_url: normalizeText(row.wiki_url),
 						coat_of_arms_url: normalizeText(row.coat_of_arms_url),
+						founded_start_bf: parseOptionalNumber(row.founded_start_bf, null),
+						founded_end_bf: parseOptionalNumber(row.founded_end_bf, null),
+						founded_display_bf: parseOptionalNumber(row.founded_start_bf, null),
+						dissolved_start_bf: parseOptionalNumber(row.dissolved_start_bf, null),
+						dissolved_end_bf: parseOptionalNumber(row.dissolved_end_bf, null),
+						dissolved_display_bf: parseOptionalNumber(row.dissolved_end_bf, null),
 						map_assigned: Boolean(row.map_assigned) || Number(row.map_geometry_count || 0) > 0,
 						map_territory_count: parseOptionalNumber(row.map_territory_count, 0),
 						map_geometry_count: parseOptionalNumber(row.map_geometry_count, 0)
