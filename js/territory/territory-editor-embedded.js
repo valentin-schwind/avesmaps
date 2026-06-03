@@ -90,6 +90,7 @@
 		let lastLoadedAssignmentInfo = null;
 
 		let allRows = [];
+		let defaultModelViewApplied = false;
 		let currentTree = null;
 		let selectedNode = null;
 		let droppedNode = null;
@@ -364,6 +365,13 @@
 				allRows = normalizeApiRows(payload.nodes || payload.items || []);
 				setStatus("Fertig");
 				updateFilters();
+				// Default-Modellansicht wie Sync-Monitor: Kontinent Aventurien (einmalig, danach frei waehlbar).
+				if (!defaultModelViewApplied) {
+					defaultModelViewApplied = true;
+					if ([...els.continentFilter.options].some((option) => option.value === "Aventurien")) {
+						els.continentFilter.value = "Aventurien";
+					}
+				}
 				render();
 
 				try {

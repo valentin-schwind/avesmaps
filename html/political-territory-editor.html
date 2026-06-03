@@ -26,12 +26,12 @@
 						</div>
 						<div class="tree-header-controls">
 							<button id="reloadButton" class="is-hidden-control" type="button">Daten laden</button>
-							<select id="continentFilter" class="is-hidden-control" aria-hidden="true" tabindex="-1"><option value="">Alle Kontinente</option></select>
+							<select id="continentFilter" title="Kontinent filtern"><option value="">Alle Kontinente</option></select>
 							<select id="typeFilter" class="is-hidden-control" aria-hidden="true" tabindex="-1"><option value="">Alle Typen</option></select>
 							<select id="statusFilter" class="is-hidden-control" aria-hidden="true" tabindex="-1"><option value="">Alle Status</option></select>
 						</div>
 					</div>
-					<div class="tree-time-filter"><input id="searchInput" class="tree-search-input" type="search" placeholder="Suchen ..." aria-label="Herrschaftsgebiete suchen"><span class="tree-time-label">Zeige nur:</span> <input type="number" id="treeTimeFrom" placeholder="von" aria-label="Zeitfilter von (BF)"> – <input type="number" id="treeTimeTo" placeholder="bis" aria-label="Zeitfilter bis (BF)"> BF <label><input type="checkbox" id="treeTimeToday"> heute</label></div>
+					<div class="tree-time-filter"><input id="searchInput" class="tree-search-input" type="search" placeholder="Suchen ..." aria-label="Herrschaftsgebiete suchen"><span class="tree-time-label">Zeige nur:</span> <input type="number" id="treeTimeFrom" placeholder="von" aria-label="Zeitfilter von (BF)" disabled> – <input type="number" id="treeTimeTo" placeholder="bis" aria-label="Zeitfilter bis (BF)" disabled> BF <label><input type="checkbox" id="treeTimeToday" checked> heute</label></div>
 					<div id="treeView" class="tree-wrap"></div>
 					<div class="tree-panel-footer" aria-label="Legende und Baumaktionen">
 						<div class="legend" aria-label="Legende der Baumfarben und Karten-Vollstaendigkeit">
