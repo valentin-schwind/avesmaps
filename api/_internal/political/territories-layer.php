@@ -695,9 +695,9 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         ? avesmapsPoliticalResolveAssignmentDisplayName($assignmentDisplay, $territoryName)
         : ($isAggregate ? '' : trim((string) ($style['displayName'] ?? $style['name'] ?? '')));
 
-    $visibleName = $customName !== ''
-        ? $customName
-        : ($territoryName !== '' ? $territoryName : 'Freie Geometrie');
+    $visibleName = $territoryName !== ''
+        ? $territoryName
+        : ($customName !== '' ? $customName : 'Freie Geometrie');
 
     $displayCoatOfArmsUrl = trim((string) ($assignmentDisplay['coatOfArmsUrl'] ?? $assignmentDisplay['coat_of_arms_url'] ?? ''));
     $visibleCoatOfArmsUrl = (string) (
