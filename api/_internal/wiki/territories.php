@@ -375,7 +375,11 @@ function avesmapsWikiSyncExtractPoliticalBfYears(string $value): array {
 
     foreach ($matches as $match) {
         $rawYear = isset($match[1]) ? (int) $match[1] : 0;
-        if ($rawYear <= 0) {
+        // 0 ist ein GUELTIGES Jahr ("0 BF" = Bosparans Fall) und darf NICHT als "kein Datum"
+        // verworfen werden, sonst landet eine echte 0-BF-Aufloesung im fallback_open -> 9999
+        // ("besteht"). Negative rawYear kann das Regex (\d{1,5}, vorzeichenlos) nicht liefern;
+        // das Vorzeichen kommt separat aus "v. BF".
+        if ($rawYear < 0) {
             continue;
         }
 
