@@ -93,6 +93,16 @@ try {
                 // Schreiben NUR bei dry_run:false UND confirm:"apply"; sonst immer lesender Dry-Run.
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
             ),
+            'apply_coats' => avesmapsWikiSyncMonitorApplyCoats(
+                $pdo,
+                // Schreiben NUR bei dry_run:false UND confirm:"apply"; sonst immer lesender Dry-Run.
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+            ),
+            'revert_coats' => avesmapsWikiSyncMonitorRevertCoats(
+                $pdo,
+                (string) ($payload['batch_id'] ?? ''),
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+            ),
             'set_field_override' => avesmapsWikiSyncMonitorSetFieldOverride(
                 $pdo,
                 (string) ($payload['wiki_key'] ?? ''),
@@ -124,6 +134,8 @@ try {
         } elseif ($action === 'apply_parent_cache' && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'apply');
         } elseif ($action === 'apply_identity' && is_array($response) && ($response['dry_run'] ?? true) === false) {
+            avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'apply');
+        } elseif ($action === 'apply_coats' && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'apply');
         }
 
@@ -171,6 +183,7 @@ try {
         ),
         'editor_state' => avesmapsWikiSyncMonitorEditorState($pdo),
         'apply_identity_preview' => avesmapsWikiSyncMonitorApplyIdentityPreview($pdo),
+        'apply_coats_preview' => avesmapsWikiSyncMonitorApplyCoatsPreview($pdo),
         'location_search' => avesmapsWikiSyncMonitorLocationSearch(
             $pdo,
             (string) ($_GET['q'] ?? ''),

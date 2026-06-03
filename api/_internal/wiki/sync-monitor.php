@@ -141,6 +141,9 @@ function avesmapsWikiSyncMonitorEnsureTables(PDO $pdo): void {
             new_status VARCHAR(255) NULL,
             new_valid_from_bf INT NULL,
             new_valid_to_bf INT NULL,
+            old_coat_of_arms_url TEXT NULL,
+            new_coat_of_arms_url TEXT NULL,
+            kind VARCHAR(16) NOT NULL DEFAULT \'identity\',
             reverted_at DATETIME(3) NULL,
             created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
             PRIMARY KEY (id),
@@ -148,6 +151,14 @@ function avesmapsWikiSyncMonitorEnsureTables(PDO $pdo): void {
             KEY idx_territory (territory_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
+    // Coat-Spalten/kind fuer bestehende Backup-Tabellen nachruesten (apply_coats).
+    $backupCols = [];
+    foreach ($pdo->query('SHOW COLUMNS FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_IDENTITY_BACKUP_TABLE) ?: [] as $c) {
+        $backupCols[(string) $c['Field']] = true;
+    }
+    if (!isset($backupCols['old_coat_of_arms_url'])) {
+        $pdo->exec('ALTER TABLE ' . AVESMAPS_WIKI_SYNC_MONITOR_IDENTITY_BACKUP_TABLE . ' ADD COLUMN old_coat_of_arms_url TEXT NULL, ADD COLUMN new_coat_of_arms_url TEXT NULL, ADD COLUMN kind VARCHAR(16) NOT NULL DEFAULT \'identity\'');
+    }
 }
 
 // Zeitstempel einer Editor-Aktion festhalten (rebuild/diff/test/apply). Bei diff zusaetzlich Zahlen.
@@ -2305,12 +2316,12 @@ function avesmapsWikiSyncMonitorRevertIdentity(PDO $pdo, string $batchId, bool $
     $tbl = AVESMAPS_WIKI_SYNC_MONITOR_IDENTITY_BACKUP_TABLE;
     $batchId = trim($batchId);
     if ($batchId === '' || strtolower($batchId) === 'latest') {
-        $batchId = (string) ($pdo->query('SELECT batch_id FROM ' . $tbl . ' WHERE reverted_at IS NULL ORDER BY id DESC LIMIT 1')->fetchColumn() ?: '');
+        $batchId = (string) ($pdo->query('SELECT batch_id FROM ' . $tbl . ' WHERE kind = \'identity\' AND reverted_at IS NULL ORDER BY id DESC LIMIT 1')->fetchColumn() ?: '');
     }
     if ($batchId === '') {
         return ['ok' => false, 'error' => 'Kein wiederherstellbarer Apply-Lauf gefunden.'];
     }
-    $sel = $pdo->prepare('SELECT id, territory_id, old_name, old_type, old_status, old_valid_from_bf, old_valid_to_bf FROM ' . $tbl . ' WHERE batch_id = :b AND reverted_at IS NULL ORDER BY id ASC');
+    $sel = $pdo->prepare('SELECT id, territory_id, old_name, old_type, old_status, old_valid_from_bf, old_valid_to_bf FROM ' . $tbl . ' WHERE batch_id = :b AND kind = \'identity\' AND reverted_at IS NULL ORDER BY id ASC');
     $sel->execute(['b' => $batchId]);
     $rows = $sel->fetchAll(PDO::FETCH_ASSOC);
     $restored = 0;
@@ -2369,6 +2380,119 @@ function avesmapsWikiSyncMonitorIdentityBackups(PDO $pdo, int $limit): array {
         ];
     }, $rows);
     return ['ok' => true, 'backups' => $out];
+}
+
+// Coat-Apply Vorschau: effektives Wappen (Override ?? political_territory ?? Staging) pro Live-Zeile,
+// gegated auf erlaubte Lizenz (public_domain/attribution_required). Unlizenziert -> leeren (#2).
+function avesmapsWikiSyncMonitorApplyCoatsPreview(PDO $pdo): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $staging = AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE;
+    $model = AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE;
+    $allowed = ['public_domain', 'attribution_required'];
+
+    $st = [];
+    foreach ($pdo->query('SELECT wiki_key, coat_of_arms_url, coat_of_arms_license_status FROM ' . $staging) ?: [] as $r) {
+        $st[(string) $r['wiki_key']] = $r;
+    }
+    $mo = [];
+    foreach ($pdo->query('SELECT wiki_key, metadata_overrides_json, excluded FROM ' . $model) ?: [] as $r) {
+        $d = json_decode((string) ($r['metadata_overrides_json'] ?? ''), true);
+        $mo[(string) $r['wiki_key']] = ['ov' => is_array($d) ? $d : [], 'excluded' => (int) ($r['excluded'] ?? 0) === 1];
+    }
+    $live = $pdo->query('SELECT id, wiki_key, coat_of_arms_url FROM political_territory WHERE wiki_key IS NOT NULL AND wiki_key <> \'\' AND is_active = 1') ?: [];
+
+    $changed = [];
+    $summary = ['live' => 0, 'add' => 0, 'remove_unlicensed' => 0, 'replace' => 0, 'unchanged' => 0, 'excluded_skipped' => 0];
+    foreach ($live as $L) {
+        $summary['live']++;
+        $wk = (string) $L['wiki_key'];
+        $m = $mo[$wk] ?? ['ov' => [], 'excluded' => false];
+        if ($m['excluded']) { $summary['excluded_skipped']++; continue; }
+        $o = $m['ov'];
+        $s = $st[$wk] ?? [];
+        $liveCoat = trim((string) ($L['coat_of_arms_url'] ?? ''));
+        $effCoat = array_key_exists('coat_of_arms_url', $o)
+            ? trim((string) $o['coat_of_arms_url'])
+            : ($liveCoat !== '' ? $liveCoat : trim((string) ($s['coat_of_arms_url'] ?? '')));
+        $lic = array_key_exists('coat_of_arms_license_status', $o)
+            ? trim((string) $o['coat_of_arms_license_status'])
+            : trim((string) ($s['coat_of_arms_license_status'] ?? ''));
+        $newCoat = ($effCoat !== '' && in_array($lic, $allowed, true)) ? $effCoat : '';
+        if ($newCoat === $liveCoat) { $summary['unchanged']++; continue; }
+        if ($liveCoat === '' && $newCoat !== '') { $summary['add']++; }
+        elseif ($newCoat === '' && $liveCoat !== '') { $summary['remove_unlicensed']++; }
+        else { $summary['replace']++; }
+        $changed[] = ['id' => (int) $L['id'], 'wiki_key' => $wk, 'from' => $liveCoat, 'to' => $newCoat, 'license' => $lic];
+    }
+    return ['ok' => true, 'summary' => $summary, 'changed' => $changed, 'count' => count($changed)];
+}
+
+// Coat-Apply (gated): schreibt coat_of_arms_url (lizenziert -> Wappen, sonst leer) nach political_territory.
+// Snapshot (kind=coats) -> revert_coats. NIE Geometrie/andere Felder.
+function avesmapsWikiSyncMonitorApplyCoats(PDO $pdo, bool $dryRun): array {
+    $preview = avesmapsWikiSyncMonitorApplyCoatsPreview($pdo);
+    $changed = is_array($preview['changed'] ?? null) ? $preview['changed'] : [];
+    $written = 0;
+    $batchId = '';
+    if (!$dryRun && $changed !== []) {
+        $batchId = date('YmdHis') . '-' . substr(bin2hex(random_bytes(2)), 0, 4);
+        $backupStmt = $pdo->prepare(
+            'INSERT INTO ' . AVESMAPS_WIKI_SYNC_MONITOR_IDENTITY_BACKUP_TABLE . '
+                (batch_id, territory_id, wiki_key, old_coat_of_arms_url, new_coat_of_arms_url, kind)
+                VALUES (:b, :t, :w, :oc, :nc, \'coats\')'
+        );
+        $upd = $pdo->prepare('UPDATE political_territory SET coat_of_arms_url = :c WHERE id = :id AND is_active = 1');
+        $pdo->beginTransaction();
+        try {
+            foreach ($changed as $c) {
+                $backupStmt->execute([
+                    'b' => $batchId, 't' => (int) $c['id'], 'w' => (string) $c['wiki_key'],
+                    'oc' => (string) $c['from'], 'nc' => (string) $c['to'],
+                ]);
+                $upd->execute(['c' => (string) $c['to'], 'id' => (int) $c['id']]);
+                $written += $upd->rowCount() > 0 ? 1 : 0;
+            }
+            $pdo->commit();
+        } catch (Throwable $error) {
+            $pdo->rollBack();
+            throw $error;
+        }
+    }
+    return ['ok' => true, 'dry_run' => $dryRun, 'batch_id' => $batchId, 'targets' => count($changed), 'written' => $written];
+}
+
+// Coat-Apply Undo: stellt coat_of_arms_url aus dem Backup (kind=coats) wieder her.
+function avesmapsWikiSyncMonitorRevertCoats(PDO $pdo, string $batchId, bool $dryRun): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $tbl = AVESMAPS_WIKI_SYNC_MONITOR_IDENTITY_BACKUP_TABLE;
+    $batchId = trim($batchId);
+    if ($batchId === '' || strtolower($batchId) === 'latest') {
+        $batchId = (string) ($pdo->query('SELECT batch_id FROM ' . $tbl . ' WHERE kind = \'coats\' AND reverted_at IS NULL ORDER BY id DESC LIMIT 1')->fetchColumn() ?: '');
+    }
+    if ($batchId === '') {
+        return ['ok' => false, 'error' => 'Kein wiederherstellbarer Coat-Apply-Lauf gefunden.'];
+    }
+    $sel = $pdo->prepare('SELECT id, territory_id, old_coat_of_arms_url FROM ' . $tbl . ' WHERE batch_id = :b AND kind = \'coats\' AND reverted_at IS NULL ORDER BY id ASC');
+    $sel->execute(['b' => $batchId]);
+    $rows = $sel->fetchAll(PDO::FETCH_ASSOC);
+    $restored = 0;
+    if (!$dryRun && $rows !== []) {
+        $upd = $pdo->prepare('UPDATE political_territory SET coat_of_arms_url = :c WHERE id = :id');
+        $mark = $pdo->prepare('UPDATE ' . $tbl . ' SET reverted_at = NOW(3) WHERE id = :bid');
+        $pdo->beginTransaction();
+        try {
+            foreach ($rows as $r) {
+                $upd->execute(['c' => (string) ($r['old_coat_of_arms_url'] ?? ''), 'id' => (int) $r['territory_id']]);
+                $mark->execute(['bid' => (int) $r['id']]);
+                $restored += $upd->rowCount() > 0 ? 1 : 0;
+            }
+            $pdo->commit();
+        } catch (Throwable $error) {
+            $pdo->rollBack();
+            throw $error;
+        }
+    }
+    return ['ok' => true, 'dry_run' => $dryRun, 'batch_id' => $batchId, 'rows' => count($rows), 'restored' => $restored];
 }
 
 // Komplettes Modell flach (fuers UI: Baum + Status-Marker). Markiert Luecken (parent
