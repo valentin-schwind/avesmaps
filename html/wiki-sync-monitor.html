@@ -184,16 +184,16 @@
       <div class="dd-menu" id="seedMenu"></div>
     </details>
     <button class="btn2 primary" id="btnCrawl"><span class="t1">Sync starten</span><span class="t2" id="stSync">—</span></button>
-    <button class="btn2" id="btnModel" title="Berechnet die Hierarchie aus dem Staging neu (Locks + Aussortiert bleiben erhalten)"><span class="t1">Hierarchie ableiten</span><span class="t2" id="stModel">—</span></button>
-    <button class="btn2" id="btnDiff" title="Vergleicht Staging gegen das aktuelle Wiki: gelöscht / geändert / neu"><span class="t1">Zeige Unterschiede</span><span class="t2" id="stDiff">—</span></button>
-    <button class="btn2" id="btnCache" title="Testweise zeigen, was die Übertragung nach Avesmaps ändern würde – schreibt nichts"><span class="t1">Testübertragung in Avesmaps</span><span class="t2" id="stTest">—</span></button>
-    <button class="btn2" id="btnIdentPreview" title="Read-only: was ein Identitäts-Apply (Name, Staatsform, Status, Gegründet/Aufgelöst) in political_territory ändern würde – schreibt nichts"><span class="t1">Identitäts-Vorschau</span><span class="t2" id="stIdent">—</span></button>
-    <button class="btn2 primary" id="btnApply" title="Übernimmt die kuratierte Hierarchie in Avesmaps – schreibt Eltern-Zuweisungen, Geometrien bleiben unberührt"><span class="t1">Modell speichern und übernehmen</span><span class="t2" id="stApply">—</span></button>
-    <span id="busy" class="muted"></span>
+    <button class="btn2" id="btnModel" title="Berechnet die Hierarchie aus dem Staging neu (Locks + Aussortiert bleiben erhalten)"><span class="t1">Hierarchie</span><span class="t2" id="stModel">—</span></button>
+    <button class="btn2" id="btnDiff" title="Vergleicht Staging gegen das aktuelle Wiki: gelöscht / geändert / neu"><span class="t1">Unterschiede</span><span class="t2" id="stDiff">—</span></button>
+    <button class="btn2" id="btnCache" title="Testweise zeigen, was die Übertragung nach Avesmaps ändern würde – schreibt nichts"><span class="t1">Test</span><span class="t2" id="stTest">—</span></button>
+    <button class="btn2" id="btnIdentPreview" title="Read-only: was ein Identitäts-Apply (Name, Staatsform, Status, Gegründet/Aufgelöst) in political_territory ändern würde – schreibt nichts"><span class="t1">Identität</span><span class="t2" id="stIdent">—</span></button>
+    <button class="btn2 primary" id="btnApply" title="Übernimmt die kuratierte Hierarchie in Avesmaps – schreibt Eltern-Zuweisungen, Geometrien bleiben unberührt"><span class="t1">Modell übernehmen</span><span class="t2" id="stApply">—</span></button>
   </div>
 </header>
 <div id="status">
   <span id="statusText">Bereit.</span>
+  <span id="busy" class="muted" style="margin-left:8px"></span>
   <div id="contDD" class="dropdown2">
     <button type="button" id="contBtn" class="ddbtn" title="Filtert beide Listen nach Kontinent">Kontinente <span id="contCount" class="count"></span><span class="ddcaret">▾</span></button>
     <div class="dd-menu" id="contMenu" hidden></div>
@@ -369,7 +369,7 @@ function renderEditorState(s){
   $('stSync').textContent  = s.last_sync_at ? `letzte Sync: ${fmtDT(s.last_sync_at)}` : 'noch nie gesynct';
   $('stModel').textContent = s.model_fresh ? '✓ Modell aktuell' : 'Modell nicht aktuell';
   $('stDiff').textContent  = (s.diff_fresh && s.last_diff_at) ? `gelöscht ${s.diff.deleted??0}, geändert ${s.diff.changed??0}, neu ${s.diff.new??0}` : 'noch nicht verglichen';
-  $('stTest').textContent  = s.test_fresh ? '✓ Test durchgeführt' : 'Test nicht durchgeführt';
+  $('stTest').textContent  = s.test_fresh ? '✓ Ergebnis da' : 'ausstehend';
   $('stApply').textContent = s.apply_fresh ? '✓ gespeichert und übernommen' : 'noch nicht übernommen';
 }
 
