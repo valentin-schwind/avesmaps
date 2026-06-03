@@ -48,34 +48,41 @@ function hasRegionWikiInfo(regionEntry) {
 }
 
 function createRegionWikiInfoBoxMarkup(regionEntry) {
+	// #5: reichhaltige, read-only Wiki-Zusatzfelder kommen aus dem Detail-Endpoint (regionEntry.detail),
+	// async nachgeladen. Vor dem Laden zeigt die Box die Map-Features-Basisdaten; danach das Volle.
+	const detail = regionEntry.detail && regionEntry.detail.ok ? regionEntry.detail : null;
+	const f = (detail && detail.fields) || {};
 	const name = normalizeRegionParentheticalSpacing(regionEntry.displayName || regionEntry.name || "Herrschaftsgebiet");
-	const wikiName = normalizeRegionParentheticalSpacing(regionEntry.wikiName || name);
-	const type = normalizeRegionParentheticalSpacing(regionEntry.wikiType || regionEntry.type || "Herrschaftsgebiet");
-	const coatMarkup = regionEntry.coatOfArmsUrl
-		? `<img class="region-info-box__coat" src="${escapeHtml(regionEntry.coatOfArmsUrl)}" alt="">`
+	const wikiName = normalizeRegionParentheticalSpacing(regionEntry.wikiName || f.name || name);
+	const type = normalizeRegionParentheticalSpacing(regionEntry.wikiType || f.type || regionEntry.type || "Herrschaftsgebiet");
+	// #2/#5 Wappen lizenz-gegatet: sobald die Detaildaten da sind, gilt detail.coat.url (leer ohne Lizenz).
+	const coatUrl = detail ? String((detail.coat && detail.coat.url) || "") : (regionEntry.coatOfArmsUrl || "");
+	const coatMarkup = coatUrl
+		? `<img class="region-info-box__coat" src="${escapeHtml(coatUrl)}" alt="">`
 		: "";
 	const hasCoatClass = coatMarkup ? " has-coat" : "";
-	const wikiLink = createRegionInfoLink(regionEntry.wikiUrl);
-	const affiliationPath = createRegionInfoPathValue(regionEntry);
+	const wikiLink = createRegionInfoLink(regionEntry.wikiUrl || f.wiki_url);
 	const wikiRows = [
 		createRegionInfoTextRow("Wiki-Eintrag", wikiName),
 		createRegionInfoTextRow("Typ", type),
-		createRegionInfoTextRow("Status", regionEntry.status),
-		createRegionInfoTextRow("Gründung", regionEntry.wikiFoundedText || regionEntry.foundedText),
-		createRegionInfoTextRow("Auflösung", regionEntry.wikiDissolvedText || regionEntry.dissolvedText),
+		createRegionInfoTextRow("Status", regionEntry.status || f.status),
+		createRegionInfoTextRow("Herrschaftsform", f.form_of_government),
+		createRegionInfoTextRow("Oberhaupt", f.ruler),
+		createRegionInfoTextRow("Gründung", regionEntry.wikiFoundedText || regionEntry.foundedText || f.founded_text),
+		createRegionInfoTextRow("Auflösung", regionEntry.wikiDissolvedText || regionEntry.dissolvedText || f.dissolved_text),
+		createRegionInfoTextRow("Gründer", f.founder),
 		createRegionInfoTextRow("Obergebiet", regionEntry.parentName || regionEntry.affiliationRoot || regionEntry.wikiAffiliationRoot),
-		createRegionInfoBoxRow("Hauptstadt", createRegionInfoPlaceValue(regionEntry.wikiCapitalName || regionEntry.capitalName, regionEntry.capitalPlacePublicId)),
-		createRegionInfoBoxRow("Herrschaftssitz", createRegionInfoPlaceValue(regionEntry.wikiSeatName || regionEntry.seatName, regionEntry.seatPlacePublicId)),
+		createRegionInfoBoxRow("Hauptstadt", createRegionInfoPlaceValue(regionEntry.wikiCapitalName || regionEntry.capitalName || f.capital_name, regionEntry.capitalPlacePublicId)),
+		createRegionInfoBoxRow("Herrschaftssitz", createRegionInfoPlaceValue(regionEntry.wikiSeatName || regionEntry.seatName || f.seat_name, regionEntry.seatPlacePublicId)),
+		createRegionInfoTextRow("Sprache", f.language),
+		createRegionInfoTextRow("Währung", f.currency),
+		createRegionInfoTextRow("Einwohnerzahl", f.population),
+		createRegionInfoTextRow("Handelswaren", f.trade_goods),
+		createRegionInfoTextRow("Handelszone", f.trade_zone),
+		createRegionInfoTextRow("Geographisch", f.geographic),
+		createRegionInfoTextRow("Kartenzeitraum", regionEntry.validLabel),
 		createRegionInfoBoxRow("Wiki", wikiLink)
 	].join("");
-	const detailRows = [
-		createRegionInfoTextRow("Kartenname", name),
-		createRegionInfoTextRow("Kartenzeitraum", regionEntry.validLabel),
-		createRegionInfoTextRow("Zuordnung", affiliationPath)
-	].join("");
-	const detailsMarkup = detailRows
-		? `<details class="region-info-box__details"><summary>Details</summary><dl>${detailRows}</dl></details>`
-		: "";
 
 	return `
 		<div class="region-info-box">
@@ -87,7 +94,6 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 				</div>
 			</div>
 			<dl class="region-info-box__data">${wikiRows}</dl>
-			${detailsMarkup}
 		</div>
 	`;
 }

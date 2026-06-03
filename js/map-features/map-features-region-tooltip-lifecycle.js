@@ -23,6 +23,30 @@ function openRegionCompactTooltip(regionEntry) {
 		.setContent(createRegionCompactTooltipMarkup(regionEntry));
 	activeRegionInfoTooltip = tooltip;
 	tooltip.addTo(map);
+	enrichRegionTooltipWithWikiDetail(regionEntry, tooltip);
+}
+
+// #5: laedt die reichhaltigen Wiki-Zusatzfelder (Oberhaupt/Sprache/Waehrung/Einwohner/Gruender/
+// Herrschaftsform/Handelswaren/Geographisch) + das lizenz-gegatete Wappen aus dem Detail-Endpoint
+// nach und rendert den Tooltip neu. Nur fuer Wiki-Infoboxen mit bekanntem Territorium.
+function enrichRegionTooltipWithWikiDetail(regionEntry, tooltip) {
+	if (!hasRegionWikiInfo(regionEntry) || regionEntry.detail) {
+		return;
+	}
+	const territoryPublicId = regionEntry.territoryPublicId || "";
+	if (!territoryPublicId) {
+		return;
+	}
+	fetch(`/api/app/territory-detail.php?territory=${encodeURIComponent(territoryPublicId)}`, { credentials: "same-origin" })
+		.then((response) => (response.ok ? response.json() : null))
+		.then((data) => {
+			if (!data || data.ok === false || activeRegionInfoTooltip !== tooltip) {
+				return;
+			}
+			regionEntry.detail = data;
+			tooltip.setContent(createRegionCompactTooltipMarkup(regionEntry));
+		})
+		.catch(() => {});
 }
 
 function closeRegionCompactTooltip() {
