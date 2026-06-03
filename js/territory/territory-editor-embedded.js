@@ -408,6 +408,8 @@
 					// -> setSelectedTerritory findet sie nicht -> Fallback-Breadcrumb ohne Geschwisterpfeile.
 					const ovr = (row && row.overrides && typeof row.overrides === "object" && !Array.isArray(row.overrides)) ? row.overrides : {};
 					row = Object.assign({}, row, ovr);
+					// Override "besteht" (dissolved_end_bf leer) loescht die ganze Aufloesung: sonst zieht readOptionalYear den Staging-dissolved_start_bf als Ende heran -> Knoten faellt faelschlich aus dem heute-Zeitfilter -> fehlt in nodeRegistry -> Fallback-Breadcrumb ohne Geschwisterpfeile.
+					if (Object.prototype.hasOwnProperty.call(ovr, "dissolved_end_bf") && parseOptionalNumber(row.dissolved_end_bf, null) === null) { row.dissolved_start_bf = ""; }
 					const normalizedName = normalizeText(row.name);
 					const normalizedStatus = normalizeText(row.status);
 					const statusFilterTags = buildRowStatusFilterTags(normalizedName, normalizedStatus);

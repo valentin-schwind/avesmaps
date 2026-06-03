@@ -146,6 +146,8 @@
 				// faelschlich ausgeblendet -> fehlende Geschwister/Breadcrumb-Pfeile).
 				const ovr = (rawRow && rawRow.overrides && typeof rawRow.overrides === "object" && !Array.isArray(rawRow.overrides)) ? rawRow.overrides : {};
 				const row = Object.assign({}, rawRow || {}, ovr);
+				// Override "besteht" (dissolved_end_bf leer) loescht die ganze Aufloesung: sonst zieht readOptionalYear den Staging-dissolved_start_bf als Ende heran -> Knoten faellt faelschlich aus dem heute-Zeitfilter -> fehlende Geschwister/Breadcrumb-Pfeile.
+				if (Object.prototype.hasOwnProperty.call(ovr, "dissolved_end_bf") && parseOptionalNumber(row.dissolved_end_bf, null) === null) { row.dissolved_start_bf = ""; }
 				const normalizedName = normalizeText(row?.name);
 				const normalizedStatus = normalizeText(row?.status);
 				const foundedStartBf = parseOptionalNumber(row?.founded_start_bf, null);
