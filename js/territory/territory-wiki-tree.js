@@ -139,7 +139,13 @@
 
 	function normalizeApiRows(rows) {
 		const normalizedRows = (Array.isArray(rows) ? rows : [])
-			.map((row) => {
+			.map((rawRow) => {
+				// Effektiv = Override ?? Staging: die Wiki-Sync-Overrides (metadata_overrides_json) ueber die
+				// Staging-Felder legen, damit Baum-Label, Zeitfilter (dissolved->besteht) und Periode die
+				// Overrides spiegeln (sonst werden z.B. via Override "besteht" gesetzte Knoten bei time=heute
+				// faelschlich ausgeblendet -> fehlende Geschwister/Breadcrumb-Pfeile).
+				const ovr = (rawRow && rawRow.overrides && typeof rawRow.overrides === "object" && !Array.isArray(rawRow.overrides)) ? rawRow.overrides : {};
+				const row = Object.assign({}, rawRow || {}, ovr);
 				const normalizedName = normalizeText(row?.name);
 				const normalizedStatus = normalizeText(row?.status);
 				const foundedStartBf = parseOptionalNumber(row?.founded_start_bf, null);
