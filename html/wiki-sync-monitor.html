@@ -458,6 +458,18 @@ async function restoreWikiParent(k){
   } catch(e){ setStatus('Fehler: '+e.message); }
   busy(false);
 }
+// #3: gemeinfreies Wiki-Wappen auf den Avesmaps-Server laden -> lokale Kopie als coat_of_arms_url-Override.
+async function saveCoatLocal(k){
+  const n=BYKEY.get(k); if(!n) return;
+  busy(true);
+  try{
+    const r=await api('save_coat_local',{method:'POST',body:{wiki_key:k}});
+    if(r && r.ok===false) throw new Error(r.error||'Fehler');
+    setStatus(`Wappen lokal gespeichert: ${r.local_url||''}${r.bytes?(' ('+Math.round(r.bytes/1024)+' KB)'):''}.`);
+    await loadModel();
+  } catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+}
 function selectKey(k){
   if(k!==selectedKey){ editMode=false; pendingCapital=undefined; capResults=[]; }
   selectedKey = k;
@@ -572,7 +584,10 @@ function renderDetail(){
     : 'Sperrt den aktuellen Elternteil fest, ohne ihn zu verschieben. Gesperrte Eltern überstehen „Hierarchie ableiten" und jeden Sync; der automatische Maschinen-Vorschlag wird für diesen Knoten ignoriert. Klicken = sperren.';
   const lockBtn = `<button class="lockbtn" title="${esc(lockTip)}" data-lockkey="${esc(n.wiki_key)}" data-locknow="${n.parent_locked?'1':'0'}">${n.parent_locked?'🔒 Eltern gesperrt – entsperren':'🔓 Eltern hier sperren'}</button>`;
   const editBtn = `<button class="edbtn" data-edit-start="1" title="Wiki-Details manuell überschreiben – Wiki-Stand bleibt erhalten und ist jederzeit rücksetzbar">✎ Editieren</button>`;
-  box.innerHTML = head + lic + `<div class="dt-actions">${lockBtn}${editBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>`;
+  const effCoatUrl = isOvr(n,'coat_of_arms_url') ? String(n.overrides.coat_of_arms_url||'') : (n.coat_of_arms_url||'');
+  const coatLocalBtn = (n.license_status==='public_domain' && effCoatUrl && effCoatUrl.indexOf('/uploads/wappen/')!==0)
+    ? `<button class="edbtn" data-save-coat-local="${esc(n.wiki_key)}" title="Lädt das gemeinfreie Wiki-Wappen auf den Avesmaps-Server und nutzt künftig die lokale Kopie (Override)">📥 Wappen lokal speichern</button>` : '';
+  box.innerHTML = head + lic + `<div class="dt-actions">${lockBtn}${editBtn}${coatLocalBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>`;
 }
 function renderCapResults(){
   if(!capResults.length) return '';
@@ -892,6 +907,7 @@ $('wappenDialog').addEventListener('click', e=>{ if(e.target.id==='wappenDialog'
 $('detailBody').addEventListener('click', e=>{
   if(e.target.closest('.dt-wappen-edit')){ openWappenDialog(); return; }
   const rp=e.target.closest('[data-restore-parent]'); if(rp){ restoreWikiParent(rp.dataset.restoreParent); return; }
+  const sc=e.target.closest('[data-save-coat-local]'); if(sc){ saveCoatLocal(sc.dataset.saveCoatLocal); return; }
   const lb=e.target.closest('.lockbtn'); if(lb){ lockNode(lb.dataset.lockkey, lb.dataset.locknow!=='1'); return; }
   if(e.target.closest('[data-edit-start]')){ startEdit(); return; }
   if(e.target.closest('[data-edit-cancel]')){ cancelEdit(); return; }
