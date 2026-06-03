@@ -457,6 +457,7 @@ function periodText(n){ return (periodLabel(n)||'').replace(/^.*?· /,'').replac
 // Anwendung. „↺" löscht den Override -> Feld zeigt wieder den Wiki-Stand.
 let editMode=false, pendingCapital=undefined, capResults=[];
 const DETAIL_FIELDS=[
+  {key:'name',label:'Anzeigename'},
   {key:'type',label:'Staatsform'},
   {key:'status',label:'Status'},
   {key:'form_of_government',label:'Herrschaftsform'},
@@ -530,7 +531,8 @@ function renderDetail(){
   const rows = [];
   const add=(k,v)=>{ if(v) rows.push(`<div class="k">${k}</div><div>${v}</div>`); };
   const addF=(f)=>{ const v=effVal(n,f.key); if(!v && !isOvr(n,f.key)) return; let val; if(isOvr(n,f.key)){ const w=wikiVal(n,f.key); val=`<span class="dt-old">${esc(w||'(leer)')}</span><span class="dt-arrow">→</span><span class="dt-new">${esc(v||'(leer)')}</span>`; } else { val=esc(v||'—'); } if(f.capital) val+=capChip(n); rows.push(`<div class="k">${f.label}</div><div>${val}</div>`); };
-  addF(DETAIL_FIELDS[0]); // Staatsform
+  addF(DETAIL_FIELDS[0]); // Anzeigename
+  addF(DETAIL_FIELDS[1]); // Staatsform
   // Zeit: effektive BF-Zahlen (kontrollierend) + Wiki-Text als Kontext
   const effF=effFoundedBf(n), effD=effDissolvedBf(n);
   const fTxt=n.founded_text?` <span class="muted">· ${esc(n.founded_text)}</span>`:'';
@@ -539,7 +541,7 @@ function renderDetail(){
   const dBadge=isOvr(n,'dissolved_end_bf')?ovrTimeBadge():'';
   if(effF!=null || n.founded_text){ const wF=wikiFoundedBf(n); const cell=isOvr(n,'founded_start_bf')?`<span class="dt-old">${wF!=null?esc(fmtBF(wF)):'—'}</span><span class="dt-arrow">→</span><span class="dt-new">${effF!=null?esc(fmtBF(effF)):'—'}</span>`:(effF!=null?esc(fmtBF(effF)):'—'); add('Gegründet', cell+fTxt); }
   if(effD!=null || n.dissolved_text || effF!=null){ const wD=wikiDissolvedBf(n); const cell=isOvr(n,'dissolved_end_bf')?`<span class="dt-old">${wD!=null?esc(fmtBF(wD)):'besteht'}</span><span class="dt-arrow">→</span><span class="dt-new">${effD!=null?esc(fmtBF(effD)):'besteht'}</span>`:(effD!=null?esc(fmtBF(effD)):'besteht'); add('Aufgelöst', cell+dTxt); }
-  for(let i=1;i<DETAIL_FIELDS.length;i++){ addF(DETAIL_FIELDS[i]); }
+  for(let i=2;i<DETAIL_FIELDS.length;i++){ addF(DETAIL_FIELDS[i]); }
   add('Eltern', esc(parentNm)+(n.parent_locked?' 🔒':'')+(n.parent_wiki_key&&!n.parent_in_model?' <span class="dt-conf">(nicht im Modell)</span>':''));
   if(n.diverges) add('Maschinen-Vorschlag', esc((BYKEY.get(n.auto_parent_wiki_key)||{}).name||n.auto_parent_wiki_key||''));
   if(n.conflicts && n.conflicts.length) add('Strittig', `<span class="dt-conf">${n.conflicts.map(esc).join(', ')}</span>`);
