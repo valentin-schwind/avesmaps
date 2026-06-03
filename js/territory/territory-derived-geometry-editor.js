@@ -300,16 +300,32 @@ function stitchInnerBoundaryEdges(edges) {
 }
 
 // Berechnet die Innengrenzen-MultiLineString eines Ziels aus den Außenkonturen seiner
-// DIREKTEN Kinder (plan.children_index). Liefert null bei < 2 Kindern / keinen geteilten
+// DIREKTEN Kinder (plan.children_index) PLUS der Eigenflaeche des Ziels. Liefert null bei < 2 Teilnehmern / keinen geteilten
 // Kanten. Pro Kind: Quellen holen + unioncen (Option A) -> saubere Außenkontur.
 async function computeInnerBoundaryMultiLineString(targetPublicId, plan) {
 	const index = plan && plan.children_index ? plan.children_index : null;
 	const childPublicIds = index && Array.isArray(index[targetPublicId]) ? index[targetPublicId] : [];
-	if (childPublicIds.length < 2) {
-		return null;
-	}
-
 	const childOutlines = [];
+
+	// Teilnehmer einer Innengrenze sind die Geschwister-Flaechen EINER Ebene: die EIGENE Flaeche
+	// des Ziels (falls es eine eigene Geometrie hat) UND die Aussenkontur jedes Kindes mit Geometrie.
+	// Dadurch bildet auch ein Knoten MIT Eigenflaeche und nur EINEM Kind eine Innengrenze (Trennlinie
+	// Eigenflaeche <-> Kind) statt erst ab zwei Kindern. Nur Knoten MIT Geometrie nehmen teil -> keine
+	// Seiteneffekte durch geometrielose Knoten. Frueher: Abbruch bei < 2 Kindern (Guard jetzt unten
+	// ueber childOutlines.length, nachdem Eigenflaeche + Kinder gesammelt sind).
+	try {
+		const ownSources = await politicalTerritoryRepository.getDerivedGeometrySources(targetPublicId);
+		const ownEntries = (Array.isArray(ownSources?.source_geometries) ? ownSources.source_geometries : [])
+			.filter((entry) => String(entry?.territory_public_id || "") === String(targetPublicId));
+		if (ownEntries.length > 0) {
+			const ownResult = unionDerivedSources({ source_geometries: ownEntries });
+			if (ownResult && ownResult.geometry) {
+				childOutlines.push(ownResult.geometry);
+			}
+		}
+	} catch (error) {
+		console.warn("Innengrenzen: Eigenflaeche des Ziels fehlgeschlagen fuer", targetPublicId, error);
+	}
 	for (const childPublicId of childPublicIds) {
 		try {
 			const sources = await politicalTerritoryRepository.getDerivedGeometrySources(childPublicId);
