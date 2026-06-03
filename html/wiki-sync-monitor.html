@@ -513,6 +513,8 @@ function periodFromBf(n){
 function isOvr(n,k){ return !!(n.overrides && Object.prototype.hasOwnProperty.call(n.overrides,k)); }
 function wikiVal(n,k){ const v=n[k]; return v==null?'':String(v); }
 function effVal(n,k){ return isOvr(n,k)?String(n.overrides[k]==null?'':n.overrides[k]):wikiVal(n,k); }
+// Anzeigename = Override ?? Wiki-Name (Fallback wiki_key). Fuer Knoten-Label in Liste + Baum + Detail-Titel.
+function dispName(n){ return (effVal(n,'name')||n.name||n.wiki_key||'').toString(); }
 function ovrBadge(n,k){ if(!isOvr(n,k)) return ''; const w=wikiVal(n,k); return ` <span class="ov-badge" title="Manuell überschrieben. Wiki-Stand: ${esc(w||'(leer)')}">✎ manuell</span>`; }
 function ovrTimeBadge(){ return ` <span class="ov-badge" title="Manuell überschriebener BF-Wert (kontrolliert Filter/Karte). Wiki-Text bleibt als Kontext.">✎ manuell</span>`; }
 function capChip(n){ const cl=n.capital_location; if(!cl||!cl.name) return ''; if(!cl.public_id) return ` <span class="muted" title="In Locations gefunden, aber ohne public_id.">🔗 ${esc(cl.name)}</span>`; const href='/?place='+encodeURIComponent(cl.public_id); return ` <a class="wl dt-cap-link" href="${esc(href)}" target="_blank" rel="noopener" title="Auf der Karte zur Stadt „${esc(cl.name)}" springen">🔗 ${esc(cl.name)}</a>`; }
@@ -714,7 +716,7 @@ function renderList() {
     const lock = n.parent_locked ? ` <span class="tag lock" title="${lockTitle(n)}">🔒</span>` : '';
     const exclTag = n.excluded ? ' <span class="tag excl" title="aussortiert – in den Baum/Wurzel ziehen holt zurück">✕ aussortiert</span>' : '';
     const meta = n.excluded ? '' : `${parentLabel(n)}${conflictLabel(n)}`;
-    out.push(`<div class="row${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}">${covCircle(n)}${wappenThumb(n)}<span class="nm">${esc(n.name)}${periodLabel(n)}</span>${wikiLink(n)}${meta}${lock}${exclTag}</div>`);
+    out.push(`<div class="row${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}">${covCircle(n)}${wappenThumb(n)}<span class="nm">${esc(dispName(n))}${periodLabel(n)}</span>${wikiLink(n)}${meta}${lock}${exclTag}</div>`);
   }
   $('list').innerHTML = out.join('') || '<div class="muted">— keine —</div>';
 }
@@ -728,7 +730,7 @@ function buildTreeNode(n, depth) {
   const hasKids = kids.length>0;
   const open = (treeForceOpen && treeForceOpen.has(n.wiki_key)) || expanded.has(n.wiki_key);
   const tw = hasKids ? `<span class="twist" data-tw="${n.wiki_key}">${open?'▾':'▸'}</span>` : '<span class="twist"></span>';
-  let html = `<li data-li="${n.wiki_key}"><span class="node${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${covCircle(n)}${wappenThumb(n)}<span>${esc(n.name)}${periodLabel(n)}</span>${wikiLink(n)}${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
+  let html = `<li data-li="${n.wiki_key}"><span class="node${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}" data-drop="${n.wiki_key}">${tw}${covCircle(n)}${wappenThumb(n)}<span>${esc(dispName(n))}${periodLabel(n)}</span>${wikiLink(n)}${statusTags(n)}${hasKids?` <span class="count">(${kids.length})</span>`:''}</span>`;
   if (hasKids && open) html += `<ul class="tree">${kids.map(k=>buildTreeNode(k,depth+1)).join('')}</ul>`;
   return html + '</li>';
 }
