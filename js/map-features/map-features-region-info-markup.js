@@ -3,6 +3,20 @@
  * This file contains only function declarations and no top-level execution.
  */
 
+// Leitet externe wiki-aventurica-Wappen ueber den serverseitigen Cache/Proxy (/api/app/coat.php),
+// damit die Karte nicht hunderte SVGs direkt hotlinkt (net::ERR_NO_BUFFER_SPACE). Lokale /uploads/-
+// URLs und bereits proxied URLs bleiben unveraendert.
+function avesmapsCoatSrc(url) {
+	const value = String(url || "").trim();
+	if (value === "") {
+		return "";
+	}
+	if (/^https?:\/\/([a-z0-9-]+\.)?wiki-aventurica\.de\//iu.test(value)) {
+		return "/api/app/coat.php?u=" + encodeURIComponent(value);
+	}
+	return value;
+}
+
 function createRegionCompactTooltipMarkup(regionEntry) {
 	if (hasRegionWikiInfo(regionEntry)) {
 		return createRegionWikiInfoBoxMarkup(regionEntry);
@@ -13,7 +27,7 @@ function createRegionCompactTooltipMarkup(regionEntry) {
 
 function createRegionMiniTooltipMarkup(regionEntry) {
 	const coatMarkup = regionEntry.coatOfArmsUrl
-		? `<img class="region-compact-tooltip__coat" src="${escapeHtml(regionEntry.coatOfArmsUrl)}" alt="" loading="lazy" decoding="async">`
+		? `<img class="region-compact-tooltip__coat" src="${escapeHtml(avesmapsCoatSrc(regionEntry.coatOfArmsUrl))}" alt="" loading="lazy" decoding="async">`
 		: "";
 	const meta = [normalizeRegionParentheticalSpacing(regionEntry.type), regionEntry.validLabel].filter(Boolean).join(" | ");
 	const affiliation = regionEntry.affiliationRoot || regionEntry.affiliation || "";
@@ -58,7 +72,7 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 	// #2/#5 Wappen lizenz-gegatet: sobald die Detaildaten da sind, gilt detail.coat.url (leer ohne Lizenz).
 	const coatUrl = detail ? String((detail.coat && detail.coat.url) || "") : (regionEntry.coatOfArmsUrl || "");
 	const coatMarkup = coatUrl
-		? `<img class="region-info-box__coat" src="${escapeHtml(coatUrl)}" alt="" loading="lazy" decoding="async">`
+		? `<img class="region-info-box__coat" src="${escapeHtml(avesmapsCoatSrc(coatUrl))}" alt="" loading="lazy" decoding="async">`
 		: "";
 	const hasCoatClass = coatMarkup ? " has-coat" : "";
 	const wikiLink = createRegionInfoLink(regionEntry.wikiUrl || f.wiki_url);
