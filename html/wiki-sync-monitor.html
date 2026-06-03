@@ -11,7 +11,8 @@
   body { margin:0; font:13px/1.45 var(--font-ui); background:var(--bg); color:var(--fg); }
   header { padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); }
   h1 { font-size:15px; margin:0 0 8px; color:#3f3428; }
-  .controls { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .controls { display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:6px; align-items:stretch; }
+  .controls > .dd > summary, .controls > .dd { width:100%; box-sizing:border-box; }
   button { background:#f3ebdf; color:#513c2b; border:1px solid #b99a78; border-radius:5px; padding:5px 10px; cursor:pointer; font:inherit; }
   button:hover { background:#ead9c2; }
   button:disabled { opacity:.5; cursor:default; }

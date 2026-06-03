@@ -76,7 +76,7 @@ try {
         // 2) Staging (gecrawlte Wiki-Daten) + Modell-Overrides je wiki_key.
         $sStmt = $pdo->prepare(
             'SELECT form_of_government, ruler, language, currency, population, founder, political,
-                    trade_zone, trade_goods, geographic, blazon,
+                    trade_zone, trade_goods, geographic, blazon, coat_of_arms_url,
                     coat_of_arms_license_status, coat_of_arms_author, coat_of_arms_attribution
                FROM ' . AVESMAPS_TERRITORY_DETAIL_STAGING_TABLE . '
               WHERE wiki_key = :wk LIMIT 1'
@@ -108,9 +108,15 @@ try {
             ? (string) $overrides['coat_of_arms_license_status']
             : (string) ($staging['coat_of_arms_license_status'] ?? '');
         $licenseStatus = trim($licenseStatus);
-        $allowed = $coatUrl !== '' && in_array($licenseStatus, AVESMAPS_TERRITORY_DETAIL_COAT_ALLOWED, true);
+        // Effektive Wappen-URL: Override ?? political_territory ?? Staging (viele Live-Zeilen haben das
+        // gecrawlte Wappen nie bekommen -> sonst fehlt es trotz vorhandener Lizenz).
+        $stagingCoat = trim((string) ($staging['coat_of_arms_url'] ?? ''));
+        $effCoatUrl = array_key_exists('coat_of_arms_url', $overrides)
+            ? trim((string) $overrides['coat_of_arms_url'])
+            : ($coatUrl !== '' ? $coatUrl : $stagingCoat);
+        $allowed = $effCoatUrl !== '' && in_array($licenseStatus, AVESMAPS_TERRITORY_DETAIL_COAT_ALLOWED, true);
         $coat = [
-            'url' => $allowed ? $coatUrl : '',
+            'url' => $allowed ? $effCoatUrl : '',
             'license_status' => $licenseStatus,
             'author' => trim((string) ($staging['coat_of_arms_author'] ?? '')),
             'attribution' => trim((string) ($staging['coat_of_arms_attribution'] ?? '')),
