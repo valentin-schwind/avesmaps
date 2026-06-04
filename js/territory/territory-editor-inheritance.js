@@ -328,9 +328,8 @@
 			addToMapList(siblingsByParent, String(row.parentPublicId || row.parentId || "").trim(), row);
 		}
 
-		// Per-Level-Varianz: jede absolute Hierarchie-Ebene hat einen eigenen HSV-Abweichungswert
-		// (Felder Hierarchie-Level 1-6). Die ausgewaehlte Ebene = activeIndex+1; ein direktes Kind
-		// (row.depth === 1) liegt eine Ebene darunter.
+		// Per-Level-Varianz: field[L] = HSV-Abweichung, mit der die KINDER eines Level-L-Knotens von
+		// ihrem Elternknoten streuen (Felder Hierarchie-Level 1-6). Die ausgewaehlte Ebene = activeIndex+1.
 		const levelVariances = readLevelVariances();
 		const selectedLevel = Math.max(1, (Number(root.activeIndex) || 0) + 1);
 		const varianceForAbsoluteLevel = (absoluteLevel) => levelVariances[Math.max(1, Math.min(6, absoluteLevel))];
@@ -343,9 +342,11 @@
 				?? root.color;
 			const siblings = siblingsByParent.get(String(row.parentPublicId || row.parentId || "").trim()) || [row];
 			const siblingIndex = Math.max(0, siblings.findIndex(entry => (entry.publicId && entry.publicId === row.publicId) || (entry.id != null && entry.id === row.id)));
-			// depth: 2 = "eine Ebene unter dem Elternknoten" -> die Helligkeitsstaffelung in
-			// createHueVariant kumuliert ueber die Tiefe; die Hue-Abweichung kommt aus dem Level-Feld.
-			const variance256 = varianceForAbsoluteLevel(selectedLevel + Number(row.depth || 1));
+			// Hue-Abweichung kommt aus dem Feld des ELTERN-Levels: field[L] steuert, wie stark die
+			// KINDER eines Level-L-Knotens streuen. Ein direktes Kind (row.depth 1) eines Knotens auf
+			// selectedLevel nutzt also field[selectedLevel]; dessen Kind (depth 2) field[selectedLevel+1] usw.
+			const parentLevel = selectedLevel + Number(row.depth || 1) - 1;
+			const variance256 = varianceForAbsoluteLevel(parentLevel);
 			const color = createHueVariant(parentColor, 2, siblingIndex, siblings.length, row.publicId || row.name, variance256);
 			rememberColor(row.publicId, row.id, color);
 			updates.push({ territoryPublicId: row.publicId, name: row.name || row.publicId, depth: Math.max(1, Number(row.depth || 1)) + 1, color });
