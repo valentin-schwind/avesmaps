@@ -149,7 +149,9 @@ body.edit-mode .map-label span {
 	gap: 5px;
 	padding: 2px 5px;
 	border-radius: 6px;
-	background: rgba(255, 255, 255, 0.3);
+	/* Kein halbtransparentes Pill mehr; die Lesbarkeit liefert der weiße Text-Schatten
+	   (.region-label text-shadow: 0 0 4px white). */
+	background: transparent;
 	color: #2f251c;
 	font-size: calc(1em - 2pt);
 	/* Collision-Abstoßung: verschiebt das Label um die berechnete Tension (Pixel). */
