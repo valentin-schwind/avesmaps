@@ -69,6 +69,10 @@
 			}, true);
 		}
 
+		// #2: Das "Farbhierarchie für alle Unterregionen"-Häkchen ist erst aktiv, NACHDEM eine
+		// Farbhierarchie erstellt wurde (pendingColorPlan). Initial deaktiviert.
+		const colorDescCbInit = document.getElementById("inheritColorToDescendantsCheckbox");
+		if (colorDescCbInit) colorDescCbInit.disabled = true;
 		removeOpacityInheritanceButton();
 		cleanStrayCheckboxLabelText();
 
@@ -121,6 +125,9 @@
 			const preview = document.getElementById("deferredColorHierarchyPreview");
 			if (preview) preview.hidden = true;
 		}
+		// #2: Häkchen nur aktiv, solange eine Farbhierarchie vorbereitet ist.
+		const colorDescCbSync = document.getElementById("inheritColorToDescendantsCheckbox");
+		if (colorDescCbSync) colorDescCbSync.disabled = !pendingColorPlan;
 	}
 
 	async function loadTerritories() {
@@ -140,6 +147,8 @@
 		const descendants = findDescendants(root);
 		const updates = buildColorUpdates(root, descendants);
 		pendingColorPlan = { root, updates };
+		const colorDescCbEnable = document.getElementById("inheritColorToDescendantsCheckbox");
+		if (colorDescCbEnable) colorDescCbEnable.disabled = false;
 		if (checkCheckbox) document.getElementById("inheritColorToDescendantsCheckbox")?.click();
 		renderPreview(pendingColorPlan);
 		setStatus(descendants.length > 0 ? `Farbhierarchie vorbereitet: ${descendants.length} Unterregionen.` : "Keine Unterregionen fuer das aktive Breadcrumb gefunden.", descendants.length > 0 ? "pending" : "error");
@@ -196,6 +205,52 @@
 			seen.add(key);
 			return true;
 		});
+	}
+
+	// #1: Default-Zoomregeln (depth-basiert, identisch zur Tabelle in territory-editor-ui-hints.js)
+	// auf das GESAMTE vertikale Aggregat (Über- und Unterregionen) anwenden.
+	const PARSED_DEFAULT_ZOOM_RULES = {
+		1: [[0, 6]],
+		2: [[0, 1], [2, 6]],
+		3: [[0, 1], [2, 3], [4, 6]],
+		4: [[0, 1], [2, 2], [3, 3], [4, 6]],
+		5: [[0, 1], [2, 2], [3, 3], [4, 4], [5, 6]],
+		6: [[0, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6]]
+	};
+
+	function defaultZoomBand(totalLevels, depth) {
+		const levels = Math.max(1, Math.min(6, Number(totalLevels) || 1));
+		const bands = PARSED_DEFAULT_ZOOM_RULES[levels];
+		const index = Math.max(1, Math.min(bands.length, Number(depth) || 1)) - 1;
+		return bands[index];
+	}
+
+	function buildDefaultZoomHierarchyUpdates() {
+		const value = readAssignmentValue();
+		const path = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
+		if (path.length === 0) return [];
+		const deepest = path[path.length - 1];
+		const deepestRoot = {
+			territoryPublicId: deepest.territoryPublicId || deepest.territory_public_id || "",
+			territoryId: deepest.territoryId ?? null,
+			wikiKey: deepest.wikiKey || deepest.key || "",
+			name: deepest.label || deepest.name || ""
+		};
+		const descendants = findDescendants(deepestRoot);
+		const maxRelativeDepth = descendants.reduce((max, row) => Math.max(max, Number(row.depth || 1)), 0);
+		const totalLevels = path.length + maxRelativeDepth;
+		const updates = [];
+		const seen = new Set();
+		const push = (territoryPublicId, depth) => {
+			const key = normalizeText(territoryPublicId);
+			if (!key || seen.has(key)) return;
+			seen.add(key);
+			const band = defaultZoomBand(totalLevels, depth);
+			updates.push({ territoryPublicId: key, minZoom: band[0], maxZoom: band[1] });
+		};
+		path.forEach((node, index) => push(node.territoryPublicId || node.territory_public_id || "", index + 1));
+		descendants.forEach((row) => push(row.publicId || "", path.length + Number(row.depth || 1)));
+		return updates;
 	}
 
 	function buildColorUpdates(root, descendants) {
@@ -318,6 +373,12 @@
 			const siblingZoomUpdates = findSiblings(root).map(row => ({ territoryPublicId: row.publicId, minZoom: root.zoomMin, maxZoom: root.zoomMax })).filter(update => update.territoryPublicId);
 			const zoomResult = await service.applyExplicitZoomUpdates(siblingZoomUpdates);
 			messages.push(`Zoom auf ${siblingZoomUpdates.length} Geschwisterregionen angewendet (${zoomResult && zoomResult.changed != null ? zoomResult.changed : 0} gespeichert).`);
+		}
+		if (document.getElementById("resetDefaultZoomToHierarchyCheckbox")?.checked && service?.applyExplicitZoomUpdates) {
+			await loadTerritories();
+			const defaultZoomUpdates = buildDefaultZoomHierarchyUpdates();
+			const defaultZoomResult = await service.applyExplicitZoomUpdates(defaultZoomUpdates);
+			messages.push(`Default-Zoomregeln auf ${defaultZoomUpdates.length} Gebiete (Über-/Unterregionen) angewendet (${defaultZoomResult && defaultZoomResult.changed != null ? defaultZoomResult.changed : 0} gespeichert).`);
 		}
 		if (root && document.getElementById("inheritValidityToDescendantsCheckbox")?.checked && service?.applyExplicitValidityUpdates) {
 			await loadTerritories();

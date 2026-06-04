@@ -184,6 +184,15 @@
 			input.checked = false;
 		}
 		label?.classList.toggle("derived-geometry-inner-boundaries-disabled", !state.canShowInnerBoundaries);
+		// #4: Im Blatt (letztes Breadcrumb-Element, keine Unterflächen) hat auch "Für alle
+		// Unterregionen übernehmen" keine Wirkung -> mit deaktivieren.
+		const recursiveInput = document.getElementById("derivedGeometryRecursiveInput");
+		const recursiveLabel = document.getElementById("derivedGeometryRecursiveLabel");
+		if (recursiveInput) {
+			recursiveInput.disabled = !state.canShowInnerBoundaries;
+			if (!state.canShowInnerBoundaries) recursiveInput.checked = false;
+			recursiveLabel?.classList.toggle("derived-geometry-recursive-control", !state.canShowInnerBoundaries);
+		}
 		updateModeNote();
 	}
 

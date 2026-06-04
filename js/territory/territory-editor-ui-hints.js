@@ -175,6 +175,33 @@
 		wrapper.appendChild(note);
 
 		visibilitySection.appendChild(wrapper);
+
+		// #1: Häkchen UNTER der Default-Zoomregeln-Tabelle. Setzt beim Speichern die depth-basierten
+		// Default-Zoom-Bänder auf das gesamte vertikale Aggregat (Über- UND Unterregionen). Solange
+		// aktiv, ist "Für alle Geschwisterregionen übernehmen" gesperrt (hier wird die ganze
+		// Hierarchie gesetzt). Apply-Logik: territory-editor-inheritance.js (resetDefaultZoomToHierarchyCheckbox).
+		if (!document.getElementById("resetDefaultZoomToHierarchyCheckbox")) {
+			const resetLabel = document.createElement("label");
+			resetLabel.className = "deferred-subtree-checkbox";
+			const resetInput = document.createElement("input");
+			resetInput.type = "checkbox";
+			resetInput.id = "resetDefaultZoomToHierarchyCheckbox";
+			const resetSpan = document.createElement("span");
+			resetSpan.textContent = "Auf Default-Zoomregeln für Über- und Unterregionen zurücksetzen";
+			resetLabel.append(resetInput, resetSpan);
+			visibilitySection.appendChild(resetLabel);
+
+			resetInput.addEventListener("change", () => {
+				const siblingZoomCheckbox = document.getElementById("inheritZoomToDescendantsCheckbox");
+				if (!siblingZoomCheckbox) {
+					return;
+				}
+				siblingZoomCheckbox.disabled = resetInput.checked;
+				if (resetInput.checked) {
+					siblingZoomCheckbox.checked = false;
+				}
+			});
+		}
 	}
 
 	function loadScriptOnce(src) {
