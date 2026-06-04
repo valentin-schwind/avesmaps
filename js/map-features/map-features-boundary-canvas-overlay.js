@@ -23,10 +23,10 @@
 	const INNER_LINE_COLOR = "#ffffff";
 	const INNER_LINE_ALPHA = 0.6;
 	const INNER_LINE_DASH = [5, 4];
-	// Bei sehr kleinem Zoom (0/1) sind die Gebiete winzig -> 2px + [5,4] wirken grob.
-	// Dort duennere Linie und feineres Dashing verwenden.
-	const INNER_LINE_WIDTH_FINE = 1;
-	const INNER_LINE_DASH_FINE = [3, 3];
+	// Innengrenzen je Zoom: Zoom 0 ganz aus (s. drawInnerBoundaries), Zoom 1 extra fein
+	// (0.75px + [2,3]), ab Zoom 2 normal (2px + [5,4]).
+	const INNER_LINE_WIDTH_FINE = 0.75;
+	const INNER_LINE_DASH_FINE = [2, 3];
 	const INNER_LINE_FINE_MAX_ZOOM = 1;
 	const OUTER_LINE_COLOR = "#d3d3d3";              // Aussenkontur statisch hellgrau (null = Territoriumsfarbe)
 
@@ -92,6 +92,8 @@
 	// ctx.save()/restore() mit-gesichert und danach zurueckgesetzt.
 	function drawInnerBoundaries(geojson) {
 		if (!geojson) return;
+		// Zoom 0: Innengrenzen ganz aus (winzige Gebiete -> nur Liniengewirr).
+		if (Math.round(Number(map.getZoom())) <= 0) return;
 		const lines = geojson.type === "MultiLineString" ? geojson.coordinates
 			: geojson.type === "LineString" ? [geojson.coordinates]
 			: null;
