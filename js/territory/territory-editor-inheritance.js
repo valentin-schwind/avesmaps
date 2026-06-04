@@ -234,14 +234,20 @@
 		// Über territoryRows (Modell-Hierarchie) per wiki_key auflösen. Reine Wiki-Knoten ohne eigenes
 		// Territorium (z. B. Baronie Hahnfels) werden übersprungen.
 		await loadTerritories();
-		const rowByWikiKey = new Map();
+		// territoryRows tragen oft KEINEN wiki_key, aber Name + publicId -> primär per wiki_key,
+		// sonst per Name auflösen (wie findDescendants).
+		const rowByKey = new Map();
 		for (const row of territoryRows) {
-			if (row.wikiKey) rowByWikiKey.set(makeKey(row.wikiKey), row);
+			if (row.wikiKey) rowByKey.set("wiki:" + makeKey(row.wikiKey), row);
+			const nameKey = "name:" + makeKey(row.name || "");
+			if (row.name && !rowByKey.has(nameKey)) rowByKey.set(nameKey, row);
 		}
 
 		const spine = path.map((node, index) => {
 			const wikiKey = makeKey(node.wikiKey || node.key || "");
-			return { row: wikiKey ? rowByWikiKey.get(wikiKey) || null : null, depth: index + 1 };
+			const nameKey = makeKey(node.label || node.name || "");
+			const row = (wikiKey && rowByKey.get("wiki:" + wikiKey)) || (nameKey && rowByKey.get("name:" + nameKey)) || null;
+			return { row, depth: index + 1 };
 		});
 
 		const deepestEntry = [...spine].reverse().find((entry) => entry.row) || null;
