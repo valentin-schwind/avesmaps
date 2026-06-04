@@ -58,6 +58,43 @@ function applyRegionTooltipVerticalFlip(tooltip) {
 	tooltip.update();
 }
 
+// Hover-Highlight: faerbt alle Polygone der Region unter der Maus fast weiss (Werte in config.js)
+// und stellt beim Verlassen den vorherigen Stil wieder her. Nur sichtbare Fuellungen.
+function applyRegionHoverHighlight(regionEntry) {
+	if (typeof POLITICAL_HOVER_FILL_COLOR === "undefined" || !POLITICAL_HOVER_FILL_COLOR) {
+		return;
+	}
+	if (typeof regionPolygons === "undefined" || !Array.isArray(regionPolygons)) {
+		return;
+	}
+	regionPolygons.forEach((p) => {
+		if (!p || p._regionEntry !== regionEntry) {
+			return;
+		}
+		const opts = p.options || {};
+		if (opts.fill === false || !(opts.fillOpacity > 0)) {
+			return;
+		}
+		if (p._hoverPrevStyle === undefined) {
+			p._hoverPrevStyle = { fillColor: opts.fillColor, fillOpacity: opts.fillOpacity };
+		}
+		p.setStyle({ fillColor: POLITICAL_HOVER_FILL_COLOR, fillOpacity: POLITICAL_HOVER_FILL_OPACITY });
+	});
+}
+
+function clearRegionHoverHighlight(regionEntry) {
+	if (typeof regionPolygons === "undefined" || !Array.isArray(regionPolygons)) {
+		return;
+	}
+	regionPolygons.forEach((p) => {
+		if (!p || p._regionEntry !== regionEntry || p._hoverPrevStyle === undefined) {
+			return;
+		}
+		p.setStyle(p._hoverPrevStyle);
+		p._hoverPrevStyle = undefined;
+	});
+}
+
 // Frontend "Politisch": beim Drueberfahren ueber eine Region die Wiki-Infobox zeigen
 // (anchored am Regions-Mittelpunkt, nicht-interaktiv), beim Verlassen wieder schliessen.
 // Welche Hierarchie-Ebene reagiert, ergibt sich automatisch aus dem Zoom-Band der Daten
@@ -78,8 +115,10 @@ function bindRegionHoverTooltip(polygon, regionEntry) {
 			return;
 		}
 		openRegionCompactTooltip(regionEntry, { interactive: false });
+		applyRegionHoverHighlight(regionEntry);
 	});
 	polygon.on("mouseout", () => {
+		clearRegionHoverHighlight(regionEntry);
 		if (activeRegionInfoTooltipEntry === regionEntry) {
 			closeRegionCompactTooltip();
 		}

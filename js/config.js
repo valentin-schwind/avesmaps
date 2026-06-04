@@ -120,6 +120,10 @@ const POLITICAL_TIMELINE_FRONTEND_ENABLED = window.AVESMAPS_POLITICAL_TIMELINE_F
 // jeweilige Territoriums-Deckkraft. Auf null setzen, um im Frontend wieder die per-Territorium-
 // Deckkraft zu verwenden.
 const POLITICAL_FRONTEND_FILL_OPACITY = 0.75;
+// Hover-Highlight im Frontend: die Region unter der Maus wird fast weiss eingefaerbt
+// (Infobox-Hover). Auf null setzen, um das Highlight abzuschalten.
+const POLITICAL_HOVER_FILL_COLOR = "#ffffff";
+const POLITICAL_HOVER_FILL_OPACITY = 0.85;
 const MAP_SEARCH_API_URL = window.AVESMAPS_MAP_SEARCH_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/map-search.php" : "");
 const INITIAL_SEARCH_PARAMS = new URLSearchParams(window.location.search);
 const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
