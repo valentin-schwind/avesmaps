@@ -225,20 +225,38 @@
 		return bands[index];
 	}
 
-	function buildDefaultZoomHierarchyUpdates() {
+	async function buildDefaultZoomHierarchyUpdates() {
 		const value = readAssignmentValue();
 		const path = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
 		if (path.length === 0) return [];
-		const deepest = path[path.length - 1];
-		const deepestRoot = {
-			territoryPublicId: deepest.territoryPublicId || deepest.territory_public_id || "",
-			territoryId: deepest.territoryId ?? null,
-			wikiKey: deepest.wikiKey || deepest.key || "",
-			name: deepest.label || deepest.name || ""
-		};
-		const descendants = findDescendants(deepestRoot);
+
+		// Die Breadcrumb-Knoten tragen nur wiki_keys; das Zoom-Update braucht political_territory-UUIDs.
+		// Über territoryRows (Modell-Hierarchie) per wiki_key auflösen. Reine Wiki-Knoten ohne eigenes
+		// Territorium (z. B. Baronie Hahnfels) werden übersprungen.
+		await loadTerritories();
+		const rowByWikiKey = new Map();
+		for (const row of territoryRows) {
+			if (row.wikiKey) rowByWikiKey.set(makeKey(row.wikiKey), row);
+		}
+
+		const spine = path.map((node, index) => {
+			const wikiKey = makeKey(node.wikiKey || node.key || "");
+			return { row: wikiKey ? rowByWikiKey.get(wikiKey) || null : null, depth: index + 1 };
+		});
+
+		const deepestEntry = [...spine].reverse().find((entry) => entry.row) || null;
+		const descendants = deepestEntry
+			? findDescendants({
+				territoryPublicId: deepestEntry.row.publicId,
+				territoryId: deepestEntry.row.id,
+				wikiKey: deepestEntry.row.wikiKey,
+				name: deepestEntry.row.name
+			})
+			: [];
 		const maxRelativeDepth = descendants.reduce((max, row) => Math.max(max, Number(row.depth || 1)), 0);
 		const totalLevels = path.length + maxRelativeDepth;
+		const baseDepth = deepestEntry ? deepestEntry.depth : path.length;
+
 		const updates = [];
 		const seen = new Set();
 		const push = (territoryPublicId, depth) => {
@@ -248,8 +266,8 @@
 			const band = defaultZoomBand(totalLevels, depth);
 			updates.push({ territoryPublicId: key, minZoom: band[0], maxZoom: band[1] });
 		};
-		path.forEach((node, index) => push(node.territoryPublicId || node.territory_public_id || "", index + 1));
-		descendants.forEach((row) => push(row.publicId || "", path.length + Number(row.depth || 1)));
+		spine.forEach((entry) => { if (entry.row) push(entry.row.publicId, entry.depth); });
+		descendants.forEach((row) => push(row.publicId || "", baseDepth + Number(row.depth || 1)));
 		return updates;
 	}
 
@@ -375,8 +393,7 @@
 			messages.push(`Zoom auf ${siblingZoomUpdates.length} Geschwisterregionen angewendet (${zoomResult && zoomResult.changed != null ? zoomResult.changed : 0} gespeichert).`);
 		}
 		if (document.getElementById("resetDefaultZoomToHierarchyCheckbox")?.checked && service?.applyExplicitZoomUpdates) {
-			await loadTerritories();
-			const defaultZoomUpdates = buildDefaultZoomHierarchyUpdates();
+			const defaultZoomUpdates = await buildDefaultZoomHierarchyUpdates();
 			const defaultZoomResult = await service.applyExplicitZoomUpdates(defaultZoomUpdates);
 			messages.push(`Default-Zoomregeln auf ${defaultZoomUpdates.length} Gebiete (Über-/Unterregionen) angewendet (${defaultZoomResult && defaultZoomResult.changed != null ? defaultZoomResult.changed : 0} gespeichert).`);
 		}
