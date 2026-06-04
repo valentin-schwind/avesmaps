@@ -88,7 +88,7 @@ const politicalTerritoryRepository = {
 };
 
 (function loadDerivedGeometryEditorModule() {
-	if (typeof document === "undefined" || document.querySelector('script[src="js/territory/territory-derived-geometry-editor.js"]')) {
+	if (typeof document === "undefined" || document.querySelector('script[src*="js/territory/territory-derived-geometry-editor.js"]')) {
 		return;
 	}
 	const script = document.createElement("script");
@@ -98,7 +98,7 @@ const politicalTerritoryRepository = {
 })();
 
 (function loadDerivedBoundaryContextActionModule() {
-	if (typeof document === "undefined" || document.querySelector('script[src="js/map-features/map-features-derived-boundary-context-action.js"]')) {
+	if (typeof document === "undefined" || document.querySelector('script[src*="js/map-features/map-features-derived-boundary-context-action.js"]')) {
 		return;
 	}
 	const script = document.createElement("script");
@@ -108,7 +108,7 @@ const politicalTerritoryRepository = {
 })();
 
 (function loadDerivedBoundaryRuntimeFixesModule() {
-	if (typeof document === "undefined" || document.querySelector('script[src="js/map-features/map-features-derived-boundary-runtime-fix.js"]')) {
+	if (typeof document === "undefined" || document.querySelector('script[src*="js/map-features/map-features-derived-boundary-runtime-fix.js"]')) {
 		return;
 	}
 	const script = document.createElement("script");
