@@ -28,6 +28,8 @@
 	const INNER_LINE_WIDTH_FINE = 0.75;
 	const INNER_LINE_DASH_FINE = [2, 3];
 	const INNER_LINE_FINE_MAX_ZOOM = 1;
+		// Innengrenzen bleiben bis Zoom 2 fein (Zoom 1+2 wie bisher Zoom 1); Zoom 0 ganz aus, ab Zoom 3 normal.
+		const INNER_DASH_FINE_MAX_ZOOM = 2;
 	const OUTER_LINE_COLOR = "#d3d3d3";              // Aussenkontur statisch hellgrau (null = Territoriumsfarbe)
 
 	function ready() {
@@ -107,7 +109,7 @@
 				if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
 			}
 		});
-		const fine = Math.round(Number(map.getZoom())) <= INNER_LINE_FINE_MAX_ZOOM;
+		const fine = Math.round(Number(map.getZoom())) <= INNER_DASH_FINE_MAX_ZOOM;
 		ctx.lineWidth = fine ? INNER_LINE_WIDTH_FINE : INNER_LINE_WIDTH;
 		ctx.strokeStyle = INNER_LINE_COLOR;
 		ctx.globalAlpha = INNER_LINE_ALPHA;
