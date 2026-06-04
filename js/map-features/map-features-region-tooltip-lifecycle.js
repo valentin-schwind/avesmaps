@@ -38,6 +38,16 @@ function bindRegionHoverTooltip(polygon, regionEntry) {
 		return;
 	}
 	polygon.on("mouseover", () => {
+		// Dynamische Absicherung: nur die AKTIVE Anzeige-Ebene zeigen, deren Zoom-Band den aktuellen
+		// Zoom enthaelt. Schuetzt gegen veraltete interactive-Flags (falls der Layer nach einem Zoom
+		// noch nicht neu geladen hat) -> es wird nie die Infobox einer tieferen/flacheren Ebene gezeigt.
+		const zoom = Math.round(Number(map.getZoom()));
+		const minZ = regionEntry.minZoom, maxZ = regionEntry.maxZoom;
+		const inBand = (minZ === null || minZ === undefined || Number(minZ) <= zoom)
+			&& (maxZ === null || maxZ === undefined || Number(maxZ) >= zoom);
+		if (!inBand) {
+			return;
+		}
 		openRegionCompactTooltip(regionEntry, { interactive: false });
 	});
 	polygon.on("mouseout", () => {
