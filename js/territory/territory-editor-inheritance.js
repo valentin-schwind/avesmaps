@@ -251,15 +251,32 @@
 		});
 
 		const deepestEntry = [...spine].reverse().find((entry) => entry.row) || null;
-		const descendants = deepestEntry
-			? findDescendants({
-				territoryPublicId: deepestEntry.row.publicId,
-				territoryId: deepestEntry.row.id,
-				wikiKey: deepestEntry.row.wikiKey,
-				name: deepestEntry.row.name
-			})
-			: [];
-		const maxRelativeDepth = descendants.reduce((max, row) => Math.max(max, Number(row.depth || 1)), 0);
+
+		// Unterregionen (Nachfahren) des tiefsten aufgelösten Knotens per parent_id ermitteln – NICHT
+		// findDescendants nutzen: dessen Fallback greift bei Blättern (0 Kinder) auf root.pathPrefix zu,
+		// das hier nicht existiert (Throw).
+		const childrenByParentId = new Map();
+		for (const row of territoryRows) {
+			if (row.parentId === null || row.parentId === undefined) continue;
+			if (!childrenByParentId.has(row.parentId)) childrenByParentId.set(row.parentId, []);
+			childrenByParentId.get(row.parentId).push(row);
+		}
+		const descendants = [];
+		if (deepestEntry && deepestEntry.row) {
+			const stack = (childrenByParentId.get(deepestEntry.row.id) || []).map((row) => ({ row, depth: 1 }));
+			const visited = new Set();
+			while (stack.length > 0) {
+				const current = stack.pop();
+				const visitKey = current.row.id != null ? "id:" + current.row.id : "pid:" + (current.row.publicId || "");
+				if (visited.has(visitKey)) continue;
+				visited.add(visitKey);
+				descendants.push(current);
+				for (const child of childrenByParentId.get(current.row.id) || []) {
+					stack.push({ row: child, depth: current.depth + 1 });
+				}
+			}
+		}
+		const maxRelativeDepth = descendants.reduce((max, entry) => Math.max(max, entry.depth), 0);
 		const baseDepth = deepestEntry ? deepestEntry.depth : path.length;
 		const totalLevels = Math.max(path.length, baseDepth + maxRelativeDepth);
 
@@ -273,7 +290,7 @@
 			updates.push({ territoryPublicId: key, minZoom: band[0], maxZoom: band[1] });
 		};
 		spine.forEach((entry) => { if (entry.row) push(entry.row.publicId, entry.depth); });
-		descendants.forEach((row) => push(row.publicId || "", baseDepth + Number(row.depth || 1)));
+		descendants.forEach((entry) => push(entry.row.publicId || "", baseDepth + entry.depth));
 		return updates;
 	}
 
