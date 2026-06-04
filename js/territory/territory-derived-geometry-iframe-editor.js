@@ -160,6 +160,22 @@
 	}
 
 	function getTargetKey(value = window.AvesmapsPoliticalTerritoryEditorForm?.readAssignmentValue?.()) {
+		// Den tatsaechlich aktiven (im Breadcrumb hervorgehobenen) Knoten bevorzugen: nach dem
+		// Durchwechseln eines Breadcrumb-Geschwisters (cycleBreadcrumbSegment) liegt dieser Knoten
+		// in einem ANDEREN Teilbaum als der zugewiesene Pfad. readRootSelection/readActiveNode sucht
+		// den aktiven Knoten dann im (stalen) assignedPath, findet ihn nicht und faellt auf dessen
+		// tiefsten Knoten zurueck -> die Vorschau zeigte eine fremde Unterregion. activeDisplayNode
+		// spiegelt dagegen zuverlaessig den editierten/hervorgehobenen Knoten.
+		const active = value?.activeDisplayNode || null;
+		const activeKey = normalizeText(
+			active?.territoryPublicId
+			|| active?.territory_public_id
+			|| active?.wikiKey
+			|| active?.wiki_key
+			|| active?.key
+			|| ""
+		);
+		if (activeKey) return activeKey;
 		const root = window.AvesmapsPoliticalTerritoryEditorForm?.readRootSelection?.(value);
 		return normalizeText(
 			root?.territoryPublicId
