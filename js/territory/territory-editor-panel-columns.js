@@ -66,7 +66,7 @@
 		// Dokumentreihenfolge. Das dynamisch (async) injizierte Geometrie-Panel landete je nach
 		// Injektionszeitpunkt mal vorne, mal hinten -> "springende" Panels bei jedem Oeffnen. Unbekannte
 		// Sektionen ans Ende.
-		const SECTION_ORDER = ["Anzeige", "Kartensichtbarkeit", "Farbe", "Transparenz", "Geometrie"];
+		const SECTION_ORDER = ["Geometrie", "Anzeige", "Kartensichtbarkeit", "Farbe", "Transparenz"];
 		const sectionKey = (section) => (section.getAttribute("aria-label") || section.querySelector("h3")?.textContent || "").trim();
 		const sectionRank = (section) => {
 			const index = SECTION_ORDER.indexOf(sectionKey(section));
