@@ -20,6 +20,11 @@
 	const INNER_LINE_COLOR = "#ffffff";
 	const INNER_LINE_ALPHA = 0.6;
 	const INNER_LINE_DASH = [5, 4];
+	// Bei sehr kleinem Zoom (0/1) sind die Gebiete winzig -> 2px + [5,4] wirken grob.
+	// Dort duennere Linie und feineres Dashing verwenden.
+	const INNER_LINE_WIDTH_FINE = 1;
+	const INNER_LINE_DASH_FINE = [3, 3];
+	const INNER_LINE_FINE_MAX_ZOOM = 1;
 	const OUTER_LINE_COLOR = "#d3d3d3";              // Aussenkontur statisch hellgrau (null = Territoriumsfarbe)
 
 	function ready() {
@@ -97,10 +102,11 @@
 				if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
 			}
 		});
-		ctx.lineWidth = INNER_LINE_WIDTH;
+		const fine = Math.round(Number(map.getZoom())) <= INNER_LINE_FINE_MAX_ZOOM;
+		ctx.lineWidth = fine ? INNER_LINE_WIDTH_FINE : INNER_LINE_WIDTH;
 		ctx.strokeStyle = INNER_LINE_COLOR;
 		ctx.globalAlpha = INNER_LINE_ALPHA;
-		ctx.setLineDash(INNER_LINE_DASH);
+		ctx.setLineDash(fine ? INNER_LINE_DASH_FINE : INNER_LINE_DASH);
 		ctx.lineJoin = "round";
 		ctx.stroke();
 		ctx.restore();
