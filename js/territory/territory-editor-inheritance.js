@@ -254,8 +254,8 @@
 			})
 			: [];
 		const maxRelativeDepth = descendants.reduce((max, row) => Math.max(max, Number(row.depth || 1)), 0);
-		const totalLevels = path.length + maxRelativeDepth;
 		const baseDepth = deepestEntry ? deepestEntry.depth : path.length;
+		const totalLevels = Math.max(path.length, baseDepth + maxRelativeDepth);
 
 		const updates = [];
 		const seen = new Set();
