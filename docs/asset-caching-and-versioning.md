@@ -155,20 +155,33 @@ siehe unten.)
 
 ---
 
-## 7. Bekannte Altlasten / Vorsicht
+## 7. Server-Aufräumen: verwaiste Dateien (Retire-Liste)
 
-- `index.html` referenziert `css/leaflet.css` und
-  `css/political-territory-wiki-tree.css`. Diese liegen im Repo **nicht** dort,
-  sondern unter `css/third-party/leaflet.css` bzw.
-  `css/pages/political-territory-wiki-tree.css`. Auf dem Server existieren noch
-  **verwaiste Alt-Kopien** (HTTP 200), weil der SFTP-Deploy standardmäßig nicht
-  löscht. Folgen: (a) diese 2 Refs werden vom Stamping als „missing" übersprungen
-  (unversioniert, `no-cache`); (b) ein Deploy mit `delete_remote_files=true` würde
-  sie 404en. → Separater Task: Pfade auf die echten Repo-Dateien korrigieren.
+Der Deploy spiegelt nur (`mirror` **ohne** `--delete`) – verschobene/gelöschte
+Dateien bleiben sonst als Leichen auf dem Server. Ein globales `--delete` ist
+gefährlich (würde z. B. die nicht mitgelieferten Tiles löschen). Deshalb gibt es
+einen **chirurgischen** Schritt **„Retire orphaned remote files"** im
+Deploy-Workflow: eine **explizite Allowliste** von Pfaden, die bei jedem Deploy
+per `rm -f` (idempotent) entfernt werden.
 
-- Der Deploy löscht remote standardmäßig **nicht** (`mirror` ohne `--delete`).
-  Gelöschte/verschobene Dateien bleiben als Leichen auf dem Server. Aufräumen nur
-  bewusst per `workflow_dispatch` mit `delete_remote_files=true`.
+Wenn du eine Datei im Repo **verschiebst/umbenennst**, trage den **alten** Pfad in
+diese Allowliste ein (`.github/workflows/deploy-avesmaps-strato.yml`, Schritt
+„Retire orphaned remote files"), damit die alte Server-Kopie verschwindet.
+
+### Erledigte Altlast (2026-06-04)
+Eine halbfertige CSS-Umstrukturierung hatte Dateien in Unterordner verschoben,
+aber die `index.html`-Referenzen nie nachgezogen und die alten Server-Kopien nie
+gelöscht:
+- `css/leaflet.css` → jetzt `css/third-party/leaflet.css` (inhaltsgleich, nur
+  Whitespace; verifiziert per Diff → kein optischer Unterschied).
+- `css/political-territory-wiki-tree.css` → jetzt
+  `css/pages/political-territory-wiki-tree.css` (das vom Editor gepflegte File;
+  das auf der öffentlichen Seite gestylte `.tree-wrap` ist unsichtbar/leer →
+  ohne optische Wirkung).
+
+Beide alten Pfade stehen in der Retire-Allowliste und wurden serverseitig gelöscht.
+`index.html` + `html/political-boundary-diagnostics.html` zeigen jetzt auf die
+Repo-Pfade und werden damit normal versioniert.
 
 - `inline-host.js` wird von `index.html` **ohne** `?v=` in der Quelle eingetragen,
   bekommt aber durch das Stamping eine Version. (Historisch war genau das der

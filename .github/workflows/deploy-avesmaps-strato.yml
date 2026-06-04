@@ -249,3 +249,30 @@ jobs:
           mirror ${mirror_options[*]} "$DEPLOY_DIR" .
           bye
           EOF
+
+      - name: Retire orphaned remote files
+        if: env.SKIP_DEPLOY != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "Dry run: skipping deletion of retired files."
+            exit 0
+          fi
+
+          # Allowliste verwaister Server-Dateien (alte Pfade aus der Zeit vor der css-Umstrukturierung
+          # in Unterordner). Im Repo existieren sie nicht und keine Seite referenziert sie mehr.
+          # Chirurgisches, idempotentes rm -f statt eines gefaehrlichen globalen --delete.
+          echo "Retiring orphaned remote files:"
+          printf '  %s\n' "css/leaflet.css" "css/political-territory-wiki-tree.css"
+
+          lftp -u "$AVESMAPS_USER","$AVESMAPS_PASSWORD" -p "$AVESMAPS_PORT" "sftp://$AVESMAPS_HOST" <<EOF
+          set sftp:auto-confirm yes
+          set net:max-retries 2
+          set net:timeout 30
+          cd "$AVESMAPS_REMOTE_PATH"
+          rm -f "css/leaflet.css"
+          rm -f "css/political-territory-wiki-tree.css"
+          bye
+          EOF
