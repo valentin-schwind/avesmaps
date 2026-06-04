@@ -267,8 +267,8 @@
 			state.resolvedTargetKey = response?.territory_public_id || response?.target_key || "";
 			if (!derived) {
 				document.getElementById("derivedGeometryEnabledInput").checked = false;
-				setPreviewVisible(false);
-				setThumbnail(null);
+				// #C: Vorschau NICHT verstecken – die Quellflächen-Füllung (loadSourceGeometriesForPreview)
+				// zeigt weiterhin die Geometrie des Knotens; nur die Außenkontur fehlt.
 				setStatus("", "");
 				return;
 			}
@@ -296,6 +296,8 @@
 			state.territoryPublicId = response?.territory_public_id || state.territoryPublicId || "";
 			state.resolvedTargetKey = response?.territory_public_id || response?.target_key || state.resolvedTargetKey || "";
 			updateInnerBoundaryCapability(response);
+			// #C: Geometrie-Vorschau immer zeigen, sobald der Knoten Quellflächen hat (unabhängig von Außengrenze).
+			if (state.sourceGeometries.length > 0) setPreviewVisible(true);
 			renderPreview();
 		} catch (error) {
 			console.warn("Quellgeometrien fuer die Vorschau konnten nicht geladen werden:", error);
@@ -304,13 +306,14 @@
 
 	async function syncPreview() {
 		if (!document.getElementById("derivedGeometryEnabledInput")?.checked) {
+			// #C: "Außengrenzen darstellen" aus -> nur die Außenkontur entfällt; die Geometrie-Füllung
+			// (Quellflächen) bleibt sichtbar.
 			state.geometry = null;
 			state.labelCenter = null;
-			state.sourceGeometries = [];
-			setThumbnail(null);
+			setThumbnail(null, state.sourceGeometries);
 			drawParentPreview(null);
 			setStatus("", "");
-			setPreviewVisible(false);
+			setPreviewVisible(state.sourceGeometries.length > 0);
 			return null;
 		}
 		setPreviewVisible(true);
@@ -405,23 +408,43 @@
 		return /^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/.test(color) ? color : "#5b432b";
 	}
 
+	function readBoundsOfGeometries(geometries) {
+		let bounds = null;
+		for (const geometry of geometries) {
+			const next = readBounds(geometry);
+			if (!next) continue;
+			bounds = bounds
+				? { minX: Math.min(bounds.minX, next.minX), maxX: Math.max(bounds.maxX, next.maxX), minY: Math.min(bounds.minY, next.minY), maxY: Math.max(bounds.maxY, next.maxY) }
+				: next;
+		}
+		return bounds;
+	}
+
 	function setThumbnail(geometry, sourceGeometries = []) {
 		const container = document.getElementById("derivedGeometryThumbnail");
 		if (!container) return;
-		const enabled = document.getElementById("derivedGeometryEnabledInput")?.checked === true;
-		const bounds = enabled ? readBounds(geometry) : null;
-		if (!bounds) { container.innerHTML = `<span>Keine Vorschau</span>`; return; }
+		const sources = Array.isArray(sourceGeometries) ? sourceGeometries : [];
+		// #C: Das Thumbnail zeigt IMMER die (mit der Farbe gefüllte) Geometrie des Knotens, sofern
+		// vorhanden. "Außengrenzen darstellen"/"Innengrenzen darstellen" ändern nur die KONTUR.
+		const fillSources = sources.length > 0 ? sources : (geometry ? [{ geometry, color: "#5b432b" }] : []);
+		const boundsGeometries = fillSources.map((source) => source.geometry);
+		if (geometry) boundsGeometries.push(geometry);
+		const bounds = readBoundsOfGeometries(boundsGeometries);
+		if (!bounds) { container.innerHTML = `<span>Keine Geometrie zugewiesen</span>`; return; }
 		const width = 180, height = 110, padding = 8;
 		const scale = Math.min((width - padding * 2) / Math.max(0.000001, bounds.maxX - bounds.minX), (height - padding * 2) / Math.max(0.000001, bounds.maxY - bounds.minY));
-		const outerPath = geometryToPolygons(geometry).flatMap((polygon) => polygon.map((ring) => pathForRing(ring, bounds, scale, padding, height))).join(" ");
+		const fillPaths = fillSources.flatMap((source) => geometryToPolygons(source.geometry).flatMap((polygon) => polygon.map((ring) => ({ path: pathForRing(ring, bounds, scale, padding, height), color: normalizeSourceColor(source) }))));
+		const outerEnabled = document.getElementById("derivedGeometryEnabledInput")?.checked === true;
+		const outerPath = (outerEnabled && geometry) ? geometryToPolygons(geometry).flatMap((polygon) => polygon.map((ring) => pathForRing(ring, bounds, scale, padding, height))).join(" ") : "";
 		const showInnerBoundaries = state.canShowInnerBoundaries && document.getElementById("derivedGeometryInnerBoundariesInput")?.checked === true;
 		const innerPaths = showInnerBoundaries
-			? (sourceGeometries || []).flatMap((source) => geometryToPolygons(source.geometry).flatMap((polygon) => polygon.map((ring) => ({ path: pathForRing(ring, bounds, scale, padding, height), color: normalizeSourceColor(source) }))))
+			? sources.flatMap((source) => geometryToPolygons(source.geometry).flatMap((polygon) => polygon.map((ring) => pathForRing(ring, bounds, scale, padding, height))))
 			: [];
 		container.innerHTML = `
-			<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Abgeleitete Außengrenze">
-				<path d="${outerPath}" fill="rgba(201,169,104,.35)" stroke="currentColor" stroke-width="2"></path>
-				${innerPaths.map((entry) => `<path d="${entry.path}" fill="none" stroke="${entry.color}" stroke-width="1"></path>`).join("")}
+			<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Geometrie-Vorschau">
+				${fillPaths.map((entry) => `<path d="${entry.path}" fill="${entry.color}" fill-opacity="0.5" stroke="none"></path>`).join("")}
+				${outerPath ? `<path d="${outerPath}" fill="none" stroke="currentColor" stroke-width="2"></path>` : ""}
+				${innerPaths.map((path) => `<path d="${path}" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="1" stroke-dasharray="3 2"></path>`).join("")}
 			</svg>
 		`;
 	}
