@@ -5,19 +5,14 @@ function bindRegionCompactTooltip(polygon, regionEntry) {
 		L.DomEvent.stop(event);
 
 		if (!IS_EDIT_MODE) {
-			// Single- vs. Doppelklick entkoppeln: den Single-Klick (Zentrieren + Infobox) kurz
-			// verzoegern, damit ein folgender Doppelklick ihn abbrechen kann (sonst stoert das
-			// panTo die Zoom-Animation -> wirkt wie "kein Zoom-Effekt").
+			// Single-Klick: NUR Infobox oeffnen (KEINE Ansichtsverschiebung). Kurz verzoegert,
+			// damit ein Doppelklick (verschieben + zoomen) ihn abbricht und keine Infobox aufpoppt.
 			if (regionSingleClickTimer) {
 				window.clearTimeout(regionSingleClickTimer);
 			}
 			regionSingleClickTimer = window.setTimeout(() => {
 				regionSingleClickTimer = null;
 				openRegionCompactTooltip(regionEntry);
-				const center = getRegionTooltipLatLng(regionEntry);
-				if (center) {
-					map.panTo(center, { animate: true });
-				}
 			}, 250);
 		}
 
@@ -26,7 +21,7 @@ function bindRegionCompactTooltip(polygon, regionEntry) {
 
 	if (!IS_EDIT_MODE) {
 		// Doppel-Klick: animiert eine Stufe reinzoomen, zentriert auf die Gebietsmitte.
-		// stop() verhindert den Standard-doubleClickZoom UND den verzoegerten Single-Klick-Pan.
+		// stop() verhindert den Standard-doubleClickZoom UND den verzoegerten Single-Klick (Infobox).
 		polygon.on("dblclick", (event) => {
 			L.DomEvent.stop(event);
 			if (regionSingleClickTimer) {
@@ -210,14 +205,11 @@ function bindRegionHoverTooltip(polygon, regionEntry) {
 		if (!inBand) {
 			return;
 		}
-		openRegionCompactTooltip(regionEntry, { interactive: false });
+		// Hover faerbt die Region nur weiss (Highlight) - KEINE Infobox mehr (die kommt per Klick).
 		applyRegionHoverHighlight(regionEntry);
 	});
 	polygon.on("mouseout", () => {
 		clearRegionHoverHighlight(regionEntry);
-		if (activeRegionInfoTooltipEntry === regionEntry) {
-			closeRegionCompactTooltip();
-		}
 	});
 }
 
