@@ -60,13 +60,30 @@ function applyRegionTooltipVerticalFlip(tooltip) {
 
 // Hover-Highlight: faerbt alle Polygone der Region unter der Maus fast weiss (Werte in config.js)
 // und stellt beim Verlassen den vorherigen Stil wieder her. Nur sichtbare Fuellungen.
+// Eigener Pane oberhalb des Boundary-Canvas (z350), damit die weisse Hover-Flaeche
+// UEBER den Aussen-/Innengrenzen liegt (unter Labels 475 / Markern 500).
+function ensureRegionHoverPane() {
+	if (typeof map === "undefined" || !map || typeof map.createPane !== "function") {
+		return null;
+	}
+	if (!map.getPane("regionHoverPane")) {
+		const pane = map.createPane("regionHoverPane");
+		pane.style.zIndex = 355;
+		pane.style.pointerEvents = "none";
+	}
+	return "regionHoverPane";
+}
+
 function applyRegionHoverHighlight(regionEntry) {
 	if (typeof POLITICAL_HOVER_FILL_COLOR === "undefined" || !POLITICAL_HOVER_FILL_COLOR) {
 		return;
 	}
-	if (typeof regionPolygons === "undefined" || !Array.isArray(regionPolygons)) {
+	clearRegionHoverHighlight();
+	const pane = ensureRegionHoverPane();
+	if (!pane || typeof regionPolygons === "undefined" || !Array.isArray(regionPolygons)) {
 		return;
 	}
+	const group = L.layerGroup();
 	regionPolygons.forEach((p) => {
 		if (!p || p._regionEntry !== regionEntry) {
 			return;
@@ -75,24 +92,25 @@ function applyRegionHoverHighlight(regionEntry) {
 		if (opts.fill === false || !(opts.fillOpacity > 0)) {
 			return;
 		}
-		if (p._hoverPrevStyle === undefined) {
-			p._hoverPrevStyle = { fillColor: opts.fillColor, fillOpacity: opts.fillOpacity };
-		}
-		p.setStyle({ fillColor: POLITICAL_HOVER_FILL_COLOR, fillOpacity: POLITICAL_HOVER_FILL_OPACITY });
+		// Kopie der Geometrie als weisse, nicht-interaktive Overlay-Flaeche im Hover-Pane.
+		L.polygon(p.getLatLngs(), {
+			pane,
+			interactive: false,
+			stroke: false,
+			fill: true,
+			fillColor: POLITICAL_HOVER_FILL_COLOR,
+			fillOpacity: POLITICAL_HOVER_FILL_OPACITY,
+		}).addTo(group);
 	});
+	group.addTo(map);
+	window.__regionHoverHighlightLayer = group;
 }
 
-function clearRegionHoverHighlight(regionEntry) {
-	if (typeof regionPolygons === "undefined" || !Array.isArray(regionPolygons)) {
-		return;
+function clearRegionHoverHighlight() {
+	if (window.__regionHoverHighlightLayer) {
+		map.removeLayer(window.__regionHoverHighlightLayer);
+		window.__regionHoverHighlightLayer = null;
 	}
-	regionPolygons.forEach((p) => {
-		if (!p || p._regionEntry !== regionEntry || p._hoverPrevStyle === undefined) {
-			return;
-		}
-		p.setStyle(p._hoverPrevStyle);
-		p._hoverPrevStyle = undefined;
-	});
 }
 
 // Frontend "Politisch": beim Drueberfahren ueber eine Region die Wiki-Infobox zeigen
