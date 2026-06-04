@@ -113,8 +113,9 @@
   .dt-wappen.gray { filter:grayscale(1); opacity:.5; }
   .dt-title { font-size:15px; font-weight:bold; color:#3f3428; line-height:1.2; }
   .dt-sub { color:var(--mut); font-size:12px; margin-top:2px; }
-  .dt-grid { display:grid; grid-template-columns:auto 1fr; gap:3px 10px; font-size:12px; margin:8px 0; }
-  .dt-grid .k { color:var(--mut); white-space:nowrap; }
+  .dt-grid { display:grid; grid-template-columns:minmax(110px,0.35fr) minmax(0,1fr); gap:0; font-size:12px; margin:8px 0; border:1px solid #dccab8; border-radius:8px; overflow:hidden; }
+  .dt-grid .k { color:#6a5543; background:#fffaf5; font-weight:700; white-space:nowrap; padding:8px 8px; border-bottom:1px solid #eadbcb; }
+  .dt-grid > div:not(.k) { padding:8px 8px; border-bottom:1px solid #eadbcb; color:#2f251c; min-width:0; overflow-wrap:anywhere; }
   .dt-lic { margin-top:8px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:var(--panel); font-size:11px; }
   .dt-lic.pd { border-color:#9fb87a; }
   .dt-lic.cc { border-color:var(--warn); }
