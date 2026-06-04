@@ -117,6 +117,19 @@
 		document.getElementById("derivedGeometryRecursiveInput")?.addEventListener("change", () => { state.dirty = true; });
 		setPreviewVisible(false);
 		updateInnerBoundaryControl();
+
+		// #4: Disable-Zustand auch bei reinem Breadcrumb-Wechsel (ohne Quellen-Reload/dedup)
+		// aktualisieren, damit "letztes Element" zuverlässig erkannt wird.
+		const breadcrumbForControl = document.getElementById("manualEditPath");
+		if (breadcrumbForControl && breadcrumbForControl.dataset.derivedInnerControlObserver !== "1") {
+			breadcrumbForControl.dataset.derivedInnerControlObserver = "1";
+			new MutationObserver(() => updateInnerBoundaryControl()).observe(breadcrumbForControl, {
+				attributes: true,
+				attributeFilter: ["class"],
+				childList: true,
+				subtree: true
+			});
+		}
 	}
 
 	function injectStyles() {
@@ -173,25 +186,31 @@
 		updateInnerBoundaryControl();
 	}
 
+	function isActiveNodeLastBreadcrumb() {
+		const labels = document.querySelectorAll("#political-territory-editor-host .breadcrumb-segment .breadcrumb-label");
+		if (!labels.length) return false;
+		const active = document.querySelector("#political-territory-editor-host .breadcrumb-label.is-active");
+		return Boolean(active) && active === labels[labels.length - 1];
+	}
+
 	function updateInnerBoundaryControl() {
 		const input = document.getElementById("derivedGeometryInnerBoundariesInput");
 		const label = document.getElementById("derivedGeometryInnerBoundariesLabel");
 		if (!input) return;
-		input.disabled = !state.canShowInnerBoundaries;
-		if (!state.canShowInnerBoundaries) {
-			// Ein Knoten ohne Kind-/Unterflächen (Blatt) hat keine Innengrenzen –
-			// das Häkchen leer + deaktiviert zeigen, NICHT auf "an" zwingen.
+		// #4: Im LETZTEN Breadcrumb-Element (oder einem Blatt ohne Unterflächen) sind "Innengrenzen
+		// darstellen" + "Für alle Unterregionen übernehmen" wirkungslos -> beide deaktivieren.
+		const disableControls = !state.canShowInnerBoundaries || isActiveNodeLastBreadcrumb();
+		input.disabled = disableControls;
+		if (disableControls) {
 			input.checked = false;
 		}
-		label?.classList.toggle("derived-geometry-inner-boundaries-disabled", !state.canShowInnerBoundaries);
-		// #4: Im Blatt (letztes Breadcrumb-Element, keine Unterflächen) hat auch "Für alle
-		// Unterregionen übernehmen" keine Wirkung -> mit deaktivieren.
+		label?.classList.toggle("derived-geometry-inner-boundaries-disabled", disableControls);
 		const recursiveInput = document.getElementById("derivedGeometryRecursiveInput");
 		const recursiveLabel = document.getElementById("derivedGeometryRecursiveLabel");
 		if (recursiveInput) {
-			recursiveInput.disabled = !state.canShowInnerBoundaries;
-			if (!state.canShowInnerBoundaries) recursiveInput.checked = false;
-			recursiveLabel?.classList.toggle("derived-geometry-recursive-control", !state.canShowInnerBoundaries);
+			recursiveInput.disabled = disableControls;
+			if (disableControls) recursiveInput.checked = false;
+			recursiveLabel?.classList.toggle("derived-geometry-recursive-control", disableControls);
 		}
 		updateModeNote();
 	}
