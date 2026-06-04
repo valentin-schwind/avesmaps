@@ -2029,3 +2029,15 @@
 	letter-spacing: -1px;
 }
 
+/* Konsistente Häkchen: Formular-Häkchen (.deferred-subtree-checkbox) und Geometrie-Panel-Häkchen
+ * (.manual-data-checkbox) auf EINE Schriftgröße/Farbe/Abstände bringen. Orientiert am Wiki-Sync-
+ * Editor (12px, #5b4b36). Behebt: unterschiedliche Schriftfarbe + Abstände + zu kleine Häkchen. */
+#political-territory-editor-host .deferred-subtree-checkbox,
+#political-territory-editor-host .manual-data-checkbox {
+	font-size: 12px;
+	color: #5b4b36;
+	gap: 8px;
+	margin: 4px 0 0;
+	padding: 3px 0;
+}
+

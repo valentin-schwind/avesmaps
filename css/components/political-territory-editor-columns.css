@@ -171,12 +171,12 @@
 	text-align: center;
 	white-space: normal;
 	overflow-wrap: anywhere;
-	display: -webkit-box;
-	-webkit-line-clamp: 3;
-	-webkit-box-orient: vertical;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	overflow: hidden;
 	box-sizing: border-box;
-	height: 54px;
+	height: 70px;
 }
 #political-territory-editor-host .breadcrumb-cycle--next {
 	grid-row: 3;
