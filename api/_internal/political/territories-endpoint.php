@@ -21,6 +21,7 @@ require_once __DIR__ . '/territories-derived-geometry-plan.php';
 require_once __DIR__ . '/territories-boundary-debug.php';
 require_once __DIR__ . '/territories-audit.php';
 require_once __DIR__ . '/territories-debug.php';
+require_once __DIR__ . '/territories-geometry-inventory.php';
 
 $debugErrors = filter_var($_GET['debug_errors'] ?? false, FILTER_VALIDATE_BOOL);
 
@@ -48,6 +49,12 @@ try {
         if ($action === 'change_log') {
             $reviewUser = avesmapsRequireUserWithCapability('review');
             $response = avesmapsPoliticalReadChangeLog($pdo, avesmapsUserCan($reviewUser, 'edit'));
+            avesmapsJsonResponse(200, $response);
+        }
+
+        if ($action === 'geometry_inventory') {
+            avesmapsRequireUserWithCapability('review');
+            $response = avesmapsPoliticalReadGeometryInventory($pdo, $_GET);
             avesmapsJsonResponse(200, $response);
         }
 
