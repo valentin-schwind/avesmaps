@@ -188,9 +188,22 @@
 
 	// Flag: läuft gerade eine Zoom-Animation? (blockt interferierende Redraws, s. redraw()).
 	let isZoomAnimating = false;
-	map.on("zoomstart", () => { isZoomAnimating = true; });
-	// Bei diesen Events ist die Animation vorbei -> Flag zuerst lösen, DANN scharf neu zeichnen.
-	map.on("moveend zoomend viewreset resize", () => { isZoomAnimating = false; redraw(); scheduleSettleRedraws(); });
+	// Waehrend der Zoom-Animation die Canvas WEICH mitskalieren: der zoomanim-Handler setzt die
+	// Ziel-Transform, aber ohne Transition springt die Canvas sofort auf den Endzustand, waehrend
+	// die SVG-Flaechen ueber ~250ms easen -> Grenzen "haengen". Darum bekommt die Canvas fuer die
+	// Dauer des Zooms dieselbe Easing wie Leaflets Ebenen; danach wieder entfernt, damit reine
+	// Pans (setPosition) sofort sitzen.
+	map.on("zoomstart", () => {
+		isZoomAnimating = true;
+		canvas.style.transition = "transform 250ms cubic-bezier(0,0,0.25,1)";
+	});
+	// Bei diesen Events ist die Animation vorbei -> Flag + Transition lösen, DANN scharf neu zeichnen.
+	map.on("moveend zoomend viewreset resize", () => {
+		isZoomAnimating = false;
+		canvas.style.transition = "";
+		redraw();
+		scheduleSettleRedraws();
+	});
 
 	// Während der Zoom-ANIMATION skaliert Leaflet seine Flaechen/Kacheln fluessig; das Canvas
 	// zeichnet sonst erst auf zoomend neu -> Grenzen und Flaechen passen waehrend des Zooms kurz
