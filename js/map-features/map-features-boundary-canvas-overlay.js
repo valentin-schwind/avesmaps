@@ -30,6 +30,10 @@
 	const INNER_LINE_FINE_MAX_ZOOM = 1;
 		// Innengrenzen bleiben bis Zoom 2 fein (Zoom 1+2 wie bisher Zoom 1); Zoom 0 ganz aus, ab Zoom 3 normal.
 		const INNER_DASH_FINE_MAX_ZOOM = 2;
+		// Zoom 3: Innengrenzen etwas duenner als normal (zwischen fein und 2px).
+		const INNER_DASH_MEDIUM_ZOOM = 3;
+		const INNER_LINE_WIDTH_MEDIUM = 1.25;
+		const INNER_LINE_DASH_MEDIUM = [4, 3];
 	const OUTER_LINE_COLOR = "#d3d3d3";              // Aussenkontur statisch hellgrau (null = Territoriumsfarbe)
 
 	function ready() {
@@ -109,11 +113,13 @@
 				if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
 			}
 		});
-		const fine = Math.round(Number(map.getZoom())) <= INNER_DASH_FINE_MAX_ZOOM;
-		ctx.lineWidth = fine ? INNER_LINE_WIDTH_FINE : INNER_LINE_WIDTH;
+		const innerZoom = Math.round(Number(map.getZoom()));
+		const fine = innerZoom <= INNER_DASH_FINE_MAX_ZOOM;        // Zoom 1-2: extra fein
+		const medium = innerZoom === INNER_DASH_MEDIUM_ZOOM;       // Zoom 3: etwas duenner
+		ctx.lineWidth = fine ? INNER_LINE_WIDTH_FINE : (medium ? INNER_LINE_WIDTH_MEDIUM : INNER_LINE_WIDTH);
 		ctx.strokeStyle = INNER_LINE_COLOR;
 		ctx.globalAlpha = INNER_LINE_ALPHA;
-		ctx.setLineDash(fine ? INNER_LINE_DASH_FINE : INNER_LINE_DASH);
+		ctx.setLineDash(fine ? INNER_LINE_DASH_FINE : (medium ? INNER_LINE_DASH_MEDIUM : INNER_LINE_DASH));
 		ctx.lineJoin = "round";
 		ctx.stroke();
 		ctx.restore();
