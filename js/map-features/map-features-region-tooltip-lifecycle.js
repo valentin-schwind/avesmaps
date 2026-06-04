@@ -4,6 +4,11 @@ function bindRegionCompactTooltip(polygon, regionEntry) {
 
 		if (!IS_EDIT_MODE) {
 			openRegionCompactTooltip(regionEntry);
+			// Single-Klick: auf die Mitte des Gebiets zentrieren, OHNE Zoomwechsel.
+			const center = getRegionTooltipLatLng(regionEntry);
+			if (center) {
+				map.panTo(center, { animate: true });
+			}
 		}
 
 		showPoliticalTerritoryTimelineSelection(regionEntry);
