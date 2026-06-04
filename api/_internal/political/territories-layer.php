@@ -577,6 +577,18 @@ function avesmapsPoliticalBuildResolvedLayerFeatures(array $geometryRows, array 
         if ($displayTerritoryOpacity !== null && $displayTerritoryOpacity !== '') {
             $feature['properties']['fillOpacity'] = (float) $displayTerritoryOpacity;
         }
+        // Farbe wie im Editmode (vgl. avesmapsPoliticalReadEditorLayer ~Zeile 302): die Fuellung
+        // uebernimmt die Farbe des ANGEZEIGTEN Territoriums (territory.color) statt der u. U.
+        // abweichenden Style-/Seed-Farbe der Quellgeometrie. So sind auch die Blatt-Baronien im
+        // Frontend farbgleich zum Editor. Fallbacks identisch (Style/Row), falls keine Territoriums-Farbe.
+        $displayTerritoryColor = avesmapsPoliticalResolveLayerDisplayColor(
+            $territories[$displayTerritoryId]['color'] ?? '',
+            ['fill' => $feature['properties']['fill'] ?? null, 'stroke' => $feature['properties']['stroke'] ?? null],
+            [],
+            $displayRow
+        );
+        $feature['properties']['fill'] = $displayTerritoryColor;
+        $feature['properties']['stroke'] = $displayTerritoryColor;
         $featureKey = (string) $displayRow['territory_public_id'];
         if (!isset($featuresByTerritory[$featureKey])) {
             $featuresByTerritory[$featureKey] = $feature;
