@@ -508,26 +508,31 @@ function ensureCrossingsEnabled() {
 function getPathStyleColors(path) {
 	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
 	const simplifiedRender = Math.round(Number(map.getZoom())) <= PATH_RENDER_CONFIG.simplifiedMaxZoom;
+	const isReichsstrasse = pathSubtype === "Reichsstrasse";
+	// Land-Wege (außer Reichsstraßen) heller + entsättigt; Reichsstraßen weiß.
+	// Wasserwege (Flussweg/Seeweg) bleiben unverändert.
 	const centerColors = {
-		Reichsstrasse: "#d8d8d8",
-		Strasse: "#6a6a6a",
-		Weg: "#cdb98a",
-		Pfad: "#7b4f2f",
-		Gebirgspass: "#8f3f2f",
-		Wuestenpfad: "#c6922e",
+		Reichsstrasse: "#ffffff",
+		Strasse: "#8b8b8b",
+		Weg: "#cec4ae",
+		Pfad: "#9b755a",
+		Gebirgspass: "#a8695c",
+		Wuestenpfad: "#bea470",
 		Flussweg: "#6ec6ff",
 		Seeweg: "#2f7dd3",
 	};
 
 	return {
-		outline: "#ffffff",
+		// Reichsstraßen bekommen einen grauen Rand (Kontur), alle anderen weiterhin weiß.
+		outline: isReichsstrasse ? "#9a9a9a" : "#ffffff",
 		center: centerColors[pathSubtype] || centerColors.Weg,
+		// Reichsstraßen-Rand: jetzige Dicke +0.5 px.
 		outlineWeight: simplifiedRender
-			? PATH_RENDER_CONFIG.simplifiedOutlineWeight
-			: pathSubtype === "Reichsstrasse" ? 6 : 5,
+			? PATH_RENDER_CONFIG.simplifiedOutlineWeight + (isReichsstrasse ? 0.5 : 0)
+			: (isReichsstrasse ? 6.5 : 5),
 		centerWeight: simplifiedRender
-			? Math.max(1.5, (pathSubtype === "Reichsstrasse" ? 4 : 3) * PATH_RENDER_CONFIG.simplifiedCenterWeightScale)
-			: pathSubtype === "Reichsstrasse" ? 4 : 3,
+			? Math.max(1.5, (isReichsstrasse ? 4 : 3) * PATH_RENDER_CONFIG.simplifiedCenterWeightScale)
+			: isReichsstrasse ? 4 : 3,
 		outlineOpacity: simplifiedRender ? PATH_RENDER_CONFIG.simplifiedOutlineOpacity : 1,
 	};
 }
