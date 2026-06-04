@@ -1688,6 +1688,9 @@
 #political-territory-editor-host .deferred-subtree-checkbox input {
 	width: auto;
 	padding: 0;
+	/* Verhindert, dass der lange Label-Text das Kästchen im Flex-Layout schmaler quetscht
+	   (z. B. „Über- und Unterregionen auf diese Default-Zoomregeln zurücksetzen"). */
+	flex: 0 0 auto;
 }
 
 #political-territory-editor-host .deferred-subtree-checkbox--bottom {
