@@ -127,11 +127,11 @@
 
 	function redraw() {
 		if (!map.getPane(PANE)) return;
-		// Während der Zoom-Animation NICHT neu zeichnen/positionieren: ein setPosition würde
-		// (unter .leaflet-zoom-anim) mit-transitionieren und gegen die zoomanim-Transform
-		// kämpfen -> Springen. In dieser Phase besitzt allein zoomanim das Canvas; zoomend
-		// hebt das Flag auf und zeichnet scharf.
-		if (isZoomAnimating) return;
+		// Nur waehrend der CSS-Zoom-Animation NICHT neu zeichnen: dort uebernimmt die zoomanim-
+		// Transform das weiche Mitskalieren. Bei flyTo/setView (Doppelklick, Orts-Fokus) gibt es
+		// KEIN zoomanim, der View wird pro Frame real aktualisiert -> dort MUSS neu gezeichnet
+		// werden, sonst bleiben die Grenzen stehen bis zum Zoom-Ende.
+		if (cssZoomActive) return;
 		const size = map.getSize();
 		const topLeft = map.containerPointToLayerPoint([0, 0]);
 		L.DomUtil.setPosition(canvas, topLeft); // reine Translation -> setzt eine evtl. Zoom-Skalierung zurueck
@@ -186,39 +186,32 @@
 		[120, 350, 800].forEach((delay) => window.setTimeout(redraw, delay));
 	}
 
-	// Flag: läuft gerade eine Zoom-Animation? (blockt interferierende Redraws, s. redraw()).
-	let isZoomAnimating = false;
-	// Waehrend der Zoom-Animation die Canvas WEICH mitskalieren: der zoomanim-Handler setzt die
-	// Ziel-Transform, aber ohne Transition springt die Canvas sofort auf den Endzustand, waehrend
-	// die SVG-Flaechen ueber ~250ms easen -> Grenzen "haengen". Darum bekommt die Canvas fuer die
-	// Dauer des Zooms dieselbe Easing wie Leaflets Ebenen; danach wieder entfernt, damit reine
-	// Pans (setPosition) sofort sitzen.
-	map.on("zoomstart", () => {
-		isZoomAnimating = true;
-		canvas.style.transition = "transform 250ms cubic-bezier(0,0,0.25,1)";
-	});
-	// Bei diesen Events ist die Animation vorbei -> Flag + Transition lösen, DANN scharf neu zeichnen.
+	// Zwei Zoom-Mechaniken, unterschiedlich behandelt:
+	// - CSS-Zoom (Buttons/Scroll): feuert 'zoomanim'. Leaflets interner Zoom springt sofort aufs
+	//   Ziel, sichtbar easet eine CSS-Transform -> NICHT neu zeichnen, sondern die Canvas per
+	//   Transform mitskalieren (mit Transition, wie Leaflets Ebenen).
+	// - flyTo/setView-Animation (Doppelklick, Orts-Fokus): KEIN 'zoomanim', der View wird pro Frame
+	//   real aktualisiert -> bei jedem 'zoom'-Frame neu zeichnen (ohne Transform/Transition).
+	let cssZoomActive = false;
 	map.on("moveend zoomend viewreset resize", () => {
-		isZoomAnimating = false;
+		cssZoomActive = false;
 		canvas.style.transition = "";
 		redraw();
 		scheduleSettleRedraws();
 	});
-
-	// Während der Zoom-ANIMATION skaliert Leaflet seine Flaechen/Kacheln fluessig; das Canvas
-	// zeichnet sonst erst auf zoomend neu -> Grenzen und Flaechen passen waehrend des Zooms kurz
-	// nicht aufeinander (hakelig). Hier bekommt das Canvas dieselbe Transform wie eine
-	// L.ImageOverlay (_animateZoom): Bitmap mitskalieren/-verschieben, damit Grenzen waehrend des
-	// Zooms deckungsgleich mitwandern. Auf zoomend setzt redraw() die Position neu (ohne scale)
-	// und zeichnet scharf.
+	// CSS-Zoom: Canvas weich mitskalieren (wie L.ImageOverlay._animateZoom), inkl. passender Easing.
 	map.on("zoomanim", function (event) {
 		if (!canvasTopLeftLatLng || typeof map._latLngToNewLayerPoint !== "function") {
 			return;
 		}
+		cssZoomActive = true;
+		canvas.style.transition = "transform 250ms cubic-bezier(0,0,0.25,1)";
 		const scale = map.getZoomScale(event.zoom);
 		const offset = map._latLngToNewLayerPoint(canvasTopLeftLatLng, event.zoom, event.center);
 		L.DomUtil.setTransform(canvas, offset, scale);
 	});
+	// flyTo/setView: pro 'zoom'-Frame neu zeichnen (nur wenn KEIN CSS-Zoom laeuft -> sonst Transform).
+	map.on("zoom", function () { if (!cssZoomActive) redraw(); });
 
 	window.AvesmapsBoundaryCanvasOverlay = { redraw, paneName: PANE };
 
