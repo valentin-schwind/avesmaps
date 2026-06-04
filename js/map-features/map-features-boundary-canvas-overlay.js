@@ -16,6 +16,9 @@
 	const PANE = "avesmapsBoundaryCanvasPane";
 	const OUTER_LINE_WIDTH = 2;      // doppelt gestrokt, Clip zeigt innere Haelfte -> sichtbar ~1px
 	const OUTER_LINE_WIDTH_ROOT = 4; // Root-Gebiete (eigenstaendige Reiche): +1px sichtbar (~2px)
+	// Zoom 0/1: Außengrenzen ~1px duenner (kleine Gebiete -> Kontur wirkt sonst zu dick).
+	const OUTER_LINE_WIDTH_FINE = 1;
+	const OUTER_LINE_WIDTH_ROOT_FINE = 3;
 	const INNER_LINE_WIDTH = 2;         // Innengrenzen: weiss-gestrichelt, leicht transparent
 	const INNER_LINE_COLOR = "#ffffff";
 	const INNER_LINE_ALPHA = 0.6;
@@ -144,7 +147,10 @@
 			tracePolys(polys);
 			// Root-Gebiete (kein parent_public_id) bekommen eine etwas dickere Aussenkontur.
 			const isRootBoundary = !String(f.properties.parent_public_id || "").trim();
-			ctx.lineWidth = isRootBoundary ? OUTER_LINE_WIDTH_ROOT : OUTER_LINE_WIDTH;
+			const fineOuterZoom = Math.round(Number(map.getZoom())) <= INNER_LINE_FINE_MAX_ZOOM;
+			ctx.lineWidth = isRootBoundary
+				? (fineOuterZoom ? OUTER_LINE_WIDTH_ROOT_FINE : OUTER_LINE_WIDTH_ROOT)
+				: (fineOuterZoom ? OUTER_LINE_WIDTH_FINE : OUTER_LINE_WIDTH);
 			ctx.strokeStyle = OUTER_LINE_COLOR || color;
 			ctx.lineJoin = "round";
 			ctx.stroke();
