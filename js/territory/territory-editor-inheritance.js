@@ -14,6 +14,10 @@
 	let territoryRows = [];
 	let pendingColorPlan = null;
 
+	// Farbhierarchie: HSV-Abweichung (0-256) pro absolutem Hierarchie-Level. Die Default-Werte
+	// werden bei jedem Editor-Aufbau zufaellig aus diesen Bereichen gezogen (tiefer = enger).
+	const LEVEL_VARIANCE_RANGES = { 1: [35, 40], 2: [30, 35], 3: [25, 30], 4: [20, 30], 5: [20, 30], 6: [20, 30] };
+
 	function getFormModule() {
 		return window.AvesmapsPoliticalTerritoryEditorForm || null;
 	}
@@ -75,6 +79,8 @@
 		if (colorDescCbInit) colorDescCbInit.disabled = true;
 		removeOpacityInheritanceButton();
 		cleanStrayCheckboxLabelText();
+		prefillLevelVarianceDefaults();
+		updateLevelVarianceFieldStates();
 
 		document.getElementById("inheritColorToDescendantsCheckbox")?.addEventListener("change", event => {
 			if (event.currentTarget.checked) void createColorPlan(false);
@@ -111,6 +117,7 @@
 		const hasActiveNode = Boolean(getFormModule()?.readRootSelection?.());
 		const colorButton = document.getElementById("inheritColorVarianceButton");
 		if (colorButton) colorButton.hidden = !hasLowerBreadcrumb;
+		updateLevelVarianceFieldStates();
 
 		for (const id of CHECKBOX_IDS) {
 			const input = document.getElementById(id);
@@ -144,8 +151,10 @@
 			return null;
 		}
 		await loadTerritories();
+		prefillLevelVarianceDefaults();
 		const descendants = findDescendants(root);
 		const updates = buildColorUpdates(root, descendants);
+		ensureUniqueColors(updates);
 		pendingColorPlan = { root, updates };
 		const colorDescCbEnable = document.getElementById("inheritColorToDescendantsCheckbox");
 		if (colorDescCbEnable) colorDescCbEnable.disabled = false;
@@ -319,6 +328,13 @@
 			addToMapList(siblingsByParent, String(row.parentPublicId || row.parentId || "").trim(), row);
 		}
 
+		// Per-Level-Varianz: jede absolute Hierarchie-Ebene hat einen eigenen HSV-Abweichungswert
+		// (Felder Hierarchie-Level 1-6). Die ausgewaehlte Ebene = activeIndex+1; ein direktes Kind
+		// (row.depth === 1) liegt eine Ebene darunter.
+		const levelVariances = readLevelVariances();
+		const selectedLevel = Math.max(1, (Number(root.activeIndex) || 0) + 1);
+		const varianceForAbsoluteLevel = (absoluteLevel) => levelVariances[Math.max(1, Math.min(6, absoluteLevel))];
+
 		// In Tiefen-Reihenfolge, damit die Elternfarbe vor den Kindern feststeht.
 		const ordered = [...descendants].sort((left, right) => (Number(left.depth || 0) - Number(right.depth || 0)) || String(left.name || "").localeCompare(String(right.name || ""), "de"));
 		for (const row of ordered) {
@@ -327,9 +343,10 @@
 				?? root.color;
 			const siblings = siblingsByParent.get(String(row.parentPublicId || row.parentId || "").trim()) || [row];
 			const siblingIndex = Math.max(0, siblings.findIndex(entry => (entry.publicId && entry.publicId === row.publicId) || (entry.id != null && entry.id === row.id)));
-			// depth: 2 = "eine Ebene unter dem Elternknoten" -> konstante, leichte Abweichung pro
-			// Schritt; die Helligkeitsstaffelung in createHueVariant kumuliert ueber die Tiefe.
-			const color = createHueVariant(parentColor, 2, siblingIndex, siblings.length, row.publicId || row.name);
+			// depth: 2 = "eine Ebene unter dem Elternknoten" -> die Helligkeitsstaffelung in
+			// createHueVariant kumuliert ueber die Tiefe; die Hue-Abweichung kommt aus dem Level-Feld.
+			const variance256 = varianceForAbsoluteLevel(selectedLevel + Number(row.depth || 1));
+			const color = createHueVariant(parentColor, 2, siblingIndex, siblings.length, row.publicId || row.name, variance256);
 			rememberColor(row.publicId, row.id, color);
 			updates.push({ territoryPublicId: row.publicId, name: row.name || row.publicId, depth: Math.max(1, Number(row.depth || 1)) + 1, color });
 		}
@@ -362,16 +379,97 @@
 
 	const compareByDepthAndName = (left, right) => (left.depth - right.depth) || left.name.localeCompare(right.name, "de");
 
-	function createHueVariant(parentColor, depth, siblingIndex, siblingCount, seedText) {
+	function levelVarianceInput(level) {
+		return document.getElementById("hueVarianceLevel" + level + "Input");
+	}
+
+	function randomInVarianceRange(level) {
+		const [min, max] = LEVEL_VARIANCE_RANGES[level] || [30, 30];
+		return Math.round(min + Math.random() * (max - min));
+	}
+
+	// Leere/ungueltige Level-Felder mit einem zufaelligen Default aus ihrem Bereich fuellen.
+	function prefillLevelVarianceDefaults() {
+		for (let level = 1; level <= 6; level += 1) {
+			const input = levelVarianceInput(level);
+			if (!input) continue;
+			if (input.value === "" || !Number.isFinite(Number(input.value))) {
+				input.value = String(randomInVarianceRange(level));
+			}
+		}
+	}
+
+	// 1-indizierte Liste der HSV-Abweichungen (0-256) pro Hierarchie-Level.
+	function readLevelVariances() {
+		const out = [];
+		for (let level = 1; level <= 6; level += 1) {
+			const input = levelVarianceInput(level);
+			let value = input ? Number(input.value) : NaN;
+			if (!Number.isFinite(value)) value = randomInVarianceRange(level);
+			out[level] = Math.max(0, Math.min(256, value));
+		}
+		return out;
+	}
+
+	// Nur die Level-Felder aktiv lassen, die im aktiven Breadcrumb eine Rolle spielen: von der
+	// ausgewaehlten Ebene (activeIndex+1) bis zur tiefsten Breadcrumb-Ebene. Darueber/darunter -> disabled.
+	function updateLevelVarianceFieldStates() {
+		const value = readAssignmentValue();
+		const path = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
+		const activeIndex = Number(getFormModule()?.getActivePathIndex?.(value));
+		const selectedLevel = Number.isFinite(activeIndex) && activeIndex >= 0 ? activeIndex + 1 : 1;
+		const totalLevels = path.length || selectedLevel;
+		for (let level = 1; level <= 6; level += 1) {
+			const input = levelVarianceInput(level);
+			if (!input) continue;
+			input.disabled = !(level >= selectedLevel && level <= totalLevels);
+		}
+	}
+
+	// Stellt sicher, dass keine zwei geplanten Farben exakt gleich sind: Kollisionen werden per
+	// Heuristik (Hue rotieren, Helligkeit leicht variieren) auf den naechstbesten freien Wert geschoben.
+	// Wurzel-/Spine-Farben (depth <= 1) bleiben unangetastet.
+	function ensureUniqueColors(updates) {
+		const colorUtils = getColorUtils();
+		if (!colorUtils?.parseHexToRgb || !Array.isArray(updates)) return updates;
+		const seen = new Set();
+		const ordered = [...updates].sort((a, b) => (Number(a.depth || 0) - Number(b.depth || 0)));
+		for (const update of ordered) {
+			const color = String(update.color || "").toLowerCase();
+			if (!color) continue;
+			if (!seen.has(color) || Number(update.depth || 0) <= 1) { seen.add(color); continue; }
+			const free = findFreeColor(color, seen, colorUtils);
+			update.color = free;
+			seen.add(free.toLowerCase());
+		}
+		return updates;
+	}
+
+	function findFreeColor(hex, seen, colorUtils) {
+		const rgb = colorUtils.parseHexToRgb(hex) || { red: 136, green: 136, blue: 136 };
+		const hsv = colorUtils.rgbToHsv(rgb.red, rgb.green, rgb.blue);
+		for (let step = 1; step <= 240; step += 1) {
+			const deltaHue = (step % 2 === 1 ? 1 : -1) * Math.ceil(step / 2) * 2.5;
+			for (const deltaValue of [0, 0.05, -0.05, 0.1, -0.1]) {
+				const hue = (((hsv.hue + deltaHue) % 360) + 360) % 360;
+				const value = Math.max(0.2, Math.min(1, hsv.value + deltaValue));
+				const candidate = colorUtils.hsvToHex(hue, hsv.saturation, value).toLowerCase();
+				if (!seen.has(candidate)) return candidate;
+			}
+		}
+		return hex;
+	}
+
+	function createHueVariant(parentColor, depth, siblingIndex, siblingCount, seedText, variance256) {
 		const colorUtils = getColorUtils();
 		if (!colorUtils?.createHueVariant) return parentColor;
-		const service = getSubtreeService();
+		const variance = Number.isFinite(variance256) ? variance256 : 30;
 		return colorUtils.createHueVariant(parentColor, {
 			depth,
 			siblingIndex,
 			siblingCount,
 			seedText,
-			range: service?.readHueVarianceRange256?.() || { min256: 30, max256: 30 }
+			range: { min256: variance, max256: variance }
 		});
 	}
 

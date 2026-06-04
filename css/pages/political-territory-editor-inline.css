@@ -1492,27 +1492,51 @@
 	justify-content: space-between;
 }
 
-#political-territory-editor-host .manual-data-variance-range {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	align-items: end;
-}
-
-#political-territory-editor-host .manual-data-variance-input {
+#political-territory-editor-host .manual-data-variance-levels {
+	flex: 1 1 100%;
 	display: grid;
 	gap: 4px;
-	min-width: 128px;
 }
 
-#political-territory-editor-host .manual-data-variance-input label {
+#political-territory-editor-host .variance-levels-title {
 	font-size: 11px;
 	font-weight: 700;
 	color: var(--muted);
 }
 
-#political-territory-editor-host .manual-data-variance-input input {
-	padding: 7px 9px;
+#political-territory-editor-host .variance-levels-table {
+	width: 100%;
+	table-layout: fixed;
+	border-collapse: collapse;
+}
+
+#political-territory-editor-host .variance-levels-table th {
+	font-size: 11px;
+	font-weight: 700;
+	color: var(--muted);
+	text-align: center;
+	padding: 2px 2px 5px;
+	/* Nur der horizontale Trenner zwischen Level-Kopf und Eingaben (keine Spalten-Trenner). */
+	border-bottom: 1px solid #dccab8;
+}
+
+#political-territory-editor-host .variance-levels-table td {
+	padding: 5px 3px 0;
+	text-align: center;
+}
+
+#political-territory-editor-host .variance-levels-table input {
+	width: 100%;
+	min-width: 0;
+	padding: 6px 3px;
+	text-align: center;
+	box-sizing: border-box;
+}
+
+#political-territory-editor-host .variance-levels-table input:disabled {
+	opacity: 0.4;
+	background: #f0e9e0;
+	cursor: not-allowed;
 }
 
 #political-territory-editor-host .manual-data-inline-hint {
