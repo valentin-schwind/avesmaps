@@ -200,6 +200,13 @@ function addRegionFeatureToMap(region, regionEntry) {
 	const isAggregatedSourceFragment = !regionEntry.isDerivedGeometry
 		&& territoryKeyForInteractivity !== ""
 		&& derivedByTerritoryForInteractivity.has(territoryKeyForInteractivity);
+	// Der Hover soll die AKTIVE Anzeige-Ebene treffen (die, die bei diesem Zoom gezeigt/gelabelt wird),
+	// nicht eine tiefere/flachere. Zuverlaessigstes Signal ist das Zoom-Band (min/max_zoom, immer gesetzt;
+	// derived_fill_active fehlt bei Fallback-Geometrien). Nur Features, deren Band den aktuellen Zoom
+	// enthaelt, sind interaktiv.
+	const currentZoomForInteractivity = Math.round(Number(map.getZoom()));
+	const isAtActiveDisplayZoom = (regionEntry.minZoom === null || regionEntry.minZoom === undefined || Number(regionEntry.minZoom) <= currentZoomForInteractivity)
+		&& (regionEntry.maxZoom === null || regionEntry.maxZoom === undefined || Number(regionEntry.maxZoom) >= currentZoomForInteractivity);
 	let polygons = [];
 
 	if (region.geometry?.type === "Polygon") {
@@ -231,9 +238,8 @@ function addRegionFeatureToMap(region, regionEntry) {
 			interactive: IS_EDIT_MODE
 				? !regionEntry.isDerivedGeometry
 				: (regionEntry.source === "political_territory"
-					&& (regionEntry.isDerivedGeometry
-						? regionEntry.derivedFillActive === true
-						: !isAggregatedSourceFragment)),
+					&& isAtActiveDisplayZoom
+					&& (regionEntry.isDerivedGeometry || !isAggregatedSourceFragment)),
 		});
 		polygon._regionEntry = regionEntry;
 		polygon._regionPolygonIndex = index;
