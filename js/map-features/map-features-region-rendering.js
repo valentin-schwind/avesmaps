@@ -191,6 +191,15 @@ function addRegionFeatureToMap(region, regionEntry) {
 	const name = regionEntry.name;
 	const visuallyHidden = shouldHideRegionForDerivedBoundary(region, regionEntry);
 	const polygonStyle = buildRegionPolygonStyle(regionEntry, region);
+	// Frontend "Politisch": nur die Aussengrenze (Derived-Huelle) eines Aggregats ist interaktiv.
+	// Source-Fragmente, fuer deren Territorium eine Derived-Huelle existiert, bekommen KEINEN eigenen
+	// Hover-Handler (sonst springt/flackert der Tooltip ueber die einzelnen Fuell-Fragmente). Blatt-
+	// Territorien ohne Derived bleiben ueber ihre Quellgeometrie interaktiv.
+	const derivedByTerritoryForInteractivity = politicalRegionDerivedByTerritory || indexPoliticalRegionDerivedByTerritory();
+	const territoryKeyForInteractivity = String(regionEntry.territoryPublicId || "").trim();
+	const isAggregatedSourceFragment = !regionEntry.isDerivedGeometry
+		&& territoryKeyForInteractivity !== ""
+		&& derivedByTerritoryForInteractivity.has(territoryKeyForInteractivity);
 	let polygons = [];
 
 	if (region.geometry?.type === "Polygon") {
@@ -217,7 +226,7 @@ function addRegionFeatureToMap(region, regionEntry) {
 			// damit Klicks an die Quellgeometrien gehen).
 			interactive: IS_EDIT_MODE
 				? !regionEntry.isDerivedGeometry
-				: regionEntry.source === "political_territory",
+				: (regionEntry.source === "political_territory" && !isAggregatedSourceFragment),
 		});
 		polygon._regionEntry = regionEntry;
 		polygon._regionPolygonIndex = index;
