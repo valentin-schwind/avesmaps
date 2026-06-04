@@ -224,9 +224,16 @@ function addRegionFeatureToMap(region, regionEntry) {
 			// View-Modus + politisch: auch abgeleitete Aussengrenzen (Aggregate) interaktiv machen,
 			// damit die Hover-Infobox greift. Edit-Modus unveraendert (derived nicht-interaktiv,
 			// damit Klicks an die Quellgeometrien gehen).
+			// View-Modus: der Hover soll die AKTIVE Anzeige-Ebene treffen (die, die man auf der Karte
+			// sieht/gelabelt ist), nicht eine tiefere. Da pro Punkt mehrere Derived-Huellen verschiedener
+			// Baender uebereinanderliegen, ist nur die FUELLENDE/aktive Huelle (derivedFillActive) interaktiv.
+			// Source-Geometrien nur als echte Blaetter (keine Derived-Huelle fuers Territorium).
 			interactive: IS_EDIT_MODE
 				? !regionEntry.isDerivedGeometry
-				: (regionEntry.source === "political_territory" && !isAggregatedSourceFragment),
+				: (regionEntry.source === "political_territory"
+					&& (regionEntry.isDerivedGeometry
+						? regionEntry.derivedFillActive === true
+						: !isAggregatedSourceFragment)),
 		});
 		polygon._regionEntry = regionEntry;
 		polygon._regionPolygonIndex = index;
