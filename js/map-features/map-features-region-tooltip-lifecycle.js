@@ -74,26 +74,26 @@ function ensureRegionHoverPane() {
 	return "regionHoverPane";
 }
 
-function applyRegionHoverHighlight(regionEntry) {
-	if (typeof POLITICAL_HOVER_FILL_COLOR === "undefined" || !POLITICAL_HOVER_FILL_COLOR) {
-		return;
+// Baut weisse Overlay-Polygone aus einer GeoJSON-Geometrie (Polygon ODER MultiPolygon),
+// inkl. Loecher/Enklaven als innere Ringe. GeoJSON [x,y] -> Leaflet [y,x].
+function buildHoverPolygonsFromGeometry(geometry, pane, group) {
+	if (!geometry) {
+		return 0;
 	}
-	clearRegionHoverHighlight();
-	const pane = ensureRegionHoverPane();
-	if (!pane || typeof regionPolygons === "undefined" || !Array.isArray(regionPolygons)) {
-		return;
+	let polys = [];
+	if (geometry.type === "Polygon") {
+		polys = [geometry.coordinates];
+	} else if (geometry.type === "MultiPolygon") {
+		polys = geometry.coordinates;
 	}
-	const group = L.layerGroup();
-	regionPolygons.forEach((p) => {
-		if (!p || p._regionEntry !== regionEntry) {
+	let count = 0;
+	polys.forEach((rings) => {
+		if (!Array.isArray(rings) || !rings.length) {
 			return;
 		}
-		const opts = p.options || {};
-		if (opts.fill === false || !(opts.fillOpacity > 0)) {
-			return;
-		}
-		// Kopie der Geometrie als weisse, nicht-interaktive Overlay-Flaeche im Hover-Pane.
-		L.polygon(p.getLatLngs(), {
+		// rings = [Aussenring, Loch1, Loch2, ...] -> Leaflet behandelt ab dem 2. Ring als Loch.
+		const latlngs = rings.map((ring) => ring.map((c) => [Number(c[1]), Number(c[0])]));
+		L.polygon(latlngs, {
 			pane,
 			interactive: false,
 			stroke: false,
@@ -101,9 +101,57 @@ function applyRegionHoverHighlight(regionEntry) {
 			fillColor: POLITICAL_HOVER_FILL_COLOR,
 			fillOpacity: POLITICAL_HOVER_FILL_OPACITY,
 		}).addTo(group);
+		count += 1;
 	});
-	group.addTo(map);
-	window.__regionHoverHighlightLayer = group;
+	return count;
+}
+
+function applyRegionHoverHighlight(regionEntry) {
+	if (typeof POLITICAL_HOVER_FILL_COLOR === "undefined" || !POLITICAL_HOVER_FILL_COLOR) {
+		return;
+	}
+	clearRegionHoverHighlight();
+	const pane = ensureRegionHoverPane();
+	if (!pane) {
+		return;
+	}
+	const group = L.layerGroup();
+	let count = 0;
+	// 1) Bevorzugt die VOLLE Aggregat-Huelle (Derived) -> faerbt das ganze aggregierte Gebiet
+	//    (inkl. Luecken zwischen Kindern, ueber den Aussengrenzen), Loecher/Enklaven als Innenringe.
+	const derivedIndex = (typeof politicalRegionDerivedByTerritory !== "undefined" && politicalRegionDerivedByTerritory)
+		? politicalRegionDerivedByTerritory
+		: (typeof indexPoliticalRegionDerivedByTerritory === "function" ? indexPoliticalRegionDerivedByTerritory() : null);
+	const aggKey = String(regionEntry.territoryPublicId || "").trim();
+	const agg = (derivedIndex && aggKey && typeof derivedIndex.get === "function") ? derivedIndex.get(aggKey) : null;
+	if (agg && agg.geometry) {
+		count = buildHoverPolygonsFromGeometry(agg.geometry, pane, group);
+	}
+	// 2) Fallback: die sichtbaren Polygone der Region selbst (auch Multipolygon + Loecher via getLatLngs).
+	if (count === 0 && typeof regionPolygons !== "undefined" && Array.isArray(regionPolygons)) {
+		regionPolygons.forEach((p) => {
+			if (!p || p._regionEntry !== regionEntry) {
+				return;
+			}
+			const opts = p.options || {};
+			if (opts.fill === false || !(opts.fillOpacity > 0)) {
+				return;
+			}
+			L.polygon(p.getLatLngs(), {
+				pane,
+				interactive: false,
+				stroke: false,
+				fill: true,
+				fillColor: POLITICAL_HOVER_FILL_COLOR,
+				fillOpacity: POLITICAL_HOVER_FILL_OPACITY,
+			}).addTo(group);
+			count += 1;
+		});
+	}
+	if (count > 0) {
+		group.addTo(map);
+		window.__regionHoverHighlightLayer = group;
+	}
 }
 
 function clearRegionHoverHighlight() {
