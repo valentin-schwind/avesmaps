@@ -430,7 +430,17 @@ function installPoliticalRegionVisibilityBehavior() {
 		}
 
 		regionPolygons.forEach((layer) => {
-			if (showRegions) {
+			// Zoom-Band-Filter (wie im Original syncRegionVisibility): der Fan-out-Merge spielt
+			// Nachbarzoom-Geometrien (z. B. Baronien, Band 4-6) in regionData ein – die duerfen bei
+			// niedrigen Zoomstufen NICHT mitfuellen, sonst entsteht ein Flickenteppich aus tiefen
+			// Einzelfarben statt der Aggregat-Farbe. Das Canvas-Overlay liest regionData direkt und
+			// bleibt davon unberuehrt (Grenzen werden weiter gezeichnet).
+			const regionEntry = layer?._regionEntry || null;
+			const minZoom = readOptionalRegionZoom(regionEntry?.minZoom);
+			const maxZoom = readOptionalRegionZoom(regionEntry?.maxZoom);
+			const isVisibleAtZoom = (minZoom === null || minZoom <= currentZoom) && (maxZoom === null || maxZoom >= currentZoom);
+
+			if (showRegions && (IS_EDIT_MODE || isVisibleAtZoom)) {
 				map.addLayer(layer);
 			} else {
 				map.removeLayer(layer);
