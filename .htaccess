@@ -12,3 +12,36 @@ Options -Indexes
     Allow from all
     Satisfy any
 </IfModule>
+
+# --- Caching ---------------------------------------------------------------
+# Ziel: Endnutzer bekommen nach einem Deploy sofort frischen Code, OHNE Hard-Reload,
+# behalten aber maximale Performance. JS/CSS werden in index.html mit ?v=<contenthash>
+# referenziert (Deploy-Schritt). Solche versionierten Assets duerfen "immutable" ewig
+# gecacht werden (die URL aendert sich, sobald sich der Inhalt aendert). Assets ohne
+# Version werden stets revalidiert (sichere Degradierung). HTML wird nie hart gecacht,
+# damit die aktuellen ?v=-Hashes immer ankommen. Bilder/Fonts: moderates Caching.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Markiere Anfragen an .js/.css MIT ?v=... als versioniert.
+    RewriteCond %{QUERY_STRING} (^|&)v=
+    RewriteRule \.(?:js|css)$ - [E=VERSIONED_ASSET:1]
+</IfModule>
+
+<IfModule mod_headers.c>
+    <FilesMatch "\.(?:js|css)$">
+        # Versioniert (?v=hash): ewig + immutable cachen.
+        Header set Cache-Control "public, max-age=31536000, immutable" env=VERSIONED_ASSET
+        # Ohne Version: immer revalidieren (Fallback; verhindert "fuer immer stale").
+        Header set Cache-Control "no-cache" env=!VERSIONED_ASSET
+    </FilesMatch>
+
+    # HTML immer revalidieren (klein), damit aktuelle Asset-Hashes ankommen.
+    <FilesMatch "\.(?:html|htm)$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+
+    # Statische Medien/Fonts: 30 Tage cachen (aendern sich selten).
+    <FilesMatch "\.(?:png|jpe?g|gif|webp|svg|ico|woff2?|ttf|eot)$">
+        Header set Cache-Control "public, max-age=2592000"
+    </FilesMatch>
+</IfModule>

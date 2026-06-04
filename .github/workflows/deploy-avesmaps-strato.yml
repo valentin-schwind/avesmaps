@@ -190,6 +190,26 @@ jobs:
           echo "Deploy package:"
           find "$DEPLOY_DIR" -maxdepth 2 -mindepth 1 | sort
 
+      - name: Stamp asset versions into index.html
+        if: env.SKIP_DEPLOY != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # index.html immer ins Paket aufnehmen und neu stempeln, damit die ?v=-Hashes
+          # aktuell sind -- auch wenn nur ein referenziertes Asset (nicht index.html selbst)
+          # geaendert wurde. index.html ist winzig und wird ohnehin nie hart gecacht.
+          if [[ ! -f "$DEPLOY_DIR/index.html" ]]; then
+            cp -a index.html "$DEPLOY_DIR/index.html"
+          fi
+
+          # Hashes aus dem vollstaendigen Checkout ($PWD) berechnen -> unveraenderte Assets
+          # behalten ihren Hash und bleiben clientseitig gecacht.
+          python3 .github/scripts/stamp-asset-versions.py "$DEPLOY_DIR/index.html" "$PWD"
+
+          echo "Stamped reference sample:"
+          grep -oE '(src|href)="(js|css)/[^"]+"' "$DEPLOY_DIR/index.html" | head -n 5 || true
+
       - name: Install SFTP client
         if: env.SKIP_DEPLOY != 'true'
         shell: bash
