@@ -75,10 +75,10 @@
 								<section class="manual-data-section" aria-label="Kartensichtbarkeit">
 									<h3>Kartensichtbarkeit</h3>
 									<div class="manual-data-grid">
-										<div class="manual-data-field"><label for="zoomFromInput">Zoom von</label><input id="zoomFromInput" name="zoom_from" type="number" step="1"></div>
-										<div class="manual-data-field"><label for="zoomToInput">Zoom bis</label><input id="zoomToInput" name="zoom_to" type="number" step="1"></div>
+										<div class="manual-data-field"><label for="zoomFromInput">Zoom von</label><input id="zoomFromInput" name="zoom_from" type="number" step="1" min="0" max="6"></div>
+										<div class="manual-data-field"><label for="zoomToInput">Zoom bis</label><input id="zoomToInput" name="zoom_to" type="number" step="1" min="0" max="6"></div>
 									</div>
-									<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden><input id="inheritZoomToDescendantsCheckbox" type="checkbox"><span>Für alle Geschwisterregionen übernehmen</span></label>
+									<label class="deferred-subtree-checkbox" hidden><input id="inheritZoomToDescendantsCheckbox" type="checkbox"><span>Für alle Geschwisterregionen übernehmen</span></label>
 								</section>
 								<section class="manual-data-section" aria-label="Farbe">
 									<h3>Farbe</h3>
@@ -96,7 +96,7 @@
 								</section>
 								<section class="manual-data-section" aria-label="Transparenz">
 									<h3>Transparenz</h3>
-									<div class="manual-color-controls"><div class="manual-data-field"><label for="transparencyInput">Transparenz <output id="transparencyOutput" for="transparencyInput">50%</output></label><input id="transparencyInput" name="transparency" type="range" min="0" max="100" step="1" value="50"><button id="inheritOpacityButton" class="secondary inherit-opacity-button" type="button" hidden>Transparenz vererben</button></div></div>
+									<div class="manual-color-controls"><div class="manual-data-field"><div class="transparency-control-row"><input id="transparencyInput" name="transparency" type="range" min="0" max="100" step="1" value="50"><input id="transparencyNumberInput" type="number" min="0" max="100" step="1" value="50" aria-label="Transparenz in Prozent"><span class="transparency-unit">%</span></div><button id="inheritOpacityButton" class="secondary inherit-opacity-button" type="button" hidden>Transparenz vererben</button></div></div>
 									<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden><input id="inheritOpacityToDescendantsCheckbox" type="checkbox"><span>Für alle Geschwisterregionen übernehmen</span></label>
 									<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden><input id="inheritOpacityToSubtreeCheckbox" type="checkbox"><span>Für alle Unterregionen übernehmen</span></label>
 								</section>

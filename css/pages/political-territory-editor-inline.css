@@ -2043,5 +2043,56 @@
 	gap: 8px;
 	margin: 4px 0 0;
 	padding: 3px 0;
+	/* A: Gleiche Zeilenhoehe wie die Geometrie-Häkchen -> konsistente Abstaende. */
+	min-height: 38px;
+	align-items: center;
+}
+
+/* D: Transparenz-Slider + Zahlenfeld (Label "Transparenz 50%" entfaellt). */
+#political-territory-editor-host .transparency-control-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+#political-territory-editor-host .transparency-control-row input[type="range"] {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+#political-territory-editor-host #transparencyNumberInput {
+	flex: 0 0 56px;
+	width: 56px;
+	min-width: 0;
+	text-align: right;
+}
+
+#political-territory-editor-host .transparency-unit {
+	flex: 0 0 auto;
+	color: var(--muted-2, #806c59);
+	font-size: 12px;
+	font-weight: 700;
+}
+
+/* F: Deep-Link in die Wiki-Sync-Pflege als echter Button. */
+#political-territory-editor-host .info-origin-link {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 12px;
+	font-weight: 700;
+	cursor: pointer;
+	background: #5b432b;
+	color: #fff;
+	border: 1px solid #4a3621;
+	border-radius: 6px;
+	padding: 5px 11px;
+	text-decoration: none;
+}
+
+#political-territory-editor-host .info-origin-link:hover,
+#political-territory-editor-host .info-origin-link:focus-visible {
+	background: #6d5236;
+	color: #fff;
 }
 

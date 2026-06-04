@@ -218,3 +218,15 @@
 	flex: 0 0 auto;
 	white-space: nowrap;
 }
+
+/* G) Pfeil-Glyphen (▲/▼) exakt vertikal und horizontal in ihrem Button zentrieren.
+ * Die Buttons liegen in festen 20px-Rasterzeilen; ohne Flex-Zentrierung sitzt das
+ * Glyph durch Zeilenhoehe/Button-Defaults leicht ausserhalb der Mitte. */
+#political-territory-editor-host .breadcrumb-cycle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	padding: 0;
+	line-height: 1;
+}

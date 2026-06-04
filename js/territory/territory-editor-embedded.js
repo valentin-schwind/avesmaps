@@ -172,6 +172,7 @@
 		const endYearInput = document.getElementById("endYearInput");
 		const transparencyInput = document.getElementById("transparencyInput");
 		const transparencyOutput = document.getElementById("transparencyOutput");
+		const transparencyNumberInput = document.getElementById("transparencyNumberInput");
 
 		function syncEndYearInputState() {
 			if (!existsUntilTodayInput || !endYearInput) {
@@ -191,17 +192,66 @@
 		}
 
 		function syncTransparencyOutput() {
-			if (!transparencyInput || !transparencyOutput) {
+			if (!transparencyInput) {
 				return;
 			}
 
-			transparencyOutput.value = `${transparencyInput.value}%`;
+			if (transparencyOutput) {
+				transparencyOutput.value = `${transparencyInput.value}%`;
+			}
+			// D: Zahlenfeld rechts vom Slider spiegelt den Slider (nicht waehrend der Nutzer dort tippt).
+			if (transparencyNumberInput && document.activeElement !== transparencyNumberInput) {
+				transparencyNumberInput.value = transparencyInput.value;
+			}
 		}
 
 		if (transparencyInput) {
 			transparencyInput.addEventListener("input", syncTransparencyOutput);
 			syncTransparencyOutput();
 		}
+
+		// D: Zahlenfeld -> Slider (mit Begrenzung 0-100).
+		if (transparencyNumberInput) {
+			const applyTransparencyNumber = (commit) => {
+				let v = parseInt(transparencyNumberInput.value, 10);
+				if (Number.isNaN(v)) {
+					if (!commit) return;
+					v = parseInt(transparencyInput.value, 10) || 0;
+				}
+				v = Math.max(0, Math.min(100, v));
+				transparencyInput.value = String(v);
+				if (commit) transparencyNumberInput.value = String(v);
+			};
+			transparencyNumberInput.addEventListener("input", () => applyTransparencyNumber(false));
+			transparencyNumberInput.addEventListener("change", () => applyTransparencyNumber(true));
+		}
+
+		// E: Zoom von/bis auf 0-6 begrenzen und "von < bis" erzwingen (beim Verlassen des Felds).
+		const clampZoomInputs = (changed) => {
+			const fromEl = els.zoomFromInput;
+			const toEl = els.zoomToInput;
+			if (!fromEl || !toEl) {
+				return;
+			}
+			const clamp = (n) => Math.max(0, Math.min(6, n));
+			let from = fromEl.value === "" ? null : clamp(parseInt(fromEl.value, 10));
+			let to = toEl.value === "" ? null : clamp(parseInt(toEl.value, 10));
+			if (Number.isNaN(from)) from = null;
+			if (Number.isNaN(to)) to = null;
+			if (from !== null && to !== null && from >= to) {
+				if (changed === "from") {
+					to = Math.min(6, from + 1);
+					if (from >= to) from = to - 1;
+				} else {
+					from = Math.max(0, to - 1);
+					if (to <= from) to = from + 1;
+				}
+			}
+			if (from !== null) fromEl.value = String(from);
+			if (to !== null) toEl.value = String(to);
+		};
+		els.zoomFromInput?.addEventListener("change", () => clampZoomInputs("from"));
+		els.zoomToInput?.addEventListener("change", () => clampZoomInputs("to"));
 
 		if (els.updateCoatButton) {
 			els.updateCoatButton.addEventListener("click", updateWikiCoatPreviewFromManualInput);
@@ -2055,21 +2105,16 @@
 			const originBar = document.createElement("div");
 			originBar.className = "info-origin-bar";
 			originBar.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px";
-			const originBadge = document.createElement("span");
-			originBadge.className = "info-origin-badge";
-			originBadge.style.cssText = "font-size:11px;background:#e8e0d4;color:#6b5a44;border-radius:10px;padding:2px 8px";
-			originBadge.textContent = "aus Wiki-Sync (read-only)";
-			originBar.appendChild(originBadge);
+			// F: "aus Wiki-Sync (read-only)"-Badge entfernt; der Deep-Link ist jetzt ein echter Button.
 			if (wikiKeyForLink) {
 				const originLink = document.createElement("a");
 				originLink.className = "info-origin-link";
-				originLink.style.cssText = "font-size:12px;cursor:pointer";
 				// Fallback-URL (Mittel-/Strg-Klick oeffnet weiterhin den Tab); normaler Klick oeffnet
 				// den Sync-Editor INLINE als Overlay im selben Tab (kein Seitenwechsel).
 				originLink.href = `/html/wiki-sync-monitor.html?key=${encodeURIComponent(wikiKeyForLink)}`;
 				originLink.target = "_blank";
 				originLink.rel = "noopener";
-				originLink.textContent = "Im Wiki-Sync bearbeiten ↗";
+				originLink.textContent = "Im Wiki-Sync bearbeiten";
 				originLink.addEventListener("click", (event) => {
 					// Modifier-Klicks (neuer Tab/Fenster) der Standardbehandlung ueberlassen.
 					if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button === 1) {

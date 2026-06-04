@@ -99,11 +99,22 @@
 			</section>
 		`;
 
-		if (manualDataColumns?.firstElementChild) {
-			manualDataColumns.firstElementChild.insertAdjacentHTML("afterend", panelHtml);
+		if (manualDataColumns) {
+			// B: Geometrie-Panel ganz nach oben im Spalten-Panel.
+			manualDataColumns.insertAdjacentHTML("afterbegin", panelHtml);
 		} else {
 			targetContainer.insertAdjacentHTML("beforeend", panelHtml);
 		}
+
+		// B: Thumbnail (Vorschau) direkt unter die Überschrift, ÜBER "Außengrenzen darstellen".
+		(function moveThumbnailAboveControls() {
+			const panel = document.getElementById("derivedGeometryPanel");
+			const heading = panel?.querySelector("h3");
+			const previewRow = document.getElementById("derivedGeometryPreviewRow");
+			if (heading && previewRow) {
+				heading.insertAdjacentElement("afterend", previewRow);
+			}
+		})();
 
 		document.getElementById("derivedGeometryEnabledInput")?.addEventListener("change", () => {
 			state.dirty = true;
