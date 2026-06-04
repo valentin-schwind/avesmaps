@@ -67,7 +67,9 @@
 		// Injektionszeitpunkt mal vorne, mal hinten -> "springende" Panels bei jedem Oeffnen. Unbekannte
 		// Sektionen ans Ende.
 		const SECTION_ORDER = ["Geometrie", "Anzeige", "Kartensichtbarkeit", "Farbe", "Transparenz"];
-		const sectionKey = (section) => (section.getAttribute("aria-label") || section.querySelector("h3")?.textContent || "").trim();
+		// Sichtbare Überschrift (h3) zuerst: das Geometrie-Panel hat aria-label "Automatische
+		// Außengrenzen", soll aber per "Geometrie" (= h3) in SECTION_ORDER einsortiert werden.
+		const sectionKey = (section) => (section.querySelector("h3")?.textContent || section.getAttribute("aria-label") || "").trim();
 		const sectionRank = (section) => {
 			const index = SECTION_ORDER.indexOf(sectionKey(section));
 			return index < 0 ? SECTION_ORDER.length : index;
