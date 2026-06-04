@@ -13,6 +13,9 @@ function avesmapsPoliticalReadGeometryInventory(PDO $pdo, array $query): array
     $limit = avesmapsPoliticalReadOptionalInt($query['limit'] ?? null) ?? 500;
     $limit = max(1, min(2000, $limit));
     $includeInactive = avesmapsPoliticalReadBoolean($query['include_inactive'] ?? false);
+    // Geometrien (geometry_json) nur auf Wunsch mitliefern (z. B. fuer das Konturen-Overlay im Editor),
+    // damit Standard-Aufrufe leicht bleiben.
+    $includeLegacyGeometry = avesmapsPoliticalReadBoolean($query['legacy_geometry'] ?? false);
 
     $activeCondition = $includeInactive ? '1 = 1' : 'g.is_active = 1';
 
@@ -102,12 +105,16 @@ function avesmapsPoliticalReadGeometryInventory(PDO $pdo, array $query): array
             $lMinY = (float) ($legacyRegion['min_y'] ?? 0);
             $lMaxX = (float) ($legacyRegion['max_x'] ?? 0);
             $lMaxY = (float) ($legacyRegion['max_y'] ?? 0);
-            $legacyRegions[] = [
+            $legacyEntry = [
                 'public_id' => (string) ($legacyRegion['public_id'] ?? ''),
                 'name' => (string) ($legacyRegion['name'] ?? ''),
                 'area' => round(max(0.0, $lMaxX - $lMinX) * max(0.0, $lMaxY - $lMinY), 1),
                 'bbox' => [round($lMinX, 1), round($lMinY, 1), round($lMaxX, 1), round($lMaxY, 1)],
             ];
+            if ($includeLegacyGeometry) {
+                $legacyEntry['geometry'] = avesmapsPoliticalDecodeJson($legacyRegion['geometry_json'] ?? null);
+            }
+            $legacyRegions[] = $legacyEntry;
         }
         usort($legacyRegions, static fn(array $a, array $b): int => $b['area'] <=> $a['area']);
     }

@@ -353,3 +353,22 @@ body.edit-mode .map-label span {
 		gap: 2px;
 	}
 }
+
+/* Datenleichen-Konturen (Editor-Diagnose): Legacy-map_features-Regionen */
+.legacy-leiche-label.leaflet-tooltip {
+	background: rgba(140, 29, 29, 0.85);
+	color: #fff;
+	border: 0;
+	border-radius: 4px;
+	padding: 1px 6px;
+	font-size: 11px;
+	font-weight: 600;
+	box-shadow: none;
+	white-space: nowrap;
+	pointer-events: none;
+}
+.legacy-leiche-label.leaflet-tooltip::before { display: none; }
+#legacy-leichen-toggle.is-active {
+	background: #8c1d1d;
+	color: #fff;
+}
