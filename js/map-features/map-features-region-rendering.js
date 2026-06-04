@@ -81,9 +81,18 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 
 	// Feature #2: abgeleitete Aussengrenze fuellt nur im eigenen Zoom-Band. Ausserhalb
 	// (derivedFillActive=false) oder bei sichtbaren Innengrenzen bleibt sie reine Kontur.
+	// Frontend: einheitliche Fuell-Deckkraft fuer politische Flaechen (POLITICAL_FRONTEND_FILL_OPACITY),
+	// damit nicht die unterschiedlichen per-Territorium-Deckkraefte (0.33/0.5/0.75) durchschlagen.
+	// Editor unveraendert (regionEntry.opacity); auf null setzen -> wieder per-Territorium.
+	const activeFillOpacity = (!IS_EDIT_MODE
+		&& regionEntry.source === "political_territory"
+		&& typeof POLITICAL_FRONTEND_FILL_OPACITY === "number"
+		&& Number.isFinite(POLITICAL_FRONTEND_FILL_OPACITY))
+		? POLITICAL_FRONTEND_FILL_OPACITY
+		: regionEntry.opacity;
 	const fillOpacity = regionEntry.isDerivedGeometry && (regionEntry.showInnerBoundaries || !regionEntry.derivedFillActive)
 		? 0
-		: regionEntry.opacity;
+		: activeFillOpacity;
 
 	// Ebenenbasierter Linienstil fuer abgeleitete Aussengrenzen (Phase B, additiv).
 	// Faellt auf das bisherige Verhalten zurueck, wenn das Modul fehlt oder
