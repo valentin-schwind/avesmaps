@@ -187,9 +187,10 @@
 			resetInput.type = "checkbox";
 			resetInput.id = "resetDefaultZoomToHierarchyCheckbox";
 			const resetSpan = document.createElement("span");
-			resetSpan.textContent = "Auf Default-Zoomregeln für Über- und Unterregionen zurücksetzen";
+			resetSpan.textContent = "Über- und Unterregionen auf diese Default-Zoomregeln zurücksetzen";
 			resetLabel.append(resetInput, resetSpan);
-			visibilitySection.appendChild(resetLabel);
+			// In den Default-Zoomregeln-Container statt darunter.
+			wrapper.appendChild(resetLabel);
 
 			resetInput.addEventListener("change", () => {
 				const siblingZoomCheckbox = document.getElementById("inheritZoomToDescendantsCheckbox");
