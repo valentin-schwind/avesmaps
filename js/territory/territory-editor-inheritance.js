@@ -274,7 +274,7 @@
 			siblingIndex,
 			siblingCount,
 			seedText,
-			range: service?.readHueVarianceRange256?.() || { min256: 24, max256: 72 }
+			range: service?.readHueVarianceRange256?.() || { min256: 30, max256: 30 }
 		});
 	}
 

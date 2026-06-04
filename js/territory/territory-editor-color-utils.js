@@ -81,7 +81,7 @@
 		const depth = Math.max(1, Number(options.depth || 1));
 		const siblingIndex = Math.max(0, Number(options.siblingIndex || 0));
 		const siblingCount = Math.max(1, Number(options.siblingCount || 1));
-		const range = options.range || { min256: 24, max256: 72 };
+		const range = options.range || { min256: 30, max256: 30 };
 		// Spreizung wird VOLL von der Range gesteuert (kein harter 24°-Deckel mehr, der den
 		// UI-Regler frueher wirkungslos machte): wenige Geschwister -> min, viele -> bis max.
 		const minDegrees = (Math.min(range.min256, range.max256) / 256) * 360;
