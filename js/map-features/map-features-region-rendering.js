@@ -24,7 +24,7 @@ function indexPoliticalRegionDerivedByTerritory() {
 			return;
 		}
 		const labelable = properties.show_region_label !== false && properties.visual_hidden_by_derived_boundary !== true;
-		politicalRegionDerivedByTerritory.set(key, { labelable, geometry: feature.geometry });
+		politicalRegionDerivedByTerritory.set(key, { labelable, geometry: feature.geometry, color: properties.fill || properties.color || null });
 	});
 	return politicalRegionDerivedByTerritory;
 }
@@ -95,11 +95,24 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 	// keinen soliden Rand – das Canvas malt aussen solid + innen weiss-gestrichelt.
 	const weight = regionEntry.isDerivedGeometry || regionEntry.strokeHiddenByDerivedBoundary ? 0 : (levelLineStyle ? levelLineStyle.weight : 2);
 
+	// Frontend "Politisch": ein Source-Fragment eines Aggregats fuellt mit der AGGREGAT-Farbe
+	// (Farbe der Derived-Huelle des Territoriums), nicht mit seiner eigenen (tieferen) Farbe.
+	// So passt die angezeigte Flaechenfarbe zur angezeigten Hierarchie-Ebene (bei Zoom 0 die
+	// Reichsfarbe, nicht die Farbe der untersten Quellgeometrie). Edit-Modus unveraendert.
+	let resolvedFillColor = regionEntry.color;
+	if (!IS_EDIT_MODE && !regionEntry.isDerivedGeometry) {
+		const terrKey = String(regionEntry.territoryPublicId || "").trim();
+		const aggregate = terrKey ? (politicalRegionDerivedByTerritory || indexPoliticalRegionDerivedByTerritory()).get(terrKey) : null;
+		if (aggregate && aggregate.color) {
+			resolvedFillColor = aggregate.color;
+		}
+	}
+
 	const style = {
 		color: regionEntry.color,
 		weight,
 		opacity: 1,
-		fillColor: regionEntry.color,
+		fillColor: resolvedFillColor,
 		fillOpacity,
 	};
 	if (levelLineStyle && levelLineStyle.dashArray) {
