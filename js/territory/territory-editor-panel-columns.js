@@ -60,8 +60,19 @@
 		const left = wrap.children[0];
 		const right = wrap.children[1];
 
-		// Dokumentreihenfolge bewahren (querySelectorAll liefert sie).
 		const sections = Array.from(form.querySelectorAll(".manual-data-section"));
+
+		// Deterministische Reihenfolge: nach FIXER Sektions-Ordnung sortieren statt nach wechselnder
+		// Dokumentreihenfolge. Das dynamisch (async) injizierte Geometrie-Panel landete je nach
+		// Injektionszeitpunkt mal vorne, mal hinten -> "springende" Panels bei jedem Oeffnen. Unbekannte
+		// Sektionen ans Ende.
+		const SECTION_ORDER = ["Anzeige", "Kartensichtbarkeit", "Farbe", "Transparenz", "Geometrie"];
+		const sectionKey = (section) => (section.getAttribute("aria-label") || section.querySelector("h3")?.textContent || "").trim();
+		const sectionRank = (section) => {
+			const index = SECTION_ORDER.indexOf(sectionKey(section));
+			return index < 0 ? SECTION_ORDER.length : index;
+		};
+		sections.sort((a, b) => sectionRank(a) - sectionRank(b));
 
 		// Waehrend des Umsortierens den Observer pausieren (kein Re-Trigger).
 		if (observer) observer.disconnect();

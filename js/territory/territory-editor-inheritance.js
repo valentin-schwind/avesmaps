@@ -5,6 +5,7 @@
 		"inheritZoomToDescendantsCheckbox",
 		"inheritColorToDescendantsCheckbox",
 		"inheritOpacityToDescendantsCheckbox",
+		"inheritOpacityToSubtreeCheckbox",
 		"inheritValidityToDescendantsCheckbox"
 	];
 
@@ -305,6 +306,12 @@
 			const siblingOpacityUpdates = findSiblings(root).map(row => ({ territoryPublicId: row.publicId, opacity: root.opacity })).filter(update => update.territoryPublicId);
 			const opacityResult = await service.applyExplicitOpacityUpdates(siblingOpacityUpdates);
 			messages.push(`Transparenz auf ${siblingOpacityUpdates.length} Geschwisterregionen angewendet (${opacityResult && opacityResult.changed != null ? opacityResult.changed : 0} gespeichert).`);
+		}
+		if (root && document.getElementById("inheritOpacityToSubtreeCheckbox")?.checked && service?.applyExplicitOpacityUpdates) {
+			await loadTerritories();
+			const subtreeOpacityUpdates = findDescendants(root).map(row => ({ territoryPublicId: row.publicId, opacity: root.opacity })).filter(update => update.territoryPublicId);
+			const subtreeOpacityResult = await service.applyExplicitOpacityUpdates(subtreeOpacityUpdates);
+			messages.push(`Transparenz auf ${subtreeOpacityUpdates.length} Untergebiete angewendet (${subtreeOpacityResult && subtreeOpacityResult.changed != null ? subtreeOpacityResult.changed : 0} gespeichert).`);
 		}
 		if (root && document.getElementById("inheritZoomToDescendantsCheckbox")?.checked && service?.applyExplicitZoomUpdates) {
 			await loadTerritories();

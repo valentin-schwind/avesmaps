@@ -39,6 +39,7 @@
 }
 
 .deferred-subtree-checkbox {
+	font-size: 11px;
 	display: inline-flex;
 	align-items: center;
 	gap: 7px;
