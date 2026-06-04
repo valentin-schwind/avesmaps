@@ -483,8 +483,8 @@
 		}
 		const byDepth = new Map();
 		for (const update of plan.updates) addToMapList(byDepth, update.depth, update);
-		const rows = [...byDepth.entries()].sort((a, b) => a[0] - b[0]).map(([depth, updates]) => `<tr><th>${depth}. Ebene</th><td><div class="deferred-subtree-swatches">${updates.map(update => `<span class="deferred-subtree-swatch" style="background:${escapeHtml(update.color)}" title="${escapeHtml(`${update.name}: ${update.color}`)}"></span>`).join("")}</div></td></tr>`).join("");
-		preview.innerHTML = `<div class="deferred-subtree-preview-title">Geplante Farben ab „${escapeHtml(plan.root.name)}“</div><table class="deferred-subtree-table"><thead><tr><th>Tiefe</th><th>Farbe pro Ebene</th></tr></thead><tbody>${rows}</tbody></table>`;
+		const rows = [...byDepth.entries()].sort((a, b) => a[0] - b[0]).map(([, updates]) => `<tr><td><div class="deferred-subtree-swatches">${updates.map(update => `<span class="deferred-subtree-swatch" style="background:${escapeHtml(update.color)}" title="${escapeHtml(`${update.name}: ${update.color}`)}"></span>`).join("")}</div></td></tr>`).join("");
+		preview.innerHTML = `<div class="deferred-subtree-preview-title">Geplante Farben ab „${escapeHtml(plan.root.name)}“</div><table class="deferred-subtree-table"><thead><tr><th>Farbe pro Ebene</th></tr></thead><tbody>${rows}</tbody></table>`;
 	}
 
 	async function applyGlobalInheritanceAfterSave(context) {
