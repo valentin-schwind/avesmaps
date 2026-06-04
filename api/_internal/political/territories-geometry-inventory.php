@@ -92,11 +92,34 @@ function avesmapsPoliticalReadGeometryInventory(PDO $pdo, array $query): array
     arsort($bySource);
     arsort($byCreator);
 
+    // Legacy-Regionen aus map_features (feature_type='region', alter Seed-Import). Das ist die
+    // EINZIGE Flaechenquelle ausserhalb des political_territory-Systems (also "nicht thomas/valentin");
+    // sie wird im Layer nur als Fallback eingeblendet, wenn ein Territorium keine eigene Geometrie hat.
+    $legacyRegions = [];
+    if (function_exists('avesmapsPoliticalFetchLegacyRegionFeaturesByExactName')) {
+        foreach (avesmapsPoliticalFetchLegacyRegionFeaturesByExactName($pdo) as $legacyRegion) {
+            $lMinX = (float) ($legacyRegion['min_x'] ?? 0);
+            $lMinY = (float) ($legacyRegion['min_y'] ?? 0);
+            $lMaxX = (float) ($legacyRegion['max_x'] ?? 0);
+            $lMaxY = (float) ($legacyRegion['max_y'] ?? 0);
+            $legacyRegions[] = [
+                'public_id' => (string) ($legacyRegion['public_id'] ?? ''),
+                'name' => (string) ($legacyRegion['name'] ?? ''),
+                'area' => round(max(0.0, $lMaxX - $lMinX) * max(0.0, $lMaxY - $lMinY), 1),
+                'bbox' => [round($lMinX, 1), round($lMinY, 1), round($lMaxX, 1), round($lMaxY, 1)],
+            ];
+        }
+        usort($legacyRegions, static fn(array $a, array $b): int => $b['area'] <=> $a['area']);
+    }
+
     return [
         'ok' => true,
         'total' => count($geometries),
         'by_source' => $bySource,
         'by_creator' => $byCreator,
         'geometries' => array_slice($geometries, 0, $limit),
+        // Nicht-political Altlasten (map_features). Quelle/Urheber: alter Seed-Import, NICHT thomas/valentin.
+        'legacy_region_total' => count($legacyRegions),
+        'legacy_regions' => array_slice($legacyRegions, 0, $limit),
     ];
 }
