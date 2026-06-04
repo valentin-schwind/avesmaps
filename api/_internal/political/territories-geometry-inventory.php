@@ -270,3 +270,23 @@ function avesmapsPoliticalReadGeometryCollision(PDO $pdo, array $query): array
         'legacy_hits' => $legacy,
     ];
 }
+
+/**
+ * Bulk-Deaktivierung ALLER Legacy-Regionen (map_features feature_type='region') in einem Schritt.
+ * Soft-Delete (is_active=0, reversibel). Gibt die Liste der betroffenen Regionen als Sicherung zurueck.
+ * Hinter 'edit'-Capability (POST-Block des Endpoints).
+ */
+function avesmapsPoliticalDeactivateLegacyRegions(PDO $pdo, array $payload, array $user): array
+{
+    $rows = $pdo
+        ->query("SELECT public_id, name FROM map_features WHERE feature_type = 'region' AND is_active = 1")
+        ->fetchAll(PDO::FETCH_ASSOC);
+    $uid = (int) ($user['id'] ?? 0) ?: null;
+    $stmt = $pdo->prepare("UPDATE map_features SET is_active = 0, updated_by = :uid WHERE feature_type = 'region' AND is_active = 1");
+    $stmt->execute(['uid' => $uid]);
+    return [
+        'ok' => true,
+        'deactivated' => $stmt->rowCount(),
+        'backup' => $rows,
+    ];
+}

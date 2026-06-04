@@ -139,6 +139,7 @@ try {
         'undo_audit_change' => avesmapsPoliticalUndoAuditChange($pdo, $payload, $user),
         'ensure_wiki_territory_chain' => avesmapsPoliticalEnsureWikiTerritoryChain($pdo, $payload, $user),
         'restore_legacy_region_geometries' => avesmapsPoliticalRestoreLegacyRegionGeometries($pdo, $payload, $user),
+        'deactivate_legacy_regions' => avesmapsPoliticalDeactivateLegacyRegions($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Herrschaftsgebiet-Aktion ist unbekannt.'),
     };
 
