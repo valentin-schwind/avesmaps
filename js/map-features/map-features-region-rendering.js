@@ -212,7 +212,12 @@ function addRegionFeatureToMap(region, regionEntry) {
 			// Canvas-Overlay, das SVG-Polygon ist nur (ggf. unsichtbare) Füllung und darf
 			// keine Klicks/Vertex-Edits abfangen (sonst landet update_geometry auf einer
 			// Derived-ID -> "Geometrie nicht gefunden"). Klicks gehen an die Quellen.
-			interactive: (IS_EDIT_MODE || regionEntry.source === "political_territory") && !regionEntry.isDerivedGeometry,
+			// View-Modus + politisch: auch abgeleitete Aussengrenzen (Aggregate) interaktiv machen,
+			// damit die Hover-Infobox greift. Edit-Modus unveraendert (derived nicht-interaktiv,
+			// damit Klicks an die Quellgeometrien gehen).
+			interactive: IS_EDIT_MODE
+				? !regionEntry.isDerivedGeometry
+				: regionEntry.source === "political_territory",
 		});
 		polygon._regionEntry = regionEntry;
 		polygon._regionPolygonIndex = index;
@@ -262,5 +267,6 @@ function addRegionFeatureToMap(region, regionEntry) {
 			label._regionLabelPriority = labelPoi ? labelPoi.distance : 0; regionLabels.push(label);
 		}
 		bindRegionCompactTooltip(polygon, regionEntry);
+		bindRegionHoverTooltip(polygon, regionEntry);
 	});
 }

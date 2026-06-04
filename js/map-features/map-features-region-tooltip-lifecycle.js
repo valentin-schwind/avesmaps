@@ -10,20 +10,41 @@ function bindRegionCompactTooltip(polygon, regionEntry) {
 	});
 }
 
-function openRegionCompactTooltip(regionEntry) {
+function openRegionCompactTooltip(regionEntry, options = {}) {
 	closeRegionCompactTooltip();
 	const tooltip = L.tooltip({
 		direction: "top",
 		offset: [0, -18],
 		opacity: 1,
 		className: "region-compact-tooltip",
-		interactive: true,
+		// Hover-Infobox ist nicht-interaktiv (pointer-events: none), damit der Cursor "durch"
+		// den Tooltip auf das Polygon faellt und kein mouseout/mouseover-Flackern entsteht.
+		interactive: options.interactive !== false,
 	})
-		.setLatLng(getRegionTooltipLatLng(regionEntry))
+		.setLatLng(options.latlng || getRegionTooltipLatLng(regionEntry))
 		.setContent(createRegionCompactTooltipMarkup(regionEntry));
 	activeRegionInfoTooltip = tooltip;
+	activeRegionInfoTooltipEntry = regionEntry;
 	tooltip.addTo(map);
 	enrichRegionTooltipWithWikiDetail(regionEntry, tooltip);
+}
+
+// Frontend "Politisch": beim Drueberfahren ueber eine Region die Wiki-Infobox zeigen
+// (anchored am Regions-Mittelpunkt, nicht-interaktiv), beim Verlassen wieder schliessen.
+// Welche Hierarchie-Ebene reagiert, ergibt sich automatisch aus dem Zoom-Band der Daten
+// (bei Zoom 2 ist nur das Herzogtum-Aggregat sichtbar, nicht die Baronie).
+function bindRegionHoverTooltip(polygon, regionEntry) {
+	if (IS_EDIT_MODE || regionEntry.source !== "political_territory") {
+		return;
+	}
+	polygon.on("mouseover", () => {
+		openRegionCompactTooltip(regionEntry, { interactive: false });
+	});
+	polygon.on("mouseout", () => {
+		if (activeRegionInfoTooltipEntry === regionEntry) {
+			closeRegionCompactTooltip();
+		}
+	});
 }
 
 // #5: laedt die reichhaltigen Wiki-Zusatzfelder (Oberhaupt/Sprache/Waehrung/Einwohner/Gruender/
@@ -54,6 +75,7 @@ function closeRegionCompactTooltip() {
 		map.removeLayer(activeRegionInfoTooltip);
 		activeRegionInfoTooltip = null;
 	}
+	activeRegionInfoTooltipEntry = null;
 }
 
 function getRegionTooltipLatLng(regionEntry) {
