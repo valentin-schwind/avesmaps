@@ -58,6 +58,12 @@ try {
             avesmapsJsonResponse(200, $response);
         }
 
+        if ($action === 'geometry_collision') {
+            avesmapsRequireUserWithCapability('review');
+            $response = avesmapsPoliticalReadGeometryCollision($pdo, $_GET);
+            avesmapsJsonResponse(200, $response);
+        }
+
         if ($action === 'geometry_assignment') {
             try {
                 $response = avesmapsPoliticalGetGeometryAssignment($pdo, $_GET);
