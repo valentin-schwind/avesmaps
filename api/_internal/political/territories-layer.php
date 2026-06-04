@@ -569,6 +569,14 @@ function avesmapsPoliticalBuildResolvedLayerFeatures(array $geometryRows, array 
             ? $geometryRow
             : avesmapsPoliticalBuildAggregateLayerRow($territories[$displayTerritoryId], $geometryRow, $territories[$sourceTerritoryId]);
         $feature = avesmapsPoliticalLayerRowToFeature($displayRow, $yearBf, $zoom);
+        // Transparenz wie im Editmode (vgl. avesmapsPoliticalReadEditorLayer ~Zeile 305): die
+        // Fuellung uebernimmt die Deckkraft des ANGEZEIGTEN (Aggregat-)Territoriums statt der
+        // u. U. abweichenden fillOpacity der Quellgeometrie-Style. So sind die Aggregat-Flaechen
+        // im Frontend gleich deckend wie im Editor und passen zur Deckkraft der Derived-Huelle.
+        $displayTerritoryOpacity = $territories[$displayTerritoryId]['opacity'] ?? null;
+        if ($displayTerritoryOpacity !== null && $displayTerritoryOpacity !== '') {
+            $feature['properties']['fillOpacity'] = (float) $displayTerritoryOpacity;
+        }
         $featureKey = (string) $displayRow['territory_public_id'];
         if (!isset($featuresByTerritory[$featureKey])) {
             $featuresByTerritory[$featureKey] = $feature;

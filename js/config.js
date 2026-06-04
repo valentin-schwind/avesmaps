@@ -111,6 +111,10 @@ const DEFAULT_LOCATION_REPORT_ENDPOINT_URL = getDefaultLocationReportEndpointUrl
 const LOCATION_REPORT_FORM_ENDPOINT_URL = window.AVESMAPS_LOCATION_REPORT_ENDPOINT || DEFAULT_LOCATION_REPORT_ENDPOINT_URL;
 const MAP_FEATURES_API_URL = window.AVESMAPS_MAP_FEATURES_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/map-features.php" : "");
 const POLITICAL_TERRITORIES_API_URL = window.AVESMAPS_POLITICAL_TERRITORIES_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/political-territories.php" : "");
+// Politische Zeitleiste im FRONTEND vorerst deaktiviert (zu wenig Zeitdaten fuer eine gute
+// Darstellung). Im Editor bleibt sie immer aktiv. Auf true setzen, um sie spaeter im Frontend
+// wieder freizuschalten (Jahr bleibt sonst auf dem Standard 1049).
+const POLITICAL_TIMELINE_FRONTEND_ENABLED = window.AVESMAPS_POLITICAL_TIMELINE_FRONTEND_ENABLED === true;
 const MAP_SEARCH_API_URL = window.AVESMAPS_MAP_SEARCH_ENDPOINT || (SQL_MAP_HOSTS.has(window.location.hostname) ? "api/app/map-search.php" : "");
 const INITIAL_SEARCH_PARAMS = new URLSearchParams(window.location.search);
 const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";

@@ -1,3 +1,9 @@
+// Editor: Zeitleiste immer aktiv. Frontend: nur wenn POLITICAL_TIMELINE_FRONTEND_ENABLED gesetzt
+// ist (vorerst aus -> Jahr bleibt auf Standard 1049).
+function isPoliticalTimelineEnabled() {
+	return IS_EDIT_MODE || (typeof POLITICAL_TIMELINE_FRONTEND_ENABLED !== "undefined" && POLITICAL_TIMELINE_FRONTEND_ENABLED === true);
+}
+
 function syncPoliticalTimelineVisibility() {
 	const timelineElement = document.getElementById("political-timeline");
 	const isPoliticalMode = getSelectedMapLayerMode() === "political";
@@ -6,9 +12,10 @@ function syncPoliticalTimelineVisibility() {
 		return;
 	}
 
-	timelineElement.hidden = !isPoliticalMode;
+	const showTimeline = isPoliticalMode && isPoliticalTimelineEnabled();
+	timelineElement.hidden = !showTimeline;
 
-	if (!isPoliticalMode) {
+	if (!showTimeline) {
 		clearPoliticalTerritoryTimelineSelection();
 		return;
 	}
@@ -45,6 +52,9 @@ function setPoliticalTimelineYear(value) {
 }
 
 function showPoliticalTerritoryTimelineSelection(regionEntry) {
+	if (!isPoliticalTimelineEnabled()) {
+		return;
+	}
 	const panelElement = document.getElementById("political-territory-range");
 	const nameElement = document.getElementById("political-territory-range-name");
 	const yearsElement = document.getElementById("political-territory-range-years");
