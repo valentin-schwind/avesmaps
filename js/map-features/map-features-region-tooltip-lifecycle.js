@@ -26,7 +26,36 @@ function openRegionCompactTooltip(regionEntry, options = {}) {
 	activeRegionInfoTooltip = tooltip;
 	activeRegionInfoTooltipEntry = regionEntry;
 	tooltip.addTo(map);
+	applyRegionTooltipVerticalFlip(tooltip);
 	enrichRegionTooltipWithWikiDetail(regionEntry, tooltip);
+}
+
+// Klappt die Hover-Infobox nach UNTEN, wenn ueber dem Ankerpunkt im Kartenfenster nicht genug
+// Platz ist (sie sonst oben aus dem Fenster stossen wuerde). Misst die tatsaechliche Tooltip-
+// Hoehe und vergleicht sie mit dem Abstand des Ankers zur oberen Kartenkante. Wird nach dem
+// ersten Render UND nach dem asynchronen Wiki-Detail-Nachladen (Hoehe aendert sich) aufgerufen.
+function applyRegionTooltipVerticalFlip(tooltip) {
+	if (!tooltip || typeof tooltip.getElement !== "function") {
+		return;
+	}
+	const element = tooltip.getElement();
+	const latlng = typeof tooltip.getLatLng === "function" ? tooltip.getLatLng() : null;
+	if (!element || !latlng) {
+		return;
+	}
+
+	const anchorPoint = map.latLngToContainerPoint(latlng);
+	const tooltipHeight = element.offsetHeight || 0;
+	const breathingRoom = 24;
+	const flipDown = anchorPoint.y < tooltipHeight + breathingRoom;
+	const desiredDirection = flipDown ? "bottom" : "top";
+	if (tooltip.options.direction === desiredDirection) {
+		return;
+	}
+
+	tooltip.options.direction = desiredDirection;
+	tooltip.options.offset = flipDown ? [0, 18] : [0, -18];
+	tooltip.update();
 }
 
 // Frontend "Politisch": beim Drueberfahren ueber eine Region die Wiki-Infobox zeigen
@@ -76,6 +105,7 @@ function enrichRegionTooltipWithWikiDetail(regionEntry, tooltip) {
 			}
 			regionEntry.detail = data;
 			tooltip.setContent(createRegionCompactTooltipMarkup(regionEntry));
+			applyRegionTooltipVerticalFlip(tooltip);
 		})
 		.catch(() => {});
 }
