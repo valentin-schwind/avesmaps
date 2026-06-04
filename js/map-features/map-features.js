@@ -17,7 +17,9 @@ $(".location-toggle").on("mouseenter focus", function () {
 $(".location-toggle").on("mouseleave blur", () => {
 	previewVisibleLocationTypesThrough(null);
 });
-$("#mapLayerModeSelect option[value=\"political\"]").prop("disabled", !IS_EDIT_MODE);
+// "Politisch" ist im Frontend freigeschaltet, sobald der politische Daten-Endpoint verfuegbar ist
+// (nicht mehr auf den Edit-Modus beschraenkt).
+$("#mapLayerModeSelect option[value=\"political\"]").prop("disabled", !POLITICAL_TERRITORIES_API_URL);
 initializeTransportIconSelects();
 initializeVersionedAssetIcons();
 syncTransportControls();
