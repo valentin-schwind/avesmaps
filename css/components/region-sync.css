@@ -235,3 +235,17 @@
 	font-size: 13px;
 	color: #7a5a3a;
 }
+
+/* Inline-Picker im Label-Editor (statt separatem Overlay). */
+.label-wiki-picker {
+	margin-top: 6px;
+	padding-top: 6px;
+	border-top: 1px dashed #dccab8;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.label-wiki-picker .label-wiki-picker-list {
+	max-height: 200px;
+}

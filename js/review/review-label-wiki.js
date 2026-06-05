@@ -57,6 +57,7 @@ function labelWikiImageIsFree(wiki) {
 function setLabelWikiRegion(wiki) {
 	currentLabelWikiRegion = wiki && wiki.wiki_key ? wiki : null;
 	renderLabelWikiReference();
+	setLabelWikiPickerOpen(false);
 }
 
 function resetLabelWikiState() {
@@ -146,9 +147,9 @@ function labelWikiEscapeAttr(value) {
 }
 
 function setLabelWikiPickerOpen(isOpen) {
-	const overlay = labelWikiElement("label-wiki-picker-overlay");
-	if (overlay) {
-		overlay.hidden = !isOpen;
+	const picker = labelWikiElement("label-wiki-picker");
+	if (picker) {
+		picker.hidden = !isOpen;
 	}
 	if (isOpen) {
 		const filter = labelWikiElement("label-wiki-picker-filter");
@@ -262,7 +263,12 @@ document.addEventListener("click", (event) => {
 		return;
 	}
 	if (event.target.closest("#label-wiki-assign")) {
-		void openLabelWikiPicker();
+		const picker = labelWikiElement("label-wiki-picker");
+		if (picker && !picker.hidden) {
+			setLabelWikiPickerOpen(false);
+		} else {
+			void openLabelWikiPicker();
+		}
 		return;
 	}
 	if (event.target.closest("#label-wiki-sync")) {
@@ -272,9 +278,6 @@ document.addEventListener("click", (event) => {
 	if (event.target.closest("#label-wiki-remove")) {
 		setLabelWikiRegion(null);
 		return;
-	}
-	if (event.target.closest("#label-wiki-picker-close") || event.target.id === "label-wiki-picker-overlay") {
-		setLabelWikiPickerOpen(false);
 	}
 });
 
