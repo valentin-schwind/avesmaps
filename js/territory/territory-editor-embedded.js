@@ -2376,24 +2376,8 @@
 
 				if (!search) return true;
 
-				const haystack = [
-					row.name,
-					row.wiki_key,
-					(row.overrides && row.overrides.name) || "",
-					row.type,
-					row.continent,
-					row.affiliation_raw,
-					row.affiliation_root,
-					row.affiliation_path.join(" "),
-					row.status,
-					row.capital_name,
-					row.seat_name,
-					row.ruler,
-					row.geographic,
-					row.political
-				].join(" ").toLowerCase();
-
-				return haystack.includes(search);
+				const title = normalizeText(row.name || (row.overrides && row.overrides.name) || row.wiki_key || "").toLowerCase();
+				return title.includes(search);
 			});
 		}
 

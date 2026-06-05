@@ -490,24 +490,8 @@
 
 	function doesRowMatchSearch(row, search) {
 		if (!search) return true;
-		const haystack = [
-			row.name,
-			row.wiki_key,
-			(row.overrides && row.overrides.name) || "",
-			row.type,
-			row.continent,
-			row.affiliation_raw,
-			row.affiliation_root,
-			Array.isArray(row.affiliation_path) ? row.affiliation_path.join(" ") : "",
-			row.status,
-			row.capital_name,
-			row.seat_name,
-			row.ruler,
-			row.geographic,
-			row.political,
-			buildTerritoryPeriodLabel(row),
-		].join(" ").toLowerCase();
-		return haystack.includes(search);
+		const title = normalizeText(row.name || (row.overrides && row.overrides.name) || row.wiki_key || "").toLowerCase();
+		return title.includes(search);
 	}
 
 	function filterRows(rows, filters = {}) {
