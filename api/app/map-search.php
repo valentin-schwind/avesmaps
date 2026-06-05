@@ -41,7 +41,8 @@ try {
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     $rows = avesmapsFetchMapSearchRows($pdo);
-    $results = avesmapsBuildMapSearchResults($rows, $query, $limit);
+    $politicalRows = avesmapsFetchPoliticalTerritorySearchRows($pdo);
+    $results = avesmapsBuildMapSearchResults($rows, $politicalRows, $query, $limit);
 
     avesmapsJsonResponse(200, [
         'ok' => true,
@@ -105,7 +106,41 @@ function avesmapsFetchMapSearchRows(PDO $pdo): array {
     return $statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [];
 }
 
-function avesmapsBuildMapSearchResults(array $rows, string $query, int $limit): array {
+// Politische Herrschaftsgebiete fuer die Suche: Name + public_id (Territorium) + Bounding-Box.
+// Die bbox ist die Ausdehnung des Gebiets PLUS aller Nachfahren-Quellgeometrien (rekursiv) -> auch
+// reine Aggregat-Knoten (ohne eigene Geometrie) bekommen die korrekte Huelle. Geometrielose
+// Gebiete (auch ohne Nachfahren-Geometrie) fallen raus (nichts zum Anspringen). Felder so geformt,
+// dass avesmapsBuildSearchResult sie wie eine Region behandelt.
+function avesmapsFetchPoliticalTerritorySearchRows(PDO $pdo): array {
+    try {
+        $statement = $pdo->query(
+            'WITH RECURSIVE subtree AS (
+                SELECT id AS root_id, id AS node_id FROM political_territory WHERE is_active = 1
+                UNION ALL
+                SELECT st.root_id, c.id
+                FROM subtree st
+                JOIN political_territory c ON c.parent_id = st.node_id AND c.is_active = 1
+            )
+            SELECT t.public_id,
+                   t.name,
+                   MIN(g.min_x) AS min_x,
+                   MIN(g.min_y) AS min_y,
+                   MAX(g.max_x) AS max_x,
+                   MAX(g.max_y) AS max_y
+            FROM political_territory t
+            JOIN subtree st ON st.root_id = t.id
+            JOIN political_territory_geometry g ON g.territory_id = st.node_id AND g.is_active = 1
+            WHERE t.is_active = 1 AND t.name IS NOT NULL AND t.name <> \'\'
+            GROUP BY t.id, t.public_id, t.name'
+        );
+    } catch (Throwable $exception) {
+        return [];
+    }
+
+    return $statement !== false ? $statement->fetchAll(PDO::FETCH_ASSOC) : [];
+}
+
+function avesmapsBuildMapSearchResults(array $rows, array $politicalRows, string $query, int $limit): array {
     $normalizedQuery = avesmapsNormalizeSearchText($query);
     if ($normalizedQuery === '') {
         return [];
@@ -142,6 +177,27 @@ function avesmapsBuildMapSearchResults(array $rows, string $query, int $limit): 
             continue;
         }
 
+        $entry['score'] = $score;
+        $results[] = $entry;
+    }
+
+    // Politische Herrschaftsgebiete als Region-Treffer (Label "Herrschaftsgebiet").
+    foreach ($politicalRows as $politicalRow) {
+        $name = (string) ($politicalRow['name'] ?? '');
+        if ($name === '') {
+            continue;
+        }
+        $entry = avesmapsBuildSearchResult($politicalRow, [
+            'kind' => 'region',
+            'name' => $name,
+            'type_label' => 'Herrschaftsgebiet',
+            'feature_subtype' => 'political_territory',
+            'search_texts' => [$name],
+        ]);
+        $score = avesmapsCalculateSearchScore($entry, $normalizedQuery);
+        if ($score === null) {
+            continue;
+        }
         $entry['score'] = $score;
         $results[] = $entry;
     }

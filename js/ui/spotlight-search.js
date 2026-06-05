@@ -258,6 +258,28 @@ async function fetchBackendSpotlightResults(query) {
 	return Array.isArray(payload?.results) ? payload.results : [];
 }
 
+// Baut einen Such-Eintrag fuer ein politisches Gebiet, das aktuell NICHT als Polygon gerendert ist
+// (nur aus dem Backend-Treffer: Name + public_id + Bounding-Box). Auswahl -> focusSpotlightRegion.
+function buildSyntheticSpotlightRegionEntry(result, publicIds) {
+	let bounds = null;
+	const minX = Number(result.min_x), minY = Number(result.min_y), maxX = Number(result.max_x), maxY = Number(result.max_y);
+	if ([minX, minY, maxX, maxY].every(Number.isFinite) && (minX !== maxX || minY !== maxY)) {
+		bounds = L.latLngBounds([[minY, minX], [maxY, maxX]]);
+	}
+	return {
+		id: `region:${publicIds[0]}`,
+		kind: "region",
+		name: String(result.name || ""),
+		typeLabel: String(result.type_label || "Herrschaftsgebiet"),
+		publicIds,
+		regionEntry: null,
+		polygons: [],
+		bounds,
+		aliases: [],
+		synthetic: true,
+	};
+}
+
 function resolveBackendSpotlightEntries(backendResults, localEntries) {
 	const { byPublicId, byPathGroup } = getSpotlightSearchLookup();
 	const resolvedEntries = [];
@@ -279,6 +301,13 @@ function resolveBackendSpotlightEntries(backendResults, localEntries) {
 
 		if (!entry && kind === "path") {
 			entry = byPathGroup.get(getSpotlightPathGroupKey(result.name, result.feature_subtype || result.subtype));
+		}
+
+		// Politisches Herrschaftsgebiet ohne lokal gerenderten Eintrag (Ebene nicht geladen /
+		// ausserhalb des aktuellen Zoom-Bands): synthetischer Eintrag, der beim Auswaehlen auf die
+		// politische Ebene schaltet, hinfliegt und die Infobox per public_id oeffnet.
+		if (!entry && kind === "region" && publicIds.length) {
+			entry = buildSyntheticSpotlightRegionEntry(result, publicIds);
 		}
 
 		if (!entry || seenEntryIds.has(entry.id)) {
@@ -716,6 +745,39 @@ function focusSpotlightRegion(entry) {
 	if (entry.bounds?.isValid?.()) {
 		focusSpotlightBounds(entry.bounds, 4);
 	}
+	// Highlight: die Infobox des Gebiets oeffnen. Per public_id, da die politische Ebene nach dem
+	// Ebenen-Wechsel/Flug asynchron neu laedt -> wir pollen, bis das Polygon gerendert ist.
+	const publicId = (entry.publicIds && entry.publicIds[0]) || entry.regionEntry?.publicId || entry.regionEntry?.territoryPublicId || "";
+	if (publicId) {
+		openSpotlightRegionInfobox(publicId);
+	}
+}
+
+// Oeffnet die Region-Infobox sobald ein Polygon mit passender public_id/territory_public_id
+// gerendert ist (pollt ~bis 4.5s, deckt den async Layer-Reload nach dem Ebenen-Wechsel ab).
+function openSpotlightRegionInfobox(publicId) {
+	let attempts = 0;
+	const tryOpen = () => {
+		const polys = Array.isArray(regionPolygons) ? regionPolygons : [];
+		const match = polys.find((polygon) => {
+			const re = polygon && polygon._regionEntry;
+			return re && (re.publicId === publicId || re.territoryPublicId === publicId);
+		});
+		if (match && match._regionEntry && typeof openRegionCompactTooltip === "function") {
+			openRegionCompactTooltip(match._regionEntry);
+			return true;
+		}
+		return false;
+	};
+	if (tryOpen()) {
+		return;
+	}
+	const timer = window.setInterval(() => {
+		attempts += 1;
+		if (tryOpen() || attempts > 30) {
+			window.clearInterval(timer);
+		}
+	}, 150);
 }
 
 function focusSpotlightPath(entry) {
