@@ -3061,7 +3061,9 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'wiki_key' => (string) $row['wiki_key'],
             'name' => $row['name'] !== null ? (string) $row['name'] : (string) $row['wiki_key'],
             'type' => (string) ($row['type'] ?? ''),
-            'continent' => (string) ($row['continent'] ?? ''),
+            // Eigene Knoten haben keinen Staging-Kontinent -> Default Aventurien, sonst filtert der
+            // Editor-Kontinentfilter (Default Aventurien) sie raus. Override gewinnt im Frontend.
+            'continent' => (avesmapsWikiSyncMonitorIsCustomNodeKey((string) $row['wiki_key']) && trim((string) ($row['continent'] ?? '')) === '') ? 'Aventurien' : (string) ($row['continent'] ?? ''),
             'affiliation_raw' => (string) ($row['affiliation_raw'] ?? ''),
             'wiki_url' => (string) ($row['wiki_url'] ?? ''),
             'founded_text' => (string) ($row['founded_text'] ?? ''),
@@ -3293,6 +3295,7 @@ function avesmapsWikiSyncMonitorWikiRows(PDO $pdo): array {
         if ($continent !== '' && stripos($continent, 'aventurien') === false) {
             continue;
         }
+        if ($continent === '') { $continent = 'Aventurien'; }
         $chain = [];
         $seen = [];
         $cur = $parent[$wikiKey] ?? null;
