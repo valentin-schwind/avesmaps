@@ -875,6 +875,86 @@ function avesmapsReadLabelPriority(mixed $value): int {
     return (int) $priority;
 }
 
+// Bereinigt den optionalen Wiki-Landschafts-Datensatz, der per Picker an ein Label geheftet
+// wird (Felder werden ins Label kopiert -> self-contained; wiki_key erlaubt spaeteres Re-Sync).
+// Gibt null zurueck, wenn keine gueltige Zuordnung vorliegt (= Zuordnung entfernen).
+function avesmapsReadLabelWikiRegion(mixed $value): ?array {
+    if (!is_array($value)) {
+        return null;
+    }
+    $wikiKey = avesmapsNormalizeSingleLine((string) ($value['wiki_key'] ?? ''), 255);
+    if ($wikiKey === '') {
+        return null;
+    }
+
+    $line = static fn(mixed $v, int $len): string => avesmapsNormalizeSingleLine((string) ($v ?? ''), $len);
+    $text = static fn(mixed $v, int $len): string => mb_substr(trim((string) ($v ?? '')), 0, $len, 'UTF-8');
+    $url = static function (mixed $v): string {
+        $raw = trim((string) ($v ?? ''));
+        if ($raw === '') {
+            return '';
+        }
+        try {
+            return avesmapsNormalizeOptionalUrl($raw, 500, 'Der Wiki-Link');
+        } catch (Throwable) {
+            return '';
+        }
+    };
+
+    $neighbors = [];
+    $rawNeighbors = $value['neighbors'] ?? $value['neighbors_json'] ?? null;
+    if (is_array($rawNeighbors)) {
+        foreach ($rawNeighbors as $direction => $names) {
+            $dir = $line($direction, 4);
+            $list = [];
+            foreach ((is_array($names) ? $names : [$names]) as $n) {
+                $n = $text($n, 120);
+                if ($n !== '') {
+                    $list[] = $n;
+                }
+            }
+            if ($dir !== '' && $list !== []) {
+                $neighbors[$dir] = array_slice($list, 0, 12);
+            }
+        }
+    }
+
+    $synonyms = [];
+    if (is_array($value['synonyms'] ?? $value['synonyms_json'] ?? null)) {
+        foreach (($value['synonyms'] ?? $value['synonyms_json']) as $s) {
+            $s = $text($s, 160);
+            if ($s !== '') {
+                $synonyms[] = $s;
+            }
+        }
+        $synonyms = array_slice(array_values(array_unique($synonyms)), 0, 40);
+    }
+
+    return [
+        'wiki_key' => $wikiKey,
+        'name' => $line($value['name'] ?? '', 255),
+        'art' => $line($value['art'] ?? '', 120),
+        'continent' => $line($value['continent'] ?? '', 120),
+        'region_parent' => $line($value['region_parent'] ?? '', 255),
+        'affiliation_staat' => $line($value['affiliation_staat'] ?? '', 255),
+        'einwohner' => $line($value['einwohner'] ?? '', 255),
+        'sprache' => $line($value['sprache'] ?? '', 255),
+        'vegetation' => $text($value['vegetation'] ?? '', 500),
+        'verkehrswege' => $text($value['verkehrswege'] ?? '', 500),
+        'description' => $text($value['description'] ?? '', 2000),
+        'image_url' => $url($value['image_url'] ?? ''),
+        'image_license' => $line($value['image_license'] ?? '', 120),
+        'image_author' => $line($value['image_author'] ?? '', 255),
+        'image_attribution' => $text($value['image_attribution'] ?? '', 500),
+        'image_license_status' => $line($value['image_license_status'] ?? '', 40),
+        'image_license_url' => $url($value['image_license_url'] ?? ''),
+        'wiki_url' => $url($value['wiki_url'] ?? ''),
+        'neighbors' => $neighbors,
+        'synonyms' => $synonyms,
+        'synced_at' => $line($value['synced_at'] ?? '', 40),
+    ];
+}
+
 function avesmapsReadHexColor(mixed $value): string {
     $color = avesmapsNormalizeSingleLine((string) ($value ?: '#888888'), 9);
     if (!preg_match('/^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$/', $color)) {
@@ -1671,6 +1751,13 @@ function avesmapsCreateLabelFeature(PDO $pdo, array $payload, array $user): arra
         'is_nodix' => avesmapsReadBoolean($payload['is_nodix'] ?? false),
     ];
 
+    if (array_key_exists('wiki_region', $payload)) {
+        $wikiRegion = avesmapsReadLabelWikiRegion($payload['wiki_region']);
+        if ($wikiRegion !== null) {
+            $properties['wiki_region'] = $wikiRegion;
+        }
+    }
+
     $pdo->beginTransaction();
     try {
         $revision = avesmapsNextMapRevision($pdo);
@@ -1752,6 +1839,14 @@ function avesmapsUpdateLabelFeature(PDO $pdo, array $payload, array $user): arra
         $properties['max_zoom'] = $maxZoom;
         $properties['priority'] = $priority;
         $properties['is_nodix'] = avesmapsReadBoolean($payload['is_nodix'] ?? false);
+        if (array_key_exists('wiki_region', $payload)) {
+            $wikiRegion = avesmapsReadLabelWikiRegion($payload['wiki_region']);
+            if ($wikiRegion !== null) {
+                $properties['wiki_region'] = $wikiRegion;
+            } else {
+                unset($properties['wiki_region']);
+            }
+        }
         $geometry = avesmapsDecodeJsonColumnForEdit($feature['geometry_json'] ?? null);
         $coordinates = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [0, 0];
         $revision = avesmapsNextMapRevision($pdo);

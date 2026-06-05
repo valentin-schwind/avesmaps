@@ -73,6 +73,7 @@ try {
             'continent' => array_key_exists('continent', $_GET) ? (string) $_GET['continent'] : 'Aventurien',
             'limit' => (int) ($_GET['limit'] ?? 500),
         ]),
+        'search' => avesmapsWikiRegionSearch($pdo, (string) ($_GET['q'] ?? ''), (int) ($_GET['limit'] ?? 30)),
         default => null,
     };
 

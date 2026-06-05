@@ -640,6 +640,46 @@ function avesmapsWikiRegionClear(PDO $pdo, string $target, string $runId = ''): 
     return ['ok' => true, 'cleared' => $cleared];
 }
 
+// Picker-Suche: liefert Staging-Regionen fuer den Landschafts-Picker im Label-Editor.
+// Leerer query => alphabetische Liste. Sonst Name-/Match-Key-Treffer, exakte zuerst.
+function avesmapsWikiRegionSearch(PDO $pdo, string $query, int $limit = 30): array {
+    avesmapsWikiRegionEnsureTables($pdo);
+    $limit = max(1, min(100, $limit));
+    $query = trim($query);
+    $columns = 'wiki_key, name, art, continent, region_parent, affiliation_staat, einwohner, sprache, '
+        . 'vegetation, verkehrswege, description, neighbors_json, synonyms_json, image_url, image_license, '
+        . 'image_author, image_attribution, image_license_status, image_license_url, wiki_url, synced_at';
+
+    if ($query === '') {
+        $rows = $pdo->query('SELECT ' . $columns . ' FROM ' . AVESMAPS_WIKI_REGION_STAGING_TABLE . ' ORDER BY name ASC LIMIT ' . $limit)->fetchAll(PDO::FETCH_ASSOC);
+    } else {
+        $matchKey = avesmapsWikiSyncCreateMatchKey($query);
+        $statement = $pdo->prepare(
+            'SELECT ' . $columns . ' FROM ' . AVESMAPS_WIKI_REGION_STAGING_TABLE . '
+            WHERE name LIKE :like OR match_key LIKE :keylike
+            ORDER BY (match_key = :exactkey) DESC, CHAR_LENGTH(name) ASC, name ASC
+            LIMIT ' . $limit
+        );
+        $statement->execute([
+            'like' => '%' . $query . '%',
+            'keylike' => '%' . $matchKey . '%',
+            'exactkey' => $matchKey,
+        ]);
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    foreach ($rows as &$row) {
+        foreach (['neighbors_json', 'synonyms_json'] as $col) {
+            if (array_key_exists($col, $row)) {
+                $row[$col] = avesmapsWikiSyncDecodeJson($row[$col]);
+            }
+        }
+    }
+    unset($row);
+
+    return ['ok' => true, 'count' => count($rows), 'rows' => $rows];
+}
+
 // ---------------------------------------------------------------------------
 // Matching (Schritt 3): Wiki-Regionen (Staging) <-> Karten-Regionen.
 // Karten-„Regionen" = Label-Features (feature_type='label'; Subtypen region/gebirge/
