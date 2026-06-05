@@ -1871,6 +1871,218 @@ function avesmapsWikiSyncMonitorSetExcluded(PDO $pdo, string $wikiKey, bool $exc
     return ['ok' => true, 'wiki_key' => $wikiKey, 'excluded' => $excluded];
 }
 
+// ---- Eigene Knoten (custom nodes ohne Wiki-Key von Wiki-Aventurica) ----
+// Schluessel-Konvention: 'eigener-knoten:knotenNNN'. Diese Knoten leben NUR im Modell
+// (wiki_territory_model), haben keinen Staging-/Wiki-Datensatz und werden von rebuild_model
+// (iteriert nur Staging) nie beruehrt -> ueberleben jede Synchronisierung unveraendert.
+const AVESMAPS_WIKI_SYNC_MONITOR_CUSTOM_PREFIX = 'eigener-knoten:';
+
+function avesmapsWikiSyncMonitorIsCustomNodeKey(string $wikiKey): bool {
+    return strncmp($wikiKey, AVESMAPS_WIKI_SYNC_MONITOR_CUSTOM_PREFIX, strlen(AVESMAPS_WIKI_SYNC_MONITOR_CUSTOM_PREFIX)) === 0;
+}
+
+// Legt einen eigenen Knoten an: noch nicht platziert (excluded=1, erscheint links unter "Eigene",
+// nicht im Baum), Name als Override, parent_locked=1 als zusaetzlicher Schutz. Nur Sandbox-Tabelle.
+function avesmapsWikiSyncMonitorCreateCustomNode(PDO $pdo, string $name): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $name = trim($name);
+    if ($name === '') {
+        throw new RuntimeException('Bitte einen Namen fuer den eigenen Knoten angeben.');
+    }
+
+    // Naechste freie Nummer = groesste vorhandene + 1 (kollisionsfrei auch nach Loeschungen).
+    $existing = $pdo->query(
+        "SELECT wiki_key FROM " . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE .
+        " WHERE wiki_key LIKE 'eigener-knoten:%'"
+    )->fetchAll(PDO::FETCH_COLUMN);
+    $maxNum = 0;
+    foreach ($existing as $key) {
+        if (preg_match('/(\d+)\s*$/', (string) $key, $m)) {
+            $maxNum = max($maxNum, (int) $m[1]);
+        }
+    }
+    $wikiKey = AVESMAPS_WIKI_SYNC_MONITOR_CUSTOM_PREFIX . 'knoten' . str_pad((string) ($maxNum + 1), 3, '0', STR_PAD_LEFT);
+    $overrides = json_encode(['name' => $name], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    $statement = $pdo->prepare(
+        'INSERT INTO ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . '
+            (wiki_key, parent_wiki_key, parent_locked, excluded, source_origin, metadata_overrides_json, created_at, updated_at)
+        VALUES (:wiki_key, NULL, 1, 1, :origin, :overrides, CURRENT_TIMESTAMP(3), CURRENT_TIMESTAMP(3))'
+    );
+    $statement->execute(['wiki_key' => $wikiKey, 'origin' => 'custom', 'overrides' => $overrides]);
+
+    return ['ok' => true, 'wiki_key' => $wikiKey, 'name' => $name];
+}
+
+// Loescht einen eigenen Knoten - nur wenn er NICHT im Hierarchiemodell platziert ist (excluded=1),
+// keine Kinder hat und noch nicht live uebernommen wurde. Nur Sandbox-Tabelle.
+function avesmapsWikiSyncMonitorDeleteCustomNode(PDO $pdo, string $wikiKey): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $wikiKey = trim($wikiKey);
+    if ($wikiKey === '' || !avesmapsWikiSyncMonitorIsCustomNodeKey($wikiKey)) {
+        throw new RuntimeException('Nur eigene Knoten (eigener-knoten:...) koennen geloescht werden.');
+    }
+
+    $row = $pdo->prepare('SELECT excluded FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' WHERE wiki_key = :k');
+    $row->execute(['k' => $wikiKey]);
+    $node = $row->fetch(PDO::FETCH_ASSOC);
+    if (!$node) {
+        return ['ok' => false, 'error' => 'Eigener Knoten nicht gefunden: ' . $wikiKey];
+    }
+    if ((int) ($node['excluded'] ?? 0) !== 1) {
+        return ['ok' => false, 'error' => 'Dieser Knoten ist im Hierarchiemodell platziert. Erst aus dem Modell entfernen (in die "Aussortiert"-Zone ziehen), dann loeschen.'];
+    }
+
+    $kids = $pdo->prepare('SELECT COUNT(*) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' WHERE parent_wiki_key = :k');
+    $kids->execute(['k' => $wikiKey]);
+    if ((int) $kids->fetchColumn() > 0) {
+        return ['ok' => false, 'error' => 'Dieser Knoten hat noch Unterknoten. Erst die Kinder umhaengen.'];
+    }
+
+    $live = $pdo->prepare('SELECT COUNT(*) FROM political_territory WHERE wiki_key = :k AND is_active = 1');
+    $live->execute(['k' => $wikiKey]);
+    if ((int) $live->fetchColumn() > 0) {
+        return ['ok' => false, 'error' => 'Dieser Knoten wurde schon ins Live-Modell uebernommen. Dort zuerst in den Papierkorb verschieben.'];
+    }
+
+    $del = $pdo->prepare('DELETE FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . ' WHERE wiki_key = :k');
+    $del->execute(['k' => $wikiKey]);
+
+    return ['ok' => true, 'deleted' => true, 'wiki_key' => $wikiKey];
+}
+
+// Uebernimmt platzierte eigene Knoten (excluded=0) additiv ins Live-Modell: legt fehlende
+// political_territory-Zeilen an (wiki_id NULL, wiki_key=eigener-knoten:..., Felder aus Overrides)
+// und setzt parent_id aus dem Modell (custom->custom funktioniert durch zwei Passes). Gegated:
+// schreibt nur bei $dryRun=false. Nicht-platzierte eigene Knoten werden NICHT uebernommen.
+function avesmapsWikiSyncMonitorApplyCustomNodes(PDO $pdo, bool $dryRun): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+
+    $rows = $pdo->query(
+        "SELECT wiki_key, parent_wiki_key, metadata_overrides_json
+         FROM " . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . "
+         WHERE wiki_key LIKE 'eigener-knoten:%' AND excluded = 0
+         ORDER BY wiki_key ASC"
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    $existingKeys = [];
+    if ($rows) {
+        $stmt = $pdo->query("SELECT wiki_key FROM political_territory WHERE wiki_key LIKE 'eigener-knoten:%' AND is_active = 1");
+        foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $k) {
+            $existingKeys[(string) $k] = true;
+        }
+    }
+
+    $toCreate = [];
+    $alreadyExists = [];
+    $missingName = [];
+    foreach ($rows as $r) {
+        $key = (string) $r['wiki_key'];
+        $ov = json_decode((string) ($r['metadata_overrides_json'] ?? ''), true);
+        $ov = is_array($ov) ? $ov : [];
+        $name = trim((string) ($ov['name'] ?? ''));
+        if (isset($existingKeys[$key])) {
+            $alreadyExists[] = ['wiki_key' => $key, 'name' => $name];
+            continue;
+        }
+        if ($name === '') {
+            $missingName[] = $key;
+            continue;
+        }
+        $toCreate[] = ['wiki_key' => $key, 'name' => $name, 'parent_wiki_key' => $r['parent_wiki_key'], 'ov' => $ov];
+    }
+
+    $result = [
+        'ok' => true,
+        'dry_run' => $dryRun,
+        'placed_custom_count' => count($rows),
+        'to_create' => array_map(static fn($x) => ['wiki_key' => $x['wiki_key'], 'name' => $x['name'], 'parent_wiki_key' => $x['parent_wiki_key']], $toCreate),
+        'already_exists' => $alreadyExists,
+        'missing_name' => $missingName,
+        'created' => 0,
+        'linked' => 0,
+        'unresolved_parents' => [],
+    ];
+
+    if ($dryRun) {
+        return $result;
+    }
+
+    $pdo->beginTransaction();
+    try {
+        foreach ($toCreate as $node) {
+            $ov = $node['ov'];
+            $name = $node['name'];
+            $type = trim((string) ($ov['type'] ?? '')) !== '' ? trim((string) $ov['type']) : 'Herrschaftsgebiet';
+            $continent = trim((string) ($ov['continent'] ?? ''));
+            if ($continent === '') { $continent = AVESMAPS_POLITICAL_DEFAULT_CONTINENT; }
+            $status = trim((string) ($ov['status'] ?? ''));
+            $coat = trim((string) ($ov['coat_of_arms_url'] ?? ''));
+            $foundedRaw = trim((string) ($ov['founded_start_bf'] ?? ''));
+            $dissolvedRaw = trim((string) ($ov['dissolved_end_bf'] ?? ''));
+            $validFrom = ($foundedRaw === '' || !preg_match('/^-?\d{1,5}$/', $foundedRaw)) ? null : (int) $foundedRaw;
+            $validTo = ($dissolvedRaw === '' || $dissolvedRaw === '9999' || !preg_match('/^-?\d{1,5}$/', $dissolvedRaw)) ? null : (int) $dissolvedRaw;
+            $zoom = avesmapsPoliticalDefaultZoomRange($type);
+
+            $insert = $pdo->prepare(
+                'INSERT INTO political_territory (
+                    public_id, wiki_id, wiki_key, slug, name, short_name, type, continent, status, color,
+                    opacity, coat_of_arms_url, wiki_url, valid_from_bf, valid_to_bf, valid_label,
+                    min_zoom, max_zoom, parent_id, is_active, editor_notes, sort_order
+                ) VALUES (
+                    :public_id, NULL, :wiki_key, :slug, :name, NULL, :type, :continent, :status, :color,
+                    :opacity, :coat, NULL, :valid_from, :valid_to, NULL,
+                    :min_zoom, :max_zoom, NULL, 1, :notes, :sort_order
+                )'
+            );
+            $insert->execute([
+                'public_id' => avesmapsPoliticalUuidV4(),
+                'wiki_key' => $node['wiki_key'],
+                'slug' => avesmapsPoliticalUniqueSlug($pdo, avesmapsPoliticalSlug($name)),
+                'name' => $name,
+                'type' => avesmapsPoliticalNullableString($type),
+                'continent' => $continent,
+                'status' => avesmapsPoliticalNullableString($status),
+                'color' => avesmapsPoliticalColorFromText($name),
+                'opacity' => 0.5,
+                'coat' => avesmapsPoliticalNullableString($coat),
+                'valid_from' => $validFrom,
+                'valid_to' => $validTo,
+                'min_zoom' => $zoom['min_zoom'],
+                'max_zoom' => $zoom['max_zoom'],
+                'notes' => 'Eigener Knoten aus dem Hierarchiemodell: ' . $node['wiki_key'],
+                'sort_order' => avesmapsPoliticalNextSortOrder($pdo),
+            ]);
+            $result['created']++;
+        }
+
+        // parent_id aus dem Modell setzen (Modell ist die Wahrheit fuer eigene Knoten).
+        $findParent = $pdo->prepare('SELECT id FROM political_territory WHERE wiki_key = :pk AND is_active = 1 LIMIT 1');
+        $setParent = $pdo->prepare('UPDATE political_territory SET parent_id = :pid WHERE wiki_key = :k AND is_active = 1');
+        foreach ($rows as $r) {
+            $pk = (string) ($r['parent_wiki_key'] ?? '');
+            if ($pk === '') {
+                continue; // Wurzelknoten -> parent_id bleibt NULL
+            }
+            $findParent->execute(['pk' => $pk]);
+            $pid = $findParent->fetchColumn();
+            if ($pid === false) {
+                $result['unresolved_parents'][] = ['wiki_key' => (string) $r['wiki_key'], 'parent_wiki_key' => $pk];
+                continue;
+            }
+            $setParent->execute(['pid' => (int) $pid, 'k' => (string) $r['wiki_key']]);
+            $result['linked']++;
+        }
+
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) { $pdo->rollBack(); }
+        throw $e;
+    }
+
+    return $result;
+}
+
 // Editierbare Wiki-Details-Felder (Allowlist). Manuelle Overrides liegen als JSON in
 // wiki_territory_model.metadata_overrides_json; der synchronisierte Wiki-Wert in _wiki_test
 // bleibt unangetastet und gewinnt nie gegen einen vorhandenen Override. capital_location_id =
@@ -2870,6 +3082,7 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'auto_parent_wiki_key' => $row['auto_parent_wiki_key'],
             'diverges' => $diverges,
             'source_origin' => (string) ($row['source_origin'] ?? ''),
+            'is_own_node' => avesmapsWikiSyncMonitorIsCustomNodeKey((string) $row['wiki_key']),
             'has_conflict' => $conflictNames !== [],
             'conflicts' => $conflictNames,
             'aliases' => $aliases,

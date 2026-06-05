@@ -216,9 +216,11 @@
           <option value="excluded">Aussortiert</option>
           <option value="historisch">Historisch</option>
           <option value="kirchen">Kirchen</option>
+          <option value="own">Eigene Knoten</option>
           <option value="all">Alle</option>
         </select>
         <input type="search" id="search" placeholder="In dieser Auswahl suchen…">
+        <button type="button" id="btnNewOwn" class="btn" title="Legt einen eigenen Knoten (ohne Wiki-Vorlage) an – erscheint hier unter „Eigene Knoten“ und kann dann in den Baum gezogen werden">+ Eigener Knoten</button>
       </div>
       <div id="filterInfo" class="info"></div>
       <div class="timefilter">Zeige nur: <input type="number" id="timeLeftFrom" placeholder="von"> – <input type="number" id="timeLeftTo" placeholder="bis"> BF <label><input type="checkbox" id="timeLeftToday"> heute</label></div>
@@ -327,6 +329,7 @@ const FILTER_INFO = {
   excluded:'Aussortiert: aus der Hierarchie genommen (bleibt im Sync, jederzeit zurückholbar).',
   historisch:'Historisch: hat ein echtes Auflösungsjahr (Aufgelöst) – existiert heute nicht mehr, auf der Karte nur für seinen Zeitraum sichtbar (Jahr-Slider). Hier prüfbar, ob das Auflösungsdatum stimmt.',
   kirchen:'Kirchen: kirchliche Verwaltungseinheiten (Kirchenprovinzen, Ordines, Lichteien – Praios/Rondra/Efferd …). Die Karte führt die WELTLICHE Hierarchie, deshalb sind sie aus dem Baum genommen. Editoren entscheiden, was damit passiert.',
+  own:'Eigene Knoten: selbst angelegt (ohne Wiki-Vorlage). Überstehen jede Synchronisierung. Per Drag in den Baum (oder auf „zur Wurzel") platzieren; Felder im Detail-Panel editieren. Nicht-platzierte können dort gelöscht werden.',
   all:'Alle Knoten der aktuellen Kontinent-Auswahl.'
 };
 function updateFilterInfo(){ $('filterInfo').textContent = FILTER_INFO[$('filter').value] || ''; }
@@ -615,7 +618,10 @@ function renderDetail(){
     ? `<button class="edbtn" data-save-coat-local="${esc(n.wiki_key)}" title="Lädt das gemeinfreie Wiki-Wappen auf den Avesmaps-Server und nutzt künftig die lokale Kopie (Override)">📥 Wappen lokal speichern</button>` : '';
   const coatRestoreBtn = (isOvr(n,'coat_of_arms_url')||isOvr(n,'coat_of_arms_license_status')||isOvr(n,'coat_of_arms_author'))
     ? `<button class="edbtn" data-restore-coat="${esc(n.wiki_key)}" title="Eigenes/lokal gespeichertes Wappen + Lizenz-Override entfernen und wieder den Wiki-Stand verwenden">↺ Wappen zurücksetzen</button>` : '';
-  box.innerHTML = head + lic + `<div class="dt-actions">${lockBtn}${editBtn}${coatLocalBtn}${coatRestoreBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>`;
+  // Eigene Knoten: löschen nur erlaubt, solange NICHT im Hierarchiemodell platziert (excluded).
+  const deleteOwnBtn = (n.is_own_node && n.excluded)
+    ? `<button class="edbtn dt-del-own" data-delete-own="${esc(n.wiki_key)}" title="Eigenen, nicht platzierten Knoten endgültig löschen">🗑 Eigenen Knoten löschen</button>` : '';
+  box.innerHTML = head + lic + `<div class="dt-actions">${lockBtn}${editBtn}${coatLocalBtn}${coatRestoreBtn}${deleteOwnBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>`;
 }
 function renderCapResults(){
   if(!capResults.length) return '';
@@ -731,6 +737,7 @@ function applyTime(prefix, state, rerender){
   rerender();
 }
 function matchesFilter(n, f) {
+  if (f==='own') return !!n.is_own_node;            // eigene Knoten: auch noch-nicht-platzierte zeigen
   if (f==='excluded') return !!n.excluded;
   if (n.excluded) return false;                    // Aussortierte nur im „Aussortiert"-Filter
   if (f==='kirchen') return isKirche(n);
@@ -864,6 +871,35 @@ async function setExcluded(wikiKey, excluded) {
   busy(false);
 }
 
+// Eigene Knoten anlegen: Name per Dialog erfragen, Rest wird im Detail-Panel editiert.
+async function createOwnNode() {
+  const name = (window.prompt('Name des neuen eigenen Herrschaftsgebiets:', '') || '').trim();
+  if (!name) return;
+  busy(true);
+  try {
+    const r = await api('create_custom_node', {method:'POST', body:{name}});
+    await loadModel();
+    // Direkt anzeigen: Filter auf „Eigene" + neuen Knoten auswählen.
+    $('filter').value = 'own'; updateFilterInfo(); renderList();
+    if (r.wiki_key) selectKey(r.wiki_key);
+    setStatus(`Eigener Knoten „${name}" angelegt (${r.wiki_key}). In den Baum ziehen, um ihn zu platzieren.`);
+  } catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+}
+
+async function deleteOwnNode(wikiKey) {
+  const n = BYKEY.get(wikiKey);
+  if (!confirm(`Eigenen Knoten „${n?n.name:wikiKey}" endgültig löschen?`)) return;
+  busy(true);
+  try {
+    await api('delete_custom_node', {method:'POST', body:{wiki_key:wikiKey}});
+    if (selectedKey === wikiKey) { selectedKey = null; }
+    await loadModel();
+    setStatus(`Eigener Knoten „${n?n.name:wikiKey}" gelöscht.`);
+  } catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+}
+
 // Drag'n'drop
 let dragKey = null;
 const dropZone = (t) => t.closest('[data-drop]') || t.closest('#dropRoot') || t.closest('#dropExclude');
@@ -891,17 +927,29 @@ $('btnModel').onclick = async()=>{ busy(true); try{ const r=await api('rebuild_m
 $('btnDiff').onclick = async()=>{ busy(true); try{ const d=await api('diff'); setStatus(`Unterschiede (Staging vs Wiki): neu ${d.new}, verschwunden ${d.disappeared}, geändert ${d.changed}.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnCache').onclick = async()=>{ busy(true); try{ const c=await api('sync_parent_cache',{method:'POST',body:{}}); setStatus(`Testübertragung: auffüllbar ${c.fillable}, deckungsgleich ${c.already_aligned}, divergent ${c.divergent_existing} – es wurde nichts geschrieben.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnApply').onclick = async()=>{
-  busy(true); let dry;
-  try { dry = await api('apply_parent_cache', {method:'POST', body:{dry_run:true}}); }
+  busy(true); let dry, dryOwn;
+  try {
+    dry = await api('apply_parent_cache', {method:'POST', body:{dry_run:true}});
+    dryOwn = await api('apply_custom_nodes', {method:'POST', body:{dry_run:true}});
+  }
   catch(e){ setStatus('Fehler: '+e.message); busy(false); return; }
   busy(false);
   const unres = (dry.unresolved||[]).length;
-  if (!confirm(`Modell in Avesmaps übernehmen?\n\n• ${dry.will_apply} Eltern-Zuweisungen werden gesetzt/überschrieben\n• ${unres} nicht auflösbar (übersprungen – Eltern fehlt live)\n• Geometrien bleiben unberührt\n\nJetzt schreiben?`)) { setStatus('Übernahme abgebrochen.'); return; }
+  const ownCreate = (dryOwn.to_create||[]).length;
+  const ownUnres = (dryOwn.unresolved_parents||[]).length;
+  const ownLine = `• ${ownCreate} eigene Knoten werden neu angelegt${ownUnres?` (${ownUnres} ohne auflösbaren Elternteil)`:''}\n`;
+  if (!confirm(`Modell in Avesmaps übernehmen?\n\n• ${dry.will_apply} Eltern-Zuweisungen werden gesetzt/überschrieben\n• ${unres} nicht auflösbar (übersprungen – Eltern fehlt live)\n${ownLine}• Geometrien bleiben unberührt\n\nJetzt schreiben?`)) { setStatus('Übernahme abgebrochen.'); return; }
   busy(true);
-  try { const r = await api('apply_parent_cache', {method:'POST', body:{dry_run:false, confirm:'apply'}}); setStatus(`Übernommen: ${r.applied} Eltern-Zuweisungen in Avesmaps geschrieben.`); await loadModel(); await loadEditorState(); }
+  try {
+    const r = await api('apply_parent_cache', {method:'POST', body:{dry_run:false, confirm:'apply'}});
+    const ro = await api('apply_custom_nodes', {method:'POST', body:{dry_run:false, confirm:'apply'}});
+    setStatus(`Übernommen: ${r.applied} Eltern-Zuweisungen, ${ro.created} eigene Knoten neu angelegt, ${ro.linked} verknüpft${(ro.unresolved_parents||[]).length?`, ${ro.unresolved_parents.length} ohne Elternteil`:''}.`);
+    await loadModel(); await loadEditorState();
+  }
   catch(e){ setStatus('Fehler: '+e.message); }
   busy(false);
 };
+$('btnNewOwn').onclick = createOwnNode;
 $('search').oninput = renderList;
 $('filter').onchange = ()=>{ updateFilterInfo(); renderList(); };
 $('treeSearch').oninput = ()=>{ treeQuery = $('treeSearch').value; renderTree(); };
@@ -946,6 +994,7 @@ $('detailBody').addEventListener('click', e=>{
   const rp=e.target.closest('[data-restore-parent]'); if(rp){ restoreWikiParent(rp.dataset.restoreParent); return; }
   const sc=e.target.closest('[data-save-coat-local]'); if(sc){ saveCoatLocal(sc.dataset.saveCoatLocal); return; }
   const rcoat=e.target.closest('[data-restore-coat]'); if(rcoat){ restoreCoat(rcoat.dataset.restoreCoat); return; }
+  const dlo=e.target.closest('[data-delete-own]'); if(dlo){ deleteOwnNode(dlo.dataset.deleteOwn); return; }
   const lb=e.target.closest('.lockbtn'); if(lb){ lockNode(lb.dataset.lockkey, lb.dataset.locknow!=='1'); return; }
   if(e.target.closest('[data-edit-start]')){ startEdit(); return; }
   if(e.target.closest('[data-edit-cancel]')){ cancelEdit(); return; }

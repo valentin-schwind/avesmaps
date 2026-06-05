@@ -82,6 +82,19 @@ try {
                 (string) ($payload['wiki_key'] ?? ''),
                 (bool) ($payload['excluded'] ?? true)
             ),
+            'create_custom_node' => avesmapsWikiSyncMonitorCreateCustomNode(
+                $pdo,
+                (string) ($payload['name'] ?? '')
+            ),
+            'delete_custom_node' => avesmapsWikiSyncMonitorDeleteCustomNode(
+                $pdo,
+                (string) ($payload['wiki_key'] ?? '')
+            ),
+            'apply_custom_nodes' => avesmapsWikiSyncMonitorApplyCustomNodes(
+                $pdo,
+                // Schreiben NUR bei dry_run:false UND confirm:"apply"; sonst lesender Dry-Run.
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+            ),
             'apply_identity' => avesmapsWikiSyncMonitorApplyIdentity(
                 $pdo,
                 is_array($payload['skip'] ?? null) ? $payload['skip'] : [],
@@ -152,12 +165,14 @@ try {
             avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'apply');
         } elseif ($action === 'apply_coats' && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'apply');
+        } elseif ($action === 'apply_custom_nodes' && is_array($response) && ($response['dry_run'] ?? true) === false) {
+            avesmapsWikiSyncMonitorRecordEditorAction($pdo, 'apply');
         }
 
         // Map-Cache invalidieren: Identitaets-/Coat-Apply (+Revert) aendern political_territory,
         // das die Map-Features-API liefert. Ohne Revisions-Bump bekommen Clients per ETag 304
         // und sehen die Aenderung (Wappen/Name/...) nicht. Bump bei jedem echten (non-dry-run) Lauf.
-        if (in_array($action, ['apply_identity', 'apply_coats', 'revert_identity', 'revert_coats'], true)
+        if (in_array($action, ['apply_identity', 'apply_coats', 'revert_identity', 'revert_coats', 'apply_custom_nodes'], true)
             && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
