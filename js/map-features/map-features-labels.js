@@ -21,7 +21,7 @@ function createLabelIcon(label) {
 	const safeSize = getScaledLabelSize(label);
 	const safeRotation = Math.max(-180, Math.min(180, Number(label.rotation) || 0));
 	return L.divIcon({
-		className: `map-label map-label--${label.labelType}`,
+		className: `map-label map-label--${label.labelType}${labelHasWikiRegion(label) ? " map-label--has-wiki" : ""}`,
 		html: `<span style="font-size:${safeSize}px; transform: translate(calc(-50% + var(--label-offset-x, 0px)), calc(-50% + var(--label-offset-y, 0px))) rotate(${safeRotation}deg);">${escapeHtml(label.text)}</span>`,
 		iconSize: [0, 0],
 		iconAnchor: [0, 0],
@@ -35,11 +35,52 @@ function getScaledLabelSize(label) {
 	return Math.round(baseSize * (0.5 + zoomRatio * 0.5));
 }
 
+function labelHasWikiRegion(label) {
+	return Boolean(label && label.wikiRegion && label.wikiRegion.wiki_key);
+}
+
+// Infobox einer Wiki-Landschaft (Ansichtsmodus, Klick auf das Label). Bild nur bei nachweislich
+// freier Lizenz (gemeinfrei); sonst ausgeblendet (konservativ wie bei den Herrschaftsgebieten).
+function labelWikiInfoboxMarkup(label) {
+	const wiki = label.wikiRegion || {};
+	const title = wiki.name || label.text || "";
+	const rows = [
+		["Art", wiki.art],
+		["Lage", wiki.region_parent],
+		["Staat", wiki.affiliation_staat],
+		["Einwohner", wiki.einwohner],
+		["Sprache", wiki.sprache],
+	].filter((pair) => String(pair[1] || "").trim() !== "");
+	const licenseStatus = String(wiki.image_license_status || "").toLowerCase();
+	const imageIsFree = licenseStatus === "public_domain" || licenseStatus === "public-domain" || licenseStatus === "gemeinfrei";
+
+	let html = '<div class="label-wiki-infobox">';
+	if (wiki.image_url && imageIsFree) {
+		html += `<img class="label-wiki-infobox__img" src="${escapeHtml(wiki.image_url)}" alt="${escapeHtml(title)}" loading="lazy" />`;
+	}
+	html += `<div class="label-wiki-infobox__title">${escapeHtml(title)}</div>`;
+	if (rows.length) {
+		html += '<dl class="label-wiki-infobox__dl">';
+		rows.forEach((pair) => {
+			html += `<dt>${escapeHtml(pair[0])}</dt><dd>${escapeHtml(pair[1])}</dd>`;
+		});
+		html += "</dl>";
+	}
+	if (wiki.description) {
+		html += `<p class="label-wiki-infobox__desc">${escapeHtml(wiki.description)}</p>`;
+	}
+	if (wiki.wiki_url) {
+		html += `<a class="label-wiki-infobox__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
+	}
+	html += "</div>";
+	return html;
+}
+
 function createLabelMarkerEntry(label) {
 	const marker = L.marker(label.coordinates, {
 		icon: createLabelIcon(label),
 		draggable: false,
-		interactive: IS_EDIT_MODE,
+		interactive: IS_EDIT_MODE || labelHasWikiRegion(label),
 		keyboard: false,
 		pane: "labelsPane",
 	});
@@ -50,6 +91,9 @@ function createLabelMarkerEntry(label) {
 			void saveLabelPosition(entry);
 			setLabelMoveActive(entry, false);
 		});
+	} else if (labelHasWikiRegion(label)) {
+		// Ansichtsmodus: Label mit zugeordneter Wiki-Landschaft ist anklickbar -> Infobox.
+		marker.bindPopup(labelWikiInfoboxMarkup(label), { className: "label-wiki-infobox-popup", maxWidth: 320, autoPan: true });
 	}
 	syncLabelMarkerVisibility(entry);
 	return entry;
