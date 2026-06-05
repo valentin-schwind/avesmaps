@@ -32,14 +32,43 @@ try {
     $user = avesmapsRequireUserWithCapability('review');
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
+    if ($requestMethod === 'POST') {
+        $payload = avesmapsReadJsonRequest();
+        $action = trim((string) ($payload['action'] ?? ($_GET['action'] ?? '')));
+        $options = is_array($payload['options'] ?? null) ? $payload['options'] : $payload;
+
+        $response = match ($action) {
+            'start_run' => avesmapsWikiRegionStartRun(
+                $pdo,
+                avesmapsWikiSyncMonitorSeedsFromInput($payload['seeds'] ?? ''),
+                $options
+            ),
+            'crawl_step' => avesmapsWikiRegionCrawlStep($pdo, trim((string) ($payload['run_id'] ?? '')), $options),
+            'clear' => avesmapsWikiRegionClear($pdo, (string) ($payload['target'] ?? ''), (string) ($payload['run_id'] ?? '')),
+            default => null,
+        };
+
+        if ($response === null) {
+            avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Unbekannte Regionen-Sync-POST-Action: ' . $action]);
+        }
+
+        avesmapsJsonResponse(200, $response);
+    }
+
     if ($requestMethod !== 'GET') {
-        avesmapsJsonResponse(405, ['ok' => false, 'error' => 'Nur GET ist derzeit erlaubt.']);
+        avesmapsJsonResponse(405, ['ok' => false, 'error' => 'Nur GET und POST sind erlaubt.']);
     }
 
     $action = trim((string) ($_GET['action'] ?? 'status'));
 
     $response = match ($action) {
         'status', '' => avesmapsWikiRegionBuildStatus($pdo),
+        'run_status' => avesmapsWikiRegionRunStatus($pdo, trim((string) ($_GET['run_id'] ?? ''))),
+        'staging_sample' => avesmapsWikiRegionStagingSample(
+            $pdo,
+            array_filter(array_map('trim', explode('|', (string) ($_GET['wiki_keys'] ?? '')))),
+            (int) ($_GET['limit'] ?? 40)
+        ),
         default => null,
     };
 
