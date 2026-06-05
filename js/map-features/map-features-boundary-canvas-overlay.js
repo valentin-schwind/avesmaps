@@ -36,6 +36,15 @@
 		const INNER_LINE_DASH_MEDIUM = [4, 3];
 	const OUTER_LINE_COLOR = "#d3d3d3";              // Aussenkontur statisch hellgrau (null = Territoriumsfarbe)
 
+	// --- Reichsstadt-Innenkontur (eng gegated, leicht reversibel ueber das Flag) ---
+	// Einzelkind-Siedlungen (territory_type leer, genau 1 Kind des Eltern, kein eigenes Derived)
+	// bekommen ihre eigene Stadt-Kontur als weiss-gestrichelte Linie — funktioniert auch, wenn die
+	// Stadt an einen Nachbarn statt an den Eltern gesnappt ist (Hirschfurt/Perricum) oder als
+	// Loch-in-Flaeche modelliert ist (Luring). Der Eltern-Dedup (bei 1 Kind oft Muell, z.B. Waldfang
+	// trasst den Perimeter) wird fuer solche Eltern unterdrueckt. Flag = false -> komplett aus.
+	const REICHSSTADT_INNER_OUTLINE_ENABLED = true;
+	const REICHSSTADT_RING_MAX_EXTENT = 8; // max. bbox-Kantenlaenge eines Stadt-Rings; groesser = Baronie-Flaeche -> ignorieren
+
 	function ready() {
 		return typeof map !== "undefined" && map && typeof map.createPane === "function" && typeof L !== "undefined";
 	}
@@ -125,6 +134,52 @@
 		ctx.restore();
 	}
 
+	function ringMaxExtent(ring) {
+		let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+		for (let i = 0; i < ring.length; i += 1) {
+			const x = Number(ring[i][0]), y = Number(ring[i][1]);
+			if (x < minx) minx = x; if (x > maxx) maxx = x;
+			if (y < miny) miny = y; if (y > maxy) maxy = y;
+		}
+		return Math.max(maxx - minx, maxy - miny);
+	}
+
+	// Ermittelt die Einzelkind-Siedlungen (Reichsstaedte) + ihre Eltern aus dem aktuellen Feature-Satz.
+	// settlements = deren eigene Stadt-Kontur gestrichelt gezeichnet wird; suppressParents = deren
+	// gespeicherte (oft falsche) Innengrenze NICHT mehr gezeichnet wird (durch die Stadt-Kontur ersetzt).
+	function buildReichsstadtSets(all, derivedTerritoryKeys) {
+		const settlements = new Set();
+		const suppressParents = new Set();
+		if (!REICHSSTADT_INNER_OUTLINE_ENABLED) return { settlements, suppressParents };
+		const childrenByParent = new Map();
+		const parentOf = new Map();
+		const typeOf = new Map();
+		all.forEach((f) => {
+			const p = f && f.properties; if (!p || p.is_derived_geometry === true) return;
+			const tp = String(p.territory_public_id || "").trim(); if (!tp) return;
+			typeOf.set(tp, String(p.territory_type || "").trim());
+			const par = String(p.parent_public_id || "").trim();
+			if (par) {
+				parentOf.set(tp, par);
+				if (!childrenByParent.has(par)) childrenByParent.set(par, new Set());
+				childrenByParent.get(par).add(tp);
+			}
+		});
+		typeOf.forEach((tt, tp) => {
+			const par = parentOf.get(tp);
+			if (!par) return;
+			const siblings = childrenByParent.get(par);
+			const isLeaf = !childrenByParent.has(tp);   // selbst keine Kinder
+			const isSettlement = tt === "";             // Reichsstadt/Siedlung = kein Territoriumstyp
+			const noOwnDerived = !derivedTerritoryKeys.has(tp);
+			if (isSettlement && isLeaf && noOwnDerived && siblings && siblings.size === 1) {
+				settlements.add(tp);
+				suppressParents.add(par);
+			}
+		});
+		return { settlements, suppressParents };
+	}
+
 	function redraw() {
 		if (!map.getPane(PANE)) return;
 		// Nur waehrend der CSS-Zoom-Animation NICHT neu zeichnen: dort uebernimmt die zoomanim-
@@ -140,8 +195,11 @@
 		if (canvas.height !== size.y) canvas.height = size.y;
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-		const feats = (Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []))
-			.filter((f) => f && f.properties && f.properties.is_derived_geometry === true);
+		const all = (Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []));
+		const feats = all.filter((f) => f && f.properties && f.properties.is_derived_geometry === true);
+		const derivedTerritoryKeys = new Set();
+		feats.forEach((f) => { const k = String(f.properties.territory_public_id || "").trim(); if (k) derivedTerritoryKeys.add(k); });
+		const reichsstadt = buildReichsstadtSets(all, derivedTerritoryKeys);
 
 		feats.forEach((f) => {
 			const polys = polygonsOf(f.geometry);
@@ -169,10 +227,38 @@
 			// Innengrenzen: sichtbar wann immer die Derived existiert UND "Innengrenzen an"
 			// (an die Außenkontur gekoppelt, NICHT ans Fuellband) -> die Unterteilungen
 			// bleiben ueber alle Zoomstufen konsistent statt am Bandrand zu verschwinden.
-			if (f.properties.show_inner_boundaries === true) {
+			if (f.properties.show_inner_boundaries === true
+				&& !reichsstadt.suppressParents.has(String(f.properties.territory_public_id || "").trim())) {
 				drawInnerBoundaries(f.properties.inner_boundary_geojson);
 			}
 		});
+
+		// Reichsstadt-Innenkontur: kleine Stadt-Ringe der Einzelkind-Siedlungen als weiss-gestrichelte
+		// Linie (kleine Ringe = Stadtkern; grosse Ringe = Baronie-Flaeche werden via Extent ausgefiltert,
+		// z.B. Lurings 80-Punkt-Aussenring). Segment-Dedup vermeidet Doppellinien (Loch == Fuellung).
+		if (reichsstadt.settlements.size) {
+			const segMap = new Map();
+			all.forEach((f) => {
+				const p = f && f.properties; if (!p || p.is_derived_geometry === true) return;
+				const tp = String(p.territory_public_id || "").trim();
+				if (!reichsstadt.settlements.has(tp)) return;
+				polygonsOf(f.geometry).forEach((rings) => rings.forEach((ring) => {
+					if (!Array.isArray(ring) || ring.length < 3) return;
+					if (ringMaxExtent(ring) > REICHSSTADT_RING_MAX_EXTENT) return;
+					for (let i = 0; i < ring.length - 1; i += 1) {
+						const a = ring[i], b = ring[i + 1];
+						const ka = Number(a[0]).toFixed(3) + "," + Number(a[1]).toFixed(3);
+						const kb = Number(b[0]).toFixed(3) + "," + Number(b[1]).toFixed(3);
+						if (ka === kb) continue;
+						const key = ka < kb ? ka + "|" + kb : kb + "|" + ka;
+						if (!segMap.has(key)) segMap.set(key, [a, b]);
+					}
+				}));
+			});
+			if (segMap.size) {
+				drawInnerBoundaries({ type: "MultiLineString", coordinates: [...segMap.values()] });
+			}
+		}
 	}
 
 	function hasDerivedData() {
