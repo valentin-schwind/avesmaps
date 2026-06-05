@@ -120,6 +120,7 @@
 			detailInfo: document.getElementById("detailInfo"),
 			zoomFromInput: document.getElementById("zoomFromInput"),
 			zoomToInput: document.getElementById("zoomToInput"),
+			zoomBandWarning: document.getElementById("zoomBandWarning"),
 			displayNameInput: document.getElementById("displayNameInput"),
 			alternateCoatInput: document.getElementById("alternateCoatInput"),
 			manualCoatPreview: document.getElementById("manualCoatPreview"),
@@ -249,9 +250,12 @@
 			}
 			if (from !== null) fromEl.value = String(from);
 			if (to !== null) toEl.value = String(to);
+			renderZoomBandWarning();
 		};
 		els.zoomFromInput?.addEventListener("change", () => clampZoomInputs("from"));
 		els.zoomToInput?.addEventListener("change", () => clampZoomInputs("to"));
+		els.zoomFromInput?.addEventListener("input", () => renderZoomBandWarning());
+		els.zoomToInput?.addEventListener("input", () => renderZoomBandWarning());
 
 		if (els.updateCoatButton) {
 			els.updateCoatButton.addEventListener("click", updateWikiCoatPreviewFromManualInput);
@@ -2085,6 +2089,7 @@
 			}
 
 			renderManualCoatPreview(state.coatOfArmsUrl || "");
+			renderZoomBandWarning();
 		}
 
 		function getDisplayStatesForDroppedPath() {
@@ -2907,99 +2912,51 @@
 			showEmptyDetails();
 		}
 
-		// Zoom-Band-Kollision: schiebt benachbarte Breadcrumb-Level (Eltern-Kette + direkte Kinder)
-		// kaskadierend weg, damit die Bänder überlappungsfrei + lückenlos gestaffelt bleiben (0-6).
-		// Liefert { updates, summary, limited } zurück; passt aktives Form-Band an, wenn ein Limit greift.
-		function resolveZoomBandCascade() {
-			const result = { updates: [], summary: "", limited: false };
-			if (!editedNode) {
-				return result;
+		// Kleine Live-Warnung unter den Zoom-Feldern: zeigt an, wenn das aktive Band sich
+		// mit einem Nachbar-Level (Eltern-Kette oder direkte Kinder) ueberschneidet.
+		// Reine Anzeige - es wird nichts automatisch verschoben oder gespeichert.
+		function renderZoomBandWarning() {
+			const warnEl = els.zoomBandWarning;
+			if (!warnEl) {
+				return;
 			}
 
-			const clampZ = (value) => Math.max(0, Math.min(6, Math.round(value)));
+			let message = "";
+			const activeMin = parseOptionalNumber(els.zoomFromInput?.value);
+			const activeMax = parseOptionalNumber(els.zoomToInput?.value);
 
-			let activeMin = parseOptionalNumber(els.zoomFromInput?.value);
-			let activeMax = parseOptionalNumber(els.zoomToInput?.value);
-			if (activeMin === null || activeMax === null) {
-				return result;
-			}
-			activeMin = clampZ(activeMin);
-			activeMax = clampZ(activeMax);
-			if (activeMin > activeMax) {
-				const swap = activeMin; activeMin = activeMax; activeMax = swap;
-			}
+			if (editedNode && activeMin !== null && activeMax !== null) {
+				const lo = Math.min(activeMin, activeMax);
+				const hi = Math.max(activeMin, activeMax);
+				const overlaps = [];
 
-			const changes = new Map();
+				const consider = (node, role) => {
+					if (!node || !displayStateByNodeId.has(node.id)) {
+						return;
+					}
+					const state = displayStateByNodeId.get(node.id);
+					if (state.zoomMin === null || state.zoomMax === null) {
+						return;
+					}
+					if (lo <= state.zoomMax && state.zoomMin <= hi) {
+						overlaps.push(`${role} „${node.label || state.name || "?"}" (${state.zoomMin}–${state.zoomMax})`);
+					}
+				};
 
-			// --- Eltern-Kette (linear): jeder Vorfahr muss komplett UNTER dem aktiven Band liegen ---
-			const path = getNodePath(editedNode);
-			const ancestors = path.slice(0, -1).reverse();
-			let lowerBound = activeMin;
-			for (const node of ancestors) {
-				if (!displayStateByNodeId.has(node.id)) continue;
-				const state = displayStateByNodeId.get(node.id);
-				if (state.zoomMin === null || state.zoomMax === null) continue;
-				let nextMax = Math.min(state.zoomMax, lowerBound - 1);
-				if (nextMax < 0) {
-					activeMin = clampZ(activeMin + (0 - nextMax));
-					if (activeMin > activeMax) activeMax = activeMin;
-					result.limited = true;
-					lowerBound = activeMin;
-					nextMax = Math.min(state.zoomMax, lowerBound - 1);
-				}
-				nextMax = Math.max(0, nextMax);
-				let nextMin = Math.max(0, Math.min(state.zoomMin, nextMax));
-				if (nextMin !== state.zoomMin || nextMax !== state.zoomMax) {
-					changes.set(node.id, { node, min: nextMin, max: nextMax });
-				}
-				lowerBound = nextMin;
-			}
+				const path = getNodePath(editedNode);
+				path.slice(0, -1).reverse().forEach(node => consider(node, "übergeordnet"));
+				(editedNode.children || []).forEach(node => consider(node, "untergeordnet"));
 
-			// --- direkte Kinder: jedes muss komplett ÜBER dem aktiven Band liegen ---
-			let upperBound = activeMax;
-			for (const node of (editedNode.children || [])) {
-				if (!displayStateByNodeId.has(node.id)) continue;
-				const state = displayStateByNodeId.get(node.id);
-				if (state.zoomMin === null || state.zoomMax === null) continue;
-				let nextMin = Math.max(state.zoomMin, upperBound + 1);
-				if (nextMin > 6) {
-					activeMax = clampZ(activeMax - (nextMin - 6));
-					if (activeMax < activeMin) activeMin = activeMax;
-					result.limited = true;
-					upperBound = activeMax;
-					nextMin = Math.max(state.zoomMin, upperBound + 1);
-				}
-				nextMin = Math.min(6, nextMin);
-				let nextMax = Math.min(6, Math.max(state.zoomMax, nextMin));
-				if (nextMin !== state.zoomMin || nextMax !== state.zoomMax) {
-					changes.set(node.id, { node, min: nextMin, max: nextMax });
+				if (overlaps.length) {
+					message = `⚠ Zoom-Band überschneidet sich mit ${overlaps.join(", ")}.`;
 				}
 			}
 
-			if (els.zoomFromInput) els.zoomFromInput.value = String(activeMin);
-			if (els.zoomToInput) els.zoomToInput.value = String(activeMax);
-
-			const labels = [];
-			changes.forEach(({ node, min, max }) => {
-				const state = displayStateByNodeId.get(node.id);
-				displayStateByNodeId.set(node.id, { ...state, zoomMin: min, zoomMax: max });
-				const territoryRef = normalizeText(node.row?.public_id || node.row?.wiki_key || "");
-				if (territoryRef) {
-					result.updates.push({ territoryPublicId: territoryRef, minZoom: min, maxZoom: max });
-				}
-				labels.push(`${node.label || state.name || "?"} → ${min}–${max}`);
-			});
-
-			if (labels.length) {
-				result.summary = `Zoom-Bänder verschoben: ${labels.join(", ")}`;
-			} else if (result.limited) {
-				result.summary = `Aktives Band auf ${activeMin}–${activeMax} begrenzt (Limit 0–6).`;
-			}
-			return result;
+			warnEl.textContent = message;
+			warnEl.hidden = message === "";
 		}
 
 		async function handleSave() {
-			const zoomCascade = resolveZoomBandCascade();
 			const value = getAssignmentValue();
 
 			if (!value) {
@@ -3022,19 +2979,7 @@
 					return;
 				}
 
-				if (zoomCascade.updates.length) {
-					try {
-						await window.AvesmapsPoliticalTerritorySubtreeDisplayTools?.applyExplicitZoomUpdates?.(zoomCascade.updates);
-					} catch (zoomError) {
-						console.warn("Nachbar-Zoom-Bänder konnten nicht gespeichert werden:", zoomError);
-						setFormStatus((result?.message || "Gespeichert.") + " — Nachbar-Bänder NICHT gespeichert (siehe Konsole).", "error");
-						return;
-					}
-				}
-				const saveMessage = zoomCascade.summary
-					? `${result?.message || "Gespeichert."} ${zoomCascade.summary}`
-					: (result?.message || "Gespeichert.");
-				setFormStatus(saveMessage, "success");
+				setFormStatus(result?.message || "Gespeichert.", "success");
 			} catch (error) {
 				setFormStatus(error.message || String(error), "error");
 			}
