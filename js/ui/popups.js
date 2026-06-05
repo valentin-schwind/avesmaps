@@ -369,6 +369,8 @@ function locationPopupMarkup({
 }
 
 function labelPopupMarkup(entry) {
+	const hasWiki = entry.label.wikiRegion && entry.label.wikiRegion.wiki_key;
+	const wikiInfobox = hasWiki && typeof labelWikiInfoboxMarkup === "function" ? labelWikiInfoboxMarkup(entry.label) : "";
 	return locationPopupMarkup({
 		name: entry.label.text || "Label",
 		locationTypeLabel: "Label",
@@ -377,7 +379,7 @@ function labelPopupMarkup(entry) {
 		showType: false,
 		showDescription: false,
 		showWikiLink: false,
-		actionsMarkup: labelActionsMarkup(entry.label.publicId),
+		actionsMarkup: labelActionsMarkup(entry.label.publicId) + wikiInfobox,
 	});
 }
 

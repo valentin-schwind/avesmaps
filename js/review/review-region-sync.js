@@ -98,24 +98,38 @@ function renderRegionSyncList() {
 		`<button type="button" data-region-view="ambiguous" class="region-sync__viewtab${regionSyncView === "ambiguous" ? " is-active" : ""}">Mehrdeutig (${summary.ambiguous || 0})</button>` +
 		"</div>";
 
+	const isMissingView = regionSyncView === "missing";
 	const items = rows
 		.slice(0, 600)
 		.map((row) => {
-			const meta = [row.art, row.region_parent].filter(Boolean).map(regionSyncEscapeText).join(" · ");
+			const metaParts = [row.art, row.region_parent].filter(Boolean).map(regionSyncEscapeText);
+			let metaHtml = metaParts.join(" · ");
+			if (row.wiki_url) {
+				const wikiLink = `<a class="region-sync__link" href="${regionSyncEscapeAttr(row.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
+				metaHtml = metaHtml ? `${metaHtml} · ${wikiLink}` : wikiLink;
+			}
 			let mapInfo = "";
+			let labelId = "";
 			if (row.label) {
+				labelId = row.label.public_id || "";
 				mapInfo = `<span class="region-sync__map">Karte: ${regionSyncEscapeText(row.label.name)}${row.label.subtype ? " (" + regionSyncEscapeText(row.label.subtype) + ")" : ""}</span>`;
 			} else if (row.labels) {
+				labelId = (row.labels[0] && row.labels[0].public_id) || "";
 				mapInfo = `<span class="region-sync__map">${row.labels.length} Karten-Kandidaten: ${row.labels.map((l) => regionSyncEscapeText(l.name)).join(", ")}</span>`;
 			}
-			const wiki = row.wiki_url ? `<a class="region-sync__link" href="${regionSyncEscapeAttr(row.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>` : "";
 			const image = row.has_image ? '<span class="region-sync__badge" title="Wiki hat ein Bild">🖼</span>' : "";
+			const dragAttrs = isMissingView && row.wiki_key ? ` draggable="true" data-wiki-key="${regionSyncEscapeAttr(row.wiki_key)}"` : "";
+			const labelAttr = labelId ? ` data-label-id="${regionSyncEscapeAttr(labelId)}"` : "";
+			const classes =
+				"review-panel__item region-sync__item" +
+				(labelId ? " region-sync__item--clickable" : "") +
+				(dragAttrs ? " region-sync__item--draggable" : "");
+			const title = dragAttrs ? "Auf die Karte ziehen, um die Region anzulegen" : labelId ? "Zur Stelle auf der Karte springen" : "";
 			return (
-				'<div class="review-panel__item region-sync__item">' +
+				`<div class="${classes}"${labelAttr}${dragAttrs} title="${regionSyncEscapeAttr(title)}">` +
 				`<div class="region-sync__name">${regionSyncEscapeText(row.name)} ${image}</div>` +
-				`<div class="region-sync__meta">${meta}</div>` +
+				`<div class="region-sync__meta">${metaHtml}</div>` +
 				(mapInfo ? `<div class="region-sync__meta">${mapInfo}</div>` : "") +
-				`<div class="region-sync__links">${wiki}</div>` +
 				"</div>"
 			);
 		})
@@ -170,6 +184,83 @@ async function startRegionWikiCrawl() {
 	}
 }
 
+// Springt zur Stelle eines Karten-Labels (Zoom/Flug). Aktiviert die Derographie-Ebene,
+// damit das Label sichtbar ist.
+function focusRegionLabelOnMap(publicId) {
+	if (!publicId || typeof findLabelEntryByPublicId !== "function") {
+		return;
+	}
+	if (typeof setSelectedMapLayerMode === "function") {
+		setSelectedMapLayerMode("deregraphic");
+	}
+	const entry = findLabelEntryByPublicId(publicId);
+	if (entry && entry.marker && typeof map !== "undefined") {
+		const latlng = entry.marker.getLatLng();
+		map.flyTo(latlng, Math.max(map.getZoom(), 4), { duration: 0.8 });
+		if (typeof entry.marker.openPopup === "function" && map.hasLayer(entry.marker)) {
+			entry.marker.openPopup();
+		}
+	} else {
+		showFeedbackToast?.("Das Label ist (noch) nicht geladen.", "info");
+	}
+}
+
+// Drop einer „fehlenden" Wiki-Region auf die Karte: vollen Datensatz holen, Label-Editor
+// vorbefuellt oeffnen (Name/Art/Position/Wiki-Zuordnung); Speichern legt das Label an.
+let regionSyncDragWikiKey = "";
+let regionMapDropReady = false;
+
+function ensureRegionMapDropTarget() {
+	if (regionMapDropReady || typeof map === "undefined" || typeof map.getContainer !== "function") {
+		return;
+	}
+	const container = map.getContainer();
+	container.addEventListener("dragover", (event) => {
+		if (regionSyncDragWikiKey) {
+			event.preventDefault();
+			if (event.dataTransfer) {
+				event.dataTransfer.dropEffect = "copy";
+			}
+		}
+	});
+	container.addEventListener("drop", (event) => {
+		if (!regionSyncDragWikiKey) {
+			return;
+		}
+		event.preventDefault();
+		const wikiKey = regionSyncDragWikiKey;
+		regionSyncDragWikiKey = "";
+		const latlng = map.mouseEventToLatLng(event);
+		void dropRegionOnMap(wikiKey, latlng);
+	});
+	regionMapDropReady = true;
+}
+
+async function dropRegionOnMap(wikiKey, latlng) {
+	let row = null;
+	try {
+		const data = await regionSyncGet(`?action=staging_sample&wiki_keys=${encodeURIComponent(wikiKey)}&limit=1`);
+		row = (data.rows || [])[0];
+	} catch (error) {
+		row = null;
+	}
+	if (!row || typeof openLabelEditDialog !== "function") {
+		showFeedbackToast?.("Region konnte nicht geladen werden.", "error");
+		return;
+	}
+	openLabelEditDialog({ latlng });
+	const textElement = document.getElementById("label-edit-text");
+	if (textElement) {
+		textElement.value = row.name || "";
+	}
+	const wiki = typeof window.labelWikiRegionFromRow === "function" ? window.labelWikiRegionFromRow(row) : null;
+	if (wiki && typeof window.assignLabelWikiRegionToForm === "function") {
+		window.assignLabelWikiRegionToForm(wiki);
+	} else if (wiki && typeof setLabelWikiRegion === "function") {
+		setLabelWikiRegion(wiki);
+	}
+}
+
 document.addEventListener("click", (event) => {
 	const viewButton = event.target.closest ? event.target.closest("[data-region-view]") : null;
 	if (viewButton) {
@@ -179,7 +270,30 @@ document.addEventListener("click", (event) => {
 	}
 	if (event.target.closest && event.target.closest("#region-sync-crawl")) {
 		void startRegionWikiCrawl();
+		return;
 	}
+	// Klick auf einen zugeordneten/mehrdeutigen Eintrag (nicht auf den Wiki-Link) -> Zoom.
+	const zoomItem = event.target.closest ? event.target.closest(".region-sync__item[data-label-id]") : null;
+	if (zoomItem && !event.target.closest("a")) {
+		focusRegionLabelOnMap(zoomItem.dataset.labelId);
+	}
+});
+
+document.addEventListener("dragstart", (event) => {
+	const item = event.target.closest ? event.target.closest(".region-sync__item--draggable") : null;
+	if (!item || !item.dataset.wikiKey) {
+		return;
+	}
+	regionSyncDragWikiKey = item.dataset.wikiKey;
+	if (event.dataTransfer) {
+		event.dataTransfer.setData("text/plain", "region:" + item.dataset.wikiKey);
+		event.dataTransfer.effectAllowed = "copy";
+	}
+	ensureRegionMapDropTarget();
+});
+
+document.addEventListener("dragend", () => {
+	regionSyncDragWikiKey = "";
 });
 
 document.addEventListener("input", (event) => {

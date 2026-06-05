@@ -249,3 +249,16 @@
 .label-wiki-picker .label-wiki-picker-list {
 	max-height: 200px;
 }
+
+/* Klickbare (Zoom) bzw. ziehbare (Drag'n'drop) Regionen-Listeneintraege. */
+.region-sync__item--clickable {
+	cursor: pointer;
+}
+
+.region-sync__item--draggable {
+	cursor: grab;
+}
+
+.region-sync__item--draggable:active {
+	cursor: grabbing;
+}

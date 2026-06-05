@@ -211,20 +211,25 @@ function renderLabelWikiPickerList() {
 		.join("");
 }
 
-function selectLabelWikiResult(wikiKey) {
-	const row = labelWikiPickerResults.find((entry) => String(entry.wiki_key) === String(wikiKey));
-	if (!row) {
+// Wiki-Region ans Label-Formular heften: Felder kopieren + Label-Kategorie aus der Art ableiten.
+function applyLabelWikiToForm(wiki) {
+	if (!wiki) {
 		return;
 	}
-	const wiki = labelWikiRegionFromRow(row);
 	setLabelWikiRegion(wiki);
-
-	// Label-Kategorie an die Wiki-Art angleichen (Komfort; bleibt aenderbar).
 	const subtype = LABEL_WIKI_ART_TO_SUBTYPE[String(wiki.art || "").toLowerCase()];
 	const typeSelect = labelWikiElement("label-edit-type");
 	if (subtype && typeSelect && Array.from(typeSelect.options).some((option) => option.value === subtype)) {
 		typeSelect.value = subtype;
 	}
+}
+
+function selectLabelWikiResult(wikiKey) {
+	const row = labelWikiPickerResults.find((entry) => String(entry.wiki_key) === String(wikiKey));
+	if (!row) {
+		return;
+	}
+	applyLabelWikiToForm(labelWikiRegionFromRow(row));
 	setLabelWikiPickerOpen(false);
 }
 
@@ -290,3 +295,5 @@ document.addEventListener("input", (event) => {
 window.setLabelWikiRegion = setLabelWikiRegion;
 window.resetLabelWikiState = resetLabelWikiState;
 window.getLabelWikiRegionPayload = getLabelWikiRegionPayload;
+window.assignLabelWikiRegionToForm = applyLabelWikiToForm;
+window.labelWikiRegionFromRow = labelWikiRegionFromRow;
