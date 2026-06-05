@@ -189,12 +189,12 @@ const PATH_RENDER_CONFIG = {
 	simplifiedCenterWeightScale: 0.85,
 };
 const LOCATION_TYPE_CONFIG = {
-	metropole: { label: "Metropolen", singularLabel: "Metropole", icon: "Ã°Å¸Ââ€ºÃ¯Â¸Â", queryParam: "toggleMetropolen", radius: 10, shape: "circle", borderWidth: 3 },
-	grossstadt: { label: "GroÃƒÅ¸stÃƒÂ¤dte", singularLabel: "GroÃƒÅ¸stadt", icon: "Ã°Å¸ÂÂ°", queryParam: "toggleGrossstaedte", radius: 7.5, shape: "square", borderWidth: 3 },
-	stadt: { label: "StÃƒÂ¤dte", singularLabel: "Stadt", icon: "Ã¢â€ºÂª", queryParam: "toggleStaedte", radius: 6, shape: "square", borderWidth: 2 },
-	kleinstadt: { label: "KleinstÃƒÂ¤dte", singularLabel: "Kleinstadt", icon: "Ã°Å¸ÂËœÃ¯Â¸Â", queryParam: "toggleKleinstaedte", radius: 4, shape: "square", borderWidth: 2 },
-	dorf: { label: "DÃƒÂ¶rfer", singularLabel: "Dorf", icon: "Ã°Å¸ÂÂ¡", queryParam: "toggleDoerfer", radius: 3.5, shape: "circle", borderWidth: 2 },
-	gebaeude: { label: "Besondere Bauwerke/StÃƒÂ¤tten", singularLabel: "Besondere Bauwerke/StÃƒÂ¤tten", icon: "Ã°Å¸Ââ€ºÃ¯Â¸Â", queryParam: "toggleGebaeude", radius: 3.5, shape: "circle", borderWidth: 2 },
+	metropole: { label: "Metropolen", singularLabel: "Metropole", icon: "🏛️", queryParam: "toggleMetropolen", radius: 10, shape: "circle", borderWidth: 3 },
+	grossstadt: { label: "Großstädte", singularLabel: "Großstadt", icon: "🏰", queryParam: "toggleGrossstaedte", radius: 7.5, shape: "square", borderWidth: 3 },
+	stadt: { label: "Städte", singularLabel: "Stadt", icon: "⛪", queryParam: "toggleStaedte", radius: 6, shape: "square", borderWidth: 2 },
+	kleinstadt: { label: "Kleinstädte", singularLabel: "Kleinstadt", icon: "🏘️", queryParam: "toggleKleinstaedte", radius: 4, shape: "square", borderWidth: 2 },
+	dorf: { label: "Dörfer", singularLabel: "Dorf", icon: "🏡", queryParam: "toggleDoerfer", radius: 3.5, shape: "circle", borderWidth: 2 },
+	gebaeude: { label: "Besondere Bauwerke/Stätten", singularLabel: "Besondere Bauwerke/Stätten", icon: "🏛️", queryParam: "toggleGebaeude", radius: 3.5, shape: "circle", borderWidth: 2 },
 };
 const LOCATION_ICON_PATHS = {
 	metropole: "icons/small_webp/metropole.webp",

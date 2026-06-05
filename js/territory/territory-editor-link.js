@@ -564,7 +564,7 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 	}
 	refreshPoliticalTerritoryEditorMapLayer();
 	if (typeof showFeedbackToast === "function") {
-		showFeedbackToast(shouldPromote ? "Lokale Darstellung global Ã¼bernommen." : result?.message || "Herrschaftsgebiet gespeichert.", "success");
+		showFeedbackToast(shouldPromote ? "Lokale Darstellung global übernommen." : result?.message || "Herrschaftsgebiet gespeichert.", "success");
 	}
 	window.setTimeout(closePoliticalTerritoryEditor, 0);
 	return result;
@@ -724,12 +724,12 @@ function openPoliticalTerritoryWikiSyncSettings() {
 	}
 	const openedWindow = window.open("/html/wiki-sync-monitor.html", "_blank", "noopener,noreferrer");
 	if (!openedWindow && typeof setWikiSyncStatus === "function") {
-		setWikiSyncStatus("Popup blockiert: Bitte Popups erlauben oder Link in neuem Tab Ã¶ffnen.", "error");
+		setWikiSyncStatus("Popup blockiert: Bitte Popups erlauben oder Link in neuem Tab öffnen.", "error");
 	}
 }
 
 window.startWikiSyncTerritoryRun = function startWikiSyncTerritoryRunFromSettingsLink() {
-	if (typeof setWikiSyncStatus === "function") setWikiSyncStatus("Synchronisierungseinstellungen werden geÃ¶ffnet...", "pending");
+	if (typeof setWikiSyncStatus === "function") setWikiSyncStatus("Synchronisierungseinstellungen werden geöffnet...", "pending");
 	openPoliticalTerritoryWikiSyncSettings();
 };
 
