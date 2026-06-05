@@ -37,7 +37,7 @@ function formatPresenceRole(role) {
 }
 
 function setEditorPanelTab(tabName) {
-	activeEditorPanelTab = ["review", "changes", "presence", "wiki-sync", "regions"].includes(tabName) ? tabName : "review";
+	activeEditorPanelTab = ["review", "changes", "presence", "wiki-sync"].includes(tabName) ? tabName : "review";
 	document.querySelectorAll(".review-panel__tab").forEach((tabElement) => {
 		tabElement.classList.toggle("is-active", tabElement.dataset.editorPanelTab === activeEditorPanelTab);
 	});
@@ -51,10 +51,6 @@ function setEditorPanelTab(tabName) {
 		void sendEditorPresenceHeartbeat();
 	} else if (activeEditorPanelTab === "wiki-sync") {
 		refreshActiveWikiSyncPanel();
-	} else if (activeEditorPanelTab === "regions") {
-		if (typeof loadRegionWikiSync === "function") {
-			void loadRegionWikiSync();
-		}
 	}
 }
 
@@ -69,10 +65,6 @@ function refreshActiveEditorPanel() {
 
 	if (activeEditorPanelTab === "wiki-sync") {
 		return refreshActiveWikiSyncPanel();
-	}
-
-	if (activeEditorPanelTab === "regions") {
-		return typeof loadRegionWikiSync === "function" ? loadRegionWikiSync() : undefined;
 	}
 
 	return loadReviewReports();

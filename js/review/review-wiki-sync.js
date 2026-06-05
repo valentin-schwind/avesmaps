@@ -120,11 +120,15 @@ function refreshActiveWikiSyncPanel() {
 		return renderWikiSyncTerritoryTree();
 	}
 
+	if (activeWikiSyncPanelTab === "regions") {
+		return typeof loadRegionWikiSync === "function" ? loadRegionWikiSync() : undefined;
+	}
+
 	return loadWikiSyncCases();
 }
 
 function setWikiSyncPanelTab(tabName) {
-	activeWikiSyncPanelTab = tabName === "territories" ? "territories" : "locations";
+	activeWikiSyncPanelTab = ["territories", "regions"].includes(tabName) ? tabName : "locations";
 
 	document.querySelectorAll("[data-wiki-sync-panel-tab]").forEach((tabElement) => {
 		const isActive = tabElement.dataset.wikiSyncPanelTab === activeWikiSyncPanelTab;
@@ -138,6 +142,10 @@ function setWikiSyncPanelTab(tabName) {
 
 	if (activeWikiSyncPanelTab === "territories") {
 		void renderWikiSyncTerritoryTree();
+	} else if (activeWikiSyncPanelTab === "regions") {
+		if (typeof loadRegionWikiSync === "function") {
+			void loadRegionWikiSync();
+		}
 	} else {
 		renderWikiSyncCases();
 	}

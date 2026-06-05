@@ -542,8 +542,8 @@ function bindPersistedTabClickHandler(selector, datasetKey, allowedValues, stora
 function initializeReviewPanelTabState() {
 	if (typeof IS_EDIT_MODE !== "undefined" && !IS_EDIT_MODE) return;
 
-	const reviewTabValues = ["review", "changes", "wiki-sync", "presence", "regions"];
-	const wikiSyncTabValues = ["locations", "territories"];
+	const reviewTabValues = ["review", "changes", "wiki-sync", "presence"];
+	const wikiSyncTabValues = ["locations", "territories", "regions"];
 	const reviewStorageKey = "avesmaps.review.activeTab";
 	const wikiSyncStorageKey = "avesmaps.review.wikiSync.activeTab";
 	const url = new URL(window.location.href);
