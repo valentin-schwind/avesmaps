@@ -28,6 +28,7 @@
 		<link rel="stylesheet" href="css/third-party/leaflet.css" />
 		<link rel="stylesheet" href="css/third-party/jquery-ui.css" />
 		<link rel="stylesheet" href="css/pages/political-territory-wiki-tree.css" />
+		<link rel="stylesheet" href="css/components/region-sync.css" />
 		<link rel="stylesheet" href="css/styles.css?v=20260423-transport-menu-popup" />
 		<script type="application/ld+json">
 			{
@@ -151,6 +152,7 @@
 				<button class="review-panel__tab is-active" type="button" data-editor-panel-tab="review">Meldungen</button>
 				<button class="review-panel__tab" type="button" data-editor-panel-tab="changes">Änderungen</button>
 				<button class="review-panel__tab" type="button" data-editor-panel-tab="wiki-sync">WikiSync</button>
+				<button class="review-panel__tab" type="button" data-editor-panel-tab="regions">Regionen</button>
 				<button class="review-panel__tab" type="button" data-editor-panel-tab="presence">Status</button>
 			</nav>
 			<section class="review-panel__section is-active" data-editor-panel-section="review">
@@ -193,6 +195,17 @@
 					<div class="wiki-sync-panel__timefilter">Zeige nur: <input type="number" id="wiki-sync-territory-time-from" placeholder="von" aria-label="Zeitfilter von (BF)" disabled> – <input type="number" id="wiki-sync-territory-time-to" placeholder="bis" aria-label="Zeitfilter bis (BF)" disabled> BF <label><input type="checkbox" id="wiki-sync-territory-time-today" checked> heute</label></div>
 						<div id="wiki-sync-territory-tree" class="tree-wrap wiki-sync-territory-tree" role="tree"></div>
 				</div>
+			</section>
+			<section class="review-panel__section" data-editor-panel-section="regions">
+				<div class="wiki-sync-panel__actions">
+					<span id="region-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
+					<button id="region-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Regionen neu crawlen (laeuft im Hintergrund)">Wiki neu laden</button>
+				</div>
+				<p id="region-sync-status" class="review-panel__status" role="status" aria-live="polite">Regionen werden geladen...</p>
+				<div class="wiki-sync-panel__filter">
+					<input id="region-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Regionen suchen ..." aria-label="Regionen durchsuchen" />
+				</div>
+				<div id="region-sync-list" class="review-panel__list"></div>
 			</section>
 			<section class="review-panel__section" data-editor-panel-section="presence">
 				<p id="presence-panel-status" class="review-panel__status" role="status" aria-live="polite">Nutzerstatus wird geladen...</p>
@@ -950,6 +963,7 @@
 		<script src="js/review/review-labels.js"></script>
 		<script src="js/review/review-locations.js"></script>
 		<script src="js/review/review-panels.js"></script>
+		<script src="js/review/review-region-sync.js"></script>
 		<script src="js/territory/territory-wiki-tree.js"></script>
 		<script src="js/review/review-wiki-sync.js"></script>
 		<script src="js/review/review-region-wiki-picker.js"></script>
