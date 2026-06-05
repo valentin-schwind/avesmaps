@@ -123,6 +123,8 @@ function avesmapsFetchPoliticalTerritorySearchRows(PDO $pdo): array {
             )
             SELECT t.public_id,
                    t.name,
+                   t.min_zoom,
+                   t.max_zoom,
                    MIN(g.min_x) AS min_x,
                    MIN(g.min_y) AS min_y,
                    MAX(g.max_x) AS max_x,
@@ -131,7 +133,7 @@ function avesmapsFetchPoliticalTerritorySearchRows(PDO $pdo): array {
             JOIN subtree st ON st.root_id = t.id
             JOIN political_territory_geometry g ON g.territory_id = st.node_id AND g.is_active = 1
             WHERE t.is_active = 1 AND t.name IS NOT NULL AND t.name <> \'\'
-            GROUP BY t.id, t.public_id, t.name'
+            GROUP BY t.id, t.public_id, t.name, t.min_zoom, t.max_zoom'
         );
     } catch (Throwable $exception) {
         return [];
@@ -187,13 +189,20 @@ function avesmapsBuildMapSearchResults(array $rows, array $politicalRows, string
         if ($name === '') {
             continue;
         }
-        $entry = avesmapsBuildSearchResult($politicalRow, [
+        $regionFields = [
             'kind' => 'region',
             'name' => $name,
             'type_label' => 'Herrschaftsgebiet',
             'feature_subtype' => 'political_territory',
             'search_texts' => [$name],
-        ]);
+        ];
+        if (($politicalRow['min_zoom'] ?? null) !== null) {
+            $regionFields['min_zoom'] = (int) $politicalRow['min_zoom'];
+        }
+        if (($politicalRow['max_zoom'] ?? null) !== null) {
+            $regionFields['max_zoom'] = (int) $politicalRow['max_zoom'];
+        }
+        $entry = avesmapsBuildSearchResult($politicalRow, $regionFields);
         $score = avesmapsCalculateSearchScore($entry, $normalizedQuery);
         if ($score === null) {
             continue;

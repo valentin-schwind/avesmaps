@@ -275,6 +275,8 @@ function buildSyntheticSpotlightRegionEntry(result, publicIds) {
 		regionEntry: null,
 		polygons: [],
 		bounds,
+		minZoom: Number.isFinite(Number(result.min_zoom)) ? Number(result.min_zoom) : null,
+		maxZoom: Number.isFinite(Number(result.max_zoom)) ? Number(result.max_zoom) : null,
 		aliases: [],
 		synthetic: true,
 	};
@@ -308,6 +310,11 @@ function resolveBackendSpotlightEntries(backendResults, localEntries) {
 		// politische Ebene schaltet, hinfliegt und die Infobox per public_id oeffnet.
 		if (!entry && kind === "region" && publicIds.length) {
 			entry = buildSyntheticSpotlightRegionEntry(result, publicIds);
+		}
+
+		if (entry && entry.kind === "region") {
+			if (Number.isFinite(Number(result.min_zoom))) entry.minZoom = Number(result.min_zoom);
+			if (Number.isFinite(Number(result.max_zoom))) entry.maxZoom = Number(result.max_zoom);
 		}
 
 		if (!entry || seenEntryIds.has(entry.id)) {
@@ -740,10 +747,28 @@ function focusSpotlightLabel(entry) {
 	syncLabelVisibility();
 }
 
+// Fliegt zur Region-Bounds, klemmt die Zielzoomstufe aber ins Sichtbarkeits-Band des Gebiets
+// (min_zoom..max_zoom) -> kein Zoom auf eine Stufe, wo das Gebiet gar nicht gerendert wird.
+function focusSpotlightRegionBounds(bounds, minZoom, maxZoom) {
+	if (!bounds?.isValid?.()) {
+		return;
+	}
+	const hasMin = Number.isFinite(Number(minZoom));
+	const hasMax = Number.isFinite(Number(maxZoom));
+	const cap = hasMax ? Number(maxZoom) : 4;
+	map.fitBounds(bounds.pad(0.12), { padding: [54, 54], maxZoom: cap });
+	let targetZoom = map.getZoom();
+	if (hasMin && targetZoom < Number(minZoom)) targetZoom = Number(minZoom);
+	if (hasMax && targetZoom > Number(maxZoom)) targetZoom = Number(maxZoom);
+	if (targetZoom !== map.getZoom()) {
+		map.setView(bounds.getCenter(), targetZoom);
+	}
+}
+
 function focusSpotlightRegion(entry) {
 	setSelectedMapLayerMode("political");
 	if (entry.bounds?.isValid?.()) {
-		focusSpotlightBounds(entry.bounds, 4);
+		focusSpotlightRegionBounds(entry.bounds, entry.minZoom, entry.maxZoom);
 	}
 	// Highlight: die Infobox des Gebiets oeffnen. Per public_id, da die politische Ebene nach dem
 	// Ebenen-Wechsel/Flug asynchron neu laedt -> wir pollen, bis das Polygon gerendert ist.
