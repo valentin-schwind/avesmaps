@@ -3180,12 +3180,15 @@ function avesmapsWikiSyncMonitorWikiRows(PDO $pdo): array {
 
     $parent = [];
     $excluded = [];
-    foreach ($pdo->query('SELECT wiki_key, parent_wiki_key, excluded FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE) ?: [] as $m) {
+    $ovByKey = [];
+    foreach ($pdo->query('SELECT wiki_key, parent_wiki_key, excluded, metadata_overrides_json FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE) ?: [] as $m) {
         $wk = (string) $m['wiki_key'];
         $parent[$wk] = $m['parent_wiki_key'] !== null ? (string) $m['parent_wiki_key'] : null;
         if ((int) ($m['excluded'] ?? 0) === 1) {
             $excluded[$wk] = true;
         }
+        $ov = json_decode((string) ($m['metadata_overrides_json'] ?? ''), true);
+        $ovByKey[$wk] = is_array($ov) ? $ov : [];
     }
 
     $assigned = [];
@@ -3209,7 +3212,11 @@ function avesmapsWikiSyncMonitorWikiRows(PDO $pdo): array {
     )->fetchAll(PDO::FETCH_ASSOC) as $s) {
         $rowsByKey[(string) $s['wiki_key']] = $s;
     }
-    $nameOf = static fn(string $wk): string => isset($rowsByKey[$wk]) ? (string) $rowsByKey[$wk]['name'] : '';
+    // Name eines Knotens fuer die Ahnen-Kette: Staging-Name, sonst (eigene Knoten) Override-Name.
+    $nameOf = static function (string $wk) use ($rowsByKey, $ovByKey): string {
+        if (isset($rowsByKey[$wk])) { return (string) $rowsByKey[$wk]['name']; }
+        return isset($ovByKey[$wk]['name']) ? trim((string) $ovByKey[$wk]['name']) : '';
+    };
 
     $items = [];
     $id = 1;
@@ -3272,6 +3279,67 @@ function avesmapsWikiSyncMonitorWikiRows(PDO $pdo): array {
             'coat_of_arms_url' => (string) $s['coat_of_arms_url'],
             'map_assigned' => $geometryCount > 0,
             'map_geometry_count' => $geometryCount,
+        ];
+    }
+
+    // Eigene Knoten (nur im Modell, kein Staging): aus den Overrides aufbauen, damit sie auch im
+    // Territoriumseditor- und Review-Tree erscheinen, sobald sie platziert sind (excluded=0).
+    foreach ($parent as $wikiKey => $parentKey) {
+        if (isset($rowsByKey[$wikiKey]) || isset($excluded[$wikiKey])) {
+            continue; // Staging -> oben erfasst; aussortiert/nicht platziert -> nicht im Baum
+        }
+        $ov = $ovByKey[$wikiKey] ?? [];
+        $continent = trim((string) ($ov['continent'] ?? ''));
+        if ($continent !== '' && stripos($continent, 'aventurien') === false) {
+            continue;
+        }
+        $chain = [];
+        $seen = [];
+        $cur = $parent[$wikiKey] ?? null;
+        $guard = 0;
+        while ($cur !== null && !isset($seen[$cur]) && $guard++ < 25) {
+            $seen[$cur] = true;
+            $name = $nameOf($cur);
+            if ($name !== '') { array_unshift($chain, $name); }
+            $cur = $parent[$cur] ?? null;
+        }
+        $ovs = static fn(string $k): string => isset($ov[$k]) ? (string) $ov[$k] : '';
+        $geometryCount = $assigned[$wikiKey] ?? 0;
+        $items[] = [
+            'id' => $id++,
+            'wiki_key' => $wikiKey,
+            'parent_wiki_key' => $parent[$wikiKey] ?? null,
+            'name' => $nameOf($wikiKey),
+            'type' => $ovs('type'),
+            'continent' => $continent,
+            'affiliation_raw' => '',
+            'affiliation_root' => $chain[0] ?? '',
+            'affiliation_path' => $chain,
+            'affiliation_path_json' => $chain,
+            'status' => $ovs('status'),
+            'form_of_government' => $ovs('form_of_government'),
+            'capital_name' => $ovs('capital_name'),
+            'seat_name' => $ovs('seat_name'),
+            'ruler' => $ovs('ruler'),
+            'language' => $ovs('language'),
+            'currency' => $ovs('currency'),
+            'trade_goods' => $ovs('trade_goods'),
+            'population' => $ovs('population'),
+            'founded_text' => $ovs('founded_text'),
+            'founded_start_bf' => (isset($ov['founded_start_bf']) && $ov['founded_start_bf'] !== '') ? (int) $ov['founded_start_bf'] : null,
+            'founded_end_bf' => null,
+            'dissolved_text' => $ovs('dissolved_text'),
+            'dissolved_start_bf' => null,
+            'dissolved_end_bf' => (isset($ov['dissolved_end_bf']) && $ov['dissolved_end_bf'] !== '' && $ov['dissolved_end_bf'] !== '9999') ? (int) $ov['dissolved_end_bf'] : null,
+            'geographic' => $ovs('geographic'),
+            'political' => $ovs('political'),
+            'trade_zone' => $ovs('trade_zone'),
+            'blazon' => '',
+            'wiki_url' => '',
+            'coat_of_arms_url' => $ovs('coat_of_arms_url'),
+            'map_assigned' => $geometryCount > 0,
+            'map_geometry_count' => $geometryCount,
+            'is_own_node' => true,
         ];
     }
 
