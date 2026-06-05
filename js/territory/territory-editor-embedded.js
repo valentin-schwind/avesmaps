@@ -2907,7 +2907,99 @@
 			showEmptyDetails();
 		}
 
+		// Zoom-Band-Kollision: schiebt benachbarte Breadcrumb-Level (Eltern-Kette + direkte Kinder)
+		// kaskadierend weg, damit die Bänder überlappungsfrei + lückenlos gestaffelt bleiben (0-6).
+		// Liefert { updates, summary, limited } zurück; passt aktives Form-Band an, wenn ein Limit greift.
+		function resolveZoomBandCascade() {
+			const result = { updates: [], summary: "", limited: false };
+			if (!editedNode) {
+				return result;
+			}
+
+			const clampZ = (value) => Math.max(0, Math.min(6, Math.round(value)));
+
+			let activeMin = parseOptionalNumber(els.zoomFromInput?.value);
+			let activeMax = parseOptionalNumber(els.zoomToInput?.value);
+			if (activeMin === null || activeMax === null) {
+				return result;
+			}
+			activeMin = clampZ(activeMin);
+			activeMax = clampZ(activeMax);
+			if (activeMin > activeMax) {
+				const swap = activeMin; activeMin = activeMax; activeMax = swap;
+			}
+
+			const changes = new Map();
+
+			// --- Eltern-Kette (linear): jeder Vorfahr muss komplett UNTER dem aktiven Band liegen ---
+			const path = getNodePath(editedNode);
+			const ancestors = path.slice(0, -1).reverse();
+			let lowerBound = activeMin;
+			for (const node of ancestors) {
+				if (!displayStateByNodeId.has(node.id)) continue;
+				const state = displayStateByNodeId.get(node.id);
+				if (state.zoomMin === null || state.zoomMax === null) continue;
+				let nextMax = Math.min(state.zoomMax, lowerBound - 1);
+				if (nextMax < 0) {
+					activeMin = clampZ(activeMin + (0 - nextMax));
+					if (activeMin > activeMax) activeMax = activeMin;
+					result.limited = true;
+					lowerBound = activeMin;
+					nextMax = Math.min(state.zoomMax, lowerBound - 1);
+				}
+				nextMax = Math.max(0, nextMax);
+				let nextMin = Math.max(0, Math.min(state.zoomMin, nextMax));
+				if (nextMin !== state.zoomMin || nextMax !== state.zoomMax) {
+					changes.set(node.id, { node, min: nextMin, max: nextMax });
+				}
+				lowerBound = nextMin;
+			}
+
+			// --- direkte Kinder: jedes muss komplett ÜBER dem aktiven Band liegen ---
+			let upperBound = activeMax;
+			for (const node of (editedNode.children || [])) {
+				if (!displayStateByNodeId.has(node.id)) continue;
+				const state = displayStateByNodeId.get(node.id);
+				if (state.zoomMin === null || state.zoomMax === null) continue;
+				let nextMin = Math.max(state.zoomMin, upperBound + 1);
+				if (nextMin > 6) {
+					activeMax = clampZ(activeMax - (nextMin - 6));
+					if (activeMax < activeMin) activeMin = activeMax;
+					result.limited = true;
+					upperBound = activeMax;
+					nextMin = Math.max(state.zoomMin, upperBound + 1);
+				}
+				nextMin = Math.min(6, nextMin);
+				let nextMax = Math.min(6, Math.max(state.zoomMax, nextMin));
+				if (nextMin !== state.zoomMin || nextMax !== state.zoomMax) {
+					changes.set(node.id, { node, min: nextMin, max: nextMax });
+				}
+			}
+
+			if (els.zoomFromInput) els.zoomFromInput.value = String(activeMin);
+			if (els.zoomToInput) els.zoomToInput.value = String(activeMax);
+
+			const labels = [];
+			changes.forEach(({ node, min, max }) => {
+				const state = displayStateByNodeId.get(node.id);
+				displayStateByNodeId.set(node.id, { ...state, zoomMin: min, zoomMax: max });
+				const territoryRef = normalizeText(node.row?.public_id || node.row?.wiki_key || "");
+				if (territoryRef) {
+					result.updates.push({ territoryPublicId: territoryRef, minZoom: min, maxZoom: max });
+				}
+				labels.push(`${node.label || state.name || "?"} → ${min}–${max}`);
+			});
+
+			if (labels.length) {
+				result.summary = `Zoom-Bänder verschoben: ${labels.join(", ")}`;
+			} else if (result.limited) {
+				result.summary = `Aktives Band auf ${activeMin}–${activeMax} begrenzt (Limit 0–6).`;
+			}
+			return result;
+		}
+
 		async function handleSave() {
+			const zoomCascade = resolveZoomBandCascade();
 			const value = getAssignmentValue();
 
 			if (!value) {
@@ -2930,7 +3022,19 @@
 					return;
 				}
 
-				setFormStatus(result?.message || "Gespeichert.", "success");
+				if (zoomCascade.updates.length) {
+					try {
+						await window.AvesmapsPoliticalTerritorySubtreeDisplayTools?.applyExplicitZoomUpdates?.(zoomCascade.updates);
+					} catch (zoomError) {
+						console.warn("Nachbar-Zoom-Bänder konnten nicht gespeichert werden:", zoomError);
+						setFormStatus((result?.message || "Gespeichert.") + " — Nachbar-Bänder NICHT gespeichert (siehe Konsole).", "error");
+						return;
+					}
+				}
+				const saveMessage = zoomCascade.summary
+					? `${result?.message || "Gespeichert."} ${zoomCascade.summary}`
+					: (result?.message || "Gespeichert.");
+				setFormStatus(saveMessage, "success");
 			} catch (error) {
 				setFormStatus(error.message || String(error), "error");
 			}
