@@ -64,6 +64,9 @@
   #dropRoot, #dropExclude { margin:6px 0 0; padding:6px; border:1px dashed var(--line2); border-radius:5px; text-align:center; color:var(--mut); }
   #dropExclude { border-color:#c0998f; }
   #dropRoot.drop, #dropExclude.drop { outline:2px dashed var(--accent); }
+  .colfoot { flex:0 0 auto; display:flex; gap:6px; margin-top:6px; padding-top:6px; border-top:1px solid var(--line); }
+  .colfoot .btn { flex:1; }
+  .colfoot .btn[disabled] { opacity:.5; cursor:not-allowed; }
   .tag.excl { color:#7a4fa0; border-color:#c0998f; }
   .dd { position:relative; }
   .dd > summary { list-style:none; cursor:pointer; background:#f3ebdf; color:#513c2b; border:1px solid #b99a78; border-radius:5px; padding:5px 10px; }
@@ -220,13 +223,16 @@
           <option value="all">Alle</option>
         </select>
         <input type="search" id="search" placeholder="In dieser Auswahl suchen…">
-        <button type="button" id="btnNewOwn" class="btn" title="Legt einen eigenen Knoten (ohne Wiki-Vorlage) an – erscheint hier unter „Eigene Knoten“ und kann dann in den Baum gezogen werden">+ Eigener Knoten</button>
       </div>
       <div id="filterInfo" class="info"></div>
       <div class="timefilter">Zeige nur: <input type="number" id="timeLeftFrom" placeholder="von"> – <input type="number" id="timeLeftTo" placeholder="bis"> BF <label><input type="checkbox" id="timeLeftToday"> heute</label></div>
       <div id="dropExclude">✕ Hierher ziehen = aussortieren (kein Herrschaftsgebiet)</div>
     </div>
     <div id="list"></div>
+    <div id="ownFoot" class="colfoot">
+      <button type="button" id="btnNewOwn" class="btn" title="Legt einen eigenen Knoten (ohne Wiki-Vorlage) an – erscheint links unter „Eigene Knoten“ und kann dann in den Baum gezogen werden">+ Eigener Knoten</button>
+      <button type="button" id="btnDelOwn" class="btn" disabled title="Löscht den ausgewählten eigenen Knoten – nur möglich, solange er nicht im Hierarchiemodell platziert ist">🗑 Eigenen Knoten löschen</button>
+    </div>
   </div>
   <div class="col" id="right">
     <div class="colhead">
@@ -578,7 +584,21 @@ function buildDetailLicense(n){
   const strike=licOv?`<div style="font-size:11px;margin-top:2px"><span class="dt-old">${esc(licName(n.license_status))}</span><span class="dt-arrow">→</span><span class="dt-new">${esc(licName(ls))}</span></div>`:'';
   return `<div class="dt-lic-wrap">${lic}${strike}</div>`;
 }
+// Fußleiste „eigene Knoten" (unten links): Löschen nur aktiv, wenn ein nicht-platzierter
+// eigener Knoten ausgewählt ist.
+function updateOwnFoot(){
+  const btn = $('btnDelOwn'); if(!btn) return;
+  const n = selectedKey ? BYKEY.get(selectedKey) : null;
+  const deletable = !!(n && n.is_own_node && n.excluded);
+  btn.disabled = !deletable;
+  btn.title = deletable
+    ? `Eigenen Knoten „${n.name}" endgültig löschen`
+    : (n && n.is_own_node
+        ? 'Dieser eigene Knoten ist im Hierarchiemodell platziert – erst aus dem Modell nehmen (in „✕ aussortieren" ziehen), dann löschbar.'
+        : 'Wähle links unter „Eigene Knoten“ einen nicht platzierten eigenen Knoten zum Löschen aus.');
+}
 function renderDetail(){
+  updateOwnFoot();
   const n = selectedKey ? BYKEY.get(selectedKey) : null;
   const box = $('detailBody');
   if(!n){ box.innerHTML='<div class="dt-empty">Links oder im Baum ein Herrschaftsgebiet anklicken, um die gecrawlten Wiki-Details zu sehen.</div>'; return; }
@@ -618,10 +638,7 @@ function renderDetail(){
     ? `<button class="edbtn" data-save-coat-local="${esc(n.wiki_key)}" title="Lädt das gemeinfreie Wiki-Wappen auf den Avesmaps-Server und nutzt künftig die lokale Kopie (Override)">📥 Wappen lokal speichern</button>` : '';
   const coatRestoreBtn = (isOvr(n,'coat_of_arms_url')||isOvr(n,'coat_of_arms_license_status')||isOvr(n,'coat_of_arms_author'))
     ? `<button class="edbtn" data-restore-coat="${esc(n.wiki_key)}" title="Eigenes/lokal gespeichertes Wappen + Lizenz-Override entfernen und wieder den Wiki-Stand verwenden">↺ Wappen zurücksetzen</button>` : '';
-  // Eigene Knoten: löschen nur erlaubt, solange NICHT im Hierarchiemodell platziert (excluded).
-  const deleteOwnBtn = (n.is_own_node && n.excluded)
-    ? `<button class="edbtn dt-del-own" data-delete-own="${esc(n.wiki_key)}" title="Eigenen, nicht platzierten Knoten endgültig löschen">🗑 Eigenen Knoten löschen</button>` : '';
-  box.innerHTML = head + lic + `<div class="dt-actions">${lockBtn}${editBtn}${coatLocalBtn}${coatRestoreBtn}${deleteOwnBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>`;
+  box.innerHTML = head + lic + `<div class="dt-actions">${lockBtn}${editBtn}${coatLocalBtn}${coatRestoreBtn}</div>` + `<div class="dt-grid">${rows.join('')}</div>`;
 }
 function renderCapResults(){
   if(!capResults.length) return '';
@@ -950,6 +967,7 @@ $('btnApply').onclick = async()=>{
   busy(false);
 };
 $('btnNewOwn').onclick = createOwnNode;
+$('btnDelOwn').onclick = ()=>{ if(selectedKey) deleteOwnNode(selectedKey); };
 $('search').oninput = renderList;
 $('filter').onchange = ()=>{ updateFilterInfo(); renderList(); };
 $('treeSearch').oninput = ()=>{ treeQuery = $('treeSearch').value; renderTree(); };
@@ -994,7 +1012,6 @@ $('detailBody').addEventListener('click', e=>{
   const rp=e.target.closest('[data-restore-parent]'); if(rp){ restoreWikiParent(rp.dataset.restoreParent); return; }
   const sc=e.target.closest('[data-save-coat-local]'); if(sc){ saveCoatLocal(sc.dataset.saveCoatLocal); return; }
   const rcoat=e.target.closest('[data-restore-coat]'); if(rcoat){ restoreCoat(rcoat.dataset.restoreCoat); return; }
-  const dlo=e.target.closest('[data-delete-own]'); if(dlo){ deleteOwnNode(dlo.dataset.deleteOwn); return; }
   const lb=e.target.closest('.lockbtn'); if(lb){ lockNode(lb.dataset.lockkey, lb.dataset.locknow!=='1'); return; }
   if(e.target.closest('[data-edit-start]')){ startEdit(); return; }
   if(e.target.closest('[data-edit-cancel]')){ cancelEdit(); return; }
