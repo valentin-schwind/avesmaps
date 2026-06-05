@@ -777,7 +777,7 @@ function renderList() {
     if (!visibleByContinent(n)) continue;
     if (!visibleByTime(n, leftTime)) continue;
     if (!matchesFilter(n, f)) continue;
-    if (q && !(n.name.toLowerCase().includes(q) || n.wiki_key.toLowerCase().includes(q)
+    if (q && !(dispName(n).toLowerCase().includes(q) || n.wiki_key.toLowerCase().includes(q)
         || (n.aliases||[]).some(a=>a.includes(q)) || (n.affiliation_raw||'').toLowerCase().includes(q))) continue;
     if (shown++ > 600) { out.push('<div class="muted">… mehr (Suche eingrenzen)</div>'); break; }
     const lock = n.parent_locked ? ` <span class="tag lock" title="${lockTitle(n)}">🔒</span>` : '';
@@ -819,7 +819,7 @@ function renderTree() {
   treeKeep=null; treeForceOpen=null;
   if(q){
     treeKeep=new Set(); treeForceOpen=new Set();
-    const match=(n)=> n.name.toLowerCase().includes(q) || n.wiki_key.toLowerCase().includes(q) || (n.aliases||[]).some(a=>a.includes(q));
+    const match=(n)=> dispName(n).toLowerCase().includes(q) || n.wiki_key.toLowerCase().includes(q) || (n.aliases||[]).some(a=>a.includes(q));
     for(const n of NODES){
       if(hide(n) || !match(n)) continue;
       let c=n;

@@ -2378,6 +2378,8 @@
 
 				const haystack = [
 					row.name,
+					row.wiki_key,
+					(row.overrides && row.overrides.name) || "",
 					row.type,
 					row.continent,
 					row.affiliation_raw,
