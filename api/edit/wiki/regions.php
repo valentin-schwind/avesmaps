@@ -69,6 +69,10 @@ try {
             array_filter(array_map('trim', explode('|', (string) ($_GET['wiki_keys'] ?? '')))),
             (int) ($_GET['limit'] ?? 40)
         ),
+        'match' => avesmapsWikiRegionMatch($pdo, [
+            'continent' => array_key_exists('continent', $_GET) ? (string) $_GET['continent'] : 'Aventurien',
+            'limit' => (int) ($_GET['limit'] ?? 500),
+        ]),
         default => null,
     };
 

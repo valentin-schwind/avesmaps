@@ -639,3 +639,144 @@ function avesmapsWikiRegionClear(PDO $pdo, string $target, string $runId = ''): 
 
     return ['ok' => true, 'cleared' => $cleared];
 }
+
+// ---------------------------------------------------------------------------
+// Matching (Schritt 3): Wiki-Regionen (Staging) <-> Karten-Regionen.
+// Karten-„Regionen" = Label-Features (feature_type='label'; Subtypen region/gebirge/
+// wald/insel/meer/see/...). Gematcht wird ueber den normalisierten Namen (+ Synonyme)
+// gegen avesmapsWikiSyncCreateMatchKey. Hauptinteresse: was fehlt auf der Karte.
+// map_features wird NUR gelesen.
+// ---------------------------------------------------------------------------
+
+// Aktive Landschafts-Labels der Karte, indiziert nach Match-Key (Name). feature_type='label'
+// umfasst genau die Landschafts-Labels (region/gebirge/wald/insel/meer/see/berggipfel/...).
+function avesmapsWikiRegionReadMapLabels(PDO $pdo): array {
+    if (!avesmapsWikiSyncMonitorTableExists($pdo, 'map_features')) {
+        return [];
+    }
+    $statement = $pdo->query(
+        'SELECT public_id, name, feature_subtype FROM map_features
+        WHERE is_active = 1 AND feature_type = \'label\''
+    );
+    $byKey = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $name = trim((string) ($row['name'] ?? ''));
+        if ($name === '') {
+            continue;
+        }
+        $key = avesmapsWikiSyncCreateMatchKey($name);
+        if ($key === '') {
+            continue;
+        }
+        $byKey[$key][] = [
+            'public_id' => (string) ($row['public_id'] ?? ''),
+            'name' => $name,
+            'subtype' => (string) ($row['feature_subtype'] ?? ''),
+        ];
+    }
+    return $byKey;
+}
+
+function avesmapsWikiRegionMatch(PDO $pdo, array $options = []): array {
+    avesmapsWikiRegionEnsureTables($pdo);
+    // '' = alle Kontinente; Default Aventurien (Karte ist Aventurien).
+    $continentFilter = array_key_exists('continent', $options) ? trim((string) $options['continent']) : 'Aventurien';
+    $sampleLimit = max(0, min(2000, (int) ($options['limit'] ?? 500)));
+
+    $labelsByKey = avesmapsWikiRegionReadMapLabels($pdo);
+    $mapLabelCount = array_sum(array_map('count', $labelsByKey));
+
+    $rows = $pdo->query(
+        'SELECT wiki_key, name, match_key, art, continent, region_parent, affiliation_staat, synonyms_json, image_url, wiki_url
+        FROM ' . AVESMAPS_WIKI_REGION_STAGING_TABLE
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    $matched = [];
+    $ambiguous = [];
+    $missing = [];
+    $matchedLabelKeys = [];
+    $consideredStagingKeys = [];
+    $processed = 0;
+
+    foreach ($rows as $row) {
+        $continent = (string) ($row['continent'] ?? '');
+        if ($continentFilter !== '' && $continent !== '' && $continent !== $continentFilter) {
+            continue;
+        }
+        $processed++;
+
+        $keys = [(string) ($row['match_key'] ?? '')];
+        foreach (avesmapsWikiSyncDecodeJson($row['synonyms_json'] ?? null) as $synonym) {
+            $synonymKey = avesmapsWikiSyncCreateMatchKey((string) $synonym);
+            if ($synonymKey !== '') {
+                $keys[] = $synonymKey;
+            }
+        }
+        $keys = array_values(array_unique(array_filter($keys, static fn(string $k): bool => $k !== '')));
+        foreach ($keys as $k) {
+            $consideredStagingKeys[$k] = true;
+        }
+
+        $hits = [];
+        foreach ($keys as $k) {
+            foreach (($labelsByKey[$k] ?? []) as $label) {
+                $hits[$label['public_id'] !== '' ? $label['public_id'] : $label['name']] = $label;
+            }
+        }
+
+        $entry = [
+            'wiki_key' => (string) $row['wiki_key'],
+            'name' => (string) $row['name'],
+            'art' => (string) ($row['art'] ?? ''),
+            'continent' => $continent,
+            'region_parent' => (string) ($row['region_parent'] ?? ''),
+            'affiliation_staat' => (string) ($row['affiliation_staat'] ?? ''),
+            'wiki_url' => (string) ($row['wiki_url'] ?? ''),
+            'has_image' => trim((string) ($row['image_url'] ?? '')) !== '',
+        ];
+
+        if ($hits === []) {
+            $missing[] = $entry;
+        } elseif (count($hits) === 1) {
+            $label = array_values($hits)[0];
+            $entry['label'] = $label;
+            $matched[] = $entry;
+            $matchedLabelKeys[avesmapsWikiSyncCreateMatchKey($label['name'])] = true;
+        } else {
+            $entry['labels'] = array_values($hits);
+            $ambiguous[] = $entry;
+        }
+    }
+
+    // Karten-Labels ohne Wiki-Treffer (= Label existiert, aber keine Wiki-Region dazu gefunden).
+    $unmatchedLabels = [];
+    foreach ($labelsByKey as $key => $labels) {
+        if (!isset($consideredStagingKeys[$key])) {
+            foreach ($labels as $label) {
+                $unmatchedLabels[] = $label;
+            }
+        }
+    }
+
+    usort($missing, static fn(array $a, array $b): int => strcasecmp($a['name'], $b['name']));
+    usort($matched, static fn(array $a, array $b): int => strcasecmp($a['name'], $b['name']));
+    usort($unmatchedLabels, static fn(array $a, array $b): int => strcasecmp($a['name'], $b['name']));
+
+    return [
+        'ok' => true,
+        'continent_filter' => $continentFilter,
+        'summary' => [
+            'staging_total' => count($rows),
+            'considered' => $processed,
+            'map_labels' => $mapLabelCount,
+            'matched' => count($matched),
+            'ambiguous' => count($ambiguous),
+            'missing' => count($missing),
+            'unmatched_map_labels' => count($unmatchedLabels),
+        ],
+        'matched' => $sampleLimit > 0 ? array_slice($matched, 0, $sampleLimit) : [],
+        'ambiguous' => array_slice($ambiguous, 0, 300),
+        'missing' => $sampleLimit > 0 ? array_slice($missing, 0, max($sampleLimit, 1200)) : [],
+        'unmatched_map_labels' => array_slice($unmatchedLabels, 0, 500),
+    ];
+}
