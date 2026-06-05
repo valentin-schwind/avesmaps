@@ -239,13 +239,12 @@
 			let to = toEl.value === "" ? null : clamp(parseInt(toEl.value, 10));
 			if (Number.isNaN(from)) from = null;
 			if (Number.isNaN(to)) to = null;
-			if (from !== null && to !== null && from >= to) {
+			// von == bis ist erlaubt (nur bei genau diesem Zoom sichtbar); nur korrigieren, wenn von > bis.
+			if (from !== null && to !== null && from > to) {
 				if (changed === "from") {
-					to = Math.min(6, from + 1);
-					if (from >= to) from = to - 1;
+					to = from;
 				} else {
-					from = Math.max(0, to - 1);
-					if (to <= from) to = from + 1;
+					from = to;
 				}
 			}
 			if (from !== null) fromEl.value = String(from);
