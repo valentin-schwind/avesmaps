@@ -125,28 +125,6 @@
 		ctx.restore();
 	}
 
-	// Blatt-Kontur: zeichnet die Ringe einer Blatt-Quellgeometrie als weiß-gestrichelte Linie
-	// (gleiche Optik + Zoom-Staffelung wie Innengrenzen), NICHT geclippt -> Mittellinie auf der
-	// Grenze. Damit bekommen Blatt-Gebiete (ohne eigene Derived) eine sichtbare eigene Umrandung.
-	function drawLeafOutline(geom) {
-		if (Math.round(Number(map.getZoom())) <= 0) return; // wie Innengrenzen: Zoom 0 aus
-		const polys = polygonsOf(geom);
-		if (!polys.length) return;
-		ctx.save();
-		ctx.beginPath();
-		tracePolys(polys);
-		const z = Math.round(Number(map.getZoom()));
-		const fine = z <= INNER_DASH_FINE_MAX_ZOOM;
-		const medium = z === INNER_DASH_MEDIUM_ZOOM;
-		ctx.lineWidth = fine ? INNER_LINE_WIDTH_FINE : (medium ? INNER_LINE_WIDTH_MEDIUM : INNER_LINE_WIDTH);
-		ctx.strokeStyle = INNER_LINE_COLOR;
-		ctx.globalAlpha = INNER_LINE_ALPHA;
-		ctx.setLineDash(fine ? INNER_LINE_DASH_FINE : (medium ? INNER_LINE_DASH_MEDIUM : INNER_LINE_DASH));
-		ctx.lineJoin = "round";
-		ctx.stroke();
-		ctx.restore();
-	}
-
 	function redraw() {
 		if (!map.getPane(PANE)) return;
 		// Nur waehrend der CSS-Zoom-Animation NICHT neu zeichnen: dort uebernimmt die zoomanim-
@@ -162,28 +140,8 @@
 		if (canvas.height !== size.y) canvas.height = size.y;
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-		const all = (Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []));
-		const feats = all.filter((f) => f && f.properties && f.properties.is_derived_geometry === true);
-		// territory_public_id aller Aggregate -> ein Quell-Gebiet mit eigener Derived ist KEIN Blatt.
-		const derivedTerritoryKeys = new Set();
-		feats.forEach((f) => { const k = String(f.properties.territory_public_id || "").trim(); if (k) derivedTerritoryKeys.add(k); });
-
-		// Blatt-Konturen ZUERST (unter den Aggregaten): Blatt-Gebiete (Quellgeometrie ohne eigene
-		// Derived) bekommen ihre eigene Kontur als weiß-gestrichelte Linie — sonst stehen kleinste
-		// Gebiete ganz ohne Umrandung da. Nur Blätter, deren Quell-Rand ohnehin unterdrückt ist
-		// (stroke_hidden_by_derived_boundary = unter aktivem Aggregat -> kein Doppelstrich) und die
-		// nicht voll versteckt sind. Vor den Aggregaten gezeichnet -> die graue Außenkontur übermalt
-		// die Blatt-Außenkanten, nur die Innenkanten bleiben gestrichelt.
-		all.forEach((f) => {
-			if (!f || !f.properties) return;
-			const p = f.properties;
-			if (p.is_derived_geometry === true) return;
-			if (p.stroke_hidden_by_derived_boundary !== true) return;
-			if (p.visual_hidden_by_derived_boundary === true) return;
-			const k = String(p.territory_public_id || "").trim();
-			if (!k || derivedTerritoryKeys.has(k)) return; // hat eigene Derived -> kein Blatt
-			drawLeafOutline(f.geometry);
-		});
+		const feats = (Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []))
+			.filter((f) => f && f.properties && f.properties.is_derived_geometry === true);
 
 		feats.forEach((f) => {
 			const polys = polygonsOf(f.geometry);
