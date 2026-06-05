@@ -579,7 +579,18 @@
 						<input id="label-edit-is-nodix" name="is_nodix" type="checkbox" />
 						<span>Label ist ein Nodix</span>
 					</label>
-					<p id="label-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+					<div class="label-wiki-reference" id="label-wiki-reference">
+							<div class="label-wiki-reference__head">
+								<span class="label-wiki-reference__title">Wiki-Landschaft</span>
+								<span class="label-wiki-reference__buttons">
+									<button type="button" id="label-wiki-assign" class="location-report-form__button location-report-form__button--secondary">Zuweisen</button>
+									<button type="button" id="label-wiki-sync" class="location-report-form__button location-report-form__button--secondary" hidden>Sync</button>
+									<button type="button" id="label-wiki-remove" class="location-report-form__button location-report-form__button--secondary" hidden>Entfernen</button>
+								</span>
+							</div>
+							<div id="label-wiki-reference-list" class="label-wiki-reference__list"></div>
+						</div>
+						<p id="label-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 					<div class="location-report-form__actions">
 						<button id="label-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Loeschen</button>
 						<button id="label-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
@@ -588,7 +599,23 @@
 				</form>
 			</div>
 		</div>
-		<div id="region-edit-overlay" hidden>
+		<div id="label-wiki-picker-overlay" hidden>
+				<div id="label-wiki-picker-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="label-wiki-picker-title" tabindex="-1">
+					<div class="location-report-dialog__header">
+						<h2 id="label-wiki-picker-title">Wiki-Landschaft zuweisen</h2>
+						<button id="label-wiki-picker-close" class="location-report-dialog__close" type="button" aria-label="Schliessen">x</button>
+					</div>
+					<div class="location-report-form">
+						<label class="location-report-form__field">
+							<span>Suche</span>
+							<input id="label-wiki-picker-filter" type="search" placeholder="Region/Landschaft suchen ..." autocomplete="off" />
+						</label>
+						<div id="label-wiki-picker-list" class="label-wiki-picker-list"></div>
+						<p id="label-wiki-picker-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+					</div>
+				</div>
+			</div>
+			<div id="region-edit-overlay" hidden>
 			<div id="region-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="region-edit-title" tabindex="-1">
 				<div class="location-report-dialog__header">
 					<h2 id="region-edit-title">Herrschaftsgebiet bearbeiten</h2>
@@ -961,6 +988,7 @@
 		<script src="js/review/review-pending.js"></script>
 		<script src="js/review/review-paths.js"></script>
 		<script src="js/review/review-labels.js"></script>
+		<script src="js/review/review-label-wiki.js"></script>
 		<script src="js/review/review-locations.js"></script>
 		<script src="js/review/review-panels.js"></script>
 		<script src="js/review/review-region-sync.js"></script>

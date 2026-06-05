@@ -67,3 +67,118 @@
 	font-size: 12px;
 	opacity: 0.8;
 }
+
+/* Landschafts-Picker im Label-Editor (Wiki-Region an Label heften). */
+.label-wiki-reference {
+	border: 1px solid #dccab8;
+	border-radius: 6px;
+	background: #fffaf5;
+	padding: 8px 10px;
+}
+
+.label-wiki-reference__head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 6px;
+}
+
+.label-wiki-reference__title {
+	font-weight: 600;
+	color: #5a4a3a;
+}
+
+.label-wiki-reference__buttons {
+	display: flex;
+	gap: 4px;
+	flex-wrap: wrap;
+}
+
+.label-wiki-reference__empty {
+	font-size: 12px;
+	color: #8a7a68;
+}
+
+.label-wiki-reference__dl {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 2px 10px;
+	margin: 4px 0;
+	font-size: 12px;
+}
+
+.label-wiki-reference__dl dt {
+	color: #6b5a48;
+}
+
+.label-wiki-reference__dl dd {
+	margin: 0;
+	color: #3a2c20;
+}
+
+.label-wiki-reference__image {
+	max-width: 100%;
+	max-height: 120px;
+	border: 1px solid #dccab8;
+	border-radius: 4px;
+	display: block;
+	margin-bottom: 4px;
+}
+
+.label-wiki-reference__imagenote,
+.label-wiki-reference__desc {
+	font-size: 12px;
+	color: #6b5a48;
+	margin: 2px 0;
+}
+
+.label-wiki-reference__link {
+	font-size: 12px;
+	color: #7a5a3a;
+}
+
+.label-wiki-picker-list {
+	max-height: 340px;
+	overflow: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	border: 1px solid #dccab8;
+	border-radius: 6px;
+	background: #fff;
+	padding: 4px;
+}
+
+.label-wiki-picker-list__item {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	text-align: left;
+	padding: 6px 8px;
+	border: 1px solid transparent;
+	border-radius: 5px;
+	background: #fffaf5;
+	cursor: pointer;
+}
+
+.label-wiki-picker-list__item:hover {
+	border-color: #c9b49c;
+	background: #f3e8db;
+}
+
+.label-wiki-picker-list__name {
+	font-weight: 600;
+	color: #3a2c20;
+}
+
+.label-wiki-picker-list__meta {
+	font-size: 12px;
+	color: #6b5a48;
+}
+
+.label-wiki-picker-list__empty {
+	font-size: 12px;
+	color: #8a7a68;
+	padding: 6px;
+}

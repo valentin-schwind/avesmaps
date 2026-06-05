@@ -27,6 +27,9 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 	document.getElementById("label-edit-max-zoom").value = label.maxZoom ?? 5;
 	document.getElementById("label-edit-priority").value = label.priority ?? 3;
 	document.getElementById("label-edit-is-nodix").checked = Boolean(label.isNodix);
+	if (typeof setLabelWikiRegion === "function") {
+		setLabelWikiRegion(label.wikiRegion || null);
+	}
 	syncLabelZoomRangeOutputs();
 	syncLabelPriorityOutput();
 	document.getElementById("label-edit-delete").hidden = !labelEntry;
@@ -96,6 +99,7 @@ function buildLabelEditPayload(formElement) {
 		max_zoom: Number.parseInt(String(formData.get("max_zoom") || "5"), 10),
 		priority: Number.parseInt(String(formData.get("priority") || "3"), 10),
 		is_nodix: formData.get("is_nodix") === "on",
+		wiki_region: typeof getLabelWikiRegionPayload === "function" ? getLabelWikiRegionPayload() : null,
 	};
 
 	if (action === "create_label") {
