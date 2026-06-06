@@ -274,12 +274,13 @@ async function runSettlementContinentBackfill() {
 }
 
 // Unsichtbarer Status-Marker wie im Herrschaftsgebiet-Tree; steuert per :has() die Kreis-Füllung:
-// voll = auf Karte + verbunden (--all), halb = im Wiki/nicht auf Karte (--own-only), leer = sonst.
+// voll = auf Karte + verbunden (--all), halb = auf Karte ohne Wiki (--own-only),
+// leer = fehlt auf der Karte (nur im Wiki).
 function settlementStatusMarker(item) {
 	let modifier = "";
 	if (item.state === "full") {
 		modifier = " tree-map-status--all";
-	} else if (item.state === "half") {
+	} else if (item.state === "empty") {
 		modifier = " tree-map-status--own-only";
 	}
 	return `<span class="tree-map-status${modifier}" aria-hidden="true"></span>`;
