@@ -790,6 +790,57 @@ function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun): array 
     ];
 }
 
+// Bulk: verknuepft in EINEM Durchlauf alle Karten-Wege, deren Name zu einem Staging-Weg passt
+// (= matched + ambiguous; missing haben kein Segment). Gated wie assign.
+function avesmapsWikiPathAssignAll(PDO $pdo, string $continentFilter, bool $dryRun): array {
+    avesmapsWikiPathEnsureTables($pdo);
+    $continentFilter = trim($continentFilter);
+
+    $byKey = [];
+    foreach ($pdo->query('SELECT * FROM ' . AVESMAPS_WIKI_PATH_STAGING_TABLE)->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $cont = (string) ($r['continent'] ?? '');
+        if ($continentFilter !== '' && $cont !== '' && $cont !== $continentFilter) {
+            continue;
+        }
+        $key = (string) ($r['match_key'] ?? '');
+        if ($key === '') {
+            $key = avesmapsWikiSyncCreateMatchKey((string) $r['name']);
+        }
+        if ($key !== '' && !isset($byKey[$key])) {
+            $byKey[$key] = avesmapsWikiPathBuildAssignObject($r);
+        }
+    }
+
+    $paths = $pdo->query("SELECT id, name, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
+    $segments = 0;
+    $wikiLinked = [];
+    $revision = null;
+    $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
+    foreach ($paths as $p) {
+        $key = avesmapsWikiSyncCreateMatchKey((string) $p['name']);
+        if (!isset($byKey[$key])) {
+            continue;
+        }
+        $segments++;
+        $wikiLinked[$byKey[$key]['wiki_key']] = true;
+        if (!$dryRun) {
+            $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
+            $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
+            $props['wiki_path'] = $byKey[$key];
+            $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $p['id']]);
+        }
+    }
+
+    return [
+        'ok' => true,
+        'dry_run' => $dryRun,
+        'continent_filter' => $continentFilter,
+        'segments_affected' => $segments,
+        'wiki_paths_linked' => count($wikiLinked),
+        'applied' => $dryRun ? 0 : $segments,
+    ];
+}
+
 // Entfernt die Wiki-Zuordnung von allen gleichnamigen Path-Segmenten (per public_id eines Segments).
 function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun): array {
     avesmapsWikiPathEnsureTables($pdo);
