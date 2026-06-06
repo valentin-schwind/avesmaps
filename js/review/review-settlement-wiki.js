@@ -44,11 +44,14 @@ function renderSettlementWikiReference() {
 	if (!list) {
 		return;
 	}
-	// „Name & Größe aus Wiki" nur aktiv, wenn eine Wiki-Siedlung verbunden ist.
-	const syncButton = settlementWikiElement("location-edit-wiki-sync");
-	if (syncButton) {
-		syncButton.disabled = !settlementWikiCurrentAssignment();
-	}
+	// Die beiden Mini-Sync-Buttons (Name / Größe) nur aktiv, wenn eine Wiki-Siedlung verbunden ist.
+	const hasAssignment = Boolean(settlementWikiCurrentAssignment());
+	["location-edit-wiki-sync-name", "location-edit-wiki-sync-size"].forEach((id) => {
+		const button = settlementWikiElement(id);
+		if (button) {
+			button.disabled = !hasAssignment;
+		}
+	});
 	const publicId = settlementWikiCurrentPublicId();
 	if (!publicId) {
 		// Neuer Ort ohne gespeicherte ID: erst speichern, dann verbinden.
@@ -228,33 +231,49 @@ async function removeSettlementWiki() {
 	}
 }
 
-// Übernimmt Ortsname + Ortsgröße aus der verbundenen Wiki-Siedlung in die Formularfelder.
-function syncLocationFieldsFromWiki() {
+// Übernimmt den Ortsnamen aus der verbundenen Wiki-Siedlung ins Namensfeld.
+function syncLocationNameFromWiki() {
 	const wiki = settlementWikiCurrentAssignment();
 	if (!wiki) {
 		showFeedbackToast?.("Erst eine Wiki-Siedlung verbinden.", "info");
 		return;
 	}
 	const nameInput = document.getElementById("location-edit-name");
-	const typeSelect = document.getElementById("location-edit-type");
 	if (nameInput && String(wiki.name || "").trim() !== "") {
 		nameInput.value = wiki.name;
+		showFeedbackToast?.("Ortsname aus Wiki übernommen.", "success");
 	}
+}
+
+// Übernimmt die Ortsgröße (Siedlungsklasse) aus der verbundenen Wiki-Siedlung in die Auswahl.
+function syncLocationSizeFromWiki() {
+	const wiki = settlementWikiCurrentAssignment();
+	if (!wiki) {
+		showFeedbackToast?.("Erst eine Wiki-Siedlung verbinden.", "info");
+		return;
+	}
+	const typeSelect = document.getElementById("location-edit-type");
 	if (typeSelect && String(wiki.settlement_class || "").trim() !== "") {
 		const cls = typeof normalizeLocationType === "function" ? normalizeLocationType(wiki.settlement_class) : wiki.settlement_class;
 		if (Array.from(typeSelect.options).some((option) => option.value === cls)) {
 			typeSelect.value = cls;
+			showFeedbackToast?.("Ortsgröße aus Wiki übernommen.", "success");
+		} else {
+			showFeedbackToast?.("Wiki-Größe passt zu keiner Auswahl.", "warning");
 		}
 	}
-	showFeedbackToast?.("Name & Größe aus Wiki übernommen.", "success");
 }
 
 document.addEventListener("click", (event) => {
 	if (!event.target.closest) {
 		return;
 	}
-	if (event.target.closest("#location-edit-wiki-sync")) {
-		syncLocationFieldsFromWiki();
+	if (event.target.closest("#location-edit-wiki-sync-name")) {
+		syncLocationNameFromWiki();
+		return;
+	}
+	if (event.target.closest("#location-edit-wiki-sync-size")) {
+		syncLocationSizeFromWiki();
 		return;
 	}
 	const pickerItem = event.target.closest(".label-wiki-picker-list__item");

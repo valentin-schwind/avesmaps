@@ -345,28 +345,32 @@
 							<span id="location-edit-coordinates" class="location-report-form__meta-value">-</span>
 						</div>
 					</div>
-					<label class="location-report-form__field">
-						<span>Ortsname *</span>
-						<input id="location-edit-name" name="name" type="text" maxlength="160" required />
-					</label>
-					<label class="location-report-form__field">
-						<span>Ortsgröße *</span>
-						<select id="location-edit-type" name="feature_subtype" required>
-							<option value="dorf">Dorf</option>
-							<option value="gebaeude">Besondere Bauwerke/Stätten</option>
-							<option value="kleinstadt">Kleine Stadt</option>
-							<option value="stadt">Stadt</option>
-							<option value="grossstadt">Grosse Stadt</option>
-							<option value="metropole">Metropole</option>
-						</select>
-					</label>
-					<div class="location-edit-wiki-sync-row">
-						<button type="button" id="location-edit-wiki-sync" class="location-report-form__button location-report-form__button--secondary" disabled title="Ortsname &amp; Ortsgröße aus der verbundenen Wiki-Siedlung übernehmen">↻ Name &amp; Größe aus Wiki</button>
+					<div class="label-edit-section"><div class="label-edit-section-title">Identität</div>
+						<label class="location-report-form__field">
+							<span>Ortsname *</span>
+							<div class="location-edit-fieldrow">
+								<input id="location-edit-name" name="name" type="text" maxlength="160" required />
+								<button type="button" id="location-edit-wiki-sync-name" class="location-edit-wiki-mini" disabled title="Ortsname aus der verbundenen Wiki-Siedlung übernehmen" aria-label="Ortsname aus Wiki übernehmen">↻</button>
+							</div>
+						</label>
+						<label class="location-report-form__field">
+							<span>Ortsgröße *</span>
+							<div class="location-edit-fieldrow">
+								<select id="location-edit-type" name="feature_subtype" required>
+									<option value="dorf">Dorf</option>
+									<option value="gebaeude">Besondere Bauwerke/Stätten</option>
+									<option value="kleinstadt">Kleine Stadt</option>
+									<option value="stadt">Stadt</option>
+									<option value="grossstadt">Grosse Stadt</option>
+									<option value="metropole">Metropole</option>
+								</select>
+								<button type="button" id="location-edit-wiki-sync-size" class="location-edit-wiki-mini" disabled title="Ortsgröße aus der verbundenen Wiki-Siedlung übernehmen" aria-label="Ortsgröße aus Wiki übernehmen">↻</button>
+							</div>
+						</label>
 					</div>
 					<input id="location-edit-description" name="description" type="hidden" value="" />
 					<input id="location-edit-wiki-url" name="wiki_url" type="hidden" value="" />
-					<div class="location-report-form__field location-edit-wiki-field">
-						<span>Wiki-Siedlung</span>
+					<div class="label-edit-section"><div class="label-edit-section-title">Wiki-Siedlung</div>
 						<div class="label-wiki-reference" id="settlement-wiki-reference">
 							<div class="label-wiki-reference__head">
 								<span class="label-wiki-reference__title">Siedlung aus dem Wiki</span>
@@ -383,14 +387,16 @@
 							</div>
 						</div>
 					</div>
-					<label class="location-report-form__field location-report-form__field--checkbox">
-						<input id="location-edit-is-nodix" name="is_nodix" type="checkbox" />
-						<span>Ort ist ein Nodix</span>
-					</label>
-					<label class="location-report-form__field location-report-form__field--checkbox">
-						<input id="location-edit-is-ruined" name="is_ruined" type="checkbox" />
-						<span>Ruine/zerstoert</span>
-					</label>
+					<div class="label-edit-section"><div class="label-edit-section-title">Optionen</div>
+						<label class="location-report-form__field location-report-form__field--checkbox">
+							<input id="location-edit-is-nodix" name="is_nodix" type="checkbox" />
+							<span>Ort ist ein Nodix</span>
+						</label>
+						<label class="location-report-form__field location-report-form__field--checkbox">
+							<input id="location-edit-is-ruined" name="is_ruined" type="checkbox" />
+							<span>Ruine/zerstört</span>
+						</label>
+					</div>
 					<p id="location-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 					<div class="location-report-form__actions">
 						<button id="location-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>

@@ -583,3 +583,67 @@
 	padding-top: 8px;
 	border-top: 1px solid rgba(141, 121, 98, 0.3);
 }
+
+/* ===== „Ort bearbeiten" optisch wie „Label bearbeiten" (Faculty Glyphic, Panels, weiße Inputs) ===== */
+#location-edit-dialog {
+	font-family: "Faculty Glyphic", Arial, sans-serif;
+	width: min(560px, calc(100vw - 24px));
+}
+#location-edit-dialog .location-report-form__field > span {
+	font-size: 12px;
+	font-weight: 600;
+	color: #5a4a3a;
+}
+#location-edit-dialog input[type="text"],
+#location-edit-dialog input[type="search"],
+#location-edit-dialog select {
+	border: 1px solid #dccab8;
+	border-radius: 6px;
+	background: #fff;
+	padding: 6px 8px;
+	font-family: inherit;
+	color: #2c2117;
+}
+#location-edit-dialog input[type="text"]:focus,
+#location-edit-dialog input[type="search"]:focus,
+#location-edit-dialog select:focus {
+	outline: none;
+	border-color: #7a5a3a;
+	box-shadow: 0 0 0 2px rgba(122, 90, 58, 0.18);
+}
+#location-edit-dialog .location-report-form__button--primary {
+	font-family: "Faculty Glyphic", Arial, sans-serif;
+}
+
+/* Feld + Mini-Sync-Button („↻ aus Wiki") in einer Reihe, je neben Ortsname/Ortsgröße. */
+.location-edit-fieldrow {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.location-edit-fieldrow > input,
+.location-edit-fieldrow > select {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.location-edit-wiki-mini {
+	flex: 0 0 auto;
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	border: 1px solid #dccab8;
+	border-radius: 6px;
+	background: #fffaf5;
+	color: #7a5a3a;
+	font-size: 15px;
+	line-height: 1;
+	cursor: pointer;
+}
+.location-edit-wiki-mini:hover:not(:disabled) {
+	background: #f4ead8;
+	border-color: #7a5a3a;
+}
+.location-edit-wiki-mini:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
