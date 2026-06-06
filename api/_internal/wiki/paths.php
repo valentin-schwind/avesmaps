@@ -790,6 +790,73 @@ function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun): array 
     ];
 }
 
+// Re-Targeting: heftet einen Wiki-Weg an EIN auf der Karte gewaehltes Ziel-Segment (und alle
+// gleichnamigen). Mit Typ-Pruefung (Fluss <-> Strasse/Weg). Gated.
+function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, bool $dryRun): array {
+    avesmapsWikiPathEnsureTables($pdo);
+    $wikiKey = trim($wikiKey);
+    $publicId = trim($publicId);
+    if ($wikiKey === '' || $publicId === '') {
+        throw new RuntimeException('wiki_key/public_id fehlt.');
+    }
+    $statement = $pdo->prepare('SELECT * FROM ' . AVESMAPS_WIKI_PATH_STAGING_TABLE . ' WHERE wiki_key = :k LIMIT 1');
+    $statement->execute(['k' => $wikiKey]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        throw new RuntimeException('Wiki-Weg nicht im Staging: ' . $wikiKey);
+    }
+    $targetStatement = $pdo->prepare("SELECT name, feature_subtype FROM map_features WHERE public_id = :p AND feature_type = 'path' LIMIT 1");
+    $targetStatement->execute(['p' => $publicId]);
+    $target = $targetStatement->fetch(PDO::FETCH_ASSOC);
+    if (!$target) {
+        throw new RuntimeException('Ziel-Weg nicht gefunden.');
+    }
+
+    $targetSubtype = strtolower((string) ($target['feature_subtype'] ?? ''));
+    $targetIsRiver = $targetSubtype === 'flussweg' || $targetSubtype === 'seeweg';
+    $wikiIsRiver = ((string) ($row['kind'] ?? '')) === 'fluss';
+    if ($wikiIsRiver !== $targetIsRiver) {
+        return [
+            'ok' => true,
+            'type_ok' => false,
+            'message' => '„' . (string) $row['name'] . '" ist ' . ($wikiIsRiver ? 'ein Fluss' : 'eine Straße/Weg')
+                . ', das Ziel „' . (string) $target['name'] . '" ist ' . ($targetIsRiver ? 'ein Fluss' : 'eine Straße/Weg') . '.',
+            'dry_run' => $dryRun,
+            'applied' => 0,
+        ];
+    }
+
+    $targetKey = avesmapsWikiSyncCreateMatchKey((string) $target['name']);
+    $assignObject = avesmapsWikiPathBuildAssignObject($row);
+    $paths = $pdo->query("SELECT id, name, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
+    $segments = 0;
+    $applied = 0;
+    $revision = null;
+    foreach ($paths as $p) {
+        if (avesmapsWikiSyncCreateMatchKey((string) $p['name']) !== $targetKey) {
+            continue;
+        }
+        $segments++;
+        if (!$dryRun) {
+            $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
+            $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
+            $props['wiki_path'] = $assignObject;
+            $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
+            $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $p['id']]);
+            $applied++;
+        }
+    }
+    return [
+        'ok' => true,
+        'type_ok' => true,
+        'dry_run' => $dryRun,
+        'wiki_name' => (string) $row['name'],
+        'target_name' => (string) $target['name'],
+        'segments' => $segments,
+        'applied' => $applied,
+    ];
+}
+
 // Bulk: verknuepft in EINEM Durchlauf alle Karten-Wege, deren Name zu einem Staging-Weg passt
 // (= matched + ambiguous; missing haben kein Segment). Gated wie assign.
 function avesmapsWikiPathAssignAll(PDO $pdo, string $continentFilter, bool $dryRun): array {

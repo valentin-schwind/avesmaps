@@ -210,6 +210,81 @@ async function startPathWikiCrawl() {
 	}
 }
 
+function findPathSyncRow(wikiKey) {
+	if (!pathSyncData || !wikiKey) {
+		return null;
+	}
+	const all = [].concat(pathSyncData.matched || [], pathSyncData.ambiguous || [], pathSyncData.missing || []);
+	return all.find((row) => String(row.wiki_key) === String(wikiKey)) || null;
+}
+
+// Startet den „Ziel-auf-der-Karte-wählen"-Modus fuer einen Wiki-Weg.
+function startPathWikiAssignPick(wikiKey) {
+	const row = findPathSyncRow(wikiKey);
+	if (!row) {
+		return;
+	}
+	window.__pathAssignPending = { wikiKey, kind: row.kind, wikiName: row.name };
+	if (typeof showFeedbackToast === "function") {
+		showFeedbackToast(`Wählen Sie das Ziel-Objekt auf der Karte für „${row.name}" aus. (Esc bricht ab.)`, "info");
+	}
+}
+
+// Wird vom Path-Klick aufgerufen (global). Prueft den Typ (Fluss <-> Straße) und verknuepft.
+function handlePathWikiAssignmentPick(path) {
+	const pending = window.__pathAssignPending;
+	if (!pending) {
+		return false;
+	}
+	const subtype = String((path && path.properties && path.properties.feature_subtype) || "").toLowerCase();
+	const targetIsRiver = subtype === "flussweg" || subtype === "seeweg";
+	const wikiIsRiver = pending.kind === "fluss";
+	if (wikiIsRiver !== targetIsRiver) {
+		if (typeof showFeedbackToast === "function") {
+			showFeedbackToast(`Typ passt nicht: „${pending.wikiName}" ist ${wikiIsRiver ? "ein Fluss" : "eine Straße/Weg"}, das Ziel ist ${targetIsRiver ? "ein Fluss" : "eine Straße/Weg"}.`, "error");
+		}
+		return true;
+	}
+	const targetId = typeof getPathPublicId === "function" ? getPathPublicId(path) : (path && path.id) || "";
+	window.__pathAssignPending = null;
+	void assignPathWikiToTarget(pending.wikiKey, targetId);
+	return true;
+}
+window.handlePathWikiAssignmentPick = handlePathWikiAssignmentPick;
+
+async function assignPathWikiToTarget(wikiKey, publicId) {
+	try {
+		const result = await pathSyncPost({ action: "assign_to", wiki_key: wikiKey, public_id: publicId, dry_run: false, confirm: "apply" });
+		if (result && result.type_ok === false) {
+			if (typeof showFeedbackToast === "function") {
+				showFeedbackToast(result.message || "Typ passt nicht.", "error");
+			}
+			return;
+		}
+		if (result && result.ok) {
+			if (typeof showFeedbackToast === "function") {
+				showFeedbackToast(`„${result.wiki_name}" → „${result.target_name}" verknüpft (${result.applied} Abschnitte).`, "success");
+			}
+			await loadPathWikiSync();
+		} else if (typeof showFeedbackToast === "function") {
+			showFeedbackToast("Fehler: " + ((result && result.error) || ""), "error");
+		}
+	} catch (error) {
+		if (typeof showFeedbackToast === "function") {
+			showFeedbackToast("Fehler: " + (error.message || error), "error");
+		}
+	}
+}
+
+document.addEventListener("keydown", (event) => {
+	if (event.key === "Escape" && window.__pathAssignPending) {
+		window.__pathAssignPending = null;
+		if (typeof showFeedbackToast === "function") {
+			showFeedbackToast("Zuordnung abgebrochen.", "info");
+		}
+	}
+});
+
 // Fliegt zur Stelle eines Weg-Segments (Polyline-Bounds aus der Geometrie).
 function focusPathOnMap(publicId) {
 	if (!publicId || typeof findPathByPublicId !== "function" || typeof map === "undefined") {
@@ -256,7 +331,7 @@ document.addEventListener("click", (event) => {
 	const assignBtn = event.target.closest(".path-sync__assign");
 	if (assignBtn) {
 		event.stopPropagation();
-		void assignPathWiki(assignBtn.dataset.wikiKey);
+		startPathWikiAssignPick(assignBtn.dataset.wikiKey);
 		return;
 	}
 	const candidate = event.target.closest(".region-sync__cand[data-path-id]");

@@ -140,6 +140,23 @@ function createPathLayer(path) {
 			line.on("dblclick", (event) => handleEditablePathDoubleClick(path, event));
 		});
 	}
+	// Zuordnungs-Pick: im „Ziel waehlen"-Modus faengt ein Klick das Segment ab (statt Popup).
+	path._pathLines.forEach((line) => {
+		line.on("click", (event) => {
+			if (window.__pathAssignPending && typeof handlePathWikiAssignmentPick === "function" && handlePathWikiAssignmentPick(path)) {
+				L.DomEvent.stopPropagation(event);
+				if (typeof map !== "undefined") {
+					setTimeout(() => {
+						try {
+							map.closePopup();
+						} catch (error) {
+							/* noop */
+						}
+					}, 0);
+				}
+			}
+		});
+	});
 	refreshPathLayerPopup(path);
 	updatePathLayerStyle(path);
 	return layerGroup;

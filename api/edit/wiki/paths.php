@@ -57,11 +57,17 @@ try {
                 array_key_exists('continent', $payload) ? (string) $payload['continent'] : 'Aventurien',
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
             ),
+            'assign_to' => avesmapsWikiPathAssignTo(
+                $pdo,
+                (string) ($payload['wiki_key'] ?? ''),
+                (string) ($payload['public_id'] ?? ''),
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+            ),
             default => null,
         };
 
         // map_features-Cache invalidieren, wenn echt geschrieben wurde (Clients sehen die Zuordnung).
-        if (in_array($action, ['assign', 'clear_assign', 'assign_all'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
+        if (in_array($action, ['assign', 'clear_assign', 'assign_all', 'assign_to'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
 
