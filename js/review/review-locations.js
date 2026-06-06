@@ -185,6 +185,7 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	if (typeof renderSettlementWikiReference === "function") {
 		renderSettlementWikiReference();
 	}
+	void renderSettlementCoatSection(markerEntry?.publicId || "");
 	// Zuordnung frisch vom Server holen (Browser-Marker kann nach Bulk-Verbinden stale sein).
 	if (typeof syncSettlementWikiFromServer === "function") {
 		void syncSettlementWikiFromServer();
@@ -230,3 +231,129 @@ function buildLocationEditPayload(formElement) {
 
 	return payload;
 }
+
+// ===== Wappen-Sektion im „Siedlung bearbeiten"-Dialog =====
+const SETTLEMENT_COAT_API_URL = "/api/edit/wiki/settlements.php";
+
+function settlementCoatImageSrc(coat) {
+	if (!coat || !coat.url) {
+		return "";
+	}
+	// Eigene Uploads sind lokale URLs; Wiki-Wappen über den Cache-Proxy (Host-Whitelist).
+	return coat.source === "own" ? coat.url : `/api/app/coat.php?u=${encodeURIComponent(coat.url)}`;
+}
+
+async function renderSettlementCoatSection(publicId) {
+	const section = document.getElementById("settlement-coat-section");
+	if (!section) {
+		return;
+	}
+	if (!publicId) {
+		section.hidden = true;
+		section.dataset.publicId = "";
+		return;
+	}
+	const preview = document.getElementById("settlement-coat-preview");
+	const status = document.getElementById("settlement-coat-status");
+	const adoptBtn = document.getElementById("settlement-coat-adopt");
+	const removeBtn = document.getElementById("settlement-coat-remove");
+	section.hidden = false;
+	section.dataset.publicId = publicId;
+	if (preview) {
+		preview.className = "settlement-coat__preview";
+		preview.innerHTML = "";
+	}
+	if (status) {
+		status.textContent = "Wappen wird geladen …";
+	}
+	if (adoptBtn) {
+		adoptBtn.hidden = true;
+	}
+	if (removeBtn) {
+		removeBtn.hidden = true;
+	}
+	try {
+		const response = await fetch(`${SETTLEMENT_COAT_API_URL}?action=coat_info&public_id=${encodeURIComponent(publicId)}`, { credentials: "same-origin" });
+		const data = await response.json();
+		if (!data || data.ok !== true) {
+			throw new Error(data && data.error ? data.error : "Fehler");
+		}
+		if (section.dataset.publicId !== publicId) {
+			return; // Dialog inzwischen weitergeschaltet
+		}
+		const current = data.current && data.current.url ? data.current : null;
+		const wiki = data.wiki && data.wiki.url ? data.wiki : null;
+		if (current) {
+			preview.innerHTML = `<img src="${escapeHtml(settlementCoatImageSrc(current))}" alt="Wappen" />`;
+			status.textContent = current.source === "own" ? "Eigenes Wappen aktiv." : "Gemeinfreies Wiki-Wappen aktiv.";
+			removeBtn.hidden = false;
+			if (wiki && wiki.allowed && (current.source === "own" || current.url !== wiki.url)) {
+				adoptBtn.hidden = false;
+			}
+		} else if (wiki) {
+			preview.className = wiki.allowed ? "settlement-coat__preview" : "settlement-coat__preview settlement-coat__preview--dim";
+			preview.innerHTML = `<img src="${escapeHtml(settlementCoatImageSrc(wiki))}" alt="Wiki-Wappen" />`;
+			if (wiki.allowed) {
+				status.textContent = "Gemeinfreies Wiki-Wappen verfügbar.";
+				adoptBtn.hidden = false;
+			} else {
+				status.textContent = "Wiki-Wappen vorhanden, aber nicht gemeinfrei — nicht übernehmbar.";
+			}
+		} else {
+			status.textContent = "Kein Wappen vorhanden.";
+		}
+	} catch (error) {
+		if (status) {
+			status.textContent = "Wappen konnte nicht geladen werden.";
+		}
+	}
+}
+
+async function settlementCoatAction(action) {
+	const section = document.getElementById("settlement-coat-section");
+	const publicId = section?.dataset.publicId || document.getElementById("location-edit-public-id")?.value || "";
+	if (!publicId) {
+		return;
+	}
+	try {
+		const response = await fetch(SETTLEMENT_COAT_API_URL, {
+			method: "POST",
+			credentials: "same-origin",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ action, public_id: publicId, dry_run: false, confirm: "apply" }),
+		});
+		const data = await response.json();
+		if (!data || data.ok !== true) {
+			throw new Error(data && data.error ? data.error : "Fehler");
+		}
+		showFeedbackToast?.(action === "set_coat" ? "Wappen übernommen." : "Wappen entfernt.", "success");
+		await renderSettlementCoatSection(publicId);
+		// Lokalen Marker aktualisieren, damit Infobox/Icon sofort stimmen.
+		if (typeof findLocationMarkerByPublicId === "function") {
+			const entry = findLocationMarkerByPublicId(publicId);
+			if (entry && entry.location) {
+				entry.location.coat = action === "clear_coat" ? null : (data.coat || entry.location.coat);
+				if (typeof refreshLocationMarkerPopup === "function") {
+					refreshLocationMarkerPopup(entry);
+				}
+			}
+		}
+	} catch (error) {
+		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
+	}
+}
+
+document.addEventListener("click", (event) => {
+	if (!event.target.closest) {
+		return;
+	}
+	if (event.target.closest("#settlement-coat-adopt")) {
+		event.preventDefault();
+		void settlementCoatAction("set_coat");
+		return;
+	}
+	if (event.target.closest("#settlement-coat-remove")) {
+		event.preventDefault();
+		void settlementCoatAction("clear_coat");
+	}
+});

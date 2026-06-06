@@ -739,6 +739,48 @@
 	padding: 2px 8px;
 	white-space: nowrap;
 }
+
+/* Wappen-Sektion im „Siedlung bearbeiten"-Dialog. */
+.settlement-coat {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+}
+.settlement-coat__preview {
+	flex: 0 0 auto;
+	width: 64px;
+	height: 64px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 1px solid #dccab8;
+	border-radius: 6px;
+	background: #fffaf5;
+	overflow: hidden;
+}
+.settlement-coat__preview img {
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: contain;
+}
+.settlement-coat__preview--dim img {
+	filter: grayscale(1);
+	opacity: 0.5;
+}
+.settlement-coat__body {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.settlement-coat__status {
+	margin: 0 0 6px;
+	font-size: 12px;
+	color: #6b5a48;
+}
+.settlement-coat__actions {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+}
 #settlement-list {
 	background: #fff;
 	border: 1px solid #dccab8;

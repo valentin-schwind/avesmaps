@@ -312,6 +312,103 @@ function avesmapsWikiSettlementBulkRecordCoats(PDO $pdo, bool $dryRun, int $limi
     return ['ok' => true, 'dry_run' => false, 'matched' => $matchedTotal, 'applied' => $applied, 'remaining' => max(0, $matchedTotal - $applied)];
 }
 
+// Hilfsfunktion: lädt properties_json eines aktiven Orts-Features per public_id.
+function avesmapsWikiSettlementLoadFeature(PDO $pdo, string $publicId): array {
+    $publicId = trim($publicId);
+    if ($publicId === '') {
+        throw new RuntimeException('public_id fehlt.');
+    }
+    $stmt = $pdo->prepare("SELECT id, properties_json FROM map_features WHERE public_id = :p AND feature_type = 'location' AND is_active = 1 LIMIT 1");
+    $stmt->execute(['p' => $publicId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        throw new RuntimeException('Ort nicht gefunden.');
+    }
+    return ['id' => (int) $row['id'], 'props' => avesmapsWikiSyncDecodeJson($row['properties_json'] ?? null)];
+}
+
+// Wappen-Info für einen Ort: aktuelles properties.coat (eigen/übernommen) + das Wiki-Wappen
+// aus der Registry inkl. Lizenzstatus (allowed = gemeinfrei). Für den „Siedlung bearbeiten"-Dialog.
+function avesmapsWikiSettlementCoatInfo(PDO $pdo, string $publicId): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    $feature = avesmapsWikiSettlementLoadFeature($pdo, $publicId);
+    $props = $feature['props'];
+    $current = is_array($props['coat'] ?? null) ? $props['coat'] : null;
+    $ws = $props['wiki_settlement'] ?? null;
+    $title = is_array($ws) ? (string) ($ws['title'] ?? '') : '';
+
+    $wiki = null;
+    if ($title !== '') {
+        $stmt = $pdo->prepare('SELECT coat_url, coat_license_status, coat_author, coat_attribution FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' WHERE title = :t LIMIT 1');
+        $stmt->execute(['t' => $title]);
+        $reg = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($reg && (string) ($reg['coat_url'] ?? '') !== '') {
+            $status = (string) ($reg['coat_license_status'] ?? 'unknown');
+            $wiki = [
+                'url' => (string) $reg['coat_url'],
+                'license_status' => $status,
+                'allowed' => $status === 'public_domain',
+                'author' => (string) ($reg['coat_author'] ?? ''),
+                'attribution' => (string) ($reg['coat_attribution'] ?? ''),
+            ];
+        }
+    }
+
+    return ['ok' => true, 'current' => $current, 'wiki' => $wiki];
+}
+
+// Übernimmt das gemeinfreie Wiki-Wappen eines einzelnen Orts (properties.coat, source=wiki). Gated.
+function avesmapsWikiSettlementSetWikiCoat(PDO $pdo, string $publicId, bool $dryRun): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    $feature = avesmapsWikiSettlementLoadFeature($pdo, $publicId);
+    $props = $feature['props'];
+    $ws = $props['wiki_settlement'] ?? null;
+    $title = is_array($ws) ? (string) ($ws['title'] ?? '') : '';
+    if ($title === '') {
+        throw new RuntimeException('Keine verbundene Wiki-Siedlung.');
+    }
+    $stmt = $pdo->prepare('SELECT coat_url, coat_license_status, coat_author, coat_attribution FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' WHERE title = :t LIMIT 1');
+    $stmt->execute(['t' => $title]);
+    $reg = $stmt->fetch(PDO::FETCH_ASSOC);
+    $coatUrl = $reg ? (string) ($reg['coat_url'] ?? '') : '';
+    $status = $reg ? (string) ($reg['coat_license_status'] ?? 'unknown') : 'unknown';
+    if ($coatUrl === '' || $status !== 'public_domain') {
+        throw new RuntimeException('Kein gemeinfreies Wiki-Wappen vorhanden.');
+    }
+    if ($dryRun) {
+        return ['ok' => true, 'dry_run' => true, 'applied' => 0];
+    }
+    $props['coat'] = [
+        'url' => $coatUrl,
+        'source' => 'wiki',
+        'license_status' => 'public_domain',
+        'author' => (string) ($reg['coat_author'] ?? ''),
+        'attribution' => (string) ($reg['coat_attribution'] ?? ''),
+    ];
+    $revision = avesmapsWikiSyncNextMapRevision($pdo);
+    $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id')
+        ->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $feature['id']]);
+    return ['ok' => true, 'dry_run' => false, 'applied' => 1, 'coat' => $props['coat']];
+}
+
+// Entfernt das übernommene/eigene Wappen eines Orts (properties.coat). Gated.
+function avesmapsWikiSettlementClearCoat(PDO $pdo, string $publicId, bool $dryRun): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    $feature = avesmapsWikiSettlementLoadFeature($pdo, $publicId);
+    $props = $feature['props'];
+    if (!isset($props['coat'])) {
+        return ['ok' => true, 'dry_run' => $dryRun, 'applied' => 0];
+    }
+    if ($dryRun) {
+        return ['ok' => true, 'dry_run' => true, 'applied' => 0];
+    }
+    unset($props['coat']);
+    $revision = avesmapsWikiSyncNextMapRevision($pdo);
+    $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id')
+        ->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $feature['id']]);
+    return ['ok' => true, 'dry_run' => false, 'applied' => 1];
+}
+
 // Parst {{Infobox Siedlung}} aus dem Seiten-Wikitext in das wiki_settlement-Objekt, das ans
 // Orts-Feature geheftet wird. settlementClass/settlementLabel kommen aus der Registry (Kategorie).
 function avesmapsWikiSettlementParseInfobox(string $title, string $wikitext, string $settlementClass = '', string $registryUrl = ''): array {
