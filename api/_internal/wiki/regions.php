@@ -39,6 +39,49 @@ function avesmapsWikiRegionDefaultSeeds(): array {
 }
 
 // Legt die beiden Sandbox-Tabellen idempotent an. Read-only ausser diesem ensure-Schritt.
+// Mapping Wiki-„Art" (erster Begriff, normalisiert wie der Match-Key: Umlaut-/ß-Faltung, lower,
+// nur Buchstaben/Ziffern) -> Avesmaps Label-Subtype. Steuert den Typ-Check. Nutzer-bestätigt.
+const AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE = [
+    // region
+    'region' => 'region', 'mischregion' => 'region', 'grossregion' => 'region',
+    'flusstal' => 'region', 'tal' => 'region', 'steppe' => 'region',
+    'graslandschaft' => 'region', 'hugelland' => 'region', 'hochland' => 'region',
+    'tundra' => 'region', 'auenlandschaft' => 'region', 'kuste' => 'region',
+    'klippe' => 'region', 'halbinsel' => 'region',
+    // gebirge / wald
+    'gebirge' => 'gebirge', 'wald' => 'wald',
+    // insel
+    'insel' => 'insel', 'inselgruppe' => 'insel',
+    // meer
+    'meer' => 'meer', 'meeresteil' => 'meer', 'meerenge' => 'meer',
+    'bucht' => 'meer', 'golf' => 'meer',
+    // see
+    'see' => 'see', 'seenlandschaft' => 'see',
+    // sümpfe/moore
+    'sumpf' => 'suempfe_moore', 'moor' => 'suempfe_moore', 'marschland' => 'suempfe_moore',
+    // wüste
+    'wuste' => 'wueste', 'halbwuste' => 'wueste',
+    // berggipfel / kontinent
+    'berggipfel' => 'berggipfel', 'kontinent' => 'kontinent',
+];
+
+// Liefert den erwarteten Label-Subtype zu einer Wiki-Art ('' = unbekannt/kein Mapping).
+function avesmapsWikiRegionArtToSubtype(string $art): string {
+    $first = (preg_split('/\s*[|,]\s*/u', trim($art)) ?: [''])[0];
+    $key = avesmapsWikiSyncCreateMatchKey((string) $first);
+    return AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE[$key] ?? '';
+}
+
+// Typ-Konflikt zwischen Karten-Label und Wiki-Art. Unbekannte Art/Subtype => KEIN Konflikt (safe).
+function avesmapsWikiRegionTypeConflict(string $labelSubtype, string $art): bool {
+    $expected = avesmapsWikiRegionArtToSubtype($art);
+    $labelSubtype = mb_strtolower(trim($labelSubtype), 'UTF-8');
+    if ($expected === '' || $labelSubtype === '') {
+        return false;
+    }
+    return $expected !== $labelSubtype;
+}
+
 function avesmapsWikiRegionEnsureTables(PDO $pdo): void {
     // Staging = flache Liste der Wiki-Regionen (ein Eintrag je wiki_key). Bewusst eigenes,
     // bespoke Schema (kein LIKE political_territory_wiki) — Regionen haben andere Felder
@@ -693,7 +736,7 @@ function avesmapsWikiRegionAssign(PDO $pdo, string $wikiKey, bool $dryRun): arra
     }
     $assignObject = avesmapsWikiRegionBuildAssignObject($row);
 
-    $labels = $pdo->query("SELECT id, name, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'label' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
+    $labels = $pdo->query("SELECT id, name, feature_subtype, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'label' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
     $applied = 0;
     $matched = 0;
     $revision = null;
@@ -733,7 +776,7 @@ function avesmapsWikiRegionAssignAll(PDO $pdo, string $continentFilter, bool $dr
             $byKey[$key] = avesmapsWikiRegionBuildAssignObject($r);
         }
     }
-    $labels = $pdo->query("SELECT id, name, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'label' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
+    $labels = $pdo->query("SELECT id, name, feature_subtype, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'label' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
     $count = 0;
     $linked = [];
     $revision = null;
@@ -746,6 +789,10 @@ function avesmapsWikiRegionAssignAll(PDO $pdo, string $continentFilter, bool $dr
         $obj = $byKey[$key];
         // Optional auf eine Art beschränken (z.B. nur „Berggipfel").
         if ($artFilter !== '' && mb_strtolower((string) ($obj['art'] ?? ''), 'UTF-8') !== $artFilter) {
+            continue;
+        }
+        // Typ-Konflikt (Label-Subtype passt nicht zur Wiki-Art) hart überspringen.
+        if (avesmapsWikiRegionTypeConflict((string) ($l['feature_subtype'] ?? ''), (string) ($obj['art'] ?? ''))) {
             continue;
         }
         $props = avesmapsWikiSyncDecodeJson($l['properties_json'] ?? null);
@@ -898,11 +945,17 @@ function avesmapsWikiRegionMatch(PDO $pdo, array $options = []): array {
             $missing[] = $entry;
         } elseif (count($hits) === 1) {
             $label = array_values($hits)[0];
+            $label['type_conflict'] = avesmapsWikiRegionTypeConflict((string) ($label['subtype'] ?? ''), (string) $entry['art']);
             $entry['label'] = $label;
+            $entry['type_conflict'] = $label['type_conflict'];
             $matched[] = $entry;
             $matchedLabelKeys[avesmapsWikiSyncCreateMatchKey($label['name'])] = true;
         } else {
-            $entry['labels'] = array_values($hits);
+            $labelsWithFlag = array_map(static function (array $label) use ($entry): array {
+                $label['type_conflict'] = avesmapsWikiRegionTypeConflict((string) ($label['subtype'] ?? ''), (string) $entry['art']);
+                return $label;
+            }, array_values($hits));
+            $entry['labels'] = $labelsWithFlag;
             $ambiguous[] = $entry;
         }
     }

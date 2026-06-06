@@ -409,6 +409,17 @@
 	border-color: #7a5a3a;
 }
 
+/* Typ-Konflikt: Label-Subtype passt nicht zur Wiki-Art (Bulk überspringt es). */
+.region-sync__cand--conflict {
+	border-color: #c0392b;
+	color: #a5281b;
+	background: #fdecea;
+}
+.region-sync__cand--conflict:hover {
+	border-color: #a5281b;
+	background: #fbded9;
+}
+
 .path-sync__assign {
 	margin: 1px 3px 1px 0;
 	padding: 1px 8px;

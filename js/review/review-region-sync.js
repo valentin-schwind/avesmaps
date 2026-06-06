@@ -137,7 +137,12 @@ function renderRegionSyncList() {
 			tab("missing", "Fehlt", missingCount);
 	}
 
-	const candidate = (label) => `<button type="button" class="region-sync__cand" data-label-id="${regionSyncEscapeAttr((label && label.public_id) || "")}">${regionSyncEscapeText(label.name)}${label.subtype ? " (" + regionSyncEscapeText(label.subtype) + ")" : ""}</button>`;
+	const candidate = (label) => {
+		const conflict = Boolean(label && label.type_conflict);
+		const cls = "region-sync__cand" + (conflict ? " region-sync__cand--conflict" : "");
+		const title = conflict ? "Typ-Konflikt: Label-Subtype passt nicht zur Wiki-Art (Bulk überspringt dieses Paar)" : "";
+		return `<button type="button" class="${cls}" data-label-id="${regionSyncEscapeAttr((label && label.public_id) || "")}" title="${regionSyncEscapeAttr(title)}">${conflict ? "⚠ " : ""}${regionSyncEscapeText(label.name)}${label.subtype ? " (" + regionSyncEscapeText(label.subtype) + ")" : ""}</button>`;
+	};
 	const items = rows
 		.map((row) => {
 			const onMap = Boolean(row.label || (row.labels && row.labels.length));
