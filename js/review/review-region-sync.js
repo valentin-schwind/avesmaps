@@ -194,15 +194,30 @@ function focusRegionLabelOnMap(publicId) {
 		setSelectedMapLayerMode("deregraphic");
 	}
 	const entry = findLabelEntryByPublicId(publicId);
-	if (entry && entry.marker && typeof map !== "undefined") {
-		const latlng = entry.marker.getLatLng();
-		map.flyTo(latlng, Math.max(map.getZoom(), 4), { duration: 0.8 });
-		if (typeof entry.marker.openPopup === "function" && map.hasLayer(entry.marker)) {
-			entry.marker.openPopup();
-		}
-	} else {
+	if (!entry || !entry.marker || typeof map === "undefined") {
 		showFeedbackToast?.("Das Label ist (noch) nicht geladen.", "info");
+		return;
 	}
+
+	// Zielzoom in die Sichtbarkeits-Spanne des Labels klemmen (min_zoom..max_zoom), damit das
+	// Label nach dem Flug auch wirklich gerendert wird (es ist nicht auf allen Zoomstufen sichtbar).
+	const label = entry.label || {};
+	const visualMax = typeof VISUAL_MAX_ZOOM_LEVEL === "number" ? VISUAL_MAX_ZOOM_LEVEL : 5;
+	const bandMin = Number.isFinite(Number(label.minZoom)) ? Number(label.minZoom) : 0;
+	const bandMax = Number.isFinite(Number(label.maxZoom)) ? Number(label.maxZoom) : visualMax;
+	let target = typeof getVisualZoomLevel === "function" ? getVisualZoomLevel(map.getZoom()) : Math.round(map.getZoom());
+	target = Math.max(bandMin, Math.min(bandMax, target));
+
+	map.flyTo(entry.marker.getLatLng(), target, { duration: 0.8 });
+	map.once("moveend", () => {
+		if (typeof syncLabelVisibility === "function") {
+			syncLabelVisibility();
+		}
+		const arrived = findLabelEntryByPublicId(publicId);
+		if (arrived && arrived.marker && map.hasLayer(arrived.marker) && typeof arrived.marker.openPopup === "function") {
+			arrived.marker.openPopup();
+		}
+	});
 }
 
 // Drop einer „fehlenden" Wiki-Region auf die Karte: vollen Datensatz holen, Label-Editor
