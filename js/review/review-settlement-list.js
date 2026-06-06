@@ -43,11 +43,11 @@ async function refreshSettlementContinentStatus() {
 		return;
 	}
 	try {
-		const response = await fetch(`${SETTLEMENT_LIST_API_URL}?action=continent_status`, { credentials: "same-origin" });
+		const response = await fetch(`${SETTLEMENT_LIST_API_URL}?action=enrich_status`, { credentials: "same-origin" });
 		const data = await response.json();
 		const remaining = data && data.ok ? Number(data.remaining || 0) : 0;
 		if (remaining > 0) {
-			btn.textContent = `🌍 Kontinente nachtragen (${remaining})`;
+			btn.textContent = `🌍 Wiki-Details nachtragen (${remaining})`;
 			btn.hidden = false;
 		} else {
 			btn.hidden = true;
@@ -73,7 +73,7 @@ async function runSettlementContinentBackfill() {
 		// Gesamtzahl als Progress-Maximum bestimmen, damit der Balken wirklich läuft.
 		let total = 0;
 		try {
-			const statusResponse = await fetch(`${SETTLEMENT_LIST_API_URL}?action=continent_status`, { credentials: "same-origin" });
+			const statusResponse = await fetch(`${SETTLEMENT_LIST_API_URL}?action=enrich_status`, { credentials: "same-origin" });
 			const statusData = await statusResponse.json();
 			total = statusData && statusData.ok ? Number(statusData.remaining || 0) : 0;
 		} catch (statusError) {
@@ -91,7 +91,7 @@ async function runSettlementContinentBackfill() {
 				method: "POST",
 				credentials: "same-origin",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ action: "backfill_continents", limit: 100 }),
+				body: JSON.stringify({ action: "enrich_details", limit: 100 }),
 			});
 			const data = await response.json();
 			if (!data || data.ok !== true) {
@@ -103,7 +103,7 @@ async function runSettlementContinentBackfill() {
 				progress.value = Math.max(0, total - remaining);
 			}
 			if (btn) {
-				btn.textContent = `🌍 Kontinente nachtragen … (${remaining})`;
+				btn.textContent = `🌍 Wiki-Details nachtragen … (${remaining})`;
 			}
 		}
 		showFeedbackToast?.("Kontinente nachgetragen.", "success");

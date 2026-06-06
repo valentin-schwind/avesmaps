@@ -37,6 +37,19 @@ function avesmapsWikiSettlementEnsureSchema(PDO $pdo): void {
     if (!$columnExists($pdo, 'continent')) {
         $pdo->exec('ALTER TABLE ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ADD COLUMN continent VARCHAR(120) NULL');
     }
+    // Wiki-Anreicherung: Ruine-Status, Wappen-URL + Lizenz (gemeinfrei-Gate), Enrich-Marker.
+    $addColumn = static function (string $column, string $definition) use ($pdo, $columnExists): void {
+        if (!$columnExists($pdo, $column)) {
+            $pdo->exec('ALTER TABLE ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ADD COLUMN ' . $column . ' ' . $definition);
+        }
+    };
+    $addColumn('is_ruined', 'TINYINT(1) NULL');
+    $addColumn('coat_url', 'VARCHAR(500) NULL');
+    $addColumn('coat_license_status', 'VARCHAR(40) NULL');
+    $addColumn('coat_author', 'VARCHAR(255) NULL');
+    $addColumn('coat_attribution', 'VARCHAR(500) NULL');
+    $addColumn('coat_license_url', 'VARCHAR(500) NULL');
+    $addColumn('enriched_at', 'DATETIME NULL');
 }
 
 function avesmapsWikiSettlementClassLabel(string $class): string {
@@ -44,13 +57,16 @@ function avesmapsWikiSettlementClassLabel(string $class): string {
     return (string) ($labels[$class] ?? 'Siedlung');
 }
 
-// Kontinent einer Siedlungs-Wikiseite erkennen — spiegelt die Regionen-/Wege-Crawler-Logik:
-// Infobox Region/Staat + Nav-Templates + Kategorien in den geteilten Detektor (Fallback Aventurien).
-function avesmapsWikiSettlementDetectContinent(array $page): string {
+// Berechnet die Wiki-Anreicherung einer Siedlungsseite: Kontinent (Detektor mit Fallback
+// Aventurien), Ruine-Status (Siedlungsart) und Wappen-URL (Infobox). Lizenz wird separat
+// gebündelt nachgeladen (eigene Datei-Seiten).
+function avesmapsWikiSettlementBuildEnrichment(array $page): array {
     $title = (string) ($page['title'] ?? '');
     $content = avesmapsWikiSyncReadPageContent($page);
     $block = avesmapsWikiSyncMonitorExtractInfoboxBlock($content);
     $norm = avesmapsWikiSyncMonitorNormFields(avesmapsWikiSyncMonitorParseTemplateParams($block));
+
+    // Kontinent: Infobox Region/Staat + Nav-Templates + Kategorien.
     $region = avesmapsWikiSyncMonitorField($norm, ['region']);
     $staat = avesmapsWikiSyncMonitorField($norm, ['staat']);
     $navHints = '';
@@ -58,29 +74,36 @@ function avesmapsWikiSettlementDetectContinent(array $page): string {
         $navHints = implode(' ', $m[1]);
     }
     $categories = implode(' ', avesmapsWikiSyncGetCategoryNames($page));
-    $continent = avesmapsWikiSyncMonitorDetectContinent($title . ' ' . $region . ' ' . $staat . ' ' . $navHints . ' ' . $categories);
-    return mb_substr($continent, 0, 120, 'UTF-8');
+    $continent = mb_substr(avesmapsWikiSyncMonitorDetectContinent($title . ' ' . $region . ' ' . $staat . ' ' . $navHints . ' ' . $categories), 0, 120, 'UTF-8');
+
+    // Ruine: Siedlungsart enthält „Ruine"/„zerstört".
+    $artKey = avesmapsWikiSyncMonitorFieldKey(avesmapsWikiSyncMonitorField($norm, ['siedlungsart', 'art', 'typ']));
+    $isRuined = $artKey !== '' && (str_contains($artKey, 'ruine') || str_contains($artKey, 'zerstor'));
+
+    // Wappen-URL (gleiche Aliase wie der Infobox-Parser).
+    $coatUrl = avesmapsWikiSyncMonitorCoatOfArmsUrl(avesmapsWikiSyncMonitorField($norm, ['wappen', 'bild', 'wappenbild', 'bilddatei']));
+
+    return ['continent' => $continent, 'is_ruined' => $isRuined, 'coat_url' => $coatUrl];
 }
 
-// Wie viele Registry-Seiten noch keinen Kontinent haben (für Button-Label/Loop).
-function avesmapsWikiSettlementContinentStatus(PDO $pdo): array {
+// Wie viele Registry-Seiten noch nicht angereichert sind (für Button-Label/Loop).
+function avesmapsWikiSettlementEnrichStatus(PDO $pdo): array {
     avesmapsWikiSettlementEnsureSchema($pdo);
     $remaining = (int) ($pdo->query(
-        'SELECT COUNT(*) FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . " WHERE continent IS NULL OR continent = ''"
+        'SELECT COUNT(*) FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' WHERE enriched_at IS NULL'
     )->fetchColumn() ?: 0);
     return ['ok' => true, 'remaining' => $remaining];
 }
 
-// Trägt den Kontinent für eine Charge noch unbestimmter Registry-Seiten nach (lädt die Wiki-
-// Seiten gebündelt mit Kategorien+Content, erkennt den Kontinent, schreibt ihn). Chunked:
-// Frontend ruft wiederholt auf, bis remaining=0.
-function avesmapsWikiSettlementBackfillContinents(PDO $pdo, int $limit): array {
+// Reichert eine Charge noch unbestimmter Registry-Seiten an: Kontinent, Ruine, Wappen-URL +
+// Lizenz (gemeinfrei-Gate). Lädt Siedlungs-Seiten gebündelt (Kategorien+Content), für Seiten
+// mit Wappen zusätzlich die Datei-Seiten zur Lizenzbestimmung. Chunked bis remaining=0.
+function avesmapsWikiSettlementEnrichDetails(PDO $pdo, int $limit): array {
     avesmapsWikiSettlementEnsureSchema($pdo);
     $limit = max(1, min(200, $limit));
     $stmt = $pdo->prepare(
-        'SELECT title FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . "
-         WHERE continent IS NULL OR continent = ''
-         ORDER BY title ASC LIMIT " . $limit
+        'SELECT title FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . '
+         WHERE enriched_at IS NULL ORDER BY title ASC LIMIT ' . $limit
     );
     $stmt->execute();
     $titles = array_values(array_filter(array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN))));
@@ -89,23 +112,77 @@ function avesmapsWikiSettlementBackfillContinents(PDO $pdo, int $limit): array {
     }
 
     $pages = avesmapsWikiSyncFetchPagesByTitle($pdo, $titles, true, true);
+
+    $enrich = [];
+    $fileTitles = [];
+    $fileByTitle = [];
+    foreach ($titles as $title) {
+        $page = $pages[$title] ?? null;
+        $e = is_array($page)
+            ? avesmapsWikiSettlementBuildEnrichment($page)
+            : ['continent' => 'Aventurien', 'is_ruined' => false, 'coat_url' => ''];
+        $enrich[$title] = $e;
+        if ($e['coat_url'] !== '') {
+            $fileTitle = avesmapsWikiSyncMonitorFileTitleFromCoatUrl($e['coat_url']);
+            if ($fileTitle !== '') {
+                $fileTitles[$fileTitle] = true;
+                $fileByTitle[$title] = $fileTitle;
+            }
+        }
+    }
+
+    // Lizenzen der referenzierten Wappen-Dateien gebündelt holen + klassifizieren.
+    $licenseByFile = [];
+    if ($fileTitles !== []) {
+        try {
+            $contents = avesmapsWikiSyncFetchPoliticalTerritoryPageContents(array_keys($fileTitles));
+        } catch (Throwable $error) {
+            $contents = [];
+        }
+        foreach (array_keys($fileTitles) as $fileTitle) {
+            $licenseByFile[$fileTitle] = avesmapsWikiSyncMonitorParseLicense((string) ($contents[$fileTitle] ?? ''));
+        }
+    }
+
     $update = $pdo->prepare(
-        'UPDATE ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' SET continent = :continent WHERE title = :title'
+        'UPDATE ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' SET
+            continent = :continent, is_ruined = :is_ruined, coat_url = :coat_url,
+            coat_license_status = :status, coat_author = :author, coat_attribution = :attribution,
+            coat_license_url = :license_url, enriched_at = CURRENT_TIMESTAMP()
+         WHERE title = :title'
     );
     $processed = 0;
     foreach ($titles as $title) {
-        $page = $pages[$title] ?? null;
-        // Seite nicht ladbar -> trotzdem auf Fallback setzen, damit sie nicht ewig in der Schleife hängt.
-        $continent = is_array($page) ? avesmapsWikiSettlementDetectContinent($page) : 'Aventurien';
-        if ($continent === '') {
-            $continent = 'Aventurien';
+        $e = $enrich[$title];
+        $coatUrl = (string) $e['coat_url'];
+        $status = null;
+        $author = null;
+        $attribution = null;
+        $licenseUrl = null;
+        if ($coatUrl !== '' && isset($fileByTitle[$title])) {
+            $lic = $licenseByFile[$fileByTitle[$title]] ?? null;
+            if (is_array($lic)) {
+                $status = (string) ($lic['status'] ?? 'unknown');
+                $author = ($lic['author'] ?? '') !== '' ? (string) $lic['author'] : null;
+                $attribution = ($lic['attribution'] ?? '') !== '' ? (string) $lic['attribution'] : null;
+                $licenseUrl = ($lic['license_url'] ?? '') !== '' ? (string) $lic['license_url'] : null;
+            }
         }
-        $update->execute(['continent' => $continent, 'title' => $title]);
+        $update->execute([
+            'continent' => $e['continent'] !== '' ? $e['continent'] : 'Aventurien',
+            'is_ruined' => $e['is_ruined'] ? 1 : 0,
+            'coat_url' => $coatUrl !== '' ? $coatUrl : null,
+            'status' => $status,
+            'author' => $author,
+            'attribution' => $attribution,
+            'license_url' => $licenseUrl,
+            'title' => $title,
+        ]);
         $processed += 1;
     }
 
     $remaining = (int) ($pdo->query(
-        'SELECT COUNT(*) FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . " WHERE continent IS NULL OR continent = ''"
+        'SELECT COUNT(*) FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' WHERE enriched_at IS NULL'
     )->fetchColumn() ?: 0);
     return ['ok' => true, 'processed' => $processed, 'remaining' => $remaining];
 }
@@ -590,7 +667,7 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
 
     // Fehlende Wiki-Siedlungen (nur Siedlungs-Klassen, keine Bauwerke) aus der Registry.
     $settlementClasses = ['dorf', 'kleinstadt', 'stadt', 'grossstadt', 'metropole'];
-    $regRows = $pdo->query('SELECT title, settlement_class, wiki_url, continent FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ORDER BY title ASC')->fetchAll(PDO::FETCH_ASSOC);
+    $regRows = $pdo->query('SELECT title, settlement_class, wiki_url, continent, is_ruined FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ORDER BY title ASC')->fetchAll(PDO::FETCH_ASSOC);
     $seen = [];
     foreach ($regRows as $r) {
         $cls = (string) ($r['settlement_class'] ?? '');
@@ -623,7 +700,7 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
             'wiki_title' => $title,
             'region' => '',
             'is_nodix' => false,
-            'is_ruined' => false,
+            'is_ruined' => !empty($r['is_ruined']),
             'wiki_url' => (string) ($r['wiki_url'] ?? ''),
         ];
     }
