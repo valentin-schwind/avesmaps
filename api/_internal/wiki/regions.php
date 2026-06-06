@@ -33,6 +33,8 @@ function avesmapsWikiRegionDefaultSeeds(): array {
         'Kategorie:Derographische Region',
         "Kategorie:Gro\u{00DF}region",
         'Kategorie:Hydroderographie',
+        // Berge (nutzen ebenfalls {{Infobox Region}} mit Art=Berg) -> bei Avesmaps „Berggipfel".
+        'Kategorie:Berg',
     ];
 }
 
@@ -393,6 +395,10 @@ function avesmapsWikiRegionParsePage(string $title, string $wikitext, string $ca
         $name = $canonical;
     }
     $art = $field(['art', 'typ']);
+    // Berge heißen bei Avesmaps „Berggipfel" (gleiche Bezeichnung wie die Karten-Labels).
+    if (mb_strtolower(trim($art), 'UTF-8') === 'berg') {
+        $art = 'Berggipfel';
+    }
     $regionParent = $field(['region']);
     $staat = $field(['staat']);
 
@@ -709,9 +715,10 @@ function avesmapsWikiRegionAssign(PDO $pdo, string $wikiKey, bool $dryRun): arra
 }
 
 // Bulk: verknuepft alle Karten-Labels, deren Name zu einer Staging-Region passt (matched+mehrfach).
-function avesmapsWikiRegionAssignAll(PDO $pdo, string $continentFilter, bool $dryRun): array {
+function avesmapsWikiRegionAssignAll(PDO $pdo, string $continentFilter, bool $dryRun, string $artFilter = ''): array {
     avesmapsWikiRegionEnsureTables($pdo);
     $continentFilter = trim($continentFilter);
+    $artFilter = mb_strtolower(trim($artFilter), 'UTF-8');
     $byKey = [];
     foreach ($pdo->query('SELECT * FROM ' . AVESMAPS_WIKI_REGION_STAGING_TABLE)->fetchAll(PDO::FETCH_ASSOC) as $r) {
         $cont = (string) ($r['continent'] ?? '');
@@ -736,16 +743,26 @@ function avesmapsWikiRegionAssignAll(PDO $pdo, string $continentFilter, bool $dr
         if (!isset($byKey[$key])) {
             continue;
         }
+        $obj = $byKey[$key];
+        // Optional auf eine Art beschränken (z.B. nur „Berggipfel").
+        if ($artFilter !== '' && mb_strtolower((string) ($obj['art'] ?? ''), 'UTF-8') !== $artFilter) {
+            continue;
+        }
+        $props = avesmapsWikiSyncDecodeJson($l['properties_json'] ?? null);
+        $existing = $props['wiki_region'] ?? null;
+        // Schon mit derselben Wiki-Region verbunden -> überspringen (Zähler bleibt aussagekräftig).
+        if (is_array($existing) && (string) ($existing['wiki_key'] ?? '') === (string) $obj['wiki_key']) {
+            continue;
+        }
         $count++;
-        $linked[$byKey[$key]['wiki_key']] = true;
+        $linked[$obj['wiki_key']] = true;
         if (!$dryRun) {
             $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
-            $props = avesmapsWikiSyncDecodeJson($l['properties_json'] ?? null);
-            $props['wiki_region'] = $byKey[$key];
+            $props['wiki_region'] = $obj;
             $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $l['id']]);
         }
     }
-    return ['ok' => true, 'dry_run' => $dryRun, 'continent_filter' => $continentFilter, 'labels_affected' => $count, 'regions_linked' => count($linked), 'applied' => $dryRun ? 0 : $count];
+    return ['ok' => true, 'dry_run' => $dryRun, 'continent_filter' => $continentFilter, 'art_filter' => $artFilter, 'labels_affected' => $count, 'regions_linked' => count($linked), 'applied' => $dryRun ? 0 : $count];
 }
 
 // Picker-Suche: liefert Staging-Regionen fuer den Landschafts-Picker im Label-Editor.

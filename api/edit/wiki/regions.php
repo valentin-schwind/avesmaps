@@ -53,7 +53,8 @@ try {
             'assign_all' => avesmapsWikiRegionAssignAll(
                 $pdo,
                 array_key_exists('continent', $payload) ? (string) $payload['continent'] : 'Aventurien',
-                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
+                (string) ($payload['art'] ?? '')
             ),
             default => null,
         };
@@ -88,6 +89,15 @@ try {
             'limit' => (int) ($_GET['limit'] ?? 500),
         ]),
         'search' => avesmapsWikiRegionSearch($pdo, (string) ($_GET['q'] ?? ''), (int) ($_GET['limit'] ?? 30)),
+        'assign_status' => (static function () use ($pdo) {
+            $r = avesmapsWikiRegionAssignAll(
+                $pdo,
+                array_key_exists('continent', $_GET) ? (string) $_GET['continent'] : 'Aventurien',
+                true,
+                (string) ($_GET['art'] ?? '')
+            );
+            return ['ok' => true, 'remaining' => (int) ($r['labels_affected'] ?? 0)];
+        })(),
         default => null,
     };
 

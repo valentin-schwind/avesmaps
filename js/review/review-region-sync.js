@@ -52,6 +52,7 @@ async function loadRegionWikiSync() {
 			summary.textContent = `${s.considered || 0} Regionen · ${s.map_labels || 0} Karten-Labels`;
 		}
 		renderRegionSyncList();
+		void refreshRegionBergStatus();
 	} catch (error) {
 		if (status) {
 			status.textContent = "Fehler: " + (error.message || error);
@@ -292,12 +293,66 @@ document.addEventListener("click", (event) => {
 		void startRegionWikiCrawl();
 		return;
 	}
+	if (event.target.closest && event.target.closest("#region-sync-assign-berge")) {
+		void runRegionAssignBerge();
+		return;
+	}
 	// Klick auf einen Karten-Kandidaten-Chip -> Zoom zur Stelle.
 	const candidate = event.target.closest ? event.target.closest(".region-sync__cand[data-label-id]") : null;
 	if (candidate) {
 		focusRegionLabelOnMap(candidate.dataset.labelId);
 	}
 });
+
+// Zeigt den „Berge zuordnen"-Button, solange Berggipfel-Labels einer Wiki-Region entsprechen,
+// aber noch nicht verbunden sind.
+async function refreshRegionBergStatus() {
+	const btn = regionSyncElement("region-sync-assign-berge");
+	if (!btn) {
+		return;
+	}
+	try {
+		const data = await regionSyncGet("?action=assign_status&continent=Aventurien&art=Berggipfel");
+		const remaining = data && data.ok ? Number(data.remaining || 0) : 0;
+		if (remaining > 0) {
+			btn.textContent = `⛰ Berge zuordnen (${remaining})`;
+			btn.hidden = false;
+		} else {
+			btn.hidden = true;
+		}
+	} catch (error) {
+		btn.hidden = true;
+	}
+}
+
+let regionAssignBergeBusy = false;
+// Verbindet alle gematchten Berggipfel-Labels per Bulk mit ihrer Wiki-Region.
+async function runRegionAssignBerge() {
+	if (regionAssignBergeBusy) {
+		return;
+	}
+	const btn = regionSyncElement("region-sync-assign-berge");
+	regionAssignBergeBusy = true;
+	if (btn) {
+		btn.disabled = true;
+	}
+	try {
+		const data = await regionSyncPost({ action: "assign_all", continent: "Aventurien", art: "Berggipfel", dry_run: false, confirm: "apply" });
+		if (!data || data.ok !== true) {
+			throw new Error(data && data.error ? data.error : "Fehler beim Zuordnen");
+		}
+		showFeedbackToast?.(`${data.applied || 0} Berge zugeordnet — Karte aktualisiert sich.`, "success");
+		await loadRegionWikiSync();
+	} catch (error) {
+		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
+	} finally {
+		regionAssignBergeBusy = false;
+		if (btn) {
+			btn.disabled = false;
+		}
+		await refreshRegionBergStatus();
+	}
+}
 
 document.addEventListener("dragstart", (event) => {
 	const item = event.target.closest ? event.target.closest(".region-sync__item--draggable") : null;
