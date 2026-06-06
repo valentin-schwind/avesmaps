@@ -47,7 +47,17 @@ function settlementStateCircle(item) {
 	return '<span class="tree-map-status" title="Auf der Karte, kein Wiki-Eintrag"></span>';
 }
 
+// Layout wie die Regionen-Liste: Name-Zeile + Meta-Zeile, ⠿-Handle bei den fehlenden (im Wiki,
+// nicht auf der Karte) zum Auf-die-Karte-Ziehen.
 function renderSettlementRow(item) {
+	const draggable = !item.on_map;
+	const handle = draggable ? '<span class="region-sync__handle" aria-hidden="true">⠿</span>' : "";
+	const dragAttrs = draggable
+		? ` draggable="true" data-settlement-title="${settlementListEscape(item.name)}" data-settlement-class="${settlementListEscape(item.settlement_class)}"`
+		: "";
+	const classes = "review-panel__item region-sync__item settlement-list__item" + (draggable ? " region-sync__item--draggable" : "");
+	const title = draggable ? "Auf die Karte ziehen, um die Siedlung anzulegen" : "";
+
 	const metaParts = [];
 	if (item.settlement_label) {
 		metaParts.push(settlementListEscape(item.settlement_label));
@@ -61,18 +71,15 @@ function renderSettlementRow(item) {
 	if (item.is_ruined) {
 		metaParts.push("Ruine");
 	}
-	const meta = metaParts.join(" · ");
-	const wikiLink = item.wiki_url
-		? `<a class="settlement-list__wiki" href="${settlementListEscape(item.wiki_url)}" target="_blank" rel="noopener" title="Im Wiki-Aventurica öffnen ↗">↗</a>`
-		: "";
+	let metaHtml = metaParts.join(" · ");
+	if (item.wiki_url) {
+		const wikiLink = `<a class="region-sync__link settlement-list__wiki" href="${settlementListEscape(item.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
+		metaHtml = metaHtml ? `${metaHtml} · ${wikiLink}` : wikiLink;
+	}
 	return (
-		`<div class="settlement-list__item" role="button" tabindex="0" data-public-id="${settlementListEscape(item.public_id)}" data-on-map="${item.on_map ? "1" : "0"}">` +
-		settlementStateCircle(item) +
-		'<span class="settlement-list__main">' +
-		`<span class="settlement-list__name">${settlementListEscape(item.name)}</span>` +
-		(meta ? `<span class="settlement-list__meta">${meta}</span>` : "") +
-		"</span>" +
-		wikiLink +
+		`<div class="${classes}"${dragAttrs} data-public-id="${settlementListEscape(item.public_id)}" data-on-map="${item.on_map ? "1" : "0"}" title="${settlementListEscape(title)}">` +
+		`<div class="region-sync__name">${settlementStateCircle(item)}${handle}${settlementListEscape(item.name)}</div>` +
+		(metaHtml ? `<div class="region-sync__meta">${metaHtml}</div>` : "") +
 		"</div>"
 	);
 }
@@ -165,6 +172,60 @@ document.addEventListener("change", (event) => {
 		settlementListOnlyUnconnected = Boolean(event.target.checked);
 		renderSettlementList();
 	}
+});
+
+// ===== Drag & Drop: fehlende Wiki-Siedlung auf die Karte ziehen -> Editor an der Stelle =====
+let settlementDragTitle = "";
+let settlementDragClass = "";
+let settlementMapDropReady = false;
+
+function ensureSettlementMapDropTarget() {
+	if (settlementMapDropReady || typeof map === "undefined" || !map || typeof map.getContainer !== "function") {
+		return;
+	}
+	const container = map.getContainer();
+	container.addEventListener("dragover", (event) => {
+		if (settlementDragTitle) {
+			event.preventDefault();
+			if (event.dataTransfer) {
+				event.dataTransfer.dropEffect = "copy";
+			}
+		}
+	});
+	container.addEventListener("drop", (event) => {
+		if (!settlementDragTitle) {
+			return;
+		}
+		event.preventDefault();
+		const presetName = settlementDragTitle;
+		const presetType = settlementDragClass;
+		settlementDragTitle = "";
+		settlementDragClass = "";
+		const latlng = map.mouseEventToLatLng(event);
+		if (typeof openLocationEditDialog === "function") {
+			openLocationEditDialog({ latlng, presetName, presetLocationType: presetType || "dorf" });
+		}
+	});
+	settlementMapDropReady = true;
+}
+
+document.addEventListener("dragstart", (event) => {
+	const item = event.target.closest ? event.target.closest(".settlement-list__item.region-sync__item--draggable") : null;
+	if (!item || !item.dataset.settlementTitle) {
+		return;
+	}
+	settlementDragTitle = item.dataset.settlementTitle;
+	settlementDragClass = item.dataset.settlementClass || "";
+	if (event.dataTransfer) {
+		event.dataTransfer.setData("text/plain", "settlement:" + item.dataset.settlementTitle);
+		event.dataTransfer.effectAllowed = "copy";
+	}
+	ensureSettlementMapDropTarget();
+});
+
+document.addEventListener("dragend", () => {
+	settlementDragTitle = "";
+	settlementDragClass = "";
 });
 
 window.loadSettlementList = loadSettlementList;
