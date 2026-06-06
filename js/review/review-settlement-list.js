@@ -90,6 +90,42 @@ async function refreshSettlementConnectStatus() {
 	}
 }
 
+let settlementCrawlBuildingsRunning = false;
+// Crawlt alle Bauwerks-Typen aus dem Wiki (Bauwerk nach Art) in die Registry (gebaeude + building_type).
+async function runSettlementCrawlBuildings() {
+	if (settlementCrawlBuildingsRunning) {
+		return;
+	}
+	const btn = document.getElementById("settlement-crawl-buildings");
+	settlementCrawlBuildingsRunning = true;
+	if (btn) {
+		btn.disabled = true;
+		btn.textContent = "🏛 Bauwerke crawlen …";
+	}
+	try {
+		const response = await fetch(SETTLEMENT_LIST_API_URL, {
+			method: "POST",
+			credentials: "same-origin",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ action: "crawl_buildings" }),
+		});
+		const data = await response.json();
+		if (!data || data.ok !== true) {
+			throw new Error(data && data.error ? data.error : "Crawl fehlgeschlagen");
+		}
+		showFeedbackToast?.(`${data.titles_seen || 0} Bauwerke gecrawlt (${data.types || 0} Typen).`, "success");
+		await loadSettlementList();
+	} catch (error) {
+		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
+	} finally {
+		settlementCrawlBuildingsRunning = false;
+		if (btn) {
+			btn.disabled = false;
+			btn.textContent = "🏛 Bauwerke crawlen";
+		}
+	}
+}
+
 let settlementBulkConnectRunning = false;
 // Verbindet alle eindeutig passenden, unverbundenen Orte/Bauwerke (chunked, mit Progressbar).
 async function runSettlementBulkConnect() {
@@ -424,6 +460,9 @@ function renderSettlementRow(item) {
 	if (item.settlement_label) {
 		metaParts.push(settlementListEscape(item.settlement_label));
 	}
+	if (item.building_type) {
+		metaParts.push(settlementListEscape(item.building_type));
+	}
 	if (item.region) {
 		metaParts.push(settlementListEscape(item.region));
 	}
@@ -586,6 +625,10 @@ document.addEventListener("click", (event) => {
 	}
 	if (event.target.closest("#settlement-bulk-connect")) {
 		void runSettlementBulkConnect();
+		return;
+	}
+	if (event.target.closest("#settlement-crawl-buildings")) {
+		void runSettlementCrawlBuildings();
 		return;
 	}
 	const statusTab = event.target.closest("[data-wiki-sync-case-status]");

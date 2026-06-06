@@ -50,6 +50,8 @@ function avesmapsWikiSettlementEnsureSchema(PDO $pdo): void {
     $addColumn('coat_attribution', 'VARCHAR(500) NULL');
     $addColumn('coat_license_url', 'VARCHAR(500) NULL');
     $addColumn('enriched_at', 'DATETIME NULL');
+    // Genauer Bauwerkstyp (Festung/Tempel/Ruine/…) — oberflächlich bleibt alles „gebaeude".
+    $addColumn('building_type', 'VARCHAR(120) NULL');
 }
 
 function avesmapsWikiSettlementClassLabel(string $class): string {
@@ -780,39 +782,95 @@ function avesmapsWikiSettlementCollectConnectTargets(PDO $pdo): array {
 // gebaeude in die Registry wiki_sync_pages ein — damit „Besondere Bauwerke/Stätten" verbindbar
 // werden. INSERT IGNORE: überschreibt KEINE bestehenden Siedlungs-Einträge. Infobox wird erst beim
 // Zuordnen on-demand geladen.
+// Subkategorien (ns=14) einer Kategorie, Präfix „Kategorie:" entfernt.
+function avesmapsWikiSettlementFetchSubcategories(string $categoryName): array {
+    $subcats = [];
+    $continue = null;
+    do {
+        $params = ['action' => 'query', 'list' => 'categorymembers', 'cmtitle' => 'Kategorie:' . $categoryName, 'cmtype' => 'subcat', 'cmlimit' => 500];
+        if ($continue !== null) {
+            $params['cmcontinue'] = $continue;
+        }
+        $data = avesmapsWikiSyncApiRequest($params);
+        foreach ($data['query']['categorymembers'] ?? [] as $m) {
+            $t = trim((string) ($m['title'] ?? ''));
+            if ($t !== '') {
+                $subcats[] = preg_replace('/^(Kategorie|Category):/u', '', $t) ?? $t;
+            }
+        }
+        $continue = $data['continue']['cmcontinue'] ?? null;
+    } while ($continue !== null);
+    return $subcats;
+}
+
+// Sammelt rekursiv (depth-limitiert) alle ns=0-Seitentitel unter einer Kategorie. $visited wird
+// geteilt, damit jede (Unter-)Kategorie nur einmal abgefragt wird.
+function avesmapsWikiSettlementCollectCategoryPages(string $categoryName, int $depth, array &$visited): array {
+    $key = mb_strtolower($categoryName, 'UTF-8');
+    if (isset($visited[$key])) {
+        return [];
+    }
+    $visited[$key] = true;
+    $titles = array_values(avesmapsWikiSyncFetchCategoryMemberTitles($categoryName));
+    if ($depth > 0) {
+        foreach (avesmapsWikiSettlementFetchSubcategories($categoryName) as $sub) {
+            foreach (avesmapsWikiSettlementCollectCategoryPages($sub, $depth - 1, $visited) as $t) {
+                $titles[] = $t;
+            }
+        }
+    }
+    return $titles;
+}
+
+// Umfassender Bauwerks-Crawl: alle Typen aus „Bauwerk nach Art" (+ Legacy-Fallback), je Typ
+// rekursiv (1 Ebene). Oberflächlich alles „gebaeude" (Besondere Bauwerke/Stätten), intern wird
+// der genaue Bauwerkstyp (building_type) behalten.
 function avesmapsWikiSettlementCrawlBuildings(PDO $pdo): array {
     avesmapsWikiSettlementEnsureSchema($pdo);
     if (function_exists('avesmapsWikiSyncRelaxLimits')) {
         avesmapsWikiSyncRelaxLimits();
     }
-    $categories = ['Festung', 'Tempel', 'Turm', 'Ruine', 'Palast', 'Bauwerk'];
-    $titles = [];
-    foreach ($categories as $category) {
-        foreach (avesmapsWikiSyncFetchCategoryMemberTitles($category) as $title) {
+
+    $types = avesmapsWikiSettlementFetchSubcategories('Bauwerk nach Art');
+    foreach (['Festung', 'Festungsruine', 'Historische Festung', 'Tempel', 'Turm', 'Ruine', 'Palast', 'Kloster', 'Leuchtturm', 'Bauwerk'] as $legacy) {
+        if (!in_array($legacy, $types, true)) {
+            $types[] = $legacy;
+        }
+    }
+
+    $visited = [];
+    $typeByTitle = []; // title => building_type (erster Typ gewinnt)
+    foreach ($types as $type) {
+        // depth 0 = direkte Seiten je Typ (hält die API-Last je Request niedrig; deckt die
+        // Top-Level-Typen wie Festungsruine/Historische Festung/Kloster/Leuchtturm ab).
+        foreach (avesmapsWikiSettlementCollectCategoryPages($type, 0, $visited) as $title) {
             $title = trim((string) $title);
-            if ($title !== '') {
-                $titles[$title] = true;
+            if ($title !== '' && !isset($typeByTitle[$title])) {
+                $typeByTitle[$title] = $type;
             }
         }
     }
+
     $insert = $pdo->prepare(
-        'INSERT IGNORE INTO ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . '
-            (title, normalized_key, wiki_url, settlement_class, settlement_label, fetched_at)
-         VALUES (:title, :nk, :url, :cls, :lbl, CURRENT_TIMESTAMP(3))'
+        'INSERT INTO ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . '
+            (title, normalized_key, wiki_url, settlement_class, settlement_label, building_type, fetched_at)
+         VALUES (:title, :nk, :url, :cls, :lbl, :bt, CURRENT_TIMESTAMP(3))
+         ON DUPLICATE KEY UPDATE building_type = IF(building_type IS NULL OR building_type = \'\', VALUES(building_type), building_type)'
     );
     $label = avesmapsWikiSettlementClassLabel('gebaeude');
     $added = 0;
-    foreach (array_keys($titles) as $title) {
+    foreach ($typeByTitle as $title => $type) {
         $insert->execute([
             'title' => mb_substr($title, 0, 255, 'UTF-8'),
             'nk' => avesmapsWikiSyncCreateMatchKey($title),
             'url' => avesmapsWikiSyncMonitorPageUrl($title),
             'cls' => 'gebaeude',
             'lbl' => $label,
+            'bt' => mb_substr($type, 0, 120, 'UTF-8'),
         ]);
         $added += $insert->rowCount();
     }
-    return ['ok' => true, 'categories' => $categories, 'titles_seen' => count($titles), 'added' => $added];
+    return ['ok' => true, 'types' => count($types), 'titles_seen' => count($typeByTitle), 'added' => $added];
 }
 
 // Aktuelle Wiki-Verbindung eines Orts (per public_id) frisch aus der DB — damit der
@@ -889,7 +947,7 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
 
     // Fehlende Wiki-Siedlungen (Siedlungs-Klassen + Bauwerke) aus der Registry.
     $settlementClasses = ['dorf', 'kleinstadt', 'stadt', 'grossstadt', 'metropole', 'gebaeude'];
-    $regRows = $pdo->query('SELECT title, settlement_class, wiki_url, continent, is_ruined FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ORDER BY title ASC')->fetchAll(PDO::FETCH_ASSOC);
+    $regRows = $pdo->query('SELECT title, settlement_class, wiki_url, continent, is_ruined, building_type FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ORDER BY title ASC')->fetchAll(PDO::FETCH_ASSOC);
     $seen = [];
     foreach ($regRows as $r) {
         $cls = (string) ($r['settlement_class'] ?? '');
@@ -923,6 +981,7 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
             'region' => '',
             'is_nodix' => false,
             'is_ruined' => !empty($r['is_ruined']),
+            'building_type' => (string) ($r['building_type'] ?? ''),
             'wiki_url' => (string) ($r['wiki_url'] ?? ''),
         ];
     }
