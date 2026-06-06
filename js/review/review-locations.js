@@ -338,7 +338,12 @@ async function settlementCoatAction(action) {
 					entry.location.revision = data.revision;
 				}
 				if (typeof refreshLocationMarkerPopup === "function") {
+					// Offenes Popup live aktualisieren (bindPopup allein rendert es nicht neu).
+					const wasPopupOpen = typeof entry.marker.isPopupOpen === "function" && entry.marker.isPopupOpen();
 					refreshLocationMarkerPopup(entry);
+					if (wasPopupOpen && typeof entry.marker.openPopup === "function") {
+						entry.marker.openPopup();
+					}
 				}
 			}
 		}
@@ -380,7 +385,12 @@ async function uploadOwnSettlementCoat(file) {
 					entry.location.revision = data.revision;
 				}
 				if (typeof refreshLocationMarkerPopup === "function") {
+					// Offenes Popup live aktualisieren (bindPopup allein rendert es nicht neu).
+					const wasPopupOpen = typeof entry.marker.isPopupOpen === "function" && entry.marker.isPopupOpen();
 					refreshLocationMarkerPopup(entry);
+					if (wasPopupOpen && typeof entry.marker.openPopup === "function") {
+						entry.marker.openPopup();
+					}
 				}
 			}
 		}
