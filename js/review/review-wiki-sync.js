@@ -124,11 +124,15 @@ function refreshActiveWikiSyncPanel() {
 		return typeof loadRegionWikiSync === "function" ? loadRegionWikiSync() : undefined;
 	}
 
+	if (activeWikiSyncPanelTab === "paths") {
+		return typeof loadPathWikiSync === "function" ? loadPathWikiSync() : undefined;
+	}
+
 	return loadWikiSyncCases();
 }
 
 function setWikiSyncPanelTab(tabName) {
-	activeWikiSyncPanelTab = ["territories", "regions"].includes(tabName) ? tabName : "locations";
+	activeWikiSyncPanelTab = ["territories", "regions", "paths"].includes(tabName) ? tabName : "locations";
 
 	document.querySelectorAll("[data-wiki-sync-panel-tab]").forEach((tabElement) => {
 		const isActive = tabElement.dataset.wikiSyncPanelTab === activeWikiSyncPanelTab;
@@ -145,6 +149,10 @@ function setWikiSyncPanelTab(tabName) {
 	} else if (activeWikiSyncPanelTab === "regions") {
 		if (typeof loadRegionWikiSync === "function") {
 			void loadRegionWikiSync();
+		}
+	} else if (activeWikiSyncPanelTab === "paths") {
+		if (typeof loadPathWikiSync === "function") {
+			void loadPathWikiSync();
 		}
 	} else {
 		renderWikiSyncCases();

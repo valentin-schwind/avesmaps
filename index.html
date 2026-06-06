@@ -167,9 +167,23 @@
 					<button class="wiki-sync-panel__tab is-active" type="button" data-wiki-sync-panel-tab="locations">Siedlungen</button>
 					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="territories">Herrschaftsgebiete</button>
 					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="regions">Regionen</button>
+					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="paths">Wege</button>
 				</nav>
 
-				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="regions">
+				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="paths">
+						<div class="wiki-sync-panel__actions">
+							<span id="path-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
+							<button id="path-sync-assign-all" class="wiki-sync-panel__start" type="button" title="Alle passenden Wege verknüpfen">Alle zuordnen</button>
+							<button id="path-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Wege neu crawlen (laeuft im Hintergrund)">Wiki neu laden</button>
+						</div>
+						<p id="path-sync-status" class="review-panel__status" role="status" aria-live="polite">Wege werden geladen...</p>
+						<div class="wiki-sync-panel__filter">
+							<input id="path-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Wege suchen ..." aria-label="Wege durchsuchen" />
+						</div>
+						<div id="path-sync-list" class="review-panel__list"></div>
+					</div>
+
+					<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="regions">
 						<div class="wiki-sync-panel__actions">
 							<span id="region-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
 							<button id="region-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Regionen neu crawlen (laeuft im Hintergrund)">Wiki neu laden</button>
@@ -984,6 +998,7 @@
 		<script src="js/review/review-locations.js"></script>
 		<script src="js/review/review-panels.js"></script>
 		<script src="js/review/review-region-sync.js"></script>
+		<script src="js/review/review-path-sync.js"></script>
 		<script src="js/territory/territory-wiki-tree.js"></script>
 		<script src="js/review/review-wiki-sync.js"></script>
 		<script src="js/review/review-region-wiki-picker.js"></script>

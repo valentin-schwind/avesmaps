@@ -1,0 +1,246 @@
+// Review-Unterreiter „Wege" — WikiSync fuer Fluesse + Strassen (path-Features). Liste/Match +
+// Zuordnen (schreibt wiki_path auf alle gleichnamigen Segmente) + „Alle zuordnen" (Bulk). Read-only
+// fuer die Karte ausser der bewussten Zuordnung. Mirror von review-region-sync.js.
+
+const PATH_SYNC_API_URL = "/api/edit/wiki/paths.php";
+let pathSyncData = null;
+let pathSyncView = "matched"; // matched | ambiguous | missing
+let pathSyncBusy = false;
+
+function pathSyncElement(id) {
+	return document.getElementById(id);
+}
+function pathSyncPost(body) {
+	return fetch(PATH_SYNC_API_URL, { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.json());
+}
+function pathSyncGet(query) {
+	return fetch(PATH_SYNC_API_URL + query, { credentials: "same-origin" }).then((r) => r.json());
+}
+function pathSyncEscapeText(value) {
+	const holder = document.createElement("div");
+	holder.textContent = String(value === null || value === undefined ? "" : value);
+	return holder.innerHTML;
+}
+function pathSyncEscapeAttr(value) {
+	return String(value === null || value === undefined ? "" : value).replace(/"/g, "&quot;");
+}
+
+async function loadPathWikiSync() {
+	const status = pathSyncElement("path-sync-status");
+	const summary = pathSyncElement("path-sync-summary");
+	if (status) {
+		status.textContent = "Wege werden abgeglichen ...";
+	}
+	try {
+		const data = await pathSyncGet("?action=match&continent=Aventurien&limit=2000");
+		if (!data || data.ok !== true) {
+			throw new Error(data && data.error ? data.error : "Unerwartete Antwort");
+		}
+		pathSyncData = data;
+		const s = data.summary || {};
+		if (summary) {
+			summary.textContent = `${s.matched || 0} zugeordnet · ${s.ambiguous || 0} mehrteilig · ${s.missing || 0} fehlen`;
+		}
+		if (status) {
+			status.textContent = `${s.considered || 0} Aventurien-Wege · ${s.map_paths || 0} Karten-Weg-Segmente`;
+		}
+		renderPathSyncList();
+	} catch (error) {
+		if (status) {
+			status.textContent = "Fehler: " + (error.message || error);
+		}
+	}
+}
+
+function pathSyncCurrentRows() {
+	if (!pathSyncData) {
+		return [];
+	}
+	if (pathSyncView === "ambiguous") {
+		return pathSyncData.ambiguous || [];
+	}
+	if (pathSyncView === "missing") {
+		return pathSyncData.missing || [];
+	}
+	return pathSyncData.matched || [];
+}
+
+function renderPathSyncList() {
+	const list = pathSyncElement("path-sync-list");
+	if (!list) {
+		return;
+	}
+	const summary = (pathSyncData && pathSyncData.summary) || {};
+	const filterValue = (pathSyncElement("path-sync-filter")?.value || "").trim().toLowerCase();
+	const rows = pathSyncCurrentRows().filter((row) => {
+		if (filterValue === "") {
+			return true;
+		}
+		return [row.name, row.art, row.lage].filter(Boolean).some((v) => String(v).toLowerCase().includes(filterValue));
+	});
+
+	const viewTabs =
+		'<div class="region-sync__viewtabs">' +
+		`<button type="button" data-path-view="matched" class="region-sync__viewtab${pathSyncView === "matched" ? " is-active" : ""}">Zugeordnet (${summary.matched || 0})</button>` +
+		`<button type="button" data-path-view="ambiguous" class="region-sync__viewtab${pathSyncView === "ambiguous" ? " is-active" : ""}">Mehrteilig (${summary.ambiguous || 0})</button>` +
+		`<button type="button" data-path-view="missing" class="region-sync__viewtab${pathSyncView === "missing" ? " is-active" : ""}">Fehlt (${summary.missing || 0})</button>` +
+		"</div>";
+
+	const items = rows
+		.slice(0, 600)
+		.map((row) => {
+			const segs = row.path ? 1 : (row.paths ? row.paths.length : 0);
+			const metaParts = [row.kind, row.art, row.lage].filter(Boolean).map(pathSyncEscapeText);
+			let metaHtml = metaParts.join(" · ");
+			if (row.wiki_url) {
+				const wikiLink = `<a class="region-sync__link" href="${pathSyncEscapeAttr(row.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
+				metaHtml = metaHtml ? `${metaHtml} · ${wikiLink}` : wikiLink;
+			}
+			const segInfo = segs > 0 ? `<span class="region-sync__map">${segs} Karten-Segment${segs === 1 ? "" : "e"}</span>` : "";
+			const assignBtn = segs > 0
+				? `<button type="button" class="region-sync__viewtab path-sync__assign" data-wiki-key="${pathSyncEscapeAttr(row.wiki_key)}">Zuordnen</button>`
+				: "";
+			return (
+				'<div class="review-panel__item region-sync__item">' +
+				`<div class="region-sync__name">${pathSyncEscapeText(row.name)}</div>` +
+				`<div class="region-sync__meta">${metaHtml}</div>` +
+				(segInfo ? `<div class="region-sync__meta">${segInfo}</div>` : "") +
+				(assignBtn ? `<div class="region-sync__links">${assignBtn}</div>` : "") +
+				"</div>"
+			);
+		})
+		.join("");
+
+	const countNote = rows.length > 600 ? `<p class="review-panel__status">${rows.length} Treffer — die ersten 600 werden angezeigt.</p>` : "";
+	list.innerHTML = viewTabs + countNote + (items || '<p class="review-panel__status">Keine Einträge.</p>');
+}
+
+async function assignPathWiki(wikiKey) {
+	if (pathSyncBusy || !wikiKey) {
+		return;
+	}
+	pathSyncBusy = true;
+	const status = pathSyncElement("path-sync-status");
+	try {
+		const preview = await pathSyncPost({ action: "assign", wiki_key: wikiKey });
+		const segs = preview && preview.segments ? preview.segments : 0;
+		if (!segs) {
+			if (status) {
+				status.textContent = "Keine passenden Karten-Segmente.";
+			}
+			return;
+		}
+		if (!window.confirm(`„${preview.wiki_name}" mit ${segs} Karten-Segment(en) verknüpfen?`)) {
+			return;
+		}
+		const result = await pathSyncPost({ action: "assign", wiki_key: wikiKey, dry_run: false, confirm: "apply" });
+		if (status) {
+			status.textContent = result.ok ? `Verknüpft: ${result.applied} Segment(e).` : ("Fehler: " + (result.error || ""));
+		}
+		await loadPathWikiSync();
+	} catch (error) {
+		if (status) {
+			status.textContent = "Fehler: " + (error.message || error);
+		}
+	} finally {
+		pathSyncBusy = false;
+	}
+}
+
+async function assignAllPathWiki() {
+	if (pathSyncBusy) {
+		return;
+	}
+	pathSyncBusy = true;
+	const status = pathSyncElement("path-sync-status");
+	try {
+		const preview = await pathSyncPost({ action: "assign_all", continent: "Aventurien" });
+		const segs = preview && preview.segments_affected ? preview.segments_affected : 0;
+		const wp = preview && preview.wiki_paths_linked ? preview.wiki_paths_linked : 0;
+		if (!segs) {
+			if (status) {
+				status.textContent = "Nichts zu verknüpfen.";
+			}
+			return;
+		}
+		if (!window.confirm(`Alle ${wp} passenden Wege mit insgesamt ${segs} Karten-Segmenten verknüpfen?`)) {
+			return;
+		}
+		const result = await pathSyncPost({ action: "assign_all", continent: "Aventurien", dry_run: false, confirm: "apply" });
+		if (status) {
+			status.textContent = result.ok ? `Verknüpft: ${result.applied} Segment(e).` : ("Fehler: " + (result.error || ""));
+		}
+		await loadPathWikiSync();
+	} catch (error) {
+		if (status) {
+			status.textContent = "Fehler: " + (error.message || error);
+		}
+	} finally {
+		pathSyncBusy = false;
+	}
+}
+
+async function startPathWikiCrawl() {
+	if (pathSyncBusy) {
+		return;
+	}
+	pathSyncBusy = true;
+	const status = pathSyncElement("path-sync-status");
+	try {
+		const run = await pathSyncPost({ action: "start_run" });
+		if (!run || !run.run_id) {
+			throw new Error(run && run.error ? run.error : "Kein run_id");
+		}
+		let step = 0;
+		let last;
+		do {
+			last = await pathSyncPost({ action: "crawl_step", run_id: run.run_id, options: { step_runtime: 12 } });
+			const rs = last.status || {};
+			step += 1;
+			if (status) {
+				status.textContent = `Crawl Schritt ${step}: ${rs.staging_rows || 0} Wege, ${rs.pending || 0} offen ...`;
+			}
+			await new Promise((resolve) => setTimeout(resolve, 350));
+		} while (last.status && !last.status.complete && step < 250);
+		await loadPathWikiSync();
+	} catch (error) {
+		if (status) {
+			status.textContent = "Crawl-Fehler: " + (error.message || error);
+		}
+	} finally {
+		pathSyncBusy = false;
+	}
+}
+
+document.addEventListener("click", (event) => {
+	if (!event.target.closest) {
+		return;
+	}
+	const viewBtn = event.target.closest("[data-path-view]");
+	if (viewBtn) {
+		pathSyncView = viewBtn.dataset.pathView || "matched";
+		renderPathSyncList();
+		return;
+	}
+	const assignBtn = event.target.closest(".path-sync__assign");
+	if (assignBtn) {
+		event.stopPropagation();
+		void assignPathWiki(assignBtn.dataset.wikiKey);
+		return;
+	}
+	if (event.target.closest("#path-sync-assign-all")) {
+		void assignAllPathWiki();
+		return;
+	}
+	if (event.target.closest("#path-sync-crawl")) {
+		void startPathWikiCrawl();
+	}
+});
+
+document.addEventListener("input", (event) => {
+	if (event.target && event.target.id === "path-sync-filter") {
+		renderPathSyncList();
+	}
+});
+
+window.loadPathWikiSync = loadPathWikiSync;

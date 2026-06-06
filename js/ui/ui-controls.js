@@ -543,7 +543,7 @@ function initializeReviewPanelTabState() {
 	if (typeof IS_EDIT_MODE !== "undefined" && !IS_EDIT_MODE) return;
 
 	const reviewTabValues = ["review", "changes", "wiki-sync", "presence"];
-	const wikiSyncTabValues = ["locations", "territories", "regions"];
+	const wikiSyncTabValues = ["locations", "territories", "regions", "paths"];
 	const reviewStorageKey = "avesmaps.review.activeTab";
 	const wikiSyncStorageKey = "avesmaps.review.wikiSync.activeTab";
 	const url = new URL(window.location.href);
