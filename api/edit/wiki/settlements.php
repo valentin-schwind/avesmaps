@@ -53,6 +53,7 @@ try {
                 !$isApply()
             ),
             'crawl_buildings' => avesmapsWikiSettlementCrawlBuildings($pdo),
+            'backfill_continents' => avesmapsWikiSettlementBackfillContinents($pdo, (int) ($payload['limit'] ?? 100)),
             default => null,
         };
 
@@ -77,6 +78,7 @@ try {
     $response = match ($action) {
         'status', '' => avesmapsWikiSettlementStatus($pdo),
         'connect_status' => avesmapsWikiSettlementConnectStatus($pdo),
+        'continent_status' => avesmapsWikiSettlementContinentStatus($pdo),
         'list_locations' => avesmapsWikiSettlementListLocations($pdo),
         'assignment' => avesmapsWikiSettlementGetAssignment($pdo, (string) ($_GET['public_id'] ?? '')),
         'search' => avesmapsWikiSettlementSearch($pdo, (string) ($_GET['q'] ?? ''), (int) ($_GET['limit'] ?? 30)),

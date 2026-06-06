@@ -33,6 +33,72 @@ async function loadSettlementList() {
 		return;
 	}
 	renderSettlementList();
+	void refreshSettlementContinentStatus();
+}
+
+// Zeigt den „Kontinente nachtragen"-Button, solange Registry-Seiten ohne Kontinent existieren.
+async function refreshSettlementContinentStatus() {
+	const btn = document.getElementById("settlement-backfill-continents");
+	if (!btn) {
+		return;
+	}
+	try {
+		const response = await fetch(`${SETTLEMENT_LIST_API_URL}?action=continent_status`, { credentials: "same-origin" });
+		const data = await response.json();
+		const remaining = data && data.ok ? Number(data.remaining || 0) : 0;
+		if (remaining > 0) {
+			btn.textContent = `🌍 Kontinente nachtragen (${remaining})`;
+			btn.hidden = false;
+		} else {
+			btn.hidden = true;
+		}
+	} catch (error) {
+		btn.hidden = true;
+	}
+}
+
+let settlementBackfillRunning = false;
+// Trägt den Kontinent gebündelt nach (chunked, bis remaining=0), lädt danach die Liste neu.
+async function runSettlementContinentBackfill() {
+	if (settlementBackfillRunning) {
+		return;
+	}
+	const btn = document.getElementById("settlement-backfill-continents");
+	settlementBackfillRunning = true;
+	if (btn) {
+		btn.disabled = true;
+	}
+	try {
+		let remaining = Infinity;
+		let guard = 0;
+		while (remaining > 0 && guard < 400) {
+			const response = await fetch(SETTLEMENT_LIST_API_URL, {
+				method: "POST",
+				credentials: "same-origin",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ action: "backfill_continents", limit: 100 }),
+			});
+			const data = await response.json();
+			if (!data || data.ok !== true) {
+				throw new Error(data && data.error ? data.error : "Backfill-Fehler");
+			}
+			remaining = Number(data.remaining || 0);
+			guard += 1;
+			if (btn) {
+				btn.textContent = `🌍 Kontinente nachtragen … (${remaining})`;
+			}
+		}
+		showFeedbackToast?.("Kontinente nachgetragen.", "success");
+		await loadSettlementList();
+	} catch (error) {
+		showFeedbackToast?.("Fehler beim Nachtragen: " + (error.message || error), "error");
+	} finally {
+		settlementBackfillRunning = false;
+		if (btn) {
+			btn.disabled = false;
+		}
+		await refreshSettlementContinentStatus();
+	}
 }
 
 // Unsichtbarer Status-Marker wie im Herrschaftsgebiet-Tree; steuert per :has() die Kreis-Füllung:
@@ -155,6 +221,10 @@ function setWikiSyncCaseStatus(status) {
 
 document.addEventListener("click", (event) => {
 	if (!event.target.closest) {
+		return;
+	}
+	if (event.target.closest("#settlement-backfill-continents")) {
+		void runSettlementContinentBackfill();
 		return;
 	}
 	const statusTab = event.target.closest("[data-wiki-sync-case-status]");

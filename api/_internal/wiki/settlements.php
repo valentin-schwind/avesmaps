@@ -21,20 +21,93 @@ const AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE = 'wiki_sync_pages';
 // Stellt die nullbare Cache-Spalte details_json an wiki_sync_pages sicher (idempotent).
 function avesmapsWikiSettlementEnsureSchema(PDO $pdo): void {
     avesmapsWikiSyncEnsureCoreTables($pdo);
-    $exists = $pdo->query(
-        "SELECT COUNT(*) FROM information_schema.COLUMNS
-         WHERE TABLE_SCHEMA = DATABASE()
-           AND TABLE_NAME = '" . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . "'
-           AND COLUMN_NAME = 'details_json'"
-    );
-    if ($exists !== false && (int) $exists->fetchColumn() === 0) {
+    $columnExists = static function (PDO $pdo, string $column): bool {
+        $stmt = $pdo->query(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = '" . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . "'
+               AND COLUMN_NAME = '" . $column . "'"
+        );
+        return $stmt !== false && (int) $stmt->fetchColumn() > 0;
+    };
+    if (!$columnExists($pdo, 'details_json')) {
         $pdo->exec('ALTER TABLE ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ADD COLUMN details_json JSON NULL');
+    }
+    // Kontinent pro Wiki-Seite, damit „nur Aventurien" gezählt/gelistet werden kann.
+    if (!$columnExists($pdo, 'continent')) {
+        $pdo->exec('ALTER TABLE ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ADD COLUMN continent VARCHAR(120) NULL');
     }
 }
 
 function avesmapsWikiSettlementClassLabel(string $class): string {
     $labels = defined('AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS') ? AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS : [];
     return (string) ($labels[$class] ?? 'Siedlung');
+}
+
+// Kontinent einer Siedlungs-Wikiseite erkennen — spiegelt die Regionen-/Wege-Crawler-Logik:
+// Infobox Region/Staat + Nav-Templates + Kategorien in den geteilten Detektor (Fallback Aventurien).
+function avesmapsWikiSettlementDetectContinent(array $page): string {
+    $title = (string) ($page['title'] ?? '');
+    $content = avesmapsWikiSyncReadPageContent($page);
+    $block = avesmapsWikiSyncMonitorExtractInfoboxBlock($content);
+    $norm = avesmapsWikiSyncMonitorNormFields(avesmapsWikiSyncMonitorParseTemplateParams($block));
+    $region = avesmapsWikiSyncMonitorField($norm, ['region']);
+    $staat = avesmapsWikiSyncMonitorField($norm, ['staat']);
+    $navHints = '';
+    if (preg_match_all('/\{\{\s*(Nav\s+[^}|]+|Aventurien|Myranor|G[üu]ldenland|Gueldenland|Rakshazar|Riesland|Tharun|Uthuria|Lahmaria)\b/iu', $content, $m) >= 1) {
+        $navHints = implode(' ', $m[1]);
+    }
+    $categories = implode(' ', avesmapsWikiSyncGetCategoryNames($page));
+    $continent = avesmapsWikiSyncMonitorDetectContinent($title . ' ' . $region . ' ' . $staat . ' ' . $navHints . ' ' . $categories);
+    return mb_substr($continent, 0, 120, 'UTF-8');
+}
+
+// Wie viele Registry-Seiten noch keinen Kontinent haben (für Button-Label/Loop).
+function avesmapsWikiSettlementContinentStatus(PDO $pdo): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    $remaining = (int) ($pdo->query(
+        'SELECT COUNT(*) FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . " WHERE continent IS NULL OR continent = ''"
+    )->fetchColumn() ?: 0);
+    return ['ok' => true, 'remaining' => $remaining];
+}
+
+// Trägt den Kontinent für eine Charge noch unbestimmter Registry-Seiten nach (lädt die Wiki-
+// Seiten gebündelt mit Kategorien+Content, erkennt den Kontinent, schreibt ihn). Chunked:
+// Frontend ruft wiederholt auf, bis remaining=0.
+function avesmapsWikiSettlementBackfillContinents(PDO $pdo, int $limit): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    $limit = max(1, min(200, $limit));
+    $stmt = $pdo->prepare(
+        'SELECT title FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . "
+         WHERE continent IS NULL OR continent = ''
+         ORDER BY title ASC LIMIT " . $limit
+    );
+    $stmt->execute();
+    $titles = array_values(array_filter(array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN))));
+    if ($titles === []) {
+        return ['ok' => true, 'processed' => 0, 'remaining' => 0];
+    }
+
+    $pages = avesmapsWikiSyncFetchPagesByTitle($pdo, $titles, true, true);
+    $update = $pdo->prepare(
+        'UPDATE ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' SET continent = :continent WHERE title = :title'
+    );
+    $processed = 0;
+    foreach ($titles as $title) {
+        $page = $pages[$title] ?? null;
+        // Seite nicht ladbar -> trotzdem auf Fallback setzen, damit sie nicht ewig in der Schleife hängt.
+        $continent = is_array($page) ? avesmapsWikiSettlementDetectContinent($page) : 'Aventurien';
+        if ($continent === '') {
+            $continent = 'Aventurien';
+        }
+        $update->execute(['continent' => $continent, 'title' => $title]);
+        $processed += 1;
+    }
+
+    $remaining = (int) ($pdo->query(
+        'SELECT COUNT(*) FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . " WHERE continent IS NULL OR continent = ''"
+    )->fetchColumn() ?: 0);
+    return ['ok' => true, 'processed' => $processed, 'remaining' => $remaining];
 }
 
 // Parst {{Infobox Siedlung}} aus dem Seiten-Wikitext in das wiki_settlement-Objekt, das ans
@@ -517,11 +590,17 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
 
     // Fehlende Wiki-Siedlungen (nur Siedlungs-Klassen, keine Bauwerke) aus der Registry.
     $settlementClasses = ['dorf', 'kleinstadt', 'stadt', 'grossstadt', 'metropole'];
-    $regRows = $pdo->query('SELECT title, settlement_class, wiki_url FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ORDER BY title ASC')->fetchAll(PDO::FETCH_ASSOC);
+    $regRows = $pdo->query('SELECT title, settlement_class, wiki_url, continent FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ORDER BY title ASC')->fetchAll(PDO::FETCH_ASSOC);
     $seen = [];
     foreach ($regRows as $r) {
         $cls = (string) ($r['settlement_class'] ?? '');
         if (!in_array($cls, $settlementClasses, true)) {
+            continue;
+        }
+        // Nur Aventurien: bekannte Fremdkontinente raus. Leere (noch nicht nachgetragene)
+        // bleiben drin und werden nach dem Continent-Backfill korrekt aussortiert.
+        $cont = (string) ($r['continent'] ?? '');
+        if ($cont !== '' && $cont !== 'Aventurien') {
             continue;
         }
         $title = (string) $r['title'];
