@@ -4,7 +4,8 @@
 // zur Karte fliegen + „Ort bearbeiten" öffnen. (3) Bulk-Verbinden aller eindeutigen Treffer.
 
 const SETTLEMENT_LIST_API_URL = "/api/edit/wiki/settlements.php";
-let settlementListOnlyUnconnected = false;
+let settlementListOnlyOnMap = false;
+let settlementListOnlyWiki = false;
 let settlementListItems = [];
 
 function settlementListEscape(value) {
@@ -100,8 +101,10 @@ function renderSettlementList() {
 
 	const query = (document.getElementById("settlement-list-filter")?.value || "").trim().toLowerCase();
 	let items = all;
-	if (settlementListOnlyUnconnected) {
-		items = items.filter((item) => item.state !== "full");
+	if (settlementListOnlyOnMap) {
+		items = items.filter((item) => item.on_map);
+	} else if (settlementListOnlyWiki) {
+		items = items.filter((item) => !item.on_map);
 	}
 	if (query) {
 		items = items.filter((item) => String(item.name).toLowerCase().includes(query));
@@ -168,8 +171,27 @@ document.addEventListener("input", (event) => {
 });
 
 document.addEventListener("change", (event) => {
-	if (event.target && event.target.id === "settlement-list-onlyunconnected") {
-		settlementListOnlyUnconnected = Boolean(event.target.checked);
+	if (event.target && event.target.id === "settlement-list-only-onmap") {
+		settlementListOnlyOnMap = Boolean(event.target.checked);
+		if (settlementListOnlyOnMap) {
+			settlementListOnlyWiki = false;
+			const wiki = document.getElementById("settlement-list-only-wiki");
+			if (wiki) {
+				wiki.checked = false;
+			}
+		}
+		renderSettlementList();
+		return;
+	}
+	if (event.target && event.target.id === "settlement-list-only-wiki") {
+		settlementListOnlyWiki = Boolean(event.target.checked);
+		if (settlementListOnlyWiki) {
+			settlementListOnlyOnMap = false;
+			const onmap = document.getElementById("settlement-list-only-onmap");
+			if (onmap) {
+				onmap.checked = false;
+			}
+		}
 		renderSettlementList();
 	}
 });
