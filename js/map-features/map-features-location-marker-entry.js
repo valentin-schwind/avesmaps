@@ -20,6 +20,9 @@ function refreshLocationMarkerPopup(markerEntry) {
 		return;
 	}
 
+	const wikiSettlement = markerEntry.location.wikiSettlement;
+	const hasWikiSettlement = Boolean(wikiSettlement && wikiSettlement.title);
+	const settlementInfobox = hasWikiSettlement ? settlementWikiInfoboxMarkup(markerEntry.location) : "";
 	markerEntry.marker.bindPopup(
 		locationPopupMarkup({
 			name: markerEntry.name,
@@ -28,8 +31,53 @@ function refreshLocationMarkerPopup(markerEntry) {
 			description: markerEntry.location.description,
 			wikiUrl: markerEntry.location.wikiUrl,
 			isRuined: markerEntry.location.isRuined,
-			actionsMarkup: locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location),
+			showDescription: !hasWikiSettlement,
+			showWikiLink: !hasWikiSettlement,
+			actionsMarkup: locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location) + settlementInfobox,
 		})
+	);
+}
+
+// Infobox aus dem verbundenen Wiki-Siedlungs-Datensatz. Gleiche Struktur/Klassen wie die
+// Herrschaftsgebiete-/Label-Infobox (.region-info-box) -> erbt deren Styles/Abstaende. Wappen
+// nur bei nachweislich freier Lizenz (derzeit ausgeblendet, wie bei Regionen/Wegen).
+function settlementWikiInfoboxMarkup(location) {
+	const wiki = location.wikiSettlement || {};
+	const name = wiki.name || location.name || "";
+	const art = String(wiki.art || "").trim();
+	const row = (dtLabel, value) => {
+		if (!value || String(value).trim() === "") {
+			return "";
+		}
+		return `<div class="region-info-box__row"><dt>${escapeHtml(dtLabel)}</dt><dd>${escapeHtml(value)}</dd></div>`;
+	};
+
+	let rows = "";
+	rows += row("Einwohner", wiki.einwohner);
+	rows += row("Lage", wiki.lage);
+	rows += row("Herrscher", wiki.oberhaupt);
+	rows += row("Bevölkerung", wiki.bevoelkerung);
+	rows += row("Handelszone", wiki.handelszone);
+	rows += row("Verkehrswege", wiki.verkehrswege);
+	if (wiki.tempel) {
+		rows += row("Tempel", wiki.tempel);
+	}
+	const description = String(wiki.description || "").trim();
+	rows += row("Beschreibung", description.length > 130 ? description.slice(0, 130).trim() + " …" : description);
+	const wikiLink = wiki.wiki_url
+		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} im Wiki-Aventurica ↗</a>`
+		: "";
+
+	return (
+		'<div class="region-info-box">' +
+		'<div class="region-info-box__header">' +
+		'<div class="region-info-box__title-group">' +
+		`<strong class="region-info-box__title">${escapeHtml(name)}</strong>` +
+		(art ? `<span class="region-info-box__subtitle">${escapeHtml(art)}</span>` : "") +
+		"</div></div>" +
+		`<dl class="region-info-box__data">${rows}</dl>` +
+		wikiLink +
+		"</div>"
 	);
 }
 

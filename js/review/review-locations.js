@@ -176,12 +176,15 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	const isCrossingConversion = pendingCrossingConversionPublicId && pendingCrossingConversionPublicId === markerEntry?.publicId;
 	document.getElementById("location-edit-name").value = presetName || (isCrossingConversion ? pendingCrossingConversionName : "") || location.name || markerEntry?.name || "";
 	document.getElementById("location-edit-type").value = normalizeLocationType(presetLocationType || location.locationType || markerEntry?.locationType || "dorf");
-	document.getElementById("location-edit-description").value = presetDescription || location.description || "";
+	document.getElementById("location-edit-description").value = presetDescription || "";
 	document.getElementById("location-edit-wiki-url").value = presetWikiUrl || location.wikiUrl || wikiLocationLink?.url || "";
 	document.getElementById("location-edit-is-nodix").checked = presetIsNodix === null
 		? (isCrossingConversion ? pendingCrossingConversionIsNodix : Boolean(location.isNodix))
 		: Boolean(presetIsNodix);
 	document.getElementById("location-edit-is-ruined").checked = Boolean(location.isRuined);
+	if (typeof renderSettlementWikiReference === "function") {
+		renderSettlementWikiReference();
+	}
 
 	if (locationEditLatLng) {
 		document.getElementById("location-edit-coordinates").textContent = formatLocationReportCoordinates(locationEditLatLng);

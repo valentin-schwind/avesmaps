@@ -360,14 +360,26 @@
 							<option value="metropole">Metropole</option>
 						</select>
 					</label>
-					<label class="location-report-form__field">
-						<span>Beschreibung</span>
-						<textarea id="location-edit-description" name="description" rows="4" maxlength="1200"></textarea>
-					</label>
-					<label class="location-report-form__field">
-						<span>Wiki-Aventurica-Link</span>
-						<input id="location-edit-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="500" placeholder="https://..." />
-					</label>
+					<input id="location-edit-description" name="description" type="hidden" value="" />
+					<input id="location-edit-wiki-url" name="wiki_url" type="hidden" value="" />
+					<div class="location-report-form__field location-edit-wiki-field">
+						<span>Wiki-Siedlung</span>
+						<div class="label-wiki-reference" id="settlement-wiki-reference">
+							<div class="label-wiki-reference__head">
+								<span class="label-wiki-reference__title">Siedlung aus dem Wiki</span>
+								<span class="label-wiki-reference__buttons">
+									<button type="button" id="settlement-wiki-assign" class="location-report-form__button location-report-form__button--secondary">Zuweisen</button>
+									<button type="button" id="settlement-wiki-remove" class="location-report-form__button location-report-form__button--secondary" hidden>Entfernen</button>
+								</span>
+							</div>
+							<div id="settlement-wiki-reference-list" class="label-wiki-reference__list"></div>
+							<div id="settlement-wiki-picker" class="label-wiki-picker" hidden>
+								<input id="settlement-wiki-picker-filter" type="search" placeholder="Siedlung suchen ..." autocomplete="off" aria-label="Wiki-Siedlung suchen" />
+								<div id="settlement-wiki-picker-list" class="label-wiki-picker-list"></div>
+								<p id="settlement-wiki-picker-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+							</div>
+						</div>
+					</div>
 					<label class="location-report-form__field location-report-form__field--checkbox">
 						<input id="location-edit-is-nodix" name="is_nodix" type="checkbox" />
 						<span>Ort ist ein Nodix</span>
@@ -981,6 +993,7 @@
 		<script src="js/review/review-region-sync.js"></script>
 		<script src="js/review/review-path-sync.js"></script>
 		<script src="js/review/review-path-wiki.js"></script>
+		<script src="js/review/review-settlement-wiki.js"></script>
 		<script src="js/territory/territory-wiki-tree.js"></script>
 		<script src="js/review/review-wiki-sync.js"></script>
 		<script src="js/review/review-region-wiki-picker.js"></script>
