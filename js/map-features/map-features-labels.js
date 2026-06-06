@@ -41,9 +41,11 @@ function labelHasWikiRegion(label) {
 
 // Infobox einer Wiki-Landschaft (Ansichtsmodus, Klick auf das Label). Bild nur bei nachweislich
 // freier Lizenz (gemeinfrei); sonst ausgeblendet (konservativ wie bei den Herrschaftsgebieten).
-function labelWikiInfoboxMarkup(label) {
+function labelWikiInfoboxMarkup(label, options = {}) {
 	// Gleiche Struktur/Klassen wie die Herrschaftsgebiete-Infobox (.region-info-box) -> erbt deren
 	// Styles/Abstaende. Bild nur bei nachweislich freier Lizenz (gemeinfrei), sonst ausgeblendet.
+	// headless: ohne eigenen Kopf/Titel (im Edit-Popup zeigt der Popup-Kopf Name + Typ schon).
+	const headless = Boolean(options.headless);
 	const wiki = label.wikiRegion || {};
 	const name = wiki.name || label.text || "";
 	const licenseStatus = String(wiki.image_license_status || "").toLowerCase();
@@ -72,14 +74,17 @@ function labelWikiInfoboxMarkup(label) {
 		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} im Wiki-Aventurica ↗</a>`
 		: "";
 
-	return (
-		'<div class="region-info-box">' +
+	const header = headless ? "" : (
 		`<div class="region-info-box__header${hasCoatClass}">` +
 		coatMarkup +
 		'<div class="region-info-box__title-group">' +
 		`<strong class="region-info-box__title">${escapeHtml(name)}</strong>` +
 		(art ? `<span class="region-info-box__subtitle">${escapeHtml(art)}</span>` : "") +
-		"</div></div>" +
+		"</div></div>"
+	);
+	return (
+		`<div class="region-info-box${headless ? " region-info-box--settlement" : ""}">` +
+		header +
 		`<dl class="region-info-box__data">${rows}</dl>` +
 		wikiLink +
 		"</div>"
@@ -114,7 +119,8 @@ function refreshLabelMarkerPopup(entry) {
 		return;
 	}
 
-	entry.marker.bindPopup(labelPopupMarkup(entry));
+	const options = labelHasWikiRegion(entry.label) ? { className: "settlement-popup", minWidth: 320, maxWidth: 400 } : undefined;
+	entry.marker.bindPopup(labelPopupMarkup(entry), options);
 }
 
 function findLabelEntryByPublicId(publicId) {

@@ -370,16 +370,19 @@ function locationPopupMarkup({
 
 function labelPopupMarkup(entry) {
 	const hasWiki = entry.label.wikiRegion && entry.label.wikiRegion.wiki_key;
-	const wikiInfobox = hasWiki && typeof labelWikiInfoboxMarkup === "function" ? labelWikiInfoboxMarkup(entry.label) : "";
+	// Kopflose Infobox (Name + Typ zeigt der Popup-Kopf bereits -> kein Doppel-Titel); Infobox oben,
+	// Aktions-Buttons darunter — wie Siedlungs-/Weg-Popup.
+	const wikiInfobox = hasWiki && typeof labelWikiInfoboxMarkup === "function" ? labelWikiInfoboxMarkup(entry.label, { headless: true }) : "";
+	const typeLabel = (hasWiki && entry.label.wikiRegion.art) ? entry.label.wikiRegion.art : "Region";
 	return locationPopupMarkup({
 		name: entry.label.text || "Label",
-		locationTypeLabel: "Label",
+		locationTypeLabel: typeLabel,
 		showHeaderIcon: false,
 		compact: true,
-		showType: false,
+		showType: hasWiki,
 		showDescription: false,
 		showWikiLink: false,
-		actionsMarkup: labelActionsMarkup(entry.label.publicId) + wikiInfobox,
+		actionsMarkup: wikiInfobox + labelActionsMarkup(entry.label.publicId),
 	});
 }
 
