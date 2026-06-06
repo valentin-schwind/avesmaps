@@ -95,7 +95,7 @@ function renderRegionSyncList() {
 		'<div class="region-sync__viewtabs">' +
 		`<button type="button" data-region-view="missing" class="region-sync__viewtab${regionSyncView === "missing" ? " is-active" : ""}">Fehlt (${summary.missing || 0})</button>` +
 		`<button type="button" data-region-view="matched" class="region-sync__viewtab${regionSyncView === "matched" ? " is-active" : ""}">Zugeordnet (${summary.matched || 0})</button>` +
-		`<button type="button" data-region-view="ambiguous" class="region-sync__viewtab${regionSyncView === "ambiguous" ? " is-active" : ""}">Mehrdeutig (${summary.ambiguous || 0})</button>` +
+		`<button type="button" data-region-view="ambiguous" class="region-sync__viewtab${regionSyncView === "ambiguous" ? " is-active" : ""}">Mehrfach (${summary.ambiguous || 0})</button>` +
 		"</div>";
 
 	const isMissingView = regionSyncView === "missing";

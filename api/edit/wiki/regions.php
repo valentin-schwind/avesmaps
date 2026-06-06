@@ -45,11 +45,25 @@ try {
             ),
             'crawl_step' => avesmapsWikiRegionCrawlStep($pdo, trim((string) ($payload['run_id'] ?? '')), $options),
             'clear' => avesmapsWikiRegionClear($pdo, (string) ($payload['target'] ?? ''), (string) ($payload['run_id'] ?? '')),
+            'assign' => avesmapsWikiRegionAssign(
+                $pdo,
+                (string) ($payload['wiki_key'] ?? ''),
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+            ),
+            'assign_all' => avesmapsWikiRegionAssignAll(
+                $pdo,
+                array_key_exists('continent', $payload) ? (string) $payload['continent'] : 'Aventurien',
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+            ),
             default => null,
         };
 
         if ($response === null) {
             avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Unbekannte Regionen-Sync-POST-Action: ' . $action]);
+        }
+
+        if (in_array($action, ['assign', 'assign_all'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
+            avesmapsWikiSyncNextMapRevision($pdo);
         }
 
         avesmapsJsonResponse(200, $response);

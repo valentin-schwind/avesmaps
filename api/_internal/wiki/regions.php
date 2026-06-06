@@ -640,6 +640,114 @@ function avesmapsWikiRegionClear(PDO $pdo, string $target, string $runId = ''): 
     return ['ok' => true, 'cleared' => $cleared];
 }
 
+// Der Wiki-Datensatz, der an ein Label geheftet wird (properties.wiki_region) — gleiche Form
+// wie der Label-Editor-Picker speichert.
+function avesmapsWikiRegionBuildAssignObject(array $r): array {
+    return [
+        'wiki_key' => (string) ($r['wiki_key'] ?? ''),
+        'name' => (string) ($r['name'] ?? ''),
+        'art' => (string) ($r['art'] ?? ''),
+        'continent' => (string) ($r['continent'] ?? ''),
+        'region_parent' => (string) ($r['region_parent'] ?? ''),
+        'affiliation_staat' => (string) ($r['affiliation_staat'] ?? ''),
+        'einwohner' => (string) ($r['einwohner'] ?? ''),
+        'sprache' => (string) ($r['sprache'] ?? ''),
+        'vegetation' => (string) ($r['vegetation'] ?? ''),
+        'verkehrswege' => (string) ($r['verkehrswege'] ?? ''),
+        'description' => (string) ($r['description'] ?? ''),
+        'image_url' => (string) ($r['image_url'] ?? ''),
+        'image_license' => (string) ($r['image_license'] ?? ''),
+        'image_author' => (string) ($r['image_author'] ?? ''),
+        'image_attribution' => (string) ($r['image_attribution'] ?? ''),
+        'image_license_status' => (string) ($r['image_license_status'] ?? ''),
+        'image_license_url' => (string) ($r['image_license_url'] ?? ''),
+        'wiki_url' => (string) ($r['wiki_url'] ?? ''),
+        'neighbors' => avesmapsWikiSyncDecodeJson($r['neighbors_json'] ?? null),
+        'synonyms' => avesmapsWikiSyncDecodeJson($r['synonyms_json'] ?? null),
+        'synced_at' => (string) ($r['synced_at'] ?? ''),
+    ];
+}
+
+// Heftet eine Wiki-Region an alle aktiven Label-Features mit gleichem Namen. Gated.
+function avesmapsWikiRegionAssign(PDO $pdo, string $wikiKey, bool $dryRun): array {
+    avesmapsWikiRegionEnsureTables($pdo);
+    $wikiKey = trim($wikiKey);
+    if ($wikiKey === '') {
+        throw new RuntimeException('wiki_key fehlt.');
+    }
+    $statement = $pdo->prepare('SELECT * FROM ' . AVESMAPS_WIKI_REGION_STAGING_TABLE . ' WHERE wiki_key = :k LIMIT 1');
+    $statement->execute(['k' => $wikiKey]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        throw new RuntimeException('Wiki-Region nicht im Staging: ' . $wikiKey);
+    }
+    $targetKey = (string) ($row['match_key'] ?? '');
+    if ($targetKey === '') {
+        $targetKey = avesmapsWikiSyncCreateMatchKey((string) $row['name']);
+    }
+    $assignObject = avesmapsWikiRegionBuildAssignObject($row);
+
+    $labels = $pdo->query("SELECT id, name, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'label' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
+    $applied = 0;
+    $matched = 0;
+    $revision = null;
+    foreach ($labels as $l) {
+        if (avesmapsWikiSyncCreateMatchKey((string) $l['name']) !== $targetKey) {
+            continue;
+        }
+        $matched++;
+        if (!$dryRun) {
+            $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
+            $props = avesmapsWikiSyncDecodeJson($l['properties_json'] ?? null);
+            $props['wiki_region'] = $assignObject;
+            $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
+            $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $l['id']]);
+            $applied++;
+        }
+    }
+    return ['ok' => true, 'dry_run' => $dryRun, 'wiki_key' => $wikiKey, 'wiki_name' => (string) $row['name'], 'labels' => $matched, 'applied' => $applied];
+}
+
+// Bulk: verknuepft alle Karten-Labels, deren Name zu einer Staging-Region passt (matched+mehrfach).
+function avesmapsWikiRegionAssignAll(PDO $pdo, string $continentFilter, bool $dryRun): array {
+    avesmapsWikiRegionEnsureTables($pdo);
+    $continentFilter = trim($continentFilter);
+    $byKey = [];
+    foreach ($pdo->query('SELECT * FROM ' . AVESMAPS_WIKI_REGION_STAGING_TABLE)->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $cont = (string) ($r['continent'] ?? '');
+        if ($continentFilter !== '' && $cont !== '' && $cont !== $continentFilter) {
+            continue;
+        }
+        $key = (string) ($r['match_key'] ?? '');
+        if ($key === '') {
+            $key = avesmapsWikiSyncCreateMatchKey((string) $r['name']);
+        }
+        if ($key !== '' && !isset($byKey[$key])) {
+            $byKey[$key] = avesmapsWikiRegionBuildAssignObject($r);
+        }
+    }
+    $labels = $pdo->query("SELECT id, name, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'label' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
+    $count = 0;
+    $linked = [];
+    $revision = null;
+    $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
+    foreach ($labels as $l) {
+        $key = avesmapsWikiSyncCreateMatchKey((string) $l['name']);
+        if (!isset($byKey[$key])) {
+            continue;
+        }
+        $count++;
+        $linked[$byKey[$key]['wiki_key']] = true;
+        if (!$dryRun) {
+            $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
+            $props = avesmapsWikiSyncDecodeJson($l['properties_json'] ?? null);
+            $props['wiki_region'] = $byKey[$key];
+            $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $l['id']]);
+        }
+    }
+    return ['ok' => true, 'dry_run' => $dryRun, 'continent_filter' => $continentFilter, 'labels_affected' => $count, 'regions_linked' => count($linked), 'applied' => $dryRun ? 0 : $count];
+}
+
 // Picker-Suche: liefert Staging-Regionen fuer den Landschafts-Picker im Label-Editor.
 // Leerer query => alphabetische Liste. Sonst Name-/Match-Key-Treffer, exakte zuerst.
 function avesmapsWikiRegionSearch(PDO $pdo, string $query, int $limit = 30): array {

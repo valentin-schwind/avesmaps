@@ -100,7 +100,7 @@ function renderPathSyncList() {
 				? `<span class="region-sync__map">${segs.length} Segment${segs.length === 1 ? "" : "e"}: ${segs.slice(0, 40).map(candidate).join(" ")}</span>`
 				: "";
 			const assignBtn = segs.length
-				? `<button type="button" class="path-sync__assign" data-wiki-key="${pathSyncEscapeAttr(row.wiki_key)}">Zuordnen</button>`
+				? `<button type="button" class="path-sync__assign" data-wiki-key="${pathSyncEscapeAttr(row.wiki_key)}">${pathSyncView === "matched" ? "Neu zuordnen" : "Zuordnen"}</button>`
 				: "";
 			return (
 				'<div class="review-panel__item region-sync__item">' +
