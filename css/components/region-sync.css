@@ -767,7 +767,7 @@
 .wiki-sync-case-section__title { display: none; }
 #wiki-sync-case-list.review-panel__list--cases {
 	flex: 0 1 auto;
-	max-height: 38vh;
+	max-height: 220px;
 	overflow-y: auto;
 }
 #wiki-sync-case-list[data-active-status="open"] .wiki-sync-case-section:not(.wiki-sync-case-section--open),
