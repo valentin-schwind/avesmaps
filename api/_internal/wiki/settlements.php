@@ -388,7 +388,7 @@ function avesmapsWikiSettlementSetWikiCoat(PDO $pdo, string $publicId, bool $dry
     $revision = avesmapsWikiSyncNextMapRevision($pdo);
     $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id')
         ->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $feature['id']]);
-    return ['ok' => true, 'dry_run' => false, 'applied' => 1, 'coat' => $props['coat']];
+    return ['ok' => true, 'dry_run' => false, 'applied' => 1, 'coat' => $props['coat'], 'revision' => $revision];
 }
 
 // Entfernt das übernommene/eigene Wappen eines Orts (properties.coat). Gated.
@@ -406,7 +406,7 @@ function avesmapsWikiSettlementClearCoat(PDO $pdo, string $publicId, bool $dryRu
     $revision = avesmapsWikiSyncNextMapRevision($pdo);
     $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id')
         ->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $feature['id']]);
-    return ['ok' => true, 'dry_run' => false, 'applied' => 1];
+    return ['ok' => true, 'dry_run' => false, 'applied' => 1, 'revision' => $revision];
 }
 
 // Parst {{Infobox Siedlung}} aus dem Seiten-Wikitext in das wiki_settlement-Objekt, das ans

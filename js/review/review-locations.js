@@ -333,6 +333,10 @@ async function settlementCoatAction(action) {
 			const entry = findLocationMarkerByPublicId(publicId);
 			if (entry && entry.location) {
 				entry.location.coat = action === "clear_coat" ? null : (data.coat || entry.location.coat);
+				// Revision mitführen, sonst kollidiert ein anschließendes „Speichern" (409).
+				if (data.revision !== undefined && data.revision !== null) {
+					entry.location.revision = data.revision;
+				}
 				if (typeof refreshLocationMarkerPopup === "function") {
 					refreshLocationMarkerPopup(entry);
 				}
@@ -372,6 +376,9 @@ async function uploadOwnSettlementCoat(file) {
 			const entry = findLocationMarkerByPublicId(publicId);
 			if (entry && entry.location) {
 				entry.location.coat = data.coat || entry.location.coat;
+				if (data.revision !== undefined && data.revision !== null) {
+					entry.location.revision = data.revision;
+				}
 				if (typeof refreshLocationMarkerPopup === "function") {
 					refreshLocationMarkerPopup(entry);
 				}
