@@ -217,10 +217,6 @@
 								<input id="settlement-list-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Siedlung suchen ..." aria-label="Siedlungen durchsuchen" />
 								<label class="settlement-list__only"><input id="settlement-list-onlyunconnected" type="checkbox" /> nur unverbundene</label>
 							</div>
-							<div class="settlement-bulk-bar">
-								<button id="settlement-bulk-connect" class="wiki-sync-panel__start" type="button" title="Alle eindeutig per Name passenden, noch unverbundenen Orte mit ihrem Wiki-Datensatz verbinden">⚡ Eindeutige verbinden</button>
-								<span id="settlement-bulk-status" class="wiki-sync-locations-section__summary"></span>
-							</div>
 							<div id="settlement-list" class="review-panel__list"></div>
 						</div>
 				</div>
@@ -352,8 +348,8 @@
 		<div id="location-edit-overlay" hidden>
 			<div id="location-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="location-edit-title" tabindex="-1">
 				<div class="location-report-dialog__header">
-					<h2 id="location-edit-title">Ort bearbeiten</h2>
-					<button id="location-edit-close" class="location-report-dialog__close" type="button" aria-label="Ortsbearbeitung schliessen">×</button>
+					<h2 id="location-edit-title">Siedlung bearbeiten</h2>
+					<button id="location-edit-close" class="location-report-dialog__close" type="button" aria-label="Siedlungsbearbeitung schliessen">×</button>
 				</div>
 				<form id="location-edit-form" class="location-report-form" novalidate>
 					<input id="location-edit-public-id" name="public_id" type="hidden" />
@@ -1085,7 +1081,6 @@
 		<script src="js/map-features/map-features-region-visibility.js"></script>
 		<script src="js/map-features/map-features-political-territory-loader.js"></script>
 		<script src="js/map-features/map-features-boundary-canvas-overlay.js"></script>
-		<script src="js/map-features/map-features-legacy-leichen-overlay.js"></script>
 		<script src="js/map-features/map-features-feature-dispatcher.js"></script>
 		<script src="js/routing/route-request.js"></script>
 		<script src="js/routing/route-result.js"></script>

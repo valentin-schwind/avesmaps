@@ -776,11 +776,12 @@
 	color: #8a7a68;
 }
 
-/* Bulk-Verbinden-Leiste in der Siedlungsliste. */
-.settlement-bulk-bar {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	padding: 4px 10px 6px;
-	flex-wrap: wrap;
+/* Hinweis im Orts-Popup, wenn keine Wiki-Siedlung verbunden ist. */
+.location-popup__nowiki {
+	margin-top: 6px;
+	padding-top: 6px;
+	border-top: 1px solid rgba(141, 121, 98, 0.25);
+	font-size: 12px;
+	font-style: italic;
+	color: #9a8c7a;
 }

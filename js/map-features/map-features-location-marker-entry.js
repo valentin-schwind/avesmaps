@@ -22,7 +22,9 @@ function refreshLocationMarkerPopup(markerEntry) {
 
 	const wikiSettlement = markerEntry.location.wikiSettlement;
 	const hasWikiSettlement = Boolean(wikiSettlement && wikiSettlement.title);
-	const settlementInfobox = hasWikiSettlement ? settlementWikiInfoboxMarkup(markerEntry.location) : "";
+	const settlementInfobox = hasWikiSettlement
+		? settlementWikiInfoboxMarkup(markerEntry.location)
+		: '<div class="location-popup__nowiki">Kein Wiki-Eintrag gefunden</div>';
 	markerEntry.marker.bindPopup(
 		locationPopupMarkup({
 			name: markerEntry.name,
