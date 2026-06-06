@@ -390,6 +390,25 @@ function avesmapsWikiSettlementCollectConnectTargets(PDO $pdo): array {
     return $targets;
 }
 
+// Aktuelle Wiki-Verbindung eines Orts (per public_id) frisch aus der DB — damit der
+// „Ort bearbeiten"-Dialog die Zuordnung zeigt, auch wenn der Browser-Marker stale ist.
+function avesmapsWikiSettlementGetAssignment(PDO $pdo, string $publicId): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    $publicId = trim($publicId);
+    if ($publicId === '') {
+        return ['ok' => true, 'wiki_settlement' => null];
+    }
+    $statement = $pdo->prepare("SELECT properties_json FROM map_features WHERE public_id=:p AND feature_type='location' AND is_active=1 LIMIT 1");
+    $statement->execute(['p' => $publicId]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        return ['ok' => true, 'wiki_settlement' => null];
+    }
+    $props = avesmapsWikiSyncDecodeJson($row['properties_json'] ?? null);
+    $ws = $props['wiki_settlement'] ?? null;
+    return ['ok' => true, 'wiki_settlement' => (is_array($ws) && !empty($ws['title'])) ? $ws : null];
+}
+
 // Vollständige Karten-Siedlungsliste (Name, Größe, Verbindungsstatus) — Server-Quelle für den
 // „Alle Siedlungen"-Bereich. Unabhängig vom geladenen Kartenzustand im Browser.
 function avesmapsWikiSettlementListLocations(PDO $pdo): array {

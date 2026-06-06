@@ -77,6 +77,7 @@ try {
         'status', '' => avesmapsWikiSettlementStatus($pdo),
         'connect_status' => avesmapsWikiSettlementConnectStatus($pdo),
         'list_locations' => avesmapsWikiSettlementListLocations($pdo),
+        'assignment' => avesmapsWikiSettlementGetAssignment($pdo, (string) ($_GET['public_id'] ?? '')),
         'search' => avesmapsWikiSettlementSearch($pdo, (string) ($_GET['q'] ?? ''), (int) ($_GET['limit'] ?? 30)),
         'preview' => ['ok' => true, 'settlement' => avesmapsWikiSettlementBuildFromTitle($pdo, (string) ($_GET['title'] ?? ''))],
         default => null,

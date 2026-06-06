@@ -185,6 +185,10 @@ function populateLocationEditForm({ markerEntry = null, latlng = null, presetNam
 	if (typeof renderSettlementWikiReference === "function") {
 		renderSettlementWikiReference();
 	}
+	// Zuordnung frisch vom Server holen (Browser-Marker kann nach Bulk-Verbinden stale sein).
+	if (typeof syncSettlementWikiFromServer === "function") {
+		void syncSettlementWikiFromServer();
+	}
 
 	if (locationEditLatLng) {
 		document.getElementById("location-edit-coordinates").textContent = formatLocationReportCoordinates(locationEditLatLng);

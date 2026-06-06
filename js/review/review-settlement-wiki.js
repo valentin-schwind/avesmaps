@@ -301,4 +301,37 @@ document.addEventListener("input", (event) => {
 	}
 });
 
+// Holt die aktuelle Zuordnung frisch vom Server (DB-Wahrheit), falls der Browser-Marker stale ist
+// (z. B. nach Bulk-Verbinden). Aktualisiert Marker + Picker-Anzeige + Karten-Popup.
+async function syncSettlementWikiFromServer() {
+	const entry = settlementWikiCurrentMarkerEntry();
+	const publicId = entry?.publicId;
+	if (!entry || !entry.location || !publicId) {
+		return;
+	}
+	try {
+		const data = await settlementWikiGet(`?action=assignment&public_id=${encodeURIComponent(publicId)}`);
+		if (!data || data.ok !== true) {
+			return;
+		}
+		const next = data.wiki_settlement || null;
+		const hadTitle = entry.location.wikiSettlement && entry.location.wikiSettlement.title;
+		const nextTitle = next && next.title;
+		if (Boolean(hadTitle) === Boolean(nextTitle) && String(hadTitle || "") === String(nextTitle || "")) {
+			return; // schon aktuell
+		}
+		entry.location.wikiSettlement = next;
+		if (next) {
+			entry.location.description = "";
+		}
+		renderSettlementWikiReference();
+		if (typeof refreshLocationMarkerPopup === "function") {
+			refreshLocationMarkerPopup(entry);
+		}
+	} catch (error) {
+		/* still ok */
+	}
+}
+
 window.renderSettlementWikiReference = renderSettlementWikiReference;
+window.syncSettlementWikiFromServer = syncSettlementWikiFromServer;
