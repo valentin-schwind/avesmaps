@@ -113,14 +113,15 @@ function settlementListOpen(publicId) {
 		return;
 	}
 	const entry = typeof findLocationMarkerByPublicId === "function" ? findLocationMarkerByPublicId(publicId) : null;
-	if (entry && entry.marker && typeof map !== "undefined" && map) {
+	if (!entry || !entry.marker) {
+		showFeedbackToast?.("Ort ist auf der Karte (noch) nicht geladen.", "info");
+		return;
+	}
+	if (typeof map !== "undefined" && map) {
 		map.flyTo(entry.marker.getLatLng(), Math.max(map.getZoom(), 4), { duration: 0.5 });
 	}
-	if (entry && typeof openLocationEditDialog === "function") {
-		openLocationEditDialog({ markerEntry: entry });
-	} else {
-		showFeedbackToast?.("Ort ist auf der Karte (noch) nicht geladen.", "info");
-	}
+	// Infobox statt Editor öffnen.
+	entry.marker.openPopup();
 }
 
 // Status-Tabs: blenden die passende Fall-Sektion ein (CSS via data-active-status).
