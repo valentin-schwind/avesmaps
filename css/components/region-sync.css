@@ -82,6 +82,7 @@
 	justify-content: space-between;
 	gap: 8px;
 	margin-bottom: 6px;
+	flex-wrap: wrap;
 }
 
 .label-wiki-reference__title {
@@ -140,7 +141,8 @@
 
 .label-wiki-picker-list {
 	max-height: 340px;
-	overflow: auto;
+	overflow-y: auto;
+	overflow-x: hidden;
 	display: flex;
 	flex-direction: column;
 	gap: 3px;
@@ -456,6 +458,7 @@
 
 .label-edit-grid .location-report-form__field {
 	margin: 0;
+	min-width: 0; /* Grid-Zellen dürfen schrumpfen, sonst läuft das Grid auf schmalen Breiten über. */
 }
 
 .label-edit-zoomrow {
