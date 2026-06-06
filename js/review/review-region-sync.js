@@ -6,6 +6,24 @@
 const REGION_SYNC_API_URL = "/api/edit/wiki/regions.php";
 let regionSyncData = null;
 let regionSyncView = "missing"; // missing | matched | ambiguous
+const regionTypeFilter = new Set(); // ausgewählte Arten (leer = alle)
+
+// Typ-Filter-Optionen: distinct „Art" über alle Zeilen (missing+matched+ambiguous).
+function regionTypeOptions() {
+	if (!regionSyncData) {
+		return [];
+	}
+	const rows = [].concat(regionSyncData.missing || [], regionSyncData.matched || [], regionSyncData.ambiguous || []);
+	const byArt = new Map();
+	for (const row of rows) {
+		const art = (String(row.art || "").trim()) || "(ohne Art)";
+		if (!byArt.has(art)) {
+			byArt.set(art, { value: art, label: art, count: 0 });
+		}
+		byArt.get(art).count += 1;
+	}
+	return [...byArt.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
 let regionSyncBusy = false;
 
 function regionSyncElement(id) {
@@ -85,6 +103,9 @@ function renderRegionSyncList() {
 	const summary = regionSyncData && regionSyncData.summary ? regionSyncData.summary : {};
 	const filterValue = (regionSyncElement("region-sync-filter")?.value || "").trim().toLowerCase();
 	const rows = regionSyncCurrentRows().filter((row) => {
+		if (regionTypeFilter.size > 0 && !regionTypeFilter.has((String(row.art || "").trim()) || "(ohne Art)")) {
+			return false;
+		}
 		if (filterValue === "") {
 			return true;
 		}
@@ -376,5 +397,7 @@ document.addEventListener("input", (event) => {
 		renderRegionSyncList();
 	}
 });
+
+attachTypeFilter("region-type-filter-toggle", "region-type-filter-menu", regionTypeFilter, regionTypeOptions, renderRegionSyncList);
 
 window.loadRegionWikiSync = loadRegionWikiSync;

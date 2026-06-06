@@ -5,6 +5,33 @@
 const PATH_SYNC_API_URL = "/api/edit/wiki/paths.php";
 let pathSyncData = null;
 let pathSyncView = "assigned"; // assigned (matched+mehrteilig) | missing
+const pathTypeFilter = new Set(); // ausgewählte Wege-Arten (leer = alle)
+
+// Typ eines Weges: Infobox-„Art" (Reichsstraße, Pass, Karawanenroute, Gebirgspass, …);
+// fehlt sie, Fallback nach kind (Fluss / Straße/Weg).
+function pathRowType(row) {
+	const art = String(row.art || "").trim();
+	if (art) {
+		return art;
+	}
+	return row.kind === "fluss" ? "Fluss" : "Straße/Weg";
+}
+
+function pathTypeOptions() {
+	if (!pathSyncData) {
+		return [];
+	}
+	const rows = [].concat(pathSyncData.matched || [], pathSyncData.ambiguous || [], pathSyncData.missing || []);
+	const byType = new Map();
+	for (const row of rows) {
+		const type = pathRowType(row);
+		if (!byType.has(type)) {
+			byType.set(type, { value: type, label: type, count: 0 });
+		}
+		byType.get(type).count += 1;
+	}
+	return [...byType.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
 let pathSyncBusy = false;
 
 function pathSyncElement(id) {
@@ -72,6 +99,9 @@ function renderPathSyncList() {
 	const summary = (pathSyncData && pathSyncData.summary) || {};
 	const filterValue = (pathSyncElement("path-sync-filter")?.value || "").trim().toLowerCase();
 	const rows = pathSyncCurrentRows().filter((row) => {
+		if (pathTypeFilter.size > 0 && !pathTypeFilter.has(pathRowType(row))) {
+			return false;
+		}
 		if (filterValue === "") {
 			return true;
 		}
@@ -358,5 +388,7 @@ document.addEventListener("input", (event) => {
 		renderPathSyncList();
 	}
 });
+
+attachTypeFilter("path-type-filter-toggle", "path-type-filter-menu", pathTypeFilter, pathTypeOptions, renderPathSyncList);
 
 window.loadPathWikiSync = loadPathWikiSync;

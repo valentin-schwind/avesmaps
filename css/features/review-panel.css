@@ -307,6 +307,61 @@
 	margin: 0 10px 8px;
 }
 
+/* Typ-Filter-Dropdown (Mehrfachauswahl) neben den Suchfeldern. */
+.type-filter {
+	position: relative;
+	flex: 0 0 auto;
+	display: flex;
+}
+.type-filter__toggle {
+	padding: 8px 10px;
+	font-size: 12px;
+	border: 1px solid #cdb79f;
+	border-radius: 8px;
+	background: #fffaf5;
+	color: #5a4a3a;
+	cursor: pointer;
+	white-space: nowrap;
+}
+.type-filter__toggle:hover {
+	background: #f3e8db;
+}
+.type-filter__menu {
+	position: absolute;
+	right: 0;
+	top: calc(100% + 4px);
+	z-index: 30;
+	min-width: 170px;
+	max-height: 260px;
+	overflow-y: auto;
+	padding: 4px;
+	background: #fff;
+	border: 1px solid #cdb79f;
+	border-radius: 8px;
+	box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+.type-filter__opt {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 6px;
+	font-size: 12px;
+	color: #3a2c20;
+	cursor: pointer;
+	border-radius: 4px;
+}
+.type-filter__opt:hover {
+	background: #f5eadc;
+}
+.type-filter__label {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.type-filter__count {
+	color: #8a7a68;
+	font-size: 11px;
+}
+
 .wiki-sync-panel__timefilter {
 	display: flex;
 	align-items: center;

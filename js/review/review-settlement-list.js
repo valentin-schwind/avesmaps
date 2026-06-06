@@ -5,6 +5,21 @@
 
 const SETTLEMENT_LIST_API_URL = "/api/edit/wiki/settlements.php";
 let settlementListView = "all"; // "all" | "onmap" | "wiki"
+const settlementTypeFilter = new Set(); // ausgewählte Ortsgrößen (leer = alle)
+
+// Optionen für den Typ-Filter: distinct Ortsgrößen, in sinnvoller Reihenfolge.
+function settlementTypeOptions() {
+	const order = ["dorf", "kleinstadt", "stadt", "grossstadt", "metropole", "gebaeude"];
+	const byLabel = new Map();
+	for (const item of settlementListItems) {
+		const label = item.settlement_label || "—";
+		if (!byLabel.has(label)) {
+			byLabel.set(label, { value: label, label, count: 0, order: order.indexOf(item.settlement_class || "") });
+		}
+		byLabel.get(label).count += 1;
+	}
+	return [...byLabel.values()].sort((a, b) => (a.order < 0 ? 99 : a.order) - (b.order < 0 ? 99 : b.order) || a.label.localeCompare(b.label));
+}
 let settlementListItems = [];
 
 function settlementListEscape(value) {
@@ -341,6 +356,9 @@ function renderSettlementList() {
 	} else if (settlementListView === "wiki") {
 		items = items.filter((item) => !item.on_map);
 	}
+	if (settlementTypeFilter.size > 0) {
+		items = items.filter((item) => settlementTypeFilter.has(item.settlement_label || "—"));
+	}
 	if (query) {
 		items = items.filter((item) => String(item.name).toLowerCase().includes(query));
 	}
@@ -482,5 +500,7 @@ document.addEventListener("dragend", () => {
 	settlementDragTitle = "";
 	settlementDragClass = "";
 });
+
+attachTypeFilter("settlement-type-filter-toggle", "settlement-type-filter-menu", settlementTypeFilter, settlementTypeOptions, renderSettlementList);
 
 window.loadSettlementList = loadSettlementList;

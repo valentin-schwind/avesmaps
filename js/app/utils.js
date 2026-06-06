@@ -1,5 +1,65 @@
 const ICON_ASSET_VERSION = "20260423-142011";
 
+// ===== Geteilter „Typ"-Filter: Mehrfachauswahl-Dropdown neben Suchfeldern =====
+// state = Set ausgewählter Werte (leer = Alle). options = [{value, label, count}].
+function renderTypeFilter(toggleId, menuId, options, state) {
+	const menu = document.getElementById(menuId);
+	if (menu) {
+		const parts = [
+			`<label class="type-filter__opt"><input type="checkbox" value="__all__"${state.size === 0 ? " checked" : ""} /><span class="type-filter__label">Alle</span></label>`,
+		];
+		for (const opt of options) {
+			parts.push(
+				`<label class="type-filter__opt"><input type="checkbox" value="${escapeHtml(opt.value)}"${state.has(opt.value) ? " checked" : ""} /><span class="type-filter__label">${escapeHtml(opt.label)}</span>${opt.count != null ? `<span class="type-filter__count">${opt.count}</span>` : ""}</label>`
+			);
+		}
+		menu.innerHTML = parts.join("");
+	}
+	const toggle = document.getElementById(toggleId);
+	if (toggle) {
+		toggle.textContent = state.size === 0 ? "Typ ▾" : `Typ (${state.size}) ▾`;
+	}
+}
+
+// Verdrahtet ein Typ-Filter-Dropdown: getOptions() liefert die aktuellen Optionen aus den Daten,
+// applyFilter() rendert die Liste neu. Einmal beim Laden aufrufen.
+function attachTypeFilter(toggleId, menuId, state, getOptions, applyFilter) {
+	const toggle = document.getElementById(toggleId);
+	const menu = document.getElementById(menuId);
+	if (!toggle || !menu) {
+		return;
+	}
+	const rebuild = () => renderTypeFilter(toggleId, menuId, getOptions(), state);
+	toggle.addEventListener("click", (event) => {
+		event.stopPropagation();
+		menu.hidden = !menu.hidden;
+		if (!menu.hidden) {
+			rebuild();
+		}
+	});
+	document.addEventListener("click", (event) => {
+		if (!menu.hidden && event.target !== toggle && !menu.contains(event.target)) {
+			menu.hidden = true;
+		}
+	});
+	menu.addEventListener("change", (event) => {
+		const checkbox = event.target;
+		if (!checkbox || checkbox.type !== "checkbox") {
+			return;
+		}
+		if (checkbox.value === "__all__") {
+			state.clear();
+		} else if (checkbox.checked) {
+			state.add(checkbox.value);
+		} else {
+			state.delete(checkbox.value);
+		}
+		rebuild();
+		applyFilter();
+	});
+	rebuild();
+}
+
 function escapeHtml(value) {
 	return String(value)
 		.replace(/&/g, "&amp;")
