@@ -93,7 +93,8 @@ function focusMapOnActiveTargets() {
 		return;
 	}
 
-	map.fitBounds(L.latLngBounds(focusTargets), { padding: [50, 50] });
+	// maxZoom deckelt das Reinzoomen bei einem einzelnen Ziel (Bounding-Box = Punkt -> sonst max. Zoom).
+	map.fitBounds(L.latLngBounds(focusTargets), { padding: [50, 50], maxZoom: 4 });
 }
 
 function getFeedbackToastElement() {
