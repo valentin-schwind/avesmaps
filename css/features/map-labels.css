@@ -384,3 +384,15 @@ body.edit-mode .map-label span {
 	pointer-events: auto;
 	cursor: pointer;
 }
+
+/* Verkehrswege als Links auf die eigene Spotlight-Suche (verhindert Handy-Auto-Erkennung). */
+.region-info-box__waylink {
+	color: #235f82;
+	text-decoration: underline;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 2px;
+	cursor: pointer;
+}
+.region-info-box__waylink:hover {
+	color: #103f5a;
+}

@@ -57,13 +57,27 @@ function settlementWikiInfoboxMarkup(location) {
 		return `<div class="region-info-box__row"><dt>${escapeHtml(dtLabel)}</dt><dd>${escapeHtml(value)}</dd></div>`;
 	};
 
+	// Verkehrswege als echte Links auf unsere eigene Spotlight-Suche — verhindert, dass Handys die
+	// Namen als reale Orte erkennen (Google/Apple Maps) und verbindet stattdessen mit unserer Karte.
+	const wayValue = String(wiki.verkehrswege || "").trim();
+	const waysHtml = wayValue
+		? wayValue
+			.split(/\s*,\s*/)
+			.map((part) => part.trim())
+			.filter(Boolean)
+			.map((part) => `<a class="region-info-box__waylink" href="#" role="button" data-spotlight="${escapeHtml(part)}">${escapeHtml(part)}</a>`)
+			.join(", ")
+		: "";
+
 	let rows = "";
 	rows += row("Einwohner", wiki.einwohner);
 	rows += row("Lage", wiki.lage);
 	rows += row("Oberhaupt", wiki.oberhaupt);
 	rows += row("Bevölkerung", wiki.bevoelkerung);
 	rows += row("Handelszone", wiki.handelszone);
-	rows += row("Verkehrswege", wiki.verkehrswege);
+	if (waysHtml) {
+		rows += `<div class="region-info-box__row"><dt>Verkehrswege</dt><dd>${waysHtml}</dd></div>`;
+	}
 	if (wiki.tempel) {
 		rows += row("Tempel", wiki.tempel);
 	}
@@ -111,3 +125,22 @@ function createEditablePointMarkerEntry(location) {
 	refreshLocationMarkerPopup(markerEntry);
 	return markerEntry;
 }
+
+// Klick auf einen Verkehrswege-Link öffnet unsere eigene Spotlight-Suche (verbindet mit unserer
+// Karte) statt externer Karten-Apps. Der echte <a> verhindert zudem die Handy-Auto-Erkennung.
+document.addEventListener("click", (event) => {
+	const link = event.target && event.target.closest && event.target.closest(".region-info-box__waylink");
+	if (!link) {
+		return;
+	}
+	event.preventDefault();
+	event.stopPropagation();
+	const query = link.dataset.spotlight || link.textContent || "";
+	// Deferred öffnen, damit kein konkurrierender Document-Click-Handler (Spotlight-Schließen) die
+	// gerade geöffnete Suche im selben Klick sofort wieder zumacht.
+	window.setTimeout(() => {
+		if (typeof openSpotlightSearch === "function") {
+			openSpotlightSearch(query);
+		}
+	}, 0);
+});
