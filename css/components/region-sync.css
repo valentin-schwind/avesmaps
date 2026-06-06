@@ -465,3 +465,46 @@
 	align-items: center;
 	gap: 6px;
 }
+
+/* Zahl+Slider-Reihe (Groesse/Rotation/Prioritaet) wie die Zoom-Reihe. */
+.label-edit-sliderrow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.label-edit-sliderrow input[type="number"] {
+	width: 56px;
+	flex: 0 0 auto;
+}
+
+.label-edit-sliderrow input[type="range"] {
+	flex: 1 1 auto;
+	min-width: 0;
+	accent-color: #7a5a3a;
+}
+
+/* Abschnitts-Panels im Label-Editor (weisse Karten wie im Territorien-Editor). */
+.label-edit-section {
+	background: #fff;
+	border: 1px solid #e3d5c4;
+	border-radius: 8px;
+	padding: 8px 10px 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.label-edit-section .label-edit-section-title {
+	margin: 0 0 2px;
+	padding: 0;
+	border-top: 0;
+}
+
+/* Eingaben mit weissem Untergrund. */
+#label-edit-dialog input[type="text"],
+#label-edit-dialog input[type="number"],
+#label-edit-dialog input[type="search"],
+#label-edit-dialog select {
+	background: #fff;
+}

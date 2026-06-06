@@ -87,12 +87,13 @@ body.edit-mode .map-label span {
 }
 
 .map-label--suempfe_moore span {
-	color: #c4ead8;
+	color: #9fccad;
 }
 
 .map-label--gebirge span,
 .map-label--insel span,
 .map-label--region span,
+.map-label--kontinent span,
 .location-name-label--metropole span {
 	text-transform: uppercase;
 }

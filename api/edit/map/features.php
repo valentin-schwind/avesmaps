@@ -850,7 +850,7 @@ function avesmapsReadLabelSize(mixed $value): int {
 
 function avesmapsReadLabelRotation(mixed $value): int {
     $rotation = filter_var($value, FILTER_VALIDATE_INT);
-    if ($rotation === false || $rotation < -180 || $rotation > 180) {
+    if ($rotation === false || $rotation < -360 || $rotation > 360) {
         throw new InvalidArgumentException('Die Label-Rotation ist ungueltig.');
     }
 

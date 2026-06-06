@@ -19,7 +19,7 @@ function normalizeLabelFeature(feature) {
 
 function createLabelIcon(label) {
 	const safeSize = getScaledLabelSize(label);
-	const safeRotation = Math.max(-180, Math.min(180, Number(label.rotation) || 0));
+	const safeRotation = (((Number(label.rotation) || 0) % 360) + 360) % 360;
 	return L.divIcon({
 		className: `map-label map-label--${label.labelType}${labelHasWikiRegion(label) ? " map-label--has-wiki" : ""}`,
 		html: `<span style="font-size:${safeSize}px; transform: translate(calc(-50% + var(--label-offset-x, 0px)), calc(-50% + var(--label-offset-y, 0px))) rotate(${safeRotation}deg);">${escapeHtml(label.text)}</span>`,

@@ -175,7 +175,6 @@
 							<span id="path-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
 							<button id="path-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Wege neu crawlen (laeuft im Hintergrund)">WikiSync</button>
 						</div>
-						<p id="path-sync-status" class="review-panel__status" role="status" aria-live="polite">Wege werden geladen...</p>
 						<div class="wiki-sync-panel__filter">
 							<input id="path-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Wege suchen ..." aria-label="Wege durchsuchen" />
 						</div>
@@ -187,7 +186,6 @@
 							<span id="region-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
 							<button id="region-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Regionen neu crawlen (laeuft im Hintergrund)">WikiSync</button>
 						</div>
-						<p id="region-sync-status" class="review-panel__status" role="status" aria-live="polite">Regionen werden geladen...</p>
 						<div class="wiki-sync-panel__filter">
 							<input id="region-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Regionen suchen ..." aria-label="Regionen durchsuchen" />
 						</div>
@@ -548,7 +546,7 @@
 					<input id="label-edit-public-id" name="public_id" type="hidden" />
 					<input id="label-edit-lat" name="lat" type="hidden" />
 					<input id="label-edit-lng" name="lng" type="hidden" />
-						<div class="label-edit-section-title">Identität</div>
+						<div class="label-edit-section"><div class="label-edit-section-title">Identität</div>
 					<label class="location-report-form__field">
 						<span>Text *</span>
 						<input id="label-edit-text" name="text" type="text" maxlength="160" required />
@@ -570,16 +568,16 @@
 							<option value="sonstiges">Sonstiges</option>
 						</select>
 					</label>
-					<div class="label-edit-section-title">Darstellung</div>
+					</div><div class="label-edit-section"><div class="label-edit-section-title">Darstellung</div>
 						<div class="label-edit-grid">
-							<label class="location-report-form__field"><span>Größe</span><input id="label-edit-size" name="size" type="number" min="10" max="56" step="1" value="18" /></label>
-							<label class="location-report-form__field"><span>Rotation</span><input id="label-edit-rotation" name="rotation" type="number" min="-180" max="180" step="1" value="0" /></label>
+							<label class="location-report-form__field"><span>Größe</span><div class="label-edit-sliderrow"><input id="label-edit-size" name="size" type="number" min="12" max="50" step="1" value="18" /><input id="label-edit-size-range" type="range" min="12" max="50" step="1" value="18" aria-label="Groesse" /></div></label>
+							<label class="location-report-form__field"><span>Rotation</span><div class="label-edit-sliderrow"><input id="label-edit-rotation" name="rotation" type="number" min="0" max="360" step="1" value="0" /><input id="label-edit-rotation-range" type="range" min="0" max="360" step="1" value="0" aria-label="Rotation" /></div></label>
 							<label class="location-report-form__field"><span>Sichtbar ab Zoom</span><div class="label-edit-zoomrow"><input id="label-edit-min-zoom-num" type="number" min="0" max="5" step="1" value="0" aria-label="Sichtbar ab Zoom" /><input id="label-edit-min-zoom" name="min_zoom" type="range" min="0" max="5" step="1" value="0" /></div></label>
 							<label class="location-report-form__field"><span>Sichtbar bis Zoom</span><div class="label-edit-zoomrow"><input id="label-edit-max-zoom-num" type="number" min="0" max="5" step="1" value="5" aria-label="Sichtbar bis Zoom" /><input id="label-edit-max-zoom" name="max_zoom" type="range" min="0" max="5" step="1" value="5" /></div></label>
-							<label class="location-report-form__field"><span>Priorität</span><input id="label-edit-priority" name="priority" type="number" min="1" max="5" step="1" value="3" /></label>
+							<label class="location-report-form__field"><span>Priorität</span><div class="label-edit-sliderrow"><input id="label-edit-priority" name="priority" type="number" min="1" max="5" step="1" value="3" /><input id="label-edit-priority-range" type="range" min="1" max="5" step="1" value="3" aria-label="Prioritaet" /></div></label>
 							<label class="location-report-form__field location-report-form__field--checkbox"><input id="label-edit-is-nodix" name="is_nodix" type="checkbox" /><span>Nodix</span></label>
 						</div>
-					<div class="label-wiki-reference" id="label-wiki-reference">
+					</div><div class="label-wiki-reference" id="label-wiki-reference">
 							<div class="label-wiki-reference__head">
 								<span class="label-wiki-reference__title">Wiki-Landschaft</span>
 								<span class="label-wiki-reference__buttons">

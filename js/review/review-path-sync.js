@@ -26,7 +26,7 @@ function pathSyncEscapeAttr(value) {
 }
 
 async function loadPathWikiSync() {
-	const status = pathSyncElement("path-sync-status");
+	const status = pathSyncElement("path-sync-summary");
 	const summary = pathSyncElement("path-sync-summary");
 	if (status) {
 		status.textContent = "Wege werden abgeglichen ...";
@@ -40,9 +40,6 @@ async function loadPathWikiSync() {
 		const s = data.summary || {};
 		if (summary) {
 			summary.textContent = `${s.considered || 0} Wege · ${s.map_paths || 0} Karten-Segmente`;
-		}
-		if (status) {
-			status.textContent = "";
 		}
 		renderPathSyncList();
 	} catch (error) {
@@ -121,7 +118,7 @@ async function assignPathWiki(wikiKey) {
 		return;
 	}
 	pathSyncBusy = true;
-	const status = pathSyncElement("path-sync-status");
+	const status = pathSyncElement("path-sync-summary");
 	try {
 		const preview = await pathSyncPost({ action: "assign", wiki_key: wikiKey });
 		const segs = preview && preview.segments ? preview.segments : 0;
@@ -131,7 +128,7 @@ async function assignPathWiki(wikiKey) {
 			}
 			return;
 		}
-		if (!window.confirm(`„${preview.wiki_name}" mit ${segs} Karten-Segment(en) verknüpfen?`)) {
+		if (!window.confirm(`„${preview.wiki_name}" mit allen ${segs} gleichnamigen Weg-Abschnitten auf der Karte verknüpfen? Sie bekommen die Wiki-Infobox.`)) {
 			return;
 		}
 		const result = await pathSyncPost({ action: "assign", wiki_key: wikiKey, dry_run: false, confirm: "apply" });
@@ -153,7 +150,7 @@ async function assignAllPathWiki() {
 		return;
 	}
 	pathSyncBusy = true;
-	const status = pathSyncElement("path-sync-status");
+	const status = pathSyncElement("path-sync-summary");
 	try {
 		const preview = await pathSyncPost({ action: "assign_all", continent: "Aventurien" });
 		const segs = preview && preview.segments_affected ? preview.segments_affected : 0;
@@ -186,7 +183,7 @@ async function startPathWikiCrawl() {
 		return;
 	}
 	pathSyncBusy = true;
-	const status = pathSyncElement("path-sync-status");
+	const status = pathSyncElement("path-sync-summary");
 	try {
 		const run = await pathSyncPost({ action: "start_run" });
 		if (!run || !run.run_id) {
@@ -224,6 +221,21 @@ function focusPathOnMap(publicId) {
 		showFeedbackToast?.("Weg ist (noch) nicht geladen.", "info");
 		return;
 	}
+	// Passende Anzeige-Checkbox im Routenplaner einschalten, damit der Weg sichtbar ist.
+	const subtype = String((path.properties && path.properties.feature_subtype) || "").toLowerCase();
+	let toggleId = "#togglePaths";
+	if (subtype === "flussweg") {
+		toggleId = "#toggleRivers";
+	} else if (subtype === "seeweg") {
+		toggleId = "#toggleSeaPaths";
+	}
+	if (typeof $ === "function") {
+		const toggle = $(toggleId);
+		if (toggle.length && !toggle.is(":checked")) {
+			toggle.prop("checked", true).trigger("change");
+		}
+	}
+
 	const latlngs = coords.map((c) => [Number(c[1]), Number(c[0])]);
 	const bounds = L.latLngBounds(latlngs);
 	if (bounds.isValid()) {

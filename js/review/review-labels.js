@@ -22,7 +22,7 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 	document.getElementById("label-edit-text").value = label.text || "";
 	document.getElementById("label-edit-type").value = label.labelType || "region";
 	document.getElementById("label-edit-size").value = label.size || 18;
-	document.getElementById("label-edit-rotation").value = label.rotation || 0;
+	document.getElementById("label-edit-rotation").value = ((Number(label.rotation || 0) % 360) + 360) % 360;
 	document.getElementById("label-edit-min-zoom").value = label.minZoom ?? 0;
 	document.getElementById("label-edit-max-zoom").value = label.maxZoom ?? 5;
 	document.getElementById("label-edit-priority").value = label.priority ?? 3;
@@ -31,6 +31,7 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 		setLabelWikiRegion(label.wikiRegion || null);
 	}
 	syncLabelZoomRangeOutputs();
+	syncLabelSliderRowsFromNumbers();
 	syncLabelPriorityOutput();
 	document.getElementById("label-edit-delete").hidden = !labelEntry;
 	if (labelEditLatLng) {
@@ -103,6 +104,39 @@ function syncLabelPriorityOutput() {
 	outputElement.value = inputElement.value;
 	outputElement.textContent = inputElement.value;
 }
+
+// Zahl+Slider-Reihen (Groesse/Rotation/Prioritaet): Slider aus den Zahlenwerten initialisieren.
+function syncLabelSliderRowsFromNumbers() {
+	document.querySelectorAll("#label-edit-dialog .label-edit-sliderrow").forEach((row) => {
+		const numberInput = row.querySelector('input[type="number"]');
+		const rangeInput = row.querySelector('input[type="range"]');
+		if (numberInput && rangeInput) {
+			rangeInput.value = numberInput.value;
+		}
+	});
+}
+
+// Zahl <-> Slider in einer Sliderrow spiegeln (ohne Seiteneffekt; Zoom hat eigene Logik).
+document.addEventListener("input", (event) => {
+	const target = event.target;
+	if (!target || typeof target.closest !== "function") {
+		return;
+	}
+	const row = target.closest(".label-edit-sliderrow");
+	if (!row) {
+		return;
+	}
+	const numberInput = row.querySelector('input[type="number"]');
+	const rangeInput = row.querySelector('input[type="range"]');
+	if (!numberInput || !rangeInput) {
+		return;
+	}
+	if (target === rangeInput) {
+		numberInput.value = rangeInput.value;
+	} else {
+		rangeInput.value = numberInput.value;
+	}
+});
 
 function buildLabelEditPayload(formElement) {
 	const formData = new FormData(formElement);

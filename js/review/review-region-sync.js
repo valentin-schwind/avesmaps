@@ -36,7 +36,7 @@ function regionSyncEscapeAttr(value) {
 }
 
 async function loadRegionWikiSync() {
-	const status = regionSyncElement("region-sync-status");
+	const status = regionSyncElement("region-sync-summary");
 	const summary = regionSyncElement("region-sync-summary");
 	if (status) {
 		status.textContent = "Regionen werden abgeglichen ...";
@@ -50,9 +50,6 @@ async function loadRegionWikiSync() {
 		const s = data.summary || {};
 		if (summary) {
 			summary.textContent = `${s.considered || 0} Regionen · ${s.map_labels || 0} Karten-Labels`;
-		}
-		if (status) {
-			status.textContent = "";
 		}
 		renderRegionSyncList();
 	} catch (error) {
@@ -138,7 +135,7 @@ async function startRegionWikiCrawl() {
 		return;
 	}
 	regionSyncBusy = true;
-	const status = regionSyncElement("region-sync-status");
+	const status = regionSyncElement("region-sync-summary");
 	const button = regionSyncElement("region-sync-crawl");
 	if (button) {
 		button.disabled = true;
