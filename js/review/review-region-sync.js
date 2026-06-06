@@ -8,12 +8,20 @@ let regionSyncData = null;
 let regionSyncView = "missing"; // missing | matched | ambiguous
 const regionTypeFilter = new Set(); // ausgewählte Arten (leer = alle)
 
-// Typ-Filter-Optionen: distinct „Art" über alle Zeilen (missing+matched+ambiguous).
+// Typ-Filter-Optionen: distinct „Art" — Zähler aus der aktuellen View (Fehlt/Platziert/Alle) + Suche.
 function regionTypeOptions() {
 	if (!regionSyncData) {
 		return [];
 	}
-	const rows = [].concat(regionSyncData.missing || [], regionSyncData.matched || [], regionSyncData.ambiguous || []);
+	const filterValue = (regionSyncElement("region-sync-filter")?.value || "").trim().toLowerCase();
+	const rows = regionSyncCurrentRows().filter((row) => {
+		if (filterValue === "") {
+			return true;
+		}
+		return [row.name, row.art, row.region_parent, row.affiliation_staat]
+			.filter(Boolean)
+			.some((value) => String(value).toLowerCase().includes(filterValue));
+	});
 	const byArt = new Map();
 	for (const row of rows) {
 		const art = (String(row.art || "").trim()) || "(ohne Art)";
@@ -164,6 +172,7 @@ function renderRegionSyncList() {
 		.join("");
 
 	list.innerHTML = items || '<p class="review-panel__status">Keine Einträge.</p>';
+	renderTypeFilter("region-type-filter-toggle", "region-type-filter-menu", regionTypeOptions(), regionTypeFilter);
 }
 
 async function startRegionWikiCrawl() {

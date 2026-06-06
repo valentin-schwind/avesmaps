@@ -7,11 +7,26 @@ const SETTLEMENT_LIST_API_URL = "/api/edit/wiki/settlements.php";
 let settlementListView = "all"; // "all" | "onmap" | "wiki"
 const settlementTypeFilter = new Set(); // ausgewählte Ortsgrößen (leer = alle)
 
-// Optionen für den Typ-Filter: distinct Ortsgrößen, in sinnvoller Reihenfolge.
+// Basismenge für die Typ-Zähler: View-Tab + Suche, aber OHNE den Typ-Filter selbst.
+function settlementBaseFilteredItems() {
+	let items = settlementListItems;
+	if (settlementListView === "onmap") {
+		items = items.filter((item) => item.on_map);
+	} else if (settlementListView === "wiki") {
+		items = items.filter((item) => !item.on_map);
+	}
+	const query = (document.getElementById("settlement-list-filter")?.value || "").trim().toLowerCase();
+	if (query) {
+		items = items.filter((item) => String(item.name).toLowerCase().includes(query));
+	}
+	return items;
+}
+
+// Optionen für den Typ-Filter: distinct Ortsgrößen (Zähler aus der aktuellen Basismenge).
 function settlementTypeOptions() {
 	const order = ["dorf", "kleinstadt", "stadt", "grossstadt", "metropole", "gebaeude"];
 	const byLabel = new Map();
-	for (const item of settlementListItems) {
+	for (const item of settlementBaseFilteredItems()) {
 		const label = item.settlement_label || "—";
 		if (!byLabel.has(label)) {
 			byLabel.set(label, { value: label, label, count: 0, order: order.indexOf(item.settlement_class || "") });
@@ -349,19 +364,12 @@ function renderSettlementList() {
 	const onMap = all.filter((item) => item.on_map).length;
 	const wikiOnly = all.length - onMap;
 
-	const query = (document.getElementById("settlement-list-filter")?.value || "").trim().toLowerCase();
-	let items = all;
-	if (settlementListView === "onmap") {
-		items = items.filter((item) => item.on_map);
-	} else if (settlementListView === "wiki") {
-		items = items.filter((item) => !item.on_map);
-	}
+	let items = settlementBaseFilteredItems();
 	if (settlementTypeFilter.size > 0) {
 		items = items.filter((item) => settlementTypeFilter.has(item.settlement_label || "—"));
 	}
-	if (query) {
-		items = items.filter((item) => String(item.name).toLowerCase().includes(query));
-	}
+	// Typ-Dropdown-Zähler an die aktuelle Basismenge (View+Suche) anpassen.
+	renderTypeFilter("settlement-type-filter-toggle", "settlement-type-filter-menu", settlementTypeOptions(), settlementTypeFilter);
 
 	// Toggle-Buttons (gegenseitig exklusiv, einer aktiv) — in eigenem Container unter dem
 	// Suchfeld, NICHT in der scrollbaren Liste.

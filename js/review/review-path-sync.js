@@ -17,11 +17,18 @@ function pathRowType(row) {
 	return row.kind === "fluss" ? "Fluss" : "Straße/Weg";
 }
 
+// Zähler aus der aktuellen View (Platziert/Fehlt/Alle) + Suche.
 function pathTypeOptions() {
 	if (!pathSyncData) {
 		return [];
 	}
-	const rows = [].concat(pathSyncData.matched || [], pathSyncData.ambiguous || [], pathSyncData.missing || []);
+	const filterValue = (pathSyncElement("path-sync-filter")?.value || "").trim().toLowerCase();
+	const rows = pathSyncCurrentRows().filter((row) => {
+		if (filterValue === "") {
+			return true;
+		}
+		return [row.name, row.art, row.lage].filter(Boolean).some((v) => String(v).toLowerCase().includes(filterValue));
+	});
 	const byType = new Map();
 	for (const row of rows) {
 		const type = pathRowType(row);
@@ -150,6 +157,7 @@ function renderPathSyncList() {
 		.join("");
 
 	list.innerHTML = items || '<p class="review-panel__status">Keine Einträge.</p>';
+	renderTypeFilter("path-type-filter-toggle", "path-type-filter-menu", pathTypeOptions(), pathTypeFilter);
 }
 
 async function assignPathWiki(wikiKey) {
