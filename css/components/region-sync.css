@@ -518,3 +518,38 @@
 	padding: 0;
 	gap: 4px;
 }
+
+/* „Weg bearbeiten" optisch wie „Label bearbeiten" (Faculty Glyphic, weisse Inputs, Panels). */
+#path-edit-dialog {
+	font-family: "Faculty Glyphic", Arial, sans-serif;
+	width: min(560px, calc(100vw - 24px));
+}
+
+#path-edit-dialog .location-report-form__field > span {
+	font-size: 12px;
+	font-weight: 600;
+	color: #5a4a3a;
+}
+
+#path-edit-dialog input[type="text"],
+#path-edit-dialog input[type="search"],
+#path-edit-dialog select {
+	border: 1px solid #dccab8;
+	border-radius: 6px;
+	background: #fff;
+	padding: 6px 8px;
+	font-family: inherit;
+	color: #2c2117;
+}
+
+#path-edit-dialog input[type="text"]:focus,
+#path-edit-dialog input[type="search"]:focus,
+#path-edit-dialog select:focus {
+	outline: none;
+	border-color: #7a5a3a;
+	box-shadow: 0 0 0 2px rgba(122, 90, 58, 0.18);
+}
+
+#path-edit-dialog .location-report-form__button--primary {
+	font-family: "Faculty Glyphic", Arial, sans-serif;
+}

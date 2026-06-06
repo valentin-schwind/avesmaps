@@ -14,6 +14,9 @@ function populatePathEditForm(path) {
 	document.getElementById("path-edit-show-label").checked = shouldPathNameBeDisplayed(path);
 	syncPathTransportOptions({ path });
 	syncPathAutoNameControls();
+	if (typeof renderPathWikiReference === "function") {
+		renderPathWikiReference();
+	}
 }
 
 function populatePathEditFormFromLastSettings(path) {
