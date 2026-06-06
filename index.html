@@ -350,7 +350,7 @@
 						<input id="location-edit-name" name="name" type="text" maxlength="160" required />
 					</label>
 					<label class="location-report-form__field">
-						<span>Ortsgroesse *</span>
+						<span>Ortsgröße *</span>
 						<select id="location-edit-type" name="feature_subtype" required>
 							<option value="dorf">Dorf</option>
 							<option value="gebaeude">Besondere Bauwerke/Stätten</option>
@@ -360,6 +360,9 @@
 							<option value="metropole">Metropole</option>
 						</select>
 					</label>
+					<div class="location-edit-wiki-sync-row">
+						<button type="button" id="location-edit-wiki-sync" class="location-report-form__button location-report-form__button--secondary" disabled title="Ortsname &amp; Ortsgröße aus der verbundenen Wiki-Siedlung übernehmen">↻ Name &amp; Größe aus Wiki</button>
+					</div>
 					<input id="location-edit-description" name="description" type="hidden" value="" />
 					<input id="location-edit-wiki-url" name="wiki_url" type="hidden" value="" />
 					<div class="location-report-form__field location-edit-wiki-field">

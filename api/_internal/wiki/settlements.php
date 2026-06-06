@@ -299,6 +299,7 @@ function avesmapsWikiSettlementAssignTo(PDO $pdo, string $title, string $publicI
         'wiki_name' => $settlement['name'],
         'target_name' => (string) $target['name'],
         'settlement' => $settlement,
+        'revision' => $revision,
     ];
 }
 
@@ -329,5 +330,5 @@ function avesmapsWikiSettlementClearAssign(PDO $pdo, string $publicId, bool $dry
     $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
     $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $target['id']]);
 
-    return ['ok' => true, 'dry_run' => false, 'applied' => 1, 'target_name' => (string) $target['name']];
+    return ['ok' => true, 'dry_run' => false, 'applied' => 1, 'target_name' => (string) $target['name'], 'revision' => $revision];
 }

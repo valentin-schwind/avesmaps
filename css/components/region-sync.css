@@ -553,3 +553,18 @@
 #path-edit-dialog .location-report-form__button--primary {
 	font-family: "Faculty Glyphic", Arial, sans-serif;
 }
+
+/* „Name & Größe aus Wiki"-Button im Ort-Editor: klein, linksbündig, neben den Feldern. */
+.location-edit-wiki-sync-row {
+	display: flex;
+	margin: -4px 0 2px;
+}
+.location-edit-wiki-sync-row #location-edit-wiki-sync {
+	font-size: 0.82em;
+	padding: 5px 10px;
+	width: auto;
+}
+.location-edit-wiki-sync-row #location-edit-wiki-sync:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
