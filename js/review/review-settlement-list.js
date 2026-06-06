@@ -111,21 +111,17 @@ function renderSettlementList() {
 		items = items.filter((item) => String(item.name).toLowerCase().includes(query));
 	}
 
-	// Toggle-Buttons wie in „Regionen" (gegenseitig exklusiv, einer aktiv).
-	const tab = (view, label, count) =>
-		`<button type="button" data-settlement-view="${view}" class="region-sync__viewtab${settlementListView === view ? " is-active" : ""}">${label} (${count})</button>`;
-	const viewTabs =
-		'<div class="region-sync__viewtabs">' +
-		tab("all", "Alle", all.length) +
-		tab("onmap", "Nur auf Karte", onMap) +
-		tab("wiki", "Nur im Wiki", wikiOnly) +
-		"</div>";
+	// Toggle-Buttons (gegenseitig exklusiv, einer aktiv) — in eigenem Container unter dem
+	// Suchfeld, NICHT in der scrollbaren Liste.
+	const tabsHost = document.getElementById("settlement-list-tabs");
+	if (tabsHost) {
+		const tab = (view, label, count) =>
+			`<button type="button" data-settlement-view="${view}" class="region-sync__viewtab${settlementListView === view ? " is-active" : ""}">${label} (${count})</button>`;
+		tabsHost.innerHTML = tab("all", "Alle", all.length) + tab("onmap", "Platziert", onMap) + tab("wiki", "Fehlt", wikiOnly);
+	}
 
-	const body =
-		items.length === 0
-			? '<p class="region-sync__empty">Keine Treffer.</p>'
-			: items.map(renderSettlementRow).join("");
-	list.innerHTML = viewTabs + body;
+	list.innerHTML =
+		items.length === 0 ? '<p class="region-sync__empty">Keine Treffer.</p>' : items.map(renderSettlementRow).join("");
 }
 
 function settlementListOpen(publicId) {

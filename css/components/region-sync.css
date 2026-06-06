@@ -725,6 +725,11 @@
 	align-items: center;
 	gap: 8px;
 }
+/* Toggle-Tabs sitzen jetzt unter dem Suchfeld (nicht mehr in der scrollbaren Liste). */
+.settlement-list__tabs {
+	margin: 0;
+	padding: 4px 10px 6px;
+}
 #settlement-list {
 	background: #fff;
 	border: 1px solid #dccab8;
