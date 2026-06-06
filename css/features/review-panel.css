@@ -609,9 +609,10 @@
 }
 
 .wiki-sync-panel__tab.is-active {
-	border-color: #5a3518;
-	background: #f4ead8;
-	color: #5c3b1e;
+	border-color: #7a5a3a;
+	background: #7a5a3a;
+	color: #fff;
+	font-weight: 600;
 }
 
 .wiki-sync-panel__tab:hover,
