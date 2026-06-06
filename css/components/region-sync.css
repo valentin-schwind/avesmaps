@@ -575,6 +575,9 @@
 	width: auto;
 	max-width: none;
 	gap: 6px;
+	margin-top: 4px;
+	padding-top: 0;
+	border-top: none;
 }
 
 /* Aktions-Buttons unter der Siedlungs-Infobox optisch absetzen. */

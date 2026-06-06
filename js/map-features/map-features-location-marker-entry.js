@@ -33,6 +33,7 @@ function refreshLocationMarkerPopup(markerEntry) {
 			description: markerEntry.location.description,
 			wikiUrl: markerEntry.location.wikiUrl,
 			isRuined: markerEntry.location.isRuined,
+			showType: true,
 			showDescription: !hasWikiSettlement,
 			showWikiLink: !hasWikiSettlement,
 			// Infobox zuerst, Aktions-Buttons darunter.
@@ -72,10 +73,9 @@ function settlementWikiInfoboxMarkup(location) {
 		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} im Wiki-Aventurica ↗</a>`
 		: "";
 
-	// Kein Titel/Name hier — der Popup-Kopf zeigt den Ortsnamen bereits (sonst Dopplung).
+	// Kein Kopf/Name/Art hier — der Popup-Kopf zeigt Name + Größe bereits (sonst Dopplung/Strich).
 	return (
 		'<div class="region-info-box region-info-box--settlement">' +
-		(art ? `<div class="region-info-box__header"><span class="region-info-box__subtitle">${escapeHtml(art)}</span></div>` : "") +
 		`<dl class="region-info-box__data">${rows}</dl>` +
 		wikiLink +
 		"</div>"
