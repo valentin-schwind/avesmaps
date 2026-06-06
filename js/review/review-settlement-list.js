@@ -35,27 +35,27 @@ async function loadSettlementList() {
 	renderSettlementList();
 }
 
-// Kreis wie im Herrschaftsgebiet-Tree: voll = auf Karte + verbunden, halb = im Wiki/nicht auf Karte,
-// leer = auf Karte ohne Wiki.
-function settlementStateCircle(item) {
+// Unsichtbarer Status-Marker wie im Herrschaftsgebiet-Tree; steuert per :has() die Kreis-Füllung:
+// voll = auf Karte + verbunden (--all), halb = im Wiki/nicht auf Karte (--own-only), leer = sonst.
+function settlementStatusMarker(item) {
+	let modifier = "";
 	if (item.state === "full") {
-		return '<span class="tree-map-status tree-map-status--all" title="Auf der Karte, mit Wiki verbunden"></span>';
+		modifier = " tree-map-status--all";
+	} else if (item.state === "half") {
+		modifier = " tree-map-status--own-only";
 	}
-	if (item.state === "half") {
-		return '<span class="tree-map-status tree-map-status--own-only" title="Im Wiki, aber nicht auf der Karte"></span>';
-	}
-	return '<span class="tree-map-status" title="Auf der Karte, kein Wiki-Eintrag"></span>';
+	return `<span class="tree-map-status${modifier}" aria-hidden="true"></span>`;
 }
 
-// Layout wie die Regionen-Liste: Name-Zeile + Meta-Zeile, ⠿-Handle bei den fehlenden (im Wiki,
-// nicht auf der Karte) zum Auf-die-Karte-Ziehen.
+// Struktur 1:1 wie die Territorien-Items (tree-item-Grid): (1) Drag-Handle in Spalte 1 (⠿ wenn
+// ziehbar, sonst leer), (2) Name mit Kreis daneben, (3) Meta + Wiki-Link unter dem Namen.
 function renderSettlementRow(item) {
 	const draggable = !item.on_map;
-	const handle = draggable ? '<span class="region-sync__handle" aria-hidden="true">⠿</span>' : "";
+	const handle = `<span class="drag-handle" aria-hidden="true">${draggable ? "⠿" : ""}</span>`;
 	const dragAttrs = draggable
 		? ` draggable="true" data-settlement-title="${settlementListEscape(item.name)}" data-settlement-class="${settlementListEscape(item.settlement_class)}"`
 		: "";
-	const classes = "review-panel__item region-sync__item settlement-list__item" + (draggable ? " region-sync__item--draggable" : "");
+	const classes = "tree-item settlement-list__item" + (draggable ? " is-draggable" : "");
 	const title = draggable ? "Auf die Karte ziehen, um die Siedlung anzulegen" : "";
 
 	const metaParts = [];
@@ -73,14 +73,16 @@ function renderSettlementRow(item) {
 	}
 	let metaHtml = metaParts.join(" · ");
 	if (item.wiki_url) {
-		const wikiLink = `<a class="region-sync__link settlement-list__wiki" href="${settlementListEscape(item.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
+		const wikiLink = `<a class="settlement-list__wiki" href="${settlementListEscape(item.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
 		metaHtml = metaHtml ? `${metaHtml} · ${wikiLink}` : wikiLink;
 	}
 	return (
-		`<div class="${classes}"${dragAttrs} data-public-id="${settlementListEscape(item.public_id)}" data-on-map="${item.on_map ? "1" : "0"}" title="${settlementListEscape(title)}">` +
-		`<div class="region-sync__name">${settlementStateCircle(item)}${handle}${settlementListEscape(item.name)}</div>` +
-		(metaHtml ? `<div class="region-sync__meta">${metaHtml}</div>` : "") +
-		"</div>"
+		`<span class="${classes}"${dragAttrs} data-public-id="${settlementListEscape(item.public_id)}" data-on-map="${item.on_map ? "1" : "0"}" title="${settlementListEscape(title)}">` +
+		handle +
+		`<span class="tree-item-name">${settlementListEscape(item.name)}</span>` +
+		(metaHtml ? `<span class="tree-item-meta">${metaHtml}</span>` : "") +
+		settlementStatusMarker(item) +
+		"</span>"
 	);
 }
 
@@ -221,7 +223,7 @@ function ensureSettlementMapDropTarget() {
 }
 
 document.addEventListener("dragstart", (event) => {
-	const item = event.target.closest ? event.target.closest(".settlement-list__item.region-sync__item--draggable") : null;
+	const item = event.target.closest ? event.target.closest(".settlement-list__item.is-draggable") : null;
 	if (!item || !item.dataset.settlementTitle) {
 		return;
 	}
