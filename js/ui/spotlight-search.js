@@ -623,6 +623,7 @@ function getSpotlightLabelTypeLabel(labelType) {
 		huegelland: "Hügelland",
 		tundra: "Tundra",
 		kueste: "Küste",
+		ebene: "Ebene",
 		kontinent: "Kontinent",
 		wueste: "Wueste",
 		suempfe_moore: "Sumpf/Moor",

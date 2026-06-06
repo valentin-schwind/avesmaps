@@ -99,6 +99,9 @@ body.edit-mode .map-label span {
 .map-label--kueste span {
 	color: #d2e9dd; /* Küste: blasses Seegrün */
 }
+.map-label--ebene span {
+	color: #dde4c2; /* Ebene: helles, offenes Wiesen-/Cremegrün */
+}
 
 .map-label--suempfe_moore span {
 	color: #9fccad;

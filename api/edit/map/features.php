@@ -827,7 +827,7 @@ function avesmapsBuildFeatureResponseFromStoredFeature(array $feature): array {
 
 function avesmapsReadLabelSubtype(mixed $value): string {
     $subtype = avesmapsNormalizeSingleLine((string) ($value ?: 'region'), 40);
-    $allowedSubtypes = ['region', 'fluss', 'meer', 'gebirge', 'berggipfel', 'wald', 'steppe', 'huegelland', 'tundra', 'kueste', 'kontinent', 'wueste', 'suempfe_moore', 'see', 'insel', 'sonstiges'];
+    $allowedSubtypes = ['region', 'fluss', 'meer', 'gebirge', 'berggipfel', 'wald', 'steppe', 'huegelland', 'tundra', 'kueste', 'ebene', 'kontinent', 'wueste', 'suempfe_moore', 'see', 'insel', 'sonstiges'];
     if (!in_array($subtype, $allowedSubtypes, true)) {
         throw new InvalidArgumentException('Die Label-Kategorie ist ungueltig.');
     }

@@ -22,6 +22,7 @@ const LABEL_WIKI_ART_TO_SUBTYPE = {
 	"hügelland": "huegelland", "hugelland": "huegelland", "hochland": "huegelland",
 	"tundra": "tundra",
 	"küste": "kueste", "kueste": "kueste", "klippe": "kueste",
+	"ebene": "ebene", "tiefland": "ebene", "flachland": "ebene",
 	"region": "region", "mischregion": "region", "großregion": "region", "grossregion": "region",
 	"flusstal": "region", "tal": "region", "auenlandschaft": "region", "halbinsel": "region",
 	"fluss": "fluss", "kontinent": "kontinent",

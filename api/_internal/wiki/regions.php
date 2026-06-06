@@ -54,6 +54,8 @@ const AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE = [
     'tundra' => 'tundra',
     // küste
     'kuste' => 'kueste', 'klippe' => 'kueste',
+    // ebene (Flachland/Tiefland)
+    'ebene' => 'ebene', 'tiefland' => 'ebene', 'flachland' => 'ebene',
     // gebirge / wald
     'gebirge' => 'gebirge', 'wald' => 'wald',
     // insel
