@@ -228,10 +228,6 @@ document.addEventListener("click", (event) => {
 		void assignPathWiki(assignBtn.dataset.wikiKey);
 		return;
 	}
-	if (event.target.closest("#path-sync-assign-all")) {
-		void assignAllPathWiki();
-		return;
-	}
 	if (event.target.closest("#path-sync-crawl")) {
 		void startPathWikiCrawl();
 	}
