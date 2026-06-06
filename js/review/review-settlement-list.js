@@ -62,9 +62,10 @@ function renderSettlementList() {
 	}
 	list.innerHTML = items
 		.map((item) => {
+			// Kreis-Symbol wie im Herrschaftsgebiet-Tree: gefüllt = auf der Karte/verbunden, leer = nicht.
 			const badge = item.connected
-				? `<span class="settlement-list__badge settlement-list__badge--on" title="Verbunden: ${settlementListEscape(item.wiki_title)}">✓</span>`
-				: `<span class="settlement-list__badge settlement-list__badge--off" title="Nicht verbunden">–</span>`;
+				? `<span class="tree-map-status tree-map-status--all" title="Verbunden: ${settlementListEscape(item.wiki_title)}"></span>`
+				: `<span class="tree-map-status" title="Nicht verbunden"></span>`;
 			return (
 				`<button type="button" class="settlement-list__item" data-public-id="${settlementListEscape(item.public_id)}">` +
 				badge +
