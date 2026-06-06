@@ -508,3 +508,13 @@
 #label-edit-dialog select {
 	background: #fff;
 }
+
+/* Schlanke, an den Inhalt angepasste Infobox NUR fuer Label-/Pfad-Popups.
+   Die geteilte .region-info-box-Basis (Herrschaftsgebiete-Tooltip) bleibt unangetastet. */
+.label-wiki-infobox-popup .region-info-box,
+.location-popup .region-info-box {
+	width: fit-content;
+	max-width: min(360px, calc(100vw - 52px));
+	padding: 0;
+	gap: 4px;
+}
