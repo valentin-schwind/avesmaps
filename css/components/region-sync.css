@@ -368,7 +368,8 @@
 }
 
 #region-sync-list .region-sync__viewtabs,
-#path-sync-list .region-sync__viewtabs {
+#path-sync-list .region-sync__viewtabs,
+#settlement-list .region-sync__viewtabs {
 	position: sticky;
 	top: 0;
 	z-index: 1;

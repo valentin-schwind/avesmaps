@@ -4,8 +4,7 @@
 // zur Karte fliegen + „Ort bearbeiten" öffnen. (3) Bulk-Verbinden aller eindeutigen Treffer.
 
 const SETTLEMENT_LIST_API_URL = "/api/edit/wiki/settlements.php";
-let settlementListOnlyOnMap = false;
-let settlementListOnlyWiki = false;
+let settlementListView = "all"; // "all" | "onmap" | "wiki"
 let settlementListItems = [];
 
 function settlementListEscape(value) {
@@ -101,20 +100,30 @@ function renderSettlementList() {
 
 	const query = (document.getElementById("settlement-list-filter")?.value || "").trim().toLowerCase();
 	let items = all;
-	if (settlementListOnlyOnMap) {
+	if (settlementListView === "onmap") {
 		items = items.filter((item) => item.on_map);
-	} else if (settlementListOnlyWiki) {
+	} else if (settlementListView === "wiki") {
 		items = items.filter((item) => !item.on_map);
 	}
 	if (query) {
 		items = items.filter((item) => String(item.name).toLowerCase().includes(query));
 	}
 
-	if (items.length === 0) {
-		list.innerHTML = '<p class="region-sync__empty">Keine Treffer.</p>';
-		return;
-	}
-	list.innerHTML = items.map(renderSettlementRow).join("");
+	// Toggle-Buttons wie in „Regionen" (gegenseitig exklusiv, einer aktiv).
+	const tab = (view, label, count) =>
+		`<button type="button" data-settlement-view="${view}" class="region-sync__viewtab${settlementListView === view ? " is-active" : ""}">${label} (${count})</button>`;
+	const viewTabs =
+		'<div class="region-sync__viewtabs">' +
+		tab("all", "Alle", all.length) +
+		tab("onmap", "Auf Karte", onMap) +
+		tab("wiki", "Im Wiki", wikiOnly) +
+		"</div>";
+
+	const body =
+		items.length === 0
+			? '<p class="region-sync__empty">Keine Treffer.</p>'
+			: items.map(renderSettlementRow).join("");
+	list.innerHTML = viewTabs + body;
 }
 
 function settlementListOpen(publicId) {
@@ -155,6 +164,12 @@ document.addEventListener("click", (event) => {
 		setWikiSyncCaseStatus(statusTab.dataset.wikiSyncCaseStatus);
 		return;
 	}
+	const viewTab = event.target.closest("[data-settlement-view]");
+	if (viewTab) {
+		settlementListView = viewTab.dataset.settlementView || "all";
+		renderSettlementList();
+		return;
+	}
 	if (event.target.closest(".settlement-list__wiki")) {
 		return; // Wiki-Link selbst öffnen lassen
 	}
@@ -166,32 +181,6 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("input", (event) => {
 	if (event.target && event.target.id === "settlement-list-filter") {
-		renderSettlementList();
-	}
-});
-
-document.addEventListener("change", (event) => {
-	if (event.target && event.target.id === "settlement-list-only-onmap") {
-		settlementListOnlyOnMap = Boolean(event.target.checked);
-		if (settlementListOnlyOnMap) {
-			settlementListOnlyWiki = false;
-			const wiki = document.getElementById("settlement-list-only-wiki");
-			if (wiki) {
-				wiki.checked = false;
-			}
-		}
-		renderSettlementList();
-		return;
-	}
-	if (event.target && event.target.id === "settlement-list-only-wiki") {
-		settlementListOnlyWiki = Boolean(event.target.checked);
-		if (settlementListOnlyWiki) {
-			settlementListOnlyOnMap = false;
-			const onmap = document.getElementById("settlement-list-only-onmap");
-			if (onmap) {
-				onmap.checked = false;
-			}
-		}
 		renderSettlementList();
 	}
 });
