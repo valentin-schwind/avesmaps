@@ -189,6 +189,26 @@ function getWikiSyncTerritoryFilterQuery() {
 	return normalizeSearchText(wikiSyncTerritoryFilterQuery);
 }
 
+// Karten-Status-Filter (Alle/Platziert/Fehlt) — gleiches Toggle-Design wie Siedlungen.
+function setWikiSyncTerritoryMapStatus(value) {
+	const next = value === "placed" || value === "missing" ? value : "all";
+	if (next === wikiSyncTerritoryMapStatus) {
+		return;
+	}
+	wikiSyncTerritoryMapStatus = next;
+	void renderWikiSyncTerritoryTree();
+}
+
+function renderWikiSyncTerritoryMapStatusTabs(total, placed, missing) {
+	const host = document.getElementById("wiki-sync-territory-tabs");
+	if (!host) {
+		return;
+	}
+	const tab = (view, label, count) =>
+		`<button type="button" data-territory-mapstatus="${view}" class="region-sync__viewtab${wikiSyncTerritoryMapStatus === view ? " is-active" : ""}">${label} (${count})</button>`;
+	host.innerHTML = tab("all", "Alle", total) + tab("placed", "Platziert", placed) + tab("missing", "Fehlt", missing);
+}
+
 // Liest den Zeitfilter (von/bis/heute) aus den DOM-Eingaben via geteilter Baumkomponente.
 function getWikiSyncTerritoryTimeFilter() {
 	const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
@@ -281,9 +301,30 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 		}
 
 		const rows = await loadWikiSyncTerritoryTreeRows({ forceReload });
-		const filteredRows = treeModule.filterRows(rows, {
-			search: getWikiSyncTerritoryFilterQuery(), time: getWikiSyncTerritoryTimeFilter(),
-		}).filter((row) => row && row.continent === "Aventurien");
+		const search = getWikiSyncTerritoryFilterQuery();
+		const time = getWikiSyncTerritoryTimeFilter();
+		// Basismenge (Such-/Zeitfilter, ohne Karten-Status) — Grundlage für die Tab-Zähler.
+		const baseRows = treeModule
+			.filterRows(rows, { search, time })
+			.filter((row) => row && row.continent === "Aventurien");
+		const isPlaced =
+			typeof treeModule.isRowAssignedToMap === "function"
+				? treeModule.isRowAssignedToMap
+				: (row) => Boolean(row && row.map_assigned) || Number((row && row.map_geometry_count) || 0) > 0;
+		let placedCount = 0;
+		for (const row of baseRows) {
+			if (isPlaced(row)) {
+				placedCount += 1;
+			}
+		}
+		renderWikiSyncTerritoryMapStatusTabs(baseRows.length, placedCount, baseRows.length - placedCount);
+		// Anzuzeigende Menge nach Karten-Status; Vorfahren bleiben dank filterRows erhalten.
+		const filteredRows =
+			wikiSyncTerritoryMapStatus === "placed" || wikiSyncTerritoryMapStatus === "missing"
+				? treeModule
+						.filterRows(rows, { search, time, mapStatus: wikiSyncTerritoryMapStatus })
+						.filter((row) => row && row.continent === "Aventurien")
+				: baseRows;
 		const treeResult = treeModule.buildTree(filteredRows);
 		// Summary identisch zum Sync-Monitor: alle Knoten gesamt, sichtbare Wurzeln (Aventurien+heute = 53).
 		wikiSyncTerritorySummary = {

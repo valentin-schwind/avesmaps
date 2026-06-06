@@ -494,12 +494,30 @@
 		return title.includes(search);
 	}
 
+	// Ob eine flache Zeile selbst eine Karten-Geometrie hat (= „Platziert").
+	function isRowAssignedToMap(row) {
+		return Boolean(row && row.map_assigned) || Number((row && row.map_geometry_count) || 0) > 0;
+	}
+
 	function filterRows(rows, filters = {}) {
 		const allRows = Array.isArray(rows) ? rows : [];
 		const search = normalizeText(filters.search || filters.query || "").toLowerCase();
+		const mapStatus = normalizeText(filters.mapStatus || "").toLowerCase(); // "" | all | placed | missing
 		const structurallyFilteredRows = allRows.filter((row) => doesRowMatchStructuralFilters(row, filters));
-		if (!search) return structurallyFilteredRows;
-		return expandRowsWithAncestors(structurallyFilteredRows.filter((row) => doesRowMatchSearch(row, search)));
+		let matched = structurallyFilteredRows;
+		let needsAncestorExpansion = false;
+		if (search) {
+			matched = matched.filter((row) => doesRowMatchSearch(row, search));
+			needsAncestorExpansion = true;
+		}
+		// „Platziert"/„Fehlt": Treffer nach eigener Karten-Geometrie filtern, aber Vorfahren behalten,
+		// damit z.B. ein platziertes Elternteil mit fehlendem Kind (oder umgekehrt) sichtbar bleibt.
+		if (mapStatus === "placed" || mapStatus === "missing") {
+			const wantPlaced = mapStatus === "placed";
+			matched = matched.filter((row) => isRowAssignedToMap(row) === wantPlaced);
+			needsAncestorExpansion = true;
+		}
+		return needsAncestorExpansion ? expandRowsWithAncestors(matched) : matched;
 	}
 
 	function isSyntheticNode(node) {
@@ -917,6 +935,7 @@
 		getTreeCoverageStatus,
 		getTreeMapStatus,
 		isTreeNodeAssignedToMap,
+		isRowAssignedToMap,
 		isSyntheticNode,
 		getNodePath,
 		createNodeReference,

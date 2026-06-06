@@ -208,6 +208,9 @@ $("#wiki-sync-filter").on("input search", function () {
 $("#wiki-sync-territory-filter").on("input search", function () {
     setWikiSyncTerritoryFilterQuery(this.value || "");
 });
+$("#wiki-sync-territory-tabs").on("click", "[data-territory-mapstatus]", function () {
+    setWikiSyncTerritoryMapStatus(this.dataset.territoryMapstatus || "all");
+});
 $("#wiki-sync-territory-time-from, #wiki-sync-territory-time-to").on("input", function () {
     void renderWikiSyncTerritoryTree();
 });
