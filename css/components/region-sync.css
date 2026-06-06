@@ -568,3 +568,18 @@
 	opacity: 0.5;
 	cursor: not-allowed;
 }
+
+/* Siedlungs-Infobox im Ort-Popup breiter: füllt das (verbreiterte) Popup statt schmal an den
+   Inhalt geschmiegt zu sein. Überschreibt die schlanke .location-popup .region-info-box-Regel. */
+.location-popup .region-info-box--settlement {
+	width: auto;
+	max-width: none;
+	gap: 6px;
+}
+
+/* Aktions-Buttons unter der Siedlungs-Infobox optisch absetzen. */
+.location-popup .region-info-box--settlement + .location-popup__actions {
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid rgba(141, 121, 98, 0.3);
+}

@@ -33,8 +33,10 @@ function refreshLocationMarkerPopup(markerEntry) {
 			isRuined: markerEntry.location.isRuined,
 			showDescription: !hasWikiSettlement,
 			showWikiLink: !hasWikiSettlement,
-			actionsMarkup: locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location) + settlementInfobox,
-		})
+			// Infobox zuerst, Aktions-Buttons darunter.
+			actionsMarkup: settlementInfobox + locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location),
+		}),
+		hasWikiSettlement ? { minWidth: 300, maxWidth: 360 } : undefined
 	);
 }
 
@@ -69,7 +71,7 @@ function settlementWikiInfoboxMarkup(location) {
 		: "";
 
 	return (
-		'<div class="region-info-box">' +
+		'<div class="region-info-box region-info-box--settlement">' +
 		'<div class="region-info-box__header">' +
 		'<div class="region-info-box__title-group">' +
 		`<strong class="region-info-box__title">${escapeHtml(name)}</strong>` +
