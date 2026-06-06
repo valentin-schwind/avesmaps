@@ -1,9 +1,12 @@
 // WikiSync „Siedlungen": (1) Status-Tabs (Offen/Zurückgestellt/Archiviert) blenden die schon
-// vorhandenen Fall-Sektionen per data-active-status ein/aus (CSS). (2) Vollständige Karten-Orts-
-// liste aus locationData (Name, Größe, ✓verbunden/–) mit Suche + „nur unverbundene". Klick →
-// zur Karte fliegen + „Ort bearbeiten" öffnen (verbinden/Größe-Sync).
+// vorhandenen Fall-Sektionen per data-active-status ein/aus (CSS). (2) Vollständige Siedlungsliste
+// vom Server (list_locations) — Name, Größe, ✓verbunden/–, Suche + „nur unverbundene". Klick →
+// zur Karte fliegen + „Ort bearbeiten" öffnen. (3) Bulk-Verbinden aller eindeutigen Treffer.
 
+const SETTLEMENT_LIST_API_URL = "/api/edit/wiki/settlements.php";
 let settlementListOnlyUnconnected = false;
+let settlementListItems = [];
+let settlementBulkRunning = false;
 
 function settlementListEscape(value) {
 	const holder = document.createElement("div");
@@ -11,61 +14,64 @@ function settlementListEscape(value) {
 	return holder.innerHTML;
 }
 
-function settlementListEntries() {
-	if (typeof locationData === "undefined" || !Array.isArray(locationData)) {
-		return [];
+async function loadSettlementList() {
+	const list = document.getElementById("settlement-list");
+	if (!list) {
+		return;
 	}
-	const crossing = typeof CROSSING_LOCATION_TYPE !== "undefined" ? CROSSING_LOCATION_TYPE : "kreuzung";
-	return locationData.filter((loc) =>
-		loc &&
-		loc.locationType !== crossing &&
-		String(loc.name || "").trim() !== "" &&
-		!String(loc.name || "").startsWith("Kreuzung")
-	);
+	if (settlementListItems.length === 0) {
+		list.innerHTML = '<p class="region-sync__empty">Lädt ...</p>';
+	}
+	try {
+		const response = await fetch(`${SETTLEMENT_LIST_API_URL}?action=list_locations`, { credentials: "same-origin" });
+		const data = await response.json();
+		if (!data || data.ok !== true) {
+			throw new Error(data && data.error ? data.error : "Liste konnte nicht geladen werden");
+		}
+		settlementListItems = Array.isArray(data.items) ? data.items : [];
+	} catch (error) {
+		list.innerHTML = `<p class="region-sync__empty">Fehler: ${settlementListEscape(error.message || error)}</p>`;
+		return;
+	}
+	renderSettlementList();
+	void refreshSettlementBulkButton();
 }
 
-function settlementListIsConnected(loc) {
-	return Boolean(loc && loc.wikiSettlement && loc.wikiSettlement.title);
-}
-
-function loadSettlementList() {
+function renderSettlementList() {
 	const list = document.getElementById("settlement-list");
 	const summary = document.getElementById("settlement-list-summary");
 	if (!list) {
 		return;
 	}
-	const all = settlementListEntries();
-	const connectedCount = all.filter(settlementListIsConnected).length;
+	const all = settlementListItems;
+	const connectedCount = all.filter((item) => item.connected).length;
 	if (summary) {
 		summary.textContent = `${all.length} Siedlungen · ${connectedCount} verbunden`;
 	}
-	void refreshSettlementBulkButton();
 
 	const query = (document.getElementById("settlement-list-filter")?.value || "").trim().toLowerCase();
 	let items = all;
 	if (settlementListOnlyUnconnected) {
-		items = items.filter((loc) => !settlementListIsConnected(loc));
+		items = items.filter((item) => !item.connected);
 	}
 	if (query) {
-		items = items.filter((loc) => String(loc.name).toLowerCase().includes(query));
+		items = items.filter((item) => String(item.name).toLowerCase().includes(query));
 	}
-	items = items.slice().sort((a, b) => String(a.name).localeCompare(String(b.name)));
 
 	if (items.length === 0) {
 		list.innerHTML = '<p class="region-sync__empty">Keine Treffer.</p>';
 		return;
 	}
 	list.innerHTML = items
-		.map((loc) => {
-			const connected = settlementListIsConnected(loc);
-			const badge = connected
-				? `<span class="settlement-list__badge settlement-list__badge--on" title="Verbunden: ${settlementListEscape(loc.wikiSettlement.title)}">✓</span>`
+		.map((item) => {
+			const badge = item.connected
+				? `<span class="settlement-list__badge settlement-list__badge--on" title="Verbunden: ${settlementListEscape(item.wiki_title)}">✓</span>`
 				: `<span class="settlement-list__badge settlement-list__badge--off" title="Nicht verbunden">–</span>`;
 			return (
-				`<button type="button" class="settlement-list__item" data-public-id="${settlementListEscape(loc.publicId)}">` +
+				`<button type="button" class="settlement-list__item" data-public-id="${settlementListEscape(item.public_id)}">` +
 				badge +
-				`<span class="settlement-list__name">${settlementListEscape(loc.name)}</span>` +
-				`<span class="settlement-list__size">${settlementListEscape(loc.locationTypeLabel || "")}</span>` +
+				`<span class="settlement-list__name">${settlementListEscape(item.name)}</span>` +
+				`<span class="settlement-list__size">${settlementListEscape(item.settlement_label || "")}</span>` +
 				`</button>`
 			);
 		})
@@ -82,6 +88,8 @@ function settlementListOpen(publicId) {
 	}
 	if (entry && typeof openLocationEditDialog === "function") {
 		openLocationEditDialog({ markerEntry: entry });
+	} else {
+		showFeedbackToast?.("Ort ist auf der Karte (noch) nicht geladen.", "info");
 	}
 }
 
@@ -98,16 +106,13 @@ function setWikiSyncCaseStatus(status) {
 }
 
 // ===== Bulk-Verbinden: alle eindeutig passenden, unverbundenen Orte =====
-const SETTLEMENT_BULK_API_URL = "/api/edit/wiki/settlements.php";
-let settlementBulkRunning = false;
-
 async function refreshSettlementBulkButton() {
 	const button = document.getElementById("settlement-bulk-connect");
 	if (!button || settlementBulkRunning) {
 		return;
 	}
 	try {
-		const response = await fetch(`${SETTLEMENT_BULK_API_URL}?action=connect_status`, { credentials: "same-origin" });
+		const response = await fetch(`${SETTLEMENT_LIST_API_URL}?action=connect_status`, { credentials: "same-origin" });
 		const data = await response.json();
 		if (data && data.ok) {
 			const n = data.connectable_unconnected || 0;
@@ -115,7 +120,7 @@ async function refreshSettlementBulkButton() {
 			button.disabled = n === 0;
 		}
 	} catch (error) {
-		/* still ok ohne Zahl */
+		/* Button bleibt ohne Zahl nutzbar */
 	}
 }
 
@@ -136,7 +141,7 @@ async function bulkConnectSettlements() {
 	let guard = 0;
 	try {
 		while (guard++ < 1000) {
-			const response = await fetch(SETTLEMENT_BULK_API_URL, {
+			const response = await fetch(SETTLEMENT_LIST_API_URL, {
 				method: "POST",
 				credentials: "same-origin",
 				headers: { "Content-Type": "application/json" },
@@ -155,7 +160,7 @@ async function bulkConnectSettlements() {
 			}
 		}
 		if (status) {
-			status.textContent = `${total} verbunden. Seite neu laden (Strg+Shift+R), um die Infoboxen zu sehen.`;
+			status.textContent = `${total} verbunden.`;
 		}
 		showFeedbackToast?.(`${total} Orte mit dem Wiki verbunden.`, "success");
 	} catch (error) {
@@ -168,6 +173,8 @@ async function bulkConnectSettlements() {
 		if (button) {
 			button.disabled = false;
 		}
+		// Liste + Zähler frisch laden (zeigt neue ✓ ohne Seiten-Reload).
+		await loadSettlementList();
 	}
 }
 
@@ -192,14 +199,14 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("input", (event) => {
 	if (event.target && event.target.id === "settlement-list-filter") {
-		loadSettlementList();
+		renderSettlementList();
 	}
 });
 
 document.addEventListener("change", (event) => {
 	if (event.target && event.target.id === "settlement-list-onlyunconnected") {
 		settlementListOnlyUnconnected = Boolean(event.target.checked);
-		loadSettlementList();
+		renderSettlementList();
 	}
 });
 

@@ -390,6 +390,36 @@ function avesmapsWikiSettlementCollectConnectTargets(PDO $pdo): array {
     return $targets;
 }
 
+// Vollständige Karten-Siedlungsliste (Name, Größe, Verbindungsstatus) — Server-Quelle für den
+// „Alle Siedlungen"-Bereich. Unabhängig vom geladenen Kartenzustand im Browser.
+function avesmapsWikiSettlementListLocations(PDO $pdo): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    $rows = $pdo->query("SELECT public_id, name, feature_subtype, properties_json FROM map_features WHERE feature_type='location' AND is_active=1 AND name<>'' ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+    $items = [];
+    foreach ($rows as $r) {
+        $sub = (string) ($r['feature_subtype'] ?? '');
+        if ($sub === 'kreuzung') {
+            continue;
+        }
+        $name = (string) $r['name'];
+        if ($name === '' || str_starts_with($name, 'Kreuzung')) {
+            continue;
+        }
+        $props = avesmapsWikiSyncDecodeJson($r['properties_json'] ?? null);
+        $ws = $props['wiki_settlement'] ?? null;
+        $connected = is_array($ws) && !empty($ws['title']);
+        $items[] = [
+            'public_id' => (string) $r['public_id'],
+            'name' => $name,
+            'settlement_class' => $sub,
+            'settlement_label' => avesmapsWikiSettlementClassLabel($sub),
+            'connected' => $connected,
+            'wiki_title' => $connected ? (string) $ws['title'] : '',
+        ];
+    }
+    return ['ok' => true, 'items' => $items, 'total' => count($items), 'connected' => count(array_filter($items, static fn($i) => $i['connected']))];
+}
+
 // Anzahl der eindeutig verbindbaren, noch unverbundenen Orte (für Button-Label).
 function avesmapsWikiSettlementConnectStatus(PDO $pdo): array {
     avesmapsWikiSettlementEnsureSchema($pdo);

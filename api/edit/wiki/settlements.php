@@ -76,6 +76,7 @@ try {
     $response = match ($action) {
         'status', '' => avesmapsWikiSettlementStatus($pdo),
         'connect_status' => avesmapsWikiSettlementConnectStatus($pdo),
+        'list_locations' => avesmapsWikiSettlementListLocations($pdo),
         'search' => avesmapsWikiSettlementSearch($pdo, (string) ($_GET['q'] ?? ''), (int) ($_GET['limit'] ?? 30)),
         'preview' => ['ok' => true, 'settlement' => avesmapsWikiSettlementBuildFromTitle($pdo, (string) ($_GET['title'] ?? ''))],
         default => null,
