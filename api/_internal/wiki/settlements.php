@@ -332,3 +332,118 @@ function avesmapsWikiSettlementClearAssign(PDO $pdo, string $publicId, bool $dry
 
     return ['ok' => true, 'dry_run' => false, 'applied' => 1, 'target_name' => (string) $target['name'], 'revision' => $revision];
 }
+
+// ===== Größen-Abgleich: Karten-Ortsgröße vs. Wiki-Siedlungsklasse =====
+
+// Match-Schlüssel: NUR Typ-Klammern (Siedlung/Stadt/…) entfernen (= gleicher Ort). Region-Suffixe
+// wie "(Kosch)" bleiben Teil der Identität, damit verschiedene Orte NICHT verschmelzen.
+function avesmapsWikiSettlementBaseKey(string $s): string {
+    $s = preg_replace('/\(\s*(siedlung|stadt|dorf|ort|kleinstadt|gro\x{00DF}stadt|grossstadt|metropole|burg|festung|ruine)\s*\)/iu', ' ', $s) ?? $s;
+    $s = mb_strtolower($s, 'UTF-8');
+    $s = preg_replace('/[^\p{L}\p{N}]+/u', '', $s) ?? $s;
+    return $s;
+}
+
+// baseKey => [class => [titles...]] aus der Registry (wiki_sync_pages.settlement_class).
+function avesmapsWikiSettlementSizeIndex(PDO $pdo): array {
+    $idx = [];
+    $rows = $pdo->query('SELECT title, settlement_class FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE)->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as $r) {
+        $title = (string) ($r['title'] ?? '');
+        $class = (string) ($r['settlement_class'] ?? '');
+        if ($title === '' || $class === '') {
+            continue;
+        }
+        $bk = avesmapsWikiSettlementBaseKey($title);
+        if ($bk === '') {
+            continue;
+        }
+        $idx[$bk][$class][] = $title;
+    }
+    return $idx;
+}
+
+// Liefert alle Größen-Konflikte (Karte ≠ Wiki). target_class nur gesetzt, wenn die Wiki-Seite(n)
+// EINDEUTIG eine Klasse haben. Bauwerke (gebaeude) werden ausgeklammert.
+function avesmapsWikiSettlementAuditSizes(PDO $pdo): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    $idx = avesmapsWikiSettlementSizeIndex($pdo);
+    $rank = ['dorf' => 1, 'kleinstadt' => 2, 'stadt' => 3, 'grossstadt' => 4, 'metropole' => 5];
+    $stmt = $pdo->query("SELECT public_id, name, feature_subtype FROM map_features WHERE feature_type='location' AND is_active=1 AND name<>''");
+    $conflicts = []; $ok = 0; $unmatched = 0; $buildings = 0;
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $mapClass = (string) ($row['feature_subtype'] ?? '');
+        if ($mapClass === 'gebaeude') { $buildings++; continue; }
+        $bk = avesmapsWikiSettlementBaseKey((string) $row['name']);
+        if (!isset($idx[$bk])) { $unmatched++; continue; }
+        $wikiClasses = array_keys($idx[$bk]);
+        if (in_array($mapClass, $wikiClasses, true)) { $ok++; continue; }
+        $target = count($wikiClasses) === 1 ? $wikiClasses[0] : '';
+        $titles = [];
+        foreach ($idx[$bk] as $cl => $ts) {
+            foreach ($ts as $t) { $titles[] = $t; }
+        }
+        $conflicts[] = [
+            'public_id' => (string) $row['public_id'],
+            'name' => (string) $row['name'],
+            'map_class' => $mapClass,
+            'map_label' => avesmapsWikiSettlementClassLabel($mapClass),
+            'wiki_classes' => $wikiClasses,
+            'target_class' => $target,
+            'target_label' => $target !== '' ? avesmapsWikiSettlementClassLabel($target) : '',
+            'ambiguous' => $target === '',
+            'titles' => $titles,
+            'dir' => $target !== '' ? (($rank[$target] ?? 0) <=> ($rank[$mapClass] ?? 0)) : 0,
+            'transition' => $mapClass . '->' . ($target !== '' ? $target : implode('/', $wikiClasses)),
+        ];
+    }
+    usort($conflicts, static fn($a, $b) => ($b['dir'] <=> $a['dir']) ?: strcasecmp($a['name'], $b['name']));
+    return [
+        'ok' => true,
+        'summary' => ['ok' => $ok, 'conflicts' => count($conflicts), 'unmatched' => $unmatched, 'buildings' => $buildings],
+        'conflicts' => $conflicts,
+    ];
+}
+
+// Setzt für die angegebenen Orte (public_ids) die Ortsgröße = eindeutige Wiki-Klasse. Gated:
+// Schreiben nur bei dry_run:false. map_features-Write (Produktion). Ziel wird serverseitig aus der
+// Registry neu bestimmt (Client-Werte werden NICHT vertraut); mehrdeutige werden übersprungen.
+function avesmapsWikiSettlementBulkFixSizes(PDO $pdo, array $publicIds, bool $dryRun): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    $publicIds = array_values(array_unique(array_filter(array_map('strval', $publicIds), static fn($v) => trim($v) !== '')));
+    if ($publicIds === []) {
+        throw new RuntimeException('Keine public_ids angegeben.');
+    }
+    $idx = avesmapsWikiSettlementSizeIndex($pdo);
+    $applied = []; $skipped = []; $revision = null;
+    $select = $pdo->prepare("SELECT id, name, feature_subtype, properties_json FROM map_features WHERE public_id=:p AND feature_type='location' AND is_active=1 LIMIT 1");
+    $update = $pdo->prepare('UPDATE map_features SET feature_subtype=:sub, properties_json=:pj, revision=:rev WHERE id=:id');
+    foreach ($publicIds as $pid) {
+        $select->execute(['p' => $pid]);
+        $row = $select->fetch(PDO::FETCH_ASSOC);
+        if (!$row) { $skipped[] = ['public_id' => $pid, 'reason' => 'nicht gefunden']; continue; }
+        $bk = avesmapsWikiSettlementBaseKey((string) $row['name']);
+        $classes = isset($idx[$bk]) ? array_keys($idx[$bk]) : [];
+        if (count($classes) !== 1) {
+            $skipped[] = ['public_id' => $pid, 'name' => (string) $row['name'], 'reason' => 'kein eindeutiger Wiki-Treffer'];
+            continue;
+        }
+        $target = $classes[0];
+        if ((string) $row['feature_subtype'] === $target) {
+            $skipped[] = ['public_id' => $pid, 'name' => (string) $row['name'], 'reason' => 'bereits korrekt'];
+            continue;
+        }
+        if ($dryRun) {
+            $applied[] = ['public_id' => $pid, 'name' => (string) $row['name'], 'from' => (string) $row['feature_subtype'], 'to' => $target];
+            continue;
+        }
+        $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
+        $props = avesmapsWikiSyncDecodeJson($row['properties_json'] ?? null);
+        $props['feature_subtype'] = $target;
+        $props['settlement_class'] = $target;
+        $props['settlement_class_label'] = avesmapsWikiSettlementClassLabel($target);
+        $update->execute(['sub' => $target, 'pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $row['id']]);
+        $applied[] = ['public_id' => $pid, 'name' => (string) $row['name'], 'from' => (string) $row['feature_subtype'], 'to' => $target];
+    }
+    return ['ok' => true, 'dry_run' => $dryRun, 'applied' => count($applied), 'applied_items' => $applied, 'skipped' => $skipped];
+}

@@ -36,8 +36,9 @@ const AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS = [
 const AVESMAPS_WIKI_CATEGORY_TO_CLASS = [
     'Dorf' => 'dorf',
     'Kleinstadt' => 'kleinstadt',
-    'Stadt' => 'stadt',
-    'Mittlere Stadt' => 'stadt',
+    // Die mittelgroße Stadt heißt im Wiki "Mittelgroße Stadt" (NICHT "Stadt"/"Mittlere Stadt",
+    // die als Kategorie nicht existieren) — sonst wird die Klasse 'stadt' nie getaggt/gecrawlt.
+    "Mittelgro\u{00DF}e Stadt" => 'stadt',
     "Gro\u{00DF}stadt" => 'grossstadt',
     "Metropole (Siedlungsgr\u{00F6}\u{00DF}e)" => 'metropole',
 ];

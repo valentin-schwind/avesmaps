@@ -647,3 +647,90 @@
 	opacity: 0.4;
 	cursor: not-allowed;
 }
+
+/* ===== WikiSync „Größen"-Reiter: Größen-Abgleich Karte ↔ Wiki ===== */
+.settlement-size-bulkbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 6px 8px;
+	flex-wrap: wrap;
+}
+.settlement-size-bulkbar__all {
+	font-size: 12px;
+	color: #5a4a3a;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+}
+#settlement-size-list {
+	background: #fff;
+	border: 1px solid #dccab8;
+	border-radius: 6px;
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 0;
+}
+.settlement-size-group {
+	border-bottom: 1px solid #eadfce;
+}
+.settlement-size-group__head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	background: #f7efe3;
+	position: sticky;
+	top: 0;
+	z-index: 1;
+}
+.settlement-size-group__title {
+	font-weight: 600;
+	font-size: 12px;
+	color: #5a3b1e;
+	flex: 1 1 auto;
+}
+.settlement-size-group__badge {
+	font-size: 11px;
+	border-radius: 999px;
+	padding: 2px 8px;
+	white-space: nowrap;
+}
+.settlement-size-group__badge--up { background: #e3f1e3; color: #2f6b32; }
+.settlement-size-group__badge--down { background: #f6e6e0; color: #a14a2a; }
+.settlement-size-group__badge--amb { background: #ece6f0; color: #6a5a7a; }
+.settlement-size-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 8px 4px 14px;
+}
+.settlement-size-item:hover {
+	background: #faf4ea;
+}
+.settlement-size-item__check--none {
+	width: 13px;
+	text-align: center;
+	color: #b0a08c;
+}
+.settlement-size-item__name {
+	border: 0;
+	background: none;
+	padding: 0;
+	color: #2c2117;
+	font: inherit;
+	cursor: pointer;
+	text-align: left;
+	flex: 1 1 auto;
+}
+.settlement-size-item__name:hover {
+	text-decoration: underline;
+	color: #7a5a3a;
+}
+.settlement-size-item__amb {
+	font-size: 11px;
+	color: #6a5a7a;
+}
