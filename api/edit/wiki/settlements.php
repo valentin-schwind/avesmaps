@@ -47,16 +47,11 @@ try {
                 (string) ($payload['public_id'] ?? ''),
                 !$isApply()
             ),
-            'bulk_fix_sizes' => avesmapsWikiSettlementBulkFixSizes(
-                $pdo,
-                is_array($payload['public_ids'] ?? null) ? $payload['public_ids'] : [],
-                !$isApply()
-            ),
             default => null,
         };
 
         // map_features-Cache invalidieren, wenn echt geschrieben wurde.
-        if (in_array($action, ['assign_to', 'clear_assign', 'bulk_fix_sizes'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
+        if (in_array($action, ['assign_to', 'clear_assign'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
 
@@ -75,7 +70,6 @@ try {
 
     $response = match ($action) {
         'status', '' => avesmapsWikiSettlementStatus($pdo),
-        'audit_sizes' => avesmapsWikiSettlementAuditSizes($pdo),
         'search' => avesmapsWikiSettlementSearch($pdo, (string) ($_GET['q'] ?? ''), (int) ($_GET['limit'] ?? 30)),
         'preview' => ['ok' => true, 'settlement' => avesmapsWikiSettlementBuildFromTitle($pdo, (string) ($_GET['title'] ?? ''))],
         default => null,
