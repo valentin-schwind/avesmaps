@@ -42,38 +42,49 @@ function labelHasWikiRegion(label) {
 // Infobox einer Wiki-Landschaft (Ansichtsmodus, Klick auf das Label). Bild nur bei nachweislich
 // freier Lizenz (gemeinfrei); sonst ausgeblendet (konservativ wie bei den Herrschaftsgebieten).
 function labelWikiInfoboxMarkup(label) {
+	// Gleiche Struktur/Klassen wie die Herrschaftsgebiete-Infobox (.region-info-box) -> erbt deren
+	// Styles/Abstaende. Bild nur bei nachweislich freier Lizenz (gemeinfrei), sonst ausgeblendet.
 	const wiki = label.wikiRegion || {};
-	const title = wiki.name || label.text || "";
-	const rows = [
-		["Art", wiki.art],
-		["Lage", wiki.region_parent],
-		["Staat", wiki.affiliation_staat],
-		["Einwohner", wiki.einwohner],
-		["Sprache", wiki.sprache],
-	].filter((pair) => String(pair[1] || "").trim() !== "");
+	const name = wiki.name || label.text || "";
 	const licenseStatus = String(wiki.image_license_status || "").toLowerCase();
 	const imageIsFree = licenseStatus === "public_domain" || licenseStatus === "public-domain" || licenseStatus === "gemeinfrei";
+	const coatMarkup = wiki.image_url && imageIsFree
+		? `<img class="region-info-box__coat" src="${escapeHtml(wiki.image_url)}" alt="" loading="lazy" decoding="async">`
+		: "";
+	const hasCoatClass = coatMarkup ? " has-coat" : "";
 
-	let html = '<div class="label-wiki-infobox">';
-	if (wiki.image_url && imageIsFree) {
-		html += `<img class="label-wiki-infobox__img" src="${escapeHtml(wiki.image_url)}" alt="${escapeHtml(title)}" loading="lazy" />`;
-	}
-	html += `<div class="label-wiki-infobox__title">${escapeHtml(title)}</div>`;
-	if (rows.length) {
-		html += '<dl class="label-wiki-infobox__dl">';
-		rows.forEach((pair) => {
-			html += `<dt>${escapeHtml(pair[0])}</dt><dd>${escapeHtml(pair[1])}</dd>`;
-		});
-		html += "</dl>";
-	}
-	if (wiki.description) {
-		html += `<p class="label-wiki-infobox__desc">${escapeHtml(wiki.description)}</p>`;
-	}
+	const row = (dtLabel, value) => {
+		if (!value || String(value).trim() === "") {
+			return "";
+		}
+		return `<div class="region-info-box__row"><dt>${escapeHtml(dtLabel)}</dt><dd>${escapeHtml(value)}</dd></div>`;
+	};
+
+	let rows = "";
+	rows += row("Art", wiki.art);
+	rows += row("Lage", wiki.region_parent);
+	rows += row("Staat", wiki.affiliation_staat);
+	rows += row("Einwohner", wiki.einwohner);
+	rows += row("Sprache", wiki.sprache);
+	rows += row("Vegetation", wiki.vegetation);
+	rows += row("Verkehrswege", wiki.verkehrswege);
+	const description = String(wiki.description || "").trim();
+	rows += row("Beschreibung", description.length > 320 ? description.slice(0, 320).trim() + " …" : description);
 	if (wiki.wiki_url) {
-		html += `<a class="label-wiki-infobox__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
+		rows += `<div class="region-info-box__row"><dt>Wiki</dt><dd><a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a></dd></div>`;
 	}
-	html += "</div>";
-	return html;
+
+	return (
+		'<div class="region-info-box">' +
+		`<div class="region-info-box__header${hasCoatClass}">` +
+		coatMarkup +
+		'<div class="region-info-box__title-group">' +
+		`<strong class="region-info-box__title">${escapeHtml(name)}</strong>` +
+		'<span class="region-info-box__subtitle">Wiki-Landschaft</span>' +
+		"</div></div>" +
+		`<dl class="region-info-box__data">${rows}</dl>` +
+		"</div>"
+	);
 }
 
 function createLabelMarkerEntry(label) {
@@ -93,7 +104,7 @@ function createLabelMarkerEntry(label) {
 		});
 	} else if (labelHasWikiRegion(label)) {
 		// Ansichtsmodus: Label mit zugeordneter Wiki-Landschaft ist anklickbar -> Infobox.
-		marker.bindPopup(labelWikiInfoboxMarkup(label), { className: "label-wiki-infobox-popup", maxWidth: 320, autoPan: true });
+		marker.bindPopup(labelWikiInfoboxMarkup(label), { className: "label-wiki-infobox-popup", maxWidth: 360, autoPan: true });
 	}
 	syncLabelMarkerVisibility(entry);
 	return entry;

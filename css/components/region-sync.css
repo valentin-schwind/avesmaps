@@ -325,3 +325,32 @@
 #label-edit-dialog .location-report-form__button--primary {
 	font-family: "Faculty Glyphic", Arial, sans-serif;
 }
+
+/* View-Mode-Popup der Label-Infobox: Pergament-Rahmen wie die Herrschaftsgebiete-Infobox. */
+.label-wiki-infobox-popup .leaflet-popup-content-wrapper {
+	background: rgba(255, 249, 244, 0.98);
+	border: 1px solid #b79d7d;
+	border-radius: 8px;
+	box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+	color: #3f3428;
+}
+
+.label-wiki-infobox-popup .leaflet-popup-content {
+	margin: 0;
+}
+
+.label-wiki-infobox-popup .leaflet-popup-tip {
+	background: rgba(255, 249, 244, 0.98);
+	border: 1px solid #b79d7d;
+}
+
+.label-wiki-infobox-popup .region-info-box__header {
+	padding-right: 16px;
+}
+
+/* Infobox im Edit-Mode-Label-Popup etwas abgesetzt unter den Aktionen. */
+.location-popup .region-info-box {
+	margin-top: 6px;
+	padding-top: 8px;
+	border-top: 1px solid rgba(141, 121, 98, 0.3);
+}
