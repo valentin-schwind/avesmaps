@@ -43,6 +43,23 @@ function refreshLocationMarkerPopup(markerEntry) {
 	);
 }
 
+// Nur den ersten Satz der Wiki-Beschreibung — schneidet eingeschleppte Infobox-Reste
+// ("Stadtteil= |Befestigung= …") hinter dem Satzende ab.
+function settlementFirstSentence(text) {
+	let value = String(text || "").replace(/\s+/g, " ").trim();
+	if (value === "") {
+		return "";
+	}
+	const match = value.match(/^.*?[.!?](?=\s|$)/u);
+	let sentence = (match ? match[0] : value).trim();
+	// Sicherheitsnetz: falls kein sauberer Satzpunkt, ab erstem Template-Rest ("|" oder "Feld=") kappen.
+	sentence = sentence.replace(/\s*[|}].*$/u, "").replace(/\s+[A-ZÄÖÜ][\wäöüß]*\s*=.*$/u, "").trim();
+	if (sentence.length > 220) {
+		sentence = sentence.slice(0, 220).trim() + " …";
+	}
+	return sentence;
+}
+
 // Infobox aus dem verbundenen Wiki-Siedlungs-Datensatz. Gleiche Struktur/Klassen wie die
 // Herrschaftsgebiete-/Label-Infobox (.region-info-box) -> erbt deren Styles/Abstaende. Wappen
 // nur bei nachweislich freier Lizenz (derzeit ausgeblendet, wie bei Regionen/Wegen).
@@ -81,8 +98,7 @@ function settlementWikiInfoboxMarkup(location) {
 	if (wiki.tempel) {
 		rows += row("Tempel", wiki.tempel);
 	}
-	const description = String(wiki.description || "").trim();
-	rows += row("Beschreibung", description.length > 130 ? description.slice(0, 130).trim() + " …" : description);
+	rows += row("Beschreibung", settlementFirstSentence(wiki.description));
 	const wikiLink = wiki.wiki_url
 		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} im Wiki-Aventurica ↗</a>`
 		: "";
