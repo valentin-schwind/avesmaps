@@ -17,17 +17,14 @@ function pathWikiInfoboxMarkup(path) {
 	rows += row("Lage", wiki.lage);
 	rows += row("Länge", wiki.laenge);
 	rows += row("Verlauf", wiki.verlauf);
-	const description = String(wiki.description || "").trim();
-	rows += row("Beschreibung", description.length > 130 ? description.slice(0, 130).trim() + " …" : description);
+	rows += row("Beschreibung", typeof settlementFirstSentence === "function" ? settlementFirstSentence(wiki.description) : String(wiki.description || "").trim());
 	const wikiLink = wiki.wiki_url
 		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} im Wiki-Aventurica ↗</a>`
 		: "";
+	// Kopflos (Name + Typ zeigt der Popup-Kopf schon) + gleiche Klasse wie Siedlungen -> erbt
+	// Trenner/Breite/Padding der .settlement-popup-Styles.
 	return (
-		'<div class="region-info-box">' +
-		'<div class="region-info-box__header"><div class="region-info-box__title-group">' +
-		`<strong class="region-info-box__title">${escapeHtml(name)}</strong>` +
-		(art ? `<span class="region-info-box__subtitle">${escapeHtml(art)}</span>` : "") +
-		"</div></div>" +
+		'<div class="region-info-box region-info-box--settlement">' +
 		`<dl class="region-info-box__data">${rows}</dl>` +
 		wikiLink +
 		"</div>"
@@ -93,8 +90,9 @@ function refreshPathLayerPopup(path) {
 	}
 
 	const popupMarkup = createPathPopupMarkup(path);
+	const options = pathHasWiki(path) ? { className: "settlement-popup", minWidth: 320, maxWidth: 400 } : undefined;
 	path._pathLines.forEach((line) => {
-		line.bindPopup(popupMarkup);
+		line.bindPopup(popupMarkup, options);
 	});
 }
 

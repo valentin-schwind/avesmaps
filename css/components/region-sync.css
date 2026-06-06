@@ -811,3 +811,15 @@
 	padding: 11px 14px 0;
 	border-top: 1px solid rgba(141, 121, 98, 0.35);
 }
+
+/* ===== Label-/Region-View-Popup: gleiche Behandlung wie Siedlungs-Popup (breiter, gleichmäßiges
+   Padding, Trenner unter dem Titel in voller Breite). Scoped -> bricht NICHT die Herrschaftsgebiete. */
+.label-wiki-infobox-popup .region-info-box {
+	width: min(400px, calc(100vw - 32px));
+	padding: 12px 14px;
+	gap: 8px;
+}
+.label-wiki-infobox-popup .region-info-box__header {
+	margin: 0 -14px;
+	padding: 0 14px 10px;
+}

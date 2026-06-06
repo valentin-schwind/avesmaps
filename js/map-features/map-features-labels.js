@@ -67,8 +67,7 @@ function labelWikiInfoboxMarkup(label) {
 	rows += row("Einwohner", wiki.einwohner);
 	rows += row("Sprache", wiki.sprache);
 	rows += row("Vegetation", wiki.vegetation);
-	const description = String(wiki.description || "").trim();
-	rows += row("Beschreibung", description.length > 130 ? description.slice(0, 130).trim() + " …" : description);
+	rows += row("Beschreibung", typeof settlementFirstSentence === "function" ? settlementFirstSentence(wiki.description) : String(wiki.description || "").trim());
 	const wikiLink = wiki.wiki_url
 		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} im Wiki-Aventurica ↗</a>`
 		: "";
@@ -104,7 +103,7 @@ function createLabelMarkerEntry(label) {
 		});
 	} else if (labelHasWikiRegion(label)) {
 		// Ansichtsmodus: Label mit zugeordneter Wiki-Landschaft ist anklickbar -> Infobox.
-		marker.bindPopup(labelWikiInfoboxMarkup(label), { className: "label-wiki-infobox-popup", maxWidth: 360, autoPan: true });
+		marker.bindPopup(labelWikiInfoboxMarkup(label), { className: "label-wiki-infobox-popup", minWidth: 300, maxWidth: 400, autoPan: true });
 	}
 	syncLabelMarkerVisibility(entry);
 	return entry;
