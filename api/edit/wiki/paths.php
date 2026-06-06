@@ -41,8 +41,24 @@ try {
             ),
             'crawl_step' => avesmapsWikiPathCrawlStep($pdo, trim((string) ($payload['run_id'] ?? '')), $options),
             'clear' => avesmapsWikiPathClear($pdo, (string) ($payload['target'] ?? ''), (string) ($payload['run_id'] ?? '')),
+            'assign' => avesmapsWikiPathAssign(
+                $pdo,
+                (string) ($payload['wiki_key'] ?? ''),
+                // Schreiben NUR bei dry_run:false UND confirm:"apply".
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+            ),
+            'clear_assign' => avesmapsWikiPathClearAssign(
+                $pdo,
+                (string) ($payload['public_id'] ?? ''),
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+            ),
             default => null,
         };
+
+        // map_features-Cache invalidieren, wenn echt geschrieben wurde (Clients sehen die Zuordnung).
+        if (in_array($action, ['assign', 'clear_assign'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
+            avesmapsWikiSyncNextMapRevision($pdo);
+        }
 
         if ($response === null) {
             avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Unbekannte Wege-Sync-POST-Action: ' . $action]);
