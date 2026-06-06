@@ -18,13 +18,14 @@ const LABEL_WIKI_ART_TO_SUBTYPE = {
 	"see": "see", "seenlandschaft": "see",
 	"sumpf": "suempfe_moore", "moor": "suempfe_moore", "marschland": "suempfe_moore",
 	"wüste": "wueste", "wueste": "wueste", "halbwüste": "wueste", "halbwueste": "wueste",
-	"steppe": "steppe", "graslandschaft": "steppe",
+	"steppe": "steppe", "graslandschaft": "graslandschaft",
 	"hügelland": "huegelland", "hugelland": "huegelland", "hochland": "huegelland",
 	"tundra": "tundra",
 	"küste": "kueste", "kueste": "kueste", "klippe": "kueste",
 	"ebene": "ebene", "tiefland": "ebene", "flachland": "ebene",
 	"region": "region", "mischregion": "region", "großregion": "region", "grossregion": "region",
-	"flusstal": "region", "tal": "region", "auenlandschaft": "region", "halbinsel": "region",
+	"flusstal": "region", "tal": "region", "halbinsel": "region",
+	"auenlandschaft": "auenlandschaft",
 	"fluss": "fluss", "kontinent": "kontinent",
 };
 

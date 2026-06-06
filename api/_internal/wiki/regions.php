@@ -44,10 +44,11 @@ function avesmapsWikiRegionDefaultSeeds(): array {
 const AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE = [
     // region (Sammeltopf)
     'region' => 'region', 'mischregion' => 'region', 'grossregion' => 'region',
-    'flusstal' => 'region', 'tal' => 'region', 'auenlandschaft' => 'region',
-    'halbinsel' => 'region',
+    'flusstal' => 'region', 'tal' => 'region', 'halbinsel' => 'region',
     // steppe (trockenes Grasland)
-    'steppe' => 'steppe', 'graslandschaft' => 'steppe',
+    'steppe' => 'steppe',
+    // gras-/auenlandschaft (eigene Grüntöne)
+    'graslandschaft' => 'graslandschaft', 'auenlandschaft' => 'auenlandschaft',
     // hügelland (Höhenland)
     'hugelland' => 'huegelland', 'hochland' => 'huegelland',
     // tundra

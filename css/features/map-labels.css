@@ -102,6 +102,12 @@ body.edit-mode .map-label span {
 .map-label--ebene span {
 	color: #dde4c2; /* Ebene: helles, offenes Wiesen-/Cremegrün */
 }
+.map-label--graslandschaft span {
+	color: #cfe6a4; /* Graslandschaft: helles, frisches Grasgrün (gelblich) */
+}
+.map-label--auenlandschaft span {
+	color: #c2e8d0; /* Auenlandschaft: weiches Minz-/Auengrün (Richtung Wasser) */
+}
 
 .map-label--suempfe_moore span {
 	color: #9fccad;

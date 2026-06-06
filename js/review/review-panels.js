@@ -643,6 +643,8 @@ function getReportTypeLabel(report) {
 		tundra: "Tundra",
 		kueste: "Küste",
 		ebene: "Ebene",
+		graslandschaft: "Graslandschaft",
+		auenlandschaft: "Auenlandschaft",
 		wueste: "Wüste",
 		suempfe_moore: "Sümpfe/Moore",
 		comment: "Kommentar",
