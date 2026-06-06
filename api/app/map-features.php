@@ -45,6 +45,7 @@ try {
     }
 
     $wikiLocationLinks = avesmapsLoadWikiSyncLocationLinks($pdo);
+    $buildingTypes = avesmapsLoadWikiSyncBuildingTypes($pdo);
     $query = avesmapsBuildMapFeaturesQuery($_GET);
     $statement = $pdo->prepare($query['sql']);
     $statement->execute($query['params']);
@@ -56,7 +57,7 @@ try {
         'revision' => $revision,
         'type' => 'FeatureCollection',
         'features' => array_map(
-            static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks),
+            static fn(array $row): array => avesmapsMapFeatureRowToGeoJsonFeature($row, $wikiLocationLinks, $buildingTypes),
             $statement->fetchAll()
         ),
     ]);
@@ -229,7 +230,7 @@ function avesmapsMapFeaturesRespond(array $payload): never {
     exit;
 }
 
-function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = []): array {
+function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLinks = [], array $buildingTypes = []): array {
     if ((int) ($row['is_active'] ?? 1) !== 1) {
         return [
             'type' => 'Feature',
@@ -259,6 +260,16 @@ function avesmapsMapFeatureRowToGeoJsonFeature(array $row, array $wikiLocationLi
     $properties['feature_subtype'] = (string) $row['feature_subtype'];
     $properties['revision'] = (int) $row['revision'];
     $properties['updated_at'] = (string) $row['updated_at'];
+
+    // Genauer Bauwerkstyp (Festung/Turm/…) + Ruine aus der Registry an die verbundene Wiki-Siedlung
+    // heften, damit die Infobox die Unterüberschrift zeigt (deckt auch schon-verbundene Bauwerke ab).
+    if ((string) $row['feature_type'] === 'location' && is_array($properties['wiki_settlement'] ?? null)) {
+        $wikiTitle = trim((string) ($properties['wiki_settlement']['title'] ?? ''));
+        if ($wikiTitle !== '' && isset($buildingTypes[$wikiTitle])) {
+            $properties['wiki_settlement']['building_type'] = $buildingTypes[$wikiTitle]['type'];
+            $properties['wiki_settlement']['is_ruined'] = $buildingTypes[$wikiTitle]['ruined'];
+        }
+    }
 
     return [
         'type' => 'Feature',
@@ -295,6 +306,30 @@ function avesmapsNormalizeLegacyMapFeatureProperties(array $properties): array {
     }
 
     return $properties;
+}
+
+// title -> {type, ruined} aus der Bauwerks-Registry. Try/catch, falls die Spalten (noch) fehlen.
+function avesmapsLoadWikiSyncBuildingTypes(PDO $pdo): array {
+    try {
+        $statement = $pdo->query(
+            'SELECT title, building_type, is_ruined FROM wiki_sync_pages
+             WHERE building_type IS NOT NULL AND building_type <> \'\''
+        );
+    } catch (Throwable $error) {
+        return [];
+    }
+    if ($statement === false) {
+        return [];
+    }
+    $map = [];
+    foreach ($statement->fetchAll() as $row) {
+        $title = trim((string) ($row['title'] ?? ''));
+        if ($title === '') {
+            continue;
+        }
+        $map[$title] = ['type' => (string) $row['building_type'], 'ruined' => !empty($row['is_ruined'])];
+    }
+    return $map;
 }
 
 function avesmapsLoadWikiSyncLocationLinks(PDO $pdo): array {

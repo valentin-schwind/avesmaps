@@ -27,11 +27,19 @@ function refreshLocationMarkerPopup(markerEntry) {
 		: '<div class="location-popup__nowiki">Kein Wiki-Eintrag gefunden</div>';
 	// Wappen ersetzt das Siedlungs-Icon (nur gesetzt, wenn gemeinfrei/eigen).
 	const coatIconMarkup = typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "";
+	// Bauwerke: genauer Typ (Festung/Turm/…) als Unterüberschrift statt „Besondere Bauwerke/Stätten".
+	let typeLabel = markerEntry.location.locationTypeLabel;
+	if (wikiSettlement && wikiSettlement.building_type) {
+		typeLabel = String(wikiSettlement.building_type);
+		if (wikiSettlement.is_ruined && !/ruine/i.test(typeLabel)) {
+			typeLabel += " (Ruine)";
+		}
+	}
 	markerEntry.marker.bindPopup(
 		locationPopupMarkup({
 			name: markerEntry.name,
 			locationType: markerEntry.locationType,
-			locationTypeLabel: markerEntry.location.locationTypeLabel,
+			locationTypeLabel: typeLabel,
 			headerIconMarkup: coatIconMarkup,
 			description: markerEntry.location.description,
 			wikiUrl: markerEntry.location.wikiUrl,
