@@ -385,14 +385,11 @@ body.edit-mode .map-label span {
 	cursor: pointer;
 }
 
-/* Verkehrswege als Links auf die eigene Spotlight-Suche (verhindert Handy-Auto-Erkennung). */
-.region-info-box__waylink {
-	color: #235f82;
-	text-decoration: underline;
-	text-decoration-thickness: 1px;
-	text-underline-offset: 2px;
-	cursor: pointer;
-}
-.region-info-box__waylink:hover {
-	color: #103f5a;
+/* Inertes <a> um Verkehrswege-Text: verhindert iOS/Android-Data-Detectors (keine Google/Apple-Maps-
+   Verlinkung), sieht aber aus wie normaler Text und ist nicht klickbar. */
+.region-info-box__plain {
+	color: inherit;
+	text-decoration: none;
+	pointer-events: none;
+	cursor: text;
 }

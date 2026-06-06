@@ -74,17 +74,11 @@ function settlementWikiInfoboxMarkup(location) {
 		return `<div class="region-info-box__row"><dt>${escapeHtml(dtLabel)}</dt><dd>${escapeHtml(value)}</dd></div>`;
 	};
 
-	// Verkehrswege als echte Links auf unsere eigene Spotlight-Suche — verhindert, dass Handys die
-	// Namen als reale Orte erkennen (Google/Apple Maps) und verbindet stattdessen mit unserer Karte.
+	// Verkehrswege in ein inertes <a> wickeln: iOS/Android-Data-Detectors lassen den Inhalt von
+	// Links in Ruhe (keine Google/Apple-Maps-Verlinkung) — es ist aber NICHT klickbar und macht
+	// nichts (CSS pointer-events:none, kein Link-Look).
 	const wayValue = String(wiki.verkehrswege || "").trim();
-	const waysHtml = wayValue
-		? wayValue
-			.split(/\s*,\s*/)
-			.map((part) => part.trim())
-			.filter(Boolean)
-			.map((part) => `<a class="region-info-box__waylink" href="#" role="button" data-way-name="${escapeHtml(part)}">${escapeHtml(part)}</a>`)
-			.join(", ")
-		: "";
+	const waysHtml = wayValue ? `<a class="region-info-box__plain" href="#">${escapeHtml(wayValue)}</a>` : "";
 
 	let rows = "";
 	rows += row("Einwohner", wiki.einwohner);
@@ -142,121 +136,3 @@ function createEditablePointMarkerEntry(location) {
 	return markerEntry;
 }
 
-// Fliegt direkt zum gleichnamigen Weg/Fluss auf unserer Karte (pathData enthält auch Flüsse, die
-// in der Spotlight-Suche fehlen). Exakter Name bevorzugt, sonst Teilstring. Mehrteilige Flüsse:
-// Gesamt-Bounds aller passenden Segmente.
-let activeWayHighlight = { paths: [], timer: null };
-
-// Hebt alle Segmente der gefundenen Wege/Flüsse gelb hervor und setzt sie nach 6 s (oder beim
-// nächsten Klick) auf ihren Originalstil zurück (updatePathLayerStyle rechnet ihn neu).
-function highlightWayPaths(paths) {
-	const reset = (list) => list.forEach((p) => {
-		try {
-			if (typeof updatePathLayerStyle === "function") {
-				updatePathLayerStyle(p);
-			}
-		} catch (error) {
-			/* Layer evtl. weg */
-		}
-	});
-	if (activeWayHighlight.timer) {
-		window.clearTimeout(activeWayHighlight.timer);
-	}
-	reset(activeWayHighlight.paths);
-
-	activeWayHighlight = { paths: paths.slice(), timer: null };
-	paths.forEach((p) => {
-		const lines = p && p._pathLines;
-		if (!Array.isArray(lines)) {
-			return;
-		}
-		if (lines[0] && lines[0].setStyle) {
-			lines[0].setStyle({ color: "#8a6d00", weight: 7, opacity: 1 });
-		}
-		if (lines[1] && lines[1].setStyle) {
-			lines[1].setStyle({ color: "#ffd400", weight: 4 });
-		}
-		lines.forEach((line) => line && line.bringToFront && line.bringToFront());
-	});
-	const highlighted = activeWayHighlight.paths;
-	activeWayHighlight.timer = window.setTimeout(() => {
-		reset(highlighted);
-		activeWayHighlight = { paths: [], timer: null };
-	}, 6000);
-}
-
-function focusWayByName(query) {
-	if (typeof pathData === "undefined" || !Array.isArray(pathData) || typeof map === "undefined" || !map) {
-		return false;
-	}
-	const norm = (value) => String(value || "").toLowerCase().replace(/ß/g, "ss").replace(/[^\p{L}\p{N}]+/gu, "");
-	// Der echte Wiki-Name steckt in display_name/original_name; properties.name ist der generierte
-	// Fallback (z. B. "Flussweg-1234").
-	const wayName = (path) => path?.properties?.display_name || path?.properties?.original_name || path?.properties?.name || "";
-
-	// Kandidaten: "Reichsstraßen 2 und 3" -> "Reichsstraße 2" + "Reichsstraße 3" (Plural+und auflösen).
-	const text = String(query || "");
-	const nums = text.match(/\d+/g) || [];
-	const base = text
-		.replace(/\d+/g, " ")
-		.replace(/\b(und|sowie|nach|bis|zur|zum|von|der|die|das)\b/gi, " ")
-		.replace(/straßen/gi, "straße")
-		.replace(/strassen/gi, "strasse")
-		.replace(/,/g, " ")
-		.replace(/\s+/g, " ")
-		.trim();
-	const candidates = [];
-	if (base && nums.length) {
-		nums.forEach((n) => candidates.push(`${base} ${n}`));
-	}
-	if (base) {
-		candidates.push(base);
-	}
-	candidates.push(text);
-	const candNorms = Array.from(new Set(candidates.map(norm).filter((c) => c.length >= 2)));
-
-	// Generierte Fallback-Namen ("Pfad-12", "Reichsstrasse-226") raus — sie kollidieren sonst nach
-	// Normalisierung mit echten Namen ("Reichsstraße 2"). Echte Namen enden nicht auf "-<Zahl>".
-	const named = pathData
-		.map((path) => ({ path, raw: String(wayName(path)) }))
-		.filter((entry) => entry.raw && !/-\d+$/.test(entry.raw))
-		.map((entry) => ({ path: entry.path, n: norm(entry.raw) }))
-		.filter((entry) => entry.n);
-	let matches = named.filter((entry) => candNorms.includes(entry.n));
-	if (matches.length === 0) {
-		matches = named.filter((entry) => entry.n.length >= 4 && candNorms.some((c) => c.includes(entry.n) || (c.length >= 4 && entry.n.includes(c))));
-	}
-	if (matches.length === 0) {
-		return false;
-	}
-	highlightWayPaths(matches.map((entry) => entry.path));
-	const latlngs = [];
-	matches.forEach((entry) => {
-		(entry.path?.geometry?.coordinates || []).forEach((coord) => {
-			if (Array.isArray(coord) && coord.length >= 2) {
-				latlngs.push([coord[1], coord[0]]);
-			}
-		});
-	});
-	if (latlngs.length === 0) {
-		return false;
-	}
-	map.closePopup();
-	map.flyToBounds(L.latLngBounds(latlngs), { padding: [60, 60], maxZoom: 5, duration: 0.6 });
-	return true;
-}
-
-// Klick auf einen Verkehrswege-Link fliegt direkt zum Weg/Fluss auf unserer Karte (statt externer
-// Karten-Apps). Der echte <a> verhindert zudem die Handy-Auto-Erkennung.
-document.addEventListener("click", (event) => {
-	const link = event.target && event.target.closest && event.target.closest(".region-info-box__waylink");
-	if (!link) {
-		return;
-	}
-	event.preventDefault();
-	event.stopPropagation();
-	const query = link.dataset.wayName || link.textContent || "";
-	if (!focusWayByName(query)) {
-		showFeedbackToast?.(`„${query}" ist auf der Karte (noch) nicht als Weg/Fluss hinterlegt.`, "info");
-	}
-});
