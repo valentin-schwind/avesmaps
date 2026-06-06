@@ -271,7 +271,8 @@ async function submitWikiSyncLocationAction(action, payload = {}) {
 		if (response.status === 409) {
 			void pollLiveMapUpdates();
 		}
-		throw new Error(data?.error || `WikiSyncLocations-API antwortet mit HTTP ${response.status}.`);
+		const debugInfo = data?.debug ? ` [${data.debug.message || ""} @ ${data.debug.file || ""}:${data.debug.line || ""}]` : "";
+		throw new Error((data?.error || `WikiSyncLocations-API antwortet mit HTTP ${response.status}.`) + debugInfo);
 	}
 
 	return data;

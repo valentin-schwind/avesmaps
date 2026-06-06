@@ -240,6 +240,10 @@ function avesmapsWikiSyncReadMapPlaces(PDO $pdo): array {
             ?? ''
         ), 500);
 
+        // Das (große) Wiki-Infobox-Objekt ist für die Fall-Logik irrelevant und würde – nun da
+        // viele Orte verbunden sind – die stats_json des Laufs massiv aufblähen (Sync-Abbruch).
+        unset($properties['wiki_settlement']);
+
         $places[] = [
             'id' => (int) ($row['id'] ?? 0),
             'public_id' => (string) ($row['public_id'] ?? ''),
