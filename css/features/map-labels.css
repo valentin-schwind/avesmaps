@@ -387,7 +387,12 @@ body.edit-mode .map-label span {
 
 /* Inertes <a> um Verkehrswege-Text: verhindert iOS/Android-Data-Detectors (keine Google/Apple-Maps-
    Verlinkung), sieht aber aus wie normaler Text und ist nicht klickbar. */
-.region-info-box__plain {
+.region-info-box__plain,
+.region-info-box__plain:link,
+.region-info-box__plain:visited,
+.region-info-box__plain:hover,
+.region-info-box__plain:active,
+.region-info-box__plain:focus {
 	color: inherit;
 	text-decoration: none;
 	pointer-events: none;
