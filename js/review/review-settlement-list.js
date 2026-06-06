@@ -64,12 +64,27 @@ async function runSettlementContinentBackfill() {
 		return;
 	}
 	const btn = document.getElementById("settlement-backfill-continents");
+	const progress = document.getElementById("wiki-sync-progress");
 	settlementBackfillRunning = true;
 	if (btn) {
 		btn.disabled = true;
 	}
 	try {
-		let remaining = Infinity;
+		// Gesamtzahl als Progress-Maximum bestimmen, damit der Balken wirklich läuft.
+		let total = 0;
+		try {
+			const statusResponse = await fetch(`${SETTLEMENT_LIST_API_URL}?action=continent_status`, { credentials: "same-origin" });
+			const statusData = await statusResponse.json();
+			total = statusData && statusData.ok ? Number(statusData.remaining || 0) : 0;
+		} catch (statusError) {
+			total = 0;
+		}
+		if (progress && total > 0) {
+			progress.max = total;
+			progress.value = 0;
+			progress.hidden = false;
+		}
+		let remaining = total > 0 ? total : Infinity;
 		let guard = 0;
 		while (remaining > 0 && guard < 400) {
 			const response = await fetch(SETTLEMENT_LIST_API_URL, {
@@ -84,6 +99,9 @@ async function runSettlementContinentBackfill() {
 			}
 			remaining = Number(data.remaining || 0);
 			guard += 1;
+			if (progress && total > 0) {
+				progress.value = Math.max(0, total - remaining);
+			}
 			if (btn) {
 				btn.textContent = `🌍 Kontinente nachtragen … (${remaining})`;
 			}
@@ -96,6 +114,11 @@ async function runSettlementContinentBackfill() {
 		settlementBackfillRunning = false;
 		if (btn) {
 			btn.disabled = false;
+		}
+		if (progress) {
+			progress.hidden = true;
+			progress.max = 5;
+			progress.value = 0;
 		}
 		await refreshSettlementContinentStatus();
 	}

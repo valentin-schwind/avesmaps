@@ -410,14 +410,17 @@
 }
 
 .path-sync__assign {
-	margin-top: 2px;
-	padding: 2px 9px;
-	font-size: 12px;
+	margin: 1px 3px 1px 0;
+	padding: 1px 8px;
+	font-size: 11px;
+	font-weight: 700;
+	line-height: inherit;
 	border: 1px solid #7a5a3a;
-	border-radius: 5px;
+	border-radius: 10px;
 	background: #7a5a3a;
 	color: #fff;
 	cursor: pointer;
+	vertical-align: baseline;
 }
 
 .path-sync__assign:hover {

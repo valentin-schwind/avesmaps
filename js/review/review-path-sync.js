@@ -101,11 +101,11 @@ function renderPathSyncList() {
 				const wikiLink = `<a class="region-sync__link" href="${pathSyncEscapeAttr(row.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
 				metaHtml = metaHtml ? `${metaHtml} · ${wikiLink}` : wikiLink;
 			}
-			if (segs.length) {
-				metaHtml += `<span class="region-sync__map">${segs.length} Segment${segs.length === 1 ? "" : "e"}: ${segs.slice(0, 40).map(candidate).join(" ")}</span>`;
-			}
-			const assignBtn = `<button type="button" class="path-sync__assign" data-wiki-key="${pathSyncEscapeAttr(row.wiki_key)}">${onMap ? "Neu zuordnen" : "Zuordnen"}</button>`;
-			metaHtml += `<span class="region-sync__map">${assignBtn}</span>`;
+			// Zuordnen-Button als Chip in derselben Zeile/Größe wie die Segment-Chips.
+			// Bei bereits zugeordneten Wegen nur „+" (= neu zuordnen), sonst „Zuordnen".
+			const assignChip = `<button type="button" class="region-sync__cand path-sync__assign" data-wiki-key="${pathSyncEscapeAttr(row.wiki_key)}" title="${onMap ? "Neu zuordnen" : "Zuordnen"}">${onMap ? "+" : "Zuordnen"}</button>`;
+			const segChips = segs.length ? `${segs.length} Segment${segs.length === 1 ? "" : "e"}: ${segs.slice(0, 40).map(candidate).join(" ")} ` : "";
+			metaHtml += `<span class="region-sync__map">${segChips}${assignChip}</span>`;
 			const marker = `<span class="tree-map-status${onMap ? " tree-map-status--all" : ""}" aria-hidden="true"></span>`;
 			// Wege haben keinen Drag-Handle — leere Spalte 1 für gleiche Ausrichtung.
 			return (
