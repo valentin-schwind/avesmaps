@@ -327,17 +327,12 @@ function renderSettlementRow(item) {
 
 function renderSettlementList() {
 	const list = document.getElementById("settlement-list");
-	const summary = document.getElementById("settlement-list-summary");
 	if (!list) {
 		return;
 	}
 	const all = settlementListItems;
 	const onMap = all.filter((item) => item.on_map).length;
-	const connected = all.filter((item) => item.connected).length;
 	const wikiOnly = all.length - onMap;
-	if (summary) {
-		summary.textContent = `${onMap} auf Karte (${connected} verbunden) · ${wikiOnly} nur Wiki`;
-	}
 
 	const query = (document.getElementById("settlement-list-filter")?.value || "").trim().toLowerCase();
 	let items = all;
