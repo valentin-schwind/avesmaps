@@ -145,6 +145,46 @@ function createEditablePointMarkerEntry(location) {
 // Fliegt direkt zum gleichnamigen Weg/Fluss auf unserer Karte (pathData enthält auch Flüsse, die
 // in der Spotlight-Suche fehlen). Exakter Name bevorzugt, sonst Teilstring. Mehrteilige Flüsse:
 // Gesamt-Bounds aller passenden Segmente.
+let activeWayHighlight = { paths: [], timer: null };
+
+// Hebt alle Segmente der gefundenen Wege/Flüsse gelb hervor und setzt sie nach 6 s (oder beim
+// nächsten Klick) auf ihren Originalstil zurück (updatePathLayerStyle rechnet ihn neu).
+function highlightWayPaths(paths) {
+	const reset = (list) => list.forEach((p) => {
+		try {
+			if (typeof updatePathLayerStyle === "function") {
+				updatePathLayerStyle(p);
+			}
+		} catch (error) {
+			/* Layer evtl. weg */
+		}
+	});
+	if (activeWayHighlight.timer) {
+		window.clearTimeout(activeWayHighlight.timer);
+	}
+	reset(activeWayHighlight.paths);
+
+	activeWayHighlight = { paths: paths.slice(), timer: null };
+	paths.forEach((p) => {
+		const lines = p && p._pathLines;
+		if (!Array.isArray(lines)) {
+			return;
+		}
+		if (lines[0] && lines[0].setStyle) {
+			lines[0].setStyle({ color: "#8a6d00", weight: 7, opacity: 1 });
+		}
+		if (lines[1] && lines[1].setStyle) {
+			lines[1].setStyle({ color: "#ffd400", weight: 4 });
+		}
+		lines.forEach((line) => line && line.bringToFront && line.bringToFront());
+	});
+	const highlighted = activeWayHighlight.paths;
+	activeWayHighlight.timer = window.setTimeout(() => {
+		reset(highlighted);
+		activeWayHighlight = { paths: [], timer: null };
+	}, 6000);
+}
+
 function focusWayByName(query) {
 	if (typeof pathData === "undefined" || !Array.isArray(pathData) || typeof map === "undefined" || !map) {
 		return false;
@@ -189,6 +229,7 @@ function focusWayByName(query) {
 	if (matches.length === 0) {
 		return false;
 	}
+	highlightWayPaths(matches.map((entry) => entry.path));
 	const latlngs = [];
 	matches.forEach((entry) => {
 		(entry.path?.geometry?.coordinates || []).forEach((coord) => {
