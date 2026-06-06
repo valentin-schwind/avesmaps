@@ -28,6 +28,8 @@
 	top: 0;
 	color: #f5f0d6;
 	transform-origin: center center;
+	font-family: "Faculty Glyphic", Georgia, "Times New Roman", serif;
+	letter-spacing: 0.02em;
 }
 
 body.edit-mode .map-label,

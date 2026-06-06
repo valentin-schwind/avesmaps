@@ -262,3 +262,66 @@
 .region-sync__item--draggable:active {
 	cursor: grabbing;
 }
+
+/* #6 — „Label bearbeiten" optisch an den Territoriumseditor angeglichen:
+   Faculty Glyphic, Abschnitts-Titel, parchment-Inputs/Slider. */
+#label-edit-dialog {
+	font-family: "Faculty Glyphic", Arial, sans-serif;
+}
+
+.label-edit-section-title {
+	font-family: "Faculty Glyphic", Arial, sans-serif;
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: #7a5a3a;
+	margin: 10px 0 2px;
+	padding-top: 8px;
+	border-top: 1px solid #e3d5c4;
+}
+
+.label-edit-section-title:first-of-type {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: 0;
+}
+
+#label-edit-dialog .location-report-form__field > span {
+	font-size: 12px;
+	font-weight: 600;
+	color: #5a4a3a;
+}
+
+#label-edit-dialog .location-report-form__field > span small {
+	font-weight: 400;
+	color: #8a7a68;
+}
+
+#label-edit-dialog input[type="text"],
+#label-edit-dialog input[type="number"],
+#label-edit-dialog input[type="search"],
+#label-edit-dialog select {
+	border: 1px solid #dccab8;
+	border-radius: 6px;
+	background: #fffaf5;
+	padding: 6px 8px;
+	font-family: inherit;
+	color: #2c2117;
+}
+
+#label-edit-dialog input[type="text"]:focus,
+#label-edit-dialog input[type="number"]:focus,
+#label-edit-dialog input[type="search"]:focus,
+#label-edit-dialog select:focus {
+	outline: none;
+	border-color: #7a5a3a;
+	box-shadow: 0 0 0 2px rgba(122, 90, 58, 0.18);
+}
+
+#label-edit-dialog input[type="range"] {
+	accent-color: #7a5a3a;
+}
+
+#label-edit-dialog .location-report-form__button--primary {
+	font-family: "Faculty Glyphic", Arial, sans-serif;
+}
