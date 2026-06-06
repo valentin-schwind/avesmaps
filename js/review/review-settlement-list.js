@@ -35,6 +35,64 @@ async function loadSettlementList() {
 	renderSettlementList();
 	void refreshSettlementContinentStatus();
 	void refreshSettlementRuinStatus();
+	void refreshSettlementCoatStatus();
+}
+
+// Zeigt den „Wappen übernehmen"-Button, solange verbundene Orte ein gemeinfreies Wiki-Wappen
+// haben, das noch nicht übernommen wurde.
+async function refreshSettlementCoatStatus() {
+	const btn = document.getElementById("settlement-record-coats");
+	if (!btn) {
+		return;
+	}
+	try {
+		const response = await fetch(`${SETTLEMENT_LIST_API_URL}?action=coat_status`, { credentials: "same-origin" });
+		const data = await response.json();
+		const remaining = data && data.ok ? Number(data.remaining || 0) : 0;
+		if (remaining > 0) {
+			btn.textContent = `🛡 Wappen übernehmen (${remaining})`;
+			btn.hidden = false;
+		} else {
+			btn.hidden = true;
+		}
+	} catch (error) {
+		btn.hidden = true;
+	}
+}
+
+let settlementRecordCoatsRunning = false;
+// Überträgt gemeinfreie Wiki-Wappen auf die Karten-Orte (properties.coat → Icon-Ersatz).
+async function runSettlementRecordCoats() {
+	if (settlementRecordCoatsRunning) {
+		return;
+	}
+	const btn = document.getElementById("settlement-record-coats");
+	settlementRecordCoatsRunning = true;
+	if (btn) {
+		btn.disabled = true;
+	}
+	try {
+		const response = await fetch(SETTLEMENT_LIST_API_URL, {
+			method: "POST",
+			credentials: "same-origin",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ action: "bulk_record_coats", dry_run: false, confirm: "apply" }),
+		});
+		const data = await response.json();
+		if (!data || data.ok !== true) {
+			throw new Error(data && data.error ? data.error : "Fehler beim Übernehmen");
+		}
+		showFeedbackToast?.(`${data.applied || 0} Wappen übernommen — Karte aktualisiert sich.`, "success");
+		await loadSettlementList();
+	} catch (error) {
+		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
+	} finally {
+		settlementRecordCoatsRunning = false;
+		if (btn) {
+			btn.disabled = false;
+		}
+		await refreshSettlementCoatStatus();
+	}
 }
 
 // Zeigt den „Ruinen übernehmen"-Button, solange verbundene Orte laut Wiki Ruinen sind,
@@ -310,6 +368,10 @@ document.addEventListener("click", (event) => {
 	}
 	if (event.target.closest("#settlement-record-ruins")) {
 		void runSettlementRecordRuins();
+		return;
+	}
+	if (event.target.closest("#settlement-record-coats")) {
+		void runSettlementRecordCoats();
 		return;
 	}
 	const statusTab = event.target.closest("[data-wiki-sync-case-status]");

@@ -72,6 +72,7 @@ const prepareLocationData = (data) => {
 				description: feature.properties.description || "",
 				wikiUrl: readFeatureWikiUrl(feature.properties),
 				wikiSettlement: feature.properties.wiki_settlement || null,
+				coat: feature.properties.coat || null,
 				isNodix: Boolean(feature.properties.is_nodix),
 				isRuined: Boolean(feature.properties.is_ruined),
 				revision: Number(feature.properties.revision) || null,

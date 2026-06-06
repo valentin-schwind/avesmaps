@@ -45,6 +45,11 @@
 	object-fit: contain;
 }
 
+.location-popup__icon--coat {
+	width: 34px;
+	height: 34px;
+}
+
 .location-popup__icon--share-pin {
 	display: flex;
 	align-items: center;

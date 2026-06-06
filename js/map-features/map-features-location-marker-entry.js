@@ -25,11 +25,14 @@ function refreshLocationMarkerPopup(markerEntry) {
 	const settlementInfobox = hasWikiSettlement
 		? settlementWikiInfoboxMarkup(markerEntry.location)
 		: '<div class="location-popup__nowiki">Kein Wiki-Eintrag gefunden</div>';
+	// Wappen ersetzt das Siedlungs-Icon (nur gesetzt, wenn gemeinfrei/eigen).
+	const coatIconMarkup = typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "";
 	markerEntry.marker.bindPopup(
 		locationPopupMarkup({
 			name: markerEntry.name,
 			locationType: markerEntry.locationType,
 			locationTypeLabel: markerEntry.location.locationTypeLabel,
+			headerIconMarkup: coatIconMarkup,
 			description: markerEntry.location.description,
 			wikiUrl: markerEntry.location.wikiUrl,
 			isRuined: markerEntry.location.isRuined,

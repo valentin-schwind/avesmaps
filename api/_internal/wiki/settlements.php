@@ -238,6 +238,74 @@ function avesmapsWikiSettlementBulkRecordRuins(PDO $pdo, bool $dryRun): array {
     return ['ok' => true, 'dry_run' => false, 'matched' => count($pending), 'applied' => $applied];
 }
 
+// Wie viele verbundene Karten-Orte ein gemeinfreies Wiki-Wappen haben, das noch nicht
+// als properties.coat übernommen wurde.
+function avesmapsWikiSettlementCoatStatus(PDO $pdo): array {
+    $result = avesmapsWikiSettlementBulkRecordCoats($pdo, true);
+    return ['ok' => true, 'remaining' => (int) ($result['matched'] ?? 0)];
+}
+
+// Überträgt gemeinfreie (public_domain) Wiki-Wappen auf die verbundenen Karten-Orte:
+// schreibt properties.coat = {url, source:'wiki', license_status, author, attribution}. Eigene
+// Uploads (source='own') werden NIE überschrieben. Nur gemeinfrei (Nutzer-Entscheid). Gated.
+function avesmapsWikiSettlementBulkRecordCoats(PDO $pdo, bool $dryRun): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+
+    $coats = [];
+    $stmt = $pdo->query(
+        'SELECT title, coat_url, coat_license_status, coat_author, coat_attribution
+         FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . "
+         WHERE coat_url IS NOT NULL AND coat_url <> '' AND coat_license_status = 'public_domain'"
+    );
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $coats[(string) $r['title']] = $r;
+    }
+
+    $pending = [];
+    if ($coats !== []) {
+        $rows = $pdo->query("SELECT id, properties_json FROM map_features WHERE feature_type='location' AND is_active=1")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $row) {
+            $props = avesmapsWikiSyncDecodeJson($row['properties_json'] ?? null);
+            $ws = $props['wiki_settlement'] ?? null;
+            $title = is_array($ws) ? (string) ($ws['title'] ?? '') : '';
+            if ($title === '' || !isset($coats[$title])) {
+                continue;
+            }
+            $existing = $props['coat'] ?? null;
+            if (is_array($existing) && ($existing['source'] ?? '') === 'own') {
+                continue; // eigenes Wappen nie überschreiben
+            }
+            $coatUrl = (string) $coats[$title]['coat_url'];
+            if (is_array($existing) && ($existing['url'] ?? '') === $coatUrl && ($existing['source'] ?? '') === 'wiki') {
+                continue; // schon übernommen
+            }
+            $pending[] = ['id' => (int) $row['id'], 'props' => $props, 'coat' => $coats[$title]];
+        }
+    }
+
+    if ($dryRun || $pending === []) {
+        return ['ok' => true, 'dry_run' => $dryRun, 'matched' => count($pending), 'applied' => 0];
+    }
+
+    $revision = avesmapsWikiSyncNextMapRevision($pdo);
+    $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
+    $applied = 0;
+    foreach ($pending as $p) {
+        $props = $p['props'];
+        $props['coat'] = [
+            'url' => (string) $p['coat']['coat_url'],
+            'source' => 'wiki',
+            'license_status' => 'public_domain',
+            'author' => (string) ($p['coat']['coat_author'] ?? ''),
+            'attribution' => (string) ($p['coat']['coat_attribution'] ?? ''),
+        ];
+        $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $p['id']]);
+        $applied += 1;
+    }
+
+    return ['ok' => true, 'dry_run' => false, 'matched' => count($pending), 'applied' => $applied];
+}
+
 // Parst {{Infobox Siedlung}} aus dem Seiten-Wikitext in das wiki_settlement-Objekt, das ans
 // Orts-Feature geheftet wird. settlementClass/settlementLabel kommen aus der Registry (Kategorie).
 function avesmapsWikiSettlementParseInfobox(string $title, string $wikitext, string $settlementClass = '', string $registryUrl = ''): array {

@@ -45,6 +45,17 @@ function locationIconMarkup(locationType, locationTypeLabel) {
 	return `<img class="location-popup__icon" src="${escapeHtml(withAssetVersion(iconPath))}" alt="${escapeHtml(altText)}" />`;
 }
 
+// Wappen-Icon (ersetzt das Siedlungs-Icon), wenn ein erlaubtes Wappen vorhanden ist. Das
+// properties.coat wird nur für gemeinfreie Wiki-Wappen oder eigene Uploads gesetzt — die
+// Lizenz-Prüfung passiert also beim Schreiben. Wiki-Wappen über den Cache-Proxy laden.
+function settlementCoatIconMarkup(coat) {
+	if (!coat || !coat.url) {
+		return "";
+	}
+	const src = coat.source === "own" ? coat.url : `/api/app/coat.php?u=${encodeURIComponent(coat.url)}`;
+	return `<img class="location-popup__icon location-popup__icon--coat" src="${escapeHtml(src)}" alt="Wappen" />`;
+}
+
 function sharePinVisualMarkup(rootClassName = "", { includeDot = true } = {}) {
 	const safeRootClassName = rootClassName ? ` ${escapeHtml(rootClassName)}` : "";
 	const dotMarkup = includeDot ? '<span class="share-pin-visual__dot"></span>' : "";
