@@ -12,23 +12,24 @@ function pathWikiInfoboxMarkup(path) {
 		}
 		return `<div class="region-info-box__row"><dt>${escapeHtml(dtLabel)}</dt><dd>${escapeHtml(value)}</dd></div>`;
 	};
+	const art = String(wiki.art || "").trim() || (wiki.kind === "fluss" ? "Fluss" : (wiki.kind === "strasse" ? "Straße" : ""));
 	let rows = "";
-	rows += row("Art", wiki.art);
 	rows += row("Lage", wiki.lage);
 	rows += row("Länge", wiki.laenge);
 	rows += row("Verlauf", wiki.verlauf);
 	const description = String(wiki.description || "").trim();
-	rows += row("Beschreibung", description.length > 320 ? description.slice(0, 320).trim() + " …" : description);
-	if (wiki.wiki_url) {
-		rows += `<div class="region-info-box__row"><dt>Wiki</dt><dd><a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a></dd></div>`;
-	}
-	const subtitle = wiki.kind === "fluss" ? "Fluss (Wiki)" : (wiki.kind === "strasse" ? "Straße/Weg (Wiki)" : "Wiki-Weg");
+	rows += row("Beschreibung", description.length > 130 ? description.slice(0, 130).trim() + " …" : description);
+	const wikiLink = wiki.wiki_url
+		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} im Wiki-Aventurica ↗</a>`
+		: "";
 	return (
 		'<div class="region-info-box">' +
 		'<div class="region-info-box__header"><div class="region-info-box__title-group">' +
 		`<strong class="region-info-box__title">${escapeHtml(name)}</strong>` +
-		`<span class="region-info-box__subtitle">${escapeHtml(subtitle)}</span></div></div>` +
+		(art ? `<span class="region-info-box__subtitle">${escapeHtml(art)}</span>` : "") +
+		"</div></div>" +
 		`<dl class="region-info-box__data">${rows}</dl>` +
+		wikiLink +
 		"</div>"
 	);
 }

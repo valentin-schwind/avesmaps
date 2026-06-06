@@ -48,9 +48,9 @@ function openLabelEditDialog(options = {}) {
 function syncLabelZoomRangeOutputs(event = null) {
 	const minInputElement = document.getElementById("label-edit-min-zoom");
 	const maxInputElement = document.getElementById("label-edit-max-zoom");
-	const minOutputElement = document.getElementById("label-edit-min-zoom-output");
-	const maxOutputElement = document.getElementById("label-edit-max-zoom-output");
-	if (!minInputElement || !maxInputElement || !minOutputElement || !maxOutputElement) {
+	const minNumElement = document.getElementById("label-edit-min-zoom-num");
+	const maxNumElement = document.getElementById("label-edit-max-zoom-num");
+	if (!minInputElement || !maxInputElement) {
 		return;
 	}
 
@@ -64,13 +64,33 @@ function syncLabelZoomRangeOutputs(event = null) {
 		minInputElement.value = String(minZoom);
 	}
 
-	minOutputElement.value = String(minZoom);
-	minOutputElement.textContent = String(minZoom);
-	maxOutputElement.value = String(maxZoom);
-	maxOutputElement.textContent = String(maxZoom);
+	if (minNumElement) {
+		minNumElement.value = String(minZoom);
+	}
+	if (maxNumElement) {
+		maxNumElement.value = String(maxZoom);
+	}
 	if (event?.currentTarget && map.getZoom() !== Number(event.currentTarget.value)) {
 		map.setZoom(Number(event.currentTarget.value));
 	}
+}
+
+function syncLabelZoomNumberInputs(event = null) {
+	const minInputElement = document.getElementById("label-edit-min-zoom");
+	const maxInputElement = document.getElementById("label-edit-max-zoom");
+	const minNumElement = document.getElementById("label-edit-min-zoom-num");
+	const maxNumElement = document.getElementById("label-edit-max-zoom-num");
+	if (!minInputElement || !maxInputElement) {
+		return;
+	}
+	const clamp = (value) => Math.max(0, Math.min(5, Number.parseInt(value, 10) || 0));
+	if (minNumElement) {
+		minInputElement.value = String(clamp(minNumElement.value));
+	}
+	if (maxNumElement) {
+		maxInputElement.value = String(clamp(maxNumElement.value));
+	}
+	syncLabelZoomRangeOutputs({ currentTarget: event?.currentTarget === maxNumElement ? maxInputElement : minInputElement });
 }
 
 function syncLabelPriorityOutput() {

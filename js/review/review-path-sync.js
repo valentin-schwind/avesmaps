@@ -32,17 +32,17 @@ async function loadPathWikiSync() {
 		status.textContent = "Wege werden abgeglichen ...";
 	}
 	try {
-		const data = await pathSyncGet("?action=match&continent=Aventurien&limit=2000");
+		const data = await pathSyncGet("?action=match&continent=Aventurien&limit=5000");
 		if (!data || data.ok !== true) {
 			throw new Error(data && data.error ? data.error : "Unerwartete Antwort");
 		}
 		pathSyncData = data;
 		const s = data.summary || {};
 		if (summary) {
-			summary.textContent = `${s.matched || 0} zugeordnet · ${s.ambiguous || 0} mehrteilig · ${s.missing || 0} fehlen`;
+			summary.textContent = `${s.considered || 0} Wege · ${s.map_paths || 0} Karten-Segmente`;
 		}
 		if (status) {
-			status.textContent = `${s.considered || 0} Aventurien-Wege · ${s.map_paths || 0} Karten-Weg-Segmente`;
+			status.textContent = "";
 		}
 		renderPathSyncList();
 	} catch (error) {
@@ -86,19 +86,21 @@ function renderPathSyncList() {
 		`<button type="button" data-path-view="missing" class="region-sync__viewtab${pathSyncView === "missing" ? " is-active" : ""}">Fehlt (${summary.missing || 0})</button>` +
 		"</div>";
 
+	const candidate = (p) => `<button type="button" class="region-sync__cand" data-path-id="${pathSyncEscapeAttr((p && p.public_id) || "")}">${pathSyncEscapeText(p.name)}</button>`;
 	const items = rows
-		.slice(0, 600)
 		.map((row) => {
-			const segs = row.path ? 1 : (row.paths ? row.paths.length : 0);
+			const segs = row.path ? [row.path] : (row.paths || []);
 			const metaParts = [row.kind, row.art, row.lage].filter(Boolean).map(pathSyncEscapeText);
 			let metaHtml = metaParts.join(" · ");
 			if (row.wiki_url) {
 				const wikiLink = `<a class="region-sync__link" href="${pathSyncEscapeAttr(row.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
 				metaHtml = metaHtml ? `${metaHtml} · ${wikiLink}` : wikiLink;
 			}
-			const segInfo = segs > 0 ? `<span class="region-sync__map">${segs} Karten-Segment${segs === 1 ? "" : "e"}</span>` : "";
-			const assignBtn = segs > 0
-				? `<button type="button" class="region-sync__viewtab path-sync__assign" data-wiki-key="${pathSyncEscapeAttr(row.wiki_key)}">Zuordnen</button>`
+			const segInfo = segs.length
+				? `<span class="region-sync__map">${segs.length} Segment${segs.length === 1 ? "" : "e"}: ${segs.slice(0, 40).map(candidate).join(" ")}</span>`
+				: "";
+			const assignBtn = segs.length
+				? `<button type="button" class="path-sync__assign" data-wiki-key="${pathSyncEscapeAttr(row.wiki_key)}">Zuordnen</button>`
 				: "";
 			return (
 				'<div class="review-panel__item region-sync__item">' +
@@ -111,8 +113,7 @@ function renderPathSyncList() {
 		})
 		.join("");
 
-	const countNote = rows.length > 600 ? `<p class="review-panel__status">${rows.length} Treffer — die ersten 600 werden angezeigt.</p>` : "";
-	list.innerHTML = viewTabs + countNote + (items || '<p class="review-panel__status">Keine Einträge.</p>');
+	list.innerHTML = viewTabs + (items || '<p class="review-panel__status">Keine Einträge.</p>');
 }
 
 async function assignPathWiki(wikiKey) {
@@ -212,6 +213,24 @@ async function startPathWikiCrawl() {
 	}
 }
 
+// Fliegt zur Stelle eines Weg-Segments (Polyline-Bounds aus der Geometrie).
+function focusPathOnMap(publicId) {
+	if (!publicId || typeof findPathByPublicId !== "function" || typeof map === "undefined") {
+		return;
+	}
+	const path = findPathByPublicId(publicId);
+	const coords = path && path.geometry && Array.isArray(path.geometry.coordinates) ? path.geometry.coordinates : null;
+	if (!coords || !coords.length) {
+		showFeedbackToast?.("Weg ist (noch) nicht geladen.", "info");
+		return;
+	}
+	const latlngs = coords.map((c) => [Number(c[1]), Number(c[0])]);
+	const bounds = L.latLngBounds(latlngs);
+	if (bounds.isValid()) {
+		map.flyToBounds(bounds.pad(0.25), { maxZoom: 5, duration: 0.8 });
+	}
+}
+
 document.addEventListener("click", (event) => {
 	if (!event.target.closest) {
 		return;
@@ -226,6 +245,11 @@ document.addEventListener("click", (event) => {
 	if (assignBtn) {
 		event.stopPropagation();
 		void assignPathWiki(assignBtn.dataset.wikiKey);
+		return;
+	}
+	const candidate = event.target.closest(".region-sync__cand[data-path-id]");
+	if (candidate) {
+		focusPathOnMap(candidate.dataset.pathId);
 		return;
 	}
 	if (event.target.closest("#path-sync-crawl")) {

@@ -42,17 +42,17 @@ async function loadRegionWikiSync() {
 		status.textContent = "Regionen werden abgeglichen ...";
 	}
 	try {
-		const data = await regionSyncGet("?action=match&continent=Aventurien&limit=1500");
+		const data = await regionSyncGet("?action=match&continent=Aventurien&limit=5000");
 		if (!data || data.ok !== true) {
 			throw new Error(data && data.error ? data.error : "Unerwartete Antwort");
 		}
 		regionSyncData = data;
 		const s = data.summary || {};
 		if (summary) {
-			summary.textContent = `${s.missing || 0} fehlen · ${s.matched || 0} zugeordnet · ${s.ambiguous || 0} mehrdeutig`;
+			summary.textContent = `${s.considered || 0} Regionen · ${s.map_labels || 0} Karten-Labels`;
 		}
 		if (status) {
-			status.textContent = `${s.considered || 0} Aventurien-Wiki-Regionen · ${s.map_labels || 0} Karten-Labels`;
+			status.textContent = "";
 		}
 		renderRegionSyncList();
 	} catch (error) {
@@ -99,8 +99,8 @@ function renderRegionSyncList() {
 		"</div>";
 
 	const isMissingView = regionSyncView === "missing";
+	const candidate = (label) => `<button type="button" class="region-sync__cand" data-label-id="${regionSyncEscapeAttr((label && label.public_id) || "")}">${regionSyncEscapeText(label.name)}${label.subtype ? " (" + regionSyncEscapeText(label.subtype) + ")" : ""}</button>`;
 	const items = rows
-		.slice(0, 600)
 		.map((row) => {
 			const metaParts = [row.art, row.region_parent].filter(Boolean).map(regionSyncEscapeText);
 			let metaHtml = metaParts.join(" · ");
@@ -109,25 +109,20 @@ function renderRegionSyncList() {
 				metaHtml = metaHtml ? `${metaHtml} · ${wikiLink}` : wikiLink;
 			}
 			let mapInfo = "";
-			let labelId = "";
 			if (row.label) {
-				labelId = row.label.public_id || "";
-				mapInfo = `<span class="region-sync__map">Karte: ${regionSyncEscapeText(row.label.name)}${row.label.subtype ? " (" + regionSyncEscapeText(row.label.subtype) + ")" : ""}</span>`;
-			} else if (row.labels) {
-				labelId = (row.labels[0] && row.labels[0].public_id) || "";
-				mapInfo = `<span class="region-sync__map">${row.labels.length} Karten-Kandidaten: ${row.labels.map((l) => regionSyncEscapeText(l.name)).join(", ")}</span>`;
+				mapInfo = `<span class="region-sync__map">Karte: ${candidate(row.label)}</span>`;
+			} else if (row.labels && row.labels.length) {
+				mapInfo = `<span class="region-sync__map">Kandidaten: ${row.labels.map(candidate).join(" ")}</span>`;
 			}
 			const image = row.has_image ? '<span class="region-sync__badge" title="Wiki hat ein Bild">🖼</span>' : "";
-			const dragAttrs = isMissingView && row.wiki_key ? ` draggable="true" data-wiki-key="${regionSyncEscapeAttr(row.wiki_key)}"` : "";
-			const labelAttr = labelId ? ` data-label-id="${regionSyncEscapeAttr(labelId)}"` : "";
-			const classes =
-				"review-panel__item region-sync__item" +
-				(labelId ? " region-sync__item--clickable" : "") +
-				(dragAttrs ? " region-sync__item--draggable" : "");
-			const title = dragAttrs ? "Auf die Karte ziehen, um die Region anzulegen" : labelId ? "Zur Stelle auf der Karte springen" : "";
+			const draggable = isMissingView && row.wiki_key;
+			const dragAttrs = draggable ? ` draggable="true" data-wiki-key="${regionSyncEscapeAttr(row.wiki_key)}"` : "";
+			const handle = draggable ? '<span class="region-sync__handle" aria-hidden="true">⠿</span>' : "";
+			const classes = "review-panel__item region-sync__item" + (draggable ? " region-sync__item--draggable" : "");
+			const title = draggable ? "Auf die Karte ziehen, um die Region anzulegen" : "";
 			return (
-				`<div class="${classes}"${labelAttr}${dragAttrs} title="${regionSyncEscapeAttr(title)}">` +
-				`<div class="region-sync__name">${regionSyncEscapeText(row.name)} ${image}</div>` +
+				`<div class="${classes}"${dragAttrs} title="${regionSyncEscapeAttr(title)}">` +
+				`<div class="region-sync__name">${handle}${regionSyncEscapeText(row.name)} ${image}</div>` +
 				`<div class="region-sync__meta">${metaHtml}</div>` +
 				(mapInfo ? `<div class="region-sync__meta">${mapInfo}</div>` : "") +
 				"</div>"
@@ -135,8 +130,7 @@ function renderRegionSyncList() {
 		})
 		.join("");
 
-	const countNote = rows.length > 600 ? `<p class="review-panel__status">${rows.length} Treffer — die ersten 600 werden angezeigt.</p>` : "";
-	list.innerHTML = viewTabs + countNote + (items || '<p class="review-panel__status">Keine Einträge.</p>');
+	list.innerHTML = viewTabs + (items || '<p class="review-panel__status">Keine Einträge.</p>');
 }
 
 async function startRegionWikiCrawl() {
@@ -287,10 +281,10 @@ document.addEventListener("click", (event) => {
 		void startRegionWikiCrawl();
 		return;
 	}
-	// Klick auf einen zugeordneten/mehrdeutigen Eintrag (nicht auf den Wiki-Link) -> Zoom.
-	const zoomItem = event.target.closest ? event.target.closest(".region-sync__item[data-label-id]") : null;
-	if (zoomItem && !event.target.closest("a")) {
-		focusRegionLabelOnMap(zoomItem.dataset.labelId);
+	// Klick auf einen Karten-Kandidaten-Chip -> Zoom zur Stelle.
+	const candidate = event.target.closest ? event.target.closest(".region-sync__cand[data-label-id]") : null;
+	if (candidate) {
+		focusRegionLabelOnMap(candidate.dataset.labelId);
 	}
 });
 

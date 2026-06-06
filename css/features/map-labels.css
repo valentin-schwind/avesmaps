@@ -244,9 +244,10 @@ body.edit-mode .map-label span {
 
 .region-info-box {
 	display: grid;
-	gap: 8px;
-	width: min(360px, calc(100vw - 52px));
-	padding: 10px 12px;
+	gap: 4px;
+	width: fit-content;
+	max-width: min(360px, calc(100vw - 52px));
+	padding: 0;
 	box-sizing: border-box;
 }
 

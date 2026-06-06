@@ -235,6 +235,7 @@ $("#label-edit-form").on("submit", handleLabelEditFormSubmit);
 $("#powerline-edit-delete").on("click", () => void deletePowerlineFeature(powerlineEditFeature));
 $("#label-edit-delete").on("click", () => deleteActiveLabel());
 $("#label-edit-min-zoom, #label-edit-max-zoom").on("input", syncLabelZoomRangeOutputs);
+$("#label-edit-min-zoom-num, #label-edit-max-zoom-num").on("input", syncLabelZoomNumberInputs);
 $("#label-edit-priority").on("input", syncLabelPriorityOutput);
 $("#region-edit-form").on("submit", handleRegionEditFormSubmit);
 $("#region-edit-delete").on("click", () => deleteActiveRegion());

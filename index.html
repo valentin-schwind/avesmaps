@@ -165,7 +165,7 @@
 			<section class="review-panel__section" data-editor-panel-section="wiki-sync">
 				<nav class="wiki-sync-panel__tabs" aria-label="WikiSync-Bereiche">
 					<button class="wiki-sync-panel__tab is-active" type="button" data-wiki-sync-panel-tab="locations">Siedlungen</button>
-					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="territories">Herrschaftsgebiete</button>
+					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="territories">Territorien</button>
 					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="regions">Regionen</button>
 					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="paths">Wege</button>
 				</nav>
@@ -173,7 +173,7 @@
 				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="paths">
 						<div class="wiki-sync-panel__actions">
 							<span id="path-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
-							<button id="path-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Wege neu crawlen (laeuft im Hintergrund)">Wiki neu laden</button>
+							<button id="path-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Wege neu crawlen (laeuft im Hintergrund)">WikiSync</button>
 						</div>
 						<p id="path-sync-status" class="review-panel__status" role="status" aria-live="polite">Wege werden geladen...</p>
 						<div class="wiki-sync-panel__filter">
@@ -185,7 +185,7 @@
 					<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="regions">
 						<div class="wiki-sync-panel__actions">
 							<span id="region-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
-							<button id="region-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Regionen neu crawlen (laeuft im Hintergrund)">Wiki neu laden</button>
+							<button id="region-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Regionen neu crawlen (laeuft im Hintergrund)">WikiSync</button>
 						</div>
 						<p id="region-sync-status" class="review-panel__status" role="status" aria-live="polite">Regionen werden geladen...</p>
 						<div class="wiki-sync-panel__filter">
@@ -571,30 +571,14 @@
 						</select>
 					</label>
 					<div class="label-edit-section-title">Darstellung</div>
-					<label class="location-report-form__field">
-						<span>Groesse</span>
-						<input id="label-edit-size" name="size" type="number" min="10" max="56" step="1" value="18" />
-					</label>
-					<label class="location-report-form__field">
-						<span>Rotation</span>
-						<input id="label-edit-rotation" name="rotation" type="number" min="-180" max="180" step="1" value="0" />
-					</label>
-					<label class="location-report-form__field">
-						<span>Sichtbar ab Zoom <output id="label-edit-min-zoom-output">0</output></span>
-						<input id="label-edit-min-zoom" name="min_zoom" type="range" min="0" max="5" step="1" value="0" />
-					</label>
-					<label class="location-report-form__field">
-						<span>Sichtbar bis Zoom <output id="label-edit-max-zoom-output">5</output></span>
-						<input id="label-edit-max-zoom" name="max_zoom" type="range" min="0" max="5" step="1" value="5" />
-					</label>
-					<label class="location-report-form__field">
-						<span>Prioritaet <output id="label-edit-priority-output">3</output></span>
-						<input id="label-edit-priority" name="priority" type="range" min="1" max="5" step="1" value="3" />
-					</label>
-					<label class="location-report-form__field location-report-form__field--checkbox">
-						<input id="label-edit-is-nodix" name="is_nodix" type="checkbox" />
-						<span>Label ist ein Nodix</span>
-					</label>
+						<div class="label-edit-grid">
+							<label class="location-report-form__field"><span>Größe</span><input id="label-edit-size" name="size" type="number" min="10" max="56" step="1" value="18" /></label>
+							<label class="location-report-form__field"><span>Rotation</span><input id="label-edit-rotation" name="rotation" type="number" min="-180" max="180" step="1" value="0" /></label>
+							<label class="location-report-form__field"><span>Sichtbar ab Zoom</span><div class="label-edit-zoomrow"><input id="label-edit-min-zoom-num" type="number" min="0" max="5" step="1" value="0" aria-label="Sichtbar ab Zoom" /><input id="label-edit-min-zoom" name="min_zoom" type="range" min="0" max="5" step="1" value="0" /></div></label>
+							<label class="location-report-form__field"><span>Sichtbar bis Zoom</span><div class="label-edit-zoomrow"><input id="label-edit-max-zoom-num" type="number" min="0" max="5" step="1" value="5" aria-label="Sichtbar bis Zoom" /><input id="label-edit-max-zoom" name="max_zoom" type="range" min="0" max="5" step="1" value="5" /></div></label>
+							<label class="location-report-form__field"><span>Priorität</span><input id="label-edit-priority" name="priority" type="number" min="1" max="5" step="1" value="3" /></label>
+							<label class="location-report-form__field location-report-form__field--checkbox"><input id="label-edit-is-nodix" name="is_nodix" type="checkbox" /><span>Nodix</span></label>
+						</div>
 					<div class="label-wiki-reference" id="label-wiki-reference">
 							<div class="label-wiki-reference__head">
 								<span class="label-wiki-reference__title">Wiki-Landschaft</span>

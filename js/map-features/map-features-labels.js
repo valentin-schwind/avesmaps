@@ -53,6 +53,7 @@ function labelWikiInfoboxMarkup(label) {
 		: "";
 	const hasCoatClass = coatMarkup ? " has-coat" : "";
 
+	const art = String(wiki.art || "").trim();
 	const row = (dtLabel, value) => {
 		if (!value || String(value).trim() === "") {
 			return "";
@@ -61,18 +62,16 @@ function labelWikiInfoboxMarkup(label) {
 	};
 
 	let rows = "";
-	rows += row("Art", wiki.art);
 	rows += row("Lage", wiki.region_parent);
 	rows += row("Staat", wiki.affiliation_staat);
 	rows += row("Einwohner", wiki.einwohner);
 	rows += row("Sprache", wiki.sprache);
 	rows += row("Vegetation", wiki.vegetation);
-	rows += row("Verkehrswege", wiki.verkehrswege);
 	const description = String(wiki.description || "").trim();
-	rows += row("Beschreibung", description.length > 320 ? description.slice(0, 320).trim() + " …" : description);
-	if (wiki.wiki_url) {
-		rows += `<div class="region-info-box__row"><dt>Wiki</dt><dd><a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a></dd></div>`;
-	}
+	rows += row("Beschreibung", description.length > 130 ? description.slice(0, 130).trim() + " …" : description);
+	const wikiLink = wiki.wiki_url
+		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} im Wiki-Aventurica ↗</a>`
+		: "";
 
 	return (
 		'<div class="region-info-box">' +
@@ -80,9 +79,10 @@ function labelWikiInfoboxMarkup(label) {
 		coatMarkup +
 		'<div class="region-info-box__title-group">' +
 		`<strong class="region-info-box__title">${escapeHtml(name)}</strong>` +
-		'<span class="region-info-box__subtitle">Wiki-Landschaft</span>' +
+		(art ? `<span class="region-info-box__subtitle">${escapeHtml(art)}</span>` : "") +
 		"</div></div>" +
 		`<dl class="region-info-box__data">${rows}</dl>` +
+		wikiLink +
 		"</div>"
 	);
 }
