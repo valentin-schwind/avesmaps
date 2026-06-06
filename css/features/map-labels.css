@@ -322,6 +322,7 @@ body.edit-mode .map-label span {
 
 .region-info-box__link {
 	color: #235f82;
+	font-size: 12px;
 	font-weight: 700;
 	text-decoration: underline;
 	text-decoration-thickness: 1px;

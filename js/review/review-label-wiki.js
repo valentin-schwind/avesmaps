@@ -79,6 +79,14 @@ function renderLabelWikiReference() {
 	if (!list) {
 		return;
 	}
+	// Per-Feld-Sync-Buttons (Text/Kategorie) nur aktiv, wenn eine Wiki-Landschaft zugeordnet ist.
+	const hasWikiRegion = Boolean(currentLabelWikiRegion);
+	["label-edit-wiki-sync-text", "label-edit-wiki-sync-cat"].forEach((id) => {
+		const button = labelWikiElement(id);
+		if (button) {
+			button.disabled = !hasWikiRegion;
+		}
+	});
 
 	const wiki = currentLabelWikiRegion;
 	if (!wiki) {
@@ -258,8 +266,45 @@ async function syncLabelWikiRegion() {
 	}
 }
 
+// Stellt nur den Text (Wiki-Region-Name) wieder her.
+function syncLabelTextFromWiki() {
+	if (!currentLabelWikiRegion) {
+		showFeedbackToast?.("Erst eine Wiki-Landschaft zuweisen.", "info");
+		return;
+	}
+	const input = labelWikiElement("label-edit-text");
+	if (input && String(currentLabelWikiRegion.name || "").trim() !== "") {
+		input.value = currentLabelWikiRegion.name;
+		showFeedbackToast?.("Text aus Wiki übernommen.", "success");
+	}
+}
+
+// Stellt nur die Kategorie wieder her (Wiki-Art → Label-Subtyp).
+function syncLabelCategoryFromWiki() {
+	if (!currentLabelWikiRegion) {
+		showFeedbackToast?.("Erst eine Wiki-Landschaft zuweisen.", "info");
+		return;
+	}
+	const subtype = LABEL_WIKI_ART_TO_SUBTYPE[String(currentLabelWikiRegion.art || "").toLowerCase()];
+	const select = labelWikiElement("label-edit-type");
+	if (subtype && select && Array.from(select.options).some((option) => option.value === subtype)) {
+		select.value = subtype;
+		showFeedbackToast?.("Kategorie aus Wiki übernommen.", "success");
+	} else {
+		showFeedbackToast?.("Wiki-Art passt zu keiner Kategorie.", "warning");
+	}
+}
+
 document.addEventListener("click", (event) => {
 	if (!event.target.closest) {
+		return;
+	}
+	if (event.target.closest("#label-edit-wiki-sync-text")) {
+		syncLabelTextFromWiki();
+		return;
+	}
+	if (event.target.closest("#label-edit-wiki-sync-cat")) {
+		syncLabelCategoryFromWiki();
 		return;
 	}
 	const pickerItem = event.target.closest(".label-wiki-picker-list__item");

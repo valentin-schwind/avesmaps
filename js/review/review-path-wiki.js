@@ -49,6 +49,14 @@ function renderPathWikiReference() {
 	if (!list) {
 		return;
 	}
+	// Per-Feld-Sync-Buttons (Name/Typ) nur aktiv, wenn ein Wiki-Weg zugeordnet ist.
+	const hasWikiPath = Boolean(pathWikiCurrentAssignment());
+	["path-edit-wiki-sync-name", "path-edit-wiki-sync-type"].forEach((id) => {
+		const button = pathWikiElement(id);
+		if (button) {
+			button.disabled = !hasWikiPath;
+		}
+	});
 	const wiki = pathWikiCurrentAssignment();
 	if (!wiki) {
 		list.innerHTML = '<div class="label-wiki-reference__empty">Kein Wiki-Weg zugeordnet.</div>';
@@ -214,8 +222,75 @@ async function removePathWiki() {
 	}
 }
 
+// Best-effort-Abbildung Wiki-Weg → Wegtyp-Auswahl.
+function pathWikiGuessWegtyp(wiki) {
+	const art = String(wiki.art || "").toLowerCase();
+	const kind = String(wiki.kind || "").toLowerCase();
+	if (kind === "fluss") {
+		return "Flussweg";
+	}
+	if (/reichsstra/.test(art)) {
+		return "Reichsstrasse";
+	}
+	if (/gebirgspass|gebirgs|\bpass\b/.test(art)) {
+		return "Gebirgspass";
+	}
+	if (/(wüsten|wuesten)pfad/.test(art)) {
+		return "Wuestenpfad";
+	}
+	if (/pfad/.test(art)) {
+		return "Pfad";
+	}
+	if (/stra(ß|ss)e/.test(art)) {
+		return "Strasse";
+	}
+	if (kind === "strasse") {
+		return "Strasse";
+	}
+	return "Weg";
+}
+
+function syncPathNameFromWiki() {
+	const wiki = pathWikiCurrentAssignment();
+	if (!wiki) {
+		showFeedbackToast?.("Erst einen Wiki-Weg zuweisen.", "info");
+		return;
+	}
+	const input = pathWikiElement("path-edit-name");
+	if (input && String(wiki.name || "").trim() !== "") {
+		input.value = wiki.name;
+		const autoname = pathWikiElement("path-edit-autoname");
+		if (autoname) {
+			autoname.checked = false; // sonst überschreibt der Auto-Name den Wiki-Namen
+		}
+		showFeedbackToast?.("Wegname aus Wiki übernommen.", "success");
+	}
+}
+
+function syncPathTypeFromWiki() {
+	const wiki = pathWikiCurrentAssignment();
+	if (!wiki) {
+		showFeedbackToast?.("Erst einen Wiki-Weg zuweisen.", "info");
+		return;
+	}
+	const guess = pathWikiGuessWegtyp(wiki);
+	const select = pathWikiElement("path-edit-type");
+	if (select && Array.from(select.options).some((option) => option.value === guess)) {
+		select.value = guess;
+		showFeedbackToast?.("Wegtyp aus Wiki übernommen.", "success");
+	}
+}
+
 document.addEventListener("click", (event) => {
 	if (!event.target.closest) {
+		return;
+	}
+	if (event.target.closest("#path-edit-wiki-sync-name")) {
+		syncPathNameFromWiki();
+		return;
+	}
+	if (event.target.closest("#path-edit-wiki-sync-type")) {
+		syncPathTypeFromWiki();
 		return;
 	}
 	const pickerItem = event.target.closest(".label-wiki-picker-list__item");

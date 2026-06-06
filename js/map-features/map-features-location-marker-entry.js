@@ -70,13 +70,10 @@ function settlementWikiInfoboxMarkup(location) {
 		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} im Wiki-Aventurica ↗</a>`
 		: "";
 
+	// Kein Titel/Name hier — der Popup-Kopf zeigt den Ortsnamen bereits (sonst Dopplung).
 	return (
 		'<div class="region-info-box region-info-box--settlement">' +
-		'<div class="region-info-box__header">' +
-		'<div class="region-info-box__title-group">' +
-		`<strong class="region-info-box__title">${escapeHtml(name)}</strong>` +
-		(art ? `<span class="region-info-box__subtitle">${escapeHtml(art)}</span>` : "") +
-		"</div></div>" +
+		(art ? `<div class="region-info-box__header"><span class="region-info-box__subtitle">${escapeHtml(art)}</span></div>` : "") +
 		`<dl class="region-info-box__data">${rows}</dl>` +
 		wikiLink +
 		"</div>"

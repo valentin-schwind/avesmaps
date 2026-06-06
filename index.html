@@ -127,7 +127,7 @@
 			<div id="political-territory-editor-dialog" class="political-territory-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="political-territory-editor-title" tabindex="-1">
 				<div class="political-territory-editor-dialog__header">
 					<h2 id="political-territory-editor-title">Territoriumseditor</h2>
-					<button id="political-territory-editor-close" class="political-territory-editor-dialog__close" type="button" aria-label="Eigenschaften schliessen">x</button>
+					<button id="political-territory-editor-close" class="political-territory-editor-dialog__close" type="button" aria-label="Eigenschaften schliessen">×</button>
 				</div>
 				<div id="political-territory-editor-host" class="political-territory-editor-dialog__frame" data-avesmaps-editor-host="1"></div>
 			</div>
@@ -353,7 +353,7 @@
 			<div id="location-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="location-edit-title" tabindex="-1">
 				<div class="location-report-dialog__header">
 					<h2 id="location-edit-title">Ort bearbeiten</h2>
-					<button id="location-edit-close" class="location-report-dialog__close" type="button" aria-label="Ortsbearbeitung schliessen">x</button>
+					<button id="location-edit-close" class="location-report-dialog__close" type="button" aria-label="Ortsbearbeitung schliessen">×</button>
 				</div>
 				<form id="location-edit-form" class="location-report-form" novalidate>
 					<input id="location-edit-public-id" name="public_id" type="hidden" />
@@ -429,7 +429,7 @@
 			<div id="wiki-sync-resolve-dialog" class="location-report-dialog wiki-sync-resolve-dialog" role="dialog" aria-modal="true" aria-labelledby="wiki-sync-resolve-title" tabindex="-1">
 				<div class="location-report-dialog__header">
 					<h2 id="wiki-sync-resolve-title">WikiSync-Fall lösen</h2>
-					<button id="wiki-sync-resolve-close" class="location-report-dialog__close" type="button" aria-label="WikiSync-Fall schliessen">x</button>
+					<button id="wiki-sync-resolve-close" class="location-report-dialog__close" type="button" aria-label="WikiSync-Fall schliessen">×</button>
 				</div>
 				<form id="wiki-sync-resolve-form" class="location-report-form" novalidate>
 					<input id="wiki-sync-resolve-case-id" name="case_id" type="hidden" />
@@ -501,13 +501,13 @@
 			<div id="path-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="path-edit-title" tabindex="-1">
 				<div class="location-report-dialog__header">
 					<h2 id="path-edit-title">Weg bearbeiten</h2>
-					<button id="path-edit-close" class="location-report-dialog__close" type="button" aria-label="Wegbearbeitung schliessen">x</button>
+					<button id="path-edit-close" class="location-report-dialog__close" type="button" aria-label="Wegbearbeitung schliessen">×</button>
 				</div>
 				<form id="path-edit-form" class="location-report-form" novalidate>
 					<input id="path-edit-public-id" name="public_id" type="hidden" /><div class="label-edit-section">
 					<label class="location-report-form__field">
 						<span>Wegname *</span>
-						<input id="path-edit-name" name="name" type="text" maxlength="160" required />
+						<div class="location-edit-fieldrow"><input id="path-edit-name" name="name" type="text" maxlength="160" required /><button type="button" id="path-edit-wiki-sync-name" class="location-edit-wiki-mini" disabled title="Wegname aus dem verbundenen Wiki-Weg &uuml;bernehmen" aria-label="Wegname aus dem verbundenen Wiki-Weg &uuml;bernehmen">↻</button></div>
 					</label>
 					<label class="location-report-form__field location-report-form__field--checkbox">
 						<input id="path-edit-autoname" name="autoname" type="checkbox" checked />
@@ -519,7 +519,7 @@
 					</label>
 					<label class="location-report-form__field">
 						<span>Wegtyp *</span>
-						<select id="path-edit-type" name="feature_subtype" required>
+						<div class="location-edit-fieldrow"><select id="path-edit-type" name="feature_subtype" required>
 							<option value="Reichsstrasse">Reichsstrasse</option>
 							<option value="Strasse">Strasse</option>
 							<option value="Weg">Weg</option>
@@ -528,7 +528,7 @@
 							<option value="Wuestenpfad">Wuestenpfad</option>
 							<option value="Flussweg">Flussweg</option>
 							<option value="Seeweg">Seeweg</option>
-						</select>
+						</select><button type="button" id="path-edit-wiki-sync-type" class="location-edit-wiki-mini" disabled title="Wegtyp aus dem verbundenen Wiki-Weg &uuml;bernehmen" aria-label="Wegtyp aus dem verbundenen Wiki-Weg &uuml;bernehmen">↻</button></div>
 					</label>
 					<div id="path-edit-transport-options" class="location-report-form__field">
 						<span>Erlaubte Transportmittel</span>
@@ -556,7 +556,7 @@
 			<div id="powerline-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="powerline-edit-title" tabindex="-1">
 				<div class="location-report-dialog__header">
 					<h2 id="powerline-edit-title">Kraftlinie bearbeiten</h2>
-					<button id="powerline-edit-close" class="location-report-dialog__close" type="button" aria-label="Kraftlinienbearbeitung schliessen">x</button>
+					<button id="powerline-edit-close" class="location-report-dialog__close" type="button" aria-label="Kraftlinienbearbeitung schliessen">×</button>
 				</div>
 				<form id="powerline-edit-form" class="location-report-form" novalidate>
 					<input id="powerline-edit-public-id" name="public_id" type="hidden" />
@@ -580,8 +580,8 @@
 		<div id="label-edit-overlay" hidden>
 			<div id="label-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="label-edit-title" tabindex="-1">
 				<div class="location-report-dialog__header">
-					<h2 id="label-edit-title">Label bearbeiten</h2>
-					<button id="label-edit-close" class="location-report-dialog__close" type="button" aria-label="Labelbearbeitung schliessen">x</button>
+					<h2 id="label-edit-title">Region bearbeiten</h2>
+					<button id="label-edit-close" class="location-report-dialog__close" type="button" aria-label="Labelbearbeitung schliessen">×</button>
 				</div>
 				<form id="label-edit-form" class="location-report-form" novalidate>
 					<input id="label-edit-public-id" name="public_id" type="hidden" />
@@ -590,11 +590,11 @@
 						<div class="label-edit-section"><div class="label-edit-section-title">Identität</div>
 					<label class="location-report-form__field">
 						<span>Text *</span>
-						<input id="label-edit-text" name="text" type="text" maxlength="160" required />
+						<div class="location-edit-fieldrow"><input id="label-edit-text" name="text" type="text" maxlength="160" required /><button type="button" id="label-edit-wiki-sync-text" class="location-edit-wiki-mini" disabled title="Text aus der verbundenen Wiki-Landschaft &uuml;bernehmen" aria-label="Text aus der verbundenen Wiki-Landschaft &uuml;bernehmen">↻</button></div>
 					</label>
 					<label class="location-report-form__field">
 						<span>Kategorie *</span>
-						<select id="label-edit-type" name="feature_subtype" required>
+						<div class="location-edit-fieldrow"><select id="label-edit-type" name="feature_subtype" required>
 							<option value="region">Region</option>
 							<option value="fluss">Fluss</option>
 							<option value="meer">Meer</option>
@@ -607,7 +607,7 @@
 							<option value="see">See</option>
 							<option value="insel">Insel</option>
 							<option value="sonstiges">Sonstiges</option>
-						</select>
+						</select><button type="button" id="label-edit-wiki-sync-cat" class="location-edit-wiki-mini" disabled title="Kategorie aus der verbundenen Wiki-Landschaft &uuml;bernehmen" aria-label="Kategorie aus der verbundenen Wiki-Landschaft &uuml;bernehmen">↻</button></div>
 					</label>
 					</div><div class="label-edit-section"><div class="label-edit-section-title">Darstellung</div>
 						<div class="label-edit-grid">
@@ -647,7 +647,7 @@
 			<div id="region-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="region-edit-title" tabindex="-1">
 				<div class="location-report-dialog__header">
 					<h2 id="region-edit-title">Herrschaftsgebiet bearbeiten</h2>
-					<button id="region-edit-close" class="location-report-dialog__close" type="button" aria-label="Herrschaftsgebiet schliessen">x</button>
+					<button id="region-edit-close" class="location-report-dialog__close" type="button" aria-label="Herrschaftsgebiet schliessen">×</button>
 				</div>
 				<form id="region-edit-form" class="location-report-form political-territory-tree-form" novalidate>
 					<input id="region-edit-public-id" name="public_id" type="hidden" />
@@ -666,7 +666,7 @@
 						<span>Parent/Hierarchie</span>
 						<div class="political-territory-parent-search">
 							<input id="region-edit-parent-filter" type="search" autocomplete="off" placeholder="Hierarchie durchsuchen" />
-							<button id="region-edit-parent-filter-clear" type="button" aria-label="Suche leeren">x</button>
+							<button id="region-edit-parent-filter-clear" type="button" aria-label="Suche leeren">×</button>
 						</div>
 						<div id="region-edit-parent-tree" class="political-territory-parent-tree" role="tree"></div>
 						<div id="region-edit-assignment-drop" class="political-territory-assignment-drop" tabindex="0">
@@ -698,7 +698,7 @@
 						<input id="region-edit-parent" name="parent_public_id" type="hidden" />
 						<div id="region-edit-parent-drop" class="political-territory-parent-drop" tabindex="0">
 							<span id="region-edit-parent-drop-label">Kein Parent</span>
-							<button id="region-edit-parent-clear" type="button" aria-label="Parent entfernen">x</button>
+							<button id="region-edit-parent-clear" type="button" aria-label="Parent entfernen">×</button>
 						</div>
 					</label>
 					<div class="location-report-form__grid">
@@ -771,7 +771,7 @@
 			<div id="region-wiki-picker-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="region-wiki-picker-title" tabindex="-1">
 				<div class="location-report-dialog__header">
 					<h2 id="region-wiki-picker-title">Wiki-Referenz ändern</h2>
-					<button id="region-wiki-picker-close" class="location-report-dialog__close" type="button" aria-label="Wiki-Referenz schliessen">x</button>
+					<button id="region-wiki-picker-close" class="location-report-dialog__close" type="button" aria-label="Wiki-Referenz schliessen">×</button>
 				</div>
 				<div class="location-report-form">
 					<label class="location-report-form__field">
