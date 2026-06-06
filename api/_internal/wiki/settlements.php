@@ -853,13 +853,17 @@ function avesmapsWikiSettlementCrawlBuildings(PDO $pdo): array {
 
     $insert = $pdo->prepare(
         'INSERT INTO ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . '
-            (title, normalized_key, wiki_url, settlement_class, settlement_label, building_type, fetched_at)
-         VALUES (:title, :nk, :url, :cls, :lbl, :bt, CURRENT_TIMESTAMP(3))
-         ON DUPLICATE KEY UPDATE building_type = IF(building_type IS NULL OR building_type = \'\', VALUES(building_type), building_type)'
+            (title, normalized_key, wiki_url, settlement_class, settlement_label, building_type, is_ruined, fetched_at)
+         VALUES (:title, :nk, :url, :cls, :lbl, :bt, :ru, CURRENT_TIMESTAMP(3))
+         ON DUPLICATE KEY UPDATE
+            building_type = IF(building_type IS NULL OR building_type = \'\', VALUES(building_type), building_type),
+            is_ruined = IF(VALUES(is_ruined) = 1, 1, is_ruined)'
     );
     $label = avesmapsWikiSettlementClassLabel('gebaeude');
     $added = 0;
     foreach ($typeByTitle as $title => $type) {
+        // Ruine-Typen (Ruine, Festungsruine, …) direkt als Ruine merken.
+        $isRuined = (mb_stripos($type, 'ruine') !== false) ? 1 : 0;
         $insert->execute([
             'title' => mb_substr($title, 0, 255, 'UTF-8'),
             'nk' => avesmapsWikiSyncCreateMatchKey($title),
@@ -867,6 +871,7 @@ function avesmapsWikiSettlementCrawlBuildings(PDO $pdo): array {
             'cls' => 'gebaeude',
             'lbl' => $label,
             'bt' => mb_substr($type, 0, 120, 'UTF-8'),
+            'ru' => $isRuined,
         ]);
         $added += $insert->rowCount();
     }
