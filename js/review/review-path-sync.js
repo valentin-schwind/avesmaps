@@ -53,13 +53,15 @@ function pathSyncCurrentRows() {
 	if (!pathSyncData) {
 		return [];
 	}
+	const missing = pathSyncData.missing || [];
+	const assigned = [].concat(pathSyncData.matched || [], pathSyncData.ambiguous || []);
 	if (pathSyncView === "missing") {
-		return pathSyncData.missing || [];
+		return missing;
 	}
-	// „Zugeordnet" = matched (1 Segment) + mehrteilig (mehrere) zusammengelegt.
-	const combined = [].concat(pathSyncData.matched || [], pathSyncData.ambiguous || []);
-	combined.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
-	return combined;
+	// „Platziert" = matched (1 Segment) + mehrteilig (mehrere) zusammengelegt.
+	const rows = pathSyncView === "all" ? assigned.concat(missing) : assigned;
+	rows.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+	return rows;
 }
 
 function renderPathSyncList() {
@@ -76,38 +78,48 @@ function renderPathSyncList() {
 		return [row.name, row.art, row.lage].filter(Boolean).some((v) => String(v).toLowerCase().includes(filterValue));
 	});
 
-	const viewTabs =
-		'<div class="region-sync__viewtabs">' +
-		`<button type="button" data-path-view="assigned" class="region-sync__viewtab${pathSyncView !== "missing" ? " is-active" : ""}">Zugeordnet (${(summary.matched || 0) + (summary.ambiguous || 0)})</button>` +
-		`<button type="button" data-path-view="missing" class="region-sync__viewtab${pathSyncView === "missing" ? " is-active" : ""}">Fehlt (${summary.missing || 0})</button>` +
-		"</div>";
+	// Toggle-Tabs (Alle / Platziert / Fehlt) wie bei Siedlungen — im eigenen Container unter dem
+	// Suchfeld. „Platziert" = matched + mehrteilig.
+	const assignedCount = (summary.matched || 0) + (summary.ambiguous || 0);
+	const missingCount = summary.missing || 0;
+	const tabsHost = pathSyncElement("path-sync-tabs");
+	if (tabsHost) {
+		const tab = (view, label, count) =>
+			`<button type="button" data-path-view="${view}" class="region-sync__viewtab${pathSyncView === view ? " is-active" : ""}">${label} (${count})</button>`;
+		tabsHost.innerHTML =
+			tab("all", "Alle", assignedCount + missingCount) + tab("assigned", "Platziert", assignedCount) + tab("missing", "Fehlt", missingCount);
+	}
 
 	const candidate = (p) => `<button type="button" class="region-sync__cand" data-path-id="${pathSyncEscapeAttr((p && p.public_id) || "")}">${pathSyncEscapeText(p.name)}</button>`;
 	const items = rows
 		.map((row) => {
 			const segs = row.path ? [row.path] : (row.paths || []);
+			const onMap = segs.length > 0; // grüner Punkt = auf Karte (hat Segmente)
 			const metaParts = [row.kind, row.art, row.lage].filter(Boolean).map(pathSyncEscapeText);
 			let metaHtml = metaParts.join(" · ");
 			if (row.wiki_url) {
 				const wikiLink = `<a class="region-sync__link" href="${pathSyncEscapeAttr(row.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
 				metaHtml = metaHtml ? `${metaHtml} · ${wikiLink}` : wikiLink;
 			}
-			const segInfo = segs.length
-				? `<span class="region-sync__map">${segs.length} Segment${segs.length === 1 ? "" : "e"}: ${segs.slice(0, 40).map(candidate).join(" ")}</span>`
-				: "";
-			const assignBtn = `<button type="button" class="path-sync__assign" data-wiki-key="${pathSyncEscapeAttr(row.wiki_key)}">${pathSyncView === "missing" ? "Zuordnen" : "Neu zuordnen"}</button>`;
+			if (segs.length) {
+				metaHtml += `<span class="region-sync__map">${segs.length} Segment${segs.length === 1 ? "" : "e"}: ${segs.slice(0, 40).map(candidate).join(" ")}</span>`;
+			}
+			const assignBtn = `<button type="button" class="path-sync__assign" data-wiki-key="${pathSyncEscapeAttr(row.wiki_key)}">${onMap ? "Neu zuordnen" : "Zuordnen"}</button>`;
+			metaHtml += `<span class="region-sync__map">${assignBtn}</span>`;
+			const marker = `<span class="tree-map-status${onMap ? " tree-map-status--all" : ""}" aria-hidden="true"></span>`;
+			// Wege haben keinen Drag-Handle — leere Spalte 1 für gleiche Ausrichtung.
 			return (
-				'<div class="review-panel__item region-sync__item">' +
-				`<div class="region-sync__name">${pathSyncEscapeText(row.name)}</div>` +
-				`<div class="region-sync__meta">${metaHtml}</div>` +
-				(segInfo ? `<div class="region-sync__meta">${segInfo}</div>` : "") +
-				(assignBtn ? `<div class="region-sync__links">${assignBtn}</div>` : "") +
+				'<div class="tree-item region-sync__item">' +
+				'<span class="drag-handle" aria-hidden="true"></span>' +
+				`<span class="tree-item-name">${pathSyncEscapeText(row.name)}</span>` +
+				`<span class="tree-item-meta">${metaHtml}</span>` +
+				marker +
 				"</div>"
 			);
 		})
 		.join("");
 
-	list.innerHTML = viewTabs + (items || '<p class="review-panel__status">Keine Einträge.</p>');
+	list.innerHTML = items || '<p class="review-panel__status">Keine Einträge.</p>';
 }
 
 async function assignPathWiki(wikiKey) {
@@ -321,7 +333,7 @@ document.addEventListener("click", (event) => {
 	}
 	const viewBtn = event.target.closest("[data-path-view]");
 	if (viewBtn) {
-		pathSyncView = viewBtn.dataset.pathView || "matched";
+		pathSyncView = viewBtn.dataset.pathView || "assigned";
 		renderPathSyncList();
 		return;
 	}

@@ -739,10 +739,10 @@
 	overflow-y: auto;
 	padding: 0;
 }
-/* „Alle Siedlungen"-Liste übernimmt 1:1 die Struktur der Territorien-Items
-   (#wiki-sync-territory-tree .tree-item): Grid mit Drag-Handle in Spalte 1
+/* Geteiltes Listen-Item-Layout (Siedlungen/Regionen/Wege) — übernimmt 1:1 die Struktur der
+   Territorien-Items (#wiki-sync-territory-tree .tree-item): Grid mit Drag-Handle in Spalte 1
    (über beide Zeilen), Name+Kreis in Zeile 1, Meta+Wiki-Link in Zeile 2. */
-#settlement-list .tree-item {
+.wikisync-itemlist .tree-item {
 	display: grid;
 	grid-template-columns: 16px minmax(0, 1fr);
 	grid-template-rows: auto auto;
@@ -755,10 +755,10 @@
 	cursor: pointer;
 	color: var(--text-strong, #3f3428);
 }
-#settlement-list .tree-item:hover {
+.wikisync-itemlist .tree-item:hover {
 	background: var(--panel-hover, #f5eadc);
 }
-#settlement-list .drag-handle {
+.wikisync-itemlist .drag-handle {
 	grid-column: 1;
 	grid-row: 1 / span 2;
 	align-self: center;
@@ -767,14 +767,14 @@
 	letter-spacing: -1px;
 	cursor: grab;
 }
-#settlement-list .tree-item-name {
+.wikisync-itemlist .tree-item-name {
 	grid-column: 2;
 	grid-row: 1;
 	min-width: 0;
 	line-height: 1.22;
 }
-/* Kreis rechts neben dem Namen (wie im Territorien-Tree, via ::after). */
-#settlement-list .tree-item-name::after {
+/* Kreis rechts neben dem Namen (wie im Territorien-Tree, via ::after). Grün = auf Karte. */
+.wikisync-itemlist .tree-item-name::after {
 	content: "";
 	display: inline-block;
 	width: 13px;
@@ -786,13 +786,13 @@
 	background: #fffaf4;
 	box-sizing: border-box;
 }
-#settlement-list .tree-item:has(.tree-map-status--own-only) .tree-item-name::after {
+.wikisync-itemlist .tree-item:has(.tree-map-status--own-only) .tree-item-name::after {
 	background: linear-gradient(to right, #fffaf4 0 50%, #6a7f3a 50% 100%);
 }
-#settlement-list .tree-item:has(.tree-map-status--all) .tree-item-name::after {
+.wikisync-itemlist .tree-item:has(.tree-map-status--all) .tree-item-name::after {
 	background: #6a7f3a;
 }
-#settlement-list .tree-item-meta {
+.wikisync-itemlist .tree-item-meta {
 	grid-column: 2;
 	grid-row: 2;
 	font-size: 0.78em;
@@ -801,11 +801,16 @@
 	color: var(--muted, #8a8173);
 	white-space: normal;
 }
-#settlement-list .tree-item-meta .settlement-list__wiki {
+.wikisync-itemlist .tree-item-meta a {
 	color: inherit;
 }
+/* Kandidaten-Chips dürfen in der Meta-Zeile umbrechen. */
+.wikisync-itemlist .tree-item-meta .region-sync__map {
+	display: block;
+	margin-top: 2px;
+}
 /* Der Status-Marker selbst ist unsichtbar; er steuert nur die Kreis-Füllung. */
-#settlement-list .tree-map-status {
+.wikisync-itemlist .tree-map-status {
 	display: none;
 }
 

@@ -63,13 +63,17 @@ function regionSyncCurrentRows() {
 	if (!regionSyncData) {
 		return [];
 	}
+	const missing = regionSyncData.missing || [];
+	const matched = regionSyncData.matched || [];
+	const ambiguous = regionSyncData.ambiguous || [];
+	if (regionSyncView === "missing") {
+		return missing;
+	}
+	// „Platziert" = zugeordnet + mehrfach (Mehrfach in Platziert gemerged).
 	if (regionSyncView === "matched") {
-		return regionSyncData.matched || [];
+		return matched.concat(ambiguous);
 	}
-	if (regionSyncView === "ambiguous") {
-		return regionSyncData.ambiguous || [];
-	}
-	return regionSyncData.missing || [];
+	return missing.concat(matched, ambiguous); // "all"
 }
 
 function renderRegionSyncList() {
@@ -88,46 +92,56 @@ function renderRegionSyncList() {
 			.some((value) => String(value).toLowerCase().includes(filterValue));
 	});
 
-	const viewTabs =
-		'<div class="region-sync__viewtabs">' +
-		`<button type="button" data-region-view="missing" class="region-sync__viewtab${regionSyncView === "missing" ? " is-active" : ""}">Fehlt (${summary.missing || 0})</button>` +
-		`<button type="button" data-region-view="matched" class="region-sync__viewtab${regionSyncView === "matched" ? " is-active" : ""}">Zugeordnet (${summary.matched || 0})</button>` +
-		`<button type="button" data-region-view="ambiguous" class="region-sync__viewtab${regionSyncView === "ambiguous" ? " is-active" : ""}">Mehrfach (${summary.ambiguous || 0})</button>` +
-		"</div>";
+	// Toggle-Tabs (Alle / Platziert / Fehlt) wie bei Siedlungen — im eigenen Container unter
+	// dem Suchfeld, nicht in der scrollbaren Liste. „Platziert" = Zugeordnet + Mehrfach.
+	const missingCount = summary.missing || 0;
+	const matchedCount = summary.matched || 0;
+	const ambiguousCount = summary.ambiguous || 0;
+	const tabsHost = regionSyncElement("region-sync-tabs");
+	if (tabsHost) {
+		const tab = (view, label, count) =>
+			`<button type="button" data-region-view="${view}" class="region-sync__viewtab${regionSyncView === view ? " is-active" : ""}">${label} (${count})</button>`;
+		tabsHost.innerHTML =
+			tab("all", "Alle", missingCount + matchedCount + ambiguousCount) +
+			tab("matched", "Platziert", matchedCount + ambiguousCount) +
+			tab("missing", "Fehlt", missingCount);
+	}
 
-	const isMissingView = regionSyncView === "missing";
 	const candidate = (label) => `<button type="button" class="region-sync__cand" data-label-id="${regionSyncEscapeAttr((label && label.public_id) || "")}">${regionSyncEscapeText(label.name)}${label.subtype ? " (" + regionSyncEscapeText(label.subtype) + ")" : ""}</button>`;
 	const items = rows
 		.map((row) => {
+			const onMap = Boolean(row.label || (row.labels && row.labels.length));
 			const metaParts = [row.art, row.region_parent].filter(Boolean).map(regionSyncEscapeText);
 			let metaHtml = metaParts.join(" · ");
 			if (row.wiki_url) {
 				const wikiLink = `<a class="region-sync__link" href="${regionSyncEscapeAttr(row.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a>`;
 				metaHtml = metaHtml ? `${metaHtml} · ${wikiLink}` : wikiLink;
 			}
-			let mapInfo = "";
+			// Mehrfach-Kandidaten weiterhin anzeigen (alle Kandidaten anklickbar).
 			if (row.label) {
-				mapInfo = `<span class="region-sync__map">Karte: ${candidate(row.label)}</span>`;
+				metaHtml += `<span class="region-sync__map">Karte: ${candidate(row.label)}</span>`;
 			} else if (row.labels && row.labels.length) {
-				mapInfo = `<span class="region-sync__map">Kandidaten: ${row.labels.map(candidate).join(" ")}</span>`;
+				metaHtml += `<span class="region-sync__map">Kandidaten: ${row.labels.map(candidate).join(" ")}</span>`;
 			}
-			const image = row.has_image ? '<span class="region-sync__badge" title="Wiki hat ein Bild">🖼</span>' : "";
-			const draggable = isMissingView && row.wiki_key;
+			const image = row.has_image ? ' <span class="region-sync__badge" title="Wiki hat ein Bild">🖼</span>' : "";
+			const draggable = !onMap && row.wiki_key; // nur fehlende Regionen sind ziehbar
+			const handle = `<span class="drag-handle" aria-hidden="true">${draggable ? "⠿" : ""}</span>`;
 			const dragAttrs = draggable ? ` draggable="true" data-wiki-key="${regionSyncEscapeAttr(row.wiki_key)}"` : "";
-			const handle = draggable ? '<span class="region-sync__handle" aria-hidden="true">⠿</span>' : "";
-			const classes = "review-panel__item region-sync__item" + (draggable ? " region-sync__item--draggable" : "");
+			const classes = "tree-item region-sync__item" + (draggable ? " region-sync__item--draggable" : "");
 			const title = draggable ? "Auf die Karte ziehen, um die Region anzulegen" : "";
+			const marker = `<span class="tree-map-status${onMap ? " tree-map-status--all" : ""}" aria-hidden="true"></span>`;
 			return (
 				`<div class="${classes}"${dragAttrs} title="${regionSyncEscapeAttr(title)}">` +
-				`<div class="region-sync__name">${handle}${regionSyncEscapeText(row.name)} ${image}</div>` +
-				`<div class="region-sync__meta">${metaHtml}</div>` +
-				(mapInfo ? `<div class="region-sync__meta">${mapInfo}</div>` : "") +
+				handle +
+				`<span class="tree-item-name">${regionSyncEscapeText(row.name)}${image}</span>` +
+				(metaHtml ? `<span class="tree-item-meta">${metaHtml}</span>` : "") +
+				marker +
 				"</div>"
 			);
 		})
 		.join("");
 
-	list.innerHTML = viewTabs + (items || '<p class="review-panel__status">Keine Einträge.</p>');
+	list.innerHTML = items || '<p class="review-panel__status">Keine Einträge.</p>';
 }
 
 async function startRegionWikiCrawl() {
