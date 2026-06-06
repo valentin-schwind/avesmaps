@@ -374,3 +374,11 @@ body.edit-mode .map-label span {
 	background: #8c1d1d;
 	color: #fff;
 }
+
+/* Labels mit zugeordneter Wiki-Landschaft sind auch im ANSICHTSMODUS anklickbar (Infobox).
+   Hebt das pointer-events:none der Labels gezielt fuer diese auf. */
+.map-label--has-wiki,
+.map-label--has-wiki span {
+	pointer-events: auto;
+	cursor: pointer;
+}
