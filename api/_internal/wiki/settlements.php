@@ -489,7 +489,13 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
         if ($name === '' || str_starts_with($name, 'Kreuzung')) {
             continue;
         }
-        $mapKeys[avesmapsWikiSettlementBaseKey($name)] = true;
+        // Angeglichen an den Fall-Sync: derselbe Match-Key (Umlaut-/ß-Faltung) wie
+        // avesmapsWikiSyncMatchMapPlaces, damit „Nur im Wiki" dieselbe „liegt auf der
+        // Karte"-Entscheidung trifft wie die Fehlende-Wiki-Orte-Cases.
+        $mk = avesmapsWikiSyncCreateMatchKey($name);
+        if ($mk !== '') {
+            $mapKeys[$mk] = true;
+        }
         $props = avesmapsWikiSyncDecodeJson($r['properties_json'] ?? null);
         $ws = $props['wiki_settlement'] ?? null;
         $connected = is_array($ws) && !empty($ws['title']);
@@ -522,7 +528,7 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
         if ($title === '') {
             continue;
         }
-        $bk = avesmapsWikiSettlementBaseKey($title);
+        $bk = avesmapsWikiSyncCreateMatchKey($title);
         if ($bk === '' || isset($mapKeys[$bk]) || isset($seen[$bk])) {
             continue;
         }
