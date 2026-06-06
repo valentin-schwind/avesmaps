@@ -649,14 +649,10 @@ function avesmapsWikiPathMatch(PDO $pdo, array $options = []): array {
             continue;
         }
         $processed++;
-        $keys = [(string) ($row['match_key'] ?? '')];
-        foreach (avesmapsWikiSyncDecodeJson($row['synonyms_json'] ?? null) as $synonym) {
-            $synonymKey = avesmapsWikiSyncCreateMatchKey((string) $synonym);
-            if ($synonymKey !== '') {
-                $keys[] = $synonymKey;
-            }
-        }
-        $keys = array_values(array_unique(array_filter($keys, static fn(string $k): bool => $k !== '')));
+        // Nur exakter Name-Match (KEINE Synonyme): Synonyme zogen sonst fremde Wege herein
+        // (z.B. „Kvill"-Segmente an „Amper", weil das Wiki Kvill als Synonym fuehrt) — und das
+        // Zuordnen nutzt ohnehin nur den match_key. So ist die Anzeige konsistent mit dem Write.
+        $keys = array_values(array_filter([(string) ($row['match_key'] ?? '')], static fn(string $k): bool => $k !== ''));
         foreach ($keys as $k) {
             $consideredKeys[$k] = true;
         }

@@ -4,7 +4,7 @@
 
 const PATH_SYNC_API_URL = "/api/edit/wiki/paths.php";
 let pathSyncData = null;
-let pathSyncView = "matched"; // matched | ambiguous | missing
+let pathSyncView = "assigned"; // assigned (matched+mehrteilig) | missing
 let pathSyncBusy = false;
 
 function pathSyncElement(id) {
@@ -53,13 +53,13 @@ function pathSyncCurrentRows() {
 	if (!pathSyncData) {
 		return [];
 	}
-	if (pathSyncView === "ambiguous") {
-		return pathSyncData.ambiguous || [];
-	}
 	if (pathSyncView === "missing") {
 		return pathSyncData.missing || [];
 	}
-	return pathSyncData.matched || [];
+	// „Zugeordnet" = matched (1 Segment) + mehrteilig (mehrere) zusammengelegt.
+	const combined = [].concat(pathSyncData.matched || [], pathSyncData.ambiguous || []);
+	combined.sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+	return combined;
 }
 
 function renderPathSyncList() {
@@ -78,8 +78,7 @@ function renderPathSyncList() {
 
 	const viewTabs =
 		'<div class="region-sync__viewtabs">' +
-		`<button type="button" data-path-view="matched" class="region-sync__viewtab${pathSyncView === "matched" ? " is-active" : ""}">Zugeordnet (${summary.matched || 0})</button>` +
-		`<button type="button" data-path-view="ambiguous" class="region-sync__viewtab${pathSyncView === "ambiguous" ? " is-active" : ""}">Mehrteilig (${summary.ambiguous || 0})</button>` +
+		`<button type="button" data-path-view="assigned" class="region-sync__viewtab${pathSyncView !== "missing" ? " is-active" : ""}">Zugeordnet (${(summary.matched || 0) + (summary.ambiguous || 0)})</button>` +
 		`<button type="button" data-path-view="missing" class="region-sync__viewtab${pathSyncView === "missing" ? " is-active" : ""}">Fehlt (${summary.missing || 0})</button>` +
 		"</div>";
 
@@ -96,9 +95,7 @@ function renderPathSyncList() {
 			const segInfo = segs.length
 				? `<span class="region-sync__map">${segs.length} Segment${segs.length === 1 ? "" : "e"}: ${segs.slice(0, 40).map(candidate).join(" ")}</span>`
 				: "";
-			const assignBtn = segs.length
-				? `<button type="button" class="path-sync__assign" data-wiki-key="${pathSyncEscapeAttr(row.wiki_key)}">${pathSyncView === "matched" ? "Neu zuordnen" : "Zuordnen"}</button>`
-				: "";
+			const assignBtn = `<button type="button" class="path-sync__assign" data-wiki-key="${pathSyncEscapeAttr(row.wiki_key)}">${pathSyncView === "missing" ? "Zuordnen" : "Neu zuordnen"}</button>`;
 			return (
 				'<div class="review-panel__item region-sync__item">' +
 				`<div class="region-sync__name">${pathSyncEscapeText(row.name)}</div>` +

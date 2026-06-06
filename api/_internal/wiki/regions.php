@@ -853,14 +853,8 @@ function avesmapsWikiRegionMatch(PDO $pdo, array $options = []): array {
         }
         $processed++;
 
-        $keys = [(string) ($row['match_key'] ?? '')];
-        foreach (avesmapsWikiSyncDecodeJson($row['synonyms_json'] ?? null) as $synonym) {
-            $synonymKey = avesmapsWikiSyncCreateMatchKey((string) $synonym);
-            if ($synonymKey !== '') {
-                $keys[] = $synonymKey;
-            }
-        }
-        $keys = array_values(array_unique(array_filter($keys, static fn(string $k): bool => $k !== '')));
+        // Nur exakter Name-Match (KEINE Synonyme), konsistent mit dem Zuordnen (nutzt nur match_key).
+        $keys = array_values(array_filter([(string) ($row['match_key'] ?? '')], static fn(string $k): bool => $k !== ''));
         foreach ($keys as $k) {
             $consideredStagingKeys[$k] = true;
         }
