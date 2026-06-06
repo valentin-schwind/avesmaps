@@ -86,6 +86,20 @@ body.edit-mode .map-label span {
 	color: #ffe0a6;
 }
 
+/* Feinere „region"-Untertypen — helle Töne im bestehenden Stil, KEINE Kapitälchen. */
+.map-label--steppe span {
+	color: #e3e2a4; /* Steppe: helles Stroh-/Grasgelb */
+}
+.map-label--huegelland span {
+	color: #e6d6b0; /* Hügelland: helles Sand-/Erdbraun */
+}
+.map-label--tundra span {
+	color: #dbe8e8; /* Tundra: blasses Eisgrau */
+}
+.map-label--kueste span {
+	color: #d2e9dd; /* Küste: blasses Seegrün */
+}
+
 .map-label--suempfe_moore span {
 	color: #9fccad;
 }

@@ -42,12 +42,18 @@ function avesmapsWikiRegionDefaultSeeds(): array {
 // Mapping Wiki-„Art" (erster Begriff, normalisiert wie der Match-Key: Umlaut-/ß-Faltung, lower,
 // nur Buchstaben/Ziffern) -> Avesmaps Label-Subtype. Steuert den Typ-Check. Nutzer-bestätigt.
 const AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE = [
-    // region
+    // region (Sammeltopf)
     'region' => 'region', 'mischregion' => 'region', 'grossregion' => 'region',
-    'flusstal' => 'region', 'tal' => 'region', 'steppe' => 'region',
-    'graslandschaft' => 'region', 'hugelland' => 'region', 'hochland' => 'region',
-    'tundra' => 'region', 'auenlandschaft' => 'region', 'kuste' => 'region',
-    'klippe' => 'region', 'halbinsel' => 'region',
+    'flusstal' => 'region', 'tal' => 'region', 'auenlandschaft' => 'region',
+    'halbinsel' => 'region',
+    // steppe (trockenes Grasland)
+    'steppe' => 'steppe', 'graslandschaft' => 'steppe',
+    // hügelland (Höhenland)
+    'hugelland' => 'huegelland', 'hochland' => 'huegelland',
+    // tundra
+    'tundra' => 'tundra',
+    // küste
+    'kuste' => 'kueste', 'klippe' => 'kueste',
     // gebirge / wald
     'gebirge' => 'gebirge', 'wald' => 'wald',
     // insel

@@ -7,12 +7,24 @@ const LABEL_WIKI_API_URL = "/api/edit/wiki/regions.php";
 let currentLabelWikiRegion = null; // das aktuell zugeordnete wiki_region-Objekt (oder null)
 let labelWikiPickerResults = [];
 
+// Wiki-Art (lowercased) -> Label-Subtype für den ↻-Button. Konsistent mit der PHP-Mapping-Tabelle
+// (AVESMAPS_WIKI_REGION_ART_TO_SUBTYPE in regions.php).
 const LABEL_WIKI_ART_TO_SUBTYPE = {
-	"wüste": "wueste", "wueste": "wueste", "gebirge": "gebirge", "hochland": "gebirge",
-	"gebirgskette": "gebirge", "berg": "berggipfel", "gipfel": "berggipfel", "wald": "wald",
-	"forst": "wald", "insel": "insel", "inselgruppe": "insel", "meer": "meer", "bucht": "meer",
-	"see": "see", "sumpf": "suempfe_moore", "moor": "suempfe_moore", "fluss": "fluss",
-	"flusstal": "fluss", "kontinent": "kontinent",
+	"gebirge": "gebirge", "gebirgskette": "gebirge",
+	"berg": "berggipfel", "gipfel": "berggipfel", "berggipfel": "berggipfel",
+	"wald": "wald", "forst": "wald",
+	"insel": "insel", "inselgruppe": "insel",
+	"meer": "meer", "meeresteil": "meer", "meerenge": "meer", "bucht": "meer", "golf": "meer",
+	"see": "see", "seenlandschaft": "see",
+	"sumpf": "suempfe_moore", "moor": "suempfe_moore", "marschland": "suempfe_moore",
+	"wüste": "wueste", "wueste": "wueste", "halbwüste": "wueste", "halbwueste": "wueste",
+	"steppe": "steppe", "graslandschaft": "steppe",
+	"hügelland": "huegelland", "hugelland": "huegelland", "hochland": "huegelland",
+	"tundra": "tundra",
+	"küste": "kueste", "kueste": "kueste", "klippe": "kueste",
+	"region": "region", "mischregion": "region", "großregion": "region", "grossregion": "region",
+	"flusstal": "region", "tal": "region", "auenlandschaft": "region", "halbinsel": "region",
+	"fluss": "fluss", "kontinent": "kontinent",
 };
 
 function labelWikiElement(id) {
