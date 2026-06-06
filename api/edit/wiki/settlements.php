@@ -54,11 +54,12 @@ try {
             ),
             'crawl_buildings' => avesmapsWikiSettlementCrawlBuildings($pdo),
             'enrich_details', 'backfill_continents' => avesmapsWikiSettlementEnrichDetails($pdo, (int) ($payload['limit'] ?? 100)),
+            'bulk_record_ruins' => avesmapsWikiSettlementBulkRecordRuins($pdo, !$isApply()),
             default => null,
         };
 
         // map_features-Cache invalidieren, wenn echt geschrieben wurde.
-        if (in_array($action, ['assign_to', 'clear_assign', 'bulk_connect'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
+        if (in_array($action, ['assign_to', 'clear_assign', 'bulk_connect', 'bulk_record_ruins'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
 
@@ -79,6 +80,7 @@ try {
         'status', '' => avesmapsWikiSettlementStatus($pdo),
         'connect_status' => avesmapsWikiSettlementConnectStatus($pdo),
         'enrich_status', 'continent_status' => avesmapsWikiSettlementEnrichStatus($pdo),
+        'ruin_status' => avesmapsWikiSettlementRuinStatus($pdo),
         'list_locations' => avesmapsWikiSettlementListLocations($pdo),
         'assignment' => avesmapsWikiSettlementGetAssignment($pdo, (string) ($_GET['public_id'] ?? '')),
         'search' => avesmapsWikiSettlementSearch($pdo, (string) ($_GET['q'] ?? ''), (int) ($_GET['limit'] ?? 30)),

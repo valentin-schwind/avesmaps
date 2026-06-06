@@ -34,6 +34,64 @@ async function loadSettlementList() {
 	}
 	renderSettlementList();
 	void refreshSettlementContinentStatus();
+	void refreshSettlementRuinStatus();
+}
+
+// Zeigt den „Ruinen übernehmen"-Button, solange verbundene Orte laut Wiki Ruinen sind,
+// aber noch nicht als is_ruined markiert.
+async function refreshSettlementRuinStatus() {
+	const btn = document.getElementById("settlement-record-ruins");
+	if (!btn) {
+		return;
+	}
+	try {
+		const response = await fetch(`${SETTLEMENT_LIST_API_URL}?action=ruin_status`, { credentials: "same-origin" });
+		const data = await response.json();
+		const remaining = data && data.ok ? Number(data.remaining || 0) : 0;
+		if (remaining > 0) {
+			btn.textContent = `🏚 Ruinen übernehmen (${remaining})`;
+			btn.hidden = false;
+		} else {
+			btn.hidden = true;
+		}
+	} catch (error) {
+		btn.hidden = true;
+	}
+}
+
+let settlementRecordRuinsRunning = false;
+// Überträgt den Wiki-Ruine-Status auf die Karten-Marker (setzt is_ruined → Marker kursiv).
+async function runSettlementRecordRuins() {
+	if (settlementRecordRuinsRunning) {
+		return;
+	}
+	const btn = document.getElementById("settlement-record-ruins");
+	settlementRecordRuinsRunning = true;
+	if (btn) {
+		btn.disabled = true;
+	}
+	try {
+		const response = await fetch(SETTLEMENT_LIST_API_URL, {
+			method: "POST",
+			credentials: "same-origin",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ action: "bulk_record_ruins", dry_run: false, confirm: "apply" }),
+		});
+		const data = await response.json();
+		if (!data || data.ok !== true) {
+			throw new Error(data && data.error ? data.error : "Fehler beim Übernehmen");
+		}
+		showFeedbackToast?.(`${data.applied || 0} Ruinen übernommen — Karte aktualisiert sich.`, "success");
+		await loadSettlementList();
+	} catch (error) {
+		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
+	} finally {
+		settlementRecordRuinsRunning = false;
+		if (btn) {
+			btn.disabled = false;
+		}
+		await refreshSettlementRuinStatus();
+	}
 }
 
 // Zeigt den „Kontinente nachtragen"-Button, solange Registry-Seiten ohne Kontinent existieren.
@@ -248,6 +306,10 @@ document.addEventListener("click", (event) => {
 	}
 	if (event.target.closest("#settlement-backfill-continents")) {
 		void runSettlementContinentBackfill();
+		return;
+	}
+	if (event.target.closest("#settlement-record-ruins")) {
+		void runSettlementRecordRuins();
 		return;
 	}
 	const statusTab = event.target.closest("[data-wiki-sync-case-status]");

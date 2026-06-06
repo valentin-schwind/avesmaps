@@ -187,6 +187,57 @@ function avesmapsWikiSettlementEnrichDetails(PDO $pdo, int $limit): array {
     return ['ok' => true, 'processed' => $processed, 'remaining' => $remaining];
 }
 
+// Wie viele verbundene Karten-Orte laut Wiki Ruinen sind, aber noch nicht als is_ruined markiert.
+function avesmapsWikiSettlementRuinStatus(PDO $pdo): array {
+    $result = avesmapsWikiSettlementBulkRecordRuins($pdo, true);
+    return ['ok' => true, 'remaining' => (int) ($result['matched'] ?? 0)];
+}
+
+// Überträgt den Wiki-Ruine-Status (Registry is_ruined) auf die verbundenen Karten-Orte:
+// setzt properties.is_ruined = true (additiv — entfernt nie manuell gesetzte Ruinen). Dadurch
+// werden Marker-Label + Popup kursiv. Map-Write, gated über das Endpoint-Apply.
+function avesmapsWikiSettlementBulkRecordRuins(PDO $pdo, bool $dryRun): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+
+    $ruinedTitles = [];
+    foreach ($pdo->query('SELECT title FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' WHERE is_ruined = 1')->fetchAll(PDO::FETCH_COLUMN) as $title) {
+        $title = (string) $title;
+        if ($title !== '') {
+            $ruinedTitles[$title] = true;
+        }
+    }
+
+    $pending = [];
+    if ($ruinedTitles !== []) {
+        $rows = $pdo->query("SELECT id, properties_json FROM map_features WHERE feature_type='location' AND is_active=1")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $r) {
+            $props = avesmapsWikiSyncDecodeJson($r['properties_json'] ?? null);
+            $ws = $props['wiki_settlement'] ?? null;
+            $title = is_array($ws) ? (string) ($ws['title'] ?? '') : '';
+            if ($title === '' || !isset($ruinedTitles[$title]) || !empty($props['is_ruined'])) {
+                continue;
+            }
+            $pending[] = ['id' => (int) $r['id'], 'props' => $props];
+        }
+    }
+
+    if ($dryRun || $pending === []) {
+        return ['ok' => true, 'dry_run' => $dryRun, 'matched' => count($pending), 'applied' => 0];
+    }
+
+    $revision = avesmapsWikiSyncNextMapRevision($pdo);
+    $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
+    $applied = 0;
+    foreach ($pending as $p) {
+        $props = $p['props'];
+        $props['is_ruined'] = true;
+        $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $p['id']]);
+        $applied += 1;
+    }
+
+    return ['ok' => true, 'dry_run' => false, 'matched' => count($pending), 'applied' => $applied];
+}
+
 // Parst {{Infobox Siedlung}} aus dem Seiten-Wikitext in das wiki_settlement-Objekt, das ans
 // Orts-Feature geheftet wird. settlementClass/settlementLabel kommen aus der Registry (Kategorie).
 function avesmapsWikiSettlementParseInfobox(string $title, string $wikitext, string $settlementClass = '', string $registryUrl = ''): array {
