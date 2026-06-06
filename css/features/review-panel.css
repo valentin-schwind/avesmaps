@@ -780,4 +780,23 @@
 		width: auto;
 		justify-self: start;
 	}
+
+	/* Mobil: das aktive Tab-Panel ist EIN Scroll-Container statt verschachtelter Mini-Scroll-
+	   bereiche. Sonst „endet" das Scrollen in der Case-Liste (min-height:320px + eigener
+	   overflow) und die Siedlungsliste darunter ist unerreichbar. */
+	.wiki-sync-panel__tab-panel.is-active {
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+	#wiki-sync-case-list.review-panel__list--cases,
+	.wiki-sync-locations-section,
+	#settlement-list,
+	#region-sync-list,
+	#path-sync-list,
+	.wiki-sync-territory-tree {
+		flex: 0 0 auto;
+		min-height: 0;
+		max-height: none;
+		overflow: visible;
+	}
 }
