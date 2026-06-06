@@ -211,11 +211,28 @@
 						<button id="wiki-sync-start" class="wiki-sync-panel__start" type="button">WikiSync</button>
 					</div>
 					<progress id="wiki-sync-progress" class="wiki-sync-progress" max="5" value="0" hidden></progress>
+						<div class="wiki-sync-substatus" role="tablist" aria-label="WikiSync-Fall-Status">
+							<button class="wiki-sync-substatus__tab is-active" type="button" data-wiki-sync-case-status="open">Offen</button>
+							<button class="wiki-sync-substatus__tab" type="button" data-wiki-sync-case-status="deferred">Zur&uuml;ckgestellt</button>
+							<button class="wiki-sync-substatus__tab" type="button" data-wiki-sync-case-status="archived">Archiviert</button>
+						</div>
 
 					<div class="wiki-sync-panel__filter">
 						<input id="wiki-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="WikiSync-Fälle durchsuchen" />
 					</div>
-					<div id="wiki-sync-case-list" class="review-panel__list"></div>
+					<div id="wiki-sync-case-list" class="review-panel__list review-panel__list--cases" data-active-status="open"></div>
+
+						<div class="wiki-sync-locations-section">
+							<div class="wiki-sync-locations-section__head">
+								<span class="wiki-sync-locations-section__title">Alle Siedlungen</span>
+								<span id="settlement-list-summary" class="wiki-sync-locations-section__summary"></span>
+							</div>
+							<div class="wiki-sync-panel__filter wiki-sync-locations-filterbar">
+								<input id="settlement-list-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Siedlung suchen ..." aria-label="Siedlungen durchsuchen" />
+								<label class="settlement-list__only"><input id="settlement-list-onlyunconnected" type="checkbox" /> nur unverbundene</label>
+							</div>
+							<div id="settlement-list" class="review-panel__list"></div>
+						</div>
 				</div>
 
 				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="territories">
@@ -1017,6 +1034,7 @@
 		<script src="js/review/review-path-wiki.js"></script>
 		<script src="js/review/review-settlement-wiki.js"></script>
 		<script src="js/review/review-settlement-sizes.js"></script>
+		<script src="js/review/review-settlement-list.js"></script>
 		<script src="js/territory/territory-wiki-tree.js"></script>
 		<script src="js/review/review-wiki-sync.js"></script>
 		<script src="js/review/review-region-wiki-picker.js"></script>

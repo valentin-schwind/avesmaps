@@ -617,7 +617,9 @@
 
 .wiki-sync-panel__tab:hover,
 .wiki-sync-panel__tab:focus-visible {
-	background: #f5eadc;
+	background: #9a7a5a;
+	color: #fff;
+	border-color: #7a5a3a;
 	outline: none;
 }
 

@@ -132,6 +132,9 @@ function refreshActiveWikiSyncPanel() {
 		return typeof loadSettlementSizeAudit === "function" ? loadSettlementSizeAudit() : undefined;
 	}
 
+	if (typeof loadSettlementList === "function") {
+		loadSettlementList();
+	}
 	return loadWikiSyncCases();
 }
 
@@ -164,6 +167,9 @@ function setWikiSyncPanelTab(tabName) {
 		}
 	} else {
 		renderWikiSyncCases();
+		if (typeof loadSettlementList === "function") {
+			loadSettlementList();
+		}
 	}
 }
 
@@ -598,10 +604,10 @@ function renderWikiSyncCases(latestRun = null) {
 	setWikiSyncStatus(buildWikiSyncStatusMessage(statusMessage), isWikiSyncCreateLocationSelectionActive ? "pending" : "success");
 
 	const renderedGroupElements = new Map();
-	const openSectionElement = renderWikiSyncCaseSection(listElement, "Offen", "open", filteredCases.filter((caseEntry) => caseEntry.status !== "archived"), renderedGroupElements);
+	const openSectionElement = renderWikiSyncCaseSection(listElement, "Offen", "open", filteredCases.filter((caseEntry) => caseEntry.status === "open"), renderedGroupElements);
 	const deferredSectionElement = renderWikiSyncCaseSection(listElement, "Zurückgestellt", "deferred", filteredCases.filter((caseEntry) => caseEntry.status === "deferred"), renderedGroupElements);
 	const archivedSectionElement = renderWikiSyncCaseSection(listElement, "Archiviert", "archived", filteredCases.filter((caseEntry) => caseEntry.status === "archived"), renderedGroupElements);
-	if (!openSectionElement && !archivedSectionElement) {
+	if (!openSectionElement && !deferredSectionElement && !archivedSectionElement) {
 		setWikiSyncStatus(buildWikiSyncStatusMessage(hasActiveFilter ? `Keine Treffer für "${filterDisplayQuery}".` : "Keine WikiSync-Fälle."), "empty");
 		wikiSyncFilterCollapseRequested = false;
 		syncWikiSyncCreateLocationContextMenuAction();
