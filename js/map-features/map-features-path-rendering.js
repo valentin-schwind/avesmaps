@@ -1,3 +1,38 @@
+function pathHasWiki(path) {
+	return Boolean(path && path.properties && path.properties.wiki_path && path.properties.wiki_path.wiki_key);
+}
+
+// Infobox eines Wiki-Wegs (Fluss/Strasse) — gleiche .region-info-box-Struktur wie Regionen/Gebiete.
+function pathWikiInfoboxMarkup(path) {
+	const wiki = (path.properties && path.properties.wiki_path) || {};
+	const name = wiki.name || getPathDisplayName(path) || "";
+	const row = (dtLabel, value) => {
+		if (!value || String(value).trim() === "") {
+			return "";
+		}
+		return `<div class="region-info-box__row"><dt>${escapeHtml(dtLabel)}</dt><dd>${escapeHtml(value)}</dd></div>`;
+	};
+	let rows = "";
+	rows += row("Art", wiki.art);
+	rows += row("Lage", wiki.lage);
+	rows += row("Länge", wiki.laenge);
+	rows += row("Verlauf", wiki.verlauf);
+	const description = String(wiki.description || "").trim();
+	rows += row("Beschreibung", description.length > 320 ? description.slice(0, 320).trim() + " …" : description);
+	if (wiki.wiki_url) {
+		rows += `<div class="region-info-box__row"><dt>Wiki</dt><dd><a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">Wiki ↗</a></dd></div>`;
+	}
+	const subtitle = wiki.kind === "fluss" ? "Fluss (Wiki)" : (wiki.kind === "strasse" ? "Straße/Weg (Wiki)" : "Wiki-Weg");
+	return (
+		'<div class="region-info-box">' +
+		'<div class="region-info-box__header"><div class="region-info-box__title-group">' +
+		`<strong class="region-info-box__title">${escapeHtml(name)}</strong>` +
+		`<span class="region-info-box__subtitle">${escapeHtml(subtitle)}</span></div></div>` +
+		`<dl class="region-info-box__data">${rows}</dl>` +
+		"</div>"
+	);
+}
+
 function createPathPopupMarkup(path) {
 	const pathName = getPathDisplayName(path);
 	const pathType = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
@@ -9,7 +44,7 @@ function createPathPopupMarkup(path) {
 		showDescription: false,
 		showWikiLink: false,
 		showType: true,
-		actionsMarkup: IS_EDIT_MODE ? locationPopupActionsMarkup([
+		actionsMarkup: (IS_EDIT_MODE ? locationPopupActionsMarkup([
 			popupActionButtonMarkup({
 				label: "Details bearbeiten",
 				attributes: {
@@ -32,7 +67,7 @@ function createPathPopupMarkup(path) {
 					"data-public-id": getPathPublicId(path),
 				},
 			}),
-		]) : "",
+		]) : "") + (pathHasWiki(path) ? pathWikiInfoboxMarkup(path) : ""),
 	});
 }
 
@@ -70,7 +105,7 @@ function createPathLayer(path) {
 		color: colors.outline,
 		weight: colors.outlineWeight,
 		opacity: 1,
-		interactive: IS_EDIT_MODE,
+		interactive: IS_EDIT_MODE || pathHasWiki(path),
 		bubblingMouseEvents: false,
 		lineCap: "round",
 		lineJoin: "round",
@@ -80,7 +115,7 @@ function createPathLayer(path) {
 		color: colors.center,
 		weight: colors.centerWeight,
 		opacity: 1,
-		interactive: IS_EDIT_MODE,
+		interactive: IS_EDIT_MODE || pathHasWiki(path),
 		bubblingMouseEvents: false,
 		lineCap: "round",
 		lineJoin: "round",
