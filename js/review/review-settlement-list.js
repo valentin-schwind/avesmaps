@@ -66,6 +66,99 @@ async function loadSettlementList() {
 	void refreshSettlementContinentStatus();
 	void refreshSettlementRuinStatus();
 	void refreshSettlementCoatStatus();
+	void refreshSettlementConnectStatus();
+}
+
+// Zeigt den „Verbinden"-Button, solange eindeutig verbindbare, unverbundene Orte/Bauwerke existieren.
+async function refreshSettlementConnectStatus() {
+	const btn = document.getElementById("settlement-bulk-connect");
+	if (!btn) {
+		return;
+	}
+	try {
+		const response = await fetch(`${SETTLEMENT_LIST_API_URL}?action=connect_status`, { credentials: "same-origin" });
+		const data = await response.json();
+		const remaining = data && data.ok ? Number(data.connectable_unconnected || 0) : 0;
+		if (remaining > 0) {
+			btn.textContent = `🔗 Verbinden (${remaining})`;
+			btn.hidden = false;
+		} else {
+			btn.hidden = true;
+		}
+	} catch (error) {
+		btn.hidden = true;
+	}
+}
+
+let settlementBulkConnectRunning = false;
+// Verbindet alle eindeutig passenden, unverbundenen Orte/Bauwerke (chunked, mit Progressbar).
+async function runSettlementBulkConnect() {
+	if (settlementBulkConnectRunning) {
+		return;
+	}
+	const btn = document.getElementById("settlement-bulk-connect");
+	const progress = document.getElementById("wiki-sync-progress");
+	settlementBulkConnectRunning = true;
+	if (btn) {
+		btn.disabled = true;
+	}
+	let total = 0;
+	let connectedTotal = 0;
+	try {
+		try {
+			const statusData = await (await fetch(`${SETTLEMENT_LIST_API_URL}?action=connect_status`, { credentials: "same-origin" })).json();
+			total = statusData && statusData.ok ? Number(statusData.connectable_unconnected || 0) : 0;
+		} catch (statusError) {
+			total = 0;
+		}
+		if (progress && total > 0) {
+			progress.max = total;
+			progress.value = 0;
+			progress.hidden = false;
+		}
+		let remaining = total > 0 ? total : Infinity;
+		let guard = 0;
+		while (remaining > 0 && guard < 400) {
+			const response = await fetch(SETTLEMENT_LIST_API_URL, {
+				method: "POST",
+				credentials: "same-origin",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ action: "bulk_connect", limit: 100, dry_run: false, confirm: "apply" }),
+			});
+			const data = await response.json();
+			if (!data || data.ok !== true) {
+				throw new Error(data && data.error ? data.error : "Verbinden fehlgeschlagen");
+			}
+			const connected = Number(data.connected || 0);
+			connectedTotal += connected;
+			remaining = Number(data.remaining || 0);
+			guard += 1;
+			if (progress && total > 0) {
+				progress.value = Math.min(total, connectedTotal);
+			}
+			if (btn) {
+				btn.textContent = `🔗 Verbinden … (${remaining})`;
+			}
+			if (connected === 0) {
+				break; // kein Fortschritt mehr (Rest mehrdeutig/Fehler)
+			}
+		}
+		showFeedbackToast?.(`${connectedTotal} verbunden — Karte aktualisiert sich.`, "success");
+		await loadSettlementList();
+	} catch (error) {
+		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
+	} finally {
+		settlementBulkConnectRunning = false;
+		if (btn) {
+			btn.disabled = false;
+		}
+		if (progress) {
+			progress.hidden = true;
+			progress.max = 5;
+			progress.value = 0;
+		}
+		await refreshSettlementConnectStatus();
+	}
 }
 
 // Zeigt den „Wappen übernehmen"-Button, solange verbundene Orte ein gemeinfreies Wiki-Wappen
@@ -380,8 +473,70 @@ function renderSettlementList() {
 		tabsHost.innerHTML = tab("all", "Alle", all.length) + tab("onmap", "Platziert", onMap) + tab("wiki", "Fehlt", wikiOnly);
 	}
 
-	list.innerHTML =
-		items.length === 0 ? '<p class="region-sync__empty">Keine Treffer.</p>' : items.map(renderSettlementRow).join("");
+	if (items.length === 0) {
+		settlementCancelLazyRender();
+		list.innerHTML = '<p class="region-sync__empty">Keine Treffer.</p>';
+		return;
+	}
+	settlementStartLazyRender(list, items);
+}
+
+// ===== Lazy-Rendering der (langen) Siedlungsliste via IntersectionObserver =====
+const SETTLEMENT_RENDER_BATCH = 80;
+let settlementLazyItems = [];
+let settlementLazyRendered = 0;
+let settlementLazyObserver = null;
+
+function settlementCancelLazyRender() {
+	if (settlementLazyObserver) {
+		settlementLazyObserver.disconnect();
+	}
+}
+
+function settlementEnsureObserver() {
+	if (settlementLazyObserver) {
+		return;
+	}
+	settlementLazyObserver = new IntersectionObserver(
+		(entries) => {
+			for (const entry of entries) {
+				if (entry.isIntersecting) {
+					settlementLazyObserver.unobserve(entry.target);
+					settlementRenderNextBatch();
+				}
+			}
+		},
+		{ rootMargin: "400px 0px" }
+	);
+}
+
+function settlementStartLazyRender(list, items) {
+	settlementCancelLazyRender();
+	settlementLazyItems = items;
+	settlementLazyRendered = 0;
+	list.innerHTML = "";
+	settlementRenderNextBatch(list);
+}
+
+function settlementRenderNextBatch(list) {
+	list = list || document.getElementById("settlement-list");
+	if (!list) {
+		return;
+	}
+	const oldSentinel = document.getElementById("settlement-list-sentinel");
+	if (oldSentinel) {
+		oldSentinel.remove();
+	}
+	const next = settlementLazyItems.slice(settlementLazyRendered, settlementLazyRendered + SETTLEMENT_RENDER_BATCH);
+	if (next.length) {
+		list.insertAdjacentHTML("beforeend", next.map(renderSettlementRow).join(""));
+		settlementLazyRendered += next.length;
+	}
+	if (settlementLazyRendered < settlementLazyItems.length) {
+		list.insertAdjacentHTML("beforeend", '<div id="settlement-list-sentinel" aria-hidden="true" style="height:1px"></div>');
+		settlementEnsureObserver();
+		settlementLazyObserver.observe(document.getElementById("settlement-list-sentinel"));
+	}
 }
 
 function settlementListOpen(publicId) {
@@ -427,6 +582,10 @@ document.addEventListener("click", (event) => {
 	}
 	if (event.target.closest("#settlement-record-coats")) {
 		void runSettlementRecordCoats();
+		return;
+	}
+	if (event.target.closest("#settlement-bulk-connect")) {
+		void runSettlementBulkConnect();
 		return;
 	}
 	const statusTab = event.target.closest("[data-wiki-sync-case-status]");

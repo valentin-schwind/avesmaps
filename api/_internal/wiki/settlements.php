@@ -887,8 +887,8 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
         ];
     }
 
-    // Fehlende Wiki-Siedlungen (nur Siedlungs-Klassen, keine Bauwerke) aus der Registry.
-    $settlementClasses = ['dorf', 'kleinstadt', 'stadt', 'grossstadt', 'metropole'];
+    // Fehlende Wiki-Siedlungen (Siedlungs-Klassen + Bauwerke) aus der Registry.
+    $settlementClasses = ['dorf', 'kleinstadt', 'stadt', 'grossstadt', 'metropole', 'gebaeude'];
     $regRows = $pdo->query('SELECT title, settlement_class, wiki_url, continent, is_ruined FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ORDER BY title ASC')->fetchAll(PDO::FETCH_ASSOC);
     $seen = [];
     foreach ($regRows as $r) {
