@@ -462,12 +462,24 @@ function avesmapsWikiSettlementGetAssignment(PDO $pdo, string $publicId): array 
     return ['ok' => true, 'wiki_settlement' => (is_array($ws) && !empty($ws['title'])) ? $ws : null];
 }
 
-// Vollständige Karten-Siedlungsliste (Name, Größe, Verbindungsstatus) — Server-Quelle für den
-// „Alle Siedlungen"-Bereich. Unabhängig vom geladenen Kartenzustand im Browser.
+// 1. Begriff einer Region/Lage (alles vor : · , ;).
+function avesmapsWikiSettlementFirstTerm(string $value): string {
+    $value = trim($value);
+    if ($value === '') {
+        return '';
+    }
+    $parts = preg_split('/\s*[:·,;]\s*/u', $value) ?: [$value];
+    return trim((string) ($parts[0] ?? $value));
+}
+
+// Vollständige Siedlungsliste für „Alle Siedlungen": alle Karten-Orte (state full = verbunden,
+// empty = auf Karte ohne Wiki) PLUS fehlende Wiki-Siedlungen (state half = im Wiki, nicht auf der
+// Karte). Pro Eintrag: Name, Größe, Region (1. Begriff), Nodix, Ruine, Wiki-Link.
 function avesmapsWikiSettlementListLocations(PDO $pdo): array {
     avesmapsWikiSettlementEnsureSchema($pdo);
     $rows = $pdo->query("SELECT public_id, name, feature_subtype, properties_json FROM map_features WHERE feature_type='location' AND is_active=1 AND name<>'' ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
     $items = [];
+    $mapKeys = [];
     foreach ($rows as $r) {
         $sub = (string) ($r['feature_subtype'] ?? '');
         if ($sub === 'kreuzung') {
@@ -477,6 +489,7 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
         if ($name === '' || str_starts_with($name, 'Kreuzung')) {
             continue;
         }
+        $mapKeys[avesmapsWikiSettlementBaseKey($name)] = true;
         $props = avesmapsWikiSyncDecodeJson($r['properties_json'] ?? null);
         $ws = $props['wiki_settlement'] ?? null;
         $connected = is_array($ws) && !empty($ws['title']);
@@ -485,11 +498,61 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
             'name' => $name,
             'settlement_class' => $sub,
             'settlement_label' => avesmapsWikiSettlementClassLabel($sub),
+            'state' => $connected ? 'full' : 'empty',
+            'on_map' => true,
             'connected' => $connected,
             'wiki_title' => $connected ? (string) $ws['title'] : '',
+            'region' => $connected ? avesmapsWikiSettlementFirstTerm((string) ($ws['region'] ?? '')) : '',
+            'is_nodix' => !empty($props['is_nodix']),
+            'is_ruined' => !empty($props['is_ruined']),
+            'wiki_url' => $connected ? (string) ($ws['wiki_url'] ?? '') : (string) ($props['wiki_url'] ?? ''),
         ];
     }
-    return ['ok' => true, 'items' => $items, 'total' => count($items), 'connected' => count(array_filter($items, static fn($i) => $i['connected']))];
+
+    // Fehlende Wiki-Siedlungen (nur Siedlungs-Klassen, keine Bauwerke) aus der Registry.
+    $settlementClasses = ['dorf', 'kleinstadt', 'stadt', 'grossstadt', 'metropole'];
+    $regRows = $pdo->query('SELECT title, settlement_class, wiki_url FROM ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' ORDER BY title ASC')->fetchAll(PDO::FETCH_ASSOC);
+    $seen = [];
+    foreach ($regRows as $r) {
+        $cls = (string) ($r['settlement_class'] ?? '');
+        if (!in_array($cls, $settlementClasses, true)) {
+            continue;
+        }
+        $title = (string) $r['title'];
+        if ($title === '') {
+            continue;
+        }
+        $bk = avesmapsWikiSettlementBaseKey($title);
+        if ($bk === '' || isset($mapKeys[$bk]) || isset($seen[$bk])) {
+            continue;
+        }
+        $seen[$bk] = true;
+        $items[] = [
+            'public_id' => '',
+            'name' => $title,
+            'settlement_class' => $cls,
+            'settlement_label' => avesmapsWikiSettlementClassLabel($cls),
+            'state' => 'half',
+            'on_map' => false,
+            'connected' => false,
+            'wiki_title' => $title,
+            'region' => '',
+            'is_nodix' => false,
+            'is_ruined' => false,
+            'wiki_url' => (string) ($r['wiki_url'] ?? ''),
+        ];
+    }
+
+    usort($items, static fn($a, $b) => strcasecmp($a['name'], $b['name']));
+    $onMap = count(array_filter($items, static fn($i) => $i['on_map']));
+    return [
+        'ok' => true,
+        'items' => $items,
+        'total' => count($items),
+        'on_map' => $onMap,
+        'connected' => count(array_filter($items, static fn($i) => $i['connected'])),
+        'wiki_only' => count($items) - $onMap,
+    ];
 }
 
 // Anzahl der eindeutig verbindbaren, noch unverbundenen Orte (für Button-Label).

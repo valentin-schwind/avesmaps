@@ -758,25 +758,36 @@
 .settlement-list__item:hover {
 	background: #faf4ea;
 }
-.settlement-list__badge {
-	flex: 0 0 auto;
-	width: 16px;
-	text-align: center;
-	font-weight: 700;
-}
-.settlement-list__badge--on { color: #2f6b32; }
-.settlement-list__badge--off { color: #c0ad97; }
-.settlement-list__name {
+.settlement-list__main {
 	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+.settlement-list__name {
 	color: #2c2117;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-.settlement-list__size {
-	flex: 0 0 auto;
+.settlement-list__meta {
 	font-size: 11px;
 	color: #8a7a68;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.settlement-list__wiki {
+	flex: 0 0 auto;
+	color: #235f82;
+	text-decoration: none;
+	font-weight: 700;
+	font-size: 14px;
+	padding: 0 4px;
+}
+.settlement-list__wiki:hover {
+	color: #103f5a;
 }
 
 /* Hinweis im Orts-Popup, wenn keine Wiki-Siedlung verbunden ist. */

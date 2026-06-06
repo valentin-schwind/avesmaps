@@ -35,6 +35,48 @@ async function loadSettlementList() {
 	renderSettlementList();
 }
 
+// Kreis wie im Herrschaftsgebiet-Tree: voll = auf Karte + verbunden, halb = im Wiki/nicht auf Karte,
+// leer = auf Karte ohne Wiki.
+function settlementStateCircle(item) {
+	if (item.state === "full") {
+		return '<span class="tree-map-status tree-map-status--all" title="Auf der Karte, mit Wiki verbunden"></span>';
+	}
+	if (item.state === "half") {
+		return '<span class="tree-map-status tree-map-status--own-only" title="Im Wiki, aber nicht auf der Karte"></span>';
+	}
+	return '<span class="tree-map-status" title="Auf der Karte, kein Wiki-Eintrag"></span>';
+}
+
+function renderSettlementRow(item) {
+	const metaParts = [];
+	if (item.settlement_label) {
+		metaParts.push(settlementListEscape(item.settlement_label));
+	}
+	if (item.region) {
+		metaParts.push(settlementListEscape(item.region));
+	}
+	if (item.is_nodix) {
+		metaParts.push("Nodix");
+	}
+	if (item.is_ruined) {
+		metaParts.push("Ruine");
+	}
+	const meta = metaParts.join(" · ");
+	const wikiLink = item.wiki_url
+		? `<a class="settlement-list__wiki" href="${settlementListEscape(item.wiki_url)}" target="_blank" rel="noopener" title="Im Wiki-Aventurica öffnen ↗">↗</a>`
+		: "";
+	return (
+		`<div class="settlement-list__item" role="button" tabindex="0" data-public-id="${settlementListEscape(item.public_id)}" data-on-map="${item.on_map ? "1" : "0"}">` +
+		settlementStateCircle(item) +
+		'<span class="settlement-list__main">' +
+		`<span class="settlement-list__name">${settlementListEscape(item.name)}</span>` +
+		(meta ? `<span class="settlement-list__meta">${meta}</span>` : "") +
+		"</span>" +
+		wikiLink +
+		"</div>"
+	);
+}
+
 function renderSettlementList() {
 	const list = document.getElementById("settlement-list");
 	const summary = document.getElementById("settlement-list-summary");
@@ -42,15 +84,17 @@ function renderSettlementList() {
 		return;
 	}
 	const all = settlementListItems;
-	const connectedCount = all.filter((item) => item.connected).length;
+	const onMap = all.filter((item) => item.on_map).length;
+	const connected = all.filter((item) => item.connected).length;
+	const wikiOnly = all.length - onMap;
 	if (summary) {
-		summary.textContent = `${all.length} Siedlungen · ${connectedCount} verbunden`;
+		summary.textContent = `${onMap} auf Karte (${connected} verbunden) · ${wikiOnly} nur Wiki`;
 	}
 
 	const query = (document.getElementById("settlement-list-filter")?.value || "").trim().toLowerCase();
 	let items = all;
 	if (settlementListOnlyUnconnected) {
-		items = items.filter((item) => !item.connected);
+		items = items.filter((item) => item.state !== "full");
 	}
 	if (query) {
 		items = items.filter((item) => String(item.name).toLowerCase().includes(query));
@@ -60,25 +104,12 @@ function renderSettlementList() {
 		list.innerHTML = '<p class="region-sync__empty">Keine Treffer.</p>';
 		return;
 	}
-	list.innerHTML = items
-		.map((item) => {
-			// Kreis-Symbol wie im Herrschaftsgebiet-Tree: gefüllt = auf der Karte/verbunden, leer = nicht.
-			const badge = item.connected
-				? `<span class="tree-map-status tree-map-status--all" title="Verbunden: ${settlementListEscape(item.wiki_title)}"></span>`
-				: `<span class="tree-map-status" title="Nicht verbunden"></span>`;
-			return (
-				`<button type="button" class="settlement-list__item" data-public-id="${settlementListEscape(item.public_id)}">` +
-				badge +
-				`<span class="settlement-list__name">${settlementListEscape(item.name)}</span>` +
-				`<span class="settlement-list__size">${settlementListEscape(item.settlement_label || "")}</span>` +
-				`</button>`
-			);
-		})
-		.join("");
+	list.innerHTML = items.map(renderSettlementRow).join("");
 }
 
 function settlementListOpen(publicId) {
 	if (!publicId) {
+		showFeedbackToast?.("Diese Siedlung ist im Wiki, aber (noch) nicht auf der Karte — über den Wiki-Link ↗ öffnen.", "info");
 		return;
 	}
 	const entry = typeof findLocationMarkerByPublicId === "function" ? findLocationMarkerByPublicId(publicId) : null;
@@ -112,6 +143,9 @@ document.addEventListener("click", (event) => {
 	if (statusTab) {
 		setWikiSyncCaseStatus(statusTab.dataset.wikiSyncCaseStatus);
 		return;
+	}
+	if (event.target.closest(".settlement-list__wiki")) {
+		return; // Wiki-Link selbst öffnen lassen
 	}
 	const item = event.target.closest(".settlement-list__item");
 	if (item) {
