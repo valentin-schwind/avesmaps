@@ -39,6 +39,7 @@ function loadSettlementList() {
 	if (summary) {
 		summary.textContent = `${all.length} Siedlungen · ${connectedCount} verbunden`;
 	}
+	void refreshSettlementBulkButton();
 
 	const query = (document.getElementById("settlement-list-filter")?.value || "").trim().toLowerCase();
 	let items = all;
@@ -96,8 +97,86 @@ function setWikiSyncCaseStatus(status) {
 	}
 }
 
+// ===== Bulk-Verbinden: alle eindeutig passenden, unverbundenen Orte =====
+const SETTLEMENT_BULK_API_URL = "/api/edit/wiki/settlements.php";
+let settlementBulkRunning = false;
+
+async function refreshSettlementBulkButton() {
+	const button = document.getElementById("settlement-bulk-connect");
+	if (!button || settlementBulkRunning) {
+		return;
+	}
+	try {
+		const response = await fetch(`${SETTLEMENT_BULK_API_URL}?action=connect_status`, { credentials: "same-origin" });
+		const data = await response.json();
+		if (data && data.ok) {
+			const n = data.connectable_unconnected || 0;
+			button.textContent = `⚡ Eindeutige verbinden (${n})`;
+			button.disabled = n === 0;
+		}
+	} catch (error) {
+		/* still ok ohne Zahl */
+	}
+}
+
+async function bulkConnectSettlements() {
+	if (settlementBulkRunning) {
+		return;
+	}
+	if (!window.confirm("Alle eindeutig per Name passenden, noch unverbundenen Orte jetzt mit ihrem Wiki-Datensatz verbinden?")) {
+		return;
+	}
+	const button = document.getElementById("settlement-bulk-connect");
+	const status = document.getElementById("settlement-bulk-status");
+	settlementBulkRunning = true;
+	if (button) {
+		button.disabled = true;
+	}
+	let total = 0;
+	let guard = 0;
+	try {
+		while (guard++ < 1000) {
+			const response = await fetch(SETTLEMENT_BULK_API_URL, {
+				method: "POST",
+				credentials: "same-origin",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ action: "bulk_connect", limit: 100, dry_run: false, confirm: "apply" }),
+			});
+			const data = await response.json();
+			if (!data || data.ok !== true) {
+				throw new Error(data && data.error ? data.error : "Verbinden fehlgeschlagen");
+			}
+			total += data.connected || 0;
+			if (status) {
+				status.textContent = `${total} verbunden · ${data.remaining || 0} verbleibend ...`;
+			}
+			if ((data.remaining || 0) <= 0 || (data.connected || 0) === 0) {
+				break;
+			}
+		}
+		if (status) {
+			status.textContent = `${total} verbunden. Seite neu laden (Strg+Shift+R), um die Infoboxen zu sehen.`;
+		}
+		showFeedbackToast?.(`${total} Orte mit dem Wiki verbunden.`, "success");
+	} catch (error) {
+		if (status) {
+			status.textContent = "Fehler: " + (error.message || error);
+		}
+		showFeedbackToast?.("Fehler beim Verbinden: " + (error.message || error), "error");
+	} finally {
+		settlementBulkRunning = false;
+		if (button) {
+			button.disabled = false;
+		}
+	}
+}
+
 document.addEventListener("click", (event) => {
 	if (!event.target.closest) {
+		return;
+	}
+	if (event.target.closest("#settlement-bulk-connect")) {
+		void bulkConnectSettlements();
 		return;
 	}
 	const statusTab = event.target.closest("[data-wiki-sync-case-status]");

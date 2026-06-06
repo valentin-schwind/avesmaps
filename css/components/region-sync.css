@@ -775,3 +775,12 @@
 	font-size: 11px;
 	color: #8a7a68;
 }
+
+/* Bulk-Verbinden-Leiste in der Siedlungsliste. */
+.settlement-bulk-bar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 4px 10px 6px;
+	flex-wrap: wrap;
+}
