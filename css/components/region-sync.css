@@ -757,6 +757,15 @@
 	border-radius: 6px;
 	background: #fffaf5;
 	overflow: hidden;
+	cursor: pointer;
+}
+.settlement-coat__preview:hover {
+	border-color: #7a5a3a;
+}
+.settlement-coat__preview:empty::after {
+	content: "+";
+	font-size: 22px;
+	color: #b3a18c;
 }
 .settlement-coat__preview img {
 	max-width: 100%;

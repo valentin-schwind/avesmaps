@@ -343,6 +343,46 @@ async function settlementCoatAction(action) {
 	}
 }
 
+async function uploadOwnSettlementCoat(file) {
+	const section = document.getElementById("settlement-coat-section");
+	const publicId = section?.dataset.publicId || document.getElementById("location-edit-public-id")?.value || "";
+	if (!publicId || !file) {
+		return;
+	}
+	const status = document.getElementById("settlement-coat-status");
+	if (status) {
+		status.textContent = "Wappen wird hochgeladen …";
+	}
+	try {
+		const form = new FormData();
+		form.append("public_id", publicId);
+		form.append("coat", file);
+		const response = await fetch("/api/edit/wiki/settlement-coat-upload.php", {
+			method: "POST",
+			credentials: "same-origin",
+			body: form,
+		});
+		const data = await response.json();
+		if (!data || data.ok !== true) {
+			throw new Error(data && data.error ? data.error : "Upload fehlgeschlagen");
+		}
+		showFeedbackToast?.("Eigenes Wappen hochgeladen.", "success");
+		await renderSettlementCoatSection(publicId);
+		if (typeof findLocationMarkerByPublicId === "function") {
+			const entry = findLocationMarkerByPublicId(publicId);
+			if (entry && entry.location) {
+				entry.location.coat = data.coat || entry.location.coat;
+				if (typeof refreshLocationMarkerPopup === "function") {
+					refreshLocationMarkerPopup(entry);
+				}
+			}
+		}
+	} catch (error) {
+		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
+		await renderSettlementCoatSection(publicId);
+	}
+}
+
 document.addEventListener("click", (event) => {
 	if (!event.target.closest) {
 		return;
@@ -355,5 +395,21 @@ document.addEventListener("click", (event) => {
 	if (event.target.closest("#settlement-coat-remove")) {
 		event.preventDefault();
 		void settlementCoatAction("clear_coat");
+		return;
+	}
+	// Upload-Button oder Klick auf die Vorschau -> Datei-Auswahl öffnen.
+	if (event.target.closest("#settlement-coat-upload") || event.target.closest("#settlement-coat-preview")) {
+		event.preventDefault();
+		document.getElementById("settlement-coat-file")?.click();
+	}
+});
+
+document.addEventListener("change", (event) => {
+	if (event.target && event.target.id === "settlement-coat-file") {
+		const file = event.target.files && event.target.files[0];
+		event.target.value = ""; // erneutes Auswählen derselben Datei erlauben
+		if (file) {
+			void uploadOwnSettlementCoat(file);
+		}
 	}
 });
