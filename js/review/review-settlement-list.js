@@ -117,8 +117,8 @@ function renderSettlementList() {
 	const viewTabs =
 		'<div class="region-sync__viewtabs">' +
 		tab("all", "Alle", all.length) +
-		tab("onmap", "Auf Karte", onMap) +
-		tab("wiki", "Im Wiki", wikiOnly) +
+		tab("onmap", "Nur auf Karte", onMap) +
+		tab("wiki", "Nur im Wiki", wikiOnly) +
 		"</div>";
 
 	const body =
