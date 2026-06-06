@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../../_internal/auth.php';
 require_once __DIR__ . '/../../_internal/wiki/sync.php';
+require_once __DIR__ . '/../../_internal/wiki/locations.php';
 require_once __DIR__ . '/../../_internal/wiki/settlements.php';
 
 const AVESMAPS_SETTLEMENT_COAT_MAX_BYTES = 2 * 1024 * 1024; // 2 MB
