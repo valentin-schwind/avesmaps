@@ -134,16 +134,41 @@ function focusWayByName(query) {
 		return false;
 	}
 	const norm = (value) => String(value || "").toLowerCase().replace(/ß/g, "ss").replace(/[^\p{L}\p{N}]+/gu, "");
-	const q = norm(query);
-	if (q.length < 2) {
-		return false;
+	// Der echte Wiki-Name steckt in display_name/original_name; properties.name ist der generierte
+	// Fallback (z. B. "Flussweg-1234").
+	const wayName = (path) => path?.properties?.display_name || path?.properties?.original_name || path?.properties?.name || "";
+
+	// Kandidaten: "Reichsstraßen 2 und 3" -> "Reichsstraße 2" + "Reichsstraße 3" (Plural+und auflösen).
+	const text = String(query || "");
+	const nums = text.match(/\d+/g) || [];
+	const base = text
+		.replace(/\d+/g, " ")
+		.replace(/\b(und|sowie|nach|bis|zur|zum|von|der|die|das)\b/gi, " ")
+		.replace(/straßen/gi, "straße")
+		.replace(/strassen/gi, "strasse")
+		.replace(/,/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+	const candidates = [];
+	if (base && nums.length) {
+		nums.forEach((n) => candidates.push(`${base} ${n}`));
 	}
+	if (base) {
+		candidates.push(base);
+	}
+	candidates.push(text);
+	const candNorms = Array.from(new Set(candidates.map(norm).filter((c) => c.length >= 2)));
+
+	// Generierte Fallback-Namen ("Pfad-12", "Reichsstrasse-226") raus — sie kollidieren sonst nach
+	// Normalisierung mit echten Namen ("Reichsstraße 2"). Echte Namen enden nicht auf "-<Zahl>".
 	const named = pathData
-		.map((path) => ({ path, n: norm(path?.properties?.name) }))
+		.map((path) => ({ path, raw: String(wayName(path)) }))
+		.filter((entry) => entry.raw && !/-\d+$/.test(entry.raw))
+		.map((entry) => ({ path: entry.path, n: norm(entry.raw) }))
 		.filter((entry) => entry.n);
-	let matches = named.filter((entry) => entry.n === q);
+	let matches = named.filter((entry) => candNorms.includes(entry.n));
 	if (matches.length === 0) {
-		matches = named.filter((entry) => (entry.n.length >= 4 && q.includes(entry.n)) || (q.length >= 4 && entry.n.includes(q)));
+		matches = named.filter((entry) => entry.n.length >= 4 && candNorms.some((c) => c.includes(entry.n) || (c.length >= 4 && entry.n.includes(c))));
 	}
 	if (matches.length === 0) {
 		return false;
