@@ -55,7 +55,7 @@ try {
             'crawl_buildings' => avesmapsWikiSettlementCrawlBuildings($pdo),
             'enrich_details', 'backfill_continents' => avesmapsWikiSettlementEnrichDetails($pdo, (int) ($payload['limit'] ?? 100)),
             'bulk_record_ruins' => avesmapsWikiSettlementBulkRecordRuins($pdo, !$isApply()),
-            'bulk_record_coats' => avesmapsWikiSettlementBulkRecordCoats($pdo, !$isApply()),
+            'bulk_record_coats' => avesmapsWikiSettlementBulkRecordCoats($pdo, !$isApply(), (int) ($payload['limit'] ?? 150)),
             default => null,
         };
 

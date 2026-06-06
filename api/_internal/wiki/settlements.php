@@ -247,9 +247,11 @@ function avesmapsWikiSettlementCoatStatus(PDO $pdo): array {
 
 // Überträgt gemeinfreie (public_domain) Wiki-Wappen auf die verbundenen Karten-Orte:
 // schreibt properties.coat = {url, source:'wiki', license_status, author, attribution}. Eigene
-// Uploads (source='own') werden NIE überschrieben. Nur gemeinfrei (Nutzer-Entscheid). Gated.
-function avesmapsWikiSettlementBulkRecordCoats(PDO $pdo, bool $dryRun): array {
+// Uploads (source='own') werden NIE überschrieben. Nur gemeinfrei (Nutzer-Entscheid). Gated +
+// gechunkt (limit Schreibvorgänge je Aufruf), damit der Request bei vielen Wappen nicht timeoutet.
+function avesmapsWikiSettlementBulkRecordCoats(PDO $pdo, bool $dryRun, int $limit = 150): array {
     avesmapsWikiSettlementEnsureSchema($pdo);
+    $limit = max(1, min(500, $limit));
 
     $coats = [];
     $stmt = $pdo->query(
@@ -261,6 +263,7 @@ function avesmapsWikiSettlementBulkRecordCoats(PDO $pdo, bool $dryRun): array {
         $coats[(string) $r['title']] = $r;
     }
 
+    $matchedTotal = 0;
     $pending = [];
     if ($coats !== []) {
         $rows = $pdo->query("SELECT id, properties_json FROM map_features WHERE feature_type='location' AND is_active=1")->fetchAll(PDO::FETCH_ASSOC);
@@ -279,12 +282,15 @@ function avesmapsWikiSettlementBulkRecordCoats(PDO $pdo, bool $dryRun): array {
             if (is_array($existing) && ($existing['url'] ?? '') === $coatUrl && ($existing['source'] ?? '') === 'wiki') {
                 continue; // schon übernommen
             }
-            $pending[] = ['id' => (int) $row['id'], 'props' => $props, 'coat' => $coats[$title]];
+            $matchedTotal += 1;
+            if (!$dryRun && count($pending) < $limit) {
+                $pending[] = ['id' => (int) $row['id'], 'props' => $props, 'coat' => $coats[$title]];
+            }
         }
     }
 
     if ($dryRun || $pending === []) {
-        return ['ok' => true, 'dry_run' => $dryRun, 'matched' => count($pending), 'applied' => 0];
+        return ['ok' => true, 'dry_run' => $dryRun, 'matched' => $matchedTotal, 'applied' => 0, 'remaining' => $matchedTotal];
     }
 
     $revision = avesmapsWikiSyncNextMapRevision($pdo);
@@ -303,7 +309,7 @@ function avesmapsWikiSettlementBulkRecordCoats(PDO $pdo, bool $dryRun): array {
         $applied += 1;
     }
 
-    return ['ok' => true, 'dry_run' => false, 'matched' => count($pending), 'applied' => $applied];
+    return ['ok' => true, 'dry_run' => false, 'matched' => $matchedTotal, 'applied' => $applied, 'remaining' => max(0, $matchedTotal - $applied)];
 }
 
 // Parst {{Infobox Siedlung}} aus dem Seiten-Wikitext in das wiki_settlement-Objekt, das ans

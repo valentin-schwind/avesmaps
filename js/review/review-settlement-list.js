@@ -67,22 +67,50 @@ async function runSettlementRecordCoats() {
 		return;
 	}
 	const btn = document.getElementById("settlement-record-coats");
+	const progress = document.getElementById("wiki-sync-progress");
 	settlementRecordCoatsRunning = true;
 	if (btn) {
 		btn.disabled = true;
 	}
+	let total = 0;
+	let appliedTotal = 0;
 	try {
-		const response = await fetch(SETTLEMENT_LIST_API_URL, {
-			method: "POST",
-			credentials: "same-origin",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ action: "bulk_record_coats", dry_run: false, confirm: "apply" }),
-		});
-		const data = await response.json();
-		if (!data || data.ok !== true) {
-			throw new Error(data && data.error ? data.error : "Fehler beim Übernehmen");
+		// Gechunkt schreiben, sonst timeoutet der Request bei vielen Wappen (HTTP2_PROTOCOL_ERROR).
+		let remaining = Infinity;
+		let guard = 0;
+		while (remaining > 0 && guard < 400) {
+			const response = await fetch(SETTLEMENT_LIST_API_URL, {
+				method: "POST",
+				credentials: "same-origin",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ action: "bulk_record_coats", dry_run: false, confirm: "apply", limit: 150 }),
+			});
+			const data = await response.json();
+			if (!data || data.ok !== true) {
+				throw new Error(data && data.error ? data.error : "Fehler beim Übernehmen");
+			}
+			if (total === 0) {
+				total = Number(data.matched || 0);
+				if (progress && total > 0) {
+					progress.max = total;
+					progress.value = 0;
+					progress.hidden = false;
+				}
+			}
+			appliedTotal += Number(data.applied || 0);
+			remaining = Number(data.remaining || 0);
+			guard += 1;
+			if (progress && total > 0) {
+				progress.value = Math.max(0, total - remaining);
+			}
+			if (btn) {
+				btn.textContent = `🛡 Wappen übernehmen … (${remaining})`;
+			}
+			if (Number(data.applied || 0) === 0) {
+				break; // kein Fortschritt mehr -> Abbruch
+			}
 		}
-		showFeedbackToast?.(`${data.applied || 0} Wappen übernommen — Karte aktualisiert sich.`, "success");
+		showFeedbackToast?.(`${appliedTotal} Wappen übernommen — Karte aktualisiert sich.`, "success");
 		await loadSettlementList();
 	} catch (error) {
 		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
@@ -90,6 +118,11 @@ async function runSettlementRecordCoats() {
 		settlementRecordCoatsRunning = false;
 		if (btn) {
 			btn.disabled = false;
+		}
+		if (progress) {
+			progress.hidden = true;
+			progress.max = 5;
+			progress.value = 0;
 		}
 		await refreshSettlementCoatStatus();
 	}
