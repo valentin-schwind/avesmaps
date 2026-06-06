@@ -39,7 +39,7 @@ function refreshLocationMarkerPopup(markerEntry) {
 			// Infobox zuerst, Aktions-Buttons darunter.
 			actionsMarkup: settlementInfobox + locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location),
 		}),
-		hasWikiSettlement ? { minWidth: 300, maxWidth: 360 } : undefined
+		hasWikiSettlement ? { minWidth: 320, maxWidth: 400, className: "settlement-popup" } : undefined
 	);
 }
 
@@ -60,7 +60,7 @@ function settlementWikiInfoboxMarkup(location) {
 	let rows = "";
 	rows += row("Einwohner", wiki.einwohner);
 	rows += row("Lage", wiki.lage);
-	rows += row("Herrscher", wiki.oberhaupt);
+	rows += row("Oberhaupt", wiki.oberhaupt);
 	rows += row("Bevölkerung", wiki.bevoelkerung);
 	rows += row("Handelszone", wiki.handelszone);
 	rows += row("Verkehrswege", wiki.verkehrswege);

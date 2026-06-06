@@ -788,3 +788,26 @@
 	font-style: italic;
 	color: #9a8c7a;
 }
+
+/* ===== Siedlungs-Popup (className settlement-popup): gleichmäßige Abstände, breiter,
+   Trenner in voller Breite über UND unter der Daten-Tabelle ===== */
+.settlement-popup .leaflet-popup-content {
+	margin: 0;
+}
+.settlement-popup .location-popup {
+	max-width: none;
+	padding: 12px 14px;
+}
+/* Daten-Infobox: Trenner spannt randlos über die volle Popup-Breite (negative Margin = Padding). */
+.settlement-popup .region-info-box--settlement {
+	margin: 11px -14px 0;
+	padding: 11px 14px 0;
+	border-top: 1px solid rgba(141, 121, 98, 0.35);
+	gap: 6px;
+}
+/* Aktions-Buttons mit gleichem Trenner darunter. */
+.settlement-popup .region-info-box--settlement + .location-popup__actions {
+	margin: 11px -14px 0;
+	padding: 11px 14px 0;
+	border-top: 1px solid rgba(141, 121, 98, 0.35);
+}
