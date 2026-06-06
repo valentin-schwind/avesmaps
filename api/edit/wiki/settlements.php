@@ -52,6 +52,7 @@ try {
                 (int) ($payload['limit'] ?? 100),
                 !$isApply()
             ),
+            'crawl_buildings' => avesmapsWikiSettlementCrawlBuildings($pdo),
             default => null,
         };
 

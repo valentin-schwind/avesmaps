@@ -359,14 +359,28 @@ function avesmapsWikiSettlementTitleIndex(PDO $pdo): array {
     return $idx;
 }
 
-// Sammelt alle noch unverbundenen Karten-Orte, die EINDEUTIG (genau 1 Wiki-Titel) per Name passen.
+// Wählt aus mehreren gleich-baseKey-Wiki-Titeln den passenden: bei genau einem -> dieser; bei
+// mehreren wird die "(Siedlung)"-Variante bevorzugt (z. B. "Abagund (Siedlung)" vor "Abagund");
+// bleibt es uneindeutig -> '' (nur manuell).
+function avesmapsWikiSettlementResolvePreferredTitle(array $titles): string {
+    if (count($titles) === 1) {
+        return (string) $titles[0];
+    }
+    $siedlung = array_values(array_filter($titles, static fn($t) => preg_match('/\(\s*Siedlung\s*\)/iu', (string) $t) === 1));
+    if (count($siedlung) === 1) {
+        return (string) $siedlung[0];
+    }
+    return '';
+}
+
+// Sammelt alle noch unverbundenen Karten-Orte (inkl. Bauwerke/gebaeude), die per Name passen.
 function avesmapsWikiSettlementCollectConnectTargets(PDO $pdo): array {
     $titleIdx = avesmapsWikiSettlementTitleIndex($pdo);
     $rows = $pdo->query("SELECT id, public_id, name, feature_subtype, properties_json FROM map_features WHERE feature_type='location' AND is_active=1 AND name<>''")->fetchAll(PDO::FETCH_ASSOC);
     $targets = [];
     foreach ($rows as $r) {
         $sub = (string) ($r['feature_subtype'] ?? '');
-        if ($sub === 'gebaeude' || $sub === 'kreuzung') {
+        if ($sub === 'kreuzung') {
             continue;
         }
         $name = (string) $r['name'];
@@ -381,13 +395,52 @@ function avesmapsWikiSettlementCollectConnectTargets(PDO $pdo): array {
         if (!isset($titleIdx[$bk])) {
             continue;
         }
-        $titles = array_keys($titleIdx[$bk]);
-        if (count($titles) !== 1) {
-            continue; // mehrdeutig -> nur manuell
+        $target = avesmapsWikiSettlementResolvePreferredTitle(array_keys($titleIdx[$bk]));
+        if ($target === '') {
+            continue; // mehrdeutig (keine eindeutige "(Siedlung)"-Variante) -> nur manuell
         }
-        $targets[] = ['id' => (int) $r['id'], 'public_id' => (string) $r['public_id'], 'name' => $name, 'title' => $titles[0], 'props' => $props];
+        $targets[] = ['id' => (int) $r['id'], 'public_id' => (string) $r['public_id'], 'name' => $name, 'title' => $target, 'props' => $props];
     }
     return $targets;
+}
+
+// Crawlt die Wiki-Bauwerk-Kategorien (Burgen liegen unter „Festung"!) und trägt die Titel als
+// gebaeude in die Registry wiki_sync_pages ein — damit „Besondere Bauwerke/Stätten" verbindbar
+// werden. INSERT IGNORE: überschreibt KEINE bestehenden Siedlungs-Einträge. Infobox wird erst beim
+// Zuordnen on-demand geladen.
+function avesmapsWikiSettlementCrawlBuildings(PDO $pdo): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    if (function_exists('avesmapsWikiSyncRelaxLimits')) {
+        avesmapsWikiSyncRelaxLimits();
+    }
+    $categories = ['Festung', 'Tempel', 'Turm', 'Ruine', 'Palast', 'Bauwerk'];
+    $titles = [];
+    foreach ($categories as $category) {
+        foreach (avesmapsWikiSyncFetchCategoryMemberTitles($category) as $title) {
+            $title = trim((string) $title);
+            if ($title !== '') {
+                $titles[$title] = true;
+            }
+        }
+    }
+    $insert = $pdo->prepare(
+        'INSERT IGNORE INTO ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . '
+            (title, normalized_key, wiki_url, settlement_class, settlement_label, fetched_at)
+         VALUES (:title, :nk, :url, :cls, :lbl, CURRENT_TIMESTAMP(3))'
+    );
+    $label = avesmapsWikiSettlementClassLabel('gebaeude');
+    $added = 0;
+    foreach (array_keys($titles) as $title) {
+        $insert->execute([
+            'title' => mb_substr($title, 0, 255, 'UTF-8'),
+            'nk' => avesmapsWikiSyncCreateMatchKey($title),
+            'url' => avesmapsWikiSyncMonitorPageUrl($title),
+            'cls' => 'gebaeude',
+            'lbl' => $label,
+        ]);
+        $added += $insert->rowCount();
+    }
+    return ['ok' => true, 'categories' => $categories, 'titles_seen' => count($titles), 'added' => $added];
 }
 
 // Aktuelle Wiki-Verbindung eines Orts (per public_id) frisch aus der DB — damit der

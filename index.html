@@ -218,6 +218,11 @@
 								<input id="settlement-list-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Siedlung suchen ..." aria-label="Siedlungen durchsuchen" />
 								<label class="settlement-list__only"><input id="settlement-list-onlyunconnected" type="checkbox" /> nur unverbundene</label>
 							</div>
+							<div class="settlement-bulk-bar">
+								<button id="settlement-crawl-buildings" class="wiki-sync-panel__start" type="button" title="Wiki-Bauwerk-Kategorien (Festung/Tempel/Turm/Ruine/Palast/Bauwerk) in die Registry crawlen, damit Besondere Bauwerke/Stätten verbindbar werden">Bauwerke crawlen</button>
+								<button id="settlement-bulk-connect" class="wiki-sync-panel__start" type="button" title="Alle eindeutig per Name passenden, noch unverbundenen Orte (inkl. Bauwerke) mit ihrem Wiki-Datensatz verbinden">⚡ Eindeutige verbinden</button>
+								<span id="settlement-bulk-status" class="wiki-sync-locations-section__summary"></span>
+							</div>
 							<div id="settlement-list" class="review-panel__list"></div>
 						</div>
 				</div>
