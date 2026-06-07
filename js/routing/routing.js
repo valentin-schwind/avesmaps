@@ -1019,9 +1019,10 @@ const addTooltip = (loc, {
 		const popup = L.popup({
 			autoClose: false,
 			closeOnClick: false,
-			// Keine erzwungene Mindestbreite -> die Box schrumpft auf ihren Inhalt. Die Buttons halten
-			// dank white-space: nowrap + flex-shrink: 0 ihre natuerliche Breite (kein Umbruch), nach
-			// oben begrenzt maxWidth die ausgeklappte volle Infobox.
+			// Feste Mini-Box-Breite 310px (minWidth); die .location-popup-max-width-260-Deckelung wird
+			// per CSS fuer .route-waypoint-popup aufgehoben. Nach oben begrenzt maxWidth die
+			// ausgeklappte volle Infobox.
+			minWidth: 310,
 			maxWidth: 400,
 			className: "route-waypoint-popup",
 		})

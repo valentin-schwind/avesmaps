@@ -87,10 +87,12 @@
 	white-space: nowrap;
 }
 
-/* Inhalt fuellt die (auf den Inhalt geschrumpfte) Box -> Trenner spannt bis zum Rand. */
+/* Inhalt fuellt die Box -> Trenner spannt bis zum Rand. max-width-Deckelung (260px aus der Basis)
+   aufheben, damit die Mini-Box die per minWidth gesetzten 310px erreicht. */
 .route-waypoint-popup .location-popup {
 	box-sizing: border-box;
 	width: 100%;
+	max-width: none;
 }
 
 /* Wiki-Link in der Mini-Box von zwei randbuendigen Trennern einfassen (oben UND unten). Die
