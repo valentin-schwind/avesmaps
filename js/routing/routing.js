@@ -633,9 +633,10 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		const popup = popupId ? routePopupRegistry[popupId] : null;
 		if (popup) {
 			popup._routeExpanded = !popup._routeExpanded;
-			// Beim Ausklappen die settlement-popup-Klasse setzen -> volle Infobox-Breite/Stil wie beim Marker.
+			// settlement-popup ist immer gesetzt (gleiche Styles ein-/ausgeklappt); nur die Breite
+			// unterscheidet sich -> per --expanded-Klasse auf 400px (sonst 310px Mini-Box).
 			if (popup._container) {
-				popup._container.classList.toggle("settlement-popup", popup._routeExpanded);
+				popup._container.classList.toggle("route-waypoint-popup--expanded", popup._routeExpanded);
 			}
 			popup.setContent(buildRoutePopupHtml(popup._routeLoc, {
 				expanded: popup._routeExpanded,
@@ -1019,12 +1020,11 @@ const addTooltip = (loc, {
 		const popup = L.popup({
 			autoClose: false,
 			closeOnClick: false,
-			// Feste Mini-Box-Breite 310px (minWidth); die .location-popup-max-width-260-Deckelung wird
-			// per CSS fuer .route-waypoint-popup aufgehoben. Nach oben begrenzt maxWidth die
-			// ausgeklappte volle Infobox.
+			// Mini-Box nutzt settlement-popup-Styles (Content-Margin/Trenner/Padding/feste Breite wie
+			// die grosse Infobox); die Breite wird per CSS pro Zustand gesetzt (310 ein-, 400 ausgeklappt).
 			minWidth: 310,
 			maxWidth: 400,
-			className: "route-waypoint-popup",
+			className: "route-waypoint-popup settlement-popup",
 		})
 			.setLatLng(loc.coordinates)
 			.setContent(buildRoutePopupHtml(loc, { expanded: false, showRemoveAction, popupId }))

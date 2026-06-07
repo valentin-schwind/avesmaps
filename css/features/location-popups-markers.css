@@ -75,9 +75,11 @@
 	background: #d8c9b3;
 }
 
-/* Route-Wegpunkt-Popup: Aktions-Buttons ("Aus Route entfernen" + "Mehr anzeigen")
-   nebeneinander, jeder einzeilig (kein interner Text-Umbruch, kein Schrumpfen) --
-   die Box bekommt per minWidth genug Breite. */
+/* Route-Wegpunkt-Popup traegt zusaetzlich die Klasse settlement-popup (siehe routing.js) und erbt
+   damit Content-Margin (0), feste Breite, randbuendige Trenner (-14px) und Padding der grossen
+   Infobox -- identisch zum Marker-Popup. Hier nur die Abweichungen. */
+
+/* Aktions-Buttons einzeilig nebeneinander (kein interner Umbruch, kein Schrumpfen). */
 .route-waypoint-popup .location-popup__actions {
 	flex-wrap: nowrap;
 }
@@ -87,32 +89,14 @@
 	white-space: nowrap;
 }
 
-/* Inhalt fuellt die Box -> Trenner spannt bis zum Rand. max-width-Deckelung (260px aus der Basis)
-   aufheben, damit die Mini-Box die per minWidth gesetzten 310px erreicht. */
+/* Eingeklappte Mini-Box: 310px statt der settlement-popup-Standardbreite (400px). */
 .route-waypoint-popup .location-popup {
-	box-sizing: border-box;
-	width: 100%;
-	max-width: none;
+	width: min(310px, calc(100vw - 32px));
 }
 
-/* Wiki-Link in der Mini-Box von zwei randbuendigen Trennern einfassen (oben UND unten). Die
-   negativen Margins (-20px) heben Content-Margin (10px) + location-popup-Padding (10px) auf, sodass
-   die Linien bis an den Infobox-Rand reichen; das Padding (20px) haelt den Link-Text an Ort. */
-.route-waypoint-popup .location-popup .region-info-box--settlement {
-	margin: 8px -20px 0;
-	padding: 7px 20px;
-	border-top: 1px solid rgba(141, 121, 98, 0.3);
-	border-bottom: 1px solid rgba(141, 121, 98, 0.3);
-	width: auto;
-	max-width: none;
-}
-
-/* Der untere Trenner kommt jetzt von der region-info-box selbst -> die Doppel-Linie an den
-   Aktionen entfernen. */
-.route-waypoint-popup .location-popup .region-info-box--settlement + .location-popup__actions {
-	margin-top: 8px;
-	padding-top: 0;
-	border-top: none;
+/* Ausgeklappt -> volle Infobox-Breite wie das normale settlement-popup (400px). */
+.route-waypoint-popup--expanded .location-popup {
+	width: min(400px, calc(100vw - 32px));
 }
 
 .location-popup__description {
