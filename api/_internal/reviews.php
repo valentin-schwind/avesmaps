@@ -62,6 +62,46 @@ function avesmapsReviewDsaDateFromTimestamp(int $timestamp): string
     return sprintf('%d. %s %d BF', $day, $months[$monthIndex], (int) AVESMAPS_AVENTURIAN_YEAR);
 }
 
+// Prueft + normalisiert ein vom Nutzer eingegebenes aventurisches Datum.
+//   "" -> "" (leer; der Aufrufer setzt dann das Auto-Datum)
+//   gueltig -> kanonische Form, z. B. "7. Rahja 1049 BF"
+//   ungueltig -> null
+function avesmapsReviewNormalizeDsaDate(string $input): ?string
+{
+    $value = trim($input);
+    if ($value === '') {
+        return '';
+    }
+
+    $monthKeys = ['praios', 'rondra', 'efferd', 'travia', 'boron', 'hesinde', 'firun', 'tsa', 'phex', 'peraine', 'ingerimm', 'rahja'];
+    $monthDisplay = ['Praios', 'Rondra', 'Efferd', 'Travia', 'Boron', 'Hesinde', 'Firun', 'Tsa', 'Phex', 'Peraine', 'Ingerimm', 'Rahja'];
+
+    // Namenlose Tage: "3. Namenloser Tag 1049 BF" (Tag 1..5).
+    if (preg_match('/^(\d{1,2})\s*\.?\s*namenlose[rn]?\s+tage?\s+(\d{1,4})\s*(v\.?\s*bf|bf)?$/iu', $value, $match)) {
+        $day = (int) $match[1];
+        $year = (int) $match[2];
+        if ($day < 1 || $day > 5 || $year < 1 || $year > 9999) {
+            return null;
+        }
+        $era = (isset($match[3]) && stripos(trim($match[3]), 'v') === 0) ? 'v. BF' : 'BF';
+        return sprintf('%d. Namenloser Tag %d %s', $day, $year, $era);
+    }
+
+    // Regulaer: "7. Rahja 1049 BF" / "7 Rahja 1049".
+    if (!preg_match('/^(\d{1,2})\s*\.?\s*([a-zäöü]+)\s+(\d{1,4})\s*(v\.?\s*bf|bf)?$/iu', $value, $match)) {
+        return null;
+    }
+    $day = (int) $match[1];
+    $monthIndex = array_search(strtolower($match[2]), $monthKeys, true);
+    $year = (int) $match[3];
+    if ($monthIndex === false || $day < 1 || $day > 30 || $year < 1 || $year > 9999) {
+        return null;
+    }
+    $era = (isset($match[4]) && stripos(trim($match[4]), 'v') === 0) ? 'v. BF' : 'BF';
+
+    return sprintf('%d. %s %d %s', $day, $monthDisplay[$monthIndex], $year, $era);
+}
+
 // Durchschnitt + Anzahl der SICHTBAREN Bewertungen eines Ortes.
 function avesmapsReviewSummary(PDO $pdo, string $publicId): array
 {

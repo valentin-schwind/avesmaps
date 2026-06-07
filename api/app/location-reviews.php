@@ -71,9 +71,15 @@ try {
 
     $locationName = avesmapsNormalizeSingleLine((string) ($payload['location_name'] ?? ''), 255);
 
-    $dsaDate = avesmapsNormalizeSingleLine((string) ($payload['dsa_date'] ?? ''), AVESMAPS_REVIEW_DATE_MAX);
-    if ($dsaDate === '') {
+    $dsaInput = avesmapsNormalizeSingleLine((string) ($payload['dsa_date'] ?? ''), AVESMAPS_REVIEW_DATE_MAX);
+    if ($dsaInput === '') {
+        // Leer -> aktuelles Datum automatisch in aventurisches Datum umrechnen.
         $dsaDate = avesmapsReviewDsaDateFromTimestamp(time());
+    } else {
+        $dsaDate = avesmapsReviewNormalizeDsaDate($dsaInput);
+        if ($dsaDate === null) {
+            avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Bitte ein gültiges aventurisches Datum eingeben, z. B. „7. Rahja 1049 BF" – oder das Feld leer lassen.']);
+        }
     }
 
     // Rate-Limit: max. 5 Bewertungen pro Stunde und IP. Bei Ueberschreitung still "ok" melden.

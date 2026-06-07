@@ -11,6 +11,40 @@ const LOCATION_REVIEW_BODY_MAX = 200;
 let reviewDialogContext = { publicId: "", name: "" };
 let reviewDialogStars = 0;
 
+const REVIEW_DSA_MONTH_KEYS = ["praios", "rondra", "efferd", "travia", "boron", "hesinde", "firun", "tsa", "phex", "peraine", "ingerimm", "rahja"];
+const REVIEW_DSA_MONTH_DISPLAY = ["Praios", "Rondra", "Efferd", "Travia", "Boron", "Hesinde", "Firun", "Tsa", "Phex", "Peraine", "Ingerimm", "Rahja"];
+
+// Prüft + normalisiert ein aventurisches Datum (Spiegel der Server-Logik).
+// ""=leer, gültig=kanonische Form ("7. Rahja 1049 BF"), ungültig=null.
+function normalizeReviewDsaDate(input) {
+	const value = String(input || "").trim();
+	if (value === "") {
+		return "";
+	}
+	let match = value.match(/^(\d{1,2})\s*\.?\s*namenlose[rn]?\s+tage?\s+(\d{1,4})\s*(v\.?\s*bf|bf)?$/i);
+	if (match) {
+		const day = parseInt(match[1], 10);
+		const year = parseInt(match[2], 10);
+		if (day < 1 || day > 5 || year < 1 || year > 9999) {
+			return null;
+		}
+		const era = match[3] && /^v/i.test(match[3].trim()) ? "v. BF" : "BF";
+		return `${day}. Namenloser Tag ${year} ${era}`;
+	}
+	match = value.match(/^(\d{1,2})\s*\.?\s*([a-zäöü]+)\s+(\d{1,4})\s*(v\.?\s*bf|bf)?$/i);
+	if (!match) {
+		return null;
+	}
+	const day = parseInt(match[1], 10);
+	const monthIndex = REVIEW_DSA_MONTH_KEYS.indexOf(match[2].toLowerCase());
+	const year = parseInt(match[3], 10);
+	if (monthIndex < 0 || day < 1 || day > 30 || year < 1 || year > 9999) {
+		return null;
+	}
+	const era = match[4] && /^v/i.test(match[4].trim()) ? "v. BF" : "BF";
+	return `${day}. ${REVIEW_DSA_MONTH_DISPLAY[monthIndex]} ${year} ${era}`;
+}
+
 function reviewIsEditMode() {
 	return typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE;
 }
@@ -165,13 +199,21 @@ function submitReviewForm() {
 		showFeedbackToast("Bitte vergib 1 bis 5 Sterne.", "warning");
 		return;
 	}
+	// Optionales Datum pruefen: leer = Auto, sonst muss es ein gueltiges aventurisches Datum sein.
+	const normalizedDate = normalizeReviewDsaDate(String($("#review-form-date").val() || ""));
+	if (normalizedDate === null) {
+		showFeedbackToast('Bitte ein gültiges aventurisches Datum eingeben, z. B. „7. Rahja 1049 BF" – oder das Feld leer lassen.', "warning");
+		$("#review-form-date").trigger("focus");
+		return;
+	}
+	$("#review-form-date").val(normalizedDate);
 	const payload = {
 		location: reviewDialogContext.publicId,
 		location_name: reviewDialogContext.name,
 		author: String($("#review-form-author").val() || "").trim(),
 		stars: reviewDialogStars,
 		body: String($("#review-form-body").val() || "").trim(),
-		dsa_date: String($("#review-form-date").val() || "").trim(),
+		dsa_date: normalizedDate,
 		website: String($("#review-form-website").val() || "").trim(),
 	};
 	const $submit = $("#review-form-submit").prop("disabled", true);
