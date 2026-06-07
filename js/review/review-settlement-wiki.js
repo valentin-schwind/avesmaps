@@ -197,6 +197,9 @@ async function selectSettlementWikiResult(title) {
 			showFeedbackToast?.(`„${result.wiki_name}" verbunden.`, "success");
 			setSettlementWikiPickerOpen(false);
 			renderSettlementWikiReference();
+			if (typeof loadChangeLog === "function") {
+				loadChangeLog();
+			}
 		} else if (status) {
 			status.textContent = "Fehler: " + ((result && result.error) || "");
 		}
@@ -226,6 +229,9 @@ async function removeSettlementWiki() {
 		}
 		renderSettlementWikiReference();
 		showFeedbackToast?.("Wiki-Verbindung entfernt.", "info");
+		if (typeof loadChangeLog === "function") {
+			loadChangeLog();
+		}
 	} catch (error) {
 		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
 	}

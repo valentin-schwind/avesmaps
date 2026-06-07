@@ -81,11 +81,13 @@ try {
 
     $props = $feature['props'];
     $previous = $props['coat'] ?? null;
+    $auditBefore = avesmapsWikiSettlementAuditRow($pdo, (int) $feature['id']);
     $props['coat'] = ['url' => $url, 'source' => 'own', 'license_status' => 'own'];
 
     $revision = avesmapsWikiSyncNextMapRevision($pdo);
     $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id')
         ->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $feature['id']]);
+    avesmapsWikiSettlementAuditAssignment($pdo, $auditBefore, $props, $revision, (int) ($user['id'] ?? 0));
     avesmapsWikiSyncNextMapRevision($pdo); // Map-Cache invalidieren
 
     // Vorheriges eigenes Bild best effort aufräumen.

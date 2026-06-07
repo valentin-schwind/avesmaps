@@ -40,12 +40,14 @@ try {
                 $pdo,
                 (string) ($payload['title'] ?? ''),
                 (string) ($payload['public_id'] ?? ''),
-                !$isApply()
+                !$isApply(),
+                (int) ($user['id'] ?? 0)
             ),
             'clear_assign' => avesmapsWikiSettlementClearAssign(
                 $pdo,
                 (string) ($payload['public_id'] ?? ''),
-                !$isApply()
+                !$isApply(),
+                (int) ($user['id'] ?? 0)
             ),
             'bulk_connect' => avesmapsWikiSettlementBulkConnect(
                 $pdo,
@@ -56,8 +58,8 @@ try {
             'enrich_details', 'backfill_continents' => avesmapsWikiSettlementEnrichDetails($pdo, (int) ($payload['limit'] ?? 100)),
             'bulk_record_ruins' => avesmapsWikiSettlementBulkRecordRuins($pdo, !$isApply()),
             'bulk_record_coats' => avesmapsWikiSettlementBulkRecordCoats($pdo, !$isApply(), (int) ($payload['limit'] ?? 150)),
-            'set_coat' => avesmapsWikiSettlementSetWikiCoat($pdo, (string) ($payload['public_id'] ?? ''), !$isApply()),
-            'clear_coat' => avesmapsWikiSettlementClearCoat($pdo, (string) ($payload['public_id'] ?? ''), !$isApply()),
+            'set_coat' => avesmapsWikiSettlementSetWikiCoat($pdo, (string) ($payload['public_id'] ?? ''), !$isApply(), (int) ($user['id'] ?? 0)),
+            'clear_coat' => avesmapsWikiSettlementClearCoat($pdo, (string) ($payload['public_id'] ?? ''), !$isApply(), (int) ($user['id'] ?? 0)),
             default => null,
         };
 

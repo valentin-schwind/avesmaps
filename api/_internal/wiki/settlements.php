@@ -59,6 +59,37 @@ function avesmapsWikiSettlementClassLabel(string $class): string {
     return (string) ($labels[$class] ?? 'Siedlung');
 }
 
+// Voller Audit-Snapshot eines Orts-Features (für Verlauf/Undo, VOR der Änderung holen).
+function avesmapsWikiSettlementAuditRow(PDO $pdo, int $featureId): array {
+    $stmt = $pdo->prepare('SELECT id, public_id, feature_type, feature_subtype, name, geometry_type, geometry_json, properties_json, style_json, is_active, revision, min_x, min_y, max_x, max_y FROM map_features WHERE id = :id LIMIT 1');
+    $stmt->execute(['id' => $featureId]);
+    return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+}
+
+// Schreibt einen Audit-Eintrag (wiki_sync_update_point) für eine Zuweisung/Property-Änderung,
+// damit sie im Editor-Verlauf mit „Rückgängig" erscheint (stellt name/feature_subtype/
+// properties_json aus dem Before-Snapshot wieder her).
+function avesmapsWikiSettlementAuditAssignment(PDO $pdo, array $beforeRow, array $newProps, int $revision, int $userId): void {
+    if (empty($beforeRow['id']) || !function_exists('avesmapsWikiSyncWriteMapAuditLog')) {
+        return;
+    }
+    avesmapsWikiSyncWriteMapAuditLog(
+        $pdo,
+        (int) $beforeRow['id'],
+        'wiki_sync_update_point',
+        $userId,
+        avesmapsWikiSyncEncodeJson($beforeRow),
+        avesmapsWikiSyncEncodeJson([
+            'public_id' => (string) ($beforeRow['public_id'] ?? ''),
+            'feature_type' => 'location',
+            'name' => (string) ($beforeRow['name'] ?? ''),
+            'feature_subtype' => (string) ($beforeRow['feature_subtype'] ?? ''),
+            'properties_json' => $newProps,
+            'revision' => $revision,
+        ])
+    );
+}
+
 // Berechnet die Wiki-Anreicherung einer Siedlungsseite: Kontinent (Detektor mit Fallback
 // Aventurien), Ruine-Status (Siedlungsart) und Wappen-URL (Infobox). Lizenz wird separat
 // gebündelt nachgeladen (eigene Datei-Seiten).
@@ -360,7 +391,7 @@ function avesmapsWikiSettlementCoatInfo(PDO $pdo, string $publicId): array {
 }
 
 // Übernimmt das gemeinfreie Wiki-Wappen eines einzelnen Orts (properties.coat, source=wiki). Gated.
-function avesmapsWikiSettlementSetWikiCoat(PDO $pdo, string $publicId, bool $dryRun): array {
+function avesmapsWikiSettlementSetWikiCoat(PDO $pdo, string $publicId, bool $dryRun, int $userId = 0): array {
     avesmapsWikiSettlementEnsureSchema($pdo);
     $feature = avesmapsWikiSettlementLoadFeature($pdo, $publicId);
     $props = $feature['props'];
@@ -380,6 +411,7 @@ function avesmapsWikiSettlementSetWikiCoat(PDO $pdo, string $publicId, bool $dry
     if ($dryRun) {
         return ['ok' => true, 'dry_run' => true, 'applied' => 0];
     }
+    $auditBefore = avesmapsWikiSettlementAuditRow($pdo, (int) $feature['id']);
     $props['coat'] = [
         'url' => $coatUrl,
         'source' => 'wiki',
@@ -390,11 +422,12 @@ function avesmapsWikiSettlementSetWikiCoat(PDO $pdo, string $publicId, bool $dry
     $revision = avesmapsWikiSyncNextMapRevision($pdo);
     $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id')
         ->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $feature['id']]);
+    avesmapsWikiSettlementAuditAssignment($pdo, $auditBefore, $props, $revision, $userId);
     return ['ok' => true, 'dry_run' => false, 'applied' => 1, 'coat' => $props['coat'], 'revision' => $revision];
 }
 
 // Entfernt das übernommene/eigene Wappen eines Orts (properties.coat). Gated.
-function avesmapsWikiSettlementClearCoat(PDO $pdo, string $publicId, bool $dryRun): array {
+function avesmapsWikiSettlementClearCoat(PDO $pdo, string $publicId, bool $dryRun, int $userId = 0): array {
     avesmapsWikiSettlementEnsureSchema($pdo);
     $feature = avesmapsWikiSettlementLoadFeature($pdo, $publicId);
     $props = $feature['props'];
@@ -404,10 +437,12 @@ function avesmapsWikiSettlementClearCoat(PDO $pdo, string $publicId, bool $dryRu
     if ($dryRun) {
         return ['ok' => true, 'dry_run' => true, 'applied' => 0];
     }
+    $auditBefore = avesmapsWikiSettlementAuditRow($pdo, (int) $feature['id']);
     unset($props['coat']);
     $revision = avesmapsWikiSyncNextMapRevision($pdo);
     $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id')
         ->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => $feature['id']]);
+    avesmapsWikiSettlementAuditAssignment($pdo, $auditBefore, $props, $revision, $userId);
     return ['ok' => true, 'dry_run' => false, 'applied' => 1, 'revision' => $revision];
 }
 
@@ -626,7 +661,7 @@ function avesmapsWikiSettlementCacheDetails(PDO $pdo, string $title, array $sett
 // Verbindet EIN Orts-Feature (per public_id) mit einer Wiki-Siedlung. Schreibt
 // properties.wiki_settlement + entfernt die alte Beschreibung (Nutzer-Entscheid: Daten löschen,
 // Infobox ersetzt sie). Gated: Schreiben nur bei dry_run:false. map_features-Write (Produktion).
-function avesmapsWikiSettlementAssignTo(PDO $pdo, string $title, string $publicId, bool $dryRun): array {
+function avesmapsWikiSettlementAssignTo(PDO $pdo, string $title, string $publicId, bool $dryRun, int $userId = 0): array {
     avesmapsWikiSettlementEnsureSchema($pdo);
     $title = trim($title);
     $publicId = trim($publicId);
@@ -657,12 +692,14 @@ function avesmapsWikiSettlementAssignTo(PDO $pdo, string $title, string $publicI
         ];
     }
 
+    $auditBefore = avesmapsWikiSettlementAuditRow($pdo, (int) $target['id']);
     $revision = avesmapsWikiSyncNextMapRevision($pdo);
     $props = avesmapsWikiSyncDecodeJson($target['properties_json'] ?? null);
     $props['wiki_settlement'] = $settlement;
     unset($props['description']); // Beschreibung weg — Infobox ersetzt sie.
     $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
     $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $target['id']]);
+    avesmapsWikiSettlementAuditAssignment($pdo, $auditBefore, $props, $revision, $userId);
 
     avesmapsWikiSettlementCacheDetails($pdo, $settlement['title'], $settlement);
 
@@ -678,7 +715,7 @@ function avesmapsWikiSettlementAssignTo(PDO $pdo, string $title, string $publicI
 }
 
 // Entfernt die Wiki-Verbindung von einem Orts-Feature. Gated.
-function avesmapsWikiSettlementClearAssign(PDO $pdo, string $publicId, bool $dryRun): array {
+function avesmapsWikiSettlementClearAssign(PDO $pdo, string $publicId, bool $dryRun, int $userId = 0): array {
     avesmapsWikiSettlementEnsureSchema($pdo);
     $publicId = trim($publicId);
     if ($publicId === '') {
@@ -698,11 +735,13 @@ function avesmapsWikiSettlementClearAssign(PDO $pdo, string $publicId, bool $dry
         return ['ok' => true, 'dry_run' => true, 'applied' => 0, 'target_name' => (string) $target['name']];
     }
 
+    $auditBefore = avesmapsWikiSettlementAuditRow($pdo, (int) $target['id']);
     $revision = avesmapsWikiSyncNextMapRevision($pdo);
     $props = avesmapsWikiSyncDecodeJson($target['properties_json'] ?? null);
     unset($props['wiki_settlement']);
     $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
     $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $target['id']]);
+    avesmapsWikiSettlementAuditAssignment($pdo, $auditBefore, $props, $revision, $userId);
 
     return ['ok' => true, 'dry_run' => false, 'applied' => 1, 'target_name' => (string) $target['name'], 'revision' => $revision];
 }

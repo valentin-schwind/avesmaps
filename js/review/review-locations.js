@@ -327,6 +327,9 @@ async function settlementCoatAction(action) {
 			throw new Error(data && data.error ? data.error : "Fehler");
 		}
 		showFeedbackToast?.(action === "set_coat" ? "Wappen übernommen." : "Wappen entfernt.", "success");
+		if (typeof loadChangeLog === "function") {
+			loadChangeLog();
+		}
 		await renderSettlementCoatSection(publicId);
 		// Lokalen Marker aktualisieren, damit Infobox/Icon sofort stimmen.
 		if (typeof findLocationMarkerByPublicId === "function") {
@@ -376,6 +379,9 @@ async function uploadOwnSettlementCoat(file) {
 			throw new Error(data && data.error ? data.error : "Upload fehlgeschlagen");
 		}
 		showFeedbackToast?.("Eigenes Wappen hochgeladen.", "success");
+		if (typeof loadChangeLog === "function") {
+			loadChangeLog();
+		}
 		await renderSettlementCoatSection(publicId);
 		if (typeof findLocationMarkerByPublicId === "function") {
 			const entry = findLocationMarkerByPublicId(publicId);
