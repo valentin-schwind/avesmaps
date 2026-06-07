@@ -47,23 +47,19 @@ function avesmapsReviewIpHash(array $config): string
     return hash_hmac('sha256', avesmapsClientIpAddress(), $secret);
 }
 
-// Wandelt einen echten Zeitstempel in ein aventurisches Datum (z. B. "20. Efferd 1048 BF").
-// Einfache, deterministische Tag-im-Jahr-Abbildung auf den 12-Goetter-Kalender (12x30 + 5 Namenlose).
+// Wandelt einen echten Zeitstempel in ein aventurisches Datum um (z. B. "7. Rahja 1049 BF").
+// Konvention (vgl. dsa-spielen.de Kalender): die 12 Goettermonate laufen parallel zu den
+// realen Monaten, wobei Praios etwa dem Juli entspricht. Tag = Tag des realen Monats (max. 30),
+// Jahr = AVESMAPS_AVENTURIAN_YEAR.
 function avesmapsReviewDsaDateFromTimestamp(int $timestamp): string
 {
     $months = ['Praios', 'Rondra', 'Efferd', 'Travia', 'Boron', 'Hesinde', 'Firun', 'Tsa', 'Phex', 'Peraine', 'Ingerimm', 'Rahja'];
-    $dayOfYear = ((int) gmdate('z', $timestamp)) + 1; // 1..366
-    if ($dayOfYear > 365) {
-        $dayOfYear = 365;
-    }
-    $year = (int) AVESMAPS_AVENTURIAN_YEAR;
-    if ($dayOfYear <= 360) {
-        $monthIndex = intdiv($dayOfYear - 1, 30);
-        $day = (($dayOfYear - 1) % 30) + 1;
-        return sprintf('%d. %s %d BF', $day, $months[$monthIndex], $year);
-    }
-    $nameless = $dayOfYear - 360;
-    return sprintf('%d. Namenloser Tag %d BF', $nameless, $year);
+    $gregorianMonth = (int) date('n', $timestamp); // 1..12 (Server-Zeit)
+    $gregorianDay = (int) date('j', $timestamp);   // 1..31
+    $monthIndex = (($gregorianMonth - 7) + 12) % 12; // Juli -> Praios(0), Juni -> Rahja(11)
+    $day = max(1, min(30, $gregorianDay));
+
+    return sprintf('%d. %s %d BF', $day, $months[$monthIndex], (int) AVESMAPS_AVENTURIAN_YEAR);
 }
 
 // Durchschnitt + Anzahl der SICHTBAREN Bewertungen eines Ortes.
