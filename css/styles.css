@@ -24,7 +24,7 @@
 @import url("features/map-scale-band.css");
 @import url("features/map-labels.css");
 @import url("features/political-timeline.css");
-@import url("features/location-popups-markers.css");
+@import url("features/location-popups-markers.css?v=20260607-route-plus-icon");
 @import url("features/measurement-tool.css");
 @import url("features/route-overview.css");
 @import url("features/route-planner.css");

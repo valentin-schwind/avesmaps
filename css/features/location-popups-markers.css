@@ -84,6 +84,9 @@
 }
 
 .location-popup__action-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
 	padding: 5px 10px;
 	border: 1px solid #d2b28f;
 	border-radius: 999px;
@@ -93,6 +96,23 @@
 	font: inherit;
 	font-size: 12px;
 	font-weight: bold;
+}
+
+/* "+"-Icon im Route-Button -- dasselbe fette Glyph in kleinem runden Kaestchen wie #inputLocation
+   im Routenplaner. */
+.location-popup__action-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	border: 1px solid #8caee6;
+	border-radius: 6px;
+	background: #fff;
+	color: #17468f;
+	font-size: 15px;
+	font-weight: 800;
+	line-height: 1;
 }
 
 .location-popup__action-button:hover,

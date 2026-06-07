@@ -1,6 +1,6 @@
-function popupActionButtonMarkup({ label, className = "", attributes = {} }) {
+function popupActionButtonMarkup({ label, className = "", attributes = {}, iconMarkup = "" }) {
 	const safeClassName = className ? ` ${escapeHtml(className)}` : "";
-	return `<button type="button" class="location-popup__action-button${safeClassName}"${buildHtmlAttributes(attributes)}>${escapeHtml(label)}</button>`;
+	return `<button type="button" class="location-popup__action-button${safeClassName}"${buildHtmlAttributes(attributes)}>${iconMarkup}${escapeHtml(label)}</button>`;
 }
 
 function locationPopupActionsMarkup(actionButtons = []) {
@@ -185,8 +185,9 @@ function pathCreationActionButtonsMarkup(publicId) {
 function locationActionsMarkup(name, publicId, location = null) {
 	const actionButtons = [
 		popupActionButtonMarkup({
-			label: "Zur Route hinzufuegen",
+			label: "Zur Route hinzufügen",
 			className: "location-popup__action-button--accent",
+			iconMarkup: '<span class="location-popup__action-icon" aria-hidden="true">+</span>',
 			attributes: {
 				"data-popup-action": "add-location-to-route",
 				"data-location-name": name,
