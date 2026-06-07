@@ -314,6 +314,9 @@
 	border-radius: 8px;
 	background: #fffaf5;
 	overflow: hidden;
+	/* Nie vom Flex-Eltern stauchen lassen - sonst wird im ZUGEKLAPPTEN Zustand die 48px-Summary auf
+	   wenige px geclippt (sieht aus wie leerer Balken, kaum wieder aufklickbar). Gilt offen wie zu. */
+	flex: 0 0 auto;
 }
 .wiki-sync-accordion__summary {
 	display: flex;
