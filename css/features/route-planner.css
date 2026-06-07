@@ -124,6 +124,9 @@
 }
 
 /* "Link teilen"-Button (Kurzlink der aktuellen Ansicht). */
+.share-link-button[hidden] {
+	display: none;
+}
 .share-link-button {
 	display: inline-flex;
 	align-items: center;

@@ -409,6 +409,9 @@ function openMapContextMenu(latlng, clientX, clientY) {
     syncDistanceMeasurementContextMenuAction();
     syncPathSplitContextMenuAction();
     syncWikiSyncCreateLocationContextMenuAction();
+    if (typeof syncShareLinkContextMenuAction === "function") {
+        syncShareLinkContextMenuAction();
+    }
     menuElement.hidden = false;
     menuElement.style.left = `${clientX + MAP_CONTEXT_MENU_OFFSET_X}px`;
     menuElement.style.top = `${clientY + MAP_CONTEXT_MENU_OFFSET_Y}px`;

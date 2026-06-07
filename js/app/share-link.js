@@ -79,8 +79,48 @@ async function createAndCopyShareLink() {
 	}
 }
 
+// Eine teilbare Route existiert, sobald mindestens 2 Wegpunkte auf gültige Orte zeigen.
+function hasShareableRoute() {
+	if (typeof getWaypointContainers !== "function" || typeof validateLocation !== "function") {
+		return false;
+	}
+	let validCount = 0;
+	getWaypointContainers().each(function () {
+		const value = String($(this).find(".waypoint-input").val() || "").trim();
+		if (value && validateLocation(value)) {
+			validCount += 1;
+		}
+	});
+	return validCount >= 2;
+}
+
+// "Link teilen"-Button im Routenplaner nur zeigen, wenn es eine teilbare Route gibt.
+function updateShareLinkButtonVisibility() {
+	const button = document.getElementById("share-link-button");
+	if (button) {
+		button.hidden = !hasShareableRoute();
+	}
+}
+
+// Kontextmenue-Eintrag "Link teilen" gleichermassen ein-/ausblenden (beim Oeffnen aufgerufen).
+function syncShareLinkContextMenuAction() {
+	const entry = document.querySelector('[data-context-action="share-map-link"]');
+	if (entry) {
+		entry.hidden = !hasShareableRoute();
+	}
+}
+
 // Button im Routenplaner-Panel.
 $(document).on("click", "#share-link-button", function (event) {
 	event.preventDefault();
 	void createAndCopyShareLink();
+});
+
+// Sichtbarkeit reaktiv aktualisieren, wenn sich Wegpunkte ändern.
+$(document).on("input change", ".waypoint-input", updateShareLinkButtonVisibility);
+$(document).on("click", "#searchButton, #inputLocation, .remove-waypoint", function () {
+	window.setTimeout(updateShareLinkButtonVisibility, 0);
+});
+$(function () {
+	updateShareLinkButtonVisibility();
 });
