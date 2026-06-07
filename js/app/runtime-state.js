@@ -189,3 +189,15 @@ let locationData = [],
 	powerlineAnimationLastFrameMs = 0,
 	powerlineAnimationTimeSeconds = 0,
 	isPowerlineEditSubmissionPending = false;
+
+// Heuristik: laeuft Avesmaps auf einem Smartphone? Touch-Geraet mit kleiner Bildschirm-Kurzseite
+// -> erkennt Phones in Hoch- UND Querformat, schliesst Tablets/Desktop (auch mit Touch) aus.
+function avesmapsIsPhoneViewport() {
+	try {
+		const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+		const shortestSide = Math.min(window.innerWidth || 9999, window.innerHeight || 9999);
+		return coarsePointer && shortestSide <= 600;
+	} catch (error) {
+		return false;
+	}
+}

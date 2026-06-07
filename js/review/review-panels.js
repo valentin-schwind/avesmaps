@@ -71,10 +71,18 @@ function refreshActiveEditorPanel() {
 }
 
 function restoreReviewPanelState() {
+	let storedValue = null;
 	try {
-		isReviewPanelHidden = window.localStorage?.getItem(EDIT_MODE_REVIEW_PANEL_STORAGE_KEY) === "1";
+		storedValue = window.localStorage?.getItem(EDIT_MODE_REVIEW_PANEL_STORAGE_KEY) ?? null;
 	} catch (error) {
-		isReviewPanelHidden = false;
+		storedValue = null;
+	}
+
+	if (storedValue === "1" || storedValue === "0") {
+		isReviewPanelHidden = storedValue === "1";
+	} else {
+		// Kein gespeicherter Zustand: auf dem Smartphone standardmaessig eingeklappt (mehr Karte).
+		isReviewPanelHidden = typeof avesmapsIsPhoneViewport === "function" && avesmapsIsPhoneViewport();
 	}
 
 	syncReviewPanelVisibility();

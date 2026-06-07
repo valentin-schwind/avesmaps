@@ -184,3 +184,15 @@ $("#toggle-button").off("click").on("click", () => {
     $("#toggle-button").stop(true).animate({ left: btnPos }, 500);
     isSearchPanelHidden = !isSearchPanelHidden;
 });
+
+// Auf dem Smartphone den Routenplaner standardmaessig eingeklappt starten (mehr Karte sichtbar;
+// per "Routenplaner"-Lasche jederzeit aufklappbar).
+(function collapseRoutePlannerOnPhone() {
+    if (typeof avesmapsIsPhoneViewport !== "function" || !avesmapsIsPhoneViewport() || isSearchPanelHidden) {
+        return;
+    }
+    const panelWidth = getRoutePlannerPanelWidth();
+    $("#search").css("left", `-${panelWidth}px`);
+    $("#toggle-button").css("left", "0px");
+    isSearchPanelHidden = true;
+})();
