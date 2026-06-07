@@ -1744,3 +1744,45 @@ async function handleWikiSyncResolveFormSubmit(event) {
 		setWikiSyncResolveSubmitPending(false);
 	}
 }
+
+// Ziehbarer Trenner am unteren Rand des Konfliktloesung-Accordions: sichtbarer Balken
+// (.wiki-sync-accordion__resizer) statt der unscheinbaren CSS-resize-Ecke. Setzt die
+// Accordion-Hoehe per Drag; die Fall-Liste fuellt die Hoehe und scrollt intern.
+(function initWikiSyncAccordionResizer() {
+	let drag = null;
+	const MIN_HEIGHT = 92;
+	const maxHeight = () => Math.max(MIN_HEIGHT, Math.round(window.innerHeight * 0.85));
+
+	document.addEventListener("pointerdown", (event) => {
+		const handle = event.target instanceof Element ? event.target.closest(".wiki-sync-accordion__resizer") : null;
+		if (!handle) {
+			return;
+		}
+		const accordion = handle.closest(".wiki-sync-accordion");
+		if (!accordion || !accordion.hasAttribute("open")) {
+			return;
+		}
+		event.preventDefault();
+		drag = { accordion, startY: event.clientY, startHeight: accordion.getBoundingClientRect().height };
+		try { handle.setPointerCapture(event.pointerId); } catch (error) { /* egal */ }
+		document.body.style.userSelect = "none";
+	});
+
+	document.addEventListener("pointermove", (event) => {
+		if (!drag) {
+			return;
+		}
+		const next = drag.startHeight + (event.clientY - drag.startY);
+		drag.accordion.style.height = Math.max(MIN_HEIGHT, Math.min(maxHeight(), next)) + "px";
+	});
+
+	const endDrag = () => {
+		if (!drag) {
+			return;
+		}
+		drag = null;
+		document.body.style.userSelect = "";
+	};
+	document.addEventListener("pointerup", endDrag);
+	document.addEventListener("pointercancel", endDrag);
+})();

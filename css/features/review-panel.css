@@ -348,14 +348,38 @@
 .wiki-sync-accordion[open] {
 	display: flex;
 	flex-direction: column;
-	/* Die ganze Konfliktlösung-Box ist per Resize-Griff in der Hoehe ziehbar -> der Trenner sitzt
-	   am UNTEREN Rand des Accordions (direkt unter den Status-Buttons). Kompakter Default; ziehst du
-	   runter, fuellt die Fall-Liste die zusaetzliche Hoehe (scrollt intern). */
+	/* Hoehe per sichtbarem Zieh-Balken am unteren Rand (.wiki-sync-accordion__resizer + JS) anpassbar.
+	   Kompakter Default; ziehst du den Balken runter, fuellt die Fall-Liste die Hoehe (scrollt intern). */
 	overflow: hidden;
-	resize: vertical;
 	height: 120px;
 	min-height: 92px;
 	max-height: 85vh;
+}
+
+/* Sichtbarer Zieh-Balken am unteren Rand des Accordions (= der Trenner unter den Status-Buttons). */
+.wiki-sync-accordion__resizer {
+	flex: 0 0 auto;
+	height: 12px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: ns-resize;
+	background: #ece0cf;
+	border-top: 1px solid #ddc8ad;
+	touch-action: none;
+}
+.wiki-sync-accordion__resizer::before {
+	content: "";
+	width: 44px;
+	height: 3px;
+	border-radius: 2px;
+	background: #b69e7f;
+}
+.wiki-sync-accordion__resizer:hover::before {
+	background: #8a6f4f;
+}
+.wiki-sync-accordion:not([open]) .wiki-sync-accordion__resizer {
+	display: none;
 }
 .wiki-sync-accordion__body {
 	border-top: 1px solid #e7d8c6;
