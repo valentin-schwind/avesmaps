@@ -81,6 +81,7 @@ function findNearestGraphNodeToLatLng(latlng) {
 // Ortsgroesse nicht (mehr) eingeblendet ist. Erst den Pin loesen, dann die normale Sichtbarkeit
 // entscheiden lassen.
 function clearNearestLookupPinnedMarker() {
+	nearestLookupTempPopup = null;
 	if (typeof nearestLookupPinnedMarkerEntry === "undefined" || !nearestLookupPinnedMarkerEntry) {
 		return;
 	}
@@ -92,14 +93,36 @@ function clearNearestLookupPinnedMarker() {
 	}
 }
 
+let nearestLookupPopupCloseHandlerBound = false;
+function ensureNearestLookupPopupCloseHandler() {
+	if (nearestLookupPopupCloseHandlerBound) {
+		return;
+	}
+	nearestLookupPopupCloseHandlerBound = true;
+	// EIN globaler Handler: der temporaere Marker wird erst entfernt, wenn GENAU der zugehoerige
+	// (temporaere) Popup geschlossen wird — nicht, wenn das Oeffnen eines neuen Popups den alten schliesst.
+	map.on("popupclose", (event) => {
+		if (nearestLookupTempPopup && event.popup === nearestLookupTempPopup) {
+			clearNearestLookupPinnedMarker();
+		}
+	});
+}
+
 function openLocationPopupByName(locationName) {
 	const markerEntry = findLocationMarkerByName(locationName);
 	if (!markerEntry) {
 		return false;
 	}
 
-	// Evtl. noch offenen temporaeren Pin eines vorherigen Treffers aufraeumen.
+	// Evtl. noch offenen temporaeren Marker eines vorherigen Treffers aufraeumen.
 	clearNearestLookupPinnedMarker();
+
+	// Ist die Ortsgroesse dieses Treffers gerade nicht eingeblendet, den Marker temporaer pinnen -
+	// VOR panTo, damit das durch panTo ausgeloeste Sichtbarkeits-Sync ihn nicht sofort wieder entfernt.
+	const isTemporary = typeof shouldShowLocationMarker === "function" && !shouldShowLocationMarker(markerEntry);
+	if (isTemporary) {
+		nearestLookupPinnedMarkerEntry = markerEntry;
+	}
 
 	if (!map.hasLayer(markerEntry.marker)) {
 		map.addLayer(markerEntry.marker);
@@ -121,20 +144,9 @@ function openLocationPopupByName(locationName) {
 		.setContent(popupContent)
 		.openOn(map);
 
-	// Ist die Ortsgroesse dieses Treffers gerade nicht eingeblendet, den Marker nur temporaer zeigen
-	// und beim Schliessen der Infobox wieder entfernen. NACH openOn pinnen, damit der popupclose des
-	// zuvor offenen Popups nicht versehentlich diesen neuen Pin loescht.
-	const isTemporary = typeof shouldShowLocationMarker === "function" && !shouldShowLocationMarker(markerEntry);
 	if (isTemporary) {
-		nearestLookupPinnedMarkerEntry = markerEntry;
-		const handlePopupClose = (event) => {
-			if (event.popup !== popup) {
-				return;
-			}
-			map.off("popupclose", handlePopupClose);
-			clearNearestLookupPinnedMarker();
-		};
-		map.on("popupclose", handlePopupClose);
+		nearestLookupTempPopup = popup;
+		ensureNearestLookupPopupCloseHandler();
 	}
 	return true;
 }
