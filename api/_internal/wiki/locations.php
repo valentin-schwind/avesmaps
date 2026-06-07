@@ -1201,6 +1201,36 @@ function avesmapsWikiSyncNextMapSortOrder(PDO $pdo): int {
     return $sortOrder === false ? 1 : (int) $sortOrder;
 }
 
+// Voller Feature-Snapshot (VOR der Änderung holen) für Verlauf/Undo.
+function avesmapsWikiSyncFetchAuditRow(PDO $pdo, int $featureId): array {
+    $stmt = $pdo->prepare('SELECT id, public_id, feature_type, feature_subtype, name, geometry_type, geometry_json, properties_json, style_json, is_active, revision, min_x, min_y, max_x, max_y FROM map_features WHERE id = :id LIMIT 1');
+    $stmt->execute(['id' => $featureId]);
+    return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+}
+
+// Schreibt einen Verlaufs-/Undo-Eintrag (wiki_sync_update_point) für eine properties_json-Änderung
+// eines Features. Stellt beim „Rückgängig" name/feature_subtype/properties_json wieder her.
+function avesmapsWikiSyncAuditFeaturePropsChange(PDO $pdo, array $beforeRow, array $newProps, int $revision, int $userId): void {
+    if (empty($beforeRow['id'])) {
+        return;
+    }
+    avesmapsWikiSyncWriteMapAuditLog(
+        $pdo,
+        (int) $beforeRow['id'],
+        'wiki_sync_update_point',
+        $userId,
+        avesmapsWikiSyncEncodeJson($beforeRow),
+        avesmapsWikiSyncEncodeJson([
+            'public_id' => (string) ($beforeRow['public_id'] ?? ''),
+            'feature_type' => (string) ($beforeRow['feature_type'] ?? 'label'),
+            'name' => (string) ($beforeRow['name'] ?? ''),
+            'feature_subtype' => (string) ($beforeRow['feature_subtype'] ?? ''),
+            'properties_json' => $newProps,
+            'revision' => $revision,
+        ])
+    );
+}
+
 function avesmapsWikiSyncWriteMapAuditLog(PDO $pdo, int $featureId, string $action, int $actorUserId, string $beforeJson, string $afterJson): void {
     $statement = $pdo->prepare(
         'INSERT INTO map_audit_log (feature_id, action, actor_user_id, before_json, after_json)

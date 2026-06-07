@@ -61,7 +61,8 @@ try {
                 $pdo,
                 (string) ($payload['wiki_key'] ?? ''),
                 (string) ($payload['public_id'] ?? ''),
-                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
+                (int) ($user['id'] ?? 0)
             ),
             default => null,
         };

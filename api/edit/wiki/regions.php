@@ -48,7 +48,8 @@ try {
             'assign' => avesmapsWikiRegionAssign(
                 $pdo,
                 (string) ($payload['wiki_key'] ?? ''),
-                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
+                (int) ($user['id'] ?? 0)
             ),
             'assign_all' => avesmapsWikiRegionAssignAll(
                 $pdo,

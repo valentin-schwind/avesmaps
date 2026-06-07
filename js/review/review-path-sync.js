@@ -329,6 +329,9 @@ async function assignPathWikiToTarget(wikiKey, publicId) {
 			if (typeof showFeedbackToast === "function") {
 				showFeedbackToast(`„${result.wiki_name}" → „${result.target_name}" verknüpft (${result.applied} Abschnitte).`, "success");
 			}
+			if (typeof loadChangeLog === "function") {
+				loadChangeLog();
+			}
 			await loadPathWikiSync();
 		} else if (typeof showFeedbackToast === "function") {
 			showFeedbackToast("Fehler: " + ((result && result.error) || ""), "error");

@@ -788,7 +788,7 @@ function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun): array 
 
 // Re-Targeting: heftet einen Wiki-Weg an EIN auf der Karte gewaehltes Ziel-Segment (und alle
 // gleichnamigen). Mit Typ-Pruefung (Fluss <-> Strasse/Weg). Gated.
-function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, bool $dryRun): array {
+function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, bool $dryRun, int $userId = 0): array {
     avesmapsWikiPathEnsureTables($pdo);
     $wikiKey = trim($wikiKey);
     $publicId = trim($publicId);
@@ -834,11 +834,13 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
         }
         $segments++;
         if (!$dryRun) {
+            $auditBefore = avesmapsWikiSyncFetchAuditRow($pdo, (int) $p['id']);
             $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
             $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
             $props['wiki_path'] = $assignObject;
             $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
             $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $p['id']]);
+            avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId);
             $applied++;
         }
     }

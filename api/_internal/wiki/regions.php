@@ -727,7 +727,7 @@ function avesmapsWikiRegionBuildAssignObject(array $r): array {
 }
 
 // Heftet eine Wiki-Region an alle aktiven Label-Features mit gleichem Namen. Gated.
-function avesmapsWikiRegionAssign(PDO $pdo, string $wikiKey, bool $dryRun): array {
+function avesmapsWikiRegionAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $userId = 0): array {
     avesmapsWikiRegionEnsureTables($pdo);
     $wikiKey = trim($wikiKey);
     if ($wikiKey === '') {
@@ -755,11 +755,13 @@ function avesmapsWikiRegionAssign(PDO $pdo, string $wikiKey, bool $dryRun): arra
         }
         $matched++;
         if (!$dryRun) {
+            $auditBefore = avesmapsWikiSyncFetchAuditRow($pdo, (int) $l['id']);
             $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
             $props = avesmapsWikiSyncDecodeJson($l['properties_json'] ?? null);
             $props['wiki_region'] = $assignObject;
             $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
             $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $l['id']]);
+            avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId);
             $applied++;
         }
     }
