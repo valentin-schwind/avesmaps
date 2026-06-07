@@ -212,12 +212,46 @@ const PLACE_FOCUS_PUBLIC_ID = (function () {
 		return "";
 	}
 })();
+// Fokussiert ein geteiltes Label (Wiki-Landschaft/Region) per public_id: Ebene auf
+// Landschaften, hinfliegen, sichtbar machen und Infobox-Popup oeffnen. Gibt true zurueck,
+// wenn ein passendes Label gefunden wurde.
+function focusSharedLabelFromUrl(publicId) {
+	const labelEntry = typeof findLabelEntryByPublicId === "function" ? findLabelEntryByPublicId(publicId) : null;
+	if (!labelEntry || !labelEntry.marker) {
+		return false;
+	}
+	if (typeof setSelectedMapLayerMode === "function") {
+		setSelectedMapLayerMode("deregraphic");
+	}
+	const label = labelEntry.label || {};
+	const visualMax = typeof VISUAL_MAX_ZOOM_LEVEL !== "undefined" ? VISUAL_MAX_ZOOM_LEVEL : map.getMaxZoom();
+	const labelMax = Number.isFinite(Number(label.maxZoom)) ? Number(label.maxZoom) : visualMax;
+	const targetZoom = Math.max(Number(label.minZoom) || 0, Math.min(labelMax, visualMax));
+	map.setView(labelEntry.marker.getLatLng(), targetZoom, { animate: false });
+	if (typeof syncLabelVisibility === "function") {
+		syncLabelVisibility();
+	}
+	// Popup erst nach dem Sichtbar-Schalten oeffnen (Marker kann gerade erst hinzugefuegt werden).
+	window.setTimeout(() => {
+		try {
+			labelEntry.marker.openPopup();
+		} catch (error) {
+			/* Popup ist optional */
+		}
+	}, 0);
+	return true;
+}
+
 function applyPlaceFocusFromUrl() {
 	if (!PLACE_FOCUS_PUBLIC_ID) {
 		return;
 	}
 	const entry = typeof findLocationMarkerByPublicId === "function" ? findLocationMarkerByPublicId(PLACE_FOCUS_PUBLIC_ID) : null;
 	if (!entry) {
+		// Kein Ort -> Label (Landschaft/Region) versuchen: hinfliegen + Infobox oeffnen.
+		if (focusSharedLabelFromUrl(PLACE_FOCUS_PUBLIC_ID)) {
+			return;
+		}
 		// Marker (noch) nicht geladen -> vorhandene Logik (zeigt ggf. Hinweis-Toast).
 		if (typeof focusRegionPlace === "function") {
 			focusRegionPlace(PLACE_FOCUS_PUBLIC_ID);
@@ -529,6 +563,14 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 
 	if (action === "remove-share-pin") {
 		clearSharePin();
+		return;
+	}
+
+	if (action === "share-place-link") {
+		const publicId = this.dataset.publicId;
+		if (publicId) {
+			void sharePlaceLinkWithFeedback(publicId);
+		}
 		return;
 	}
 

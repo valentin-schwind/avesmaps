@@ -93,6 +93,26 @@ function copyCurrentUrlToClipboard() {
 	return copyTextToClipboard(window.location.href);
 }
 
+// Direkter Teil-Link auf eine konkrete Stelle (Siedlung/Region) per ?place=<publicId>.
+// Sauberer Public-Link (ohne edit/Planner-State); beim Oeffnen fliegt die Karte hin und
+// triggert die Infobox (applyPlaceFocusFromUrl).
+function buildPlaceShareUrl(publicId) {
+	return `${window.location.origin}${window.location.pathname}?place=${encodeURIComponent(publicId)}`;
+}
+
+async function sharePlaceLinkWithFeedback(publicId) {
+	if (!publicId) {
+		return false;
+	}
+	const url = buildPlaceShareUrl(publicId);
+	const didCopy = await copyTextToClipboard(url);
+	showFeedbackToast(
+		didCopy ? "Link zu dieser Stelle in die Zwischenablage kopiert." : "Link konnte nicht automatisch kopiert werden.",
+		didCopy ? "success" : "warning"
+	);
+	return didCopy;
+}
+
 async function copyCurrentUrlToClipboardWithFeedback() {
 	const didCopy = await copyCurrentUrlToClipboard();
 	showFeedbackToast(

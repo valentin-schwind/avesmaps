@@ -11,6 +11,21 @@ function locationPopupActionsMarkup(actionButtons = []) {
 	return `<div class="location-popup__actions">${actionButtons.join("")}</div>`;
 }
 
+// "Link teilen": kopiert einen direkten ?place=<publicId>-Link auf diese Stelle (Siedlung/Region),
+// der beim Oeffnen hinfliegt und die Infobox triggert. Sichtbar in beiden Modi.
+function sharePlaceActionButtonMarkup(publicId) {
+	if (!publicId) {
+		return "";
+	}
+	return popupActionButtonMarkup({
+		label: "🔗 Link teilen",
+		attributes: {
+			"data-popup-action": "share-place-link",
+			"data-public-id": publicId,
+		},
+	});
+}
+
 function getWikiLocationLink(name, wikiUrlOverride = "") {
 	if (wikiUrlOverride) {
 		return {
@@ -178,6 +193,11 @@ function locationActionsMarkup(name, publicId, location = null) {
 			},
 		}),
 	];
+
+	const shareButton = sharePlaceActionButtonMarkup(publicId);
+	if (shareButton) {
+		actionButtons.push(shareButton);
+	}
 
 	if (IS_EDIT_MODE && publicId) {
 		actionButtons.push(...pathCreationActionButtonsMarkup(publicId));

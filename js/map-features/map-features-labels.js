@@ -120,7 +120,9 @@ function createLabelMarkerEntry(label) {
 				showType: true,
 				showDescription: false,
 				showWikiLink: false,
-				actionsMarkup: labelWikiInfoboxMarkup(label, { headless: true }),
+				// Infobox + "Link teilen"-Leiste (im Ansichtsmodus kein Edit-Button).
+				actionsMarkup: labelWikiInfoboxMarkup(label, { headless: true })
+					+ locationPopupActionsMarkup([sharePlaceActionButtonMarkup(label.publicId)].filter(Boolean)),
 			}),
 			{ className: "settlement-popup", minWidth: 320, maxWidth: 400, autoPan: true }
 		);
