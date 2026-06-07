@@ -118,6 +118,11 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
 }
 
 function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds()) {
+	// Per "Nächsten Ort finden"/Suche temporaer angepinnter Marker bleibt sichtbar, auch wenn seine
+	// Ortsgroesse nicht eingeblendet ist — bis die zugehoerige Infobox geschlossen wird.
+	if (typeof nearestLookupPinnedMarkerEntry !== "undefined" && entry === nearestLookupPinnedMarkerEntry) {
+		return true;
+	}
 	if (entry.locationType === CROSSING_LOCATION_TYPE) {
 		return IS_EDIT_MODE
 			&& $("#toggleCrossings").is(":checked")

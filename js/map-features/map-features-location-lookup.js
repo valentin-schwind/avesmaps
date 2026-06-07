@@ -77,11 +77,29 @@ function findNearestGraphNodeToLatLng(latlng) {
 	return nearestMatch;
 }
 
+// Entfernt den per "Nächsten Ort finden"/Suche temporaer eingeblendeten Marker wieder, sobald seine
+// Ortsgroesse nicht (mehr) eingeblendet ist. Erst den Pin loesen, dann die normale Sichtbarkeit
+// entscheiden lassen.
+function clearNearestLookupPinnedMarker() {
+	if (typeof nearestLookupPinnedMarkerEntry === "undefined" || !nearestLookupPinnedMarkerEntry) {
+		return;
+	}
+	const entry = nearestLookupPinnedMarkerEntry;
+	nearestLookupPinnedMarkerEntry = null;
+	const stillHidden = typeof shouldShowLocationMarker !== "function" || !shouldShowLocationMarker(entry);
+	if (stillHidden && map.hasLayer(entry.marker)) {
+		map.removeLayer(entry.marker);
+	}
+}
+
 function openLocationPopupByName(locationName) {
 	const markerEntry = findLocationMarkerByName(locationName);
 	if (!markerEntry) {
 		return false;
 	}
+
+	// Evtl. noch offenen temporaeren Pin eines vorherigen Treffers aufraeumen.
+	clearNearestLookupPinnedMarker();
 
 	if (!map.hasLayer(markerEntry.marker)) {
 		map.addLayer(markerEntry.marker);
@@ -94,7 +112,7 @@ function openLocationPopupByName(locationName) {
 	const markerLatLng = markerEntry.marker.getLatLng();
 	const popupContent = markerEntry.marker.getPopup()?.getContent?.() || markerEntry.name;
 	map.panTo(markerLatLng);
-	L.popup({
+	const popup = L.popup({
 		autoPan: false,
 		closeButton: true,
 		className: "location-popup-wrapper",
@@ -102,5 +120,21 @@ function openLocationPopupByName(locationName) {
 		.setLatLng(markerLatLng)
 		.setContent(popupContent)
 		.openOn(map);
+
+	// Ist die Ortsgroesse dieses Treffers gerade nicht eingeblendet, den Marker nur temporaer zeigen
+	// und beim Schliessen der Infobox wieder entfernen. NACH openOn pinnen, damit der popupclose des
+	// zuvor offenen Popups nicht versehentlich diesen neuen Pin loescht.
+	const isTemporary = typeof shouldShowLocationMarker === "function" && !shouldShowLocationMarker(markerEntry);
+	if (isTemporary) {
+		nearestLookupPinnedMarkerEntry = markerEntry;
+		const handlePopupClose = (event) => {
+			if (event.popup !== popup) {
+				return;
+			}
+			map.off("popupclose", handlePopupClose);
+			clearNearestLookupPinnedMarker();
+		};
+		map.on("popupclose", handlePopupClose);
+	}
 	return true;
 }
