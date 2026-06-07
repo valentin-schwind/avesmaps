@@ -67,6 +67,9 @@ function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locatio
     if (!is_array($startNode) || !is_array($endNode)) return;
 
     $routeType = avesmapsNormalizeClientRouteSubtype((string) ($path['subtype'] ?? $path['name'] ?? ''));
+    // Deaktivierte Domaenen (Fluss/See) NICHT in den Graphen aufnehmen, wenn der Nutzer sie im
+    // Routenplaner abgeschaltet hat (allowRiver/allowSea = false).
+    if (!avesmapsIsClientRouteDomainEnabled($routeType, $request)) return;
     $transportOption = avesmapsResolveClientRouteTransportOption($routeType, $request);
     if ($transportOption === null || !avesmapsIsClientTransportAllowedForPath($routeType, $transportOption)) return;
 
@@ -252,6 +255,19 @@ function avesmapsNormalizeClientRouteSubtype(string $subtype): string {
     if (avesmapsRouteStringStartsWith($normalized, 'Meer') || avesmapsRouteStringStartsWith($normalized, 'Seeweg')) return 'Seeweg';
     if (avesmapsRouteStringStartsWith($normalized, AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE)) return AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE;
     return 'Weg';
+}
+
+// Transport-Domaene eines Wegtyps: Flussweg=river, Seeweg=sea, alles andere=land.
+function avesmapsClientRouteDomain(string $routeType): string {
+    if ($routeType === 'Flussweg') return 'river';
+    if ($routeType === 'Seeweg') return 'sea';
+    return 'land';
+}
+
+// Ist die Domaene dieses Wegtyps erlaubt? Fehlt enabled_transports -> alle erlaubt (kompatibel).
+function avesmapsIsClientRouteDomainEnabled(string $routeType, array $request): bool {
+    $enabled = is_array($request['enabled_transports'] ?? null) ? $request['enabled_transports'] : [];
+    return (bool) ($enabled[avesmapsClientRouteDomain($routeType)] ?? true);
 }
 
 function avesmapsResolveClientRouteTransportOption(string $routeType, array $request): ?string {

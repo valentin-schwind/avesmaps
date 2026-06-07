@@ -41,6 +41,7 @@ function avesmapsNormalizeRouteRequest(array $payload): array {
 	$restHoursPerDay = avesmapsRouteNormalizeRestHours($payload['rest_hours_per_day'] ?? AVESMAPS_ROUTE_DEFAULT_REQUEST['rest_hours_per_day']);
 	$minimizeTransfers = avesmapsRouteNormalizeBoolean($payload['minimize_transfers'] ?? AVESMAPS_ROUTE_DEFAULT_REQUEST['minimize_transfers'], 'minimize_transfers');
 	$transports = avesmapsRouteNormalizeTransports($payload['transports'] ?? []);
+	$enabledTransports = avesmapsRouteNormalizeEnabledTransports($payload['enabled_transports'] ?? null);
 	$clientRoute = avesmapsRouteNormalizeClientRoute($payload['client_route'] ?? []);
 
 	return [
@@ -55,7 +56,28 @@ function avesmapsNormalizeRouteRequest(array $payload): array {
 		'rest_hours_per_day' => $restHoursPerDay,
 		'minimize_transfers' => $minimizeTransfers,
 		'transports' => $transports,
+		'enabled_transports' => $enabledTransports,
 		'client_route' => $clientRoute,
+	];
+}
+
+// Welche Transport-Domaenen erlaubt sind (land/river/sea). Fehlt das Feld -> alle erlaubt
+// (rueckwaertskompatibel). Wird genutzt, um Fluss-/See-Kanten aus dem Graphen zu werfen, wenn
+// der Nutzer Fluss/See im Routenplaner deaktiviert hat.
+function avesmapsRouteNormalizeEnabledTransports(mixed $value): array {
+	$value = is_array($value) ? $value : [];
+	$parseBool = static function (mixed $raw, bool $default): bool {
+		if (is_bool($raw)) {
+			return $raw;
+		}
+		$parsed = filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+		return $parsed === null ? $default : $parsed;
+	};
+
+	return [
+		'land' => array_key_exists('land', $value) ? $parseBool($value['land'], true) : true,
+		'river' => array_key_exists('river', $value) ? $parseBool($value['river'], true) : true,
+		'sea' => array_key_exists('sea', $value) ? $parseBool($value['sea'], true) : true,
 	];
 }
 
