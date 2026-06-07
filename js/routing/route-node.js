@@ -63,6 +63,72 @@ function getRouteNodeDisplayName(routeName, index, routeNames, segments, options
 	return normalizedRouteName;
 }
 
+// Orientiert jedes Segment entlang der tatsaechlichen Fahrtrichtung, indem aufeinanderfolgende
+// Segmente an ihrem gemeinsamen Knotenpunkt verkettet werden. Liefert pro Segment {start,end} als
+// Koordinaten -> robust gegen falsche/duplizierte from_node/to_node-Labels der Server-Route
+// (z.B. an Faehr-Uebergaengen).
+function buildOrientedRouteSegmentEndpoints(segments) {
+	const coords = (segments || []).map((segment) => {
+		const coordinates = segment?.geometry?.coordinates;
+		return (Array.isArray(coordinates) && coordinates.length >= 2)
+			? { a: coordinates[0], b: coordinates[coordinates.length - 1] }
+			: null;
+	});
+	const squaredDistance = (p, q) => {
+		const dx = p[0] - q[0];
+		const dy = p[1] - q[1];
+		return dx * dx + dy * dy;
+	};
+
+	const oriented = new Array(coords.length).fill(null);
+	let previousEnd = null;
+	for (let i = 0; i < coords.length; i += 1) {
+		if (!coords[i]) {
+			continue;
+		}
+		const { a, b } = coords[i];
+		let start;
+		let end;
+		if (previousEnd) {
+			start = squaredDistance(a, previousEnd) <= squaredDistance(b, previousEnd) ? a : b;
+			end = start === a ? b : a;
+		} else {
+			let nextCoords = null;
+			for (let j = i + 1; j < coords.length; j += 1) {
+				if (coords[j]) {
+					nextCoords = coords[j];
+					break;
+				}
+			}
+			if (nextCoords) {
+				const bToNext = Math.min(squaredDistance(b, nextCoords.a), squaredDistance(b, nextCoords.b));
+				const aToNext = Math.min(squaredDistance(a, nextCoords.a), squaredDistance(a, nextCoords.b));
+				end = bToNext <= aToNext ? b : a;
+				start = end === a ? b : a;
+			} else {
+				start = a;
+				end = b;
+			}
+		}
+		oriented[i] = { start, end };
+		previousEnd = end;
+	}
+
+	return oriented;
+}
+
+// Anzeigename fuer einen (orientierten) Segment-Endpunkt: naechstgelegener Ort, sonst Kreuzung/Markierung.
+function routeSegmentEndpointName(coordinate, allowCrossings = true) {
+	if (!Array.isArray(coordinate)) {
+		return allowCrossings ? "Kreuzung" : "Markierung";
+	}
+	const location = findRouteLocationAtPathEndpoint(coordinate, { allowCrossings });
+	if (location) {
+		return isCrossingLocation(location) ? normalizeNodeName(location.name) : location.name;
+	}
+	return allowCrossings ? "Kreuzung" : "Markierung";
+}
+
 function getRoutePathDisplayName(segment) {
 	return String(segment?.properties?.display_name || segment?.properties?.original_name || segment?.properties?.name || "").trim();
 }

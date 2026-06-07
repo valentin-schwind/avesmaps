@@ -194,6 +194,10 @@ function buildRoutePlanEntries(routeNames, segments) {
 		}
 	};
 
+	// Segmente entlang der Fahrtrichtung orientieren -> Namen aus der echten Geometrie ableiten
+	// (statt aus den teils falschen Server-Knotenlabels, vgl. Faehr-Uebergaenge).
+	const orientedSegmentEndpoints = buildOrientedRouteSegmentEndpoints(segments);
+
 	segments.forEach((segment, index) => {
 		if (!segment?.geometry?.coordinates?.length || segment.geometry.coordinates.length < 2) {
 			return;
@@ -214,16 +218,21 @@ function buildRoutePlanEntries(routeNames, segments) {
 
 		const segTravelTime = (segDistance / speedMiles) * TIME_SCALE_FACTOR;
 		const isWaterRoute = type === "Flussweg" || type === "Seeweg";
-		const rawStartName = String(routeNames[index] || "");
-		const rawEndName = String(routeNames[index + 1] || "");
-		const startName = getRouteNodeDisplayName(rawStartName, index, routeNames, segments, { allowCrossings: !isWaterRoute });
-		const endName = getRouteNodeDisplayName(rawEndName, index + 1, routeNames, segments, { allowCrossings: !isWaterRoute });
+		const orientation = orientedSegmentEndpoints[index];
+		// Namen aus der Segment-Geometrie (orientiert) -> stimmen immer mit der gehighlighteten Linie
+		// ueberein. Fallback auf die Server-Knotenlabels nur, wenn keine Orientierung vorliegt.
+		const startName = orientation
+			? routeSegmentEndpointName(orientation.start, !isWaterRoute)
+			: getRouteNodeDisplayName(String(routeNames[index] || ""), index, routeNames, segments, { allowCrossings: !isWaterRoute });
+		const endName = orientation
+			? routeSegmentEndpointName(orientation.end, !isWaterRoute)
+			: getRouteNodeDisplayName(String(routeNames[index + 1] || ""), index + 1, routeNames, segments, { allowCrossings: !isWaterRoute });
 		const segmentLabel = type === "Flussweg" && shouldShowRoutePathDisplayName(segment)
 			? getRoutePathDisplayName(segment)
 			: "";
 
 		if (isWaterRoute) {
-			const startsAtExplicitWaypoint = isRoutePlanExplicitWaypoint(rawStartName, explicitWaypointNames);
+			const startsAtExplicitWaypoint = isRoutePlanExplicitWaypoint(startName, explicitWaypointNames);
 			if (aggregateEntry && (aggregateEntry.aggregateKey !== type || aggregateEntry.transport !== transport || startsAtExplicitWaypoint)) {
 				flushAggregateEntry();
 			}
@@ -252,7 +261,7 @@ function buildRoutePlanEntries(routeNames, segments) {
 			}
 			aggregateEntry.segmentIndexes.push(index);
 
-			if (isRoutePlanExplicitWaypoint(rawEndName, explicitWaypointNames)) {
+			if (isRoutePlanExplicitWaypoint(endName, explicitWaypointNames)) {
 				flushAggregateEntry();
 			}
 			return;
