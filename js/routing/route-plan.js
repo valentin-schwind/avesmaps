@@ -145,6 +145,15 @@ function cleanRoutePlanNoiseEntries(entries) {
 
 	for (const raw of entries) {
 		const entry = { ...raw };
+		// Synthetische "Querfeldein"/Luftlinien-Segmente sind KEIN echter Weg -> nie mit einer
+		// andersartigen Etappe verschmelzen, damit die Luftlinie als eigene Etappe sichtbar bleibt
+		// (sonst versteckt sie sich z.B. unter "Flussweg").
+		const entryIsSynthetic = entry.type === SYNTHETIC_ROUTE_TYPE;
+		const openIsSynthetic = !!open && open.type === SYNTHETIC_ROUTE_TYPE;
+		if (open && entryIsSynthetic !== openIsSynthetic) {
+			result.push(open);
+			open = null;
+		}
 		if (!open) {
 			// Start-Name bleibt der echte Segment-Endpunkt-Name. Eine Stadt der vorherigen Grenze NICHT
 			// blind uebernehmen: An nicht-verketteten Bruchstellen liegt diese Stadt evtl. weit von der
@@ -342,7 +351,7 @@ function showRoutePlan(routeNames, segments) {
 
 		$overview.append(`
 			<button type="button" class="route-plan-entry" data-route-entry-index="${entryIndex}">
-			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type}${labelSuffix}
+			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type === SYNTHETIC_ROUTE_TYPE ? "Luftlinie (kein Weg)" : entry.type}${labelSuffix}
 			(${entry.distance.toFixed(2)} Meilen)
 			von <strong>${formattedStartName}</strong>
 			bis <strong>${formattedEndName}</strong>

@@ -5,7 +5,7 @@ declare(strict_types=1);
 const AVESMAPS_ROUTE_CLIENT_ENDPOINT_THRESHOLD = 0.5;
 const AVESMAPS_ROUTE_CLIENT_TRANSFER_PENALTY = 100.0;
 const AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE = 'Querfeldein';
-const AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR = 1.2;
+const AVESMAPS_ROUTE_CLIENT_SYNTHETIC_DISTANCE_COST_FACTOR = 25.0;
 
 const AVESMAPS_ROUTE_CLIENT_SPEED_TABLE = [
     'groupFoot' => ['Reichsstrasse' => 4.5, 'Strasse' => 4.0, 'Weg' => 3.5, 'Pfad' => 3.0, 'Gebirgspass' => 1.5, 'Wuestenpfad' => 2.5, 'Querfeldein' => 1.25],
