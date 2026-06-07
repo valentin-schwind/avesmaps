@@ -128,6 +128,56 @@ function isRoutePlanExplicitWaypoint(name, waypointNameSet) {
 	return normalizedName !== "" && waypointNameSet.has(normalizedName);
 }
 
+// Nachbearbeitung der Etappenliste: "X -> X"-Selbstsegmente und Etappen mit Kreuzungs-/
+// Markierungs-Endpunkten in die Nachbar-Etappe verschmelzen (Distanz/Zeit/Segmente bleiben
+// erhalten). Ergebnis: saubere Stadt-zu-Stadt-Etappen ohne irrefuehrende Schleifen/Zwischenmarker.
+// Iterativ, bis keine "Rausch"-Etappe mehr uebrig ist.
+function cleanRoutePlanNoiseEntries(entries) {
+	const result = entries.map((entry) => ({ ...entry }));
+	let changed = true;
+	let guard = 0;
+
+	while (changed && guard < 5000) {
+		guard += 1;
+		changed = false;
+		for (let index = 0; index < result.length; index += 1) {
+			const entry = result[index];
+			const isNoise = entry.startName === entry.endName
+				|| isRoutePlanMarkerName(entry.startName)
+				|| isRoutePlanMarkerName(entry.endName);
+			if (!isNoise || result.length <= 1) {
+				continue;
+			}
+
+			if (index > 0) {
+				const previous = result[index - 1];
+				previous.distance += entry.distance;
+				previous.travelTime += entry.travelTime;
+				previous.restTime = (previous.restTime || 0) + (entry.restTime || 0);
+				previous.segmentIndexes = (previous.segmentIndexes || []).concat(entry.segmentIndexes || []);
+				if (!isRoutePlanMarkerName(entry.endName) && entry.endName && entry.endName !== previous.startName) {
+					previous.endName = entry.endName;
+				}
+			} else {
+				const next = result[index + 1];
+				next.distance += entry.distance;
+				next.travelTime += entry.travelTime;
+				next.restTime = (next.restTime || 0) + (entry.restTime || 0);
+				next.segmentIndexes = (entry.segmentIndexes || []).concat(next.segmentIndexes || []);
+				if (!isRoutePlanMarkerName(entry.startName) && entry.startName && entry.startName !== next.endName) {
+					next.startName = entry.startName;
+				}
+			}
+
+			result.splice(index, 1);
+			changed = true;
+			break;
+		}
+	}
+
+	return result;
+}
+
 function buildRoutePlanEntries(routeNames, segments) {
 	const entries = [];
 	const explicitWaypointNames = getRoutePlanWaypointNameSet();
@@ -222,7 +272,7 @@ function buildRoutePlanEntries(routeNames, segments) {
 	});
 
 	flushAggregateEntry();
-	return entries;
+	return cleanRoutePlanNoiseEntries(entries);
 }
 
 function showRoutePlan(routeNames, segments) {
