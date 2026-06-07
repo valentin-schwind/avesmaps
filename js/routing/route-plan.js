@@ -128,72 +128,61 @@ function isRoutePlanExplicitWaypoint(name, waypointNameSet) {
 	return normalizedName !== "" && waypointNameSet.has(normalizedName);
 }
 
-// Nachbearbeitung der Etappenliste: "X -> X"-Selbstsegmente und Etappen mit Kreuzungs-/
-// Markierungs-Endpunkten in die Nachbar-Etappe verschmelzen (Distanz/Zeit/Segmente bleiben
-// erhalten). Ergebnis: saubere Stadt-zu-Stadt-Etappen ohne irrefuehrende Schleifen/Zwischenmarker.
-// Iterativ, bis keine "Rausch"-Etappe mehr uebrig ist.
+// Nachbearbeitung der Etappenliste per "Grenz-Lauf": Aufeinanderfolgende Roh-Etappen werden zu
+// einer Anzeige-Etappe gesammelt und erst an der NAECHSTEN echten Stadt geschnitten. Anonyme
+// Kreuzungen/Markierungen sind nur etappeninterne Stuetzpunkte und werden absorbiert; echte
+// Zwischenstaedte bleiben als Grenze erhalten. Da jede Etappe alle Segmente von ihrer Start- bis
+// zu ihrer Endstadt umfasst, stimmt der angezeigte Name IMMER mit der gehighlighteten Geometrie
+// ueberein (Start = erste, Ende = letzte Stadt der Segment-Kette). Distanz/Zeit/Rast/Segmente und
+// Labels bleiben erhalten; "X -> X"-Selbstschleifen verschwinden automatisch.
 function cleanRoutePlanNoiseEntries(entries) {
-	const result = entries.map((entry) => ({ ...entry }));
-	let changed = true;
-	let guard = 0;
+	if (!Array.isArray(entries) || entries.length <= 1) {
+		return (entries || []).map((entry) => ({ ...entry }));
+	}
 
-	while (changed && guard < 5000) {
-		guard += 1;
-		changed = false;
-		for (let index = 0; index < result.length; index += 1) {
-			const entry = result[index];
-			const isNoise = entry.startName === entry.endName
-				|| isRoutePlanMarkerName(entry.startName)
-				|| isRoutePlanMarkerName(entry.endName);
-			if (!isNoise || result.length <= 1) {
-				continue;
+	const result = [];
+	let open = null;
+	let lastCity = null;
+
+	for (const raw of entries) {
+		const entry = { ...raw };
+		if (!open) {
+			open = entry;
+			// Falls der Start dieser Etappe (durch Toleranz) als Kreuzung aufgeloest wurde, die echte
+			// Stadt der vorherigen Grenze uebernehmen -> nie "Kreuzung -> ..." anzeigen.
+			if (lastCity && isRoutePlanMarkerName(open.startName)) {
+				open.startName = lastCity;
 			}
-
-			// Echte Zwischenstadt bewahren: Diese Etappe ist nur "Rausch", weil an der Grenze zum
-			// Nachbarn eine Kreuzung sitzt -- sie endet bzw. beginnt aber an einer ECHTEN Stadt, die
-			// sich von der Stadt des Nachbarn unterscheidet. Statt zu verschmelzen (was die
-			// Zwischenstadt ueberschreiben wuerde, z.B. Vallusa -> Wolfen), die Marker-Grenze auf die
-			// echte Nachbarstadt umbenennen -> saubere Stadt-zu-Stadt-Etappe, kein Verlust.
-			if (entry.startName !== entry.endName) {
-				if (index > 0 && isRoutePlanMarkerName(entry.startName) && !isRoutePlanMarkerName(entry.endName) && entry.endName) {
-					const previousReal = result[index - 1];
-					if (previousReal && !isRoutePlanMarkerName(previousReal.endName) && previousReal.endName && previousReal.endName !== entry.endName) {
-						entry.startName = previousReal.endName;
-						continue;
-					}
-				}
-				if (index === 0 && isRoutePlanMarkerName(entry.endName) && !isRoutePlanMarkerName(entry.startName) && entry.startName) {
-					const nextReal = result[index + 1];
-					if (nextReal && !isRoutePlanMarkerName(nextReal.startName) && nextReal.startName && nextReal.startName !== entry.startName) {
-						entry.endName = nextReal.startName;
-						continue;
-					}
-				}
+		} else {
+			open.distance += entry.distance;
+			open.travelTime += entry.travelTime;
+			open.restTime = (open.restTime || 0) + (entry.restTime || 0);
+			open.segmentIndexes = (open.segmentIndexes || []).concat(entry.segmentIndexes || []);
+			if (entry.segmentLabel) {
+				open.segmentLabel = open.segmentLabel ? `${open.segmentLabel}, ${entry.segmentLabel}` : entry.segmentLabel;
 			}
+			open.endName = entry.endName;
+		}
 
-			if (index > 0) {
-				const previous = result[index - 1];
-				previous.distance += entry.distance;
-				previous.travelTime += entry.travelTime;
-				previous.restTime = (previous.restTime || 0) + (entry.restTime || 0);
-				previous.segmentIndexes = (previous.segmentIndexes || []).concat(entry.segmentIndexes || []);
-				if (!isRoutePlanMarkerName(entry.endName) && entry.endName && entry.endName !== previous.startName) {
-					previous.endName = entry.endName;
-				}
-			} else {
-				const next = result[index + 1];
-				next.distance += entry.distance;
-				next.travelTime += entry.travelTime;
-				next.restTime = (next.restTime || 0) + (entry.restTime || 0);
-				next.segmentIndexes = (entry.segmentIndexes || []).concat(next.segmentIndexes || []);
-				if (!isRoutePlanMarkerName(entry.startName) && entry.startName && entry.startName !== next.endName) {
-					next.startName = entry.startName;
-				}
-			}
+		// An einer echten Stadt (!= Startstadt der offenen Etappe) wird die Etappe abgeschlossen.
+		if (!isRoutePlanMarkerName(open.endName) && open.endName && open.endName !== open.startName) {
+			result.push(open);
+			lastCity = open.endName;
+			open = null;
+		}
+	}
 
-			result.splice(index, 1);
-			changed = true;
-			break;
+	if (open) {
+		// Schluss-Etappe endet (degeneriert) an einer Kreuzung -> in die letzte echte Etappe
+		// absorbieren, statt "... -> Kreuzung" anzuzeigen.
+		if (isRoutePlanMarkerName(open.endName) && result.length > 0) {
+			const last = result[result.length - 1];
+			last.distance += open.distance;
+			last.travelTime += open.travelTime;
+			last.restTime = (last.restTime || 0) + (open.restTime || 0);
+			last.segmentIndexes = (last.segmentIndexes || []).concat(open.segmentIndexes || []);
+		} else {
+			result.push(open);
 		}
 	}
 
