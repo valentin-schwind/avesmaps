@@ -926,6 +926,20 @@
 	border-top: 1px solid rgba(141, 121, 98, 0.35);
 }
 
+/* Mobil: Infobox-Popups (Siedlung UND Landschaft -> beide nutzen settlement-popup) fast die
+   volle Bildschirmbreite statt Deckel bei 400px (viel Rand auf schmalen Geraeten -> "schmal").
+   Leaflet setzt die Breite inline auf .leaflet-popup-content -> nur mit !important zu schlagen. */
+@media (max-width: 760px) {
+	.settlement-popup .leaflet-popup-content {
+		width: calc(100vw - 28px) !important;
+		max-width: calc(100vw - 28px) !important;
+	}
+	.settlement-popup .location-popup {
+		width: 100%;
+		max-width: none;
+	}
+}
+
 /* ===== Label-/Region-View-Popup: gleiche Behandlung wie Siedlungs-Popup (breiter, gleichmäßiges
    Padding, Trenner unter dem Titel in voller Breite). Scoped -> bricht NICHT die Herrschaftsgebiete. */
 .label-wiki-infobox-popup .region-info-box {
