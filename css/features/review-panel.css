@@ -307,6 +307,46 @@
 	margin: 0 10px 8px;
 }
 
+/* Aufklappbares Accordion fuer die WikiSync-Konfliktfaelle. */
+.wiki-sync-accordion {
+	margin: 0 10px 8px;
+	border: 1px solid #cdb79f;
+	border-radius: 8px;
+	background: #fffaf5;
+	overflow: hidden;
+}
+.wiki-sync-accordion__summary {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 10px;
+	font-size: 12px;
+	font-weight: 700;
+	color: #5a4a3a;
+	cursor: pointer;
+	list-style: none;
+	user-select: none;
+}
+.wiki-sync-accordion__summary::-webkit-details-marker {
+	display: none;
+}
+.wiki-sync-accordion__summary::before {
+	content: "▾";
+	font-size: 11px;
+	color: #9a8467;
+	transition: transform 0.15s ease;
+}
+.wiki-sync-accordion:not([open]) .wiki-sync-accordion__summary::before {
+	transform: rotate(-90deg);
+}
+.wiki-sync-accordion__summary:hover {
+	background: #f3e8db;
+}
+.wiki-sync-accordion__body {
+	border-top: 1px solid #e7d8c6;
+	padding-top: 8px;
+}
+
 /* Typ-Filter-Dropdown (Mehrfachauswahl) neben den Suchfeldern. */
 .type-filter {
 	position: relative;
