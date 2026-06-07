@@ -405,7 +405,31 @@ async function startWikiSyncRun() {
 		setWikiSyncLocationsRunning(false);
 		activeWikiSyncRunStatus = "";
 		await loadWikiSyncCases();
-		setWikiSyncStatus(buildWikiSyncStatusMessage("WikiSyncLocations abgeschlossen."), "success");
+
+		// Option A: Bauwerke (alle Typen aus „Bauwerk nach Art") gleich mitcrawlen, damit ein
+		// WikiSync-Klick Siedlungen UND Bauwerke abdeckt. Optional — Fehler hier brechen den
+		// (erfolgreichen) Siedlungs-Sync nicht ab.
+		let buildingNote = "";
+		try {
+			setWikiSyncStatus("Bauwerke werden gecrawlt …", "pending");
+			const buildingResponse = await fetch("/api/edit/wiki/settlements.php", {
+				method: "POST",
+				credentials: "same-origin",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ action: "crawl_buildings" }),
+			});
+			const buildingData = await buildingResponse.json();
+			if (buildingData && buildingData.ok) {
+				buildingNote = ` (+${buildingData.titles_seen || 0} Bauwerke)`;
+			}
+			if (typeof loadSettlementList === "function") {
+				loadSettlementList();
+			}
+		} catch (buildingError) {
+			console.warn("Bauwerks-Crawl im WikiSync übersprungen:", buildingError);
+		}
+
+		setWikiSyncStatus(buildWikiSyncStatusMessage("WikiSyncLocations abgeschlossen." + buildingNote), "success");
 	} catch (error) {
 		console.error("WikiSyncLocations konnte nicht ausgeführt werden:", error);
 		activeWikiSyncRunStatus = "";
