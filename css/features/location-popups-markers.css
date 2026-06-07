@@ -68,6 +68,13 @@
 	font-weight: normal;
 }
 
+/* Trenner unter dem Kopf (Name/Typ), wie in der grossen Infobox. */
+.location-popup__divider {
+	height: 1px;
+	margin: 8px 0;
+	background: #d8c9b3;
+}
+
 .location-popup__description {
 	margin-top: 6px;
 	color: #2e2a24;
@@ -196,6 +203,12 @@
 .location-tooltip .location-popup--compact .location-popup__title-group {
 	align-items: center;
 	flex-direction: row;
+}
+
+/* Hat das kompakte Popup eine Typ-Zeile (Route-Wegpunkte), Name + Typ untereinander stapeln -- wie die grosse Infobox. */
+.location-tooltip .location-popup--compact .location-popup__title-group:has(.location-popup__type) {
+	align-items: flex-start;
+	flex-direction: column;
 }
 
 .location-tooltip .location-popup--compact .location-popup__name {

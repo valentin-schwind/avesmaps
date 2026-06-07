@@ -960,6 +960,7 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 	if (hasWiki) {
 		buttons.push(popupActionButtonMarkup({
 			label: expanded ? "Weniger anzeigen" : "Mehr anzeigen",
+			iconMarkup: `<span class="location-popup__action-icon" aria-hidden="true">${expanded ? "▴" : "▾"}</span>`,
 			attributes: { "data-popup-action": "toggle-route-popup-detail", "data-route-popup-id": String(popupId) },
 		}));
 	}
@@ -986,11 +987,15 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 		});
 	}
 
+	// Typ-Zeile (z.B. "Dorf") wie in der grossen Infobox; aus dem Marker, sonst aus loc.
+	const compactTypeLabel = (markerEntry && markerEntry.location && markerEntry.location.locationTypeLabel) || loc.locationTypeLabel || "";
 	return locationPopupMarkup({
 		name: loc.name,
 		locationType: loc.locationType,
-		locationTypeLabel: loc.locationTypeLabel,
+		locationTypeLabel: compactTypeLabel,
 		compact: true,
+		showType: Boolean(compactTypeLabel),
+		showDivider: Boolean(compactTypeLabel),
 		showDescription: false,
 		showWikiLink: true,
 		description: loc.description,

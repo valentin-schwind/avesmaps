@@ -405,6 +405,7 @@ function locationPopupMarkup({
 	showHeaderIcon = true,
 	compact = false,
 	showType = false,
+	showDivider = false,
 	showDescription = true,
 	showWikiLink = true,
 	description = "",
@@ -423,6 +424,7 @@ function locationPopupMarkup({
 					${showType ? `<div class="location-popup__type">${escapeHtml(locationTypeLabel)}</div>` : ""}
 				</div>
 			</div>
+			${showDivider ? `<div class="location-popup__divider"></div>` : ""}
 			${showDescription ? locationDescriptionMarkup(name, description, isRuined) : ""}
 			${actionsMarkup}
 			${showWikiLink ? wikiLocationLinkMarkup(name, wikiUrl) : ""}
