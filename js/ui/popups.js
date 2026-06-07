@@ -209,9 +209,14 @@ function routeToggleActionButtonMarkup(name) {
 }
 
 function locationActionsMarkup(name, publicId, location = null) {
+	// Reihenfolge: "Zur Route hinzufügen", "Link teilen", "Bewertung schreiben".
 	const actionButtons = [routeToggleActionButtonMarkup(name)];
 
-	// "Bewertung schreiben" zwischen "Zur Route hinzufügen" und "Link teilen".
+	const shareButton = sharePlaceActionButtonMarkup(publicId);
+	if (shareButton) {
+		actionButtons.push(shareButton);
+	}
+
 	if (publicId) {
 		actionButtons.push(popupActionButtonMarkup({
 			label: "Bewertung schreiben",
@@ -222,11 +227,6 @@ function locationActionsMarkup(name, publicId, location = null) {
 				"data-location-name": name,
 			},
 		}));
-	}
-
-	const shareButton = sharePlaceActionButtonMarkup(publicId);
-	if (shareButton) {
-		actionButtons.push(shareButton);
 	}
 
 	if (IS_EDIT_MODE && publicId) {
