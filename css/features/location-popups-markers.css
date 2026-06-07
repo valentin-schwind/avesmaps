@@ -109,6 +109,12 @@
 	line-height: 1;
 }
 
+/* ✕-Icon im "Aus Route entfernen"-Button: gedaempftes Rot, passend zum --danger-Button. */
+.location-popup__action-icon--remove {
+	color: #8a3a2a;
+	font-size: 13px;
+}
+
 .location-popup__action-button:hover,
 .location-popup__action-button:focus-visible {
 	border-color: #ba9368;

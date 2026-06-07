@@ -578,6 +578,7 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 	if (action === "remove-waypoint") {
 		const waypointId = this.dataset.waypointId;
 		if (waypointId) {
+			map.closePopup();
 			removeWaypointById(waypointId);
 		}
 		return;
@@ -585,6 +586,27 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 
 	if (action === "remove-share-pin") {
 		clearSharePin();
+		return;
+	}
+
+	if (action === "toggle-route-popup-detail") {
+		const popupId = this.dataset.routePopupId;
+		const popup = popupId ? routePopupRegistry[popupId] : null;
+		if (popup) {
+			popup._routeExpanded = !popup._routeExpanded;
+			// Beim Ausklappen die settlement-popup-Klasse setzen -> volle Infobox-Breite/Stil wie beim Marker.
+			if (popup._container) {
+				popup._container.classList.toggle("settlement-popup", popup._routeExpanded);
+			}
+			popup.setContent(buildRoutePopupHtml(popup._routeLoc, {
+				expanded: popup._routeExpanded,
+				showRemoveAction: popup._routeShowRemove,
+				popupId,
+			}));
+			if (typeof popup.update === "function") {
+				popup.update();
+			}
+		}
 		return;
 	}
 
@@ -849,43 +871,109 @@ function findDuplicateLocationByName(name, { excludePublicId = "", allowCurrentN
 	}) || null;
 }
 
-// Fügt einen Tooltip zu einem Waypoint hinzu
-const addTooltip = ({
-	name,
-	coordinates,
-	locationType,
-	locationTypeLabel,
-	description,
-	wikiUrl,
-	isRuined,
-	waypointId,
-}, {
+// Registry der Routen-Wegpunkt-Popups (fuer den "Mehr/Weniger anzeigen"-Umschalter).
+let routePopupRegistry = {};
+let routePopupCounter = 0;
+
+// Liefert die waypoint-ID, falls der Ort bereits in der Route ist (sonst ""). So weiss die
+// normale Marker-Infobox, ob sie "Zur Route hinzufügen" oder "Aus Route entfernen" zeigt.
+function findWaypointIdByLocationName(name) {
+	const target = normalizeLocationDuplicateName(name);
+	if (!target) {
+		return "";
+	}
+	let foundId = "";
+	getWaypointContainers().each(function () {
+		const inputValue = String($(this).find(".waypoint-input").val() || "").trim();
+		if (inputValue && normalizeLocationDuplicateName(inputValue) === target) {
+			foundId = String($(this).data("waypointId") || "");
+			return false;
+		}
+	});
+	return foundId;
+}
+
+// Inhalt eines Routen-Wegpunkt-Popups: kompakt (Mini) oder ausgeklappt (volle Siedlungs-Infobox,
+// falls Wiki-Daten vorhanden). Unten "Aus Route entfernen" + "Mehr/Weniger anzeigen".
+function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, popupId = 0 } = {}) {
+	const markerEntry = typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(loc.name) : null;
+	const wikiSettlement = markerEntry && markerEntry.location ? markerEntry.location.wikiSettlement : null;
+	const hasWiki = Boolean(wikiSettlement && wikiSettlement.title);
+
+	const buttons = [];
+	if (showRemoveAction && loc.waypointId) {
+		buttons.push(popupActionButtonMarkup({
+			label: "Aus Route entfernen",
+			className: "location-popup__action-button--danger",
+			iconMarkup: '<span class="location-popup__action-icon location-popup__action-icon--remove" aria-hidden="true">✕</span>',
+			attributes: { "data-popup-action": "remove-waypoint", "data-waypoint-id": loc.waypointId },
+		}));
+	}
+	if (hasWiki) {
+		buttons.push(popupActionButtonMarkup({
+			label: expanded ? "Weniger anzeigen" : "Mehr anzeigen",
+			attributes: { "data-popup-action": "toggle-route-popup-detail", "data-route-popup-id": String(popupId) },
+		}));
+	}
+	const actionsBar = buttons.length ? locationPopupActionsMarkup(buttons) : "";
+
+	if (expanded && hasWiki) {
+		const coatIconMarkup = typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "";
+		let typeLabel = markerEntry.location.locationTypeLabel;
+		if (wikiSettlement.building_type) {
+			typeLabel = String(wikiSettlement.building_type);
+			if (wikiSettlement.is_ruined && !/ruine/i.test(typeLabel)) {
+				typeLabel += " (Ruine)";
+			}
+		}
+		return locationPopupMarkup({
+			name: loc.name,
+			locationType: loc.locationType,
+			locationTypeLabel: typeLabel,
+			headerIconMarkup: coatIconMarkup,
+			showType: true,
+			showDescription: false,
+			showWikiLink: false,
+			actionsMarkup: settlementWikiInfoboxMarkup(markerEntry.location) + actionsBar,
+		});
+	}
+
+	return locationPopupMarkup({
+		name: loc.name,
+		locationType: loc.locationType,
+		locationTypeLabel: loc.locationTypeLabel,
+		compact: true,
+		showDescription: false,
+		showWikiLink: true,
+		description: loc.description,
+		wikiUrl: loc.wikiUrl,
+		isRuined: loc.isRuined,
+		actionsMarkup: actionsBar,
+	});
+}
+
+// Fügt einem Waypoint ein Popup (mit Umschalter) bzw. einen Namens-Tooltip hinzu.
+const addTooltip = (loc, {
 	compact = true,
 	showDescription = false,
 	showWikiLink = false,
 	showRemoveAction = false,
 } = {}) => {
-	const popupContent = locationPopupMarkup({
-		name,
-		locationType,
-		locationTypeLabel,
-		compact,
-		showDescription,
-		showWikiLink,
-		description,
-		wikiUrl,
-		isRuined,
-		actionsMarkup: showRemoveAction ? waypointRemoveActionMarkup(waypointId) : "",
-	});
-
 	if (showDescription || showWikiLink) {
+		const popupId = ++routePopupCounter;
 		const popup = L.popup({
 			autoClose: false,
 			closeOnClick: false,
+			// Genug Breite fuer die ausgeklappte volle Infobox (kompakt bleibt via CSS schmal).
+			maxWidth: 400,
 		})
-			.setLatLng(coordinates)
-			.setContent(popupContent)
+			.setLatLng(loc.coordinates)
+			.setContent(buildRoutePopupHtml(loc, { expanded: false, showRemoveAction, popupId }))
 			.addTo(map);
+		popup._routeLoc = loc;
+		popup._routeShowRemove = showRemoveAction;
+		popup._routeExpanded = false;
+		routePopupRegistry[popupId] = popup;
 		activeTooltips.push(popup);
 		return;
 	}
@@ -898,8 +986,19 @@ const addTooltip = ({
 		interactive: showRemoveAction,
 		className: showRemoveAction ? "location-tooltip location-tooltip--interactive" : "location-tooltip",
 	})
-		.setLatLng(coordinates)
-		.setContent(popupContent)
+		.setLatLng(loc.coordinates)
+		.setContent(locationPopupMarkup({
+			name: loc.name,
+			locationType: loc.locationType,
+			locationTypeLabel: loc.locationTypeLabel,
+			compact,
+			showDescription,
+			showWikiLink,
+			description: loc.description,
+			wikiUrl: loc.wikiUrl,
+			isRuined: loc.isRuined,
+			actionsMarkup: showRemoveAction ? waypointRemoveActionMarkup(loc.waypointId) : "",
+		}))
 		.addTo(map);
 	activeTooltips.push(tooltip);
 };
@@ -908,7 +1007,7 @@ const addTooltip = ({
 function removeAllTooltips() {
 	$.each(activeTooltips, (i, tip) => map.removeLayer(tip));
 	activeTooltips = [];
-	console.log("Alle Tooltips entfernt.");
+	routePopupRegistry = {};
 }
 
 // Hebt fehlerhafte Eingaben hervor

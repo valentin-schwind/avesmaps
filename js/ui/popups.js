@@ -182,18 +182,34 @@ function pathCreationActionButtonsMarkup(publicId) {
 	];
 }
 
-function locationActionsMarkup(name, publicId, location = null) {
-	const actionButtons = [
-		popupActionButtonMarkup({
-			label: "Zur Route hinzufügen",
-			className: "location-popup__action-button--accent",
-			iconMarkup: '<span class="location-popup__action-icon" aria-hidden="true">+</span>',
+function routeToggleActionButtonMarkup(name) {
+	// Kontextabhaengig: ist der Ort bereits Wegpunkt -> "Aus Route entfernen" (verhindert Doppel-Add
+	// und den "from == to"-Routingfehler), sonst "Zur Route hinzufügen".
+	const waypointId = typeof findWaypointIdByLocationName === "function" ? findWaypointIdByLocationName(name) : "";
+	if (waypointId) {
+		return popupActionButtonMarkup({
+			label: "Aus Route entfernen",
+			className: "location-popup__action-button--danger",
+			iconMarkup: '<span class="location-popup__action-icon location-popup__action-icon--remove" aria-hidden="true">✕</span>',
 			attributes: {
-				"data-popup-action": "add-location-to-route",
-				"data-location-name": name,
+				"data-popup-action": "remove-waypoint",
+				"data-waypoint-id": waypointId,
 			},
-		}),
-	];
+		});
+	}
+	return popupActionButtonMarkup({
+		label: "Zur Route hinzufügen",
+		className: "location-popup__action-button--accent",
+		iconMarkup: '<span class="location-popup__action-icon" aria-hidden="true">+</span>',
+		attributes: {
+			"data-popup-action": "add-location-to-route",
+			"data-location-name": name,
+		},
+	});
+}
+
+function locationActionsMarkup(name, publicId, location = null) {
+	const actionButtons = [routeToggleActionButtonMarkup(name)];
 
 	const shareButton = sharePlaceActionButtonMarkup(publicId);
 	if (shareButton) {

@@ -3,21 +3,19 @@
  * This file contains only function declarations and no top-level execution.
  */
 
-function refreshLocationMarkerPopup(markerEntry) {
-	markerEntry.marker.setIcon(createLocationMarkerIcon(markerEntry.locationType));
+// Baut den HTML-Inhalt des Marker-Popups (frisch erzeugbar, damit der Route-Button
+// "hinzufügen"/"entfernen" den aktuellen Routenzustand widerspiegelt).
+function buildLocationMarkerPopupHtml(markerEntry) {
 	if (markerEntry.locationType === CROSSING_LOCATION_TYPE) {
-		markerEntry.marker.bindPopup(
-			locationPopupMarkup({
-				name: markerEntry.name,
-				locationType: CROSSING_LOCATION_TYPE,
-				locationTypeLabel: "Kreuzung",
-				showHeaderIcon: false,
-				showDescription: false,
-				showWikiLink: false,
-				actionsMarkup: crossingActionsMarkup(markerEntry.name, markerEntry.publicId),
-			})
-		);
-		return;
+		return locationPopupMarkup({
+			name: markerEntry.name,
+			locationType: CROSSING_LOCATION_TYPE,
+			locationTypeLabel: "Kreuzung",
+			showHeaderIcon: false,
+			showDescription: false,
+			showWikiLink: false,
+			actionsMarkup: crossingActionsMarkup(markerEntry.name, markerEntry.publicId),
+		});
 	}
 
 	const wikiSettlement = markerEntry.location.wikiSettlement;
@@ -35,23 +33,38 @@ function refreshLocationMarkerPopup(markerEntry) {
 			typeLabel += " (Ruine)";
 		}
 	}
+	return locationPopupMarkup({
+		name: markerEntry.name,
+		locationType: markerEntry.locationType,
+		locationTypeLabel: typeLabel,
+		headerIconMarkup: coatIconMarkup,
+		description: markerEntry.location.description,
+		wikiUrl: markerEntry.location.wikiUrl,
+		isRuined: markerEntry.location.isRuined,
+		showType: true,
+		showDescription: !hasWikiSettlement,
+		showWikiLink: !hasWikiSettlement,
+		// Infobox zuerst, Aktions-Buttons darunter.
+		actionsMarkup: settlementInfobox + locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location),
+	});
+}
+
+function refreshLocationMarkerPopup(markerEntry) {
+	markerEntry.marker.setIcon(createLocationMarkerIcon(markerEntry.locationType));
+	const hasWikiSettlement = markerEntry.locationType !== CROSSING_LOCATION_TYPE
+		&& Boolean(markerEntry.location.wikiSettlement && markerEntry.location.wikiSettlement.title);
 	markerEntry.marker.bindPopup(
-		locationPopupMarkup({
-			name: markerEntry.name,
-			locationType: markerEntry.locationType,
-			locationTypeLabel: typeLabel,
-			headerIconMarkup: coatIconMarkup,
-			description: markerEntry.location.description,
-			wikiUrl: markerEntry.location.wikiUrl,
-			isRuined: markerEntry.location.isRuined,
-			showType: true,
-			showDescription: !hasWikiSettlement,
-			showWikiLink: !hasWikiSettlement,
-			// Infobox zuerst, Aktions-Buttons darunter.
-			actionsMarkup: settlementInfobox + locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location),
-		}),
+		buildLocationMarkerPopupHtml(markerEntry),
 		hasWikiSettlement ? { minWidth: 320, maxWidth: 400, className: "settlement-popup" } : undefined
 	);
+	// Inhalt bei jedem Öffnen neu setzen -> Route-Button spiegelt den aktuellen Zustand
+	// (Ort bereits Wegpunkt? -> "Aus Route entfernen"). Nur EINMAL pro Marker binden.
+	if (!markerEntry._routeAwarePopupBound) {
+		markerEntry._routeAwarePopupBound = true;
+		markerEntry.marker.on("popupopen", () => {
+			markerEntry.marker.setPopupContent(buildLocationMarkerPopupHtml(markerEntry));
+		});
+	}
 }
 
 // Nur den ersten Satz der Wiki-Beschreibung — schneidet eingeschleppte Infobox-Reste
