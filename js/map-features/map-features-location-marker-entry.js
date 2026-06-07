@@ -57,19 +57,26 @@ function refreshLocationMarkerPopup(markerEntry) {
 	markerEntry.marker.setIcon(createLocationMarkerIcon(markerEntry.locationType));
 	const hasWikiSettlement = markerEntry.locationType !== CROSSING_LOCATION_TYPE
 		&& Boolean(markerEntry.location.wikiSettlement && markerEntry.location.wikiSettlement.title);
+	const maxHeight = locationMarkerPopupMaxHeight();
 	markerEntry.marker.bindPopup(
 		buildLocationMarkerPopupHtml(markerEntry),
-		hasWikiSettlement ? { minWidth: 320, maxWidth: 400, className: "settlement-popup" } : undefined
+		hasWikiSettlement
+			? { minWidth: 320, maxWidth: 400, maxHeight, className: "settlement-popup" }
+			: { maxHeight }
 	);
 	// Inhalt bei jedem Öffnen neu setzen -> Route-Button spiegelt den aktuellen Zustand
 	// (Ort bereits Wegpunkt? -> "Aus Route entfernen"). Nur EINMAL pro Marker binden.
 	if (!markerEntry._routeAwarePopupBound) {
 		markerEntry._routeAwarePopupBound = true;
 		markerEntry.marker.on("popupopen", () => {
+			// maxHeight an die aktuelle Kartenhöhe anpassen -> Popup scrollt statt am Rand abzuschneiden.
+			const popup = markerEntry.marker.getPopup();
+			if (popup && popup.options) {
+				popup.options.maxHeight = locationMarkerPopupMaxHeight();
+			}
 			markerEntry.marker.setPopupContent(buildLocationMarkerPopupHtml(markerEntry));
 			// Bewertungen async nachladen (Durchschnitt + letzte Bewertungen).
 			if (typeof hydrateLocationReviews === "function") {
-				const popup = markerEntry.marker.getPopup();
 				const popupEl = popup && typeof popup.getElement === "function" ? popup.getElement() : null;
 				if (popupEl) {
 					hydrateLocationReviews(popupEl.querySelector(".location-reviews"));
@@ -77,6 +84,13 @@ function refreshLocationMarkerPopup(markerEntry) {
 			}
 		});
 	}
+}
+
+// Maximalhöhe des Orts-Popups = Kartenhöhe minus Rand -> Leaflet macht den Inhalt scrollbar,
+// statt das Popup (und die Bewertungen unten) am Rand abzuschneiden.
+function locationMarkerPopupMaxHeight() {
+	const mapHeight = (typeof map !== "undefined" && map && typeof map.getSize === "function") ? map.getSize().y : 600;
+	return Math.max(240, mapHeight - 90);
 }
 
 // Nur den ersten Satz der Wiki-Beschreibung — schneidet eingeschleppte Infobox-Reste

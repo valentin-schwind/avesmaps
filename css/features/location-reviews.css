@@ -64,15 +64,13 @@
 	font-size: 11.5px;
 }
 
-/* Scrollbarer Ausschnitt mit den letzten Bewertungen. */
+/* Liste der letzten Bewertungen. Gescrollt wird das gesamte Popup (Leaflet maxHeight),
+   daher hier KEIN eigener Scroll -> kein verschachteltes Scrollen. */
 .location-reviews__list {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
-	max-height: 168px;
-	overflow-y: auto;
 	overflow-x: hidden;
-	padding-right: 4px;
 }
 
 .location-reviews__item {
