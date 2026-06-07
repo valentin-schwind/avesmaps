@@ -107,9 +107,23 @@ function createLabelMarkerEntry(label) {
 			setLabelMoveActive(entry, false);
 		});
 	} else if (labelHasWikiRegion(label)) {
-		// Ansichtsmodus: Label mit zugeordneter Wiki-Landschaft ist anklickbar -> Infobox.
-		// minWidth 320 wie der Edit-Mode (refreshLabelMarkerPopup), damit die Box gleich breit wirkt.
-		marker.bindPopup(labelWikiInfoboxMarkup(label), { className: "label-wiki-infobox-popup", minWidth: 320, maxWidth: 400, autoPan: true });
+		// Ansichtsmodus: EXAKT dasselbe Popup wie der Edit-Mode (labelPopupMarkup ->
+		// locationPopupMarkup, Klasse settlement-popup, kopflose region-info-box--settlement),
+		// nur OHNE die Bearbeiten-Buttons. Gleicher Code-Pfad = identische Struktur/Breite/Styles.
+		const art = (label.wikiRegion && label.wikiRegion.art) ? label.wikiRegion.art : "Region";
+		marker.bindPopup(
+			locationPopupMarkup({
+				name: label.text || (label.wikiRegion && label.wikiRegion.name) || "Region",
+				locationTypeLabel: art,
+				showHeaderIcon: false,
+				compact: true,
+				showType: true,
+				showDescription: false,
+				showWikiLink: false,
+				actionsMarkup: labelWikiInfoboxMarkup(label, { headless: true }),
+			}),
+			{ className: "settlement-popup", minWidth: 320, maxWidth: 400, autoPan: true }
+		);
 	}
 	syncLabelMarkerVisibility(entry);
 	return entry;
