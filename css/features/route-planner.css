@@ -123,6 +123,30 @@
 	transition: background 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
 }
 
+/* "Link teilen"-Button (Kurzlink der aktuellen Ansicht). */
+.share-link-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin-top: 8px;
+	padding: 7px 12px;
+	border: 1px solid #cbbeaf;
+	border-radius: 8px;
+	background: #fff9f4;
+	color: #5a4a3a;
+	cursor: pointer;
+	font: inherit;
+	font-size: 13px;
+	transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+}
+.share-link-button:hover,
+.share-link-button:focus-visible {
+	background: #f3e8db;
+	box-shadow: 0 4px 10px rgba(52, 41, 32, 0.14);
+	outline: none;
+	transform: translateY(-1px);
+}
+
 #inputLocation {
 	width: 32px;
 	height: 32px;

@@ -30,7 +30,7 @@
 		<link rel="stylesheet" href="css/third-party/jquery-ui.css" />
 		<link rel="stylesheet" href="css/pages/political-territory-wiki-tree.css" />
 		<link rel="stylesheet" href="css/components/region-sync.css?v=20260607-infobox-breite4-mobile" />
-		<link rel="stylesheet" href="css/styles.css?v=20260607-reviews2" />
+		<link rel="stylesheet" href="css/styles.css?v=20260607-sharelink" />
 		<script type="application/ld+json">
 			{
 				"@context": "https://schema.org",
@@ -105,6 +105,7 @@
 				</div>
 			</div>
 			<button type="button" class="map-context-menu__item" data-context-action="share-pin">Stelle markieren und teilen</button>
+			<button type="button" class="map-context-menu__item" data-context-action="share-map-link">🔗 Link teilen (Kurzlink)</button>
 			<button type="button" class="map-context-menu__item" data-context-action="report-location">Hier melden...</button>
 			<button type="button" class="map-context-menu__item" data-context-action="open-spotlight-search">Suchen</button>
 			<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location">Nächsten Ort finden</button>
@@ -1003,6 +1004,7 @@
 				<input type="number" id="restHours" value="12" min="0" max="24" step="0.5" style="width: 40px" /> Stunden pro Tag
 			</div>
 			<div id="overview">Wegpunkte und Dauer der Reise werden hier angezeigt.</div>
+			<button type="button" id="share-link-button" class="share-link-button">🔗 Link teilen</button>
 		</div>
 		<button id="legal-button" type="button" aria-haspopup="dialog" aria-controls="legal-dialog" aria-expanded="false">Hinweise</button>
 		<div id="legal-overlay" hidden>
@@ -1077,6 +1079,7 @@
 		<script src="js/routing/route-priority-queue.js"></script>
 		<script src="js/config.js"></script>
 		<script src="js/app/utils.js"></script>
+		<script src="js/app/share-link.js"></script>
 		<script src="js/routing/route-graph-core.js"></script>
 		<script src="js/ui/popups.js"></script>
 		<script src="js/community/location-reviews.js"></script>

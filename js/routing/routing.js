@@ -474,6 +474,14 @@ $(document).on("click", ".map-context-menu__item", function (event) {
 		return;
 	}
 
+	if (action === "share-map-link") {
+		closeMapContextMenu();
+		if (typeof createAndCopyShareLink === "function") {
+			void createAndCopyShareLink();
+		}
+		return;
+	}
+
 	if (action === "report-location" && contextMenuLatLng) {
 		closeMapContextMenu();
 		openLocationReportDialog(contextMenuLatLng);
