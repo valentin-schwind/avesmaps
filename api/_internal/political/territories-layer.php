@@ -54,6 +54,8 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
             territory.color,
             territory.opacity,
             territory.coat_of_arms_url,
+            (SELECT staging_coat.coat_of_arms_url FROM political_territory_wiki_test staging_coat WHERE staging_coat.wiki_key = territory.wiki_key LIMIT 1) AS staging_coat_url,
+            (SELECT staging_coat.coat_of_arms_license_status FROM political_territory_wiki_test staging_coat WHERE staging_coat.wiki_key = territory.wiki_key LIMIT 1) AS staging_coat_license,
             territory.wiki_url,
             territory.capital_place_id,
             territory.seat_place_id,
@@ -158,6 +160,8 @@ function avesmapsPoliticalReadEditorLayer(PDO $pdo, int $yearBf, int $zoom, ?arr
             territory.color,
             territory.opacity,
             territory.coat_of_arms_url,
+            (SELECT staging_coat.coat_of_arms_url FROM political_territory_wiki_test staging_coat WHERE staging_coat.wiki_key = territory.wiki_key LIMIT 1) AS staging_coat_url,
+            (SELECT staging_coat.coat_of_arms_license_status FROM political_territory_wiki_test staging_coat WHERE staging_coat.wiki_key = territory.wiki_key LIMIT 1) AS staging_coat_license,
             territory.wiki_url,
             territory.capital_place_id,
             territory.seat_place_id,
@@ -369,6 +373,8 @@ function avesmapsPoliticalFetchLayerTerritories(PDO $pdo, int $yearBf): array {
             territory.color,
             territory.opacity,
             territory.coat_of_arms_url,
+            (SELECT staging_coat.coat_of_arms_url FROM political_territory_wiki_test staging_coat WHERE staging_coat.wiki_key = territory.wiki_key LIMIT 1) AS staging_coat_url,
+            (SELECT staging_coat.coat_of_arms_license_status FROM political_territory_wiki_test staging_coat WHERE staging_coat.wiki_key = territory.wiki_key LIMIT 1) AS staging_coat_license,
             territory.wiki_url,
             territory.capital_place_id,
             territory.seat_place_id,
@@ -731,6 +737,17 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
             ?? ''
         )
     );
+
+    // Fallback wie territory-detail.php: viele Territorien haben das gecrawlte Wappen nur in der
+    // Staging-Tabelle (political_territory_wiki_test), nicht in political_territory.coat_of_arms_url.
+    // Lizenz-gegatet nachziehen, damit das Label dasselbe Wappen zeigt wie die (Detail-)Infobox.
+    if (trim($visibleCoatOfArmsUrl) === '') {
+        $stagingCoatUrl = trim((string) ($row['staging_coat_url'] ?? ''));
+        $stagingCoatLicense = trim((string) ($row['staging_coat_license'] ?? ''));
+        if ($stagingCoatUrl !== '' && in_array($stagingCoatLicense, ['public_domain', 'attribution_required'], true)) {
+            $visibleCoatOfArmsUrl = $stagingCoatUrl;
+        }
+    }
 
     $displayColor = avesmapsPoliticalResolveLayerDisplayColor(
         $assignmentDisplay['color'] ?? '',
