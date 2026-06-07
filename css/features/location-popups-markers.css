@@ -79,11 +79,9 @@
    damit Content-Margin (0), feste Breite, randbuendige Trenner (-14px) und Padding der grossen
    Infobox -- identisch zum Marker-Popup. Hier nur die Abweichungen. */
 
-/* Aktions-Buttons einzeilig nebeneinander (kein interner Umbruch, kein Schrumpfen). */
-.route-waypoint-popup .location-popup__actions {
-	flex-wrap: nowrap;
-}
-
+/* Buttons je einzeilig (kein interner Text-Umbruch, kein Schrumpfen); die Leiste selbst darf
+   umbrechen -- eingeklappt passen die 2 Buttons in eine Zeile, ausgeklappt (4 Buttons inkl.
+   "Link teilen"/"Bewertung schreiben") brechen sie wie in der normalen Infobox um. */
 .route-waypoint-popup .location-popup__action-button {
 	flex-shrink: 0;
 	white-space: nowrap;

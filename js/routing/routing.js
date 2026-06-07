@@ -969,6 +969,22 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 			attributes: { "data-popup-action": "remove-waypoint", "data-waypoint-id": loc.waypointId },
 		}));
 	}
+	// Ausgeklappt: "Link teilen" + "Bewertung schreiben" wie in der normalen Marker-Infobox.
+	if (expanded && markerEntry && markerEntry.publicId) {
+		const shareButton = typeof sharePlaceActionButtonMarkup === "function" ? sharePlaceActionButtonMarkup(markerEntry.publicId) : "";
+		if (shareButton) {
+			buttons.push(shareButton);
+		}
+		buttons.push(popupActionButtonMarkup({
+			label: "Bewertung schreiben",
+			iconMarkup: '<span class="location-popup__action-icon location-popup__action-icon--review" aria-hidden="true">★</span>',
+			attributes: {
+				"data-popup-action": "write-review",
+				"data-public-id": markerEntry.publicId,
+				"data-location-name": loc.name,
+			},
+		}));
+	}
 	if (hasWiki) {
 		buttons.push(popupActionButtonMarkup({
 			label: expanded ? "Weniger anzeigen" : "Mehr anzeigen",
