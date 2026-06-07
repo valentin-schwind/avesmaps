@@ -348,7 +348,8 @@
 .wiki-sync-accordion[open] {
 	display: flex;
 	flex-direction: column;
-	max-height: 70vh;
+	/* Keine feste Deckelung mehr: die (per Resize-Griff ziehbare) Fall-Liste bestimmt die Hoehe,
+	   das Review-Panel scrollt drumherum. */
 }
 .wiki-sync-accordion__body {
 	border-top: 1px solid #e7d8c6;
@@ -363,10 +364,14 @@
 	flex: 0 0 auto;
 }
 .wiki-sync-accordion__body > #wiki-sync-case-list {
-	flex: 1 1 auto;
-	/* Konfliktfall-Liste braucht spuerbar Hoehe (sonst nur ~96px = zu niedrig); scrollt intern
-	   (.review-panel__list overflow:auto), die Accordion-max-height deckelt nach oben. */
-	min-height: 400px;
+	/* Eigene Hoehe statt flex-fill -> der Resize-Griff (unten rechts) bleibt erhalten und der
+	   Nutzer kann die Listenhoehe selbst ziehen. Default 400px, scrollt intern
+	   (.review-panel__list overflow:auto), zwischen 160px und 80vh begrenzt. */
+	flex: 0 0 auto;
+	height: 400px;
+	min-height: 160px;
+	max-height: 80vh;
+	resize: vertical;
 }
 
 /* Typ-Filter-Dropdown (Mehrfachauswahl) neben den Suchfeldern. */
