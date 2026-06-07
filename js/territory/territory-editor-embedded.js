@@ -4,16 +4,16 @@
 
 		const API_URL = "/api/app/political-territory-wiki.php";
 		// Tree-Daten kommen aus dem Sync-Monitor-Modell (parent_wiki_key -> affiliation_path),
-		// NICHT mehr aus dem alten flachen Wiki-Spiegel. (API_URL bleibt fuer das Drag-Payload.)
+		// NICHT mehr aus dem alten flachen Wiki-Spiegel. (API_URL bleibt für das Drag-Payload.)
 		const TREE_API_URL = "/api/edit/wiki/sync-monitor.php?action=model_tree";
 		const WRITE_API_URL = "/api/app/political-territories.php?debug_errors=1";
 		
 		const MODULE_VERSION = "2026-05-16-module-save-api";
 		const wikiTreeComponent = window.AvesmapsPoliticalTerritoryWikiTree || null;
 
-		// Eingabeparameter ueber die Kontext-Abstraktion lesen (iframe -> URL-Query,
-		// inline -> gesetztes Kontext-Objekt). Liefert ein URLSearchParams-aehnliches
-		// Objekt mit .get(), damit die bestehenden Aufrufstellen unveraendert bleiben.
+		// Eingabeparameter über die Kontext-Abstraktion lesen (iframe -> URL-Query,
+		// inline -> gesetztes Kontext-Objekt). Liefert ein URLSearchParams-ähnliches
+		// Objekt mit .get(), damit die bestehenden Aufrufstellen unverändert bleiben.
 		function editorParams() {
 			return {
 				get(key) {
@@ -200,7 +200,7 @@
 			if (transparencyOutput) {
 				transparencyOutput.value = `${transparencyInput.value}%`;
 			}
-			// D: Zahlenfeld rechts vom Slider spiegelt den Slider (nicht waehrend der Nutzer dort tippt).
+			// D: Zahlenfeld rechts vom Slider spiegelt den Slider (nicht während der Nutzer dort tippt).
 			if (transparencyNumberInput && document.activeElement !== transparencyNumberInput) {
 				transparencyNumberInput.value = transparencyInput.value;
 			}
@@ -418,7 +418,7 @@
 				allRows = normalizeApiRows(payload.nodes || payload.items || []);
 				setStatus("Fertig");
 				updateFilters();
-				// Default-Modellansicht wie Sync-Monitor: Kontinent Aventurien (einmalig, danach frei waehlbar).
+				// Default-Modellansicht wie Sync-Monitor: Kontinent Aventurien (einmalig, danach frei wählbar).
 				if (!defaultModelViewApplied) {
 					defaultModelViewApplied = true;
 					if ([...els.continentFilter.options].some((option) => option.value === "Aventurien")) {
@@ -454,13 +454,13 @@
 		function normalizeApiRows(rows) {
 			const normalizedRows = rows
 				.map(row => {
-					// Effektiv = Override ?? Staging: Wiki-Sync-Overrides (metadata_overrides_json) ueber die
+					// Effektiv = Override ?? Staging: Wiki-Sync-Overrides (metadata_overrides_json) über die
 					// Staging-Felder legen, sonst nutzt der Editor-Baum rohe Staging-Werte -> via Override auf
 					// "besteht" gesetzte Knoten werden bei time=heute ausgefiltert -> fehlen in der nodeRegistry
 					// -> setSelectedTerritory findet sie nicht -> Fallback-Breadcrumb ohne Geschwisterpfeile.
 					const ovr = (row && row.overrides && typeof row.overrides === "object" && !Array.isArray(row.overrides)) ? row.overrides : {};
 					row = Object.assign({}, row, ovr);
-					// Override "besteht" (dissolved_end_bf leer) loescht die ganze Aufloesung: sonst zieht readOptionalYear den Staging-dissolved_start_bf als Ende heran -> Knoten faellt faelschlich aus dem heute-Zeitfilter -> fehlt in nodeRegistry -> Fallback-Breadcrumb ohne Geschwisterpfeile.
+					// Override "besteht" (dissolved_end_bf leer) löscht die ganze Aufloesung: sonst zieht readOptionalYear den Staging-dissolved_start_bf als Ende heran -> Knoten fällt faelschlich aus dem heute-Zeitfilter -> fehlt in nodeRegistry -> Fallback-Breadcrumb ohne Geschwisterpfeile.
 					if (Object.prototype.hasOwnProperty.call(ovr, "dissolved_end_bf") && parseOptionalNumber(row.dissolved_end_bf, null) === null) { row.dissolved_start_bf = ""; }
 					const normalizedName = normalizeText(row.name);
 					const normalizedStatus = normalizeText(row.status);
@@ -710,7 +710,7 @@
 
 		function isIndependentAffiliationSegment(segment) {
 			const key = makeKey(segment);
-			return key.startsWith("unabhangig") || key.startsWith("unabhaengig");
+			return key.startsWith("unabhangig") || key.startsWith("unabhängig");
 		}
 
 		function isGenericAffiliationSegment(segment) {
@@ -1445,7 +1445,7 @@
 			// Aktiven Knoten SOFORT in den beobachtbaren Store publizieren (Funnel aller
 			// Selektionswechsel: Tree-Klick, Breadcrumb-Sprung, Geschwister-Blaettern).
 			// Ersetzt das Warten auf den asynchronen ui-hints-MutationObserver -> der
-			// Karten-Fokus (Host) bekommt den gewaehlten Knoten verlaesslich & synchron.
+			// Karten-Fokus (Host) bekommt den gewählten Knoten verlaesslich & synchron.
 			try { window.AvesmapsEditorActiveNode?.set?.(createNodeReference(node)); } catch (error) { /* Store ist optional. */ }
 
 			for (const element of els.treeView.querySelectorAll(".tree-item.selected")) {
@@ -1459,7 +1459,7 @@
 			}
 
 			// Den selektierten Knoten im Baum SICHTBAR machen: eingeklappte
-			// Vorfahren aufklappen + ins Sichtfeld scrollen. Gilt einheitlich fuer
+			// Vorfahren aufklappen + ins Sichtfeld scrollen. Gilt einheitlich für
 			// Tree-Klick, Breadcrumb-Sprung und Pfeil-Cycling. Defensiv gekapselt,
 			// damit nichts bricht, falls die Tree-Komponente fehlt.
 			// Bei Breadcrumb-Navigation (scrollTreeIntoView=false) NUR die Vorfahren
@@ -1481,7 +1481,7 @@
 			renderInfoBox(node);
 
 			// Geometrie-Statuszeile pro aktivem Wiki-Knoten aktualisieren: bei Knoten
-			// mit Geometrie die DB-Info (aus URL-Params der geoeffneten Geometrie),
+			// mit Geometrie die DB-Info (aus URL-Params der geöffneten Geometrie),
 			// sonst den Hinweis "Keine Geometrie zugewiesen".
 			try {
 				if (isTreeNodeAssignedToMap(node)) {
@@ -1806,8 +1806,8 @@
 		}
 
 		// Feature #1: ein Breadcrumb-Segment durch seine Wiki-Geschwister (gleiche
-		// Ebene, gleicher Eltern-Knoten) zirkulaer durchwechseln. Der gewaehlte
-		// Knoten wird aktiv; der Pfad fuellt sich darunter ueber das jeweils erste
+		// Ebene, gleicher Eltern-Knoten) zirkulaer durchwechseln. Der gewählte
+		// Knoten wird aktiv; der Pfad fuellt sich darunter über das jeweils erste
 		// Kind bis zum Blatt. Reine Wiki-Affiliations-Navigation (keine Zuweisung).
 		function cycleBreadcrumbSegment(path, index, direction) {
 			const segmentNode = path[index];
@@ -1867,7 +1867,7 @@
 				parentState = inheritedState;
 			}
 
-			setFormStatus("Farbtonvarianz auf Untergebiete uebertragen.", "success");
+			setFormStatus("Farbtonvarianz auf Untergebiete übertragen.", "success");
 		}
 
 		function inheritOpacityToDescendants() {
@@ -1904,7 +1904,7 @@
 				parentState = inheritedState;
 			}
 
-			setFormStatus("Transparenz auf Untergebiete uebertragen.", "success");
+			setFormStatus("Transparenz auf Untergebiete übertragen.", "success");
 		}
 
 		function populateManualFieldsFromNode(node) {
@@ -2113,14 +2113,14 @@
 			if (wikiKeyForLink) {
 				const originLink = document.createElement("a");
 				originLink.className = "info-origin-link";
-				// Fallback-URL (Mittel-/Strg-Klick oeffnet weiterhin den Tab); normaler Klick oeffnet
+				// Fallback-URL (Mittel-/Strg-Klick öffnet weiterhin den Tab); normaler Klick öffnet
 				// den Sync-Editor INLINE als Overlay im selben Tab (kein Seitenwechsel).
 				originLink.href = `/html/wiki-sync-monitor.html?key=${encodeURIComponent(wikiKeyForLink)}`;
 				originLink.target = "_blank";
 				originLink.rel = "noopener";
 				originLink.textContent = "Im Wiki-Sync bearbeiten";
 				originLink.addEventListener("click", (event) => {
-					// Modifier-Klicks (neuer Tab/Fenster) der Standardbehandlung ueberlassen.
+					// Modifier-Klicks (neuer Tab/Fenster) der Standardbehandlung überlassen.
 					if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button === 1) {
 						return;
 					}
@@ -2898,7 +2898,7 @@
 		}
 
 		// Kleine Live-Warnung unter den Zoom-Feldern: zeigt an, wenn das aktive Band sich
-		// mit einem Nachbar-Level (Eltern-Kette oder direkte Kinder) ueberschneidet.
+		// mit einem Nachbar-Level (Eltern-Kette oder direkte Kinder) überschneidet.
 		// Reine Anzeige - es wird nichts automatisch verschoben oder gespeichert.
 		function renderZoomBandWarning() {
 			const warnEl = els.zoomBandWarning;

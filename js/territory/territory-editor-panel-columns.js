@@ -1,7 +1,7 @@
 "use strict";
 
 /*
- * Zweispaltiges Panel-Layout fuer den Herrschaftsgebiet-Editor.
+ * Zweispaltiges Panel-Layout für den Herrschaftsgebiet-Editor.
  *
  * Problem: Die .manual-data-section-Panels liegen teils direkt im
  * <form.manual-data-box>, teils im Zwischen-Container .manual-data-columns.
@@ -15,9 +15,9 @@
  * und IDs bleiben erhalten, vorhandenes JS funktioniert weiter.
  *
  * Das dynamisch injizierte Geometrie-Panel (#derivedGeometryPanel) landet
- * zunaechst im alten .manual-data-columns-Container; ein MutationObserver zieht
+ * zunächst im alten .manual-data-columns-Container; ein MutationObserver zieht
  * es dann in die Spalten nach. Rein additiv, keine bestehenden Klassen/IDs
- * geaendert.
+ * geändert.
  */
 (function initPoliticalTerritoryEditorPanelColumns() {
 	const HOST_SELECTOR = "#political-territory-editor-host";
@@ -64,7 +64,7 @@
 
 		// Deterministische Reihenfolge: nach FIXER Sektions-Ordnung sortieren statt nach wechselnder
 		// Dokumentreihenfolge. Das dynamisch (async) injizierte Geometrie-Panel landete je nach
-		// Injektionszeitpunkt mal vorne, mal hinten -> "springende" Panels bei jedem Oeffnen. Unbekannte
+		// Injektionszeitpunkt mal vorne, mal hinten -> "springende" Panels bei jedem Öffnen. Unbekannte
 		// Sektionen ans Ende.
 		const SECTION_ORDER = ["Geometrie", "Anzeige", "Kartensichtbarkeit", "Farbe", "Transparenz"];
 		// Sichtbare Überschrift (h3) zuerst: das Geometrie-Panel hat aria-label "Automatische
@@ -76,7 +76,7 @@
 		};
 		sections.sort((a, b) => sectionRank(a) - sectionRank(b));
 
-		// Waehrend des Umsortierens den Observer pausieren (kein Re-Trigger).
+		// Während des Umsortierens den Observer pausieren (kein Re-Trigger).
 		if (observer) observer.disconnect();
 		for (const section of sections) {
 			const target = section.querySelector("#infoBox") ? right : left;

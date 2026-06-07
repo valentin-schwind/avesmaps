@@ -22,7 +22,7 @@ function getTransportOptionForRouteType(routeType, routeOptions) {
 	if (["Pfad", "Weg", "Strasse", "Reichsstrasse", "Gebirgspass", "Wuestenpfad", SYNTHETIC_ROUTE_TYPE].includes(routeType)) return landOption;
 	if (routeType === "Flussweg") return riverOption;
 	if (routeType === "Seeweg") return seaOption;
-	console.warn(`Kein gueltiges Transportmittel fuer ${routeType}.`);
+	console.warn(`Kein gültiges Transportmittel für ${routeType}.`);
 	return null;
 }
 
@@ -109,7 +109,7 @@ const prepareLocationData = (data) => {
 
 function loadRouteDataFromApi() {
 	if (!MAP_FEATURES_API_URL) {
-		return Promise.reject(new Error("Keine Map-Features-API fuer diese Umgebung konfiguriert."));
+		return Promise.reject(new Error("Keine Map-Features-API für diese Umgebung konfiguriert."));
 	}
 
 	return fetch(MAP_FEATURES_API_URL, {
@@ -126,7 +126,7 @@ function loadRouteDataFromApi() {
 		})
 		.then((data) => {
 			if (!data || data.type !== "FeatureCollection" || !Array.isArray(data.features)) {
-				throw new Error("Map-Features-API liefert kein gueltiges GeoJSON.");
+				throw new Error("Map-Features-API liefert kein gültiges GeoJSON.");
 			}
 
 			console.info(`SQL-Vektorkarte geladen: ${data.features.length} Features, Revision ${data.revision ?? "unbekannt"}.`);
@@ -213,7 +213,7 @@ const PLACE_FOCUS_PUBLIC_ID = (function () {
 	}
 })();
 // Fokussiert ein geteiltes Label (Wiki-Landschaft/Region) per public_id: Ebene auf
-// Landschaften, hinfliegen, sichtbar machen und Infobox-Popup oeffnen. Gibt true zurueck,
+// Landschaften, hinfliegen, sichtbar machen und Infobox-Popup öffnen. Gibt true zurück,
 // wenn ein passendes Label gefunden wurde.
 function focusSharedLabelFromUrl(publicId) {
 	const labelEntry = typeof findLabelEntryByPublicId === "function" ? findLabelEntryByPublicId(publicId) : null;
@@ -231,7 +231,7 @@ function focusSharedLabelFromUrl(publicId) {
 	if (typeof syncLabelVisibility === "function") {
 		syncLabelVisibility();
 	}
-	// Popup erst nach dem Sichtbar-Schalten oeffnen (Marker kann gerade erst hinzugefuegt werden).
+	// Popup erst nach dem Sichtbar-Schalten öffnen (Marker kann gerade erst hinzugefügt werden).
 	window.setTimeout(() => {
 		try {
 			labelEntry.marker.openPopup();
@@ -248,7 +248,7 @@ function applyPlaceFocusFromUrl() {
 	}
 	const entry = typeof findLocationMarkerByPublicId === "function" ? findLocationMarkerByPublicId(PLACE_FOCUS_PUBLIC_ID) : null;
 	if (!entry) {
-		// Kein Ort -> Label (Landschaft/Region) versuchen: hinfliegen + Infobox oeffnen.
+		// Kein Ort -> Label (Landschaft/Region) versuchen: hinfliegen + Infobox öffnen.
 		if (focusSharedLabelFromUrl(PLACE_FOCUS_PUBLIC_ID)) {
 			return;
 		}
@@ -258,12 +258,12 @@ function applyPlaceFocusFromUrl() {
 		}
 		return;
 	}
-	// setView (synchron) statt flyTo: laeuft als letzte View-Operation des Ladens und wird
-	// nicht vom Overview-fitBounds ueberfahren. Marker einblenden + Popup oeffnen.
+	// setView (synchron) statt flyTo: läuft als letzte View-Operation des Ladens und wird
+	// nicht vom Overview-fitBounds überfahren. Marker einblenden + Popup öffnen.
 	const targetLatLng = entry.marker.getLatLng();
 	map.setView(targetLatLng, Math.max(map.getZoom(), 4), { animate: false });
 	// Kategorie der Ortschaft einschalten, damit der Marker DAUERHAFT sichtbar bleibt (sonst
-	// entfernt ihn der naechste Sichtbarkeits-Sync wieder). Erzwingen (kein Toggle), die
+	// entfernt ihn der nächste Sichtbarkeits-Sync wieder). Erzwingen (kein Toggle), die
 	// Stufe + alle darunter aktivieren -- analog setVisibleLocationTypesThrough, aber ohne
 	// dessen Aus-Schalt-Eigenheit, falls die Zielstufe gerade der aktiven entspricht.
 	let categoryEnabled = false;
@@ -298,7 +298,7 @@ function applyPlaceFocusFromUrl() {
 	}
 }
 
-// Nur fuer Editoren (?edit=1): bei Zoom-Aenderung kurz die aktuelle Zoom-Stufe einblenden,
+// Nur für Editoren (?edit=1): bei Zoom-Änderung kurz die aktuelle Zoom-Stufe einblenden,
 // damit man weiss, welcher Wert in "Zoom von/bis" der Sichtbarkeit entspricht (ganzzahlig).
 function notifyEditorZoomLevel() {
 	if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) {
@@ -599,7 +599,7 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 	if (action === "start-location-edit") {
 		const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
 		if (!markerEntry) {
-			showFeedbackToast("Ort konnte nicht fuer die Bearbeitung gefunden werden.", "warning");
+			showFeedbackToast("Ort konnte nicht für die Bearbeitung gefunden werden.", "warning");
 			return;
 		}
 
@@ -622,7 +622,7 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 	if (action === "edit-location-details") {
 		const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
 		if (!markerEntry) {
-			showFeedbackToast("Ort konnte nicht fuer die Bearbeitung gefunden werden.", "warning");
+			showFeedbackToast("Ort konnte nicht für die Bearbeitung gefunden werden.", "warning");
 			return;
 		}
 
@@ -691,7 +691,7 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 	if (action === "delete-location") {
 		const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
 		if (!markerEntry) {
-			showFeedbackToast("Ort konnte nicht fuer die Bearbeitung gefunden werden.", "warning");
+			showFeedbackToast("Ort konnte nicht für die Bearbeitung gefunden werden.", "warning");
 			return;
 		}
 

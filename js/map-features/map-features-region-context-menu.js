@@ -74,8 +74,8 @@ async function deleteDerivedRegionGeometry(regionEntry) {
 	const name = regionEntry.name || "Herrschaftsgebiet";
 	const visibleChildBoundaryCount = countVisibleChildDerivedBoundaries(regionEntry);
 	const confirmation = visibleChildBoundaryCount > 0
-		? `${name} wirklich loeschen?\n\nEs wurden ${visibleChildBoundaryCount} sichtbare Unter-Außengrenzen gefunden. Diese werden ebenfalls deaktiviert.`
-		: `${name} wirklich loeschen?`;
+		? `${name} wirklich löschen?\n\nEs wurden ${visibleChildBoundaryCount} sichtbare Unter-Außengrenzen gefunden. Diese werden ebenfalls deaktiviert.`
+		: `${name} wirklich löschen?`;
 	if (!window.confirm(confirmation)) {
 		return;
 	}
@@ -95,10 +95,10 @@ async function deleteDerivedRegionGeometry(regionEntry) {
 		clearRegionGeometryEdit();
 		schedulePoliticalTerritoryLayerReload({ immediate: true });
 		void loadChangeLog();
-		showFeedbackToast((result?.affected || 0) > 0 ? "Außengrenze geloescht." : "Keine aktive Außengrenze gefunden.", "success");
+		showFeedbackToast((result?.affected || 0) > 0 ? "Außengrenze gelöscht." : "Keine aktive Außengrenze gefunden.", "success");
 	} catch (error) {
-		console.error("Geometrie konnte nicht geloescht werden:", error);
-		showFeedbackToast(error.message || "Geometrie konnte nicht geloescht werden.", "warning");
+		console.error("Geometrie konnte nicht gelöscht werden:", error);
+		showFeedbackToast(error.message || "Geometrie konnte nicht gelöscht werden.", "warning");
 	}
 }
 

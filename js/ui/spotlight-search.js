@@ -258,7 +258,7 @@ async function fetchBackendSpotlightResults(query) {
 	return Array.isArray(payload?.results) ? payload.results : [];
 }
 
-// Baut einen Such-Eintrag fuer ein politisches Gebiet, das aktuell NICHT als Polygon gerendert ist
+// Baut einen Such-Eintrag für ein politisches Gebiet, das aktuell NICHT als Polygon gerendert ist
 // (nur aus dem Backend-Treffer: Name + public_id + Bounding-Box). Auswahl -> focusSpotlightRegion.
 function buildSyntheticSpotlightRegionEntry(result, publicIds) {
 	let bounds = null;
@@ -306,8 +306,8 @@ function resolveBackendSpotlightEntries(backendResults, localEntries) {
 		}
 
 		// Politisches Herrschaftsgebiet ohne lokal gerenderten Eintrag (Ebene nicht geladen /
-		// ausserhalb des aktuellen Zoom-Bands): synthetischer Eintrag, der beim Auswaehlen auf die
-		// politische Ebene schaltet, hinfliegt und die Infobox per public_id oeffnet.
+		// ausserhalb des aktuellen Zoom-Bands): synthetischer Eintrag, der beim Auswählen auf die
+		// politische Ebene schaltet, hinfliegt und die Infobox per public_id öffnet.
 		if (!entry && kind === "region" && publicIds.length) {
 			entry = buildSyntheticSpotlightRegionEntry(result, publicIds);
 		}
@@ -777,7 +777,7 @@ function focusSpotlightRegion(entry) {
 	if (entry.bounds?.isValid?.()) {
 		focusSpotlightRegionBounds(entry.bounds, entry.minZoom, entry.maxZoom);
 	}
-	// Highlight: die Infobox des Gebiets oeffnen. Per public_id, da die politische Ebene nach dem
+	// Highlight: die Infobox des Gebiets öffnen. Per public_id, da die politische Ebene nach dem
 	// Ebenen-Wechsel/Flug asynchron neu laedt -> wir pollen, bis das Polygon gerendert ist.
 	const publicId = (entry.publicIds && entry.publicIds[0]) || entry.regionEntry?.publicId || entry.regionEntry?.territoryPublicId || "";
 	if (publicId) {
@@ -785,7 +785,7 @@ function focusSpotlightRegion(entry) {
 	}
 }
 
-// Oeffnet die Region-Infobox sobald ein Polygon mit passender public_id/territory_public_id
+// Öffnet die Region-Infobox sobald ein Polygon mit passender public_id/territory_public_id
 // gerendert ist (pollt ~bis 4.5s, deckt den async Layer-Reload nach dem Ebenen-Wechsel ab).
 function openSpotlightRegionInfobox(publicId) {
 	let attempts = 0;

@@ -110,7 +110,7 @@ async function handlePowerlineEditFormSubmit(event) {
 
 	const payload = buildPowerlineEditPayload(formElement);
 	if (!payload.public_id || !payload.name) {
-		setPowerlineEditStatus("Ein Name fuer die Kraftlinie fehlt.", "error");
+		setPowerlineEditStatus("Ein Name für die Kraftlinie fehlt.", "error");
 		return;
 	}
 

@@ -121,7 +121,7 @@ function buildPoliticalTerritoryEditorContext(regionEntry = {}) {
 
 // Feature #1.2: Wenn der aktive Breadcrumb-Knoten gerenderte Geometrie hat, die
 // Karte darauf fokussieren; geometrielose (zeilenlose/synthetische) Knoten lassen
-// die Ansicht ruhig. Laeuft im Host-Scope (map/regionPolygons/L sind hier global).
+// die Ansicht ruhig. Läuft im Host-Scope (map/regionPolygons/L sind hier global).
 let politicalTerritoryEditorActiveNodeFocusBound = false;
 let politicalTerritoryEditorFocusToken = 0;
 
@@ -132,7 +132,7 @@ function focusMapOnActiveTerritoryNode(activeNode) {
 		if (!territoryPublicId) return; // zeilenloser Knoten / keine Geometrie -> Ansicht ruhig
 		if (typeof POLITICAL_TERRITORIES_API_URL === "undefined" || !POLITICAL_TERRITORIES_API_URL) return;
 
-		// Bounding-Box render-unabhaengig vom Backend holen (gerenderte Layer sind
+		// Bounding-Box render-unabhängig vom Backend holen (gerenderte Layer sind
 		// zoom-/aggregationsgefiltert und enthalten den aktiven Knoten oft gar nicht).
 		const token = ++politicalTerritoryEditorFocusToken;
 		const separator = POLITICAL_TERRITORIES_API_URL.indexOf("?") >= 0 ? "&" : "?";
@@ -178,7 +178,7 @@ function openPoliticalTerritoryEditor(regionEntry = {}) {
 	activePoliticalTerritoryEditorOverrideFooterSuppressedUntil = 0;
 	politicalTerritoryEditorFrameSetupAttempts = 0;
 
-	// Eingabe ueber das Kontext-Objekt bereitstellen (ersetzt die iframe-URL).
+	// Eingabe über das Kontext-Objekt bereitstellen (ersetzt die iframe-URL).
 	window.AvesmapsPoliticalTerritoryEditorContext = buildPoliticalTerritoryEditorContext(regionEntry);
 	setPoliticalTerritoryEditorOpen(true);
 
@@ -231,7 +231,7 @@ function setupPoliticalTerritoryEditorInline(regionEntry) {
 		}
 	} catch (error) { /* Wiki-Link-Verschoenerung ist optional. */ }
 
-	// Frisch fuer die aktuelle Geometrie laden, falls der Editor schon einmal offen war.
+	// Frisch für die aktuelle Geometrie laden, falls der Editor schon einmal offen war.
 	if (typeof assignmentModule.reload === "function") {
 		try { assignmentModule.reload(); } catch (error) { /* erster Lauf laedt selbst */ }
 	}
@@ -376,7 +376,7 @@ async function applyPoliticalTerritoryEditorTreeMetaWikiLinks(frame) {
 	try {
 		rowsById = await loadPoliticalTerritoryWikiRowsById();
 	} catch (error) {
-		console.warn("Wiki-Links fuer Tree-Metadaten konnten nicht geladen werden:", error);
+		console.warn("Wiki-Links für Tree-Metadaten konnten nicht geladen werden:", error);
 		return;
 	}
 
@@ -456,7 +456,7 @@ async function resetPoliticalTerritoryEditorLocalDisplay(regionEntry = activePol
 async function promotePoliticalTerritoryEditorLocalDisplay(frame = getPoliticalTerritoryEditorElements().frame) {
 	const module = getPoliticalTerritoryOverrideFooterModule();
 	if (typeof module?.promoteLocalDisplay !== "function") {
-		throw new Error("Die lokale Darstellung konnte nicht global uebernommen werden.");
+		throw new Error("Die lokale Darstellung konnte nicht global übernommen werden.");
 	}
 	return module.promoteLocalDisplay(frame);
 }
@@ -484,7 +484,7 @@ async function clearPoliticalTerritoryEditorLocalOverrides(geometryPublicId) {
 async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 	const geometryPublicId = getPoliticalTerritoryEditorGeometryPublicId(regionEntry);
 	if (!geometryPublicId) {
-		throw new Error("Die Geometrie-ID fehlt. Bitte das Herrschaftsgebiet erneut aus der Karte oeffnen.");
+		throw new Error("Die Geometrie-ID fehlt. Bitte das Herrschaftsgebiet erneut aus der Karte öffnen.");
 	}
 
 	const shouldPromote = activePoliticalTerritoryEditorPromoteNextSave === true;
@@ -502,7 +502,7 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 
 	// Aktiver Wiki-Knoten OHNE eigene Geometrie: nur die Eigenschaften per wiki_key
 	// speichern (legt bei Bedarf on-demand eine political_territory-Zeile an), ohne die
-	// geoeffnete Geometrie anzufassen. Knoten mit eigener Geometrie laufen den normalen
+	// geöffnete Geometrie anzufassen. Knoten mit eigener Geometrie laufen den normalen
 	// Zuweisungspfad unten. Drag'n'drop-Zuweisung (assignedPath gefuellt) ebenfalls unten.
 	const activeNodeRef = value.activeDisplayNode || {};
 	const activeWikiKey = String(activeNodeRef.wikiKey || activeNodeRef.wiki_key || "").trim();
@@ -546,8 +546,8 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 
 	activePoliticalTerritoryEditorPendingLocalOverride = false;
 	// Optimistisches Sofort-Update: die soeben gespeicherten Display-Werte des aktiven
-	// Knotens als Pending-Override registrieren, damit der naechste Layer-Render sie zeigt,
-	// ohne auf einen erneuten Komplettabruf der Territorienliste warten zu muessen.
+	// Knotens als Pending-Override registrieren, damit der nächste Layer-Render sie zeigt,
+	// ohne auf einen erneuten Komplettabruf der Territorienliste warten zu müssen.
 	const savedTerritoryPublicId = String(
 		value.activeDisplayNode?.territoryPublicId
 		|| value.activeDisplayNode?.territory_public_id
@@ -599,7 +599,7 @@ async function syncPoliticalTerritoryEditorAssignmentZooms(value = {}) {
 async function unassignPoliticalTerritoryEditorGeometry(regionEntry) {
 	const geometryPublicId = getPoliticalTerritoryEditorGeometryPublicId(regionEntry);
 	if (!geometryPublicId) {
-		throw new Error("Die Geometrie-ID fehlt. Bitte das Herrschaftsgebiet erneut aus der Karte oeffnen.");
+		throw new Error("Die Geometrie-ID fehlt. Bitte das Herrschaftsgebiet erneut aus der Karte öffnen.");
 	}
 
 	const result = await submitPoliticalTerritoryEdit({
@@ -660,7 +660,7 @@ function parsePoliticalTerritoryEditorNumber(value) {
 }
 
 function refreshPoliticalTerritoryEditorMapLayer() {
-	// Nur den Karten-Layer neu laden. Der Wiki-Optionsbaum aendert sich bei einer
+	// Nur den Karten-Layer neu laden. Der Wiki-Optionsbaum ändert sich bei einer
 	// Eigenschafts-/Zuweisungs-Bearbeitung nicht und muss hier nicht neu geholt werden.
 	if (typeof schedulePoliticalTerritoryLayerReload === "function") schedulePoliticalTerritoryLayerReload({ immediate: true });
 }
@@ -688,7 +688,7 @@ function buildWikiSyncTerritoryAssignmentValueFromPayload(payload) {
 async function assignWikiSyncTerritoryPayloadToRegionGeometry(payload, regionEntry) {
 	const module = getPoliticalTerritoryDragAssignmentModule();
 	if (typeof module?.assignPayloadToRegionGeometry !== "function") {
-		throw new Error("Die Drag-and-drop-Zuweisung ist nicht verfuegbar.");
+		throw new Error("Die Drag-and-drop-Zuweisung ist nicht verfügbar.");
 	}
 	return module.assignPayloadToRegionGeometry(payload, regionEntry);
 }

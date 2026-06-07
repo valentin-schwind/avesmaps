@@ -380,7 +380,7 @@ function regionLayersToGeoJsonGeometry(layers, fallbackRegionEntry = null) {
 	const geometries = getRegionLayerGeoJsonGeometries(layers);
 	if (geometries.length < 1) {
 		if (!fallbackRegionEntry) {
-			throw new Error("Die Geometrie enthaelt keine Flaeche.");
+			throw new Error("Die Geometrie enthält keine Flaeche.");
 		}
 
 		return {

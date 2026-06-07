@@ -58,7 +58,7 @@ function createPathPopupMarkup(path) {
 				},
 			}),
 			popupActionButtonMarkup({
-				label: "Weg loeschen",
+				label: "Weg löschen",
 				className: "location-popup__action-button--danger",
 				attributes: {
 					"data-popup-action": "delete-path",
@@ -138,7 +138,7 @@ function createPathLayer(path) {
 			line.on("dblclick", (event) => handleEditablePathDoubleClick(path, event));
 		});
 	}
-	// Zuordnungs-Pick: im „Ziel waehlen"-Modus faengt ein Klick das Segment ab (statt Popup).
+	// Zuordnungs-Pick: im „Ziel wählen"-Modus faengt ein Klick das Segment ab (statt Popup).
 	path._pathLines.forEach((line) => {
 		line.on("click", (event) => {
 			if (window.__pathAssignPending && typeof handlePathWikiAssignmentPick === "function" && handlePathWikiAssignmentPick(path)) {

@@ -142,7 +142,7 @@ async function loadChangeLog() {
 			const politicalChangeLog = await fetchPoliticalChangeLog();
 			politicalChanges = Array.isArray(politicalChangeLog?.changes) ? politicalChangeLog.changes : [];
 		} catch (error) {
-			console.warn("Politischer Aenderungsverlauf konnte nicht geladen werden:", error);
+			console.warn("Politischer Änderungsverlauf konnte nicht geladen werden:", error);
 		}
 
 		const mapChanges = Array.isArray(data.changes)

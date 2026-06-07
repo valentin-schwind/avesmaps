@@ -30,7 +30,7 @@ function drawRoute(segments) {
 			currentRouteSegmentLayers[segmentIndex] = { layer: segLayer, segment };
 			createRouteNodeMarkersForSegment(segment).forEach((marker) => currentRouteNodeLayer.addLayer(marker));
 		} else {
-			console.warn("Ungueltige Segmentkoordinaten:", segment.geometry);
+			console.warn("Ungültige Segmentkoordinaten:", segment.geometry);
 		}
 	});
 	if (currentRouteLayer.getLayers().length) currentRouteLayer.addTo(map);

@@ -91,7 +91,7 @@
 		const position = siblingCount > 1 ? siblingIndex / (siblingCount - 1) : 0.5;
 		const offset = ((position * 2) - 1) * span;
 		const jitter = (((seededUnit(`${options.seedText || ""}:jitter`) * 2) - 1) * Math.max(0.75, Math.min(3, span * 0.12)));
-		// Helligkeit je Tiefe leicht staffeln, damit Ebenen auch bei aehnlichem Farbton
+		// Helligkeit je Tiefe leicht staffeln, damit Ebenen auch bei ähnlichem Farbton
 		// trennbar bleiben (dunkle Basis wird tiefer heller, helle Basis tiefer dunkler).
 		const valueShift = Math.min(0.24, (depth - 1) * 0.06);
 		const value = Math.max(0.35, Math.min(1, hsv.value + (hsv.value < 0.6 ? valueShift : -valueShift)));

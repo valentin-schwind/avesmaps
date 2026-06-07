@@ -189,5 +189,5 @@ function announceOverlappingRegionSelection(selection) {
 	}
 
 	const geometrySuffix = geometryLabelParts.length > 0 ? ` (${geometryLabelParts.join(" / ")})` : "";
-	showFeedbackToast(`Ueberlagerte Geometrien: ${selection.index + 1}/${selection.total}${geometrySuffix}`, "info");
+	showFeedbackToast(`Überlagerte Geometrien: ${selection.index + 1}/${selection.total}${geometrySuffix}`, "info");
 }

@@ -1,20 +1,20 @@
 "use strict";
 
 /*
- * Globaler, beobachtbarer Zustand fuer den aktiven Breadcrumb-Knoten des
+ * Globaler, beobachtbarer Zustand für den aktiven Breadcrumb-Knoten des
  * politischen Herrschaftsgebiet-Editors.
  *
  * Hintergrund: Bisher war "welcher Breadcrumb-Knoten ist aktiv" nur als
  * Closure-Variable (editedNode) in territory-editor-embedded.js vorhanden.
  * Andere Module (Außengrenzen-Editor, Eigenschaften) haben den aktiven Knoten
- * ueber einen DOM-MutationObserver auf #manualEditPath rekonstruiert -- mit
+ * über einen DOM-MutationObserver auf #manualEditPath rekonstruiert -- mit
  * Race-Conditions und Fallback auf "letztes Pfad-Element". Daran sind
  * Vorgaenger gescheitert.
  *
  * Dieses Modul macht den aktiven Knoten zu EINER beobachtbaren Wahrheit:
  *   set(node)        -> aktiven Knoten setzen, Subscriber synchron benachrichtigen
  *   get()            -> aktuellen aktiven Knoten lesen (oder null)
- *   subscribe(fn)    -> bei Aenderung benachrichtigt werden; liefert unsubscribe()
+ *   subscribe(fn)    -> bei Änderung benachrichtigt werden; liefert unsubscribe()
  *   clear()          -> Zustand leeren (Editor geschlossen)
  *
  * WICHTIG (Identitaets-/Schichten-Vertrag): Der Pfad/Baum stammt aus der
@@ -53,7 +53,7 @@
 		const nextKey = nodeKeyOf(node);
 		const prevKey = nodeKeyOf(activeNode);
 		activeNode = node || null;
-		// Nur benachrichtigen, wenn sich die Identitaet wirklich aendert
+		// Nur benachrichtigen, wenn sich die Identitaet wirklich ändert
 		// (verhindert Re-Render-Schleifen bei identischer Auswahl).
 		if (nextKey !== prevKey) {
 			notify();

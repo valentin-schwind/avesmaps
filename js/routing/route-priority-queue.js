@@ -1,5 +1,5 @@
 /******************************************************************
- * PriorityQueue (Min-Heap) - Optimierung fuer den Dijkstra-Algorithmus
+ * PriorityQueue (Min-Heap) - Optimierung für den Dijkstra-Algorithmus
  ******************************************************************/
 class PriorityQueue {
 	constructor() {

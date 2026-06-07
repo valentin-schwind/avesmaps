@@ -108,7 +108,7 @@ async function submitMapFeatureEdit(payload) {
 
 async function fetchPoliticalTerritories(params = {}) {
 	if (!POLITICAL_TERRITORIES_API_URL) {
-		throw new Error("Keine Herrschaftsgebiet-API fuer diese Umgebung konfiguriert.");
+		throw new Error("Keine Herrschaftsgebiet-API für diese Umgebung konfiguriert.");
 	}
 
 	const url = new URL(POLITICAL_TERRITORIES_API_URL, window.location.href);

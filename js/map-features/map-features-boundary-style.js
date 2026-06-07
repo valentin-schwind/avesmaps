@@ -1,7 +1,7 @@
 "use strict";
 
 /*
- * Ebenenbasierte Linienstil-Presets fuer politische Aussengrenzen (Phase B, Schritt 1).
+ * Ebenenbasierte Linienstil-Presets für politische Aussengrenzen (Phase B, Schritt 1).
  *
  * Ziel (Europa-Analogie): eine Reichsgrenze sieht anders aus als eine
  * Grafschaftsgrenze (Landes- vs. Bundesgrenze). Die Tiefe in der
@@ -11,8 +11,8 @@
  * Bewusst klein und reversibel:
  * - Wirkt vorerst NUR auf abgeleitete Aussengrenzen (is_derived_geometry),
  *   nicht auf die manuell gepflegten Quellgeometrien.
- * - Rein clientseitig, kein Schema, keine Persistenz. Spaeter kommt die
- *   waehlbare/persistente Stil-Wahl pro Territorium (eigene Tabelle, mit dem
+ * - Rein clientseitig, kein Schema, keine Persistenz. Später kommt die
+ *   wählbare/persistente Stil-Wahl pro Territorium (eigene Tabelle, mit dem
  *   Nutzer abzustimmen).
  *
  * Fuellung (color/opacity) bleibt unangetastet -- dieses Modul liefert nur
@@ -29,10 +29,10 @@
 	const DEEPEST_PRESET = { weight: 1, dashArray: "2 3" };
 
 	// Bestimmt die Hierarchie-Tiefe eines regionEntry aus der Wiki-Affiliation.
-	// 0 = oberste Ebene. Faellt auf 0 zurueck, wenn keine Pfadinfo vorhanden ist.
+	// 0 = oberste Ebene. Fällt auf 0 zurück, wenn keine Pfadinfo vorhanden ist.
 	function levelOf(regionEntry) {
 		const path = Array.isArray(regionEntry?.affiliationPath) ? regionEntry.affiliationPath : [];
-		// affiliationPath enthaelt die Vorfahrenkette (ohne den Knoten selbst);
+		// affiliationPath enthält die Vorfahrenkette (ohne den Knoten selbst);
 		// laenge = Anzahl Vorfahren = Tiefe.
 		const depth = path.length;
 		return Number.isFinite(depth) && depth >= 0 ? depth : 0;
@@ -43,7 +43,7 @@
 		return DEEPEST_PRESET;
 	}
 
-	// Liefert { weight, dashArray } oder null, wenn dieses Modul fuer den Eintrag
+	// Liefert { weight, dashArray } oder null, wenn dieses Modul für den Eintrag
 	// (noch) keinen ebenenbasierten Stil vorgibt.
 	function lineStyleFor(regionEntry) {
 		if (!regionEntry || regionEntry.isDerivedGeometry !== true) {
@@ -53,8 +53,8 @@
 		// affiliationPath ist der Wiki-Zugehoerigkeitspfad und entspricht NICHT
 		// der politischen Ebenen-Tiefe (Wurzel-Reiche haben dort schon Laenge >0).
 		// Bis die Tiefe-Quelle mit dem Nutzer geklaert ist, geben wir keinen
-		// ebenenbasierten Stil vor -> Renderer faellt auf das bewaehrte Verhalten
-		// zurueck. So rendert nichts mit falscher Ebene.
+		// ebenenbasierten Stil vor -> Renderer fällt auf das bewaehrte Verhalten
+		// zurück. So rendert nichts mit falscher Ebene.
 		if (!levelSourceIsReliable()) {
 			return null;
 		}

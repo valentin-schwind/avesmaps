@@ -36,14 +36,14 @@
 		const INNER_LINE_DASH_MEDIUM = [4, 3];
 	const OUTER_LINE_COLOR = "#d3d3d3";              // Aussenkontur statisch hellgrau (null = Territoriumsfarbe)
 
-	// --- Reichsstadt-Innenkontur (eng gegated, leicht reversibel ueber das Flag) ---
+	// --- Reichsstadt-Innenkontur (eng gegated, leicht reversibel über das Flag) ---
 	// Einzelkind-Siedlungen (territory_type leer, genau 1 Kind des Eltern, kein eigenes Derived)
 	// bekommen ihre eigene Stadt-Kontur als weiss-gestrichelte Linie — funktioniert auch, wenn die
 	// Stadt an einen Nachbarn statt an den Eltern gesnappt ist (Hirschfurt/Perricum) oder als
 	// Loch-in-Flaeche modelliert ist (Luring). Der Eltern-Dedup (bei 1 Kind oft Muell, z.B. Waldfang
-	// trasst den Perimeter) wird fuer solche Eltern unterdrueckt. Flag = false -> komplett aus.
+	// trasst den Perimeter) wird für solche Eltern unterdrückt. Flag = false -> komplett aus.
 	const REICHSSTADT_INNER_OUTLINE_ENABLED = true;
-	const REICHSSTADT_RING_MAX_EXTENT = 8; // max. bbox-Kantenlaenge eines Stadt-Rings; groesser = Baronie-Flaeche -> ignorieren
+	const REICHSSTADT_RING_MAX_EXTENT = 8; // max. bbox-Kantenlaenge eines Stadt-Rings; größer = Baronie-Flaeche -> ignorieren
 
 	function ready() {
 		return typeof map !== "undefined" && map && typeof map.createPane === "function" && typeof L !== "undefined";
@@ -57,7 +57,7 @@
 	if (!map.getPane(PANE)) {
 		map.createPane(PANE);
 		const pane = map.getPane(PANE);
-		pane.style.zIndex = 350;          // ueber Fuellungen (regionsPane 200), unter Labels (475)
+		pane.style.zIndex = 350;          // über Fuellungen (regionsPane 200), unter Labels (475)
 		pane.style.pointerEvents = "none"; // nicht-interaktiv, Klicks gehen an die SVG-Flaechen
 	}
 
@@ -66,7 +66,7 @@
 	canvas.style.pointerEvents = "none";
 	canvas.style.top = "0";
 	canvas.style.left = "0";
-	canvas.style.transformOrigin = "0 0"; // Skalierung waehrend der Zoom-Animation um die obere linke Ecke
+	canvas.style.transformOrigin = "0 0"; // Skalierung während der Zoom-Animation um die obere linke Ecke
 	// Dieselbe Easing wie Leaflets Ebenen: die Klasse aktiviert (unter .leaflet-zoom-anim) die
 	// transition transform 0.25s cubic-bezier(0,0,0.25,1) -> Canvas easet im Gleichschritt mit
 	// Kacheln/Flaechen/SVG-Linien statt sofort auf die Endgroesse zu springen.
@@ -74,7 +74,7 @@
 	map.getPane(PANE).appendChild(canvas);
 	const ctx = canvas.getContext("2d");
 
-	// LatLng der oberen linken Canvas-Ecke (Container 0,0) beim letzten Redraw — Anker fuer
+	// LatLng der oberen linken Canvas-Ecke (Container 0,0) beim letzten Redraw — Anker für
 	// die Zoom-Animations-Transform (wie L.ImageOverlay._animateZoom).
 	let canvasTopLeftLatLng = null;
 
@@ -104,7 +104,7 @@
 
 	// Innengrenzen: vorberechnete, deduppte Trennlinien der direkten Kinder (genau 1 Tiefe)
 	// als weiss-gestrichelte, nicht-geclippte Polyline. setLineDash/globalAlpha werden vom
-	// ctx.save()/restore() mit-gesichert und danach zurueckgesetzt.
+	// ctx.save()/restore() mit-gesichert und danach zurückgesetzt.
 	function drawInnerBoundaries(geojson) {
 		if (!geojson) return;
 		// Zoom 0: Innengrenzen ganz aus (winzige Gebiete -> nur Liniengewirr).
@@ -182,14 +182,14 @@
 
 	function redraw() {
 		if (!map.getPane(PANE)) return;
-		// Nur waehrend der CSS-Zoom-Animation NICHT neu zeichnen: dort uebernimmt die zoomanim-
+		// Nur während der CSS-Zoom-Animation NICHT neu zeichnen: dort übernimmt die zoomanim-
 		// Transform das weiche Mitskalieren. Bei flyTo/setView (Doppelklick, Orts-Fokus) gibt es
 		// KEIN zoomanim, der View wird pro Frame real aktualisiert -> dort MUSS neu gezeichnet
 		// werden, sonst bleiben die Grenzen stehen bis zum Zoom-Ende.
 		if (cssZoomActive) return;
 		const size = map.getSize();
 		const topLeft = map.containerPointToLayerPoint([0, 0]);
-		L.DomUtil.setPosition(canvas, topLeft); // reine Translation -> setzt eine evtl. Zoom-Skalierung zurueck
+		L.DomUtil.setPosition(canvas, topLeft); // reine Translation -> setzt eine evtl. Zoom-Skalierung zurück
 		canvasTopLeftLatLng = map.containerPointToLatLng([0, 0]);
 		if (canvas.width !== size.x) canvas.width = size.x;
 		if (canvas.height !== size.y) canvas.height = size.y;
@@ -226,7 +226,7 @@
 
 			// Innengrenzen: sichtbar wann immer die Derived existiert UND "Innengrenzen an"
 			// (an die Außenkontur gekoppelt, NICHT ans Fuellband) -> die Unterteilungen
-			// bleiben ueber alle Zoomstufen konsistent statt am Bandrand zu verschwinden.
+			// bleiben über alle Zoomstufen konsistent statt am Bandrand zu verschwinden.
 			if (f.properties.show_inner_boundaries === true
 				&& !reichsstadt.suppressParents.has(String(f.properties.territory_public_id || "").trim())) {
 				drawInnerBoundaries(f.properties.inner_boundary_geojson);
@@ -296,7 +296,7 @@
 		const offset = map._latLngToNewLayerPoint(canvasTopLeftLatLng, event.zoom, event.center);
 		L.DomUtil.setTransform(canvas, offset, scale);
 	});
-	// flyTo/setView: pro 'zoom'-Frame neu zeichnen (nur wenn KEIN CSS-Zoom laeuft -> sonst Transform).
+	// flyTo/setView: pro 'zoom'-Frame neu zeichnen (nur wenn KEIN CSS-Zoom läuft -> sonst Transform).
 	map.on("zoom", function () { if (!cssZoomActive) redraw(); });
 
 	window.AvesmapsBoundaryCanvasOverlay = { redraw, paneName: PANE };

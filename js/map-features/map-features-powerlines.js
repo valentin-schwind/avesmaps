@@ -163,7 +163,7 @@ function createPowerlinePopupMarkup(powerline) {
 				},
 			}),
 			popupActionButtonMarkup({
-				label: "Kraftlinie loeschen",
+				label: "Kraftlinie löschen",
 				className: "location-popup__action-button--danger",
 				attributes: {
 					"data-popup-action": "delete-powerline",
@@ -349,7 +349,7 @@ function clearPendingPowerlineCreation() {
 
 function startPowerlineCreationFromEndpoint(endpoint) {
 	if (!isEligiblePowerlineEndpoint(endpoint)) {
-		showFeedbackToast("Kraftlinien koennen nur an Nodix-Orten starten.", "warning");
+		showFeedbackToast("Kraftlinien können nur an Nodix-Orten starten.", "warning");
 		return;
 	}
 	pendingPowerlineCreationStart = endpoint;
@@ -387,7 +387,7 @@ async function deletePowerlineFeature(powerline) {
 		return;
 	}
 
-	if (!window.confirm(`${getPowerlineDisplayName(powerline)} wirklich loeschen?`)) {
+	if (!window.confirm(`${getPowerlineDisplayName(powerline)} wirklich löschen?`)) {
 		return;
 	}
 
@@ -402,9 +402,9 @@ async function deletePowerlineFeature(powerline) {
 		updateRevisionFromEditResponse(result);
 		void loadChangeLog();
 		setPowerlineEditDialogOpen(false, { resetForm: true });
-		showFeedbackToast("Kraftlinie geloescht.", "success");
+		showFeedbackToast("Kraftlinie gelöscht.", "success");
 	} catch (error) {
-		console.error("Kraftlinie konnte nicht geloescht werden:", error);
-		showFeedbackToast(error.message || "Kraftlinie konnte nicht geloescht werden.", "warning");
+		console.error("Kraftlinie konnte nicht gelöscht werden:", error);
+		showFeedbackToast(error.message || "Kraftlinie konnte nicht gelöscht werden.", "warning");
 	}
 }

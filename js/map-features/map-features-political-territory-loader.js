@@ -346,7 +346,7 @@ async function readPoliticalTerritoryLayerFallbacks(originalFetch, requestUrl, i
 					return layer?.ok && Array.isArray(layer.features) ? layer : null;
 				} catch (error) {
 					if (error?.name !== "AbortError") {
-						console.warn("Herrschaftsgebiets-Geometrien konnten fuer eine Zoomstufe nicht nachgeladen werden:", error);
+						console.warn("Herrschaftsgebiets-Geometrien konnten für eine Zoomstufe nicht nachgeladen werden:", error);
 					}
 					return null;
 				}
@@ -393,7 +393,7 @@ function installPoliticalTerritoryLayerGeometryMerge() {
 		// Fan-out (Nachbarzoom-Geometrien) NICHT blockierend: nur aus dem Cache mergen, sonst den
 		// Primaer-Layer (alle Labels + aktuelle Geometrien) SOFORT liefern und den Fan-out im
 		// Hintergrund vorwaermen. Spart ~1.5s pro Zoom; der Fan-out ergaenzt nur wenige Geometrien
-		// von Nachbar-Zoomstufen und KEINE Labels -> erscheint beim naechsten Cache-Treffer.
+		// von Nachbar-Zoomstufen und KEINE Labels -> erscheint beim nächsten Cache-Treffer.
 		const fallbackLayers = getResolvedPoliticalTerritoryLayerFallbacks(requestUrl);
 		if (!fallbackLayers) {
 			void readPoliticalTerritoryLayerFallbacks(originalFetch, requestUrl, init, currentLayer);
@@ -517,7 +517,7 @@ async function loadPoliticalTerritoryLayer() {
 			edit_mode: IS_EDIT_MODE ? 1 : 0,
 		});
 		// Kein Force pro Layer-Load mehr: der 1s-TTL haelt den Style-Cache aktuell,
-		// und frisch gespeicherte Eigenschaften kommen sofort ueber den Pending-Style-Override.
+		// und frisch gespeicherte Eigenschaften kommen sofort über den Pending-Style-Override.
 		// Das spart im Edit-Modus einen action=list-Komplettabruf bei jedem Zoom/Pan.
 		const territoryStyleCache = await refreshPoliticalTerritoryStyleCache();
 		if (activeRegionGeometryEdit || pendingRegionOperation || pendingRegionMoveState) {
@@ -590,7 +590,7 @@ async function loadPoliticalTerritoryOptions({ force = false } = {}) {
 		} catch (error) {
 			console.warn("Wiki-Herrschaftsgebiet-Baum konnte nicht geladen werden:", error);
 			politicalTerritoryOptionsLoaded = true;
-			console.warn("Datenbank-Fallback fuer Herrschaftsgebiet-Baum deaktiviert, bestehende Wiki-Daten bleiben erhalten.");
+			console.warn("Datenbank-Fallback für Herrschaftsgebiet-Baum deaktiviert, bestehende Wiki-Daten bleiben erhalten.");
 			return politicalTerritoryOptions;
 		} finally {
 			politicalTerritoryOptionsLoading = false;

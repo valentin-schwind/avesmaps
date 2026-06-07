@@ -2,10 +2,10 @@ function calculateRegionBooleanGeometry(operation, sourceGeometry, targetGeometr
 	const normalizedSourceGeometry = normalizeClippingMultiPolygon(sourceGeometry, "Quellgeometrie");
 	const normalizedTargetGeometry = normalizeClippingMultiPolygon(targetGeometry, "Zielgeometrie");
 	if (normalizedSourceGeometry.length < 1) {
-		throw new Error("Die Quellgeometrie enthaelt keine gueltige Flaeche.");
+		throw new Error("Die Quellgeometrie enthält keine gültige Flaeche.");
 	}
 	if (normalizedTargetGeometry.length < 1) {
-		throw new Error("Die Zielgeometrie enthaelt keine gueltige Flaeche.");
+		throw new Error("Die Zielgeometrie enthält keine gültige Flaeche.");
 	}
 
 	let resultGeometry = null;
@@ -40,19 +40,19 @@ function validateRegionBooleanResult(operation, sourceGeometry, targetGeometry, 
 	const resultArea = calculateClippingMultiPolygonArea(resultGeometry);
 	const epsilon = Math.max(0.01, (sourceArea + targetArea) * 0.000001);
 	if (resultArea <= 0) {
-		throw new Error("Die Geometrieoperation erzeugt keine gueltige Flaeche.");
+		throw new Error("Die Geometrieoperation erzeugt keine gültige Flaeche.");
 	}
 
 	if (operation === "difference" || operation === "difference-keep-target") {
 		if (resultArea - sourceArea > epsilon) {
-			throw new Error("Difference-Ergebnis ist groesser als die Ausgangsflaeche.");
+			throw new Error("Difference-Ergebnis ist größer als die Ausgangsflaeche.");
 		}
 		return;
 	}
 
 	if (operation === "intersection") {
 		if (resultArea - Math.min(sourceArea, targetArea) > epsilon) {
-			throw new Error("Intersection-Ergebnis ist groesser als eine der Ausgangsflaechen.");
+			throw new Error("Intersection-Ergebnis ist größer als eine der Ausgangsflaechen.");
 		}
 		return;
 	}

@@ -1,6 +1,6 @@
-// Review-Unterreiter „Wege" — WikiSync fuer Fluesse + Strassen (path-Features). Liste/Match +
+// Review-Unterreiter „Wege" — WikiSync für Fluesse + Strassen (path-Features). Liste/Match +
 // Zuordnen (schreibt wiki_path auf alle gleichnamigen Segmente) + „Alle zuordnen" (Bulk). Read-only
-// fuer die Karte ausser der bewussten Zuordnung. Mirror von review-region-sync.js.
+// für die Karte ausser der bewussten Zuordnung. Mirror von review-region-sync.js.
 
 const PATH_SYNC_API_URL = "/api/edit/wiki/paths.php";
 let pathSyncData = null;
@@ -282,7 +282,7 @@ function findPathSyncRow(wikiKey) {
 	return all.find((row) => String(row.wiki_key) === String(wikiKey)) || null;
 }
 
-// Startet den „Ziel-auf-der-Karte-wählen"-Modus fuer einen Wiki-Weg.
+// Startet den „Ziel-auf-der-Karte-wählen"-Modus für einen Wiki-Weg.
 function startPathWikiAssignPick(wikiKey) {
 	const row = findPathSyncRow(wikiKey);
 	if (!row) {
@@ -294,7 +294,7 @@ function startPathWikiAssignPick(wikiKey) {
 	}
 }
 
-// Wird vom Path-Klick aufgerufen (global). Prueft den Typ (Fluss <-> Straße) und verknuepft.
+// Wird vom Path-Klick aufgerufen (global). Prüft den Typ (Fluss <-> Straße) und verknuepft.
 function handlePathWikiAssignmentPick(path) {
 	const pending = window.__pathAssignPending;
 	if (!pending) {

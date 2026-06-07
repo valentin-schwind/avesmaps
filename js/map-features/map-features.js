@@ -17,7 +17,7 @@ $(".location-toggle").on("mouseenter focus", function () {
 $(".location-toggle").on("mouseleave blur", () => {
 	previewVisibleLocationTypesThrough(null);
 });
-// "Politisch" ist im Frontend freigeschaltet, sobald der politische Daten-Endpoint verfuegbar ist
+// "Politisch" ist im Frontend freigeschaltet, sobald der politische Daten-Endpoint verfügbar ist
 // (nicht mehr auf den Edit-Modus beschraenkt).
 $("#mapLayerModeSelect option[value=\"political\"]").prop("disabled", !POLITICAL_TERRITORIES_API_URL);
 initializeTransportIconSelects();
@@ -366,7 +366,7 @@ async function convertCrossingToLocation(markerEntry) {
 	pendingCrossingConversionPublicId = markerEntry.publicId;
 	pendingCrossingConversionName = nextName;
 	pendingCrossingConversionIsNodix = hasConnectedPowerlines;
-	showFeedbackToast("Ort bearbeiten und speichern, um die Konvertierung abzuschliessen.", "info");
+	showFeedbackToast("Ort bearbeiten und speichern, um die Konvertierung abzuschließen.", "info");
 }
 
 async function deleteLocationMarker(markerEntry) {
@@ -375,8 +375,8 @@ async function deleteLocationMarker(markerEntry) {
 		? getConnectedPowerlinesForPublicId(markerEntry.publicId)
 		: [];
 	const confirmationMessage = connectedPowerlines.length > 0
-		? `${markerEntry.name} ist noch mit ${connectedPowerlines.length} ${connectedPowerlines.length === 1 ? "Kraftlinie" : "Kraftlinien"} verbunden. Wirklich loeschen?`
-		: `${markerEntry.name} wirklich loeschen?`;
+		? `${markerEntry.name} ist noch mit ${connectedPowerlines.length} ${connectedPowerlines.length === 1 ? "Kraftlinie" : "Kraftlinien"} verbunden. Wirklich löschen?`
+		: `${markerEntry.name} wirklich löschen?`;
 	if (!window.confirm(confirmationMessage)) {
 		return;
 	}
@@ -393,10 +393,10 @@ async function deleteLocationMarker(markerEntry) {
 		const didClearWaypoint = clearWaypointLocationName(markerEntry.name);
 		updateRevisionFromEditResponse(result);
 		refreshPlannerAfterFeatureChange({ updateRoute: didClearWaypoint });
-		showFeedbackToast(`${locationTypeLabel} geloescht.`, "success");
+		showFeedbackToast(`${locationTypeLabel} gelöscht.`, "success");
 	} catch (error) {
-		console.error(`${locationTypeLabel} konnte nicht geloescht werden:`, error);
-		showFeedbackToast(error.message || `${locationTypeLabel} konnte nicht geloescht werden.`, "warning");
+		console.error(`${locationTypeLabel} konnte nicht gelöscht werden:`, error);
+		showFeedbackToast(error.message || `${locationTypeLabel} konnte nicht gelöscht werden.`, "warning");
 	}
 }
 
@@ -532,7 +532,7 @@ function getPathStyleColors(path) {
 
 	// Pro-Typ Linienstärken (nicht-simplified). "weight" = Gesamt-Footprint (Kontur); der
 	// Rand bleibt ~0.75 px je Seite. Strasse/Weg -1 px, Pfad/Gebirgspass/Wuestenpfad -2 px.
-	// Reichsstrasse-Rand inkl. +0.5 px (s. o.). Flussweg/Seeweg unveraendert.
+	// Reichsstrasse-Rand inkl. +0.5 px (s. o.). Flussweg/Seeweg unverändert.
 	const outlineWeights = { Reichsstrasse: 6.5, Strasse: 4, Weg: 4, Pfad: 3, Gebirgspass: 3, Wuestenpfad: 3, Flussweg: 5, Seeweg: 5 };
 	const centerWeights = { Reichsstrasse: 4, Strasse: 2.5, Weg: 2.5, Pfad: 1.5, Gebirgspass: 1.5, Wuestenpfad: 1.5, Flussweg: 3, Seeweg: 3 };
 
@@ -601,7 +601,7 @@ function findNearestRegionSegmentInsertIndex(regionEntry, latlng) {
 }
 
 async function deletePathFeature(path) {
-	if (!window.confirm(`${getPathDisplayName(path)} wirklich loeschen?`)) {
+	if (!window.confirm(`${getPathDisplayName(path)} wirklich löschen?`)) {
 		return;
 	}
 
@@ -613,10 +613,10 @@ async function deletePathFeature(path) {
 		clearPathGeometryEdit();
 		removePathFeature(path);
 		updateRevisionFromEditResponse(result);
-		showFeedbackToast("Weg geloescht.", "success");
+		showFeedbackToast("Weg gelöscht.", "success");
 	} catch (error) {
-		console.error("Weg konnte nicht geloescht werden:", error);
-		showFeedbackToast(error.message || "Weg konnte nicht geloescht werden.", "warning");
+		console.error("Weg konnte nicht gelöscht werden:", error);
+		showFeedbackToast(error.message || "Weg konnte nicht gelöscht werden.", "warning");
 	}
 }
 
@@ -795,13 +795,13 @@ const REGION_CONTEXT_ACTIONS = {
 
 async function extractRegionGeometryPartAsNewTerritory(regionEntry, selectedLayer) {
 	if (!regionEntry || regionEntry.source !== "political_territory") {
-		showFeedbackToast("Herausloesen ist nur fuer das neue Herrschaftsgebiete-Modell verfuegbar.", "warning");
+		showFeedbackToast("Herausloesen ist nur für das neue Herrschaftsgebiete-Modell verfügbar.", "warning");
 		return;
 	}
 
 	const layers = getRegionEntryLayers(regionEntry);
 	if (!selectedLayer || !layers.includes(selectedLayer) || layers.length < 2) {
-		showFeedbackToast("Zum Herausloesen muss ein Teilpolygon eines Mehrfach-Gebiets ausgewaehlt sein.", "warning");
+		showFeedbackToast("Zum Herausloesen muss ein Teilpolygon eines Mehrfach-Gebiets ausgewählt sein.", "warning");
 		return;
 	}
 
@@ -823,7 +823,7 @@ async function extractRegionGeometryPartAsNewTerritory(regionEntry, selectedLaye
 
 function startPendingRegionOperation(operation, sourceRegion, sourceLayer = null) {
 	if (sourceRegion.source !== "political_territory") {
-		showFeedbackToast("Geometrieoperationen sind fuer das neue Herrschaftsgebiete-Modell aktiv.", "warning");
+		showFeedbackToast("Geometrieoperationen sind für das neue Herrschaftsgebiete-Modell aktiv.", "warning");
 		return;
 	}
 
@@ -831,12 +831,12 @@ function startPendingRegionOperation(operation, sourceRegion, sourceLayer = null
 	pendingRegionOperation = { operation, sourceRegion, sourceLayer: sourceLayer || sourceRegion.layer || null };
 	clearRegionGeometryEdit();
 	syncRegionOperationChip();
-	showFeedbackToast("Naechstes Herrschaftsgebiet anklicken.", "info");
+	showFeedbackToast("Nächstes Herrschaftsgebiet anklicken.", "info");
 }
 
 function startPendingRegionSplit(sourceRegion, sourceLayer = null) {
 	if (sourceRegion.source !== "political_territory") {
-		showFeedbackToast("Gebiete zerschneiden ist fuer das neue Herrschaftsgebiete-Modell aktiv.", "warning");
+		showFeedbackToast("Gebiete zerschneiden ist für das neue Herrschaftsgebiete-Modell aktiv.", "warning");
 		return;
 	}
 
@@ -850,7 +850,7 @@ function startPendingRegionSplit(sourceRegion, sourceLayer = null) {
 
 function startPendingRegionMove(sourceRegion, anchorLatLng) {
 	if (sourceRegion.source !== "political_territory") {
-		showFeedbackToast("Verschieben ist fuer das neue Herrschaftsgebiete-Modell aktiv.", "warning");
+		showFeedbackToast("Verschieben ist für das neue Herrschaftsgebiete-Modell aktiv.", "warning");
 		return;
 	}
 
@@ -1127,7 +1127,7 @@ async function saveRegionGeometry(regionEntry) {
 	}
 
 	if (!isSqlMapFeatureId(regionEntry.publicId)) {
-		showFeedbackToast("Region hat keine gueltige SQL-ID.", "warning");
+		showFeedbackToast("Region hat keine gültige SQL-ID.", "warning");
 		return;
 	}
 	const coordinates = polygonLatLngsToCoordinates(getRegionOuterLatLngs(regionEntry));
@@ -1310,9 +1310,9 @@ async function deleteActiveRegion(selectedLayer = null, selectedPolygonIndex = n
 		if (selectedGeometryLayer && polygonCount > 1) {
 			try {
 				await deleteRegionGeometryPart(regionEditEntry, selectedGeometryLayer);
-				showFeedbackToast("Polygon geloescht.", "success");
+				showFeedbackToast("Polygon gelöscht.", "success");
 			} catch (error) {
-				showFeedbackToast(error.message || "Polygon konnte nicht geloescht werden.", "warning");
+				showFeedbackToast(error.message || "Polygon konnte nicht gelöscht werden.", "warning");
 			}
 			return;
 		}
@@ -1333,18 +1333,18 @@ async function deleteActiveRegion(selectedLayer = null, selectedPolygonIndex = n
 			setRegionEditDialogOpen(false, { resetForm: true });
 			schedulePoliticalTerritoryLayerReload({ immediate: true });
 			void loadChangeLog();
-			showFeedbackToast(result.territory_deleted ? "Letztes Polygon geloescht, Herrschaftsgebiet entfernt." : "Polygon geloescht.", "success");
+			showFeedbackToast(result.territory_deleted ? "Letztes Polygon gelöscht, Herrschaftsgebiet entfernt." : "Polygon gelöscht.", "success");
 		} catch (error) {
-			console.error("Polygon konnte nicht geloescht werden:", error);
-			showFeedbackToast(error.message || "Polygon konnte nicht geloescht werden.", "warning");
-			setRegionEditStatus(error.message || "Polygon konnte nicht geloescht werden.", "error");
+			console.error("Polygon konnte nicht gelöscht werden:", error);
+			showFeedbackToast(error.message || "Polygon konnte nicht gelöscht werden.", "warning");
+			setRegionEditStatus(error.message || "Polygon konnte nicht gelöscht werden.", "error");
 		}
 		return;
 	}
 
-	if (!window.confirm(`${regionEditEntry.name} wirklich loeschen?`)) return;
+	if (!window.confirm(`${regionEditEntry.name} wirklich löschen?`)) return;
 	if (!isSqlMapFeatureId(regionEditEntry.publicId)) {
-		setRegionEditStatus("Diese Region hat keine gueltige SQL-ID.", "error");
+		setRegionEditStatus("Diese Region hat keine gültige SQL-ID.", "error");
 		return;
 	}
 	try {
@@ -1359,19 +1359,19 @@ async function deleteActiveRegion(selectedLayer = null, selectedPolygonIndex = n
 		updateRevisionFromEditResponse(result);
 		void loadChangeLog();
 		setRegionEditDialogOpen(false, { resetForm: true });
-		showFeedbackToast("Region geloescht.", "success");
+		showFeedbackToast("Region gelöscht.", "success");
 	} catch (error) {
-		setRegionEditStatus(error.message || "Region konnte nicht geloescht werden.", "error");
+		setRegionEditStatus(error.message || "Region konnte nicht gelöscht werden.", "error");
 	}
 }
 
 function createPoliticalRegionDeleteConfirmation(regionEntry, polygonCount) {
 	const name = regionEntry.name || "Herrschaftsgebiet";
 	if (polygonCount > 1) {
-		return `Ausgewaehltes Polygon von ${name} wirklich loeschen?`;
+		return `Ausgewähltes Polygon von ${name} wirklich löschen?`;
 	}
 
-	return `Letztes Polygon von ${name} wirklich loeschen? Das Herrschaftsgebiet wird nur entfernt, wenn danach keine Flaeche mehr existiert.`;
+	return `Letztes Polygon von ${name} wirklich löschen? Das Herrschaftsgebiet wird nur entfernt, wenn danach keine Flaeche mehr existiert.`;
 }
 
 function removeRegionEntryFromMap(regionEntry) {
@@ -1414,7 +1414,7 @@ function prunePoliticalTerritoryHierarchy(publicId, nodes) {
 async function deleteRegionGeometryPart(regionEntry, selectedLayer) {
 	const layers = getRegionEntryLayers(regionEntry);
 	if (!selectedLayer || !layers.includes(selectedLayer)) {
-		throw new Error("Die ausgewaehlte Teilflaeche wurde nicht gefunden.");
+		throw new Error("Die ausgewählte Teilflaeche wurde nicht gefunden.");
 	}
 
 	const remainingLayers = layers.filter((layer) => layer !== selectedLayer);

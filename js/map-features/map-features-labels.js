@@ -262,7 +262,7 @@ async function saveLabelPosition(entry) {
 }
 
 async function deleteLabelEntry(entry, { closeDialog = false } = {}) {
-	if (!entry || !window.confirm(`${entry.label.text} wirklich loeschen?`)) {
+	if (!entry || !window.confirm(`${entry.label.text} wirklich löschen?`)) {
 		return;
 	}
 
@@ -279,10 +279,10 @@ async function deleteLabelEntry(entry, { closeDialog = false } = {}) {
 		if (closeDialog) {
 			setLabelEditDialogOpen(false, { resetForm: true });
 		}
-		showFeedbackToast("Label geloescht.", "success");
+		showFeedbackToast("Label gelöscht.", "success");
 	} catch (error) {
-		console.error("Label konnte nicht geloescht werden:", error);
-		setLabelEditStatus(error.message || "Label konnte nicht geloescht werden.", "error");
+		console.error("Label konnte nicht gelöscht werden:", error);
+		setLabelEditStatus(error.message || "Label konnte nicht gelöscht werden.", "error");
 	}
 }
 

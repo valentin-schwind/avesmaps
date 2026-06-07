@@ -312,7 +312,7 @@ async function computeInnerBoundaryMultiLineString(targetPublicId, plan) {
 	// Dadurch bildet auch ein Knoten MIT Eigenflaeche und nur EINEM Kind eine Innengrenze (Trennlinie
 	// Eigenflaeche <-> Kind) statt erst ab zwei Kindern. Nur Knoten MIT Geometrie nehmen teil -> keine
 	// Seiteneffekte durch geometrielose Knoten. Frueher: Abbruch bei < 2 Kindern (Guard jetzt unten
-	// ueber childOutlines.length, nachdem Eigenflaeche + Kinder gesammelt sind).
+	// über childOutlines.length, nachdem Eigenflaeche + Kinder gesammelt sind).
 	try {
 		const ownSources = await politicalTerritoryRepository.getDerivedGeometrySources(targetPublicId);
 		const ownEntries = (Array.isArray(ownSources?.source_geometries) ? ownSources.source_geometries : [])
@@ -324,7 +324,7 @@ async function computeInnerBoundaryMultiLineString(targetPublicId, plan) {
 			}
 		}
 	} catch (error) {
-		console.warn("Innengrenzen: Eigenflaeche des Ziels fehlgeschlagen fuer", targetPublicId, error);
+		console.warn("Innengrenzen: Eigenflaeche des Ziels fehlgeschlagen für", targetPublicId, error);
 	}
 	for (const childPublicId of childPublicIds) {
 		try {
@@ -405,7 +405,7 @@ async function recomputeDerivedBoundaryForTargetSilently(targetPublicId, plan, s
 	if (!result) {
 		return { skipped: true };
 	}
-	// Innen-Flag: bei "Fuer alle Unterregionen" wird die Wahl des geklickten Knotens auf den
+	// Innen-Flag: bei "Für alle Unterregionen" wird die Wahl des geklickten Knotens auf den
 	// Teilbaum vererbt (showInnerOverride); sonst pro Knoten den Bestand ERHALTEN.
 	const showInnerBoundaries = typeof showInnerOverride === "boolean"
 		? showInnerOverride
@@ -416,7 +416,7 @@ async function recomputeDerivedBoundaryForTargetSilently(targetPublicId, plan, s
 		geometry_geojson: result.geometry,
 		label_lng: result.labelCenter?.lng ?? null,
 		label_lat: result.labelCenter?.lat ?? null,
-		// Leeres Zoom-Band: das Backend uebernimmt das globale Band des Territoriums.
+		// Leeres Zoom-Band: das Backend übernimmt das globale Band des Territoriums.
 		min_zoom: "",
 		max_zoom: "",
 		// Inner-Flag des Ziels ERHALTEN (Default false nur für neue Außengrenzen, s. readExistingShowInnerBoundaries).
@@ -542,7 +542,7 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 			const cascadeTargets = (Array.isArray(plan?.recompute_targets) ? plan.recompute_targets : [])
 				.map((entry) => String(entry?.territory_public_id || "").trim())
 				.filter((publicId) => publicId && publicId !== territoryPublicId);
-			// "Fuer alle Unterregionen" + explizit gesetztes Innen-Haekchen -> dessen Wert auf
+			// "Für alle Unterregionen" + explizit gesetztes Innen-Haekchen -> dessen Wert auf
 			// den ganzen Teilbaum vererben (an ODER aus). Vorfahren (ancestors_to_refresh)
 			// bleiben unberuehrt; ohne explizites Haekchen (z. B. Rechtsklick) wird nichts vererbt.
 			const ancestorSet = new Set((Array.isArray(plan?.ancestors_to_refresh) ? plan.ancestors_to_refresh : [])

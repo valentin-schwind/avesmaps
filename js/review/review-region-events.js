@@ -171,8 +171,8 @@ $(document).on("click", "[data-region-assignment-breadcrumb-id]", function (even
 	event.preventDefault();
 	const territoryPublicId = this.dataset.regionAssignmentBreadcrumbId || "";
 	void openRegionVisualTabFromBreadcrumb(territoryPublicId).catch((error) => {
-		console.error("Herrschaftsgebiet konnte nicht geoeffnet werden:", error);
-		setRegionEditStatus(error.message || "Herrschaftsgebiet konnte nicht geoeffnet werden.", "error");
+		console.error("Herrschaftsgebiet konnte nicht geöffnet werden:", error);
+		setRegionEditStatus(error.message || "Herrschaftsgebiet konnte nicht geöffnet werden.", "error");
 	});
 });
 

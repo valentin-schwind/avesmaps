@@ -463,7 +463,7 @@ async function assignRegionGeometryToWikiTreeLeaf(wikiPublicId) {
 	const path = findPoliticalTerritoryTreePath(wikiPublicId);
 	const selectedNode = path[path.length - 1] || null;
 	if (!selectedNode || (selectedNode.children || []).length > 0) {
-		setRegionEditStatus("Bitte den untersten Knoten der Hierarchie auswaehlen.", "error");
+		setRegionEditStatus("Bitte den untersten Knoten der Hierarchie auswählen.", "error");
 		return;
 	}
 
@@ -483,7 +483,7 @@ async function assignRegionGeometryToWikiTreeLeaf(wikiPublicId) {
 	storeRegionAssignmentBreadcrumbCaches(path, response.chain || [], selectedTerritoryId);
 	await activatePrimaryRegionEditTabForTerritory(selectedTerritoryId);
 	renderRegionAssignment(path, regionAssignmentEnsuredChain, regionAssignmentActiveWikiPublicId);
-	setRegionEditStatus("Herrschaftsgebiet zugewiesen. Speichern uebernimmt die Geometrie dauerhaft.", "success");
+	setRegionEditStatus("Herrschaftsgebiet zugewiesen. Speichern übernimmt die Geometrie dauerhaft.", "success");
 }
 
 async function openRegionVisualTabFromBreadcrumb(wikiPublicId) {

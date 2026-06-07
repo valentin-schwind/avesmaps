@@ -1,31 +1,31 @@
 ﻿"use strict";
 
 /*
- * Inline-Host fuer den politischen Herrschaftsgebiet-Editor.
+ * Inline-Host für den politischen Herrschaftsgebiet-Editor.
  *
  * Loest den frueheren <iframe> auf: das Editor-Markup, die scoped CSS und die
  * Editor-Skripte werden EINMALIG in #political-territory-editor-host (in der
- * Hauptseite) geladen. Eingabeparameter kommen ueber das Kontext-Objekt
+ * Hauptseite) geladen. Eingabeparameter kommen über das Kontext-Objekt
  * window.AvesmapsPoliticalTerritoryEditorContext (gelesen via
- * AvesmapsEditorContext.param), nicht mehr ueber eine iframe-URL. Die Karten-
+ * AvesmapsEditorContext.param), nicht mehr über eine iframe-URL. Die Karten-
  * Callbacks laufen direkt im selben window (AvesmapsEditorContext.host()).
  *
  * Nur im Edit-Modus aktiv. Die Editor-Skripte sind alle IIFE-gekapselt und
- * exportieren ausschliesslich window.Avesmaps*-Objekte, daher ist das Laden in
+ * exportieren ausschließlich window.Avesmaps*-Objekte, daher ist das Laden in
  * den Hauptseiten-Scope kollisionsfrei (vorab verifiziert).
  */
 (function initPoliticalTerritoryEditorInlineHost() {
 	const EDITOR_HTML_URL = "/html/political-territory-editor.html";
 	const SCOPED_CSS_URL = "/css/pages/political-territory-editor-inline.css";
 	const HOST_ID = "political-territory-editor-host";
-	// Cache-Buster fuer die dynamisch geladenen Editor-Assets: bei jeder Aenderung
-	// an Editor-JS/CSS hochzaehlen, damit Deploys sofort greifen (kein Hard-Reload).
+	// Cache-Buster für die dynamisch geladenen Editor-Assets: bei jeder Änderung
+	// an Editor-JS/CSS hochzählen, damit Deploys sofort greifen (kein Hard-Reload).
 	const ASSET_VERSION = "20260605e";
 	function withVersion(url) {
 		return url + (url.indexOf("?") >= 0 ? "&" : "?") + "v=" + ASSET_VERSION;
 	}
 
-	// Reihenfolge wie im bisherigen iframe-HTML (Abhaengigkeiten beachtet).
+	// Reihenfolge wie im bisherigen iframe-HTML (Abhängigkeiten beachtet).
 	const EDITOR_SCRIPTS = [
 		"/js/territory/territory-editor-context.js",
 		"/js/territory/territory-editor-active-node.js",
@@ -108,14 +108,14 @@
 			host.innerHTML = extractEditorMarkup(html);
 			host.classList.add("is-embedded");
 
-			// Skripte streng sequenziell laden, damit Abhaengigkeiten (z. B.
+			// Skripte streng sequenziell laden, damit Abhängigkeiten (z. B.
 			// Kontext vor embedded, embedded vor save) wie im iframe gelten.
 			for (const src of EDITOR_SCRIPTS) {
 				await loadScriptOnce(src);
 			}
 			return true;
 		})().catch((error) => {
-			loadPromise = null; // erneuter Versuch beim naechsten Oeffnen
+			loadPromise = null; // erneuter Versuch beim nächsten Öffnen
 			throw error;
 		});
 		return loadPromise;

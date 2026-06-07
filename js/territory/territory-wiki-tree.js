@@ -129,7 +129,7 @@
 
 	function isIndependentAffiliationSegment(segment) {
 		const key = makeKey(segment);
-		return key.startsWith("unabhangig") || key.startsWith("unabhaengig");
+		return key.startsWith("unabhangig") || key.startsWith("unabhängig");
 	}
 
 	function isGenericAffiliationSegment(segment) {
@@ -140,13 +140,13 @@
 	function normalizeApiRows(rows) {
 		const normalizedRows = (Array.isArray(rows) ? rows : [])
 			.map((rawRow) => {
-				// Effektiv = Override ?? Staging: die Wiki-Sync-Overrides (metadata_overrides_json) ueber die
+				// Effektiv = Override ?? Staging: die Wiki-Sync-Overrides (metadata_overrides_json) über die
 				// Staging-Felder legen, damit Baum-Label, Zeitfilter (dissolved->besteht) und Periode die
 				// Overrides spiegeln (sonst werden z.B. via Override "besteht" gesetzte Knoten bei time=heute
 				// faelschlich ausgeblendet -> fehlende Geschwister/Breadcrumb-Pfeile).
 				const ovr = (rawRow && rawRow.overrides && typeof rawRow.overrides === "object" && !Array.isArray(rawRow.overrides)) ? rawRow.overrides : {};
 				const row = Object.assign({}, rawRow || {}, ovr);
-				// Override "besteht" (dissolved_end_bf leer) loescht die ganze Aufloesung: sonst zieht readOptionalYear den Staging-dissolved_start_bf als Ende heran -> Knoten faellt faelschlich aus dem heute-Zeitfilter -> fehlende Geschwister/Breadcrumb-Pfeile.
+				// Override "besteht" (dissolved_end_bf leer) löscht die ganze Aufloesung: sonst zieht readOptionalYear den Staging-dissolved_start_bf als Ende heran -> Knoten fällt faelschlich aus dem heute-Zeitfilter -> fehlende Geschwister/Breadcrumb-Pfeile.
 				if (Object.prototype.hasOwnProperty.call(ovr, "dissolved_end_bf") && parseOptionalNumber(row.dissolved_end_bf, null) === null) { row.dissolved_start_bf = ""; }
 				const normalizedName = normalizeText(row?.name);
 				const normalizedStatus = normalizeText(row?.status);
@@ -379,7 +379,7 @@
 	}
 
 	// Baum aus der KURATIERTEN Modell-Hierarchie (parent_wiki_key), identisch zum Sync-Monitor.
-	// Frueher namensbasiert ueber affiliation_path -> zu viele Wurzeln/Dubletten. Jetzt exakt per wiki_key.
+	// Frueher namensbasiert über affiliation_path -> zu viele Wurzeln/Dubletten. Jetzt exakt per wiki_key.
 	function buildTree(rows) {
 		const inputRows = Array.isArray(rows) ? rows : [];
 		const root = createTreeNode("root", "Herrschaftsgebiete", "root");
@@ -461,7 +461,7 @@
 	}
 
 	// UI-Helfer: liest die drei Zeitfilter-Eingaben (von/bis-Zahl + "heute"-Checkbox) und liefert das
-	// time-Objekt; deaktiviert die Jahr-Felder, wenn "heute" aktiv ist. Fuer beide Consumer wiederverwendbar.
+	// time-Objekt; deaktiviert die Jahr-Felder, wenn "heute" aktiv ist. Für beide Consumer wiederverwendbar.
 	function readTimeFilter(fromElement, toElement, todayElement) {
 		const today = Boolean(todayElement && todayElement.checked);
 		if (fromElement) fromElement.disabled = today;

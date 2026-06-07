@@ -4,19 +4,19 @@
  * Editor-Kontext-/Host-Abstraktion.
  *
  * Entkoppelt die Editor-Skripte von den iframe-Annahmen
- * (window.location.search fuer Eingabeparameter, window.parent fuer Callbacks),
- * damit der Editor sowohl im aktuellen iframe als auch spaeter inline in der
+ * (window.location.search für Eingabeparameter, window.parent für Callbacks),
+ * damit der Editor sowohl im aktuellen iframe als auch später inline in der
  * Hauptseite laufen kann.
  *
  * Rueckwaertskompatibel: Solange kein Kontext-Objekt gesetzt ist und der Editor
- * im iframe laeuft, verhaelt sich alles wie bisher.
+ * im iframe läuft, verhaelt sich alles wie bisher.
  *
  * - param(key):    liest aus window.AvesmapsPoliticalTerritoryEditorContext,
  *                  sonst aus der URL-Query (iframe-Altpfad).
- * - host():        Fenster, an dem die Karten-Callbacks haengen
+ * - host():        Fenster, an dem die Karten-Callbacks hängen
  *                  (drawDerivedGeometryPreview, schedulePoliticalTerritoryLayerReload, ...).
  *                  Im iframe = window.parent, inline = window.
- * - isEmbedded():  true, wenn der Editor in einem iframe laeuft.
+ * - isEmbedded():  true, wenn der Editor in einem iframe läuft.
  */
 (function initAvesmapsEditorContext() {
 	function getContextObject() {

@@ -8,9 +8,9 @@ function clearRegionGeometryEdit() {
 	clearRegionEditEdgeHover();
 	disableRegionEditEdgeControls();
 
-	// Kanten-Stil des editierten Polygons SOFORT auf den normalen Render-Stil zuruecksetzen
+	// Kanten-Stil des editierten Polygons SOFORT auf den normalen Render-Stil zurücksetzen
 	// (nicht auf den evtl. veralteten Schnappschuss vom Edit-Start) -> die blauen Kanten
-	// verschwinden sofort statt erst beim naechsten Layer-Reload. buildRegionPolygonStyle
+	// verschwinden sofort statt erst beim nächsten Layer-Reload. buildRegionPolygonStyle
 	// liefert den korrekten Nicht-Edit-Stil (z. B. weight 0 bei stroke-hidden Quellen).
 	const editLayer = activeRegionGeometryEdit.editLayer;
 	if (editLayer && typeof editLayer.setStyle === "function") {

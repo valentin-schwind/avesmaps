@@ -450,8 +450,8 @@ async function startWikiSyncRun() {
 	}
 }
 
-// Inline-Dialog (statt neuem Fenster) fuer den Sync-Editor — im Stil des Herrschaftsgebiet-
-// Eigenschaften-Editors (gleiche CSS-Klassen), nur etwas breiter fuer die zwei Spalten.
+// Inline-Dialog (statt neuem Fenster) für den Sync-Editor — im Stil des Herrschaftsgebiet-
+// Eigenschaften-Editors (gleiche CSS-Klassen), nur etwas breiter für die zwei Spalten.
 window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || function openAvesmapsSyncEditorOverlay(wikiKey) {
 	const overlayId = "avesmaps-sync-editor-overlay";
 	// Cache-Buster: das Tool-HTML laedt sonst gecacht (kein ?v=) -> immer frisch holen.
@@ -485,8 +485,8 @@ window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || f
 	closeButton.className = "political-territory-editor-dialog__close";
 	closeButton.setAttribute("aria-label", "Schließen");
 	closeButton.textContent = "✕";
-	// Nach dem Schliessen des Sync-Editors die abhaengigen Oberflaechen sofort auffrischen, damit
-	// WikiSync-Aenderungen gleich im Territoriumseditor + Review-Tree erscheinen (kein manuelles Reload).
+	// Nach dem Schließen des Sync-Editors die abhängigen Oberflaechen sofort auffrischen, damit
+	// WikiSync-Änderungen gleich im Territoriumseditor + Review-Tree erscheinen (kein manuelles Reload).
 	const closeOverlay = () => {
 		overlay.hidden = true;
 		document.body.style.overflow = "";
@@ -544,9 +544,9 @@ async function startWikiSyncTerritoryRun() {
 		}
 		setWikiSyncStatus(buildWikiSyncStatusMessage("WikiSyncTerritories abgeschlossen."), "success");
 	} catch (error) {
-		console.error("WikiSyncTerritories konnte nicht ausgefuehrt werden:", error);
-		setWikiSyncStatus(error.message || "WikiSyncTerritories konnte nicht ausgefuehrt werden.", "error");
-		showFeedbackToast(error.message || "WikiSyncTerritories konnte nicht ausgefuehrt werden.", "warning");
+		console.error("WikiSyncTerritories konnte nicht ausgeführt werden:", error);
+		setWikiSyncStatus(error.message || "WikiSyncTerritories konnte nicht ausgeführt werden.", "error");
+		showFeedbackToast(error.message || "WikiSyncTerritories konnte nicht ausgeführt werden.", "warning");
 	} finally {
 		setWikiSyncTerritoriesRunning(false);
 	}

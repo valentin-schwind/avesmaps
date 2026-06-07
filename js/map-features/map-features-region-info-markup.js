@@ -3,9 +3,9 @@
  * This file contains only function declarations and no top-level execution.
  */
 
-// Leitet externe wiki-aventurica-Wappen ueber den serverseitigen Cache/Proxy (/api/app/coat.php),
+// Leitet externe wiki-aventurica-Wappen über den serverseitigen Cache/Proxy (/api/app/coat.php),
 // damit die Karte nicht hunderte SVGs direkt hotlinkt (net::ERR_NO_BUFFER_SPACE). Lokale /uploads/-
-// URLs und bereits proxied URLs bleiben unveraendert.
+// URLs und bereits proxied URLs bleiben unverändert.
 function avesmapsCoatSrc(url) {
 	const value = String(url || "").trim();
 	if (value === "") {

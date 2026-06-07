@@ -6,7 +6,7 @@ function prepareRegionOperationContext(operationState, targetRegion, targetLayer
 	const isSameGeometry = sourceGeometryPublicId !== "" && sourceGeometryPublicId === targetGeometryPublicId;
 	const isSameLayer = sourceLayer && normalizedTargetLayer && sourceLayer === normalizedTargetLayer;
 	if (isSameGeometry && isSameLayer) {
-		showFeedbackToast("Bitte eine andere Flaeche waehlen.", "warning");
+		showFeedbackToast("Bitte eine andere Flaeche wählen.", "warning");
 		return null;
 	}
 

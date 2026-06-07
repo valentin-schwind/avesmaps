@@ -69,7 +69,7 @@ function startPathCreationAt(latlng) {
 	map.getContainer().classList.add("path-creation-cursor");
 	refreshAllLocationMarkerPopups();
 	map.on("click", handlePendingPathCreationClick);
-	showFeedbackToast(`Start: ${pendingPathCreationStart.name}. Punkte setzen, Ort verbinden oder mit Weg abschliessen beenden.`, "info");
+	showFeedbackToast(`Start: ${pendingPathCreationStart.name}. Punkte setzen, Ort verbinden oder mit Weg abschließen beenden.`, "info");
 }
 
 function startPathCreationFromLocation(location) {
@@ -85,7 +85,7 @@ function startPathCreationFromLocation(location) {
 	map.getContainer().classList.add("path-creation-cursor");
 	refreshAllLocationMarkerPopups();
 	map.on("click", handlePendingPathCreationClick);
-	showFeedbackToast(`Start: ${location.name}. Punkte setzen, Ort verbinden oder mit Weg abschliessen beenden.`, "info");
+	showFeedbackToast(`Start: ${location.name}. Punkte setzen, Ort verbinden oder mit Weg abschließen beenden.`, "info");
 }
 
 function appendPendingPathCreationLocation(location) {

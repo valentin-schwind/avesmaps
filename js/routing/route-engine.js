@@ -2,7 +2,7 @@ function getRouteSegments(route) {
 	return route
 		.map(({ connectionId }) => {
 			const segment = pathData.find((p) => p.properties.id === connectionId) || syntheticPathSegments.get(connectionId);
-			if (!segment) console.warn(`Kein Segment gefunden fuer Verbindung ${connectionId}`);
+			if (!segment) console.warn(`Kein Segment gefunden für Verbindung ${connectionId}`);
 			return segment;
 		})
 		.filter(Boolean);
@@ -337,7 +337,7 @@ function probeServerRouteForClientSegment(start, end, useShortest, clientRoute) 
 		return;
 	}
 	if (typeof calculateRouteServer !== "function") {
-		console.warn("Server-Routing-Probe uebersprungen: calculateRouteServer ist nicht verfuegbar.");
+		console.warn("Server-Routing-Probe übersprungen: calculateRouteServer ist nicht verfügbar.");
 		return;
 	}
 

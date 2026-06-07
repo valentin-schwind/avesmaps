@@ -94,7 +94,7 @@ function copyCurrentUrlToClipboard() {
 }
 
 // Direkter Teil-Link auf eine konkrete Stelle (Siedlung/Region) per ?place=<publicId>.
-// Sauberer Public-Link (ohne edit/Planner-State); beim Oeffnen fliegt die Karte hin und
+// Sauberer Public-Link (ohne edit/Planner-State); beim Öffnen fliegt die Karte hin und
 // triggert die Infobox (applyPlaceFocusFromUrl).
 function buildPlaceShareUrl(publicId) {
 	return `${window.location.origin}${window.location.pathname}?place=${encodeURIComponent(publicId)}`;

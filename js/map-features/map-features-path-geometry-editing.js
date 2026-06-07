@@ -86,7 +86,7 @@ function preparePathSplitContextMenu(nodeIndex, latlng, originalEvent = null) {
 
 	const latLngs = getActivePathLatLngs();
 	if (nodeIndex <= 0 || nodeIndex >= latLngs.length - 1) {
-		showFeedbackToast("Nur Zwischenknoten koennen einen Weg teilen.", "warning");
+		showFeedbackToast("Nur Zwischenknoten können einen Weg teilen.", "warning");
 		return;
 	}
 
@@ -181,7 +181,7 @@ async function finishPathNodeDrag(index, handle) {
 		latLngs[index] = handle._pathNodeOriginalLatLng || latLngs[index];
 		setActivePathLatLngs(latLngs);
 		refreshPathEditHandles();
-		showFeedbackToast("Endpunkte muessen auf Orte oder Kreuzungen einrasten.", "warning");
+		showFeedbackToast("Endpunkte müssen auf Orte oder Kreuzungen einrasten.", "warning");
 		return;
 	}
 
@@ -301,6 +301,6 @@ function startPathGeometryEdit(path, { showToast = true } = {}) {
 	refreshPathEditHandles();
 	map.on("dblclick", handleMapDoubleClickWhileEditingPath);
 	if (showToast) {
-		showFeedbackToast("Knoten ziehen. Doppelklick Linie fuegt Knoten hinzu, Doppelklick Knoten loescht ihn.", "info");
+		showFeedbackToast("Knoten ziehen. Doppelklick Linie fügt Knoten hinzu, Doppelklick Knoten löscht ihn.", "info");
 	}
 }

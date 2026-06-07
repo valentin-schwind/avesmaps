@@ -1,5 +1,5 @@
-// Landschafts-Picker fuer den Label-Editor: heftet eine Wiki-Region (natuerliche Landschaft)
-// an ein Karten-Label. Die Felder werden ins Label kopiert (properties.wiki_region) und koennen
+// Landschafts-Picker für den Label-Editor: heftet eine Wiki-Region (natuerliche Landschaft)
+// an ein Karten-Label. Die Felder werden ins Label kopiert (properties.wiki_region) und können
 // per „Sync" aus wiki_region_staging aufgefrischt werden — analog zum Herrschaftsgebiet-Picker.
 // Bewusst getrennt vom Herrschaftsgebiet-Dialog (region-edit).
 

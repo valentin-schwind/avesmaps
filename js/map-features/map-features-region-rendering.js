@@ -81,9 +81,9 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 
 	// Feature #2: abgeleitete Aussengrenze fuellt nur im eigenen Zoom-Band. Ausserhalb
 	// (derivedFillActive=false) oder bei sichtbaren Innengrenzen bleibt sie reine Kontur.
-	// Frontend: einheitliche Fuell-Deckkraft fuer politische Flaechen (POLITICAL_FRONTEND_FILL_OPACITY),
+	// Frontend: einheitliche Fuell-Deckkraft für politische Flaechen (POLITICAL_FRONTEND_FILL_OPACITY),
 	// damit nicht die unterschiedlichen per-Territorium-Deckkraefte (0.33/0.5/0.75) durchschlagen.
-	// Editor unveraendert (regionEntry.opacity); auf null setzen -> wieder per-Territorium.
+	// Editor unverändert (regionEntry.opacity); auf null setzen -> wieder per-Territorium.
 	const activeFillOpacity = (!IS_EDIT_MODE
 		&& regionEntry.source === "political_territory"
 		&& typeof POLITICAL_FRONTEND_FILL_OPACITY === "number"
@@ -94,12 +94,12 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 		? 0
 		: activeFillOpacity;
 
-	// Ebenenbasierter Linienstil fuer abgeleitete Aussengrenzen (Phase B, additiv).
-	// Faellt auf das bisherige Verhalten zurueck, wenn das Modul fehlt oder
+	// Ebenenbasierter Linienstil für abgeleitete Aussengrenzen (Phase B, additiv).
+	// Fällt auf das bisherige Verhalten zurück, wenn das Modul fehlt oder
 	// keinen Stil vorgibt (z. B. normale Quellgeometrien).
 	const levelLineStyle = window.AvesmapsBoundaryStyle?.lineStyleFor?.(regionEntry) || null;
 	// Abgeleitete Außengrenzen zeichnet jetzt das Canvas-Overlay (clip-inside); die
-	// SVG-Kontur der derived wird daher unterdrueckt (weight 0), Fuellung bleibt.
+	// SVG-Kontur der derived wird daher unterdrückt (weight 0), Fuellung bleibt.
 	// Ebenso Quellflaechen unter einer aktiven Innen-Derived (strokeHidden): nur Fuellung,
 	// keinen soliden Rand – das Canvas malt aussen solid + innen weiss-gestrichelt.
 	const weight = regionEntry.isDerivedGeometry || regionEntry.strokeHiddenByDerivedBoundary ? 0 : (levelLineStyle ? levelLineStyle.weight : 2);
@@ -107,7 +107,7 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 	// Frontend "Politisch": ein Source-Fragment eines Aggregats fuellt mit der AGGREGAT-Farbe
 	// (Farbe der Derived-Huelle des Territoriums), nicht mit seiner eigenen (tieferen) Farbe.
 	// So passt die angezeigte Flaechenfarbe zur angezeigten Hierarchie-Ebene (bei Zoom 0 die
-	// Reichsfarbe, nicht die Farbe der untersten Quellgeometrie). Edit-Modus unveraendert.
+	// Reichsfarbe, nicht die Farbe der untersten Quellgeometrie). Edit-Modus unverändert.
 	let resolvedFillColor = regionEntry.color;
 	if (!IS_EDIT_MODE && !regionEntry.isDerivedGeometry) {
 		const terrKey = String(regionEntry.territoryPublicId || "").trim();
@@ -214,9 +214,9 @@ function addRegionFeatureToMap(region, regionEntry) {
 	const visuallyHidden = shouldHideRegionForDerivedBoundary(region, regionEntry);
 	const polygonStyle = buildRegionPolygonStyle(regionEntry, region);
 	// Frontend "Politisch": nur die Aussengrenze (Derived-Huelle) eines Aggregats ist interaktiv.
-	// Source-Fragmente, fuer deren Territorium eine Derived-Huelle existiert, bekommen KEINEN eigenen
-	// Hover-Handler (sonst springt/flackert der Tooltip ueber die einzelnen Fuell-Fragmente). Blatt-
-	// Territorien ohne Derived bleiben ueber ihre Quellgeometrie interaktiv.
+	// Source-Fragmente, für deren Territorium eine Derived-Huelle existiert, bekommen KEINEN eigenen
+	// Hover-Handler (sonst springt/flackert der Tooltip über die einzelnen Fuell-Fragmente). Blatt-
+	// Territorien ohne Derived bleiben über ihre Quellgeometrie interaktiv.
 	const derivedByTerritoryForInteractivity = politicalRegionDerivedByTerritory || indexPoliticalRegionDerivedByTerritory();
 	const territoryKeyForInteractivity = String(regionEntry.territoryPublicId || "").trim();
 	const isAggregatedSourceFragment = !regionEntry.isDerivedGeometry
@@ -225,7 +225,7 @@ function addRegionFeatureToMap(region, regionEntry) {
 	// Der Hover soll die AKTIVE Anzeige-Ebene treffen (die, die bei diesem Zoom gezeigt/gelabelt wird),
 	// nicht eine tiefere/flachere. Zuverlaessigstes Signal ist das Zoom-Band (min/max_zoom, immer gesetzt;
 	// derived_fill_active fehlt bei Fallback-Geometrien). Nur Features, deren Band den aktuellen Zoom
-	// enthaelt, sind interaktiv.
+	// enthält, sind interaktiv.
 	const currentZoomForInteractivity = Math.round(Number(map.getZoom()));
 	const isAtActiveDisplayZoom = (regionEntry.minZoom === null || regionEntry.minZoom === undefined || Number(regionEntry.minZoom) <= currentZoomForInteractivity)
 		&& (regionEntry.maxZoom === null || regionEntry.maxZoom === undefined || Number(regionEntry.maxZoom) >= currentZoomForInteractivity);
@@ -251,12 +251,12 @@ function addRegionFeatureToMap(region, regionEntry) {
 			// keine Klicks/Vertex-Edits abfangen (sonst landet update_geometry auf einer
 			// Derived-ID -> "Geometrie nicht gefunden"). Klicks gehen an die Quellen.
 			// View-Modus + politisch: auch abgeleitete Aussengrenzen (Aggregate) interaktiv machen,
-			// damit die Hover-Infobox greift. Edit-Modus unveraendert (derived nicht-interaktiv,
+			// damit die Hover-Infobox greift. Edit-Modus unverändert (derived nicht-interaktiv,
 			// damit Klicks an die Quellgeometrien gehen).
 			// View-Modus: der Hover soll die AKTIVE Anzeige-Ebene treffen (die, die man auf der Karte
 			// sieht/gelabelt ist), nicht eine tiefere. Da pro Punkt mehrere Derived-Huellen verschiedener
-			// Baender uebereinanderliegen, ist nur die FUELLENDE/aktive Huelle (derivedFillActive) interaktiv.
-			// Source-Geometrien nur als echte Blaetter (keine Derived-Huelle fuers Territorium).
+			// Baender übereinanderliegen, ist nur die FUELLENDE/aktive Huelle (derivedFillActive) interaktiv.
+			// Source-Geometrien nur als echte Blaetter (keine Derived-Huelle fürs Territorium).
 			interactive: IS_EDIT_MODE
 				? !regionEntry.isDerivedGeometry
 				: (regionEntry.source === "political_territory"
@@ -286,7 +286,7 @@ function addRegionFeatureToMap(region, regionEntry) {
 		if (index === 0 && regionEntry.showRegionLabel !== false && !visuallyHidden && !territoryAlreadyLabeled && !deferLabelToDerived) {
 			if (territoryLabelKey !== "") politicalRegionLabeledTerritoryKeys.add(territoryLabelKey);
 			// Label-Anker = Pole of Inaccessibility (polylabel) der Feature-Geometrie: liegt in
-			// der "dicksten" Stelle (bei MultiPolygon im groessten Teil), auch bei konkaven Formen
+			// der "dicksten" Stelle (bei MultiPolygon im größten Teil), auch bei konkaven Formen
 			// sicher INNEN. Fallback: gespeicherter Wert, dann BBox-Mitte.
 			const labelPoi = typeof avesmapsComputeLabelPoint === "function"
 				? avesmapsComputeLabelPoint((derivedInfo && derivedInfo.geometry) ? derivedInfo.geometry : region.geometry)

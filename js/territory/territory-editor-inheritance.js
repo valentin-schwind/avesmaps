@@ -9,7 +9,7 @@
 		"inheritValidityToDescendantsCheckbox"
 	];
 
-	// Diese vererben an GESCHWISTER (gleiche Ebene) -> auch fuer unterste Breadcrumbs/Blaetter sinnvoll.
+	// Diese vererben an GESCHWISTER (gleiche Ebene) -> auch für unterste Breadcrumbs/Blaetter sinnvoll.
 	const SIBLING_CHECKBOX_IDS = ["inheritZoomToDescendantsCheckbox", "inheritOpacityToDescendantsCheckbox"];
 	let territoryRows = [];
 	let pendingColorPlan = null;
@@ -147,7 +147,7 @@
 	async function createColorPlan(checkCheckbox) {
 		const root = readRootSelection();
 		if (!root) {
-			setStatus("Kein aktives Herrschaftsgebiet ausgewaehlt.", "error");
+			setStatus("Kein aktives Herrschaftsgebiet ausgewählt.", "error");
 			return null;
 		}
 		await loadTerritories();
@@ -160,7 +160,7 @@
 		if (colorDescCbEnable) colorDescCbEnable.disabled = false;
 		if (checkCheckbox) document.getElementById("inheritColorToDescendantsCheckbox")?.click();
 		renderPreview(pendingColorPlan);
-		setStatus(descendants.length > 0 ? `Farbhierarchie vorbereitet: ${descendants.length} Unterregionen.` : "Keine Unterregionen fuer das aktive Breadcrumb gefunden.", descendants.length > 0 ? "pending" : "error");
+		setStatus(descendants.length > 0 ? `Farbhierarchie vorbereitet: ${descendants.length} Unterregionen.` : "Keine Unterregionen für das aktive Breadcrumb gefunden.", descendants.length > 0 ? "pending" : "error");
 		return pendingColorPlan;
 	}
 
@@ -322,14 +322,14 @@
 		};
 		rememberColor(rootPublicId, rootId, root.color);
 
-		// Geschwister je Elternknoten (fuer die Hue-Spreizung innerhalb einer Familie).
+		// Geschwister je Elternknoten (für die Hue-Spreizung innerhalb einer Familie).
 		const siblingsByParent = new Map();
 		for (const row of descendants) {
 			addToMapList(siblingsByParent, String(row.parentPublicId || row.parentId || "").trim(), row);
 		}
 
 		// Per-Level-Varianz: field[L] = HSV-Abweichung, mit der die KINDER eines Level-L-Knotens von
-		// ihrem Elternknoten streuen (Felder Hierarchie-Level 1-6). Die ausgewaehlte Ebene = activeIndex+1.
+		// ihrem Elternknoten streuen (Felder Hierarchie-Level 1-6). Die ausgewählte Ebene = activeIndex+1.
 		const levelVariances = readLevelVariances();
 		const selectedLevel = Math.max(1, (Number(root.activeIndex) || 0) + 1);
 		const varianceForAbsoluteLevel = (absoluteLevel) => levelVariances[Math.max(1, Math.min(6, absoluteLevel))];
@@ -389,7 +389,7 @@
 		return Math.round(min + Math.random() * (max - min));
 	}
 
-	// Leere/ungueltige Level-Felder mit einem zufaelligen Default aus ihrem Bereich fuellen.
+	// Leere/ungültige Level-Felder mit einem zufaelligen Default aus ihrem Bereich fuellen.
 	function prefillLevelVarianceDefaults() {
 		for (let level = 1; level <= 6; level += 1) {
 			const input = levelVarianceInput(level);
@@ -413,7 +413,7 @@
 	}
 
 	// Nur die Level-Felder aktiv lassen, die im aktiven Breadcrumb eine Rolle spielen: von der
-	// ausgewaehlten Ebene (activeIndex+1) bis zur tiefsten Breadcrumb-Ebene. Darueber/darunter -> disabled.
+	// ausgewählten Ebene (activeIndex+1) bis zur tiefsten Breadcrumb-Ebene. Darüber/darunter -> disabled.
 	function updateLevelVarianceFieldStates() {
 		const value = readAssignmentValue();
 		const path = Array.isArray(value?.assignedPath) ? value.assignedPath : [];
@@ -428,7 +428,7 @@
 	}
 
 	// Stellt sicher, dass keine zwei geplanten Farben exakt gleich sind: Kollisionen werden per
-	// Heuristik (Hue rotieren, Helligkeit leicht variieren) auf den naechstbesten freien Wert geschoben.
+	// Heuristik (Hue rotieren, Helligkeit leicht variieren) auf den nächstbesten freien Wert geschoben.
 	// Wurzel-/Spine-Farben (depth <= 1) bleiben unangetastet.
 	function ensureUniqueColors(updates) {
 		const colorUtils = getColorUtils();
@@ -479,7 +479,7 @@
 		if (!preview) return;
 		preview.hidden = false;
 		if (!plan || plan.updates.length < 1) {
-			preview.innerHTML = `<div class="deferred-subtree-empty">Keine Unterregionen fuer das aktive Breadcrumb gefunden.</div>`;
+			preview.innerHTML = `<div class="deferred-subtree-empty">Keine Unterregionen für das aktive Breadcrumb gefunden.</div>`;
 			return;
 		}
 		const byDepth = new Map();

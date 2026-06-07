@@ -4,8 +4,8 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta name="format-detection" content="telephone=no, address=no, email=no, date=no" />
-		<title>Avesmaps | Aventurien-Routenplaner fuer Das Schwarze Auge (DSA)</title>
-		<meta name="description" content="Avesmaps ist ein Aventurien-Routenplaner fuer Das Schwarze Auge (DSA) mit Orten, Wegen, politischer Karte, Reichsgrenzen und teilbaren Routen-URLs." />
+		<title>Avesmaps | Aventurien-Routenplaner für Das Schwarze Auge (DSA)</title>
+		<meta name="description" content="Avesmaps ist ein Aventurien-Routenplaner für Das Schwarze Auge (DSA) mit Orten, Wegen, politischer Karte, Reichsgrenzen und teilbaren Routen-URLs." />
 		<meta name="author" content="Valentin Schwind" />
 		<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 		<meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
@@ -41,7 +41,7 @@
 						"url": "https://avesmaps.de/",
 						"name": "Avesmaps",
 						"inLanguage": "de-DE",
-						"description": "Aventurien-Routenplaner fuer Das Schwarze Auge mit Orten, Wegen, politischen Grenzen und teilbaren Routen-URLs.",
+						"description": "Aventurien-Routenplaner für Das Schwarze Auge mit Orten, Wegen, politischen Grenzen und teilbaren Routen-URLs.",
 						"sameAs": ["https://github.com/valentin-schwind/avesmaps"],
 						"publisher": {
 							"@type": "Person",
@@ -59,7 +59,7 @@
 						"isAccessibleForFree": true,
 						"inLanguage": "de-DE",
 						"browserRequirements": "JavaScript erforderlich",
-						"description": "Aventurien-Routenplaner fuer Das Schwarze Auge mit politischer Karte, Routenplanung auf Basis eines gewichteten Graphen und teilbaren URLs.",
+						"description": "Aventurien-Routenplaner für Das Schwarze Auge mit politischer Karte, Routenplanung auf Basis eines gewichteten Graphen und teilbaren URLs.",
 						"image": "https://avesmaps.de/og-image.jpg",
 						"screenshot": "https://avesmaps.de/og-image.jpg",
 						"sameAs": ["https://github.com/valentin-schwind/avesmaps"],
@@ -70,7 +70,7 @@
 						},
 						"featureList": [
 							"Interaktive Aventurien-Karte mit Orten, Wegen und politischen Grenzen",
-							"Routenplanung fuer mehrere Wegpunkte",
+							"Routenplanung für mehrere Wegpunkte",
 							"Berechnung der schnellsten oder kuerzesten Route",
 							"Teilbare Routen und Einstellungen per URL"
 						],
@@ -93,7 +93,7 @@
 		<div id="map" style="width: 100%; height: 100%"></div>
 		<div id="map-context-menu" class="map-context-menu" hidden>
 			<div class="map-context-menu__group" data-context-action="add-here" hidden>
-				<button type="button" class="map-context-menu__item map-context-menu__item--submenu" data-context-action="add-here">Hier hinzufuegen</button>
+				<button type="button" class="map-context-menu__item map-context-menu__item--submenu" data-context-action="add-here">Hier hinzufügen</button>
 				<div class="map-context-submenu">
 					<button type="button" class="map-context-menu__item" data-context-action="create-location">Neuer Ort</button>
 					<button type="button" class="map-context-menu__item" data-context-action="create-location-from-wiki" hidden>Neuer Ort aus dem Wiki</button>
@@ -122,13 +122,13 @@
 			<button type="button" class="map-context-menu__item" data-region-context-action="difference-keep-target">Von anderem ausschneiden und anderes beibehalten</button>
 			<button type="button" class="map-context-menu__item" data-region-context-action="intersection">Neues von anderem ausschneiden</button>
 			<button type="button" class="map-context-menu__item" data-region-context-action="extract">Neues Gebiet herausloesen</button>
-			<button type="button" class="map-context-menu__item map-context-menu__item--danger" data-region-context-action="delete">Loeschen</button>
+			<button type="button" class="map-context-menu__item map-context-menu__item--danger" data-region-context-action="delete">Löschen</button>
 		</div>
 		<div id="political-territory-editor-overlay" class="political-territory-editor-overlay" hidden>
 			<div id="political-territory-editor-dialog" class="political-territory-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="political-territory-editor-title" tabindex="-1">
 				<div class="political-territory-editor-dialog__header">
 					<h2 id="political-territory-editor-title">Territoriumseditor</h2>
-					<button id="political-territory-editor-close" class="political-territory-editor-dialog__close" type="button" aria-label="Eigenschaften schliessen">×</button>
+					<button id="political-territory-editor-close" class="political-territory-editor-dialog__close" type="button" aria-label="Eigenschaften schließen">×</button>
 				</div>
 				<div id="political-territory-editor-host" class="political-territory-editor-dialog__frame" data-avesmaps-editor-host="1"></div>
 			</div>
@@ -173,7 +173,7 @@
 				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="paths">
 						<div class="wiki-sync-panel__actions">
 							<span id="path-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
-							<button id="path-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Wege neu crawlen (laeuft im Hintergrund)">WikiSync</button>
+							<button id="path-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Wege neu crawlen (läuft im Hintergrund)">WikiSync</button>
 								<progress id="path-sync-progress" class="wiki-sync-progress" max="1" value="0" style="flex:1 1 100%;width:100%" hidden></progress>
 						</div>
 						<div class="wiki-sync-panel__filter">
@@ -186,7 +186,7 @@
 						<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="regions">
 						<div class="wiki-sync-panel__actions">
 							<span id="region-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
-															<button id="region-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Regionen neu crawlen (laeuft im Hintergrund)">WikiSync</button>
+															<button id="region-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Regionen neu crawlen (läuft im Hintergrund)">WikiSync</button>
 								<progress id="region-sync-progress" class="wiki-sync-progress" max="1" value="0" style="flex:1 1 100%;width:100%" hidden></progress>
 						</div>
 						<div class="wiki-sync-panel__filter">
@@ -367,7 +367,7 @@
 			<div id="location-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="location-edit-title" tabindex="-1">
 				<div class="location-report-dialog__header">
 					<h2 id="location-edit-title">Siedlung bearbeiten</h2>
-					<button id="location-edit-close" class="location-report-dialog__close" type="button" aria-label="Siedlungsbearbeitung schliessen">×</button>
+					<button id="location-edit-close" class="location-report-dialog__close" type="button" aria-label="Siedlungsbearbeitung schließen">×</button>
 				</div>
 				<form id="location-edit-form" class="location-report-form" novalidate>
 					<input id="location-edit-public-id" name="public_id" type="hidden" />
@@ -457,7 +457,7 @@
 			<div id="wiki-sync-resolve-dialog" class="location-report-dialog wiki-sync-resolve-dialog" role="dialog" aria-modal="true" aria-labelledby="wiki-sync-resolve-title" tabindex="-1">
 				<div class="location-report-dialog__header">
 					<h2 id="wiki-sync-resolve-title">WikiSync-Fall lösen</h2>
-					<button id="wiki-sync-resolve-close" class="location-report-dialog__close" type="button" aria-label="WikiSync-Fall schliessen">×</button>
+					<button id="wiki-sync-resolve-close" class="location-report-dialog__close" type="button" aria-label="WikiSync-Fall schließen">×</button>
 				</div>
 				<form id="wiki-sync-resolve-form" class="location-report-form" novalidate>
 					<input id="wiki-sync-resolve-case-id" name="case_id" type="hidden" />
@@ -529,7 +529,7 @@
 			<div id="path-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="path-edit-title" tabindex="-1">
 				<div class="location-report-dialog__header">
 					<h2 id="path-edit-title">Weg bearbeiten</h2>
-					<button id="path-edit-close" class="location-report-dialog__close" type="button" aria-label="Wegbearbeitung schliessen">×</button>
+					<button id="path-edit-close" class="location-report-dialog__close" type="button" aria-label="Wegbearbeitung schließen">×</button>
 				</div>
 				<form id="path-edit-form" class="location-report-form" novalidate>
 					<input id="path-edit-public-id" name="public_id" type="hidden" /><div class="label-edit-section">
@@ -584,7 +584,7 @@
 			<div id="powerline-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="powerline-edit-title" tabindex="-1">
 				<div class="location-report-dialog__header">
 					<h2 id="powerline-edit-title">Kraftlinie bearbeiten</h2>
-					<button id="powerline-edit-close" class="location-report-dialog__close" type="button" aria-label="Kraftlinienbearbeitung schliessen">×</button>
+					<button id="powerline-edit-close" class="location-report-dialog__close" type="button" aria-label="Kraftlinienbearbeitung schließen">×</button>
 				</div>
 				<form id="powerline-edit-form" class="location-report-form" novalidate>
 					<input id="powerline-edit-public-id" name="public_id" type="hidden" />
@@ -599,7 +599,7 @@
 					<p id="powerline-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 					<div class="location-report-form__actions">
 						<button id="powerline-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
-						<button id="powerline-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Loeschen</button>
+						<button id="powerline-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Löschen</button>
 						<button id="powerline-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
 					</div>
 				</form>
@@ -609,7 +609,7 @@
 			<div id="label-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="label-edit-title" tabindex="-1">
 				<div class="location-report-dialog__header">
 					<h2 id="label-edit-title">Region bearbeiten</h2>
-					<button id="label-edit-close" class="location-report-dialog__close" type="button" aria-label="Labelbearbeitung schliessen">×</button>
+					<button id="label-edit-close" class="location-report-dialog__close" type="button" aria-label="Labelbearbeitung schließen">×</button>
 				</div>
 				<form id="label-edit-form" class="location-report-form" novalidate>
 					<input id="label-edit-public-id" name="public_id" type="hidden" />
@@ -671,7 +671,7 @@
 						</div>
 						<p id="label-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 					<div class="location-report-form__actions">
-						<button id="label-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Loeschen</button>
+						<button id="label-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Löschen</button>
 						<button id="label-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
 						<button id="label-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
 					</div>
@@ -682,7 +682,7 @@
 			<div id="region-edit-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="region-edit-title" tabindex="-1">
 				<div class="location-report-dialog__header">
 					<h2 id="region-edit-title">Herrschaftsgebiet bearbeiten</h2>
-					<button id="region-edit-close" class="location-report-dialog__close" type="button" aria-label="Herrschaftsgebiet schliessen">×</button>
+					<button id="region-edit-close" class="location-report-dialog__close" type="button" aria-label="Herrschaftsgebiet schließen">×</button>
 				</div>
 				<form id="region-edit-form" class="location-report-form political-territory-tree-form" novalidate>
 					<input id="region-edit-public-id" name="public_id" type="hidden" />
@@ -795,7 +795,7 @@
 					</label>
 					<p id="region-edit-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 					<div class="location-report-form__actions">
-						<button id="region-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Loeschen</button>
+						<button id="region-edit-delete" class="location-report-form__button location-report-form__button--secondary" type="button">Löschen</button>
 						<button id="region-edit-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
 						<button id="region-edit-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern</button>
 					</div>
@@ -806,7 +806,7 @@
 			<div id="region-wiki-picker-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="region-wiki-picker-title" tabindex="-1">
 				<div class="location-report-dialog__header">
 					<h2 id="region-wiki-picker-title">Wiki-Referenz ändern</h2>
-					<button id="region-wiki-picker-close" class="location-report-dialog__close" type="button" aria-label="Wiki-Referenz schliessen">×</button>
+					<button id="region-wiki-picker-close" class="location-report-dialog__close" type="button" aria-label="Wiki-Referenz schließen">×</button>
 				</div>
 				<div class="location-report-form">
 					<label class="location-report-form__field">

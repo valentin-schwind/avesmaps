@@ -12,7 +12,7 @@ function locationPopupActionsMarkup(actionButtons = []) {
 }
 
 // "Link teilen": kopiert einen direkten ?place=<publicId>-Link auf diese Stelle (Siedlung/Region),
-// der beim Oeffnen hinfliegt und die Infobox triggert. Sichtbar in beiden Modi.
+// der beim Öffnen hinfliegt und die Infobox triggert. Sichtbar in beiden Modi.
 function sharePlaceActionButtonMarkup(publicId) {
 	if (!publicId) {
 		return "";
@@ -162,7 +162,7 @@ function pathCreationActionButtonsMarkup(publicId) {
 				},
 			}),
 			popupActionButtonMarkup({
-				label: "Weg abschliessen",
+				label: "Weg abschließen",
 				attributes: {
 					"data-popup-action": "finish-path-at-location",
 					"data-public-id": publicId,
@@ -212,7 +212,7 @@ function locationActionsMarkup(name, publicId, location = null) {
 		} : null))) {
 			actionButtons.push(
 				popupActionButtonMarkup({
-					label: pendingPowerlineCreationStart ? "Kraftlinie abschliessen" : "Neue Kraftlinie",
+					label: pendingPowerlineCreationStart ? "Kraftlinie abschließen" : "Neue Kraftlinie",
 					attributes: {
 						"data-popup-action": pendingPowerlineCreationStart ? "finish-powerline-at-location" : "start-powerline-from-location",
 						"data-public-id": publicId,
@@ -242,7 +242,7 @@ function locationActionsMarkup(name, publicId, location = null) {
 		);
 		actionButtons.push(
 			popupActionButtonMarkup({
-				label: "Ort loeschen",
+				label: "Ort löschen",
 				className: "location-popup__action-button--danger",
 				attributes: {
 					"data-popup-action": "delete-location",
@@ -271,7 +271,7 @@ function crossingActionsMarkup(name, publicId) {
 		}),
 		...pathCreationActionButtonsMarkup(publicId),
 		popupActionButtonMarkup({
-			label: pendingPowerlineCreationStart ? "Kraftlinie abschliessen" : "Neue Kraftlinie",
+			label: pendingPowerlineCreationStart ? "Kraftlinie abschließen" : "Neue Kraftlinie",
 			attributes: {
 				"data-popup-action": pendingPowerlineCreationStart ? "finish-powerline-at-location" : "start-powerline-from-location",
 				"data-public-id": publicId,
@@ -286,7 +286,7 @@ function crossingActionsMarkup(name, publicId) {
 			},
 		}),
 		popupActionButtonMarkup({
-			label: "Kreuzung loeschen",
+			label: "Kreuzung löschen",
 			className: "location-popup__action-button--danger",
 			attributes: {
 				"data-popup-action": "delete-location",
@@ -306,7 +306,7 @@ function labelActionsMarkup(publicId) {
 	if (isEligiblePowerlineEndpoint(getPowerlineEndpointByPublicId(publicId))) {
 		actionButtons.push(
 			popupActionButtonMarkup({
-				label: pendingPowerlineCreationStart ? "Kraftlinie abschliessen" : "Neue Kraftlinie",
+				label: pendingPowerlineCreationStart ? "Kraftlinie abschließen" : "Neue Kraftlinie",
 				attributes: {
 					"data-popup-action": pendingPowerlineCreationStart ? "finish-powerline-at-location" : "start-powerline-from-location",
 					"data-public-id": publicId,
@@ -339,7 +339,7 @@ function labelActionsMarkup(publicId) {
 			},
 		}),
 		popupActionButtonMarkup({
-			label: "Label loeschen",
+			label: "Label löschen",
 			className: "location-popup__action-button--danger",
 			attributes: {
 				"data-popup-action": "delete-label",

@@ -163,8 +163,8 @@
 		// Den tatsaechlich aktiven (im Breadcrumb hervorgehobenen) Knoten bevorzugen: nach dem
 		// Durchwechseln eines Breadcrumb-Geschwisters (cycleBreadcrumbSegment) liegt dieser Knoten
 		// in einem ANDEREN Teilbaum als der zugewiesene Pfad. readRootSelection/readActiveNode sucht
-		// den aktiven Knoten dann im (stalen) assignedPath, findet ihn nicht und faellt auf dessen
-		// tiefsten Knoten zurueck -> die Vorschau zeigte eine fremde Unterregion. activeDisplayNode
+		// den aktiven Knoten dann im (stalen) assignedPath, findet ihn nicht und fällt auf dessen
+		// tiefsten Knoten zurück -> die Vorschau zeigte eine fremde Unterregion. activeDisplayNode
 		// spiegelt dagegen zuverlaessig den editierten/hervorgehobenen Knoten.
 		const active = value?.activeDisplayNode || null;
 		const activeKey = normalizeText(
@@ -242,7 +242,7 @@
 		updateModeNote();
 	}
 
-	// Erklaert im Info-Feld unter den Haekchen den konkreten Fall des aktiven Knotens.
+	// Erklärt im Info-Feld unter den Haekchen den konkreten Fall des aktiven Knotens.
 	function updateModeNote() {
 		const note = document.querySelector(".derived-geometry-mode-note");
 		if (!note) return;
@@ -327,7 +327,7 @@
 			if (state.sourceGeometries.length > 0) setPreviewVisible(true);
 			renderPreview();
 		} catch (error) {
-			console.warn("Quellgeometrien fuer die Vorschau konnten nicht geladen werden:", error);
+			console.warn("Quellgeometrien für die Vorschau konnten nicht geladen werden:", error);
 		}
 	}
 

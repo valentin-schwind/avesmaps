@@ -316,9 +316,9 @@ async function assignWikiSyncTerritoryPayloadToRegionGeometry(payload, regionEnt
 		validity: assignmentValue.validity,
 	});
 	await syncPoliticalTerritoryEditorAssignmentZooms(assignmentValue);
-	// Ein aktiver Geometrie-Edit unterdrueckt sonst den Re-Render im Layer-Reload
+	// Ein aktiver Geometrie-Edit unterdrückt sonst den Re-Render im Layer-Reload
 	// (loadPoliticalTerritoryLayer bricht bei activeRegionGeometryEdit vor dem Neuzeichnen ab),
-	// sodass das Label den alten/generischen Namen behaelt bis zum naechsten Render.
+	// sodass das Label den alten/generischen Namen behaelt bis zum nächsten Render.
 	if (typeof clearRegionGeometryEdit === "function") clearRegionGeometryEdit();
 	refreshPoliticalTerritoryEditorMapLayer();
 	await refreshWikiSyncTerritoryTreeAfterAssignment();
@@ -345,7 +345,7 @@ async function assignWikiSyncTerritoryPayloadInsideLegacyEditor(payload) {
 	storeRegionAssignmentBreadcrumbCaches(path, response.chain || [], selectedTerritoryId);
 	await activatePrimaryRegionEditTabForTerritory(selectedTerritoryId);
 	renderRegionAssignment(path, regionAssignmentEnsuredChain, selectedTerritoryId);
-	setRegionEditStatus("Herrschaftsgebiet zugewiesen. Speichern uebernimmt die Geometrie dauerhaft.", "success");
+	setRegionEditStatus("Herrschaftsgebiet zugewiesen. Speichern übernimmt die Geometrie dauerhaft.", "success");
 	return true;
 }
 

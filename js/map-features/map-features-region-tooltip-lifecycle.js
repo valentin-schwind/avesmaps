@@ -5,7 +5,7 @@ function bindRegionCompactTooltip(polygon, regionEntry) {
 		L.DomEvent.stop(event);
 
 		if (!IS_EDIT_MODE) {
-			// Single-Klick: NUR Infobox oeffnen (KEINE Ansichtsverschiebung). Kurz verzoegert,
+			// Single-Klick: NUR Infobox öffnen (KEINE Ansichtsverschiebung). Kurz verzoegert,
 			// damit ein Doppelklick (verschieben + zoomen) ihn abbricht und keine Infobox aufpoppt.
 			if (regionSingleClickTimer) {
 				window.clearTimeout(regionSingleClickTimer);
@@ -43,7 +43,7 @@ function openRegionCompactTooltip(regionEntry, options = {}) {
 		opacity: 1,
 		className: "region-compact-tooltip",
 		// Hover-Infobox ist nicht-interaktiv (pointer-events: none), damit der Cursor "durch"
-		// den Tooltip auf das Polygon faellt und kein mouseout/mouseover-Flackern entsteht.
+		// den Tooltip auf das Polygon fällt und kein mouseout/mouseover-Flackern entsteht.
 		interactive: options.interactive !== false,
 	})
 		.setLatLng(options.latlng || getRegionTooltipLatLng(regionEntry))
@@ -55,10 +55,10 @@ function openRegionCompactTooltip(regionEntry, options = {}) {
 	enrichRegionTooltipWithWikiDetail(regionEntry, tooltip);
 }
 
-// Klappt die Hover-Infobox nach UNTEN, wenn ueber dem Ankerpunkt im Kartenfenster nicht genug
+// Klappt die Hover-Infobox nach UNTEN, wenn über dem Ankerpunkt im Kartenfenster nicht genug
 // Platz ist (sie sonst oben aus dem Fenster stossen wuerde). Misst die tatsaechliche Tooltip-
 // Hoehe und vergleicht sie mit dem Abstand des Ankers zur oberen Kartenkante. Wird nach dem
-// ersten Render UND nach dem asynchronen Wiki-Detail-Nachladen (Hoehe aendert sich) aufgerufen.
+// ersten Render UND nach dem asynchronen Wiki-Detail-Nachladen (Hoehe ändert sich) aufgerufen.
 function applyRegionTooltipVerticalFlip(tooltip) {
 	if (!tooltip || typeof tooltip.getElement !== "function") {
 		return;
@@ -86,7 +86,7 @@ function applyRegionTooltipVerticalFlip(tooltip) {
 // Hover-Highlight: faerbt alle Polygone der Region unter der Maus fast weiss (Werte in config.js)
 // und stellt beim Verlassen den vorherigen Stil wieder her. Nur sichtbare Fuellungen.
 // Eigener Pane oberhalb des Boundary-Canvas (z350), damit die weisse Hover-Flaeche
-// UEBER den Aussen-/Innengrenzen liegt (unter Labels 475 / Markern 500).
+// Über den Aussen-/Innengrenzen liegt (unter Labels 475 / Markern 500).
 function ensureRegionHoverPane() {
 	if (typeof map === "undefined" || !map || typeof map.createPane !== "function") {
 		return null;
@@ -143,7 +143,7 @@ function applyRegionHoverHighlight(regionEntry) {
 	const group = L.layerGroup();
 	let count = 0;
 	// 1) Bevorzugt die VOLLE Aggregat-Huelle (Derived) -> faerbt das ganze aggregierte Gebiet
-	//    (inkl. Luecken zwischen Kindern, ueber den Aussengrenzen), Loecher/Enklaven als Innenringe.
+	//    (inkl. Luecken zwischen Kindern, über den Aussengrenzen), Loecher/Enklaven als Innenringe.
 	const derivedIndex = (typeof politicalRegionDerivedByTerritory !== "undefined" && politicalRegionDerivedByTerritory)
 		? politicalRegionDerivedByTerritory
 		: (typeof indexPoliticalRegionDerivedByTerritory === "function" ? indexPoliticalRegionDerivedByTerritory() : null);
@@ -186,8 +186,8 @@ function clearRegionHoverHighlight() {
 	}
 }
 
-// Frontend "Politisch": beim Drueberfahren ueber eine Region die Wiki-Infobox zeigen
-// (anchored am Regions-Mittelpunkt, nicht-interaktiv), beim Verlassen wieder schliessen.
+// Frontend "Politisch": beim Drüberfahren über eine Region die Wiki-Infobox zeigen
+// (anchored am Regions-Mittelpunkt, nicht-interaktiv), beim Verlassen wieder schließen.
 // Welche Hierarchie-Ebene reagiert, ergibt sich automatisch aus dem Zoom-Band der Daten
 // (bei Zoom 2 ist nur das Herzogtum-Aggregat sichtbar, nicht die Baronie).
 function bindRegionHoverTooltip(polygon, regionEntry) {
@@ -196,7 +196,7 @@ function bindRegionHoverTooltip(polygon, regionEntry) {
 	}
 	polygon.on("mouseover", () => {
 		// Dynamische Absicherung: nur die AKTIVE Anzeige-Ebene zeigen, deren Zoom-Band den aktuellen
-		// Zoom enthaelt. Schuetzt gegen veraltete interactive-Flags (falls der Layer nach einem Zoom
+		// Zoom enthält. Schuetzt gegen veraltete interactive-Flags (falls der Layer nach einem Zoom
 		// noch nicht neu geladen hat) -> es wird nie die Infobox einer tieferen/flacheren Ebene gezeigt.
 		const zoom = Math.round(Number(map.getZoom()));
 		const minZ = regionEntry.minZoom, maxZ = regionEntry.maxZoom;
@@ -215,7 +215,7 @@ function bindRegionHoverTooltip(polygon, regionEntry) {
 
 // #5: laedt die reichhaltigen Wiki-Zusatzfelder (Oberhaupt/Sprache/Waehrung/Einwohner/Gruender/
 // Herrschaftsform/Handelswaren/Geographisch) + das lizenz-gegatete Wappen aus dem Detail-Endpoint
-// nach und rendert den Tooltip neu. Nur fuer Wiki-Infoboxen mit bekanntem Territorium.
+// nach und rendert den Tooltip neu. Nur für Wiki-Infoboxen mit bekanntem Territorium.
 function enrichRegionTooltipWithWikiDetail(regionEntry, tooltip) {
 	if (!hasRegionWikiInfo(regionEntry) || regionEntry.detail) {
 		return;
@@ -250,7 +250,7 @@ function getRegionTooltipLatLng(regionEntry) {
 	return regionEntry.label?.getLatLng?.() || bounds?.getCenter?.() || regionEntry.layer?.getBounds?.().getCenter?.() || map.getCenter();
 }
 
-// Entfernt die temporaere Einzel-Markierung (Spotlight) fuer einen angeklickten Ort wieder.
+// Entfernt die temporaere Einzel-Markierung (Spotlight) für einen angeklickten Ort wieder.
 function clearRegionPlaceSpotlight() {
 	if (activeRegionPlaceSpotlightMarker) {
 		map.removeLayer(activeRegionPlaceSpotlightMarker);
@@ -280,7 +280,7 @@ function focusRegionPlace(publicId) {
 
 	if (typeof isLocationTypeVisible === "function" && isLocationTypeVisible(markerEntry.locationType)) {
 		// Kategorie ist an: der echte Marker wird nach dem Flug (Zielzoom >= 4) ohnehin angezeigt.
-		// Dann KEINE temporaere Markierung setzen (sonst doppelt), sondern danach sein Popup oeffnen.
+		// Dann KEINE temporaere Markierung setzen (sonst doppelt), sondern danach sein Popup öffnen.
 		map.once("moveend", () => {
 			if (!map.hasLayer(markerEntry.marker)) {
 				map.addLayer(markerEntry.marker);
@@ -292,7 +292,7 @@ function focusRegionPlace(publicId) {
 
 	// Der Ort ist ausgeblendet (Kategorie aus). Eine temporaere Einzel-Markierung mit DEMSELBEN
 	// Stadtsymbol setzen, deren Popup die Siedlungs-Infobox zeigt. Sie liegt NICHT in locationMarkers,
-	// daher entfernt syncLocationMarkerVisibility sie nicht; beim Schliessen der Infobox (popupclose)
+	// daher entfernt syncLocationMarkerVisibility sie nicht; beim Schließen der Infobox (popupclose)
 	// verschwindet sie wieder.
 	const spotlight = L.marker(latlng, {
 		icon: createLocationMarkerIcon(markerEntry.locationType, targetZoom),

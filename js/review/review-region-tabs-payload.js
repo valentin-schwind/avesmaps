@@ -54,7 +54,7 @@ function renderRegionEditTabs() {
 			closeButton.type = "button";
 			closeButton.className = "political-territory-tabs__close";
 			closeButton.dataset.regionEditTabClose = tab.key;
-			closeButton.setAttribute("aria-label", "Tab schliessen");
+			closeButton.setAttribute("aria-label", "Tab schließen");
 			closeButton.textContent = "x";
 			tabElement.append(closeButton);
 		}

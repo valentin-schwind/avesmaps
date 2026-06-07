@@ -1,7 +1,7 @@
-// Review-Reiter „Regionen" — WikiSync fuer natuerliche Landschaften (Regionen).
+// Review-Reiter „Regionen" — WikiSync für natuerliche Landschaften (Regionen).
 // Schlanke, eigene Surface: matcht die Wiki-Regionen (Staging) gegen die Karten-Label-
-// Regionen und zeigt v.a. „fehlt auf Karte". Der Crawl laeuft per Button im Hintergrund
-// (start_run + crawl_step-Schleife), damit keine Konsole noetig ist. Read-only fuer die Karte.
+// Regionen und zeigt v.a. „fehlt auf Karte". Der Crawl läuft per Button im Hintergrund
+// (start_run + crawl_step-Schleife), damit keine Konsole noetig ist. Read-only für die Karte.
 
 const REGION_SYNC_API_URL = "/api/edit/wiki/regions.php";
 let regionSyncData = null;
@@ -279,7 +279,7 @@ function focusRegionLabelOnMap(publicId) {
 }
 
 // Drop einer „fehlenden" Wiki-Region auf die Karte: vollen Datensatz holen, Label-Editor
-// vorbefuellt oeffnen (Name/Art/Position/Wiki-Zuordnung); Speichern legt das Label an.
+// vorbefuellt öffnen (Name/Art/Position/Wiki-Zuordnung); Speichern legt das Label an.
 let regionSyncDragWikiKey = "";
 let regionMapDropReady = false;
 

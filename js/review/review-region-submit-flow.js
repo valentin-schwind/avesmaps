@@ -72,7 +72,7 @@ async function handleRegionEditFormSubmit(event) {
 		return;
 	}
 	if (payload.source !== "political_territory" && !isSqlMapFeatureId(payload.public_id)) {
-		setRegionEditStatus("Diese Region hat keine gueltige SQL-ID. Bitte die SQL-Karte neu laden.", "error");
+		setRegionEditStatus("Diese Region hat keine gültige SQL-ID. Bitte die SQL-Karte neu laden.", "error");
 		return;
 	}
 	try {

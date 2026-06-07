@@ -32,7 +32,7 @@ function getRegionLabelOffsetCandidates() {
 
 // Ein Label-Offset ist ein reiner CSS-Pixel-Translate (.region-label__content bzw. die
 // per left/top verschobene Orts-Label-span). Die verschobene Box ist also die gemessene
-// Box, nur um (dx, dy) verschoben -> wir koennen Kandidaten in JS berechnen, statt nach
+// Box, nur um (dx, dy) verschoben -> wir können Kandidaten in JS berechnen, statt nach
 // jedem Offset erneut getBoundingClientRect aufzurufen (Layout-Thrashing, ~12k erzwungene
 // Reflows pro Zoom). measure-once -> rechnen -> einmal schreiben.
 function translateLabelRect(rect, dx, dy) {
@@ -56,7 +56,7 @@ function resolveRegionLabelCollisions() {
 		return;
 	}
 
-	// Schreibphase 1: alle Offsets auf 0 zuruecksetzen, damit die Basis-Box bei Offset 0 gemessen wird.
+	// Schreibphase 1: alle Offsets auf 0 zurücksetzen, damit die Basis-Box bei Offset 0 gemessen wird.
 	entries.forEach(({ element }) => setLabelElementOffset(element, 0, 0));
 
 	// Lesephase: jede Box GENAU EINMAL messen (gebatcht -> ein Reflow statt tausender).
@@ -91,7 +91,7 @@ function resolveRegionLabelCollisions() {
 			}
 		});
 
-	// Schreibphase 2: alle gewaehlten Offsets in einem Rutsch anwenden (kein Reflow bis zum naechsten Lesen).
+	// Schreibphase 2: alle gewählten Offsets in einem Rutsch anwenden (kein Reflow bis zum nächsten Lesen).
 	writes.forEach(({ element, dx, dy }) => setLabelElementOffset(element, dx, dy));
 }
 
@@ -235,14 +235,14 @@ function resolveLabelCollisions() {
 	const visibleEntries = getCollisionEntries();
 	const offsetCandidates = getLabelOffsetCandidates();
 
-	// Schreibphase 1: alle Offsets zuruecksetzen, damit die Basis-Box bei Offset 0 gemessen wird.
+	// Schreibphase 1: alle Offsets zurücksetzen, damit die Basis-Box bei Offset 0 gemessen wird.
 	visibleEntries.forEach(({ element }) => {
 		element.classList.remove("is-colliding");
 		setLabelElementOffset(element, 0, 0);
 	});
 
 	// Lesephase: jedes Label GENAU EINMAL messen + Kandidaten vorberechnen (gebatcht -> ein Reflow
-	// statt N x Kandidaten erzwungener Reflows). Kandidaten werden anschliessend rein in JS getestet.
+	// statt N x Kandidaten erzwungener Reflows). Kandidaten werden anschließend rein in JS getestet.
 	const measured = visibleEntries
 		.sort((left, right) => {
 			const priorityDiff = right.priority - left.priority;
@@ -287,7 +287,7 @@ function resolveLabelCollisions() {
 		}
 	});
 
-	// Schreibphase 2: gewaehlte Offsets + Kollisions-Klasse in einem Rutsch anwenden.
+	// Schreibphase 2: gewählte Offsets + Kollisions-Klasse in einem Rutsch anwenden.
 	writes.forEach(({ element, isLocation, baseOffset, candidate, colliding }) => {
 		setLabelElementChosenOffset(element, isLocation, baseOffset, candidate);
 		if (colliding) {
