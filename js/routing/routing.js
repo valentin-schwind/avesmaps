@@ -1017,9 +1017,10 @@ const addTooltip = (loc, {
 		const popup = L.popup({
 			autoClose: false,
 			closeOnClick: false,
-			// Mindestbreite, damit die Mini-Box "Aus Route entfernen" + "Mehr anzeigen" ohne Umbruch
-			// nebeneinander zeigt; nach oben genug Platz fuer die ausgeklappte volle Infobox.
-			minWidth: 300,
+			// Mindestbreite, damit die Mini-Box "Aus Route entfernen" + "Mehr anzeigen" einzeilig
+			// nebeneinander zeigt (Buttons in natuerlicher Breite); nach oben genug Platz fuer die
+			// ausgeklappte volle Infobox.
+			minWidth: 340,
 			maxWidth: 400,
 			className: "route-waypoint-popup",
 		})

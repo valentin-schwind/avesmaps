@@ -76,9 +76,15 @@
 }
 
 /* Route-Wegpunkt-Popup: Aktions-Buttons ("Aus Route entfernen" + "Mehr anzeigen")
-   nicht umbrechen -- die Box bekommt per minWidth genug Breite. */
+   nebeneinander, jeder einzeilig (kein interner Text-Umbruch, kein Schrumpfen) --
+   die Box bekommt per minWidth genug Breite. */
 .route-waypoint-popup .location-popup__actions {
 	flex-wrap: nowrap;
+}
+
+.route-waypoint-popup .location-popup__action-button {
+	flex-shrink: 0;
+	white-space: nowrap;
 }
 
 .location-popup__description {
