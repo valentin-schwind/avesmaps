@@ -344,19 +344,13 @@
 .wiki-sync-accordion__summary:hover {
 	background: #f3e8db;
 }
-/* Ausgeklappt: Hoehe deckeln, Fall-Liste scrollt intern. */
+/* Ausgeklappt: Block-Layout (KEIN Flex/keine feste Hoehe am <details> -> vermeidet die
+   <details>-Flex-Quirks, bei denen der Body nicht schrumpft und der Zieh-Balken weggeclippt wird).
+   Die Hoehe regelt die Fall-Liste (#wiki-sync-case-list); der Balken liegt im Fluss direkt darunter
+   und bleibt deshalb immer sichtbar. flex: 0 0 auto, damit der Flex-Eltern die Box nicht staucht. */
 .wiki-sync-accordion[open] {
-	display: flex;
-	flex-direction: column;
-	/* Hoehe per sichtbarem Zieh-Balken am unteren Rand (.wiki-sync-accordion__resizer + JS) anpassbar.
-	   Kompakter Default; ziehst du den Balken runter, fuellt die Fall-Liste die Hoehe (scrollt intern). */
-	overflow: hidden;
-	/* flex-shrink: 0 -> der Flex-Eltern darf die Box NICHT auf min-height stauchen, sonst greift
-	   die gezogene Hoehe nicht (die Siedlungsliste darunter schrumpft/scrollt stattdessen). */
+	display: block;
 	flex: 0 0 auto;
-	height: 120px;
-	min-height: 92px;
-	max-height: 85vh;
 }
 
 /* Sichtbarer Zieh-Balken am unteren Rand des Accordions (= der Trenner unter den Status-Buttons). */
@@ -387,19 +381,15 @@
 .wiki-sync-accordion__body {
 	border-top: 1px solid #e7d8c6;
 	padding-top: 8px;
-	display: flex;
-	flex: 1 1 auto;
-	flex-direction: column;
-	min-height: 0;
-	overflow: hidden;
 }
 .wiki-sync-accordion__body > .wiki-sync-substatus,
 .wiki-sync-accordion__body > .wiki-sync-panel__filter {
 	flex: 0 0 auto;
 }
 .wiki-sync-accordion__body > #wiki-sync-case-list {
-	/* Fuellt die (per Accordion-Resize) gezogene Hoehe und scrollt intern. */
-	flex: 1 1 auto;
+	/* Eigene, per Zieh-Balken anpassbare Hoehe; scrollt intern (.review-panel__list overflow:auto).
+	   Der Zieh-Balken liegt im Fluss direkt darunter -> immer sichtbar, auch wenn die Liste klein ist. */
+	height: 220px;
 	min-height: 0;
 }
 

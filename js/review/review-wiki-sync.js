@@ -1750,8 +1750,8 @@ async function handleWikiSyncResolveFormSubmit(event) {
 // Accordion-Hoehe per Drag; die Fall-Liste fuellt die Hoehe und scrollt intern.
 (function initWikiSyncAccordionResizer() {
 	let drag = null;
-	const MIN_HEIGHT = 92;
-	const maxHeight = () => Math.max(MIN_HEIGHT, Math.round(window.innerHeight * 0.85));
+	const MIN_HEIGHT = 0;
+	const maxHeight = () => Math.round(window.innerHeight * 0.8);
 
 	document.addEventListener("pointerdown", (event) => {
 		const handle = event.target instanceof Element ? event.target.closest(".wiki-sync-accordion__resizer") : null;
@@ -1759,11 +1759,12 @@ async function handleWikiSyncResolveFormSubmit(event) {
 			return;
 		}
 		const accordion = handle.closest(".wiki-sync-accordion");
-		if (!accordion || !accordion.hasAttribute("open")) {
+		const list = accordion ? accordion.querySelector("#wiki-sync-case-list") : null;
+		if (!list) {
 			return;
 		}
 		event.preventDefault();
-		drag = { accordion, startY: event.clientY, startHeight: accordion.getBoundingClientRect().height };
+		drag = { list, startY: event.clientY, startHeight: list.getBoundingClientRect().height };
 		try { handle.setPointerCapture(event.pointerId); } catch (error) { /* egal */ }
 		document.body.style.userSelect = "none";
 	});
@@ -1773,7 +1774,7 @@ async function handleWikiSyncResolveFormSubmit(event) {
 			return;
 		}
 		const next = drag.startHeight + (event.clientY - drag.startY);
-		drag.accordion.style.height = Math.max(MIN_HEIGHT, Math.min(maxHeight(), next)) + "px";
+		drag.list.style.height = Math.max(MIN_HEIGHT, Math.min(maxHeight(), next)) + "px";
 	});
 
 	const endDrag = () => {
