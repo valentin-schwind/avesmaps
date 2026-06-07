@@ -319,6 +319,8 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
+	min-height: 48px;
+	box-sizing: border-box;
 	padding: 8px 10px;
 	font-size: 12px;
 	font-weight: 700;
@@ -342,9 +344,27 @@
 .wiki-sync-accordion__summary:hover {
 	background: #f3e8db;
 }
+/* Ausgeklappt: Hoehe deckeln, Fall-Liste scrollt intern. */
+.wiki-sync-accordion[open] {
+	display: flex;
+	flex-direction: column;
+	max-height: 60vh;
+}
 .wiki-sync-accordion__body {
 	border-top: 1px solid #e7d8c6;
 	padding-top: 8px;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	overflow: hidden;
+}
+.wiki-sync-accordion__body > .wiki-sync-substatus,
+.wiki-sync-accordion__body > .wiki-sync-panel__filter {
+	flex: 0 0 auto;
+}
+.wiki-sync-accordion__body > #wiki-sync-case-list {
+	flex: 1 1 auto;
+	min-height: 96px;
 }
 
 /* Typ-Filter-Dropdown (Mehrfachauswahl) neben den Suchfeldern. */
