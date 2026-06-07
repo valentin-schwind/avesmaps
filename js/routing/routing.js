@@ -987,21 +987,23 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 		});
 	}
 
-	// Typ-Zeile (z.B. "Dorf") wie in der grossen Infobox; aus dem Marker, sonst aus loc.
-	const compactTypeLabel = (markerEntry && markerEntry.location && markerEntry.location.locationTypeLabel) || loc.locationTypeLabel || "";
+	// Struktur wie die grosse Infobox: Kopf (Name + Typ) -> Wiki-Link als region-info-box--settlement
+	// -> Aktions-Buttons. Den Trenner liefert die CSS-Regel "region-info-box--settlement + actions"
+	// (kein eigener Divider, kein --compact).
+	const routeTypeLabel = (markerEntry && markerEntry.location && markerEntry.location.locationTypeLabel) || loc.locationTypeLabel || "";
+	const wikiLinkResolved = typeof getWikiLocationLink === "function" ? getWikiLocationLink(loc.name, loc.wikiUrl) : null;
+	const wikiInfoBox = (wikiLinkResolved && wikiLinkResolved.url)
+		? `<div class="region-info-box region-info-box--settlement"><a class="region-info-box__link" href="${escapeHtml(wikiLinkResolved.url)}" target="_blank" rel="noopener">${escapeHtml(loc.name)} im Wiki-Aventurica ↗</a></div>`
+		: "";
 	return locationPopupMarkup({
 		name: loc.name,
 		locationType: loc.locationType,
-		locationTypeLabel: compactTypeLabel,
-		compact: true,
-		showType: Boolean(compactTypeLabel),
-		showDivider: Boolean(compactTypeLabel),
+		locationTypeLabel: routeTypeLabel,
+		showType: Boolean(routeTypeLabel),
 		showDescription: false,
-		showWikiLink: true,
-		description: loc.description,
-		wikiUrl: loc.wikiUrl,
+		showWikiLink: false,
 		isRuined: loc.isRuined,
-		actionsMarkup: actionsBar,
+		actionsMarkup: wikiInfoBox + actionsBar,
 	});
 }
 
