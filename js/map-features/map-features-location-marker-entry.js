@@ -124,21 +124,10 @@ function settlementWikiInfoboxMarkup(location) {
 		return `<div class="region-info-box__row"><dt>${escapeHtml(dtLabel)}</dt><dd>${escapeHtml(value)}</dd></div>`;
 	};
 
-	// Verkehrswege in ein inertes <a> wickeln: iOS/Android-Data-Detectors lassen den Inhalt von
-	// Links in Ruhe (keine Google/Apple-Maps-Verlinkung) — es ist aber NICHT klickbar und macht
-	// nichts (CSS pointer-events:none, kein Link-Look).
-	const wayValue = String(wiki.verkehrswege || "").trim();
-	const waysHtml = wayValue ? `<a class="region-info-box__plain" href="#">${escapeHtml(wayValue)}</a>` : "";
-
 	let rows = "";
 	rows += row("Einwohner", wiki.einwohner);
-	rows += row("Lage", wiki.lage);
 	rows += row("Oberhaupt", wiki.oberhaupt);
 	rows += row("Bevölkerung", wiki.bevoelkerung);
-	rows += row("Handelszone", wiki.handelszone);
-	if (waysHtml) {
-		rows += `<div class="region-info-box__row"><dt>Verkehrswege</dt><dd>${waysHtml}</dd></div>`;
-	}
 	if (wiki.tempel) {
 		rows += row("Tempel", wiki.tempel);
 	}
