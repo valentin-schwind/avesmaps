@@ -371,14 +371,14 @@ function showRoutePlan(routeNames, segments) {
 
 	$overview.prepend(`
 		<button type="button" class="route-plan-entry route-plan-summary">
-			Die Reise ${routeDesc}<br>
-			Distanz: ${totalDistance.toFixed(1)} Meilen
-			(Luftlinie: ${airDistance.toFixed(1)} Meilen)
+			Die Reise ${routeDesc}
 		</button>
 		<div class="route-plan-summary__time">
+			Distanz: ${totalDistance.toFixed(1)} Meilen<br>
+			Drachenflug: ${airDistance.toFixed(1)} Meilen<br>
 			Reisezeit: ${totalTravelTime.toFixed(1)} Stunden (${(totalTravelTime / 24).toFixed(1)} Tage)<br>
 			Rastzeit: ${totalRestTime.toFixed(1)} Stunden (${(totalRestTime / 24).toFixed(1)} Tage)<br>
-			Gesamtzeit: <strong>${totalHours.toFixed(1)} Stunden (${(totalHours / 24).toFixed(1)} Tage)</strong>
+			<strong>Gesamtzeit: ${totalHours.toFixed(1)} Stunden (${(totalHours / 24).toFixed(1)} Tage)</strong>
 		</div>
 		<button type="button" id="share-link-button" class="share-link-button">🔗 Link für diese Route kopieren</button>
 		<hr>
