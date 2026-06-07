@@ -93,6 +93,26 @@
 	width: 100%;
 }
 
+/* Wiki-Link in der Mini-Box von zwei randbuendigen Trennern einfassen (oben UND unten). Die
+   negativen Margins (-20px) heben Content-Margin (10px) + location-popup-Padding (10px) auf, sodass
+   die Linien bis an den Infobox-Rand reichen; das Padding (20px) haelt den Link-Text an Ort. */
+.route-waypoint-popup .location-popup .region-info-box--settlement {
+	margin: 8px -20px 0;
+	padding: 7px 20px;
+	border-top: 1px solid rgba(141, 121, 98, 0.3);
+	border-bottom: 1px solid rgba(141, 121, 98, 0.3);
+	width: auto;
+	max-width: none;
+}
+
+/* Der untere Trenner kommt jetzt von der region-info-box selbst -> die Doppel-Linie an den
+   Aktionen entfernen. */
+.route-waypoint-popup .location-popup .region-info-box--settlement + .location-popup__actions {
+	margin-top: 8px;
+	padding-top: 0;
+	border-top: none;
+}
+
 .location-popup__description {
 	margin-top: 6px;
 	color: #2e2a24;
