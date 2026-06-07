@@ -344,6 +344,37 @@ routeDataRequest
 $("#searchButton").on("click", () => updateMapView());
 $("#search").on("change", 'input[type="checkbox"], input[type="radio"], select, input[type="number"]', () => syncPlannerStateToUrl());
 $("#search").on("input", "#restHours, .waypoint-input", () => syncPlannerStateToUrl());
+
+// Rastzeit-Feld: gueltiger Bereich 0,5-23,5 Stunden/Tag. Wert 0 (oder leer/<=0) bedeutet "keine
+// Rast" -> Rastzeiten-Haken automatisch entfernen und Feld auf den Minimalwert setzen.
+$("#search").on("change", "#restHours", function () {
+	const $restHoursField = $(this);
+	const parsedRestHours = parseFloat($restHoursField.val());
+	if (!Number.isFinite(parsedRestHours) || parsedRestHours <= 0) {
+		if ($("#includeRests").is(":checked")) {
+			$("#includeRests").prop("checked", false).trigger("change");
+		}
+		$restHoursField.val("0.5");
+		if (typeof syncPlannerStateToUrl === "function") syncPlannerStateToUrl();
+		return;
+	}
+	const clampedRestHours = Math.min(Math.max(parsedRestHours, 0.5), 23.5);
+	if (clampedRestHours !== parsedRestHours) {
+		$restHoursField.val(String(clampedRestHours));
+		if (typeof syncPlannerStateToUrl === "function") syncPlannerStateToUrl();
+	}
+});
+
+// Beim (Wieder-)Aktivieren der Rastzeiten sicherstellen, dass das Feld im gueltigen Bereich liegt.
+$("#search").on("change", "#includeRests", function () {
+	if (!$(this).is(":checked")) return;
+	const parsedRestHours = parseFloat($("#restHours").val());
+	if (!Number.isFinite(parsedRestHours) || parsedRestHours < 0.5) {
+		$("#restHours").val("0.5");
+	} else if (parsedRestHours > 23.5) {
+		$("#restHours").val("23.5");
+	}
+});
 $(document).ajaxError((event, jqXHR, settings, thrownError) => {
 	const requestUrl = settings?.url || "unbekannte Anfrage";
 	const requestError = thrownError || jqXHR?.statusText || "XMLHttpRequest fehlgeschlagen";

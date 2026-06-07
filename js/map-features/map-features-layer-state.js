@@ -111,7 +111,7 @@ function applyPlannerStateFromUrl() {
 	$("#allowLand").prop("checked", parseBooleanQueryParam(searchParams.get("allowLand"), DEFAULT_PLANNER_STATE.allowLand));
 	$("#allowRiver").prop("checked", parseBooleanQueryParam(searchParams.get("allowRiver"), DEFAULT_PLANNER_STATE.allowRiver));
 	$("#allowSea").prop("checked", parseBooleanQueryParam(searchParams.get("allowSea"), DEFAULT_PLANNER_STATE.allowSea));
-	$("#restHours").val(parseNumberQueryParam(searchParams.get("restHours"), DEFAULT_PLANNER_STATE.restHours, 0, 24));
+	$("#restHours").val(parseNumberQueryParam(searchParams.get("restHours"), DEFAULT_PLANNER_STATE.restHours, 0.5, 23.5));
 
 	if (landTransport && VALID_TRANSPORT_OPTIONS.land.has(landTransport)) {
 		$("#landTransport").val(landTransport);
@@ -191,7 +191,7 @@ function buildPlannerSearchParams() {
 	}
 	const selectedPathType = $('input[name="pathType"]:checked').val() || DEFAULT_PLANNER_STATE.pathType;
 	const waypointNames = getWaypointInputValues();
-	const restHours = parseNumberQueryParam($("#restHours").val(), DEFAULT_PLANNER_STATE.restHours, 0, 24);
+	const restHours = parseNumberQueryParam($("#restHours").val(), DEFAULT_PLANNER_STATE.restHours, 0.5, 23.5);
 
 	waypointNames.forEach((waypointName) => searchParams.append(DEFAULT_ROUTE_QUERY_PARAM, waypointName));
 
