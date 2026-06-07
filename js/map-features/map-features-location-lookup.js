@@ -132,20 +132,16 @@ function openLocationPopupByName(locationName) {
 		markerEntry.marker.bringToFront();
 	}
 
-	const markerLatLng = markerEntry.marker.getLatLng();
-	const popupContent = markerEntry.marker.getPopup()?.getContent?.() || markerEntry.name;
-	map.panTo(markerLatLng);
-	const popup = L.popup({
-		autoPan: false,
-		closeButton: true,
-		className: "location-popup-wrapper",
-	})
-		.setLatLng(markerLatLng)
-		.setContent(popupContent)
-		.openOn(map);
+	// Das am Marker GEBUNDENE Popup oeffnen (statt eines eigenen) -> identisches Aussehen/Verhalten wie
+	// ein Klick auf den Marker: settlement-popup-Styling, Bewertungen, aktueller Route-Button.
+	if (typeof refreshLocationMarkerPopup === "function" && !markerEntry.marker.getPopup()) {
+		refreshLocationMarkerPopup(markerEntry);
+	}
+	map.panTo(markerEntry.marker.getLatLng());
+	markerEntry.marker.openPopup();
 
 	if (isTemporary) {
-		nearestLookupTempPopup = popup;
+		nearestLookupTempPopup = markerEntry.marker.getPopup();
 		ensureNearestLookupPopupCloseHandler();
 	}
 	return true;
