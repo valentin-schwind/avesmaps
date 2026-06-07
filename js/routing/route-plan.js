@@ -357,7 +357,7 @@ function showRoutePlan(routeNames, segments) {
 
 		$overview.append(`
 			<button type="button" class="route-plan-entry" data-route-entry-index="${entryIndex}">
-			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type === SYNTHETIC_ROUTE_TYPE ? "Luftlinie (kein Weg)" : entry.type}${labelSuffix}
+			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type === SYNTHETIC_ROUTE_TYPE ? "Unwegsames Gelände" : entry.type}${labelSuffix}
 			(${entry.distance.toFixed(2)} Meilen)
 			von <strong>${formattedStartName}</strong>
 			bis <strong>${formattedEndName}</strong>
