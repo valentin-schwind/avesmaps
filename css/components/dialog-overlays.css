@@ -13,7 +13,8 @@ body.modal-dialog-open {
 #powerline-edit-overlay[hidden],
 #label-edit-overlay[hidden],
 #region-edit-overlay[hidden],
-#region-wiki-picker-overlay[hidden] {
+#region-wiki-picker-overlay[hidden],
+#review-overlay[hidden] {
 	display: none !important;
 }
 
@@ -25,7 +26,8 @@ body.modal-dialog-open {
 #powerline-edit-overlay,
 #label-edit-overlay,
 #region-edit-overlay,
-#region-wiki-picker-overlay {
+#region-wiki-picker-overlay,
+#review-overlay {
 	position: fixed;
 	inset: 0;
 	display: flex;
@@ -49,7 +51,8 @@ body.modal-dialog-open {
 #powerline-edit-overlay,
 #label-edit-overlay,
 #region-edit-overlay,
-#region-wiki-picker-overlay {
+#region-wiki-picker-overlay,
+#review-overlay {
 	z-index: 1260;
 }
 

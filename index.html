@@ -30,7 +30,7 @@
 		<link rel="stylesheet" href="css/third-party/jquery-ui.css" />
 		<link rel="stylesheet" href="css/pages/political-territory-wiki-tree.css" />
 		<link rel="stylesheet" href="css/components/region-sync.css?v=20260607-infobox-breite4-mobile" />
-		<link rel="stylesheet" href="css/styles.css?v=20260607-route-popup-toggle" />
+		<link rel="stylesheet" href="css/styles.css?v=20260607-reviews" />
 		<script type="application/ld+json">
 			{
 				"@context": "https://schema.org",
@@ -821,6 +821,45 @@
 				</div>
 			</div>
 		</div>
+		<div id="review-overlay" hidden>
+			<div id="review-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="review-dialog-title" tabindex="-1">
+				<div class="location-report-dialog__header">
+					<h2 id="review-dialog-title">Neue Bewertung</h2>
+					<button id="review-close" class="location-report-dialog__close" type="button" aria-label="Bewertung schließen" data-review-dialog-close>×</button>
+				</div>
+				<p class="location-report-dialog__intro">Bewerte <strong id="review-dialog-place">diesen Ort</strong> mit 1–5 Sternen und einem kurzen Kommentar (max. 200 Zeichen). Bewertungen erscheinen sofort.</p>
+				<form id="review-form" class="location-report-form" novalidate>
+					<div class="location-report-form__field">
+						<span>Deine Wertung *</span>
+						<div id="review-form-stars" class="review-form__stars" role="group" aria-label="Sterne vergeben">
+							<button type="button" class="review-form__star" data-star="1" aria-label="1 Stern">★</button>
+							<button type="button" class="review-form__star" data-star="2" aria-label="2 Sterne">★</button>
+							<button type="button" class="review-form__star" data-star="3" aria-label="3 Sterne">★</button>
+							<button type="button" class="review-form__star" data-star="4" aria-label="4 Sterne">★</button>
+							<button type="button" class="review-form__star" data-star="5" aria-label="5 Sterne">★</button>
+							<span id="review-form-stars-hint" class="review-form__stars-hint">Sterne vergeben</span>
+						</div>
+					</div>
+					<label class="location-report-form__field">
+						<span>Dein Name</span>
+						<input id="review-form-author" type="text" maxlength="80" autocomplete="off" placeholder="z. B. Elfenstar" />
+					</label>
+					<label class="location-report-form__field">
+						<span>Deine Bewertung <span id="review-form-body-counter" class="review-form__counter">0/200</span></span>
+						<textarea id="review-form-body" maxlength="200" rows="3" placeholder="Kurz und knackig …"></textarea>
+					</label>
+					<label class="location-report-form__field">
+						<span>Aventurisches Datum (optional)</span>
+						<input id="review-form-date" type="text" maxlength="60" autocomplete="off" placeholder="z. B. 20. Efferd 1048 BF" />
+					</label>
+					<input id="review-form-website" class="review-form__hp" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
+					<div class="location-report-form__actions">
+						<button type="button" class="location-report-form__button location-report-form__button--secondary" data-review-dialog-close>Abbrechen</button>
+						<button id="review-form-submit" type="submit" class="location-report-form__button location-report-form__button--primary">Bewertung absenden</button>
+					</div>
+				</form>
+			</div>
+		</div>
 		<div id="search" class="ui-widget">
 			<section class="project-summary" aria-labelledby="project-summary-title">
 				<h1 id="project-summary-title">Avesmaps</h1>
@@ -1040,6 +1079,7 @@
 		<script src="js/app/utils.js"></script>
 		<script src="js/routing/route-graph-core.js"></script>
 		<script src="js/ui/popups.js"></script>
+		<script src="js/community/location-reviews.js"></script>
 		<script src="js/app/api-client.js"></script>
 		<script src="js/territory/territory-editor-inline-host.js"></script>
 		<script src="js/territory/territory-editor-link.js"></script>

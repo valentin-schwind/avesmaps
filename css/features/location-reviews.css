@@ -1,0 +1,180 @@
+/* Community-Ortsbewertungen: Anzeige in der Infobox (Durchschnitt mit halben Sternen + Liste)
+   sowie der Schreib-Dialog. */
+
+/* ===== Sterne (voll / halb / leer) ===== */
+.review-stars {
+	display: inline-flex;
+	letter-spacing: 1px;
+	line-height: 1;
+	white-space: nowrap;
+}
+.review-star {
+	color: #d9c7a6;
+}
+.review-star--full {
+	color: #e0a528;
+}
+/* Halber Stern: linke Haelfte gold, rechte Haelfte hell (Text-Clip auf das ★-Glyph). */
+.review-star--half {
+	background: linear-gradient(90deg, #e0a528 50%, #d9c7a6 50%);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+
+/* "★"-Icon im Bewertungs-Button. */
+.location-popup__action-icon--review {
+	color: #e0a528;
+	font-size: 14px;
+}
+
+/* ===== Bewertungs-Bereich in der Infobox ===== */
+.location-reviews {
+	margin-top: 10px;
+	padding-top: 8px;
+	border-top: 1px solid rgba(141, 121, 98, 0.35);
+	font-size: 12px;
+	color: #4a3c2e;
+}
+
+.location-reviews__loading,
+.location-reviews__summary--empty {
+	color: #8a7a68;
+	font-size: 11.5px;
+	font-style: italic;
+}
+
+.location-reviews__summary {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+	margin-bottom: 6px;
+}
+.location-reviews__avg {
+	font-size: 16px;
+	font-weight: 800;
+	color: #2f251c;
+}
+.location-reviews__summary .review-stars {
+	font-size: 14px;
+}
+.location-reviews__count {
+	color: #6a5543;
+	font-size: 11.5px;
+}
+
+/* Scrollbarer Ausschnitt mit den letzten Bewertungen. */
+.location-reviews__list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	max-height: 168px;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding-right: 4px;
+}
+
+.location-reviews__item {
+	border-left: 2px solid rgba(141, 121, 98, 0.3);
+	padding-left: 8px;
+}
+.location-reviews__item--hidden {
+	opacity: 0.55;
+}
+.location-reviews__item-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 6px;
+}
+.location-reviews__author {
+	font-weight: 700;
+	color: #3f3428;
+	font-size: 11.5px;
+	line-height: 1.3;
+}
+.location-reviews__item .review-stars {
+	font-size: 12px;
+}
+.location-reviews__body {
+	margin-top: 2px;
+	color: #2e2a24;
+	line-height: 1.35;
+	overflow-wrap: anywhere;
+}
+.location-reviews__flag {
+	display: inline-block;
+	margin-left: 4px;
+	padding: 0 5px;
+	border-radius: 8px;
+	background: #efe2cf;
+	color: #7a5a3a;
+	font-size: 10px;
+	font-weight: 700;
+}
+
+/* Editor-Moderationsknoepfe pro Bewertung. */
+.location-reviews__mod {
+	display: inline-flex;
+	gap: 2px;
+	flex: 0 0 auto;
+}
+.location-reviews__mod-btn {
+	border: none;
+	background: transparent;
+	cursor: pointer;
+	font-size: 13px;
+	line-height: 1;
+	padding: 2px;
+	border-radius: 4px;
+	opacity: 0.7;
+}
+.location-reviews__mod-btn:hover {
+	opacity: 1;
+	background: rgba(141, 121, 98, 0.16);
+}
+
+/* ===== Schreib-Dialog ===== */
+.review-form__stars {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+.review-form__star {
+	border: none;
+	background: transparent;
+	cursor: pointer;
+	font-size: 26px;
+	line-height: 1;
+	padding: 0 1px;
+	color: #d9c7a6;
+	transition: color 0.1s ease, transform 0.1s ease;
+}
+.review-form__star:hover {
+	transform: scale(1.12);
+}
+.review-form__star.is-active {
+	color: #e0a528;
+}
+.review-form__stars-hint {
+	margin-left: 8px;
+	font-size: 12px;
+	color: #8a7a68;
+}
+.review-form__counter {
+	float: right;
+	font-size: 11px;
+	font-weight: 400;
+	color: #8a7a68;
+}
+
+/* Honeypot: fuer Menschen unsichtbar, fuer Bots ein verlockendes Feld. */
+.review-form__hp {
+	position: absolute;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	pointer-events: none;
+}

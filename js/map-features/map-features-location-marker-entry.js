@@ -33,6 +33,10 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 			typeLabel += " (Ruine)";
 		}
 	}
+	// Community-Bewertungen (Durchschnitt + letzte Bewertungen) ganz unten; wird beim Öffnen async geladen.
+	const reviewsSlot = markerEntry.publicId
+		? `<div class="location-reviews" data-reviews-public-id="${escapeHtml(markerEntry.publicId)}" data-reviews-name="${escapeHtml(markerEntry.name)}"></div>`
+		: "";
 	return locationPopupMarkup({
 		name: markerEntry.name,
 		locationType: markerEntry.locationType,
@@ -44,8 +48,8 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 		showType: true,
 		showDescription: !hasWikiSettlement,
 		showWikiLink: !hasWikiSettlement,
-		// Infobox zuerst, Aktions-Buttons darunter.
-		actionsMarkup: settlementInfobox + locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location),
+		// Infobox zuerst, Aktions-Buttons, dann der Bewertungs-Bereich.
+		actionsMarkup: settlementInfobox + locationActionsMarkup(markerEntry.name, markerEntry.publicId, markerEntry.location) + reviewsSlot,
 	});
 }
 
@@ -63,6 +67,14 @@ function refreshLocationMarkerPopup(markerEntry) {
 		markerEntry._routeAwarePopupBound = true;
 		markerEntry.marker.on("popupopen", () => {
 			markerEntry.marker.setPopupContent(buildLocationMarkerPopupHtml(markerEntry));
+			// Bewertungen async nachladen (Durchschnitt + letzte Bewertungen).
+			if (typeof hydrateLocationReviews === "function") {
+				const popup = markerEntry.marker.getPopup();
+				const popupEl = popup && typeof popup.getElement === "function" ? popup.getElement() : null;
+				if (popupEl) {
+					hydrateLocationReviews(popupEl.querySelector(".location-reviews"));
+				}
+			}
 		});
 	}
 }

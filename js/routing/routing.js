@@ -618,6 +618,15 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		return;
 	}
 
+	if (action === "write-review") {
+		const publicId = this.dataset.publicId;
+		const locationName = this.dataset.locationName || "";
+		if (publicId && typeof openReviewDialog === "function") {
+			openReviewDialog(publicId, locationName);
+		}
+		return;
+	}
+
 	if (action === "start-location-edit") {
 		const markerEntry = findLocationMarkerByPublicId(this.dataset.publicId) || findLocationMarkerByName(this.dataset.locationName);
 		if (!markerEntry) {

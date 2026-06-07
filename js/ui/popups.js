@@ -211,6 +211,19 @@ function routeToggleActionButtonMarkup(name) {
 function locationActionsMarkup(name, publicId, location = null) {
 	const actionButtons = [routeToggleActionButtonMarkup(name)];
 
+	// "Bewertung schreiben" zwischen "Zur Route hinzufügen" und "Link teilen".
+	if (publicId) {
+		actionButtons.push(popupActionButtonMarkup({
+			label: "Bewertung schreiben",
+			iconMarkup: '<span class="location-popup__action-icon location-popup__action-icon--review" aria-hidden="true">★</span>',
+			attributes: {
+				"data-popup-action": "write-review",
+				"data-public-id": publicId,
+				"data-location-name": name,
+			},
+		}));
+	}
+
 	const shareButton = sharePlaceActionButtonMarkup(publicId);
 	if (shareButton) {
 		actionButtons.push(shareButton);

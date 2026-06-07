@@ -6,7 +6,7 @@
 
 @import url("layout/map-layout.css");
 
-@import url("components/dialog-overlays.css");
+@import url("components/dialog-overlays.css?v=20260607-reviews");
 @import url("components/legal-dialog.css");
 @import url("components/map-context-menu.css");
 @import url("components/context-menu-sizing.css");
@@ -25,6 +25,7 @@
 @import url("features/map-labels.css");
 @import url("features/political-timeline.css");
 @import url("features/location-popups-markers.css?v=20260607-route-popup-toggle");
+@import url("features/location-reviews.css?v=20260607-reviews");
 @import url("features/measurement-tool.css");
 @import url("features/route-overview.css");
 @import url("features/route-planner.css");
