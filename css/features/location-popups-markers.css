@@ -87,6 +87,12 @@
 	white-space: nowrap;
 }
 
+/* Inhalt fuellt die (auf den Inhalt geschrumpfte) Box -> Trenner spannt bis zum Rand. */
+.route-waypoint-popup .location-popup {
+	box-sizing: border-box;
+	width: 100%;
+}
+
 .location-popup__description {
 	margin-top: 6px;
 	color: #2e2a24;
