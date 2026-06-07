@@ -316,7 +316,8 @@ function buildRoutePlanEntries(routeNames, segments) {
 
 function showRoutePlan(routeNames, segments) {
 	const $overview = $("#overview").empty();
-	const restPerDay = parseFloat($("#restHours").val()) || 10;
+	const restPerDayParsed = parseFloat($("#restHours").val());
+	const restPerDay = Number.isFinite(restPerDayParsed) ? restPerDayParsed : 10;
 	const routeResult = buildRouteResult(selectedLocations, routeNames, segments, {
 		includeRests: $("#includeRests").is(":checked"),
 		restHoursPerDay: restPerDay,

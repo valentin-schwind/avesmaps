@@ -31,7 +31,8 @@ function isTransportAllowedForPath(pathProperties, transportOption) {
 
 function applyRestTimes(travelHours) {
 	if (!$("#includeRests").is(":checked")) return travelHours;
-	const restHours = parseFloat($("#restHours").val()) || 10;
+	const restHoursParsed = parseFloat($("#restHours").val());
+	const restHours = Number.isFinite(restHoursParsed) ? restHoursParsed : 10;
 	const hoursPerDay = 24 - restHours;
 	const days = travelHours / hoursPerDay;
 	return days * 24;
