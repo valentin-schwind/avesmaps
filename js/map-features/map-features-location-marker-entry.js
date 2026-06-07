@@ -97,6 +97,9 @@ function locationMarkerPopupMaxHeight() {
 // ("Stadtteil= |Befestigung= …") hinter dem Satzende ab.
 function settlementFirstSentence(text) {
 	let value = String(text || "").replace(/\s+/g, " ").trim();
+	// Leerzeichen vor Komma entfernen ("Punin , die" -> "Punin, die") — die Wiki-Extraktion
+	// schleppt das oft ein (Link/Template hinterlaesst ein Leerzeichen vor dem Komma).
+	value = value.replace(/ +,/g, ",");
 	if (value === "") {
 		return "";
 	}
