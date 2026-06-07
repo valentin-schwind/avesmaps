@@ -427,6 +427,8 @@ function installPoliticalRegionVisibilityBehavior() {
 			closeRegionCompactTooltip();
 			closeRegionContextMenu();
 			cancelPendingRegionOperation();
+			// Canvas-Außengrenzen sofort leeren (Overlay zeichnet sonst regionData weiter).
+			window.AvesmapsBoundaryCanvasOverlay?.redraw?.();
 		}
 
 		regionPolygons.forEach((layer) => {

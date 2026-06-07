@@ -195,6 +195,13 @@
 		if (canvas.height !== size.y) canvas.height = size.y;
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+		// Außengrenzen nur im politischen Modus zeichnen. Sonst bleibt das (geleerte) Canvas leer ->
+		// beim Wechsel in eine andere Kategorie verschwinden die Grenzlinien (regionData bleibt sonst
+		// bestehen und wuerde weiter gezeichnet).
+		if (typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() !== "political") {
+			return;
+		}
+
 		const all = (Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []));
 		const feats = all.filter((f) => f && f.properties && f.properties.is_derived_geometry === true);
 		const derivedTerritoryKeys = new Set();
