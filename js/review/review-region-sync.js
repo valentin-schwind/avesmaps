@@ -187,8 +187,13 @@ async function startRegionWikiCrawl() {
 	regionSyncBusy = true;
 	const status = regionSyncElement("region-sync-summary");
 	const button = regionSyncElement("region-sync-crawl");
+	const progress = regionSyncElement("region-sync-progress");
 	if (button) {
 		button.disabled = true;
+	}
+	if (progress) {
+		progress.hidden = false;
+		progress.removeAttribute("value"); // indeterminate, bis es Zahlen gibt
 	}
 	try {
 		if (status) {
@@ -207,6 +212,14 @@ async function startRegionWikiCrawl() {
 			if (status) {
 				status.textContent = `Crawl Schritt ${step}: ${runStatus.staging_rows || 0} Regionen erfasst, ${runStatus.pending || 0} offen ...`;
 			}
+			if (progress) {
+				const done = Number(runStatus.staging_rows || 0);
+				const total = done + Number(runStatus.pending || 0);
+				if (total > 0) {
+					progress.max = total;
+					progress.value = Math.min(done, total);
+				}
+			}
 			await new Promise((resolve) => setTimeout(resolve, 350));
 		} while (last.status && !last.status.complete && step < 200);
 		if (status) {
@@ -221,6 +234,10 @@ async function startRegionWikiCrawl() {
 		regionSyncBusy = false;
 		if (button) {
 			button.disabled = false;
+		}
+		if (progress) {
+			progress.hidden = true;
+			progress.value = 0;
 		}
 	}
 }

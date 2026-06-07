@@ -175,6 +175,7 @@
 						<div class="wiki-sync-panel__actions">
 							<span id="path-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
 							<button id="path-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Wege neu crawlen (laeuft im Hintergrund)">WikiSync</button>
+								<progress id="path-sync-progress" class="wiki-sync-progress" max="1" value="0" style="flex:1 1 100%;width:100%" hidden></progress>
 						</div>
 						<div class="wiki-sync-panel__filter">
 							<input id="path-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Wege suchen ..." aria-label="Wege durchsuchen" />
@@ -188,6 +189,7 @@
 							<span id="region-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
 							<button id="region-sync-assign-berge" class="wiki-sync-panel__start settlement-backfill-btn" type="button" hidden></button>
 								<button id="region-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Regionen neu crawlen (laeuft im Hintergrund)">WikiSync</button>
+								<progress id="region-sync-progress" class="wiki-sync-progress" max="1" value="0" style="flex:1 1 100%;width:100%" hidden></progress>
 						</div>
 						<div class="wiki-sync-panel__filter">
 							<input id="region-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Regionen suchen ..." aria-label="Regionen durchsuchen" />

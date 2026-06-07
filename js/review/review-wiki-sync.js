@@ -54,11 +54,12 @@ function setWikiSyncLocationsRunning(isRunning, run = null) {
 		progressElement.hidden = !isRunning;
 
 		if (isRunning) {
-			const completedSteps = Number(run?.completed_steps ?? run?.processed_steps ?? run?.step ?? 0);
-			const totalSteps = Number(run?.total_steps ?? run?.steps_total ?? progressElement.max ?? 5);
+			// Der Run liefert progress_current/progress_total (siehe avesmapsWikiSyncPublicRun).
+			const completedSteps = Number(run?.progress_current ?? run?.completed_steps ?? run?.step ?? 0);
+			const totalSteps = Number(run?.progress_total ?? run?.total_steps ?? progressElement.max ?? 5);
 
 			progressElement.max = Number.isFinite(totalSteps) && totalSteps > 0 ? totalSteps : 5;
-			progressElement.value = Number.isFinite(completedSteps) && completedSteps >= 0 ? completedSteps : 0;
+			progressElement.value = Number.isFinite(completedSteps) && completedSteps >= 0 ? Math.min(completedSteps, progressElement.max) : 0;
 		} else {
 			progressElement.value = 0;
 		}
@@ -410,8 +411,13 @@ async function startWikiSyncRun() {
 		// WikiSync-Klick Siedlungen UND Bauwerke abdeckt. Optional — Fehler hier brechen den
 		// (erfolgreichen) Siedlungs-Sync nicht ab.
 		let buildingNote = "";
+		const buildingProgress = document.getElementById("wiki-sync-progress");
 		try {
 			setWikiSyncStatus("Bauwerke werden gecrawlt …", "pending");
+			if (buildingProgress) {
+				buildingProgress.hidden = false;
+				buildingProgress.removeAttribute("value"); // indeterminate (kein bekanntes Total)
+			}
 			const buildingResponse = await fetch("/api/edit/wiki/settlements.php", {
 				method: "POST",
 				credentials: "same-origin",
@@ -427,6 +433,11 @@ async function startWikiSyncRun() {
 			}
 		} catch (buildingError) {
 			console.warn("Bauwerks-Crawl im WikiSync übersprungen:", buildingError);
+		} finally {
+			if (buildingProgress) {
+				buildingProgress.hidden = true;
+				buildingProgress.value = 0;
+			}
 		}
 
 		setWikiSyncStatus(buildWikiSyncStatusMessage("WikiSyncLocations abgeschlossen." + buildingNote), "success");

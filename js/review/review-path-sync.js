@@ -231,6 +231,11 @@ async function startPathWikiCrawl() {
 	}
 	pathSyncBusy = true;
 	const status = pathSyncElement("path-sync-summary");
+	const progress = pathSyncElement("path-sync-progress");
+	if (progress) {
+		progress.hidden = false;
+		progress.removeAttribute("value"); // indeterminate, bis es Zahlen gibt
+	}
 	try {
 		const run = await pathSyncPost({ action: "start_run" });
 		if (!run || !run.run_id) {
@@ -245,6 +250,14 @@ async function startPathWikiCrawl() {
 			if (status) {
 				status.textContent = `Crawl Schritt ${step}: ${rs.staging_rows || 0} Wege, ${rs.pending || 0} offen ...`;
 			}
+			if (progress) {
+				const done = Number(rs.staging_rows || 0);
+				const total = done + Number(rs.pending || 0);
+				if (total > 0) {
+					progress.max = total;
+					progress.value = Math.min(done, total);
+				}
+			}
 			await new Promise((resolve) => setTimeout(resolve, 350));
 		} while (last.status && !last.status.complete && step < 250);
 		await loadPathWikiSync();
@@ -254,6 +267,10 @@ async function startPathWikiCrawl() {
 		}
 	} finally {
 		pathSyncBusy = false;
+		if (progress) {
+			progress.hidden = true;
+			progress.value = 0;
+		}
 	}
 }
 
