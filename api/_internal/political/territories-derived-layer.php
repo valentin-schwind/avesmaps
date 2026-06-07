@@ -158,6 +158,8 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
             territory.color,
             territory.opacity,
             territory.coat_of_arms_url,
+            (SELECT staging_coat.coat_of_arms_url FROM political_territory_wiki_test staging_coat WHERE staging_coat.wiki_key = territory.wiki_key LIMIT 1) AS staging_coat_url,
+            (SELECT staging_coat.coat_of_arms_license_status FROM political_territory_wiki_test staging_coat WHERE staging_coat.wiki_key = territory.wiki_key LIMIT 1) AS staging_coat_license,
             territory.wiki_url,
             territory.capital_place_id,
             territory.seat_place_id,
