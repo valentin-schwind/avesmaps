@@ -142,17 +142,14 @@ function cleanRoutePlanNoiseEntries(entries) {
 
 	const result = [];
 	let open = null;
-	let lastCity = null;
 
 	for (const raw of entries) {
 		const entry = { ...raw };
 		if (!open) {
+			// Start-Name bleibt der echte Segment-Endpunkt-Name. Eine Stadt der vorherigen Grenze NICHT
+			// blind uebernehmen: An nicht-verketteten Bruchstellen liegt diese Stadt evtl. weit von der
+			// tatsaechlichen Geometrie (z.B. "Trallsky", obwohl das Segment an Kreuzung-549 beginnt).
 			open = entry;
-			// Falls der Start dieser Etappe (durch Toleranz) als Kreuzung aufgeloest wurde, die echte
-			// Stadt der vorherigen Grenze uebernehmen -> nie "Kreuzung -> ..." anzeigen.
-			if (lastCity && isRoutePlanMarkerName(open.startName)) {
-				open.startName = lastCity;
-			}
 		} else {
 			open.distance += entry.distance;
 			open.travelTime += entry.travelTime;
@@ -167,7 +164,6 @@ function cleanRoutePlanNoiseEntries(entries) {
 		// An einer echten Stadt (!= Startstadt der offenen Etappe) wird die Etappe abgeschlossen.
 		if (!isRoutePlanMarkerName(open.endName) && open.endName && open.endName !== open.startName) {
 			result.push(open);
-			lastCity = open.endName;
 			open = null;
 		}
 	}
@@ -292,7 +288,30 @@ function buildRoutePlanEntries(routeNames, segments) {
 	});
 
 	flushAggregateEntry();
-	return cleanRoutePlanNoiseEntries(entries);
+	const cleaned = cleanRoutePlanNoiseEntries(entries);
+
+	// Routen-Endpunkte sind bekannte Wegpunkte und sollen NIE "Kreuzung" heissen, auch wenn der
+	// Pfad-Knoten weiter als ROUTE_CITY_NODE_THRESHOLD vom Ort entfernt liegt. Darum die Terminals
+	// mit der breiteren THRESHOLD-Ortssuche (nicht-Kreuzung) benennen, falls noetig.
+	if (cleaned.length) {
+		const firstOrientation = orientedSegmentEndpoints.find(Boolean);
+		const lastOrientation = [...orientedSegmentEndpoints].reverse().find(Boolean);
+		if (isRoutePlanMarkerName(cleaned[0].startName) && firstOrientation) {
+			const startLocation = findRouteLocationAtPathEndpoint(firstOrientation.start, { allowCrossings: false });
+			if (startLocation) {
+				cleaned[0].startName = startLocation.name;
+			}
+		}
+		const lastEntry = cleaned[cleaned.length - 1];
+		if (isRoutePlanMarkerName(lastEntry.endName) && lastOrientation) {
+			const endLocation = findRouteLocationAtPathEndpoint(lastOrientation.end, { allowCrossings: false });
+			if (endLocation) {
+				lastEntry.endName = endLocation.name;
+			}
+		}
+	}
+
+	return cleaned;
 }
 
 function showRoutePlan(routeNames, segments) {
