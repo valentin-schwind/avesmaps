@@ -75,6 +75,12 @@
 	background: #d8c9b3;
 }
 
+/* Route-Wegpunkt-Popup: Aktions-Buttons ("Aus Route entfernen" + "Mehr anzeigen")
+   nicht umbrechen -- die Box bekommt per minWidth genug Breite. */
+.route-waypoint-popup .location-popup__actions {
+	flex-wrap: nowrap;
+}
+
 .location-popup__description {
 	margin-top: 6px;
 	color: #2e2a24;
