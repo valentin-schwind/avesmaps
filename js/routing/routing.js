@@ -262,7 +262,29 @@ function applyPlaceFocusFromUrl() {
 	// nicht vom Overview-fitBounds ueberfahren. Marker einblenden + Popup oeffnen.
 	const targetLatLng = entry.marker.getLatLng();
 	map.setView(targetLatLng, Math.max(map.getZoom(), 4), { animate: false });
-	if (!map.hasLayer(entry.marker)) {
+	// Kategorie der Ortschaft einschalten, damit der Marker DAUERHAFT sichtbar bleibt (sonst
+	// entfernt ihn der naechste Sichtbarkeits-Sync wieder). Erzwingen (kein Toggle), die
+	// Stufe + alle darunter aktivieren -- analog setVisibleLocationTypesThrough, aber ohne
+	// dessen Aus-Schalt-Eigenheit, falls die Zielstufe gerade der aktiven entspricht.
+	let categoryEnabled = false;
+	if (typeof LOCATION_TYPE_VISIBILITY_ORDER !== "undefined" && typeof getLocationToggleButton === "function") {
+		const targetIndex = LOCATION_TYPE_VISIBILITY_ORDER.indexOf(entry.locationType);
+		if (targetIndex >= 0) {
+			LOCATION_TYPE_VISIBILITY_ORDER.forEach((locationType, index) => {
+				if (index <= targetIndex) {
+					getLocationToggleButton(locationType).addClass("is-active");
+				}
+			});
+			if (typeof syncLocationMarkerVisibility === "function") {
+				syncLocationMarkerVisibility();
+			}
+			if (typeof syncPlannerStateToUrl === "function") {
+				syncPlannerStateToUrl();
+			}
+			categoryEnabled = true;
+		}
+	}
+	if (!categoryEnabled && !map.hasLayer(entry.marker)) {
 		try {
 			map.addLayer(entry.marker);
 		} catch (error) {
