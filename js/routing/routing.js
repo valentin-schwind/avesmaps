@@ -338,7 +338,6 @@ routeDataRequest
 			focusMapOnActiveTargets();
 		}
 		startLiveMapUpdates(); applyPlaceFocusFromUrl(); map.on("zoomend", notifyEditorZoomLevel);
-		if (typeof updateShareLinkButtonVisibility === "function") { updateShareLinkButtonVisibility(); }
 	})
 	.catch((err) => console.error("Fehler beim Laden der GeoJSON-Datei:", err));
 

@@ -94,15 +94,9 @@ function hasShareableRoute() {
 	return validCount >= 2;
 }
 
-// "Link teilen"-Button im Routenplaner nur zeigen, wenn es eine teilbare Route gibt.
-function updateShareLinkButtonVisibility() {
-	const button = document.getElementById("share-link-button");
-	if (button) {
-		button.hidden = !hasShareableRoute();
-	}
-}
-
-// Kontextmenue-Eintrag "Link teilen" gleichermassen ein-/ausblenden (beim Oeffnen aufgerufen).
+// Kontextmenue-Eintrag "Link teilen" ein-/ausblenden (beim Oeffnen aufgerufen). Der Button im
+// Routenplaner wird direkt mit der Reise-Uebersicht gerendert (showRoutePlan), nur wenn eine
+// Route existiert -> dort ist keine separate Sichtbarkeitslogik noetig.
 function syncShareLinkContextMenuAction() {
 	const entry = document.querySelector('[data-context-action="share-map-link"]');
 	if (entry) {
@@ -110,17 +104,8 @@ function syncShareLinkContextMenuAction() {
 	}
 }
 
-// Button im Routenplaner-Panel.
+// Button (in der Reise-Uebersicht) bzw. delegiert.
 $(document).on("click", "#share-link-button", function (event) {
 	event.preventDefault();
 	void createAndCopyShareLink();
-});
-
-// Sichtbarkeit reaktiv aktualisieren, wenn sich Wegpunkte ändern.
-$(document).on("input change", ".waypoint-input", updateShareLinkButtonVisibility);
-$(document).on("click", "#searchButton, #inputLocation, .remove-waypoint", function () {
-	window.setTimeout(updateShareLinkButtonVisibility, 0);
-});
-$(function () {
-	updateShareLinkButtonVisibility();
 });
