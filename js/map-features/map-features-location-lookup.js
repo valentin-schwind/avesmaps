@@ -109,7 +109,14 @@ function ensureNearestLookupPopupCloseHandler() {
 }
 
 function openLocationPopupByName(locationName) {
-	const markerEntry = findLocationMarkerByName(locationName);
+	return openLocationPopupForMarkerEntry(findLocationMarkerByName(locationName));
+}
+
+function openLocationPopupByPublicId(publicId) {
+	return openLocationPopupForMarkerEntry(findLocationMarkerByPublicId(publicId));
+}
+
+function openLocationPopupForMarkerEntry(markerEntry) {
 	if (!markerEntry) {
 		return false;
 	}

@@ -407,6 +407,32 @@ $(document).on("click", ".review-report__focus", function (event) {
 	focusReviewReport(report);
 });
 
+// Bewertungsliste: Klick auf den Eintrag -> zum Ort zoomen + Infobox oeffnen.
+$(document).on("click", ".review-rating__focus", function (event) {
+	event.preventDefault();
+	const item = this.closest(".review-rating");
+	focusReviewRatingLocation(item ? item.dataset.locationPublicId || "" : "");
+});
+
+// Bewertungsliste: verbergen/einblenden bzw. loeschen.
+$(document).on("click", ".review-rating__hide", function (event) {
+	event.preventDefault();
+	const item = this.closest(".review-rating");
+	if (!item) {
+		return;
+	}
+	moderateReviewRating(item.dataset.reviewId, this.dataset.ratingAction === "unhide" ? "unhide" : "hide", item.dataset.locationPublicId || "");
+});
+
+$(document).on("click", ".review-rating__delete", function (event) {
+	event.preventDefault();
+	const item = this.closest(".review-rating");
+	if (!item || !window.confirm("Diese Bewertung wirklich endgültig löschen?")) {
+		return;
+	}
+	moderateReviewRating(item.dataset.reviewId, "delete", item.dataset.locationPublicId || "");
+});
+
 $(document).on("click", ".change-log-entry", function (event) {
 	event.preventDefault();
 	const changeId = Number(this.dataset.changeId || 0);

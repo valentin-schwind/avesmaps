@@ -28,7 +28,31 @@ try {
     if ($requestMethod === 'GET') {
         $publicId = avesmapsNormalizeSingleLine((string) ($_GET['location'] ?? ''), 64);
         if ($publicId === '') {
-            avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Es fehlt die Orts-ID.']);
+            // Ohne Orts-ID: ALLE Bewertungen (inkl. versteckte/Spam) fuer die Moderationsliste
+            // im "Meldungen"-Reiter, jeweils mit Orts-Info fuer Zoom + Infobox.
+            $allStatement = $pdo->query(
+                'SELECT id, location_public_id, location_name, author_name, stars, body, dsa_date,
+                        is_hidden, is_spam, created_at
+                 FROM map_reviews
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT 300'
+            );
+            $allReviews = [];
+            foreach (($allStatement ? $allStatement->fetchAll(PDO::FETCH_ASSOC) : []) as $row) {
+                $allReviews[] = [
+                    'id' => (int) $row['id'],
+                    'location_public_id' => (string) $row['location_public_id'],
+                    'location_name' => (string) $row['location_name'],
+                    'author' => (string) $row['author_name'],
+                    'stars' => (int) $row['stars'],
+                    'body' => (string) $row['body'],
+                    'dsa_date' => (string) $row['dsa_date'],
+                    'is_hidden' => (int) $row['is_hidden'] === 1,
+                    'is_spam' => (int) $row['is_spam'] === 1,
+                    'created_at' => (string) $row['created_at'],
+                ];
+            }
+            avesmapsJsonResponse(200, ['ok' => true, 'reviews' => $allReviews, 'count' => count($allReviews)]);
         }
 
         $statement = $pdo->prepare(

@@ -30,7 +30,7 @@
 		<link rel="stylesheet" href="css/third-party/jquery-ui.css" />
 		<link rel="stylesheet" href="css/pages/political-territory-wiki-tree.css" />
 		<link rel="stylesheet" href="css/components/region-sync.css?v=20260607-infobox-breite4-mobile" />
-		<link rel="stylesheet" href="css/styles.css?v=20260607-konfliktloesung-accordion9" />
+		<link rel="stylesheet" href="css/styles.css?v=20260608-ratings-list" />
 		<script type="application/ld+json">
 			{
 				"@context": "https://schema.org",
@@ -156,8 +156,12 @@
 				<button class="review-panel__tab" type="button" data-editor-panel-tab="presence">Status</button>
 			</nav>
 			<section class="review-panel__section is-active" data-editor-panel-section="review">
+				<h3 class="review-panel__list-title">Community Meldungen</h3>
 				<p id="review-panel-status" class="review-panel__status" role="status" aria-live="polite">Meldungen werden geladen...</p>
 				<div id="review-report-list" class="review-panel__list"></div>
+				<h3 class="review-panel__list-title">Bewertungen</h3>
+				<p id="review-ratings-status" class="review-panel__status" role="status" aria-live="polite">Bewertungen werden geladen...</p>
+				<div id="review-ratings-list" class="review-panel__list review-panel__list--ratings"></div>
 			</section>
 			<section class="review-panel__section" data-editor-panel-section="changes">
 				<p id="change-panel-status" class="review-panel__status" role="status" aria-live="polite">Änderungen werden geladen...</p>

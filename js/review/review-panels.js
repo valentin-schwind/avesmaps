@@ -110,6 +110,9 @@ async function loadReviewReports() {
 		return;
 	}
 
+	// Die Bewertungsliste im selben Reiter parallel laden.
+	void loadReviewRatings();
+
 	setReviewPanelStatus("Meldungen werden geladen...", "pending");
 	try {
 		const response = await fetch(LOCATION_REPORT_REVIEW_API_URL, {
@@ -529,6 +532,114 @@ function renderReviewReports() {
 		}
 		listElement.appendChild(itemElement);
 	});
+}
+
+// ---- Bewertungen (Moderationsliste im Meldungen-Reiter) ----
+
+function setReviewRatingsStatus(message = "", state = "") {
+	setPanelStateStatus(document.getElementById("review-ratings-status"), message, state);
+}
+
+async function loadReviewRatings() {
+	if (!IS_EDIT_MODE) {
+		return;
+	}
+	setReviewRatingsStatus("Bewertungen werden geladen...", "pending");
+	try {
+		const response = await fetch(LOCATION_REVIEWS_EDIT_ENDPOINT, {
+			credentials: "same-origin",
+			headers: { Accept: "application/json" },
+		});
+		const data = await response.json().catch(() => null);
+		if (!response.ok || !data?.ok) {
+			throw new Error(data?.error || `Bewertungs-API antwortet mit HTTP ${response.status}.`);
+		}
+		reviewRatings = Array.isArray(data.reviews) ? data.reviews : [];
+		renderReviewRatings();
+	} catch (error) {
+		console.error("Bewertungen konnten nicht geladen werden:", error);
+		setReviewRatingsStatus(error.message || "Bewertungen konnten nicht geladen werden.", "error");
+	}
+}
+
+function renderReviewRatings() {
+	const listElement = document.getElementById("review-ratings-list");
+	if (!listElement) {
+		return;
+	}
+	listElement.innerHTML = "";
+	if (reviewRatings.length < 1) {
+		setReviewRatingsStatus("Noch keine Bewertungen.", "empty");
+		return;
+	}
+	setReviewRatingsStatus(`${reviewRatings.length} Bewertungen.`, "success");
+
+	const starsFor = (stars) => (typeof reviewStarsMarkup === "function" ? reviewStarsMarkup(stars) : `${Number(stars) || 0}★`);
+	reviewRatings.forEach((rating) => {
+		const itemElement = document.createElement("article");
+		itemElement.className = "review-report review-rating" + (rating.is_hidden ? " review-rating--hidden" : "");
+		itemElement.dataset.reviewId = String(rating.id);
+		itemElement.dataset.locationPublicId = rating.location_public_id || "";
+		const flags = (rating.is_spam ? ' <span class="review-rating__flag">Spam</span>' : "")
+			+ (rating.is_hidden ? ' <span class="review-rating__flag">verborgen</span>' : "");
+		itemElement.innerHTML = `
+			<button type="button" class="review-rating__focus">
+				<span class="review-report__name"></span>
+				<span class="review-report__meta">${starsFor(rating.stars)}<span class="review-rating__author"></span>${flags}</span>
+				<span class="review-report__source review-rating__body"></span>
+			</button>
+			<div class="review-report__actions">
+				<button type="button" class="review-rating__hide" data-rating-action="${rating.is_hidden ? "unhide" : "hide"}">${rating.is_hidden ? "Einblenden" : "Verbergen"}</button>
+				<button type="button" class="review-rating__delete">Löschen</button>
+			</div>
+		`;
+		itemElement.querySelector(".review-report__name").textContent = rating.location_name || rating.location_public_id || "Unbekannter Ort";
+		itemElement.querySelector(".review-rating__author").textContent = ` ${rating.author || "Anonym"}${rating.dsa_date ? ` (${rating.dsa_date})` : ""}`;
+		itemElement.querySelector(".review-rating__body").textContent = rating.body ? `„${rating.body}"` : "";
+		listElement.appendChild(itemElement);
+	});
+}
+
+function focusReviewRatingLocation(publicId) {
+	if (!publicId) {
+		return;
+	}
+	const entry = typeof findLocationMarkerByPublicId === "function" ? findLocationMarkerByPublicId(publicId) : null;
+	if (!entry) {
+		showFeedbackToast("Der Ort ist auf der Karte nicht (mehr) vorhanden.", "warning");
+		return;
+	}
+	// Heranzoomen und die normale Infobox oeffnen (temporaerer Marker, falls die Groesse nicht eingeblendet ist).
+	map.setView(entry.marker.getLatLng(), Math.max(map.getZoom(), 5));
+	if (typeof openLocationPopupByPublicId === "function") {
+		openLocationPopupByPublicId(publicId);
+	}
+}
+
+function moderateReviewRating(id, action, publicId = "") {
+	const reviewId = Number(id);
+	if (!Number.isFinite(reviewId) || reviewId <= 0) {
+		return;
+	}
+	fetch(LOCATION_REVIEWS_EDIT_ENDPOINT, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ action, id: reviewId }),
+	})
+		.then((response) => response.json().catch(() => null))
+		.then((data) => {
+			if (!data || data.ok === false) {
+				showFeedbackToast((data && data.error) || "Aktion fehlgeschlagen.", "warning");
+				return;
+			}
+			void loadReviewRatings();
+			// Eine ggf. offene Infobox dieses Ortes mit-aktualisieren.
+			if (publicId && typeof refreshOpenReviewSlots === "function") {
+				refreshOpenReviewSlots(publicId);
+			}
+		})
+		.catch(() => showFeedbackToast("Aktion fehlgeschlagen.", "warning"));
 }
 
 async function sendEditorPresenceHeartbeat() {

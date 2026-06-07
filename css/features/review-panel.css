@@ -254,6 +254,72 @@
 	color: #8a2d22;
 }
 
+/* Listentitel ueber den beiden Listen im Meldungen-Reiter (Community Meldungen / Bewertungen). */
+.review-panel__list-title {
+	margin: 12px 10px 2px;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: #6d5b49;
+}
+.review-panel__list-title:first-child {
+	margin-top: 0;
+}
+
+/* "Bewertungen"-Moderationsliste: nutzt das .review-report-Kartenlayout, eigene Buttons/Klassen. */
+.review-rating__focus {
+	display: grid;
+	gap: 4px;
+	min-width: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+	font: inherit;
+	text-align: left;
+}
+.review-rating--hidden {
+	opacity: 0.6;
+}
+.review-rating__author {
+	color: #6d5b49;
+}
+.review-rating__body {
+	font-style: italic;
+}
+.review-rating__flag {
+	display: inline-block;
+	margin-left: 4px;
+	padding: 0 5px;
+	border-radius: 6px;
+	background: #efe2d0;
+	color: #6d5b49;
+	font-size: 10px;
+	font-style: normal;
+	vertical-align: middle;
+}
+.review-rating__hide,
+.review-rating__delete {
+	min-height: 30px;
+	padding: 5px 8px;
+	border-radius: 6px;
+	cursor: pointer;
+	font: inherit;
+	font-size: 12px;
+}
+.review-rating__hide {
+	border: 1px solid #b39a6f;
+	background: #faf4e8;
+	color: #5a4a2a;
+}
+.review-rating__delete {
+	border: 1px solid #b87d73;
+	background: #fff3f0;
+	color: #8a2d22;
+}
+
 .wiki-sync-panel__start {
 	width: 100%;
 	border: 1px solid #3a1024;
