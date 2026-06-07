@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 if (!defined('AVESMAPS_AVENTURIAN_YEAR')) {
     // Aktuelles aventurisches Jahr (BF) fuer automatisch erzeugte Bewertungs-Daten.
-    define('AVESMAPS_AVENTURIAN_YEAR', 1048);
+    define('AVESMAPS_AVENTURIAN_YEAR', 1049);
 }
 
 const AVESMAPS_REVIEW_BODY_MAX = 200;
