@@ -905,7 +905,11 @@
 	margin: 0;
 }
 .settlement-popup .location-popup {
+	/* Feste Breite (statt auto), damit die Box nicht zusammenfaellt, wenn im Frontend
+	   nur wenige/schmale Aktions-Buttons da sind -> sonst gequetschte Wertespalte. */
+	width: min(400px, calc(100vw - 32px));
 	max-width: none;
+	box-sizing: border-box;
 	padding: 12px 14px;
 }
 /* Daten-Infobox: Trenner spannt randlos über die volle Popup-Breite (negative Margin = Padding). */
@@ -925,11 +929,10 @@
 /* ===== Label-/Region-View-Popup: gleiche Behandlung wie Siedlungs-Popup (breiter, gleichmäßiges
    Padding, Trenner unter dem Titel in voller Breite). Scoped -> bricht NICHT die Herrschaftsgebiete. */
 .label-wiki-infobox-popup .region-info-box {
-	/* Wie der Edit-Mode (.location-popup .region-info-box--settlement): an den Inhalt
-	   schmiegen statt fix 400px erzwingen -> Leaflet klemmt auf [minWidth, maxWidth].
-	   Fix-400px wirkte im Frontend "komisch" breit/gestreckt gegenueber dem Editor. */
-	width: auto;
-	max-width: min(400px, calc(100vw - 32px));
+	/* Feste Breite wie der Edit-Mode: dort machen die Aktions-Buttons die Box breit
+	   (~400px); im Frontend fehlen sie, daher wuerde width:auto auf die Untergrenze
+	   zusammenfallen (gequetschte Wertespalte). Fix-Breite haelt beide identisch. */
+	width: min(400px, calc(100vw - 32px));
 	padding: 12px 14px;
 	gap: 8px;
 }
