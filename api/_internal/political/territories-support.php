@@ -33,7 +33,7 @@ function avesmapsPoliticalExtractCurrentPoliticalParentName(string $affiliation)
         return '';
     }
 
-    $clauses = preg_split('/\s*[;Â·]\s*/u', $affiliation) ?: [];
+    $clauses = preg_split('/\s*[;·]\s*/u', $affiliation) ?: [];
     $clauses = array_values(array_filter(array_map('trim', $clauses)));
 
     foreach ($clauses as $clause) {
@@ -44,7 +44,7 @@ function avesmapsPoliticalExtractCurrentPoliticalParentName(string $affiliation)
     }
 
     foreach ($clauses as $clause) {
-        if (preg_match('/^(?:derographisch|geographisch|ehemals|frÃ¼her|frueher|historisch)\b/iu', $clause) === 1) {
+        if (preg_match('/^(?:derographisch|geographisch|ehemals|früher|frueher|historisch)\b/iu', $clause) === 1) {
             continue;
         }
 

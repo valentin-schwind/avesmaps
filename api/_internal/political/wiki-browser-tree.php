@@ -120,35 +120,35 @@ function territoryItemToLegacyRow(array $item): array {
         'Name' => value($item['name'] ?? null),
         'Typ' => value($item['type'] ?? null),
         'Kontinent' => value($item['continent'] ?? null),
-        'ZugehÃ¶rigkeit' => value($item['affiliation_raw'] ?? null),
-        'ZugehÃ¶rigkeit-Key' => value($item['affiliation_key'] ?? null),
-        'ZugehÃ¶rigkeit-Root' => value($item['affiliation_root'] ?? null),
-        'ZugehÃ¶rigkeit-Pfad' => implode(' > ', $affiliationPath),
-        'ZugehÃ¶rigkeit-JSON' => encodeJson($affiliation),
+        'Zugehörigkeit' => value($item['affiliation_raw'] ?? null),
+        'Zugehörigkeit-Key' => value($item['affiliation_key'] ?? null),
+        'Zugehörigkeit-Root' => value($item['affiliation_root'] ?? null),
+        'Zugehörigkeit-Pfad' => implode(' > ', $affiliationPath),
+        'Zugehörigkeit-JSON' => encodeJson($affiliation),
         'Status' => value($item['status'] ?? null),
         'Herrschaftsform' => value($item['form_of_government'] ?? null),
         'Hauptstadt' => value($item['capital_name'] ?? null),
         'Herrschaftssitz' => value($item['seat_name'] ?? null),
         'Oberhaupt' => value($item['ruler'] ?? null),
         'Sprache' => value($item['language'] ?? null),
-        'WÃ¤hrung' => value($item['currency'] ?? null),
+        'Währung' => value($item['currency'] ?? null),
         'Handelswaren' => value($item['trade_goods'] ?? null),
         'Einwohnerzahl' => value($item['population'] ?? null),
-        'GrÃ¼ndungsdatum' => value($item['founded_text'] ?? null),
-        'GrÃ¼ndungsdatum-Text' => value($item['founded_text'] ?? null),
-        'GrÃ¼ndungsdatum-Typ' => value($item['founded_type'] ?? null),
-        'GrÃ¼ndungsdatum-StartBF' => value($item['founded_start_bf'] ?? null),
-        'GrÃ¼ndungsdatum-EndBF' => value($item['founded_end_bf'] ?? null),
-        'GrÃ¼ndungsdatum-AnzeigeBF' => value($item['founded_display_bf'] ?? null),
-        'GrÃ¼ndungsdatum-JSON' => encodeJson($founded),
-        'GrÃ¼nder' => value($item['founder'] ?? null),
-        'AufgelÃ¶st' => value($item['dissolved_text'] ?? null),
-        'AufgelÃ¶st-Text' => value($item['dissolved_text'] ?? null),
-        'AufgelÃ¶st-Typ' => value($item['dissolved_type'] ?? null),
-        'AufgelÃ¶st-StartBF' => value($item['dissolved_start_bf'] ?? null),
-        'AufgelÃ¶st-EndBF' => value($item['dissolved_end_bf'] ?? null),
-        'AufgelÃ¶st-AnzeigeBF' => value($item['dissolved_display_bf'] ?? null),
-        'AufgelÃ¶st-JSON' => encodeJson($dissolved),
+        'Gründungsdatum' => value($item['founded_text'] ?? null),
+        'Gründungsdatum-Text' => value($item['founded_text'] ?? null),
+        'Gründungsdatum-Typ' => value($item['founded_type'] ?? null),
+        'Gründungsdatum-StartBF' => value($item['founded_start_bf'] ?? null),
+        'Gründungsdatum-EndBF' => value($item['founded_end_bf'] ?? null),
+        'Gründungsdatum-AnzeigeBF' => value($item['founded_display_bf'] ?? null),
+        'Gründungsdatum-JSON' => encodeJson($founded),
+        'Gründer' => value($item['founder'] ?? null),
+        'Aufgelöst' => value($item['dissolved_text'] ?? null),
+        'Aufgelöst-Text' => value($item['dissolved_text'] ?? null),
+        'Aufgelöst-Typ' => value($item['dissolved_type'] ?? null),
+        'Aufgelöst-StartBF' => value($item['dissolved_start_bf'] ?? null),
+        'Aufgelöst-EndBF' => value($item['dissolved_end_bf'] ?? null),
+        'Aufgelöst-AnzeigeBF' => value($item['dissolved_display_bf'] ?? null),
+        'Aufgelöst-JSON' => encodeJson($dissolved),
         'Geographisch' => value($item['geographic'] ?? null),
         'Politisch' => value($item['political'] ?? null),
         'Handelszone' => value($item['trade_zone'] ?? null),
@@ -313,11 +313,11 @@ function legacyRowAliases(array $row): array {
         'Thorwal (Staat)' => [
             'Thorwal',
         ],
-        'KÃ¶nikreisch des Nortens' => [
+        'Könikreisch des Nortens' => [
             'Orkreich',
         ],
-        'FÃ¼rstkomturei Maraskan' => [
-            'FÃ¼rstkomturei Tobimora',
+        'Fürstkomturei Maraskan' => [
+            'Fürstkomturei Tobimora',
         ],
     ];
 
@@ -329,7 +329,7 @@ function legacyRowAliases(array $row): array {
 }
 
 function readLegacyPath(array $row): array {
-    $rawPath = value($row['ZugehÃ¶rigkeit-Pfad'] ?? null);
+    $rawPath = value($row['Zugehörigkeit-Pfad'] ?? null);
     if ($rawPath !== '') {
         return array_values(array_filter(array_map(
             static fn(string $part): string => trim($part),
@@ -337,7 +337,7 @@ function readLegacyPath(array $row): array {
         ), static fn(string $part): bool => $part !== ''));
     }
 
-    $json = decodeJson($row['ZugehÃ¶rigkeit-JSON'] ?? null, []);
+    $json = decodeJson($row['Zugehörigkeit-JSON'] ?? null, []);
     if (is_array($json) && isset($json['path']) && is_array($json['path'])) {
         return array_values(array_filter(array_map(
             static fn(mixed $part): string => trim((string)$part),
@@ -345,7 +345,7 @@ function readLegacyPath(array $row): array {
         ), static fn(string $part): bool => $part !== ''));
     }
 
-    $fallback = value($row['ZugehÃ¶rigkeit'] ?? null);
+    $fallback = value($row['Zugehörigkeit'] ?? null);
     if ($fallback === '') {
         return [];
     }
@@ -369,7 +369,7 @@ function canonicalPathPart(string $part): string {
         'n-a' => '',
         'na' => '',
         'horasreich-ehemals-koenigreich-drol' => 'Horasreich',
-        'koenigreich-andergast-ehemals-unabhaengig' => 'KÃ¶nigreich Andergast',
+        'koenigreich-andergast-ehemals-unabhaengig' => 'Königreich Andergast',
         'konikreisch-des-nortens-orkreich' => 'Orkreich',
         'orkreich-svelltscher-stadtebund' => 'Orkreich',
         'gebiet-beansprucht-von' => 'umstritten',
@@ -507,8 +507,8 @@ function stripLegacyParentheticalSuffix(string $value): string {
 }
 
 function formatExistenceLabel(array $row): string {
-    $founded = value($row['GrÃ¼ndungsdatum-Text'] ?? $row['GrÃ¼ndungsdatum'] ?? null);
-    $dissolved = value($row['AufgelÃ¶st-Text'] ?? $row['AufgelÃ¶st'] ?? null);
+    $founded = value($row['Gründungsdatum-Text'] ?? $row['Gründungsdatum'] ?? null);
+    $dissolved = value($row['Aufgelöst-Text'] ?? $row['Aufgelöst'] ?? null);
 
     if ($founded !== '' && $dissolved !== '') {
         return preg_match('/\bbesteht\b/iu', $dissolved) === 1

@@ -9,7 +9,7 @@ function makeStableKey(string $value): string {
     }
 
     $value = mb_strtolower($value, 'UTF-8');
-    $value = str_replace(['Ã¤', 'Ã¶', 'Ã¼', 'ÃŸ', 'Ã¦', 'Å“', 'Ã¸', 'Ã°', 'Ã¾'], ['ae', 'oe', 'ue', 'ss', 'ae', 'oe', 'o', 'd', 'th'], $value);
+    $value = str_replace(['ä', 'ö', 'ü', 'ß', 'æ', 'œ', 'ø', 'ð', 'þ'], ['ae', 'oe', 'ue', 'ss', 'ae', 'oe', 'o', 'd', 'th'], $value);
 
     if (function_exists('iconv')) {
         $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);

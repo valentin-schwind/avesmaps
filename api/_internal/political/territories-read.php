@@ -919,7 +919,7 @@ function avesmapsPoliticalNormalizeHierarchyRootKey(string $value): string {
         $normalized = strtolower($normalized);
     }
 
-    $normalized = str_replace('ÃŸ', 'ss', $normalized);
+    $normalized = str_replace('ß', 'ss', $normalized);
     if (function_exists('iconv')) {
         $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $normalized);
         if (is_string($transliterated)) {

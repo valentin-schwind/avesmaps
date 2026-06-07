@@ -125,10 +125,10 @@ function avesmapsPoliticalNormalizeWikiRecord(array $record): array {
     $wikiUrl = avesmapsPoliticalReadWikiString($record, ['Wiki-Link', 'Wiki Link', 'wiki_url']);
     $name = avesmapsPoliticalReadWikiString($record, ['Name', 'name'], 255);
     $continent = avesmapsPoliticalReadWikiString($record, ['Kontinent', 'continent'], 120) ?: AVESMAPS_POLITICAL_DEFAULT_CONTINENT;
-    $affiliationJson = avesmapsPoliticalReadWikiJson($record, ['Zugehörigkeit-JSON', 'Zugehoerigkeit-JSON', 'ZugehÃ¶rigkeit-JSON', 'affiliation_json']);
+    $affiliationJson = avesmapsPoliticalReadWikiJson($record, ['Zugehörigkeit-JSON', 'Zugehoerigkeit-JSON', 'Zugehörigkeit-JSON', 'affiliation_json']);
     $affiliationPathJson = avesmapsPoliticalReadAffiliationPathJson($record, $affiliationJson);
-    $foundedJson = avesmapsPoliticalReadWikiJson($record, ['Gründungsdatum-JSON', 'Gruendungsdatum-JSON', 'GrÃ¼ndungsdatum-JSON', 'founded_json']);
-    $dissolvedJson = avesmapsPoliticalReadWikiJson($record, ['Aufgelöst-JSON', 'Aufgeloest-JSON', 'AufgelÃ¶st-JSON', 'dissolved_json']);
+    $foundedJson = avesmapsPoliticalReadWikiJson($record, ['Gründungsdatum-JSON', 'Gruendungsdatum-JSON', 'Gründungsdatum-JSON', 'founded_json']);
+    $dissolvedJson = avesmapsPoliticalReadWikiJson($record, ['Aufgelöst-JSON', 'Aufgeloest-JSON', 'Aufgelöst-JSON', 'dissolved_json']);
     $wikiKey = avesmapsPoliticalBuildWikiKey($wikiUrl, $name);
     $slug = avesmapsPoliticalSlug($name);
 
@@ -138,9 +138,9 @@ function avesmapsPoliticalNormalizeWikiRecord(array $record): array {
         'name' => $name,
         'type' => avesmapsPoliticalNormalizeParentheticalSpacing(avesmapsPoliticalReadWikiString($record, ['Typ', 'type'], 160)),
         'continent' => $continent,
-        'affiliation_raw' => avesmapsPoliticalReadWikiString($record, ['Zugehörigkeit', 'Zugehoerigkeit', 'ZugehÃ¶rigkeit', 'affiliation_raw']),
-        'affiliation_key' => avesmapsPoliticalReadWikiString($record, ['Zugehörigkeit-Key', 'Zugehoerigkeit-Key', 'ZugehÃ¶rigkeit-Key', 'affiliation_key']),
-        'affiliation_root' => avesmapsPoliticalReadWikiString($record, ['Zugehörigkeit-Root', 'Zugehoerigkeit-Root', 'ZugehÃ¶rigkeit-Root', 'affiliation_root']),
+        'affiliation_raw' => avesmapsPoliticalReadWikiString($record, ['Zugehörigkeit', 'Zugehoerigkeit', 'Zugehörigkeit', 'affiliation_raw']),
+        'affiliation_key' => avesmapsPoliticalReadWikiString($record, ['Zugehörigkeit-Key', 'Zugehoerigkeit-Key', 'Zugehörigkeit-Key', 'affiliation_key']),
+        'affiliation_root' => avesmapsPoliticalReadWikiString($record, ['Zugehörigkeit-Root', 'Zugehoerigkeit-Root', 'Zugehörigkeit-Root', 'affiliation_root']),
         'affiliation_path_json' => $affiliationPathJson,
         'affiliation_json' => $affiliationJson,
         'status' => avesmapsPoliticalReadWikiString($record, ['Status', 'status'], 255),
@@ -149,21 +149,21 @@ function avesmapsPoliticalNormalizeWikiRecord(array $record): array {
         'seat_name' => avesmapsPoliticalReadWikiString($record, ['Herrschaftssitz', 'seat_name'], 255),
         'ruler' => avesmapsPoliticalReadWikiString($record, ['Oberhaupt', 'ruler'], 255),
         'language' => avesmapsPoliticalReadWikiString($record, ['Sprache', 'language'], 2000),
-        'currency' => avesmapsPoliticalReadWikiString($record, ['Währung', 'Waehrung', 'WÃ¤hrung', 'currency'], 2000),
+        'currency' => avesmapsPoliticalReadWikiString($record, ['Währung', 'Waehrung', 'Währung', 'currency'], 2000),
         'trade_goods' => avesmapsPoliticalReadWikiString($record, ['Handelswaren', 'trade_goods'], 4000),
         'population' => avesmapsPoliticalReadWikiString($record, ['Einwohnerzahl', 'population'], 2000),
-        'founded_text' => avesmapsPoliticalReadWikiString($record, ['Gründungsdatum-Text', 'Gruendungsdatum-Text', 'GrÃ¼ndungsdatum-Text', 'Gründungsdatum', 'Gruendungsdatum', 'GrÃ¼ndungsdatum']),
-        'founded_type' => avesmapsPoliticalReadWikiString($record, ['Gründungsdatum-Typ', 'Gruendungsdatum-Typ', 'GrÃ¼ndungsdatum-Typ']),
-        'founded_start_bf' => avesmapsPoliticalReadWikiInt($record, ['Gründungsdatum-StartBF', 'Gruendungsdatum-StartBF', 'GrÃ¼ndungsdatum-StartBF']),
-        'founded_end_bf' => avesmapsPoliticalReadWikiInt($record, ['Gründungsdatum-EndBF', 'Gruendungsdatum-EndBF', 'GrÃ¼ndungsdatum-EndBF']),
-        'founded_display_bf' => avesmapsPoliticalReadWikiFloat($record, ['Gründungsdatum-AnzeigeBF', 'Gruendungsdatum-AnzeigeBF', 'GrÃ¼ndungsdatum-AnzeigeBF']),
+        'founded_text' => avesmapsPoliticalReadWikiString($record, ['Gründungsdatum-Text', 'Gruendungsdatum-Text', 'Gründungsdatum-Text', 'Gründungsdatum', 'Gruendungsdatum', 'Gründungsdatum']),
+        'founded_type' => avesmapsPoliticalReadWikiString($record, ['Gründungsdatum-Typ', 'Gruendungsdatum-Typ', 'Gründungsdatum-Typ']),
+        'founded_start_bf' => avesmapsPoliticalReadWikiInt($record, ['Gründungsdatum-StartBF', 'Gruendungsdatum-StartBF', 'Gründungsdatum-StartBF']),
+        'founded_end_bf' => avesmapsPoliticalReadWikiInt($record, ['Gründungsdatum-EndBF', 'Gruendungsdatum-EndBF', 'Gründungsdatum-EndBF']),
+        'founded_display_bf' => avesmapsPoliticalReadWikiFloat($record, ['Gründungsdatum-AnzeigeBF', 'Gruendungsdatum-AnzeigeBF', 'Gründungsdatum-AnzeigeBF']),
         'founded_json' => $foundedJson,
-        'founder' => avesmapsPoliticalReadWikiString($record, ['Gründer', 'Gruender', 'GrÃ¼nder', 'founder'], 255),
-        'dissolved_text' => avesmapsPoliticalReadWikiString($record, ['Aufgelöst-Text', 'Aufgeloest-Text', 'AufgelÃ¶st-Text', 'Aufgelöst', 'Aufgeloest', 'AufgelÃ¶st']),
-        'dissolved_type' => avesmapsPoliticalReadWikiString($record, ['Aufgelöst-Typ', 'Aufgeloest-Typ', 'AufgelÃ¶st-Typ']),
-        'dissolved_start_bf' => avesmapsPoliticalReadWikiInt($record, ['Aufgelöst-StartBF', 'Aufgeloest-StartBF', 'AufgelÃ¶st-StartBF']),
-        'dissolved_end_bf' => avesmapsPoliticalReadWikiInt($record, ['Aufgelöst-EndBF', 'Aufgeloest-EndBF', 'AufgelÃ¶st-EndBF']),
-        'dissolved_display_bf' => avesmapsPoliticalReadWikiFloat($record, ['Aufgelöst-AnzeigeBF', 'Aufgeloest-AnzeigeBF', 'AufgelÃ¶st-AnzeigeBF']),
+        'founder' => avesmapsPoliticalReadWikiString($record, ['Gründer', 'Gruender', 'Gründer', 'founder'], 255),
+        'dissolved_text' => avesmapsPoliticalReadWikiString($record, ['Aufgelöst-Text', 'Aufgeloest-Text', 'Aufgelöst-Text', 'Aufgelöst', 'Aufgeloest', 'Aufgelöst']),
+        'dissolved_type' => avesmapsPoliticalReadWikiString($record, ['Aufgelöst-Typ', 'Aufgeloest-Typ', 'Aufgelöst-Typ']),
+        'dissolved_start_bf' => avesmapsPoliticalReadWikiInt($record, ['Aufgelöst-StartBF', 'Aufgeloest-StartBF', 'Aufgelöst-StartBF']),
+        'dissolved_end_bf' => avesmapsPoliticalReadWikiInt($record, ['Aufgelöst-EndBF', 'Aufgeloest-EndBF', 'Aufgelöst-EndBF']),
+        'dissolved_display_bf' => avesmapsPoliticalReadWikiFloat($record, ['Aufgelöst-AnzeigeBF', 'Aufgeloest-AnzeigeBF', 'Aufgelöst-AnzeigeBF']),
         'dissolved_json' => $dissolvedJson,
         'geographic' => avesmapsPoliticalReadWikiString($record, ['Geographisch', 'geographic']),
         'political' => avesmapsPoliticalReadWikiString($record, ['Politisch', 'political']),
@@ -884,7 +884,7 @@ function avesmapsPoliticalBuildWikiKey(string $wikiUrl, string $name): string {
 }
 
 function avesmapsPoliticalReadAffiliationPathJson(array $record, array $affiliationJson): array {
-    $pathText = avesmapsPoliticalReadWikiString($record, ['Zugehörigkeit-Pfad', 'Zugehoerigkeit-Pfad', 'ZugehÃ¶rigkeit-Pfad', 'affiliation_path']);
+    $pathText = avesmapsPoliticalReadWikiString($record, ['Zugehörigkeit-Pfad', 'Zugehoerigkeit-Pfad', 'Zugehörigkeit-Pfad', 'affiliation_path']);
     if ($pathText !== '') {
         return array_values(array_filter(array_map('trim', preg_split('/\s*>\s*/', $pathText) ?: [])));
     }

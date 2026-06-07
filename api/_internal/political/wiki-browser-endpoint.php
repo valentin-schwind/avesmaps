@@ -15,7 +15,7 @@ if (!is_file($configPath)) {
 $config = require $configPath;
 
 if (!is_array($config) || !isset($config['database']) || !is_array($config['database'])) {
-    respondJson(['ok' => false, 'error' => 'config.local.php liefert keine gÃ¼ltige database-Konfiguration.'], 500);
+    respondJson(['ok' => false, 'error' => 'config.local.php liefert keine gültige database-Konfiguration.'], 500);
 }
 
 applyCors($config['cors']['allowed_origins'] ?? []);
@@ -34,7 +34,7 @@ try {
     $driver = (string)($db['driver'] ?? 'mysql');
 
     if ($driver !== 'mysql') {
-        throw new RuntimeException('Nur MySQL wird unterstÃ¼tzt.');
+        throw new RuntimeException('Nur MySQL wird unterstützt.');
     }
 
     $host = (string)($db['host'] ?? 'localhost');

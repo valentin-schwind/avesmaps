@@ -265,7 +265,7 @@ function avesmapsReadOptionalRevision(mixed $value): ?int {
 function avesmapsReadAuditLogId(mixed $value): int {
     $auditId = filter_var($value, FILTER_VALIDATE_INT);
     if ($auditId === false || $auditId <= 0) {
-        throw new InvalidArgumentException('Die Ã„nderungs-ID ist ungueltig.');
+        throw new InvalidArgumentException('Die Änderungs-ID ist ungueltig.');
     }
 
     return (int) $auditId;
@@ -372,15 +372,15 @@ function avesmapsUndoAuditChange(PDO $pdo, array $payload, array $user): array {
         $auditEntry = avesmapsFetchAuditEntryForUndo($pdo, $auditId);
         $action = (string) $auditEntry['action'];
         if (!avesmapsCanUndoAuditAction($action) || str_starts_with($action, 'undo_')) {
-            throw new InvalidArgumentException('Diese Ã„nderung kann nicht rÃ¼ckgÃ¤ngig gemacht werden.');
+            throw new InvalidArgumentException('Diese Änderung kann nicht rückgängig gemacht werden.');
         }
         if (!empty($auditEntry['undone_at'])) {
-            throw new InvalidArgumentException('Diese Ã„nderung wurde bereits rÃ¼ckgÃ¤ngig gemacht.');
+            throw new InvalidArgumentException('Diese Änderung wurde bereits rückgängig gemacht.');
         }
 
         $featureId = (int) ($auditEntry['feature_id'] ?? 0);
         if ($featureId <= 0) {
-            throw new InvalidArgumentException('Diese Ã„nderung ist keinem Kartenobjekt zugeordnet.');
+            throw new InvalidArgumentException('Diese Änderung ist keinem Kartenobjekt zugeordnet.');
         }
 
         $featureBeforeUndo = avesmapsFetchFeatureByIdForUpdate($pdo, $featureId);
@@ -422,7 +422,7 @@ function avesmapsFetchAuditEntryForUndo(PDO $pdo, int $auditId): array {
     $statement->execute(['id' => $auditId]);
     $auditEntry = $statement->fetch(PDO::FETCH_ASSOC);
     if (!$auditEntry) {
-        throw new InvalidArgumentException('Die Ã„nderung wurde nicht gefunden.');
+        throw new InvalidArgumentException('Die Änderung wurde nicht gefunden.');
     }
 
     return $auditEntry;
@@ -464,7 +464,7 @@ function avesmapsBuildUndoFeatureUpdates(string $action, array $feature, array $
         ? ['feature_type', 'feature_subtype', 'name', 'geometry_type', 'geometry_json', 'properties_json', 'style_json', 'min_x', 'min_y', 'max_x', 'max_y', 'is_active']
         : avesmapsUndoColumnsForAuditAction($action);
     if ($columns === []) {
-        throw new InvalidArgumentException('Diese Ã„nderung kann nicht rÃ¼ckgÃ¤ngig gemacht werden.');
+        throw new InvalidArgumentException('Diese Änderung kann nicht rückgängig gemacht werden.');
     }
 
     $conflictColumns = $action === 'delete_feature' ? ['is_active'] : array_values(array_unique([...$columns, 'is_active']));
@@ -502,7 +502,7 @@ function avesmapsAssertUndoPatchStillCurrent(string $action, array $feature, arr
         $currentValue = avesmapsNormalizeFeatureColumnValue($column, $feature[$column] ?? null);
         $normalizedAfterValue = avesmapsNormalizeFeatureColumnValue($column, $afterValue);
         if ($currentValue !== $normalizedAfterValue) {
-            throw new AvesmapsConflictException('Diese Ã„nderung kann nicht unabhÃ¤ngig rÃ¼ckgÃ¤ngig gemacht werden, weil das Objekt inzwischen erneut geÃ¤ndert wurde.');
+            throw new AvesmapsConflictException('Diese Änderung kann nicht unabhängig rückgängig gemacht werden, weil das Objekt inzwischen erneut geändert wurde.');
         }
     }
 }
@@ -619,7 +619,7 @@ function avesmapsDecodeFeatureJsonValue(mixed $value): mixed {
 function avesmapsReadGeometryFromColumnValue(mixed $value): array {
     $geometry = avesmapsDecodeFeatureJsonValue($value);
     if (!is_array($geometry) || !isset($geometry['type'])) {
-        throw new RuntimeException('Die Geometrie der Ã„nderung ist ungueltig.');
+        throw new RuntimeException('Die Geometrie der Änderung ist ungueltig.');
     }
 
     return $geometry;
@@ -694,7 +694,7 @@ function avesmapsApplyFeatureUpdates(PDO $pdo, int $featureId, array $updates): 
         $parameters[$column] = $value;
     }
     if ($assignments === []) {
-        throw new RuntimeException('Es gibt keine Undo-Ã„nderungen zum Speichern.');
+        throw new RuntimeException('Es gibt keine Undo-Änderungen zum Speichern.');
     }
 
     $statement = $pdo->prepare('UPDATE map_features SET ' . implode(', ', $assignments) . ' WHERE id = :id');
