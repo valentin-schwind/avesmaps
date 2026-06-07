@@ -219,7 +219,13 @@ function buildRoutePlanEntries(routeNames, segments) {
 			return;
 		}
 
-		const type = normalizePathSubtype(segment.properties?.feature_subtype || segment.properties?.name);
+		// Synthetische Luftlinien behalten ihren Typ "Querfeldein" (normalizePathSubtype wuerde ihn zu
+		// "Weg" verschmelzen) -> so erkennen Grenz-Lauf-Trennung und Anzeige-Label die Luftlinie.
+		const rawSubtype = String(segment.properties?.feature_subtype || "");
+		const isSyntheticSegment = segment.properties?.synthetic === true || rawSubtype === SYNTHETIC_ROUTE_TYPE;
+		const type = isSyntheticSegment
+			? SYNTHETIC_ROUTE_TYPE
+			: normalizePathSubtype(segment.properties?.feature_subtype || segment.properties?.name);
 		const transport = segment.properties?.transportOption || getTransportOption(type) || "groupFoot";
 		const speedKm = SPEED_TABLE[transport]?.[type] || 1;
 		const speedMiles = speedKm * KM_TO_MILES;
