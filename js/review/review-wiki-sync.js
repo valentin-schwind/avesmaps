@@ -1773,6 +1773,12 @@ async function handleWikiSyncResolveFormSubmit(event) {
 		if (!drag) {
 			return;
 		}
+		// Robustheit: ist die Maustaste nicht (mehr) gedrueckt (verpasstes pointerup), Drag beenden -
+		// sonst "klebt" der Drag und spaetere Mausbewegungen wuerden die Hoehe weiter veraendern.
+		if (!(event.buttons & 1)) {
+			endDrag();
+			return;
+		}
 		const next = drag.startHeight + (event.clientY - drag.startY);
 		drag.list.style.height = Math.max(MIN_HEIGHT, Math.min(maxHeight(), next)) + "px";
 	});
