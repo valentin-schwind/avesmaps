@@ -527,11 +527,12 @@
 	background: #fff;
 }
 
-/* Schlanke, an den Inhalt angepasste Infobox NUR fuer Label-/Pfad-Popups.
-   Die geteilte .region-info-box-Basis (Herrschaftsgebiete-Tooltip) bleibt unangetastet. */
-.label-wiki-infobox-popup .region-info-box,
+/* Schlanke Infobox NUR fuer .location-popup-Region-Boxen (z.B. Weg ohne Wiki).
+   Die Label-Infobox (.label-wiki-infobox-popup) wird WEITER UNTEN behandelt und
+   darf NICHT hier auf max-width 360 geklemmt werden -> sonst wirkt sie im
+   Frontend "komisch schmal" statt wie im Edit-Mode (Siedlungs-Popup, ~400px). */
 .location-popup .region-info-box {
-	width: fit-content;
+	width: min(360px, calc(100vw - 52px));
 	max-width: min(360px, calc(100vw - 52px));
 	padding: 0;
 	gap: 4px;
