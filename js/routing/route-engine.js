@@ -445,7 +445,7 @@ async function updateMapViewServerPrimary() {
 	if (invalidLocationInputs.length) alert(`Orte nicht gefunden: ${invalidLocationInputs.join(", ")}`);
 
 	if (selectedLocations.length >= 2) {
-		$("#overview").text("Route wird vom Server berechnet...");
+		$("#overview").text("Route wird berechnet...");
 		let routeResult = null;
 		try {
 			routeResult = await buildRouteResultFromSelectedLocationsServer(useShortest);
