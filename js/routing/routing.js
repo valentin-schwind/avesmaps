@@ -638,6 +638,10 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 			if (popup._container) {
 				popup._container.classList.toggle("route-waypoint-popup--expanded", popup._routeExpanded);
 			}
+			// Hoehe vor dem Neu-Rendern an die aktuelle Karte anpassen (ausgeklappt + Bewertungen -> scrollbar).
+			if (popup.options && typeof locationMarkerPopupMaxHeight === "function") {
+				popup.options.maxHeight = locationMarkerPopupMaxHeight();
+			}
 			popup.setContent(buildRoutePopupHtml(popup._routeLoc, {
 				expanded: popup._routeExpanded,
 				showRemoveAction: popup._routeShowRemove,
@@ -645,6 +649,13 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 			}));
 			if (typeof popup.update === "function") {
 				popup.update();
+			}
+			// Bewertungen im ausgeklappten Popup async nachladen (wie beim Marker-Popup).
+			if (popup._routeExpanded && popup._container && typeof hydrateLocationReviews === "function") {
+				const reviewsEl = popup._container.querySelector(".location-reviews");
+				if (reviewsEl) {
+					hydrateLocationReviews(reviewsEl);
+				}
 			}
 		}
 		return;
@@ -976,6 +987,10 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 				typeLabel += " (Ruine)";
 			}
 		}
+		// Community-Bewertungen wie im Marker-Popup (async beim Aufklappen geladen, s. Toggle-Handler).
+		const reviewsSlot = markerEntry.publicId
+			? `<div class="location-reviews" data-reviews-public-id="${escapeHtml(markerEntry.publicId)}" data-reviews-name="${escapeHtml(markerEntry.name || loc.name)}"></div>`
+			: "";
 		return locationPopupMarkup({
 			name: loc.name,
 			locationType: loc.locationType,
@@ -984,7 +999,7 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 			showType: true,
 			showDescription: false,
 			showWikiLink: false,
-			actionsMarkup: settlementWikiInfoboxMarkup(markerEntry.location) + actionsBar,
+			actionsMarkup: settlementWikiInfoboxMarkup(markerEntry.location) + actionsBar + reviewsSlot,
 		});
 	}
 
@@ -1024,6 +1039,8 @@ const addTooltip = (loc, {
 			// die grosse Infobox); die Breite wird per CSS pro Zustand gesetzt (310 ein-, 400 ausgeklappt).
 			minWidth: 310,
 			maxWidth: 400,
+			// Hoehe an die Karte koppeln -> ausgeklappt mit Bewertungen scrollt es statt abzuschneiden.
+			maxHeight: typeof locationMarkerPopupMaxHeight === "function" ? locationMarkerPopupMaxHeight() : 480,
 			className: "route-waypoint-popup settlement-popup",
 		})
 			.setLatLng(loc.coordinates)
