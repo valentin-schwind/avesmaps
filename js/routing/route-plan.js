@@ -377,8 +377,8 @@ function showRoutePlan(routeNames, segments) {
 			Distanz: ${totalDistance.toFixed(1)} Meilen<br>
 			Drachenflug: ${airDistance.toFixed(1)} Meilen<br>
 			Reisezeit: ${totalTravelTime.toFixed(1)} Stunden (${(totalTravelTime / 24).toFixed(1)} Tage)<br>
-			Rastzeit: ${totalRestTime.toFixed(1)} Stunden (${(totalRestTime / 24).toFixed(1)} Tage)<br>
-			<strong>Gesamtzeit: ${totalHours.toFixed(1)} Stunden (${(totalHours / 24).toFixed(1)} Tage)</strong>
+			Rastzeit: ${totalRestTime.toFixed(1)} Stunden (${(totalRestTime / 24).toFixed(1)} Tage)
+			<div style="margin-top: 0.5em"><strong>Gesamtzeit: ${totalHours.toFixed(1)} Stunden (${(totalHours / 24).toFixed(1)} Tage)</strong></div>
 		</div>
 		<button type="button" id="share-link-button" class="share-link-button">🔗 Link für diese Route kopieren</button>
 		<hr>
