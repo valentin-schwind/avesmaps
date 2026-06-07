@@ -348,7 +348,7 @@
 .wiki-sync-accordion[open] {
 	display: flex;
 	flex-direction: column;
-	max-height: 60vh;
+	max-height: 70vh;
 }
 .wiki-sync-accordion__body {
 	border-top: 1px solid #e7d8c6;
@@ -364,7 +364,9 @@
 }
 .wiki-sync-accordion__body > #wiki-sync-case-list {
 	flex: 1 1 auto;
-	min-height: 96px;
+	/* Konfliktfall-Liste braucht spuerbar Hoehe (sonst nur ~96px = zu niedrig); scrollt intern
+	   (.review-panel__list overflow:auto), die Accordion-max-height deckelt nach oben. */
+	min-height: 400px;
 }
 
 /* Typ-Filter-Dropdown (Mehrfachauswahl) neben den Suchfeldern. */
