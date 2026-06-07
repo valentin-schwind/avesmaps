@@ -925,7 +925,11 @@
 /* ===== Label-/Region-View-Popup: gleiche Behandlung wie Siedlungs-Popup (breiter, gleichmäßiges
    Padding, Trenner unter dem Titel in voller Breite). Scoped -> bricht NICHT die Herrschaftsgebiete. */
 .label-wiki-infobox-popup .region-info-box {
-	width: min(400px, calc(100vw - 32px));
+	/* Wie der Edit-Mode (.location-popup .region-info-box--settlement): an den Inhalt
+	   schmiegen statt fix 400px erzwingen -> Leaflet klemmt auf [minWidth, maxWidth].
+	   Fix-400px wirkte im Frontend "komisch" breit/gestreckt gegenueber dem Editor. */
+	width: auto;
+	max-width: min(400px, calc(100vw - 32px));
 	padding: 12px 14px;
 	gap: 8px;
 }

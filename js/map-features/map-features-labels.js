@@ -108,7 +108,8 @@ function createLabelMarkerEntry(label) {
 		});
 	} else if (labelHasWikiRegion(label)) {
 		// Ansichtsmodus: Label mit zugeordneter Wiki-Landschaft ist anklickbar -> Infobox.
-		marker.bindPopup(labelWikiInfoboxMarkup(label), { className: "label-wiki-infobox-popup", minWidth: 300, maxWidth: 400, autoPan: true });
+		// minWidth 320 wie der Edit-Mode (refreshLabelMarkerPopup), damit die Box gleich breit wirkt.
+		marker.bindPopup(labelWikiInfoboxMarkup(label), { className: "label-wiki-infobox-popup", minWidth: 320, maxWidth: 400, autoPan: true });
 	}
 	syncLabelMarkerVisibility(entry);
 	return entry;
