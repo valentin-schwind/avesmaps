@@ -1,5 +1,10 @@
 // Konstanten
 const THRESHOLD = 0.5;
+// Maximaler Abstand (Karten-Einheiten), ab dem ein Routen-Endpunkt noch als "Stadt sitzt am Knoten"
+// gilt. 0.15 Einheiten = 0.45 Meilen (1 Einheit = DISTANCE_SCALING_FACTOR Meilen). Liegt die naechste
+// Stadt weiter weg, ist der Knoten in Wahrheit eine Kreuzung mit nur zufaellig benachbarter Stadt und
+// wird als Kreuzung behandelt (vom Grenz-Lauf absorbiert) -> Etappenname bleibt deckungsgleich mit der Linie.
+const ROUTE_CITY_NODE_THRESHOLD = 0.15;
 const TILE_SIZE = 256;
 const IMG_WIDTH = 1024;
 const IMG_HEIGHT = 1024;

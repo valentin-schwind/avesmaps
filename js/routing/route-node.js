@@ -118,13 +118,25 @@ function buildOrientedRouteSegmentEndpoints(segments) {
 }
 
 // Anzeigename fuer einen (orientierten) Segment-Endpunkt: naechstgelegener Ort, sonst Kreuzung/Markierung.
+// Eine Stadt zaehlt nur dann als echter Etappen-Knoten, wenn sie WIRKLICH am Knoten liegt
+// (<= ROUTE_CITY_NODE_THRESHOLD). Sonst ist der Knoten in Wahrheit eine Kreuzung mit nur zufaellig
+// benachbarter Stadt -> als Kreuzung behandeln (wird vom Grenz-Lauf absorbiert), damit der angezeigte
+// Etappenname deckungsgleich mit der gehighlighteten Linie bleibt.
 function routeSegmentEndpointName(coordinate, allowCrossings = true) {
 	if (!Array.isArray(coordinate)) {
 		return allowCrossings ? "Kreuzung" : "Markierung";
 	}
 	const location = findRouteLocationAtPathEndpoint(coordinate, { allowCrossings });
 	if (location) {
-		return isCrossingLocation(location) ? normalizeNodeName(location.name) : location.name;
+		if (isCrossingLocation(location)) {
+			return normalizeNodeName(location.name);
+		}
+		const deltaX = Number(location.coordinates[1]) - Number(coordinate[0]);
+		const deltaY = Number(location.coordinates[0]) - Number(coordinate[1]);
+		if ((deltaX * deltaX + deltaY * deltaY) <= ROUTE_CITY_NODE_THRESHOLD * ROUTE_CITY_NODE_THRESHOLD) {
+			return location.name;
+		}
+		return allowCrossings ? "Kreuzung" : "Markierung";
 	}
 	return allowCrossings ? "Kreuzung" : "Markierung";
 }
