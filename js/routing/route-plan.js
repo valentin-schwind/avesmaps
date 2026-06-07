@@ -149,6 +149,28 @@ function cleanRoutePlanNoiseEntries(entries) {
 				continue;
 			}
 
+			// Echte Zwischenstadt bewahren: Diese Etappe ist nur "Rausch", weil an der Grenze zum
+			// Nachbarn eine Kreuzung sitzt -- sie endet bzw. beginnt aber an einer ECHTEN Stadt, die
+			// sich von der Stadt des Nachbarn unterscheidet. Statt zu verschmelzen (was die
+			// Zwischenstadt ueberschreiben wuerde, z.B. Vallusa -> Wolfen), die Marker-Grenze auf die
+			// echte Nachbarstadt umbenennen -> saubere Stadt-zu-Stadt-Etappe, kein Verlust.
+			if (entry.startName !== entry.endName) {
+				if (index > 0 && isRoutePlanMarkerName(entry.startName) && !isRoutePlanMarkerName(entry.endName) && entry.endName) {
+					const previousReal = result[index - 1];
+					if (previousReal && !isRoutePlanMarkerName(previousReal.endName) && previousReal.endName && previousReal.endName !== entry.endName) {
+						entry.startName = previousReal.endName;
+						continue;
+					}
+				}
+				if (index === 0 && isRoutePlanMarkerName(entry.endName) && !isRoutePlanMarkerName(entry.startName) && entry.startName) {
+					const nextReal = result[index + 1];
+					if (nextReal && !isRoutePlanMarkerName(nextReal.startName) && nextReal.startName && nextReal.startName !== entry.startName) {
+						entry.endName = nextReal.startName;
+						continue;
+					}
+				}
+			}
+
 			if (index > 0) {
 				const previous = result[index - 1];
 				previous.distance += entry.distance;
