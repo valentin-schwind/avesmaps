@@ -1,16 +1,16 @@
 const LOCATION_NAME_LABEL_SIZE_BY_ZOOM = {
-	metropole: { 0: 7, 1: 8, 2: 10, 3: 12, 4: 16, 5: 18 },
-	grossstadt: { 0: 7, 1: 7.5, 2: 9, 3: 11, 4: 14, 5: 16 },
-	stadt: { 0: 7, 1: 7, 2: 8, 3: 10, 4: 12, 5: 14 },
-	kleinstadt: { 0: 7, 1: 7, 2: 7.5, 3: 8.5, 4: 10, 5: 12 },
-	dorf: { 0: 7, 1: 7, 2: 7, 3: 7.5, 4: 9, 5: 10 },
-	gebaeude: { 0: 7, 1: 7, 2: 7, 3: 7, 4: 8, 5: 8 },
+	metropole: { 0: 8, 1: 9, 2: 11, 3: 13, 4: 17, 5: 19 },
+	grossstadt: { 0: 8, 1: 8.5, 2: 10, 3: 12, 4: 15, 5: 17 },
+	stadt: { 0: 8, 1: 8, 2: 9, 3: 11, 4: 13, 5: 15 },
+	kleinstadt: { 0: 8, 1: 8, 2: 8.5, 3: 9.5, 4: 11, 5: 13 },
+	dorf: { 0: 8, 1: 8, 2: 8, 3: 8.5, 4: 10, 5: 11 },
+	gebaeude: { 0: 8, 1: 8, 2: 8, 3: 8, 4: 9, 5: 9 },
 };
 
 function getLocationNameLabelSize(locationType, zoomLevel = map.getZoom()) {
 	const roundedZoomLevel = getVisualZoomLevel(zoomLevel);
 	const sizeByZoom = LOCATION_NAME_LABEL_SIZE_BY_ZOOM[locationType] || LOCATION_NAME_LABEL_SIZE_BY_ZOOM.dorf;
-	return Math.max(7, Number(sizeByZoom[roundedZoomLevel] ?? sizeByZoom[VISUAL_MAX_ZOOM_LEVEL] ?? sizeByZoom[4] ?? sizeByZoom[3] ?? sizeByZoom[2] ?? sizeByZoom[1] ?? sizeByZoom[0] ?? 7));
+	return Math.max(8, Number(sizeByZoom[roundedZoomLevel] ?? sizeByZoom[VISUAL_MAX_ZOOM_LEVEL] ?? sizeByZoom[4] ?? sizeByZoom[3] ?? sizeByZoom[2] ?? sizeByZoom[1] ?? sizeByZoom[0] ?? 8));
 }
 
 // Kleiner Abstand zwischen Marker-Aussenrand und Schrift (wird auf den Marker-Radius addiert).
