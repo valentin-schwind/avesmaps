@@ -36,6 +36,8 @@
   .cols { display:flex; flex:1 1 auto; min-height:0; }
   .col { flex:1; overflow:hidden; padding:8px; display:flex; flex-direction:column; min-height:0; }
   #list, #tree, #detailBody { flex:1 1 auto; overflow:auto; min-height:0; }
+  /* Listen-Hintergrund weiß wie im Haupt-Tool (statt der beigen Seitenfarbe). */
+  #list, #tree { background:#fff; border:1px solid var(--line); border-radius:6px; padding:4px; }
   #left { border-right:1px solid var(--line); max-width:46%; }
   .bar { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
   input[type=search], select { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:4px 6px; font:inherit; }
@@ -189,7 +191,7 @@
       <summary title="Aus welchen Wiki-Kategorien und Typ-Listen die Herrschaftsgebiete gezogen werden"><span class="t1">Wiki-Quelle</span><span class="t2" id="seedCount">—</span></summary>
       <div class="dd-menu" id="seedMenu"></div>
     </details>
-    <button class="btn2 primary" id="btnCrawl"><span class="t1">Sync starten</span><span class="t2" id="stSync">—</span></button>
+    <button class="btn2 primary" id="btnCrawl"><span class="t1">🚨 Sync starten</span><span class="t2" id="stSync">—</span></button>
     <button class="btn2" id="btnModel" title="Berechnet die Hierarchie aus dem Staging neu (Locks + Aussortiert bleiben erhalten)"><span class="t1">Hierarchie</span><span class="t2" id="stModel">—</span></button>
     <button class="btn2" id="btnDiff" title="Vergleicht Staging gegen das aktuelle Wiki: gelöscht / geändert / neu"><span class="t1">Unterschiede</span><span class="t2" id="stDiff">—</span></button>
     <button class="btn2" id="btnCache" title="Testweise zeigen, was die Übertragung nach Avesmaps ändern würde – schreibt nichts"><span class="t1">Test</span><span class="t2" id="stTest">—</span></button>
@@ -940,7 +942,7 @@ document.addEventListener('click', e => {
   if(el) selectKey(el.dataset.key);               // Klick = auswählen -> Detail-Panel
 });
 
-$('btnCrawl').onclick = runCrawl;
+$('btnCrawl').onclick = () => { if (window.confirm("Sync wirklich starten? Das crawlt + synchronisiert die Herrschaftsgebiete neu (läuft im Hintergrund).")) runCrawl(); };
 $('btnModel').onclick = async()=>{ busy(true); try{ const r=await api('rebuild_model',{method:'POST'}); setStatus(`Hierarchie: ${r.summary.total} Knoten, ${r.summary.resolved_parents} Eltern aufgelöst, ${r.summary.gap_parents} Lücken, ${r.summary.roots} Wurzeln.`); await loadModel(); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnDiff').onclick = async()=>{ busy(true); try{ const d=await api('diff'); setStatus(`Unterschiede (Staging vs Wiki): neu ${d.new}, verschwunden ${d.disappeared}, geändert ${d.changed}.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnCache').onclick = async()=>{ busy(true); try{ const c=await api('sync_parent_cache',{method:'POST',body:{}}); setStatus(`Testübertragung: auffüllbar ${c.fillable}, deckungsgleich ${c.already_aligned}, divergent ${c.divergent_existing} – es wurde nichts geschrieben.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
