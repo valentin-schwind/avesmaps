@@ -151,23 +151,46 @@
 }
 
 #inputLocation {
+	position: relative;
 	width: 32px;
 	height: 32px;
 	min-height: 32px;
 	align-self: center;
 	justify-self: center;
-	/* Randlos/ohne Box wie der Wegpunkt-Entfernen-Button (.remove-waypoint), aber groesser/prominenter. */
+	/* Randlos/ohne Box wie der Wegpunkt-Entfernen-Button (.remove-waypoint). Das "+" wird per CSS
+	   gezeichnet (::before/::after) -> exakt zentriert, unabhaengig von Schriftart-Metriken.
+	   font-size:0 blendet das Text-"+" aus (bleibt fuer Screenreader im DOM). */
 	border: 0;
 	border-radius: 7px;
 	background: transparent;
 	color: #7c6957;
-	font-size: 26px;
-	font-weight: 800;
+	font-size: 0;
 	line-height: 1;
 	padding: 0;
 	cursor: pointer;
 	box-shadow: none;
 	transition: background 0.12s ease, color 0.12s ease;
+}
+
+#inputLocation::before,
+#inputLocation::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	background: currentColor;
+	border-radius: 2px;
+}
+
+#inputLocation::before {
+	width: 18px;
+	height: 3px;
+}
+
+#inputLocation::after {
+	width: 3px;
+	height: 18px;
 }
 
 #inputLocation:hover,
