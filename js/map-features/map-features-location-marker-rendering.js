@@ -51,6 +51,9 @@ function isVillageMarkerStyleLocation(locationType) {
 	return locationType === "dorf" || locationType === "gebaeude";
 }
 
+// Globaler Groessen-Faktor fuer alle Orts-Marker (kleiner = weniger Ueberlappung).
+const LOCATION_MARKER_SIZE_SCALE = 0.75;
+
 function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
 	const visualZoomLevel = getVisualZoomLevel(zoomLevel);
 	if (locationType === CROSSING_LOCATION_TYPE) {
@@ -59,11 +62,11 @@ function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
 
 	if (isVillageMarkerStyleLocation(locationType)) {
 		const villageStyle = locationType === "gebaeude" ? getBuildingMarkerStyle(zoomLevel) : getVillageMarkerStyle(zoomLevel);
-		return villageStyle.radius * 2 + villageStyle.borderWidth * 2;
+		return (villageStyle.radius * 2 + villageStyle.borderWidth * 2) * LOCATION_MARKER_SIZE_SCALE;
 	}
 
 	const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
-	return config.radius * locationZoomScale(zoomLevel) * 2 + 1;
+	return (config.radius * locationZoomScale(zoomLevel) * 2 + 1) * LOCATION_MARKER_SIZE_SCALE;
 }
 
 // Weisser Rand skaliert linear mit der Markergroesse (gleiches Verhaeltnis auf jeder Zoomstufe).
