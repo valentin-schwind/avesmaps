@@ -249,9 +249,9 @@
 	border-color: #ffffff;
 	border-style: solid;
 	background: #f52b25;
-	filter:
-		drop-shadow(0 1px var(--location-marker-shadow-blur, 2px) rgba(0, 0, 0, 0.95))
-		drop-shadow(0 0 var(--location-marker-shadow-blur, 2px) rgba(0, 0, 0, 0.78));
+	/* perf: blurfreier 1px-Rahmen statt doppeltem drop-shadow-Filter -- gleiche
+	   Kontrastwirkung, aber GPU-kompositiert statt per-Pixel-Repaint je Zoom */
+	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.92);
 }
 
 .location-visual-marker__shape--simple {
