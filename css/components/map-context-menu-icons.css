@@ -2,7 +2,8 @@
 .map-context-menu__item[data-context-action="report-location"],
 .map-context-menu__item[data-context-action="open-spotlight-search"],
 .map-context-menu__item[data-context-action="find-nearest-location"],
-.map-context-menu__item[data-context-action="start-distance-measurement"] {
+.map-context-menu__item[data-context-action="start-distance-measurement"],
+.map-context-menu__item[data-context-action="clear-distance-measurement"] {
 	grid-template-columns: 1.45em max-content auto;
 	font-size: 13px;
 }
@@ -11,7 +12,8 @@
 .map-context-menu__item[data-context-action="report-location"]::before,
 .map-context-menu__item[data-context-action="open-spotlight-search"]::before,
 .map-context-menu__item[data-context-action="find-nearest-location"]::before,
-.map-context-menu__item[data-context-action="start-distance-measurement"]::before {
+.map-context-menu__item[data-context-action="start-distance-measurement"]::before,
+.map-context-menu__item[data-context-action="clear-distance-measurement"]::before {
 	content: "";
 	grid-column: 1;
 	grid-row: 1;
@@ -40,5 +42,9 @@
 }
 
 .map-context-menu__item[data-context-action="start-distance-measurement"]::before {
+	background-image: url("../../icons/small_webp/lineal.webp");
+}
+
+.map-context-menu__item[data-context-action="clear-distance-measurement"]::before {
 	background-image: url("../../icons/small_webp/lineal.webp");
 }

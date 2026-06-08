@@ -9,7 +9,7 @@
 @import url("components/dialog-overlays.css?v=20260607-reviews");
 @import url("components/legal-dialog.css");
 @import url("components/map-context-menu.css");
-@import url("components/context-menu-sizing.css");
+@import url("components/context-menu-sizing.css?v=20260608-ctxicon");
 @import url("components/spotlight-search.css");
 @import url("components/edit-overlays.css");
 @import url("components/feedback-toast.css");
