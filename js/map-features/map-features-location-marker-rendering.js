@@ -66,13 +66,12 @@ function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
 	return config.radius * locationZoomScale(zoomLevel) * 2 + 1;
 }
 
-function getLocationMarkerBorderWidth(locationType, zoomLevel = map.getZoom()) {
-	const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
-	if (isVillageMarkerStyleLocation(locationType)) {
-		return locationType === "gebaeude" ? getBuildingMarkerStyle(zoomLevel).borderWidth : getVillageMarkerStyle(zoomLevel).borderWidth;
-	}
+// Weisser Rand skaliert linear mit der Markergroesse (gleiches Verhaeltnis auf jeder Zoomstufe).
+const LOCATION_MARKER_RING_RATIO = 0.13;
 
-	return config.borderWidth;
+function getLocationMarkerBorderWidth(locationType, zoomLevel = map.getZoom()) {
+	const markerSize = getLocationMarkerSize(locationType, zoomLevel);
+	return Math.max(0.75, Math.round(markerSize * LOCATION_MARKER_RING_RATIO * 100) / 100);
 }
 
 function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
@@ -90,26 +89,37 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
 		});
 	}
 
-	const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
 	const markerSize = getLocationMarkerSize(locationType, zoomLevel);
-	const isSimpleMarker = locationType === "dorf"
-		? getVisualZoomLevel(zoomLevel) <= 2
-		: locationType === "gebaeude"
-			? getVisualZoomLevel(zoomLevel) <= 3
-			: false;
-	const shapeClassName = config.shape === "square"
-		? `location-visual-marker__shape location-visual-marker__shape--square${isSimpleMarker ? " location-visual-marker__shape--simple" : ""}`
-		: `location-visual-marker__shape location-visual-marker__shape--circle${isSimpleMarker ? " location-visual-marker__shape--simple" : ""}`;
-	const shadowBlur = locationType === "dorf"
-		? (getVisualZoomLevel(zoomLevel) >= 4 ? 2.5 : getVisualZoomLevel(zoomLevel) === 3 ? 2.25 : 2)
-		: 2;
+	const visualZoomLevel = getVisualZoomLevel(zoomLevel);
+	const isSite = locationType === "gebaeude";
+	const isDiamond = isSite && visualZoomLevel >= 4; // Raute erst zeigen, wenn sie lesbar ist
+	const isCapital = locationType === "metropole" && visualZoomLevel >= 3 && markerSize >= 14;
+
+	const shapeClasses = ["location-visual-marker__shape"];
+	shapeClasses.push(isDiamond ? "location-visual-marker__shape--diamond" : "location-visual-marker__shape--circle");
+	if (isSite) {
+		shapeClasses.push("location-visual-marker__shape--site");
+	}
+	if (isCapital) {
+		shapeClasses.push("location-visual-marker__shape--capital");
+	}
+
+	const styleDeclarations = [
+		`width:${markerSize}px`,
+		`height:${markerSize}px`,
+		`border-width:${getLocationMarkerBorderWidth(locationType, zoomLevel)}px`,
+	];
+	if (isCapital) {
+		styleDeclarations.push(`--accent-ring-width:${Math.round(markerSize * 0.12)}px`);
+	}
+
 	const iconHtml = `<span${buildHtmlAttributes({
-		class: shapeClassName,
-		style: `width:${markerSize}px;height:${markerSize}px;border-width:${getLocationMarkerBorderWidth(locationType, zoomLevel)}px;--location-marker-shadow-blur:${shadowBlur}px;`,
+		class: shapeClasses.join(" "),
+		style: `${styleDeclarations.join(";")};`,
 	})}></span>`;
 
 	return L.divIcon({
-		className: `location-visual-marker${isSimpleMarker ? " location-visual-marker--simple" : ""}`,
+		className: "location-visual-marker",
 		html: iconHtml,
 		iconSize: [markerSize, markerSize],
 		iconAnchor: [markerSize / 2, markerSize / 2],

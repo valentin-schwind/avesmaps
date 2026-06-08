@@ -248,10 +248,9 @@
 	box-sizing: border-box;
 	border-color: #ffffff;
 	border-style: solid;
-	background: #f52b25;
-	/* perf: blurfreier 1px-Rahmen statt doppeltem drop-shadow-Filter -- gleiche
-	   Kontrastwirkung, aber GPU-kompositiert statt per-Pixel-Repaint je Zoom */
-	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.92);
+	background: #cc2f2a;
+	/* perf: nur kompositierte box-shadow-Ringe, kein drop-shadow-Filter/Blur */
+	box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
 }
 
 .location-visual-marker__shape--simple {
@@ -267,6 +266,24 @@
 
 .location-visual-marker__shape--square {
 	border-radius: 0;
+}
+
+/* Besondere Staetten: Raute (gedrehtes Quadrat), nur transform -- kein Blur */
+.location-visual-marker__shape--diamond {
+	border-radius: 1px;
+	transform: rotate(45deg);
+}
+
+.location-visual-marker__shape--site {
+	background: #7a4fd0;
+}
+
+/* Metropole: zusaetzlicher Gold-Akzentring (Breite faellt per --accent-ring-width vom JS) */
+.location-visual-marker__shape--capital {
+	box-shadow:
+		0 0 0 1px rgba(0, 0, 0, 0.55),
+		0 0 0 var(--accent-ring-width, 3px) #e7b04a,
+		0 0 0 calc(var(--accent-ring-width, 3px) + 1px) rgba(0, 0, 0, 0.35);
 }
 
 .location-visual-marker__shape--crossing {
