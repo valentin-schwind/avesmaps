@@ -123,6 +123,10 @@ function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds
 	if (typeof nearestLookupPinnedMarkerEntry !== "undefined" && entry === nearestLookupPinnedMarkerEntry) {
 		return true;
 	}
+	// Orte mit offener Routen-Wegpunkt-Infobox bleiben temporaer sichtbar (bis die Infobox schliesst).
+	if (typeof routeWaypointTempMarkerEntries !== "undefined" && routeWaypointTempMarkerEntries && routeWaypointTempMarkerEntries.has(entry)) {
+		return true;
+	}
 	if (entry.locationType === CROSSING_LOCATION_TYPE) {
 		return IS_EDIT_MODE
 			&& $("#toggleCrossings").is(":checked")

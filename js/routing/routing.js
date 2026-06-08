@@ -105,7 +105,68 @@ const prepareLocationData = (data) => {
 	syncLocationMarkerVisibility();
 	map.off("zoomend", syncLocationMarkerVisibility);
 	map.on("zoomend", syncLocationMarkerVisibility);
+	map.off("popupopen", handleRouteWaypointPopupOpen);
+	map.on("popupopen", handleRouteWaypointPopupOpen);
+	map.off("popupclose", handleRouteWaypointPopupClose);
+	map.on("popupclose", handleRouteWaypointPopupClose);
 };
+
+// Findet den Ort-Marker zu einem Routen-Wegpunkt (per public_id, sonst per Name).
+function findRouteWaypointMarkerEntry(loc) {
+	if (!loc) {
+		return null;
+	}
+	const byId = loc.publicId && typeof findLocationMarkerByPublicId === "function"
+		? findLocationMarkerByPublicId(loc.publicId)
+		: null;
+	if (byId) {
+		return byId;
+	}
+	return loc.name && typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(loc.name) : null;
+}
+
+// Solange die Routen-Wegpunkt-Infobox eines Ortes offen ist, dessen Ort-Icon temporaer zeigen —
+// aber nur, wenn die Ortsgroesse gerade NICHT eingeblendet ist (sonst ist der Marker ohnehin da und
+// soll beim Schliessen nicht verschwinden).
+function handleRouteWaypointPopupOpen(event) {
+	const loc = event && event.popup ? event.popup._routeLoc : null;
+	const entry = findRouteWaypointMarkerEntry(loc);
+	if (!entry || !entry.marker || shouldShowLocationMarker(entry)) {
+		return;
+	}
+	routeWaypointTempMarkerEntries.add(entry);
+	if (!map.hasLayer(entry.marker)) {
+		map.addLayer(entry.marker);
+	}
+	if (typeof entry.marker.bringToFront === "function") {
+		entry.marker.bringToFront();
+	}
+}
+
+function handleRouteWaypointPopupClose(event) {
+	const loc = event && event.popup ? event.popup._routeLoc : null;
+	const entry = findRouteWaypointMarkerEntry(loc);
+	if (!entry || !routeWaypointTempMarkerEntries.has(entry)) {
+		return;
+	}
+	routeWaypointTempMarkerEntries.delete(entry);
+	if (!shouldShowLocationMarker(entry) && map.hasLayer(entry.marker)) {
+		map.removeLayer(entry.marker);
+	}
+}
+
+// Defensive Aufraeumung beim Routen-Reset (falls das Entfernen der Popups kein popupclose ausloest).
+function clearRouteWaypointTempMarkers() {
+	if (typeof routeWaypointTempMarkerEntries === "undefined" || !routeWaypointTempMarkerEntries) {
+		return;
+	}
+	routeWaypointTempMarkerEntries.forEach((entry) => {
+		if (entry && entry.marker && !shouldShowLocationMarker(entry) && map.hasLayer(entry.marker)) {
+			map.removeLayer(entry.marker);
+		}
+	});
+	routeWaypointTempMarkerEntries.clear();
+}
 
 function loadRouteDataFromApi() {
 	if (!MAP_FEATURES_API_URL) {
@@ -1126,6 +1187,7 @@ function removeAllTooltips() {
 	$.each(activeTooltips, (i, tip) => map.removeLayer(tip));
 	activeTooltips = [];
 	routePopupRegistry = {};
+	clearRouteWaypointTempMarkers();
 }
 
 // Hebt fehlerhafte Eingaben hervor
