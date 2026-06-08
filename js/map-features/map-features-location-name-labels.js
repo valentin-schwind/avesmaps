@@ -22,7 +22,7 @@ function getLocationNameLabelOffset(labelSize, zoomLevel = map.getZoom(), locati
 	const labelHeightInPixels = labelSize * 4 / 3;
 	return {
 		x: Math.round(markerOuterRadius + LOCATION_NAME_LABEL_GAP),
-		y: Math.round(1 - labelHeightInPixels / 2),
+		y: -(Math.round(labelHeightInPixels / 2 * 10) / 10), // exakt auf die Zeilenbox-Mitte (= Versal-Mitte bei Georgia/line-height:1); ohne das alte +1/Integer-Runden, das den Dot ~1px zu hoch setzte
 	};
 }
 
