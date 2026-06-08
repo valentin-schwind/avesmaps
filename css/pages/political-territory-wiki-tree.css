@@ -120,7 +120,9 @@ details[open] > summary .tree-toggle::before {
 	width: max-content;
 	max-width: 100%;
 	column-gap: 7px;
-	row-gap: 1px;
+	/* Zeilenabstand + Padding einheitlich wie die anderen WikiSync-Listen (Siedlungen-Referenz). */
+	row-gap: 7px;
+	padding: 6px 8px;
 }
 
 #wiki-sync-territory-tree .drag-handle {

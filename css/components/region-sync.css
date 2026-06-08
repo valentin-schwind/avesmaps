@@ -823,6 +823,8 @@
 	grid-template-rows: auto auto;
 	align-items: center;
 	column-gap: 7px;
+	/* Zeilenabstand Name<->Meta einheitlich wie Siedlungen (sonst Regionen/Wege via .region-sync__item nur 2px). */
+	row-gap: 7px;
 	width: 100%;
 	box-sizing: border-box;
 	padding: 6px 8px;
