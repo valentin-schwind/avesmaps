@@ -198,6 +198,11 @@ function getLabelCollisionTarget(element) {
 		// Der sichtbare (und per --label-offset verschobene) Teil ist der Inhalt.
 		return element.querySelector(".region-label__content") || element;
 	}
+	if (element.classList.contains("map-label")) {
+		// Freie Karten-Labels (Kontinente/Meere/Landschaften): sichtbarer Text steckt im span,
+		// das aeussere Element ist 0x0 -> sonst ignoriert die Kollision sie komplett.
+		return element.querySelector("span") || element;
+	}
 	return element;
 }
 
@@ -219,7 +224,9 @@ function getCollisionEntries() {
 		.filter((entry) => map.hasLayer(entry.marker))
 		.map((entry) => ({
 			element: entry.marker.getElement(),
-			priority: (Number(entry.label.priority) || 3) * 20 - 5,
+			// Freie Karten-Labels (Kontinente/Meere/Landschaften) sind feste Landmarken -> hohe Prioritaet
+			// ueber allen Staedten, damit sie zuerst platziert werden und Staedtenamen ihnen ausweichen.
+			priority: 1000 + (Number(entry.label.priority) || 3),
 			minZoom: Number(entry.label.minZoom) || 0,
 		}));
 	const locationLabelEntries = locationNameLabels
