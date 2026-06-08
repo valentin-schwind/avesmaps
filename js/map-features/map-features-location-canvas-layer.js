@@ -1,19 +1,22 @@
-// EXPERIMENTELL (Test hinter URL-Flag ?canvasmarkers=1; default AUS -> kein Risiko fuer Normalbetrieb).
-// Rendert die haeufigen kleinen Orts-Marker (dorf + kleinstadt) in EINEM Canvas-Pass statt als je ein
-// DOM-Element -> umgeht Leaflets _onZoomTransitionEnd-Reprojektion (~248ms bei Tiefzoom).
-// Metropole/Stadt/Grossstadt/Staette/Kreuzung bleiben DOM; Edit-Modus bleibt komplett DOM.
-// Klick: getroffenen Marker temporaer zu DOM "promoten" + dessen Popup oeffnen (Look/Popup 1:1).
-// Geometrie/Farbe aus DENSELBEN Funktionen wie die DOM-Marker (eine Quelle der Wahrheit).
+// Rendert ALLE Orts-Marker (alle sechs Typen) in EINEM Canvas-Pass statt als je ein DOM-Element ->
+// umgeht Leaflets teure _onZoomTransitionEnd-Reprojektion pro Marker. GEMESSEN 2026-06-09: senkt den
+// Zoom-Freeze bei Tiefzoom spuerbar (z.B. ~440-613ms -> ~346ms beim Umschalten von ~535 Markern auf Canvas;
+// Marker-Reprojektion dominiert, NICHT die Labels [~3ms]). DEFAULT AN; per ?canvasmarkers=0 abschaltbar.
+// Edit-Modus bleibt komplett DOM (syncLocationMarkerVisibility: canvasOn = ... && !IS_EDIT_MODE), ebenso
+// temporaer angepinnte/Routen-Wegpunkt-Marker. Klick: getroffenen Marker zu DOM "promoten" + Popup oeffnen.
+// Formen/Farben/Groessen aus DENSELBEN Funktionen wie die DOM-Marker (eine Quelle der Wahrheit):
+// Kreis-Familie (#cc2f2a), Staette = violette Raute (#7a4fd0), Metropole = Gold-Akzentring (#e7b04a),
+// weisse Kontur + 1px-Dunkel-Hairline rgba(0,0,0,.55) -- 1:1 zu css/features/location-popups-markers.css.
 
 const LOCATION_CANVAS_MARKERS_ENABLED = (() => {
 	try {
-		return new URLSearchParams(window.location.search).has("canvasmarkers");
+		return new URLSearchParams(window.location.search).get("canvasmarkers") !== "0";
 	} catch (error) {
-		return false;
+		return true;
 	}
 })();
 
-const LOCATION_CANVAS_TYPES = new Set(["dorf", "kleinstadt"]);
+const LOCATION_CANVAS_TYPES = new Set(["metropole", "grossstadt", "stadt", "kleinstadt", "dorf", "gebaeude"]);
 
 const locationCanvasLayer = {
 	_map: null,
@@ -53,12 +56,25 @@ const locationCanvasLayer = {
 			return;
 		}
 		const zoomLevel = this._map.getZoom();
-		this._entries = entries.map((entry) => ({
-			entry,
-			latLng: entry.marker.getLatLng(),
-			core: getLocationMarkerCoreRadius(entry.locationType, zoomLevel),
-			fill: entry.locationType === "dorf" ? "#e23b35" : "#cc2f2a",
-		}));
+		const visualZoom = getVisualZoomLevel(zoomLevel);
+		this._entries = entries.map((entry) => {
+			const locationType = entry.locationType;
+			const isSite = locationType === "gebaeude";
+			const markerSize = getLocationMarkerSize(locationType, zoomLevel);
+			// Form/Sichtbarkeit der Sonderformen EXAKT wie createLocationMarkerIcon (eine Quelle der Wahrheit):
+			const isDiamond = isSite && visualZoom >= 4;
+			const isCapital = locationType === "metropole" && visualZoom >= 3 && markerSize >= 14;
+			return {
+				entry,
+				latLng: entry.marker.getLatLng(),
+				core: getLocationMarkerCoreRadius(locationType, zoomLevel),
+				contour: getLocationMarkerBorderWidth(locationType, zoomLevel),
+				isDiamond,
+				isCapital,
+				accentRing: isCapital ? Math.round(markerSize * 0.12) : 0,
+				fill: isSite ? "#7a4fd0" : "#cc2f2a",
+			};
+		});
 		this._canvas.style.visibility = "";
 		this._redraw();
 	},
@@ -105,9 +121,8 @@ const locationCanvasLayer = {
 		// Gerundeter Ursprung = exakt die (auf ganze Pixel gerundete) Canvas-Position -> kein Sub-Pixel-Versatz,
 		// scharf auf Retina (fraktionales transform verwischt sonst).
 		const origin = this._map.containerPointToLayerPoint([0, 0]).round();
-		const ratio = LOCATION_MARKER_CONTOUR_RATIO;
-		const contourMin = LOCATION_MARKER_CONTOUR_MIN;
 		const TWO_PI = Math.PI * 2;
+		const disc = (x, y, r, color) => { ctx.beginPath(); ctx.arc(x, y, r, 0, TWO_PI); ctx.fillStyle = color; ctx.fill(); };
 		for (const item of this._entries) {
 			if (item.entry._canvasPromoted) {
 				continue;
@@ -116,11 +131,33 @@ const locationCanvasLayer = {
 			const x = layerPoint.x - origin.x;
 			const y = layerPoint.y - origin.y;
 			const core = item.core;
-			const contour = Math.max(contourMin, core * ratio);
-			ctx.beginPath(); ctx.arc(x, y, core + contour + 1, 0, TWO_PI); ctx.fillStyle = "rgba(0, 0, 0, 0.55)"; ctx.fill();
-			ctx.beginPath(); ctx.arc(x, y, core + contour, 0, TWO_PI); ctx.fillStyle = "#ffffff"; ctx.fill();
-			ctx.beginPath(); ctx.arc(x, y, core, 0, TWO_PI); ctx.fillStyle = item.fill; ctx.fill();
+			const outer = core + item.contour; // = Aussenkante der weissen Kontur (markerSize/2)
+			if (item.isDiamond) {
+				// Besondere Staette: gedrehtes Quadrat (Raute) -- Hairline -> weisse Kontur -> Fuellung.
+				this._square(x, y, outer + 1, "rgba(0, 0, 0, 0.55)");
+				this._square(x, y, outer, "#ffffff");
+				this._square(x, y, core, item.fill);
+				continue;
+			}
+			if (item.isCapital) {
+				// Metropole: 1px-Dunkel -> Gold-Band -> 1px-Dunkel (1:1 zum --capital box-shadow-Stapel).
+				disc(x, y, outer + item.accentRing + 1, "rgba(0, 0, 0, 0.35)");
+				disc(x, y, outer + item.accentRing, "#e7b04a");
+			}
+			disc(x, y, outer + 1, "rgba(0, 0, 0, 0.55)");
+			disc(x, y, outer, "#ffffff");
+			disc(x, y, core, item.fill);
 		}
+	},
+
+	_square(centerX, centerY, half, color) {
+		const ctx = this._ctx;
+		ctx.save();
+		ctx.translate(centerX, centerY);
+		ctx.rotate(Math.PI / 4);
+		ctx.fillStyle = color;
+		ctx.fillRect(-half, -half, half * 2, half * 2);
+		ctx.restore();
 	},
 
 	_onClick(event) {

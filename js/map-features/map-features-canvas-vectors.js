@@ -1,8 +1,10 @@
-// EXPERIMENTELL (Flag ?canvasvectors=1, default AUS): Wege/Fluesse (spaeter ggf. Gebiets-Flaechen) ueber
-// Leaflets eingebauten Canvas-Renderer statt SVG zeichnen. Vorteil bei Tiefzoom: keine SVG-Reprojektion
-// pro Element, ein Canvas pro Pane; Z-Ordnung (eigene Pane je Renderer) sowie Klick/Hover-Hit-Testing
-// bleiben via L.canvas erhalten. NICHT fuer Powerlines (CSS-Animation). Nur ausserhalb Edit-Modus
-// (Vertex-/Geometrie-Edits bleiben SVG). Flag aus -> renderer:undefined -> Leaflet-Default (SVG), unveraendert.
+// EXPERIMENTELL (Flag ?canvasvectors=1, default AUS): Wege/Fluesse ueber Leaflets eingebauten Canvas-Renderer
+// statt SVG zeichnen. GEMESSEN 2026-06-09: KEIN Gewinn -- Zoom-Reprojektion 244ms (Canvas) vs 243ms (SVG),
+// auch kein Pan-Vorteil. Grund: L.canvas reprojiziert trotzdem JEDEN Vertex jeder Polylinie und zeichnet alles
+// neu; bei Linien dominieren die Punkte, nicht das Zeichenverfahren. Zusaetzlich wuerde Canvas die Fluss-/Weg-
+// Labels brechen (kein SVG-<textPath> mehr). Daher DORMANT belassen (default AUS, null Produktionsrisiko: Flag
+// aus -> renderer:undefined -> Leaflet-Default SVG, unveraendert), aber nicht entfernt -- Option fuer spaeter
+// (z.B. falls Pfade im Tiefzoom gecullt werden). NICHT fuer Powerlines. Nur ausserhalb Edit-Modus.
 const CANVAS_VECTORS_ENABLED = (() => {
 	try {
 		return new URLSearchParams(window.location.search).has("canvasvectors");
