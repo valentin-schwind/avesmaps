@@ -55,14 +55,14 @@ function isVillageMarkerStyleLocation(locationType) {
 // Jeder neu auftauchende Typ startet bei 3 px; die Groessen-Reihenfolge bleibt auf jeder Stufe erhalten.
 // Z6 ist eine eigene Marker-Stufe -- getrennt von der geteilten VISUAL_MAX_ZOOM_LEVEL (=5 fuer Labels/Nav).
 const LOCATION_MARKER_MAX_ZOOM = 6;
-const LOCATION_MARKER_CONTOUR_RATIO = 0.15; // weisse Kontur = 15 % des Kernradius
+const LOCATION_MARKER_CONTOUR_RATIO = 0.25; // weisse Kontur = 25 % des Kernradius
 const LOCATION_MARKER_RADIUS_SPEC = {
-	metropole: { from: 0, start: 7, end: 30 },
-	grossstadt: { from: 0, start: 5, end: 24 },
-	stadt: { from: 0, start: 3, end: 18 },
-	kleinstadt: { from: 1, start: 3, end: 14 },
-	dorf: { from: 2, start: 3, end: 10 },
-	gebaeude: { from: 3, start: 3, end: 7 },
+	metropole: { from: 0, start: 3.5, end: 15 },
+	grossstadt: { from: 0, start: 2.5, end: 12 },
+	stadt: { from: 0, start: 2, end: 9 },
+	kleinstadt: { from: 1, start: 2, end: 7 },
+	dorf: { from: 2, start: 2, end: 5 },
+	gebaeude: { from: 3, start: 2, end: 3.5 },
 };
 
 function getLocationMarkerCoreRadius(locationType, zoomLevel = map.getZoom()) {
