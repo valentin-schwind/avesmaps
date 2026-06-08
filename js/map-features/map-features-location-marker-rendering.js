@@ -188,8 +188,27 @@ function syncLocationMarkerVisibility() {
 	syncLocationToggleButtons();
 	const zoomLevel = map.getZoom();
 	const renderBounds = getMapRenderBounds();
+	// EXPERIMENTELL (Flag ?canvasmarkers=1, default AUS): dorf+kleinstadt ausserhalb Edit -> Canvas.
+	const canvasOn = typeof LOCATION_CANVAS_MARKERS_ENABLED !== "undefined" && LOCATION_CANVAS_MARKERS_ENABLED && !IS_EDIT_MODE;
+	if (canvasOn) {
+		locationCanvasLayer.init(map);
+	}
+	const canvasEntries = [];
 	$.each(locationMarkers, (i, entry) => {
 		const shouldShow = shouldShowLocationMarker(entry, zoomLevel, renderBounds);
+		const canvasEligible = canvasOn
+			&& shouldShow
+			&& LOCATION_CANVAS_TYPES.has(entry.locationType)
+			&& !entry._canvasPromoted
+			&& !(typeof nearestLookupPinnedMarkerEntry !== "undefined" && entry === nearestLookupPinnedMarkerEntry)
+			&& !(typeof routeWaypointTempMarkerEntries !== "undefined" && routeWaypointTempMarkerEntries && routeWaypointTempMarkerEntries.has(entry));
+		if (canvasEligible) {
+			if (map.hasLayer(entry.marker)) {
+				map.removeLayer(entry.marker); // DOM-Marker raus -> Canvas zeichnet ihn
+			}
+			canvasEntries.push(entry);
+			return;
+		}
 		// Icon nur neu bauen, wenn sich die Zoomstufe (= Markergroesse/-stil) seit dem
 		// letzten Bau fuer diesen Marker geaendert hat. Beim reinen Pannen bleibt das Icon
 		// identisch -> kein setIcon-Neuaufbau pro sichtbarem Marker pro moveend.
@@ -204,6 +223,9 @@ function syncLocationMarkerVisibility() {
 			map.removeLayer(entry.marker);
 		}
 	});
+	if (canvasOn) {
+		locationCanvasLayer.setEntries(canvasEntries);
+	}
 	syncLocationNameLabelVisibility();
 }
 
