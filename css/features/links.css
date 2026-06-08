@@ -1,35 +1,21 @@
 /* Einheitlicher Link-Stil im ganzen Tool.
- * Wiki-/externe Links (und interne Orts-Links) in #0078A8, OHNE Unterstreichung, beim Hover etwas
- * heller. Das ↗ steckt jeweils schon im Linktext/Icon. Diese Datei wird als LETZTE importiert,
- * damit sie die aelteren per-Klasse-Farben/Unterstreichungen ueberschreibt. */
+ * Alle EXTERNEN Links (Wiki etc. -> target="_blank") und die internen Orts-Links in #0078A8,
+ * OHNE Unterstreichung, beim Hover etwas heller. Das ↗ steckt jeweils im Linktext/Icon.
+ * a[target="_blank"] hat hoehere Spezifitaet als die alten .xyz__link-Regeln -> ueberschreibt sie.
+ * Als LETZTE Datei importiert. */
 :root {
 	--link-color: #0078a8;
 	--link-color-hover: #1a9fd4;
 }
 
-.region-info-box__link,
-.location-popup__wiki-link,
-.label-wiki-reference__link,
-.label-wiki-infobox__link,
-.region-sync__link,
-.settlement-list__wiki,
+a[target="_blank"],
 .region-compact-tooltip__place-link {
 	color: var(--link-color);
 	text-decoration: none;
 }
 
-.region-info-box__link:hover,
-.region-info-box__link:focus-visible,
-.location-popup__wiki-link:hover,
-.location-popup__wiki-link:focus-visible,
-.label-wiki-reference__link:hover,
-.label-wiki-reference__link:focus-visible,
-.label-wiki-infobox__link:hover,
-.label-wiki-infobox__link:focus-visible,
-.region-sync__link:hover,
-.region-sync__link:focus-visible,
-.settlement-list__wiki:hover,
-.settlement-list__wiki:focus-visible,
+a[target="_blank"]:hover,
+a[target="_blank"]:focus-visible,
 .region-compact-tooltip__place-link:hover,
 .region-compact-tooltip__place-link:focus-visible {
 	color: var(--link-color-hover);

@@ -702,7 +702,7 @@
 				wikiLink.href = metaInfo.wikiUrl;
 				wikiLink.target = "_blank";
 				wikiLink.rel = "noopener";
-				wikiLink.textContent = "Wiki";
+				wikiLink.textContent = "Wiki ↗";
 				wikiLink.addEventListener("click", (event) => event.stopPropagation());
 				meta.appendChild(wikiLink);
 			}

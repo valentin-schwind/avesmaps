@@ -35,4 +35,4 @@
 @import url("features/review-panel.css?v=20260608-ratings-list");
 
 /* Einheitlicher Link-Stil — als LETZTES, damit es aeltere per-Klasse-Linkfarben ueberschreibt. */
-@import url("features/links.css?v=20260608-links1");
+@import url("features/links.css?v=20260608-links2");
