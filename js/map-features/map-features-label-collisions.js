@@ -5,8 +5,10 @@ function scheduleLabelCollisionResolution() {
 
 	labelCollisionFrameId = window.requestAnimationFrame(() => {
 		labelCollisionFrameId = null;
-		resolveLabelCollisions();
-		resolveRegionLabelCollisions();
+		// Regionenlabels zuerst aufloesen; ihre finalen Rechtecke dann als feste Hindernisse an den
+		// Orts-/Frei-Label-Pass geben, damit Staedtenamen unter Regionenlabels auf die Gegenseite ausweichen.
+		const regionLabelRects = resolveRegionLabelCollisions();
+		resolveLabelCollisions(regionLabelRects);
 	});
 }
 
@@ -51,9 +53,8 @@ function resolveRegionLabelCollisions() {
 	const entries = labels
 		.filter((label) => label && typeof label.getElement === "function" && map.hasLayer(label) && label.getElement())
 		.map((label) => ({ element: label.getElement(), priority: Number(label._regionLabelPriority) || 0 }));
-	if (entries.length < 2) {
-		entries.forEach(({ element }) => setLabelElementOffset(element, 0, 0));
-		return;
+	if (entries.length === 0) {
+		return [];
 	}
 
 	// Schreibphase 1: alle Offsets auf 0 zurücksetzen, damit die Basis-Box bei Offset 0 gemessen wird.
@@ -93,6 +94,7 @@ function resolveRegionLabelCollisions() {
 
 	// Schreibphase 2: alle gewählten Offsets in einem Rutsch anwenden (kein Reflow bis zum nächsten Lesen).
 	writes.forEach(({ element, dx, dy }) => setLabelElementOffset(element, dx, dy));
+	return acceptedRects;
 }
 
 function rectanglesOverlap(firstRect, secondRect) {
@@ -231,7 +233,7 @@ function getCollisionEntries() {
 	return [...locationLabelEntries, ...freeLabelEntries].filter(({ element }) => element);
 }
 
-function resolveLabelCollisions() {
+function resolveLabelCollisions(seedRects = []) {
 	const visibleEntries = getCollisionEntries();
 	const offsetCandidates = getLabelOffsetCandidates();
 
@@ -259,7 +261,8 @@ function resolveLabelCollisions() {
 			return { element, isLocation, collisionRect, baseOffset, candidates };
 		});
 
-	const acceptedRects = [];
+	// Mit den Regionenlabel-Rechtecken vorbelegen -> Orts-/Frei-Labels weichen ihnen aus (Gegenseite).
+	const acceptedRects = Array.isArray(seedRects) ? seedRects.slice() : [];
 	const writes = [];
 	measured.forEach(({ element, isLocation, collisionRect, baseOffset, candidates }) => {
 		if (collisionRect.width <= 0 || collisionRect.height <= 0) {
