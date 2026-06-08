@@ -69,7 +69,7 @@ const locationCanvasLayer = {
 		}
 		const size = this._map.getSize();
 		const dpr = window.devicePixelRatio || 1;
-		L.DomUtil.setPosition(this._canvas, this._map.containerPointToLayerPoint([0, 0]));
+		L.DomUtil.setPosition(this._canvas, this._map.containerPointToLayerPoint([0, 0]).round());
 		this._canvas.width = Math.round(size.x * dpr);
 		this._canvas.height = Math.round(size.y * dpr);
 		this._canvas.style.width = `${size.x}px`;
@@ -82,7 +82,7 @@ const locationCanvasLayer = {
 		if (!this._ready) {
 			return;
 		}
-		L.DomUtil.setPosition(this._canvas, this._map.containerPointToLayerPoint([0, 0]));
+		L.DomUtil.setPosition(this._canvas, this._map.containerPointToLayerPoint([0, 0]).round());
 		this._redraw();
 	},
 
@@ -102,7 +102,9 @@ const locationCanvasLayer = {
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-		const origin = this._map.containerPointToLayerPoint([0, 0]);
+		// Gerundeter Ursprung = exakt die (auf ganze Pixel gerundete) Canvas-Position -> kein Sub-Pixel-Versatz,
+		// scharf auf Retina (fraktionales transform verwischt sonst).
+		const origin = this._map.containerPointToLayerPoint([0, 0]).round();
 		const ratio = LOCATION_MARKER_CONTOUR_RATIO;
 		const contourMin = LOCATION_MARKER_CONTOUR_MIN;
 		const TWO_PI = Math.PI * 2;
