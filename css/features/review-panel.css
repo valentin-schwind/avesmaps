@@ -322,18 +322,18 @@
 
 .wiki-sync-panel__start {
 	width: 100%;
-	border: 1px solid #3a1024;
-	background: #ead7df;
-	color: #4f1831;
+	border: 1px solid #5e4329;
+	background: #7a5a3a;
+	color: #fff;
 	line-height: 1.25;
 	text-align: center;
 	white-space: nowrap;
 }
 
 .wiki-sync-panel__start:hover {
-	border-color: #5a1634;
-	background: #dfc2cf;
-	color: #3a1024;
+	border-color: #5e4329;
+	background: #5e4329;
+	color: #fff;
 }
 
 .wiki-sync-case__action--primary {

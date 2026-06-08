@@ -407,7 +407,9 @@ document.addEventListener("click", (event) => {
 		return;
 	}
 	if (event.target.closest("#path-sync-crawl")) {
-		void startPathWikiCrawl();
+		if (window.confirm("WikiSync für Wege jetzt starten? Das crawlt das Wiki im Hintergrund neu.")) {
+			void startPathWikiCrawl();
+		}
 	}
 });
 

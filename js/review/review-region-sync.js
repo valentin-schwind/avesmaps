@@ -342,7 +342,9 @@ document.addEventListener("click", (event) => {
 		return;
 	}
 	if (event.target.closest && event.target.closest("#region-sync-crawl")) {
-		void startRegionWikiCrawl();
+		if (window.confirm("WikiSync für Regionen jetzt starten? Das crawlt das Wiki im Hintergrund neu.")) {
+			void startRegionWikiCrawl();
+		}
 		return;
 	}
 	if (event.target.closest && event.target.closest("#region-sync-assign-berge")) {

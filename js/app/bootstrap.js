@@ -197,7 +197,11 @@ $("#legal-overlay").on("click", function (event) {
 });
 $("#location-report-close, #location-report-cancel").on("click", () => setLocationReportDialogOpen(false, { resetForm: true }));
 $("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));
-$("#wiki-sync-start").on("click", () => startWikiSyncRun());
+$("#wiki-sync-start").on("click", () => {
+    if (window.confirm("WikiSync für Siedlungen jetzt starten? Das crawlt das Wiki im Hintergrund neu.")) {
+        startWikiSyncRun();
+    }
+});
 $("#wiki-sync-territories").on("click", () => startWikiSyncTerritoryRun());
 $("[data-wiki-sync-panel-tab]").on("click", function () {
     setWikiSyncPanelTab(this.dataset.wikiSyncPanelTab || "locations");
