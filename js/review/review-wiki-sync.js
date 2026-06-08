@@ -579,11 +579,11 @@ function syncWikiSyncActionButtonLabels() {
 	const territoriesButtonElement = document.getElementById("wiki-sync-territories");
 
 	if (locationsButtonElement) {
-		locationsButtonElement.textContent = isWikiSyncLocationsRunning ? "Synchronisiert..." : "WikiSync";
+		locationsButtonElement.textContent = isWikiSyncLocationsRunning ? "Synchronisiert..." : "🚨 WikiSync";
 	}
 
 	if (territoriesButtonElement) {
-		territoriesButtonElement.textContent = isWikiSyncTerritoriesRunning ? "Synchronisiert..." : "WikiSync";
+		territoriesButtonElement.textContent = isWikiSyncTerritoriesRunning ? "Synchronisiert..." : "WikiSync & Editor";
 	}
 }
 
