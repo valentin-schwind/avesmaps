@@ -51,7 +51,7 @@ function isVillageMarkerStyleLocation(locationType) {
 	return locationType === "dorf" || locationType === "gebaeude";
 }
 
-// Marker-Kernradius (px): pro Typ LINEAR von Start (erste sichtbare Zoomstufe) bis Ende (Z6).
+// Marker-Kernradius (px): pro Typ GEOMETRISCH (konstanter Faktor pro Zoomstufe) von Start (erste sichtbare Zoomstufe) bis Ende (Z6).
 // Jeder neu auftauchende Typ startet bei 3 px; die Groessen-Reihenfolge bleibt auf jeder Stufe erhalten.
 // Z6 ist eine eigene Marker-Stufe -- getrennt von der geteilten VISUAL_MAX_ZOOM_LEVEL (=5 fuer Labels/Nav).
 const LOCATION_MARKER_MAX_ZOOM = 6;
@@ -72,7 +72,8 @@ function getLocationMarkerCoreRadius(locationType, zoomLevel = map.getZoom()) {
 	const z = Number.isFinite(rounded) ? Math.max(spec.from, Math.min(LOCATION_MARKER_MAX_ZOOM, rounded)) : spec.from;
 	const span = LOCATION_MARKER_MAX_ZOOM - spec.from;
 	const t = span > 0 ? (z - spec.from) / span : 0;
-	return spec.start + (spec.end - spec.start) * t;
+	// geometrisch statt linear: konstante *relative* Groessenaenderung pro Stufe -> passt zur x2-Karte, kein Z1-Sprung.
+	return spec.start * Math.pow(spec.end / spec.start, t);
 }
 
 // Weisse Kontur = 25 % des Kernradius, aber mindestens 0.5 px (sonst verschwindet sie bei kleinen Markern).
