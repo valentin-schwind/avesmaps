@@ -46,7 +46,7 @@ function setWikiSyncLocationsRunning(isRunning, run = null) {
 	const buttonElement = document.getElementById("wiki-sync-start");
 	if (buttonElement) {
 		buttonElement.disabled = isRunning || isWikiSyncTerritoriesRunning;
-		buttonElement.textContent = isRunning ? "Synchronisiert..." : "WikiSync";
+		buttonElement.textContent = isRunning ? "Synchronisiert..." : "🚨 WikiSync";
 	}
 
 	const progressElement = document.getElementById("wiki-sync-progress");
@@ -74,7 +74,7 @@ function setWikiSyncTerritoriesRunning(isRunning) {
 	const buttonElement = document.getElementById("wiki-sync-territories");
 	if (buttonElement) {
 		buttonElement.disabled = isRunning || isWikiSyncLocationsRunning;
-		buttonElement.textContent = isRunning ? "Synchronisiert..." : "WikiSync";
+		buttonElement.textContent = isRunning ? "Synchronisiert..." : "WikiSync & Editor";
 	}
 
 	const progressElement = document.getElementById("wiki-sync-territories-progress");
