@@ -55,7 +55,7 @@ function isVillageMarkerStyleLocation(locationType) {
 // Jeder neu auftauchende Typ startet bei 3 px; die Groessen-Reihenfolge bleibt auf jeder Stufe erhalten.
 // Z6 ist eine eigene Marker-Stufe -- getrennt von der geteilten VISUAL_MAX_ZOOM_LEVEL (=5 fuer Labels/Nav).
 const LOCATION_MARKER_MAX_ZOOM = 6;
-const LOCATION_MARKER_CONTOUR_RATIO = 0.25; // weisse Kontur = 25 % des Kernradius ...
+const LOCATION_MARKER_CONTOUR_RATIO = 0.33; // weisse Kontur = 33 % des Kernradius ...
 const LOCATION_MARKER_CONTOUR_MIN = 0.5;    // ... mindestens aber 0.5 px dick
 const LOCATION_MARKER_RADIUS_SPEC = {
 	metropole: { from: 0, start: 2.5, end: 20 },
