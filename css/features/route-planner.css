@@ -156,26 +156,25 @@
 	min-height: 32px;
 	align-self: center;
 	justify-self: center;
-	border: 1px solid #cbbeaf;
+	/* Randlos/ohne Box wie der Wegpunkt-Entfernen-Button (.remove-waypoint), aber groesser/prominenter. */
+	border: 0;
 	border-radius: 7px;
-	background: #fff9f4;
+	background: transparent;
 	color: #7c6957;
-	font-size: 18px;
+	font-size: 26px;
 	font-weight: 800;
 	line-height: 1;
 	padding: 0;
 	cursor: pointer;
 	box-shadow: none;
-	transition: background 0.12s ease, transform 0.12s ease, box-shadow 0.12s ease;
+	transition: background 0.12s ease, color 0.12s ease;
 }
 
 #inputLocation:hover,
 #inputLocation:focus-visible {
 	background: rgba(255, 216, 88, 0.18);
-	box-shadow: 0 5px 12px rgba(52, 41, 32, 0.14);
 	color: #3f3428;
 	outline: none;
-	transform: translateY(-1px);
 }
 
 .input-options button:hover,
