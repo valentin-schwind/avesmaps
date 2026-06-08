@@ -1147,11 +1147,13 @@ const addTooltip = (loc, {
 			className: "route-waypoint-popup settlement-popup",
 		})
 			.setLatLng(loc.coordinates)
-			.setContent(buildRoutePopupHtml(loc, { expanded: false, showRemoveAction, popupId }))
-			.addTo(map);
+			.setContent(buildRoutePopupHtml(loc, { expanded: false, showRemoveAction, popupId }));
+		// _routeLoc VOR addTo setzen, damit das durch addTo ausgeloeste popupopen den Ort-Marker
+		// (handleRouteWaypointPopupOpen) schon zuordnen kann.
 		popup._routeLoc = loc;
 		popup._routeShowRemove = showRemoveAction;
 		popup._routeExpanded = false;
+		popup.addTo(map);
 		routePopupRegistry[popupId] = popup;
 		activeTooltips.push(popup);
 		return;
