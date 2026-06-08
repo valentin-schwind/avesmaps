@@ -877,7 +877,12 @@
 	white-space: normal;
 }
 .wikisync-itemlist .tree-item-meta a {
-	color: inherit;
+	color: var(--link-color, #0078a8);
+	text-decoration: none;
+}
+.wikisync-itemlist .tree-item-meta a:hover,
+.wikisync-itemlist .tree-item-meta a:focus-visible {
+	color: var(--link-color-hover, #1a9fd4);
 }
 /* Kandidaten-Chips dürfen in der Meta-Zeile umbrechen. */
 .wikisync-itemlist .tree-item-meta .region-sync__map {
