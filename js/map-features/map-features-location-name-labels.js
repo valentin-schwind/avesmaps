@@ -13,12 +13,15 @@ function getLocationNameLabelSize(locationType, zoomLevel = map.getZoom()) {
 	return Math.max(9, Number(sizeByZoom[roundedZoomLevel] ?? sizeByZoom[VISUAL_MAX_ZOOM_LEVEL] ?? sizeByZoom[4] ?? sizeByZoom[3] ?? sizeByZoom[2] ?? sizeByZoom[1] ?? sizeByZoom[0] ?? 9));
 }
 
-function getLocationNameLabelOffset(labelSize, zoomLevel = map.getZoom()) {
-	const baseOffset = { x: LOCATION_LABEL_GAP };
-	const scale = Math.max(1, locationZoomScale(zoomLevel));
+// Kleiner Abstand zwischen Marker-Aussenrand und Schrift (wird auf den Marker-Radius addiert).
+const LOCATION_NAME_LABEL_GAP = 4;
+
+function getLocationNameLabelOffset(labelSize, zoomLevel = map.getZoom(), locationType = "dorf") {
+	// Schrift rechts NEBEN den Marker setzen: Aussenradius + fester Spalt -> respektiert die (variable) Markergroesse.
+	const markerOuterRadius = getLocationMarkerSize(locationType, zoomLevel) / 2;
 	const labelHeightInPixels = labelSize * 4 / 3;
 	return {
-		x: Math.round(baseOffset.x * scale),
+		x: Math.round(markerOuterRadius + LOCATION_NAME_LABEL_GAP),
 		y: Math.round(1 - labelHeightInPixels / 2),
 	};
 }
@@ -39,7 +42,7 @@ function shouldShowLocationNameLabel(entry, zoomLevel = map.getZoom()) {
 function createLocationNameLabelIcon(entry, zoomLevel = map.getZoom()) {
 	const labelSize = getLocationNameLabelSize(entry.locationType, zoomLevel);
 	const labelType = entry.locationType || "dorf";
-	const offset = getLocationNameLabelOffset(labelSize, zoomLevel);
+	const offset = getLocationNameLabelOffset(labelSize, zoomLevel, entry.locationType);
 	const ruinedClassName = entry.location?.isRuined ? " location-name-label--ruined" : "";
 	return L.divIcon({
 		className: `location-name-label location-name-label--${labelType}${ruinedClassName}`,
