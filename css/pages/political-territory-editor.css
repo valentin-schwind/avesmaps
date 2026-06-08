@@ -1328,11 +1328,13 @@ select:focus {
 
 .info-grid {
 	display: grid;
-	grid-template-columns: minmax(150px, 0.34fr) minmax(220px, 0.66fr);
+	/* An den Inline-Editor angeglichen (Konsistenz): schmalere Schluessel-Spalte + Schriftgroesse. */
+	grid-template-columns: minmax(110px, 0.35fr) minmax(0, 1fr);
 	gap: 0;
 	border: 1px solid #dccab8;
 	border-radius: 8px;
 	overflow: hidden;
+	font-size: 12px;
 }
 
 .info-details {
@@ -1364,7 +1366,7 @@ select:focus {
 
 .info-key,
 .info-value {
-	padding: 8px 10px;
+	padding: 8px 8px;
 	border-bottom: 1px solid #eadbcb;
 }
 
