@@ -101,6 +101,7 @@ function createPathLayer(path) {
 	const colors = getPathStyleColors(path);
 	const roadOutline = L.polyline(latLngCoords, {
 		pane: "roadsOutlinePane",
+		renderer: getVectorRenderer("roadsOutlinePane"),
 		color: colors.outline,
 		weight: colors.outlineWeight,
 		opacity: 1,
@@ -111,6 +112,7 @@ function createPathLayer(path) {
 	});
 	const roadCenter = L.polyline(latLngCoords, {
 		pane: "roadsPane",
+		renderer: getVectorRenderer("roadsPane"),
 		color: colors.center,
 		weight: colors.centerWeight,
 		opacity: 1,
