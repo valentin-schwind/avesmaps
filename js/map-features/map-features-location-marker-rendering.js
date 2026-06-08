@@ -51,30 +51,45 @@ function isVillageMarkerStyleLocation(locationType) {
 	return locationType === "dorf" || locationType === "gebaeude";
 }
 
-// Globaler Groessen-Faktor fuer alle Orts-Marker (kleiner = weniger Ueberlappung).
-const LOCATION_MARKER_SIZE_SCALE = 0.75;
+// Marker-Kernradius (px): pro Typ LINEAR von Start (erste sichtbare Zoomstufe) bis Ende (Z6).
+// Jeder neu auftauchende Typ startet bei 3 px; die Groessen-Reihenfolge bleibt auf jeder Stufe erhalten.
+// Z6 ist eine eigene Marker-Stufe -- getrennt von der geteilten VISUAL_MAX_ZOOM_LEVEL (=5 fuer Labels/Nav).
+const LOCATION_MARKER_MAX_ZOOM = 6;
+const LOCATION_MARKER_CONTOUR_RATIO = 0.15; // weisse Kontur = 15 % des Kernradius
+const LOCATION_MARKER_RADIUS_SPEC = {
+	metropole: { from: 0, start: 7, end: 30 },
+	grossstadt: { from: 0, start: 5, end: 24 },
+	stadt: { from: 0, start: 3, end: 18 },
+	kleinstadt: { from: 1, start: 3, end: 14 },
+	dorf: { from: 2, start: 3, end: 10 },
+	gebaeude: { from: 3, start: 3, end: 7 },
+};
 
-function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
-	const visualZoomLevel = getVisualZoomLevel(zoomLevel);
-	if (locationType === CROSSING_LOCATION_TYPE) {
-		return visualZoomLevel <= 3 ? 5 : Math.max(7, 5 + visualZoomLevel * 1.5);
-	}
-
-	if (isVillageMarkerStyleLocation(locationType)) {
-		const villageStyle = locationType === "gebaeude" ? getBuildingMarkerStyle(zoomLevel) : getVillageMarkerStyle(zoomLevel);
-		return (villageStyle.radius * 2 + villageStyle.borderWidth * 2) * LOCATION_MARKER_SIZE_SCALE;
-	}
-
-	const config = LOCATION_TYPE_CONFIG[locationType] || LOCATION_TYPE_CONFIG.dorf;
-	return (config.radius * locationZoomScale(zoomLevel) * 2 + 1) * LOCATION_MARKER_SIZE_SCALE;
+function getLocationMarkerCoreRadius(locationType, zoomLevel = map.getZoom()) {
+	const spec = LOCATION_MARKER_RADIUS_SPEC[locationType] || LOCATION_MARKER_RADIUS_SPEC.dorf;
+	const rounded = Math.round(Number(zoomLevel));
+	const z = Number.isFinite(rounded) ? Math.max(spec.from, Math.min(LOCATION_MARKER_MAX_ZOOM, rounded)) : spec.from;
+	const span = LOCATION_MARKER_MAX_ZOOM - spec.from;
+	const t = span > 0 ? (z - spec.from) / span : 0;
+	return spec.start + (spec.end - spec.start) * t;
 }
 
-// Weisser Rand skaliert linear mit der Markergroesse (gleiches Verhaeltnis auf jeder Zoomstufe).
-const LOCATION_MARKER_RING_RATIO = 0.13;
+function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
+	if (locationType === CROSSING_LOCATION_TYPE) {
+		const visualZoomLevel = getVisualZoomLevel(zoomLevel);
+		return visualZoomLevel <= 3 ? 5 : Math.max(7, 5 + visualZoomLevel * 1.5);
+	}
+	// Aussendurchmesser: box-sizing border-box -> der weisse Rand liegt innen, Kern bleibt 2*core.
+	const coreRadius = getLocationMarkerCoreRadius(locationType, zoomLevel);
+	return Math.round(coreRadius * (1 + LOCATION_MARKER_CONTOUR_RATIO) * 2 * 100) / 100;
+}
 
 function getLocationMarkerBorderWidth(locationType, zoomLevel = map.getZoom()) {
-	const markerSize = getLocationMarkerSize(locationType, zoomLevel);
-	return Math.max(0.75, Math.round(markerSize * LOCATION_MARKER_RING_RATIO * 100) / 100);
+	if (locationType === CROSSING_LOCATION_TYPE) {
+		return 0;
+	}
+	const coreRadius = getLocationMarkerCoreRadius(locationType, zoomLevel);
+	return Math.round(coreRadius * LOCATION_MARKER_CONTOUR_RATIO * 100) / 100;
 }
 
 function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
@@ -148,11 +163,13 @@ function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds
 	}
 
 	const isVisibleByNodixToggle = IS_EDIT_MODE && $("#toggleNodix").is(":checked") && isNodixLocation(entry.location);
-	const minZoomByType = entry.locationType === "dorf"
-		? 2
-		: entry.locationType === "gebaeude"
-			? 3
-			: 0;
+	const minZoomByType = entry.locationType === "kleinstadt"
+		? 1
+		: entry.locationType === "dorf"
+			? 2
+			: entry.locationType === "gebaeude"
+				? 3
+				: 0;
 	return (isVisibleByNodixToggle || isLocationTypeVisible(entry.locationType))
 		&& zoomLevel >= minZoomByType
 		&& isMarkerEntryInRenderBounds(entry, renderBounds);
