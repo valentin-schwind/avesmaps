@@ -151,10 +151,19 @@ function syncLocationMarkerVisibility() {
 	const renderBounds = getMapRenderBounds();
 	$.each(locationMarkers, (i, entry) => {
 		const shouldShow = shouldShowLocationMarker(entry, zoomLevel, renderBounds);
-		if (shouldShow || map.hasLayer(entry.marker)) {
+		// Icon nur neu bauen, wenn sich die Zoomstufe (= Markergroesse/-stil) seit dem
+		// letzten Bau fuer diesen Marker geaendert hat. Beim reinen Pannen bleibt das Icon
+		// identisch -> kein setIcon-Neuaufbau pro sichtbarem Marker pro moveend.
+		if (shouldShow && entry.iconZoomLevel !== zoomLevel) {
 			entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, zoomLevel));
+			entry.iconZoomLevel = zoomLevel;
 		}
-		map[shouldShow ? "addLayer" : "removeLayer"](entry.marker);
+		const isOnMap = map.hasLayer(entry.marker);
+		if (shouldShow && !isOnMap) {
+			map.addLayer(entry.marker);
+		} else if (!shouldShow && isOnMap) {
+			map.removeLayer(entry.marker);
+		}
 	});
 	syncLocationNameLabelVisibility();
 }

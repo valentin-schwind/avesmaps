@@ -55,6 +55,7 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 
 function refreshLocationMarkerPopup(markerEntry) {
 	markerEntry.marker.setIcon(createLocationMarkerIcon(markerEntry.locationType));
+	markerEntry.iconZoomLevel = map.getZoom();
 	const hasWikiSettlement = markerEntry.locationType !== CROSSING_LOCATION_TYPE
 		&& Boolean(markerEntry.location.wikiSettlement && markerEntry.location.wikiSettlement.title);
 	const maxHeight = locationMarkerPopupMaxHeight();
