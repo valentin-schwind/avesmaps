@@ -57,12 +57,12 @@ function isVillageMarkerStyleLocation(locationType) {
 const LOCATION_MARKER_MAX_ZOOM = 6;
 const LOCATION_MARKER_CONTOUR_RATIO = 0.25; // weisse Kontur = 25 % des Kernradius
 const LOCATION_MARKER_RADIUS_SPEC = {
-	metropole: { from: 0, start: 3.5, end: 15 },
-	grossstadt: { from: 0, start: 2.5, end: 12 },
-	stadt: { from: 0, start: 2, end: 9 },
-	kleinstadt: { from: 1, start: 2, end: 7 },
-	dorf: { from: 2, start: 2, end: 5 },
-	gebaeude: { from: 3, start: 2, end: 3.5 },
+	metropole: { from: 0, start: 2.5, end: 12 },
+	grossstadt: { from: 0, start: 1.5, end: 9.6 },
+	stadt: { from: 0, start: 1, end: 7.2 },
+	kleinstadt: { from: 1, start: 1, end: 5.6 },
+	dorf: { from: 2, start: 1, end: 4 },
+	gebaeude: { from: 3, start: 1, end: 2.8 },
 };
 
 function getLocationMarkerCoreRadius(locationType, zoomLevel = map.getZoom()) {
