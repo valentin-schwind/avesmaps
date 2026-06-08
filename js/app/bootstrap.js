@@ -202,6 +202,16 @@ $("#wiki-sync-territories").on("click", () => startWikiSyncTerritoryRun());
 $("[data-wiki-sync-panel-tab]").on("click", function () {
     setWikiSyncPanelTab(this.dataset.wikiSyncPanelTab || "locations");
 });
+// Sub-Pills im "Meldungen"-Reiter (Community Meldungen / Bewertungen) — wie die WikiSync-Pills.
+$(document).on("click", "[data-review-subtab]", function () {
+    const sub = this.dataset.reviewSubtab || "reports";
+    document.querySelectorAll("[data-review-subtab]").forEach((tab) => {
+        tab.classList.toggle("is-active", tab.dataset.reviewSubtab === sub);
+    });
+    document.querySelectorAll("[data-review-subtab-section]").forEach((section) => {
+        section.classList.toggle("is-active", section.dataset.reviewSubtabSection === sub);
+    });
+});
 $("#wiki-sync-filter").on("input search", function () {
     setWikiSyncFilterQuery(this.value || "");
 });
