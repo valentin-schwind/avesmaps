@@ -86,9 +86,11 @@ function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
 		const visualZoomLevel = getVisualZoomLevel(zoomLevel);
 		return visualZoomLevel <= 3 ? 5 : Math.max(7, 5 + visualZoomLevel * 1.5);
 	}
-	// Aussendurchmesser = (Kernradius + Kontur) * 2; box-sizing border-box -> Rand liegt innen, Kern bleibt 2*core.
+	// Aussendurchmesser waechst LINEAR mit dem Kernradius (core * (1 + 25%) * 2). Die 0.5-px-Mindestkontur
+	// (getLocationMarkerBorderWidth) frisst bei winzigen Markern minimal in den Kern, aendert aber die
+	// Aussengroesse NICHT -> gleichmaessige, lineare Groessenzunahme ueber alle Zoomstufen (kein Knick).
 	const coreRadius = getLocationMarkerCoreRadius(locationType, zoomLevel);
-	return Math.round((coreRadius + getLocationMarkerContourWidth(locationType, zoomLevel)) * 2 * 100) / 100;
+	return Math.round(coreRadius * (1 + LOCATION_MARKER_CONTOUR_RATIO) * 2 * 100) / 100;
 }
 
 function getLocationMarkerBorderWidth(locationType, zoomLevel = map.getZoom()) {
