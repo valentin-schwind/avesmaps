@@ -84,6 +84,48 @@ function getPathVisualLatLngCoordinates(coordinates, zoomLevel = map.getZoom()) 
 	return smoothLineCoordinatesForDisplay(coordinates, VISUAL_LINE_CATMULL_ROM_CONFIG).map(([x, y]) => [y, x]);
 }
 
+// Die (unsichtbare) Label-Linie, der die SVG-<textPath> folgt, bekommt eine GEGLAETTETE Leitlinie statt
+// der exakten Fluss-/Weg-Geometrie: gleitender Mittelwert ueber die Rohpunkte (entfernt die Windungen) +
+// milde Catmull-Rom-Kurve. Der Text folgt so dem GROBEN VERLAUF statt jeder Schlinge -> Buchstaben sitzen
+// eng und gerade statt zerrissen ("De r oge Fl uss" -> "Der grosse Fluss"). Ergibt sogar WENIGER Punkte als
+// das Original (Windungen kollabieren) und ist deutlich lesbarer als blosses Erhoehen der Sample-Zahl
+// (mehr Samples approximieren nur dieselbe wacklige Kurve feiner). Die SICHTBAREN Linien bleiben exakt.
+const PATH_LABEL_GUIDE_SMOOTHING = { window: 2, passes: 2, samples: 6 };
+
+function getLowPassSmoothedCoordinates(coordinates, window, passes) {
+	let current = coordinates.map((point) => [Number(point[0]), Number(point[1])]);
+	for (let pass = 0; pass < passes; pass += 1) {
+		const smoothed = [current[0]];
+		for (let index = 1; index < current.length - 1; index += 1) {
+			let sumX = 0;
+			let sumY = 0;
+			let count = 0;
+			for (let offset = -window; offset <= window; offset += 1) {
+				const neighbor = current[index + offset];
+				if (!neighbor) {
+					continue;
+				}
+				sumX += neighbor[0];
+				sumY += neighbor[1];
+				count += 1;
+			}
+			smoothed.push([sumX / count, sumY / count]);
+		}
+		smoothed.push(current[current.length - 1]);
+		current = smoothed;
+	}
+	return current;
+}
+
+function getPathLabelVisualLatLngCoordinates(coordinates) {
+	if (!Array.isArray(coordinates) || coordinates.length < 3) {
+		return getPathVisualLatLngCoordinates(coordinates);
+	}
+	const straightened = getLowPassSmoothedCoordinates(coordinates, PATH_LABEL_GUIDE_SMOOTHING.window, PATH_LABEL_GUIDE_SMOOTHING.passes);
+	const config = { ...VISUAL_LINE_CATMULL_ROM_CONFIG, samples: PATH_LABEL_GUIDE_SMOOTHING.samples };
+	return smoothLineCoordinatesForDisplay(straightened, config).map(([x, y]) => [y, x]);
+}
+
 function refreshPathLayerPopup(path) {
 	if (!path?._pathLines?.length) {
 		return;
@@ -121,7 +163,7 @@ function createPathLayer(path) {
 		lineCap: "round",
 		lineJoin: "round",
 	});
-	const pathLabelLine = L.polyline(getReadablePathLabelLatLngCoordinates(latLngCoords), {
+	const pathLabelLine = L.polyline(getReadablePathLabelLatLngCoordinates(getPathLabelVisualLatLngCoordinates(path.geometry.coordinates)), {
 		pane: "labelsPane",
 		color: "transparent",
 		weight: 1,
@@ -169,5 +211,5 @@ function updatePathLayerGeometry(path) {
 
 	const latLngCoords = getPathVisualLatLngCoordinates(path.geometry.coordinates);
 	path._pathLines.forEach((line) => line.setLatLngs(latLngCoords));
-	path._pathLabelLine?.setLatLngs(getReadablePathLabelLatLngCoordinates(latLngCoords));
+	path._pathLabelLine?.setLatLngs(getReadablePathLabelLatLngCoordinates(getPathLabelVisualLatLngCoordinates(path.geometry.coordinates)));
 }
