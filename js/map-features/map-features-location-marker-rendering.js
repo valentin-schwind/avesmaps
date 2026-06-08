@@ -55,7 +55,8 @@ function isVillageMarkerStyleLocation(locationType) {
 // Jeder neu auftauchende Typ startet bei 3 px; die Groessen-Reihenfolge bleibt auf jeder Stufe erhalten.
 // Z6 ist eine eigene Marker-Stufe -- getrennt von der geteilten VISUAL_MAX_ZOOM_LEVEL (=5 fuer Labels/Nav).
 const LOCATION_MARKER_MAX_ZOOM = 6;
-const LOCATION_MARKER_CONTOUR_RATIO = 0.25; // weisse Kontur = 25 % des Kernradius
+const LOCATION_MARKER_CONTOUR_RATIO = 0.25; // weisse Kontur = 25 % des Kernradius ...
+const LOCATION_MARKER_CONTOUR_MIN = 0.5;    // ... mindestens aber 0.5 px dick
 const LOCATION_MARKER_RADIUS_SPEC = {
 	metropole: { from: 0, start: 1.5, end: 20 },
 	grossstadt: { from: 0, start: 0.5, end: 16 },
@@ -74,22 +75,27 @@ function getLocationMarkerCoreRadius(locationType, zoomLevel = map.getZoom()) {
 	return spec.start + (spec.end - spec.start) * t;
 }
 
+// Weisse Kontur = 25 % des Kernradius, aber mindestens 0.5 px (sonst verschwindet sie bei kleinen Markern).
+function getLocationMarkerContourWidth(locationType, zoomLevel = map.getZoom()) {
+	const coreRadius = getLocationMarkerCoreRadius(locationType, zoomLevel);
+	return Math.max(LOCATION_MARKER_CONTOUR_MIN, coreRadius * LOCATION_MARKER_CONTOUR_RATIO);
+}
+
 function getLocationMarkerSize(locationType, zoomLevel = map.getZoom()) {
 	if (locationType === CROSSING_LOCATION_TYPE) {
 		const visualZoomLevel = getVisualZoomLevel(zoomLevel);
 		return visualZoomLevel <= 3 ? 5 : Math.max(7, 5 + visualZoomLevel * 1.5);
 	}
-	// Aussendurchmesser: box-sizing border-box -> der weisse Rand liegt innen, Kern bleibt 2*core.
+	// Aussendurchmesser = (Kernradius + Kontur) * 2; box-sizing border-box -> Rand liegt innen, Kern bleibt 2*core.
 	const coreRadius = getLocationMarkerCoreRadius(locationType, zoomLevel);
-	return Math.round(coreRadius * (1 + LOCATION_MARKER_CONTOUR_RATIO) * 2 * 100) / 100;
+	return Math.round((coreRadius + getLocationMarkerContourWidth(locationType, zoomLevel)) * 2 * 100) / 100;
 }
 
 function getLocationMarkerBorderWidth(locationType, zoomLevel = map.getZoom()) {
 	if (locationType === CROSSING_LOCATION_TYPE) {
 		return 0;
 	}
-	const coreRadius = getLocationMarkerCoreRadius(locationType, zoomLevel);
-	return Math.round(coreRadius * LOCATION_MARKER_CONTOUR_RATIO * 100) / 100;
+	return Math.round(getLocationMarkerContourWidth(locationType, zoomLevel) * 100) / 100;
 }
 
 function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
