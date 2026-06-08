@@ -591,8 +591,13 @@ function settlementListOpen(publicId) {
 	if (typeof map !== "undefined" && map) {
 		map.flyTo(entry.marker.getLatLng(), Math.max(map.getZoom(), 4), { duration: 0.5 });
 	}
-	// Infobox statt Editor öffnen.
-	entry.marker.openPopup();
+	// Infobox öffnen + Marker temporaer zeigen (auch wenn die Ortsgroesse nicht eingeblendet ist);
+	// verschwindet wieder beim Schliessen der Infobox.
+	if (typeof openLocationPopupForMarkerEntry === "function") {
+		openLocationPopupForMarkerEntry(entry, { pan: false });
+	} else {
+		entry.marker.openPopup();
+	}
 }
 
 // Status-Tabs: blenden die passende Fall-Sektion ein (CSS via data-active-status).

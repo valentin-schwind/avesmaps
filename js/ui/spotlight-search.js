@@ -728,12 +728,13 @@ function focusSpotlightLocation(entry) {
 		return;
 	}
 
-	setVisibleLocationTypesThrough(markerEntry.locationType, { syncUrl: true });
-	syncLocationMarkerVisibility();
+	// Nicht mehr die ganze Ortsgroesse einschalten — nur den Treffer selbst temporaer zeigen
+	// (Marker + Infobox), der beim Schliessen der Infobox wieder verschwindet, falls die Groesse
+	// nicht eingeblendet ist.
 	const markerLatLng = markerEntry.marker.getLatLng();
 	const preferredZoom = getSpotlightLocationZoom(markerEntry);
 	map.setView(markerLatLng, preferredZoom);
-	window.setTimeout(() => openLocationPopupByName(markerEntry.name), 0);
+	window.setTimeout(() => openLocationPopupForMarkerEntry(markerEntry, { pan: false }), 0);
 }
 
 function getSpotlightLocationZoom(markerEntry) {

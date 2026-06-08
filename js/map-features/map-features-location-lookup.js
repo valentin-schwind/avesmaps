@@ -116,7 +116,7 @@ function openLocationPopupByPublicId(publicId) {
 	return openLocationPopupForMarkerEntry(findLocationMarkerByPublicId(publicId));
 }
 
-function openLocationPopupForMarkerEntry(markerEntry) {
+function openLocationPopupForMarkerEntry(markerEntry, { pan = true } = {}) {
 	if (!markerEntry) {
 		return false;
 	}
@@ -144,7 +144,11 @@ function openLocationPopupForMarkerEntry(markerEntry) {
 	if (typeof refreshLocationMarkerPopup === "function" && !markerEntry.marker.getPopup()) {
 		refreshLocationMarkerPopup(markerEntry);
 	}
-	map.panTo(markerEntry.marker.getLatLng());
+	// Nur zentrieren, wenn der Aufrufer nicht selbst schon hingezoomt hat (Spotlight/WikiSync/Route
+	// machen ihr eigenes setView/flyTo -> kein konkurrierendes panTo).
+	if (pan) {
+		map.panTo(markerEntry.marker.getLatLng());
+	}
 	markerEntry.marker.openPopup();
 
 	if (isTemporary) {
