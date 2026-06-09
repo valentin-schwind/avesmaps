@@ -24,9 +24,9 @@ function isPathLabelVisibleAtCurrentZoom(path) {
 }
 
 // Live tunbar via ?pathtune=1 (siehe Panel am Dateiende).
-let PATH_LABEL_FONT_DELTA = 2;      // px auf die berechnete (zoomabhängige) Größe
+let PATH_LABEL_FONT_DELTA = -1;     // px auf die berechnete (zoomabhängige) Größe
 let PATH_LABEL_DY = 0;              // px Abstand der Schrift zur Linie (negativ = darüber)
-let PATH_LABEL_STROKE_WIDTH = 3;    // px Halo/Kontur
+let PATH_LABEL_STROKE_WIDTH = 2;    // px Halo/Kontur
 let PATH_LABEL_LETTER_SPACING = 1;  // px Sperrung
 // Leitlinie = sichtbare Linie, nur neu abgetastet: <1 ausdünnen (ruhiger), 1 = exakt die Linie, >1 dichter.
 let PATH_LABEL_GUIDE_DENSITY = 1;   // (von map-features-path-rendering.js gelesen)
