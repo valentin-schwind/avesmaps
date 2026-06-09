@@ -85,6 +85,67 @@
 		return String(properties.label_name || properties.name || "").trim().toUpperCase();
 	}
 
+	function territoryOuterRing(f) {
+		let ring = null, best = -1;
+		polygonsOf(f.geometry).forEach((p) => { const r = p[0]; if (r && r.length > best) { best = r.length; ring = r; } });
+		return ring;
+	}
+
+	// Ungerichteter Kanten-Schlüssel (auf 3 Nachkommastellen gerundet -> geteilte Grenzen koinzidieren exakt).
+	function territoryEdgeKey(a, b) {
+		const ka = (+a[0]).toFixed(3) + "," + (+a[1]).toFixed(3);
+		const kb = (+b[0]).toFixed(3) + "," + (+b[1]).toFixed(3);
+		return ka < kb ? ka + "|" + kb : kb + "|" + ka;
+	}
+
+	// Setzt pro Gebiet `_labelAnchorIndex`: Mitte des LÄNGSTEN mit einem PEER-Nachbarn (nicht Eltern/Kind!)
+	// geteilten Grenzlaufs -> zwei echte Nachbarn ankern an derselben Grenze und stehen sich (per CCW-Links-
+	// Normale) gegenüber (wie "FRANCE/DEUTSCHLAND"). Die Frontier zum Mutter-Reich wird übersprungen (Eltern/Kind
+	// liegen auf DERSELBEN Seite -> kein Gegenüber). Fallback: längster beliebig geteilter Lauf, sonst Schwerpunkt.
+	// Einmal pro Daten-Load (Features neu -> _labelAnchorIndex unset); danach gecacht (pan-stabil).
+	function computeTerritoryLabelAnchors(features) {
+		const id = features.map((f) => String(f.properties.territory_public_id || "").trim());
+		const par = features.map((f) => String(f.properties.parent_public_id || "").trim());
+		const isParentChild = (i, j) => (par[i] && par[i] === id[j]) || (par[j] && par[j] === id[i]);
+		const owners = new Map();
+		features.forEach((f, ti) => {
+			const ring = f._labelRing || (f._labelRing = territoryOuterRing(f));
+			if (!ring) return;
+			for (let i = 0; i < ring.length - 1; i += 1) {
+				const k = territoryEdgeKey(ring[i], ring[i + 1]);
+				let s = owners.get(k); if (!s) { s = []; owners.set(k, s); } if (s.indexOf(ti) < 0) s.push(ti);
+			}
+		});
+		const longestRunMidpoint = (ring, accept) => {
+			let bestStart = -1, bestLen = 0, bestCount = 0, curStart = -1, curLen = 0, curCount = 0;
+			for (let i = 0; i < ring.length - 1; i += 1) {
+				if (accept(i)) {
+					if (curStart < 0) { curStart = i; curLen = 0; curCount = 0; }
+					const a = ring[i], b = ring[i + 1];
+					curLen += Math.hypot((+b[0]) - (+a[0]), (+b[1]) - (+a[1])); curCount += 1;
+					if (curLen > bestLen) { bestLen = curLen; bestStart = curStart; bestCount = curCount; }
+				} else { curStart = -1; curLen = 0; curCount = 0; }
+			}
+			return bestStart >= 0 ? bestStart + Math.floor(bestCount / 2) : -1;
+		};
+		features.forEach((f, ti) => {
+			const ring = f._labelRing;
+			if (!ring || ring.length < 8) { f._labelAnchorIndex = 0; return; }
+			const ownersAt = (i) => owners.get(territoryEdgeKey(ring[i], ring[i + 1]));
+			const peerShared = (i) => { const o = ownersAt(i); if (!o) return false; for (let n = 0; n < o.length; n += 1) { const tj = o[n]; if (tj !== ti && !isParentChild(ti, tj)) return true; } return false; };
+			const anyShared = (i) => { const o = ownersAt(i); return !!(o && o.length > 1); };
+			let idx = longestRunMidpoint(ring, peerShared);      // bevorzugt: echte Nachbar-Grenze
+			if (idx < 0) idx = longestRunMidpoint(ring, anyShared); // sonst irgendeine geteilte Grenze
+			if (idx < 0) {                                        // sonst: Schwerpunkt-nächster Punkt
+				let sx = 0, sy = 0; for (let i = 0; i < ring.length; i += 1) { sx += +ring[i][0]; sy += +ring[i][1]; }
+				sx /= ring.length; sy /= ring.length;
+				let bi = 0, bd = Infinity; for (let i = 0; i < ring.length; i += 1) { const dx = +ring[i][0] - sx, dy = +ring[i][1] - sy, d = dx * dx + dy * dy; if (d < bd) { bd = d; bi = i; } }
+				idx = bi;
+			}
+			f._labelAnchorIndex = idx;
+		});
+	}
+
 	// Glyphen einzeln entlang der (geglätteten) Pixel-Polyline platzieren, zentriert, tangential rotiert.
 	function drawTextAlongSmoothPath(ctx, pts, chars, widths, ls) {
 		const seg = []; let total = 0;
@@ -105,35 +166,36 @@
 			return rb - ra;
 		});
 		const toPoint = (lng, lat) => map.latLngToContainerPoint(L.latLng(lat, lng));
+		// Anker EINMAL pro Daten-Load berechnen (geteilte-Grenze-Mitte -> gegenüberstehende Nachbar-Namen).
+		// Features sind nach Reload neu -> _labelAnchorIndex unset; danach gecacht (pan-stabil, kein Springen).
+		if (labelable.length && labelable[0]._labelAnchorIndex == null) {
+			computeTerritoryLabelAnchors(labelable);
+		}
 		const placed = [];
-		const overlaps = (box) => placed.some((p) => !(box.x2 < p.x1 || box.x1 > p.x2 || box.y2 < p.y1 || box.y1 > p.y2));
+		// Kollision per MITTELPUNKTS-Abstand (nicht AABB): so überleben GESPIEGELTE Nachbarpaare (zwei Labels
+		// gegenüber an derselben Grenze, ~2*OFFSET auseinander), während echte Überlagerungen (gleicher Punkt,
+		// gleiche Seite -> z.B. Eltern/Kind) wegfallen. Radius < 2*TERRITORY_LABEL_OFFSET, sonst stirbt das Paar.
+		const COLLISION_RADIUS = 15;
+		const tooClose = (cx, cy) => placed.some((p) => Math.hypot(p.x - cx, p.y - cy) < COLLISION_RADIUS);
 		ctx.save();
 		ctx.font = `${TERRITORY_LABEL_FONT_SIZE}px Georgia`;
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";
 		ctx.fillStyle = `rgba(255, 255, 255, ${TERRITORY_LABEL_ALPHA})`;
 		labelable.forEach((f) => {
-			const polys = polygonsOf(f.geometry);
-			if (!polys.length) return;
-			let ring = null, best = -1;
-			polys.forEach((p) => { const r = p[0]; if (r && r.length > best) { best = r.length; ring = r; } });
+			const ring = f._labelRing || territoryOuterRing(f);
 			if (!ring || ring.length < 8) return;
-			// Geo-Bbox + Schwerpunkt in EINEM Durchlauf (ohne Projektion). Bbox -> schneller Off-Screen-Cull.
-			let gx1 = Infinity, gy1 = Infinity, gx2 = -Infinity, gy2 = -Infinity, sumX = 0, sumY = 0;
-			for (let i = 0; i < ring.length; i += 1) { const x = +ring[i][0], y = +ring[i][1]; if (x < gx1) gx1 = x; if (x > gx2) gx2 = x; if (y < gy1) gy1 = y; if (y > gy2) gy2 = y; sumX += x; sumY += y; }
+			// Geo-Bbox -> schneller Off-Screen-Cull (ohne jeden Vertex zu projizieren).
+			let gx1 = Infinity, gy1 = Infinity, gx2 = -Infinity, gy2 = -Infinity;
+			for (let i = 0; i < ring.length; i += 1) { const x = +ring[i][0], y = +ring[i][1]; if (x < gx1) gx1 = x; if (x > gx2) gx2 = x; if (y < gy1) gy1 = y; if (y > gy2) gy2 = y; }
 			const cA = toPoint(gx1, gy1), cB = toPoint(gx2, gy2), cC = toPoint(gx1, gy2), cD = toPoint(gx2, gy1);
 			const bx1 = Math.min(cA.x, cB.x, cC.x, cD.x), bx2 = Math.max(cA.x, cB.x, cC.x, cD.x), by1 = Math.min(cA.y, cB.y, cC.y, cD.y), by2 = Math.max(cA.y, cB.y, cC.y, cD.y);
 			if (bx2 < 0 || bx1 > size.x || by2 < 0 || by1 > size.y) return; // ganz off-screen
-			// STABILER Anker: geografisch fixer Ringpunkt nahe dem Schwerpunkt, pro Feature gecacht. Die Platzierung
-			// ist damit NICHT bildschirm-relativ -> beim Pannen (reine Translation) klebt das Label am selben
-			// Grenzpunkt statt umzuspringen. (Neuberechnung nur bei Zoom, da der Layer dann neu lädt.)
-			let anchorIndex = f._labelAnchorIndex;
-			if (anchorIndex == null || anchorIndex >= ring.length) {
-				const cxg = sumX / ring.length, cyg = sumY / ring.length;
-				let bestI = 0, bestD = Infinity;
-				for (let i = 0; i < ring.length; i += 1) { const dx = +ring[i][0] - cxg, dy = +ring[i][1] - cyg, d = dx * dx + dy * dy; if (d < bestD) { bestD = d; bestI = i; } }
-				anchorIndex = bestI; f._labelAnchorIndex = anchorIndex;
-			}
+			// STABILER Anker (vorberechnet, geografisch fix): Mitte des längsten mit einem Nachbarn geteilten
+			// Grenzlaufs -> zwei Nachbarn stehen sich gegenüber; Fallback Schwerpunkt. NICHT bildschirm-relativ
+			// -> beim Pannen (reine Translation) klebt das Label am selben Grenzpunkt statt umzuspringen.
+			const anchorIndex = f._labelAnchorIndex;
+			if (anchorIndex == null || anchorIndex >= ring.length) return;
 			const proj = new Array(ring.length);
 			const PT = (i) => proj[i] || (proj[i] = toPoint(ring[i][0], ring[i][1])); // nur benötigte Vertices projizieren
 			const anchorPt = PT(anchorIndex);
@@ -167,13 +229,9 @@
 			for (let k = 0; k < nCtrl; k += 1) ctrl.push(baseline[Math.round(k * (baseline.length - 1) / (nCtrl - 1))]);
 			let smooth = quadraticBSplinePoints(ctrl, 8);
 			if (smooth[smooth.length - 1].x < smooth[0].x) smooth.reverse(); // Lesbarkeit: links->rechts
-			// Kollision: zwei Gebiets-Außengrenzen können sich überlagern (z.B. Provinz auf der Frontier ihres
-			// Mutter-Reichs) -> nur das zuerst sortierte (größere) Label zeichnen, überlappende auslassen.
-			let lx1 = Infinity, ly1 = Infinity, lx2 = -Infinity, ly2 = -Infinity;
-			smooth.forEach((p) => { lx1 = Math.min(lx1, p.x); ly1 = Math.min(ly1, p.y); lx2 = Math.max(lx2, p.x); ly2 = Math.max(ly2, p.y); });
-			const box = { x1: lx1 - TERRITORY_LABEL_FONT_SIZE / 2, y1: ly1 - TERRITORY_LABEL_FONT_SIZE / 2, x2: lx2 + TERRITORY_LABEL_FONT_SIZE / 2, y2: ly2 + TERRITORY_LABEL_FONT_SIZE / 2 };
-			if (overlaps(box)) return;
-			placed.push(box);
+			let cx = 0, cy = 0; smooth.forEach((p) => { cx += p.x; cy += p.y; }); cx /= smooth.length; cy /= smooth.length;
+			if (tooClose(cx, cy)) return; // gleiche Seite überlagert -> auslassen; gespiegelte Paare bleiben
+			placed.push({ x: cx, y: cy });
 			drawTextAlongSmoothPath(ctx, smooth, chars, widths, TERRITORY_LABEL_LETTER_SPACING);
 		});
 		ctx.restore();
