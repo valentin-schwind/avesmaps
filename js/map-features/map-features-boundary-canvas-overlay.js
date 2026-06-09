@@ -60,21 +60,23 @@
 	const TERRITORY_BORDER_LABELS_ENABLED = (() => { try { return new URLSearchParams(window.location.search).get("borderlabels") !== "0"; } catch (e) { return true; } })();
 	const TERRITORY_LABEL_MIN_ZOOM = 4;
 	const TERRITORY_LABEL_EXCLUDE = /^(Baronie|Junkertum|Vogtei|Rittergut|Freiherrschaft|Reichsstadt|Stadt)\b/i;
-	let TERRITORY_LABEL_OFFSET = 20;            // px nach innen versetzt (weiter weg von der Grenze) -- live tunbar
-	const TERRITORY_LABEL_FONT_SIZE = 11;
+	// PRO ZOOMSTUFE (4/5/6) -- Labels zeigen nur ab Zoom 4. Live tunbar via ?labeltune=1 (Slider mutieren diese
+	// Objekte; OK-Button schreibt den Stand nach window.__avesmapsBorderLabelTuning zum Übernehmen als Default).
+	const TERRITORY_LABEL_OFFSET_BY_ZOOM = { 4: 20, 5: 20, 6: 20 };       // px nach innen (Abstand Grenze->Text)
+	const TERRITORY_LABEL_FONT_SIZE_BY_ZOOM = { 4: 9, 5: 11, 6: 11 };     // px Schriftgröße
+	const TERRITORY_LABEL_DETAIL_BY_ZOOM = { 4: 0.35, 5: 0.5, 6: 0.75 };  // Stützpunkt-Dichte (Anteil 0..1)
+	const territoryLabelByZoom = (table, zoomLevel, fallback) => {
+		const z = Math.max(4, Math.min(6, Math.round(Number(zoomLevel))));
+		return table[z] != null ? table[z] : fallback;
+	};
+	function getTerritoryLabelOffset(z) { return territoryLabelByZoom(TERRITORY_LABEL_OFFSET_BY_ZOOM, z, 20); }
+	function getTerritoryLabelFontSize(z) { return territoryLabelByZoom(TERRITORY_LABEL_FONT_SIZE_BY_ZOOM, z, 11); }
+	function getTerritoryLabelDetail(z) { return territoryLabelByZoom(TERRITORY_LABEL_DETAIL_BY_ZOOM, z, 0.5); }
 	const TERRITORY_LABEL_FONT_FAMILY = '"Faculty Glyphic", Georgia, "Times New Roman", serif'; // wie .map-label
 	const TERRITORY_LABEL_LETTER_SPACING = 3;
-	const TERRITORY_LABEL_ALPHA = 0.9; // weiß, gut deckend (war 0.75 -> über hellem Terrain zu blass)
-	// Gewicht des mittleren Kontrollpunkts im (rationalen) B-Spline: 1 = klassisch (Kurve läuft zwischen den
-	// Punkten, wirkt lose/grob), >1 zieht die Leitlinie NÄHER an die Kontrollpunkte (strafft sie). Stellschraube.
-	let TERRITORY_LABEL_SPLINE_WEIGHT = 1; // live tunbar (?labeltune=1)
-	// Anteil der Segment-Punkte als Stützpunkte (1 = ALLE, kein Downsampling; klein = stärker geglättet/grob).
-	// ZOOM-ABHÄNGIG: tiefer Zoom = gröbere Geometrie -> weniger Stützpunkte; hoher Zoom = mehr Detail.
-	const TERRITORY_LABEL_DETAIL_BY_ZOOM = { 4: 0.35, 5: 0.5, 6: 0.75 };
-	function getTerritoryLabelDetail(zoomLevel) {
-		const z = Math.round(Number(zoomLevel));
-		return TERRITORY_LABEL_DETAIL_BY_ZOOM[z] != null ? TERRITORY_LABEL_DETAIL_BY_ZOOM[z] : (z < 4 ? 0.35 : 0.75);
-	}
+	const TERRITORY_LABEL_ALPHA = 0.9; // weiß, gut deckend
+	// Gewicht des mittleren Kontrollpunkts im (rationalen) B-Spline (1 = klassisch, >1 strafft). Global, live tunbar.
+	let TERRITORY_LABEL_SPLINE_WEIGHT = 1;
 
 	// Gewichteter (rationaler) quadratischer B-Spline durch ein (ausgedünntes) Kontrollpolygon -> glatte Leitkurve.
 	// weight>1 strafft die Kurve in Richtung der Kontrollpunkte (NURBS-artige Gewichtung des Mittelpunkts).
@@ -180,14 +182,15 @@
 		if (labelable.length && labelable[0]._peerVertices === undefined) {
 			computeTerritoryLabelMeta(labelable);
 		}
-		// Zoom 4: Schrift 2pt kleiner als ab Zoom 5 (dort sitzen kleine Gebiete dichter -> sonst zu wuchtig).
-		const territoryFontSize = TERRITORY_LABEL_FONT_SIZE - (Math.round(map.getZoom()) <= 4 ? 2 : 0);
+		// Pro-Zoom-Werte (Slider via ?labeltune=1).
+		const territoryFontSize = getTerritoryLabelFontSize(map.getZoom());
+		const territoryOffset = getTerritoryLabelOffset(map.getZoom());
 		const territoryDetail = getTerritoryLabelDetail(map.getZoom());
 		const placed = []; // Liste von Fußabdruck-Punktgruppen bereits gezeichneter Labels
 		// Kollision per FUSSABDRUCK-Abstand: Mindestabstand ~Schrifthöhe zwischen den Textstrecken. Muss kleiner
 		// als 2*TERRITORY_LABEL_OFFSET bleiben, sonst sterben die gespiegelten Nachbarpaare (die liegen ~2*OFFSET
 		// auseinander). Echte Überlappungen (kreuzend/gestapelt) fallen weg.
-		const LABEL_MIN_GAP = Math.min(territoryFontSize + 2, 2 * TERRITORY_LABEL_OFFSET - 6);
+		const LABEL_MIN_GAP = Math.min(territoryFontSize + 2, 2 * territoryOffset - 6);
 		const collidesFootprint = (pts) => {
 			const r2 = LABEL_MIN_GAP * LABEL_MIN_GAP;
 			for (let g = 0; g < placed.length; g += 1) { const grp = placed[g]; for (let a = 0; a < grp.length; a += 1) { const q = grp[a]; for (let b = 0; b < pts.length; b += 1) { const dx = pts[b].x - q.x, dy = pts[b].y - q.y; if (dx * dx + dy * dy < r2) return true; } } }
@@ -251,7 +254,7 @@
 				const base = PT(i);
 				const inward = toPoint(ring[i][0] + nx * 0.3, ring[i][1] + ny * 0.3);
 				let ox = inward.x - base.x, oy = inward.y - base.y; const om = Math.hypot(ox, oy) || 1; ox /= om; oy /= om;
-				baseline.push({ x: base.x + ox * TERRITORY_LABEL_OFFSET, y: base.y + oy * TERRITORY_LABEL_OFFSET });
+				baseline.push({ x: base.x + ox * territoryOffset, y: base.y + oy * territoryOffset });
 			}
 			const nCtrl = Math.max(4, Math.min(baseline.length, Math.round(baseline.length * territoryDetail)));
 			const ctrl = [];
@@ -560,13 +563,13 @@
 		try { on = new URLSearchParams(window.location.search).has("labeltune"); } catch (e) { on = false; }
 		if (!on || !document.body) return;
 		const panel = document.createElement("div");
-		panel.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:99999;background:rgba(28,28,28,0.9);color:#fff;font:12px Georgia,serif;padding:10px 12px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.4);width:210px;";
+		panel.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:99999;background:rgba(28,28,28,0.92);color:#fff;font:12px Georgia,serif;padding:10px 12px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.45);width:220px;max-height:88vh;overflow:auto;";
 		const title = document.createElement("div");
 		title.textContent = "Grenz-Label-Tuning"; title.style.cssText = "font-weight:bold;margin-bottom:8px;";
 		panel.appendChild(title);
 		const slider = (label, min, max, step, value, apply) => {
-			const wrap = document.createElement("div"); wrap.style.marginBottom = "8px";
-			const head = document.createElement("div"); head.style.cssText = "display:flex;justify-content:space-between;margin-bottom:3px;";
+			const wrap = document.createElement("div"); wrap.style.marginBottom = "7px";
+			const head = document.createElement("div"); head.style.cssText = "display:flex;justify-content:space-between;margin-bottom:2px;";
 			const name = document.createElement("span"); name.textContent = label;
 			const val = document.createElement("span"); val.textContent = value;
 			head.appendChild(name); head.appendChild(val);
@@ -576,10 +579,32 @@
 			wrap.appendChild(head); wrap.appendChild(input);
 			panel.appendChild(wrap);
 		};
-		slider("Spline-Gewicht", 1, 30, 0.5, TERRITORY_LABEL_SPLINE_WEIGHT, (v) => { TERRITORY_LABEL_SPLINE_WEIGHT = v; });
-		slider("Offset (px)", 0, 40, 1, TERRITORY_LABEL_OFFSET, (v) => { TERRITORY_LABEL_OFFSET = v; });
+		const sectionTitle = (text) => { const d = document.createElement("div"); d.textContent = text; d.style.cssText = "margin:8px 0 4px;font-weight:bold;opacity:0.85;border-top:1px solid rgba(255,255,255,0.15);padding-top:6px;"; panel.appendChild(d); };
+		slider("Spline-Gewicht (global)", 1, 30, 0.5, TERRITORY_LABEL_SPLINE_WEIGHT, (v) => { TERRITORY_LABEL_SPLINE_WEIGHT = v; });
+		[4, 5, 6].forEach((z) => {
+			sectionTitle("Zoom " + z);
+			slider("Offset (px)", 0, 40, 1, TERRITORY_LABEL_OFFSET_BY_ZOOM[z], (v) => { TERRITORY_LABEL_OFFSET_BY_ZOOM[z] = v; });
+			slider("Schriftgröße (px)", 6, 24, 1, TERRITORY_LABEL_FONT_SIZE_BY_ZOOM[z], (v) => { TERRITORY_LABEL_FONT_SIZE_BY_ZOOM[z] = v; });
+			slider("Stützpunkt-Dichte", 0.05, 1, 0.05, TERRITORY_LABEL_DETAIL_BY_ZOOM[z], (v) => { TERRITORY_LABEL_DETAIL_BY_ZOOM[z] = v; });
+		});
+		const okBtn = document.createElement("button");
+		okBtn.textContent = "OK / Werte merken";
+		okBtn.style.cssText = "width:100%;margin-top:10px;padding:7px;border:1px solid #5e4329;border-radius:6px;background:#7a5a3a;color:#fff;font:inherit;cursor:pointer;";
+		okBtn.addEventListener("click", () => {
+			const result = {
+				offset: { ...TERRITORY_LABEL_OFFSET_BY_ZOOM },
+				fontSize: { ...TERRITORY_LABEL_FONT_SIZE_BY_ZOOM },
+				detail: { ...TERRITORY_LABEL_DETAIL_BY_ZOOM },
+				splineWeight: TERRITORY_LABEL_SPLINE_WEIGHT,
+			};
+			window.__avesmapsBorderLabelTuning = result;
+			console.log("[Grenz-Label-Tuning] " + JSON.stringify(result));
+			okBtn.textContent = "✓ gemerkt";
+			setTimeout(() => { okBtn.textContent = "OK / Werte merken"; }, 1500);
+		});
+		panel.appendChild(okBtn);
 		const hint = document.createElement("div");
-		hint.textContent = "Regionen-Modus, Zoom ≥4"; hint.style.cssText = "opacity:0.6;margin-top:2px;";
+		hint.textContent = "Regionen-Modus; je Zoom 4/5/6 reinzoomen zum Sehen"; hint.style.cssText = "opacity:0.6;margin-top:6px;";
 		panel.appendChild(hint);
 		document.body.appendChild(panel);
 	})();
