@@ -71,6 +71,9 @@ function removePathFeature(path) {
 	if (path?._layerGroup) {
 		map.removeLayer(path._layerGroup);
 	}
+	if (path?._pathLabelLine) {
+		map.removeLayer(path._pathLabelLine);
+	}
 	pathData = pathData.filter((entry) => entry !== path);
 	pathLayers = pathLayers.filter((layer) => layer !== path._layerGroup);
 	refreshPlannerAfterFeatureChange({ updateRoute: true });

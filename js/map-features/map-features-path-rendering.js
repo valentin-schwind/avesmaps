@@ -170,7 +170,10 @@ function createPathLayer(path) {
 		lineJoin: "round",
 	});
 
-	const layerGroup = L.layerGroup([roadOutline, roadCenter, pathLabelLine]);
+	// Die Label-Linie kommt NICHT in den umschaltbaren Group (sonst verschwände das Label, sobald der Pfad
+	// ausgeblendet wird). syncPathVisibility hält sie dauerhaft auf der Karte; refreshPathLayerText entscheidet
+	// über die Text-Sichtbarkeit (Zoom + Label-Schalter) -> Fluss-Labels bleiben auch ohne Fluss-Pfade sichtbar.
+	const layerGroup = L.layerGroup([roadOutline, roadCenter]);
 	path._layerGroup = layerGroup;
 	path._pathLines = [roadOutline, roadCenter];
 	path._pathLabelLine = pathLabelLine;

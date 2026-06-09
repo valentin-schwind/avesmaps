@@ -3,10 +3,24 @@ function syncPathVisibility() {
 	const showRivers = $("#toggleRivers").is(":checked");
 	const showSeaPaths = IS_EDIT_MODE && $("#toggleSeaPaths").is(":checked");
 
+	// Standardmäßig folgen die Fluss-Labels den Fluss-Pfaden. Sobald im ?pathtune=1-Panel der Label-Schalter
+	// benutzt wurde (Override), bleibt die Entkopplung bestehen: Pfade ausblenden lässt die Labels stehen.
+	if (typeof pathRiverLabelsOverridden !== "undefined" && !pathRiverLabelsOverridden) {
+		pathRiverLabelsVisible = showRivers;
+	}
+
 	$.each(pathLayers, (i, layer) => {
 		const path = pathData[i];
 		const shouldShow = shouldShowPathOnMap(path, { showPaths, showRivers, showSeaPaths });
 		map[shouldShow ? "addLayer" : "removeLayer"](layer);
+		// Label-Linie dauerhaft auf der Karte halten (nicht im Group); der Text wird über refreshPathLayerText
+		// gesteuert -> Fluss-Labels bleiben sichtbar, auch wenn die Fluss-Pfade ausgeblendet sind.
+		if (path?._pathLabelLine) {
+			map.addLayer(path._pathLabelLine);
+		}
+		if (typeof refreshPathLayerText === "function") {
+			refreshPathLayerText(path);
+		}
 	});
 }
 

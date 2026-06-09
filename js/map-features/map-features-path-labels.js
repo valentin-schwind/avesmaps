@@ -2,13 +2,21 @@ function shouldPathNameBeDisplayed(path) {
 	return path?.properties?.show_label === true || path?.properties?.show_label === 1 || path?.properties?.show_label === "1";
 }
 
-// Globaler Schalter für Fluss-/Seeweg-Labels (unabhängig von den Fluss-Pfaden); toggelbar im ?pathtune=1-Panel.
-let pathRiverLabelsVisible = true;
+// Schalter für Fluss-/Seeweg-Labels. Standardmäßig folgen sie den Fluss-Pfaden (syncPathVisibility setzt den
+// Wert = #toggleRivers, solange nichts übersteuert ist). Sobald der Label-Schalter im ?pathtune=1-Panel benutzt
+// wurde, greift der Override: die Labels sind dann von den Pfaden entkoppelt (Pfade aus -> Labels bleiben).
+let pathRiverLabelsVisible = false;
+let pathRiverLabelsOverridden = false;
 
 function isPathLabelVisibleAtCurrentZoom(path) {
 	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
 	const isRiver = pathSubtype === "Flussweg" || pathSubtype === "Seeweg";
-	if (isRiver && !pathRiverLabelsVisible) {
+	if (isRiver) {
+		if (!pathRiverLabelsVisible) {
+			return false;
+		}
+	} else if (typeof $ === "function" && !$("#togglePaths").is(":checked")) {
+		// Wege-/Straßen-Labels folgen weiterhin ihrer Pfad-Sichtbarkeit (#togglePaths).
 		return false;
 	}
 	const minZoom = isRiver ? 3 : LOCATION_NAME_LABEL_CONFIG.dorf.minZoom;
@@ -117,8 +125,9 @@ function syncPathLabels() {
 		const el = document.querySelector("#toggleRivers");
 		if (el) { el.checked = on; el.dispatchEvent(new Event("change", { bubbles: true })); }
 	});
-	// (2) Fluss-LABELS an/aus -- unabhängig von den Pfaden.
+	// (2) Fluss-LABELS an/aus -- unabhängig von den Pfaden (setzt den Override -> Pfade aus lässt Labels stehen).
 	checkbox("Fluss-Labels anzeigen", pathRiverLabelsVisible, (on) => {
+		pathRiverLabelsOverridden = true;
 		pathRiverLabelsVisible = on;
 		try { if (typeof syncPathLabels === "function") syncPathLabels(); } catch (e) {}
 	});
