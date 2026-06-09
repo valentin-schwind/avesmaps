@@ -63,7 +63,7 @@
 	const TERRITORY_LABEL_OFFSET = 11;          // px nach innen versetzt
 	const TERRITORY_LABEL_FONT_SIZE = 13;
 	const TERRITORY_LABEL_LETTER_SPACING = 3;
-	const TERRITORY_LABEL_ALPHA = 0.75;
+	const TERRITORY_LABEL_ALPHA = 0.9; // weiß, gut deckend (war 0.75 -> über hellem Terrain zu blass)
 
 	// Uniform quadratischer B-Spline durch ein (ausgedünntes) Kontrollpolygon -> glatte Leitkurve.
 	function quadraticBSplinePoints(ctrl, samples) {
@@ -108,8 +108,6 @@
 			return rb - ra;
 		});
 		const toPoint = (lng, lat) => map.latLngToContainerPoint(L.latLng(lat, lng));
-		const placed = [];
-		const overlaps = (box) => placed.some((p) => !(box.x2 < p.x1 || box.x1 > p.x2 || box.y2 < p.y1 || box.y1 > p.y2));
 		ctx.save();
 		ctx.font = `${TERRITORY_LABEL_FONT_SIZE}px Georgia`;
 		ctx.textAlign = "center";
@@ -163,11 +161,6 @@
 			for (let k = 0; k < nCtrl; k += 1) ctrl.push(baseline[Math.round(k * (baseline.length - 1) / (nCtrl - 1))]);
 			let smooth = quadraticBSplinePoints(ctrl, 8);
 			if (smooth[smooth.length - 1].x < smooth[0].x) smooth.reverse(); // Lesbarkeit: links->rechts
-			let lx1 = Infinity, ly1 = Infinity, lx2 = -Infinity, ly2 = -Infinity;
-			smooth.forEach((p) => { lx1 = Math.min(lx1, p.x); ly1 = Math.min(ly1, p.y); lx2 = Math.max(lx2, p.x); ly2 = Math.max(ly2, p.y); });
-			const box = { x1: lx1 - TERRITORY_LABEL_FONT_SIZE / 2, y1: ly1 - TERRITORY_LABEL_FONT_SIZE / 2, x2: lx2 + TERRITORY_LABEL_FONT_SIZE / 2, y2: ly2 + TERRITORY_LABEL_FONT_SIZE / 2 };
-			if (overlaps(box)) return;
-			placed.push(box);
 			drawTextAlongSmoothPath(ctx, smooth, chars, widths, TERRITORY_LABEL_LETTER_SPACING);
 		});
 		ctx.restore();
