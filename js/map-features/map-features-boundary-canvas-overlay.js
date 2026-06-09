@@ -53,6 +53,126 @@
 	const BOUNDARY_WEAK_OUTER_WIDTH = 2;
 	let boundaryAlphaFactor = 1;
 
+	// --- Territoriums-Namen entlang der Außengrenzen (NUR "Regionen"/deregraphic, ab hohem Zoom) ---
+	// Schrift folgt der geglätteten Außenkontur, nach innen versetzt (Links-Normale des CCW-Rings). Baronien/
+	// Siedlungen ausgenommen (zu kleinteilig). Pro Move neu gezeichnet (redraw läuft eh bei jedem moveend/zoom).
+	// Weiß, halbtransparent, KEIN Glow/Schatten. Notausschalter ?borderlabels=0.
+	const TERRITORY_BORDER_LABELS_ENABLED = (() => { try { return new URLSearchParams(window.location.search).get("borderlabels") !== "0"; } catch (e) { return true; } })();
+	const TERRITORY_LABEL_MIN_ZOOM = 4;
+	const TERRITORY_LABEL_EXCLUDE = /^(Baronie|Junkertum|Vogtei|Rittergut|Freiherrschaft|Reichsstadt|Stadt)\b/i;
+	const TERRITORY_LABEL_OFFSET = 11;          // px nach innen versetzt
+	const TERRITORY_LABEL_FONT_SIZE = 13;
+	const TERRITORY_LABEL_LETTER_SPACING = 3;
+	const TERRITORY_LABEL_ALPHA = 0.75;
+
+	// Uniform quadratischer B-Spline durch ein (ausgedünntes) Kontrollpolygon -> glatte Leitkurve.
+	function quadraticBSplinePoints(ctrl, samples) {
+		if (ctrl.length < 3) return ctrl.slice();
+		const out = [ctrl[0]];
+		for (let i = 1; i < ctrl.length - 1; i += 1) {
+			const p0 = ctrl[i - 1], p1 = ctrl[i], p2 = ctrl[i + 1];
+			for (let s = 1; s <= samples; s += 1) {
+				const t = s / samples, a = 0.5 * (1 - t) * (1 - t), b = 0.5 + t - t * t, c = 0.5 * t * t;
+				out.push({ x: a * p0.x + b * p1.x + c * p2.x, y: a * p0.y + b * p1.y + c * p2.y });
+			}
+		}
+		out.push(ctrl[ctrl.length - 1]);
+		return out;
+	}
+
+	function shortenTerritoryName(properties) {
+		let n = String(properties.name || "");
+		if (/Kaiserreich/i.test(n)) return "MITTELREICH";
+		n = n.replace(/^(Gro(ss|ß)herzogtum|Herzogtum|Markgrafschaft|Grafschaft|F(ü|u)rstentum|K(ö|o)nigreich|Bergk(ö|o)nigreich|Kaisermark|Mark|Land)\s+/i, "");
+		return n.toUpperCase();
+	}
+
+	// Glyphen einzeln entlang der (geglätteten) Pixel-Polyline platzieren, zentriert, tangential rotiert.
+	function drawTextAlongSmoothPath(ctx, pts, chars, widths, ls) {
+		const seg = []; let total = 0;
+		for (let i = 1; i < pts.length; i += 1) { const d = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); seg.push({ cum: total, len: d, a: pts[i - 1], b: pts[i] }); total += d; }
+		const textLen = widths.reduce((s, w) => s + w + ls, 0) - ls;
+		let dist = (total - textLen) / 2;
+		const at = (d) => { for (const s of seg) { if (d <= s.cum + s.len) { const t = (d - s.cum) / (s.len || 1); return { x: s.a.x + (s.b.x - s.a.x) * t, y: s.a.y + (s.b.y - s.a.y) * t, ang: Math.atan2(s.b.y - s.a.y, s.b.x - s.a.x) }; } } const l = seg[seg.length - 1]; return { x: l.b.x, y: l.b.y, ang: Math.atan2(l.b.y - l.a.y, l.b.x - l.a.x) }; };
+		for (let i = 0; i < chars.length; i += 1) { const w = widths[i]; const p = at(dist + w / 2); ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.ang); ctx.fillText(chars[i], 0, 0); ctx.restore(); dist += w + ls; }
+	}
+
+	function drawTerritoryBorderLabels(ctx) {
+		const size = map.getSize();
+		const center = size.divideBy(2);
+		const rd = Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []);
+		const labelable = rd.filter((f) => f && f.properties && f.properties.is_derived_geometry === true && !TERRITORY_LABEL_EXCLUDE.test(String(f.properties.name || "")));
+		labelable.sort((a, b) => { // große Gebiete zuerst -> gewinnen die Kollision
+			const ra = (a.geometry.type === "MultiPolygon" ? a.geometry.coordinates[0] : a.geometry.coordinates)[0].length;
+			const rb = (b.geometry.type === "MultiPolygon" ? b.geometry.coordinates[0] : b.geometry.coordinates)[0].length;
+			return rb - ra;
+		});
+		const toPoint = (lng, lat) => map.latLngToContainerPoint(L.latLng(lat, lng));
+		const placed = [];
+		const overlaps = (box) => placed.some((p) => !(box.x2 < p.x1 || box.x1 > p.x2 || box.y2 < p.y1 || box.y1 > p.y2));
+		ctx.save();
+		ctx.font = `${TERRITORY_LABEL_FONT_SIZE}px Georgia`;
+		ctx.textAlign = "center";
+		ctx.textBaseline = "middle";
+		ctx.fillStyle = `rgba(255, 255, 255, ${TERRITORY_LABEL_ALPHA})`;
+		labelable.forEach((f) => {
+			const polys = polygonsOf(f.geometry);
+			if (!polys.length) return;
+			let ring = null, best = -1;
+			polys.forEach((p) => { const r = p[0]; if (r && r.length > best) { best = r.length; ring = r; } });
+			if (!ring || ring.length < 8) return;
+			// Schnelle Sichtbarkeits-Vorprüfung (ohne jeden Vertex zu projizieren): Geo-Bbox -> 4 Ecken.
+			let gx1 = Infinity, gy1 = Infinity, gx2 = -Infinity, gy2 = -Infinity;
+			for (let i = 0; i < ring.length; i += 1) { const x = +ring[i][0], y = +ring[i][1]; if (x < gx1) gx1 = x; if (x > gx2) gx2 = x; if (y < gy1) gy1 = y; if (y > gy2) gy2 = y; }
+			const cA = toPoint(gx1, gy1), cB = toPoint(gx2, gy2), cC = toPoint(gx1, gy2), cD = toPoint(gx2, gy1);
+			const bx1 = Math.min(cA.x, cB.x, cC.x, cD.x), bx2 = Math.max(cA.x, cB.x, cC.x, cD.x), by1 = Math.min(cA.y, cB.y, cC.y, cD.y), by2 = Math.max(cA.y, cB.y, cC.y, cD.y);
+			if (bx2 < 0 || bx1 > size.x || by2 < 0 || by1 > size.y) return; // ganz off-screen
+			const proj = new Array(ring.length);
+			let nearestIndex = -1, nearestDist = Infinity;
+			for (let i = 0; i < ring.length; i += 1) {
+				const pt = toPoint(ring[i][0], ring[i][1]); proj[i] = pt;
+				const inView = pt.x >= 0 && pt.x <= size.x && pt.y >= 0 && pt.y <= size.y;
+				const d = Math.hypot(pt.x - center.x, pt.y - center.y);
+				if (inView && d < nearestDist) { nearestDist = d; nearestIndex = i; }
+			}
+			if (nearestIndex < 0) return; // kein sichtbarer Grenzpunkt
+			const text = shortenTerritoryName(f.properties);
+			if (!text) return;
+			const chars = [...text];
+			const widths = chars.map((c) => ctx.measureText(c).width);
+			const textLen = widths.reduce((s, w) => s + w + TERRITORY_LABEL_LETTER_SPACING, 0) - TERRITORY_LABEL_LETTER_SPACING;
+			let lo = nearestIndex, hi = nearestIndex, len = 0;
+			const target = textLen * 1.4;
+			while (len < target && (lo > 0 || hi < ring.length - 1)) {
+				if (hi < ring.length - 1) { hi += 1; len += Math.hypot(proj[hi].x - proj[hi - 1].x, proj[hi].y - proj[hi - 1].y); }
+				if (len < target && lo > 0) { lo -= 1; len += Math.hypot(proj[lo].x - proj[lo + 1].x, proj[lo].y - proj[lo + 1].y); }
+			}
+			if (len < textLen) return;
+			const baseline = [];
+			for (let i = lo; i <= hi; i += 1) {
+				const a = ring[Math.max(lo, i - 1)], b = ring[Math.min(hi, i + 1)];
+				let dx = b[0] - a[0], dy = b[1] - a[1]; const m = Math.hypot(dx, dy) || 1; dx /= m; dy /= m;
+				const nx = -dy, ny = dx; // Links-Normale = innen (CCW-Außenring, RFC7946)
+				const base = proj[i];
+				const inward = toPoint(ring[i][0] + nx * 0.3, ring[i][1] + ny * 0.3);
+				let ox = inward.x - base.x, oy = inward.y - base.y; const om = Math.hypot(ox, oy) || 1; ox /= om; oy /= om;
+				baseline.push({ x: base.x + ox * TERRITORY_LABEL_OFFSET, y: base.y + oy * TERRITORY_LABEL_OFFSET });
+			}
+			const nCtrl = Math.max(4, Math.min(9, Math.round(baseline.length / 8)));
+			const ctrl = [];
+			for (let k = 0; k < nCtrl; k += 1) ctrl.push(baseline[Math.round(k * (baseline.length - 1) / (nCtrl - 1))]);
+			let smooth = quadraticBSplinePoints(ctrl, 8);
+			if (smooth[smooth.length - 1].x < smooth[0].x) smooth.reverse(); // Lesbarkeit: links->rechts
+			let lx1 = Infinity, ly1 = Infinity, lx2 = -Infinity, ly2 = -Infinity;
+			smooth.forEach((p) => { lx1 = Math.min(lx1, p.x); ly1 = Math.min(ly1, p.y); lx2 = Math.max(lx2, p.x); ly2 = Math.max(ly2, p.y); });
+			const box = { x1: lx1 - TERRITORY_LABEL_FONT_SIZE / 2, y1: ly1 - TERRITORY_LABEL_FONT_SIZE / 2, x2: lx2 + TERRITORY_LABEL_FONT_SIZE / 2, y2: ly2 + TERRITORY_LABEL_FONT_SIZE / 2 };
+			if (overlaps(box)) return;
+			placed.push(box);
+			drawTextAlongSmoothPath(ctx, smooth, chars, widths, TERRITORY_LABEL_LETTER_SPACING);
+		});
+		ctx.restore();
+	}
+
 	// --- Reichsstadt-Innenkontur (eng gegated, leicht reversibel über das Flag) ---
 	// Einzelkind-Siedlungen (territory_type leer, genau 1 Kind des Eltern, kein eigenes Derived)
 	// bekommen ihre eigene Stadt-Kontur als weiss-gestrichelte Linie — funktioniert auch, wenn die
@@ -290,6 +410,13 @@
 			if (segMap.size) {
 				drawInnerBoundaries({ type: "MultiLineString", coordinates: [...segMap.values()] });
 			}
+		}
+
+		// Territoriums-Namen entlang der Außengrenzen -- NUR in "Regionen" (deregraphic) ab hohem Zoom.
+		// (Political zeigt die Namen schon als normale Labels; deshalb dort nicht.)
+		if (TERRITORY_BORDER_LABELS_ENABLED && currentMapLayerMode === "deregraphic"
+			&& Math.round(Number(map.getZoom())) >= TERRITORY_LABEL_MIN_ZOOM) {
+			drawTerritoryBorderLabels(ctx);
 		}
 	}
 
