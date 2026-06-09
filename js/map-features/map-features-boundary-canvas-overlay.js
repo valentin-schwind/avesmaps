@@ -60,16 +60,16 @@
 	const TERRITORY_BORDER_LABELS_ENABLED = (() => { try { return new URLSearchParams(window.location.search).get("borderlabels") !== "0"; } catch (e) { return true; } })();
 	const TERRITORY_LABEL_MIN_ZOOM = 4;
 	const TERRITORY_LABEL_EXCLUDE = /^(Baronie|Junkertum|Vogtei|Rittergut|Freiherrschaft|Reichsstadt|Stadt)\b/i;
-	let TERRITORY_LABEL_OFFSET = 18;            // px nach innen versetzt (weiter weg von der Grenze) -- live tunbar
+	let TERRITORY_LABEL_OFFSET = 20;            // px nach innen versetzt (weiter weg von der Grenze) -- live tunbar
 	const TERRITORY_LABEL_FONT_SIZE = 13;
 	const TERRITORY_LABEL_LETTER_SPACING = 3;
 	const TERRITORY_LABEL_ALPHA = 0.9; // weiß, gut deckend (war 0.75 -> über hellem Terrain zu blass)
 	// Gewicht des mittleren Kontrollpunkts im (rationalen) B-Spline: 1 = klassisch (Kurve läuft zwischen den
 	// Punkten, wirkt lose/grob), >1 zieht die Leitlinie NÄHER an die Kontrollpunkte (strafft sie). Stellschraube.
-	let TERRITORY_LABEL_SPLINE_WEIGHT = 5; // live tunbar (?labeltune=1)
+	let TERRITORY_LABEL_SPLINE_WEIGHT = 1; // live tunbar (?labeltune=1)
 	// Anteil der Segment-Punkte, die als Stützpunkte in den Spline einfließen (1 = ALLE, kein Downsampling;
 	// klein = stark geglättet/grob). Vorher fix auf max 9 Punkte gedeckelt -> wirkte grob. Live tunbar.
-	let TERRITORY_LABEL_DETAIL = 0.25;
+	let TERRITORY_LABEL_DETAIL = 0.6;
 
 	// Gewichteter (rationaler) quadratischer B-Spline durch ein (ausgedünntes) Kontrollpolygon -> glatte Leitkurve.
 	// weight>1 strafft die Kurve in Richtung der Kontrollpunkte (NURBS-artige Gewichtung des Mittelpunkts).
@@ -108,12 +108,11 @@
 		return ka < kb ? ka + "|" + kb : kb + "|" + ka;
 	}
 
-	// Setzt pro Gebiet `_labelAnchorIndex`: Mitte des LÄNGSTEN mit einem PEER-Nachbarn (nicht Eltern/Kind!)
-	// geteilten Grenzlaufs -> zwei echte Nachbarn ankern an derselben Grenze und stehen sich (per CCW-Links-
-	// Normale) gegenüber (wie "FRANCE/DEUTSCHLAND"). Die Frontier zum Mutter-Reich wird übersprungen (Eltern/Kind
-	// liegen auf DERSELBEN Seite -> kein Gegenüber). Fallback: längster beliebig geteilter Lauf, sonst Schwerpunkt.
-	// Einmal pro Daten-Load (Features neu -> _labelAnchorIndex unset); danach gecacht (pan-stabil).
-	function computeTerritoryLabelAnchors(features) {
+	// Setzt pro Gebiet `_labelRing` + `_peerVertices` (1 = Kante i ist mit einem PEER-Nachbarn geteilt, nicht
+	// Eltern/Kind). Peer-Kanten = die "echten" Nachbar-Grenzen, an denen sich zwei Gebiete GEGENÜBERSTEHEN
+	// (Frontier zum Mutter-Reich liegt auf DERSELBEN Seite -> ausgeschlossen). Diese werden beim Anker-Pick
+	// bevorzugt. Einmal pro Daten-Load (Features neu -> _peerVertices undefined); danach gecacht.
+	function computeTerritoryLabelMeta(features) {
 		const id = features.map((f) => String(f.properties.territory_public_id || "").trim());
 		const par = features.map((f) => String(f.properties.parent_public_id || "").trim());
 		const isParentChild = (i, j) => (par[i] && par[i] === id[j]) || (par[j] && par[j] === id[i]);
@@ -126,33 +125,15 @@
 				let s = owners.get(k); if (!s) { s = []; owners.set(k, s); } if (s.indexOf(ti) < 0) s.push(ti);
 			}
 		});
-		const longestRunMidpoint = (ring, accept) => {
-			let bestStart = -1, bestLen = 0, bestCount = 0, curStart = -1, curLen = 0, curCount = 0;
-			for (let i = 0; i < ring.length - 1; i += 1) {
-				if (accept(i)) {
-					if (curStart < 0) { curStart = i; curLen = 0; curCount = 0; }
-					const a = ring[i], b = ring[i + 1];
-					curLen += Math.hypot((+b[0]) - (+a[0]), (+b[1]) - (+a[1])); curCount += 1;
-					if (curLen > bestLen) { bestLen = curLen; bestStart = curStart; bestCount = curCount; }
-				} else { curStart = -1; curLen = 0; curCount = 0; }
-			}
-			return bestStart >= 0 ? bestStart + Math.floor(bestCount / 2) : -1;
-		};
 		features.forEach((f, ti) => {
 			const ring = f._labelRing;
-			if (!ring || ring.length < 8) { f._labelAnchorIndex = 0; return; }
-			const ownersAt = (i) => owners.get(territoryEdgeKey(ring[i], ring[i + 1]));
-			const peerShared = (i) => { const o = ownersAt(i); if (!o) return false; for (let n = 0; n < o.length; n += 1) { const tj = o[n]; if (tj !== ti && !isParentChild(ti, tj)) return true; } return false; };
-			const anyShared = (i) => { const o = ownersAt(i); return !!(o && o.length > 1); };
-			let idx = longestRunMidpoint(ring, peerShared);      // bevorzugt: echte Nachbar-Grenze
-			if (idx < 0) idx = longestRunMidpoint(ring, anyShared); // sonst irgendeine geteilte Grenze
-			if (idx < 0) {                                        // sonst: Schwerpunkt-nächster Punkt
-				let sx = 0, sy = 0; for (let i = 0; i < ring.length; i += 1) { sx += +ring[i][0]; sy += +ring[i][1]; }
-				sx /= ring.length; sy /= ring.length;
-				let bi = 0, bd = Infinity; for (let i = 0; i < ring.length; i += 1) { const dx = +ring[i][0] - sx, dy = +ring[i][1] - sy, d = dx * dx + dy * dy; if (d < bd) { bd = d; bi = i; } }
-				idx = bi;
+			if (!ring) { f._peerVertices = null; return; }
+			const peer = new Uint8Array(ring.length);
+			for (let i = 0; i < ring.length - 1; i += 1) {
+				const o = owners.get(territoryEdgeKey(ring[i], ring[i + 1]));
+				if (o) { for (let n = 0; n < o.length; n += 1) { const tj = o[n]; if (tj !== ti && !isParentChild(ti, tj)) { peer[i] = 1; break; } } }
 			}
-			f._labelAnchorIndex = idx;
+			f._peerVertices = peer;
 		});
 	}
 
@@ -176,10 +157,9 @@
 			return rb - ra;
 		});
 		const toPoint = (lng, lat) => map.latLngToContainerPoint(L.latLng(lat, lng));
-		// Anker EINMAL pro Daten-Load berechnen (geteilte-Grenze-Mitte -> gegenüberstehende Nachbar-Namen).
-		// Features sind nach Reload neu -> _labelAnchorIndex unset; danach gecacht (pan-stabil, kein Springen).
-		if (labelable.length && labelable[0]._labelAnchorIndex == null) {
-			computeTerritoryLabelAnchors(labelable);
+		// Peer-Grenzen EINMAL pro Daten-Load markieren (Features nach Reload neu -> _peerVertices undefined).
+		if (labelable.length && labelable[0]._peerVertices === undefined) {
+			computeTerritoryLabelMeta(labelable);
 		}
 		const placed = [];
 		// Kollision per MITTELPUNKTS-Abstand (nicht AABB): so überleben GESPIEGELTE Nachbarpaare (zwei Labels
@@ -201,16 +181,29 @@
 			const cA = toPoint(gx1, gy1), cB = toPoint(gx2, gy2), cC = toPoint(gx1, gy2), cD = toPoint(gx2, gy1);
 			const bx1 = Math.min(cA.x, cB.x, cC.x, cD.x), bx2 = Math.max(cA.x, cB.x, cC.x, cD.x), by1 = Math.min(cA.y, cB.y, cC.y, cD.y), by2 = Math.max(cA.y, cB.y, cC.y, cD.y);
 			if (bx2 < 0 || bx1 > size.x || by2 < 0 || by1 > size.y) return; // ganz off-screen
-			// STABILER Anker (vorberechnet, geografisch fix): Mitte des längsten mit einem Nachbarn geteilten
-			// Grenzlaufs -> zwei Nachbarn stehen sich gegenüber; Fallback Schwerpunkt. NICHT bildschirm-relativ
-			// -> beim Pannen (reine Translation) klebt das Label am selben Grenzpunkt statt umzuspringen.
-			const anchorIndex = f._labelAnchorIndex;
-			if (anchorIndex == null || anchorIndex >= ring.length) return;
+			// Anker: STICKY + bildschirm-nah + bevorzugt PEER-Grenzpunkt (Gegenüberstehen). Aktuellen Anker
+			// behalten, solange er sichtbar ist -> beim Pannen kein Springen. Sonst neu wählen: nächster
+			// SICHTBARER Peer-Grenzpunkt zur Bildschirmmitte (sonst beliebiger sichtbarer). So zeigt jedes
+			// sichtbare Gebiet ein Label nahe der Ansicht (auch große Reiche an ihrer Außengrenze).
 			const proj = new Array(ring.length);
 			const PT = (i) => proj[i] || (proj[i] = toPoint(ring[i][0], ring[i][1])); // nur benötigte Vertices projizieren
-			const anchorPt = PT(anchorIndex);
-			const vmargin = 40;
-			if (anchorPt.x < -vmargin || anchorPt.x > size.x + vmargin || anchorPt.y < -vmargin || anchorPt.y > size.y + vmargin) return; // Ankerstelle nicht sichtbar
+			const visible = (p, m) => p.x >= -m && p.x <= size.x + m && p.y >= -m && p.y <= size.y + m;
+			let anchorIndex = f._currentAnchorIdx;
+			if (anchorIndex == null || anchorIndex >= ring.length || !visible(PT(anchorIndex), 24)) {
+				const cx0 = size.x / 2, cy0 = size.y / 2;
+				const peerV = f._peerVertices;
+				let bestPeer = -1, bestPeerD = Infinity, bestAny = -1, bestAnyD = Infinity;
+				for (let i = 0; i < ring.length - 1; i += 1) {
+					const p = PT(i);
+					if (!visible(p, 0)) continue;
+					const d = (p.x - cx0) * (p.x - cx0) + (p.y - cy0) * (p.y - cy0);
+					if (d < bestAnyD) { bestAnyD = d; bestAny = i; }
+					if (peerV && peerV[i] && d < bestPeerD) { bestPeerD = d; bestPeer = i; }
+				}
+				anchorIndex = bestPeer >= 0 ? bestPeer : bestAny;
+				if (anchorIndex < 0) return; // nichts vom Rand sichtbar
+				f._currentAnchorIdx = anchorIndex;
+			}
 			const nearestIndex = anchorIndex;
 			const text = territoryLabelText(f.properties);
 			if (!text) return;
