@@ -43,20 +43,20 @@
 	// Deckkraft der Grenzlinien in Regionen/Kraftlinien je Zoomstufe (0..1): z0 ganz aus, dann zunehmend,
 	// ab z4 gedeckelt. Außenlinie = dieser Wert; Innenlinie proportional (× INNER_LINE_ALPHA, wie bisher).
 	// z3 = 0.5 entspricht dem bisherigen festen Stand. Leicht justierbar.
-	const BOUNDARY_WEAK_ALPHA_BY_ZOOM = { 0: 0, 1: 0.15, 2: 0.30, 3: 0.50, 4: 0.65, 5: 0.65, 6: 0.65 }; // AUSSEN
+	const BOUNDARY_WEAK_ALPHA_BY_ZOOM = { 0: 0, 1: 0.15, 2: 0.30, 3: 0.50, 4: 1, 5: 1, 6: 1 }; // AUSSEN
 	function getBoundaryWeakAlpha(zoomLevel) {
 		const z = Math.max(0, Math.min(6, Math.round(Number(zoomLevel))));
 		return BOUNDARY_WEAK_ALPHA_BY_ZOOM[z] != null ? BOUNDARY_WEAK_ALPHA_BY_ZOOM[z] : 0.65;
 	}
 	// INNEN-Deckkraft separat: bei z4-6 ABSOLUT pro Zoom tunbar; bei z0-3 proportional zur Außen-Fade (wie bisher).
-	const BOUNDARY_WEAK_INNER_ALPHA_BY_ZOOM = { 4: 0.39, 5: 0.39, 6: 0.39 };
+	const BOUNDARY_WEAK_INNER_ALPHA_BY_ZOOM = { 4: 0.5, 5: 0.75, 6: 1 };
 	function getBoundaryInnerAlpha(zoomLevel) {
 		const z = Math.round(Number(zoomLevel));
 		return BOUNDARY_WEAK_INNER_ALPHA_BY_ZOOM[z] != null ? BOUNDARY_WEAK_INNER_ALPHA_BY_ZOOM[z] : INNER_LINE_ALPHA * getBoundaryWeakAlpha(z);
 	}
 	// Konturbreite der Außengrenze (Stroke px) in Regionen/Kraftlinien, PRO ZOOM (4/5/6) -- live tunbar.
 	// Innen-Clip zeigt die innere Hälfte -> sichtbar ~Stroke/2. Zoom <4 (faint borders) fällt auf 2 zurück.
-	const BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM = { 4: 2, 5: 2, 6: 2 };
+	const BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM = { 4: 2, 5: 4, 6: 6 };
 	function getBoundaryWeakOuterWidth(zoomLevel) {
 		const z = Math.round(Number(zoomLevel));
 		return BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM[z] != null ? BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM[z] : 2;
