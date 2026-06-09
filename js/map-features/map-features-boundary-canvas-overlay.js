@@ -41,6 +41,9 @@
 	// gelesen (gleiche IIFE-Closure). 0.5 hier leicht justierbar (z. B. 0.4/0.6).
 	const BOUNDARY_WEAK_MODES = ["deregraphic", "powerlines"];
 	const BOUNDARY_WEAK_ALPHA = 0.5;
+	// In dieser Ansicht Außenlinien uniform duenn: Stroke 2 -> der Innen-Clip zeigt die innere Haelfte
+	// -> ~1px sichtbar, OHNE Root-Verdicken/Fine-Variieren (political behaelt die abgestuften Breiten).
+	const BOUNDARY_WEAK_OUTER_WIDTH = 2;
 	let boundaryAlphaFactor = 1;
 
 	// --- Reichsstadt-Innenkontur (eng gegated, leicht reversibel über das Flag) ---
@@ -210,8 +213,9 @@
 		if (!BOUNDARY_OVERLAY_MODES.includes(currentMapLayerMode)) {
 			return;
 		}
-		// Regionen/Kraftlinien: Linien halb so deckend; political: voll.
-		boundaryAlphaFactor = BOUNDARY_WEAK_MODES.includes(currentMapLayerMode) ? BOUNDARY_WEAK_ALPHA : 1;
+		// Regionen/Kraftlinien: Linien halb so deckend + Außenlinien uniform duenn; political: voll/abgestuft.
+		const weakBoundaries = BOUNDARY_WEAK_MODES.includes(currentMapLayerMode);
+		boundaryAlphaFactor = weakBoundaries ? BOUNDARY_WEAK_ALPHA : 1;
 
 		const all = (Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []));
 		const feats = all.filter((f) => f && f.properties && f.properties.is_derived_geometry === true);
@@ -234,9 +238,11 @@
 			// Root-Gebiete (kein parent_public_id) bekommen eine etwas dickere Aussenkontur.
 			const isRootBoundary = !String(f.properties.parent_public_id || "").trim();
 			const fineOuterZoom = Math.round(Number(map.getZoom())) <= INNER_LINE_FINE_MAX_ZOOM;
-			ctx.lineWidth = isRootBoundary
-				? (fineOuterZoom ? OUTER_LINE_WIDTH_ROOT_FINE : OUTER_LINE_WIDTH_ROOT)
-				: (fineOuterZoom ? OUTER_LINE_WIDTH_FINE : OUTER_LINE_WIDTH);
+			ctx.lineWidth = weakBoundaries
+				? BOUNDARY_WEAK_OUTER_WIDTH // Regionen/Kraftlinien: uniform ~1px, kein Root-Verdicken/Fine
+				: (isRootBoundary
+					? (fineOuterZoom ? OUTER_LINE_WIDTH_ROOT_FINE : OUTER_LINE_WIDTH_ROOT)
+					: (fineOuterZoom ? OUTER_LINE_WIDTH_FINE : OUTER_LINE_WIDTH));
 			ctx.strokeStyle = OUTER_LINE_COLOR || color;
 			ctx.globalAlpha = boundaryAlphaFactor; // Regionen/Kraftlinien dezenter; im save/restore gekapselt
 			ctx.lineJoin = "round";
