@@ -68,9 +68,13 @@
 	// Gewicht des mittleren Kontrollpunkts im (rationalen) B-Spline: 1 = klassisch (Kurve läuft zwischen den
 	// Punkten, wirkt lose/grob), >1 zieht die Leitlinie NÄHER an die Kontrollpunkte (strafft sie). Stellschraube.
 	let TERRITORY_LABEL_SPLINE_WEIGHT = 1; // live tunbar (?labeltune=1)
-	// Anteil der Segment-Punkte, die als Stützpunkte in den Spline einfließen (1 = ALLE, kein Downsampling;
-	// klein = stark geglättet/grob). Vorher fix auf max 9 Punkte gedeckelt -> wirkte grob. Live tunbar.
-	let TERRITORY_LABEL_DETAIL = 0.6;
+	// Anteil der Segment-Punkte als Stützpunkte (1 = ALLE, kein Downsampling; klein = stärker geglättet/grob).
+	// ZOOM-ABHÄNGIG: tiefer Zoom = gröbere Geometrie -> weniger Stützpunkte; hoher Zoom = mehr Detail.
+	const TERRITORY_LABEL_DETAIL_BY_ZOOM = { 4: 0.35, 5: 0.5, 6: 0.75 };
+	function getTerritoryLabelDetail(zoomLevel) {
+		const z = Math.round(Number(zoomLevel));
+		return TERRITORY_LABEL_DETAIL_BY_ZOOM[z] != null ? TERRITORY_LABEL_DETAIL_BY_ZOOM[z] : (z < 4 ? 0.35 : 0.75);
+	}
 
 	// Gewichteter (rationaler) quadratischer B-Spline durch ein (ausgedünntes) Kontrollpolygon -> glatte Leitkurve.
 	// weight>1 strafft die Kurve in Richtung der Kontrollpunkte (NURBS-artige Gewichtung des Mittelpunkts).
@@ -178,6 +182,7 @@
 		}
 		// Zoom 4: Schrift 2pt kleiner als ab Zoom 5 (dort sitzen kleine Gebiete dichter -> sonst zu wuchtig).
 		const territoryFontSize = TERRITORY_LABEL_FONT_SIZE - (Math.round(map.getZoom()) <= 4 ? 2 : 0);
+		const territoryDetail = getTerritoryLabelDetail(map.getZoom());
 		const placed = []; // Liste von Fußabdruck-Punktgruppen bereits gezeichneter Labels
 		// Kollision per FUSSABDRUCK-Abstand: Mindestabstand ~Schrifthöhe zwischen den Textstrecken. Muss kleiner
 		// als 2*TERRITORY_LABEL_OFFSET bleiben, sonst sterben die gespiegelten Nachbarpaare (die liegen ~2*OFFSET
@@ -248,7 +253,7 @@
 				let ox = inward.x - base.x, oy = inward.y - base.y; const om = Math.hypot(ox, oy) || 1; ox /= om; oy /= om;
 				baseline.push({ x: base.x + ox * TERRITORY_LABEL_OFFSET, y: base.y + oy * TERRITORY_LABEL_OFFSET });
 			}
-			const nCtrl = Math.max(4, Math.min(baseline.length, Math.round(baseline.length * TERRITORY_LABEL_DETAIL)));
+			const nCtrl = Math.max(4, Math.min(baseline.length, Math.round(baseline.length * territoryDetail)));
 			const ctrl = [];
 			for (let k = 0; k < nCtrl; k += 1) ctrl.push(baseline[Math.round(k * (baseline.length - 1) / (nCtrl - 1))]);
 			let smooth = quadraticBSplinePoints(ctrl, 8, TERRITORY_LABEL_SPLINE_WEIGHT);
@@ -572,7 +577,6 @@
 			panel.appendChild(wrap);
 		};
 		slider("Spline-Gewicht", 1, 30, 0.5, TERRITORY_LABEL_SPLINE_WEIGHT, (v) => { TERRITORY_LABEL_SPLINE_WEIGHT = v; });
-		slider("Stützpunkt-Dichte", 0.05, 1, 0.05, TERRITORY_LABEL_DETAIL, (v) => { TERRITORY_LABEL_DETAIL = v; });
 		slider("Offset (px)", 0, 40, 1, TERRITORY_LABEL_OFFSET, (v) => { TERRITORY_LABEL_OFFSET = v; });
 		const hint = document.createElement("div");
 		hint.textContent = "Regionen-Modus, Zoom ≥4"; hint.style.cssText = "opacity:0.6;margin-top:2px;";
