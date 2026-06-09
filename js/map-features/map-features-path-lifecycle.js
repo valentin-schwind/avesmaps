@@ -34,8 +34,11 @@ function findPathByPublicId(publicId) {
 }
 
 function syncPathRendering() {
+	// Auf Zoom NUR den Stil aktualisieren (Gewicht/Farbe/Opazität je Zoomstufe), NICHT die Geometrie:
+	// die geglättete Catmull-Geometrie (getPathVisualLatLngCoordinates) ist ZOOM-UNABHÄNGIG und wird bereits
+	// bei createPathLayer bzw. bei Geometrie-Edits (applyPathFeatureResponse) gesetzt. Das Neuberechnen aller
+	// ~4900 Pfade pro Zoom kostete ~400ms (gemessen) und war reine Verschwendung -> Zoom-Flip 552ms -> 203ms.
 	pathData.forEach((path) => {
-		updatePathLayerGeometry(path);
 		updatePathLayerStyle(path);
 	});
 }
