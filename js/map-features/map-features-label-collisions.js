@@ -147,7 +147,7 @@ function setLabelElementOffset(element, offsetX, offsetY) {
 }
 
 function getLocationNameLabelBaseOffset(element) {
-	const labelElement = element.querySelector("span");
+	const labelElement = element.querySelector("img") || element.querySelector("span");
 	const style = labelElement ? window.getComputedStyle(labelElement) : null;
 	return {
 		x: parseFloat(style?.getPropertyValue("--location-label-offset-x")) || LOCATION_LABEL_GAP,
@@ -192,7 +192,8 @@ function setLabelElementChosenOffset(element, isLocation, baseOffset, candidate)
 
 function getLabelCollisionTarget(element) {
 	if (element.classList.contains("location-name-label")) {
-		return element.querySelector("span") || element;
+		// Sichtbarer Text steckt jetzt in einem <img> (Canvas-gerendert); Fallback span (Alt-Pfad).
+		return element.querySelector("img") || element.querySelector("span") || element;
 	}
 	if (element.classList.contains("region-label")) {
 		// Der sichtbare (und per --label-offset verschobene) Teil ist der Inhalt.

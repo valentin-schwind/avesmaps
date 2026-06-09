@@ -39,14 +39,56 @@ function shouldShowLocationNameLabel(entry, zoomLevel = map.getZoom()) {
 	return isVisibleByNodixToggle || (zoomLevel >= config.minZoom && isLocationTypeVisible(entry.locationType));
 }
 
+// Pro Orts-Label-Typ (+ Ruine) Farbe/Versalien/Kursiv/Sperrung EINMAL aus dem echten CSS lesen
+// (Probe-Element) -> der Canvas-Renderer übernimmt die Optik, ohne Werte zu duplizieren. Ein dezenter
+// dunkler Schein ersetzt den CSS text-shadow (den das Canvas nicht erbt) für die Lesbarkeit.
+const _locationNameLabelTypeStyleCache = {};
+function getLocationNameLabelTypeStyle(locationType, isRuined) {
+	const cacheKey = `${locationType}|${isRuined ? "r" : ""}`;
+	if (_locationNameLabelTypeStyleCache[cacheKey]) {
+		return _locationNameLabelTypeStyleCache[cacheKey];
+	}
+	const probe = document.createElement("div");
+	probe.className = `location-name-label location-name-label--${locationType}${isRuined ? " location-name-label--ruined" : ""}`;
+	probe.style.cssText = "position:absolute;left:-9999px;top:-9999px;visibility:hidden;pointer-events:none;";
+	const span = document.createElement("span");
+	span.textContent = "Mg";
+	span.style.fontSize = "100px"; // bekannte Größe -> Sperrung als Verhältnis ableiten
+	probe.appendChild(span);
+	document.body.appendChild(probe);
+	const computed = window.getComputedStyle(span);
+	const style = {
+		color: computed.color || "#ffffff",
+		uppercase: computed.textTransform === "uppercase",
+		fontFamily: computed.fontFamily || 'Georgia, "Times New Roman", serif',
+		fontWeight: computed.fontWeight || "400",
+		fontStyle: computed.fontStyle && computed.fontStyle !== "normal" ? computed.fontStyle : "",
+		letterSpacingRatio: (parseFloat(computed.letterSpacing) || 0) / 100,
+		glow: "rgba(0, 0, 0, 0.85)",
+	};
+	document.body.removeChild(probe);
+	_locationNameLabelTypeStyleCache[cacheKey] = style;
+	return style;
+}
+
 function createLocationNameLabelIcon(entry, zoomLevel = map.getZoom()) {
 	const labelSize = getLocationNameLabelSize(entry.locationType, zoomLevel);
 	const labelType = entry.locationType || "dorf";
 	const offset = getLocationNameLabelOffset(labelSize, zoomLevel, entry.locationType);
-	const ruinedClassName = entry.location?.isRuined ? " location-name-label--ruined" : "";
+	const isRuined = Boolean(entry.location?.isRuined);
+	const ruinedClassName = isRuined ? " location-name-label--ruined" : "";
+	// Schrift auf ein CSS-aufgelöstes Canvas rastern (weich auf HiDPI hochskaliert, „eingebettet"
+	// wie die Karten-/Grenz-Namen) und als <img> einbetten – Position/Offset/Kollision bleiben DOM.
+	const fontSizePx = labelSize * 4 / 3; // pt -> px
+	const typeStyle = getLocationNameLabelTypeStyle(labelType, isRuined);
+	const image = renderMapLabelToImage(entry.name, fontSizePx, typeStyle);
+	// Das Canvas-Bild ist beidseitig gepolstert und vertikal zentriert -> Platzierung an die alte
+	// <span>-Position angleichen: links um die Polsterung, oben um die halbe Bild-Mehrhöhe zurück.
+	const leftAdjust = -image.padX;
+	const topAdjust = fontSizePx / 2 - image.h / 2;
 	return L.divIcon({
 		className: `location-name-label location-name-label--${labelType}${ruinedClassName}`,
-		html: `<span style="font-size:${labelSize}pt; --location-label-offset-x:${offset.x}px; --location-label-offset-y:${offset.y}px;">${escapeHtml(entry.name)}</span>`,
+		html: `<img src="${image.url}" width="${image.w}" height="${image.h}" alt="${escapeHtml(entry.name)}" style="position:absolute; display:block; pointer-events:none; --location-label-offset-x:${offset.x}px; --location-label-offset-y:${offset.y}px; left:calc(var(--location-label-offset-x) + var(--label-offset-x, 0px) + ${leftAdjust}px); top:calc(var(--location-label-offset-y) + var(--label-offset-y, 0px) + ${topAdjust}px);">`,
 		iconSize: [0, 0],
 		iconAnchor: [0, 0],
 	});

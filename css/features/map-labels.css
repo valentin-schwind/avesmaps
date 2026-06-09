@@ -143,6 +143,13 @@ body.edit-mode .map-label img {
 	top: calc(var(--location-label-offset-y, -9px) + var(--label-offset-y, 0px));
 }
 
+/* Siedlungs-Name als Canvas-<img> (left/top werden inline gesetzt, inkl. Polster-Korrektur). */
+.location-name-label img {
+	position: absolute;
+	display: block;
+	pointer-events: none;
+}
+
 .location-name-label--ruined span,
 .location-popup__name--ruined {
 	font-style: italic;

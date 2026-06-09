@@ -620,6 +620,41 @@ async function deletePathFeature(path) {
 	}
 }
 
+// Territoriums-Label-Schrift EINMAL aus dem echten CSS lesen (.region-label__content) -> der
+// Canvas-Renderer übernimmt Farbe/Schrift/Größe. Weißer Schein ersetzt den CSS text-shadow
+// (.region-label text-shadow: 0 0 4px white), den das Canvas-<img> nicht erbt.
+let _regionLabelNameTypeStyle = null;
+function getRegionLabelNameTypeStyle() {
+	if (_regionLabelNameTypeStyle) {
+		return _regionLabelNameTypeStyle;
+	}
+	const probe = document.createElement("div");
+	probe.className = "region-label";
+	probe.style.cssText = "position:absolute;left:-9999px;top:-9999px;visibility:hidden;pointer-events:none;";
+	const content = document.createElement("span");
+	content.className = "region-label__content";
+	const inner = document.createElement("span");
+	inner.textContent = "Mg";
+	content.appendChild(inner);
+	probe.appendChild(content);
+	document.body.appendChild(probe);
+	const computed = window.getComputedStyle(inner);
+	const style = {
+		color: computed.color || "#2f251c",
+		uppercase: computed.textTransform === "uppercase",
+		fontFamily: computed.fontFamily || 'Georgia, "Times New Roman", serif',
+		fontWeight: computed.fontWeight || "bold",
+		fontStyle: "",
+		letterSpacingRatio: (parseFloat(computed.letterSpacing) || 0) / 100,
+		glow: "rgba(255, 255, 255, 0.95)",
+		glowBlur: 4,
+		fontSizePx: Math.max(11, parseFloat(computed.fontSize) || 15),
+	};
+	document.body.removeChild(probe);
+	_regionLabelNameTypeStyle = style;
+	return style;
+}
+
 function createRegionLabelMarkup(regionEntry, fallbackName) {
 	const labelText = normalizeRegionParentheticalSpacing(
 		regionEntry.labelDisplayName
@@ -637,7 +672,16 @@ function createRegionLabelMarkup(regionEntry, fallbackName) {
 		? `<img class="region-label__coat" src="${escapeHtml(avesmapsCoatSrc(coatUrl))}" alt="" loading="lazy" decoding="async">`
 		: "";
 
-	return `<span class="region-label__content">${coatMarkup}<span>${name}</span></span>`;
+	// Name als Canvas-<img> (weich/eingebettet, wie die Karten-Namen). Fallback auf DOM-Text,
+	// falls der Renderer fehlt.
+	let nameMarkup = `<span>${name}</span>`;
+	if (typeof renderMapLabelToImage === "function") {
+		const style = getRegionLabelNameTypeStyle();
+		const image = renderMapLabelToImage(labelText, style.fontSizePx, style);
+		nameMarkup = `<img class="region-label__name-img" src="${image.url}" width="${image.w}" height="${image.h}" alt="${name}">`;
+	}
+
+	return `<span class="region-label__content">${coatMarkup}${nameMarkup}</span>`;
 }
 
 $(document).on("click", "[data-region-place-public-id]", function (event) {

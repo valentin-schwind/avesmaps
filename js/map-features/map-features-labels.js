@@ -24,6 +24,10 @@ function normalizeLabelFeature(feature) {
 const MAP_LABEL_CANVAS_ALPHA = 1; // volle Deckkraft (die Weichheit kommt von der Canvas-Rasterung, nicht Alpha)
 const _mapLabelTypeStyleCache = {};
 let _mapLabelMeasureCtx = null;
+// Gerenderte Label-Bilder cachen: identischer Text/Stil/Größe -> dasselbe data-URL, kein erneutes
+// toDataURL pro Zoom/Pan (Siedlungs-Labels können zahlreich sein). Einfache Kappung gegen Wildwuchs.
+const _mapLabelImageCache = new Map();
+const _MAP_LABEL_IMAGE_CACHE_MAX = 2000;
 
 // Pro Label-Typ Farbe/Schreibung/Sperrung EINMAL aus dem echten CSS lesen (Probe-Element) -> „Farben lassen".
 function getMapLabelTypeStyle(labelType) {
@@ -54,8 +58,20 @@ function getMapLabelTypeStyle(labelType) {
 // Text auf ein CSS-aufgelöstes Canvas zeichnen (weiches Upscaling auf HiDPI) -> {url, w, h}.
 function renderMapLabelToImage(text, fontSizePx, typeStyle) {
 	const displayText = typeStyle.uppercase ? String(text).toUpperCase() : String(text);
-	const letterSpacing = fontSizePx * typeStyle.letterSpacingRatio;
-	const font = `${typeStyle.fontWeight} ${fontSizePx}px ${typeStyle.fontFamily}`;
+	const letterSpacing = fontSizePx * (typeStyle.letterSpacingRatio || 0);
+	// Optionaler Kursiv-Stil (z. B. Ruinen) + optionaler Schein (ersetzt den CSS text-shadow, den das
+	// Canvas nicht erbt) -> Lesbarkeit bei Siedlungs-/Territoriums-Namen ohne harten "aufgeklebten" Look.
+	const fontStylePrefix = typeStyle.fontStyle ? `${typeStyle.fontStyle} ` : "";
+	const font = `${fontStylePrefix}${typeStyle.fontWeight} ${fontSizePx}px ${typeStyle.fontFamily}`;
+	const glow = typeStyle.glow || null;
+	const glowBlur = glow ? (typeStyle.glowBlur != null ? typeStyle.glowBlur : Math.max(2, fontSizePx * 0.16)) : 0;
+
+	const cacheKey = `${displayText}|${font}|${typeStyle.color}|${glow || ""}|${glowBlur}|${letterSpacing}`;
+	const cached = _mapLabelImageCache.get(cacheKey);
+	if (cached) {
+		return cached;
+	}
+
 	if (!_mapLabelMeasureCtx) {
 		_mapLabelMeasureCtx = document.createElement("canvas").getContext("2d");
 	}
@@ -63,9 +79,10 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle) {
 	const chars = [...displayText];
 	const widths = chars.map((character) => _mapLabelMeasureCtx.measureText(character).width);
 	const textWidth = widths.reduce((sum, width) => sum + width + letterSpacing, 0) - letterSpacing;
-	const padX = Math.ceil(fontSizePx * 0.5);
+	// Polsterung schließt den Schein-Radius ein, damit er nicht abgeschnitten wird.
+	const padX = Math.ceil(fontSizePx * 0.5 + glowBlur);
 	const w = Math.max(1, Math.ceil(textWidth) + padX * 2);
-	const h = Math.max(1, Math.ceil(fontSizePx * 1.7));
+	const h = Math.max(1, Math.ceil(fontSizePx * 1.7 + glowBlur * 2));
 	const canvas = document.createElement("canvas");
 	canvas.width = w; // CSS-Auflösung (KEIN devicePixelRatio) -> auf HiDPI weich hochskaliert
 	canvas.height = h;
@@ -75,13 +92,22 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle) {
 	ctx.textAlign = "left";
 	ctx.globalAlpha = MAP_LABEL_CANVAS_ALPHA;
 	ctx.fillStyle = typeStyle.color;
+	if (glow) {
+		ctx.shadowColor = glow;
+		ctx.shadowBlur = glowBlur;
+	}
 	let x = padX;
 	const y = h / 2;
 	for (let i = 0; i < chars.length; i += 1) {
 		ctx.fillText(chars[i], x, y);
 		x += widths[i] + letterSpacing;
 	}
-	return { url: canvas.toDataURL(), w, h };
+	const result = { url: canvas.toDataURL(), w, h, padX };
+	if (_mapLabelImageCache.size >= _MAP_LABEL_IMAGE_CACHE_MAX) {
+		_mapLabelImageCache.delete(_mapLabelImageCache.keys().next().value);
+	}
+	_mapLabelImageCache.set(cacheKey, result);
+	return result;
 }
 
 function createLabelIcon(label) {
