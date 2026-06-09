@@ -92,6 +92,19 @@ function syncPathLabels() {
 	const title = document.createElement("div");
 	title.textContent = "Pfad-Namen-Tuning"; title.style.cssText = "font-weight:bold;margin-bottom:8px;";
 	panel.appendChild(title);
+	// Checkbox: Fluss-PFADE an/aus (nicht die Labels) -- toggelt die bestehende #toggleRivers-Logik.
+	const riversLabel = document.createElement("label");
+	riversLabel.style.cssText = "display:flex;align-items:center;gap:6px;margin:0 0 8px;cursor:pointer;";
+	const riversInput = document.createElement("input");
+	riversInput.type = "checkbox";
+	try { riversInput.checked = !!document.querySelector("#toggleRivers")?.checked; } catch (e) {}
+	riversInput.addEventListener("change", () => {
+		const el = document.querySelector("#toggleRivers");
+		if (el) { el.checked = riversInput.checked; el.dispatchEvent(new Event("change", { bubbles: true })); }
+	});
+	const riversText = document.createElement("span"); riversText.textContent = "Flüsse (Pfade) anzeigen";
+	riversLabel.appendChild(riversInput); riversLabel.appendChild(riversText);
+	panel.appendChild(riversLabel);
 	const slider = (label, min, max, step, value, apply) => {
 		const wrap = document.createElement("div"); wrap.style.marginBottom = "7px";
 		const head = document.createElement("div"); head.style.cssText = "display:flex;justify-content:space-between;margin-bottom:2px;";
