@@ -69,6 +69,44 @@ function createPathPopupMarkup(path) {
 	});
 }
 
+// Zeichen-Reihenfolge der Wege, von UNTEN nach OBEN. Reichsstrassen liegen ganz oben, dann Strassen, Wege,
+// Pfade, Gebirgspaesse, Wuestenpfade; das Wasser (Fluesse, dann Meer/Seewege) liegt ganz unten. Damit liegen
+// Strassen immer ueber Fluessen. Die App kennt nur zwei Wasser-Subtypen: Flussweg (Fluss) und Seeweg (Meerwege).
+const PATH_DRAW_ORDER_BOTTOM_TO_TOP = ["Seeweg", "Flussweg", "Wuestenpfad", "Gebirgspass", "Pfad", "Weg", "Strasse", "Reichsstrasse"];
+
+// SVG zeichnet in DOM-Reihenfolge (spaeter = oben). Wir holen die Subtypen von unten nach oben per
+// bringToFront() nach vorne -> Reichsstrassen landen zuletzt = obenauf. Muss nach jedem Ein-/Ausblenden
+// laufen, weil neu hinzugefuegte Layer ans Ende (= oben) gehaengt werden. Betrifft nur sichtbare Linien.
+function applyPathDrawOrder() {
+	if (!Array.isArray(pathData) || !pathData.length) {
+		return;
+	}
+	const bySubtype = new Map();
+	pathData.forEach((path) => {
+		if (!path?._pathLines?.length) {
+			return;
+		}
+		const subtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
+		if (!bySubtype.has(subtype)) {
+			bySubtype.set(subtype, []);
+		}
+		bySubtype.get(subtype).push(path);
+	});
+	PATH_DRAW_ORDER_BOTTOM_TO_TOP.forEach((subtype) => {
+		const paths = bySubtype.get(subtype);
+		if (!paths) {
+			return;
+		}
+		paths.forEach((path) => {
+			path._pathLines.forEach((line) => {
+				if (typeof line.bringToFront === "function" && map.hasLayer(line)) {
+					line.bringToFront();
+				}
+			});
+		});
+	});
+}
+
 function updatePathLayerStyle(path) {
 	if (!path?._pathLines?.length) {
 		return;

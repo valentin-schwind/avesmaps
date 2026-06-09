@@ -22,6 +22,10 @@ function syncPathVisibility() {
 			refreshPathLayerText(path);
 		}
 	});
+	// Subtyp-Zeichenreihenfolge nach jedem (Wieder-)Einblenden neu setzen (neue Layer haengen sonst oben).
+	if (typeof applyPathDrawOrder === "function") {
+		applyPathDrawOrder();
+	}
 }
 
 function shouldShowPathOnMap(path, { showPaths = true, showRivers = false, showSeaPaths = false } = {}) {
