@@ -147,6 +147,20 @@
 		for (let i = 0; i < chars.length; i += 1) { const w = widths[i]; const p = at(dist + w / 2); ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.ang); ctx.fillText(chars[i], 0, 0); ctx.restore(); dist += w + ls; }
 	}
 
+	// Fußabdruck eines Labels: K+1 gleichmäßig verteilte Punkte entlang der TEXT-Strecke (zentriert auf dem Pfad)
+	// -> für echte Überlappungs-Kollision (nicht nur Mittelpunkt). Gespiegelte Paare liegen ~2*OFFSET auseinander
+	// und kollidieren so nicht, echte Überlagerungen schon.
+	function labelFootprintPoints(smooth, textLen, k) {
+		const seg = []; let total = 0;
+		for (let i = 1; i < smooth.length; i += 1) { const d = Math.hypot(smooth[i].x - smooth[i - 1].x, smooth[i].y - smooth[i - 1].y); seg.push({ cum: total, len: d, a: smooth[i - 1], b: smooth[i] }); total += d; }
+		const start = Math.max(0, (total - textLen) / 2);
+		const at = (dd) => { for (const s of seg) { if (dd <= s.cum + s.len) { const t = (dd - s.cum) / (s.len || 1); return { x: s.a.x + (s.b.x - s.a.x) * t, y: s.a.y + (s.b.y - s.a.y) * t }; } } const l = seg[seg.length - 1]; return { x: l.b.x, y: l.b.y }; };
+		const span = Math.min(textLen, total);
+		const pts = [];
+		for (let j = 0; j <= k; j += 1) pts.push(at(start + span * j / k));
+		return pts;
+	}
+
 	function drawTerritoryBorderLabels(ctx) {
 		const size = map.getSize();
 		const rd = Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []);
@@ -161,12 +175,16 @@
 		if (labelable.length && labelable[0]._peerVertices === undefined) {
 			computeTerritoryLabelMeta(labelable);
 		}
-		const placed = [];
-		// Kollision per MITTELPUNKTS-Abstand (nicht AABB): so überleben GESPIEGELTE Nachbarpaare (zwei Labels
-		// gegenüber an derselben Grenze, ~2*OFFSET auseinander), während echte Überlagerungen (gleicher Punkt,
-		// gleiche Seite -> z.B. Eltern/Kind) wegfallen. Radius < 2*TERRITORY_LABEL_OFFSET, sonst stirbt das Paar.
-		const COLLISION_RADIUS = 15;
-		const tooClose = (cx, cy) => placed.some((p) => Math.hypot(p.x - cx, p.y - cy) < COLLISION_RADIUS);
+		const placed = []; // Liste von Fußabdruck-Punktgruppen bereits gezeichneter Labels
+		// Kollision per FUSSABDRUCK-Abstand: Mindestabstand ~Schrifthöhe zwischen den Textstrecken. Muss kleiner
+		// als 2*TERRITORY_LABEL_OFFSET bleiben, sonst sterben die gespiegelten Nachbarpaare (die liegen ~2*OFFSET
+		// auseinander). Echte Überlappungen (kreuzend/gestapelt) fallen weg.
+		const LABEL_MIN_GAP = Math.min(TERRITORY_LABEL_FONT_SIZE + 2, 2 * TERRITORY_LABEL_OFFSET - 6);
+		const collidesFootprint = (pts) => {
+			const r2 = LABEL_MIN_GAP * LABEL_MIN_GAP;
+			for (let g = 0; g < placed.length; g += 1) { const grp = placed[g]; for (let a = 0; a < grp.length; a += 1) { const q = grp[a]; for (let b = 0; b < pts.length; b += 1) { const dx = pts[b].x - q.x, dy = pts[b].y - q.y; if (dx * dx + dy * dy < r2) return true; } } }
+			return false;
+		};
 		ctx.save();
 		ctx.font = `${TERRITORY_LABEL_FONT_SIZE}px Georgia`;
 		ctx.textAlign = "center";
@@ -232,9 +250,9 @@
 			for (let k = 0; k < nCtrl; k += 1) ctrl.push(baseline[Math.round(k * (baseline.length - 1) / (nCtrl - 1))]);
 			let smooth = quadraticBSplinePoints(ctrl, 8, TERRITORY_LABEL_SPLINE_WEIGHT);
 			if (smooth[smooth.length - 1].x < smooth[0].x) smooth.reverse(); // Lesbarkeit: links->rechts
-			let cx = 0, cy = 0; smooth.forEach((p) => { cx += p.x; cy += p.y; }); cx /= smooth.length; cy /= smooth.length;
-			if (tooClose(cx, cy)) return; // gleiche Seite überlagert -> auslassen; gespiegelte Paare bleiben
-			placed.push({ x: cx, y: cy });
+			const footprint = labelFootprintPoints(smooth, textLen, 12);
+			if (collidesFootprint(footprint)) return; // echte Überlappung -> auslassen; gespiegelte Paare bleiben
+			placed.push(footprint);
 			drawTextAlongSmoothPath(ctx, smooth, chars, widths, TERRITORY_LABEL_LETTER_SPACING);
 		});
 		ctx.restore();
