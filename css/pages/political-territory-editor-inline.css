@@ -2099,25 +2099,30 @@
 }
 
 /* F: Deep-Link in die Wiki-Sync-Pflege als echter Button. */
+/* Optik exakt wie .wiki-sync-panel__start (brauner Button). color !important, weil links.css
+   a[target=_blank] global #0078a8 !important faerbt. */
 #political-territory-editor-host .info-origin-link {
 	display: inline-flex;
 	align-items: center;
 	gap: 5px;
+	min-height: 30px;
 	font-size: 12px;
-	font-weight: 700;
+	font-weight: 400;
+	line-height: 1.25;
 	cursor: pointer;
-	background: #5b432b;
-	/* !important: links.css faerbt a[target=_blank] global #0078a8 !important -> hier weisser Button-Text. */
+	background: #7a5a3a;
 	color: #fff !important;
-	border: 1px solid #4a3621;
+	border: 1px solid #5e4329;
 	border-radius: 6px;
-	padding: 5px 11px;
+	padding: 5px 8px;
 	text-decoration: none;
+	white-space: nowrap;
 }
 
 #political-territory-editor-host .info-origin-link:hover,
 #political-territory-editor-host .info-origin-link:focus-visible {
-	background: #6d5236;
+	background: #5e4329;
+	border-color: #5e4329;
 	color: #fff !important;
 }
 
