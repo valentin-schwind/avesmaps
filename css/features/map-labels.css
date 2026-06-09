@@ -28,7 +28,7 @@
 	top: 0;
 	/* Stil wie die Grenz-Namen: kein Drop-Shadow, leicht transparent -> fügt sich in die Landschaft ein.
 	   Farbe (Creme) bleibt, nur mit ~90 % Deckkraft. */
-	color: rgba(245, 240, 214, 0.9);
+	color: rgba(245, 240, 214, 0.75);
 	text-shadow: none;
 	transform-origin: center center;
 	font-family: "Faculty Glyphic", Georgia, "Times New Roman", serif;
