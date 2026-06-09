@@ -48,9 +48,13 @@
 		const z = Math.max(0, Math.min(6, Math.round(Number(zoomLevel))));
 		return BOUNDARY_WEAK_ALPHA_BY_ZOOM[z] != null ? BOUNDARY_WEAK_ALPHA_BY_ZOOM[z] : 0.65;
 	}
-	// In dieser Ansicht Außenlinien uniform duenn: Stroke 2 -> der Innen-Clip zeigt die innere Haelfte
-	// -> ~1px sichtbar, OHNE Root-Verdicken/Fine-Variieren (political behaelt die abgestuften Breiten).
-	const BOUNDARY_WEAK_OUTER_WIDTH = 2;
+	// Konturbreite der Außengrenze (Stroke px) in Regionen/Kraftlinien, PRO ZOOM (4/5/6) -- live tunbar.
+	// Innen-Clip zeigt die innere Hälfte -> sichtbar ~Stroke/2. Zoom <4 (faint borders) fällt auf 2 zurück.
+	const BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM = { 4: 2, 5: 2, 6: 2 };
+	function getBoundaryWeakOuterWidth(zoomLevel) {
+		const z = Math.round(Number(zoomLevel));
+		return BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM[z] != null ? BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM[z] : 2;
+	}
 	let boundaryAlphaFactor = 1;
 
 	// --- Territoriums-Namen entlang der Außengrenzen (NUR "Regionen"/deregraphic, ab hohem Zoom) ---
@@ -62,9 +66,9 @@
 	const TERRITORY_LABEL_EXCLUDE = /^(Baronie|Junkertum|Vogtei|Rittergut|Freiherrschaft|Reichsstadt|Stadt)\b/i;
 	// PRO ZOOMSTUFE (4/5/6) -- Labels zeigen nur ab Zoom 4. Live tunbar via ?labeltune=1 (Slider mutieren diese
 	// Objekte; OK-Button schreibt den Stand nach window.__avesmapsBorderLabelTuning zum Übernehmen als Default).
-	const TERRITORY_LABEL_OFFSET_BY_ZOOM = { 4: 20, 5: 20, 6: 20 };       // px nach innen (Abstand Grenze->Text)
-	const TERRITORY_LABEL_FONT_SIZE_BY_ZOOM = { 4: 9, 5: 11, 6: 11 };     // px Schriftgröße
-	const TERRITORY_LABEL_DETAIL_BY_ZOOM = { 4: 0.35, 5: 0.5, 6: 0.75 };  // Stützpunkt-Dichte (Anteil 0..1)
+	const TERRITORY_LABEL_OFFSET_BY_ZOOM = { 4: 11, 5: 12, 6: 24 };       // px nach innen (Abstand Grenze->Text)
+	const TERRITORY_LABEL_FONT_SIZE_BY_ZOOM = { 4: 8, 5: 10, 6: 16 };     // px Schriftgröße
+	const TERRITORY_LABEL_DETAIL_BY_ZOOM = { 4: 0.95, 5: 1, 6: 1 };       // Stützpunkt-Dichte (Anteil 0..1)
 	const territoryLabelByZoom = (table, zoomLevel, fallback) => {
 		const z = Math.max(4, Math.min(6, Math.round(Number(zoomLevel))));
 		return table[z] != null ? table[z] : fallback;
@@ -76,7 +80,7 @@
 	const TERRITORY_LABEL_LETTER_SPACING = 3;
 	const TERRITORY_LABEL_ALPHA = 0.9; // weiß, gut deckend
 	// Gewicht des mittleren Kontrollpunkts im (rationalen) B-Spline (1 = klassisch, >1 strafft). Global, live tunbar.
-	let TERRITORY_LABEL_SPLINE_WEIGHT = 1;
+	let TERRITORY_LABEL_SPLINE_WEIGHT = 2;
 
 	// Gewichteter (rationaler) quadratischer B-Spline durch ein (ausgedünntes) Kontrollpolygon -> glatte Leitkurve.
 	// weight>1 strafft die Kurve in Richtung der Kontrollpunkte (NURBS-artige Gewichtung des Mittelpunkts).
@@ -439,6 +443,7 @@
 		// Regionen/Kraftlinien: Linien halb so deckend + Außenlinien uniform duenn; political: voll/abgestuft.
 		const weakBoundaries = BOUNDARY_WEAK_MODES.includes(currentMapLayerMode);
 		boundaryAlphaFactor = weakBoundaries ? getBoundaryWeakAlpha(map.getZoom()) : 1;
+		const weakOuterWidth = getBoundaryWeakOuterWidth(map.getZoom());
 
 		const all = (Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []));
 		const feats = all.filter((f) => f && f.properties && f.properties.is_derived_geometry === true);
@@ -462,7 +467,7 @@
 			const isRootBoundary = !String(f.properties.parent_public_id || "").trim();
 			const fineOuterZoom = Math.round(Number(map.getZoom())) <= INNER_LINE_FINE_MAX_ZOOM;
 			ctx.lineWidth = weakBoundaries
-				? BOUNDARY_WEAK_OUTER_WIDTH // Regionen/Kraftlinien: uniform ~1px, kein Root-Verdicken/Fine
+				? weakOuterWidth // Regionen/Kraftlinien: Konturbreite pro Zoom (kein Root-Verdicken/Fine)
 				: (isRootBoundary
 					? (fineOuterZoom ? OUTER_LINE_WIDTH_ROOT_FINE : OUTER_LINE_WIDTH_ROOT)
 					: (fineOuterZoom ? OUTER_LINE_WIDTH_FINE : OUTER_LINE_WIDTH));
@@ -586,6 +591,7 @@
 			slider("Offset (px)", 0, 40, 1, TERRITORY_LABEL_OFFSET_BY_ZOOM[z], (v) => { TERRITORY_LABEL_OFFSET_BY_ZOOM[z] = v; });
 			slider("Schriftgröße (px)", 6, 24, 1, TERRITORY_LABEL_FONT_SIZE_BY_ZOOM[z], (v) => { TERRITORY_LABEL_FONT_SIZE_BY_ZOOM[z] = v; });
 			slider("Stützpunkt-Dichte", 0.05, 1, 0.05, TERRITORY_LABEL_DETAIL_BY_ZOOM[z], (v) => { TERRITORY_LABEL_DETAIL_BY_ZOOM[z] = v; });
+			slider("Konturbreite Grenze (px)", 0.5, 8, 0.5, BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM[z], (v) => { BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM[z] = v; });
 		});
 		const okBtn = document.createElement("button");
 		okBtn.textContent = "OK / Werte merken";
@@ -595,6 +601,7 @@
 				offset: { ...TERRITORY_LABEL_OFFSET_BY_ZOOM },
 				fontSize: { ...TERRITORY_LABEL_FONT_SIZE_BY_ZOOM },
 				detail: { ...TERRITORY_LABEL_DETAIL_BY_ZOOM },
+				outerWidth: { ...BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM },
 				splineWeight: TERRITORY_LABEL_SPLINE_WEIGHT,
 			};
 			window.__avesmapsBorderLabelTuning = result;
