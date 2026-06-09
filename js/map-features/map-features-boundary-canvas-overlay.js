@@ -176,18 +176,20 @@
 		if (labelable.length && labelable[0]._peerVertices === undefined) {
 			computeTerritoryLabelMeta(labelable);
 		}
+		// Zoom 4: Schrift 2pt kleiner als ab Zoom 5 (dort sitzen kleine Gebiete dichter -> sonst zu wuchtig).
+		const territoryFontSize = TERRITORY_LABEL_FONT_SIZE - (Math.round(map.getZoom()) <= 4 ? 2 : 0);
 		const placed = []; // Liste von Fußabdruck-Punktgruppen bereits gezeichneter Labels
 		// Kollision per FUSSABDRUCK-Abstand: Mindestabstand ~Schrifthöhe zwischen den Textstrecken. Muss kleiner
 		// als 2*TERRITORY_LABEL_OFFSET bleiben, sonst sterben die gespiegelten Nachbarpaare (die liegen ~2*OFFSET
 		// auseinander). Echte Überlappungen (kreuzend/gestapelt) fallen weg.
-		const LABEL_MIN_GAP = Math.min(TERRITORY_LABEL_FONT_SIZE + 2, 2 * TERRITORY_LABEL_OFFSET - 6);
+		const LABEL_MIN_GAP = Math.min(territoryFontSize + 2, 2 * TERRITORY_LABEL_OFFSET - 6);
 		const collidesFootprint = (pts) => {
 			const r2 = LABEL_MIN_GAP * LABEL_MIN_GAP;
 			for (let g = 0; g < placed.length; g += 1) { const grp = placed[g]; for (let a = 0; a < grp.length; a += 1) { const q = grp[a]; for (let b = 0; b < pts.length; b += 1) { const dx = pts[b].x - q.x, dy = pts[b].y - q.y; if (dx * dx + dy * dy < r2) return true; } } }
 			return false;
 		};
 		ctx.save();
-		ctx.font = `${TERRITORY_LABEL_FONT_SIZE}px ${TERRITORY_LABEL_FONT_FAMILY}`;
+		ctx.font = `${territoryFontSize}px ${TERRITORY_LABEL_FONT_FAMILY}`;
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";
 		ctx.fillStyle = `rgba(255, 255, 255, ${TERRITORY_LABEL_ALPHA})`;
