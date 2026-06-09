@@ -427,11 +427,14 @@ function periodLabel(n){ const s=periodFromBf(n); return s?` <span class="count"
 let selectedKey = null;
 let CHILDREN = new Map();
 const covCache = new Map();
+let covTime = {mode:'off',from:-Infinity,to:Infinity}; // Zeit-Kontext fuer coverage(); vor jedem Render gesetzt (rechts=Baum, links=Liste)
 function buildChildren(){ CHILDREN = new Map(); covCache.clear(); for(const n of NODES){ const p=(n.parent_wiki_key && n.parent_in_model)?n.parent_wiki_key:null; if(p){ if(!CHILDREN.has(p)) CHILDREN.set(p,[]); CHILDREN.get(p).push(n);} } }
+// Im Baum ausgeblendete Knoten (aufgeloest/aussortiert/Kirche/Gap/Kontinent) zaehlen NICHT zur Vollstaendigkeit.
+function nodeHidden(n){ return n.excluded || isKirche(n) || isGap(n) || !visibleByContinent(n) || !visibleByTime(n, covTime); }
 function coverage(n){
   if(covCache.has(n.wiki_key)) return covCache.get(n.wiki_key);
   const own = !!(n.map_assigned || n.map_geometry_count>0);
-  const kids = CHILDREN.get(n.wiki_key) || [];
+  const kids = (CHILDREN.get(n.wiki_key) || []).filter(k=>!nodeHidden(k));
   let r;
   if(!kids.length){ r={kind: own?'all':'none', complete:own, any:own}; }
   else {
@@ -773,6 +776,7 @@ function matchesFilter(n, f) {
 }
 
 function renderList() {
+  covTime = leftTime; covCache.clear();
   const f = $('filter').value, q = $('search').value.trim().toLowerCase();
   const out = [];
   let shown = 0;
@@ -805,9 +809,10 @@ function buildTreeNode(n, depth) {
   return html + '</li>';
 }
 function renderTree() {
+  covTime = rightTime; covCache.clear();
   // Lücken (Eltern nicht im Modell) erscheinen NICHT im Hierarchie-Baum – nur in der linken
   // Liste. Sie tauchen erst auf, wenn sie per Drag einem echten Eltern-Knoten zugewiesen werden.
-  const hide = (n)=> n.excluded || isKirche(n) || isGap(n) || !visibleByContinent(n) || !visibleByTime(n, rightTime);
+  const hide = nodeHidden;
   const hidden = new Set(NODES.filter(hide).map(n=>n.wiki_key));
   treeChildren = new Map();
   const roots = [];
