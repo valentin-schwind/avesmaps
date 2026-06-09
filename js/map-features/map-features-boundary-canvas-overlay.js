@@ -36,6 +36,13 @@
 		const INNER_LINE_DASH_MEDIUM = [4, 3];
 	const OUTER_LINE_COLOR = "#d3d3d3";              // Aussenkontur statisch hellgrau (null = Territoriumsfarbe)
 
+	// In den reinen Grenzen-Modi (Regionen/Kraftlinien) Außen- UND Innenlinien dezenter: halbe Deckkraft.
+	// Im political-Modus volle Deckkraft. Der Faktor wird pro redraw gesetzt und auch von drawInnerBoundaries
+	// gelesen (gleiche IIFE-Closure). 0.5 hier leicht justierbar (z. B. 0.4/0.6).
+	const BOUNDARY_WEAK_MODES = ["deregraphic", "powerlines"];
+	const BOUNDARY_WEAK_ALPHA = 0.5;
+	let boundaryAlphaFactor = 1;
+
 	// --- Reichsstadt-Innenkontur (eng gegated, leicht reversibel über das Flag) ---
 	// Einzelkind-Siedlungen (territory_type leer, genau 1 Kind des Eltern, kein eigenes Derived)
 	// bekommen ihre eigene Stadt-Kontur als weiss-gestrichelte Linie — funktioniert auch, wenn die
@@ -127,7 +134,7 @@
 		const medium = innerZoom === INNER_DASH_MEDIUM_ZOOM;       // Zoom 3: etwas duenner
 		ctx.lineWidth = fine ? INNER_LINE_WIDTH_FINE : (medium ? INNER_LINE_WIDTH_MEDIUM : INNER_LINE_WIDTH);
 		ctx.strokeStyle = INNER_LINE_COLOR;
-		ctx.globalAlpha = INNER_LINE_ALPHA;
+		ctx.globalAlpha = INNER_LINE_ALPHA * boundaryAlphaFactor;
 		ctx.setLineDash(fine ? INNER_LINE_DASH_FINE : (medium ? INNER_LINE_DASH_MEDIUM : INNER_LINE_DASH));
 		ctx.lineJoin = "round";
 		ctx.stroke();
@@ -199,9 +206,12 @@
 		// In "none" ("Nur Karte") bleibt das (geleerte) Canvas leer -> dort gewollt KEINE Grenzen; ohne
 		// diese Sperre blieben beim Moduswechsel die alten Linien stehen (regionData bleibt bestehen).
 		const BOUNDARY_OVERLAY_MODES = ["political", "deregraphic", "powerlines"];
-		if (typeof getSelectedMapLayerMode === "function" && !BOUNDARY_OVERLAY_MODES.includes(getSelectedMapLayerMode())) {
+		const currentMapLayerMode = typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "political";
+		if (!BOUNDARY_OVERLAY_MODES.includes(currentMapLayerMode)) {
 			return;
 		}
+		// Regionen/Kraftlinien: Linien halb so deckend; political: voll.
+		boundaryAlphaFactor = BOUNDARY_WEAK_MODES.includes(currentMapLayerMode) ? BOUNDARY_WEAK_ALPHA : 1;
 
 		const all = (Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []));
 		const feats = all.filter((f) => f && f.properties && f.properties.is_derived_geometry === true);
@@ -228,6 +238,7 @@
 				? (fineOuterZoom ? OUTER_LINE_WIDTH_ROOT_FINE : OUTER_LINE_WIDTH_ROOT)
 				: (fineOuterZoom ? OUTER_LINE_WIDTH_FINE : OUTER_LINE_WIDTH);
 			ctx.strokeStyle = OUTER_LINE_COLOR || color;
+			ctx.globalAlpha = boundaryAlphaFactor; // Regionen/Kraftlinien dezenter; im save/restore gekapselt
 			ctx.lineJoin = "round";
 			ctx.stroke();
 			ctx.restore();
