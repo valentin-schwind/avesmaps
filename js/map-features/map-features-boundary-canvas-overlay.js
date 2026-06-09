@@ -60,13 +60,13 @@
 	const TERRITORY_BORDER_LABELS_ENABLED = (() => { try { return new URLSearchParams(window.location.search).get("borderlabels") !== "0"; } catch (e) { return true; } })();
 	const TERRITORY_LABEL_MIN_ZOOM = 4;
 	const TERRITORY_LABEL_EXCLUDE = /^(Baronie|Junkertum|Vogtei|Rittergut|Freiherrschaft|Reichsstadt|Stadt)\b/i;
-	const TERRITORY_LABEL_OFFSET = 11;          // px nach innen versetzt
+	const TERRITORY_LABEL_OFFSET = 18;          // px nach innen versetzt (weiter weg von der Grenze)
 	const TERRITORY_LABEL_FONT_SIZE = 13;
 	const TERRITORY_LABEL_LETTER_SPACING = 3;
 	const TERRITORY_LABEL_ALPHA = 0.9; // weiß, gut deckend (war 0.75 -> über hellem Terrain zu blass)
 	// Gewicht des mittleren Kontrollpunkts im (rationalen) B-Spline: 1 = klassisch (Kurve läuft zwischen den
 	// Punkten, wirkt lose/grob), >1 zieht die Leitlinie NÄHER an die Kontrollpunkte (strafft sie). Stellschraube.
-	const TERRITORY_LABEL_SPLINE_WEIGHT = 2;
+	const TERRITORY_LABEL_SPLINE_WEIGHT = 5;
 
 	// Gewichteter (rationaler) quadratischer B-Spline durch ein (ausgedünntes) Kontrollpolygon -> glatte Leitkurve.
 	// weight>1 strafft die Kurve in Richtung der Kontrollpunkte (NURBS-artige Gewichtung des Mittelpunkts).
