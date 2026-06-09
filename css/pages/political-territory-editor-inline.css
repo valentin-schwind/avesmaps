@@ -2107,7 +2107,8 @@
 	font-weight: 700;
 	cursor: pointer;
 	background: #5b432b;
-	color: #fff;
+	/* !important: links.css faerbt a[target=_blank] global #0078a8 !important -> hier weisser Button-Text. */
+	color: #fff !important;
 	border: 1px solid #4a3621;
 	border-radius: 6px;
 	padding: 5px 11px;
@@ -2117,6 +2118,6 @@
 #political-territory-editor-host .info-origin-link:hover,
 #political-territory-editor-host .info-origin-link:focus-visible {
 	background: #6d5236;
-	color: #fff;
+	color: #fff !important;
 }
 
