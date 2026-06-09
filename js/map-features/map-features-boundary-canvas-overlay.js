@@ -56,7 +56,7 @@
 	}
 	// Konturbreite der Außengrenze (Stroke px) in Regionen/Kraftlinien, PRO ZOOM (4/5/6) -- live tunbar.
 	// Innen-Clip zeigt die innere Hälfte -> sichtbar ~Stroke/2. Zoom <4 (faint borders) fällt auf 2 zurück.
-	const BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM = { 4: 2, 5: 4, 6: 6 };
+	const BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM = { 4: 3, 5: 4, 6: 6 };
 	function getBoundaryWeakOuterWidth(zoomLevel) {
 		const z = Math.round(Number(zoomLevel));
 		return BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM[z] != null ? BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM[z] : 2;
@@ -73,9 +73,9 @@
 	const TERRITORY_LABEL_EXCLUDE = /^(Baronie|Junkertum|Vogtei|Rittergut|Freiherrschaft|Reichsstadt|Stadt)\b/i;
 	// PRO ZOOMSTUFE (4/5/6) -- Labels zeigen nur ab Zoom 4. Live tunbar via ?labeltune=1 (Slider mutieren diese
 	// Objekte; OK-Button schreibt den Stand nach window.__avesmapsBorderLabelTuning zum Übernehmen als Default).
-	const TERRITORY_LABEL_OFFSET_BY_ZOOM = { 4: 11, 5: 12, 6: 24 };       // px nach innen (Abstand Grenze->Text)
-	const TERRITORY_LABEL_FONT_SIZE_BY_ZOOM = { 4: 8, 5: 10, 6: 16 };     // px Schriftgröße
-	const TERRITORY_LABEL_DETAIL_BY_ZOOM = { 4: 0.95, 5: 1, 6: 1 };       // Stützpunkt-Dichte (Anteil 0..1)
+	const TERRITORY_LABEL_OFFSET_BY_ZOOM = { 4: 10, 5: 12, 6: 20 };       // px nach innen (Abstand Grenze->Text)
+	const TERRITORY_LABEL_FONT_SIZE_BY_ZOOM = { 4: 9, 5: 11, 6: 16 };     // px Schriftgröße
+	const TERRITORY_LABEL_DETAIL_BY_ZOOM = { 4: 0.8, 5: 0.9, 6: 1 };      // Stützpunkt-Dichte (Anteil 0..1)
 	const territoryLabelByZoom = (table, zoomLevel, fallback) => {
 		const z = Math.max(4, Math.min(6, Math.round(Number(zoomLevel))));
 		return table[z] != null ? table[z] : fallback;
@@ -87,7 +87,7 @@
 	const TERRITORY_LABEL_LETTER_SPACING = 3;
 	const TERRITORY_LABEL_ALPHA = 0.9; // weiß, gut deckend
 	// Gewicht des mittleren Kontrollpunkts im (rationalen) B-Spline (1 = klassisch, >1 strafft). Global, live tunbar.
-	let TERRITORY_LABEL_SPLINE_WEIGHT = 2;
+	let TERRITORY_LABEL_SPLINE_WEIGHT = 1;
 
 	// Gewichteter (rationaler) quadratischer B-Spline durch ein (ausgedünntes) Kontrollpolygon -> glatte Leitkurve.
 	// weight>1 strafft die Kurve in Richtung der Kontrollpunkte (NURBS-artige Gewichtung des Mittelpunkts).
