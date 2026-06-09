@@ -62,6 +62,7 @@
 	const TERRITORY_LABEL_EXCLUDE = /^(Baronie|Junkertum|Vogtei|Rittergut|Freiherrschaft|Reichsstadt|Stadt)\b/i;
 	let TERRITORY_LABEL_OFFSET = 20;            // px nach innen versetzt (weiter weg von der Grenze) -- live tunbar
 	const TERRITORY_LABEL_FONT_SIZE = 13;
+	const TERRITORY_LABEL_FONT_FAMILY = '"Faculty Glyphic", Georgia, "Times New Roman", serif'; // wie .map-label
 	const TERRITORY_LABEL_LETTER_SPACING = 3;
 	const TERRITORY_LABEL_ALPHA = 0.9; // weiß, gut deckend (war 0.75 -> über hellem Terrain zu blass)
 	// Gewicht des mittleren Kontrollpunkts im (rationalen) B-Spline: 1 = klassisch (Kurve läuft zwischen den
@@ -186,7 +187,7 @@
 			return false;
 		};
 		ctx.save();
-		ctx.font = `${TERRITORY_LABEL_FONT_SIZE}px Georgia`;
+		ctx.font = `${TERRITORY_LABEL_FONT_SIZE}px ${TERRITORY_LABEL_FONT_FAMILY}`;
 		ctx.textAlign = "center";
 		ctx.textBaseline = "middle";
 		ctx.fillStyle = `rgba(255, 255, 255, ${TERRITORY_LABEL_ALPHA})`;
@@ -591,5 +592,8 @@
 		}
 		if (sig !== lastDerivedSignature) { lastDerivedSignature = sig; redraw(); }
 	}, 200);
+	// Webfont (Faculty Glyphic) kann beim ersten Paint noch nicht geladen sein -> nach dem Laden neu zeichnen,
+	// sonst zeigt das Canvas kurz den Georgia-Fallback.
+	try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(redraw); } catch (e) { /* noop */ }
 	redraw();
 })();
