@@ -80,11 +80,9 @@
 		return out;
 	}
 
-	function shortenTerritoryName(properties) {
-		let n = String(properties.name || "");
-		if (/Kaiserreich/i.test(n)) return "MITTELREICH";
-		n = n.replace(/^(Gro(ss|ß)herzogtum|Herzogtum|Markgrafschaft|Grafschaft|F(ü|u)rstentum|K(ö|o)nigreich|Bergk(ö|o)nigreich|Kaisermark|Mark|Land)\s+/i, "");
-		return n.toUpperCase();
+	// Name 1:1 wie im Tool (KEINE Kürzung/Umbenennung) -- nur Großschreibung für den Karten-Look.
+	function territoryLabelText(properties) {
+		return String(properties.label_name || properties.name || "").trim().toUpperCase();
 	}
 
 	// Glyphen einzeln entlang der (geglätteten) Pixel-Polyline platzieren, zentriert, tangential rotiert.
@@ -99,7 +97,6 @@
 
 	function drawTerritoryBorderLabels(ctx) {
 		const size = map.getSize();
-		const center = size.divideBy(2);
 		const rd = Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []);
 		const labelable = rd.filter((f) => f && f.properties && f.properties.is_derived_geometry === true && !TERRITORY_LABEL_EXCLUDE.test(String(f.properties.name || "")));
 		labelable.sort((a, b) => { // große Gebiete zuerst -> gewinnen die Kollision
@@ -121,22 +118,29 @@
 			let ring = null, best = -1;
 			polys.forEach((p) => { const r = p[0]; if (r && r.length > best) { best = r.length; ring = r; } });
 			if (!ring || ring.length < 8) return;
-			// Schnelle Sichtbarkeits-Vorprüfung (ohne jeden Vertex zu projizieren): Geo-Bbox -> 4 Ecken.
-			let gx1 = Infinity, gy1 = Infinity, gx2 = -Infinity, gy2 = -Infinity;
-			for (let i = 0; i < ring.length; i += 1) { const x = +ring[i][0], y = +ring[i][1]; if (x < gx1) gx1 = x; if (x > gx2) gx2 = x; if (y < gy1) gy1 = y; if (y > gy2) gy2 = y; }
+			// Geo-Bbox + Schwerpunkt in EINEM Durchlauf (ohne Projektion). Bbox -> schneller Off-Screen-Cull.
+			let gx1 = Infinity, gy1 = Infinity, gx2 = -Infinity, gy2 = -Infinity, sumX = 0, sumY = 0;
+			for (let i = 0; i < ring.length; i += 1) { const x = +ring[i][0], y = +ring[i][1]; if (x < gx1) gx1 = x; if (x > gx2) gx2 = x; if (y < gy1) gy1 = y; if (y > gy2) gy2 = y; sumX += x; sumY += y; }
 			const cA = toPoint(gx1, gy1), cB = toPoint(gx2, gy2), cC = toPoint(gx1, gy2), cD = toPoint(gx2, gy1);
 			const bx1 = Math.min(cA.x, cB.x, cC.x, cD.x), bx2 = Math.max(cA.x, cB.x, cC.x, cD.x), by1 = Math.min(cA.y, cB.y, cC.y, cD.y), by2 = Math.max(cA.y, cB.y, cC.y, cD.y);
 			if (bx2 < 0 || bx1 > size.x || by2 < 0 || by1 > size.y) return; // ganz off-screen
-			const proj = new Array(ring.length);
-			let nearestIndex = -1, nearestDist = Infinity;
-			for (let i = 0; i < ring.length; i += 1) {
-				const pt = toPoint(ring[i][0], ring[i][1]); proj[i] = pt;
-				const inView = pt.x >= 0 && pt.x <= size.x && pt.y >= 0 && pt.y <= size.y;
-				const d = Math.hypot(pt.x - center.x, pt.y - center.y);
-				if (inView && d < nearestDist) { nearestDist = d; nearestIndex = i; }
+			// STABILER Anker: geografisch fixer Ringpunkt nahe dem Schwerpunkt, pro Feature gecacht. Die Platzierung
+			// ist damit NICHT bildschirm-relativ -> beim Pannen (reine Translation) klebt das Label am selben
+			// Grenzpunkt statt umzuspringen. (Neuberechnung nur bei Zoom, da der Layer dann neu lädt.)
+			let anchorIndex = f._labelAnchorIndex;
+			if (anchorIndex == null || anchorIndex >= ring.length) {
+				const cxg = sumX / ring.length, cyg = sumY / ring.length;
+				let bestI = 0, bestD = Infinity;
+				for (let i = 0; i < ring.length; i += 1) { const dx = +ring[i][0] - cxg, dy = +ring[i][1] - cyg, d = dx * dx + dy * dy; if (d < bestD) { bestD = d; bestI = i; } }
+				anchorIndex = bestI; f._labelAnchorIndex = anchorIndex;
 			}
-			if (nearestIndex < 0) return; // kein sichtbarer Grenzpunkt
-			const text = shortenTerritoryName(f.properties);
+			const proj = new Array(ring.length);
+			const PT = (i) => proj[i] || (proj[i] = toPoint(ring[i][0], ring[i][1])); // nur benötigte Vertices projizieren
+			const anchorPt = PT(anchorIndex);
+			const vmargin = 40;
+			if (anchorPt.x < -vmargin || anchorPt.x > size.x + vmargin || anchorPt.y < -vmargin || anchorPt.y > size.y + vmargin) return; // Ankerstelle nicht sichtbar
+			const nearestIndex = anchorIndex;
+			const text = territoryLabelText(f.properties);
 			if (!text) return;
 			const chars = [...text];
 			const widths = chars.map((c) => ctx.measureText(c).width);
@@ -144,8 +148,8 @@
 			let lo = nearestIndex, hi = nearestIndex, len = 0;
 			const target = textLen * 1.4;
 			while (len < target && (lo > 0 || hi < ring.length - 1)) {
-				if (hi < ring.length - 1) { hi += 1; len += Math.hypot(proj[hi].x - proj[hi - 1].x, proj[hi].y - proj[hi - 1].y); }
-				if (len < target && lo > 0) { lo -= 1; len += Math.hypot(proj[lo].x - proj[lo + 1].x, proj[lo].y - proj[lo + 1].y); }
+				if (hi < ring.length - 1) { hi += 1; const a = PT(hi), b = PT(hi - 1); len += Math.hypot(a.x - b.x, a.y - b.y); }
+				if (len < target && lo > 0) { lo -= 1; const a = PT(lo), b = PT(lo + 1); len += Math.hypot(a.x - b.x, a.y - b.y); }
 			}
 			if (len < textLen) return;
 			const baseline = [];
@@ -153,7 +157,7 @@
 				const a = ring[Math.max(lo, i - 1)], b = ring[Math.min(hi, i + 1)];
 				let dx = b[0] - a[0], dy = b[1] - a[1]; const m = Math.hypot(dx, dy) || 1; dx /= m; dy /= m;
 				const nx = -dy, ny = dx; // Links-Normale = innen (CCW-Außenring, RFC7946)
-				const base = proj[i];
+				const base = PT(i);
 				const inward = toPoint(ring[i][0] + nx * 0.3, ring[i][1] + ny * 0.3);
 				let ox = inward.x - base.x, oy = inward.y - base.y; const om = Math.hypot(ox, oy) || 1; ox /= om; oy /= om;
 				baseline.push({ x: base.x + ox * TERRITORY_LABEL_OFFSET, y: base.y + oy * TERRITORY_LABEL_OFFSET });
