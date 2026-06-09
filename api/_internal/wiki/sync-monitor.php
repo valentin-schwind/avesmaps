@@ -930,6 +930,7 @@ function avesmapsWikiSyncMonitorIsQualifierOnly(string $text): bool {
         'unabhangig', 'unabh', 'keine', 'unbekannt', 'ungeklart', 'umstritten', 'strittig',
         'vakant', 'niemand', 'souveran', 'eigenstandig', 'eigenstand', 'independent',
         'ehemals', 'ehemalig', 'fruher', 'vormals', 'zuvor', 'ehem',
+        'reichsstadt', 'freiestadt', // Status-Marker, kein Eltern-Gebiet (z.B. [[Freie Stadt]])
     ] as $word) {
         if ($key === $word || str_starts_with($key, $word)) {
             return true;
@@ -968,6 +969,10 @@ function avesmapsWikiSyncMonitorParseAffiliation(string $staatRaw): array {
     if (preg_match_all('/\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/u', $raw, $linkMatches) !== false) {
         foreach (($linkMatches[1] ?? []) as $linkTarget) {
             $linkTitle = avesmapsWikiSyncMonitorNormalizeTitle((string) $linkTarget);
+            $linkKey = avesmapsWikiSyncMonitorFieldKey($linkTitle);
+            if ($linkKey === 'freiestadt' || $linkKey === 'reichsstadt') {
+                continue; // Status-Marker (z.B. [[Freie Stadt]]) ist kein Eltern-Gebiet
+            }
             if ($linkTitle !== '' && avesmapsWikiSyncMonitorIsRelevantTitle($linkTitle)) {
                 $links[avesmapsPoliticalSlug($linkTitle)] = $linkTitle;
             }
@@ -1056,18 +1061,21 @@ function avesmapsWikiSyncMonitorParsePage(string $title, string $wikitext, strin
         $sourceOrigin = 'staat';
     } elseif ($isSettlementInfobox) {
         // Siedlung nur als Herrschaftsgebiet behalten, wenn (a) Reichsstadt-Marker (aktiv ODER
-        // ex, z.B. {{Reichsstadt|ex|..}}) ODER (b) eigenstaendig/Stadtstaat. Sonst = reine
-        // Siedlung (Havena, Nivesel) -> raus. (Nutzer-Regel, an Harben/Nivesel festgezurrt.)
+        // ex, z.B. {{Reichsstadt|ex|..}}), (b) Freie-Stadt-Marker (z.B. [[Freie Stadt]] in der
+        // Staat-Kette, wie Havena) ODER (c) eigenstaendig/Stadtstaat. Sonst = reine Siedlung
+        // (z.B. Nivesel) -> raus. (Nutzer-Regel.)
         $staatRaw = avesmapsWikiSyncMonitorField($norm, ['staat', 'staatpolitisch', 'zugehorigkeitpolitisch', 'politischezugehorigkeit', 'politisch']);
         $isReichsstadt = preg_match('/\{\{\s*Reichsstadt\b/iu', $staatRaw) === 1
             || str_contains(avesmapsWikiSyncMonitorFieldKey($statusText . ' ' . $infobox), 'reichsstadt');
+        $isFreieStadt = preg_match('/\bFreie\s+Stadt\b/iu', $staatRaw) === 1
+            || str_contains(avesmapsWikiSyncMonitorFieldKey($statusText . ' ' . $infobox), 'freiestadt');
         $independenceKey = avesmapsWikiSyncMonitorFieldKey($statusText . ' ' . $affiliation['raw']);
         $independentSettlement = $affiliation['independent']
             || str_contains($independenceKey, 'stadtstaat')
             || str_contains($independenceKey, 'eigenstand')
             || str_contains($independenceKey, 'unabh')
             || str_contains($independenceKey, 'souveran');
-        if (!$isReichsstadt && !$independentSettlement) {
+        if (!$isReichsstadt && !$isFreieStadt && !$independentSettlement) {
             return [
                 'is_territory' => false,
                 'reason' => 'Infobox ' . ($infobox !== '' ? $infobox : '?') . ' (reine Siedlung)',
@@ -1076,7 +1084,7 @@ function avesmapsWikiSyncMonitorParsePage(string $title, string $wikitext, strin
                 'source_origin' => 'siedlung',
             ];
         }
-        $sourceOrigin = $isReichsstadt ? 'reichsstadt' : 'siedlung';
+        $sourceOrigin = $isReichsstadt ? 'reichsstadt' : ($isFreieStadt ? 'freiestadt' : 'siedlung');
     } else {
         return [
             'is_territory' => false,
