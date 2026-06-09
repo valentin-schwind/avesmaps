@@ -64,16 +64,23 @@
 	const TERRITORY_LABEL_FONT_SIZE = 13;
 	const TERRITORY_LABEL_LETTER_SPACING = 3;
 	const TERRITORY_LABEL_ALPHA = 0.9; // weiß, gut deckend (war 0.75 -> über hellem Terrain zu blass)
+	// Gewicht des mittleren Kontrollpunkts im (rationalen) B-Spline: 1 = klassisch (Kurve läuft zwischen den
+	// Punkten, wirkt lose/grob), >1 zieht die Leitlinie NÄHER an die Kontrollpunkte (strafft sie). Stellschraube.
+	const TERRITORY_LABEL_SPLINE_WEIGHT = 2;
 
-	// Uniform quadratischer B-Spline durch ein (ausgedünntes) Kontrollpolygon -> glatte Leitkurve.
-	function quadraticBSplinePoints(ctrl, samples) {
+	// Gewichteter (rationaler) quadratischer B-Spline durch ein (ausgedünntes) Kontrollpolygon -> glatte Leitkurve.
+	// weight>1 strafft die Kurve in Richtung der Kontrollpunkte (NURBS-artige Gewichtung des Mittelpunkts).
+	function quadraticBSplinePoints(ctrl, samples, weight) {
 		if (ctrl.length < 3) return ctrl.slice();
+		const w = weight || 1;
 		const out = [ctrl[0]];
 		for (let i = 1; i < ctrl.length - 1; i += 1) {
 			const p0 = ctrl[i - 1], p1 = ctrl[i], p2 = ctrl[i + 1];
 			for (let s = 1; s <= samples; s += 1) {
-				const t = s / samples, a = 0.5 * (1 - t) * (1 - t), b = 0.5 + t - t * t, c = 0.5 * t * t;
-				out.push({ x: a * p0.x + b * p1.x + c * p2.x, y: a * p0.y + b * p1.y + c * p2.y });
+				const t = s / samples;
+				const a = 0.5 * (1 - t) * (1 - t), b = (0.5 + t - t * t) * w, c = 0.5 * t * t;
+				const inv = 1 / (a + b + c);
+				out.push({ x: (a * p0.x + b * p1.x + c * p2.x) * inv, y: (a * p0.y + b * p1.y + c * p2.y) * inv });
 			}
 		}
 		out.push(ctrl[ctrl.length - 1]);
@@ -227,7 +234,7 @@
 			const nCtrl = Math.max(4, Math.min(9, Math.round(baseline.length / 8)));
 			const ctrl = [];
 			for (let k = 0; k < nCtrl; k += 1) ctrl.push(baseline[Math.round(k * (baseline.length - 1) / (nCtrl - 1))]);
-			let smooth = quadraticBSplinePoints(ctrl, 8);
+			let smooth = quadraticBSplinePoints(ctrl, 8, TERRITORY_LABEL_SPLINE_WEIGHT);
 			if (smooth[smooth.length - 1].x < smooth[0].x) smooth.reverse(); // Lesbarkeit: links->rechts
 			let cx = 0, cy = 0; smooth.forEach((p) => { cx += p.x; cy += p.y; }); cx /= smooth.length; cy /= smooth.length;
 			if (tooClose(cx, cy)) return; // gleiche Seite überlagert -> auslassen; gespiegelte Paare bleiben
