@@ -84,46 +84,43 @@ function getPathVisualLatLngCoordinates(coordinates, zoomLevel = map.getZoom()) 
 	return smoothLineCoordinatesForDisplay(coordinates, VISUAL_LINE_CATMULL_ROM_CONFIG).map(([x, y]) => [y, x]);
 }
 
-// Die (unsichtbare) Label-Linie, der die SVG-<textPath> folgt, bekommt eine GEGLAETTETE Leitlinie statt
-// der exakten Fluss-/Weg-Geometrie: gleitender Mittelwert ueber die Rohpunkte (entfernt die Windungen) +
-// milde Catmull-Rom-Kurve. Der Text folgt so dem GROBEN VERLAUF statt jeder Schlinge -> Buchstaben sitzen
-// eng und gerade statt zerrissen ("De r oge Fl uss" -> "Der grosse Fluss"). Ergibt sogar WENIGER Punkte als
-// das Original (Windungen kollabieren) und ist deutlich lesbarer als blosses Erhoehen der Sample-Zahl
-// (mehr Samples approximieren nur dieselbe wacklige Kurve feiner). Die SICHTBAREN Linien bleiben exakt.
-const PATH_LABEL_GUIDE_SMOOTHING = { window: 2, passes: 2, samples: 6 };
-
-function getLowPassSmoothedCoordinates(coordinates, window, passes) {
-	let current = coordinates.map((point) => [Number(point[0]), Number(point[1])]);
-	for (let pass = 0; pass < passes; pass += 1) {
-		const smoothed = [current[0]];
-		for (let index = 1; index < current.length - 1; index += 1) {
-			let sumX = 0;
-			let sumY = 0;
-			let count = 0;
-			for (let offset = -window; offset <= window; offset += 1) {
-				const neighbor = current[index + offset];
-				if (!neighbor) {
-					continue;
-				}
-				sumX += neighbor[0];
-				sumY += neighbor[1];
-				count += 1;
-			}
-			smoothed.push([sumX / count, sumY / count]);
-		}
-		smoothed.push(current[current.length - 1]);
-		current = smoothed;
+// Die (unsichtbare) Label-Linie, der die SVG-<textPath> folgt, IST jetzt die SICHTBARE Linie selbst (dieselbe
+// Catmull-Kurve durch die Originalpunkte) -> der Text liegt EXAKT auf dem Weg/Fluss. "Glätten" = nur entlang
+// dieser Kurve NEU ABTASTEN: Dichte<1 = AUSDÜNNEN (weniger Stützpunkte -> ruhiger, gegen Zerreissen an Bögen),
+// Dichte>1 = UNTERTEILEN (dichter, bleibt exakt auf den Segmenten). KEIN Mittelwert-Verschieben mehr (das zog
+// die Leitlinie von der sichtbaren Linie weg). Dichte=1 -> Leitlinie == sichtbare Linie. Steuergröße
+// PATH_LABEL_GUIDE_DENSITY liegt in map-features-path-labels.js (laedt zuerst; Slider mutiert sie).
+function resamplePathLabelPolyline(points, density) {
+	const d = Number(density) || 1;
+	if (!Array.isArray(points) || points.length < 3 || Math.abs(d - 1) < 0.001) {
+		return points;
 	}
-	return current;
+	if (d < 1) {
+		const step = Math.max(1, Math.round(1 / d));
+		const out = [];
+		for (let i = 0; i < points.length; i += step) out.push(points[i]);
+		if (out[out.length - 1] !== points[points.length - 1]) out.push(points[points.length - 1]);
+		return out;
+	}
+	const sub = Math.max(1, Math.round(d)); // jedes Segment in `sub` Teile -> Punkte bleiben EXAKT auf der Linie
+	const out = [points[0]];
+	for (let i = 1; i < points.length; i += 1) {
+		const a = points[i - 1], b = points[i];
+		for (let k = 1; k <= sub; k += 1) {
+			const t = k / sub;
+			out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+		}
+	}
+	return out;
 }
 
 function getPathLabelVisualLatLngCoordinates(coordinates) {
 	if (!Array.isArray(coordinates) || coordinates.length < 3) {
 		return getPathVisualLatLngCoordinates(coordinates);
 	}
-	const straightened = getLowPassSmoothedCoordinates(coordinates, PATH_LABEL_GUIDE_SMOOTHING.window, PATH_LABEL_GUIDE_SMOOTHING.passes);
-	const config = { ...VISUAL_LINE_CATMULL_ROM_CONFIG, samples: PATH_LABEL_GUIDE_SMOOTHING.samples };
-	return smoothLineCoordinatesForDisplay(straightened, config).map(([x, y]) => [y, x]);
+	const onTheLine = getPathVisualLatLngCoordinates(coordinates); // = sichtbare Catmull-Linie [[lat,lng],...]
+	const density = (typeof PATH_LABEL_GUIDE_DENSITY !== "undefined") ? PATH_LABEL_GUIDE_DENSITY : 1;
+	return resamplePathLabelPolyline(onTheLine, density);
 }
 
 function refreshPathLayerPopup(path) {

@@ -15,6 +15,8 @@ let PATH_LABEL_FONT_DELTA = 0;      // px auf die berechnete (zoomabhängige) Gr
 let PATH_LABEL_DY = -6;             // px Abstand der Schrift zur Linie (negativ = darüber)
 let PATH_LABEL_STROKE_WIDTH = 2;    // px Halo/Kontur
 let PATH_LABEL_LETTER_SPACING = 0;  // px Sperrung
+// Leitlinie = sichtbare Linie, nur neu abgetastet: <1 ausdünnen (ruhiger), 1 = exakt die Linie, >1 dichter.
+let PATH_LABEL_GUIDE_DENSITY = 0.5; // (von map-features-path-rendering.js gelesen)
 
 function getPathLabelStyle(path) {
 	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
@@ -75,7 +77,16 @@ function syncPathLabels() {
 	try { on = new URLSearchParams(window.location.search).has("pathtune"); } catch (e) { on = false; }
 	if (!on || !document.body) return;
 	const restyle = () => { try { if (typeof syncPathLabels === "function") syncPathLabels(); } catch (e) { /* noop */ } };
-	const regeom = () => { try { if (typeof pathData !== "undefined") pathData.forEach((p) => { try { updatePathLayerGeometry(p); } catch (e) {} }); } catch (e) {} restyle(); };
+	// Geometrie-Neuberechnung (~400ms bei vielen Pfaden) entprellt -> Slider bleibt beim Ziehen flüssig.
+	let regeomTimer = null;
+	const regeom = () => {
+		if (regeomTimer) clearTimeout(regeomTimer);
+		regeomTimer = setTimeout(() => {
+			regeomTimer = null;
+			try { if (typeof pathData !== "undefined") pathData.forEach((p) => { try { updatePathLayerGeometry(p); } catch (e) {} }); } catch (e) {}
+			restyle();
+		}, 140);
+	};
 	const panel = document.createElement("div");
 	panel.style.cssText = "position:fixed;left:12px;bottom:12px;z-index:99999;background:rgba(28,28,28,0.92);color:#fff;font:12px Georgia,serif;padding:10px 12px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.45);width:210px;max-height:88vh;overflow:auto;";
 	const title = document.createElement("div");
@@ -93,21 +104,17 @@ function syncPathLabels() {
 		wrap.appendChild(head); wrap.appendChild(input);
 		panel.appendChild(wrap);
 	};
-	// path-rendering.js (mit PATH_LABEL_GUIDE_SMOOTHING) lädt NACH dieser Datei -> Config frisch holen.
-	const smCfg = () => (typeof PATH_LABEL_GUIDE_SMOOTHING !== "undefined") ? PATH_LABEL_GUIDE_SMOOTHING : null;
-	const smInit = smCfg() || { window: 2, passes: 2 };
 	slider("Schriftgröße ±", -6, 12, 1, PATH_LABEL_FONT_DELTA, (v) => { PATH_LABEL_FONT_DELTA = v; restyle(); });
 	slider("Abstand zur Linie (dy)", -28, 12, 1, PATH_LABEL_DY, (v) => { PATH_LABEL_DY = v; restyle(); });
 	slider("Halo-/Konturbreite (px)", 0, 6, 0.5, PATH_LABEL_STROKE_WIDTH, (v) => { PATH_LABEL_STROKE_WIDTH = v; restyle(); });
 	slider("Sperrung (px)", 0, 8, 0.5, PATH_LABEL_LETTER_SPACING, (v) => { PATH_LABEL_LETTER_SPACING = v; restyle(); });
-	slider("Glättung: Fenster", 1, 6, 1, smInit.window, (v) => { const c = smCfg(); if (c) c.window = v; regeom(); });
-	slider("Glättung: Pässe", 1, 4, 1, smInit.passes, (v) => { const c = smCfg(); if (c) c.passes = v; regeom(); });
+	// Leitlinie liegt auf der sichtbaren Linie; Dichte <1 = vereinfacht (ausgedünnt), 1 = exakt, >1 = dichter.
+	slider("Dichte (vereinfachen↔dichter)", 0.1, 4, 0.1, PATH_LABEL_GUIDE_DENSITY, (v) => { PATH_LABEL_GUIDE_DENSITY = v; regeom(); });
 	const okBtn = document.createElement("button");
 	okBtn.textContent = "OK / Werte merken";
 	okBtn.style.cssText = "width:100%;margin-top:10px;padding:7px;border:1px solid #5e4329;border-radius:6px;background:#7a5a3a;color:#fff;font:inherit;cursor:pointer;";
 	okBtn.addEventListener("click", () => {
-		const c = smCfg() || {};
-		const result = { fontDelta: PATH_LABEL_FONT_DELTA, dy: PATH_LABEL_DY, strokeWidth: PATH_LABEL_STROKE_WIDTH, letterSpacing: PATH_LABEL_LETTER_SPACING, smoothingWindow: c.window, smoothingPasses: c.passes };
+		const result = { fontDelta: PATH_LABEL_FONT_DELTA, dy: PATH_LABEL_DY, strokeWidth: PATH_LABEL_STROKE_WIDTH, letterSpacing: PATH_LABEL_LETTER_SPACING, guideDensity: PATH_LABEL_GUIDE_DENSITY };
 		window.__avesmapsPathLabelTuning = result;
 		console.log("[Pfad-Namen-Tuning] " + JSON.stringify(result));
 		okBtn.textContent = "✓ gemerkt"; setTimeout(() => { okBtn.textContent = "OK / Werte merken"; }, 1500);
