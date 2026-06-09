@@ -61,7 +61,7 @@
 	const TERRITORY_LABEL_MIN_ZOOM = 4;
 	const TERRITORY_LABEL_EXCLUDE = /^(Baronie|Junkertum|Vogtei|Rittergut|Freiherrschaft|Reichsstadt|Stadt)\b/i;
 	let TERRITORY_LABEL_OFFSET = 20;            // px nach innen versetzt (weiter weg von der Grenze) -- live tunbar
-	const TERRITORY_LABEL_FONT_SIZE = 13;
+	const TERRITORY_LABEL_FONT_SIZE = 11;
 	const TERRITORY_LABEL_FONT_FAMILY = '"Faculty Glyphic", Georgia, "Times New Roman", serif'; // wie .map-label
 	const TERRITORY_LABEL_LETTER_SPACING = 3;
 	const TERRITORY_LABEL_ALPHA = 0.9; // weiß, gut deckend (war 0.75 -> über hellem Terrain zu blass)
