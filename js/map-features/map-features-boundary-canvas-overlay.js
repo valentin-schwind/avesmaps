@@ -40,7 +40,14 @@
 	// Im political-Modus volle Deckkraft. Der Faktor wird pro redraw gesetzt und auch von drawInnerBoundaries
 	// gelesen (gleiche IIFE-Closure). 0.5 hier leicht justierbar (z. B. 0.4/0.6).
 	const BOUNDARY_WEAK_MODES = ["deregraphic", "powerlines"];
-	const BOUNDARY_WEAK_ALPHA = 0.5;
+	// Deckkraft der Grenzlinien in Regionen/Kraftlinien je Zoomstufe (0..1): z0 ganz aus, dann zunehmend,
+	// ab z4 gedeckelt. Außenlinie = dieser Wert; Innenlinie proportional (× INNER_LINE_ALPHA, wie bisher).
+	// z3 = 0.5 entspricht dem bisherigen festen Stand. Leicht justierbar.
+	const BOUNDARY_WEAK_ALPHA_BY_ZOOM = { 0: 0, 1: 0.15, 2: 0.30, 3: 0.50, 4: 0.65, 5: 0.65, 6: 0.65 };
+	function getBoundaryWeakAlpha(zoomLevel) {
+		const z = Math.max(0, Math.min(6, Math.round(Number(zoomLevel))));
+		return BOUNDARY_WEAK_ALPHA_BY_ZOOM[z] != null ? BOUNDARY_WEAK_ALPHA_BY_ZOOM[z] : 0.65;
+	}
 	// In dieser Ansicht Außenlinien uniform duenn: Stroke 2 -> der Innen-Clip zeigt die innere Haelfte
 	// -> ~1px sichtbar, OHNE Root-Verdicken/Fine-Variieren (political behaelt die abgestuften Breiten).
 	const BOUNDARY_WEAK_OUTER_WIDTH = 2;
@@ -215,7 +222,7 @@
 		}
 		// Regionen/Kraftlinien: Linien halb so deckend + Außenlinien uniform duenn; political: voll/abgestuft.
 		const weakBoundaries = BOUNDARY_WEAK_MODES.includes(currentMapLayerMode);
-		boundaryAlphaFactor = weakBoundaries ? BOUNDARY_WEAK_ALPHA : 1;
+		boundaryAlphaFactor = weakBoundaries ? getBoundaryWeakAlpha(map.getZoom()) : 1;
 
 		const all = (Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []));
 		const feats = all.filter((f) => f && f.properties && f.properties.is_derived_geometry === true);
