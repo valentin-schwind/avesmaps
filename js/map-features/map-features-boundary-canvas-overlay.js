@@ -60,13 +60,13 @@
 	const TERRITORY_BORDER_LABELS_ENABLED = (() => { try { return new URLSearchParams(window.location.search).get("borderlabels") !== "0"; } catch (e) { return true; } })();
 	const TERRITORY_LABEL_MIN_ZOOM = 4;
 	const TERRITORY_LABEL_EXCLUDE = /^(Baronie|Junkertum|Vogtei|Rittergut|Freiherrschaft|Reichsstadt|Stadt)\b/i;
-	const TERRITORY_LABEL_OFFSET = 18;          // px nach innen versetzt (weiter weg von der Grenze)
+	let TERRITORY_LABEL_OFFSET = 18;            // px nach innen versetzt (weiter weg von der Grenze) -- live tunbar
 	const TERRITORY_LABEL_FONT_SIZE = 13;
 	const TERRITORY_LABEL_LETTER_SPACING = 3;
 	const TERRITORY_LABEL_ALPHA = 0.9; // weiß, gut deckend (war 0.75 -> über hellem Terrain zu blass)
 	// Gewicht des mittleren Kontrollpunkts im (rationalen) B-Spline: 1 = klassisch (Kurve läuft zwischen den
 	// Punkten, wirkt lose/grob), >1 zieht die Leitlinie NÄHER an die Kontrollpunkte (strafft sie). Stellschraube.
-	const TERRITORY_LABEL_SPLINE_WEIGHT = 5;
+	let TERRITORY_LABEL_SPLINE_WEIGHT = 5; // live tunbar (?labeltune=1)
 
 	// Gewichteter (rationaler) quadratischer B-Spline durch ein (ausgedünntes) Kontrollpolygon -> glatte Leitkurve.
 	// weight>1 strafft die Kurve in Richtung der Kontrollpunkte (NURBS-artige Gewichtung des Mittelpunkts).
@@ -530,6 +530,37 @@
 	map.on("zoom", function () { if (!cssZoomActive) redraw(); });
 
 	window.AvesmapsBoundaryCanvasOverlay = { redraw, paneName: PANE };
+
+	// Optionales Live-Tuning-Panel (nur mit ?labeltune=1): zwei Slider für Spline-Gewicht + Offset der
+	// Grenz-Label-Leitlinie. Auf Eingabe sofort neu zeichnen. Kein Einfluss auf den Normalbetrieb.
+	(function initBorderLabelTuningPanel() {
+		let on = false;
+		try { on = new URLSearchParams(window.location.search).has("labeltune"); } catch (e) { on = false; }
+		if (!on || !document.body) return;
+		const panel = document.createElement("div");
+		panel.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:99999;background:rgba(28,28,28,0.9);color:#fff;font:12px Georgia,serif;padding:10px 12px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.4);width:210px;";
+		const title = document.createElement("div");
+		title.textContent = "Grenz-Label-Tuning"; title.style.cssText = "font-weight:bold;margin-bottom:8px;";
+		panel.appendChild(title);
+		const slider = (label, min, max, step, value, apply) => {
+			const wrap = document.createElement("div"); wrap.style.marginBottom = "8px";
+			const head = document.createElement("div"); head.style.cssText = "display:flex;justify-content:space-between;margin-bottom:3px;";
+			const name = document.createElement("span"); name.textContent = label;
+			const val = document.createElement("span"); val.textContent = value;
+			head.appendChild(name); head.appendChild(val);
+			const input = document.createElement("input");
+			input.type = "range"; input.min = min; input.max = max; input.step = step; input.value = value; input.style.width = "100%";
+			input.addEventListener("input", function () { val.textContent = input.value; apply(parseFloat(input.value)); redraw(); });
+			wrap.appendChild(head); wrap.appendChild(input);
+			panel.appendChild(wrap);
+		};
+		slider("Spline-Gewicht", 1, 8, 0.5, TERRITORY_LABEL_SPLINE_WEIGHT, (v) => { TERRITORY_LABEL_SPLINE_WEIGHT = v; });
+		slider("Offset (px)", 0, 40, 1, TERRITORY_LABEL_OFFSET, (v) => { TERRITORY_LABEL_OFFSET = v; });
+		const hint = document.createElement("div");
+		hint.textContent = "Regionen-Modus, Zoom ≥4"; hint.style.cssText = "opacity:0.6;margin-top:2px;";
+		panel.appendChild(hint);
+		document.body.appendChild(panel);
+	})();
 
 	// Signatur-Poll: zeichnet neu, sobald sich der derived-Satz ändert (z. B. nach
 	// 'Grenzen berechnen' + Layer-Reload erhalten die Derived neue public_ids). Deckt auch
