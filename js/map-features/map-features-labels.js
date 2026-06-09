@@ -82,7 +82,7 @@ function getMapLabelTypeStyle(labelType) {
 }
 
 // Text auf ein CSS-aufgelöstes Canvas zeichnen (weiches Upscaling auf HiDPI) -> {url, w, h}.
-function renderMapLabelToImage(text, fontSizePx, typeStyle) {
+function renderMapLabelToImage(text, fontSizePx, typeStyle, opts) {
 	const displayText = typeStyle.uppercase ? String(text).toUpperCase() : String(text);
 	const letterSpacing = fontSizePx * (typeStyle.letterSpacingRatio || 0);
 	// Optionaler Kursiv-Stil (z. B. Ruinen) + optionaler Schein (ersetzt den CSS text-shadow, den das
@@ -97,8 +97,9 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle) {
 	// Schriftgröße -> Konturbreite. haloExtent = größter Radius (Schein ODER Kontur) für die Bild-Polsterung.
 	const strokeWidth = glow && typeStyle.strokeRatio ? Math.max(0.5, fontSizePx * typeStyle.strokeRatio) : 0;
 	const haloExtent = Math.max(glowBlur, strokeWidth);
+	const vAnchor = (opts && opts.vAnchor) || "middle";
 
-	const cacheKey = `${displayText}|${font}|${typeStyle.color}|${glow || ""}|${glowBlur}|${glowPasses}|${strokeWidth}|${letterSpacing}`;
+	const cacheKey = `${displayText}|${font}|${typeStyle.color}|${glow || ""}|${glowBlur}|${glowPasses}|${strokeWidth}|${letterSpacing}|${vAnchor}`;
 	const cached = _mapLabelImageCache.get(cacheKey);
 	if (cached) {
 		return cached;
@@ -114,17 +115,42 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle) {
 	// Polsterung schließt den Schein-Radius ein, damit er nicht abgeschnitten wird.
 	const padX = Math.ceil(fontSizePx * 0.5 + haloExtent);
 	const w = Math.max(1, Math.ceil(textWidth) + padX * 2);
-	const h = Math.max(1, Math.ceil(fontSizePx * 1.7 + haloExtent * 2));
+
+	// Vertikale Metrik. "middle" (Default, Karten-/Territoriums-Labels): em-Box zentriert (h/2).
+	// "xheight": Grundlinie aus den echten Font-Metriken setzen und als Anker die MITTE zwischen
+	// Grund- und Mittellinie (x-Höhen-Mitte) zurückgeben -> ruhigere optische Zentrierung neben dem
+	// Orts-Marker, weil Versalien/Oberlängen nicht mehr nach oben ziehen.
+	let h;
+	let drawY;
+	let baseline;
+	let anchorY;
+	if (vAnchor === "xheight") {
+		const fullMetrics = _mapLabelMeasureCtx.measureText(displayText);
+		const xMetrics = _mapLabelMeasureCtx.measureText("x");
+		const ascent = fullMetrics.actualBoundingBoxAscent || fontSizePx * 0.8;
+		const descent = fullMetrics.actualBoundingBoxDescent || fontSizePx * 0.2;
+		const xHeight = xMetrics.actualBoundingBoxAscent || fontSizePx * 0.52;
+		const topPad = Math.ceil(haloExtent) + 1;
+		drawY = topPad + ascent;                 // alphabetische Grundlinie
+		h = Math.max(1, Math.ceil(drawY + descent + haloExtent + 1));
+		baseline = "alphabetic";
+		anchorY = drawY - xHeight / 2;           // Mitte zwischen Grund- und Mittellinie
+	} else {
+		h = Math.max(1, Math.ceil(fontSizePx * 1.7 + haloExtent * 2));
+		drawY = h / 2;
+		baseline = "middle";
+		anchorY = h / 2;
+	}
 	const canvas = document.createElement("canvas");
 	canvas.width = w; // CSS-Auflösung (KEIN devicePixelRatio) -> auf HiDPI weich hochskaliert
 	canvas.height = h;
 	const ctx = canvas.getContext("2d");
 	ctx.font = font;
-	ctx.textBaseline = "middle";
+	ctx.textBaseline = baseline;
 	ctx.textAlign = "left";
 	ctx.globalAlpha = MAP_LABEL_CANVAS_ALPHA;
 	ctx.fillStyle = typeStyle.color;
-	const y = h / 2;
+	const y = drawY;
 	const drawGlyphs = (shiftX) => {
 		let x = padX + shiftX;
 		for (let i = 0; i < chars.length; i += 1) {
@@ -168,7 +194,7 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle) {
 		ctx.restore();
 	}
 	drawGlyphs(0);
-	const result = { url: canvas.toDataURL(), w, h, padX };
+	const result = { url: canvas.toDataURL(), w, h, padX, anchorY };
 	if (_mapLabelImageCache.size >= _MAP_LABEL_IMAGE_CACHE_MAX) {
 		_mapLabelImageCache.delete(_mapLabelImageCache.keys().next().value);
 	}

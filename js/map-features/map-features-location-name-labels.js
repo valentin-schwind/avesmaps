@@ -102,14 +102,16 @@ function createLocationNameLabelIcon(entry, zoomLevel = map.getZoom()) {
 	const haloStyle = halo.glow
 		? { ...typeStyle, glow: halo.glow, glowBlurRatio: halo.glowBlurRatio, glowPasses: halo.glowPasses, strokeRatio: halo.strokeRatio }
 		: { ...typeStyle, glow: null };
-	const image = renderMapLabelToImage(entry.name, fontSizePx, haloStyle);
-	// Das Canvas-Bild ist beidseitig gepolstert und vertikal zentriert -> Platzierung an die alte
-	// <span>-Position angleichen: links um die Polsterung, oben um die halbe Bild-Mehrhöhe zurück.
+	// vAnchor "xheight": Bild liefert anchorY = Mitte zwischen Grund- und Mittellinie (x-Höhen-Mitte).
+	const image = renderMapLabelToImage(entry.name, fontSizePx, haloStyle, { vAnchor: "xheight" });
+	// Horizontal: Text beginnt bei offset.x (links um die Canvas-Polsterung zurück). Vertikal: die
+	// x-Höhen-Mitte des Textes exakt auf die Marker-Mitte legen (top = -anchorY); der vertikale
+	// Basis-Offset entfällt damit (0), die Kollision verschiebt weiterhin über --label-offset-y.
 	const leftAdjust = -image.padX;
-	const topAdjust = fontSizePx / 2 - image.h / 2;
+	const topAdjust = -image.anchorY;
 	return L.divIcon({
 		className: `location-name-label location-name-label--${labelType}${ruinedClassName}`,
-		html: `<img src="${image.url}" width="${image.w}" height="${image.h}" alt="${escapeHtml(entry.name)}" style="position:absolute; display:block; pointer-events:none; --location-label-offset-x:${offset.x}px; --location-label-offset-y:${offset.y}px; left:calc(var(--location-label-offset-x) + var(--label-offset-x, 0px) + ${leftAdjust}px); top:calc(var(--location-label-offset-y) + var(--label-offset-y, 0px) + ${topAdjust}px);">`,
+		html: `<img src="${image.url}" width="${image.w}" height="${image.h}" alt="${escapeHtml(entry.name)}" style="position:absolute; display:block; pointer-events:none; --location-label-offset-x:${offset.x}px; --location-label-offset-y:0px; left:calc(var(--location-label-offset-x) + var(--label-offset-x, 0px) + ${leftAdjust}px); top:calc(var(--location-label-offset-y) + var(--label-offset-y, 0px) + ${topAdjust}px);">`,
 		iconSize: [0, 0],
 		iconAnchor: [0, 0],
 	});
