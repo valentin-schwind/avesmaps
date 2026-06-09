@@ -165,6 +165,93 @@ function syncPathLabels() {
 	document.body.appendChild(panel);
 })();
 
+// Test-Matrix für die KONTURBREITEN (outlineWeight) je Wegform × Zoomstufe, nur mit ?pathwidthtune=1.
+// Zeilen = Subtypen, Spalten = Zoom 0..6. Jeder Slider setzt PATH_OUTLINE_WIDTH_OVERRIDE[subtyp][zoom] und
+// re-styled live (syncPathRendering). Sichtbar wird eine Änderung in der Zoomstufe, in der man gerade steht
+// (aktuelle Spalte ist hervorgehoben). OK schreibt die volle Matrix nach window.__avesmapsPathOutlineWidths.
+(function initPathOutlineWidthMatrixPanel() {
+	let on = false;
+	try { on = new URLSearchParams(window.location.search).has("pathwidthtune"); } catch (e) { on = false; }
+	if (!on || !document.body) return;
+	const ZOOMS = [0, 1, 2, 3, 4, 5, 6];
+	const LABELS = { Reichsstrasse: "Reichsstr.", Strasse: "Straße", Weg: "Weg", Pfad: "Pfad", Gebirgspass: "Geb.pass", Wuestenpfad: "Wüstenpf.", Flussweg: "Fluss", Seeweg: "See/Meer" };
+	const subtypes = (typeof PATH_SUBTYPE_KEYS !== "undefined") ? PATH_SUBTYPE_KEYS : Object.keys(LABELS);
+	const eff = (st, z) => (typeof getEffectivePathOutlineWidth === "function" ? getEffectivePathOutlineWidth(st, z) : 0);
+	const restyle = () => { try { if (typeof syncPathRendering === "function") syncPathRendering(); } catch (e) { /* noop */ } };
+	const setOverride = (st, z, v) => {
+		if (typeof PATH_OUTLINE_WIDTH_OVERRIDE === "undefined") return;
+		if (!PATH_OUTLINE_WIDTH_OVERRIDE[st]) PATH_OUTLINE_WIDTH_OVERRIDE[st] = {};
+		PATH_OUTLINE_WIDTH_OVERRIDE[st][z] = v;
+	};
+	const panel = document.createElement("div");
+	panel.style.cssText = "position:fixed;right:12px;top:12px;z-index:99999;background:rgba(28,28,28,0.94);color:#fff;font:11px Georgia,serif;padding:10px 12px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.45);max-height:92vh;overflow:auto;";
+	const title = document.createElement("div");
+	title.textContent = "Konturbreiten-Matrix (Wege)"; title.style.cssText = "font-weight:bold;margin-bottom:8px;";
+	panel.appendChild(title);
+	const grid = document.createElement("div");
+	grid.style.cssText = "display:grid;grid-template-columns:80px repeat(" + ZOOMS.length + ", 60px);gap:4px 6px;align-items:center;";
+	grid.appendChild(document.createElement("div")); // Ecke
+	const zoomHeaders = {};
+	ZOOMS.forEach((z) => {
+		const h = document.createElement("div");
+		h.textContent = "z" + z; h.style.cssText = "text-align:center;font-weight:bold;opacity:0.85;";
+		zoomHeaders[z] = h; grid.appendChild(h);
+	});
+	subtypes.forEach((st) => {
+		const rowLabel = document.createElement("div");
+		rowLabel.textContent = LABELS[st] || st; rowLabel.style.cssText = "white-space:nowrap;";
+		grid.appendChild(rowLabel);
+		ZOOMS.forEach((z) => {
+			const cell = document.createElement("div");
+			cell.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:1px;";
+			const valEl = document.createElement("div");
+			const cur = eff(st, z);
+			valEl.textContent = String(cur); valEl.style.cssText = "font-size:10px;opacity:0.85;";
+			const input = document.createElement("input");
+			input.type = "range"; input.min = 0; input.max = 12; input.step = 0.5; input.value = cur; input.style.width = "54px";
+			input.addEventListener("input", () => {
+				const v = parseFloat(input.value);
+				valEl.textContent = String(v);
+				setOverride(st, z, v);
+				restyle();
+			});
+			cell.appendChild(valEl); cell.appendChild(input);
+			grid.appendChild(cell);
+		});
+	});
+	panel.appendChild(grid);
+	const highlight = () => {
+		const cz = (typeof map !== "undefined" && map) ? Math.round(Number(map.getZoom())) : null;
+		ZOOMS.forEach((z) => { zoomHeaders[z].style.color = (z === cz) ? "#ffd479" : "#fff"; });
+	};
+	// map wird in bootstrap.js NACH dieser Datei deklariert -> bei Panel-Aufbau noch nicht da. Pollen, bis es steht.
+	const wireMap = () => {
+		if (typeof map !== "undefined" && map && typeof map.on === "function") {
+			highlight();
+			map.on("zoomend", highlight);
+		} else {
+			setTimeout(wireMap, 200);
+		}
+	};
+	wireMap();
+	const okBtn = document.createElement("button");
+	okBtn.textContent = "OK / Werte merken";
+	okBtn.style.cssText = "width:100%;margin-top:10px;padding:7px;border:1px solid #5e4329;border-radius:6px;background:#7a5a3a;color:#fff;font:inherit;cursor:pointer;";
+	okBtn.addEventListener("click", () => {
+		const matrix = {};
+		subtypes.forEach((st) => { matrix[st] = {}; ZOOMS.forEach((z) => { matrix[st][z] = eff(st, z); }); });
+		window.__avesmapsPathOutlineWidths = matrix;
+		console.log("[Konturbreiten-Matrix] " + JSON.stringify(matrix));
+		okBtn.textContent = "✓ gemerkt"; setTimeout(() => { okBtn.textContent = "OK / Werte merken"; }, 1500);
+	});
+	panel.appendChild(okBtn);
+	const hint = document.createElement("div");
+	hint.textContent = "Zoome in die Stufe, deren Spalte du testest (z aktuell = gelb). Override macht die Kontur auch bei Zoom ≤2 sichtbar.";
+	hint.style.cssText = "opacity:0.6;margin-top:6px;max-width:500px;";
+	panel.appendChild(hint);
+	document.body.appendChild(panel);
+})();
+
 function getReadablePathLabelLatLngCoordinates(latLngCoords) {
 	if (latLngCoords.length < 2) {
 		return latLngCoords;

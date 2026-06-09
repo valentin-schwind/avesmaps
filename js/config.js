@@ -193,6 +193,35 @@ const PATH_RENDER_CONFIG = {
 	simplifiedOutlineWeight: 0,
 	simplifiedCenterWeightScale: 0.85,
 };
+
+// Pro-Typ Linienstärken (ab Zoom > simplifiedMaxZoom). "outline" = Gesamt-Footprint (Kontur), "center" = Füllung.
+const PATH_OUTLINE_WEIGHTS = { Reichsstrasse: 6.5, Strasse: 4, Weg: 4, Pfad: 3, Gebirgspass: 3, Wuestenpfad: 3, Flussweg: 5, Seeweg: 5 };
+const PATH_CENTER_WEIGHTS = { Reichsstrasse: 4, Strasse: 2.5, Weg: 2.5, Pfad: 1.5, Gebirgspass: 1.5, Wuestenpfad: 1.5, Flussweg: 3, Seeweg: 3 };
+
+// Optionale Override-Matrix [Subtyp][Zoom] -> Konturbreite (px). Leer = Default-Logik (unverändert). Wird vom
+// ?pathwidthtune=1-Panel live befüllt. Ist für einen Subtyp+Zoom ein Override gesetzt, wird die Kontur dort
+// zusätzlich sichtbar gemacht (auch in der simplified-Stufe Zoom<=2, wo sie sonst Deckkraft 0 hätte).
+const PATH_OUTLINE_WIDTH_OVERRIDE = {};
+
+function getDefaultPathOutlineWidth(subtype, zoom) {
+	const z = Math.round(Number(zoom));
+	const isReichsstrasse = subtype === "Reichsstrasse";
+	if (z <= PATH_RENDER_CONFIG.simplifiedMaxZoom) {
+		return PATH_RENDER_CONFIG.simplifiedOutlineWeight + (isReichsstrasse ? 0.5 : 0);
+	}
+	return PATH_OUTLINE_WEIGHTS[subtype] ?? PATH_OUTLINE_WEIGHTS.Weg;
+}
+
+function getPathOutlineWidthOverride(subtype, zoom) {
+	const bySub = PATH_OUTLINE_WIDTH_OVERRIDE[subtype];
+	const z = Math.round(Number(zoom));
+	return bySub && typeof bySub[z] === "number" ? bySub[z] : null;
+}
+
+function getEffectivePathOutlineWidth(subtype, zoom) {
+	const override = getPathOutlineWidthOverride(subtype, zoom);
+	return override != null ? override : getDefaultPathOutlineWidth(subtype, zoom);
+}
 const LOCATION_TYPE_CONFIG = {
 	metropole: { label: "Metropolen", singularLabel: "Metropole", icon: "🏛️", queryParam: "toggleMetropolen", radius: 10, shape: "circle", borderWidth: 3 },
 	grossstadt: { label: "Großstädte", singularLabel: "Großstadt", icon: "🏰", queryParam: "toggleGrossstaedte", radius: 7.5, shape: "square", borderWidth: 3 },

@@ -530,23 +530,20 @@ function getPathStyleColors(path) {
 		Seeweg: "#2f7dd3",
 	};
 
-	// Pro-Typ Linienstärken (nicht-simplified). "weight" = Gesamt-Footprint (Kontur); der
-	// Rand bleibt ~0.75 px je Seite. Strasse/Weg -1 px, Pfad/Gebirgspass/Wuestenpfad -2 px.
-	// Reichsstrasse-Rand inkl. +0.5 px (s. o.). Flussweg/Seeweg unverändert.
-	const outlineWeights = { Reichsstrasse: 6.5, Strasse: 4, Weg: 4, Pfad: 3, Gebirgspass: 3, Wuestenpfad: 3, Flussweg: 5, Seeweg: 5 };
-	const centerWeights = { Reichsstrasse: 4, Strasse: 2.5, Weg: 2.5, Pfad: 1.5, Gebirgspass: 1.5, Wuestenpfad: 1.5, Flussweg: 3, Seeweg: 3 };
+	// Konturbreite: Default-Logik (Pro-Typ ab Zoom>simplifiedMaxZoom, simplified darunter) ODER, falls per
+	// ?pathwidthtune=1 gesetzt, der Override für diesen Subtyp+Zoom. Override macht die Kontur auch im
+	// simplified-Bereich sichtbar. PATH_OUTLINE_WEIGHTS/PATH_CENTER_WEIGHTS liegen in config.js.
+	const outlineOverride = getPathOutlineWidthOverride(pathSubtype, map.getZoom());
 
 	return {
 		// Reichsstraßen bekommen einen grauen Rand (Kontur), alle anderen weiterhin weiß.
 		outline: isReichsstrasse ? "#9a9a9a" : "#ffffff",
 		center: centerColors[pathSubtype] || centerColors.Weg,
-		outlineWeight: simplifiedRender
-			? PATH_RENDER_CONFIG.simplifiedOutlineWeight + (isReichsstrasse ? 0.5 : 0)
-			: (outlineWeights[pathSubtype] ?? outlineWeights.Weg),
+		outlineWeight: outlineOverride != null ? outlineOverride : getDefaultPathOutlineWidth(pathSubtype, map.getZoom()),
 		centerWeight: simplifiedRender
 			? Math.max(1.5, (isReichsstrasse ? 4 : 3) * PATH_RENDER_CONFIG.simplifiedCenterWeightScale)
-			: (centerWeights[pathSubtype] ?? centerWeights.Weg),
-		outlineOpacity: simplifiedRender ? PATH_RENDER_CONFIG.simplifiedOutlineOpacity : 1,
+			: (PATH_CENTER_WEIGHTS[pathSubtype] ?? PATH_CENTER_WEIGHTS.Weg),
+		outlineOpacity: outlineOverride != null ? 1 : (simplifiedRender ? PATH_RENDER_CONFIG.simplifiedOutlineOpacity : 1),
 	};
 }
 
