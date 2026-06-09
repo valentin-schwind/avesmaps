@@ -21,7 +21,7 @@ function normalizeLabelFeature(feature) {
 // Grund: das Canvas wird in CSS-Auflösung gerastert und auf HiDPI weich hochskaliert -> die Schrift „sinkt"
 // in die gemalte Karte ein (wie die Canvas-Grenz-Namen), statt scharf „aufgeklebt" zu wirken. Position,
 // Rotation, Kollision (--label-offset) und Interaktivität bleiben DOM (das <img> ersetzt nur den <span>).
-const MAP_LABEL_CANVAS_ALPHA = 0.85; // halbtransparent -> blendet in die Landschaft
+const MAP_LABEL_CANVAS_ALPHA = 1; // volle Deckkraft (die Weichheit kommt von der Canvas-Rasterung, nicht Alpha)
 const _mapLabelTypeStyleCache = {};
 let _mapLabelMeasureCtx = null;
 
