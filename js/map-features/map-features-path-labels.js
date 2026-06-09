@@ -2,11 +2,16 @@ function shouldPathNameBeDisplayed(path) {
 	return path?.properties?.show_label === true || path?.properties?.show_label === 1 || path?.properties?.show_label === "1";
 }
 
+// Globaler Schalter für Fluss-/Seeweg-Labels (unabhängig von den Fluss-Pfaden); toggelbar im ?pathtune=1-Panel.
+let pathRiverLabelsVisible = true;
+
 function isPathLabelVisibleAtCurrentZoom(path) {
 	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
-	const minZoom = pathSubtype === "Flussweg" || pathSubtype === "Seeweg"
-		? 3
-		: LOCATION_NAME_LABEL_CONFIG.dorf.minZoom;
+	const isRiver = pathSubtype === "Flussweg" || pathSubtype === "Seeweg";
+	if (isRiver && !pathRiverLabelsVisible) {
+		return false;
+	}
+	const minZoom = isRiver ? 3 : LOCATION_NAME_LABEL_CONFIG.dorf.minZoom;
 	return shouldPathNameBeDisplayed(path) && map.getZoom() >= minZoom;
 }
 
@@ -92,19 +97,31 @@ function syncPathLabels() {
 	const title = document.createElement("div");
 	title.textContent = "Pfad-Namen-Tuning"; title.style.cssText = "font-weight:bold;margin-bottom:8px;";
 	panel.appendChild(title);
-	// Checkbox: Fluss-PFADE an/aus (nicht die Labels) -- toggelt die bestehende #toggleRivers-Logik.
-	const riversLabel = document.createElement("label");
-	riversLabel.style.cssText = "display:flex;align-items:center;gap:6px;margin:0 0 8px;cursor:pointer;";
-	const riversInput = document.createElement("input");
-	riversInput.type = "checkbox";
-	try { riversInput.checked = !!document.querySelector("#toggleRivers")?.checked; } catch (e) {}
-	riversInput.addEventListener("change", () => {
+	// Checkbox-Helfer (eine Zeile, Label links).
+	const checkbox = (text, checked, onChange) => {
+		const lbl = document.createElement("label");
+		lbl.style.cssText = "display:flex;align-items:center;gap:6px;margin:0 0 8px;cursor:pointer;";
+		const inp = document.createElement("input");
+		inp.type = "checkbox";
+		try { inp.checked = !!checked; } catch (e) {}
+		inp.addEventListener("change", () => onChange(inp.checked));
+		const span = document.createElement("span"); span.textContent = text;
+		lbl.appendChild(inp); lbl.appendChild(span);
+		panel.appendChild(lbl);
+		return inp;
+	};
+	// (1) Fluss-PFADE an/aus -- toggelt die bestehende #toggleRivers-Logik.
+	let riversPathChecked = false;
+	try { riversPathChecked = !!document.querySelector("#toggleRivers")?.checked; } catch (e) {}
+	checkbox("Flüsse (Pfade) anzeigen", riversPathChecked, (on) => {
 		const el = document.querySelector("#toggleRivers");
-		if (el) { el.checked = riversInput.checked; el.dispatchEvent(new Event("change", { bubbles: true })); }
+		if (el) { el.checked = on; el.dispatchEvent(new Event("change", { bubbles: true })); }
 	});
-	const riversText = document.createElement("span"); riversText.textContent = "Flüsse (Pfade) anzeigen";
-	riversLabel.appendChild(riversInput); riversLabel.appendChild(riversText);
-	panel.appendChild(riversLabel);
+	// (2) Fluss-LABELS an/aus -- unabhängig von den Pfaden.
+	checkbox("Fluss-Labels anzeigen", pathRiverLabelsVisible, (on) => {
+		pathRiverLabelsVisible = on;
+		try { if (typeof syncPathLabels === "function") syncPathLabels(); } catch (e) {}
+	});
 	const slider = (label, min, max, step, value, apply) => {
 		const wrap = document.createElement("div"); wrap.style.marginBottom = "7px";
 		const head = document.createElement("div"); head.style.cssText = "display:flex;justify-content:space-between;margin-bottom:2px;";
