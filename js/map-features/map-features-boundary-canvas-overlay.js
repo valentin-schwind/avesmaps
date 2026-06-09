@@ -195,10 +195,11 @@
 		if (canvas.height !== size.y) canvas.height = size.y;
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-		// Außengrenzen nur im politischen Modus zeichnen. Sonst bleibt das (geleerte) Canvas leer ->
-		// beim Wechsel in eine andere Kategorie verschwinden die Grenzlinien (regionData bleibt sonst
-		// bestehen und wuerde weiter gezeichnet).
-		if (typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() !== "political") {
+		// Grenzen (Außen + Innen, OHNE Fuellung/Labels) zeichnen in political/deregraphic/powerlines.
+		// In "none" ("Nur Karte") bleibt das (geleerte) Canvas leer -> dort gewollt KEINE Grenzen; ohne
+		// diese Sperre blieben beim Moduswechsel die alten Linien stehen (regionData bleibt bestehen).
+		const BOUNDARY_OVERLAY_MODES = ["political", "deregraphic", "powerlines"];
+		if (typeof getSelectedMapLayerMode === "function" && !BOUNDARY_OVERLAY_MODES.includes(getSelectedMapLayerMode())) {
 			return;
 		}
 

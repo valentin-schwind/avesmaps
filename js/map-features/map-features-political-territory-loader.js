@@ -9,6 +9,17 @@ const politicalTerritoryStyleCache = new Map();
 let politicalTerritoryStyleCachePromise = null;
 let politicalTerritoryStyleCacheLoadedAt = 0;
 const POLITICAL_TERRITORY_STYLE_CACHE_TTL_MS = 1000;
+// Modi, in denen die abgeleiteten Grenzen (Canvas-Overlay) sichtbar sind. Fuellung/Labels bleiben
+// political-only; deregraphic/powerlines zeigen nur die Grenzen, "none" ("Nur Karte") gar nichts.
+const TERRITORY_BOUNDARY_MODES = ["political", "deregraphic", "powerlines"];
+// Zoomstufe, fuer die der Layer zuletzt geladen wurde -> pan-sicheres Nachladen (Daten sind zoom-, nicht
+// bbox-abhaengig: reines Pannen bei gleichem Zoom braucht keinen erneuten 1.22MB-Fetch).
+let politicalTerritoryLayerLoadedZoom = null;
+
+function hasLoadedDerivedRegionData() {
+	const rows = Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []);
+	return rows.some((feature) => feature && feature.properties && feature.properties.is_derived_geometry === true);
+}
 
 function getPoliticalTerritoryFetchUrl(input) {
 	if (typeof Request !== "undefined" && input instanceof Request) {
@@ -427,7 +438,8 @@ function installPoliticalRegionVisibilityBehavior() {
 			closeRegionCompactTooltip();
 			closeRegionContextMenu();
 			cancelPendingRegionOperation();
-			// Canvas-Außengrenzen sofort leeren (Overlay zeichnet sonst regionData weiter).
+			// Overlay neu zeichnen (mode-aware): in deregraphic/powerlines zeichnet es die Grenzen,
+			// in "none" ("Nur Karte") leert es das Canvas -> Grenzen verschwinden.
 			window.AvesmapsBoundaryCanvasOverlay?.redraw?.();
 		}
 
@@ -464,7 +476,9 @@ function installPoliticalRegionVisibilityBehavior() {
 			}
 		});
 
-		if (showRegions) {
+		// Daten auch in den reinen Grenzen-Modi (deregraphic/powerlines) laden, damit das Overlay etwas
+		// zu zeichnen hat -- pan-sicher (schedulePoliticalTerritoryLayerReload laedt bei gleichem Zoom nicht neu).
+		if (TERRITORY_BOUNDARY_MODES.includes(getSelectedMapLayerMode())) {
 			schedulePoliticalTerritoryLayerReload();
 		}
 	};
@@ -476,7 +490,16 @@ document.body.classList.toggle("edit-mode", IS_EDIT_MODE);
 document.addEventListener("DOMContentLoaded", installPoliticalRegionVisibilityBehavior, { once: true });
 
 function schedulePoliticalTerritoryLayerReload({ immediate = false } = {}) {
-	if (!POLITICAL_TERRITORIES_API_URL || politicalTerritoryApiUnavailable || isPoliticalTerritoryLayerLoading || getSelectedMapLayerMode() !== "political") {
+	const mapLayerMode = getSelectedMapLayerMode();
+	if (!POLITICAL_TERRITORIES_API_URL || politicalTerritoryApiUnavailable || isPoliticalTerritoryLayerLoading || !TERRITORY_BOUNDARY_MODES.includes(mapLayerMode)) {
+		return;
+	}
+	// Pan-sicher in den reinen Grenzen-Modi (deregraphic/powerlines): bei unveraendertem Zoom (= reines
+	// Pannen) und bereits geladenen Derived-Daten NICHT neu laden -> kein 1.22MB-Fetch pro Pan im Default-
+	// Modus. Im political-Modus (Fuellung/Edit/Timeline) bleibt das bisherige Lade-auf-jedes-moveend.
+	if (!immediate && mapLayerMode !== "political"
+		&& politicalTerritoryLayerLoadedZoom === Math.round(map.getZoom())
+		&& hasLoadedDerivedRegionData()) {
 		return;
 	}
 	if (!immediate && (activeRegionGeometryEdit || pendingRegionOperation || pendingRegionMoveState)) {
@@ -540,6 +563,7 @@ async function loadPoliticalTerritoryLayer() {
 		regionData.forEach((region) => {
 			addRegionFeatureToMap(region, normalizeRegionFeature(region));
 		});
+		politicalTerritoryLayerLoadedZoom = Math.round(map.getZoom()); // fuer pan-sicheres Nachladen
 		syncRegionVisibility();
 		window.AvesmapsBoundaryCanvasOverlay?.redraw?.();
 		// Territorie-Label-Abstoßung NACH dem Label-Render auslösen (sonst überschreibt der
