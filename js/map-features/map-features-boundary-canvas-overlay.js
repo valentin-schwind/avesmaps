@@ -554,7 +554,7 @@
 			wrap.appendChild(head); wrap.appendChild(input);
 			panel.appendChild(wrap);
 		};
-		slider("Spline-Gewicht", 1, 8, 0.5, TERRITORY_LABEL_SPLINE_WEIGHT, (v) => { TERRITORY_LABEL_SPLINE_WEIGHT = v; });
+		slider("Spline-Gewicht", 1, 30, 0.5, TERRITORY_LABEL_SPLINE_WEIGHT, (v) => { TERRITORY_LABEL_SPLINE_WEIGHT = v; });
 		slider("Offset (px)", 0, 40, 1, TERRITORY_LABEL_OFFSET, (v) => { TERRITORY_LABEL_OFFSET = v; });
 		const hint = document.createElement("div");
 		hint.textContent = "Regionen-Modus, Zoom ≥4"; hint.style.cssText = "opacity:0.6;margin-top:2px;";
