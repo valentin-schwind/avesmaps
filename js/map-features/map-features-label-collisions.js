@@ -199,9 +199,9 @@ function getLabelCollisionTarget(element) {
 		return element.querySelector(".region-label__content") || element;
 	}
 	if (element.classList.contains("map-label")) {
-		// Freie Karten-Labels (Kontinente/Meere/Landschaften): sichtbarer Text steckt im span,
-		// das aeussere Element ist 0x0 -> sonst ignoriert die Kollision sie komplett.
-		return element.querySelector("span") || element;
+		// Freie Karten-Labels (Kontinente/Meere/Landschaften): sichtbarer Text steckt jetzt in einem
+		// <img> (Canvas-gerendert); das aeussere Element ist 0x0 -> sonst ignoriert die Kollision sie komplett.
+		return element.querySelector("img") || element.querySelector("span") || element;
 	}
 	return element;
 }

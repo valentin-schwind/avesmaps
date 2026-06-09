@@ -17,12 +17,81 @@ function normalizeLabelFeature(feature) {
 	};
 }
 
+// Karten-Labels werden auf ein per-Label-Canvas gerendert und als <img> eingebettet (statt DOM-Text).
+// Grund: das Canvas wird in CSS-Auflösung gerastert und auf HiDPI weich hochskaliert -> die Schrift „sinkt"
+// in die gemalte Karte ein (wie die Canvas-Grenz-Namen), statt scharf „aufgeklebt" zu wirken. Position,
+// Rotation, Kollision (--label-offset) und Interaktivität bleiben DOM (das <img> ersetzt nur den <span>).
+const MAP_LABEL_CANVAS_ALPHA = 0.85; // halbtransparent -> blendet in die Landschaft
+const _mapLabelTypeStyleCache = {};
+let _mapLabelMeasureCtx = null;
+
+// Pro Label-Typ Farbe/Schreibung/Sperrung EINMAL aus dem echten CSS lesen (Probe-Element) -> „Farben lassen".
+function getMapLabelTypeStyle(labelType) {
+	if (_mapLabelTypeStyleCache[labelType]) {
+		return _mapLabelTypeStyleCache[labelType];
+	}
+	const probe = document.createElement("div");
+	probe.className = `map-label map-label--${labelType}`;
+	probe.style.cssText = "position:absolute;left:-9999px;top:-9999px;visibility:hidden;pointer-events:none;";
+	const span = document.createElement("span");
+	span.textContent = "Mg";
+	span.style.fontSize = "100px"; // bekannte Größe -> Sperrung als Verhältnis ableiten
+	probe.appendChild(span);
+	document.body.appendChild(probe);
+	const computed = window.getComputedStyle(span);
+	const style = {
+		color: computed.color || "#f5f0d6",
+		uppercase: computed.textTransform === "uppercase",
+		fontFamily: computed.fontFamily || '"Faculty Glyphic", Georgia, serif',
+		fontWeight: computed.fontWeight || "400",
+		letterSpacingRatio: (parseFloat(computed.letterSpacing) || 0) / 100,
+	};
+	document.body.removeChild(probe);
+	_mapLabelTypeStyleCache[labelType] = style;
+	return style;
+}
+
+// Text auf ein CSS-aufgelöstes Canvas zeichnen (weiches Upscaling auf HiDPI) -> {url, w, h}.
+function renderMapLabelToImage(text, fontSizePx, typeStyle) {
+	const displayText = typeStyle.uppercase ? String(text).toUpperCase() : String(text);
+	const letterSpacing = fontSizePx * typeStyle.letterSpacingRatio;
+	const font = `${typeStyle.fontWeight} ${fontSizePx}px ${typeStyle.fontFamily}`;
+	if (!_mapLabelMeasureCtx) {
+		_mapLabelMeasureCtx = document.createElement("canvas").getContext("2d");
+	}
+	_mapLabelMeasureCtx.font = font;
+	const chars = [...displayText];
+	const widths = chars.map((character) => _mapLabelMeasureCtx.measureText(character).width);
+	const textWidth = widths.reduce((sum, width) => sum + width + letterSpacing, 0) - letterSpacing;
+	const padX = Math.ceil(fontSizePx * 0.5);
+	const w = Math.max(1, Math.ceil(textWidth) + padX * 2);
+	const h = Math.max(1, Math.ceil(fontSizePx * 1.7));
+	const canvas = document.createElement("canvas");
+	canvas.width = w; // CSS-Auflösung (KEIN devicePixelRatio) -> auf HiDPI weich hochskaliert
+	canvas.height = h;
+	const ctx = canvas.getContext("2d");
+	ctx.font = font;
+	ctx.textBaseline = "middle";
+	ctx.textAlign = "left";
+	ctx.globalAlpha = MAP_LABEL_CANVAS_ALPHA;
+	ctx.fillStyle = typeStyle.color;
+	let x = padX;
+	const y = h / 2;
+	for (let i = 0; i < chars.length; i += 1) {
+		ctx.fillText(chars[i], x, y);
+		x += widths[i] + letterSpacing;
+	}
+	return { url: canvas.toDataURL(), w, h };
+}
+
 function createLabelIcon(label) {
 	const safeSize = getScaledLabelSize(label);
 	const safeRotation = (((Number(label.rotation) || 0) % 360) + 360) % 360;
+	const typeStyle = getMapLabelTypeStyle(label.labelType);
+	const image = renderMapLabelToImage(label.text, safeSize, typeStyle);
 	return L.divIcon({
 		className: `map-label map-label--${label.labelType}${labelHasWikiRegion(label) ? " map-label--has-wiki" : ""}`,
-		html: `<span style="font-size:${safeSize}px; transform: translate(calc(-50% + var(--label-offset-x, 0px)), calc(-50% + var(--label-offset-y, 0px))) rotate(${safeRotation}deg);">${escapeHtml(label.text)}</span>`,
+		html: `<img src="${image.url}" width="${image.w}" height="${image.h}" style="display:block; transform: translate(calc(-50% + var(--label-offset-x, 0px)), calc(-50% + var(--label-offset-y, 0px))) rotate(${safeRotation}deg);" alt="${escapeHtml(label.text)}">`,
 		iconSize: [0, 0],
 		iconAnchor: [0, 0],
 	});
@@ -327,4 +396,22 @@ async function duplicateLabelEntry(entry) {
 function createLabelAt(latlng) {
 	setSelectedMapLayerMode("deregraphic");
 	openLabelEditDialog({ latlng: L.latLng(latlng) });
+}
+
+// Webfont (Faculty Glyphic) kann beim ersten Label-Render noch nicht geladen sein -> nach dem Laden die
+// Label-Icons (Canvas-Renderer) neu bauen, sonst zeigt das erste Bild den Fallback-Font.
+try {
+	if (document.fonts && document.fonts.ready) {
+		document.fonts.ready.then(() => {
+			try {
+				if (typeof syncLabelIcons === "function" && typeof labelMarkers !== "undefined" && Array.isArray(labelMarkers) && labelMarkers.length) {
+					syncLabelIcons();
+				}
+			} catch (error) {
+				/* noop */
+			}
+		});
+	}
+} catch (error) {
+	/* noop */
 }

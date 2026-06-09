@@ -26,9 +26,9 @@
 .map-label span {
 	left: 0;
 	top: 0;
-	/* Stil wie die Grenz-Namen: kein Drop-Shadow, leicht transparent -> fügt sich in die Landschaft ein.
-	   Farbe (Creme) bleibt, nur mit ~90 % Deckkraft. */
-	color: rgba(245, 240, 214, 0.75);
+	/* Farbe (Creme) -- wird vom Canvas-Renderer (per-Label <img>) ausgelesen; Transparenz/Weichheit macht
+	   das Canvas (MAP_LABEL_CANVAS_ALPHA), daher hier wieder DECKEND. text-shadow weg (Canvas hat keinen). */
+	color: #f5f0d6;
 	text-shadow: none;
 	transform-origin: center center;
 	font-family: "Faculty Glyphic", Georgia, "Times New Roman", serif;
@@ -36,7 +36,8 @@
 }
 
 body.edit-mode .map-label,
-body.edit-mode .map-label span {
+body.edit-mode .map-label span,
+body.edit-mode .map-label img {
 	cursor: move;
 	pointer-events: auto;
 }
