@@ -405,8 +405,12 @@ function installPoliticalTerritoryLayerGeometryMerge() {
 		// Primaer-Layer (alle Labels + aktuelle Geometrien) SOFORT liefern und den Fan-out im
 		// Hintergrund vorwaermen. Spart ~1.5s pro Zoom; der Fan-out ergaenzt nur wenige Geometrien
 		// von Nachbar-Zoomstufen und KEINE Labels -> erscheint beim nächsten Cache-Treffer.
-		const fallbackLayers = getResolvedPoliticalTerritoryLayerFallbacks(requestUrl);
-		if (!fallbackLayers) {
+		// (1) Fan-out NUR im political-Modus: dort glättet der Nachbarzoom-Merge die Füllung über Zoom-Bänder.
+		// In den reinen Grenzen-Modi (deregraphic/powerlines) reicht der Primär-Layer (dessen Derived-Geometrie
+		// trägt die Grenzen) -> die ~6 Fallback-Fetches (~Großteil der ~10MB) entfallen.
+		const inPoliticalMode = typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "political";
+		const fallbackLayers = inPoliticalMode ? getResolvedPoliticalTerritoryLayerFallbacks(requestUrl) : null;
+		if (inPoliticalMode && !fallbackLayers) {
 			void readPoliticalTerritoryLayerFallbacks(originalFetch, requestUrl, init, currentLayer);
 		}
 		const mergedLayer = (!fallbackLayers || fallbackLayers.length < 1)
@@ -492,6 +496,11 @@ document.addEventListener("DOMContentLoaded", installPoliticalRegionVisibilityBe
 function schedulePoliticalTerritoryLayerReload({ immediate = false } = {}) {
 	const mapLayerMode = getSelectedMapLayerMode();
 	if (!POLITICAL_TERRITORIES_API_URL || politicalTerritoryApiUnavailable || isPoliticalTerritoryLayerLoading || !TERRITORY_BOUNDARY_MODES.includes(mapLayerMode)) {
+		return;
+	}
+	// (2) LAZY: in den reinen Grenzen-Modi (deregraphic/powerlines) erst ab Zoom 1 laden. Bei Zoom 0 ist die
+	// Grenzen-Deckkraft 0 (unsichtbar) -> kein Bedarf. Default-Start ist Zoom 0 -> spart den ~10MB-Startblock.
+	if (mapLayerMode !== "political" && Math.round(Number(map.getZoom())) < 1) {
 		return;
 	}
 	// Pan-sicher in den reinen Grenzen-Modi (deregraphic/powerlines): bei unveraendertem Zoom (= reines
