@@ -67,6 +67,9 @@
 	// Gewicht des mittleren Kontrollpunkts im (rationalen) B-Spline: 1 = klassisch (Kurve läuft zwischen den
 	// Punkten, wirkt lose/grob), >1 zieht die Leitlinie NÄHER an die Kontrollpunkte (strafft sie). Stellschraube.
 	let TERRITORY_LABEL_SPLINE_WEIGHT = 5; // live tunbar (?labeltune=1)
+	// Anteil der Segment-Punkte, die als Stützpunkte in den Spline einfließen (1 = ALLE, kein Downsampling;
+	// klein = stark geglättet/grob). Vorher fix auf max 9 Punkte gedeckelt -> wirkte grob. Live tunbar.
+	let TERRITORY_LABEL_DETAIL = 0.25;
 
 	// Gewichteter (rationaler) quadratischer B-Spline durch ein (ausgedünntes) Kontrollpolygon -> glatte Leitkurve.
 	// weight>1 strafft die Kurve in Richtung der Kontrollpunkte (NURBS-artige Gewichtung des Mittelpunkts).
@@ -231,7 +234,7 @@
 				let ox = inward.x - base.x, oy = inward.y - base.y; const om = Math.hypot(ox, oy) || 1; ox /= om; oy /= om;
 				baseline.push({ x: base.x + ox * TERRITORY_LABEL_OFFSET, y: base.y + oy * TERRITORY_LABEL_OFFSET });
 			}
-			const nCtrl = Math.max(4, Math.min(9, Math.round(baseline.length / 8)));
+			const nCtrl = Math.max(4, Math.min(baseline.length, Math.round(baseline.length * TERRITORY_LABEL_DETAIL)));
 			const ctrl = [];
 			for (let k = 0; k < nCtrl; k += 1) ctrl.push(baseline[Math.round(k * (baseline.length - 1) / (nCtrl - 1))]);
 			let smooth = quadraticBSplinePoints(ctrl, 8, TERRITORY_LABEL_SPLINE_WEIGHT);
@@ -555,6 +558,7 @@
 			panel.appendChild(wrap);
 		};
 		slider("Spline-Gewicht", 1, 30, 0.5, TERRITORY_LABEL_SPLINE_WEIGHT, (v) => { TERRITORY_LABEL_SPLINE_WEIGHT = v; });
+		slider("Stützpunkt-Dichte", 0.05, 1, 0.05, TERRITORY_LABEL_DETAIL, (v) => { TERRITORY_LABEL_DETAIL = v; });
 		slider("Offset (px)", 0, 40, 1, TERRITORY_LABEL_OFFSET, (v) => { TERRITORY_LABEL_OFFSET = v; });
 		const hint = document.createElement("div");
 		hint.textContent = "Regionen-Modus, Zoom ≥4"; hint.style.cssText = "opacity:0.6;margin-top:2px;";
