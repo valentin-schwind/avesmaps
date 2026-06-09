@@ -9,6 +9,7 @@ const AVESMAPS_WIKI_POLITICAL_TERRITORY_SEED_PAGES = [
 	"Bergk\u{00F6}nigreich/Liste",
 	'Dom\u{00E4}ne (Horasreich)/Liste',
 	'Emirat/Liste',
+	'Freie Stadt/Liste',
 	'Freiherrschaft/Liste',
 	"F\u{00FC}rstentum/Liste",
 	'Grafschaft/Liste',
