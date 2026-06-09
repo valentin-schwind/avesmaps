@@ -43,10 +43,16 @@
 	// Deckkraft der Grenzlinien in Regionen/Kraftlinien je Zoomstufe (0..1): z0 ganz aus, dann zunehmend,
 	// ab z4 gedeckelt. Außenlinie = dieser Wert; Innenlinie proportional (× INNER_LINE_ALPHA, wie bisher).
 	// z3 = 0.5 entspricht dem bisherigen festen Stand. Leicht justierbar.
-	const BOUNDARY_WEAK_ALPHA_BY_ZOOM = { 0: 0, 1: 0.15, 2: 0.30, 3: 0.50, 4: 0.65, 5: 0.65, 6: 0.65 };
+	const BOUNDARY_WEAK_ALPHA_BY_ZOOM = { 0: 0, 1: 0.15, 2: 0.30, 3: 0.50, 4: 0.65, 5: 0.65, 6: 0.65 }; // AUSSEN
 	function getBoundaryWeakAlpha(zoomLevel) {
 		const z = Math.max(0, Math.min(6, Math.round(Number(zoomLevel))));
 		return BOUNDARY_WEAK_ALPHA_BY_ZOOM[z] != null ? BOUNDARY_WEAK_ALPHA_BY_ZOOM[z] : 0.65;
+	}
+	// INNEN-Deckkraft separat: bei z4-6 ABSOLUT pro Zoom tunbar; bei z0-3 proportional zur Außen-Fade (wie bisher).
+	const BOUNDARY_WEAK_INNER_ALPHA_BY_ZOOM = { 4: 0.39, 5: 0.39, 6: 0.39 };
+	function getBoundaryInnerAlpha(zoomLevel) {
+		const z = Math.round(Number(zoomLevel));
+		return BOUNDARY_WEAK_INNER_ALPHA_BY_ZOOM[z] != null ? BOUNDARY_WEAK_INNER_ALPHA_BY_ZOOM[z] : INNER_LINE_ALPHA * getBoundaryWeakAlpha(z);
 	}
 	// Konturbreite der Außengrenze (Stroke px) in Regionen/Kraftlinien, PRO ZOOM (4/5/6) -- live tunbar.
 	// Innen-Clip zeigt die innere Hälfte -> sichtbar ~Stroke/2. Zoom <4 (faint borders) fällt auf 2 zurück.
@@ -55,7 +61,8 @@
 		const z = Math.round(Number(zoomLevel));
 		return BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM[z] != null ? BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM[z] : 2;
 	}
-	let boundaryAlphaFactor = 1;
+	let boundaryAlphaFactor = 1;        // Außenlinien-Deckkraft (pro redraw gesetzt)
+	let boundaryInnerAlphaFactor = INNER_LINE_ALPHA; // Innenlinien-Deckkraft (pro redraw gesetzt)
 
 	// --- Territoriums-Namen entlang der Außengrenzen (NUR "Regionen"/deregraphic, ab hohem Zoom) ---
 	// Schrift folgt der geglätteten Außenkontur, nach innen versetzt (Links-Normale des CCW-Rings). Baronien/
@@ -364,7 +371,7 @@
 		const medium = innerZoom === INNER_DASH_MEDIUM_ZOOM;       // Zoom 3: etwas duenner
 		ctx.lineWidth = fine ? INNER_LINE_WIDTH_FINE : (medium ? INNER_LINE_WIDTH_MEDIUM : INNER_LINE_WIDTH);
 		ctx.strokeStyle = INNER_LINE_COLOR;
-		ctx.globalAlpha = INNER_LINE_ALPHA * boundaryAlphaFactor;
+		ctx.globalAlpha = boundaryInnerAlphaFactor;
 		ctx.setLineDash(fine ? INNER_LINE_DASH_FINE : (medium ? INNER_LINE_DASH_MEDIUM : INNER_LINE_DASH));
 		ctx.lineJoin = "round";
 		ctx.stroke();
@@ -443,6 +450,7 @@
 		// Regionen/Kraftlinien: Linien halb so deckend + Außenlinien uniform duenn; political: voll/abgestuft.
 		const weakBoundaries = BOUNDARY_WEAK_MODES.includes(currentMapLayerMode);
 		boundaryAlphaFactor = weakBoundaries ? getBoundaryWeakAlpha(map.getZoom()) : 1;
+		boundaryInnerAlphaFactor = weakBoundaries ? getBoundaryInnerAlpha(map.getZoom()) : INNER_LINE_ALPHA;
 		const weakOuterWidth = getBoundaryWeakOuterWidth(map.getZoom());
 
 		const all = (Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []));
@@ -592,6 +600,8 @@
 			slider("Schriftgröße (px)", 6, 24, 1, TERRITORY_LABEL_FONT_SIZE_BY_ZOOM[z], (v) => { TERRITORY_LABEL_FONT_SIZE_BY_ZOOM[z] = v; });
 			slider("Stützpunkt-Dichte", 0.05, 1, 0.05, TERRITORY_LABEL_DETAIL_BY_ZOOM[z], (v) => { TERRITORY_LABEL_DETAIL_BY_ZOOM[z] = v; });
 			slider("Konturbreite Grenze (px)", 0.5, 8, 0.5, BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM[z], (v) => { BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM[z] = v; });
+			slider("Außengrenze Deckkraft", 0, 1, 0.05, BOUNDARY_WEAK_ALPHA_BY_ZOOM[z], (v) => { BOUNDARY_WEAK_ALPHA_BY_ZOOM[z] = v; });
+			slider("Innengrenze Deckkraft", 0, 1, 0.05, BOUNDARY_WEAK_INNER_ALPHA_BY_ZOOM[z], (v) => { BOUNDARY_WEAK_INNER_ALPHA_BY_ZOOM[z] = v; });
 		});
 		const okBtn = document.createElement("button");
 		okBtn.textContent = "OK / Werte merken";
@@ -602,6 +612,8 @@
 				fontSize: { ...TERRITORY_LABEL_FONT_SIZE_BY_ZOOM },
 				detail: { ...TERRITORY_LABEL_DETAIL_BY_ZOOM },
 				outerWidth: { ...BOUNDARY_WEAK_OUTER_WIDTH_BY_ZOOM },
+				outerAlpha: { ...BOUNDARY_WEAK_ALPHA_BY_ZOOM },
+				innerAlpha: { ...BOUNDARY_WEAK_INNER_ALPHA_BY_ZOOM },
 				splineWeight: TERRITORY_LABEL_SPLINE_WEIGHT,
 			};
 			window.__avesmapsBorderLabelTuning = result;
