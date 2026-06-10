@@ -224,9 +224,17 @@ function getEffectivePathOutlineWidth(subtype, zoom) {
 }
 
 // Breiten-Faktor je Straßentyp UND (visueller) Zoomstufe (Kontur + Füllung). Struktur:
-// PATH_WIDTH_SCALE[subtyp][zoom] -> Faktor (1 = unverändert, 0 = unsichtbar, bis 5). Leer = 1. Live über das
-// ?roadtune=1-Panel (Matrix Typ × Zoom 0..5; Zoom 6 nutzt Stufe 5).
-const PATH_WIDTH_SCALE = {};
+// PATH_WIDTH_SCALE[subtyp][zoom] -> Faktor (1 = unverändert, 0 = unsichtbar, bis 5). Fehlt ein Eintrag -> 1.
+// Live über das ?roadtune=1-Panel (Matrix Typ × Zoom 0..5; Zoom 6 nutzt Stufe 5). Werte aus dem Panel übernommen;
+// Flussweg/Seeweg bewusst NICHT überschrieben -> bleiben wie gehabt (Faktor 1).
+const PATH_WIDTH_SCALE = {
+	Reichsstrasse: { 0: 0.2, 1: 0.3, 2: 0.6, 3: 0.9, 4: 1.2, 5: 1.8 },
+	Strasse: { 0: 0.1, 1: 0.2, 2: 0.3, 3: 0.6, 4: 0.6, 5: 1 },
+	Weg: { 0: 0, 1: 0.1, 2: 0.2, 3: 0.6, 4: 0.6, 5: 1 },
+	Pfad: { 0: 0, 1: 0, 2: 0.1, 3: 0.4, 4: 0.6, 5: 1 },
+	Gebirgspass: { 0: 0, 1: 0, 2: 0.1, 3: 0.4, 4: 0.6, 5: 1 },
+	Wuestenpfad: { 0: 0, 1: 0, 2: 0.1, 3: 0.4, 4: 0.6, 5: 1 },
+};
 function getPathWidthScale(subtype, zoom) {
 	const z = (typeof getVisualZoomLevel === "function") ? getVisualZoomLevel(zoom) : Math.max(0, Math.min(5, Math.round(Number(zoom)) || 0));
 	const bySubtype = PATH_WIDTH_SCALE[subtype];
