@@ -38,6 +38,12 @@ function shouldShowLocationNameLabel(entry, zoomLevel = map.getZoom()) {
 		return false;
 	}
 
+	// Kraftlinien-Modus: nur die Nodices labeln (passend zu den leuchtenden Ley-Knoten), unabhängig von den
+	// Stadt-Größen-Toggles. Kollisionsauflösung dünnt die Namen bei niedrigem Zoom aus.
+	if (typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "powerlines") {
+		return isNodixLocation(entry.location);
+	}
+
 	const config = LOCATION_NAME_LABEL_CONFIG[entry.locationType] || LOCATION_NAME_LABEL_CONFIG.dorf;
 	const isVisibleByNodixToggle = IS_EDIT_MODE
 		&& $("#toggleNodix").is(":checked")
