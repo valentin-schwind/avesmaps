@@ -1009,11 +1009,14 @@ function avesmapsPoliticalHardDeleteUnassignedGeometry(PDO $pdo, array $payload,
     }
     $territoryId = (int) ($geometry['territory_id'] ?? 0);
     if ($territoryId > 0) {
-        $stmt = $pdo->prepare('SELECT name FROM political_territory WHERE id = :id AND is_active = 1');
+        // Schutz: existiert das Gebiet noch (auch im Papierkorb/inaktiv), gehoert die Geometrie dazu
+        // und ist wiederherstellbar -> NICHT loeschen. Nur echt territoriumslose duerfen weg.
+        $stmt = $pdo->prepare('SELECT name, is_active FROM political_territory WHERE id = :id');
         $stmt->execute(['id' => $territoryId]);
-        $activeTerritory = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($activeTerritory) {
-            return ['ok' => false, 'error' => 'Geometrie ist dem aktiven Gebiet "' . (string) $activeTerritory['name'] . '" zugewiesen - nicht endgueltig loeschbar.'];
+        $territory = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($territory) {
+            $state = ((int) $territory['is_active'] === 1) ? 'aktiven' : 'im Papierkorb liegenden (wiederherstellbaren)';
+            return ['ok' => false, 'error' => 'Geometrie gehoert zum ' . $state . ' Gebiet "' . (string) $territory['name'] . '" - dort behandeln statt die Geometrie endgueltig zu loeschen.'];
         }
     }
     $statement = $pdo->prepare('DELETE FROM political_territory_geometry WHERE id = :id');
@@ -1025,9 +1028,11 @@ function avesmapsPoliticalHardDeleteUnassignedGeometry(PDO $pdo, array $payload,
 // Gated: schreibt nur bei confirm:"apply", sonst lesender Dry-Run (zaehlt nur Kandidaten).
 function avesmapsPoliticalPurgeUnassignedGeometries(PDO $pdo, array $payload, array $user = []): array {
     $apply = (string) ($payload['confirm'] ?? '') === 'apply';
+    // Verwaist = es existiert KEIN Territorium-Datensatz (territory_id NULL oder Gebiet geloescht).
+    // Gebiete im Papierkorb (inaktiv, aber vorhanden) sind wiederherstellbar -> NICHT erfasst.
     $orphanWhere =
         'FROM political_territory_geometry g
-         LEFT JOIN political_territory t ON t.id = g.territory_id AND t.is_active = 1
+         LEFT JOIN political_territory t ON t.id = g.territory_id
          WHERE t.id IS NULL';
     $candidates = (int) ($pdo->query('SELECT COUNT(*) AS c ' . $orphanWhere)->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
     if (!$apply) {

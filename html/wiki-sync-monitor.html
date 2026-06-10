@@ -292,7 +292,7 @@
 </div>
 
 <div id="geomModal" class="modal" hidden>
-  <div class="modal-box">
+  <div class="modal-box" style="width:680px">
     <div class="modal-title">🗑 Nicht zugewiesene Geometrie</div>
     <div class="modal-sub" id="geomSummary">—</div>
     <div class="ident-table" id="geomList" style="max-height:50vh;overflow:auto"></div>
@@ -1157,7 +1157,7 @@ async function loadUnassignedGeoms(){
   try{
     const r = await fetch('/api/app/political-territories.php?action=geometry_inventory&include_inactive=1&_='+Date.now(), {credentials:'include', cache:'no-store'});
     const d = await r.json();
-    unassignedGeoms = (d.geometries||[]).filter(g=>g.territory_is_active!==true);
+    unassignedGeoms = (d.geometries||[]).filter(g=>!g.territory_public_id);  // echt territoriumslos (Papierkorb-Gebiete bleiben draußen)
   }catch(e){ unassignedGeoms = []; }
   try{ const c = await geomApi('purge_unassigned_geometries', {}); unassignedGeomCount = (c.candidates!=null) ? c.candidates : unassignedGeoms.length; }
   catch(e){ unassignedGeomCount = unassignedGeoms.length; }
@@ -1171,7 +1171,9 @@ function renderGeomModal(){
     const w=(g.max_x!=null&&g.min_x!=null)?Math.round(g.max_x-g.min_x):'?';
     const h=(g.max_y!=null&&g.min_y!=null)?Math.round(g.max_y-g.min_y):'?';
     const area=g.area!=null?Math.round(g.area):'?';
-    return `<div class="row"><span class="nm" title="${esc(id)}">${esc(id.slice(0,8))} · ${esc(g.source||'?')} · ${w}×${h} · Fläche ${area}</span> <button class="edbtn dt-geomdel" data-geomdel="${esc(id)}" title="Diese Geometrie endgültig löschen">🗑 endgültig löschen</button></div>`;
+    const title=(g.label&&g.label.trim())?g.label.trim():'(ohne Titel)';
+    const by=g.created_by||'?'; const at=(g.created_at||'').slice(0,10);
+    return `<div class="row"><span class="nm" title="${esc(id)}"><b>${esc(title)}</b> · ${esc(g.source||'?')} · ${w}×${h} · Fläche ${area} · ${esc(by)} ${esc(at)}</span> <button class="edbtn dt-geomdel" data-geomdel="${esc(id)}" title="Diese Geometrie endgültig löschen (${esc(id)})">🗑 endgültig löschen</button></div>`;
   }).join('') || '<div class="muted">— keine verwaisten Geometrien —</div>';
 }
 function openGeomModal(){ renderGeomModal(); $('geomModal').hidden=false; }

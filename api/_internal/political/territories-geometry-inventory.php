@@ -24,6 +24,7 @@ function avesmapsPoliticalReadGeometryInventory(PDO $pdo, array $query): array
             g.public_id,
             g.territory_id,
             g.source,
+            g.style_json,
             g.is_active,
             g.valid_from_bf,
             g.valid_to_bf,
@@ -69,8 +70,23 @@ function avesmapsPoliticalReadGeometryInventory(PDO $pdo, array $query): array
 
         $territoryName = (string) ($row['territory_name'] ?? '');
 
+        // "Titel" der Geometrie: zuletzt zugewiesener Anzeigename aus style_json.assignmentDisplays
+        // (was zuletzt dran hing), falls vorhanden.
+        $label = '';
+        $style = json_decode((string) ($row['style_json'] ?? ''), true);
+        if (is_array($style)) {
+            $displays = $style['assignmentDisplays'] ?? $style['assignment_displays'] ?? [];
+            if (is_array($displays) && $displays !== []) {
+                $last = $displays[array_key_last($displays)];
+                if (is_array($last)) {
+                    $label = trim((string) ($last['displayName'] ?? $last['originalName'] ?? $last['name'] ?? ''));
+                }
+            }
+        }
+
         $geometries[] = [
             'geometry_public_id' => (string) ($row['public_id'] ?? ''),
+            'label' => $label,
             'territory_public_id' => (string) ($row['territory_public_id'] ?? ''),
             'territory_name' => $territoryName !== '' ? $territoryName : '(KEIN TERRITORIUM)',
             'territory_type' => (string) ($row['territory_type'] ?? ''),
