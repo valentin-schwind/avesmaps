@@ -40,7 +40,8 @@ function getLabelHaloParams(strength, baseBlurRatio = 0.16) {
 	return {
 		glow: `rgba(0, 0, 0, ${Math.min(1, 0.85 * s)})`,
 		glowBlurRatio: baseBlurRatio * Math.max(1, s),
-		glowPasses: Math.max(1, Math.round(s)),
+		// Pässe FRAKTIONAL (nicht gerundet) -> kein „Sprung" der Halo-Dichte bei x.5 (z. B. 1.4 -> 1.5).
+		glowPasses: Math.max(1, s),
 	};
 }
 
@@ -130,7 +131,14 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle) {
 		ctx.shadowColor = glow;
 		ctx.shadowBlur = glowBlur;
 		ctx.shadowOffsetX = w;
-		for (let pass = 0; pass < glowPasses; pass += 1) {
+		// Ganze Pässe voll, der Rest als Teil-Pass über globalAlpha eingeblendet -> stufenloser Dichte-Verlauf.
+		const fullPasses = Math.floor(glowPasses);
+		const fractionalPass = glowPasses - fullPasses;
+		for (let pass = 0; pass < fullPasses; pass += 1) {
+			drawGlyphs(-w);
+		}
+		if (fractionalPass > 0.001) {
+			ctx.globalAlpha = MAP_LABEL_CANVAS_ALPHA * fractionalPass;
 			drawGlyphs(-w);
 		}
 		ctx.restore();
