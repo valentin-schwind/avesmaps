@@ -228,8 +228,8 @@ function getEffectivePathOutlineWidth(subtype, zoom) {
 // ?roadtune=1-Panel (Matrix Typ × Zoom 0..6). Werte aus dem Panel übernommen; z6 = z5 + 0.2. Flussweg/Seeweg
 // bewusst NICHT überschrieben -> bleiben wie gehabt (Faktor 1).
 const PATH_WIDTH_SCALE = {
-	Reichsstrasse: { 0: 0.2, 1: 0.3, 2: 0.6, 3: 0.9, 4: 1.2, 5: 1.8, 6: 2.0 },
-	Strasse: { 0: 0.1, 1: 0.2, 2: 0.3, 3: 0.6, 4: 0.6, 5: 1, 6: 1.2 },
+	Reichsstrasse: { 0: 0, 1: 0, 2: 0.3, 3: 0.9, 4: 1.2, 5: 1.8, 6: 2 },
+	Strasse: { 0: 0, 1: 0.2, 2: 0.3, 3: 0.6, 4: 0.6, 5: 1, 6: 1.2 },
 	Weg: { 0: 0, 1: 0.1, 2: 0.2, 3: 0.6, 4: 0.6, 5: 1, 6: 1.2 },
 	Pfad: { 0: 0, 1: 0, 2: 0.1, 3: 0.4, 4: 0.6, 5: 1, 6: 1.2 },
 	Gebirgspass: { 0: 0, 1: 0, 2: 0.1, 3: 0.4, 4: 0.6, 5: 1, 6: 1.2 },
