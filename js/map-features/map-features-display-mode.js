@@ -13,10 +13,17 @@ function syncPathVisibility() {
 		const path = pathData[i];
 		const shouldShow = shouldShowPathOnMap(path, { showPaths, showRivers, showSeaPaths });
 		map[shouldShow ? "addLayer" : "removeLayer"](layer);
-		// Label-Linie dauerhaft auf der Karte halten (nicht im Group); der Text wird über refreshPathLayerText
-		// gesteuert -> Fluss-Labels bleiben sichtbar, auch wenn die Fluss-Pfade ausgeblendet sind.
+		// PERF: Sind die Pfad-Namen auf dem Canvas (Default), trägt die unsichtbare SVG-<textPath>-Label-Linie
+		// NICHTS mehr bei -- das Canvas-Overlay liest die Geometrie aus path.geometry. ~4900 solcher transparenten
+		// Polylinien würde Leaflet aber bei JEDEM Zoom mit-reprojizieren (~halbe SVG-Last). Also nur im SVG-Fallback
+		// (?canvaspathlabels=0) auf die Karte legen; sonst entfernen.
+		const labelsOnCanvas = typeof PATH_LABELS_ON_CANVAS !== "undefined" && PATH_LABELS_ON_CANVAS;
 		if (path?._pathLabelLine) {
-			map.addLayer(path._pathLabelLine);
+			if (labelsOnCanvas) {
+				if (map.hasLayer(path._pathLabelLine)) { map.removeLayer(path._pathLabelLine); }
+			} else {
+				map.addLayer(path._pathLabelLine);
+			}
 		}
 		if (typeof refreshPathLayerText === "function") {
 			refreshPathLayerText(path);
