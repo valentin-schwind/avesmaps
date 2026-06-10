@@ -126,6 +126,10 @@ function setMapStyle(mapStyle, { persist = false } = {}) {
     baseTileLayer.bringToBack();
     document.getElementById("mapStyleSelect").value = activeMapStyle;
     syncLocationNameLabelVisibility();
+    // Neu erstellte Basis-Kacheln -> ggf. die "Magiersicht"-Entsättigung erneut anwenden (Kraftlinien-Modus).
+    if (typeof syncPowerlineMapTint === "function") {
+        syncPowerlineMapTint();
+    }
 
     if (persist && IS_EDIT_MODE) {
         try {
