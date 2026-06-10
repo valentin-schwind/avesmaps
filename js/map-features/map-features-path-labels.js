@@ -34,15 +34,15 @@ function isPathLabelVisibleAtCurrentZoom(path) {
 }
 
 // Live tunbar via ?pathtune=1 (siehe Panel am Dateiende).
-let PATH_LABEL_FONT_DELTA = -1;     // px auf die berechnete (zoomabhängige) Größe
-let PATH_LABEL_DY = 0;              // px Abstand der Schrift zur Linie (negativ = darüber)
+let PATH_LABEL_FONT_DELTA = 3;      // px auf die berechnete (zoomabhängige) Größe
+let PATH_LABEL_DY = -1;             // px Abstand der Schrift zur Linie (negativ = darüber)
 // Halo der Pfad-Namen, getrennt für Flüsse/Seewege und Straßen/Wege -- wie bei den Siedlungs-Labels:
 // Stärke (0..5) = Halo-Prominenz, Schärfe (0..1) = weicher Schein (CSS drop-shadow) <-> scharfe Kontur (SVG-Stroke).
 let PATH_LABEL_RIVER_HALO_STRENGTH = 1;
 let PATH_LABEL_RIVER_HALO_SHARPNESS = 1;
-let PATH_LABEL_ROAD_HALO_STRENGTH = 1;
-let PATH_LABEL_ROAD_HALO_SHARPNESS = 1;
-let PATH_LABEL_LETTER_SPACING = 1;  // px Sperrung
+let PATH_LABEL_ROAD_HALO_STRENGTH = 1.6;
+let PATH_LABEL_ROAD_HALO_SHARPNESS = 0.8;
+let PATH_LABEL_LETTER_SPACING = 0.5;  // px Sperrung
 // Leitlinie = sichtbare Linie, nur neu abgetastet: <1 ausdünnen (ruhiger), 1 = exakt die Linie, >1 dichter.
 let PATH_LABEL_GUIDE_DENSITY = 1;   // (von map-features-path-rendering.js gelesen)
 
