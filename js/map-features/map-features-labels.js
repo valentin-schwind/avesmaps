@@ -173,8 +173,11 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle, opts) {
 		// (das mehrfache Zeichnen der Füllung ließ die Labels vorher „fetter" wirken).
 		ctx.save();
 		ctx.shadowColor = glow;
-		ctx.shadowBlur = glowBlur;
-		ctx.shadowOffsetX = w;
+		// shadowBlur/shadowOffset ignorieren die ctx.scale()-Transform (zählen in GERÄTE-Pixeln). Da die Glyphen
+		// im skalierten Raum bei -w (= -w·dpr Geräte-Pixel) liegen, muss der Rück-Versatz ebenfalls mit labelHiDpi
+		// multipliziert werden -> sonst „verzogene"/verschobene Schatten unter den Labels auf Retina/Mobile.
+		ctx.shadowBlur = glowBlur * labelHiDpi;
+		ctx.shadowOffsetX = w * labelHiDpi;
 		// Ganze Pässe voll, der Rest als Teil-Pass über globalAlpha eingeblendet -> stufenloser Dichte-Verlauf.
 		const fullPasses = Math.floor(glowPasses);
 		const fractionalPass = glowPasses - fullPasses;

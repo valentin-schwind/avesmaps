@@ -84,7 +84,8 @@
 			if (halo.glow && halo.blur > 0.01) {
 				ctx.save();
 				ctx.shadowColor = halo.glow;
-				ctx.shadowBlur = halo.blur;
+				ctx.shadowBlur = halo.blur * (window.devicePixelRatio || 1); // shadowBlur zählt in Geräte-Pixeln -> mit dpr nachziehen
+
 				ctx.fillStyle = halo.glow;
 				ctx.fillText(chars[i], 0, 0);
 				ctx.restore();
