@@ -3,7 +3,7 @@
 // (breiter + dichter, siehe getLabelHaloParams in map-features-labels.js).
 let LOCATION_LABEL_HALO_STRENGTH = 1.5;
 // Schärfe des Siedlungslabel-Halos (0 = weicher Schein, 1 = scharfe Kontur/Google-Maps-Look). Live über ?halotune=1.
-let LOCATION_LABEL_HALO_SHARPNESS = 0;
+let LOCATION_LABEL_HALO_SHARPNESS = 0.5;
 
 const LOCATION_NAME_LABEL_SIZE_BY_ZOOM = {
 	metropole: { 0: 8, 1: 9, 2: 11, 3: 13, 4: 17, 5: 19 },

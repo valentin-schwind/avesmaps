@@ -51,9 +51,9 @@ function getLabelHaloParams(strength, sharpness = 0, baseBlurRatio = 0.16) {
 
 // Stärke des Halos hinter den Regionen-/Landschafts-Titeln (.map-label). Default 0 = kein Halo (bisheriges
 // Verhalten). Live über das ?halotune=1-Panel steuerbar (0..5).
-let REGION_LABEL_HALO_STRENGTH = 3;
+let REGION_LABEL_HALO_STRENGTH = 1.5;
 // Schärfe des Regionen-Titel-Halos (0 = weicher Schein, 1 = scharfe Kontur/Google-Maps-Look). Live über ?halotune=1.
-let REGION_LABEL_HALO_SHARPNESS = 0;
+let REGION_LABEL_HALO_SHARPNESS = 0.25;
 
 // Pro Label-Typ Farbe/Schreibung/Sperrung EINMAL aus dem echten CSS lesen (Probe-Element) -> „Farben lassen".
 function getMapLabelTypeStyle(labelType) {
