@@ -101,7 +101,9 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle, opts) {
 	const haloExtent = Math.max(glowBlur, strokeWidth);
 	const vAnchor = (opts && opts.vAnchor) || "middle";
 
-	const cacheKey = `${displayText}|${font}|${typeStyle.color}|${glow || ""}|${glowBlur}|${glowPasses}|${strokeWidth}|${letterSpacing}|${vAnchor}`;
+	// HiDPI: scharfe Label auf Retina/Mobile (dpr 2–3); Cap 2x begrenzt den Speicher (viele gecachte Label-Bilder).
+	const labelHiDpi = Math.min(window.devicePixelRatio || 1, 2);
+	const cacheKey = `${displayText}|${font}|${typeStyle.color}|${glow || ""}|${glowBlur}|${glowPasses}|${strokeWidth}|${letterSpacing}|${vAnchor}|${labelHiDpi}`;
 	const cached = _mapLabelImageCache.get(cacheKey);
 	if (cached) {
 		// LRU: Treffer ans Ende der Insertion-Order verschieben -> Verdrängung trifft den ältesten UNGENUTZTEN Eintrag.
@@ -147,9 +149,10 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle, opts) {
 		anchorY = h / 2;
 	}
 	const canvas = document.createElement("canvas");
-	canvas.width = w; // CSS-Auflösung (KEIN devicePixelRatio) -> auf HiDPI weich hochskaliert
-	canvas.height = h;
+	canvas.width = Math.max(1, Math.round(w * labelHiDpi));  // HiDPI-Backing-Store; das <img> zeigt w×h (CSS-px) an
+	canvas.height = Math.max(1, Math.round(h * labelHiDpi));
 	const ctx = canvas.getContext("2d");
+	ctx.scale(labelHiDpi, labelHiDpi); // ab hier in CSS-px zeichnen -> Ausgabe in Geräte-Pixeln (scharf auf HiDPI)
 	ctx.font = font;
 	ctx.textBaseline = baseline;
 	ctx.textAlign = "left";

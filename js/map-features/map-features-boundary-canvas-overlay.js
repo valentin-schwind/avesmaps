@@ -452,9 +452,17 @@
 		const topLeft = map.containerPointToLayerPoint([0, 0]);
 		L.DomUtil.setPosition(canvas, topLeft); // reine Translation -> setzt eine evtl. Zoom-Skalierung zurück
 		canvasTopLeftLatLng = map.containerPointToLatLng([0, 0]);
-		if (canvas.width !== size.x) canvas.width = size.x;
-		if (canvas.height !== size.y) canvas.height = size.y;
+		// HiDPI: Backing-Store in Geräte-Pixeln, CSS-Größe in Layout-Pixeln -> scharfe Grenzen/Grenz-Namen auf
+		// Retina/Mobile (dpr 2–3); auf dpr 1 unverändert. Gezeichnet wird weiter in CSS-px (ctx mit dpr skaliert).
+		const dpr = window.devicePixelRatio || 1;
+		const pw = Math.round(size.x * dpr), ph = Math.round(size.y * dpr);
+		if (canvas.width !== pw) canvas.width = pw;
+		if (canvas.height !== ph) canvas.height = ph;
+		if (canvas.style.width !== size.x + "px") canvas.style.width = size.x + "px";
+		if (canvas.style.height !== size.y + "px") canvas.style.height = size.y + "px";
+		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
+		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
 		// Grenzen (Außen + Innen, OHNE Fuellung/Labels) zeichnen in political/deregraphic/powerlines.
 		// In "none" ("Nur Karte") bleibt das (geleerte) Canvas leer -> dort gewollt KEINE Grenzen; ohne
