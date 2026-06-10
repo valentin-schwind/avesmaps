@@ -171,8 +171,8 @@ function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds
 			&& isMarkerEntryInRenderBounds(entry, renderBounds);
 	}
 
-	// Kraftlinien-Modus (Frontend): NUR Nodices zeigen -- unabhängig von den Stadt-Größen-Toggles und vom Zoom.
-	if (!IS_EDIT_MODE && typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "powerlines") {
+	// Kraftlinien-Modus: NUR Nodices zeigen -- unabhängig von den Stadt-Größen-Toggles und vom Zoom (auch im Editmode).
+	if (typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "powerlines") {
 		return isNodixLocation(entry.location) && isMarkerEntryInRenderBounds(entry, renderBounds);
 	}
 

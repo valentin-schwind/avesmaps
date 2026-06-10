@@ -15,6 +15,10 @@ let pathRiverLabelsVisible = false;
 let pathRiverLabelsOverridden = false;
 
 function isPathLabelVisibleAtCurrentZoom(path) {
+	// Kraftlinien-Modus: keine Wege-/Fluss-Namen (Magiersicht; nur Kraftlinien-Namen werden gezeichnet).
+	if (typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "powerlines") {
+		return false;
+	}
 	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
 	const isRiver = pathSubtype === "Flussweg" || pathSubtype === "Seeweg";
 	if (isRiver) {

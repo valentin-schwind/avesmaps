@@ -33,6 +33,10 @@ function syncPathVisibility() {
 }
 
 function shouldShowPathOnMap(path, { showPaths = true, showRivers = false, showSeaPaths = false } = {}) {
+	// Kraftlinien-Modus: gar keine Wege/Flüsse (Magiersicht), unabhängig von den Toggle-Ständen.
+	if (typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "powerlines") {
+		return false;
+	}
 	const subtype = normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name);
 
 	if (subtype === "Flussweg") {
@@ -87,6 +91,7 @@ function setSelectedMapLayerMode(mode) {
 	syncPowerlineVisibility();
 	syncPowerlineMapTint();
 	syncLocationMarkerVisibility(); // Modus beeinflusst die Marker (Kraftlinien-Modus -> nur Nodices)
+	syncPathVisibility();           // Modus beeinflusst die Wege/Flüsse (Kraftlinien-Modus -> aus) + Pfad-Labels
 	syncPlannerStateToUrl();
 }
 
