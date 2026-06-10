@@ -120,8 +120,7 @@ body.edit-mode .map-label img {
 .map-label--gebirge span,
 .map-label--insel span,
 .map-label--region span,
-.map-label--kontinent span,
-.location-name-label--metropole span {
+.map-label--kontinent span {
 	text-transform: uppercase;
 }
 
