@@ -99,6 +99,12 @@ function applyPlannerStateFromUrl() {
 	$("#togglePaths").prop("checked", parseBooleanQueryParam(searchParams.get("togglePaths"), DEFAULT_PLANNER_STATE.togglePaths));
 	const legacyPoliticalMode = parseBooleanQueryParam(searchParams.get("toggleBorders"), false) ? "political" : DEFAULT_PLANNER_STATE.mapLayerMode;
 	setSelectedMapLayerMode(searchParams.get("mapLayerMode") || legacyPoliticalMode);
+	// Frontend: Sichtbarkeits-Defaults des aktiven Modus anwenden (Standard zeigt Städte/Straßen/Flussnamen, "Nur
+	// Karte" räumt frei). Städte nur erzwingen, wenn der Deep-Link keine eigenen Stadt-Parameter mitbringt.
+	const hasExplicitCityParam = LOCATION_TYPE_KEYS.some((locationType) => searchParams.has(LOCATION_TYPE_CONFIG[locationType].queryParam)) || searchParams.has("toggleLocations");
+	if (typeof applyFrontendLayerModeDefaults === "function") {
+		applyFrontendLayerModeDefaults(getSelectedMapLayerMode(), { includeCities: !hasExplicitCityParam });
+	}
 	$("#toggleCrossings").prop("checked", parseBooleanQueryParam(searchParams.get("toggleCrossings"), DEFAULT_PLANNER_STATE.toggleCrossings));
 	$("#toggleNodix").prop("checked", parseBooleanQueryParam(searchParams.get("toggleNodix"), DEFAULT_PLANNER_STATE.toggleNodix));
 

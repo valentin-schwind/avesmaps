@@ -61,6 +61,45 @@ function setSelectedMapLayerMode(mode) {
 	syncPlannerStateToUrl();
 }
 
+// Setzt ALLE Ortsklassen-Sichtbarkeits-Buttons gemeinsam (Kaskade voll bzw. leer).
+function setAllLocationTypesVisible(isVisible) {
+	if (typeof LOCATION_TYPE_VISIBILITY_ORDER === "undefined") {
+		return;
+	}
+	LOCATION_TYPE_VISIBILITY_ORDER.forEach((locationType) => {
+		getLocationToggleButton(locationType).toggleClass("is-active", !!isVisible);
+	});
+	if (typeof syncLocationToggleButtons === "function") {
+		syncLocationToggleButtons();
+	}
+	syncLocationMarkerVisibility();
+}
+
+// Frontend-Sichtbarkeits-Defaults je Kartenmodus (im Editmode NICHT -- dort steuern die Haken Wege/Flüsse alles):
+//  - "Nur Karte" (none): freie Karte -> alle Städte aus, Straßen aus, Flussnamen aus.
+//  - "Standard" (deregraphic): alle Städte an, Straßen + Straßennamen an, Flussnamen an (Fluss-PFADE bleiben aus).
+//  - political/powerlines: keine Auto-Defaults (Zustand bleibt wie zuvor).
+// Die Städte werden nur bei includeCities gesetzt (beim Erst-Laden mit Stadt-Parametern im Deep-Link unterdrückt).
+function applyFrontendLayerModeDefaults(mode, { includeCities = true } = {}) {
+	if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
+		return;
+	}
+	if (mode !== "none" && mode !== "deregraphic") {
+		return; // political/powerlines: nichts erzwingen
+	}
+	const isStandard = mode === "deregraphic";
+	if (includeCities) {
+		setAllLocationTypesVisible(isStandard);
+	}
+	$("#togglePaths").prop("checked", isStandard);
+	$("#toggleRivers").prop("checked", false);
+	if (typeof pathRiverLabelsOverridden !== "undefined") {
+		pathRiverLabelsOverridden = true;
+		pathRiverLabelsVisible = isStandard;
+	}
+	syncPathVisibility();
+}
+
 function applyDisplayOptions() {
 	syncLocationToggleButtons();
 	syncLocationMarkerVisibility();

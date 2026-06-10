@@ -884,12 +884,12 @@
 						<select id="mapLayerModeSelect" class="display-options__select transport-native-select" aria-label="Deregraphie">
 							<option value="none">Nur Karte</option>
 							<option value="political">Politisch</option>
-							<option value="deregraphic" selected>Regionen</option>
+							<option value="deregraphic" selected>Standard</option>
 							<option value="powerlines">Kraftlinien</option>
 						</select>
 						<button type="button" id="mapLayerModeButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="mapLayerModeMenu">
 							<img id="mapLayerModeIcon" class="transport-option-inline-icon" src="icons/small_webp/RegionenKarte.webp" data-source-src="icons/small_webp/RegionenKarte.webp" alt="" />
-							<span id="mapLayerModeLabel" class="transport-combobox__label">Regionen</span>
+							<span id="mapLayerModeLabel" class="transport-combobox__label">Standard</span>
 						</button>
 						<div id="mapLayerModeMenu" class="transport-combobox__menu" role="listbox" aria-label="Deregraphie" hidden></div>
 					</div>
@@ -917,8 +917,8 @@
 					</div>
 				</div>
 				<div class="display-options__row display-options__row--wrap">
-					<label id="togglePathsControl"><input type="checkbox" id="togglePaths" /> Wege</label>
-					<label id="toggleRiversControl"><input type="checkbox" id="toggleRivers" /> Flüsse</label>
+					<label id="togglePathsControl" hidden><input type="checkbox" id="togglePaths" /> Wege</label>
+					<label id="toggleRiversControl" hidden><input type="checkbox" id="toggleRivers" /> Flüsse</label>
 					<label id="toggleSeaPathsControl" hidden><input type="checkbox" id="toggleSeaPaths" /> Seewege</label>
 					<label id="toggleCrossingsControl" hidden><input type="checkbox" id="toggleCrossings" /> Kreuzungen</label>
 					<label id="toggleNodixControl" hidden><input type="checkbox" id="toggleNodix" /> Nodices</label>

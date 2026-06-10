@@ -36,12 +36,18 @@ $("#togglePaths").change(syncPathVisibility);
 $("#toggleRivers").change(syncPathVisibility);
 $("#toggleSeaPaths").change(syncPathVisibility);
 if (IS_EDIT_MODE) {
+	// Im Editmode bleiben Wege/Flüsse/Seewege als Haken steuerbar; im Frontend sind sie ausgeblendet
+	// (Sichtbarkeit wird dort vom Kartenmodus gesetzt, siehe applyFrontendLayerModeDefaults).
 	$("#toggleSeaPathsControl").prop("hidden", false);
+	$("#togglePathsControl").prop("hidden", false);
+	$("#toggleRiversControl").prop("hidden", false);
 }
 
 
 $("#mapLayerModeSelect").change(() => {
-	setSelectedMapLayerMode(getSelectedMapLayerMode());
+	const selectedMode = getSelectedMapLayerMode();
+	applyFrontendLayerModeDefaults(selectedMode);
+	setSelectedMapLayerMode(selectedMode);
 });
 $("#toggleCrossings").change(() => {
 	syncLocationMarkerVisibility();
