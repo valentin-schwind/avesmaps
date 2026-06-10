@@ -114,24 +114,28 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle) {
 	ctx.globalAlpha = MAP_LABEL_CANVAS_ALPHA;
 	ctx.fillStyle = typeStyle.color;
 	const y = h / 2;
-	const drawText = () => {
-		let x = padX;
+	const drawGlyphs = (shiftX) => {
+		let x = padX + shiftX;
 		for (let i = 0; i < chars.length; i += 1) {
 			ctx.fillText(chars[i], x, y);
 			x += widths[i] + letterSpacing;
 		}
 	};
 	if (glow) {
-		// Halo: Text mehrfach mit Schatten zeichnen (verdichtet/verbreitert den Schein), dann scharf ohne Schatten.
+		// Reiner Schatten-Halo: Glyphen um die Canvas-Breite nach links zeichnen (also aus dem Bild heraus) und den
+		// Schatten um +w zurück versetzen -> NUR der (für Dichte ggf. mehrfach gezeichnete) Schein landet im Bild.
+		// Die scharfe Schrift kommt danach GENAU EINMAL oben drauf -> die Glyph-Kanten stapeln sich nicht mehr
+		// (das mehrfache Zeichnen der Füllung ließ die Labels vorher „fetter" wirken).
+		ctx.save();
 		ctx.shadowColor = glow;
 		ctx.shadowBlur = glowBlur;
+		ctx.shadowOffsetX = w;
 		for (let pass = 0; pass < glowPasses; pass += 1) {
-			drawText();
+			drawGlyphs(-w);
 		}
-		ctx.shadowColor = "transparent";
-		ctx.shadowBlur = 0;
+		ctx.restore();
 	}
-	drawText();
+	drawGlyphs(0);
 	const result = { url: canvas.toDataURL(), w, h, padX };
 	if (_mapLabelImageCache.size >= _MAP_LABEL_IMAGE_CACHE_MAX) {
 		_mapLabelImageCache.delete(_mapLabelImageCache.keys().next().value);
