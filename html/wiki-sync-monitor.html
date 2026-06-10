@@ -312,7 +312,8 @@ const DEFAULT_SEEDS = [
 ];
 const $ = (id) => document.getElementById(id);
 let NODES = [], BYKEY = new Map();
-let unassignedGeoms = [];   // verwaiste Geometrien (keinem aktiven Gebiet zugewiesen)
+let unassignedGeoms = [];   // verwaiste Geometrien (keinem aktiven Gebiet zugewiesen) – gelistete (ggf. gedeckelt)
+let unassignedGeomCount = 0; // server-gezählte Gesamtzahl (autoritativ für Zähler + „Alle löschen")
 
 // --- Seed-Dropdown („Was synchronisieren?") ---
 function buildSeedMenu(){
@@ -871,7 +872,7 @@ function render(){
   const gaps = vis.filter(isGap).length;
   const conf = vis.filter(n=>n.has_conflict).length;
   const excl = NODES.filter(n=>n.excluded).length;
-  $('attn').innerHTML = NODES.length ? `${gaps} Lücken · ${conf} Konflikte${excl?` · <a href="#" id="attnTrash" title="Papierkorb öffnen – versehentlich aussortierte/gelöschte Gebiete">🗑 ${excl} im Papierkorb</a>`:''}${unassignedGeoms.length?` · <a href="#" id="attnGeom" title="Verwaiste Konturen ohne Gebiet – endgültig löschbar">🗑 ${unassignedGeoms.length} nicht zugew. Geometrie</a>`:''}` : '';
+  $('attn').innerHTML = NODES.length ? `${gaps} Lücken · ${conf} Konflikte${excl?` · <a href="#" id="attnTrash" title="Papierkorb öffnen – versehentlich aussortierte/gelöschte Gebiete">🗑 ${excl} im Papierkorb</a>`:''}${unassignedGeomCount?` · <a href="#" id="attnGeom" title="Verwaiste Konturen ohne Gebiet – endgültig löschbar">🗑 ${unassignedGeomCount} nicht zugew. Geometrie</a>`:''}` : '';
   renderList(); renderTree();
 }
 function parentLabel(n){
@@ -1158,11 +1159,13 @@ async function loadUnassignedGeoms(){
     const d = await r.json();
     unassignedGeoms = (d.geometries||[]).filter(g=>g.territory_is_active!==true);
   }catch(e){ unassignedGeoms = []; }
+  try{ const c = await geomApi('purge_unassigned_geometries', {}); unassignedGeomCount = (c.candidates!=null) ? c.candidates : unassignedGeoms.length; }
+  catch(e){ unassignedGeomCount = unassignedGeoms.length; }
   render();
 }
 function renderGeomModal(){
-  $('geomSummary').textContent = `${unassignedGeoms.length} verwaiste Kontur(en) – gezeichnet, aber keinem Gebiet zugewiesen. „Endgültig löschen" entfernt sie unwiderruflich.`;
-  $('geomPurgeAll').disabled = unassignedGeoms.length===0;
+  $('geomSummary').textContent = `${unassignedGeomCount} verwaiste Kontur(en)${unassignedGeoms.length<unassignedGeomCount?` (${unassignedGeoms.length} gelistet)`:''} – gezeichnet, aber keinem Gebiet zugewiesen. „Endgültig löschen" entfernt sie unwiderruflich. „Alle" entfernt alle ${unassignedGeomCount}.`;
+  $('geomPurgeAll').disabled = unassignedGeomCount===0;
   $('geomList').innerHTML = unassignedGeoms.map(g=>{
     const id=String(g.geometry_public_id||g.public_id||'');
     const w=(g.max_x!=null&&g.min_x!=null)?Math.round(g.max_x-g.min_x):'?';
@@ -1180,7 +1183,7 @@ async function deleteGeom(id){
   busy(false);
 }
 async function purgeAllGeoms(){
-  if(!window.confirm(`ALLE ${unassignedGeoms.length} verwaisten Geometrien ENDGÜLTIG löschen? Das kann nicht rückgängig gemacht werden.`)) return;
+  if(!window.confirm(`ALLE ${unassignedGeomCount} verwaisten Geometrien ENDGÜLTIG löschen? Das kann nicht rückgängig gemacht werden.`)) return;
   busy(true);
   try{ const r=await geomApi('purge_unassigned_geometries', {dry_run:false, confirm:'apply'}); setStatus(`${r.deleted||0} verwaiste Geometrien endgültig gelöscht.`); await loadUnassignedGeoms(); renderGeomModal(); }
   catch(e){ setStatus('Fehler: '+e.message); }
