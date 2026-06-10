@@ -171,6 +171,11 @@ function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds
 			&& isMarkerEntryInRenderBounds(entry, renderBounds);
 	}
 
+	// Kraftlinien-Modus (Frontend): NUR Nodices zeigen -- unabhängig von den Stadt-Größen-Toggles und vom Zoom.
+	if (!IS_EDIT_MODE && typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "powerlines") {
+		return isNodixLocation(entry.location) && isMarkerEntryInRenderBounds(entry, renderBounds);
+	}
+
 	const isVisibleByNodixToggle = IS_EDIT_MODE && $("#toggleNodix").is(":checked") && isNodixLocation(entry.location);
 	const minZoomByType = entry.locationType === "kleinstadt"
 		? 1

@@ -86,6 +86,7 @@ function setSelectedMapLayerMode(mode) {
 	syncLabelVisibility();
 	syncPowerlineVisibility();
 	syncPowerlineMapTint();
+	syncLocationMarkerVisibility(); // Modus beeinflusst die Marker (Kraftlinien-Modus -> nur Nodices)
 	syncPlannerStateToUrl();
 }
 
@@ -112,13 +113,15 @@ function applyFrontendLayerModeDefaults(mode, { includeCities = true } = {}) {
 	if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
 		return;
 	}
-	if (mode !== "none" && mode !== "deregraphic") {
-		return; // political/powerlines: nichts erzwingen
+	if (mode !== "none" && mode !== "deregraphic" && mode !== "powerlines") {
+		return; // political: nichts erzwingen
 	}
 	const isStandard = mode === "deregraphic";
-	if (includeCities) {
+	// Städte nur in none/deregraphic setzen; im Kraftlinien-Modus zeigt shouldShowLocationMarker ohnehin nur Nodices.
+	if (includeCities && mode !== "powerlines") {
 		setAllLocationTypesVisible(isStandard);
 	}
+	// Straßen/Flüsse nur im Standard an; in "Nur Karte" UND "Kraftlinien" aus.
 	$("#togglePaths").prop("checked", isStandard);
 	$("#toggleRivers").prop("checked", false);
 	if (typeof pathRiverLabelsOverridden !== "undefined") {
@@ -126,6 +129,9 @@ function applyFrontendLayerModeDefaults(mode, { includeCities = true } = {}) {
 		pathRiverLabelsVisible = isStandard;
 	}
 	syncPathVisibility();
+	if (mode === "powerlines") {
+		syncLocationMarkerVisibility(); // restliche Marker ausblenden, Nodices einblenden
+	}
 }
 
 function applyDisplayOptions() {

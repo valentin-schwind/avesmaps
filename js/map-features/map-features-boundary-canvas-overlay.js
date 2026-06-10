@@ -442,7 +442,8 @@
 		// Grenzen (Außen + Innen, OHNE Fuellung/Labels) zeichnen in political/deregraphic/powerlines.
 		// In "none" ("Nur Karte") bleibt das (geleerte) Canvas leer -> dort gewollt KEINE Grenzen; ohne
 		// diese Sperre blieben beim Moduswechsel die alten Linien stehen (regionData bleibt bestehen).
-		const BOUNDARY_OVERLAY_MODES = ["political", "deregraphic", "powerlines"];
+		// Kraftlinien-Modus zeigt KEINE Grenzen mehr (nur Karte entsättigt + Kraftlinien + Nodices).
+		const BOUNDARY_OVERLAY_MODES = ["political", "deregraphic"];
 		const currentMapLayerMode = typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "political";
 		if (!BOUNDARY_OVERLAY_MODES.includes(currentMapLayerMode)) {
 			return;
