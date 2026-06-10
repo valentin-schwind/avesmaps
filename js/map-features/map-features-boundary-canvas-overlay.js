@@ -64,6 +64,14 @@
 	let boundaryAlphaFactor = 1;        // Außenlinien-Deckkraft (pro redraw gesetzt)
 	let boundaryInnerAlphaFactor = INNER_LINE_ALPHA; // Innenlinien-Deckkraft (pro redraw gesetzt)
 
+	// Live-Tuning (?boundarytune=1): Faktoren/Zusätze auf die (zoomabhängige) Grenzen-Darstellung. Defaults
+	// reproduzieren den aktuellen Look: Faktor 1, keine Kontur, Außen durchgezogen, Innen = bestehendes Muster.
+	// Dicke/Deckkraft als FAKTOR (× auf den zoomabhängigen Wert -> Fade/Feinheiten bleiben erhalten).
+	const BOUNDARY_TUNE = {
+		outerWidthMul: 1, outerAlphaMul: 1, outerContour: 0, outerDash: 0,
+		innerWidthMul: 1, innerAlphaMul: 1, innerContour: 0, innerDash: 0, // innerDash 0 = bestehendes Muster, >0 = eigene Strichlänge
+	};
+
 	// --- Territoriums-Namen entlang der Außengrenzen (NUR "Regionen"/deregraphic, ab hohem Zoom) ---
 	// Schrift folgt der geglätteten Außenkontur, nach innen versetzt (Links-Normale des CCW-Rings). Baronien/
 	// Siedlungen ausgenommen (zu kleinteilig). Pro Move neu gezeichnet (redraw läuft eh bei jedem moveend/zoom).
@@ -369,11 +377,20 @@
 		const innerZoom = Math.round(Number(map.getZoom()));
 		const fine = innerZoom <= INNER_DASH_FINE_MAX_ZOOM;        // Zoom 1-2: extra fein
 		const medium = innerZoom === INNER_DASH_MEDIUM_ZOOM;       // Zoom 3: etwas duenner
-		ctx.lineWidth = fine ? INNER_LINE_WIDTH_FINE : (medium ? INNER_LINE_WIDTH_MEDIUM : INNER_LINE_WIDTH);
-		ctx.strokeStyle = INNER_LINE_COLOR;
-		ctx.globalAlpha = boundaryInnerAlphaFactor;
-		ctx.setLineDash(fine ? INNER_LINE_DASH_FINE : (medium ? INNER_LINE_DASH_MEDIUM : INNER_LINE_DASH));
+		const baseInnerWidth = fine ? INNER_LINE_WIDTH_FINE : (medium ? INNER_LINE_WIDTH_MEDIUM : INNER_LINE_WIDTH);
+		const innerWidth = baseInnerWidth * BOUNDARY_TUNE.innerWidthMul;
+		const baseInnerDash = fine ? INNER_LINE_DASH_FINE : (medium ? INNER_LINE_DASH_MEDIUM : INNER_LINE_DASH);
+		const innerDashArr = BOUNDARY_TUNE.innerDash > 0 ? [BOUNDARY_TUNE.innerDash, Math.max(1, BOUNDARY_TUNE.innerDash * 0.7)] : baseInnerDash;
 		ctx.lineJoin = "round";
+		ctx.globalAlpha = Math.max(0, Math.min(1, boundaryInnerAlphaFactor * BOUNDARY_TUNE.innerAlphaMul));
+		ctx.setLineDash(innerDashArr);
+		if (BOUNDARY_TUNE.innerContour > 0) {
+			ctx.lineWidth = innerWidth + 2 * BOUNDARY_TUNE.innerContour;
+			ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";
+			ctx.stroke();
+		}
+		ctx.lineWidth = innerWidth;
+		ctx.strokeStyle = INNER_LINE_COLOR;
 		ctx.stroke();
 		ctx.restore();
 	}
@@ -475,14 +492,23 @@
 			// Root-Gebiete (kein parent_public_id) bekommen eine etwas dickere Aussenkontur.
 			const isRootBoundary = !String(f.properties.parent_public_id || "").trim();
 			const fineOuterZoom = Math.round(Number(map.getZoom())) <= INNER_LINE_FINE_MAX_ZOOM;
-			ctx.lineWidth = weakBoundaries
+			const baseOuterWidth = weakBoundaries
 				? weakOuterWidth // Regionen/Kraftlinien: Konturbreite pro Zoom (kein Root-Verdicken/Fine)
 				: (isRootBoundary
 					? (fineOuterZoom ? OUTER_LINE_WIDTH_ROOT_FINE : OUTER_LINE_WIDTH_ROOT)
 					: (fineOuterZoom ? OUTER_LINE_WIDTH_FINE : OUTER_LINE_WIDTH));
-			ctx.strokeStyle = OUTER_LINE_COLOR || color;
-			ctx.globalAlpha = boundaryAlphaFactor; // Regionen/Kraftlinien dezenter; im save/restore gekapselt
+			const outerWidth = baseOuterWidth * BOUNDARY_TUNE.outerWidthMul;
 			ctx.lineJoin = "round";
+			ctx.globalAlpha = Math.max(0, Math.min(1, boundaryAlphaFactor * BOUNDARY_TUNE.outerAlphaMul));
+			ctx.setLineDash(BOUNDARY_TUNE.outerDash > 0 ? [BOUNDARY_TUNE.outerDash, BOUNDARY_TUNE.outerDash] : []);
+			if (BOUNDARY_TUNE.outerContour > 0) {
+				// Dunkle Kontur/Casing UNTER die Grenzlinie (innen-geclippt -> dunkler Innensaum).
+				ctx.lineWidth = outerWidth + 2 * BOUNDARY_TUNE.outerContour;
+				ctx.strokeStyle = "rgba(0, 0, 0, 0.55)";
+				ctx.stroke();
+			}
+			ctx.lineWidth = outerWidth;
+			ctx.strokeStyle = OUTER_LINE_COLOR || color;
 			ctx.stroke();
 			ctx.restore();
 
@@ -567,6 +593,53 @@
 	});
 	// flyTo/setView: pro 'zoom'-Frame neu zeichnen (nur wenn KEIN CSS-Zoom läuft -> sonst Transform).
 	map.on("zoom", function () { if (!cssZoomActive) redraw(); });
+
+	// Live-Tuning-Panel der Grenzen (Außen/Innen: Dicke, Deckkraft, Kontur, Strichelung), nur mit ?boundarytune=1.
+	(function initBoundaryTunePanel() {
+		let on = false;
+		try { on = new URLSearchParams(window.location.search).has("boundarytune"); } catch (e) { on = false; }
+		if (!on || !document.body) return;
+		const panel = document.createElement("div");
+		panel.style.cssText = "position:fixed;right:12px;top:12px;z-index:99999;background:rgba(28,28,28,0.92);color:#fff;font:12px Georgia,serif;padding:10px 12px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.45);width:230px;max-height:92vh;overflow:auto;";
+		const title = document.createElement("div");
+		title.textContent = "Grenzen-Tuning"; title.style.cssText = "font-weight:bold;margin-bottom:8px;";
+		panel.appendChild(title);
+		const sub = (t) => { const d = document.createElement("div"); d.textContent = t; d.style.cssText = "font-weight:bold;opacity:0.85;margin:8px 0 2px;"; panel.appendChild(d); };
+		const slider = (label, min, max, step, value, apply) => {
+			const wrap = document.createElement("div"); wrap.style.marginBottom = "6px";
+			const head = document.createElement("div"); head.style.cssText = "display:flex;justify-content:space-between;margin-bottom:2px;";
+			const nm = document.createElement("span"); nm.textContent = label;
+			const val = document.createElement("span"); val.textContent = value;
+			head.appendChild(nm); head.appendChild(val);
+			const input = document.createElement("input");
+			input.type = "range"; input.min = min; input.max = max; input.step = step; input.value = value; input.style.width = "100%";
+			input.addEventListener("input", () => { val.textContent = input.value; apply(parseFloat(input.value)); redraw(); });
+			wrap.appendChild(head); wrap.appendChild(input); panel.appendChild(wrap);
+		};
+		sub("Außengrenze");
+		slider("Dicke ×", 0, 3, 0.1, BOUNDARY_TUNE.outerWidthMul, (v) => { BOUNDARY_TUNE.outerWidthMul = v; });
+		slider("Deckkraft ×", 0, 2, 0.05, BOUNDARY_TUNE.outerAlphaMul, (v) => { BOUNDARY_TUNE.outerAlphaMul = v; });
+		slider("Kontur (px)", 0, 4, 0.5, BOUNDARY_TUNE.outerContour, (v) => { BOUNDARY_TUNE.outerContour = v; });
+		slider("Strichelung (0=durchgezogen)", 0, 16, 1, BOUNDARY_TUNE.outerDash, (v) => { BOUNDARY_TUNE.outerDash = v; });
+		sub("Innengrenze");
+		slider("Dicke ×", 0, 3, 0.1, BOUNDARY_TUNE.innerWidthMul, (v) => { BOUNDARY_TUNE.innerWidthMul = v; });
+		slider("Deckkraft ×", 0, 2, 0.05, BOUNDARY_TUNE.innerAlphaMul, (v) => { BOUNDARY_TUNE.innerAlphaMul = v; });
+		slider("Kontur (px)", 0, 4, 0.5, BOUNDARY_TUNE.innerContour, (v) => { BOUNDARY_TUNE.innerContour = v; });
+		slider("Strichelung (0=Muster)", 0, 16, 1, BOUNDARY_TUNE.innerDash, (v) => { BOUNDARY_TUNE.innerDash = v; });
+		const okBtn = document.createElement("button");
+		okBtn.textContent = "OK / Werte merken";
+		okBtn.style.cssText = "width:100%;margin-top:10px;padding:7px;border:1px solid #5e4329;border-radius:6px;background:#7a5a3a;color:#fff;font:inherit;cursor:pointer;";
+		okBtn.addEventListener("click", () => {
+			window.__avesmapsBoundaryTune = Object.assign({}, BOUNDARY_TUNE);
+			console.log("[Grenzen-Tuning] " + JSON.stringify(window.__avesmapsBoundaryTune));
+			okBtn.textContent = "✓ gemerkt"; setTimeout(() => { okBtn.textContent = "OK / Werte merken"; }, 1500);
+		});
+		panel.appendChild(okBtn);
+		const hint = document.createElement("div");
+		hint.textContent = "Wirkt in Standard/Politisch (wo Grenzen sichtbar sind). Dicke/Deckkraft = Faktor."; hint.style.cssText = "opacity:0.6;margin-top:6px;";
+		panel.appendChild(hint);
+		document.body.appendChild(panel);
+	})();
 
 	window.AvesmapsBoundaryCanvasOverlay = { redraw, paneName: PANE };
 
