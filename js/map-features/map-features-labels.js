@@ -32,22 +32,28 @@ const _MAP_LABEL_IMAGE_CACHE_MAX = 2000;
 // Halo-Stärke S (0..5) -> Glow-Parameter für renderMapLabelToImage. S<=0: kein Halo. Bis S=1 wächst die
 // Deckkraft (S=1 ~ bisheriger Siedlungslabel-Default, Alpha 0.85); über S=1 hinaus verbreitert sich die
 // Unschärfe und es kommen weitere Schatten-Pässe dazu (verdichten den Schein über Alpha 1 hinaus).
-function getLabelHaloParams(strength, baseBlurRatio = 0.16) {
+function getLabelHaloParams(strength, sharpness = 0, baseBlurRatio = 0.16) {
 	const s = Math.max(0, Number(strength) || 0);
 	if (s <= 0) {
-		return { glow: null, glowBlurRatio: 0, glowPasses: 0 };
+		return { glow: null, glowBlurRatio: 0, glowPasses: 0, strokeRatio: 0 };
 	}
+	const sharp = Math.max(0, Math.min(1, Number(sharpness) || 0));
 	return {
 		glow: `rgba(0, 0, 0, ${Math.min(1, 0.85 * s)})`,
-		glowBlurRatio: baseBlurRatio * Math.max(1, s),
+		// Schärfe blendet den weichen Schein aus (Unschärfe -> 0) ...
+		glowBlurRatio: baseBlurRatio * Math.max(1, s) * (1 - sharp),
 		// Pässe FRAKTIONAL (nicht gerundet) -> kein „Sprung" der Halo-Dichte bei x.5 (z. B. 1.4 -> 1.5).
 		glowPasses: Math.max(1, s),
+		// ... und blendet stattdessen eine scharfe Kontur (strokeText) ein -> Google-Maps-Look.
+		strokeRatio: baseBlurRatio * Math.max(1, s) * sharp,
 	};
 }
 
 // Stärke des Halos hinter den Regionen-/Landschafts-Titeln (.map-label). Default 0 = kein Halo (bisheriges
 // Verhalten). Live über das ?halotune=1-Panel steuerbar (0..5).
 let REGION_LABEL_HALO_STRENGTH = 3;
+// Schärfe des Regionen-Titel-Halos (0 = weicher Schein, 1 = scharfe Kontur/Google-Maps-Look). Live über ?halotune=1.
+let REGION_LABEL_HALO_SHARPNESS = 0;
 
 // Pro Label-Typ Farbe/Schreibung/Sperrung EINMAL aus dem echten CSS lesen (Probe-Element) -> „Farben lassen".
 function getMapLabelTypeStyle(labelType) {
@@ -85,10 +91,14 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle) {
 	const font = `${fontStylePrefix}${typeStyle.fontWeight} ${fontSizePx}px ${typeStyle.fontFamily}`;
 	const glow = typeStyle.glow || null;
 	const glowBlurRatio = typeStyle.glowBlurRatio != null ? typeStyle.glowBlurRatio : 0.16;
-	const glowBlur = glow ? (typeStyle.glowBlur != null ? typeStyle.glowBlur : Math.max(2, fontSizePx * glowBlurRatio)) : 0;
+	const glowBlur = glow ? (typeStyle.glowBlur != null ? typeStyle.glowBlur : Math.max(0, fontSizePx * glowBlurRatio)) : 0;
 	const glowPasses = glow ? Math.max(1, typeStyle.glowPasses || 1) : 0;
+	// Scharfe Kontur (Stroke) als zweite, „knackige" Halo-Variante (Google-Maps-Look). strokeRatio = Anteil der
+	// Schriftgröße -> Konturbreite. haloExtent = größter Radius (Schein ODER Kontur) für die Bild-Polsterung.
+	const strokeWidth = glow && typeStyle.strokeRatio ? Math.max(0.5, fontSizePx * typeStyle.strokeRatio) : 0;
+	const haloExtent = Math.max(glowBlur, strokeWidth);
 
-	const cacheKey = `${displayText}|${font}|${typeStyle.color}|${glow || ""}|${glowBlur}|${glowPasses}|${letterSpacing}`;
+	const cacheKey = `${displayText}|${font}|${typeStyle.color}|${glow || ""}|${glowBlur}|${glowPasses}|${strokeWidth}|${letterSpacing}`;
 	const cached = _mapLabelImageCache.get(cacheKey);
 	if (cached) {
 		return cached;
@@ -102,9 +112,9 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle) {
 	const widths = chars.map((character) => _mapLabelMeasureCtx.measureText(character).width);
 	const textWidth = widths.reduce((sum, width) => sum + width + letterSpacing, 0) - letterSpacing;
 	// Polsterung schließt den Schein-Radius ein, damit er nicht abgeschnitten wird.
-	const padX = Math.ceil(fontSizePx * 0.5 + glowBlur);
+	const padX = Math.ceil(fontSizePx * 0.5 + haloExtent);
 	const w = Math.max(1, Math.ceil(textWidth) + padX * 2);
-	const h = Math.max(1, Math.ceil(fontSizePx * 1.7 + glowBlur * 2));
+	const h = Math.max(1, Math.ceil(fontSizePx * 1.7 + haloExtent * 2));
 	const canvas = document.createElement("canvas");
 	canvas.width = w; // CSS-Auflösung (KEIN devicePixelRatio) -> auf HiDPI weich hochskaliert
 	canvas.height = h;
@@ -122,8 +132,8 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle) {
 			x += widths[i] + letterSpacing;
 		}
 	};
-	if (glow) {
-		// Reiner Schatten-Halo: Glyphen um die Canvas-Breite nach links zeichnen (also aus dem Bild heraus) und den
+	if (glow && glowBlur > 0.01) {
+		// Weicher Schatten-Halo: Glyphen um die Canvas-Breite nach links zeichnen (also aus dem Bild heraus) und den
 		// Schatten um +w zurück versetzen -> NUR der (für Dichte ggf. mehrfach gezeichnete) Schein landet im Bild.
 		// Die scharfe Schrift kommt danach GENAU EINMAL oben drauf -> die Glyph-Kanten stapeln sich nicht mehr
 		// (das mehrfache Zeichnen der Füllung ließ die Labels vorher „fetter" wirken).
@@ -143,6 +153,20 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle) {
 		}
 		ctx.restore();
 	}
+	if (glow && strokeWidth > 0.01) {
+		// Scharfer Kontur-Halo (wie Google-Maps-Labels): Glyph-Umriss in der Halo-Farbe unter die Füllung legen.
+		ctx.save();
+		ctx.lineJoin = "round";
+		ctx.lineCap = "round";
+		ctx.strokeStyle = glow;
+		ctx.lineWidth = strokeWidth;
+		let x = padX;
+		for (let i = 0; i < chars.length; i += 1) {
+			ctx.strokeText(chars[i], x, y);
+			x += widths[i] + letterSpacing;
+		}
+		ctx.restore();
+	}
 	drawGlyphs(0);
 	const result = { url: canvas.toDataURL(), w, h, padX };
 	if (_mapLabelImageCache.size >= _MAP_LABEL_IMAGE_CACHE_MAX) {
@@ -157,9 +181,9 @@ function createLabelIcon(label) {
 	const safeRotation = (((Number(label.rotation) || 0) % 360) + 360) % 360;
 	const typeStyle = getMapLabelTypeStyle(label.labelType);
 	// Optionaler Halo hinter den Regionen-/Landschafts-Titeln (live über ?halotune=1; Default 0 = aus).
-	const halo = getLabelHaloParams(REGION_LABEL_HALO_STRENGTH);
+	const halo = getLabelHaloParams(REGION_LABEL_HALO_STRENGTH, REGION_LABEL_HALO_SHARPNESS);
 	const labelStyle = halo.glow
-		? { ...typeStyle, glow: halo.glow, glowBlurRatio: halo.glowBlurRatio, glowPasses: halo.glowPasses }
+		? { ...typeStyle, glow: halo.glow, glowBlurRatio: halo.glowBlurRatio, glowPasses: halo.glowPasses, strokeRatio: halo.strokeRatio }
 		: typeStyle;
 	const image = renderMapLabelToImage(label.text, safeSize, labelStyle);
 	return L.divIcon({

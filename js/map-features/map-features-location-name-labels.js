@@ -2,6 +2,8 @@
 // erbt). Live über das ?halotune=1-Panel (siehe Dateiende). 0 = aus, 1 = bisheriger Default, bis 5 = stärker
 // (breiter + dichter, siehe getLabelHaloParams in map-features-labels.js).
 let LOCATION_LABEL_HALO_STRENGTH = 1.5;
+// Schärfe des Siedlungslabel-Halos (0 = weicher Schein, 1 = scharfe Kontur/Google-Maps-Look). Live über ?halotune=1.
+let LOCATION_LABEL_HALO_SHARPNESS = 0;
 
 const LOCATION_NAME_LABEL_SIZE_BY_ZOOM = {
 	metropole: { 0: 8, 1: 9, 2: 11, 3: 13, 4: 17, 5: 19 },
@@ -89,10 +91,10 @@ function createLocationNameLabelIcon(entry, zoomLevel = map.getZoom()) {
 	// Halo/Schatten dynamisch (live über ?halotune=1): 0 = ganz aus, sonst schwarzer Schein mit der Stärke.
 	// renderMapLabelToImage cached pro Glow/Pässe -> verschiedene Stärken teilen sich keinen Cache-Eintrag.
 	const halo = (typeof getLabelHaloParams === "function")
-		? getLabelHaloParams(LOCATION_LABEL_HALO_STRENGTH)
+		? getLabelHaloParams(LOCATION_LABEL_HALO_STRENGTH, LOCATION_LABEL_HALO_SHARPNESS)
 		: { glow: LOCATION_LABEL_HALO_STRENGTH > 0 ? "rgba(0, 0, 0, 0.85)" : null };
 	const haloStyle = halo.glow
-		? { ...typeStyle, glow: halo.glow, glowBlurRatio: halo.glowBlurRatio, glowPasses: halo.glowPasses }
+		? { ...typeStyle, glow: halo.glow, glowBlurRatio: halo.glowBlurRatio, glowPasses: halo.glowPasses, strokeRatio: halo.strokeRatio }
 		: { ...typeStyle, glow: null };
 	const image = renderMapLabelToImage(entry.name, fontSizePx, haloStyle);
 	// Das Canvas-Bild ist beidseitig gepolstert und vertikal zentriert -> Platzierung an die alte
@@ -177,38 +179,44 @@ function removeLocationNameLabel(markerEntry) {
 	const title = document.createElement("div");
 	title.textContent = "Label-Halo"; title.style.cssText = "font-weight:bold;margin-bottom:8px;";
 	panel.appendChild(title);
-	const addSlider = (labelText, getVal, apply) => {
+	const addSlider = (labelText, getVal, apply, min = 0, max = 5, step = 0.1) => {
 		const head = document.createElement("div"); head.style.cssText = "display:flex;justify-content:space-between;margin:6px 0 2px;";
 		const nm = document.createElement("span"); nm.textContent = labelText;
 		const vl = document.createElement("span"); vl.textContent = String(getVal());
 		head.appendChild(nm); head.appendChild(vl);
 		const input = document.createElement("input");
-		input.type = "range"; input.min = 0; input.max = 5; input.step = 0.1; input.value = getVal(); input.style.width = "100%";
+		input.type = "range"; input.min = min; input.max = max; input.step = step; input.value = getVal(); input.style.width = "100%";
 		input.addEventListener("input", () => { const v = parseFloat(input.value); vl.textContent = String(v); apply(v); });
 		panel.appendChild(head); panel.appendChild(input);
 	};
-	addSlider("Siedlungen", () => LOCATION_LABEL_HALO_STRENGTH, (v) => {
-		LOCATION_LABEL_HALO_STRENGTH = v;
-		try { if (typeof syncLocationNameLabelVisibility === "function") syncLocationNameLabelVisibility(); } catch (e) { /* noop */ }
-	});
-	addSlider("Regionen-Titel", () => (typeof REGION_LABEL_HALO_STRENGTH !== "undefined" ? REGION_LABEL_HALO_STRENGTH : 0), (v) => {
+	const refreshSettlements = () => { try { if (typeof syncLocationNameLabelVisibility === "function") syncLocationNameLabelVisibility(); } catch (e) { /* noop */ } };
+	const refreshRegions = () => { try { if (typeof syncLabelIcons === "function") syncLabelIcons(); } catch (e) { /* noop */ } };
+	addSlider("Siedlungen Stärke", () => LOCATION_LABEL_HALO_STRENGTH, (v) => { LOCATION_LABEL_HALO_STRENGTH = v; refreshSettlements(); });
+	addSlider("Siedlungen Schärfe", () => LOCATION_LABEL_HALO_SHARPNESS, (v) => { LOCATION_LABEL_HALO_SHARPNESS = v; refreshSettlements(); }, 0, 1, 0.05);
+	addSlider("Regionen Stärke", () => (typeof REGION_LABEL_HALO_STRENGTH !== "undefined" ? REGION_LABEL_HALO_STRENGTH : 0), (v) => {
 		if (typeof REGION_LABEL_HALO_STRENGTH !== "undefined") { REGION_LABEL_HALO_STRENGTH = v; }
-		try { if (typeof syncLabelIcons === "function") syncLabelIcons(); } catch (e) { /* noop */ }
+		refreshRegions();
 	});
+	addSlider("Regionen Schärfe", () => (typeof REGION_LABEL_HALO_SHARPNESS !== "undefined" ? REGION_LABEL_HALO_SHARPNESS : 0), (v) => {
+		if (typeof REGION_LABEL_HALO_SHARPNESS !== "undefined") { REGION_LABEL_HALO_SHARPNESS = v; }
+		refreshRegions();
+	}, 0, 1, 0.05);
 	const okBtn = document.createElement("button");
 	okBtn.textContent = "OK / Werte merken";
 	okBtn.style.cssText = "width:100%;margin-top:10px;padding:7px;border:1px solid #5e4329;border-radius:6px;background:#7a5a3a;color:#fff;font:inherit;cursor:pointer;";
 	okBtn.addEventListener("click", () => {
 		window.__avesmapsLabelHalo = {
 			settlement: LOCATION_LABEL_HALO_STRENGTH,
+			settlementSharpness: LOCATION_LABEL_HALO_SHARPNESS,
 			region: (typeof REGION_LABEL_HALO_STRENGTH !== "undefined" ? REGION_LABEL_HALO_STRENGTH : 0),
+			regionSharpness: (typeof REGION_LABEL_HALO_SHARPNESS !== "undefined" ? REGION_LABEL_HALO_SHARPNESS : 0),
 		};
 		console.log("[Label-Halo] " + JSON.stringify(window.__avesmapsLabelHalo));
 		okBtn.textContent = "✓ gemerkt"; setTimeout(() => { okBtn.textContent = "OK / Werte merken"; }, 1500);
 	});
 	panel.appendChild(okBtn);
 	const hint = document.createElement("div");
-	hint.textContent = "0 = ohne Halo, 1 = Default, bis 5 = stärker."; hint.style.cssText = "opacity:0.6;margin-top:6px;";
+	hint.textContent = "Stärke 0–5 (Dichte), Schärfe 0–1 (weicher Schein → scharfe Kontur)."; hint.style.cssText = "opacity:0.6;margin-top:6px;";
 	panel.appendChild(hint);
 	document.body.appendChild(panel);
 })();
