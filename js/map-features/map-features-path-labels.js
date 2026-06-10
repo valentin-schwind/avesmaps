@@ -259,7 +259,7 @@ function syncPathLabels() {
 	let on = false;
 	try { on = new URLSearchParams(window.location.search).has("roadtune"); } catch (e) { on = false; }
 	if (!on || !document.body || typeof PATH_WIDTH_SCALE === "undefined") return;
-	const ZOOMS = [0, 1, 2, 3, 4, 5];
+	const ZOOMS = [0, 1, 2, 3, 4, 5, 6];
 	const LABELS = { Reichsstrasse: "Reichsstr.", Strasse: "Straße", Weg: "Weg", Pfad: "Pfad", Gebirgspass: "Geb.pass", Wuestenpfad: "Wüstenpf.", Flussweg: "Fluss", Seeweg: "See/Meer" };
 	const subtypes = (typeof PATH_SUBTYPE_KEYS !== "undefined") ? PATH_SUBTYPE_KEYS : Object.keys(LABELS);
 	const cur = (st, z) => { const b = PATH_WIDTH_SCALE[st]; const v = b ? b[z] : undefined; return (typeof v === "number" && v >= 0) ? v : 1; };
@@ -288,7 +288,7 @@ function syncPathLabels() {
 	});
 	panel.appendChild(grid);
 	const highlight = () => {
-		const cz = (typeof getVisualZoomLevel === "function" && typeof map !== "undefined" && map) ? getVisualZoomLevel(map.getZoom()) : null;
+		const cz = (typeof map !== "undefined" && map) ? Math.max(0, Math.min(6, Math.round(Number(map.getZoom())))) : null;
 		ZOOMS.forEach((z) => { zoomHeads[z].style.color = (z === cz) ? "#ffd479" : "#fff"; });
 	};
 	const wireMap = () => {
@@ -307,7 +307,7 @@ function syncPathLabels() {
 	});
 	panel.appendChild(okBtn);
 	const hint = document.createElement("div");
-	hint.textContent = "1 = normal, 0 = aus, bis 5. Aktuelle Zoom-Spalte = gelb. Zoom 6 nutzt z5."; hint.style.cssText = "opacity:0.6;margin-top:6px;max-width:520px;";
+	hint.textContent = "1 = normal, 0 = aus, bis 5. Aktuelle Zoom-Spalte = gelb."; hint.style.cssText = "opacity:0.6;margin-top:6px;max-width:520px;";
 	panel.appendChild(hint);
 	document.body.appendChild(panel);
 })();
