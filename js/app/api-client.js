@@ -106,39 +106,86 @@ async function submitMapFeatureEdit(payload) {
 	return result;
 }
 
+// Pan-invarianter Layer (haengt an zoom/year/edit, NICHT an bbox): pro Param-Signatur cachen UND
+// laufende Anfragen teilen. Killt den moveend-Refetch-Sturm (cache:no-store bei jedem Pan), der
+// sonst mehrere teure 1.2MB-Queries gleichzeitig auf die DB wirft und sie ueberlastet.
+const POLITICAL_LAYER_CACHE = new Map(); // paramKey -> { ts, promise }
+const POLITICAL_LAYER_CACHE_TTL_MS = 5000;
+
+function buildPoliticalTerritoriesParamKey(params) {
+	const parts = [];
+	Object.keys(params).sort().forEach((key) => {
+		if (key === "_") return;
+		const value = params[key];
+		if (value !== undefined && value !== null && value !== "") {
+			parts.push(`${key}=${value}`);
+		}
+	});
+	return parts.join("&");
+}
+
+// Nach einem Edit aufrufen, damit der naechste Layer-Load garantiert frisch ist (kein stale Cache).
+function invalidatePoliticalLayerCache() {
+	POLITICAL_LAYER_CACHE.clear();
+}
+
 async function fetchPoliticalTerritories(params = {}) {
 	if (!POLITICAL_TERRITORIES_API_URL) {
 		throw new Error("Keine Herrschaftsgebiet-API für diese Umgebung konfiguriert.");
 	}
 
-	const url = new URL(POLITICAL_TERRITORIES_API_URL, window.location.href);
-	url.searchParams.set("_", String(Date.now()));
-	Object.entries(params).forEach(([key, value]) => {
-		if (value !== undefined && value !== null && value !== "") {
-			url.searchParams.set(key, String(value));
+	const cacheable = params.action === "layer";
+	const cacheKey = cacheable ? buildPoliticalTerritoriesParamKey(params) : "";
+	if (cacheable) {
+		const hit = POLITICAL_LAYER_CACHE.get(cacheKey);
+		if (hit && (Date.now() - hit.ts) < POLITICAL_LAYER_CACHE_TTL_MS) {
+			return hit.promise; // laufende ODER frische Antwort teilen -> kein erneuter DB-Query
 		}
-	});
-
-	const response = await fetchWithRetry(url.toString(), {
-		cache: "no-store",
-		credentials: "same-origin",
-		headers: {
-			Accept: "application/json",
-			"Cache-Control": "no-cache",
-			Pragma: "no-cache",
-		},
-	}, {
-		retries: 2,
-		delayMs: 300,
-		retryMethods: ["GET"],
-	});
-	
-	const data = await readJsonResponse(response, {});
-	if (!response.ok || data?.ok !== true) {
-		throw new Error(data?.error || `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`);
 	}
 
-	return data;
+	const requestPromise = (async () => {
+		const url = new URL(POLITICAL_TERRITORIES_API_URL, window.location.href);
+		url.searchParams.set("_", String(Date.now()));
+		Object.entries(params).forEach(([key, value]) => {
+			if (value !== undefined && value !== null && value !== "") {
+				url.searchParams.set(key, String(value));
+			}
+		});
+
+		const response = await fetchWithRetry(url.toString(), {
+			cache: "no-store",
+			credentials: "same-origin",
+			headers: {
+				Accept: "application/json",
+				"Cache-Control": "no-cache",
+				Pragma: "no-cache",
+			},
+		}, {
+			retries: 2,
+			delayMs: 300,
+			retryMethods: ["GET"],
+		});
+
+		const data = await readJsonResponse(response, {});
+		if (!response.ok || data?.ok !== true) {
+			throw new Error(data?.error || `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`);
+		}
+
+		return data;
+	})();
+
+	if (cacheable) {
+		POLITICAL_LAYER_CACHE.set(cacheKey, { ts: Date.now(), promise: requestPromise });
+		// Fehlschlag nicht cachen -> beim naechsten Mal neu versuchen.
+		requestPromise.catch(() => {
+			const current = POLITICAL_LAYER_CACHE.get(cacheKey);
+			if (current && current.promise === requestPromise) {
+				POLITICAL_LAYER_CACHE.delete(cacheKey);
+			}
+		});
+	}
+
+	return requestPromise;
 }
 
 async function submitPoliticalTerritoryEdit(payload) {
@@ -174,6 +221,7 @@ async function submitPoliticalTerritoryEdit(payload) {
 		throw new Error(data?.error || `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`);
 	}
 
+	invalidatePoliticalLayerCache(); // Edit gespeichert -> Layer-Cache verwerfen, naechster Load ist frisch.
 	return data;
 }
 
