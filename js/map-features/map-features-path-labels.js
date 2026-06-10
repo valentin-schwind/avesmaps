@@ -26,10 +26,41 @@ function isPathLabelVisibleAtCurrentZoom(path) {
 // Live tunbar via ?pathtune=1 (siehe Panel am Dateiende).
 let PATH_LABEL_FONT_DELTA = -1;     // px auf die berechnete (zoomabhängige) Größe
 let PATH_LABEL_DY = 0;              // px Abstand der Schrift zur Linie (negativ = darüber)
-let PATH_LABEL_STROKE_WIDTH = 2;    // px Halo/Kontur
+// Halo der Pfad-Namen, getrennt für Flüsse/Seewege und Straßen/Wege -- wie bei den Siedlungs-Labels:
+// Stärke (0..5) = Halo-Prominenz, Schärfe (0..1) = weicher Schein (CSS drop-shadow) <-> scharfe Kontur (SVG-Stroke).
+let PATH_LABEL_RIVER_HALO_STRENGTH = 1;
+let PATH_LABEL_RIVER_HALO_SHARPNESS = 1;
+let PATH_LABEL_ROAD_HALO_STRENGTH = 1;
+let PATH_LABEL_ROAD_HALO_SHARPNESS = 1;
 let PATH_LABEL_LETTER_SPACING = 1;  // px Sperrung
 // Leitlinie = sichtbare Linie, nur neu abgetastet: <1 ausdünnen (ruhiger), 1 = exakt die Linie, >1 dichter.
 let PATH_LABEL_GUIDE_DENSITY = 1;   // (von map-features-path-rendering.js gelesen)
+
+// SVG-Halo eines Pfad-Labels aus Stärke/Schärfe. Scharfer Anteil = SVG-Stroke (paint-order:stroke), weicher
+// Anteil = CSS drop-shadow (mehrere Pässe ~ Stärke für Dichte). Stärke 0 = kein Halo. drop-shadow nur bei
+// Schärfe < 1 -> der Default (Schärfe 1) ist filterfrei und damit günstig.
+function getPathLabelHaloParams(strength, sharpness, fontSize) {
+	const s = Math.max(0, Number(strength) || 0);
+	if (s <= 0) {
+		return { stroke: "transparent", strokeWidth: "0px", paintOrder: "stroke", filter: "none" };
+	}
+	const sharp = Math.max(0, Math.min(1, Number(sharpness) || 0));
+	const color = `rgba(0, 0, 0, ${Math.min(1, 0.85 * s)})`;
+	const reach = fontSize * 0.16 * Math.max(1, s);
+	const strokeW = reach * sharp;
+	const blur = reach * (1 - sharp);
+	let filter = "none";
+	if (blur > 0.1) {
+		const passes = Math.max(1, Math.round(s));
+		filter = Array.from({ length: passes }, () => `drop-shadow(0 0 ${blur.toFixed(2)}px ${color})`).join(" ");
+	}
+	return {
+		stroke: strokeW > 0.05 ? color : "transparent",
+		strokeWidth: `${strokeW.toFixed(2)}px`,
+		paintOrder: "stroke",
+		filter,
+	};
+}
 
 function getPathLabelStyle(path) {
 	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
@@ -44,12 +75,19 @@ function getPathLabelStyle(path) {
 		Seeweg: "#9ed0ff",
 	};
 
+	const isRiver = pathSubtype === "Flussweg" || pathSubtype === "Seeweg";
 	const fontSize = Math.max(4, getLocationNameLabelSize("dorf") + (pathSubtype === "Flussweg" ? 3 : 1) + PATH_LABEL_FONT_DELTA);
+	const halo = getPathLabelHaloParams(
+		isRiver ? PATH_LABEL_RIVER_HALO_STRENGTH : PATH_LABEL_ROAD_HALO_STRENGTH,
+		isRiver ? PATH_LABEL_RIVER_HALO_SHARPNESS : PATH_LABEL_ROAD_HALO_SHARPNESS,
+		fontSize
+	);
 	return {
 		fill: fillColors[pathSubtype] || fillColors.Weg,
-		stroke: "rgba(0, 0, 0, 0.75)",
-		strokeWidth: `${PATH_LABEL_STROKE_WIDTH}px`,
-		paintOrder: "stroke",
+		stroke: halo.stroke,
+		strokeWidth: halo.strokeWidth,
+		paintOrder: halo.paintOrder,
+		filter: halo.filter,
 		fontFamily: 'Georgia, "Times New Roman", serif',
 		fontSize: `${fontSize}px`,
 		fontWeight: "400",
@@ -145,7 +183,10 @@ function syncPathLabels() {
 	};
 	slider("Schriftgröße ±", -6, 12, 1, PATH_LABEL_FONT_DELTA, (v) => { PATH_LABEL_FONT_DELTA = v; restyle(); });
 	slider("Abstand zur Linie (dy)", -28, 12, 1, PATH_LABEL_DY, (v) => { PATH_LABEL_DY = v; restyle(); });
-	slider("Halo-/Konturbreite (px)", 0, 6, 0.5, PATH_LABEL_STROKE_WIDTH, (v) => { PATH_LABEL_STROKE_WIDTH = v; restyle(); });
+	slider("Flüsse Halo-Stärke", 0, 5, 0.1, PATH_LABEL_RIVER_HALO_STRENGTH, (v) => { PATH_LABEL_RIVER_HALO_STRENGTH = v; restyle(); });
+	slider("Flüsse Halo-Schärfe", 0, 1, 0.05, PATH_LABEL_RIVER_HALO_SHARPNESS, (v) => { PATH_LABEL_RIVER_HALO_SHARPNESS = v; restyle(); });
+	slider("Straßen Halo-Stärke", 0, 5, 0.1, PATH_LABEL_ROAD_HALO_STRENGTH, (v) => { PATH_LABEL_ROAD_HALO_STRENGTH = v; restyle(); });
+	slider("Straßen Halo-Schärfe", 0, 1, 0.05, PATH_LABEL_ROAD_HALO_SHARPNESS, (v) => { PATH_LABEL_ROAD_HALO_SHARPNESS = v; restyle(); });
 	slider("Sperrung (px)", 0, 8, 0.5, PATH_LABEL_LETTER_SPACING, (v) => { PATH_LABEL_LETTER_SPACING = v; restyle(); });
 	// Leitlinie liegt auf der sichtbaren Linie; Dichte <1 = vereinfacht (ausgedünnt), 1 = exakt, >1 = dichter.
 	slider("Dichte (vereinfachen↔dichter)", 0.1, 4, 0.1, PATH_LABEL_GUIDE_DENSITY, (v) => { PATH_LABEL_GUIDE_DENSITY = v; regeom(); });
@@ -153,7 +194,7 @@ function syncPathLabels() {
 	okBtn.textContent = "OK / Werte merken";
 	okBtn.style.cssText = "width:100%;margin-top:10px;padding:7px;border:1px solid #5e4329;border-radius:6px;background:#7a5a3a;color:#fff;font:inherit;cursor:pointer;";
 	okBtn.addEventListener("click", () => {
-		const result = { fontDelta: PATH_LABEL_FONT_DELTA, dy: PATH_LABEL_DY, strokeWidth: PATH_LABEL_STROKE_WIDTH, letterSpacing: PATH_LABEL_LETTER_SPACING, guideDensity: PATH_LABEL_GUIDE_DENSITY };
+		const result = { fontDelta: PATH_LABEL_FONT_DELTA, dy: PATH_LABEL_DY, riverHaloStrength: PATH_LABEL_RIVER_HALO_STRENGTH, riverHaloSharpness: PATH_LABEL_RIVER_HALO_SHARPNESS, roadHaloStrength: PATH_LABEL_ROAD_HALO_STRENGTH, roadHaloSharpness: PATH_LABEL_ROAD_HALO_SHARPNESS, letterSpacing: PATH_LABEL_LETTER_SPACING, guideDensity: PATH_LABEL_GUIDE_DENSITY };
 		window.__avesmapsPathLabelTuning = result;
 		console.log("[Pfad-Namen-Tuning] " + JSON.stringify(result));
 		okBtn.textContent = "✓ gemerkt"; setTimeout(() => { okBtn.textContent = "OK / Werte merken"; }, 1500);
