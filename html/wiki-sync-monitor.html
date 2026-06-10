@@ -1168,8 +1168,9 @@ function renderGeomModal(){
   $('geomPurgeAll').disabled = unassignedGeomCount===0;
   $('geomList').innerHTML = unassignedGeoms.map(g=>{
     const id=String(g.geometry_public_id||g.public_id||'');
-    const w=(g.max_x!=null&&g.min_x!=null)?Math.round(g.max_x-g.min_x):'?';
-    const h=(g.max_y!=null&&g.min_y!=null)?Math.round(g.max_y-g.min_y):'?';
+    const bb=Array.isArray(g.bbox)?g.bbox:[];
+    const w=bb.length===4?Math.round(bb[2]-bb[0]):'?';
+    const h=bb.length===4?Math.round(bb[3]-bb[1]):'?';
     const area=g.area!=null?Math.round(g.area):'?';
     const title=(g.label&&g.label.trim())?g.label.trim():'(ohne Titel)';
     const by=g.created_by||'?'; const at=(g.created_at||'').slice(0,10);
