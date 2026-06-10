@@ -382,6 +382,79 @@ async function completePendingPowerlineAtEndpoint(endEndpoint) {
 	}
 }
 
+// Live-Tuning der Kraftlinien-Animation ("Wabern"), nur mit ?powerlinetune=1 (oben rechts). Die rAF-Schleife
+// liest POWERLINE_RENDER_CONFIG pro Frame -> Slider wirken sofort. Nur im Modus „Kraftlinien" sichtbar/aktiv.
+// OK schreibt nach window.__avesmapsPowerlineTuning (zum Übernehmen als Default).
+(function initPowerlineTuningPanel() {
+	let on = false;
+	try { on = new URLSearchParams(window.location.search).has("powerlinetune"); } catch (e) { on = false; }
+	if (!on || !document.body) return;
+	const cfg = (typeof POWERLINE_RENDER_CONFIG !== "undefined") ? POWERLINE_RENDER_CONFIG : null;
+	if (!cfg) return;
+	const panel = document.createElement("div");
+	panel.style.cssText = "position:fixed;right:12px;top:12px;z-index:99999;background:rgba(28,28,28,0.92);color:#fff;font:12px Georgia,serif;padding:10px 12px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.45);width:230px;";
+	const title = document.createElement("div");
+	title.textContent = "Kraftlinien-Wabern"; title.style.cssText = "font-weight:bold;margin-bottom:8px;";
+	panel.appendChild(title);
+	// Checkbox: Animation an/aus
+	const animLabel = document.createElement("label");
+	animLabel.style.cssText = "display:flex;align-items:center;gap:6px;margin:0 0 8px;cursor:pointer;";
+	const animInput = document.createElement("input");
+	animInput.type = "checkbox"; animInput.checked = !!cfg.animationEnabled;
+	animInput.addEventListener("change", () => {
+		cfg.animationEnabled = animInput.checked;
+		try {
+			if (animInput.checked) { if (typeof ensurePowerlineAnimationLoop === "function") ensurePowerlineAnimationLoop(); }
+			else if (typeof stopPowerlineAnimationLoop === "function") { stopPowerlineAnimationLoop(); }
+		} catch (e) { /* noop */ }
+	});
+	const animText = document.createElement("span"); animText.textContent = "Wabern an";
+	animLabel.appendChild(animInput); animLabel.appendChild(animText);
+	panel.appendChild(animLabel);
+	const slider = (label, min, max, step, value, apply) => {
+		const wrap = document.createElement("div"); wrap.style.marginBottom = "7px";
+		const head = document.createElement("div"); head.style.cssText = "display:flex;justify-content:space-between;margin-bottom:2px;";
+		const name = document.createElement("span"); name.textContent = label;
+		const val = document.createElement("span"); val.textContent = value;
+		head.appendChild(name); head.appendChild(val);
+		const input = document.createElement("input");
+		input.type = "range"; input.min = min; input.max = max; input.step = step; input.value = value; input.style.width = "100%";
+		input.addEventListener("input", () => { val.textContent = input.value; apply(parseFloat(input.value)); });
+		wrap.appendChild(head); wrap.appendChild(input);
+		panel.appendChild(wrap);
+	};
+	slider("Amplitude (quer)", 0, 8, 0.1, cfg.tremorNormalAmplitude, (v) => { cfg.tremorNormalAmplitude = v; });
+	slider("Tempo (quer)", 0, 2.5, 0.05, cfg.tremorNormalSpeed, (v) => { cfg.tremorNormalSpeed = v; });
+	slider("Amplitude (längs)", 0, 3, 0.05, cfg.tremorTangentAmplitude, (v) => { cfg.tremorTangentAmplitude = v; });
+	slider("Tempo (längs)", 0, 2.5, 0.05, cfg.tremorTangentSpeed, (v) => { cfg.tremorTangentSpeed = v; });
+	slider("Frequenz (quer)", 0, 1.5, 0.01, cfg.tremorNormalFrequency, (v) => { cfg.tremorNormalFrequency = v; });
+	slider("Segmente (Glätte)", 4, 24, 1, cfg.segmentCount, (v) => { cfg.segmentCount = v; });
+	slider("Bildtakt (ms/Frame)", 12, 60, 1, cfg.frameIntervalMs, (v) => { cfg.frameIntervalMs = v; });
+	const okBtn = document.createElement("button");
+	okBtn.textContent = "OK / Werte merken";
+	okBtn.style.cssText = "width:100%;margin-top:10px;padding:7px;border:1px solid #5e4329;border-radius:6px;background:#7a5a3a;color:#fff;font:inherit;cursor:pointer;";
+	okBtn.addEventListener("click", () => {
+		const result = {
+			animationEnabled: cfg.animationEnabled,
+			tremorNormalAmplitude: cfg.tremorNormalAmplitude,
+			tremorNormalSpeed: cfg.tremorNormalSpeed,
+			tremorTangentAmplitude: cfg.tremorTangentAmplitude,
+			tremorTangentSpeed: cfg.tremorTangentSpeed,
+			tremorNormalFrequency: cfg.tremorNormalFrequency,
+			segmentCount: cfg.segmentCount,
+			frameIntervalMs: cfg.frameIntervalMs,
+		};
+		window.__avesmapsPowerlineTuning = result;
+		console.log("[Kraftlinien-Wabern] " + JSON.stringify(result));
+		okBtn.textContent = "✓ gemerkt"; setTimeout(() => { okBtn.textContent = "OK / Werte merken"; }, 1500);
+	});
+	panel.appendChild(okBtn);
+	const hint = document.createElement("div");
+	hint.textContent = "Modus Kraftlinien wählen, damit die Animation läuft."; hint.style.cssText = "opacity:0.6;margin-top:6px;";
+	panel.appendChild(hint);
+	document.body.appendChild(panel);
+})();
+
 async function deletePowerlineFeature(powerline) {
 	if (!powerline) {
 		return;

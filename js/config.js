@@ -249,7 +249,7 @@ const LOCATION_NAME_LABEL_CONFIG = {
 	gebaeude: { size: 10, minZoom: 4 },
 };
 const POWERLINE_RENDER_CONFIG = {
-	animationEnabled: false,
+	animationEnabled: true,
 	strandCount: 3,
 	segmentCount: 8,
 	normalScales: [0.125, 0.125, 0.125, 0.125],
@@ -262,7 +262,7 @@ const POWERLINE_RENDER_CONFIG = {
 	tremorNormalFrequency: 0.38,
 	tremorTangentFrequency: 0.29,
 	tremorPhaseMultiplier: 2.4,
-	frameIntervalMs: 25,
+	frameIntervalMs: 33, // ~30 fps: für das langsame "Wabern" mehr als genug, schont die Hauptthread-Last
 };
 
 const POLITICAL_TERRITORY_LAYER_ZOOM_LEVELS = [0, 1, 2, 3, 4, 5, 6];
