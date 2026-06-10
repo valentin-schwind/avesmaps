@@ -39,7 +39,17 @@
 
 	// Glyphen einzeln entlang der Pixel-Polyline platzieren (zentriert auf dem jeweiligen Slot, tangential
 	// rotiert). textAlign/textBaseline werden in redraw() gesetzt; Halo = weicher Schatten + scharfe Kontur.
-	function drawGlyphsAlong(pts, chars, widths, ls, halo, fillColor) {
+	function drawGlyphsAlong(pts, chars, widths, ls, halo, fillColor, perpOffset) {
+		if (perpOffset) {
+			// Alle Punkte senkrecht zur Linie verschieben (positiv = „oben"/über der Linie für links->rechts).
+			const shifted = [];
+			for (let i = 0; i < pts.length; i += 1) {
+				const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+				let tx = b.x - a.x, ty = b.y - a.y; const tm = Math.hypot(tx, ty) || 1; tx /= tm; ty /= tm;
+				shifted.push({ x: pts[i].x + ty * perpOffset, y: pts[i].y - tx * perpOffset });
+			}
+			pts = shifted;
+		}
 		const seg = [];
 		let total = 0;
 		for (let i = 1; i < pts.length; i += 1) {
@@ -161,8 +171,53 @@
 					halo = { glow: hp.glow, blur: fontSize * (hp.glowBlurRatio || 0), strokeW: fontSize * (hp.strokeRatio || 0) };
 				}
 			}
-			drawGlyphsAlong(pts, chars, widths, ls, halo, style.fill);
+			// dy-Slider (?pathtune=1): senkrechter Versatz; SVG-dy negativ = oben -> perpOffset = -dy.
+			const perp = -(typeof PATH_LABEL_DY !== "undefined" ? PATH_LABEL_DY : 0);
+			drawGlyphsAlong(pts, chars, widths, ls, halo, style.fill, perp);
 		});
+
+		// Kraftlinien-Namen -- nur im Modus „Kraftlinien". Text liegt auf der (geraden) Mittellinie, leicht
+		// darüber versetzt (wie früher SVG-dy -10), mit dezentem weichem Halo für Lesbarkeit.
+		if (typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "powerlines"
+			&& typeof powerlineData !== "undefined" && Array.isArray(powerlineData) && powerlineData.length
+			&& typeof isPowerlineLabelVisibleAtCurrentZoom === "function" && typeof getPowerlineLatLngs === "function") {
+			powerlineData.forEach((powerline) => {
+				if (!isPowerlineLabelVisibleAtCurrentZoom(powerline)) {
+					return;
+				}
+				const name = typeof getPowerlineDisplayName === "function" ? getPowerlineDisplayName(powerline) : "";
+				if (!name) {
+					return;
+				}
+				const style = typeof getPowerlineLabelStyle === "function" ? getPowerlineLabelStyle() : null;
+				const fontSize = style ? (parseFloat(style.fontSize) || 18) : 18;
+				const ls = style ? (parseFloat(style.letterSpacing) || 0) : 0;
+				const ll = getPowerlineLatLngs(powerline);
+				if (!Array.isArray(ll) || ll.length < 2) {
+					return;
+				}
+				let pts = ll.map((p) => map.latLngToContainerPoint(p));
+				let bx1 = Infinity, by1 = Infinity, bx2 = -Infinity, by2 = -Infinity;
+				for (let i = 0; i < pts.length; i += 1) {
+					if (pts[i].x < bx1) bx1 = pts[i].x;
+					if (pts[i].x > bx2) bx2 = pts[i].x;
+					if (pts[i].y < by1) by1 = pts[i].y;
+					if (pts[i].y > by2) by2 = pts[i].y;
+				}
+				const mm = fontSize + 16;
+				if (bx2 < -mm || bx1 > size.x + mm || by2 < -mm || by1 > size.y + mm) {
+					return;
+				}
+				if (pts[pts.length - 1].x < pts[0].x) {
+					pts = pts.slice().reverse();
+				}
+				ctx.font = `${(style && style.fontWeight) || "500"} ${fontSize}px ${(style && style.fontFamily) || '"Faculty Glyphic", Georgia, serif'}`;
+				const chars = [...name];
+				const widths = chars.map((c) => ctx.measureText(c).width);
+				const halo = { glow: "rgba(0, 0, 0, 0.5)", blur: fontSize * 0.14, strokeW: 0 };
+				drawGlyphsAlong(pts, chars, widths, ls, halo, (style && style.fill) || "rgba(255, 196, 214, 0.98)", 10);
+			});
+		}
 	}
 
 	// Zoom-Animation wie beim Grenzen-Overlay: CSS-Zoom -> Canvas weich mitskalieren (nicht neu zeichnen);

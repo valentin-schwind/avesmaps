@@ -104,7 +104,7 @@ function getPowerlineLabelStyle() {
 		stroke: "transparent",
 		strokeWidth: "0",
 		paintOrder: "fill",
-		fontFamily: 'Georgia, "Times New Roman", serif',
+		fontFamily: '"Faculty Glyphic", Georgia, "Times New Roman", serif',
 		fontSize: `${Math.max(18, getLocationNameLabelSize("dorf") + 7)}px`,
 		fontWeight: "500",
 		letterSpacing: "0",
@@ -127,6 +127,12 @@ function refreshPowerlineLayerText(powerline) {
 		return;
 	}
 
+	if (typeof PATH_LABELS_ON_CANVAS !== "undefined" && PATH_LABELS_ON_CANVAS) {
+		// Kraftlinien-Namen zeichnet das Canvas-Overlay -> hier nur einen evtl. alten SVG-Text entfernen.
+		labelLine.removeText?.();
+		return;
+	}
+
 	if (!isPowerlineLabelVisibleAtCurrentZoom(powerline)) {
 		labelLine.removeText?.();
 		return;
@@ -143,6 +149,9 @@ function refreshPowerlineLayerText(powerline) {
 
 function syncPowerlineLabels() {
 	powerlineData.forEach(refreshPowerlineLayerText);
+	if (window.AvesmapsPathLabelCanvasOverlay) {
+		window.AvesmapsPathLabelCanvasOverlay.redraw();
+	}
 }
 
 function createPowerlinePopupMarkup(powerline) {
@@ -232,6 +241,10 @@ function syncPowerlineVisibility() {
 		ensurePowerlineAnimationLoop();
 	} else {
 		stopPowerlineAnimationLoop();
+	}
+	// Kraftlinien-Namen auf dem Canvas-Overlay neu zeichnen (Moduswechsel blendet sie ein/aus).
+	if (window.AvesmapsPathLabelCanvasOverlay) {
+		window.AvesmapsPathLabelCanvasOverlay.redraw();
 	}
 }
 
@@ -339,6 +352,9 @@ function applyPowerlineFeatureResponse(powerline, feature) {
 	powerline.id = updatedPowerline.id;
 	refreshPowerlineLayerPopup(powerline);
 	refreshPowerlineLayers();
+	if (window.AvesmapsPathLabelCanvasOverlay) {
+		window.AvesmapsPathLabelCanvasOverlay.redraw();
+	}
 }
 
 function clearPendingPowerlineCreation() {
