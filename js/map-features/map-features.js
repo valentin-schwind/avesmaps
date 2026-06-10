@@ -685,7 +685,11 @@ function createRegionLabelMarkup(regionEntry, fallbackName) {
 	if (typeof renderMapLabelToImage === "function") {
 		const style = getRegionLabelNameTypeStyle();
 		const image = renderMapLabelToImage(labelText, style.fontSizePx, style);
-		nameMarkup = `<img class="region-label__name-img" src="${image.url}" width="${image.w}" height="${image.h}" alt="${name}">`;
+		// Das Namens-<img> trägt transparente Innenpolster (padX, Platz für den Halo). NEBEN einem Wappen wird das
+		// als unschön großer Abstand Wappen<->Text sichtbar (Polster + flex-gap). Bei vorhandenem Wappen das linke
+		// Polster per negativem margin-left wieder herausziehen -> das Wappen sitzt wie früher (DOM-Text) dicht am Namen.
+		const coatPull = coatMarkup ? ` style="margin-left:-${image.padX}px"` : "";
+		nameMarkup = `<img class="region-label__name-img"${coatPull} src="${image.url}" width="${image.w}" height="${image.h}" alt="${name}">`;
 	}
 
 	return `<span class="region-label__content">${coatMarkup}${nameMarkup}</span>`;
