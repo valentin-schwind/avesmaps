@@ -57,22 +57,29 @@ const locationCanvasLayer = {
 		}
 		const zoomLevel = this._map.getZoom();
 		const visualZoom = getVisualZoomLevel(zoomLevel);
+		const inPowerlineMode = typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "powerlines";
 		this._entries = entries.map((entry) => {
 			const locationType = entry.locationType;
 			const isSite = locationType === "gebaeude";
 			const markerSize = getLocationMarkerSize(locationType, zoomLevel);
+			const core = getLocationMarkerCoreRadius(locationType, zoomLevel);
+			const contour = getLocationMarkerBorderWidth(locationType, zoomLevel);
 			// Form/Sichtbarkeit der Sonderformen EXAKT wie createLocationMarkerIcon (eine Quelle der Wahrheit):
 			const isDiamond = isSite && visualZoom >= 4;
 			const isCapital = locationType === "metropole" && visualZoom >= 3 && markerSize >= 14;
+			// Kraftlinien-Modus: Nodices als leuchtende „Ley-Knoten" zeichnen (heben sich von den Linien ab).
+			const leyNode = inPowerlineMode && !!(entry.location && entry.location.isNodix);
 			return {
 				entry,
 				latLng: entry.marker.getLatLng(),
-				core: getLocationMarkerCoreRadius(locationType, zoomLevel),
-				contour: getLocationMarkerBorderWidth(locationType, zoomLevel),
+				core,
+				contour,
 				isDiamond,
 				isCapital,
 				accentRing: isCapital ? Math.round(markerSize * 0.12) : 0,
 				fill: isSite ? "#7a4fd0" : "#cc2f2a",
+				leyNode,
+				leyR: leyNode ? Math.max(5, (core + contour) * 1.7) : 0,
 			};
 		});
 		this._canvas.style.visibility = "";
@@ -130,6 +137,18 @@ const locationCanvasLayer = {
 			const layerPoint = this._map.latLngToLayerPoint(item.latLng);
 			const x = layerPoint.x - origin.x;
 			const y = layerPoint.y - origin.y;
+			if (item.leyNode) {
+				// Leuchtender Kraftlinien-Knoten: weicher Schein -> heller Kern -> pinker Punkt.
+				ctx.save();
+				ctx.shadowColor = "#ff7da0";
+				ctx.shadowBlur = 16;
+				disc(x, y, item.leyR, "#fff3f7");
+				ctx.shadowBlur = 8;
+				disc(x, y, item.leyR * 0.92, "#ffd3e0");
+				ctx.restore();
+				disc(x, y, Math.max(1.5, item.leyR * 0.42), "#ff3d68");
+				continue;
+			}
 			const core = item.core;
 			const outer = core + item.contour; // = Aussenkante der weissen Kontur (markerSize/2)
 			if (item.isDiamond) {
