@@ -29,6 +29,25 @@ let _mapLabelMeasureCtx = null;
 const _mapLabelImageCache = new Map();
 const _MAP_LABEL_IMAGE_CACHE_MAX = 2000;
 
+// Halo-Stärke S (0..5) -> Glow-Parameter für renderMapLabelToImage. S<=0: kein Halo. Bis S=1 wächst die
+// Deckkraft (S=1 ~ bisheriger Siedlungslabel-Default, Alpha 0.85); über S=1 hinaus verbreitert sich die
+// Unschärfe und es kommen weitere Schatten-Pässe dazu (verdichten den Schein über Alpha 1 hinaus).
+function getLabelHaloParams(strength, baseBlurRatio = 0.16) {
+	const s = Math.max(0, Number(strength) || 0);
+	if (s <= 0) {
+		return { glow: null, glowBlurRatio: 0, glowPasses: 0 };
+	}
+	return {
+		glow: `rgba(0, 0, 0, ${Math.min(1, 0.85 * s)})`,
+		glowBlurRatio: baseBlurRatio * Math.max(1, s),
+		glowPasses: Math.max(1, Math.round(s)),
+	};
+}
+
+// Stärke des Halos hinter den Regionen-/Landschafts-Titeln (.map-label). Default 0 = kein Halo (bisheriges
+// Verhalten). Live über das ?halotune=1-Panel steuerbar (0..5).
+let REGION_LABEL_HALO_STRENGTH = 0;
+
 // Pro Label-Typ Farbe/Schreibung/Sperrung EINMAL aus dem echten CSS lesen (Probe-Element) -> „Farben lassen".
 function getMapLabelTypeStyle(labelType) {
 	if (_mapLabelTypeStyleCache[labelType]) {
@@ -64,9 +83,11 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle) {
 	const fontStylePrefix = typeStyle.fontStyle ? `${typeStyle.fontStyle} ` : "";
 	const font = `${fontStylePrefix}${typeStyle.fontWeight} ${fontSizePx}px ${typeStyle.fontFamily}`;
 	const glow = typeStyle.glow || null;
-	const glowBlur = glow ? (typeStyle.glowBlur != null ? typeStyle.glowBlur : Math.max(2, fontSizePx * 0.16)) : 0;
+	const glowBlurRatio = typeStyle.glowBlurRatio != null ? typeStyle.glowBlurRatio : 0.16;
+	const glowBlur = glow ? (typeStyle.glowBlur != null ? typeStyle.glowBlur : Math.max(2, fontSizePx * glowBlurRatio)) : 0;
+	const glowPasses = glow ? Math.max(1, typeStyle.glowPasses || 1) : 0;
 
-	const cacheKey = `${displayText}|${font}|${typeStyle.color}|${glow || ""}|${glowBlur}|${letterSpacing}`;
+	const cacheKey = `${displayText}|${font}|${typeStyle.color}|${glow || ""}|${glowBlur}|${glowPasses}|${letterSpacing}`;
 	const cached = _mapLabelImageCache.get(cacheKey);
 	if (cached) {
 		return cached;
@@ -92,16 +113,25 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle) {
 	ctx.textAlign = "left";
 	ctx.globalAlpha = MAP_LABEL_CANVAS_ALPHA;
 	ctx.fillStyle = typeStyle.color;
+	const y = h / 2;
+	const drawText = () => {
+		let x = padX;
+		for (let i = 0; i < chars.length; i += 1) {
+			ctx.fillText(chars[i], x, y);
+			x += widths[i] + letterSpacing;
+		}
+	};
 	if (glow) {
+		// Halo: Text mehrfach mit Schatten zeichnen (verdichtet/verbreitert den Schein), dann scharf ohne Schatten.
 		ctx.shadowColor = glow;
 		ctx.shadowBlur = glowBlur;
+		for (let pass = 0; pass < glowPasses; pass += 1) {
+			drawText();
+		}
+		ctx.shadowColor = "transparent";
+		ctx.shadowBlur = 0;
 	}
-	let x = padX;
-	const y = h / 2;
-	for (let i = 0; i < chars.length; i += 1) {
-		ctx.fillText(chars[i], x, y);
-		x += widths[i] + letterSpacing;
-	}
+	drawText();
 	const result = { url: canvas.toDataURL(), w, h, padX };
 	if (_mapLabelImageCache.size >= _MAP_LABEL_IMAGE_CACHE_MAX) {
 		_mapLabelImageCache.delete(_mapLabelImageCache.keys().next().value);
@@ -114,7 +144,12 @@ function createLabelIcon(label) {
 	const safeSize = getScaledLabelSize(label);
 	const safeRotation = (((Number(label.rotation) || 0) % 360) + 360) % 360;
 	const typeStyle = getMapLabelTypeStyle(label.labelType);
-	const image = renderMapLabelToImage(label.text, safeSize, typeStyle);
+	// Optionaler Halo hinter den Regionen-/Landschafts-Titeln (live über ?halotune=1; Default 0 = aus).
+	const halo = getLabelHaloParams(REGION_LABEL_HALO_STRENGTH);
+	const labelStyle = halo.glow
+		? { ...typeStyle, glow: halo.glow, glowBlurRatio: halo.glowBlurRatio, glowPasses: halo.glowPasses }
+		: typeStyle;
+	const image = renderMapLabelToImage(label.text, safeSize, labelStyle);
 	return L.divIcon({
 		className: `map-label map-label--${label.labelType}${labelHasWikiRegion(label) ? " map-label--has-wiki" : ""}`,
 		html: `<img src="${image.url}" width="${image.w}" height="${image.h}" style="display:block; transform: translate(calc(-50% + var(--label-offset-x, 0px)), calc(-50% + var(--label-offset-y, 0px))) rotate(${safeRotation}deg);" alt="${escapeHtml(label.text)}">`,
