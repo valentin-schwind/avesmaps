@@ -1,7 +1,7 @@
 // Stärke des Halos/Schattens HINTER den Siedlungs-Labels (ersetzt den CSS text-shadow, den das Canvas nicht
 // erbt). Live über das ?halotune=1-Panel (siehe Dateiende). 0 = aus, 1 = bisheriger Default, bis 5 = stärker
 // (breiter + dichter, siehe getLabelHaloParams in map-features-labels.js).
-let LOCATION_LABEL_HALO_STRENGTH = 1;
+let LOCATION_LABEL_HALO_STRENGTH = 1.5;
 
 const LOCATION_NAME_LABEL_SIZE_BY_ZOOM = {
 	metropole: { 0: 8, 1: 9, 2: 11, 3: 13, 4: 17, 5: 19 },
