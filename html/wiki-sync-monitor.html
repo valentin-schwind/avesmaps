@@ -290,6 +290,18 @@
     </div>
   </div>
 </div>
+
+<div id="geomModal" class="modal" hidden>
+  <div class="modal-box">
+    <div class="modal-title">🗑 Nicht zugewiesene Geometrie</div>
+    <div class="modal-sub" id="geomSummary">—</div>
+    <div class="ident-table" id="geomList" style="max-height:50vh;overflow:auto"></div>
+    <div class="modal-actions">
+      <button id="geomPurgeAll" title="Alle verwaisten Geometrien endgültig löschen">🗑 Alle endgültig löschen</button>
+      <button class="primary" id="geomClose">Schließen</button>
+    </div>
+  </div>
+</div>
 <script>
 const API = '/api/edit/wiki/sync-monitor.php';
 const DEFAULT_SEEDS = [
@@ -300,6 +312,7 @@ const DEFAULT_SEEDS = [
 ];
 const $ = (id) => document.getElementById(id);
 let NODES = [], BYKEY = new Map();
+let unassignedGeoms = [];   // verwaiste Geometrien (keinem aktiven Gebiet zugewiesen)
 
 // --- Seed-Dropdown („Was synchronisieren?") ---
 function buildSeedMenu(){
@@ -858,7 +871,7 @@ function render(){
   const gaps = vis.filter(isGap).length;
   const conf = vis.filter(n=>n.has_conflict).length;
   const excl = NODES.filter(n=>n.excluded).length;
-  $('attn').innerHTML = NODES.length ? `${gaps} Lücken · ${conf} Konflikte${excl?` · <a href="#" id="attnTrash" title="Papierkorb öffnen – versehentlich aussortierte/gelöschte Gebiete">🗑 ${excl} im Papierkorb</a>`:''}` : '';
+  $('attn').innerHTML = NODES.length ? `${gaps} Lücken · ${conf} Konflikte${excl?` · <a href="#" id="attnTrash" title="Papierkorb öffnen – versehentlich aussortierte/gelöschte Gebiete">🗑 ${excl} im Papierkorb</a>`:''}${unassignedGeoms.length?` · <a href="#" id="attnGeom" title="Verwaiste Konturen ohne Gebiet – endgültig löschbar">🗑 ${unassignedGeoms.length} nicht zugew. Geometrie</a>`:''}` : '';
   renderList(); renderTree();
 }
 function parentLabel(n){
@@ -946,6 +959,8 @@ document.addEventListener('click', e => {
   if(rb){ e.preventDefault(); e.stopPropagation(); setExcluded(rb.dataset.restore, false); return; }  // ↩ wiederherstellen
   const trash=e.target.closest('#attnTrash');
   if(trash){ e.preventDefault(); $('filter').value='excluded'; renderList(); return; }               // Papierkorb öffnen
+  const geomLink=e.target.closest('#attnGeom');
+  if(geomLink){ e.preventDefault(); openGeomModal(); return; }                                        // verwaiste Geometrien
   if(e.target.closest('a.wl')) return;            // Wiki-Link nicht abfangen
   const el=e.target.closest('[data-key]');
   if(el) selectKey(el.dataset.key);               // Klick = auswählen -> Detail-Panel
@@ -1130,6 +1145,52 @@ $('identModal').addEventListener('click', e=>{ if(e.target.id==='identModal') $(
 $('identChips').addEventListener('click', e=>{ const c=e.target.closest('.ident-chip'); if(c){ identFieldFilter=c.dataset.fld; renderIdentChips(); renderIdentRows(); } });
 $('identSearch').oninput = renderIdentRows;
 
+// --- Nicht zugewiesene (verwaiste) Geometrien: Liste + endgültig löschen ---
+async function geomApi(action, body){
+  const r = await fetch('/api/app/political-territories.php', {method:'POST', credentials:'include', cache:'no-store', headers:{'Content-Type':'application/json'}, body:JSON.stringify(Object.assign({action}, body||{}))});
+  const j = await r.json().catch(()=>({ok:false,error:'Ungültige Antwort'}));
+  if(!r.ok || j.ok===false) throw new Error(j.error || ('HTTP '+r.status));
+  return j;
+}
+async function loadUnassignedGeoms(){
+  try{
+    const r = await fetch('/api/app/political-territories.php?action=geometry_inventory&include_inactive=1&_='+Date.now(), {credentials:'include', cache:'no-store'});
+    const d = await r.json();
+    unassignedGeoms = (d.geometries||[]).filter(g=>g.territory_is_active!==true);
+  }catch(e){ unassignedGeoms = []; }
+  render();
+}
+function renderGeomModal(){
+  $('geomSummary').textContent = `${unassignedGeoms.length} verwaiste Kontur(en) – gezeichnet, aber keinem Gebiet zugewiesen. „Endgültig löschen" entfernt sie unwiderruflich.`;
+  $('geomPurgeAll').disabled = unassignedGeoms.length===0;
+  $('geomList').innerHTML = unassignedGeoms.map(g=>{
+    const id=String(g.geometry_public_id||g.public_id||'');
+    const w=(g.max_x!=null&&g.min_x!=null)?Math.round(g.max_x-g.min_x):'?';
+    const h=(g.max_y!=null&&g.min_y!=null)?Math.round(g.max_y-g.min_y):'?';
+    const area=g.area!=null?Math.round(g.area):'?';
+    return `<div class="row"><span class="nm" title="${esc(id)}">${esc(id.slice(0,8))} · ${esc(g.source||'?')} · ${w}×${h} · Fläche ${area}</span> <button class="edbtn dt-geomdel" data-geomdel="${esc(id)}" title="Diese Geometrie endgültig löschen">🗑 endgültig löschen</button></div>`;
+  }).join('') || '<div class="muted">— keine verwaisten Geometrien —</div>';
+}
+function openGeomModal(){ renderGeomModal(); $('geomModal').hidden=false; }
+async function deleteGeom(id){
+  if(!window.confirm('Diese Geometrie ENDGÜLTIG löschen? Das kann nicht rückgängig gemacht werden.')) return;
+  busy(true);
+  try{ const r=await geomApi('hard_delete_geometry', {geometry_public_id:id}); setStatus(`Geometrie endgültig gelöscht (${r.deleted||0}).`); await loadUnassignedGeoms(); renderGeomModal(); }
+  catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+}
+async function purgeAllGeoms(){
+  if(!window.confirm(`ALLE ${unassignedGeoms.length} verwaisten Geometrien ENDGÜLTIG löschen? Das kann nicht rückgängig gemacht werden.`)) return;
+  busy(true);
+  try{ const r=await geomApi('purge_unassigned_geometries', {dry_run:false, confirm:'apply'}); setStatus(`${r.deleted||0} verwaiste Geometrien endgültig gelöscht.`); await loadUnassignedGeoms(); renderGeomModal(); }
+  catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+}
+$('geomClose').onclick = ()=>{ $('geomModal').hidden=true; };
+$('geomModal').addEventListener('click', e=>{ if(e.target.id==='geomModal') $('geomModal').hidden=true; });
+$('geomPurgeAll').onclick = purgeAllGeoms;
+$('geomList').addEventListener('click', e=>{ const b=e.target.closest('[data-geomdel]'); if(b){ deleteGeom(b.dataset.geomdel); } });
+
 buildSeedMenu();
 updateFilterInfo();
 loadModel().then(()=>{
@@ -1145,6 +1206,7 @@ loadModel().then(()=>{
   }
 }).catch(e=>setStatus('Modell laden fehlgeschlagen: '+e.message));
 loadEditorState();
+loadUnassignedGeoms();
 </script>
 </body>
 </html>

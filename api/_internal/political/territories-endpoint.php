@@ -134,6 +134,8 @@ try {
         'unassign_geometry' => avesmapsPoliticalUnassignGeometry($pdo, $payload),
         'delete_geometry' => avesmapsPoliticalDeleteGeometry($pdo, $payload, $user),
         'delete_geometry_part' => avesmapsPoliticalDeleteGeometryPart($pdo, $payload, $user),
+        'hard_delete_geometry' => avesmapsPoliticalHardDeleteUnassignedGeometry($pdo, $payload, $user),
+        'purge_unassigned_geometries' => avesmapsPoliticalPurgeUnassignedGeometries($pdo, $payload, $user),
         'geometry_operation' => avesmapsPoliticalApplyGeometryOperationResult($pdo, $payload, $user),
         'geometry_operation_debug' => avesmapsPoliticalDebugGeometryOperation($payload),
         'undo_audit_change' => avesmapsPoliticalUndoAuditChange($pdo, $payload, $user),

@@ -999,6 +999,45 @@ function avesmapsPoliticalSoftDeleteGeometryById(PDO $pdo, int $geometryId): voi
     $statement->execute(['id' => $geometryId]);
 }
 
+// Endgueltiger Hard-Delete EINER verwaisten Geometrie (= keinem AKTIVEN Territorium zugewiesen).
+// Schutz: eine einer aktiven Gebietszuweisung haengende Geometrie ist tabu (Verwechslungsschutz).
+function avesmapsPoliticalHardDeleteUnassignedGeometry(PDO $pdo, array $payload, array $user = []): array {
+    $publicId = avesmapsPoliticalReadPublicId($payload['geometry_public_id'] ?? $payload['public_id'] ?? '');
+    $geometry = avesmapsPoliticalFetchGeometryRowByPublicIdRaw($pdo, $publicId);
+    if ($geometry === null) {
+        return ['ok' => false, 'error' => 'Die Geometrie wurde nicht gefunden.'];
+    }
+    $territoryId = (int) ($geometry['territory_id'] ?? 0);
+    if ($territoryId > 0) {
+        $stmt = $pdo->prepare('SELECT name FROM political_territory WHERE id = :id AND is_active = 1');
+        $stmt->execute(['id' => $territoryId]);
+        $activeTerritory = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($activeTerritory) {
+            return ['ok' => false, 'error' => 'Geometrie ist dem aktiven Gebiet "' . (string) $activeTerritory['name'] . '" zugewiesen - nicht endgueltig loeschbar.'];
+        }
+    }
+    $statement = $pdo->prepare('DELETE FROM political_territory_geometry WHERE id = :id');
+    $statement->execute(['id' => (int) $geometry['id']]);
+    return ['ok' => true, 'deleted' => $statement->rowCount(), 'geometry_public_id' => $publicId];
+}
+
+// Bulk: ALLE verwaisten Geometrien (kein aktives Territorium) endgueltig loeschen.
+// Gated: schreibt nur bei confirm:"apply", sonst lesender Dry-Run (zaehlt nur Kandidaten).
+function avesmapsPoliticalPurgeUnassignedGeometries(PDO $pdo, array $payload, array $user = []): array {
+    $apply = (string) ($payload['confirm'] ?? '') === 'apply';
+    $orphanWhere =
+        'FROM political_territory_geometry g
+         LEFT JOIN political_territory t ON t.id = g.territory_id AND t.is_active = 1
+         WHERE t.id IS NULL';
+    $candidates = (int) ($pdo->query('SELECT COUNT(*) AS c ' . $orphanWhere)->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
+    if (!$apply) {
+        return ['ok' => true, 'dry_run' => true, 'candidates' => $candidates, 'deleted' => 0];
+    }
+    $del = $pdo->prepare('DELETE g ' . $orphanWhere);
+    $del->execute();
+    return ['ok' => true, 'dry_run' => false, 'candidates' => $candidates, 'deleted' => $del->rowCount()];
+}
+
 function avesmapsPoliticalRestoreLegacyRegionGeometries(PDO $pdo, array $payload, array $user): array {
     $dryRun = avesmapsPoliticalReadBoolean($payload['dry_run'] ?? false);
     $features = avesmapsPoliticalFetchLegacyRegionFeaturesByExactName($pdo);
