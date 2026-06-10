@@ -252,6 +252,59 @@ function syncPathLabels() {
 	document.body.appendChild(panel);
 })();
 
+// Test-Panel für den GLOBALEN Breiten-Faktor ALLER Straßensysteme je Zoomstufe, nur mit ?roadtune=1 (unten
+// rechts). 6 Slider (visueller Zoom 0..5), je 0..5 in 0.5-Schritten; 1 = normal, 0 = aus. Mutiert
+// PATH_WIDTH_SCALE_BY_ZOOM live (syncPathRendering re-styled). OK -> window.__avesmapsPathWidthScale.
+(function initRoadWidthScalePanel() {
+	let on = false;
+	try { on = new URLSearchParams(window.location.search).has("roadtune"); } catch (e) { on = false; }
+	if (!on || !document.body || typeof PATH_WIDTH_SCALE_BY_ZOOM === "undefined") return;
+	const ZOOMS = [0, 1, 2, 3, 4, 5];
+	const restyle = () => { try { if (typeof syncPathRendering === "function") syncPathRendering(); } catch (e) { /* noop */ } };
+	const panel = document.createElement("div");
+	panel.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:99999;background:rgba(28,28,28,0.92);color:#fff;font:12px Georgia,serif;padding:10px 12px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.45);width:220px;";
+	const title = document.createElement("div");
+	title.textContent = "Straßenbreite × (je Zoom)"; title.style.cssText = "font-weight:bold;margin-bottom:8px;";
+	panel.appendChild(title);
+	const zoomHeads = {};
+	ZOOMS.forEach((z) => {
+		const wrap = document.createElement("div"); wrap.style.marginBottom = "7px";
+		const head = document.createElement("div"); head.style.cssText = "display:flex;justify-content:space-between;margin-bottom:2px;";
+		const nm = document.createElement("span"); nm.textContent = "Zoom " + z; zoomHeads[z] = nm;
+		const cur = (typeof PATH_WIDTH_SCALE_BY_ZOOM[z] === "number") ? PATH_WIDTH_SCALE_BY_ZOOM[z] : 1;
+		const val = document.createElement("span"); val.textContent = String(cur);
+		head.appendChild(nm); head.appendChild(val);
+		const input = document.createElement("input");
+		input.type = "range"; input.min = 0; input.max = 5; input.step = 0.5; input.value = cur; input.style.width = "100%";
+		input.addEventListener("input", () => { const v = parseFloat(input.value); val.textContent = String(v); PATH_WIDTH_SCALE_BY_ZOOM[z] = v; restyle(); });
+		wrap.appendChild(head); wrap.appendChild(input);
+		panel.appendChild(wrap);
+	});
+	const highlight = () => {
+		const cz = (typeof getVisualZoomLevel === "function" && typeof map !== "undefined" && map) ? getVisualZoomLevel(map.getZoom()) : null;
+		ZOOMS.forEach((z) => { zoomHeads[z].style.color = (z === cz) ? "#ffd479" : "#fff"; });
+	};
+	const wireMap = () => {
+		if (typeof map !== "undefined" && map && typeof map.on === "function") { highlight(); map.on("zoomend", highlight); }
+		else { setTimeout(wireMap, 200); }
+	};
+	wireMap();
+	const okBtn = document.createElement("button");
+	okBtn.textContent = "OK / Werte merken";
+	okBtn.style.cssText = "width:100%;margin-top:10px;padding:7px;border:1px solid #5e4329;border-radius:6px;background:#7a5a3a;color:#fff;font:inherit;cursor:pointer;";
+	okBtn.addEventListener("click", () => {
+		const result = {}; ZOOMS.forEach((z) => { result[z] = (typeof PATH_WIDTH_SCALE_BY_ZOOM[z] === "number") ? PATH_WIDTH_SCALE_BY_ZOOM[z] : 1; });
+		window.__avesmapsPathWidthScale = result;
+		console.log("[Straßenbreite x] " + JSON.stringify(result));
+		okBtn.textContent = "✓ gemerkt"; setTimeout(() => { okBtn.textContent = "OK / Werte merken"; }, 1500);
+	});
+	panel.appendChild(okBtn);
+	const hint = document.createElement("div");
+	hint.textContent = "1 = normal, 0 = aus, bis 5 = breiter. Zoom 6 nutzt Stufe 5."; hint.style.cssText = "opacity:0.6;margin-top:6px;";
+	panel.appendChild(hint);
+	document.body.appendChild(panel);
+})();
+
 function getReadablePathLabelLatLngCoordinates(latLngCoords) {
 	if (latLngCoords.length < 2) {
 		return latLngCoords;
