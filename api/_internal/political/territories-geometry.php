@@ -1009,12 +1009,13 @@ function avesmapsPoliticalHardDeleteUnassignedGeometry(PDO $pdo, array $payload,
     }
     $territoryId = (int) ($geometry['territory_id'] ?? 0);
     if ($territoryId > 0) {
-        // Schutz: existiert das Gebiet noch (auch im Papierkorb/inaktiv), gehoert die Geometrie dazu
-        // und ist wiederherstellbar -> NICHT loeschen. Nur echt territoriumslose duerfen weg.
+        // Schutz: gehoert die Geometrie zu einem ECHTEN, benannten Gebiet (auch im Papierkorb/inaktiv),
+        // ist sie wiederherstellbar -> NICHT loeschen. Ausnahme: "Neues Herrschaftsgebiet (N)"-Platzhalter
+        // sind unbenannter Test-/Leichen-Müll und duerfen weg.
         $stmt = $pdo->prepare('SELECT name, is_active FROM political_territory WHERE id = :id');
         $stmt->execute(['id' => $territoryId]);
         $territory = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($territory) {
+        if ($territory && preg_match('/^Neues Herrschaftsgebiet/iu', (string) $territory['name']) !== 1) {
             $state = ((int) $territory['is_active'] === 1) ? 'aktiven' : 'im Papierkorb liegenden (wiederherstellbaren)';
             return ['ok' => false, 'error' => 'Geometrie gehoert zum ' . $state . ' Gebiet "' . (string) $territory['name'] . '" - dort behandeln statt die Geometrie endgueltig zu loeschen.'];
         }
@@ -1028,12 +1029,13 @@ function avesmapsPoliticalHardDeleteUnassignedGeometry(PDO $pdo, array $payload,
 // Gated: schreibt nur bei confirm:"apply", sonst lesender Dry-Run (zaehlt nur Kandidaten).
 function avesmapsPoliticalPurgeUnassignedGeometries(PDO $pdo, array $payload, array $user = []): array {
     $apply = (string) ($payload['confirm'] ?? '') === 'apply';
-    // Verwaist = es existiert KEIN Territorium-Datensatz (territory_id NULL oder Gebiet geloescht).
-    // Gebiete im Papierkorb (inaktiv, aber vorhanden) sind wiederherstellbar -> NICHT erfasst.
+    // Verwaist/löschbar = (a) KEIN Territorium-Datensatz (territory_id NULL oder Gebiet geloescht)
+    // ODER (b) "Neues Herrschaftsgebiet (N)"-Platzhalter (unbenannter Test-/Leichen-Müll).
+    // Echte benannte Gebiete im Papierkorb (inaktiv, aber vorhanden) bleiben geschuetzt.
     $orphanWhere =
-        'FROM political_territory_geometry g
+        "FROM political_territory_geometry g
          LEFT JOIN political_territory t ON t.id = g.territory_id
-         WHERE t.id IS NULL';
+         WHERE t.id IS NULL OR t.name LIKE 'Neues Herrschaftsgebiet%'";
     $candidates = (int) ($pdo->query('SELECT COUNT(*) AS c ' . $orphanWhere)->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
     if (!$apply) {
         return ['ok' => true, 'dry_run' => true, 'candidates' => $candidates, 'deleted' => 0];

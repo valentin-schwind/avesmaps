@@ -1157,7 +1157,8 @@ async function loadUnassignedGeoms(){
   try{
     const r = await fetch('/api/app/political-territories.php?action=geometry_inventory&include_inactive=1&_='+Date.now(), {credentials:'include', cache:'no-store'});
     const d = await r.json();
-    unassignedGeoms = (d.geometries||[]).filter(g=>!g.territory_public_id);  // echt territoriumslos (Papierkorb-Gebiete bleiben draußen)
+    const isPlatzhalter = n => /^Neues Herrschaftsgebiet/i.test(String(n||''));
+    unassignedGeoms = (d.geometries||[]).filter(g=>!g.territory_public_id || isPlatzhalter(g.territory_name));  // territoriumslos ODER „Neues Herrschaftsgebiet"-Platzhalter; echte Papierkorb-Gebiete bleiben draußen
   }catch(e){ unassignedGeoms = []; }
   try{ const c = await geomApi('purge_unassigned_geometries', {}); unassignedGeomCount = (c.candidates!=null) ? c.candidates : unassignedGeoms.length; }
   catch(e){ unassignedGeomCount = unassignedGeoms.length; }
@@ -1172,7 +1173,7 @@ function renderGeomModal(){
     const w=bb.length===4?Math.round(bb[2]-bb[0]):'?';
     const h=bb.length===4?Math.round(bb[3]-bb[1]):'?';
     const area=g.area!=null?Math.round(g.area):'?';
-    const title=(g.label&&g.label.trim())?g.label.trim():'(ohne Titel)';
+    const title=(g.label&&g.label.trim())?g.label.trim():((g.territory_name&&g.territory_name!=='(KEIN TERRITORIUM)')?g.territory_name:'(ohne Titel)');
     const by=g.created_by||'?'; const at=(g.created_at||'').slice(0,10);
     return `<div class="row"><span class="nm" title="${esc(id)}"><b>${esc(title)}</b> · ${esc(g.source||'?')} · ${w}×${h} · Fläche ${area} · ${esc(by)} ${esc(at)}</span> <button class="edbtn dt-geomdel" data-geomdel="${esc(id)}" title="Diese Geometrie endgültig löschen (${esc(id)})">🗑 endgültig löschen</button></div>`;
   }).join('') || '<div class="muted">— keine verwaisten Geometrien —</div>';
