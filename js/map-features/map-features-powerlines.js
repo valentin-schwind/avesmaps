@@ -50,7 +50,13 @@ function createPowerlineStrandLatLngs(latLngs, strandIndex, timeSeconds = 0) {
 			+ index * POWERLINE_RENDER_CONFIG.tremorTangentFrequency
 			+ phase
 		) * envelope * POWERLINE_RENDER_CONFIG.tremorTangentAmplitude;
-		const normalOffset = (normalWave + tremorWave + waveOffset * envelope) * normalScale;
+		// "Störung": zwei überlagerte, hochfrequente + schnelle Sinus quer zur Linie -> flackernder Interferenz-Look.
+		const interferenceSpeed = POWERLINE_RENDER_CONFIG.interferenceSpeed || 0;
+		const interference = (
+			Math.sin(index * 2.6 + timeSeconds * interferenceSpeed + phase * 3.3)
+			+ 0.6 * Math.sin(index * 4.1 - timeSeconds * interferenceSpeed * 1.7 + phase)
+		) * envelope * (POWERLINE_RENDER_CONFIG.interferenceAmplitude || 0);
+		const normalOffset = (normalWave + tremorWave + interference + waveOffset * envelope) * normalScale;
 
 		points.push(L.latLng(
 			start.lat + dy * t + ny * normalOffset + ty * (tangentWave + tremorTangent),
@@ -444,6 +450,8 @@ async function completePendingPowerlineAtEndpoint(endEndpoint) {
 	slider("Amplitude (längs)", 0, 3, 0.05, cfg.tremorTangentAmplitude, (v) => { cfg.tremorTangentAmplitude = v; });
 	slider("Tempo (längs)", 0, 2.5, 0.05, cfg.tremorTangentSpeed, (v) => { cfg.tremorTangentSpeed = v; });
 	slider("Frequenz (quer)", 0, 1.5, 0.01, cfg.tremorNormalFrequency, (v) => { cfg.tremorNormalFrequency = v; });
+	slider("Störung Stärke", 0, 6, 0.1, cfg.interferenceAmplitude || 0, (v) => { cfg.interferenceAmplitude = v; });
+	slider("Störung Tempo", 0, 8, 0.1, cfg.interferenceSpeed || 0, (v) => { cfg.interferenceSpeed = v; });
 	slider("Segmente (Glätte)", 4, 24, 1, cfg.segmentCount, (v) => { cfg.segmentCount = v; });
 	slider("Bildtakt (ms/Frame)", 12, 60, 1, cfg.frameIntervalMs, (v) => { cfg.frameIntervalMs = v; });
 	const okBtn = document.createElement("button");
@@ -457,6 +465,8 @@ async function completePendingPowerlineAtEndpoint(endEndpoint) {
 			tremorTangentAmplitude: cfg.tremorTangentAmplitude,
 			tremorTangentSpeed: cfg.tremorTangentSpeed,
 			tremorNormalFrequency: cfg.tremorNormalFrequency,
+			interferenceAmplitude: cfg.interferenceAmplitude,
+			interferenceSpeed: cfg.interferenceSpeed,
 			segmentCount: cfg.segmentCount,
 			frameIntervalMs: cfg.frameIntervalMs,
 		};

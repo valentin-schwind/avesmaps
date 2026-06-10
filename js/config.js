@@ -283,12 +283,16 @@ const POWERLINE_RENDER_CONFIG = {
 	phaseStep: 1.73,
 	tremorNormalAmplitude: 2.1,
 	tremorTangentAmplitude: 0.3,
-	tremorNormalSpeed: 0.55,
-	tremorTangentSpeed: 0.42,
+	tremorNormalSpeed: 0.85,
+	tremorTangentSpeed: 0.65,
 	tremorNormalFrequency: 0.38,
 	tremorTangentFrequency: 0.29,
 	tremorPhaseMultiplier: 2.4,
-	frameIntervalMs: 33, // ~30 fps: für das langsame "Wabern" mehr als genug, schont die Hauptthread-Last
+	// "Störungen": hochfrequenter, schneller Rausch-Anteil quer zur Linie (zwei überlagerte Sinus). Reine
+	// Mathematik pro Vertex -> kostenlos (kein zusätzlicher Vertex/setLatLngs). 0 = aus.
+	interferenceAmplitude: 1.6,
+	interferenceSpeed: 2.4,
+	frameIntervalMs: 33, // ~30 fps: schont die Hauptthread-Last (Bildtakt unverändert -> Tempo via Speeds)
 };
 
 const POLITICAL_TERRITORY_LAYER_ZOOM_LEVELS = [0, 1, 2, 3, 4, 5, 6];
