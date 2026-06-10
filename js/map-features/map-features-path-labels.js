@@ -252,34 +252,41 @@ function syncPathLabels() {
 	document.body.appendChild(panel);
 })();
 
-// Test-Panel für den GLOBALEN Breiten-Faktor ALLER Straßensysteme je Zoomstufe, nur mit ?roadtune=1 (unten
-// rechts). 6 Slider (visueller Zoom 0..5), je 0..5 in 0.5-Schritten; 1 = normal, 0 = aus. Mutiert
-// PATH_WIDTH_SCALE_BY_ZOOM live (syncPathRendering re-styled). OK -> window.__avesmapsPathWidthScale.
+// Test-Matrix für den Breiten-Faktor je STRASSENTYP × Zoomstufe, nur mit ?roadtune=1 (unten rechts). Zeilen =
+// 8 Subtypen, Spalten = visueller Zoom 0..5; jeder Slider 0..5 in 0.1-Schritten (1 = normal, 0 = aus). Mutiert
+// PATH_WIDTH_SCALE[subtyp][zoom] live (syncPathRendering). OK -> window.__avesmapsPathWidthScale.
 (function initRoadWidthScalePanel() {
 	let on = false;
 	try { on = new URLSearchParams(window.location.search).has("roadtune"); } catch (e) { on = false; }
-	if (!on || !document.body || typeof PATH_WIDTH_SCALE_BY_ZOOM === "undefined") return;
+	if (!on || !document.body || typeof PATH_WIDTH_SCALE === "undefined") return;
 	const ZOOMS = [0, 1, 2, 3, 4, 5];
+	const LABELS = { Reichsstrasse: "Reichsstr.", Strasse: "Straße", Weg: "Weg", Pfad: "Pfad", Gebirgspass: "Geb.pass", Wuestenpfad: "Wüstenpf.", Flussweg: "Fluss", Seeweg: "See/Meer" };
+	const subtypes = (typeof PATH_SUBTYPE_KEYS !== "undefined") ? PATH_SUBTYPE_KEYS : Object.keys(LABELS);
+	const cur = (st, z) => { const b = PATH_WIDTH_SCALE[st]; const v = b ? b[z] : undefined; return (typeof v === "number" && v >= 0) ? v : 1; };
+	const setScale = (st, z, v) => { if (!PATH_WIDTH_SCALE[st]) PATH_WIDTH_SCALE[st] = {}; PATH_WIDTH_SCALE[st][z] = v; };
 	const restyle = () => { try { if (typeof syncPathRendering === "function") syncPathRendering(); } catch (e) { /* noop */ } };
 	const panel = document.createElement("div");
-	panel.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:99999;background:rgba(28,28,28,0.92);color:#fff;font:12px Georgia,serif;padding:10px 12px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.45);width:220px;";
+	panel.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:99999;background:rgba(28,28,28,0.94);color:#fff;font:11px Georgia,serif;padding:10px 12px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,0.45);max-height:92vh;overflow:auto;";
 	const title = document.createElement("div");
-	title.textContent = "Straßenbreite × (je Zoom)"; title.style.cssText = "font-weight:bold;margin-bottom:8px;";
+	title.textContent = "Straßenbreite × (Typ × Zoom)"; title.style.cssText = "font-weight:bold;margin-bottom:8px;";
 	panel.appendChild(title);
+	const grid = document.createElement("div");
+	grid.style.cssText = "display:grid;grid-template-columns:80px repeat(" + ZOOMS.length + ", 60px);gap:4px 6px;align-items:center;";
+	grid.appendChild(document.createElement("div"));
 	const zoomHeads = {};
-	ZOOMS.forEach((z) => {
-		const wrap = document.createElement("div"); wrap.style.marginBottom = "7px";
-		const head = document.createElement("div"); head.style.cssText = "display:flex;justify-content:space-between;margin-bottom:2px;";
-		const nm = document.createElement("span"); nm.textContent = "Zoom " + z; zoomHeads[z] = nm;
-		const cur = (typeof PATH_WIDTH_SCALE_BY_ZOOM[z] === "number") ? PATH_WIDTH_SCALE_BY_ZOOM[z] : 1;
-		const val = document.createElement("span"); val.textContent = String(cur);
-		head.appendChild(nm); head.appendChild(val);
-		const input = document.createElement("input");
-		input.type = "range"; input.min = 0; input.max = 5; input.step = 0.5; input.value = cur; input.style.width = "100%";
-		input.addEventListener("input", () => { const v = parseFloat(input.value); val.textContent = String(v); PATH_WIDTH_SCALE_BY_ZOOM[z] = v; restyle(); });
-		wrap.appendChild(head); wrap.appendChild(input);
-		panel.appendChild(wrap);
+	ZOOMS.forEach((z) => { const h = document.createElement("div"); h.textContent = "z" + z; h.style.cssText = "text-align:center;font-weight:bold;opacity:0.85;"; zoomHeads[z] = h; grid.appendChild(h); });
+	subtypes.forEach((st) => {
+		const rowLabel = document.createElement("div"); rowLabel.textContent = LABELS[st] || st; rowLabel.style.cssText = "white-space:nowrap;";
+		grid.appendChild(rowLabel);
+		ZOOMS.forEach((z) => {
+			const cell = document.createElement("div"); cell.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:1px;";
+			const valEl = document.createElement("div"); const c = cur(st, z); valEl.textContent = String(c); valEl.style.cssText = "font-size:10px;opacity:0.85;";
+			const input = document.createElement("input"); input.type = "range"; input.min = 0; input.max = 5; input.step = 0.1; input.value = c; input.style.width = "54px";
+			input.addEventListener("input", () => { const v = parseFloat(input.value); valEl.textContent = String(v); setScale(st, z, v); restyle(); });
+			cell.appendChild(valEl); cell.appendChild(input); grid.appendChild(cell);
+		});
 	});
+	panel.appendChild(grid);
 	const highlight = () => {
 		const cz = (typeof getVisualZoomLevel === "function" && typeof map !== "undefined" && map) ? getVisualZoomLevel(map.getZoom()) : null;
 		ZOOMS.forEach((z) => { zoomHeads[z].style.color = (z === cz) ? "#ffd479" : "#fff"; });
@@ -293,14 +300,14 @@ function syncPathLabels() {
 	okBtn.textContent = "OK / Werte merken";
 	okBtn.style.cssText = "width:100%;margin-top:10px;padding:7px;border:1px solid #5e4329;border-radius:6px;background:#7a5a3a;color:#fff;font:inherit;cursor:pointer;";
 	okBtn.addEventListener("click", () => {
-		const result = {}; ZOOMS.forEach((z) => { result[z] = (typeof PATH_WIDTH_SCALE_BY_ZOOM[z] === "number") ? PATH_WIDTH_SCALE_BY_ZOOM[z] : 1; });
-		window.__avesmapsPathWidthScale = result;
-		console.log("[Straßenbreite x] " + JSON.stringify(result));
+		const matrix = {}; subtypes.forEach((st) => { matrix[st] = {}; ZOOMS.forEach((z) => { matrix[st][z] = cur(st, z); }); });
+		window.__avesmapsPathWidthScale = matrix;
+		console.log("[Straßenbreite x] " + JSON.stringify(matrix));
 		okBtn.textContent = "✓ gemerkt"; setTimeout(() => { okBtn.textContent = "OK / Werte merken"; }, 1500);
 	});
 	panel.appendChild(okBtn);
 	const hint = document.createElement("div");
-	hint.textContent = "1 = normal, 0 = aus, bis 5 = breiter. Zoom 6 nutzt Stufe 5."; hint.style.cssText = "opacity:0.6;margin-top:6px;";
+	hint.textContent = "1 = normal, 0 = aus, bis 5. Aktuelle Zoom-Spalte = gelb. Zoom 6 nutzt z5."; hint.style.cssText = "opacity:0.6;margin-top:6px;max-width:520px;";
 	panel.appendChild(hint);
 	document.body.appendChild(panel);
 })();

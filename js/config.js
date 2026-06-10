@@ -223,12 +223,14 @@ function getEffectivePathOutlineWidth(subtype, zoom) {
 	return override != null ? override : getDefaultPathOutlineWidth(subtype, zoom);
 }
 
-// Globaler Breiten-Faktor je (visueller) Zoomstufe für ALLE Straßensysteme (Kontur + Füllung). 1 = unverändert,
-// 0 = unsichtbar, bis 5 = fünffach. Live über das ?roadtune=1-Panel. 6 Stufen (visueller Zoom 0..5; Zoom 6 -> 5).
-const PATH_WIDTH_SCALE_BY_ZOOM = { 0: 1, 1: 1, 2: 1, 3: 1, 4: 1, 5: 1 };
-function getPathWidthScale(zoom) {
+// Breiten-Faktor je Straßentyp UND (visueller) Zoomstufe (Kontur + Füllung). Struktur:
+// PATH_WIDTH_SCALE[subtyp][zoom] -> Faktor (1 = unverändert, 0 = unsichtbar, bis 5). Leer = 1. Live über das
+// ?roadtune=1-Panel (Matrix Typ × Zoom 0..5; Zoom 6 nutzt Stufe 5).
+const PATH_WIDTH_SCALE = {};
+function getPathWidthScale(subtype, zoom) {
 	const z = (typeof getVisualZoomLevel === "function") ? getVisualZoomLevel(zoom) : Math.max(0, Math.min(5, Math.round(Number(zoom)) || 0));
-	const value = PATH_WIDTH_SCALE_BY_ZOOM[z];
+	const bySubtype = PATH_WIDTH_SCALE[subtype];
+	const value = bySubtype ? bySubtype[z] : undefined;
 	return (typeof value === "number" && value >= 0) ? value : 1;
 }
 const LOCATION_TYPE_CONFIG = {

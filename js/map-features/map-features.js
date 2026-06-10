@@ -544,8 +544,8 @@ function getPathStyleColors(path) {
 	const baseCenterWeight = simplifiedRender
 		? Math.max(1.5, (isReichsstrasse ? 4 : 3) * PATH_RENDER_CONFIG.simplifiedCenterWeightScale)
 		: (PATH_CENTER_WEIGHTS[pathSubtype] ?? PATH_CENTER_WEIGHTS.Weg);
-	// Globaler Breiten-Faktor je Zoomstufe (?roadtune=1, Default 1 -> unverändert) auf ALLE Straßensysteme.
-	const widthScale = (typeof getPathWidthScale === "function") ? getPathWidthScale(map.getZoom()) : 1;
+	// Breiten-Faktor je Straßentyp + Zoomstufe (?roadtune=1, Default 1 -> unverändert).
+	const widthScale = (typeof getPathWidthScale === "function") ? getPathWidthScale(pathSubtype, map.getZoom()) : 1;
 
 	return {
 		// Reichsstraßen bekommen einen grauen Rand (Kontur), alle anderen weiterhin weiß.
