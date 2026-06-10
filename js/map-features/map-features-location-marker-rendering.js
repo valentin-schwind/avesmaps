@@ -154,7 +154,26 @@ function createLocationMarkerIcon(locationType, zoomLevel = map.getZoom()) {
 	});
 }
 
-function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds()) {
+// Pro Sync-Lauf konstante Sichtbarkeits-Eingaben EINMAL erheben: Modus-Select, Größen-Toggles und
+// Editmode-Checkboxen sind für alle ~3000 Marker identisch, wurden aber pro Marker per jQuery abgefragt
+// (~6000 DOM-Queries pro moveend). Die Typ-Sichtbarkeit füllt sich lazy, weil die Typ-Liste hier nicht
+// bekannt sein muss. shouldShowLocationMarker/-NameLabel funktionieren auch OHNE Kontext (Einzelaufrufe).
+function createLocationVisibilityContext() {
+	const visibleTypeCache = {};
+	return {
+		mapLayerMode: typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "",
+		nodixToggleChecked: IS_EDIT_MODE && $("#toggleNodix").is(":checked"),
+		crossingsToggleChecked: IS_EDIT_MODE && $("#toggleCrossings").is(":checked"),
+		isTypeVisible(locationType) {
+			if (!(locationType in visibleTypeCache)) {
+				visibleTypeCache[locationType] = isLocationTypeVisible(locationType);
+			}
+			return visibleTypeCache[locationType];
+		},
+	};
+}
+
+function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds(), visibilityContext = null) {
 	// Per "Nächsten Ort finden"/Suche temporaer angepinnter Marker bleibt sichtbar, auch wenn seine
 	// Ortsgroesse nicht eingeblendet ist — bis die zugehoerige Infobox geschlossen wird.
 	if (typeof nearestLookupPinnedMarkerEntry !== "undefined" && entry === nearestLookupPinnedMarkerEntry) {
@@ -165,18 +184,26 @@ function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds
 		return true;
 	}
 	if (entry.locationType === CROSSING_LOCATION_TYPE) {
-		return IS_EDIT_MODE
-			&& $("#toggleCrossings").is(":checked")
+		const crossingsToggleChecked = visibilityContext
+			? visibilityContext.crossingsToggleChecked
+			: IS_EDIT_MODE && $("#toggleCrossings").is(":checked");
+		return crossingsToggleChecked
 			&& zoomLevel >= 3
 			&& isMarkerEntryInRenderBounds(entry, renderBounds);
 	}
 
 	// Kraftlinien-Modus: NUR Nodices zeigen -- unabhängig von den Stadt-Größen-Toggles und vom Zoom (auch im Editmode).
-	if (typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "powerlines") {
+	const mapLayerMode = visibilityContext
+		? visibilityContext.mapLayerMode
+		: (typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "");
+	if (mapLayerMode === "powerlines") {
 		return isNodixLocation(entry.location) && isMarkerEntryInRenderBounds(entry, renderBounds);
 	}
 
-	const isVisibleByNodixToggle = IS_EDIT_MODE && $("#toggleNodix").is(":checked") && isNodixLocation(entry.location);
+	const nodixToggleChecked = visibilityContext
+		? visibilityContext.nodixToggleChecked
+		: IS_EDIT_MODE && $("#toggleNodix").is(":checked");
+	const isVisibleByNodixToggle = nodixToggleChecked && isNodixLocation(entry.location);
 	const minZoomByType = entry.locationType === "kleinstadt"
 		? 1
 		: entry.locationType === "dorf"
@@ -184,7 +211,10 @@ function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds
 			: entry.locationType === "gebaeude"
 				? 3
 				: 0;
-	return (isVisibleByNodixToggle || isLocationTypeVisible(entry.locationType))
+	const typeVisible = visibilityContext
+		? visibilityContext.isTypeVisible(entry.locationType)
+		: isLocationTypeVisible(entry.locationType);
+	return (isVisibleByNodixToggle || typeVisible)
 		&& zoomLevel >= minZoomByType
 		&& isMarkerEntryInRenderBounds(entry, renderBounds);
 }
@@ -193,6 +223,7 @@ function syncLocationMarkerVisibility() {
 	syncLocationToggleButtons();
 	const zoomLevel = map.getZoom();
 	const renderBounds = getMapRenderBounds();
+	const visibilityContext = createLocationVisibilityContext();
 	// EXPERIMENTELL (Flag ?canvasmarkers=1, default AUS): dorf+kleinstadt ausserhalb Edit -> Canvas.
 	const canvasOn = typeof LOCATION_CANVAS_MARKERS_ENABLED !== "undefined" && LOCATION_CANVAS_MARKERS_ENABLED && !IS_EDIT_MODE;
 	if (canvasOn) {
@@ -200,7 +231,7 @@ function syncLocationMarkerVisibility() {
 	}
 	const canvasEntries = [];
 	$.each(locationMarkers, (i, entry) => {
-		const shouldShow = shouldShowLocationMarker(entry, zoomLevel, renderBounds);
+		const shouldShow = shouldShowLocationMarker(entry, zoomLevel, renderBounds, visibilityContext);
 		const canvasEligible = canvasOn
 			&& shouldShow
 			&& LOCATION_CANVAS_TYPES.has(entry.locationType)
@@ -231,7 +262,7 @@ function syncLocationMarkerVisibility() {
 	if (canvasOn) {
 		locationCanvasLayer.setEntries(canvasEntries);
 	}
-	syncLocationNameLabelVisibility();
+	syncLocationNameLabelVisibility(visibilityContext);
 }
 
 function getMapRenderBounds() {

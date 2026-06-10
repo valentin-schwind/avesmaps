@@ -33,23 +33,33 @@ function getLocationNameLabelOffset(labelSize, zoomLevel = map.getZoom(), locati
 	};
 }
 
-function shouldShowLocationNameLabel(entry, zoomLevel = map.getZoom()) {
+// visibilityContext (optional, siehe createLocationVisibilityContext): pro Sync-Lauf EINMAL erhobene
+// Invarianten (Modus, Toggles) statt jQuery-Abfragen pro Label — ohne Kontext bleibt das alte Verhalten.
+function shouldShowLocationNameLabel(entry, zoomLevel = map.getZoom(), visibilityContext = null) {
 	if (activeMapStyle !== "stylized" || isCrossingLocation(entry.location)) {
 		return false;
 	}
 
 	// Kraftlinien-Modus: nur die Nodices labeln (passend zu den leuchtenden Ley-Knoten), unabhängig von den
 	// Stadt-Größen-Toggles. Kollisionsauflösung dünnt die Namen bei niedrigem Zoom aus.
-	if (typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "powerlines") {
+	const mapLayerMode = visibilityContext
+		? visibilityContext.mapLayerMode
+		: (typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "");
+	if (mapLayerMode === "powerlines") {
 		return isNodixLocation(entry.location);
 	}
 
 	const config = LOCATION_NAME_LABEL_CONFIG[entry.locationType] || LOCATION_NAME_LABEL_CONFIG.dorf;
-	const isVisibleByNodixToggle = IS_EDIT_MODE
-		&& $("#toggleNodix").is(":checked")
+	const nodixToggleChecked = visibilityContext
+		? visibilityContext.nodixToggleChecked
+		: IS_EDIT_MODE && $("#toggleNodix").is(":checked");
+	const isVisibleByNodixToggle = nodixToggleChecked
 		&& isNodixLocation(entry.location)
 		&& zoomLevel >= 2;
-	return isVisibleByNodixToggle || (zoomLevel >= config.minZoom && isLocationTypeVisible(entry.locationType));
+	const typeVisible = visibilityContext
+		? visibilityContext.isTypeVisible(entry.locationType)
+		: isLocationTypeVisible(entry.locationType);
+	return isVisibleByNodixToggle || (zoomLevel >= config.minZoom && typeVisible);
 }
 
 // Pro Orts-Label-Typ (+ Ruine) Farbe/Versalien/Kursiv/Sperrung EINMAL aus dem echten CSS lesen
@@ -118,8 +128,11 @@ function createLocationNameLabelIcon(entry, zoomLevel = map.getZoom()) {
 }
 
 function createLocationNameLabelEntry(markerEntry) {
+	// LAZY: Marker mit leerem Platzhalter-Icon anlegen — das echte Label-Bild (Canvas + toDataURL) rendert
+	// erst syncLocationNameLabelVisibility für SICHTBARE Labels. Vorher wurden hier beim Start alle ~3000
+	// Siedlungs-Labels gerastert (ein einzelner ~5s-Longtask), obwohl bei Zoom 0 nur ~40 sichtbar sind.
 	const marker = L.marker(markerEntry.location.coordinates, {
-		icon: createLocationNameLabelIcon(markerEntry),
+		icon: L.divIcon({ className: "location-name-label", html: "", iconSize: [0, 0], iconAnchor: [0, 0] }),
 		interactive: false,
 		keyboard: false,
 		pane: "labelsPane",
@@ -127,11 +140,21 @@ function createLocationNameLabelEntry(markerEntry) {
 	return { markerEntry, marker };
 }
 
-function syncLocationNameLabelVisibility() {
+// Stil-Revision der Siedlungs-Labels: zählt hoch, wenn sich das Label-AUSSEHEN global ändert (Halo-Slider
+// im ?halotune=1-Panel). Der setIcon-Guard in syncLocationNameLabelVisibility rendert ein Label nur neu,
+// wenn sich Zoom, Stil-Revision, Name oder Ruinen-Status seit dem letzten Bau geändert haben — beim reinen
+// Pannen bleibt das Icon stehen (kein DOM-Austausch von bis zu ~350 <img>-Icons pro moveend).
+let _locationNameLabelStyleRevision = 0;
+function bumpLocationNameLabelStyleRevision() {
+	_locationNameLabelStyleRevision += 1;
+}
+
+function syncLocationNameLabelVisibility(visibilityContext = null) {
 	const zoomLevel = map.getZoom();
 	const renderBounds = getMapRenderBounds();
+	const context = visibilityContext || createLocationVisibilityContext();
 	locationNameLabels.forEach((entry) => {
-		const shouldShow = shouldShowLocationNameLabel(entry.markerEntry, zoomLevel)
+		const shouldShow = shouldShowLocationNameLabel(entry.markerEntry, zoomLevel, context)
 			&& isMarkerEntryInRenderBounds(entry.markerEntry, renderBounds);
 		if (!shouldShow) {
 			map.removeLayer(entry.marker);
@@ -139,7 +162,11 @@ function syncLocationNameLabelVisibility() {
 		}
 
 		entry.marker.setLatLng(entry.markerEntry.marker.getLatLng());
-		entry.marker.setIcon(createLocationNameLabelIcon(entry.markerEntry, zoomLevel));
+		const iconKey = `${zoomLevel}|${_locationNameLabelStyleRevision}|${entry.markerEntry.name}|${entry.markerEntry.location?.isRuined ? "r" : ""}`;
+		if (entry._iconKey !== iconKey) {
+			entry.marker.setIcon(createLocationNameLabelIcon(entry.markerEntry, zoomLevel));
+			entry._iconKey = iconKey;
+		}
 		map.addLayer(entry.marker);
 	});
 	scheduleLabelCollisionResolution();
@@ -197,7 +224,8 @@ function removeLocationNameLabel(markerEntry) {
 		input.addEventListener("input", () => { const v = parseFloat(input.value); vl.textContent = String(v); apply(v); });
 		panel.appendChild(head); panel.appendChild(input);
 	};
-	const refreshSettlements = () => { try { if (typeof syncLocationNameLabelVisibility === "function") syncLocationNameLabelVisibility(); } catch (e) { /* noop */ } };
+	// Stil-Revision hochzählen, sonst überspringt der setIcon-Guard im Sync das Neu-Rendern der Labels.
+	const refreshSettlements = () => { try { bumpLocationNameLabelStyleRevision(); if (typeof syncLocationNameLabelVisibility === "function") syncLocationNameLabelVisibility(); } catch (e) { /* noop */ } };
 	const refreshRegions = () => { try { if (typeof syncLabelIcons === "function") syncLabelIcons(); } catch (e) { /* noop */ } };
 	addSlider("Siedlungen Stärke", () => LOCATION_LABEL_HALO_STRENGTH, (v) => { LOCATION_LABEL_HALO_STRENGTH = v; refreshSettlements(); });
 	addSlider("Siedlungen Schärfe", () => LOCATION_LABEL_HALO_SHARPNESS, (v) => { LOCATION_LABEL_HALO_SHARPNESS = v; refreshSettlements(); }, 0, 1, 0.05);
