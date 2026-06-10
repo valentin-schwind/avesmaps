@@ -26,6 +26,10 @@ function syncPathVisibility() {
 	if (typeof applyPathDrawOrder === "function") {
 		applyPathDrawOrder();
 	}
+	// Pfad-Namen-Canvas neu zeichnen (Sichtbarkeit von Wegen/Flüssen kann sich geändert haben).
+	if (window.AvesmapsPathLabelCanvasOverlay) {
+		window.AvesmapsPathLabelCanvasOverlay.redraw();
+	}
 }
 
 function shouldShowPathOnMap(path, { showPaths = true, showRivers = false, showSeaPaths = false } = {}) {

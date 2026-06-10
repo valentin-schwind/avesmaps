@@ -2,6 +2,12 @@ function shouldPathNameBeDisplayed(path) {
 	return path?.properties?.show_label === true || path?.properties?.show_label === 1 || path?.properties?.show_label === "1";
 }
 
+// Pfad-Namen (Flüsse/Straßen) auf dem Canvas-Overlay zeichnen (wie die übrigen Karten-Namen) statt als
+// SVG-<textPath>. Default AN; ?canvaspathlabels=0 schaltet auf die alte SVG-Variante zurück.
+const PATH_LABELS_ON_CANVAS = (() => {
+	try { return new URLSearchParams(window.location.search).get("canvaspathlabels") !== "0"; } catch (e) { return true; }
+})();
+
 // Schalter für Fluss-/Seeweg-Labels. Standardmäßig folgen sie den Fluss-Pfaden (syncPathVisibility setzt den
 // Wert = #toggleRivers, solange nichts übersteuert ist). Sobald der Label-Schalter im ?pathtune=1-Panel benutzt
 // wurde, greift der Override: die Labels sind dann von den Pfaden entkoppelt (Pfade aus -> Labels bleiben).
@@ -101,6 +107,12 @@ function refreshPathLayerText(path) {
 		return;
 	}
 
+	if (PATH_LABELS_ON_CANVAS) {
+		// Pfad-Namen zeichnet das Canvas-Overlay -> hier nur einen evtl. alten SVG-Text entfernen.
+		labelLine.removeText?.();
+		return;
+	}
+
 	if (!isPathLabelVisibleAtCurrentZoom(path)) {
 		labelLine.removeText?.();
 		return;
@@ -117,6 +129,9 @@ function refreshPathLayerText(path) {
 
 function syncPathLabels() {
 	pathData.forEach(refreshPathLayerText);
+	if (PATH_LABELS_ON_CANVAS && window.AvesmapsPathLabelCanvasOverlay) {
+		window.AvesmapsPathLabelCanvasOverlay.redraw();
+	}
 }
 
 // Optionales Live-Tuning-Panel für Pfad-Namen (Wege/Flüsse), nur mit ?pathtune=1. Unten LINKS (das
