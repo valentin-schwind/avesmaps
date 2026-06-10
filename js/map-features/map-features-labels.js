@@ -25,9 +25,11 @@ const MAP_LABEL_CANVAS_ALPHA = 1; // volle Deckkraft (die Weichheit kommt von de
 const _mapLabelTypeStyleCache = {};
 let _mapLabelMeasureCtx = null;
 // Gerenderte Label-Bilder cachen: identischer Text/Stil/Größe -> dasselbe data-URL, kein erneutes
-// toDataURL pro Zoom/Pan (Siedlungs-Labels können zahlreich sein). Einfache Kappung gegen Wildwuchs.
+// toDataURL pro Zoom/Pan (Siedlungs-Labels können zahlreich sein). LRU-Verdrängung (Treffer rücken in der
+// Map-Insertion-Order nach hinten) statt FIFO: beim Zoom-Pendeln zwischen zwei Stufen flogen sonst genau
+// die Bilder raus, die gleich wieder gebraucht werden. Limit deckt mehrere Zoomstufen × Halo-Varianten ab.
 const _mapLabelImageCache = new Map();
-const _MAP_LABEL_IMAGE_CACHE_MAX = 2000;
+const _MAP_LABEL_IMAGE_CACHE_MAX = 6000;
 
 // Halo-Stärke S (0..5) -> Glow-Parameter für renderMapLabelToImage. S<=0: kein Halo. Bis S=1 wächst die
 // Deckkraft (S=1 ~ bisheriger Siedlungslabel-Default, Alpha 0.85); über S=1 hinaus verbreitert sich die
@@ -102,6 +104,9 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle, opts) {
 	const cacheKey = `${displayText}|${font}|${typeStyle.color}|${glow || ""}|${glowBlur}|${glowPasses}|${strokeWidth}|${letterSpacing}|${vAnchor}`;
 	const cached = _mapLabelImageCache.get(cacheKey);
 	if (cached) {
+		// LRU: Treffer ans Ende der Insertion-Order verschieben -> Verdrängung trifft den ältesten UNGENUTZTEN Eintrag.
+		_mapLabelImageCache.delete(cacheKey);
+		_mapLabelImageCache.set(cacheKey, cached);
 		return cached;
 	}
 

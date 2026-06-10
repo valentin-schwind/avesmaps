@@ -59,8 +59,11 @@ function refreshLocationMarkerPopup(markerEntry) {
 	const hasWikiSettlement = markerEntry.locationType !== CROSSING_LOCATION_TYPE
 		&& Boolean(markerEntry.location.wikiSettlement && markerEntry.location.wikiSettlement.title);
 	const maxHeight = locationMarkerPopupMaxHeight();
+	// Popup-Inhalt LAZY binden (Leaflet akzeptiert eine Content-Funktion): das HTML entsteht erst beim
+	// Öffnen. Vorher wurde es hier für JEDEN Marker beim Start gebaut (~3000 × Infobox/Buttons/Bewertungs-
+	// Markup) und beim Öffnen via popupopen ohnehin neu gesetzt -> reiner Startup-Ballast.
 	markerEntry.marker.bindPopup(
-		buildLocationMarkerPopupHtml(markerEntry),
+		() => buildLocationMarkerPopupHtml(markerEntry),
 		hasWikiSettlement
 			? { minWidth: 320, maxWidth: 400, maxHeight, className: "settlement-popup" }
 			: { maxHeight }
