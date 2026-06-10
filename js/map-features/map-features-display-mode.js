@@ -1,17 +1,83 @@
+// PERF: Bounding-Box (latLng) eines Pfads aus der Roh-Geometrie, einmal berechnet + gecacht. Für das
+// Viewport-Culling (nur Wege im Sichtfeld auf der Karte halten). Bei Geometrie-Edits invalidieren (= undefined).
+function getPathGeomBounds(path) {
+	if (!path) {
+		return null;
+	}
+	if (path._geomBounds === undefined) {
+		const coords = path.geometry?.coordinates || [];
+		let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+		for (let i = 0; i < coords.length; i += 1) {
+			const x = +coords[i][0], y = +coords[i][1];
+			if (x < mnx) mnx = x; if (x > mxx) mxx = x; if (y < mny) mny = y; if (y > mxy) mxy = y;
+		}
+		path._geomBounds = (mnx <= mxx) ? L.latLngBounds([mny, mnx], [mxy, mxx]) : null;
+	}
+	return path._geomBounds;
+}
+
+function currentPathVisibilityContext() {
+	return {
+		showPaths: $("#togglePaths").is(":checked"),
+		showRivers: $("#toggleRivers").is(":checked"),
+		showSeaPaths: (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) && $("#toggleSeaPaths").is(":checked"),
+		zoom: map.getZoom(),
+		bounds: map.getBounds().pad(0.25), // 25% Polster -> kein Pop-In am Rand beim Pannen
+	};
+}
+
+// Soll dieser Pfad gerade auf der Karte liegen? = Toggle/Modus (shouldShowPathOnMap) UND am aktuellen Zoom
+// sichtbare Breite (Skalierung > 0) UND im (gepolsterten) Sichtfeld. So reprojiziert Leaflet bei jedem Zoom nur
+// die paar Hundert sichtbaren Wege statt aller ~5500 -> raus-/reinzoomen deutlich schneller.
+function pathShouldBeOnMap(path, ctx) {
+	if (!shouldShowPathOnMap(path, ctx)) {
+		return false;
+	}
+	if (typeof getPathWidthScale === "function") {
+		const subtype = normalizePathSubtype(path?.properties?.feature_subtype || path?.properties?.name);
+		if (!(getPathWidthScale(subtype, ctx.zoom) > 0)) {
+			return false;
+		}
+	}
+	const b = getPathGeomBounds(path);
+	if (b && ctx.bounds && !ctx.bounds.intersects(b)) {
+		return false;
+	}
+	return true;
+}
+
+// Läuft auf moveend/zoomend (Pan/Zoom): nur die Karten-Zugehörigkeit der Wege nachziehen (add/remove), KEINE
+// Label-/Override-Logik (die hängt an Toggles, nicht am View). Billig: bbox-Test pro Pfad + Delta-Add/Remove.
+function syncPathViewportCulling() {
+	if (typeof pathData === "undefined" || !Array.isArray(pathData) || !pathData.length) {
+		return;
+	}
+	const ctx = currentPathVisibilityContext();
+	let added = false;
+	$.each(pathLayers, (i, layer) => {
+		if (!layer) return;
+		const want = pathShouldBeOnMap(pathData[i], ctx);
+		const on = map.hasLayer(layer);
+		if (want && !on) { map.addLayer(layer); added = true; }
+		else if (!want && on) { map.removeLayer(layer); }
+	});
+	if (added && typeof applyPathDrawOrder === "function") {
+		applyPathDrawOrder();
+	}
+}
+
 function syncPathVisibility() {
-	const showPaths = $("#togglePaths").is(":checked");
-	const showRivers = $("#toggleRivers").is(":checked");
-	const showSeaPaths = IS_EDIT_MODE && $("#toggleSeaPaths").is(":checked");
+	const ctx = currentPathVisibilityContext();
 
 	// Standardmäßig folgen die Fluss-Labels den Fluss-Pfaden. Sobald im ?pathtune=1-Panel der Label-Schalter
 	// benutzt wurde (Override), bleibt die Entkopplung bestehen: Pfade ausblenden lässt die Labels stehen.
 	if (typeof pathRiverLabelsOverridden !== "undefined" && !pathRiverLabelsOverridden) {
-		pathRiverLabelsVisible = showRivers;
+		pathRiverLabelsVisible = ctx.showRivers;
 	}
 
 	$.each(pathLayers, (i, layer) => {
 		const path = pathData[i];
-		const shouldShow = shouldShowPathOnMap(path, { showPaths, showRivers, showSeaPaths });
+		const shouldShow = pathShouldBeOnMap(path, ctx);
 		map[shouldShow ? "addLayer" : "removeLayer"](layer);
 		// PERF: Sind die Pfad-Namen auf dem Canvas (Default), trägt die unsichtbare SVG-<textPath>-Label-Linie
 		// NICHTS mehr bei -- das Canvas-Overlay liest die Geometrie aus path.geometry. ~4900 solcher transparenten
@@ -153,6 +219,12 @@ function applyDisplayOptions() {
 	syncPowerlineVisibility();
 	syncRegionVisibility();
 	syncLabelVisibility();
+	// PERF: Wege-Viewport-Culling an Pan/Zoom hängen (einmalig). Reduziert die von Leaflet pro Zoom
+	// reprojizierten SVG-Pfade von ~5500 auf die paar Hundert sichtbaren -> raus-/reinzoomen ~2x schneller.
+	if (!window.__pathViewportCullingHooked && typeof map !== "undefined" && map && typeof map.on === "function") {
+		window.__pathViewportCullingHooked = true;
+		map.on("moveend zoomend", syncPathViewportCulling);
+	}
 }
 
 // Live-Tuning der "Magiersicht"-Entsättigung (Grund-Karte im Kraftlinien-Modus), nur mit ?leytune=1 (oben links).

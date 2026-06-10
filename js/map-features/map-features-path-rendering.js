@@ -250,6 +250,7 @@ function updatePathLayerGeometry(path) {
 	const latLngCoords = getPathVisualLatLngCoordinates(path.geometry.coordinates);
 	path._pathLines.forEach((line) => line.setLatLngs(latLngCoords));
 	path._pathLabelLine?.setLatLngs(getReadablePathLabelLatLngCoordinates(getPathLabelVisualLatLngCoordinates(path.geometry.coordinates)));
+	path._geomBounds = undefined; // Bbox-Cache (Viewport-Culling) invalidieren -> Geometrie hat sich geändert.
 	// Geometrie geändert -> Pfad-Namen-Canvas neu zeichnen.
 	if (window.AvesmapsPathLabelCanvasOverlay) {
 		window.AvesmapsPathLabelCanvasOverlay.redraw();
