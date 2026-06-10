@@ -188,4 +188,8 @@
 	window.AvesmapsPathLabelCanvasOverlay = { redraw, paneName: PANE };
 	// Erst-/Nachzieh-Redraws, falls die Pfad-Daten erst nach Overlay-Init geladen werden.
 	[120, 400, 1000].forEach((delay) => window.setTimeout(redraw, delay));
+	// Sobald die App-Schrift (Faculty Glyphic) geladen ist, neu zeichnen -> kein Fallback-Font beim Erst-Paint.
+	if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === "function") {
+		document.fonts.ready.then(redraw).catch(() => { /* noop */ });
+	}
 })();

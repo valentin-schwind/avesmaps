@@ -94,7 +94,7 @@ function getPathLabelStyle(path) {
 		strokeWidth: halo.strokeWidth,
 		paintOrder: halo.paintOrder,
 		filter: halo.filter,
-		fontFamily: 'Georgia, "Times New Roman", serif',
+		fontFamily: '"Faculty Glyphic", Georgia, "Times New Roman", serif',
 		fontSize: `${fontSize}px`,
 		fontWeight: "400",
 		letterSpacing: `${PATH_LABEL_LETTER_SPACING}px`,
