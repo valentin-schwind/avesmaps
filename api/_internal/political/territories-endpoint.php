@@ -86,6 +86,36 @@ try {
             avesmapsJsonResponse(200, $response);
         }
 
+        if ($action === 'layer') {
+            $layerCacheFile = avesmapsPoliticalLayerCacheFile($_GET);
+            $layerCacheTtl = avesmapsPoliticalLayerCacheTtlSeconds($_GET);
+            if (is_file($layerCacheFile) && (time() - (int) @filemtime($layerCacheFile)) < $layerCacheTtl) {
+                $cachedLayer = @file_get_contents($layerCacheFile);
+                if (is_string($cachedLayer) && $cachedLayer !== '') {
+                    http_response_code(200);
+                    header('Content-Type: application/json; charset=utf-8');
+                    header('X-Avesmaps-Layer-Cache: hit');
+                    echo $cachedLayer;
+                    exit;
+                }
+            }
+            $response = avesmapsPoliticalReadLayerWithDerivedGeometry($pdo, $_GET);
+            try {
+                $encodedLayer = json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+                $tmpLayer = $layerCacheFile . '.' . getmypid() . '.tmp';
+                if (@file_put_contents($tmpLayer, $encodedLayer, LOCK_EX) !== false) {
+                    @rename($tmpLayer, $layerCacheFile);
+                }
+                http_response_code(200);
+                header('Content-Type: application/json; charset=utf-8');
+                header('X-Avesmaps-Layer-Cache: miss');
+                echo $encodedLayer;
+                exit;
+            } catch (Throwable $layerCacheError) {
+                avesmapsJsonResponse(200, $response);
+            }
+        }
+
         $response = match ($action) {
             'layer' => avesmapsPoliticalReadLayerWithDerivedGeometry($pdo, $_GET),
             'list' => avesmapsPoliticalListTerritories($pdo, $_GET),
@@ -145,6 +175,7 @@ try {
         default => throw new InvalidArgumentException('Die Herrschaftsgebiet-Aktion ist unbekannt.'),
     };
 
+    avesmapsPoliticalInvalidateLayerCache(); // Schreibvorgang -> Layer-Cache leeren, naechster Load ist frisch.
     avesmapsJsonResponse(200, $response);
 } catch (InvalidArgumentException $exception) {
     $response = [

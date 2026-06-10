@@ -2,6 +2,41 @@
 
 declare(strict_types=1);
 
+// --- Serverseitiger Datei-Cache für den teuren Layer (pro zoom/year/edit/bbox identisch) ---
+// Spart die abgeleitete-Grenzen-Berechnung + DB-Last bei jedem Aufruf. View-Modus laenger,
+// Edit-Modus kurz; jeder Schreibvorgang leert den Cache komplett (siehe Endpoint).
+function avesmapsPoliticalLayerCacheDir(): string {
+    $dir = sys_get_temp_dir() . '/avesmaps_layer_cache';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+    return $dir;
+}
+
+function avesmapsPoliticalLayerCacheFile(array $query): string {
+    $key = sha1(
+        'layer|z=' . (string) ($query['zoom'] ?? '')
+        . '|y=' . (string) ($query['year_bf'] ?? '')
+        . '|e=' . (string) ($query['edit_mode'] ?? '0')
+        . '|b=' . (string) ($query['bbox'] ?? '')
+    );
+    return avesmapsPoliticalLayerCacheDir() . '/' . $key . '.json';
+}
+
+function avesmapsPoliticalLayerCacheTtlSeconds(array $query): int {
+    return ((string) ($query['edit_mode'] ?? '0') === '1') ? 15 : 300;
+}
+
+function avesmapsPoliticalInvalidateLayerCache(): void {
+    $dir = sys_get_temp_dir() . '/avesmaps_layer_cache';
+    if (!is_dir($dir)) {
+        return;
+    }
+    foreach (glob($dir . '/*.json') ?: [] as $file) {
+        @unlink($file);
+    }
+}
+
 function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): array {
     $response = avesmapsPoliticalReadLayer($pdo, $query);
     $yearBf = avesmapsPoliticalReadOptionalInt($query['year_bf'] ?? null) ?? AVESMAPS_POLITICAL_DEFAULT_YEAR_BF;
