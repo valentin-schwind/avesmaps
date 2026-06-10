@@ -219,7 +219,7 @@
           <option value="diverges">Divergenzen</option>
           <option value="locked">Gesperrt</option>
           <option value="siedlung">Stadtstaaten</option>
-          <option value="excluded">Aussortiert</option>
+          <option value="excluded">🗑 Papierkorb (aussortiert)</option>
           <option value="historisch">Historisch</option>
           <option value="kirchen">Kirchen</option>
           <option value="own">Eigene Knoten</option>
@@ -788,7 +788,7 @@ function renderList() {
         || (n.aliases||[]).some(a=>a.includes(q)) || (n.affiliation_raw||'').toLowerCase().includes(q))) continue;
     if (shown++ > 600) { out.push('<div class="muted">… mehr (Suche eingrenzen)</div>'); break; }
     const lock = n.parent_locked ? ` <span class="tag lock" title="${lockTitle(n)}">🔒</span>` : '';
-    const exclTag = n.excluded ? ' <span class="tag excl" title="aussortiert – in den Baum/Wurzel ziehen holt zurück">✕ aussortiert</span>' : '';
+    const exclTag = n.excluded ? ` <span class="tag excl" title="im Papierkorb / aussortiert – aus der Hierarchie genommen, aber noch gesynct">🗑 Papierkorb</span> <button class="edbtn dt-restore" data-restore="${esc(n.wiki_key)}" title="Wiederherstellen – zurück in die Hierarchie holen">↩ wiederherstellen</button>` : '';
     const meta = n.excluded ? '' : `${parentLabel(n)}${conflictLabel(n)}`;
     out.push(`<div class="row${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}">${covCircle(n)}${wappenThumb(n)}<span class="nm">${esc(dispName(n))}${periodLabel(n)}</span>${wikiLink(n)}${meta}${lock}${exclTag}</div>`);
   }
@@ -858,7 +858,7 @@ function render(){
   const gaps = vis.filter(isGap).length;
   const conf = vis.filter(n=>n.has_conflict).length;
   const excl = NODES.filter(n=>n.excluded).length;
-  $('attn').textContent = NODES.length ? `${gaps} Lücken · ${conf} Konflikte${excl?` · ${excl} aussortiert`:''}` : '';
+  $('attn').innerHTML = NODES.length ? `${gaps} Lücken · ${conf} Konflikte${excl?` · <a href="#" id="attnTrash" title="Papierkorb öffnen – versehentlich aussortierte/gelöschte Gebiete">🗑 ${excl} im Papierkorb</a>`:''}` : '';
   renderList(); renderTree();
 }
 function parentLabel(n){
@@ -942,6 +942,10 @@ document.addEventListener('drop', e => {
 document.addEventListener('click', e => {
   const tw=e.target.closest('[data-tw]');
   if(tw){ toggleNode(tw.dataset.tw); return; }
+  const rb=e.target.closest('[data-restore]');
+  if(rb){ e.preventDefault(); e.stopPropagation(); setExcluded(rb.dataset.restore, false); return; }  // ↩ wiederherstellen
+  const trash=e.target.closest('#attnTrash');
+  if(trash){ e.preventDefault(); $('filter').value='excluded'; renderList(); return; }               // Papierkorb öffnen
   if(e.target.closest('a.wl')) return;            // Wiki-Link nicht abfangen
   const el=e.target.closest('[data-key]');
   if(el) selectKey(el.dataset.key);               // Klick = auswählen -> Detail-Panel
