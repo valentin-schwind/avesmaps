@@ -20,12 +20,26 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
         'geometry.is_active = 1',
         'territory.continent = :continent',
         '(COALESCE(geometry.valid_from_bf, territory.valid_from_bf) IS NULL OR COALESCE(geometry.valid_from_bf, territory.valid_from_bf) <= :year_bf_start)',
-        '(COALESCE(' . $normalizedGeometryValidToSql . ', ' . $normalizedTerritoryValidToSql . ') IS NULL OR COALESCE(' . $normalizedGeometryValidToSql . ', ' . $normalizedTerritoryValidToSql . ') >= :year_bf_end)',
+        // Renderer-Fallback (Geometrie-Zeiträume veralten nicht still): Ein lebendes Territorium darf NICHT von einem
+        // überholten Geometrie-valid_to versteckt werden -- die häufige Falle, wenn ein Gebiet von "aufgelöst" auf
+        // "besteht" korrigiert wird, die zugewiesene Geometrie den alten Auflösungsstempel aber behält.
+        //  (A) Das Territorium lebt im Anzeigejahr -> eine ECHTE Auflösung versteckt weiterhin korrekt.
+        '(' . $normalizedTerritoryValidToSql . ' IS NULL OR ' . $normalizedTerritoryValidToSql . ' >= :year_bf_end)',
+        //  (B) Diese Geometrie ist die AKTUELLE Form: noch gültig ODER von keiner jüngeren aktiven Geometrie desselben
+        //      Territoriums (valid_from <= Jahr, aber später als diese) verdrängt -> Form-Versionierung bleibt erhalten,
+        //      ein veraltetes valid_to blendet die einzige/letzte Form aber nicht mehr aus.
+        '(' . $normalizedGeometryValidToSql . ' IS NULL OR ' . $normalizedGeometryValidToSql . ' >= :year_bf_end_geom'
+            . ' OR NOT EXISTS (SELECT 1 FROM political_territory_geometry g2'
+            . ' WHERE g2.territory_id = geometry.territory_id AND g2.is_active = 1 AND g2.id <> geometry.id'
+            . ' AND COALESCE(g2.valid_from_bf, 0) <= :year_bf_end_super'
+            . ' AND COALESCE(g2.valid_from_bf, 0) > COALESCE(geometry.valid_from_bf, 0)))',
     ];
     $params = [
         'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
         'year_bf_start' => $yearBf,
         'year_bf_end' => $yearBf,
+        'year_bf_end_geom' => $yearBf,
+        'year_bf_end_super' => $yearBf,
     ];
 
     if ($bbox !== null) {
