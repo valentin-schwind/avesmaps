@@ -195,12 +195,22 @@ function openPoliticalTerritoryEditor(regionEntry = {}) {
 // Verdrahtet den inline geladenen Editor direkt (kein iframe-Polling/Monkeypatch).
 function setupPoliticalTerritoryEditorInline(regionEntry) {
 	const assignmentModule = window.AvesmapsPoliticalTerritoryAssignment;
-	if (!assignmentModule || typeof assignmentModule.configure !== "function") {
+	const moduleReady = assignmentModule && typeof assignmentModule.configure === "function";
+	// WICHTIG: Erst konfigurieren, wenn die Save-Pipeline (territory-editor-save.js) configure() bereits umschlossen
+	// hat. Sonst landet das ROHE onSave in moduleOptions -> saveWithPipeline wird nie aufgerufen -> die afterSave-
+	// Hooks (Geschwister-/Unterregionen-Vererbung von Zoom/Transparenz/Farbe/Gültigkeit) feuern nie. Das war ein
+	// Lade-Reihenfolge-Race seit dem Inline-Editor-Umbau: der Patch wrappt configure für FUTURE-Aufrufe, der Editor
+	// hatte aber u. U. schon vorher (ungepatcht) konfiguriert. Daher hier auf den Wrapper warten.
+	const savePipelinePending = moduleReady && Boolean(window.AvesmapsPoliticalTerritoryEditorSave)
+		&& assignmentModule.configure.name !== "configureWithSavePipeline";
+	if (!moduleReady || savePipelinePending) {
 		politicalTerritoryEditorFrameSetupAttempts += 1;
 		if (politicalTerritoryEditorFrameSetupAttempts < 40) {
 			window.setTimeout(() => setupPoliticalTerritoryEditorInline(regionEntry), 50);
+			return;
 		}
-		return;
+		if (!moduleReady) return; // nach ~2s aufgeben, wenn das Assignment-Modul ganz fehlt
+		// sonst: Pipeline kam nicht -> degradiert OHNE Vererbung weiter konfigurieren (reines Speichern klappt).
 	}
 	politicalTerritoryEditorFrameSetupAttempts = 0;
 
