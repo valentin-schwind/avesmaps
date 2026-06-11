@@ -582,7 +582,11 @@ async function savePoliticalTerritoryEditorAssignment(regionEntry, value = {}) {
 
 async function syncPoliticalTerritoryEditorAssignmentZooms(value = {}) {
 	const displays = Array.isArray(value.displays) ? value.displays : [];
-	const syncDisplays = displays.filter((display) => String(display?.territoryPublicId || "").trim() !== "");
+	// Existierende Gebiete OHNE expliziten Zoom (zoomMin/zoomMax null) NICHT synchronisieren -> ihre manuell
+	// gesetzten Zoomstufen bleiben erhalten. Default-Zoom gilt nur für neu erzeugte Gebiete (die haben hier
+	// noch keine territoryPublicId und werden ohnehin über die Zuweisung selbst angelegt).
+	const syncDisplays = displays.filter((display) =>
+		String(display?.territoryPublicId || "").trim() !== "" && (display?.zoomMin != null || display?.zoomMax != null));
 	if (syncDisplays.length < 1) return null;
 
 	try {

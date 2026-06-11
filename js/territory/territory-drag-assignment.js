@@ -227,7 +227,11 @@ function buildWikiSyncTerritoryAssignmentValueFromPayload(payload) {
 		pathKeys: path.slice(0, index + 1).map((part) => part.wikiKey || part.key || part.id || ""),
 	}));
 	const displays = path.map((entry, index) => {
-		const zoom = defaultWikiSyncTerritoryZoomRange(path.length, index);
+		// Default-Zoom NUR für NEUE Knoten (noch kein political_territory). Existierende Eltern (z. B. Mittelreich
+		// mit eigener, manuell gesetzter Zoomstufe) NICHT überschreiben -> zoomMin/zoomMax null -> Backend und
+		// assignment-zoom-sync behalten die vorhandenen Werte.
+		const isExistingTerritory = String(entry.territoryPublicId || "").trim() !== "";
+		const zoom = isExistingTerritory ? { zoomMin: null, zoomMax: null } : defaultWikiSyncTerritoryZoomRange(path.length, index);
 		return {
 			nodeId: entry.id || entry.key || entry.wikiKey || entry.name || "",
 			nodeKey: entry.key || entry.wikiKey || entry.id || entry.name || "",
