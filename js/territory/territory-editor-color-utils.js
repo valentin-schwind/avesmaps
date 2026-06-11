@@ -77,47 +77,42 @@
 
 	function createHueVariant(parentColor, options = {}) {
 		const rgb = parseHexToRgb(parentColor) || { red: 136, green: 136, blue: 136 };
+		const range = options.range || { min256: 30, max256: 30 };
+		const variance256 = Math.max(Number(range.min256) || 0, Number(range.max256) || 0);
+		// ALLE Variation hängt an der Varianz (dem UI-Regler): bei 0 kommt EXAKT die Elternfarbe zurück
+		// (Eingabe 0,0,0,0 => überall dieselbe Farbe).
+		if (variance256 <= 0) {
+			return normalizeHexColor(parentColor) || parentColor;
+		}
+		const varFactor = Math.min(1, variance256 / 256);
 		const hsv = rgbToHsv(rgb.red, rgb.green, rgb.blue);
 		const depth = Math.max(1, Number(options.depth || 1));
 		const siblingIndex = Math.max(0, Number(options.siblingIndex || 0));
 		const siblingCount = Math.max(1, Number(options.siblingCount || 1));
-		const range = options.range || { min256: 30, max256: 30 };
-		// Spreizung wird VOLL von der Range gesteuert (kein harter 24°-Deckel mehr, der den
-		// UI-Regler frueher wirkungslos machte): wenige Geschwister -> min, viele -> bis max.
-		const minDegrees = (Math.min(range.min256, range.max256) / 256) * 360;
-		const maxDegrees = (Math.max(range.min256, range.max256) / 256) * 360;
-		const crowd = Math.min(1, Math.max(0, siblingCount - 1) / 8);
-		const span = minDegrees + (maxDegrees - minDegrees) * crowd;
+
+		// HUE = HAUPT-Stellschraube (aus dem Farbraum): gleichmäßig über die Spanne (= Varianz in Grad).
+		const span = varFactor * 360;
 		const position = siblingCount > 1 ? siblingIndex / (siblingCount - 1) : 0.5;
 		const offset = ((position * 2) - 1) * span;
-		const jitter = (((seededUnit(`${options.seedText || ""}:jitter`) * 2) - 1) * Math.max(0.75, Math.min(3, span * 0.12)));
-		// Helligkeit je Tiefe leicht staffeln, damit Ebenen auch bei ähnlichem Farbton
-		// trennbar bleiben (dunkle Basis wird tiefer heller, helle Basis tiefer dunkler).
-		const valueShift = Math.min(0.24, (depth - 1) * 0.06);
-		let value = Math.max(0.35, Math.min(1, hsv.value + (hsv.value < 0.6 ? valueShift : -valueShift)));
-		let saturation = hsv.saturation;
+		// Jitter proportional zur Spanne (kein fester Sockel -> bei kleiner Varianz nahe 0).
+		const jitter = ((seededUnit(`${options.seedText || ""}:jitter`) * 2) - 1) * span * 0.1;
 
-		// Geschwister ZUSÄTZLICH über Helligkeit + Sättigung spreizen. Hue allein reicht NICHT, wenn die Elternfarbe
-		// niedrig gesättigt ist (Pastell) oder mehrere Geschwister nahe dem Eltern-Hue landen (z. B. lauter Grüntöne):
-		// dort sind Hue-Unterschiede kaum sichtbar -> sie sehen sich gleich. Pro Knoten geseedet (de-korreliert vom
-		// Hue, würfelt mit colorShuffleSeed neu), damit Nachbarn auch in Helligkeit/Sättigung auseinanderliegen.
+		let value = hsv.value;
+		let saturation = hsv.saturation;
 		if (siblingCount > 1) {
-			// Helligkeit GLEICHMÄSSIG über die Geschwister spreizen (eigene gemischte Reihenfolge via valueIndex ->
-			// de-korreliert vom Hue) -> GARANTIERT jedes Geschwister eine andere Helligkeitsstufe, auch lauter
-			// Grüntöne werden so trennbar. Ohne valueIndex Fallback auf geseedeten Wert.
 			const valuePos = (typeof options.valueIndex === "number")
 				? options.valueIndex / Math.max(1, siblingCount - 1)
 				: seededUnit(`${options.seedText || ""}:light`);
 			const satUnit = seededUnit(`${options.seedText || ""}:sat`);
-			// WICHTIG innerhalb des VERFÜGBAREN Spielraums spreizen (anteilig nach oben/unten), sonst klemmen helle
-			// Pastell-Basen am Deckel und mehrere Geschwister werden gleich hell. lo/hi = Helligkeitsgrenzen.
-			const lo = 0.34, hi = 0.9;
-			const roomUp = Math.max(0, hi - value), roomDown = Math.max(0, value - lo);
-			const totalRoom = Math.min(0.46, roomUp + roomDown);
-			const downPart = (roomUp + roomDown) > 0 ? totalRoom * (roomDown / (roomUp + roomDown)) : totalRoom / 2;
-			value = (value - downPart) + valuePos * totalRoom;
-			saturation = Math.max(0.12, Math.min(1, saturation * (0.78 + satUnit * 0.55)));
+			// HELLIGKEIT variiert am WENIGSTEN: kleine Amplitude (gleichmäßig via valueIndex, de-korreliert vom Hue),
+			// nur um gleich-farbige Geschwister minimal zu trennen. SÄTTIGUNG als sekundäre Trennung (stärker als
+			// Helligkeit, schwächer als Hue). Beides proportional zur Varianz -> bei 0 keine Variation.
+			value = Math.max(0.3, Math.min(0.95, value + (valuePos - 0.5) * varFactor * 0.12));
+			saturation = Math.max(0.06, Math.min(1, saturation * (1 + (satUnit - 0.5) * varFactor * 0.9)));
 		}
+		// Ebenen-Staffelung der Helligkeit (Tiefe) ebenfalls an die Varianz koppeln -> bei 0 keine.
+		const valueShift = Math.min(0.2, (depth - 1) * 0.05) * varFactor;
+		value = Math.max(0.3, Math.min(0.95, value + (hsv.value < 0.6 ? valueShift : -valueShift)));
 
 		return hsvToHex((hsv.hue + offset + jitter + 360) % 360, saturation, value);
 	}
