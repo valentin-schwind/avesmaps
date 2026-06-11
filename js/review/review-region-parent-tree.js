@@ -226,6 +226,9 @@ function clonePoliticalTerritoryHierarchyNode(node) {
 		founded_text: node.founded_text || "",
 		dissolved_text: node.dissolved_text || "",
 		coat_of_arms_url: node.coat_of_arms_url || "",
+		map_assigned: node.map_assigned === true,
+		map_territory_count: Number(node.map_territory_count || 0),
+		map_inactive_territory_count: Number(node.map_inactive_territory_count || 0),
 		aliases: Array.isArray(node.aliases) ? node.aliases : [],
 	};
 	const option = territory.public_id ? findPoliticalTerritoryOption(territory.public_id) : null;
@@ -433,6 +436,7 @@ function getPoliticalTerritoryTreeSearchText(territory) {
 		territory.capital_name,
 		territory.seat_name,
 		territory.ruler,
+		isPoliticalTerritoryTreeEntryInactive(territory) ? "inaktiv" : "",
 		...(Array.isArray(territory.aliases) ? territory.aliases : []),
 	].filter(Boolean).join(" "));
 }
@@ -472,7 +476,20 @@ function createRegionParentTreeButton(territory, region, { isGroup = false, hasC
 		territory.wiki_affiliation_root || territory.wiki_affiliation_raw || "",
 		territory.wiki_url ? "Wiki" : "",
 	].filter(Boolean).join(" · "));
+	if (isPoliticalTerritoryTreeEntryInactive(territory)) {
+		button.classList.add("is-inactive");
+		const badgeElement = document.createElement("span");
+		badgeElement.className = "political-territory-parent-tree__inactive-badge";
+		badgeElement.textContent = "inaktiv";
+		badgeElement.title = "Das zugeordnete Herrschaftsgebiet ist deaktiviert und wird auf der Karte nicht gerendert.";
+		button.querySelector(".political-territory-parent-tree__name").append(badgeElement);
+	}
 	return button;
+}
+
+function isPoliticalTerritoryTreeEntryInactive(territory) {
+	return Number(territory?.map_inactive_territory_count || 0) > 0
+		&& Number(territory?.map_territory_count || 0) < 1;
 }
 
 

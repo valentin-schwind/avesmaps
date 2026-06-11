@@ -18,6 +18,7 @@ function avesmapsPoliticalReadAudit(PDO $pdo, array $query): array {
     }
 
     $geometryCounts = avesmapsPoliticalFetchAuditGeometryCounts($pdo);
+    $derivedGeometryCounts = avesmapsPoliticalFetchAuditDerivedGeometryCounts($pdo);
     $layerByZoom = [];
     for ($zoom = $zoomFrom; $zoom <= $zoomTo; $zoom++) {
         $layerByZoom[$zoom] = avesmapsPoliticalReadLayer($pdo, [
@@ -28,6 +29,10 @@ function avesmapsPoliticalReadAudit(PDO $pdo, array $query): array {
 
     $entries = [];
     foreach ($territories as $territory) {
+        if (($territory['is_active'] ?? true) === false) {
+            continue; // Inaktive landen in inactive_territory_entries (eigene Problem-Sektion).
+        }
+
         $territoryId = (int) $territory['id'];
         $geometryCount = (int) ($geometryCounts[$territoryId]['geometry_count'] ?? 0);
         $hasInferredParent = empty($territory['parent_id']) && !empty($territory['parent_public_id']);
@@ -78,6 +83,7 @@ function avesmapsPoliticalReadAudit(PDO $pdo, array $query): array {
     );
 
     $missingTerritoryEntries = avesmapsPoliticalBuildMissingTerritoryEntryAudit($pdo, $territories);
+    $inactiveTerritoryEntries = avesmapsPoliticalBuildInactiveTerritoryEntries($territories, $geometryCounts, $derivedGeometryCounts);
 
     return [
         'ok' => true,
@@ -88,6 +94,8 @@ function avesmapsPoliticalReadAudit(PDO $pdo, array $query): array {
         'entries' => $entries,
         'missing_territory_entry_count' => count($missingTerritoryEntries),
         'missing_territory_entries' => $missingTerritoryEntries,
+        'inactive_territory_entry_count' => count($inactiveTerritoryEntries),
+        'inactive_territory_entries' => $inactiveTerritoryEntries,
     ];
 }
 
@@ -583,6 +591,91 @@ function avesmapsPoliticalFetchAuditGeometryCounts(PDO $pdo): array {
     }
 
     return $counts;
+}
+
+function avesmapsPoliticalFetchAuditDerivedGeometryCounts(PDO $pdo): array {
+    try {
+        $statement = $pdo->query(
+            'SELECT territory_id, COUNT(*) AS derived_count
+            FROM political_territory_derived_geometry
+            WHERE is_active = 1
+            GROUP BY territory_id'
+        );
+    } catch (Throwable) {
+        return [];
+    }
+    if ($statement === false) {
+        return [];
+    }
+
+    $counts = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $counts[(int) ($row['territory_id'] ?? 0)] = (int) ($row['derived_count'] ?? 0);
+    }
+
+    return $counts;
+}
+
+// Inaktive Territorien tauchen in keinem Layer auf, der Editor zeigt sie aber weiter an
+// (Vorfall "Herzogtum Transysilien"). Der Report listet sie deshalb als eigene Problem-Sektion,
+// sobald noch etwas an ihnen haengt: aktive Kinder, eigene Geometrien oder eine Derived-Huelle.
+function avesmapsPoliticalBuildInactiveTerritoryEntries(array $territories, array $geometryCounts, array $derivedGeometryCounts): array {
+    $activeChildCounts = [];
+    foreach ($territories as $territory) {
+        if (($territory['is_active'] ?? true) === false) {
+            continue;
+        }
+
+        $parentId = (int) ($territory['parent_id'] ?? 0);
+        if ($parentId > 0) {
+            $activeChildCounts[$parentId] = ($activeChildCounts[$parentId] ?? 0) + 1;
+        }
+    }
+
+    $entries = [];
+    foreach ($territories as $territory) {
+        if (($territory['is_active'] ?? true) !== false) {
+            continue;
+        }
+
+        $territoryId = (int) $territory['id'];
+        $geometryCount = (int) ($geometryCounts[$territoryId]['geometry_count'] ?? 0);
+        $derivedGeometryCount = (int) ($derivedGeometryCounts[$territoryId] ?? 0);
+        $activeChildCount = (int) ($activeChildCounts[$territoryId] ?? 0);
+        if ($geometryCount < 1 && $derivedGeometryCount < 1 && $activeChildCount < 1) {
+            continue;
+        }
+
+        $reasons = [];
+        if ($activeChildCount > 0) {
+            $reasons[] = 'active_children';
+        }
+        if ($geometryCount > 0) {
+            $reasons[] = 'own_geometries';
+        }
+        if ($derivedGeometryCount > 0) {
+            $reasons[] = 'derived_geometry';
+        }
+
+        $entries[] = [
+            'territory' => $territory,
+            'active_child_count' => $activeChildCount,
+            'geometry_count' => $geometryCount,
+            'geometry_sources' => $geometryCounts[$territoryId]['sources'] ?? [],
+            'derived_geometry_count' => $derivedGeometryCount,
+            'reasons' => $reasons,
+        ];
+    }
+
+    usort(
+        $entries,
+        static fn(array $left, array $right): int => strcmp(
+            (string) ($left['territory']['name'] ?? ''),
+            (string) ($right['territory']['name'] ?? '')
+        )
+    );
+
+    return $entries;
 }
 
 function avesmapsPoliticalBuildMissingTerritoryEntryAudit(PDO $pdo, array $territories): array {

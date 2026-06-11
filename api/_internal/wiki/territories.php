@@ -509,6 +509,34 @@ function avesmapsWikiSyncReadPoliticalTerritoryMapAssignments(PDO $pdo): array {
         ];
     }
 
+    // Inaktive (soft-geloeschte) Territorien separat zaehlen: sie fehlen oben bewusst
+    // (is_active=1-Join), sollen im Baum aber als "inaktiv" markierbar sein statt wie
+    // nie zugewiesen auszusehen (Vorfall "Herzogtum Transysilien").
+    $inactiveStatement = $pdo->prepare(
+        'SELECT wiki.wiki_key, COUNT(DISTINCT territory.id) AS inactive_territory_count
+        FROM political_territory_wiki wiki
+        INNER JOIN political_territory territory
+            ON territory.wiki_id = wiki.id
+            AND territory.is_active = 0
+        WHERE wiki.continent = :continent
+        GROUP BY wiki.wiki_key'
+    );
+    $inactiveStatement->execute([
+        'continent' => AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+    ]);
+    foreach ($inactiveStatement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $wikiKey = (string) ($row['wiki_key'] ?? '');
+        if ($wikiKey === '') {
+            continue;
+        }
+
+        $assignments[$wikiKey] ??= [
+            'territory_count' => 0,
+            'geometry_count' => 0,
+        ];
+        $assignments[$wikiKey]['inactive_territory_count'] = (int) ($row['inactive_territory_count'] ?? 0);
+    }
+
     return $assignments;
 }
 
@@ -520,6 +548,7 @@ function avesmapsWikiSyncApplyPoliticalTerritoryMapAssignments(array $rows, arra
         $row['map_assigned'] = $geometryCount > 0;
         $row['map_territory_count'] = (int) ($assignment['territory_count'] ?? 0);
         $row['map_geometry_count'] = $geometryCount;
+        $row['map_inactive_territory_count'] = (int) ($assignment['inactive_territory_count'] ?? 0);
 
         return $row;
     }, $rows);
@@ -2124,6 +2153,7 @@ function avesmapsWikiSyncCreatePoliticalTreeNode(string $key, string $name, ?arr
         'map_assigned' => false,
         'map_territory_count' => 0,
         'map_geometry_count' => 0,
+        'map_inactive_territory_count' => 0,
         'is_group' => $row === null,
         'row' => $row,
         'children' => [],
@@ -2157,6 +2187,7 @@ function avesmapsWikiSyncApplyPoliticalRowToTreeNode(array $node, array $row): a
     $node['map_assigned'] = !empty($row['map_assigned']);
     $node['map_territory_count'] = (int) ($row['map_territory_count'] ?? 0);
     $node['map_geometry_count'] = (int) ($row['map_geometry_count'] ?? 0);
+    $node['map_inactive_territory_count'] = (int) ($row['map_inactive_territory_count'] ?? 0);
 
     return $node;
 }
@@ -2211,6 +2242,7 @@ function avesmapsWikiSyncPublicPoliticalTreeNode(array $node): array {
         'map_assigned' => !empty($node['map_assigned']),
         'map_territory_count' => (int) ($node['map_territory_count'] ?? 0),
         'map_geometry_count' => (int) ($node['map_geometry_count'] ?? 0),
+        'map_inactive_territory_count' => (int) ($node['map_inactive_territory_count'] ?? 0),
         'is_group' => (bool) $node['is_group'],
         'is_wiki_live' => true,
     ];
