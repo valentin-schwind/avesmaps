@@ -34,7 +34,17 @@ function isPathLabelVisibleAtCurrentZoom(path) {
 }
 
 // Live tunbar via ?pathtune=1 (siehe Panel am Dateiende).
-let PATH_LABEL_FONT_DELTA = 3;      // px auf die berechnete (zoomabhängige) Größe
+// Schriftgrößen-Delta PRO (visueller) Zoomstufe -- px auf die berechnete (zoomabhängige) Basisgröße.
+// Gleicher Zoom-Index wie die Basis (getLocationNameLabelSize -> getVisualZoomLevel, 0..VISUAL_MAX_ZOOM_LEVEL=5),
+// damit Slider "Zoom N" und Basisgröße sich decken. Defaults überall 3 = bisheriges globales Verhalten.
+let PATH_LABEL_FONT_DELTA_BY_ZOOM = { 0: 3, 1: 3, 2: 3, 3: 3, 4: 3, 5: 3 };
+function getPathLabelFontDelta(zoomLevel = (typeof map !== "undefined" ? map.getZoom() : 4)) {
+	const z = typeof getVisualZoomLevel === "function"
+		? getVisualZoomLevel(zoomLevel)
+		: Math.max(0, Math.min(5, Math.round(Number(zoomLevel))));
+	const value = PATH_LABEL_FONT_DELTA_BY_ZOOM[z];
+	return Number.isFinite(value) ? value : 3;
+}
 let PATH_LABEL_DY = -1;             // px Abstand der Schrift zur Linie (negativ = darüber)
 // Halo der Pfad-Namen, getrennt für Flüsse/Seewege und Straßen/Wege -- wie bei den Siedlungs-Labels:
 // Stärke (0..5) = Halo-Prominenz, Schärfe (0..1) = weicher Schein (CSS drop-shadow) <-> scharfe Kontur (SVG-Stroke).
@@ -86,7 +96,7 @@ function getPathLabelStyle(path) {
 	};
 
 	const isRiver = pathSubtype === "Flussweg" || pathSubtype === "Seeweg";
-	const fontSize = Math.max(4, getLocationNameLabelSize("dorf") + (pathSubtype === "Flussweg" ? 3 : 1) + PATH_LABEL_FONT_DELTA);
+	const fontSize = Math.max(4, getLocationNameLabelSize("dorf") + (pathSubtype === "Flussweg" ? 3 : 1) + getPathLabelFontDelta());
 	const halo = getPathLabelHaloParams(
 		isRiver ? PATH_LABEL_RIVER_HALO_STRENGTH : PATH_LABEL_ROAD_HALO_STRENGTH,
 		isRiver ? PATH_LABEL_RIVER_HALO_SHARPNESS : PATH_LABEL_ROAD_HALO_SHARPNESS,
@@ -200,7 +210,10 @@ function syncPathLabels() {
 		wrap.appendChild(head); wrap.appendChild(input);
 		panel.appendChild(wrap);
 	};
-	slider("Schriftgröße ±", -6, 12, 1, PATH_LABEL_FONT_DELTA, (v) => { PATH_LABEL_FONT_DELTA = v; restyle(); });
+	// Schriftgröße ± PRO Zoomstufe (Pfad-Labels erscheinen ab Zoom 3; visueller Max-Zoom = 5).
+	[3, 4, 5].forEach((z) => {
+		slider(`Schriftgröße ± (Zoom ${z})`, -6, 12, 1, PATH_LABEL_FONT_DELTA_BY_ZOOM[z], (v) => { PATH_LABEL_FONT_DELTA_BY_ZOOM[z] = v; restyle(); });
+	});
 	slider("Abstand zur Linie (dy)", -28, 12, 1, PATH_LABEL_DY, (v) => { PATH_LABEL_DY = v; restyle(); });
 	slider("Flüsse Halo-Stärke", 0, 5, 0.1, PATH_LABEL_RIVER_HALO_STRENGTH, (v) => { PATH_LABEL_RIVER_HALO_STRENGTH = v; restyle(); });
 	slider("Flüsse Halo-Schärfe", 0, 1, 0.05, PATH_LABEL_RIVER_HALO_SHARPNESS, (v) => { PATH_LABEL_RIVER_HALO_SHARPNESS = v; restyle(); });
@@ -213,7 +226,7 @@ function syncPathLabels() {
 	okBtn.textContent = "OK / Werte merken";
 	okBtn.style.cssText = "width:100%;margin-top:10px;padding:7px;border:1px solid #5e4329;border-radius:6px;background:#7a5a3a;color:#fff;font:inherit;cursor:pointer;";
 	okBtn.addEventListener("click", () => {
-		const result = { fontDelta: PATH_LABEL_FONT_DELTA, dy: PATH_LABEL_DY, riverHaloStrength: PATH_LABEL_RIVER_HALO_STRENGTH, riverHaloSharpness: PATH_LABEL_RIVER_HALO_SHARPNESS, roadHaloStrength: PATH_LABEL_ROAD_HALO_STRENGTH, roadHaloSharpness: PATH_LABEL_ROAD_HALO_SHARPNESS, letterSpacing: PATH_LABEL_LETTER_SPACING, guideDensity: PATH_LABEL_GUIDE_DENSITY };
+		const result = { fontDeltaByZoom: { ...PATH_LABEL_FONT_DELTA_BY_ZOOM }, dy: PATH_LABEL_DY, riverHaloStrength: PATH_LABEL_RIVER_HALO_STRENGTH, riverHaloSharpness: PATH_LABEL_RIVER_HALO_SHARPNESS, roadHaloStrength: PATH_LABEL_ROAD_HALO_STRENGTH, roadHaloSharpness: PATH_LABEL_ROAD_HALO_SHARPNESS, letterSpacing: PATH_LABEL_LETTER_SPACING, guideDensity: PATH_LABEL_GUIDE_DENSITY };
 		window.__avesmapsPathLabelTuning = result;
 		console.log("[Pfad-Namen-Tuning] " + JSON.stringify(result));
 		okBtn.textContent = "✓ gemerkt"; setTimeout(() => { okBtn.textContent = "OK / Werte merken"; }, 1500);
