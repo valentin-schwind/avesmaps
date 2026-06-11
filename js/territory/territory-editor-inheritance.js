@@ -13,6 +13,9 @@
 	const SIBLING_CHECKBOX_IDS = ["inheritZoomToDescendantsCheckbox", "inheritOpacityToDescendantsCheckbox"];
 	let territoryRows = [];
 	let pendingColorPlan = null;
+	// Seed für die ZUFÄLLIGE Zuordnung der Farbtöne zu Geschwistern (statt fester Index-Reihenfolge).
+	// Neu gewürfelt bei jedem expliziten "Farbhierarchie erstellen"; sonst stabil (Vorschau springt nicht).
+	let colorShuffleSeed = 0;
 
 	// Farbhierarchie: HSV-Abweichung (0-256) pro absolutem Hierarchie-Level. Die Default-Werte
 	// werden bei jedem Editor-Aufbau zufaellig aus diesen Bereichen gezogen (tiefer = enger).
@@ -152,6 +155,11 @@
 		}
 		await loadTerritories();
 		prefillLevelVarianceDefaults();
+		// Bei explizitem "Farbhierarchie erstellen" (Button, checkCheckbox=true) neu würfeln; sonst Seed beibehalten
+		// (Vorschau-Updates / Speichern verwenden dieselbe Verteilung -> springt nicht).
+		if (checkCheckbox || !colorShuffleSeed) {
+			colorShuffleSeed = Math.floor(Math.random() * 1000000000) + 1;
+		}
 		const descendants = findDescendants(root);
 		const updates = buildColorUpdates(root, descendants);
 		ensureUniqueColors(updates);
@@ -328,6 +336,19 @@
 			addToMapList(siblingsByParent, String(row.parentPublicId || row.parentId || "").trim(), row);
 		}
 
+		// ZUFÄLLIGE Zuordnung der (gleichmäßig gespreizten) Farbtöne zu den Geschwistern: dieselbe Hue-Spanne wie
+		// bisher, aber jede Eltern-Gruppe wird per Seed gemischt -> benachbarte Gebiete bekommen nicht mehr
+		// benachbarte Töne (sahen sich vorher fast gleich). Deterministisch pro Seed (Vorschau stabil), neu beim
+		// "Farbhierarchie erstellen". Gilt rekursiv für JEDE Ebene (Mischung je Eltern-Gruppe).
+		const seededUnit = getColorUtils()?.seededUnit || (() => 0.5);
+		const shuffledSiblingIndex = new Map();
+		for (const [parentKey, group] of siblingsByParent) {
+			group
+				.map(row => ({ key: row.publicId || row.id || row.name, r: seededUnit(`${colorShuffleSeed}:${parentKey}:${row.publicId || row.id || row.name}`) }))
+				.sort((left, right) => left.r - right.r)
+				.forEach((entry, index) => shuffledSiblingIndex.set(entry.key, index));
+		}
+
 		// Per-Level-Varianz: field[L] = HSV-Abweichung, mit der die KINDER eines Level-L-Knotens von
 		// ihrem Elternknoten streuen (Felder Hierarchie-Level 1-6). Die ausgewählte Ebene = activeIndex+1.
 		const levelVariances = readLevelVariances();
@@ -341,7 +362,10 @@
 				?? colorByKey.get("id:" + (row.parentId ?? ""))
 				?? root.color;
 			const siblings = siblingsByParent.get(String(row.parentPublicId || row.parentId || "").trim()) || [row];
-			const siblingIndex = Math.max(0, siblings.findIndex(entry => (entry.publicId && entry.publicId === row.publicId) || (entry.id != null && entry.id === row.id)));
+			const rowKey = row.publicId || row.id || row.name;
+			const naturalIndex = Math.max(0, siblings.findIndex(entry => (entry.publicId && entry.publicId === row.publicId) || (entry.id != null && entry.id === row.id)));
+			// Statt fester Index-Reihenfolge die gemischte Position nutzen (zufällige Ton-Verteilung).
+			const siblingIndex = shuffledSiblingIndex.has(rowKey) ? shuffledSiblingIndex.get(rowKey) : naturalIndex;
 			// Hue-Abweichung kommt aus dem Feld des ELTERN-Levels: field[L] steuert, wie stark die
 			// KINDER eines Level-L-Knotens streuen. Ein direktes Kind (row.depth 1) eines Knotens auf
 			// selectedLevel nutzt also field[selectedLevel]; dessen Kind (depth 2) field[selectedLevel+1] usw.
