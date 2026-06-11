@@ -166,7 +166,13 @@
 		pendingColorPlan = { root, updates };
 		const colorDescCbEnable = document.getElementById("inheritColorToDescendantsCheckbox");
 		if (colorDescCbEnable) colorDescCbEnable.disabled = false;
-		if (checkCheckbox) document.getElementById("inheritColorToDescendantsCheckbox")?.click();
+		if (checkCheckbox) {
+			// ANHAKEN, NICHT TOGGELN: ein erneuter Klick auf "Farbhierarchie erstellen" darf das Häkchen nicht wieder
+			// ABwählen -> sonst läuft beim Speichern der Unterregionen-Apply (applyExplicitColorUpdates) nicht und nur
+			// das aktive Gebiet wird gefärbt. Nur klicken, wenn noch nicht gesetzt.
+			const colorDescCb = document.getElementById("inheritColorToDescendantsCheckbox");
+			if (colorDescCb && !colorDescCb.checked) colorDescCb.click();
+		}
 		renderPreview(pendingColorPlan);
 		setStatus(descendants.length > 0 ? `Farbhierarchie vorbereitet: ${descendants.length} Unterregionen.` : "Keine Unterregionen für das aktive Breadcrumb gefunden.", descendants.length > 0 ? "pending" : "error");
 		return pendingColorPlan;
