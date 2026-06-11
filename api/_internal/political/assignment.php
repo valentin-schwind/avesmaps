@@ -344,7 +344,8 @@ function avesmapsPoliticalSaveExistingGeometryAssignment(PDO $pdo, array $payloa
                 min_zoom = :min_zoom,
                 max_zoom = :max_zoom,
                 valid_from_bf = :valid_from_bf,
-                valid_to_bf = :valid_to_bf
+                valid_to_bf = :valid_to_bf,
+                is_active = 1
             WHERE id = :id'
         );
 
@@ -498,7 +499,8 @@ function avesmapsPoliticalSaveGeometryAssignment(PDO $pdo, array $payload, array
                 min_zoom = :min_zoom,
                 max_zoom = :max_zoom,
                 valid_from_bf = :valid_from_bf,
-                valid_to_bf = :valid_to_bf
+                valid_to_bf = :valid_to_bf,
+                is_active = 1
             WHERE id = :id'
         );
         $statement->execute([
