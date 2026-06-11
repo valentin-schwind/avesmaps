@@ -56,6 +56,22 @@
 		return result || {};
 	}
 
+	// Das Backend lehnt > 500 Updates PRO Anfrage ab. Große Farb-/Zoom-Pläne (ganze Reiche mit hunderten
+	// Untergebieten) deshalb in Häppchen ≤ CHUNK_SIZE posten und die Ergebnisse aufsummieren -> kein
+	// stiller Komplett-Fehlschlag mehr (vorher: 506 Gebiete -> alles abgelehnt -> nichts gefärbt).
+	const SUBTREE_UPDATE_CHUNK_SIZE = 450;
+	async function submitSubtreeUpdatesChunked(action, updates) {
+		let changed = 0;
+		let received = 0;
+		for (let index = 0; index < updates.length; index += SUBTREE_UPDATE_CHUNK_SIZE) {
+			const chunk = updates.slice(index, index + SUBTREE_UPDATE_CHUNK_SIZE);
+			const result = await submitSubtreeUpdate({ action, updates: chunk });
+			changed += Number(result?.changed ?? result?.descendants_count ?? 0);
+			received += chunk.length;
+		}
+		return { ok: true, changed, received, updates };
+	}
+
 	async function applyColorHierarchy(root, options = {}) {
 		const hueVarianceRange = options.hueVarianceRange || readHueVarianceRange256();
 		const payload = {
@@ -81,10 +97,7 @@
 			return { ok: true, changed: 0, received: 0, updates: [] };
 		}
 
-		return submitSubtreeUpdate({
-			action: "update_colors",
-			updates: payloadUpdates
-		});
+		return submitSubtreeUpdatesChunked("update_colors", payloadUpdates);
 	}
 
 	async function applyExplicitOpacityUpdates(updates) {
@@ -99,10 +112,7 @@
 			return { ok: true, changed: 0, received: 0, updates: [] };
 		}
 
-		return submitSubtreeUpdate({
-			action: "update_opacity",
-			updates: payloadUpdates
-		});
+		return submitSubtreeUpdatesChunked("update_opacity", payloadUpdates);
 	}
 
 	async function applyExplicitZoomUpdates(updates) {
@@ -118,10 +128,7 @@
 			return { ok: true, changed: 0, received: 0, updates: [] };
 		}
 
-		return submitSubtreeUpdate({
-			action: "update_zoom",
-			updates: payloadUpdates
-		});
+		return submitSubtreeUpdatesChunked("update_zoom", payloadUpdates);
 	}
 
 	async function applyExplicitValidityUpdates(updates) {
@@ -138,10 +145,7 @@
 			return { ok: true, changed: 0, received: 0, updates: [] };
 		}
 
-		return submitSubtreeUpdate({
-			action: "update_validity",
-			updates: payloadUpdates
-		});
+		return submitSubtreeUpdatesChunked("update_validity", payloadUpdates);
 	}
 
 	async function applyOpacityInheritance(root) {
