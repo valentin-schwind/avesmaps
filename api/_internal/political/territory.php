@@ -340,15 +340,24 @@ function avesmapsPoliticalCreateTerritoryFromWiki(PDO $pdo, array $wikiRecord, a
 }
 
 function avesmapsPoliticalFindTerritoryByWikiOrSlug(PDO $pdo, int $wikiId, string $slug): ?array {
+    // Wichtig: Der Slug-Fallback darf KEIN Territorium kapern, das bereits an ein ANDERES Wiki
+    // gebunden ist. Sonst kollidieren gleichnamige Gebiete (z. B. zwei "Baronie Grenzmarken" --
+    // Albernia vs. Beilunk/Sonnenmark): der name-basierte Slug ist identisch, und beim ERSTEN
+    // Zuweisen des zweiten Gebiets (noch kein eigenes wiki_id-Match) griff der Slug auf das bereits
+    // anders verknuepfte Territorium -> Geometrie landete auf dem falschen. Slug greift daher nur
+    // noch fuer ungebundene (wiki_id NULL) oder gleich verknuepfte Territorien; das eindeutige
+    // wiki_id-Match hat weiterhin Vorrang.
     $statement = $pdo->prepare(
         'SELECT *
         FROM political_territory
-        WHERE wiki_id = :wiki_id OR slug = :slug
+        WHERE wiki_id = :wiki_id
+            OR (slug = :slug AND (wiki_id IS NULL OR wiki_id = :wiki_id_slug))
         ORDER BY wiki_id = :wiki_id_order DESC, id ASC
         LIMIT 1'
     );
     $statement->execute([
         'wiki_id' => $wikiId,
+        'wiki_id_slug' => $wikiId,
         'wiki_id_order' => $wikiId,
         'slug' => $slug,
     ]);
