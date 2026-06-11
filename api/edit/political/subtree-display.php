@@ -44,6 +44,15 @@ try {
         default => throw new InvalidArgumentException('Die Subtree-Darstellungsaktion ist unbekannt.'),
     };
 
+    // Layer-Cache nach JEDER Schreibaktion leeren. Dieser Endpunkt liegt getrennt vom
+    // Haupt-Endpunkt (political-territories.php), der seinen Cache selbst invalidiert --
+    // hier fehlte das. Folge: "Fuer alle Geschwisterregionen uebernehmen" schrieb Transparenz/
+    // Zoom korrekt in die DB, aber der gecachte Layer (TTL 15s Editor / 300s public; der
+    // _=-Cachebuster ist NICHT Teil des Cache-Keys) servierte weiter die alten Werte ->
+    // Aenderung "kommt nicht an". Inline gehalten (kein Include-Pfad-Risiko), deckungsgleich
+    // mit avesmapsPoliticalInvalidateLayerCache().
+    avesmapsPoliticalSubtreeDisplayInvalidateLayerCache();
+
     avesmapsJsonResponse(200, $response);
 } catch (InvalidArgumentException $exception) {
     avesmapsJsonResponse(400, [
@@ -60,6 +69,16 @@ try {
         'ok' => false,
         'error' => 'Die Subtree-Darstellung konnte nicht verarbeitet werden.',
     ]);
+}
+
+function avesmapsPoliticalSubtreeDisplayInvalidateLayerCache(): void {
+    $dir = sys_get_temp_dir() . '/avesmaps_layer_cache';
+    if (!is_dir($dir)) {
+        return;
+    }
+    foreach (glob($dir . '/*.json') ?: [] as $file) {
+        @unlink($file);
+    }
 }
 
 function avesmapsPoliticalSubtreeDisplayUpdateColors(PDO $pdo, array $payload, array $user): array {
