@@ -29,7 +29,9 @@ function isPathLabelVisibleAtCurrentZoom(path) {
 		// Wege-/Straßen-Labels folgen weiterhin ihrer Pfad-Sichtbarkeit (#togglePaths).
 		return false;
 	}
-	const minZoom = isRiver ? 3 : LOCATION_NAME_LABEL_CONFIG.dorf.minZoom;
+	// Fluss-Labels werden wie Straßen-Labels erst ab dorf.minZoom (Zoom 4) gezeigt -> bei Zoom 3
+	// ausgeblendet (vorher erschienen Flussnamen schon ab Zoom 3).
+	const minZoom = LOCATION_NAME_LABEL_CONFIG.dorf.minZoom;
 	return shouldPathNameBeDisplayed(path) && map.getZoom() >= minZoom;
 }
 
