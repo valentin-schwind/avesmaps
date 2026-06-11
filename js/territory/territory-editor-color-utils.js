@@ -94,9 +94,32 @@
 		// Helligkeit je Tiefe leicht staffeln, damit Ebenen auch bei ähnlichem Farbton
 		// trennbar bleiben (dunkle Basis wird tiefer heller, helle Basis tiefer dunkler).
 		const valueShift = Math.min(0.24, (depth - 1) * 0.06);
-		const value = Math.max(0.35, Math.min(1, hsv.value + (hsv.value < 0.6 ? valueShift : -valueShift)));
+		let value = Math.max(0.35, Math.min(1, hsv.value + (hsv.value < 0.6 ? valueShift : -valueShift)));
+		let saturation = hsv.saturation;
 
-		return hsvToHex((hsv.hue + offset + jitter + 360) % 360, hsv.saturation, value);
+		// Geschwister ZUSÄTZLICH über Helligkeit + Sättigung spreizen. Hue allein reicht NICHT, wenn die Elternfarbe
+		// niedrig gesättigt ist (Pastell) oder mehrere Geschwister nahe dem Eltern-Hue landen (z. B. lauter Grüntöne):
+		// dort sind Hue-Unterschiede kaum sichtbar -> sie sehen sich gleich. Pro Knoten geseedet (de-korreliert vom
+		// Hue, würfelt mit colorShuffleSeed neu), damit Nachbarn auch in Helligkeit/Sättigung auseinanderliegen.
+		if (siblingCount > 1) {
+			// Helligkeit GLEICHMÄSSIG über die Geschwister spreizen (eigene gemischte Reihenfolge via valueIndex ->
+			// de-korreliert vom Hue) -> GARANTIERT jedes Geschwister eine andere Helligkeitsstufe, auch lauter
+			// Grüntöne werden so trennbar. Ohne valueIndex Fallback auf geseedeten Wert.
+			const valuePos = (typeof options.valueIndex === "number")
+				? options.valueIndex / Math.max(1, siblingCount - 1)
+				: seededUnit(`${options.seedText || ""}:light`);
+			const satUnit = seededUnit(`${options.seedText || ""}:sat`);
+			// WICHTIG innerhalb des VERFÜGBAREN Spielraums spreizen (anteilig nach oben/unten), sonst klemmen helle
+			// Pastell-Basen am Deckel und mehrere Geschwister werden gleich hell. lo/hi = Helligkeitsgrenzen.
+			const lo = 0.34, hi = 0.9;
+			const roomUp = Math.max(0, hi - value), roomDown = Math.max(0, value - lo);
+			const totalRoom = Math.min(0.46, roomUp + roomDown);
+			const downPart = (roomUp + roomDown) > 0 ? totalRoom * (roomDown / (roomUp + roomDown)) : totalRoom / 2;
+			value = (value - downPart) + valuePos * totalRoom;
+			saturation = Math.max(0.12, Math.min(1, saturation * (0.78 + satUnit * 0.55)));
+		}
+
+		return hsvToHex((hsv.hue + offset + jitter + 360) % 360, saturation, value);
 	}
 
 	window.AvesmapsPoliticalTerritoryEditorColorUtils = {

@@ -341,12 +341,17 @@
 		// benachbarte Töne (sahen sich vorher fast gleich). Deterministisch pro Seed (Vorschau stabil), neu beim
 		// "Farbhierarchie erstellen". Gilt rekursiv für JEDE Ebene (Mischung je Eltern-Gruppe).
 		const seededUnit = getColorUtils()?.seededUnit || (() => 0.5);
-		const shuffledSiblingIndex = new Map();
+		const shuffledSiblingIndex = new Map();   // Reihenfolge für den HUE
+		const shuffledValueIndex = new Map();     // ZWEITE, unabhängige Mischung für die HELLIGKEIT (de-korreliert)
 		for (const [parentKey, group] of siblingsByParent) {
 			group
-				.map(row => ({ key: row.publicId || row.id || row.name, r: seededUnit(`${colorShuffleSeed}:${parentKey}:${row.publicId || row.id || row.name}`) }))
+				.map(row => ({ key: row.publicId || row.id || row.name, r: seededUnit(`${colorShuffleSeed}:hue:${parentKey}:${row.publicId || row.id || row.name}`) }))
 				.sort((left, right) => left.r - right.r)
 				.forEach((entry, index) => shuffledSiblingIndex.set(entry.key, index));
+			group
+				.map(row => ({ key: row.publicId || row.id || row.name, r: seededUnit(`${colorShuffleSeed}:val:${parentKey}:${row.publicId || row.id || row.name}`) }))
+				.sort((left, right) => left.r - right.r)
+				.forEach((entry, index) => shuffledValueIndex.set(entry.key, index));
 		}
 
 		// Per-Level-Varianz: field[L] = HSV-Abweichung, mit der die KINDER eines Level-L-Knotens von
@@ -366,12 +371,15 @@
 			const naturalIndex = Math.max(0, siblings.findIndex(entry => (entry.publicId && entry.publicId === row.publicId) || (entry.id != null && entry.id === row.id)));
 			// Statt fester Index-Reihenfolge die gemischte Position nutzen (zufällige Ton-Verteilung).
 			const siblingIndex = shuffledSiblingIndex.has(rowKey) ? shuffledSiblingIndex.get(rowKey) : naturalIndex;
+			// Unabhängige Helligkeits-Position (de-korreliert vom Hue) -> garantiert distinkte Helligkeitsstufen.
+			const valueIndex = shuffledValueIndex.has(rowKey) ? shuffledValueIndex.get(rowKey) : naturalIndex;
 			// Hue-Abweichung kommt aus dem Feld des ELTERN-Levels: field[L] steuert, wie stark die
 			// KINDER eines Level-L-Knotens streuen. Ein direktes Kind (row.depth 1) eines Knotens auf
 			// selectedLevel nutzt also field[selectedLevel]; dessen Kind (depth 2) field[selectedLevel+1] usw.
 			const parentLevel = selectedLevel + Number(row.depth || 1) - 1;
 			const variance256 = varianceForAbsoluteLevel(parentLevel);
-			const color = createHueVariant(parentColor, 2, siblingIndex, siblings.length, row.publicId || row.name, variance256);
+			// Seed mit hineingeben -> Helligkeit/Sättigung (in createHueVariant) würfeln beim "Farbhierarchie erstellen" neu.
+			const color = createHueVariant(parentColor, 2, siblingIndex, siblings.length, `${colorShuffleSeed}:${row.publicId || row.name}`, variance256, valueIndex);
 			rememberColor(row.publicId, row.id, color);
 			updates.push({ territoryPublicId: row.publicId, name: row.name || row.publicId, depth: Math.max(1, Number(row.depth || 1)) + 1, color });
 		}
@@ -485,7 +493,7 @@
 		return hex;
 	}
 
-	function createHueVariant(parentColor, depth, siblingIndex, siblingCount, seedText, variance256) {
+	function createHueVariant(parentColor, depth, siblingIndex, siblingCount, seedText, variance256, valueIndex) {
 		const colorUtils = getColorUtils();
 		if (!colorUtils?.createHueVariant) return parentColor;
 		const variance = Number.isFinite(variance256) ? variance256 : 30;
@@ -494,6 +502,7 @@
 			siblingIndex,
 			siblingCount,
 			seedText,
+			valueIndex,
 			range: { min256: variance, max256: variance }
 		});
 	}
