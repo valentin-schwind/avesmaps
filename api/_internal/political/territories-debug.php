@@ -229,10 +229,43 @@ function avesmapsPoliticalReadDerivedGeometryDiagnostics(PDO $pdo): array {
         ];
     }
 
+    // Verwaiste Außengrenzen: eine AKTIVE Derived-Geometrie, deren Ziel-Territorium fehlt
+    // (geloescht) ODER inaktiv (is_active=0) ist. Solche Huellen rendern nicht (der Layer joint
+    // is_active=1), bleiben aber als Leichen in der DB liegen -- read-only Diagnose.
+    $orphanStatement = $pdo->query(
+        'SELECT
+            derived.id AS derived_id,
+            derived.public_id AS derived_public_id,
+            derived.territory_id,
+            derived.updated_at,
+            territory.public_id AS territory_public_id,
+            territory.name AS territory_name,
+            CASE WHEN territory.id IS NULL THEN \'missing\' ELSE \'inactive\' END AS orphan_reason
+        FROM political_territory_derived_geometry derived
+        LEFT JOIN political_territory territory ON territory.id = derived.territory_id
+        WHERE derived.is_active = 1
+            AND (territory.id IS NULL OR territory.is_active = 0)
+        ORDER BY territory.name ASC, derived.id ASC'
+    );
+    $orphanedActiveDerived = [];
+    foreach (($orphanStatement !== false ? $orphanStatement->fetchAll(PDO::FETCH_ASSOC) : []) as $row) {
+        $orphanedActiveDerived[] = [
+            'derived_id' => (int) ($row['derived_id'] ?? 0),
+            'derived_public_id' => (string) ($row['derived_public_id'] ?? ''),
+            'territory_id' => (int) ($row['territory_id'] ?? 0),
+            'territory_public_id' => (string) ($row['territory_public_id'] ?? ''),
+            'territory_name' => (string) ($row['territory_name'] ?? ''),
+            'orphan_reason' => (string) ($row['orphan_reason'] ?? ''),
+            'updated_at' => (string) ($row['updated_at'] ?? ''),
+        ];
+    }
+
     return [
         'derived_geometry_count' => (int) ($counts['derived_geometry_count'] ?? 0),
         'active_derived_geometry_count' => (int) ($counts['active_derived_geometry_count'] ?? 0),
         'territories_with_multiple_active_derived' => $territoriesWithMultiple,
+        'orphaned_active_derived_count' => count($orphanedActiveDerived),
+        'orphaned_active_derived' => $orphanedActiveDerived,
     ];
 }
 
