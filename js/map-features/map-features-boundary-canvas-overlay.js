@@ -72,6 +72,17 @@
 		innerWidthMul: 1, innerAlphaMul: 1, innerContour: 0, innerDash: 0, // innerDash 0 = bestehendes Muster, >0 = eigene Strichlänge
 	};
 
+	// Dicke-Multiplikatoren PRO Zoomstufe (0..6), zusätzlich zu den globalen *WidthMul oben. Wirken auf die
+	// bereits zoomgestufte Basisbreite (fine/medium/root bleiben erhalten). Default überall 1 = unverändert.
+	// Live via ?boundarytune=1 (Slider pro Zoom). 0 = Linie auf dieser Zoomstufe aus.
+	const BOUNDARY_OUTER_WIDTH_MUL_BY_ZOOM = { 0: 1, 1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1 };
+	const BOUNDARY_INNER_WIDTH_MUL_BY_ZOOM = { 0: 1, 1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1 };
+	function boundaryZoomWidthMul(table, zoomLevel) {
+		const z = Math.max(0, Math.min(6, Math.round(Number(zoomLevel))));
+		const value = table[z];
+		return Number.isFinite(value) ? value : 1;
+	}
+
 	// --- Territoriums-Namen entlang der Außengrenzen (NUR "Regionen"/deregraphic, ab hohem Zoom) ---
 	// Schrift folgt der geglätteten Außenkontur, nach innen versetzt (Links-Normale des CCW-Rings). Baronien/
 	// Siedlungen ausgenommen (zu kleinteilig). Pro Move neu gezeichnet (redraw läuft eh bei jedem moveend/zoom).
@@ -378,7 +389,7 @@
 		const fine = innerZoom <= INNER_DASH_FINE_MAX_ZOOM;        // Zoom 1-2: extra fein
 		const medium = innerZoom === INNER_DASH_MEDIUM_ZOOM;       // Zoom 3: etwas duenner
 		const baseInnerWidth = fine ? INNER_LINE_WIDTH_FINE : (medium ? INNER_LINE_WIDTH_MEDIUM : INNER_LINE_WIDTH);
-		const innerWidth = baseInnerWidth * BOUNDARY_TUNE.innerWidthMul;
+		const innerWidth = baseInnerWidth * BOUNDARY_TUNE.innerWidthMul * boundaryZoomWidthMul(BOUNDARY_INNER_WIDTH_MUL_BY_ZOOM, map.getZoom());
 		const baseInnerDash = fine ? INNER_LINE_DASH_FINE : (medium ? INNER_LINE_DASH_MEDIUM : INNER_LINE_DASH);
 		const innerDashArr = BOUNDARY_TUNE.innerDash > 0 ? [BOUNDARY_TUNE.innerDash, Math.max(1, BOUNDARY_TUNE.innerDash * 0.7)] : baseInnerDash;
 		ctx.lineJoin = "round";
@@ -505,7 +516,7 @@
 				: (isRootBoundary
 					? (fineOuterZoom ? OUTER_LINE_WIDTH_ROOT_FINE : OUTER_LINE_WIDTH_ROOT)
 					: (fineOuterZoom ? OUTER_LINE_WIDTH_FINE : OUTER_LINE_WIDTH));
-			const outerWidth = baseOuterWidth * BOUNDARY_TUNE.outerWidthMul;
+			const outerWidth = baseOuterWidth * BOUNDARY_TUNE.outerWidthMul * boundaryZoomWidthMul(BOUNDARY_OUTER_WIDTH_MUL_BY_ZOOM, map.getZoom());
 			ctx.lineJoin = "round";
 			ctx.globalAlpha = Math.max(0, Math.min(1, boundaryAlphaFactor * BOUNDARY_TUNE.outerAlphaMul));
 			ctx.setLineDash(BOUNDARY_TUNE.outerDash > 0 ? [BOUNDARY_TUNE.outerDash, BOUNDARY_TUNE.outerDash] : []);
@@ -634,11 +645,18 @@
 		slider("Deckkraft ×", 0, 2, 0.05, BOUNDARY_TUNE.innerAlphaMul, (v) => { BOUNDARY_TUNE.innerAlphaMul = v; });
 		slider("Kontur (px)", 0, 4, 0.5, BOUNDARY_TUNE.innerContour, (v) => { BOUNDARY_TUNE.innerContour = v; });
 		slider("Strichelung (0=Muster)", 0, 16, 1, BOUNDARY_TUNE.innerDash, (v) => { BOUNDARY_TUNE.innerDash = v; });
+		sub("Außengrenze Dicke × pro Zoom");
+		[0, 1, 2, 3, 4, 5, 6].forEach((z) => slider("Zoom " + z, 0, 3, 0.1, BOUNDARY_OUTER_WIDTH_MUL_BY_ZOOM[z], (v) => { BOUNDARY_OUTER_WIDTH_MUL_BY_ZOOM[z] = v; }));
+		sub("Innengrenze Dicke × pro Zoom");
+		[0, 1, 2, 3, 4, 5, 6].forEach((z) => slider("Zoom " + z, 0, 3, 0.1, BOUNDARY_INNER_WIDTH_MUL_BY_ZOOM[z], (v) => { BOUNDARY_INNER_WIDTH_MUL_BY_ZOOM[z] = v; }));
 		const okBtn = document.createElement("button");
 		okBtn.textContent = "OK / Werte merken";
 		okBtn.style.cssText = "width:100%;margin-top:10px;padding:7px;border:1px solid #5e4329;border-radius:6px;background:#7a5a3a;color:#fff;font:inherit;cursor:pointer;";
 		okBtn.addEventListener("click", () => {
-			window.__avesmapsBoundaryTune = Object.assign({}, BOUNDARY_TUNE);
+			window.__avesmapsBoundaryTune = Object.assign({}, BOUNDARY_TUNE, {
+				outerWidthMulByZoom: Object.assign({}, BOUNDARY_OUTER_WIDTH_MUL_BY_ZOOM),
+				innerWidthMulByZoom: Object.assign({}, BOUNDARY_INNER_WIDTH_MUL_BY_ZOOM),
+			});
 			console.log("[Grenzen-Tuning] " + JSON.stringify(window.__avesmapsBoundaryTune));
 			okBtn.textContent = "✓ gemerkt"; setTimeout(() => { okBtn.textContent = "OK / Werte merken"; }, 1500);
 		});
