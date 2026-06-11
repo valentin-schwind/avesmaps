@@ -381,7 +381,7 @@
 			// Seed mit hineingeben -> Helligkeit/Sättigung (in createHueVariant) würfeln beim "Farbhierarchie erstellen" neu.
 			const color = createHueVariant(parentColor, 2, siblingIndex, siblings.length, `${colorShuffleSeed}:${row.publicId || row.name}`, variance256, valueIndex);
 			rememberColor(row.publicId, row.id, color);
-			updates.push({ territoryPublicId: row.publicId, name: row.name || row.publicId, depth: Math.max(1, Number(row.depth || 1)) + 1, color });
+			updates.push({ territoryPublicId: row.publicId, name: row.name || row.publicId, depth: Math.max(1, Number(row.depth || 1)) + 1, color, parentKey: String(row.parentPublicId || row.parentId || "").trim() });
 		}
 
 		appendMissingBreadcrumbDepths(root, updates);
@@ -517,7 +517,17 @@
 		}
 		const byDepth = new Map();
 		for (const update of plan.updates) addToMapList(byDepth, update.depth, update);
-		const rows = [...byDepth.entries()].sort((a, b) => a[0] - b[0]).map(([, updates]) => `<tr><td><div class="deferred-subtree-swatches">${updates.map(update => `<span class="deferred-subtree-swatch" style="background:${escapeHtml(update.color)}" title="${escapeHtml(`${update.name}: ${update.color}`)}"></span>`).join("")}</div></td></tr>`).join("");
+		const swatch = (update) => `<span class="deferred-subtree-swatch" style="background:${escapeHtml(update.color)}" title="${escapeHtml(`${update.name}: ${update.color}`)}"></span>`;
+		const rows = [...byDepth.entries()].sort((a, b) => a[0] - b[0]).map(([, updates]) => {
+			// Pro Tiefe die Geschwister NACH FAMILIE (gleicher Elternteil) gruppieren -> man sieht, welche Kinder
+			// zu welchem Elternteil gehören (Hierarchie wird abgebildet, statt zusammenhanglos durchzulaufen).
+			const byParent = new Map();
+			for (const update of updates) addToMapList(byParent, update.parentKey || "", update);
+			const families = [...byParent.values()]
+				.map(group => `<span style="display:inline-flex;gap:2px;margin:0 8px 3px 0">${group.map(swatch).join("")}</span>`)
+				.join("");
+			return `<tr><td><div class="deferred-subtree-swatches">${families}</div></td></tr>`;
+		}).join("");
 		preview.innerHTML = `<div class="deferred-subtree-preview-title">Geplante Farben ab „${escapeHtml(plan.root.name)}“</div><table class="deferred-subtree-table"><thead><tr><th>Farbe pro Ebene</th></tr></thead><tbody>${rows}</tbody></table>`;
 	}
 
