@@ -75,30 +75,26 @@ function avesmapsPoliticalReadDerivedGeometrySources(PDO $pdo, array $query): ar
     $sourceMode = 'none';
 
     if (($target['territory'] ?? null) !== null) {
-        $descendantIds = avesmapsPoliticalCollectDerivedGeometryDescendantIds((int) $target['territory']['id'], $territories);
-        // Dual-Rolle: ein Knoten MIT Kindern, der ZUSÄTZLICH eine eigene Geometrie hat, nimmt
-        // seine Eigengeometrie in die Union auf (sonst fehlt sie in der Außengrenze UND wird
-        // separat doppelt gezeichnet). Hat das Ziel keine eigene Geometrie, liefert der Fetch
-        // dafuer schlicht nichts -> kein Effekt fuer normale Aggregatoren.
-        $sourceTerritoryIds = $descendantIds !== []
-            ? array_merge([(int) $target['territory']['id']], $descendantIds)
-            : [];
-        if ($sourceTerritoryIds !== []) {
-            $sourceMode = 'descendants';
-        }
+        $targetTerritoryId = (int) $target['territory']['id'];
+        $descendantIds = avesmapsPoliticalCollectDerivedGeometryDescendantIds($targetTerritoryId, $territories);
+        // Ein aufgeloestes Territorium ist die AUTORITATIVE Quelle: eigene Geometrie + die ueber
+        // parent_id verbundenen Nachfahren (die Zuweisung pflegt parent_id). Bewusst KEIN Rueckfall
+        // auf die namensbasierte Wiki-Suche -- die zieht gleichnamige, voellig getrennte Gebiete
+        // (z. B. zwei "Baronie Grenzmarken": Albernia vs. Beilunk) in dieselbe Außengrenze, sie
+        // wurden als eine Einheit unioniert. Dual-Rolle bleibt erhalten: ein Aggregator mit eigener
+        // Geometrie nimmt diese mit auf; ein Blatt liefert hier nur seine Eigengeometrie.
+        $sourceTerritoryIds = array_merge([$targetTerritoryId], $descendantIds);
+        $sourceMode = $descendantIds !== [] ? 'descendants' : 'target_territory';
     }
 
+    // Namensbasierter Wiki-Fallback NUR, wenn gar kein Territorium aufgeloest wurde (reiner
+    // Wiki-Knoten ohne eigenes political_territory) -- dort existiert keine parent_id-Hierarchie.
     if ($sourceTerritoryIds === [] && ($target['wiki'] ?? null) !== null) {
         $descendantIds = avesmapsPoliticalCollectDerivedGeometryWikiDescendantIds($pdo, $target['wiki']);
         $sourceTerritoryIds = $descendantIds;
         if ($sourceTerritoryIds !== []) {
             $sourceMode = 'wiki_descendants';
         }
-    }
-
-    if ($sourceTerritoryIds === [] && ($target['territory'] ?? null) !== null) {
-        $sourceTerritoryIds = [(int) $target['territory']['id']];
-        $sourceMode = 'target_territory';
     }
 
     $sourceGeometries = avesmapsPoliticalFetchDerivedSourceGeometries($pdo, $sourceTerritoryIds);
