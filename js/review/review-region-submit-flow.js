@@ -23,7 +23,6 @@ function buildRegionEditPayload(formElement) {
 			valid_to_bf: String(formData.get("valid_to_bf") || "").trim(),
 			valid_to_open: ["on", "1", "true"].includes(String(formData.get("valid_to_open") || "").trim().toLowerCase()),
 			valid_label: String(formData.get("valid_label") || "").trim(),
-			is_active: formData.get("is_active") === "on",
 			editor_notes: String(formData.get("editor_notes") || "").trim(),
 		};
 	}

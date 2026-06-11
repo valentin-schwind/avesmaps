@@ -109,7 +109,8 @@ function avesmapsPoliticalCreateTerritory(PDO $pdo, array $payload, array $user)
             'valid_label' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['valid_label'] ?? ''), 500)),
             'min_zoom' => $minZoom,
             'max_zoom' => $maxZoom,
-            'is_active' => avesmapsPoliticalReadBoolean($payload['is_active'] ?? true) ? 1 : 0,
+            // Neu angelegte Gebiete sind immer aktiv (siehe update: Deaktivieren nur via delete_territory).
+            'is_active' => 1,
             'editor_notes' => avesmapsPoliticalNullableString(avesmapsNormalizeMultiline((string) ($payload['editor_notes'] ?? ''), 3000)),
             'sort_order' => $sortOrder,
         ]);
@@ -188,7 +189,11 @@ function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user)
         'valid_label' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['valid_label'] ?? ''), 500)),
         'min_zoom' => $minZoom,
         'max_zoom' => $maxZoom,
-        'is_active' => avesmapsPoliticalReadBoolean($payload['is_active'] ?? true) ? 1 : 0,
+        // Speichern reaktiviert IMMER. Deaktivieren laeuft ausschliesslich ueber delete_territory bzw.
+        // den Audit-Undo -- ein Payload-Flag darf ein Gebiet nicht (still) von der Karte nehmen.
+        // Vorfall "Herzogtum Transysilien": eine per CSS versteckte Aktiv-Checkbox schickte bei jedem
+        // Editor-Save is_active=0 mit; das Gebiet blieb dauerhaft unsichtbar, ohne UI-Weg zurueck.
+        'is_active' => 1,
         'editor_notes' => avesmapsPoliticalNullableString(avesmapsNormalizeMultiline((string) ($payload['editor_notes'] ?? ''), 3000)),
     ]);
     avesmapsPoliticalSyncTerritoryGeometryStyle($pdo, (int) $territory['id'], $color, $opacity);

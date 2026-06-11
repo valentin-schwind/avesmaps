@@ -26,7 +26,6 @@ function populateRegionEditForm(entry, { preserveTabs = false } = {}) {
 	document.getElementById("region-edit-valid-to").value = region.validToBf ?? "";
 	document.getElementById("region-edit-valid-open").checked = region.validToBf === null || region.validToBf === undefined;
 	document.getElementById("region-edit-valid-label").value = region.validLabel || "";
-	document.getElementById("region-edit-is-active").checked = region.isActive !== false;
 	document.getElementById("region-edit-notes").value = region.editorNotes || "";
 	updateRegionParentDropTarget(region.parentPublicId || "");
 	syncRegionTerritoryFieldVisibility(source);

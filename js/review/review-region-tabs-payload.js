@@ -147,7 +147,6 @@ function regionEditPayloadToPayload(region) {
 		valid_to_bf: region.validToBf ?? "",
 		valid_to_open: region.validToBf === null || region.validToBf === undefined,
 		valid_label: region.validLabel || "",
-		is_active: region.isActive !== false,
 		editor_notes: region.editorNotes || "",
 	};
 }
