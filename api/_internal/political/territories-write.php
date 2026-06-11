@@ -238,6 +238,8 @@ function avesmapsPoliticalSaveWikiNodeSettings(PDO $pdo, array $payload, array $
             avesmapsPoliticalLinkTerritoryToWiki($pdo, (int) $territory['id'], (int) $wiki['id'], avesmapsPoliticalNullableString($wiki['wiki_key'] ?? null));
         }
 
+        // is_active=1: Speichern reaktiviert IMMER (siehe avesmapsPoliticalUpdateTerritory) --
+        // der Editor speichert Knoten-Eigenschaften ueber DIESEN Pfad, nicht ueber update_territory.
         $statement = $pdo->prepare(
             'UPDATE political_territory
             SET color = :color,
@@ -246,7 +248,8 @@ function avesmapsPoliticalSaveWikiNodeSettings(PDO $pdo, array $payload, array $
                 min_zoom = :min_zoom,
                 max_zoom = :max_zoom,
                 valid_from_bf = :valid_from_bf,
-                valid_to_bf = :valid_to_bf
+                valid_to_bf = :valid_to_bf,
+                is_active = 1
             WHERE id = :id'
         );
         $statement->execute([
