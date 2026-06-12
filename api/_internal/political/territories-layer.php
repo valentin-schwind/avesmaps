@@ -389,8 +389,8 @@ function avesmapsPoliticalAttachContestedParties(PDO $pdo, array $features): arr
 
     $statement = $pdo->query(
         'SELECT owner.public_id AS disputed_public_id,
-                owner.color AS owner_color, owner.opacity AS owner_opacity,
-                claimant.color AS claimant_color, claimant.opacity AS claimant_opacity
+                owner.name AS owner_name, owner.color AS owner_color, owner.opacity AS owner_opacity,
+                claimant.name AS claimant_name, claimant.color AS claimant_color, claimant.opacity AS claimant_opacity
         FROM political_territory_claim claim
         INNER JOIN political_territory owner ON owner.id = claim.territory_id AND owner.is_active = 1
         INNER JOIN political_territory claimant ON claimant.id = claim.claimant_territory_id AND claimant.is_active = 1
@@ -408,13 +408,17 @@ function avesmapsPoliticalAttachContestedParties(PDO $pdo, array $features): arr
         if (!isset($partiesByPublicId[$disputedPublicId])) {
             // Besitzer-Streifen zuerst (Territoriumsfarbe/-deckkraft des umstrittenen Gebiets).
             $partiesByPublicId[$disputedPublicId] = [[
+                'name' => (string) $row['owner_name'],
                 'color' => $normalizeStripeColor($row['owner_color']),
                 'opacity' => (float) $row['owner_opacity'],
+                'owner' => true,
             ]];
         }
         $partiesByPublicId[$disputedPublicId][] = [
+            'name' => (string) $row['claimant_name'],
             'color' => $normalizeStripeColor($row['claimant_color']),
             'opacity' => (float) $row['claimant_opacity'],
+            'owner' => false,
         ];
     }
 

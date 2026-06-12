@@ -101,7 +101,25 @@ function ensureRegionHoverPane() {
 
 // Baut weisse Overlay-Polygone aus einer GeoJSON-Geometrie (Polygon ODER MultiPolygon),
 // inkl. Loecher/Enklaven als innere Ringe. GeoJSON [x,y] -> Leaflet [y,x].
-function buildHoverPolygonsFromGeometry(geometry, pane, group) {
+// Punkt-in-Ring (Ray-Casting); pt und ring in Leaflet-[y,x]. Fuer das Zuordnen von Loch-Ringen.
+function pointInRing(pt, ring) {
+	if (!Array.isArray(pt) || !Array.isArray(ring) || ring.length < 3) {
+		return false;
+	}
+	const y = Number(pt[0]), x = Number(pt[1]);
+	let inside = false;
+	for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+		const yi = Number(ring[i][0]), xi = Number(ring[i][1]);
+		const yj = Number(ring[j][0]), xj = Number(ring[j][1]);
+		const intersect = ((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-12) + xi);
+		if (intersect) {
+			inside = !inside;
+		}
+	}
+	return inside;
+}
+
+function buildHoverPolygonsFromGeometry(geometry, pane, group, holeRings = []) {
 	if (!geometry) {
 		return 0;
 	}
@@ -118,6 +136,15 @@ function buildHoverPolygonsFromGeometry(geometry, pane, group) {
 		}
 		// rings = [Aussenring, Loch1, Loch2, ...] -> Leaflet behandelt ab dem 2. Ring als Loch.
 		const latlngs = rings.map((ring) => ring.map((c) => [Number(c[1]), Number(c[0])]));
+		// Umstrittene Teilflaechen, die in DIESEM Polygon liegen, als zusaetzliche Loecher ausstanzen,
+		// damit der weisse Hover-Wash sie nicht zukleistert -> Schraffur bleibt auch beim Hover sichtbar.
+		if (Array.isArray(holeRings) && holeRings.length && Array.isArray(latlngs[0])) {
+			holeRings.forEach((hole) => {
+				if (Array.isArray(hole) && hole.length && pointInRing(hole[0], latlngs[0])) {
+					latlngs.push(hole);
+				}
+			});
+		}
 		L.polygon(latlngs, {
 			pane,
 			interactive: false,
@@ -149,8 +176,28 @@ function applyRegionHoverHighlight(regionEntry) {
 		: (typeof indexPoliticalRegionDerivedByTerritory === "function" ? indexPoliticalRegionDerivedByTerritory() : null);
 	const aggKey = String(regionEntry.territoryPublicId || "").trim();
 	const agg = (derivedIndex && aggKey && typeof derivedIndex.get === "function") ? derivedIndex.get(aggKey) : null;
+	// Umstrittene Fragmente, die aktuell UNTER diesem (Aggregat-)Gebiet angezeigt werden -> als Loecher,
+	// damit der Hover-Wash die Schraffur nicht ueberdeckt (auf eigener wie hoeherer Ebene).
+	const contestedHoleRings = [];
+	const rd = (typeof regionData !== "undefined" && Array.isArray(regionData)) ? regionData : (Array.isArray(window.regionData) ? window.regionData : []);
+	for (let i = 0; i < rd.length; i += 1) {
+		const props = (rd[i] && rd[i].properties) || {};
+		if (!Array.isArray(props.contestedParties) || !props.contestedParties.length) {
+			continue;
+		}
+		if (String(props.territory_public_id || "") !== aggKey) {
+			continue;
+		}
+		const geom = rd[i].geometry;
+		const ps = geom && geom.type === "Polygon" ? [geom.coordinates] : (geom && geom.type === "MultiPolygon" ? geom.coordinates : []);
+		ps.forEach((polyRings) => {
+			if (polyRings && polyRings[0]) {
+				contestedHoleRings.push(polyRings[0].map((c) => [Number(c[1]), Number(c[0])]));
+			}
+		});
+	}
 	if (agg && agg.geometry) {
-		count = buildHoverPolygonsFromGeometry(agg.geometry, pane, group);
+		count = buildHoverPolygonsFromGeometry(agg.geometry, pane, group, contestedHoleRings);
 	}
 	// 2) Fallback: die sichtbaren Polygone der Region selbst (auch Multipolygon + Loecher via getLatLngs).
 	if (count === 0 && typeof regionPolygons !== "undefined" && Array.isArray(regionPolygons)) {

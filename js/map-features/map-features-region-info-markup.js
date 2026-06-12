@@ -80,6 +80,7 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 		createRegionInfoTextRow("Wiki-Eintrag", wikiName),
 		createRegionInfoTextRow("Typ", type),
 		createRegionInfoTextRow("Status", regionEntry.status || f.status),
+		createRegionContestedRow(regionEntry),
 		createRegionInfoTextRow("Herrschaftsform", f.form_of_government),
 		createRegionInfoTextRow("Oberhaupt", f.ruler),
 		createRegionInfoTextRow("Gründung", (detail && f.founded_text) || regionEntry.wikiFoundedText || regionEntry.foundedText),
@@ -110,6 +111,27 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 			<dl class="region-info-box__data">${wikiRows}</dl>
 		</div>
 	`;
+}
+
+// "Umstritten mit ..." — Anspruchsteller (ohne den Besitzer = parties[0]) mit kleinem Farb-Swatch.
+// Quelle: regionEntry.contestedParties (vom Layer; Besitzer zuerst, dann Claims nach sort_order).
+function createRegionContestedRow(regionEntry) {
+	const parties = (regionEntry && Array.isArray(regionEntry.contestedParties)) ? regionEntry.contestedParties : null;
+	if (!parties || parties.length < 2) {
+		return "";
+	}
+	const valueMarkup = parties.slice(1).map((p) => {
+		const nm = normalizeRegionParentheticalSpacing(String((p && p.name) || "")).trim();
+		if (!nm) {
+			return "";
+		}
+		const color = /^#[0-9a-fA-F]{6}$/.test(String((p && p.color) || "")) ? String(p.color) : "#888888";
+		return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${color}"></span>${escapeHtml(nm)}</span>`;
+	}).filter(Boolean).join(", ");
+	if (!valueMarkup) {
+		return "";
+	}
+	return createRegionInfoBoxRow("Umstritten mit", valueMarkup);
 }
 
 function createRegionInfoTextRow(label, value) {
