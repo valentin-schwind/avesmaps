@@ -58,8 +58,13 @@ Leitgedanke: das bestehende **Besitz-Modell und WikiSync nicht anfassen** — Cl
 ## Phasen & Fortschritt
 - [x] **Phase 0 — Rendering-Spike** ABGENOMMEN: Optik bestätigt (20px / 45° / voll abwechselnd; Farben +
   Deckkraft aus dem Territorium). → `docs/spikes/umstrittene-gebiete-schraffur-spike.html`
-- [ ] **Phase 1 — Daten + Editor-UI + Overlay**: claims-Tabelle, lese/schreib-Endpoints, „Konfliktpartei"-Block
-  im Territoriums-Editor (hinzufügen/entfernen), Canvas-Schraffur-Overlay im echten Avesmaps.
+- [x] **Phase 1b — Canvas-Overlay** GEBAUT + LIVE BEWIESEN: `js/map-features/map-features-contested-hatch-overlay.js`
+  (in index.html eingebunden). Eigenständig/additiv, Grenzen + SVG-Flächen unangetastet, HiDPI, Zoom/Pan-Redraw.
+  Datenquelle: `feature.properties.contestedParties` (Phase 1a) **oder** `window.__avesmapsContestedClaims[territory_public_id]`
+  (Test). Live an Herzogtum Tobrien verifiziert (rot/blau/gelb, sauber geclippt, Nachbarn/Grenzen unberührt).
+- [ ] **Phase 1a — Daten + Endpoints**: Tabelle `political_territory_claim`, add/remove/list, Layer liefert
+  `contestedParties` (color+opacity je Partei) pro Gebiet mit.
+- [ ] **Phase 1c — Editor-UI**: „Konfliktpartei"-Block (Picker beliebiger Knoten + Liste + entfernen).
 - [ ] **Phase 2 — WikiSync-Schutz** (+ optional Wiki-Import der Ansprüche).
 
 ## Fortschrittslog
@@ -68,3 +73,7 @@ Leitgedanke: das bestehende **Besitz-Modell und WikiSync nicht anfassen** — Cl
 - **2026-06-11 (2):** Spike abgenommen. Bestätigt: Streifenfarben = `territory.color`, Breite **20px**,
   Winkel **45°**, Deckkraft = `territory.opacity`, **Grenzen unangetastet** (eigenes Overlay). → bereit für
   Phase 1.
+- **2026-06-11 (3):** **Phase 1b gebaut + live bewiesen.** Overlay `map-features-contested-hatch-overlay.js`
+  (commit 3c2d360f) + in index.html eingebunden. Live an Herzogtum Tobrien per Test-Override (`window.__avesmapsContestedClaims`)
+  verifiziert: diagonale Schraffur (20px/45°, 3 Parteifarben), sauber aufs Polygon geclippt, Nachbarn + Grenzen
+  unberührt, halbtransparent. → Nächster Schritt: Phase 1a (Daten/Endpoints, CREATE TABLE braucht Nutzer-OK).
