@@ -42,9 +42,11 @@
   .bar { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
   input[type=search], select { background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:4px 6px; font:inherit; }
   input[type=search] { flex:1; }
-  .row { display:flex; align-items:center; gap:6px; padding:3px 5px; border-radius:4px; cursor:grab; }
+  .row { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; padding:3px 5px; border-radius:4px; cursor:grab; }
   .row:hover { background:#f0e6d8; }
-  .row .nm { flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* Gebietsname hat Vorrang: Mindestbreite + fett, damit er nicht von langen Eltern-/Konflikt-Tags
+     zerquetscht wird. Tags brechen bei Bedarf in die nächste Zeile um (flex-wrap am .row). */
+  .row .nm { flex:1 1 9.5em; min-width:9.5em; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .tag { font-size:10px; padding:1px 5px; border-radius:8px; border:1px solid var(--line2); color:var(--mut); }
   .tag.lock { color:var(--accent); border-color:var(--accent); }
   .tag.div { color:var(--warn); border-color:var(--warn); }
@@ -916,7 +918,7 @@ function parentLabel(n){
 }
 function conflictLabel(n){
   if(!(n.conflicts && n.conflicts.length)) return '';
-  return ` <span class="tag conf" title="strittiger Zweit-Elternteil laut Wiki — nur bestätigen, nicht zwingend ändern">◆ ${esc(n.conflicts[0])}${n.conflicts.length>1?' +'+(n.conflicts.length-1):''}</span>`;
+  return ` <span class="tag conf" title="strittiger Zweit-Elternteil laut Wiki — nur bestätigen, nicht zwingend ändern">strittig: ${esc(n.conflicts[0])}${n.conflicts.length>1?' +'+(n.conflicts.length-1):''}</span>`;
 }
 function esc(s){ return String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
