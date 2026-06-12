@@ -386,6 +386,7 @@ function avesmapsPoliticalTerritoryRowToPublic(array $row): array {
         'id' => (int) $row['id'],
         'public_id' => (string) $row['public_id'],
         'wiki_id' => isset($row['wiki_id']) ? (int) $row['wiki_id'] : null,
+        'wiki_key' => (string) ($row['wiki_key'] ?? ''),
         'slug' => (string) $row['slug'],
         'name' => (string) $row['name'],
         'short_name' => (string) ($row['short_name'] ?? ''),
