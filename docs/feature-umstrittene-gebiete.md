@@ -120,8 +120,12 @@ Overlay, liest abgeleitete Daten). Overlay erkennt das Gebiet bei Tiefzoom über
   Fallback exakter Name) → nur Auflösbares (Parse-Müll filtert sich raus); bereits gesetzte Claims ausgeblendet.
   Editor-Button listet Funde mit „Hinzufügen" (add_claim, source=wiki). Verifiziert: Baronie Gadang → „Markgrafschaft
   Perricum". Edge: einzelne Gebiete mit unvollständiger wiki_key-Verknüpfung lösen nicht auf (z. B. Bergfreischaft Ilderasch).
-- [ ] **R2 — WikiSync-Button** „⚔ im Editor bearbeiten" auf strittig+Geometrie-Knoten (cross-iframe), Wiki-Konflikte
-  in „Noch nicht modelliert" immer sichtbar.
+- [x] **R2 — WikiSync-Button** „⚔ im Editor" GEBAUT + Backend verifiziert: Knoten in „Konflikte (platziert)" mit
+  `has_conflict && map_geometry_count>0` (grüner Punkt) bekommen den Button. Klick → `editor_open_target` (neuer
+  Endpoint: wiki_key → Gebiet + erste aktive Geometrie; der Editor braucht die geometry_public_id zum Laden) →
+  WikiSync-Overlay ausblenden → `window.parent.AvesmapsPoliticalTerritoryEditorLink.open(...)`. Topologie verifiziert:
+  Monitor ist Kind-iframe des Karten-iframes (lädt index.html mit beidem). Endpoint verifiziert (Ebersberg/Gadang →
+  Geometrie). Offen: Klick-Test in der Live-UI. Wiki-Konflikte sind in der Liste ohnehin immer sichtbar (Filter).
 - [ ] **R3 — Bulk-Import** aller sauberen Wiki-Konflikte auf einmal (per-Gebiet jetzt via „Aus Wiki vorschlagen" möglich).
 - [ ] **Phase 2 — WikiSync-Schutz** (Modellübernahme darf Claims nicht löschen — Claims-Tabelle ist separat, sollte safe sein; verifizieren).
 
