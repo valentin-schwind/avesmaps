@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spike: Umstrittene Gebiete – Schraffur</title>
+<style>
+  :root { --panel:#1f2630; --panel2:#2a323d; --ink:#e8edf2; --muted:#9fb0c0; --accent:#0078a8; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:var(--ink);
+         background:#141a21; display:flex; min-height:100vh; }
+  .stage { flex:1; display:flex; align-items:center; justify-content:center; padding:24px; }
+  canvas { border-radius:10px; box-shadow:0 8px 40px rgba(0,0,0,.5); max-width:100%; height:auto; }
+  .panel { width:320px; background:var(--panel); padding:18px 18px 28px; overflow:auto; }
+  h1 { font-size:15px; margin:0 0 2px; }
+  .sub { color:var(--muted); font-size:12px; margin:0 0 16px; }
+  .group { background:var(--panel2); border-radius:8px; padding:12px; margin-bottom:12px; }
+  .group h2 { font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:0 0 10px; }
+  label { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:8px 0; font-size:13px; }
+  input[type=range] { flex:1; accent-color:var(--accent); }
+  .val { min-width:42px; text-align:right; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .colors { display:flex; flex-direction:column; gap:8px; }
+  .color-row { display:flex; align-items:center; gap:8px; }
+  .color-row input[type=color] { width:34px; height:26px; border:none; background:none; padding:0; border-radius:5px; cursor:pointer; }
+  .color-row .nm { flex:1; color:var(--muted); font-size:12px; }
+  .color-row button, .addbtn, .seg button { background:#3a4552; color:var(--ink); border:1px solid #4a5663;
+        border-radius:6px; padding:5px 9px; font-size:12px; cursor:pointer; }
+  .color-row button:hover, .addbtn:hover { background:#46525f; }
+  .addbtn { width:100%; margin-top:8px; }
+  .seg { display:flex; gap:6px; }
+  .seg button { flex:1; }
+  .seg button.on { background:var(--accent); border-color:var(--accent); }
+  .hint { color:var(--muted); font-size:11px; margin-top:6px; line-height:1.4; }
+  .check { display:flex; align-items:center; gap:8px; }
+  .check input { accent-color:var(--accent); }
+</style>
+</head>
+<body>
+  <div class="stage"><canvas id="cv" width="960" height="640"></canvas></div>
+  <div class="panel">
+    <h1>Umstrittene Gebiete – Schraffur-Spike</h1>
+    <p class="sub">Canvas-Streifen, geclippt aufs Polygon. Reine Optik-/Performance-Frage, kein Avesmaps nötig.</p>
+
+    <div class="group">
+      <h2>Anspruchsteller (Farben)</h2>
+      <div class="colors" id="colors"></div>
+      <button class="addbtn" id="addColor">+ Konfliktpartei</button>
+      <p class="hint">Reihenfolge = Streifen-Reihenfolge. Erste Farbe = Besitzer.</p>
+    </div>
+
+    <div class="group">
+      <h2>Schraffur</h2>
+      <div class="seg" id="mode">
+        <button data-mode="solid" class="on">Voll abwechselnd</button>
+        <button data-mode="overlay">Über Basis</button>
+      </div>
+      <label>Streifenbreite <input id="width" type="range" min="3" max="40" value="11"><span class="val" id="widthV"></span></label>
+      <label>Winkel <input id="angle" type="range" min="0" max="180" value="45"><span class="val" id="angleV"></span></label>
+      <label>Deckkraft <input id="opacity" type="range" min="20" max="100" value="100"><span class="val" id="opacityV"></span></label>
+      <p class="hint">„Über Basis": Besitzerfarbe füllt flächig, die anderen liegen als Streifen drüber.</p>
+    </div>
+
+    <div class="group">
+      <h2>Kontext</h2>
+      <label class="check"><input type="checkbox" id="neighbors" checked> Nachbar-Gebiete zeigen</label>
+      <label class="check"><input type="checkbox" id="secondContested"> 2. Gebiet auch umstritten</label>
+      <label class="check"><input type="checkbox" id="borders" checked> Gebietsgrenzen</label>
+    </div>
+  </div>
+
+<script>
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d");
+
+// --- Beispiel-„Territorien" (handgezeichnete, aneinandergrenzende Blobs) ---
+const T = {
+  mitte:  [[330,150],[520,120],[640,210],[660,360],[560,470],[400,470],[300,360],[300,230]],
+  oben:   [[330,150],[300,40],[560,30],[640,120],[520,120]],
+  rechts: [[640,210],[820,180],[880,360],[760,500],[560,470],[660,360]],
+  links:  [[300,230],[120,210],[80,420],[260,520],[400,470],[300,360]],
+  unten:  [[400,470],[560,470],[600,600],[300,610],[260,520]],
+};
+
+let claimColors = ["#c0392b", "#2e86de", "#27ae60"];
+let mode = "solid";
+
+function bbox(pts){ const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
+  return {minX:Math.min(...xs),maxX:Math.max(...xs),minY:Math.min(...ys),maxY:Math.max(...ys)}; }
+
+function tracePath(pts){ ctx.beginPath(); pts.forEach((p,i)=> i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); }
+
+// Kern: Polygon mit diagonalen, durch die Farben rotierenden Streifen füllen.
+function hatch(pts, colors, {stripeWidth, angleDeg, opacity, base}){
+  ctx.save();
+  tracePath(pts); ctx.clip();
+  const b = bbox(pts), cx=(b.minX+b.maxX)/2, cy=(b.minY+b.maxY)/2;
+  if (base){ ctx.fillStyle = base; ctx.fillRect(b.minX-4,b.minY-4,(b.maxX-b.minX)+8,(b.maxY-b.minY)+8); }
+  ctx.globalAlpha = opacity;
+  ctx.translate(cx,cy); ctx.rotate(angleDeg*Math.PI/180);
+  const R = Math.hypot(b.maxX-b.minX, b.maxY-b.minY); // deckt das rotierte Bounding-Rechteck
+  const n = colors.length || 1;
+  let i = 0;
+  for (let x=-R; x<=R; x+=stripeWidth){
+    ctx.fillStyle = colors[((i%n)+n)%n];
+    ctx.fillRect(x, -R, stripeWidth+0.6, 2*R); // +0.6 gegen Sub-Pixel-Lücken
+    i++;
+  }
+  ctx.restore();
+}
+
+function fillSolid(pts, color){ ctx.save(); tracePath(pts); ctx.fillStyle=color; ctx.fill(); ctx.restore(); }
+function stroke(pts){ ctx.save(); tracePath(pts); ctx.lineWidth=1.5; ctx.strokeStyle="rgba(255,255,255,.7)"; ctx.stroke(); ctx.restore(); }
+
+// Ein umstrittenes Gebiet zeichnen – zwei Optik-Varianten.
+function drawContested(pts, colors, opt){
+  if (mode==="overlay"){
+    fillSolid(pts, colors[0] || "#888");                       // Besitzer flächig
+    const others = colors.slice(1).length ? colors.slice(1) : colors;
+    hatch(pts, others, { ...opt, base:null });                 // Anspruchsteller als Streifen drüber
+  } else {
+    hatch(pts, colors, { ...opt, base:null });                 // alle Parteien voll abwechselnd
+  }
+}
+
+function read(id){ return Number(document.getElementById(id).value); }
+
+function render(){
+  // Hintergrund (map-ish)
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle = "#6b8a5a"; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.fillStyle = "rgba(255,255,255,.04)";
+  for(let y=0;y<cv.height;y+=14) ctx.fillRect(0,y,cv.width,7);
+
+  const showNeighbors = document.getElementById("neighbors").checked;
+  const showBorders   = document.getElementById("borders").checked;
+  const second        = document.getElementById("secondContested").checked;
+  const opt = { stripeWidth: read("width"), angleDeg: read("angle"), opacity: read("opacity")/100 };
+
+  // Nachbarn flächig (Besitzerfarben als Beispiel)
+  const neighborFills = { oben:"#3d7a8c", rechts:"#8c6b3d", links:"#7a6b9c", unten:"#5a8c6b" };
+  if (showNeighbors){
+    for (const k of ["oben","rechts","links","unten"]) fillSolid(T[k], neighborFills[k]);
+  }
+
+  // Umstrittenes Hauptgebiet
+  drawContested(T.mitte, claimColors, opt);
+
+  // optional 2. umstrittenes Gebiet (gedrehte Farben), um die Nachbarschaft zu sehen
+  if (second) drawContested(T.rechts, claimColors.slice().reverse(), opt);
+
+  if (showBorders){ for (const k in T) stroke(T[k]); }
+}
+
+// --- UI ---
+function renderColorList(){
+  const wrap = document.getElementById("colors"); wrap.innerHTML="";
+  claimColors.forEach((c,idx)=>{
+    const row = document.createElement("div"); row.className="color-row";
+    row.innerHTML = `<input type="color" value="${c}"><span class="nm">${idx===0?"Besitzer":"Anspruch "+idx}</span>`;
+    const inp = row.querySelector("input");
+    inp.addEventListener("input", e=>{ claimColors[idx]=e.target.value; render(); });
+    if (claimColors.length>2){
+      const del = document.createElement("button"); del.textContent="✕";
+      del.addEventListener("click", ()=>{ claimColors.splice(idx,1); renderColorList(); render(); });
+      row.appendChild(del);
+    }
+    wrap.appendChild(row);
+  });
+}
+document.getElementById("addColor").addEventListener("click", ()=>{
+  const pool=["#8e44ad","#e67e22","#16a085","#c0392b","#2c3e50","#d35400"];
+  claimColors.push(pool[claimColors.length%pool.length]); renderColorList(); render();
+});
+document.querySelectorAll("#mode button").forEach(b=>b.addEventListener("click", ()=>{
+  mode=b.dataset.mode; document.querySelectorAll("#mode button").forEach(x=>x.classList.toggle("on",x===b)); render();
+}));
+["width","angle","opacity"].forEach(id=>{
+  const el=document.getElementById(id), v=document.getElementById(id+"V");
+  const upd=()=>{ v.textContent = id==="opacity"? el.value+"%" : (id==="angle"? el.value+"°" : el.value+"px"); render(); };
+  el.addEventListener("input", upd); upd();
+});
+["neighbors","secondContested","borders"].forEach(id=>document.getElementById(id).addEventListener("change", render));
+
+renderColorList();
+render();
+</script>
+</body>
+</html>
