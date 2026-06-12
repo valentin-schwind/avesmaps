@@ -120,6 +120,7 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
     }
     $parentIds = avesmapsPoliticalBuildEffectiveLayerParentIds($territories);
     $features = avesmapsPoliticalBuildResolvedLayerFeatures($rows, $territories, $parentIds, $yearBf, $zoom);
+    $features = avesmapsPoliticalAttachContestedParties($pdo, $features);
 
     return [
         'ok' => true,
@@ -219,7 +220,10 @@ function avesmapsPoliticalReadEditorLayer(PDO $pdo, int $yearBf, int $zoom, ?arr
         'type' => 'FeatureCollection',
         'year_bf' => $yearBf,
         'zoom' => $zoom,
-        'features' => avesmapsPoliticalBuildRawEditorLayerFeatures($rows, $yearBf, $zoom, $territories, $parentIds),
+        'features' => avesmapsPoliticalAttachContestedParties(
+            $pdo,
+            avesmapsPoliticalBuildRawEditorLayerFeatures($rows, $yearBf, $zoom, $territories, $parentIds)
+        ),
     ];
 }
 
@@ -370,6 +374,64 @@ function avesmapsPoliticalLayerRowMatchesOwnZoom(array $row, int $zoom): bool {
 
     return ($minZoom === null || $minZoom <= $zoom)
         && ($maxZoom === null || $maxZoom >= $zoom);
+}
+
+// Umstrittene Gebiete: an jedes Feature, dessen (Quell-)Territorium aktive Claims hat, die Parteien-Liste
+// haengen -> [{color, opacity}, ...] (Besitzer zuerst = Territoriumsfarbe/-deckkraft, dann Anspruchsteller
+// nach sort_order). Das Canvas-Overlay (map-features-contested-hatch-overlay.js) zeichnet daraus die
+// diagonale Schraffur, geclippt aufs (Quell-)Polygon -- auch bei Tiefzoom (Aggregat), erkannt ueber
+// aggregate_source_territory_public_id. Eine zusaetzliche, billige Query (die Claim-Tabelle ist klein).
+function avesmapsPoliticalAttachContestedParties(PDO $pdo, array $features): array {
+    $normalizeStripeColor = static function (mixed $value): string {
+        $color = trim((string) $value);
+        return preg_match('/^#[0-9a-fA-F]{6}/', $color) === 1 ? substr($color, 0, 7) : '#888888';
+    };
+
+    $statement = $pdo->query(
+        'SELECT owner.public_id AS disputed_public_id,
+                owner.color AS owner_color, owner.opacity AS owner_opacity,
+                claimant.color AS claimant_color, claimant.opacity AS claimant_opacity
+        FROM political_territory_claim claim
+        INNER JOIN political_territory owner ON owner.id = claim.territory_id AND owner.is_active = 1
+        INNER JOIN political_territory claimant ON claimant.id = claim.claimant_territory_id AND claimant.is_active = 1
+        WHERE claim.is_active = 1
+        ORDER BY owner.public_id, claim.sort_order ASC, claim.id ASC'
+    );
+    $rows = $statement ? $statement->fetchAll(PDO::FETCH_ASSOC) : [];
+    if ($rows === []) {
+        return $features;
+    }
+
+    $partiesByPublicId = [];
+    foreach ($rows as $row) {
+        $disputedPublicId = (string) $row['disputed_public_id'];
+        if (!isset($partiesByPublicId[$disputedPublicId])) {
+            // Besitzer-Streifen zuerst (Territoriumsfarbe/-deckkraft des umstrittenen Gebiets).
+            $partiesByPublicId[$disputedPublicId] = [[
+                'color' => $normalizeStripeColor($row['owner_color']),
+                'opacity' => (float) $row['owner_opacity'],
+            ]];
+        }
+        $partiesByPublicId[$disputedPublicId][] = [
+            'color' => $normalizeStripeColor($row['claimant_color']),
+            'opacity' => (float) $row['claimant_opacity'],
+        ];
+    }
+
+    foreach ($features as &$feature) {
+        $properties = $feature['properties'] ?? [];
+        // Tiefzoom: Feature zeigt den Vorfahren, das umstrittene Quellgebiet steht in aggregate_source_*.
+        $disputedPublicId = trim((string) ($properties['aggregate_source_territory_public_id'] ?? ''));
+        if ($disputedPublicId === '') {
+            $disputedPublicId = trim((string) ($properties['territory_public_id'] ?? ''));
+        }
+        if ($disputedPublicId !== '' && isset($partiesByPublicId[$disputedPublicId])) {
+            $feature['properties']['contestedParties'] = $partiesByPublicId[$disputedPublicId];
+        }
+    }
+    unset($feature);
+
+    return $features;
 }
 
 function avesmapsPoliticalFetchLayerTerritories(PDO $pdo, int $yearBf): array {

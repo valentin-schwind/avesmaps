@@ -22,6 +22,7 @@ require_once __DIR__ . '/territories-boundary-debug.php';
 require_once __DIR__ . '/territories-audit.php';
 require_once __DIR__ . '/territories-debug.php';
 require_once __DIR__ . '/territories-geometry-inventory.php';
+require_once __DIR__ . '/territories-claims.php';
 
 $debugErrors = filter_var($_GET['debug_errors'] ?? false, FILTER_VALIDATE_BOOL);
 
@@ -131,6 +132,7 @@ try {
             'debug_boundary_contract', 'boundary_contract_debug' => avesmapsPoliticalReadBoundaryContractDebug($pdo, $_GET),
             'debug' => avesmapsPoliticalReadDebug($pdo, $_GET),
             'audit' => avesmapsPoliticalReadAudit($pdo, $_GET),
+            'list_claims' => avesmapsPoliticalListClaims($pdo, $_GET),
             default => throw new InvalidArgumentException('Die Herrschaftsgebiet-Aktion ist unbekannt.'),
         };
 
@@ -172,6 +174,8 @@ try {
         'ensure_wiki_territory_chain' => avesmapsPoliticalEnsureWikiTerritoryChain($pdo, $payload, $user),
         'restore_legacy_region_geometries' => avesmapsPoliticalRestoreLegacyRegionGeometries($pdo, $payload, $user),
         'deactivate_legacy_regions' => avesmapsPoliticalDeactivateLegacyRegions($pdo, $payload, $user),
+        'add_claim' => avesmapsPoliticalAddClaim($pdo, $payload, $user),
+        'remove_claim' => avesmapsPoliticalRemoveClaim($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Herrschaftsgebiet-Aktion ist unbekannt.'),
     };
 
