@@ -12,6 +12,8 @@ function normalizeRegionFeature(feature) {
 		geometryId: Number.isFinite(Number(properties.geometry_id)) ? Number(properties.geometry_id) : null,
 		geometryPublicId: properties.geometry_public_id || properties.public_id || feature.id || "",
 		territoryPublicId: properties.territory_public_id || "",
+		aggregateSourceTerritoryPublicId: properties.aggregate_source_territory_public_id || "",
+		contestedParties: Array.isArray(properties.contestedParties) && properties.contestedParties.length ? properties.contestedParties : null,
 		source: properties.source || (properties.feature_type === "political_territory" ? "political_territory" : "map_feature"),
 		name: normalizeRegionParentheticalSpacing(getRegionFeatureName(properties)),
 		displayName: normalizeRegionParentheticalSpacing(properties.display_name || properties.name || ""),

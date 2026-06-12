@@ -67,6 +67,26 @@ function clearRenderedRegionLayers() {
 	clearRegionGeometryEdit();
 }
 
+// Umstrittenes Gebiet? (gleiche Quelle wie das Schraffur-Overlay: echte Layer-Daten ODER Test-Override).
+// Wenn ja, wird die SVG-Fuellung ausgeschnitten (s. buildRegionPolygonStyle), damit die Schraffur ueber
+// die Basis-Karte liegt statt ueber der Reichsfarbe.
+function isRegionContested(regionEntry) {
+	if (regionEntry && Array.isArray(regionEntry.contestedParties) && regionEntry.contestedParties.length) {
+		return true;
+	}
+	const test = window.__avesmapsContestedClaims || null;
+	if (test) {
+		const keys = [regionEntry && regionEntry.territoryPublicId, regionEntry && regionEntry.aggregateSourceTerritoryPublicId, regionEntry && regionEntry.publicId];
+		for (const key of keys) {
+			const k = String(key || "");
+			if (k && Array.isArray(test[k]) && test[k].length) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 function buildRegionPolygonStyle(regionEntry, region = null) {
 	const visuallyHidden = shouldHideRegionForDerivedBoundary(region, regionEntry);
 	if (visuallyHidden) {
@@ -122,7 +142,10 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 		weight,
 		opacity: 1,
 		fillColor: resolvedFillColor,
-		fillOpacity,
+		// Umstrittene Gebiete: Fuellung ausschneiden (0), damit die diagonale Schraffur des Canvas-
+		// Overlays ueber die Basis-Karte liegt statt ueber der Reichsfarbe. fill:true bleibt -> Polygon
+		// bleibt klickbar (Infobox), Grenzen-Linie unberuehrt (eigenes Overlay).
+		fillOpacity: isRegionContested(regionEntry) ? 0 : fillOpacity,
 	};
 	if (levelLineStyle && levelLineStyle.dashArray) {
 		style.dashArray = levelLineStyle.dashArray;
