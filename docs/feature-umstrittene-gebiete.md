@@ -115,7 +115,15 @@ Overlay, liest abgeleitete Daten). Overlay erkennt das Gebiet bei Tiefzoom über
   Wiki-Tabelle (verifiziert: list_claims("wiki:baronie-ebersberg") → Mark Drachenstein). **Offen/Verhalten:**
   Block folgt dem AKTIVEN Breadcrumb-Knoten (Default = Wurzel-Reich, nicht das Blatt) — Nutzer-Entscheid steht aus
   (so lassen = konsistent mit Farbe/Zoom · ODER immer auf das Geometrie-Blatt zielen).
-- [ ] **Phase 2 — WikiSync-Schutz** (+ optional Wiki-Import der Ansprüche).
+- [x] **„Aus Wiki vorschlagen"** GEBAUT + LIVE: Endpoint `suggest_claims` liest `parent_conflict_json` (WikiSync-
+  Modell `wiki_territory_model`) des Gebiets, löst die Konfliktparteien auf echte Territorien auf (per wiki_key,
+  Fallback exakter Name) → nur Auflösbares (Parse-Müll filtert sich raus); bereits gesetzte Claims ausgeblendet.
+  Editor-Button listet Funde mit „Hinzufügen" (add_claim, source=wiki). Verifiziert: Baronie Gadang → „Markgrafschaft
+  Perricum". Edge: einzelne Gebiete mit unvollständiger wiki_key-Verknüpfung lösen nicht auf (z. B. Bergfreischaft Ilderasch).
+- [ ] **R2 — WikiSync-Button** „⚔ im Editor bearbeiten" auf strittig+Geometrie-Knoten (cross-iframe), Wiki-Konflikte
+  in „Noch nicht modelliert" immer sichtbar.
+- [ ] **R3 — Bulk-Import** aller sauberen Wiki-Konflikte auf einmal (per-Gebiet jetzt via „Aus Wiki vorschlagen" möglich).
+- [ ] **Phase 2 — WikiSync-Schutz** (Modellübernahme darf Claims nicht löschen — Claims-Tabelle ist separat, sollte safe sein; verifizieren).
 
 ## Fortschrittslog
 - **2026-06-11:** Konzept festgehalten (diese Datei). Rendering-Spike als eigenständiges Mini-HTML erstellt
