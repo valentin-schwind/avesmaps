@@ -91,11 +91,17 @@ Overlay, liest abgeleitete Daten). Overlay erkennt das Gebiet bei Tiefzoom über
   (in index.html eingebunden). Eigenständig/additiv, Grenzen + SVG-Flächen unangetastet, HiDPI, Zoom/Pan-Redraw.
   Datenquelle: `feature.properties.contestedParties` (Phase 1a) **oder** `window.__avesmapsContestedClaims[territory_public_id]`
   (Test). Live an Herzogtum Tobrien verifiziert (rot/blau/gelb, sauber geclippt, Nachbarn/Grenzen unberührt).
-- [~] **Phase 1a — Daten + Endpoints**: Tabelle `political_territory_claim` **ANGELEGT** (Lazy-Ensure in
+- [x] **Phase 1a — Daten + Endpoints**: Tabelle `political_territory_claim` **ANGELEGT** (Lazy-Ensure in
   `api/_internal/political/territory.php` + kanonisch in `sql/political-territories.sql`). Nur `territory_id`
   + `claimant_territory_id` (+ sort_order/source/claimant_wiki_key/is_active/audit) — **keine** FK zu
-  Geometrie/Grenzen (beide aus `territory_id` abgeleitet), Hauskonvention: Plain-Index + Soft-Delete, keine
-  FK-Constraints. OFFEN: add/remove/list-Endpoints, Layer liefert `contestedParties` (color+opacity je Partei).
+  Geometrie/Grenzen (beide aus `territory_id` abgeleitet), Hauskonvention: Plain-Index + Soft-Delete.
+  **Endpoints** (Modul `territories-claims.php`, im Haupt-Endpoint dispatcht): `list_claims` (GET, public),
+  `add_claim`/`remove_claim` (POST, edit-Cap, idempotent). **Layer** hängt `contestedParties`
+  `[{color,opacity},…]` an (Besitzer zuerst + Anspruchsteller nach sort_order), Tiefzoom via
+  `aggregate_source_territory_public_id`, beide Read-Pfade. Auto-Cache-Invalidierung nach Schreibvorgang.
+- [ ] **Overlay-Cut (Option A)**: umstrittenes Gebiet aus der SVG-Füllung schneiden (`fillOpacity:0`), damit
+  die Schraffur über die Basis-Karte statt über die Reichsfarbe liegt. Noch offen — bis dahin liegt die
+  Schraffur über der Füllung (temporär „Über-Basis"-Optik).
 - [ ] **Phase 1c — Editor-UI**: „Konfliktpartei"-Block (Picker beliebiger Knoten + Liste + entfernen).
 - [ ] **Phase 2 — WikiSync-Schutz** (+ optional Wiki-Import der Ansprüche).
 
