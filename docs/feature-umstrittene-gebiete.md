@@ -55,6 +55,27 @@ Leitgedanke: das bestehende **Besitz-Modell und WikiSync nicht anfassen** — Cl
   Eltern-/Aggregat-Hülle hochziehen).
 - **Wiki-Import** der Ansprüche aus wiki-aventurica = **eigene, spätere Phase** (erst manuell, dann Import).
 
+## Bestehende Konflikt-Daten aus WikiSync (Untersuchung 2026-06-12)
+**Befund:** Der Wiki-Crawl extrahiert Ansprüche **bereits** — keine neue Quelle nötig.
+- Backend: `avesmapsWikiSyncMonitorParseAffiliation` (sync-monitor.php:962) zieht aus dem `Staat`-Feld
+  „beansprucht von/vom …"-Klauseln + konkurrierende Eltern-Klauseln als `conflicts[]`. Gespeichert in
+  Staging-Spalte `parent_conflict_json` (Array `{name, wiki_key, resolved}`), an den Editor geliefert als
+  `node.conflicts` (nur **Namen**, Freitext) + `node.has_conflict` (Filter „Konflikte (platziert)").
+- **Aber verrauscht:** von 1392 Knoten sind 49 als Konflikt markiert (47 platziert), davon nur **22 Gebiete
+  mit einem sauberen, auflösbaren Anspruch** (Claimant-Name matcht ein vorhandenes Territorium → hat Farbe).
+  Der Rest ist Template-Müll (`wid|Angbar`, `ex|1022 bis 1028 BF`), Status-Wörter („Landstadt") oder
+  Zeit-/Historik-Klauseln („zuletzt Königreich Albernia", „vermutlich …").
+- **Saubere Beispiele:** Beyrounat Al'Rabat → Emirat Adamantija; Baronie Gadang/Gorbingen/Hengefeldt →
+  Markgrafschaft Perricum; Bergfreischaft Ilderasch/Kibrom/Olrong → Bergkönigreich Lorgolosch;
+  Emirat Korushan/Adamantija → Sultanat Khunchom. ~10 distinkte Anspruchsteller-Reiche.
+
+**Konsequenz fürs Datenmodell:**
+- Anspruchsteller braucht eine **Farbe** → muss auf ein **`political_territory`** auflösen
+  (`claimant_territory_id`). Der Wiki-Name ist nur Saat/Vorschlag, nicht direkt renderbar.
+- **Kein Auto-Import** der 49 Roh-Konflikte (zu viel Müll). Stattdessen: der Wiki-`conflicts`-Eintrag wird im
+  Editor-Picker als **Vorschlag** angezeigt („Wiki nennt: Markgrafschaft Perricum — übernehmen?"), Nutzer
+  bestätigt → sauberer manueller Claim. Passt zu „beim Vorschlag vorsichtig sein".
+
 ## Phasen & Fortschritt
 - [x] **Phase 0 — Rendering-Spike** ABGENOMMEN: Optik bestätigt (20px / 45° / voll abwechselnd; Farben +
   Deckkraft aus dem Territorium). → `docs/spikes/umstrittene-gebiete-schraffur-spike.html`
