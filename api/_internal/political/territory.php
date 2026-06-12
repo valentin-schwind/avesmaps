@@ -103,6 +103,29 @@ function avesmapsPoliticalEnsureTables(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
+    // Umstrittene Gebiete: additive Claim-Tabelle (Besitz-Modell unangetastet, "umstritten" = abgeleitet
+    // aus >=1 aktivem Claim). Anspruchsteller ist ein echtes Territorium -> liefert Farbe/Deckkraft live.
+    // Konvention wie im Rest des Schemas: KEINE FK-Constraints, Soft-Delete ueber is_active.
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS political_territory_claim (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            territory_id BIGINT UNSIGNED NOT NULL,
+            claimant_territory_id BIGINT UNSIGNED NOT NULL,
+            sort_order INT NOT NULL DEFAULT 0,
+            source VARCHAR(16) NOT NULL DEFAULT 'manual',
+            claimant_wiki_key VARCHAR(255) NULL,
+            is_active TINYINT(1) NOT NULL DEFAULT 1,
+            created_by BIGINT UNSIGNED NULL,
+            updated_by BIGINT UNSIGNED NULL,
+            created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+            updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_political_territory_claim (territory_id, claimant_territory_id),
+            KEY idx_political_territory_claim_territory (territory_id, is_active),
+            KEY idx_political_territory_claim_party (claimant_territory_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
     $wikiKeyColumn = $pdo->query("SHOW COLUMNS FROM political_territory LIKE 'wiki_key'")->fetch(PDO::FETCH_ASSOC);
     if (!is_array($wikiKeyColumn)) {
         $pdo->exec('ALTER TABLE political_territory ADD COLUMN wiki_key VARCHAR(255) NULL AFTER wiki_id, ADD KEY idx_political_territory_wiki_key (wiki_key)');

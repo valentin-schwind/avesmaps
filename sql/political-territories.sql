@@ -111,3 +111,24 @@ CREATE TABLE IF NOT EXISTS political_territory_geometry (
     KEY idx_political_territory_geometry_timeline (valid_from_bf, valid_to_bf),
     KEY idx_political_territory_geometry_zoom (min_zoom, max_zoom)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Umstrittene Gebiete: additive Claim-Tabelle. Besitz-Modell bleibt unangetastet; "umstritten" ist
+-- abgeleitet (>=1 aktiver Claim). Anspruchsteller = echtes Territorium -> liefert Farbe/Deckkraft live.
+-- Konvention wie oben: keine FK-Constraints, Soft-Delete ueber is_active.
+CREATE TABLE IF NOT EXISTS political_territory_claim (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    territory_id BIGINT UNSIGNED NOT NULL,
+    claimant_territory_id BIGINT UNSIGNED NOT NULL,
+    sort_order INT NOT NULL DEFAULT 0,
+    source VARCHAR(16) NOT NULL DEFAULT 'manual',
+    claimant_wiki_key VARCHAR(255) NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_by BIGINT UNSIGNED NULL,
+    updated_by BIGINT UNSIGNED NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_political_territory_claim (territory_id, claimant_territory_id),
+    KEY idx_political_territory_claim_territory (territory_id, is_active),
+    KEY idx_political_territory_claim_party (claimant_territory_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

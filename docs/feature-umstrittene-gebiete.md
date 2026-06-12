@@ -48,11 +48,19 @@ Leitgedanke: das bestehende **Besitz-Modell und WikiSync nicht anfassen** — Cl
 - **Grenzen-Darstellung bleibt unverändert** — die Schraffur ist ein **eigenes** Overlay; das Grenzen-Overlay
   wird NICHT angefasst.
 
+## Render-Entscheidung: Option A — Füllung ausschneiden (2026-06-12 bestätigt)
+Das umstrittene Gebiet wird **aus der Füllung ausgeschnitten** (transparentes Fenster), die Schraffur zeichnet
+dort über das **Basis-Kartenbild** (nicht über die Reichsfarbe → kein Matsch). **Machbar als reiner Render-Cut
+ohne Geometrie-Operation**, weil der Layer (`territories-layer.php:240-279`) jede Quell-Geometrie auf JEDER
+Zoomstufe einzeln zeichnet (bei Tiefzoom nur auf den Vorfahren **umgefärbt**; eigene `geometry_public_id` →
+kein Dedup, Zeile 827-829). Die „solide Reichsfläche" ist also N gleichfarbige Nachbarpolygone — wir setzen nur
+das Polygon des umstrittenen Gebiets auf `fillOpacity:0`. **Grenzen-Linie bleibt unberührt** (eigenes Canvas-
+Overlay, liest abgeleitete Daten). Overlay erkennt das Gebiet bei Tiefzoom über `aggregate_source_territory_public_id`.
+- Verworfen: Option B (nur drüberlegen) → Basis × Reichsfüllung × Streifen = trübe Mischfarben.
+
 ## Offene Entscheidungen / Risiken (noch offen)
 - **Besitzer als Streifen?** Annahme: ja — der Besitzer beansprucht es auch, seine Farbe ist einer der Streifen.
   (final bestätigen)
-- **Niedrige Zoomstufen / Aggregat-Hüllen:** Vorschlag: nur auf der **eigenen Ebene** schraffieren (nicht in die
-  Eltern-/Aggregat-Hülle hochziehen).
 - **Wiki-Import** der Ansprüche aus wiki-aventurica = **eigene, spätere Phase** (erst manuell, dann Import).
 
 ## Bestehende Konflikt-Daten aus WikiSync (Untersuchung 2026-06-12)
@@ -83,8 +91,11 @@ Leitgedanke: das bestehende **Besitz-Modell und WikiSync nicht anfassen** — Cl
   (in index.html eingebunden). Eigenständig/additiv, Grenzen + SVG-Flächen unangetastet, HiDPI, Zoom/Pan-Redraw.
   Datenquelle: `feature.properties.contestedParties` (Phase 1a) **oder** `window.__avesmapsContestedClaims[territory_public_id]`
   (Test). Live an Herzogtum Tobrien verifiziert (rot/blau/gelb, sauber geclippt, Nachbarn/Grenzen unberührt).
-- [ ] **Phase 1a — Daten + Endpoints**: Tabelle `political_territory_claim`, add/remove/list, Layer liefert
-  `contestedParties` (color+opacity je Partei) pro Gebiet mit.
+- [~] **Phase 1a — Daten + Endpoints**: Tabelle `political_territory_claim` **ANGELEGT** (Lazy-Ensure in
+  `api/_internal/political/territory.php` + kanonisch in `sql/political-territories.sql`). Nur `territory_id`
+  + `claimant_territory_id` (+ sort_order/source/claimant_wiki_key/is_active/audit) — **keine** FK zu
+  Geometrie/Grenzen (beide aus `territory_id` abgeleitet), Hauskonvention: Plain-Index + Soft-Delete, keine
+  FK-Constraints. OFFEN: add/remove/list-Endpoints, Layer liefert `contestedParties` (color+opacity je Partei).
 - [ ] **Phase 1c — Editor-UI**: „Konfliktpartei"-Block (Picker beliebiger Knoten + Liste + entfernen).
 - [ ] **Phase 2 — WikiSync-Schutz** (+ optional Wiki-Import der Ansprüche).
 
