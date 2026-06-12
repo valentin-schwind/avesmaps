@@ -79,7 +79,9 @@
 		// Während des Umsortierens den Observer pausieren (kein Re-Trigger).
 		if (observer) observer.disconnect();
 		for (const section of sections) {
-			const target = section.querySelector("#infoBox") ? right : left;
+			// Wiki-Daten (#infoBox) und der Konfliktparteien-Block (#contestedBlock) gehören in die
+			// rechte (2.) Spalte; alle anderen Panels links.
+			const target = (section.querySelector("#infoBox") || section.querySelector("#contestedBlock")) ? right : left;
 			target.appendChild(section); // verschiebt das Panel, Listener bleiben
 		}
 		if (observer) observer.observe(form, { childList: true, subtree: true });
