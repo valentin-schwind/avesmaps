@@ -126,6 +126,13 @@ Overlay, liest abgeleitete Daten). Overlay erkennt das Gebiet bei Tiefzoom über
   WikiSync-Overlay ausblenden → `window.parent.AvesmapsPoliticalTerritoryEditorLink.open(...)`. Topologie verifiziert:
   Monitor ist Kind-iframe des Karten-iframes (lädt index.html mit beidem). Endpoint verifiziert (Ebersberg/Gadang →
   Geometrie). Offen: Klick-Test in der Live-UI. Wiki-Konflikte sind in der Liste ohnehin immer sichtbar (Filter).
+- [x] **Konflikt-Parser A,B,C,E** GEBAUT + lokal getestet (`avesmapsWikiSyncMonitorParseAffiliation` in
+  sync-monitor.php): A=parenthetische `(beansprucht von X)`-Ansprüche (~31 bisher verschluckte), B=Template-/
+  Datums-Müll filtern (`wid|`/`ex|`/`evt|`/`22 BF` via `IsConflictJunk`), C=Präfixe strippen + `sowie X und Y`-
+  Split, E=`beansprucht von` mid-clause + Komma-Liste (Taifas). Gegen Wiki-Kategorie validiert (vorher 8/9, jetzt
+  9/9). **Greift erst beim nächsten Re-Crawl / „Hierarchie ableiten".**
+- [x] **Konflikt-Zeile klarer** (wiki-sync-monitor.html): Gebietsname (`.nm`) bekam Mindestbreite + fett +
+  flex-wrap → Name wird nicht mehr von Eltern-/Konflikt-Tags zerquetscht; `◆ X` → `strittig: X`.
 - [ ] **R3 — Bulk-Import** aller sauberen Wiki-Konflikte auf einmal (per-Gebiet jetzt via „Aus Wiki vorschlagen" möglich).
 - [ ] **Phase 2 — WikiSync-Schutz** (Modellübernahme darf Claims nicht löschen — Claims-Tabelle ist separat, sollte safe sein; verifizieren).
 
