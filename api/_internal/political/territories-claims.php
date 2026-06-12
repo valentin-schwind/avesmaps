@@ -34,16 +34,28 @@ function avesmapsPoliticalClaimResolveTerritory(PDO $pdo, mixed $value): array {
         );
         $statement->execute([':public_id' => strtolower($raw)]);
     } else {
-        $wikiKey = stripos($raw, 'wiki:') === 0 ? trim(substr($raw, 5)) : $raw;
+        // wiki_key-Auflösung robust gegen die "wiki:"-Prefix-Frage: die DB speichert den Key MIT Prefix
+        // (z. B. "wiki:baronie-ebersberg"). Wir matchen daher alle Formen (roh / ohne / mit Prefix) sowohl
+        // gegen political_territory.wiki_key (kanonisch, aber nicht überall gefüllt) ALS AUCH gegen die
+        // Staging-Wiki-Tabelle über territory.wiki_id. So greift es egal welche Form der Aufrufer schickt.
+        $strippedKey = stripos($raw, 'wiki:') === 0 ? trim(substr($raw, 5)) : $raw;
+        $prefixedKey = 'wiki:' . $strippedKey;
         $statement = $pdo->prepare(
             'SELECT territory.id, territory.public_id, territory.name, territory.color, territory.opacity
             FROM political_territory territory
-            INNER JOIN political_territory_wiki wiki ON wiki.id = territory.wiki_id
-            WHERE wiki.wiki_key = :wiki_key AND territory.is_active = 1
+            LEFT JOIN political_territory_wiki wiki ON wiki.id = territory.wiki_id
+            WHERE territory.is_active = 1
+              AND (
+                territory.wiki_key IN (:t_raw, :t_stripped, :t_prefixed)
+                OR wiki.wiki_key IN (:w_raw, :w_stripped, :w_prefixed)
+              )
             ORDER BY territory.id ASC
             LIMIT 1'
         );
-        $statement->execute([':wiki_key' => $wikiKey]);
+        $statement->execute([
+            ':t_raw' => $raw, ':t_stripped' => $strippedKey, ':t_prefixed' => $prefixedKey,
+            ':w_raw' => $raw, ':w_stripped' => $strippedKey, ':w_prefixed' => $prefixedKey,
+        ]);
     }
 
     $row = $statement->fetch(PDO::FETCH_ASSOC);
