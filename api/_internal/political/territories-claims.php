@@ -214,6 +214,30 @@ function avesmapsPoliticalListClaims(PDO $pdo, array $query): array {
     ];
 }
 
+// R2: Ziel zum Oeffnen des Territoriumseditors aufloesen — aus einem wiki_key (oder UUID) das Gebiet +
+// dessen erste aktive Geometrie ermitteln. Der Editor braucht die geometry_public_id, um den Knoten
+// tatsaechlich zu laden (nicht nur die leere Huelle). Genutzt vom WikiSync-Button "im Editor bearbeiten".
+function avesmapsPoliticalResolveEditorTarget(PDO $pdo, array $query): array {
+    $territory = avesmapsPoliticalClaimResolveTerritory(
+        $pdo,
+        $query['territory_public_id'] ?? $query['wiki_key'] ?? $query['territoryPublicId'] ?? ''
+    );
+    $statement = $pdo->prepare(
+        'SELECT public_id FROM political_territory_geometry
+        WHERE territory_id = :territory_id AND is_active = 1
+        ORDER BY id ASC LIMIT 1'
+    );
+    $statement->execute([':territory_id' => $territory['id']]);
+    $geometryPublicId = (string) ($statement->fetchColumn() ?: '');
+
+    return [
+        'ok' => true,
+        'territory_public_id' => $territory['public_id'],
+        'geometry_public_id' => $geometryPublicId,
+        'name' => $territory['name'],
+    ];
+}
+
 // Anspruchsteller hinzufuegen (idempotent: reaktiviert einen evtl. soft-geloeschten Claim).
 function avesmapsPoliticalAddClaim(PDO $pdo, array $payload, array $user): array {
     $territory = avesmapsPoliticalClaimResolveTerritory(

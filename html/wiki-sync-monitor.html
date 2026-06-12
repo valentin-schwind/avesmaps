@@ -790,6 +790,38 @@ function matchesFilter(n, f) {
   return true;
 }
 
+// R2: Button auf strittigen Knoten MIT Geometrie (grüner Punkt) -> öffnet das Gebiet im Territoriumseditor
+// (anderer iframe-Geschwister im selben Karten-iframe -> window.parent.AvesmapsPoliticalTerritoryEditorLink).
+function editorEditButton(n) {
+  if (!(n.has_conflict && (n.map_geometry_count||0) > 0)) return '';
+  return ` <button class="edbtn dt-edit-territory" data-edit-key="${esc(n.wiki_key)}" title="Im Territoriumseditor öffnen, um Ansprüche/Lage zu bearbeiten">⚔ im Editor</button>`;
+}
+
+async function openTerritoryEditorFromSync(wikiKey) {
+  if (!wikiKey) return;
+  const opener = window.parent && window.parent.AvesmapsPoliticalTerritoryEditorLink;
+  if (!opener || typeof opener.open !== 'function') { setStatus('Territoriumseditor nicht erreichbar.'); return; }
+  setStatus('Öffne Territoriumseditor …');
+  try {
+    // Gebiet + erste Geometrie auflösen (der Editor braucht die geometry_public_id zum Laden).
+    const r = await fetch('/api/app/political-territories.php?action=editor_open_target&territory_public_id='+encodeURIComponent(wikiKey)+'&_='+Date.now(), {credentials:'include', cache:'no-store'});
+    const j = await r.json();
+    if (!r.ok || j.ok === false) { setStatus('Fehler: '+(j.error||('HTTP '+r.status))); return; }
+    // WikiSync-Overlay (im Parent) ausblenden, damit der Editor sichtbar ist.
+    try {
+      const ov = window.parent.document.getElementById('avesmaps-sync-editor-overlay');
+      if (ov) { ov.hidden = true; window.parent.document.body.style.overflow = ''; }
+    } catch(e) {}
+    opener.open({
+      geometry_public_id: j.geometry_public_id || undefined,
+      territory_public_id: j.territory_public_id || undefined,
+      wiki_key: wikiKey,
+      name: j.name || (BYKEY.get(wikiKey)||{}).name || wikiKey
+    });
+    setStatus('');
+  } catch (e) { setStatus('Fehler beim Öffnen: '+e.message); }
+}
+
 function renderList() {
   covTime = leftTime; covCache.clear();
   const f = $('filter').value, q = $('search').value.trim().toLowerCase();
@@ -804,7 +836,7 @@ function renderList() {
     if (shown++ > 600) { out.push('<div class="muted">… mehr (Suche eingrenzen)</div>'); break; }
     const lock = n.parent_locked ? ` <span class="tag lock" title="${lockTitle(n)}">🔒</span>` : '';
     const exclTag = n.excluded ? ` <span class="tag excl" title="im Papierkorb / aussortiert – aus der Hierarchie genommen, aber noch gesynct">🗑 Papierkorb</span> <button class="edbtn dt-restore" data-restore="${esc(n.wiki_key)}" title="Wiederherstellen – zurück in die Hierarchie holen">↩ wiederherstellen</button>` : '';
-    const meta = n.excluded ? '' : `${parentLabel(n)}${conflictLabel(n)}`;
+    const meta = n.excluded ? '' : `${parentLabel(n)}${conflictLabel(n)}${editorEditButton(n)}`;
     out.push(`<div class="row${n.wiki_key===selectedKey?' sel':''}" draggable="true" data-key="${n.wiki_key}">${covCircle(n)}${wappenThumb(n)}<span class="nm">${esc(dispName(n))}${periodLabel(n)}</span>${wikiLink(n)}${meta}${lock}${exclTag}</div>`);
   }
   $('list').innerHTML = out.join('') || '<div class="muted">— keine —</div>';
@@ -963,6 +995,8 @@ document.addEventListener('click', e => {
   if(trash){ e.preventDefault(); $('filter').value='excluded'; renderList(); return; }               // Papierkorb öffnen
   const geomLink=e.target.closest('#attnGeom');
   if(geomLink){ e.preventDefault(); openGeomModal(); return; }                                        // verwaiste Geometrien
+  const editBtn=e.target.closest('[data-edit-key]');
+  if(editBtn){ e.preventDefault(); e.stopPropagation(); openTerritoryEditorFromSync(editBtn.dataset.editKey); return; }  // ⚔ im Editor öffnen
   if(e.target.closest('a.wl')) return;            // Wiki-Link nicht abfangen
   const el=e.target.closest('[data-key]');
   if(el) selectKey(el.dataset.key);               // Klick = auswählen -> Detail-Panel
