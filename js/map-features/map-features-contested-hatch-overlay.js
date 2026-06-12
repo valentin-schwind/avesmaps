@@ -17,8 +17,21 @@
  */
 (function initContestedHatchOverlay() {
 	const PANE = "avesmapsContestedHatchPane";
-	const STRIPE_WIDTH = 20; // px — im Spike abgenommen
 	const STRIPE_ANGLE = 45; // Grad — im Spike abgenommen
+	// Streifenbreite skaliert mit dem Zoom (Regel statt manuellem Mapping je Stufe): schmaler beim
+	// Rauszoomen, breiter beim Reinzoomen. Geometrische Staffelung um die Referenz (höchster Zoom =
+	// Spike-Wert 20px), nach unten/oben geklammert.
+	const STRIPE_WIDTH_BASE = 20;     // px bei Referenz-Zoom
+	const STRIPE_WIDTH_REF_ZOOM = 6;  // Referenz = höchster Zoom -> Basisbreite
+	const STRIPE_WIDTH_RATIO = 1.25;  // Faktor je Zoomstufe
+	const STRIPE_WIDTH_MIN = 5;       // px Untergrenze (ganz rausgezoomt)
+	const STRIPE_WIDTH_MAX = 22;      // px Obergrenze
+
+	function stripeWidthForZoom(zoom) {
+		const z = Number.isFinite(zoom) ? zoom : STRIPE_WIDTH_REF_ZOOM;
+		const width = STRIPE_WIDTH_BASE * Math.pow(STRIPE_WIDTH_RATIO, z - STRIPE_WIDTH_REF_ZOOM);
+		return Math.max(STRIPE_WIDTH_MIN, Math.min(STRIPE_WIDTH_MAX, width));
+	}
 
 	function ready() {
 		return typeof map !== "undefined" && map && typeof map.createPane === "function" && typeof L !== "undefined";
@@ -69,7 +82,7 @@
 	}
 
 	// Ein Gebiet schraffieren: aufs Polygon clippen, diagonale Streifen durch die Parteifarben rotieren.
-	function hatchFeature(feature, parties) {
+	function hatchFeature(feature, parties, stripeWidth) {
 		const polys = polygonsOf(feature.geometry);
 		if (!polys.length || !parties.length) return;
 
@@ -94,12 +107,13 @@
 		ctx.translate(cx, cy);
 		ctx.rotate(STRIPE_ANGLE * Math.PI / 180);
 		const n = parties.length;
+		const w = stripeWidth > 0 ? stripeWidth : STRIPE_WIDTH_BASE;
 		let i = 0;
-		for (let x = -R; x <= R; x += STRIPE_WIDTH) {
+		for (let x = -R; x <= R; x += w) {
 			const party = parties[((i % n) + n) % n] || {};
 			ctx.globalAlpha = clamp01(party.opacity != null ? party.opacity : 1);
 			ctx.fillStyle = party.color || "#888888";
-			ctx.fillRect(x, -R, STRIPE_WIDTH + 0.6, 2 * R); // +0.6 gegen Sub-Pixel-Lücken
+			ctx.fillRect(x, -R, w + 0.6, 2 * R); // +0.6 gegen Sub-Pixel-Lücken
 			i += 1;
 		}
 		ctx.restore();
@@ -125,9 +139,10 @@
 
 		const rd = getRegionData();
 		if (!rd.length) return;
+		const stripeWidth = stripeWidthForZoom(map.getZoom());
 		for (let k = 0; k < rd.length; k += 1) {
 			const parties = partiesFor(rd[k]);
-			if (parties) hatchFeature(rd[k], parties);
+			if (parties) hatchFeature(rd[k], parties, stripeWidth);
 		}
 	}
 
