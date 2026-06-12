@@ -2398,7 +2398,12 @@
 			const editorCtx = window.AvesmapsEditorContext;
 			const ctxWikiKey = (editorCtx && typeof editorCtx.param === "function") ? normalizeText(editorCtx.param("wiki_key", "") || "") : "";
 			const ctxTerritoryId = (editorCtx && typeof editorCtx.param === "function") ? normalizeText(editorCtx.param("territory_public_id", "") || "") : "";
-			const wikiKey = ctxWikiKey || ctxTerritoryId || normalizeText(node && node.row ? node.row.wiki_key : "");
+			// Das Kontext-"wiki_key" kann beim KARTEN-Klick fälschlich die numerische wiki_id sein
+			// (buildPoliticalTerritoryEditorContext fällt auf wikiId zurück, weil Map-Features keinen echten
+			// wiki_key tragen) -> der Claims-Resolver scheitert an einer Zahl. Darum: ZUERST die zuverlässige
+			// Territory-UUID, dann nur ein ECHTER wiki_key (wiki:slug, nicht rein numerisch), sonst aktiver Knoten.
+			const looksLikeWikiKey = /^wiki:/i.test(ctxWikiKey) || (/[a-zäöü]/i.test(ctxWikiKey) && !/^\d+$/.test(ctxWikiKey));
+			const wikiKey = ctxTerritoryId || (looksLikeWikiKey ? ctxWikiKey : "") || normalizeText(node && node.row ? node.row.wiki_key : "");
 			if (!wikiKey) {
 				block.hidden = true;
 				if (hint) hint.hidden = true;
