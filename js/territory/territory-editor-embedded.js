@@ -2204,6 +2204,147 @@
 			// Tabelle direkt anzeigen (kein "Details"-Accordion mehr).
 			els.infoBox.appendChild(grid);
 			appendEffectiveWikiRows(node, grid);
+
+			// R1: Konfliktparteien-Block (umstrittene Gebiete) für den ausgewählten Knoten aktualisieren.
+			renderContestedBlock(node);
+		}
+
+		// --- R1: Konfliktparteien (umstrittene Gebiete) im Editor verwalten ---
+		// Claims hängen am Territorium; der Resolver (territories-claims.php) akzeptiert den wiki_key des
+		// Knotens direkt. Endpoints: list_claims (GET) / add_claim / remove_claim (POST), edit-Cap.
+		let contestedWired = false;
+		let contestedCurrentWikiKey = "";
+
+		function contestedClaimsApi(action, payload, method) {
+			const base = "/api/app/political-territories.php";
+			const isGet = (method || "POST") === "GET";
+			const url = isGet
+				? base + "?action=" + encodeURIComponent(action) + "&" + new URLSearchParams(payload).toString()
+				: base;
+			const init = { method: isGet ? "GET" : "POST", credentials: "include", cache: "no-store" };
+			if (!isGet) {
+				init.headers = { "Content-Type": "application/json" };
+				init.body = JSON.stringify(Object.assign({ action }, payload));
+			}
+			return fetch(url, init).then(async (response) => {
+				const text = await response.text();
+				let data;
+				try { data = JSON.parse(text); } catch (error) { throw new Error("Ungültige Antwort"); }
+				if (!response.ok || data.ok === false) { throw new Error(data.error || ("HTTP " + response.status)); }
+				return data;
+			});
+		}
+
+		function renderContestedClaims(claims) {
+			const list = document.getElementById("contestedList");
+			if (!list) return;
+			list.innerHTML = "";
+			if (!Array.isArray(claims) || claims.length === 0) {
+				const empty = document.createElement("div");
+				empty.className = "note";
+				empty.textContent = "Keine Konfliktparteien — dieses Gebiet ist nicht umstritten.";
+				list.appendChild(empty);
+				return;
+			}
+			for (const claim of claims) {
+				const row = document.createElement("div");
+				row.className = "contested-row";
+				const swatch = document.createElement("span");
+				const color = /^#[0-9a-fA-F]{6}$/.test(String(claim.color || "")) ? claim.color : "#888888";
+				swatch.style.cssText = "display:inline-block;width:12px;height:12px;border-radius:3px;background:" + color;
+				const label = document.createElement("span");
+				label.style.flex = "1";
+				label.textContent = normalizeText(claim.claimant_name || claim.claimant_public_id || "");
+				const remove = document.createElement("button");
+				remove.type = "button";
+				remove.className = "secondary";
+				remove.textContent = "✕";
+				remove.title = "Konfliktpartei entfernen";
+				remove.addEventListener("click", async () => {
+					remove.disabled = true;
+					try {
+						const result = await contestedClaimsApi("remove_claim", {
+							territory_public_id: contestedCurrentWikiKey,
+							claimant_public_id: claim.claimant_public_id || claim.claimant_wiki_key || ""
+						});
+						renderContestedClaims(result.claims);
+					} catch (error) {
+						remove.disabled = false;
+						window.alert("Entfernen fehlgeschlagen: " + error.message);
+					}
+				});
+				row.append(swatch, label, remove);
+				list.appendChild(row);
+			}
+		}
+
+		function wireContestedSearch() {
+			if (contestedWired) return;
+			const input = document.getElementById("contestedSearch");
+			const results = document.getElementById("contestedResults");
+			if (!input || !results) return;
+			contestedWired = true;
+			input.addEventListener("input", () => {
+				const query = normalizeText(input.value).toLowerCase();
+				results.innerHTML = "";
+				if (!query) { results.hidden = true; return; }
+				const matches = allRows
+					.filter((row) => row && row.wiki_key && row.wiki_key !== contestedCurrentWikiKey && normalizeText(row.name).toLowerCase().includes(query))
+					.slice(0, 12);
+				if (matches.length === 0) { results.hidden = true; return; }
+				for (const match of matches) {
+					const item = document.createElement("div");
+					item.className = "contested-result-item";
+					item.textContent = normalizeText(match.name) + (match.type ? " · " + normalizeText(match.type) : "");
+					// mousedown statt click: feuert VOR blur, damit die Auswahl nicht durch das Ausblenden verloren geht.
+					item.addEventListener("mousedown", async (event) => {
+						event.preventDefault();
+						results.hidden = true;
+						input.value = "";
+						try {
+							const result = await contestedClaimsApi("add_claim", {
+								territory_public_id: contestedCurrentWikiKey,
+								claimant_public_id: match.wiki_key,
+								source: "manual"
+							});
+							renderContestedClaims(result.claims);
+						} catch (error) {
+							window.alert("Hinzufügen fehlgeschlagen: " + error.message);
+						}
+					});
+					results.appendChild(item);
+				}
+				results.hidden = false;
+			});
+			input.addEventListener("blur", () => { window.setTimeout(() => { results.hidden = true; }, 200); });
+		}
+
+		async function renderContestedBlock(node) {
+			const block = document.getElementById("contestedBlock");
+			const hint = document.getElementById("contestedHint");
+			if (!block) return;
+			const wikiKey = normalizeText(node && node.row ? node.row.wiki_key : "");
+			if (!wikiKey) {
+				block.hidden = true;
+				if (hint) hint.hidden = true;
+				return;
+			}
+			contestedCurrentWikiKey = wikiKey;
+			wireContestedSearch();
+			try {
+				const result = await contestedClaimsApi("list_claims", { territory_public_id: wikiKey }, "GET");
+				if (contestedCurrentWikiKey !== wikiKey) return; // Knoten zwischenzeitlich gewechselt
+				block.hidden = false;
+				if (hint) hint.hidden = true;
+				renderContestedClaims(result.claims);
+			} catch (error) {
+				if (contestedCurrentWikiKey !== wikiKey) return;
+				block.hidden = true;
+				if (hint) {
+					hint.hidden = false;
+					hint.textContent = "Konfliktparteien sind verfügbar, sobald dieses Gebiet zugewiesen/modelliert ist.";
+				}
+			}
 		}
 
 		function updateWikiCoatPreviewFromManualInput() {

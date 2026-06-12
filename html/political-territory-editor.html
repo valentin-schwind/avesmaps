@@ -102,6 +102,26 @@
 									<label class="deferred-subtree-checkbox deferred-subtree-checkbox--bottom" hidden><input id="inheritOpacityToSubtreeCheckbox" type="checkbox"><span>Für alle Unterregionen übernehmen</span></label>
 								</section>
 							</div>
+							<section class="manual-data-section" aria-label="Konfliktparteien">
+								<h3>Umstritten mit</h3>
+								<style>
+									#contestedBlock .contested-row{display:flex;align-items:center;gap:8px;margin:4px 0}
+									#contestedBlock .contested-add{position:relative;margin-top:6px}
+									#contestedBlock #contestedSearch{width:100%;box-sizing:border-box}
+									#contestedBlock #contestedResults{position:absolute;left:0;right:0;top:100%;z-index:30;background:#fff;border:1px solid #ccd2da;border-radius:6px;max-height:220px;overflow:auto;box-shadow:0 6px 20px rgba(0,0,0,.15)}
+									#contestedBlock .contested-result-item{padding:5px 8px;cursor:pointer}
+									#contestedBlock .contested-result-item:hover{background:#eef3f7}
+								</style>
+								<div id="contestedBlock" hidden>
+									<div id="contestedList" class="contested-list"></div>
+									<div class="contested-add">
+										<input id="contestedSearch" type="text" placeholder="Anspruchsteller suchen …" autocomplete="off">
+										<div id="contestedResults" hidden></div>
+									</div>
+									<small class="manual-data-inline-hint">Zusätzliche Reiche, die dieses Gebiet beanspruchen. Mit der ersten Partei wird es „umstritten" (diagonale Schraffur). Farben/Deckkraft kommen aus den Territorien.</small>
+								</div>
+								<p id="contestedHint" class="note" hidden></p>
+							</section><!-- /Konfliktparteien -->
 						</form>
 					</section>
 					<section class="panel form-status-panel" aria-label="Speicherstatus und Aktionen">
