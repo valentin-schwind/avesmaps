@@ -974,6 +974,9 @@ function avesmapsWikiSyncMonitorIsConflictJunk(string $value): bool {
     if (str_contains($value, '|')) {
         return true; // Template-Fragment ({{wid|…}}/{{ex|…}} etc.), das die Bereinigung nicht aufloeste
     }
+    if (preg_match('/(?:^\s*-|-\s*$)/u', $value) === 1) {
+        return true; // abgeschnittenes Verbund-Fragment ("Königs-")
+    }
     if (preg_match('/^(?:ex|wid|evt|no|nz|wd)\b/iu', $value) === 1) {
         return true; // Template-Name ohne Pipe
     }
@@ -1004,12 +1007,15 @@ function avesmapsWikiSyncMonitorStripClaimPrefix(string $value): string {
 
 // (C/E) Eine Anspruchsteller-Klausel in einzelne Parteien zerlegen (Mehrfach-Ansprueche): an Komma/
 // Semikolon/"sowie"/"und" trennen. Doppelpunkt-PFADE bleiben ganz (Hierarchie -> Leaf loest der Resolver).
-function avesmapsWikiSyncMonitorSplitClaimants(string $value): array {
+function avesmapsWikiSyncMonitorSplitClaimants(string $value, bool $splitUnd = false): array {
     $value = trim($value);
     if ($value === '') {
         return [];
     }
-    $parts = preg_split('/\s*,\s*|\s*;\s*|\s+sowie\s+|\s+und\s+/iu', $value) ?: [$value];
+    // " und " NICHT generell splitten -> sonst zerfallen Verbund-Namen ("Königs- und Großmark",
+    // "Born und Walsach"). Nur in expliziten "sowie"-Listen ($splitUnd) trennt "und" Anspruchsteller.
+    $pattern = $splitUnd ? '/\s*,\s*|\s*;\s*|\s+sowie\s+|\s+und\s+/iu' : '/\s*,\s*|\s*;\s*|\s+sowie\s+/iu';
+    $parts = preg_split($pattern, $value) ?: [$value];
     $out = [];
     foreach ($parts as $part) {
         $part = avesmapsWikiSyncMonitorStripClaimPrefix((string) $part);
@@ -1078,7 +1084,7 @@ function avesmapsWikiSyncMonitorParseAffiliation(string $staatRaw): array {
         // Zusatz-Anspruchsliste ("sowie X und Y") ist IMMER Konflikt, nie Elternteil -- sonst wuerde sie
         // faelschlich zum primaeren Pfad, wenn (wie bei Malqis) kein unstrittiger Elternteil davor steht.
         if (preg_match('/^\s*sowie\b/iu', $clause) === 1) {
-            foreach (avesmapsWikiSyncMonitorSplitClaimants($clause) as $claimant) {
+            foreach (avesmapsWikiSyncMonitorSplitClaimants($clause, true) as $claimant) { // "und" trennt hier
                 $conflicts[] = $claimant;
             }
             continue;
