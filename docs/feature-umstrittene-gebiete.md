@@ -39,21 +39,32 @@ Leitgedanke: das bestehende **Besitz-Modell und WikiSync nicht anfassen** — Cl
    Nur wenn das Gebiet zugewiesen ist: Bereich „Umstritten mit …" mit Picker (beliebiger Knoten) + Liste der
    Parteien mit Farb-Swatch und „✕ entfernen". Kein separater „Status zuerst"-Schritt.
 
-## Offene Entscheidungen / Risiken (die vorsichtigen Punkte)
-- **Niedrige Zoomstufen / Aggregat-Hüllen:** Schraffieren wir nur auf der **eigenen Ebene** (Vorschlag) oder
-  „bubbled" ein Konflikt in die Eltern-Hülle hoch? → vorerst nur eigene Ebene (einfachste, klarste Variante).
-- **Claimant-Farbe:** Streifen brauchen Farbe → Claimant sollte ein **echtes Territorium** (mit Farbe) sein.
-  Reine Wiki-Knoten ohne `political_territory` hätten keine. Nur Territorien erlauben, oder Farbe ableiten?
-- **Besitzer als Streifen?** Annahme: Besitzer-Farbe **ist** einer der Streifen (er beansprucht es auch). (bestätigen)
+## Bestätigte Spezifikation (2026-06-11, Spike abgenommen)
+- **Streifenfarben = `territory.color`** der Anspruchsteller → ein Claimant muss ein **echtes Territorium** (mit
+  Farbe) sein.
+- **Streifenbreite 20px, Winkel 45°** (Werte aus dem Spike).
+- **Deckkraft je Streifen = `territory.opacity`** des jeweiligen Knotens (jede Partei mit ihrer eigenen
+  Transparenz).
+- **Grenzen-Darstellung bleibt unverändert** — die Schraffur ist ein **eigenes** Overlay; das Grenzen-Overlay
+  wird NICHT angefasst.
+
+## Offene Entscheidungen / Risiken (noch offen)
+- **Besitzer als Streifen?** Annahme: ja — der Besitzer beansprucht es auch, seine Farbe ist einer der Streifen.
+  (final bestätigen)
+- **Niedrige Zoomstufen / Aggregat-Hüllen:** Vorschlag: nur auf der **eigenen Ebene** schraffieren (nicht in die
+  Eltern-/Aggregat-Hülle hochziehen).
 - **Wiki-Import** der Ansprüche aus wiki-aventurica = **eigene, spätere Phase** (erst manuell, dann Import).
 
 ## Phasen & Fortschritt
-- [~] **Phase 0 — Rendering-Spike** (wegwerfbar, mini-HTML, kein Avesmaps): Optik + Performance der Schraffur
-  beweisen, bevor Daten/UI/Risiko genommen wird. → `docs/spikes/umstrittene-gebiete-schraffur-spike.html`
-- [ ] **Phase 1 — Daten + Editor-UI**: claims-Tabelle, lese/schreib-Endpoints, „Konfliktpartei"-Block, manuell
-  hinzufügen/entfernen, Canvas-Overlay live.
+- [x] **Phase 0 — Rendering-Spike** ABGENOMMEN: Optik bestätigt (20px / 45° / voll abwechselnd; Farben +
+  Deckkraft aus dem Territorium). → `docs/spikes/umstrittene-gebiete-schraffur-spike.html`
+- [ ] **Phase 1 — Daten + Editor-UI + Overlay**: claims-Tabelle, lese/schreib-Endpoints, „Konfliktpartei"-Block
+  im Territoriums-Editor (hinzufügen/entfernen), Canvas-Schraffur-Overlay im echten Avesmaps.
 - [ ] **Phase 2 — WikiSync-Schutz** (+ optional Wiki-Import der Ansprüche).
 
 ## Fortschrittslog
 - **2026-06-11:** Konzept festgehalten (diese Datei). Rendering-Spike als eigenständiges Mini-HTML erstellt
-  (Canvas-Schraffur, N Farben, Streifenbreite/Winkel/Deckkraft, Nachbar-Kontext) → Optik-Entscheidung offen.
+  (Canvas-Schraffur, N Farben, Streifenbreite/Winkel/Deckkraft, Nachbar-Kontext).
+- **2026-06-11 (2):** Spike abgenommen. Bestätigt: Streifenfarben = `territory.color`, Breite **20px**,
+  Winkel **45°**, Deckkraft = `territory.opacity`, **Grenzen unangetastet** (eigenes Overlay). → bereit für
+  Phase 1.
