@@ -99,9 +99,14 @@ Overlay, liest abgeleitete Daten). Overlay erkennt das Gebiet bei Tiefzoom über
   `add_claim`/`remove_claim` (POST, edit-Cap, idempotent). **Layer** hängt `contestedParties`
   `[{color,opacity},…]` an (Besitzer zuerst + Anspruchsteller nach sort_order), Tiefzoom via
   `aggregate_source_territory_public_id`, beide Read-Pfade. Auto-Cache-Invalidierung nach Schreibvorgang.
-- [ ] **Overlay-Cut (Option A)**: umstrittenes Gebiet aus der SVG-Füllung schneiden (`fillOpacity:0`), damit
-  die Schraffur über die Basis-Karte statt über die Reichsfarbe liegt. Noch offen — bis dahin liegt die
-  Schraffur über der Füllung (temporär „Über-Basis"-Optik).
+- [x] **Overlay-Cut (Option A)** GEBAUT + LIVE VERIFIZIERT: umstrittenes Gebiet aus der SVG-Füllung schneiden
+  (`fillOpacity:0` in `buildRegionPolygonStyle` via `isRegionContested`; `contestedParties` in der
+  Normalisierung durchgereicht). Schraffur über Basis-Karte, `fill:true` → klickbar, Grenzen unberührt.
+- [x] **Infobox-Zeile „Umstritten mit …"** (Anspruchsteller-Namen + Farb-Swatch; Layer liefert Namen je Partei;
+  `createRegionContestedRow`). Live: „Umstritten mit Mark Drachenstein", Swatch `#60ae75`.
+- [x] **Hover lässt Schraffur stehen**: weißer Hover-Wash (Pane 355 > Schraffur 300) hätte überdeckt. Eigene
+  Ebene schon safe (Fallback überspringt `fillOpacity:0`); Aggregat-Ebene: umstrittene Fragmente als Löcher
+  (point-in-ring) aus dem Hover-Polygon gestanzt. Live: `hoverWhitePolygons:0` auf Ebersberg.
 - [ ] **Phase 1c — Editor-UI**: „Konfliktpartei"-Block (Picker beliebiger Knoten + Liste + entfernen).
 - [ ] **Phase 2 — WikiSync-Schutz** (+ optional Wiki-Import der Ansprüche).
 
