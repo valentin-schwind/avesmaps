@@ -900,6 +900,16 @@ function avesmapsWikiSyncMonitorCoatOfArmsUrl(string $rawValue): string {
 
 function avesmapsWikiSyncMonitorDetectContinent(string $context): string {
     $key = avesmapsWikiSyncMonitorFieldKey($context);
+    // Ein EXPLIZITER Aventurien-Nav-Marker ({{Nav Staaten Aventurien}}) ist das stärkste, eindeutige
+    // Signal und gewinnt VOR der losen Needle-Suche unten -- sonst kapert eine Streu-Erwähnung eines
+    // anderen Kontinents die Klassifizierung. Konkreter Bug: "Wiedererstandenes Reich des Horas" trägt
+    // {{Nav Staaten Aventurien}}, verweist aber via {{Abgeleitet|...}}/Interwiki auf "Horas (Myranor)"
+    // -> wurde fälschlich als Uthuria/Myranor klassifiziert und damit überall (continent='Aventurien')
+    // rausgefiltert. (Pendant-Marker anderer Kontinente, z.B. navstaatenmyranor, sind hiervon nicht
+    // betroffen, da sie 'navstaatenaventurien' nicht enthalten.)
+    if (str_contains($key, 'navstaatenaventurien')) {
+        return defined('AVESMAPS_POLITICAL_DEFAULT_CONTINENT') ? AVESMAPS_POLITICAL_DEFAULT_CONTINENT : 'Aventurien';
+    }
     $continents = [
         'Myranor / Güldenland' => ['myranor', 'guldenland', 'gueldenland', 'rastabor', 'vesayama'],
         'Rakshazar / Riesland' => ['rakshazar', 'riesland'],
