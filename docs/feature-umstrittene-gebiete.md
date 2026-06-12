@@ -107,7 +107,14 @@ Overlay, liest abgeleitete Daten). Overlay erkennt das Gebiet bei Tiefzoom über
 - [x] **Hover lässt Schraffur stehen**: weißer Hover-Wash (Pane 355 > Schraffur 300) hätte überdeckt. Eigene
   Ebene schon safe (Fallback überspringt `fillOpacity:0`); Aggregat-Ebene: umstrittene Fragmente als Löcher
   (point-in-ring) aus dem Hover-Polygon gestanzt. Live: `hoverWhitePolygons:0` auf Ebersberg.
-- [ ] **Phase 1c — Editor-UI**: „Konfliktpartei"-Block (Picker beliebiger Knoten + Liste + entfernen).
+- [x] **R1 / Phase 1c — Editor-„Konfliktpartei"-Block** GEBAUT + DEPLOYT: Block „Umstritten mit" im Editor-Panel
+  (`renderContestedBlock` in `territory-editor-embedded.js` + Section in `political-territory-editor.html`,
+  ASSET_VERSION 20260612a). Liste der Anspruchsteller (Swatch+Name+✕) + Such-Picker über `allRows`. Spricht das
+  Territorium über den `wiki_key` des Knotens an. **Bug gefixt:** Resolver fand Gebiet per wiki_key nicht
+  (schnitt „wiki:" ab, DB speichert MIT Prefix) → jetzt prefix-robust gegen `political_territory.wiki_key` +
+  Wiki-Tabelle (verifiziert: list_claims("wiki:baronie-ebersberg") → Mark Drachenstein). **Offen/Verhalten:**
+  Block folgt dem AKTIVEN Breadcrumb-Knoten (Default = Wurzel-Reich, nicht das Blatt) — Nutzer-Entscheid steht aus
+  (so lassen = konsistent mit Farbe/Zoom · ODER immer auf das Geometrie-Blatt zielen).
 - [ ] **Phase 2 — WikiSync-Schutz** (+ optional Wiki-Import der Ansprüche).
 
 ## Fortschrittslog
