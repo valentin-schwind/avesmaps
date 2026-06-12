@@ -2391,7 +2391,14 @@
 			const block = document.getElementById("contestedBlock");
 			const hint = document.getElementById("contestedHint");
 			if (!block) return;
-			const wikiKey = normalizeText(node && node.row ? node.row.wiki_key : "");
+			// Claims gehören zum Gebiet, dessen GEOMETRIE der Editor bearbeitet (= Kontext-Territorium / Blatt),
+			// NICHT zum aktiven Breadcrumb-Knoten — der defaultet beim Öffnen auf einen Vorfahren (z. B.
+			// Herzogsmark Sokramor statt Baronie Burmisch) -> sonst leere/falsche Claims + „Aus Wiki vorschlagen"
+			// findet nichts. Fallback auf den aktiven Knoten, falls kein Kontext (reines Baum-Browsen).
+			const editorCtx = window.AvesmapsEditorContext;
+			const ctxWikiKey = (editorCtx && typeof editorCtx.param === "function") ? normalizeText(editorCtx.param("wiki_key", "") || "") : "";
+			const ctxTerritoryId = (editorCtx && typeof editorCtx.param === "function") ? normalizeText(editorCtx.param("territory_public_id", "") || "") : "";
+			const wikiKey = ctxWikiKey || ctxTerritoryId || normalizeText(node && node.row ? node.row.wiki_key : "");
 			if (!wikiKey) {
 				block.hidden = true;
 				if (hint) hint.hidden = true;
