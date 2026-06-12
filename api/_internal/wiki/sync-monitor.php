@@ -965,6 +965,64 @@ function avesmapsWikiSyncMonitorCleanAffiliationPart(string $part): string {
     return trim($part);
 }
 
+// (B) Konflikt-Müll: Template-Fragmente (wid|/ex|/evt|/no|, "|837 BF"), reine Datums-/Zahl-Angaben.
+function avesmapsWikiSyncMonitorIsConflictJunk(string $value): bool {
+    $value = trim($value);
+    if ($value === '') {
+        return true;
+    }
+    if (str_contains($value, '|')) {
+        return true; // Template-Fragment ({{wid|…}}/{{ex|…}} etc.), das die Bereinigung nicht aufloeste
+    }
+    if (preg_match('/^(?:ex|wid|evt|no|nz|wd)\b/iu', $value) === 1) {
+        return true; // Template-Name ohne Pipe
+    }
+    // reine Zeit-/Datumsangabe ("22 BF", "1028 BF", "1016-34 BF") ohne echten Namensteil
+    $withoutDates = trim((string) preg_replace('/\b\d[\d\-–.\/\s]*(?:v\.?\s*)?BF\b/iu', '', $value));
+    if (preg_match('/^\d/u', $value) === 1 || $withoutDates !== $value) {
+        return preg_match('/[A-Za-zÄÖÜäöüß]{3,}/u', $withoutDates) !== 1;
+    }
+    return false;
+}
+
+// (C) Präfixe vor einem Anspruchsteller strippen (zuletzt/vermutlich/sowie/nach Aufloesung in/…)
+// + ein nachgestelltes "beansprucht" ("zuletzt vom Moghulat Oron beansprucht" -> "Moghulat Oron").
+function avesmapsWikiSyncMonitorStripClaimPrefix(string $value): string {
+    $value = trim($value);
+    $value = trim((string) preg_replace('/^\([^)]*\)\s*/u', '', $value)); // fuehrende Klammer ("(teilweise)") weg
+    $prefix = '/^\s*(?:Gebiet\s+)?(?:nach\s+Aufl[oö]sung\s+(?:in\s+)?(?:de[rmsn]\s+)?|beansprucht\s+vo[nm]|teil\s+vo[nm]|teil\s+des|geh[oö]rt\s+zu|zuletzt(?:\s+vo[nm])?|vermutlich|zuvor|sowie|ehemal[a-zäöü]*|vormals|fr[uü]her)(?:\s+de[rmsn])?\s+/iu';
+    for ($i = 0; $i < 2; $i += 1) { // bis zu 2x (z.B. "vermutlich zuvor X")
+        $next = (string) preg_replace($prefix, '', $value);
+        if ($next === $value) {
+            break;
+        }
+        $value = trim($next);
+    }
+    $value = trim((string) preg_replace('/\s+beansprucht\s*$/iu', '', $value)); // nachgestelltes "beansprucht"
+    return trim($value);
+}
+
+// (C/E) Eine Anspruchsteller-Klausel in einzelne Parteien zerlegen (Mehrfach-Ansprueche): an Komma/
+// Semikolon/"sowie"/"und" trennen. Doppelpunkt-PFADE bleiben ganz (Hierarchie -> Leaf loest der Resolver).
+function avesmapsWikiSyncMonitorSplitClaimants(string $value): array {
+    $value = trim($value);
+    if ($value === '') {
+        return [];
+    }
+    $parts = preg_split('/\s*,\s*|\s*;\s*|\s+sowie\s+|\s+und\s+/iu', $value) ?: [$value];
+    $out = [];
+    foreach ($parts as $part) {
+        $part = avesmapsWikiSyncMonitorStripClaimPrefix((string) $part);
+        $part = trim((string) preg_replace('/\([^)]*\)/u', ' ', $part)); // Klammer-Zusaetze weg
+        $part = trim($part, " \t\n\r\0\x0B.,;");
+        if ($part === '' || avesmapsWikiSyncMonitorIsQualifierOnly($part) || avesmapsWikiSyncMonitorIsConflictJunk($part)) {
+            continue;
+        }
+        $out[] = $part;
+    }
+    return $out;
+}
+
 // Parst den politischen Affiliation-String (Param `Staat`). Regel (Survey-validiert):
 // In Klauseln auf ';' UND '/' trennen -> erste NICHT-reine-Qualifizierer-Klausel = primaere
 // Eltern-Kette ('beansprucht von' davor abschneiden); auf ':'/'>' splitten; je Element
@@ -991,33 +1049,65 @@ function avesmapsWikiSyncMonitorParseAffiliation(string $staatRaw): array {
 
     $clean = avesmapsWikiSyncCleanPoliticalTerritoryWikiValue($raw);
 
+    $conflicts = [];
+
+    // (A) Parenthetische Ansprueche extrahieren, BEVOR die Klammern weggeputzt werden:
+    //     "Sokramor (beansprucht von Mittelreich: … Reichsmark Osterfelde)" -> Osterfelde als Konflikt.
+    //     Das ist die HAEUFIGSTE Form im Wiki (Grenzregionen) und wurde bisher komplett verschluckt.
+    $clean = (string) preg_replace_callback('/\(([^()]*)\)/u', static function (array $matches) use (&$conflicts): string {
+        $inner = trim((string) ($matches[1] ?? ''));
+        if (preg_match('/beansprucht\s+vo[nm]\b\s*:?\s*(.+)$/iu', $inner, $claim) === 1) {
+            foreach (avesmapsWikiSyncMonitorSplitClaimants((string) $claim[1]) as $claimant) {
+                $conflicts[] = $claimant;
+            }
+        }
+        return ' '; // Klammer-Inhalt aus dem Eltern-Pfad entfernen
+    }, $clean);
+
     $clauses = array_values(array_filter(
         array_map('trim', preg_split('#\s*[;/]\s*#u', $clean) ?: []),
         static fn(string $clause): bool => $clause !== ''
     ));
 
     $primary = '';
-    $conflicts = [];
     foreach ($clauses as $clause) {
-        // Zeit-/Historik-Klausel ("bis ING 1021 BF Teil von …", "seit 1000 BF …") = KEIN aktueller
-        // Elternteil (nur die heutige Zugehoerigkeit zaehlt fuer die Hierarchie).
+        // Zeit-/Historik-Klausel ("bis ING 1021 BF …", "seit 1000 BF …") = KEIN aktueller Elternteil.
         if (preg_match('/^\s*(?:bis|seit)\s+/iu', $clause) === 1) {
             continue;
         }
-        // Prefixe abschneiden -> dahinter steht der eigentliche Elternteil.
-        // "beansprucht von/vom ..." = Anspruchsgebiet -> als KONFLIKT, NIE fester Elternteil
-        // (Nutzer-Entscheidung: umstrittene/beanspruchte Gebiete haengen nicht fest unterm Beansprucher).
-        $isClaim = preg_match('/^\s*beansprucht\s+vo[nm]\b/iu', $clause) === 1;
-        $stripped = trim((string) (preg_replace('/^\s*(?:beansprucht\s+vo[nm]|teil\s+vo[nm]|teil\s+des|geh[oö]rt\s+zu)(?:\s+de[rmsn])?\s+/iu', '', $clause) ?? $clause));
-        if (avesmapsWikiSyncMonitorIsQualifierOnly($stripped)) {
-            continue; // reiner Status-/Zeit-Zusatz (ehemalige Reichsstadt, umstritten) = weder Eltern noch Konflikt
+        // Zusatz-Anspruchsliste ("sowie X und Y") ist IMMER Konflikt, nie Elternteil -- sonst wuerde sie
+        // faelschlich zum primaeren Pfad, wenn (wie bei Malqis) kein unstrittiger Elternteil davor steht.
+        if (preg_match('/^\s*sowie\b/iu', $clause) === 1) {
+            foreach (avesmapsWikiSyncMonitorSplitClaimants($clause) as $claimant) {
+                $conflicts[] = $claimant;
+            }
+            continue;
         }
-        if ($isClaim) {
-            $conflicts[] = $stripped; // Anspruch -> Konflikt
-        } elseif ($primary === '') {
+        // (E) "beansprucht von" IRGENDWO in der Klausel (nicht nur am Anfang), inkl. ":"/Komma-Liste mit
+        //     mehreren Parteien ("Gebiet (teilweise) beansprucht von: Almada, Horasreich, Kalifat" = Taifas).
+        //     Der Text VOR "beansprucht von" ist ggf. der eigentliche Elternteil.
+        if (preg_match('/^(.*?)\bbeansprucht\s+vo[nm]\b\s*:?\s*(.+)$/iu', $clause, $claim) === 1) {
+            $before = avesmapsWikiSyncMonitorStripClaimPrefix(trim((string) $claim[1]));
+            if ($primary === '' && $before !== '' && !avesmapsWikiSyncMonitorIsQualifierOnly($before)
+                && preg_match('/^(?:Gebiet|teile?|teilweise)\s*$/iu', $before) !== 1) {
+                $primary = $before;
+            }
+            foreach (avesmapsWikiSyncMonitorSplitClaimants((string) $claim[2]) as $claimant) {
+                $conflicts[] = $claimant;
+            }
+            continue;
+        }
+        // (C) Praefixe strippen -> dahinter der eigentliche Elternteil bzw. konkurrierende Partei(en).
+        $stripped = avesmapsWikiSyncMonitorStripClaimPrefix($clause);
+        if ($stripped === '' || avesmapsWikiSyncMonitorIsQualifierOnly($stripped)) {
+            continue; // reiner Status-/Zeit-Zusatz (umstritten, ehemalige Reichsstadt …)
+        }
+        if ($primary === '') {
             $primary = $stripped;
         } else {
-            $conflicts[] = $stripped; // echte konkurrierende Eltern-Klausel
+            foreach (avesmapsWikiSyncMonitorSplitClaimants($stripped) as $claimant) {
+                $conflicts[] = $claimant; // echte konkurrierende Eltern-Klausel(n)
+            }
         }
     }
 
@@ -1031,12 +1121,28 @@ function avesmapsWikiSyncMonitorParseAffiliation(string $staatRaw): array {
     }
     $path = array_values(array_unique($path));
 
+    // (B) Konflikte final saeubern: Template-/Datums-Muell raus, Duplikate weg (case-insensitiv).
+    $cleanConflicts = [];
+    $seenConflict = [];
+    foreach ($conflicts as $conflict) {
+        $conflict = trim((string) $conflict);
+        if ($conflict === '' || avesmapsWikiSyncMonitorIsConflictJunk($conflict) || avesmapsWikiSyncMonitorIsQualifierOnly($conflict)) {
+            continue;
+        }
+        $key = mb_strtolower($conflict);
+        if (isset($seenConflict[$key])) {
+            continue;
+        }
+        $seenConflict[$key] = true;
+        $cleanConflicts[] = $conflict;
+    }
+
     return [
         'raw' => $clean,
         'path' => $path,
         'root' => $path[0] ?? '',
         'links' => array_values($links),
-        'conflicts' => $conflicts,
+        'conflicts' => $cleanConflicts,
         'independent' => $path === [],
     ];
 }
