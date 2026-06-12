@@ -2278,12 +2278,80 @@
 			}
 		}
 
+		// Wiki-Vorschläge rendern: je gefundener Konfliktpartei ein "Hinzufügen"-Button (-> add_claim, source=wiki).
+		function renderContestedSuggestions(suggestions) {
+			const box = document.getElementById("contestedSuggestions");
+			if (!box) return;
+			box.innerHTML = "";
+			box.hidden = false;
+			if (!Array.isArray(suggestions) || suggestions.length === 0) {
+				const empty = document.createElement("div");
+				empty.className = "note";
+				empty.textContent = "Keine Wiki-Konfliktparteien gefunden (oder bereits alle übernommen).";
+				box.appendChild(empty);
+				return;
+			}
+			for (const suggestion of suggestions) {
+				const row = document.createElement("div");
+				row.className = "contested-row";
+				const swatch = document.createElement("span");
+				const color = /^#[0-9a-fA-F]{6}$/.test(String(suggestion.color || "")) ? suggestion.color : "#888888";
+				swatch.style.cssText = "display:inline-block;width:12px;height:12px;border-radius:3px;background:" + color;
+				const label = document.createElement("span");
+				label.style.flex = "1";
+				label.textContent = normalizeText(suggestion.claimant_name || suggestion.wiki_name || "");
+				const add = document.createElement("button");
+				add.type = "button";
+				add.className = "secondary";
+				add.textContent = "Hinzufügen";
+				add.addEventListener("click", async () => {
+					add.disabled = true;
+					try {
+						const result = await contestedClaimsApi("add_claim", {
+							territory_public_id: contestedCurrentWikiKey,
+							claimant_public_id: suggestion.claimant_public_id,
+							source: "wiki",
+							claimant_wiki_key: suggestion.claimant_wiki_key || ""
+						});
+						renderContestedClaims(result.claims);
+						row.remove();
+						if (box.querySelectorAll(".contested-row").length === 0) {
+							renderContestedSuggestions([]);
+						}
+					} catch (error) {
+						add.disabled = false;
+						window.alert("Hinzufügen fehlgeschlagen: " + error.message);
+					}
+				});
+				row.append(swatch, label, add);
+				box.appendChild(row);
+			}
+		}
+
+		async function loadContestedSuggestions() {
+			if (!contestedCurrentWikiKey) return;
+			const btn = document.getElementById("contestedSuggestBtn");
+			const wikiKey = contestedCurrentWikiKey;
+			if (btn) btn.disabled = true;
+			try {
+				const result = await contestedClaimsApi("suggest_claims", { territory_public_id: wikiKey }, "GET");
+				if (contestedCurrentWikiKey !== wikiKey) return; // Knoten zwischenzeitlich gewechselt
+				renderContestedSuggestions(result.suggestions);
+			} catch (error) {
+				renderContestedSuggestions([]);
+			} finally {
+				if (btn) btn.disabled = false;
+			}
+		}
+
 		function wireContestedSearch() {
 			if (contestedWired) return;
 			const input = document.getElementById("contestedSearch");
 			const results = document.getElementById("contestedResults");
 			if (!input || !results) return;
 			contestedWired = true;
+			const suggestBtn = document.getElementById("contestedSuggestBtn");
+			if (suggestBtn) suggestBtn.addEventListener("click", loadContestedSuggestions);
 			input.addEventListener("input", () => {
 				const query = normalizeText(input.value).toLowerCase();
 				results.innerHTML = "";
@@ -2337,6 +2405,9 @@
 				block.hidden = false;
 				if (hint) hint.hidden = true;
 				renderContestedClaims(result.claims);
+				// Vorschläge des vorherigen Knotens zurücksetzen (erst auf Button-Klick neu laden).
+				const suggestions = document.getElementById("contestedSuggestions");
+				if (suggestions) { suggestions.innerHTML = ""; suggestions.hidden = true; }
 			} catch (error) {
 				if (contestedCurrentWikiKey !== wikiKey) return;
 				block.hidden = true;

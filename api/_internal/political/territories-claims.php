@@ -27,9 +27,11 @@ function avesmapsPoliticalClaimResolveTerritory(PDO $pdo, mixed $value): array {
 
     if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $raw) === 1) {
         $statement = $pdo->prepare(
-            'SELECT id, public_id, name, color, opacity
-            FROM political_territory
-            WHERE public_id = :public_id AND is_active = 1
+            'SELECT territory.id, territory.public_id, territory.name, territory.color, territory.opacity,
+                    COALESCE(territory.wiki_key, wiki.wiki_key) AS wiki_key
+            FROM political_territory territory
+            LEFT JOIN political_territory_wiki wiki ON wiki.id = territory.wiki_id
+            WHERE territory.public_id = :public_id AND territory.is_active = 1
             LIMIT 1'
         );
         $statement->execute([':public_id' => strtolower($raw)]);
@@ -41,7 +43,8 @@ function avesmapsPoliticalClaimResolveTerritory(PDO $pdo, mixed $value): array {
         $strippedKey = stripos($raw, 'wiki:') === 0 ? trim(substr($raw, 5)) : $raw;
         $prefixedKey = 'wiki:' . $strippedKey;
         $statement = $pdo->prepare(
-            'SELECT territory.id, territory.public_id, territory.name, territory.color, territory.opacity
+            'SELECT territory.id, territory.public_id, territory.name, territory.color, territory.opacity,
+                    COALESCE(territory.wiki_key, wiki.wiki_key) AS wiki_key
             FROM political_territory territory
             LEFT JOIN political_territory_wiki wiki ON wiki.id = territory.wiki_id
             WHERE territory.is_active = 1
@@ -69,6 +72,104 @@ function avesmapsPoliticalClaimResolveTerritory(PDO $pdo, mixed $value): array {
         'name' => (string) $row['name'],
         'color' => avesmapsPoliticalClaimNormalizeColor((string) $row['color']),
         'opacity' => (float) $row['opacity'],
+        'wiki_key' => (string) ($row['wiki_key'] ?? ''),
+    ];
+}
+
+// Vorschläge aus dem gesyncten Wiki: liest die Konflikt-Parteien (parent_conflict_json) des Gebiets aus dem
+// WikiSync-Modell und löst sie auf echte Territorien auf (Farbe/ID). Nur Auflösbares wird zurückgegeben ->
+// der bekannte Parse-Müll (wid|, ex|, Zeit-/Status-Klauseln) filtert sich von selbst raus. Bereits gesetzte
+// Claims werden ausgeblendet. So muss man nicht manuell suchen.
+function avesmapsPoliticalSuggestClaims(PDO $pdo, array $query): array {
+    $territory = avesmapsPoliticalClaimResolveTerritory(
+        $pdo,
+        $query['territory_public_id'] ?? $query['territoryPublicId'] ?? ''
+    );
+
+    // Modell-Lookup-Key: bevorzugt die wiki_key-Eingabe (am direktesten), sonst der wiki_key des Gebiets.
+    $rawInput = trim((string) ($query['territory_public_id'] ?? $query['territoryPublicId'] ?? ''));
+    $isUuid = preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $rawInput) === 1;
+    $modelKey = (!$isUuid && $rawInput !== '') ? $rawInput : (string) ($territory['wiki_key'] ?? '');
+
+    $suggestions = [];
+    if ($modelKey !== '') {
+        $stripped = stripos($modelKey, 'wiki:') === 0 ? trim(substr($modelKey, 5)) : $modelKey;
+        $prefixed = 'wiki:' . $stripped;
+        // Tabelle wiki_territory_model (= AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE im WikiSync-Modul).
+        $modelStatement = $pdo->prepare(
+            'SELECT parent_conflict_json FROM wiki_territory_model
+            WHERE wiki_key IN (:k_raw, :k_stripped, :k_prefixed) LIMIT 1'
+        );
+        $modelStatement->execute([':k_raw' => $modelKey, ':k_stripped' => $stripped, ':k_prefixed' => $prefixed]);
+        $conflictJson = $modelStatement->fetchColumn();
+        $conflicts = is_string($conflictJson) ? (json_decode($conflictJson, true) ?: []) : [];
+
+        // Bereits aktive Claims ausblenden.
+        $existing = [];
+        $existingStatement = $pdo->prepare(
+            'SELECT claimant_territory_id FROM political_territory_claim WHERE territory_id = :territory_id AND is_active = 1'
+        );
+        $existingStatement->execute([':territory_id' => $territory['id']]);
+        foreach ($existingStatement->fetchAll(PDO::FETCH_COLUMN) as $claimantId) {
+            $existing[(int) $claimantId] = true;
+        }
+
+        // Exakter Namens-Treffer als Fallback, falls der Konflikt keinen auflösbaren wiki_key trägt.
+        $nameStatement = $pdo->prepare(
+            'SELECT id, public_id, name, color, opacity FROM political_territory
+            WHERE is_active = 1 AND name = :name ORDER BY id ASC LIMIT 1'
+        );
+
+        $seen = [];
+        foreach ($conflicts as $conflict) {
+            if (!is_array($conflict)) {
+                continue;
+            }
+            $conflictName = trim((string) ($conflict['name'] ?? ''));
+            $conflictWikiKey = trim((string) ($conflict['wiki_key'] ?? ''));
+
+            $resolved = null;
+            if ($conflictWikiKey !== '') {
+                try { $resolved = avesmapsPoliticalClaimResolveTerritory($pdo, $conflictWikiKey); } catch (InvalidArgumentException $error) { $resolved = null; }
+            }
+            if ($resolved === null && $conflictName !== '') {
+                $nameStatement->execute([':name' => $conflictName]);
+                $nameRow = $nameStatement->fetch(PDO::FETCH_ASSOC);
+                if (is_array($nameRow)) {
+                    $resolved = [
+                        'id' => (int) $nameRow['id'],
+                        'public_id' => (string) $nameRow['public_id'],
+                        'name' => (string) $nameRow['name'],
+                        'color' => avesmapsPoliticalClaimNormalizeColor((string) $nameRow['color']),
+                        'opacity' => (float) $nameRow['opacity'],
+                    ];
+                }
+            }
+
+            if ($resolved === null) {
+                continue; // nicht auflösbar -> Parse-Müll, überspringen
+            }
+            $resolvedId = (int) $resolved['id'];
+            if ($resolvedId === (int) $territory['id'] || isset($existing[$resolvedId]) || isset($seen[$resolvedId])) {
+                continue;
+            }
+            $seen[$resolvedId] = true;
+            $suggestions[] = [
+                'claimant_public_id' => $resolved['public_id'],
+                'claimant_name' => $resolved['name'],
+                'claimant_wiki_key' => $conflictWikiKey,
+                'wiki_name' => $conflictName,
+                'color' => $resolved['color'],
+                'opacity' => $resolved['opacity'],
+            ];
+        }
+    }
+
+    return [
+        'ok' => true,
+        'territory_public_id' => $territory['public_id'],
+        'territory_name' => $territory['name'],
+        'suggestions' => $suggestions,
     ];
 }
 
