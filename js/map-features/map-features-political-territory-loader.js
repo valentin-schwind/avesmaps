@@ -486,6 +486,12 @@ function installPoliticalRegionVisibilityBehavior() {
 		if (TERRITORY_BOUNDARY_MODES.includes(getSelectedMapLayerMode())) {
 			schedulePoliticalTerritoryLayerReload();
 		}
+
+		// Konflikt-Schraffur bei JEDEM Moduswechsel neu zeichnen (das Overlay-Redraw prueft den Modus
+		// selbst: in "political" zeichnen, sonst Canvas leeren). UNBEDINGT -- nicht nur im !showRegions-Zweig
+		// --, damit auch beim Wechsel ZURUECK zu "political" (gleicher Zoom, kein Layer-Reload) die Schraffur
+		// wieder erscheint und beim Wechsel WEG sofort verschwindet.
+		window.AvesmapsContestedHatchOverlay?.redraw?.();
 	};
 }
 
