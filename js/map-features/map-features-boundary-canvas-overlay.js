@@ -3,7 +3,7 @@
 /*
  * SPIKE (de-iframe/boundary-rendering): nicht-interaktives Canvas-Overlay, das die
  * abgeleiteten politischen Außengrenzen ("derived") als "inside" geclippte, solide,
- * farbige Konturen zeichnet (Technik aus prototype/inside-outline-proto.html).
+ * farbige Konturen zeichnet (Technik aus docs/spikes/inside-outline-proto.html).
  *
  * Ziel dieses Spikes: beweisen, dass sich ein Canvas-Overlay sauber in die bestehende
  * Leaflet-Karte (L.CRS.Simple, SVG-Default) einklinkt — Projektion, Pan/Zoom-Redraw,
