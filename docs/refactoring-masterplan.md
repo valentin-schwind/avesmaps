@@ -52,7 +52,7 @@ This document is the living tracker. See `AGENTS.md` for the project brief.
 | **M0.5** | `AGENTS.md` + `CLAUDE.md` + this doc | ✅ done | living AI brief + English masterplan |
 | **M1** | Security | ✅ done (`7432f1e1`→`09ee68ad`) | neutralized 3 unauth wiki-dom crawler endpoints with 410 stubs + removed dead playground UI (verified `/edit → WikiSync` uses sync-monitor.php, not these); stopped 9 bare-Throwable `getMessage()` leaks; atomic `coat.php` cache write; `add_claim` transaction + `FOR UPDATE`. CORS: 2 of 3 divergent impls gone via stubbing; the wiki-browser `applyCors` (non-exploitable) is deferred to M3 with the parallel-stack migration. Live-verified: `dom-sync.php`→410, `/api/locations/`→200. |
 | **M2** | Correctness bugs | ✅ done | IZ/`bis` word-boundary parsers (`9d4a801b`), spotlight poll cancel (`70a8c1e9`), zoom-band unified to 0-1/2-6 (`8fa18991`), route-graph `calculateRouteServer` shadow removed (`11037917`, live-verified), political loader trio — TOCTOU zoom + edit-time fan-out cache invalidation + pending-rerun + cache eviction (`cacff63b`, deploy-verified; `apiUnavailable` intentionally left self-healing — see commit), `askRegionTabCloseChoice` 3-way dialog (`a78b82d1`). ↪ moved to M5: `refreshPlannerAfterFeatureChange` dedup (harmless dead code in a CRLF file). NB: loader + dialog are client-side; behavioural smoke (open editor, pan/zoom political layer, edit+save a region, close a dirty tab) is the meaningful live test. |
-| **M3** | API contract + remove shims (breaking) | planned | implement unified envelope, migrate every endpoint + frontend `api-client` in lockstep, delete all shims/wrappers/`get_` alias actions, split the `territories-endpoint` multiplexer (read/write), move root `auth/bootstrap.php` → `_internal/core` |
+| **M3** | API contract + remove shims (breaking) | in progress | ✅ foundation: `avesmapsErrorResponse` + `avesmapsServerErrorResponse` in bootstrap (`5df56d2a`). ⏳ the breaking migration (own focused session — see plan below). |
 | **M4** | DRY | planned | PHP request runner, single `valid_to_bf`, BF parser, `wiki-crawler-base.php`; JS `territory-utils.js`, infobox-row, `debounce` |
 | **M5** | God-file splits | planned | per split tables, one file at a time, deploy+test between; CSS source split, rename duplicate filename, treat `*-inline.css` as generated |
 | **M6** | Performance | planned | derived-layer N+1 memo, DDL out of cache-hit path, political teardown → signature-skip, polylabel memo, fetch-interceptor, bound+invalidate fan-out cache |
@@ -90,3 +90,50 @@ steps, STRATO caution (no looping heavy endpoints).
 - `api/_internal/political/{territories-boundary-debug,territories-debug}.php`
   (internal libs, reached via the above).
 - `html/political-boundary-diagnostics.html` (dev page).
+
+## M3 execution plan (the breaking migration — run as a focused session)
+
+Goal: every endpoint converges on the gold-standard envelope
+`{ok:true,…}` / `{ok:false,error:{code,message}}` via the shared
+`avesmapsErrorResponse` / `avesmapsServerErrorResponse` (already in bootstrap).
+The error shape changes from a flat `error:"string"` to `error:{code,message}`,
+which the frontend currently reads as a string — so order matters. Do each step
+as a small commit + deploy + curl/UI smoke.
+
+**Step 1 — make the frontend tolerant FIRST (backward-compatible, no endpoint change yet).**
+Add a helper (in `js/app/api-client.js`) `apiErrorMessage(data, fallback)` →
+`data?.error?.message || (typeof data?.error === "string" ? data.error : "") || fallback`.
+Route the central throws through it. Sites reading `data.error` as a string:
+- `js/app/api-client.js`: `:53,:60,:103,:171,:221,:299,:323,:350,:372,:399` (+ the central wrappers — fixing these covers most consumers).
+- Direct `data.error` reads in `js/review/*`: `review-settlement-wiki.js`, `review-settlement-list.js` (×6), `review-region-sync.js` (×2), `review-path-wiki.js`, `review-path-sync.js`, `review-locations.js` (×3), `review-label-wiki.js`; `js/territory/`: `territory-wiki-tree.js:903`, `territory-subtree-display-tools.js:54`, `territory-override-footer.js:175`, `territory-editor-link.js:604/610`.
+Once tolerant, the shape flip is safe.
+
+**Step 2 — auth gate.** Change `avesmapsRequireUserWithCapability` (auth.php:87) to use
+`avesmapsErrorResponse` and split 401 `unauthenticated` (no user) vs 403 `forbidden`
+(user lacks capability). Today it returns flat string + always 401.
+
+**Step 3 — migrate endpoints cluster by cluster** (each: replace inline
+`{ok:false,error:STRING}` ladders with `avesmapsErrorResponse`/`avesmapsServerErrorResponse`,
+unify the catch ladder, drop `getMessage()`/`exception` leaks incl. the `?debug_errors=1`
+ones, replace per-endpoint CORS strings with `avesmapsErrorResponse(403,'forbidden_origin',…)`):
+app/ (map-features, map-search, coat, territory-detail, location-reviews, share-link,
+political-territories, political-territory-display-sync) → edit/map → edit/political →
+edit/reports → edit/wiki (sync-monitor/paths/regions/settlements/…) → import →
+diagnostics. Migrate `wiki-browser-endpoint.php` off its parallel stack (own
+`applyCors`/`respondJson`/PDO/config) onto bootstrap — this also closes the last CORS divergence (decision: drop `Allow-Credentials`).
+
+**Step 4 — remove shims/wrappers/alias actions.** Root shims
+`api/{political-territory-lib,wiki-sync-lib}.php` (update 9 + 1 callers to require the
+`_internal/` target directly), then delete. Drop `get_`/non-`get_` alias action pairs in
+`territories-endpoint.php`. ⚠️ STRATO: deploy never deletes — replace removed web-reachable
+files with stubs (or accept server-only leftovers); for the lib shims (not web entry points)
+deletion is fine once no repo code requires them.
+
+**Step 5 — split the `territories-endpoint.php` multiplexer** into read vs write
+files with uniform per-file auth (move `debug`/`audit`/`geometry_assignment` behind `review`).
+
+**Step 6 — move root `api/{auth,bootstrap}.php`** → `api/_internal/core/` with thin
+root stubs (STRATO clean-deploy safety), per `server-repo-drift` lessons.
+
+Verify each step: `php -l` changed files, `node --check` changed JS, deploy, then curl the
+migrated endpoint (success + an error path) and confirm the frontend still renders errors.
