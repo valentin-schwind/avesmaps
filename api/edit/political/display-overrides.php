@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require __DIR__ . '/../../_internal/bootstrap.php';
 require_once __DIR__ . '/../../_internal/auth.php';
-require_once __DIR__ . '/../../political-territory-lib.php';
+require_once __DIR__ . '/../../_internal/political/territory.php';
 
 if (!function_exists('avesmapsPoliticalReadPublicId')) {
     function avesmapsPoliticalReadPublicId(mixed $value): string {

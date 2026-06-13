@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/../_internal/bootstrap.php';
-require_once __DIR__ . '/../wiki-sync-lib.php';
+require_once __DIR__ . '/../_internal/wiki/sync.php';
 
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
