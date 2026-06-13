@@ -35,10 +35,7 @@ try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, [
-            'ok' => false,
-            'error' => 'Diese Herkunft darf keine Meldungen senden.',
-        ]);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf keine Meldungen senden.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -47,10 +44,7 @@ try {
     }
 
     if ($requestMethod !== 'POST') {
-        avesmapsJsonResponse(405, [
-            'ok' => false,
-            'error' => 'Nur POST-Anfragen sind fuer Meldungen erlaubt.',
-        ]);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur POST-Anfragen sind fuer Meldungen erlaubt.');
     }
 
     $requestPayload = avesmapsReadJsonRequest();
@@ -65,10 +59,7 @@ try {
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsEnsureMapReportsTable($pdo);
     if ($mapReport['report_type'] === 'location' && avesmapsLocationNameExists($pdo, $mapReport['name'])) {
-        avesmapsJsonResponse(409, [
-            'ok' => false,
-            'error' => 'Ein Ort mit diesem Namen existiert bereits oder wurde bereits gemeldet.',
-        ]);
+        avesmapsErrorResponse(409, 'conflict', 'Ein Ort mit diesem Namen existiert bereits oder wurde bereits gemeldet.');
     }
     if (avesmapsReportRateLimitExceeded($pdo, avesmapsBuildPrivacyIpHash($config))) {
         avesmapsJsonResponse(200, [
@@ -146,10 +137,7 @@ try {
         'message' => 'Karteneintrag wurde gemeldet.',
     ]);
 } catch (InvalidArgumentException $exception) {
-    avesmapsJsonResponse(400, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
+    avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
 } catch (PDOException $exception) {
     avesmapsLogLocationReportServerError('database_error', [
         'exception_code' => (string) $exception->getCode(),
@@ -161,10 +149,7 @@ try {
         'remote_ip' => avesmapsClientIpAddress(),
     ]);
 
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => avesmapsBuildDatabaseErrorMessage($exception),
-    ]);
+    avesmapsErrorResponse(500, 'server_error', avesmapsBuildDatabaseErrorMessage($exception));
 } catch (RuntimeException $exception) {
     avesmapsLogLocationReportServerError('runtime_error', [
         'exception_code' => (string) $exception->getCode(),
@@ -173,10 +158,7 @@ try {
         'remote_ip' => avesmapsClientIpAddress(),
     ]);
 
-    avesmapsJsonResponse(503, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
+    avesmapsErrorResponse(503, 'service_unavailable', $exception->getMessage());
 } catch (Throwable $exception) {
     avesmapsLogLocationReportServerError('unexpected_error', [
         'exception_class' => $exception::class,
@@ -186,10 +168,7 @@ try {
         'remote_ip' => avesmapsClientIpAddress(),
     ]);
 
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Die Meldung konnte nicht verarbeitet werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Die Meldung konnte nicht verarbeitet werden.');
 }
 
 function avesmapsValidateMapReport(array $payload): array {

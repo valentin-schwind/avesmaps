@@ -6,16 +6,11 @@ require __DIR__ . '/../_internal/bootstrap.php';
 require_once __DIR__ . '/../_internal/auth.php';
 require_once __DIR__ . '/../_internal/political/territory.php';
 
-$debugErrors = filter_var($_GET['debug_errors'] ?? false, FILTER_VALIDATE_BOOL);
-
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, [
-            'ok' => false,
-            'error' => 'Diese Herkunft darf Herrschaftsgebiete nicht bearbeiten.',
-        ]);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf Herrschaftsgebiete nicht bearbeiten.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -24,10 +19,7 @@ try {
     }
 
     if ($requestMethod !== 'PATCH' && $requestMethod !== 'POST') {
-        avesmapsJsonResponse(405, [
-            'ok' => false,
-            'error' => 'Nur POST und PATCH sind fuer die Herrschaftsgebiet-Anzeige-Synchronisierung erlaubt.',
-        ]);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur POST und PATCH sind fuer die Herrschaftsgebiet-Anzeige-Synchronisierung erlaubt.');
     }
 
     avesmapsRequireUserWithCapability('edit');
@@ -48,17 +40,10 @@ try {
         'territory_public_id' => (string) $territory['public_id'],
         'updated_geometries' => $updated,
     ]);
+} catch (InvalidArgumentException $exception) {
+    avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
 } catch (Throwable $exception) {
-    $message = $exception instanceof InvalidArgumentException
-        ? $exception->getMessage()
-        : 'Die Herrschaftsgebiet-Anzeige konnte nicht synchronisiert werden.';
-    if ($debugErrors) {
-        $message .= ' [' . get_class($exception) . ': ' . $exception->getMessage() . ']';
-    }
-    avesmapsJsonResponse($exception instanceof InvalidArgumentException ? 400 : 500, [
-        'ok' => false,
-        'error' => $message,
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Die Herrschaftsgebiet-Anzeige konnte nicht synchronisiert werden.');
 }
 
 function avesmapsPoliticalDisplaySyncFetchTerritoryByPublicId(PDO $pdo, string $publicId): array {
