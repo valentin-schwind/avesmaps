@@ -65,7 +65,7 @@ async function createAndCopyShareLink() {
 		});
 		const data = await response.json().catch(() => null);
 		if (!data || data.ok === false || !data.code) {
-			showFeedbackToast((data && data.error) || "Kurzlink konnte nicht erstellt werden.", "warning");
+			showFeedbackToast(apiErrorMessage(data, "Kurzlink konnte nicht erstellt werden."), "warning");
 			return;
 		}
 		const shortUrl = `${window.location.origin}${window.location.pathname}?s=${data.code}`;

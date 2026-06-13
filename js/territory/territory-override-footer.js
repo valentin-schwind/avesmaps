@@ -172,7 +172,7 @@ async function submitPoliticalTerritoryDisplayOverrideAction(payload) {
 	});
 	const result = await response.json().catch(() => null);
 	if (!response.ok || result?.ok === false) {
-		throw new Error(result?.error || `Darstellungs-Override fehlgeschlagen: HTTP ${response.status}`);
+		throw new Error(apiErrorMessage(result, `Darstellungs-Override fehlgeschlagen: HTTP ${response.status}`));
 	}
 	return result;
 }

@@ -33,7 +33,7 @@
 	async function readJson(response) {
 		const payload = await response.json().catch(() => ({}));
 		if (!response.ok || payload?.ok === false) {
-			throw new Error(payload?.error || `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`);
+			throw new Error(apiErrorMessage(payload, `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`));
 		}
 		return payload;
 	}

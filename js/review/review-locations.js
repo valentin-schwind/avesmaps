@@ -276,7 +276,7 @@ async function renderSettlementCoatSection(publicId) {
 		const response = await fetch(`${SETTLEMENT_COAT_API_URL}?action=coat_info&public_id=${encodeURIComponent(publicId)}`, { credentials: "same-origin" });
 		const data = await response.json();
 		if (!data || data.ok !== true) {
-			throw new Error(data && data.error ? data.error : "Fehler");
+			throw new Error(apiErrorMessage(data, "Fehler"));
 		}
 		if (section.dataset.publicId !== publicId) {
 			return; // Dialog inzwischen weitergeschaltet
@@ -324,7 +324,7 @@ async function settlementCoatAction(action) {
 		});
 		const data = await response.json();
 		if (!data || data.ok !== true) {
-			throw new Error(data && data.error ? data.error : "Fehler");
+			throw new Error(apiErrorMessage(data, "Fehler"));
 		}
 		showFeedbackToast?.(action === "set_coat" ? "Wappen übernommen." : "Wappen entfernt.", "success");
 		if (typeof loadChangeLog === "function") {
@@ -376,7 +376,7 @@ async function uploadOwnSettlementCoat(file) {
 		});
 		const data = await response.json();
 		if (!data || data.ok !== true) {
-			throw new Error(data && data.error ? data.error : "Upload fehlgeschlagen");
+			throw new Error(apiErrorMessage(data, "Upload fehlgeschlagen"));
 		}
 		showFeedbackToast?.("Eigenes Wappen hochgeladen.", "success");
 		if (typeof loadChangeLog === "function") {

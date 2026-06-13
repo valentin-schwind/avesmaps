@@ -197,7 +197,7 @@ async function runLabelWikiPickerSearch() {
 	try {
 		const data = await fetch(`${LABEL_WIKI_API_URL}?action=search&q=${encodeURIComponent(query)}&limit=40`, { credentials: "same-origin" }).then((response) => response.json());
 		if (!data || data.ok !== true) {
-			throw new Error(data && data.error ? data.error : "Suche fehlgeschlagen");
+			throw new Error(apiErrorMessage(data, "Suche fehlgeschlagen"));
 		}
 		labelWikiPickerResults = data.rows || [];
 		renderLabelWikiPickerList();

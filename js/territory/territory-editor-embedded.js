@@ -412,7 +412,7 @@
 				const payload = await response.json();
 
 				if (!response.ok || !payload.ok) {
-					throw new Error(payload.error || `HTTP ${response.status}`);
+					throw new Error(apiErrorMessage(payload, `HTTP ${response.status}`));
 				}
 
 				allRows = normalizeApiRows(payload.nodes || payload.items || []);
@@ -532,13 +532,13 @@
 			const payload = await response.json();
 
 			if (response.status === 400 || response.status === 404) {
-				setFormStatus(payload.error || "Noch keine gespeicherten Eigenschaften für diese Geometrie vorhanden.", "pending");
+				setFormStatus(apiErrorMessage(payload, "Noch keine gespeicherten Eigenschaften für diese Geometrie vorhanden."), "pending");
 				notifyAssignmentLoaded(payload);
 				return;
 			}
 
 			if (!response.ok || !payload.ok) {
-				throw new Error(payload.error || `HTTP ${response.status}`);
+				throw new Error(apiErrorMessage(payload, `HTTP ${response.status}`));
 			} 
 			
 			if (payload.assignment) {

@@ -51,7 +51,7 @@
 		});
 		const result = await response.json().catch(() => null);
 		if (!response.ok || result?.ok === false) {
-			throw new Error(result?.error || `Subtree-Aktualisierung fehlgeschlagen: HTTP ${response.status}`);
+			throw new Error(apiErrorMessage(result, `Subtree-Aktualisierung fehlgeschlagen: HTTP ${response.status}`));
 		}
 		return result || {};
 	}

@@ -230,7 +230,7 @@ async function pollLiveMapUpdates() {
 		const response = await fetch(url.toString(), { headers: { Accept: "application/json" } });
 		const data = await response.json().catch(() => ({}));
 		if (!response.ok || data?.ok !== true) {
-			throw new Error(data?.error || "Live-Aktualisierung fehlgeschlagen.");
+			throw new Error(apiErrorMessage(data, "Live-Aktualisierung fehlgeschlagen."));
 		}
 
 		const features = Array.isArray(data.features) ? data.features : [];

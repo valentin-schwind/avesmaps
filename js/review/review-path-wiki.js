@@ -115,7 +115,7 @@ async function runPathWikiPickerSearch() {
 	try {
 		const data = await pathWikiGet(`?action=search&q=${encodeURIComponent(query)}&limit=40`);
 		if (!data || data.ok !== true) {
-			throw new Error(data && data.error ? data.error : "Suche fehlgeschlagen");
+			throw new Error(apiErrorMessage(data, "Suche fehlgeschlagen"));
 		}
 		pathWikiPickerResults = data.rows || [];
 		renderPathWikiPickerList();
@@ -196,7 +196,7 @@ async function selectPathWikiResult(wikiKey) {
 			setPathWikiPickerOpen(false);
 			renderPathWikiReference();
 		} else if (status) {
-			status.textContent = "Fehler: " + ((result && result.error) || "");
+			status.textContent = "Fehler: " + apiErrorMessage(result, "");
 		}
 	} catch (error) {
 		if (status) {

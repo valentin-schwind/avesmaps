@@ -121,7 +121,7 @@ async function loadReviewReports() {
 		});
 		const data = await response.json().catch(() => null);
 		if (!response.ok || !data?.ok) {
-			throw new Error(data?.error || `Review-API antwortet mit HTTP ${response.status}.`);
+			throw new Error(apiErrorMessage(data, `Review-API antwortet mit HTTP ${response.status}.`));
 		}
 
 		reviewReports = Array.isArray(data.reports) ? data.reports : [];
@@ -145,7 +145,7 @@ async function loadChangeLog() {
 		});
 		const data = await response.json().catch(() => null);
 		if (!response.ok || !data?.ok) {
-			throw new Error(data?.error || `Änderungs-API antwortet mit HTTP ${response.status}.`);
+			throw new Error(apiErrorMessage(data, `Änderungs-API antwortet mit HTTP ${response.status}.`));
 		}
 
 		let politicalChanges = [];
@@ -552,7 +552,7 @@ async function loadReviewRatings() {
 		});
 		const data = await response.json().catch(() => null);
 		if (!response.ok || !data?.ok) {
-			throw new Error(data?.error || `Bewertungs-API antwortet mit HTTP ${response.status}.`);
+			throw new Error(apiErrorMessage(data, `Bewertungs-API antwortet mit HTTP ${response.status}.`));
 		}
 		reviewRatings = Array.isArray(data.reviews) ? data.reviews : [];
 		renderReviewRatings();
@@ -630,7 +630,7 @@ function moderateReviewRating(id, action, publicId = "") {
 		.then((response) => response.json().catch(() => null))
 		.then((data) => {
 			if (!data || data.ok === false) {
-				showFeedbackToast((data && data.error) || "Aktion fehlgeschlagen.", "warning");
+				showFeedbackToast(apiErrorMessage(data, "Aktion fehlgeschlagen."), "warning");
 				return;
 			}
 			void loadReviewRatings();
@@ -659,7 +659,7 @@ async function sendEditorPresenceHeartbeat() {
 		});
 		const data = await response.json().catch(() => ({}));
 		if (!response.ok || data?.ok !== true) {
-			throw new Error(data?.error || "Online-Status konnte nicht geladen werden.");
+			throw new Error(apiErrorMessage(data, "Online-Status konnte nicht geladen werden."));
 		}
 
 		editorPresenceUsers = Array.isArray(data.users) ? data.users : [];

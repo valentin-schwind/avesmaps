@@ -55,7 +55,7 @@ async function loadSettlementList() {
 		const response = await fetch(`${SETTLEMENT_LIST_API_URL}?action=list_locations`, { credentials: "same-origin" });
 		const data = await response.json();
 		if (!data || data.ok !== true) {
-			throw new Error(data && data.error ? data.error : "Liste konnte nicht geladen werden");
+			throw new Error(apiErrorMessage(data, "Liste konnte nicht geladen werden"));
 		}
 		settlementListItems = Array.isArray(data.items) ? data.items : [];
 	} catch (error) {
@@ -111,7 +111,7 @@ async function runSettlementCrawlBuildings() {
 		});
 		const data = await response.json();
 		if (!data || data.ok !== true) {
-			throw new Error(data && data.error ? data.error : "Crawl fehlgeschlagen");
+			throw new Error(apiErrorMessage(data, "Crawl fehlgeschlagen"));
 		}
 		showFeedbackToast?.(`${data.titles_seen || 0} Bauwerke gecrawlt (${data.types || 0} Typen).`, "success");
 		await loadSettlementList();
@@ -163,7 +163,7 @@ async function runSettlementBulkConnect() {
 			});
 			const data = await response.json();
 			if (!data || data.ok !== true) {
-				throw new Error(data && data.error ? data.error : "Verbinden fehlgeschlagen");
+				throw new Error(apiErrorMessage(data, "Verbinden fehlgeschlagen"));
 			}
 			const connected = Number(data.connected || 0);
 			connectedTotal += connected;
@@ -246,7 +246,7 @@ async function runSettlementRecordCoats() {
 			});
 			const data = await response.json();
 			if (!data || data.ok !== true) {
-				throw new Error(data && data.error ? data.error : "Fehler beim Übernehmen");
+				throw new Error(apiErrorMessage(data, "Fehler beim Übernehmen"));
 			}
 			if (total === 0) {
 				total = Number(data.matched || 0);
@@ -329,7 +329,7 @@ async function runSettlementRecordRuins() {
 		});
 		const data = await response.json();
 		if (!data || data.ok !== true) {
-			throw new Error(data && data.error ? data.error : "Fehler beim Übernehmen");
+			throw new Error(apiErrorMessage(data, "Fehler beim Übernehmen"));
 		}
 		showFeedbackToast?.(`${data.applied || 0} Ruinen übernommen — Karte aktualisiert sich.`, "success");
 		await loadSettlementList();
@@ -403,7 +403,7 @@ async function runSettlementContinentBackfill() {
 			});
 			const data = await response.json();
 			if (!data || data.ok !== true) {
-				throw new Error(data && data.error ? data.error : "Backfill-Fehler");
+				throw new Error(apiErrorMessage(data, "Backfill-Fehler"));
 			}
 			remaining = Number(data.remaining || 0);
 			guard += 1;

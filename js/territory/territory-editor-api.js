@@ -73,7 +73,7 @@
 		});
 		const payload = await response.json().catch(() => null);
 		if (!response.ok || payload?.ok === false) {
-			throw new Error(payload?.error || `Herrschaftsgebiete konnten nicht geladen werden: HTTP ${response.status}`);
+			throw new Error(apiErrorMessage(payload, `Herrschaftsgebiete konnten nicht geladen werden: HTTP ${response.status}`));
 		}
 
 		hierarchyRows = readTerritoriesFromPayload(payload).map(normalizeTerritoryRow).filter(row => row.name || row.publicId);

@@ -68,7 +68,7 @@ async function loadPathWikiSync() {
 	try {
 		const data = await pathSyncGet("?action=match&continent=Aventurien&limit=5000");
 		if (!data || data.ok !== true) {
-			throw new Error(data && data.error ? data.error : "Unerwartete Antwort");
+			throw new Error(apiErrorMessage(data, "Unerwartete Antwort"));
 		}
 		pathSyncData = data;
 		const s = data.summary || {};
@@ -180,7 +180,7 @@ async function assignPathWiki(wikiKey) {
 		}
 		const result = await pathSyncPost({ action: "assign", wiki_key: wikiKey, dry_run: false, confirm: "apply" });
 		if (status) {
-			status.textContent = result.ok ? `Verknüpft: ${result.applied} Segment(e).` : ("Fehler: " + (result.error || ""));
+			status.textContent = result.ok ? `Verknüpft: ${result.applied} Segment(e).` : ("Fehler: " + apiErrorMessage(result, ""));
 		}
 		await loadPathWikiSync();
 	} catch (error) {
@@ -213,7 +213,7 @@ async function assignAllPathWiki() {
 		}
 		const result = await pathSyncPost({ action: "assign_all", continent: "Aventurien", dry_run: false, confirm: "apply" });
 		if (status) {
-			status.textContent = result.ok ? `Verknüpft: ${result.applied} Segment(e).` : ("Fehler: " + (result.error || ""));
+			status.textContent = result.ok ? `Verknüpft: ${result.applied} Segment(e).` : ("Fehler: " + apiErrorMessage(result, ""));
 		}
 		await loadPathWikiSync();
 	} catch (error) {
@@ -239,7 +239,7 @@ async function startPathWikiCrawl() {
 	try {
 		const run = await pathSyncPost({ action: "start_run" });
 		if (!run || !run.run_id) {
-			throw new Error(run && run.error ? run.error : "Kein run_id");
+			throw new Error(apiErrorMessage(run, "Kein run_id"));
 		}
 		let step = 0;
 		let last;
@@ -334,7 +334,7 @@ async function assignPathWikiToTarget(wikiKey, publicId) {
 			}
 			await loadPathWikiSync();
 		} else if (typeof showFeedbackToast === "function") {
-			showFeedbackToast("Fehler: " + ((result && result.error) || ""), "error");
+			showFeedbackToast("Fehler: " + apiErrorMessage(result, ""), "error");
 		}
 	} catch (error) {
 		if (typeof showFeedbackToast === "function") {

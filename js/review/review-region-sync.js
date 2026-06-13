@@ -70,7 +70,7 @@ async function loadRegionWikiSync() {
 	try {
 		const data = await regionSyncGet("?action=match&continent=Aventurien&limit=5000");
 		if (!data || data.ok !== true) {
-			throw new Error(data && data.error ? data.error : "Unerwartete Antwort");
+			throw new Error(apiErrorMessage(data, "Unerwartete Antwort"));
 		}
 		regionSyncData = data;
 		const s = data.summary || {};
@@ -201,7 +201,7 @@ async function startRegionWikiCrawl() {
 		}
 		const run = await regionSyncPost({ action: "start_run" });
 		if (!run || !run.run_id) {
-			throw new Error(run && run.error ? run.error : "Kein run_id");
+			throw new Error(apiErrorMessage(run, "Kein run_id"));
 		}
 		let step = 0;
 		let last;
@@ -393,7 +393,7 @@ async function runRegionAssignBerge() {
 	try {
 		const data = await regionSyncPost({ action: "assign_all", continent: "Aventurien", art: "Berggipfel", dry_run: false, confirm: "apply" });
 		if (!data || data.ok !== true) {
-			throw new Error(data && data.error ? data.error : "Fehler beim Zuordnen");
+			throw new Error(apiErrorMessage(data, "Fehler beim Zuordnen"));
 		}
 		showFeedbackToast?.(`${data.applied || 0} Berge zugeordnet — Karte aktualisiert sich.`, "success");
 		await loadRegionWikiSync();

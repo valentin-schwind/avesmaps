@@ -226,7 +226,7 @@ function submitReviewForm() {
 		.then((response) => response.json().catch(() => null))
 		.then((data) => {
 			if (!data || data.ok === false) {
-				showFeedbackToast((data && data.error) || "Bewertung konnte nicht gespeichert werden.", "warning");
+				showFeedbackToast(apiErrorMessage(data, "Bewertung konnte nicht gespeichert werden."), "warning");
 				return;
 			}
 			showFeedbackToast(data.message || "Danke für deine Bewertung!", "success");
@@ -250,7 +250,7 @@ function moderateReview(action, id, publicId) {
 		.then((response) => response.json().catch(() => null))
 		.then((data) => {
 			if (!data || data.ok === false) {
-				showFeedbackToast((data && data.error) || "Aktion fehlgeschlagen.", "warning");
+				showFeedbackToast(apiErrorMessage(data, "Aktion fehlgeschlagen."), "warning");
 				return;
 			}
 			refreshOpenReviewSlots(publicId);

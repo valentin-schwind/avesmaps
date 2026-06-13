@@ -900,7 +900,7 @@
 			signal: options.signal,
 		});
 		const payload = await response.json();
-		if (!response.ok || !payload?.ok) throw new Error(payload?.error || `HTTP ${response.status}`);
+		if (!response.ok || !payload?.ok) throw new Error(apiErrorMessage(payload, `HTTP ${response.status}`));
 		const rows = normalizeApiRows(payload.nodes || payload.items || []);
 		globalObject.AvesmapsWikiSyncTerritoryTreeRowsCache = rows;
 		globalObject.wikiSyncTerritoryTreeRowsCache = rows;

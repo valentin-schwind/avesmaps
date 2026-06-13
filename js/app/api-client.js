@@ -1,3 +1,15 @@
+// Tolerant reader for the API error envelope. Endpoints are being migrated
+// (M3) from a flat `error:"string"` to the gold-standard `error:{code,message}`.
+// Reading the message through this helper keeps the frontend working with BOTH
+// shapes, so the backend shape-flip never surfaces "[object Object]" to users.
+function apiErrorMessage(data, fallback) {
+	const error = data?.error;
+	if (typeof error === "string") {
+		return error || fallback;
+	}
+	return error?.message || fallback;
+}
+
 async function readJsonResponse(response, fallback = null) {
 	try {
 		return await response.json();
@@ -50,14 +62,14 @@ async function submitLocationReportRequest(payload) {
 		if (!response.ok) {
 			return {
 				ok: false,
-				message: responsePayload?.error || "Die Meldung konnte nicht gespeichert werden.",
+				message: apiErrorMessage(responsePayload, "Die Meldung konnte nicht gespeichert werden."),
 			};
 		}
 
 		if (!responsePayload || responsePayload.ok !== true) {
 			return {
 				ok: false,
-				message: responsePayload?.error || "Die Meldung konnte nicht verarbeitet werden.",
+				message: apiErrorMessage(responsePayload, "Die Meldung konnte nicht verarbeitet werden."),
 			};
 		}
 
@@ -100,7 +112,7 @@ async function submitMapFeatureEdit(payload) {
 		if (response.status === 409) {
 			void pollLiveMapUpdates();
 		}
-		throw new Error(result?.error || `Speichern fehlgeschlagen (${response.status}).`);
+		throw new Error(apiErrorMessage(result, `Speichern fehlgeschlagen (${response.status}).`));
 	}
 
 	return result;
@@ -168,7 +180,7 @@ async function fetchPoliticalTerritories(params = {}) {
 
 		const data = await readJsonResponse(response, {});
 		if (!response.ok || data?.ok !== true) {
-			throw new Error(data?.error || `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`);
+			throw new Error(apiErrorMessage(data, `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`));
 		}
 
 		return data;
@@ -215,10 +227,10 @@ async function submitPoliticalTerritoryEdit(payload) {
 		console.error("Herrschaftsgebiet-API Fehler:", {
 			status: response.status,
 			action: payload?.action || "",
-			error: data?.error || "",
+			error: apiErrorMessage(data, ""),
 			response: data,
 		});
-		throw new Error(data?.error || `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`);
+		throw new Error(apiErrorMessage(data, `Herrschaftsgebiet-API antwortet mit HTTP ${response.status}.`));
 	}
 
 	invalidatePoliticalLayerCache(); // Edit gespeichert -> Layer-Cache verwerfen, naechster Load ist frisch.
@@ -249,7 +261,7 @@ async function syncPoliticalTerritoryDisplayStyles(territoryPublicId) {
 		console.warn("Herrschaftsgebiet-Anzeige konnte nicht synchronisiert werden:", {
 			status: response.status,
 			territoryPublicId: normalizedTerritoryPublicId,
-			error: data?.error || "",
+			error: apiErrorMessage(data, ""),
 			response: data,
 		});
 		return null;
@@ -296,7 +308,7 @@ async function updateReviewReportStatus(reportId, status, reportSource = "locati
 	const data = await readJsonResponse(response);
 
 	if (!response.ok || !data?.ok) {
-		throw new Error(data?.error || `Review-API antwortet mit HTTP ${response.status}.`);
+		throw new Error(apiErrorMessage(data, `Review-API antwortet mit HTTP ${response.status}.`));
 	}
 }
 
@@ -320,7 +332,7 @@ async function submitWikiSyncLocationAction(action, payload = {}) {
 			void pollLiveMapUpdates();
 		}
 		const debugInfo = data?.debug ? ` [${data.debug.message || ""} @ ${data.debug.file || ""}:${data.debug.line || ""}]` : "";
-		throw new Error((data?.error || `WikiSyncLocations-API antwortet mit HTTP ${response.status}.`) + debugInfo);
+		throw new Error(apiErrorMessage(data, `WikiSyncLocations-API antwortet mit HTTP ${response.status}.`) + debugInfo);
 	}
 
 	return data;
@@ -347,7 +359,7 @@ async function fetchWikiSyncLocationData(params = {}) {
 	const data = await readJsonResponse(response, {});
 
 	if (!response.ok || data?.ok !== true) {
-		throw new Error(data?.error || `WikiSyncLocations-API antwortet mit HTTP ${response.status}.`);
+		throw new Error(apiErrorMessage(data, `WikiSyncLocations-API antwortet mit HTTP ${response.status}.`));
 	}
 
 	return data;
@@ -369,7 +381,7 @@ async function submitWikiSyncTerritoryAction(action, payload = {}) {
 	const data = await readJsonResponse(response, {});
 
 	if (!response.ok || data?.ok !== true) {
-		throw new Error(data?.error || `WikiSyncTerritories-API antwortet mit HTTP ${response.status}.`);
+		throw new Error(apiErrorMessage(data, `WikiSyncTerritories-API antwortet mit HTTP ${response.status}.`));
 	}
 
 	return data;
@@ -396,7 +408,7 @@ async function fetchWikiSyncTerritoryData(params = {}) {
 	const data = await readJsonResponse(response, {});
 
 	if (!response.ok || data?.ok !== true) {
-		throw new Error(data?.error || `WikiSyncTerritories-API antwortet mit HTTP ${response.status}.`);
+		throw new Error(apiErrorMessage(data, `WikiSyncTerritories-API antwortet mit HTTP ${response.status}.`));
 	}
 
 	return data;

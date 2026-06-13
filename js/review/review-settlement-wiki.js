@@ -131,7 +131,7 @@ async function runSettlementWikiPickerSearch() {
 	try {
 		const data = await settlementWikiGet(`?action=search&q=${encodeURIComponent(query)}&limit=40`);
 		if (!data || data.ok !== true) {
-			throw new Error(data && data.error ? data.error : "Suche fehlgeschlagen");
+			throw new Error(apiErrorMessage(data, "Suche fehlgeschlagen"));
 		}
 		settlementWikiPickerResults = data.rows || [];
 		renderSettlementWikiPickerList();
@@ -201,7 +201,7 @@ async function selectSettlementWikiResult(title) {
 				loadChangeLog();
 			}
 		} else if (status) {
-			status.textContent = "Fehler: " + ((result && result.error) || "");
+			status.textContent = "Fehler: " + apiErrorMessage(result, "");
 		}
 	} catch (error) {
 		if (status) {

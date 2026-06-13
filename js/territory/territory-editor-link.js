@@ -365,7 +365,7 @@ async function loadPoliticalTerritoryWikiRowsById() {
 		}).then(async (response) => {
 			const payload = await response.json();
 			if (!response.ok || payload?.ok === false) {
-				throw new Error(payload?.error || `Wiki-Daten konnten nicht geladen werden: HTTP ${response.status}`);
+				throw new Error(apiErrorMessage(payload, `Wiki-Daten konnten nicht geladen werden: HTTP ${response.status}`));
 			}
 			const rowsById = new Map();
 			for (const row of Array.isArray(payload?.items) ? payload.items : []) {
@@ -601,7 +601,7 @@ async function syncPoliticalTerritoryEditorAssignmentZooms(value = {}) {
 		});
 		const result = await response.json().catch(() => null);
 		if (!response.ok || result?.ok === false) {
-			throw new Error(result?.error || "Breadcrumb-Zoomstufen konnten nicht global synchronisiert werden.");
+			throw new Error(apiErrorMessage(result, "Breadcrumb-Zoomstufen konnten nicht global synchronisiert werden."));
 		}
 		return result;
 	} catch (error) {

@@ -1,5 +1,19 @@
 "use strict";
 
+// Standalone editor page (html/political-territory-editor.html) does NOT load
+// js/app/api-client.js, so it lacks the canonical apiErrorMessage helper. Define
+// a guarded fallback here (this file loads first in that page). In the main
+// window / inline-host flow api-client.js already provides it, so this is a no-op.
+if (typeof window.apiErrorMessage !== "function") {
+	window.apiErrorMessage = function (data, fallback) {
+		const error = data && data.error;
+		if (typeof error === "string") {
+			return error || fallback;
+		}
+		return (error && error.message) || fallback;
+	};
+}
+
 /*
  * Editor-Kontext-/Host-Abstraktion.
  *
