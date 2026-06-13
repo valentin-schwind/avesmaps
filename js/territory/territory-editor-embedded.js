@@ -2396,8 +2396,12 @@
 			// Herzogsmark Sokramor statt Baronie Burmisch) -> sonst leere/falsche Claims + „Aus Wiki vorschlagen"
 			// findet nichts. Fallback auf den aktiven Knoten, falls kein Kontext (reines Baum-Browsen).
 			const editorCtx = window.AvesmapsEditorContext;
-			const ctxWikiKey = (editorCtx && typeof editorCtx.param === "function") ? normalizeText(editorCtx.param("wiki_key", "") || "") : "";
-			const ctxTerritoryId = (editorCtx && typeof editorCtx.param === "function") ? normalizeText(editorCtx.param("territory_public_id", "") || "") : "";
+			const ctxParam = (editorCtx && typeof editorCtx.param === "function") ? (k) => normalizeText(editorCtx.param(k, "") || "") : () => "";
+			const ctxWikiKey = ctxParam("wiki_key");
+			// Bei Aggregat-Anzeige ist territory_public_id der Vorfahre -> das echte Gebiet (Blatt) steht in
+			// aggregate_source. Das hat Vorrang, damit der Block die Claims des konkreten Gebiets zeigt.
+			const ctxAggSource = ctxParam("aggregate_source_territory_public_id");
+			const ctxTerritoryId = ctxAggSource || ctxParam("territory_public_id");
 			// Das Kontext-"wiki_key" kann beim KARTEN-Klick fälschlich die numerische wiki_id sein
 			// (buildPoliticalTerritoryEditorContext fällt auf wikiId zurück, weil Map-Features keinen echten
 			// wiki_key tragen) -> der Claims-Resolver scheitert an einer Zahl. Darum: ZUERST die zuverlässige

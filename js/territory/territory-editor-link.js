@@ -103,6 +103,9 @@ function buildPoliticalTerritoryEditorContext(regionEntry = {}) {
 	set("geometry_public_id", getPoliticalTerritoryEditorGeometryPublicId(regionEntry));
 	set("geometry_id", regionEntry.geometryId ?? regionEntry.geometry_id);
 	set("territory_public_id", regionEntry.territoryPublicId ?? regionEntry.territory_public_id);
+	// Bei Aggregat-Anzeige (Tiefzoom) ist territory_public_id der angezeigte VORFAHRE; das echte
+	// (Geometrie-)Gebiet steht in aggregate_source. Für den Konflikt-Block durchreichen (= das Blatt).
+	set("aggregate_source_territory_public_id", regionEntry.aggregateSourceTerritoryPublicId ?? regionEntry.aggregate_source_territory_public_id);
 	set("wiki_key", regionEntry.wikiKey ?? regionEntry.wiki_key ?? regionEntry.wikiId ?? regionEntry.wiki_id);
 	set("name", regionEntry.displayName ?? regionEntry.name);
 	set("color", regionEntry.color);
