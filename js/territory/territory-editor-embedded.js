@@ -2214,6 +2214,7 @@
 		// Knotens direkt. Endpoints: list_claims (GET) / add_claim / remove_claim (POST), edit-Cap.
 		let contestedWired = false;
 		let contestedCurrentWikiKey = "";
+		let contestedCurrentNode = null;
 
 		function contestedClaimsApi(action, payload, method) {
 			const base = "/api/app/political-territories.php";
@@ -2231,8 +2232,32 @@
 				let data;
 				try { data = JSON.parse(text); } catch (error) { throw new Error("Ungültige Antwort"); }
 				if (!response.ok || data.ok === false) { throw new Error(data.error || ("HTTP " + response.status)); }
+				// Nach erfolgreichem Claim-Schreibvorgang die Reichs-Huelle(n) neu ableiten, damit der
+				// Schraffur-Split (fill_remainder + contested_pieces) frisch ist. Nicht-blockierend.
+				if (!isGet && (action === "add_claim" || action === "remove_claim")) {
+					void triggerContestedDerivedRederive();
+				}
 				return data;
 			});
+		}
+
+		// Reichs-Huelle(n) neu ableiten, die das umstrittene Gebiet enthalten. Am ELTERN-Knoten ansetzen
+		// (hat Kinder -> derived + Cascade nach oben; das Blatt selbst wuerde uebersprungen). Voll geguarded
+		// + nicht-blockierend -> schlaegt es fehl, bleibt der manuelle "Aussengrenze erzeugen"-Weg.
+		async function triggerContestedDerivedRederive() {
+			try {
+				const engine = window.AvesmapsDerivedBoundaryEditor;
+				if (!engine || typeof engine.generateOrUpdateForTerritory !== "function") return;
+				const node = contestedCurrentNode;
+				const parentKey = (node && node.parent && node.parent.row)
+					? normalizeText(node.parent.row.public_id || node.parent.row.wiki_key || "")
+					: "";
+				const target = parentKey || contestedCurrentWikiKey;
+				if (!target) return;
+				await engine.generateOrUpdateForTerritory(target, { applyToSubregions: false, drawPreview: false });
+			} catch (error) {
+				console.warn("Auto-Re-Derive nach Claim-Aenderung fehlgeschlagen:", error);
+			}
 		}
 
 		function renderContestedClaims(claims) {
@@ -2414,6 +2439,7 @@
 				return;
 			}
 			contestedCurrentWikiKey = wikiKey;
+			contestedCurrentNode = node;
 			wireContestedSearch();
 			try {
 				const result = await contestedClaimsApi("list_claims", { territory_public_id: wikiKey }, "GET");
