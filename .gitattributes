@@ -1,0 +1,33 @@
+# Line-ending policy for avesmaps.
+# `text=auto` lets git normalize stored line endings to LF on commit while
+# checking out with the platform's native endings. No mass re-normalization is
+# applied here; files are normalized only when they are next modified.
+* text=auto
+
+# Source files: store as LF in the repository.
+*.php  text
+*.js   text
+*.css  text
+*.html text
+*.md   text
+*.json text
+*.sql  text
+*.svg  text
+*.txt  text
+*.yml  text
+*.yaml text
+
+# Windows-only tooling keeps CRLF.
+*.ps1  text eol=crlf
+
+# Binary assets: never touch line endings or diff as text.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.psd  binary
