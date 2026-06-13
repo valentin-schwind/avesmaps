@@ -24,16 +24,11 @@ require_once __DIR__ . '/territories-debug.php';
 require_once __DIR__ . '/territories-geometry-inventory.php';
 require_once __DIR__ . '/territories-claims.php';
 
-$debugErrors = filter_var($_GET['debug_errors'] ?? false, FILTER_VALIDATE_BOOL);
-
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, [
-            'ok' => false,
-            'error' => 'Diese Herkunft darf Herrschaftsgebiete nicht laden.',
-        ]);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf Herrschaftsgebiete nicht laden.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -126,9 +121,9 @@ try {
             'wiki_list' => avesmapsPoliticalListWikiReferences($pdo, $_GET),
             'hierarchy' => avesmapsPoliticalReadHierarchy($pdo),
             'geometries' => avesmapsPoliticalReadGeometries($pdo, $_GET),
-            'derived_geometry', 'get_derived_geometry' => avesmapsPoliticalReadDerivedGeometry($pdo, $_GET),
-            'derived_geometry_sources', 'get_derived_geometry_sources' => avesmapsPoliticalReadDerivedGeometrySourcesWithGeometryFallback($pdo, $_GET),
-            'derived_geometry_plan', 'get_derived_geometry_plan' => avesmapsPoliticalReadDerivedGeometryPlan($pdo, $_GET),
+            'derived_geometry' => avesmapsPoliticalReadDerivedGeometry($pdo, $_GET),
+            'derived_geometry_sources' => avesmapsPoliticalReadDerivedGeometrySourcesWithGeometryFallback($pdo, $_GET),
+            'derived_geometry_plan' => avesmapsPoliticalReadDerivedGeometryPlan($pdo, $_GET),
             'debug_boundary_contract', 'boundary_contract_debug' => avesmapsPoliticalReadBoundaryContractDebug($pdo, $_GET),
             'debug' => avesmapsPoliticalReadDebug($pdo, $_GET),
             'audit' => avesmapsPoliticalReadAudit($pdo, $_GET),
@@ -142,10 +137,7 @@ try {
     }
 
     if (!in_array($requestMethod, ['POST', 'PATCH', 'DELETE'], true)) {
-        avesmapsJsonResponse(405, [
-            'ok' => false,
-            'error' => 'Nur GET, POST, PATCH und DELETE sind fuer Herrschaftsgebiete erlaubt.',
-        ]);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET, POST, PATCH und DELETE sind fuer Herrschaftsgebiete erlaubt.');
     }
 
     $user = avesmapsRequireUserWithCapability('edit');
@@ -184,39 +176,11 @@ try {
     avesmapsPoliticalInvalidateLayerCache(); // Schreibvorgang -> Layer-Cache leeren, naechster Load ist frisch.
     avesmapsJsonResponse(200, $response);
 } catch (InvalidArgumentException $exception) {
-    $response = [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ];
-    if ($debugErrors) {
-        $response['exception'] = avesmapsPoliticalDebugExceptionPayload($exception);
-    }
-    avesmapsJsonResponse(400, $response);
+    avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
 } catch (PDOException $exception) {
-    $response = [
-        'ok' => false,
-        'error' => 'Die Herrschaftsgebiete konnten nicht aus der Datenbank verarbeitet werden.',
-    ];
-    if ($debugErrors) {
-        $response['exception'] = avesmapsPoliticalDebugExceptionPayload($exception);
-    }
-    avesmapsJsonResponse(500, $response);
+    avesmapsErrorResponse(500, 'server_error', 'Die Herrschaftsgebiete konnten nicht aus der Datenbank verarbeitet werden.');
 } catch (RuntimeException $exception) {
-    $response = [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ];
-    if ($debugErrors) {
-        $response['exception'] = avesmapsPoliticalDebugExceptionPayload($exception);
-    }
-    avesmapsJsonResponse(503, $response);
+    avesmapsErrorResponse(503, 'service_unavailable', $exception->getMessage());
 } catch (Throwable $exception) {
-    $response = [
-        'ok' => false,
-        'error' => 'Die Herrschaftsgebiete konnten nicht verarbeitet werden.',
-    ];
-    if ($debugErrors) {
-        $response['exception'] = avesmapsPoliticalDebugExceptionPayload($exception);
-    }
-    avesmapsJsonResponse(500, $response);
+    avesmapsErrorResponse(500, 'server_error', 'Die Herrschaftsgebiete konnten nicht verarbeitet werden.');
 }
