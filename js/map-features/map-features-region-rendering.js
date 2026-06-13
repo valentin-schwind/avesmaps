@@ -5,6 +5,35 @@
 // Territorium erzeugt nie zwei Labels (z. B. wenn Derived + Quelle koexistieren).
 let politicalRegionLabeledTerritoryKeys = new Set();
 
+// Wappen-Blink-Fix (gleiche Wurzel wie Perf-Hebel #1 "political full teardown+rebuild per moveend"):
+// im political-Modus wird der Layer bei JEDEM moveend neu geladen, ein Same-Zoom-Pan liefert aber
+// IDENTISCHE Daten. Statt jedes Regionen-Label (mit frischem coat-<img>) zu zerstoeren und neu zu
+// bauen (-> sichtbares Aufblitzen des Wappens), werden die Tooltips pro Territorium-Key UEBER den
+// Reload hinweg wiederverwendet. setContent (das das <img> neu erzeugt) wird nur bei wirklich
+// geaendertem Markup gerufen -> reiner Pan blinkt nicht mehr (und spart Render-Arbeit).
+let reusableRegionLabelsByKey = new Map();
+
+// Vor dem Teardown eines political-Reloads die aktuellen Labels (keyed per Territorium) in den
+// Reuse-Pool retten und aus regionLabels loesen -> clearRenderedRegionLayers entfernt sie NICHT von
+// der Karte. Labels ohne Key (oder Duplikate) werden sofort entfernt (kein Reuse moeglich).
+function snapshotRegionLabelsForReuse() {
+	regionLabels.forEach((label) => {
+		const key = label && label._territoryKey ? String(label._territoryKey) : "";
+		if (key !== "" && !reusableRegionLabelsByKey.has(key)) {
+			reusableRegionLabelsByKey.set(key, label);
+		} else {
+			map.removeLayer(label);
+		}
+	});
+	regionLabels = [];
+}
+
+// Nach dem Render alle nicht wiederverwendeten (verwaisten) Pool-Labels von der Karte nehmen.
+function discardUnusedReusableRegionLabels() {
+	reusableRegionLabelsByKey.forEach((label) => map.removeLayer(label));
+	reusableRegionLabelsByKey.clear();
+}
+
 // Index pro Render: territory_public_id -> { labelable, geometry } des Derived-Features.
 // `geometry` = volle Hülle (für den zentralen polylabel-Label-Anker, egal welches Feature
 // das Label trägt). `labelable` = trägt die Derived in diesem Render selbst ein Label
@@ -358,16 +387,38 @@ function addRegionFeatureToMap(region, regionEntry) {
 				: (regionEntry.labelLat !== null && regionEntry.labelLng !== null
 					? L.latLng(regionEntry.labelLat, regionEntry.labelLng)
 					: polygon.getBounds().getCenter());
-			const label = L.tooltip({
-				permanent: true,
-				direction: "center",
-				offset: [0, 0],
-				opacity: 1,
-				className: "region-label",
-				pane: "regionLabelsPane"
-			})
-				.setLatLng(labelLatLng)
-				.setContent(createRegionLabelMarkup(regionEntry, name));
+			const labelMarkup = createRegionLabelMarkup(regionEntry, name);
+			const reuseKey = territoryLabelKey || "";
+			const pooledLabel = reuseKey !== "" ? reusableRegionLabelsByKey.get(reuseKey) : null;
+			let label;
+			if (pooledLabel) {
+				// Wiederverwenden: das bereits geladene coat-<img> erhalten. Position nur bei Aenderung
+				// setzen; setContent (zerstoert das <img> -> Blinken) NUR wenn sich das Markup wirklich
+				// geaendert hat (Wappen/Name/Zoom-Band) -> reiner Pan blinkt nicht mehr.
+				reusableRegionLabelsByKey.delete(reuseKey);
+				label = pooledLabel;
+				const currentLatLng = label.getLatLng();
+				if (!currentLatLng || currentLatLng.lat !== labelLatLng.lat || currentLatLng.lng !== labelLatLng.lng) {
+					label.setLatLng(labelLatLng);
+				}
+				if (label._regionLabelMarkup !== labelMarkup) {
+					label.setContent(labelMarkup);
+					label._regionLabelMarkup = labelMarkup;
+				}
+			} else {
+				label = L.tooltip({
+					permanent: true,
+					direction: "center",
+					offset: [0, 0],
+					opacity: 1,
+					className: "region-label",
+					pane: "regionLabelsPane"
+				})
+					.setLatLng(labelLatLng)
+					.setContent(labelMarkup);
+				label._regionLabelMarkup = labelMarkup;
+			}
+			label._territoryKey = reuseKey;
 
 			regionEntry.label = label;
 			label._regionLabelPriority = labelPoi ? labelPoi.distance : 0; regionLabels.push(label);

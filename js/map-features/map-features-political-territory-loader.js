@@ -594,6 +594,7 @@ async function loadPoliticalTerritoryLayer() {
 		}
 		politicalTerritoryApiUnavailable = false;
 		clearPoliticalTerritoryTimelineSelection();
+		snapshotRegionLabelsForReuse(); // Labels in den Reuse-Pool retten -> ueberleben den Teardown (kein Wappen-Blinken bei Pan)
 		clearRenderedRegionLayers();
 		regionData = Array.isArray(response.features) ? response.features : [];
 		regionData.forEach((region) => {
@@ -620,6 +621,7 @@ async function loadPoliticalTerritoryLayer() {
 		politicalTerritoryApiUnavailable = false;
 	} finally {
 		isPoliticalTerritoryLayerLoading = false;
+		discardUnusedReusableRegionLabels(); // verwaiste (nicht wiederverwendete) Pool-Labels entfernen (Erfolg & Fehlerpfad)
 		if (politicalTerritoryLayerReloadPending) {
 			const pendingReload = politicalTerritoryLayerReloadPending;
 			politicalTerritoryLayerReloadPending = null;
