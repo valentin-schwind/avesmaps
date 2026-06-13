@@ -10,10 +10,7 @@ try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, [
-            'ok' => false,
-            'error' => 'Diese Herkunft darf Herrschaftsgebiete nicht bearbeiten.',
-        ]);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf Herrschaftsgebiete nicht bearbeiten.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -22,10 +19,7 @@ try {
     }
 
     if (!in_array($requestMethod, ['POST', 'PATCH'], true)) {
-        avesmapsJsonResponse(405, [
-            'ok' => false,
-            'error' => 'Nur POST und PATCH sind fuer Subtree-Darstellungen erlaubt.',
-        ]);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur POST und PATCH sind fuer Subtree-Darstellungen erlaubt.');
     }
 
     $user = avesmapsRequireUserWithCapability('edit');
@@ -59,20 +53,11 @@ try {
 
     avesmapsJsonResponse(200, $response);
 } catch (InvalidArgumentException $exception) {
-    avesmapsJsonResponse(400, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
+    avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
 } catch (PDOException) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Die Subtree-Darstellung konnte nicht in der Datenbank gespeichert werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Die Subtree-Darstellung konnte nicht in der Datenbank gespeichert werden.');
 } catch (Throwable) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Die Subtree-Darstellung konnte nicht verarbeitet werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Die Subtree-Darstellung konnte nicht verarbeitet werden.');
 }
 
 function avesmapsPoliticalSubtreeDisplayInvalidateLayerCache(): void {
