@@ -43,6 +43,21 @@ function avesmapsPoliticalEnsureDerivedGeometryTables(PDO $pdo): void {
     if (!is_array($innerBoundaryColumn)) {
         $pdo->exec('ALTER TABLE political_territory_derived_geometry ADD inner_boundary_geojson JSON NULL AFTER show_inner_boundaries');
     }
+
+    // Umstrittene-Gebiete-Split (additiv): geometry_geojson bleibt die VOLLE Union (Grenze + Hover,
+    // unveraendert). Bei Konflikten unter den Nachfahren wird die Fuellung aufgeteilt:
+    //   fill_remainder_geojson  = Union MINUS umstrittene Baronien (normale Farbe)
+    //   contested_pieces_geojson = die umstrittenen Baronien (Schraffur, mit Terrain-Durchsicht)
+    // Beide NULL, wenn das Ziel keine Konflikte hat -> Verhalten wie bisher. Die Grenzberechnung
+    // fasst diese Felder NIE an (Reihenfolge: erst Union+Grenzen, dann Split).
+    $fillRemainderColumn = $pdo->query("SHOW COLUMNS FROM political_territory_derived_geometry LIKE 'fill_remainder_geojson'")->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($fillRemainderColumn)) {
+        $pdo->exec('ALTER TABLE political_territory_derived_geometry ADD fill_remainder_geojson JSON NULL AFTER inner_boundary_geojson');
+    }
+    $contestedPiecesColumn = $pdo->query("SHOW COLUMNS FROM political_territory_derived_geometry LIKE 'contested_pieces_geojson'")->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($contestedPiecesColumn)) {
+        $pdo->exec('ALTER TABLE political_territory_derived_geometry ADD contested_pieces_geojson JSON NULL AFTER fill_remainder_geojson');
+    }
 }
 
 function avesmapsPoliticalReadDerivedGeometry(PDO $pdo, array $query): array {
@@ -65,6 +80,31 @@ function avesmapsPoliticalReadDerivedGeometry(PDO $pdo, array $query): array {
         'target_name' => $target['target_name'],
         'derived_geometry' => avesmapsPoliticalFetchActiveDerivedGeometryForTerritory($pdo, (int) $territory['id']),
     ];
+}
+
+// Aus einer Liste von Quell-territory_ids die herausfiltern, die einen aktiven Claim tragen
+// (Besitzer + Anspruchsteller aktiv -- Mirror von AttachContestedParties). Liefert die public_ids
+// (Match-Schluessel der source_geometries), aus denen der Client contested_pieces (Schraffur) und
+// fill_remainder (Union minus diese) baut. Leer/Fehler => kein Split, Verhalten wie bisher.
+function avesmapsPoliticalFilterContestedSourceTerritoryPublicIds(PDO $pdo, array $territoryIds): array {
+    $ids = array_values(array_unique(array_filter(array_map('intval', $territoryIds), static fn(int $id): bool => $id > 0)));
+    if ($ids === []) {
+        return [];
+    }
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    try {
+        $statement = $pdo->prepare(
+            'SELECT DISTINCT owner.public_id
+            FROM political_territory_claim claim
+            INNER JOIN political_territory owner ON owner.id = claim.territory_id AND owner.is_active = 1
+            INNER JOIN political_territory claimant ON claimant.id = claim.claimant_territory_id AND claimant.is_active = 1
+            WHERE claim.is_active = 1 AND claim.territory_id IN (' . $placeholders . ')'
+        );
+        $statement->execute($ids);
+    } catch (Throwable) {
+        return [];
+    }
+    return array_map('strval', $statement->fetchAll(PDO::FETCH_COLUMN));
 }
 
 function avesmapsPoliticalReadDerivedGeometrySources(PDO $pdo, array $query): array {
@@ -108,6 +148,7 @@ function avesmapsPoliticalReadDerivedGeometrySources(PDO $pdo, array $query): ar
         'source_count' => count($sourceGeometries),
         'source_mode' => $sourceMode,
         'source_territory_ids' => $sourceTerritoryIds,
+        'contested_territory_public_ids' => avesmapsPoliticalFilterContestedSourceTerritoryPublicIds($pdo, $sourceTerritoryIds),
         'descendant_territory_count' => count($descendantIds),
     ];
 }
@@ -149,6 +190,16 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
     $innerBoundaryGeometry = (is_array($innerBoundaryPayload) && isset($innerBoundaryPayload['type']))
         ? $innerBoundaryPayload
         : null;
+    // Umstrittene-Gebiete-Split: vom Client (Kaskaden-Engine) vorberechnet, hier nur durchgereicht.
+    // NULL, wenn das Ziel keine Konflikte unter den Nachfahren hat.
+    $fillRemainderPayload = $payload['fill_remainder_geojson'] ?? null;
+    $fillRemainderGeometry = (is_array($fillRemainderPayload) && isset($fillRemainderPayload['type']))
+        ? $fillRemainderPayload
+        : null;
+    $contestedPiecesPayload = $payload['contested_pieces_geojson'] ?? null;
+    $contestedPiecesGeometry = (is_array($contestedPiecesPayload) && isset($contestedPiecesPayload['type']))
+        ? $contestedPiecesPayload
+        : null;
     $sourceRevision = avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['source_revision'] ?? $payload['source_signature'] ?? ''), 255));
     $userId = (int) ($user['id'] ?? 0) ?: null;
     $publicId = avesmapsPoliticalUuidV4();
@@ -171,11 +222,13 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
             'INSERT INTO political_territory_derived_geometry (
                 public_id, territory_id, geometry_geojson, label_lng, label_lat,
                 min_zoom, max_zoom, min_x, min_y, max_x, max_y, show_inner_boundaries,
-                inner_boundary_geojson, source_revision, generated_at, is_active, created_by, updated_by
+                inner_boundary_geojson, fill_remainder_geojson, contested_pieces_geojson,
+                source_revision, generated_at, is_active, created_by, updated_by
             ) VALUES (
                 :public_id, :territory_id, :geometry_geojson, :label_lng, :label_lat,
                 :min_zoom, :max_zoom, :min_x, :min_y, :max_x, :max_y, :show_inner_boundaries,
-                :inner_boundary_geojson, :source_revision, CURRENT_TIMESTAMP(3), 1, :created_by, :updated_by
+                :inner_boundary_geojson, :fill_remainder_geojson, :contested_pieces_geojson,
+                :source_revision, CURRENT_TIMESTAMP(3), 1, :created_by, :updated_by
             )'
         );
         $insertStatement->execute([
@@ -192,6 +245,8 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
             'max_y' => $bounds['max_y'],
             'show_inner_boundaries' => $showInnerBoundaries ? 1 : 0,
             'inner_boundary_geojson' => avesmapsPoliticalEncodeJsonOrNull($innerBoundaryGeometry),
+            'fill_remainder_geojson' => avesmapsPoliticalEncodeJsonOrNull($fillRemainderGeometry),
+            'contested_pieces_geojson' => avesmapsPoliticalEncodeJsonOrNull($contestedPiecesGeometry),
             'source_revision' => $sourceRevision,
             'created_by' => $userId,
             'updated_by' => $userId,
@@ -615,6 +670,12 @@ function avesmapsPoliticalDerivedGeometryRowToPublic(array $row): array {
         'show_inner_boundaries' => !array_key_exists('show_inner_boundaries', $row) || (int) $row['show_inner_boundaries'] === 1,
         'inner_boundary_geojson' => array_key_exists('inner_boundary_geojson', $row) && $row['inner_boundary_geojson'] !== null && $row['inner_boundary_geojson'] !== ''
             ? avesmapsPoliticalDecodeJson($row['inner_boundary_geojson'])
+            : null,
+        'fill_remainder_geojson' => array_key_exists('fill_remainder_geojson', $row) && $row['fill_remainder_geojson'] !== null && $row['fill_remainder_geojson'] !== ''
+            ? avesmapsPoliticalDecodeJson($row['fill_remainder_geojson'])
+            : null,
+        'contested_pieces_geojson' => array_key_exists('contested_pieces_geojson', $row) && $row['contested_pieces_geojson'] !== null && $row['contested_pieces_geojson'] !== ''
+            ? avesmapsPoliticalDecodeJson($row['contested_pieces_geojson'])
             : null,
         'source_revision' => (string) ($row['source_revision'] ?? ''),
         'generated_at' => (string) ($row['generated_at'] ?? ''),
