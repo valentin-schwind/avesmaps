@@ -14,7 +14,7 @@ try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, ['ok' => false, 'error' => 'Diese Herkunft darf keine Bewertungen verwenden.']);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf keine Bewertungen verwenden.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -28,7 +28,7 @@ try {
     if ($requestMethod === 'GET') {
         $publicId = avesmapsNormalizeSingleLine((string) ($_GET['location'] ?? ''), 64);
         if ($publicId === '') {
-            avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Es fehlt die Orts-ID (location).']);
+            avesmapsErrorResponse(400, 'invalid_request', 'Es fehlt die Orts-ID (location).');
         }
 
         $summary = avesmapsReviewSummary($pdo, $publicId);
@@ -41,7 +41,7 @@ try {
     }
 
     if ($requestMethod !== 'POST') {
-        avesmapsJsonResponse(405, ['ok' => false, 'error' => 'Nur GET und POST sind erlaubt.']);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET und POST sind erlaubt.');
     }
 
     $payload = avesmapsReadJsonRequest();
@@ -53,12 +53,12 @@ try {
 
     $publicId = avesmapsNormalizeSingleLine((string) ($payload['location'] ?? ''), 64);
     if ($publicId === '') {
-        avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Es fehlt die Orts-ID.']);
+        avesmapsErrorResponse(400, 'invalid_request', 'Es fehlt die Orts-ID.');
     }
 
     $stars = (int) ($payload['stars'] ?? 0);
     if ($stars < 1 || $stars > 5) {
-        avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Bitte 1 bis 5 Sterne vergeben.']);
+        avesmapsErrorResponse(400, 'invalid_request', 'Bitte 1 bis 5 Sterne vergeben.');
     }
 
     $author = avesmapsNormalizeSingleLine((string) ($payload['author'] ?? ''), AVESMAPS_REVIEW_AUTHOR_MAX);
@@ -78,7 +78,7 @@ try {
     } else {
         $dsaDate = avesmapsReviewNormalizeDsaDate($dsaInput);
         if ($dsaDate === null) {
-            avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Bitte ein gültiges aventurisches Datum eingeben, z. B. „7. Rahja 1049 BF" – oder das Feld leer lassen.']);
+            avesmapsErrorResponse(400, 'invalid_request', 'Bitte ein gültiges aventurisches Datum eingeben, z. B. „7. Rahja 1049 BF" – oder das Feld leer lassen.');
         }
     }
 
@@ -127,5 +127,5 @@ try {
         ],
     ]);
 } catch (Throwable $error) {
-    avesmapsJsonResponse(500, ['ok' => false, 'error' => 'Bewertung konnte nicht gespeichert werden.']);
+    avesmapsErrorResponse(500, 'server_error', 'Bewertung konnte nicht gespeichert werden.');
 }

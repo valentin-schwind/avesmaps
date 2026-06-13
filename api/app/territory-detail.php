@@ -57,7 +57,7 @@ try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, ['ok' => false, 'error' => 'Diese Herkunft darf keine Kartendaten laden.']);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf keine Kartendaten laden.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -65,13 +65,13 @@ try {
         avesmapsJsonResponse(204);
     }
     if ($requestMethod !== 'GET') {
-        avesmapsJsonResponse(405, ['ok' => false, 'error' => 'Nur GET-Anfragen sind erlaubt.']);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET-Anfragen sind erlaubt.');
     }
 
     $publicId = trim((string) ($_GET['territory'] ?? ''));
     $wikiKeyParam = trim((string) ($_GET['wiki_key'] ?? ''));
     if ($publicId === '' && $wikiKeyParam === '') {
-        avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Parameter "territory" (public_id) oder "wiki_key" fehlt.']);
+        avesmapsErrorResponse(400, 'invalid_request', 'Parameter "territory" (public_id) oder "wiki_key" fehlt.');
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
@@ -85,7 +85,7 @@ try {
         $tStmt->execute(['pid' => $publicId]);
         $territory = $tStmt->fetch(PDO::FETCH_ASSOC);
         if ($territory === false) {
-            avesmapsJsonResponse(404, ['ok' => false, 'error' => 'Herrschaftsgebiet nicht gefunden.']);
+            avesmapsErrorResponse(404, 'not_found', 'Herrschaftsgebiet nicht gefunden.');
         }
         $wikiKey = (string) ($territory['wiki_key'] ?? '');
         $coatUrl = trim((string) ($territory['coat_of_arms_url'] ?? ''));
@@ -182,5 +182,5 @@ try {
         'coat' => $coat,
     ]);
 } catch (Throwable $error) {
-    avesmapsJsonResponse(500, ['ok' => false, 'error' => 'Internal server error.']);
+    avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
 }

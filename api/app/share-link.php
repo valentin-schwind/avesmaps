@@ -63,7 +63,7 @@ try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, ['ok' => false, 'error' => 'Diese Herkunft darf keine Kurzlinks verwenden.']);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf keine Kurzlinks verwenden.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -77,14 +77,14 @@ try {
     if ($requestMethod === 'GET') {
         $code = avesmapsNormalizeSingleLine((string) ($_GET['code'] ?? ''), 16);
         if ($code === '') {
-            avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Es fehlt der Code.']);
+            avesmapsErrorResponse(400, 'invalid_request', 'Es fehlt der Code.');
         }
 
         $statement = $pdo->prepare('SELECT id, target_query FROM map_share_links WHERE code = :code LIMIT 1');
         $statement->execute(['code' => $code]);
         $row = $statement->fetch(PDO::FETCH_ASSOC);
         if (!$row) {
-            avesmapsJsonResponse(404, ['ok' => false, 'error' => 'Kurzlink nicht gefunden.']);
+            avesmapsErrorResponse(404, 'not_found', 'Kurzlink nicht gefunden.');
         }
 
         // Aufrufzaehler best-effort hochzaehlen (Fehler ignorieren).
@@ -97,13 +97,13 @@ try {
     }
 
     if ($requestMethod !== 'POST') {
-        avesmapsJsonResponse(405, ['ok' => false, 'error' => 'Nur GET und POST sind erlaubt.']);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET und POST sind erlaubt.');
     }
 
     $payload = avesmapsReadJsonRequest();
     $query = avesmapsNormalizeShareQuery((string) ($payload['query'] ?? ''));
     if ($query === '') {
-        avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Es gibt nichts zu teilen (kein Zustand gesetzt).']);
+        avesmapsErrorResponse(400, 'invalid_request', 'Es gibt nichts zu teilen (kein Zustand gesetzt).');
     }
 
     $queryHash = hash('sha256', $query);
@@ -121,7 +121,7 @@ try {
     $rate = $pdo->prepare('SELECT COUNT(*) FROM map_share_links WHERE ip_hash = :ip AND created_at >= (CURRENT_TIMESTAMP - INTERVAL 1 HOUR)');
     $rate->execute(['ip' => $ipHash]);
     if ((int) $rate->fetchColumn() >= 40) {
-        avesmapsJsonResponse(429, ['ok' => false, 'error' => 'Zu viele Kurzlinks in kurzer Zeit. Bitte spaeter erneut versuchen.']);
+        avesmapsErrorResponse(429, 'rate_limited', 'Zu viele Kurzlinks in kurzer Zeit. Bitte spaeter erneut versuchen.');
     }
 
     $insert = $pdo->prepare(
@@ -148,7 +148,7 @@ try {
         }
     }
 
-    avesmapsJsonResponse(500, ['ok' => false, 'error' => 'Kurzlink konnte nicht erzeugt werden.']);
+    avesmapsErrorResponse(500, 'server_error', 'Kurzlink konnte nicht erzeugt werden.');
 } catch (Throwable $error) {
-    avesmapsJsonResponse(500, ['ok' => false, 'error' => 'Kurzlink-Dienst nicht verfügbar.']);
+    avesmapsErrorResponse(500, 'server_error', 'Kurzlink-Dienst nicht verfügbar.');
 }
