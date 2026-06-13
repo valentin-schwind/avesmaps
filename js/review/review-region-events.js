@@ -351,3 +351,68 @@ function updateRegionParentFilter(value) {
 	regionParentFilterQuery = String(value || "").trim();
 	populateRegionParentSelect(regionEditEntry?.region || regionEditEntry || {});
 }
+
+// Three-way close confirmation for a dirty region-edit tab. Resolves "save" | "discard" | "cancel".
+// (Self-contained modal: no CSS dependency; Escape and backdrop click both resolve "cancel".)
+function askRegionTabCloseChoice() {
+	return new Promise((resolve) => {
+		document.getElementById("region-tab-close-choice")?.remove();
+
+		const overlay = document.createElement("div");
+		overlay.id = "region-tab-close-choice";
+		overlay.style.cssText = "position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);";
+
+		const dialog = document.createElement("div");
+		dialog.setAttribute("role", "dialog");
+		dialog.setAttribute("aria-modal", "true");
+		dialog.style.cssText = "background:#fff;color:#222;max-width:420px;width:calc(100% - 32px);border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.35);padding:20px 22px;font:14px/1.45 system-ui,sans-serif;";
+
+		const message = document.createElement("p");
+		message.style.cssText = "margin:0 0 18px;";
+		message.textContent = "Dieser Reiter hat ungespeicherte Änderungen. Vor dem Schließen speichern?";
+
+		const buttonRow = document.createElement("div");
+		buttonRow.style.cssText = "display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;";
+
+		let settled = false;
+		const finish = (choice) => {
+			if (settled) {
+				return;
+			}
+			settled = true;
+			document.removeEventListener("keydown", onKeydown, true);
+			overlay.remove();
+			resolve(choice);
+		};
+		const onKeydown = (event) => {
+			if (event.key === "Escape") {
+				event.preventDefault();
+				finish("cancel");
+			}
+		};
+		const makeButton = (label, choice, primary) => {
+			const button = document.createElement("button");
+			button.type = "button";
+			button.textContent = label;
+			button.style.cssText = "padding:7px 14px;border-radius:6px;cursor:pointer;border:1px solid " + (primary ? "#0078a8" : "#ccc") + ";background:" + (primary ? "#0078a8" : "#f5f5f5") + ";color:" + (primary ? "#fff" : "#222") + ";";
+			button.addEventListener("click", () => finish(choice));
+			return button;
+		};
+
+		buttonRow.append(
+			makeButton("Abbrechen", "cancel", false),
+			makeButton("Verwerfen", "discard", false),
+			makeButton("Speichern", "save", true)
+		);
+		dialog.append(message, buttonRow);
+		overlay.append(dialog);
+		overlay.addEventListener("click", (event) => {
+			if (event.target === overlay) {
+				finish("cancel");
+			}
+		});
+		document.addEventListener("keydown", onKeydown, true);
+		document.body.append(overlay);
+		buttonRow.querySelector("button:last-child")?.focus();
+	});
+}
