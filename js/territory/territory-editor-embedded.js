@@ -1442,6 +1442,11 @@
 
 		function showNodeDetails(node, options = {}) {
 			selectedNode = node;
+			// Aktiven Knoten als Derive-Ziel-Marker publizieren (window-global, von
+			// getDerivedGeometryEditorTerritoryPublicId ZUERST gelesen) -> "Grenzen erzeugen" trifft
+			// IMMER das gerade angezeigte Gebiet, nicht ein veraltetes Formular/State (Stale-Target-Bug,
+			// z. B. "Herzogtum Tobrien" beim Derivieren in Freudenberg).
+			try { window.__avesmapsActiveEditorTerritoryPublicId = normalizeText(node && node.row ? (node.row.public_id || node.row.wiki_key || "") : ""); } catch (markerError) { /* nicht kritisch */ }
 			// Aktiven Knoten SOFORT in den beobachtbaren Store publizieren (Funnel aller
 			// Selektionswechsel: Tree-Klick, Breadcrumb-Sprung, Geschwister-Blaettern).
 			// Ersetzt das Warten auf den asynchronen ui-hints-MutationObserver -> der

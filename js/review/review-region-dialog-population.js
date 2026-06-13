@@ -9,6 +9,9 @@ function populateRegionEditForm(entry, { preserveTabs = false } = {}) {
 	document.getElementById("region-edit-public-id").value = region.publicId || "";
 	document.getElementById("region-edit-source").value = source;
 	document.getElementById("region-edit-territory-public-id").value = region.territoryPublicId || "";
+	// Derive-Ziel-Marker aktuell halten (auch wenn der Editor ueber den Region-Edit-Dialog statt
+	// showNodeDetails laeuft) -> "Grenzen erzeugen" trifft das aktuell bearbeitete Gebiet.
+	try { window.__avesmapsActiveEditorTerritoryPublicId = String(region.territoryPublicId || region.publicId || "").trim(); } catch (markerError) { /* nicht kritisch */ }
 	document.getElementById("region-edit-geometry-public-id").value = geometryPublicId;
 	document.getElementById("region-edit-wiki-id").value = region.wikiId || region.wiki_id || "";
 	if (source !== "political_territory") {

@@ -666,8 +666,12 @@ function waitForNextFrame() {
 
 function getDerivedGeometryEditorTerritoryPublicId() {
 	return String(
-		document.getElementById("region-edit-territory-public-id")?.value
-		|| derivedGeometryEditorState.territoryPublicId
+		// ZUERST der aktive Editor-Knoten (von showNodeDetails bei JEDER Navigation gesetzt) -> trifft das
+		// Gebiet, das der Nutzer GERADE sieht. KEIN Fallback mehr auf derivedGeometryEditorState.territoryPublicId
+		// -- das ist der zuletzt DERIVIERTE Wert (ein Ergebnis, kein Ziel) und war die Quelle des Stale-Target-
+		// Bugs ("Tobrien"). Danach Formular/Eintrag (vom Region-Edit-Dialog gesetzt).
+		(typeof window !== "undefined" && window.__avesmapsActiveEditorTerritoryPublicId)
+		|| document.getElementById("region-edit-territory-public-id")?.value
 		|| regionEditEntry?.territoryPublicId
 		|| regionEditEntry?.publicId
 		|| ""
