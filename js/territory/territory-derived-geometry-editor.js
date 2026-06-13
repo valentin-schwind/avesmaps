@@ -215,6 +215,45 @@ function unionDerivedSources(response) {
 	};
 }
 
+// Umstrittene-Gebiete-Split -- Reihenfolge HEILIG: erst Union+Grenzen, DANN schneiden. Aus den
+// umstrittenen Quellflaechen (sources.contested_territory_public_ids) wird pro Baronie ein
+// Schraffur-Stueck gebildet und die Restflaeche = Union MINUS alle Konflikte (Loecher -> Terrain
+// scheint durch). Liefert {fillRemainder, contestedPieces} oder beides null (kein Konflikt ->
+// Verhalten wie bisher). Beruehrt NIE Union/Innengrenzen (die sind da schon berechnet).
+function computeContestedDerivedSplit(sourcesResponse, unionGeometryGeoJson) {
+	const empty = { fillRemainder: null, contestedPieces: null };
+	const contestedKeys = new Set(Array.isArray(sourcesResponse?.contested_territory_public_ids) ? sourcesResponse.contested_territory_public_ids : []);
+	if (contestedKeys.size < 1 || !window.polygonClipping) return empty;
+	const sourceGeometries = Array.isArray(sourcesResponse?.source_geometries) ? sourcesResponse.source_geometries : [];
+	const contestedPieces = [];
+	const contestedClipping = [];
+	sourceGeometries.forEach((entry) => {
+		if (!entry || !contestedKeys.has(entry.territory_public_id)) return;
+		const clip = geoJsonGeometryToClippingMultiPolygon(entry.geometry);
+		if (!Array.isArray(clip) || clip.length < 1) return;
+		contestedClipping.push(clip);
+		// Stueck-Geometrie = die Quell-Baronie selbst (sie ist Teil des Reichs -> deckt exakt das
+		// Loch in der Restflaeche). Parteifarben haengt der Server beim Ausliefern dran.
+		contestedPieces.push({
+			territory_public_id: entry.territory_public_id,
+			name: entry.territory_name || "",
+			geometry: entry.geometry,
+		});
+	});
+	if (contestedPieces.length < 1) return empty;
+	const unionClip = geoJsonGeometryToClippingMultiPolygon(unionGeometryGeoJson);
+	if (!Array.isArray(unionClip) || unionClip.length < 1) return empty;
+	let fillRemainder = null;
+	try {
+		const remainderClip = window.polygonClipping.difference(unionClip, ...contestedClipping);
+		fillRemainder = clippingMultiPolygonToGeoJson(normalizeClippingMultiPolygon(remainderClip, "Restfläche"));
+	} catch (error) {
+		console.warn("Konflikt-Split (fill_remainder) fehlgeschlagen:", error);
+		return empty;
+	}
+	return { fillRemainder, contestedPieces };
+}
+
 function buildDerivedBoundaryFromSourceResponse(response) {
 	const result = unionDerivedSources(response);
 	if (!result) {
@@ -411,6 +450,8 @@ async function recomputeDerivedBoundaryForTargetSilently(targetPublicId, plan, s
 		? showInnerOverride
 		: await readExistingShowInnerBoundaries(targetPublicId);
 	const innerBoundary = await computeInnerBoundaryMultiLineString(targetPublicId, plan);
+	// NACH Union+Innengrenze: umstrittene Baronien ausschneiden (Restflaeche + Schraffur-Stuecke).
+	const contestedSplit = computeContestedDerivedSplit(sources, result.geometry);
 	await politicalTerritoryRepository.saveDerivedGeometry({
 		territory_public_id: targetPublicId,
 		geometry_geojson: result.geometry,
@@ -423,6 +464,8 @@ async function recomputeDerivedBoundaryForTargetSilently(targetPublicId, plan, s
 		show_inner_boundaries: showInnerBoundaries,
 		// Vorberechnete Innengrenzen (deduppte Trennlinien der direkten Kinder, 1 Tiefe).
 		inner_boundary_geojson: innerBoundary,
+		fill_remainder_geojson: contestedSplit.fillRemainder,
+		contested_pieces_geojson: contestedSplit.contestedPieces,
 		source_revision: findDerivedBoundaryPlanSourceRevision(plan, targetPublicId),
 		is_active: true,
 	});
@@ -509,6 +552,8 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 		const sourceRevision = findDerivedBoundaryPlanSourceRevision(plan, territoryPublicId);
 		const showInnerBoundaries = typeof options.showInnerBoundaries === "boolean" ? options.showInnerBoundaries : await readExistingShowInnerBoundaries(territoryPublicId);
 		const innerBoundary = await computeInnerBoundaryMultiLineString(territoryPublicId, plan);
+		// NACH Union+Innengrenze: umstrittene Baronien ausschneiden (Restflaeche + Schraffur-Stuecke).
+		const contestedSplit = computeContestedDerivedSplit(sources, result.geometry);
 		const saved = await politicalTerritoryRepository.saveDerivedGeometry({
 			territory_public_id: territoryPublicId,
 			geometry_geojson: result.geometry,
@@ -520,6 +565,8 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 			show_inner_boundaries: showInnerBoundaries,
 			// Vorberechnete Innengrenzen (deduppte Trennlinien der direkten Kinder, 1 Tiefe).
 			inner_boundary_geojson: innerBoundary,
+			fill_remainder_geojson: contestedSplit.fillRemainder,
+			contested_pieces_geojson: contestedSplit.contestedPieces,
 			source_revision: sourceRevision,
 			is_active: true,
 		});
