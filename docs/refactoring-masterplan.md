@@ -137,3 +137,18 @@ root stubs (STRATO clean-deploy safety), per `server-repo-drift` lessons.
 
 Verify each step: `php -l` changed files, `node --check` changed JS, deploy, then curl the
 migrated endpoint (success + an error path) and confirm the frontend still renders errors.
+
+## Open behavioural verification checks (M2 — deployed, not yet UI-smoke-tested)
+
+These two M2 fixes are client-side; they passed `node --check` and are deployed, but their
+runtime behaviour was not exercised in a browser. Worth a quick manual pass in the editor:
+
+1. **Political-layer edit freshness** (loader trio, `cacff63b`). In a political/region map mode,
+   edit + save a region (colour/zoom/geometry) → the change must appear **immediately**, not after
+   up to 60s (the multi-zoom fan-out cache is now cleared on edit-triggered `immediate:true` reloads).
+   Also pan/zoom rapidly during a layer load → no stale pan-skip (TOCTOU fix) and no reload storm
+   (pending-rerun coalesces). Watch the network tab: no runaway `political-territories` requests.
+2. **Dirty region-tab close dialog** (`a78b82d1`). Open a region-edit tab, make an unsaved change,
+   click the tab's close (×) → the 3-way dialog **Speichern / Verwerfen / Abbrechen** must appear
+   (previously: `ReferenceError`, tab wouldn't close). Check: Speichern saves+closes, Verwerfen
+   closes without saving, Abbrechen / Escape / backdrop-click keep the tab open.
