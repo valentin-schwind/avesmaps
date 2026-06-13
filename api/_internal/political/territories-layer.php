@@ -424,11 +424,15 @@ function avesmapsPoliticalAttachContestedParties(PDO $pdo, array $features): arr
 
     foreach ($features as &$feature) {
         $properties = $feature['properties'] ?? [];
-        // Tiefzoom: Feature zeigt den Vorfahren, das umstrittene Quellgebiet steht in aggregate_source_*.
-        $disputedPublicId = trim((string) ($properties['aggregate_source_territory_public_id'] ?? ''));
-        if ($disputedPublicId === '') {
-            $disputedPublicId = trim((string) ($properties['territory_public_id'] ?? ''));
+        // NUR auf der EIGENEN Ebene schraffieren. Ein Aggregat-Feature (is_aggregate, Tiefzoom) traegt die
+        // Geometrie des ANGEZEIGTEN Vorfahren (= ganzes Reich); wuerde man es via aggregate_source markieren,
+        // schraffiert das Overlay den GANZEN Reichs-Umriss -> EINE umstrittene Baronie laesst die ganze
+        // Markgrafschaft gestreift erscheinen (v.a. bei Tiefzoom/Mobile). Daher Aggregate ueberspringen ->
+        // die Schraffur erscheint erst, wenn das Gebiet auf seiner eigenen Ebene gerendert wird.
+        if (!empty($properties['is_aggregate'])) {
+            continue;
         }
+        $disputedPublicId = trim((string) ($properties['territory_public_id'] ?? ''));
         if ($disputedPublicId !== '' && isset($partiesByPublicId[$disputedPublicId])) {
             $feature['properties']['contestedParties'] = $partiesByPublicId[$disputedPublicId];
         }
