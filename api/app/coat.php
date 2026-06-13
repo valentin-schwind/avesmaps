@@ -148,7 +148,12 @@ try {
 
     // Cachen (best effort) und ausliefern.
     if (is_dir($dir) || @mkdir($dir, 0775, true) || is_dir($dir)) {
-        @file_put_contents($dir . '/' . $key . '.' . $ext, $bytes);
+        // Write atomically (temp + rename) so concurrent cache-misses cannot serve a truncated image.
+        $cachePath = $dir . '/' . $key . '.' . $ext;
+        $tmpPath = $cachePath . '.tmp.' . getmypid();
+        if (@file_put_contents($tmpPath, $bytes, LOCK_EX) !== false && !@rename($tmpPath, $cachePath)) {
+            @unlink($tmpPath);
+        }
     }
     avesmapsCoatEmit($bytes, $type);
 } catch (Throwable $error) {

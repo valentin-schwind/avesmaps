@@ -261,9 +261,10 @@ function avesmapsPoliticalAddClaim(PDO $pdo, array $payload, array $user): array
     $wikiKeyParam = $wikiKey !== '' ? $wikiKey : null;
     $userId = ((int) ($user['id'] ?? 0)) ?: null;
 
-    // Neue Claims ans Ende der Streifen-Reihenfolge.
+    // New claims go to the end of the stripe order; serialize concurrent adds with a row lock.
+    $pdo->beginTransaction();
     $maxStatement = $pdo->prepare(
-        'SELECT COALESCE(MAX(sort_order), -1) FROM political_territory_claim WHERE territory_id = :territory_id AND is_active = 1'
+        'SELECT COALESCE(MAX(sort_order), -1) FROM political_territory_claim WHERE territory_id = :territory_id AND is_active = 1 FOR UPDATE'
     );
     $maxStatement->execute([':territory_id' => $territory['id']]);
     $sortOrder = ((int) $maxStatement->fetchColumn()) + 1;
@@ -291,6 +292,8 @@ function avesmapsPoliticalAddClaim(PDO $pdo, array $payload, array $user): array
         ':created_by' => $userId,
         ':updated_by' => $userId,
     ]);
+
+    $pdo->commit();
 
     $list = avesmapsPoliticalListClaims($pdo, ['territory_public_id' => $territory['public_id']]);
 
