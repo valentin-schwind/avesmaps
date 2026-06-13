@@ -52,7 +52,7 @@ This document is the living tracker. See `AGENTS.md` for the project brief.
 | **M0.5** | `AGENTS.md` + `CLAUDE.md` + this doc | ✅ done | living AI brief + English masterplan |
 | **M1** | Security | ✅ done (`7432f1e1`→`09ee68ad`) | neutralized 3 unauth wiki-dom crawler endpoints with 410 stubs + removed dead playground UI (verified `/edit → WikiSync` uses sync-monitor.php, not these); stopped 9 bare-Throwable `getMessage()` leaks; atomic `coat.php` cache write; `add_claim` transaction + `FOR UPDATE`. CORS: 2 of 3 divergent impls gone via stubbing; the wiki-browser `applyCors` (non-exploitable) is deferred to M3 with the parallel-stack migration. Live-verified: `dom-sync.php`→410, `/api/locations/`→200. |
 | **M2** | Correctness bugs | ✅ done | IZ/`bis` word-boundary parsers (`9d4a801b`), spotlight poll cancel (`70a8c1e9`), zoom-band unified to 0-1/2-6 (`8fa18991`), route-graph `calculateRouteServer` shadow removed (`11037917`, live-verified), political loader trio — TOCTOU zoom + edit-time fan-out cache invalidation + pending-rerun + cache eviction (`cacff63b`, deploy-verified; `apiUnavailable` intentionally left self-healing — see commit), `askRegionTabCloseChoice` 3-way dialog (`a78b82d1`). ↪ moved to M5: `refreshPlannerAfterFeatureChange` dedup (harmless dead code in a CRLF file). NB: loader + dialog are client-side; behavioural smoke (open editor, pan/zoom political layer, edit+save a region, close a dirty tab) is the meaningful live test. |
-| **M3** | API contract + remove shims (breaking) | in progress | ✅ foundation (`5df56d2a`) + ✅ step 1 frontend tolerance (`00f59fc2`): `apiErrorMessage` helper + ~40 read sites accept both `error:"string"` and `error:{code,message}` (live-verified against both shapes) + ✅ step 2 auth 401/403 split (`3b946189`, 401 live-verified). 🔄 step 3 in progress: app/ cluster ✅ done (8 endpoints, `44d02c8d`→`9e4536bd`, live-verified); next = edit/* clusters + wiki-browser parallel stack. ⏳ steps 4–6 (shims, multiplexer split, core move). |
+| **M3** | API contract + remove shims (breaking) | in progress | ✅ foundation (`5df56d2a`) + ✅ step 1 frontend tolerance (`00f59fc2`): `apiErrorMessage` helper + ~40 read sites accept both `error:"string"` and `error:{code,message}` (live-verified against both shapes) + ✅ step 2 auth 401/403 split (`3b946189`, 401 live-verified). 🔄 step 3 in progress: app/ ✅ (8), edit/map ✅ (3), edit/political ✅ (3), edit/reports ✅ (1), diagnostics ✅ (1) — 16 endpoints migrated + live-verified (`44d02c8d`→`d875cf11`). Remaining: edit/wiki cluster + `wiki-browser-endpoint.php` parallel stack. ⏳ steps 4–6 (shims, multiplexer split, core move). |
 | **M4** | DRY | planned | PHP request runner, single `valid_to_bf`, BF parser, `wiki-crawler-base.php`; JS `territory-utils.js`, infobox-row, `debounce` |
 | **M5** | God-file splits | planned | per split tables, one file at a time, deploy+test between; CSS source split, rename duplicate filename, treat `*-inline.css` as generated |
 | **M6** | Performance | planned | derived-layer N+1 memo, DDL out of cache-hit path, political teardown → signature-skip, polylabel memo, fetch-interceptor, bound+invalidate fan-out cache |
@@ -154,7 +154,17 @@ diagnostics. Migrate `wiki-browser-endpoint.php` off its parallel stack (own
 >
 > **edit/political cluster ✅ DONE** — `assignment-zoom-sync.php` (`25a8bb8f`, catch split
 > 400/500), `display-overrides.php` (`2b6a425c`), `subtree-display.php` (`2de4e2d0`). All
-> live-verified (401 + 405). NEXT: edit/reports → edit/wiki → import → diagnostics → wiki-browser.
+> live-verified (401 + 405).
+>
+> **edit/reports + diagnostics ✅ DONE** (`d875cf11`): `edit/reports/locations.php` (401 live-verified;
+> NB its auth gate runs BEFORE the method check, so the 405 path isn't externally reachable without a
+> session — the 401 is the smoke signal), `diagnostics/political-schema.php` (verified by `php -l`+diff
+> only — the `api/diagnostics/` dir is `.htaccess`-denied, so it returns an Apache 403 over HTTP, not
+> web-smoke-able). **`api/import/` is EMPTY** (no import endpoint exists — drop it from the plan).
+> NEXT (remaining Step 3): edit/wiki cluster (paths, regions, settlements, settlement-coat-upload,
+> sync-monitor[260L endpoint], + the 3 M1 410-stubs dom-source/dom-sync/playground-seed; sync.php &
+> territories.php have no flat errors) → then `political-territory-wiki.php`→`wiki-browser-endpoint.php`
+> parallel-stack migration (the last CORS divergence). `app/political-territories.php` multiplexer = Step 5.
 
 **Step 4 — remove shims/wrappers/alias actions.** Root shims
 `api/{political-territory-lib,wiki-sync-lib}.php` (update 9 + 1 callers to require the
