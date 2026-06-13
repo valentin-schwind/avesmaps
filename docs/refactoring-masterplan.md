@@ -152,3 +152,21 @@ runtime behaviour was not exercised in a browser. Worth a quick manual pass in t
    click the tab's close (×) → the 3-way dialog **Speichern / Verwerfen / Abbrechen** must appear
    (previously: `ReferenceError`, tab wouldn't close). Check: Speichern saves+closes, Verwerfen
    closes without saving, Abbrechen / Escape / backdrop-click keep the tab open.
+
+## Diagnosed issue — coat-of-arms (Wappen) blink in the Politik view (fix belongs to M6)
+
+Reported 2026-06-13; diagnosed read-only (NOT caused by M1/M2 — verified).
+**Root cause:** in the `political` map mode the whole layer is torn down and rebuilt on every
+`moveend`/`zoomend` (`bootstrap.js:55/61`), because the "skip reload on same-zoom pan" guard is
+deliberately disabled for political mode (`map-features-political-territory-loader.js:538-542`).
+Each rebuild does `clearRenderedRegionLayers()` (`map-features-region-rendering.js:65-77`) then
+re-creates every region label tooltip with a **fresh** `<img src="/api/app/coat.php?u=…">`
+(`map-features.js:678-679`) → the recreated element re-displays → visible blink. Confined to the
+Politik view (boundary-only modes skip same-zoom pan and draw no labels).
+Ruled out: `coat.php` atomic-write change `09ee68ad` (serving-safe, always emits bytes, immutable
+Cache-Control) and loader-trio `cacff63b` (did not change reload frequency).
+**Fix (M6, shared root with perf lever #1 "political full teardown+rebuild per moveend"):** reuse
+label layers instead of destroying them — keep tooltips keyed by territory and only `setContent`/
+reposition when the coat URL or name actually changed, so the already-loaded `<img>` survives the
+reload. Doubles as a pan/zoom perf win. Key files: `map-features-region-rendering.js`,
+`map-features-political-territory-loader.js`, `map-features.js`.
