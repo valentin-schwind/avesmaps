@@ -215,44 +215,58 @@ function unionDerivedSources(response) {
 	};
 }
 
-// Umstrittene-Gebiete-Split -- Reihenfolge HEILIG: erst Union+Grenzen, DANN schneiden. Aus den
-// umstrittenen Quellflaechen (sources.contested_territory_public_ids) wird pro Baronie ein
-// Schraffur-Stueck gebildet und die Restflaeche = Union MINUS alle Konflikte (Loecher -> Terrain
-// scheint durch). Liefert {fillRemainder, contestedPieces} oder beides null (kein Konflikt ->
-// Verhalten wie bisher). Beruehrt NIE Union/Innengrenzen (die sind da schon berechnet).
+// Umstrittene-Gebiete-Split -- Reihenfolge HEILIG: erst Union+Grenzen, DANN schneiden. Die umstrittenen
+// Baronien werden nach ihrer ANSPRUCHSTELLER-MENGE gruppiert (sources.contested_claimants) und je Gruppe
+// VEREINT -> eine einheitliche, durchgehende Schraffur (Reichsfarbe + Anspruchsteller; Besitzerfarbe setzt
+// der Server aufs Reich). Restflaeche = Union MINUS alle Konflikt-Baronien (Loecher -> Terrain). Un-
+// umstrittene Baronien sind NICHT in den Stuecken -> keine Streifen, normale Farbe. Liefert {fillRemainder,
+// contestedPieces} oder beides null (kein Konflikt). Beruehrt NIE Union/Innengrenzen (schon berechnet).
 function computeContestedDerivedSplit(sourcesResponse, unionGeometryGeoJson) {
 	const empty = { fillRemainder: null, contestedPieces: null };
 	const contestedKeys = new Set(Array.isArray(sourcesResponse?.contested_territory_public_ids) ? sourcesResponse.contested_territory_public_ids : []);
 	if (contestedKeys.size < 1 || !window.polygonClipping) return empty;
+	const claimantsByTerritory = (sourcesResponse && sourcesResponse.contested_claimants && typeof sourcesResponse.contested_claimants === "object") ? sourcesResponse.contested_claimants : {};
 	const sourceGeometries = Array.isArray(sourcesResponse?.source_geometries) ? sourcesResponse.source_geometries : [];
-	const contestedPieces = [];
-	const contestedClipping = [];
+	// Gruppieren nach Anspruchsteller-Menge: key = sortierte claimant-public_ids.
+	const groups = new Map(); // key -> { rep, name, clippings: [] }
+	const allContestedClipping = [];
 	sourceGeometries.forEach((entry) => {
 		if (!entry || !contestedKeys.has(entry.territory_public_id)) return;
 		const clip = geoJsonGeometryToClippingMultiPolygon(entry.geometry);
 		if (!Array.isArray(clip) || clip.length < 1) return;
-		contestedClipping.push(clip);
-		// Stueck-Geometrie = die Quell-Baronie selbst (sie ist Teil des Reichs -> deckt exakt das
-		// Loch in der Restflaeche). Parteifarben haengt der Server beim Ausliefern dran.
-		contestedPieces.push({
-			territory_public_id: entry.territory_public_id,
-			name: entry.territory_name || "",
-			geometry: entry.geometry,
-		});
+		allContestedClipping.push(clip);
+		const claimants = Array.isArray(claimantsByTerritory[entry.territory_public_id]) ? claimantsByTerritory[entry.territory_public_id].slice().sort() : [];
+		const key = claimants.join("|");
+		if (!groups.has(key)) groups.set(key, { rep: entry.territory_public_id, name: entry.territory_name || "", clippings: [] });
+		groups.get(key).clippings.push(clip);
+	});
+	if (groups.size < 1) return empty;
+	// Je Gruppe die Baronie-Flaechen VEREINEN -> ein Stueck mit durchgehender Schraffur. Repraesentant-
+	// territory_public_id: der Server holt darueber die Parteien (alle in der Gruppe teilen dieselben).
+	const contestedPieces = [];
+	groups.forEach((grp) => {
+		let merged = null;
+		try {
+			const u = grp.clippings.length === 1 ? grp.clippings[0] : window.polygonClipping.union(...grp.clippings);
+			merged = clippingMultiPolygonToGeoJson(normalizeClippingMultiPolygon(u, "Konflikt-Flaeche"));
+		} catch (error) {
+			console.warn("Konflikt-Gruppe Union fehlgeschlagen:", error);
+			try { merged = clippingMultiPolygonToGeoJson(normalizeClippingMultiPolygon(grp.clippings[0], "Konflikt-Flaeche")); } catch (e2) { merged = null; }
+		}
+		if (merged) contestedPieces.push({ territory_public_id: grp.rep, name: grp.name, geometry: merged });
 	});
 	if (contestedPieces.length < 1) return empty;
+	// Restflaeche = Union MINUS alle Konflikt-Baronien. Leer, wenn ALLE Baronien umstritten sind (dann
+	// ganz Schraffur/Terrain, keine normale Fuellung). contested_pieces bleiben in jedem Fall erhalten.
 	const unionClip = geoJsonGeometryToClippingMultiPolygon(unionGeometryGeoJson);
-	if (!Array.isArray(unionClip) || unionClip.length < 1) return empty;
-	// Default = leere Restflaeche: tritt auf, wenn ALLE Baronien des Reichs umstritten sind
-	// (Union - Konflikte = leer). Dann gibt es keine normale Fuellung -> ganz Schraffur/Terrain.
-	// contested_pieces MUSS in jedem Fall erhalten bleiben (sonst verliert das Reich die Schraffur).
 	let fillRemainder = { type: "MultiPolygon", coordinates: [] };
 	try {
-		const remainderClip = window.polygonClipping.difference(unionClip, ...contestedClipping);
-		if (Array.isArray(remainderClip) && remainderClip.length > 0) {
-			fillRemainder = clippingMultiPolygonToGeoJson(normalizeClippingMultiPolygon(remainderClip, "Restfläche"));
+		if (Array.isArray(unionClip) && unionClip.length > 0) {
+			const remainderClip = window.polygonClipping.difference(unionClip, ...allContestedClipping);
+			if (Array.isArray(remainderClip) && remainderClip.length > 0) {
+				fillRemainder = clippingMultiPolygonToGeoJson(normalizeClippingMultiPolygon(remainderClip, "Restfläche"));
+			}
 		}
-		// sonst: Differenz leer -> ganz umstritten -> fillRemainder bleibt leeres MultiPolygon.
 	} catch (error) {
 		console.warn("Konflikt-Split: Restflaeche leer/fehlgeschlagen -> Reich ganz umstritten:", error);
 		fillRemainder = { type: "MultiPolygon", coordinates: [] };

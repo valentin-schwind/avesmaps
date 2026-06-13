@@ -107,6 +107,39 @@ function avesmapsPoliticalFilterContestedSourceTerritoryPublicIds(PDO $pdo, arra
     return array_map('strval', $statement->fetchAll(PDO::FETCH_COLUMN));
 }
 
+// Map: umstrittene Quell-territory_public_id -> [claimant_public_id, ...] (nach sort_order). Damit der
+// Client die Konflikt-Baronien nach GLEICHER Anspruchsteller-Menge gruppieren und ihre Flaechen vereinen
+// kann (eine einheitliche Schraffur bei Tiefzoom). Nur umstrittene Quellen tauchen auf.
+function avesmapsPoliticalFetchContestedClaimantsBySource(PDO $pdo, array $territoryIds): array {
+    $ids = array_values(array_unique(array_filter(array_map('intval', $territoryIds), static fn(int $id): bool => $id > 0)));
+    if ($ids === []) {
+        return [];
+    }
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    try {
+        $statement = $pdo->prepare(
+            'SELECT owner.public_id AS owner_public_id, claimant.public_id AS claimant_public_id
+            FROM political_territory_claim claim
+            INNER JOIN political_territory owner ON owner.id = claim.territory_id AND owner.is_active = 1
+            INNER JOIN political_territory claimant ON claimant.id = claim.claimant_territory_id AND claimant.is_active = 1
+            WHERE claim.is_active = 1 AND claim.territory_id IN (' . $placeholders . ')
+            ORDER BY claim.sort_order ASC, claim.id ASC'
+        );
+        $statement->execute($ids);
+    } catch (Throwable) {
+        return [];
+    }
+    $map = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $owner = (string) $row['owner_public_id'];
+        if (!isset($map[$owner])) {
+            $map[$owner] = [];
+        }
+        $map[$owner][] = (string) $row['claimant_public_id'];
+    }
+    return $map;
+}
+
 function avesmapsPoliticalReadDerivedGeometrySources(PDO $pdo, array $query): array {
     $target = avesmapsPoliticalResolveDerivedGeometryTarget($pdo, $query, false);
     $territories = avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo);
@@ -149,6 +182,9 @@ function avesmapsPoliticalReadDerivedGeometrySources(PDO $pdo, array $query): ar
         'source_mode' => $sourceMode,
         'source_territory_ids' => $sourceTerritoryIds,
         'contested_territory_public_ids' => avesmapsPoliticalFilterContestedSourceTerritoryPublicIds($pdo, $sourceTerritoryIds),
+        // Map territory_public_id -> [claimant_public_id, ...] (nach sort_order). Der Client gruppiert die
+        // Konflikt-Baronien nach gleicher Anspruchsteller-Menge und vereint ihre Flaechen (eine Schraffur).
+        'contested_claimants' => avesmapsPoliticalFetchContestedClaimantsBySource($pdo, $sourceTerritoryIds),
         'descendant_territory_count' => count($descendantIds),
     ];
 }

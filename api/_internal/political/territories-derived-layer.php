@@ -286,7 +286,13 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
             : null;
         $contestedPiecesRaw = avesmapsPoliticalDecodeJson($row['contested_pieces_geojson'] ?? null);
         $feature['properties']['contested_pieces'] = (is_array($contestedPiecesRaw) && $contestedPiecesRaw !== [])
-            ? avesmapsPoliticalEnrichDerivedContestedPieces($pdo, $contestedPiecesRaw)
+            ? avesmapsPoliticalEnrichDerivedContestedPieces(
+                $pdo,
+                $contestedPiecesRaw,
+                (string) ($feature['properties']['name'] ?? ''),
+                (string) ($feature['properties']['fill'] ?? ''),
+                (float) ($row['opacity'] ?? 0.75)
+            )
             : null;
         $feature['properties']['derived_fill_active'] = $inFillBand;
         // Label nur im eigenen Fuellband; ausserhalb ist die Derived nur ein Umriss.
@@ -408,7 +414,7 @@ function avesmapsPoliticalFetchClaimPartiesByPublicId(PDO $pdo, array $publicIds
 
 // contested_pieces der Derived [{territory_public_id, geometry, name?}] mit Parteifarben anreichern.
 // Stuecke ohne aktiven Claim werden verworfen (die Fuellung deckt sie dann normal ab).
-function avesmapsPoliticalEnrichDerivedContestedPieces(PDO $pdo, array $pieces): ?array {
+function avesmapsPoliticalEnrichDerivedContestedPieces(PDO $pdo, array $pieces, string $ownerName = '', string $ownerColor = '', float $ownerOpacity = 0.75): ?array {
     $publicIds = [];
     foreach ($pieces as $piece) {
         if (is_array($piece)) {
@@ -416,6 +422,7 @@ function avesmapsPoliticalEnrichDerivedContestedPieces(PDO $pdo, array $pieces):
         }
     }
     $partiesByPublicId = avesmapsPoliticalFetchClaimPartiesByPublicId($pdo, $publicIds);
+    $normalizedOwnerColor = preg_match('/^#[0-9a-fA-F]{6}$/', $ownerColor) === 1 ? substr($ownerColor, 0, 7) : '';
     $enriched = [];
     foreach ($pieces as $piece) {
         if (!is_array($piece)) {
@@ -426,9 +433,19 @@ function avesmapsPoliticalEnrichDerivedContestedPieces(PDO $pdo, array $pieces):
         if ($publicId === '' || !is_array($geometry) || !isset($geometry['type'])) {
             continue;
         }
-        $parties = $partiesByPublicId[$publicId] ?? [];
+        $parties = array_values($partiesByPublicId[$publicId] ?? []);
         if ($parties === []) {
             continue;
+        }
+        // Besitzer-Streifen = das ANGEZEIGTE Reich (uniform), NICHT die einzelne Baronie. So sehen gleiche
+        // Konflikte gleich aus (parties[0] ist der Besitzer -- FetchClaimPartiesByPublicId liefert owner zuerst).
+        if ($normalizedOwnerColor !== '') {
+            $parties[0] = [
+                'name' => $ownerName !== '' ? $ownerName : (string) ($parties[0]['name'] ?? ''),
+                'color' => $normalizedOwnerColor,
+                'opacity' => $ownerOpacity,
+                'owner' => true,
+            ];
         }
         $enriched[] = [
             'territory_public_id' => $publicId,
