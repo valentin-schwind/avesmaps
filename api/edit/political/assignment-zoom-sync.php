@@ -9,7 +9,7 @@ require_once __DIR__ . '/../../political-territory-lib.php';
 try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, ['ok' => false, 'error' => 'Diese Herkunft darf Herrschaftsgebiets-Zoomstufen nicht synchronisieren.']);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf Herrschaftsgebiets-Zoomstufen nicht synchronisieren.');
     }
 
     $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -17,7 +17,7 @@ try {
         avesmapsJsonResponse(204);
     }
     if ($method !== 'POST') {
-        avesmapsJsonResponse(405, ['ok' => false, 'error' => 'Nur POST ist erlaubt.']);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur POST ist erlaubt.');
     }
 
     avesmapsRequireUserWithCapability('edit');
@@ -29,13 +29,10 @@ try {
     $result = avesmapsPoliticalSyncAssignmentZoomsAcrossGeometries($pdo, $zoomByTerritory);
 
     avesmapsJsonResponse(200, ['ok' => true] + $result);
+} catch (InvalidArgumentException $exception) {
+    avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
 } catch (Throwable $exception) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => $exception instanceof InvalidArgumentException
-            ? $exception->getMessage()
-            : 'Die Herrschaftsgebiets-Zoomstufen konnten nicht synchronisiert werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Die Herrschaftsgebiets-Zoomstufen konnten nicht synchronisiert werden.');
 }
 
 function avesmapsPoliticalReadAssignmentZoomSyncPayload(array $payload): array {
