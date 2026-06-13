@@ -196,6 +196,24 @@ function applyRegionHoverHighlight(regionEntry) {
 			}
 		});
 	}
+	// Neues Split-Modell: bei einer Derived stecken die Konflikt-Baronien in contested_pieces (nicht als
+	// eigene contestedParties-Features) -> deren Geometrien ebenfalls als Loecher, damit der Hover-Wash die
+	// Schraffur stehen laesst (sonst deckt das Weiss die Streifen zu).
+	for (let i = 0; i < rd.length; i += 1) {
+		const props = (rd[i] && rd[i].properties) || {};
+		if (String(props.territory_public_id || "") !== aggKey || !Array.isArray(props.contested_pieces)) {
+			continue;
+		}
+		props.contested_pieces.forEach((piece) => {
+			const g = piece && piece.geometry;
+			const ps = g && g.type === "Polygon" ? [g.coordinates] : (g && g.type === "MultiPolygon" ? g.coordinates : []);
+			ps.forEach((polyRings) => {
+				if (polyRings && polyRings[0]) {
+					contestedHoleRings.push(polyRings[0].map((c) => [Number(c[1]), Number(c[0])]));
+				}
+			});
+		});
+	}
 	if (agg && agg.geometry) {
 		count = buildHoverPolygonsFromGeometry(agg.geometry, pane, group, contestedHoleRings);
 	}
