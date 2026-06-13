@@ -14,10 +14,7 @@ try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, [
-            'ok' => false,
-            'error' => 'Diese Herkunft darf Kartendaten nicht bearbeiten.',
-        ]);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf Kartendaten nicht bearbeiten.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'POST'));
@@ -26,10 +23,7 @@ try {
     }
 
     if ($requestMethod !== 'POST' && $requestMethod !== 'PATCH' && $requestMethod !== 'DELETE') {
-        avesmapsJsonResponse(405, [
-            'ok' => false,
-            'error' => 'Nur POST, PATCH oder DELETE sind fuer diesen Endpoint erlaubt.',
-        ]);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur POST, PATCH oder DELETE sind fuer diesen Endpoint erlaubt.');
     }
 
     $user = avesmapsRequireUserWithCapability('edit');
@@ -66,30 +60,15 @@ try {
         'feature' => $result,
     ]);
 } catch (InvalidArgumentException $exception) {
-    avesmapsJsonResponse(400, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
+    avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
 } catch (AvesmapsConflictException $exception) {
-    avesmapsJsonResponse(409, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
+    avesmapsErrorResponse(409, 'conflict', $exception->getMessage());
 } catch (PDOException) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Das Kartenobjekt konnte nicht gespeichert werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Das Kartenobjekt konnte nicht gespeichert werden.');
 } catch (RuntimeException $exception) {
-    avesmapsJsonResponse(503, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
+    avesmapsErrorResponse(503, 'service_unavailable', $exception->getMessage());
 } catch (Throwable) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Das Kartenobjekt konnte nicht verarbeitet werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Das Kartenobjekt konnte nicht verarbeitet werden.');
 }
 
 function avesmapsReadMapFeaturePublicId(mixed $value): string {
