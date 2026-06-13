@@ -312,3 +312,18 @@ function avesmapsClientIpAddress(): string {
 
     return mb_substr(trim((string) ($_SERVER['REMOTE_ADDR'] ?? '')), 0, 64);
 }
+
+function avesmapsErrorResponse(int $statusCode, string $code, string $message): never {
+    avesmapsJsonResponse($statusCode, [
+        'ok' => false,
+        'error' => [
+            'code' => $code,
+            'message' => $message,
+        ],
+    ]);
+}
+
+function avesmapsServerErrorResponse(Throwable $error, string $context = ''): never {
+    error_log('avesmaps' . ($context !== '' ? ' ' . $context : '') . ': ' . $error->getMessage());
+    avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
+}
