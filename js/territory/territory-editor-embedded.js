@@ -1578,15 +1578,17 @@
 		}
 
 		function getZoomPreset(pathLength, index) {
+			// Canonical zoom bands, unified with territory-editor-ui-hints.js / -inheritance.js (0-1 / 2-6 split).
 			const presets = {
 				1: [[0, 6]],
-				2: [[0, 2], [3, 6]],
-				3: [[0, 2], [3, 4], [5, 6]],
-				4: [[0, 2], [3, 4], [5, 5], [6, 6]],
-				5: [[0, 2], [3, 3], [4, 4], [5, 5], [6, 6]]
+				2: [[0, 1], [2, 6]],
+				3: [[0, 1], [2, 3], [4, 6]],
+				4: [[0, 1], [2, 2], [3, 3], [4, 6]],
+				5: [[0, 1], [2, 2], [3, 3], [4, 4], [5, 6]],
+				6: [[0, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6]]
 			};
 
-			const normalizedLength = Math.max(1, Math.min(5, pathLength));
+			const normalizedLength = Math.max(1, Math.min(6, pathLength));
 			const normalizedIndex = Math.max(0, Math.min(index, normalizedLength - 1));
 			const [from, to] = presets[normalizedLength][normalizedIndex];
 
