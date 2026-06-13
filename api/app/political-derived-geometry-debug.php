@@ -16,10 +16,7 @@ try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, [
-            'ok' => false,
-            'error' => 'Diese Herkunft darf Herrschaftsgebiets-Diagnosen nicht laden.',
-        ]);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf Herrschaftsgebiets-Diagnosen nicht laden.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -27,10 +24,7 @@ try {
         avesmapsJsonResponse(204);
     }
     if ($requestMethod !== 'GET') {
-        avesmapsJsonResponse(405, [
-            'ok' => false,
-            'error' => 'Nur GET ist fuer diese Diagnose erlaubt.',
-        ]);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET ist fuer diese Diagnose erlaubt.');
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
@@ -154,9 +148,5 @@ try {
         'rows' => $rows,
     ]);
 } catch (Throwable $exception) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Die Derived-Geometry-Diagnose konnte nicht geladen werden.',
-        'exception' => null,
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Die Derived-Geometry-Diagnose konnte nicht geladen werden.');
 }
