@@ -147,7 +147,10 @@ diagnostics. Migrate `wiki-browser-endpoint.php` off its parallel stack (own
 > `map-features`+`political-derived-geometry-debug` (`9e4536bd`, latter drops dead
 > `exception:null`). Remaining app/: `political-territories.php` = the multiplexer → Step 5;
 > `political-territory-wiki.php` → `wiki-browser-endpoint.php` parallel stack (end of Step 3).
-> NEXT: edit/map cluster.
+>
+> **edit/map cluster ✅ DONE** — `presence.php` (`3f4c4302`), `audit-log.php` (`9bfbf6ad`),
+> `features.php` (`e8570045`, 7 main-handler responses; internal helper catches untouched).
+> All live-verified via the 401 (no-session auth gate) + 405 paths. NEXT: edit/political cluster.
 
 **Step 4 — remove shims/wrappers/alias actions.** Root shims
 `api/{political-territory-lib,wiki-sync-lib}.php` (update 9 + 1 callers to require the
