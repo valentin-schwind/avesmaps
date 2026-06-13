@@ -41,6 +41,10 @@ try {
         'update_validity' => avesmapsPoliticalSubtreeDisplayUpdateValidity($pdo, $payload, $user),
         'inherit_colors' => avesmapsPoliticalSubtreeDisplayInheritColors($pdo, $payload, $user),
         'inherit_opacity' => avesmapsPoliticalSubtreeDisplayInheritOpacity($pdo, $payload, $user),
+        // Reiner Cache-Buster ohne Datenaenderung: die Invalidierung unten (Z. ~54) laeuft nach jeder
+        // Aktion -> hier genuegt eine OK-Antwort. Praktisch nach Code-Deploys, die den Layer aendern
+        // (z. B. Schraffur-Logik), damit der naechste Load frisch ist statt bis zum TTL gecacht.
+        'invalidate_layer_cache' => ['ok' => true, 'invalidated' => true],
         default => throw new InvalidArgumentException('Die Subtree-Darstellungsaktion ist unbekannt.'),
     };
 
