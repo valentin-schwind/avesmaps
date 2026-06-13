@@ -176,8 +176,10 @@ is the default, English is opt-in. Therefore:
 
 - **Server↔repo drift:** the prod webroot has PHP files not in the repo (deploy
   never deletes). "Not in the repo" ≠ "safe to delete". Root shims
-  `api/{auth,bootstrap,political-territory-lib,wiki-sync-lib}.php` are
-  load-bearing for clean deploys.
+  `api/{auth,bootstrap}.php` are load-bearing for clean deploys (the
+  `political-territory-lib`/`wiki-sync-lib` lib shims were removed in M3 step 4
+  after repointing all callers to their `_internal/` targets; auth/bootstrap move
+  to `_internal/core/` in M3 step 6).
 - **`territories-endpoint.php` runs DDL + metadata probes before its cache read**
   on every political-layer request; the derived layer has an N+1 over the full
   territory table. Both are perf hotspots (milestone M6).

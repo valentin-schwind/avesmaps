@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 require __DIR__ . '/../api/bootstrap.php';
-require_once __DIR__ . '/../api/political-territory-lib.php';
+require_once __DIR__ . '/../api/_internal/political/territory.php';
 
 $arguments = avesmapsParseDisplayResetArguments($argv ?? []);
 
