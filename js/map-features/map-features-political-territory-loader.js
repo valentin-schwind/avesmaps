@@ -16,6 +16,7 @@ const TERRITORY_BOUNDARY_MODES = ["political", "deregraphic"];
 // Zoomstufe, fuer die der Layer zuletzt geladen wurde -> pan-sicheres Nachladen (Daten sind zoom-, nicht
 // bbox-abhaengig: reines Pannen bei gleichem Zoom braucht keinen erneuten 1.22MB-Fetch).
 let politicalTerritoryLayerLoadedZoom = null;
+let politicalTerritoryLayerReloadPending = null;
 
 function hasLoadedDerivedRegionData() {
 	const rows = Array.isArray(window.regionData) ? window.regionData : (typeof regionData !== "undefined" ? regionData : []);
@@ -368,6 +369,12 @@ async function readPoliticalTerritoryLayerFallbacks(originalFetch, requestUrl, i
 	fallbackPromise.__resolvedLayers = null;
 	fallbackPromise.then((layers) => { fallbackPromise.__resolvedLayers = layers; });
 
+	// Evict expired entries so the cache cannot grow unbounded (e.g. timeline scrubbing across many years).
+	for (const [key, entry] of politicalTerritoryLayerFetchCache) {
+		if (now - entry.createdAt >= POLITICAL_TERRITORY_LAYER_FETCH_CACHE_TTL_MS) {
+			politicalTerritoryLayerFetchCache.delete(key);
+		}
+	}
 	politicalTerritoryLayerFetchCache.set(cacheKey, {
 		createdAt: now,
 		promise: fallbackPromise,
@@ -500,10 +507,25 @@ document.body.classList.toggle("edit-mode", IS_EDIT_MODE);
 [0, 50, 250].forEach((delay) => window.setTimeout(installPoliticalRegionVisibilityBehavior, delay));
 document.addEventListener("DOMContentLoaded", installPoliticalRegionVisibilityBehavior, { once: true });
 
+function invalidatePoliticalTerritoryLayerFetchCache() {
+	politicalTerritoryLayerFetchCache.clear();
+}
+
 function schedulePoliticalTerritoryLayerReload({ immediate = false } = {}) {
 	const mapLayerMode = getSelectedMapLayerMode();
-	if (!POLITICAL_TERRITORIES_API_URL || politicalTerritoryApiUnavailable || isPoliticalTerritoryLayerLoading || !TERRITORY_BOUNDARY_MODES.includes(mapLayerMode)) {
+	if (!POLITICAL_TERRITORIES_API_URL || politicalTerritoryApiUnavailable || !TERRITORY_BOUNDARY_MODES.includes(mapLayerMode)) {
 		return;
+	}
+	// A reload requested while a load is in flight must not be dropped: remember it and re-run it once the
+	// current load finishes (otherwise a pan/zoom/edit landing mid-load is silently lost until the next event).
+	if (isPoliticalTerritoryLayerLoading) {
+		politicalTerritoryLayerReloadPending = { immediate };
+		return;
+	}
+	// Edit/save paths call with immediate:true -> drop the stale multi-zoom fan-out cache so freshly saved
+	// geometry/styles are refetched instead of served from the up-to-60s cache.
+	if (immediate) {
+		invalidatePoliticalTerritoryLayerFetchCache();
 	}
 	// (2) LAZY: in den reinen Grenzen-Modi (deregraphic/powerlines) erst ab Zoom 1 laden. Bei Zoom 0 ist die
 	// Grenzen-Deckkraft 0 (unsichtbar) -> kein Bedarf. Default-Start ist Zoom 0 -> spart den ~10MB-Startblock.
@@ -551,10 +573,13 @@ async function loadPoliticalTerritoryLayer() {
 	const requestSeq = window.__avesmapsPoliticalLayerRequestSeq;
 	isPoliticalTerritoryLayerLoading = true;
 	try {
+		// Capture the requested zoom ONCE, before any await, so loadedZoom reflects the zoom the data was
+		// fetched for (not a zoom the user changed to during the await -> no stale pan-skip / TOCTOU).
+		const requestedZoom = Math.round(map.getZoom());
 		const response = await fetchPoliticalTerritories({
 			action: "layer",
 			year_bf: politicalTimelineYear,
-			zoom: Math.round(map.getZoom()),
+			zoom: requestedZoom,
 			edit_mode: IS_EDIT_MODE ? 1 : 0,
 		});
 		// Kein Force pro Layer-Load mehr: der 1s-TTL haelt den Style-Cache aktuell,
@@ -579,7 +604,7 @@ async function loadPoliticalTerritoryLayer() {
 		regionData.forEach((region) => {
 			addRegionFeatureToMap(region, normalizeRegionFeature(region));
 		});
-		politicalTerritoryLayerLoadedZoom = Math.round(map.getZoom()); // fuer pan-sicheres Nachladen
+		politicalTerritoryLayerLoadedZoom = requestedZoom; // zoom captured before the await (no TOCTOU)
 		syncRegionVisibility();
 		window.AvesmapsBoundaryCanvasOverlay?.redraw?.();
 		// Konflikt-Schraffur mit den FRISCHEN regionData neu zeichnen (statt nur ueber die zeitbasierten
@@ -595,6 +620,11 @@ async function loadPoliticalTerritoryLayer() {
 		politicalTerritoryApiUnavailable = false;
 	} finally {
 		isPoliticalTerritoryLayerLoading = false;
+		if (politicalTerritoryLayerReloadPending) {
+			const pendingReload = politicalTerritoryLayerReloadPending;
+			politicalTerritoryLayerReloadPending = null;
+			schedulePoliticalTerritoryLayerReload(pendingReload);
+		}
 	}
 }
 
