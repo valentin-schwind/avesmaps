@@ -26,6 +26,14 @@
 	const STRIPE_WIDTH_RATIO = 1.25;  // Faktor je Zoomstufe
 	const STRIPE_WIDTH_MIN = 3;       // px Untergrenze (ganz rausgezoomt) -- feiner, damit auch kleine Flaechen bei Tiefzoom Streifen zeigen
 	const STRIPE_WIDTH_MAX = 22;      // px Obergrenze
+	// Pauschale Schraffur-Deckkraft (Nutzer-Wunsch 2026-06-13): ALLE Streifen mit EINER festen Deckkraft
+	// statt der je-Partei territory.opacity. 0.25 = deutlich transparenter (Gelaende scheint klar durch).
+	// Live justierbar via ?hatchopacity=0.25 (0..1).
+	const HATCH_FILL_OPACITY = (() => {
+		const m = /[?&]hatchopacity=([0-9.]+)/.exec(typeof location !== "undefined" ? location.search : "");
+		const v = m ? parseFloat(m[1]) : 0.25;
+		return Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.25;
+	})();
 
 	function stripeWidthForZoom(zoom) {
 		const z = Number.isFinite(zoom) ? zoom : STRIPE_WIDTH_REF_ZOOM;
@@ -111,7 +119,7 @@
 		let i = 0;
 		for (let x = -R; x <= R; x += w) {
 			const party = parties[((i % n) + n) % n] || {};
-			ctx.globalAlpha = clamp01(party.opacity != null ? party.opacity : 1);
+			ctx.globalAlpha = HATCH_FILL_OPACITY; // pauschal fuer ALLE Streifen (ignoriert je-Partei-Deckkraft)
 			ctx.fillStyle = party.color || "#888888";
 			ctx.fillRect(x, -R, w, 2 * R); // exakt aneinander, KEIN Ueberlapp -> keine doppelt gezeichneten
 			// Naehte (sonst zwei 0.75-Baender uebereinander = 0.94 an der Naht; bei Tiefzoom mit schmalen
