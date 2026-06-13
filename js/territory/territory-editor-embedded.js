@@ -2227,7 +2227,7 @@
 		// Folgt-dem-Klick: der zuletzt MANUELL (Breadcrumb/Baum) gewaehlte Knoten-Key. Wird bei frischem
 		// Oeffnen (Kontext-Gebiet wechselt) zurueckgesetzt -> dann zeigt der Block das geoeffnete Gebiet.
 		let contestedManualKey = "";
-		let contestedLastCtxKey = " ";
+		let contestedLastCtxKey = null;
 
 		function contestedClaimsApi(action, payload, method) {
 			const base = "/api/app/political-territories.php";
