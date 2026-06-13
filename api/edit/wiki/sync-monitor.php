@@ -255,6 +255,6 @@ try {
 } catch (Throwable $error) {
     avesmapsJsonResponse(500, [
         'ok' => false,
-        'error' => $error->getMessage(),
+        'error' => 'Internal server error.',
     ]);
 }

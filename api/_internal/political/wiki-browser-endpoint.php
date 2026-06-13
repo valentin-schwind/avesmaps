@@ -180,6 +180,6 @@ try {
 } catch (Throwable $error) {
     respondJson([
         'ok' => false,
-        'error' => $error->getMessage(),
+        'error' => 'Internal server error.',
     ], 500);
 }

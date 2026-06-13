@@ -100,5 +100,5 @@ try {
 
     avesmapsJsonResponse(200, ['ok' => true, 'coat' => $props['coat'], 'revision' => $revision]);
 } catch (Throwable $error) {
-    avesmapsJsonResponse(500, ['ok' => false, 'error' => $error->getMessage()]);
+    avesmapsJsonResponse(500, ['ok' => false, 'error' => 'Internal server error.']);
 }

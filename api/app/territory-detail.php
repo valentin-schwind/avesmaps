@@ -182,5 +182,5 @@ try {
         'coat' => $coat,
     ]);
 } catch (Throwable $error) {
-    avesmapsJsonResponse(500, ['ok' => false, 'error' => $error->getMessage()]);
+    avesmapsJsonResponse(500, ['ok' => false, 'error' => 'Internal server error.']);
 }

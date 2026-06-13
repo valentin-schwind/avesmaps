@@ -83,7 +83,7 @@ try {
     } catch (Throwable $exception) {
         $layerFeatureProbe = [
             'ok' => false,
-            'exception' => avesmapsPoliticalDebugExceptionPayload($exception),
+            'exception' => null,
         ];
     }
 
@@ -157,6 +157,6 @@ try {
     avesmapsJsonResponse(500, [
         'ok' => false,
         'error' => 'Die Derived-Geometry-Diagnose konnte nicht geladen werden.',
-        'exception' => avesmapsPoliticalDebugExceptionPayload($exception),
+        'exception' => null,
     ]);
 }
