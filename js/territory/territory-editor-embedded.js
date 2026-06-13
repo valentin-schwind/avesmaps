@@ -2429,10 +2429,12 @@
 			const editorCtx = window.AvesmapsEditorContext;
 			const ctxParam = (editorCtx && typeof editorCtx.param === "function") ? (k) => normalizeText(editorCtx.param(k, "") || "") : () => "";
 			const ctxWikiKey = ctxParam("wiki_key");
-			// Bei Aggregat-Anzeige ist territory_public_id der Vorfahre -> das echte Gebiet (Blatt) steht in
-			// aggregate_source. Das hat Vorrang, damit der Block die Claims des konkreten Gebiets zeigt.
-			const ctxAggSource = ctxParam("aggregate_source_territory_public_id");
-			const ctxTerritoryId = ctxAggSource || ctxParam("territory_public_id");
+			// Der Block folgt dem AKTIVEN Knoten (= Header/Breadcrumb), NICHT dem zoom-abhaengigen
+			// aggregate_source des Karten-Features: bei Tiefzoom zeigt ein Reich (Sokramor) eine Baronie als
+			// aggregate_source -> der Block zeigte dann faelschlich Baronie-Claims (Osterfelde) unter dem
+			// Header "Sokramor", und zwar zoom-abhaengig. Daher: aktiver Knoten zuerst, dann das Anzeige-Gebiet.
+			const nodeKey = normalizeText(node && node.row ? (node.row.wiki_key || node.row.public_id || "") : "");
+			const ctxTerritoryId = ctxParam("territory_public_id");
 			// Das Kontext-"wiki_key" kann beim KARTEN-Klick fälschlich die numerische wiki_id sein
 			// (buildPoliticalTerritoryEditorContext fällt auf wikiId zurück, weil Map-Features keinen echten
 			// wiki_key tragen) -> der Claims-Resolver scheitert an einer Zahl. Darum: ZUERST die zuverlässige
@@ -2444,8 +2446,9 @@
 				contestedLastCtxKey = ctxTerritoryId;
 				contestedManualKey = "";
 			}
-			// "Folgt dem Klick": hat der Nutzer in der Breadcrumb gewaehlt -> dessen Knoten; sonst das Kontext-Gebiet.
-			const wikiKey = contestedManualKey || ctxTerritoryId || (looksLikeWikiKey ? ctxWikiKey : "") || normalizeText(node && node.row ? node.row.wiki_key : "");
+			// "Folgt dem Klick": explizite Breadcrumb-Wahl zuerst; sonst der AKTIVE Knoten (Header), dann
+			// als Fallback das Anzeige-Gebiet aus dem Kontext. NICHT mehr aggregate_source (war zoom-abhaengig).
+			const wikiKey = contestedManualKey || nodeKey || ctxTerritoryId || (looksLikeWikiKey ? ctxWikiKey : "");
 			if (!wikiKey) {
 				block.hidden = true;
 				if (hint) hint.hidden = true;
