@@ -13,7 +13,7 @@ try {
     $config = avesmapsLoadApiConfig(__DIR__);
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, ['ok' => false, 'error' => 'Diese Herkunft darf Bewertungen nicht moderieren.']);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf Bewertungen nicht moderieren.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -88,14 +88,14 @@ try {
     }
 
     if ($requestMethod !== 'POST') {
-        avesmapsJsonResponse(405, ['ok' => false, 'error' => 'Nur GET und POST sind erlaubt.']);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET und POST sind erlaubt.');
     }
 
     $payload = avesmapsReadJsonRequest();
     $action = trim((string) ($payload['action'] ?? ''));
     $id = (int) ($payload['id'] ?? 0);
     if ($id <= 0) {
-        avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Es fehlt die Bewertungs-ID.']);
+        avesmapsErrorResponse(400, 'invalid_request', 'Es fehlt die Bewertungs-ID.');
     }
 
     if ($action === 'hide' || $action === 'unhide') {
@@ -110,7 +110,7 @@ try {
         avesmapsJsonResponse(200, ['ok' => true]);
     }
 
-    avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Unbekannte Aktion: ' . $action]);
+    avesmapsErrorResponse(400, 'invalid_request', 'Unbekannte Aktion: ' . $action);
 } catch (Throwable $error) {
-    avesmapsJsonResponse(500, ['ok' => false, 'error' => 'Internal server error.']);
+    avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
 }

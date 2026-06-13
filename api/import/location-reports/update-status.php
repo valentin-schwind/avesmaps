@@ -8,26 +8,17 @@ try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
     $configuredImportToken = avesmapsGetConfiguredImportApiToken($config);
     if ($configuredImportToken === '') {
-        avesmapsJsonResponse(503, [
-            'ok' => false,
-            'error' => 'Die Import-API ist auf dem Server noch nicht konfiguriert.',
-        ]);
+        avesmapsErrorResponse(503, 'service_unavailable', 'Die Import-API ist auf dem Server noch nicht konfiguriert.');
     }
 
     $requestToken = avesmapsReadImportApiTokenFromRequest();
     if ($requestToken === '' || !hash_equals($configuredImportToken, $requestToken)) {
-        avesmapsJsonResponse(401, [
-            'ok' => false,
-            'error' => 'Das Import-API-Token fehlt oder ist ungueltig.',
-        ]);
+        avesmapsErrorResponse(401, 'unauthenticated', 'Das Import-API-Token fehlt oder ist ungueltig.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
     if ($requestMethod !== 'POST') {
-        avesmapsJsonResponse(405, [
-            'ok' => false,
-            'error' => 'Nur POST-Anfragen sind fuer diesen Endpoint erlaubt.',
-        ]);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur POST-Anfragen sind fuer diesen Endpoint erlaubt.');
     }
 
     $requestPayload = avesmapsReadJsonRequest();
@@ -35,17 +26,11 @@ try {
     $newStatus = avesmapsNormalizeSingleLine((string) ($requestPayload['status'] ?? ''), 20);
 
     if ($reportId === false || $reportId <= 0) {
-        avesmapsJsonResponse(400, [
-            'ok' => false,
-            'error' => 'Es wurde keine gueltige report_id uebergeben.',
-        ]);
+        avesmapsErrorResponse(400, 'invalid_request', 'Es wurde keine gueltige report_id uebergeben.');
     }
 
     if ($newStatus === '') {
-        avesmapsJsonResponse(400, [
-            'ok' => false,
-            'error' => 'Es wurde kein gueltiger Status uebergeben.',
-        ]);
+        avesmapsErrorResponse(400, 'invalid_request', 'Es wurde kein gueltiger Status uebergeben.');
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
@@ -62,10 +47,7 @@ try {
     ]);
 
     if ($statement->rowCount() < 1) {
-        avesmapsJsonResponse(404, [
-            'ok' => false,
-            'error' => 'Die gewuenschte Ortsmeldung wurde nicht gefunden.',
-        ]);
+        avesmapsErrorResponse(404, 'not_found', 'Die gewuenschte Ortsmeldung wurde nicht gefunden.');
     }
 
     avesmapsJsonResponse(200, [
@@ -73,23 +55,11 @@ try {
         'message' => 'Der Status der Ortsmeldung wurde aktualisiert.',
     ]);
 } catch (InvalidArgumentException $exception) {
-    avesmapsJsonResponse(400, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
+    avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
 } catch (PDOException $exception) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Der Status der Ortsmeldung konnte nicht aktualisiert werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Der Status der Ortsmeldung konnte nicht aktualisiert werden.');
 } catch (RuntimeException $exception) {
-    avesmapsJsonResponse(503, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
+    avesmapsErrorResponse(503, 'service_unavailable', $exception->getMessage());
 } catch (Throwable $exception) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Der Status der Ortsmeldung konnte nicht verarbeitet werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Der Status der Ortsmeldung konnte nicht verarbeitet werden.');
 }
