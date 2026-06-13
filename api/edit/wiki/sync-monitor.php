@@ -18,10 +18,7 @@ try {
     $config = avesmapsLoadApiConfig(__DIR__);
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, [
-            'ok' => false,
-            'error' => 'Diese Herkunft darf den Sync-Monitor nicht verwenden.',
-        ]);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf den Sync-Monitor nicht verwenden.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -151,7 +148,7 @@ try {
         };
 
         if ($response === null) {
-            avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Unbekannte Sync-Monitor-POST-Action: ' . $action]);
+            avesmapsErrorResponse(400, 'invalid_request', 'Unbekannte Sync-Monitor-POST-Action: ' . $action);
         }
 
         // Editor-Status mitschreiben (Buttons zeigen frisch/veraltet relativ zur letzten Sync).
@@ -187,7 +184,7 @@ try {
     }
 
     if ($requestMethod !== 'GET') {
-        avesmapsJsonResponse(405, ['ok' => false, 'error' => 'Nur GET und POST sind erlaubt.']);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET und POST sind erlaubt.');
     }
 
     $action = trim((string) ($_GET['action'] ?? 'status'));
@@ -239,7 +236,7 @@ try {
     };
 
     if ($response === null) {
-        avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Unbekannte Sync-Monitor-Action: ' . $action]);
+        avesmapsErrorResponse(400, 'invalid_request', 'Unbekannte Sync-Monitor-Action: ' . $action);
     }
 
     // "Find Differences" merkt sein Ergebnis (Zahlen) fuer die Button-Statuszeile.
@@ -253,8 +250,5 @@ try {
 
     avesmapsJsonResponse(200, $response);
 } catch (Throwable $error) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Internal server error.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
 }

@@ -18,10 +18,7 @@ try {
     $config = avesmapsLoadApiConfig(__DIR__);
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, [
-            'ok' => false,
-            'error' => 'Diese Herkunft darf den Regionen-Sync nicht verwenden.',
-        ]);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf den Regionen-Sync nicht verwenden.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -61,7 +58,7 @@ try {
         };
 
         if ($response === null) {
-            avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Unbekannte Regionen-Sync-POST-Action: ' . $action]);
+            avesmapsErrorResponse(400, 'invalid_request', 'Unbekannte Regionen-Sync-POST-Action: ' . $action);
         }
 
         if (in_array($action, ['assign', 'assign_all'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
@@ -72,7 +69,7 @@ try {
     }
 
     if ($requestMethod !== 'GET') {
-        avesmapsJsonResponse(405, ['ok' => false, 'error' => 'Nur GET und POST sind erlaubt.']);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET und POST sind erlaubt.');
     }
 
     $action = trim((string) ($_GET['action'] ?? 'status'));
@@ -103,13 +100,10 @@ try {
     };
 
     if ($response === null) {
-        avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Unbekannte Regionen-Sync-Action: ' . $action]);
+        avesmapsErrorResponse(400, 'invalid_request', 'Unbekannte Regionen-Sync-Action: ' . $action);
     }
 
     avesmapsJsonResponse(200, $response);
 } catch (Throwable $error) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Internal server error.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
 }

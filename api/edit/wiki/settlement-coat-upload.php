@@ -23,7 +23,7 @@ const AVESMAPS_SETTLEMENT_COAT_TYPES = [
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, ['ok' => false, 'error' => 'Diese Herkunft darf keine Wappen hochladen.']);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf keine Wappen hochladen.');
     }
 
     $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -31,7 +31,7 @@ try {
         avesmapsJsonResponse(204);
     }
     if ($method !== 'POST') {
-        avesmapsJsonResponse(405, ['ok' => false, 'error' => 'Nur POST ist erlaubt.']);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur POST ist erlaubt.');
     }
 
     $user = avesmapsRequireUserWithCapability('review');
@@ -39,22 +39,22 @@ try {
 
     $publicId = trim((string) ($_POST['public_id'] ?? ''));
     if ($publicId === '') {
-        avesmapsJsonResponse(400, ['ok' => false, 'error' => 'public_id fehlt.']);
+        avesmapsErrorResponse(400, 'invalid_request', 'public_id fehlt.');
     }
 
     $file = $_FILES['coat'] ?? null;
     if (!is_array($file) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file((string) ($file['tmp_name'] ?? ''))) {
-        avesmapsJsonResponse(400, ['ok' => false, 'error' => 'Keine Datei empfangen.']);
+        avesmapsErrorResponse(400, 'invalid_request', 'Keine Datei empfangen.');
     }
     $size = (int) ($file['size'] ?? 0);
     if ($size <= 0 || $size > AVESMAPS_SETTLEMENT_COAT_MAX_BYTES) {
-        avesmapsJsonResponse(413, ['ok' => false, 'error' => 'Datei fehlt oder ist zu groß (max 2 MB).']);
+        avesmapsErrorResponse(413, 'payload_too_large', 'Datei fehlt oder ist zu groß (max 2 MB).');
     }
 
     $tmp = (string) $file['tmp_name'];
     $mime = (string) (new finfo(FILEINFO_MIME_TYPE))->file($tmp);
     if (!isset(AVESMAPS_SETTLEMENT_COAT_TYPES[$mime])) {
-        avesmapsJsonResponse(415, ['ok' => false, 'error' => 'Nur PNG, JPG, WebP oder GIF erlaubt.']);
+        avesmapsErrorResponse(415, 'unsupported_media_type', 'Nur PNG, JPG, WebP oder GIF erlaubt.');
     }
     $ext = AVESMAPS_SETTLEMENT_COAT_TYPES[$mime];
 
@@ -64,7 +64,7 @@ try {
     $docroot = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? dirname(__DIR__, 3)), '/');
     $dir = $docroot . '/uploads/wappen/own';
     if (!is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
-        avesmapsJsonResponse(500, ['ok' => false, 'error' => 'Upload-Verzeichnis nicht verfügbar.']);
+        avesmapsErrorResponse(500, 'server_error', 'Upload-Verzeichnis nicht verfügbar.');
     }
 
     $safeId = preg_replace('/[^A-Za-z0-9_-]/', '', $publicId);
@@ -74,7 +74,7 @@ try {
     $filename = $safeId . '-' . bin2hex(random_bytes(6)) . '.' . $ext;
     $target = $dir . '/' . $filename;
     if (!@move_uploaded_file($tmp, $target)) {
-        avesmapsJsonResponse(500, ['ok' => false, 'error' => 'Datei konnte nicht gespeichert werden.']);
+        avesmapsErrorResponse(500, 'server_error', 'Datei konnte nicht gespeichert werden.');
     }
     @chmod($target, 0644);
     $url = '/uploads/wappen/own/' . $filename;
@@ -100,5 +100,5 @@ try {
 
     avesmapsJsonResponse(200, ['ok' => true, 'coat' => $props['coat'], 'revision' => $revision]);
 } catch (Throwable $error) {
-    avesmapsJsonResponse(500, ['ok' => false, 'error' => 'Internal server error.']);
+    avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
 }
