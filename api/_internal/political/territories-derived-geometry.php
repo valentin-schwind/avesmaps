@@ -196,8 +196,11 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
     $fillRemainderGeometry = (is_array($fillRemainderPayload) && isset($fillRemainderPayload['type']))
         ? $fillRemainderPayload
         : null;
+    // contested_pieces = Liste PRO Konflikt-Baronie [{territory_public_id, geometry}], damit jede
+    // ihre eigenen Streifenfarben behaelt (Besitzerfarbe je Baronie + Anspruchsteller). KEINE
+    // verschmolzene Flaeche. Server reicht die Struktur nur durch (kein Geometrie-Typ-Check).
     $contestedPiecesPayload = $payload['contested_pieces_geojson'] ?? null;
-    $contestedPiecesGeometry = (is_array($contestedPiecesPayload) && isset($contestedPiecesPayload['type']))
+    $contestedPiecesData = (is_array($contestedPiecesPayload) && $contestedPiecesPayload !== [])
         ? $contestedPiecesPayload
         : null;
     $sourceRevision = avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['source_revision'] ?? $payload['source_signature'] ?? ''), 255));
@@ -246,7 +249,7 @@ function avesmapsPoliticalSaveDerivedGeometry(PDO $pdo, array $payload, array $u
             'show_inner_boundaries' => $showInnerBoundaries ? 1 : 0,
             'inner_boundary_geojson' => avesmapsPoliticalEncodeJsonOrNull($innerBoundaryGeometry),
             'fill_remainder_geojson' => avesmapsPoliticalEncodeJsonOrNull($fillRemainderGeometry),
-            'contested_pieces_geojson' => avesmapsPoliticalEncodeJsonOrNull($contestedPiecesGeometry),
+            'contested_pieces_geojson' => avesmapsPoliticalEncodeJsonOrNull($contestedPiecesData),
             'source_revision' => $sourceRevision,
             'created_by' => $userId,
             'updated_by' => $userId,

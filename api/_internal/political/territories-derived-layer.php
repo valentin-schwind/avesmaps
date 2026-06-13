@@ -151,6 +151,9 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
     $showInnerBoundariesSql = $supportsInnerBoundaries ? 'derived.show_inner_boundaries AS show_inner_boundaries' : '1 AS show_inner_boundaries';
     $supportsInnerBoundaryGeojson = avesmapsPoliticalDerivedLayerSupportsInnerBoundaryGeojson($pdo);
     $innerBoundaryGeojsonSql = $supportsInnerBoundaryGeojson ? 'derived.inner_boundary_geojson AS inner_boundary_geojson' : 'NULL AS inner_boundary_geojson';
+    $supportsContestedSplit = avesmapsPoliticalDerivedLayerSupportsContestedSplit($pdo);
+    $fillRemainderSql = $supportsContestedSplit ? 'derived.fill_remainder_geojson AS fill_remainder_geojson' : 'NULL AS fill_remainder_geojson';
+    $contestedPiecesSql = $supportsContestedSplit ? 'derived.contested_pieces_geojson AS contested_pieces_geojson' : 'NULL AS contested_pieces_geojson';
     $conditions = [
         'territory.is_active = 1',
         'derived.is_active = 1',
@@ -232,7 +235,9 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
             derived.label_lng,
             derived.label_lat,
             ' . $showInnerBoundariesSql . ',
-            ' . $innerBoundaryGeojsonSql . '
+            ' . $innerBoundaryGeojsonSql . ',
+            ' . $fillRemainderSql . ',
+            ' . $contestedPiecesSql . '
         FROM political_territory_derived_geometry derived
         INNER JOIN political_territory territory ON territory.id = derived.territory_id
         LEFT JOIN political_territory parent ON parent.id = territory.parent_id
@@ -271,6 +276,18 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
         // null wenn das Ziel keine hat. Das Canvas-Overlay zeichnet sie weiss-gestrichelt.
         $innerBoundaryGeojson = avesmapsPoliticalDecodeJson($row['inner_boundary_geojson'] ?? null);
         $feature['properties']['inner_boundary_geojson'] = $innerBoundaryGeojson === [] ? null : $innerBoundaryGeojson;
+        // Umstrittene-Gebiete-Split: fill_remainder = Fuellflaeche MIT Loechern an den Konflikt-Baronien
+        // (Terrain scheint durch -> Frontend baut das Fuell-Polygon daraus); contested_pieces = pro
+        // Baronie {geometry, parties} fuer die Schraffur (eigene Streifenfarben). Beide null = kein
+        // Konflikt -> Verhalten wie bisher. geometry_geojson (Union) bleibt fuer Grenze + Hover.
+        $fillRemainderGeojson = avesmapsPoliticalDecodeJson($row['fill_remainder_geojson'] ?? null);
+        $feature['properties']['fill_remainder_geojson'] = (is_array($fillRemainderGeojson) && isset($fillRemainderGeojson['type']))
+            ? $fillRemainderGeojson
+            : null;
+        $contestedPiecesRaw = avesmapsPoliticalDecodeJson($row['contested_pieces_geojson'] ?? null);
+        $feature['properties']['contested_pieces'] = (is_array($contestedPiecesRaw) && $contestedPiecesRaw !== [])
+            ? avesmapsPoliticalEnrichDerivedContestedPieces($pdo, $contestedPiecesRaw)
+            : null;
         $feature['properties']['derived_fill_active'] = $inFillBand;
         // Label nur im eigenen Fuellband; ausserhalb ist die Derived nur ein Umriss.
         $feature['properties']['show_region_label'] = $inFillBand;
@@ -322,6 +339,105 @@ function avesmapsPoliticalDerivedLayerSupportsInnerBoundaryGeojson(PDO $pdo): bo
     }
 
     return $supportsInnerBoundaryGeojson;
+}
+
+function avesmapsPoliticalDerivedLayerSupportsContestedSplit(PDO $pdo): bool {
+    static $supports = null;
+    if ($supports !== null) {
+        return $supports;
+    }
+
+    try {
+        $statement = $pdo->query("SHOW COLUMNS FROM political_territory_derived_geometry LIKE 'fill_remainder_geojson'");
+        $supports = is_array($statement->fetch(PDO::FETCH_ASSOC));
+    } catch (Throwable) {
+        $supports = false;
+    }
+
+    return $supports;
+}
+
+// Parteien (Besitzer zuerst, dann Anspruchsteller nach sort_order) je Territorium-public_id --
+// Mirror von avesmapsPoliticalAttachContestedParties, aber per public_id und auf eine Liste gefiltert.
+// Fuer die Anreicherung der contested_pieces der Derived (deren Schraffur-Streifenfarben).
+function avesmapsPoliticalFetchClaimPartiesByPublicId(PDO $pdo, array $publicIds): array {
+    $publicIds = array_values(array_unique(array_filter(array_map(static fn($v): string => trim((string) $v), $publicIds), static fn(string $v): bool => $v !== '')));
+    if ($publicIds === []) {
+        return [];
+    }
+    $normalizeStripeColor = static function (mixed $value): string {
+        $color = trim((string) $value);
+        return preg_match('/^#[0-9a-fA-F]{6}$/', $color) === 1 ? substr($color, 0, 7) : '#888888';
+    };
+    $placeholders = implode(',', array_fill(0, count($publicIds), '?'));
+    try {
+        $statement = $pdo->prepare(
+            'SELECT owner.public_id AS owner_public_id,
+                    owner.name AS owner_name, owner.color AS owner_color, owner.opacity AS owner_opacity,
+                    claimant.name AS claimant_name, claimant.color AS claimant_color, claimant.opacity AS claimant_opacity
+            FROM political_territory_claim claim
+            INNER JOIN political_territory owner ON owner.id = claim.territory_id AND owner.is_active = 1
+            INNER JOIN political_territory claimant ON claimant.id = claim.claimant_territory_id AND claimant.is_active = 1
+            WHERE claim.is_active = 1 AND owner.public_id IN (' . $placeholders . ')
+            ORDER BY claim.sort_order ASC, claim.id ASC'
+        );
+        $statement->execute($publicIds);
+    } catch (Throwable) {
+        return [];
+    }
+    $partiesByPublicId = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $ownerPublicId = (string) $row['owner_public_id'];
+        if (!isset($partiesByPublicId[$ownerPublicId])) {
+            $partiesByPublicId[$ownerPublicId] = [[
+                'name' => (string) $row['owner_name'],
+                'color' => $normalizeStripeColor($row['owner_color']),
+                'opacity' => (float) $row['owner_opacity'],
+                'owner' => true,
+            ]];
+        }
+        $partiesByPublicId[$ownerPublicId][] = [
+            'name' => (string) $row['claimant_name'],
+            'color' => $normalizeStripeColor($row['claimant_color']),
+            'opacity' => (float) $row['claimant_opacity'],
+            'owner' => false,
+        ];
+    }
+    return $partiesByPublicId;
+}
+
+// contested_pieces der Derived [{territory_public_id, geometry, name?}] mit Parteifarben anreichern.
+// Stuecke ohne aktiven Claim werden verworfen (die Fuellung deckt sie dann normal ab).
+function avesmapsPoliticalEnrichDerivedContestedPieces(PDO $pdo, array $pieces): ?array {
+    $publicIds = [];
+    foreach ($pieces as $piece) {
+        if (is_array($piece)) {
+            $publicIds[] = (string) ($piece['territory_public_id'] ?? '');
+        }
+    }
+    $partiesByPublicId = avesmapsPoliticalFetchClaimPartiesByPublicId($pdo, $publicIds);
+    $enriched = [];
+    foreach ($pieces as $piece) {
+        if (!is_array($piece)) {
+            continue;
+        }
+        $publicId = trim((string) ($piece['territory_public_id'] ?? ''));
+        $geometry = $piece['geometry'] ?? null;
+        if ($publicId === '' || !is_array($geometry) || !isset($geometry['type'])) {
+            continue;
+        }
+        $parties = $partiesByPublicId[$publicId] ?? [];
+        if ($parties === []) {
+            continue;
+        }
+        $enriched[] = [
+            'territory_public_id' => $publicId,
+            'name' => trim((string) ($piece['name'] ?? '')),
+            'geometry' => $geometry,
+            'contestedParties' => $parties,
+        ];
+    }
+    return $enriched === [] ? null : $enriched;
 }
 
 function avesmapsPoliticalReadDerivedSourceTerritoryPublicIds(PDO $pdo, array $derivedFeature): array {
