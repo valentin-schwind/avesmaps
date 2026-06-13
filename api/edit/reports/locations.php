@@ -8,10 +8,7 @@ try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, [
-            'ok' => false,
-            'error' => 'Diese Herkunft darf Meldungen nicht pruefen.',
-        ]);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf Meldungen nicht pruefen.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -27,10 +24,7 @@ try {
     }
 
     if ($requestMethod !== 'POST') {
-        avesmapsJsonResponse(405, [
-            'ok' => false,
-            'error' => 'Nur GET und POST sind fuer diesen Endpoint erlaubt.',
-        ]);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET und POST sind fuer diesen Endpoint erlaubt.');
     }
 
     $payload = avesmapsReadJsonRequest();
@@ -42,25 +36,13 @@ try {
 
     avesmapsJsonResponse(200, $response);
 } catch (InvalidArgumentException $exception) {
-    avesmapsJsonResponse(400, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
+    avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
 } catch (PDOException) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Die Meldungen konnten nicht verarbeitet werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Die Meldungen konnten nicht verarbeitet werden.');
 } catch (RuntimeException $exception) {
-    avesmapsJsonResponse(503, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
+    avesmapsErrorResponse(503, 'service_unavailable', $exception->getMessage());
 } catch (Throwable) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Die Meldungen konnten nicht verarbeitet werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Die Meldungen konnten nicht verarbeitet werden.');
 }
 
 function avesmapsListLocationReportsForReview(PDO $pdo): array {
@@ -184,10 +166,7 @@ function avesmapsUpdateLocationReportReviewStatus(PDO $pdo, array $payload, arra
     $statement->execute($params);
 
     if ($statement->rowCount() < 1) {
-        avesmapsJsonResponse(404, [
-            'ok' => false,
-            'error' => 'Die gewuenschte Meldung wurde bereits verarbeitet oder nicht gefunden.',
-        ]);
+        avesmapsErrorResponse(404, 'not_found', 'Die gewuenschte Meldung wurde bereits verarbeitet oder nicht gefunden.');
     }
 
     return [

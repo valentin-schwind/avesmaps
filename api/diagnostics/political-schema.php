@@ -10,10 +10,7 @@ try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, [
-            'ok' => false,
-            'error' => 'Diese Herkunft darf Debug-Daten nicht laden.',
-        ]);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf Debug-Daten nicht laden.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -22,10 +19,7 @@ try {
     }
 
     if ($requestMethod !== 'GET') {
-        avesmapsJsonResponse(405, [
-            'ok' => false,
-            'error' => 'Nur GET ist erlaubt.',
-        ]);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET ist erlaubt.');
     }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
@@ -99,20 +93,11 @@ try {
         'samples' => $samples,
     ]);
 } catch (InvalidArgumentException $exception) {
-    avesmapsJsonResponse(400, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
+    avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
 } catch (PDOException $exception) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Die Datenbank konnte nicht abgefragt werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Die Datenbank konnte nicht abgefragt werden.');
 } catch (Throwable $exception) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Die Debug-Daten konnten nicht geladen werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Die Debug-Daten konnten nicht geladen werden.');
 }
 
 function avesmapsDebugFetchAll(PDO $pdo, string $sql, array $params = []): array {
