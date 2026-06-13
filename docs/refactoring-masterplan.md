@@ -52,7 +52,7 @@ This document is the living tracker. See `AGENTS.md` for the project brief.
 | **M0.5** | `AGENTS.md` + `CLAUDE.md` + this doc | ✅ done | living AI brief + English masterplan |
 | **M1** | Security | ✅ done (`7432f1e1`→`09ee68ad`) | neutralized 3 unauth wiki-dom crawler endpoints with 410 stubs + removed dead playground UI (verified `/edit → WikiSync` uses sync-monitor.php, not these); stopped 9 bare-Throwable `getMessage()` leaks; atomic `coat.php` cache write; `add_claim` transaction + `FOR UPDATE`. CORS: 2 of 3 divergent impls gone via stubbing; the wiki-browser `applyCors` (non-exploitable) is deferred to M3 with the parallel-stack migration. Live-verified: `dom-sync.php`→410, `/api/locations/`→200. |
 | **M2** | Correctness bugs | ✅ done | IZ/`bis` word-boundary parsers (`9d4a801b`), spotlight poll cancel (`70a8c1e9`), zoom-band unified to 0-1/2-6 (`8fa18991`), route-graph `calculateRouteServer` shadow removed (`11037917`, live-verified), political loader trio — TOCTOU zoom + edit-time fan-out cache invalidation + pending-rerun + cache eviction (`cacff63b`, deploy-verified; `apiUnavailable` intentionally left self-healing — see commit), `askRegionTabCloseChoice` 3-way dialog (`a78b82d1`). ↪ moved to M5: `refreshPlannerAfterFeatureChange` dedup (harmless dead code in a CRLF file). NB: loader + dialog are client-side; behavioural smoke (open editor, pan/zoom political layer, edit+save a region, close a dirty tab) is the meaningful live test. |
-| **M3** | API contract + remove shims (breaking) | in progress | ✅ foundation (`5df56d2a`) + ✅ step 1 frontend tolerance (`00f59fc2`): `apiErrorMessage` helper + ~40 read sites accept both `error:"string"` and `error:{code,message}` (live-verified against both shapes) + ✅ step 2 auth 401/403 split (`3b946189`, 401 live-verified). ⏳ steps 3–6 (endpoint clusters, shims, multiplexer, core move). |
+| **M3** | API contract + remove shims (breaking) | in progress | ✅ foundation (`5df56d2a`) + ✅ step 1 frontend tolerance (`00f59fc2`): `apiErrorMessage` helper + ~40 read sites accept both `error:"string"` and `error:{code,message}` (live-verified against both shapes) + ✅ step 2 auth 401/403 split (`3b946189`, 401 live-verified). 🔄 step 3 in progress: app/ cluster ✅ done (8 endpoints, `44d02c8d`→`9e4536bd`, live-verified); next = edit/* clusters + wiki-browser parallel stack. ⏳ steps 4–6 (shims, multiplexer split, core move). |
 | **M4** | DRY | planned | PHP request runner, single `valid_to_bf`, BF parser, `wiki-crawler-base.php`; JS `territory-utils.js`, infobox-row, `debounce` |
 | **M5** | God-file splits | planned | per split tables, one file at a time, deploy+test between; CSS source split, rename duplicate filename, treat `*-inline.css` as generated |
 | **M6** | Performance | planned | derived-layer N+1 memo, DDL out of cache-hit path, political teardown → signature-skip, polylabel memo, fetch-interceptor, bound+invalidate fan-out cache |
@@ -130,6 +130,24 @@ political-territories, political-territory-display-sync) → edit/map → edit/p
 edit/reports → edit/wiki (sync-monitor/paths/regions/settlements/…) → import →
 diagnostics. Migrate `wiki-browser-endpoint.php` off its parallel stack (own
 `applyCors`/`respondJson`/PDO/config) onto bootstrap — this also closes the last CORS divergence (decision: drop `Allow-Credentials`).
+
+> **Convention (decided while migrating app/):** use the GLOBAL `avesmapsErrorResponse`
+> (bootstrap) with codes `forbidden_origin`/`method_not_allowed`/`invalid_request`/
+> `not_found`/`conflict`/`rate_limited`/`server_error`/`service_unavailable`. **Messages stay
+> German** (i18n is M8). Per the gold standard (locations/route), controlled
+> `InvalidArgumentException`/`RuntimeException` `getMessage()` may be exposed; only
+> `PDOException`/`Throwable` get a generic message. `coat.php` is skipped (serves image bytes /
+> `text/plain`, no JSON envelope). ⚠️ **STRATO OPcache:** a hot file (e.g. map-features) can keep
+> serving the OLD response for a short while after deploy even though rarely-hit files in the same
+> deploy already update — re-curl after a beat before concluding a migration failed.
+>
+> **app/ cluster ✅ DONE** — 8 endpoints migrated + live-verified: `map-search` (`44d02c8d`);
+> `territory-detail`+`share-link`+`location-reviews` (`306afbda`); `report-location`+
+> `political-territory-display-sync` (`a08491ef`, latter also drops the `?debug_errors` leak);
+> `map-features`+`political-derived-geometry-debug` (`9e4536bd`, latter drops dead
+> `exception:null`). Remaining app/: `political-territories.php` = the multiplexer → Step 5;
+> `political-territory-wiki.php` → `wiki-browser-endpoint.php` parallel stack (end of Step 3).
+> NEXT: edit/map cluster.
 
 **Step 4 — remove shims/wrappers/alias actions.** Root shims
 `api/{political-territory-lib,wiki-sync-lib}.php` (update 9 + 1 callers to require the
