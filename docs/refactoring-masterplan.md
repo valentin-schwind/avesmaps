@@ -150,7 +150,11 @@ diagnostics. Migrate `wiki-browser-endpoint.php` off its parallel stack (own
 >
 > **edit/map cluster ✅ DONE** — `presence.php` (`3f4c4302`), `audit-log.php` (`9bfbf6ad`),
 > `features.php` (`e8570045`, 7 main-handler responses; internal helper catches untouched).
-> All live-verified via the 401 (no-session auth gate) + 405 paths. NEXT: edit/political cluster.
+> All live-verified via the 401 (no-session auth gate) + 405 paths.
+>
+> **edit/political cluster ✅ DONE** — `assignment-zoom-sync.php` (`25a8bb8f`, catch split
+> 400/500), `display-overrides.php` (`2b6a425c`), `subtree-display.php` (`2de4e2d0`). All
+> live-verified (401 + 405). NEXT: edit/reports → edit/wiki → import → diagnostics → wiki-browser.
 
 **Step 4 — remove shims/wrappers/alias actions.** Root shims
 `api/{political-territory-lib,wiki-sync-lib}.php` (update 9 + 1 callers to require the
