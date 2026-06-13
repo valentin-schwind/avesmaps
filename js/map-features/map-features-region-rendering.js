@@ -24,7 +24,16 @@ function indexPoliticalRegionDerivedByTerritory() {
 			return;
 		}
 		const labelable = properties.show_region_label !== false && properties.visual_hidden_by_derived_boundary !== true;
-		politicalRegionDerivedByTerritory.set(key, { labelable, geometry: feature.geometry, color: properties.fill || properties.color || null });
+		politicalRegionDerivedByTerritory.set(key, {
+			labelable,
+			geometry: feature.geometry,
+			color: properties.fill || properties.color || null,
+			// Fuer die Aggregat-Fuellungs-Unterdrueckung: fuellt diese Derived (Zoom-Band) UND bringt sie
+			// einen fill_remainder (gelochte Fuellung) mit? Dann uebernimmt sie das Fuellen -> das solide
+			// Aggregat-Feature derselben territory_public_id darf NICHT zusaetzlich fuellen.
+			derivedFillActive: properties.derived_fill_active === true,
+			hasFillRemainder: !!properties.fill_remainder_geojson,
+		});
 	});
 	return politicalRegionDerivedByTerritory;
 }
@@ -110,7 +119,12 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 		&& Number.isFinite(POLITICAL_FRONTEND_FILL_OPACITY))
 		? POLITICAL_FRONTEND_FILL_OPACITY
 		: regionEntry.opacity;
-	const fillOpacity = regionEntry.isDerivedGeometry && (regionEntry.showInnerBoundaries || !regionEntry.derivedFillActive)
+	// Umstrittene-Gebiete-Split: eine FUELLENDE Derived MIT fill_remainder (gelochte Fuellung an den
+	// Konflikt-Baronien) rendert ihre Fuellung AUCH bei sichtbaren Innengrenzen. Sonst (bisher) fuellte
+	// nur das solide Aggregat ohne Loecher -> Terrain-Durchsicht zu, Schraffur wirkt opak. Das Aggregat
+	// derselben territory_public_id wird unten (suppressFillForDerivedHoledFill) abgeschaltet.
+	const derivedShowsHoledFill = regionEntry.isDerivedGeometry && regionEntry.derivedFillActive && !!regionEntry.fillRemainderGeojson;
+	const fillOpacity = (regionEntry.isDerivedGeometry && (regionEntry.showInnerBoundaries || !regionEntry.derivedFillActive) && !derivedShowsHoledFill)
 		? 0
 		: activeFillOpacity;
 
@@ -129,11 +143,18 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 	// So passt die angezeigte Flaechenfarbe zur angezeigten Hierarchie-Ebene (bei Zoom 0 die
 	// Reichsfarbe, nicht die Farbe der untersten Quellgeometrie). Edit-Modus unverändert.
 	let resolvedFillColor = regionEntry.color;
+	// Aggregat-Fuellung unterdruecken, wenn die Derived dieses Territoriums fuellt UND einen fill_remainder
+	// (gelochte Fuellung) hat -> die Derived rendert die Reichsfarbe MIT Terrain-Loechern an den Konflikt-
+	// Baronien; das solide Aggregat-Feature wuerde die Loecher sonst zustopfen (Schraffur wirkt dann opak).
+	let suppressFillForDerivedHoledFill = false;
 	if (!IS_EDIT_MODE && !regionEntry.isDerivedGeometry) {
 		const terrKey = String(regionEntry.territoryPublicId || "").trim();
 		const aggregate = terrKey ? (politicalRegionDerivedByTerritory || indexPoliticalRegionDerivedByTerritory()).get(terrKey) : null;
 		if (aggregate && aggregate.color) {
 			resolvedFillColor = aggregate.color;
+		}
+		if (aggregate && aggregate.derivedFillActive && aggregate.hasFillRemainder) {
+			suppressFillForDerivedHoledFill = true;
 		}
 	}
 
@@ -145,7 +166,7 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 		// Umstrittene Gebiete: Fuellung ausschneiden (0), damit die diagonale Schraffur des Canvas-
 		// Overlays ueber die Basis-Karte liegt statt ueber der Reichsfarbe. fill:true bleibt -> Polygon
 		// bleibt klickbar (Infobox), Grenzen-Linie unberuehrt (eigenes Overlay).
-		fillOpacity: isRegionContested(regionEntry) ? 0 : fillOpacity,
+		fillOpacity: (isRegionContested(regionEntry) || suppressFillForDerivedHoledFill) ? 0 : fillOpacity,
 	};
 	if (levelLineStyle && levelLineStyle.dashArray) {
 		style.dashArray = levelLineStyle.dashArray;
