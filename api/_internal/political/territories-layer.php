@@ -119,8 +119,7 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
         $rows = avesmapsPoliticalAppendLegacyFallbackLayerRows($pdo, $rows, $territories, $zoom);
     }
     $parentIds = avesmapsPoliticalBuildEffectiveLayerParentIds($territories);
-    $contestedTerritoryIds = avesmapsPoliticalFetchContestedTerritoryIds($pdo);
-    $features = avesmapsPoliticalBuildResolvedLayerFeatures($rows, $territories, $parentIds, $yearBf, $zoom, $contestedTerritoryIds);
+    $features = avesmapsPoliticalBuildResolvedLayerFeatures($rows, $territories, $parentIds, $yearBf, $zoom);
     $features = avesmapsPoliticalAttachContestedParties($pdo, $features);
 
     return [
@@ -382,28 +381,6 @@ function avesmapsPoliticalLayerRowMatchesOwnZoom(array $row, int $zoom): bool {
 // nach sort_order). Das Canvas-Overlay (map-features-contested-hatch-overlay.js) zeichnet daraus die
 // diagonale Schraffur, geclippt aufs (Quell-)Polygon -- auch bei Tiefzoom (Aggregat), erkannt ueber
 // aggregate_source_territory_public_id. Eine zusaetzliche, billige Query (die Claim-Tabelle ist klein).
-// Set der umstrittenen (>=1 aktiver Claim) territory_id. Mirror des Joins in AttachContestedParties
-// (Besitzer + Anspruchsteller aktiv), damit nur Gebiete ausgenommen werden, die auch wirklich Parteien
-// liefern. Klein (Claim-Tabelle ist winzig) -> billig, einmal pro Layer-Read.
-function avesmapsPoliticalFetchContestedTerritoryIds(PDO $pdo): array {
-    try {
-        $statement = $pdo->query(
-            'SELECT DISTINCT claim.territory_id
-            FROM political_territory_claim claim
-            INNER JOIN political_territory owner ON owner.id = claim.territory_id AND owner.is_active = 1
-            INNER JOIN political_territory claimant ON claimant.id = claim.claimant_territory_id AND claimant.is_active = 1
-            WHERE claim.is_active = 1'
-        );
-    } catch (Throwable) {
-        return []; // Tabelle fehlt noch o. Ae. -> Aggregation laeuft unveraendert.
-    }
-    $ids = [];
-    foreach ($statement->fetchAll(PDO::FETCH_COLUMN) as $territoryId) {
-        $ids[(int) $territoryId] = true;
-    }
-    return $ids;
-}
-
 function avesmapsPoliticalAttachContestedParties(PDO $pdo, array $features): array {
     $normalizeStripeColor = static function (mixed $value): string {
         $color = trim((string) $value);
@@ -654,12 +631,7 @@ function avesmapsPoliticalInferLayerParentName(array $territory): string {
     return trim((string) end($parts));
 }
 
-function avesmapsPoliticalBuildResolvedLayerFeatures(array $geometryRows, array $territories, array $parentIds, int $yearBf, int $zoom, array $contestedTerritoryIds = []): array {
-    // Ab dieser Zoomstufe werden umstrittene Gebiete NICHT mehr in den Vorfahren aggregiert, sondern
-    // bleiben als eigene (kleine) Geometrie -> die Schraffur erscheint als Fleck im Reich statt als
-    // Ganz-Reich-Streifen (vgl. AttachContestedParties, das Aggregate ueberspringt). Unterhalb (Welt-/
-    // Kontinent-Zoom) bleibt alles aggregiert: die Baronien waeren dort ohnehin subpixel.
-    $contestedOwnLevelMinZoom = 3;
+function avesmapsPoliticalBuildResolvedLayerFeatures(array $geometryRows, array $territories, array $parentIds, int $yearBf, int $zoom): array {
     $featuresByTerritory = [];
     foreach ($geometryRows as $geometryRow) {
         $sourceTerritoryId = (int) $geometryRow['territory_id'];
@@ -668,10 +640,6 @@ function avesmapsPoliticalBuildResolvedLayerFeatures(array $geometryRows, array 
         }
 
         $displayTerritoryId = avesmapsPoliticalResolveLayerDisplayTerritoryId($sourceTerritoryId, $territories, $parentIds, $zoom);
-        // Umstrittenes Gebiet auf eigener Ebene halten (nicht aggregieren), sobald es sinnvoll sichtbar ist.
-        if ($zoom >= $contestedOwnLevelMinZoom && isset($contestedTerritoryIds[$sourceTerritoryId])) {
-            $displayTerritoryId = $sourceTerritoryId;
-        }
         if ($displayTerritoryId !== null && $displayTerritoryId !== $sourceTerritoryId) {
             $displayTerritory = $territories[$displayTerritoryId] ?? null;
             if (is_array($displayTerritory) && avesmapsPoliticalIsGenericLayerParentTerritory($displayTerritory)) {
