@@ -10,10 +10,7 @@ try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, [
-            'ok' => false,
-            'error' => 'Diese Herkunft darf den Editor-Status nicht abrufen.',
-        ]);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf den Editor-Status nicht abrufen.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -22,10 +19,7 @@ try {
     }
 
     if (!in_array($requestMethod, ['GET', 'POST'], true)) {
-        avesmapsJsonResponse(405, [
-            'ok' => false,
-            'error' => 'Nur GET oder POST sind fuer diesen Endpoint erlaubt.',
-        ]);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET oder POST sind fuer diesen Endpoint erlaubt.');
     }
 
     $user = avesmapsRequireUserWithCapability('review');
@@ -42,20 +36,11 @@ try {
         'online_seconds' => AVESMAPS_EDITOR_PRESENCE_ONLINE_SECONDS,
     ]);
 } catch (PDOException) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Der Editor-Status konnte nicht gespeichert werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Der Editor-Status konnte nicht gespeichert werden.');
 } catch (RuntimeException $exception) {
-    avesmapsJsonResponse(503, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
+    avesmapsErrorResponse(503, 'service_unavailable', $exception->getMessage());
 } catch (Throwable) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Der Editor-Status konnte nicht verarbeitet werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Der Editor-Status konnte nicht verarbeitet werden.');
 }
 
 function avesmapsEnsureEditorPresenceTable(PDO $pdo): void {
