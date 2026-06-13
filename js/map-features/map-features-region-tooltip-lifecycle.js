@@ -176,46 +176,13 @@ function applyRegionHoverHighlight(regionEntry) {
 		: (typeof indexPoliticalRegionDerivedByTerritory === "function" ? indexPoliticalRegionDerivedByTerritory() : null);
 	const aggKey = String(regionEntry.territoryPublicId || "").trim();
 	const agg = (derivedIndex && aggKey && typeof derivedIndex.get === "function") ? derivedIndex.get(aggKey) : null;
-	// Umstrittene Fragmente, die aktuell UNTER diesem (Aggregat-)Gebiet angezeigt werden -> als Loecher,
-	// damit der Hover-Wash die Schraffur nicht ueberdeckt (auf eigener wie hoeherer Ebene).
-	const contestedHoleRings = [];
-	const rd = (typeof regionData !== "undefined" && Array.isArray(regionData)) ? regionData : (Array.isArray(window.regionData) ? window.regionData : []);
-	for (let i = 0; i < rd.length; i += 1) {
-		const props = (rd[i] && rd[i].properties) || {};
-		if (!Array.isArray(props.contestedParties) || !props.contestedParties.length) {
-			continue;
-		}
-		if (String(props.territory_public_id || "") !== aggKey) {
-			continue;
-		}
-		const geom = rd[i].geometry;
-		const ps = geom && geom.type === "Polygon" ? [geom.coordinates] : (geom && geom.type === "MultiPolygon" ? geom.coordinates : []);
-		ps.forEach((polyRings) => {
-			if (polyRings && polyRings[0]) {
-				contestedHoleRings.push(polyRings[0].map((c) => [Number(c[1]), Number(c[0])]));
-			}
-		});
-	}
-	// Neues Split-Modell: bei einer Derived stecken die Konflikt-Baronien in contested_pieces (nicht als
-	// eigene contestedParties-Features) -> deren Geometrien ebenfalls als Loecher, damit der Hover-Wash die
-	// Schraffur stehen laesst (sonst deckt das Weiss die Streifen zu).
-	for (let i = 0; i < rd.length; i += 1) {
-		const props = (rd[i] && rd[i].properties) || {};
-		if (String(props.territory_public_id || "") !== aggKey || !Array.isArray(props.contested_pieces)) {
-			continue;
-		}
-		props.contested_pieces.forEach((piece) => {
-			const g = piece && piece.geometry;
-			const ps = g && g.type === "Polygon" ? [g.coordinates] : (g && g.type === "MultiPolygon" ? g.coordinates : []);
-			ps.forEach((polyRings) => {
-				if (polyRings && polyRings[0]) {
-					contestedHoleRings.push(polyRings[0].map((c) => [Number(c[1]), Number(c[0])]));
-				}
-			});
-		});
-	}
+	// Hinweis: das Hover-Weiss bedeckt die VOLLE Derived-Huelle (siehe unten) -- es werden bewusst KEINE
+	// Loecher fuer umstrittene Flaechen ausgestanzt (Nutzer-Vorgabe: "das Weiss bleibt unberuehrt").
 	if (agg && agg.geometry) {
-		count = buildHoverPolygonsFromGeometry(agg.geometry, pane, group, contestedHoleRings);
+		// Nutzer-Vorgabe: das Hover-Weiss bedeckt die VOLLE Derived-Huelle (deckungsgleich mit der
+		// Aussengrenze), UNveraendert -> KEINE Loecher fuer umstrittene Flaechen. Die Schraffur ist eine
+		// eigene Ebene; das Weiss soll die ganze Original-Derived ueberziehen. (contestedHoleRings verworfen.)
+		count = buildHoverPolygonsFromGeometry(agg.geometry, pane, group, []);
 	}
 	// 2) Fallback: die sichtbaren Polygone der Region selbst (auch Multipolygon + Loecher via getLatLngs).
 	if (count === 0 && typeof regionPolygons !== "undefined" && Array.isArray(regionPolygons)) {
@@ -224,7 +191,10 @@ function applyRegionHoverHighlight(regionEntry) {
 				return;
 			}
 			const opts = p.options || {};
-			if (opts.fill === false || !(opts.fillOpacity > 0)) {
+			// fillOpacity 0 NICHT ueberspringen: umstrittene Blaetter sind ausgeschnitten (fillOpacity 0),
+			// muessen aber trotzdem weiss hoverbar sein, wenn keine Derived mehr da ist. Nur echte
+			// fill:false-Features (gar keine Flaeche) auslassen.
+			if (opts.fill === false) {
 				return;
 			}
 			L.polygon(p.getLatLngs(), {
