@@ -86,11 +86,11 @@ function avesmapsUserCan(array $user, string $capability): bool {
 
 function avesmapsRequireUserWithCapability(string $capability): array {
     $user = avesmapsCurrentUser();
-    if ($user === null || !avesmapsUserCan($user, $capability)) {
-        avesmapsJsonResponse(401, [
-            'ok' => false,
-            'error' => 'Du bist fuer diese Aktion nicht angemeldet.',
-        ]);
+    if ($user === null) {
+        avesmapsErrorResponse(401, 'unauthenticated', 'Du bist fuer diese Aktion nicht angemeldet.');
+    }
+    if (!avesmapsUserCan($user, $capability)) {
+        avesmapsErrorResponse(403, 'forbidden', 'Dir fehlt die Berechtigung fuer diese Aktion.');
     }
 
     return $user;
