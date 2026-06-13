@@ -2,59 +2,27 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../bootstrap.php';
 require_once __DIR__ . '/wiki-browser-support.php';
 require_once __DIR__ . '/wiki-browser-normalize.php';
 require_once __DIR__ . '/wiki-browser-tree.php';
 
-$configPath = dirname(__DIR__, 2) . '/config.local.php';
-
-if (!is_file($configPath)) {
-    respondJson(['ok' => false, 'error' => 'config.local.php fehlt.'], 500);
-}
-
-$config = require $configPath;
-
-if (!is_array($config) || !isset($config['database']) || !is_array($config['database'])) {
-    respondJson(['ok' => false, 'error' => 'config.local.php liefert keine gültige database-Konfiguration.'], 500);
-}
-
-applyCors($config['cors']['allowed_origins'] ?? []);
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(204);
-    exit;
-}
-
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    respondJson(['ok' => false, 'error' => 'Nur GET ist erlaubt.'], 405);
-}
-
 try {
-    $db = $config['database'];
-    $driver = (string)($db['driver'] ?? 'mysql');
+    $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
-    if ($driver !== 'mysql') {
-        throw new RuntimeException('Nur MySQL wird unterstützt.');
+    if (!avesmapsApplyCorsPolicy($config)) {
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf den Wiki-Browser nicht verwenden.');
     }
 
-    $host = (string)($db['host'] ?? 'localhost');
-    $port = (int)($db['port'] ?? 3306);
-    $name = (string)($db['name'] ?? '');
-    $charset = (string)($db['charset'] ?? 'utf8mb4');
-    $user = (string)($db['user'] ?? '');
-    $password = (string)($db['password'] ?? '');
-
-    if ($name === '') {
-        throw new RuntimeException('Datenbankname fehlt.');
+    $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    if ($requestMethod === 'OPTIONS') {
+        avesmapsJsonResponse(204);
+    }
+    if ($requestMethod !== 'GET') {
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET ist erlaubt.');
     }
 
-    $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=%s', $host, $port, $name, $charset);
-
-    $pdo = new PDO($dsn, $user, $password, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-    ]);
+    $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
     $params = [];
     $where = [];
@@ -169,7 +137,7 @@ try {
     $rows = array_map('territoryItemToLegacyRow', $items);
     $hierarchy = buildLegacyTree($rows);
 
-    respondJson([
+    avesmapsJsonResponse(200, [
         'ok' => true,
         'count' => count($items),
         'generated_at' => gmdate('c'),
@@ -178,8 +146,5 @@ try {
         'hierarchy' => $hierarchy,
     ]);
 } catch (Throwable $error) {
-    respondJson([
-        'ok' => false,
-        'error' => 'Internal server error.',
-    ], 500);
+    avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
 }
