@@ -140,14 +140,40 @@
 		const rd = getRegionData();
 		if (!rd.length) return;
 		const stripeWidth = stripeWidthForZoom(map.getZoom());
+		// Quell-IDs aller Derived, die JETZT fuellen UND eigene contested_pieces mitbringen: diese Stuecke
+		// uebernehmen die Schraffur der Konflikt-Baronien. Deren Own-Level-Feature darf dann NICHT zusaetzlich
+		// schraffieren -- sonst zwei Lagen a 0.75 = ~0.94 (zu deckend). Greift auch bei Innengrenzen-AN, wo die
+		// Quellflaechen nur stroke-hidden (nicht visual_hidden) sind und so sonst durch die Gate-Pruefung kaemen.
+		const piecesCoveredTerritoryIds = new Set();
+		for (let k = 0; k < rd.length; k += 1) {
+			const props = (rd[k] && rd[k].properties) || {};
+			if (props.is_derived_geometry && props.derived_fill_active === true
+				&& Array.isArray(props.contested_pieces) && props.contested_pieces.length
+				&& Array.isArray(props.derived_source_territory_public_ids)) {
+				for (let s = 0; s < props.derived_source_territory_public_ids.length; s += 1) {
+					const id = String(props.derived_source_territory_public_ids[s] || "");
+					if (id) piecesCoveredTerritoryIds.add(id);
+				}
+			}
+		}
+		function coveredByFillingDerivedPieces(props) {
+			const tid = String(props.territory_public_id || "");
+			if (tid && piecesCoveredTerritoryIds.has(tid)) return true;
+			const agg = String(props.aggregate_source_territory_public_id || "");
+			if (agg && piecesCoveredTerritoryIds.has(agg)) return true;
+			return false;
+		}
 		for (let k = 0; k < rd.length; k += 1) {
 			const props = (rd[k] && rd[k].properties) || {};
 			const parties = partiesFor(rd[k]);
-			// Own-Level-Schraffur NUR, wenn das Feature NICHT von einer Derived verdeckt ist. Sonst wird
-			// dieselbe Baronie doppelt schraffiert -- einmal hier (eigenes Feature) und einmal als
-			// contested_pieces der fuellenden Derived -> zwei Lagen a 0.75 = viel zu deckend. Verdeckte
-			// Baronien uebernimmt die Derived (unten).
-			if (parties && props.visual_hidden_by_derived_boundary !== true) hatchFeature(rd[k], parties, stripeWidth);
+			// Own-Level-Schraffur NUR, wenn das Feature NICHT von einer Derived verdeckt ist UND nicht von den
+			// contested_pieces einer fuellenden Derived abgedeckt wird. Sonst wird dieselbe Baronie doppelt
+			// schraffiert -- einmal hier (eigenes Feature) und einmal als contested_pieces der fuellenden
+			// Derived -> zwei Lagen a 0.75 = viel zu deckend. Verdeckte/abgedeckte Baronien uebernimmt die
+			// Derived (unten).
+			if (parties && props.visual_hidden_by_derived_boundary !== true && !coveredByFillingDerivedPieces(props)) {
+				hatchFeature(rd[k], parties, stripeWidth);
+			}
 			// Derived-Split: pro Konflikt-Baronie ein eigenes Stueck mit eigenen Streifenfarben.
 			// NUR wenn die Derived auf dieser Zoomstufe FUELLT (derived_fill_active) -- sonst wuerde
 			// es bei Hochzoom doppelt schraffieren (Eigen-Ebene-Baronien zeichnen dann selbst), und
