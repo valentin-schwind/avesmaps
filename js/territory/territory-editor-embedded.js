@@ -1790,6 +1790,8 @@
 		function selectManualBreadcrumbNode(rootNode, path, activeIndex) {
 			saveCurrentDisplayState();
 			editedNode = path[activeIndex] || rootNode;
+			// Konflikt-Block folgt der Breadcrumb-Auswahl: den gewaehlten Knoten als manuellen Ziel-Key merken.
+			contestedManualKey = normalizeText(editedNode && editedNode.row ? (editedNode.row.wiki_key || editedNode.row.public_id || "") : "");
 			renderManualEditPath(rootNode, activeIndex);
 			applyDisplayStateToForm(getDisplayStateForNode(editedNode));
 			updateInheritColorVarianceButtonVisibility();
@@ -2215,6 +2217,10 @@
 		let contestedWired = false;
 		let contestedCurrentWikiKey = "";
 		let contestedCurrentNode = null;
+		// Folgt-dem-Klick: der zuletzt MANUELL (Breadcrumb/Baum) gewaehlte Knoten-Key. Wird bei frischem
+		// Oeffnen (Kontext-Gebiet wechselt) zurueckgesetzt -> dann zeigt der Block das geoeffnete Gebiet.
+		let contestedManualKey = "";
+		let contestedLastCtxKey = " ";
 
 		function contestedClaimsApi(action, payload, method) {
 			const base = "/api/app/political-territories.php";
@@ -2432,7 +2438,14 @@
 			// wiki_key tragen) -> der Claims-Resolver scheitert an einer Zahl. Darum: ZUERST die zuverlässige
 			// Territory-UUID, dann nur ein ECHTER wiki_key (wiki:slug, nicht rein numerisch), sonst aktiver Knoten.
 			const looksLikeWikiKey = /^wiki:/i.test(ctxWikiKey) || (/[a-zäöü]/i.test(ctxWikiKey) && !/^\d+$/.test(ctxWikiKey));
-			const wikiKey = ctxTerritoryId || (looksLikeWikiKey ? ctxWikiKey : "") || normalizeText(node && node.row ? node.row.wiki_key : "");
+			// Frischer Editor-Open (Kontext-Gebiet gewechselt) -> manuelle Breadcrumb-Wahl verwerfen, damit der
+			// Block das GEOEFFNETE Gebiet (Blatt) zeigt. Danach folgt er dem, was der Nutzer anklickt.
+			if (ctxTerritoryId !== contestedLastCtxKey) {
+				contestedLastCtxKey = ctxTerritoryId;
+				contestedManualKey = "";
+			}
+			// "Folgt dem Klick": hat der Nutzer in der Breadcrumb gewaehlt -> dessen Knoten; sonst das Kontext-Gebiet.
+			const wikiKey = contestedManualKey || ctxTerritoryId || (looksLikeWikiKey ? ctxWikiKey : "") || normalizeText(node && node.row ? node.row.wiki_key : "");
 			if (!wikiKey) {
 				block.hidden = true;
 				if (hint) hint.hidden = true;
