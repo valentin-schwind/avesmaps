@@ -113,7 +113,10 @@
 			const party = parties[((i % n) + n) % n] || {};
 			ctx.globalAlpha = clamp01(party.opacity != null ? party.opacity : 1);
 			ctx.fillStyle = party.color || "#888888";
-			ctx.fillRect(x, -R, w + 0.6, 2 * R); // +0.6 gegen Sub-Pixel-Lücken
+			ctx.fillRect(x, -R, w, 2 * R); // exakt aneinander, KEIN Ueberlapp -> keine doppelt gezeichneten
+			// Naehte (sonst zwei 0.75-Baender uebereinander = 0.94 an der Naht; bei Tiefzoom mit schmalen
+			// Baendern war das ~20% der Flaeche -> wirkte "nahezu opak"). Aneinanderstossende Rects fuellen
+			// per Anti-Aliasing lueckenlos, ohne die Deckkraft an den Kanten zu verdoppeln.
 			i += 1;
 		}
 		ctx.restore();
@@ -136,6 +139,12 @@
 		ctx.setTransform(1, 0, 0, 1, 0, 0);
 		ctx.clearRect(0, 0, canvas.width, canvas.height);
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+		// Schraffur NUR im politischen Modus. In "Regionen"(deregraphic)/"Kraftlinien"/"keine" ist
+		// regionData zwar geladen (fuer die Grenzlinien), aber die Konflikt-Schraffur darf dort NICHT
+		// erscheinen. Canvas ist oben bereits geleert -> beim Wechsel weg aus "politisch" verschwindet sie.
+		const layerMode = typeof getSelectedMapLayerMode === "function" ? getSelectedMapLayerMode() : "political";
+		if (layerMode !== "political") return;
 
 		const rd = getRegionData();
 		if (!rd.length) return;

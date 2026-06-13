@@ -576,6 +576,9 @@ async function loadPoliticalTerritoryLayer() {
 		politicalTerritoryLayerLoadedZoom = Math.round(map.getZoom()); // fuer pan-sicheres Nachladen
 		syncRegionVisibility();
 		window.AvesmapsBoundaryCanvasOverlay?.redraw?.();
+		// Konflikt-Schraffur mit den FRISCHEN regionData neu zeichnen (statt nur ueber die zeitbasierten
+		// Settle-Redraws, die kurz veraltete Daten zeigen koennten).
+		window.AvesmapsContestedHatchOverlay?.redraw?.();
 		// Territorie-Label-Abstoßung NACH dem Label-Render auslösen (sonst überschreibt der
 		// Reload das Ergebnis wieder -> Label "springt" und die Abstoßung bleibt wirkungslos).
 		if (typeof scheduleLabelCollisionResolution === "function") {

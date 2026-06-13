@@ -9,6 +9,9 @@ function syncRegionVisibility() {
 		cancelPendingRegionOperation();
 		// Canvas-Außengrenzen sofort leeren (Overlay zeichnet sonst regionData weiter).
 		window.AvesmapsBoundaryCanvasOverlay?.redraw?.();
+		// Konflikt-Schraffur ebenso leeren -- sie darf NUR im politischen Modus erscheinen
+		// (das Overlay-Redraw prueft den Modus selbst und leert sein Canvas, wenn nicht politisch).
+		window.AvesmapsContestedHatchOverlay?.redraw?.();
 	}
 
 	regionPolygons.forEach((layer) => {
