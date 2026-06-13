@@ -74,6 +74,10 @@ function closeSpotlightSearch({ resetInput = false } = {}) {
 	spotlightActiveResultIndex = -1;
 	clearTimeout(spotlightSearchInputTimeout);
 	spotlightSearchInputTimeout = null;
+	if (spotlightRegionInfoboxPollTimer) {
+		window.clearInterval(spotlightRegionInfoboxPollTimer);
+		spotlightRegionInfoboxPollTimer = null;
+	}
 	if (resetInput && input) {
 		input.value = "";
 	}
@@ -788,7 +792,13 @@ function focusSpotlightRegion(entry) {
 
 // Öffnet die Region-Infobox sobald ein Polygon mit passender public_id/territory_public_id
 // gerendert ist (pollt ~bis 4.5s, deckt den async Layer-Reload nach dem Ebenen-Wechsel ab).
+let spotlightRegionInfoboxPollTimer = null;
+
 function openSpotlightRegionInfobox(publicId) {
+	if (spotlightRegionInfoboxPollTimer) {
+		window.clearInterval(spotlightRegionInfoboxPollTimer);
+		spotlightRegionInfoboxPollTimer = null;
+	}
 	let attempts = 0;
 	const tryOpen = () => {
 		const polys = Array.isArray(regionPolygons) ? regionPolygons : [];
@@ -805,10 +815,11 @@ function openSpotlightRegionInfobox(publicId) {
 	if (tryOpen()) {
 		return;
 	}
-	const timer = window.setInterval(() => {
+	spotlightRegionInfoboxPollTimer = window.setInterval(() => {
 		attempts += 1;
 		if (tryOpen() || attempts > 30) {
-			window.clearInterval(timer);
+			window.clearInterval(spotlightRegionInfoboxPollTimer);
+			spotlightRegionInfoboxPollTimer = null;
 		}
 	}, 150);
 }
