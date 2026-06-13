@@ -26,49 +26,6 @@ async function calculateRouteClient(routeRequest) {
     );
 }
 
-function buildRouteResultFromServerResponse(serverResponse, routeRequest) {
-    const safeResponse = serverResponse && typeof serverResponse === "object" ? serverResponse : {};
-    const safeRequest = routeRequest && typeof routeRequest === "object" ? routeRequest : {};
-    const safeRoute = safeResponse.route && typeof safeResponse.route === "object" ? safeResponse.route : {};
-    const safeSummary = safeRoute.summary && typeof safeRoute.summary === "object" ? safeRoute.summary : {};
-    const safeDebug = safeRoute.debug && typeof safeRoute.debug === "object" ? safeRoute.debug : {};
-    const safeSegments = Array.isArray(safeRoute.segments) ? safeRoute.segments : [];
-    const isOk = safeResponse.ok === true;
-
-    return {
-        source: "server",
-        ok: isOk,
-        found: isOk && safeRoute.found === true,
-        from: String(safeRoute.from || safeRequest.from || ""),
-        to: String(safeRoute.to || safeRequest.to || ""),
-        cost: Number.isFinite(Number(safeRoute.cost)) ? Number(safeRoute.cost) : 0,
-        summary: {
-            node_count: Number.isFinite(Number(safeSummary.node_count)) ? Number(safeSummary.node_count) : 0,
-            edge_count: Number.isFinite(Number(safeSummary.edge_count)) ? Number(safeSummary.edge_count) : 0,
-        },
-        debug: {
-            from_node: String(safeDebug.from_node || ""),
-            to_node: String(safeDebug.to_node || ""),
-        },
-        segments: safeSegments,
-        error: isOk ? null : (safeResponse.error || null),
-        raw: safeResponse,
-    };
-}
-
-async function calculateRouteServer(routeRequest) {
-    const response = await fetch("https://avesmaps.de/api/route/", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify(routeRequest),
-    });
-
-    const serverResponse = await response.json();
-    return buildRouteResultFromServerResponse(serverResponse, routeRequest);
-}
-
 // calculateRouteByMode(...) is prepared for future server routing integration.
 // Current UI flow still uses calculateRouteClientLegacy(...) because server routing is async and not RouteResult-compatible yet.
 async function calculateRouteByMode(routeRequest) {
