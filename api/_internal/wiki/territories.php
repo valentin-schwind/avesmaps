@@ -1083,7 +1083,7 @@ function avesmapsWikiSyncSplitPoliticalPeriodText(string $periodText): array {
         return ['', ''];
     }
 
-    $parts = preg_split('/\s*(?:-|–|—|bis)\s*/u', $normalized) ?: [];
+    $parts = preg_split('/\s*(?:-|–|—|\bbis\b)\s*/u', $normalized) ?: [];
     if (count($parts) >= 2) {
         return [trim((string) $parts[0]), trim((string) $parts[1])];
     }

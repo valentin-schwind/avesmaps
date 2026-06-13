@@ -2650,7 +2650,7 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
         // Myranor: "N IZ" (Imperiale Zeitrechnung) -> BF = IZ - 3747. Der Parser kann IZ (noch) nicht,
         // der founded_text hat es aber. Erste Jahreszahl im IZ-Kontext nehmen (Range -> Startjahr).
         $txt = (string) ($s['founded_text'] ?? '');
-        if (stripos($txt, 'IZ') !== false && preg_match('/(\d{1,4})/', $txt, $mm)) {
+        if (preg_match('/\bIZ\b/u', $txt) && preg_match('/(\d{1,4})/', $txt, $mm)) {
             return (int) $mm[1] - 3747;
         }
         return null;
