@@ -24,7 +24,7 @@
 	const STRIPE_WIDTH_BASE = 20;     // px bei Referenz-Zoom
 	const STRIPE_WIDTH_REF_ZOOM = 6;  // Referenz = höchster Zoom -> Basisbreite
 	const STRIPE_WIDTH_RATIO = 1.25;  // Faktor je Zoomstufe
-	const STRIPE_WIDTH_MIN = 5;       // px Untergrenze (ganz rausgezoomt)
+	const STRIPE_WIDTH_MIN = 3;       // px Untergrenze (ganz rausgezoomt) -- feiner, damit auch kleine Flaechen bei Tiefzoom Streifen zeigen
 	const STRIPE_WIDTH_MAX = 22;      // px Obergrenze
 
 	function stripeWidthForZoom(zoom) {

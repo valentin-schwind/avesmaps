@@ -270,6 +270,15 @@ function addRegionFeatureToMap(region, regionEntry) {
 		polygons = fillGeometry.coordinates;
 	}
 
+	// Ganz-Reich umstritten: fill_remainder ist leer -> keine Fuell-Polygone. Fuer Hover/Klick trotzdem die
+	// VOLLE Union rendern, aber UNSICHTBAR (fillOpacity 0) -> Terrain bleibt sichtbar, Schraffur liegt drueber.
+	let forceInvisibleFill = false;
+	if (regionEntry.isDerivedGeometry && polygons.length === 0) {
+		if (region.geometry?.type === "Polygon") polygons = [region.geometry.coordinates];
+		else if (region.geometry?.type === "MultiPolygon") polygons = region.geometry.coordinates;
+		forceInvisibleFill = polygons.length > 0;
+	}
+
 	polygons.forEach((poly, index) => {
 		const latlngs = poly.map(ring =>
 			ring.map(([x, y]) => [y, x])
@@ -277,6 +286,7 @@ function addRegionFeatureToMap(region, regionEntry) {
 		const polygon = L.polygon(latlngs, {
 			pane: "regionsPane",
 			...polygonStyle,
+			...(forceInvisibleFill ? { fillOpacity: 0 } : {}),
 			// Abgeleitete Außengrenzen sind nicht-interaktiv: ihre Kontur zeichnet das
 			// Canvas-Overlay, das SVG-Polygon ist nur (ggf. unsichtbare) Füllung und darf
 			// keine Klicks/Vertex-Edits abfangen (sonst landet update_geometry auf einer

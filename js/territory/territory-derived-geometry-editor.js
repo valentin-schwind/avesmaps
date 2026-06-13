@@ -243,13 +243,19 @@ function computeContestedDerivedSplit(sourcesResponse, unionGeometryGeoJson) {
 	if (contestedPieces.length < 1) return empty;
 	const unionClip = geoJsonGeometryToClippingMultiPolygon(unionGeometryGeoJson);
 	if (!Array.isArray(unionClip) || unionClip.length < 1) return empty;
-	let fillRemainder = null;
+	// Default = leere Restflaeche: tritt auf, wenn ALLE Baronien des Reichs umstritten sind
+	// (Union - Konflikte = leer). Dann gibt es keine normale Fuellung -> ganz Schraffur/Terrain.
+	// contested_pieces MUSS in jedem Fall erhalten bleiben (sonst verliert das Reich die Schraffur).
+	let fillRemainder = { type: "MultiPolygon", coordinates: [] };
 	try {
 		const remainderClip = window.polygonClipping.difference(unionClip, ...contestedClipping);
-		fillRemainder = clippingMultiPolygonToGeoJson(normalizeClippingMultiPolygon(remainderClip, "Restfläche"));
+		if (Array.isArray(remainderClip) && remainderClip.length > 0) {
+			fillRemainder = clippingMultiPolygonToGeoJson(normalizeClippingMultiPolygon(remainderClip, "Restfläche"));
+		}
+		// sonst: Differenz leer -> ganz umstritten -> fillRemainder bleibt leeres MultiPolygon.
 	} catch (error) {
-		console.warn("Konflikt-Split (fill_remainder) fehlgeschlagen:", error);
-		return empty;
+		console.warn("Konflikt-Split: Restflaeche leer/fehlgeschlagen -> Reich ganz umstritten:", error);
+		fillRemainder = { type: "MultiPolygon", coordinates: [] };
 	}
 	return { fillRemainder, contestedPieces };
 }
