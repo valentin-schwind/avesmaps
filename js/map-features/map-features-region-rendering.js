@@ -252,14 +252,22 @@ function addRegionFeatureToMap(region, regionEntry) {
 	const currentZoomForInteractivity = Math.round(Number(map.getZoom()));
 	const isAtActiveDisplayZoom = (regionEntry.minZoom === null || regionEntry.minZoom === undefined || Number(regionEntry.minZoom) <= currentZoomForInteractivity)
 		&& (regionEntry.maxZoom === null || regionEntry.maxZoom === undefined || Number(regionEntry.maxZoom) >= currentZoomForInteractivity);
+	// Umstrittene-Gebiete-Split: das FUELL-Polygon einer Derived aus fill_remainder bauen -> Loecher an
+	// den Konflikt-Baronien, durch die das Terrain scheint (die Schraffur zeichnet das Overlay darueber).
+	// Da Derived stroke-los ist (weight 0), malen die Loecher KEINE Raender. Grenze (Canvas-Overlay) und
+	// Label nutzen weiter region.geometry (volle Union) -> Reichsumriss + Hover-Flaeche unberuehrt; der
+	// Hover-Weiss-Wash ueberspringt die Loecher automatisch (= bestehendes "Hover laesst Schraffur stehen").
+	const fillGeometry = (regionEntry.isDerivedGeometry && regionEntry.fillRemainderGeojson)
+		? regionEntry.fillRemainderGeojson
+		: region.geometry;
 	let polygons = [];
 
-	if (region.geometry?.type === "Polygon") {
-		polygons = [region.geometry.coordinates];
+	if (fillGeometry?.type === "Polygon") {
+		polygons = [fillGeometry.coordinates];
 	}
 
-	if (region.geometry?.type === "MultiPolygon") {
-		polygons = region.geometry.coordinates;
+	if (fillGeometry?.type === "MultiPolygon") {
+		polygons = fillGeometry.coordinates;
 	}
 
 	polygons.forEach((poly, index) => {

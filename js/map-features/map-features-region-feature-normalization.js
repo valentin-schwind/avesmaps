@@ -14,6 +14,11 @@ function normalizeRegionFeature(feature) {
 		territoryPublicId: properties.territory_public_id || "",
 		aggregateSourceTerritoryPublicId: properties.aggregate_source_territory_public_id || "",
 		contestedParties: Array.isArray(properties.contestedParties) && properties.contestedParties.length ? properties.contestedParties : null,
+		// Umstrittene-Gebiete-Split einer Derived: fill_remainder = Fuellflaeche MIT Loechern an den
+		// Konflikt-Baronien (Frontend baut das Fuell-Polygon daraus -> Terrain durch); contested_pieces
+		// = pro Baronie {geometry, contestedParties, ...} fuer die Schraffur. Beide null = kein Konflikt.
+		fillRemainderGeojson: (properties.fill_remainder_geojson && typeof properties.fill_remainder_geojson === "object" && properties.fill_remainder_geojson.type) ? properties.fill_remainder_geojson : null,
+		contestedPieces: Array.isArray(properties.contested_pieces) && properties.contested_pieces.length ? properties.contested_pieces : null,
 		source: properties.source || (properties.feature_type === "political_territory" ? "political_territory" : "map_feature"),
 		name: normalizeRegionParentheticalSpacing(getRegionFeatureName(properties)),
 		displayName: normalizeRegionParentheticalSpacing(properties.display_name || properties.name || ""),
