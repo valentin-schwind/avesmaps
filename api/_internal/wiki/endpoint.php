@@ -22,10 +22,7 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
         $config = avesmapsLoadApiConfig(__DIR__);
 
         if (!avesmapsApplyCorsPolicy($config)) {
-            avesmapsJsonResponse(403, [
-                'ok' => false,
-                'error' => 'Diese Herkunft darf WikiSync nicht verwenden.',
-            ]);
+            avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf WikiSync nicht verwenden.');
         }
 
         $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -65,10 +62,7 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
         }
 
         if ($requestMethod !== 'POST') {
-            avesmapsJsonResponse(405, [
-                'ok' => false,
-                'error' => 'Nur GET und POST sind fuer WikiSync erlaubt.',
-            ]);
+            avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET und POST sind fuer WikiSync erlaubt.');
         }
 
         $payload = avesmapsReadJsonRequest();
@@ -121,10 +115,7 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
 
         avesmapsJsonResponse(200, $response);
     } catch (InvalidArgumentException $exception) {
-        avesmapsJsonResponse(400, [
-            'ok' => false,
-            'error' => $exception->getMessage(),
-        ]);
+        avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
     } catch (PDOException $exception) {
         avesmapsWikiSyncLogServerError('database_error', [
             'exception_code' => (string) $exception->getCode(),
@@ -134,20 +125,14 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
             'driver_message' => (string) ($exception->errorInfo[2] ?? ''),
         ]);
 
-        avesmapsJsonResponse(500, [
-            'ok' => false,
-            'error' => 'WikiSync konnte die Datenbank nicht verarbeiten.',
-        ]);
+        avesmapsErrorResponse(500, 'server_error', 'WikiSync konnte die Datenbank nicht verarbeiten.');
     } catch (RuntimeException $exception) {
         avesmapsWikiSyncLogServerError('runtime_error', [
             'exception_code' => (string) $exception->getCode(),
             'exception_message' => $exception->getMessage(),
         ]);
 
-        avesmapsJsonResponse(503, [
-            'ok' => false,
-            'error' => $exception->getMessage(),
-        ]);
+        avesmapsErrorResponse(503, 'service_unavailable', $exception->getMessage());
     } catch (Throwable $exception) {
         avesmapsWikiSyncLogServerError('server_error', [
             'exception_class' => $exception::class,
@@ -155,17 +140,7 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
             'exception_message' => $exception->getMessage(),
         ]);
 
-        avesmapsJsonResponse(500, [
-            'ok' => false,
-            'error' => 'WikiSync konnte nicht verarbeitet werden.',
-            'debug' => [
-                'class' => $exception::class,
-                'code' => (string) $exception->getCode(),
-                'message' => $exception->getMessage(),
-                'file' => basename($exception->getFile()),
-                'line' => $exception->getLine(),
-            ],
-        ]);
+        avesmapsErrorResponse(500, 'server_error', 'WikiSync konnte nicht verarbeitet werden.');
     }
 }
 
