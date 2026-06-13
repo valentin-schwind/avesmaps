@@ -81,7 +81,7 @@ jobs:
             ".htaccess"
             "index.html"
             "favicon.ico"
-            "og-image.png"
+            "og-image.jpg"
             "llms.txt"
             "robots.txt"
             "sitemap.xml"
