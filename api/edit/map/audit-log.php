@@ -8,10 +8,7 @@ try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, [
-            'ok' => false,
-            'error' => 'Diese Herkunft darf den Änderungsverlauf nicht lesen.',
-        ]);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf den Änderungsverlauf nicht lesen.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -20,10 +17,7 @@ try {
     }
 
     if ($requestMethod !== 'GET') {
-        avesmapsJsonResponse(405, [
-            'ok' => false,
-            'error' => 'Nur GET-Anfragen sind fuer diesen Endpoint erlaubt.',
-        ]);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET-Anfragen sind fuer diesen Endpoint erlaubt.');
     }
 
     $user = avesmapsRequireUserWithCapability('review');
@@ -31,25 +25,13 @@ try {
     avesmapsEnsureMapAuditUndoColumns($pdo);
     avesmapsJsonResponse(200, avesmapsListMapAuditLog($pdo, avesmapsUserCan($user, 'edit')));
 } catch (InvalidArgumentException $exception) {
-    avesmapsJsonResponse(400, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
+    avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
 } catch (PDOException) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Der Änderungsverlauf konnte nicht geladen werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Der Änderungsverlauf konnte nicht geladen werden.');
 } catch (RuntimeException $exception) {
-    avesmapsJsonResponse(503, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
+    avesmapsErrorResponse(503, 'service_unavailable', $exception->getMessage());
 } catch (Throwable) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Der Änderungsverlauf konnte nicht verarbeitet werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Der Änderungsverlauf konnte nicht verarbeitet werden.');
 }
 
 function avesmapsListMapAuditLog(PDO $pdo, bool $canUndoChanges): array {
