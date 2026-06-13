@@ -141,13 +141,17 @@
 		if (!rd.length) return;
 		const stripeWidth = stripeWidthForZoom(map.getZoom());
 		for (let k = 0; k < rd.length; k += 1) {
+			const props = (rd[k] && rd[k].properties) || {};
 			const parties = partiesFor(rd[k]);
-			if (parties) hatchFeature(rd[k], parties, stripeWidth);
+			// Own-Level-Schraffur NUR, wenn das Feature NICHT von einer Derived verdeckt ist. Sonst wird
+			// dieselbe Baronie doppelt schraffiert -- einmal hier (eigenes Feature) und einmal als
+			// contested_pieces der fuellenden Derived -> zwei Lagen a 0.75 = viel zu deckend. Verdeckte
+			// Baronien uebernimmt die Derived (unten).
+			if (parties && props.visual_hidden_by_derived_boundary !== true) hatchFeature(rd[k], parties, stripeWidth);
 			// Derived-Split: pro Konflikt-Baronie ein eigenes Stueck mit eigenen Streifenfarben.
 			// NUR wenn die Derived auf dieser Zoomstufe FUELLT (derived_fill_active) -- sonst wuerde
 			// es bei Hochzoom doppelt schraffieren (Eigen-Ebene-Baronien zeichnen dann selbst), und
 			// jede aggregierende Ebene deckt ihre Konflikt-Nachfahren ab (lueckenlose Uebergabe).
-			const props = (rd[k] && rd[k].properties) || {};
 			if (props.derived_fill_active === true && Array.isArray(props.contested_pieces)) {
 				for (let p = 0; p < props.contested_pieces.length; p += 1) {
 					const piece = props.contested_pieces[p];
