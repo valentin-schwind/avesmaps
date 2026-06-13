@@ -354,4 +354,26 @@ function addRegionFeatureToMap(region, regionEntry) {
 		bindRegionCompactTooltip(polygon, regionEntry);
 		bindRegionHoverTooltip(polygon, regionEntry);
 	});
+
+	// Hover-Bug-Fix (umstrittene Gebiete): bei einer Derived mit Split hat die SICHTBARE Fuellung LOECHER
+	// an den Konflikt-Baronien (damit Terrain durchscheint). Ueber den Loechern gibt's dann keine Hover-
+	// Flaeche -> kein weisser Wash. Eine UNSICHTBARE Voll-Huellen-Flaeche (fillOpacity 0) DRUNTER loest den
+	// Hover ueberall aus; der Wash deckt dann die ganze Huelle. Nur bei TEIL-Konflikt noetig (forceInvisibleFill
+	// = false); bei ganz umstritten ist die unsichtbare Huelle bereits das einzige Fuell-Polygon.
+	if (regionEntry.isDerivedGeometry && regionEntry.fillRemainderGeojson && !forceInvisibleFill
+		&& !visuallyHidden && !IS_EDIT_MODE && regionEntry.source === "political_territory" && isAtActiveDisplayZoom) {
+		let hullPolys = [];
+		if (region.geometry?.type === "Polygon") hullPolys = [region.geometry.coordinates];
+		else if (region.geometry?.type === "MultiPolygon") hullPolys = region.geometry.coordinates;
+		hullPolys.forEach((poly) => {
+			const latlngs = poly.map(ring => ring.map(([x, y]) => [y, x]));
+			const hoverHull = L.polygon(latlngs, { pane: "regionsPane", stroke: false, fill: true, fillOpacity: 0, interactive: true }).addTo(map);
+			hoverHull._regionEntry = regionEntry;
+			hoverHull.bringToBack();
+			regionEntry.layers.push(hoverHull);
+			regionPolygons.push(hoverHull);
+			bindRegionHoverTooltip(hoverHull, regionEntry);
+			bindRegionCompactTooltip(hoverHull, regionEntry);
+		});
+	}
 }
