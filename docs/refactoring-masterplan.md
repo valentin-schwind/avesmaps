@@ -52,7 +52,7 @@ This document is the living tracker. See `AGENTS.md` for the project brief.
 | **M0.5** | `AGENTS.md` + `CLAUDE.md` + this doc | ✅ done | living AI brief + English masterplan |
 | **M1** | Security | ✅ done (`7432f1e1`→`09ee68ad`) | neutralized 3 unauth wiki-dom crawler endpoints with 410 stubs + removed dead playground UI (verified `/edit → WikiSync` uses sync-monitor.php, not these); stopped 9 bare-Throwable `getMessage()` leaks; atomic `coat.php` cache write; `add_claim` transaction + `FOR UPDATE`. CORS: 2 of 3 divergent impls gone via stubbing; the wiki-browser `applyCors` (non-exploitable) is deferred to M3 with the parallel-stack migration. Live-verified: `dom-sync.php`→410, `/api/locations/`→200. |
 | **M2** | Correctness bugs | ✅ done | IZ/`bis` word-boundary parsers (`9d4a801b`), spotlight poll cancel (`70a8c1e9`), zoom-band unified to 0-1/2-6 (`8fa18991`), route-graph `calculateRouteServer` shadow removed (`11037917`, live-verified), political loader trio — TOCTOU zoom + edit-time fan-out cache invalidation + pending-rerun + cache eviction (`cacff63b`, deploy-verified; `apiUnavailable` intentionally left self-healing — see commit), `askRegionTabCloseChoice` 3-way dialog (`a78b82d1`). ↪ moved to M5: `refreshPlannerAfterFeatureChange` dedup (harmless dead code in a CRLF file). NB: loader + dialog are client-side; behavioural smoke (open editor, pan/zoom political layer, edit+save a region, close a dirty tab) is the meaningful live test. |
-| **M3** | API contract + remove shims (breaking) | in progress | ✅ foundation (`5df56d2a`) + ✅ step 1 frontend tolerance (`00f59fc2`): `apiErrorMessage` helper + ~40 read sites accept both `error:"string"` and `error:{code,message}` (live-verified against both shapes). ⏳ steps 2–6 (auth split, endpoint clusters, shims, multiplexer, core move). |
+| **M3** | API contract + remove shims (breaking) | in progress | ✅ foundation (`5df56d2a`) + ✅ step 1 frontend tolerance (`00f59fc2`): `apiErrorMessage` helper + ~40 read sites accept both `error:"string"` and `error:{code,message}` (live-verified against both shapes) + ✅ step 2 auth 401/403 split (`3b946189`, 401 live-verified). ⏳ steps 3–6 (endpoint clusters, shims, multiplexer, core move). |
 | **M4** | DRY | planned | PHP request runner, single `valid_to_bf`, BF parser, `wiki-crawler-base.php`; JS `territory-utils.js`, infobox-row, `debounce` |
 | **M5** | God-file splits | planned | per split tables, one file at a time, deploy+test between; CSS source split, rename duplicate filename, treat `*-inline.css` as generated |
 | **M6** | Performance | planned | derived-layer N+1 memo, DDL out of cache-hit path, political teardown → signature-skip, polylabel memo, fetch-interceptor, bound+invalidate fan-out cache |
@@ -114,9 +114,12 @@ bumped (`20260613e`). For reference, the originally-scoped sites were:
 - Direct `data.error` reads in `js/review/*`: `review-settlement-wiki.js`, `review-settlement-list.js` (×6), `review-region-sync.js` (×2), `review-path-wiki.js`, `review-path-sync.js`, `review-locations.js` (×3), `review-label-wiki.js`; `js/territory/`: `territory-wiki-tree.js:903`, `territory-subtree-display-tools.js:54`, `territory-override-footer.js:175`, `territory-editor-link.js:604/610`.
 Once tolerant, the shape flip is safe.
 
-**Step 2 — auth gate.** Change `avesmapsRequireUserWithCapability` (auth.php:87) to use
-`avesmapsErrorResponse` and split 401 `unauthenticated` (no user) vs 403 `forbidden`
-(user lacks capability). Today it returns flat string + always 401.
+**Step 2 — auth gate. ✅ DONE (`3b946189`).** `avesmapsRequireUserWithCapability` now emits
+the gold envelope via `avesmapsErrorResponse` and splits 401 `unauthenticated` (no user) vs
+403 `forbidden` (wrong role). Messages stay German (i18n is M8); codes are English. Safe
+because no frontend code special-cases 401/403 (only 409→poll). Live-verified:
+`GET /api/edit/map/{audit-log,presence}.php` without a session → HTTP 401 +
+`{"ok":false,"error":{"code":"unauthenticated","message":"…"}}`.
 
 **Step 3 — migrate endpoints cluster by cluster** (each: replace inline
 `{ok:false,error:STRING}` ladders with `avesmapsErrorResponse`/`avesmapsServerErrorResponse`,
