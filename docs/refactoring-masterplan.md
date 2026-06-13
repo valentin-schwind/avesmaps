@@ -52,7 +52,7 @@ This document is the living tracker. See `AGENTS.md` for the project brief.
 | **M0.5** | `AGENTS.md` + `CLAUDE.md` + this doc | ✅ done | living AI brief + English masterplan |
 | **M1** | Security | ✅ done (`7432f1e1`→`09ee68ad`) | neutralized 3 unauth wiki-dom crawler endpoints with 410 stubs + removed dead playground UI (verified `/edit → WikiSync` uses sync-monitor.php, not these); stopped 9 bare-Throwable `getMessage()` leaks; atomic `coat.php` cache write; `add_claim` transaction + `FOR UPDATE`. CORS: 2 of 3 divergent impls gone via stubbing; the wiki-browser `applyCors` (non-exploitable) is deferred to M3 with the parallel-stack migration. Live-verified: `dom-sync.php`→410, `/api/locations/`→200. |
 | **M2** | Correctness bugs | ✅ done | IZ/`bis` word-boundary parsers (`9d4a801b`), spotlight poll cancel (`70a8c1e9`), zoom-band unified to 0-1/2-6 (`8fa18991`), route-graph `calculateRouteServer` shadow removed (`11037917`, live-verified), political loader trio — TOCTOU zoom + edit-time fan-out cache invalidation + pending-rerun + cache eviction (`cacff63b`, deploy-verified; `apiUnavailable` intentionally left self-healing — see commit), `askRegionTabCloseChoice` 3-way dialog (`a78b82d1`). ↪ moved to M5: `refreshPlannerAfterFeatureChange` dedup (harmless dead code in a CRLF file). NB: loader + dialog are client-side; behavioural smoke (open editor, pan/zoom political layer, edit+save a region, close a dirty tab) is the meaningful live test. |
-| **M3** | API contract + remove shims (breaking) | in progress | ✅ foundation (`5df56d2a`) + ✅ step 1 frontend tolerance (`00f59fc2`): `apiErrorMessage` helper + ~40 read sites accept both `error:"string"` and `error:{code,message}` (live-verified against both shapes) + ✅ step 2 auth 401/403 split (`3b946189`, 401 live-verified). ✅ step 3 endpoint migrations COMPLETE — app/ (8), edit/map (3), edit/political (3), edit/reports (1), diagnostics (1), edit/wiki (5 + shared `endpoint.php`), wiki-browser parallel stack (1) = 23 endpoints + the shared WikiSync handler, all live-verified (`44d02c8d`→`b5054bab`). Every JSON endpoint now emits the gold envelope; CORS unified. ✅ step 4 lib shims removed (`79de2cbd`+`0bfb68fb`, 7 callers repointed to `_internal/`). ⏳ remaining: alias-action pairs + step 5 (`territories-endpoint.php` multiplexer split) + step 6 (root auth/bootstrap → `_internal/core/`). |
+| **M3** | API contract + remove shims (breaking) | ✅ done (substantively) | step 1 frontend tolerance (`00f59fc2`, `apiErrorMessage` + ~40 tolerant reads) → step 2 auth 401/403 split (`3b946189`) → step 3 ALL endpoints on the gold envelope (23 + shared WikiSync handler, `44d02c8d`→`b5054bab`; CORS unified, parallel stack gone) → step 4 lib shims removed (`79de2cbd`+`0bfb68fb`, 7 callers repointed) → step 5 territories-endpoint cleanup (`84b94295`: gold + `?debug_errors` leak dropped + 3 dead `get_` aliases removed). Step 6 (core folder reorg) **skipped** — marginal/high-churn, root shims deliberately kept for STRATO. Every JSON endpoint now returns `{ok:false,error:{code,message}}`; messages stay German (English is M8). |
 | **M4** | DRY | planned | PHP request runner, single `valid_to_bf`, BF parser, `wiki-crawler-base.php`; JS `territory-utils.js`, infobox-row, `debounce` |
 | **M5** | God-file splits | planned | per split tables, one file at a time, deploy+test between; CSS source split, rename duplicate filename, treat `*-inline.css` as generated |
 | **M6** | Performance | planned | derived-layer N+1 memo, DDL out of cache-hit path, political teardown → signature-skip, polylabel memo, fetch-interceptor, bound+invalidate fan-out cache |
@@ -194,11 +194,27 @@ needs a frontend cross-check of which alias form each caller uses before removin
 ⚠️ STRATO: deploy never deletes — web-reachable files get stubs; lib shims (not web entry points) were
 safe to delete once no repo code required them.
 
-**Step 5 — split the `territories-endpoint.php` multiplexer** into read vs write
-files with uniform per-file auth (move `debug`/`audit`/`geometry_assignment` behind `review`).
+**Step 5 — `territories-endpoint.php` cleanup.** ✅ **DONE** (`84b94295`). Reality check: the
+"multiplexer" is a thin **190-line dispatcher** (not the 2533-line file the old notes implied —
+that's a `territories-*.php` *lib*, an M5 concern) that already delegates to
+`territories-{read,write,geometry,...}.php` and is cleanly method-separated. So instead of a
+physical read/write file split (which would only add wrapper method-routing for no real gain),
+this step: migrated CORS 403 / 405 / the catch ladder to `avesmapsErrorResponse`; **dropped the
+`?debug_errors` leak** (it appended `avesmapsPoliticalDebugExceptionPayload` to every error); and
+**removed the 3 dead `get_` alias actions** (`get_derived_geometry[_sources/_plan]` — frontend only
+uses the canonical names, verified repo-wide). Per-action auth left unchanged: `debug`/`audit`/
+`geometry_assignment` stay public per **owner decision #4** (which supersedes the old "move behind
+review" note). Live-verified (success/400/405/401 + the removed alias now → unknown-action 400).
 
-**Step 6 — move root `api/{auth,bootstrap}.php`** → `api/_internal/core/` with thin
-root stubs (STRATO clean-deploy safety), per `server-repo-drift` lessons.
+**Step 6 — root `auth.php`/`bootstrap.php` reorg → SKIPPED (recommended).** The real core files are
+already at `api/_internal/{auth,bootstrap}.php`; the root `api/{auth,bootstrap}.php` are thin shims
+that **no repo code requires** (every endpoint requires the `_internal/` files directly). Moving the
+real files into an `_internal/core/` subfolder would rewrite the require path in ~every endpoint
+(high churn, real risk) for zero functional benefit, and deleting the root shims would undo a
+deliberate STRATO clean-deploy safety net (the `server-repo-drift` lesson — prod-only files may
+require the root path; deploy never deletes). Recommendation: leave as-is. **➡️ M3 is substantively
+COMPLETE** — every endpoint speaks the gold envelope, CORS is unified, leaks are closed, lib shims
+and dead aliases are gone.
 
 Verify each step: `php -l` changed files, `node --check` changed JS, deploy, then curl the
 migrated endpoint (success + an error path) and confirm the frontend still renders errors.
