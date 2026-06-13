@@ -10,10 +10,7 @@ try {
     $config = avesmapsLoadApiConfig(avesmapsApiRoot());
 
     if (!avesmapsApplyCorsPolicy($config)) {
-        avesmapsJsonResponse(403, [
-            'ok' => false,
-            'error' => 'Diese Herkunft darf die Kartensuche nicht verwenden.',
-        ]);
+        avesmapsErrorResponse(403, 'forbidden_origin', 'Diese Herkunft darf die Kartensuche nicht verwenden.');
     }
 
     $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
@@ -22,10 +19,7 @@ try {
     }
 
     if ($requestMethod !== 'GET') {
-        avesmapsJsonResponse(405, [
-            'ok' => false,
-            'error' => 'Nur GET-Anfragen sind fuer die Kartensuche erlaubt.',
-        ]);
+        avesmapsErrorResponse(405, 'method_not_allowed', 'Nur GET-Anfragen sind fuer die Kartensuche erlaubt.');
     }
 
     $query = avesmapsReadMapSearchQuery($_GET['q'] ?? '');
@@ -51,25 +45,13 @@ try {
         'results' => $results,
     ]);
 } catch (InvalidArgumentException $exception) {
-    avesmapsJsonResponse(400, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
+    avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
 } catch (PDOException) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Die Kartensuche konnte nicht aus der Datenbank geladen werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Die Kartensuche konnte nicht aus der Datenbank geladen werden.');
 } catch (RuntimeException $exception) {
-    avesmapsJsonResponse(503, [
-        'ok' => false,
-        'error' => $exception->getMessage(),
-    ]);
+    avesmapsErrorResponse(503, 'service_unavailable', $exception->getMessage());
 } catch (Throwable) {
-    avesmapsJsonResponse(500, [
-        'ok' => false,
-        'error' => 'Die Kartensuche konnte nicht verarbeitet werden.',
-    ]);
+    avesmapsErrorResponse(500, 'server_error', 'Die Kartensuche konnte nicht verarbeitet werden.');
 }
 
 function avesmapsReadMapSearchQuery(mixed $value): string {
