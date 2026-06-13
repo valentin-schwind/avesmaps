@@ -162,7 +162,17 @@ runtime behaviour was not exercised in a browser. Worth a quick manual pass in t
    (previously: `ReferenceError`, tab wouldn't close). Check: Speichern saves+closes, Verwerfen
    closes without saving, Abbrechen / Escape / backdrop-click keep the tab open.
 
-## Diagnosed issue — coat-of-arms (Wappen) blink in the Politik view (fix belongs to M6)
+## Diagnosed issue — coat-of-arms (Wappen) blink in the Politik view — ✅ FIXED (`adeb4f3e`, pulled forward from M6)
+
+✅ **Fixed (`adeb4f3e`)** by reusing region label tooltips across the political reload instead of
+destroying them: `reusableRegionLabelsByKey` (keyed by territory) in `map-features-region-rendering.js`,
+snapshot before `clearRenderedRegionLayers()` + orphan cleanup in `finally`
+(`map-features-political-territory-loader.js`). On rebuild the pooled layer is reused and `setContent`
+(which recreates the `<img>`) only runs when the markup actually changed — so a same-zoom pan (identical
+data) keeps the loaded coat `<img>` and no longer blinks. Collision-safe (the resolver resets offsets to
+0 and recomputes each run). Reload frequency + polygon rebuild unchanged (contained blast radius). Logic
++ deploy verified; the visual result needs one owner hard-reload to confirm. The broader perf-lever-#1
+(skip the political reload entirely on same-zoom pan, or reuse polygons too) remains for M6.
 
 Reported 2026-06-13; diagnosed read-only (NOT caused by M1/M2 — verified).
 **Root cause:** in the `political` map mode the whole layer is torn down and rebuilt on every
