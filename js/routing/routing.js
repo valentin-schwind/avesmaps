@@ -661,12 +661,12 @@ $(document).on("click", ".map-context-menu__item", function (event) {
 		const nearestLocation = findNearestLocationToLatLng(contextMenuLatLng);
 		closeMapContextMenu();
 		if (!nearestLocation) {
-			showFeedbackToast("Kein Ort gefunden.", "warning");
+			showFeedbackToast(tr("toast.findNearest.none", "Kein Ort gefunden."), "warning");
 			return;
 		}
 
 		if (!openLocationPopupByName(nearestLocation.name)) {
-			showFeedbackToast("Der nächste Ort konnte nicht geöffnet werden.", "warning");
+			showFeedbackToast(tr("toast.findNearest.openFailed", "Der nächste Ort konnte nicht geöffnet werden."), "warning");
 		}
 		return;
 	}
@@ -674,14 +674,14 @@ $(document).on("click", ".map-context-menu__item", function (event) {
 	if (action === "start-distance-measurement" && contextMenuLatLng) {
 		closeMapContextMenu();
 		startDistanceMeasurementAt(contextMenuLatLng);
-		showFeedbackToast("Startpunkt gesetzt. Jetzt den zweiten Punkt anklicken.", "info");
+		showFeedbackToast(tr("toast.measure.startSet", "Startpunkt gesetzt. Jetzt den zweiten Punkt anklicken."), "info");
 		return;
 	}
 
 	if (action === "clear-distance-measurement") {
 		closeMapContextMenu();
 		if (clearDistanceMeasurement()) {
-			showFeedbackToast("Entfernungsmessung gelöscht.", "success");
+			showFeedbackToast(tr("toast.measure.cleared", "Entfernungsmessung gelöscht."), "success");
 		}
 	}
 });

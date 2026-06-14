@@ -104,13 +104,13 @@
 					<button type="button" class="map-context-menu__item" data-context-action="create-region">Neues Herrschaftsgebiet</button>
 				</div>
 			</div>
-			<button type="button" class="map-context-menu__item" data-context-action="share-pin">Stelle markieren und teilen</button>
-			<button type="button" class="map-context-menu__item" data-context-action="share-map-link" hidden>🔗 Link für diese Route kopieren</button>
-			<button type="button" class="map-context-menu__item" data-context-action="report-location">Hier melden...</button>
-			<button type="button" class="map-context-menu__item" data-context-action="open-spotlight-search">Suchen</button>
-			<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location">Nächsten Ort finden</button>
-			<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement">Entfernung messen</button>
-			<button type="button" class="map-context-menu__item" data-context-action="clear-distance-measurement" hidden>Entfernungsmessung löschen</button>
+			<button type="button" class="map-context-menu__item" data-context-action="share-pin" data-i18n="ctxmenu.sharePin">Stelle markieren und teilen</button>
+			<button type="button" class="map-context-menu__item" data-context-action="share-map-link" hidden data-i18n="ctxmenu.shareMapLink">🔗 Link für diese Route kopieren</button>
+			<button type="button" class="map-context-menu__item" data-context-action="report-location" data-i18n="ctxmenu.reportLocation">Hier melden...</button>
+			<button type="button" class="map-context-menu__item" data-context-action="open-spotlight-search" data-i18n="ctxmenu.search">Suchen</button>
+			<button type="button" class="map-context-menu__item" data-context-action="find-nearest-location" data-i18n="ctxmenu.findNearest">Nächsten Ort finden</button>
+			<button type="button" class="map-context-menu__item" data-context-action="start-distance-measurement" data-i18n="ctxmenu.measureDistance">Entfernung messen</button>
+			<button type="button" class="map-context-menu__item" data-context-action="clear-distance-measurement" hidden data-i18n="ctxmenu.clearDistance">Entfernungsmessung löschen</button>
 		</div>
 		<div id="region-context-menu" class="map-context-menu region-context-menu" hidden>
 			<button type="button" class="map-context-menu__item" data-region-context-action="edit-geometry">Grenzen bearbeiten</button>
@@ -136,9 +136,9 @@
 		</div>
 		<div id="spotlight-search-overlay" class="spotlight-search-overlay" hidden>
 			<div id="spotlight-search-dialog" class="spotlight-search" role="dialog" aria-modal="true" aria-labelledby="spotlight-search-title">
-				<h2 id="spotlight-search-title" class="spotlight-search__title">Suchen</h2>
-				<input id="spotlight-search-input" class="spotlight-search__input" type="search" autocomplete="off" spellcheck="false" placeholder="Karte durchsuchen" aria-controls="spotlight-search-results" aria-autocomplete="list" />
-				<div id="spotlight-search-results" class="spotlight-search__results" role="listbox" aria-label="Suchtreffer" hidden></div>
+				<h2 id="spotlight-search-title" class="spotlight-search__title" data-i18n="spotlight.title">Suchen</h2>
+				<input id="spotlight-search-input" class="spotlight-search__input" type="search" autocomplete="off" spellcheck="false" placeholder="Karte durchsuchen" data-i18n-placeholder="spotlight.placeholder" aria-controls="spotlight-search-results" aria-autocomplete="list" />
+				<div id="spotlight-search-results" class="spotlight-search__results" role="listbox" aria-label="Suchtreffer" data-i18n-aria-label="spotlight.resultsAria" hidden></div>
 				<p id="spotlight-search-status" class="spotlight-search__status" role="status" aria-live="polite" hidden></p>
 			</div>
 		</div>
@@ -875,19 +875,19 @@
 			</section>
 			<div class="display-options">
 				<label class="display-options__row display-options__select-row"
-					>Deregraphie
+					><span data-i18n="view.mode.label">Deregraphie</span>
 					<div class="transport-select-with-icon transport-icon-select display-options__icon-select">
-						<select id="mapLayerModeSelect" class="display-options__select transport-native-select" aria-label="Deregraphie">
-							<option value="none">Nur Karte</option>
-							<option value="political">Politisch</option>
-							<option value="deregraphic" selected>Standard</option>
-							<option value="powerlines">Kraftlinien</option>
+						<select id="mapLayerModeSelect" class="display-options__select transport-native-select" aria-label="Deregraphie" data-i18n-aria-label="view.mode.aria">
+							<option value="none" data-i18n="view.mode.none">Nur Karte</option>
+							<option value="political" data-i18n="view.mode.political">Politisch</option>
+							<option value="deregraphic" selected data-i18n="view.mode.standard">Standard</option>
+							<option value="powerlines" data-i18n="view.mode.powerlines">Kraftlinien</option>
 						</select>
 						<button type="button" id="mapLayerModeButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="mapLayerModeMenu">
 							<img id="mapLayerModeIcon" class="transport-option-inline-icon" src="icons/RegionenKarte.webp" data-source-src="icons/RegionenKarte.webp" alt="" />
 							<span id="mapLayerModeLabel" class="transport-combobox__label">Standard</span>
 						</button>
-						<div id="mapLayerModeMenu" class="transport-combobox__menu" role="listbox" aria-label="Deregraphie" hidden></div>
+						<div id="mapLayerModeMenu" class="transport-combobox__menu" role="listbox" aria-label="Deregraphie" data-i18n-aria-label="view.mode.aria" hidden></div>
 					</div>
 				</label>
 				<div class="display-options__row">

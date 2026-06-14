@@ -55,4 +55,32 @@ window.AVESMAPS_I18N_EN = {
 	"planner.unit.miles": "miles",
 	"planner.unit.hours": "hours",
 	"planner.unit.days": "days",
+
+	// --- map context menu (public actions) ---
+	"ctxmenu.sharePin": "Mark and share this spot",
+	"ctxmenu.shareMapLink": "🔗 Copy link to this route",
+	"ctxmenu.reportLocation": "Report here...",
+	"ctxmenu.search": "Search",
+	"ctxmenu.findNearest": "Find nearest location",
+	"ctxmenu.measureDistance": "Measure distance",
+	"ctxmenu.clearDistance": "Clear distance measurement",
+
+	// --- view-mode switcher (custom combobox mirrors the option text) ---
+	"view.mode.label": "View mode",
+	"view.mode.aria": "View mode",
+	"view.mode.none": "Map only",
+	"view.mode.political": "Political",
+	"view.mode.standard": "Standard",
+	"view.mode.powerlines": "Ley lines",
+
+	// --- spotlight search ---
+	"spotlight.title": "Search",
+	"spotlight.placeholder": "Search the map",
+	"spotlight.resultsAria": "Search results",
+
+	// --- toasts: find-nearest + distance measurement ---
+	"toast.findNearest.none": "No location found.",
+	"toast.findNearest.openFailed": "The nearest location could not be opened.",
+	"toast.measure.startSet": "Start point set. Now click the second point.",
+	"toast.measure.cleared": "Distance measurement cleared.",
 };
