@@ -1,21 +1,21 @@
 # Avesmaps
 
-> Aventurien-Routenplaner fuer "Das Schwarze Auge": interaktive Karte, Suche, politische Reichsgrenzen und teilbare Routen-URLs; PHP-+-MySQL-Backend fuer Suche, Gebiete, Routing, Bewertungen und Editor.
+> Aventurien route planner for "Das Schwarze Auge": interactive map, search, political Reichsgrenzen and shareable route URLs; PHP + MySQL backend for search, territories, routing, reviews and editor.
 
-Avesmaps ist eine Vanilla-JavaScript-Anwendung ohne Build-Schritt. Die Karte und die clientseitige Routenberechnung laufen im Browser; die Live-Seite nutzt zusaetzlich ein PHP-8-+-MySQL-Backend (unter `api/`) fuer Suche, Herrschaftsgebiete, das Routing-API, Bewertungen und den Editor.
+Avesmaps is a vanilla-JavaScript application without a build step. The map and the client-side route computation run in the browser; the live site additionally uses a PHP 8 + MySQL backend (under `api/`) for search, Herrschaftsgebiete, the routing API, reviews and the editor.
 
-Die Anwendung richtet sich an Personen, die in Aventurien Reiserouten planen wollen. Sie zeigt Orte, Wege und optional die politischen Grenzen der Reiche und berechnet Routen zwischen mehreren Wegpunkten.
+The application is aimed at people who want to plan travel routes in Aventurien. It shows locations, paths and optionally the political boundaries of the Reiche, and computes routes between multiple waypoints.
 
-Die Routenberechnung basiert auf dem Dijkstra-Algorithmus auf einem gewichteten Graphen. Der Graph wird aus GeoJSON-Daten fuer Orte und Wege aufgebaut. Je nach Einstellung optimiert die Anwendung auf Distanz oder Reisezeit. Optional wird eine Umstiegsstrafe fuer Transportwechsel beruecksichtigt.
+Route computation is based on the Dijkstra algorithm on a weighted graph. The graph is built from GeoJSON data for locations and paths. Depending on the setting, the application optimizes for distance or travel time. Optionally a transfer penalty for transport changes is taken into account.
 
-Routen und Planner-Einstellungen koennen ueber URL-Parameter geteilt werden.
+Routes and planner settings can be shared via URL parameters.
 
-## Wichtige Ressourcen
+## Important resources
 
-- [Live-Anwendung](https://valentin-schwind.github.io/avesmaps/): Oeffentliche Projektseite mit Karte und Routenplaner.
-- [Maschinenlesbare Projektzusammenfassung](https://valentin-schwind.github.io/avesmaps/site-summary.md): Kurze Markdown-Zusammenfassung fuer KI-Systeme und Agenten.
-- [GitHub-Repository](https://github.com/valentin-schwind/avesmaps): Quellcode und Projektverlauf.
+- [Live application](https://valentin-schwind.github.io/avesmaps/): Public project page with map and route planner.
+- [Machine-readable project summary](https://valentin-schwind.github.io/avesmaps/site-summary.md): Short Markdown summary for AI systems and agents.
+- [GitHub repository](https://github.com/valentin-schwind/avesmaps): Source code and project history.
 
 ## Optional
 
-- [README im Repository](https://github.com/valentin-schwind/avesmaps#readme): Ausfuehrlichere Projektdokumentation fuer Menschen.
+- [README in the repository](https://github.com/valentin-schwind/avesmaps#readme): More detailed project documentation for humans.

@@ -6,10 +6,6 @@ This document describes the remaining architecture of `js/map-features.js` after
 
 The goal is not to move more functions immediately. The goal is to understand the remaining file as an orchestrator and data-flow problem before code is changed again later.
 
-This file connects to:
-
-- `docs/refactoring-status.md`
-
 ## 2. Starting point
 
 The well-isolatable helper/UI/rendering clusters have already been extracted:

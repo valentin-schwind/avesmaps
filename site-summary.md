@@ -1,48 +1,48 @@
 # Avesmaps
 
-> Avesmaps ist ein offenes, nicht-kommerzielles Fanprojekt und statischer Routenplaner fuer Aventurien aus dem Rollenspiel "Das Schwarze Auge".
+> Avesmaps is an open, non-commercial fan project and static route planner for Aventurien from the roleplaying game "Das Schwarze Auge".
 
-## Kurzbeschreibung
+## Short description
 
-Avesmaps ist eine interaktive Webkarte fuer Aventurien. Die Anwendung zeigt Orte, Wege und optional die politischen Grenzen der Reiche. Sie berechnet Reiserouten direkt im Browser und kann auf jedem normalen Webserver als statische Seite betrieben werden.
+Avesmaps is an interactive web map for Aventurien. The application shows locations, paths and optionally the political boundaries of the Reiche. It computes travel routes directly in the browser and can be operated as a static site on any normal web server.
 
-## Fachlicher Fokus
+## Subject focus
 
 - Aventurien
 - Das Schwarze Auge
 - DSA
-- Routenplaner
-- Politische Karte
-- Grenzen der Reiche
-- Reisewege und Reisezeiten
+- Route planner
+- Political map
+- Boundaries of the Reiche
+- Travel paths and travel times
 
-## Routing-Logik
+## Routing logic
 
-- Die Routenberechnung basiert auf dem Dijkstra-Algorithmus.
-- Grundlage ist ein gewichteter Graph aus Orten und GeoJSON-Wegebeziehungen.
-- Es kann zwischen schnellster und kuerzester Route unterschieden werden.
-- Optional wird eine Umstiegsstrafe verwendet, um Transportwechsel zu reduzieren.
+- Route computation is based on the Dijkstra algorithm.
+- The basis is a weighted graph from locations and GeoJSON path relationships.
+- It is possible to distinguish between the fastest and the shortest route.
+- Optionally a transfer penalty is used to reduce transport changes.
 
-## Wichtige Funktionen
+## Important features
 
-- Mehrere Wegpunkte in einer Route
-- Auswahl von Land-, Fluss- und Seewegen
-- Politische Karte mit optional einblendbaren Reichsgrenzen
-- Teilbare Routen und Einstellungen per URL
+- Multiple waypoints in one route
+- Selection of land, river and sea paths
+- Political map with optionally toggleable Reichsgrenzen
+- Shareable routes and settings via URL
 
-## Daten und Hosting
+## Data and hosting
 
-- Die Kartendaten liegen lokal im Projekt und werden nicht ueber externe Dienste geladen.
-- Die Kartendaten werden intern ueber die Karten- und API-Workflows verarbeitet.
-- Die Live-Seite nutzt ein PHP-8-+-MySQL-Backend (`api/`) fuer Suche, Herrschaftsgebiete, das Routing-API, Bewertungen und den Editor; die statische Karte rendert auch ohne Backend. Keine Drittanbieter-APIs.
+- The map data is stored locally in the project and is not loaded via external services.
+- The map data is processed internally via the map and API workflows.
+- The live site uses a PHP 8 + MySQL backend (`api/`) for search, Herrschaftsgebiete, the routing API, reviews and the editor; the static map also renders without a backend. No third-party APIs.
 
-## Rechtliches
+## Legal
 
-- Das Projekt ist als DSA-Fanprojekt gekennzeichnet.
-- Quellen- und Lizenzhinweise stehen in `NOTICE.md`.
-- DSA-bezogene Karten-, Bild- und Datenassets stehen nicht unter einer pauschalen Open-Source-Lizenz des Repositories.
+- The project is marked as a DSA fan project.
+- Source and license notes are in `NOTICE.md`.
+- DSA-related map, image and data assets are not under a blanket open-source license of the repository.
 
-## Wichtige URLs
+## Important URLs
 
 - Live: https://valentin-schwind.github.io/avesmaps/
 - Repository: https://github.com/valentin-schwind/avesmaps

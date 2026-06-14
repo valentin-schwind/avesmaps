@@ -1,123 +1,123 @@
 # Avesmaps
 
-Avesmaps ist ein offener, nicht-kommerzieller Routenplaner fuer Aventurien aus
-dem Rollenspiel "Das Schwarze Auge". Die Anwendung zeigt eine kachelbasierte
-Karte, Orte, Wege und optionale Regionsgrenzen an und berechnet Reiserouten
-direkt im Browser.
+Avesmaps is an open, non-commercial route planner for Aventurien from the
+roleplaying game "Das Schwarze Auge". The application displays a tile-based
+map, locations, paths and optional region boundaries, and computes travel
+routes directly in the browser.
 
 ![Beispielansicht](img/example.png)
 
-Die aktuell erreichbare Version laeuft unter [https://valentin-schwind.github.io/avesmaps/](https://valentin-schwind.github.io/avesmaps/).
+The currently reachable version runs at [https://valentin-schwind.github.io/avesmaps/](https://valentin-schwind.github.io/avesmaps/).
 
-## Was das Projekt kann
+## What the project can do
 
-- Orte, Wege und Grenzen auf einer lokal gehosteten Karte darstellen
-- eine politische Karte mit den Grenzen der Reiche anzeigen
-- Routen zwischen mehreren Wegpunkten berechnen
-- zwischen kuerzester und schnellster Route unterscheiden
-- Land-, Fluss- und Seewege mit unterschiedlichen Transportmitteln einbeziehen
-- Umstiege auf Wunsch mit einer Strafgewichtung minimieren
-- die aktuelle URL kopieren, um Routen und Einstellungen direkt zu teilen
+- display locations, paths and boundaries on a locally hosted map
+- show a political map with the boundaries of the Reiche
+- compute routes between multiple waypoints
+- distinguish between the shortest and the fastest route
+- include land, river and sea paths with different means of transport
+- optionally minimize transfers with a penalty weighting
+- copy the current URL to share routes and settings directly
 
-## Wie die Routen berechnet werden
+## How the routes are computed
 
-Die Routenberechnung basiert auf dem **Dijkstra-Algorithmus**. Im Code wird dafuer ein gewichteter Graph aus den GeoJSON-Wegen aufgebaut:
+Route computation is based on the **Dijkstra algorithm**. For this, the code builds a weighted graph from the GeoJSON paths:
 
-- Orte werden als Knoten verwendet
-- Wege zwischen zwei Orten werden als Kanten verwendet
-- jede Kante erhaelt Gewichte fuer Distanz und Reisezeit
-- optional wird eine zusaetzliche Umstiegsstrafe beruecksichtigt, wenn das Transportmittel wechselt
+- locations are used as nodes
+- paths between two locations are used as edges
+- each edge receives weights for distance and travel time
+- optionally an additional transfer penalty is taken into account when the means of transport changes
 
-Zur Beschleunigung verwendet die Implementierung eine **PriorityQueue auf Basis eines Min-Heaps**. Dadurch werden immer zuerst die aktuell guenstigsten Kandidaten verarbeitet. Je nach Einstellung optimiert der Algorithmus auf Distanz oder auf Reisezeit.
+To speed this up, the implementation uses a **PriorityQueue based on a min-heap**. As a result, the currently cheapest candidates are always processed first. Depending on the setting, the algorithm optimizes for distance or for travel time.
 
-## Technischer Aufbau
+## Technical structure
 
-Die Anwendung ist bewusst einfach gehalten:
+The application is intentionally kept simple:
 
-- `index.html` enthaelt den groessten Teil der Logik fuer Karte, Datenverarbeitung und Routenplanung
-- `tiles/` enthaelt die Kartenkacheln
-- `api/` enthaelt den optionalen PHP-Endpoint fuer Ortsmeldungen, Beispiel-Konfiguration und SQL-Schemata
-- `css/`, `js/` und `fonts/` enthalten alle benoetigten Assets lokal im Repository
+- `index.html` contains the largest part of the logic for the map, data processing and route planning
+- `tiles/` contains the map tiles
+- `api/` contains the optional PHP endpoint for location reports, an example configuration and SQL schemas
+- `css/`, `js/` and `fonts/` contain all required assets locally in the repository
 
-Die Karten- und Routenlogik selbst bleibt komplett im Browser:
+The map and route logic itself stays entirely in the browser:
 
-- kein externer Tile-Server
-- keine CDN-Einbindung
-- kein Build-Schritt
+- no external tile server
+- no CDN integration
+- no build step
 
-Die statische Karte und die clientseitige Routenberechnung laufen ohne Backend. Die Live-Seite (avesmaps.de) nutzt darueber hinaus ein PHP-8-+-MySQL-Backend unter `api/` fuer Suche, Herrschaftsgebiete, das serverseitige Routing-API, Bewertungen und den Editor.
+The static map and the client-side route computation run without a backend. Beyond that, the live site (avesmaps.de) uses a PHP 8 + MySQL backend under `api/` for search, Herrschaftsgebiete, the server-side routing API, reviews and the editor.
 
-## Lokale Nutzung
+## Local usage
 
-Da die Anwendung GeoJSON per XMLHttpRequest laedt, sollte sie nicht direkt per `file://` geoeffnet werden. Stattdessen sollte ein kleiner lokaler Webserver verwendet werden.
+Since the application loads GeoJSON via XMLHttpRequest, it should not be opened directly via `file://`. Instead, a small local web server should be used.
 
-Beispiel mit Python im Projektverzeichnis:
+Example with Python in the project directory:
 
 ```bash
 python -m http.server 8000
 ```
 
-Danach ist die Anwendung unter [http://localhost:8000](http://localhost:8000) erreichbar.
+After that, the application is reachable at [http://localhost:8000](http://localhost:8000).
 
-Hinweis: Dieser Start ueber Python eignet sich fuer statische UI-/Asset-Tests.
-Vollstaendige SQL-Daten- und Routing-Tests benoetigen zusaetzlich konfigurierte
-Read-only-API-Endpunkte (`MAP_FEATURES_API_URL`, `MAP_SEARCH_API_URL`,
-`POLITICAL_TERRITORIES_API_URL`), zum Beispiel auf
-[https://avesmaps.de/](https://avesmaps.de/) oder per explizitem
-`window.AVESMAPS_*`-Override.
+Note: This startup via Python is suitable for static UI/asset tests.
+Full SQL data and routing tests additionally require configured
+read-only API endpoints (`MAP_FEATURES_API_URL`, `MAP_SEARCH_API_URL`,
+`POLITICAL_TERRITORIES_API_URL`), for example at
+[https://avesmaps.de/](https://avesmaps.de/) or via an explicit
+`window.AVESMAPS_*` override.
 
-Wenn ein lokales Frontend gegen eine oeffentliche API testet, muss die API CORS
-fuer den exakten lokalen Origin erlauben (zum Beispiel
+When a local frontend tests against a public API, the API must allow CORS
+for the exact local origin (for example
 `http://localhost:8000`).
 
-Wenn auch das Ortsmelde-Formular lokal getestet werden soll, ist ein PHP-faehiger Server sinnvoll, zum Beispiel:
+If the location report form is also to be tested locally, a PHP-capable server makes sense, for example:
 
 ```bash
 php -S localhost:8000
 ```
 
-Dann koennen die statischen Dateien und `api/report-location.php` direkt ueber denselben Host laufen.
-Fuer lokale PHP/API-Tests werden eine gueltige `api/config.local.php` oder die
-passenden `AVESMAPS_DB_*`- und `AVESMAPS_ALLOWED_ORIGINS`-Umgebungsvariablen
-benoetigt.
+Then the static files and `api/report-location.php` can run directly via the same host.
+For local PHP/API tests, a valid `api/config.local.php` or the
+matching `AVESMAPS_DB_*` and `AVESMAPS_ALLOWED_ORIGINS` environment variables
+are required.
 
 ## Deployment
 
-Fuer die reine Karte reicht es, den kompletten Projektordner auf einen beliebigen statischen Webserver zu legen. Es ist kein Build-Schritt notwendig.
+For the map alone, it is enough to place the complete project folder on any static web server. No build step is necessary.
 
-Wenn das Ortsmelde-Formular aktiv sein soll, braucht die API einen PHP-faehigen Server und eine SQL-Datenbank. Zwei typische Varianten:
+If the location report form should be active, the API needs a PHP-capable server and a SQL database. Two typical variants:
 
-- gesamtes Projekt auf einem PHP-Webserver hosten, sodass `api/report-location.php` relativ erreichbar ist
-- Frontend statisch hosten und `window.AVESMAPS_LOCATION_REPORT_ENDPOINT` auf eine absolute API-URL setzen
+- host the entire project on a PHP web server, so that `api/report-location.php` is reachable relatively
+- host the frontend statically and set `window.AVESMAPS_LOCATION_REPORT_ENDPOINT` to an absolute API URL
 
-Wichtig: GitHub Pages kann den PHP-Teil nicht selbst ausfuehren. Ohne separate API bleibt das Meldeformular dort deshalb deaktiviert.
+Important: GitHub Pages cannot execute the PHP part itself. Without a separate API, the report form therefore stays disabled there.
 
-## URL-Sharing des Routenplaners
+## URL sharing of the route planner
 
-Der Zustand des Routenplaners kann ueber Query-Parameter in der URL gespeichert und geteilt werden. Dazu gehoeren insbesondere:
+The state of the route planner can be saved and shared via query parameters in the URL. This includes in particular:
 
-- die Wegpunkte
-- die Auswahl schnellste oder kuerzeste Route
-- die Anzeigeoptionen fuer Orte, Wege und Grenzen
-- die aktivierten Transportwege
-- die gewaehlten Transportmittel
-- Rastzeiten
-- die Option zum Minimieren von Umstiegen
+- the waypoints
+- the choice of fastest or shortest route
+- the display options for locations, paths and boundaries
+- the activated transport paths
+- the chosen means of transport
+- rest times
+- the option to minimize transfers
 
-Dadurch kann eine fertig konfigurierte Route einfach geteilt werden, indem die URL aus dem Browser kopiert und weitergegeben wird.
+This way a fully configured route can be shared easily by copying the URL from the browser and passing it on.
 
-## Ortsmeldungen per PHP und SQL
+## Location reports via PHP and SQL
 
-Die Datei `api/report-location.php` nimmt neue Ortsmeldungen als JSON entgegen und speichert sie in der Tabelle `location_reports`.
+The file `api/report-location.php` accepts new location reports as JSON and stores them in the table `location_reports`.
 
-### Einmaliges Setup
+### One-time setup
 
-1. Passendes SQL-Schema aus `api/schema.mysql.sql` oder `api/schema.pgsql.sql` ausfuehren.
-2. `config/api.config.example.php` nach `api/config.local.php` kopieren.
-3. Dort Datenbank-Zugang und erlaubte Frontend-Origins eintragen.
-4. Den Ordner `api/` auf einem PHP-faehigen Server ausliefern.
+1. Run the matching SQL schema from `api/schema.mysql.sql` or `api/schema.pgsql.sql`.
+2. Copy `config/api.config.example.php` to `api/config.local.php`.
+3. Enter the database access and allowed frontend origins there.
+4. Serve the `api/` folder on a PHP-capable server.
 
-Alternativ kann die API ueber Umgebungsvariablen konfiguriert werden:
+Alternatively, the API can be configured via environment variables:
 
 - `AVESMAPS_DB_DRIVER`
 - `AVESMAPS_DB_HOST`
@@ -128,7 +128,7 @@ Alternativ kann die API ueber Umgebungsvariablen konfiguriert werden:
 - `AVESMAPS_DB_PASSWORD`
 - `AVESMAPS_ALLOWED_ORIGINS`
 
-Wenn Frontend und API nicht auf derselben Origin laufen, muss die Frontend-Seite den Endpoint explizit setzen, zum Beispiel:
+If the frontend and the API do not run on the same origin, the frontend page must set the endpoint explicitly, for example:
 
 ```html
 <script>
@@ -136,25 +136,25 @@ Wenn Frontend und API nicht auf derselben Origin laufen, muss die Frontend-Seite
 </script>
 ```
 
-## Hinweise zur Datenpflege
+## Notes on data maintenance
 
-- Die Kartenquelle ist aktuell in den Karten- und Datenworkflows des Repositories verankert.
-- Aenderungen an der Kartendatenbasis muessen immer mit dem passenden Import- oder Erzeugungsschritt zusammen gedacht werden.
-- Der aktualisierte Stand kann danach direkt ueber den statischen Webserver ausgeliefert werden.
+- The map source is currently anchored in the repository's map and data workflows.
+- Changes to the map data basis must always be considered together with the matching import or generation step.
+- The updated state can then be served directly via the static web server.
 
-## Rechtliches und Quellen
+## Legal and sources
 
-Avesmaps ist ein Fanprojekt und verwendet DSA-bezogenes Material unter
-Beruecksichtigung der Ulisses-Fanrichtlinien.
+Avesmaps is a fan project and uses DSA-related material in
+accordance with the Ulisses fan guidelines.
 
-Wichtige Punkte fuer dieses Repository:
+Important points for this repository:
 
-- keine pauschale Open-Source-Lizenz fuer DSA-bezogene Karten-, Bild- und
-  Datenassets
-- Fanprojekt-Logo statt offizieller Produktlogos
-- keine Weitergabe des verwendeten Materials unter Creative-Commons- oder
-  vergleichbaren Fremdlizenzen
-- keine offizielle Verbindung zu Ulisses Spiele
+- no blanket open-source license for DSA-related map, image and
+  data assets
+- fan-project logo instead of official product logos
+- no redistribution of the used material under Creative Commons or
+  comparable third-party licenses
+- no official affiliation with Ulisses Spiele
 
-Details, Quellen und Hinweise zur Rechte-Lage stehen in
+Details, sources and notes on the rights situation are in
 [`NOTICE.md`](NOTICE.md).
