@@ -1,357 +1,355 @@
-# Restarchitektur: `js/map-features.js`
+# Rest architecture: `js/map-features.js`
 
-## 1. Zweck
+## 1. Purpose
 
-Dieses Dokument beschreibt die verbleibende Architektur von `js/map-features.js` nach den abgeschlossenen risikoarmen 1:1-Splits.
+This document describes the remaining architecture of `js/map-features.js` after the completed low-risk 1:1 splits.
 
-Ziel ist nicht, sofort weitere Funktionen zu verschieben. Ziel ist, die Restdatei als Orchestrator- und Datenflussproblem zu verstehen, bevor spaeter wieder Code veraendert wird.
+The goal is not to move more functions immediately. The goal is to understand the remaining file as an orchestrator and data-flow problem before code is changed again later.
 
-Diese Datei ist der Anschluss an:
+This file connects to:
 
 - `docs/refactoring-status.md`
-- `docs/map-features-final-rest-assessment.md`
-- `docs/map-features-remaining-boundary-check.md`
 
-## 2. Ausgangspunkt
+## 2. Starting point
 
-Die gut isolierbaren Helper-/UI-/Rendering-Cluster wurden bereits ausgelagert:
+The well-isolatable helper/UI/rendering clusters have already been extracted:
 
-- freie Kartenlabels
-- Kraftlinien-/Powerline-Helfer
-- URL-/Planner-State-Helfer
-- Display-/Layer-Mode-Helfer
-- Location-Marker-Rendering-/Sichtbarkeits-Helfer
-- Feature-State-/Revision-/Softlock-Helfer
-- Share-Pin-/Clipboard-Helfer
-- Waypoint-UI-Helfer
-- Ortsnamenlabel-Helfer
-- Label-Kollisions-Helfer
-- Path-Domain-/Basis-Helfer
-- Path-Textlabel-Helfer
-- Path-Rendering-Core-Helfer
-- Path-Creation-Helfer
-- Path-Geometry-Editing-Helfer
+- free map labels
+- Kraftlinien/powerline helpers
+- URL/planner state helpers
+- display/layer-mode helpers
+- location marker rendering/visibility helpers
+- feature-state/revision/softlock helpers
+- share-pin/clipboard helpers
+- waypoint UI helpers
+- location-name label helpers
+- label-collision helpers
+- path-domain/base helpers
+- path text-label helpers
+- path rendering-core helpers
+- path-creation helpers
+- path-geometry-editing helpers
 
-`js/map-features.js` enthaelt danach vor allem Restverantwortungen mit hoher Kopplung:
+After that, `js/map-features.js` mainly contains the remaining responsibilities with high coupling:
 
-- zentrale Datenmutation
-- globale Karten-/Layer-Orchestrierung
-- Editmode- und Lock-Flows
-- Feature-Response-Dispatcher
-- DOM-/Event-Kanten
-- Region-/Gebietslogik
-- Location-Marker- und Popup-Anbindung
-- Path-Lifecycle und Live-Update-Flows
+- central data mutation
+- global map/layer orchestration
+- editmode and lock flows
+- feature-response dispatcher
+- DOM/event edges
+- region/territory logic
+- location marker and popup wiring
+- path lifecycle and live-update flows
 
-## 3. Leitprinzip fuer die naechste Refactoring-Phase
+## 3. Guiding principle for the next refactoring phase
 
-Die naechste Phase darf nicht mehr nach dem Muster "ein paar Helper finden und verschieben" ablaufen.
+The next phase must no longer follow the pattern "find a few helpers and move them".
 
-Stattdessen gilt:
+Instead, the rule is:
 
-1. Datenbesitz klaeren.
-2. Mutierende Flows kartieren.
-3. Event-/Init-Kanten sichtbar machen.
-4. Erst danach Zielmodule definieren.
-5. Code nur in kleinen Schritten mit eigenem Smoke verschieben.
+1. Clarify data ownership.
+2. Map out the mutating flows.
+3. Make event/init edges visible.
+4. Only then define target modules.
+5. Move code only in small steps, each with its own smoke test.
 
-Weitere Splits sind ab jetzt Architekturarbeit, keine unvorbereiteten Mikro-Splits. Nach erneuter Pruefung sind aber weitere Splits moeglich, wenn sie jeweils eine eigene Boundary erhalten.
+From now on, further splits are architecture work, not unprepared micro-splits. After renewed review, however, further splits are possible, provided each one gets its own boundary.
 
-## 4. Restbloecke in `js/map-features.js`
+## 4. Remaining blocks in `js/map-features.js`
 
-### 4.1 Location-Marker und Ortsdaten
+### 4.1 Location markers and location data
 
-Verantwortung:
+Responsibility:
 
-- Marker fuer Orte erzeugen und aktualisieren
-- Location-Daten mit Marker-Entries synchron halten
-- Location-Typen, Sichtbarkeit und Editmode-Regeln anwenden
-- Marker-Drag und Positionsspeicherung koordinieren
-- angeschlossene Wege bei verschobenen Orten aktualisieren
-- Ortsnamenlabels nach Location-Aenderungen synchronisieren
+- create and update markers for locations
+- keep location data in sync with marker entries
+- apply location types, visibility and editmode rules
+- coordinate marker drag and position persistence
+- update connected paths when locations are moved
+- sync location-name labels after location changes
 
-Typische Daten:
+Typical data:
 
 - `locationData`
 - `locationMarkers`
-- aktive Location-Edit-Zustaende
-- Marker-Layer
-- Location-Typ-Konfiguration
-- Toggle-Zustaende
+- active location edit states
+- marker layer
+- location-type configuration
+- toggle states
 
-Kopplungen:
+Couplings:
 
-- Routing nutzt Locations und Marker-Zustaende indirekt
-- Suche/Spotlight fokussiert Orte
-- Popups haengen an Marker-Entries
-- Ortsnamenlabels werden aus Marker-/Location-Zustand gespeist
-- Live-Updates und Review-Flows koennen Location-Daten aendern
+- routing uses locations and marker states indirectly
+- search/spotlight focuses locations
+- popups are attached to marker entries
+- location-name labels are fed from marker/location state
+- live updates and review flows can change location data
 
-Architekturbewertung:
+Architecture assessment:
 
-Der Gesamtblock Location-Marker und Ortsdaten bleibt zu stark gekoppelt fuer einen direkten Komplettsplit. Der engere Split fuer Location-Marker-Rendering und Sichtbarkeit wurde bereits umgesetzt und bleibt stabil. Location Lookup/Type/Naming-Helper sowie Location Marker Entry/Popup-Helper wurden ausgelagert; Location Move, Create/Delete, API-Persistenz und Planner-Refresh bleiben im Rest. Der verbleibende Location-Block ist vor allem Lifecycle, Datenmutation und Popup-Anbindung.
+The overall Location markers and location data block remains too tightly coupled for a direct complete split. The narrower split for location marker rendering and visibility has already been implemented and remains stable. Location lookup/type/naming helpers as well as location marker entry/popup helpers have been extracted; location move, create/delete, API persistence and planner refresh remain in the rest. The remaining location block is mostly lifecycle, data mutation and popup wiring.
 
-Moegliche Zielmodule spaeter:
+Possible target modules later:
 
-- `js/map-features/location-markers.js` fuer den groesseren Lifecycle, nur nach eigener Boundary und Datenflussanalyse.
+- `js/map-features/location-markers.js` for the larger lifecycle, only after its own boundary and data-flow analysis.
 
-### 4.2 Location-Popups und Popup-Actions
+### 4.2 Location popups and popup actions
 
-Verantwortung:
+Responsibility:
 
-- Location-Popups an Marker binden
-- Popup-Actions mit Routing, Waypoints, Editmode und Reports verbinden
-- Popup-Inhalte nach Datenupdates erneuern
+- bind location popups to markers
+- connect popup actions with routing, waypoints, editmode and reports
+- refresh popup content after data updates
 
-Typische Daten:
+Typical data:
 
-- Marker-Entries
-- Location-Properties
-- Popup-Markup aus `js/ui/popups.js`
-- Editmode-/Action-Zustaende
+- marker entries
+- location properties
+- popup markup from `js/ui/popups.js`
+- editmode/action states
 
-Kopplungen:
+Couplings:
 
 - `js/ui/popups.js`
-- Routing-/Waypoint-Flows
-- Review-/Edit-Flows
-- Spotlight/Search
+- routing/waypoint flows
+- review/edit flows
+- spotlight/search
 
-Architekturbewertung:
+Architecture assessment:
 
-Der Bereich kann spaeter aufgeteilt werden, aber nicht zusammen mit Location-Datenmutation. Erst sollte klar sein, welche Funktionen reine Popup-Bindings sind und welche Location-State mutieren.
+This area can be split later, but not together with location data mutation. First it should be clear which functions are pure popup bindings and which mutate location state.
 
-Moegliches Zielmodul spaeter:
+Possible target module later:
 
 - `js/map-features/location-popups.js`
 
-### 4.3 Label-Kollision
+### 4.3 Label collision
 
-Status: abgeschlossen.
+Status: completed.
 
-Die Label-Kollisionslogik wurde aus `js/map-features.js` nach `js/map-features-label-collisions.js` verschoben.
+The label-collision logic was moved from `js/map-features.js` to `js/map-features-label-collisions.js`.
 
-Verantwortung der ausgelagerten Datei:
+Responsibility of the extracted file:
 
-- Kollisionen zwischen freien Labels und Ortsnamenlabels erkennen
-- Prioritaeten bestimmen
-- Offsets berechnen und anwenden
-- Reflow/Scheduling ueber Frame-Callbacks koordinieren
+- detect collisions between free labels and location-name labels
+- determine priorities
+- compute and apply offsets
+- coordinate reflow/scheduling via frame callbacks
 
-Typische Daten:
+Typical data:
 
-- freie Label-Marker
-- Ortsnamenlabel-Marker
-- DOM-Rect-/Pixelmesswerte
-- Zoom-/Map-Zustand
-- Collision-Frame-State
+- free label markers
+- location-name label markers
+- DOM rect/pixel measurements
+- zoom/map state
+- collision frame state
 
-Kopplungen:
+Couplings:
 
 - `js/map-features-labels.js`
 - `js/map-features-location-name-labels.js`
-- CSS/Layout
-- Leaflet-Rendering
+- CSS/layout
+- Leaflet rendering
 
-Architekturbewertung:
+Architecture assessment:
 
-Dieser technische Service bleibt stabil. Weitere Aenderungen an Label-Kollisionen sollten nicht mit anderen Splits vermischt werden, weil sie direkt sichtbare Labelpositionen betreffen.
+This technical service remains stable. Further changes to label collisions should not be mixed with other splits, because they directly affect visible label positions.
 
-### 4.4 Path-Creation
+### 4.4 Path creation
 
-Status: abgeschlossen.
+Status: completed.
 
-Die Path-Creation-Helfer wurden aus `js/map-features.js` nach `js/map-features-path-creation.js` verschoben.
+The path-creation helpers were moved from `js/map-features.js` to `js/map-features-path-creation.js`.
 
-Verantwortung der ausgelagerten Datei:
+Responsibility of the extracted file:
 
-- Pending-State fuer neue Wege verwalten
-- Startpunkt aus Ort/Kreuzung oder Kartenclick setzen
-- Preview-Marker und Preview-Linie anzeigen
-- Zwischenpunkte aufnehmen
-- Zielknoten suchen und Weg final erstellen
-- erstellten Weg lokal anwenden und Path-Edit-Dialog anschliessen
+- manage pending state for new paths
+- set the start point from a location/Kreuzung or a map click
+- show preview marker and preview line
+- collect intermediate points
+- find the target node and finally create the path
+- apply the created path locally and attach the path-edit dialog
 
-Bewusst als Shared-Helper in `js/map-features.js` belassen:
+Deliberately kept as a shared helper in `js/map-features.js`:
 
-- `findNearestGraphEndpointToLatLng(...)`, da diese Funktion aktuell auch vom Path-Geometry-Editing genutzt wird.
+- `findNearestGraphEndpointToLatLng(...)`, because this function is currently also used by path-geometry-editing.
 
-Architekturbewertung:
+Architecture assessment:
 
-Der Split ist als enger 1:1-Extract erfolgt. Path-Creation bleibt vorerst stabil und sollte ohne neue Boundary nicht weiter aufgeteilt werden.
+The split was done as a narrow 1:1 extract. Path creation remains stable for now and should not be split further without a new boundary.
 
-### 4.5 Path-Geometry-Editing
+### 4.5 Path geometry editing
 
-Status: abgeschlossen.
+Status: completed.
 
-Die Path-Geometry-Editing-Helfer wurden aus `js/map-features.js` nach `js/map-features-path-geometry-editing.js` verschoben.
+The path-geometry-editing helpers were moved from `js/map-features.js` to `js/map-features-path-geometry-editing.js`.
 
-Verantwortung der ausgelagerten Datei:
+Responsibility of the extracted file:
 
-- aktive Weg-Geometriebearbeitung starten und beenden
-- Edit-Handles erzeugen und synchronisieren
-- Knoten ziehen, einfuegen und loeschen
-- Endpunkte an Orte/Kreuzungen snappen
-- Weg an Zwischenknoten teilen
-- Geometrie speichern und Layer aktualisieren
+- start and end active path geometry editing
+- create and sync edit handles
+- drag, insert and delete nodes
+- snap endpoints to locations/Kreuzungen
+- split a path at an intermediate node
+- save geometry and update layers
 
-Bewusst in `js/map-features.js` belassen:
+Deliberately kept in `js/map-features.js`:
 
-- `deletePathFeature(...)` als CRUD/Lifecycle-naher Grenzfall
-- `findNearestGraphEndpointToLatLng(...)` als Shared-Helper fuer Path-Creation und Path-Geometry-Editing
+- `deletePathFeature(...)` as a CRUD/lifecycle-adjacent edge case
+- `findNearestGraphEndpointToLatLng(...)` as a shared helper for path-creation and path-geometry-editing
 
-Architekturbewertung:
+Architecture assessment:
 
-Der Split ist als enger 1:1-Extract erfolgt. Path-Geometry-Editing bleibt vorerst stabil und sollte ohne neue Boundary nicht weiter aufgeteilt werden.
+The split was done as a narrow 1:1 extract. Path geometry editing remains stable for now and should not be split further without a new boundary.
 
-### 4.6 Path-Lifecycle, Path-CRUD und Live-Updates
+### 4.6 Path lifecycle, path CRUD and live updates
 
-Verantwortung:
+Responsibility:
 
-- Pfaddaten vorbereiten und aktualisieren
-- neue Wege/Kanten anwenden
-- Live-Updates auf bestehende Path-Layer uebertragen
-- Path-Layer entfernen oder ersetzen
-- Edit- und Lock-Flows fuer Wege koordinieren
-- Rendering-Core-Helper aufrufen
-- Routing-/Planner-Refresh nach Path-Aenderungen ausloesen
+- prepare and update path data
+- apply new paths/edges
+- propagate live updates onto existing path layers
+- remove or replace path layers
+- coordinate edit and lock flows for paths
+- call rendering-core helpers
+- trigger routing/planner refresh after path changes
 
-Typische Daten:
+Typical data:
 
 - `pathData`
 - `pathLayers`
-- aktive Path-Edit-Zustaende
-- Feature-Revisions
-- Lock-Zustaende
-- Map-Layer
+- active path edit states
+- feature revisions
+- lock states
+- map layer
 
-Kopplungen:
+Couplings:
 
 - `js/map-features-path-domain.js`
 - `js/map-features-path-rendering.js`
 - `js/map-features-path-labels.js`
 - `js/routing/routing.js`
-- Review-/Editor-Flows
-- Popup-Actions
+- review/editor flows
+- popup actions
 
-Architekturbewertung:
+Architecture assessment:
 
-Der Rendering-Core und die Domain-Helfer sind bereits ausgelagert. Zusaetzlich ist der enge Path-Apply/Live-Teilschnitt nach `js/map-features-path-lifecycle.js` erfolgt (`addCreatedPathFeature`, `applyLivePathFeature`, `findPathByPublicId`, `syncPathRendering`, `applyPathFeatureResponse`, `removePathFeature`).
+The rendering core and the domain helpers are already extracted. In addition, the narrow path-apply/live slice was extracted to `js/map-features-path-lifecycle.js` (`addCreatedPathFeature`, `applyLivePathFeature`, `findPathByPublicId`, `syncPathRendering`, `applyPathFeatureResponse`, `removePathFeature`).
 
-Der enge Path-Prepare-Teilschnitt ist ebenfalls ausgelagert: `normalizeRoutePathFeature(...)` und `preparePathData(...)` liegen in `js/map-features-path-prepare.js`.
+The narrow path-prepare slice has also been extracted: `normalizeRoutePathFeature(...)` and `preparePathData(...)` live in `js/map-features-path-prepare.js`.
 
-In `js/map-features.js` verbleiben bewusst:
+The following deliberately remain in `js/map-features.js`:
 
 - `deletePathFeature(...)`
-- Dispatcher-nahe Path-Lifecycle-Kanten
+- dispatcher-adjacent path-lifecycle edges
 
-Weitere Schritte muessen als Sub-Boundaries geplant werden.
+Further steps must be planned as sub-boundaries.
 
-Moegliche Zielmodule spaeter:
+Possible target modules later:
 
 - `js/map-features/path-lifecycle.js`
 - `js/map-features/path-edits.js`
 - `js/map-features/path-live-updates.js`
 
-Nicht als ein grosser Split umsetzen.
+Do not implement as one large split.
 
-### 4.7 Path-Style-Helfer
+### 4.7 Path style helpers
 
-Verantwortung:
+Responsibility:
 
-- Darstellungsfarben und Style-Werte fuer Wege aus Map-/Zoom-/Feature-Kontext ableiten
+- derive display colors and style values for paths from map/zoom/feature context
 
-Typische Daten:
+Typical data:
 
-- Map-Zoom
-- Path-Konfiguration
-- Feature-Subtype
-- Rendering-Kontext
+- map zoom
+- path configuration
+- feature subtype
+- rendering context
 
-Kopplungen:
+Couplings:
 
 - `js/map-features-path-rendering.js`
 - `js/map-features.js`
 
-Architekturbewertung:
+Architecture assessment:
 
-Klein, aber nicht dringend. Ein Umzug waere nur sinnvoll, wenn die Path-Rendering-Grenze bewusst erweitert wird.
+Small, but not urgent. A move would only make sense if the path-rendering boundary is deliberately extended.
 
-Moegliches Zielmodul spaeter:
+Possible target module later:
 
 - `js/map-features/path-style.js`
-- oder Integration in `js/map-features-path-rendering.js`
+- or integration into `js/map-features-path-rendering.js`
 
-### 4.8 Region-/Gebiets-Orchestrierung
+### 4.8 Region/territory orchestration
 
-Verantwortung:
+Responsibility:
 
-- Gebiets-Layer aufbauen und sichtbar schalten
-- Timeline-/Jahreslogik koordinieren
-- Gebietsdaten laden und anwenden
-- Editmode fuer Gebiete verwalten
-- Geometrieoperationen und Auswahlzustaende koordinieren
-- Tooltips, Kontextmenues und UI-Zustaende synchronisieren
+- build territory layers and toggle their visibility
+- coordinate timeline/year logic
+- load and apply territory data
+- manage editmode for territories
+- coordinate geometry operations and selection states
+- sync tooltips, context menus and UI states
 
-Typische Daten:
+Typical data:
 
-- Region-/Gebietsdaten
-- Polygon-/Label-Layer
-- Timeline-Zustand
-- aktive Auswahl-/Edit-Zustaende
-- API-/Reload-Status
-- Map-Zustand
+- region/territory data
+- polygon/label layers
+- timeline state
+- active selection/edit states
+- API/reload status
+- map state
 
-Kopplungen:
+Couplings:
 
 - `js/config.js`
-- Dialog-/Review-Dateien
-- API-Endpunkte
-- Map-Layer
-- Editmode
-- UI-Bindings
+- dialog/review files
+- API endpoints
+- map layer
+- editmode
+- UI bindings
 
-Architekturbewertung:
+Architecture assessment:
 
-Der enge Region-Visibility-Teilschnitt (`syncRegionVisibility`) wurde nach `js/map-features-region-visibility.js` ausgelagert.
-Der enge Political-Timeline-Teilschnitt (`syncPoliticalTimelineVisibility`, `syncPoliticalTimelineControls`, `formatPoliticalTimelineYear`, `setPoliticalTimelineYear`, `showPoliticalTerritoryTimelineSelection`, `clearPoliticalTerritoryTimelineSelection`, `normalizePoliticalTimelineYearValue`, `formatPoliticalTerritoryRangeLabel`) wurde nach `js/map-features-political-timeline.js` ausgelagert.
-Der enge Region Pending Target Highlight-Teilschnitt (`setPendingRegionTargetHighlight`, `clearPendingRegionTargetHighlight`) wurde nach `js/map-features-region-pending-highlight.js` ausgelagert.
+The narrow region-visibility slice (`syncRegionVisibility`) was extracted to `js/map-features-region-visibility.js`.
+The narrow political-timeline slice (`syncPoliticalTimelineVisibility`, `syncPoliticalTimelineControls`, `formatPoliticalTimelineYear`, `setPoliticalTimelineYear`, `showPoliticalTerritoryTimelineSelection`, `clearPoliticalTerritoryTimelineSelection`, `normalizePoliticalTimelineYearValue`, `formatPoliticalTerritoryRangeLabel`) was extracted to `js/map-features-political-timeline.js`.
+The narrow region pending-target-highlight slice (`setPendingRegionTargetHighlight`, `clearPendingRegionTargetHighlight`) was extracted to `js/map-features-region-pending-highlight.js`.
 
-Die Region Info/Tooltip Markup-Helfer (`createRegionCompactTooltipMarkup`, `createRegionMiniTooltipMarkup`, `hasRegionWikiInfo`, `createRegionWikiInfoBoxMarkup`, `createRegionInfoTextRow`, `createRegionInfoBoxRow`, `createRegionInfoPlaceValue`, `createRegionInfoLink`, `createRegionInfoPathValue`, `normalizeRegionInfoUrl`, `normalizeRegionStringList`, `createRegionPlaceTooltipLine`, `normalizeRegionParentheticalSpacing`) wurden nach `js/map-features-region-info-markup.js` ausgelagert.
+The region info/tooltip markup helpers (`createRegionCompactTooltipMarkup`, `createRegionMiniTooltipMarkup`, `hasRegionWikiInfo`, `createRegionWikiInfoBoxMarkup`, `createRegionInfoTextRow`, `createRegionInfoBoxRow`, `createRegionInfoPlaceValue`, `createRegionInfoLink`, `createRegionInfoPathValue`, `normalizeRegionInfoUrl`, `normalizeRegionStringList`, `createRegionPlaceTooltipLine`, `normalizeRegionParentheticalSpacing`) were extracted to `js/map-features-region-info-markup.js`.
 
-Die Region Feature Normalization-Helfer (`normalizeRegionFeature`, `getRegionFeatureName`, `getRegionFeatureColor`, `getRegionFeatureOpacity`, `getStyleDeclarationValue`, `normalizeRegionHexColor`, `readOptionalRegionZoom`) wurden nach `js/map-features-region-feature-normalization.js` ausgelagert.
+The region feature-normalization helpers (`normalizeRegionFeature`, `getRegionFeatureName`, `getRegionFeatureColor`, `getRegionFeatureOpacity`, `getStyleDeclarationValue`, `normalizeRegionHexColor`, `readOptionalRegionZoom`) were extracted to `js/map-features-region-feature-normalization.js`.
 
-Die Region Geometry-Helfer (`getRegionOuterLatLngs`, `getPolygonLatLngRings`, `flattenLatLngRings`, `isLatLngLike`, `regionLayerToGeoJsonGeometry`, `regionLayersToGeoJsonGeometry`) wurden nach `js/map-features-region-geometry-helpers.js` ausgelagert.
-Die Koordinatenkonvertierung Leaflet `LatLng` <-> GeoJSON `[lng,lat]` liegt ebenfalls bei den Region Geometry Helpers.
+The region geometry helpers (`getRegionOuterLatLngs`, `getPolygonLatLngRings`, `flattenLatLngRings`, `isLatLngLike`, `regionLayerToGeoJsonGeometry`, `regionLayersToGeoJsonGeometry`) were extracted to `js/map-features-region-geometry-helpers.js`.
+The coordinate conversion Leaflet `LatLng` <-> GeoJSON `[lng,lat]` also lives in the region geometry helpers.
 
-Die Region Split Preview-Helfer (`updatePendingRegionSplitPreview`, `clearPendingRegionSplitPreview`) wurden nach `js/map-features-region-split-preview.js` ausgelagert.
-Die Region Rendering-Helfer (`prepareRegionData`, `prepareLegacyRegionData`, `clearRenderedRegionLayers`, `addRegionFeatureToMap`) wurden nach `js/map-features-region-rendering.js` ausgelagert.
-Die Region Tooltip Lifecycle-Helfer (`bindRegionCompactTooltip`, `openRegionCompactTooltip`, `closeRegionCompactTooltip`, `getRegionTooltipLatLng`, `focusRegionPlace`) wurden nach `js/map-features-region-tooltip-lifecycle.js` ausgelagert.
-Die Region Boolean Geometry-Helfer (`calculateRegionBooleanGeometry`, `shouldRegionBooleanOperationConsumeTarget`, `getStoredRegionBooleanOperation`, `validateRegionBooleanResult`, `debugRegionBooleanOperation`) wurden nach `js/map-features-region-boolean-geometry.js` ausgelagert.
-Die Region Payload Builder-Helfer (`buildRegionStylePayload`, `buildExtractedRegionCreatePayload`, `buildRegionSplitPayload`, `buildIntersectionCreatePayload`, `buildRegionBooleanOperationPayload`) wurden nach `js/map-features-region-payload-builders.js` ausgelagert.
-Das Political Territory Repository (`politicalTerritoryRepository`) liegt in `js/map-features-political-territory-repository.js` und kapselt direkte `submitPoliticalTerritoryEdit`-Aufrufe ohne Orchestrierung, Toasts, Reloads oder State-Mutationen.
-Die Region Operation Pipeline-Helfer (`completePendingRegionOperation`, `prepareRegionOperationContext`, `calculateRegionOperationResult`, `persistRegionOperationResult`, `finishPendingRegionOperation`, `failPendingRegionOperation`) wurden nach `js/map-features-region-operation-pipeline.js` ausgelagert.
-Die Region Edit Edge Controls-Helfer (`enableRegionEditEdgeControls`, `disableRegionEditEdgeControls`, `handleRegionEditMouseMove`, `handleRegionEditMouseOut`, `handleRegionEditKeyUp`, `handleRegionEditClick`, `updateRegionEditEdgeHoverFromLatLng`, `clearRegionEditEdgeHover`, `renderRegionEditEdgeHighlight`, `renderRegionEditEdgeSubdivisionPreview`, `handleRegionEditEdgeClick`, `findNearestEditedRegionEdge`, `subdivideRegionEditHoveredEdge`) wurden nach `js/map-features-region-edit-edge-controls.js` ausgelagert.
-Die Region Edit Handles-Helfer (`createRegionHandleIcon`, `refreshRegionEditHandles`, `deleteRegionNode`) wurden nach `js/map-features-region-edit-handles.js` ausgelagert.
-Die Region Geometry Edit Lifecycle-Helfer (`clearRegionGeometryEdit`, `startRegionGeometryEdit`) wurden nach `js/map-features-region-geometry-edit-lifecycle.js` ausgelagert.
+The region split-preview helpers (`updatePendingRegionSplitPreview`, `clearPendingRegionSplitPreview`) were extracted to `js/map-features-region-split-preview.js`.
+The region rendering helpers (`prepareRegionData`, `prepareLegacyRegionData`, `clearRenderedRegionLayers`, `addRegionFeatureToMap`) were extracted to `js/map-features-region-rendering.js`.
+The region tooltip-lifecycle helpers (`bindRegionCompactTooltip`, `openRegionCompactTooltip`, `closeRegionCompactTooltip`, `getRegionTooltipLatLng`, `focusRegionPlace`) were extracted to `js/map-features-region-tooltip-lifecycle.js`.
+The region boolean-geometry helpers (`calculateRegionBooleanGeometry`, `shouldRegionBooleanOperationConsumeTarget`, `getStoredRegionBooleanOperation`, `validateRegionBooleanResult`, `debugRegionBooleanOperation`) were extracted to `js/map-features-region-boolean-geometry.js`.
+The region payload-builder helpers (`buildRegionStylePayload`, `buildExtractedRegionCreatePayload`, `buildRegionSplitPayload`, `buildIntersectionCreatePayload`, `buildRegionBooleanOperationPayload`) were extracted to `js/map-features-region-payload-builders.js`.
+The Political Territory Repository (`politicalTerritoryRepository`) lives in `js/map-features-political-territory-repository.js` and encapsulates direct `submitPoliticalTerritoryEdit` calls without orchestration, toasts, reloads or state mutations.
+The region operation-pipeline helpers (`completePendingRegionOperation`, `prepareRegionOperationContext`, `calculateRegionOperationResult`, `persistRegionOperationResult`, `finishPendingRegionOperation`, `failPendingRegionOperation`) were extracted to `js/map-features-region-operation-pipeline.js`.
+The region edit-edge-controls helpers (`enableRegionEditEdgeControls`, `disableRegionEditEdgeControls`, `handleRegionEditMouseMove`, `handleRegionEditMouseOut`, `handleRegionEditKeyUp`, `handleRegionEditClick`, `updateRegionEditEdgeHoverFromLatLng`, `clearRegionEditEdgeHover`, `renderRegionEditEdgeHighlight`, `renderRegionEditEdgeSubdivisionPreview`, `handleRegionEditEdgeClick`, `findNearestEditedRegionEdge`, `subdivideRegionEditHoveredEdge`) were extracted to `js/map-features-region-edit-edge-controls.js`.
+The region edit-handles helpers (`createRegionHandleIcon`, `refreshRegionEditHandles`, `deleteRegionNode`) were extracted to `js/map-features-region-edit-handles.js`.
+The region geometry-edit-lifecycle helpers (`clearRegionGeometryEdit`, `startRegionGeometryEdit`) were extracted to `js/map-features-region-geometry-edit-lifecycle.js`.
 
-Die Region Overlap Selection-Helfer (`getRegionLayerGeometryPublicId`, `isLatLngInsideRegionRing`, `isLatLngInsideRegionLayer`, `getOverlappingPoliticalRegionLayersAtLatLng`, `resolveOverlappingRegionLayerSelection`, `announceOverlappingRegionSelection`) wurden nach `js/map-features-region-overlap-selection.js` ausgelagert.
+The region overlap-selection helpers (`getRegionLayerGeometryPublicId`, `isLatLngInsideRegionRing`, `isLatLngInsideRegionLayer`, `getOverlappingPoliticalRegionLayersAtLatLng`, `resolveOverlappingRegionLayerSelection`, `announceOverlappingRegionSelection`) were extracted to `js/map-features-region-overlap-selection.js`.
 
-Die Region Context Menu DOM/State-Helfer (`getRegionContextMenuElement`, `openRegionContextMenu`, `closeRegionContextMenu`, `positionContextMenuElement`) wurden nach `js/map-features-region-context-menu.js` ausgelagert.
-Der verbleibende Region-Kontextmenue-Click-Dispatcher in `js/map-features.js` wurde intern auf eine Action-Map (`REGION_CONTEXT_ACTIONS` / `REGION_BOOLEAN_CONTEXT_ACTIONS`) refactored, ohne Verhaltensaenderung.
+The region context-menu DOM/state helpers (`getRegionContextMenuElement`, `openRegionContextMenu`, `closeRegionContextMenu`, `positionContextMenuElement`) were extracted to `js/map-features-region-context-menu.js`.
+The remaining region context-menu click dispatcher in `js/map-features.js` was internally refactored to an action map (`REGION_CONTEXT_ACTIONS` / `REGION_BOOLEAN_CONTEXT_ACTIONS`), without behavior change.
 
-Die Context-Menü-Actions, Region-Edit- und Pending-Operationen bleiben im Rest in `js/map-features.js`, darunter `bindRegionPolygonEditEvents`, `extractRegionGeometryPartAsNewTerritory`, `startPendingRegionOperation`, `startPendingRegionSplit`, `startPendingRegionMove`, `cancelPendingRegionOperation`, `openRegionEditDialog`, `startRegionGeometryEdit`, `deleteActiveRegion`.
+The context-menu actions, region-edit and pending operations remain in the rest in `js/map-features.js`, among them `bindRegionPolygonEditEvents`, `extractRegionGeometryPartAsNewTerritory`, `startPendingRegionOperation`, `startPendingRegionSplit`, `startPendingRegionMove`, `cancelPendingRegionOperation`, `openRegionEditDialog`, `startRegionGeometryEdit`, `deleteActiveRegion`.
 
-Die Region Operation Chip UI-Helfer (`syncRegionOperationChip`) wurden nach `js/map-features-region-operation-chip.js` ausgelagert.
+The region operation-chip UI helpers (`syncRegionOperationChip`) were extracted to `js/map-features-region-operation-chip.js`.
 
-Die Context- und Geometriezustands-Funktionen sowie Pending-/Persistenz-Orchestrierung verbleiben im Rest in `js/map-features.js` (u. a. `createRegionLabelMarkup`, `bindRegionPolygonEditEvents`, `startPendingRegionOperation`, `completePendingRegionOperation`).
-Operation-Orchestrierung, API-Aufruf, Toast, Reload und Changelog bleiben im Rest in `js/map-features.js`.
+The context and geometry-state functions as well as pending/persistence orchestration remain in the rest in `js/map-features.js` (among others `createRegionLabelMarkup`, `bindRegionPolygonEditEvents`, `startPendingRegionOperation`, `completePendingRegionOperation`).
+Operation orchestration, API call, toast, reload and changelog remain in the rest in `js/map-features.js`.
 
-Das ist kein Rest-Split, sondern eine eigene Architekturaufgabe: Vor Codearbeit muss das Zielbild von Tooltip-Lifecycle, Context-Flow und Geometrie-Anbindung klar sein.
+This is not a rest-split but its own architecture task: before code work, the target picture of tooltip lifecycle, context flow and geometry wiring must be clear.
 
-Das ist kein Rest-Split, sondern eine eigene Architekturaufgabe. Vor Codearbeit muss ein Zielbild entstehen: Datenbesitz, Ladefluss, Layer-Aufbau, Edit-Flows und UI-Bindings.
+This is not a rest-split but its own architecture task. Before code work, a target picture must emerge: data ownership, load flow, layer construction, edit flows and UI bindings.
 
-Moegliche Zielmodule spaeter:
+Possible target modules later:
 
 - `js/regions/data.js`
 - `js/regions/layers.js`
@@ -359,194 +357,194 @@ Moegliche Zielmodule spaeter:
 - `js/regions/editing.js`
 - `js/regions/ui.js`
 
-Diese Zielstruktur ist nur eine Richtung, keine unmittelbare Umsetzungsempfehlung.
+This target structure is only a direction, not an immediate implementation recommendation.
 
-### 4.9 Editmode, Softlocks und Feature-Response-Flows
+### 4.9 Editmode, softlocks and feature-response flows
 
-Verantwortung:
+Responsibility:
 
-- lokale Revisionen lesen und aktualisieren
-- Locks anfordern und freigeben
-- Edit-Ergebnisse auf lokale Daten anwenden
-- Live-Updates verteilen
-- verschiedene Feature-Typen dispatchen
+- read and update local revisions
+- request and release locks
+- apply edit results onto local data
+- distribute live updates
+- dispatch various feature types
 
-Typische Daten:
+Typical data:
 
-- Feature-Payloads
-- Revisionen
-- Lock-Map
-- Location-/Path-/Label-/Region-State
-- Feedback-Toast
+- feature payloads
+- revisions
+- lock map
+- location/path/label/region state
+- feedback toast
 
-Kopplungen:
+Couplings:
 
-- Location-Flows
-- Path-Flows
-- Label-Flows
-- Region-Flows
-- Review-/Dialog-Flows
-- API-Endpunkte
+- location flows
+- path flows
+- label flows
+- region flows
+- review/dialog flows
+- API endpoints
 
-Architekturbewertung:
+Architecture assessment:
 
-Revisionen und Softlocks wurden bereits in `js/map-features-feature-state.js` ausgelagert. Der enge Feature-Response-Dispatcher-Teilschnitt (`removeLiveFeature`, `applyLiveMapFeatureUpdate`, `applyMapFeatureEditResult`) wurde nach `js/map-features-feature-dispatcher.js` ausgelagert.
+Revisions and softlocks have already been extracted to `js/map-features-feature-state.js`. The narrow feature-response-dispatcher slice (`removeLiveFeature`, `applyLiveMapFeatureUpdate`, `applyMapFeatureEditResult`) was extracted to `js/map-features-feature-dispatcher.js`.
 
-In `js/map-features.js` verbleiben bewusst die CRUD-/Domain-spezifischen Mutationen und die stark gekoppelten fachlichen Flows.
+The CRUD/domain-specific mutations and the tightly coupled domain flows deliberately remain in `js/map-features.js`.
 
-Moegliches Zielmodul spaeter:
+Possible target module later:
 
-- `js/map-features/feature-dispatch.js` erst spaeter fuer den groesseren Feature-Response-Dispatcher.
+- `js/map-features/feature-dispatch.js` only later for the larger feature-response dispatcher.
 
-### 4.10 DOM-/Event-Bindings und Initialisierung
+### 4.10 DOM/event bindings and initialization
 
-Verantwortung:
+Responsibility:
 
-- UI-Events registrieren
-- Toggles mit Sichtbarkeitsfunktionen verbinden
-- Initiale Syncs ausloesen
-- klassische Script-Reihenfolge praktisch zusammenhalten
+- register UI events
+- connect toggles with visibility functions
+- trigger initial syncs
+- practically hold the classic script order together
 
-Typische Daten:
+Typical data:
 
-- DOM-Elemente
-- jQuery-Selektoren
-- globale Funktionen aus anderen Dateien
-- Initialisierungsreihenfolge
+- DOM elements
+- jQuery selectors
+- global functions from other files
+- initialization order
 
-Kopplungen:
+Couplings:
 
-- nahezu alle ausgelagerten `map-features`-Dateien
+- nearly all extracted `map-features` files
 - `index.html`
-- UI-Controls
-- Routing
-- Editmode
+- UI controls
+- routing
+- editmode
 
-Architekturbewertung:
+Architecture assessment:
 
-Event-Bindings sind die Kanten zwischen Modulen. Sie sollten vorerst nicht verteilt werden, solange es kein klares Bootstrap-Konzept gibt.
+Event bindings are the edges between modules. They should not be distributed for now, as long as there is no clear bootstrap concept.
 
-Moegliches Zielmodul spaeter:
+Possible target module later:
 
 - `js/map-features/bootstrap.js`
 
-Aber erst, wenn klar ist, welche Initialisierung zentral bleiben soll.
+But only once it is clear which initialization should remain central.
 
-## 5. Datenbesitz: grobe Zuordnung
+## 5. Data ownership: rough mapping
 
-| Daten/Zustand | Aktueller Besitzer | Bemerkung |
+| Data/state | Current owner | Note |
 | --- | --- | --- |
-| `locationData` | `js/map-features.js` | zentrale Ortsdaten, stark mutierend |
-| `locationMarkers` | `js/map-features.js` | Marker-Entries, Popup- und Label-Kanten |
-| `pathData` | `js/map-features.js` | Path-Lifecycle bleibt Restverantwortung |
-| `pathLayers` | `js/map-features.js` | Rendering-Core ausgelagert, Besitz bleibt hier |
-| Path-Prepare-Helfer | `js/map-features-path-prepare.js` | stabiler Teil-Split |
-| Path-Apply/Live-Helfer | `js/map-features-path-lifecycle.js` | stabiler Teil-Split |
-| Feature-Response-Dispatcher-Teilschnitt | `js/map-features-feature-dispatcher.js` | stabiler Teil-Split |
-| Region-Visibility-Helfer | `js/map-features-region-visibility.js` | stabiler Teil-Split |
-| Political-Timeline-Helfer | `js/map-features-political-timeline.js` | stabiler Teil-Split |
-| Region-Pending-Highlight-Helfer | `js/map-features-region-pending-highlight.js` | stabiler Teil-Split |
-| Region-Rendering-Helfer | `js/map-features-region-rendering.js` | stabiler Teil-Split |
-| Region-Tooltip-Lifecycle-Helfer | `js/map-features-region-tooltip-lifecycle.js` | stabiler Teil-Split |
-| Region-Boolean-Geometry-Helfer | `js/map-features-region-boolean-geometry.js` | stabiler Teil-Split |
-| Region-Payload-Builder-Helfer | `js/map-features-region-payload-builders.js` | stabiler Teil-Split |
-| Political-Territory-Repository | `js/map-features-political-territory-repository.js` | stabiler API-Zugriffssplit |
-| Region-Operation-Pipeline-Helfer | `js/map-features-region-operation-pipeline.js` | stabiler Teil-Split |
-| Region-Edit-Edge-Controls-Helfer | `js/map-features-region-edit-edge-controls.js` | stabiler Teil-Split |
-| Region-Edit-Handles-Helfer | `js/map-features-region-edit-handles.js` | stabiler Teil-Split |
-| Region-Geometry-Edit-Lifecycle-Helfer | `js/map-features-region-geometry-edit-lifecycle.js` | stabiler Teil-Split |
-| Path-Creation-Pending-State | `js/map-features-path-creation.js` | stabiler Split |
-| Path-Geometry-Edit-State | `js/map-features-path-geometry-editing.js` | stabiler Split |
-| freie Labels | `js/map-features-labels.js` | stabiler Split |
-| Ortsnamenlabels | `js/map-features-location-name-labels.js` | stabiler Split |
-| Label-Kollision | `js/map-features-label-collisions.js` | stabiler Split, DOM-/Layout-nahe Verantwortung |
-| Powerlines | `js/map-features-powerlines.js` | stabiler Split |
-| Planner-/URL-State | `js/map-features-layer-state.js` | stabiler Split |
-| Share-Pin | `js/map-features-share-pin.js` | stabiler Split |
-| Waypoint-UI | `js/map-features-waypoints.js` | stabiler Split |
-| Location-Marker-Rendering | `js/map-features-location-marker-rendering.js` | stabiler Split |
-| Locks/Revisionen | `js/map-features-feature-state.js` | stabiler Split |
-| Gebiete/Regionen | `js/map-features.js` | eigene Architekturaufgabe |
+| `locationData` | `js/map-features.js` | central location data, heavily mutating |
+| `locationMarkers` | `js/map-features.js` | marker entries, popup and label edges |
+| `pathData` | `js/map-features.js` | path lifecycle remains a residual responsibility |
+| `pathLayers` | `js/map-features.js` | rendering core extracted, ownership stays here |
+| path-prepare helpers | `js/map-features-path-prepare.js` | stable partial split |
+| path-apply/live helpers | `js/map-features-path-lifecycle.js` | stable partial split |
+| feature-response-dispatcher slice | `js/map-features-feature-dispatcher.js` | stable partial split |
+| region-visibility helpers | `js/map-features-region-visibility.js` | stable partial split |
+| political-timeline helpers | `js/map-features-political-timeline.js` | stable partial split |
+| region-pending-highlight helpers | `js/map-features-region-pending-highlight.js` | stable partial split |
+| region-rendering helpers | `js/map-features-region-rendering.js` | stable partial split |
+| region-tooltip-lifecycle helpers | `js/map-features-region-tooltip-lifecycle.js` | stable partial split |
+| region-boolean-geometry helpers | `js/map-features-region-boolean-geometry.js` | stable partial split |
+| region-payload-builder helpers | `js/map-features-region-payload-builders.js` | stable partial split |
+| Political Territory Repository | `js/map-features-political-territory-repository.js` | stable API-access split |
+| region-operation-pipeline helpers | `js/map-features-region-operation-pipeline.js` | stable partial split |
+| region-edit-edge-controls helpers | `js/map-features-region-edit-edge-controls.js` | stable partial split |
+| region-edit-handles helpers | `js/map-features-region-edit-handles.js` | stable partial split |
+| region-geometry-edit-lifecycle helpers | `js/map-features-region-geometry-edit-lifecycle.js` | stable partial split |
+| path-creation pending state | `js/map-features-path-creation.js` | stable split |
+| path-geometry-edit state | `js/map-features-path-geometry-editing.js` | stable split |
+| free labels | `js/map-features-labels.js` | stable split |
+| location-name labels | `js/map-features-location-name-labels.js` | stable split |
+| label collision | `js/map-features-label-collisions.js` | stable split, DOM/layout-adjacent responsibility |
+| Powerlines | `js/map-features-powerlines.js` | stable split |
+| planner/URL state | `js/map-features-layer-state.js` | stable split |
+| share-pin | `js/map-features-share-pin.js` | stable split |
+| waypoint UI | `js/map-features-waypoints.js` | stable split |
+| location-marker rendering | `js/map-features-location-marker-rendering.js` | stable split |
+| locks/revisions | `js/map-features-feature-state.js` | stable split |
+| Gebiete/Regionen | `js/map-features.js` | its own architecture task |
 
-## 6. Mutierende Flows, die vor jedem weiteren Split verstanden werden muessen
+## 6. Mutating flows that must be understood before any further split
 
-### Location-Move-Flow
+### Location move flow
 
-1. Marker wird verschoben.
-2. neue Position wird gespeichert.
-3. lokale Location-Daten werden aktualisiert.
-4. angeschlossene Wege werden ggf. mitverschoben.
-5. Labels und Route werden aktualisiert.
-6. Feedback/Revisionen werden synchronisiert.
+1. Marker is moved.
+2. New position is saved.
+3. Local location data is updated.
+4. Connected paths are moved along if applicable.
+5. Labels and route are updated.
+6. Feedback/revisions are synchronized.
 
-Risiko:
+Risk:
 
-- Datenkonsistenz zwischen Location, Path, Route und UI.
+- data consistency between location, path, route and UI.
 
-### Path-Creation-Flow (ausgelagert, aber gekoppelt)
+### Path creation flow (extracted, but coupled)
 
-1. Startort oder Startposition wird bestimmt (in `js/map-features-path-creation.js`).
-2. Pending-State und Preview-Layer werden aufgebaut.
-3. Zwischenpunkte werden gesammelt.
-4. Zielknoten wird gesucht und hinzugefuegt.
-5. API erstellt den Weg.
-6. Lokale Path-Daten und Layer werden aktualisiert.
-7. Path-Edit-Dialog wird fuer Feineinstellungen geoeffnet.
+1. Start location or start position is determined (in `js/map-features-path-creation.js`).
+2. Pending state and preview layers are built.
+3. Intermediate points are collected.
+4. Target node is searched and added.
+5. API creates the path.
+6. Local path data and layers are updated.
+7. Path-edit dialog is opened for fine-tuning.
 
-Risiko:
+Risk:
 
-- haengende Preview-Layer, falsche Map-Click-Handler, unvollstaendige Pending-State-Bereinigung, doppelte Path-Layer.
+- dangling preview layers, wrong map-click handlers, incomplete pending-state cleanup, duplicate path layers.
 
-### Path-Geometry-Edit-Flow
+### Path geometry edit flow
 
-1. Wegbearbeitung wird gestartet und Softlock wird angefordert.
-2. Edit-Handles werden erzeugt.
-3. Knoten werden gezogen, eingefuegt, geloescht oder zum Split vorbereitet.
-4. Geometrie wird lokal und serverseitig gespeichert.
-5. Layer, Route und Planner-State werden aktualisiert.
-6. Bearbeitung wird beendet und Softlock wird freigegeben.
+1. Path editing is started and a softlock is requested.
+2. Edit handles are created.
+3. Nodes are dragged, inserted, deleted or prepared for the split.
+4. Geometry is saved locally and server-side.
+5. Layer, route and planner state are updated.
+6. Editing is ended and the softlock is released.
 
-Risiko:
+Risk:
 
-- stale Handles, falsche Endpoint-Snaps, verlorene Geometrie, fehlende Lock-Freigabe.
+- stale handles, wrong endpoint snaps, lost geometry, missing lock release.
 
-### Path-Update-Flow
+### Path update flow
 
-1. Path-Payload kommt aus Edit, Review oder Live-Update.
-2. `pathData` wird aktualisiert.
-3. Layer-Geometrie und Popup werden aktualisiert.
-4. Labels/Rendering werden synchronisiert.
-5. Route wird ggf. aktualisiert.
+1. Path payload comes from edit, review or live-update.
+2. `pathData` is updated.
+3. Layer geometry and popup are updated.
+4. Labels/rendering are synchronized.
+5. Route is updated if applicable.
 
-Risiko:
+Risk:
 
-- doppelte Layer, stale Popups, falsche Route, verlorene Revisionen.
+- duplicate layers, stale popups, wrong route, lost revisions.
 
-### Feature-Response-Flow
+### Feature response flow
 
-1. API- oder Live-Update-Ergebnis kommt zurueck.
-2. Feature-Typ wird erkannt.
-3. passender lokaler Datenbestand wird mutiert.
-4. UI-/Layer-/Route-/Label-Syncs werden ausgeloest.
+1. API or live-update result comes back.
+2. Feature type is recognized.
+3. The matching local dataset is mutated.
+4. UI/layer/route/label syncs are triggered.
 
-Risiko:
+Risk:
 
-- zentrale Dispatch-Logik darf nicht versehentlich auseinandergezogen werden.
+- the central dispatch logic must not be accidentally pulled apart.
 
-### Region-Mode-Flow
+### Region mode flow
 
-1. Kartenmodus oder Timeline-Zustand aendert sich.
-2. Gebietsdaten werden sichtbar/unsichtbar.
-3. Layer, Labels und optionale Datenreloads werden synchronisiert.
-4. Edit-/Auswahlzustaende muessen ggf. geschlossen werden.
+1. Map mode or timeline state changes.
+2. Territory data becomes visible/invisible.
+3. Layers, labels and optional data reloads are synchronized.
+4. Edit/selection states may need to be closed.
 
-Risiko:
+Risk:
 
-- Moduswechsel, UI-Zustand und Layer-Zustand koennen auseinanderlaufen.
+- mode switch, UI state and layer state can drift apart.
 
-## 7. Potenzielle Zielarchitektur spaeter
+## 7. Potential target architecture later
 
-Eine spaetere groessere Bereinigung koennte langfristig in diese Richtung gehen:
+A larger cleanup later could move in this direction over the long term:
 
 ```text
 js/
@@ -579,30 +577,30 @@ js/
     ui.js
 ```
 
-Diese Struktur ist kein kurzfristiger Umzugsplan. Sie beschreibt nur eine moegliche Richtung, falls `map-features.js` spaeter systematisch weiter zerlegt wird.
+This structure is not a short-term migration plan. It only describes one possible direction, in case `map-features.js` is systematically decomposed further later.
 
-## 8. Kurzfristige Empfehlung
+## 8. Short-term recommendation
 
-Kein weiterer direkter Code-Split.
+No further direct code split.
 
-Die Post-Geometry-Restbewertung dokumentiert einen Stopppunkt. Weitere `map-features.js`-Splits sind nur mit separater Boundary, engem Scope und eigenem Smoke sinnvoll.
+The post-geometry rest assessment documents a stopping point. Further `map-features.js` splits only make sense with a separate boundary, narrow scope and their own smoke test.
 
-## 9. Konkrete naechste Boundary-Kandidaten
+## 9. Concrete next boundary candidates
 
-Optional spaeter und nur mit separater Boundary:
+Optional later and only with a separate boundary:
 
-1. Enger Path-Lifecycle/CRUD-Teilbereich (inklusive Grenzfall `deletePathFeature`).
+1. Narrow path-lifecycle/CRUD sub-area (including the edge case `deletePathFeature`).
 
-Nicht als naechster Code-Schritt:
+Not as the next code step:
 
-- Region-/Gebietsblock.
-- Feature-Response-Dispatcher als Ganzes.
-- grobe Location-Datenmutation.
-- Path-Lifecycle-Komplettsplit.
-- DOM-/Init-/Event-Bindings ohne Bootstrap-Boundary.
+- region/territory block.
+- feature-response dispatcher as a whole.
+- coarse location data mutation.
+- complete path-lifecycle split.
+- DOM/init/event bindings without a bootstrap boundary.
 
-## 10. Schlussentscheidung
+## 10. Final decision
 
-`js/map-features.js` bleibt vorerst bewusst gross, aber die Groesse ist jetzt genauer dokumentiert: Die Datei enthaelt Rest-Orchestrierung und Datenmutation, aber innerhalb dieser Restarchitektur existieren noch abgrenzbare Boundary-Kandidaten.
+`js/map-features.js` stays deliberately large for now, but the size is now documented more precisely: the file contains residual orchestration and data mutation, but within this rest architecture there are still delimitable boundary candidates.
 
-`js/map-features.js` bleibt bewusst Rest-Orchestrator. Weitere Entschlackung ist moeglich, aber nur als Architekturarbeit mit explizitem Datenfluss- und Smoke-Plan und nicht als automatischer Folgeschritt.
+`js/map-features.js` deliberately remains the rest orchestrator. Further slimming is possible, but only as architecture work with an explicit data-flow and smoke plan, and not as an automatic follow-up step.

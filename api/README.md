@@ -1,22 +1,22 @@
 
-## Stabile Entwickler-API
+## Stable developer API
 
-Als stabiler externer API-Vertrag gelten derzeit nur diese Endpunkte:
+Currently, only these endpoints are considered a stable external API contract:
 
 ```text
 POST /api/route/
 GET  /api/locations/
 ```
 
-Andere Endpunkte werden von der Avesmaps-App, vom Editor, vom Import-Workflow oder fuer Diagnosezwecke verwendet. Sie koennen sich noch ohne Stabilitaetsversprechen aendern.
+Other endpoints are used by the Avesmaps app, the editor, the import workflow, or for diagnostic purposes. They may still change without any stability guarantee.
 
 ## Routing
 
 ### `POST /api/route/`
 
-Berechnet eine serverseitige Route zwischen zwei bekannten Orten. Der alte Pfad `POST /api/route.php` bleibt als Kompatibilitaetswrapper erhalten und leitet intern auf `/api/route/`.
+Computes a server-side route between two known locations. The legacy path `POST /api/route.php` is retained as a compatibility wrapper and internally forwards to `/api/route/`.
 
-Minimaler Request:
+Minimal request:
 
 ```json
 {
@@ -27,7 +27,7 @@ Minimaler Request:
 }
 ```
 
-Typischer vollstaendiger Request:
+Typical full request:
 
 ```json
 {
@@ -50,7 +50,7 @@ Typischer vollstaendiger Request:
 }
 ```
 
-Erfolg:
+Success:
 
 ```json
 {
@@ -71,7 +71,7 @@ Erfolg:
 }
 ```
 
-Fehler:
+Error:
 
 ```json
 {
@@ -83,22 +83,22 @@ Fehler:
 }
 ```
 
-Unterstuetzte Methoden:
+Supported methods:
 
 ```text
-POST    Routing-Request
-OPTIONS CORS/Preflight
+POST    Routing request
+OPTIONS CORS/preflight
 ```
 
-Einige technische Diagnoseabfragen koennen aktuell noch ueber `GET /api/route/?diagnostic=...` existieren. Sie sind nicht Teil des stabilen externen API-Vertrags.
+Some technical diagnostic queries may currently still exist via `GET /api/route/?diagnostic=...`. They are not part of the stable external API contract.
 
 ## Locations
 
 ### `GET /api/locations/`
 
-Liefert die routingfaehigen Orte aus derselben Datenbasis, die auch der serverseitige Router verwendet. Der Endpoint ist fuer Clients gedacht, die gueltige Ortsnamen fuer `/api/route/` anbieten oder validieren wollen.
+Returns the routable locations from the same data source that the server-side router uses. The endpoint is intended for clients that want to offer or validate valid location names for `/api/route/`.
 
-Erfolg:
+Success:
 
 ```json
 {
@@ -121,16 +121,16 @@ Erfolg:
 }
 ```
 
-Unterstuetzte Methoden:
+Supported methods:
 
 ```text
-GET     Ortsliste
-OPTIONS CORS/Preflight
+GET     Location list
+OPTIONS CORS/preflight
 ```
 
-## App-Endpunkte
+## App endpoints
 
-Die folgenden Endpunkte werden von der Avesmaps-App verwendet. Sie sind erreichbar, aber nicht als externe Entwickler-API stabilisiert:
+The following endpoints are used by the Avesmaps app. They are reachable, but not stabilized as an external developer API:
 
 /api/app/map-features.php
 /api/app/map-search.php
@@ -139,31 +139,31 @@ Die folgenden Endpunkte werden von der Avesmaps-App verwendet. Sie sind erreichb
 /api/app/political-territory-wiki.php
 /api/app/wiki-proxy.php
 
-Alte Root-Wrapper wie /api/map-features.php, /api/map-search.php, /api/report-location.php und /api/wiki-proxy.php werden nicht mehr als kanonische Pfade gefuehrt.
+Legacy root wrappers such as /api/map-features.php, /api/map-search.php, /api/report-location.php and /api/wiki-proxy.php are no longer maintained as canonical paths.
 
-## Editor-, Import- und Diagnosebereiche
+## Editor, import, and diagnostic areas
 
-Die API wird in folgende Bereiche gegliedert:
+The API is organized into the following areas:
 
 ```text
-api/app/                    App-nahe Browser-Endpunkte
-api/edit/                   geschuetzte Editor- und Review-Endpunkte
-api/import/                 token-geschuetzte Import-Endpunkte
-api/diagnostics/            Diagnoseendpunkte, nicht oeffentlich stabil
-api/_internal/              interne PHP-Bibliotheken
-api/_schema/                SQL-Schemata
+api/app/                    app-facing browser endpoints
+api/edit/                   protected editor and review endpoints
+api/import/                 token-protected import endpoints
+api/diagnostics/            diagnostic endpoints, not publicly stable
+api/_internal/              internal PHP libraries
+api/_schema/                SQL schemas
 ```
 
-`api/_internal/`, `api/_schema/` und `api/diagnostics/` muessen im Deployment per `.htaccess` gegen direkten Webzugriff geschuetzt sein.
+`api/_internal/`, `api/_schema/` and `api/diagnostics/` must be protected against direct web access via `.htaccess` in deployment.
 
-## Konfiguration
+## Configuration
 
-1. `../config/api.config.example.php` nach `config.local.php` kopieren
-2. echte Datenbankwerte eintragen
-3. `config.local.php` nicht committen
-4. Frontend-Origin in `cors.allowed_origins` eintragen
+1. Copy `../config/api.config.example.php` to `config.local.php`
+2. Enter the real database values
+3. Do not commit `config.local.php`
+4. Enter the frontend origin in `cors.allowed_origins`
 
-Alternativ kann die API ueber Umgebungsvariablen konfiguriert werden:
+Alternatively, the API can be configured via environment variables:
 
 ```text
 AVESMAPS_DB_DRIVER
@@ -177,17 +177,17 @@ AVESMAPS_ALLOWED_ORIGINS
 AVESMAPS_IMPORT_API_TOKEN
 ```
 
-`AVESMAPS_ALLOWED_ORIGINS` erwartet eine kommaseparierte Liste, zum Beispiel:
+`AVESMAPS_ALLOWED_ORIGINS` expects a comma-separated list, for example:
 
 ```text
 http://localhost:8000,https://avesmaps.de
 ```
 
-Wenn Frontend und API auf derselben Domain liegen, ist kein externer CORS-Origin noetig.
+If the frontend and API are on the same domain, no external CORS origin is needed.
 
-## SQL-Schemata
+## SQL schemas
 
-Schemata liegen perspektivisch unter:
+Schemas are intended to live under:
 
 ```text
 api/_schema/mysql.sql
@@ -195,15 +195,15 @@ api/_schema/pgsql.sql
 api/_schema/future.mysql.sql
 ```
 
-Solange alte Schema-Dateien noch im flachen API-Ordner liegen, bleiben sie fuer bestehende lokale Workflows nutzbar. Produktive Dumps, echte Reports, Auditlogs, Tokens oder Zugangsdaten duerfen nicht ins Repository.
+As long as legacy schema files still reside in the flat API folder, they remain usable for existing local workflows. Production dumps, real reports, audit logs, tokens, or credentials must not enter the repository.
 
-## Ortsmeldungen und Import-Workflow
+## Location reports and import workflow
 
-`report-location.php` nimmt neue Ortsmeldungen als JSON entgegen und schreibt sie in die Tabelle `location_reports`.
+`report-location.php` accepts new location reports as JSON and writes them to the `location_reports` table.
 
-Das lokale Python-Skript `map/import_reported_locations.py` kann ueber serverseitige Admin-Endpunkte arbeiten. Dafuer wird ein separates Import-Token verwendet.
+The local Python script `map/import_reported_locations.py` can operate via server-side admin endpoints. A separate import token is used for this.
 
-Beispiel in `api/config.local.php`:
+Example in `api/config.local.php`:
 
 ```php
 'import_api' => [
@@ -211,13 +211,13 @@ Beispiel in `api/config.local.php`:
 ],
 ```
 
-Oder per Umgebungsvariable:
+Or via environment variable:
 
 ```text
 AVESMAPS_IMPORT_API_TOKEN=replace-with-a-long-random-import-token
 ```
 
-PowerShell-Beispiel:
+PowerShell example:
 
 ```powershell
 $env:AVESMAPS_IMPORT_API_BASE_URL = "https://example.org/avesmaps/api"
@@ -225,9 +225,9 @@ $env:AVESMAPS_IMPORT_API_TOKEN = "replace-with-a-long-random-import-token"
 python map/import_reported_locations.py
 ```
 
-## Lokale Smoke-Tests
+## Local smoke tests
 
-Syntaxchecks:
+Syntax checks:
 
 ```powershell
 php -l api/bootstrap.php
@@ -241,7 +241,7 @@ php -l api/_internal/routing/client-graph.php
 php -l api/_internal/routing/response.php
 ```
 
-HTTP-Smoke-Tests nach Deployment:
+HTTP smoke tests after deployment:
 
 ```powershell
 Invoke-WebRequest -Method Options -Uri "https://avesmaps.de/api/route/"

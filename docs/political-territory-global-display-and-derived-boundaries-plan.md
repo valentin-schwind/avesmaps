@@ -1,14 +1,14 @@
-# Plan: Globale Herrschaftsgebiet-Eigenschaften und Außengrenzensystematik
+# Plan: Global Herrschaftsgebiet properties and outer-boundary systematics
 
-Stand: 2026-05-29
+Status: 2026-05-29
 
-Dieses Dokument beschreibt den Zielzustand, die Historie, die Risiken und den Umsetzungsplan fuer den Umbau der Herrschaftsgebiet-Eigenschaften und der abgeleiteten Außengrenzen in Avesmaps.
+This document describes the target state, the history, the risks, and the implementation plan for reworking the Herrschaftsgebiet properties and the derived outer boundaries in Avesmaps.
 
-Der Plan ist bewusst nicht als sofortige Loesch- oder Migrationsaktion formuliert. Bestehende echte Karten-Geometrien, bestehende Territorien und bestehende Territorien-Hierarchien duerfen nicht zerstoert oder umgeschrieben werden. Der Umbau soll die bisherige Mehrdeutigkeit zwischen angeklickter Geometrie, lokalem Override, Breadcrumb-Knoten und abgeleiteter Außengrenze aufloesen.
+The plan is deliberately not formulated as an immediate delete or migration action. Existing real map geometries, existing territories, and existing territory hierarchies must not be destroyed or rewritten. The rework is meant to resolve the ambiguity between clicked geometry, local override, breadcrumb node, and derived outer boundary.
 
-## 1. Ausgangslage
+## 1. Starting point
 
-Avesmaps verwaltet politische Herrschaftsgebiete auf einer Fantasy-Karte. Nutzer koennen eine Kartenflaeche anklicken, dadurch einen Eigenschaften-Editor oeffnen und dort eine Breadcrumb-Kette bearbeiten, zum Beispiel:
+Avesmaps manages political Herrschaftsgebiete on a fantasy map. Users can click a map area, thereby opening a properties editor, and edit a breadcrumb chain there, for example:
 
 ```text
 Bergkoenigreich Lorgolosch
@@ -17,7 +17,7 @@ Bergkoenigreich Lorgolosch
 - Bergfreischaft Ilderasch
 ```
 
-Spaeter kann die Hierarchie tiefer sein:
+Later the hierarchy can be deeper:
 
 ```text
 Bergkoenigreich Lorgolosch
@@ -29,73 +29,73 @@ Bergkoenigreich Lorgolosch
 - Bergfreischaft Ilderasch
 ```
 
-Der Editor hatte bislang mehrere Ebenen, die sich teilweise ueberlappen:
+Until now the editor had several layers that partly overlap:
 
-- echte Karten-Geometrien, also konkrete Polygone auf der Karte
-- Territorien als fachliche Herrschaftsgebiet-Knoten
-- Breadcrumb-Darstellungen im Editor
-- lokale/geometriebezogene Overrides
-- globale Territoriumswerte
-- abgeleitete Außengrenzen
+- real map geometries, i.e. concrete polygons on the map
+- territories as the domain Herrschaftsgebiet nodes
+- breadcrumb representations in the editor
+- local/geometry-bound overrides
+- global territory values
+- derived outer boundaries
 
-Diese Ebenen fuehren zu Mehrdeutigkeiten. Das beobachtete Symptom war: Eine Außengrenze fuer `Bergkoenigreich Lorgolosch` konnte nach dem Speichern je nach Klick-Kontext bei `Olrong`, aber nicht bei `Kibrom` oder `Ilderasch` wieder sichtbar sein. Das deutet darauf hin, dass der Editor nicht durchgehend den aktiven Breadcrumb-Knoten als Identitaet verwendet, sondern teilweise die angeklickte Geometrie oder den niedrigsten Knoten der Kette.
+These layers lead to ambiguities. The observed symptom was: an outer boundary for `Bergkoenigreich Lorgolosch` could, after saving and depending on the click context, become visible again at `Olrong` but not at `Kibrom` or `Ilderasch`. This indicates that the editor does not consistently use the active breadcrumb node as the identity, but partly the clicked geometry or the lowest node of the chain.
 
-## 2. Zentrale Produktentscheidung
+## 2. Central product decision
 
-Lokale Eigenschaften sollen entfallen. Es soll nur noch globale Eigenschaften pro Herrschaftsgebiet/Breadcrumb-Knoten geben.
+Local properties should be dropped. There should only be global properties per Herrschaftsgebiet/breadcrumb node.
 
-Der zentrale Satz lautet:
-
-```text
-Der aktive Breadcrumb-Knoten ist die alleinige Wahrheit fuer Eigenschaften und Außengrenzen.
-```
-
-Nicht die angeklickte Geometrie, nicht eine transparente Quellflaeche, nicht eine alte `geometry_public_id`, nicht ein lokaler Override.
-
-Ein Klick auf eine Karte dient nur als Einstieg in den Editor. Danach entscheidet der im Breadcrumb aktive Knoten, welches Herrschaftsgebiet bearbeitet wird.
-
-Beispiel:
+The central sentence reads:
 
 ```text
-Klick auf Olrong-Flaeche
--> Editor oeffnet Breadcrumb Lorgolosch > Olrong
--> Nutzer klickt im Breadcrumb auf Lorgolosch
--> Alle Eigenschaften und Außengrenzen betreffen Lorgolosch, nicht Olrong.
+The active breadcrumb node is the sole truth for properties and outer boundaries.
 ```
 
-Diese Regel gilt immer, unabhaengig von Zoomstufe und unabhaengig davon, ob der angeklickte Layer sichtbar, transparent, original oder abgeleitet ist.
+Not the clicked geometry, not a transparent source area, not an old `geometry_public_id`, not a local override.
 
-## 3. Zielmodell
+A click on a map only serves as an entry point into the editor. After that, the node active in the breadcrumb decides which Herrschaftsgebiet is being edited.
 
-Das Zielmodell trennt fachliche Territorien, echte Geometrien und abgeleitete Geometrien klar.
+Example:
+
+```text
+Click on Olrong area
+-> Editor opens breadcrumb Lorgolosch > Olrong
+-> User clicks Lorgolosch in the breadcrumb
+-> All properties and outer boundaries concern Lorgolosch, not Olrong.
+```
+
+This rule always applies, independent of the zoom level and independent of whether the clicked layer is visible, transparent, original, or derived.
+
+## 3. Target model
+
+The target model clearly separates domain territories, real geometries, and derived geometries.
 
 ```text
 political_territory
-= fachlicher Herrschaftsgebiet-Knoten, z. B. Lorgolosch, Kibrom, Olrong
+= domain Herrschaftsgebiet node, e.g. Lorgolosch, Kibrom, Olrong
 
 political_territory_geometry
-= echte Karten-Geometrie / Quellpolygon
+= real map geometry / source polygon
 
 political_territory_display_global
-= globale Darstellungseigenschaften eines Territoriums, falls als eigene Tabelle eingefuehrt wird
+= global display properties of a territory, if introduced as a separate table
 
 political_territory_derived_geometry
-= globale abgeleitete Außengrenze eines Territoriums
+= global derived outer boundary of a territory
 ```
 
-Wichtig: In der bestehenden Implementierung werden viele Eigenschaften bereits direkt in `political_territory` gespeichert. Das ist nah am Zielmodell. Eine neue Display-Tabelle ist optional und nur dann sinnvoll, wenn Darstellungseigenschaften fachlich von den Stammdaten getrennt werden sollen.
+Important: in the existing implementation many properties are already stored directly in `political_territory`. That is close to the target model. A new display table is optional and only makes sense if display properties should be separated, on a domain level, from the master data.
 
-Die minimal-invasive Variante waere:
+The minimally invasive variant would be:
 
-- `political_territory` bleibt Wahrheit fuer globale Eigenschaften wie Farbe, Transparenz, Zoom, Wappen, Gültigkeit.
-- `political_territory_geometry` bleibt Wahrheit fuer echte Polygone.
-- `political_territory_derived_geometry` bleibt Wahrheit fuer abgeleitete Außengrenzen.
-- `style_json.assignmentDisplays` wird nur noch als alter Snapshot/Fallback behandelt, nicht als aktive Wahrheit.
-- lokale Override-UI und lokale Override-Flows werden entfernt oder deaktiviert.
+- `political_territory` remains the truth for global properties such as color, transparency, zoom, Wappen, Gültigkeit.
+- `political_territory_geometry` remains the truth for real polygons.
+- `political_territory_derived_geometry` remains the truth for derived outer boundaries.
+- `style_json.assignmentDisplays` is treated only as an old snapshot/fallback, not as active truth.
+- local override UI and local override flows are removed or disabled.
 
-## 4. Außengrenzensystematik
+## 4. Outer-boundary systematics
 
-Die Außengrenzen haben drei UI-Schalter:
+The outer boundaries have three UI toggles:
 
 ```text
 Außengrenzen darstellen
@@ -105,30 +105,30 @@ Für alle Unterregionen übernehmen
 
 ### 4.1 Außengrenzen darstellen
 
-Wenn aktiv, wird fuer den aktiven Breadcrumb-Knoten eine abgeleitete Außengrenze erzeugt und gespeichert.
+When active, a derived outer boundary is generated and stored for the active breadcrumb node.
 
-Wenn inaktiv und gespeichert, wird die aktive abgeleitete Außengrenze dieses Territoriums deaktiviert. Es darf keine alte abgeleitete Außengrenze als Restzustand uebrig bleiben.
+When inactive and saved, the active derived outer boundary of this territory is deactivated. No old derived outer boundary may remain as a leftover state.
 
 ### 4.2 Innengrenzen darstellen
 
-Wenn aktiv, werden innerhalb der Außengrenze die relevanten Untergrenzen angezeigt.
+When active, the relevant inner boundaries are shown within the outer boundary.
 
-Bei untersten Knoten ohne Unterregionen wird diese Option automatisch deaktiviert, abgehakt und ausgegraut. Ein Blattknoten kann keine Innengrenzen haben.
+For leaf nodes without sub-regions, this option is automatically disabled, unchecked, and grayed out. A leaf node cannot have inner boundaries.
 
-Die Option darf keine echten Unter-Geometrien loeschen. Sie steuert nur die Anzeige der Innenlinien.
+The option must not delete any real sub-geometries. It only controls the display of the inner lines.
 
 ### 4.3 Für alle Unterregionen übernehmen
 
-Dieser Schalter ist fachlich wichtig und darf nicht entfernt werden. Er entscheidet zwischen flacher und hierarchischer Außengrenzen-Erzeugung.
+This toggle is important on a domain level and must not be removed. It decides between flat and hierarchical outer-boundary generation.
 
-#### Modus aus: flach
+#### Mode off: flat
 
-Es wird genau eine Außengrenze fuer den aktiven Breadcrumb-Knoten erzeugt. Quelle sind alle darunterliegenden Blatt-/Quellgeometrien.
+Exactly one outer boundary is generated for the active breadcrumb node. The source is all underlying leaf/source geometries.
 
-Beispiel:
+Example:
 
 ```text
-Bergkoenigreich Lorgolosch <- Außengrenze aus 1-5
+Bergkoenigreich Lorgolosch <- outer boundary from 1-5
 - Bergfreischaft Kibrom
   - Bergfreischaft Kibrom-Asch <- 1
   - Bergfreischaft Kibrom-Bosch <- 2
@@ -137,19 +137,19 @@ Bergkoenigreich Lorgolosch <- Außengrenze aus 1-5
 - Bergfreischaft Ilderasch <- 5
 ```
 
-`Kibrom` bekommt in diesem Modus keine eigene abgeleitete Außengrenze.
+`Kibrom` does not get its own derived outer boundary in this mode.
 
-#### Modus an: hierarchisch
+#### Mode on: hierarchical
 
-Es werden Außengrenzen rekursiv fuer den aktiven Knoten und alle aggregierbaren Unterknoten erzeugt.
+Outer boundaries are generated recursively for the active node and all aggregatable sub-nodes.
 
-Jeder Knoten vereinigt seine direkte sinnvolle Kindebene.
+Each node unions its direct meaningful child level.
 
-Beispiel:
+Example:
 
 ```text
-Bergkoenigreich Lorgolosch <- Außengrenze aus 1-3
-- Bergfreischaft Kibrom 1 <- Außengrenze aus 4-6
+Bergkoenigreich Lorgolosch <- outer boundary from 1-3
+- Bergfreischaft Kibrom 1 <- outer boundary from 4-6
   - Bergfreischaft Kibrom-Asch <- 4
   - Bergfreischaft Kibrom-Bosch <- 5
   - Bergfreischaft Kibrom-Cosch <- 6
@@ -157,311 +157,311 @@ Bergkoenigreich Lorgolosch <- Außengrenze aus 1-3
 - Bergfreischaft Ilderasch 3
 ```
 
-Das bedeutet: Wenn fuer `Kibrom` eine eigene abgeleitete Außengrenze erzeugt wird, verwendet `Lorgolosch` in seiner hierarchischen Aggregation `Kibrom` als direktes Aggregat, nicht mehr die drei Kibrom-Blattgeometrien einzeln.
+This means: if a separate derived outer boundary is generated for `Kibrom`, then `Lorgolosch` uses `Kibrom` as a direct aggregate in its hierarchical aggregation, no longer the three Kibrom leaf geometries individually.
 
-## 5. Lokale Eigenschaften: Entscheidung und Konsequenzen
+## 5. Local properties: decision and consequences
 
-Lokale Eigenschaften werden weggelassen. Dadurch entfallen konzeptionell:
+Local properties are dropped. As a result, the following are conceptually eliminated:
 
-- lokale/geometriebezogene Darstellung als aktive Wahrheit
+- local/geometry-bound display as active truth
 - `Zurücksetzen zu global`
 - `Zu global machen`
-- lokale Override-Hinweise im Editor
+- local override hints in the editor
 
-Diese vorhandenen Funktionen sollten nicht sofort aus der Datenbank geloescht werden. Sie sollen zuerst aus der aktiven UI entfernt oder deaktiviert werden. Backend-Code und alte Daten koennen als Sicherheitsnetz bestehen bleiben, bis der globale Pfad stabil ist.
+These existing functions should not be deleted from the database right away. They should first be removed or disabled in the active UI. Backend code and old data can remain as a safety net until the global path is stable.
 
-Konsequenz:
+Consequence:
 
 ```text
-Alle Eigenschaften gehoeren zum Territorium des aktiven Breadcrumb-Knotens.
+All properties belong to the territory of the active breadcrumb node.
 ```
 
-Wenn der Nutzer auf eine Geometrie klickt, dient diese nur zum Oeffnen der passenden Breadcrumb-Kette. Danach wird mit `territory_public_id` oder `territory_id` des aktiven Breadcrumb-Knotens gearbeitet.
+When the user clicks a geometry, it only serves to open the matching breadcrumb chain. After that, work is done with the `territory_public_id` or `territory_id` of the active breadcrumb node.
 
-## 6. Historie und technische Befunde
+## 6. History and technical findings
 
-### 6.1 Bestehende Speicherung normaler Eigenschaften
+### 6.1 Existing storage of normal properties
 
-Die aktuelle Assignment-Speicherung schreibt bei bestehenden zugewiesenen Geometrien viele Werte bereits direkt in `political_territory`, insbesondere:
+The current assignment storage already writes many values directly into `political_territory` for existing assigned geometries, in particular:
 
-- Farbe
-- Transparenz
+- color
+- transparency
 - Wappen
-- Zoom von/bis
-- Gültigkeit von/bis
+- zoom from/to
+- Gültigkeit from/to
 
-Das ist gut fuer das globale Zielmodell.
+That is good for the global target model.
 
-Problematisch ist, dass gleichzeitig `assignmentDisplays` in `style_json` der konkreten Geometrie gespeichert werden. Diese Snapshots koennen von der globalen Territoriumswahrheit abweichen und muessen entmachtet werden.
+The problem is that, at the same time, `assignmentDisplays` are stored in the `style_json` of the concrete geometry. These snapshots can diverge from the global territory truth and must be stripped of authority.
 
-### 6.2 Aktiver Breadcrumb
+### 6.2 Active breadcrumb
 
-Der aktive Breadcrumb-Knoten ist derzeit nicht hart genug als Datenwahrheit abgesichert.
+The active breadcrumb node is currently not hardened enough as a data truth.
 
-Wenn `activeDisplayNode` fehlt oder nicht sauber aktualisiert ist, faellt die Display-State-Logik auf das letzte Element des Breadcrumb-Pfads zurueck. Das ist fuer Blattbearbeitung praktisch, aber fuer die Außengrenzensystematik falsch.
+When `activeDisplayNode` is missing or not cleanly updated, the display-state logic falls back to the last element of the breadcrumb path. That is convenient for leaf editing, but wrong for the outer-boundary systematics.
 
-Pflicht fuer den Umbau:
+Requirement for the rework:
 
 ```text
-Jeder Breadcrumb-Klick muss den aktiven Knoten explizit im Editorzustand setzen.
-Alle abhängigen Module muessen danach gegen diesen aktiven Knoten neu laden.
+Every breadcrumb click must explicitly set the active node in the editor state.
+All dependent modules must then reload against this active node.
 ```
 
-### 6.3 Lokaler Override-Footer
+### 6.3 Local override footer
 
-Der Override-Footer arbeitet auf `geometry_public_id` und ist daher geometriereferenziert. Das widerspricht dem global-only-Ziel.
+The override footer works on `geometry_public_id` and is therefore geometry-referenced. That contradicts the global-only goal.
 
-Er muss aus der aktiven UI entfernt oder deaktiviert werden.
+It must be removed or disabled in the active UI.
 
-### 6.4 Derived Geometry Backend
+### 6.4 Derived Geometry backend
 
-`political_territory_derived_geometry` haengt bereits an `territory_id`. Das passt zum globalen Modell.
+`political_territory_derived_geometry` already hangs off `territory_id`. That fits the global model.
 
-Beim Speichern einer Derived Geometry wird die alte aktive Geometrie dieses Territoriums deaktiviert und eine neue eingefuegt. Beim Loeschen wird die aktive Derived Geometry fuer das Territorium deaktiviert.
+When saving a Derived Geometry, the old active geometry of this territory is deactivated and a new one is inserted. When deleting, the active Derived Geometry for the territory is deactivated.
 
-Das ist die richtige Grundlogik.
+That is the correct base logic.
 
-Was fehlt:
+What is missing:
 
-- expliziter flat/hierarchical-Modus
-- rekursive Erzeugung fuer Unterregionen
-- optional: Quellenprotokoll fuer Debugging und Reproduktion
+- an explicit flat/hierarchical mode
+- recursive generation for sub-regions
+- optional: a source log for debugging and reproduction
 
-## 7. Risiken
+## 7. Risks
 
-### Risiko 1: Doppelte Wahrheit durch `style_json.assignmentDisplays`
+### Risk 1: Double truth through `style_json.assignmentDisplays`
 
-Wenn `assignmentDisplays` weiter als aktive Datenquelle verwendet werden, bleibt das alte Problem erhalten: Je nach angeklickter Geometrie koennen andere Eigenschaften auftauchen.
+If `assignmentDisplays` continue to be used as an active data source, the old problem remains: depending on the clicked geometry, different properties can appear.
 
-Gegenmaßnahme:
+Countermeasure:
 
-- `assignmentDisplays` nur noch als Legacy-Fallback lesen.
-- Neu speichern nur noch in die globale Territoriumswahrheit.
-- Spaeter Diagnose/Archivierung dieser Snapshots.
+- read `assignmentDisplays` only as a legacy fallback.
+- save anew only into the global territory truth.
+- later, diagnose/archive these snapshots.
 
-### Risiko 2: Falscher Zielschluessel im Geometrie-Panel
+### Risk 2: Wrong target key in the geometry panel
 
-Wenn `getTargetKey()` weiterhin aus der angeklickten Geometrie oder aus einem alten Assignment-Wert ableitet, koennen Derived-Geometrien am falschen Territorium landen.
+If `getTargetKey()` continues to derive from the clicked geometry or from an old assignment value, derived geometries can end up on the wrong territory.
 
-Gegenmaßnahme:
+Countermeasure:
 
-- Aktiven Breadcrumb-Knoten als explizite Editorwahrheit einfuehren.
-- Geometrie-Panel nur noch gegen diesen aktiven Knoten laden/speichern.
+- introduce the active breadcrumb node as the explicit editor truth.
+- load/save the geometry panel only against this active node.
 
-### Risiko 3: Lokale Override-UI bleibt aktiv
+### Risk 3: Local override UI stays active
 
-Wenn `Zurücksetzen zu global` oder `Zu global machen` sichtbar bleiben, koennen Nutzer weiterhin geometriereferenzierte lokale Zustaende erzeugen oder loeschen.
+If `Zurücksetzen zu global` or `Zu global machen` remain visible, users can continue to create or delete geometry-referenced local states.
 
-Gegenmaßnahme:
+Countermeasure:
 
-- Override-Footer ausblenden/deaktivieren.
-- API zunaechst behalten, aber nicht mehr aus normaler UI aufrufen.
+- hide/disable the override footer.
+- keep the API for now, but no longer call it from the normal UI.
 
-### Risiko 4: Hierarchischer Modus erzeugt falsche Quellen
+### Risk 4: Hierarchical mode generates wrong sources
 
-Wenn der hierarchische Modus alle Blattgeometrien statt direkter Aggregationsknoten verwendet, ist er fachlich identisch mit dem flachen Modus.
+If the hierarchical mode uses all leaf geometries instead of direct aggregation nodes, it is, on a domain level, identical to the flat mode.
 
-Gegenmaßnahme:
+Countermeasure:
 
-- Eigene rekursive Source-Planung fuer Derived-Geometrien.
-- Erst die untergeordneten aggregierbaren Knoten berechnen, dann den Elternknoten aus diesen direkten Kindern bilden.
+- a separate recursive source planning for derived geometries.
+- first compute the subordinate aggregatable nodes, then build the parent node from these direct children.
 
-### Risiko 5: Bestehende Geometrien werden unbeabsichtigt veraendert
+### Risk 5: Existing geometries are changed unintentionally
 
-Das darf nicht passieren.
+That must not happen.
 
-Gegenmaßnahme:
+Countermeasure:
 
-- Echte Geometrien nie durch Derived-Operationen loeschen oder ueberschreiben.
-- Nur aktive Derived-Geometrien deaktivieren/neu erzeugen.
-- Vor jeder groesseren Operation Diagnose- und Zaehlschritte ausfuehren.
+- never delete or overwrite real geometries through derived operations.
+- only deactivate/regenerate active derived geometries.
+- run diagnostic and counting steps before every larger operation.
 
-### Risiko 6: Datenmigration entscheidet Konflikte automatisch falsch
+### Risk 6: Data migration decides conflicts automatically wrong
 
-Alte Geometrie-Snapshots koennen unterschiedliche Farben/Zoomwerte fuer dasselbe Territorium enthalten.
+Old geometry snapshots can contain different colors/zoom values for the same territory.
 
-Gegenmaßnahme:
+Countermeasure:
 
-- Konflikte diagnostizieren und listen.
-- Nicht automatisch loeschen.
-- Wenn noetig redaktionell entscheiden.
+- diagnose and list conflicts.
+- do not delete automatically.
+- decide editorially if necessary.
 
-## 8. Umsetzungsphasen
+## 8. Implementation phases
 
-### Phase 0: Keine weiteren ad-hoc Patches
+### Phase 0: No further ad-hoc patches
 
-Vor dem Umbau keine weiteren kleinen Workarounds an Derived Geometry oder Override-Footer, außer zur Fehlerbehebung, die den Umbau nicht erschwert.
+Before the rework, no further small workarounds on Derived Geometry or the override footer, except for bug fixes that do not complicate the rework.
 
-### Phase 1: Diagnose
+### Phase 1: Diagnosis
 
-Erstellen eines Diagnose-Skripts oder Admin-Endpoints:
+Create a diagnostic script or admin endpoint:
 
-- Anzahl Territorien
-- Anzahl echter Geometrien
-- Anzahl aktiver Derived-Geometrien
-- Territorien mit mehr als einer aktiven Derived-Geometrie
-- Geometrien mit `style_json.assignmentDisplays`
-- Konflikte zwischen `political_territory`-Werten und Geometrie-Snapshots
-- lokale Overrides, falls vorhanden
+- number of territories
+- number of real geometries
+- number of active derived geometries
+- territories with more than one active derived geometry
+- geometries with `style_json.assignmentDisplays`
+- conflicts between `political_territory` values and geometry snapshots
+- local overrides, if present
 
-Keine Daten veraendern.
+Do not change any data.
 
-### Phase 2: Aktiver Breadcrumb als harte Wahrheit
+### Phase 2: Active breadcrumb as hard truth
 
-- Beim Breadcrumb-Klick `activeDisplayNode` bzw. eine aequivalente aktive Territory-Identitaet explizit setzen.
-- `readRootSelection()` muss den aktiven Breadcrumb-Knoten stabil liefern.
-- Nach Breadcrumb-Wechsel muessen alle Panels neu synchronisiert werden.
+- on breadcrumb click, explicitly set `activeDisplayNode` or an equivalent active territory identity.
+- `readRootSelection()` must reliably return the active breadcrumb node.
+- after a breadcrumb change, all panels must be re-synchronized.
 
-### Phase 3: Lokale Override-UI deaktivieren
+### Phase 3: Disable local override UI
 
-- Override-Footer aus der UI entfernen oder immer verstecken.
-- Buttons `Zurücksetzen zu global` und `Zu global machen` entfernen.
-- Kein aktiver UI-Pfad darf `reset_local` oder Promote-Logik mehr ausloesen.
+- remove the override footer from the UI or always hide it.
+- remove the buttons `Zurücksetzen zu global` and `Zu global machen`.
+- no active UI path may trigger `reset_local` or promote logic anymore.
 
-### Phase 4: Eigenschaften global lesen/schreiben
+### Phase 4: Read/write properties globally
 
-- Editor liest Eigenschaften vom aktiven Territorium.
-- Editor schreibt Eigenschaften auf das aktive Territorium.
-- `geometry_public_id` bleibt nur Einstiegspunkt zum Oeffnen des Editors.
-- `assignmentDisplays` werden nicht mehr als aktive Wahrheit erzeugt.
+- the editor reads properties from the active territory.
+- the editor writes properties to the active territory.
+- `geometry_public_id` remains only an entry point for opening the editor.
+- `assignmentDisplays` are no longer generated as active truth.
 
-### Phase 5: Geometrie-Panel auf aktiven Breadcrumb fixieren
+### Phase 5: Pin the geometry panel to the active breadcrumb
 
-- `getTargetKey()` im Derived-Geometry-Editor muss den aktiven Breadcrumb-Knoten verwenden.
-- Speichern/Loeschen/Preview darf nicht von angeklickter Geometrie abhaengen.
-- Preview und Status laden bei jedem Breadcrumb-Wechsel neu.
+- `getTargetKey()` in the Derived Geometry editor must use the active breadcrumb node.
+- save/delete/preview must not depend on the clicked geometry.
+- preview and status reload on every breadcrumb change.
 
-### Phase 6: Außengrenzen-UI wieder vollstaendig machen
+### Phase 6: Make the outer-boundary UI complete again
 
-Geometrie-Panel enthaelt:
+The geometry panel contains:
 
 - `Außengrenzen darstellen`
 - `Innengrenzen darstellen`
 - `Für alle Unterregionen übernehmen`
 
-Zoomfelder im Geometrie-Panel bleiben entfernt. Zoom kommt aus Kartensichtbarkeit.
+Zoom fields in the geometry panel stay removed. Zoom comes from map visibility.
 
-### Phase 7: Backend-Modi fuer Außengrenzen
+### Phase 7: Backend modes for outer boundaries
 
-Ergaenzen eines Modusparameters, etwa:
+Add a mode parameter, for example:
 
 ```text
 generation_mode = flat | hierarchical
 ```
 
-Oder boolesch:
+Or boolean:
 
 ```text
 apply_to_descendants = true | false
 ```
 
-Backend muss:
+The backend must:
 
-- flat: eine Derived Geometry fuer aktives Territorium erzeugen
-- hierarchical: rekursiv Derived Geometries fuer aktive Territorium-Unterstruktur erzeugen
+- flat: generate one Derived Geometry for the active territory
+- hierarchical: recursively generate Derived Geometries for the active territory substructure
 
-### Phase 8: Optionales Quellenprotokoll
+### Phase 8: Optional source log
 
-Optional, aber empfohlen:
+Optional, but recommended:
 
 ```text
 political_territory_derived_geometry_source
 ```
 
-Zur Nachvollziehbarkeit, welche Quellgeometrien oder Kind-Derived-Geometrien eine Außengrenze erzeugt haben.
+For traceability of which source geometries or child Derived Geometries produced an outer boundary.
 
-### Phase 9: Tests und manuelle Pruefung
+### Phase 9: Tests and manual checking
 
-Testfaelle:
+Test cases:
 
-1. Lorgolosch mit Kibrom, Olrong, Ilderasch, flacher Modus.
-2. Lorgolosch mit Kibrom-Unterregionen, hierarchischer Modus.
-3. Klick auf Olrong, Breadcrumb Lorgolosch, Eigenschaften muessen Lorgolosch sein.
-4. Klick auf Kibrom-Asch, Breadcrumb Kibrom, Eigenschaften muessen Kibrom sein.
-5. Innengrenzen fuer Blattknoten deaktiviert.
-6. Außengrenze abhaekeln und speichern deaktiviert nur Derived Geometry, keine echte Geometrie.
-7. Lokale Override-UI erscheint nicht mehr.
-8. Bestehende echte Polygone bleiben unveraendert.
+1. Lorgolosch with Kibrom, Olrong, Ilderasch, flat mode.
+2. Lorgolosch with Kibrom sub-regions, hierarchical mode.
+3. Click on Olrong, breadcrumb Lorgolosch, properties must be Lorgolosch.
+4. Click on Kibrom-Asch, breadcrumb Kibrom, properties must be Kibrom.
+5. Inner boundaries disabled for leaf nodes.
+6. Unchecking the outer boundary and saving only deactivates the Derived Geometry, not any real geometry.
+7. Local override UI no longer appears.
+8. Existing real polygons remain unchanged.
 
-### Phase 10: Legacy-Aufraeumung erst spaeter
+### Phase 10: Legacy cleanup only later
 
-Erst nach erfolgreicher Testphase:
+Only after a successful test phase:
 
-- Legacy-Snapshots exportieren
-- Konfliktliste pruefen
-- alte lokale Override-Daten archivieren
-- erst ganz am Ende loeschen, wenn ueberhaupt
+- export legacy snapshots
+- review the conflict list
+- archive old local override data
+- delete only at the very end, if at all
 
-## 9. Nicht-Ziele
+## 9. Non-goals
 
-Diese Dinge gehoeren nicht zum ersten Umbau:
+These things are not part of the first rework:
 
-- echte Geometrien neu zeichnen
-- politische Hierarchie neu generieren
-- alte Geometrie-Assignments hart loeschen
-- lokale Override-Tabellen sofort loeschen
-- alle Legacy-Snapshots automatisch bereinigen
-- neue Branches verwenden, sofern der Nutzer nichts anderes sagt
+- redrawing real geometries
+- regenerating the political hierarchy
+- hard-deleting old geometry assignments
+- immediately deleting local override tables
+- automatically cleaning up all legacy snapshots
+- using new branches, unless the user says otherwise
 
-## 10. Arbeitsregeln fuer die Umsetzung
+## 10. Working rules for the implementation
 
-- Immer erst das Repository einlesen.
-- Keine grossen Patches ohne vorherige Analyse.
-- Bestehende Geometrien und Hierarchien nicht anfassen.
-- Bei Unsicherheit zuerst Diagnose statt Migration.
-- Kleine, nachvollziehbare Commits auf `master`, sofern der Nutzer das freigibt.
-- Nach jedem Commit den Commit verifizieren.
-- Nie behaupten, ein Commit sei erfolgt, bevor GitHub den Commit-SHA bestaetigt.
-- Keine lokalen Override-Daten loeschen, solange keine explizite Freigabe vorliegt.
-- UI/Backend schrittweise entkoppeln.
+- Always read the repository first.
+- No large patches without prior analysis.
+- Do not touch existing geometries and hierarchies.
+- When in doubt, diagnose first instead of migrating.
+- Small, traceable commits on `master`, if the user approves.
+- Verify the commit after every commit.
+- Never claim that a commit has happened before GitHub confirms the commit SHA.
+- Do not delete any local override data as long as there is no explicit approval.
+- Decouple UI/backend step by step.
 
-## 11. Startprompt fuer eine neue Konversation
+## 11. Start prompt for a new conversation
 
-Der folgende Prompt soll in einer neuen ChatGPT-Konversation verwendet werden:
+The following prompt should be used in a new ChatGPT conversation:
 
 ```text
-Du arbeitest am Repository https://github.com/valentin-schwind/avesmaps/ im Projekt Avesmaps.
+You are working on the repository https://github.com/valentin-schwind/avesmaps/ in the Avesmaps project.
 
-Lies zuerst das Repository und besonders diese Datei:
+First read the repository and especially this file:
 
 docs/political-territory-global-display-and-derived-boundaries-plan.md
 
-Halte dich strikt an diesen Plan. Ziel ist die Umstellung der politischen Herrschaftsgebiet-Eigenschaften und der abgeleiteten Außengrenzen auf ein globales, territory-basiertes Modell.
+Adhere strictly to this plan. The goal is to convert the political Herrschaftsgebiet properties and the derived outer boundaries to a global, territory-based model.
 
-Wichtige Grundregeln:
+Important ground rules:
 
-1. Bestehende echte Karten-Geometrien duerfen nicht geloescht, umgeschrieben oder neu zugeordnet werden.
-2. Bestehende Territorien und Territorien-Hierarchien duerfen nicht veraendert werden.
-3. Lokale Eigenschaften/Overrides sollen aus der aktiven UI entfernt werden. Alte Daten duerfen zunaechst nur stillgelegt, nicht geloescht werden.
-4. Der aktive Breadcrumb-Knoten ist die einzige Wahrheit fuer Eigenschaften und Außengrenzen.
-5. Ein Kartenklick ist nur Einstiegspunkt. Nach Auswahl eines Breadcrumb-Knotens wird ausschliesslich dessen territory_public_id/territory_id bearbeitet.
-6. Normale Eigenschaften wie Farbe, Transparenz, Wappen, Zoom und Gültigkeit sollen global am Territorium haengen.
-7. Außengrenzen haengen global an territory_id in political_territory_derived_geometry.
-8. Das Geometrie-Panel braucht die Häkchen: Außengrenzen darstellen, Innengrenzen darstellen, Für alle Unterregionen übernehmen.
-9. Für alle Unterregionen übernehmen aus = flache Außengrenze aus allen Blatt-/Quellgeometrien unterhalb des aktiven Knotens.
-10. Für alle Unterregionen übernehmen an = rekursive/hierarchische Außengrenzen fuer den aktiven Knoten und aggregierbare Unterknoten.
-11. Innengrenzen darstellen ist fuer Blattknoten ohne Unterregionen deaktiviert, abgehakt und ausgegraut.
-12. Keine Migration oder Loeschung ohne Diagnose und explizite Freigabe.
-13. Arbeite in kleinen, verifizierten Commits auf master, sofern nichts anderes gesagt wird.
-14. Erklaere vor jeder Code-Aenderung knapp, welche Datei du warum aenderst.
-15. Nach jeder Aenderung: Commit verifizieren und klar sagen, was geaendert wurde.
+1. Existing real map geometries must not be deleted, rewritten, or reassigned.
+2. Existing territories and territory hierarchies must not be changed.
+3. Local properties/overrides should be removed from the active UI. Old data may at first only be deactivated, not deleted.
+4. The active breadcrumb node is the only truth for properties and outer boundaries.
+5. A map click is only an entry point. After selecting a breadcrumb node, only its territory_public_id/territory_id is edited.
+6. Normal properties such as color, transparency, Wappen, zoom, and Gültigkeit should hang globally off the territory.
+7. Outer boundaries hang globally off territory_id in political_territory_derived_geometry.
+8. The geometry panel needs the checkboxes: Außengrenzen darstellen, Innengrenzen darstellen, Für alle Unterregionen übernehmen.
+9. Für alle Unterregionen übernehmen off = flat outer boundary from all leaf/source geometries below the active node.
+10. Für alle Unterregionen übernehmen on = recursive/hierarchical outer boundaries for the active node and aggregatable sub-nodes.
+11. Innengrenzen darstellen is disabled, unchecked, and grayed out for leaf nodes without sub-regions.
+12. No migration or deletion without diagnosis and explicit approval.
+13. Work in small, verified commits on master, unless told otherwise.
+14. Before every code change, briefly explain which file you are changing and why.
+15. After every change: verify the commit and clearly state what was changed.
 
-Beginne nicht mit Code. Beginne mit einer Repo-Analyse und formuliere dann einen konkreten ersten Schritt. Warte auf Freigabe, bevor du schreibst.
+Do not start with code. Start with a repo analysis and then formulate a concrete first step. Wait for approval before you write.
 ```
 
-## 12. Kurzfassung fuer Entwickler
+## 12. Short version for developers
 
-Das neue Modell lautet:
+The new model reads:
 
 ```text
-Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestimmt Territorium -> Eigenschaften und Außengrenzen werden global an diesem Territorium gelesen/geschrieben.
+Map clicks geometry -> editor opens breadcrumb -> active breadcrumb determines territory -> properties and outer boundaries are read/written globally on this territory.
 ```
 
-Die Hauptaufgabe ist keine Geometrie-Migration, sondern eine Entflechtung:
+The main task is not a geometry migration, but a disentanglement:
 
 ```text
-Geometrie = raeumliche Quelle
-Territorium = fachliche Identitaet
-Display = globale Territoriumseigenschaft
-Derived Geometry = globale, berechnete Außengrenze eines Territoriums
+Geometry = spatial source
+Territory = domain identity
+Display = global territory property
+Derived Geometry = global, computed outer boundary of a territory
 ```

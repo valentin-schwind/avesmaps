@@ -1,54 +1,54 @@
 # Avesmaps Future Map Architecture
 
-Arbeitsstand fuer den Umbau von Avesmaps auf eine SQL-basierte, editierbare
-Vektorkarte mit neuer hochaufgeloester Rasterkarte.
+Working draft for migrating Avesmaps to a SQL-based, editable vector map with a
+new high-resolution raster map.
 
-## Ausgangslage
+## Starting point
 
-- Die bestehende Anwendung ist eine statische Leaflet-1.9.4-App mit
-  `L.CRS.Simple`, Kartenbounds `0..1024`, Zoomstufen `0..5` und alter
-  Tile-Pyramide unter `tiles/`.
-- `map/Aventurien_routes.geojson` enthaelt aktuell 6.403 Features:
-  2.954 Punkte, 3.374 Linien und 75 Regionen.
-- Die neue stilisierte Karte ist `32768 x 32768` Pixel gross. Das passt exakt
-  zu `1024 * 2^5`, wenn die bestehenden Zoomstufen beibehalten werden.
-- Die bestehende PHP-API speichert nur Ortsmeldungen in `location_reports`.
+- The existing application is a static Leaflet 1.9.4 app with
+  `L.CRS.Simple`, map bounds `0..1024`, zoom levels `0..5` and an old
+  tile pyramid under `tiles/`.
+- `map/Aventurien_routes.geojson` currently contains 6,403 features:
+  2,954 points, 3,374 lines and 75 regions.
+- The new stylized map is `32768 x 32768` pixels. That maps exactly
+  onto `1024 * 2^5` if the existing zoom levels are kept.
+- The existing PHP API only stores location reports in `location_reports`.
 
-## Grundentscheidungen
+## Core decisions
 
-- SQL wird die operative Wahrheit fuer alle Vektordaten.
-- Die SVG wird nach der Migration nur noch Importquelle beziehungsweise
-  Exportformat sein.
-- Berechtigte Nutzer schreiben im Editmode live in SQL.
-- Nicht berechtigte Community-Vorschlaege bleiben moderiert und werden erst
-  nach Freigabe in die echten Kartendaten uebernommen.
-- `avesmaps.de/` zeigt standardmaessig die neue stilisierte Karte.
-- `avesmaps.de/edit` ist per Login geschuetzt.
-- `avesmaps.de/admin` ist nur fuer Admins und verwaltet Benutzer und Rollen.
-- Es bleibt bei PHP, MySQL/MariaDB und clientseitigem JavaScript ohne
-  verpflichtenden Build-Schritt.
+- SQL becomes the operational source of truth for all vector data.
+- After migration, the SVG is only an import source or an
+  export format.
+- Authorized users write directly to SQL in edit mode.
+- Unauthorized community proposals stay moderated and are only
+  taken over into the real map data after approval.
+- `avesmaps.de/` shows the new stylized map by default.
+- `avesmaps.de/edit` is protected by login.
+- `avesmaps.de/admin` is admin-only and manages users and roles.
+- The stack stays PHP, MySQL/MariaDB and client-side JavaScript without a
+  mandatory build step.
 
-## Koordinatensystem
+## Coordinate system
 
-Die Datenbank speichert Koordinaten im bestehenden GeoJSON-/Leaflet-System:
+The database stores coordinates in the existing GeoJSON/Leaflet system:
 
-- Weltbounds: `0..1024` auf X und Y.
-- GeoJSON-Koordinaten bleiben `[x, y]`.
-- Leaflet rendert weiter als `[lat, lng] = [y, x]`.
-- Die neue 32k-Karte wird nicht als neuer Koordinatenraum betrachtet, sondern
-  als hoehere Rasterauflosung derselben Welt.
+- World bounds: `0..1024` on X and Y.
+- GeoJSON coordinates stay `[x, y]`.
+- Leaflet keeps rendering as `[lat, lng] = [y, x]`.
+- The new 32k map is not treated as a new coordinate space, but
+  as a higher raster resolution of the same world.
 
-Damit muessen bestehende Routen, Orte und Regionen nicht neu skaliert werden.
-Das spaetere SQL-zu-SVG-Skript rechnet bei Bedarf in die SVG-ViewBox zurueck.
+This means existing routes, locations and regions do not have to be rescaled.
+The later SQL-to-SVG script converts back into the SVG viewBox when needed.
 
-## Tile-Architektur
+## Tile architecture
 
-Kartenstile werden als austauschbare Basemap-Layer modelliert:
+Map styles are modeled as interchangeable basemap layers:
 
-- `Old`: alte Karte, in dieselbe Tile-Matrix exportiert.
-- `Stylized`: neue Karte, WebP, Standard fuer die oeffentliche Karte.
+- `Old`: the old map, exported into the same tile matrix.
+- `Stylized`: the new map, WebP, the default for the public map.
 
-Empfohlene Struktur:
+Recommended structure:
 
 ```text
 tiles/
@@ -62,44 +62,43 @@ tiles/
     ...
 ```
 
-Empfohlene Tile-Matrix:
+Recommended tile matrix:
 
 - `tileSize`: 256
 - `minZoom`: 0
 - `maxZoom`: 5
-- hoechste native Aufloesung fuer `Stylized`: Zoom 5
-- WebP mit konfigurierbarer Qualitaet, z.B. `80..88`
+- highest native resolution for `Stylized`: zoom 5
+- WebP with configurable quality, e.g. `80..88`
 
-Der wiederholbare Workflow liegt besser in `avesmaps-map-processing`, weil dort
-die grossen PSB/PNG-Dateien und Bildskripte liegen:
+The repeatable workflow is better placed in `avesmaps-map-processing`, because
+the large PSB/PNG files and image scripts live there:
 
-1. PSB in Photoshop/Affinity bearbeiten.
-2. `merged_water_and_land_edited.png` exportieren.
-3. Retile-Skript ausfuehren:
+1. Edit the PSB in Photoshop/Affinity.
+2. Export `merged_water_and_land_edited.png`.
+3. Run the retile script:
 
    ```powershell
    python scripts\retile_avesmaps_leaflet.py --input gpt-image2\merged_water_and_land_edited.png --output C:\GIT\avesmaps\tiles\stylized --format webp --quality 84 --max-zoom 5
    ```
 
-4. Skript prueft Bildgroesse, erzeugt alle Zoomstufen, schreibt
-   `manifest.json` mit Checksummen und meldet geaenderte Tiles.
-5. Deployment kopiert nur geaenderte Tiles.
+4. The script checks the image size, generates all zoom levels, writes
+   `manifest.json` with checksums and reports changed tiles.
+5. Deployment only copies changed tiles.
 
-Im Editmode kann der Kartenstil ohne Neuladen gewechselt werden, indem der
-aktive Leaflet-TileLayer entfernt und der andere mit denselben Bounds/Z-Stufen
-eingeblendet wird.
+In edit mode the map style can be switched without a reload by removing the
+active Leaflet TileLayer and showing the other one with the same bounds/zoom
+levels.
 
-## SQL-Datenmodell
+## SQL data model
 
-Fuer Version 1 ist ein kompatibles MySQL-Modell mit GeoJSON-in-JSON plus
-indizierten Bounding-Box-Spalten am robustesten. MySQL unterstuetzt zwar
-Spatial Types und GeoJSON-Funktionen, aber JSON plus BBox ist auf
-MySQL/MariaDB-Hosting einfacher zu deployen und fuer die aktuelle Datenmenge
-mehr als ausreichend.
+For version 1, a compatible MySQL model with GeoJSON-in-JSON plus indexed
+bounding-box columns is the most robust. MySQL does support spatial types and
+GeoJSON functions, but JSON plus BBox is easier to deploy on
+MySQL/MariaDB hosting and more than sufficient for the current data volume.
 
 ### map_features
 
-Eine Tabelle fuer alle editierbaren Kartenobjekte.
+A single table for all editable map objects.
 
 ```sql
 CREATE TABLE map_features (
@@ -140,22 +139,22 @@ CREATE TABLE map_features (
 - `region`
 - `label`
 
-`feature_subtype` Beispiele:
+`feature_subtype` examples:
 
-- Orte: `dorf`, `kleinstadt`, `stadt`, `grossstadt`, `metropole`
-- Wege: `pfad`, `strasse`, `reichsstrasse`, `gebirgspass`, `wuestenpfad`,
+- Locations: `dorf`, `kleinstadt`, `stadt`, `grossstadt`, `metropole`
+- Paths: `pfad`, `strasse`, `reichsstrasse`, `gebirgspass`, `wuestenpfad`,
   `seeweg`
-- Fluesse: `river`
+- Rivers: `river`
 - Labels: `flussname`, `meeresname`, `gebirgsname`, `regionsname`,
   `seename`, `inselname`
 
-Fluesse sind eigene Linienfeatures. Bisherige `Flussweg`-Features werden als
-`feature_type = river` und `properties_json.befahrbar = true` importiert.
-Neue unbefahrbare Fluesse bekommen `befahrbar = false`.
+Rivers are their own line features. Previous `Flussweg` features are imported as
+`feature_type = river` and `properties_json.befahrbar = true`.
+New non-navigable rivers get `befahrbar = false`.
 
 ### map_feature_relations
 
-Relationen zwischen Features, z.B. ein Label, das einem Fluss folgt.
+Relations between features, e.g. a label that follows a river.
 
 ```sql
 CREATE TABLE map_feature_relations (
@@ -170,7 +169,7 @@ CREATE TABLE map_feature_relations (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-Beispiele:
+Examples:
 
 - `label_follows_feature`
 - `route_uses_river`
@@ -178,7 +177,7 @@ Beispiele:
 
 ### map_proposals
 
-Moderierte Vorschlaege aus dem oeffentlichen Frontend.
+Moderated proposals from the public frontend.
 
 ```sql
 CREATE TABLE map_proposals (
@@ -200,12 +199,12 @@ CREATE TABLE map_proposals (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-`location_reports` kann fuer Rueckwaertskompatibilitaet bleiben. Im Editmode
-wird es entweder direkt angezeigt oder in `map_proposals` migriert.
+`location_reports` can stay for backward compatibility. In edit mode
+it is either shown directly or migrated into `map_proposals`.
 
 ### users
 
-Serverseitiger Login mit Rollen.
+Server-side login with roles.
 
 ```sql
 CREATE TABLE users (
@@ -222,19 +221,19 @@ CREATE TABLE users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-Rollen:
+Roles:
 
-- `admin`: Benutzerverwaltung, alle Edits, alle Reviews.
-- `editor`: direkte Karten-Edits und Freigabe/Ablehnung von Vorschlaegen.
-- `reviewer`: Vorschlaege pruefen und freigeben/ablehnen, aber keine freie
-  Geometriepflege.
+- `admin`: user management, all edits, all reviews.
+- `editor`: direct map edits and approval/rejection of proposals.
+- `reviewer`: review and approve/reject proposals, but no free
+  geometry maintenance.
 
-Passwoerter werden mit PHP `password_hash()` gespeichert und mit
-`password_verify()` geprueft.
+Passwords are stored with PHP `password_hash()` and verified with
+`password_verify()`.
 
-### map_revision und map_audit_log
+### map_revision and map_audit_log
 
-Eine globale Revision macht Live-Aktualisierung per Polling einfach.
+A global revision makes live updates via polling easy.
 
 ```sql
 CREATE TABLE map_revision (
@@ -247,28 +246,28 @@ CREATE TABLE map_revision (
 INSERT INTO map_revision (id, revision) VALUES (1, 1);
 ```
 
-`map_audit_log` speichert eine sichtbare Liste autorisierter Aenderungen, ohne
-eine vollstaendige Versionierung aufzubauen.
+`map_audit_log` stores a visible list of authorized changes, without
+building a full versioning system.
 
-## API-Architektur
+## API architecture
 
-Bestehende API-Helfer in `api/bootstrap.php` werden erweitert, nicht ersetzt.
+Existing API helpers in `api/bootstrap.php` are extended, not replaced.
 
-### Oeffentlich
+### Public
 
 - `GET api/map-bootstrap.php`
-  - liefert Tile-Manifest, aktuelle Revision und initiale FeatureCollection.
+  - returns the tile manifest, the current revision and the initial FeatureCollection.
 - `GET api/map-features.php?since_revision=123`
-  - liefert seitdem geaenderte, geloeschte oder neue Features.
+  - returns features changed, deleted or created since then.
 - `POST api/report-location.php`
-  - bleibt fuer die bestehende Ortsmeldung aktiv.
-- spaeter optional: `POST api/propose-feature-change.php`
-  - generische Community-Vorschlaege fuer neue/veraenderte Features.
+  - stays active for the existing location report.
+- later optionally: `POST api/propose-feature-change.php`
+  - generic community proposals for new/changed features.
 
-Fuer die oeffentliche Karte wird zuerst die komplette FeatureCollection geladen.
-Bei aktuell 6.403 Features und 38.317 Koordinatenpunkten ist das einfacher,
-zuverlaessiger fuer Suche/Routing und mit HTTP-Kompression gut vertretbar.
-Viewport-Queries koennen spaeter hinzukommen.
+For the public map, the full FeatureCollection is loaded first.
+With the current 6,403 features and 38,317 coordinate points this is simpler,
+more reliable for search/routing, and quite acceptable with HTTP compression.
+Viewport queries can be added later.
 
 ### Auth
 
@@ -276,8 +275,8 @@ Viewport-Queries koennen spaeter hinzukommen.
 - `POST api/auth/logout.php`
 - `GET api/auth/me.php`
 
-Sessions laufen serverseitig ueber PHP-Sessions. CSRF-Schutz kommt ueber ein
-Session-Token, das bei mutierenden Requests mitgesendet werden muss.
+Sessions run server-side via PHP sessions. CSRF protection comes from a
+session token that must be sent along with mutating requests.
 
 ### Edit
 
@@ -289,10 +288,10 @@ Session-Token, das bei mutierenden Requests mitgesendet werden muss.
 - `POST api/editor/proposals/{id}/approve.php`
 - `POST api/editor/proposals/{id}/reject.php`
 
-Mutierende Feature-Requests senden immer `base_revision` mit. Wenn die
-Datenbank bereits eine neuere Feature-Revision hat, antwortet die API mit `409`
-und dem aktuellen Serverstand. So gibt es eine Wahrheit, ohne dass Nutzer
-versehentlich fremde Edits ueberschreiben.
+Mutating feature requests always send `base_revision`. If the
+database already has a newer feature revision, the API responds with `409`
+and the current server state. This gives a single source of truth, without users
+accidentally overwriting other people's edits.
 
 ### Admin
 
@@ -301,11 +300,11 @@ versehentlich fremde Edits ueberschreiben.
 - `PATCH api/admin/users/{id}.php`
 - `DELETE api/admin/users/{id}.php`
 
-Admin-Endpunkte pruefen `role = admin`.
+Admin endpoints check `role = admin`.
 
-## Frontend-Architektur
+## Frontend architecture
 
-V1 bleibt ohne Build-Step:
+V1 stays without a build step:
 
 ```text
 index.html
@@ -323,25 +322,25 @@ js/
     admin-users.js
 ```
 
-Die grosse Inline-Logik aus `index.html` wird schrittweise in Module zerlegt,
-aber weiterhin per normalen `<script>`-Tags geladen.
+The large inline logic from `index.html` is split into modules step by step,
+but still loaded via normal `<script>` tags.
 
-Fuer Geometrie-Editing wird Leaflet.Editable bevorzugt:
+For geometry editing, Leaflet.Editable is preferred:
 
-- kein Build-Step
-- passt zu eigener rechter Maustaste und eigener Seitenleiste
-- kann Marker, Linien, Polygone und Multi-Geometrien editieren
-- die UI bleibt Avesmaps-eigen
+- no build step
+- fits a custom right-click and a custom sidebar
+- can edit markers, lines, polygons and multi-geometries
+- the UI stays Avesmaps-specific
 
-Wenn spaeter Schneiden, Teilen, fortgeschrittenes Snapping oder sehr grosse
-Edit-Sessions wichtiger werden, kann Leaflet-Geoman erneut bewertet werden.
+If cutting, splitting, advanced snapping or very large edit sessions become
+more important later, Leaflet-Geoman can be reevaluated.
 
-## Editmode UX
+## Edit mode UX
 
-Der Editmode bekommt links eine Arbeitsleiste und nutzt das bestehende
-Rechtsklick-Muster.
+Edit mode gets a work bar on the left and uses the existing
+right-click pattern.
 
-Rechtsklick-Menue:
+Right-click menu:
 
 - `Neu -> Ort`
 - `Neu -> Kreuzung`
@@ -352,48 +351,48 @@ Rechtsklick-Menue:
 - `Neu -> Region`
 - `Neu -> Label`
 
-Workflow fuer neue Linien/Polygone:
+Workflow for new lines/polygons:
 
-1. Objektkategorie waehlen.
-2. Punkte auf der Karte setzen.
-3. Mit Enter oder Doppelklick abschliessen.
-4. Eigenschaften im Seitenpanel setzen.
-5. API schreibt Feature live in SQL.
-6. Globale Revision steigt.
-7. Andere geoeffnete Edit-Sessions holen die Aenderung per Polling nach.
+1. Choose the object category.
+2. Place points on the map.
+3. Finish with Enter or double-click.
+4. Set properties in the side panel.
+5. The API writes the feature live into SQL.
+6. The global revision increments.
+7. Other open edit sessions catch up to the change via polling.
 
-Bestehende Features:
+Existing features:
 
-- anklicken
-- Eigenschaften bearbeiten
-- Knoten verschieben
-- Knoten einfuegen/loeschen
-- speichern geschieht explizit oder nach kurzer Debounce-Phase
+- click them
+- edit properties
+- move nodes
+- insert/delete nodes
+- saving happens explicitly or after a short debounce phase
 
-Fuer V1 ist explizites Speichern pro Feature sicherer als jede Mausbewegung
-sofort zu persistieren. Nach dem Speichern ist SQL sofort die Wahrheit.
+For V1, explicit per-feature saving is safer than persisting every mouse
+movement immediately. After saving, SQL is the source of truth right away.
 
 ## Labels
 
-Labels werden echte Features mit eigener Kategorie.
+Labels become real features with their own category.
 
-Label-Modi:
+Label modes:
 
-- `point`: gerades Label an einer Position.
-- `line`: gekruemmtes Label entlang einer eigenen Linie.
-- `follow_feature`: Label folgt einer Zielgeometrie, z.B. einem Fluss.
+- `point`: a straight label at a position.
+- `line`: a curved label along its own line.
+- `follow_feature`: the label follows a target geometry, e.g. a river.
 
-Leaflet selbst liefert keine vollstaendige automatische Label-Kollision und
-keine nativen Textpfade entlang Linien. Deshalb bekommt Avesmaps eine eigene
-Label-Schicht:
+Leaflet itself provides no full automatic label collision and
+no native text paths along lines. That is why Avesmaps gets its own
+label layer:
 
-- SVG-Overlay fuer gekruemmte Labels mit `<textPath>`.
-- Canvas/DOM-Labels fuer einfache Punktlabels.
-- Prioritaeten pro Labeltyp und Zoomstufe.
-- einfache Kollisionsboxen pro Viewport.
-- Ausblenden niedriger Prioritaeten bei Kollision.
+- SVG overlay for curved labels with `<textPath>`.
+- Canvas/DOM labels for simple point labels.
+- Priorities per label type and zoom level.
+- simple collision boxes per viewport.
+- hiding low priorities on collision.
 
-Label-relevante Properties:
+Label-relevant properties:
 
 ```json
 {
@@ -411,19 +410,19 @@ Label-relevante Properties:
 
 ## Routing
 
-Routing bleibt clientseitig, aber die Daten kommen aus SQL.
+Routing stays client-side, but the data comes from SQL.
 
-- Orte und Kreuzungen bleiben Knoten.
-- Wege, Strassen, Seewege und befahrbare Fluesse bilden Kanten.
-- Flussfeatures mit `befahrbar = false` werden gerendert, aber nicht als
-  Flussweg geroutet.
-- Der Graph wird beim Laden aus der aktuellen FeatureCollection gebaut.
-- Mittel- und langfristig kann die API optional einen vorberechneten
-  Routing-Graphen liefern.
+- Locations and crossings stay nodes.
+- Paths, roads, sea routes and navigable rivers form edges.
+- River features with `befahrbar = false` are rendered, but not routed as
+  a Flussweg.
+- The graph is built on load from the current FeatureCollection.
+- In the medium and long term, the API can optionally deliver a precomputed
+  routing graph.
 
-## SVG-Migration und SVG-Export
+## SVG migration and SVG export
 
-Neue Skripte:
+New scripts:
 
 - `map/import_geojson_to_sql.py`
 - `map/export_sql_to_svg.py`
@@ -431,93 +430,93 @@ Neue Skripte:
 
 Import:
 
-1. bestehendes `svg_to_geojson.py` erzeugt GeoJSON.
-2. Import-Skript normalisiert Featuretypen/Subtypen.
-3. Legacy-Metadaten wie `svg_id`, Layername, Style und `data-*` Attribute
-   landen in `properties_json` oder `style_json`.
-4. Bisherige `Flussweg`-Linien werden zu befahrbaren Flussfeatures.
+1. the existing `svg_to_geojson.py` produces GeoJSON.
+2. the import script normalizes feature types/subtypes.
+3. Legacy metadata like `svg_id`, layer name, style and `data-*` attributes
+   land in `properties_json` or `style_json`.
+4. Previous `Flussweg` lines become navigable river features.
 
 Export:
 
-1. SQL-Features werden nach Typ/Subtyp in Inkscape-Layer geschrieben.
-2. Geometrien werden aus GeoJSON in SVG-Pfade/Kreise umgesetzt.
-3. Gespeicherte Legacy-Styles werden, soweit vorhanden, wiederverwendet.
-4. Fehlende Inkscape-Metadaten werden minimal und stabil rekonstruiert.
+1. SQL features are written into Inkscape layers by type/subtype.
+2. Geometries are converted from GeoJSON into SVG paths/circles.
+3. Stored legacy styles are reused where available.
+4. Missing Inkscape metadata is reconstructed minimally and stably.
 
-Ziel ist nicht, die alte SVG byte-identisch zu erzeugen, sondern eine in
-Inkscape sinnvoll editierbare SVG aus SQL zu bauen.
+The goal is not to reproduce the old SVG byte-for-byte, but to build an SVG
+from SQL that is sensibly editable in Inkscape.
 
-## Umsetzung in Phasen
+## Implementation in phases
 
-### Phase 1: SQL-Foundation
+### Phase 1: SQL foundation
 
-- MySQL-Schema fuer Features, Proposals, User, Revision und Audit anlegen.
-- Import von `Aventurien_routes.geojson` in SQL.
-- Export der SQL-Daten als FeatureCollection.
-- Tests mit aktuellem Routingdatenbestand.
+- Create the MySQL schema for features, proposals, users, revision and audit.
+- Import `Aventurien_routes.geojson` into SQL.
+- Export the SQL data as a FeatureCollection.
+- Test against the current routing dataset.
 
-### Phase 2: Public Read Path
+### Phase 2: public read path
 
-- `index.html` liest Vektordaten aus API oder gecachter SQL-GeoJSON.
-- Public Map nutzt `Stylized` als Default.
-- Routenplanung und Suche bleiben funktional.
-- Alte statische GeoJSON bleibt als Fallback bis zur Umschaltung erhalten.
+- `index.html` reads vector data from the API or cached SQL GeoJSON.
+- The public map uses `Stylized` as the default.
+- Route planning and search stay functional.
+- The old static GeoJSON stays as a fallback until the switchover.
 
-### Phase 3: Auth und Admin
+### Phase 3: auth and admin
 
-- Login/Logout.
-- PHP-Session- und CSRF-Schutz.
-- Admin-UI fuer Benutzer, Rollen und Aktiv/Inaktiv.
-- Initialer Admin wird per SQL-Seed oder CLI-Skript erzeugt.
+- Login/logout.
+- PHP session and CSRF protection.
+- Admin UI for users, roles and active/inactive.
+- The initial admin is created via SQL seed or CLI script.
 
-### Phase 4: Editmode
+### Phase 4: edit mode
 
-- `edit/index.php` geschuetzt.
-- Feature-Auswahl und Eigenschaftenpanel.
-- Live-CRUD fuer Orte, Kreuzungen, Linien, Regionen, Fluesse und Labels.
-- Optimistische Konflikterkennung mit `revision`.
-- Polling auf globale `map_revision`.
+- `edit/index.php` protected.
+- Feature selection and properties panel.
+- Live CRUD for locations, crossings, lines, regions, rivers and labels.
+- Optimistic conflict detection with `revision`.
+- Polling on the global `map_revision`.
 
-### Phase 5: Moderation
+### Phase 5: moderation
 
-- Bestehende Ortsmeldungen im Editmode anzeigen.
-- Annehmen erzeugt/aktualisiert ein Feature.
-- Ablehnen setzt Status und Review-Notiz.
-- Generische `map_proposals` fuer spaetere Community-Aenderungen.
+- Show existing location reports in edit mode.
+- Accepting creates/updates a feature.
+- Rejecting sets status and review note.
+- Generic `map_proposals` for later community changes.
 
-### Phase 6: Labels
+### Phase 6: labels
 
-- Label-Featuretypen importieren/anlegen.
-- Punktlabels rendern.
-- Kurvenlabels mit SVG-Overlay rendern.
-- Flusslabels optional an Flussverlauf binden.
-- Kollisions- und Prioritaetsregeln pro Zoomstufe.
+- Import/create label feature types.
+- Render point labels.
+- Render curved labels with an SVG overlay.
+- Optionally bind river labels to the river course.
+- Collision and priority rules per zoom level.
 
-### Phase 7: Tile-Pipeline
+### Phase 7: tile pipeline
 
-- Retile-Skript fuer 32k-PNG nach WebP.
-- Manifest und Checksummen.
-- `Old` und `Stylized` im Editmode umschaltbar.
-- Public Default auf `Stylized`.
+- Retile script for 32k PNG to WebP.
+- Manifest and checksums.
+- `Old` and `Stylized` switchable in edit mode.
+- Public default on `Stylized`.
 
-### Phase 8: SQL zu SVG
+### Phase 8: SQL to SVG
 
-- Export-Skript fuer Inkscape-taugliche SVG.
-- Vergleichsexport mit aktuellem SQL-Stand.
-- Dokumentierter Restore-/Backup-Prozess.
+- Export script for an Inkscape-friendly SVG.
+- Comparison export against the current SQL state.
+- Documented restore/backup process.
 
-## Risiken
+## Risks
 
-- Gekruemmte Labels mit Kollision sind die komplexeste Frontend-Aufgabe.
-- Live-Edits brauchen Backup-Disziplin, auch ohne vollstaendige
-  Feature-Historie.
-- Gemeinsames Editing ohne harte Locks braucht klare 409-Konfliktmeldungen.
-- 32k-Tiles koennen als Deployment-Artefakt gross werden; sie sollten nicht
-  automatisch in Git landen.
-- MySQL/MariaDB-Version muss vor dem finalen Schema geprueft werden, besonders
-  fuer `JSON`-Spalten.
+- Curved labels with collision are the most complex frontend task.
+- Live edits need backup discipline, even without a full
+  feature history.
+- Collaborative editing without hard locks needs clear 409 conflict messages.
+- 32k tiles can grow large as a deployment artifact; they should not
+  automatically land in Git.
+- The MySQL/MariaDB version must be checked before the final schema, especially
+  for `JSON` columns.
 
-## Referenzen
+## References
 
 - Leaflet 1.9.4 API: https://leafletjs.com/reference.html
 - Leaflet.Editable: https://leaflet.github.io/Leaflet.Editable/

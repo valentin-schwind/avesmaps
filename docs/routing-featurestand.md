@@ -1,55 +1,55 @@
-# Routing-Featurestand
+# Routing feature status
 
-Stand: 2026-05-25
+Status: 2026-05-25
 
-Dieses Dokument beschreibt den aktuellen Routing-Stand von Avesmaps nach der Umstellung auf serverseitige Routenberechnung mit clientseitiger Kartenanzeige.
+This document describes the current routing status of Avesmaps after the switch to server-side route computation with client-side map display.
 
-## Zielzustand
+## Target state
 
-Die normale Routenplanung soll serverseitig berechnet werden. Das Frontend zeigt die Serverroute anschließend mit den lokalen Kartensegmenten an, damit Darstellung, Hervorhebung, Tooltips und Routenplan weiterhin zur Leaflet-/GeoJSON-Kartenlogik passen.
+Normal route planning is to be computed server-side. The frontend then displays the server route using the local map segments, so that rendering, highlighting, tooltips and the route plan continue to match the Leaflet/GeoJSON map logic.
 
-Der alte Client-Router bleibt als Referenz und Fallback erhalten.
+The old client router is kept as a reference and fallback.
 
-## Relevante URLs
+## Relevant URLs
 
 ```text
 https://avesmaps.de/?route=Gareth&route=Tuzak
 ```
 
-Normalmodus. Die Route wird vom Server berechnet und im Frontend angezeigt.
+Normal mode. The route is computed by the server and displayed in the frontend.
 
 ```text
 https://avesmaps.de/?clientrouting=1&route=Gareth&route=Tuzak
 ```
 
-Client-Fallback. Die Route wird vollständig im Browser mit der alten Clientlogik berechnet.
+Client fallback. The route is computed entirely in the browser with the old client logic.
 
 ```text
 https://avesmaps.de/?serverrouting=1&route=Gareth&route=Tuzak
 ```
 
-Servermodus mit Debug-Ausgabe. Die angezeigte Route kommt vom Server. Zusätzlich werden Diagnoseinformationen in der Browser-Console ausgegeben.
+Server mode with debug output. The displayed route comes from the server. In addition, diagnostic information is printed to the browser console.
 
 ```text
 https://avesmaps.de/?serverrouting=1&clientrouting=1&route=Gareth&route=Tuzak
 ```
 
-Clientanzeige mit Serververgleich. Die Karte zeigt die Clientroute, während die Serverroute als Probe/Diagnose mitläuft.
+Client display with server comparison. The map shows the client route, while the server route runs along as a probe/diagnostic.
 
-## URL-State
+## URL state
 
-Die technischen Routing-Flags bleiben beim Synchronisieren des Planner-State erhalten:
+The technical routing flags are preserved when synchronizing the planner state:
 
 - `serverrouting=1`
 - `clientrouting=1`
 
-Damit springt eine URL wie `?clientrouting=1&route=Gareth&route=Tuzak` nicht mehr automatisch auf die normale Server-URL zurück.
+This means a URL like `?clientrouting=1&route=Gareth&route=Tuzak` no longer automatically falls back to the normal server URL.
 
-## Serverroute im Frontend
+## Server route in the frontend
 
-Der Server liefert eine Route über `api/route.php`. Das Frontend wandelt die Serverantwort in lokale Anzeigeobjekte um.
+The server returns a route via `api/route.php`. The frontend converts the server response into local display objects.
 
-Der Adapter löst Serversegmente robust gegen lokale `pathData` auf. Unterstützte Segment-IDs sind:
+The adapter robustly resolves server segments against local `pathData`. Supported segment IDs are:
 
 - `edge_id`
 - `path_id`
@@ -57,88 +57,88 @@ Der Adapter löst Serversegmente robust gegen lokale `pathData` auf. Unterstütz
 - `feature_id`
 - `public_id`
 
-Die sichtbare Knotenliste für die Plananzeige wird bevorzugt aus Segmentdaten aufgebaut:
+The visible node list for the plan display is built preferentially from segment data:
 
 - `from_node`
 - `to_node`
 
-`debug.node_ids` dient nur noch als Fallback. Es ist für Diagnose nützlich, aber nicht die primäre Quelle für sichtbare Routenplan-Beschriftungen.
+`debug.node_ids` only serves as a fallback now. It is useful for diagnostics, but not the primary source for visible route-plan labels.
 
-Explizite Leg-Endpunkte werden im Servermodus hart gesetzt. Bei einer URL wie:
+Explicit leg endpoints are set hard in server mode. For a URL like:
 
 ```text
 ?route=Gareth&route=Tuzak&route=Paavi
 ```
 
-sind die sichtbaren Teilabschnitte logisch:
+the visible sub-segments are logically:
 
 - Gareth -> Tuzak
 - Tuzak -> Paavi
 
-Diese Wegpunkte dürfen nicht durch benachbarte Häfen, Markierungen oder Debug-Knoten ersetzt werden.
+These waypoints must not be replaced by nearby harbors, markers or debug nodes.
 
-## Routenplan-Anzeige
+## Route-plan display
 
-Die Routenplan-Anzeige aggregiert zusammenhängende Wasserabschnitte, ohne wichtige Stationen zu verschlucken.
+The route-plan display aggregates contiguous water segments without swallowing important stops.
 
-### Markierungen und Kreuzungen
+### Markers and Kreuzungen
 
-Interne Markierungen/Kreuzungen auf Flüssen und Seewegen sind keine sichtbaren Abschnittsgrenzen. Sie werden in der Planansicht übersprungen, solange kein echter Ort, expliziter Wegpunkt oder Transportwechsel erreicht wird.
+Internal markers/Kreuzungen on rivers and sea routes are not visible segment boundaries. They are skipped in the plan view as long as no real location, explicit waypoint or transport change is reached.
 
-Fehlerbild, das vermieden werden soll:
+Failure mode to be avoided:
 
 ```text
 Flussweg über Natter (...) von Markierung bis Markierung
 ```
 
-oder:
+or:
 
 ```text
 Flussweg über Gardel (...) von Rindsfurt bis Rindsfurt
 ```
 
-### Flüsse
+### Rivers
 
-Zusammenhängende Flusswegsegmente werden über interne Markierungen hinweg aggregiert. Wenn sich der Flussname ändert, werden die Namen gesammelt und gemeinsam angezeigt.
+Contiguous Flussweg segments are aggregated across internal markers. When the river name changes, the names are collected and displayed together.
 
-Beispiel:
+Example:
 
 ```text
 Flussweg über Gardel, Natter, Darpat (...) von Rindsfurt bis Perricum ...
 ```
 
-Die unterschiedlichen Flussnamen bleiben also sichtbar, aber die rein technischen Zwischenmarkierungen erzeugen keine eigenen Planzeilen.
+So the different river names stay visible, but the purely technical intermediate markers do not produce their own plan rows.
 
-### Seewege und Häfen
+### Sea routes and harbors
 
-Seewege werden ebenfalls über interne Markierungen aggregiert. Echte Häfen und explizite Wegpunkte dürfen aber nicht verschluckt werden.
+Sea routes are likewise aggregated across internal markers. But real harbors and explicit waypoints must not be swallowed.
 
-Beispiel mit explizitem Wegpunkt `Tuzak`:
+Example with the explicit waypoint `Tuzak`:
 
 ```text
 https://avesmaps.de/?route=Gareth&route=Tuzak&route=Paavi
 ```
 
-Der Seeweg darf nicht als ein einziger Abschnitt erscheinen:
+The Seeweg must not appear as a single segment:
 
 ```text
 Seeweg (...) von Perricum bis Neersand
 ```
 
-Stattdessen muss `Tuzak` sichtbar bleiben:
+Instead, `Tuzak` must stay visible:
 
 ```text
 Seeweg (...) von Perricum bis Tuzak
 Seeweg (...) von Tuzak bis Neersand
 ```
 
-### Transportwechsel
+### Transport change
 
-Ein Transportmittelwechsel ist eine harte Abschnittsgrenze. Wenn sich das Transportmittel ändert, wird ein neuer Routenplan-Eintrag erzeugt, auch wenn beide Segmente grundsätzlich Wassersegmente sind.
+A change of means of transport is a hard segment boundary. When the means of transport changes, a new route-plan entry is created, even if both segments are fundamentally water segments.
 
-## Debug-Ausgabe
+## Debug output
 
-Bei `serverrouting=1` bleiben die Diagnoseausgaben in der Console aktiv. Relevante Logzeilen sind unter anderem:
+With `serverrouting=1` the diagnostic output stays active in the console. Relevant log lines include:
 
 ```text
 Server-Routing-Probe Vergleich
@@ -150,9 +150,9 @@ Server-Routing-Probe Server-Segmente
 Server-Routing-Probe Ergebnis
 ```
 
-Der Debugmodus soll beim Vergleich von Client- und Serverroute helfen, ohne die normale Kartenanzeige für Nutzer zu verändern.
+The debug mode is meant to help when comparing the client and server routes, without changing the normal map display for users.
 
-## Wichtige Commits
+## Important commits
 
 - `5fc403c` - Preserve routing mode URL flags
 - `a4ec7e1` - Show hidden route crossings as markers
@@ -161,9 +161,9 @@ Der Debugmodus soll beim Vergleich von Client- und Serverroute helfen, ohne die 
 - `ae71df9` - Keep route waypoints in water plan
 - `dc74da0` - Stabilize server route display nodes
 
-## Aktueller Teststand
+## Current test status
 
-Getestete Referenzrouten aus der Entwicklung:
+Reference routes tested during development:
 
 ```text
 https://avesmaps.de/?route=Gareth&route=Tuzak
@@ -172,18 +172,18 @@ https://avesmaps.de/?route=Gareth&route=Tuzak&route=Paavi
 https://avesmaps.de/?clientrouting=1&route=Gareth&route=Tuzak&route=Paavi
 ```
 
-Erwartung:
+Expectation:
 
-- Serverroute und Clientroute müssen im Plan fachlich vergleichbar sein.
-- Explizite Wegpunkte wie `Tuzak` müssen sichtbar bleiben.
-- Markierungen/Kreuzungen dürfen die Plananzeige nicht dominieren.
-- Flussnamen sollen erhalten bleiben, auch wenn mehrere Flüsse zu einem Reiseabschnitt aggregiert werden.
-- Transportwechsel müssen sichtbar trennen.
+- The server route and the client route must be technically comparable in the plan.
+- Explicit waypoints like `Tuzak` must stay visible.
+- Markers/Kreuzungen must not dominate the plan display.
+- River names should be preserved, even when several rivers are aggregated into one travel segment.
+- Transport changes must separate visibly.
 
-## Noch zu prüfen
+## Still to check
 
-- Mehrpunkt-Routen mit mehreren expliziten Häfen.
-- Wechsel zwischen verschiedenen See- oder Flusstransportmitteln.
-- Routen mit Land-Wasser-Land-Wechseln.
-- Routen, bei denen ein expliziter Wegpunkt selbst eine Markierungsnähe oder Hafen-Sonderposition hat.
-- Verhalten bei deaktivierten Transportdomänen, z. B. Fluss oder See ausgeschaltet.
+- Multi-point routes with several explicit harbors.
+- Switching between different sea or river means of transport.
+- Routes with land-water-land changes.
+- Routes where an explicit waypoint itself has a marker proximity or a harbor special position.
+- Behavior with deactivated transport domains, e.g. river or sea switched off.

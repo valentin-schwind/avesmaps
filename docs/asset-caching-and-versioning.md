@@ -1,188 +1,188 @@
-# Asset-Caching & Versionierung (Cache-Busting)
+# Asset Caching & Versioning (Cache-Busting)
 
-**Ziel:** Endnutzer bekommen nach einem Deploy **sofort** frischen Code – ohne
-`Strg+Shift+R` – und gleichzeitig **maximale Performance** (unveränderte Dateien
-bleiben clientseitig „für immer" gecacht).
+**Goal:** End users receive fresh code **immediately** after a deploy — without
+`Ctrl+Shift+R` — while at the same time keeping **maximum performance** (unchanged
+files stay cached on the client "forever").
 
-Eingeführt am 2026-06-04 (Commit `6b1700bc`). Diese Datei ist die zentrale
-Referenz, wenn neue JS/CSS-Dateien dazukommen oder „meine Änderung kommt nicht an".
+Introduced on 2026-06-04 (commit `6b1700bc`). This file is the central reference
+whenever new JS/CSS files are added or "my change isn't showing up".
 
 ---
 
-## 1. Überblick: zwei getrennte Mechanismen
+## 1. Overview: two separate mechanisms
 
-Es gibt **zwei** Cache-Busting-Systeme. Welches greift, hängt davon ab, **wie**
-eine Datei geladen wird:
+There are **two** cache-busting systems. Which one applies depends on **how** a
+file is loaded:
 
-| Lademechanismus | Cache-Busting | Wer pflegt es |
+| Load mechanism | Cache-busting | Who maintains it |
 |---|---|---|
-| **Direkt in `index.html`** (`<script src>` / `<link href>`) | **Auto** per Content-Hash beim Deploy | niemand – automatisch |
-| **Dynamisch vom Editor** (`territory-editor-inline-host.js` lädt Editor-HTML/CSS/JS) | **Manuell** per `ASSET_VERSION` | Entwickler (Konstante hochzählen) |
+| **Directly in `index.html`** (`<script src>` / `<link href>`) | **Auto** via content hash at deploy time | nobody — automatic |
+| **Dynamically from the editor** (`territory-editor-inline-host.js` loads editor HTML/CSS/JS) | **Manual** via `ASSET_VERSION` | developer (bump the constant) |
 
-> Faustregel: Steht die Datei als `<script>`/`<link>` in `index.html`, musst du
-> **nichts** tun. Wird sie vom Editor dynamisch nachgeladen, musst du
-> `ASSET_VERSION` hochzählen.
+> Rule of thumb: if the file is listed as a `<script>`/`<link>` in `index.html`,
+> you have to do **nothing**. If it is loaded dynamically by the editor, you have
+> to bump `ASSET_VERSION`.
 
 ---
 
-## 2. Mechanismus A – Auto-Versionierung der `index.html`-Assets
+## 2. Mechanism A – Auto-versioning of `index.html` assets
 
-### Wie es funktioniert
-1. Beim Deploy (GitHub Action) läuft der Schritt **„Stamp asset versions into
-   index.html"**. Er ruft `.github/scripts/stamp-asset-versions.py` auf.
-2. Das Skript hängt an **jede** lokale `js/`-, `css/`- oder `assets/`-Referenz in
-   `<script>`/`<link>`-Tags von `index.html` ein `?v=<sha1-prefix>` an – berechnet
-   aus dem **Inhalt der jeweiligen Datei**.
-   - Beispiel: `<script src="js/app/runtime-state.js">`
+### How it works
+1. During the deploy (GitHub Action) the step **"Stamp asset versions into
+   index.html"** runs. It calls `.github/scripts/stamp-asset-versions.py`.
+2. The script appends `?v=<sha1-prefix>` to **every** local `js/`, `css/` or
+   `assets/` reference in the `<script>`/`<link>` tags of `index.html` — computed
+   from the **contents of the respective file**.
+   - Example: `<script src="js/app/runtime-state.js">`
      → `<script src="js/app/runtime-state.js?v=8c13fa5241">`
-3. Der Server (`.htaccess`) liefert Dateien **mit** `?v=` als
-   `Cache-Control: public, max-age=31536000, immutable` → Browser cacht sie ein Jahr.
-4. `index.html` selbst wird **nie** hart gecacht (`no-cache`) → bei jedem Aufruf
-   frisch → die aktuellen `?v=`-Hashes kommen immer an.
+3. The server (`.htaccess`) serves files **with** `?v=` as
+   `Cache-Control: public, max-age=31536000, immutable` → the browser caches them
+   for a year.
+4. `index.html` itself is **never** hard-cached (`no-cache`) → fresh on every
+   request → the current `?v=` hashes always reach the client.
 
-### Warum nur geänderte Dateien neu geladen werden
-Der Hash kommt aus dem **Dateiinhalt**. Ändert sich `app.js`, ändert sich sein
-Hash → neue URL → Browser lädt neu. Alle **unveränderten** Dateien behalten ihren
-Hash → gleiche URL → Cache-Treffer. Das ist der Performance-Gewinn.
+### Why only changed files are reloaded
+The hash comes from the **file contents**. If `app.js` changes, its hash changes
+→ new URL → the browser reloads it. All **unchanged** files keep their hash →
+same URL → cache hit. That is the performance win.
 
-### Wichtig: `index.html` wird bei JEDEM Deploy neu gestempelt
-Auch wenn nur ein Asset (nicht `index.html` selbst) geändert wurde, wird
-`index.html` neu gestempelt und mit hochgeladen – sonst zeigte sie auf den alten
-Hash. Sie ist winzig und `no-cache`, das kostet nichts.
+### Important: `index.html` is re-stamped on EVERY deploy
+Even if only an asset (not `index.html` itself) changed, `index.html` is
+re-stamped and uploaded along with it — otherwise it would point at the old
+hash. It is tiny and `no-cache`, so this costs nothing.
 
-### Beteiligte Dateien
-- `.github/scripts/stamp-asset-versions.py` – das Stamping-Skript (läuft nur in CI,
-  wird **nicht** deployt).
-- `.github/workflows/deploy-avesmaps-strato.yml` – Schritt „Stamp asset versions
+### Files involved
+- `.github/scripts/stamp-asset-versions.py` – the stamping script (runs only in
+  CI, is **not** deployed).
+- `.github/workflows/deploy-avesmaps-strato.yml` – the step "Stamp asset versions
   into index.html".
-- `.htaccess` – die Cache-Control-Regeln (siehe unten).
-- `index.html` – die **Quelle** bleibt unversioniert; gestempelt wird nur die
-  Deploy-Kopie. **Nie** Hashes von Hand in die Quelle schreiben.
+- `.htaccess` – the Cache-Control rules (see below).
+- `index.html` – the **source** stays unversioned; only the deploy copy is
+  stamped. **Never** write hashes into the source by hand.
 
 ---
 
-## 3. Mechanismus B – Editor-Assets (`ASSET_VERSION`)
+## 3. Mechanism B – Editor assets (`ASSET_VERSION`)
 
-Der Territoriumseditor lädt sein HTML/CSS/JS **dynamisch** (nicht über
-`index.html`). Diese Dateien werden über eine Konstante cache-gebustet:
+The territory editor loads its HTML/CSS/JS **dynamically** (not via
+`index.html`). These files are cache-busted via a constant:
 
-- Datei: `js/territory/territory-editor-inline-host.js`
-- Konstante: `const ASSET_VERSION = "20260604r";` (Datum + Buchstabe hochzählen)
-- Sie hängt `?v=ASSET_VERSION` an: das Editor-HTML
-  (`/html/political-territory-editor.html`), die Editor-CSS
-  (`political-territory-editor-inline.css`, `…-columns.css`) und alle Editor-JS
-  (`EDITOR_SCRIPTS`-Liste).
+- File: `js/territory/territory-editor-inline-host.js`
+- Constant: `const ASSET_VERSION = "20260604r";` (bump the date + letter)
+- It appends `?v=ASSET_VERSION` to: the editor HTML
+  (`/html/political-territory-editor.html`), the editor CSS
+  (`political-territory-editor-inline.css`, `…-columns.css`) and all editor JS
+  (the `EDITOR_SCRIPTS` list).
 
-### Wann hochzählen?
-**Immer**, wenn du eine vom Editor dynamisch geladene Datei änderst:
+### When to bump?
+**Always**, whenever you change a file loaded dynamically by the editor:
 - `html/political-territory-editor.html`
 - `css/pages/political-territory-editor-inline.css`,
   `css/components/political-territory-editor-columns.css`
-- alle JS in der `EDITOR_SCRIPTS`-Liste (z. B. `territory-editor-embedded.js`,
+- all JS in the `EDITOR_SCRIPTS` list (e.g. `territory-editor-embedded.js`,
   `territory-editor-inheritance.js`, `territory-derived-geometry-iframe-editor.js`,
   `territory-editor-ui-hints.js`, …)
 
-> `territory-editor-inline-host.js` selbst steht in `index.html` → wird von
-> Mechanismus A auto-versioniert. Ein normaler Reload zieht es frisch. Aber die
-> davon **dynamisch nachgeladenen** Editor-Assets brauchen weiterhin den
-> `ASSET_VERSION`-Bump.
+> `territory-editor-inline-host.js` itself is listed in `index.html` → it is
+> auto-versioned by Mechanism A. A normal reload pulls it fresh. But the editor
+> assets it **dynamically loads** still need the `ASSET_VERSION` bump.
 
 ---
 
-## 4. `.htaccess` – Cache-Control-Matrix
+## 4. `.htaccess` – Cache-Control matrix
 
-Im Root-`.htaccess` (Abschnitt „Caching"), alles via `<IfModule>` abgesichert
-(kein Fehler, falls ein Apache-Modul fehlt):
+In the root `.htaccess` (the "Caching" section), everything guarded via
+`<IfModule>` (no error if an Apache module is missing):
 
-| Ressource | Cache-Control | Begründung |
+| Resource | Cache-Control | Rationale |
 |---|---|---|
-| `*.js` / `*.css` **mit** `?v=…` | `public, max-age=31536000, immutable` | URL ändert sich bei Inhaltsänderung → sicher ewig cachebar |
-| `*.js` / `*.css` **ohne** `?v=…` | `no-cache` | sichere Degradierung – nie „für immer stale" |
-| `*.html` | `no-cache` | immer frisch, damit aktuelle `?v=`-Hashes ankommen |
-| Bilder/Fonts (`png,jpg,gif,webp,svg,ico,woff,woff2,ttf,eot`) | `public, max-age=2592000` (30 Tage) | ändern sich selten |
+| `*.js` / `*.css` **with** `?v=…` | `public, max-age=31536000, immutable` | the URL changes when the content changes → safe to cache forever |
+| `*.js` / `*.css` **without** `?v=…` | `no-cache` | safe degradation – never "stale forever" |
+| `*.html` | `no-cache` | always fresh, so the current `?v=` hashes reach the client |
+| Images/fonts (`png,jpg,gif,webp,svg,ico,woff,woff2,ttf,eot`) | `public, max-age=2592000` (30 days) | rarely change |
 
-Technik: `mod_rewrite` setzt bei vorhandenem `?v=` die Env-Variable
-`VERSIONED_ASSET`; `mod_headers` schaltet damit zwischen `immutable` und
-`no-cache` um (`env=VERSIONED_ASSET` / `env=!VERSIONED_ASSET`).
+Technique: `mod_rewrite` sets the env variable `VERSIONED_ASSET` when `?v=` is
+present; `mod_headers` uses it to switch between `immutable` and `no-cache`
+(`env=VERSIONED_ASSET` / `env=!VERSIONED_ASSET`).
 
 ---
 
-## 5. Kochrezepte
+## 5. Recipes
 
-### Ich habe eine bestehende `index.html`-JS/CSS-Datei geändert
-Nichts tun. Push → Deploy stempelt automatisch einen neuen Hash → Nutzer bekommen
-sie beim nächsten **normalen** Reload.
+### I changed an existing `index.html` JS/CSS file
+Do nothing. Push → the deploy automatically stamps a new hash → users get it on
+their next **normal** reload.
 
-### Ich habe eine NEUE JS/CSS-Datei hinzugefügt
-1. `<script src="js/…">` bzw. `<link href="css/…">` in `index.html` eintragen
-   (relativer Pfad unter `js/`, `css/` oder `assets/`, **ohne** `?v=`).
-2. Push. Der Deploy stempelt sie automatisch.
-3. Sicherstellen, dass die Datei im **Deploy-Paket** ist: liegt sie unter `js/`,
-   `css/` oder `assets/`, ist sie automatisch dabei (siehe `deploy_items` im
-   Workflow). Andere Top-Level-Ordner müssten dort ergänzt werden.
+### I added a NEW JS/CSS file
+1. Add `<script src="js/…">` or `<link href="css/…">` to `index.html`
+   (a relative path under `js/`, `css/` or `assets/`, **without** `?v=`).
+2. Push. The deploy stamps it automatically.
+3. Make sure the file is in the **deploy package**: if it lives under `js/`,
+   `css/` or `assets/`, it is included automatically (see `deploy_items` in the
+   workflow). Other top-level folders would have to be added there.
 
-### Ich habe eine Editor-Datei geändert (dynamisch geladen)
-`ASSET_VERSION` in `territory-editor-inline-host.js` hochzählen (z. B.
+### I changed an editor file (dynamically loaded)
+Bump `ASSET_VERSION` in `territory-editor-inline-host.js` (e.g.
 `20260604r` → `20260604s`). Push.
 
-### Ich habe ein Bild/Font ausgetauscht (gleicher Dateiname)
-Wird bis zu 30 Tage gecacht. Für sofortige Wirkung: Datei umbenennen (neuer Name =
-neue URL) und Referenz anpassen, **oder** kurzfristig `Strg+Shift+R`.
+### I swapped an image/font (same file name)
+It is cached for up to 30 days. For immediate effect: rename the file (a new name
+= a new URL) and update the reference, **or** use `Ctrl+Shift+R` as a short-term
+fix.
 
 ---
 
 ## 6. Troubleshooting
 
-**„Meine Code-Änderung kommt nicht an."**
-1. Deploy durch? GitHub Action grün? (Deploy-Latenz ~1–2 min nach Push.)
-2. Server-Stand prüfen (cache-buster umgeht den Browser-Cache):
-   `curl -s "https://avesmaps.de/<pfad>?cb=$RANDOM" | head`
-3. Welcher Mechanismus? Steht die Datei in `index.html`? → sollte Auto-`?v=`
-   tragen: `curl -s https://avesmaps.de/?cb=1 | grep -o '<dateiname>?v=[a-f0-9]*'`.
-   Dynamisch vom Editor geladen? → `ASSET_VERSION` vergessen hochzuzählen?
-4. Header prüfen: `curl -sI "https://avesmaps.de/<pfad>?v=…" | grep -i cache-control`.
+**"My code change isn't showing up."**
+1. Deploy finished? GitHub Action green? (Deploy latency ~1–2 min after push.)
+2. Check the server state (a cache-buster bypasses the browser cache):
+   `curl -s "https://avesmaps.de/<path>?cb=$RANDOM" | head`
+3. Which mechanism? Is the file in `index.html`? → it should carry an auto-`?v=`:
+   `curl -s https://avesmaps.de/?cb=1 | grep -o '<filename>?v=[a-f0-9]*'`.
+   Loaded dynamically by the editor? → did you forget to bump `ASSET_VERSION`?
+4. Check the headers: `curl -sI "https://avesmaps.de/<path>?v=…" | grep -i cache-control`.
 
-**„Eine Datei bleibt für immer stale."**
-Sollte nicht passieren: unversionierte `.js/.css` sind `no-cache`. Falls doch, hat
-eine `<script>`/`<link>`-Referenz fälschlich eine andere Query oder einen
-ungewöhnlichen Pfad. Das Stamp-Skript loggt übersprungene Referenzen als
+**"A file stays stale forever."**
+This should not happen: unversioned `.js/.css` are `no-cache`. If it does, a
+`<script>`/`<link>` reference wrongly carries a different query or an unusual
+path. The stamp script logs skipped references as
 `warning: referenced asset not found, left unversioned: …`.
 
-**„Stamp-Schritt meldet `missing`."**
-Die referenzierte Datei existiert nicht am angegebenen Pfad im Repo. Entweder Pfad
-in `index.html` falsch oder Datei fehlt. (Stand 2026-06-04: 2 bekannte tote Pfade,
-siehe unten.)
+**"The stamp step reports `missing`."**
+The referenced file does not exist at the given path in the repo. Either the path
+in `index.html` is wrong or the file is missing. (As of 2026-06-04: 2 known dead
+paths, see below.)
 
 ---
 
-## 7. Server-Aufräumen: verwaiste Dateien (Retire-Liste)
+## 7. Server cleanup: orphaned files (retire list)
 
-Der Deploy spiegelt nur (`mirror` **ohne** `--delete`) – verschobene/gelöschte
-Dateien bleiben sonst als Leichen auf dem Server. Ein globales `--delete` ist
-gefährlich (würde z. B. die nicht mitgelieferten Tiles löschen). Deshalb gibt es
-einen **chirurgischen** Schritt **„Retire orphaned remote files"** im
-Deploy-Workflow: eine **explizite Allowliste** von Pfaden, die bei jedem Deploy
-per `rm -f` (idempotent) entfernt werden.
+The deploy only mirrors (`mirror` **without** `--delete`) — moved/deleted files
+otherwise linger as corpses on the server. A global `--delete` is dangerous (it
+would, for instance, delete the tiles that are not part of the upload). That is
+why there is a **surgical** step **"Retire orphaned remote files"** in the deploy
+workflow: an **explicit allowlist** of paths that are removed on every deploy via
+`rm -f` (idempotent).
 
-Wenn du eine Datei im Repo **verschiebst/umbenennst**, trage den **alten** Pfad in
-diese Allowliste ein (`.github/workflows/deploy-avesmaps-strato.yml`, Schritt
-„Retire orphaned remote files"), damit die alte Server-Kopie verschwindet.
+When you **move/rename** a file in the repo, add the **old** path to this
+allowlist (`.github/workflows/deploy-avesmaps-strato.yml`, step "Retire orphaned
+remote files") so the old server copy disappears.
 
-### Erledigte Altlast (2026-06-04)
-Eine halbfertige CSS-Umstrukturierung hatte Dateien in Unterordner verschoben,
-aber die `index.html`-Referenzen nie nachgezogen und die alten Server-Kopien nie
-gelöscht:
-- `css/leaflet.css` → jetzt `css/third-party/leaflet.css` (inhaltsgleich, nur
-  Whitespace; verifiziert per Diff → kein optischer Unterschied).
-- `css/political-territory-wiki-tree.css` → jetzt
-  `css/pages/political-territory-wiki-tree.css` (das vom Editor gepflegte File;
-  das auf der öffentlichen Seite gestylte `.tree-wrap` ist unsichtbar/leer →
-  ohne optische Wirkung).
+### Cleared backlog (2026-06-04)
+A half-finished CSS restructuring had moved files into subfolders but never
+updated the `index.html` references and never deleted the old server copies:
+- `css/leaflet.css` → now `css/third-party/leaflet.css` (identical content, only
+  whitespace; verified via diff → no visual difference).
+- `css/political-territory-wiki-tree.css` → now
+  `css/pages/political-territory-wiki-tree.css` (the file maintained by the
+  editor; the `.tree-wrap` styled on the public page is invisible/empty → no
+  visual effect).
 
-Beide alten Pfade stehen in der Retire-Allowliste und wurden serverseitig gelöscht.
-`index.html` + `html/political-boundary-diagnostics.html` zeigen jetzt auf die
-Repo-Pfade und werden damit normal versioniert.
+Both old paths are in the retire allowlist and were deleted server-side.
+`index.html` + `html/political-boundary-diagnostics.html` now point at the repo
+paths and are therefore versioned normally.
 
-- `inline-host.js` wird von `index.html` **ohne** `?v=` in der Quelle eingetragen,
-  bekommt aber durch das Stamping eine Version. (Historisch war genau das der
-  Grund für den ständigen `Strg+Shift+R` – jetzt behoben.)
+- `inline-host.js` is listed in `index.html` **without** `?v=` in the source, but
+  the stamping gives it a version. (Historically that was exactly the reason for
+  the constant `Ctrl+Shift+R` — now fixed.)

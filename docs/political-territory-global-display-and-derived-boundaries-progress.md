@@ -1,400 +1,400 @@
-# Fortschritt: Globale Herrschaftsgebiet-Eigenschaften und abgeleitete Außengrenzen
+# Progress: Global Herrschaftsgebiet properties and derived outer boundaries
 
-Stand: 2026-05-29
+Status: 2026-05-29
 
-Dieses Dokument protokolliert den Umbau aus `docs/political-territory-global-display-and-derived-boundaries-plan.md`. Es ergänzt den Hauptplan, ersetzt ihn aber nicht.
+This document records the rebuild described in `docs/political-territory-global-display-and-derived-boundaries-plan.md`. It supplements the main plan but does not replace it.
 
-## Ziel
+## Goal
 
-Avesmaps stellt politische Herrschaftsgebiet-Eigenschaften und abgeleitete Außengrenzen auf ein globales, territory-basiertes Modell um.
+Avesmaps is migrating political Herrschaftsgebiet properties and derived outer boundaries to a global, territory-based model.
 
-Zentrale Regel:
+Core rule:
 
 ```text
-Karte klickt Geometrie -> Editor oeffnet Breadcrumb -> aktiver Breadcrumb bestimmt Territorium -> Eigenschaften und Außengrenzen werden global an diesem Territorium gelesen/geschrieben.
+Map clicks a geometry -> editor opens the breadcrumb -> the active breadcrumb determines the territory -> properties and outer boundaries are read/written globally on this territory.
 ```
 
-## Verbindlicher Grenz-Vertrag
+## Binding boundary contract
 
-Die abgeleiteten Außengrenzen werden langfristig immer hierarchisch konsistent berechnet. Eine Änderung an einer unteren Geometrie muss auch alle betroffenen oberen Außengrenzen aktualisieren. Berechnung und Anzeige sind getrennt.
+The derived outer boundaries are, in the long term, always computed in a hierarchically consistent way. A change to a lower-level geometry must also update all affected higher-level outer boundaries. Computation and display are separate concerns.
 
 ```text
 Außengrenzen darstellen
-= dieses Gebiet zeigt eine berechnete Außengrenze. Berechnet wird sie unabhängig vom Anzeige-Häkchen, sobald das Gebiet im redaktionellen Boundary-Recompute betroffen ist und eine Außengrenze erzeugen kann.
+= this territory shows a computed outer boundary. It is computed independently of the display checkbox, as soon as the territory is affected by the editorial boundary recompute and can produce an outer boundary.
 
 Innengrenzen darstellen
-= dieses Gebiet zeigt seine inneren Grenzlinien. Diese Einstellung ist territory-lokal und wirkt nicht automatisch auf Kinder.
+= this territory shows its inner boundary lines. This setting is territory-local and does not automatically affect children.
 
 Für alle Unterregionen übernehmen
-= wendet die aktuellen Grenz-Einstellungen rekursiv auf Unterregionen an.
+= applies the current boundary settings recursively to sub-regions.
 ```
 
-Der UI-Hilfetext fuer die rekursive Aktion lautet:
+The UI help text for the recursive action reads:
 
 ```text
 Berechnet und übernimmt diese Grenz-Einstellungen rekursiv für alle Unterregionen.
 ```
 
-`political_territory_geometry` bleibt die redaktionelle Quellgeometrie. `political_territory_derived_geometry` ist die berechnete politische Außengrenze eines Hierarchieknotens. Sobald ein Territory als Hierarchieknoten existiert und aus echten Geometrien oder Kind-Außengrenzen eine gueltige Außengrenze erzeugen kann, kann es eine Derived Boundary bekommen. Das gilt auch fuer Blattknoten mit eigener echter Geometrie.
+`political_territory_geometry` remains the editorial source geometry. `political_territory_derived_geometry` is the computed political outer boundary of a hierarchy node. As soon as a territory exists as a hierarchy node and can produce a valid outer boundary from real geometries or child outer boundaries, it can receive a derived boundary. This also applies to leaf nodes with their own real geometry.
 
-Die Berechnung laeuft bottom-up. Blatt- oder Quellknoten werden aus echten Geometrien abgeleitet. Elterngebiete werden bevorzugt aus den frisch berechneten Kind-Außengrenzen vereinigt. Echte Kind-/Blatt-Geometrien bleiben als Fallback und Quelle relevant, duerfen aber nicht ueberschrieben werden.
+The computation runs bottom-up. Leaf or source nodes are derived from real geometries. Parent territories are preferably unioned from the freshly computed child outer boundaries. Real child/leaf geometries remain relevant as a fallback and source, but must not be overwritten.
 
-Enklaven, Exklaven und innere Ringe sind Bestandteil der Außengrenze. Eine gueltige Außengrenze kann daher ein `Polygon` mit inneren Ringen oder ein `MultiPolygon` mit inneren Ringen sein. Diese Ringe duerfen bei Union, Speicherung und Rendering nicht entfernt oder als normale Innengrenze umgedeutet werden.
+Enclaves, exclaves and inner rings are part of the outer boundary. A valid outer boundary can therefore be a `Polygon` with inner rings or a `MultiPolygon` with inner rings. These rings must not be removed or reinterpreted as a normal inner boundary during union, storage or rendering.
 
-Boundary-relevante Änderungen werden beim Editor-Speichern direkt fuer die betroffenen Hierarchien neu berechnet. Relevante Änderungen sind insbesondere echte Geometrie, Geometrie-Zuordnung, Territory-Hierarchie, Gültigkeitsjahre und die Option `existiert bis heute`. Betroffen sind das geänderte Territory, erzeugbare Unterknoten bei rekursiver Übernahme und alle Ancestors, deren Außengrenze von der Änderung abhängt.
+Boundary-relevant changes are recomputed directly for the affected hierarchies when the editor saves. Relevant changes are, in particular, real geometry, geometry assignment, territory hierarchy, validity years and the option `existiert bis heute`. Affected are the changed territory, producible child nodes on recursive application, and all ancestors whose outer boundary depends on the change.
 
-Derived Boundaries sind historisch gültig. Sie werden nur aus Quellen gebildet, die im betrachteten Jahr oder Intervall gültig sind. Eine Änderung an Gültigkeitsjahren oder `existiert bis heute` invalidiert daher dieselben abhängigen Außengrenzen wie eine Geometrieänderung.
+Derived boundaries are historically valid. They are formed only from sources that are valid in the considered year or interval. A change to validity years or `existiert bis heute` therefore invalidates the same dependent outer boundaries as a geometry change.
 
-`Für alle Unterregionen übernehmen` ist eine bewusste Massenaktion. Nur wenn diese Option aktiv ist, werden `Außengrenzen darstellen` und `Innengrenzen darstellen` rekursiv auf Kinder und Kindeskinder übertragen.
+`Für alle Unterregionen übernehmen` is a deliberate bulk action. Only when this option is active are `Außengrenzen darstellen` and `Innengrenzen darstellen` propagated recursively to children and grandchildren.
 
-Innengrenzen werden relativ zum aktuell dargestellten Breadcrumb-Kontext gestuft. Die unterste sichtbare Rekursionsstufe beginnt mit Index 1; darüber folgen 2, 3, 4 usw. Die äußerste Grenze des angezeigten Gebiets ist immer `X`. Die maximale sichtbare Innengrenzen-Tiefe soll als zentraler Parameter konfigurierbar bleiben.
+Inner boundaries are staged relative to the currently displayed breadcrumb context. The lowest visible recursion level starts at index 1; above it follow 2, 3, 4 and so on. The outermost boundary of the displayed area is always `X`. The maximum visible inner-boundary depth should remain configurable as a central parameter.
 
-## Berechnungsort und Bedienung
+## Computation location and operation
 
-Die Polygon-Union wird nicht in reinem PHP implementiert. Solange keine robuste serverseitige Geometrie-Engine verfuegbar ist, erzeugt oder aktualisiert der Editor-Client die Außengrenzen mit der vorhandenen JavaScript-Geometrie-Logik. Das PHP-Backend plant, liefert Quellen, validiert Metadaten und speichert die fertigen Derived Boundaries transaktional.
+The polygon union is not implemented in pure PHP. As long as no robust server-side geometry engine is available, the editor client creates or updates the outer boundaries using the existing JavaScript geometry logic. The PHP backend plans, supplies sources, validates metadata and stores the finished derived boundaries transactionally.
 
-Waehrend der Editor-Client Außengrenzen berechnet, zeigt die UI einen sichtbaren Ladebalken oder Fortschrittszustand. Die Berechnung ist eine redaktionelle Aktion und darf Zeit kosten; die normale Endnutzerkarte darf dadurch nicht belastet werden.
+While the editor client computes outer boundaries, the UI shows a visible loading bar or progress state. The computation is an editorial action and is allowed to take time; the normal end-user map must not be burdened by it.
 
-Im Kontextmenue soll ein expliziter Eintrag `Außengrenzen erzeugen/aktualisieren` angeboten werden. Dieser Eintrag startet dieselbe Berechnungsfunktion wie das Geometrie-Panel beziehungsweise der Save-Hook. Es darf keine zweite, abweichende Berechnungslogik geben.
+The context menu should offer an explicit entry `Außengrenzen erzeugen/aktualisieren`. This entry starts the same computation function as the geometry panel or the save hook. There must not be a second, divergent computation logic.
 
-## Performance-Vertrag fuer Grenz-Rendering
+## Performance contract for boundary rendering
 
-Zoomen und Pannen duerfen keine Grenzberechnung und moeglichst keine kleinteiligen Nachladevorgaenge ausloesen. Nutzer wechseln Zoomstufen schnell; die Uebergaenge muessen fluessig bleiben.
+Zooming and panning must not trigger any boundary computation and, if possible, no fine-grained reloads. Users switch zoom levels quickly; the transitions must stay smooth.
 
-Avesmaps bevorzugt fuer politische Grenzen deshalb einen einmaligen, sichtbaren Ladezustand mit ausreichend vollstaendigem Payload gegenueber haeufigem spaeten Nachladen. Lieber etwas mehr Grenzdaten initial oder layerweise uebertragen und lokal cachen, als beim Zoomen zu wenig Daten haben und dadurch Ruckler, Nachladepausen oder Rechenlast erzeugen.
+For political boundaries, Avesmaps therefore prefers a single, visible loading state with a sufficiently complete payload over frequent late reloads. It is better to transfer somewhat more boundary data up front or layer by layer and cache it locally than to have too little data when zooming and thereby cause stutter, reload pauses or computational load.
 
-Die normale Kartenansicht soll vorberechnete Derived Boundaries laden, revisioniert cachen und beim Zoomen nur Sichtbarkeit, Layergruppen und Styles umschalten. Polygon-Union gehoert in den redaktionellen Editor-Berechnungspfad; das PHP-Backend plant, validiert und speichert, solange keine robuste serverseitige Geometrie-Engine verfuegbar ist.
+The normal map view should load precomputed derived boundaries, cache them with revisioning, and on zoom only toggle visibility, layer groups and styles. Polygon union belongs in the editorial editor computation path; the PHP backend plans, validates and stores, as long as no robust server-side geometry engine is available.
 
-## Arbeitsregeln
+## Working rules
 
-- Bestehende echte Karten-Geometrien werden nicht geloescht, umgeschrieben oder neu zugeordnet.
-- Bestehende Territorien und Territorien-Hierarchien werden nicht veraendert.
-- Lokale Eigenschaften/Overrides werden zuerst aus der aktiven UI entfernt oder deaktiviert; alte Daten bleiben erhalten.
-- Keine Migration, Archivierung oder Loeschung ohne Diagnose und explizite Freigabe.
-- Jeder Commit muss klein, nachvollziehbar und lauffaehig bleiben.
-- Nach jedem Commit wird der Commit-SHA verifiziert und hier dokumentiert.
+- Existing real map geometries are not deleted, rewritten or reassigned.
+- Existing territories and territory hierarchies are not changed.
+- Local properties/overrides are first removed or disabled from the active UI; old data is preserved.
+- No migration, archiving or deletion without diagnosis and explicit sign-off.
+- Every commit must remain small, traceable and runnable.
+- After every commit, the commit SHA is verified and documented here.
 
-## Statusuebersicht
+## Status overview
 
-| Phase | Status | Commit | Bemerkung |
+| Phase | Status | Commit | Note |
 |---|---|---|---|
-| Phase 1: Diagnose | offen | - | Diagnose fuer Datenkonflikte und Legacy-Snapshots noch ausstehend. |
-| Phase 2: Aktiver Breadcrumb als harte Wahrheit | begonnen | `07786f443da4271bf0a2628e0a3f99f69b775f32` | Breadcrumb-Wechsel synchronisiert das Derived-Geometry-Panel gegen den aktiven Knoten; weitere Absicherung des Fallbacks steht aus. |
-| Phase 3: Lokale Override-UI deaktivieren | begonnen | `06c27359c079e6d2a417975adf82b6fb68b91b17` | Footer-Installation, Anzeige und Refresh sind in der aktiven UI deaktiviert; API-/Legacy-Funktionen bleiben erhalten. |
-| Phase 4: Eigenschaften global lesen/schreiben | offen | - | `assignmentDisplays` entmachten, nicht sofort loeschen. |
-| Phase 5: Geometrie-Panel auf aktiven Breadcrumb fixieren | begonnen | `07786f443da4271bf0a2628e0a3f99f69b775f32` | Reload nach Breadcrumb-Wechsel umgesetzt; UI-Schalter und Backend-Modi fehlen noch. |
-| Phase 6: Außengrenzen-UI vervollstaendigen | begonnen | `f06cb07b10da78ccd12f8ff6e8bb5e5936171542` | Alle drei Ziel-Schalter sind sichtbar; rekursiver Modus bleibt bis zum Backend-Vertrag deaktiviert; Hinweistext wurde nutzerverstaendlicher formuliert. |
-| Phase 7: Hierarchische Außengrenzen-Planung und Speicherung | offen | - | Der alte `flat`/`hierarchical`-Vertrag wurde durch den hierarchischen Grenz-Vertrag ersetzt; rekursive bottom-up-Planung und Batch-Speicherung fehlen noch. |
-| Phase 8: Quellenprotokoll | offen | - | Optional, aber fuer Diagnose/Reproduktion sinnvoll. |
-| Phase 9: Tests und manuelle Pruefung | begonnen | `99b5f9830f320101c935810eb419cafa0830486e` | Browser-Smoke-Test und Nachtest erfolgreich; erwartbar fehlende Geometry-Assignments liefern nun leeren 200-Zustand ohne Konsolenfehler. |
-| Phase 10: Legacy-Aufraeumung | blockiert | - | Erst nach stabiler Testphase und expliziter Freigabe. |
+| Phase 1: Diagnosis | open | - | Diagnosis for data conflicts and legacy snapshots still pending. |
+| Phase 2: Active breadcrumb as hard truth | started | `07786f443da4271bf0a2628e0a3f99f69b775f32` | Breadcrumb switch synchronizes the derived-geometry panel against the active node; further hardening of the fallback is still pending. |
+| Phase 3: Disable local override UI | started | `06c27359c079e6d2a417975adf82b6fb68b91b17` | Footer installation, display and refresh are disabled in the active UI; API/legacy functions are preserved. |
+| Phase 4: Read/write properties globally | open | - | Disempower `assignmentDisplays`, do not delete immediately. |
+| Phase 5: Pin geometry panel to the active breadcrumb | started | `07786f443da4271bf0a2628e0a3f99f69b775f32` | Reload after breadcrumb switch implemented; UI toggle and backend modes still missing. |
+| Phase 6: Complete outer-boundary UI | started | `f06cb07b10da78ccd12f8ff6e8bb5e5936171542` | All three target toggles are visible; recursive mode stays disabled until the backend contract; the hint text was reworded to be more user-friendly. |
+| Phase 7: Hierarchical outer-boundary planning and storage | open | - | The old `flat`/`hierarchical` contract was replaced by the hierarchical boundary contract; recursive bottom-up planning and batch storage are still missing. |
+| Phase 8: Source log | open | - | Optional, but useful for diagnosis/reproduction. |
+| Phase 9: Tests and manual verification | started | `99b5f9830f320101c935810eb419cafa0830486e` | Browser smoke test and retest passed; expectedly missing geometry assignments now return an empty 200 state without console errors. |
+| Phase 10: Legacy cleanup | blocked | - | Only after a stable test phase and explicit sign-off. |
 
-## Commit-Log
+## Commit log
 
 ### 2026-05-29 — `99b5f9830f320101c935810eb419cafa0830486e`
 
-**Ziel:** Erwartbar fehlende Geometry-Assignments nicht mehr als HTTP-400-Konsolenfehler melden.
+**Goal:** Stop reporting expectedly missing geometry assignments as HTTP 400 console errors.
 
-**Geaenderte Dateien:**
+**Changed files:**
 
 - `api/_internal/political/territories-endpoint.php`
 
-**Was wurde geaendert:**
+**What was changed:**
 
-- GET-Action `geometry_assignment` wird vor dem allgemeinen GET-`match` separat behandelt.
-- Wenn `avesmapsPoliticalGetGeometryAssignment()` fuer eine syntaktisch gueltige UUID keine passende politische Geometrie findet, antwortet der Endpunkt mit HTTP 200.
-- Die Antwort enthaelt `missing_geometry_assignment: true`, `geometry: null` und `assignment: null`.
-- Ungueltige IDs bleiben echte Fehler und laufen weiter in den bestehenden Fehlerpfad.
+- The GET action `geometry_assignment` is handled separately before the general GET `match`.
+- When `avesmapsPoliticalGetGeometryAssignment()` finds no matching political geometry for a syntactically valid UUID, the endpoint responds with HTTP 200.
+- The response contains `missing_geometry_assignment: true`, `geometry: null` and `assignment: null`.
+- Invalid IDs remain real errors and continue down the existing error path.
 
-**Nicht geaendert:**
+**Not changed:**
 
-- Keine Datenbank.
-- Keine Geometrien.
-- Keine Territorien oder Hierarchien.
-- Keine Schreiboperationen.
-- Kein Derived-Geometry-Vertrag.
+- No database.
+- No geometries.
+- No territories or hierarchies.
+- No write operations.
+- No derived-geometry contract.
 
-**Verifikation:**
+**Verification:**
 
-- Commit `99b5f9830f320101c935810eb419cafa0830486e` wurde von GitHub bestaetigt und ueber `fetch_commit` verifiziert.
-- Der Commit-Diff ist auf `api/_internal/political/territories-endpoint.php` und die GET-Action `geometry_assignment` begrenzt.
-- Browser-Nachtest bestanden: normales Verhalten, keine Konsolenfehler.
+- Commit `99b5f9830f320101c935810eb419cafa0830486e` was confirmed by GitHub and verified via `fetch_commit`.
+- The commit diff is limited to `api/_internal/political/territories-endpoint.php` and the GET action `geometry_assignment`.
+- Browser retest passed: normal behavior, no console errors.
 
-**Offene Risiken:**
+**Open risks:**
 
-- Keine aus dem Browser-Nachtest bekannt.
+- None known from the browser retest.
 
 ### 2026-05-29 — `f06cb07b10da78ccd12f8ff6e8bb5e5936171542`
 
-**Ziel:** Hinweistext zum derzeit deaktivierten Unterregionen-Modus nutzerverstaendlicher formulieren.
+**Goal:** Reword the hint text about the currently disabled sub-region mode to be more user-friendly.
 
-**Geaenderte Dateien:**
+**Changed files:**
 
 - `js/territory/territory-derived-geometry-iframe-editor.js`
 
-**Was wurde geaendert:**
+**What was changed:**
 
-- Technischer Hinweis `flache Außengrenze für den aktiven Breadcrumb-Knoten` ersetzt.
-- Neuer Text: `Erzeugt derzeit nur die Außengrenze des oben ausgewählten Gebiets. Unterregionen werden nicht einzeln neu berechnet.`
+- Replaced the technical hint `flache Außengrenze für den aktiven Breadcrumb-Knoten`.
+- New text: `Erzeugt derzeit nur die Außengrenze des oben ausgewählten Gebiets. Unterregionen werden nicht einzeln neu berechnet.`
 
-**Nicht geaendert:**
+**Not changed:**
 
-- Keine API.
-- Keine Datenbank.
-- Keine Geometrien.
-- Keine Territorien oder Hierarchien.
-- Keine Save-Semantik.
+- No API.
+- No database.
+- No geometries.
+- No territories or hierarchies.
+- No save semantics.
 
-**Verifikation:**
+**Verification:**
 
-- Commit `f06cb07b10da78ccd12f8ff6e8bb5e5936171542` wurde von GitHub bestaetigt und ueber `fetch_commit` verifiziert.
-- Der Commit-Diff enthaelt nur die sichtbare Hinweiszeile in `js/territory/territory-derived-geometry-iframe-editor.js`.
+- Commit `f06cb07b10da78ccd12f8ff6e8bb5e5936171542` was confirmed by GitHub and verified via `fetch_commit`.
+- The commit diff contains only the visible hint line in `js/territory/territory-derived-geometry-iframe-editor.js`.
 
-**Offene Risiken:**
+**Open risks:**
 
-- Erneute Browser-Pruefung des Hinweistexts steht aus.
-- Der rekursive Modus ist bewusst noch deaktiviert.
+- A renewed browser check of the hint text is still pending.
+- The recursive mode is deliberately still disabled.
 
 ### 2026-05-29 — `5a39fcb9fc7a3472dd01b316729ff2eb96f861bd`
 
-**Ziel:** Dritten Ziel-Schalter im Geometrie-Panel sichtbar machen, ohne eine noch nicht implementierte Backend-Funktion zu simulieren.
+**Goal:** Make the third target toggle in the geometry panel visible without simulating a backend function that is not yet implemented.
 
-**Geaenderte Dateien:**
+**Changed files:**
 
 - `js/territory/territory-derived-geometry-iframe-editor.js`
 
-**Was wurde geaendert:**
+**What was changed:**
 
-- Checkbox `Für alle Unterregionen übernehmen` im Geometrie-Panel ergänzt.
-- Die Checkbox ist deaktiviert, bis der Backend-Modus fuer rekursive/hierarchische Derived-Geometrien implementiert ist.
-- Hinweistext ergänzt: aktuell wird die flache Außengrenze fuer den aktiven Breadcrumb-Knoten erzeugt.
-- CSS fuer deaktivierten rekursiven Modus ergänzt.
+- Added the checkbox `Für alle Unterregionen übernehmen` in the geometry panel.
+- The checkbox is disabled until the backend mode for recursive/hierarchical derived geometries is implemented.
+- Added a hint text: currently the flat outer boundary is generated for the active breadcrumb node.
+- Added CSS for the disabled recursive mode.
 
-**Nicht geaendert:**
+**Not changed:**
 
-- Keine API.
-- Keine Datenbank.
-- Keine Geometrien.
-- Keine Territorien oder Hierarchien.
-- Keine Save-Semantik.
-- Kein Payload fuer `flat`/`hierarchical`.
+- No API.
+- No database.
+- No geometries.
+- No territories or hierarchies.
+- No save semantics.
+- No payload for `flat`/`hierarchical`.
 
-**Verifikation:**
+**Verification:**
 
-- Commit `5a39fcb9fc7a3472dd01b316729ff2eb96f861bd` wurde von GitHub bestaetigt und ueber `fetch_commit` verifiziert.
-- Der Commit-Diff enthaelt nur UI-Markup und CSS in `js/territory/territory-derived-geometry-iframe-editor.js`.
+- Commit `5a39fcb9fc7a3472dd01b316729ff2eb96f861bd` was confirmed by GitHub and verified via `fetch_commit`.
+- The commit diff contains only UI markup and CSS in `js/territory/territory-derived-geometry-iframe-editor.js`.
 
-**Offene Risiken:**
+**Open risks:**
 
-- Der rekursive Modus ist bewusst noch deaktiviert.
-- Phase 7 muss den Backend-Vertrag `flat`/`hierarchical` sauber einfuehren.
+- The recursive mode is deliberately still disabled.
+- Phase 7 must introduce the backend contract `flat`/`hierarchical` cleanly.
 
 ### 2026-05-29 — `b4c8d4ea801c8bab2cee8fac7d2580b85423e14c`
 
-**Ziel:** Blattknoten ohne Unterregionen im Geometrie-Panel korrekt darstellen.
+**Goal:** Display leaf nodes without sub-regions correctly in the geometry panel.
 
-**Geaenderte Dateien:**
+**Changed files:**
 
 - `js/territory/territory-derived-geometry-iframe-editor.js`
 
-**Was wurde geaendert:**
+**What was changed:**
 
-- `updateInnerBoundaryControl()` setzt `Innengrenzen darstellen` bei nicht verfuegbaren Innengrenzen auf `checked` statt `unchecked`.
-- Die Checkbox bleibt deaktiviert und ueber die bestehende CSS-Klasse ausgegraut.
+- `updateInnerBoundaryControl()` sets `Innengrenzen darstellen` to `checked` instead of `unchecked` when inner boundaries are unavailable.
+- The checkbox stays disabled and grayed out via the existing CSS class.
 
-**Nicht geaendert:**
+**Not changed:**
 
-- Keine API.
-- Keine Datenbank.
-- Keine Geometrien.
-- Keine Territorien oder Hierarchien.
-- Keine Save-Semantik fuer `show_inner_boundaries`: Blattknoten speichern weiterhin `false`, weil keine Innengrenzen vorhanden sind.
+- No API.
+- No database.
+- No geometries.
+- No territories or hierarchies.
+- No save semantics for `show_inner_boundaries`: leaf nodes still store `false`, because no inner boundaries exist.
 
-**Verifikation:**
+**Verification:**
 
-- Commit `b4c8d4ea801c8bab2cee8fac7d2580b85423e14c` wurde von GitHub bestaetigt und ueber `fetch_commit` verifiziert.
-- Der Commit-Diff enthaelt nur die Checkbox-Statusaenderung in `js/territory/territory-derived-geometry-iframe-editor.js`.
+- Commit `b4c8d4ea801c8bab2cee8fac7d2580b85423e14c` was confirmed by GitHub and verified via `fetch_commit`.
+- The commit diff contains only the checkbox state change in `js/territory/territory-derived-geometry-iframe-editor.js`.
 
-**Offene Risiken:**
+**Open risks:**
 
-- Keine aus dem ersten Browser-Smoke-Test bekannt.
+- None known from the first browser smoke test.
 
 ### 2026-05-29 — `06c27359c079e6d2a417975adf82b6fb68b91b17`
 
-**Ziel:** Lokale Override-UI in der aktiven Bedienoberflaeche deaktivieren.
+**Goal:** Disable the local override UI in the active operating surface.
 
-**Geaenderte Dateien:**
+**Changed files:**
 
 - `js/territory/territory-override-footer.js`
 
-**Was wurde geaendert:**
+**What was changed:**
 
-- `LOCAL_OVERRIDE_UI_ENABLED` auf `false` gesetzt.
-- Footer-Installation bricht ab und entfernt eventuell vorhandene Footer-Elemente.
-- Sichtbarkeits-Sync setzt Pending-Override-Status zurueck und blendet den Footer nicht mehr ein.
-- Refresh des lokalen Override-Footers wird in der aktiven UI kurzgeschlossen.
+- Set `LOCAL_OVERRIDE_UI_ENABLED` to `false`.
+- Footer installation aborts and removes any existing footer elements.
+- The visibility sync resets the pending override state and no longer shows the footer.
+- The refresh of the local override footer is short-circuited in the active UI.
 
-**Nicht geaendert:**
+**Not changed:**
 
-- Keine API.
-- Keine Datenbank.
-- Keine alten lokalen Override-Daten.
-- Keine echten Geometrien.
-- Keine Territorien oder Hierarchien.
-- Bestehende Hilfsfunktionen fuer Diagnose/Legacy-Aufraeumung bleiben im Code erhalten.
+- No API.
+- No database.
+- No old local override data.
+- No real geometries.
+- No territories or hierarchies.
+- Existing helper functions for diagnosis/legacy cleanup are kept in the code.
 
-**Verifikation:**
+**Verification:**
 
-- Commit `06c27359c079e6d2a417975adf82b6fb68b91b17` wurde von GitHub bestaetigt und ueber `fetch_commit` verifiziert.
-- Der Commit-Diff enthaelt nur `js/territory/territory-override-footer.js`.
+- Commit `06c27359c079e6d2a417975adf82b6fb68b91b17` was confirmed by GitHub and verified via `fetch_commit`.
+- The commit diff contains only `js/territory/territory-override-footer.js`.
 
-**Offene Risiken:**
+**Open risks:**
 
-- Backend-/API-Pfade fuer lokale Overrides existieren weiterhin als Legacy-/Diagnosepfad.
-- Endgueltige Entfernung/DCE darf erst nach Diagnose und expliziter Freigabe erfolgen.
+- Backend/API paths for local overrides still exist as a legacy/diagnosis path.
+- Final removal/DCE may only happen after diagnosis and explicit sign-off.
 
 ### 2026-05-29 — `07786f443da4271bf0a2628e0a3f99f69b775f32`
 
-**Ziel:** Derived-Geometry-Panel nach Breadcrumb-Wechsel gegen den aktiven Breadcrumb-Knoten synchronisieren.
+**Goal:** Synchronize the derived-geometry panel against the active breadcrumb node after a breadcrumb switch.
 
-**Geaenderte Dateien:**
+**Changed files:**
 
 - `js/territory/territory-editor-ui-hints.js`
 
-**Was wurde geaendert:**
+**What was changed:**
 
-- Nach dem Laden des Derived-Geometry-Iframe-Editors wird ein Breadcrumb-Observer installiert.
-- Der Observer reagiert auf Aenderungen in `#manualEditPath`.
-- Bei einem aktiven Breadcrumb-Wechsel wird der aktuelle Assignment-State gelesen und `AvesmapsPoliticalDerivedGeometryEditor.loadForCurrentTerritory(value)` aufgerufen.
-- Wiederholte Reloads fuer denselben Target-Key werden vermieden.
+- After loading the derived-geometry iframe editor, a breadcrumb observer is installed.
+- The observer reacts to changes in `#manualEditPath`.
+- On an active breadcrumb switch, the current assignment state is read and `AvesmapsPoliticalDerivedGeometryEditor.loadForCurrentTerritory(value)` is called.
+- Repeated reloads for the same target key are avoided.
 
-**Nicht geaendert:**
+**Not changed:**
 
-- Keine API.
-- Keine Datenbank.
-- Keine Geometrien.
-- Keine Territorien oder Hierarchien.
-- Kein Override- oder Legacy-Datenpfad.
+- No API.
+- No database.
+- No geometries.
+- No territories or hierarchies.
+- No override or legacy data path.
 
-**Verifikation:**
+**Verification:**
 
-- Commit `07786f443da4271bf0a2628e0a3f99f69b775f32` wurde von GitHub bestaetigt und ueber `fetch_commit` verifiziert.
-- Der Commit-Diff enthaelt nur `js/territory/territory-editor-ui-hints.js`.
+- Commit `07786f443da4271bf0a2628e0a3f99f69b775f32` was confirmed by GitHub and verified via `fetch_commit`.
+- The commit diff contains only `js/territory/territory-editor-ui-hints.js`.
 
-**Offene Risiken:**
+**Open risks:**
 
-- `activeDisplayNode` hat weiterhin einen Fallback auf das letzte Breadcrumb-Element, falls kein aktiver Knoten gesetzt ist.
+- `activeDisplayNode` still has a fallback to the last breadcrumb element when no active node is set.
 
 ### 2026-05-29 — `2d5771705f9917ae821b804dd4c0c40faf4b871d`
 
-**Ziel:** Fortschritts- und Altlastenprotokoll fuer den Umbau anlegen.
+**Goal:** Create a progress and legacy-debt log for the rebuild.
 
-**Geaenderte Dateien:**
+**Changed files:**
 
 - `docs/political-territory-global-display-and-derived-boundaries-progress.md`
 
-**Was wurde geaendert:**
+**What was changed:**
 
-- Statusuebersicht fuer die Umsetzungsphasen angelegt.
-- Commit-Log-Struktur angelegt.
-- Altlasten-/DCE-Kandidatenliste angelegt.
-- Manuelle Testfaelle als fortlaufende Checkliste angelegt.
+- Created the status overview for the implementation phases.
+- Created the commit-log structure.
+- Created the legacy-debt/DCE candidate list.
+- Created the manual test cases as a running checklist.
 
-**Nicht geaendert:**
+**Not changed:**
 
-- Keine App-Logik.
-- Keine API.
-- Keine Datenbank.
-- Keine Geometrien.
-- Keine Territorien oder Hierarchien.
+- No app logic.
+- No API.
+- No database.
+- No geometries.
+- No territories or hierarchies.
 
-**Verifikation:**
+**Verification:**
 
-- Commit `2d5771705f9917ae821b804dd4c0c40faf4b871d` wurde von GitHub bestaetigt und ueber `fetch_commit` verifiziert.
+- Commit `2d5771705f9917ae821b804dd4c0c40faf4b871d` was confirmed by GitHub and verified via `fetch_commit`.
 
-**Offene Risiken:**
+**Open risks:**
 
-- Keine technischen Risiken; reiner Dokumentations-Commit.
+- No technical risks; pure documentation commit.
 
-## Testbefunde
+## Test findings
 
-### 2026-05-29 — Browser-Smoke-Test nach Phase 2/3/5/6
+### 2026-05-29 — Browser smoke test after Phase 2/3/5/6
 
-**Bestanden:**
+**Passed:**
 
-- Breadcrumb-Wechsel funktioniert.
-- Geometrie-Panel zeigt die drei erwarteten Optionen.
-- `Für alle Unterregionen übernehmen` ist sichtbar und deaktiviert.
-- Blattknoten zeigen `Innengrenzen darstellen` deaktiviert, abgehakt und ausgegraut.
-- Lokale Override-UI erscheint nicht mehr.
-- Vorsichtiger Speichertest funktioniert.
+- Breadcrumb switch works.
+- The geometry panel shows the three expected options.
+- `Für alle Unterregionen übernehmen` is visible and disabled.
+- Leaf nodes show `Innengrenzen darstellen` disabled, checked and grayed out.
+- The local override UI no longer appears.
+- A cautious save test works.
 
-**Auffaellig:**
+**Notable:**
 
-- `geometry_assignment` lieferte beim Oeffnen fuer `geometry_public_id=887c6744-f898-4096-a4aa-3b23da1a908a` HTTP 400. Das Frontend behandelte 400/404 an dieser Stelle bereits als fehlende gespeicherte Eigenschaften und lief weiter. Mit Commit `99b5f9830f320101c935810eb419cafa0830486e` wurde fuer syntaktisch gueltige, aber fehlende Geometrien ein leerer HTTP-200-Zustand eingefuehrt.
-- Der urspruengliche Hinweistext zum flachen Modus war fuer Endnutzer unverstaendlich und wurde mit Commit `f06cb07b10da78ccd12f8ff6e8bb5e5936171542` ersetzt.
+- `geometry_assignment` returned HTTP 400 when opened for `geometry_public_id=887c6744-f898-4096-a4aa-3b23da1a908a`. The frontend already treated 400/404 at this point as missing saved properties and continued. With commit `99b5f9830f320101c935810eb419cafa0830486e`, an empty HTTP 200 state was introduced for syntactically valid but missing geometries.
+- The original hint text about the flat mode was incomprehensible for end users and was replaced with commit `f06cb07b10da78ccd12f8ff6e8bb5e5936171542`.
 
-### 2026-05-29 — Browser-Nachtest nach Assignment-Status-Fix
+### 2026-05-29 — Browser retest after the assignment-status fix
 
-**Bestanden:**
+**Passed:**
 
-- Anwendung verhaelt sich normal.
-- Es erscheinen keine Konsolenfehler.
-- Der zuvor auffaellige `geometry_assignment`-Fall ist damit fuer den Smoke-Test bereinigt.
+- The application behaves normally.
+- No console errors appear.
+- The previously notable `geometry_assignment` case is thereby cleared for the smoke test.
 
-## Aktuelle Altlasten / DCE-Kandidaten
+## Current legacy debt / DCE candidates
 
-| Bereich | Datei/Funktion | Risiko | Behandlung |
+| Area | File/function | Risk | Treatment |
 |---|---|---|---|
-| Lokale Override-UI | `js/territory/territory-override-footer.js` | Geometriereferenzierter UI-Pfad wurde in der aktiven UI deaktiviert, bleibt aber als Legacy-Code erhalten. | Nach Diagnose und Freigabe entfernen oder weiter einkapseln. |
-| Legacy-Snapshots | `style_json.assignmentDisplays` / `assignment_displays` | Doppelte Wahrheit gegenueber globalen Territory-Werten. | Nur noch als Legacy-Fallback/Diagnose lesen; nicht als aktive Wahrheit speichern. |
-| Aktiver Breadcrumb | `activeDisplayNode`, `readRootSelection()` | Fallback auf letztes Breadcrumb-Element kann falsches Territorium adressieren. | Breadcrumb-Wechsel explizit setzen und Panels neu synchronisieren; Fallback spaeter haerter absichern. |
-| Derived-Geometry-Ziel | `territory-derived-geometry-iframe-editor.js::getTargetKey()` | Prinzipiell richtig, aber Reload bei Breadcrumb-Wechsel muss garantiert sein. | Nach Breadcrumb-Wechsel explizit `loadForCurrentTerritory()` aufrufen; Browser-Test ausstehend. |
-| Innengrenzen-UI | `updateInnerBoundaryControl()` | Blattknoten-UI wurde auf disabled, checked, ausgegraut korrigiert; Browser-Test bestanden. | Nach weiterem Regressionstest als erledigt markieren. |
-| Außengrenzen-Modus | Frontend/Backend | UI-Schalter ist sichtbar, aber der rekursive Modus ist bewusst deaktiviert. | Phase 7: hierarchische Grenz-Planung, Editor-Client-Berechnung und Batch-Speicherung einfuehren. |
-| Assignment-Ladefehler | `geometry_assignment` GET | HTTP 400 erschien in der Konsole, obwohl das Frontend den Fall als fehlende gespeicherte Eigenschaften behandelte. | Mit Commit `99b5f9830f320101c935810eb419cafa0830486e` fuer syntaktisch gueltige fehlende Geometrien auf leeren 200-Zustand umgestellt und im Browser nachgetestet. |
-| Quellenprotokoll | Backend | Erzeugte Derived-Geometrien sind schwer reproduzierbar. | Optional Tabelle `political_territory_derived_geometry_source` oder aequivalentes Protokoll. |
+| Local override UI | `js/territory/territory-override-footer.js` | The geometry-referenced UI path was disabled in the active UI but remains as legacy code. | Remove after diagnosis and sign-off, or keep encapsulating it further. |
+| Legacy snapshots | `style_json.assignmentDisplays` / `assignment_displays` | Duplicate truth versus the global territory values. | Read only as a legacy fallback/diagnosis; do not store as active truth. |
+| Active breadcrumb | `activeDisplayNode`, `readRootSelection()` | The fallback to the last breadcrumb element can address the wrong territory. | Set the breadcrumb switch explicitly and re-synchronize panels; harden the fallback later. |
+| Derived-geometry target | `territory-derived-geometry-iframe-editor.js::getTargetKey()` | Correct in principle, but the reload on a breadcrumb switch must be guaranteed. | Call `loadForCurrentTerritory()` explicitly after a breadcrumb switch; browser test pending. |
+| Inner-boundary UI | `updateInnerBoundaryControl()` | The leaf-node UI was corrected to disabled, checked, grayed out; browser test passed. | Mark as done after a further regression test. |
+| Outer-boundary mode | Frontend/Backend | The UI toggle is visible, but the recursive mode is deliberately disabled. | Phase 7: introduce hierarchical boundary planning, editor-client computation and batch storage. |
+| Assignment load error | `geometry_assignment` GET | HTTP 400 appeared in the console, although the frontend treated the case as missing saved properties. | With commit `99b5f9830f320101c935810eb419cafa0830486e` switched to an empty 200 state for syntactically valid missing geometries and retested in the browser. |
+| Source log | Backend | Generated derived geometries are hard to reproduce. | Optionally a table `political_territory_derived_geometry_source` or an equivalent log. |
 
-## Manuelle Testfaelle
+## Manual test cases
 
-- Klick auf Olrong-Flaeche, dann Breadcrumb `Lorgolosch`: Eigenschaften und Derived Geometry betreffen `Lorgolosch`.
-- Klick auf Kibrom-Asch, dann Breadcrumb `Kibrom`: Eigenschaften und Derived Geometry betreffen `Kibrom`.
-- Blattknoten ohne Unterregionen: `Innengrenzen darstellen` ist deaktiviert, abgehakt und ausgegraut.
-- Geometrie-Panel zeigt `Für alle Unterregionen übernehmen` deaktiviert mit Hinweis auf die nur fuer das ausgewaehlte Gebiet erzeugte Außengrenze.
-- `geometry_assignment` mit syntaktisch gueltiger, aber nicht vorhandener `geometry_public_id` liefert HTTP 200 und keinen roten Konsolenfehler.
-- `Außengrenzen darstellen` deaktivieren und speichern: Nur aktive Derived Geometry des Territoriums wird deaktiviert; echte Geometrien bleiben unveraendert.
-- Lokale Override-UI erscheint nicht mehr in der aktiven Bedienoberflaeche.
-- Bestehende echte Polygone bleiben nach jedem Commit unveraendert.
-- Bestehende Territorien und Hierarchien bleiben nach jedem Commit unveraendert.
+- Click on the Olrong area, then breadcrumb `Lorgolosch`: properties and derived geometry concern `Lorgolosch`.
+- Click on Kibrom-Asch, then breadcrumb `Kibrom`: properties and derived geometry concern `Kibrom`.
+- Leaf node without sub-regions: `Innengrenzen darstellen` is disabled, checked and grayed out.
+- The geometry panel shows `Für alle Unterregionen übernehmen` disabled, with a hint about the outer boundary generated only for the selected area.
+- `geometry_assignment` with a syntactically valid but non-existent `geometry_public_id` returns HTTP 200 and no red console error.
+- Disable `Außengrenzen darstellen` and save: only the active derived geometry of the territory is disabled; real geometries stay unchanged.
+- The local override UI no longer appears in the active operating surface.
+- Existing real polygons stay unchanged after every commit.
+- Existing territories and hierarchies stay unchanged after every commit.
 
-## Identitaets- und Schichten-Vertrag (2026-05-30, vom Nutzer bestaetigt)
+## Identity and layering contract (2026-05-30, confirmed by the user)
 
-Dieser Vertrag ist die Wahrheit fuer alle weiteren Arbeiten am Editor und an den Aussengrenzen. Vorgaenger (Codex/ChatGPT) sind gescheitert, weil sie diese Schichtung vermischt haben.
+This contract is the truth for all further work on the editor and on the outer boundaries. Predecessors (Codex/ChatGPT) failed because they mixed up this layering.
 
-### 1. Identitaet ist stabil ueber wiki_key
+### 1. Identity is stable via wiki_key
 
-`political_territory_wiki` ist die unveraenderliche Wahrheit fuer Hierarchie, Namen, Details, Wappen (Quelle: Wiki-Aventurica). Der Wiki-Resync (`avesmapsPoliticalUpsertWikiRecord`, territory.php:166) macht `ON DUPLICATE KEY UPDATE` per `wiki_key` -- er aktualisiert, loescht nie. Daher bleibt `political_territory_wiki.id` stabil.
+`political_territory_wiki` is the immutable truth for hierarchy, names, details, Wappen (source: Wiki-Aventurica). The wiki resync (`avesmapsPoliticalUpsertWikiRecord`, territory.php:166) does `ON DUPLICATE KEY UPDATE` by `wiki_key` -- it updates, never deletes. Therefore `political_territory_wiki.id` stays stable.
 
-### 2. Geometrie gehoert zur Identitaet, nicht zur Baum-Position
+### 2. Geometry belongs to the identity, not to the tree position
 
-`political_territory_geometry.territory_id -> political_territory.id`, und `political_territory.wiki_id -> political_territory_wiki.id`. Diese Kette ueberlebt jede Hierarchie-Aenderung im Wiki. Bayern-Szenario: Wechselt Bayern beim Resync von Deutschland zu Oesterreich, aendert sich nur `affiliation_path` im Wiki-Datensatz. Die Geometrie-Zuweisung bleibt. Editoren muessen damit nichts tun -- ausser optional umfaerben (Farbhierarchie zieht Unterreiche automatisch nach).
+`political_territory_geometry.territory_id -> political_territory.id`, and `political_territory.wiki_id -> political_territory_wiki.id`. This chain survives any hierarchy change in the wiki. Bavaria scenario: if Bavaria moves from Germany to Austria during the resync, only `affiliation_path` changes in the wiki record. The geometry assignment stays. Editors have to do nothing about it -- except optionally recolor (the color hierarchy automatically pulls sub-realms along).
 
-### 3. Breadcrumb-Baum = Wiki-Affiliation, NICHT political_territory.parent_id
+### 3. Breadcrumb tree = wiki affiliation, NOT political_territory.parent_id
 
-Der globale Breadcrumb-/Hierarchie-Zustand bezieht sich auf den Wiki-Affiliation-Baum (`political_territory_wiki.affiliation_path_json` / affiliation_*). `political_territory.parent_id` ist nur eine teilbefuellte Schattenkopie (live: 255 "Wurzeln" bei 459 aktiven Territorien) und darf NICHT als Pfadquelle fuer den Breadcrumb dienen. Der aktive-Knoten-Store bindet an die Wiki-Identitaet (wiki_key/wiki_id).
+The global breadcrumb/hierarchy state refers to the wiki affiliation tree (`political_territory_wiki.affiliation_path_json` / affiliation_*). `political_territory.parent_id` is only a partially populated shadow copy (live: 255 "roots" out of 459 active territories) and must NOT serve as the path source for the breadcrumb. The active-node store binds to the wiki identity (wiki_key/wiki_id).
 
-### 4. Geometrien gehoeren an Blattknoten
+### 4. Geometries belong to leaf nodes
 
-Im Idealmodell tragen nur die untersten Knoten echte Geometrien (Editoren modellieren die untersten Regionen). Ausnahme: ein Editor hat keine Information ueber die Teilung eines Reichs und erklaert eine Flaeche zum ganzen Reich -- deshalb kann jeder Knoten auf eine Geometrie gezogen werden. Aussengrenzen uebergeordneter Knoten werden aus den Kindern abgeleitet (bottom-up).
+In the ideal model only the lowest nodes carry real geometries (editors model the lowest regions). Exception: an editor has no information about the division of a Reich and declares an area to be the whole Reich -- which is why any node can be dragged onto a geometry. Outer boundaries of higher-level nodes are derived from the children (bottom-up).
 
-### 5. Aussengrenze ist immer da -- kein An/Aus-Haekchen
+### 5. The outer boundary is always there -- no on/off checkbox
 
-Jeder Knoten, der eine Aussengrenze erzeugen kann, bekommt automatisch eine. Das fruehere "Aussengrenzen darstellen"-Haekchen war nur ein Test und entfaellt als Schalter. Stattdessen: waehlbarer Linien-STIL (dick/duenn/gestrichelt, Presets), idealerweise pro Ebene/Typ (Reichsgrenze != Grafschaftsgrenze, analog Landes- vs. Bundesgrenze) mit optionalem Einzel-Override pro Territorium. Die FUELLUNG kommt weiterhin aus `color`/`opacity`.
+Every node that can produce an outer boundary automatically gets one. The earlier "Außengrenzen darstellen" checkbox was only a test and is dropped as a toggle. Instead: a selectable line STYLE (thick/thin/dashed, presets), ideally per level/type (Reichsgrenze != Grafschaftsgrenze, analogous to state vs. federal border) with an optional individual override per territory. The FILL still comes from `color`/`opacity`.
 
-### 6. Innengrenzen
+### 6. Inner boundaries
 
-"Innengrenzen darstellen" zeigt die (Aussen-)Grenzen der darunterliegenden Knoten, damit die Karte beim Zoomen detaillierter wird. Das spaetere Mergen doppelter, deckungsgleicher Grenzlinien (Editoren modellieren benachbarte Regionen mit Snapping -> Koordinaten liegen exakt aufeinander) ist ein EIGENES, spaeteres Feature und nicht Teil des aktuellen Schritts.
+"Innengrenzen darstellen" shows the (outer) boundaries of the nodes below, so the map becomes more detailed when zooming. The later merging of duplicate, coincident boundary lines (editors model neighboring regions with snapping -> coordinates lie exactly on top of each other) is a SEPARATE, later feature and not part of the current step.
 
-### 7. Vertragsaenderung gegenueber dem alten Grenz-Vertrag
+### 7. Contract change versus the old boundary contract
 
-Der alte Grenz-Vertrag oben behandelt "Aussengrenzen darstellen" noch als An/Aus-Schalter. Punkt 5 ersetzt das: Aussengrenze ist Default, der Schalter wird zur Stil-Wahl. Linien-Stil-Spalten existieren heute NICHT im Schema (nur color/opacity = Fuellung) und muessen neu eingefuehrt werden -- genau hier sind Vorgaenger "schon an den Farben gescheitert".
+The old boundary contract above still treats "Außengrenzen darstellen" as an on/off toggle. Point 5 replaces that: the outer boundary is the default, the toggle becomes a style choice. Line-style columns do NOT exist in the schema today (only color/opacity = fill) and must be introduced -- this is exactly where predecessors "already failed at the colors".

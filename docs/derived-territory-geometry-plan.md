@@ -1,67 +1,67 @@
 # Derived Territory Geometry Plan
 
-Dieses Dokument beschreibt den geplanten Workflow fuer automatisch abgeleitete Aussengrenzen von Herrschaftsgebieten in Avesmaps. Es dient zugleich als Arbeitsprotokoll fuer die schrittweise Umsetzung.
+This document describes the planned workflow for automatically derived outer boundaries of Herrschaftsgebiete in Avesmaps. It also serves as a working log for the step-by-step implementation.
 
-## Ziel
+## Goal
 
-Avesmaps pflegt weiterhin die Detailgeometrien redaktionell. Das sind die kleinsten konkret gezeichneten oder importierten Flaechen, zum Beispiel Provinzen, Baronien, freie Geometrien oder einzelne Herrschaftsgebiete.
+Avesmaps continues to maintain the detail geometries editorially. These are the smallest concretely drawn or imported areas, for example provinces, Baronien, free geometries or individual Herrschaftsgebiete.
 
-Uebergeordnete Herrschaftsgebiete sollen ihre sichtbare Aussengrenze nicht manuell gezeichnet bekommen. Stattdessen wird ihre Aussengrenze aus den zugeordneten Unterflaechen automatisch erzeugt.
+Higher-level Herrschaftsgebiete should not have their visible outer boundary drawn manually. Instead, their outer boundary is generated automatically from the assigned sub-areas.
 
-Beispielmodell:
-
-```text
-Bundeslaender werden gepflegt.
-Deutschland wird automatisch aus der Union der Bundeslaender erzeugt.
-```
-
-Fuer Avesmaps:
+Example model:
 
 ```text
-Detailflaechen bleiben Quelle.
-Reiche, Koenigreiche, Provinzverbuende oder andere Parent-Territorien bekommen abgeleitete Aussengrenzen.
+Bundesländer are maintained editorially.
+Deutschland is generated automatically from the union of the Bundesländer.
 ```
 
-## Grundprinzip
+For Avesmaps:
 
-Die automatisch erzeugte Aussengrenze ist keine redaktionelle Quellgeometrie. Sie ist eine abgeleitete Darstellungsgeometrie.
+```text
+Detail areas remain the source.
+Reiche, Königreiche, Provinzverbünde or other parent territories receive derived outer boundaries.
+```
 
-Die Quelle bleibt:
+## Basic principle
+
+The automatically generated outer boundary is not an editorial source geometry. It is a derived display geometry.
+
+The source remains:
 
 ```text
 political_territory_geometry
 ```
 
-Die Ableitung kommt in eine neue Tabelle:
+The derivation goes into a new table:
 
 ```text
 political_territory_derived_geometry
 ```
 
-Damit bleiben manuelle Datenpflege und automatisch berechnete Kartendarstellung getrennt.
+This keeps manual data maintenance and automatically computed map display separate.
 
-## Datenmodell
+## Data model
 
-### Bestehende Tabelle: political_territory_geometry
+### Existing table: political_territory_geometry
 
-Bleibt unveraendert.
+Remains unchanged.
 
-Verwendung:
+Usage:
 
 ```text
-- manuell/redaktionell gepflegte Detailgeometrien
+- manually/editorially maintained detail geometries
 - source = editor, legacy, manual, editor-assignment, editor-split, ...
-- wird weiter fuer Editieren, Splitten, Zuweisen und Detaildarstellung genutzt
+- continues to be used for editing, splitting, assignment and detail display
 ```
 
-### Neue Tabelle: political_territory_derived_geometry
+### New table: political_territory_derived_geometry
 
-Geplante Verwendung:
+Planned usage:
 
 ```text
-- automatisch berechnete Parent-/Reichs-Aussengrenzen
+- automatically computed parent/Reich outer boundaries
 - territory_id
-- source_revision oder source_signature
+- source_revision or source_signature
 - generated_at
 - min_zoom
 - max_zoom
@@ -71,7 +71,7 @@ Geplante Verwendung:
 - is_active / enabled
 ```
 
-Vorgeschlagene Felder:
+Proposed fields:
 
 ```text
 id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY
@@ -91,73 +91,73 @@ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
 ```
 
-Optional koennen Bounding-Box-Spalten ergaenzt werden, falls BBox-Filter fuer derived Geometrien wichtig werden:
+Optionally, bounding-box columns can be added if BBox filters become important for derived geometries:
 
 ```text
 min_x, min_y, max_x, max_y
 ```
 
-## UI-Plan
+## UI plan
 
-Im bestehenden Herrschaftsgebiet-Editor wird ein neues Panel ergaenzt:
+A new panel is added to the existing Herrschaftsgebiet editor:
 
 ```text
 Geometrie
 ```
 
-Inhalt:
+Content:
 
 ```text
-[ ] Aussengrenzen darstellen
-[ ] Fuer alle Unterregionen erzeugen
+[ ] Außengrenzen darstellen
+[ ] Für alle Unterregionen erzeugen
 Zoom von [ ]
 Zoom bis [ ]
-Thumbnail / Vorschau der erzeugten Geometrie
+Thumbnail / preview of the generated geometry
 Status / Fehlermeldungen
 ```
 
-### Aussengrenzen darstellen
+### Show outer boundaries (`Außengrenzen darstellen`)
 
-Wenn aktiviert:
-
-```text
-- das aktuell ausgewaehlte Breadcrumb-Territorium wird als Ziel genommen
-- alle relevanten Unterflaechen werden gesammelt
-- polygonClipping.union(...) erzeugt daraus eine Aussengrenze
-- die Aussengrenze wird sofort als Vorschau auf der Karte angezeigt
-- ein Thumbnail zeigt die abgeleitete Geometrie verkleinert
-```
-
-Wenn deaktiviert:
+When enabled:
 
 ```text
-- die derived geometry fuer dieses Territorium wird deaktiviert oder geloescht
-- in der angegebenen Zoomstufe wird dieses Parent-Territorium nicht als abgeleitete Aussengrenze gerendert
+- the currently selected breadcrumb territory is taken as the target
+- all relevant sub-areas are collected
+- polygonClipping.union(...) produces an outer boundary from them
+- the outer boundary is shown immediately as a preview on the map
+- a thumbnail shows the derived geometry scaled down
 ```
 
-Wichtig: Das Deaktivieren muss weiterhin erlauben, dass in einer Zoomstufe kein Parent-Territorium gerendert wird.
-
-### Fuer alle Unterregionen erzeugen
-
-Wenn aktiviert:
+When disabled:
 
 ```text
-- nicht nur fuer das aktuell ausgewaehlte Breadcrumb-Territorium wird eine Aussengrenze erzeugt
-- auch fuer untergeordnete Territorien mit eigenen Kindern werden derived geometries erzeugt
-- Blatt-/Unterste-Stufe-Territorien bekommen normalerweise keine derived geometry
+- the derived geometry for this territory is deactivated or deleted
+- at the given zoom level this parent territory is not rendered as a derived outer boundary
 ```
 
-Regel:
+Important: Disabling must still allow no parent territory to be rendered at a given zoom level.
+
+### Generate for all sub-regions (`Für alle Unterregionen erzeugen`)
+
+When enabled:
 
 ```text
-Derived geometry nur fuer Territorien, deren sichtbare Flaeche nicht direkt aus genau einer eigenen political_territory_geometry gerendert werden soll.
+- an outer boundary is generated not only for the currently selected breadcrumb territory
+- derived geometries are also generated for subordinate territories that have their own children
+- leaf / lowest-level territories normally do not receive a derived geometry
 ```
 
-## Client-Geometrie
+Rule:
 
-Die Union wird clientseitig erzeugt, weil polygon-clipping bereits im Frontend vorhanden ist.
+```text
+Derived geometry only for territories whose visible area is not meant to be rendered directly from exactly one of their own political_territory_geometry.
+```
 
-Vorhandene Basis:
+## Client geometry
+
+The union is generated client-side because polygon-clipping is already present in the frontend.
+
+Existing base:
 
 ```text
 window.polygonClipping.union(...)
@@ -166,25 +166,25 @@ clippingMultiPolygonToGeoJson(...)
 regionEntryToClippingMultiPolygon(...)
 ```
 
-Geplanter Ablauf:
+Planned flow:
 
 ```text
-1. Ziel-Territorium aus Breadcrumb/Editor-State bestimmen.
-2. Relevante Kind-/Unterflaechen aus geladenen politischen Geometrien sammeln.
-3. In clipping MultiPolygon konvertieren.
-4. polygonClipping.union(...) ausfuehren.
-5. Ergebnis normalisieren.
-6. In GeoJSON zurueckwandeln.
-7. Vorschau-Layer auf der Karte anzeigen.
-8. Thumbnail aktualisieren.
-9. Beim Speichern GeoJSON an API senden.
+1. Determine the target territory from the breadcrumb/editor state.
+2. Collect relevant child/sub-areas from the loaded political geometries.
+3. Convert to a clipping MultiPolygon.
+4. Run polygonClipping.union(...).
+5. Normalize the result.
+6. Convert back to GeoJSON.
+7. Show the preview layer on the map.
+8. Update the thumbnail.
+9. On save, send the GeoJSON to the API.
 ```
 
-## Labelposition
+## Label position
 
-Fuer derived geometries soll die Labelposition auf der abgeleiteten Aussengrenze berechnet und gespeichert werden.
+For derived geometries, the label position should be computed on the derived outer boundary and stored.
 
-Bevorzugt:
+Preferred:
 
 ```text
 Polylabel / Pole of Inaccessibility
@@ -193,14 +193,14 @@ Polylabel / Pole of Inaccessibility
 Fallback:
 
 ```text
-Bounding-Box-Mitte wie bisher
+Bounding-box center as before
 ```
 
-Die bestehende Funktion `avesmapsPoliticalComputeGeometryLabelCenter(...)` berechnet derzeit nur die Bounding-Box-Mitte. Sie soll entweder erweitert oder durch eine robustere Funktion ergaenzt werden.
+The existing function `avesmapsPoliticalComputeGeometryLabelCenter(...)` currently only computes the bounding-box center. It should either be extended or supplemented by a more robust function.
 
-## API-Plan
+## API plan
 
-Neue API-Actions im politischen Endpoint:
+New API actions in the political endpoint:
 
 ```text
 get_derived_geometry
@@ -208,7 +208,7 @@ save_derived_geometry
 delete_derived_geometry
 ```
 
-Optional spaeter:
+Optionally later:
 
 ```text
 list_derived_geometries
@@ -217,23 +217,23 @@ rebuild_derived_geometry
 
 ### get_derived_geometry
 
-Eingabe:
+Input:
 
 ```text
 territory_public_id
 ```
 
-Antwort:
+Response:
 
 ```text
 ok
 territory_public_id
-derived_geometry oder null
+derived_geometry or null
 ```
 
 ### save_derived_geometry
 
-Eingabe:
+Input:
 
 ```text
 territory_public_id
@@ -246,51 +246,51 @@ is_active
 source_revision / source_signature optional
 ```
 
-Verhalten:
+Behavior:
 
 ```text
-- liest Zielterritorium
-- validiert GeoJSON
-- validiert Zoomrange
-- berechnet Bounds falls noetig
-- deaktiviert alte derived geometry fuer dieses Territorium oder aktualisiert sie
-- speichert neue aktive derived geometry
+- reads the target territory
+- validates the GeoJSON
+- validates the zoom range
+- computes bounds if needed
+- deactivates the old derived geometry for this territory or updates it
+- stores the new active derived geometry
 ```
 
 ### delete_derived_geometry
 
-Eingabe:
+Input:
 
 ```text
 territory_public_id
 ```
 
-Verhalten:
+Behavior:
 
 ```text
-- setzt derived geometry fuer das Territorium inaktiv
-- loescht keine redaktionelle Detailgeometrie
+- sets the derived geometry for the territory inactive
+- does not delete any editorial detail geometry
 ```
 
-## Layer-Rendering
+## Layer rendering
 
-Die oeffentliche politische Layer-Ausgabe muss aktive derived geometries in passenden Zoomstufen beruecksichtigen.
+The public political layer output must take active derived geometries into account at appropriate zoom levels.
 
-Geplantes Verhalten:
+Planned behavior:
 
 ```text
-Wenn active derived geometry fuer ein Territorium existiert und Zoom passt:
-    derived Aussengrenze rendern
-    label_lng / label_lat aus derived geometry nutzen
+If an active derived geometry exists for a territory and the zoom matches:
+    render the derived outer boundary
+    use label_lng / label_lat from the derived geometry
 
-Wenn keine active derived geometry existiert:
-    keine automatische Parent-Aussengrenze rendern
-    bestehende Detail-/Fallback-Logik bleibt erhalten
+If no active derived geometry exists:
+    do not render an automatic parent outer boundary
+    the existing detail/fallback logic is preserved
 ```
 
-Wichtig: Derived geometries sollen nicht mit Detailgeometrien verwechselt werden. Der Client soll sie aber als politische Territorien rendern koennen.
+Important: Derived geometries should not be confused with detail geometries. The client should, however, be able to render them as political territories.
 
-Moegliche Feature-Properties:
+Possible feature properties:
 
 ```text
 source = political_territory_derived
@@ -301,107 +301,107 @@ label_lng
 label_lat
 ```
 
-## Unterste Territorien
+## Lowest-level territories
 
-Fuer Territorien der untersten Stufe werden normalerweise keine derived geometries benoetigt.
+For territories of the lowest level, derived geometries are normally not needed.
 
-Regel:
+Rule:
 
 ```text
-Unterste Stufe:
-    rendert political_territory_geometry
-    keine derived geometry noetig
+Lowest level:
+    renders political_territory_geometry
+    no derived geometry needed
 
-Uebergeordnete Stufe:
-    rendert political_territory_derived_geometry
-    entsteht aus Union der Unterflaechen
+Higher level:
+    renders political_territory_derived_geometry
+    formed from the union of the sub-areas
 ```
 
-Ausnahmen koennen spaeter eingefuehrt werden, zum Beispiel fuer Inselgruppen oder vereinfachte Darstellungsgeometrien.
+Exceptions can be introduced later, for example for island groups or simplified display geometries.
 
-## Implementierungsreihenfolge
+## Implementation order
 
-### Schritt 1: Dokumentation
+### Step 1: Documentation
 
-Status: geplant / begonnen
+Status: planned / started
 
-- Dieses Dokument anlegen.
-- Zielbild und Datenmodell fixieren.
+- Create this document.
+- Fix the target picture and data model.
 
-### Schritt 2: Backend-Datenmodell
+### Step 2: Backend data model
 
-- `political_territory_derived_geometry` in `avesmapsPoliticalEnsureTables(...)` ergaenzen.
-- Neue Hilfsfunktionen fuer Fetch/Upsert/Delete der derived geometry anlegen.
-- Moeglichst eigenes Modul `territories-derived-geometry.php` anlegen.
-- Endpoint require erweitern.
+- Add `political_territory_derived_geometry` to `avesmapsPoliticalEnsureTables(...)`.
+- Create new helper functions for fetch/upsert/delete of the derived geometry.
+- Preferably create a dedicated module `territories-derived-geometry.php`.
+- Extend the endpoint require.
 
-### Schritt 3: API-Actions
+### Step 3: API actions
 
 - `get_derived_geometry`
 - `save_derived_geometry`
 - `delete_derived_geometry`
 
-### Schritt 4: Client Repository
+### Step 4: Client repository
 
-- `politicalTerritoryRepository` um Derived-Methoden erweitern.
-- Keine direkte Kopplung an DOM im Repository.
+- Extend `politicalTerritoryRepository` with derived methods.
+- No direct coupling to the DOM in the repository.
 
-### Schritt 5: UI Panel
+### Step 5: UI panel
 
-- Neues Panel in `index.html` im `region-edit-form` einfuegen.
-- Checkboxen, Zoomfelder, Thumbnail-Container und Statusfeld ergaenzen.
-- CSS falls noetig klein halten.
+- Insert a new panel in `index.html` in the `region-edit-form`.
+- Add checkboxes, zoom fields, thumbnail container and status field.
+- Keep CSS small if needed.
 
-### Schritt 6: Preview-Logik
+### Step 6: Preview logic
 
-- Zielterritorium aus Breadcrumb/Editor-State bestimmen.
-- Unterflaechen sammeln.
-- Union mit `polygonClipping.union(...)` bilden.
-- Vorschau-Layer anzeigen.
-- Thumbnail zeichnen.
+- Determine the target territory from breadcrumb/editor state.
+- Collect sub-areas.
+- Form the union with `polygonClipping.union(...)`.
+- Show the preview layer.
+- Draw the thumbnail.
 
-### Schritt 7: Speichern
+### Step 7: Saving
 
-- Beim Speichern des Herrschaftsgebiet-Editors derived geometry mitspeichern, falls Panel aktiv ist.
-- Bei deaktivierter Checkbox derived geometry deaktivieren.
-- Reload der politischen Ebene ausloesen.
+- When saving the Herrschaftsgebiet editor, also save the derived geometry if the panel is active.
+- When the checkbox is disabled, deactivate the derived geometry.
+- Trigger a reload of the political layer.
 
-### Schritt 8: Layer-Integration
+### Step 8: Layer integration
 
-- Aktive derived geometries in `territories-layer.php` lesen.
-- In passenden Zoomstufen als politische Features ausliefern.
-- Label aus stored label_lng / label_lat verwenden.
+- Read active derived geometries in `territories-layer.php`.
+- Deliver them as political features at appropriate zoom levels.
+- Use the label from the stored label_lng / label_lat.
 
-### Schritt 9: Polylabel
+### Step 9: Polylabel
 
-- Serverseitige Labelpunktfunktion verbessern.
-- Optional clientseitig fuer Vorschau denselben Algorithmus oder vorerst Bounds-Fallback verwenden.
+- Improve the server-side label-point function.
+- Optionally use the same algorithm client-side for the preview, or use the bounds fallback for now.
 
-### Schritt 10: Tests / manuelle Pruefung
+### Step 10: Tests / manual checking
 
-- Parent ohne Kinder.
-- Parent mit genau einem Kind.
-- Parent mit mehreren angrenzenden Kindern.
-- Parent mit Inseln / Exklaven.
-- Deaktivierte Aussengrenze.
-- Zoom von/bis.
-- Editor-Mode vs Public-Mode.
-- Speichern, Reload, erneutes Oeffnen des Editors.
+- Parent without children.
+- Parent with exactly one child.
+- Parent with multiple adjacent children.
+- Parent with islands / exclaves.
+- Disabled outer boundary.
+- Zoom from/to.
+- Editor mode vs public mode.
+- Saving, reload, reopening the editor.
 
-## Arbeitsprotokoll
+## Working log
 
 ### 2026-05-28
 
-- Plan fachlich geklaert.
-- Festgelegt: Detailflaechen bleiben Quelle, Parent-Aussengrenzen werden als derived geometries gespeichert.
-- Festgelegt: Unterste Territorien brauchen normalerweise keine derived geometries.
-- Festgelegt: Union wird clientseitig mit `polygonClipping.union(...)` erzeugt.
-- Festgelegt: Neues UI-Panel im Herrschaftsgebiet-Editor heisst `Geometrie`.
-- Festgelegt: Checkbox `Aussengrenzen darstellen` erzeugt und zeigt Vorschau.
-- Festgelegt: Checkbox `Fuer alle Unterregionen erzeugen` erzeugt auch fuer untergeordnete Parent-Territorien derived geometries.
-- Festgelegt: Deaktivieren muss moeglich bleiben, damit ein Parent in einer Zoomstufe nicht als Aussengrenze gerendert wird.
-- Repository auf aktuellem `master` gescannt.
-- Relevante Dateien identifiziert:
+- Plan clarified at the domain level.
+- Decided: detail areas remain the source, parent outer boundaries are stored as derived geometries.
+- Decided: lowest-level territories normally do not need derived geometries.
+- Decided: the union is generated client-side with `polygonClipping.union(...)`.
+- Decided: the new UI panel in the Herrschaftsgebiet editor is called `Geometrie`.
+- Decided: the `Außengrenzen darstellen` checkbox generates and shows the preview.
+- Decided: the `Für alle Unterregionen erzeugen` checkbox also generates derived geometries for subordinate parent territories.
+- Decided: disabling must remain possible so that a parent is not rendered as an outer boundary at a given zoom level.
+- Scanned the repository on current `master`.
+- Identified relevant files:
   - `api/_internal/political/territory.php`
   - `api/_internal/political/territories-endpoint.php`
   - `api/_internal/political/territories-layer.php`
@@ -414,9 +414,9 @@ Status: geplant / begonnen
   - `js/map-features/map-features-political-territory-repository.js`
   - `index.html`
 
-## Noch offen vor Implementierung
+## Still open before implementation
 
-- Exakte Strategie fuer `source_revision` / `source_signature` definieren.
-- Entscheiden, ob `political_territory_derived_geometry` Bounding-Box-Spalten bekommt.
-- Pruefen, ob der Client genug Kindgeometrien geladen hat, um alle Unterflaechen eines Parent-Territoriums sicher zu unionen.
-- Falls nicht: API-Read fuer child source geometries ergaenzen.
+- Define the exact strategy for `source_revision` / `source_signature`.
+- Decide whether `political_territory_derived_geometry` gets bounding-box columns.
+- Check whether the client has loaded enough child geometries to safely union all sub-areas of a parent territory.
+- If not: add an API read for child source geometries.

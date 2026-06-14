@@ -1,65 +1,65 @@
-# Repository-Datenpolicy
+# Repository Data Policy
 
-Stand: 2026-05-25
+As of: 2026-05-25
 
-Dieses Dokument legt fest, welche Informationen, Dateien und Konfigurationen im Avesmaps-GitHub-Repository liegen duerfen und welche nicht. Es ergaenzt den API-Restrukturierungsplan und ist besonders fuer die geplante PHP/API-Ordnerstruktur relevant.
+This document defines which information, files and configurations may live in the Avesmaps GitHub repository and which may not. It complements the API restructuring plan and is especially relevant for the planned PHP/API folder structure.
 
-## Grundsatz
+## Principle
 
-Das GitHub-Repository darf Code, Dokumentation, Beispielkonfigurationen, Schemata und nicht-geheime Kartendaten enthalten. Es darf keine produktiven Zugangsdaten, Tokens, Passwoerter, privaten Sessions, Datenbankdumps mit Nutzerdaten oder geheimen Serverdetails enthalten.
+The GitHub repository may contain code, documentation, example configurations, schemas and non-secret map data. It must not contain production credentials, tokens, passwords, private sessions, database dumps with user data, or secret server details.
 
-Alles, was zur Reproduzierbarkeit der Anwendung noetig ist, darf ins Repository, sofern es keine Secrets oder personenbezogenen Daten enthaelt.
+Anything required to reproduce the application may go into the repository, provided it contains no secrets or personal data.
 
-Alles, was einen realen Serverzugang, eine reale Datenbank, einen produktiven API-Key oder nicht oeffentliche Nutzerdaten offenlegt, darf nicht ins Repository.
+Anything that exposes real server access, a real database, a production API key, or non-public user data must not go into the repository.
 
-## Darf ins Repository
+## May go into the repository
 
 ### Code
 
-Erlaubt:
+Allowed:
 
 ```text
 HTML, CSS, JavaScript
-PHP-Endpunkte
-PHP-Libraries
-Python-Skripte
-SQL-Schema-Dateien
-GitHub Actions Workflows
-.htaccess-Regeln
-Smoke-Test-Skripte
+PHP endpoints
+PHP libraries
+Python scripts
+SQL schema files
+GitHub Actions workflows
+.htaccess rules
+Smoke-test scripts
 ```
 
-Code darf auch interne Architektur enthalten, z. B. Routinggraph-Aufbau, Wiki-Sync-Logik oder Editorlogik. Dass Code intern verwendet wird, macht ihn nicht geheim. Er muss aber so organisiert werden, dass interne PHP-Dateien im Deployment nicht direkt per URL abrufbar sind.
+Code may also contain internal architecture, e.g. routing-graph construction, WikiSync logic or editor logic. The fact that code is used internally does not make it secret. It must, however, be organized so that internal PHP files are not directly reachable by URL in the deployment.
 
-### Dokumentation
+### Documentation
 
-Erlaubt:
+Allowed:
 
 ```text
 docs/*.md
 README.md
-API-Vertraege
-Migrationsplaene
-Smoke-Test-Beschreibungen
-Architekturentscheidungen
-Beispielrequests und Beispielresponses
+API contracts
+Migration plans
+Smoke-test descriptions
+Architecture decisions
+Example requests and example responses
 ```
 
-Dokumentation darf beschreiben, welche Endpunkte es gibt, welche Methoden und Felder sie erwarten und welche Fehlercodes auftreten koennen. Sie darf keine realen Tokens, Passwoerter oder privaten Serverpfade enthalten.
+Documentation may describe which endpoints exist, which methods and fields they expect, and which error codes can occur. It must not contain real tokens, passwords or private server paths.
 
-### Beispielkonfigurationen
+### Example configurations
 
-Erlaubt:
+Allowed:
 
 ```text
 config/api.config.example.php
 .env.example
-Beispielwerte wie example.org, localhost, replace-with-token
+Example values such as example.org, localhost, replace-with-token
 ```
 
-Beispielkonfigurationen muessen klar als Beispiele erkennbar sein. Platzhalter duerfen niemals echte Zugangsdaten sein.
+Example configurations must be clearly recognizable as examples. Placeholders must never be real credentials.
 
-Erlaubte Beispiele:
+Allowed examples:
 
 ```php
 'database' => [
@@ -74,9 +74,9 @@ Erlaubte Beispiele:
 AVESMAPS_IMPORT_API_TOKEN=replace-with-a-long-random-token
 ```
 
-### SQL-Schemata
+### SQL schemas
 
-Erlaubt:
+Allowed:
 
 ```text
 api/_schema/mysql.sql
@@ -84,31 +84,31 @@ api/_schema/pgsql.sql
 api/_schema/future.mysql.sql
 ```
 
-Schemata duerfen Tabellen, Indizes, Constraints, Beispielkommentare und leere Seed-Strukturen enthalten.
+Schemas may contain tables, indexes, constraints, example comments and empty seed structures.
 
-Nicht erlaubt in Schema-Dateien sind produktive Dumps mit echten Nutzern, echten Passwort-Hashes, echten Tokens, privaten Reports oder produktiven Auditlogs.
+Not allowed in schema files are production dumps with real users, real password hashes, real tokens, private reports or production audit logs.
 
-### Oeffentliche oder redaktionell kontrollierte Kartendaten
+### Public or editorially controlled map data
 
-Erlaubt, sofern bewusst freigegeben:
+Allowed, provided it has been deliberately released:
 
 ```text
 GeoJSON
-SVG-Quelldaten
-statische Kartendaten
-Ortsnamen
+SVG source data
+static map data
+place names
 Wege
 Regionen
-politische Territorien
-Wiki-URLs
-nicht geheime Routingdaten
+political territories
+Wiki URLs
+non-secret routing data
 ```
 
-Diese Daten sind Kern der App. Sie duerfen ins Repository, wenn sie redaktionell kontrolliert sind und keine privaten Nutzerbeitraege oder Moderationsnotizen enthalten.
+This data is the core of the app. It may go into the repository if it is editorially controlled and contains no private user contributions or moderation notes.
 
 ### .htaccess
 
-Erlaubt und gewuenscht:
+Allowed and desired:
 
 ```text
 .htaccess
@@ -118,89 +118,89 @@ api/_schema/.htaccess
 api/diagnostics/.htaccess
 ```
 
-`.htaccess` ist Teil der deployten Sicherheitsarchitektur und gehoert ins Repository. Besonders wichtig sind Zugriffssperren fuer interne Ordner.
+`.htaccess` is part of the deployed security architecture and belongs in the repository. Access denials for internal folders are especially important.
 
-## Darf nicht ins Repository
+## Must not go into the repository
 
-### Produktive Secrets
+### Production secrets
 
-Verboten:
+Forbidden:
 
 ```text
 api/config.local.php
 .env
-API-Tokens
-Import-Tokens
-Session-Secrets
-Datenbankpasswoerter
-FTP/SFTP-Zugangsdaten
-SSH-Schluessel
-OAuth-Client-Secrets
-Google-Service-Account-Keys
+API tokens
+Import tokens
+Session secrets
+Database passwords
+FTP/SFTP credentials
+SSH keys
+OAuth client secrets
+Google service-account keys
 ```
 
-Diese Werte muessen lokal, serverseitig oder in GitHub Secrets liegen.
+These values must live locally, server-side, or in GitHub Secrets.
 
-### Produktive Serverdetails
+### Production server details
 
-Nicht ins Repository gehoeren:
+Do not belong in the repository:
 
 ```text
-produktiver Datenbankname, falls nicht bewusst oeffentlich
-produktiver DB-User
-produktiver DB-Host, falls nicht bewusst oeffentlich
-absolute interne Serverpfade
-Hosting-Kontrollpanel-Zugangsdaten
-SFTP-Host/User/Passwort
+production database name, unless deliberately public
+production DB user
+production DB host, unless deliberately public
+absolute internal server paths
+hosting control-panel credentials
+SFTP host/user/password
 ```
 
-GitHub Actions duerfen Secret-Namen referenzieren, aber nicht deren Werte.
+GitHub Actions may reference secret names, but not their values.
 
-Erlaubt:
+Allowed:
 
 ```yaml
 AVESMAPS_HOST: ${{ secrets.AVESMAPS_HOST }}
 ```
 
-Nicht erlaubt:
+Not allowed:
 
 ```yaml
 AVESMAPS_HOST: real.server.example
-AVESMAPS_PASSWORD: echtes-passwort
+AVESMAPS_PASSWORD: real-password
 ```
 
-### Personenbezogene oder moderationelle Daten
+### Personal or moderation data
 
-Nicht ins Repository gehoeren:
+Do not belong in the repository:
 
 ```text
-reale Nutzermeldungen aus location_reports
-E-Mail-Adressen von Meldern
-IP-Adressen
-Admin-/Editor-Userdaten
-Sessiondaten
-Auditlogs aus Produktion
-Moderationsnotizen
-private Kommentare aus Review-Prozessen
+real user reports from location_reports
+email addresses of reporters
+IP addresses
+admin/editor user data
+session data
+audit logs from production
+moderation notes
+private comments from review processes
 ```
 
-Wenn Beispielreports benoetigt werden, muessen sie synthetisch und klar als Demo-Daten erkennbar sein.
+If example reports are needed, they must be synthetic and clearly recognizable as demo data.
 
-### Produktive Datenbankdumps
+### Production database dumps
 
-Nicht erlaubt:
+Not allowed:
 
 ```text
-vollstaendige SQL-Dumps aus Produktion
-Dumps mit Nutzern
-Dumps mit Tokens
-Dumps mit Auditlogs
-Dumps mit nicht geprueften Community-Meldungen
+full SQL dumps from production
+dumps with users
+dumps with tokens
+dumps with audit logs
+dumps with unreviewed community reports
 ```
 
-Erlaubt sind nur leere Schemata oder bewusst anonymisierte, kleine Testfixtures.
+Only empty schemas or deliberately anonymized, small test fixtures are allowed.
 
-## Soll in GitHub Secrets liegen
+## Should live in GitHub Secrets
 
 ```text
 AVESMAPS_HOST
@@ -210,7 +210,7 @@ AVESMAPS_PASSWORD
 AVESMAPS_REMOTE_PATH
 ```
 
-Weitere moegliche Secrets:
+Further possible secrets:
 
 ```text
 AVESMAPS_IMPORT_API_TOKEN
@@ -220,9 +220,9 @@ AVESMAPS_DB_HOST
 AVESMAPS_DB_NAME
 ```
 
-Wenn diese Werte fuer GitHub Actions nicht gebraucht werden, bleiben sie ausschliesslich auf dem Server oder lokal.
+If these values are not needed for GitHub Actions, they stay exclusively on the server or locally.
 
-## Soll lokal oder serverseitig liegen
+## Should live locally or server-side
 
 ```text
 api/config.local.php
@@ -232,13 +232,13 @@ map/google-sheets-credentials.json
 map/google-sheets-token.json
 ```
 
-Diese Dateien duerfen nicht committed werden. Der Deploy-Workflow soll sie nicht hochladen oder ueberschreiben.
+These files must not be committed. The deploy workflow must not upload or overwrite them.
 
-## Muss vor Webzugriff geschuetzt werden
+## Must be protected against web access
 
-Auch wenn Code im Repository liegen darf, darf nicht alles im Web abrufbar sein.
+Even though code may live in the repository, not everything may be reachable on the web.
 
-Harter Schutz per `.htaccess` fuer:
+Hard protection via `.htaccess` for:
 
 ```text
 api/_internal/
@@ -246,7 +246,7 @@ api/_schema/
 api/diagnostics/
 ```
 
-Minimaler Inhalt:
+Minimal content:
 
 ```apache
 <IfModule mod_authz_core.c>
@@ -259,18 +259,18 @@ Minimaler Inhalt:
 </IfModule>
 ```
 
-Wichtig: Repository-Sichtbarkeit und Web-Erreichbarkeit sind verschiedene Dinge. Interner Code darf im GitHub-Repo liegen, aber im Deployment nicht direkt als URL ausfuehrbar oder lesbar sein.
+Important: repository visibility and web reachability are different things. Internal code may live in the GitHub repo, but in the deployment it must not be directly executable or readable as a URL.
 
-## API-Dokumentation und Stabilitaetsversprechen
+## API documentation and stability promise
 
-Dokumentiert als stabile Entwickler-API werden nur Endpunkte, die bewusst als externer Vertrag gedacht sind:
+Only endpoints deliberately intended as an external contract are documented as a stable developer API:
 
 ```text
 POST /api/route/
 GET  /api/locations/
 ```
 
-Nicht automatisch als externe Entwickler-API versprochen werden:
+Not automatically promised as an external developer API:
 
 ```text
 /api/app/*
@@ -279,31 +279,31 @@ Nicht automatisch als externe Entwickler-API versprochen werden:
 /api/diagnostics/*
 ```
 
-`api/app/*` darf vom Browser erreichbar sein, ist aber primaer Infrastruktur fuer die Avesmaps-App. Diese Endpunkte koennen spaeter dokumentiert werden, wenn sie bewusst stabilisiert wurden.
+`api/app/*` may be reachable from the browser, but is primarily infrastructure for the Avesmaps app. These endpoints can be documented later, once they have been deliberately stabilized.
 
-`api/edit/*` ist geschuetzt und nur fuer Editor-/Review-Funktionen gedacht.
+`api/edit/*` is protected and intended only for editor/review functions.
 
-`api/import/*` ist token-geschuetzt und fuer lokale Import-/Moderationsskripte gedacht.
+`api/import/*` is token-protected and intended for local import/moderation scripts.
 
-`api/diagnostics/*` ist nicht fuer oeffentliche Nutzung gedacht.
+`api/diagnostics/*` is not intended for public use.
 
-## Pruefregeln vor Commits
+## Checks before commits
 
-Vor API-/Deployment-Commits pruefen:
+Before API/deployment commits, check:
 
 ```text
-1. Enthaelt der Commit config.local.php, .env oder echte Tokens?
-2. Enthaelt der Commit produktive Datenbankdumps?
-3. Enthaelt der Commit reale Nutzerdaten, Reports oder Auditlogs?
-4. Sind neue interne Ordner per .htaccess geschuetzt?
-5. Verweist die Dokumentation nur auf Platzhalterwerte?
-6. Bleiben GitHub Actions bei Secret-Referenzen statt echten Werten?
-7. Sind Beispielresponses anonym oder synthetisch?
+1. Does the commit contain config.local.php, .env or real tokens?
+2. Does the commit contain production database dumps?
+3. Does the commit contain real user data, reports or audit logs?
+4. Are new internal folders protected via .htaccess?
+5. Does the documentation reference only placeholder values?
+6. Do GitHub Actions stick to secret references instead of real values?
+7. Are example responses anonymous or synthetic?
 ```
 
-## Smoke-Test fuer Zugriffsschutz
+## Smoke test for access protection
 
-Nach Deployment muessen diese URLs nicht oeffentlich verwertbar sein:
+After deployment, these URLs must not be publicly usable:
 
 ```text
 GET /api/_internal/bootstrap.php
@@ -312,25 +312,25 @@ GET /api/_schema/mysql.sql
 GET /api/diagnostics/political-schema.php
 ```
 
-Erwartung: `403 Forbidden` oder eine andere nicht verwertbare Antwort. Keine PHP-Fehlerausgabe, kein SQL-Inhalt, keine Konfigurationsdetails.
+Expectation: `403 Forbidden` or another non-usable response. No PHP error output, no SQL content, no configuration details.
 
-## Umgang mit versehentlich committed Secrets
+## Handling accidentally committed secrets
 
-Wenn ein Secret versehentlich committed wurde:
+If a secret was accidentally committed:
 
-1. Secret sofort als kompromittiert betrachten.
-2. Secret auf Server/Provider/GitHub rotieren.
-3. Commit nicht nur revertieren; das Secret bleibt sonst in der Git-Historie.
-4. Historienbereinigung nur gezielt und bewusst durchfuehren.
-5. Danach Deploy- und Zugriffstests wiederholen.
+1. Immediately consider the secret compromised.
+2. Rotate the secret on the server/provider/GitHub.
+3. Do not just revert the commit; otherwise the secret remains in the Git history.
+4. Perform history cleanup only deliberately and in a targeted way.
+5. Afterwards, repeat the deploy and access tests.
 
-## Entscheidung fuer die API-Restrukturierung
+## Decision for the API restructuring
 
-Fuer den geplanten Umbau bedeutet diese Policy:
+For the planned rework, this policy means:
 
-- `_internal` und `_schema` duerfen im Repo liegen.
-- `_internal` und `_schema` muessen im Web gesperrt werden.
-- `config.local.php` bleibt ausserhalb des Repos.
-- `config/api.config.example.php` darf im Repo bleiben.
-- Die Route- und Locations-API darf dokumentiert werden.
-- App-, Edit-, Import- und Diagnose-Endpunkte werden klar von der dokumentierten Entwickler-API getrennt.
+- `_internal` and `_schema` may live in the repo.
+- `_internal` and `_schema` must be blocked on the web.
+- `config.local.php` stays outside the repo.
+- `config/api.config.example.php` may stay in the repo.
+- The Route and Locations API may be documented.
+- App, Edit, Import and Diagnostics endpoints are clearly separated from the documented developer API.

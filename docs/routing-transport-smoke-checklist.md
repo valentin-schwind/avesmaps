@@ -1,130 +1,129 @@
 # Routing Transport Smoke Checklist
 
-## 1. Zweck
+## 1. Purpose
 
-- Diese Checkliste dient manuellen Regressionstests nach Routing-/Transport-Refactorings (insbesondere `createGraph`, `getTransportOption`, `isTransportAllowedForPath`, `getSyntheticRouteConfig`, `calculateRoute`).
-- Massgebliche Testumgebung ist [https://avesmaps.de/](https://avesmaps.de/) oder eine vollstaendig konfigurierte API-Umgebung mit SQL-Daten.
-- `python -m http.server` reicht nur fuer statische UI-/Asset-Checks, nicht fuer vollstaendige SQL-/Routingtests.
+- This checklist is for manual regression tests after routing/transport refactorings (in particular `createGraph`, `getTransportOption`, `isTransportAllowedForPath`, `getSyntheticRouteConfig`, `calculateRoute`).
+- The authoritative test environment is [https://avesmaps.de/](https://avesmaps.de/) or a fully configured API environment with SQL data.
+- `python -m http.server` is only enough for static UI/asset checks, not for full SQL/routing tests.
 
-## 2. Vorbereitung
+## 2. Preparation
 
-- Browser-Konsole oeffnen.
-- Seite hart neu laden (Cache umgehen).
-- Sicherstellen, dass SQL-/Kartendaten geladen sind.
-- Nach jedem Testfall auf neue Warnungen/Fehler achten.
-- Besonders relevante Warnungen:
+- Open the browser console.
+- Hard-reload the page (bypass the cache).
+- Make sure the SQL/map data is loaded.
+- After each test case, watch for new warnings/errors.
+- Particularly relevant warnings:
   - `Keine Transportoption ...`
   - `Geschwindigkeit ... nicht definiert`
   - `Kein Segment gefunden fuer Verbindung ...`
-  - `Keine Route ...` / leere Route (falls sichtbar)
+  - `Keine Route ...` / empty route (if visible)
 
-## 3. Baseline-Routing
+## 3. Baseline routing
 
-Testfaelle:
+Test cases:
 
-- Einfache Route zwischen zwei bekannten Orten berechnen.
-- Auf `kuerzeste Route` schalten und berechnen.
-- Auf `schnellste Route` schalten und berechnen.
-- Nach Aenderung der Optionen dieselbe Route erneut berechnen.
+- Compute a simple route between two known locations.
+- Switch to `kuerzeste Route` (shortest route) and compute.
+- Switch to `schnellste Route` (fastest route) and compute.
+- After changing the options, recompute the same route.
 
-Erwartete Beobachtung:
+Expected observation:
 
-- Route wird gezeichnet.
-- Etappenliste aktualisiert sich.
-- Keine neuen Konsolenfehler.
+- The route is drawn.
+- The leg list updates.
+- No new console errors.
 
-## 4. Umstiege minimieren
+## 4. Minimize transfers
 
-Testfaelle:
+Test cases:
 
-- Gleiche Route mit `Umstiege minimieren` aus.
-- Gleiche Route mit `Umstiege minimieren` an.
+- Same route with `Umstiege minimieren` (minimize transfers) off.
+- Same route with `Umstiege minimieren` on.
 
-Erwartete Beobachtung:
+Expected observation:
 
-- Route bleibt berechenbar.
-- Eine andere Route ist akzeptabel.
-- Keine zusaetzlichen Fehler-/Warnmeldungen.
+- The route remains computable.
+- A different route is acceptable.
+- No additional error/warning messages.
 
-## 5. Transportarten aktivieren/deaktivieren
+## 5. Enable/disable transport types
 
-Testfaelle:
+Test cases:
 
-- Land aktiviert/deaktiviert.
-- Fluss aktiviert/deaktiviert.
-- See aktiviert/deaktiviert.
-- Kombinierte Faelle:
-  - nur Land
-  - nur Fluss
-  - nur See
-  - Land + Fluss
-  - Land + See
+- Land enabled/disabled.
+- River enabled/disabled.
+- Sea enabled/disabled.
+- Combined cases:
+  - land only
+  - river only
+  - sea only
+  - land + river
+  - land + sea
 
-Erwartete Beobachtung:
+Expected observation:
 
-- Routen aendern sich plausibel oder sind (falls logisch) nicht verfuegbar.
-- Keine unerwarteten JavaScript-Fehler.
+- Routes change plausibly or are (if logical) unavailable.
+- No unexpected JavaScript errors.
 
-## 6. Transportmittel wechseln
+## 6. Switch means of transport
 
-Testfaelle:
+Test cases:
 
-- Landtransport wechseln (z. B. zu Fuss / Pferd / Kutsche, soweit UI vorhanden).
-- Flusstransport wechseln (soweit UI vorhanden).
-- Seetransport wechseln (soweit UI vorhanden).
+- Switch land transport (e.g. to on foot / horse / carriage, where the UI provides it).
+- Switch river transport (where the UI provides it).
+- Switch sea transport (where the UI provides it).
 
-Erwartete Beobachtung:
+Expected observation:
 
-- Bei `schnellste Route` kann sich Reisezeit/Route aendern.
-- Bei `kuerzeste Route` bleibt die Wegwahl plausibel.
+- With `schnellste Route`, travel time/route may change.
+- With `kuerzeste Route`, the path choice stays plausible.
 
-## 7. Datenregeln aus SQL
+## 7. Data rules from SQL
 
-Pruefpunkte:
+Check points:
 
 - `allowed_transports`
 - `transport_domain`
-- Fallback ueber `getDefaultTransportDomainForPathSubtype`
+- Fallback via `getDefaultTransportDomainForPathSubtype`
 
-Erwartung:
+Expectation:
 
-- Pfade werden nicht benutzt, wenn der gewaehlte Transport laut Daten nicht erlaubt ist.
+- Paths are not used if the chosen transport is not allowed according to the data.
 
-## 8. Spezialfall Wuestenpfad + horseCarriage
+## 8. Special case Wüstenpfad + horseCarriage
 
-- Falls ein bekannter Wuestenpfad-Testfall existiert: hier konkrete Start-/Zielorte ergaenzen.
-- Wenn kein konkreter Ort bekannt ist: als TODO offen lassen.
+- If a known Wüstenpfad test case exists: add concrete start/destination locations here.
+- If no concrete location is known: leave it open as a TODO.
 
 TODO:
 
-- Konkreten reproduzierbaren Wuestenpfad-Fall dokumentieren.
+- Document a concrete, reproducible Wüstenpfad case.
 
-Erwartung:
+Expectation:
 
-- `horseCarriage` darf `Wuestenpfad` nicht verwenden.
+- `horseCarriage` must not use `Wuestenpfad`.
 
-## 9. Synthetische Querfeldein-Verbindungen
+## 9. Synthetic Querfeldein connections
 
-Testfaelle:
+Test cases:
 
-- Eine Route testen, die bekanntermassen synthetische Verbindung nutzen kann.
-- Danach Landtransport deaktivieren und erneut testen.
+- Test a route that is known to be able to use a synthetic connection.
+- Then disable land transport and test again.
 
-Erwartete Beobachtung:
+Expected observation:
 
-- Mit passendem Landtransport: Route/Segment wird erzeugt.
-- Ohne Landtransport: synthetische Verbindung wird uebersprungen oder Route ist nicht verfuegbar.
-- Keine Warnung `Kein Segment gefunden fuer Verbindung synthetic-...`.
+- With suitable land transport: route/segment is created.
+- Without land transport: the synthetic connection is skipped or the route is unavailable.
+- No warning `Kein Segment gefunden fuer Verbindung synthetic-...`.
 
-## 10. Nach jedem Refactoring dokumentieren
+## 10. Document after each refactoring
 
-Nutze diese Tabelle nach jedem relevanten Commit:
+Use this table after each relevant commit:
 
-| Datum | Commit | Getestete Faelle | Ergebnis | Offene Auffaelligkeiten |
+| Date | Commit | Tested cases | Result | Open observations |
 | --- | --- | --- | --- | --- |
-| YYYY-MM-DD | abcdef0 | z. B. 3, 4, 5, 9 | OK / NOK | kurze Notiz |
+| YYYY-MM-DD | abcdef0 | e.g. 3, 4, 5, 9 | OK / NOK | short note |
 
-## 11. Bezug zu allgemeinem Smoke-Test
+## 11. Relation to the general smoke test
 
-- Diese Detail-Checkliste ergaenzt den allgemeinen Smoke-Test in `docs/stabilization-smoke-test.md`.
-
+- This detailed checklist complements the general smoke test in `docs/stabilization-smoke-test.md`.
