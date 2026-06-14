@@ -88,12 +88,16 @@
 		} catch (error) {
 			/* noop */
 		}
+		// Apply immediately so elements parsed before this script (the planner +
+		// transport options) are translated BEFORE later top-level init code
+		// (e.g. the transport combobox in map-features.js, which copies option
+		// text) runs. The annotation is the scope, so this is safe to run early.
+		applyI18nOverlay(document);
+		// Re-apply on DOMContentLoaded to cover anything parsed after this script.
 		if (document.readyState === "loading") {
 			document.addEventListener("DOMContentLoaded", function () {
 				applyI18nOverlay(document);
 			});
-		} else {
-			applyI18nOverlay(document);
 		}
 	}
 })();

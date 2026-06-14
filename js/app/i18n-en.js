@@ -14,6 +14,27 @@ window.AVESMAPS_I18N_EN = {
 	"planner.restHoursSuffix": "hours per day",
 	"planner.overview.default": "Waypoints and travel time are shown here.",
 
+	// --- planner: transport section (data-i18n; the custom combobox mirrors the
+	//     native <option> text, so translating the options covers it too) ---
+	"planner.transport.heading": "Means of transport",
+	"planner.transport.filter.land": "Land",
+	"planner.transport.filter.river": "River",
+	"planner.transport.filter.sea": "Sea",
+	"planner.transport.land.aria": "Land transport",
+	"planner.transport.river.aria": "River transport",
+	"planner.transport.sea.aria": "Sea transport",
+	"planner.transport.opt.caravan": "Caravan (3.5 km/h)",
+	"planner.transport.opt.groupFoot": "Group on foot (4 km/h)",
+	"planner.transport.opt.lightWalker": "On foot, light luggage (5 km/h)",
+	"planner.transport.opt.horseCarriage": "Horse carriage (5.5 km/h)",
+	"planner.transport.opt.groupHorse": "Group on horseback (6.5 km/h)",
+	"planner.transport.opt.lightRider": "Rider, light luggage (8 km/h)",
+	"planner.transport.opt.riverSailer": "River sailer",
+	"planner.transport.opt.riverBarge": "River barge",
+	"planner.transport.opt.cargoShip": "Cargo sailer",
+	"planner.transport.opt.fastShip": "Fast sailer",
+	"planner.transport.opt.galley": "Galley",
+
 	// --- planner: dynamic overview/summary (tr) ---
 	"planner.overview.calculating": "Calculating route...",
 	"planner.journey.prefix": "The journey",

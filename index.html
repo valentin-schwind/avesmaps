@@ -936,19 +936,19 @@
 				<button id="searchButton" data-i18n="planner.search">Suche</button>
 			</div>
 			<div id="transport-options">
-				<label>Transportmittel</label>
+				<label data-i18n="planner.transport.heading">Transportmittel</label>
 				<div></div>
 				<label class="transport-filter-label"
-					><input type="checkbox" id="allowLand" checked /> <img class="transport-filter-icon" src="icons/landweg.webp" data-source-src="icons/landweg.webp" alt="" /> Land</label
+					><input type="checkbox" id="allowLand" checked /> <img class="transport-filter-icon" src="icons/landweg.webp" data-source-src="icons/landweg.webp" alt="" /> <span data-i18n="planner.transport.filter.land">Land</span></label
 				>
 				<div class="transport-select-with-icon transport-icon-select">
-					<select id="landTransport" class="transportOptionSelect transport-native-select" aria-label="Land-Transportmittel">
-						<option value="caravan">Karawane (3.5 km/h)</option>
-						<option value="groupFoot" selected>Reisegruppe zu Fuß (4 km/h)</option>
-						<option value="lightWalker">Zu Fuß mit leichtem Gepäck (5 km/h)</option>
-						<option value="horseCarriage">Pferdekutsche (5.5 km/h)</option>
-						<option value="groupHorse">Reisegruppe zu Pferd (6.5 km/h)</option>
-						<option value="lightRider">Reiter zu Pferd mit leichtem Gepäck (8 km/h)</option>
+					<select id="landTransport" class="transportOptionSelect transport-native-select" aria-label="Land-Transportmittel" data-i18n-aria-label="planner.transport.land.aria">
+						<option value="caravan" data-i18n="planner.transport.opt.caravan">Karawane (3.5 km/h)</option>
+						<option value="groupFoot" selected data-i18n="planner.transport.opt.groupFoot">Reisegruppe zu Fuß (4 km/h)</option>
+						<option value="lightWalker" data-i18n="planner.transport.opt.lightWalker">Zu Fuß mit leichtem Gepäck (5 km/h)</option>
+						<option value="horseCarriage" data-i18n="planner.transport.opt.horseCarriage">Pferdekutsche (5.5 km/h)</option>
+						<option value="groupHorse" data-i18n="planner.transport.opt.groupHorse">Reisegruppe zu Pferd (6.5 km/h)</option>
+						<option value="lightRider" data-i18n="planner.transport.opt.lightRider">Reiter zu Pferd mit leichtem Gepäck (8 km/h)</option>
 					</select>
 					<button type="button" id="landTransportButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="landTransportMenu">
 						<img id="landTransportIcon" class="transport-option-inline-icon" src="icons/Reisegruppe.webp" data-source-src="icons/Reisegruppe.webp" alt="" />
@@ -957,12 +957,12 @@
 					<div id="landTransportMenu" class="transport-combobox__menu" role="listbox" aria-label="Land-Transportmittel" hidden></div>
 				</div>
 				<label class="transport-filter-label"
-					><input type="checkbox" id="allowRiver" checked /> <img class="transport-filter-icon" src="icons/flussweg.webp" data-source-src="icons/flussweg.webp" alt="" /> Fluss</label
+					><input type="checkbox" id="allowRiver" checked /> <img class="transport-filter-icon" src="icons/flussweg.webp" data-source-src="icons/flussweg.webp" alt="" /> <span data-i18n="planner.transport.filter.river">Fluss</span></label
 				>
 				<div class="transport-select-with-icon transport-icon-select">
-					<select id="riverTransport" class="transportOptionSelect transport-native-select" aria-label="Fluss-Transportmittel">
-						<option value="riverSailer" selected>Flusssegler</option>
-						<option value="riverBarge">Flusskahn</option>
+					<select id="riverTransport" class="transportOptionSelect transport-native-select" aria-label="Fluss-Transportmittel" data-i18n-aria-label="planner.transport.river.aria">
+						<option value="riverSailer" selected data-i18n="planner.transport.opt.riverSailer">Flusssegler</option>
+						<option value="riverBarge" data-i18n="planner.transport.opt.riverBarge">Flusskahn</option>
 					</select>
 					<button type="button" id="riverTransportButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="riverTransportMenu">
 						<img id="riverTransportIcon" class="transport-option-inline-icon" src="icons/Flusssegler.webp" data-source-src="icons/Flusssegler.webp" alt="" />
@@ -971,13 +971,13 @@
 					<div id="riverTransportMenu" class="transport-combobox__menu" role="listbox" aria-label="Fluss-Transportmittel" hidden></div>
 				</div>
 				<label class="transport-filter-label"
-					><input type="checkbox" id="allowSea" checked /> <img class="transport-filter-icon" src="icons/meerweg.webp" data-source-src="icons/meerweg.webp" alt="" /> Meer</label
+					><input type="checkbox" id="allowSea" checked /> <img class="transport-filter-icon" src="icons/meerweg.webp" data-source-src="icons/meerweg.webp" alt="" /> <span data-i18n="planner.transport.filter.sea">Meer</span></label
 				>
 				<div class="transport-select-with-icon transport-icon-select">
-					<select id="seaTransport" class="transportOptionSelect transport-native-select" aria-label="Meer-Transportmittel">
-						<option value="cargoShip" selected>Lastensegler</option>
-						<option value="fastShip">Schnellsegler</option>
-						<option value="galley">Galeere</option>
+					<select id="seaTransport" class="transportOptionSelect transport-native-select" aria-label="Meer-Transportmittel" data-i18n-aria-label="planner.transport.sea.aria">
+						<option value="cargoShip" selected data-i18n="planner.transport.opt.cargoShip">Lastensegler</option>
+						<option value="fastShip" data-i18n="planner.transport.opt.fastShip">Schnellsegler</option>
+						<option value="galley" data-i18n="planner.transport.opt.galley">Galeere</option>
 					</select>
 					<button type="button" id="seaTransportButton" class="transport-combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="seaTransportMenu">
 						<img id="seaTransportIcon" class="transport-option-inline-icon" src="icons/Lastensegler.webp" data-source-src="icons/Lastensegler.webp" alt="" />
