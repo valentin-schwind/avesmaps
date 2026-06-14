@@ -202,7 +202,8 @@ function avesmapsEnsureMapReportsTableForReview(PDO $pdo): void {
             reviewed_by BIGINT UNSIGNED NULL,
             PRIMARY KEY (id),
             KEY idx_map_reports_status_created_at (status, created_at),
-            KEY idx_map_reports_type_status (report_type, report_subtype, status)
+            KEY idx_map_reports_type_status (report_type, report_subtype, status),
+            KEY idx_map_reports_ip_hash_created_at (ip_hash, created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 }
