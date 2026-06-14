@@ -281,6 +281,9 @@ function syncPlannerStateToUrl() {
 	}
 
 	const searchParams = buildPlannerSearchParams();
+	if (window.avesmapsActiveLang === "en") {
+		searchParams.set("lang", "en");
+	}
 	const queryString = searchParams.toString();
 	const nextUrl = `${window.location.pathname}${queryString ? `?${queryString}` : ""}${window.location.hash}`;
 
