@@ -41,6 +41,35 @@ function discardUnusedReusableRegionLabels() {
 // Lazy pro Render aufgebaut (null = stale).
 let politicalRegionDerivedByTerritory = null;
 
+// Umbruch-Breite der Territoriums-Labels: Anteil der verfuegbaren Breite im Gebiet (= 2x polylabel-Radius
+// am Label-Punkt). 0.9 = nutze 90 % der einbeschriebenen Breite, dann umbrechen. Live justierbar via
+// ?labelwrap=0.9 (>0). Das ist der "ab welcher Breite umbrechen"-Regler (pro Gebiet automatisch).
+const REGION_LABEL_WRAP_WIDTH_FACTOR = (() => {
+	const match = /[?&]labelwrap=([0-9.]+)/.exec(typeof location !== "undefined" ? location.search : "");
+	const value = match ? parseFloat(match[1]) : 0.9;
+	return Number.isFinite(value) && value > 0 ? value : 0.9;
+})();
+
+// Verfuegbare Label-Breite in BILDSCHIRM-px am Label-Punkt: 2x einbeschriebener polylabel-Radius
+// (in Bild-Koords) ueber die aktuelle Zoom-Projektion in px umgerechnet, mal Faktor. null = unbekannt
+// (-> kein Umbruch). Wird pro Render (also pro Zoom) neu berechnet.
+function computeRegionLabelMaxWidthPx(labelLatLng, labelPoi) {
+	if (!labelPoi || !Number.isFinite(labelPoi.distance) || labelPoi.distance <= 0) {
+		return null;
+	}
+	try {
+		const center = map.latLngToContainerPoint(labelLatLng);
+		const edge = map.latLngToContainerPoint(L.latLng(labelLatLng.lat, labelLatLng.lng + labelPoi.distance));
+		const radiusPx = Math.abs(edge.x - center.x);
+		if (!Number.isFinite(radiusPx) || radiusPx <= 0) {
+			return null;
+		}
+		return radiusPx * 2 * REGION_LABEL_WRAP_WIDTH_FACTOR;
+	} catch (error) {
+		return null;
+	}
+}
+
 function indexPoliticalRegionDerivedByTerritory() {
 	politicalRegionDerivedByTerritory = new Map();
 	(Array.isArray(regionData) ? regionData : []).forEach((feature) => {
@@ -387,7 +416,8 @@ function addRegionFeatureToMap(region, regionEntry) {
 				: (regionEntry.labelLat !== null && regionEntry.labelLng !== null
 					? L.latLng(regionEntry.labelLat, regionEntry.labelLng)
 					: polygon.getBounds().getCenter());
-			const labelMarkup = createRegionLabelMarkup(regionEntry, name);
+			const labelMaxWidthPx = computeRegionLabelMaxWidthPx(labelLatLng, labelPoi);
+			const labelMarkup = createRegionLabelMarkup(regionEntry, name, labelMaxWidthPx);
 			const reuseKey = territoryLabelKey || "";
 			const pooledLabel = reuseKey !== "" ? reusableRegionLabelsByKey.get(reuseKey) : null;
 			let label;

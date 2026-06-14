@@ -282,7 +282,51 @@ function getRegionLabelNameTypeStyle() {
 	return style;
 }
 
-function createRegionLabelMarkup(regionEntry, fallbackName) {
+// Territoriums-Label in Zeilen umbrechen, sodass jede Zeile in maxWidthPx (verfuegbare Breite im
+// Gebiet, aus dem polylabel-Radius) passt. Misst mit derselben Schrift wie der Renderer. Bricht NUR
+// an Wortgrenzen; ein einzelnes ueberlanges Wort bleibt als eigene Zeile (kein Trennen). Ohne gueltige
+// maxWidthPx oder wenn der Name einzeilig passt -> eine Zeile (= bisheriges Verhalten).
+let _regionLabelWrapCtx = null;
+function wrapRegionLabelLines(text, typeStyle, fontSizePx, maxWidthPx) {
+	const full = String(text || "");
+	if (!Number.isFinite(maxWidthPx) || maxWidthPx <= 0 || !full) {
+		return [full];
+	}
+	if (!_regionLabelWrapCtx) {
+		_regionLabelWrapCtx = document.createElement("canvas").getContext("2d");
+	}
+	const fontStylePrefix = typeStyle.fontStyle ? `${typeStyle.fontStyle} ` : "";
+	_regionLabelWrapCtx.font = `${fontStylePrefix}${typeStyle.fontWeight} ${fontSizePx}px ${typeStyle.fontFamily}`;
+	const letter = fontSizePx * (typeStyle.letterSpacingRatio || 0);
+	const measure = (value) => {
+		const display = typeStyle.uppercase ? value.toUpperCase() : value;
+		const chars = [...display];
+		if (!chars.length) return 0;
+		return chars.reduce((sum, character) => sum + _regionLabelWrapCtx.measureText(character).width + letter, 0) - letter;
+	};
+	if (measure(full) <= maxWidthPx) {
+		return [full];
+	}
+	const words = full.split(/\s+/).filter(Boolean);
+	if (words.length <= 1) {
+		return [full];
+	}
+	const lines = [];
+	let current = "";
+	for (const word of words) {
+		const candidate = current ? `${current} ${word}` : word;
+		if (current && measure(candidate) > maxWidthPx) {
+			lines.push(current);
+			current = word;
+		} else {
+			current = candidate;
+		}
+	}
+	if (current) lines.push(current);
+	return lines.length ? lines : [full];
+}
+
+function createRegionLabelMarkup(regionEntry, fallbackName, maxWidthPx) {
 	const labelText = normalizeRegionParentheticalSpacing(
 		regionEntry.labelDisplayName
 		|| regionEntry.displayName
@@ -304,12 +348,29 @@ function createRegionLabelMarkup(regionEntry, fallbackName) {
 	let nameMarkup = `<span>${name}</span>`;
 	if (typeof renderMapLabelToImage === "function") {
 		const style = getRegionLabelNameTypeStyle();
-		const image = renderMapLabelToImage(labelText, style.fontSizePx, style);
-		// Das Namens-<img> trägt transparente Innenpolster (padX, Platz für den Halo). NEBEN einem Wappen wird das
-		// als unschön großer Abstand Wappen<->Text sichtbar (Polster + flex-gap). Bei vorhandenem Wappen das linke
-		// Polster per negativem margin-left wieder herausziehen -> das Wappen sitzt wie früher (DOM-Text) dicht am Namen.
-		const coatPull = coatMarkup ? ` style="margin-left:-${image.padX}px"` : "";
-		nameMarkup = `<img class="region-label__name-img"${coatPull} src="${image.url}" width="${image.w}" height="${image.h}" alt="${name}">`;
+		const lines = wrapRegionLabelLines(labelText, style, style.fontSizePx, maxWidthPx);
+		if (lines.length <= 1) {
+			const image = renderMapLabelToImage(labelText, style.fontSizePx, style);
+			// Das Namens-<img> trägt transparente Innenpolster (padX, Platz für den Halo). NEBEN einem Wappen wird das
+			// als unschön großer Abstand Wappen<->Text sichtbar (Polster + flex-gap). Bei vorhandenem Wappen das linke
+			// Polster per negativem margin-left wieder herausziehen -> das Wappen sitzt wie früher (DOM-Text) dicht am Namen.
+			const coatPull = coatMarkup ? ` style="margin-left:-${image.padX}px"` : "";
+			nameMarkup = `<img class="region-label__name-img"${coatPull} src="${image.url}" width="${image.w}" height="${image.h}" alt="${name}">`;
+		} else {
+			// Mehrzeilig: pro Zeile ein <img>, vertikal gestapelt + zentriert (CSS-Spalte). Die Zeilen-imgs
+			// tragen vertikale Halo-Polster -> mit negativem margin-top auf normalen Zeilenabstand ziehen.
+			const lineStep = Math.round(style.fontSizePx * 1.18);
+			let firstPadX = 0;
+			const lineImgs = lines.map((line, index) => {
+				const image = renderMapLabelToImage(line, style.fontSizePx, style);
+				if (index === 0) firstPadX = image.padX;
+				const marginTop = index === 0 ? 0 : (lineStep - image.h);
+				const marginStyle = marginTop !== 0 ? ` style="margin-top:${marginTop}px"` : "";
+				return `<img class="region-label__name-img region-label__name-line"${marginStyle} src="${image.url}" width="${image.w}" height="${image.h}" alt="${escapeHtml(line)}">`;
+			}).join("");
+			const coatPull = coatMarkup ? ` style="margin-left:-${firstPadX}px"` : "";
+			nameMarkup = `<span class="region-label__lines"${coatPull}>${lineImgs}</span>`;
+		}
 	}
 
 	return `<span class="region-label__content">${coatMarkup}${nameMarkup}</span>`;

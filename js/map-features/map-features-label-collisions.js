@@ -16,7 +16,13 @@ function scheduleLabelCollisionResolution() {
 // damit sie sich nicht überlappen. Eigener Pass (eigene acceptedRects) -> stört Orts-/Frei-
 // Label-Declutter nicht. Wird NICHT versteckt: passt nichts innerhalb der Tension, bleibt
 // das Label zentriert (kleineres Übel als ein fehlendes Gebiets-Label).
-const REGION_LABEL_MAX_TENSION = 40;   // max. Verschiebung in px
+// Max. Verschiebung (Repel) in px, bis ein Label ausweicht. Passt es selbst dann nicht kollisionsfrei,
+// wird es AUSGEBLENDET (statt zentriert ueberlappend stehen zu bleiben). Live justierbar via ?labelrepel=40.
+const REGION_LABEL_MAX_TENSION = (() => {
+	const match = /[?&]labelrepel=([0-9.]+)/.exec(typeof location !== "undefined" ? location.search : "");
+	const value = match ? parseFloat(match[1]) : 40;
+	return Number.isFinite(value) && value >= 0 ? value : 40;
+})();
 const REGION_LABEL_TENSION_STEP = 7;   // Ring-Schrittweite
 
 function getRegionLabelOffsetCandidates() {
@@ -57,8 +63,9 @@ function resolveRegionLabelCollisions() {
 		return [];
 	}
 
-	// Schreibphase 1: alle Offsets auf 0 zurücksetzen, damit die Basis-Box bei Offset 0 gemessen wird.
-	entries.forEach(({ element }) => setLabelElementOffset(element, 0, 0));
+	// Schreibphase 1: alle Offsets auf 0 zurücksetzen UND alle wieder einblenden (ein vorheriger Pass kann
+	// Labels ausgeblendet haben) -> Basis-Box bei Offset 0 messen.
+	entries.forEach(({ element }) => { setLabelElementOffset(element, 0, 0); element.style.visibility = ""; });
 
 	// Lesephase: jede Box GENAU EINMAL messen (gebatcht -> ein Reflow statt tausender).
 	const measured = entries.map(({ element, priority }) => ({ element, priority, base: measureLabelCollisionRect(element) }));
@@ -70,7 +77,7 @@ function resolveRegionLabelCollisions() {
 		.sort((left, right) => right.priority - left.priority)
 		.forEach(({ element, base }) => {
 			if (base.width <= 0 || base.height <= 0) {
-				writes.push({ element, dx: 0, dy: 0 });
+				writes.push({ element, dx: 0, dy: 0, hide: false });
 				return;
 			}
 			let chosen = null;
@@ -83,17 +90,20 @@ function resolveRegionLabelCollisions() {
 				}
 			}
 			if (!chosen) {
-				// Tension erschöpft -> zentriert lassen (nicht verstecken) und Rechteck trotzdem
-				// vormerken, damit nachfolgende Labels darum herum ausweichen.
-				acceptedRects.push(base);
-				writes.push({ element, dx: 0, dy: 0 });
+				// Repel-Limit erschöpft -> Label AUSBLENDEN (statt zentriert überlappen zu lassen).
+				// Ein verstecktes Label blockiert nachfolgende NICHT -> KEIN acceptedRects-Eintrag.
+				writes.push({ element, dx: 0, dy: 0, hide: true });
 			} else {
-				writes.push({ element, dx: chosen.dx, dy: chosen.dy });
+				writes.push({ element, dx: chosen.dx, dy: chosen.dy, hide: false });
 			}
 		});
 
-	// Schreibphase 2: alle gewählten Offsets in einem Rutsch anwenden (kein Reflow bis zum nächsten Lesen).
-	writes.forEach(({ element, dx, dy }) => setLabelElementOffset(element, dx, dy));
+	// Schreibphase 2: gewählte Offsets + Sichtbarkeit in einem Rutsch anwenden (kein Reflow bis zum nächsten Lesen).
+	writes.forEach(({ element, dx, dy, hide }) => {
+		setLabelElementOffset(element, dx, dy);
+		element.style.visibility = hide ? "hidden" : "";
+	});
+	// Versteckte Labels NICHT als Hindernisse an den Orts-/Frei-Label-Pass geben.
 	return acceptedRects;
 }
 

@@ -194,6 +194,18 @@ body.edit-mode .map-label img {
 	transform: translate(var(--label-offset-x, 0px), var(--label-offset-y, 0px));
 }
 
+/* Mehrzeiliges Territoriums-Label (Umbruch langer Namen): die Zeilen-<img> vertikal gestapelt +
+   zentriert. Der negative margin-top je Folgezeile kommt aus JS (haengt von Schrift-/Halo-Groesse
+   ab) und zieht den vertikalen Halo-Polster heraus -> normaler Zeilenabstand. */
+.region-label__lines {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+}
+.region-label__name-line {
+	display: block;
+}
+
 .region-label__coat {
 	width: 18px;
 	height: 18px;
