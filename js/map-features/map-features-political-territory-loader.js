@@ -526,6 +526,9 @@ function schedulePoliticalTerritoryLayerReload({ immediate = false } = {}) {
 	// geometry/styles are refetched instead of served from the up-to-60s cache.
 	if (immediate) {
 		invalidatePoliticalTerritoryLayerFetchCache();
+		// Auch den api-client-5s-Layer-Cache leeren, sonst liefert fetchPoliticalTerritories nach einem
+		// Edit bis zu 5s die alte Ebene (Editor-Aenderung erscheint sonst erst beim naechsten Pan).
+		if (typeof invalidatePoliticalLayerCache === "function") invalidatePoliticalLayerCache();
 	}
 	// (2) LAZY: in den reinen Grenzen-Modi (deregraphic/powerlines) erst ab Zoom 1 laden. Bei Zoom 0 ist die
 	// Grenzen-Deckkraft 0 (unsichtbar) -> kein Bedarf. Default-Start ist Zoom 0 -> spart den ~10MB-Startblock.

@@ -28,6 +28,8 @@ try {
     avesmapsPoliticalEnsureTables($pdo);
     $result = avesmapsPoliticalSyncAssignmentZoomsAcrossGeometries($pdo, $zoomByTerritory);
 
+    // Editor-Write -> Layer-Cache sofort leeren (sonst bleibt die Karte bis TTL stale).
+    avesmapsPoliticalAssignmentZoomSyncInvalidateLayerCache();
     avesmapsJsonResponse(200, ['ok' => true] + $result);
 } catch (InvalidArgumentException $exception) {
     avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
@@ -120,4 +122,14 @@ function avesmapsPoliticalSyncAssignmentZoomsAcrossGeometries(PDO $pdo, array $z
     }
 
     return ['updated_geometries' => $updatedGeometries, 'updated_displays' => $updatedDisplays];
+}
+
+function avesmapsPoliticalAssignmentZoomSyncInvalidateLayerCache(): void {
+    $dir = sys_get_temp_dir() . '/avesmaps_layer_cache';
+    if (!is_dir($dir)) {
+        return;
+    }
+    foreach (glob($dir . '/*.json') ?: [] as $file) {
+        @unlink($file);
+    }
 }

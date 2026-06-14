@@ -231,6 +231,10 @@ try {
         default => throw new InvalidArgumentException('Die Darstellungs-Override-Aktion ist unbekannt.'),
     };
 
+    // Editor-Write -> Layer-Cache sofort leeren (sonst bleibt die Karte bis TTL stale).
+    if ($action !== 'state') {
+        avesmapsPoliticalDisplayOverridesInvalidateLayerCache();
+    }
     avesmapsJsonResponse(200, $response);
 } catch (InvalidArgumentException $exception) {
     avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
@@ -505,4 +509,14 @@ function avesmapsPoliticalDisplayOverrideResetLocal(PDO $pdo, array $payload, ar
         'geometry_public_id' => (string) $geometry['public_id'],
         'local_reset' => true,
     ];
+}
+
+function avesmapsPoliticalDisplayOverridesInvalidateLayerCache(): void {
+    $dir = sys_get_temp_dir() . '/avesmaps_layer_cache';
+    if (!is_dir($dir)) {
+        return;
+    }
+    foreach (glob($dir . '/*.json') ?: [] as $file) {
+        @unlink($file);
+    }
 }
