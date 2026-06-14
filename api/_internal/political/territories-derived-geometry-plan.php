@@ -222,7 +222,7 @@ function avesmapsPoliticalFetchDerivedGeometryPlanSourceIndex(PDO $pdo, array $t
     $params = $territoryIds;
     $timelineSql = '';
     if ($selectedYear !== null) {
-        $timelineSql = ' AND (geometry.valid_from_bf IS NULL OR geometry.valid_from_bf <= ?) AND (geometry.valid_to_bf IS NULL OR geometry.valid_to_bf >= ?)';
+        $timelineSql = ' AND (geometry.valid_from_bf IS NULL OR geometry.valid_from_bf <= ?) AND (geometry.valid_to_bf IS NULL OR geometry.valid_to_bf = 0 OR geometry.valid_to_bf >= ?)';
         $params[] = $selectedYear;
         $params[] = $selectedYear;
     }
