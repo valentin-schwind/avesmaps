@@ -38,8 +38,8 @@ function syncLocationReportTypeFields() {
 	if (sourceInputElement) {
 		sourceInputElement.required = !isCommentReport;
 		sourceInputElement.closest(".location-report-form__field").querySelector("span").textContent = isCommentReport
-			? "Quelle (optional)"
-			: "Quelle (Abenteuer, Regionalband, etc.) *";
+			? tr("report.sourceLabelOptional", "Quelle (optional)")
+			: tr("report.sourceLabel", "Quelle (Abenteuer, Regionalband, etc.) *");
 	}
 }
 

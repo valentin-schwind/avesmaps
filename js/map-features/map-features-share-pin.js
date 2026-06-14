@@ -107,7 +107,7 @@ async function sharePlaceLinkWithFeedback(publicId) {
 	const url = buildPlaceShareUrl(publicId);
 	const didCopy = await copyTextToClipboard(url);
 	showFeedbackToast(
-		didCopy ? "Link zu dieser Stelle in die Zwischenablage kopiert." : "Link konnte nicht automatisch kopiert werden.",
+		didCopy ? tr("toast.share.placeCopied", "Link zu dieser Stelle in die Zwischenablage kopiert.") : tr("toast.share.copyFailed", "Link konnte nicht automatisch kopiert werden."),
 		didCopy ? "success" : "warning"
 	);
 	return didCopy;
@@ -116,7 +116,7 @@ async function sharePlaceLinkWithFeedback(publicId) {
 async function copyCurrentUrlToClipboardWithFeedback() {
 	const didCopy = await copyCurrentUrlToClipboard();
 	showFeedbackToast(
-		didCopy ? "Link in die Zwischenablage kopiert." : "Link konnte nicht automatisch kopiert werden.",
+		didCopy ? tr("toast.share.linkCopied", "Link in die Zwischenablage kopiert.") : "Link konnte nicht automatisch kopiert werden.",
 		didCopy ? "success" : "warning"
 	);
 	return didCopy;

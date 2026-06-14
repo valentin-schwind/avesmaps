@@ -18,7 +18,7 @@ function sharePlaceActionButtonMarkup(publicId) {
 		return "";
 	}
 	return popupActionButtonMarkup({
-		label: "🔗 Link teilen",
+		label: tr("popup.shareLink", "🔗 Link teilen"),
 		attributes: {
 			"data-popup-action": "share-place-link",
 			"data-public-id": publicId,
@@ -45,7 +45,7 @@ function wikiLocationLinkMarkup(name, wikiUrlOverride = "") {
 	}
 
 	const wikiTitle = wikiLocationLink.title || name;
-	const linkText = `${name} im Wiki Aventurica`;
+	const linkText = `${name} ${tr("popup.wikiLinkSuffix", "im Wiki Aventurica")}`;
 	const titleText = wikiTitle === name ? linkText : `${linkText}: ${wikiTitle}`;
 	return `
 		<a class="location-popup__wiki-link" href="${escapeHtml(wikiLocationLink.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(titleText)}">
@@ -68,7 +68,7 @@ function settlementCoatIconMarkup(coat) {
 		return "";
 	}
 	const src = coat.source === "own" ? coat.url : `/api/app/coat.php?u=${encodeURIComponent(coat.url)}`;
-	return `<img class="location-popup__icon location-popup__icon--coat" src="${escapeHtml(src)}" alt="Wappen" />`;
+	return `<img class="location-popup__icon location-popup__icon--coat" src="${escapeHtml(src)}" alt="${escapeHtml(tr("popup.coatOfArmsAlt", "Wappen"))}" />`;
 }
 
 function sharePinVisualMarkup(rootClassName = "", { includeDot = true } = {}) {
@@ -96,7 +96,7 @@ function getLocationDescriptionText(name, descriptionOverride = "") {
 
 function locationDescriptionMarkup(name, descriptionOverride = "", isRuined = false) {
 	const description = getLocationDescriptionText(name, descriptionOverride);
-	const statusText = isRuined ? "Ruine oder zerstoert." : "";
+	const statusText = isRuined ? tr("popup.statusRuined", "Ruine oder zerstoert.") : "";
 
 	if (!description && !statusText) {
 		return "";
@@ -108,7 +108,7 @@ function locationDescriptionMarkup(name, descriptionOverride = "", isRuined = fa
 function locationAddToRouteActionMarkup(name) {
 	return locationPopupActionsMarkup([
 		popupActionButtonMarkup({
-			label: "➕ Zur Route hinzufügen",
+			label: tr("popup.addToRoute", "➕ Zur Route hinzufügen"),
 			className: "location-popup__action-button--accent",
 			attributes: {
 				"data-popup-action": "add-location-to-route",
@@ -188,7 +188,7 @@ function routeToggleActionButtonMarkup(name) {
 	const waypointId = typeof findWaypointIdByLocationName === "function" ? findWaypointIdByLocationName(name) : "";
 	if (waypointId) {
 		return popupActionButtonMarkup({
-			label: "Aus Route entfernen",
+			label: tr("popup.removeFromRoute", "Aus Route entfernen"),
 			className: "location-popup__action-button--danger",
 			iconMarkup: '<span class="location-popup__action-icon location-popup__action-icon--remove" aria-hidden="true">✕</span>',
 			attributes: {
@@ -198,7 +198,7 @@ function routeToggleActionButtonMarkup(name) {
 		});
 	}
 	return popupActionButtonMarkup({
-		label: "Zur Route hinzufügen",
+		label: tr("popup.addToRoutePlain", "Zur Route hinzufügen"),
 		className: "location-popup__action-button--accent",
 		iconMarkup: '<span class="location-popup__action-icon" aria-hidden="true">+</span>',
 		attributes: {
@@ -219,7 +219,7 @@ function locationActionsMarkup(name, publicId, location = null) {
 
 	if (publicId) {
 		actionButtons.push(popupActionButtonMarkup({
-			label: "Bewertung schreiben",
+			label: tr("popup.writeReview", "Bewertung schreiben"),
 			iconMarkup: '<span class="location-popup__action-icon location-popup__action-icon--review" aria-hidden="true">★</span>',
 			attributes: {
 				"data-popup-action": "write-review",
@@ -387,7 +387,7 @@ function waypointRemoveActionMarkup(waypointId) {
 
 	return locationPopupActionsMarkup([
 		popupActionButtonMarkup({
-			label: "✕ Aus Route entfernen",
+			label: tr("popup.removeFromRouteX", "✕ Aus Route entfernen"),
 			className: "location-popup__action-button--danger",
 			attributes: {
 				"data-popup-action": "remove-waypoint",
@@ -436,9 +436,9 @@ function labelPopupMarkup(entry) {
 	// Kopflose Infobox (Name + Typ zeigt der Popup-Kopf bereits -> kein Doppel-Titel); Infobox oben,
 	// Aktions-Buttons darunter — wie Siedlungs-/Weg-Popup.
 	const wikiInfobox = hasWiki && typeof labelWikiInfoboxMarkup === "function" ? labelWikiInfoboxMarkup(entry.label, { headless: true }) : "";
-	const typeLabel = (hasWiki && entry.label.wikiRegion.art) ? entry.label.wikiRegion.art : "Region";
+	const typeLabel = (hasWiki && entry.label.wikiRegion.art) ? entry.label.wikiRegion.art : tr("popup.labelTypeRegion", "Region");
 	return locationPopupMarkup({
-		name: entry.label.text || "Label",
+		name: entry.label.text || tr("popup.labelNameFallback", "Label"),
 		locationTypeLabel: typeLabel,
 		showHeaderIcon: false,
 		compact: true,
@@ -451,9 +451,9 @@ function labelPopupMarkup(entry) {
 
 function sharePinPopupMarkup() {
 	return locationPopupMarkup({
-		name: "Markierte Stelle",
+		name: tr("popup.sharePinName", "Markierte Stelle"),
 		locationType: "dorf",
-		locationTypeLabel: "Markierte Stelle",
+		locationTypeLabel: tr("popup.sharePinName", "Markierte Stelle"),
 		headerIconMarkup: sharePinPopupIconMarkup(),
 		showHeaderIcon: true,
 		compact: true,
@@ -462,7 +462,7 @@ function sharePinPopupMarkup() {
 		showWikiLink: false,
 		actionsMarkup: locationPopupActionsMarkup([
 			popupActionButtonMarkup({
-				label: "🗑️ Markierung entfernen",
+				label: tr("popup.removeMarker", "🗑️ Markierung entfernen"),
 				className: "location-popup__action-button--danger",
 				attributes: {
 					"data-popup-action": "remove-share-pin",

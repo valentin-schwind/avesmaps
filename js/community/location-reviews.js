@@ -71,9 +71,9 @@ function formatReviewAverage(average) {
 
 function reviewSummaryMarkup(average, count) {
 	if (!count) {
-		return '<div class="location-reviews__summary location-reviews__summary--empty">Noch keine Bewertungen – sei die erste Stimme!</div>';
+		return `<div class="location-reviews__summary location-reviews__summary--empty">${tr("review.emptySummary", "Noch keine Bewertungen – sei die erste Stimme!")}</div>`;
 	}
-	const label = count === 1 ? "Bewertung" : "Bewertungen";
+	const label = count === 1 ? tr("review.countSingular", "Bewertung") : tr("review.countPlural", "Bewertungen");
 	return '<div class="location-reviews__summary">'
 		+ `<span class="location-reviews__avg">${escapeHtml(formatReviewAverage(average))}</span>`
 		+ reviewStarsMarkup(average)
@@ -82,7 +82,7 @@ function reviewSummaryMarkup(average, count) {
 }
 
 function reviewItemMarkup(review, editable) {
-	const author = escapeHtml(review.author || "Anonym");
+	const author = escapeHtml(review.author || tr("review.anonymousAuthor", "Anonym"));
 	const date = escapeHtml(review.dsa_date || "");
 	const body = escapeHtml(review.body || "");
 	const flags = (review.is_spam ? ' <span class="location-reviews__flag">Spam</span>' : "")
@@ -97,7 +97,7 @@ function reviewItemMarkup(review, editable) {
 		: "";
 	return `<div class="location-reviews__item${review.is_hidden ? " location-reviews__item--hidden" : ""}">`
 		+ '<div class="location-reviews__item-head">'
-		+ `<span class="location-reviews__author">${author} schreibt${date ? ` (${date})` : ""}:${flags}</span>`
+		+ `<span class="location-reviews__author">${author} ${tr("review.writesVerb", "schreibt")}${date ? ` (${date})` : ""}:${flags}</span>`
 		+ moderation
 		+ "</div>"
 		+ reviewStarsMarkup(review.stars)
@@ -128,7 +128,7 @@ function hydrateLocationReviews(slotEl) {
 	}
 	const editable = reviewIsEditMode();
 	const base = editable ? LOCATION_REVIEWS_EDIT_ENDPOINT : LOCATION_REVIEWS_PUBLIC_ENDPOINT;
-	slotEl.innerHTML = '<div class="location-reviews__loading">Bewertungen werden geladen …</div>';
+	slotEl.innerHTML = `<div class="location-reviews__loading">${tr("review.loading", "Bewertungen werden geladen …")}</div>`;
 	fetch(`${base}?location=${encodeURIComponent(publicId)}&limit=${LOCATION_REVIEWS_FETCH_LIMIT}`, { credentials: "same-origin" })
 		.then((response) => (response.ok ? response.json() : null))
 		.then((data) => {
@@ -162,7 +162,7 @@ function openReviewDialog(publicId, name) {
 	}
 	reviewDialogContext = { publicId, name: name || "" };
 	reviewDialogStars = 0;
-	$("#review-dialog-place").text(name || "diesen Ort");
+	$("#review-dialog-place").text(name || tr("review.thisPlaceFallback", "diesen Ort"));
 	$("#review-form-author").val("");
 	$("#review-form-body").val("");
 	$("#review-form-date").val("");
@@ -183,7 +183,7 @@ function updateReviewStarPicker(value) {
 		const starValue = Number($(this).data("star")) || 0;
 		$(this).toggleClass("is-active", starValue <= reviewDialogStars);
 	});
-	$("#review-form-stars-hint").text(reviewDialogStars > 0 ? `${reviewDialogStars} von 5` : "Sterne vergeben");
+	$("#review-form-stars-hint").text(reviewDialogStars > 0 ? `${reviewDialogStars} ${tr("review.ofFive", "von 5")}` : tr("review.starsHint", "Sterne vergeben"));
 }
 
 function updateReviewBodyCounter() {
@@ -196,13 +196,13 @@ function submitReviewForm() {
 		return;
 	}
 	if (reviewDialogStars < 1) {
-		showFeedbackToast("Bitte vergib 1 bis 5 Sterne.", "warning");
+		showFeedbackToast(tr("review.toastNeedStars", "Bitte vergib 1 bis 5 Sterne."), "warning");
 		return;
 	}
 	// Optionales Datum pruefen: leer = Auto, sonst muss es ein gueltiges aventurisches Datum sein.
 	const normalizedDate = normalizeReviewDsaDate(String($("#review-form-date").val() || ""));
 	if (normalizedDate === null) {
-		showFeedbackToast('Bitte ein gültiges aventurisches Datum eingeben, z. B. „7. Rahja 1049 BF" – oder das Feld leer lassen.', "warning");
+		showFeedbackToast(tr("review.toastInvalidDate", 'Bitte ein gültiges aventurisches Datum eingeben, z. B. „7. Rahja 1049 BF" – oder das Feld leer lassen.'), "warning");
 		$("#review-form-date").trigger("focus");
 		return;
 	}
@@ -226,15 +226,15 @@ function submitReviewForm() {
 		.then((response) => response.json().catch(() => null))
 		.then((data) => {
 			if (!data || data.ok === false) {
-				showFeedbackToast(apiErrorMessage(data, "Bewertung konnte nicht gespeichert werden."), "warning");
+				showFeedbackToast(apiErrorMessage(data, tr("review.toastSaveFailed", "Bewertung konnte nicht gespeichert werden.")), "warning");
 				return;
 			}
-			showFeedbackToast(data.message || "Danke für deine Bewertung!", "success");
+			showFeedbackToast(data.message || tr("review.toastThanks", "Danke für deine Bewertung!"), "success");
 			const publicId = reviewDialogContext.publicId;
 			closeReviewDialog();
 			refreshOpenReviewSlots(publicId);
 		})
-		.catch(() => showFeedbackToast("Bewertung konnte nicht gesendet werden.", "warning"))
+		.catch(() => showFeedbackToast(tr("review.toastSendFailed", "Bewertung konnte nicht gesendet werden."), "warning"))
 		.finally(() => $submit.prop("disabled", false));
 }
 

@@ -132,15 +132,15 @@ function settlementWikiInfoboxMarkup(location) {
 	};
 
 	let rows = "";
-	rows += row("Einwohner", wiki.einwohner);
-	rows += row("Oberhaupt", wiki.oberhaupt);
-	rows += row("Bevölkerung", wiki.bevoelkerung);
+	rows += row(tr("popup.fieldInhabitants", "Einwohner"), wiki.einwohner);
+	rows += row(tr("popup.fieldRuler", "Oberhaupt"), wiki.oberhaupt);
+	rows += row(tr("popup.fieldPopulation", "Bevölkerung"), wiki.bevoelkerung);
 	if (wiki.tempel) {
-		rows += row("Tempel", wiki.tempel);
+		rows += row(tr("popup.fieldTemples", "Tempel"), wiki.tempel);
 	}
-	rows += row("Beschreibung", settlementFirstSentence(wiki.description));
+	rows += row(tr("popup.fieldDescription", "Beschreibung"), settlementFirstSentence(wiki.description));
 	const wikiLink = wiki.wiki_url
-		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} im Wiki-Aventurica ↗</a>`
+		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} ${escapeHtml(tr("popup.wikiLinkSuffixArrow", "im Wiki-Aventurica ↗"))}</a>`
 		: "";
 
 	// Kein Kopf/Name/Art hier — der Popup-Kopf zeigt Name + Größe bereits (sonst Dopplung/Strich).

@@ -49,11 +49,11 @@ function finalizeLocationReportSubmission({ ok, message }) {
 
 	if (ok) {
 		setLocationReportDialogOpen(false, { resetForm: true });
-		showFeedbackToast(message || "Karteneintrag wurde gemeldet.", "success");
+		showFeedbackToast(message || tr("report.toastSubmitted", "Karteneintrag wurde gemeldet."), "success");
 		return;
 	}
 
-	setLocationReportStatus(message || "Die Meldung konnte nicht gesendet werden.", "error");
+	setLocationReportStatus(message || tr("report.statusSendFailed", "Die Meldung konnte nicht gesendet werden."), "error");
 }
 
 async function handleLocationReportFormSubmit(event) {
@@ -65,12 +65,12 @@ async function handleLocationReportFormSubmit(event) {
 	}
 
 	if (!isLocationReportServiceConfigured()) {
-		setLocationReportStatus("Das Meldeformular ist noch nicht mit dem Avesmaps-Server verbunden.", "error");
+		setLocationReportStatus(tr("report.statusNotConfigured", "Das Meldeformular ist noch nicht mit dem Avesmaps-Server verbunden."), "error");
 		return;
 	}
 
 	if (!locationReportLatLng || !isWithinMapBounds(locationReportLatLng)) {
-		setLocationReportStatus("Die ausgewählte Position ist ungültig.", "error");
+		setLocationReportStatus(tr("report.statusInvalidPosition", "Die ausgewählte Position ist ungültig."), "error");
 		return;
 	}
 
@@ -84,11 +84,11 @@ async function handleLocationReportFormSubmit(event) {
 	if (payload.report_type === "location") {
 		const duplicateLocation = findDuplicateLocationByName(payload.name);
 		if (duplicateLocation) {
-			setLocationReportStatus(`Ein Ort namens "${duplicateLocation.name}" existiert bereits.`, "error");
+			setLocationReportStatus(tr("report.statusDuplicate", `Ein Ort namens "${duplicateLocation.name}" existiert bereits.`, { name: duplicateLocation.name }), "error");
 			return;
 		}
 	}
-	setLocationReportStatus("Meldung wird gesendet...", "pending");
+	setLocationReportStatus(tr("report.statusSending", "Meldung wird gesendet..."), "pending");
 	setLocationReportSubmitPending(true);
 
 	const result = await submitLocationReportRequest(payload);

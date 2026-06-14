@@ -291,73 +291,73 @@
 		<div id="location-report-overlay" hidden>
 			<div id="location-report-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="location-report-title" tabindex="-1">
 				<div class="location-report-dialog__header">
-					<h2 id="location-report-title">Karteneintrag melden</h2>
-					<button id="location-report-close" class="location-report-dialog__close" type="button" aria-label="Meldung schließen">×</button>
+					<h2 id="location-report-title" data-i18n="report.title">Karteneintrag melden</h2>
+					<button id="location-report-close" class="location-report-dialog__close" type="button" aria-label="Meldung schließen" data-i18n-aria-label="report.closeAria">×</button>
 				</div>
-				<p class="location-report-dialog__intro">
+				<p class="location-report-dialog__intro" data-i18n="report.intro">
 					Hilf mit, Avesmaps zu erweitern. Alle Meldungen werden gesammelt und geprüft. Bitte melde nur Einträge mit sicherer Quellenlage und beschreibe die Stelle, wenn die Position nicht eindeutig ist.
 				</p>
 				<form id="location-report-form" class="location-report-form" novalidate>
 					<div class="location-report-form__meta">
 						<div class="location-report-form__meta-item">
-							<span class="location-report-form__meta-label">Position</span>
+							<span class="location-report-form__meta-label" data-i18n="report.positionLabel">Position</span>
 							<span id="location-report-coordinates" class="location-report-form__meta-value">-</span>
 						</div>
 					</div>
 					<label class="location-report-form__field">
-						<span>Art des Eintrags *</span>
+						<span data-i18n="report.typeLabel">Art des Eintrags *</span>
 						<select id="location-report-type" name="report_type" required>
-							<option value="location">Ort</option>
-							<option value="fluss">Fluss</option>
-							<option value="meer">Meer</option>
-							<option value="see">See</option>
-							<option value="region">Region</option>
-							<option value="insel">Insel</option>
-							<option value="gebirge">Gebirge</option>
-							<option value="berggipfel">Berggipfel</option>
-							<option value="wald">Wald</option>
-							<option value="wueste">Wüste</option>
-							<option value="suempfe_moore">Sümpfe/Moore</option>
-							<option value="steppe">Steppe</option>
-								<option value="graslandschaft">Graslandschaft</option>
-								<option value="auenlandschaft">Auenlandschaft</option>
-								<option value="ebene">Ebene</option>
-								<option value="huegelland">Hügelland</option>
-								<option value="tundra">Tundra</option>
-								<option value="kueste">Küste</option>
-								<option value="comment">Kommentar</option>
-							<option value="sonstiges">Sonstiges</option>
+							<option value="location" data-i18n="report.typeOption.location">Ort</option>
+							<option value="fluss" data-i18n="report.typeOption.fluss">Fluss</option>
+							<option value="meer" data-i18n="report.typeOption.meer">Meer</option>
+							<option value="see" data-i18n="report.typeOption.see">See</option>
+							<option value="region" data-i18n="report.typeOption.region">Region</option>
+							<option value="insel" data-i18n="report.typeOption.insel">Insel</option>
+							<option value="gebirge" data-i18n="report.typeOption.gebirge">Gebirge</option>
+							<option value="berggipfel" data-i18n="report.typeOption.berggipfel">Berggipfel</option>
+							<option value="wald" data-i18n="report.typeOption.wald">Wald</option>
+							<option value="wueste" data-i18n="report.typeOption.wueste">Wüste</option>
+							<option value="suempfe_moore" data-i18n="report.typeOption.suempfe_moore">Sümpfe/Moore</option>
+							<option value="steppe" data-i18n="report.typeOption.steppe">Steppe</option>
+								<option value="graslandschaft" data-i18n="report.typeOption.graslandschaft">Graslandschaft</option>
+								<option value="auenlandschaft" data-i18n="report.typeOption.auenlandschaft">Auenlandschaft</option>
+								<option value="ebene" data-i18n="report.typeOption.ebene">Ebene</option>
+								<option value="huegelland" data-i18n="report.typeOption.huegelland">Hügelland</option>
+								<option value="tundra" data-i18n="report.typeOption.tundra">Tundra</option>
+								<option value="kueste" data-i18n="report.typeOption.kueste">Küste</option>
+								<option value="comment" data-i18n="report.typeOption.comment">Kommentar</option>
+							<option value="sonstiges" data-i18n="report.typeOption.sonstiges">Sonstiges</option>
 						</select>
 					</label>
 					<label class="location-report-form__field">
-						<span>Name des neuen Eintrags *</span>
+						<span data-i18n="report.nameLabel">Name des neuen Eintrags *</span>
 						<input id="location-report-name" name="name" type="text" maxlength="80" required />
 					</label>
 					<label id="location-report-size-field" class="location-report-form__field">
-						<span>Ortsgröße *</span>
+						<span data-i18n="report.sizeLabel">Ortsgröße *</span>
 						<select id="location-report-size" name="size" required>
-							<option value="dorf">Dorf</option>
-							<option value="gebaeude">Besondere Bauwerke/Stätten</option>
-							<option value="kleinstadt">Kleine Stadt</option>
-							<option value="stadt">Stadt</option>
-							<option value="grossstadt">Große Stadt</option>
-							<option value="metropole">Metropole</option>
+							<option value="dorf" data-i18n="report.sizeOption.dorf">Dorf</option>
+							<option value="gebaeude" data-i18n="report.sizeOption.gebaeude">Besondere Bauwerke/Stätten</option>
+							<option value="kleinstadt" data-i18n="report.sizeOption.kleinstadt">Kleine Stadt</option>
+							<option value="stadt" data-i18n="report.sizeOption.stadt">Stadt</option>
+							<option value="grossstadt" data-i18n="report.sizeOption.grossstadt">Große Stadt</option>
+							<option value="metropole" data-i18n="report.sizeOption.metropole">Metropole</option>
 						</select>
 					</label>
 					<label class="location-report-form__field">
-						<span>Quelle (Abenteuer, Regionalband, etc.) *</span>
+						<span data-i18n="report.sourceLabel">Quelle (Abenteuer, Regionalband, etc.) *</span>
 						<input id="location-report-source" name="source" type="text" maxlength="200" required />
 					</label>
 					<label class="location-report-form__field">
-						<span>Dein Name/Pseudonym (optional)</span>
+						<span data-i18n="report.reporterNameLabel">Dein Name/Pseudonym (optional)</span>
 						<input id="location-report-reporter-name" name="reporter_name" type="text" maxlength="80" autocomplete="nickname" />
 					</label>
 					<label class="location-report-form__field">
-						<span>Wiki-Link (wenn vorhanden)</span>
+						<span data-i18n="report.wikiUrlLabel">Wiki-Link (wenn vorhanden)</span>
 						<input id="location-report-wiki-url" name="wiki_url" type="url" inputmode="url" maxlength="300" placeholder="https://..." />
 					</label>
 					<label id="location-report-comment-field" class="location-report-form__field">
-						<span>Kommentar (zur näheren Beschreibung)</span>
+						<span data-i18n="report.commentLabel">Kommentar (zur näheren Beschreibung)</span>
 						<textarea id="location-report-comment" name="comment" rows="4" maxlength="800"></textarea>
 					</label>
 					<input id="location-report-lat" name="lat" type="hidden" />
@@ -369,8 +369,8 @@
 					<p id="location-report-service-note" class="location-report-form__service-note" hidden>Das Meldeformular ist hier noch nicht mit einem Avesmaps-Server verbunden.</p>
 					<p id="location-report-status" class="location-report-form__status" role="status" aria-live="polite"></p>
 					<div class="location-report-form__actions">
-						<button id="location-report-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
-						<button id="location-report-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Melden</button>
+						<button id="location-report-cancel" class="location-report-form__button location-report-form__button--secondary" type="button" data-i18n="report.cancel">Abbrechen</button>
+						<button id="location-report-submit" class="location-report-form__button location-report-form__button--primary" type="submit" data-i18n="report.submit">Melden</button>
 					</div>
 				</form>
 			</div>
@@ -832,38 +832,38 @@
 		<div id="review-overlay" hidden>
 			<div id="review-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="review-dialog-title" tabindex="-1">
 				<div class="location-report-dialog__header">
-					<h2 id="review-dialog-title">Neue Bewertung</h2>
-					<button id="review-close" class="location-report-dialog__close" type="button" aria-label="Bewertung schließen" data-review-dialog-close>×</button>
+					<h2 id="review-dialog-title" data-i18n="review.dialogTitle">Neue Bewertung</h2>
+					<button id="review-close" class="location-report-dialog__close" type="button" aria-label="Bewertung schließen" data-i18n-aria-label="review.closeAria" data-review-dialog-close>×</button>
 				</div>
 				<p class="location-report-dialog__intro">Bewerte <strong id="review-dialog-place">diesen Ort</strong> mit 1–5 Sternen und einem kurzen Kommentar (max. 200 Zeichen). Bewertungen erscheinen sofort.</p>
 				<form id="review-form" class="location-report-form" novalidate>
 					<div class="location-report-form__field">
-						<span>Deine Wertung *</span>
-						<div id="review-form-stars" class="review-form__stars" role="group" aria-label="Sterne vergeben">
-							<button type="button" class="review-form__star" data-star="1" aria-label="1 Stern">★</button>
-							<button type="button" class="review-form__star" data-star="2" aria-label="2 Sterne">★</button>
-							<button type="button" class="review-form__star" data-star="3" aria-label="3 Sterne">★</button>
-							<button type="button" class="review-form__star" data-star="4" aria-label="4 Sterne">★</button>
-							<button type="button" class="review-form__star" data-star="5" aria-label="5 Sterne">★</button>
-							<span id="review-form-stars-hint" class="review-form__stars-hint">Sterne vergeben</span>
+						<span data-i18n="review.ratingLabel">Deine Wertung *</span>
+						<div id="review-form-stars" class="review-form__stars" role="group" aria-label="Sterne vergeben" data-i18n-aria-label="review.starsGroupAria">
+							<button type="button" class="review-form__star" data-star="1" aria-label="1 Stern" data-i18n-aria-label="review.star1Aria">★</button>
+							<button type="button" class="review-form__star" data-star="2" aria-label="2 Sterne" data-i18n-aria-label="review.star2Aria">★</button>
+							<button type="button" class="review-form__star" data-star="3" aria-label="3 Sterne" data-i18n-aria-label="review.star3Aria">★</button>
+							<button type="button" class="review-form__star" data-star="4" aria-label="4 Sterne" data-i18n-aria-label="review.star4Aria">★</button>
+							<button type="button" class="review-form__star" data-star="5" aria-label="5 Sterne" data-i18n-aria-label="review.star5Aria">★</button>
+							<span id="review-form-stars-hint" class="review-form__stars-hint" data-i18n="review.starsHint">Sterne vergeben</span>
 						</div>
 					</div>
 					<label class="location-report-form__field">
-						<span>Dein Name</span>
-						<input id="review-form-author" type="text" maxlength="80" autocomplete="off" placeholder="z. B. Elfenstar" />
+						<span data-i18n="review.nameLabel">Dein Name</span>
+						<input id="review-form-author" type="text" maxlength="80" autocomplete="off" placeholder="z. B. Elfenstar" data-i18n-placeholder="review.namePlaceholder" />
 					</label>
 					<label class="location-report-form__field">
-						<span>Deine Bewertung <span id="review-form-body-counter" class="review-form__counter">0/200</span></span>
-						<textarea id="review-form-body" maxlength="200" rows="3" placeholder="Kurz und knackig …"></textarea>
+						<span data-i18n="review.bodyLabel">Deine Bewertung</span> <span id="review-form-body-counter" class="review-form__counter">0/200</span>
+						<textarea id="review-form-body" maxlength="200" rows="3" placeholder="Kurz und knackig …" data-i18n-placeholder="review.bodyPlaceholder"></textarea>
 					</label>
 					<label class="location-report-form__field">
-						<span>Aventurisches Datum (optional, leer = heute)</span>
-						<input id="review-form-date" type="text" maxlength="60" autocomplete="off" placeholder="z. B. 20. Efferd 1048 BF" />
+						<span data-i18n="review.dateLabel">Aventurisches Datum (optional, leer = heute)</span>
+						<input id="review-form-date" type="text" maxlength="60" autocomplete="off" placeholder="z. B. 20. Efferd 1048 BF" data-i18n-placeholder="review.datePlaceholder" />
 					</label>
 					<input id="review-form-website" class="review-form__hp" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" />
 					<div class="location-report-form__actions">
-						<button type="button" class="location-report-form__button location-report-form__button--secondary" data-review-dialog-close>Abbrechen</button>
-						<button id="review-form-submit" type="submit" class="location-report-form__button location-report-form__button--primary">Bewertung absenden</button>
+						<button type="button" class="location-report-form__button location-report-form__button--secondary" data-review-dialog-close data-i18n="review.cancel">Abbrechen</button>
+						<button id="review-form-submit" type="submit" class="location-report-form__button location-report-form__button--primary" data-i18n="review.submit">Bewertung absenden</button>
 					</div>
 				</form>
 			</div>
