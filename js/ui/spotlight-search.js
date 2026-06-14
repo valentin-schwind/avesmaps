@@ -274,7 +274,7 @@ function buildSyntheticSpotlightRegionEntry(result, publicIds) {
 		id: `region:${publicIds[0]}`,
 		kind: "region",
 		name: String(result.name || ""),
-		typeLabel: String(result.type_label || "Herrschaftsgebiet"),
+		typeLabel: String(result.type_label || tr("spotlight.type.region", "Herrschaftsgebiet")),
 		publicIds,
 		regionEntry: null,
 		polygons: [],
@@ -511,7 +511,7 @@ function buildSpotlightLocationEntries() {
 			id: `location:${entry.publicId || entry.name}`,
 			kind: "location",
 			name: entry.name,
-			typeLabel: entry.locationTypeLabel || LOCATION_TYPE_CONFIG[entry.locationType]?.singularLabel || "Ort",
+			typeLabel: entry.locationTypeLabel || LOCATION_TYPE_CONFIG[entry.locationType]?.singularLabel || tr("spotlight.type.location", "Ort"),
 			publicIds: [entry.publicId].filter(Boolean),
 			locationEntry: entry,
 			aliases: [entry.location?.description, entry.location?.wikiUrl],
@@ -546,7 +546,7 @@ function buildSpotlightRegionEntries() {
 				id: `region:${key}`,
 				kind: "region",
 				name: regionEntry.name,
-				typeLabel: "Herrschaftsgebiet",
+				typeLabel: tr("spotlight.type.region", "Herrschaftsgebiet"),
 				publicIds: [regionEntry.publicId].filter(Boolean),
 				regionEntry,
 				polygons: [],
@@ -607,7 +607,7 @@ function buildSpotlightPowerlineEntries() {
 			id: `powerline:${powerline.id || powerline.properties?.public_id || getPowerlineDisplayName(powerline)}`,
 			kind: "powerline",
 			name: getPowerlineDisplayName(powerline),
-			typeLabel: "Kraftlinie",
+			typeLabel: tr("spotlight.type.powerline", "Kraftlinie"),
 			publicIds: [powerline.id || powerline.properties?.public_id].filter(Boolean),
 			powerline,
 			bounds: getSpotlightLatLngBounds(getPowerlineLatLngs(powerline)),
@@ -637,7 +637,7 @@ function getSpotlightLabelTypeLabel(labelType) {
 		insel: "Insel",
 		sonstiges: "Label",
 	};
-	return labels[labelType] || "Label";
+	return tr("spotlight.labelType." + labelType, labels[labelType] || "Label");
 }
 
 function getSpotlightPathTypeLabel(subtype) {
@@ -651,7 +651,7 @@ function getSpotlightPathTypeLabel(subtype) {
 		Flussweg: "Fluss",
 		Seeweg: "Seeweg",
 	};
-	return labels[subtype] || "Weg";
+	return tr("spotlight.pathType." + subtype, labels[subtype] || "Weg");
 }
 
 function getSpotlightPathGroupKey(displayName, subtype) {
