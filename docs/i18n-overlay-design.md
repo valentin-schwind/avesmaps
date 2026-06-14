@@ -119,20 +119,21 @@ Example table entry with a placeholder:
 **IN** — the route-planner panel (`index.html` ~lines 900–1014) and its dynamic
 output:
 - search button (`Suche`), the `Routenplaner` toggle;
-- transport filter labels (`Land`/`Fluss`/`Meer`), the transport `<select>`
-  `<option>` **text** (`Karawane (3.5 km/h)`, `Reisegruppe zu Fuß (4 km/h)`,
-  `Flusssegler`, `Lastensegler`, …) and the selects' `aria-label`s;
 - route mode (`Schnellste Route` / `Kürzeste Route`), `Umsteigen minimieren`,
   `Rastzeiten` + the `Stunden pro Tag` text;
 - the `#overview` placeholder (`Wegpunkte und Dauer der Reise werden hier
-  angezeigt.`);
-- the dynamically-built route summary + planner toasts produced in the planner JS
-  (`js/routing/*`).
+  angezeigt.`) and the `Route wird berechnet...` status;
+- the dynamically-built route summary + route description produced in the planner
+  JS (`js/routing/route-plan.js`, `js/routing/route-view-model.js`).
 
 **OUT** — stays German in v1 (and untranslated by design):
 - all map labels/popups and domain content (place names, Herrschaftsgebiet names,
-  `BF`, slugs); transport `<option value="…">` slugs (`caravan`, `riverSailer`,
-  `cargoShip`, …) — text translated, slug untouched, so routing is unaffected;
+  `BF`, slugs, `<option value="…">` slugs, `PATH_SUBTYPE_KEYS`, `entry.type`);
+- **the whole transport section** (heading `Transportmittel`, the `Land`/`Fluss`/
+  `Meer` filter labels, the native `<select>`s + their `aria-label`s + `<option>`
+  text with km/h, and the per-JS custom combobox button/label/menu) — a nested
+  subsystem, deferred to the first extension after v1;
+- planner toasts (mostly editor/search/context-menu strings, not planner core);
 - the right-click context menus, the legal/`Hinweise` dialog body, spotlight
   search, location reviews, the report-a-location dialog;
 - the political-territory editor, WikiSync UI, admin;
