@@ -96,6 +96,29 @@ function indexPoliticalRegionDerivedByTerritory() {
 	return politicalRegionDerivedByTerritory;
 }
 
+// Index pro Render: Menge der territory_public_ids, die ein KIND haben, dessen Anzeige-Zoom-Band den
+// aktuellen Zoom enthaelt. Solche Eltern duerfen NICHT (mehr) fuellen -> sonst liegt am Uebergabe-Zoom
+// die Eltern-Fuellung (z. B. Kaiserreich, Band 0-2) UND die Kind-Fuellung (z. B. Garetien, Band 2-2)
+// uebereinander = 2x 0.75 = ~0.94 (wirkt opak). Am Uebergabe-Zoom fuellt nur die spezifischere (Kind-)
+// Ebene; das Kind deckt die Flaeche des Elternteils ab. Lazy pro Render (null = stale).
+let politicalRegionFillSuppressedByDisplayingChild = null;
+function indexPoliticalRegionFillSuppressedByDisplayingChild() {
+	politicalRegionFillSuppressedByDisplayingChild = new Set();
+	const currentZoom = Math.round(Number(map.getZoom()));
+	(Array.isArray(regionData) ? regionData : []).forEach((feature) => {
+		const properties = feature?.properties;
+		if (!properties) return;
+		const parentKey = String(properties.parent_public_id || "").trim();
+		if (!parentKey) return;
+		const minZoom = readOptionalRegionZoom(properties.min_zoom);
+		const maxZoom = readOptionalRegionZoom(properties.max_zoom);
+		const childInBand = (minZoom === null || minZoom <= currentZoom)
+			&& (maxZoom === null || maxZoom >= currentZoom);
+		if (childInBand) politicalRegionFillSuppressedByDisplayingChild.add(parentKey);
+	});
+	return politicalRegionFillSuppressedByDisplayingChild;
+}
+
 function prepareRegionData(data) {
 	politicalTerritoryFallbackData = data;
 	clearRenderedRegionLayers();
@@ -131,6 +154,7 @@ function clearRenderedRegionLayers() {
 	regionData = [];
 	politicalRegionLabeledTerritoryKeys = new Set();
 	politicalRegionDerivedByTerritory = null;
+	politicalRegionFillSuppressedByDisplayingChild = null;
 	clearRegionGeometryEdit();
 }
 
@@ -216,6 +240,13 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 		}
 	}
 
+	// Eltern-Fuellung am Uebergabe-Zoom unterdruecken: hat dieses Territorium ein KIND, dessen Anzeige-Band
+	// den aktuellen Zoom enthaelt, dann fuellt nur das (spezifischere) Kind. Sonst liegen Eltern- UND
+	// Kind-Fuellung uebereinander (z. B. Kaiserreich Band 0-2 + Garetien Band 2-2 bei Zoom 2 = ~0.94, opak).
+	const suppressFillForDisplayingChild = !IS_EDIT_MODE
+		&& (politicalRegionFillSuppressedByDisplayingChild || indexPoliticalRegionFillSuppressedByDisplayingChild())
+			.has(String(regionEntry.territoryPublicId || "").trim());
+
 	const style = {
 		color: regionEntry.color,
 		weight,
@@ -224,7 +255,7 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 		// Umstrittene Gebiete: Fuellung ausschneiden (0), damit die diagonale Schraffur des Canvas-
 		// Overlays ueber die Basis-Karte liegt statt ueber der Reichsfarbe. fill:true bleibt -> Polygon
 		// bleibt klickbar (Infobox), Grenzen-Linie unberuehrt (eigenes Overlay).
-		fillOpacity: (isRegionContested(regionEntry) || suppressFillForDerivedHoledFill) ? 0 : fillOpacity,
+		fillOpacity: (isRegionContested(regionEntry) || suppressFillForDerivedHoledFill || suppressFillForDisplayingChild) ? 0 : fillOpacity,
 	};
 	if (levelLineStyle && levelLineStyle.dashArray) {
 		style.dashArray = levelLineStyle.dashArray;
