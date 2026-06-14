@@ -261,6 +261,14 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
         $derivedMaxZoom = avesmapsPoliticalNullableInt($row['geometry_max_zoom'] ?? null);
         $inFillBand = ($derivedMinZoom === null || $derivedMinZoom <= $zoom)
             && ($derivedMaxZoom === null || $derivedMaxZoom >= $zoom);
+        // Label-Band = das ZOOM-Band des TERRITORIUMS (Editor-Wert, autoritativ), NICHT das der Derived-
+        // Geometrie (deren min/max_zoom kann stale sein -> Label erschien wider den Editor, z. B.
+        // Bergkoenigreiche ab Zoom 0 statt 2). Fuellung/Flaeche bleibt am Derived-Band (nach oben sichtbar);
+        // nur das LABEL haengt jetzt an der Editor-min/max_zoom des Territoriums.
+        $territoryMinZoom = avesmapsPoliticalNullableInt($row['territory_min_zoom'] ?? null);
+        $territoryMaxZoom = avesmapsPoliticalNullableInt($row['territory_max_zoom'] ?? null);
+        $inTerritoryLabelBand = ($territoryMinZoom === null || $territoryMinZoom <= $zoom)
+            && ($territoryMaxZoom === null || $territoryMaxZoom >= $zoom);
         $feature = avesmapsPoliticalLayerRowToFeature($row, $yearBf, $zoom);
         $feature['id'] = 'derived:' . (string) $row['geometry_public_id'];
         $feature['properties']['public_id'] = (string) $row['geometry_public_id'];
@@ -295,8 +303,10 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
             )
             : null;
         $feature['properties']['derived_fill_active'] = $inFillBand;
-        // Label nur im eigenen Fuellband; ausserhalb ist die Derived nur ein Umriss.
-        $feature['properties']['show_region_label'] = $inFillBand;
+        // Label nur wenn die Derived fuellt UND der Zoom im TERRITORIUMS-Label-Band liegt (Editor-min/max_zoom).
+        // So respektiert die Label-Anzeige den Territoriumseditor, auch wenn die Derived-Geometrie ein
+        // stale Zoom-Band traegt. Die Flaeche/Fuellung (derived_fill_active) bleibt davon unberuehrt.
+        $feature['properties']['show_region_label'] = $inFillBand && $inTerritoryLabelBand;
         // Fuellung aus, wenn Innengrenzen sichtbar (Umriss-Modus) ODER ausserhalb des Bands.
         if ($showInnerBoundaries || !$inFillBand) {
             $feature['properties']['opacity'] = 0;
