@@ -36,6 +36,26 @@ try {
         avesmapsJsonResponse(204);
     }
 
+    // Fast path (perf): a FRESH political-layer cache hit needs no DB connection and no
+    // ensure-tables DDL. The layer is by far the hottest endpoint, and the ensure-tables
+    // preamble (CREATE IF NOT EXISTS / SHOW COLUMNS / ALTER) ran on every request -- even
+    // cache hits. Serve the prebuilt JSON straight from cache before opening the PDO.
+    if ($requestMethod === 'GET'
+        && avesmapsNormalizeSingleLine((string) ($_GET['action'] ?? 'layer'), 60) === 'layer') {
+        $layerFastCacheFile = avesmapsPoliticalLayerCacheFile($_GET);
+        $layerFastCacheTtl = avesmapsPoliticalLayerCacheTtlSeconds($_GET);
+        if (is_file($layerFastCacheFile) && (time() - (int) @filemtime($layerFastCacheFile)) < $layerFastCacheTtl) {
+            $layerFastCached = @file_get_contents($layerFastCacheFile);
+            if (is_string($layerFastCached) && $layerFastCached !== '') {
+                http_response_code(200);
+                header('Content-Type: application/json; charset=utf-8');
+                header('X-Avesmaps-Layer-Cache: hit');
+                echo $layerFastCached;
+                exit;
+            }
+        }
+    }
+
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsPoliticalEnsureTables($pdo);
     avesmapsPoliticalEnsureDerivedGeometryTables($pdo);
