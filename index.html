@@ -933,7 +933,7 @@
 			<div id="waypoints"></div>
 			<div class="input-options">
 				<button id="inputLocation">+</button>
-				<button id="searchButton">Suche</button>
+				<button id="searchButton" data-i18n="planner.search">Suche</button>
 			</div>
 			<div id="transport-options">
 				<label>Transportmittel</label>
@@ -986,31 +986,31 @@
 					<div id="seaTransportMenu" class="transport-combobox__menu" role="listbox" aria-label="Meer-Transportmittel" hidden></div>
 				</div>
 			</div>
-			<button id="toggle-button">Routenplaner</button>
+			<button id="toggle-button" data-i18n="planner.toggle">Routenplaner</button>
 			<div>
 				<label>
 					<input type="radio" name="pathType" value="fastest" id="fastestPath" checked />
-					Schnellste Route
+					<span data-i18n="planner.route.fastest">Schnellste Route</span>
 				</label>
 				<label>
 					<input type="radio" name="pathType" value="shortest" id="shortestPath" />
-					Kürzeste Route
+					<span data-i18n="planner.route.shortest">Kürzeste Route</span>
 				</label>
 			</div>
 			<div>
 				<label>
 					<input type="checkbox" id="minimizeTransfers" />
-					Umsteigen minimieren
+					<span data-i18n="planner.minimizeTransfers">Umsteigen minimieren</span>
 				</label>
 			</div>
 			<div>
 				<label>
 					<input type="checkbox" id="includeRests" checked />
-					Rastzeiten
+					<span data-i18n="planner.rests">Rastzeiten</span>
 				</label>
-				<input type="number" id="restHours" value="12" min="0.5" max="23.5" step="0.5" style="width: 40px" /> Stunden pro Tag
+				<input type="number" id="restHours" value="12" min="0.5" max="23.5" step="0.5" style="width: 40px" /> <span data-i18n="planner.restHoursSuffix">Stunden pro Tag</span>
 			</div>
-			<div id="overview">Wegpunkte und Dauer der Reise werden hier angezeigt.</div>
+			<div id="overview" data-i18n="planner.overview.default">Wegpunkte und Dauer der Reise werden hier angezeigt.</div>
 		</div>
 		<button id="legal-button" type="button" aria-haspopup="dialog" aria-controls="legal-dialog" aria-expanded="false">Hinweise</button>
 		<div id="legal-overlay" hidden>
