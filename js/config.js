@@ -124,7 +124,16 @@ const POLITICAL_TIMELINE_FRONTEND_ENABLED = window.AVESMAPS_POLITICAL_TIMELINE_F
 // statt der unterschiedlichen per-Territorium-Deckkraft aus der DB). Im Editor gilt weiter die
 // jeweilige Territoriums-Deckkraft. Auf null setzen, um im Frontend wieder die per-Territorium-
 // Deckkraft zu verwenden.
-const POLITICAL_FRONTEND_FILL_OPACITY = 0.75;
+const POLITICAL_FRONTEND_FILL_OPACITY = (() => {
+	// Live justierbar via ?fillopacity=0.25 (0..1) zum Finden des Werts, bei dem das Terrain durchscheint
+	// (Grün ueber flachem Tiefland wirkt bei 0.75 solide). Ohne Param: bisheriger Default 0.75.
+	const match = /[?&]fillopacity=([0-9.]+)/.exec(typeof location !== "undefined" ? location.search : "");
+	if (match) {
+		const value = parseFloat(match[1]);
+		if (Number.isFinite(value)) return Math.max(0, Math.min(1, value));
+	}
+	return 0.75;
+})();
 // Hover-Highlight im Frontend: die Region unter der Maus wird fast weiss eingefaerbt
 // (Infobox-Hover). Auf null setzen, um das Highlight abzuschalten.
 const POLITICAL_HOVER_FILL_COLOR = "#ffffff";
