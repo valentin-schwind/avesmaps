@@ -156,13 +156,10 @@ function avesmapsPoliticalNormalizeRowValidTo(mixed $value, array $row): ?int {
         return $normalizedValue;
     }
 
-    $dissolvedType = mb_strtolower(trim((string) ($row['dissolved_type'] ?? $row['wiki_dissolved_type'] ?? '')));
-    $dissolvedText = mb_strtolower(trim((string) ($row['dissolved_text'] ?? $row['wiki_dissolved_text'] ?? '')));
-    if (
-        in_array($dissolvedType, ['ongoing', 'unknown'], true)
-        || str_contains($dissolvedText, 'besteht')
-        || ($dissolvedType === '' && $dissolvedText === '')
-    ) {
+    if (avesmapsPoliticalIsOpenEndedDissolved(
+        (string) ($row['dissolved_type'] ?? $row['wiki_dissolved_type'] ?? ''),
+        (string) ($row['dissolved_text'] ?? $row['wiki_dissolved_text'] ?? '')
+    )) {
         return null;
     }
 

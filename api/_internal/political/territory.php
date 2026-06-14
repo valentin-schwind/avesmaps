@@ -793,10 +793,19 @@ function avesmapsPoliticalDefaultZoomRange(string $type): array {
     return ['min_zoom' => 1, 'max_zoom' => 6];
 }
 
+// Shared "is this dissolution open-ended?" predicate (M4 DRY; canonical rule). Open when the
+// type is ongoing/unknown, the text contains "besteht", or there is NO dissolution info at all
+// (both type and text empty). A real dissolution type WITH an empty text is NOT open-ended.
+function avesmapsPoliticalIsOpenEndedDissolved(string $dissolvedType, string $dissolvedText): bool {
+    $type = mb_strtolower(trim($dissolvedType));
+    $text = mb_strtolower(trim($dissolvedText));
+    return in_array($type, ['ongoing', 'unknown'], true)
+        || str_contains($text, 'besteht')
+        || ($type === '' && $text === '');
+}
+
 function avesmapsPoliticalReadDissolvedValidTo(array $wikiRecord): ?int {
-    $text = mb_strtolower((string) ($wikiRecord['dissolved_text'] ?? ''));
-    $type = mb_strtolower((string) ($wikiRecord['dissolved_type'] ?? ''));
-    if ($text === '' || str_contains($text, 'besteht') || $type === 'ongoing' || $type === 'unknown') {
+    if (avesmapsPoliticalIsOpenEndedDissolved((string) ($wikiRecord['dissolved_type'] ?? ''), (string) ($wikiRecord['dissolved_text'] ?? ''))) {
         return null;
     }
 
