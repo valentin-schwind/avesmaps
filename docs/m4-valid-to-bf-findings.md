@@ -83,4 +83,21 @@ Two paths — pick one:
 - **(B) Full:** migrate stored `9999`/`0`-as-open to `NULL` and make `0` strictly mean "year
   0" everywhere. Higher risk (data migration + every consumer), bigger correctness payoff.
 
-Awaiting owner decision on: (a) path A vs B, and (b) the `0` semantics in #1/#4.
+## ✅ Resolution — Path A implemented (owner-approved, `0` = open)
+
+Owner chose **Path A** with `valid_to_bf = 0` meaning open-ended. Implemented + live-verified:
+
+- **#3 formatter:** one canonical `avesmapsFormatBfYear` in bootstrap (9999→"besteht"); the two
+  old formatters are now 1-line delegates. wiki-sync gained the 9999 branch (strict improvement).
+- **#2 predicate:** one `avesmapsPoliticalIsOpenEndedDissolved($type, $text)` in `territory.php`
+  (loaded everywhere political), used by both `NormalizeRowValidTo` (behaviour-identical) and
+  `ReadDissolvedValidTo` (canonical edge: empty text + real type ⇒ dissolved, not open).
+- **#1 SQL:** added `OR geometry.valid_to_bf = 0` to the derived-geometry-plan timeline filter to
+  match the layer query's 0=open convention.
+
+Live-verified non-breaking: political layer still serves; `territory-detail` renders
+`dissolved="besteht"` (9999 sentinel) and `founded="0 BF, …"` (0 = real year) correctly.
+
+**Path B (full sentinel migration to a single NULL) was NOT done** — deliberately deferred (data
+migration + every consumer = higher risk). The `9999`/`0`/`NULL` storage conventions still coexist;
+this remains a candidate for a future dedicated migration if desired (see §"Proposed canonical model").
