@@ -46,7 +46,7 @@ function currentShareQuery() {
 	}
 	const params = new URLSearchParams(window.location.search);
 	// Editor-/Debug-Flags gehören nicht in einen geteilten Link (öffentliche Ansicht).
-	["s", "edit", "debugMap", "serverrouting", "clientrouting"].forEach((key) => params.delete(key));
+	["s", "edit", "debugMap", "serverrouting", "clientrouting", "lang"].forEach((key) => params.delete(key));
 	return params.toString();
 }
 
