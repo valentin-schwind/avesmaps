@@ -38,7 +38,7 @@ This document is the living tracker. See `AGENTS.md` for the project brief.
   implementations and pervasive `getMessage()` leaks. → one envelope, one CORS
   path, one auth helper, no shims.
 - **Docs:** 143 → 25 md files after deleting spent process logs; README/llms.txt/
-  site-summary falsely claim "no backend". → ~20 authoritative docs in English +
+  site-summary falsely claimed "no backend" (✅ corrected at source `bc175741`). → ~20 authoritative docs in English +
   `AGENTS.md`.
 - **Stability:** 3 unauthenticated destructive wiki-dom endpoints, getMessage
   leaks (incl. public `territory-detail.php`), derived-layer N+1, DDL-before-cache.
@@ -57,7 +57,7 @@ This document is the living tracker. See `AGENTS.md` for the project brief.
 | **M5** | God-file splits | planned | per split tables, one file at a time, deploy+test between; CSS source split, rename duplicate filename, treat `*-inline.css` as generated |
 | **M6** | Performance | planned | derived-layer N+1 memo, DDL out of cache-hit path, political teardown → signature-skip, polylabel memo, fetch-interceptor, bound+invalidate fan-out cache |
 | **M7** | Schema / SQL | planned | `sql/schema.sql` baseline, document inline-DDL tables, `sql/migrations/`, drop dead schema (`map_feature_relations`, `map_proposals`), reconcile `map_reports` divergence; **keep self-healing inline ensure-tables** |
-| **M8** | Docs & i18n | planned | translate ~20 docs + internal error messages to English; fix the "no backend" claims; rewrite `api/README.md`; **build `?lang=en` i18n overlay (German stays default)** |
+| **M8** | Docs & i18n | planned | ✅ "no backend" claims fixed at source (`bc175741`: llms.txt/site-summary/README). ⏳ translate ~20 docs + internal error messages to English; rewrite `api/README.md`; **build `?lang=en` i18n overlay (German stays default)** |
 
 Each milestone = small verified commits to `master`, deploy + smoke between
 steps, STRATO caution (no looping heavy endpoints).
