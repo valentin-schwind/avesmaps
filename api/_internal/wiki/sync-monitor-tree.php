@@ -73,7 +73,8 @@ function avesmapsWikiSyncMonitorModelTree(PDO $pdo): array {
             'SELECT CONCAT(
                 COALESCE((SELECT MAX(updated_at) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE . '), \'\'), \'|\',
                 COALESCE((SELECT MAX(synced_at) FROM ' . AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE . '), \'\'), \'|\',
-                COALESCE((SELECT revision FROM map_revision WHERE id = 1), 0)
+                COALESCE((SELECT revision FROM map_revision WHERE id = 1), 0), \'|\',
+                COALESCE((SELECT CONCAT(COUNT(*), \':\', COALESCE(SUM(territory_id), 0)) FROM political_territory_geometry WHERE is_active = 1), \'\')
             )'
         )->fetchColumn() ?: '');
         if ($cacheKey !== '') {
