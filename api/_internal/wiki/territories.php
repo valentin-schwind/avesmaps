@@ -2485,11 +2485,7 @@ function avesmapsWikiSyncFormatPoliticalPeriod(array $row): string {
 }
 
 function avesmapsWikiSyncFormatBfYear(int $year): string {
-    if ($year < 0) {
-        return abs($year) . ' v. BF';
-    }
-
-    return $year . ' BF';
+    return avesmapsFormatBfYear($year);
 }
 
 function avesmapsWikiSyncComparePoliticalTreeNodes(array $left, array $right): int {

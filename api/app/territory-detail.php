@@ -47,10 +47,7 @@ const AVESMAPS_TERRITORY_DETAIL_COAT_ALLOWED = ['public_domain', 'attribution_re
 // Formatiert ein BF-Jahr fuer die Anzeige. 9999 (Ongoing-Sentinel) -> "besteht",
 // negativ -> "<n> v. BF", sonst "<n> BF" (0 BF = Bosparans Fall ist gueltig).
 function avesmapsTerritoryDetailFormatBf(int $year): string {
-    if ($year >= 9999) {
-        return 'besteht';
-    }
-    return $year < 0 ? (abs($year) . ' v. BF') : ($year . ' BF');
+    return avesmapsFormatBfYear($year);
 }
 
 try {

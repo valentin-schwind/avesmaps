@@ -327,3 +327,12 @@ function avesmapsServerErrorResponse(Throwable $error, string $context = ''): ne
     error_log('avesmaps' . ($context !== '' ? ' ' . $context : '') . ': ' . $error->getMessage());
     avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
 }
+
+// Canonical BF-year formatter (single source of truth; M4 DRY). 9999 = open/never-dissolved
+// sentinel -> "besteht"; negative -> "<n> v. BF"; otherwise "<n> BF" (0 BF is a real year).
+function avesmapsFormatBfYear(int $year): string {
+    if ($year >= 9999) {
+        return 'besteht';
+    }
+    return $year < 0 ? (abs($year) . ' v. BF') : ($year . ' BF');
+}
