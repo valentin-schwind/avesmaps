@@ -42,7 +42,7 @@ function syncMapScaleBand(controlElement) {
 	}
 
 	if (labelElement) {
-		labelElement.textContent = `${distanceInMiles} Meilen`;
+		labelElement.textContent = tr("units.miles", `${distanceInMiles} Meilen`, { n: distanceInMiles });
 	}
 }
 

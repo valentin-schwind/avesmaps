@@ -220,4 +220,7 @@ window.AVESMAPS_I18N_EN = {
 	"spotlight.pathType.Wuestenpfad": "Desert trail",
 	"spotlight.pathType.Flussweg": "River",
 	"spotlight.pathType.Seeweg": "Sea route",
+
+	// --- units ---
+	"units.miles": "{n} miles",
 };

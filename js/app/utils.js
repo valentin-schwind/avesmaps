@@ -106,7 +106,7 @@ function latLngToCoordinates(latlng) {
 }
 
 function formatDistanceMeasurement(distanceInMiles) {
-	return `${distanceInMiles.toFixed(1)} Meilen`;
+	return tr("units.miles", `${distanceInMiles.toFixed(1)} Meilen`, { n: distanceInMiles.toFixed(1) });
 }
 
 function withAssetVersion(sourcePath) {
