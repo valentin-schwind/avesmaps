@@ -175,11 +175,17 @@ is the default, English is opt-in. Therefore:
 ## 10. Known fragilities
 
 - **Server↔repo drift:** the prod webroot has PHP files not in the repo (deploy
-  never deletes). "Not in the repo" ≠ "safe to delete". Root shims
-  `api/{auth,bootstrap}.php` are load-bearing for clean deploys (the
-  `political-territory-lib`/`wiki-sync-lib` lib shims were removed in M3 step 4
-  after repointing all callers to their `_internal/` targets; auth/bootstrap move
-  to `_internal/core/` in M3 step 6).
+  never deletes). "Not in the repo" ≠ "safe to delete". A 161-orphan surgical
+  cleanup ran 2026-06-14 (deleted the pre-reorg flat `js/`, old icons/css/images,
+  M1/M4 leftovers, and stale dirs `/map /politics /test /js/pages /css/legacy`)
+  via the deploy's "Retire orphaned remote files" step — **never `mirror --delete`**
+  (its dry-run would also delete live files). **Still load-bearing on the server &
+  protected:** `tiles/` (base map; tile files use NEGATIVE y, `map_x_-y`),
+  `uploads/`, `admin/phpMyAdmin`, `api/wiki-sync.php` (frontend fallback),
+  `api/app/.user.ini`, `config.local.php`. Root shims `api/{auth,bootstrap}.php`
+  are kept (clean-deploy safety; the `political-territory-lib`/`wiki-sync-lib` lib
+  shims were removed in M3 step 4). Directory URLs return 404 on this server
+  (listing off) — not a sign of deletion.
 - **`territories-endpoint.php` runs DDL + metadata probes before its cache read**
   on every political-layer request; the derived layer has an N+1 over the full
   territory table. Both are perf hotspots (milestone M6).
