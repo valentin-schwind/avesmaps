@@ -45,7 +45,7 @@ Die Karten- und Routenlogik selbst bleibt komplett im Browser:
 - keine CDN-Einbindung
 - kein Build-Schritt
 
-Fuer Ortsmeldungen kann Avesmaps optional ein kleines PHP-/SQL-Backend nutzen. Ohne `api/` laeuft die Anwendung weiterhin als rein statische Karte und Routenplanung.
+Die statische Karte und die clientseitige Routenberechnung laufen ohne Backend. Die Live-Seite (avesmaps.de) nutzt darueber hinaus ein PHP-8-+-MySQL-Backend unter `api/` fuer Suche, Herrschaftsgebiete, das serverseitige Routing-API, Bewertungen und den Editor.
 
 ## Lokale Nutzung
 

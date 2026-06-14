@@ -34,7 +34,7 @@ Avesmaps ist eine interaktive Webkarte fuer Aventurien. Die Anwendung zeigt Orte
 
 - Die Kartendaten liegen lokal im Projekt und werden nicht ueber externe Dienste geladen.
 - Die Kartendaten werden intern ueber die Karten- und API-Workflows verarbeitet.
-- Es gibt kein Backend, keine Datenbank und keine externe API-Abhaengigkeit.
+- Die Live-Seite nutzt ein PHP-8-+-MySQL-Backend (`api/`) fuer Suche, Herrschaftsgebiete, das Routing-API, Bewertungen und den Editor; die statische Karte rendert auch ohne Backend. Keine Drittanbieter-APIs.
 
 ## Rechtliches
 

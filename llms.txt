@@ -1,8 +1,8 @@
 # Avesmaps
 
-> Statischer Aventurien-Routenplaner fuer "Das Schwarze Auge" mit interaktiver Karte, politischen Grenzen der Reiche und teilbaren Routen-URLs.
+> Aventurien-Routenplaner fuer "Das Schwarze Auge": interaktive Karte, Suche, politische Reichsgrenzen und teilbare Routen-URLs; PHP-+-MySQL-Backend fuer Suche, Gebiete, Routing, Bewertungen und Editor.
 
-Avesmaps ist eine vollstaendig statische Webanwendung. Sie laeuft ohne Backend, ohne Datenbank und ohne externe APIs auf jedem normalen Webserver.
+Avesmaps ist eine Vanilla-JavaScript-Anwendung ohne Build-Schritt. Die Karte und die clientseitige Routenberechnung laufen im Browser; die Live-Seite nutzt zusaetzlich ein PHP-8-+-MySQL-Backend (unter `api/`) fuer Suche, Herrschaftsgebiete, das Routing-API, Bewertungen und den Editor.
 
 Die Anwendung richtet sich an Personen, die in Aventurien Reiserouten planen wollen. Sie zeigt Orte, Wege und optional die politischen Grenzen der Reiche und berechnet Routen zwischen mehreren Wegpunkten.
 
