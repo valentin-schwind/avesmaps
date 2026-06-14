@@ -107,15 +107,32 @@ function syncDerivedGeometryEditorForRegion(region) {
 		previewLayer: null,
 		dirty: false,
 		loading: true,
+		leafLocked: false,
 	};
 
 	document.getElementById("region-edit-derived-geometry-enabled").checked = false;
 	document.getElementById("region-edit-derived-geometry-all-descendants").checked = false;
 	document.getElementById("region-edit-derived-geometry-min-zoom").value = region?.minZoom ?? "";
 	document.getElementById("region-edit-derived-geometry-max-zoom").value = region?.maxZoom ?? "";
+	applyDerivedGeometryLeafLock(false); // erst freigeben; das Plan-Gating unten sperrt ggf. wieder
 	setDerivedGeometryThumbnail(null);
 	setDerivedGeometryEditorProgress(0, false);
 	setDerivedGeometryEditorStatus("Bestehende Außengrenze wird geprüft...", "pending");
+
+	// UI-Gating: Blatt MIT Eltern -> "Außengrenzen darstellen" deaktiviert + aus (Außengrenze käme vom
+	// Elterngebiet). Best-effort + nicht-blockierend; gewinnt gegen den getDerivedGeometry-.then unten
+	// (der setzt checked nur, wenn NICHT leafLocked, und das Gating re-sperrt nach späterem Eintreffen).
+	void politicalTerritoryRepository.getDerivedGeometryPlan(territoryPublicId, { applyToSubregions: false })
+		.then((plan) => {
+			if (derivedGeometryEditorState.territoryPublicId !== territoryPublicId) return;
+			const leafWithParent = isLeafWithParentNode(findPlanNode(plan, territoryPublicId));
+			derivedGeometryEditorState.leafLocked = leafWithParent;
+			applyDerivedGeometryLeafLock(leafWithParent);
+			if (leafWithParent) {
+				setDerivedGeometryEditorStatus("Untergebiet ohne Unterregionen – Außengrenze kommt vom übergeordneten Gebiet (deaktiviert).", "info");
+			}
+		})
+		.catch(() => { /* Gating ist best-effort; bei Fehler bleibt die Steuerung freigegeben */ });
 
 	void politicalTerritoryRepository.getDerivedGeometry(territoryPublicId)
 		.then((response) => {
@@ -128,7 +145,11 @@ function syncDerivedGeometryEditorForRegion(region) {
 				setDerivedGeometryEditorStatus("Keine gespeicherte Außengrenze. Aktiviere die Option, um eine Vorschau zu erzeugen.", "info");
 				return;
 			}
-			document.getElementById("region-edit-derived-geometry-enabled").checked = true;
+			// Bei Blatt-mit-Eltern (leafLocked) NICHT ankreuzen – die Sperre gewinnt (Außengrenze käme
+			// vom Elterngebiet; eine evtl. noch gespeicherte wird beim nächsten Erzeugen/Speichern deaktiviert).
+			if (!derivedGeometryEditorState.leafLocked) {
+				document.getElementById("region-edit-derived-geometry-enabled").checked = true;
+			}
 			document.getElementById("region-edit-derived-geometry-min-zoom").value = derivedGeometry.min_zoom ?? "";
 			document.getElementById("region-edit-derived-geometry-max-zoom").value = derivedGeometry.max_zoom ?? "";
 			derivedGeometryEditorState.existingPublicId = derivedGeometry.public_id || "";
@@ -207,6 +228,38 @@ async function readExistingShowInnerBoundaries(territoryPublicId) {
 		// Fallback unten.
 	}
 	return false;
+}
+
+// Blatt MIT Elternknoten? (= Untergebiet ohne eigene Unterregionen, das einen Eltern-Breadcrumb hat).
+// Solche bekommen KEINE eigene Außengrenze – ihre Grenze zeigt bereits das aggregierende Elterngebiet.
+// AUSNAHME Root ohne Kinder (eigenständiges Reich) -> darf eine eigene Außengrenze haben.
+function isLeafWithParentNode(planNode) {
+	if (!planNode) return false;
+	const isLeaf = Number(planNode.child_boundary_source_count || 0) === 0;
+	const isRoot = Number(planNode.parent_id || 0) === 0;
+	return isLeaf && !isRoot;
+}
+function findPlanNode(plan, territoryPublicId) {
+	return (Array.isArray(plan?.plan_nodes) ? plan.plan_nodes : [])
+		.find((node) => String(node?.territory_public_id || "") === String(territoryPublicId || "")) || null;
+}
+
+// UI-Sperre: Blatt MIT Eltern darf keine eigene Außengrenze haben -> "Außengrenzen darstellen",
+// "Für alle Unterregionen" und der Erzeugen-Button werden deaktiviert + ausgeschaltet (analog dazu,
+// dass Innengrenzen für Blätter ohne Kinder bewusst aus sind). locked=false stellt sie wieder her.
+function applyDerivedGeometryLeafLock(locked) {
+	const enabled = document.getElementById("region-edit-derived-geometry-enabled");
+	const allDescendants = document.getElementById("region-edit-derived-geometry-all-descendants");
+	const refreshButton = document.getElementById("region-edit-derived-geometry-refresh");
+	if (enabled) {
+		if (locked) enabled.checked = false;
+		enabled.disabled = !!locked;
+	}
+	if (allDescendants) {
+		if (locked) allDescendants.checked = false;
+		allDescendants.disabled = !!locked;
+	}
+	if (refreshButton) refreshButton.disabled = !!locked;
 }
 
 // Berechnet und speichert die Außengrenze EINES Targets ohne UI-/Vorschau-Seiteneffekte.
@@ -300,15 +353,18 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 		// Reich wie Bergkönigreich Koschim) hat keinen Elternknoten, der es zeichnet -> es darf
 		// eine Derived aus seiner EIGENEN Geometrie erzeugen und so die saubere Canvas-Kontur
 		// (clip-inside) bekommen. Innengrenzen bleiben dort sinnvoll deaktiviert (0 Kinder).
-		const targetPlanNode = (Array.isArray(plan?.plan_nodes) ? plan.plan_nodes : [])
-			.find((node) => String(node?.territory_public_id || "") === String(territoryPublicId));
-		const isLeaf = targetPlanNode && Number(targetPlanNode.child_boundary_source_count || 0) === 0;
-		const isRoot = targetPlanNode && Number(targetPlanNode.parent_id || 0) === 0;
-		if (isLeaf && !isRoot) {
+		const targetPlanNode = findPlanNode(plan, territoryPublicId);
+		if (isLeafWithParentNode(targetPlanNode)) {
+			// Blatt mit Eltern -> keine eigene Außengrenze. Eine ggf. vorhandene (z. B. früher fälschlich
+			// erzeugte) deaktivieren, Checkbox aus, Layer neu laden -> sauberer Zustand.
+			try { await politicalTerritoryRepository.deleteDerivedGeometry(territoryPublicId); } catch (cleanupError) { /* unkritisch */ }
+			const enabledCheckbox = document.getElementById("region-edit-derived-geometry-enabled");
+			if (enabledCheckbox) enabledCheckbox.checked = false;
 			setDerivedGeometryEditorBusy(false);
 			setDerivedGeometryEditorProgress(0, false);
 			setDerivedGeometryEditorStatus("Untergebiete-Blätter brauchen keine eigene Außengrenze – ihre Grenze zeigt das übergeordnete Gebiet.", "info");
 			showFeedbackToast("Dieses Untergebiet hat keine Unterregionen – seine Grenze kommt vom übergeordneten Gebiet.", "info");
+			schedulePoliticalTerritoryLayerReload({ immediate: true });
 			return null;
 		}
 		setDerivedGeometryEditorProgress(22, true);
@@ -374,6 +430,13 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 			let cascadeSaved = 0;
 			for (const cascadeTargetPublicId of cascadeTargets) {
 				try {
+					if (isLeafWithParentNode(findPlanNode(plan, cascadeTargetPublicId))) {
+						// Blatt MIT Eltern -> KEINE eigene Außengrenze (Grenze kommt vom Elterngebiet).
+						// Eine ggf. vorhandene (z. B. durch frühere Kaskade fälschlich erzeugte Enklaven-
+						// Baronie-Außengrenze) deaktivieren, statt sie neu zu berechnen.
+						await politicalTerritoryRepository.deleteDerivedGeometry(cascadeTargetPublicId);
+						continue;
+					}
 					const overrideForTarget = (propagateInner !== null && !ancestorSet.has(cascadeTargetPublicId)) ? propagateInner : null;
 					const cascadeResult = await recomputeDerivedBoundaryForTargetSilently(cascadeTargetPublicId, plan, overrideForTarget);
 					if (cascadeResult && cascadeResult.saved) cascadeSaved += 1;
