@@ -511,7 +511,7 @@ function buildSpotlightLocationEntries() {
 			id: `location:${entry.publicId || entry.name}`,
 			kind: "location",
 			name: entry.name,
-			typeLabel: entry.locationTypeLabel || LOCATION_TYPE_CONFIG[entry.locationType]?.singularLabel || tr("spotlight.type.location", "Ort"),
+			typeLabel: entry.locationTypeLabel || tr("type." + entry.locationType + ".singular", LOCATION_TYPE_CONFIG[entry.locationType]?.singularLabel || "") || tr("spotlight.type.location", "Ort"),
 			publicIds: [entry.publicId].filter(Boolean),
 			locationEntry: entry,
 			aliases: [entry.location?.description, entry.location?.wikiUrl],
