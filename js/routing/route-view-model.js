@@ -9,14 +9,14 @@ function buildRoutePlanViewModel(routeResult, routeNames, routeLocations = []) {
 	const routeDescription = routeDescriptionSource
 		.map((routeName, index) => {
 			if (index === 0) {
-				return `von <strong>${routeName}</strong>`;
+				return `${tr("planner.journey.from", "von")} <strong>${routeName}</strong>`;
 			}
 
 			if (index === routeDescriptionSource.length - 1) {
-				return `nach <strong>${routeName}</strong>`;
+				return `${tr("planner.journey.to", "nach")} <strong>${routeName}</strong>`;
 			}
 
-			return `&uuml;ber ${routeName}`;
+			return `${tr("planner.journey.via", "&uuml;ber")} ${routeName}`;
 		})
 		.join(" ");
 

@@ -59,7 +59,7 @@ $("#toggleNodix").change(() => {
 });
 
 function resetOverview() {
-	$("#overview").html(DEFAULT_OVERVIEW_TEXT);
+	$("#overview").html(tr("planner.overview.default", DEFAULT_OVERVIEW_TEXT));
 }
 
 function resetRoutePresentation() {

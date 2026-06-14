@@ -352,16 +352,16 @@ function showRoutePlan(routeNames, segments) {
 		const formattedStartName = formatRoutePlanNodeName(entry.startName);
 		const formattedEndName = formatRoutePlanNodeName(entry.endName);
 		const labelSuffix = entry.type === "Flussweg" && entry.segmentLabel
-			? ` über <span class="route-plan-entry__label">${escapeHtml(entry.segmentLabel)}</span>`
+			? ` ${tr("planner.leg.via", "über")} <span class="route-plan-entry__label">${escapeHtml(entry.segmentLabel)}</span>`
 			: "";
 
 		$overview.append(`
 			<button type="button" class="route-plan-entry" data-route-entry-index="${entryIndex}">
-			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type === SYNTHETIC_ROUTE_TYPE ? "Unwegsames Gelände" : entry.type}${labelSuffix}
-			(${entry.distance.toFixed(2)} Meilen)
-			von <strong>${formattedStartName}</strong>
-			bis <strong>${formattedEndName}</strong>
-			in ${entry.travelTime.toFixed(2)} Stunden
+			${assetIconMarkup(ROUTE_ICON_PATHS[entry.type] || ROUTE_ICON_PATHS["Weg"])} ${entry.type === SYNTHETIC_ROUTE_TYPE ? tr("planner.leg.offroad", "Unwegsames Gelände") : entry.type}${labelSuffix}
+			(${entry.distance.toFixed(2)} ${tr("planner.unit.miles", "Meilen")})
+			${tr("planner.leg.from", "von")} <strong>${formattedStartName}</strong>
+			${tr("planner.leg.to", "bis")} <strong>${formattedEndName}</strong>
+			${tr("planner.leg.in", "in")} ${entry.travelTime.toFixed(2)} ${tr("planner.unit.hours", "Stunden")}
 			</button>
 		`);
 	});
@@ -371,16 +371,16 @@ function showRoutePlan(routeNames, segments) {
 
 	$overview.prepend(`
 		<button type="button" class="route-plan-entry route-plan-summary">
-			Die Reise ${routeDesc}
+			${tr("planner.journey.prefix", "Die Reise")} ${routeDesc}
 		</button>
 		<div class="route-plan-summary__time">
-			Distanz: ${totalDistance.toFixed(1)} Meilen<br>
-			Drachenflug: ${airDistance.toFixed(1)} Meilen<br>
-			Reisezeit: ${totalTravelTime.toFixed(1)} Stunden (${(totalTravelTime / 24).toFixed(1)} Tage)<br>
-			Rastzeit: ${totalRestTime.toFixed(1)} Stunden (${(totalRestTime / 24).toFixed(1)} Tage)
-			<div style="margin-top: 0.5em"><strong>Gesamtzeit: ${totalHours.toFixed(1)} Stunden (${(totalHours / 24).toFixed(1)} Tage)</strong></div>
+			${tr("planner.summary.distance", "Distanz")}: ${totalDistance.toFixed(1)} ${tr("planner.unit.miles", "Meilen")}<br>
+			${tr("planner.summary.airDistance", "Drachenflug")}: ${airDistance.toFixed(1)} ${tr("planner.unit.miles", "Meilen")}<br>
+			${tr("planner.summary.travelTime", "Reisezeit")}: ${totalTravelTime.toFixed(1)} ${tr("planner.unit.hours", "Stunden")} (${(totalTravelTime / 24).toFixed(1)} ${tr("planner.unit.days", "Tage")})<br>
+			${tr("planner.summary.restTime", "Rastzeit")}: ${totalRestTime.toFixed(1)} ${tr("planner.unit.hours", "Stunden")} (${(totalRestTime / 24).toFixed(1)} ${tr("planner.unit.days", "Tage")})
+			<div style="margin-top: 0.5em"><strong>${tr("planner.summary.totalTime", "Gesamtzeit")}: ${totalHours.toFixed(1)} ${tr("planner.unit.hours", "Stunden")} (${(totalHours / 24).toFixed(1)} ${tr("planner.unit.days", "Tage")})</strong></div>
 		</div>
-		<button type="button" id="share-link-button" class="share-link-button">🔗 Link für diese Route kopieren</button>
+		<button type="button" id="share-link-button" class="share-link-button">🔗 ${tr("planner.shareRoute", "Link für diese Route kopieren")}</button>
 		<hr>
 	`);
 	$overview.find(".route-plan-summary").on("click", zoomToCurrentRoute);
