@@ -54,13 +54,16 @@ function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): 
     // Grenzen (aussen solid, innen weiss-gestrichelt). Sonst kaemen die rohen Quellraender durch.
     $strokeHiddenByTerritoryPublicId = [];
     $strokeHiddenByGeometryPublicId = [];
+    // Perf (M6): fetch the source-territory snapshot ONCE; the per-feature collector reused it
+    // instead of re-running a full political_territory scan per derived feature (AGENTS.md §10 N+1).
+    $derivedSourceTerritorySnapshot = $derivedFeatures === [] ? null : avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo);
     foreach ($derivedFeatures as &$feature) {
         $territoryPublicId = trim((string) ($feature['properties']['territory_public_id'] ?? ''));
         // C (Innengrenzen-Styling): die Quell-IDs der Außengrenze IMMER mitliefern, damit
         // das Frontend diese Quellen als Innengrenzen (gestrichelt-weiß) zeichnen kann –
         // unabhaengig vom Innengrenzen-Haekchen und vom Zoom-Band.
-        $sourceTerritoryPublicIds = avesmapsPoliticalReadDerivedSourceTerritoryPublicIds($pdo, $feature);
-        $sourceGeometryPublicIds = avesmapsPoliticalReadDerivedSourceGeometryPublicIds($pdo, $feature);
+        $sourceTerritoryPublicIds = avesmapsPoliticalReadDerivedSourceTerritoryPublicIds($pdo, $feature, $derivedSourceTerritorySnapshot);
+        $sourceGeometryPublicIds = avesmapsPoliticalReadDerivedSourceGeometryPublicIds($pdo, $feature, $derivedSourceTerritorySnapshot);
         $feature['properties']['derived_source_territory_public_ids'] = $sourceTerritoryPublicIds;
         $feature['properties']['derived_source_geometry_public_ids'] = $sourceGeometryPublicIds;
         // Ausblenden der Quellflaechen NUR wenn Innengrenzen aus UND im Fuellband (Aggregat fuellt).
@@ -467,8 +470,8 @@ function avesmapsPoliticalEnrichDerivedContestedPieces(PDO $pdo, array $pieces, 
     return $enriched === [] ? null : $enriched;
 }
 
-function avesmapsPoliticalReadDerivedSourceTerritoryPublicIds(PDO $pdo, array $derivedFeature): array {
-    $sourceTerritoryIds = avesmapsPoliticalCollectDerivedLayerSourceTerritoryIds($pdo, $derivedFeature);
+function avesmapsPoliticalReadDerivedSourceTerritoryPublicIds(PDO $pdo, array $derivedFeature, ?array $territoriesSnapshot = null): array {
+    $sourceTerritoryIds = avesmapsPoliticalCollectDerivedLayerSourceTerritoryIds($pdo, $derivedFeature, $territoriesSnapshot);
     if ($sourceTerritoryIds === []) {
         return [];
     }
@@ -493,8 +496,8 @@ function avesmapsPoliticalReadDerivedSourceTerritoryPublicIds(PDO $pdo, array $d
     return array_values(array_unique($publicIds));
 }
 
-function avesmapsPoliticalReadDerivedSourceGeometryPublicIds(PDO $pdo, array $derivedFeature): array {
-    $sourceTerritoryIds = avesmapsPoliticalCollectDerivedLayerSourceTerritoryIds($pdo, $derivedFeature);
+function avesmapsPoliticalReadDerivedSourceGeometryPublicIds(PDO $pdo, array $derivedFeature, ?array $territoriesSnapshot = null): array {
+    $sourceTerritoryIds = avesmapsPoliticalCollectDerivedLayerSourceTerritoryIds($pdo, $derivedFeature, $territoriesSnapshot);
     if ($sourceTerritoryIds === []) {
         return [];
     }
@@ -521,14 +524,14 @@ function avesmapsPoliticalReadDerivedSourceGeometryPublicIds(PDO $pdo, array $de
     return array_values(array_unique($publicIds));
 }
 
-function avesmapsPoliticalCollectDerivedLayerSourceTerritoryIds(PDO $pdo, array $derivedFeature): array {
+function avesmapsPoliticalCollectDerivedLayerSourceTerritoryIds(PDO $pdo, array $derivedFeature, ?array $territoriesSnapshot = null): array {
     $properties = (array) ($derivedFeature['properties'] ?? []);
     $territoryId = (int) ($properties['derived_territory_id'] ?? $properties['territory_id'] ?? 0);
     $sourceTerritoryIds = [];
 
     try {
         if ($territoryId > 0) {
-            $territories = avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo);
+            $territories = $territoriesSnapshot ?? avesmapsPoliticalFetchDerivedGeometrySourceTerritories($pdo);
             $descendantIds = avesmapsPoliticalCollectDerivedGeometryDescendantIds($territoryId, $territories);
             // Dual-Rolle: hat der Knoten Kinder, gehoert seine EIGENE Geometrie zu den Quellen
             // der Derived -> sie wird so (ueber die Geometrie-public_id) versteckt und nicht
