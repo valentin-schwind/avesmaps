@@ -2,7 +2,7 @@ from pathlib import Path
 from PIL import Image
 
 INPUT_DIR = Path("icons\\menu")
-OUTPUT_DIR = Path("icons\\small_webp")
+OUTPUT_DIR = Path("icons")
 
 TARGET_SIZE = (80, 80)
 WEBP_QUALITY = 100

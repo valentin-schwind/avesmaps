@@ -26,25 +26,25 @@
 }
 
 .map-context-menu__item[data-context-action="share-pin"]::before {
-	background-image: url("../../icons/small_webp/federundpapier.webp");
+	background-image: url("../../icons/federundpapier.webp");
 }
 
 .map-context-menu__item[data-context-action="report-location"]::before {
-	background-image: url("../../icons/small_webp/brief.webp");
+	background-image: url("../../icons/brief.webp");
 }
 
 .map-context-menu__item[data-context-action="open-spotlight-search"]::before {
-	background-image: url("../../icons/small_webp/lupe.webp");
+	background-image: url("../../icons/lupe.webp");
 }
 
 .map-context-menu__item[data-context-action="find-nearest-location"]::before {
-	background-image: url("../../icons/small_webp/fernrohr.webp");
+	background-image: url("../../icons/fernrohr.webp");
 }
 
 .map-context-menu__item[data-context-action="start-distance-measurement"]::before {
-	background-image: url("../../icons/small_webp/lineal.webp");
+	background-image: url("../../icons/lineal.webp");
 }
 
 .map-context-menu__item[data-context-action="clear-distance-measurement"]::before {
-	background-image: url("../../icons/small_webp/lineal.webp");
+	background-image: url("../../icons/lineal.webp");
 }
