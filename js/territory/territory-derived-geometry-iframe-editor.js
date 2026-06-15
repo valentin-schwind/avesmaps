@@ -323,36 +323,8 @@
 			return;
 		}
 
-		void loadSourceGeometriesForPreview(targetKey);
-		try {
-			const response = await fetchDerivedGeometry(targetKey);
-			const derived = response?.derived_geometry || null;
-			state.territoryPublicId = response?.territory_public_id || "";
-			state.resolvedTargetKey = response?.territory_public_id || response?.target_key || "";
-			if (!derived) {
-				document.getElementById("derivedGeometryEnabledInput").checked = false;
-				// #C: Vorschau NICHT verstecken – die Quellflächen-Füllung (loadSourceGeometriesForPreview)
-				// zeigt weiterhin die Geometrie des Knotens; nur die Außenkontur fehlt.
-				setStatus("", "");
-				return;
-			}
-			document.getElementById("derivedGeometryEnabledInput").checked = true;
-			document.getElementById("derivedGeometryInnerBoundariesInput").checked = derived.show_inner_boundaries !== false;
-			updateInnerBoundaryControl();
-			state.existingPublicId = derived.public_id || "";
-			state.geometry = derived.geometry || null;
-			state.labelCenter = readLabelCenter(derived.geometry || null, derived);
-			state.dirty = false;
-			setPreviewVisible(true);
-			renderPreview();
-			setStatus("Gespeicherte Außengrenze geladen.", "success");
-		} catch (error) {
-			console.warn("Außengrenze konnte nicht geladen werden:", error);
-			setPreviewVisible(true);
-			setStatus(error.message || "Außengrenze konnte nicht geladen werden.", "error");
-		}
-		// Blatt-Ebene (Nicht-Root mit eigenem Polygon, geteilte Plan-Regel) darf keine eigene Außengrenze
-		// haben -> "Außengrenzen darstellen" sperren + eine ggf. noch gespeicherte (redundante) entfernen.
+		// Blatt-Ebene-Sperre ZUERST (unabhängig davon, ob eine Außengrenze gespeichert ist – sonst greift
+		// sie bei Blättern OHNE gespeicherte Grenze NIE, weil der !derived-Pfad unten früh returnt).
 		try {
 			const lock = await computeOuterBoundaryLock(targetKey);
 			if (lock && state.targetKey === targetKey) {
@@ -368,6 +340,35 @@
 				}
 			}
 		} catch (lockError) { /* Sperre ist best-effort */ }
+
+		void loadSourceGeometriesForPreview(targetKey);
+		try {
+			const response = await fetchDerivedGeometry(targetKey);
+			const derived = response?.derived_geometry || null;
+			state.territoryPublicId = response?.territory_public_id || "";
+			state.resolvedTargetKey = response?.territory_public_id || response?.target_key || "";
+			if (!derived) {
+				document.getElementById("derivedGeometryEnabledInput").checked = false;
+				// #C: Vorschau NICHT verstecken – die Quellflächen-Füllung (loadSourceGeometriesForPreview)
+				// zeigt weiterhin die Geometrie des Knotens; nur die Außenkontur fehlt.
+				setStatus("", "");
+				return;
+			}
+			if (!state.leafLocked) document.getElementById("derivedGeometryEnabledInput").checked = true;
+			document.getElementById("derivedGeometryInnerBoundariesInput").checked = derived.show_inner_boundaries !== false;
+			updateInnerBoundaryControl();
+			state.existingPublicId = derived.public_id || "";
+			state.geometry = derived.geometry || null;
+			state.labelCenter = readLabelCenter(derived.geometry || null, derived);
+			state.dirty = false;
+			setPreviewVisible(true);
+			renderPreview();
+			setStatus("Gespeicherte Außengrenze geladen.", "success");
+		} catch (error) {
+			console.warn("Außengrenze konnte nicht geladen werden:", error);
+			setPreviewVisible(true);
+			setStatus(error.message || "Außengrenze konnte nicht geladen werden.", "error");
+		}
 	}
 
 	async function loadSourceGeometriesForPreview(targetKey) {
