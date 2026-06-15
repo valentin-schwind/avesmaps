@@ -87,6 +87,14 @@ function clearNearestLookupPinnedMarker() {
 	}
 	const entry = nearestLookupPinnedMarkerEntry;
 	nearestLookupPinnedMarkerEntry = null;
+	// Re-render the just-unpinned marker by the normal rules: a hidden marker gets removed, a
+	// canvas-rendered settlement type returns to the canvas overlay (instead of lingering as a DOM
+	// duplicate on top of its canvas dot), and a genuinely shown DOM marker is kept. Fall back to the
+	// direct removeLayer when the full sync is unavailable.
+	if (typeof syncLocationMarkerVisibility === "function") {
+		syncLocationMarkerVisibility();
+		return;
+	}
 	const stillHidden = typeof shouldShowLocationMarker !== "function" || !shouldShowLocationMarker(entry);
 	if (stillHidden && map.hasLayer(entry.marker)) {
 		map.removeLayer(entry.marker);
@@ -124,9 +132,23 @@ function openLocationPopupForMarkerEntry(markerEntry, { pan = true } = {}) {
 	// Evtl. noch offenen temporaeren Marker eines vorherigen Treffers aufraeumen.
 	clearNearestLookupPinnedMarker();
 
-	// Ist die Ortsgroesse dieses Treffers gerade nicht eingeblendet, den Marker temporaer pinnen -
-	// VOR panTo, damit das durch panTo ausgeloeste Sichtbarkeits-Sync ihn nicht sofort wieder entfernt.
-	const isTemporary = typeof shouldShowLocationMarker === "function" && !shouldShowLocationMarker(markerEntry);
+	// The bound popup needs this marker to exist as a real DOM layer. A marker only counts as a
+	// persistent DOM marker when it is BOTH shown AND not drawn on the canvas overlay -- canvas
+	// markers are default-on for every settlement type, so a "visible" dorf/kleinstadt/... is a
+	// canvas dot, not a DOM marker. In that case (or when the size is hidden) pin it as a temporary
+	// DOM marker BEFORE panTo, so the visibility-sync triggered by the pan does not remove the DOM
+	// marker (line 243) and with it close the freshly opened popup.
+	const canvasMarkersOn = typeof LOCATION_CANVAS_MARKERS_ENABLED !== "undefined"
+		&& LOCATION_CANVAS_MARKERS_ENABLED
+		&& typeof IS_EDIT_MODE !== "undefined" && !IS_EDIT_MODE;
+	const renderedOnCanvas = canvasMarkersOn
+		&& typeof LOCATION_CANVAS_TYPES !== "undefined"
+		&& LOCATION_CANVAS_TYPES.has(markerEntry.locationType)
+		&& !markerEntry._canvasPromoted;
+	const isShownAsDomMarker = typeof shouldShowLocationMarker === "function"
+		&& shouldShowLocationMarker(markerEntry)
+		&& !renderedOnCanvas;
+	const isTemporary = !isShownAsDomMarker;
 	if (isTemporary) {
 		nearestLookupPinnedMarkerEntry = markerEntry;
 	}
