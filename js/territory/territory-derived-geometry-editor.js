@@ -125,7 +125,7 @@ function syncDerivedGeometryEditorForRegion(region) {
 	void politicalTerritoryRepository.getDerivedGeometryPlan(territoryPublicId, { applyToSubregions: false })
 		.then((plan) => {
 			if (derivedGeometryEditorState.territoryPublicId !== territoryPublicId) return;
-			const planNode = findPlanNode(plan, territoryPublicId); const leafWithParent = isOwnDerivedBoundaryForbidden(planNode);
+			const planNode = findPlanNode(plan, (plan && plan.territory_public_id) || territoryPublicId); const leafWithParent = isOwnDerivedBoundaryForbidden(planNode);
 			derivedGeometryEditorState.leafLocked = leafWithParent;
 			applyDerivedGeometryLeafLock(leafWithParent); if (leafWithParent && planNode && planNode.has_active_derived_boundary) { void politicalTerritoryRepository.deleteDerivedGeometry(territoryPublicId).then(() => schedulePoliticalTerritoryLayerReload({ immediate: true })).catch(() => {}); }
 			if (leafWithParent) {
@@ -353,7 +353,7 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 		// Reich wie Bergkönigreich Koschim) hat keinen Elternknoten, der es zeichnet -> es darf
 		// eine Derived aus seiner EIGENEN Geometrie erzeugen und so die saubere Canvas-Kontur
 		// (clip-inside) bekommen. Innengrenzen bleiben dort sinnvoll deaktiviert (0 Kinder).
-		const targetPlanNode = findPlanNode(plan, territoryPublicId);
+		const targetPlanNode = findPlanNode(plan, (plan && plan.territory_public_id) || territoryPublicId);
 		if (isOwnDerivedBoundaryForbidden(targetPlanNode)) {
 			// Blatt mit Eltern -> keine eigene Außengrenze. Eine ggf. vorhandene (z. B. früher fälschlich
 			// erzeugte) deaktivieren, Checkbox aus, Layer neu laden -> sauberer Zustand.
