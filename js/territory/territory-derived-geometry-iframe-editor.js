@@ -57,6 +57,40 @@
 		return readJson(response);
 	}
 
+	async function fetchDerivedGeometryPlan(targetKey) {
+		const response = await fetch(apiUrl({ action: "derived_geometry_plan", target_key: targetKey, apply_to_subregions: 0 }), {
+			method: "GET",
+			credentials: "same-origin",
+			headers: { Accept: "application/json" },
+		});
+		return readJson(response);
+	}
+
+	// Blatt-Regel LOKAL berechnen (eigener Fetch über apiUrl = absoluter Pfad). Der geteilte
+	// AvesmapsDerivedBoundaryEditor.isOwnBoundaryForbiddenForTerritory nutzt politicalTerritoryRepository /
+	// POLITICAL_TERRITORIES_API_URL, die im iframe-Kontext UNDEFINIERT sind -> sein Aufruf HING (Timeout),
+	// das await im Lock kam nie zurück, die Checkbox wurde nie deaktiviert. Reiner Container (kein eigenes
+	// Polygon, aggregiert Kinder) behält die Außengrenze; jedes andere Nicht-Root mit eigenem Polygon
+	// (Baronie/Mark/Blatt) wird gesperrt.
+	function isOwnDerivedBoundaryForbiddenPlanNode(node) {
+		if (!node) return false;
+		const isRoot = Number(node.parent_id || 0) === 0;
+		const isPureAggregate = Number(node.direct_geometry_count || 0) === 0 && Number(node.child_boundary_source_count || 0) > 0;
+		return !isRoot && !isPureAggregate;
+	}
+
+	async function computeOuterBoundaryLock(targetKey) {
+		try {
+			const plan = await fetchDerivedGeometryPlan(targetKey);
+			const wantId = (plan && plan.territory_public_id) || targetKey;
+			const node = (Array.isArray(plan?.plan_nodes) ? plan.plan_nodes : [])
+				.find((n) => String(n?.territory_public_id || "") === String(wantId)) || null;
+			return { forbidden: isOwnDerivedBoundaryForbiddenPlanNode(node), hasActiveBoundary: !!(node && node.has_active_derived_boundary) };
+		} catch (error) {
+			return { forbidden: false, hasActiveBoundary: false };
+		}
+	}
+
 	async function submitDerivedGeometry(payload) {
 		const response = await fetch(WRITE_API_URL, {
 			method: "PATCH",
@@ -320,7 +354,7 @@
 		// Blatt-Ebene (Nicht-Root mit eigenem Polygon, geteilte Plan-Regel) darf keine eigene Außengrenze
 		// haben -> "Außengrenzen darstellen" sperren + eine ggf. noch gespeicherte (redundante) entfernen.
 		try {
-			const lock = await Promise.resolve(window.AvesmapsDerivedBoundaryEditor?.isOwnBoundaryForbiddenForTerritory?.(targetKey));
+			const lock = await computeOuterBoundaryLock(targetKey);
 			if (lock && state.targetKey === targetKey) {
 				state.leafLocked = lock.forbidden === true;
 				const enabledInput = document.getElementById("derivedGeometryEnabledInput");
