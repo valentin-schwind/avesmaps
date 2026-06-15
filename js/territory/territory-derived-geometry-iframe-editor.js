@@ -80,7 +80,7 @@
 		const panelHtml = `
 			<section id="derivedGeometryPanel" class="manual-data-section derived-geometry-panel" aria-label="Automatische Außengrenzen">
 				<h3>Geometrie</h3>
-				<label class="manual-data-checkbox">
+				<label class="manual-data-checkbox" id="derivedGeometryEnabledLabel">
 					<input id="derivedGeometryEnabledInput" type="checkbox">
 					<span>Außengrenzen darstellen</span>
 				</label>
@@ -154,7 +154,8 @@
 			.derived-geometry-thumbnail { display: grid; place-items: center; min-height: 116px; border: 1px solid var(--border, #c8bda8); border-radius: 8px; background: rgba(255,255,255,0.55); color: #5b432b; font-size: 12px; overflow: hidden; }
 			.derived-geometry-thumbnail svg { width: 100%; max-width: 180px; height: 110px; }
 			.derived-geometry-inner-boundaries-disabled,
-			.derived-geometry-recursive-control { opacity: .5; cursor: not-allowed; }
+			.derived-geometry-recursive-control,
+			.derived-geometry-outer-boundaries-disabled { opacity: .5; cursor: not-allowed; }
 			.derived-geometry-mode-note { display: block; color: var(--muted, #806c59); font-size: 11px; line-height: 1.35; }
 		`;
 		document.head.append(style);
@@ -277,7 +278,7 @@
 		ensurePanel();
 		const targetKey = getTargetKey(value || undefined);
 		state = createEmptyState({ targetKey });
-		{ const e = document.getElementById("derivedGeometryEnabledInput"); if (e) e.disabled = false; } // Sperre vom vorherigen Knoten lösen
+		{ const e = document.getElementById("derivedGeometryEnabledInput"); if (e) e.disabled = false; document.getElementById("derivedGeometryEnabledLabel")?.classList.remove("derived-geometry-outer-boundaries-disabled"); } // Sperre vom vorherigen Knoten lösen
 		document.getElementById("derivedGeometryInnerBoundariesInput").checked = false;
 		updateInnerBoundaryControl();
 		if (!targetKey) {
@@ -324,6 +325,7 @@
 				state.leafLocked = lock.forbidden === true;
 				const enabledInput = document.getElementById("derivedGeometryEnabledInput");
 				if (enabledInput) { if (state.leafLocked) enabledInput.checked = false; enabledInput.disabled = !!state.leafLocked; }
+				document.getElementById("derivedGeometryEnabledLabel")?.classList.toggle("derived-geometry-outer-boundaries-disabled", !!state.leafLocked);
 				updateInnerBoundaryControl();
 				if (state.leafLocked && lock.hasActiveBoundary) {
 					await submitDerivedGeometry({ action: "delete_derived_geometry", target_key: readResolvedSaveTargetKey(targetKey) }).catch(() => {});
