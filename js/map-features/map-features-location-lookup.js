@@ -147,7 +147,12 @@ function openLocationPopupForMarkerEntry(markerEntry, { pan = true } = {}) {
 	// Nur zentrieren, wenn der Aufrufer nicht selbst schon hingezoomt hat (Spotlight/WikiSync/Route
 	// machen ihr eigenes setView/flyTo -> kein konkurrierendes panTo).
 	if (pan) {
-		map.panTo(markerEntry.marker.getLatLng());
+		// animate:false avoids a Leaflet popup-autoPan (_adjustPan) "null map" crash: an animated pan
+		// would still be in flight (and the marker off-screen) when openPopup() runs below, so the
+		// popup's autoPan reads a null map and throws an uncaught TypeError. Centering instantly
+		// settles the view first. Verified fix for the "find nearest location" crash (reproduced with
+		// an already-open popup + an off-screen target; language-independent).
+		map.panTo(markerEntry.marker.getLatLng(), { animate: false });
 	}
 	markerEntry.marker.openPopup();
 
