@@ -489,8 +489,15 @@ function installPoliticalRegionVisibilityBehavior() {
 		});
 
 		// Daten auch in den reinen Grenzen-Modi (deregraphic/powerlines) laden, damit das Overlay etwas
-		// zu zeichnen hat -- pan-sicher (schedulePoliticalTerritoryLayerReload laedt bei gleichem Zoom nicht neu).
-		if (TERRITORY_BOUNDARY_MODES.includes(getSelectedMapLayerMode())) {
+		// zu zeichnen hat -- aber NUR, wenn fuer den aktuellen Zoom noch nichts geladen ist. Sonst entsteht im
+		// political-Modus ein Endlos-Reload-Loop (~1s): jeder Load ruft syncRegionVisibility -> hier ->
+		// schedule -> (waehrend des Loads isLoading=true) pending -> finally(631) reschedule -> naechster Load
+		// ... Das schliesst u. a. die offene Region-Infobox sofort wieder (clearRenderedRegionLayers ->
+		// closeRegionCompactTooltip) und verschwendet dauerhaft Fetches/Re-Renders. Der pan-sichere Guard in
+		// schedule greift fuer "political" NICHT, daher hier explizit gegen den zuletzt geladenen Zoom pruefen.
+		// Echte Zoom-/Pan-Reloads laufen weiterhin ueber den moveend-Handler (bootstrap.js), nicht hierueber.
+		if (TERRITORY_BOUNDARY_MODES.includes(getSelectedMapLayerMode())
+			&& politicalTerritoryLayerLoadedZoom !== Math.round(map.getZoom())) {
 			schedulePoliticalTerritoryLayerReload();
 		}
 
