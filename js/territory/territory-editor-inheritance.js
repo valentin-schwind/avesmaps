@@ -118,6 +118,9 @@
 	function syncInheritanceVisibility() {
 		const hasLowerBreadcrumb = Boolean(getFormModule()?.hasLowerBreadcrumb?.());
 		const hasActiveNode = Boolean(getFormModule()?.readRootSelection?.());
+		// (A) Geschwister-Vererbung nur, wenn der aktive Knoten ECHTE Geschwister hat. Signal: sein
+		// Breadcrumb-Segment trägt Zyklus-Pfeile (Wurzelreiche haben keine -> dort keine Geschwister).
+		const hasActiveSiblings = !!document.querySelector(".breadcrumb-label.is-active")?.closest(".breadcrumb-segment")?.querySelector(".breadcrumb-cycle");
 		const colorButton = document.getElementById("inheritColorVarianceButton");
 		if (colorButton) colorButton.hidden = !hasLowerBreadcrumb;
 		updateLevelVarianceFieldStates();
@@ -126,7 +129,7 @@
 			const input = document.getElementById(id);
 			const label = input?.closest(".deferred-subtree-checkbox");
 			if (!input || !label) continue;
-			const inheritVisible = SIBLING_CHECKBOX_IDS.includes(id) ? hasActiveNode : hasLowerBreadcrumb;
+			const inheritVisible = SIBLING_CHECKBOX_IDS.includes(id) ? (hasActiveNode && hasActiveSiblings) : hasLowerBreadcrumb;
 			label.hidden = !inheritVisible;
 			if (!inheritVisible) input.checked = false;
 		}
