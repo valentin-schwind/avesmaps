@@ -329,16 +329,27 @@
 			maxLeafDepthById.set(entry.row.id, deepest);
 		});
 
+		// Bänder LÜCKENLOS vergeben: jeder Knoten beginnt direkt nach der Übergabe seines Eltern
+		// (minZoom = Eltern-maxZoom + 1), das Ende kommt aus der Tiefen-Regel seines eigenen Zweigs
+		// (maxLeafDepth). So füllt ein FLACHES Blatt unter einem tieferen Eltern (z. B. Seebaronie unter
+		// Seekönigreich Zyklopeninseln: 3-6 statt 4-6) den sonst leeren Zwischen-Zoom, während gleichmäßige
+		// Zweige exakt die Tabellen-Bänder behalten (dort ist Regel-Start == Eltern-maxZoom + 1 ohnehin, z. B.
+		// Bethana 2-3 -> Selzerino 4-6). aggregate ist Preorder (Eltern vor Kind) -> das Eltern-Band steht beim
+		// Verarbeiten des Kindes schon fest.
+		const bandById = new Map();
 		const updates = [];
 		const seen = new Set();
-		const push = (territoryPublicId, depth, totalLevels) => {
-			const key = normalizeText(territoryPublicId);
+		aggregate.forEach((entry) => {
+			const ruleBand = defaultZoomBand(maxLeafDepthById.get(entry.row.id) || entry.depth, entry.depth);
+			const parentBand = entry.row.parentId != null ? bandById.get(entry.row.parentId) : null;
+			const minZoom = parentBand ? parentBand[1] + 1 : ruleBand[0];
+			const maxZoom = Math.max(minZoom, ruleBand[1]);
+			if (entry.row.id != null) bandById.set(entry.row.id, [minZoom, maxZoom]);
+			const key = normalizeText(entry.row.publicId || "");
 			if (!key || seen.has(key)) return;
 			seen.add(key);
-			const band = defaultZoomBand(totalLevels, depth);
-			updates.push({ territoryPublicId: key, minZoom: band[0], maxZoom: band[1] });
-		};
-		aggregate.forEach((entry) => push(entry.row.publicId || "", entry.depth, maxLeafDepthById.get(entry.row.id) || entry.depth));
+			updates.push({ territoryPublicId: key, minZoom, maxZoom });
+		});
 		return updates;
 	}
 
