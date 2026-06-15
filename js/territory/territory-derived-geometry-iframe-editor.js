@@ -14,6 +14,7 @@
 			existingPublicId: "",
 			sourceGeometries: [],
 			canShowInnerBoundaries: true,
+			leafLocked: false,
 			dirty: false,
 			...overrides,
 		};
@@ -276,6 +277,7 @@
 		ensurePanel();
 		const targetKey = getTargetKey(value || undefined);
 		state = createEmptyState({ targetKey });
+		{ const e = document.getElementById("derivedGeometryEnabledInput"); if (e) e.disabled = false; } // Sperre vom vorherigen Knoten lösen
 		document.getElementById("derivedGeometryInnerBoundariesInput").checked = false;
 		updateInnerBoundaryControl();
 		if (!targetKey) {
@@ -314,6 +316,22 @@
 			setPreviewVisible(true);
 			setStatus(error.message || "Außengrenze konnte nicht geladen werden.", "error");
 		}
+		// Blatt-Ebene (Nicht-Root mit eigenem Polygon, geteilte Plan-Regel) darf keine eigene Außengrenze
+		// haben -> "Außengrenzen darstellen" sperren + eine ggf. noch gespeicherte (redundante) entfernen.
+		try {
+			const lock = await Promise.resolve(window.AvesmapsDerivedBoundaryEditor?.isOwnBoundaryForbiddenForTerritory?.(targetKey));
+			if (lock && state.targetKey === targetKey) {
+				state.leafLocked = lock.forbidden === true;
+				const enabledInput = document.getElementById("derivedGeometryEnabledInput");
+				if (enabledInput) { if (state.leafLocked) enabledInput.checked = false; enabledInput.disabled = !!state.leafLocked; }
+				updateInnerBoundaryControl();
+				if (state.leafLocked && lock.hasActiveBoundary) {
+					await submitDerivedGeometry({ action: "delete_derived_geometry", target_key: readResolvedSaveTargetKey(targetKey) }).catch(() => {});
+					const host = window.AvesmapsEditorContext?.host?.() || window.parent;
+					host?.schedulePoliticalTerritoryLayerReload?.({ immediate: true });
+				}
+			}
+		} catch (lockError) { /* Sperre ist best-effort */ }
 	}
 
 	async function loadSourceGeometriesForPreview(targetKey) {

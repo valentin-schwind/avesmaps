@@ -744,7 +744,22 @@ $(document).ready(() => {
 	ensureDerivedGeometryEditorPanel();
 });
 
+// Geteiltes Prädikat für andere Editoren (iframe-Politik-Editor): Ist die EIGENE Derived-Außengrenze
+// dieses Gebiets verboten (= Nicht-Root, das KEIN reiner Container ist)? Der Plan-Knoten wird über die
+// vom Backend AUFGELÖSTE canonical id gesucht, damit auch wiki_key/Name-Eingaben funktionieren.
+// Liefert { forbidden, hasActiveBoundary }. Best-effort (Fehler -> forbidden:false, nichts gesperrt).
+async function isOwnBoundaryForbiddenForTerritory(territoryPublicId) {
+	try {
+		const plan = await politicalTerritoryRepository.getDerivedGeometryPlan(territoryPublicId, { applyToSubregions: false });
+		const node = findPlanNode(plan, (plan && plan.territory_public_id) || territoryPublicId);
+		return { forbidden: isOwnDerivedBoundaryForbidden(node), hasActiveBoundary: !!(node && node.has_active_derived_boundary) };
+	} catch (error) {
+		return { forbidden: false, hasActiveBoundary: false };
+	}
+}
+
 window.AvesmapsDerivedBoundaryEditor = {
 	generateOrUpdateForRegion: generateOrUpdateDerivedBoundaryForRegion,
 	generateOrUpdateForTerritory: generateOrUpdateDerivedBoundaryForTerritory,
+	isOwnBoundaryForbiddenForTerritory,
 };
