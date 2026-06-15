@@ -277,34 +277,44 @@
 		});
 
 		const deepestEntry = [...spine].reverse().find((entry) => entry.row) || null;
+		if (!deepestEntry || !deepestEntry.row) return [];
 
-		// Unterregionen (Nachfahren) des tiefsten aufgelösten Knotens per parent_id ermitteln – NICHT
-		// findDescendants nutzen: dessen Fallback greift bei Blättern (0 Kinder) auf root.pathPrefix zu,
-		// das hier nicht existiert (Throw).
+		// Default-Zoomregeln aufs GANZE vertikale Aggregat (alle Zweige) anwenden: vom aktiven Knoten per
+		// parent_id zur WURZEL (Reich) hochlaufen und von dort den kompletten Unterbaum erfassen. (Vorher
+		// startete die Nachfahren-Suche beim AKTIVEN Knoten -> bei einer Baronie/mittleren Ebene wurden die
+		// Geschwister-Zweige des Reichs uebersprungen = "biegt nicht in alle Zweige ab".) rowById fuer den
+		// Hochlauf, childrenByParentId fuer den rekursiven Runterlauf.
 		const childrenByParentId = new Map();
+		const rowById = new Map();
 		for (const row of territoryRows) {
+			if (row.id !== null && row.id !== undefined) rowById.set(row.id, row);
 			if (row.parentId === null || row.parentId === undefined) continue;
 			if (!childrenByParentId.has(row.parentId)) childrenByParentId.set(row.parentId, []);
 			childrenByParentId.get(row.parentId).push(row);
 		}
-		const descendants = [];
-		if (deepestEntry && deepestEntry.row) {
-			const stack = (childrenByParentId.get(deepestEntry.row.id) || []).map((row) => ({ row, depth: 1 }));
-			const visited = new Set();
-			while (stack.length > 0) {
-				const current = stack.pop();
-				const visitKey = current.row.id != null ? "id:" + current.row.id : "pid:" + (current.row.publicId || "");
-				if (visited.has(visitKey)) continue;
-				visited.add(visitKey);
-				descendants.push(current);
-				for (const child of childrenByParentId.get(current.row.id) || []) {
-					stack.push({ row: child, depth: current.depth + 1 });
-				}
+
+		let rootRow = deepestEntry.row;
+		const upSeen = new Set();
+		while (rootRow.parentId !== null && rootRow.parentId !== undefined && rowById.has(rootRow.parentId)) {
+			if (rootRow.id != null) { if (upSeen.has(rootRow.id)) break; upSeen.add(rootRow.id); }
+			rootRow = rowById.get(rootRow.parentId);
+		}
+
+		// Vom Reich aus ALLE Zweige rekursiv erfassen (Tiefe ab Wurzel = 1).
+		const aggregate = [];
+		const visited = new Set();
+		const stack = [{ row: rootRow, depth: 1 }];
+		while (stack.length > 0) {
+			const current = stack.pop();
+			const visitKey = current.row.id != null ? "id:" + current.row.id : "pid:" + (current.row.publicId || "");
+			if (visited.has(visitKey)) continue;
+			visited.add(visitKey);
+			aggregate.push(current);
+			for (const child of childrenByParentId.get(current.row.id) || []) {
+				stack.push({ row: child, depth: current.depth + 1 });
 			}
 		}
-		const maxRelativeDepth = descendants.reduce((max, entry) => Math.max(max, entry.depth), 0);
-		const baseDepth = deepestEntry ? deepestEntry.depth : path.length;
-		const totalLevels = Math.max(path.length, baseDepth + maxRelativeDepth);
+		const totalLevels = aggregate.reduce((max, entry) => Math.max(max, entry.depth), 0);
 
 		const updates = [];
 		const seen = new Set();
@@ -315,8 +325,7 @@
 			const band = defaultZoomBand(totalLevels, depth);
 			updates.push({ territoryPublicId: key, minZoom: band[0], maxZoom: band[1] });
 		};
-		spine.forEach((entry) => { if (entry.row) push(entry.row.publicId, entry.depth); });
-		descendants.forEach((entry) => push(entry.row.publicId || "", baseDepth + entry.depth));
+		aggregate.forEach((entry) => push(entry.row.publicId || "", entry.depth));
 		return updates;
 	}
 
