@@ -16,7 +16,7 @@ window.AVESMAPS_I18N_EN = {
 
 	// --- planner: transport section (data-i18n; the custom combobox mirrors the
 	//     native <option> text, so translating the options covers it too) ---
-	"planner.transport.heading": "Means of transport",
+	"planner.transport.heading": "Transport",
 	"planner.transport.filter.land": "Land",
 	"planner.transport.filter.river": "River",
 	"planner.transport.filter.sea": "Sea",
@@ -268,4 +268,7 @@ window.AVESMAPS_I18N_EN = {
 	"type.kleinstadt.singular": "Small town",
 	"type.dorf.singular": "Village",
 	"type.gebaeude.singular": "Special building/site",
+
+	// --- header ---
+	"header.tagline": "Your route planner for Aventurien from \"Das Schwarze Auge\" (DSA).",
 };
