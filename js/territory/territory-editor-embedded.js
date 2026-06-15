@@ -1251,7 +1251,10 @@
 				const segment = document.createElement("span");
 				segment.className = "breadcrumb-segment";
 
-				const siblings = (path[i] && path[i].parent && Array.isArray(path[i].parent.children))
+				// Wurzelebene NICHT durchschalten: die "Geschwister" eines Reichs sind ALLE Reiche
+				// (gemeinsamer synthetischer "Herrschaftsgebiete"-Root, kind "root") -> die Pfeile würden
+				// aus einer Baronie heraus in völlig fremde Reiche springen. Nur echte Geschwister zyklen.
+				const siblings = (path[i] && path[i].parent && path[i].parent.kind !== "root" && Array.isArray(path[i].parent.children))
 					? path[i].parent.children
 					: [];
 
