@@ -345,7 +345,7 @@ function createRegionLabelMarkup(regionEntry, fallbackName, maxWidthPx) {
 
 	// Name als Canvas-<img> (weich/eingebettet, wie die Karten-Namen). Fallback auf DOM-Text,
 	// falls der Renderer fehlt.
-	let nameMarkup = `<span>${name}</span>`;
+	let nameMarkup = `<span>${name}</span>`; let contentMod = ""; let contentStyle = "";
 	if (typeof renderMapLabelToImage === "function") {
 		const style = getRegionLabelNameTypeStyle();
 		const lines = wrapRegionLabelLines(labelText, style, style.fontSizePx, maxWidthPx);
@@ -360,20 +360,20 @@ function createRegionLabelMarkup(regionEntry, fallbackName, maxWidthPx) {
 			// Mehrzeilig: pro Zeile ein <img>, vertikal gestapelt + zentriert (CSS-Spalte). Die Zeilen-imgs
 			// tragen vertikale Halo-Polster -> mit negativem margin-top auf normalen Zeilenabstand ziehen.
 			const lineStep = Math.round(style.fontSizePx * 1.18);
-			let firstPadX = 0;
+			let firstPadX = 0; let firstLineH = 0;
 			const lineImgs = lines.map((line, index) => {
 				const image = renderMapLabelToImage(line, style.fontSizePx, style);
-				if (index === 0) firstPadX = image.padX;
+				if (index === 0) { firstPadX = image.padX; firstLineH = image.h; }
 				const marginTop = index === 0 ? 0 : (lineStep - image.h);
 				const marginStyle = marginTop !== 0 ? ` style="margin-top:${marginTop}px"` : "";
 				return `<img class="region-label__name-img region-label__name-line"${marginStyle} src="${image.url}" width="${image.w}" height="${image.h}" alt="${escapeHtml(line)}">`;
 			}).join("");
 			const coatPull = coatMarkup ? ` style="margin-left:-${firstPadX}px"` : "";
-			nameMarkup = `<span class="region-label__lines"${coatPull}>${lineImgs}</span>`;
+			nameMarkup = `<span class="region-label__lines"${coatPull}>${lineImgs}</span>`; contentMod = " region-label__content--stacked"; if (coatMarkup) contentStyle = ` style="--coat-mt:${Math.max(0, Math.round((firstLineH - 18) / 2))}px"`;
 		}
 	}
 
-	return `<span class="region-label__content">${coatMarkup}${nameMarkup}</span>`;
+	return `<span class="region-label__content${contentMod}"${contentStyle}>${coatMarkup}${nameMarkup}</span>`;
 }
 
 $(document).on("click", "[data-region-place-public-id]", function (event) {

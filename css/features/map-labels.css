@@ -212,6 +212,11 @@ body.edit-mode .map-label img {
 	object-fit: contain;
 }
 
+/* Mehrzeiliger Reichsname: Wappen an der ERSTEN Zeile ausrichten (oben), nicht vertikal zwischen den
+   Zeilen zentriert -> sonst klebt der Schild im Text. --coat-mt (aus JS) zentriert es auf Zeile 1. */
+.region-label__content--stacked { align-items: flex-start; }
+.region-label__content--stacked .region-label__coat { margin-top: var(--coat-mt, 0px); }
+
 .leaflet-tooltip.region-compact-tooltip,
 .region-compact-tooltip {
 	max-width: min(380px, calc(100vw - 32px));
