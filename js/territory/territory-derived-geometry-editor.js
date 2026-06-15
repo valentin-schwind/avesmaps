@@ -125,9 +125,9 @@ function syncDerivedGeometryEditorForRegion(region) {
 	void politicalTerritoryRepository.getDerivedGeometryPlan(territoryPublicId, { applyToSubregions: false })
 		.then((plan) => {
 			if (derivedGeometryEditorState.territoryPublicId !== territoryPublicId) return;
-			const leafWithParent = isLeafWithParentNode(findPlanNode(plan, territoryPublicId));
+			const planNode = findPlanNode(plan, territoryPublicId); const leafWithParent = isOwnDerivedBoundaryForbidden(planNode);
 			derivedGeometryEditorState.leafLocked = leafWithParent;
-			applyDerivedGeometryLeafLock(leafWithParent);
+			applyDerivedGeometryLeafLock(leafWithParent); if (leafWithParent && planNode && planNode.has_active_derived_boundary) { void politicalTerritoryRepository.deleteDerivedGeometry(territoryPublicId).then(() => schedulePoliticalTerritoryLayerReload({ immediate: true })).catch(() => {}); }
 			if (leafWithParent) {
 				setDerivedGeometryEditorStatus("Untergebiet ohne Unterregionen – Außengrenze kommt vom übergeordneten Gebiet (deaktiviert).", "info");
 			}
@@ -230,14 +230,14 @@ async function readExistingShowInnerBoundaries(territoryPublicId) {
 	return false;
 }
 
-// Blatt MIT Elternknoten? (= Untergebiet ohne eigene Unterregionen, das einen Eltern-Breadcrumb hat).
+// Darf dieses Gebiet KEINE eigene Derived-Aussengrenze haben? TRUE = Nicht-Root MIT eigenem Polygon
 // Solche bekommen KEINE eigene Außengrenze – ihre Grenze zeigt bereits das aggregierende Elterngebiet.
 // AUSNAHME Root ohne Kinder (eigenständiges Reich) -> darf eine eigene Außengrenze haben.
-function isLeafWithParentNode(planNode) {
+function isOwnDerivedBoundaryForbidden(planNode) {
 	if (!planNode) return false;
-	const isLeaf = Number(planNode.child_boundary_source_count || 0) === 0;
+	const isPureAggregate = Number(planNode.direct_geometry_count || 0) === 0 && Number(planNode.child_boundary_source_count || 0) > 0;
 	const isRoot = Number(planNode.parent_id || 0) === 0;
-	return isLeaf && !isRoot;
+	return !isRoot && !isPureAggregate;
 }
 function findPlanNode(plan, territoryPublicId) {
 	return (Array.isArray(plan?.plan_nodes) ? plan.plan_nodes : [])
@@ -354,7 +354,7 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 		// eine Derived aus seiner EIGENEN Geometrie erzeugen und so die saubere Canvas-Kontur
 		// (clip-inside) bekommen. Innengrenzen bleiben dort sinnvoll deaktiviert (0 Kinder).
 		const targetPlanNode = findPlanNode(plan, territoryPublicId);
-		if (isLeafWithParentNode(targetPlanNode)) {
+		if (isOwnDerivedBoundaryForbidden(targetPlanNode)) {
 			// Blatt mit Eltern -> keine eigene Außengrenze. Eine ggf. vorhandene (z. B. früher fälschlich
 			// erzeugte) deaktivieren, Checkbox aus, Layer neu laden -> sauberer Zustand.
 			try { await politicalTerritoryRepository.deleteDerivedGeometry(territoryPublicId); } catch (cleanupError) { /* unkritisch */ }
@@ -430,7 +430,7 @@ async function generateOrUpdateDerivedBoundaryForTerritory(territoryPublicId, op
 			let cascadeSaved = 0;
 			for (const cascadeTargetPublicId of cascadeTargets) {
 				try {
-					if (isLeafWithParentNode(findPlanNode(plan, cascadeTargetPublicId))) {
+					if (isOwnDerivedBoundaryForbidden(findPlanNode(plan, cascadeTargetPublicId))) {
 						// Blatt MIT Eltern -> KEINE eigene Außengrenze (Grenze kommt vom Elterngebiet).
 						// Eine ggf. vorhandene (z. B. durch frühere Kaskade fälschlich erzeugte Enklaven-
 						// Baronie-Außengrenze) deaktivieren, statt sie neu zu berechnen.
