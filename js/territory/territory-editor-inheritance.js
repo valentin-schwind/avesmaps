@@ -314,18 +314,31 @@
 				stack.push({ row: child, depth: current.depth + 1 });
 			}
 		}
-		const totalLevels = aggregate.reduce((max, entry) => Math.max(max, entry.depth), 0);
+		// Gesamtebenen PRO KNOTEN = tiefste Blatt-Tiefe SEINES Teilbaums (absolute Tiefe ab Wurzel), NICHT die
+		// globale Maximaltiefe des ganzen Reichs. So bekommt jeder Zweig die Default-Regel seiner EIGENEN Tiefe:
+		// Reich > Grafschaft > Baronie (3 Ebenen) -> 0-1 / 2-3 / 4-6, auch wenn andere Reichs-Zweige 4+ tief sind.
+		// (Global -> flache Zweige bekamen faelschlich die 4-Ebenen-Regel und das Blatt endete bei 3-3 statt 4-6
+		// = Luecke bei Zoom 4-6.) Von tief nach flach verarbeiten, dann ist jedes Kind vor seinem Eltern fertig.
+		const maxLeafDepthById = new Map();
+		[...aggregate].sort((a, b) => b.depth - a.depth).forEach((entry) => {
+			let deepest = entry.depth;
+			for (const child of (childrenByParentId.get(entry.row.id) || [])) {
+				const childDeepest = maxLeafDepthById.get(child.id);
+				if (childDeepest != null && childDeepest > deepest) deepest = childDeepest;
+			}
+			maxLeafDepthById.set(entry.row.id, deepest);
+		});
 
 		const updates = [];
 		const seen = new Set();
-		const push = (territoryPublicId, depth) => {
+		const push = (territoryPublicId, depth, totalLevels) => {
 			const key = normalizeText(territoryPublicId);
 			if (!key || seen.has(key)) return;
 			seen.add(key);
 			const band = defaultZoomBand(totalLevels, depth);
 			updates.push({ territoryPublicId: key, minZoom: band[0], maxZoom: band[1] });
 		};
-		aggregate.forEach((entry) => push(entry.row.publicId || "", entry.depth));
+		aggregate.forEach((entry) => push(entry.row.publicId || "", entry.depth, maxLeafDepthById.get(entry.row.id) || entry.depth));
 		return updates;
 	}
 
