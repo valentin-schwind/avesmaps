@@ -175,10 +175,21 @@ function avesmapsPoliticalSuggestClaims(PDO $pdo, array $query): array {
 
 // Liste der aktiven Claims eines Gebiets (Anspruchsteller mit Farbe/Deckkraft, Streifen-Reihenfolge).
 function avesmapsPoliticalListClaims(PDO $pdo, array $query): array {
-    $territory = avesmapsPoliticalClaimResolveTerritory(
-        $pdo,
-        $query['territory_public_id'] ?? $query['territoryPublicId'] ?? ''
-    );
+    $requestedKey = (string) ($query['territory_public_id'] ?? $query['territoryPublicId'] ?? '');
+    try {
+        $territory = avesmapsPoliticalClaimResolveTerritory($pdo, $requestedKey);
+    } catch (InvalidArgumentException $resolveError) {
+        // Lese-Aufruf: ein noch nicht platzierter / unbekannter Wiki-Knoten (der Editor-Breadcrumb kann
+        // durch Wiki-Knoten ohne eigenes political_territory zykeln) hat schlicht keine Claims. Das ist
+        // KEIN Fehler -> leere Liste statt 400, damit die Konsole beim Durchschalten nicht voll-spamt.
+        return [
+            'ok' => true,
+            'territory_public_id' => $requestedKey,
+            'territory_name' => '',
+            'owner' => null,
+            'claims' => [],
+        ];
+    }
 
     $statement = $pdo->prepare(
         'SELECT claim.id, claim.sort_order, claim.source, claim.claimant_wiki_key,
