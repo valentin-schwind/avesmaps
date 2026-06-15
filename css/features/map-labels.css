@@ -157,7 +157,9 @@ body.edit-mode .map-label img {
 	background: transparent;
 	border: none;
 	box-shadow: none;
-	font-size: 18px;
+	/* Basis-Schriftgroesse der Herrschaftsgebiet-Labels. Der Canvas-Renderer liest die effektive Groesse
+	   aus .region-label__content (calc(1em - 2pt)) -> bei 16px sind das ~13.3px (vorher 18px -> ~15.3px). */
+	font-size: 16px;
 	font-weight: bold;
 	text-shadow: 0 0 4px white;
 	white-space: nowrap;
