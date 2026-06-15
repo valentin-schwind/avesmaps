@@ -147,14 +147,24 @@ function openLocationPopupForMarkerEntry(markerEntry, { pan = true } = {}) {
 	// Nur zentrieren, wenn der Aufrufer nicht selbst schon hingezoomt hat (Spotlight/WikiSync/Route
 	// machen ihr eigenes setView/flyTo -> kein konkurrierendes panTo).
 	if (pan) {
-		// animate:false avoids a Leaflet popup-autoPan (_adjustPan) "null map" crash: an animated pan
-		// would still be in flight (and the marker off-screen) when openPopup() runs below, so the
-		// popup's autoPan reads a null map and throws an uncaught TypeError. Centering instantly
-		// settles the view first. Verified fix for the "find nearest location" crash (reproduced with
-		// an already-open popup + an off-screen target; language-independent).
-		map.panTo(markerEntry.marker.getLatLng(), { animate: false });
+		map.panTo(markerEntry.marker.getLatLng());
+	}
+	// Opening the popup right after the animated panTo can crash Leaflet's popup autoPan: when the
+	// target is off-screen and the pan is still in flight, _adjustPan reads a null map and throws an
+	// uncaught TypeError ("find nearest location" crash, language-independent). We already centre the
+	// marker via panTo, so the popup's own autoPan is redundant -> disable it for this single open to
+	// avoid the race. Keep the pan ANIMATED: an instant (animate:false) pan fires the moveend
+	// visibility-sync synchronously BEFORE openPopup, which removes the freshly added marker so
+	// nothing shows.
+	const popupForOpen = markerEntry.marker.getPopup();
+	const previousAutoPan = popupForOpen && popupForOpen.options ? popupForOpen.options.autoPan : undefined;
+	if (popupForOpen && popupForOpen.options) {
+		popupForOpen.options.autoPan = false;
 	}
 	markerEntry.marker.openPopup();
+	if (popupForOpen && popupForOpen.options) {
+		popupForOpen.options.autoPan = previousAutoPan;
+	}
 
 	if (isTemporary) {
 		nearestLookupTempPopup = markerEntry.marker.getPopup();
