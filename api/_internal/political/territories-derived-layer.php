@@ -272,6 +272,11 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
         $territoryMaxZoom = avesmapsPoliticalNullableInt($row['territory_max_zoom'] ?? null);
         $inTerritoryLabelBand = ($territoryMinZoom === null || $territoryMinZoom <= $zoom)
             && ($territoryMaxZoom === null || $territoryMaxZoom >= $zoom);
+        // Fuellung MINDESTENS im Territoriums-Band (Editor-autoritativ) zeigen. Die Derived-Geometrie traegt
+        // teils ein STALES, zu niedriges Zoom-Band (erzeugt als das Territorium noch max_zoom=1 hatte, spaeter
+        // auf 2 angehoben) -> sonst Loch zwischen Reich-Ende und Kinder-Start (z. B. Horasreich bei Zoom 2).
+        // Union der Baender: fuellt auch im Territoriums-Band, behaelt aber "nach oben sichtbar" (Derived hoeher).
+        $inFillBand = $inFillBand || $inTerritoryLabelBand;
         $feature = avesmapsPoliticalLayerRowToFeature($row, $yearBf, $zoom);
         $feature['id'] = 'derived:' . (string) $row['geometry_public_id'];
         $feature['properties']['public_id'] = (string) $row['geometry_public_id'];
