@@ -155,13 +155,14 @@ function setSelectedMapLayerMode(mode) {
 	const normalizedMode = ["none", "political", "deregraphic", "powerlines"].includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
 	$("#mapLayerModeSelect").val(normalizedMode);
 	syncTransportControl("mapLayerModeSelect");
-	// "Nur Karte" (none): dunkelgrauer Karten-Hintergrund hinter/um die Kacheln -- NUR im Edit-Modus
-	// (Frontend bleibt unveraendert). Direkt am Container per inline-Style, da der Editor-iframe
-	// map-layout.css nicht laedt; inline gewinnt ueber die Leaflet-Default-Farbe.
+	// Dunkelgrauer Karten-Hintergrund hinter/um die Kacheln -- NUR im Edit-Modus, und dort nur in den Modi
+	// "Politisch" und "Nur Karte" (none). Frontend bleibt unveraendert. Direkt am Container per inline-Style,
+	// da der Editor-iframe map-layout.css nicht laedt; inline gewinnt ueber die Leaflet-Default-Farbe.
 	if (typeof map !== "undefined" && map && typeof map.getContainer === "function") {
 		const mapContainerEl = map.getContainer();
 		if (mapContainerEl) {
-			mapContainerEl.style.background = (normalizedMode === "none" && IS_EDIT_MODE) ? "#2e2e2e" : "";
+			const useDarkMapBg = IS_EDIT_MODE && (normalizedMode === "political" || normalizedMode === "none");
+			mapContainerEl.style.background = useDarkMapBg ? "#2e2e2e" : "";
 		}
 	}
 	if (IS_EDIT_MODE && normalizedMode === "powerlines") {
