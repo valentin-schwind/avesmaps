@@ -190,7 +190,7 @@ function loadRouteDataFromApi() {
 				throw new Error("Map-Features-API liefert kein gültiges GeoJSON.");
 			}
 
-			console.info(`SQL-Vektorkarte geladen: ${data.features.length} Features, Revision ${data.revision ?? "unbekannt"}.`);
+			console.info(`Avesmaps geladen: ${data.features.length} Features, Revision ${data.revision ?? "unbekannt"}.`);
 			data.avesmapsSource = {
 				label: "SQL",
 				revision: data.revision ?? null,
