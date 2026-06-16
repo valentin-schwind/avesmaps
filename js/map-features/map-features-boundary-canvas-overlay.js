@@ -492,6 +492,20 @@
 		feats.forEach((f) => { const k = String(f.properties.territory_public_id || "").trim(); if (k) derivedTerritoryKeys.add(k); });
 		const reichsstadt = buildReichsstadtSets(all, derivedTerritoryKeys);
 
+		// Option 1: Innengrenzen am Aggregat-Anzeige-Zoom unterdruecken. Ein Territorium, das am aktuellen Zoom
+		// als gefuelltes Aggregat (= eine Einheit) gezeigt wird, hat ein NICHT-derived Aggregat-Fuell-Feature in
+		// regionData (nur in seinem Anzeige-/Fuellband, z. B. Kalifat 0-1). Solange das da ist, KEINE internen
+		// Provinz-Trennlinien zeichnen -- die erscheinen erst beim Tieferzoomen, wenn die Unterregionen selbst
+		// rendern (ihre eigenen Aussengrenzen liefern dann die Teilung).
+		const shownAsAggregateUnit = new Set();
+		all.forEach((f) => {
+			const p = f && f.properties;
+			if (p && p.is_derived_geometry !== true && p.is_aggregate === true) {
+				const t = String(p.territory_public_id || "").trim();
+				if (t) shownAsAggregateUnit.add(t);
+			}
+		});
+
 		feats.forEach((f) => {
 			const polys = polygonsOf(f.geometry);
 			if (!polys.length) return;
@@ -527,6 +541,7 @@
 			// (an die Außenkontur gekoppelt, NICHT ans Fuellband) -> die Unterteilungen
 			// bleiben über alle Zoomstufen konsistent statt am Bandrand zu verschwinden.
 			if (f.properties.show_inner_boundaries === true
+				&& !shownAsAggregateUnit.has(String(f.properties.territory_public_id || "").trim())
 				&& !reichsstadt.suppressParents.has(String(f.properties.territory_public_id || "").trim())) {
 				drawInnerBoundaries(f.properties.inner_boundary_geojson);
 			}
