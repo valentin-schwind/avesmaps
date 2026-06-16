@@ -70,6 +70,7 @@ function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
             territory.coat_of_arms_url,
             (SELECT staging_coat.coat_of_arms_url FROM political_territory_wiki_test staging_coat WHERE staging_coat.wiki_key = territory.wiki_key LIMIT 1) AS staging_coat_url,
             (SELECT staging_coat.coat_of_arms_license_status FROM political_territory_wiki_test staging_coat WHERE staging_coat.wiki_key = territory.wiki_key LIMIT 1) AS staging_coat_license,
+            (SELECT model_coat.metadata_overrides_json FROM wiki_territory_model model_coat WHERE model_coat.wiki_key = territory.wiki_key LIMIT 1) AS coat_override_json,
             territory.wiki_url,
             territory.capital_place_id,
             territory.seat_place_id,
@@ -177,6 +178,7 @@ function avesmapsPoliticalReadEditorLayer(PDO $pdo, int $yearBf, int $zoom, ?arr
             territory.coat_of_arms_url,
             (SELECT staging_coat.coat_of_arms_url FROM political_territory_wiki_test staging_coat WHERE staging_coat.wiki_key = territory.wiki_key LIMIT 1) AS staging_coat_url,
             (SELECT staging_coat.coat_of_arms_license_status FROM political_territory_wiki_test staging_coat WHERE staging_coat.wiki_key = territory.wiki_key LIMIT 1) AS staging_coat_license,
+            (SELECT model_coat.metadata_overrides_json FROM wiki_territory_model model_coat WHERE model_coat.wiki_key = territory.wiki_key LIMIT 1) AS coat_override_json,
             territory.wiki_url,
             territory.capital_place_id,
             territory.seat_place_id,
@@ -459,6 +461,7 @@ function avesmapsPoliticalFetchLayerTerritories(PDO $pdo, int $yearBf): array {
             territory.coat_of_arms_url,
             (SELECT staging_coat.coat_of_arms_url FROM political_territory_wiki_test staging_coat WHERE staging_coat.wiki_key = territory.wiki_key LIMIT 1) AS staging_coat_url,
             (SELECT staging_coat.coat_of_arms_license_status FROM political_territory_wiki_test staging_coat WHERE staging_coat.wiki_key = territory.wiki_key LIMIT 1) AS staging_coat_license,
+            (SELECT model_coat.metadata_overrides_json FROM wiki_territory_model model_coat WHERE model_coat.wiki_key = territory.wiki_key LIMIT 1) AS coat_override_json,
             territory.wiki_url,
             territory.capital_place_id,
             territory.seat_place_id,
@@ -823,13 +826,24 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
     );
 
     // Fallback wie territory-detail.php: viele Territorien haben das gecrawlte Wappen nur in der
-    // Staging-Tabelle (political_territory_wiki_test), nicht in political_territory.coat_of_arms_url.
-    // Lizenz-gegatet nachziehen, damit das Label dasselbe Wappen zeigt wie die (Detail-)Infobox.
+    // Staging-Tabelle (political_territory_wiki_test) bzw. nur als Wiki-Modell-Override
+    // (wiki_territory_model -> z.B. selbst hochgeladene "-custom"-Wappen), nicht in
+    // political_territory.coat_of_arms_url (das fuellt erst ein manueller Coat-Apply). Effektiv =
+    // Override ?? Staging, lizenz-gegatet nachziehen, damit das Label dasselbe Wappen zeigt wie die
+    // (Detail-)Infobox.
     if (trim($visibleCoatOfArmsUrl) === '') {
+        $coatOverrides = avesmapsPoliticalDecodeJson($row['coat_override_json'] ?? null);
+        $coatOverrides = is_array($coatOverrides) ? $coatOverrides : [];
         $stagingCoatUrl = trim((string) ($row['staging_coat_url'] ?? ''));
         $stagingCoatLicense = trim((string) ($row['staging_coat_license'] ?? ''));
-        if ($stagingCoatUrl !== '' && in_array($stagingCoatLicense, ['public_domain', 'attribution_required'], true)) {
-            $visibleCoatOfArmsUrl = $stagingCoatUrl;
+        $effCoatUrl = array_key_exists('coat_of_arms_url', $coatOverrides)
+            ? trim((string) $coatOverrides['coat_of_arms_url'])
+            : $stagingCoatUrl;
+        $effCoatLicense = array_key_exists('coat_of_arms_license_status', $coatOverrides)
+            ? trim((string) $coatOverrides['coat_of_arms_license_status'])
+            : $stagingCoatLicense;
+        if ($effCoatUrl !== '' && in_array($effCoatLicense, ['public_domain', 'attribution_required'], true)) {
+            $visibleCoatOfArmsUrl = $effCoatUrl;
         }
     }
 
