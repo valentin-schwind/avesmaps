@@ -155,9 +155,16 @@ function setSelectedMapLayerMode(mode) {
 	const normalizedMode = ["none", "political", "deregraphic", "powerlines"].includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
 	$("#mapLayerModeSelect").val(normalizedMode);
 	syncTransportControl("mapLayerModeSelect");
-	// "Nur Karte" (none): dunkelgrauer Karten-Hintergrund hinter/um die Kacheln
-	// (CSS: body.map-mode-none .leaflet-container).
+	// "Nur Karte" (none): dunkelgrauer Karten-Hintergrund hinter/um die Kacheln. Body-Klasse fuer das
+	// CSS (Frontend) PLUS direkt am Container per inline-Style -- der Editor-iframe laedt map-layout.css
+	// NICHT, daher greift dort nur der inline-Style (gewinnt ueberall ueber die Leaflet-Default-Farbe).
 	document.body.classList.toggle("map-mode-none", normalizedMode === "none");
+	if (typeof map !== "undefined" && map && typeof map.getContainer === "function") {
+		const mapContainerEl = map.getContainer();
+		if (mapContainerEl) {
+			mapContainerEl.style.background = normalizedMode === "none" ? "#2e2e2e" : "";
+		}
+	}
 	if (IS_EDIT_MODE && normalizedMode === "powerlines") {
 		$("#toggleNodix").prop("checked", true);
 		syncLocationMarkerVisibility();
