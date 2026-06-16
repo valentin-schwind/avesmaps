@@ -131,6 +131,7 @@ try {
                 $pdo,
                 (string) ($payload['wiki_key'] ?? '')
             ),
+            'localize_coats' => avesmapsWikiSyncMonitorLocalizeCoats($pdo, $options),
             'upload_coat' => avesmapsWikiSyncMonitorUploadCoat(
                 $pdo,
                 (string) ($payload['wiki_key'] ?? ''),
@@ -225,6 +226,7 @@ try {
         'editor_state' => avesmapsWikiSyncMonitorEditorState($pdo),
         'apply_identity_preview' => avesmapsWikiSyncMonitorApplyIdentityPreview($pdo),
         'apply_coats_preview' => avesmapsWikiSyncMonitorApplyCoatsPreview($pdo),
+        'localize_coats_pending' => ['ok' => true, 'remaining' => count(avesmapsWikiSyncMonitorPendingLocalizeCoatKeys($pdo))],
         'geometry_model_audit' => avesmapsWikiSyncMonitorGeometryModelAudit($pdo),
         'location_search' => avesmapsWikiSyncMonitorLocationSearch(
             $pdo,

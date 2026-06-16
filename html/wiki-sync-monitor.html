@@ -199,6 +199,7 @@
     <button class="btn2" id="btnCache" title="Testweise zeigen, was die Übertragung nach Avesmaps ändern würde – schreibt nichts"><span class="t1">Test</span><span class="t2" id="stTest">—</span></button>
     <button class="btn2" id="btnIdentPreview" title="Vorschau der Identitäts-/Validitäts-Änderungen (Name, Staatsform, Status, Gegründet/Aufgelöst, „Bis heute“) – im Dialog mit „Identität übernehmen“ schreibbar"><span class="t1">Identität</span><span class="t2" id="stIdent">—</span></button>
     <button class="btn2 primary" id="btnApply" title="Übernimmt das kuratierte Modell in Avesmaps – schreibt Eltern-Zuweisungen UND Identität/Validität (Name/Status/Gegründet/Aufgelöst, „Bis heute“); Geometrien bleiben unberührt"><span class="t1">Modell übernehmen</span><span class="t2" id="stApply">—</span></button>
+    <button class="btn2" id="btnLocalizeCoats" title="Lädt ALLE noch auf wiki-aventurica verlinkten gemeinfreien Wappen auf den Avesmaps-Server, verkleinert sie (max. 512px) und nutzt künftig die lokalen Kopien (Override). Läuft in Schüben; schreibt nur Wappen-Overrides, keine Geometrien."><span class="t1">Wappen lokalisieren</span><span class="t2" id="stLocalize">—</span></button>
   </div>
 </header>
 <div id="status">
@@ -406,6 +407,16 @@ function renderEditorState(s){
   $('stDiff').textContent  = (s.diff_fresh && s.last_diff_at) ? `gelöscht ${s.diff.deleted??0}, geändert ${s.diff.changed??0}, neu ${s.diff.new??0}` : 'noch nicht verglichen';
   $('stTest').textContent  = s.test_fresh ? '✓ Ergebnis da' : 'ausstehend';
   $('stApply').textContent = s.apply_fresh ? '✓ gespeichert und übernommen' : 'noch nicht übernommen';
+}
+
+// Zaehlt die noch hotlinkenden gemeinfreien Wappen und spiegelt sie in den Button-Untertitel.
+async function refreshLocalizeCount(){
+  try{
+    const r = await api('localize_coats_pending');
+    const n = r.remaining || 0;
+    $('stLocalize').textContent = n > 0 ? `${n} Hotlinks offen` : '✓ alle lokal';
+    $('btnLocalizeCoats').disabled = n === 0;
+  }catch(e){ $('stLocalize').textContent = '—'; }
 }
 
 async function loadModel() {
@@ -1008,6 +1019,27 @@ $('btnCrawl').onclick = () => { if (window.confirm("Sync wirklich starten? Das c
 $('btnModel').onclick = async()=>{ busy(true); try{ const r=await api('rebuild_model',{method:'POST'}); setStatus(`Hierarchie: ${r.summary.total} Knoten, ${r.summary.resolved_parents} Eltern aufgelöst, ${r.summary.gap_parents} Lücken, ${r.summary.roots} Wurzeln.`); await loadModel(); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnDiff').onclick = async()=>{ busy(true); try{ const d=await api('diff'); setStatus(`Unterschiede (Staging vs Wiki): neu ${d.new}, verschwunden ${d.disappeared}, geändert ${d.changed}.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnCache').onclick = async()=>{ busy(true); try{ const c=await api('sync_parent_cache',{method:'POST',body:{}}); setStatus(`Testübertragung: auffüllbar ${c.fillable}, deckungsgleich ${c.already_aligned}, divergent ${c.divergent_existing} – es wurde nichts geschrieben.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
+$('btnLocalizeCoats').onclick = async()=>{
+  busy(true);
+  let total=0, remaining=null;
+  try{
+    let rounds=0, failed=0;
+    setStatus('Lokalisiere gemeinfreie Wappen…');
+    while(true){
+      const r = await api('localize_coats',{method:'POST',body:{options:{batch_limit:10, sleep_ms:150}}});
+      total += r.localized||0; failed = r.failed||0; remaining = r.remaining||0; rounds++;
+      setStatus(`Wappen lokalisieren… ${total} gespeichert + verkleinert, noch ${remaining} offen${failed?` (${failed} Fehler in dieser Runde)`:''}.`);
+      if(remaining===0) break;                                  // fertig
+      if((r.localized||0)===0 && (r.skipped||0)===0) break;     // kein Fortschritt -> nur noch tote URLs
+      if(rounds>60) break;                                      // Sicherheits-Limit
+    }
+    const tail = (remaining>0) ? ` ${remaining} übrig (vermutlich tote Bild-URLs oder Nicht-Wiki-Quellen).` : '';
+    setStatus(`Fertig: ${total} gemeinfreie Wappen lokalisiert + verkleinert.${tail}`);
+    await loadModel();
+  }catch(e){ setStatus('Fehler: '+e.message); }
+  busy(false);
+  refreshLocalizeCount();
+};
 $('btnApply').onclick = async()=>{
   busy(true); let dry, dryOwn, ident;
   try {
@@ -1275,6 +1307,7 @@ loadModel().then(()=>{
 }).catch(e=>setStatus('Modell laden fehlgeschlagen: '+e.message));
 loadEditorState();
 loadUnassignedGeoms();
+refreshLocalizeCount();
 </script>
 </body>
 </html>

@@ -204,6 +204,103 @@ function avesmapsWikiSyncMonitorSaveCoatLocal(PDO $pdo, string $wikiKey): array 
     return ['ok' => true, 'wiki_key' => $wikiKey, 'local_url' => $localUrl, 'bytes' => strlen($coatBytes), 'source' => $coatUrl];
 }
 
+// Kandidaten fuer die Bulk-Lokalisierung: wiki_keys, deren EFFEKTIVES (Override ?? Staging) Wappen
+// gemeinfrei (public_domain) ist, noch auf wiki-aventurica hotlinkt und noch nicht lokal liegt.
+// Gleiche Quell-/Lizenz-Restriktion wie save_coat_local, nur eben fuer alle auf einmal.
+function avesmapsWikiSyncMonitorPendingLocalizeCoatKeys(PDO $pdo): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $staging = AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE;
+    $model = AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE;
+
+    $overrides = [];
+    foreach ($pdo->query('SELECT wiki_key, metadata_overrides_json FROM ' . $model) ?: [] as $row) {
+        $decoded = json_decode((string) ($row['metadata_overrides_json'] ?? ''), true);
+        if (is_array($decoded)) {
+            $overrides[(string) $row['wiki_key']] = $decoded;
+        }
+    }
+
+    $keys = [];
+    $rows = $pdo->query(
+        'SELECT wiki_key, coat_of_arms_url, coat_of_arms_license_status FROM ' . $staging . '
+        WHERE coat_of_arms_url IS NOT NULL AND coat_of_arms_url <> \'\''
+    ) ?: [];
+    foreach ($rows as $row) {
+        $wikiKey = (string) $row['wiki_key'];
+        $ov = $overrides[$wikiKey] ?? [];
+        $coatUrl = array_key_exists('coat_of_arms_url', $ov)
+            ? trim((string) $ov['coat_of_arms_url'])
+            : trim((string) ($row['coat_of_arms_url'] ?? ''));
+        $license = array_key_exists('coat_of_arms_license_status', $ov)
+            ? trim((string) $ov['coat_of_arms_license_status'])
+            : trim((string) ($row['coat_of_arms_license_status'] ?? ''));
+        if ($coatUrl === '' || $license !== 'public_domain') {
+            continue;
+        }
+        if (strpos($coatUrl, '/uploads/wappen/') === 0) {
+            continue; // schon lokal
+        }
+        $host = (string) parse_url($coatUrl, PHP_URL_HOST);
+        if (stripos($host, 'wiki-aventurica.de') === false) {
+            continue; // nur Wiki-Aventurica-Quelle (wie save_coat_local)
+        }
+        $keys[$wikiKey] = true;
+    }
+    $keys = array_keys($keys);
+    sort($keys);
+    return $keys;
+}
+
+// Bulk-Lokalisierung gemeinfreier Wappen, resumierbar wie enrich_licenses: pro Aufruf max.
+// batch_limit Stueck herunterladen + lokal verkleinert speichern (via save_coat_local), zwischen den
+// Downloads sleep_ms warten (Wiki schonen). Der Client ruft, bis remaining=0 ODER ein Batch keinen
+// Fortschritt macht (nur noch dauerhaft fehlerhafte Bilder). Lizenz/Quelle: nur public_domain, nur Wiki.
+function avesmapsWikiSyncMonitorLocalizeCoats(PDO $pdo, array $options = []): array {
+    avesmapsWikiSyncMonitorEnsureTables($pdo);
+    $batchLimit = max(1, min(40, (int) ($options['batch_limit'] ?? 10)));
+    $sleepMs = max(0, min(3000, (int) ($options['sleep_ms'] ?? AVESMAPS_WIKI_SYNC_MONITOR_SLEEP_MS)));
+    @set_time_limit(max(30, $batchLimit * 4 + 20));
+
+    $pending = avesmapsWikiSyncMonitorPendingLocalizeCoatKeys($pdo);
+    $batch = array_slice($pending, 0, $batchLimit);
+
+    $localized = 0;
+    $skipped = 0;
+    $failed = 0;
+    $errors = [];
+    $lastIndex = count($batch) - 1;
+    foreach ($batch as $index => $wikiKey) {
+        try {
+            $result = avesmapsWikiSyncMonitorSaveCoatLocal($pdo, $wikiKey);
+        } catch (Throwable $error) {
+            $result = ['ok' => false, 'error' => $error->getMessage()];
+        }
+        if (($result['ok'] ?? false) === true && empty($result['already_local'])) {
+            $localized++;
+        } elseif (!empty($result['already_local'])) {
+            $skipped++;
+        } else {
+            $failed++;
+            if (count($errors) < 20) {
+                $errors[] = ['wiki_key' => $wikiKey, 'error' => (string) ($result['error'] ?? 'unbekannt')];
+            }
+        }
+        if ($index < $lastIndex) {
+            avesmapsWikiSyncMonitorSleep($sleepMs);
+        }
+    }
+
+    return [
+        'ok' => true,
+        'processed' => count($batch),
+        'localized' => $localized,
+        'skipped' => $skipped,
+        'failed' => $failed,
+        'errors' => $errors,
+        'remaining' => count(avesmapsWikiSyncMonitorPendingLocalizeCoatKeys($pdo)),
+    ];
+}
+
 // #4 "Eigenes Wappen hochladen": nimmt eine hochgeladene Datei ODER eine Bild-URL, speichert sie als
 // /uploads/wappen/<slug>-custom.<ext> und setzt coat_of_arms_url + coat_of_arms_license_status (+ optional
 // coat_of_arms_author) als Override. Die Lizenz waehlt der Nutzer selbst. Restore = clear_field_override (↺).
