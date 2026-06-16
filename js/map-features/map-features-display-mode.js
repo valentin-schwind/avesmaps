@@ -155,6 +155,9 @@ function setSelectedMapLayerMode(mode) {
 	const normalizedMode = ["none", "political", "deregraphic", "powerlines"].includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
 	$("#mapLayerModeSelect").val(normalizedMode);
 	syncTransportControl("mapLayerModeSelect");
+	// "Nur Karte" (none): dunkelgrauer Karten-Hintergrund hinter/um die Kacheln
+	// (CSS: body.map-mode-none .leaflet-container).
+	document.body.classList.toggle("map-mode-none", normalizedMode === "none");
 	if (IS_EDIT_MODE && normalizedMode === "powerlines") {
 		$("#toggleNodix").prop("checked", true);
 		syncLocationMarkerVisibility();
