@@ -8,12 +8,6 @@ body {
 	height: 100%;
 }
 
-/* "Nur Karte" (mapLayerMode "none"): dunkelgrauer Hintergrund hinter/um die Kacheln
-   (sonst Leaflet-Default-Hellgrau). Klasse wird in setSelectedMapLayerMode gesetzt. */
-body.map-mode-none .leaflet-container {
-	background: #2e2e2e;
-}
-
 #search {
 	position: absolute;
 	top: 10px;
