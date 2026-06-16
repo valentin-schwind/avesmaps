@@ -248,7 +248,10 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 			.has(String(regionEntry.territoryPublicId || "").trim());
 
 	const style = {
-		color: regionEntry.color,
+		// Aussengrenze politischer Gebiete einheitlich in der Standardfarbe (Grau, passend zur abgeleiteten
+		// Huelle / Canvas OUTER_LINE_COLOR #d3d3d3) statt in der Gebiets-Fuellfarbe. Fuellung bleibt farbig
+		// (fillColor unten). Nicht-politische Features (Legacy-Regionen) behalten ihre eigene Linienfarbe.
+		color: regionEntry.source === "political_territory" ? "#d3d3d3" : regionEntry.color,
 		weight,
 		opacity: 1,
 		fillColor: resolvedFillColor,
