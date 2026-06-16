@@ -91,6 +91,64 @@ function avesmapsWikiSyncMonitorImageExtension(string $contentType, string $url)
     return null;
 }
 
+// Verkleinert ein Raster-Wappen auf eine vernuenftige Kantenlaenge (laengste Seite <= $maxEdge),
+// bevor es in /uploads/wappen/ landet. Originale sind oft 1000-2000px / mehrere MB, angezeigt wird
+// das Wappen aber nur mit 18-42px (Karten-Label/Tooltip/Infobox). Seitenverhaeltnis und Transparenz
+// (PNG/WebP) bleiben erhalten. SVG (Vektor) und GIF (evtl. animiert) sowie alles, was GD nicht sauber
+// round-trippt oder nicht kleiner wird, bleiben unveraendert -- der Upload darf an der Verkleinerung
+// NIE scheitern, im Zweifel das Original behalten.
+function avesmapsWikiSyncMonitorDownscaleCoatBytes(string $bytes, string $ext, int $maxEdge = 512): string {
+    $ext = strtolower($ext);
+    if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp'], true)) {
+        return $bytes;
+    }
+    if (!function_exists('imagecreatefromstring') || !function_exists('imagecopyresampled')) {
+        return $bytes;
+    }
+    $src = @imagecreatefromstring($bytes);
+    if ($src === false) {
+        return $bytes;
+    }
+    try {
+        $w = imagesx($src);
+        $h = imagesy($src);
+        if ($w < 1 || $h < 1 || max($w, $h) <= $maxEdge) {
+            return $bytes; // bereits klein genug
+        }
+        $scale = $maxEdge / max($w, $h);
+        $nw = max(1, (int) round($w * $scale));
+        $nh = max(1, (int) round($h * $scale));
+        $dst = imagecreatetruecolor($nw, $nh);
+        if ($dst === false) {
+            return $bytes;
+        }
+        // Alpha unveraendert uebernehmen (nicht blenden) und mit-speichern.
+        imagealphablending($dst, false);
+        imagesavealpha($dst, true);
+        if (!imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $h)) {
+            imagedestroy($dst);
+            return $bytes;
+        }
+        ob_start();
+        $ok = false;
+        if ($ext === 'png') {
+            $ok = imagepng($dst, null, 6);
+        } elseif ($ext === 'webp' && function_exists('imagewebp')) {
+            $ok = imagewebp($dst, null, 90);
+        } elseif ($ext === 'jpg' || $ext === 'jpeg') {
+            $ok = imagejpeg($dst, null, 88);
+        }
+        $out = (string) ob_get_clean();
+        imagedestroy($dst);
+        if (!$ok || $out === '' || strlen($out) >= strlen($bytes)) {
+            return $bytes; // Encoding fehlgeschlagen oder nicht kleiner -> Original behalten
+        }
+        return $out;
+    } finally {
+        imagedestroy($src);
+    }
+}
+
 // #3 "Wappen lokal speichern": laedt das gemeinfreie Wiki-Wappen herunter -> /uploads/wappen/<slug>.<ext>,
 // setzt coat_of_arms_url-Override auf die lokale URL. Nur public_domain, nur Wiki-Aventurica-Quelle.
 function avesmapsWikiSyncMonitorSaveCoatLocal(PDO $pdo, string $wikiKey): array {
@@ -137,12 +195,13 @@ function avesmapsWikiSyncMonitorSaveCoatLocal(PDO $pdo, string $wikiKey): array 
     $slug = strtolower((string) preg_replace('/[^a-z0-9_-]+/i', '-', (string) preg_replace('/^wiki:/', '', $wikiKey)));
     $slug = trim($slug, '-') ?: 'wappen';
     $filename = $slug . '.' . $ext;
-    if (@file_put_contents($dir . '/' . $filename, $downloaded['bytes']) === false) {
+    $coatBytes = avesmapsWikiSyncMonitorDownscaleCoatBytes($downloaded['bytes'], $ext);
+    if (@file_put_contents($dir . '/' . $filename, $coatBytes) === false) {
         return ['ok' => false, 'error' => 'Wappen konnte nicht gespeichert werden (Schreibrechte auf /uploads/wappen?).'];
     }
     $localUrl = '/uploads/wappen/' . $filename;
     avesmapsWikiSyncMonitorSetFieldOverride($pdo, $wikiKey, 'coat_of_arms_url', $localUrl);
-    return ['ok' => true, 'wiki_key' => $wikiKey, 'local_url' => $localUrl, 'bytes' => strlen($downloaded['bytes']), 'source' => $coatUrl];
+    return ['ok' => true, 'wiki_key' => $wikiKey, 'local_url' => $localUrl, 'bytes' => strlen($coatBytes), 'source' => $coatUrl];
 }
 
 // #4 "Eigenes Wappen hochladen": nimmt eine hochgeladene Datei ODER eine Bild-URL, speichert sie als
@@ -219,6 +278,7 @@ function avesmapsWikiSyncMonitorUploadCoat(PDO $pdo, string $wikiKey, string $so
     $slug = strtolower((string) preg_replace('/[^a-z0-9_-]+/i', '-', (string) preg_replace('/^wiki:/', '', $wikiKey)));
     $slug = trim($slug, '-') ?: 'wappen';
     $filename = $slug . '-custom.' . $ext;
+    $bytes = avesmapsWikiSyncMonitorDownscaleCoatBytes($bytes, $ext);
     if (@file_put_contents($dir . '/' . $filename, $bytes) === false) {
         return ['ok' => false, 'error' => 'Wappen konnte nicht gespeichert werden (Schreibrechte auf /uploads/wappen?).'];
     }
