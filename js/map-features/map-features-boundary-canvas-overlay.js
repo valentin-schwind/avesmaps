@@ -492,20 +492,6 @@
 		feats.forEach((f) => { const k = String(f.properties.territory_public_id || "").trim(); if (k) derivedTerritoryKeys.add(k); });
 		const reichsstadt = buildReichsstadtSets(all, derivedTerritoryKeys);
 
-		// Option 1: Innengrenzen am Aggregat-Anzeige-Zoom unterdruecken. Ein Territorium, das am aktuellen Zoom
-		// als gefuelltes Aggregat (= eine Einheit) gezeigt wird, hat ein NICHT-derived Aggregat-Fuell-Feature in
-		// regionData (nur in seinem Anzeige-/Fuellband, z. B. Kalifat 0-1). Solange das da ist, KEINE internen
-		// Provinz-Trennlinien zeichnen -- die erscheinen erst beim Tieferzoomen, wenn die Unterregionen selbst
-		// rendern (ihre eigenen Aussengrenzen liefern dann die Teilung).
-		const shownAsAggregateUnit = new Set();
-		all.forEach((f) => {
-			const p = f && f.properties;
-			if (p && p.is_derived_geometry !== true && p.is_aggregate === true) {
-				const t = String(p.territory_public_id || "").trim();
-				if (t) shownAsAggregateUnit.add(t);
-			}
-		});
-
 		feats.forEach((f) => {
 			const polys = polygonsOf(f.geometry);
 			if (!polys.length) return;
@@ -540,8 +526,15 @@
 			// Innengrenzen: sichtbar wann immer die Derived existiert UND "Innengrenzen an"
 			// (an die Außenkontur gekoppelt, NICHT ans Fuellband) -> die Unterteilungen
 			// bleiben über alle Zoomstufen konsistent statt am Bandrand zu verschwinden.
+			// Innengrenzen eines Territoriums erst zeigen, wenn man UEBER sein Anzeigeband hinaus gezoomt hat
+			// (currentZoom > max_zoom) -- also wenn man wirklich in seine Unterstruktur schaut. Am/oberhalb des
+			// Anzeigebands (Reich als EINE Einheit) bleiben sie konsistent fuer ALLE Ebenen aus. (Vorher per
+			// non-derived-Aggregat-Heuristik -> erwischte nur die Wurzel-Reiche, Unterregionen zeigten ihre
+			// Innengrenzen schon bei Zoom 1 obwohl ihr eigenes Band 2+ ist.)
+			const innerMaxZoom = Number(f.properties.max_zoom);
+			const zoomedIntoSubstructure = !Number.isFinite(innerMaxZoom) || Math.round(Number(map.getZoom())) > innerMaxZoom;
 			if (f.properties.show_inner_boundaries === true
-				&& !shownAsAggregateUnit.has(String(f.properties.territory_public_id || "").trim())
+				&& zoomedIntoSubstructure
 				&& !reichsstadt.suppressParents.has(String(f.properties.territory_public_id || "").trim())) {
 				drawInnerBoundaries(f.properties.inner_boundary_geojson);
 			}
