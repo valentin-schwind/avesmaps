@@ -526,18 +526,11 @@
 			// Innengrenzen: sichtbar wann immer die Derived existiert UND "Innengrenzen an"
 			// (an die Außenkontur gekoppelt, NICHT ans Fuellband) -> die Unterteilungen
 			// bleiben über alle Zoomstufen konsistent statt am Bandrand zu verschwinden.
-			// Innengrenzen eines Territoriums erst zeigen, wenn man UEBER sein Anzeigeband hinaus gezoomt hat
-			// (currentZoom > max_zoom) -- also wenn man wirklich in seine Unterstruktur schaut. Am/oberhalb des
-			// Anzeigebands (Reich als EINE Einheit) bleiben sie konsistent fuer ALLE Ebenen aus. (Vorher per
-			// non-derived-Aggregat-Heuristik -> erwischte nur die Wurzel-Reiche, Unterregionen zeigten ihre
-			// Innengrenzen schon bei Zoom 1 obwohl ihr eigenes Band 2+ ist.)
-			const innerMaxZoom = Number(f.properties.max_zoom);
-			const zoomedIntoSubstructure = !Number.isFinite(innerMaxZoom) || Math.round(Number(map.getZoom())) > innerMaxZoom;
-			// Frontend: Innengrenzen erst UEBER dem Anzeigeband (Reich als Einheit bleibt linienfrei; die Huelle
-			// fuellt dort nahtlos). Editor: ab Zoom 1 zeigen (der drawInnerBoundaries-Guard haelt Zoom 0 aus) --
-			// dort fuellen die Einzel-Teile mit grauen Naehten, die weiss-gestrichelten Innengrenzen kaschieren sie.
-			const innerEditMode = typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE;
-			const showInnerHere = innerEditMode ? true : zoomedIntoSubstructure;
+			// Innengrenzen werden im Frontend jetzt GENAUSO wie im Editmode gezeigt: ab Zoom 1
+			// (der drawInnerBoundaries-Guard haelt Zoom 0 aus), unabhaengig vom Anzeigeband. Frueher
+			// waren sie im Frontend erst UEBER dem Band sichtbar (currentZoom > max_zoom); auf Wunsch
+			// vereinheitlicht, damit die Unterteilungen auch bei Zoom 1 erscheinen (Naehte kaschiert).
+			const showInnerHere = true;
 			if (f.properties.show_inner_boundaries === true
 				&& showInnerHere
 				&& !reichsstadt.suppressParents.has(String(f.properties.territory_public_id || "").trim())) {
