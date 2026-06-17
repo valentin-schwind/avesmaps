@@ -533,8 +533,13 @@
 			// Innengrenzen schon bei Zoom 1 obwohl ihr eigenes Band 2+ ist.)
 			const innerMaxZoom = Number(f.properties.max_zoom);
 			const zoomedIntoSubstructure = !Number.isFinite(innerMaxZoom) || Math.round(Number(map.getZoom())) > innerMaxZoom;
+			// Frontend: Innengrenzen erst UEBER dem Anzeigeband (Reich als Einheit bleibt linienfrei; die Huelle
+			// fuellt dort nahtlos). Editor: ab Zoom 1 zeigen (der drawInnerBoundaries-Guard haelt Zoom 0 aus) --
+			// dort fuellen die Einzel-Teile mit grauen Naehten, die weiss-gestrichelten Innengrenzen kaschieren sie.
+			const innerEditMode = typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE;
+			const showInnerHere = innerEditMode ? true : zoomedIntoSubstructure;
 			if (f.properties.show_inner_boundaries === true
-				&& zoomedIntoSubstructure
+				&& showInnerHere
 				&& !reichsstadt.suppressParents.has(String(f.properties.territory_public_id || "").trim())) {
 				drawInnerBoundaries(f.properties.inner_boundary_geojson);
 			}

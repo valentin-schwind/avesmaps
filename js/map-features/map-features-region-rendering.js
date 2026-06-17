@@ -206,7 +206,10 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 	// nur das solide Aggregat ohne Loecher -> Terrain-Durchsicht zu, Schraffur wirkt opak. Das Aggregat
 	// derselben territory_public_id wird unten (suppressFillForDerivedHoledFill) abgeschaltet.
 	const derivedShowsHoledFill = regionEntry.isDerivedGeometry && regionEntry.derivedFillActive && !!regionEntry.fillRemainderGeojson;
-	const fillOpacity = (regionEntry.isDerivedGeometry && (regionEntry.showInnerBoundaries || !regionEntry.derivedFillActive) && !derivedShowsHoledFill)
+	// Frontend: die abgeleitete (gemergte) Huelle fuellt nahtlos -- AUCH bei sichtbaren Innengrenzen; die
+	// Einzel-Quell-Teile werden unten (suppressFillForActiveDerived) abgeschaltet -> keine grauen Naehte.
+	// Editor: unveraendert (Huelle fuellt bei Innengrenzen NICHT, die Einzel-Teile bleiben sichtbar/bearbeitbar).
+	const fillOpacity = (regionEntry.isDerivedGeometry && ((regionEntry.showInnerBoundaries && IS_EDIT_MODE) || !regionEntry.derivedFillActive) && !derivedShowsHoledFill)
 		? 0
 		: activeFillOpacity;
 
@@ -228,15 +231,18 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 	// Aggregat-Fuellung unterdruecken, wenn die Derived dieses Territoriums fuellt UND einen fill_remainder
 	// (gelochte Fuellung) hat -> die Derived rendert die Reichsfarbe MIT Terrain-Loechern an den Konflikt-
 	// Baronien; das solide Aggregat-Feature wuerde die Loecher sonst zustopfen (Schraffur wirkt dann opak).
-	let suppressFillForDerivedHoledFill = false;
+	let suppressFillForActiveDerived = false;
 	if (!IS_EDIT_MODE && !regionEntry.isDerivedGeometry) {
 		const terrKey = String(regionEntry.territoryPublicId || "").trim();
 		const aggregate = terrKey ? (politicalRegionDerivedByTerritory || indexPoliticalRegionDerivedByTerritory()).get(terrKey) : null;
 		if (aggregate && aggregate.color) {
 			resolvedFillColor = aggregate.color;
 		}
-		if (aggregate && aggregate.derivedFillActive && aggregate.hasFillRemainder) {
-			suppressFillForDerivedHoledFill = true;
+		// Wenn die gemergte Huelle dieses Territoriums fuellt, die vielen Einzel-Quell-Teile NICHT fuellen
+		// (sonst halbtransparente Naehte/Loecher an den Kanten). Frueher nur fuer den gelochten fill_remainder
+		// (Schraffur); jetzt generell, weil die Huelle im Frontend immer nahtlos fuellt.
+		if (aggregate && aggregate.derivedFillActive) {
+			suppressFillForActiveDerived = true;
 		}
 	}
 
@@ -258,7 +264,7 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 		// Umstrittene Gebiete: Fuellung ausschneiden (0), damit die diagonale Schraffur des Canvas-
 		// Overlays ueber die Basis-Karte liegt statt ueber der Reichsfarbe. fill:true bleibt -> Polygon
 		// bleibt klickbar (Infobox), Grenzen-Linie unberuehrt (eigenes Overlay).
-		fillOpacity: (isRegionContested(regionEntry) || suppressFillForDerivedHoledFill || suppressFillForDisplayingChild) ? 0 : fillOpacity,
+		fillOpacity: (isRegionContested(regionEntry) || suppressFillForActiveDerived || suppressFillForDisplayingChild) ? 0 : fillOpacity,
 	};
 	if (levelLineStyle && levelLineStyle.dashArray) {
 		style.dashArray = levelLineStyle.dashArray;
