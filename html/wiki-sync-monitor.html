@@ -199,7 +199,7 @@
     <button class="btn2" id="btnModel" title="Berechnet die Hierarchie aus dem Staging neu (Locks + Aussortiert bleiben erhalten)"><span class="t1">Hierarchie</span><span class="t2" id="stModel">—</span></button>
     <button class="btn2" id="btnDiff" title="Vergleicht Staging gegen das aktuelle Wiki: gelöscht / geändert / neu"><span class="t1">Unterschiede</span><span class="t2" id="stDiff">—</span></button>
     <button class="btn2" id="btnCache" title="Testweise zeigen, was die Übertragung nach Avesmaps ändern würde – schreibt nichts"><span class="t1">Test</span><span class="t2" id="stTest">—</span></button>
-    <button class="btn2" id="btnIdentPreview" title="Vorschau der Daten-Änderungen (Name, Staatsform, Status, Gegründet/Aufgelöst, „Bis heute“) – im Dialog mit „Nur Daten übernehmen“ schreibbar"><span class="t1">Nur Daten</span><span class="t2" id="stIdent">—</span></button>
+    <button class="btn2" id="btnIdentPreview" title="Vorschau der Daten-Änderungen (Name, Staatsform, Status, Gegründet/Aufgelöst, „Bis heute“) – im Dialog mit „Daten übernehmen“ schreibbar"><span class="t1">Daten</span><span class="t2" id="stIdent">—</span></button>
     <button class="btn2 primary" id="btnApply" title="Übernimmt das kuratierte Modell in Avesmaps – schreibt Eltern-Zuweisungen UND Daten (Name/Status/Gegründet/Aufgelöst, „Bis heute“); Geometrien bleiben unberührt"><span class="t1">Modell übernehmen</span><span class="t2" id="stApply">—</span></button>
     <button class="btn2" id="btnLocalizeCoats" title="Lädt ALLE noch auf wiki-aventurica verlinkten gemeinfreien Wappen auf den Avesmaps-Server, verkleinert sie (max. 512px) und nutzt künftig die lokalen Kopien (Override). Läuft in Schüben; schreibt nur Wappen-Overrides, keine Geometrien."><span class="t1">Wappen lokalisieren</span><span class="t2" id="stLocalize">—</span></button>
   </div>
@@ -292,7 +292,7 @@
     <div class="ident-table" id="identTable"></div>
     <div class="modal-actions">
       <button id="identClose">Schließen</button>
-      <button class="primary" id="identApply" title="Schreibt nur die angezeigten Daten-Felder (Name, Staatsform, Status, Gültigkeit, Kontinent) – ohne Hierarchie/Eltern – (inkl. „Bis heute“) in political_territory – mit Backup/Revert">Nur Daten übernehmen</button>
+      <button class="primary" id="identApply" title="Schreibt nur die angezeigten Daten-Felder (Name, Staatsform, Status, Gültigkeit, Kontinent) – ohne Hierarchie/Eltern – (inkl. „Bis heute“) in political_territory – mit Backup/Revert">Daten übernehmen</button>
     </div>
   </div>
 </div>
@@ -1226,7 +1226,7 @@ $('identApply').onclick = async()=>{
   if(n < 1){ setStatus('Keine Daten-Änderungen zu übernehmen.'); return; }
   const fc = IDENT.field_counts || {};
   const fcLine = ['name','type','status','valid_from_bf','valid_to_bf','continent'].filter(f=>fc[f]).map(f=>`${IDENT_LABELS[f]}: ${fc[f]}`).join(', ');
-  if(!confirm(`Nur Daten in Avesmaps übernehmen?\n\n• ${n} Gebiete werden geändert (${fcLine})\n• Schreibt Name/Staatsform/Status/Gegründet/Aufgelöst (inkl. „Bis heute“) in political_territory\n• Rückgängig per Backup/Revert\n\nJetzt schreiben?`)){ setStatus('Daten-Übernahme abgebrochen.'); return; }
+  if(!confirm(`Daten in Avesmaps übernehmen?\n\n• ${n} Gebiete werden geändert (${fcLine})\n• Schreibt Name/Staatsform/Status/Gegründet/Aufgelöst (inkl. „Bis heute“) in political_territory\n• Rückgängig per Backup/Revert\n\nJetzt schreiben?`)){ setStatus('Daten-Übernahme abgebrochen.'); return; }
   busy(true);
   try{
     const r = await api('apply_identity', {method:'POST', body:{dry_run:false, confirm:'apply'}});
