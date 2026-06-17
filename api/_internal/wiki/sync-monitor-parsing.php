@@ -159,6 +159,19 @@ function avesmapsWikiSyncMonitorCoatOfArmsUrl(string $rawValue): string {
 }
 
 function avesmapsWikiSyncMonitorDetectContinent(string $context): string {
+    // Sekundaer-/Kolonialgebiete duerfen die Kontinent-Klassifizierung des HEIMAT-Gebiets nicht
+    // kapern. Konkreter Bug: Al'Anfa "Geographisch: Meridiana; Kolonien: Uthuria" -> die Uthuria-
+    // Kolonie-Erwaehnung setzte das Reich faelschlich auf "Uthuria" (die Needle-Suche unten gewinnt
+    // beim ersten Treffer, und 'uthuria' steht vor 'aventurien'). Daher ein Kolonie-Schluesselwort
+    // samt unmittelbar folgendem Fremd-Kontinentnamen (max. 2 Zwischenwoerter) VOR dem Keying
+    // entfernen -- gebunden, damit weiter hinten stehende Nav-Marker NICHT mitgerissen werden.
+    $context = preg_replace(
+        '/\b(?:kolonien?|kolonialbesitz|protektorat|au[\x{00df}s]enposten|exklave|dependance)\b'
+        . '[\s:,]*(?:\S+\s+){0,2}?'
+        . '(?:uthuria|myranor|g[\x{00fc}u]ldenland|gueldenland|rakshazar|riesland|tharun|lahmaria)\b/iu',
+        ' ',
+        $context
+    ) ?? $context;
     $key = avesmapsWikiSyncMonitorFieldKey($context);
     // Ein EXPLIZITER Aventurien-Nav-Marker ({{Nav Staaten Aventurien}}) ist das stärkste, eindeutige
     // Signal und gewinnt VOR der losen Needle-Suche unten -- sonst kapert eine Streu-Erwähnung eines

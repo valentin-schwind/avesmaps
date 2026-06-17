@@ -538,7 +538,7 @@ function avesmapsWikiSyncMonitorResolveCapitals(PDO $pdo, array $byName, array $
 // aendern WUERDE. Effektiv = Override (metadata_overrides_json) ?? Staging-Wiki, Match per wiki_key,
 // Vergleich gegen die aktive Live-Zeile. Schreibt NICHTS. Kernfelder: name, type, status,
 // valid_from_bf(<-founded_start_bf), valid_to_bf(<-dissolved_end_bf; 9999/null=besteht). excluded -> skip.
-// Kontinent (mit Vererbung)/Hauptstadt/Wappen folgen in einem spaeteren Schritt.
+// continent (mit Vererbung) wird jetzt ebenfalls abgeglichen/geschrieben; Hauptstadt/Wappen folgen spaeter.
 // Klammer-Qualifizierer aus der Wiki-Disambiguierung am Ende des Typs entfernen
 // ("Herzogtum (Mittelreichische Provinz)" -> "Herzogtum"). Mehrfach-/verschachtelt-tolerant.
 function avesmapsWikiSyncMonitorCleanType(string $type): string {
@@ -557,7 +557,7 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
     $model = AVESMAPS_WIKI_SYNC_MONITOR_MODEL_TABLE;
 
     $st = [];
-    foreach ($pdo->query('SELECT wiki_key, name, type, status, founded_text, founded_start_bf, founded_display_bf, dissolved_start_bf, dissolved_end_bf, dissolved_display_bf FROM ' . $staging) ?: [] as $r) {
+    foreach ($pdo->query('SELECT wiki_key, name, type, status, continent, founded_text, founded_start_bf, founded_display_bf, dissolved_start_bf, dissolved_end_bf, dissolved_display_bf FROM ' . $staging) ?: [] as $r) {
         $st[(string) $r['wiki_key']] = $r;
     }
     $mo = [];
@@ -569,7 +569,7 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
             'parent' => $r['parent_wiki_key'] !== null ? (string) $r['parent_wiki_key'] : null,
         ];
     }
-    $live = $pdo->query('SELECT id, wiki_key, name, type, status, valid_from_bf, valid_to_bf FROM political_territory WHERE wiki_key IS NOT NULL AND wiki_key <> \'\' AND is_active = 1') ?: [];
+    $live = $pdo->query('SELECT id, wiki_key, name, type, status, continent, valid_from_bf, valid_to_bf FROM political_territory WHERE wiki_key IS NOT NULL AND wiki_key <> \'\' AND is_active = 1') ?: [];
 
     $normBf = static function ($v): ?int {
         if ($v === null || $v === '') {
@@ -629,7 +629,31 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
     };
     $cmpStr = static fn($a, $b): bool => trim((string) $a) !== trim((string) $b);
 
-    $fieldCounts = ['name' => 0, 'type' => 0, 'status' => 0, 'valid_from_bf' => 0, 'valid_to_bf' => 0];
+    // Effektiver Kontinent mit Vererbung: Override > Staging-Wert > naechster Vorfahr mit Wert.
+    // Leer (auch nach Vererbung) bleibt leer -> erzeugt KEINE Aenderung (das Apply-UPDATE nutzt
+    // COALESCE und bewahrt dann den Live-Wert), damit ein leerer Staging-Kontinent nie einen guten
+    // Live-Wert ueberschreibt. Korrigiert die fruehere Fehlklassifizierung (z. B. Al'Anfa/Brabak
+    // faelschlich "Uthuria"), die nach dem Anlegen nie mehr aktualisiert wurde (continent fehlte im
+    // UPDATE-Pfad). Quelle ist die bereits in der Erkennung gehaertete Staging-/Override-Spalte.
+    $effContinentInherited = static function (string $wk) use ($mo, $st): string {
+        $seen = [];
+        $cur = $wk;
+        while ($cur !== null && !isset($seen[$cur])) {
+            $seen[$cur] = true;
+            $ov = $mo[$cur]['ov'] ?? [];
+            if (array_key_exists('continent', $ov) && trim((string) $ov['continent']) !== '') {
+                return trim((string) $ov['continent']);
+            }
+            $sv = trim((string) ($st[$cur]['continent'] ?? ''));
+            if ($sv !== '') {
+                return $sv;
+            }
+            $cur = $mo[$cur]['parent'] ?? null;
+        }
+        return '';
+    };
+
+    $fieldCounts = ['name' => 0, 'type' => 0, 'status' => 0, 'valid_from_bf' => 0, 'valid_to_bf' => 0, 'continent' => 0];
     $rows = [];
     $changed = [];
     $summary = ['live_with_wiki_key' => 0, 'no_staging' => 0, 'excluded_skipped' => 0, 'rows_with_changes' => 0, 'unchanged' => 0];
@@ -652,6 +676,7 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
         $effName = array_key_exists('name', $ov) ? (string) $ov['name'] : (string) ($s['name'] ?? '');
         $effType = array_key_exists('type', $ov) ? (string) $ov['type'] : avesmapsWikiSyncMonitorCleanType((string) ($s['type'] ?? ''));
         $effStatus = array_key_exists('status', $ov) ? (string) $ov['status'] : (string) ($s['status'] ?? '');
+        $effContinentV = $effContinentInherited($wk);
         $effFromV = $effFoundedInherited($wk);
         $effToV = $effTo($ov, $s);
         $liveFrom = $L['valid_from_bf'] === null ? null : (int) $L['valid_from_bf'];
@@ -679,6 +704,11 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
             $changes['valid_to_bf'] = ['from' => $liveTo, 'to' => $effToV];
             $fieldCounts['valid_to_bf']++;
         }
+        // Nur aendern, wenn ein NICHT-leerer Kontinent abweicht (leer => Live-Wert bewahren).
+        if ($effContinentV !== '' && $cmpStr($L['continent'] ?? '', $effContinentV)) {
+            $changes['continent'] = ['from' => (string) ($L['continent'] ?? ''), 'to' => $effContinentV];
+            $fieldCounts['continent']++;
+        }
 
         if ($changes === []) {
             $summary['unchanged']++;
@@ -690,7 +720,7 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
             'wiki_key' => $wk,
             'name' => $effName,
             'changes' => $changes,
-            'eff' => ['name' => $effName, 'type' => $effType, 'status' => $effStatus, 'valid_from_bf' => $effFromV, 'valid_to_bf' => $effToV],
+            'eff' => ['name' => $effName, 'type' => $effType, 'status' => $effStatus, 'valid_from_bf' => $effFromV, 'valid_to_bf' => $effToV, 'continent' => $effContinentV],
         ];
         if (count($rows) < 300) {
             $rows[] = ['wiki_key' => $wk, 'name' => $effName, 'changes' => $changes];
@@ -700,11 +730,13 @@ function avesmapsWikiSyncMonitorApplyIdentityPreview(PDO $pdo): array {
     return ['ok' => true, 'summary' => $summary, 'field_counts' => $fieldCounts, 'rows' => $rows, 'changed' => $changed];
 }
 
-// Apply-Flow Phase C: schreibt die Identitaets-Felder (name/type/status/valid_from_bf/valid_to_bf)
-// nach political_territory. GATED -> echter Write nur bei $dryRun=false. Geometrie/Zoom/Farbe/
-// short_name werden NIE angefasst. skip = wiki_keys auslassen (Zeitzwillinge!), only = nur diese
-// (Testlauf), limit = max. Anzahl. valid_to null (=besteht) wird als 9999-Sentinel geschrieben
-// (Live-Konvention). Override > Wiki, Gruendungs-Vererbung + IZ stecken bereits in der Berechnung.
+// Apply-Flow Phase C: schreibt die Identitaets-Felder (name/type/status/valid_from_bf/valid_to_bf
+// + continent) nach political_territory. GATED -> echter Write nur bei $dryRun=false. Geometrie/
+// Zoom/Farbe/short_name werden NIE angefasst. skip = wiki_keys auslassen (Zeitzwillinge!), only =
+// nur diese (Testlauf), limit = max. Anzahl. valid_to null (=besteht) wird als 9999-Sentinel
+// geschrieben (Live-Konvention). Override > Wiki, Gruendungs-Vererbung + IZ stecken bereits in der
+// Berechnung. continent ist COALESCE-gefuehrt (leerer Eff-Wert => Live-Wert bleibt) und NICHT Teil
+// des Undo-Snapshots (reine abgeleitete Korrektur; ein Revert laesst den korrigierten Kontinent stehen).
 function avesmapsWikiSyncMonitorApplyIdentity(PDO $pdo, array $skip, array $only, int $limit, bool $dryRun): array {
     $preview = avesmapsWikiSyncMonitorApplyIdentityPreview($pdo);
     $changed = is_array($preview['changed'] ?? null) ? $preview['changed'] : [];
@@ -749,7 +781,8 @@ function avesmapsWikiSyncMonitorApplyIdentity(PDO $pdo, array $skip, array $only
         );
         $stmt = $pdo->prepare(
             'UPDATE political_territory
-                SET name = :name, type = :type, status = :status, valid_from_bf = :vfrom, valid_to_bf = :vto
+                SET name = :name, type = :type, status = :status, valid_from_bf = :vfrom, valid_to_bf = :vto,
+                    continent = COALESCE(:continent, continent)
                 WHERE id = :id AND is_active = 1'
         );
         $pdo->beginTransaction();
@@ -760,6 +793,7 @@ function avesmapsWikiSyncMonitorApplyIdentity(PDO $pdo, array $skip, array $only
                 $newType = $eff['type'] === '' ? null : (string) $eff['type'];
                 $newStatus = $eff['status'] === '' ? null : (string) $eff['status'];
                 $newVto = $eff['valid_to_bf'] === null ? 9999 : (int) $eff['valid_to_bf'];
+                $newContinent = ($eff['continent'] ?? '') !== '' ? (string) $eff['continent'] : null;
                 $old = $cur[$id] ?? null;
                 if ($old !== null) {
                     $backupStmt->execute([
@@ -784,6 +818,7 @@ function avesmapsWikiSyncMonitorApplyIdentity(PDO $pdo, array $skip, array $only
                     'status' => $newStatus,
                     'vfrom' => $eff['valid_from_bf'],
                     'vto' => $newVto,
+                    'continent' => $newContinent,
                     'id' => $id,
                 ]);
                 $written += $stmt->rowCount() > 0 ? 1 : 0;
