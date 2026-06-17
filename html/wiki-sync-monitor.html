@@ -199,8 +199,8 @@
     <button class="btn2" id="btnModel" title="Berechnet die Hierarchie aus dem Staging neu (Locks + Aussortiert bleiben erhalten)"><span class="t1">Hierarchie</span><span class="t2" id="stModel">—</span></button>
     <button class="btn2" id="btnDiff" title="Vergleicht Staging gegen das aktuelle Wiki: gelöscht / geändert / neu"><span class="t1">Unterschiede</span><span class="t2" id="stDiff">—</span></button>
     <button class="btn2" id="btnCache" title="Testweise zeigen, was die Übertragung nach Avesmaps ändern würde – schreibt nichts"><span class="t1">Test</span><span class="t2" id="stTest">—</span></button>
-    <button class="btn2" id="btnIdentPreview" title="Vorschau der Identitäts-/Validitäts-Änderungen (Name, Staatsform, Status, Gegründet/Aufgelöst, „Bis heute“) – im Dialog mit „Identität übernehmen“ schreibbar"><span class="t1">Identität</span><span class="t2" id="stIdent">—</span></button>
-    <button class="btn2 primary" id="btnApply" title="Übernimmt das kuratierte Modell in Avesmaps – schreibt Eltern-Zuweisungen UND Identität/Validität (Name/Status/Gegründet/Aufgelöst, „Bis heute“); Geometrien bleiben unberührt"><span class="t1">Modell übernehmen</span><span class="t2" id="stApply">—</span></button>
+    <button class="btn2" id="btnIdentPreview" title="Vorschau der Daten-Änderungen (Name, Staatsform, Status, Gegründet/Aufgelöst, „Bis heute“) – im Dialog mit „Nur Daten übernehmen“ schreibbar"><span class="t1">Nur Daten</span><span class="t2" id="stIdent">—</span></button>
+    <button class="btn2 primary" id="btnApply" title="Übernimmt das kuratierte Modell in Avesmaps – schreibt Eltern-Zuweisungen UND Daten (Name/Status/Gegründet/Aufgelöst, „Bis heute“); Geometrien bleiben unberührt"><span class="t1">Modell übernehmen</span><span class="t2" id="stApply">—</span></button>
     <button class="btn2" id="btnLocalizeCoats" title="Lädt ALLE noch auf wiki-aventurica verlinkten gemeinfreien Wappen auf den Avesmaps-Server, verkleinert sie (max. 512px) und nutzt künftig die lokalen Kopien (Override). Läuft in Schüben; schreibt nur Wappen-Overrides, keine Geometrien."><span class="t1">Wappen lokalisieren</span><span class="t2" id="stLocalize">—</span></button>
   </div>
 </header>
@@ -283,7 +283,7 @@
 </div>
 <div id="identModal" class="modal" hidden>
   <div class="modal-box ident-box">
-    <div class="modal-title">Identitäts-Vorschau (read-only)</div>
+    <div class="modal-title">Daten-Vorschau (read-only)</div>
     <div class="modal-sub" id="identSummary">—</div>
     <div class="ident-controls">
       <div class="ident-chips" id="identChips"></div>
@@ -292,7 +292,7 @@
     <div class="ident-table" id="identTable"></div>
     <div class="modal-actions">
       <button id="identClose">Schließen</button>
-      <button class="primary" id="identApply" title="Schreibt die angezeigten Identitäts-/Validitäts-Änderungen (inkl. „Bis heute“) in political_territory – mit Backup/Revert">Identität übernehmen</button>
+      <button class="primary" id="identApply" title="Schreibt nur die angezeigten Daten-Felder (Name, Staatsform, Status, Gültigkeit, Kontinent) – ohne Hierarchie/Eltern – (inkl. „Bis heute“) in political_territory – mit Backup/Revert">Nur Daten übernehmen</button>
     </div>
   </div>
 </div>
@@ -1058,15 +1058,15 @@ $('btnApply').onclick = async()=>{
   const ownUnres = (dryOwn.unresolved_parents||[]).length;
   const identN = ident?.summary?.rows_with_changes || 0;
   const ownLine = `• ${ownCreate} eigene Knoten werden neu angelegt${ownUnres?` (${ownUnres} ohne auflösbaren Elternteil)`:''}\n`;
-  const identLine = `• ${identN} Identitäts-/Validitäts-Änderungen (Name/Status/Gegründet/Aufgelöst, „Bis heute") werden übernommen\n`;
+  const identLine = `• ${identN} Daten-Änderungen (Name/Status/Gegründet/Aufgelöst, „Bis heute") werden übernommen\n`;
   if (!confirm(`Modell in Avesmaps übernehmen?\n\n• ${dry.will_apply} Eltern-Zuweisungen werden gesetzt/überschrieben\n• ${unres} nicht auflösbar (übersprungen – Eltern fehlt live)\n${ownLine}${identLine}• Geometrien bleiben unberührt\n\nJetzt schreiben?`)) { setStatus('Übernahme abgebrochen.'); return; }
   busy(true);
   try {
     const r = await api('apply_parent_cache', {method:'POST', body:{dry_run:false, confirm:'apply'}});
     const ro = await api('apply_custom_nodes', {method:'POST', body:{dry_run:false, confirm:'apply'}});
     const ri = await api('apply_identity', {method:'POST', body:{dry_run:false, confirm:'apply'}});
-    if (ri && ri.ok === false) { throw new Error(ri.error || 'Identitäts-Apply fehlgeschlagen.'); }
-    setStatus(`Übernommen: ${r.applied} Eltern-Zuweisungen, ${ro.created} eigene Knoten neu, ${ro.linked} verknüpft, ${ri.written}/${ri.targets} Identitäten geschrieben${(ro.unresolved_parents||[]).length?`, ${ro.unresolved_parents.length} ohne Elternteil`:''}.`);
+    if (ri && ri.ok === false) { throw new Error(ri.error || 'Daten-Übernahme fehlgeschlagen.'); }
+    setStatus(`Übernommen: ${r.applied} Eltern-Zuweisungen, ${ro.created} eigene Knoten neu, ${ro.linked} verknüpft, ${ri.written}/${ri.targets} Daten geschrieben${(ro.unresolved_parents||[]).length?`, ${ro.unresolved_parents.length} ohne Elternteil`:''}.`);
     await loadModel(); await loadEditorState();
   }
   catch(e){ setStatus('FEHLER beim Übernehmen (nicht alles geschrieben): '+e.message); }
@@ -1175,7 +1175,7 @@ $('wappenUpload').onclick = uploadCoat;
 
 // --- Identitäts-Vorschau (Apply-Flow Phase A, read-only) ---
 let IDENT=null, identFieldFilter='';
-const IDENT_LABELS={ name:'Name', type:'Staatsform', status:'Status', valid_from_bf:'Gegründet', valid_to_bf:'Aufgelöst' };
+const IDENT_LABELS={ name:'Name', type:'Staatsform', status:'Status', valid_from_bf:'Gegründet', valid_to_bf:'Aufgelöst', continent:'Kontinent' };
 function fmtIdentVal(field, v){
   if(v===null||v===undefined||v==='') return '—';
   if(field==='valid_from_bf'||field==='valid_to_bf'){ const n=Number(v); return n<0?(Math.abs(n)+' v.BF'):(n+' BF'); }
@@ -1195,7 +1195,7 @@ async function openIdentPreview(){
 function renderIdentChips(){
   const fc=IDENT.field_counts||{};
   const chips=[`<span class="ident-chip${identFieldFilter===''?' active':''}" data-fld="">Alle (${IDENT.summary.rows_with_changes})</span>`];
-  for(const f of ['name','type','status','valid_from_bf','valid_to_bf']){ if(!fc[f]) continue; chips.push(`<span class="ident-chip${identFieldFilter===f?' active':''}" data-fld="${f}">${IDENT_LABELS[f]} (${fc[f]})</span>`); }
+  for(const f of ['name','type','status','valid_from_bf','valid_to_bf','continent']){ if(!fc[f]) continue; chips.push(`<span class="ident-chip${identFieldFilter===f?' active':''}" data-fld="${f}">${IDENT_LABELS[f]} (${fc[f]})</span>`); }
   $('identChips').innerHTML=chips.join('');
 }
 function renderIdentRows(){
@@ -1221,20 +1221,20 @@ function renderIdentModal(){
 $('btnIdentPreview').onclick = openIdentPreview;
 $('identClose').onclick = ()=>{ $('identModal').hidden=true; };
 $('identApply').onclick = async()=>{
-  if(!IDENT){ setStatus('Erst die Identitäts-Vorschau laden.'); return; }
+  if(!IDENT){ setStatus('Erst die Daten-Vorschau laden.'); return; }
   const n = IDENT.summary?.rows_with_changes || 0;
-  if(n < 1){ setStatus('Keine Identitäts-Änderungen zu übernehmen.'); return; }
+  if(n < 1){ setStatus('Keine Daten-Änderungen zu übernehmen.'); return; }
   const fc = IDENT.field_counts || {};
-  const fcLine = ['name','type','status','valid_from_bf','valid_to_bf'].filter(f=>fc[f]).map(f=>`${IDENT_LABELS[f]}: ${fc[f]}`).join(', ');
-  if(!confirm(`Identität in Avesmaps übernehmen?\n\n• ${n} Gebiete werden geändert (${fcLine})\n• Schreibt Name/Staatsform/Status/Gegründet/Aufgelöst (inkl. „Bis heute“) in political_territory\n• Rückgängig per Backup/Revert\n\nJetzt schreiben?`)){ setStatus('Identitäts-Übernahme abgebrochen.'); return; }
+  const fcLine = ['name','type','status','valid_from_bf','valid_to_bf','continent'].filter(f=>fc[f]).map(f=>`${IDENT_LABELS[f]}: ${fc[f]}`).join(', ');
+  if(!confirm(`Nur Daten in Avesmaps übernehmen?\n\n• ${n} Gebiete werden geändert (${fcLine})\n• Schreibt Name/Staatsform/Status/Gegründet/Aufgelöst (inkl. „Bis heute“) in political_territory\n• Rückgängig per Backup/Revert\n\nJetzt schreiben?`)){ setStatus('Daten-Übernahme abgebrochen.'); return; }
   busy(true);
   try{
     const r = await api('apply_identity', {method:'POST', body:{dry_run:false, confirm:'apply'}});
-    if(r && r.ok === false){ throw new Error(r.error || 'Identitäts-Apply fehlgeschlagen.'); }
-    setStatus(`Identität übernommen: ${r.written}/${r.targets} Gebiete geschrieben${r.skipped_skiplist?`, ${r.skipped_skiplist} übersprungen`:''} (Batch ${r.batch_id||'—'}).`);
+    if(r && r.ok === false){ throw new Error(r.error || 'Daten-Übernahme fehlgeschlagen.'); }
+    setStatus(`Daten übernommen: ${r.written}/${r.targets} Gebiete geschrieben${r.skipped_skiplist?`, ${r.skipped_skiplist} übersprungen`:''} (Batch ${r.batch_id||'—'}).`);
     $('identModal').hidden = true;
     await loadEditorState();
-  }catch(e){ setStatus('FEHLER beim Identitäts-Apply: '+e.message); }
+  }catch(e){ setStatus('FEHLER bei der Daten-Übernahme:'+e.message); }
   busy(false);
 };
 $('identModal').addEventListener('click', e=>{ if(e.target.id==='identModal') $('identModal').hidden=true; });
