@@ -249,7 +249,11 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 	// Eltern-Fuellung am Uebergabe-Zoom unterdruecken: hat dieses Territorium ein KIND, dessen Anzeige-Band
 	// den aktuellen Zoom enthaelt, dann fuellt nur das (spezifischere) Kind. Sonst liegen Eltern- UND
 	// Kind-Fuellung uebereinander (z. B. Kaiserreich Band 0-2 + Garetien Band 2-2 bei Zoom 2 = ~0.94, opak).
+	// NUR fuer AGGREGATE (Fuellung = Union der Kinder -> Kinder kacheln den Elternteil). Ein Eltern mit
+	// EIGENEM Polygon (z. B. Land Perrinmarsch, is_aggregate=false) wird NICHT unterdrueckt: sein Kind
+	// (z. B. Stadt Perricum, gleiches Band) deckt das Gebiet nicht ab -> sonst bliebe der Rest leer (Loch).
 	const suppressFillForDisplayingChild = !IS_EDIT_MODE
+		&& (regionEntry.isAggregate === true || regionEntry.isDerivedGeometry === true)
 		&& (politicalRegionFillSuppressedByDisplayingChild || indexPoliticalRegionFillSuppressedByDisplayingChild())
 			.has(String(regionEntry.territoryPublicId || "").trim());
 
