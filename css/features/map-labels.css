@@ -183,8 +183,10 @@ body.edit-mode .map-label img {
 
 .region-label__content {
 	display: inline-flex;
+	/* Option B: Wappen zentriert OBEN, Name zentriert darunter (Spalte) statt Wappen links daneben. */
+	flex-direction: column;
 	align-items: center;
-	gap: 5px;
+	gap: 3px;
 	padding: 2px 5px;
 	border-radius: 6px;
 	/* Kein halbtransparentes Pill mehr; die Lesbarkeit liefert der weiße Text-Schatten
@@ -209,15 +211,14 @@ body.edit-mode .map-label img {
 }
 
 .region-label__coat {
-	width: 18px;
-	height: 18px;
+	width: 40px;
+	height: 40px;
 	object-fit: contain;
 }
 
-/* Mehrzeiliger Reichsname: Wappen an der ERSTEN Zeile ausrichten (oben), nicht vertikal zwischen den
-   Zeilen zentriert -> sonst klebt der Schild im Text. --coat-mt (aus JS) zentriert es auf Zeile 1. */
-.region-label__content--stacked { align-items: flex-start; }
-.region-label__content--stacked .region-label__coat { margin-top: var(--coat-mt, 0px); }
+/* Wappen-ueber-Name (Option B): coat zentriert oben, Name (ein-/mehrzeilig) zentriert darunter --
+   die Spalte kommt aus .region-label__content (flex-direction:column); --stacked bleibt zentriert. */
+.region-label__content--stacked { align-items: center; }
 
 .leaflet-tooltip.region-compact-tooltip,
 .region-compact-tooltip {

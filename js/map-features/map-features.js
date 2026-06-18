@@ -354,8 +354,8 @@ function createRegionLabelMarkup(regionEntry, fallbackName, maxWidthPx) {
 			// Das Namens-<img> trägt transparente Innenpolster (padX, Platz für den Halo). NEBEN einem Wappen wird das
 			// als unschön großer Abstand Wappen<->Text sichtbar (Polster + flex-gap). Bei vorhandenem Wappen das linke
 			// Polster per negativem margin-left wieder herausziehen -> das Wappen sitzt wie früher (DOM-Text) dicht am Namen.
-			const coatPull = coatMarkup ? ` style="margin-left:-${image.padX}px"` : "";
-			nameMarkup = `<img class="region-label__name-img"${coatPull} src="${image.url}" width="${image.w}" height="${image.h}" alt="${name}">`;
+			// Wappen sitzt jetzt zentriert OBEN (Spalte) -> kein horizontaler Zug zum Namen noetig.
+			nameMarkup = `<img class="region-label__name-img" src="${image.url}" width="${image.w}" height="${image.h}" alt="${name}">`;
 		} else {
 			// Mehrzeilig: pro Zeile ein <img>, vertikal gestapelt + zentriert (CSS-Spalte). Die Zeilen-imgs
 			// tragen vertikale Halo-Polster -> mit negativem margin-top auf normalen Zeilenabstand ziehen.
@@ -368,8 +368,7 @@ function createRegionLabelMarkup(regionEntry, fallbackName, maxWidthPx) {
 				const marginStyle = marginTop !== 0 ? ` style="margin-top:${marginTop}px"` : "";
 				return `<img class="region-label__name-img region-label__name-line"${marginStyle} src="${image.url}" width="${image.w}" height="${image.h}" alt="${escapeHtml(line)}">`;
 			}).join("");
-			const coatPull = coatMarkup ? ` style="margin-left:-${firstPadX}px"` : "";
-			nameMarkup = `<span class="region-label__lines"${coatPull}>${lineImgs}</span>`; contentMod = " region-label__content--stacked"; if (coatMarkup) contentStyle = ` style="--coat-mt:${Math.max(0, Math.round((firstLineH - 18) / 2))}px"`;
+			nameMarkup = `<span class="region-label__lines">${lineImgs}</span>`; contentMod = " region-label__content--stacked";
 		}
 	}
 
