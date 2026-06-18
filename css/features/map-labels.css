@@ -186,7 +186,8 @@ body.edit-mode .map-label img {
 	/* Option B: Wappen zentriert OBEN, Name zentriert darunter (Spalte) statt Wappen links daneben. */
 	flex-direction: column;
 	align-items: center;
-	gap: 3px;
+	/* Abstand Wappen<->Name knapp halten (Spalte) -- das Halo-Polster des Namens haelt minimalen Abstand. */
+	gap: 0px;
 	padding: 2px 5px;
 	border-radius: 6px;
 	/* Kein halbtransparentes Pill mehr; die Lesbarkeit liefert der weiße Text-Schatten
