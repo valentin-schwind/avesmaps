@@ -973,6 +973,15 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
         $props = avesmapsWikiSyncDecodeJson($r['properties_json'] ?? null);
         $ws = $props['wiki_settlement'] ?? null;
         $connected = is_array($ws) && !empty($ws['title']);
+        // Manuell verlinkte Wiki-Siedlung ebenfalls als „liegt auf der Karte" werten: sonst bleibt
+        // ihr Registry-Eintrag unten als „Fehlt" stehen, wenn der Karten-Name vom Wiki-Titel
+        // abweicht (z. B. Oasen, deren Karten-Name den Wiki-Titel nicht 1:1 trifft).
+        if ($connected) {
+            $wsKey = avesmapsWikiSyncCreateMatchKey((string) $ws['title']);
+            if ($wsKey !== '') {
+                $mapKeys[$wsKey] = true;
+            }
+        }
         $items[] = [
             'public_id' => (string) $r['public_id'],
             'name' => $name,
