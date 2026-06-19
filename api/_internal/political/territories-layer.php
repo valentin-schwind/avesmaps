@@ -847,6 +847,11 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         }
     }
 
+    // Cache-Buster: re-hochgeladene Wappen behalten den Dateinamen, werden aber 30 Tage gecacht
+    // (Cache-Control: max-age=2592000) -> ohne ?v zeigt der Browser das alte Bild. ?v=<mtime> bricht
+    // den Cache GENAU bei Aenderung; unveraenderte Wappen bleiben gecacht (Perf).
+    $visibleCoatOfArmsUrl = avesmapsPoliticalCoatUrlCacheBust($visibleCoatOfArmsUrl);
+
     $displayColor = avesmapsPoliticalResolveLayerDisplayColor(
         $assignmentDisplay['color'] ?? '',
         $style,
@@ -1076,4 +1081,21 @@ function avesmapsPoliticalNormalizedValidToSql(string $valueExpression, string $
         THEN NULL
         ELSE ' . $valueExpression . '
     END';
+}
+
+function avesmapsPoliticalCoatUrlCacheBust(string $url): string {
+    // Re-hochgeladene Wappen behalten ihren Dateinamen (z.B. *-custom.png) und werden mit
+    // Cache-Control: max-age=2592000 (30 Tage) ausgeliefert -> der Browser zeigt sonst das ALTE Bild.
+    // Nur lokale /uploads-Wappen mit ?v=<mtime> versionieren: bricht den Browser-Cache GENAU bei
+    // Aenderung (Re-Upload), sonst greift der 30-Tage-Cache weiter (Perf). Wiki-URLs (coat.php) bleiben.
+    $url = trim($url);
+    if ($url === '' || strpos($url, '?') !== false || strncmp($url, '/uploads/', 9) !== 0) {
+        return $url;
+    }
+    $root = rtrim((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''), '/');
+    if ($root === '') {
+        return $url;
+    }
+    $mtime = @filemtime($root . $url);
+    return $mtime !== false ? ($url . '?v=' . $mtime) : $url;
 }
