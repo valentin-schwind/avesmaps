@@ -10,9 +10,13 @@ function bindRegionCompactTooltip(polygon, regionEntry) {
 			if (regionSingleClickTimer) {
 				window.clearTimeout(regionSingleClickTimer);
 			}
+			const clickLatLng = event.latlng; // Klickpunkt jetzt festhalten (Leaflet recycelt das Event)
 			regionSingleClickTimer = window.setTimeout(() => {
 				regionSingleClickTimer = null;
-				openRegionCompactTooltip(regionEntry);
+				// Infobox in der Mitte des GEKLICKTEN Teils oeffnen -> ein Klick auf eine Exklave zeigt sie
+				// dort, nicht weit weg am Label des Hauptteils. null (einteilig / Label-Teil) -> Default.
+				const partLatLng = getRegionClickedPartLatLng(regionEntry, clickLatLng);
+				openRegionCompactTooltip(regionEntry, partLatLng ? { latlng: partLatLng } : {});
 			}, 250);
 		}
 
@@ -53,6 +57,42 @@ function openRegionCompactTooltip(regionEntry, options = {}) {
 	tooltip.addTo(map);
 	applyRegionTooltipVerticalFlip(tooltip);
 	enrichRegionTooltipWithWikiDetail(regionEntry, tooltip);
+}
+
+// Anker fuer die Klick-Infobox = Mitte des GEKLICKTEN Teils (Exklave), nicht immer die Label-Position.
+// Mehrteilige Geometrie: den Teil finden, in dem der Klick liegt (Punkt im Aussenring), und dessen
+// polylabel-Mittelpunkt nehmen. Einteilig / Klick im (groessten) Label-Teil -> null: der Aufrufer faellt
+// auf getRegionTooltipLatLng (Label-Position) zurueck -- die ist ohnehin das polylabel des groessten Teils.
+function getRegionClickedPartLatLng(regionEntry, clickLatLng) {
+	try {
+		const geometry = regionEntry && regionEntry.feature ? regionEntry.feature.geometry : null;
+		if (!geometry || !clickLatLng || typeof avesmapsComputeLabelPoint !== "function" || typeof L === "undefined") {
+			return null;
+		}
+		const parts = geometry.type === "MultiPolygon"
+			? geometry.coordinates
+			: (geometry.type === "Polygon" ? [geometry.coordinates] : []);
+		if (!Array.isArray(parts) || parts.length <= 1) {
+			return null;
+		}
+		const px = Number(clickLatLng.lng);
+		const py = Number(clickLatLng.lat);
+		const hit = parts.find((rings) => {
+			const outer = Array.isArray(rings) ? rings[0] : null;
+			if (!Array.isArray(outer) || outer.length < 3) {
+				return false;
+			}
+			// pointInRing erwartet Leaflet-[y,x]; GeoJSON-Ring ist [x,y] -> umdrehen.
+			return pointInRing([py, px], outer.map((c) => [Number(c[1]), Number(c[0])]));
+		});
+		if (!hit) {
+			return null;
+		}
+		const poi = avesmapsComputeLabelPoint({ type: "Polygon", coordinates: hit });
+		return poi && Number.isFinite(poi.x) && Number.isFinite(poi.y) ? L.latLng(poi.y, poi.x) : null;
+	} catch (_error) {
+		return null;
+	}
 }
 
 // Klappt die Hover-Infobox nach UNTEN, wenn über dem Ankerpunkt im Kartenfenster nicht genug
