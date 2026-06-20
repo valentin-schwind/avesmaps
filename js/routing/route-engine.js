@@ -498,6 +498,9 @@ async function updateMapViewServerPrimary() {
 			drawRoute(segments);
 			highlightRouteLocations(routeNodeNames, segments);
 			showRoutePlan(routeNodeNames, segments);
+			// Fit to the WHOLE rendered route -- the earlier focusMapOnActiveTargets() only framed the
+			// waypoints (maxZoom 4). This fills the frame on the proper, route-aware zoom.
+			zoomToCurrentRoute();
 		} else {
 			alert("Keine gültigen Server-Routensegmente gefunden.");
 			resetOverview();
@@ -537,6 +540,8 @@ function updateMapViewClientLegacy(useShortest, requestId) {
 			drawRoute(segments);
 			highlightRouteLocations(routeNodeNames, segments);
 			showRoutePlan(routeNodeNames, segments);
+			// Fit to the whole rendered route (not just the waypoints) so it fills the frame.
+			zoomToCurrentRoute();
 		} else {
 			alert("Keine gültigen Routensegmente gefunden.");
 		}
