@@ -39,11 +39,21 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
         $graph[$name] ??= [];
     }
 
+    // Index location coordinates (round-5) -> location, so paths can be split at on-route
+    // crossings/settlements (interior vertices, not just endpoints) and connect there.
+    $locationCoordinateIndex = [];
+    foreach ($locations as $indexedLocation) {
+        $coordinateKey = sprintf('%.5f:%.5f', (float) $indexedLocation['route_x'], (float) $indexedLocation['route_y']);
+        if (!isset($locationCoordinateIndex[$coordinateKey])) {
+            $locationCoordinateIndex[$coordinateKey] = $indexedLocation;
+        }
+    }
+
     $pathIndex = 0;
     foreach (is_array($networkData['paths'] ?? null) ? $networkData['paths'] : [] as $path) {
         if (!is_array($path)) continue;
         $pathIndex++;
-        avesmapsAddClientCompatiblePathConnection($graph, $locations, $path, $pathIndex, $request);
+        avesmapsAddClientCompatiblePathConnection($graph, $locations, $locationCoordinateIndex, $path, $pathIndex, $request);
     }
 
     $syntheticConnectionCount = avesmapsConnectClientCompatibleDetachedGraphComponents($graph, $locations, $request);
@@ -58,12 +68,13 @@ function avesmapsBuildClientCompatibleRouteGraph(array $networkData, array $requ
     ];
 }
 
-function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locations, array $path, int $pathIndex, array $request): void {
+function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locations, array $locationCoordinateIndex, array $path, int $pathIndex, array $request): void {
     $coordinates = avesmapsReadRoutePathLineCoordinates($path['geometry'] ?? null);
     if ($coordinates === []) return;
 
+    $coordinateCount = count($coordinates);
     $startNode = avesmapsFindClientLocationAtPathEndpoint($locations, $coordinates[0]);
-    $endNode = avesmapsFindClientLocationAtPathEndpoint($locations, $coordinates[count($coordinates) - 1]);
+    $endNode = avesmapsFindClientLocationAtPathEndpoint($locations, $coordinates[$coordinateCount - 1]);
     if (!is_array($startNode) || !is_array($endNode)) return;
 
     $routeType = avesmapsNormalizeClientRouteSubtype((string) ($path['subtype'] ?? $path['name'] ?? ''));
@@ -76,23 +87,64 @@ function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locatio
     $speed = AVESMAPS_ROUTE_CLIENT_SPEED_TABLE[$transportOption][$routeType] ?? null;
     if (!is_numeric($speed) || (float) $speed <= 0.0) return;
 
-    $distance = avesmapsCalculateClientRouteCoordinateDistance($coordinates);
     $clientPathId = (string) ($path['client_path_id'] ?? '');
     if ($clientPathId === '') {
         $clientPathId = 'path-' . $pathIndex;
     }
+
+    // Collect graph nodes ALONG the path: the start endpoint, every interior vertex that exactly
+    // coincides (round-5) with a location/crossing, and the end endpoint. A road drawn THROUGH a
+    // crossing/settlement (interior vertex) would otherwise bypass it -- leaving that place
+    // reachable only via a costly synthetic "Querfeldein" edge. Splitting the path at those nodes
+    // connects them, so routes can turn there.
+    $nodeVertices = [['index' => 0, 'location' => $startNode]];
+    for ($i = 1; $i < $coordinateCount - 1; $i++) {
+        $vertexX = filter_var($coordinates[$i][0] ?? null, FILTER_VALIDATE_FLOAT);
+        $vertexY = filter_var($coordinates[$i][1] ?? null, FILTER_VALIDATE_FLOAT);
+        if ($vertexX === false || $vertexY === false) continue;
+        $coordinateKey = sprintf('%.5f:%.5f', (float) $vertexX, (float) $vertexY);
+        if (!isset($locationCoordinateIndex[$coordinateKey])) continue;
+        $vertexLocation = $locationCoordinateIndex[$coordinateKey];
+        $previousLocation = $nodeVertices[count($nodeVertices) - 1]['location'];
+        if ((string) $vertexLocation['name'] !== (string) $previousLocation['name']) {
+            $nodeVertices[] = ['index' => $i, 'location' => $vertexLocation];
+        }
+    }
+    $nodeVertices[] = ['index' => $coordinateCount - 1, 'location' => $endNode];
+
+    // No interior node -> single edge over the whole path (unchanged behaviour, no regression).
+    if (count($nodeVertices) <= 2) {
+        avesmapsAddClientCompatiblePathSliceConnection($graph, $startNode, $endNode, $coordinates, $routeType, $transportOption, (float) $speed, $clientPathId, $path);
+        return;
+    }
+
+    // Split into sub-edges between consecutive on-route nodes; each keeps its own slice + sub-id.
+    // feature_id/public_id stay the parent path's so the renderer can resolve the geometry.
+    $segmentCount = count($nodeVertices) - 1;
+    for ($segmentIndex = 0; $segmentIndex < $segmentCount; $segmentIndex++) {
+        $fromVertex = $nodeVertices[$segmentIndex];
+        $toVertex = $nodeVertices[$segmentIndex + 1];
+        if ((string) $fromVertex['location']['name'] === (string) $toVertex['location']['name']) continue;
+        $sliceCoordinates = array_slice($coordinates, $fromVertex['index'], $toVertex['index'] - $fromVertex['index'] + 1);
+        if (count($sliceCoordinates) < 2) continue;
+        avesmapsAddClientCompatiblePathSliceConnection($graph, $fromVertex['location'], $toVertex['location'], $sliceCoordinates, $routeType, $transportOption, (float) $speed, $clientPathId . '#' . $segmentIndex, $path);
+    }
+}
+
+function avesmapsAddClientCompatiblePathSliceConnection(array &$graph, array $fromNode, array $toNode, array $coordinates, string $routeType, string $transportOption, float $speed, string $connectionId, array $path): void {
+    $distance = avesmapsCalculateClientRouteCoordinateDistance($coordinates);
     $connection = [
         'distance' => $distance,
-        'time' => $distance / (float) $speed,
+        'time' => $distance / $speed,
         'route_type' => $routeType,
         'transport_option' => $transportOption,
-        'id' => $clientPathId,
-        'path_id' => $clientPathId,
+        'id' => $connectionId,
+        'path_id' => $connectionId,
         'feature_id' => (string) ($path['id'] ?? ''),
         'public_id' => (string) ($path['public_id'] ?? ''),
-        'from' => (string) $startNode['name'],
-        'to' => (string) $endNode['name'],
-        'geometry' => is_array($path['geometry'] ?? null) ? $path['geometry'] : [],
+        'from' => (string) $fromNode['name'],
+        'to' => (string) $toNode['name'],
+        'geometry' => ['type' => 'LineString', 'coordinates' => $coordinates],
         'synthetic' => false,
     ];
 
