@@ -3,7 +3,9 @@
 const map = L.map("map", {
     crs: L.CRS.Simple,
     minZoom: 0,
-    maxZoom: 6,
+    // One level above the native tile zoom (z5, see maxNativeZoom) so the route fit can zoom in far
+    // enough to let short routes fill the frame. Tiles above z5 are upscaled (slightly softer).
+    maxZoom: 7,
     bounds: MAP_BOUNDS,
     continuousWorld: false,
     noWrap: true,
