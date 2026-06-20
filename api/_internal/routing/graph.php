@@ -8,34 +8,32 @@ function avesmapsBuildRouteGraph(array $networkData, array $options = []): array
 	$pathFeatureCount = 0;
 
 	$paths = is_array($networkData['paths'] ?? null) ? $networkData['paths'] : [];
-	// Wege an INNEREN Stuetzpunkten splitten, die auf einer Location (Kreuzung/Siedlung) liegen, damit der
-	// Router an einer mitten auf dem Weg liegenden Kreuzung abbiegen kann (Paritaet zum Client-Graph; der
-	// "Strasse weiterfuehren"-Button legt die Kreuzung als exakten Vertex ab). O(1) per gerundeter Koordinate.
-	$locationNodeIds = avesmapsBuildRouteLocationNodeIdSet(is_array($networkData['locations'] ?? null) ? $networkData['locations'] : []);
 	foreach ($paths as $path) {
 		if (!is_array($path)) {
 			continue;
 		}
 
 		$pathFeatureCount++;
-		$segments = avesmapsBuildRoutePathSegments($path, $locationNodeIds);
-		if ($segments === null) {
+		$endpoints = avesmapsGetRoutePathEndpoints($path['geometry'] ?? null);
+		if ($endpoints === null) {
 			continue;
 		}
 
-		foreach ($segments as $segment) {
-			$nodes[$segment['from']] = [
-				'id' => $segment['from'],
-				'x' => $segment['fromX'],
-				'y' => $segment['fromY'],
-			];
-			$nodes[$segment['to']] = [
-				'id' => $segment['to'],
-				'x' => $segment['toX'],
-				'y' => $segment['toY'],
-			];
-			$edges[] = $segment['edge'];
-		}
+		$fromNodeId = avesmapsBuildRouteNodeId($endpoints['start'][0], $endpoints['start'][1]);
+		$toNodeId = avesmapsBuildRouteNodeId($endpoints['end'][0], $endpoints['end'][1]);
+
+		$nodes[$fromNodeId] = [
+			'id' => $fromNodeId,
+			'x' => $endpoints['start'][0],
+			'y' => $endpoints['start'][1],
+		];
+		$nodes[$toNodeId] = [
+			'id' => $toNodeId,
+			'x' => $endpoints['end'][0],
+			'y' => $endpoints['end'][1],
+		];
+
+		$edges[] = avesmapsBuildRouteEdge($path, $fromNodeId, $toNodeId);
 	}
 
 	$endpointSnapTolerance = (float) ($options['endpoint_snap_tolerance'] ?? 0.0);
@@ -923,109 +921,4 @@ function avesmapsBuildRouteEdge(array $path, string $fromNodeId, string $toNodeI
 		'geometry' => is_array($path['geometry'] ?? null) ? $path['geometry'] : [],
 		'subtype' => $subtype,
 	];
-}
-
-// Menge der Knoten-IDs (gerundete Koordinaten) aller Locations (Kreuzungen/Siedlungen) -> Split-Punkte.
-function avesmapsBuildRouteLocationNodeIdSet(array $locations): array {
-	$set = [];
-	foreach ($locations as $location) {
-		if (!is_array($location)) {
-			continue;
-		}
-		$geometry = is_array($location['geometry'] ?? null) ? $location['geometry'] : [];
-		if ((string) ($geometry['type'] ?? '') !== 'Point') {
-			continue;
-		}
-		$point = avesmapsNormalizeRoutePoint($geometry['coordinates'] ?? null);
-		if ($point === null) {
-			continue;
-		}
-		$set[avesmapsBuildRouteNodeId($point[0], $point[1])] = true;
-	}
-	return $set;
-}
-
-// Zerlegt einen Weg in Knoten-zu-Knoten-Teilkanten: Endpunkte + INNERE Stuetzpunkte, die auf einer
-// Location liegen, sind Knoten. Ohne inneren Knoten -> EINE Kante wie bisher (id = Pfad-id, volle
-// Geometrie). Nur LineString wird gesplittet; alles andere (MultiLineString ...) bleibt eine Kante.
-function avesmapsBuildRoutePathSegments(array $path, array $locationNodeIds): ?array {
-	$geometry = is_array($path['geometry'] ?? null) ? $path['geometry'] : null;
-	if ($geometry === null) {
-		return null;
-	}
-	$endpoints = avesmapsGetRoutePathEndpoints($geometry);
-	if ($endpoints === null) {
-		return null;
-	}
-	$startNodeId = avesmapsBuildRouteNodeId($endpoints['start'][0], $endpoints['start'][1]);
-	$endNodeId = avesmapsBuildRouteNodeId($endpoints['end'][0], $endpoints['end'][1]);
-	$singleEdge = [[
-		'from' => $startNodeId,
-		'to' => $endNodeId,
-		'fromX' => $endpoints['start'][0],
-		'fromY' => $endpoints['start'][1],
-		'toX' => $endpoints['end'][0],
-		'toY' => $endpoints['end'][1],
-		'edge' => avesmapsBuildRouteEdge($path, $startNodeId, $endNodeId),
-	]];
-
-	$coordinates = ((string) ($geometry['type'] ?? '') === 'LineString' && is_array($geometry['coordinates'] ?? null))
-		? $geometry['coordinates']
-		: null;
-	if ($coordinates === null || count($coordinates) < 3 || $locationNodeIds === []) {
-		return $singleEdge;
-	}
-
-	$vertices = [['index' => 0, 'id' => $startNodeId, 'x' => $endpoints['start'][0], 'y' => $endpoints['start'][1]]];
-	$lastIndex = count($coordinates) - 1;
-	for ($i = 1; $i < $lastIndex; $i++) {
-		$point = avesmapsNormalizeRoutePoint($coordinates[$i] ?? null);
-		if ($point === null) {
-			continue;
-		}
-		$nodeId = avesmapsBuildRouteNodeId($point[0], $point[1]);
-		if (isset($locationNodeIds[$nodeId]) && $nodeId !== $vertices[count($vertices) - 1]['id']) {
-			$vertices[] = ['index' => $i, 'id' => $nodeId, 'x' => $point[0], 'y' => $point[1]];
-		}
-	}
-	$vertices[] = ['index' => $lastIndex, 'id' => $endNodeId, 'x' => $endpoints['end'][0], 'y' => $endpoints['end'][1]];
-	if (count($vertices) <= 2) {
-		return $singleEdge;
-	}
-
-	$subtype = (string) ($path['subtype'] ?? '');
-	$pathId = (string) ($path['id'] ?? '');
-	$pathPublicId = (string) ($path['public_id'] ?? $path['id'] ?? '');
-	$transportType = avesmapsGetRouteTransportType($subtype);
-	$segments = [];
-	$vertexCount = count($vertices);
-	for ($s = 0; $s < $vertexCount - 1; $s++) {
-		$a = $vertices[$s];
-		$b = $vertices[$s + 1];
-		if ($a['id'] === $b['id']) {
-			continue;
-		}
-		$sliceCoordinates = array_slice($coordinates, $a['index'], $b['index'] - $a['index'] + 1);
-		if (count($sliceCoordinates) < 2) {
-			continue;
-		}
-		$segments[] = [
-			'from' => $a['id'],
-			'to' => $b['id'],
-			'fromX' => $a['x'],
-			'fromY' => $a['y'],
-			'toX' => $b['x'],
-			'toY' => $b['y'],
-			'edge' => [
-				'id' => $pathId . '#' . $s,
-				'path_id' => $pathPublicId,
-				'transport_type' => $transportType,
-				'from' => $a['id'],
-				'to' => $b['id'],
-				'geometry' => ['type' => 'LineString', 'coordinates' => $sliceCoordinates],
-				'subtype' => $subtype,
-			],
-		];
-	}
-	return $segments === [] ? $singleEdge : $segments;
 }
