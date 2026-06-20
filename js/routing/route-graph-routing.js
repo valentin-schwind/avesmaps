@@ -84,105 +84,29 @@ function connectDetachedGraphComponents(graph, routeOptions) {
     }
 }
 
-// Knoten-Koordinaten-Index: Location an gerundeter Koordinate, fuer O(1)-Lookups beim Weg-Splitten.
-// Schluessel = "lng:lat" (5 Nachkommastellen). Pfad-Vertex ist [x,y]=[lng,lat], location.coordinates=[lat,lng].
-function routeNodeCoordinateKey(x, y) {
-    return `${Number(x).toFixed(5)}:${Number(y).toFixed(5)}`;
-}
-
-function buildRouteNodeCoordinateIndex() {
-    const index = new Map();
-    locationData.forEach((location) => {
-        const coords = location?.coordinates;
-        if (!Array.isArray(coords) || coords.length < 2) {
-            return;
-        }
-        const key = routeNodeCoordinateKey(coords[1], coords[0]);
-        if (!index.has(key)) {
-            index.set(key, location);
-        }
-    });
-    return index;
-}
-
-function getRouteNodeAtPathVertex(nodeIndex, vertex) {
-    if (!nodeIndex || !Array.isArray(vertex) || vertex.length < 2) {
-        return null;
-    }
-    return nodeIndex.get(routeNodeCoordinateKey(vertex[0], vertex[1])) || null;
-}
-
-// Teil-Kanten-Geometrie (Slice eines gesplitteten Weges) als Feature ablegen. Der Renderer
-// (getRouteSegments) loest eine connectionId ueber pathData ODER syntheticPathSegments auf -> die
-// Slices kommen daher in dieselbe Map (eindeutige id "<pfad>#<n>", kein synthetic-Flag).
-function buildRoutePathSliceSegment(sliceCoordinates, segmentId, properties) {
-    return {
-        type: "Feature",
-        geometry: { type: "LineString", coordinates: sliceCoordinates },
-        properties: { ...properties, id: segmentId },
-    };
-}
-
-function addRegularPathToGraph(graph, pathFeature, routeOptions, nodeIndex) {
+function addRegularPathToGraph(graph, pathFeature, routeOptions) {
     const { geometry: { coordinates }, properties } = pathFeature;
     const startNode = getLocationAtPathEndpoint(coordinates[0]);
     const endNode = getLocationAtPathEndpoint(coordinates[coordinates.length - 1]);
-    if (!startNode || !endNode) {
-        return;
-    }
-    const routeType = normalizePathSubtype(properties?.feature_subtype || properties?.name);
-    const transportOption = getTransportOptionForRouteType(routeType, routeOptions);
-    if (!transportOption) {
-        console.warn(`Keine Transportoption für ${routeType} gefunden. Pfad wird übersprungen.`);
-        return;
-    }
-    if (!isTransportAllowedForPath(properties, transportOption)) {
-        return;
-    }
-    const speed = resolveSpeedForRouteType(routeType, transportOption);
-    if (!speed) {
-        console.warn(`Geschwindigkeit für ${transportOption} auf ${routeType} nicht definiert. Pfad wird übersprungen.`);
-        return;
-    }
-
-    // Knoten-Stuetzpunkte des Weges: Start + INNERE Stuetzpunkte, die exakt auf einer Kreuzung/Siedlung
-    // liegen (vom "Straße weiterführen"-Button als Vertex angehaengt) + Ende. So kann der Router an einer
-    // mitten auf dem Weg liegenden Kreuzung abbiegen, OHNE den Weg in den Daten zu teilen.
-    const nodeVertices = [{ index: 0, location: startNode }];
-    for (let index = 1; index < coordinates.length - 1; index++) {
-        const location = getRouteNodeAtPathVertex(nodeIndex, coordinates[index]);
-        if (location && location.name !== nodeVertices[nodeVertices.length - 1].location.name) {
-            nodeVertices.push({ index, location });
+    if (startNode && endNode) {
+        const distance = calculatePathCoordinateDistance(coordinates),
+            routeType = normalizePathSubtype(properties?.feature_subtype || properties?.name),
+            transportOption = getTransportOptionForRouteType(routeType, routeOptions);
+        if (!transportOption) {
+            console.warn(`Keine Transportoption für ${routeType} gefunden. Pfad wird übersprungen.`);
+            return;
         }
-    }
-    nodeVertices.push({ index: coordinates.length - 1, location: endNode });
-
-    if (nodeVertices.length <= 2) {
-        // Kein innerer Knoten -> eine Kante wie bisher (id = Pfad-id; Renderer findet sie in pathData).
-        const distance = calculatePathCoordinateDistance(coordinates);
+        if (!isTransportAllowedForPath(properties, transportOption)) {
+            return;
+        }
+        const speed = resolveSpeedForRouteType(routeType, transportOption);
+        if (!speed) {
+            console.warn(`Geschwindigkeit für ${transportOption} auf ${routeType} nicht definiert. Pfad wird übersprungen.`);
+            return;
+        }
         const connection = { distance, time: distance / speed, routeType, id: properties.id, transportOption };
         addGraphConnection(graph, startNode.name, endNode.name, connection);
         addGraphConnection(graph, endNode.name, startNode.name, connection);
-        return;
-    }
-
-    // An jedem inneren Knoten in Teil-Kanten splitten; jede Teil-Kante traegt ihre eigene Slice-Geometrie.
-    for (let segment = 0; segment < nodeVertices.length - 1; segment++) {
-        const fromVertex = nodeVertices[segment];
-        const toVertex = nodeVertices[segment + 1];
-        if (fromVertex.location.name === toVertex.location.name) {
-            continue;
-        }
-        const sliceCoordinates = coordinates.slice(fromVertex.index, toVertex.index + 1);
-        if (sliceCoordinates.length < 2) {
-            continue;
-        }
-        const distance = calculatePathCoordinateDistance(sliceCoordinates);
-        const segmentId = `${properties.id}#${segment}`;
-        const connection = { distance, time: distance / speed, routeType, id: segmentId, transportOption };
-        addGraphConnection(graph, fromVertex.location.name, toVertex.location.name, connection);
-        addGraphConnection(graph, toVertex.location.name, fromVertex.location.name, connection);
-        syntheticPathSegments.set(segmentId, buildRoutePathSliceSegment(sliceCoordinates, segmentId, properties));
     }
 }
 
@@ -193,9 +117,8 @@ function createGraph(routeOptions) {
     locationData.forEach((location) => {
         graph[location.name] = {};
     });
-    const nodeIndex = buildRouteNodeCoordinateIndex();
     pathData.forEach((pathFeature) => {
-        addRegularPathToGraph(graph, pathFeature, routeOptions, nodeIndex);
+        addRegularPathToGraph(graph, pathFeature, routeOptions);
     });
     connectDetachedGraphComponents(graph, routeOptions);
 
