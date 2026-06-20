@@ -42,6 +42,20 @@ function getCurrentRouteBounds() {
 	return bounds;
 }
 
+// Fit options for displaying a route: zoom in far enough that the route fills the frame (up to the
+// map's max zoom -- no longer capped at the current zoom) and reserve the route-planner panel's width
+// on the left so the route lands in the visible area instead of under the panel.
+function getRouteFitBoundsOptions() {
+	const margin = 28;
+	const panelVisible = typeof isSearchPanelHidden === "undefined" || !isSearchPanelHidden;
+	const panelWidth = panelVisible && typeof getRoutePlannerPanelWidth === "function" ? getRoutePlannerPanelWidth() : 0;
+	return {
+		paddingTopLeft: [panelWidth + margin, margin],
+		paddingBottomRight: [margin, margin],
+		maxZoom: map.getMaxZoom(),
+	};
+}
+
 function clearRouteDirectionMarkers() {
 	if (currentRouteDirectionLayer) {
 		map.removeLayer(currentRouteDirectionLayer);
@@ -81,7 +95,7 @@ function selectRoutePlanEntry(entryIndex, { zoomToEntry = false, scrollPlan = fa
 	if (zoomToEntry) {
 		const bounds = getRouteEntryBounds(routeEntry);
 		if (bounds?.isValid()) {
-			map.fitBounds(bounds.pad(0.18), { maxZoom: Math.max(map.getZoom(), 4) });
+			map.fitBounds(bounds, getRouteFitBoundsOptions());
 		}
 	}
 }
@@ -96,7 +110,7 @@ function selectRoutePlanEntryForSegment(segmentIndex) {
 function zoomToCurrentRoute() {
 	const bounds = getCurrentRouteBounds();
 	if (bounds?.isValid()) {
-		map.fitBounds(bounds.pad(0.18), { maxZoom: Math.max(map.getZoom(), 4) });
+		map.fitBounds(bounds, getRouteFitBoundsOptions());
 	}
 }
 
