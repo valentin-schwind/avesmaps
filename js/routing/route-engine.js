@@ -468,7 +468,13 @@ async function updateMapViewServerPrimary() {
 	console.log("Ausgewählte Locations:", selectedLocations);
 	console.log("Ungültige Eingaben:", invalidLocationInputs);
 
-	focusMapOnActiveTargets();
+	// Only frame the bare targets when there is NO route to draw. For an actual route (>=2 waypoints)
+	// we skip this premature waypoint-only fit (hardcoded maxZoom 4) and zoom ONCE to the finished route
+	// below via zoomToCurrentRoute -- the waypoint bounding box would mis-zoom AND clip the route's
+	// curves that swing beyond the endpoints. This removes the visible double-zoom.
+	if (selectedLocations.length < 2) {
+		focusMapOnActiveTargets();
+	}
 	if (invalidLocationInputs.length) alert(`Orte nicht gefunden: ${invalidLocationInputs.join(", ")}`);
 
 	if (selectedLocations.length >= 2) {
@@ -524,7 +530,13 @@ function updateMapViewClientLegacy(useShortest, requestId) {
 	console.log("Ausgewählte Locations:", selectedLocations);
 	console.log("Ungültige Eingaben:", invalidLocationInputs);
 
-	focusMapOnActiveTargets();
+	// Only frame the bare targets when there is NO route to draw. For an actual route (>=2 waypoints)
+	// we skip this premature waypoint-only fit (hardcoded maxZoom 4) and zoom ONCE to the finished route
+	// below via zoomToCurrentRoute -- the waypoint bounding box would mis-zoom AND clip the route's
+	// curves that swing beyond the endpoints. This removes the visible double-zoom.
+	if (selectedLocations.length < 2) {
+		focusMapOnActiveTargets();
+	}
 	if (invalidLocationInputs.length) alert(`Orte nicht gefunden: ${invalidLocationInputs.join(", ")}`);
 
 	if (selectedLocations.length >= 2) {
