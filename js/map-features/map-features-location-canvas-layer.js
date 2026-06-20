@@ -204,6 +204,14 @@ const locationCanvasLayer = {
 		const entry = hit.entry;
 		entry._canvasPromoted = true;
 		this._redraw();
+		// The DOM marker's icon may be stale -- it was set at the creation zoom and never updated while
+		// the marker lived on the canvas overlay. Refresh it to the CURRENT zoom so the promoted marker
+		// matches the canvas dot instead of rendering tiny.
+		const promotedZoomLevel = this._map.getZoom();
+		if (entry.iconZoomLevel !== promotedZoomLevel) {
+			entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, promotedZoomLevel));
+			entry.iconZoomLevel = promotedZoomLevel;
+		}
 		if (!this._map.hasLayer(entry.marker)) {
 			this._map.addLayer(entry.marker);
 		}

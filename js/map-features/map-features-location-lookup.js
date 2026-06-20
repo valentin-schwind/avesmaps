@@ -153,6 +153,15 @@ function openLocationPopupForMarkerEntry(markerEntry, { pan = true } = {}) {
 		nearestLookupPinnedMarkerEntry = markerEntry;
 	}
 
+	// The marker's icon may be stale (canvas markers keep their creation-zoom icon). Refresh it to the
+	// current zoom so a temporarily pinned marker (spotlight / find-nearest, with sizes hidden) shows the
+	// size it WOULD have at the current zoom -- not a tiny leftover icon.
+	const pinnedZoomLevel = map.getZoom();
+	if (markerEntry.iconZoomLevel !== pinnedZoomLevel) {
+		markerEntry.marker.setIcon(createLocationMarkerIcon(markerEntry.locationType, pinnedZoomLevel));
+		markerEntry.iconZoomLevel = pinnedZoomLevel;
+	}
+
 	if (!map.hasLayer(markerEntry.marker)) {
 		map.addLayer(markerEntry.marker);
 	}

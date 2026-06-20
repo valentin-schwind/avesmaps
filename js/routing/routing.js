@@ -135,6 +135,13 @@ function handleRouteWaypointPopupOpen(event) {
 		return;
 	}
 	routeWaypointTempMarkerEntries.add(entry);
+	// Refresh the (possibly stale) icon to the current zoom so the temp waypoint marker shows the size it
+	// would have at this zoom, not a tiny creation-zoom leftover.
+	const waypointZoomLevel = map.getZoom();
+	if (entry.iconZoomLevel !== waypointZoomLevel) {
+		entry.marker.setIcon(createLocationMarkerIcon(entry.locationType, waypointZoomLevel));
+		entry.iconZoomLevel = waypointZoomLevel;
+	}
 	if (!map.hasLayer(entry.marker)) {
 		map.addLayer(entry.marker);
 	}
