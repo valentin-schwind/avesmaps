@@ -56,6 +56,19 @@ function getRouteFitBoundsOptions() {
 	};
 }
 
+// Fit the map to a route's bounds and let it fill the frame tightly. Temporarily allow fractional
+// zoom (zoomSnap 0) so the fit doesn't snap DOWN to the next-lower whole zoom and leave a big margin;
+// restore zoomSnap afterwards so manual zooming keeps snapping to crisp whole levels.
+function fitMapToRouteBounds(bounds) {
+	const previousZoomSnap = map.options.zoomSnap;
+	map.options.zoomSnap = 0;
+	try {
+		map.fitBounds(bounds, getRouteFitBoundsOptions());
+	} finally {
+		map.options.zoomSnap = previousZoomSnap;
+	}
+}
+
 function clearRouteDirectionMarkers() {
 	if (currentRouteDirectionLayer) {
 		map.removeLayer(currentRouteDirectionLayer);
@@ -95,7 +108,7 @@ function selectRoutePlanEntry(entryIndex, { zoomToEntry = false, scrollPlan = fa
 	if (zoomToEntry) {
 		const bounds = getRouteEntryBounds(routeEntry);
 		if (bounds?.isValid()) {
-			map.fitBounds(bounds, getRouteFitBoundsOptions());
+			fitMapToRouteBounds(bounds);
 		}
 	}
 }
@@ -110,7 +123,7 @@ function selectRoutePlanEntryForSegment(segmentIndex) {
 function zoomToCurrentRoute() {
 	const bounds = getCurrentRouteBounds();
 	if (bounds?.isValid()) {
-		map.fitBounds(bounds, getRouteFitBoundsOptions());
+		fitMapToRouteBounds(bounds);
 	}
 }
 
