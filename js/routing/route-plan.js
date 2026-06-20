@@ -47,10 +47,17 @@ function getCurrentRouteBounds() {
 // on the left so the route lands in the visible area instead of under the panel.
 function getRouteFitBoundsOptions() {
 	const margin = 28;
+	const mapWidth = map.getSize().x;
+	const isPhone = typeof avesmapsIsPhoneViewport === "function" && avesmapsIsPhoneViewport();
 	const panelVisible = typeof isSearchPanelHidden === "undefined" || !isSearchPanelHidden;
-	const panelWidth = panelVisible && typeof getRoutePlannerPanelWidth === "function" ? getRoutePlannerPanelWidth() : 0;
+	// Reserve the planner panel's width on the left ONLY on desktop, where it's a persistent left
+	// sidebar. On phones the panel is a temporary full-width overlay; reserving its width would exceed
+	// the narrow viewport, leave no room, and break the fit (route zoomed way out).
+	let leftInset = (!isPhone && panelVisible && typeof getRoutePlannerPanelWidth === "function") ? getRoutePlannerPanelWidth() : 0;
+	// Safety cap: never reserve so much that the route cannot fit (narrow viewport / oversized panel).
+	leftInset = Math.min(leftInset, Math.max(0, mapWidth * 0.45 - margin));
 	return {
-		paddingTopLeft: [panelWidth + margin, margin],
+		paddingTopLeft: [leftInset + margin, margin],
 		paddingBottomRight: [margin, margin],
 		maxZoom: map.getMaxZoom(),
 	};
