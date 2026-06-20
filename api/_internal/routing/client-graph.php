@@ -437,6 +437,9 @@ function avesmapsBuildClientRouteDiagnosticSegments(array $segments): array {
             'distance_units' => (float) ($segment['distance'] ?? 0.0),
             'cost_units' => (float) ($segment['time'] ?? 0.0),
             'coordinate_count' => count($coordinates),
+            // Send the segment's own geometry (a slice for split sub-edges) so the client renders the
+            // actual sub-edge instead of re-resolving the whole parent path by feature_id.
+            'geometry' => ['type' => 'LineString', 'coordinates' => $coordinates],
             'synthetic' => !empty($segment['synthetic']),
         ];
     }, $segments, array_keys($segments));

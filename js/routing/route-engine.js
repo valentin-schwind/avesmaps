@@ -227,6 +227,24 @@ function buildSyntheticServerRouteSegment(serverSegment, nodeIds, segmentIndex) 
 	};
 }
 
+function buildServerGeometryRouteSegment(serverSegment, coordinates) {
+	const subtype = normalizePathSubtype(serverSegment?.subtype || serverSegment?.route_type || "Weg");
+	return {
+		type: "Feature",
+		geometry: {
+			type: "LineString",
+			coordinates: coordinates.map((coordinate) => Array.isArray(coordinate) ? [...coordinate] : coordinate),
+		},
+		properties: {
+			id: getServerSegmentId(serverSegment) || "",
+			name: subtype,
+			feature_subtype: subtype,
+			transportOption: String(serverSegment?.transport_type || serverSegment?.transport_option || "") || getTransportOption(subtype),
+			synthetic: Boolean(serverSegment?.synthetic),
+		},
+	};
+}
+
 function resolveServerRouteDisplaySegment(serverSegment, nodeIds, segmentIndex) {
 	const edgeId = getServerSegmentId(serverSegment);
 	if (!edgeId) {
@@ -236,6 +254,14 @@ function resolveServerRouteDisplaySegment(serverSegment, nodeIds, segmentIndex) 
 
 	if (serverSegment?.synthetic || edgeId.startsWith("synthetic-")) {
 		return buildSyntheticServerRouteSegment(serverSegment, nodeIds, segmentIndex);
+	}
+
+	// Prefer the geometry the server sent for THIS segment (a slice for split sub-edges). Resolving
+	// by feature_id alone would return the whole parent path -- drawn once per sub-edge, inflating
+	// the distance and collapsing the stage list.
+	const serverSegmentCoordinates = Array.isArray(serverSegment?.geometry?.coordinates) ? serverSegment.geometry.coordinates : [];
+	if (serverSegmentCoordinates.length >= 2) {
+		return buildServerGeometryRouteSegment(serverSegment, serverSegmentCoordinates);
 	}
 
 	const featureId = String(serverSegment?.feature_id || "");
