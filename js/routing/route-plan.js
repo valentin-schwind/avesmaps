@@ -63,7 +63,10 @@ function fitMapToRouteBounds(bounds) {
 	const previousZoomSnap = map.options.zoomSnap;
 	map.options.zoomSnap = 0;
 	try {
-		map.fitBounds(bounds, getRouteFitBoundsOptions());
+		// flyToBounds (not fitBounds): a big jump from the current view to the route exceeds Leaflet's
+		// zoom-animation threshold, so fitBounds would snap there instantly (the "hard fade"). flyTo
+		// animates the zoom AND pan smoothly regardless of distance.
+		map.flyToBounds(bounds, { ...getRouteFitBoundsOptions(), duration: 0.7 });
 	} finally {
 		map.options.zoomSnap = previousZoomSnap;
 	}
