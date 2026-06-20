@@ -1235,6 +1235,15 @@ function collectAndValidateSelectedLocations() {
  * Aktualisiert Kartenansicht und berechnet die Route
  ******************************************************************/
 function updateMapView() {
+	// The live UI is server-primary. installServerPrimaryRouting() normally aliases this function to
+	// updateMapViewServerPrimary, but that setTimeout-based alias is load-order fragile and can be
+	// overwritten by this very declaration -- leaving the UI on the legacy CLIENT graph, which (since
+	// the crossing-split revert) returns the long detour route and then fits the map to its big bounds
+	// (zoom ~4). Delegate explicitly so a search ALWAYS uses the split-aware server path + route fit.
+	if (typeof shouldUseServerPrimaryRouting === "function" && shouldUseServerPrimaryRouting()
+		&& typeof updateMapViewServerPrimary === "function") {
+		return updateMapViewServerPrimary();
+	}
 	const useShortest = $('input[name="pathType"]:checked').val() === "shortest";
 	const routeOptions = buildRouteOptionsFromPlannerControls();
 	syncPlannerStateToUrl();
