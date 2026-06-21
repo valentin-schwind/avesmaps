@@ -1030,7 +1030,7 @@ let routePopupRegistry = {};
 let routePopupCounter = 0;
 
 // Liefert die waypoint-ID, falls der Ort bereits in der Route ist (sonst ""). So weiss die
-// normale Marker-Infobox, ob sie "Zur Route hinzufügen" oder "Aus Route entfernen" zeigt.
+// normale Marker-Infobox, ob sie "Zur Route hinzufügen" oder "Reiseziel entfernen" zeigt.
 function findWaypointIdByLocationName(name) {
 	const target = normalizeLocationDuplicateName(name);
 	if (!target) {
@@ -1048,7 +1048,7 @@ function findWaypointIdByLocationName(name) {
 }
 
 // Inhalt eines Routen-Wegpunkt-Popups: kompakt (Mini) oder ausgeklappt (volle Siedlungs-Infobox,
-// falls Wiki-Daten vorhanden). Unten "Aus Route entfernen" + "Mehr/Weniger anzeigen".
+// falls Wiki-Daten vorhanden). Unten "Reiseziel entfernen" + "Mehr/Weniger anzeigen".
 function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, popupId = 0 } = {}) {
 	const markerEntry = typeof findLocationMarkerByName === "function" ? findLocationMarkerByName(loc.name) : null;
 	const wikiSettlement = markerEntry && markerEntry.location ? markerEntry.location.wikiSettlement : null;
@@ -1057,7 +1057,7 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 	const buttons = [];
 	if (showRemoveAction && loc.waypointId) {
 		buttons.push(popupActionButtonMarkup({
-			label: "Aus Route entfernen",
+			label: "Reiseziel entfernen",
 			className: "location-popup__action-button--danger",
 			iconMarkup: '<span class="location-popup__action-icon location-popup__action-icon--remove" aria-hidden="true">✕</span>',
 			attributes: { "data-popup-action": "remove-waypoint", "data-waypoint-id": loc.waypointId },
@@ -1113,14 +1113,9 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 		});
 	}
 
-	// Struktur wie die grosse Infobox: Kopf (Name + Typ) -> Wiki-Link als region-info-box--settlement
-	// -> Aktions-Buttons. Den Trenner liefert die CSS-Regel "region-info-box--settlement + actions"
-	// (kein eigener Divider, kein --compact).
+	// Compact waypoint box: header (name + type) + action buttons only. The Wiki link is intentionally
+	// NOT shown here -- it only appears when expanded ("Mehr anzeigen") via settlementWikiInfoboxMarkup above.
 	const routeTypeLabel = (markerEntry && markerEntry.location && markerEntry.location.locationTypeLabel) || loc.locationTypeLabel || "";
-	const wikiLinkResolved = typeof getWikiLocationLink === "function" ? getWikiLocationLink(loc.name, loc.wikiUrl) : null;
-	const wikiInfoBox = (wikiLinkResolved && wikiLinkResolved.url)
-		? `<div class="region-info-box region-info-box--settlement"><a class="region-info-box__link" href="${escapeHtml(wikiLinkResolved.url)}" target="_blank" rel="noopener">${escapeHtml(loc.name)} im Wiki-Aventurica ↗</a></div>`
-		: "";
 	return locationPopupMarkup({
 		name: loc.name,
 		locationType: loc.locationType,
@@ -1129,7 +1124,7 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 		showDescription: false,
 		showWikiLink: false,
 		isRuined: loc.isRuined,
-		actionsMarkup: wikiInfoBox + actionsBar,
+		actionsMarkup: actionsBar,
 	});
 }
 

@@ -69,7 +69,7 @@ function refreshLocationMarkerPopup(markerEntry) {
 			: { maxHeight }
 	);
 	// Inhalt bei jedem Öffnen neu setzen -> Route-Button spiegelt den aktuellen Zustand
-	// (Ort bereits Wegpunkt? -> "Aus Route entfernen"). Nur EINMAL pro Marker binden.
+	// (Ort bereits Wegpunkt? -> "Reiseziel entfernen"). Nur EINMAL pro Marker binden.
 	if (!markerEntry._routeAwarePopupBound) {
 		markerEntry._routeAwarePopupBound = true;
 		markerEntry.marker.on("popupopen", () => {

@@ -183,12 +183,12 @@ function pathCreationActionButtonsMarkup(publicId) {
 }
 
 function routeToggleActionButtonMarkup(name) {
-	// Kontextabhaengig: ist der Ort bereits Wegpunkt -> "Aus Route entfernen" (verhindert Doppel-Add
+	// Kontextabhaengig: ist der Ort bereits Wegpunkt -> "Reiseziel entfernen" (verhindert Doppel-Add
 	// und den "from == to"-Routingfehler), sonst "Zur Route hinzufügen".
 	const waypointId = typeof findWaypointIdByLocationName === "function" ? findWaypointIdByLocationName(name) : "";
 	if (waypointId) {
 		return popupActionButtonMarkup({
-			label: tr("popup.removeFromRoute", "Aus Route entfernen"),
+			label: tr("popup.removeFromRoute", "Reiseziel entfernen"),
 			className: "location-popup__action-button--danger",
 			iconMarkup: '<span class="location-popup__action-icon location-popup__action-icon--remove" aria-hidden="true">✕</span>',
 			attributes: {
@@ -387,7 +387,7 @@ function waypointRemoveActionMarkup(waypointId) {
 
 	return locationPopupActionsMarkup([
 		popupActionButtonMarkup({
-			label: tr("popup.removeFromRouteX", "✕ Aus Route entfernen"),
+			label: tr("popup.removeFromRouteX", "✕ Reiseziel entfernen"),
 			className: "location-popup__action-button--danger",
 			attributes: {
 				"data-popup-action": "remove-waypoint",

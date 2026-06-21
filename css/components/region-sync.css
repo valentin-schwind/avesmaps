@@ -937,11 +937,13 @@
    volle Bildschirmbreite statt Deckel bei 400px (viel Rand auf schmalen Geraeten -> "schmal").
    Leaflet setzt die Breite inline auf .leaflet-popup-content -> nur mit !important zu schlagen. */
 @media (max-width: 760px) {
-	.settlement-popup .leaflet-popup-content {
+	/* Exclude the route-waypoint popup: it reuses the settlement-popup class but must keep its
+	   compact 310/400px width instead of stretching to full screen width on mobile. */
+	.settlement-popup:not(.route-waypoint-popup) .leaflet-popup-content {
 		width: calc(100vw - 28px) !important;
 		max-width: calc(100vw - 28px) !important;
 	}
-	.settlement-popup .location-popup {
+	.settlement-popup:not(.route-waypoint-popup) .location-popup {
 		width: 100%;
 		max-width: none;
 	}
