@@ -932,13 +932,13 @@
 			<!-- Waypoints -->
 			<div id="waypoints"></div>
 			<div class="input-options">
-				<button id="inputLocation">+</button>
-				<button id="searchButton" data-i18n="planner.search">Suche</button>
+				<button id="inputLocation" title="Reiseziel hinzufügen" data-i18n-title="planner.addDestination.title">+</button>
+				<button id="searchButton" data-i18n="planner.search" title="Reiseroute suchen" data-i18n-title="planner.search.title">Suche</button>
 			</div>
 			<div id="transport-options">
 				<label data-i18n="planner.transport.heading">Transportmittel</label>
 				<div></div>
-				<label class="transport-filter-label"
+				<label class="transport-filter-label" title="Landreisen erlauben" data-i18n-title="planner.transport.filter.land.title"
 					><input type="checkbox" id="allowLand" checked /> <img class="transport-filter-icon" src="icons/landweg.webp" data-source-src="icons/landweg.webp" alt="" /> <span data-i18n="planner.transport.filter.land">Land</span></label
 				>
 				<div class="transport-select-with-icon transport-icon-select">
@@ -956,7 +956,7 @@
 					</button>
 					<div id="landTransportMenu" class="transport-combobox__menu" role="listbox" aria-label="Land-Transportmittel" hidden></div>
 				</div>
-				<label class="transport-filter-label"
+				<label class="transport-filter-label" title="Flussreisen erlauben" data-i18n-title="planner.transport.filter.river.title"
 					><input type="checkbox" id="allowRiver" checked /> <img class="transport-filter-icon" src="icons/flussweg.webp" data-source-src="icons/flussweg.webp" alt="" /> <span data-i18n="planner.transport.filter.river">Fluss</span></label
 				>
 				<div class="transport-select-with-icon transport-icon-select">
@@ -970,7 +970,7 @@
 					</button>
 					<div id="riverTransportMenu" class="transport-combobox__menu" role="listbox" aria-label="Fluss-Transportmittel" hidden></div>
 				</div>
-				<label class="transport-filter-label"
+				<label class="transport-filter-label" title="Meerreisen erlauben" data-i18n-title="planner.transport.filter.sea.title"
 					><input type="checkbox" id="allowSea" checked /> <img class="transport-filter-icon" src="icons/meerweg.webp" data-source-src="icons/meerweg.webp" alt="" /> <span data-i18n="planner.transport.filter.sea">Meer</span></label
 				>
 				<div class="transport-select-with-icon transport-icon-select">
@@ -988,23 +988,23 @@
 			</div>
 			<button id="toggle-button" data-i18n="planner.toggle">Routenplaner</button>
 			<div>
-				<label>
+				<label title="Ermittelt die schnellste Reiseroute" data-i18n-title="planner.route.fastest.title">
 					<input type="radio" name="pathType" value="fastest" id="fastestPath" checked />
 					<span data-i18n="planner.route.fastest">Schnellste Route</span>
 				</label>
-				<label>
+				<label title="Ermittelt die kürzeste Reiseroute" data-i18n-title="planner.route.shortest.title">
 					<input type="radio" name="pathType" value="shortest" id="shortestPath" />
 					<span data-i18n="planner.route.shortest">Kürzeste Route</span>
 				</label>
 			</div>
 			<div>
-				<label>
+				<label title="Ermittelt die Reiseroute mit den wenigsten Wechseln zwischen den Transportmitteln" data-i18n-title="planner.minimizeTransfers.title">
 					<input type="checkbox" id="minimizeTransfers" />
 					<span data-i18n="planner.minimizeTransfers">Umsteigen minimieren</span>
 				</label>
 			</div>
 			<div>
-				<label>
+				<label title="Bestimme die Rastzeiten (gelten nur für Landreisen)" data-i18n-title="planner.rests.title">
 					<input type="checkbox" id="includeRests" checked />
 					<span data-i18n="planner.rests">Rastzeiten</span>
 				</label>

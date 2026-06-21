@@ -1030,7 +1030,7 @@ let routePopupRegistry = {};
 let routePopupCounter = 0;
 
 // Liefert die waypoint-ID, falls der Ort bereits in der Route ist (sonst ""). So weiss die
-// normale Marker-Infobox, ob sie "Zur Route hinzufügen" oder "Reiseziel entfernen" zeigt.
+// normale Marker-Infobox, ob sie "Reiseziel hinzufügen" oder "Reiseziel entfernen" zeigt.
 function findWaypointIdByLocationName(name) {
 	const target = normalizeLocationDuplicateName(name);
 	if (!target) {

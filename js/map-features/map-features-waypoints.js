@@ -333,7 +333,7 @@ function refreshPlannerAfterFeatureChange({ updateRoute = false } = {}) {
 
 function waypointDragHandleMarkup() {
 	return `
-		<button type="button" class="waypoint-drag-handle" aria-label="Wegpunkt verschieben" title="Wegpunkt verschieben">⠿</button>`;
+		<button type="button" class="waypoint-drag-handle" aria-label="Zum Ändern der Reihenfolge ziehen" title="Zum Ändern der Reihenfolge ziehen">⠿</button>`;
 }
 
 function createWaypointMarkup(waypointId) {
@@ -342,7 +342,7 @@ function createWaypointMarkup(waypointId) {
 		<div class="waypoint-container" data-waypoint-id="${escapeHtml(waypointId)}">
 			${waypointDragHandleMarkup()}
 			<input type="text" id="${escapeHtml(inputId)}" class="waypoint-input" placeholder="Suche Ort..." />
-			<button type="button" class="remove-waypoint" aria-label="Wegpunkt entfernen" title="Wegpunkt entfernen">✕</button>
+			<button type="button" class="remove-waypoint" aria-label="Reiseziel entfernen" title="Reiseziel entfernen">✕</button>
 		</div>`;
 }
 

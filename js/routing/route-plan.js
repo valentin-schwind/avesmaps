@@ -417,7 +417,7 @@ function showRoutePlan(routeNames, segments) {
 			${tr("planner.summary.restTime", "Rastzeit")}: ${totalRestTime.toFixed(1)} ${tr("planner.unit.hours", "Stunden")} (${(totalRestTime / 24).toFixed(1)} ${tr("planner.unit.days", "Tage")})
 			<div style="margin-top: 0.5em"><strong>${tr("planner.summary.totalTime", "Gesamtzeit")}: ${totalHours.toFixed(1)} ${tr("planner.unit.hours", "Stunden")} (${(totalHours / 24).toFixed(1)} ${tr("planner.unit.days", "Tage")})</strong></div>
 		</div>
-		<button type="button" id="share-link-button" class="share-link-button">🔗 ${tr("planner.shareRoute", "Link für diese Route kopieren")}</button>
+		<button type="button" id="share-link-button" class="share-link-button" title="${tr("planner.shareRoute.title", "Teile deine Reiseplanung")}">🔗 ${tr("planner.shareRoute", "Link für diese Route kopieren")}</button>
 		<hr>
 	`);
 	$overview.find(".route-plan-summary").on("click", zoomToCurrentRoute);

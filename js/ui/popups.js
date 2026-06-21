@@ -108,7 +108,7 @@ function locationDescriptionMarkup(name, descriptionOverride = "", isRuined = fa
 function locationAddToRouteActionMarkup(name) {
 	return locationPopupActionsMarkup([
 		popupActionButtonMarkup({
-			label: tr("popup.addToRoute", "➕ Zur Route hinzufügen"),
+			label: tr("popup.addToRoute", "➕ Reiseziel hinzufügen"),
 			className: "location-popup__action-button--accent",
 			attributes: {
 				"data-popup-action": "add-location-to-route",
@@ -184,7 +184,7 @@ function pathCreationActionButtonsMarkup(publicId) {
 
 function routeToggleActionButtonMarkup(name) {
 	// Kontextabhaengig: ist der Ort bereits Wegpunkt -> "Reiseziel entfernen" (verhindert Doppel-Add
-	// und den "from == to"-Routingfehler), sonst "Zur Route hinzufügen".
+	// und den "from == to"-Routingfehler), sonst "Reiseziel hinzufügen".
 	const waypointId = typeof findWaypointIdByLocationName === "function" ? findWaypointIdByLocationName(name) : "";
 	if (waypointId) {
 		return popupActionButtonMarkup({
@@ -198,7 +198,7 @@ function routeToggleActionButtonMarkup(name) {
 		});
 	}
 	return popupActionButtonMarkup({
-		label: tr("popup.addToRoutePlain", "Zur Route hinzufügen"),
+		label: tr("popup.addToRoutePlain", "Reiseziel hinzufügen"),
 		className: "location-popup__action-button--accent",
 		iconMarkup: '<span class="location-popup__action-icon" aria-hidden="true">+</span>',
 		attributes: {
@@ -209,7 +209,7 @@ function routeToggleActionButtonMarkup(name) {
 }
 
 function locationActionsMarkup(name, publicId, location = null) {
-	// Reihenfolge: "Zur Route hinzufügen", "Link teilen", "Bewertung schreiben".
+	// Reihenfolge: "Reiseziel hinzufügen", "Link teilen", "Bewertung schreiben".
 	const actionButtons = [routeToggleActionButtonMarkup(name)];
 
 	const shareButton = sharePlaceActionButtonMarkup(publicId);
