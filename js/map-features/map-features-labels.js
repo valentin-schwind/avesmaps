@@ -78,6 +78,14 @@ function getMapLabelTypeStyle(labelType) {
 		fontWeight: computed.fontWeight || "400",
 		letterSpacingRatio: (parseFloat(computed.letterSpacing) || 0) / 100,
 	};
+	// „Berggipfel" deklariert per span::after ein kleines Dreieck. Das Canvas kennt keine Pseudo-
+	// Elemente -> Vorhandensein + Farbe aus dem CSS lesen und unten ins Label-Bild zeichnen.
+	const after = window.getComputedStyle(span, "::after");
+	// Generisch aus dem CSS (zukunftssicher) ODER bekannter Typ als Fallback (falls ein Browser das
+	// content:""-Pseudo-Element nicht über getComputedStyle herausgibt).
+	const hasPeak = (parseFloat(after.borderBottomWidth) > 0 && after.content !== "none") || labelType === "berggipfel";
+	style.peakMarker = hasPeak;
+	style.peakColor = hasPeak ? after.borderBottomColor || style.color : null;
 	document.body.removeChild(probe);
 	_mapLabelTypeStyleCache[labelType] = style;
 	return style;
@@ -100,10 +108,16 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle, opts) {
 	const strokeWidth = glow && typeStyle.strokeRatio ? Math.max(0.5, fontSizePx * typeStyle.strokeRatio) : 0;
 	const haloExtent = Math.max(glowBlur, strokeWidth);
 	const vAnchor = (opts && opts.vAnchor) || "middle";
+	// Gipfel-Dreieck (z. B. Berggipfel): Maße proportional zur Schriftgröße, unten ins Bild gezeichnet.
+	const peakMarker = Boolean(typeStyle.peakMarker);
+	const peakTriH = peakMarker ? fontSizePx * 0.32 : 0;
+	const peakTriHalf = peakMarker ? fontSizePx * 0.22 : 0;
+	const peakGap = peakMarker ? fontSizePx * 0.14 : 0;
+	const peakPad = peakMarker ? Math.ceil(peakGap + peakTriH + 2) : 0;
 
 	// HiDPI: scharfe Label auf Retina/Mobile (dpr 2–3); Cap 2x begrenzt den Speicher (viele gecachte Label-Bilder).
 	const labelHiDpi = Math.min(window.devicePixelRatio || 1, 2);
-	const cacheKey = `${displayText}|${font}|${typeStyle.color}|${glow || ""}|${glowBlur}|${glowPasses}|${strokeWidth}|${letterSpacing}|${vAnchor}|${labelHiDpi}`;
+	const cacheKey = `${displayText}|${font}|${typeStyle.color}|${glow || ""}|${glowBlur}|${glowPasses}|${strokeWidth}|${letterSpacing}|${vAnchor}|${labelHiDpi}|${typeStyle.peakMarker ? "peak" : ""}`;
 	const cached = _mapLabelImageCache.get(cacheKey);
 	if (cached) {
 		// LRU: Treffer ans Ende der Insertion-Order verschieben -> Verdrängung trifft den ältesten UNGENUTZTEN Eintrag.
@@ -147,6 +161,13 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle, opts) {
 		drawY = h / 2;
 		baseline = "middle";
 		anchorY = h / 2;
+	}
+	if (peakMarker) {
+		// Symmetrisch oben+unten polstern -> der Text bleibt bildmittig (das <img> wird per -50%
+		// positioniert), das Dreieck sitzt im unteren Polster unter dem Text.
+		drawY += peakPad;
+		anchorY += peakPad;
+		h += peakPad * 2;
 	}
 	const canvas = document.createElement("canvas");
 	canvas.width = Math.max(1, Math.round(w * labelHiDpi));  // HiDPI-Backing-Store; das <img> zeigt w×h (CSS-px) an
@@ -205,6 +226,23 @@ function renderMapLabelToImage(text, fontSizePx, typeStyle, opts) {
 		ctx.restore();
 	}
 	drawGlyphs(0);
+	if (peakMarker) {
+		// Kleines Dreieck (nach oben) unter dem Text — Ersatz fürs frühere span::after (DOM-Label).
+		const cx = padX + textWidth / 2; // horizontal unter der Textmitte
+		const apexY = drawY + fontSizePx * 0.5 + peakGap; // knapp unter der Textunterkante
+		ctx.save();
+		ctx.fillStyle = typeStyle.peakColor || typeStyle.color;
+		ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
+		ctx.shadowBlur = 1 * labelHiDpi; // Shadow zählt in Geräte-Pixeln (ignoriert ctx.scale) -> ×dpr
+		ctx.shadowOffsetY = 1 * labelHiDpi;
+		ctx.beginPath();
+		ctx.moveTo(cx, apexY);
+		ctx.lineTo(cx - peakTriHalf, apexY + peakTriH);
+		ctx.lineTo(cx + peakTriHalf, apexY + peakTriH);
+		ctx.closePath();
+		ctx.fill();
+		ctx.restore();
+	}
 	const result = { url: canvas.toDataURL(), w, h, padX, anchorY };
 	if (_mapLabelImageCache.size >= _MAP_LABEL_IMAGE_CACHE_MAX) {
 		_mapLabelImageCache.delete(_mapLabelImageCache.keys().next().value);
