@@ -22,18 +22,34 @@ async function crawlSettlementBuildingsChunked(onProgress) {
 	const types = typesResp.types;
 	let seen = 0;
 	let added = 0;
+	let failed = 0;
 	for (let i = 0; i < types.length; i += 1) {
 		if (typeof onProgress === "function") {
 			onProgress(i + 1, types.length);
 		}
-		const res = await post({ action: "crawl_building_type", type: types[i] });
+		// Pro Typ EINMAL nachfassen; ein einzelner Fehler (z. B. STRATO-504 unter Last) darf den
+		// gesamten Lauf NICHT abbrechen — sonst werden alle Typen nach dem ersten Fehler (inkl. der
+		// spät einsortierten wie „Festung") nie gecrawlt. Fehlertyp wird übersprungen, Lauf läuft weiter.
+		let res = null;
+		for (let attempt = 0; attempt < 2 && !(res && res.ok === true); attempt += 1) {
+			if (attempt > 0) {
+				await new Promise((resolve) => setTimeout(resolve, 800));
+			}
+			try {
+				res = await post({ action: "crawl_building_type", type: types[i] });
+			} catch (error) {
+				res = null;
+			}
+		}
 		if (res && res.ok === true) {
 			seen += Number(res.seen || 0);
 			added += Number(res.added || 0);
+		} else {
+			failed += 1;
 		}
-		await new Promise((resolve) => setTimeout(resolve, 200)); // STRATO schonen
+		await new Promise((resolve) => setTimeout(resolve, 250)); // STRATO schonen
 	}
-	return { types: types.length, seen, added };
+	return { types: types.length, seen, added, failed };
 }
 
 // Crawlt alle Bauwerks-Typen aus dem Wiki (Bauwerk nach Art) in die Registry (gebaeude + building_type).

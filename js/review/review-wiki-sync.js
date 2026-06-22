@@ -427,7 +427,9 @@ async function startWikiSyncRun() {
 						buildingProgress.value = done;
 					}
 				});
-				buildingNote = ` (+${buildingResult.seen || 0} Bauwerke)`;
+				buildingNote = buildingResult.failed
+					? ` (+${buildingResult.seen || 0} Bauwerke, ${buildingResult.failed} Typen fehlgeschlagen — nochmal syncen)`
+					: ` (+${buildingResult.seen || 0} Bauwerke)`;
 			}
 			if (typeof loadSettlementList === "function") {
 				loadSettlementList();
