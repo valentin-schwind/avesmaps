@@ -935,7 +935,18 @@ function avesmapsWikiSettlementBuildingTypes(PDO $pdo): array {
             $types[] = $legacy;
         }
     }
+    // Wege/lineare Infrastruktur (Strassen etc.) rausfiltern -- die gehoeren nicht in „besondere
+    // Bauwerke/Staetten", Strassen laufen ueber den Wege-WikiSync.
+    $types = array_values(array_filter($types, static fn(string $t): bool => !avesmapsWikiSettlementIsExcludedBuildingType($t)));
     return ['ok' => true, 'types' => array_values($types)];
+}
+
+// Wege/lineare Infrastruktur, die NICHT als Siedlung/Staette gelistet wird (Strassen laufen ueber den
+// Wege-WikiSync). Vergleich gefaltet (Kleinschreibung + ss/ae/oe/ue), damit z. B. „Straße" matcht.
+function avesmapsWikiSettlementIsExcludedBuildingType(string $type): bool {
+    static $excluded = ['strasse', 'reichsstrasse', 'mauer', 'damm', 'deich', 'kanalisation', 'aequadukt'];
+    $folded = str_replace(['ß', 'ä', 'ö', 'ü'], ['ss', 'ae', 'oe', 'ue'], mb_strtolower(trim($type), 'UTF-8'));
+    return in_array($folded, $excluded, true);
 }
 
 // Gechunkter Bauwerks-Crawl (Schritt 2): crawlt EINEN Typ — direkte Mitglieder + 1 Ebene
@@ -1079,6 +1090,11 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
     foreach ($regRows as $r) {
         $cls = (string) ($r['settlement_class'] ?? '');
         if (!in_array($cls, $settlementClasses, true)) {
+            continue;
+        }
+        // Wege/lineare Infrastruktur (Strassen etc.) nicht als Siedlung/Staette listen -- auch wenn
+        // sie der Bauwerks-Crawl frueher faelschlich als gebaeude eingetragen hat.
+        if (avesmapsWikiSettlementIsExcludedBuildingType((string) ($r['building_type'] ?? ''))) {
             continue;
         }
         // Alle Kontinente zurueckgeben -> der Kontinent-Dropdown im Editor filtert (Default Aventurien).
