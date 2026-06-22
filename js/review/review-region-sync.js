@@ -7,6 +7,32 @@ const REGION_SYNC_API_URL = "/api/edit/wiki/regions.php";
 let regionSyncData = null;
 let regionSyncView = "missing"; // missing | matched | ambiguous
 const regionTypeFilter = new Set(); // ausgewählte Arten (leer = alle)
+const regionContinentFilter = new Set(["Aventurien"]); // Default: nur Aventurien (Karte ist Aventurien)
+
+// Kontinent einer Region; leer -> Aventurien (wie der Herrschaftsgebiete-Dialog: continent || 'Aventurien').
+function regionRowContinent(row) {
+	return String(row.continent || "").trim() || "Aventurien";
+}
+function regionContinentMatch(row) {
+	return regionContinentFilter.size === 0 || regionContinentFilter.has(regionRowContinent(row));
+}
+// Kontinent-Filter-Optionen: distinct Kontinente (Aventurien zuerst), Zähler aus ALLEN Zeilen.
+function regionContinentOptions() {
+	if (!regionSyncData) {
+		return [];
+	}
+	const all = [].concat(regionSyncData.missing || [], regionSyncData.matched || [], regionSyncData.ambiguous || []);
+	const byCont = new Map();
+	for (const row of all) {
+		const c = regionRowContinent(row);
+		if (!byCont.has(c)) {
+			byCont.set(c, { value: c, label: c, count: 0 });
+		}
+		byCont.get(c).count += 1;
+	}
+	return [...byCont.values()].sort((a, b) =>
+		/aventurien/i.test(a.value) ? -1 : /aventurien/i.test(b.value) ? 1 : a.label.localeCompare(b.label));
+}
 
 // Typ-Filter-Optionen: distinct „Art" — Zähler aus der aktuellen View (Fehlt/Platziert/Alle) + Suche.
 function regionTypeOptions() {
@@ -15,6 +41,9 @@ function regionTypeOptions() {
 	}
 	const filterValue = (regionSyncElement("region-sync-filter")?.value || "").trim().toLowerCase();
 	const rows = regionSyncCurrentRows().filter((row) => {
+		if (!regionContinentMatch(row)) {
+			return false;
+		}
 		if (filterValue === "") {
 			return true;
 		}
@@ -68,7 +97,8 @@ async function loadRegionWikiSync() {
 		status.textContent = "Regionen werden abgeglichen ...";
 	}
 	try {
-		const data = await regionSyncGet("?action=match&continent=Aventurien&limit=5000");
+		// Alle Kontinente holen -> der Kontinent-Dropdown filtert client-seitig (Default Aventurien).
+		const data = await regionSyncGet("?action=match&continent=&limit=5000");
 		if (!data || data.ok !== true) {
 			throw new Error(apiErrorMessage(data, "Unerwartete Antwort"));
 		}
@@ -111,6 +141,9 @@ function renderRegionSyncList() {
 	const summary = regionSyncData && regionSyncData.summary ? regionSyncData.summary : {};
 	const filterValue = (regionSyncElement("region-sync-filter")?.value || "").trim().toLowerCase();
 	const rows = regionSyncCurrentRows().filter((row) => {
+		if (!regionContinentMatch(row)) {
+			return false;
+		}
 		if (regionTypeFilter.size > 0 && !regionTypeFilter.has((String(row.art || "").trim()) || "(ohne Art)")) {
 			return false;
 		}
@@ -124,9 +157,10 @@ function renderRegionSyncList() {
 
 	// Toggle-Tabs (Alle / Platziert / Fehlt) wie bei Siedlungen — im eigenen Container unter
 	// dem Suchfeld, nicht in der scrollbaren Liste. „Platziert" = Zugeordnet + Mehrfach.
-	const missingCount = summary.missing || 0;
-	const matchedCount = summary.matched || 0;
-	const ambiguousCount = summary.ambiguous || 0;
+	// Tab-Zähler kontinent-bewusst (sonst stimmen sie nicht mit der gefilterten Liste überein).
+	const missingCount = ((regionSyncData && regionSyncData.missing) || []).filter(regionContinentMatch).length;
+	const matchedCount = ((regionSyncData && regionSyncData.matched) || []).filter(regionContinentMatch).length;
+	const ambiguousCount = ((regionSyncData && regionSyncData.ambiguous) || []).filter(regionContinentMatch).length;
 	const tabsHost = regionSyncElement("region-sync-tabs");
 	if (tabsHost) {
 		const tab = (view, label, count) =>
@@ -178,6 +212,7 @@ function renderRegionSyncList() {
 
 	list.innerHTML = items || '<p class="review-panel__status">Keine Einträge.</p>';
 	renderTypeFilter("region-type-filter-toggle", "region-type-filter-menu", regionTypeOptions(), regionTypeFilter);
+	renderTypeFilter("region-continent-filter-toggle", "region-continent-filter-menu", regionContinentOptions(), regionContinentFilter, "Kontinent");
 }
 
 async function startRegionWikiCrawl() {
@@ -432,5 +467,6 @@ document.addEventListener("input", (event) => {
 });
 
 attachTypeFilter("region-type-filter-toggle", "region-type-filter-menu", regionTypeFilter, regionTypeOptions, renderRegionSyncList);
+attachTypeFilter("region-continent-filter-toggle", "region-continent-filter-menu", regionContinentFilter, regionContinentOptions, renderRegionSyncList, "Kontinent");
 
 window.loadRegionWikiSync = loadRegionWikiSync;

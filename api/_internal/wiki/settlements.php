@@ -989,6 +989,7 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
             'settlement_label' => avesmapsWikiSettlementClassLabel($sub),
             'state' => $connected ? 'full' : 'empty',
             'on_map' => true,
+            'continent' => 'Aventurien', // On-Map-Orte liegen per Definition auf der Aventurien-Karte.
             'connected' => $connected,
             'wiki_title' => $connected ? (string) $ws['title'] : '',
             'region' => $connected ? avesmapsWikiSettlementFirstTerm((string) ($ws['region'] ?? '')) : '',
@@ -1007,12 +1008,9 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
         if (!in_array($cls, $settlementClasses, true)) {
             continue;
         }
-        // Nur Aventurien: bekannte Fremdkontinente raus. Leere (noch nicht nachgetragene)
-        // bleiben drin und werden nach dem Continent-Backfill korrekt aussortiert.
+        // Alle Kontinente zurueckgeben -> der Kontinent-Dropdown im Editor filtert (Default Aventurien).
+        // Leerer Kontinent (noch nicht per Backfill nachgetragen) zaehlt clientseitig als Aventurien.
         $cont = (string) ($r['continent'] ?? '');
-        if ($cont !== '' && $cont !== 'Aventurien') {
-            continue;
-        }
         $title = (string) $r['title'];
         if ($title === '') {
             continue;
@@ -1029,6 +1027,7 @@ function avesmapsWikiSettlementListLocations(PDO $pdo): array {
             'settlement_label' => avesmapsWikiSettlementClassLabel($cls),
             'state' => 'half',
             'on_map' => false,
+            'continent' => $cont,
             'connected' => false,
             'wiki_title' => $title,
             'region' => '',

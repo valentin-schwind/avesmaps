@@ -6,6 +6,32 @@ const PATH_SYNC_API_URL = "/api/edit/wiki/paths.php";
 let pathSyncData = null;
 let pathSyncView = "assigned"; // assigned (matched+mehrteilig) | missing
 const pathTypeFilter = new Set(); // ausgewählte Wege-Arten (leer = alle)
+const pathContinentFilter = new Set(["Aventurien"]); // Default: nur Aventurien (Karte ist Aventurien)
+
+// Kontinent eines Weges; leer -> Aventurien (wie der Herrschaftsgebiete-Dialog: continent || 'Aventurien').
+function pathRowContinent(row) {
+	return String(row.continent || "").trim() || "Aventurien";
+}
+function pathContinentMatch(row) {
+	return pathContinentFilter.size === 0 || pathContinentFilter.has(pathRowContinent(row));
+}
+// Kontinent-Filter-Optionen: distinct Kontinente (Aventurien zuerst), Zähler aus ALLEN Zeilen.
+function pathContinentOptions() {
+	if (!pathSyncData) {
+		return [];
+	}
+	const all = [].concat(pathSyncData.missing || [], pathSyncData.matched || [], pathSyncData.ambiguous || []);
+	const byCont = new Map();
+	for (const row of all) {
+		const c = pathRowContinent(row);
+		if (!byCont.has(c)) {
+			byCont.set(c, { value: c, label: c, count: 0 });
+		}
+		byCont.get(c).count += 1;
+	}
+	return [...byCont.values()].sort((a, b) =>
+		/aventurien/i.test(a.value) ? -1 : /aventurien/i.test(b.value) ? 1 : a.label.localeCompare(b.label));
+}
 
 // Typ eines Weges: Infobox-„Art" (Reichsstraße, Pass, Karawanenroute, Gebirgspass, …);
 // fehlt sie, Fallback nach kind (Fluss / Straße/Weg).
@@ -24,6 +50,9 @@ function pathTypeOptions() {
 	}
 	const filterValue = (pathSyncElement("path-sync-filter")?.value || "").trim().toLowerCase();
 	const rows = pathSyncCurrentRows().filter((row) => {
+		if (!pathContinentMatch(row)) {
+			return false;
+		}
 		if (filterValue === "") {
 			return true;
 		}
@@ -66,7 +95,8 @@ async function loadPathWikiSync() {
 		status.textContent = "Wege werden abgeglichen ...";
 	}
 	try {
-		const data = await pathSyncGet("?action=match&continent=Aventurien&limit=5000");
+		// Alle Kontinente holen -> der Kontinent-Dropdown filtert client-seitig (Default Aventurien).
+		const data = await pathSyncGet("?action=match&continent=&limit=5000");
 		if (!data || data.ok !== true) {
 			throw new Error(apiErrorMessage(data, "Unerwartete Antwort"));
 		}
@@ -106,6 +136,9 @@ function renderPathSyncList() {
 	const summary = (pathSyncData && pathSyncData.summary) || {};
 	const filterValue = (pathSyncElement("path-sync-filter")?.value || "").trim().toLowerCase();
 	const rows = pathSyncCurrentRows().filter((row) => {
+		if (!pathContinentMatch(row)) {
+			return false;
+		}
 		if (pathTypeFilter.size > 0 && !pathTypeFilter.has(pathRowType(row))) {
 			return false;
 		}
@@ -117,8 +150,11 @@ function renderPathSyncList() {
 
 	// Toggle-Tabs (Alle / Platziert / Fehlt) wie bei Siedlungen — im eigenen Container unter dem
 	// Suchfeld. „Platziert" = matched + mehrteilig.
-	const assignedCount = (summary.matched || 0) + (summary.ambiguous || 0);
-	const missingCount = summary.missing || 0;
+	// Tab-Zähler kontinent-bewusst (sonst stimmen sie nicht mit der gefilterten Liste überein).
+	const assignedCount =
+		((pathSyncData && pathSyncData.matched) || []).filter(pathContinentMatch).length +
+		((pathSyncData && pathSyncData.ambiguous) || []).filter(pathContinentMatch).length;
+	const missingCount = ((pathSyncData && pathSyncData.missing) || []).filter(pathContinentMatch).length;
 	const tabsHost = pathSyncElement("path-sync-tabs");
 	if (tabsHost) {
 		const tab = (view, label, count) =>
@@ -158,6 +194,7 @@ function renderPathSyncList() {
 
 	list.innerHTML = items || '<p class="review-panel__status">Keine Einträge.</p>';
 	renderTypeFilter("path-type-filter-toggle", "path-type-filter-menu", pathTypeOptions(), pathTypeFilter);
+	renderTypeFilter("path-continent-filter-toggle", "path-continent-filter-menu", pathContinentOptions(), pathContinentFilter, "Kontinent");
 }
 
 async function assignPathWiki(wikiKey) {
@@ -420,5 +457,6 @@ document.addEventListener("input", (event) => {
 });
 
 attachTypeFilter("path-type-filter-toggle", "path-type-filter-menu", pathTypeFilter, pathTypeOptions, renderPathSyncList);
+attachTypeFilter("path-continent-filter-toggle", "path-continent-filter-menu", pathContinentFilter, pathContinentOptions, renderPathSyncList, "Kontinent");
 
 window.loadPathWikiSync = loadPathWikiSync;

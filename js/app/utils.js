@@ -2,7 +2,7 @@ const ICON_ASSET_VERSION = "20260423-142011";
 
 // ===== Geteilter „Typ"-Filter: Mehrfachauswahl-Dropdown neben Suchfeldern =====
 // state = Set ausgewählter Werte (leer = Alle). options = [{value, label, count}].
-function renderTypeFilter(toggleId, menuId, options, state) {
+function renderTypeFilter(toggleId, menuId, options, state, label = "Typ") {
 	const menu = document.getElementById(menuId);
 	if (menu) {
 		const parts = [
@@ -17,19 +17,19 @@ function renderTypeFilter(toggleId, menuId, options, state) {
 	}
 	const toggle = document.getElementById(toggleId);
 	if (toggle) {
-		toggle.textContent = state.size === 0 ? "Typ ▾" : `Typ (${state.size}) ▾`;
+		toggle.textContent = state.size === 0 ? `${label} ▾` : `${label} (${state.size}) ▾`;
 	}
 }
 
 // Verdrahtet ein Typ-Filter-Dropdown: getOptions() liefert die aktuellen Optionen aus den Daten,
 // applyFilter() rendert die Liste neu. Einmal beim Laden aufrufen.
-function attachTypeFilter(toggleId, menuId, state, getOptions, applyFilter) {
+function attachTypeFilter(toggleId, menuId, state, getOptions, applyFilter, label = "Typ") {
 	const toggle = document.getElementById(toggleId);
 	const menu = document.getElementById(menuId);
 	if (!toggle || !menu) {
 		return;
 	}
-	const rebuild = () => renderTypeFilter(toggleId, menuId, getOptions(), state);
+	const rebuild = () => renderTypeFilter(toggleId, menuId, getOptions(), state, label);
 	toggle.addEventListener("click", (event) => {
 		event.stopPropagation();
 		menu.hidden = !menu.hidden;

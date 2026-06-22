@@ -6,10 +6,32 @@
 const SETTLEMENT_LIST_API_URL = "/api/edit/wiki/settlements.php";
 let settlementListView = "all"; // "all" | "onmap" | "wiki"
 const settlementTypeFilter = new Set(); // ausgewählte Ortsgrößen (leer = alle)
+const settlementContinentFilter = new Set(["Aventurien"]); // Default: nur Aventurien (Karte ist Aventurien)
+
+// Kontinent eines Eintrags; leer -> Aventurien (On-Map-Orte tragen 'Aventurien', Wiki-only ihren Wert).
+function settlementItemContinent(item) {
+	return String(item.continent || "").trim() || "Aventurien";
+}
+function settlementContinentMatch(item) {
+	return settlementContinentFilter.size === 0 || settlementContinentFilter.has(settlementItemContinent(item));
+}
+// Kontinent-Filter-Optionen: distinct Kontinente (Aventurien zuerst), Zähler aus ALLEN Einträgen.
+function settlementContinentOptions() {
+	const byCont = new Map();
+	for (const item of settlementListItems) {
+		const c = settlementItemContinent(item);
+		if (!byCont.has(c)) {
+			byCont.set(c, { value: c, label: c, count: 0 });
+		}
+		byCont.get(c).count += 1;
+	}
+	return [...byCont.values()].sort((a, b) =>
+		/aventurien/i.test(a.value) ? -1 : /aventurien/i.test(b.value) ? 1 : a.label.localeCompare(b.label));
+}
 
 // Basismenge für die Typ-Zähler: View-Tab + Suche, aber OHNE den Typ-Filter selbst.
 function settlementBaseFilteredItems() {
-	let items = settlementListItems;
+	let items = settlementListItems.filter(settlementContinentMatch);
 	if (settlementListView === "onmap") {
 		items = items.filter((item) => item.on_map);
 	} else if (settlementListView === "wiki") {
@@ -151,7 +173,8 @@ function renderSettlementList() {
 	if (!list) {
 		return;
 	}
-	const all = settlementListItems;
+	// Tab-Zähler kontinent-bewusst (Default Aventurien) — sonst stimmen sie nicht mit der Liste überein.
+	const all = settlementListItems.filter(settlementContinentMatch);
 	const onMap = all.filter((item) => item.on_map).length;
 	const wikiOnly = all.length - onMap;
 
@@ -161,6 +184,7 @@ function renderSettlementList() {
 	}
 	// Typ-Dropdown-Zähler an die aktuelle Basismenge (View+Suche) anpassen.
 	renderTypeFilter("settlement-type-filter-toggle", "settlement-type-filter-menu", settlementTypeOptions(), settlementTypeFilter);
+	renderTypeFilter("settlement-continent-filter-toggle", "settlement-continent-filter-menu", settlementContinentOptions(), settlementContinentFilter, "Kontinent");
 
 	// Toggle-Buttons (gegenseitig exklusiv, einer aktiv) — in eigenem Container unter dem
 	// Suchfeld, NICHT in der scrollbaren Liste.
@@ -376,5 +400,6 @@ document.addEventListener("dragend", () => {
 });
 
 attachTypeFilter("settlement-type-filter-toggle", "settlement-type-filter-menu", settlementTypeFilter, settlementTypeOptions, renderSettlementList);
+attachTypeFilter("settlement-continent-filter-toggle", "settlement-continent-filter-menu", settlementContinentFilter, settlementContinentOptions, renderSettlementList, "Kontinent");
 
 window.loadSettlementList = loadSettlementList;
