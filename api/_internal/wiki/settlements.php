@@ -917,6 +917,75 @@ function avesmapsWikiSettlementCrawlBuildings(PDO $pdo): array {
     return ['ok' => true, 'types' => count($types), 'titles_seen' => count($typeByTitle), 'added' => $added];
 }
 
+// Gechunkter Bauwerks-Crawl (Schritt 1): liefert die Liste der Bauwerks-Typ-Kategorien
+// (Subkategorien von „Bauwerk nach Art" + Legacy-Fallback). Der Client crawlt dann jeden Typ
+// EINZELN (avesmapsWikiSettlementCrawlBuildingType) — so bleibt jeder Request kurz und läuft NICHT
+// in die STRATO-Laufzeitgrenze (der alte Einmal-Crawl mit ~40 Typen am Stück lief in den Timeout,
+// weshalb gar nichts geschrieben wurde).
+function avesmapsWikiSettlementBuildingTypes(PDO $pdo): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    if (function_exists('avesmapsWikiSyncRelaxLimits')) {
+        avesmapsWikiSyncRelaxLimits();
+    }
+    $types = avesmapsWikiSettlementFetchSubcategories('Bauwerk nach Art');
+    foreach (['Festung', 'Festungsruine', 'Historische Festung', 'Tempel', 'Turm', 'Ruine', 'Palast', 'Kloster', 'Leuchtturm', 'Bauwerk'] as $legacy) {
+        if (!in_array($legacy, $types, true)) {
+            $types[] = $legacy;
+        }
+    }
+    return ['ok' => true, 'types' => array_values($types)];
+}
+
+// Gechunkter Bauwerks-Crawl (Schritt 2): crawlt EINEN Typ — direkte Mitglieder + 1 Ebene
+// Unterkategorien (Tiefe 1) -> fängt z. B. Burgen unter Festung\Wasserburg\Motte\Trollburg, die der
+// alte depth-0-Crawl verpasste. Trägt die Titel als gebaeude in die Registry (INSERT IGNORE-Semantik
+// via ON DUPLICATE; überschreibt KEINE bestehende Siedlungs-Klasse). Infobox erst beim Zuordnen.
+function avesmapsWikiSettlementCrawlBuildingType(PDO $pdo, string $type): array {
+    avesmapsWikiSettlementEnsureSchema($pdo);
+    if (function_exists('avesmapsWikiSyncRelaxLimits')) {
+        avesmapsWikiSyncRelaxLimits();
+    }
+    $type = trim($type);
+    if ($type === '') {
+        return ['ok' => true, 'type' => '', 'seen' => 0, 'added' => 0];
+    }
+    $visited = [];
+    $titles = avesmapsWikiSettlementCollectCategoryPages($type, 1, $visited);
+
+    $insert = $pdo->prepare(
+        'INSERT INTO ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . '
+            (title, normalized_key, wiki_url, settlement_class, settlement_label, building_type, is_ruined, fetched_at)
+         VALUES (:title, :nk, :url, :cls, :lbl, :bt, :ru, CURRENT_TIMESTAMP(3))
+         ON DUPLICATE KEY UPDATE
+            building_type = IF(building_type IS NULL OR building_type = \'\', VALUES(building_type), building_type),
+            is_ruined = IF(VALUES(is_ruined) = 1, 1, is_ruined)'
+    );
+    $label = avesmapsWikiSettlementClassLabel('gebaeude');
+    $isRuined = (mb_stripos($type, 'ruine') !== false) ? 1 : 0;
+    $seen = 0;
+    $added = 0;
+    $done = [];
+    foreach ($titles as $title) {
+        $title = trim((string) $title);
+        if ($title === '' || isset($done[$title])) {
+            continue;
+        }
+        $done[$title] = true;
+        $seen++;
+        $insert->execute([
+            'title' => mb_substr($title, 0, 255, 'UTF-8'),
+            'nk' => avesmapsWikiSyncCreateMatchKey($title),
+            'url' => avesmapsWikiSyncMonitorPageUrl($title),
+            'cls' => 'gebaeude',
+            'lbl' => $label,
+            'bt' => mb_substr($type, 0, 120, 'UTF-8'),
+            'ru' => $isRuined,
+        ]);
+        $added += $insert->rowCount();
+    }
+    return ['ok' => true, 'type' => $type, 'seen' => $seen, 'added' => $added];
+}
+
 // Aktuelle Wiki-Verbindung eines Orts (per public_id) frisch aus der DB — damit der
 // „Ort bearbeiten"-Dialog die Zuordnung zeigt, auch wenn der Browser-Marker stale ist.
 function avesmapsWikiSettlementGetAssignment(PDO $pdo, string $publicId): array {
