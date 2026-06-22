@@ -4,6 +4,38 @@
 // Plain classic script: globals called at runtime; shared list state cross-script.
 
 let settlementCrawlBuildingsRunning = false;
+// Gechunkter Bauwerks-Crawl: erst die Typ-Liste holen, dann JEDEN Typ einzeln crawlen (kurze
+// Requests -> kein STRATO-Timeout wie beim alten Einmal-Crawl, der nichts schrieb). onProgress(done,
+// total) optional. Liefert {types, seen, added}. Genutzt vom Button UND vom großen WikiSync-Lauf.
+async function crawlSettlementBuildingsChunked(onProgress) {
+	const post = (body) =>
+		fetch(SETTLEMENT_LIST_API_URL, {
+			method: "POST",
+			credentials: "same-origin",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(body),
+		}).then((r) => r.json());
+	const typesResp = await post({ action: "crawl_building_types" });
+	if (!typesResp || typesResp.ok !== true || !Array.isArray(typesResp.types)) {
+		throw new Error(apiErrorMessage(typesResp, "Bauwerks-Typen konnten nicht geladen werden"));
+	}
+	const types = typesResp.types;
+	let seen = 0;
+	let added = 0;
+	for (let i = 0; i < types.length; i += 1) {
+		if (typeof onProgress === "function") {
+			onProgress(i + 1, types.length);
+		}
+		const res = await post({ action: "crawl_building_type", type: types[i] });
+		if (res && res.ok === true) {
+			seen += Number(res.seen || 0);
+			added += Number(res.added || 0);
+		}
+		await new Promise((resolve) => setTimeout(resolve, 200)); // STRATO schonen
+	}
+	return { types: types.length, seen, added };
+}
+
 // Crawlt alle Bauwerks-Typen aus dem Wiki (Bauwerk nach Art) in die Registry (gebaeude + building_type).
 async function runSettlementCrawlBuildings() {
 	if (settlementCrawlBuildingsRunning) {
@@ -16,34 +48,12 @@ async function runSettlementCrawlBuildings() {
 		btn.textContent = "🏛 Bauwerke crawlen …";
 	}
 	try {
-		const post = (body) =>
-			fetch(SETTLEMENT_LIST_API_URL, {
-				method: "POST",
-				credentials: "same-origin",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(body),
-			}).then((r) => r.json());
-		// Gechunkt: erst die Typ-Liste holen, dann JEDEN Typ einzeln crawlen (kurze Requests ->
-		// kein STRATO-Timeout wie beim alten Einmal-Crawl, der nichts schrieb).
-		const typesResp = await post({ action: "crawl_building_types" });
-		if (!typesResp || typesResp.ok !== true || !Array.isArray(typesResp.types)) {
-			throw new Error(apiErrorMessage(typesResp, "Bauwerks-Typen konnten nicht geladen werden"));
-		}
-		const types = typesResp.types;
-		let totalSeen = 0;
-		let totalAdded = 0;
-		for (let i = 0; i < types.length; i += 1) {
+		const r = await crawlSettlementBuildingsChunked((done, total) => {
 			if (btn) {
-				btn.textContent = `🏛 Bauwerke crawlen … (${i + 1}/${types.length})`;
+				btn.textContent = `🏛 Bauwerke crawlen … (${done}/${total})`;
 			}
-			const res = await post({ action: "crawl_building_type", type: types[i] });
-			if (res && res.ok === true) {
-				totalSeen += Number(res.seen || 0);
-				totalAdded += Number(res.added || 0);
-			}
-			await new Promise((resolve) => setTimeout(resolve, 200)); // STRATO schonen
-		}
-		showFeedbackToast?.(`${totalSeen} Bauwerke erfasst (${totalAdded} neu/aktualisiert, ${types.length} Typen).`, "success");
+		});
+		showFeedbackToast?.(`${r.seen} Bauwerke erfasst (${r.added} neu/aktualisiert, ${r.types} Typen).`, "success");
 		await loadSettlementList();
 	} catch (error) {
 		showFeedbackToast?.("Fehler: " + (error.message || error), "error");

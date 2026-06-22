@@ -418,15 +418,16 @@ async function startWikiSyncRun() {
 				buildingProgress.hidden = false;
 				buildingProgress.removeAttribute("value"); // indeterminate (kein bekanntes Total)
 			}
-			const buildingResponse = await fetch("/api/edit/wiki/settlements.php", {
-				method: "POST",
-				credentials: "same-origin",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ action: "crawl_buildings" }),
-			});
-			const buildingData = await buildingResponse.json();
-			if (buildingData && buildingData.ok) {
-				buildingNote = ` (+${buildingData.titles_seen || 0} Bauwerke)`;
+			// Gechunkt (geteilte Funktion aus review-settlement-list-bulk-ops.js): EIN Typ pro Request,
+			// sonst lief der Bauwerks-Crawl in den STRATO-Timeout und schrieb gar nichts.
+			if (typeof crawlSettlementBuildingsChunked === "function") {
+				const buildingResult = await crawlSettlementBuildingsChunked((done, total) => {
+					if (buildingProgress) {
+						buildingProgress.max = total;
+						buildingProgress.value = done;
+					}
+				});
+				buildingNote = ` (+${buildingResult.seen || 0} Bauwerke)`;
 			}
 			if (typeof loadSettlementList === "function") {
 				loadSettlementList();
