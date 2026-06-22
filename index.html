@@ -197,7 +197,7 @@
 						<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="regions">
 						<div class="wiki-sync-panel__actions">
 							<span id="region-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
-															<button id="region-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Regionen neu crawlen (läuft im Hintergrund)">🚨 WikiSync</button>
+															<button id="region-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Regionen neu crawlen (läuft im Hintergrund)">🚨 WikiSync</button><button id="region-labels-extend-zoom" class="wiki-sync-panel__start" type="button" title="Alle Region-Labels mit 'Sichtbar bis Zoom 5' auf 7 anheben (bleiben bis ganz reingezoomt sichtbar)">🏷️ Labels bis Zoom 7</button>
 								<progress id="region-sync-progress" class="wiki-sync-progress" max="1" value="0" style="flex:1 1 100%;width:100%" hidden></progress>
 						</div>
 						<div class="wiki-sync-panel__filter">
@@ -660,8 +660,8 @@
 						<div class="label-edit-grid">
 							<label class="location-report-form__field"><span>Größe</span><div class="label-edit-sliderrow"><input id="label-edit-size" name="size" type="number" min="12" max="50" step="1" value="18" /><input id="label-edit-size-range" type="range" min="12" max="50" step="1" value="18" aria-label="Groesse" /></div></label>
 							<label class="location-report-form__field"><span>Rotation</span><div class="label-edit-sliderrow"><input id="label-edit-rotation" name="rotation" type="number" min="0" max="360" step="1" value="0" /><input id="label-edit-rotation-range" type="range" min="0" max="360" step="1" value="0" aria-label="Rotation" /></div></label>
-							<label class="location-report-form__field"><span>Sichtbar ab Zoom</span><div class="label-edit-zoomrow"><input id="label-edit-min-zoom-num" type="number" min="0" max="5" step="1" value="0" aria-label="Sichtbar ab Zoom" /><input id="label-edit-min-zoom" name="min_zoom" type="range" min="0" max="5" step="1" value="0" /></div></label>
-							<label class="location-report-form__field"><span>Sichtbar bis Zoom</span><div class="label-edit-zoomrow"><input id="label-edit-max-zoom-num" type="number" min="0" max="5" step="1" value="5" aria-label="Sichtbar bis Zoom" /><input id="label-edit-max-zoom" name="max_zoom" type="range" min="0" max="5" step="1" value="5" /></div></label>
+							<label class="location-report-form__field"><span>Sichtbar ab Zoom</span><div class="label-edit-zoomrow"><input id="label-edit-min-zoom-num" type="number" min="0" max="7" step="1" value="0" aria-label="Sichtbar ab Zoom" /><input id="label-edit-min-zoom" name="min_zoom" type="range" min="0" max="7" step="1" value="0" /></div></label>
+							<label class="location-report-form__field"><span>Sichtbar bis Zoom</span><div class="label-edit-zoomrow"><input id="label-edit-max-zoom-num" type="number" min="0" max="7" step="1" value="7" aria-label="Sichtbar bis Zoom" /><input id="label-edit-max-zoom" name="max_zoom" type="range" min="0" max="7" step="1" value="7" /></div></label>
 							<label class="location-report-form__field"><span>Priorität</span><div class="label-edit-sliderrow"><input id="label-edit-priority" name="priority" type="number" min="1" max="5" step="1" value="3" /><input id="label-edit-priority-range" type="range" min="1" max="5" step="1" value="3" aria-label="Prioritaet" /></div></label>
 							<label class="location-report-form__field location-report-form__field--checkbox"><input id="label-edit-is-nodix" name="is_nodix" type="checkbox" /><span>Nodix</span></label>
 						</div>

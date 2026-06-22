@@ -48,6 +48,7 @@ try {
         'create_label' => avesmapsCreateLabelFeature($pdo, $payload, $user),
         'update_label' => avesmapsUpdateLabelFeature($pdo, $payload, $user),
         'move_label' => avesmapsMoveLabelFeature($pdo, $payload, $user),
+        'bulk_extend_label_zoom' => avesmapsBulkExtendLabelMaxZoom($pdo, $payload, $user),
         'create_region' => avesmapsCreateRegionFeature($pdo, $payload, $user),
         'update_region' => avesmapsUpdateRegionFeature($pdo, $payload, $user),
         'update_region_geometry' => avesmapsUpdateRegionFeatureGeometry($pdo, $payload, $user),
