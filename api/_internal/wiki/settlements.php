@@ -895,6 +895,8 @@ function avesmapsWikiSettlementCrawlBuildings(PDO $pdo): array {
             (title, normalized_key, wiki_url, settlement_class, settlement_label, building_type, is_ruined, fetched_at)
          VALUES (:title, :nk, :url, :cls, :lbl, :bt, :ru, CURRENT_TIMESTAMP(3))
          ON DUPLICATE KEY UPDATE
+            settlement_class = IF(settlement_class IS NULL OR settlement_class = \'\', VALUES(settlement_class), settlement_class),
+            settlement_label = IF(settlement_label IS NULL OR settlement_label = \'\', VALUES(settlement_label), settlement_label),
             building_type = IF(building_type IS NULL OR building_type = \'\', VALUES(building_type), building_type),
             is_ruined = IF(VALUES(is_ruined) = 1, 1, is_ruined)'
     );
@@ -957,6 +959,8 @@ function avesmapsWikiSettlementCrawlBuildingType(PDO $pdo, string $type): array 
             (title, normalized_key, wiki_url, settlement_class, settlement_label, building_type, is_ruined, fetched_at)
          VALUES (:title, :nk, :url, :cls, :lbl, :bt, :ru, CURRENT_TIMESTAMP(3))
          ON DUPLICATE KEY UPDATE
+            settlement_class = IF(settlement_class IS NULL OR settlement_class = \'\', VALUES(settlement_class), settlement_class),
+            settlement_label = IF(settlement_label IS NULL OR settlement_label = \'\', VALUES(settlement_label), settlement_label),
             building_type = IF(building_type IS NULL OR building_type = \'\', VALUES(building_type), building_type),
             is_ruined = IF(VALUES(is_ruined) = 1, 1, is_ruined)'
     );
