@@ -1216,6 +1216,18 @@ function avesmapsPoliticalReadOptionalZoom(mixed $value): ?int {
     return (int) $zoom;
 }
 
+// Klemmt einen ANGEFRAGTEN Layer-Zoom auf das politische Band-Maximum (6). Die Karte erlaubt jetzt
+// Zoom 7; die politischen Zoom-Baender gehen aber nur bis 6. Ueber 6 -> 6 (Zoom 7 zeigt die
+// Zoom-6-Ansicht statt einen "Zoomstufe ungueltig"-Fehler zu werfen). Gilt NUR fuer den Layer-Request;
+// gespeicherte Territoriums-Baender bleiben strikt via avesmapsPoliticalReadOptionalZoom validiert.
+function avesmapsPoliticalClampLayerRequestZoom(mixed $value): mixed {
+    if (is_numeric($value) && (int) $value > 6) {
+        return 6;
+    }
+
+    return $value;
+}
+
 function avesmapsPoliticalReadOpenEndedValidTo(array $payload, mixed $fallback = null): ?int {
     if (avesmapsPoliticalReadBoolean($payload['valid_to_open'] ?? false)) {
         return null;

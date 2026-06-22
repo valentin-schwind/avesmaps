@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 function avesmapsPoliticalReadLayer(PDO $pdo, array $query): array {
     $yearBf = avesmapsPoliticalReadOptionalInt($query['year_bf'] ?? null) ?? AVESMAPS_POLITICAL_DEFAULT_YEAR_BF;
-    $zoom = avesmapsPoliticalReadOptionalZoom($query['zoom'] ?? null) ?? 0;
+    // Die Karte erlaubt jetzt Zoom 7, die politischen Zoom-Baender aber nur 0-6 -> ueber 6 angefragten
+    // Layer-Zoom auf 6 klemmen (kein "Zoomstufe ungueltig"-Fehler; Zoom 7 zeigt die Zoom-6-Ansicht).
+    $zoom = avesmapsPoliticalReadOptionalZoom(avesmapsPoliticalClampLayerRequestZoom($query['zoom'] ?? null)) ?? 0;
     $isEditMode = avesmapsPoliticalReadBoolean($query['edit_mode'] ?? false);
     $bbox = avesmapsPoliticalReadOptionalBoundingBox((string) ($query['bbox'] ?? ''));
 

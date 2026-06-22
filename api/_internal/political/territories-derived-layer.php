@@ -40,7 +40,8 @@ function avesmapsPoliticalInvalidateLayerCache(): void {
 function avesmapsPoliticalReadLayerWithDerivedGeometry(PDO $pdo, array $query): array {
     $response = avesmapsPoliticalReadLayer($pdo, $query);
     $yearBf = avesmapsPoliticalReadOptionalInt($query['year_bf'] ?? null) ?? AVESMAPS_POLITICAL_DEFAULT_YEAR_BF;
-    $zoom = avesmapsPoliticalReadOptionalZoom($query['zoom'] ?? null) ?? 0;
+    // Layer-Zoom auf das politische Band-Maximum (6) klemmen; die Karte erlaubt jetzt Zoom 7.
+    $zoom = avesmapsPoliticalReadOptionalZoom(avesmapsPoliticalClampLayerRequestZoom($query['zoom'] ?? null)) ?? 0;
     $bbox = avesmapsPoliticalReadOptionalBoundingBox((string) ($query['bbox'] ?? ''));
     $derivedFeatures = avesmapsPoliticalReadDerivedLayerFeaturesSafely($pdo, $yearBf, $zoom, $bbox, $response);
     if ($derivedFeatures === []) {
