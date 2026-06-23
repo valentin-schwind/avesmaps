@@ -133,6 +133,14 @@ function avesmapsPoliticalCreateTerritory(PDO $pdo, array $payload, array $user)
 function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user): array {
     $territory = avesmapsPoliticalFetchTerritoryByPublicId($pdo, avesmapsPoliticalReadPublicId($payload['territory_public_id'] ?? $payload['public_id'] ?? ''));
     $name = avesmapsPoliticalReadRequiredName($payload['name'] ?? $territory['name'], 'Der Name des Herrschaftsgebiets');
+    // Rename muss den slug mitziehen: bleibt der slug am alten Namen haengen, driften name und slug
+    // auseinander -- der name-abgeleitete Lookup im Wiki-/Baum-Save (avesmapsPoliticalFindTerritoryByWikiOrSlug)
+    // matcht den Record dann nicht mehr und legt eine DUBLETTE an (Vorfall "Waldmenschen" -> zwei Karteikarten).
+    // Daher bei Namensaenderung den slug neu und eindeutig ableiten (sich selbst ausgenommen).
+    $slug = (string) $territory['slug'];
+    if ($name !== (string) $territory['name']) {
+        $slug = avesmapsPoliticalUniqueSlug($pdo, avesmapsPoliticalSlug($name), (int) $territory['id']);
+    }
     $parentId = avesmapsPoliticalReadOptionalTerritoryId($pdo, $payload['parent_public_id'] ?? null);
     $wikiId = avesmapsPoliticalReadOptionalWikiId($pdo, $payload['wiki_id'] ?? $territory['wiki_id'] ?? null);
     $wikiKey = avesmapsPoliticalFetchWikiKeyById($pdo, $wikiId);
@@ -152,6 +160,7 @@ function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user)
     $statement = $pdo->prepare(
         'UPDATE political_territory
         SET name = :name,
+            slug = :slug,
             wiki_id = :wiki_id,
             wiki_key = :wiki_key,
             short_name = :short_name,
@@ -174,6 +183,7 @@ function avesmapsPoliticalUpdateTerritory(PDO $pdo, array $payload, array $user)
     $statement->execute([
         'id' => (int) $territory['id'],
         'name' => $name,
+        'slug' => $slug,
         'wiki_id' => $wikiId,
         'wiki_key' => $wikiKey,
         'short_name' => avesmapsPoliticalNullableString(avesmapsNormalizeSingleLine((string) ($payload['short_name'] ?? ''), 160)),
