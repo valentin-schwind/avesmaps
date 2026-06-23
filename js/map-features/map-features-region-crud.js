@@ -152,7 +152,7 @@ function applyRegionFeatureResponse(regionEntry, feature) {
 	(regionEntry.layers?.length ? regionEntry.layers : [regionEntry.layer]).filter(Boolean).forEach((layer) => {
 		layer.setStyle({ color: regionEntry.color, fillColor: regionEntry.color, fillOpacity: regionEntry.opacity });
 	});
-	regionEntry.label?.setContent(createRegionLabelMarkup(regionEntry, regionEntry.name));
+	regionEntry.label?.setContent(createRegionLabelMarkup(regionEntry, regionEntry.name, undefined, Math.round(Number(map.getZoom()))));
 }
 
 async function createRegionAt(latlng) {

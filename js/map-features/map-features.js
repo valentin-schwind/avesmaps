@@ -326,7 +326,7 @@ function wrapRegionLabelLines(text, typeStyle, fontSizePx, maxWidthPx) {
 	return lines.length ? lines : [full];
 }
 
-function createRegionLabelMarkup(regionEntry, fallbackName, maxWidthPx) {
+function createRegionLabelMarkup(regionEntry, fallbackName, maxWidthPx, zoom) {
 	const labelText = normalizeRegionParentheticalSpacing(
 		regionEntry.labelDisplayName
 		|| regionEntry.displayName
@@ -338,9 +338,12 @@ function createRegionLabelMarkup(regionEntry, fallbackName, maxWidthPx) {
 	);
 
 	const name = escapeHtml(labelText);
+	// Bei Zoom 0 (ganz rausgezoomt, dicht gepackt) Schrift + Wappen etwas verkleinern -> weniger Kollision.
+	const labelScale = Number(zoom) <= 0 ? 0.8 : 1;
 	const coatUrl = regionEntry.labelCoatOfArmsUrl || regionEntry.coatOfArmsUrl || "";
+	const coatStyle = labelScale < 1 ? ` style="width:${Math.round(40 * labelScale)}px;height:${Math.round(40 * labelScale)}px"` : "";
 	const coatMarkup = coatUrl
-		? `<img class="region-label__coat" src="${escapeHtml(avesmapsCoatSrc(coatUrl))}" alt="" loading="lazy" decoding="async">`
+		? `<img class="region-label__coat"${coatStyle} src="${escapeHtml(avesmapsCoatSrc(coatUrl))}" alt="" loading="lazy" decoding="async">`
 		: "";
 
 	// Name als Canvas-<img> (weich/eingebettet, wie die Karten-Namen). Fallback auf DOM-Text,
@@ -348,9 +351,10 @@ function createRegionLabelMarkup(regionEntry, fallbackName, maxWidthPx) {
 	let nameMarkup = `<span>${name}</span>`; let contentMod = ""; let contentStyle = "";
 	if (typeof renderMapLabelToImage === "function") {
 		const style = getRegionLabelNameTypeStyle();
-		const lines = wrapRegionLabelLines(labelText, style, style.fontSizePx, maxWidthPx);
+		const fontSizePx = style.fontSizePx * labelScale;
+		const lines = wrapRegionLabelLines(labelText, style, fontSizePx, maxWidthPx);
 		if (lines.length <= 1) {
-			const image = renderMapLabelToImage(labelText, style.fontSizePx, style);
+			const image = renderMapLabelToImage(labelText, fontSizePx, style);
 			// Das Namens-<img> trägt transparente Innenpolster (padX, Platz für den Halo). NEBEN einem Wappen wird das
 			// als unschön großer Abstand Wappen<->Text sichtbar (Polster + flex-gap). Bei vorhandenem Wappen das linke
 			// Polster per negativem margin-left wieder herausziehen -> das Wappen sitzt wie früher (DOM-Text) dicht am Namen.
@@ -359,10 +363,10 @@ function createRegionLabelMarkup(regionEntry, fallbackName, maxWidthPx) {
 		} else {
 			// Mehrzeilig: pro Zeile ein <img>, vertikal gestapelt + zentriert (CSS-Spalte). Die Zeilen-imgs
 			// tragen vertikale Halo-Polster -> mit negativem margin-top auf normalen Zeilenabstand ziehen.
-			const lineStep = Math.round(style.fontSizePx * 1.18);
+			const lineStep = Math.round(fontSizePx * 1.18);
 			let firstPadX = 0; let firstLineH = 0;
 			const lineImgs = lines.map((line, index) => {
-				const image = renderMapLabelToImage(line, style.fontSizePx, style);
+				const image = renderMapLabelToImage(line, fontSizePx, style);
 				if (index === 0) { firstPadX = image.padX; firstLineH = image.h; }
 				const marginTop = index === 0 ? 0 : (lineStep - image.h);
 				const marginStyle = marginTop !== 0 ? ` style="margin-top:${marginTop}px"` : "";

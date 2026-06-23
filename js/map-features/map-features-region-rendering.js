@@ -461,7 +461,7 @@ function addRegionFeatureToMap(region, regionEntry) {
 					? L.latLng(regionEntry.labelLat, regionEntry.labelLng)
 					: polygon.getBounds().getCenter());
 			const labelMaxWidthPx = computeRegionLabelMaxWidthPx(labelLatLng, labelPoi);
-			const labelMarkup = createRegionLabelMarkup(regionEntry, name, labelMaxWidthPx);
+			const labelMarkup = createRegionLabelMarkup(regionEntry, name, labelMaxWidthPx, Math.round(Number(map.getZoom())));
 			const reuseKey = territoryLabelKey || "";
 			const pooledLabel = reuseKey !== "" ? reusableRegionLabelsByKey.get(reuseKey) : null;
 			let label;
