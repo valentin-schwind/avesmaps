@@ -280,6 +280,18 @@ function avesmapsPoliticalReadDerivedLayerFeatures(PDO $pdo, int $yearBf, int $z
         // Union der Baender: fuellt auch im Territoriums-Band, behaelt aber "nach oben sichtbar" (Derived hoeher).
         $inFillBand = $inFillBand || $inTerritoryLabelBand;
         $feature = avesmapsPoliticalLayerRowToFeature($row, $yearBf, $zoom);
+        // The feature's own min/max_zoom comes from avesmapsPoliticalLayerRowToFeature = derived.min/max_zoom,
+        // which can be STALE (frozen when the territory still had e.g. max_zoom=1). The frontend gates BOTH the
+        // polygon AND the label purely on these props (syncRegionVisibility -> isVisibleAtZoom), so a stale derived
+        // band hides the whole aggregate above it even though derived_fill_active says show. Widen them to the
+        // UNION of the derived band and the territory band (editor-authoritative) so visibility matches the fill
+        // band computed above (a null bound means "no limit" -> stays the most permissive).
+        $feature['properties']['min_zoom'] = ($derivedMinZoom === null || $territoryMinZoom === null)
+            ? null
+            : min($derivedMinZoom, $territoryMinZoom);
+        $feature['properties']['max_zoom'] = ($derivedMaxZoom === null || $territoryMaxZoom === null)
+            ? null
+            : max($derivedMaxZoom, $territoryMaxZoom);
         $feature['id'] = 'derived:' . (string) $row['geometry_public_id'];
         $feature['properties']['public_id'] = (string) $row['geometry_public_id'];
         $feature['properties']['geometry_public_id'] = (string) $row['geometry_public_id'];
