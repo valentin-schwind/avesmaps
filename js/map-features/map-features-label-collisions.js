@@ -17,11 +17,11 @@ function scheduleLabelCollisionResolution() {
 // Label-Declutter nicht. Wird NICHT versteckt: passt nichts innerhalb der Tension, bleibt
 // das Label zentriert (kleineres Übel als ein fehlendes Gebiets-Label).
 // Max. Verschiebung (Repel) in px, bis ein Label ausweicht. Passt es selbst dann nicht kollisionsfrei,
-// wird es AUSGEBLENDET (statt zentriert ueberlappend stehen zu bleiben). Live justierbar via ?labelrepel=40.
+// wird es AUSGEBLENDET (statt zentriert ueberlappend stehen zu bleiben). Live justierbar via ?labelrepel=80.
 const REGION_LABEL_MAX_TENSION = (() => {
 	const match = /[?&]labelrepel=([0-9.]+)/.exec(typeof location !== "undefined" ? location.search : "");
-	const value = match ? parseFloat(match[1]) : 40;
-	return Number.isFinite(value) && value >= 0 ? value : 40;
+	const value = match ? parseFloat(match[1]) : 80;
+	return Number.isFinite(value) && value >= 0 ? value : 80;
 })();
 const REGION_LABEL_TENSION_STEP = 7;   // Ring-Schrittweite
 
