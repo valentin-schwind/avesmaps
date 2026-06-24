@@ -241,7 +241,14 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 		// Wenn die gemergte Huelle dieses Territoriums fuellt, die vielen Einzel-Quell-Teile NICHT fuellen
 		// (sonst halbtransparente Naehte/Loecher an den Kanten). Frueher nur fuer den gelochten fill_remainder
 		// (Schraffur); jetzt generell, weil die Huelle im Frontend immer nahtlos fuellt.
-		if (aggregate && aggregate.derivedFillActive) {
+		// AUSNAHME (Uebergabe-Zoom): wird die Huelle selbst durch ein anzeigendes Kind unterdrueckt
+		// (suppressFillForDisplayingChild weiter unten greift fuers Aggregat), fuellt die Huelle gar nicht ->
+		// die Eigen-Quellteile des Reichs (Kerngebiet, das die Kinder nicht abdecken) muessen WEITER fuellen,
+		// sonst bleibt dort ein Loch. Ergebnis: Kinder fuellen ihre Flaechen, die Eigenteile fuellen den Rest
+		// in der Reichsfarbe -> "Reich fuellt die Luecken".
+		const aggregateHandedOffToDisplayingChild = !!aggregate
+			&& (politicalRegionFillSuppressedByDisplayingChild || indexPoliticalRegionFillSuppressedByDisplayingChild()).has(terrKey);
+		if (aggregate && aggregate.derivedFillActive && !aggregateHandedOffToDisplayingChild) {
 			suppressFillForActiveDerived = true;
 		}
 	}
