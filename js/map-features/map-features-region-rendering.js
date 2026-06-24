@@ -240,15 +240,10 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 		}
 		// Wenn die gemergte Huelle dieses Territoriums fuellt, die vielen Einzel-Quell-Teile NICHT fuellen
 		// (sonst halbtransparente Naehte/Loecher an den Kanten). Frueher nur fuer den gelochten fill_remainder
-		// (Schraffur); jetzt generell, weil die Huelle im Frontend immer nahtlos fuellt.
-		// AUSNAHME (Uebergabe-Zoom): wird die Huelle selbst durch ein anzeigendes Kind unterdrueckt
-		// (suppressFillForDisplayingChild weiter unten greift fuers Aggregat), fuellt die Huelle gar nicht ->
-		// die Eigen-Quellteile des Reichs (Kerngebiet, das die Kinder nicht abdecken) muessen WEITER fuellen,
-		// sonst bleibt dort ein Loch. Ergebnis: Kinder fuellen ihre Flaechen, die Eigenteile fuellen den Rest
-		// in der Reichsfarbe -> "Reich fuellt die Luecken".
-		const aggregateHandedOffToDisplayingChild = !!aggregate
-			&& (politicalRegionFillSuppressedByDisplayingChild || indexPoliticalRegionFillSuppressedByDisplayingChild()).has(terrKey);
-		if (aggregate && aggregate.derivedFillActive && !aggregateHandedOffToDisplayingChild) {
+		// (Schraffur); jetzt generell, weil die Huelle im Frontend immer nahtlos fuellt. (Die Huelle bleibt
+		// bei Uebergabe nur dann gefuellt, wenn sie ein eigenes Kerngebiet hat -> siehe derivedHasOwnArea
+		// unten; dann deckt sie den Rest selbst ab und die Quellteile bleiben unterdrueckt.)
+		if (aggregate && aggregate.derivedFillActive) {
 			suppressFillForActiveDerived = true;
 		}
 	}
@@ -259,8 +254,12 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 	// NUR fuer AGGREGATE (Fuellung = Union der Kinder -> Kinder kacheln den Elternteil). Ein Eltern mit
 	// EIGENEM Polygon (z. B. Land Perrinmarsch, is_aggregate=false) wird NICHT unterdrueckt: sein Kind
 	// (z. B. Stadt Perricum, gleiches Band) deckt das Gebiet nicht ab -> sonst bliebe der Rest leer (Loch).
+	// Ebenso eine Derived-Huelle mit EIGENEM Kerngebiet (derivedHasOwnArea): ihre Kinder kacheln das Reich
+	// nicht lueckenlos (Kern + nicht abgedeckte Teile blieben leer, ggf. kaskadierend wenn die Kinder selbst
+	// Aggregate sind, die nicht fuellen). Sie fuellt solide als Hintergrund, die Kinder legen sich oben drauf.
 	const suppressFillForDisplayingChild = !IS_EDIT_MODE
 		&& (regionEntry.isAggregate === true || regionEntry.isDerivedGeometry === true)
+		&& !regionEntry.derivedHasOwnArea
 		&& (politicalRegionFillSuppressedByDisplayingChild || indexPoliticalRegionFillSuppressedByDisplayingChild())
 			.has(String(regionEntry.territoryPublicId || "").trim());
 

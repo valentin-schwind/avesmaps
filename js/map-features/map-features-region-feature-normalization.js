@@ -62,6 +62,13 @@ function normalizeRegionFeature(feature) {
 		maxZoom: readOptionalRegionZoom(properties.max_zoom),
 		isDerivedGeometry: properties.is_derived_geometry === true,
 		isAggregate: properties.is_aggregate === true,
+		// Aggregat-Huelle, deren Quell-Territorien ihr EIGENES Territorium enthalten -> sie hat ein eigenes
+		// Kerngebiet (nicht nur Kinder). Solche Huellen duerfen bei der Uebergabe NICHT komplett unterdrueckt
+		// werden, sonst bleibt ihr Kern + nicht abgedeckte Teile leer (Kinder kacheln das Reich nicht
+		// lueckenlos). Sie fuellen solide als Hintergrund, Kinder legen sich oben drauf.
+		derivedHasOwnArea: properties.is_derived_geometry === true
+			&& Array.isArray(properties.derived_source_territory_public_ids)
+			&& properties.derived_source_territory_public_ids.map(String).includes(String(properties.territory_public_id || "")),
 		showInnerBoundaries: properties.show_inner_boundaries !== false,
 		derivedFillActive: properties.derived_fill_active !== false,
 		visualHiddenByDerivedBoundary: properties.visual_hidden_by_derived_boundary === true,
