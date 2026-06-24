@@ -26,9 +26,10 @@
 	const STRIPE_WIDTH_RATIO = 1.25;  // Faktor je Zoomstufe
 	const STRIPE_WIDTH_MIN = 3;       // px Untergrenze (ganz rausgezoomt) -- feiner, damit auch kleine Flaechen bei Tiefzoom Streifen zeigen
 	const STRIPE_WIDTH_MAX = 22;      // px Obergrenze
-	// Schraffur-Deckkraft = die Transparenz-Einstellung DES TERRITORIUMS (party.opacity), pro Streifen.
-	// KEIN pauschaler Festwert. Nur ein optionaler Live-Override fuer Tests: ?hatchopacity=0..1 ueberschreibt
-	// dann ALLE Streifen; ohne den Param (Normalfall) gilt die je-Territorium-Deckkraft.
+	// Schraffur-Deckkraft: im FRONTEND die einheitliche POLITICAL_FRONTEND_FILL_OPACITY (wie die normalen
+	// Flaechen, damit umstrittene Gebiete nicht mit abweichender Transparenz herausstechen); im EDITOR die
+	// je-Territorium-Deckkraft (party.opacity), pro Streifen. Live-Override fuer Tests: ?hatchopacity=0..1
+	// ueberschreibt dann ALLE Streifen (gewinnt immer).
 	const HATCH_OPACITY_OVERRIDE = (() => {
 		const m = /[?&]hatchopacity=([0-9.]+)/.exec(typeof location !== "undefined" ? location.search : "");
 		if (!m) return null;
@@ -117,11 +118,21 @@
 		ctx.rotate(STRIPE_ANGLE * Math.PI / 180);
 		const n = parties.length;
 		const w = stripeWidth > 0 ? stripeWidth : STRIPE_WIDTH_BASE;
+		// Frontend: einheitliche Fuell-Deckkraft (POLITICAL_FRONTEND_FILL_OPACITY, z. B. 0.7) auch fuer die
+		// Schraffur-Streifen, damit umstrittene Gebiete dieselbe Transparenz wie die normalen Flaechen haben
+		// (sonst stachen sie mit der je-Territorium-Deckkraft 0.75 heraus). Editor: weiter party.opacity.
+		const frontendStripeOpacity = (typeof IS_EDIT_MODE !== "undefined" && !IS_EDIT_MODE
+			&& typeof POLITICAL_FRONTEND_FILL_OPACITY === "number" && Number.isFinite(POLITICAL_FRONTEND_FILL_OPACITY))
+			? POLITICAL_FRONTEND_FILL_OPACITY
+			: null;
 		let i = 0;
 		for (let x = -R; x <= R; x += w) {
 			const party = parties[((i % n) + n) % n] || {};
-			// Deckkraft aus der Territoriums-Einstellung (party.opacity); Test-Override via ?hatchopacity.
-			ctx.globalAlpha = HATCH_OPACITY_OVERRIDE != null ? HATCH_OPACITY_OVERRIDE : clamp01(party.opacity != null ? party.opacity : 1);
+			// Deckkraft: Frontend = einheitliche Konstante (s. o.), Editor = Territoriums-Einstellung
+			// (party.opacity); Test-Override via ?hatchopacity gewinnt immer.
+			ctx.globalAlpha = HATCH_OPACITY_OVERRIDE != null
+				? HATCH_OPACITY_OVERRIDE
+				: clamp01(frontendStripeOpacity != null ? frontendStripeOpacity : (party.opacity != null ? party.opacity : 1));
 			ctx.fillStyle = party.color || "#888888";
 			ctx.fillRect(x, -R, w, 2 * R); // exakt aneinander, KEIN Ueberlapp -> keine doppelt gezeichneten
 			// Naehte (sonst zwei 0.75-Baender uebereinander = 0.94 an der Naht; bei Tiefzoom mit schmalen
