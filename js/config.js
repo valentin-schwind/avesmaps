@@ -120,19 +120,19 @@ const POLITICAL_TERRITORIES_API_URL = window.AVESMAPS_POLITICAL_TERRITORIES_ENDP
 // Darstellung). Im Editor bleibt sie immer aktiv. Auf true setzen, um sie später im Frontend
 // wieder freizuschalten (Jahr bleibt sonst auf dem Standard 1049).
 const POLITICAL_TIMELINE_FRONTEND_ENABLED = window.AVESMAPS_POLITICAL_TIMELINE_FRONTEND_ENABLED === true;
-// Einheitliche Fuell-Deckkraft für politische Flaechen im FRONTEND (Nutzer-Wunsch: überall 75%,
+// Einheitliche Fuell-Deckkraft für politische Flaechen im FRONTEND (Nutzer-Wunsch: überall 70%,
 // statt der unterschiedlichen per-Territorium-Deckkraft aus der DB). Im Editor gilt weiter die
 // jeweilige Territoriums-Deckkraft. Auf null setzen, um im Frontend wieder die per-Territorium-
 // Deckkraft zu verwenden.
 const POLITICAL_FRONTEND_FILL_OPACITY = (() => {
 	// Live justierbar via ?fillopacity=0.25 (0..1) zum Finden des Werts, bei dem das Terrain durchscheint
-	// (Grün ueber flachem Tiefland wirkt bei 0.75 solide). Ohne Param: bisheriger Default 0.75.
+	// (Grün ueber flachem Tiefland wirkt bei 0.75 solide). Ohne Param: Default 0.70 (Nutzer-Wunsch 2026-06-24).
 	const match = /[?&]fillopacity=([0-9.]+)/.exec(typeof location !== "undefined" ? location.search : "");
 	if (match) {
 		const value = parseFloat(match[1]);
 		if (Number.isFinite(value)) return Math.max(0, Math.min(1, value));
 	}
-	return 0.75;
+	return 0.7;
 })();
 // Hover-Highlight im Frontend: die Region unter der Maus wird fast weiss eingefaerbt
 // (Infobox-Hover). Auf null setzen, um das Highlight abzuschalten.
