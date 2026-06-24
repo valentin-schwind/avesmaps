@@ -151,43 +151,73 @@ function avesmapsPoliticalSyncAssignmentZoomsAcrossGeometries(PDO $pdo, array $z
     return ['updated_geometries' => $updatedGeometries, 'updated_displays' => $updatedDisplays, 'updated_columns' => $updatedColumns];
 }
 
-// One-time backfill: read the display bands of ALL active geometries and push them into the
-// min_zoom/max_zoom columns. Reconciles legacy rows where the editor display band drifted away from
-// the columns the public view reads. Triggered via {"resync_all": true}.
+// SAFE one-time backfill of ONLY the min_zoom/max_zoom COLUMNS the public view reads
+// (geometry.min_zoom ?? territory.min_zoom; map-search t.min_zoom). For each active geometry it reads
+// the display band of ITS OWN territory (deterministic) and writes only the COLUMNS. It NEVER touches
+// any assignmentDisplays.
+//
+// HISTORY: the earlier version built a "last geometry wins" map across ALL displays and reused
+// avesmapsPoliticalSyncAssignmentZoomsAcrossGeometries, which ALSO rewrites the display bands. Because
+// the same territory's band is scattered redundantly across ancestor-hull style_json (global-display
+// quirk) and those copies had drifted, the bulk pass homogenised every territory to an arbitrary value
+// -> it scrambled the editor zoom bands of many territories. This version cannot do that (read-only on
+// displays, no cross-geometry "last wins").
 function avesmapsPoliticalResyncAllAssignmentZooms(PDO $pdo): array {
-    $selectStatement = $pdo->query('SELECT style_json FROM political_territory_geometry WHERE is_active = 1 AND style_json IS NOT NULL');
+    $selectStatement = $pdo->query(
+        'SELECT g.id AS geometry_id, g.style_json, t.id AS territory_id, t.public_id AS territory_public_id
+         FROM political_territory_geometry g
+         JOIN political_territory t ON t.id = g.territory_id
+         WHERE g.is_active = 1 AND g.style_json IS NOT NULL'
+    );
     if ($selectStatement === false) {
-        return ['updated_geometries' => 0, 'updated_displays' => 0, 'updated_columns' => 0];
+        return ['updated_geometries' => 0, 'updated_columns' => 0];
     }
 
-    $zoomByTerritory = [];
-    foreach ($selectStatement->fetchAll(PDO::FETCH_ASSOC) as $geometry) {
-        $style = avesmapsPoliticalDecodeJson($geometry['style_json'] ?? null);
+    $updateGeometryZoom = $pdo->prepare('UPDATE political_territory_geometry SET min_zoom = :min_zoom, max_zoom = :max_zoom WHERE id = :id');
+    $updateTerritoryZoom = $pdo->prepare('UPDATE political_territory SET min_zoom = :min_zoom, max_zoom = :max_zoom WHERE id = :id');
+    $updatedGeometries = 0;
+    $updatedColumns = 0;
+
+    foreach ($selectStatement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $style = avesmapsPoliticalDecodeJson($row['style_json'] ?? null);
         $displays = $style['assignmentDisplays'] ?? $style['assignment_displays'] ?? null;
         if (!is_array($displays)) {
             continue;
         }
+
+        $ownPublicId = strtolower(trim((string) ($row['territory_public_id'] ?? '')));
+        $minZoom = null;
+        $maxZoom = null;
+        $found = false;
         foreach ($displays as $display) {
             if (!is_array($display)) {
                 continue;
             }
-            $territoryPublicId = strtolower(trim((string) ($display['territoryPublicId'] ?? $display['territory_public_id'] ?? '')));
-            if ($territoryPublicId === '') {
+            $pid = strtolower(trim((string) ($display['territoryPublicId'] ?? $display['territory_public_id'] ?? '')));
+            if ($pid !== $ownPublicId) {
                 continue;
             }
-            $minZoom = $display['zoomMin'] ?? $display['zoom_min'] ?? null;
-            $maxZoom = $display['zoomMax'] ?? $display['zoom_max'] ?? null;
-            if ($minZoom === null && $maxZoom === null) {
+            $min = $display['zoomMin'] ?? $display['zoom_min'] ?? null;
+            $max = $display['zoomMax'] ?? $display['zoom_max'] ?? null;
+            if ($min === null && $max === null) {
                 continue;
             }
-            $zoomByTerritory[$territoryPublicId] = [
-                'zoomMin' => $minZoom === null ? null : (int) $minZoom,
-                'zoomMax' => $maxZoom === null ? null : (int) $maxZoom,
-            ];
+            $minZoom = $min === null ? null : (int) $min;
+            $maxZoom = $max === null ? null : (int) $max;
+            $found = true;
+            break;
         }
+        if (!$found) {
+            continue;
+        }
+
+        $updateGeometryZoom->execute(['min_zoom' => $minZoom, 'max_zoom' => $maxZoom, 'id' => (int) $row['geometry_id']]);
+        $updatedGeometries++;
+        $updateTerritoryZoom->execute(['min_zoom' => $minZoom, 'max_zoom' => $maxZoom, 'id' => (int) $row['territory_id']]);
+        $updatedColumns += $updateTerritoryZoom->rowCount();
     }
 
-    return avesmapsPoliticalSyncAssignmentZoomsAcrossGeometries($pdo, $zoomByTerritory);
+    return ['updated_geometries' => $updatedGeometries, 'updated_columns' => $updatedColumns];
 }
 
 function avesmapsPoliticalAssignmentZoomSyncInvalidateLayerCache(): void {
