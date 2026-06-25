@@ -17,16 +17,19 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 	labelEditEntry = labelEntry;
 	labelEditLatLng = latlng ? L.latLng(latlng) : labelEntry?.marker.getLatLng() || null;
 	const label = labelEntry?.label || {};
+	// Fuer NEUE Labels (kein labelEntry) die zuletzt genutzte DARSTELLUNG als Default uebernehmen; bestehende
+	// Labels behalten ihre eigenen Werte. Text & Kategorie werden bewusst NICHT gemerkt.
+	const remembered = labelEntry ? {} : (readRememberedLabelDisplaySettings() || {});
 	document.getElementById("label-edit-public-id").value = label.publicId || "";
 	void acquireFeatureSoftLock(label.publicId || "");
 	document.getElementById("label-edit-text").value = label.text || "";
 	document.getElementById("label-edit-type").value = label.labelType || "region";
-	document.getElementById("label-edit-size").value = label.size || 18;
-	document.getElementById("label-edit-rotation").value = ((Number(label.rotation || 0) % 360) + 360) % 360;
-	document.getElementById("label-edit-min-zoom").value = label.minZoom ?? 0;
-	document.getElementById("label-edit-max-zoom").value = label.maxZoom ?? 5;
-	document.getElementById("label-edit-priority").value = label.priority ?? 3;
-	document.getElementById("label-edit-is-nodix").checked = Boolean(label.isNodix);
+	document.getElementById("label-edit-size").value = label.size || remembered.size || 18;
+	document.getElementById("label-edit-rotation").value = ((Number(label.rotation ?? remembered.rotation ?? 0) % 360) + 360) % 360;
+	document.getElementById("label-edit-min-zoom").value = label.minZoom ?? remembered.minZoom ?? 0;
+	document.getElementById("label-edit-max-zoom").value = label.maxZoom ?? remembered.maxZoom ?? 5;
+	document.getElementById("label-edit-priority").value = label.priority ?? remembered.priority ?? 3;
+	document.getElementById("label-edit-is-nodix").checked = Boolean(labelEntry ? label.isNodix : (remembered.isNodix ?? false));
 	if (typeof setLabelWikiRegion === "function") {
 		setLabelWikiRegion(label.wikiRegion || null);
 	}
@@ -138,6 +141,36 @@ document.addEventListener("input", (event) => {
 	}
 });
 
+// Zuletzt genutzte Label-DARSTELLUNG (Groesse/Rotation/Zoom-Band/Prioritaet/Nodix) merken bzw. lesen.
+// Damit werden NEUE Labels vorbefuellt; Text & Kategorie werden bewusst NICHT gemerkt.
+function persistLabelDisplaySettings(payload) {
+	try {
+		window.localStorage.setItem("avesmapsLabelEditorLastDisplay", JSON.stringify({
+			size: payload.size,
+			rotation: payload.rotation,
+			minZoom: payload.min_zoom,
+			maxZoom: payload.max_zoom,
+			priority: payload.priority,
+			isNodix: payload.is_nodix,
+		}));
+	} catch (error) {
+		/* localStorage nicht verfuegbar -> Feature inaktiv */
+	}
+}
+
+function readRememberedLabelDisplaySettings() {
+	try {
+		const raw = window.localStorage.getItem("avesmapsLabelEditorLastDisplay");
+		if (!raw) {
+			return null;
+		}
+		const parsed = JSON.parse(raw);
+		return parsed && typeof parsed === "object" ? parsed : null;
+	} catch (error) {
+		return null;
+	}
+}
+
 function buildLabelEditPayload(formElement) {
 	const formData = new FormData(formElement);
 	const publicId = String(formData.get("public_id") || "").trim();
@@ -162,5 +195,7 @@ function buildLabelEditPayload(formElement) {
 		delete payload.public_id;
 	}
 
+	// Zuletzt genutzte Darstellung merken -> neue Labels werden damit vorbefuellt (s. populateLabelEditForm).
+	persistLabelDisplaySettings(payload);
 	return payload;
 }
