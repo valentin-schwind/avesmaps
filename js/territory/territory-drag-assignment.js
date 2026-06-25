@@ -211,52 +211,6 @@ function wikiSyncTerritoryReferenceToAssignmentNode(reference = {}) {
 	};
 }
 
-// Liest die zuletzt im Editor genutzten Darstellungseinstellungen (gemerkt von territory-editor-embedded.js
-// in localStorage, gleiche Origin -> Editor-iframe und Hauptseite teilen sie). Null, wenn nichts gemerkt ist
-// oder localStorage nicht verfuegbar ist.
-function readRememberedTerritoryEditorDisplay() {
-	try {
-		const raw = window.localStorage.getItem("avesmapsTerritoryEditorLastDisplay");
-		if (!raw) {
-			return null;
-		}
-		const parsed = JSON.parse(raw);
-		return parsed && typeof parsed === "object" ? parsed : null;
-	} catch (error) {
-		return null;
-	}
-}
-
-// Uebernimmt Farbe/Transparenz/Zoom-Band aus den gemerkten Einstellungen auf einen neuen Drag-Knoten.
-// Nur die jeweils gemerkten Felder werden gesetzt; fehlt eines, bleibt der bisherige Default erhalten.
-function applyRememberedDisplayToDragNode(node) {
-	const remembered = readRememberedTerritoryEditorDisplay();
-	if (!remembered || !node) {
-		return;
-	}
-	if (typeof remembered.color === "string" && /^#[0-9a-fA-F]{6}$/.test(remembered.color)) {
-		node.color = remembered.color;
-	}
-	if (remembered.transparency !== "" && remembered.transparency != null) {
-		const opacityPercent = Number(remembered.transparency);
-		if (Number.isFinite(opacityPercent)) {
-			node.opacity = Math.max(0, Math.min(1, opacityPercent / 100));
-		}
-	}
-	if (remembered.zoomFrom !== "" && remembered.zoomFrom != null) {
-		const zoomMin = Number(remembered.zoomFrom);
-		if (Number.isFinite(zoomMin)) {
-			node.zoomMin = zoomMin;
-		}
-	}
-	if (remembered.zoomTo !== "" && remembered.zoomTo != null) {
-		const zoomMax = Number(remembered.zoomTo);
-		if (Number.isFinite(zoomMax)) {
-			node.zoomMax = zoomMax;
-		}
-	}
-}
-
 function buildWikiSyncTerritoryAssignmentValueFromPayload(payload) {
 	const path = Array.isArray(payload?.path) ? payload.path : [];
 	const assignedPath = path.map((entry, index) => ({
@@ -303,12 +257,6 @@ function buildWikiSyncTerritoryAssignmentValueFromPayload(payload) {
 		};
 	});
 	const selectedDisplay = displays[displays.length - 1] || null;
-	// Drag-n-Drop auf die Karte: fuer NEUE Gebiete (implicitDragDefault) die zuletzt im Editor genutzten
-	// Darstellungseinstellungen (Farbe/Transparenz/Zoom) als Default uebernehmen statt der Hardcoded-Defaults
-	// -- damit man beim Zuweisen vieler Regionen die Darstellung nicht jedes Mal neu setzen muss.
-	if (selectedDisplay && selectedDisplay.implicitDragDefault) {
-		applyRememberedDisplayToDragNode(selectedDisplay);
-	}
 	return {
 		assignedPath,
 		editedPath: assignedPath,
