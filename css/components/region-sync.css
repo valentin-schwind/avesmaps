@@ -134,6 +134,13 @@
 	margin: 2px 0;
 }
 
+/* Lange (read-only) Wiki-Beschreibung intern scrollen lassen, statt den ganzen Dialog hoch zu treiben --
+   die bearbeitbaren Felder bleiben so ohne Gesamt-Scroll sichtbar. */
+#label-edit-dialog .label-wiki-reference__desc {
+	max-height: 116px;
+	overflow-y: auto;
+}
+
 .label-wiki-reference__link {
 	font-size: 12px;
 	color: #7a5a3a;
@@ -269,6 +276,10 @@
    Faculty Glyphic, Abschnitts-Titel, parchment-Inputs/Slider. */
 #label-edit-dialog {
 	font-family: "Faculty Glyphic", Arial, sans-serif;
+	/* Mehr Hoehe als der geteilte Dialog-Default (max-height: min(86vh, 760px)): der 760px-Deckel zwingt
+	   den inhaltsreichen Label-Editor (mit Wiki-Landschaft) auf grossen Screens in den Gesamt-Scroll.
+	   Mit 94vh passt er i. d. R. ohne Scrollen; nur sehr kleine Viewports scrollen noch. */
+	max-height: 94vh;
 }
 
 .label-edit-section-title {
