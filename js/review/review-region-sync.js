@@ -382,10 +382,6 @@ document.addEventListener("click", (event) => {
 		}
 		return;
 	}
-	if (event.target.closest && event.target.closest("#region-labels-extend-zoom")) {
-		void runRegionLabelsExtendZoom();
-		return;
-	}
 	if (event.target.closest && event.target.closest("#region-sync-assign-berge")) {
 		void runRegionAssignBerge();
 		return;
@@ -444,43 +440,6 @@ async function runRegionAssignBerge() {
 			btn.disabled = false;
 		}
 		await refreshRegionBergStatus();
-	}
-}
-
-let regionLabelsExtendZoomBusy = false;
-// Bulk: hebt alle Region-Labels mit "Sichtbar bis Zoom 5" auf 7 an (Karten-Maximum) -> bleiben bis
-// ganz reingezoomt sichtbar. Einmalige Wartungsaktion (Server-UPDATE), bumpt die Map-Revision.
-async function runRegionLabelsExtendZoom() {
-	if (regionLabelsExtendZoomBusy) {
-		return;
-	}
-	if (!window.confirm("Alle Region-Labels mit 'Sichtbar bis Zoom 5' auf 7 anheben? Sie bleiben dann bis ganz reingezoomt sichtbar.")) {
-		return;
-	}
-	regionLabelsExtendZoomBusy = true;
-	const btn = regionSyncElement("region-labels-extend-zoom");
-	if (btn) {
-		btn.disabled = true;
-	}
-	try {
-		const data = await fetch("/api/edit/map/features.php", {
-			method: "POST",
-			credentials: "same-origin",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ action: "bulk_extend_label_zoom" }),
-		}).then((response) => response.json());
-		if (!data || data.ok !== true) {
-			throw new Error(apiErrorMessage(data, "Bulk fehlgeschlagen"));
-		}
-		const updated = (data.feature && data.feature.updated) || 0;
-		showFeedbackToast?.(`${updated} Region-Labels auf Zoom 7 angehoben — Karte hart neu laden zum Sehen.`, "success");
-	} catch (error) {
-		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
-	} finally {
-		regionLabelsExtendZoomBusy = false;
-		if (btn) {
-			btn.disabled = false;
-		}
 	}
 }
 

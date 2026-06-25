@@ -784,42 +784,6 @@ function avesmapsReadLabelZoom(mixed $value): int {
     return (int) $zoom;
 }
 
-// Bulk: hebt alle Label-Features mit max_zoom = 5 (alter Default) auf max_zoom = 7 (Karten-Maximum),
-// damit Region-Labels bis ganz reingezoomt sichtbar bleiben. Seit die Karte bis Zoom 7 geht,
-// verschwanden die 5er-Labels ab Zoom 6. Einmalige Wartungsaktion; bumpt die Map-Revision.
-function avesmapsBulkExtendLabelMaxZoom(PDO $pdo, array $payload, array $user): array {
-    $fromZoom = 5;
-    $toZoom = 7;
-    $pdo->beginTransaction();
-    try {
-        $revision = avesmapsNextMapRevision($pdo);
-        $statement = $pdo->prepare(
-            "UPDATE map_features
-             SET properties_json = JSON_SET(properties_json, '$.max_zoom', :to_zoom),
-                 revision = :revision,
-                 updated_by = :updated_by
-             WHERE feature_type = 'label'
-               AND is_active = 1
-               AND CAST(JSON_UNQUOTE(JSON_EXTRACT(properties_json, '$.max_zoom')) AS UNSIGNED) = :from_zoom"
-        );
-        $statement->execute([
-            'to_zoom' => $toZoom,
-            'revision' => $revision,
-            'updated_by' => (int) ($user['id'] ?? 0),
-            'from_zoom' => $fromZoom,
-        ]);
-        $updated = $statement->rowCount();
-        $pdo->commit();
-    } catch (Throwable $error) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-        throw $error;
-    }
-
-    return ['updated' => $updated, 'from_zoom' => $fromZoom, 'to_zoom' => $toZoom];
-}
-
 function avesmapsReadLabelPriority(mixed $value): int {
     $priority = filter_var($value, FILTER_VALIDATE_INT);
     if ($priority === false || $priority < 1 || $priority > 5) {
