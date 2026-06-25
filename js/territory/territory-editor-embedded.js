@@ -256,42 +256,6 @@
 		els.zoomFromInput?.addEventListener("input", () => renderZoomBandWarning());
 		els.zoomToInput?.addEventListener("input", () => renderZoomBandWarning());
 
-		// Letzte DARSTELLUNGS-Einstellungen merken (Farbe, Transparenz, Zoom-Band) -- bewusst NICHT Name,
-		// Kategorie oder Gueltigkeit. setAssignmentValue() nutzt sie als Default fuer neue/ungesetzte Gebiete,
-		// damit man Farbe/Deckkraft/Zoom nicht bei jeder Region neu eintippen muss. Existierende Gebiete
-		// liefern ihre eigenen Werte und werden NICHT ueberschrieben.
-		const LAST_DISPLAY_STORAGE_KEY = "avesmapsTerritoryEditorLastDisplay";
-		function persistLastDisplaySettings() {
-			try {
-				const colorEl = document.getElementById("colorInput");
-				window.localStorage.setItem(LAST_DISPLAY_STORAGE_KEY, JSON.stringify({
-					zoomFrom: els.zoomFromInput ? els.zoomFromInput.value : "",
-					zoomTo: els.zoomToInput ? els.zoomToInput.value : "",
-					color: colorEl ? colorEl.value : "",
-					transparency: transparencyInput ? transparencyInput.value : "",
-				}));
-			} catch (error) {
-				/* localStorage nicht verfuegbar (Privatmodus o. Ae.) -> Feature einfach inaktiv */
-			}
-		}
-		function readLastDisplaySettings() {
-			try {
-				const raw = window.localStorage.getItem(LAST_DISPLAY_STORAGE_KEY);
-				if (!raw) {
-					return null;
-				}
-				const parsed = JSON.parse(raw);
-				return parsed && typeof parsed === "object" ? parsed : null;
-			} catch (error) {
-				return null;
-			}
-		}
-		els.zoomFromInput?.addEventListener("change", persistLastDisplaySettings);
-		els.zoomToInput?.addEventListener("change", persistLastDisplaySettings);
-		document.getElementById("colorInput")?.addEventListener("change", persistLastDisplaySettings);
-		transparencyInput?.addEventListener("change", persistLastDisplaySettings);
-		transparencyNumberInput?.addEventListener("change", persistLastDisplaySettings);
-
 		if (els.updateCoatButton) {
 			els.updateCoatButton.addEventListener("click", updateWikiCoatPreviewFromManualInput);
 		}
@@ -2480,21 +2444,15 @@
 			}
 
 			const display = value.display || value;
-			// Gemerkte Darstellungseinstellungen als Default fuer FEHLENDE Werte (neue/ungesetzte Gebiete);
-			// existierende Gebiete liefern eigene Werte und werden NICHT ueberschrieben.
-			const rememberedDisplay = readLastDisplaySettings() || {};
 
 			setInputValue("displayNameInput", display.name || display.displayName);
 			setInputValue("alternateCoatInput", display.coatOfArmsUrl || display.alternateCoatOfArmsUrl);
-			setInputValue("zoomFromInput", display.zoomMin != null ? display.zoomMin : (rememberedDisplay.zoomFrom ?? ""));
-			setInputValue("zoomToInput", display.zoomMax != null ? display.zoomMax : (rememberedDisplay.zoomTo ?? ""));
-			setInputValue("colorInput", normalizeHexColor(display.color) || normalizeHexColor(rememberedDisplay.color) || (droppedNode ? createAutoTerritoryColor(droppedNode) : "#385d72"));
+			setInputValue("zoomFromInput", display.zoomMin);
+			setInputValue("zoomToInput", display.zoomMax);
+			setInputValue("colorInput", normalizeHexColor(display.color) || (droppedNode ? createAutoTerritoryColor(droppedNode) : "#385d72"));
 
 			if (typeof display.opacity === "number") {
 				setInputValue("transparencyInput", Math.round(display.opacity * 100));
-				syncTransparencyOutput();
-			} else if (rememberedDisplay.transparency !== "" && rememberedDisplay.transparency != null) {
-				setInputValue("transparencyInput", rememberedDisplay.transparency);
 				syncTransparencyOutput();
 			}
 
