@@ -34,6 +34,10 @@ function createRegionMiniTooltipMarkup(regionEntry) {
 	const capitalMarkup = createRegionPlaceTooltipLine("Hauptstadt", regionEntry.capitalName, regionEntry.capitalPlacePublicId);
 	const seatMarkup = createRegionPlaceTooltipLine("Herrschaftssitz", regionEntry.seatName, regionEntry.seatPlacePublicId);
 	const hasCoatClass = regionEntry.coatOfArmsUrl ? " has-coat" : "";
+	const contestedClaimants = collectRegionContestedClaimants(regionEntry);
+	const contestedMarkup = contestedClaimants.length
+		? `<span class="region-compact-tooltip__meta">Umstritten mit: ${createRegionContestedSwatchMarkup(contestedClaimants)}</span>`
+		: "";
 
 	return `
 		<span class="region-compact-tooltip__content${hasCoatClass}">
@@ -44,6 +48,7 @@ function createRegionMiniTooltipMarkup(regionEntry) {
 				<span class="region-compact-tooltip__meta">${escapeHtml(affiliation)}</span>
 				${capitalMarkup}
 				${seatMarkup}
+				${contestedMarkup}
 			</span>
 		</span>
 	`;
@@ -113,25 +118,58 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 	`;
 }
 
-// "Umstritten mit ..." — Anspruchsteller (ohne den Besitzer = parties[0]) mit kleinem Farb-Swatch.
-// Quelle: regionEntry.contestedParties (vom Layer; Besitzer zuerst, dann Claims nach sort_order).
-function createRegionContestedRow(regionEntry) {
-	const parties = (regionEntry && Array.isArray(regionEntry.contestedParties)) ? regionEntry.contestedParties : null;
-	if (!parties || parties.length < 2) {
-		return "";
+// Sammelt die Anspruchsteller (ohne den Besitzer = parties[0]) eines Konfliktgebiets, dedupliziert nach
+// Name. Quellen: regionEntry.contestedParties (direkt auf einer Konflikt-Baronie; Besitzer zuerst, dann
+// Claims nach sort_order) UND regionEntry.contestedPieces (Territorium/Aggregat: aggregiert die
+// Anspruchsteller ALLER umstrittenen Baronien darin). So zeigt auch die Infobox eines ganzen Gebiets, wer
+// dessen Gebiete beansprucht -- nicht nur die einer einzelnen angeklickten Baronie.
+function collectRegionContestedClaimants(regionEntry) {
+	const out = [];
+	const seen = new Set();
+	const ownName = normalizeRegionParentheticalSpacing(String((regionEntry && (regionEntry.displayName || regionEntry.name)) || "")).trim().toLowerCase();
+	if (ownName) {
+		seen.add(ownName); // das Gebiet selbst (Besitzer) nie als Anspruchsteller listen
 	}
-	const valueMarkup = parties.slice(1).map((p) => {
-		const nm = normalizeRegionParentheticalSpacing(String((p && p.name) || "")).trim();
-		if (!nm) {
-			return "";
+	const addParties = (parties) => {
+		if (!Array.isArray(parties) || parties.length < 2) {
+			return;
 		}
-		const color = /^#[0-9a-fA-F]{6}$/.test(String((p && p.color) || "")) ? String(p.color) : "#888888";
-		return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${color}"></span>${escapeHtml(nm)}</span>`;
-	}).filter(Boolean).join(", ");
-	if (!valueMarkup) {
+		parties.slice(1).forEach((p) => {
+			const nm = normalizeRegionParentheticalSpacing(String((p && p.name) || "")).trim();
+			if (!nm) {
+				return;
+			}
+			const key = nm.toLowerCase();
+			if (seen.has(key)) {
+				return;
+			}
+			seen.add(key);
+			const color = /^#[0-9a-fA-F]{6}$/.test(String((p && p.color) || "")) ? String(p.color) : "#888888";
+			out.push({ name: nm, color });
+		});
+	};
+	if (regionEntry && Array.isArray(regionEntry.contestedParties)) {
+		addParties(regionEntry.contestedParties);
+	}
+	if (regionEntry && Array.isArray(regionEntry.contestedPieces)) {
+		regionEntry.contestedPieces.forEach((piece) => addParties(piece && piece.contestedParties));
+	}
+	return out;
+}
+
+function createRegionContestedSwatchMarkup(claimants) {
+	return claimants.map((c) =>
+		`<span style="display:inline-flex;align-items:center;gap:4px"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${c.color}"></span>${escapeHtml(c.name)}</span>`
+	).join(", ");
+}
+
+// "Umstritten mit ..." — Anspruchsteller mit kleinem Farb-Swatch (Wiki-Infobox-Zeile).
+function createRegionContestedRow(regionEntry) {
+	const claimants = collectRegionContestedClaimants(regionEntry);
+	if (claimants.length === 0) {
 		return "";
 	}
-	return createRegionInfoBoxRow("Umstritten mit", valueMarkup);
+	return createRegionInfoBoxRow("Umstritten mit", createRegionContestedSwatchMarkup(claimants));
 }
 
 function createRegionInfoTextRow(label, value) {
