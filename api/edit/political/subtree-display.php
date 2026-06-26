@@ -33,6 +33,7 @@ try {
         'update_opacity' => avesmapsPoliticalSubtreeDisplayUpdateOpacity($pdo, $payload, $user),
         'update_zoom' => avesmapsPoliticalSubtreeDisplayUpdateZoom($pdo, $payload, $user),
         'normalize_leaf_zoom_bands' => avesmapsPoliticalSubtreeDisplayNormalizeLeafZoomBands($pdo, $payload, $user),
+        'sync_geometry_zoom_to_territory' => avesmapsPoliticalSubtreeDisplaySyncGeometryZoomToTerritory($pdo, $payload, $user),
         'update_validity' => avesmapsPoliticalSubtreeDisplayUpdateValidity($pdo, $payload, $user),
         'inherit_colors' => avesmapsPoliticalSubtreeDisplayInheritColors($pdo, $payload, $user),
         'inherit_opacity' => avesmapsPoliticalSubtreeDisplayInheritOpacity($pdo, $payload, $user),
@@ -169,6 +170,16 @@ function avesmapsPoliticalSubtreeDisplayUpdateZoom(PDO $pdo, array $payload, arr
             max_zoom = :max_zoom
         WHERE public_id = :public_id'
     );
+    // CRITICAL: the public view reads geometry.min_zoom ?? territory.min_zoom (territories-layer.php). Writing
+    // ONLY the territory column (as this used to) left the geometry band stale -> the layer kept rendering the
+    // OLD band while the column said otherwise (e.g. column 4-6 but geometry 6-6 -> barony vanished at zoom 4-5
+    // = hole). So write BOTH here, exactly like assignment-zoom-sync, and the two can never diverge again.
+    $geometryStatement = $pdo->prepare(
+        'UPDATE political_territory_geometry g
+         JOIN political_territory t ON t.id = g.territory_id
+         SET g.min_zoom = :min_zoom, g.max_zoom = :max_zoom
+         WHERE LOWER(t.public_id) = :public_id AND g.is_active = 1'
+    );
 
     $changed = 0;
     foreach ($updates as $update) {
@@ -185,6 +196,11 @@ function avesmapsPoliticalSubtreeDisplayUpdateZoom(PDO $pdo, array $payload, arr
         }
         $statement->execute($parameters);
         $changed += $statement->rowCount();
+        $geometryStatement->execute([
+            ':min_zoom' => $minZoom,
+            ':max_zoom' => $maxZoom,
+            ':public_id' => strtolower((string) $publicId),
+        ]);
     }
 
     return [
@@ -192,6 +208,50 @@ function avesmapsPoliticalSubtreeDisplayUpdateZoom(PDO $pdo, array $payload, arr
         'changed' => $changed,
         'received' => count($updates),
     ];
+}
+
+/**
+ * Heal: copy every active geometry's zoom band from its OWN territory's column band.
+ *
+ * The public view reads `geometry.min_zoom ?? territory.min_zoom` (territories-layer.php). Older band writes
+ * (notably the default-zoom reset) updated ONLY the territory column and left the geometry band stale -> the
+ * map kept rendering the old band while the column said otherwise (e.g. column 4-6 but geometry 6-6, so the
+ * barony vanished at zoom 4-5 = a hole). The two are always meant to be equal (assignment-zoom-sync writes
+ * both). This makes the territory column the single source of truth and re-syncs every diverged geometry.
+ * dry-run by default; writes only with apply:true.
+ */
+function avesmapsPoliticalSubtreeDisplaySyncGeometryZoomToTerritory(PDO $pdo, array $payload, array $user): array {
+    $apply = filter_var($payload['apply'] ?? false, FILTER_VALIDATE_BOOL);
+
+    $rows = $pdo->query(
+        'SELECT t.name AS name,
+                CAST(g.min_zoom AS SIGNED) AS g_min, CAST(g.max_zoom AS SIGNED) AS g_max,
+                CAST(t.min_zoom AS SIGNED) AS t_min, CAST(t.max_zoom AS SIGNED) AS t_max
+         FROM political_territory_geometry g
+         JOIN political_territory t ON t.id = g.territory_id
+         WHERE g.is_active = 1 AND t.is_active = 1
+           AND (NOT (g.min_zoom <=> t.min_zoom) OR NOT (g.max_zoom <=> t.max_zoom))'
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    $changes = array_map(static fn(array $r): array => [
+        'name' => (string) ($r['name'] ?? ''),
+        'geometry_band' => (($r['g_min'] ?? 'null') . '-' . ($r['g_max'] ?? 'null')),
+        'territory_band' => (($r['t_min'] ?? 'null') . '-' . ($r['t_max'] ?? 'null')),
+    ], $rows);
+
+    if (!$apply) {
+        return ['ok' => true, 'dry_run' => true, 'diverging_geometries' => count($changes), 'changes' => array_slice($changes, 0, 60)];
+    }
+
+    $written = $pdo->exec(
+        'UPDATE political_territory_geometry g
+         JOIN political_territory t ON t.id = g.territory_id
+         SET g.min_zoom = t.min_zoom, g.max_zoom = t.max_zoom
+         WHERE g.is_active = 1 AND t.is_active = 1
+           AND (NOT (g.min_zoom <=> t.min_zoom) OR NOT (g.max_zoom <=> t.max_zoom))'
+    );
+
+    return ['ok' => true, 'dry_run' => false, 'diverging_geometries' => count($changes), 'written' => (int) $written];
 }
 
 /**
@@ -279,6 +339,14 @@ function avesmapsPoliticalSubtreeDisplayNormalizeLeafZoomBands(PDO $pdo, array $
             ? 'UPDATE political_territory SET min_zoom = :min_zoom, max_zoom = :max_zoom, updated_by = :updated_by WHERE public_id = :public_id'
             : 'UPDATE political_territory SET min_zoom = :min_zoom, max_zoom = :max_zoom WHERE public_id = :public_id'
     );
+    // Write the geometry band too (the view reads geometry.min_zoom ?? territory.min_zoom) so this can never
+    // leave the two diverged -- same invariant as update_zoom / assignment-zoom-sync.
+    $geometryStatement = $pdo->prepare(
+        'UPDATE political_territory_geometry g
+         JOIN political_territory t ON t.id = g.territory_id
+         SET g.min_zoom = :min_zoom, g.max_zoom = :max_zoom
+         WHERE LOWER(t.public_id) = :public_id AND g.is_active = 1'
+    );
     $written = 0;
     foreach ($changes as $change) {
         $parameters = [
@@ -291,6 +359,11 @@ function avesmapsPoliticalSubtreeDisplayNormalizeLeafZoomBands(PDO $pdo, array $
         }
         $statement->execute($parameters);
         $written += $statement->rowCount();
+        $geometryStatement->execute([
+            ':min_zoom' => $change['min_zoom'],
+            ':max_zoom' => $change['max_zoom'],
+            ':public_id' => strtolower((string) $change['public_id']),
+        ]);
     }
 
     return ['ok' => true, 'dry_run' => false, 'planned_changes' => count($changes), 'written' => $written, 'changes' => $changes];
