@@ -135,6 +135,54 @@ function refreshActiveWikiSyncPanel() {
 	return loadWikiSyncCases();
 }
 
+// Nach einer Zuweisung/Drag-Drop den AKTIVEN WikiSync-Tab frisch laden, damit der gruene Punkt (= es gibt
+// eine Zuweisung) sofort stimmt -- OHNE Seiten-Reload. Filter bleiben erhalten (die Lade-Funktionen
+// loadRegionWikiSync/loadSettlementList/loadPathWikiSync behalten ihren Modul-internen Filter-State). Der
+// Territorien-Baum cached seine Zeilen, daher hier ein erzwungener Re-Fetch (sonst bleibt der Status stale).
+async function refreshActiveWikiSyncPanelAfterAssignment() {
+	if (activeWikiSyncPanelTab === "territories" && typeof loadWikiSyncTerritoryTreeRows === "function") {
+		try {
+			await loadWikiSyncTerritoryTreeRows({ forceReload: true });
+		} catch (error) {
+			/* Fetch fehlgeschlagen -> trotzdem rendern (zeigt dann den letzten bekannten Stand). */
+		}
+	}
+	try {
+		return await refreshActiveWikiSyncPanel();
+	} catch (error) {
+		return undefined;
+	}
+}
+window.refreshActiveWikiSyncPanelAfterAssignment = refreshActiveWikiSyncPanelAfterAssignment;
+
+// Speichern im Herrschaftsgebiet-Editor laeuft ueber eine eigene Save-Pipeline (nicht die Review-Submits),
+// daher dort per afterSaveHook anhaengen -> nach dem Speichern den Territorien-Tab auffrischen. Die Pipeline
+// wird erst beim ersten Editor-Oeffnen dynamisch geladen, daher kurz pollen (nur im Edit-Modus).
+(function registerWikiSyncTerritoryEditorRefreshHook() {
+	if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) {
+		return;
+	}
+	let attempts = 0;
+	function tryRegister() {
+		const pipeline = window.AvesmapsPoliticalTerritoryEditorSave;
+		if (pipeline && typeof pipeline.registerAfterSaveHook === "function") {
+			pipeline.registerAfterSaveHook(async (context) => {
+				try {
+					await refreshActiveWikiSyncPanelAfterAssignment();
+				} catch (error) {
+					/* Refresh ist best-effort; das Save-Result bleibt massgeblich. */
+				}
+				return context.result;
+			});
+			return;
+		}
+		if (++attempts <= 60) {
+			setTimeout(tryRegister, 500);
+		}
+	}
+	tryRegister();
+})();
+
 function setWikiSyncPanelTab(tabName) {
 	activeWikiSyncPanelTab = ["territories", "regions", "paths"].includes(tabName) ? tabName : "locations";
 

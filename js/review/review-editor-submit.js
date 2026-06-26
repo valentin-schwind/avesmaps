@@ -64,6 +64,9 @@ async function handleLocationEditFormSubmit(event) {
 		if (!wikiSyncCreatedCaseId) {
 			showFeedbackToast("Ort gespeichert.", "success");
 		}
+		if (typeof refreshActiveWikiSyncPanelAfterAssignment === "function") {
+			void refreshActiveWikiSyncPanelAfterAssignment();
+		}
 	} catch (error) {
 		console.error("Ort konnte nicht gespeichert werden:", error);
 		setLocationEditStatus(error.message || "Ort konnte nicht gespeichert werden.", "error");
@@ -166,6 +169,9 @@ async function handleLabelEditFormSubmit(event) {
 			setLabelMoveActive(savedLabelEntry, true);
 		}
 		showFeedbackToast("Label gespeichert.", "success");
+		if (typeof refreshActiveWikiSyncPanelAfterAssignment === "function") {
+			void refreshActiveWikiSyncPanelAfterAssignment();
+		}
 	} catch (error) {
 		console.error("Label konnte nicht gespeichert werden:", error);
 		setLabelEditStatus(error.message || "Label konnte nicht gespeichert werden.", "error");

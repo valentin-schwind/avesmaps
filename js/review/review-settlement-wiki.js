@@ -197,6 +197,9 @@ async function selectSettlementWikiResult(title) {
 			showFeedbackToast?.(`„${result.wiki_name}" verbunden.`, "success");
 			setSettlementWikiPickerOpen(false);
 			renderSettlementWikiReference();
+			if (typeof refreshActiveWikiSyncPanelAfterAssignment === "function") {
+				void refreshActiveWikiSyncPanelAfterAssignment();
+			}
 			if (typeof loadChangeLog === "function") {
 				loadChangeLog();
 			}
@@ -229,6 +232,9 @@ async function removeSettlementWiki() {
 		}
 		renderSettlementWikiReference();
 		showFeedbackToast?.("Wiki-Verbindung entfernt.", "info");
+		if (typeof refreshActiveWikiSyncPanelAfterAssignment === "function") {
+			void refreshActiveWikiSyncPanelAfterAssignment();
+		}
 		if (typeof loadChangeLog === "function") {
 			loadChangeLog();
 		}
