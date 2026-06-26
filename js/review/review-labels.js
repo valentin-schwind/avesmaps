@@ -27,7 +27,7 @@ function populateLabelEditForm({ labelEntry = null, latlng = null } = {}) {
 	document.getElementById("label-edit-size").value = label.size || remembered.size || 18;
 	document.getElementById("label-edit-rotation").value = ((Number(label.rotation ?? remembered.rotation ?? 0) % 360) + 360) % 360;
 	document.getElementById("label-edit-min-zoom").value = label.minZoom ?? remembered.minZoom ?? 0;
-	document.getElementById("label-edit-max-zoom").value = label.maxZoom ?? remembered.maxZoom ?? 5;
+	document.getElementById("label-edit-max-zoom").value = label.maxZoom ?? remembered.maxZoom ?? 7;
 	document.getElementById("label-edit-priority").value = label.priority ?? remembered.priority ?? 3;
 	document.getElementById("label-edit-is-nodix").checked = Boolean(labelEntry ? label.isNodix : (remembered.isNodix ?? false));
 	if (typeof setLabelWikiRegion === "function") {
@@ -87,7 +87,7 @@ function syncLabelZoomNumberInputs(event = null) {
 	if (!minInputElement || !maxInputElement) {
 		return;
 	}
-	const clamp = (value) => Math.max(0, Math.min(5, Number.parseInt(value, 10) || 0));
+	const clamp = (value) => Math.max(0, Math.min(7, Number.parseInt(value, 10) || 0));
 	if (minNumElement) {
 		minInputElement.value = String(clamp(minNumElement.value));
 	}

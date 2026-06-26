@@ -8,7 +8,7 @@ function normalizeLabelFeature(feature) {
 		size: Number(properties.size || feature.size || 18),
 		rotation: Number(properties.rotation || feature.rotation || 0),
 		minZoom: Number(properties.min_zoom ?? feature.min_zoom ?? 0),
-		maxZoom: Number(properties.max_zoom ?? feature.max_zoom ?? 5),
+		maxZoom: Number(properties.max_zoom ?? feature.max_zoom ?? 7),
 		priority: Number(properties.priority ?? feature.priority ?? 3),
 		isNodix: Boolean(properties.is_nodix ?? feature.is_nodix),
 		revision: Number(properties.revision ?? feature.revision) || null,
@@ -404,11 +404,15 @@ function setLabelMoveActive(entry, isActive) {
 
 function shouldShowLabelMarker(entry, zoomLevel = map.getZoom(), renderBounds = getMapRenderBounds()) {
 	const minZoom = Number(entry.label.minZoom) || 0;
-	const maxZoom = Number.isFinite(Number(entry.label.maxZoom)) ? Number(entry.label.maxZoom) : 5;
-	const visualZoomLevel = getVisualZoomLevel(zoomLevel);
+	const maxZoom = Number.isFinite(Number(entry.label.maxZoom)) ? Number(entry.label.maxZoom) : 7;
+	// Sichtbarkeits-Band gegen die ECHTE Zoomstufe pruefen (Karte geht bis 7), NICHT gegen den auf
+	// VISUAL_MAX_ZOOM_LEVEL=5 geklemmten Visual-Zoom -- sonst sind Zoom 5/6/7 fuer Labels ununterscheidbar
+	// und "Sichtbar bis Zoom" hat oben keinen Effekt (5 <= maxZoom ist fuer maxZoom>=5 immer wahr). Die
+	// Label-GROESSE skaliert weiter ueber den Visual-Zoom (s. getScaledLabelSize).
+	const bandZoom = Math.max(0, Math.round(Number(zoomLevel)));
 	return getSelectedMapLayerMode() === "deregraphic"
-		&& visualZoomLevel >= minZoom
-		&& visualZoomLevel <= maxZoom
+		&& bandZoom >= minZoom
+		&& bandZoom <= maxZoom
 		&& isLatLngInRenderBounds(entry.marker.getLatLng(), renderBounds);
 }
 
