@@ -55,8 +55,7 @@ function getLabelHaloParams(strength, sharpness = 0, baseBlurRatio = 0.16) {
 // Verhalten). Live über das ?halotune=1-Panel steuerbar (0..5).
 let REGION_LABEL_HALO_STRENGTH = 1.5;
 // Schärfe des Regionen-Titel-Halos (0 = weicher Schein, 1 = scharfe Kontur/Google-Maps-Look). Live über ?halotune=1.
-// 1.0 = maximal scharfe Kontur: KEIN weicher Schein mehr (Unschärfe -> 0), nur die strokeText-Linie.
-let REGION_LABEL_HALO_SHARPNESS = 1;
+let REGION_LABEL_HALO_SHARPNESS = 0.25;
 
 // Pro Label-Typ Farbe/Schreibung/Sperrung EINMAL aus dem echten CSS lesen (Probe-Element) -> „Farben lassen".
 function getMapLabelTypeStyle(labelType) {
@@ -258,10 +257,8 @@ function createLabelIcon(label) {
 	const typeStyle = getMapLabelTypeStyle(label.labelType);
 	// Optionaler Halo hinter den Regionen-/Landschafts-Titeln (live über ?halotune=1; Default 0 = aus).
 	const halo = getLabelHaloParams(REGION_LABEL_HALO_STRENGTH, REGION_LABEL_HALO_SHARPNESS);
-	// Kontur um die Territoriums-Labels in WEISS (statt des schwarzen Glows von getLabelHaloParams) -- gleiche
-	// Stärke/Schärfe wie die Siedlungs-Labels, nur hell -> heller Umriss, der über jedem Terrain lesbar bleibt.
 	const labelStyle = halo.glow
-		? { ...typeStyle, glow: "rgba(255, 255, 255, 0.95)", glowBlurRatio: halo.glowBlurRatio, glowPasses: halo.glowPasses, strokeRatio: halo.strokeRatio }
+		? { ...typeStyle, glow: halo.glow, glowBlurRatio: halo.glowBlurRatio, glowPasses: halo.glowPasses, strokeRatio: halo.strokeRatio }
 		: typeStyle;
 	const image = renderMapLabelToImage(label.text, safeSize, labelStyle);
 	return L.divIcon({
