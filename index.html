@@ -29,7 +29,7 @@
 		<link rel="stylesheet" href="css/third-party/leaflet.css" />
 		<link rel="stylesheet" href="css/third-party/jquery-ui.css" />
 		<link rel="stylesheet" href="css/pages/political-territory-wiki-tree.css?v=20260608-listitems" />
-		<link rel="stylesheet" href="css/components/region-sync.css?v=20260608-listitems" />
+		<link rel="stylesheet" href="css/components/region-sync.css?v=20260626-capitals" />
 		<link rel="stylesheet" href="css/styles.css?v=20260610-metropole-case" />
 		<script type="application/ld+json">
 			{
@@ -179,6 +179,7 @@
 					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="territories">Territorien</button>
 					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="regions">Regionen</button>
 					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="paths">Wege</button>
+					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="capitals">Hauptstädte</button>
 				</nav>
 
 				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="paths">
@@ -256,6 +257,17 @@
 					<div class="wiki-sync-panel__timefilter">Zeige nur: <input type="number" id="wiki-sync-territory-time-from" placeholder="von" aria-label="Zeitfilter von (BF)" disabled> – <input type="number" id="wiki-sync-territory-time-to" placeholder="bis" aria-label="Zeitfilter bis (BF)" disabled> BF <label><input type="checkbox" id="wiki-sync-territory-time-today" checked> heute</label></div>
 						<div id="wiki-sync-territory-tabs" class="region-sync__viewtabs settlement-list__tabs"></div>
 						<div id="wiki-sync-territory-tree" class="tree-wrap wiki-sync-territory-tree" role="tree"></div>
+				</div>
+
+				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="capitals">
+					<div class="wiki-sync-panel__actions">
+						<span id="capital-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
+					</div>
+					<div class="wiki-sync-panel__filter">
+						<input id="capital-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Gebiet suchen ..." aria-label="Herrschaftsgebiete durchsuchen" />
+						<div class="type-filter"><button type="button" id="capital-continent-filter-toggle" class="type-filter__toggle">Kontinent ▾</button><div id="capital-continent-filter-menu" class="type-filter__menu" hidden></div></div>
+					</div>
+					<div id="capital-sync-list" class="review-panel__list wikisync-itemlist"></div>
 				</div>
 			</section>
 			<section class="review-panel__section" data-editor-panel-section="presence">
@@ -1114,6 +1126,7 @@
 		<script src="js/review/review-settlement-wiki.js"></script>
 		<script src="js/review/review-settlement-list.js"></script>
 		<script src="js/review/review-settlement-list-bulk-ops.js"></script>
+			<script src="js/review/review-capitals-list.js"></script>
 		<script src="js/territory/territory-wiki-tree.js"></script>
 		<script src="js/review/review-wiki-sync.js"></script>
 		<script src="js/review/review-wiki-sync-cases.js"></script>

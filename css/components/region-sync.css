@@ -983,3 +983,65 @@
 	padding: 4px 10px 6px;
 	flex-wrap: wrap;
 }
+
+/* WikiSync „Hauptstädte": Review-Liste zum manuellen Verlinken fehlender Hauptstadt-Locations. */
+.capital-list__item {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	align-items: stretch;
+}
+.capital-list__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 10px;
+	align-items: flex-start;
+	margin-top: 2px;
+}
+.capital-list__suggests {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+}
+.capital-list__suggest,
+.capital-list__search-result {
+	border: 1px solid var(--link-color, #0078a8);
+	background: rgba(0, 120, 168, 0.08);
+	color: var(--link-color, #0078a8);
+	border-radius: 4px;
+	padding: 2px 8px;
+	font-size: 12px;
+	line-height: 1.4;
+	cursor: pointer;
+}
+.capital-list__suggest:hover,
+.capital-list__search-result:hover {
+	background: rgba(0, 120, 168, 0.18);
+}
+.capital-list__ambiguous {
+	font-size: 11px;
+	font-style: italic;
+	color: #b8860b;
+}
+.capital-list__nohint {
+	font-size: 12px;
+	color: #888;
+}
+.capital-list__search {
+	position: relative;
+	flex: 1 1 160px;
+	min-width: 140px;
+}
+.capital-list__search-input {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 3px 6px;
+	font-size: 12px;
+}
+.capital-list__search-results {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-top: 4px;
+}

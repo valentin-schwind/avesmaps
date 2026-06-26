@@ -173,11 +173,12 @@ function avesmapsPoliticalNormalizeCapitalName(string $name): string {
 // editor picks; capital names that are prose or "keine" return no candidate and are handled via free search.
 function avesmapsPoliticalListCapitalAssignments(PDO $pdo, array $query): array {
     $continent = avesmapsNormalizeSingleLine((string) ($query['continent'] ?? AVESMAPS_POLITICAL_DEFAULT_CONTINENT), 120);
+    // The capital NAME lives only in political_territory_wiki (the main table carries the LINK capital_place_id,
+    // not the text). So the gap = territories whose wiki has a capital name but whose capital_place_id is unset.
     $conditions = [
         'territory.is_active = 1',
         'territory.capital_place_id IS NULL',
-        "((territory.capital_name IS NOT NULL AND territory.capital_name <> '')"
-            . " OR (wiki.capital_name IS NOT NULL AND wiki.capital_name <> ''))",
+        "wiki.capital_name IS NOT NULL AND wiki.capital_name <> ''",
     ];
     $params = [];
     if ($continent !== '') {
@@ -187,7 +188,7 @@ function avesmapsPoliticalListCapitalAssignments(PDO $pdo, array $query): array 
 
     $statement = $pdo->prepare(
         'SELECT territory.public_id, territory.name, territory.type, territory.continent,
-                territory.capital_name AS capital_name, wiki.capital_name AS wiki_capital_name
+                wiki.capital_name AS wiki_capital_name
         FROM political_territory territory
         LEFT JOIN political_territory_wiki wiki ON wiki.id = territory.wiki_id
         WHERE ' . implode(' AND ', $conditions) . '
@@ -215,9 +216,7 @@ function avesmapsPoliticalListCapitalAssignments(PDO $pdo, array $query): array 
 
     $territories = [];
     foreach ($rows as $row) {
-        $ownCapital = trim((string) ($row['capital_name'] ?? ''));
-        $wikiCapital = trim((string) ($row['wiki_capital_name'] ?? ''));
-        $capitalName = $ownCapital !== '' ? $ownCapital : $wikiCapital;
+        $capitalName = trim((string) ($row['wiki_capital_name'] ?? ''));
         $norm = avesmapsPoliticalNormalizeCapitalName($capitalName);
 
         $suggestions = [];
