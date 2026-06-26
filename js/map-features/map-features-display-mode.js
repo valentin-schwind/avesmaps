@@ -201,8 +201,23 @@ function applyFrontendLayerModeDefaults(mode, { includeCities = true } = {}) {
 	if (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE) {
 		return;
 	}
+	if (mode === "political") {
+		// Politische Ansicht: Städte-Toggles auf NUR "Metropolen" defaulten (Nutzer kann danach beliebig
+		// ändern). Die Siedlungs-Namen folgen den Toggles (shouldShowLocationNameLabel), d. h. die Metropolen-
+		// Labels sind damit auch in der politischen Ansicht wieder sichtbar.
+		if (includeCities && typeof LOCATION_TYPE_VISIBILITY_ORDER !== "undefined") {
+			LOCATION_TYPE_VISIBILITY_ORDER.forEach((locationType) => {
+				getLocationToggleButton(locationType).toggleClass("is-active", locationType === "metropole");
+			});
+			if (typeof syncLocationToggleButtons === "function") {
+				syncLocationToggleButtons();
+			}
+			syncLocationMarkerVisibility();
+		}
+		return;
+	}
 	if (mode !== "none" && mode !== "deregraphic" && mode !== "powerlines") {
-		return; // political: nichts erzwingen
+		return; // (political wird oben behandelt)
 	}
 	const isStandard = mode === "deregraphic";
 	// Städte nur in none/deregraphic setzen; im Kraftlinien-Modus zeigt shouldShowLocationMarker ohnehin nur Nodices.
