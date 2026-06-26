@@ -91,6 +91,10 @@ function indexPoliticalRegionDerivedByTerritory() {
 			// Aggregat-Feature derselben territory_public_id darf NICHT zusaetzlich fuellen.
 			derivedFillActive: properties.derived_fill_active === true,
 			hasFillRemainder: !!properties.fill_remainder_geojson,
+			// Band der Huelle: nur wenn die Huelle bei diesem Zoom AUCH rendert (in ihrem Band liegt), darf sie
+			// die Quell-Baronien unterdruecken -- sonst (Huelle aus dem Band gefallen) blieben sie leer = Loch.
+			minZoom: readOptionalRegionZoom(properties.min_zoom),
+			maxZoom: readOptionalRegionZoom(properties.max_zoom),
 		});
 	});
 	return politicalRegionDerivedByTerritory;
@@ -255,7 +259,16 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 		// bei Uebergabe nur dann gefuellt, wenn sie ein eigenes Kerngebiet hat -> siehe derivedHasOwnArea
 		// unten; dann deckt sie den Rest selbst ab und die Quellteile bleiben unterdrueckt.)
 		if (aggregate && aggregate.derivedFillActive) {
-			suppressFillForActiveDerived = true;
+			// NUR unterdruecken, wenn die fuellende Huelle bei diesem Zoom tatsaechlich gerendert wird (in ihrem
+			// Band liegt). Faellt die Huelle aus dem Band (z. B. eingefrorenes Huellen-Band != Territoriums-Band
+			// nach einem Zoom-Reset), fuellt sie NICHT -> dann die Baronie selbst fuellen lassen statt sie
+			// unterdrueckt+leer zu lassen (= Loch). So koennen abweichende Baender hier kein Loch mehr reissen.
+			const currentZoomForHull = Math.round(Number(map.getZoom()));
+			const hullInBand = (aggregate.minZoom === null || aggregate.minZoom <= currentZoomForHull)
+				&& (aggregate.maxZoom === null || aggregate.maxZoom >= currentZoomForHull);
+			if (hullInBand) {
+				suppressFillForActiveDerived = true;
+			}
 		}
 	}
 
