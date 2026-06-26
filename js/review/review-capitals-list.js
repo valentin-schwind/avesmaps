@@ -109,9 +109,11 @@ function renderCapitalRow(item) {
 	metaParts.push(`Wiki-Hauptstadt: „${capitalListEscape(item.capital_name)}"`);
 
 	return (
-		`<div class="tree-item capital-list__item" data-territory="${territory}">`
-			+ `<span class="tree-item-name">${capitalListEscape(item.name)}</span>`
-			+ `<span class="tree-item-meta">${metaParts.join(" · ")}</span>`
+		`<div class="capital-list__item" data-territory="${territory}">`
+			+ `<div class="capital-list__head">`
+				+ `<span class="capital-list__name">${capitalListEscape(item.name)}</span>`
+				+ `<span class="capital-list__meta">${metaParts.join(" · ")}</span>`
+			+ `</div>`
 			+ `<div class="capital-list__actions">`
 				+ (suggestionButtons
 					? `<div class="capital-list__suggests">${suggestionButtons}${ambiguous}</div>`

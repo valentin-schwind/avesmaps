@@ -984,12 +984,30 @@
 	flex-wrap: wrap;
 }
 
-/* WikiSync „Hauptstädte": Review-Liste zum manuellen Verlinken fehlender Hauptstadt-Locations. */
+/* WikiSync „Hauptstädte": Review-Liste zum manuellen Verlinken fehlender Hauptstadt-Locations.
+   Eigene Klassen (NICHT .tree-item) -- das wikisync-itemlist-.tree-item-Grid + der ::after-Statuspunkt
+   würden die mehrzeiligen Zeilen sonst überlagern. */
 .capital-list__item {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
 	align-items: stretch;
+	padding: 8px 10px;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+.capital-list__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 2px 8px;
+}
+.capital-list__name {
+	font-weight: 600;
+	font-size: 13px;
+}
+.capital-list__meta {
+	font-size: 12px;
+	color: #777;
 }
 .capital-list__actions {
 	display: flex;
