@@ -338,8 +338,9 @@ function createRegionLabelMarkup(regionEntry, fallbackName, maxWidthPx, zoom) {
 	);
 
 	const name = escapeHtml(labelText);
-	// Bei Zoom 0 (ganz rausgezoomt, dicht gepackt) Schrift + Wappen etwas verkleinern -> weniger Kollision.
-	const labelScale = Number(zoom) <= 0 ? 0.8 : 1;
+	// Bei niedrigem Zoom (dicht gepackt) Schrift + Wappen graduell verkleinern -> weniger Kollision:
+	// Zoom 0 -> 0.7, 1 -> 0.8, 2 -> 0.9, ab 3 voll (1.0).
+	const labelScale = [0.7, 0.8, 0.9, 1][Math.max(0, Math.min(3, Math.round(Number(zoom) || 0)))];
 	const coatUrl = regionEntry.labelCoatOfArmsUrl || regionEntry.coatOfArmsUrl || "";
 	const coatStyle = labelScale < 1 ? ` style="width:${Math.round(40 * labelScale)}px;height:${Math.round(40 * labelScale)}px"` : "";
 	const coatMarkup = coatUrl
