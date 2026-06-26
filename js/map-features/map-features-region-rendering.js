@@ -209,7 +209,18 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 	// Frontend: die abgeleitete (gemergte) Huelle fuellt nahtlos -- AUCH bei sichtbaren Innengrenzen; die
 	// Einzel-Quell-Teile werden unten (suppressFillForActiveDerived) abgeschaltet -> keine grauen Naehte.
 	// Editor: unveraendert (Huelle fuellt bei Innengrenzen NICHT, die Einzel-Teile bleiben sichtbar/bearbeitbar).
-	const fillOpacity = (regionEntry.isDerivedGeometry && ((regionEntry.showInnerBoundaries && IS_EDIT_MODE) || !regionEntry.derivedFillActive) && !derivedShowsHoledFill)
+	// Gap-proof an der Blatt-Ebene (Zoom >= POLITICAL_LEAF_BACKGROUND_MIN_ZOOM): ein Gebiet, das sonst die
+	// Fuellung an seine Kinder uebergibt (Huelle/Aggregat), fuellt dann SOLIDE als Hintergrund -- die Kinder
+	// legen sich oben drauf. So zeigt jede von den Kindern NICHT abgedeckte Flaeche immer die Gebietsfarbe,
+	// egal wie die Zoom-Baender stehen (verhindert die wiederkehrenden Loecher durch ungleiche Geschwister-
+	// Baender / eingefrorene Huellen). Bei niedrigem Zoom (Reich<->Provinz, verschiedene Farben) bleibt die
+	// Unterdrueckung. Quell-Baronien bleiben unter einer fuellenden Huelle unterdrueckt (suppressFillForActive-
+	// Derived) -> kein doppeltes Ueberlagern; nur die UEBERGEBENDE Ebene fuellt zusaetzlich als Hintergrund.
+	const leafBackgroundFill = !IS_EDIT_MODE
+		&& regionEntry.source === "political_territory"
+		&& typeof POLITICAL_LEAF_BACKGROUND_MIN_ZOOM === "number"
+		&& Math.round(Number(map.getZoom())) >= POLITICAL_LEAF_BACKGROUND_MIN_ZOOM;
+	const fillOpacity = (regionEntry.isDerivedGeometry && ((regionEntry.showInnerBoundaries && IS_EDIT_MODE) || !regionEntry.derivedFillActive) && !derivedShowsHoledFill && !leafBackgroundFill)
 		? 0
 		: activeFillOpacity;
 
@@ -274,7 +285,7 @@ function buildRegionPolygonStyle(regionEntry, region = null) {
 		// Umstrittene Gebiete: Fuellung ausschneiden (0), damit die diagonale Schraffur des Canvas-
 		// Overlays ueber die Basis-Karte liegt statt ueber der Reichsfarbe. fill:true bleibt -> Polygon
 		// bleibt klickbar (Infobox), Grenzen-Linie unberuehrt (eigenes Overlay).
-		fillOpacity: (isRegionContested(regionEntry) || suppressFillForActiveDerived || suppressFillForDisplayingChild) ? 0 : fillOpacity,
+		fillOpacity: (isRegionContested(regionEntry) || suppressFillForActiveDerived || (suppressFillForDisplayingChild && !leafBackgroundFill)) ? 0 : fillOpacity,
 	};
 	if (levelLineStyle && levelLineStyle.dashArray) {
 		style.dashArray = levelLineStyle.dashArray;

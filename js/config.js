@@ -134,6 +134,21 @@ const POLITICAL_FRONTEND_FILL_OPACITY = (() => {
 	}
 	return 0.7;
 })();
+// Ab dieser Zoomstufe fuellen uebergebende Gebiete (Huellen/Aggregate) im Frontend SOLIDE als Hintergrund,
+// statt die Fuellung komplett an ihre Kinder abzugeben. Damit zeigt jede von den Kindern NICHT abgedeckte
+// Flaeche immer die Gebietsfarbe -> keine Loecher mehr, egal wie die Zoom-Baender stehen (ungleiche
+// Geschwister-Baender, eingefrorene Huellen). Default 4 = Baronie-Ebene; bei niedrigerem Zoom (Reich<->Provinz,
+// stark verschiedene Farben) bleibt die Unterdrueckung, sonst wuerde es ueberdunkeln. Abschaltbar via
+// ?leafbg=off, Schwelle justierbar via ?leafbg=5.
+const POLITICAL_LEAF_BACKGROUND_MIN_ZOOM = (() => {
+	const raw = /[?&]leafbg=([a-z0-9]+)/i.exec(typeof location !== "undefined" ? location.search : "");
+	if (raw) {
+		if (/^off$/i.test(raw[1])) return Infinity;
+		const value = parseInt(raw[1], 10);
+		if (Number.isFinite(value)) return value;
+	}
+	return 4;
+})();
 // Hover-Highlight im Frontend: die Region unter der Maus wird fast weiss eingefaerbt
 // (Infobox-Hover). Auf null setzen, um das Highlight abzuschalten.
 const POLITICAL_HOVER_FILL_COLOR = "#ffffff";
