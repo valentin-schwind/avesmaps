@@ -271,6 +271,16 @@ function avesmapsWikiPathCrawlStep(PDO $pdo, string $runId, array $options = [])
             $contents = [];
             $events[] = ['type' => 'error', 'title' => '(batch)', 'message' => $error->getMessage()];
         }
+        // Kontinent-Detection braucht die Wiki-Kategorien (z. B. "Myranor-Artikel"); der Content-Fetch oben
+        // liefert sie nicht -> separat ziehen (Titel -> Kategorien-String). Best-effort.
+        $categoriesByTitle = [];
+        try {
+            foreach (avesmapsWikiSyncFetchPagesByRequestedTitle($pdo, $titles, true, false) as $catTitle => $catPage) {
+                $categoriesByTitle[(string) $catTitle] = implode(' ', avesmapsWikiSyncGetCategoryNames(is_array($catPage) ? $catPage : []));
+            }
+        } catch (Throwable $error) {
+            $categoriesByTitle = [];
+        }
         $canonical = avesmapsWikiSyncMonitorResolveCanonicalTitles($titles);
 
         foreach ($pageBatch as $page) {
@@ -286,7 +296,7 @@ function avesmapsWikiPathCrawlStep(PDO $pdo, string $runId, array $options = [])
                     continue;
                 }
                 $canonicalTitle = (string) ($canonical[$title] ?? $title);
-                $parsed = avesmapsWikiPathParsePage($title, $content, $canonicalTitle, $source);
+                $parsed = avesmapsWikiPathParsePage($title, $content, $canonicalTitle, $source, (string) ($categoriesByTitle[$title] ?? ''));
                 if (!empty($parsed['is_path']) && is_array($parsed['record'] ?? null)) {
                     avesmapsWikiPathUpsertRecord($pdo, $parsed['record']);
                     $stored++;
@@ -320,7 +330,7 @@ function avesmapsWikiPathCrawlStep(PDO $pdo, string $runId, array $options = [])
 }
 
 // Parst eine Wiki-Seite mit {{Infobox Fluss}} ODER {{Infobox Straße}} in einen Staging-Record.
-function avesmapsWikiPathParsePage(string $title, string $wikitext, string $canonicalTitle = '', string $source = ''): array {
+function avesmapsWikiPathParsePage(string $title, string $wikitext, string $canonicalTitle = '', string $source = '', string $categories = ''): array {
     $title = avesmapsWikiSyncMonitorNormalizeTitle($title);
     $canonical = $canonicalTitle !== '' ? avesmapsWikiSyncMonitorNormalizeTitle($canonicalTitle) : $title;
     $infoboxName = avesmapsWikiSyncMonitorInfoboxName($wikitext);
@@ -363,7 +373,7 @@ function avesmapsWikiPathParsePage(string $title, string $wikitext, string $cano
     if (preg_match_all('/\{\{\s*(Nav\s+[^}|]+|Aventurien|Myranor|G[üu]ldenland|Gueldenland|Rakshazar|Riesland|Tharun|Uthuria|Lahmaria)\b/iu', $wikitext, $navMatches) >= 1) {
         $navHints = implode(' ', $navMatches[1]);
     }
-    $continent = avesmapsWikiSyncMonitorDetectContinent($title . ' ' . $lage . ' ' . $navHints);
+    $continent = avesmapsWikiSyncMonitorDetectContinent($title . ' ' . $lage . ' ' . $navHints . ' ' . $categories);
 
     $synonyms = [];
     if (preg_match_all('/\{\{\s*Synonym\s*\|([^}]*)\}\}/iu', $wikitext, $synMatches) >= 1) {

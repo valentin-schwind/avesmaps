@@ -377,6 +377,16 @@ function avesmapsWikiRegionCrawlStep(PDO $pdo, string $runId, array $options = [
             $contents = [];
             $events[] = ['type' => 'error', 'title' => '(batch)', 'message' => $error->getMessage()];
         }
+        // Kontinent-Detection braucht die Wiki-Kategorien (z. B. "Myranor-Artikel" / "Uthuria-Artikel"); der
+        // Content-Fetch oben liefert sie nicht -> separat ziehen (Titel -> Kategorien-String). Best-effort.
+        $categoriesByTitle = [];
+        try {
+            foreach (avesmapsWikiSyncFetchPagesByRequestedTitle($pdo, $titles, true, false) as $catTitle => $catPage) {
+                $categoriesByTitle[(string) $catTitle] = implode(' ', avesmapsWikiSyncGetCategoryNames(is_array($catPage) ? $catPage : []));
+            }
+        } catch (Throwable $error) {
+            $categoriesByTitle = [];
+        }
         $canonical = avesmapsWikiSyncMonitorResolveCanonicalTitles($titles);
 
         foreach ($pageBatch as $page) {
@@ -393,7 +403,7 @@ function avesmapsWikiRegionCrawlStep(PDO $pdo, string $runId, array $options = [
                 }
 
                 $canonicalTitle = (string) ($canonical[$title] ?? $title);
-                $parsed = avesmapsWikiRegionParsePage($title, $content, $canonicalTitle, $source);
+                $parsed = avesmapsWikiRegionParsePage($title, $content, $canonicalTitle, $source, (string) ($categoriesByTitle[$title] ?? ''));
                 if (!empty($parsed['is_region']) && is_array($parsed['record'] ?? null)) {
                     avesmapsWikiRegionUpsertRecord($pdo, $parsed['record']);
                     $stored++;
@@ -427,7 +437,7 @@ function avesmapsWikiRegionCrawlStep(PDO $pdo, string $runId, array $options = [
 }
 
 // Parst eine Wiki-Seite mit {{Infobox Region}} in einen Staging-Record (oder null).
-function avesmapsWikiRegionParsePage(string $title, string $wikitext, string $canonicalTitle = '', string $source = ''): array {
+function avesmapsWikiRegionParsePage(string $title, string $wikitext, string $canonicalTitle = '', string $source = '', string $categories = ''): array {
     $title = avesmapsWikiSyncMonitorNormalizeTitle($title);
     $canonical = $canonicalTitle !== '' ? avesmapsWikiSyncMonitorNormalizeTitle($canonicalTitle) : $title;
     $infoboxName = avesmapsWikiSyncMonitorInfoboxName($wikitext);
@@ -459,7 +469,7 @@ function avesmapsWikiRegionParsePage(string $title, string $wikitext, string $ca
     if (preg_match_all('/\{\{\s*(Nav\s+[^}|]+|Aventurien|Myranor|G[üu]ldenland|Gueldenland|Rakshazar|Riesland|Tharun|Uthuria|Lahmaria)\b/iu', $wikitext, $navMatches) >= 1) {
         $navHints = implode(' ', $navMatches[1]);
     }
-    $continent = avesmapsWikiSyncMonitorDetectContinent($title . ' ' . avesmapsWikiSyncMonitorField($norm, ['region']) . ' ' . $staat . ' ' . $navHints);
+    $continent = avesmapsWikiSyncMonitorDetectContinent($title . ' ' . avesmapsWikiSyncMonitorField($norm, ['region']) . ' ' . $staat . ' ' . $navHints . ' ' . $categories);
 
     // Nachbarn (NORD..NORDWEST), Werte ggf. mehrere [[Links]] kommasepariert.
     $neighbors = [];
