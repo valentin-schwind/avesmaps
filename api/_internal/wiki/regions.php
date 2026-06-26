@@ -910,6 +910,33 @@ function avesmapsWikiRegionReadMapLabels(PDO $pdo): array {
     return $byKey;
 }
 
+// Labels, die EXPLIZIT einer Staging-Region zugewiesen sind (properties.wiki_region.wiki_key), gruppiert
+// nach diesem wiki_key. Ergaenzt den reinen Namens-Match: eine Region gilt auch dann als zugewiesen, wenn
+// ein ABWEICHEND benanntes Label bewusst mit ihr verknuepft wurde (sonst stuende sie faelschlich auf "missing").
+function avesmapsWikiRegionReadMapLabelsByWikiRegion(PDO $pdo): array {
+    if (!avesmapsWikiSyncMonitorTableExists($pdo, 'map_features')) {
+        return [];
+    }
+    $statement = $pdo->query(
+        'SELECT public_id, name, feature_subtype, properties_json FROM map_features
+        WHERE is_active = 1 AND feature_type = \'label\' AND properties_json IS NOT NULL'
+    );
+    $byWikiKey = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $props = json_decode((string) ($row['properties_json'] ?? ''), true);
+        $wikiKey = is_array($props) ? trim((string) ($props['wiki_region']['wiki_key'] ?? '')) : '';
+        if ($wikiKey === '') {
+            continue;
+        }
+        $byWikiKey[$wikiKey][] = [
+            'public_id' => (string) ($row['public_id'] ?? ''),
+            'name' => trim((string) ($row['name'] ?? '')),
+            'subtype' => (string) ($row['feature_subtype'] ?? ''),
+        ];
+    }
+    return $byWikiKey;
+}
+
 function avesmapsWikiRegionMatch(PDO $pdo, array $options = []): array {
     avesmapsWikiRegionEnsureTables($pdo);
     // '' = alle Kontinente; Default Aventurien (Karte ist Aventurien).
@@ -917,6 +944,7 @@ function avesmapsWikiRegionMatch(PDO $pdo, array $options = []): array {
     $sampleLimit = max(0, min(2000, (int) ($options['limit'] ?? 500)));
 
     $labelsByKey = avesmapsWikiRegionReadMapLabels($pdo);
+    $labelsByWikiRegion = avesmapsWikiRegionReadMapLabelsByWikiRegion($pdo);
     $mapLabelCount = array_sum(array_map('count', $labelsByKey));
 
     $rows = $pdo->query(
@@ -949,6 +977,11 @@ function avesmapsWikiRegionMatch(PDO $pdo, array $options = []): array {
             foreach (($labelsByKey[$k] ?? []) as $label) {
                 $hits[$label['public_id'] !== '' ? $label['public_id'] : $label['name']] = $label;
             }
+        }
+        // Explizit zugewiesene Labels (Link auf diesen wiki_key) zaehlen ebenfalls als Treffer -- auch wenn
+        // ihr Name nicht zum Region-Namen passt. Sonst zeigt eine bewusst zugewiesene Region "nicht zugewiesen".
+        foreach (($labelsByWikiRegion[(string) $row['wiki_key']] ?? []) as $label) {
+            $hits[$label['public_id'] !== '' ? $label['public_id'] : $label['name']] = $label;
         }
 
         $entry = [
