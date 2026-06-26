@@ -34,6 +34,7 @@ try {
         'update_zoom' => avesmapsPoliticalSubtreeDisplayUpdateZoom($pdo, $payload, $user),
         'normalize_leaf_zoom_bands' => avesmapsPoliticalSubtreeDisplayNormalizeLeafZoomBands($pdo, $payload, $user),
         'sync_geometry_zoom_to_territory' => avesmapsPoliticalSubtreeDisplaySyncGeometryZoomToTerritory($pdo, $payload, $user),
+        'set_all_opacity' => avesmapsPoliticalSubtreeDisplaySetAllOpacity($pdo, $payload, $user),
         'update_validity' => avesmapsPoliticalSubtreeDisplayUpdateValidity($pdo, $payload, $user),
         'inherit_colors' => avesmapsPoliticalSubtreeDisplayInheritColors($pdo, $payload, $user),
         'inherit_opacity' => avesmapsPoliticalSubtreeDisplayInheritOpacity($pdo, $payload, $user),
@@ -208,6 +209,66 @@ function avesmapsPoliticalSubtreeDisplayUpdateZoom(PDO $pdo, array $payload, arr
         'changed' => $changed,
         'received' => count($updates),
     ];
+}
+
+/**
+ * Force a single fill opacity across ALL active political territories.
+ *
+ * The layer resolves opacity in priority order:
+ *   assignmentDisplays[].opacity ?? style.fillOpacity ?? geometryStyle.fillOpacity ?? territory.opacity ?? 0.33
+ * Writing only the territory column (the old update_opacity) therefore had NO visible effect whenever a higher
+ * field was set. This writes every layer: the territory column AND, in each geometry's style_json, the top-level
+ * fillOpacity AND every assignmentDisplays[].opacity. ONLY opacity fields are touched -- zoom band, colour and
+ * everything else in style_json stay exactly as they are. `opacity` defaults to 0.7. dry-run by default.
+ *
+ * (Note: the public VIEW already renders POLITICAL_FRONTEND_FILL_OPACITY uniformly; this changes the STORED
+ * values, which the editor and any per-territory opacity read.)
+ */
+function avesmapsPoliticalSubtreeDisplaySetAllOpacity(PDO $pdo, array $payload, array $user): array {
+    $apply = filter_var($payload['apply'] ?? false, FILTER_VALIDATE_BOOL);
+    $opacity = array_key_exists('opacity', $payload) ? (float) $payload['opacity'] : 0.7;
+    $opacity = max(0.0, min(1.0, $opacity));
+
+    $territoryCount = (int) $pdo->query('SELECT COUNT(*) FROM political_territory WHERE is_active = 1')->fetchColumn();
+    $geometryRows = $pdo->query(
+        'SELECT id, style_json FROM political_territory_geometry WHERE is_active = 1 AND style_json IS NOT NULL'
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    if (!$apply) {
+        return ['ok' => true, 'dry_run' => true, 'target_opacity' => $opacity, 'territories' => $territoryCount, 'geometries_with_style' => count($geometryRows)];
+    }
+
+    $territoryStatement = $pdo->prepare('UPDATE political_territory SET opacity = :opacity WHERE is_active = 1');
+    $territoryStatement->execute([':opacity' => $opacity]);
+    $territoriesWritten = $territoryStatement->rowCount();
+
+    $update = $pdo->prepare('UPDATE political_territory_geometry SET style_json = :style_json WHERE id = :id');
+    $geometriesWritten = 0;
+    foreach ($geometryRows as $row) {
+        $style = json_decode((string) ($row['style_json'] ?? ''), true);
+        if (!is_array($style)) {
+            continue;
+        }
+        $style['fillOpacity'] = $opacity;
+        foreach (['assignmentDisplays', 'assignment_displays'] as $key) {
+            if (!isset($style[$key]) || !is_array($style[$key])) {
+                continue;
+            }
+            foreach ($style[$key] as $i => $display) {
+                if (is_array($display)) {
+                    $style[$key][$i]['opacity'] = $opacity;
+                }
+            }
+        }
+        $encoded = json_encode($style, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($encoded === false) {
+            continue; // leave malformed style untouched rather than corrupt it
+        }
+        $update->execute([':style_json' => $encoded, ':id' => (int) $row['id']]);
+        $geometriesWritten++;
+    }
+
+    return ['ok' => true, 'dry_run' => false, 'target_opacity' => $opacity, 'territories_written' => $territoriesWritten, 'geometries_written' => $geometriesWritten];
 }
 
 /**
