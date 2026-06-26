@@ -151,6 +151,110 @@ function avesmapsPoliticalListTerritories(PDO $pdo, array $query): array {
     return $response;
 }
 
+// Normalize a place/capital name for fuzzy matching: lowercase, drop parentheticals, fold German umlauts and
+// common diacritics, keep only [a-z0-9] separated by single spaces. The SAME normalization is applied to both
+// sides so spelling-consistent wiki names match regardless of case/diacritics/qualifier suffixes.
+function avesmapsPoliticalNormalizeCapitalName(string $name): string {
+    $name = mb_strtolower(trim($name), 'UTF-8');
+    $name = preg_replace('/\([^)]*\)/u', ' ', $name) ?? $name; // strip (parentheticals)
+    $name = strtr($name, [
+        'ä' => 'a', 'ö' => 'o', 'ü' => 'u', 'ß' => 'ss',
+        'á' => 'a', 'à' => 'a', 'â' => 'a', 'é' => 'e', 'è' => 'e', 'ê' => 'e',
+        'í' => 'i', 'î' => 'i', 'ó' => 'o', 'ô' => 'o', 'ú' => 'u', 'û' => 'u',
+        'ñ' => 'n', 'ç' => 'c',
+    ]);
+    $name = preg_replace('/[^a-z0-9]+/u', ' ', $name) ?? $name;
+    return trim(preg_replace('/\s+/u', ' ', $name) ?? $name);
+}
+
+// Review surface for the manual capital-link bulk-match: every active territory that has a capital NAME (own
+// column or wiki) but NO linked capital location (capital_place_id IS NULL), plus name-matched candidate
+// locations. Nothing is auto-assigned -- ambiguous names (e.g. two "Nordhag") return multiple candidates so the
+// editor picks; capital names that are prose or "keine" return no candidate and are handled via free search.
+function avesmapsPoliticalListCapitalAssignments(PDO $pdo, array $query): array {
+    $continent = avesmapsNormalizeSingleLine((string) ($query['continent'] ?? AVESMAPS_POLITICAL_DEFAULT_CONTINENT), 120);
+    $conditions = [
+        'territory.is_active = 1',
+        'territory.capital_place_id IS NULL',
+        "((territory.capital_name IS NOT NULL AND territory.capital_name <> '')"
+            . " OR (wiki.capital_name IS NOT NULL AND wiki.capital_name <> ''))",
+    ];
+    $params = [];
+    if ($continent !== '') {
+        $conditions[] = 'territory.continent = :continent';
+        $params['continent'] = $continent;
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT territory.public_id, territory.name, territory.type, territory.continent,
+                territory.capital_name AS capital_name, wiki.capital_name AS wiki_capital_name
+        FROM political_territory territory
+        LEFT JOIN political_territory_wiki wiki ON wiki.id = territory.wiki_id
+        WHERE ' . implode(' AND ', $conditions) . '
+        ORDER BY territory.name ASC'
+    );
+    $statement->execute($params);
+    $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+    // Index all active locations by normalized name once (~2400 rows). Ambiguous names map to several entries.
+    $byNorm = [];
+    $locationStatement = $pdo->query(
+        "SELECT public_id, name FROM map_features
+        WHERE feature_type = 'location' AND is_active = 1 AND name IS NOT NULL AND name <> ''"
+    );
+    foreach ($locationStatement as $location) {
+        $norm = avesmapsPoliticalNormalizeCapitalName((string) $location['name']);
+        if ($norm === '') {
+            continue;
+        }
+        $byNorm[$norm][] = [
+            'public_id' => (string) $location['public_id'],
+            'name' => (string) $location['name'],
+        ];
+    }
+
+    $territories = [];
+    foreach ($rows as $row) {
+        $ownCapital = trim((string) ($row['capital_name'] ?? ''));
+        $wikiCapital = trim((string) ($row['wiki_capital_name'] ?? ''));
+        $capitalName = $ownCapital !== '' ? $ownCapital : $wikiCapital;
+        $norm = avesmapsPoliticalNormalizeCapitalName($capitalName);
+
+        $suggestions = [];
+        $seen = [];
+        $appendCandidates = static function (array $entries) use (&$suggestions, &$seen): void {
+            foreach ($entries as $entry) {
+                if (!isset($seen[$entry['public_id']])) {
+                    $seen[$entry['public_id']] = true;
+                    $suggestions[] = $entry;
+                }
+            }
+        };
+        if ($norm !== '' && isset($byNorm[$norm])) {
+            $appendCandidates($byNorm[$norm]); // whole-name match (incl. parenthetical-stripped)
+        }
+        foreach (explode(' ', $norm) as $token) { // single place name buried in prose ("wohl Alstfurt")
+            if (strlen($token) >= 4 && isset($byNorm[$token])) {
+                $appendCandidates($byNorm[$token]);
+            }
+        }
+
+        $territories[] = [
+            'territory_public_id' => (string) $row['public_id'],
+            'name' => (string) $row['name'],
+            'type' => (string) ($row['type'] ?? ''),
+            'continent' => (string) ($row['continent'] ?? ''),
+            'capital_name' => $capitalName,
+            'suggestions' => array_slice($suggestions, 0, 8),
+        ];
+    }
+
+    return [
+        'ok' => true,
+        'territories' => $territories,
+    ];
+}
+
 function avesmapsPoliticalGetTerritory(PDO $pdo, array $query): array {
     $territory = avesmapsPoliticalFetchTerritoryByRequest($pdo, $query);
     $wiki = $territory['wiki_id'] ? avesmapsPoliticalFetchWikiById($pdo, (int) $territory['wiki_id']) : null;

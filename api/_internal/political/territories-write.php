@@ -51,6 +51,58 @@ function avesmapsPoliticalBuildStoredAssignmentDisplay(array $territory, array $
     ];
 }
 
+// Manual capital-link assignment for the "Hauptstaedte" review surface: set (or clear) political_territory.
+// capital_place_id to a chosen location. Used to bulk-fix the territories whose wiki capital_name never resolved
+// via the exact-match matcher at insert time (umlauts, prose, ambiguous names, location created later). Passing
+// an empty place_public_id clears the link again. The layer cache is invalidated by the endpoint after the write.
+function avesmapsPoliticalAssignCapital(PDO $pdo, array $payload, array $user): array {
+    $territoryPublicId = avesmapsNormalizeSingleLine((string) ($payload['territory_public_id'] ?? ''), 64);
+    if ($territoryPublicId === '') {
+        throw new InvalidArgumentException('Das Herrschaftsgebiet (territory_public_id) ist erforderlich.');
+    }
+    $placePublicId = avesmapsNormalizeSingleLine((string) ($payload['place_public_id'] ?? ''), 64);
+
+    $territoryStatement = $pdo->prepare('SELECT id FROM political_territory WHERE public_id = :public_id LIMIT 1');
+    $territoryStatement->execute(['public_id' => $territoryPublicId]);
+    $territoryId = $territoryStatement->fetchColumn();
+    if ($territoryId === false) {
+        throw new InvalidArgumentException('Das Herrschaftsgebiet wurde nicht gefunden.');
+    }
+
+    $capitalPlaceId = null;
+    $capitalPlacePublicId = '';
+    $capitalPlaceName = '';
+    if ($placePublicId !== '') {
+        $placeStatement = $pdo->prepare(
+            "SELECT id, public_id, name FROM map_features
+            WHERE public_id = :public_id AND feature_type = 'location' AND is_active = 1
+            LIMIT 1"
+        );
+        $placeStatement->execute(['public_id' => $placePublicId]);
+        $placeRow = $placeStatement->fetch(PDO::FETCH_ASSOC);
+        if ($placeRow === false) {
+            throw new InvalidArgumentException('Der gewaehlte Ort wurde nicht gefunden.');
+        }
+        $capitalPlaceId = (int) $placeRow['id'];
+        $capitalPlacePublicId = (string) $placeRow['public_id'];
+        $capitalPlaceName = (string) $placeRow['name'];
+    }
+
+    $updateStatement = $pdo->prepare('UPDATE political_territory SET capital_place_id = :capital_place_id WHERE id = :id');
+    $updateStatement->execute([
+        'capital_place_id' => $capitalPlaceId,
+        'id' => (int) $territoryId,
+    ]);
+
+    return [
+        'ok' => true,
+        'territory_public_id' => $territoryPublicId,
+        'capital_place_id' => $capitalPlaceId,
+        'capital_place_public_id' => $capitalPlacePublicId,
+        'capital_place_name' => $capitalPlaceName,
+    ];
+}
+
 function avesmapsPoliticalCreateTerritory(PDO $pdo, array $payload, array $user): array {
     $requestedName = avesmapsPoliticalReadRequiredName($payload['name'] ?? '', 'Der Name des Herrschaftsgebiets');
     $shortName = avesmapsNormalizeSingleLine((string) ($payload['short_name'] ?? ''), 160);

@@ -135,6 +135,7 @@ try {
         $response = match ($action) {
             'layer' => avesmapsPoliticalReadLayerWithDerivedGeometry($pdo, $_GET),
             'list' => avesmapsPoliticalListTerritories($pdo, $_GET),
+            'capital_assignments' => avesmapsPoliticalListCapitalAssignments($pdo, $_GET),
             'get' => avesmapsPoliticalGetTerritory($pdo, $_GET),
             'territory_bounds' => avesmapsPoliticalReadTerritoryBounds($pdo, $_GET),
             'wiki' => avesmapsPoliticalGetWikiReference($pdo, $_GET),
@@ -188,6 +189,7 @@ try {
         'ensure_wiki_territory_chain' => avesmapsPoliticalEnsureWikiTerritoryChain($pdo, $payload, $user),
         'restore_legacy_region_geometries' => avesmapsPoliticalRestoreLegacyRegionGeometries($pdo, $payload, $user),
         'deactivate_legacy_regions' => avesmapsPoliticalDeactivateLegacyRegions($pdo, $payload, $user),
+        'assign_capital' => avesmapsPoliticalAssignCapital($pdo, $payload, $user),
         'add_claim' => avesmapsPoliticalAddClaim($pdo, $payload, $user),
         'remove_claim' => avesmapsPoliticalRemoveClaim($pdo, $payload, $user),
         default => throw new InvalidArgumentException('Die Herrschaftsgebiet-Aktion ist unbekannt.'),
