@@ -908,22 +908,31 @@ function avesmapsPoliticalSubtreeDisplayResolveTerritoryPublicId(PDO $pdo, mixed
     }
     $wikiKey = trim($wikiKey);
     if ($wikiKey !== '') {
+        // A wiki-key shared by MULTIPLE active territories is AMBIGUOUS: picking the oldest (ORDER BY id)
+        // could land the write on a DIFFERENT realm than the editor intended -- the subtree caller (e.g. the
+        // "reset super-/sub-regions to default zoom" checkbox) must ONLY ever touch its own realm. Fetch two
+        // and resolve ONLY when the key is unique; otherwise fall through to the raw value (which matches no
+        // row -> no write) instead of corrupting a foreign territory. UUIDs (handled above) and unique keys
+        // are unaffected.
         $statement = $pdo->prepare(
             'SELECT territory.public_id
             FROM political_territory territory
             INNER JOIN political_territory_wiki wiki ON wiki.id = territory.wiki_id
             WHERE territory.is_active = 1 AND wiki.wiki_key = :wiki_key
             ORDER BY territory.id ASC
-            LIMIT 1'
+            LIMIT 2'
         );
         $statement->execute([':wiki_key' => $wikiKey]);
-        $resolved = trim((string) ($statement->fetchColumn() ?: ''));
-        if ($resolved !== '') {
-            return $resolved;
+        $matches = $statement->fetchAll(PDO::FETCH_COLUMN, 0);
+        if (count($matches) === 1) {
+            $resolved = trim((string) $matches[0]);
+            if ($resolved !== '') {
+                return $resolved;
+            }
         }
     }
 
-    // Fallback: roh zurueck (matcht ggf. nichts -> wie bisher, keine Regression).
+    // Fallback: raw value back (likely matches nothing -> no write; same as before, no regression).
     return $raw;
 }
 
