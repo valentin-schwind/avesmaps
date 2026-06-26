@@ -211,6 +211,13 @@ body.edit-mode .map-label img {
 	display: block;
 }
 
+/* Wappen <-> Name vertikal enger zusammenziehen: das transparente Halo-/Kontur-Polster des Namens-<img> haelt
+   sonst Abstand. Negativer margin-top zieht den Namen hoch unters Wappen (Wert bei Bedarf anpassen). */
+.region-label__content > .region-label__name-img,
+.region-label__content > .region-label__lines {
+	margin-top: -7px;
+}
+
 .region-label__coat {
 	width: 40px;
 	height: 40px;
