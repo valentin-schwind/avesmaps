@@ -202,17 +202,12 @@ function applyFrontendLayerModeDefaults(mode, { includeCities = true } = {}) {
 		return;
 	}
 	if (mode === "political") {
-		// Politische Ansicht: Städte-Toggles auf NUR "Metropolen" defaulten (Nutzer kann danach beliebig
-		// ändern). Die Siedlungs-Namen folgen den Toggles (shouldShowLocationNameLabel), d. h. die Metropolen-
-		// Labels sind damit auch in der politischen Ansicht wieder sichtbar.
-		if (includeCities && typeof LOCATION_TYPE_VISIBILITY_ORDER !== "undefined") {
-			LOCATION_TYPE_VISIBILITY_ORDER.forEach((locationType) => {
-				getLocationToggleButton(locationType).toggleClass("is-active", locationType === "metropole");
-			});
-			if (typeof syncLocationToggleButtons === "function") {
-				syncLocationToggleButtons();
-			}
-			syncLocationMarkerVisibility();
+		// Politische Ansicht: Standard-Siedlungsanzeige = NUR die Hauptstädte der aktuell ANGEZEIGTEN Gebiete
+		// (das übernimmt das immer-an-Feature in shouldShowLocationMarker/NameLabel, zoom/flächen-abhängig).
+		// Daher die Typ-Toggles auf AUS defaulten: klickt der Nutzer einen Typ an, kommt dieser zusätzlich;
+		// ein erneuter Wechsel auf "Politisch" setzt wieder auf nur-Hauptstädte zurück.
+		if (includeCities && typeof setAllLocationTypesVisible === "function") {
+			setAllLocationTypesVisible(false);
 		}
 		return;
 	}

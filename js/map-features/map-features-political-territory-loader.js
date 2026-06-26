@@ -436,6 +436,26 @@ function installPoliticalTerritoryLayerGeometryMerge() {
 	};
 }
 
+// Hauptstadt-Anzeige (politische Ansicht): public_ids der Hauptstaedte aller aktuell ANGEZEIGTEN Gebiete.
+// shouldShowLocationMarker/-NameLabel erzwingen damit die Anzeige dieser Orte -> Standard-Siedlungsanzeige im
+// political-Modus (zoom/flaechen-abhaengig, unabhaengig von den Stadt-Groessen-Toggles).
+window.politicalDisplayedCapitalPublicIds = window.politicalDisplayedCapitalPublicIds || new Set();
+
+function arePublicIdSetsEqual(setA, setB) {
+	if (setA === setB) {
+		return true;
+	}
+	if (!setA || !setB || setA.size !== setB.size) {
+		return false;
+	}
+	for (const value of setA) {
+		if (!setB.has(value)) {
+			return false;
+		}
+	}
+	return true;
+}
+
 function installPoliticalRegionVisibilityBehavior() {
 	if (typeof window.syncRegionVisibility !== "function") {
 		return;
@@ -444,6 +464,9 @@ function installPoliticalRegionVisibilityBehavior() {
 	window.syncRegionVisibility = function syncRegionVisibility() {
 		const showRegions = getSelectedMapLayerMode() === "political";
 		const currentZoom = Math.round(map.getZoom());
+		// Hauptstaedte der gerade angezeigten Gebiete (s. politicalDisplayedCapitalPublicIds) -> in der
+		// Polygon-Schleife gefuellt, am Ende mit dem aktuellen Set abgeglichen.
+		const nextCapitalIds = new Set();
 		syncPoliticalTimelineVisibility();
 		if (!showRegions) {
 			clearRegionGeometryEdit();
@@ -465,6 +488,16 @@ function installPoliticalRegionVisibilityBehavior() {
 			const minZoom = readOptionalRegionZoom(regionEntry?.minZoom);
 			const maxZoom = readOptionalRegionZoom(regionEntry?.maxZoom);
 			const isVisibleAtZoom = (minZoom === null || minZoom <= currentZoom) && (maxZoom === null || maxZoom >= currentZoom);
+
+			// Hauptstadt des angezeigten Gebiets einsammeln -- am echten Anzeige-Band (isVisibleAtZoom), NICHT am
+			// IS_EDIT_MODE-Bypass: so erscheinen auch im Editor nur die zoom-passenden Hauptstaedte (Reich bei
+			// niedrigem Zoom, Baronie bei hohem), nicht alle gleichzeitig.
+			if (showRegions && isVisibleAtZoom) {
+				const capitalPublicId = regionEntry?.capitalPlacePublicId || "";
+				if (capitalPublicId) {
+					nextCapitalIds.add(String(capitalPublicId));
+				}
+			}
 
 			if (showRegions && (IS_EDIT_MODE || isVisibleAtZoom)) {
 				map.addLayer(layer);
@@ -506,6 +539,16 @@ function installPoliticalRegionVisibilityBehavior() {
 		// --, damit auch beim Wechsel ZURUECK zu "political" (gleicher Zoom, kein Layer-Reload) die Schraffur
 		// wieder erscheint und beim Wechsel WEG sofort verschwindet.
 		window.AvesmapsContestedHatchOverlay?.redraw?.();
+
+		// Hauptstadt-Set aktualisieren und die Orts-/Namen-Sichtbarkeit nur dann neu durchlaufen, wenn sich die
+		// Menge geaendert hat (Zoom-/Modus-/Lade-Wechsel). Beim reinen Pannen bleibt das Set gleich -> der normale
+		// moveend-Sync (bootstrap.js) zieht die Viewport-Grenzen nach, ohne hier ein zweites Mal zu rendern.
+		if (!arePublicIdSetsEqual(window.politicalDisplayedCapitalPublicIds, nextCapitalIds)) {
+			window.politicalDisplayedCapitalPublicIds = nextCapitalIds;
+			if (typeof syncLocationMarkerVisibility === "function") {
+				syncLocationMarkerVisibility();
+			}
+		}
 	};
 }
 

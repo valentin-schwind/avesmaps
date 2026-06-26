@@ -40,6 +40,16 @@ function shouldShowLocationNameLabel(entry, zoomLevel = map.getZoom(), visibilit
 		return false;
 	}
 
+	// Politische Ansicht: Hauptstadt-Namen der angezeigten Gebiete immer labeln (passend zu
+	// shouldShowLocationMarker -> Standard-Siedlungsanzeige im political-Modus). Der Aufrufer prueft die
+	// Viewport-Grenzen, daher hier nur true.
+	if (entry.publicId
+		&& typeof window.politicalDisplayedCapitalPublicIds !== "undefined"
+		&& window.politicalDisplayedCapitalPublicIds
+		&& window.politicalDisplayedCapitalPublicIds.has(String(entry.publicId))) {
+		return true;
+	}
+
 	// Kraftlinien-Modus: nur die Nodices labeln (passend zu den leuchtenden Ley-Knoten), unabhängig von den
 	// Stadt-Größen-Toggles. Kollisionsauflösung dünnt die Namen bei niedrigem Zoom aus.
 	const mapLayerMode = visibilityContext

@@ -200,6 +200,16 @@ function shouldShowLocationMarker(entry, zoomLevel = map.getZoom(), renderBounds
 		return isNodixLocation(entry.location) && isMarkerEntryInRenderBounds(entry, renderBounds);
 	}
 
+	// Politische Ansicht: die Hauptstaedte der aktuell ANGEZEIGTEN Gebiete sind die Standard-Siedlungsanzeige
+	// (Set wird in syncRegionVisibility zoom/flaechen-abhaengig gefuellt). Sie erscheinen unabhaengig von den
+	// Stadt-Groessen-Toggles und der Typ-Mindestzoomstufe; klickt der Nutzer einen Typ an, kommt dieser zusaetzlich.
+	if (entry.publicId
+		&& typeof window.politicalDisplayedCapitalPublicIds !== "undefined"
+		&& window.politicalDisplayedCapitalPublicIds
+		&& window.politicalDisplayedCapitalPublicIds.has(String(entry.publicId))) {
+		return isMarkerEntryInRenderBounds(entry, renderBounds);
+	}
+
 	const nodixToggleChecked = visibilityContext
 		? visibilityContext.nodixToggleChecked
 		: IS_EDIT_MODE && $("#toggleNodix").is(":checked");
