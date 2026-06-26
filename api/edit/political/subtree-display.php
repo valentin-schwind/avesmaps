@@ -32,6 +32,7 @@ try {
         'update_colors' => avesmapsPoliticalSubtreeDisplayUpdateColors($pdo, $payload, $user),
         'update_opacity' => avesmapsPoliticalSubtreeDisplayUpdateOpacity($pdo, $payload, $user),
         'update_zoom' => avesmapsPoliticalSubtreeDisplayUpdateZoom($pdo, $payload, $user),
+        'normalize_leaf_zoom_bands' => avesmapsPoliticalSubtreeDisplayNormalizeLeafZoomBands($pdo, $payload, $user),
         'update_validity' => avesmapsPoliticalSubtreeDisplayUpdateValidity($pdo, $payload, $user),
         'inherit_colors' => avesmapsPoliticalSubtreeDisplayInheritColors($pdo, $payload, $user),
         'inherit_opacity' => avesmapsPoliticalSubtreeDisplayInheritOpacity($pdo, $payload, $user),
@@ -191,6 +192,108 @@ function avesmapsPoliticalSubtreeDisplayUpdateZoom(PDO $pdo, array $payload, arr
         'changed' => $changed,
         'received' => count($updates),
     ];
+}
+
+/**
+ * Restore consistent leaf zoom bands across ALL realms.
+ *
+ * Within one parent, the lowest-level territories (baronies) should share a single zoom band; mixed bands make
+ * the parent hand off at a zoom where only some children render, leaving the rest empty. For each parent we take
+ * the band MOST of its leaf children already use (= the one that renders correctly) and copy it onto the leaves
+ * that differ. Non-leaf children (counties that themselves own baronies) are ignored, so their legitimately
+ * varying bands stay untouched. Each leaf is normalized against its OWN siblings only -- never across realms.
+ *
+ * `apply` defaults to false (dry-run: returns the planned changes without writing). Pass `apply: true` to persist.
+ */
+function avesmapsPoliticalSubtreeDisplayNormalizeLeafZoomBands(PDO $pdo, array $payload, array $user): array {
+    $apply = filter_var($payload['apply'] ?? false, FILTER_VALIDATE_BOOL);
+
+    $rows = $pdo->query(
+        'SELECT id, public_id, parent_id, name,
+                CAST(min_zoom AS SIGNED) AS min_zoom, CAST(max_zoom AS SIGNED) AS max_zoom
+         FROM political_territory
+         WHERE is_active = 1'
+    )->fetchAll(PDO::FETCH_ASSOC);
+
+    // Group children by parent id; a territory is a LEAF when no active child points at it.
+    $childrenByParent = [];
+    $hasChildren = [];
+    foreach ($rows as $row) {
+        if ($row['parent_id'] === null) {
+            continue;
+        }
+        $parentId = (int) $row['parent_id'];
+        $childrenByParent[$parentId][] = $row;
+        $hasChildren[$parentId] = true;
+    }
+
+    $changes = [];
+    foreach ($childrenByParent as $kids) {
+        $leaves = [];
+        foreach ($kids as $kid) {
+            if (!isset($hasChildren[(int) $kid['id']])) {
+                $leaves[] = $kid;
+            }
+        }
+        if (count($leaves) < 2) {
+            continue;
+        }
+        $counts = [];
+        foreach ($leaves as $leaf) {
+            $band = ((int) $leaf['min_zoom']) . '-' . ((int) $leaf['max_zoom']);
+            $counts[$band] = ($counts[$band] ?? 0) + 1;
+        }
+        if (count($counts) < 2) {
+            continue; // already consistent
+        }
+        $bands = array_keys($counts);
+        usort($bands, static function (string $a, string $b) use ($counts): int {
+            if ($counts[$b] !== $counts[$a]) {
+                return $counts[$b] <=> $counts[$a]; // most frequent wins
+            }
+            return ((int) explode('-', $a)[0]) <=> ((int) explode('-', $b)[0]); // tiebreak: lowest min_zoom
+        });
+        [$targetMin, $targetMax] = array_map('intval', explode('-', $bands[0]));
+        foreach ($leaves as $leaf) {
+            if ((int) $leaf['min_zoom'] === $targetMin && (int) $leaf['max_zoom'] === $targetMax) {
+                continue;
+            }
+            $changes[] = [
+                'public_id' => (string) $leaf['public_id'],
+                'name' => (string) ($leaf['name'] ?? ''),
+                'from' => ((int) $leaf['min_zoom']) . '-' . ((int) $leaf['max_zoom']),
+                'to' => $targetMin . '-' . $targetMax,
+                'min_zoom' => $targetMin,
+                'max_zoom' => $targetMax,
+            ];
+        }
+    }
+
+    if (!$apply) {
+        return ['ok' => true, 'dry_run' => true, 'planned_changes' => count($changes), 'changes' => $changes];
+    }
+
+    $supportsUpdatedBy = avesmapsPoliticalSubtreeDisplayHasTerritoryUpdatedByColumn($pdo);
+    $statement = $pdo->prepare(
+        $supportsUpdatedBy
+            ? 'UPDATE political_territory SET min_zoom = :min_zoom, max_zoom = :max_zoom, updated_by = :updated_by WHERE public_id = :public_id'
+            : 'UPDATE political_territory SET min_zoom = :min_zoom, max_zoom = :max_zoom WHERE public_id = :public_id'
+    );
+    $written = 0;
+    foreach ($changes as $change) {
+        $parameters = [
+            ':min_zoom' => $change['min_zoom'],
+            ':max_zoom' => $change['max_zoom'],
+            ':public_id' => $change['public_id'],
+        ];
+        if ($supportsUpdatedBy) {
+            $parameters[':updated_by'] = (int) ($user['id'] ?? 0);
+        }
+        $statement->execute($parameters);
+        $written += $statement->rowCount();
+    }
+
+    return ['ok' => true, 'dry_run' => false, 'planned_changes' => count($changes), 'written' => $written, 'changes' => $changes];
 }
 
 function avesmapsPoliticalSubtreeDisplayReadOptionalYear(mixed $value): ?int {
