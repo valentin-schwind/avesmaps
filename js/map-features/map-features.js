@@ -276,7 +276,7 @@ function getRegionLabelNameTypeStyle() {
 		glow: "rgba(255, 255, 255, 0.95)",
 		// Scharfe weiße Kontur (strokeText) statt des weichen 4px-Scheins -> klar abgesetzte Linie um die Schrift.
 		glowBlur: 0,
-		strokeRatio: 0.2,
+		strokeRatio: 0.13,
 		fontSizePx: Math.max(11, parseFloat(computed.fontSize) || 15),
 	};
 	document.body.removeChild(probe);
