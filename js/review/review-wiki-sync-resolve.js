@@ -52,7 +52,21 @@ async function handleWikiSyncCaseActionClick(event) {
 
 async function updateWikiSyncCaseStatus(caseEntry, action, successMessage) {
 	try {
-		await submitWikiSyncLocationAction(action, { case_id: Number(caseEntry.id) });
+		if (caseEntry.source === "political") {
+			// Missing-capital cases live in the political domain: route to its status actions, keyed on the
+			// territory_public_id (string id) instead of the integer wiki case_id.
+			const politicalAction = {
+				defer_case: "defer_capital_case",
+				archive_case: "archive_capital_case",
+				reopen_case: "reopen_capital_case",
+			}[action];
+			if (!politicalAction) {
+				return;
+			}
+			await submitPoliticalTerritoryEdit({ action: politicalAction, territory_public_id: String(caseEntry.id) });
+		} else {
+			await submitWikiSyncLocationAction(action, { case_id: Number(caseEntry.id) });
+		}
 		showFeedbackToast(successMessage, "success");
 		await loadWikiSyncCases();
 	} catch (error) {

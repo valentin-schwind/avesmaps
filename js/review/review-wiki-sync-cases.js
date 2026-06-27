@@ -356,6 +356,7 @@ function getWikiSyncCaseTypeOrder(caseType) {
 		duplicate_wiki_title: 60,
 		missing_wiki_with_coordinates: 70,
 		missing_wiki_without_coordinates: 80,
+		missing_capital: 90,
 	};
 
 	return order[caseType] || 999;
@@ -371,6 +372,7 @@ function getWikiSyncCaseTypeLabel(caseType) {
 		duplicate_wiki_title: "Mehrere Avesmaps-Namen zeigen auf denselben Wiki-Titel",
 		missing_wiki_with_coordinates: "Fehlende Wiki-Orte mit Koordinaten",
 		missing_wiki_without_coordinates: "Fehlende Wiki-Orte ohne nutzbare Koordinaten",
+		missing_capital: "Fehlende Hauptstädte",
 	};
 
 	return labels[caseType] || caseType;
@@ -399,8 +401,12 @@ function createWikiSyncCaseElement(caseEntry) {
 
 	const bodyElement = document.createElement("div");
 	bodyElement.className = "wiki-sync-case__body";
-	appendWikiSyncCaseRows(bodyElement, caseEntry);
-	appendWikiSyncCaseCandidates(bodyElement, caseEntry);
+	if (caseEntry.case_type === "missing_capital") {
+		appendMissingCapitalCaseBody(bodyElement, caseEntry);
+	} else {
+		appendWikiSyncCaseRows(bodyElement, caseEntry);
+		appendWikiSyncCaseCandidates(bodyElement, caseEntry);
+	}
 	appendWikiSyncCaseActions(bodyElement, caseEntry);
 
 	detailsElement.append(summaryElement, bodyElement);
@@ -614,7 +620,7 @@ function appendWikiSyncCaseActions(bodyElement, caseEntry) {
 
 	if (caseEntry.case_type === "missing_wiki_without_coordinates" && caseEntry.status === "open" && isWikiSyncCreateLocationSelectionActive && wikiSyncCreateLocationContextLatLng) {
 		actionsElement.appendChild(createWikiSyncActionButton("select-wiki-location", "Diesen Ort wählen", "wiki-sync-case__action--primary"));
-	} else if (caseEntry.case_type !== "missing_wiki_with_coordinates") {
+	} else if (caseEntry.case_type !== "missing_wiki_with_coordinates" && caseEntry.case_type !== "missing_capital") {
 		actionsElement.appendChild(createWikiSyncActionButton("focus", "Anzeigen", "wiki-sync-case__action--primary"));
 	}
 
@@ -627,6 +633,26 @@ function appendWikiSyncCaseActions(bodyElement, caseEntry) {
 	actionsElement.appendChild(createWikiSyncActionButton("defer", "Zurückstellen", "wiki-sync-case__action--danger"));
 	actionsElement.appendChild(createWikiSyncActionButton("archive", "Archivieren", "wiki-sync-case__action--danger"));
 	bodyElement.appendChild(actionsElement);
+}
+
+// Body for a missing_capital case: territory + wiki capital name, plus the inline assign controls (server name
+// suggestions + free location search) while open. Resolving = picking a capital (assignCapitalForTerritory),
+// which is delegated on #wiki-sync-case-list in review-capitals-list.js.
+function appendMissingCapitalCaseBody(bodyElement, caseEntry) {
+	const payload = caseEntry.payload || {};
+	appendWikiSyncInfoRow(bodyElement, "Gebiet", `${payload.name || "-"}${payload.type ? ` (${payload.type})` : ""}`);
+	appendWikiSyncInfoRow(bodyElement, "Wiki-Hauptstadt", payload.capital_name || "-");
+
+	if (caseEntry.status === "open" && typeof renderCapitalAssignControls === "function") {
+		const controls = document.createElement("div");
+		controls.className = "capital-list__actions";
+		controls.innerHTML = renderCapitalAssignControls(
+			String(payload.territory_public_id || caseEntry.id || ""),
+			payload.capital_name || "",
+			Array.isArray(payload.suggestions) ? payload.suggestions : []
+		);
+		bodyElement.appendChild(controls);
+	}
 }
 
 function createWikiSyncActionButton(action, label, className) {
@@ -668,7 +694,9 @@ function appendWikiSyncLinkRow(bodyElement, label, text, url) {
 }
 
 function canResolveWikiSyncCase(caseEntry) {
-	if (caseEntry.case_type === "unresolved_without_candidate" || caseEntry.case_type === "duplicate_avesmaps_name") {
+	// missing_capital is resolved via the inline assign controls (a capital must be CHOSEN), not the generic
+	// "Lösen" button; the other two have no machine resolution either.
+	if (caseEntry.case_type === "unresolved_without_candidate" || caseEntry.case_type === "duplicate_avesmaps_name" || caseEntry.case_type === "missing_capital") {
 		return false;
 	}
 
@@ -679,6 +707,10 @@ function getWikiSyncCaseTitle(caseEntry) {
 	const payload = caseEntry.payload || {};
 	const mapName = payload.map?.name || "";
 	const wikiTitle = payload.wiki?.title || "";
+
+	if (caseEntry.case_type === "missing_capital") {
+		return payload.capital_name ? `${payload.name || "Gebiet"} → ${payload.capital_name}` : (payload.name || "Fehlende Hauptstadt");
+	}
 
 	if (caseEntry.case_type === "missing_wiki_with_coordinates" || caseEntry.case_type === "missing_wiki_without_coordinates") {
 		return wikiTitle || "Fehlender Wiki-Ort";
@@ -720,6 +752,7 @@ function formatWikiSyncMatchKind(matchKind) {
 
 function findWikiSyncCaseFromElement(element) {
 	const caseElement = element?.closest?.(".wiki-sync-case");
-	const caseId = Number(caseElement?.dataset.caseId);
-	return wikiSyncCases.find((caseEntry) => Number(caseEntry.id) === caseId) || null;
+	// String compare: wiki case ids are integers, missing_capital ids are UUID strings (territory_public_id).
+	const caseId = String(caseElement?.dataset.caseId || "");
+	return wikiSyncCases.find((caseEntry) => String(caseEntry.id) === caseId) || null;
 }

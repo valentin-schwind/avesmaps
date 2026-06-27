@@ -97,6 +97,15 @@ async function loadWikiSyncCases() {
 		const data = await fetchWikiSyncLocationData({ action: "cases" });
 
 		wikiSyncCases = Array.isArray(data.cases) ? data.cases : [];
+		// Merge in the computed missing-capital conflict cases (political domain, source "political"). They flow
+		// through the same grouping/status/render pipeline as the wiki cases. A capital-load failure yields []
+		// (never breaks the wiki list), so this await is safe.
+		if (typeof loadMissingCapitalCases === "function") {
+			const capitalCases = await loadMissingCapitalCases();
+			if (Array.isArray(capitalCases) && capitalCases.length > 0) {
+				wikiSyncCases = wikiSyncCases.concat(capitalCases);
+			}
+		}
 		wikiSyncSummary = data.summary || null;
 		const activeRun = data.active_run || null;
 		activeWikiSyncRunId = activeRun?.status === "running" ? activeRun.public_id : null;
@@ -707,9 +716,7 @@ function getWikiSyncTerritoryLoadedDataSummary() {
 			return;
 		}
 		const accordion = handle.closest(".wiki-sync-accordion");
-		// Generalisiert: die erste Ergebnis-Liste im Accordion (Konfliktfaelle #wiki-sync-case-list ODER die
-		// Hauptstadt-Liste #capital-sync-list) per Drag in der Hoehe ziehen.
-		const list = accordion ? accordion.querySelector(".review-panel__list") : null;
+		const list = accordion ? accordion.querySelector("#wiki-sync-case-list") : null;
 		if (!list) {
 			return;
 		}
