@@ -540,6 +540,16 @@ function installPoliticalRegionVisibilityBehavior() {
 		// wieder erscheint und beim Wechsel WEG sofort verschwindet.
 		window.AvesmapsContestedHatchOverlay?.redraw?.();
 
+		// Aussen-/Innengrenzen analog zur Schraffur (oben) bei JEDEM Eintritt in "political" neu zeichnen. Ein
+		// Moduswechsel loest kein moveend/zoomend aus, das den Overlay-Redraw triggert -- ohne dies blieben die
+		// Grenzen beim Wechsel ZURUECK zu "political" (gleicher Zoom, kein Layer-Reload) leer, bis ein manueller
+		// Pan/Zoom/Resize sie ausloest. force=true umgeht die Zoom-Animations-Sperre des Overlays (auf einem
+		// Moduswechsel laeuft keine echte Zoom-Animation). Bei einem Layer-Reload zeichnet der Post-Fetch-
+		// syncRegionVisibility (loadPoliticalTerritoryLayer) ohnehin nochmal mit den frischen Daten.
+		if (showRegions) {
+			window.AvesmapsBoundaryCanvasOverlay?.redraw?.(true);
+		}
+
 		// Hauptstadt-Set aktualisieren und die Orts-/Namen-Sichtbarkeit nur dann neu durchlaufen, wenn sich die
 		// Menge geaendert hat (Zoom-/Modus-/Lade-Wechsel). Beim reinen Pannen bleibt das Set gleich -> der normale
 		// moveend-Sync (bootstrap.js) zieht die Viewport-Grenzen nach, ohne hier ein zweites Mal zu rendern.
