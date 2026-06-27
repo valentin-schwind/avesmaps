@@ -45,7 +45,7 @@ function syncRegionVisibility() {
 	if (showRegions) {
 		schedulePoliticalTerritoryLayerReload();
 		// Entering political from a non-boundary mode (none/powerlines) left the boundary canvas cleared, and when
-		// the layer data is already loaded no reload fires (so the post-load redraw at line ~663 never runs).
+		// the layer data is already loaded no reload fires (so the post-load redraw in loadPoliticalTerritoryLayer never runs).
 		// Redraw the boundary + contested canvases now so the outer/inner borders reappear immediately instead of
 		// only after the next zoom. Symmetric to the clear in the !showRegions branch above.
 		window.AvesmapsBoundaryCanvasOverlay?.redraw?.();
