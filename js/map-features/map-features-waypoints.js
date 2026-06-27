@@ -5,36 +5,8 @@ const WAYPOINT_AUTOCOMPLETE_DELAY_MS = 120;
 let waypointAutocompleteSourceCache = null;
 let waypointAutocompleteSourceCacheLength = -1;
 
-correctDerographyLabels();
 enhanceRoutePlannerOptionPanel();
 enhanceRoutePlannerTypography();
-
-function correctDerographyLabels() {
-	const updateLabel = () => {
-		const mapLayerSelect = document.getElementById("mapLayerModeSelect");
-		const mapLayerMenu = document.getElementById("mapLayerModeMenu");
-		mapLayerSelect?.setAttribute("aria-label", "Derographie");
-		mapLayerMenu?.setAttribute("aria-label", "Derographie");
-
-		const label = mapLayerSelect?.closest("label");
-		if (!label) {
-			return;
-		}
-
-		label.childNodes.forEach((node) => {
-			if (node.nodeType === Node.TEXT_NODE && node.textContent.includes("Deregraphie")) {
-				node.textContent = node.textContent.replace("Deregraphie", "Derographie");
-			}
-		});
-	};
-
-	if (document.readyState === "loading") {
-		document.addEventListener("DOMContentLoaded", updateLabel, { once: true });
-		return;
-	}
-
-	updateLabel();
-}
 
 function enhanceRoutePlannerTypography() {
 	const enhance = () => {
