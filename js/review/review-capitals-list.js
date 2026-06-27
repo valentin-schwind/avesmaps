@@ -217,6 +217,18 @@ async function assignCapitalForTerritory(territoryPublicId, placePublicId) {
 	if (typeof attachTypeFilter === "function") {
 		attachTypeFilter("capital-continent-filter-toggle", "capital-continent-filter-menu", capitalContinentFilter, capitalContinentOptions, renderCapitalAssignmentsList, "Kontinent");
 	}
+
+	// Lazy-Load: die Liste erst beim Aufklappen des „Fehlende Hauptstädte"-Accordions laden (spart einen
+	// politischen API-Call, solange der Editor nur Siedlungs-Liste/Konfliktfälle nutzt). Reload bei jedem
+	// Aufklappen hält den Stand aktuell (eine Zuweisung lässt die Zeile verschwinden).
+	const capitalsAccordion = document.getElementById("wiki-sync-capitals-accordion");
+	if (capitalsAccordion) {
+		capitalsAccordion.addEventListener("toggle", () => {
+			if (capitalsAccordion.open && typeof loadCapitalAssignmentsList === "function") {
+				void loadCapitalAssignmentsList();
+			}
+		});
+	}
 })();
 
 window.loadCapitalAssignmentsList = loadCapitalAssignmentsList;

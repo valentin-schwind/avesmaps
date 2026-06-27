@@ -129,10 +129,6 @@ function refreshActiveWikiSyncPanel() {
 		return typeof loadPathWikiSync === "function" ? loadPathWikiSync() : undefined;
 	}
 
-	if (activeWikiSyncPanelTab === "capitals") {
-		return typeof loadCapitalAssignmentsList === "function" ? loadCapitalAssignmentsList() : undefined;
-	}
-
 	if (typeof loadSettlementList === "function") {
 		loadSettlementList();
 	}
@@ -188,7 +184,7 @@ window.refreshActiveWikiSyncPanelAfterAssignment = refreshActiveWikiSyncPanelAft
 })();
 
 function setWikiSyncPanelTab(tabName) {
-	activeWikiSyncPanelTab = ["territories", "regions", "paths", "capitals"].includes(tabName) ? tabName : "locations";
+	activeWikiSyncPanelTab = ["territories", "regions", "paths"].includes(tabName) ? tabName : "locations";
 
 	document.querySelectorAll("[data-wiki-sync-panel-tab]").forEach((tabElement) => {
 		const isActive = tabElement.dataset.wikiSyncPanelTab === activeWikiSyncPanelTab;
@@ -209,10 +205,6 @@ function setWikiSyncPanelTab(tabName) {
 	} else if (activeWikiSyncPanelTab === "paths") {
 		if (typeof loadPathWikiSync === "function") {
 			void loadPathWikiSync();
-		}
-	} else if (activeWikiSyncPanelTab === "capitals") {
-		if (typeof loadCapitalAssignmentsList === "function") {
-			void loadCapitalAssignmentsList();
 		}
 	} else {
 		renderWikiSyncCases();
@@ -715,7 +707,9 @@ function getWikiSyncTerritoryLoadedDataSummary() {
 			return;
 		}
 		const accordion = handle.closest(".wiki-sync-accordion");
-		const list = accordion ? accordion.querySelector("#wiki-sync-case-list") : null;
+		// Generalisiert: die erste Ergebnis-Liste im Accordion (Konfliktfaelle #wiki-sync-case-list ODER die
+		// Hauptstadt-Liste #capital-sync-list) per Drag in der Hoehe ziehen.
+		const list = accordion ? accordion.querySelector(".review-panel__list") : null;
 		if (!list) {
 			return;
 		}
