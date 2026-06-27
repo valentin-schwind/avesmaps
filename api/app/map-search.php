@@ -271,7 +271,12 @@ function avesmapsBuildSearchEntry(array $row): ?array {
     }
 
     if ($featureType === 'path') {
-        if (!avesmapsReadSearchBoolean($properties['show_label'] ?? false)) {
+        // Suchbar, wenn das Karten-Label aktiviert ist (show_label) ODER der Weg per "Wege"-WikiSync verlinkt
+        // ist (wiki_url gesetzt). So sind auch benannte Wege findbar, deren Label auf der Karte nicht aktiviert
+        // ist. Ungenannte Roh-Segmente ("Pfad-N": kein wiki_url, kein show_label) bleiben draussen.
+        $hasMapLabel = avesmapsReadSearchBoolean($properties['show_label'] ?? false);
+        $isWikiLinked = avesmapsNormalizeSingleLine((string) ($properties['wiki_url'] ?? ''), 500) !== '';
+        if (!$hasMapLabel && !$isWikiLinked) {
             return null;
         }
 
