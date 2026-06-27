@@ -44,36 +44,34 @@ function syncRegionVisibility() {
 
 	if (showRegions) {
 		schedulePoliticalTerritoryLayerReload();
-		// Entering political (incl. from "Nur Karte"/"Standard") must (re)paint the boundary + contested
-		// canvases. The overlay's redraw is a deliberate no-op while a zoom/settle animation is mid-flight
-		// (the CSS transform handles the visual then), and a mode switch -- unlike a pan/zoom -- raises no
-		// moveend/zoomend to retrigger it. So on a freshly loaded page a switch can land in that window and
-		// leave the borders blank until a manual pan/zoom. The helper re-fires until the canvas actually paints.
+		// Entering political (incl. from "Nur Karte"/"Standard") must (re)paint the boundary canvas. A plain
+		// redraw is a no-op while the overlay's zoom-animation guard (cssZoomActive) is set, and a mode switch
+		// raises no moveend/zoomend to clear it -- so the borders stay blank until a manual pan/zoom/resize.
+		// We therefore FORCE the redraw (bypasses the guard) and re-fire it across the next few seconds so it
+		// also lands once the layer fetch returns.
 		redrawPoliticalBoundariesAfterSettle();
 	}
 }
 
-// Re-paints the derived boundary + contested-hatch canvases on entry to the political layer: immediately, and
-// then again across the next ~3s. Needed because the boundary overlay skips drawing during an in-flight
-// zoom/settle animation (cssZoomActive) and a mode switch raises no event to retrigger the draw the way a
-// pan/zoom would. NOTE: syncRegionVisibility runs several times around a switch (the switch itself + the
-// post-fetch sync), so we must NOT cancel pending re-fires on each call -- that was an earlier bug that killed
-// the catch-up entirely. Instead a guard keeps a single ~3s burst from stacking, while the immediate repaint
-// still runs on every call.
+// Force-repaints the derived boundary canvas (and the contested hatch) on entry to the political layer:
+// immediately and again across the next few seconds. The force flag bypasses the overlay's CSS-zoom guard,
+// which a mode switch can otherwise leave engaged (no moveend/zoomend follows a switch to clear it). The
+// repeats cover the layer fetch landing a little later. A guard keeps a single burst from stacking; the
+// immediate force-repaint still runs on every call (so the post-fetch sync paints as soon as data arrives).
 let politicalBoundaryRedrawBurstActive = false;
 function redrawPoliticalBoundariesAfterSettle() {
 	const repaint = () => {
 		if (getSelectedMapLayerMode() !== "political") {
 			return; // switched away again -> the !showRegions path owns the canvas now
 		}
-		window.AvesmapsBoundaryCanvasOverlay?.redraw?.();
+		window.AvesmapsBoundaryCanvasOverlay?.redraw?.(true);
 		window.AvesmapsContestedHatchOverlay?.redraw?.();
 	};
-	repaint(); // immediate -- covers the warm case where no animation is in flight
+	repaint(); // immediate force-repaint
 	if (politicalBoundaryRedrawBurstActive) {
 		return; // a catch-up burst is already running; don't stack another
 	}
 	politicalBoundaryRedrawBurstActive = true;
-	[100, 250, 500, 1000, 2000, 3000].forEach((ms) => window.setTimeout(repaint, ms));
-	window.setTimeout(() => { politicalBoundaryRedrawBurstActive = false; }, 3100);
+	[100, 300, 600, 1200, 2000, 3500, 5000].forEach((ms) => window.setTimeout(repaint, ms));
+	window.setTimeout(() => { politicalBoundaryRedrawBurstActive = false; }, 5100);
 }

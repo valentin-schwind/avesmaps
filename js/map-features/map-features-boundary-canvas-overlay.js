@@ -448,13 +448,20 @@
 		return { settlements, suppressParents };
 	}
 
-	function redraw() {
+	function redraw(force) {
 		if (!map.getPane(PANE)) return;
 		// Nur während der CSS-Zoom-Animation NICHT neu zeichnen: dort übernimmt die zoomanim-
 		// Transform das weiche Mitskalieren. Bei flyTo/setView (Doppelklick, Orts-Fokus) gibt es
 		// KEIN zoomanim, der View wird pro Frame real aktualisiert -> dort MUSS neu gezeichnet
 		// werden, sonst bleiben die Grenzen stehen bis zum Zoom-Ende.
-		if (cssZoomActive) return;
+		// force=true (mode switch into political) bypasses the zoom-animation guard: a switch raises no
+		// moveend/zoomend to clear cssZoomActive, so without this the borders stay blank until a manual
+		// pan/zoom/resize. There is no real CSS zoom in flight on a mode switch, so drawing is safe.
+		if (cssZoomActive && !force) return;
+		if (force) {
+			cssZoomActive = false;
+			canvas.style.transition = "";
+		}
 		const size = map.getSize();
 		const topLeft = map.containerPointToLayerPoint([0, 0]);
 		L.DomUtil.setPosition(canvas, topLeft); // reine Translation -> setzt eine evtl. Zoom-Skalierung zurück
