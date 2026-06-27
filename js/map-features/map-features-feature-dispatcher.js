@@ -29,7 +29,9 @@ function applyPoliticalTerritoryDerivedBoundaryVisibility(features) {
 
 		const territoryPublicId = String(properties.territory_public_id || "").trim();
 		const aggregateSourceTerritoryPublicId = String(properties.aggregate_source_territory_public_id || "").trim();
-		const hiddenBy = hiddenSourceIds.get(territoryPublicId) || hiddenSourceIds.get(aggregateSourceTerritoryPublicId) || "";
+		// geometryPublicId match added to align with the canonical runtime-fix version (see A2 in the audit doc).
+		const geometryPublicId = String(properties.geometry_public_id || properties.public_id || "").trim();
+		const hiddenBy = hiddenSourceIds.get(geometryPublicId) || hiddenSourceIds.get(territoryPublicId) || hiddenSourceIds.get(aggregateSourceTerritoryPublicId) || "";
 		if (!hiddenBy) {
 			return;
 		}

@@ -218,11 +218,20 @@ function readPoliticalTerritoryDerivedSourceIds(properties) {
 	return ids;
 }
 
+// Aligned with the canonical runtime version in map-features-derived-boundary-runtime-fix.js, which wins
+// at runtime via dynamic injection. This static copy is only the fallback for the brief async-injection gap,
+// so it must produce the same result: zoom-gate the derived source, reset stale flags, and match by
+// geometry/territory/aggregate id. Do NOT reintroduce opacity-based hiding -- visibility is driven by
+// visual_hidden_by_derived_boundary + the canvas overlay. See docs/cleanup-audit-2026-06-27.md (A2).
 function applyPoliticalTerritoryDerivedBoundaryVisibility(features) {
+	const currentZoom = Math.round(map.getZoom());
 	const hiddenSourceIds = new Map();
 	(Array.isArray(features) ? features : []).forEach((feature) => {
 		const properties = feature?.properties || {};
-		if (properties.is_derived_geometry !== true || properties.show_inner_boundaries !== false) {
+		const minZoom = readOptionalRegionZoom(properties?.min_zoom);
+		const maxZoom = readOptionalRegionZoom(properties?.max_zoom);
+		const visibleAtZoom = (minZoom === null || minZoom <= currentZoom) && (maxZoom === null || maxZoom >= currentZoom);
+		if (properties.is_derived_geometry !== true || properties.show_inner_boundaries !== false || !visibleAtZoom) {
 			return;
 		}
 		const derivedTerritoryPublicId = String(properties.territory_public_id || "").trim();
@@ -231,28 +240,28 @@ function applyPoliticalTerritoryDerivedBoundaryVisibility(features) {
 		});
 	});
 
-	if (hiddenSourceIds.size < 1) {
-		return features;
-	}
-
 	(Array.isArray(features) ? features : []).forEach((feature) => {
 		const properties = feature?.properties;
 		if (!properties || properties.is_derived_geometry === true) {
 			return;
 		}
+
+		delete properties.visual_hidden_by_derived_boundary;
+		delete properties.hidden_by_derived_territory_public_id;
+
 		const territoryPublicId = String(properties.territory_public_id || "").trim();
 		const aggregateSourceTerritoryPublicId = String(properties.aggregate_source_territory_public_id || "").trim();
-		const hiddenBy = hiddenSourceIds.get(territoryPublicId) || hiddenSourceIds.get(aggregateSourceTerritoryPublicId) || "";
+		const geometryPublicId = String(properties.geometry_public_id || properties.public_id || "").trim();
+		const hiddenBy = hiddenSourceIds.get(geometryPublicId)
+			|| hiddenSourceIds.get(territoryPublicId)
+			|| hiddenSourceIds.get(aggregateSourceTerritoryPublicId)
+			|| "";
 		if (!hiddenBy) {
 			return;
 		}
 
 		properties.visual_hidden_by_derived_boundary = true;
 		properties.hidden_by_derived_territory_public_id = hiddenBy;
-		properties.opacity = 0;
-		properties.fillOpacity = 0;
-		properties.fill_opacity = 0;
-		properties.strokeOpacity = 0;
 		properties.show_region_label = false;
 	});
 

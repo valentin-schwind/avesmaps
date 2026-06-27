@@ -321,15 +321,9 @@ function clearWaypointLocationName(locationName) {
 	return didClear;
 }
 
-function refreshPlannerAfterFeatureChange({ updateRoute = false } = {}) {
-	graphData = null;
-	refreshWaypointAutocompleteSources();
-	syncPlannerStateToUrl();
-
-	if (updateRoute && getWaypointInputValues().length) {
-		updateMapView();
-	}
-}
+// refreshPlannerAfterFeatureChange is defined in js/routing/route-render.js (loaded later in index.html,
+// wins at runtime). That version preserves the current map view (updateRouteKeepingCurrentMapView) instead
+// of recentering (updateMapView); not redefined here. See docs/cleanup-audit-2026-06-27.md (A2).
 
 function waypointDragHandleMarkup() {
 	return `
