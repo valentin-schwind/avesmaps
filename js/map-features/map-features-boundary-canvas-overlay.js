@@ -598,7 +598,6 @@
 	// - flyTo/setView-Animation (Doppelklick, Orts-Fokus): KEIN 'zoomanim', der View wird pro Frame
 	//   real aktualisiert -> bei jedem 'zoom'-Frame neu zeichnen (ohne Transform/Transition).
 	let cssZoomActive = false;
-	let cssZoomActiveSafetyTimer = null;
 	map.on("moveend zoomend viewreset resize", () => {
 		cssZoomActive = false;
 		canvas.style.transition = "";
@@ -611,20 +610,6 @@
 			return;
 		}
 		cssZoomActive = true;
-		// Safety net: a CSS zoom is normally ended by 'zoomend' (which clears cssZoomActive above). If that
-		// event is ever missed (interrupted animation / cold-load race), the flag would stay stuck true and
-		// EVERY later redraw would bail at the guard above -- including the redraw a mode switch into the
-		// political layer triggers, which raises no moveend/zoomend to clear the flag. The canvas then stays
-		// blank until a manual pan/zoom/resize. Force-clear the flag (and repaint) shortly after the transition
-		// so it can never stick. No-op for normal zooms, where zoomend has already cleared it by then.
-		window.clearTimeout(cssZoomActiveSafetyTimer);
-		cssZoomActiveSafetyTimer = window.setTimeout(function () {
-			if (cssZoomActive) {
-				cssZoomActive = false;
-				canvas.style.transition = "";
-				redraw();
-			}
-		}, 400);
 		canvas.style.transition = "transform 250ms cubic-bezier(0,0,0.25,1)";
 		const scale = map.getZoomScale(event.zoom);
 		const offset = map._latLngToNewLayerPoint(canvasTopLeftLatLng, event.zoom, event.center);
