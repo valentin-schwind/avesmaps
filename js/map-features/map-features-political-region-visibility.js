@@ -53,12 +53,15 @@ function syncRegionVisibility() {
 	}
 }
 
-// Re-paints the derived boundary + contested-hatch canvases shortly after entering the political layer, until
-// they actually land. Needed because the boundary overlay skips drawing during an in-flight zoom/settle
-// animation (cssZoomActive) and a mode switch raises no event to retrigger the draw the way a pan/zoom would.
-let politicalBoundaryRedrawTimers = [];
+// Re-paints the derived boundary + contested-hatch canvases on entry to the political layer: immediately, and
+// then again across the next ~3s. Needed because the boundary overlay skips drawing during an in-flight
+// zoom/settle animation (cssZoomActive) and a mode switch raises no event to retrigger the draw the way a
+// pan/zoom would. NOTE: syncRegionVisibility runs several times around a switch (the switch itself + the
+// post-fetch sync), so we must NOT cancel pending re-fires on each call -- that was an earlier bug that killed
+// the catch-up entirely. Instead a guard keeps a single ~3s burst from stacking, while the immediate repaint
+// still runs on every call.
+let politicalBoundaryRedrawBurstActive = false;
 function redrawPoliticalBoundariesAfterSettle() {
-	politicalBoundaryRedrawTimers.forEach((timerId) => window.clearTimeout(timerId));
 	const repaint = () => {
 		if (getSelectedMapLayerMode() !== "political") {
 			return; // switched away again -> the !showRegions path owns the canvas now
@@ -67,7 +70,10 @@ function redrawPoliticalBoundariesAfterSettle() {
 		window.AvesmapsContestedHatchOverlay?.redraw?.();
 	};
 	repaint(); // immediate -- covers the warm case where no animation is in flight
-	// ...and re-fire across the next ~3s so a cold-load switch still lands once the animation clears and the
-	// layer fetch returns. Each call clears the prior timers, so repeated syncs don't stack redraws.
-	politicalBoundaryRedrawTimers = [100, 250, 500, 1000, 2000, 3000].map((ms) => window.setTimeout(repaint, ms));
+	if (politicalBoundaryRedrawBurstActive) {
+		return; // a catch-up burst is already running; don't stack another
+	}
+	politicalBoundaryRedrawBurstActive = true;
+	[100, 250, 500, 1000, 2000, 3000].forEach((ms) => window.setTimeout(repaint, ms));
+	window.setTimeout(() => { politicalBoundaryRedrawBurstActive = false; }, 3100);
 }
