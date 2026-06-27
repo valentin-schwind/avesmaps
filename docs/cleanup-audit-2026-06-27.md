@@ -1,7 +1,22 @@
-# Cleanup Audit — 2026-06-27 (read-only, no changes applied)
+# Cleanup Audit — 2026-06-27
 
-Decision basis for a future cleanup pass. Nothing here was modified; every item
-lists a risk level and a recommended action so the owner can pick what to tackle.
+Decision basis for the cleanup pass. Each item lists a risk level and a
+recommended action.
+
+## Status (2026-06-27, owner-approved)
+
+- **A1 dead orphan — DONE** (`8e5db6ea`): `territory-override-footer.js` deleted.
+- **A2 diverged shadows — DONE** (`945762f7`): loader+dispatcher
+  `applyPoliticalTerritoryDerivedBoundaryVisibility` aligned to the runtime-fix
+  version; dead `refreshPlannerAfterFeatureChange` copy in waypoints removed;
+  `setMapStyle` monkeypatch documented.
+- **A3 identical dups — DONE** (`8e5db6ea`): `escapeRegExp` +
+  `calculateClipping*` deduped.
+- **A4 intentional overrides — DONE** (`8e5db6ea`/`945762f7`): documented in place.
+- **B dead schema — OPEN**: `map_feature_relations` / `map_proposals` not yet
+  removed (inline DDL edit, low priority).
+- **C myth files — N/A**: already correct.
+- **D server drift / structural items — OPEN**: tracked in the refactoring masterplan.
 
 ## TL;DR — the systemic root
 
