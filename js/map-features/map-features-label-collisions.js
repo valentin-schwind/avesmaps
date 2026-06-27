@@ -68,7 +68,8 @@ function resolveRegionLabelCollisions() {
 	entries.forEach(({ element }) => { setLabelElementOffset(element, 0, 0); element.style.visibility = ""; });
 
 	// Lesephase: jede Box GENAU EINMAL messen (gebatcht -> ein Reflow statt tausender).
-	const measured = entries.map(({ element, priority }) => ({ element, priority, base: measureLabelCollisionRect(element) }));
+	const regionPadding = typeof REGION_LABEL_COLLISION_PADDING !== "undefined" ? REGION_LABEL_COLLISION_PADDING : LOCATION_LABEL_COLLISION_PADDING;
+	const measured = entries.map(({ element, priority }) => ({ element, priority, base: measureLabelCollisionRect(element, regionPadding) }));
 
 	const candidates = getRegionLabelOffsetCandidates();
 	const acceptedRects = [];
@@ -221,13 +222,13 @@ function measureLabelRect(element) {
 	return getLabelCollisionTarget(element).getBoundingClientRect();
 }
 
-function measureLabelCollisionRect(element) {
+function measureLabelCollisionRect(element, padding = LOCATION_LABEL_COLLISION_PADDING) {
 	const rect = measureLabelRect(element);
 	if (rect.width <= 0 || rect.height <= 0) {
 		return rect;
 	}
 
-	return expandRect(rect, LOCATION_LABEL_COLLISION_PADDING);
+	return expandRect(rect, padding);
 }
 
 function getCollisionEntries() {

@@ -3,6 +3,9 @@ const VISUAL_MAX_ZOOM_LEVEL = 5;
 const LOCATION_LABEL_GAP = 11;
 const LOCATION_LABEL_SHIFT_SMALL = 8;
 const LOCATION_LABEL_COLLISION_PADDING = 2;
+// Kollisions-Box der TERRITORIUMS-Labels (Reichsnamen + Wappen): negativ = Box kleiner als das Label ->
+// sie stoßen sich weniger ab und packen enger. Ortslabels nutzen weiter LOCATION_LABEL_COLLISION_PADDING.
+const REGION_LABEL_COLLISION_PADDING = -5;
 const REGION_OVERLAP_SELECTION_TIMEOUT_MS = 3000;
 const REGION_OVERLAP_SELECTION_MAX_PIXEL_DISTANCE = 18;
 const REGION_EDIT_EDGE_HIT_TOLERANCE_PX = 22;
