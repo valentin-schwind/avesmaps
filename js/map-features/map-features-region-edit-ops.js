@@ -239,20 +239,5 @@ function buildRegionSplitCutterGeometry(regionEntry, startLatLng, endLatLng, sou
 	return [[ring]];
 }
 
-function calculateClippingPolygonArea(polygon) {
-	return Math.abs((polygon || []).reduce((totalArea, ring, index) => {
-		const ringArea = calculateClippingRingArea(ring);
-		return index === 0 ? totalArea + ringArea : totalArea - ringArea;
-	}, 0));
-}
-
-function calculateClippingRingArea(ring) {
-	let area = 0;
-	for (let index = 0; index < ring.length - 1; index++) {
-		const current = ring[index];
-		const next = ring[index + 1];
-		area += current[0] * next[1] - next[0] * current[1];
-	}
-
-	return Math.abs(area / 2);
-}
+// calculateClippingPolygonArea / calculateClippingRingArea live in map-features-region-geometry-helpers.js
+// (loaded later in index.html, byte-identical impl, wins at runtime); not redefined here.

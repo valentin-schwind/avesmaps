@@ -502,6 +502,11 @@ function refreshPoliticalTerritoryEditorMapLayer() {
 	if (typeof schedulePoliticalTerritoryLayerReload === "function") schedulePoliticalTerritoryLayerReload({ immediate: true });
 }
 
+// NOTE: readWikiSyncTerritoryDragPayload / initializeWikiSyncTerritoryDragAssignment /
+// buildWikiSyncTerritoryAssignmentValueFromPayload below are thin facades delegating to the
+// AvesmapsPoliticalTerritoryDragAssignment module. The full implementation in territory-drag-assignment.js
+// (loaded just after this file in index.html) re-assigns the same window.* names and wins at runtime; these
+// facades survive only as a fallback. See docs/cleanup-audit-2026-06-27.md (section A4).
 function getPoliticalTerritoryDragAssignmentModule() {
 	return window.AvesmapsPoliticalTerritoryDragAssignment || null;
 }

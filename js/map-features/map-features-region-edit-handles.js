@@ -1,3 +1,7 @@
+// NOTE: createRegionHandleIcon + refreshRegionEditHandles are OVERRIDDEN at runtime by
+// map-features-region-vertex-detach-edit.js, injected dynamically from js/routing/route-priority-queue.js,
+// which re-assigns window.* with Ctrl+drag vertex-detach variants. Edits here affect only the pre-injection
+// fallback; the detach-edit copy wins. See docs/cleanup-audit-2026-06-27.md (section A4).
 function createRegionHandleIcon() {
 	return L.divIcon({
 		className: "path-edit-handle-marker region-edit-handle-marker",

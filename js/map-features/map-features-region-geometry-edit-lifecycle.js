@@ -2,6 +2,8 @@
 // gerade editierten Geometrie wieder sichtbar sind (sonst weight 0 durch Stroke-Hide).
 const REGION_EDIT_EDGE_COLOR = "#1452f7";
 
+// NOTE: clearRegionGeometryEdit is OVERRIDDEN at runtime by map-features-region-vertex-detach-edit.js
+// (injected from js/routing/route-priority-queue.js). Edits here affect only the pre-injection fallback.
 function clearRegionGeometryEdit() {
 	if (!activeRegionGeometryEdit) return;
 

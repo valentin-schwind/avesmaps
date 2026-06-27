@@ -1,3 +1,6 @@
+// NOTE: handleRegionEditMouseMove / MouseOut / KeyUp / Click in this file are OVERRIDDEN at runtime by
+// map-features-region-vertex-detach-edit.js (injected from js/routing/route-priority-queue.js). Edits here
+// affect only the pre-injection fallback; the detach-edit copy wins. See docs/cleanup-audit-2026-06-27.md.
 function enableRegionEditEdgeControls() {
 	if (!map || map._regionEditEdgeControlsEnabled) {
 		return;

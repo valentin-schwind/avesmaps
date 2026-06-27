@@ -504,9 +504,7 @@ function formatPoliticalTerritoryDisplayBaseName(name) {
 	return normalizedName.trim();
 }
 
-function escapeRegExp(value) {
-	return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+// escapeRegExp is provided globally by app/utils.js (loaded earlier in index.html); not redefined here.
 
 function formatPoliticalTerritoryTreeDisplayName(territory) {
 	const baseName = formatPoliticalTerritoryDisplayBaseName(territory?.name || "Kein Parent");
