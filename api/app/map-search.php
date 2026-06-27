@@ -271,11 +271,13 @@ function avesmapsBuildSearchEntry(array $row): ?array {
     }
 
     if ($featureType === 'path') {
-        // Suchbar, wenn das Karten-Label aktiviert ist (show_label) ODER der Weg per "Wege"-WikiSync verlinkt
-        // ist (wiki_url gesetzt). So sind auch benannte Wege findbar, deren Label auf der Karte nicht aktiviert
-        // ist. Ungenannte Roh-Segmente ("Pfad-N": kein wiki_url, kein show_label) bleiben draussen.
+        // Suchbar, wenn das Karten-Label aktiviert ist (show_label) ODER der Weg explizit per "Wege"-WikiSync
+        // verlinkt ist. Der Wege-Link wird als properties.wiki_path-Objekt im properties_json gespeichert
+        // (api/_internal/wiki/paths.php). ACHTUNG: das top-level wiki_url ist ein angereicherter Namens-Match
+        // gegen wiki_sync_pages (map-features.php) und steht NICHT im rohen properties_json -> nicht darauf
+        // pruefen. Ungenannte Roh-Segmente ("Pfad-N": kein wiki_path, kein show_label) bleiben draussen.
         $hasMapLabel = avesmapsReadSearchBoolean($properties['show_label'] ?? false);
-        $isWikiLinked = avesmapsNormalizeSingleLine((string) ($properties['wiki_url'] ?? ''), 500) !== '';
+        $isWikiLinked = !empty($properties['wiki_path']);
         if (!$hasMapLabel && !$isWikiLinked) {
             return null;
         }
