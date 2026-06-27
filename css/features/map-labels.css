@@ -215,7 +215,7 @@ body.edit-mode .map-label img {
    sonst Abstand. Negativer margin-top zieht den Namen hoch unters Wappen (Wert bei Bedarf anpassen). */
 .region-label__content > .region-label__name-img,
 .region-label__content > .region-label__lines {
-	margin-top: -5px;
+	margin-top: -3px;
 }
 
 .region-label__coat {
