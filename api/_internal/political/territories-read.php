@@ -173,6 +173,46 @@ function avesmapsPoliticalNormalizeCapitalName(string $name): string {
 // editor picks; capital names that are prose or "keine" return no candidate and are handled via free search.
 function avesmapsPoliticalListCapitalAssignments(PDO $pdo, array $query): array {
     $continent = avesmapsNormalizeSingleLine((string) ($query['continent'] ?? AVESMAPS_POLITICAL_DEFAULT_CONTINENT), 120);
+    return ['ok' => true, 'territories' => avesmapsPoliticalComputeMissingCapitalRows($pdo, $continent)];
+}
+
+// Live-computed conflict cases for the WikiSync Konfliktloesung list: every territory with a wiki capital name
+// but no linked capital location becomes a "missing_capital" case, carrying its name-matched candidates and the
+// persisted review status (deferred/archived) from political_capital_case_status. "open" is the computed
+// default; "resolved" = a capital was assigned -> the territory drops out of the compute entirely.
+function avesmapsPoliticalListCapitalCases(PDO $pdo, array $query): array {
+    $territories = avesmapsPoliticalComputeMissingCapitalRows($pdo, '');
+
+    $statusByTerritory = [];
+    foreach ($pdo->query('SELECT territory_public_id, status, resolution_json FROM political_capital_case_status') as $statusRow) {
+        $statusByTerritory[(string) $statusRow['territory_public_id']] = $statusRow;
+    }
+
+    $cases = [];
+    foreach ($territories as $territory) {
+        $publicId = (string) $territory['territory_public_id'];
+        $statusRow = $statusByTerritory[$publicId] ?? null;
+        $resolution = null;
+        if ($statusRow !== null && isset($statusRow['resolution_json']) && $statusRow['resolution_json'] !== null && $statusRow['resolution_json'] !== '') {
+            $decoded = json_decode((string) $statusRow['resolution_json'], true);
+            $resolution = is_array($decoded) ? $decoded : null;
+        }
+        $cases[] = [
+            'id' => $publicId,
+            'source' => 'political',
+            'case_type' => 'missing_capital',
+            'status' => $statusRow !== null ? (string) $statusRow['status'] : 'open',
+            'payload' => $territory,
+            'resolution' => $resolution,
+        ];
+    }
+
+    return ['ok' => true, 'cases' => $cases];
+}
+
+// Core compute shared by both surfaces above. continent='' returns all continents (the cases view is unfiltered;
+// the legacy list passes its continent filter).
+function avesmapsPoliticalComputeMissingCapitalRows(PDO $pdo, string $continent = ''): array {
     // The capital NAME lives only in political_territory_wiki (the main table carries the LINK capital_place_id,
     // not the text). So the gap = territories whose wiki has a capital name but whose capital_place_id is unset.
     $conditions = [
@@ -248,10 +288,7 @@ function avesmapsPoliticalListCapitalAssignments(PDO $pdo, array $query): array 
         ];
     }
 
-    return [
-        'ok' => true,
-        'territories' => $territories,
-    ];
+    return $territories;
 }
 
 function avesmapsPoliticalGetTerritory(PDO $pdo, array $query): array {

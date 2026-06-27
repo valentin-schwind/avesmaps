@@ -126,6 +126,24 @@ function avesmapsPoliticalEnsureTables(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
 
+    // Missing-capital conflict cases: persists ONLY the user's review decision (deferred/archived) per
+    // territory. The "open" cases are computed live from political_territory (capital_place_id IS NULL +
+    // a wiki capital name); "resolved" = a capital was assigned -> the territory drops out of that compute,
+    // so resolved cases are never stored here. Convention as elsewhere in the schema: no FK constraints.
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS political_capital_case_status (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            territory_public_id CHAR(36) NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'open',
+            resolution_json JSON NULL,
+            reviewed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+            reviewed_by BIGINT UNSIGNED NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_political_capital_case_status_territory (territory_public_id),
+            KEY idx_political_capital_case_status_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
     $wikiKeyColumn = $pdo->query("SHOW COLUMNS FROM political_territory LIKE 'wiki_key'")->fetch(PDO::FETCH_ASSOC);
     if (!is_array($wikiKeyColumn)) {
         $pdo->exec('ALTER TABLE political_territory ADD COLUMN wiki_key VARCHAR(255) NULL AFTER wiki_id, ADD KEY idx_political_territory_wiki_key (wiki_key)');

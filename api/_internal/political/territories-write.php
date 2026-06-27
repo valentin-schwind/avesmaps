@@ -94,6 +94,11 @@ function avesmapsPoliticalAssignCapital(PDO $pdo, array $payload, array $user): 
         'id' => (int) $territoryId,
     ]);
 
+    // Assigning a capital resolves the missing-capital conflict case -> drop any persisted deferred/archived
+    // override so a stale status can't resurface if the link is cleared again later.
+    $pdo->prepare('DELETE FROM political_capital_case_status WHERE territory_public_id = :public_id')
+        ->execute(['public_id' => $territoryPublicId]);
+
     return [
         'ok' => true,
         'territory_public_id' => $territoryPublicId,
@@ -101,6 +106,42 @@ function avesmapsPoliticalAssignCapital(PDO $pdo, array $payload, array $user): 
         'capital_place_public_id' => $capitalPlacePublicId,
         'capital_place_name' => $capitalPlaceName,
     ];
+}
+
+// Persist the user's review decision for a missing-capital conflict case. defer/archive upsert the override;
+// reopen ('open') removes it so the case falls back to its live-computed open state. The "resolve" path is the
+// capital assignment in avesmapsPoliticalAssignCapital, which clears the row entirely.
+function avesmapsPoliticalUpdateCapitalCaseStatus(PDO $pdo, array $payload, array $user, string $status): array {
+    $territoryPublicId = avesmapsNormalizeSingleLine((string) ($payload['territory_public_id'] ?? ''), 64);
+    if ($territoryPublicId === '') {
+        throw new InvalidArgumentException('Das Herrschaftsgebiet (territory_public_id) ist erforderlich.');
+    }
+
+    if ($status === 'open') {
+        $pdo->prepare('DELETE FROM political_capital_case_status WHERE territory_public_id = :public_id')
+            ->execute(['public_id' => $territoryPublicId]);
+        return ['ok' => true, 'territory_public_id' => $territoryPublicId, 'status' => 'open', 'source' => 'political'];
+    }
+
+    $resolution = $payload['resolution'] ?? null;
+    $resolutionJson = is_array($resolution)
+        ? json_encode($resolution, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        : null;
+    $reviewedBy = ((int) ($user['id'] ?? 0)) ?: null;
+
+    $statement = $pdo->prepare(
+        'INSERT INTO political_capital_case_status (territory_public_id, status, resolution_json, reviewed_by)
+        VALUES (:public_id, :status, :resolution_json, :reviewed_by)
+        ON DUPLICATE KEY UPDATE status = VALUES(status), resolution_json = VALUES(resolution_json), reviewed_by = VALUES(reviewed_by)'
+    );
+    $statement->execute([
+        'public_id' => $territoryPublicId,
+        'status' => $status,
+        'resolution_json' => $resolutionJson,
+        'reviewed_by' => $reviewedBy,
+    ]);
+
+    return ['ok' => true, 'territory_public_id' => $territoryPublicId, 'status' => $status, 'source' => 'political'];
 }
 
 function avesmapsPoliticalCreateTerritory(PDO $pdo, array $payload, array $user): array {
