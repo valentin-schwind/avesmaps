@@ -175,3 +175,10 @@ function avesmapsVisitorStorageInfo(PDO $pdo): array {
     )->fetchColumn();
     return ['tables' => $tables, 'database_bytes' => (int) $total];
 }
+
+function avesmapsVisitorLanguage(): string {
+    $raw = (string) ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '');
+    $first = strtolower(trim(explode(',', $raw)[0] ?? ''));
+    $code = substr($first, 0, 2);
+    return preg_match('/^[a-z]{2}$/', $code) ? $code : '?';
+}

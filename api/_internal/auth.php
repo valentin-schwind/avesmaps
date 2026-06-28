@@ -96,6 +96,14 @@ function avesmapsRequireUserWithCapability(string $capability): array {
     return $user;
 }
 
+function avesmapsOptionalUser(): ?array {
+    $user = avesmapsCurrentUser();
+    if ($user !== null && avesmapsUserCan($user, 'edit')) {
+        return $user;
+    }
+    return null;
+}
+
 function avesmapsValidateRole(string $role): string {
     $normalizedRole = avesmapsNormalizeSingleLine($role, 20);
     if (!in_array($normalizedRole, AVESMAPS_AUTH_ROLES, true)) {
