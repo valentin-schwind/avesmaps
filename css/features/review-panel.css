@@ -799,38 +799,54 @@
 	font-weight: 700;
 }
 
+/* Unified editor sub-tab rows (underline style, shared across all panels:
+   Meldungen, WikiSync, Konfliktlösung-Status, Status/Besucher). */
+.wiki-sync-panel__tabs,
+.region-sync__viewtabs,
+.status-subtabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px;
+	border-bottom: 1px solid #e7d8c6;
+}
+
 .wiki-sync-panel__tabs {
 	margin: 10px 10px 8px;
 }
 
-.wiki-sync-panel__tab {
-	padding: 7px 10px;
-	border: 1px solid rgba(96, 72, 48, 0.24);
-	border-radius: 999px;
-	background: #f7efe4;
-	color: #4a3c2e;
+.wiki-sync-panel__tab,
+.region-sync__viewtab,
+.status-subtab {
+	flex: 0 0 auto;
+	padding: 7px 1px;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	border-radius: 0;
+	background: none;
+	color: #8a7355;
 	cursor: pointer;
 	font: inherit;
-	font-size: 12px;
-	font-weight: 700;
-	line-height: 1.25;
-	text-align: left;
-	white-space: normal;
+	font-size: 13px;
+	line-height: 1.2;
+	white-space: nowrap;
 }
 
-.wiki-sync-panel__tab.is-active {
-	border-color: #7a5a3a;
-	background: #7a5a3a;
-	color: #fff;
-	font-weight: 600;
+.wiki-sync-panel__tab.is-active,
+.region-sync__viewtab.is-active,
+.status-subtab.is-active {
+	background: none;
+	color: #5a4a3a;
+	font-weight: 700;
+	border-bottom-color: #5a4a3a;
 }
 
 .wiki-sync-panel__tab:hover,
-.wiki-sync-panel__tab:focus-visible {
-	background: #9a7a5a;
-	color: #fff;
-	border-color: #7a5a3a;
-	outline: none;
+.region-sync__viewtab:hover,
+.status-subtab:hover,
+.wiki-sync-panel__tab:focus-visible,
+.region-sync__viewtab:focus-visible,
+.status-subtab:focus-visible {
+	color: #5a4a3a;
 }
 
 .wiki-sync-panel__tab-panel {

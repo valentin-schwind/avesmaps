@@ -1,6 +1,6 @@
-.status-subtabs { display: flex; gap: 18px; padding: 4px 12px 0; border-bottom: 1px solid #e7d8c6; }
-.status-subtab { background: none; border: none; padding: 8px 2px; font-size: 13px; color: #8a7355; cursor: pointer; border-bottom: 2px solid transparent; }
-.status-subtab.is-active { color: #5a4a3a; font-weight: 700; border-bottom-color: #5a4a3a; }
+/* Sub-tab look is unified in review-panel.css (.status-subtab); keep only the
+   row's side padding here (the Status tab has no outer container padding). */
+.status-subtabs { padding: 4px 12px 0; }
 .status-subsection { display: none; padding: 12px; }
 .status-subsection.is-active { display: block; }
 .va-pills { display: flex; gap: 6px; margin-bottom: 14px; }

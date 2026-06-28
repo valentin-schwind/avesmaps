@@ -1,33 +1,10 @@
 /* Review-Reiter „Regionen" (WikiSync natuerliche Landschaften). Schlanke Optik,
    lehnt sich an die uebrigen Review-Panel-/WikiSync-Stile an. */
 
+/* Sub-tab look is unified in review-panel.css (.region-sync__viewtab); only the
+   row's outer spacing is context-specific here (nested in the accordion). */
 .region-sync__viewtabs {
-	display: flex;
-	gap: 4px;
-	margin-bottom: 8px;
-	flex-wrap: wrap;
-}
-
-.region-sync__viewtab {
-	flex: 1 1 auto;
-	padding: 5px 8px;
-	font-size: 12px;
-	border: 1px solid #dccab8;
-	border-radius: 6px;
-	background: #fffaf5;
-	color: #5a4a3a;
-	cursor: pointer;
-}
-
-.region-sync__viewtab:hover {
-	background: #f3e8db;
-}
-
-.region-sync__viewtab.is-active {
-	background: #7a5a3a;
-	border-color: #7a5a3a;
-	color: #fff;
-	font-weight: 600;
+	margin: 0 0 8px;
 }
 
 .region-sync__item {
