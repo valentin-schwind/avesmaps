@@ -33,5 +33,5 @@ try {
         'storage' => avesmapsVisitorStorageInfo($pdo),
     ]);
 } catch (Throwable $exception) {
-    avesmapsErrorResponse(500, 'server_error', 'Visitor statistics could not be loaded.');
+    avesmapsErrorResponse(500, 'server_error', 'Visitor statistics could not be loaded: ' . $exception->getMessage());
 }

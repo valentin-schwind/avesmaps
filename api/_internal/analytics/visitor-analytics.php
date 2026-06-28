@@ -165,15 +165,19 @@ function avesmapsVisitorReadMetrics(PDO $pdo, string $actorType, int $days): arr
 }
 
 function avesmapsVisitorStorageInfo(PDO $pdo): array {
-    $tables = $pdo->query(
-        "SELECT table_name AS t, table_rows AS rows, data_length + index_length AS bytes
-        FROM information_schema.TABLES
-        WHERE table_schema = DATABASE() AND table_name IN ('visitor_metric','visitor_daily_seen')"
-    )->fetchAll(PDO::FETCH_ASSOC);
-    $total = $pdo->query(
-        "SELECT SUM(data_length + index_length) AS bytes FROM information_schema.TABLES WHERE table_schema = DATABASE()"
-    )->fetchColumn();
-    return ['tables' => $tables, 'database_bytes' => (int) $total];
+    try {
+        $tables = $pdo->query(
+            "SELECT table_name AS t, table_rows AS `rows`, data_length + index_length AS bytes
+            FROM information_schema.TABLES
+            WHERE table_schema = DATABASE() AND table_name IN ('visitor_metric','visitor_daily_seen')"
+        )->fetchAll(PDO::FETCH_ASSOC);
+        $total = $pdo->query(
+            "SELECT SUM(data_length + index_length) AS bytes FROM information_schema.TABLES WHERE table_schema = DATABASE()"
+        )->fetchColumn();
+        return ['tables' => $tables, 'database_bytes' => (int) $total];
+    } catch (Throwable $exception) {
+        return ['tables' => [], 'database_bytes' => 0];
+    }
 }
 
 function avesmapsVisitorLanguage(): string {
