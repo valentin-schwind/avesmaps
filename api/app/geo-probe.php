@@ -32,6 +32,16 @@ try {
     $out['rec_region'] = $pdo->query("SELECT actor_type, dimension, SUM(count) c FROM visitor_metric WHERE metric='region' GROUP BY actor_type, dimension ORDER BY c DESC LIMIT 20")->fetchAll(PDO::FETCH_ASSOC);
     $out['rec_country'] = $pdo->query("SELECT actor_type, dimension, SUM(count) c FROM visitor_metric WHERE metric='country' GROUP BY actor_type, dimension ORDER BY c DESC LIMIT 10")->fetchAll(PDO::FETCH_ASSOC);
     $out['reader_geo'] = avesmapsVisitorReadGeo($pdo, 30);
+    try {
+        $rg = $pdo->prepare("SELECT dimension, SUM(count) AS c FROM visitor_metric WHERE metric = 'region' AND actor_type = 'visitor' AND dimension <> '' AND day >= DATE_SUB(UTC_DATE(), INTERVAL :d DAY) GROUP BY dimension ORDER BY c DESC");
+        $rg->execute(['d' => 30]);
+        $out['region_q'] = $rg->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) { $out['region_q_err'] = $e->getMessage(); }
+    try {
+        $cq = $pdo->prepare("SELECT dimension, SUM(CASE WHEN actor_type = 'visitor' THEN count ELSE 0 END) AS visitors, SUM(CASE WHEN actor_type = 'bot' THEN count ELSE 0 END) AS bots FROM visitor_metric WHERE metric = 'country' AND dimension <> '' AND dimension <> 'DE' AND day >= DATE_SUB(UTC_DATE(), INTERVAL :d DAY) GROUP BY dimension HAVING (visitors + bots) > 0 ORDER BY (visitors + bots) DESC LIMIT 40");
+        $cq->execute(['d' => 30]);
+        $out['country_q'] = $cq->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) { $out['country_q_err'] = $e->getMessage(); }
 } catch (Throwable $exception) {
     $out['error'] = $exception->getMessage();
 }
