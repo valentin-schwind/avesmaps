@@ -25,7 +25,8 @@ try {
     $user = avesmapsOptionalUser();
     $actorType = avesmapsVisitorActorType($user);
 
-    $pdo = avesmapsCreatePdo();
+    $config = avesmapsLoadApiConfig(avesmapsApiRoot());
+    $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsVisitorAnalyticsEnsureTables($pdo);
 
     avesmapsVisitorRecordUnique($pdo, $actorType);
