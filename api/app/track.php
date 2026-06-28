@@ -27,14 +27,25 @@ try {
 
     $user = avesmapsOptionalUser();
     $actorType = avesmapsVisitorActorType($user);
+    if ($actorType === 'visitor' && avesmapsVisitorIsBot((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''))) {
+        $actorType = 'bot';
+    }
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsVisitorAnalyticsEnsureTables($pdo);
+    avesmapsVisitorEnsureGeoTable($pdo);
 
     avesmapsVisitorRecordUnique($pdo, $actorType);
     avesmapsVisitorIncrement($pdo, $actorType, 'device', avesmapsVisitorDeviceClass((string) ($_SERVER['HTTP_USER_AGENT'] ?? '')));
     avesmapsVisitorIncrement($pdo, $actorType, 'language', avesmapsVisitorLanguage());
     avesmapsVisitorIncrement($pdo, $actorType, 'referrer', avesmapsVisitorReferrerSource((string) ($payload['referrer'] ?? ($_SERVER['HTTP_REFERER'] ?? ''))));
+    $geo = avesmapsVisitorGeoLookup($pdo, (string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+    if ($geo['country'] !== '') {
+        avesmapsVisitorIncrement($pdo, $actorType, 'country', $geo['country']);
+    }
+    if ($geo['region'] !== '') {
+        avesmapsVisitorIncrement($pdo, $actorType, 'region', $geo['region']);
+    }
 
     $allowed = ['pageview', 'map_load', 'search', 'route', 'route_waypoint', 'transport', 'route_option', 'map_mode', 'display_toggle'];
     $hourly = ['pageview', 'map_load'];

@@ -19,7 +19,7 @@ function avesmapsVisitorAnalyticsEnsureTables(PDO $pdo): void {
             id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
             day DATE NOT NULL,
             hour TINYINT UNSIGNED NULL,
-            actor_type ENUM('visitor','editor') NOT NULL DEFAULT 'visitor',
+            actor_type ENUM('visitor','editor','bot') NOT NULL DEFAULT 'visitor',
             metric VARCHAR(40) NOT NULL,
             dimension VARCHAR(190) NOT NULL DEFAULT '',
             count INT UNSIGNED NOT NULL DEFAULT 0,
