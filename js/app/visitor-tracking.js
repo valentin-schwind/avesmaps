@@ -48,7 +48,6 @@ function installVisitorTrackingHooks() {
 		return;
 	}
 	trackVisitorEvent("pageview");
-	trackVisitorEvent("map_load");
 
 	const modeSelect = document.getElementById("mapLayerModeSelect");
 	if (modeSelect) {

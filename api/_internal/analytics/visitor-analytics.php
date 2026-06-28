@@ -120,7 +120,7 @@ function avesmapsVisitorReadMetrics(PDO $pdo, string $actorType, int $days): arr
     $actorType = $actorType === 'editor' ? 'editor' : 'visitor';
 
     $daily = $pdo->prepare(
-        "SELECT day, SUM(CASE WHEN metric IN ('pageview','map_load') THEN count ELSE 0 END) AS views,
+        "SELECT day, SUM(CASE WHEN metric = 'pageview' THEN count ELSE 0 END) AS views,
                 SUM(CASE WHEN metric = 'unique' THEN count ELSE 0 END) AS uniques,
                 SUM(CASE WHEN metric = 'route' THEN count ELSE 0 END) AS routes
         FROM visitor_metric
@@ -132,7 +132,7 @@ function avesmapsVisitorReadMetrics(PDO $pdo, string $actorType, int $days): arr
     $heat = $pdo->prepare(
         "SELECT DAYOFWEEK(day) AS dow, hour, SUM(count) AS c
         FROM visitor_metric
-        WHERE actor_type = :a AND metric IN ('pageview','map_load') AND hour IS NOT NULL
+        WHERE actor_type = :a AND metric = 'pageview' AND hour IS NOT NULL
             AND day >= DATE_SUB(UTC_DATE(), INTERVAL :d DAY)
         GROUP BY dow, hour"
     );
