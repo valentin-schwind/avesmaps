@@ -16,6 +16,8 @@ only editor presence (who is currently editing). Split it into two sub-tabs:
 
 Audience: site admins / editors (the panel is edit-mode only). Purpose: an at-a-glance
 overview of reach, popularity, and trends over time. No external visitor ever sees this.
+The whole feature is built as a self-contained module behind a single kill-switch flag,
+and surfaces its own storage footprint (see §10).
 
 ## 2. Privacy model (the binding constraint)
 
@@ -56,9 +58,12 @@ button-toggles-section mechanism as the WikiSync panel for consistency.
   7. **Geräte** + **Kartenansicht** — two small donuts side by side.
   8. **Beliebteste Routen** — bar list.
   9. **Letzte Aktivität** — recent reports/reviews feed, each entry tagged visitor/editor.
+  10. **Speicher** — a small card showing the live size + row counts of the analytics
+      tables (see §10), so the "stays tiny" claim is verifiable at a glance.
 
   Secondary metrics (transport modes, route options, language, display toggles) live in
-  an expandable "mehr" section rather than as permanent top-level cards.
+  an expandable "mehr" section rather than as permanent top-level cards. When the module
+  is switched off (§10), the Besucher tab shows a short "ausgeschaltet" state instead.
 
 ## 4. Data model
 
@@ -148,7 +153,34 @@ display threshold.
 - `visitor_metric` stays small (only counts). Far-future option: down-sample old hourly
   rows to daily — not needed for years.
 
-## 10. Non-goals (YAGNI)
+## 10. Module boundary, kill switch & storage visibility
+
+**Treat it as a module.** All analytics code is isolated: its own collection endpoint
+(`track.php`), its own tables (`visitor_metric`, `visitor_daily_seen`), its own read
+endpoint, its own JS module, and the Besucher panel section — so it can be reasoned about,
+disabled, or removed as one unit.
+
+**Kill switch.** The whole feature is gated by a single server config flag (e.g.
+`AVESMAPS_VISITOR_ANALYTICS_ENABLED` in `config.local.php` / the API config). When off:
+
+- `track.php` no-ops immediately — no writes, no work.
+- The flag is exposed to the client via the existing bootstrap/config, so the frontend
+  stops sending beacons entirely.
+- The read endpoint returns a "disabled" status; the **Besucher** sub-tab shows a short
+  "ausgeschaltet" state instead of charts.
+- The **Editoren** sub-tab (presence) is unaffected.
+
+Flipping it is a single config edit — no code change, no deploy. This is the STRATO /
+privacy escape hatch: one switch takes the feature fully dark (no collection, nothing
+shown).
+
+**Storage visibility.** The Besucher tab's "Speicher" card reads, on panel load, the live
+size and row counts of the analytics tables from `information_schema.TABLES`
+(`data_length + index_length` for `visitor_metric` + `visitor_daily_seen`), plus the total
+database size for context. A cheap metadata query that makes growth visible and surfaces
+anything unexpected early — the verifiable counterpart to the "stays tiny" claim in §9.
+
+## 11. Non-goals (YAGNI)
 
 - No raw event log, no per-visitor rows, no cookies, no cross-day identity.
 - No external analytics tool (Plausible/Matomo).
@@ -156,7 +188,7 @@ display threshold.
 - No geographic / country breakdown (needs geo-IP → outside the chosen privacy model).
 - No funnels or A/B testing.
 
-## 11. Open items for the implementation plan
+## 12. Open items for the implementation plan
 
 - Enumerate the exact `display-options` toggles to track (markers, labels, settlement
   toggles, …) by reading the controls in `index.html`.
@@ -165,3 +197,7 @@ display threshold.
 - Confirm the "route planned" hook point in the route engine and the `display_toggle` /
   `map_mode` change hooks.
 - Confirm the daily-salt source + rotation for the unique hash.
+- Decide the kill-switch flag name + home (`config.local.php` constant vs a DB setting),
+  and how it reaches the client (bootstrap/config payload).
+- Decide whether the "Speicher" card shows only the two analytics tables or also the whole
+  database size, and the unit/precision (KB/MB, thousands separator).
