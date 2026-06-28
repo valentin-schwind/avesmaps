@@ -81,3 +81,36 @@ function avesmapsVisitorDeviceClass(string $ua): string {
     }
     return 'desktop';
 }
+
+function avesmapsVisitorIncrement(PDO $pdo, string $actorType, string $metric, string $dimension = '', ?int $hour = null): void {
+    $metric = substr(trim($metric), 0, 40);
+    if ($metric === '') {
+        return;
+    }
+    $dimension = substr(trim($dimension), 0, 190);
+    $statement = $pdo->prepare(
+        'INSERT INTO visitor_metric (day, hour, actor_type, metric, dimension, count)
+        VALUES (UTC_DATE(), :hour, :actor_type, :metric, :dimension, 1)
+        ON DUPLICATE KEY UPDATE count = count + 1'
+    );
+    $statement->execute([
+        'hour' => $hour,
+        'actor_type' => $actorType === 'editor' ? 'editor' : 'visitor',
+        'metric' => $metric,
+        'dimension' => $dimension,
+    ]);
+}
+
+function avesmapsVisitorPurgeOldSeen(PDO $pdo): void {
+    $pdo->exec("DELETE FROM visitor_daily_seen WHERE day < UTC_DATE()");
+}
+
+function avesmapsVisitorRecordUnique(PDO $pdo, string $actorType): void {
+    $hash = avesmapsVisitorDailyHash();
+    $insert = $pdo->prepare('INSERT IGNORE INTO visitor_daily_seen (day, visitor_hash) VALUES (UTC_DATE(), :hash)');
+    $insert->execute(['hash' => $hash]);
+    if ($insert->rowCount() > 0) {
+        avesmapsVisitorIncrement($pdo, $actorType, 'unique');
+        avesmapsVisitorPurgeOldSeen($pdo);
+    }
+}
