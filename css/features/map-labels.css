@@ -188,7 +188,7 @@ body.edit-mode .map-label img {
 	align-items: center;
 	/* Abstand Wappen<->Name knapp halten (Spalte) -- das Halo-Polster des Namens haelt minimalen Abstand. */
 	gap: 0px;
-	padding: 2px 5px;
+	padding: 2px 5px 5px;
 	border-radius: 6px;
 	/* Kein halbtransparentes Pill mehr; die Lesbarkeit liefert der weiße Text-Schatten
 	   (.region-label text-shadow: 0 0 4px white). */
@@ -215,7 +215,7 @@ body.edit-mode .map-label img {
    sonst Abstand. Negativer margin-top zieht den Namen hoch unters Wappen (Wert bei Bedarf anpassen). */
 .region-label__content > .region-label__name-img,
 .region-label__content > .region-label__lines {
-	margin-top: -3px;
+	margin-top: 2px;
 }
 
 .region-label__coat {
