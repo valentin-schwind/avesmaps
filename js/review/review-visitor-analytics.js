@@ -153,3 +153,27 @@ function renderVisitorDashboard(mount, data) {
 		pill.addEventListener("click", () => { visitorDashboardDays = Number(pill.dataset.vaDays); void loadVisitorDashboard(); });
 	});
 }
+
+async function loadEditorActivityFigures() {
+	const mount = document.getElementById("editor-activity-figures");
+	if (!mount || typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE || window.AVESMAPS_VISITOR_ANALYTICS_ENABLED === false) {
+		return;
+	}
+	try {
+		const response = await fetch(`${VISITOR_METRICS_API_URL}?actor=editor&days=7&_=${Date.now()}`, { credentials: "same-origin", headers: { Accept: "application/json" } });
+		const data = await response.json();
+		if (!data || data.ok !== true || data.enabled === false) {
+			return;
+		}
+		const edits = (data.metrics.daily || []).reduce((a, r) => a + (Number(r.views) || 0), 0);
+		mount.innerHTML = `<div class="va-card" style="margin-top:10px"><div class="va-card__label">Editoren-Aktivität (7 T)</div><div class="va-storage">Editor-Aufrufe: ${edits.toLocaleString("de-DE")}</div></div>`;
+	} catch (error) {
+		/* best-effort */
+	}
+}
+
+if (document.readyState === "loading") {
+	document.addEventListener("DOMContentLoaded", () => loadEditorActivityFigures(), { once: true });
+} else {
+	loadEditorActivityFigures();
+}
