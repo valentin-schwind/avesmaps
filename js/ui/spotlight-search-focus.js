@@ -32,6 +32,7 @@ function getSpotlightPathBounds(path) {
 }
 
 function selectSpotlightSearchEntry(entry) {
+	if (typeof trackVisitorEvent === "function") { trackVisitorEvent("search", String(document.getElementById("spotlight-search-input")?.value || "").slice(0, 80)); }
 	closeSpotlightSearch();
 	clearSpotlightSelection();
 	spotlightActiveSelectionId = entry.id;

@@ -42,3 +42,32 @@ document.addEventListener("visibilitychange", () => {
 	}
 });
 window.trackVisitorEvent = trackVisitorEvent;
+
+function installVisitorTrackingHooks() {
+	if (!visitorTrackingEnabled()) {
+		return;
+	}
+	trackVisitorEvent("pageview");
+	trackVisitorEvent("map_load");
+
+	const modeSelect = document.getElementById("mapLayerModeSelect");
+	if (modeSelect) {
+		modeSelect.addEventListener("change", () => trackVisitorEvent("map_mode", modeSelect.value));
+	}
+
+	const displayOptions = document.querySelector(".display-options");
+	if (displayOptions) {
+		displayOptions.addEventListener("change", (event) => {
+			const input = event.target;
+			if (input && input.type === "checkbox") {
+				trackVisitorEvent("display_toggle", (input.id || input.name || "toggle") + ":" + (input.checked ? "on" : "off"));
+			}
+		});
+	}
+}
+
+if (document.readyState === "loading") {
+	document.addEventListener("DOMContentLoaded", installVisitorTrackingHooks, { once: true });
+} else {
+	installVisitorTrackingHooks();
+}

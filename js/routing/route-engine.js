@@ -507,6 +507,16 @@ async function updateMapViewServerPrimary() {
 			// Fit to the WHOLE rendered route -- the earlier focusMapOnActiveTargets() only framed the
 			// waypoints (maxZoom 4). This fills the frame on the proper, route-aware zoom.
 			zoomToCurrentRoute();
+			if (typeof trackVisitorEvent === "function") {
+				const wpNames = (selectedLocations || []).map((w) => (w && w.name ? String(w.name) : "Kartenpunkt"));
+				wpNames.forEach((n) => trackVisitorEvent("route_waypoint", n));
+				if (wpNames.length >= 2) {
+					trackVisitorEvent("route", wpNames[0] + " → " + wpNames[wpNames.length - 1]);
+				}
+				trackVisitorEvent("route_option", useShortest ? "kürzeste" : "schnellste");
+				if (routeOptions.landOption) { trackVisitorEvent("transport", String(routeOptions.landOption)); }
+				if (routeOptions.riverOption) { trackVisitorEvent("transport", String(routeOptions.riverOption)); }
+			}
 		} else {
 			alert("Keine gültigen Server-Routensegmente gefunden.");
 			resetOverview();
@@ -554,6 +564,18 @@ function updateMapViewClientLegacy(useShortest, requestId) {
 			showRoutePlan(routeNodeNames, segments);
 			// Fit to the whole rendered route (not just the waypoints) so it fills the frame.
 			zoomToCurrentRoute();
+			if (typeof trackVisitorEvent === "function") {
+				const wpNames = (selectedLocations || []).map((w) => (w && w.name ? String(w.name) : "Kartenpunkt"));
+				wpNames.forEach((n) => trackVisitorEvent("route_waypoint", n));
+				if (wpNames.length >= 2) {
+					trackVisitorEvent("route", wpNames[0] + " → " + wpNames[wpNames.length - 1]);
+				}
+				const useShortest = $('input[name="pathType"]:checked').val() === "shortest";
+				trackVisitorEvent("route_option", useShortest ? "kürzeste" : "schnellste");
+				const legacyRouteOptions = buildRouteOptionsFromPlannerControls();
+				if (legacyRouteOptions.landOption) { trackVisitorEvent("transport", String(legacyRouteOptions.landOption)); }
+				if (legacyRouteOptions.riverOption) { trackVisitorEvent("transport", String(legacyRouteOptions.riverOption)); }
+			}
 		} else {
 			alert("Keine gültigen Routensegmente gefunden.");
 		}
