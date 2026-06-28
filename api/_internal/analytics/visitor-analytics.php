@@ -228,3 +228,69 @@ function avesmapsVisitorLanguage(): string {
     $code = substr($first, 0, 2);
     return preg_match('/^[a-z]{2}$/', $code) ? $code : '?';
 }
+
+function avesmapsVisitorEnsureGeoTable(PDO $pdo): void {
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS visitor_geo_range (
+            ip_start VARBINARY(16) NOT NULL,
+            ip_end VARBINARY(16) NOT NULL,
+            country CHAR(2) NOT NULL DEFAULT '',
+            region VARCHAR(80) NOT NULL DEFAULT '',
+            PRIMARY KEY (ip_start)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
+}
+
+// Normalises an IPv4 or IPv6 address to a comparable 16-byte key (IPv4 stored as
+// an IPv4-mapped IPv6 address), so a single VARBINARY(16) range table covers both.
+function avesmapsVisitorIpKey(string $ip): ?string {
+    $packed = @inet_pton($ip);
+    if ($packed === false) {
+        return null;
+    }
+    if (strlen($packed) === 4) {
+        return "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff" . $packed;
+    }
+    if (strlen($packed) === 16) {
+        return $packed;
+    }
+    return null;
+}
+
+// Resolves an IP to {country, region}. Region is only populated for DE rows in
+// the dataset; other countries return an empty region. The IP is used only here
+// and never stored. Returns empty strings when the range table is missing/unmatched.
+function avesmapsVisitorGeoLookup(PDO $pdo, string $ip): array {
+    $empty = ['country' => '', 'region' => ''];
+    $key = avesmapsVisitorIpKey($ip);
+    if ($key === null) {
+        return $empty;
+    }
+    $keyHex = strtoupper(bin2hex($key));
+    try {
+        $statement = $pdo->prepare(
+            "SELECT country, region, HEX(ip_end) AS ip_end_hex FROM visitor_geo_range
+            WHERE ip_start <= UNHEX(:ip) ORDER BY ip_start DESC LIMIT 1"
+        );
+        $statement->execute(['ip' => $keyHex]);
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+        if ($row && (string) $row['ip_end_hex'] >= $keyHex) {
+            return ['country' => (string) $row['country'], 'region' => (string) $row['region']];
+        }
+    } catch (Throwable $exception) {
+        // visitor_geo_range not imported yet -- degrade to "unknown"
+    }
+    return $empty;
+}
+
+// Best-effort bot classification from the User-Agent: declared crawlers, headless
+// browsers and HTTP libraries. Not foolproof against spoofed UAs (see design notes).
+function avesmapsVisitorIsBot(string $userAgent): bool {
+    if (trim($userAgent) === '') {
+        return true;
+    }
+    return (bool) preg_match(
+        '/bot\b|crawl|spider|slurp|headless|phantom|puppeteer|playwright|python-requests|\bcurl\/|\bwget\b|libwww|scrapy|facebookexternalhit|embedly|whatsapp|telegrambot|discordbot|semrush|ahrefs|mj12|dotbot|petalbot|yandex|baidu|sogou|ia_archiver|googlebot|applebot|duckduckbot|bingbot/i',
+        $userAgent
+    );
+}
