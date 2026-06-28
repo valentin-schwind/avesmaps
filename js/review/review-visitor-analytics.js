@@ -153,9 +153,16 @@ function renderVisitorDashboard(mount, data) {
 	const stoBytes = stoRows.reduce((a, t) => a + (Number(t.bytes) || 0), 0);
 	const stoRowsN = stoRows.reduce((a, t) => a + (Number(t.rows) || 0), 0);
 
+	const pillsMount = document.getElementById("visitor-pills");
+	if (pillsMount) {
+		pillsMount.innerHTML = `<div class="va-pills">${[7, 30, 365, 3660].map((d) => `<span class="va-pill${d === visitorDashboardDays ? " is-active" : ""}" data-va-days="${d}">${d === 7 ? "7 T" : d === 30 ? "30 T" : d === 365 ? "12 M" : "Alles"}</span>`).join("")}</div>`;
+		pillsMount.querySelectorAll("[data-va-days]").forEach((pill) => {
+			pill.addEventListener("click", () => { visitorDashboardDays = Number(pill.dataset.vaDays); void loadVisitorDashboard(); });
+		});
+	}
+
 	mount.innerHTML =
-		`<div class="va-pills">${[7, 30, 365, 3660].map((d) => `<span class="va-pill${d === visitorDashboardDays ? " is-active" : ""}" data-va-days="${d}">${d === 7 ? "7 T" : d === 30 ? "30 T" : d === 365 ? "12 M" : "Alles"}</span>`).join("")}</div>`
-		+ `<div class="va-kpis">`
+		`<div class="va-kpis">`
 		+ `<div class="va-kpi"><div class="va-kpi__label">Aufrufe</div><div class="va-kpi__value">${views.toLocaleString("de-DE")}</div></div>`
 		+ `<div class="va-kpi"><div class="va-kpi__label">Eindeutige</div><div class="va-kpi__value">${uniq.toLocaleString("de-DE")}</div></div>`
 		+ `<div class="va-kpi"><div class="va-kpi__label">Routen</div><div class="va-kpi__value">${routes.toLocaleString("de-DE")}</div></div>`
@@ -177,9 +184,6 @@ function renderVisitorDashboard(mount, data) {
 		+ `</details>`
 		+ `<div class="va-card"><div class="va-card__label">Speicher</div><div class="va-storage">Analytics-Tabellen: ${vaBytes(stoBytes)} · ${stoRowsN.toLocaleString("de-DE")} Zeilen<br>Datenbank gesamt: ${vaBytes(data.storage && data.storage.database_bytes)}</div></div>`;
 
-	mount.querySelectorAll("[data-va-days]").forEach((pill) => {
-		pill.addEventListener("click", () => { visitorDashboardDays = Number(pill.dataset.vaDays); void loadVisitorDashboard(); });
-	});
 }
 
 async function loadEditorActivityFigures() {
