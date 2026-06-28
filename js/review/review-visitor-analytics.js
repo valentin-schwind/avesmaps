@@ -194,6 +194,62 @@ function vaMapDimensions(rows, mapper) {
 	return (rows || []).map((r) => ({ dimension: mapper(r.dimension), c: r.c }));
 }
 
+const VA_COUNTRY_LABELS = { AT: "Österreich", CH: "Schweiz", NL: "Niederlande", FR: "Frankreich", GB: "Großbritannien", US: "USA", IT: "Italien", ES: "Spanien", BE: "Belgien", PL: "Polen", CZ: "Tschechien", DK: "Dänemark", SE: "Schweden", NO: "Norwegen", FI: "Finnland", LU: "Luxemburg", LI: "Liechtenstein", PT: "Portugal", IE: "Irland", GR: "Griechenland", HU: "Ungarn", RO: "Rumänien", RU: "Russland", UA: "Ukraine", TR: "Türkei", CA: "Kanada", AU: "Australien", JP: "Japan", CN: "China", IN: "Indien", BR: "Brasilien", SK: "Slowakei", SI: "Slowenien", HR: "Kroatien", BG: "Bulgarien", RS: "Serbien", EE: "Estland", LV: "Lettland", LT: "Litauen" };
+
+function loadDeGeometry() {
+	return new Promise((resolve) => {
+		if (window.AVESMAPS_DE_BUNDESLAENDER) {
+			resolve(window.AVESMAPS_DE_BUNDESLAENDER);
+			return;
+		}
+		const script = document.createElement("script");
+		script.src = "js/map-features/de-bundeslaender-geo.js";
+		script.onload = () => resolve(window.AVESMAPS_DE_BUNDESLAENDER || null);
+		script.onerror = () => resolve(null);
+		document.head.appendChild(script);
+	});
+}
+
+async function renderGeoMap(mount, regions) {
+	const geo = await loadDeGeometry();
+	if (!geo || !Array.isArray(geo.states)) {
+		mount.innerHTML = '<div class="va-storage">Karte nicht verfügbar.</div>';
+		return;
+	}
+	const byName = {};
+	(regions || []).forEach((r) => { byName[r.dimension] = Number(r.c) || 0; });
+	const max = Math.max.apply(null, geo.states.map((s) => byName[s.name] || 0).concat([1]));
+	const paths = geo.states.map((s) => {
+		const v = byName[s.name] || 0;
+		const fill = v > 0 ? `rgba(42,120,214,${(0.12 + (v / max) * 0.8).toFixed(2)})` : "#efe6d9";
+		return `<path d="${s.d}" fill="${fill}" stroke="#cdb79f" stroke-width="0.6"><title>${vaEscape(s.name)}: ${v}</title></path>`;
+	}).join("");
+	const labels = geo.states.map((s) => {
+		const v = byName[s.name] || 0;
+		if (v <= 0) { return ""; }
+		const dark = v / max > 0.55;
+		return `<text x="${s.cx}" y="${s.cy}" text-anchor="middle" dy="0.32em" font-size="9" font-weight="700" fill="${dark ? "#ffffff" : "#2f251c"}" style="paint-order:stroke;stroke:${dark ? "#1b4f86" : "#fffaf5"};stroke-width:2.5px;pointer-events:none">${v}</text>`;
+	}).join("");
+	mount.innerHTML = `<svg viewBox="${geo.viewBox}" width="100%" style="max-width:280px;display:block;margin:0 auto" role="img" aria-label="Klicks nach Bundesland">${paths}${labels}</svg>`;
+}
+
+function renderGeoCountries(mount, countries) {
+	const list = countries || [];
+	if (list.length === 0) {
+		mount.innerHTML = '<div class="va-storage">noch keine Daten</div>';
+		return;
+	}
+	const max = Math.max.apply(null, list.map((c) => Math.max(Number(c.visitors) || 0, Number(c.bots) || 0)).concat([1]));
+	mount.innerHTML = list.map((c) => {
+		const name = VA_COUNTRY_LABELS[c.dimension] || c.dimension;
+		const vis = Number(c.visitors) || 0;
+		const bot = Number(c.bots) || 0;
+		const vw = Math.round(vis / max * 100);
+		const bw = Math.round(bot / max * 100);
+		return `<div class="va-geo-row"><div class="va-geo-name">${vaEscape(name)}</div><div class="va-geo-bars"><div class="va-geo-bar"><span class="va-geo-track"><span class="va-geo-fill" style="width:${vw}%;background:#1baf7a"></span></span><span class="va-geo-val">${vis}</span></div><div class="va-geo-bar"><span class="va-geo-track"><span class="va-geo-fill" style="width:${bw}%;background:#888780"></span></span><span class="va-geo-val">${bot}</span></div></div></div>`;
+	}).join("");
+}
+
 function renderVisitorDashboard(mount, data) {
 	const m = data.metrics || {};
 	const sum = (arr, key) => (arr || []).reduce((a, r) => a + (Number(r[key]) || 0), 0);
@@ -221,6 +277,7 @@ function renderVisitorDashboard(mount, data) {
 		+ `<div class="va-card"><div class="va-card__label">Aktivität über Zeit</div>${vaLine(m.daily)}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Aktivste Zeiten</div>${vaHeatmap(m.heatmap)}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Top-Suchbegriffe</div>${vaBars(m.search, "#2a78d6")}</div>`
+		+ `<div class="va-card"><div class="va-card__label">Herkunft</div><div id="visitor-geo-map"></div><div class="va-geo-legend"><span>wenige</span><span class="va-geo-scale"><i style="background:rgba(42,120,214,0.12)"></i><i style="background:rgba(42,120,214,0.38)"></i><i style="background:rgba(42,120,214,0.64)"></i><i style="background:rgba(42,120,214,0.9)"></i></span><span>viele Klicks</span></div><div class="va-geo-clabel">Andere Länder<span class="va-geo-key"><i style="background:#1baf7a"></i>echte<i style="background:#888780"></i>Bots</span></div><div id="visitor-geo-countries"></div></div>`
 		+ `<div class="va-card"><div class="va-card__label">Referrer</div>${vaBars(m.referrer, "#4a3aa7")}</div>`
 		+ `<div class="va-two"><div class="va-card"><div class="va-card__label">Geräte</div>${vaDonut(m.device, ["#2a78d6", "#1baf7a", "#eda100"])}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Kartenansicht</div>${vaDonut(vaMapDimensions(m.map_mode, vaPrettyMapMode), ["#2a78d6", "#4a3aa7", "#eda100", "#888780"])}</div></div>`
@@ -235,6 +292,15 @@ function renderVisitorDashboard(mount, data) {
 		+ `</details>`
 		+ `<div class="va-card"><div class="va-card__label">Speicher</div><div class="va-storage">Analytics-Tabellen: ${vaBytes(stoBytes)} · ${stoRowsN.toLocaleString("de-DE")} Zeilen<br>Datenbank gesamt: ${vaBytes(data.storage && data.storage.database_bytes)}</div></div>`;
 
+	const geo = data.geo || {};
+	const geoMap = document.getElementById("visitor-geo-map");
+	if (geoMap) {
+		void renderGeoMap(geoMap, geo.regions);
+	}
+	const geoCountries = document.getElementById("visitor-geo-countries");
+	if (geoCountries) {
+		renderGeoCountries(geoCountries, geo.countries);
+	}
 }
 
 async function loadEditorActivityFigures() {
