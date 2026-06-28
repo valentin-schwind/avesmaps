@@ -49,18 +49,17 @@ function installVisitorTrackingHooks() {
 	}
 	trackVisitorEvent("pageview");
 
-	const modeSelect = document.getElementById("mapLayerModeSelect");
-	if (modeSelect) {
-		modeSelect.addEventListener("change", () => trackVisitorEvent("map_mode", modeSelect.value));
-	}
-
-	const displayOptions = document.querySelector(".display-options");
-	if (displayOptions) {
-		displayOptions.addEventListener("change", (event) => {
-			const input = event.target;
-			if (input && input.type === "checkbox") {
-				trackVisitorEvent("display_toggle", (input.id || input.name || "toggle") + ":" + (input.checked ? "on" : "off"));
-			}
+	// The app switches the map mode and display toggles through jQuery -- the custom transport control does
+	// $select.val(value).trigger("change"), and jQuery's synthetic trigger does NOT reach native
+	// addEventListener("change") listeners. Bind with jQuery so we catch both real user changes and
+	// jQuery-triggered ones (otherwise map_mode / display_toggle are never recorded).
+	const jq = window.jQuery;
+	if (jq) {
+		jq("#mapLayerModeSelect").on("change", function () {
+			trackVisitorEvent("map_mode", String(jq(this).val() || ""));
+		});
+		jq(".display-options").on("change", "input[type=checkbox]", function () {
+			trackVisitorEvent("display_toggle", (this.id || this.name || "toggle") + ":" + (this.checked ? "on" : "off"));
 		});
 	}
 }
