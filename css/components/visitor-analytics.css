@@ -1,0 +1,23 @@
+.status-subtabs { display: flex; gap: 18px; padding: 4px 12px 0; border-bottom: 1px solid #e7d8c6; }
+.status-subtab { background: none; border: none; padding: 8px 2px; font-size: 13px; color: #8a7355; cursor: pointer; border-bottom: 2px solid transparent; }
+.status-subtab.is-active { color: #5a4a3a; font-weight: 700; border-bottom-color: #5a4a3a; }
+.status-subsection { display: none; padding: 12px; }
+.status-subsection.is-active { display: block; }
+.va-pills { display: flex; gap: 6px; margin-bottom: 14px; }
+.va-pill { font-size: 12px; padding: 5px 11px; border-radius: 999px; border: 1px solid #cdb79f; background: #fffaf5; color: #8a7355; cursor: pointer; }
+.va-pill.is-active { background: #5a4a3a; color: #fffaf5; border-color: #5a4a3a; }
+.va-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.va-kpi { background: #f6efe6; border-radius: 8px; padding: 11px; }
+.va-kpi__label { font-size: 12px; color: #8a7355; }
+.va-kpi__value { font-size: 20px; font-weight: 700; color: #5a4a3a; }
+.va-kpi__trend { font-size: 12px; color: #1d9e75; }
+.va-card { background: #fffaf5; border: 1px solid #cdb79f; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+.va-card__label { font-size: 13px; font-weight: 700; color: #5a4a3a; margin: 0 0 10px; }
+.va-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 13px; }
+.va-row__name { width: 48%; color: #5a4a3a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.va-row__track { flex: 1; height: 8px; background: #efe6d9; border-radius: 4px; overflow: hidden; }
+.va-row__fill { height: 100%; border-radius: 4px; background: #2a78d6; }
+.va-row__val { color: #8a7355; font-size: 12px; min-width: 34px; text-align: right; }
+.va-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.va-storage { font-size: 12px; color: #8a7355; }
+.va-off { padding: 24px 12px; text-align: center; color: #8a7355; font-size: 13px; }
