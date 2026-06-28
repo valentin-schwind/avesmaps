@@ -6,9 +6,12 @@ require __DIR__ . '/../_internal/bootstrap.php';
 require __DIR__ . '/../_internal/auth.php';
 require __DIR__ . '/../_internal/analytics/visitor-analytics.php';
 
-avesmapsApplyCorsPolicy();
-
 try {
+    $config = avesmapsLoadApiConfig(avesmapsApiRoot());
+    if (!avesmapsApplyCorsPolicy($config)) {
+        avesmapsJsonResponse(200, ['ok' => true]);
+    }
+
     if (!avesmapsVisitorAnalyticsEnabled()) {
         avesmapsJsonResponse(200, ['ok' => true]);
     }
@@ -25,7 +28,6 @@ try {
     $user = avesmapsOptionalUser();
     $actorType = avesmapsVisitorActorType($user);
 
-    $config = avesmapsLoadApiConfig(avesmapsApiRoot());
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
     avesmapsVisitorAnalyticsEnsureTables($pdo);
 
