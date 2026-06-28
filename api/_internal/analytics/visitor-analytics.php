@@ -114,3 +114,64 @@ function avesmapsVisitorRecordUnique(PDO $pdo, string $actorType): void {
         avesmapsVisitorPurgeOldSeen($pdo);
     }
 }
+
+function avesmapsVisitorReadMetrics(PDO $pdo, string $actorType, int $days): array {
+    $days = max(1, min(3660, $days));
+    $actorType = $actorType === 'editor' ? 'editor' : 'visitor';
+
+    $daily = $pdo->prepare(
+        "SELECT day, SUM(CASE WHEN metric IN ('pageview','map_load') THEN count ELSE 0 END) AS views,
+                SUM(CASE WHEN metric = 'unique' THEN count ELSE 0 END) AS uniques,
+                SUM(CASE WHEN metric = 'route' THEN count ELSE 0 END) AS routes
+        FROM visitor_metric
+        WHERE actor_type = :a AND day >= DATE_SUB(UTC_DATE(), INTERVAL :d DAY)
+        GROUP BY day ORDER BY day"
+    );
+    $daily->execute(['a' => $actorType, 'd' => $days]);
+
+    $heat = $pdo->prepare(
+        "SELECT DAYOFWEEK(day) AS dow, hour, SUM(count) AS c
+        FROM visitor_metric
+        WHERE actor_type = :a AND metric IN ('pageview','map_load') AND hour IS NOT NULL
+            AND day >= DATE_SUB(UTC_DATE(), INTERVAL :d DAY)
+        GROUP BY dow, hour"
+    );
+    $heat->execute(['a' => $actorType, 'd' => $days]);
+
+    $top = static function (string $metric, int $minCount) use ($pdo, $actorType, $days): array {
+        $statement = $pdo->prepare(
+            "SELECT dimension, SUM(count) AS c FROM visitor_metric
+            WHERE actor_type = :a AND metric = :m AND dimension <> ''
+                AND day >= DATE_SUB(UTC_DATE(), INTERVAL :d DAY)
+            GROUP BY dimension HAVING c >= :min ORDER BY c DESC LIMIT 8"
+        );
+        $statement->execute(['a' => $actorType, 'm' => $metric, 'd' => $days, 'min' => $minCount]);
+        return $statement->fetchAll(PDO::FETCH_ASSOC);
+    };
+
+    return [
+        'daily' => $daily->fetchAll(PDO::FETCH_ASSOC),
+        'heatmap' => $heat->fetchAll(PDO::FETCH_ASSOC),
+        'search' => $top('search', 3),
+        'referrer' => $top('referrer', 1),
+        'device' => $top('device', 1),
+        'map_mode' => $top('map_mode', 1),
+        'route' => $top('route', 3),
+        'transport' => $top('transport', 1),
+        'route_option' => $top('route_option', 1),
+        'display_toggle' => $top('display_toggle', 1),
+        'language' => $top('language', 1),
+    ];
+}
+
+function avesmapsVisitorStorageInfo(PDO $pdo): array {
+    $tables = $pdo->query(
+        "SELECT table_name AS t, table_rows AS rows, data_length + index_length AS bytes
+        FROM information_schema.TABLES
+        WHERE table_schema = DATABASE() AND table_name IN ('visitor_metric','visitor_daily_seen')"
+    )->fetchAll(PDO::FETCH_ASSOC);
+    $total = $pdo->query(
+        "SELECT SUM(data_length + index_length) AS bytes FROM information_schema.TABLES WHERE table_schema = DATABASE()"
+    )->fetchColumn();
+    return ['tables' => $tables, 'database_bytes' => (int) $total];
+}
