@@ -314,7 +314,9 @@ function avesmapsVisitorReadGeo(PDO $pdo, int $days): array {
             FROM visitor_metric
             WHERE metric = 'country' AND dimension <> '' AND dimension <> 'DE'
                 AND day >= DATE_SUB(UTC_DATE(), INTERVAL :d DAY)
-            GROUP BY dimension HAVING (visitors + bots) > 0 ORDER BY (visitors + bots) DESC LIMIT 40"
+            GROUP BY dimension
+            HAVING SUM(CASE WHEN actor_type IN ('visitor','bot') THEN count ELSE 0 END) > 0
+            ORDER BY SUM(CASE WHEN actor_type IN ('visitor','bot') THEN count ELSE 0 END) DESC LIMIT 40"
         );
         $countries->execute(['d' => $days]);
         return [
