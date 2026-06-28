@@ -157,6 +157,7 @@ function avesmapsVisitorReadMetrics(PDO $pdo, string $actorType, int $days): arr
         'device' => $top('device', 1),
         'map_mode' => $top('map_mode', 1),
         'route' => $top('route', 3),
+        'route_waypoint' => $top('route_waypoint', 3),
         'transport' => $top('transport', 1),
         'route_option' => $top('route_option', 1),
         'display_toggle' => $top('display_toggle', 1),
@@ -178,6 +179,47 @@ function avesmapsVisitorStorageInfo(PDO $pdo): array {
     } catch (Throwable $exception) {
         return ['tables' => [], 'database_bytes' => 0];
     }
+}
+
+function avesmapsVisitorRecentActivity(PDO $pdo, int $limit = 12): array {
+    $limit = max(1, min(50, $limit));
+    $items = [];
+    try {
+        $reviews = $pdo->query(
+            "SELECT location_name, stars, created_at FROM map_reviews
+            WHERE is_hidden = 0 AND is_spam = 0 ORDER BY created_at DESC LIMIT 25"
+        )->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($reviews as $row) {
+            $items[] = [
+                'type' => 'Bewertung',
+                'label' => (string) ($row['location_name'] ?? ''),
+                'detail' => ((int) ($row['stars'] ?? 0)) . '★',
+                'at' => (string) ($row['created_at'] ?? ''),
+            ];
+        }
+    } catch (Throwable $exception) {
+        // map_reviews may not exist on this install
+    }
+    try {
+        $reports = $pdo->query(
+            "SELECT name, status, created_at FROM location_reports
+            ORDER BY created_at DESC LIMIT 25"
+        )->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($reports as $row) {
+            $items[] = [
+                'type' => 'Meldung',
+                'label' => (string) ($row['name'] ?? ''),
+                'detail' => (string) ($row['status'] ?? ''),
+                'at' => (string) ($row['created_at'] ?? ''),
+            ];
+        }
+    } catch (Throwable $exception) {
+        // location_reports may not exist on this install
+    }
+    usort($items, static function (array $a, array $b): int {
+        return strcmp((string) $b['at'], (string) $a['at']);
+    });
+    return array_slice($items, 0, $limit);
 }
 
 function avesmapsVisitorLanguage(): string {

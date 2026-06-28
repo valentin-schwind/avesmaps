@@ -123,6 +123,26 @@ function vaDonut(rows, cols) {
 	return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px"><svg viewBox="0 0 68 68" width="78" height="78" role="img" aria-label="Verteilung"></svg>`.replace("></svg>", ">" + seg + "</svg>") + `<div style="align-self:flex-start">${leg}</div></div>`;
 }
 
+function vaRelTime(at) {
+	if (!at) { return ""; }
+	const t = new Date(String(at).replace(" ", "T"));
+	if (isNaN(t.getTime())) { return String(at); }
+	const diff = Math.max(0, (Date.now() - t.getTime()) / 1000);
+	if (diff < 60) { return "gerade"; }
+	if (diff < 3600) { return Math.round(diff / 60) + " Min"; }
+	if (diff < 86400) { return Math.round(diff / 3600) + " Std"; }
+	if (diff < 2592000) { return Math.round(diff / 86400) + " T"; }
+	return t.toLocaleDateString("de-DE");
+}
+
+function vaFeed(items) {
+	const list = items || [];
+	if (list.length === 0) { return '<div class="va-storage">noch keine Daten</div>'; }
+	return list.map((it) =>
+		`<div class="va-feed"><span class="va-feed__tag">${vaEscape(it.type)}</span><span class="va-feed__label">${vaEscape(it.label || "—")}</span><span class="va-feed__meta">${vaEscape(it.detail)} · ${vaEscape(vaRelTime(it.at))}</span></div>`
+	).join("");
+}
+
 function renderVisitorDashboard(mount, data) {
 	const m = data.metrics || {};
 	const sum = (arr, key) => (arr || []).reduce((a, r) => a + (Number(r[key]) || 0), 0);
@@ -147,6 +167,14 @@ function renderVisitorDashboard(mount, data) {
 		+ `<div class="va-two"><div class="va-card"><div class="va-card__label">Geräte</div>${vaDonut(m.device, ["#2a78d6", "#1baf7a", "#eda100"])}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Kartenansicht</div>${vaDonut(m.map_mode, ["#2a78d6", "#4a3aa7", "#eda100", "#888780"])}</div></div>`
 		+ `<div class="va-card"><div class="va-card__label">Beliebteste Routen</div>${vaBars(m.route, "#1baf7a")}</div>`
+		+ `<div class="va-card"><div class="va-card__label">Beliebte Orte</div>${vaBars(m.route_waypoint, "#1baf7a")}</div>`
+		+ `<div class="va-card"><div class="va-card__label">Letzte Aktivität</div>${vaFeed(data.activity)}</div>`
+		+ `<details class="va-more"><summary>mehr</summary>`
+		+ `<div class="va-card"><div class="va-card__label">Transportmittel</div>${vaBars(m.transport, "#2a78d6")}</div>`
+		+ `<div class="va-card"><div class="va-card__label">Routenoptionen</div>${vaBars(m.route_option, "#4a3aa7")}</div>`
+		+ `<div class="va-card"><div class="va-card__label">Sprache</div>${vaBars(m.language, "#1baf7a")}</div>`
+		+ `<div class="va-card"><div class="va-card__label">Anzeige-Optionen</div>${vaBars(m.display_toggle, "#eda100")}</div>`
+		+ `</details>`
 		+ `<div class="va-card"><div class="va-card__label">Speicher</div><div class="va-storage">Analytics-Tabellen: ${vaBytes(stoBytes)} · ${stoRowsN.toLocaleString("de-DE")} Zeilen<br>Datenbank gesamt: ${vaBytes(data.storage && data.storage.database_bytes)}</div></div>`;
 
 	mount.querySelectorAll("[data-va-days]").forEach((pill) => {
