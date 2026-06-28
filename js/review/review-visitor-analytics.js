@@ -1,23 +1,52 @@
+const STATUS_SUBTAB_STORAGE_KEY = "avesmaps.review.status.activeTab";
+let statusDashboardLoaded = false;
+
+function activateStatusSubtab(name) {
+	const target = name === "besucher" ? "besucher" : "editoren";
+	const nav = document.querySelector(".status-subtabs");
+	if (!nav) {
+		return;
+	}
+	nav.querySelectorAll("[data-status-subtab]").forEach((b) => b.classList.toggle("is-active", b.dataset.statusSubtab === target));
+	document.querySelectorAll("[data-status-subsection]").forEach((s) => s.classList.toggle("is-active", s.dataset.statusSubsection === target));
+	if (target === "besucher" && !statusDashboardLoaded) {
+		statusDashboardLoaded = true;
+		void loadVisitorDashboard();
+	}
+}
+
 (function wireStatusSubtabs() {
 	const nav = document.querySelector(".status-subtabs");
 	if (!nav) {
 		return;
 	}
-	let dashboardLoaded = false;
 	nav.addEventListener("click", (event) => {
 		const button = event.target.closest("[data-status-subtab]");
 		if (!button) {
 			return;
 		}
-		const target = button.dataset.statusSubtab;
-		nav.querySelectorAll("[data-status-subtab]").forEach((b) => b.classList.toggle("is-active", b === button));
-		document.querySelectorAll("[data-status-subsection]").forEach((s) => s.classList.toggle("is-active", s.dataset.statusSubsection === target));
-		if (target === "besucher" && !dashboardLoaded) {
-			dashboardLoaded = true;
-			void loadVisitorDashboard();
+		const target = button.dataset.statusSubtab === "besucher" ? "besucher" : "editoren";
+		activateStatusSubtab(target);
+		try {
+			window.localStorage?.setItem(STATUS_SUBTAB_STORAGE_KEY, target);
+		} catch (error) {
+			/* storage unavailable -- non-fatal */
 		}
 	});
 })();
+
+// Restore the last-used Status sub-tab across refresh, like the other panel tabs.
+function restoreStatusSubtab() {
+	let stored = "editoren";
+	try {
+		stored = window.localStorage?.getItem(STATUS_SUBTAB_STORAGE_KEY) || "editoren";
+	} catch (error) {
+		/* storage unavailable -- non-fatal */
+	}
+	if (stored === "besucher") {
+		activateStatusSubtab("besucher");
+	}
+}
 
 let visitorDashboardDays = 30;
 
@@ -205,7 +234,8 @@ async function loadEditorActivityFigures() {
 }
 
 if (document.readyState === "loading") {
-	document.addEventListener("DOMContentLoaded", () => loadEditorActivityFigures(), { once: true });
+	document.addEventListener("DOMContentLoaded", () => { restoreStatusSubtab(); loadEditorActivityFigures(); }, { once: true });
 } else {
+	restoreStatusSubtab();
 	loadEditorActivityFigures();
 }
