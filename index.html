@@ -30,6 +30,7 @@
 		<link rel="stylesheet" href="css/third-party/jquery-ui.css" />
 		<link rel="stylesheet" href="css/pages/political-territory-wiki-tree.css?v=20260608-listitems" />
 		<link rel="stylesheet" href="css/components/region-sync.css?v=20260626-capitals2" />
+		<link rel="stylesheet" href="css/components/visitor-analytics.css" />
 		<link rel="stylesheet" href="css/styles.css?v=20260610-metropole-case" />
 		<script type="application/ld+json">
 			{
@@ -259,8 +260,18 @@
 				</div>
 			</section>
 			<section class="review-panel__section" data-editor-panel-section="presence">
-				<p id="presence-panel-status" class="review-panel__status" role="status" aria-live="polite">Nutzerstatus wird geladen...</p>
-				<div id="presence-user-list" class="review-panel__list"></div>
+				<nav class="status-subtabs" aria-label="Status-Bereiche">
+					<button class="status-subtab is-active" type="button" data-status-subtab="editoren">Editoren</button>
+					<button class="status-subtab" type="button" data-status-subtab="besucher">Besucher</button>
+				</nav>
+				<div class="status-subsection is-active" data-status-subsection="editoren">
+					<p id="presence-panel-status" class="review-panel__status" role="status" aria-live="polite">Nutzerstatus wird geladen...</p>
+					<div id="presence-user-list" class="review-panel__list"></div>
+					<div id="editor-activity-figures"></div>
+				</div>
+				<div class="status-subsection" data-status-subsection="besucher">
+					<div id="visitor-dashboard"></div>
+				</div>
 			</section>
 		</aside>
 		<button id="review-panel-toggle" class="review-panel-toggle" type="button" hidden>Editor</button>
@@ -1134,6 +1145,7 @@
 		<script src="js/review/review-editor-submit.js"></script>
 		<script src="js/review/review-report-flow.js"></script>
 		<script src="js/review/review-region-util.js"></script>
+		<script src="js/review/review-visitor-analytics.js"></script>
 		<script src="js/ui/ui-controls.js"></script>
 		<script src="js/third-party/polygon-clipping.umd.min.js"></script>
 		<script src="js/third-party/polylabel.js"></script>
