@@ -294,3 +294,34 @@ function avesmapsVisitorIsBot(string $userAgent): bool {
         $userAgent
     );
 }
+
+// Geo breakdown for the "Herkunft" panel: DE Bundesländer (real-visitor clicks) for
+// the map, and other countries with a real-visitor/bot split for the bar list.
+function avesmapsVisitorReadGeo(PDO $pdo, int $days): array {
+    $days = max(1, min(3660, $days));
+    try {
+        $regions = $pdo->prepare(
+            "SELECT dimension, SUM(count) AS c FROM visitor_metric
+            WHERE metric = 'region' AND actor_type = 'visitor' AND dimension <> ''
+                AND day >= DATE_SUB(UTC_DATE(), INTERVAL :d DAY)
+            GROUP BY dimension ORDER BY c DESC"
+        );
+        $regions->execute(['d' => $days]);
+        $countries = $pdo->prepare(
+            "SELECT dimension,
+                    SUM(CASE WHEN actor_type = 'visitor' THEN count ELSE 0 END) AS visitors,
+                    SUM(CASE WHEN actor_type = 'bot' THEN count ELSE 0 END) AS bots
+            FROM visitor_metric
+            WHERE metric = 'country' AND dimension <> '' AND dimension <> 'DE'
+                AND day >= DATE_SUB(UTC_DATE(), INTERVAL :d DAY)
+            GROUP BY dimension HAVING (visitors + bots) > 0 ORDER BY (visitors + bots) DESC LIMIT 40"
+        );
+        $countries->execute(['d' => $days]);
+        return [
+            'regions' => $regions->fetchAll(PDO::FETCH_ASSOC),
+            'countries' => $countries->fetchAll(PDO::FETCH_ASSOC),
+        ];
+    } catch (Throwable $exception) {
+        return ['regions' => [], 'countries' => []];
+    }
+}

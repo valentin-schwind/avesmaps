@@ -32,6 +32,7 @@ try {
         'metrics' => avesmapsVisitorReadMetrics($pdo, $actor, $days),
         'storage' => avesmapsVisitorStorageInfo($pdo),
         'activity' => avesmapsVisitorRecentActivity($pdo, 12),
+        'geo' => avesmapsVisitorReadGeo($pdo, $days),
     ]);
 } catch (Throwable $exception) {
     avesmapsErrorResponse(500, 'server_error', 'Visitor statistics could not be loaded.');
