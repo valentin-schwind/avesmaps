@@ -1,8 +1,10 @@
 /* Sub-tab look is unified in review-panel.css (.status-subtab); keep only the
    row's side padding here (the Status tab has no outer container padding). */
 .status-subtabs { padding: 4px 12px 0; }
-.status-subsection { display: none; padding: 12px; }
-.status-subsection.is-active { display: block; }
+.status-subsection { display: none; }
+.status-subsection.is-active { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+/* The dashboard fills the sub-section and scrolls when taller than the panel. */
+#visitor-dashboard { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 12px; }
 .va-pills { display: flex; gap: 6px; margin-bottom: 14px; }
 .va-pill { font-size: 12px; padding: 5px 11px; border-radius: 999px; border: 1px solid #cdb79f; background: #fffaf5; color: #8a7355; cursor: pointer; }
 .va-pill.is-active { background: #5a4a3a; color: #fffaf5; border-color: #5a4a3a; }
