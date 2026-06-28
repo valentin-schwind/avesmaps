@@ -29,6 +29,8 @@ try {
         }
     }
     $out['lookup_fn'] = avesmapsVisitorGeoLookup($pdo, $ip);
+    $out['rec_region'] = $pdo->query("SELECT actor_type, dimension, SUM(count) c FROM visitor_metric WHERE metric='region' GROUP BY actor_type, dimension ORDER BY c DESC LIMIT 20")->fetchAll(PDO::FETCH_ASSOC);
+    $out['rec_country'] = $pdo->query("SELECT actor_type, dimension, SUM(count) c FROM visitor_metric WHERE metric='country' GROUP BY actor_type, dimension ORDER BY c DESC LIMIT 10")->fetchAll(PDO::FETCH_ASSOC);
 } catch (Throwable $exception) {
     $out['error'] = $exception->getMessage();
 }
