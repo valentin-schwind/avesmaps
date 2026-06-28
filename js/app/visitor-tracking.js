@@ -61,6 +61,15 @@ function installVisitorTrackingHooks() {
 		jq(".display-options").on("change", "input[type=checkbox]", function () {
 			trackVisitorEvent("display_toggle", (this.id || this.name || "toggle") + ":" + (this.checked ? "on" : "off"));
 		});
+		// The settlement-class toggles are <button class="location-toggle">, not checkboxes; the app sets the
+		// "is-active" class on click, so read the resulting state on the next tick.
+		jq(".display-options").on("click", ".location-toggle", function () {
+			const button = this;
+			const type = button.dataset.locationType || "ort";
+			window.setTimeout(function () {
+				trackVisitorEvent("display_toggle", type + ":" + (button.classList.contains("is-active") ? "on" : "off"));
+			}, 0);
+		});
 	}
 }
 

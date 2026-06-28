@@ -172,6 +172,28 @@ function vaFeed(items) {
 	).join("");
 }
 
+const VA_MAP_MODE_LABELS = { none: "Nur Karte", political: "Politisch", deregraphic: "Standard", powerlines: "Kraftlinien" };
+const VA_TOGGLE_LABELS = {
+	metropole: "Metropolen", grossstadt: "Großstädte", stadt: "Städte", kleinstadt: "Kleinstädte", dorf: "Dörfer", gebaeude: "Bauwerke",
+	togglePaths: "Wege", toggleRivers: "Flüsse", toggleSeaPaths: "Seewege", toggleCrossings: "Kreuzungen", toggleNodix: "Nodices"
+};
+
+function vaPrettyMapMode(slug) {
+	return VA_MAP_MODE_LABELS[String(slug)] || String(slug || "");
+}
+
+function vaPrettyToggle(dimension) {
+	const parts = String(dimension || "").split(":");
+	const label = VA_TOGGLE_LABELS[parts[0]] || parts[0] || "";
+	if (parts[1] === "on") { return label + ": an"; }
+	if (parts[1] === "off") { return label + ": aus"; }
+	return label;
+}
+
+function vaMapDimensions(rows, mapper) {
+	return (rows || []).map((r) => ({ dimension: mapper(r.dimension), c: r.c }));
+}
+
 function renderVisitorDashboard(mount, data) {
 	const m = data.metrics || {};
 	const sum = (arr, key) => (arr || []).reduce((a, r) => a + (Number(r[key]) || 0), 0);
@@ -201,7 +223,7 @@ function renderVisitorDashboard(mount, data) {
 		+ `<div class="va-card"><div class="va-card__label">Top-Suchbegriffe</div>${vaBars(m.search, "#2a78d6")}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Herkunft</div>${vaBars(m.referrer, "#4a3aa7")}</div>`
 		+ `<div class="va-two"><div class="va-card"><div class="va-card__label">Geräte</div>${vaDonut(m.device, ["#2a78d6", "#1baf7a", "#eda100"])}</div>`
-		+ `<div class="va-card"><div class="va-card__label">Kartenansicht</div>${vaDonut(m.map_mode, ["#2a78d6", "#4a3aa7", "#eda100", "#888780"])}</div></div>`
+		+ `<div class="va-card"><div class="va-card__label">Kartenansicht</div>${vaDonut(vaMapDimensions(m.map_mode, vaPrettyMapMode), ["#2a78d6", "#4a3aa7", "#eda100", "#888780"])}</div></div>`
 		+ `<div class="va-card"><div class="va-card__label">Beliebteste Routen</div>${vaBars(m.route, "#1baf7a")}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Beliebte Orte</div>${vaBars(m.route_waypoint, "#1baf7a")}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Letzte Aktivität</div>${vaFeed(data.activity)}</div>`
@@ -209,7 +231,7 @@ function renderVisitorDashboard(mount, data) {
 		+ `<div class="va-card"><div class="va-card__label">Transportmittel</div>${vaBars(m.transport, "#2a78d6")}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Routenoptionen</div>${vaBars(m.route_option, "#4a3aa7")}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Sprache</div>${vaBars(m.language, "#1baf7a")}</div>`
-		+ `<div class="va-card"><div class="va-card__label">Anzeige-Optionen</div>${vaBars(m.display_toggle, "#eda100")}</div>`
+		+ `<div class="va-card"><div class="va-card__label">Anzeige-Optionen</div>${vaBars(vaMapDimensions(m.display_toggle, vaPrettyToggle), "#eda100")}</div>`
 		+ `</details>`
 		+ `<div class="va-card"><div class="va-card__label">Speicher</div><div class="va-storage">Analytics-Tabellen: ${vaBytes(stoBytes)} · ${stoRowsN.toLocaleString("de-DE")} Zeilen<br>Datenbank gesamt: ${vaBytes(data.storage && data.storage.database_bytes)}</div></div>`;
 
