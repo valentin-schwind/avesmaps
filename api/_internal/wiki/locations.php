@@ -187,7 +187,7 @@ function avesmapsWikiSyncAdvanceRun(PDO $pdo, array $payload): array {
         avesmapsWikiSyncUpdateRun($pdo, (int) $run['id'], 'running', 'build_cases', 3, "WikiSync-F\u{00E4}lle werden aufgebaut.", $stats);
     } elseif ($phase === 'build_cases') {
         $caseCount = avesmapsWikiSyncBuildAndStoreCases($pdo, (int) $run['id'], $stats);
-        $stats['case_count'] = $caseCount;
+        $stats['case_count'] = $caseCount; unset($stats['settlement_titles'], $stats['map_places'], $stats['matches'], $stats['unresolved'], $stats['missing_wiki_places']); // drop the bulky inter-phase scratchpad arrays before persisting the completed run; they are consumed by BuildAndStoreCases above and never read from a completed run, but otherwise bloat stats_json to ~1 MiB/row
         avesmapsWikiSyncUpdateRun($pdo, (int) $run['id'], 'completed', 'completed', 4, 'WikiSync abgeschlossen.', $stats);
         $pdo->prepare('UPDATE wiki_sync_runs SET completed_at = CURRENT_TIMESTAMP(3) WHERE id = :id')->execute(['id' => (int) $run['id']]);
     } else {
