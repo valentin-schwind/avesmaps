@@ -256,6 +256,7 @@ window.AVESMAPS_I18N_EN = {
 	"legal.sources.tech": "Technology.",
 	"legal.changes.lead": "Changes.",
 	"legal.changes.body": "These notices may be adjusted in the event of technical, legal or content-related changes to the project.",
+	"waypoint.searchPlaceholder": "Search location...",
 	"legal.wikiSync.lead": "Data synchronization.",
 	"legal.wikiSync.body": "Part of the content — in particular territories, locations, regions and coats of arms — is regularly synchronized internally with Wiki Aventurica. The information found there, such as names, hierarchies, validity periods or coat-of-arms references, is first collected in staging tables, editorially reviewed and only selectively adopted into the map, corrected or supplemented. No automatic, unverified synchronization takes place, and Avesmaps makes no claim to be identical with the current state of Wiki Aventurica.",
 	"legal.fanproject.lead": "Fan project.",

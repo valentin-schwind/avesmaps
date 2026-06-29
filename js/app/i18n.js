@@ -7,7 +7,16 @@
 
 	function detectLang() {
 		try {
-			return new URLSearchParams(window.location.search).get("lang") === "en" ? "en" : "de";
+			var param = new URLSearchParams(window.location.search).get("lang");
+			if (param === "en") {
+				return "en";
+			}
+			if (param === "de") {
+				return "de";
+			}
+			// No explicit ?lang: follow the browser's primary language (English -> en, otherwise German).
+			var primary = String((navigator.languages && navigator.languages[0]) || navigator.language || "").toLowerCase();
+			return primary.indexOf("en") === 0 ? "en" : "de";
 		} catch (error) {
 			return "de";
 		}
