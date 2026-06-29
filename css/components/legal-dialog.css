@@ -30,9 +30,10 @@
 .legal-dialog__badge {
 	display: flex;
 	flex-direction: column;
-	align-items: flex-start;
+	align-items: center;
 	gap: 6px;
 	margin: 0 0 14px 0;
+	text-align: center;
 }
 
 .legal-dialog__badge img {
