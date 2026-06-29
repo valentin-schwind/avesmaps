@@ -844,7 +844,7 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
         $effCoatLicense = array_key_exists('coat_of_arms_license_status', $coatOverrides)
             ? trim((string) $coatOverrides['coat_of_arms_license_status'])
             : $stagingCoatLicense;
-        if ($effCoatUrl !== '' && in_array($effCoatLicense, ['public_domain', 'attribution_required'], true)) {
+        if ($effCoatUrl !== '' && in_array($effCoatLicense, ['public_domain'], true)) {
             $visibleCoatOfArmsUrl = $effCoatUrl;
         }
     }
@@ -852,6 +852,20 @@ function avesmapsPoliticalLayerRowToFeature(array $row, int $yearBf, int $zoom):
     // Cache-Buster: re-hochgeladene Wappen behalten den Dateinamen, werden aber 30 Tage gecacht
     // (Cache-Control: max-age=2592000) -> ohne ?v zeigt der Browser das alte Bild. ?v=<mtime> bricht
     // den Cache GENAU bei Aenderung; unveraenderte Wappen bleiben gecacht (Perf).
+    // Public display shows only public_domain coats (matches territory-detail.php).
+    // The staging fallback above is gated already; this also covers the own/applied
+    // coat resolved further up, which would otherwise bypass the license check.
+    if ($visibleCoatOfArmsUrl !== '') {
+        $coatGateOverrides = avesmapsPoliticalDecodeJson($row['coat_override_json'] ?? null);
+        $coatGateOverrides = is_array($coatGateOverrides) ? $coatGateOverrides : [];
+        $coatGateLicense = array_key_exists('coat_of_arms_license_status', $coatGateOverrides)
+            ? trim((string) $coatGateOverrides['coat_of_arms_license_status'])
+            : trim((string) ($row['staging_coat_license'] ?? ''));
+        if ($coatGateLicense !== 'public_domain') {
+            $visibleCoatOfArmsUrl = '';
+        }
+    }
+
     $visibleCoatOfArmsUrl = avesmapsPoliticalCoatUrlCacheBust($visibleCoatOfArmsUrl);
 
     $displayColor = avesmapsPoliticalResolveLayerDisplayColor(
