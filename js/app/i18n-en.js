@@ -239,7 +239,7 @@ window.AVESMAPS_I18N_EN = {
 	"legal.title": "Notices",
 	"legal.closeAria": "Close legal notices",
 	"legal.badge": "Non-commercial fan project",
-	"legal.group.project": "Project and legal status",
+	"legal.group.project": "About the fan project",
 	"legal.group.copyright": "Copyright and licenses",
 	"legal.group.content": "Content and data sources",
 	"legal.group.privacy": "Data protection",
