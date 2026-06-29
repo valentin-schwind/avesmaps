@@ -122,6 +122,10 @@ window.AVESMAPS_I18N_EN = {
 	"toast.share.copyFailed": "The link could not be copied automatically.",
 	"toast.share.linkCopied": "Link copied to clipboard.",
 
+	// --- route waypoint popup ---
+	"popup.showMore": "Show more",
+	"popup.showLess": "Show less",
+
 	// --- map entry report dialog ---
 	"report.title": "Report a map entry",
 	"report.closeAria": "Close report",

@@ -1057,7 +1057,7 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 	const buttons = [];
 	if (showRemoveAction && loc.waypointId) {
 		buttons.push(popupActionButtonMarkup({
-			label: "Reiseziel entfernen",
+			label: tr("popup.removeFromRoute", "Reiseziel entfernen"),
 			className: "location-popup__action-button--danger",
 			iconMarkup: '<span class="location-popup__action-icon location-popup__action-icon--remove" aria-hidden="true">✕</span>',
 			attributes: { "data-popup-action": "remove-waypoint", "data-waypoint-id": loc.waypointId },
@@ -1070,7 +1070,7 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 			buttons.push(shareButton);
 		}
 		buttons.push(popupActionButtonMarkup({
-			label: "Bewertung schreiben",
+			label: tr("popup.writeReview", "Bewertung schreiben"),
 			iconMarkup: '<span class="location-popup__action-icon location-popup__action-icon--review" aria-hidden="true">★</span>',
 			attributes: {
 				"data-popup-action": "write-review",
@@ -1081,7 +1081,7 @@ function buildRoutePopupHtml(loc, { expanded = false, showRemoveAction = false, 
 	}
 	if (hasWiki) {
 		buttons.push(popupActionButtonMarkup({
-			label: expanded ? "Weniger anzeigen" : "Mehr anzeigen",
+			label: expanded ? tr("popup.showLess", "Weniger anzeigen") : tr("popup.showMore", "Mehr anzeigen"),
 			iconMarkup: `<span class="location-popup__action-icon" aria-hidden="true">${expanded ? "▴" : "▾"}</span>`,
 			attributes: { "data-popup-action": "toggle-route-popup-detail", "data-route-popup-id": String(popupId) },
 		}));
