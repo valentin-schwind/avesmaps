@@ -93,25 +93,6 @@
 	margin-top: 2px;
 }
 
-.legal-sources {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 28px;
-	margin: 0 0 10px;
-}
-
-.legal-sources__col {
-	display: flex;
-	flex-direction: column;
-	gap: 3px;
-}
-
-.legal-sources__label {
-	margin-bottom: 2px;
-	font-weight: bold;
-	color: var(--color-text);
-}
-
 .legal-dialog__note {
 	color: #6f6256;
 	font-size: 12px;
