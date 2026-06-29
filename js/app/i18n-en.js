@@ -243,7 +243,7 @@ window.AVESMAPS_I18N_EN = {
 	"legal.group.copyright": "Copyright and licenses",
 	"legal.group.content": "Content and data sources",
 	"legal.group.privacy": "Data protection",
-	"legal.group.tech": "Technology",
+	"legal.group.tech": "Technology and licenses",
 	"legal.group.contact": "Contact",
 	"legal.fanproject.lead": "Fan project.",
 	"legal.fanproject.body": "Avesmaps is a private, open, non-commercial fan project by Valentin Schwind. Avesmaps is not an official publication for Das Schwarze Auge and has no official connection to Ulisses Spiele, Ulisses Medien & Spiel Distribution GmbH, or other rights holders. The information about Das Schwarze Auge, Aventurien and Dere contained on this website is unofficial, may be incomplete or incorrect, and may contradict official publications.",
