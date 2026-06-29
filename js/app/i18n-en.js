@@ -320,4 +320,29 @@ window.AVESMAPS_I18N_EN = {
 
 	// --- header ---
 	"header.tagline": "Your route planner for Aventurien from \"Das Schwarze Auge\" (DSA).",
+
+	// --- territory infobox (region info box / mini tooltip) ---
+	"infobox.wikiEntry": "Wiki entry",
+	"infobox.type": "Type",
+	"infobox.status": "Status",
+	"infobox.governmentForm": "Form of government",
+	"infobox.ruler": "Ruler",
+	"infobox.founded": "Founded",
+	"infobox.dissolved": "Dissolution",
+	"infobox.founder": "Founder",
+	"infobox.parentTerritory": "Parent territory",
+	"infobox.capital": "Capital",
+	"infobox.seat": "Seat",
+	"infobox.language": "Language",
+	"infobox.currency": "Currency",
+	"infobox.population": "Population",
+	"infobox.tradeGoods": "Trade goods",
+	"infobox.tradeZone": "Trade zone",
+	"infobox.geographic": "Geography",
+	"infobox.mapPeriod": "Map period",
+	"infobox.wiki": "Wiki",
+	"infobox.contestedWith": "Contested with",
+	"infobox.wikiData": "Wiki data",
+	"infobox.openWiki": "Open wiki",
+	"infobox.territoryFallback": "Territory",
 };

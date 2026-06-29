@@ -31,12 +31,12 @@ function createRegionMiniTooltipMarkup(regionEntry) {
 		: "";
 	const meta = [normalizeRegionParentheticalSpacing(regionEntry.type), regionEntry.validLabel].filter(Boolean).join(" | ");
 	const affiliation = regionEntry.affiliationRoot || regionEntry.affiliation || "";
-	const capitalMarkup = createRegionPlaceTooltipLine("Hauptstadt", regionEntry.capitalName, regionEntry.capitalPlacePublicId);
-	const seatMarkup = createRegionPlaceTooltipLine("Herrschaftssitz", regionEntry.seatName, regionEntry.seatPlacePublicId);
+	const capitalMarkup = createRegionPlaceTooltipLine(tr("infobox.capital", "Hauptstadt"), regionEntry.capitalName, regionEntry.capitalPlacePublicId);
+	const seatMarkup = createRegionPlaceTooltipLine(tr("infobox.seat", "Herrschaftssitz"), regionEntry.seatName, regionEntry.seatPlacePublicId);
 	const hasCoatClass = regionEntry.coatOfArmsUrl ? " has-coat" : "";
 	const contestedClaimants = collectRegionContestedClaimants(regionEntry);
 	const contestedMarkup = contestedClaimants.length
-		? `<span class="region-compact-tooltip__meta">Umstritten mit: ${createRegionContestedSwatchMarkup(contestedClaimants)}</span>`
+		? `<span class="region-compact-tooltip__meta">${escapeHtml(tr("infobox.contestedWith", "Umstritten mit"))}: ${createRegionContestedSwatchMarkup(contestedClaimants)}</span>`
 		: "";
 
 	return `
@@ -44,7 +44,7 @@ function createRegionMiniTooltipMarkup(regionEntry) {
 			${coatMarkup}
 			<span class="region-compact-tooltip__body">
 				<span class="region-compact-tooltip__name">${escapeHtml(normalizeRegionParentheticalSpacing(regionEntry.displayName || regionEntry.name))}</span>
-				<span class="region-compact-tooltip__meta">${escapeHtml(meta || "Herrschaftsgebiet")}</span>
+				<span class="region-compact-tooltip__meta">${escapeHtml(meta || tr("infobox.territoryFallback", "Herrschaftsgebiet"))}</span>
 				<span class="region-compact-tooltip__meta">${escapeHtml(affiliation)}</span>
 				${capitalMarkup}
 				${seatMarkup}
@@ -71,9 +71,9 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 	// async nachgeladen. Vor dem Laden zeigt die Box die Map-Features-Basisdaten; danach das Volle.
 	const detail = regionEntry.detail && regionEntry.detail.ok ? regionEntry.detail : null;
 	const f = (detail && detail.fields) || {};
-	const name = normalizeRegionParentheticalSpacing(regionEntry.displayName || regionEntry.name || "Herrschaftsgebiet");
+	const name = normalizeRegionParentheticalSpacing(regionEntry.displayName || regionEntry.name || tr("infobox.territoryFallback", "Herrschaftsgebiet"));
 	const wikiName = normalizeRegionParentheticalSpacing(regionEntry.wikiName || f.name || name);
-	const type = normalizeRegionParentheticalSpacing(regionEntry.wikiType || f.type || regionEntry.type || "Herrschaftsgebiet");
+	const type = normalizeRegionParentheticalSpacing(regionEntry.wikiType || f.type || regionEntry.type || tr("infobox.territoryFallback", "Herrschaftsgebiet"));
 	// #2/#5 Wappen lizenz-gegatet: sobald die Detaildaten da sind, gilt detail.coat.url (leer ohne Lizenz).
 	const coatUrl = detail ? String((detail.coat && detail.coat.url) || "") : (regionEntry.coatOfArmsUrl || "");
 	const coatMarkup = coatUrl
@@ -82,26 +82,26 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 	const hasCoatClass = coatMarkup ? " has-coat" : "";
 	const wikiLink = createRegionInfoLink(regionEntry.wikiUrl || f.wiki_url);
 	const wikiRows = [
-		createRegionInfoTextRow("Wiki-Eintrag", wikiName),
-		createRegionInfoTextRow("Typ", type),
-		createRegionInfoTextRow("Status", regionEntry.status || f.status),
+		createRegionInfoTextRow(tr("infobox.wikiEntry", "Wiki-Eintrag"), wikiName),
+		createRegionInfoTextRow(tr("infobox.type", "Typ"), type),
+		createRegionInfoTextRow(tr("infobox.status", "Status"), regionEntry.status || f.status),
 		createRegionContestedRow(regionEntry),
-		createRegionInfoTextRow("Herrschaftsform", f.form_of_government),
-		createRegionInfoTextRow("Oberhaupt", f.ruler),
-		createRegionInfoTextRow("Gründung", (detail && f.founded_text) || regionEntry.wikiFoundedText || regionEntry.foundedText),
-		createRegionInfoTextRow("Auflösung", (detail && f.dissolved_text) || regionEntry.wikiDissolvedText || regionEntry.dissolvedText),
-		createRegionInfoTextRow("Gründer", f.founder),
-		createRegionInfoTextRow("Obergebiet", regionEntry.parentName || regionEntry.affiliationRoot || regionEntry.wikiAffiliationRoot),
-		createRegionInfoBoxRow("Hauptstadt", createRegionInfoPlaceValue(regionEntry.wikiCapitalName || regionEntry.capitalName || f.capital_name, regionEntry.capitalPlacePublicId)),
-		createRegionInfoBoxRow("Herrschaftssitz", createRegionInfoPlaceValue(regionEntry.wikiSeatName || regionEntry.seatName || f.seat_name, regionEntry.seatPlacePublicId)),
-		createRegionInfoTextRow("Sprache", f.language),
-		createRegionInfoTextRow("Währung", f.currency),
-		createRegionInfoTextRow("Einwohnerzahl", f.population),
-		createRegionInfoTextRow("Handelswaren", f.trade_goods),
-		createRegionInfoTextRow("Handelszone", f.trade_zone),
-		createRegionInfoTextRow("Geographisch", f.geographic),
-		createRegionInfoTextRow("Kartenzeitraum", regionEntry.validLabel),
-		createRegionInfoBoxRow("Wiki", wikiLink)
+		createRegionInfoTextRow(tr("infobox.governmentForm", "Herrschaftsform"), f.form_of_government),
+		createRegionInfoTextRow(tr("infobox.ruler", "Oberhaupt"), f.ruler),
+		createRegionInfoTextRow(tr("infobox.founded", "Gründung"), (detail && f.founded_text) || regionEntry.wikiFoundedText || regionEntry.foundedText),
+		createRegionInfoTextRow(tr("infobox.dissolved", "Auflösung"), (detail && f.dissolved_text) || regionEntry.wikiDissolvedText || regionEntry.dissolvedText),
+		createRegionInfoTextRow(tr("infobox.founder", "Gründer"), f.founder),
+		createRegionInfoTextRow(tr("infobox.parentTerritory", "Obergebiet"), regionEntry.parentName || regionEntry.affiliationRoot || regionEntry.wikiAffiliationRoot),
+		createRegionInfoBoxRow(tr("infobox.capital", "Hauptstadt"), createRegionInfoPlaceValue(regionEntry.wikiCapitalName || regionEntry.capitalName || f.capital_name, regionEntry.capitalPlacePublicId)),
+		createRegionInfoBoxRow(tr("infobox.seat", "Herrschaftssitz"), createRegionInfoPlaceValue(regionEntry.wikiSeatName || regionEntry.seatName || f.seat_name, regionEntry.seatPlacePublicId)),
+		createRegionInfoTextRow(tr("infobox.language", "Sprache"), f.language),
+		createRegionInfoTextRow(tr("infobox.currency", "Währung"), f.currency),
+		createRegionInfoTextRow(tr("infobox.population", "Einwohnerzahl"), f.population),
+		createRegionInfoTextRow(tr("infobox.tradeGoods", "Handelswaren"), f.trade_goods),
+		createRegionInfoTextRow(tr("infobox.tradeZone", "Handelszone"), f.trade_zone),
+		createRegionInfoTextRow(tr("infobox.geographic", "Geographisch"), f.geographic),
+		createRegionInfoTextRow(tr("infobox.mapPeriod", "Kartenzeitraum"), regionEntry.validLabel),
+		createRegionInfoBoxRow(tr("infobox.wiki", "Wiki"), wikiLink)
 	].join("");
 
 	return `
@@ -110,7 +110,7 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 				${coatMarkup}
 				<div class="region-info-box__title-group">
 					<strong class="region-info-box__title">${escapeHtml(name)}</strong>
-					<span class="region-info-box__subtitle">Wiki-Daten</span>
+					<span class="region-info-box__subtitle">${escapeHtml(tr("infobox.wikiData", "Wiki-Daten"))}</span>
 				</div>
 			</div>
 			<dl class="region-info-box__data">${wikiRows}</dl>
@@ -169,7 +169,7 @@ function createRegionContestedRow(regionEntry) {
 	if (claimants.length === 0) {
 		return "";
 	}
-	return createRegionInfoBoxRow("Umstritten mit", createRegionContestedSwatchMarkup(claimants));
+	return createRegionInfoBoxRow(tr("infobox.contestedWith", "Umstritten mit"), createRegionContestedSwatchMarkup(claimants));
 }
 
 function createRegionInfoTextRow(label, value) {
@@ -213,7 +213,7 @@ function createRegionInfoLink(url) {
 		return "";
 	}
 
-	return `<a class="region-info-box__link" href="${escapeHtml(normalizedUrl)}" target="_blank" rel="noopener noreferrer">Wiki öffnen</a>`;
+	return `<a class="region-info-box__link" href="${escapeHtml(normalizedUrl)}" target="_blank" rel="noopener noreferrer">${tr("infobox.openWiki", "Wiki öffnen")}</a>`;
 }
 
 function createRegionInfoPathValue(regionEntry) {
