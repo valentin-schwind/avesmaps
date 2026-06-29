@@ -305,14 +305,14 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 	};
 
 	let rows = "";
-	rows += row("Lage", wiki.region_parent);
-	rows += row("Staat", wiki.affiliation_staat);
-	rows += row("Einwohner", wiki.einwohner);
-	rows += row("Sprache", wiki.sprache);
-	rows += row("Vegetation", wiki.vegetation);
-	rows += row("Beschreibung", typeof settlementFirstSentence === "function" ? settlementFirstSentence(wiki.description) : String(wiki.description || "").trim());
+	rows += row(tr("infobox.location", "Lage"), wiki.region_parent);
+	rows += row(tr("infobox.state", "Staat"), wiki.affiliation_staat);
+	rows += row(tr("infobox.inhabitants", "Einwohner"), wiki.einwohner);
+	rows += row(tr("infobox.language", "Sprache"), wiki.sprache);
+	rows += row(tr("infobox.vegetation", "Vegetation"), wiki.vegetation);
+	rows += row(tr("infobox.description", "Beschreibung"), typeof settlementFirstSentence === "function" ? settlementFirstSentence(wiki.description) : String(wiki.description || "").trim());
 	const wikiLink = wiki.wiki_url
-		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} im Wiki-Aventurica ↗</a>`
+		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} ${escapeHtml(tr("popup.wikiLinkSuffixArrow", "im Wiki-Aventurica ↗"))}</a>`
 		: "";
 
 	const header = headless ? "" : (

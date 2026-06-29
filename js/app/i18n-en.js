@@ -334,6 +334,14 @@ window.AVESMAPS_I18N_EN = {
 	"infobox.capital": "Capital",
 	"infobox.seat": "Seat",
 	"infobox.language": "Language",
+
+	// --- landscape/region label infobox ---
+	"infobox.location": "Location",
+	"infobox.state": "State",
+	"infobox.inhabitants": "Inhabitants",
+	"infobox.vegetation": "Vegetation",
+	"infobox.description": "Description",
+
 	"infobox.currency": "Currency",
 	"infobox.population": "Population",
 	"infobox.tradeGoods": "Trade goods",
