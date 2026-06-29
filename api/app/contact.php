@@ -221,8 +221,13 @@ function avesmapsNotifyContactRecipient(array $config, array $contact): void {
 
     $subject = '=?UTF-8?B?' . base64_encode('Avesmaps: neue Kontaktnachricht') . '?=';
 
+    // STRATO (sendmail) silently drops mail whose envelope sender is not a real
+    // mailbox on the account -- set it explicitly to the configured avesmaps.de
+    // sender via -f. $sender is config-controlled and validated as an email above.
+    $envelopeSenderParam = '-f' . $sender;
+
     try {
-        @mail($recipient, $subject, $body, implode("\r\n", $headerLines));
+        @mail($recipient, $subject, $body, implode("\r\n", $headerLines), $envelopeSenderParam);
     } catch (Throwable $error) {
         // Delivery is best-effort; the persisted row is the source of truth.
     }
