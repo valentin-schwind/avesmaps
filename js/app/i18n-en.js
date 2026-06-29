@@ -273,7 +273,7 @@ window.AVESMAPS_I18N_EN = {
 	"legal.privacy.hosting.body": "Avesmaps is hosted by STRATO. When the website is accessed, the host automatically processes technical server log data (including IP address, date and time, the resource requested, and browser/device type) to provide the website and ensure its stability and security. The legal basis is the legitimate interest in secure operation (Art. 6(1)(f) GDPR). This log data is not combined with other sources and is deleted after a short time.",
 	"legal.privacy.cookies.lead": "No cookies, no tracking, no advertising.",
 	"legal.privacy.cookies.body": "Avesmaps sets no cookies for tracking or advertising purposes, embeds no external advertising or tracking networks, and creates no user-specific profiles.",
-	"legal.privacy.rights.lead": "Your rights and contact.",
+	"legal.privacy.rights.lead": "Your rights.",
 	"legal.privacy.rights.body": "Under the GDPR you have the rights to access, rectification, erasure, restriction of processing, data portability and objection, as well as the right to lodge a complaint with a data protection supervisory authority. The controller is the operator named above; please direct privacy requests via the contact form at the bottom of these notices. As the visitor statistics are anonymous, you cannot be identified within them.",
 	"legal.sources.label": "Sources.",
 	"legal.sources.orkenspalter": "Orkenspalter map material",
