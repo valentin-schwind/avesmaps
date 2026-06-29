@@ -79,14 +79,8 @@
 }
 
 .legal-dialog__group {
-	margin: 22px 0 10px;
-	padding-bottom: 5px;
-	border-bottom: 1px solid var(--color-border);
-	font-size: 12px;
-	font-weight: bold;
-	letter-spacing: 0.05em;
-	text-transform: uppercase;
-	color: var(--color-text-muted);
+	margin: 22px 0 8px;
+	font-size: 15px;
 }
 
 .legal-dialog__group:first-child {
@@ -125,11 +119,6 @@
 
 .legal-contact {
 	margin-top: 6px;
-}
-
-.legal-contact__title {
-	margin: 0 0 4px 0;
-	font-size: 15px;
 }
 
 .legal-contact__hint {
