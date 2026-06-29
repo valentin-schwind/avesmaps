@@ -1090,7 +1090,7 @@
 							<strong data-i18n="legal.privacy.cookies.lead">Datenschutz – Keine Cookies, kein Tracking, keine Werbung.</strong> <span data-i18n="legal.privacy.cookies.body">Avesmaps setzt keine Cookies zu Tracking- oder Werbezwecken, bindet keine externen Werbe- oder Tracking-Netzwerke ein und erstellt keine nutzerbezogenen Profile.</span>
 						</p>
 						<p>
-							<strong data-i18n="legal.privacy.rights.lead">Datenschutz – Deine Rechte und Kontakt.</strong> <span data-i18n="legal.privacy.rights.body">Dir stehen im Rahmen der DSGVO die Rechte auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch zu sowie das Recht, dich bei einer Datenschutz-Aufsichtsbehörde zu beschweren. Verantwortlicher ist der oben genannte Betreiber; Anfragen zum Datenschutz richtest du bitte an [Kontakt-E-Mail/Anschrift ergänzen]. Da die Besucher-Statistik anonym erfolgt, ist dort eine Zuordnung zu deiner Person nicht möglich.</span>
+							<strong data-i18n="legal.privacy.rights.lead">Datenschutz – Deine Rechte und Kontakt.</strong> <span data-i18n="legal.privacy.rights.body">Dir stehen im Rahmen der DSGVO die Rechte auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch zu sowie das Recht, dich bei einer Datenschutz-Aufsichtsbehörde zu beschweren. Verantwortlicher ist der oben genannte Betreiber; Anfragen zum Datenschutz richtest du bitte über das Kontaktformular unten in diesen Hinweisen. Da die Besucher-Statistik anonym erfolgt, ist dort eine Zuordnung zu deiner Person nicht möglich.</span>
 						</p>
 						<p>
 							<strong data-i18n="legal.sources.label">Quellen.</strong> <a href="https://avespfade.de/" target="_blank" rel="noopener noreferrer">avespfade.de</a> ·
@@ -1102,6 +1102,24 @@
 						<a href="https://github.com/valentin-schwind/avesmaps" target="_blank" rel="noopener noreferrer">GitHub-Repository</a>
 					</p>
 					<p class="legal-dialog__note" data-i18n="legal.note">Hinweis: Diese Zusammenfassung dient der Quellen- und Lizenzangabe im Projekt.</p>
+						<div class="legal-contact">
+							<h3 class="legal-contact__title" data-i18n="legal.contact.title">Schreiben Sie uns eine Nachricht</h3>
+							<p class="legal-contact__hint" data-i18n="legal.contact.hint">Fragen, Korrekturen oder Datenschutz-Anliegen? Deine Nachricht und (falls angegeben) deine E-Mail-Adresse werden nur zur Bearbeitung deiner Anfrage genutzt und nicht weitergegeben.</p>
+							<form id="legal-contact-form" class="legal-contact__form" novalidate>
+								<div class="legal-contact__hp" aria-hidden="true">
+									<label>Website <input type="text" id="legal-contact-website" name="website" tabindex="-1" autocomplete="off"></label>
+								</div>
+								<div class="legal-contact__row">
+									<input type="text" id="legal-contact-name" name="name" maxlength="80" autocomplete="name" data-i18n-placeholder="legal.contact.namePlaceholder" placeholder="Name (optional)">
+									<input type="email" id="legal-contact-email" name="email" maxlength="200" autocomplete="email" data-i18n-placeholder="legal.contact.emailPlaceholder" placeholder="E-Mail (optional, für Antwort)">
+								</div>
+								<textarea id="legal-contact-message" name="message" required maxlength="4000" data-i18n-placeholder="legal.contact.messagePlaceholder" placeholder="Deine Nachricht …"></textarea>
+								<div class="legal-contact__actions">
+									<button type="submit" class="legal-contact__submit" data-i18n="legal.contact.submit">Nachricht senden</button>
+									<p id="legal-contact-status" class="legal-contact__status" role="status" aria-live="polite"></p>
+								</div>
+							</form>
+						</div>
 				</div>
 			</div>
 		</div>
@@ -1112,6 +1130,7 @@
 		<script src="js/app/visitor-tracking.js"></script>
 		<script src="js/app/i18n-en.js"></script>
 		<script src="js/app/i18n.js"></script>
+		<script src="js/app/legal-contact-form.js"></script>
 		<script src="js/app/utils.js"></script>
 		<script src="js/app/share-link.js"></script>
 		<script src="js/routing/route-graph-core.js"></script>

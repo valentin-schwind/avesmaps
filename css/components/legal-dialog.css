@@ -93,3 +93,104 @@
 	background: rgba(255, 249, 244, 1);
 	outline: none;
 }
+
+.legal-contact {
+	margin-top: 6px;
+	padding-top: 14px;
+	border-top: 1px solid var(--color-border);
+}
+
+.legal-contact__title {
+	margin: 0 0 4px 0;
+	font-size: 15px;
+}
+
+.legal-contact__hint {
+	margin: 0 0 10px 0;
+	color: var(--color-text-muted);
+	font-size: 12px;
+}
+
+.legal-contact__form {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.legal-contact__row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.legal-contact__row > * {
+	flex: 1 1 180px;
+}
+
+.legal-contact__hp {
+	position: absolute;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+}
+
+.legal-contact input,
+.legal-contact textarea {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 8px 10px;
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);
+	background: rgba(255, 253, 249, 0.96);
+	color: var(--color-text);
+	font: inherit;
+}
+
+.legal-contact textarea {
+	min-height: 96px;
+	resize: vertical;
+}
+
+.legal-contact__actions {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.legal-contact__submit {
+	flex: none;
+	padding: 8px 16px;
+	border: 1px solid var(--color-border-strong);
+	border-radius: var(--radius-sm);
+	background: #7a1411;
+	color: #fff;
+	cursor: pointer;
+	font: inherit;
+}
+
+.legal-contact__submit:hover:not(:disabled) {
+	background: #5f0f0d;
+}
+
+.legal-contact__submit:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
+.legal-contact__status {
+	margin: 0;
+	font-size: 13px;
+}
+
+.legal-contact__status[data-tone="pending"] {
+	color: var(--color-text-muted);
+}
+
+.legal-contact__status[data-tone="success"] {
+	color: #1d7a3a;
+}
+
+.legal-contact__status[data-tone="error"] {
+	color: #7a1411;
+}

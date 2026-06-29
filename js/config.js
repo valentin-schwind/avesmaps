@@ -96,6 +96,22 @@ const STRATO_MAP_HOST = "54143555.swh.strato-hosting.eu";
 const PUBLIC_API_HOST = "avesmaps.de";
 const SQL_MAP_HOSTS = new Set([STRATO_MAP_HOST, "avesmaps.de", "www.avesmaps.de"]);
 
+function getDefaultContactEndpointUrl() {
+	if (SQL_MAP_HOSTS.has(window.location.hostname)) {
+		return "api/app/contact.php";
+	}
+
+	if (window.location.protocol === "https:") {
+		return `https://${PUBLIC_API_HOST}/api/app/contact.php`;
+	}
+
+	if (window.location.protocol === "http:") {
+		return `http://${STRATO_MAP_HOST}/avesmaps/api/app/contact.php`;
+	}
+
+	return `https://${PUBLIC_API_HOST}/api/app/contact.php`;
+}
+
 function getDefaultLocationReportEndpointUrl() {
 	if (SQL_MAP_HOSTS.has(window.location.hostname)) {
 		return "api/app/report-location.php";
