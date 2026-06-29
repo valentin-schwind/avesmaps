@@ -31,7 +31,6 @@
 }
 
 .legal-dialog__badge {
-	flex: 0 0 auto;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -64,7 +63,7 @@
 	padding: 0;
 }
 
-.legal-dialog__content {
+.legal-dialog__scroll {
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow-y: auto;
