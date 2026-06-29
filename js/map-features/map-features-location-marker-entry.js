@@ -10,7 +10,7 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 		return locationPopupMarkup({
 			name: markerEntry.name,
 			locationType: CROSSING_LOCATION_TYPE,
-			locationTypeLabel: "Kreuzung",
+			locationTypeLabel: tr("locationType.crossing", "Kreuzung"),
 			showHeaderIcon: false,
 			showDescription: false,
 			showWikiLink: false,
@@ -22,7 +22,7 @@ function buildLocationMarkerPopupHtml(markerEntry) {
 	const hasWikiSettlement = Boolean(wikiSettlement && wikiSettlement.title);
 	const settlementInfobox = hasWikiSettlement
 		? settlementWikiInfoboxMarkup(markerEntry.location)
-		: '<div class="location-popup__nowiki">Kein Wiki-Eintrag gefunden</div>';
+		: `<div class="location-popup__nowiki">${escapeHtml(tr("popup.noWikiEntry", "Kein Wiki-Eintrag gefunden"))}</div>`;
 	// Wappen ersetzt das Siedlungs-Icon (nur gesetzt, wenn gemeinfrei/eigen).
 	const coatIconMarkup = typeof settlementCoatIconMarkup === "function" ? settlementCoatIconMarkup(markerEntry.location.coat) : "";
 	// Bauwerke: genauer Typ (Festung/Turm/…) als Unterüberschrift statt „Besondere Bauwerke/Stätten".

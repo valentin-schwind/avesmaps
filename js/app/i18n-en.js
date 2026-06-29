@@ -94,6 +94,10 @@ window.AVESMAPS_I18N_EN = {
 	"toast.measure.startSet": "Start point set. Now click the second point.",
 	"toast.measure.cleared": "Distance measurement cleared.",
 
+	// --- location marker popup ---
+	"locationType.crossing": "Crossing",
+	"popup.noWikiEntry": "No wiki entry found",
+
 	// --- location popup chrome ---
 	"popup.shareLink": "🔗 Share link",
 	"popup.coatOfArmsAlt": "Coat of arms",
