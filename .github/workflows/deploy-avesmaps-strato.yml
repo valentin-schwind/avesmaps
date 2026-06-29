@@ -83,6 +83,7 @@ jobs:
             "favicon.ico"
             "og-image.jpg"
             "llms.txt"
+            "site-summary.md"
             "robots.txt"
             "sitemap.xml"
             "admin"
