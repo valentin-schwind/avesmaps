@@ -2,6 +2,8 @@
 
 > Aventurien route planner for "Das Schwarze Auge": interactive map, search, political Reichsgrenzen and shareable route URLs; PHP + MySQL backend for search, territories, routing, reviews and editor.
 
+Topics: Aventurien, Das Schwarze Auge, DSA, The Dark Eye, route planner, interactive map, political map, Reichsgrenzen.
+
 Avesmaps is a vanilla-JavaScript application without a build step. The map and the client-side route computation run in the browser; the live site additionally uses a PHP 8 + MySQL backend (under `api/`) for search, Herrschaftsgebiete, the routing API, reviews and the editor.
 
 The application is aimed at people who want to plan travel routes in Aventurien. It shows locations, paths and optionally the political boundaries of the Reiche, and computes routes between multiple waypoints.
@@ -12,8 +14,8 @@ Routes and planner settings can be shared via URL parameters.
 
 ## Important resources
 
-- [Live application](https://valentin-schwind.github.io/avesmaps/): Public project page with map and route planner.
-- [Machine-readable project summary](https://valentin-schwind.github.io/avesmaps/site-summary.md): Short Markdown summary for AI systems and agents.
+- [Live application](https://avesmaps.de/): Public project page with map and route planner.
+- [Machine-readable project summary](https://avesmaps.de/site-summary.md): Short Markdown summary for AI systems and agents.
 - [GitHub repository](https://github.com/valentin-schwind/avesmaps): Source code and project history.
 
 ## Optional

@@ -4,7 +4,7 @@
 
 ## Short description
 
-Avesmaps is an interactive web map for Aventurien. The application shows locations, paths and optionally the political boundaries of the Reiche. It computes travel routes directly in the browser and can be operated as a static site on any normal web server.
+Avesmaps is an interactive web map for Aventurien. The application shows locations, paths and optionally the political boundaries of the Reiche. It computes travel routes directly in the browser. The static map renders without a backend; the live site additionally uses a PHP 8 + MySQL backend for search, Herrschaftsgebiete, routing, reviews and the editor.
 
 ## Subject focus
 
@@ -44,5 +44,5 @@ Avesmaps is an interactive web map for Aventurien. The application shows locatio
 
 ## Important URLs
 
-- Live: https://valentin-schwind.github.io/avesmaps/
+- Live: https://avesmaps.de/
 - Repository: https://github.com/valentin-schwind/avesmaps
