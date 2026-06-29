@@ -98,6 +98,10 @@
 	font-size: 12px;
 }
 
+.legal-dialog__content .legal-dialog__note {
+	margin-top: 24px;
+}
+
 #legal-button {
 	position: fixed;
 	right: 12px;
