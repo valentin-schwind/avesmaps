@@ -101,17 +101,26 @@ function vaBars(rows, col) {
 }
 
 function vaLine(daily) {
-	const views = (daily || []).map((d) => Number(d.views) || 0);
-	const uniq = (daily || []).map((d) => Number(d.uniques) || 0);
-	const n = Math.max(views.length, 1);
-	const max = Math.max(1, Math.max.apply(null, views.concat([1])) * 1.05);
-	const w = 360, h = 90, p = 6;
-	const path = (arr) => arr.map((v, i) => {
-		const x = p + i * ((w - 2 * p) / Math.max(n - 1, 1));
-		const y = h - p - (v / max) * (h - 2 * p);
-		return (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
-	}).join(" ");
-	return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img" aria-label="Aufrufe und eindeutige Besucher über Zeit"><path d="${path(views)}" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round"/><path d="${path(uniq)}" fill="none" stroke="#1baf7a" stroke-width="2" stroke-linejoin="round"/></svg>`;
+	const data = daily || [];
+	const views = data.map((d) => Number(d.views) || 0);
+	const uniq = data.map((d) => Number(d.uniques) || 0);
+	const n = Math.max(data.length, 1);
+	const max = Math.max(1, Math.max.apply(null, views.concat(uniq).concat([1])));
+	const w = 360, h = 116, padL = 30, padR = 8, padT = 10, padB = 26;
+	const plotW = w - padL - padR, plotH = h - padT - padB;
+	const xAt = (i) => padL + (n <= 1 ? plotW / 2 : i * plotW / (n - 1));
+	const yAt = (v) => padT + plotH - (v / max) * plotH;
+	const line = (arr) => arr.map((v, i) => (i ? "L" : "M") + xAt(i).toFixed(1) + " " + yAt(v).toFixed(1)).join(" ");
+	const dots = (arr, color) => arr.map((v, i) => `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v).toFixed(1)}" r="2.6" fill="${color}"/>`).join("");
+	const fmtDate = (s) => { const p = String(s).split("-"); return p.length === 3 ? p[2] + "." + p[1] + "." : String(s); };
+	const axes = `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT + plotH}" stroke="#e7d8c6" stroke-width="1"/><line x1="${padL}" y1="${padT + plotH}" x2="${w - padR}" y2="${padT + plotH}" stroke="#e7d8c6" stroke-width="1"/>`;
+	const yLabels = `<text x="${padL - 4}" y="${(padT + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="#8a7355">${max.toLocaleString("de-DE")}</text><text x="${padL - 4}" y="${(padT + plotH).toFixed(1)}" text-anchor="end" font-size="10" fill="#8a7355">0</text>`;
+	let xLabels = "";
+	if (data.length) {
+		const idxs = data.length <= 5 ? data.map((d, i) => i) : [0, Math.floor((data.length - 1) / 2), data.length - 1];
+		xLabels = idxs.map((i) => `<text x="${xAt(i).toFixed(1)}" y="${(h - 8).toFixed(1)}" text-anchor="middle" font-size="10" fill="#8a7355">${fmtDate(data[i].day)}</text>`).join("");
+	}
+	return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img" aria-label="Aufrufe und eindeutige Besucher über Zeit">${axes}${yLabels}${xLabels}<path d="${line(views)}" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round"/><path d="${line(uniq)}" fill="none" stroke="#1baf7a" stroke-width="2" stroke-linejoin="round"/>${dots(views, "#2a78d6")}${dots(uniq, "#1baf7a")}</svg>`;
 }
 
 function vaHeatmap(rows) {
@@ -274,7 +283,7 @@ function renderVisitorDashboard(mount, data) {
 		+ `<div class="va-kpi"><div class="va-kpi__label">Eindeutige</div><div class="va-kpi__value">${uniq.toLocaleString("de-DE")}</div></div>`
 		+ `<div class="va-kpi"><div class="va-kpi__label">Routen</div><div class="va-kpi__value">${routes.toLocaleString("de-DE")}</div></div>`
 		+ `</div>`
-		+ `<div class="va-card"><div class="va-card__label">Aktivität über Zeit</div>${vaLine(m.daily)}</div>`
+		+ `<div class="va-card"><div class="va-card__label">Aktivität über Zeit</div>${vaLine(m.daily)}<div class="va-chartlegend"><span><i style="background:#2a78d6"></i>Aufrufe</span><span><i style="background:#1baf7a"></i>Eindeutige</span></div></div>`
 		+ `<div class="va-card"><div class="va-card__label">Aktivste Zeiten</div>${vaHeatmap(m.heatmap)}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Top-Suchbegriffe</div>${vaBars(m.search, "#2a78d6")}</div>`
 		+ `<div class="va-card"><div class="va-card__label">Herkunft</div><div id="visitor-geo-map"></div><div class="va-geo-legend"><span>wenige</span><span class="va-geo-scale"><i style="background:rgba(42,120,214,0.12)"></i><i style="background:rgba(42,120,214,0.38)"></i><i style="background:rgba(42,120,214,0.64)"></i><i style="background:rgba(42,120,214,0.9)"></i></span><span>viele Klicks</span></div><div class="va-geo-clabel">Andere Länder<span class="va-geo-key"><i style="background:#1baf7a"></i>echte<i style="background:#888780"></i>Bots</span></div><div id="visitor-geo-countries"></div></div>`
