@@ -247,7 +247,7 @@ body.edit-mode .map-label img {
 	align-items: start;
 	gap: 8px;
 	width: min(280px, calc(100vw - 52px));
-	padding: 8px 10px;
+	padding: 12px 10px;
 	box-sizing: border-box;
 	overflow: hidden;
 }
@@ -308,7 +308,7 @@ body.edit-mode .map-label img {
 	display: grid;
 	gap: 8px;
 	width: min(360px, calc(100vw - 52px));
-	padding: 10px 12px;
+	padding: 14px 12px;
 	box-sizing: border-box;
 }
 
@@ -317,7 +317,8 @@ body.edit-mode .map-label img {
 	grid-template-columns: minmax(0, 1fr);
 	align-items: center;
 	gap: 10px;
-	padding-bottom: 8px;
+	padding-top: 2px;
+	padding-bottom: 12px;
 	border-bottom: 1px solid rgba(141, 121, 98, 0.35);
 }
 
