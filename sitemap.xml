@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
     <url>
         <loc>https://avesmaps.de/</loc>
-        <lastmod>2026-05-11</lastmod>
+        <xhtml:link rel="alternate" hreflang="de" href="https://avesmaps.de/" />
+        <xhtml:link rel="alternate" hreflang="en" href="https://avesmaps.de/?lang=en" />
+        <xhtml:link rel="alternate" hreflang="x-default" href="https://avesmaps.de/" />
+        <lastmod>2026-06-29</lastmod>
         <changefreq>weekly</changefreq>
         <priority>1.0</priority>
     </url>
