@@ -7,7 +7,7 @@ routes directly in the browser.
 
 ![Beispielansicht](img/example.png)
 
-The currently reachable version runs at [https://valentin-schwind.github.io/avesmaps/](https://valentin-schwind.github.io/avesmaps/).
+The live version runs at [https://avesmaps.de/](https://avesmaps.de/).
 
 ## What the project can do
 
@@ -34,9 +34,9 @@ To speed this up, the implementation uses a **PriorityQueue based on a min-heap*
 
 The application is intentionally kept simple:
 
-- `index.html` contains the largest part of the logic for the map, data processing and route planning
+- `index.html` hand-includes the frontend scripts; the map, data-processing and routing logic lives in the modular `js/` files (vanilla JavaScript, no bundler/build step)
 - `tiles/` contains the map tiles
-- `api/` contains the optional PHP endpoint for location reports, an example configuration and SQL schemas
+- `api/` contains the PHP 8 + MySQL backend (search, Herrschaftsgebiete, the routing API, reviews, location reports and the editor), an example configuration and SQL schemas
 - `css/`, `js/` and `fonts/` contain all required assets locally in the repository
 
 The map and route logic itself stays entirely in the browser:
