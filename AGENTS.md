@@ -22,10 +22,9 @@ interactive tile map **and an in-browser route planner**.
 - **Routing:** Dijkstra over a weighted graph built from GeoJSON paths
   (min-heap priority queue); runs both client-side and via `POST /api/route/`.
 
-> ⚠️ **Correct a recurring myth:** `llms.txt`, `site-summary.md` and the old
-> `README.md` claim Avesmaps has "no backend / no database / no external API".
-> That is **false** — there is a substantial PHP+MySQL backend (see §4). These
-> three files are slated to be fixed at the source.
+> **Note:** `llms.txt`, `site-summary.md` and `README.md` once claimed "no backend /
+> no database / no external API". That was **false** and was **corrected on
+> 2026-06-29** — all three now describe the PHP+MySQL backend (see §4).
 
 ## 2. Domain glossary (English ↔ Aventurien/DSA)
 
