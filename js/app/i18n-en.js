@@ -200,6 +200,8 @@ window.AVESMAPS_I18N_EN = {
 	"review.writesVerb": "writes",
 	"review.loading": "Loading reviews …",
 	"review.thisPlaceFallback": "this place",
+	"review.introBefore": "Rate ",
+	"review.introAfter": " with 1–5 stars and a short comment (max. 200 characters). Reviews appear immediately.",
 	"review.ofFive": "of 5",
 	"review.toastNeedStars": "Please give 1 to 5 stars.",
 	"review.toastInvalidDate": "Please enter a valid Aventurian date, e.g. \"7. Rahja 1049 BF\" – or leave the field empty.",
