@@ -72,7 +72,10 @@ try {
     ]);
 
     // Best-effort push notification; the message is already persisted above.
-    avesmapsNotifyContactRecipient($config, $contact);
+    // The delivery outcome is written back onto the row for diagnostics.
+    $messageId = (int) $pdo->lastInsertId();
+    $deliveryStatus = avesmapsNotifyContactRecipient($config, $contact);
+    avesmapsUpdateContactDeliveryStatus($pdo, $messageId, $deliveryStatus);
 
     avesmapsJsonResponse(201, [
         'ok' => true,
@@ -172,6 +175,7 @@ function avesmapsEnsureContactMessagesTable(PDO $pdo): void {
             sender_email VARCHAR(200) NULL,
             message TEXT NOT NULL,
             status VARCHAR(20) NOT NULL DEFAULT 'neu',
+            delivery_status VARCHAR(40) NULL,
             page_url VARCHAR(500) NULL,
             request_origin VARCHAR(255) NULL,
             ip_hash CHAR(64) NULL,
@@ -183,13 +187,25 @@ function avesmapsEnsureContactMessagesTable(PDO $pdo): void {
             KEY idx_contact_message_ip_created (ip_hash, created_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
+    avesmapsEnsureContactColumn($pdo, 'delivery_status', 'VARCHAR(40) NULL AFTER status');
 }
 
-function avesmapsNotifyContactRecipient(array $config, array $contact): void {
+function avesmapsEnsureContactColumn(PDO $pdo, string $columnName, string $columnDefinition): void {
+    $quotedColumnName = $pdo->quote($columnName);
+    $statement = $pdo->query("SHOW COLUMNS FROM contact_message LIKE {$quotedColumnName}");
+    if ($statement !== false && $statement->fetch() !== false) {
+        return;
+    }
+
+    $pdo->exec("ALTER TABLE contact_message ADD COLUMN {$columnName} {$columnDefinition}");
+}
+
+// Returns a short machine status (e.g. 'smtp_sent', 'smtp_auth_failed',
+// 'mail_failed', 'no_recipient') that is stored on the row for diagnostics.
+function avesmapsNotifyContactRecipient(array $config, array $contact): string {
     $recipient = trim((string) ($config['contact']['recipient'] ?? ''));
     if ($recipient === '' || filter_var($recipient, FILTER_VALIDATE_EMAIL) === false) {
-        // No recipient configured -> the message stays stored only.
-        return;
+        return 'no_recipient';
     }
 
     $sender = trim((string) ($config['contact']['sender'] ?? ''));
@@ -198,37 +214,180 @@ function avesmapsNotifyContactRecipient(array $config, array $contact): void {
     }
 
     $senderEmail = (string) ($contact['email'] ?? '');
-    $senderName = (string) ($contact['name'] ?? '');
+    $replyTo = ($senderEmail !== '' && filter_var($senderEmail, FILTER_VALIDATE_EMAIL) !== false) ? $senderEmail : '';
 
     $bodyLines = [];
-    if ($senderName !== '') {
-        $bodyLines[] = 'Name: ' . $senderName;
+    if (((string) ($contact['name'] ?? '')) !== '') {
+        $bodyLines[] = 'Name: ' . (string) $contact['name'];
     }
     $bodyLines[] = 'E-Mail: ' . ($senderEmail !== '' ? $senderEmail : '(keine angegeben)');
     $bodyLines[] = 'Seite: ' . (string) ($contact['page_url'] ?? '');
     $bodyLines[] = '';
     $bodyLines[] = (string) ($contact['message'] ?? '');
-    $body = wordwrap(implode("\r\n", $bodyLines), 990, "\r\n", true);
+    $body = implode("\r\n", $bodyLines);
 
-    $headerLines = [
-        'From: Avesmaps Kontakt <' . $sender . '>',
-        'Content-Type: text/plain; charset=UTF-8',
-        'MIME-Version: 1.0',
-    ];
-    if ($senderEmail !== '' && filter_var($senderEmail, FILTER_VALIDATE_EMAIL) !== false) {
-        $headerLines[] = 'Reply-To: ' . $senderEmail;
+    $subject = 'Avesmaps: neue Kontaktnachricht';
+    $fromName = 'Avesmaps Kontakt';
+
+    // Preferred path: authenticated SMTP (STRATO blocks local mail()).
+    $smtp = $config['contact']['smtp'] ?? null;
+    if (is_array($smtp) && trim((string) ($smtp['password'] ?? '')) !== '') {
+        try {
+            return avesmapsContactSendViaSmtp($smtp, $sender, $fromName, $recipient, $replyTo, $subject, $body);
+        } catch (Throwable $error) {
+            return 'smtp_exception';
+        }
     }
 
-    $subject = '=?UTF-8?B?' . base64_encode('Avesmaps: neue Kontaktnachricht') . '?=';
+    // Fallback: local mail() with an explicit envelope sender (-f).
+    $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
+    $headerLines = [
+        'From: =?UTF-8?B?' . base64_encode($fromName) . '?= <' . $sender . '>',
+        'MIME-Version: 1.0',
+        'Content-Type: text/plain; charset=UTF-8',
+    ];
+    if ($replyTo !== '') {
+        $headerLines[] = 'Reply-To: ' . $replyTo;
+    }
+    try {
+        $sent = @mail($recipient, $encodedSubject, wordwrap($body, 990, "\r\n", true), implode("\r\n", $headerLines), '-f' . $sender);
+        return $sent ? 'mail_sent' : 'mail_failed';
+    } catch (Throwable $error) {
+        return 'mail_exception';
+    }
+}
 
-    // STRATO (sendmail) silently drops mail whose envelope sender is not a real
-    // mailbox on the account -- set it explicitly to the configured avesmaps.de
-    // sender via -f. $sender is config-controlled and validated as an email above.
-    $envelopeSenderParam = '-f' . $sender;
+// Minimal SMTP-over-TLS client (no library available in this build-free project).
+// Port 465 = implicit TLS; port 587 = STARTTLS. Returns a short status string.
+function avesmapsContactSendViaSmtp(array $smtp, string $from, string $fromName, string $to, string $replyTo, string $subject, string $body): string {
+    $host = trim((string) ($smtp['host'] ?? 'smtp.strato.de'));
+    $port = (int) ($smtp['port'] ?? 465);
+    $username = trim((string) ($smtp['username'] ?? $from));
+    $password = (string) ($smtp['password'] ?? '');
+    if ($host === '' || $port <= 0 || $username === '' || $password === '') {
+        return 'smtp_misconfigured';
+    }
+
+    $timeoutSeconds = 15;
+    $useImplicitTls = ($port === 465);
+    $transport = $useImplicitTls ? 'ssl://' : 'tcp://';
+    $context = stream_context_create([
+        'ssl' => ['verify_peer' => true, 'verify_peer_name' => true, 'SNI_enabled' => true],
+    ]);
+
+    $errorNumber = 0;
+    $errorString = '';
+    $socket = @stream_socket_client(
+        $transport . $host . ':' . $port,
+        $errorNumber,
+        $errorString,
+        $timeoutSeconds,
+        STREAM_CLIENT_CONNECT,
+        $context
+    );
+    if ($socket === false) {
+        return 'smtp_connect_failed';
+    }
+    stream_set_timeout($socket, $timeoutSeconds);
+
+    $heloName = avesmapsContactSmtpHeloName($from);
 
     try {
-        @mail($recipient, $subject, $body, implode("\r\n", $headerLines), $envelopeSenderParam);
+        if (!avesmapsContactSmtpExpect($socket, '220')) {
+            return 'smtp_no_greeting';
+        }
+        if (!avesmapsContactSmtpCommand($socket, 'EHLO ' . $heloName, '250')) {
+            return 'smtp_ehlo_failed';
+        }
+        if (!$useImplicitTls) {
+            if (!avesmapsContactSmtpCommand($socket, 'STARTTLS', '220')) {
+                return 'smtp_starttls_failed';
+            }
+            if (!@stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+                return 'smtp_tls_failed';
+            }
+            if (!avesmapsContactSmtpCommand($socket, 'EHLO ' . $heloName, '250')) {
+                return 'smtp_ehlo2_failed';
+            }
+        }
+        if (!avesmapsContactSmtpCommand($socket, 'AUTH LOGIN', '334')) {
+            return 'smtp_auth_unsupported';
+        }
+        if (!avesmapsContactSmtpCommand($socket, base64_encode($username), '334')) {
+            return 'smtp_auth_user_failed';
+        }
+        if (!avesmapsContactSmtpCommand($socket, base64_encode($password), '235')) {
+            return 'smtp_auth_failed';
+        }
+        if (!avesmapsContactSmtpCommand($socket, 'MAIL FROM:<' . $from . '>', '250')) {
+            return 'smtp_from_rejected';
+        }
+        if (!avesmapsContactSmtpCommand($socket, 'RCPT TO:<' . $to . '>', '250')) {
+            return 'smtp_rcpt_rejected';
+        }
+        if (!avesmapsContactSmtpCommand($socket, 'DATA', '354')) {
+            return 'smtp_data_rejected';
+        }
+        $message = avesmapsContactSmtpBuildMessage($from, $fromName, $to, $replyTo, $subject, $body);
+        if (!avesmapsContactSmtpCommand($socket, $message . "\r\n.", '250')) {
+            return 'smtp_body_rejected';
+        }
+        avesmapsContactSmtpCommand($socket, 'QUIT', '221');
+        return 'smtp_sent';
+    } finally {
+        @fclose($socket);
+    }
+}
+
+function avesmapsContactSmtpHeloName(string $from): string {
+    $domain = (string) substr((string) strrchr($from, '@'), 1);
+    return $domain !== '' ? $domain : 'localhost';
+}
+
+function avesmapsContactSmtpCommand($socket, string $command, string $expectedCode): bool {
+    fwrite($socket, $command . "\r\n");
+    return avesmapsContactSmtpExpect($socket, $expectedCode);
+}
+
+function avesmapsContactSmtpExpect($socket, string $expectedCode): bool {
+    $response = '';
+    while (($line = fgets($socket, 600)) !== false) {
+        $response .= $line;
+        // Continuation lines have '-' as the 4th char; the final line has ' '.
+        if (strlen($line) < 4 || $line[3] !== '-') {
+            break;
+        }
+    }
+    return strncmp($response, $expectedCode, 3) === 0;
+}
+
+function avesmapsContactSmtpBuildMessage(string $from, string $fromName, string $to, string $replyTo, string $subject, string $body): string {
+    $headers = [];
+    $headers[] = 'Date: ' . gmdate('r');
+    $headers[] = 'From: =?UTF-8?B?' . base64_encode($fromName) . '?= <' . $from . '>';
+    $headers[] = 'To: <' . $to . '>';
+    if ($replyTo !== '') {
+        $headers[] = 'Reply-To: <' . $replyTo . '>';
+    }
+    $headers[] = 'Subject: =?UTF-8?B?' . base64_encode($subject) . '?=';
+    $headers[] = 'MIME-Version: 1.0';
+    $headers[] = 'Content-Type: text/plain; charset=UTF-8';
+    $headers[] = 'Content-Transfer-Encoding: base64';
+
+    // base64 body keeps UTF-8 safe over SMTP and avoids dot-stuffing edge cases.
+    $encodedBody = rtrim(chunk_split(base64_encode($body), 76, "\r\n"), "\r\n");
+
+    return implode("\r\n", $headers) . "\r\n\r\n" . $encodedBody;
+}
+
+function avesmapsUpdateContactDeliveryStatus(PDO $pdo, int $messageId, string $deliveryStatus): void {
+    if ($messageId <= 0) {
+        return;
+    }
+    try {
+        $statement = $pdo->prepare('UPDATE contact_message SET delivery_status = :status WHERE id = :id');
+        $statement->execute(['status' => mb_substr($deliveryStatus, 0, 40), 'id' => $messageId]);
     } catch (Throwable $error) {
-        // Delivery is best-effort; the persisted row is the source of truth.
+        // Diagnostic only; ignore failures.
     }
 }
