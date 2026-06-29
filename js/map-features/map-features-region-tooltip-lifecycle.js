@@ -43,7 +43,7 @@ function openRegionCompactTooltip(regionEntry, options = {}) {
 	closeRegionCompactTooltip();
 	const tooltip = L.tooltip({
 		direction: "top",
-		offset: [0, -18],
+		offset: [0, -33],
 		opacity: 1,
 		className: "region-compact-tooltip",
 		// Hover-Infobox ist nicht-interaktiv (pointer-events: none), damit der Cursor "durch"
@@ -119,7 +119,7 @@ function applyRegionTooltipVerticalFlip(tooltip) {
 	}
 
 	tooltip.options.direction = desiredDirection;
-	tooltip.options.offset = flipDown ? [0, 18] : [0, -18];
+	tooltip.options.offset = flipDown ? [0, 33] : [0, -33];
 	tooltip.update();
 }
 
