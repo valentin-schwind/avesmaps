@@ -42,6 +42,18 @@ Editor. `polygon-clipping` steht unter der MIT-Lizenz.
 - Leaflet: https://leafletjs.com/
 - polygon-clipping: https://github.com/mfogel/polygon-clipping
 
+## Besucher-Statistik und IP-Geodaten
+
+Avesmaps erhebt eine anonyme, aggregierte Nutzungsstatistik ohne Cookies und ohne
+nutzerbezogene Profile. Die ungefähre Herkunft (Land/Bundesland) wird serverseitig
+aus der IP-Adresse ermittelt; die IP-Adresse selbst wird nicht gespeichert.
+
+Die verwendete IP-zu-Standort-Datenbank stammt von DB-IP.com und steht unter der
+Creative Commons Attribution License (CC BY 4.0).
+
+- DB-IP: https://db-ip.com/
+- CC BY 4.0: https://creativecommons.org/licenses/by/4.0/
+
 ## Ulisses-Fanrichtlinien
 
 Kennzeichnung als Fanprojekt und Verwendung des DSA-FANPROJEKT-Logos

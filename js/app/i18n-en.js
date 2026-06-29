@@ -259,6 +259,8 @@ window.AVESMAPS_I18N_EN = {
 	"legal.disclaimer.body": "Avesmaps is an aid for gaming groups, research and private use. The website does not replace official DSA publications. The official publications of the respective rights holders remain solely authoritative for canon, rules, geography, names, borders and descriptions.",
 	"legal.software.lead": "Software and open-source components.",
 	"legal.software.body": "Avesmaps uses Leaflet, an open-source JavaScript library for interactive maps, polygon-clipping for boolean polygon operations, and polylabel for label placement in the Herrschaftsgebiete editor. Leaflet is under the BSD-2-Clause license; polygon-clipping under the MIT, polylabel under the ISC license. The use of these libraries concerns exclusively the technical display and operation of the interactive map and establishes no rights to DSA-related map, name, trademark or background material.",
+	"legal.analytics.lead": "Visitor statistics and geolocation.",
+	"legal.analytics.body": "Avesmaps collects anonymous, strictly aggregated usage statistics (page views, features used, approximate origin) — without cookies, without user-specific profiles, and without sharing with third parties. Unique daily visitors are counted via a non-reversible, daily-rotating hash that is not stored permanently. The approximate origin (country/state) is derived server-side from the IP address; the IP address itself is not stored. The underlying IP geolocation database is provided by DB-IP.com under the Creative Commons CC BY 4.0 license.",
 	"legal.sources.label": "Sources.",
 	"legal.sources.orkenspalter": "Orkenspalter map material",
 	"legal.sources.ulissesGuideline": "Ulisses fan guidelines",
