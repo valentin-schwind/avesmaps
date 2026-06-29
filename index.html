@@ -11,6 +11,9 @@
 		<meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 		<meta name="theme-color" content="#565044" />
 		<link rel="canonical" href="https://avesmaps.de/" />
+		<link rel="alternate" hreflang="de" href="https://avesmaps.de/" />
+		<link rel="alternate" hreflang="en" href="https://avesmaps.de/?lang=en" />
+		<link rel="alternate" hreflang="x-default" href="https://avesmaps.de/" />
 		<link rel="sitemap" type="application/xml" href="https://avesmaps.de/sitemap.xml" />
 		<meta property="og:locale" content="de_DE" />
 		<meta property="og:type" content="website" />
@@ -33,56 +36,146 @@
 		<link rel="stylesheet" href="css/components/visitor-analytics.css" />
 		<link rel="stylesheet" href="css/styles.css?v=20260610-metropole-case" />
 		<script type="application/ld+json">
-			{
-				"@context": "https://schema.org",
-				"@graph": [
-					{
-						"@type": "WebSite",
-						"@id": "https://avesmaps.de/#website",
-						"url": "https://avesmaps.de/",
-						"name": "Avesmaps",
-						"inLanguage": "de-DE",
-						"description": "Aventurien-Routenplaner für Das Schwarze Auge mit Orten, Wegen, politischen Grenzen und teilbaren Routen-URLs.",
-						"sameAs": ["https://github.com/valentin-schwind/avesmaps"],
-						"publisher": {
-							"@type": "Person",
-							"name": "Valentin Schwind",
-							"url": "https://github.com/valentin-schwind"
-						}
-					},
-					{
-						"@type": "SoftwareApplication",
-						"@id": "https://avesmaps.de/#app",
-						"name": "Avesmaps",
-						"url": "https://avesmaps.de/",
-						"applicationCategory": "UtilitiesApplication",
-						"operatingSystem": "Any",
-						"isAccessibleForFree": true,
-						"inLanguage": "de-DE",
-						"browserRequirements": "JavaScript erforderlich",
-						"description": "Aventurien-Routenplaner für Das Schwarze Auge mit politischer Karte, Routenplanung auf Basis eines gewichteten Graphen und teilbaren URLs.",
-						"image": "https://avesmaps.de/og-image.jpg",
-						"screenshot": "https://avesmaps.de/og-image.jpg",
-						"sameAs": ["https://github.com/valentin-schwind/avesmaps"],
-						"author": {
-							"@type": "Person",
-							"name": "Valentin Schwind",
-							"url": "https://github.com/valentin-schwind"
-						},
-						"featureList": [
-							"Interaktive Aventurien-Karte mit Orten, Wegen und politischen Grenzen",
-							"Routenplanung für mehrere Wegpunkte",
-							"Berechnung der schnellsten oder kuerzesten Route",
-							"Teilbare Routen und Einstellungen per URL"
-						],
-						"offers": {
-							"@type": "Offer",
-							"price": "0",
-							"priceCurrency": "EUR"
-						}
-					}
-				]
+{
+	"@context": "https://schema.org",
+	"@graph": [
+		{
+			"@type": "Organization",
+			"@id": "https://avesmaps.de/#publisher",
+			"name": "Avesmaps",
+			"url": "https://avesmaps.de/",
+			"logo": "https://avesmaps.de/og-image.jpg",
+			"founder": {
+				"@type": "Person",
+				"name": "Valentin Schwind",
+				"url": "https://github.com/valentin-schwind"
 			}
+		},
+		{
+			"@type": "WebSite",
+			"@id": "https://avesmaps.de/#website",
+			"url": "https://avesmaps.de/",
+			"name": "Avesmaps",
+			"inLanguage": [
+				"de-DE",
+				"en"
+			],
+			"description": "Aventurien-Routenplaner für Das Schwarze Auge mit Orten, Wegen, politischen Grenzen und teilbaren Routen-URLs.",
+			"publisher": {
+				"@id": "https://avesmaps.de/#publisher"
+			},
+			"sameAs": [
+				"https://github.com/valentin-schwind/avesmaps"
+			]
+		},
+		{
+			"@type": "SoftwareApplication",
+			"@id": "https://avesmaps.de/#app",
+			"name": "Avesmaps",
+			"url": "https://avesmaps.de/",
+			"applicationCategory": "UtilitiesApplication",
+			"operatingSystem": "Any",
+			"isAccessibleForFree": true,
+			"inLanguage": [
+				"de-DE",
+				"en"
+			],
+			"browserRequirements": "JavaScript erforderlich",
+			"description": "Aventurien-Routenplaner für Das Schwarze Auge mit politischer Karte, Routenplanung auf Basis eines gewichteten Graphen und teilbaren URLs.",
+			"image": "https://avesmaps.de/og-image.jpg",
+			"screenshot": "https://avesmaps.de/og-image.jpg",
+			"about": {
+				"@type": "Place",
+				"name": "Aventurien"
+			},
+			"publisher": {
+				"@id": "https://avesmaps.de/#publisher"
+			},
+			"author": {
+				"@type": "Person",
+				"name": "Valentin Schwind",
+				"url": "https://github.com/valentin-schwind"
+			},
+			"sameAs": [
+				"https://github.com/valentin-schwind/avesmaps"
+			],
+			"featureList": [
+				"Interaktive Aventurien-Karte mit Orten, Wegen und politischen Grenzen",
+				"Routenplanung für mehrere Wegpunkte",
+				"Berechnung der schnellsten oder kürzesten Route",
+				"Teilbare Routen und Einstellungen per URL"
+			],
+			"offers": {
+				"@type": "Offer",
+				"price": "0",
+				"priceCurrency": "EUR"
+			}
+		},
+		{
+			"@type": "FAQPage",
+			"@id": "https://avesmaps.de/#faq",
+			"inLanguage": "de-DE",
+			"mainEntity": [
+				{
+					"@type": "Question",
+					"name": "Was ist Avesmaps?",
+					"acceptedAnswer": {
+						"@type": "Answer",
+						"text": "Avesmaps ist eine kostenlose, interaktive Aventurien-Karte und ein Routenplaner für das Pen-and-Paper-Rollenspiel Das Schwarze Auge (DSA)."
+					}
+				},
+				{
+					"@type": "Question",
+					"name": "Was ist Aventurien?",
+					"acceptedAnswer": {
+						"@type": "Answer",
+						"text": "Aventurien ist der zentrale Kontinent der Spielwelt Dere aus Das Schwarze Auge (englisch \"The Dark Eye\")."
+					}
+				},
+				{
+					"@type": "Question",
+					"name": "Kann ich mit Avesmaps Reiserouten planen?",
+					"acceptedAnswer": {
+						"@type": "Answer",
+						"text": "Ja. Avesmaps plant Routen über mehrere Wegpunkte, wahlweise die schnellste oder kürzeste Strecke, über Land-, Fluss- und Seewege."
+					}
+				},
+				{
+					"@type": "Question",
+					"name": "Zeigt Avesmaps die politischen Grenzen der Reiche?",
+					"acceptedAnswer": {
+						"@type": "Answer",
+						"text": "Ja. Eine optionale politische Karte zeigt Herrschaftsgebiete und Reichsgrenzen, die sich ein- und ausblenden lassen."
+					}
+				},
+				{
+					"@type": "Question",
+					"name": "Ist Avesmaps kostenlos?",
+					"acceptedAnswer": {
+						"@type": "Answer",
+						"text": "Ja. Avesmaps ist ein kostenloses, nicht-kommerzielles Fanprojekt."
+					}
+				},
+				{
+					"@type": "Question",
+					"name": "Kann ich geplante Routen teilen?",
+					"acceptedAnswer": {
+						"@type": "Answer",
+						"text": "Ja. Routen und Einstellungen sind in der URL kodiert und lassen sich per Link weitergeben."
+					}
+				},
+				{
+					"@type": "Question",
+					"name": "Ist Avesmaps offiziell?",
+					"acceptedAnswer": {
+						"@type": "Answer",
+						"text": "Nein. Avesmaps ist ein inoffizielles Fanprojekt ohne Verbindung zu Ulisses Spiele."
+					}
+				}
+			]
+		}
+	]
+}
 		</script>
 		<script src="js/third-party/leaflet.js"></script>
 		<script src="js/third-party/leaflet.textpath.local.js"></script>
