@@ -90,6 +90,18 @@
 		if (typeof locationCanvasLayer !== "undefined" && locationCanvasLayer) {
 			ensureWrappedMethod(locationCanvasLayer, "_redraw", "markerCanvas.redraw");
 		}
+		// Leaflet-interne SVG-Pfad-Reprojektion -- laeuft NICHT in unseren Funktionen, ist aber der Hauptverdacht
+		// fuer den z2->z3-Haenger: jedes sichtbare SVG-<path> (roads/rivers/regions, keine preferCanvas) wird bei
+		// jedem Zoom neu projiziert (_project) und sein 'd'-String neu gebaut + ins DOM geschrieben (_updatePoly).
+		// Bei tausenden punktreichen (Catmull-geglaetteten) Pfaden summiert sich das zur unsichtbaren langen Task.
+		if (typeof L !== "undefined" && L) {
+			if (L.SVG && L.SVG.prototype) {
+				ensureWrappedMethod(L.SVG.prototype, "_updatePoly", "svg._updatePoly");
+			}
+			if (L.Polyline && L.Polyline.prototype) {
+				ensureWrappedMethod(L.Polyline.prototype, "_project", "path._project");
+			}
+		}
 	}
 
 	try {
