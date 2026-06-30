@@ -299,9 +299,18 @@ function tickPowerlineAnimation(frameTimeMs) {
 
 	const elapsedMs = frameTimeMs - powerlineAnimationLastFrameMs;
 	if (elapsedMs >= POWERLINE_RENDER_CONFIG.frameIntervalMs) {
-		powerlineAnimationTimeSeconds += Math.min(elapsedMs, 120) / 1000;
 		powerlineAnimationLastFrameMs = frameTimeMs;
-		refreshPowerlineLayers(powerlineAnimationTimeSeconds);
+		// Waehrend Leaflets CSS-Zoom-Animation (Buttons/Scroll/Pinch) die Strang-Geometrie NICHT neu setzen:
+		// setLatLngs projiziert sonst jeden Frame auf den noch alten Zoom und ueberschreibt die Zoom-Transform
+		// der SVG-Polylinien -> die Linien bleiben stehen und "poppen" erst am zoomend ans Ziel. map._animatingZoom
+		// markiert genau dieses CSS-Zoom-Fenster; pausiert skalieren die Linien nativ mit (wie Wege/Grenzen) und
+		// Leaflet re-projiziert am zoomend selbst. Bei flyTo/setView ist _animatingZoom false -> der Loop laeuft
+		// normal weiter und folgt pro Frame der echten Projektion. lastFrameMs setzen wir trotzdem, damit nach
+		// dem Zoom kein Zeit-Sprung im Puls entsteht.
+		if (!map._animatingZoom) {
+			powerlineAnimationTimeSeconds += Math.min(elapsedMs, 120) / 1000;
+			refreshPowerlineLayers(powerlineAnimationTimeSeconds);
+		}
 	}
 
 	powerlineAnimationFrameId = window.requestAnimationFrame(tickPowerlineAnimation);
