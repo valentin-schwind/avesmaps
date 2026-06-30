@@ -80,7 +80,7 @@ document.addEventListener("visibilitychange", () => {
 
 function createBaseTileLayer(mapStyle) {
     const tileStyle = MAP_TILE_STYLES[mapStyle] || MAP_TILE_STYLES.stylized;
-    return L.tileLayer(tileStyle.url, {
+    const baseLayer = L.tileLayer(tileStyle.url, {
         tileSize: TILE_SIZE,
         maxNativeZoom: tileStyle.maxNativeZoom ?? 5,
         noWrap: true,
@@ -93,6 +93,10 @@ function createBaseTileLayer(mapStyle) {
         updateWhenZooming: false,
         keepBuffer: 4,
     });
+    if (window.AvesmapsLoadingBar) {
+        window.AvesmapsLoadingBar.attachTiles(baseLayer);
+    }
+    return baseLayer;
 }
 
 function getInitialMapStyle() {
