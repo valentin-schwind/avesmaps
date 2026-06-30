@@ -87,6 +87,11 @@ function createBaseTileLayer(mapStyle) {
         errorTileUrl: "tiles/loading.jpg",
         bounds: MAP_BOUNDS,
         continuousWorld: false,
+        // Tile smoothness: do not fetch new tiles DURING the zoom animation (the existing tiles scale and
+        // sharpen at zoomend) -> smoother zoom; keep a wider ring of tiles around the viewport so panning
+        // back does not refetch. Targets perceived zoom/pan sluggishness; the vector pipeline is untouched.
+        updateWhenZooming: false,
+        keepBuffer: 4,
     });
 }
 
