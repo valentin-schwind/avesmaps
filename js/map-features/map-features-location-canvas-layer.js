@@ -82,7 +82,8 @@ const locationCanvasLayer = {
 				leyR: leyNode ? Math.max(5, (core + contour) * 1.7) : 0,
 			};
 		});
-		this._canvas.style.visibility = "";
+		this._canvas.style.transition = "opacity 200ms ease-in";
+		this._canvas.style.opacity = "1";
 		this._redraw();
 	},
 
@@ -97,7 +98,8 @@ const locationCanvasLayer = {
 		this._canvas.height = Math.round(size.y * dpr);
 		this._canvas.style.width = `${size.x}px`;
 		this._canvas.style.height = `${size.y}px`;
-		this._canvas.style.visibility = "";
+		this._canvas.style.transition = "opacity 200ms ease-in";
+		this._canvas.style.opacity = "1";
 		this._redraw();
 	},
 
@@ -110,9 +112,12 @@ const locationCanvasLayer = {
 	},
 
 	_onZoomStart() {
-		// Waehrend der Zoom-Animation skaliert der Canvas nicht mit -> kurz ausblenden, am zoomend (_reset) neu.
+		// Der Canvas skaliert waehrend der Zoom-Animation nicht mit (feste Marker-Pixelgroessen) -> weich
+		// AUSfaden statt hart ausblenden; am zoomend (_reset) frisch zeichnen und weich EINfaden. Das gleicht
+		// das harte "Plopp" gegen die mitskalierenden Tiles/Grenzen aus.
 		if (this._ready) {
-			this._canvas.style.visibility = "hidden";
+			this._canvas.style.transition = "opacity 100ms ease-out";
+			this._canvas.style.opacity = "0";
 		}
 	},
 
