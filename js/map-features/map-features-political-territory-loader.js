@@ -515,10 +515,25 @@ function installPoliticalRegionVisibilityBehavior() {
 			}
 		});
 
+		// Label -> Region-Eintrag einmal als Lookup vorberechnen (war O(Labels x (regionData + regionPolygons))
+		// mit regionPolygons.map()-Allokation pro Label -> O(n^2) pro Zoom im Politik-Modus). Semantik unveraendert:
+		// regionData-Treffer hat Vorrang vor dem polygon._regionEntry-Fallback, erster Treffer gewinnt (wie .find()).
+		const labelToDataEntry = new Map();
+		regionData.forEach((entry) => {
+			const lbl = entry?._normalizedRegionEntry?.label;
+			if (lbl && !labelToDataEntry.has(lbl)) {
+				labelToDataEntry.set(lbl, entry);
+			}
+		});
+		const labelToPolyEntry = new Map();
+		regionPolygons.forEach((polygon) => {
+			const polyEntry = polygon?._regionEntry;
+			if (polyEntry?.label && !labelToPolyEntry.has(polyEntry.label)) {
+				labelToPolyEntry.set(polyEntry.label, polyEntry);
+			}
+		});
 		regionLabels.forEach((label) => {
-			const regionEntry = regionData.find((entry) => entry?._normalizedRegionEntry?.label === label)
-				|| regionPolygons.map((polygon) => polygon?._regionEntry).find((entry) => entry?.label === label)
-				|| null;
+			const regionEntry = labelToDataEntry.get(label) || labelToPolyEntry.get(label) || null;
 			const minZoom = readOptionalRegionZoom(regionEntry?.minZoom);
 			const maxZoom = readOptionalRegionZoom(regionEntry?.maxZoom);
 			const isVisibleAtZoom = (minZoom === null || minZoom <= currentZoom) && (maxZoom === null || maxZoom >= currentZoom);
