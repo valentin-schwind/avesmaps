@@ -37,6 +37,7 @@ map.getPane("regionLabelsPane").style.zIndex = 475;
 map.getPane("regionLabelsPane").classList.add("region-labels-pane");
 map.getPane("locationsPane").style.zIndex = 500;
 map.getPane("labelsPane").style.zIndex = 650;
+map.getPane("labelsPane").classList.add("map-labels-pane");
 map.getPane("tooltipPane").style.zIndex = 875;
 map.getPane("popupPane").style.zIndex = 900;
 

@@ -168,15 +168,21 @@ body.edit-mode .map-label img {
 	transform: translate(-50%, -50%);
 }
 
-/* Reichsnamen-Labels (regionLabelsPane) faden waehrend der Leaflet-Zoom-Animation weich aus und nach dem
-   Zoom wieder ein -- analog zu den Siedlungs-Markern, die beim Zoom nicht mitskalieren und sonst "ploppen".
-   Das Pane hat (anders als die einzelnen Tooltips, die ein Inline-opacity tragen) keine Inline-Opacity, daher
-   greift die CSS-Opacity hier sauber. .leaflet-zoom-anim liegt waehrend der Animation auf dem Karten-Container;
-   am zoomend faellt die Klasse weg -> sanftes Einblenden, sobald die Labels neu positioniert sind. */
-.region-labels-pane {
+/* Alle Karten-Text-Labels faden waehrend der Leaflet-Zoom-Animation weich aus und nach dem Zoom wieder ein --
+   analog zu den Siedlungs-Markern, die beim Zoom nicht mitskalieren und sonst "ploppen". Betrifft beide Label-
+   Panes: regionLabelsPane (Herrschaftsgebiet-/Reichsnamen) und labelsPane (Ortsnamen, Landschafts-/Regionsnamen,
+   Wege-/Flussnamen). Wir faden auf PANE-Ebene, weil die einzelnen Labels teils ein Inline-opacity tragen (Leaflet-
+   Tooltip-Option bzw. Kollisions-/Zoom-Sichtbarkeit), das eine Per-Label-CSS-Opacity ueberschreiben wuerde; die
+   Panes selbst haben keine Inline-Opacity. .leaflet-zoom-anim liegt waehrend der Animation auf dem Karten-
+   Container; am zoomend faellt die Klasse weg -> sanftes Einblenden, sobald die Labels neu positioniert sind.
+   (labelsPane enthaelt keine sichtbare Vektor-Geometrie -- die Fuehrungslinien der Wege-/Flussnamen sind
+   transparent (opacity 0); die sichtbaren Wege liegen in roadsPane/powerlinesPane und skalieren korrekt mit.) */
+.region-labels-pane,
+.map-labels-pane {
 	transition: opacity 200ms ease-in;
 }
-.leaflet-zoom-anim .region-labels-pane {
+.leaflet-zoom-anim .region-labels-pane,
+.leaflet-zoom-anim .map-labels-pane {
 	opacity: 0;
 	transition: opacity 100ms ease-out;
 }
