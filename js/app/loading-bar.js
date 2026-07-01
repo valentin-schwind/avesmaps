@@ -33,6 +33,9 @@
 	let trickleTimer = null;
 	let hideTimer = null;
 	let showDelayTimer = null;
+	let completeTimer = null;
+	let shownAt = 0;
+	const MIN_VISIBLE_MS = 450;
 
 	function paint() {
 		fill.style.transform = "scaleX(" + progress.toFixed(4) + ")";
@@ -50,6 +53,7 @@
 			return;
 		}
 		visible = true;
+		shownAt = Date.now();
 		if (hideTimer) {
 			clearTimeout(hideTimer);
 			hideTimer = null;
@@ -62,7 +66,7 @@
 		}
 	}
 
-	function complete() {
+	function finishComplete() {
 		if (trickleTimer) {
 			clearInterval(trickleTimer);
 			trickleTimer = null;
@@ -82,8 +86,29 @@
 		}, 360);
 	}
 
+	function complete() {
+		if (completeTimer) {
+			return;
+		}
+		// Mindest-Sichtbarkeit: bei warmem Cache ist der Job in ~200ms durch -> ohne dies blitzt der Balken
+		// unsichtbar vorbei. Ab dem Erscheinen halten wir ihn mindestens MIN_VISIBLE_MS, dann sauber abschliessen.
+		const remaining = MIN_VISIBLE_MS - (Date.now() - shownAt);
+		if (remaining > 0) {
+			completeTimer = setTimeout(() => {
+				completeTimer = null;
+				finishComplete();
+			}, remaining);
+			return;
+		}
+		finishComplete();
+	}
+
 	function refresh() {
 		if (pending.size > 0) {
+			if (completeTimer) {
+				clearTimeout(completeTimer);
+				completeTimer = null;
+			}
 			if (visible) {
 				return;
 			}

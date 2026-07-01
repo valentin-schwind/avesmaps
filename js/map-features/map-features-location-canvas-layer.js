@@ -24,6 +24,7 @@ const locationCanvasLayer = {
 	_ctx: null,
 	_entries: [],
 	_ready: false,
+	_cursorActive: false,
 
 	init(map) {
 		if (this._ready || !LOCATION_CANVAS_MARKERS_ENABLED) {
@@ -47,6 +48,7 @@ const locationCanvasLayer = {
 		map.on("move", this._onMove, this);
 		map.on("zoomstart", this._onZoomStart, this);
 		map.on("click", this._onClick, this);
+		map.on("mousemove", this._onMouseMove, this);
 		this._reset();
 		this._ready = true;
 	},
@@ -228,5 +230,35 @@ const locationCanvasLayer = {
 			this._redraw();
 		});
 		entry.marker.openPopup();
+	},
+
+	// Hover-Cursor fuer die Canvas-Siedlungen: das Canvas-Pane ist pointer-events:none (Klicks laufen ueber den
+	// Hit-Test in _onClick), daher gibt es ueber den gezeichneten Punkten sonst KEINEN Finger-Cursor wie bei
+	// DOM-Markern. Wir setzen ihn hier per Hit-Test auf mousemove -> klickbare Orte signalisieren das wieder.
+	// Nur Desktop (mousemove feuert nicht bei Touch); geschrieben wird nur beim Zustandswechsel (kein Thrashing),
+	// und auf "" zuruecksetzen laesst Leaflets grab/grabbing-Cursor unangetastet. Gleiche Trefferflaeche wie _onClick.
+	_onMouseMove(event) {
+		if (!this._ready) {
+			return;
+		}
+		let over = false;
+		const point = event.containerPoint;
+		for (const item of this._entries) {
+			if (item.entry._canvasPromoted) {
+				continue;
+			}
+			const containerPoint = this._map.latLngToContainerPoint(item.latLng);
+			const dx = containerPoint.x - point.x;
+			const dy = containerPoint.y - point.y;
+			const hitRadius = item.core * (1 + LOCATION_MARKER_CONTOUR_RATIO) + 3;
+			if (dx * dx + dy * dy <= hitRadius * hitRadius) {
+				over = true;
+				break;
+			}
+		}
+		if (over !== this._cursorActive) {
+			this._map.getContainer().style.cursor = over ? "pointer" : "";
+			this._cursorActive = over;
+		}
 	},
 };
