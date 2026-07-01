@@ -139,33 +139,33 @@ echo "-- (a) page iteration: count + per-page title/ns/redirect --\n";
 
 $pages = $readAll($fixturePath);
 
-$check('(a1) page count', 8, count($pages), 'fixture has 8 <page> elements (4 ns0 territory/redirect + 1 ns10 + 3 ns0 path pages)');
+$check('(a1) page count', 11, count($pages), 'fixture has 11 <page> elements (4 ns0 territory/redirect + 1 ns10 + 3 ns0 path pages + 3 ns0 region pages)');
 
 // Titles, in document order.
 $titles = array_map(static fn(array $p): string => $p['title'], $pages);
 $check(
     '(a2) titles in order',
-    ['Kosch', 'Angbar', 'Horasreich', 'Königreich Kosch (historisch)', 'Vorlage:Infobox Staat', 'Breite', 'Reichsstraße 1', 'Rastullah-Strom'],
+    ['Kosch', 'Angbar', 'Horasreich', 'Königreich Kosch (historisch)', 'Vorlage:Infobox Staat', 'Breite', 'Reichsstraße 1', 'Rastullah-Strom', 'Koschberge', 'Rote Sichel', 'Windhag'],
     $titles,
-    'streamed in document order, titles intact (umlaut preserved); path pages appended for Task 4a'
+    'streamed in document order, titles intact (umlaut preserved); path pages (4a) then region pages (4b) appended'
 );
 
 // Namespaces, in document order (proves <ns> is parsed as int, incl. ns 10).
 $namespaces = array_map(static fn(array $p): int => $p['ns'], $pages);
 $check(
     '(a3) namespaces in order',
-    [0, 0, 0, 0, 10, 0, 0, 0],
+    [0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0],
     $namespaces,
-    'ns parsed as int; ns 10 (Vorlage) present -> filtering is the caller\'s job; path pages are ns 0'
+    'ns parsed as int; ns 10 (Vorlage) present -> filtering is the caller\'s job; path + region pages are ns 0'
 );
 
 // Redirect targets: only the two redirect pages expose a non-null target.
 $redirects = array_map(static fn(array $p): ?string => $p['redirect'], $pages);
 $check(
     '(a4) redirect targets in order',
-    [null, null, 'Lieblichesfeld', 'Kosch', null, null, null, null],
+    [null, null, 'Lieblichesfeld', 'Kosch', null, null, null, null, null, null, null],
     $redirects,
-    'only <redirect title="..."/> pages carry a target; others null (path pages are not redirects)'
+    'only <redirect title="..."/> pages carry a target; others null (path + region pages are not redirects)'
 );
 
 // ===========================================================================
@@ -285,9 +285,9 @@ $check(
 );
 $check(
     '(e2) skip 2 -> remaining count',
-    6,
+    9,
     count($afterTwo),
-    '8 total - 2 skipped = 6 remaining'
+    '11 total - 2 skipped = 9 remaining'
 );
 
 $batch = $readAll($fixturePath, 1, 2); // skip 1, take 2 -> pages [1,3)
@@ -298,12 +298,12 @@ $check(
     'a step processes pages [cursor, cursor+batch) then returns'
 );
 
-$skipAll = $readAll($fixturePath, 8);
+$skipAll = $readAll($fixturePath, 11);
 $check(
     '(e4) skip >= total -> empty batch',
     0,
     count($skipAll),
-    'skipping all pages yields nothing (terminal cursor)'
+    'skipping all 11 pages yields nothing (terminal cursor)'
 );
 
 // ===========================================================================
@@ -320,7 +320,7 @@ if ($bz2Loaded) {
     @unlink($bz2Path);
     $check(
         '(f1) .bz2 read yields same page count',
-        8,
+        11,
         count($bz2Pages),
         'compress.bzip2:// streams the fixture (bz2 present locally)'
     );
@@ -363,7 +363,7 @@ $gzPages = $readAll($gzPath);
 @unlink($gzPath);
 $check(
     '(f3) .gz read yields same page count',
-    8,
+    11,
     count($gzPages),
     'compress.zlib:// streams a gzipped fixture'
 );

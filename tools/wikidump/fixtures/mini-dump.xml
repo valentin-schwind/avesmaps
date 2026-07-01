@@ -152,4 +152,66 @@ Der '''Rastullah-Strom''' ist ein Fluss in [[Myranor]].
 [[Kategorie:Fluss (Myranor)]]</text>
     </revision>
   </page>
+  <page>
+    <title>Koschberge</title>
+    <ns>0</ns>
+    <id>108</id>
+    <revision>
+      <id>5008</id>
+      <timestamp>2024-01-09T00:00:00Z</timestamp>
+      <contributor><username>Gareth</username><id>1</id></contributor>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="300" xml:space="preserve">{{Infobox Region
+| Name             = Koschberge
+| Art              = Gebirge
+| Region           = Kosch
+| Staat            = Mittelreich
+| Vegetationszonen = Bergwald
+| Verkehrswege     = [[Reichsstraße 1]]
+}}
+Die '''Koschberge''' sind ein Gebirge im [[Kosch]].
+
+[[Kategorie:Gebirge]]
+[[Kategorie:Kosch]]</text>
+    </revision>
+  </page>
+  <page>
+    <title>Rote Sichel</title>
+    <ns>0</ns>
+    <id>109</id>
+    <revision>
+      <id>5009</id>
+      <timestamp>2024-01-10T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="240" xml:space="preserve">{{Infobox Region
+| Name   = Rote Sichel
+| Art    = Gebirge
+| Region = Imperium
+}}
+Die '''Rote Sichel''' ist ein Gebirge in [[Myranor]].
+
+{{Nav Staaten Myranor}}
+[[Kategorie:Gebirge (Myranor)]]</text>
+    </revision>
+  </page>
+  <page>
+    <title>Windhag</title>
+    <ns>0</ns>
+    <id>110</id>
+    <revision>
+      <id>5010</id>
+      <timestamp>2024-01-11T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="150" xml:space="preserve">{{Infobox Landschaft
+| Name = Windhag
+| Art  = Wald
+}}
+Der '''Windhag''' ist ein Wald.
+
+[[Kategorie:Wald]]</text>
+    </revision>
+  </page>
 </mediawiki>

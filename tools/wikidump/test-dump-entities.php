@@ -4,27 +4,34 @@ declare(strict_types=1);
 
 /**
  * Fixture-based unit test for Pass B of the dump-reader (WikiDump migration,
- * Task 4a): entity-infobox ENUMERATION + the PATH handler (Fluss / Straße), plus
- * the Aventurien continent filter. Exercises the DB-FREE core of
+ * Tasks 4a + 4b): entity-infobox ENUMERATION + the PATH handler (Fluss / Straße)
+ * and the REGION handler (Infobox Region / Landschaft), plus the Aventurien
+ * continent filter. Exercises the DB-FREE core of
  * api/_internal/wiki/dump-entity-scan.php against the canonical hand-written
  * MediaWiki-export fixture (tools/wikidump/fixtures/mini-dump.xml), which Task 4a
- * extended with three ns0 path pages:
+ * extended with three ns0 path pages and Task 4b with three ns0 region pages:
  *
- *   Breite           {{Infobox Fluss}}   -> path, Aventurien   (KEPT)
- *   Reichsstraße 1   {{Infobox Straße}}  -> path, Aventurien   (KEPT)
- *   Rastullah-Strom  {{Infobox Fluss}}   -> path, Myranor      (FILTERED OUT)
+ *   Breite           {{Infobox Fluss}}      -> path,   Aventurien   (KEPT, 4a)
+ *   Reichsstraße 1   {{Infobox Straße}}     -> path,   Aventurien   (KEPT, 4a)
+ *   Rastullah-Strom  {{Infobox Fluss}}      -> path,   Myranor      (FILTERED, 4a)
+ *   Koschberge       {{Infobox Region}}     -> region, Aventurien   (KEPT, 4b)
+ *   Rote Sichel      {{Infobox Region}}     -> region, Myranor      (FILTERED, 4b)
+ *   Windhag          {{Infobox Landschaft}} -> region (CLASSIFIED), but the real
+ *                    region parser only accepts an Infobox *Region* -> no record,
+ *                    proving the handler CALLS the real parse rather than
+ *                    re-implementing/loosening its gate (4b).
  *
  * plus the pre-existing pages exercising the "recognised but unhandled" and
  * "skipped" branches:
- *   Kosch            {{Infobox Staat}}    -> territory (recognised, NOT a path)
- *   Angbar           {{Infobox Siedlung}} -> settlement (recognised, NOT a path)
+ *   Kosch            {{Infobox Staat}}    -> territory (recognised, NOT a path/region)
+ *   Angbar           {{Infobox Siedlung}} -> settlement (recognised, NOT a path/region)
  *   Horasreich / Königreich Kosch (historisch) -> redirects (skipped)
  *   Vorlage:Infobox Staat (ns 10)         -> non-Main namespace (skipped)
  *
- * WHAT THIS PROVES (per the Task-4a brief):
+ * WHAT THIS PROVES (per the Task-4a + 4b briefs):
  *   (a) infobox-name enumeration classifies the fixture pages correctly
- *       (Fluss/Straße -> path; Staat/Siedlung -> recognised-but-unhandled; ns10
- *       and redirects -> skipped);
+ *       (Fluss/Straße -> path; Region/Landschaft -> region; Staat/Siedlung ->
+ *       recognised-but-unhandled; ns10 and redirects -> skipped);
  *   (b) the path handler produces staging records whose fields match the REAL
  *       mapping -- name, art, kind ('fluss'/'strasse'), lage, laenge, verlauf,
  *       match_key (= avesmapsWikiSyncCreateMatchKey(name)), wiki_key
@@ -33,7 +40,13 @@ declare(strict_types=1);
  *       function's own output;
  *   (c) the non-Aventurien path page (Rastullah-Strom, Myranor) is FILTERED OUT
  *       (continent != Aventurien -> not in the produced records);
- *   (d) a non-path infobox page (Kosch / Staat) is NOT turned into a path record.
+ *   (d) a non-path infobox page (Kosch / Staat) is NOT turned into a path record;
+ *   (f) the region handler mirrors the path handler: the Aventurien region
+ *       (Koschberge) produces a staging record with the REAL field/key mapping
+ *       (name, art -> label_subtype path, region_parent, affiliation_staat,
+ *       match_key, wiki_key), the Myranor region (Rote Sichel) is FILTERED OUT,
+ *       the Landschaft page classifies as region yet yields no record (faithful to
+ *       the real parser's gate), and path<->region are never cross-mishandled.
  *
  * NO database and NO STRATO are touched: the tested functions (classify / parse /
  * collect) are DB-free; the DB persist path (avesmapsWikiDumpPersistPathRecords /
@@ -75,6 +88,7 @@ require $repoRoot . '/api/_internal/wiki/sync-monitor.php';
 require $repoRoot . '/api/_internal/wiki/territories-tree.php';
 require $repoRoot . '/api/_internal/wiki/territories-parsing.php';
 require $repoRoot . '/api/_internal/wiki/paths.php';
+require $repoRoot . '/api/_internal/wiki/regions.php';
 require $repoRoot . '/api/_internal/wiki/dump-reader.php';
 require $repoRoot . '/api/_internal/wiki/dump-entity-scan.php';
 
@@ -84,11 +98,16 @@ foreach ([
     'avesmapsWikiDumpClassifyPage',
     'avesmapsWikiDumpExtractCategoryNames',
     'avesmapsWikiDumpParsePathPage',
+    'avesmapsWikiDumpParseRegionPage',
     'avesmapsWikiDumpCollectEntities',
     'avesmapsWikiDumpCollectPathRecords',
-    // reused real functions (must be visible so the handler can call them):
+    'avesmapsWikiDumpCollectRegionRecords',
+    // reused real functions (must be visible so the handlers can call them):
     'avesmapsWikiPathParsePage',
     'avesmapsWikiPathUpsertRecord',
+    'avesmapsWikiRegionParsePage',
+    'avesmapsWikiRegionUpsertRecord',
+    'avesmapsWikiRegionArtToSubtype',
     'avesmapsWikiSyncMonitorInfoboxName',
     'avesmapsWikiSyncMonitorDetectContinent',
     'avesmapsWikiSyncCreateMatchKey',
@@ -121,7 +140,7 @@ $iconvSample = function_exists('iconv')
     : '(iconv unavailable)';
 
 echo "================================================================\n";
-echo " dump-reader Pass B unit test (WikiDump migration, Task 4a)\n";
+echo " dump-reader Pass B unit test (WikiDump migration, Tasks 4a + 4b)\n";
 echo "================================================================\n";
 echo 'PHP version        : ' . PHP_VERSION . "\n";
 echo 'mbstring loaded    : ' . (extension_loaded('mbstring') ? 'yes' : 'no') . "\n";
@@ -243,7 +262,10 @@ $check(
 echo "\n-- (b) path handler: staging records + real field/key mapping --\n";
 
 $collected = avesmapsWikiDumpCollectEntities($pages);
-$records = $collected['records'];
+// PATH-only kept records (the dedicated collector filters out regions/other kinds;
+// $collected['records'] mixes path + region, so use the typed collector here so
+// section (b) and $recByKey stay strictly about PATH staging records).
+$records = avesmapsWikiDumpCollectPathRecords($pages);
 
 // Two Aventurien path pages kept (Breite + Reichsstraße 1); the Myranor river
 // (Rastullah-Strom) is filtered -> exactly 2 kept records.
@@ -393,14 +415,15 @@ $check(
     'recognised-but-unhandled kinds are enumerated, not routed to a handler'
 );
 $check(
-    '(d4) per-kind counts: 3 paths recognised, 1 territory, 1 settlement',
-    ['path' => 3, 'territory' => 1, 'settlement' => 1],
+    '(d4) per-kind counts: 3 paths, 1 territory, 1 settlement, 3 regions recognised',
+    ['path' => 3, 'territory' => 1, 'settlement' => 1, 'region' => 3],
     [
         'path' => $collected['counts']['path'] ?? 0,
         'territory' => $collected['counts']['territory'] ?? 0,
         'settlement' => $collected['counts']['settlement'] ?? 0,
+        'region' => $collected['counts']['region'] ?? 0,
     ],
-    '3 path pages recognised (2 kept + 1 filtered), plus Kosch + Angbar'
+    '3 path (2 kept + 1 filtered) + Kosch + Angbar + 3 region infoboxes (Koschberge, Rote Sichel, Windhag)'
 );
 
 // ===========================================================================
@@ -420,6 +443,184 @@ $check(
     'path',
     avesmapsWikiDumpClassifyPage($byTitle['Rastullah-Strom']),
     'O4: infobox-presence decides the kind; the category only affects continent'
+);
+
+// ===========================================================================
+// (f) REGION handler (Task 4b): mirrors the path handler. Kept Aventurien region
+//     record via the REAL avesmapsWikiRegionParsePage() field/key mapping; the
+//     Myranor region filtered by continent; the Landschaft variant classified as
+//     region but faithfully rejected by the real parser (no record); and
+//     path<->region never cross-mishandled. Expected keys are HAND-DERIVED via the
+//     real functions (I1), never asserted equal to the handler's own output.
+// ===========================================================================
+echo "\n-- (f) region handler: staging record + real field/key mapping --\n";
+
+// The DB-free region collector returns exactly the kept Aventurien region records.
+$regionRecords = avesmapsWikiDumpCollectRegionRecords($pages);
+
+// Two Aventurien {{Infobox Region}} pages exist (Koschberge kept; Rote Sichel is
+// Myranor -> filtered); Windhag is {{Infobox Landschaft}} -> classified region but
+// rejected by the real parser -> not a record. So exactly 1 kept region record.
+$check(
+    '(f1) exactly 1 Aventurien region record kept',
+    1,
+    count($regionRecords),
+    'Koschberge kept; Rote Sichel (Myranor) filtered; Windhag (Landschaft) not accepted by the real parser'
+);
+
+// Index kept region records by wiki_key.
+$regByKey = [];
+foreach ($regionRecords as $r) {
+    $regByKey[(string) ($r['wiki_key'] ?? '')] = $r;
+}
+
+// -- Koschberge (Infobox Region). Hand-derivation via the REAL funcs:
+//    canonical 'Koschberge' -> avesmapsPoliticalSlug -> 'koschberge' (plain ASCII)
+//    avesmapsWikiSyncCreateMatchKey('Koschberge') -> 'koschberge'
+$kosch = $regByKey['koschberge'] ?? null;
+$check(
+    '(f2) Koschberge record present under wiki_key "koschberge"',
+    true,
+    is_array($kosch),
+    "wiki_key = avesmapsPoliticalSlug('Koschberge') = 'koschberge'"
+);
+$check('(f3) Koschberge.name', 'Koschberge', (string) ($kosch['name'] ?? '(none)'), 'Name field from the Infobox Region');
+$check('(f4) Koschberge.art', 'Gebirge', (string) ($kosch['art'] ?? '(none)'), 'Art field from the infobox');
+$check('(f5) Koschberge.region_parent', 'Kosch', (string) ($kosch['region_parent'] ?? '(none)'), 'Region= -> region_parent (link stripped to name)');
+$check('(f6) Koschberge.affiliation_staat', 'Mittelreich', (string) ($kosch['affiliation_staat'] ?? '(none)'), 'Staat= -> affiliation_staat');
+$check('(f7) Koschberge.vegetation', 'Bergwald', (string) ($kosch['vegetation'] ?? '(none)'), 'Vegetationszonen= -> vegetation');
+$check('(f8) Koschberge.verkehrswege', 'Reichsstraße 1', (string) ($kosch['verkehrswege'] ?? '(none)'), 'Verkehrswege= (link stripped to name)');
+$check(
+    '(f9) Koschberge.match_key (real avesmapsWikiSyncCreateMatchKey)',
+    'koschberge',
+    (string) ($kosch['match_key'] ?? '(none)'),
+    "hand-derived: avesmapsWikiSyncCreateMatchKey('Koschberge') = 'koschberge'"
+);
+$check('(f10) Koschberge.continent', 'Aventurien', (string) ($kosch['continent'] ?? '(none)'), 'DetectContinent default -> Aventurien');
+
+// art -> label_subtype path (the region-specific mapping the brief calls out):
+//   avesmapsWikiRegionArtToSubtype('Gebirge') -> 'gebirge'
+$check(
+    '(f11) Koschberge art -> label_subtype path (real avesmapsWikiRegionArtToSubtype)',
+    'gebirge',
+    avesmapsWikiRegionArtToSubtype((string) ($kosch['art'] ?? '')),
+    "hand-derived: avesmapsWikiRegionArtToSubtype('Gebirge') = 'gebirge'"
+);
+
+// Independent re-derivation cross-check: rebuild both keys via the real funcs and
+// confirm the collected region record used them (proves NOT a literal, I1). NB the
+// key CONTRAST also holds for regions (Rote Sichel below): slug hyphenates a space,
+// match_key drops it -- same distinction the path handler proves for Reichsstraße 1.
+$reRegWikiKey = avesmapsPoliticalSlug(avesmapsWikiSyncMonitorNormalizeTitle('Koschberge'));
+$reRegMatchKey = avesmapsWikiSyncCreateMatchKey('Koschberge');
+$check(
+    '(f12) collected region keys == independent real-function re-derivation',
+    ['wiki_key' => $reRegWikiKey, 'match_key' => $reRegMatchKey],
+    ['wiki_key' => (string) ($kosch['wiki_key'] ?? ''), 'match_key' => (string) ($kosch['match_key'] ?? '')],
+    'record keys match avesmapsPoliticalSlug + avesmapsWikiSyncCreateMatchKey (I1)'
+);
+
+// -- Continent filter: the Myranor region (Rote Sichel) is FILTERED OUT of the
+//    kept records but reported in the `filtered` bucket (intentional drop, not a
+//    parse failure). Hand-derivation: DetectContinent sees "Gebirge (Myranor)" +
+//    "{{Nav Staaten Myranor}}" -> "Myranor / Güldenland".
+echo "\n-- (f/c) region continent filter (Aventurien only) --\n";
+
+$collectedAll = avesmapsWikiDumpCollectEntities($pages);
+$filteredRegionTitles = array_map(
+    static fn(array $x): string => $x['title'],
+    array_filter($collectedAll['filtered'], static fn(array $x): bool => ($x['kind'] ?? '') === 'region')
+);
+$check(
+    '(f13) Rote Sichel NOT among kept region records',
+    false,
+    array_key_exists('rote-sichel', $regByKey),
+    'a Myranor region is not staged (continent != Aventurien)'
+);
+$check(
+    '(f14) Rote Sichel reported in the filtered bucket (as a region)',
+    true,
+    in_array('Rote Sichel', $filteredRegionTitles, true),
+    'the drop is an intentional continent filter, not a parse failure'
+);
+
+// The pure handler on that page directly: parsed as a region, but not kept.
+$roteSichel = avesmapsWikiDumpParseRegionPage($byTitle['Rote Sichel']);
+$check(
+    '(f15) Rote Sichel handler: kept=false',
+    false,
+    $roteSichel['kept'],
+    'handler decides keep=false for a non-Aventurien region'
+);
+$check(
+    '(f16) Rote Sichel detected continent != Aventurien',
+    true,
+    $roteSichel['continent'] !== '' && $roteSichel['continent'] !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+    "DetectContinent classified it as '{$roteSichel['continent']}' (Myranor), so it is filtered"
+);
+// And it WAS a genuine region record (record present) -- proves it was dropped by
+// the CONTINENT filter, not rejected as a non-region. Also proves the region
+// wiki_key/match_key CONTRAST: slug('Rote Sichel')='rote-sichel' (space->hyphen),
+// match_key='rotesichel' (space vanishes).
+$check(
+    '(f17) Rote Sichel was a real region record before filtering (key contrast)',
+    ['wiki_key' => 'rote-sichel', 'match_key' => 'rotesichel'],
+    [
+        'wiki_key' => (string) ($roteSichel['record']['wiki_key'] ?? '(none)'),
+        'match_key' => (string) ($roteSichel['record']['match_key'] ?? '(none)'),
+    ],
+    'record exists (kind=region) with space->hyphen wiki_key vs vanishing-space match_key; only the continent filter removed it'
+);
+
+// -- Landschaft variant: classifies as region, but the real parser accepts only an
+//    Infobox *Region* (its gate is str_contains(infoboxKey,'region')). So Windhag
+//    is CLASSIFIED region yet yields NO record -- the handler faithfully reports the
+//    real parser's is_region=false rather than re-implementing/loosening the gate.
+echo "\n-- (f/L) Landschaft variant: classified region, real parser rejects --\n";
+$check(
+    '(f18) Windhag ({{Infobox Landschaft}}) classifies as region',
+    'region',
+    avesmapsWikiDumpClassifyPage($byTitle['Windhag']),
+    'the classifier needle "landschaft" routes it to region kind'
+);
+$windhag = avesmapsWikiDumpParseRegionPage($byTitle['Windhag']);
+$check(
+    '(f19) Windhag region handler: kept=false, no record (real parser gate)',
+    true,
+    $windhag['kept'] === false && $windhag['record'] === null,
+    'the real avesmapsWikiRegionParsePage accepts only Infobox Region -> no staging record'
+);
+$check(
+    '(f20) Windhag NOT among kept region records',
+    false,
+    array_key_exists('windhag', $regByKey),
+    'no record leaks for a Landschaft infobox (handler calls the real parse, not a loosened copy)'
+);
+
+// -- path <-> region are never cross-mishandled.
+echo "\n-- (f/x) path <-> region are not cross-mishandled --\n";
+// A region page fed to the PATH handler yields no path record...
+$koschbergeAsPath = avesmapsWikiDumpParsePathPage($byTitle['Koschberge']);
+$check(
+    '(f21) Koschberge (region) via path handler: kept=false, no record',
+    true,
+    $koschbergeAsPath['kept'] === false && $koschbergeAsPath['record'] === null,
+    'a region infobox never yields a path staging record'
+);
+// ...and a path page fed to the REGION handler yields no region record.
+$breiteAsRegion = avesmapsWikiDumpParseRegionPage($byTitle['Breite']);
+$check(
+    '(f22) Breite (path) via region handler: kept=false, no record',
+    true,
+    $breiteAsRegion['kept'] === false && $breiteAsRegion['record'] === null,
+    'a path infobox never yields a region staging record'
+);
+// Neither region key leaked into the kept PATH records, nor a path key into regions.
+$check(
+    '(f23) no region key leaked into kept path records (and vice versa)',
+    true,
+    !array_key_exists('koschberge', $recByKey) && !array_key_exists('breite', $regByKey),
+    'kept path records exclude regions; kept region records exclude paths (O4/I2)'
 );
 
 // ---------------------------------------------------------------------------

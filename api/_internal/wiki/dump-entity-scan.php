@@ -11,13 +11,24 @@ declare(strict_types=1);
  * matching entity handler -- exactly the work the online crawlers did today,
  * just fed from the dump instead of the MediaWiki API.
  *
- * SCOPE OF THIS FILE (Task 4a): the generic Pass-B dispatch scaffold + the
- * FIRST entity handler, PATHS (Fluss / Straße). Territory / Settlement /
- * Region / Building are recognised by the classifier but deliberately left
- * UNHANDLED here -- they are clean extension points for tasks 4b-4d, which add
- * a handler WITHOUT rewriting the dispatch loop (see
- * avesmapsWikiDumpClassifyEntityKind + the dispatch in
- * avesmapsWikiDumpCollectEntities / avesmapsWikiDumpScanPage).
+ * SCOPE OF THIS FILE (Tasks 4a + 4b): the generic Pass-B dispatch scaffold + two
+ * entity handlers -- PATHS (Fluss / Straße, Task 4a) and REGIONS (Infobox Region /
+ * Landschaft, Task 4b). Territory / Settlement / Building are recognised by the
+ * classifier but deliberately left UNHANDLED here -- they are clean extension
+ * points for tasks 4c-4d, which add a handler WITHOUT rewriting the dispatch loop
+ * (see avesmapsWikiDumpClassifyEntityKind + the dispatch in
+ * avesmapsWikiDumpCollectEntities / avesmapsWikiDumpRunPassBStep).
+ *
+ * The REGION handler (Task 4b) is a tight analogue of the PATH handler: it CALLS
+ * the real region crawler's parse+upsert (avesmapsWikiRegionParsePage /
+ * avesmapsWikiRegionUpsertRecord, regions.php:440/579) and applies the same
+ * Aventurien-only continent filter. It writes ONLY to wiki_region_staging (via the
+ * reused upsert); attaching a staged region to a map label
+ * (avesmapsWikiRegionAssign) is a SEPARATE step it neither calls nor changes (I2).
+ * NB the classifier routes {{Infobox Landschaft}} to the region kind, but the real
+ * region parser accepts only an Infobox *Region* -- a Landschaft page is therefore
+ * CLASSIFIED region yet produces no record. The handler faithfully reports that
+ * (kept=false, record=null) rather than re-implementing/loosening the parser gate.
  *
  * INVARIANTS (non-negotiable, verified in tools/wikidump/test-dump-entities.php):
  *
@@ -56,9 +67,10 @@ declare(strict_types=1);
  * DEPENDENCIES (the caller loads these before invoking Pass B -- same contract as
  * dump-reader.php; the reused derivation functions call mb_*):
  *   political/territory.php, wiki/sync.php, wiki/sync-monitor.php (-> -parsing),
- *   wiki/territories-tree.php + wiki/territories-parsing.php (Clean* helper), and
- *   wiki/paths.php (ParsePage / UpsertRecord), plus wiki/dump-reader.php for the
- *   page stream. This file requires nothing on include.
+ *   wiki/territories-tree.php + wiki/territories-parsing.php (Clean* helper),
+ *   wiki/paths.php (path ParsePage / UpsertRecord), wiki/regions.php (region
+ *   ParsePage / UpsertRecord), plus wiki/dump-reader.php for the page stream. This
+ *   file requires nothing on include.
  */
 
 // ===========================================================================
@@ -72,10 +84,10 @@ declare(strict_types=1);
  * touch the classifier or the loop). '' = no/unknown infobox -> the page is
  * skipped.
  */
-const AVESMAPS_WIKI_DUMP_ENTITY_PATH = 'path';
-const AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY = 'territory';   // 4b (unhandled here)
+const AVESMAPS_WIKI_DUMP_ENTITY_PATH = 'path';             // 4a (handled)
+const AVESMAPS_WIKI_DUMP_ENTITY_REGION = 'region';         // 4b (handled)
+const AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY = 'territory';   // 4c (unhandled here)
 const AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT = 'settlement'; // 4c (unhandled here)
-const AVESMAPS_WIKI_DUMP_ENTITY_REGION = 'region';         // 4d (unhandled here)
 const AVESMAPS_WIKI_DUMP_ENTITY_BUILDING = 'building';     // 4d (unhandled here)
 
 /**
@@ -83,11 +95,14 @@ const AVESMAPS_WIKI_DUMP_ENTITY_BUILDING = 'building';     // 4d (unhandled here
  * membership to decide whether a page is routed to a handler or merely counted
  * as "recognised". Later tasks extend this set as their handlers land.
  *
+ * Handled so far: PATH (Task 4a) and REGION (Task 4b). Territory / Settlement /
+ * Building stay recognised-but-unhandled until 4c/4d add their handlers.
+ *
  * @return array<int, string>
  */
 function avesmapsWikiDumpHandledEntityKinds(): array
 {
-    return [AVESMAPS_WIKI_DUMP_ENTITY_PATH];
+    return [AVESMAPS_WIKI_DUMP_ENTITY_PATH, AVESMAPS_WIKI_DUMP_ENTITY_REGION];
 }
 
 /**
@@ -101,11 +116,11 @@ function avesmapsWikiDumpHandledEntityKinds(): array
  *
  * Order matters only where names overlap; the concrete infoboxes here are
  * disjoint on these needles:
- *   Fluss / Straße           -> 'path'
- *   Staat / Herrschaftsgebiet / Reich -> 'territory'   (unhandled in 4a)
- *   Bauwerk / Festung / Burg -> 'building'             (unhandled in 4a)
- *   Siedlung / Stadt / Ort   -> 'settlement'           (unhandled in 4a)
- *   Region / Landschaft      -> 'region'               (unhandled in 4a)
+ *   Fluss / Straße           -> 'path'        (handled, 4a)
+ *   Region / Landschaft      -> 'region'      (handled, 4b)
+ *   Staat / Herrschaftsgebiet / Reich -> 'territory'   (unhandled here)
+ *   Bauwerk / Festung / Burg -> 'building'             (unhandled here)
+ *   Siedlung / Stadt / Ort   -> 'settlement'           (unhandled here)
  *   (none of the above)      -> ''                     (skip)
  *
  * NB: 'building' is tested before 'settlement' because a Bauwerk infobox never
@@ -267,22 +282,106 @@ function avesmapsWikiDumpParsePathPage(array $page): array
 }
 
 // ===========================================================================
+// 3b. REGION handler -- PURE (parse + keep/skip decision, DB-free). Task 4b.
+// ===========================================================================
+
+/**
+ * PURE region handler for ONE dump page -- the tight analogue of
+ * avesmapsWikiDumpParsePathPage(). It builds the staging record by REUSING the
+ * real avesmapsWikiRegionParsePage() (regions.php:440) verbatim -- no field
+ * mapping or key derivation is duplicated here (I1). Inside that reused parse:
+ *   - wiki_key   = avesmapsPoliticalSlug($canonical)          (regions.php:507)
+ *   - match_key  = avesmapsWikiSyncCreateMatchKey($name)      (regions.php:510)
+ *   - continent  = avesmapsWikiSyncMonitorDetectContinent(...) (regions.php:472)
+ *   - art -> label_subtype mapping stays in avesmapsWikiRegionArtToSubtype()
+ * and PERSIST (avesmapsWikiDumpPersistRegionRecords) calls the real
+ * avesmapsWikiRegionUpsertRecord() (regions.php:579). This file adds ZERO
+ * field/key/subtype logic of its own, and NEVER writes map_features /
+ * geometry_json / feature_subtype / a label name/coords (I2/I3) -- staging only.
+ *
+ * As with the path handler, the dump page's <title> IS its canonical title, and
+ * categories are assembled from the wikitext (avesmapsWikiDumpExtractCategoryNames)
+ * so the reused parser's DetectContinent behaves identically to the online path.
+ *
+ * NB (Landschaft): the classifier routes {{Infobox Landschaft}} to the region
+ * kind, but the real region parser accepts only an Infobox *Region* (its gate is
+ * str_contains($infoboxKey, 'region'), regions.php:447). A Landschaft page is
+ * therefore CLASSIFIED region yet parsed as is_region=false -> kept=false,
+ * record=null. That is faithful to the real crawler (which only ever fed
+ * {{Infobox Region}} pages); we do NOT loosen the gate to force a record.
+ *
+ * @param array{title:string, ns:int, redirect:?string, wikitext:string} $page
+ * @return array{
+ *   kept: bool,
+ *   reason: string,
+ *   record: array<string, mixed>|null,
+ *   continent: string
+ * }
+ *   kept=true only for a genuine region record whose continent is Aventurien.
+ *   reason explains a skip ('not a region infobox' / parser reason / filtered
+ *   continent). record is the exact record avesmapsWikiRegionParsePage() produced
+ *   (null when not a region or filtered).
+ */
+function avesmapsWikiDumpParseRegionPage(array $page): array
+{
+    $title = (string) ($page['title'] ?? '');
+    $wikitext = (string) ($page['wikitext'] ?? '');
+    $categories = avesmapsWikiDumpExtractCategoryNames($wikitext);
+
+    // Reuse the REAL region parser verbatim (I1). canonicalTitle = title (dump
+    // pages are canonical); source label mirrors the online provenance.
+    $parsed = avesmapsWikiRegionParsePage($title, $wikitext, $title, 'dump', $categories);
+
+    if (empty($parsed['is_region']) || !is_array($parsed['record'] ?? null)) {
+        return [
+            'kept' => false,
+            'reason' => (string) ($parsed['reason'] ?? 'keine Region'),
+            'record' => null,
+            'continent' => '',
+        ];
+    }
+
+    $record = $parsed['record'];
+    $continent = (string) ($record['continent'] ?? '');
+
+    // Continent filter: Aventurien only. A region detected on another continent
+    // (e.g. a Myranor Gebirge) is dropped -- never staged.
+    if ($continent !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT) {
+        return [
+            'kept' => false,
+            'reason' => 'Kontinent ' . ($continent !== '' ? $continent : '(unbekannt)') . ' != ' . AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+            'record' => $record,
+            'continent' => $continent,
+        ];
+    }
+
+    return ['kept' => true, 'reason' => '', 'record' => $record, 'continent' => $continent];
+}
+
+// ===========================================================================
 // 4. Collect / dry-run (DB-free) -- drives dispatch over a page stream.
 // ===========================================================================
 
 /**
  * PURE (DB-free) Pass-B collect over a page stream: classify every page and, for
- * PATH pages, run the pure handler. Returns everything the fixture test needs to
- * assert enumeration + path staging + the continent filter WITHOUT any DB.
+ * a HANDLED kind (PATH or REGION), run the matching pure handler. Returns
+ * everything the fixture test needs to assert enumeration + staging + the
+ * continent filter WITHOUT any DB.
  *
- * This is the generic dispatch loop; 4b-4d extend it by adding their kind to the
+ * This is the generic dispatch loop; 4c-4d extend it by adding their kind to the
  * match below (routing to their own pure handler) -- the enumeration and the
  * per-kind tally require no change.
  *
+ * `records` mixes kept PATH and REGION staging records (each carries its own
+ * fields; a caller that needs one kind uses avesmapsWikiDumpCollectPathRecords /
+ * avesmapsWikiDumpCollectRegionRecords, which filter by classification). Every
+ * `filtered` entry is tagged with its `kind` so a continent-drop can be attributed
+ * to the right handler.
+ *
  * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
  * @return array{
- *   records: array<int, array<string, mixed>>,     // kept path staging records
- *   filtered: array<int, array{title:string, continent:string, reason:string}>, // path pages dropped by the continent filter
+ *   records: array<int, array<string, mixed>>,     // kept path+region staging records
+ *   filtered: array<int, array{title:string, kind:string, continent:string, reason:string}>, // pages dropped by the continent filter
  *   classified: array<int, array{title:string, kind:string}>, // ns0 non-redirect pages that carried a recognised infobox
  *   counts: array<string, int>                     // entity-kind -> count of recognised pages (handled + unhandled)
  * }
@@ -303,29 +402,42 @@ function avesmapsWikiDumpCollectEntities(iterable $pages): array
         $counts[$kind] = ($counts[$kind] ?? 0) + 1;
         $classified[] = ['title' => (string) ($page['title'] ?? ''), 'kind' => $kind];
 
-        // ---- dispatch (extension point for 4b-4d) --------------------------
+        // ---- dispatch (extension point for 4c-4d) --------------------------
+        // Each handled kind runs its pure handler; a kept record is collected, and
+        // a genuine record dropped only by the continent filter is reported in
+        // `filtered` (tagged with $kind). Recognised-but-unhandled kinds fall
+        // through to default and are merely counted.
+        $result = null;
         switch ($kind) {
             case AVESMAPS_WIKI_DUMP_ENTITY_PATH:
                 $result = avesmapsWikiDumpParsePathPage($page);
-                if ($result['kept'] && is_array($result['record'])) {
-                    $records[] = $result['record'];
-                } elseif ($result['record'] !== null) {
-                    // A real path record dropped by the continent filter.
-                    $filtered[] = [
-                        'title' => (string) ($page['title'] ?? ''),
-                        'continent' => (string) $result['continent'],
-                        'reason' => (string) $result['reason'],
-                    ];
-                }
                 break;
 
-            // case AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY:   // 4b: add handler here
+            case AVESMAPS_WIKI_DUMP_ENTITY_REGION:
+                $result = avesmapsWikiDumpParseRegionPage($page);
+                break;
+
+            // case AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY:   // 4c: add handler here
             // case AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT:  // 4c: add handler here
-            // case AVESMAPS_WIKI_DUMP_ENTITY_REGION:      // 4d: add handler here
             // case AVESMAPS_WIKI_DUMP_ENTITY_BUILDING:    // 4d: add handler here
             default:
                 // Recognised but unhandled in this task: counted above, no record.
                 break;
+        }
+
+        if ($result === null) {
+            continue;
+        }
+        if ($result['kept'] && is_array($result['record'])) {
+            $records[] = $result['record'];
+        } elseif ($result['record'] !== null) {
+            // A real record dropped by the continent filter (not a parse miss).
+            $filtered[] = [
+                'title' => (string) ($page['title'] ?? ''),
+                'kind' => $kind,
+                'continent' => (string) $result['continent'],
+                'reason' => (string) $result['reason'],
+            ];
         }
     }
 
@@ -338,16 +450,56 @@ function avesmapsWikiDumpCollectEntities(iterable $pages): array
 }
 
 /**
- * Convenience DB-free collector that returns ONLY the kept path staging records
- * for a page stream (the records Pass B would upsert). Thin wrapper over
- * avesmapsWikiDumpCollectEntities.
+ * Convenience DB-free collector that returns ONLY the kept PATH staging records
+ * for a page stream (the records Pass B would upsert). Classifies each page and
+ * runs the pure path handler; region/other kinds are ignored -- so this never
+ * returns a region record even though avesmapsWikiDumpCollectEntities['records']
+ * mixes both kinds.
  *
  * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
  * @return array<int, array<string, mixed>>
  */
 function avesmapsWikiDumpCollectPathRecords(iterable $pages): array
 {
-    return avesmapsWikiDumpCollectEntities($pages)['records'];
+    $records = [];
+    foreach ($pages as $page) {
+        if (avesmapsWikiDumpClassifyPage($page) !== AVESMAPS_WIKI_DUMP_ENTITY_PATH) {
+            continue;
+        }
+        $result = avesmapsWikiDumpParsePathPage($page);
+        if ($result['kept'] && is_array($result['record'])) {
+            $records[] = $result['record'];
+        }
+    }
+
+    return $records;
+}
+
+/**
+ * Convenience DB-free collector that returns ONLY the kept REGION staging records
+ * for a page stream (the records Pass B would upsert). The region analogue of
+ * avesmapsWikiDumpCollectPathRecords: classifies each page and runs the pure
+ * region handler; path/other kinds are ignored. A {{Infobox Landschaft}} page
+ * classifies as region but is rejected by the real parser, so it never appears
+ * here (kept=false).
+ *
+ * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
+ * @return array<int, array<string, mixed>>
+ */
+function avesmapsWikiDumpCollectRegionRecords(iterable $pages): array
+{
+    $records = [];
+    foreach ($pages as $page) {
+        if (avesmapsWikiDumpClassifyPage($page) !== AVESMAPS_WIKI_DUMP_ENTITY_REGION) {
+            continue;
+        }
+        $result = avesmapsWikiDumpParseRegionPage($page);
+        if ($result['kept'] && is_array($result['record'])) {
+            $records[] = $result['record'];
+        }
+    }
+
+    return $records;
 }
 
 // ===========================================================================
@@ -384,20 +536,52 @@ function avesmapsWikiDumpPersistPathRecords(PDO $pdo, iterable $pages): int
 }
 
 /**
+ * THIN persistence for the REGION handler -- the analogue of
+ * avesmapsWikiDumpPersistPathRecords(). For each page in the stream, run the pure
+ * region handler and, for kept records, upsert into wiki_region_staging by REUSING
+ * the real avesmapsWikiRegionUpsertRecord() (regions.php:579). No new upsert here;
+ * no map_features write (I2/I3 -- staging only; attaching a region to a label via
+ * avesmapsWikiRegionAssign is a separate step this never calls).
+ *
+ * DB-backed -> NOT covered by the fixture test; live-verified in the controlled
+ * rollout / compare-test. Nothing calls it automatically yet.
+ *
+ * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
+ * @return int number of region records upserted (Aventurien only)
+ */
+function avesmapsWikiDumpPersistRegionRecords(PDO $pdo, iterable $pages): int
+{
+    $written = 0;
+    foreach ($pages as $page) {
+        if (avesmapsWikiDumpClassifyPage($page) !== AVESMAPS_WIKI_DUMP_ENTITY_REGION) {
+            continue;
+        }
+        $result = avesmapsWikiDumpParseRegionPage($page);
+        if ($result['kept'] && is_array($result['record'])) {
+            avesmapsWikiRegionUpsertRecord($pdo, $result['record']); // reused real upsert
+            $written++;
+        }
+    }
+
+    return $written;
+}
+
+/**
  * Process ONE bounded Pass-B step over the dump, resuming from a page-counter
  * cursor and persisting the recognised entities of this batch. Mirrors the
  * Pass-A step discipline in dump-reader.php (reopen-from-start + skip N + bounded
  * batch + set_time_limit) and reuses the reused entity handlers above.
  *
- * Task 4a persists ONLY the PATH entity (the only handled kind); recognised-but-
- * unhandled kinds are tallied for progress but not written until 4b-4d land.
+ * Tasks 4a + 4b persist the PATH and REGION entities (the handled kinds); each
+ * routes to its own reused parse+upsert. Recognised-but-unhandled kinds are
+ * tallied for progress but not written until 4c-4d land.
  *
  * DB- AND dump-backed -> NOT exercised by the local fixture test. Its live
  * verification is DEFERRED to the controlled rollout / compare-test; nothing
  * calls it automatically yet. Kept intentionally thin (structure, not behaviour
- * under test) per the Task-4a brief.
+ * under test) per the Task-4a/4b briefs.
  *
- * @return array{ok:bool, done:bool, cursor:int, processed_this_step:int, paths_written:int}
+ * @return array{ok:bool, done:bool, cursor:int, processed_this_step:int, paths_written:int, regions_written:int}
  */
 function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 0, ?int $pageBudget = null): array
 {
@@ -409,18 +593,29 @@ function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 
 
     $processedThisStep = 0;
     $pathsWritten = 0;
+    $regionsWritten = 0;
     $done = false;
 
     try {
         foreach (avesmapsWikiDumpIteratePages($reader, max(0, $cursor)) as $page) {
             $processedThisStep++;
 
-            if (avesmapsWikiDumpClassifyPage($page) === AVESMAPS_WIKI_DUMP_ENTITY_PATH) {
-                $result = avesmapsWikiDumpParsePathPage($page);
-                if ($result['kept'] && is_array($result['record'])) {
-                    avesmapsWikiPathUpsertRecord($pdo, $result['record']);
-                    $pathsWritten++;
-                }
+            switch (avesmapsWikiDumpClassifyPage($page)) {
+                case AVESMAPS_WIKI_DUMP_ENTITY_PATH:
+                    $result = avesmapsWikiDumpParsePathPage($page);
+                    if ($result['kept'] && is_array($result['record'])) {
+                        avesmapsWikiPathUpsertRecord($pdo, $result['record']);
+                        $pathsWritten++;
+                    }
+                    break;
+
+                case AVESMAPS_WIKI_DUMP_ENTITY_REGION:
+                    $result = avesmapsWikiDumpParseRegionPage($page);
+                    if ($result['kept'] && is_array($result['record'])) {
+                        avesmapsWikiRegionUpsertRecord($pdo, $result['record']);
+                        $regionsWritten++;
+                    }
+                    break;
             }
 
             if ($processedThisStep >= $pageBudget || microtime(true) >= $deadline) {
@@ -440,5 +635,6 @@ function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 
         'cursor' => max(0, $cursor) + $processedThisStep,
         'processed_this_step' => $processedThisStep,
         'paths_written' => $pathsWritten,
+        'regions_written' => $regionsWritten,
     ];
 }
