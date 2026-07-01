@@ -139,9 +139,7 @@ function settlementWikiInfoboxMarkup(location) {
 		rows += row(tr("popup.fieldTemples", "Tempel"), wiki.tempel);
 	}
 	rows += row(tr("popup.fieldDescription", "Beschreibung"), settlementFirstSentence(wiki.description));
-	const wikiLink = wiki.wiki_url
-		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} ${escapeHtml(tr("popup.wikiLinkSuffixArrow", "im Wiki-Aventurica ↗"))}</a>`
-		: "";
+	const wikiLink = wikiSourceCreditMarkup(wiki.wiki_url);
 
 	// Kein Kopf/Name/Art hier — der Popup-Kopf zeigt Name + Größe bereits (sonst Dopplung/Strich).
 	return (
