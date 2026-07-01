@@ -111,10 +111,6 @@ function enableWaypointTouchSorting() {
 }
 
 function enableBlankEditMapStyle() {
-    if (!window.IS_EDIT_MODE && typeof IS_EDIT_MODE !== "undefined" && !IS_EDIT_MODE) {
-        return;
-    }
-
     const selectElement = document.getElementById("mapStyleSelect");
     const mapElement = document.getElementById("map");
     if (!selectElement || !mapElement || typeof map === "undefined") {
@@ -165,7 +161,9 @@ function enableBlankEditMapStyle() {
         console.warn("Mapstyle konnte nicht gelesen werden:", error);
     }
 
-    if (requestedStyle === "none" || storedStyle === "none") {
+    // Im Frontend zaehlt NUR der ?mapstyle=none-Parameter; der localStorage-Restore bleibt Edit-only,
+    // damit ein gespeicherter Edit-Zustand nicht ungewollt in die oeffentliche Ansicht durchschlaegt.
+    if (requestedStyle === "none" || (typeof IS_EDIT_MODE !== "undefined" && IS_EDIT_MODE && storedStyle === "none")) {
         window.setMapStyle("none");
     }
 }

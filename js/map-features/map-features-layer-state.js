@@ -224,7 +224,7 @@ function buildPlannerSearchParams() {
 		searchParams.set("toggleCrossings", $("#toggleCrossings").is(":checked") ? "1" : "0");
 	}
 
-	if (IS_EDIT_MODE && activeMapStyle !== "stylized") {
+	if (activeMapStyle !== "stylized") {
 		searchParams.set("mapstyle", activeMapStyle);
 	}
 

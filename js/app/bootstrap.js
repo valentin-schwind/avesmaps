@@ -100,13 +100,13 @@ function createBaseTileLayer(mapStyle) {
 }
 
 function getInitialMapStyle() {
-    if (!IS_EDIT_MODE) {
-        return "stylized";
-    }
-
     const queryStyle = INITIAL_SEARCH_PARAMS.get("mapstyle");
     if (queryStyle && MAP_TILE_STYLES[queryStyle]) {
         return queryStyle;
+    }
+
+    if (!IS_EDIT_MODE) {
+        return "stylized";
     }
 
     try {
@@ -125,10 +125,6 @@ function getInitialMapStyle() {
 // setMapStyleWithBlankOption to add the "none" blank-background map style, delegating here for every other
 // style. Changes to the public setMapStyle behavior may need mirroring there. See docs/cleanup-audit-2026-06-27.md (A2).
 function setMapStyle(mapStyle, { persist = false } = {}) {
-    if (!IS_EDIT_MODE && mapStyle !== "stylized") {
-        mapStyle = "stylized";
-    }
-
     if (!MAP_TILE_STYLES[mapStyle] || mapStyle === activeMapStyle && baseTileLayer) {
         return;
     }
