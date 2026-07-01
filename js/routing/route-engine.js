@@ -85,6 +85,21 @@ function buildServerRouteProbeRequest(start, end, useShortest, clientRoute) {
 }
 
 async function calculateRouteServer(request) {
+	// Ladebalken oben waehrend der (async) Server-Routenberechnung -- deckt jeden Einstieg ab, der hierher
+	// fuehrt. inc vor dem Fetch, dec garantiert im finally (auch bei Netzwerk-/Parse-Fehlern -> kein Haenger).
+	if (window.AvesmapsLoadingBar) {
+		window.AvesmapsLoadingBar.inc("route");
+	}
+	try {
+		return await calculateRouteServerImpl(request);
+	} finally {
+		if (window.AvesmapsLoadingBar) {
+			window.AvesmapsLoadingBar.dec("route");
+		}
+	}
+}
+
+async function calculateRouteServerImpl(request) {
 	const response = await fetch(getRouteServerEndpointUrl(), {
 		method: "POST",
 		credentials: "same-origin",
