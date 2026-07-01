@@ -222,9 +222,19 @@ Neues Internal-Lib-File, z. B. `api/_internal/wiki/dump-reader.php` (+ dünner E
    **`.htaccess`-geschütztes** Server-Verzeichnis (nicht im Repo-Mirror, nicht öffentlich), z. B. `dump/`.
 4. Der Server-Reader liest die lokale `dump/dewa_dump_small.xml.gz` per `compress.zlib://`, chunked.
 
-**Warum so:** keine 39-MB-Browser-Uploads (STRATO `upload_max_filesize` umgangen), immer **tagesaktuell**,
-Creds bleiben in GitHub-Secrets (nie auf STRATO), STRATO braucht **nur zlib** (kein bz2, kein Outbound-HTTP,
-kein Cron). Der „Read WikiDump"-Button verarbeitet nur die lokal vorhandene Datei.
+**Warum die GitHub-Action (Begründung):**
+1. **Creds nie auf STRATO:** die WA-Basic-Auth (Gareth/Phex) liegen als GitHub-Secrets, nicht in `config.local.php` auf Shared-Hosting.
+2. **Keine Browser-Upload-Limits:** umgeht `upload_max_filesize`/`post_max_size` komplett (manueller Upload bräuchte angehobene Limits, die STRATO evtl. nicht erlaubt).
+3. **Keine STRATO-Outbound-HTTP-Abhängigkeit:** Shared-Hosts drosseln/blocken ausgehende Verbindungen manchmal; die Action läuft auf GitHub-Runnern mit voller Netzanbindung.
+4. **Kein bz2 auf STRATO nötig:** die Action entpackt bz2 und rekomprimiert zu **gz** → STRATO braucht nur **zlib** (immer vorhanden; bz2 nicht garantiert).
+5. **Automatisch & tagesaktuell:** der Dump ist täglich neu; GitHub-Cron ist zuverlässig (STRATO-Cron-Verfügbarkeit unsicher). Null manuelle Schritte.
+6. **Nutzt bestehende Infra:** der Deploy pusht eh per SFTP zu STRATO — gleiche Mechanik, nur andere Zieldatei.
+7. **Kein schwerer Transfer auf dem Shared-Host:** Download/Entpacken/Rekomprimieren passiert auf GitHubs Compute, nicht auf STRATOs knappen Ressourcen.
+
+**Klare Trennung:** Die Action **transferiert nur** die Datei nach STRATO. Der **Parse in die MySQL-DB läuft auf STRATO**
+(chunked `read_step`), weil STRATO-MySQL localhost-only ist (die Action kann nicht remote in die DB schreiben, s. O2).
+**Nachteil:** ein zusätzlicher Workflow + zwei Secret-Sätze (WA-Creds + SFTP). Gering.
+Der „Read WikiDump"-Button verarbeitet dann nur die lokal auf STRATO vorhandene Datei.
 
 **Alternativen (falls O1 anders entschieden wird):**
 - **B) Manueller Upload-Button:** `.bz2`/`.gz` (≤45 MB) hochladen → serverseitig entpacken. Braucht
@@ -380,10 +390,18 @@ bleibt bis Phase 3 als Notausgang.
 
 - **O1 — Auto-Upload-Variante:** (A) GitHub-Action mirror→SFTP `.xml.gz` [empfohlen] / (B) manueller Upload-Button /
   (C) Server-Fetch mit Creds in `config.local.php` / (A+B).
-- **O2 — Wo läuft der schwere Parse?** Chunked im Web-Request (resume) vs. STRATO-Cron/CLI (falls verfügbar).
-  → STRATO-Limits prüfen: `max_execution_time`, `memory_limit`, ob CLI/Cron erlaubt, ob `.user.ini`-Overrides greifen.
-- **O3 — Wappen-Lizenz (I5):** bestehende Klassifikation behalten (Minimal) / zusätzlich gezielter Online-Lizenz-Fetch
-  nur für neue Wappen / die WA-Betreiber um Datei-Namespace-Dump bzw. Lizenz-Export bitten.
+- **O2 — Wo läuft der schwere Parse? → ENTSCHIEDEN (recherchiert 2026-07-01): chunked im Web-Request (`read_step`, resumierbar).**
+  Belege aus dem eigenen Code: `api/_internal/wiki/sync.php:71` versucht `@set_time_limit(300)` + `@ini_set('memory_limit','512M')`,
+  ABER alle Crawl-Steps kappen `step_runtime` auf **max 28s** (`min(28,…)` in sync-monitor/paths/regions) + `set_time_limit($step+15)`
+  → das **reale sichere Web-Request-Budget ist ~30–45s**, Chunking ist Pflicht. Vorteil Dump: der Parse ist **viel schneller** als der
+  alte Crawl (kein 600ms-Throttle/HTTP pro Seite) → nur ~9k relevante Infoboxen von 223k Seiten, wenige Steps. **Kein Cron nötig.**
+  🚩 Wichtig: STRATO-MySQL ist auf Shared-Hosting i. d. R. **localhost-only** → der Parse MUSS **auf STRATO** laufen (nicht in der
+  GitHub-Action, die kann nicht remote in die DB schreiben). Die Action macht **nur den Transfer** der Datei; STRATO parst lokal.
+  Optionaler Bonus: falls STRATO-Cron/CLI verfügbar (STRATO bietet Cron; CLI-PHP hat meist `max_execution_time=0`), ginge auch ein
+  Ein-Rutsch-Lauf — nicht erforderlich, `read_step` reicht.
+- **O3 — Wappen-Lizenz (I5) → ENTSCHIEDEN: bestehende Klassifikation behalten + gezielter Mini-Online-Lizenz-Fetch NUR für
+  neue/geänderte Wappen-Dateien.** (Wiederverwendet den vorhandenen Lizenz-Enrichment-Pfad `sync-monitor-licenses.php`
+  / `sync-monitor-identity.php`, aber gefiltert auf neue Wappen → winziger Online-Rest, kein Voll-Crawl.)
 - **O4 — Enumeration:** Infobox-Präsenz (empfohlen) vs. zusätzlich `[[Kategorie:]]`-Scan als Sicherheitsnetz.
 - **O5 — Test-Schreibziel:** eigene `*_dumptest`-Schatten-Tabellen vs. das vorhandene `political_territory_wiki_test`.
 
