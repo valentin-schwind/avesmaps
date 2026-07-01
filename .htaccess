@@ -26,6 +26,10 @@ Options -Indexes
     #     non-www-Variante, die ^www\. nicht mehr matcht -> kein Loop moeglich. ---
     RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
     RewriteRule ^ https://%1%{REQUEST_URI} [R=301,L]
+    # --- Force HTTPS (non-www ist hier bereits kanonisch). Loop-sicher: STRATO liefert %{HTTPS}=on
+    #     fuer echtes https (verifiziert: HTTPS=on, Port 443) -> feuert nur bei echtem http. ---
+    RewriteCond %{HTTPS} off
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
     # Markiere Anfragen an .js/.css MIT ?v=... als versioniert.
     RewriteCond %{QUERY_STRING} (^|&)v=
     RewriteRule \.(?:js|css)$ - [E=VERSIONED_ASSET:1]
