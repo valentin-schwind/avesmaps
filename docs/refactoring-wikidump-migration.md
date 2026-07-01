@@ -219,30 +219,34 @@ Neues Internal-Lib-File, z. B. `api/_internal/wiki/dump-reader.php` (+ dünner E
 **Owner-Vorgabe:** manuell syncen wie heute, **KEIN täglicher Auto-Sync**. Begründung des Owners:
 unbeaufsichtigte Änderungen sollen nicht „einfach passieren", und ein Cred-Wechsel bei WA soll auffallen.
 
-**Entscheidung: Server-Fetch-Button** (ein Klick, wie der jetzige 🚨-Button). Ablauf bei „Read WikiDump":
-1. Server-Endpoint holt `dewa_dump_small.xml.bz2` von WA mit **Basic-Auth (Creds in `config.local.php`)**.
+**Entscheidung: Server-Fetch-Button** (ein Klick, wie der jetzige 🚨-Button) mit **selbst-heilendem
+Credential-Handling** (§5.0). Ablauf bei „Read WikiDump":
+1. Server-Endpoint holt `dewa_dump_small.xml.bz2` von WA mit **Basic-Auth**, Creds aus dem **DB-Setting** (§5.0).
 2. Dekomprimiert (§4.2) → parst chunked (`read_step`) → füllt **Staging/Sandbox**.
 3. Danach wie heute: **DIFF → TEST → APPLY/Assign — manuell, reviewt.** Nichts wird automatisch angewandt.
+
+### 5.0 Credential-Handling 🚩 (Owner-Wunsch, entschieden)
+- Die Dump-Creds sind **nicht wirklich geheim** — das Wiki stellt User/Passwort öffentlich bereit. Sie liegen
+  in einem **DB-Setting** (admin-only, capability-gated; „zuletzt genutzt"), damit sie **zur Laufzeit editierbar**
+  sind — **nicht** hartkodiert, **nicht** nur in `config.local.php`. **Default-Seed:** `Gareth` / `Phex`.
+- **Prompt-bei-401 (self-service):** Liefert der Fetch **HTTP 401** (WA hat die Creds geändert), zeigt das Panel
+  **direkt ein kleines Dialog** (User/Passwort, User vorbefüllt mit „zuletzt genutzt"). Du tippst die neuen Creds
+  ein → Server wiederholt den Fetch → bei Erfolg werden sie als **neue „zuletzt genutzt" gespeichert** → Sync läuft weiter.
+- **Ergebnis:** kein Redeploy, kein config-Edit. Cred-Wechsel wird beim Sync **erkannt UND inline behoben**.
 
 **Warum das genau die Owner-Sorgen löst:**
 - ✅ **Manuell wie bisher** — nichts passiert, bis du klickst.
 - ✅ **Nichts „passiert unbemerkt":** Fetch+Parse füllt nur die Sandbox; die Live-Karte ändert sich erst beim
   manuellen APPLY/Assign nach Review. (So ist es heute schon — der Sync importiert nie direkt in die Live-Karte.)
-- ✅ **Cred-Wechsel fällt SOFORT auf:** ändert WA die Zugangsdaten, liefert der Fetch beim Klick **HTTP 401** →
-  klare Fehlermeldung im Button/Panel. Du erfährst es genau dann, wenn du synchronisierst.
+- ✅ **Cred-Wechsel = sofort sichtbar UND sofort behebbar:** 401 beim Klick → Inline-Prompt → neue Creds eintippen → weiter.
 
-**Die früher genannten Bedenken gegen Server-Fetch sind hier KEINE:**
-- Outbound-HTTP: STRATO erlaubt es — der **jetzige Crawler macht bereits** Outbound-HTTP zu `de.wiki-aventurica.de` (bewiesen).
-- Creds auf STRATO: `config.local.php` hält ohnehin schon DB- + SMTP-Secrets (gitignored, nicht im Repo). Konsistent.
-- Einzige offene Frage: **bz2-Dekompression auf STRATO** → §4.2 (erst verifizieren, Fallbacks vorhanden).
+**Bedenken gegen Server-Fetch sind hier keine:** Outbound-HTTP macht der jetzige Crawler schon (zu `de.wiki-aventurica.de`);
+Creds im DB-Setting sind runtime-editierbar + admin-gated. Restfrage: **bz2-Dekompression auf STRATO** → §4.2 (erst verifizieren).
 
-### 5.1 Optionales Frühwarn-Signal (entkoppelt vom Sync) — beantwortet „wie merke ich Cred-Änderungen?"
-Da du evtl. selten manuell syncst, kann ein **winziger, unabhängiger Health-Check** früher warnen, **ohne** zu syncen:
-- Leichter **HEAD-Ping** auf die Dump-URL mit den Creds (**kein Download**), z. B. wöchentlich per STRATO-Cron
-  ODER on-open beim Öffnen des Status-/Editor-Reiters.
-- Bei **401 / unreachable** → **E-Mail an dich** über die vorhandene SMTP-/Kontakt-Infra (`contact.php`-Pfad).
-- So erfährst du einen Cred-/Verfügbarkeits-Wechsel **bevor** du das nächste Mal syncst — es wird weiterhin
-  **nichts** automatisch importiert oder angewandt. (Empfohlener, leichter Zusatz — s. O1.)
+### 5.1 Optionales Frühwarn-Signal (jetzt WIRKLICH optional)
+Der Inline-Prompt (§5.0) behebt den Cred-Wechsel bereits beim Sync. Falls du **zusätzlich vorher** gewarnt werden
+willst: ein winziger wöchentlicher **HEAD-Ping** (kein Download) → **E-Mail bei 401/unreachable** über die SMTP-Infra.
+Rein optional; Owner tendiert zum Inline-Prompt.
 
 ### 5.2 Alternativen (falls Server-Fetch/bz2 auf STRATO klemmt oder du es anders willst)
 - **Manueller Upload-Button:** `.bz2` (≤40 MB) selbst hochladen statt Server-Fetch. Braucht `upload_max_filesize` ≥ 45 MB (`.user.ini`).
@@ -395,9 +399,9 @@ bleibt bis Phase 3 als Notausgang.
 
 ## 11. Offene Entscheidungen für den Owner (VOR Umbaustart klären)
 
-- **O1 — Dump-Bezug → ENTSCHIEDEN: manueller Server-Fetch-Button** (kein Auto-Sync; Creds in `config.local.php`;
-  Cred-Wechsel → 401 beim Klick). **+ optionales Frühwarn-Signal** (wöchentlicher HEAD-Ping → E-Mail bei 401, §5.1)
-  — Owner-Bestätigung für den Health-Check noch offen. Restfrage: bz2-Extension auf STRATO (§4.2, Task).
+- **O1 — Dump-Bezug → ENTSCHIEDEN: manueller Server-Fetch-Button** (kein Auto-Sync). Creds im **DB-Setting**
+  („zuletzt genutzt", Default Gareth/Phex), **Prompt-bei-401** (neue Creds inline eintippen → Server holt Dump →
+  speichert sie, §5.0). Frühwarn-Signal (§5.1) rein optional. Restfrage: bz2-Extension auf STRATO (§4.2, Task).
 - **O2 — Wo läuft der schwere Parse? → ENTSCHIEDEN (recherchiert 2026-07-01): chunked im Web-Request (`read_step`, resumierbar).**
   Belege aus dem eigenen Code: `api/_internal/wiki/sync.php:71` versucht `@set_time_limit(300)` + `@ini_set('memory_limit','512M')`,
   ABER alle Crawl-Steps kappen `step_runtime` auf **max 28s** (`min(28,…)` in sync-monitor/paths/regions) + `set_time_limit($step+15)`
