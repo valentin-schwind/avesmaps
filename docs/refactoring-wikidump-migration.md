@@ -178,9 +178,11 @@ Neues Internal-Lib-File, z. B. `api/_internal/wiki/dump-reader.php` (+ dünner E
 ### 4.1 Bezug der Datei (Auto-Upload) — s. §6.
 
 ### 4.2 Dekompression
-- **Bevorzugt:** Datei liegt bereits als `.xml.gz` auf dem Server (der Auto-Upload rekomprimiert bz2→gz,
-  s. §6) → PHP liest per `compress.zlib://`-Stream-Wrapper (zlib ist auf STRATO IMMER vorhanden; bz2 nicht garantiert).
-- Fallback: `.bz2` hochladen + PHP `bzdecompress` (nur falls STRATO bz2 hat) oder serverseitig gzippen.
+- Beim **Server-Fetch** (s. §5) kommt die Datei als `.bz2` → auf STRATO dekomprimieren. **Zuerst prüfen (Task):**
+  `extension_loaded('bz2')`. Wenn ja: `bzopen`/`bzdecompress` (streamend). Wenn nein: Fallback `exec('bunzip2')`
+  (falls erlaubt) / pure-PHP-bzip2-Decoder (langsamer, aber ~ok für 40 MB) / bei WA `.gz`-Variante erbitten.
+- (Nur falls später doch die GitHub-Action-Variante gewählt würde: Datei läge als `.xml.gz` vor → `compress.zlib://`;
+  zlib ist auf STRATO immer vorhanden.)
 
 ### 4.3 Streaming-Parse (Pflicht — 315 MB dürfen NIE in den RAM)
 - **`XMLReader`** (nicht SimpleXML/DOM!). Iteriere `<page>`-Elemente; je Seite: `title`, `ns`, ggf.
@@ -212,36 +214,41 @@ Neues Internal-Lib-File, z. B. `api/_internal/wiki/dump-reader.php` (+ dünner E
 
 ---
 
-## 5. Auto-Upload-Lösung 🚩 (Owner-Entscheidung O1)
+## 5. Dump-Bezug — MANUELL (wie bisher) 🚩 O1 ENTSCHIEDEN (2026-07-01)
 
-**Empfohlen: täglicher GitHub-Action-Job „dump-mirror" (getrennt vom Deploy).**
-1. Action (cron, z. B. 07:00) lädt `dewa_dump_small.xml.bz2` mit den WA-Basic-Auth-Creds
-   (als **GitHub-Action-Secrets**, NICHT im Repo, NICHT auf dem Server).
-2. Action dekomprimiert (`bunzip2`) und **rekomprimiert zu `.xml.gz`** (`gzip`) → ~45 MB.
-3. Action lädt `dewa_dump_small.xml.gz` per **SFTP** (gleiche Mechanik wie der Deploy) in ein
-   **`.htaccess`-geschütztes** Server-Verzeichnis (nicht im Repo-Mirror, nicht öffentlich), z. B. `dump/`.
-4. Der Server-Reader liest die lokale `dump/dewa_dump_small.xml.gz` per `compress.zlib://`, chunked.
+**Owner-Vorgabe:** manuell syncen wie heute, **KEIN täglicher Auto-Sync**. Begründung des Owners:
+unbeaufsichtigte Änderungen sollen nicht „einfach passieren", und ein Cred-Wechsel bei WA soll auffallen.
 
-**Warum die GitHub-Action (Begründung):**
-1. **Creds nie auf STRATO:** die WA-Basic-Auth (Gareth/Phex) liegen als GitHub-Secrets, nicht in `config.local.php` auf Shared-Hosting.
-2. **Keine Browser-Upload-Limits:** umgeht `upload_max_filesize`/`post_max_size` komplett (manueller Upload bräuchte angehobene Limits, die STRATO evtl. nicht erlaubt).
-3. **Keine STRATO-Outbound-HTTP-Abhängigkeit:** Shared-Hosts drosseln/blocken ausgehende Verbindungen manchmal; die Action läuft auf GitHub-Runnern mit voller Netzanbindung.
-4. **Kein bz2 auf STRATO nötig:** die Action entpackt bz2 und rekomprimiert zu **gz** → STRATO braucht nur **zlib** (immer vorhanden; bz2 nicht garantiert).
-5. **Automatisch & tagesaktuell:** der Dump ist täglich neu; GitHub-Cron ist zuverlässig (STRATO-Cron-Verfügbarkeit unsicher). Null manuelle Schritte.
-6. **Nutzt bestehende Infra:** der Deploy pusht eh per SFTP zu STRATO — gleiche Mechanik, nur andere Zieldatei.
-7. **Kein schwerer Transfer auf dem Shared-Host:** Download/Entpacken/Rekomprimieren passiert auf GitHubs Compute, nicht auf STRATOs knappen Ressourcen.
+**Entscheidung: Server-Fetch-Button** (ein Klick, wie der jetzige 🚨-Button). Ablauf bei „Read WikiDump":
+1. Server-Endpoint holt `dewa_dump_small.xml.bz2` von WA mit **Basic-Auth (Creds in `config.local.php`)**.
+2. Dekomprimiert (§4.2) → parst chunked (`read_step`) → füllt **Staging/Sandbox**.
+3. Danach wie heute: **DIFF → TEST → APPLY/Assign — manuell, reviewt.** Nichts wird automatisch angewandt.
 
-**Klare Trennung:** Die Action **transferiert nur** die Datei nach STRATO. Der **Parse in die MySQL-DB läuft auf STRATO**
-(chunked `read_step`), weil STRATO-MySQL localhost-only ist (die Action kann nicht remote in die DB schreiben, s. O2).
-**Nachteil:** ein zusätzlicher Workflow + zwei Secret-Sätze (WA-Creds + SFTP). Gering.
-Der „Read WikiDump"-Button verarbeitet dann nur die lokal auf STRATO vorhandene Datei.
+**Warum das genau die Owner-Sorgen löst:**
+- ✅ **Manuell wie bisher** — nichts passiert, bis du klickst.
+- ✅ **Nichts „passiert unbemerkt":** Fetch+Parse füllt nur die Sandbox; die Live-Karte ändert sich erst beim
+  manuellen APPLY/Assign nach Review. (So ist es heute schon — der Sync importiert nie direkt in die Live-Karte.)
+- ✅ **Cred-Wechsel fällt SOFORT auf:** ändert WA die Zugangsdaten, liefert der Fetch beim Klick **HTTP 401** →
+  klare Fehlermeldung im Button/Panel. Du erfährst es genau dann, wenn du synchronisierst.
 
-**Alternativen (falls O1 anders entschieden wird):**
-- **B) Manueller Upload-Button:** `.bz2`/`.gz` (≤45 MB) hochladen → serverseitig entpacken. Braucht
-  `upload_max_filesize`/`post_max_size` ≥ 50 MB (per `.user.ini` prüfen/anheben). Manueller Schritt.
-- **C) Server-Fetch-Button:** Server holt die Datei selbst mit Creds aus `config.local.php`. Braucht Creds
-  auf STRATO + Outbound-HTTP. Ein Klick, aber Creds-Exposure.
-- Man kann **A (automatisch) + B (manueller Fallback)** kombinieren.
+**Die früher genannten Bedenken gegen Server-Fetch sind hier KEINE:**
+- Outbound-HTTP: STRATO erlaubt es — der **jetzige Crawler macht bereits** Outbound-HTTP zu `de.wiki-aventurica.de` (bewiesen).
+- Creds auf STRATO: `config.local.php` hält ohnehin schon DB- + SMTP-Secrets (gitignored, nicht im Repo). Konsistent.
+- Einzige offene Frage: **bz2-Dekompression auf STRATO** → §4.2 (erst verifizieren, Fallbacks vorhanden).
+
+### 5.1 Optionales Frühwarn-Signal (entkoppelt vom Sync) — beantwortet „wie merke ich Cred-Änderungen?"
+Da du evtl. selten manuell syncst, kann ein **winziger, unabhängiger Health-Check** früher warnen, **ohne** zu syncen:
+- Leichter **HEAD-Ping** auf die Dump-URL mit den Creds (**kein Download**), z. B. wöchentlich per STRATO-Cron
+  ODER on-open beim Öffnen des Status-/Editor-Reiters.
+- Bei **401 / unreachable** → **E-Mail an dich** über die vorhandene SMTP-/Kontakt-Infra (`contact.php`-Pfad).
+- So erfährst du einen Cred-/Verfügbarkeits-Wechsel **bevor** du das nächste Mal syncst — es wird weiterhin
+  **nichts** automatisch importiert oder angewandt. (Empfohlener, leichter Zusatz — s. O1.)
+
+### 5.2 Alternativen (falls Server-Fetch/bz2 auf STRATO klemmt oder du es anders willst)
+- **Manueller Upload-Button:** `.bz2` (≤40 MB) selbst hochladen statt Server-Fetch. Braucht `upload_max_filesize` ≥ 45 MB (`.user.ini`).
+- **Tägliche GitHub-Action (automatisch):** NUR falls du später doch Automatik willst (holt+SFTP-transferiert den Dump täglich;
+  Apply bliebe trotzdem manuell). **Vom Owner aktuell abgelehnt** („will manuell syncen"). Vorteil wäre: Creds als GitHub-Secrets
+  statt auf STRATO, kein bz2 auf STRATO. Für den manuellen Wunsch aber der falsche Fit (automatisch + Silent-Fail bei Cred-Wechsel).
 
 ---
 
@@ -388,8 +395,9 @@ bleibt bis Phase 3 als Notausgang.
 
 ## 11. Offene Entscheidungen für den Owner (VOR Umbaustart klären)
 
-- **O1 — Auto-Upload-Variante:** (A) GitHub-Action mirror→SFTP `.xml.gz` [empfohlen] / (B) manueller Upload-Button /
-  (C) Server-Fetch mit Creds in `config.local.php` / (A+B).
+- **O1 — Dump-Bezug → ENTSCHIEDEN: manueller Server-Fetch-Button** (kein Auto-Sync; Creds in `config.local.php`;
+  Cred-Wechsel → 401 beim Klick). **+ optionales Frühwarn-Signal** (wöchentlicher HEAD-Ping → E-Mail bei 401, §5.1)
+  — Owner-Bestätigung für den Health-Check noch offen. Restfrage: bz2-Extension auf STRATO (§4.2, Task).
 - **O2 — Wo läuft der schwere Parse? → ENTSCHIEDEN (recherchiert 2026-07-01): chunked im Web-Request (`read_step`, resumierbar).**
   Belege aus dem eigenen Code: `api/_internal/wiki/sync.php:71` versucht `@set_time_limit(300)` + `@ini_set('memory_limit','512M')`,
   ABER alle Crawl-Steps kappen `step_runtime` auf **max 28s** (`min(28,…)` in sync-monitor/paths/regions) + `set_time_limit($step+15)`
