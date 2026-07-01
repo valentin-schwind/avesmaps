@@ -52,6 +52,40 @@ $("#mapLayerModeSelect").change(() => {
 	applyFrontendLayerModeDefaults(selectedMode);
 	setSelectedMapLayerMode(selectedMode);
 });
+
+// On-intent Prefetch: sobald der Nutzer im Begriff ist, einen Kartenmodus zu waehlen (Dropdown oeffnen /
+// Fokus), waermen wir die Politik-Layer-Daten im Hintergrund vor -> der Wechsel zu "Politisch" ist quasi
+// sofort da. Nutzt EXAKT die Fetch-Params von loadPoliticalTerritoryLayer -> der echte Load teilt das gecachte
+// Promise (kein zweiter DB-Query). Best-effort + throttled; nur wenn die Politik-API existiert und wir nicht
+// schon im Politik-Modus sind. Kein Loop -> ein Fetch pro Menue-Oeffnung; der 60s-Layer-Cache dedupliziert Rest.
+let politicalLayerPrefetchLastAt = 0;
+function prefetchPoliticalTerritoryLayer() {
+	if (typeof POLITICAL_TERRITORIES_API_URL === "undefined" || !POLITICAL_TERRITORIES_API_URL) {
+		return;
+	}
+	if (typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "political") {
+		return;
+	}
+	if (typeof fetchPoliticalTerritories !== "function" || typeof map === "undefined" || !map) {
+		return;
+	}
+	const now = Date.now();
+	if (now - politicalLayerPrefetchLastAt < 5000) {
+		return;
+	}
+	politicalLayerPrefetchLastAt = now;
+	try {
+		fetchPoliticalTerritories({
+			action: "layer",
+			year_bf: politicalTimelineYear,
+			zoom: Math.round(map.getZoom()),
+			edit_mode: IS_EDIT_MODE ? 1 : 0,
+		}).catch(() => { /* Prefetch ist best-effort */ });
+	} catch (error) {
+		/* ignore */
+	}
+}
+$("#mapLayerModeSelect").on("pointerdown focus", prefetchPoliticalTerritoryLayer);
 $("#toggleCrossings").change(() => {
 	syncLocationMarkerVisibility();
 	syncPlannerStateToUrl();
