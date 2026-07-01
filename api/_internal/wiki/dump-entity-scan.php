@@ -11,13 +11,25 @@ declare(strict_types=1);
  * matching entity handler -- exactly the work the online crawlers did today,
  * just fed from the dump instead of the MediaWiki API.
  *
- * SCOPE OF THIS FILE (Tasks 4a + 4b): the generic Pass-B dispatch scaffold + two
- * entity handlers -- PATHS (Fluss / Straße, Task 4a) and REGIONS (Infobox Region /
- * Landschaft, Task 4b). Territory / Settlement / Building are recognised by the
- * classifier but deliberately left UNHANDLED here -- they are clean extension
- * points for tasks 4c-4d, which add a handler WITHOUT rewriting the dispatch loop
- * (see avesmapsWikiDumpClassifyEntityKind + the dispatch in
+ * SCOPE OF THIS FILE (Tasks 4a-4c2): the generic Pass-B dispatch scaffold + four
+ * entity handlers -- PATHS (Fluss / Straße, Task 4a), REGIONS (Infobox Region /
+ * Landschaft, Task 4b), SETTLEMENTS (Infobox Siedlung, Task 4c) and BUILDINGS
+ * (Infobox Bauwerk / Festung / Burg, Task 4c2). Territory is recognised by the
+ * classifier but deliberately left UNHANDLED here -- it is a clean extension point
+ * that adds a handler WITHOUT rewriting the dispatch loop (see
+ * avesmapsWikiDumpClassifyEntityKind + the dispatch in
  * avesmapsWikiDumpCollectEntities / avesmapsWikiDumpRunPassBStep).
+ *
+ * The BUILDING handler (Task 4c2) is the simplest entity: the online building
+ * crawler never parses the building infobox, it only records title +
+ * settlement_class='gebaeude' + settlement_label + building_type (the crawled
+ * category name) + is_ruined. Pass B reproduces that from the dump, REUSING the
+ * online crawler's own legacy building-type list + Art-based ruin detection + the
+ * gebaeude label + its title-keyed row upsert (avesmapsWikiSettlementMatchBuildingType
+ * / avesmapsWikiSettlementBuildEnrichment / avesmapsWikiSettlementClassLabel /
+ * avesmapsWikiSettlementUpsertBuildingRow, settlements.php). building_type diverges
+ * only in derivation (dump = literal [[Kategorie:]] + Art; online = category
+ * enumeration, which the dump lacks, I6) -- see avesmapsWikiDumpParseBuildingPage.
  *
  * The REGION handler (Task 4b) is a tight analogue of the PATH handler: it CALLS
  * the real region crawler's parse+upsert (avesmapsWikiRegionParsePage /
@@ -88,16 +100,16 @@ const AVESMAPS_WIKI_DUMP_ENTITY_PATH = 'path';             // 4a (handled)
 const AVESMAPS_WIKI_DUMP_ENTITY_REGION = 'region';         // 4b (handled)
 const AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT = 'settlement'; // 4c (handled)
 const AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY = 'territory';   // (unhandled here)
-const AVESMAPS_WIKI_DUMP_ENTITY_BUILDING = 'building';     // 4c2 (unhandled here)
+const AVESMAPS_WIKI_DUMP_ENTITY_BUILDING = 'building';     // 4c2 (handled)
 
 /**
  * The set of entity kinds this task actually processes. A dispatcher can test
  * membership to decide whether a page is routed to a handler or merely counted
  * as "recognised". Later tasks extend this set as their handlers land.
  *
- * Handled so far: PATH (Task 4a), REGION (Task 4b) and SETTLEMENT (Task 4c).
- * Territory / Building stay recognised-but-unhandled until their handlers land
- * (Building is the separate Task 4c2; do NOT route it here).
+ * Handled so far: PATH (Task 4a), REGION (Task 4b), SETTLEMENT (Task 4c) and
+ * BUILDING (Task 4c2). Territory stays recognised-but-unhandled until its handler
+ * lands.
  *
  * @return array<int, string>
  */
@@ -107,6 +119,7 @@ function avesmapsWikiDumpHandledEntityKinds(): array
         AVESMAPS_WIKI_DUMP_ENTITY_PATH,
         AVESMAPS_WIKI_DUMP_ENTITY_REGION,
         AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT,
+        AVESMAPS_WIKI_DUMP_ENTITY_BUILDING,
     ];
 }
 
@@ -124,13 +137,13 @@ function avesmapsWikiDumpHandledEntityKinds(): array
  *   Fluss / Straße           -> 'path'        (handled, 4a)
  *   Region / Landschaft      -> 'region'      (handled, 4b)
  *   Staat / Herrschaftsgebiet / Reich -> 'territory'   (unhandled here)
- *   Bauwerk / Festung / Burg -> 'building'             (unhandled here)
- *   Siedlung / Stadt / Ort   -> 'settlement'           (unhandled here)
- *   (none of the above)      -> ''                     (skip)
+ *   Bauwerk / Festung / Burg -> 'building'    (handled, 4c2)
+ *   Siedlung / Stadt / Ort   -> 'settlement'  (handled, 4c)
+ *   (none of the above)      -> ''            (skip)
  *
  * NB: 'building' is tested before 'settlement' because a Bauwerk infobox never
  * carries a settlement needle, but keeping the explicit ordering documents the
- * intent for the 4c/4d authors.
+ * intent (a "Burg"/"Festung" must not be swallowed by a broad settlement needle).
  */
 function avesmapsWikiDumpClassifyEntityKind(string $infoboxName): string
 {
@@ -554,22 +567,170 @@ function avesmapsWikiDumpParseSettlementPage(array $page): array
 }
 
 // ===========================================================================
+// 3d. BUILDING handler -- PURE (parse + enrich + keep/skip, DB-free). Task 4c2.
+// ===========================================================================
+
+/**
+ * PURE building handler for ONE dump page -- the SIMPLEST entity, and the
+ * settlement analogue trimmed to what the ONLINE building crawler actually
+ * records. The online crawler never parses the building infobox: it walks the
+ * "Bauwerk nach Art" category tree and records, per page, only
+ * title + settlement_class='gebaeude' + settlement_label + building_type
+ * (= the crawled CATEGORY name) + is_ruined (avesmapsWikiSettlementCrawlBuildings,
+ * settlements.php:929). Pass B reproduces exactly that shape from the dump, reusing
+ * the online crawler's own derivations -- NO new mapping table is invented:
+ *   - settlement_class = 'gebaeude', settlement_label = the reused
+ *       avesmapsWikiSettlementClassLabel('gebaeude') ('Besondere Bauwerke/Stätten').
+ *   - building_type    = avesmapsWikiSettlementMatchBuildingType($literalCategories)
+ *       (settlements.php) -- the FIRST of the page's literal [[Kategorie:]] links
+ *       that matches the REUSED legacy building-type list
+ *       (AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES, the same list both online
+ *       crawl call sites use). If no category matches, it falls back to the infobox
+ *       Art field (avesmapsWikiSettlementParseInfobox's `art`), then ''.
+ *   - is_ruined        = the reused avesmapsWikiSettlementBuildEnrichment()
+ *       Art-based detection (Art contains 'ruine'/'zerstör', settlements.php:114)
+ *       OR the derived building_type contains 'ruine' (the online crawler's own
+ *       ruin rule for Ruine/Festungsruine types, settlements.php).
+ *   - normalized_key   = avesmapsWikiSyncCreateMatchKey($title),
+ *     wiki_key         = avesmapsPoliticalSlug($title),
+ *     wiki_url         = avesmapsWikiSyncMonitorPageUrl($title)
+ *       -- all keyed off the TITLE, exactly like the online building crawler
+ *       (settlements.php), reused verbatim (I1).
+ *   - continent        = the reused avesmapsWikiSettlementBuildEnrichment() real
+ *       DetectContinent verdict; the record is Aventurien-filtered like every other
+ *       handler.
+ *
+ * building_type DIVERGENCE (A4 watch-item -- do NOT paper over it): ONLINE,
+ * building_type is the crawled category NAME under "Bauwerk nach Art" (an
+ * enumeration only the live API exposes). The dump carries only LITERAL
+ * [[Kategorie:]] links (I6) and no category enumeration, so Pass B derives
+ * building_type from those literal categories (matched against the reused legacy
+ * type list) with the infobox Art as fallback. For a page whose type category is a
+ * literal link matching the list (e.g. [[Kategorie:Festung]]) the value is
+ * identical to online; for a page whose category is not in the list (e.g.
+ * [[Kategorie:Burg]] -- "Burg" is not a legacy type) the Art fallback supplies the
+ * value ('Burg'), which may differ from the online crawl's category-derived type.
+ * The §9 compare-test is the safety net that surfaces the difference.
+ *
+ * I2: builds a wiki_sync_pages record ONLY -- never map_features / geometry /
+ * feature_subtype / a location. It NEVER runs the settlement case flow or
+ * avesmapsWikiSettlementBulkConnect/assign.
+ *
+ * I5 (coat license): the dump carries no file-license metadata, so
+ * coat_license_status/coat_author/coat_attribution/coat_license_url are NULL. (The
+ * online building crawler stores no coat at all; buildings usually have none.)
+ *
+ * @param array{title:string, ns:int, redirect:?string, wikitext:string} $page
+ * @return array{
+ *   kept: bool,
+ *   reason: string,
+ *   record: array<string, mixed>|null,
+ *   continent: string
+ * }
+ *   kept=true only for a building whose detected continent is Aventurien.
+ *   record is the wiki_sync_pages registry row (null only when the page carries no
+ *   building infobox at all). A non-Aventurien building returns kept=false with the
+ *   record still present (so the drop is an intentional continent filter).
+ */
+function avesmapsWikiDumpParseBuildingPage(array $page): array
+{
+    $title = (string) ($page['title'] ?? '');
+    $wikitext = (string) ($page['wikitext'] ?? '');
+
+    // Gate on the building infobox exactly as the classifier does (O4) so a
+    // non-building page fed here yields no record (mirrors the settlement gate).
+    $infoboxName = avesmapsWikiSyncMonitorInfoboxName($wikitext);
+    $infoboxKey = avesmapsWikiSyncMonitorFieldKey($infoboxName);
+    $isBuilding = $infoboxKey !== '' && (
+        str_contains($infoboxKey, 'bauwerk')
+        || str_contains($infoboxKey, 'festung')
+        || str_contains($infoboxKey, 'burg')
+    );
+    if (!$isBuilding) {
+        return [
+            'kept' => false,
+            'reason' => $infoboxKey === '' ? 'kein Infobox' : ('Infobox ' . $infoboxName),
+            'record' => null,
+            'continent' => '',
+        ];
+    }
+
+    // API-shaped page for the reused category/content readers (plumbing, not I1).
+    $apiPage = avesmapsWikiDumpBuildApiPageFromDump($page);
+    $categoryNames = avesmapsWikiSyncGetCategoryNames($apiPage);
+
+    // building_type from the reused legacy type list matched against literal
+    // categories; Art fallback via the reused settlement infobox parser (its `art`
+    // reads ['siedlungsart','art','typ']). No new mapping invented (I1).
+    $buildingType = avesmapsWikiSettlementMatchBuildingType($categoryNames);
+    if ($buildingType === '') {
+        $infobox = avesmapsWikiSettlementParseInfobox($title, $wikitext, 'gebaeude');
+        $art = (string) ($infobox['art'] ?? '');
+        // ParseInfobox falls back an empty Art to the class label; suppress that so
+        // an unknown building_type stays '' rather than becoming the gebaeude label.
+        $buildingType = $art !== '' && $art !== avesmapsWikiSettlementClassLabel('gebaeude') ? $art : '';
+    }
+
+    // Enrichment (continent + Art-based is_ruined) via the reused settlement fn.
+    // is_ruined ORs in the online crawler's type-based ruin rule (Ruine/Festungsruine).
+    $enrichment = avesmapsWikiSettlementBuildEnrichment($apiPage);
+    $continent = (string) ($enrichment['continent'] ?? '');
+    $isRuined = (bool) ($enrichment['is_ruined'] ?? false)
+        || ($buildingType !== '' && mb_stripos($buildingType, 'ruine') !== false);
+
+    // Assemble the wiki_sync_pages record. Keys/URL are the reused title-derived
+    // ones (same as the online building crawler); coat_license_* = NULL (I5).
+    $record = [
+        'title' => mb_substr($title, 0, 255, 'UTF-8'),
+        'normalized_key' => avesmapsWikiSyncCreateMatchKey($title),
+        'wiki_key' => avesmapsPoliticalSlug(avesmapsWikiSyncMonitorNormalizeTitle($title)),
+        'wiki_url' => avesmapsWikiSyncMonitorPageUrl($title),
+        'settlement_class' => 'gebaeude',
+        'settlement_label' => avesmapsWikiSettlementClassLabel('gebaeude'),
+        'building_type' => mb_substr($buildingType, 0, 120, 'UTF-8'),
+        'categories_json' => $categoryNames,
+        'continent' => mb_substr($continent, 0, 120, 'UTF-8'),
+        'is_ruined' => $isRuined,
+        // I5: dump has no license metadata -> NULL, never invented. Buildings carry
+        // no coat in the online crawl either.
+        'coat_license_status' => null,
+        'coat_author' => null,
+        'coat_attribution' => null,
+        'coat_license_url' => null,
+    ];
+
+    // Continent filter: Aventurien only. A building detected on another continent
+    // (e.g. a Myranor temple) is dropped -- never staged.
+    if ($continent !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT) {
+        return [
+            'kept' => false,
+            'reason' => 'Kontinent ' . ($continent !== '' ? $continent : '(unbekannt)') . ' != ' . AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+            'record' => $record,
+            'continent' => $continent,
+        ];
+    }
+
+    return ['kept' => true, 'reason' => '', 'record' => $record, 'continent' => $continent];
+}
+
+// ===========================================================================
 // 4. Collect / dry-run (DB-free) -- drives dispatch over a page stream.
 // ===========================================================================
 
 /**
  * PURE (DB-free) Pass-B collect over a page stream: classify every page and, for
- * a HANDLED kind (PATH or REGION), run the matching pure handler. Returns
- * everything the fixture test needs to assert enumeration + staging + the
- * continent filter WITHOUT any DB.
+ * a HANDLED kind (PATH / REGION / SETTLEMENT / BUILDING), run the matching pure
+ * handler. Returns everything the fixture test needs to assert enumeration +
+ * staging + the continent filter WITHOUT any DB.
  *
- * This is the generic dispatch loop; 4c-4d extend it by adding their kind to the
- * match below (routing to their own pure handler) -- the enumeration and the
- * per-kind tally require no change.
+ * This is the generic dispatch loop; a remaining kind (territory) extends it by
+ * adding its kind to the match below (routing to its own pure handler) -- the
+ * enumeration and the per-kind tally require no change.
  *
- * `records` mixes kept PATH and REGION staging records (each carries its own
+ * `records` mixes kept staging records of every handled kind (each carries its own
  * fields; a caller that needs one kind uses avesmapsWikiDumpCollectPathRecords /
- * avesmapsWikiDumpCollectRegionRecords, which filter by classification). Every
+ * avesmapsWikiDumpCollectRegionRecords / avesmapsWikiDumpCollectSettlementRecords /
+ * avesmapsWikiDumpCollectBuildingRecords, which filter by classification). Every
  * `filtered` entry is tagged with its `kind` so a continent-drop can be attributed
  * to the right handler.
  *
@@ -616,8 +777,11 @@ function avesmapsWikiDumpCollectEntities(iterable $pages): array
                 $result = avesmapsWikiDumpParseSettlementPage($page);
                 break;
 
+            case AVESMAPS_WIKI_DUMP_ENTITY_BUILDING:
+                $result = avesmapsWikiDumpParseBuildingPage($page);
+                break;
+
             // case AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY:   // add handler here
-            // case AVESMAPS_WIKI_DUMP_ENTITY_BUILDING:    // 4c2: add handler here
             default:
                 // Recognised but unhandled in this task: counted above, no record.
                 break;
@@ -720,6 +884,34 @@ function avesmapsWikiDumpCollectSettlementRecords(iterable $pages): array
             continue;
         }
         $result = avesmapsWikiDumpParseSettlementPage($page);
+        if ($result['kept'] && is_array($result['record'])) {
+            $records[] = $result['record'];
+        }
+    }
+
+    return $records;
+}
+
+/**
+ * Convenience DB-free collector that returns ONLY the kept BUILDING registry
+ * records for a page stream (the wiki_sync_pages gebaeude rows Pass B would
+ * upsert). The building analogue of avesmapsWikiDumpCollectSettlementRecords:
+ * classifies each page and runs the pure building handler; path/region/settlement/
+ * other kinds are ignored. A non-Aventurien building is dropped by the continent
+ * filter and never appears here; a {{Infobox Siedlung}} page classifies as
+ * SETTLEMENT (not building) so it is not collected here either.
+ *
+ * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
+ * @return array<int, array<string, mixed>>
+ */
+function avesmapsWikiDumpCollectBuildingRecords(iterable $pages): array
+{
+    $records = [];
+    foreach ($pages as $page) {
+        if (avesmapsWikiDumpClassifyPage($page) !== AVESMAPS_WIKI_DUMP_ENTITY_BUILDING) {
+            continue;
+        }
+        $result = avesmapsWikiDumpParseBuildingPage($page);
         if ($result['kept'] && is_array($result['record'])) {
             $records[] = $result['record'];
         }
@@ -862,23 +1054,80 @@ function avesmapsWikiDumpPersistSettlementRecords(PDO $pdo, iterable $pages): in
 }
 
 /**
+ * THIN persistence for the BUILDING handler -- the SIMPLEST persist, and the
+ * faithful reuse of the ONLINE building crawler's own row upsert. For each kept
+ * building page it writes the wiki_sync_pages gebaeude row via the REUSED
+ * avesmapsWikiSettlementUpsertBuildingRow() (settlements.php) -- the exact
+ * INSERT ... ON DUPLICATE KEY UPDATE both online crawl call sites
+ * (avesmapsWikiSettlementCrawlBuildings / -CrawlBuildingType) use. That upsert
+ * derives normalized_key/wiki_url from the title, writes settlement_class='gebaeude',
+ * the reused label, building_type and is_ruined, and -- crucially -- does NOT
+ * clobber an existing (settlement) class/label/type (IF(... IS NULL OR '')). No new
+ * upsert is invented.
+ *
+ * NB the settlement base upsert avesmapsWikiSyncUpsertPageCache is deliberately NOT
+ * reused here: it re-derives settlement_class from the page categories (for a
+ * building that is NULL, wiping 'gebaeude') and writes neither building_type nor
+ * is_ruined. The building-row upsert is the correct single source of truth for a
+ * gebaeude row (the escalation the brief flagged: UpsertPageCache conflicts with a
+ * gebaeude row -- so the online building INSERT is reused instead, and hoisted to a
+ * shared helper so online + dump share one definition).
+ *
+ * This writes ONLY to wiki_sync_pages (I2) -- never map_features/geometry/a location.
+ * It NEVER runs the settlement case flow or avesmapsWikiSettlementBulkConnect/assign.
+ *
+ * DB-backed -> NOT covered by the fixture test; live-verified in the controlled
+ * rollout / compare-test. Nothing calls it automatically yet.
+ *
+ * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
+ * @return int number of building rows written (Aventurien only)
+ */
+function avesmapsWikiDumpPersistBuildingRecords(PDO $pdo, iterable $pages): int
+{
+    avesmapsWikiSettlementEnsureSchema($pdo); // guard: building_type / is_ruined columns exist
+
+    $written = 0;
+    foreach ($pages as $page) {
+        if (avesmapsWikiDumpClassifyPage($page) !== AVESMAPS_WIKI_DUMP_ENTITY_BUILDING) {
+            continue;
+        }
+        $result = avesmapsWikiDumpParseBuildingPage($page);
+        if (!$result['kept'] || !is_array($result['record'])) {
+            continue;
+        }
+        $record = $result['record'];
+        // Reused online building-row upsert (gebaeude class/label/type + is_ruined).
+        avesmapsWikiSettlementUpsertBuildingRow(
+            $pdo,
+            (string) ($record['title'] ?? ''),
+            (string) ($record['building_type'] ?? ''),
+            !empty($record['is_ruined'])
+        );
+        $written++;
+    }
+
+    return $written;
+}
+
+/**
  * Process ONE bounded Pass-B step over the dump, resuming from a page-counter
  * cursor and persisting the recognised entities of this batch. Mirrors the
  * Pass-A step discipline in dump-reader.php (reopen-from-start + skip N + bounded
  * batch + set_time_limit) and reuses the reused entity handlers above.
  *
- * Tasks 4a-4c persist the PATH, REGION and SETTLEMENT entities (the handled
- * kinds); each routes to its own reused parse+upsert (settlement = reused base
- * UpsertPageCache + the enrich UPDATE, license NULL per I5). Recognised-but-
- * unhandled kinds (territory, building) are tallied for progress but not written
- * until their handlers land. This NEVER runs the settlement case flow.
+ * Tasks 4a-4c2 persist the PATH, REGION, SETTLEMENT and BUILDING entities (the
+ * handled kinds); each routes to its own reused parse+upsert (settlement = reused
+ * base UpsertPageCache + the enrich UPDATE, license NULL per I5; building = the
+ * reused online building-row upsert). The remaining recognised-but-unhandled kind
+ * (territory) is tallied for progress but not written until its handler lands. This
+ * NEVER runs the settlement case flow.
  *
  * DB- AND dump-backed -> NOT exercised by the local fixture test. Its live
  * verification is DEFERRED to the controlled rollout / compare-test; nothing
  * calls it automatically yet. Kept intentionally thin (structure, not behaviour
  * under test) per the Task-4a/4b briefs.
  *
- * @return array{ok:bool, done:bool, cursor:int, processed_this_step:int, paths_written:int, regions_written:int, settlements_written:int}
+ * @return array{ok:bool, done:bool, cursor:int, processed_this_step:int, paths_written:int, regions_written:int, settlements_written:int, buildings_written:int}
  */
 function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 0, ?int $pageBudget = null): array
 {
@@ -902,6 +1151,7 @@ function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 
     $pathsWritten = 0;
     $regionsWritten = 0;
     $settlementsWritten = 0;
+    $buildingsWritten = 0;
     $done = false;
 
     try {
@@ -941,6 +1191,21 @@ function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 
                         $settlementsWritten++;
                     }
                     break;
+
+                case AVESMAPS_WIKI_DUMP_ENTITY_BUILDING:
+                    $result = avesmapsWikiDumpParseBuildingPage($page);
+                    if ($result['kept'] && is_array($result['record'])) {
+                        // Reused online building-row upsert (gebaeude class/label/type +
+                        // is_ruined). Registry only -- no case flow (I2).
+                        avesmapsWikiSettlementUpsertBuildingRow(
+                            $pdo,
+                            (string) ($result['record']['title'] ?? ''),
+                            (string) ($result['record']['building_type'] ?? ''),
+                            !empty($result['record']['is_ruined'])
+                        );
+                        $buildingsWritten++;
+                    }
+                    break;
             }
 
             if ($processedThisStep >= $pageBudget || microtime(true) >= $deadline) {
@@ -962,5 +1227,6 @@ function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 
         'paths_written' => $pathsWritten,
         'regions_written' => $regionsWritten,
         'settlements_written' => $settlementsWritten,
+        'buildings_written' => $buildingsWritten,
     ];
 }

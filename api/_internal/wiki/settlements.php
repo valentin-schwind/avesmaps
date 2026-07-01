@@ -59,6 +59,68 @@ function avesmapsWikiSettlementClassLabel(string $class): string {
     return (string) ($labels[$class] ?? 'Siedlung');
 }
 
+// Bauwerks-Typ-Liste (Legacy-Fallback), EINE Quelle der Wahrheit. Bisher inline in
+// avesmapsWikiSettlementCrawlBuildings/BuildingTypes dupliziert; hierher gezogen, damit der
+// Dump-Bauwerks-Handler (Pass B) denselben Typ-Katalog gegen literale [[Kategorie:]]-Links matcht
+// (der Online-Crawl ergaenzt diese Liste zur Laufzeit noch um die Subkategorien von „Bauwerk nach
+// Art"; der Dump hat keine Kategorie-Enumeration -> literale Kategorie + Art als Quelle).
+const AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES = [
+    'Festung', 'Festungsruine', 'Historische Festung', 'Tempel', 'Turm', 'Ruine', 'Palast', 'Kloster', 'Leuchtturm', 'Bauwerk',
+];
+
+// Erster bekannter Bauwerkstyp aus einer Kategorienliste (Vergleich case-insensitiv gegen die
+// Legacy-Typen). Liefert den KANONISCHEN Typnamen aus der Liste (nicht die Roh-Kategorie), '' wenn
+// keiner passt. Wiederverwendet von Pass B, um building_type aus literalen [[Kategorie:]]-Links
+// abzuleiten — dieselbe Typ-Semantik wie der Online-Crawl (Kategoriename == building_type).
+function avesmapsWikiSettlementMatchBuildingType(array $categoryNames): string {
+    foreach ($categoryNames as $category) {
+        $needle = mb_strtolower(trim((string) $category), 'UTF-8');
+        if ($needle === '') {
+            continue;
+        }
+        foreach (AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES as $type) {
+            if ($needle === mb_strtolower($type, 'UTF-8')) {
+                return $type;
+            }
+        }
+    }
+    return '';
+}
+
+// EINE Quelle der Wahrheit fuer das Bauwerks-UPSERT in wiki_sync_pages (settlement_class='gebaeude',
+// settlement_label, building_type, is_ruined). Bisher zweimal inline (CrawlBuildings/CrawlBuildingType);
+// hierher gezogen, damit Online-Crawl UND Dump-Persist bit-genau dieselbe INSERT ... ON DUPLICATE KEY
+// UPDATE-Semantik nutzen: bestehende (Siedlungs-)Klasse/Label/Typ werden NICHT ueberschrieben, is_ruined
+// nur auf 1 hochgezogen. NB: der Basis-Upsert avesmapsWikiSyncUpsertPageCache taugt hier NICHT — er
+// wuerde settlement_class bedingungslos aus den Kategorien neu ableiten (fuer ein Bauwerk = NULL) und
+// schreibt weder building_type noch is_ruined.
+function avesmapsWikiSettlementUpsertBuildingRow(PDO $pdo, string $title, string $buildingType, bool $isRuined): int {
+    $title = trim($title);
+    if ($title === '') {
+        return 0;
+    }
+    $insert = $pdo->prepare(
+        'INSERT INTO ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . '
+            (title, normalized_key, wiki_url, settlement_class, settlement_label, building_type, is_ruined, fetched_at)
+         VALUES (:title, :nk, :url, :cls, :lbl, :bt, :ru, CURRENT_TIMESTAMP(3))
+         ON DUPLICATE KEY UPDATE
+            settlement_class = IF(settlement_class IS NULL OR settlement_class = \'\', VALUES(settlement_class), settlement_class),
+            settlement_label = IF(settlement_label IS NULL OR settlement_label = \'\', VALUES(settlement_label), settlement_label),
+            building_type = IF(building_type IS NULL OR building_type = \'\', VALUES(building_type), building_type),
+            is_ruined = IF(VALUES(is_ruined) = 1, 1, is_ruined)'
+    );
+    $insert->execute([
+        'title' => mb_substr($title, 0, 255, 'UTF-8'),
+        'nk' => avesmapsWikiSyncCreateMatchKey($title),
+        'url' => avesmapsWikiSyncMonitorPageUrl($title),
+        'cls' => 'gebaeude',
+        'lbl' => avesmapsWikiSettlementClassLabel('gebaeude'),
+        'bt' => mb_substr($buildingType, 0, 120, 'UTF-8'),
+        'ru' => $isRuined ? 1 : 0,
+    ]);
+    return $insert->rowCount();
+}
+
 // Voller Audit-Snapshot eines Orts-Features (für Verlauf/Undo, VOR der Änderung holen).
 function avesmapsWikiSettlementAuditRow(PDO $pdo, int $featureId): array {
     $stmt = $pdo->prepare('SELECT id, public_id, feature_type, feature_subtype, name, geometry_type, geometry_json, properties_json, style_json, is_active, revision, min_x, min_y, max_x, max_y FROM map_features WHERE id = :id LIMIT 1');
@@ -871,7 +933,7 @@ function avesmapsWikiSettlementCrawlBuildings(PDO $pdo): array {
     }
 
     $types = avesmapsWikiSettlementFetchSubcategories('Bauwerk nach Art');
-    foreach (['Festung', 'Festungsruine', 'Historische Festung', 'Tempel', 'Turm', 'Ruine', 'Palast', 'Kloster', 'Leuchtturm', 'Bauwerk'] as $legacy) {
+    foreach (AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES as $legacy) {
         if (!in_array($legacy, $types, true)) {
             $types[] = $legacy;
         }
@@ -890,31 +952,11 @@ function avesmapsWikiSettlementCrawlBuildings(PDO $pdo): array {
         }
     }
 
-    $insert = $pdo->prepare(
-        'INSERT INTO ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . '
-            (title, normalized_key, wiki_url, settlement_class, settlement_label, building_type, is_ruined, fetched_at)
-         VALUES (:title, :nk, :url, :cls, :lbl, :bt, :ru, CURRENT_TIMESTAMP(3))
-         ON DUPLICATE KEY UPDATE
-            settlement_class = IF(settlement_class IS NULL OR settlement_class = \'\', VALUES(settlement_class), settlement_class),
-            settlement_label = IF(settlement_label IS NULL OR settlement_label = \'\', VALUES(settlement_label), settlement_label),
-            building_type = IF(building_type IS NULL OR building_type = \'\', VALUES(building_type), building_type),
-            is_ruined = IF(VALUES(is_ruined) = 1, 1, is_ruined)'
-    );
-    $label = avesmapsWikiSettlementClassLabel('gebaeude');
     $added = 0;
     foreach ($typeByTitle as $title => $type) {
-        // Ruine-Typen (Ruine, Festungsruine, …) direkt als Ruine merken.
-        $isRuined = (mb_stripos($type, 'ruine') !== false) ? 1 : 0;
-        $insert->execute([
-            'title' => mb_substr($title, 0, 255, 'UTF-8'),
-            'nk' => avesmapsWikiSyncCreateMatchKey($title),
-            'url' => avesmapsWikiSyncMonitorPageUrl($title),
-            'cls' => 'gebaeude',
-            'lbl' => $label,
-            'bt' => mb_substr($type, 0, 120, 'UTF-8'),
-            'ru' => $isRuined,
-        ]);
-        $added += $insert->rowCount();
+        // Ruine-Typen (Ruine, Festungsruine, …) direkt als Ruine merken. Upsert via die
+        // gemeinsame Bauwerks-Zeile (dieselbe Semantik nutzt der Dump-Persist, Pass B).
+        $added += avesmapsWikiSettlementUpsertBuildingRow($pdo, (string) $title, (string) $type, mb_stripos($type, 'ruine') !== false);
     }
     return ['ok' => true, 'types' => count($types), 'titles_seen' => count($typeByTitle), 'added' => $added];
 }
@@ -930,7 +972,7 @@ function avesmapsWikiSettlementBuildingTypes(PDO $pdo): array {
         avesmapsWikiSyncRelaxLimits();
     }
     $types = avesmapsWikiSettlementFetchSubcategories('Bauwerk nach Art');
-    foreach (['Festung', 'Festungsruine', 'Historische Festung', 'Tempel', 'Turm', 'Ruine', 'Palast', 'Kloster', 'Leuchtturm', 'Bauwerk'] as $legacy) {
+    foreach (AVESMAPS_WIKI_SETTLEMENT_LEGACY_BUILDING_TYPES as $legacy) {
         if (!in_array($legacy, $types, true)) {
             $types[] = $legacy;
         }
@@ -965,18 +1007,7 @@ function avesmapsWikiSettlementCrawlBuildingType(PDO $pdo, string $type): array 
     $visited = [];
     $titles = avesmapsWikiSettlementCollectCategoryPages($type, 1, $visited);
 
-    $insert = $pdo->prepare(
-        'INSERT INTO ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . '
-            (title, normalized_key, wiki_url, settlement_class, settlement_label, building_type, is_ruined, fetched_at)
-         VALUES (:title, :nk, :url, :cls, :lbl, :bt, :ru, CURRENT_TIMESTAMP(3))
-         ON DUPLICATE KEY UPDATE
-            settlement_class = IF(settlement_class IS NULL OR settlement_class = \'\', VALUES(settlement_class), settlement_class),
-            settlement_label = IF(settlement_label IS NULL OR settlement_label = \'\', VALUES(settlement_label), settlement_label),
-            building_type = IF(building_type IS NULL OR building_type = \'\', VALUES(building_type), building_type),
-            is_ruined = IF(VALUES(is_ruined) = 1, 1, is_ruined)'
-    );
-    $label = avesmapsWikiSettlementClassLabel('gebaeude');
-    $isRuined = (mb_stripos($type, 'ruine') !== false) ? 1 : 0;
+    $isRuined = mb_stripos($type, 'ruine') !== false;
     $seen = 0;
     $added = 0;
     $done = [];
@@ -987,16 +1018,8 @@ function avesmapsWikiSettlementCrawlBuildingType(PDO $pdo, string $type): array 
         }
         $done[$title] = true;
         $seen++;
-        $insert->execute([
-            'title' => mb_substr($title, 0, 255, 'UTF-8'),
-            'nk' => avesmapsWikiSyncCreateMatchKey($title),
-            'url' => avesmapsWikiSyncMonitorPageUrl($title),
-            'cls' => 'gebaeude',
-            'lbl' => $label,
-            'bt' => mb_substr($type, 0, 120, 'UTF-8'),
-            'ru' => $isRuined,
-        ]);
-        $added += $insert->rowCount();
+        // Upsert via die gemeinsame Bauwerks-Zeile (dieselbe Semantik nutzt der Dump-Persist, Pass B).
+        $added += avesmapsWikiSettlementUpsertBuildingRow($pdo, $title, $type, $isRuined);
     }
     return ['ok' => true, 'type' => $type, 'seen' => $seen, 'added' => $added];
 }

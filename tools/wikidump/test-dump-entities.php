@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 /**
  * Fixture-based unit test for Pass B of the dump-reader (WikiDump migration,
- * Tasks 4a + 4b + 4c): entity-infobox ENUMERATION + the PATH handler (Fluss /
- * Straße), the REGION handler (Infobox Region / Landschaft) and the SETTLEMENT
- * handler (Infobox Siedlung), plus the Aventurien continent filter. Exercises the
- * DB-FREE core of api/_internal/wiki/dump-entity-scan.php against the canonical
- * hand-written MediaWiki-export fixture (tools/wikidump/fixtures/mini-dump.xml),
- * which Task 4a extended with three ns0 path pages, Task 4b with three ns0 region
- * pages and Task 4c with settlement + building pages:
+ * Tasks 4a + 4b + 4c + 4c2): entity-infobox ENUMERATION + the PATH handler (Fluss /
+ * Straße), the REGION handler (Infobox Region / Landschaft), the SETTLEMENT handler
+ * (Infobox Siedlung) and the BUILDING handler (Infobox Bauwerk / Festung / Burg),
+ * plus the Aventurien continent filter. Exercises the DB-FREE core of
+ * api/_internal/wiki/dump-entity-scan.php against the canonical hand-written
+ * MediaWiki-export fixture (tools/wikidump/fixtures/mini-dump.xml), which Task 4a
+ * extended with three ns0 path pages, Task 4b with three ns0 region pages, Task 4c
+ * with settlement pages and Task 4c2 with building pages:
  *
  *   Breite           {{Infobox Fluss}}      -> path,   Aventurien   (KEPT, 4a)
  *   Reichsstraße 1   {{Infobox Straße}}     -> path,   Aventurien   (KEPT, 4a)
@@ -30,8 +31,13 @@ declare(strict_types=1);
  *   Angbar           {{Infobox Siedlung}}   -> settlement, Aventurien, no class
  *                    category -> 'dorf' fallback (KEPT, 4c; previously only "recognised")
  *   Selem            {{Infobox Siedlung}}   -> settlement, Myranor            (FILTERED, 4c)
- *   Burg Wallenstein {{Infobox Bauwerk}}    -> building (CLASSIFIED), NOT routed to the
- *                    settlement handler (building = separate Task 4c2) (4c)
+ *   Burg Wallenstein {{Infobox Bauwerk}}    -> building, Aventurien, Art=Burg; "Burg" not in
+ *                    the reused type list -> building_type from the Art fallback (KEPT, 4c2)
+ *   Zwingfeste Ochsenblut {{Infobox Festung}} -> building, Aventurien, building_type=Festung
+ *                    (from [[Kategorie:Festung]], reused type list), is_ruined=false (KEPT, 4c2)
+ *   Ruine Tsatempel  {{Infobox Bauwerk}}    -> building, Aventurien, building_type=Ruine
+ *                    (from [[Kategorie:Ruine]]), is_ruined=true (Art=Ruine) (KEPT, 4c2)
+ *   Xarsnamoth       {{Infobox Bauwerk}}    -> building, Myranor              (FILTERED, 4c2)
  *
  * plus the pre-existing pages exercising the "recognised but unhandled" and
  * "skipped" branches:
@@ -128,10 +134,12 @@ foreach ([
     'avesmapsWikiDumpParsePathPage',
     'avesmapsWikiDumpParseRegionPage',
     'avesmapsWikiDumpParseSettlementPage',
+    'avesmapsWikiDumpParseBuildingPage',
     'avesmapsWikiDumpCollectEntities',
     'avesmapsWikiDumpCollectPathRecords',
     'avesmapsWikiDumpCollectRegionRecords',
     'avesmapsWikiDumpCollectSettlementRecords',
+    'avesmapsWikiDumpCollectBuildingRecords',
     'avesmapsWikiDumpBuildApiPageFromDump',
     // reused real functions (must be visible so the handlers can call them):
     'avesmapsWikiPathParsePage',
@@ -142,6 +150,8 @@ foreach ([
     // reused settlement functions (Task 4c handler calls these -- must be visible):
     'avesmapsWikiSettlementParseInfobox',
     'avesmapsWikiSettlementBuildEnrichment',
+    'avesmapsWikiSettlementMatchBuildingType',
+    'avesmapsWikiSettlementClassLabel',
     'avesmapsWikiSyncSettlementClassFromPage',
     'avesmapsWikiSyncGetCategoryNames',
     'avesmapsWikiSyncExtractCoordinatesFromContent',
@@ -450,11 +460,11 @@ $check(
     '(d3) Kosch is recognised as territory (still unhandled), Burg Wallenstein as building',
     ['Kosch' => 'territory', 'Burg Wallenstein' => 'building'],
     ['Kosch' => $classifiedByTitle['Kosch'] ?? '(missing)', 'Burg Wallenstein' => $classifiedByTitle['Burg Wallenstein'] ?? '(missing)'],
-    'territory + building stay recognised-but-unhandled (building = Task 4c2), not routed to the settlement handler'
+    'territory stays recognised-but-unhandled; Burg Wallenstein classifies as building (handled by its own handler, not the settlement one)'
 );
 $check(
-    '(d4) per-kind counts: 3 paths, 1 territory, 5 settlements, 1 building, 3 regions recognised',
-    ['path' => 3, 'territory' => 1, 'settlement' => 5, 'building' => 1, 'region' => 3],
+    '(d4) per-kind counts: 3 paths, 1 territory, 5 settlements, 4 buildings, 3 regions recognised',
+    ['path' => 3, 'territory' => 1, 'settlement' => 5, 'building' => 4, 'region' => 3],
     [
         'path' => $collected['counts']['path'] ?? 0,
         'territory' => $collected['counts']['territory'] ?? 0,
@@ -462,7 +472,7 @@ $check(
         'building' => $collected['counts']['building'] ?? 0,
         'region' => $collected['counts']['region'] ?? 0,
     ],
-    '3 path + Kosch + 5 Siedlung infoboxes (Angbar, Ferdok, Auhof, Xarxaron, Selem) + Burg Wallenstein + 3 region infoboxes'
+    '3 path + Kosch + 5 Siedlung infoboxes (Angbar, Ferdok, Auhof, Xarxaron, Selem) + 4 Bauwerk/Festung infoboxes (Burg Wallenstein, Zwingfeste, Ruine Tsatempel, Xarsnamoth) + 3 region infoboxes'
 );
 
 // ===========================================================================
@@ -895,6 +905,225 @@ $check(
     true,
     $ferdokAsPath['record'] === null && $ferdokAsRegion['record'] === null,
     'a settlement infobox never yields a path or region record (O4/I2)'
+);
+
+// ===========================================================================
+// (h) BUILDING handler (Task 4c2): the SIMPLEST entity. Builds a wiki_sync_pages
+//     record with settlement_class='gebaeude', the existing gebaeude label, a
+//     building_type derived from the page's literal [[Kategorie:]] links matched
+//     against the REUSED legacy type list (avesmapsWikiSettlementMatchBuildingType),
+//     with the infobox Art as fallback, plus is_ruined (reused Art-based detection
+//     via avesmapsWikiSettlementBuildEnrichment, OR the building_type contains
+//     "ruine"), keyed off the title (normalized_key = CreateMatchKey(title),
+//     wiki_key = slug(title)). Aventurien-only. NO map_features / case flow (I2).
+//     Expected values are HAND-DERIVED via the real functions (I1).
+// ===========================================================================
+echo "\n-- (h) building handler: gebaeude record + reused type list + is_ruined --\n";
+
+// The DB-free building collector returns exactly the kept Aventurien building
+// records. Kept: Burg Wallenstein (Art=Burg), Zwingfeste Ochsenblut (Kat=Festung),
+// Ruine Tsatempel (Art=Ruine). Xarsnamoth is Myranor -> filtered. So exactly 3.
+$buildingRecords = avesmapsWikiDumpCollectBuildingRecords($pages);
+$check(
+    '(h1) exactly 3 Aventurien building records kept',
+    3,
+    count($buildingRecords),
+    'Burg Wallenstein + Zwingfeste Ochsenblut + Ruine Tsatempel kept; Xarsnamoth (Myranor) filtered'
+);
+
+// Index kept building records by normalized_key (= CreateMatchKey(title)).
+$bldByKey = [];
+foreach ($buildingRecords as $r) {
+    $bldByKey[(string) ($r['normalized_key'] ?? '')] = $r;
+}
+
+// -- Zwingfeste Ochsenblut ({{Infobox Festung}}, [[Kategorie:Festung]]). Hand-derived:
+//    normalized_key = avesmapsWikiSyncCreateMatchKey('Zwingfeste Ochsenblut') = 'zwingfesteochsenblut'
+//    wiki_key       = avesmapsPoliticalSlug('Zwingfeste Ochsenblut')          = 'zwingfeste-ochsenblut'
+//    building_type  = avesmapsWikiSettlementMatchBuildingType(['Festung','Kosch']) = 'Festung' (from CATEGORY)
+//    is_ruined      = false ; settlement_class = 'gebaeude' ; label 'Besondere Bauwerke/Stätten'
+$zwing = $bldByKey['zwingfesteochsenblut'] ?? null;
+$check(
+    '(h2) Zwingfeste record present under normalized_key "zwingfesteochsenblut"',
+    true,
+    is_array($zwing),
+    "normalized_key = avesmapsWikiSyncCreateMatchKey('Zwingfeste Ochsenblut') = 'zwingfesteochsenblut'"
+);
+$check('(h3) Zwingfeste.title', 'Zwingfeste Ochsenblut', (string) ($zwing['title'] ?? '(none)'), 'title from the page');
+$check(
+    '(h4) Zwingfeste.settlement_class = gebaeude',
+    'gebaeude',
+    (string) ($zwing['settlement_class'] ?? '(none)'),
+    'a building is surfaced as gebaeude (like the online building crawler)'
+);
+$check(
+    '(h5) Zwingfeste.settlement_label = Besondere Bauwerke/Stätten (reused constant)',
+    avesmapsWikiSettlementClassLabel('gebaeude'),
+    (string) ($zwing['settlement_label'] ?? '(none)'),
+    "reused avesmapsWikiSettlementClassLabel('gebaeude')"
+);
+$check(
+    '(h6) Zwingfeste.building_type = Festung (from literal category, reused type list)',
+    'Festung',
+    (string) ($zwing['building_type'] ?? '(none)'),
+    "avesmapsWikiSettlementMatchBuildingType(['Festung','Kosch']) -> 'Festung' (CATEGORY-derived)"
+);
+$check('(h7) Zwingfeste.is_ruined = false', false, (bool) ($zwing['is_ruined'] ?? true), 'Festung is not a ruin');
+$check(
+    '(h8) Zwingfeste.wiki_key (real avesmapsPoliticalSlug)',
+    'zwingfeste-ochsenblut',
+    (string) ($zwing['wiki_key'] ?? '(none)'),
+    "hand-derived: avesmapsPoliticalSlug('Zwingfeste Ochsenblut') = 'zwingfeste-ochsenblut' (space->hyphen)"
+);
+$check(
+    '(h9) Zwingfeste.wiki_url (reused avesmapsWikiSyncMonitorPageUrl)',
+    'https://de.wiki-aventurica.de/wiki/Zwingfeste_Ochsenblut',
+    (string) ($zwing['wiki_url'] ?? '(none)'),
+    'reused avesmapsWikiSyncMonitorPageUrl(title) (space->underscore)'
+);
+$check('(h10) Zwingfeste.continent = Aventurien', 'Aventurien', (string) ($zwing['continent'] ?? '(none)'), 'reused DetectContinent default -> Aventurien');
+$check(
+    '(h11) Zwingfeste.categories_json from dump literal categories',
+    ['Festung', 'Kosch'],
+    $zwing['categories_json'] ?? null,
+    'reused avesmapsWikiSyncGetCategoryNames over the reconstructed API page (literal links, I6)'
+);
+
+// Independent re-derivation cross-check (proves NOT a hard-coded literal, I1):
+$reBldKey = avesmapsWikiSyncCreateMatchKey('Zwingfeste Ochsenblut');
+$reBldWikiKey = avesmapsPoliticalSlug(avesmapsWikiSyncMonitorNormalizeTitle('Zwingfeste Ochsenblut'));
+$check(
+    '(h12) collected building keys == independent real-function re-derivation',
+    ['normalized_key' => $reBldKey, 'wiki_key' => $reBldWikiKey],
+    ['normalized_key' => (string) ($zwing['normalized_key'] ?? ''), 'wiki_key' => (string) ($zwing['wiki_key'] ?? '')],
+    'record keys match avesmapsWikiSyncCreateMatchKey + avesmapsPoliticalSlug (I1)'
+);
+
+// -- Ruine Tsatempel ({{Infobox Bauwerk}}, Art=Ruine, [[Kategorie:Ruine]]). Proves BOTH
+//    that a category matching the type list yields building_type='Ruine' AND that
+//    is_ruined is detected (Art=Ruine via the reused BuildEnrichment; the type also
+//    contains "ruine"). Hand-derived normalized_key = 'ruinetsatempel'.
+$ruine = $bldByKey['ruinetsatempel'] ?? null;
+$check(
+    '(h13) Ruine Tsatempel record present under normalized_key "ruinetsatempel"',
+    true,
+    is_array($ruine),
+    "normalized_key = avesmapsWikiSyncCreateMatchKey('Ruine Tsatempel') = 'ruinetsatempel'"
+);
+$check(
+    '(h14) Ruine Tsatempel.building_type = Ruine (from literal category, reused type list)',
+    'Ruine',
+    (string) ($ruine['building_type'] ?? '(none)'),
+    "avesmapsWikiSettlementMatchBuildingType(['Ruine','Kosch']) -> 'Ruine'"
+);
+$check(
+    '(h15) Ruine Tsatempel.is_ruined = true (reused Art-based detection)',
+    true,
+    (bool) ($ruine['is_ruined'] ?? false),
+    'reused avesmapsWikiSettlementBuildEnrichment reads Art=Ruine -> is_ruined (type also contains "ruine")'
+);
+$check('(h16) Ruine Tsatempel.settlement_class = gebaeude', 'gebaeude', (string) ($ruine['settlement_class'] ?? '(none)'), 'building surfaced as gebaeude');
+$check('(h17) Ruine Tsatempel.continent = Aventurien', 'Aventurien', (string) ($ruine['continent'] ?? '(none)'), 'reused DetectContinent -> Aventurien');
+
+// -- Burg Wallenstein ({{Infobox Bauwerk}}, Art=Burg, [[Kategorie:Burg]]). THE online-vs-dump
+//    divergence proof: "Burg" is NOT in the legacy type list, so the literal-category match
+//    returns '' and building_type falls back to the infobox Art = 'Burg'. (Online, the crawler
+//    would have recorded building_type from the crawled CATEGORY name "Burg" -- same value, but
+//    via a category enumeration the dump lacks. Documented as the A4 watch-item.)
+$burg = $bldByKey['burgwallenstein'] ?? null;
+$check(
+    '(h18) Burg Wallenstein record present under normalized_key "burgwallenstein"',
+    true,
+    is_array($burg),
+    "activating the handler stages the previously recognised-but-unhandled Bauwerk page"
+);
+$check(
+    '(h19) Burg Wallenstein.building_type = Burg (Art fallback; "Burg" not in the reused type list)',
+    'Burg',
+    (string) ($burg['building_type'] ?? '(none)'),
+    "MatchBuildingType(['Burg']) = '' -> Art fallback 'Burg' (online-vs-dump divergence, A4 watch-item)"
+);
+$check('(h20) Burg Wallenstein.settlement_class = gebaeude', 'gebaeude', (string) ($burg['settlement_class'] ?? '(none)'), 'building surfaced as gebaeude');
+$check('(h21) Burg Wallenstein.is_ruined = false', false, (bool) ($burg['is_ruined'] ?? true), 'Art=Burg is not a ruin (no ruine/zerstor)');
+
+// I5 (coat license): buildings carry no file-license metadata -> the 4 coat_license_* keys
+// exist and are strictly NULL, never invented (mirrors the settlement handler's I5 handling).
+$bldCoatState = [
+    'all_keys_present' => is_array($zwing)
+        && array_key_exists('coat_license_status', $zwing)
+        && array_key_exists('coat_author', $zwing)
+        && array_key_exists('coat_attribution', $zwing)
+        && array_key_exists('coat_license_url', $zwing),
+    'all_strict_null' => is_array($zwing)
+        && $zwing['coat_license_status'] === null
+        && $zwing['coat_author'] === null
+        && $zwing['coat_attribution'] === null
+        && $zwing['coat_license_url'] === null,
+];
+$check(
+    '(h22) building coat license columns present and strictly NULL (I5)',
+    ['all_keys_present' => true, 'all_strict_null' => true],
+    $bldCoatState,
+    'dump carries no license metadata -> the 4 coat_license_* keys exist and are strictly NULL (I5)'
+);
+
+// -- Continent filter: the Myranor building (Xarsnamoth) is FILTERED OUT of the kept
+//    records but reported in the `filtered` bucket (intentional drop, not a parse miss).
+echo "\n-- (h/c) building continent filter (Aventurien only) --\n";
+$check(
+    '(h23) Xarsnamoth NOT among kept building records',
+    false,
+    array_key_exists(avesmapsWikiSyncCreateMatchKey('Xarsnamoth'), $bldByKey),
+    'a Myranor building is not staged (continent != Aventurien)'
+);
+$filteredBuildingTitles = array_map(
+    static fn(array $x): string => $x['title'],
+    array_filter($collected['filtered'], static fn(array $x): bool => ($x['kind'] ?? '') === 'building')
+);
+$check(
+    '(h24) Xarsnamoth reported in the filtered bucket (as a building)',
+    true,
+    in_array('Xarsnamoth', $filteredBuildingTitles, true),
+    'the drop is an intentional continent filter, not a parse failure'
+);
+$xarsnamoth = avesmapsWikiDumpParseBuildingPage($byTitle['Xarsnamoth']);
+$check(
+    '(h25) Xarsnamoth handler: kept=false but record present (real record, continent-dropped)',
+    true,
+    $xarsnamoth['kept'] === false && is_array($xarsnamoth['record']) && $xarsnamoth['continent'] !== '' && $xarsnamoth['continent'] !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+    "DetectContinent classified it as '{$xarsnamoth['continent']}' (Myranor); record exists, only the continent filter removed it"
+);
+
+// -- Cross-handling: a building is NOT mis-handled by settlement/path/region, and a
+//    settlement/path/region infobox is NOT mis-handled as a building.
+echo "\n-- (h/x) building <-> settlement/path/region are not cross-mishandled --\n";
+$zwingAsSettlement = avesmapsWikiDumpParseSettlementPage($byTitle['Zwingfeste Ochsenblut']);
+$zwingAsPath = avesmapsWikiDumpParsePathPage($byTitle['Zwingfeste Ochsenblut']);
+$zwingAsRegion = avesmapsWikiDumpParseRegionPage($byTitle['Zwingfeste Ochsenblut']);
+$check(
+    '(h26) Zwingfeste (building) via settlement/path/region handlers: no record',
+    true,
+    $zwingAsSettlement['record'] === null && $zwingAsPath['record'] === null && $zwingAsRegion['record'] === null,
+    'a building infobox never yields a settlement/path/region record (O4/I2)'
+);
+$ferdokAsBuilding = avesmapsWikiDumpParseBuildingPage($byTitle['Ferdok']);
+$breiteAsBuilding = avesmapsWikiDumpParseBuildingPage($byTitle['Breite']);
+$koschbergeAsBuilding = avesmapsWikiDumpParseBuildingPage($byTitle['Koschberge']);
+$check(
+    '(h27) settlement/path/region pages via building handler: kept=false, no record',
+    true,
+    $ferdokAsBuilding['kept'] === false && $ferdokAsBuilding['record'] === null
+        && $breiteAsBuilding['kept'] === false && $breiteAsBuilding['record'] === null
+        && $koschbergeAsBuilding['kept'] === false && $koschbergeAsBuilding['record'] === null,
+    'the building handler gate rejects non-building infoboxes -> no gebaeude record'
+);
+$check(
+    '(h28) no building key leaked into kept settlement records (and vice versa)',
+    true,
+    !array_key_exists('zwingfesteochsenblut', $setByKey)
+        && !array_key_exists('ruinetsatempel', $setByKey)
+        && !array_key_exists('ferdok', $bldByKey),
+    'kept settlement records exclude buildings; kept building records exclude settlements (O4/I2)'
 );
 
 // ---------------------------------------------------------------------------

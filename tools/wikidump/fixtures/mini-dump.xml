@@ -317,4 +317,61 @@ Die '''Burg Wallenstein''' ist eine Festung im [[Kosch]].
 [[Kategorie:Burg]]</text>
     </revision>
   </page>
+  <page>
+    <title>Zwingfeste Ochsenblut</title>
+    <ns>0</ns>
+    <id>116</id>
+    <revision>
+      <id>5016</id>
+      <timestamp>2024-01-17T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="200" xml:space="preserve">{{Infobox Festung
+| Name = Zwingfeste Ochsenblut
+| Art  = Festung
+}}
+Die '''Zwingfeste Ochsenblut''' ist eine Festung im [[Kosch]].
+
+[[Kategorie:Festung]]
+[[Kategorie:Kosch]]</text>
+    </revision>
+  </page>
+  <page>
+    <title>Ruine Tsatempel</title>
+    <ns>0</ns>
+    <id>117</id>
+    <revision>
+      <id>5017</id>
+      <timestamp>2024-01-18T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="200" xml:space="preserve">{{Infobox Bauwerk
+| Name = Ruine Tsatempel
+| Art  = Ruine
+}}
+Die '''Ruine Tsatempel''' ist eine verfallene Ruine in den [[Koschberge]]n.
+
+[[Kategorie:Ruine]]
+[[Kategorie:Kosch]]</text>
+    </revision>
+  </page>
+  <page>
+    <title>Xarsnamoth</title>
+    <ns>0</ns>
+    <id>118</id>
+    <revision>
+      <id>5018</id>
+      <timestamp>2024-01-19T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="220" xml:space="preserve">{{Infobox Bauwerk
+| Name = Xarsnamoth
+| Art  = Tempel
+}}
+Der '''Xarsnamoth''' ist ein Tempel in [[Myranor]].
+
+{{Nav Staaten Myranor}}
+[[Kategorie:Tempel (Myranor)]]</text>
+    </revision>
+  </page>
 </mediawiki>
