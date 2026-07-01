@@ -428,6 +428,13 @@ bleibt bis Phase 3 als Notausgang.
 > auf **Opus 4.8**. Mechanische Tasks (**Umbenennung**, **Buttons umhängen**, CSS/UI) dürfen auf **Sonnet 5**
 > (schneller/günstiger). SDD kann Modell pro Task setzen → Hybrid = bestes Kosten/Qualität. Wer EIN Modell will:
 > **Opus 4.8** für den ganzen Umbau (Einsätze rechtfertigen es), Sonnet 5 nur für spätere Routine-Politur.
+>
+> **Reasoning-Effort / Modus:** `max` auf den harten Tasks (1 wiki_key, Dump-Reader, Territorien/Hierarchie,
+> Vergleichs-Test) + **allen Reviews**; `extra`/xhigh auf dem Rest. **ultracode NICHT** für die (sequentielle)
+> Implementierung — dafür SDD mit Review-Gates. **ultracode JA gezielt** für einen **Verify-Pass am Ende**:
+> adversariale Fan-out-Prüfung der Invarianten I1–I7 + des Vergleichs-Tests (Skeptiker-Agenten, die Abweichung
+> im Graph/der Hierarchie zu beweisen versuchen). Spar-Variante: durchgehend `extra`, kein ultracode — der
+> Vergleichs-Test bleibt der harte Sicherheitsgurt.
 
 1. **Key-Funktionen fixieren (I1):** `avesmapsPoliticalBuildWikiKey`, `avesmapsWikiSyncCreateMatchKey`,
    `normalized_key`-Ableitung exakt lokalisieren; Mini-Unit-Test (Titel→Key) für 20 reale Fälle inkl. ö/ä/ü.
