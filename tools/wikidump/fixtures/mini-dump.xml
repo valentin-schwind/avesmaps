@@ -1,0 +1,90 @@
+<mediawiki xmlns="http://www.mediawiki.org/xml/export-0.11/" xml:lang="de" version="0.11">
+  <siteinfo>
+    <sitename>Wiki Aventurica</sitename>
+    <dbname>dewa</dbname>
+    <base>https://de.wiki-aventurica.de/wiki/Hauptseite</base>
+    <generator>MediaWiki 1.39.0</generator>
+    <namespaces>
+      <namespace key="0" case="first-letter" />
+      <namespace key="10" case="first-letter">Vorlage</namespace>
+    </namespaces>
+  </siteinfo>
+  <page>
+    <title>Kosch</title>
+    <ns>0</ns>
+    <id>101</id>
+    <revision>
+      <id>5001</id>
+      <timestamp>2024-01-01T00:00:00Z</timestamp>
+      <contributor><username>Gareth</username><id>1</id></contributor>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="220" xml:space="preserve">{{Infobox Staat
+| Name       = Kosch
+| Art        = Fürstentum
+| Zugehörigkeit = Mittelreich
+| Hauptstadt = Angbar
+}}
+Das '''Fürstentum Kosch''' ist ein Land im Herzen des [[Mittelreich]]s.
+
+Es liegt zwischen den [[Koschberge]]n.</text>
+    </revision>
+  </page>
+  <page>
+    <title>Angbar</title>
+    <ns>0</ns>
+    <id>102</id>
+    <revision>
+      <id>5002</id>
+      <timestamp>2024-01-02T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="140" xml:space="preserve">{{Infobox Siedlung
+| Name = Angbar
+| Typ  = Stadt
+| Einwohner = 4800
+}}
+'''Angbar''' ist die Hauptstadt des [[Kosch]].</text>
+    </revision>
+  </page>
+  <page>
+    <title>Horasreich</title>
+    <ns>0</ns>
+    <id>103</id>
+    <redirect title="Lieblichesfeld" />
+    <revision>
+      <id>5003</id>
+      <timestamp>2024-01-03T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="34" xml:space="preserve">#WEITERLEITUNG [[Lieblichesfeld]]</text>
+    </revision>
+  </page>
+  <page>
+    <title>Königreich Kosch (historisch)</title>
+    <ns>0</ns>
+    <id>104</id>
+    <redirect title="Kosch" />
+    <revision>
+      <id>5004</id>
+      <timestamp>2024-01-04T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="26" xml:space="preserve">#WEITERLEITUNG [[Kosch]]</text>
+    </revision>
+  </page>
+  <page>
+    <title>Vorlage:Infobox Staat</title>
+    <ns>10</ns>
+    <id>201</id>
+    <revision>
+      <id>6001</id>
+      <timestamp>2024-01-05T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="40" xml:space="preserve">{| class="infobox"
+Vorlagen-Definition, kein Staat.
+|}</text>
+    </revision>
+  </page>
+</mediawiki>
