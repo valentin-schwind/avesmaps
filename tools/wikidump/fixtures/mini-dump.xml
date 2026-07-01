@@ -87,4 +87,69 @@ Vorlagen-Definition, kein Staat.
 |}</text>
     </revision>
   </page>
+  <page>
+    <title>Breite</title>
+    <ns>0</ns>
+    <id>105</id>
+    <revision>
+      <id>5005</id>
+      <timestamp>2024-01-06T00:00:00Z</timestamp>
+      <contributor><username>Gareth</username><id>1</id></contributor>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="300" xml:space="preserve">{{Infobox Fluss
+| Name     = Breite
+| Art      = Fluss
+| Länge    = 900 Meilen
+| Regionen = [[Kosch]], [[Mittelreich]]
+| Verlauf  = {{Verlauf|[[Angbar]]|[[Ferdok]]|[[Elenvina]]}}
+| Bild     = Breite.jpg
+}}
+Die '''Breite''' ist ein Fluss im [[Kosch]].
+
+[[Kategorie:Fluss]]
+[[Kategorie:Kosch]]</text>
+    </revision>
+  </page>
+  <page>
+    <title>Reichsstraße 1</title>
+    <ns>0</ns>
+    <id>106</id>
+    <revision>
+      <id>5006</id>
+      <timestamp>2024-01-07T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="240" xml:space="preserve">{{Infobox Straße
+| Name     = Reichsstraße 1
+| Art      = Reichsstraße
+| Länge    = 400 Meilen
+| Regionen = [[Kosch]]
+| Verlauf  = {{Verlauf|[[Gareth]]|[[Angbar]]}}
+}}
+Die '''Reichsstraße 1''' verbindet [[Gareth]] mit [[Angbar]].
+
+[[Kategorie:Reichsstraße]]</text>
+    </revision>
+  </page>
+  <page>
+    <title>Rastullah-Strom</title>
+    <ns>0</ns>
+    <id>107</id>
+    <revision>
+      <id>5007</id>
+      <timestamp>2024-01-08T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="220" xml:space="preserve">{{Infobox Fluss
+| Name     = Rastullah-Strom
+| Art      = Fluss
+| Regionen = [[Rastabor]]
+}}
+Der '''Rastullah-Strom''' ist ein Fluss in [[Myranor]].
+
+{{Nav Staaten Myranor}}
+[[Kategorie:Fluss (Myranor)]]</text>
+    </revision>
+  </page>
 </mediawiki>
