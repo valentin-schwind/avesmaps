@@ -311,9 +311,7 @@ function labelWikiInfoboxMarkup(label, options = {}) {
 	rows += row(tr("infobox.language", "Sprache"), wiki.sprache);
 	rows += row(tr("infobox.vegetation", "Vegetation"), wiki.vegetation);
 	rows += row(tr("infobox.description", "Beschreibung"), typeof settlementFirstSentence === "function" ? settlementFirstSentence(wiki.description) : String(wiki.description || "").trim());
-	const wikiLink = wiki.wiki_url
-		? `<a class="region-info-box__link" href="${escapeHtml(wiki.wiki_url)}" target="_blank" rel="noopener">${escapeHtml(name)} ${escapeHtml(tr("popup.wikiLinkSuffixArrow", "im Wiki-Aventurica ↗"))}</a>`
-		: "";
+	const wikiLink = wikiSourceCreditMarkup(wiki.wiki_url);
 
 	const header = headless ? "" : (
 		`<div class="region-info-box__header${hasCoatClass}">` +

@@ -97,6 +97,8 @@ window.AVESMAPS_I18N_EN = {
 	// --- location marker popup ---
 	"locationType.crossing": "Crossing",
 	"popup.noWikiEntry": "No wiki entry found",
+	"popup.wikiSourceCredit": "Information from the Wiki Aventurica.",
+	"popup.wikiSourceMore": "More here",
 
 	// --- location popup chrome ---
 	"popup.shareLink": "🔗 Share link",

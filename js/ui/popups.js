@@ -37,21 +37,20 @@ function getWikiLocationLink(name, wikiUrlOverride = "") {
 	return null;
 }
 
-function wikiLocationLinkMarkup(name, wikiUrlOverride = "") {
-	const wikiLocationLink = getWikiLocationLink(name, wikiUrlOverride);
-
-	if (!wikiLocationLink?.url) {
+// Gemeinsame Quellenangabe fuer WA-Inhalte in ALLEN oeffentlichen Infoboxen (Siedlung/Territorium/Landschaft):
+// die Kurzbeschreibungen stammen aus dem Wiki Aventurica -> Uebernahme kenntlich machen + "Mehr hier"-Link auf
+// den Artikel (wie bisher). Rendert nichts ohne URL.
+function wikiSourceCreditMarkup(url, linkClass = "region-info-box__link") {
+	if (!url) {
 		return "";
 	}
+	const credit = tr("popup.wikiSourceCredit", "Informationen aus dem Wiki Aventurica.");
+	const more = tr("popup.wikiSourceMore", "Mehr hier");
+	return `<div class="wiki-source-credit">${escapeHtml(credit)} <a class="${escapeHtml(linkClass)}" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(more)}<span class="wiki-source-credit__arrow" aria-hidden="true"> &#8599;</span></a></div>`;
+}
 
-	const wikiTitle = wikiLocationLink.title || name;
-	const linkText = `${name} ${tr("popup.wikiLinkSuffix", "im Wiki Aventurica")}`;
-	const titleText = wikiTitle === name ? linkText : `${linkText}: ${wikiTitle}`;
-	return `
-		<a class="location-popup__wiki-link" href="${escapeHtml(wikiLocationLink.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(titleText)}">
-			${escapeHtml(linkText)}
-			<span class="location-popup__link-icon" aria-hidden="true">&#8599;</span>
-		</a>`;
+function wikiLocationLinkMarkup(name, wikiUrlOverride = "") {
+	return wikiSourceCreditMarkup(wikiUrlOverride, "location-popup__wiki-link");
 }
 
 function locationIconMarkup(locationType, locationTypeLabel) {

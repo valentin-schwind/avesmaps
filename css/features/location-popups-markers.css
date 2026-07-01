@@ -372,3 +372,16 @@
 .leaflet-interactive {
 	cursor: pointer;
 }
+
+/* Quellenangabe fuer WA-Inhalte am Fuss der Infoboxen (Siedlung/Territorium/Landschaft). Dezent abgesetzt. */
+.wiki-source-credit {
+	margin-top: 8px;
+	padding-top: 6px;
+	border-top: 1px solid rgba(90, 68, 40, 0.14);
+	font-size: 12px;
+	line-height: 1.4;
+	color: #6b5a44;
+}
+.wiki-source-credit__arrow {
+	white-space: nowrap;
+}

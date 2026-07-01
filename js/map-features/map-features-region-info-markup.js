@@ -80,7 +80,7 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 		? `<img class="region-info-box__coat" src="${escapeHtml(avesmapsCoatSrc(coatUrl))}" alt="" loading="lazy" decoding="async">`
 		: "";
 	const hasCoatClass = coatMarkup ? " has-coat" : "";
-	const wikiLink = createRegionInfoLink(regionEntry.wikiUrl || f.wiki_url);
+	const wikiUrl = regionEntry.wikiUrl || f.wiki_url;
 	const wikiRows = [
 		createRegionInfoTextRow(tr("infobox.wikiEntry", "Wiki-Eintrag"), wikiName),
 		createRegionInfoTextRow(tr("infobox.type", "Typ"), type),
@@ -100,8 +100,7 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 		createRegionInfoTextRow(tr("infobox.tradeGoods", "Handelswaren"), f.trade_goods),
 		createRegionInfoTextRow(tr("infobox.tradeZone", "Handelszone"), f.trade_zone),
 		createRegionInfoTextRow(tr("infobox.geographic", "Geographisch"), f.geographic),
-		createRegionInfoTextRow(tr("infobox.mapPeriod", "Kartenzeitraum"), regionEntry.validLabel),
-		createRegionInfoBoxRow(tr("infobox.wiki", "Wiki"), wikiLink)
+		createRegionInfoTextRow(tr("infobox.mapPeriod", "Kartenzeitraum"), regionEntry.validLabel)
 	].join("");
 
 	return `
@@ -114,6 +113,7 @@ function createRegionWikiInfoBoxMarkup(regionEntry) {
 				</div>
 			</div>
 			<dl class="region-info-box__data">${wikiRows}</dl>
+			${wikiSourceCreditMarkup(wikiUrl)}
 		</div>
 	`;
 }
