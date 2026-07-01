@@ -86,23 +86,28 @@ declare(strict_types=1);
  */
 const AVESMAPS_WIKI_DUMP_ENTITY_PATH = 'path';             // 4a (handled)
 const AVESMAPS_WIKI_DUMP_ENTITY_REGION = 'region';         // 4b (handled)
-const AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY = 'territory';   // 4c (unhandled here)
-const AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT = 'settlement'; // 4c (unhandled here)
-const AVESMAPS_WIKI_DUMP_ENTITY_BUILDING = 'building';     // 4d (unhandled here)
+const AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT = 'settlement'; // 4c (handled)
+const AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY = 'territory';   // (unhandled here)
+const AVESMAPS_WIKI_DUMP_ENTITY_BUILDING = 'building';     // 4c2 (unhandled here)
 
 /**
  * The set of entity kinds this task actually processes. A dispatcher can test
  * membership to decide whether a page is routed to a handler or merely counted
  * as "recognised". Later tasks extend this set as their handlers land.
  *
- * Handled so far: PATH (Task 4a) and REGION (Task 4b). Territory / Settlement /
- * Building stay recognised-but-unhandled until 4c/4d add their handlers.
+ * Handled so far: PATH (Task 4a), REGION (Task 4b) and SETTLEMENT (Task 4c).
+ * Territory / Building stay recognised-but-unhandled until their handlers land
+ * (Building is the separate Task 4c2; do NOT route it here).
  *
  * @return array<int, string>
  */
 function avesmapsWikiDumpHandledEntityKinds(): array
 {
-    return [AVESMAPS_WIKI_DUMP_ENTITY_PATH, AVESMAPS_WIKI_DUMP_ENTITY_REGION];
+    return [
+        AVESMAPS_WIKI_DUMP_ENTITY_PATH,
+        AVESMAPS_WIKI_DUMP_ENTITY_REGION,
+        AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT,
+    ];
 }
 
 /**
@@ -144,13 +149,13 @@ function avesmapsWikiDumpClassifyEntityKind(string $infoboxName): string
         return AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY;
     }
 
-    // BUILDINGS (4d) -- Bauwerk / Festung / Burg. Checked before settlement so a
+    // BUILDINGS (4c2) -- Bauwerk / Festung / Burg. Checked before settlement so a
     // "Burg"/"Festung" is not swallowed by a broad settlement needle.
     if (str_contains($key, 'bauwerk') || str_contains($key, 'festung') || str_contains($key, 'burg')) {
         return AVESMAPS_WIKI_DUMP_ENTITY_BUILDING;
     }
 
-    // SETTLEMENTS (4c) -- Siedlung / Stadt / Ort.
+    // SETTLEMENTS (4c, handled) -- Siedlung / Stadt / Ort.
     if (str_contains($key, 'siedlung') || str_contains($key, 'stadt') || str_contains($key, 'ort')) {
         return AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT;
     }
@@ -359,6 +364,196 @@ function avesmapsWikiDumpParseRegionPage(array $page): array
 }
 
 // ===========================================================================
+// 3c. SETTLEMENT handler -- PURE (parse + enrich + keep/skip, DB-free). Task 4c.
+// ===========================================================================
+
+/**
+ * Reconstruct a MediaWiki-API-shaped `$page` array from a dump page row, so the
+ * reused settlement functions -- which were written against the online crawler's
+ * API response -- run UNCHANGED on dump input. This is the settlement analogue of
+ * avesmapsWikiDumpExtractCategoryNames(): it is continent/enrichment PLUMBING, not
+ * field mapping (I1 is about field/key mapping, which stays inside the reused
+ * parse/enrich). Two API shapes are reproduced from the dump:
+ *
+ *   - categories: [{title:'Kategorie:<Name>'}, ...] rebuilt from the page's
+ *     literal [[Kategorie:...]] links. This is the SAME list the reused
+ *     avesmapsWikiSyncGetCategoryNames()/avesmapsWikiSyncSettlementClassFromPage()
+ *     read online (there via the API's prop=categories). NB the dump only carries
+ *     LITERAL category links (I6): template-injected categories the online API
+ *     also returned are absent here -- see the settlement-class watch-item in the
+ *     handler doc below.
+ *   - revisions[0].slots.main.content: the wikitext, exactly where
+ *     avesmapsWikiSyncReadPageContent() (locations.php) looks for it -- so
+ *     avesmapsWikiSettlementBuildEnrichment() reads the dump body verbatim.
+ *
+ * @param array{title:string, ns:int, redirect:?string, wikitext:string} $page
+ * @return array{title:string, categories:array<int,array{title:string}>, revisions:array<int,array>}
+ */
+function avesmapsWikiDumpBuildApiPageFromDump(array $page): array
+{
+    $title = (string) ($page['title'] ?? '');
+    $wikitext = (string) ($page['wikitext'] ?? '');
+
+    $categories = [];
+    if (preg_match_all('/\[\[\s*(?:Kategorie|Category)\s*:\s*([^\]|#]+)/iu', $wikitext, $matches) >= 1) {
+        foreach ($matches[1] as $raw) {
+            $name = trim((string) $raw);
+            if ($name !== '') {
+                $categories[] = ['title' => 'Kategorie:' . $name];
+            }
+        }
+    }
+
+    return [
+        'title' => $title,
+        'categories' => $categories,
+        // Mirror the online API's revisions/slots/main/content shape so the reused
+        // avesmapsWikiSyncReadPageContent() finds the dump wikitext unchanged.
+        'revisions' => [['slots' => ['main' => ['content' => $wikitext]]]],
+    ];
+}
+
+/**
+ * PURE settlement handler for ONE dump page -- the settlement analogue of
+ * avesmapsWikiDumpParseRegionPage(). It assembles the wiki_sync_pages registry
+ * record by REUSING the real settlement functions verbatim (I1) -- NO field
+ * mapping, key derivation, class inference, coordinate parsing or coat extraction
+ * is duplicated here:
+ *   - settlement_class/label = avesmapsWikiSyncSettlementClassFromPage($apiPage)
+ *       (locations-helpers.php:361) -> AVESMAPS_WIKI_CATEGORY_TO_CLASS, the SAME
+ *       category-driven derivation the online crawl used AND that the reused base
+ *       upsert (avesmapsWikiSyncUpsertPageCache) re-applies. Null (no class
+ *       category) falls back to 'dorf' via avesmapsWikiSettlementParseInfobox.
+ *   - infobox fields        = avesmapsWikiSettlementParseInfobox($title,$wikitext,$class)
+ *       (settlements.php:451) -> name, art (from ['siedlungsart','art','typ']),
+ *       wiki_key = avesmapsPoliticalSlug($title), match_key =
+ *       avesmapsWikiSyncCreateMatchKey($name), wiki_url, description, wappen_url ...
+ *   - enrichment            = avesmapsWikiSettlementBuildEnrichment($apiPage)
+ *       (settlements.php:96) -> continent (real DetectContinent), is_ruined
+ *       (Siedlungsart ruine/zerstört), coat_url.
+ *   - coordinates           = avesmapsWikiSyncExtractCoordinatesFromContent($wikitext)
+ *       (locations.php:558) -> {source,x,y} from {{DereGlobus-Link|Länge(x)=..|
+ *       Breite(y)=..}} (or Positionskarte).
+ * The record is then filtered to Aventurien only (the real DetectContinent's
+ * verdict), exactly like the path/region handlers.
+ *
+ * SETTLEMENT-CLASS DIVERGENCE (A4/A1 watch-item -- do NOT paper over it): phase 2
+ * of the ONLINE settlement case flow (avesmapsWikiSyncInferSettlementClassFromPage,
+ * locations.php:410) re-infers the class FRESH from categories_json, and the online
+ * API's category list included TEMPLATE-INJECTED categories. The dump exposes only
+ * LITERAL [[Kategorie:]] links (I6). So for a settlement whose class category is
+ * template-set (not a literal link), the dump-derived settlement_class/categories_json
+ * can differ from the online run's, and the later phase-2 re-inference may diverge.
+ * This handler fills HONESTLY from the dump's literal categories and does NOT
+ * synthesise categories to force parity; the §9 compare-test is the safety net that
+ * surfaces the difference. (The brief's "infer class from the Art field" is
+ * reconciled here to the reused CATEGORY-driven deriver: writing an Art-string->class
+ * map would be exactly the field mapping I1 forbids, and it would disagree with the
+ * reused base upsert. The Art string is still captured -- as the record's `art` via
+ * ParseInfobox and as is_ruined via BuildEnrichment.)
+ *
+ * I2: builds a wiki_sync_pages record ONLY -- never map_features / geometry /
+ * feature_subtype / a location name or coords. Attaching a settlement to a map
+ * location (the 4-phase case flow: match/build_cases/ResolveCase/AssignTo) is a
+ * SEPARATE step this neither calls nor changes.
+ *
+ * I5 (coat license): the dump carries no file-license metadata, so
+ * coat_license_status/coat_author/coat_attribution/coat_license_url are set to NULL.
+ * The coat FILENAME/URL (from |Wappen=) is still stored in coat_url. No license
+ * value is invented.
+ *
+ * @param array{title:string, ns:int, redirect:?string, wikitext:string} $page
+ * @return array{
+ *   kept: bool,
+ *   reason: string,
+ *   record: array<string, mixed>|null,
+ *   continent: string
+ * }
+ *   kept=true only for a settlement whose detected continent is Aventurien.
+ *   record is the wiki_sync_pages registry row (null only when the page carries no
+ *   settlement infobox at all). A non-Aventurien settlement returns kept=false with
+ *   the record still present (so the drop is an intentional continent filter).
+ */
+function avesmapsWikiDumpParseSettlementPage(array $page): array
+{
+    $title = (string) ($page['title'] ?? '');
+    $wikitext = (string) ($page['wikitext'] ?? '');
+
+    // Gate on the settlement infobox exactly as the classifier does (O4) so a
+    // non-settlement page fed here yields no record (mirrors the region gate).
+    $infoboxKey = avesmapsWikiSyncMonitorFieldKey(avesmapsWikiSyncMonitorInfoboxName($wikitext));
+    $isSettlement = $infoboxKey !== '' && (
+        str_contains($infoboxKey, 'siedlung')
+        || str_contains($infoboxKey, 'stadt')
+        || str_contains($infoboxKey, 'ort')
+    );
+    if (!$isSettlement) {
+        return [
+            'kept' => false,
+            'reason' => $infoboxKey === '' ? 'kein Infobox' : ('Infobox ' . avesmapsWikiSyncMonitorInfoboxName($wikitext)),
+            'record' => null,
+            'continent' => '',
+        ];
+    }
+
+    // API-shaped page for the reused category/content readers (plumbing, not I1).
+    $apiPage = avesmapsWikiDumpBuildApiPageFromDump($page);
+
+    // Class + label from the reused CATEGORY-driven deriver (same as online + the
+    // reused base upsert). Null -> ParseInfobox applies the 'dorf' fallback.
+    [$settlementClass, $settlementLabel] = avesmapsWikiSyncSettlementClassFromPage($apiPage);
+    $classForInfobox = is_string($settlementClass) ? $settlementClass : '';
+
+    // Infobox fields (name, art, wiki_key, match_key, wiki_url, wappen_url, ...) via
+    // the reused real parser -- verbatim, no duplicated mapping/keys.
+    $infobox = avesmapsWikiSettlementParseInfobox($title, $wikitext, $classForInfobox);
+
+    // Enrichment (continent, is_ruined, coat_url) + coordinates via the reused fns.
+    $enrichment = avesmapsWikiSettlementBuildEnrichment($apiPage);
+    $coordinates = avesmapsWikiSyncExtractCoordinatesFromContent($wikitext);
+
+    $continent = (string) ($enrichment['continent'] ?? '');
+    $resolvedClass = (string) ($infobox['settlement_class'] ?? ($classForInfobox !== '' ? $classForInfobox : 'dorf'));
+    $resolvedLabel = is_string($settlementLabel) && $settlementLabel !== ''
+        ? $settlementLabel
+        : (string) ($infobox['settlement_label'] ?? '');
+
+    // Assemble the wiki_sync_pages record. Keys/fields come from the reused parse;
+    // categories_json from the dump's literal categories; coat_license_* = NULL (I5).
+    $record = [
+        'title' => (string) ($infobox['title'] ?? $title),
+        'normalized_key' => (string) ($infobox['match_key'] ?? ''),
+        'wiki_key' => (string) ($infobox['wiki_key'] ?? ''),
+        'wiki_url' => (string) ($infobox['wiki_url'] ?? ''),
+        'settlement_class' => $resolvedClass,
+        'settlement_label' => $resolvedLabel,
+        'categories_json' => avesmapsWikiSyncGetCategoryNames($apiPage),
+        'coordinates_json' => $coordinates,
+        'continent' => mb_substr($continent, 0, 120, 'UTF-8'),
+        'is_ruined' => (bool) ($enrichment['is_ruined'] ?? false),
+        'coat_url' => (string) ($enrichment['coat_url'] ?? ''),
+        // I5: dump has no license metadata -> NULL, never invented.
+        'coat_license_status' => null,
+        'coat_author' => null,
+        'coat_attribution' => null,
+        'coat_license_url' => null,
+    ];
+
+    // Continent filter: Aventurien only. A settlement detected on another continent
+    // (e.g. a Myranor city) is dropped -- never staged.
+    if ($continent !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT) {
+        return [
+            'kept' => false,
+            'reason' => 'Kontinent ' . ($continent !== '' ? $continent : '(unbekannt)') . ' != ' . AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+            'record' => $record,
+            'continent' => $continent,
+        ];
+    }
+
+    return ['kept' => true, 'reason' => '', 'record' => $record, 'continent' => $continent];
+}
+
+// ===========================================================================
 // 4. Collect / dry-run (DB-free) -- drives dispatch over a page stream.
 // ===========================================================================
 
@@ -417,9 +612,12 @@ function avesmapsWikiDumpCollectEntities(iterable $pages): array
                 $result = avesmapsWikiDumpParseRegionPage($page);
                 break;
 
-            // case AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY:   // 4c: add handler here
-            // case AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT:  // 4c: add handler here
-            // case AVESMAPS_WIKI_DUMP_ENTITY_BUILDING:    // 4d: add handler here
+            case AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT:
+                $result = avesmapsWikiDumpParseSettlementPage($page);
+                break;
+
+            // case AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY:   // add handler here
+            // case AVESMAPS_WIKI_DUMP_ENTITY_BUILDING:    // 4c2: add handler here
             default:
                 // Recognised but unhandled in this task: counted above, no record.
                 break;
@@ -502,6 +700,34 @@ function avesmapsWikiDumpCollectRegionRecords(iterable $pages): array
     return $records;
 }
 
+/**
+ * Convenience DB-free collector that returns ONLY the kept SETTLEMENT registry
+ * records for a page stream (the wiki_sync_pages rows Pass B would upsert). The
+ * settlement analogue of avesmapsWikiDumpCollectRegionRecords: classifies each
+ * page and runs the pure settlement handler; path/region/other kinds are ignored.
+ * A non-Aventurien settlement is dropped by the continent filter and never
+ * appears here; a {{Infobox Bauwerk}} page classifies as BUILDING (not settlement)
+ * so it is not collected here either.
+ *
+ * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
+ * @return array<int, array<string, mixed>>
+ */
+function avesmapsWikiDumpCollectSettlementRecords(iterable $pages): array
+{
+    $records = [];
+    foreach ($pages as $page) {
+        if (avesmapsWikiDumpClassifyPage($page) !== AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT) {
+            continue;
+        }
+        $result = avesmapsWikiDumpParseSettlementPage($page);
+        if ($result['kept'] && is_array($result['record'])) {
+            $records[] = $result['record'];
+        }
+    }
+
+    return $records;
+}
+
 // ===========================================================================
 // 5. PERSIST (DB-backed, deferred) + read_step scaffold.
 // ===========================================================================
@@ -567,21 +793,92 @@ function avesmapsWikiDumpPersistRegionRecords(PDO $pdo, iterable $pages): int
 }
 
 /**
+ * THIN persistence for the SETTLEMENT handler -- the analogue of
+ * avesmapsWikiDumpPersistRegionRecords(). For each kept settlement page it writes
+ * the wiki_sync_pages registry row in TWO reused steps, inventing no new upsert:
+ *
+ *   1. BASE columns via the REUSED avesmapsWikiSyncUpsertPageCache()
+ *      (locations-helpers.php:306). Fed the API-shaped page from the dump, it
+ *      derives + writes normalized_key, wiki_url, settlement_class/label
+ *      (category-driven, same as online), categories_json, coordinates_json and
+ *      content_hash -- ALL the base field/key/coordinate mapping, reused verbatim.
+ *   2. ENRICHMENT columns via the same UPDATE shape avesmapsWikiSettlementEnrichDetails()
+ *      uses (settlements.php) -- continent, is_ruined, coat_url + enriched_at. Per
+ *      I5 the coat license columns are set to NULL (the dump has no file-license
+ *      metadata; we do NOT fetch or invent one). avesmapsWikiSettlementEnsureSchema()
+ *      guarantees those columns exist.
+ *
+ * This writes ONLY to wiki_sync_pages (I2) -- never map_features/geometry/a location.
+ * It NEVER runs the settlement case flow (match/build_cases/ResolveCase/AssignTo)
+ * -- that integration is deferred to the controlled rollout after the compare-test.
+ *
+ * DB-backed -> NOT covered by the fixture test; live-verified in the controlled
+ * rollout / compare-test. Nothing calls it automatically yet.
+ *
+ * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
+ * @return int number of settlement registry rows written (Aventurien only)
+ */
+function avesmapsWikiDumpPersistSettlementRecords(PDO $pdo, iterable $pages): int
+{
+    avesmapsWikiSettlementEnsureSchema($pdo); // guard: enrichment columns exist
+
+    // Reuse the settlement enrich UPDATE shape (license columns NULL per I5).
+    $enrichUpdate = $pdo->prepare(
+        'UPDATE ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' SET
+            continent = :continent, is_ruined = :is_ruined, coat_url = :coat_url,
+            coat_license_status = NULL, coat_author = NULL,
+            coat_attribution = NULL, coat_license_url = NULL,
+            enriched_at = CURRENT_TIMESTAMP()
+         WHERE title = :title'
+    );
+
+    $written = 0;
+    foreach ($pages as $page) {
+        if (avesmapsWikiDumpClassifyPage($page) !== AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT) {
+            continue;
+        }
+        $result = avesmapsWikiDumpParseSettlementPage($page);
+        if (!$result['kept'] || !is_array($result['record'])) {
+            continue;
+        }
+        $record = $result['record'];
+
+        // 1) Base columns via the reused real upsert (API-shaped dump page).
+        $apiPage = avesmapsWikiDumpBuildApiPageFromDump($page);
+        avesmapsWikiSyncUpsertPageCache($pdo, $apiPage, true); // includeContent=true -> coords + hash
+
+        // 2) Enrichment columns via the reused UPDATE shape (license NULL, I5).
+        $coatUrl = (string) ($record['coat_url'] ?? '');
+        $enrichUpdate->execute([
+            'continent' => $record['continent'] !== '' ? $record['continent'] : AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+            'is_ruined' => !empty($record['is_ruined']) ? 1 : 0,
+            'coat_url' => $coatUrl !== '' ? $coatUrl : null,
+            'title' => (string) $record['title'],
+        ]);
+        $written++;
+    }
+
+    return $written;
+}
+
+/**
  * Process ONE bounded Pass-B step over the dump, resuming from a page-counter
  * cursor and persisting the recognised entities of this batch. Mirrors the
  * Pass-A step discipline in dump-reader.php (reopen-from-start + skip N + bounded
  * batch + set_time_limit) and reuses the reused entity handlers above.
  *
- * Tasks 4a + 4b persist the PATH and REGION entities (the handled kinds); each
- * routes to its own reused parse+upsert. Recognised-but-unhandled kinds are
- * tallied for progress but not written until 4c-4d land.
+ * Tasks 4a-4c persist the PATH, REGION and SETTLEMENT entities (the handled
+ * kinds); each routes to its own reused parse+upsert (settlement = reused base
+ * UpsertPageCache + the enrich UPDATE, license NULL per I5). Recognised-but-
+ * unhandled kinds (territory, building) are tallied for progress but not written
+ * until their handlers land. This NEVER runs the settlement case flow.
  *
  * DB- AND dump-backed -> NOT exercised by the local fixture test. Its live
  * verification is DEFERRED to the controlled rollout / compare-test; nothing
  * calls it automatically yet. Kept intentionally thin (structure, not behaviour
  * under test) per the Task-4a/4b briefs.
  *
- * @return array{ok:bool, done:bool, cursor:int, processed_this_step:int, paths_written:int, regions_written:int}
+ * @return array{ok:bool, done:bool, cursor:int, processed_this_step:int, paths_written:int, regions_written:int, settlements_written:int}
  */
 function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 0, ?int $pageBudget = null): array
 {
@@ -589,11 +886,22 @@ function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 
     @set_time_limit(AVESMAPS_WIKI_DUMP_STEP_SECONDS + 15);
     $deadline = microtime(true) + AVESMAPS_WIKI_DUMP_STEP_SECONDS;
 
+    avesmapsWikiSettlementEnsureSchema($pdo); // guard: settlement enrichment columns exist
+    $settlementEnrich = $pdo->prepare(
+        'UPDATE ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' SET
+            continent = :continent, is_ruined = :is_ruined, coat_url = :coat_url,
+            coat_license_status = NULL, coat_author = NULL,
+            coat_attribution = NULL, coat_license_url = NULL,
+            enriched_at = CURRENT_TIMESTAMP()
+         WHERE title = :title'
+    );
+
     $reader = avesmapsWikiDumpOpenReader($dumpPath);
 
     $processedThisStep = 0;
     $pathsWritten = 0;
     $regionsWritten = 0;
+    $settlementsWritten = 0;
     $done = false;
 
     try {
@@ -616,6 +924,23 @@ function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 
                         $regionsWritten++;
                     }
                     break;
+
+                case AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT:
+                    $result = avesmapsWikiDumpParseSettlementPage($page);
+                    if ($result['kept'] && is_array($result['record'])) {
+                        // Base cols via the reused upsert; enrich cols via the reused
+                        // UPDATE (license NULL, I5). Registry only -- no case flow.
+                        avesmapsWikiSyncUpsertPageCache($pdo, avesmapsWikiDumpBuildApiPageFromDump($page), true);
+                        $settlementCoat = (string) ($result['record']['coat_url'] ?? '');
+                        $settlementEnrich->execute([
+                            'continent' => $result['record']['continent'] !== '' ? $result['record']['continent'] : AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+                            'is_ruined' => !empty($result['record']['is_ruined']) ? 1 : 0,
+                            'coat_url' => $settlementCoat !== '' ? $settlementCoat : null,
+                            'title' => (string) $result['record']['title'],
+                        ]);
+                        $settlementsWritten++;
+                    }
+                    break;
             }
 
             if ($processedThisStep >= $pageBudget || microtime(true) >= $deadline) {
@@ -636,5 +961,6 @@ function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 
         'processed_this_step' => $processedThisStep,
         'paths_written' => $pathsWritten,
         'regions_written' => $regionsWritten,
+        'settlements_written' => $settlementsWritten,
     ];
 }

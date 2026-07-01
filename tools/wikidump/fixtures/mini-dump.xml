@@ -214,4 +214,107 @@ Der '''Windhag''' ist ein Wald.
 [[Kategorie:Wald]]</text>
     </revision>
   </page>
+  <page>
+    <title>Ferdok</title>
+    <ns>0</ns>
+    <id>111</id>
+    <revision>
+      <id>5011</id>
+      <timestamp>2024-01-12T00:00:00Z</timestamp>
+      <contributor><username>Gareth</username><id>1</id></contributor>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="420" xml:space="preserve">{{Infobox Siedlung
+| Name        = Ferdok
+| Siedlungsart = Stadt
+| Einwohner   = 4300
+| Region      = [[Kosch]]
+| Staat       = [[Mittelreich]]
+| Wappen      = {{Boximage|Wappen Ferdok.webp}}
+| DereGlobus  = {{DereGlobus-Link|Länge(x)=520.5|Breite(y)=305.25}}
+}}
+== Kurzbeschreibung ==
+Die '''Stadt Ferdok''' liegt am Fluss [[Breite]] im [[Kosch]].
+
+[[Kategorie:Mittelgroße Stadt]]
+[[Kategorie:Kosch]]</text>
+    </revision>
+  </page>
+  <page>
+    <title>Auhof</title>
+    <ns>0</ns>
+    <id>112</id>
+    <revision>
+      <id>5012</id>
+      <timestamp>2024-01-13T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="220" xml:space="preserve">{{Infobox Siedlung
+| Name = Auhof
+| Art  = Dorf
+| Einwohner = 120
+| Region = [[Kosch]]
+}}
+'''Auhof''' ist ein kleines Dorf im [[Kosch]].
+
+[[Kategorie:Dorf]]
+[[Kategorie:Kosch]]</text>
+    </revision>
+  </page>
+  <page>
+    <title>Xarxaron</title>
+    <ns>0</ns>
+    <id>113</id>
+    <revision>
+      <id>5013</id>
+      <timestamp>2024-01-14T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="200" xml:space="preserve">{{Infobox Siedlung
+| Name = Xarxaron
+| Siedlungsart = Ruine
+}}
+'''Xarxaron''' ist eine verfallene Ruine in den [[Koschberge]]n.
+
+[[Kategorie:Ruine]]</text>
+    </revision>
+  </page>
+  <page>
+    <title>Selem</title>
+    <ns>0</ns>
+    <id>114</id>
+    <revision>
+      <id>5014</id>
+      <timestamp>2024-01-15T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="220" xml:space="preserve">{{Infobox Siedlung
+| Name = Selem
+| Siedlungsart = Stadt
+| Region = [[Vesayama]]
+}}
+'''Selem''' ist eine Stadt in [[Myranor]].
+
+{{Nav Staaten Myranor}}
+[[Kategorie:Stadt (Myranor)]]</text>
+    </revision>
+  </page>
+  <page>
+    <title>Burg Wallenstein</title>
+    <ns>0</ns>
+    <id>115</id>
+    <revision>
+      <id>5015</id>
+      <timestamp>2024-01-16T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="180" xml:space="preserve">{{Infobox Bauwerk
+| Name = Burg Wallenstein
+| Art  = Burg
+}}
+Die '''Burg Wallenstein''' ist eine Festung im [[Kosch]].
+
+[[Kategorie:Burg]]</text>
+    </revision>
+  </page>
 </mediawiki>

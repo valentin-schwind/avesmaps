@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 /**
  * Fixture-based unit test for Pass B of the dump-reader (WikiDump migration,
- * Tasks 4a + 4b): entity-infobox ENUMERATION + the PATH handler (Fluss / Straße)
- * and the REGION handler (Infobox Region / Landschaft), plus the Aventurien
- * continent filter. Exercises the DB-FREE core of
- * api/_internal/wiki/dump-entity-scan.php against the canonical hand-written
- * MediaWiki-export fixture (tools/wikidump/fixtures/mini-dump.xml), which Task 4a
- * extended with three ns0 path pages and Task 4b with three ns0 region pages:
+ * Tasks 4a + 4b + 4c): entity-infobox ENUMERATION + the PATH handler (Fluss /
+ * Straße), the REGION handler (Infobox Region / Landschaft) and the SETTLEMENT
+ * handler (Infobox Siedlung), plus the Aventurien continent filter. Exercises the
+ * DB-FREE core of api/_internal/wiki/dump-entity-scan.php against the canonical
+ * hand-written MediaWiki-export fixture (tools/wikidump/fixtures/mini-dump.xml),
+ * which Task 4a extended with three ns0 path pages, Task 4b with three ns0 region
+ * pages and Task 4c with settlement + building pages:
  *
  *   Breite           {{Infobox Fluss}}      -> path,   Aventurien   (KEPT, 4a)
  *   Reichsstraße 1   {{Infobox Straße}}     -> path,   Aventurien   (KEPT, 4a)
@@ -20,11 +21,21 @@ declare(strict_types=1);
  *                    region parser only accepts an Infobox *Region* -> no record,
  *                    proving the handler CALLS the real parse rather than
  *                    re-implementing/loosening its gate (4b).
+ *   Ferdok           {{Infobox Siedlung}}   -> settlement, Aventurien, class stadt
+ *                    (from [[Kategorie:Mittelgroße Stadt]]), DereGlobus coords,
+ *                    Wappen (KEPT, 4c).
+ *   Auhof            {{Infobox Siedlung}}   -> settlement, Aventurien, class dorf (KEPT, 4c)
+ *   Xarxaron         {{Infobox Siedlung}}   -> settlement, Aventurien, is_ruined
+ *                    (Siedlungsart=Ruine); no class category -> 'dorf' fallback (KEPT, 4c)
+ *   Angbar           {{Infobox Siedlung}}   -> settlement, Aventurien, no class
+ *                    category -> 'dorf' fallback (KEPT, 4c; previously only "recognised")
+ *   Selem            {{Infobox Siedlung}}   -> settlement, Myranor            (FILTERED, 4c)
+ *   Burg Wallenstein {{Infobox Bauwerk}}    -> building (CLASSIFIED), NOT routed to the
+ *                    settlement handler (building = separate Task 4c2) (4c)
  *
  * plus the pre-existing pages exercising the "recognised but unhandled" and
  * "skipped" branches:
- *   Kosch            {{Infobox Staat}}    -> territory (recognised, NOT a path/region)
- *   Angbar           {{Infobox Siedlung}} -> settlement (recognised, NOT a path/region)
+ *   Kosch            {{Infobox Staat}}    -> territory (recognised, NOT a path/region/settlement)
  *   Horasreich / Königreich Kosch (historisch) -> redirects (skipped)
  *   Vorlage:Infobox Staat (ns 10)         -> non-Main namespace (skipped)
  *
@@ -47,6 +58,17 @@ declare(strict_types=1);
  *       match_key, wiki_key), the Myranor region (Rote Sichel) is FILTERED OUT,
  *       the Landschaft page classifies as region yet yields no record (faithful to
  *       the real parser's gate), and path<->region are never cross-mishandled.
+ *   (g) the SETTLEMENT handler builds a wiki_sync_pages REGISTRY record by REUSING
+ *       the real settlement functions (avesmapsWikiSettlementParseInfobox +
+ *       avesmapsWikiSettlementBuildEnrichment + avesmapsWikiSyncSettlementClassFromPage +
+ *       avesmapsWikiSyncExtractCoordinatesFromContent): normalized_key (=
+ *       CreateMatchKey(title), hand-derived), wiki_url, settlement_class (from the
+ *       class category), coordinates (DereGlobus x/y -- exact numbers asserted),
+ *       continent, coat_url, is_ruined; coat_license_* = NULL (I5, dump has no
+ *       license metadata). The Myranor settlement (Selem) is FILTERED OUT; a
+ *       {{Infobox Bauwerk}} page (Burg Wallenstein) is CLASSIFIED building and is
+ *       NOT mis-handled as a settlement (building = separate Task 4c2); and
+ *       settlement<->path/region are never cross-mishandled.
  *
  * NO database and NO STRATO are touched: the tested functions (classify / parse /
  * collect) are DB-free; the DB persist path (avesmapsWikiDumpPersistPathRecords /
@@ -89,6 +111,12 @@ require $repoRoot . '/api/_internal/wiki/territories-tree.php';
 require $repoRoot . '/api/_internal/wiki/territories-parsing.php';
 require $repoRoot . '/api/_internal/wiki/paths.php';
 require $repoRoot . '/api/_internal/wiki/regions.php';
+// locations.php auto-requires locations-helpers.php (avesmapsWikiSyncUpsertPageCache /
+// avesmapsWikiSyncSettlementClassFromPage / avesmapsWikiSyncGetCategoryNames /
+// avesmapsWikiSyncExtractCoordinatesFromContent); settlements.php adds the reused
+// ParseInfobox / BuildEnrichment the settlement handler calls (Task 4c).
+require $repoRoot . '/api/_internal/wiki/locations.php';
+require $repoRoot . '/api/_internal/wiki/settlements.php';
 require $repoRoot . '/api/_internal/wiki/dump-reader.php';
 require $repoRoot . '/api/_internal/wiki/dump-entity-scan.php';
 
@@ -99,15 +127,25 @@ foreach ([
     'avesmapsWikiDumpExtractCategoryNames',
     'avesmapsWikiDumpParsePathPage',
     'avesmapsWikiDumpParseRegionPage',
+    'avesmapsWikiDumpParseSettlementPage',
     'avesmapsWikiDumpCollectEntities',
     'avesmapsWikiDumpCollectPathRecords',
     'avesmapsWikiDumpCollectRegionRecords',
+    'avesmapsWikiDumpCollectSettlementRecords',
+    'avesmapsWikiDumpBuildApiPageFromDump',
     // reused real functions (must be visible so the handlers can call them):
     'avesmapsWikiPathParsePage',
     'avesmapsWikiPathUpsertRecord',
     'avesmapsWikiRegionParsePage',
     'avesmapsWikiRegionUpsertRecord',
     'avesmapsWikiRegionArtToSubtype',
+    // reused settlement functions (Task 4c handler calls these -- must be visible):
+    'avesmapsWikiSettlementParseInfobox',
+    'avesmapsWikiSettlementBuildEnrichment',
+    'avesmapsWikiSyncSettlementClassFromPage',
+    'avesmapsWikiSyncGetCategoryNames',
+    'avesmapsWikiSyncExtractCoordinatesFromContent',
+    'avesmapsWikiSyncUpsertPageCache',
     'avesmapsWikiSyncMonitorInfoboxName',
     'avesmapsWikiSyncMonitorDetectContinent',
     'avesmapsWikiSyncCreateMatchKey',
@@ -409,21 +447,22 @@ foreach ($collected['classified'] as $c) {
     $classifiedByTitle[$c['title']] = $c['kind'];
 }
 $check(
-    '(d3) Kosch is recognised as territory (unhandled), Angbar as settlement',
-    ['Kosch' => 'territory', 'Angbar' => 'settlement'],
-    ['Kosch' => $classifiedByTitle['Kosch'] ?? '(missing)', 'Angbar' => $classifiedByTitle['Angbar'] ?? '(missing)'],
-    'recognised-but-unhandled kinds are enumerated, not routed to a handler'
+    '(d3) Kosch is recognised as territory (still unhandled), Burg Wallenstein as building',
+    ['Kosch' => 'territory', 'Burg Wallenstein' => 'building'],
+    ['Kosch' => $classifiedByTitle['Kosch'] ?? '(missing)', 'Burg Wallenstein' => $classifiedByTitle['Burg Wallenstein'] ?? '(missing)'],
+    'territory + building stay recognised-but-unhandled (building = Task 4c2), not routed to the settlement handler'
 );
 $check(
-    '(d4) per-kind counts: 3 paths, 1 territory, 1 settlement, 3 regions recognised',
-    ['path' => 3, 'territory' => 1, 'settlement' => 1, 'region' => 3],
+    '(d4) per-kind counts: 3 paths, 1 territory, 5 settlements, 1 building, 3 regions recognised',
+    ['path' => 3, 'territory' => 1, 'settlement' => 5, 'building' => 1, 'region' => 3],
     [
         'path' => $collected['counts']['path'] ?? 0,
         'territory' => $collected['counts']['territory'] ?? 0,
         'settlement' => $collected['counts']['settlement'] ?? 0,
+        'building' => $collected['counts']['building'] ?? 0,
         'region' => $collected['counts']['region'] ?? 0,
     ],
-    '3 path (2 kept + 1 filtered) + Kosch + Angbar + 3 region infoboxes (Koschberge, Rote Sichel, Windhag)'
+    '3 path + Kosch + 5 Siedlung infoboxes (Angbar, Ferdok, Auhof, Xarxaron, Selem) + Burg Wallenstein + 3 region infoboxes'
 );
 
 // ===========================================================================
@@ -621,6 +660,241 @@ $check(
     true,
     !array_key_exists('koschberge', $recByKey) && !array_key_exists('breite', $regByKey),
     'kept path records exclude regions; kept region records exclude paths (O4/I2)'
+);
+
+// ===========================================================================
+// (g) SETTLEMENT handler (Task 4c): builds a wiki_sync_pages registry record by
+//     REUSING the real settlement parse/enrich/class/coordinate functions. Kept
+//     Aventurien settlements with the REAL field/key mapping + parsed DereGlobus
+//     coordinates (exact numbers) + is_ruined + NULL coat license (I5); the Myranor
+//     settlement filtered; a Bauwerk page NOT mis-handled; and settlement<->path/
+//     region never cross-mishandled. Expected keys are HAND-DERIVED via the real
+//     functions (I1), never asserted equal to the handler's own output.
+// ===========================================================================
+echo "\n-- (g) settlement handler: registry record + real field/key mapping --\n";
+
+// The DB-free settlement collector returns exactly the kept Aventurien settlement
+// records. Kept: Angbar, Ferdok, Auhof, Xarxaron (Aventurien). Selem is Myranor ->
+// filtered. Burg Wallenstein is {{Infobox Bauwerk}} -> classified building, not a
+// settlement. So exactly 4 kept settlement records.
+$settlementRecords = avesmapsWikiDumpCollectSettlementRecords($pages);
+$check(
+    '(g1) exactly 4 Aventurien settlement records kept',
+    4,
+    count($settlementRecords),
+    'Angbar + Ferdok + Auhof + Xarxaron kept; Selem (Myranor) filtered; Burg Wallenstein is a building'
+);
+
+// Index kept settlement records by normalized_key (= CreateMatchKey(title)).
+$setByKey = [];
+foreach ($settlementRecords as $r) {
+    $setByKey[(string) ($r['normalized_key'] ?? '')] = $r;
+}
+
+// -- Ferdok (Infobox Siedlung). Hand-derivation via the REAL funcs:
+//    normalized_key = avesmapsWikiSyncCreateMatchKey('Ferdok') = 'ferdok'
+//    wiki_key       = avesmapsPoliticalSlug('Ferdok')          = 'ferdok'
+//    settlement_class from [[Kategorie:Mittelgroße Stadt]] -> 'stadt' (label 'Stadt')
+//    coordinates from {{DereGlobus-Link|Länge(x)=520.5|Breite(y)=305.25}} -> x=520.5, y=305.25
+//    coat_url from |Wappen={{Boximage|Wappen Ferdok.webp}} -> Spezial:Dateipfad file URL
+$ferdok = $setByKey['ferdok'] ?? null;
+$check(
+    '(g2) Ferdok record present under normalized_key "ferdok"',
+    true,
+    is_array($ferdok),
+    "normalized_key = avesmapsWikiSyncCreateMatchKey('Ferdok') = 'ferdok'"
+);
+$check('(g3) Ferdok.title', 'Ferdok', (string) ($ferdok['title'] ?? '(none)'), 'title from the page');
+$check(
+    '(g4) Ferdok.settlement_class = stadt (from class category)',
+    'stadt',
+    (string) ($ferdok['settlement_class'] ?? '(none)'),
+    "[[Kategorie:Mittelgroße Stadt]] -> AVESMAPS_WIKI_CATEGORY_TO_CLASS -> 'stadt'"
+);
+$check(
+    '(g5) Ferdok.settlement_label = Stadt',
+    'Stadt',
+    (string) ($ferdok['settlement_label'] ?? '(none)'),
+    "class 'stadt' -> label 'Stadt' (real avesmapsWikiSyncLocationSubtypeLabel)"
+);
+$check(
+    '(g6) Ferdok.wiki_key (real avesmapsPoliticalSlug)',
+    'ferdok',
+    (string) ($ferdok['wiki_key'] ?? '(none)'),
+    "hand-derived: avesmapsPoliticalSlug('Ferdok') = 'ferdok'"
+);
+$check(
+    '(g7) Ferdok.wiki_url',
+    'https://de.wiki-aventurica.de/wiki/Ferdok',
+    (string) ($ferdok['wiki_url'] ?? '(none)'),
+    'reused avesmapsWikiSyncMonitorPageUrl(title)'
+);
+// EXACT parsed DereGlobus coordinates (the coordinate-parsing proof).
+$check(
+    '(g8) Ferdok.coordinates_json (exact DereGlobus x/y)',
+    ['source' => 'dereglobus', 'x' => 520.5, 'y' => 305.25],
+    $ferdok['coordinates_json'] ?? null,
+    "avesmapsWikiSyncExtractCoordinatesFromContent parsed Länge(x)=520.5, Breite(y)=305.25"
+);
+$check('(g9) Ferdok.continent', 'Aventurien', (string) ($ferdok['continent'] ?? '(none)'), 'real DetectContinent default -> Aventurien');
+$check(
+    '(g10) Ferdok.coat_url (filename extracted from Boximage)',
+    'https://de.wiki-aventurica.de/wiki/Spezial:Dateipfad/Wappen%20Ferdok.webp',
+    (string) ($ferdok['coat_url'] ?? '(none)'),
+    'reused avesmapsWikiSyncMonitorCoatOfArmsUrl -> Spezial:Dateipfad file URL'
+);
+// I5: the dump has no file-license metadata -> all coat license columns NULL.
+// Assert BOTH that all four keys exist (present in the record) AND that each holds a
+// strict null (array_key_exists, not ??, so an explicit null is not read as "absent").
+$coatLicenseState = [
+    'all_keys_present' => is_array($ferdok)
+        && array_key_exists('coat_license_status', $ferdok)
+        && array_key_exists('coat_author', $ferdok)
+        && array_key_exists('coat_attribution', $ferdok)
+        && array_key_exists('coat_license_url', $ferdok),
+    'all_strict_null' => is_array($ferdok)
+        && $ferdok['coat_license_status'] === null
+        && $ferdok['coat_author'] === null
+        && $ferdok['coat_attribution'] === null
+        && $ferdok['coat_license_url'] === null,
+];
+$check(
+    '(g11) Ferdok coat license columns present and strictly NULL (I5)',
+    ['all_keys_present' => true, 'all_strict_null' => true],
+    $coatLicenseState,
+    'dump carries no license metadata -> the 4 coat_license_* keys exist and are strictly NULL, never invented (coat_url filename is fine)'
+);
+$check('(g12) Ferdok.is_ruined false', false, (bool) ($ferdok['is_ruined'] ?? true), 'Siedlungsart=Stadt is not a ruin');
+// categories_json filled from the dump's literal [[Kategorie:]] links.
+$check(
+    '(g13) Ferdok.categories_json from dump literal categories',
+    ['Mittelgroße Stadt', 'Kosch'],
+    $ferdok['categories_json'] ?? null,
+    'reused avesmapsWikiSyncGetCategoryNames over the reconstructed API page'
+);
+
+// Independent re-derivation cross-check (proves NOT a hard-coded literal, I1):
+$reSetKey = avesmapsWikiSyncCreateMatchKey('Ferdok');
+$reSetWikiKey = avesmapsPoliticalSlug(avesmapsWikiSyncMonitorNormalizeTitle('Ferdok'));
+$check(
+    '(g14) collected settlement keys == independent real-function re-derivation',
+    ['normalized_key' => $reSetKey, 'wiki_key' => $reSetWikiKey],
+    ['normalized_key' => (string) ($ferdok['normalized_key'] ?? ''), 'wiki_key' => (string) ($ferdok['wiki_key'] ?? '')],
+    'record keys match avesmapsWikiSyncCreateMatchKey + avesmapsPoliticalSlug (I1)'
+);
+
+// -- Auhof (Dorf): class from [[Kategorie:Dorf]] -> 'dorf'.
+$auhof = $setByKey['auhof'] ?? null;
+$check(
+    '(g15) Auhof.settlement_class = dorf (from [[Kategorie:Dorf]])',
+    'dorf',
+    (string) ($auhof['settlement_class'] ?? '(none)'),
+    "AVESMAPS_WIKI_CATEGORY_TO_CLASS['Dorf'] = 'dorf'"
+);
+$check(
+    '(g16) Auhof.coordinates_json = none (no DereGlobus/Positionskarte)',
+    ['source' => 'none', 'x' => null, 'y' => null],
+    $auhof['coordinates_json'] ?? null,
+    'no coordinate block -> reused extractor returns source=none'
+);
+
+// -- Xarxaron (Ruine): no class category -> 'dorf' fallback; is_ruined=true.
+$xarxaron = $setByKey['xarxaron'] ?? null;
+$check(
+    '(g17) Xarxaron.is_ruined = true (Siedlungsart=Ruine)',
+    true,
+    (bool) ($xarxaron['is_ruined'] ?? false),
+    'reused avesmapsWikiSettlementBuildEnrichment reads Siedlungsart ruine -> is_ruined'
+);
+$check(
+    '(g18) Xarxaron.settlement_class = dorf (no class category -> fallback)',
+    'dorf',
+    (string) ($xarxaron['settlement_class'] ?? '(none)'),
+    "[[Kategorie:Ruine]] is not a class category -> ParseInfobox 'dorf' fallback"
+);
+
+// -- Angbar: pre-existing Siedlung page, no class category -> 'dorf' fallback, no coords.
+$angbar = $setByKey['angbar'] ?? null;
+$check(
+    '(g19) Angbar kept as settlement, class dorf (no class category)',
+    ['present' => true, 'class' => 'dorf'],
+    ['present' => is_array($angbar), 'class' => (string) ($angbar['settlement_class'] ?? '(none)')],
+    'a Siedlung page with no class category falls back to dorf; Aventurien default -> kept'
+);
+
+// -- Continent filter: the Myranor settlement (Selem) is FILTERED OUT of the kept
+//    records but reported in the `filtered` bucket (intentional drop, not a parse miss).
+echo "\n-- (g/c) settlement continent filter (Aventurien only) --\n";
+$check(
+    '(g20) Selem NOT among kept settlement records',
+    false,
+    array_key_exists('selem', $setByKey),
+    'a Myranor settlement is not staged (continent != Aventurien)'
+);
+$filteredSettlementTitles = array_map(
+    static fn(array $x): string => $x['title'],
+    array_filter($collected['filtered'], static fn(array $x): bool => ($x['kind'] ?? '') === 'settlement')
+);
+$check(
+    '(g21) Selem reported in the filtered bucket (as a settlement)',
+    true,
+    in_array('Selem', $filteredSettlementTitles, true),
+    'the drop is an intentional continent filter, not a parse failure'
+);
+$selem = avesmapsWikiDumpParseSettlementPage($byTitle['Selem']);
+$check(
+    '(g22) Selem handler: kept=false but record present (real record, continent-dropped)',
+    true,
+    $selem['kept'] === false && is_array($selem['record']) && $selem['continent'] !== '' && $selem['continent'] !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+    "DetectContinent classified it as '{$selem['continent']}' (Myranor); record exists, only the continent filter removed it"
+);
+
+// -- A {{Infobox Bauwerk}} page is CLASSIFIED building and NOT mis-handled as a
+//    settlement (building = separate Task 4c2 -> recognised-but-unhandled here).
+echo "\n-- (g/b) building infobox is not mis-handled as a settlement --\n";
+$check(
+    '(g23) Burg Wallenstein ({{Infobox Bauwerk}}) classifies as building',
+    'building',
+    avesmapsWikiDumpClassifyPage($byTitle['Burg Wallenstein']),
+    'the classifier needle "burg" routes it to building kind (checked before settlement)'
+);
+$burgAsSettlement = avesmapsWikiDumpParseSettlementPage($byTitle['Burg Wallenstein']);
+$check(
+    '(g24) Burg Wallenstein via settlement handler: kept=false, no record',
+    true,
+    $burgAsSettlement['kept'] === false && $burgAsSettlement['record'] === null,
+    'the settlement handler gate rejects a non-settlement infobox -> no registry record'
+);
+$check(
+    '(g25) Burg Wallenstein NOT among kept settlement records',
+    false,
+    array_key_exists(avesmapsWikiSyncCreateMatchKey('Burg Wallenstein'), $setByKey),
+    'a building infobox never yields a settlement registry record (building handler is out of scope)'
+);
+
+// -- settlement <-> path/region are never cross-mishandled.
+echo "\n-- (g/x) settlement <-> path/region are not cross-mishandled --\n";
+$breiteAsSettlement = avesmapsWikiDumpParseSettlementPage($byTitle['Breite']);
+$check(
+    '(g26) Breite (path) via settlement handler: kept=false, no record',
+    true,
+    $breiteAsSettlement['kept'] === false && $breiteAsSettlement['record'] === null,
+    'a path infobox never yields a settlement registry record'
+);
+$koschbergeAsSettlement = avesmapsWikiDumpParseSettlementPage($byTitle['Koschberge']);
+$check(
+    '(g27) Koschberge (region) via settlement handler: kept=false, no record',
+    true,
+    $koschbergeAsSettlement['kept'] === false && $koschbergeAsSettlement['record'] === null,
+    'a region infobox never yields a settlement registry record'
+);
+$ferdokAsPath = avesmapsWikiDumpParsePathPage($byTitle['Ferdok']);
+$ferdokAsRegion = avesmapsWikiDumpParseRegionPage($byTitle['Ferdok']);
+$check(
+    '(g28) Ferdok (settlement) via path AND region handlers: no record',
+    true,
+    $ferdokAsPath['record'] === null && $ferdokAsRegion['record'] === null,
+    'a settlement infobox never yields a path or region record (O4/I2)'
 );
 
 // ---------------------------------------------------------------------------
