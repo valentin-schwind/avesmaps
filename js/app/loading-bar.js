@@ -38,7 +38,7 @@
 	const MIN_VISIBLE_MS = 450;
 
 	function paint() {
-		fill.style.transform = "scaleX(" + progress.toFixed(4) + ")";
+		fill.style.width = (progress * 100).toFixed(2) + "%";
 	}
 
 	function trickle() {
