@@ -11,14 +11,31 @@ declare(strict_types=1);
  * matching entity handler -- exactly the work the online crawlers did today,
  * just fed from the dump instead of the MediaWiki API.
  *
- * SCOPE OF THIS FILE (Tasks 4a-4c2): the generic Pass-B dispatch scaffold + four
+ * SCOPE OF THIS FILE (Tasks 4a-4d): the generic Pass-B dispatch scaffold + five
  * entity handlers -- PATHS (Fluss / Straße, Task 4a), REGIONS (Infobox Region /
- * Landschaft, Task 4b), SETTLEMENTS (Infobox Siedlung, Task 4c) and BUILDINGS
- * (Infobox Bauwerk / Festung / Burg, Task 4c2). Territory is recognised by the
- * classifier but deliberately left UNHANDLED here -- it is a clean extension point
- * that adds a handler WITHOUT rewriting the dispatch loop (see
+ * Landschaft, Task 4b), SETTLEMENTS (Infobox Siedlung, Task 4c), BUILDINGS
+ * (Infobox Bauwerk / Festung / Burg, Task 4c2) and TERRITORIES (Infobox Staat /
+ * Herrschaftsgebiet / Reich, Task 4d). The territory handler was the last clean
+ * extension point: it adds a handler WITHOUT rewriting the dispatch loop (see
  * avesmapsWikiDumpClassifyEntityKind + the dispatch in
  * avesmapsWikiDumpCollectEntities / avesmapsWikiDumpRunPassBStep).
+ *
+ * The TERRITORY handler (Task 4d) is the highest-risk entity (hierarchy + wiki_key)
+ * but a pure reuse: it CALLS the online sync-monitor crawler's OWN offline parser
+ * avesmapsWikiSyncMonitorParsePage (sync-monitor-parsing.php:429), which itself
+ * derives wiki_key via avesmapsPoliticalBuildWikiKey (the Task-1 territory scheme),
+ * maps every field via avesmapsPoliticalNormalizeWikiRecord, parses |Staat=->
+ * affiliation via avesmapsWikiSyncMonitorParseAffiliation, and resolves BF years via
+ * avesmapsWikiSyncBuildPoliticalTemporalPayload. PERSIST writes the record to the
+ * EXISTING sandbox political_territory_wiki_test (avesmapsWikiSyncMonitorUpsertTestRecord,
+ * sync-monitor-licenses.php:273) and registers the title-slug->wiki_key alias
+ * (avesmapsWikiSyncMonitorStoreAlias, sync-monitor-model.php:35) so REBUILD's parent
+ * resolution (ResolveParentKey) can resolve a child's |Staat= parent (I7). The
+ * REBUILD -> DIFF -> TEST -> APPLY editor flow + wiki_territory_model stay 1:1 --
+ * this file NEVER writes wiki_territory_model, political_territory (production) or
+ * political_territory_geometry (I3), and the derived hierarchy (parent_id) + editor
+ * overrides (parent_locked, I4) are computed later by REBUILD from the sandbox's
+ * affiliation fields. See avesmapsWikiDumpParseTerritoryPage.
  *
  * The BUILDING handler (Task 4c2) is the simplest entity: the online building
  * crawler never parses the building infobox, it only records title +
@@ -78,7 +95,12 @@ declare(strict_types=1);
  *
  * DEPENDENCIES (the caller loads these before invoking Pass B -- same contract as
  * dump-reader.php; the reused derivation functions call mb_*):
- *   political/territory.php, wiki/sync.php, wiki/sync-monitor.php (-> -parsing),
+ *   _internal/bootstrap.php (avesmapsNormalizeSingleLine, needed by the territory
+ *   handler's reused avesmapsPoliticalNormalizeWikiRecord -- side-effect-free on
+ *   include), political/territory.php, wiki/sync.php, wiki/sync-monitor.php (which
+ *   require_once's -parsing = avesmapsWikiSyncMonitorParsePage, -licenses =
+ *   avesmapsWikiSyncMonitorUpsertTestRecord, -model = avesmapsWikiSyncMonitorStoreAlias),
+ *   wiki/territories.php (avesmapsWikiSyncBuildPoliticalTemporalPayload),
  *   wiki/territories-tree.php + wiki/territories-parsing.php (Clean* helper),
  *   wiki/paths.php (path ParsePage / UpsertRecord), wiki/regions.php (region
  *   ParsePage / UpsertRecord), plus wiki/dump-reader.php for the page stream. This
@@ -99,7 +121,7 @@ declare(strict_types=1);
 const AVESMAPS_WIKI_DUMP_ENTITY_PATH = 'path';             // 4a (handled)
 const AVESMAPS_WIKI_DUMP_ENTITY_REGION = 'region';         // 4b (handled)
 const AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT = 'settlement'; // 4c (handled)
-const AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY = 'territory';   // (unhandled here)
+const AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY = 'territory';   // 4d (handled)
 const AVESMAPS_WIKI_DUMP_ENTITY_BUILDING = 'building';     // 4c2 (handled)
 
 /**
@@ -107,9 +129,8 @@ const AVESMAPS_WIKI_DUMP_ENTITY_BUILDING = 'building';     // 4c2 (handled)
  * membership to decide whether a page is routed to a handler or merely counted
  * as "recognised". Later tasks extend this set as their handlers land.
  *
- * Handled so far: PATH (Task 4a), REGION (Task 4b), SETTLEMENT (Task 4c) and
- * BUILDING (Task 4c2). Territory stays recognised-but-unhandled until its handler
- * lands.
+ * Handled: PATH (Task 4a), REGION (Task 4b), SETTLEMENT (Task 4c), BUILDING
+ * (Task 4c2) and TERRITORY (Task 4d) -- every recognised kind now has a handler.
  *
  * @return array<int, string>
  */
@@ -120,6 +141,7 @@ function avesmapsWikiDumpHandledEntityKinds(): array
         AVESMAPS_WIKI_DUMP_ENTITY_REGION,
         AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT,
         AVESMAPS_WIKI_DUMP_ENTITY_BUILDING,
+        AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY,
     ];
 }
 
@@ -136,7 +158,7 @@ function avesmapsWikiDumpHandledEntityKinds(): array
  * disjoint on these needles:
  *   Fluss / Straße           -> 'path'        (handled, 4a)
  *   Region / Landschaft      -> 'region'      (handled, 4b)
- *   Staat / Herrschaftsgebiet / Reich -> 'territory'   (unhandled here)
+ *   Staat / Herrschaftsgebiet / Reich -> 'territory'   (handled, 4d)
  *   Bauwerk / Festung / Burg -> 'building'    (handled, 4c2)
  *   Siedlung / Stadt / Ort   -> 'settlement'  (handled, 4c)
  *   (none of the above)      -> ''            (skip)
@@ -157,7 +179,7 @@ function avesmapsWikiDumpClassifyEntityKind(string $infoboxName): string
         return AVESMAPS_WIKI_DUMP_ENTITY_PATH;
     }
 
-    // TERRITORIES (4b) -- Staat / Herrschaftsgebiet / Reich.
+    // TERRITORIES (4d) -- Staat / Herrschaftsgebiet / Reich.
     if (str_contains($key, 'staat') || str_contains($key, 'herrschaftsgebiet') || str_contains($key, 'reich')) {
         return AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY;
     }
@@ -173,7 +195,7 @@ function avesmapsWikiDumpClassifyEntityKind(string $infoboxName): string
         return AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT;
     }
 
-    // REGIONS (4d) -- Region / Landschaft.
+    // REGIONS (4b) -- Region / Landschaft.
     if (str_contains($key, 'region') || str_contains($key, 'landschaft')) {
         return AVESMAPS_WIKI_DUMP_ENTITY_REGION;
     }
@@ -714,6 +736,111 @@ function avesmapsWikiDumpParseBuildingPage(array $page): array
 }
 
 // ===========================================================================
+// 3e. TERRITORY handler -- PURE (parse + keep/skip decision, DB-free). Task 4d.
+// ===========================================================================
+
+/**
+ * PURE territory handler for ONE dump page -- the highest-risk entity (hierarchy +
+ * wiki_key), but a clean reuse of the online sync-monitor crawler's OWN offline
+ * parser. It builds the political_territory_wiki_test SANDBOX record by REUSING the
+ * real avesmapsWikiSyncMonitorParsePage() (sync-monitor-parsing.php:429) verbatim --
+ * NO field mapping, key derivation or |Staat=->affiliation parse is duplicated here
+ * (I1). Inside that reused parse:
+ *   - wiki_key             = avesmapsPoliticalBuildWikiKey(wiki_url, name) -> 'wiki:'.slug
+ *       (territory.php:929; wiki_url = avesmapsWikiSyncMonitorPageUrl($canonical))
+ *   - type                 <- Art field (avesmapsPoliticalNormalizeWikiRecord)
+ *   - affiliation_root / affiliation_path_json <- avesmapsWikiSyncMonitorParseAffiliation
+ *       (sync-monitor-parsing.php:309) over |Staat= (simple [[X]], colon-path
+ *       [[X]]: [[Y]], or conflict '(beansprucht von: ...)' -> empty path + conflicts +
+ *       independent). raw_json.affiliation keeps links/conflicts/independent.
+ *   - founded_*_bf / dissolved_*_bf <- avesmapsWikiSyncBuildPoliticalTemporalPayload
+ *       (territories.php:314) over {{BF|...}}/{{Datum|...}}.
+ * The record is then filtered to Aventurien only (the real DetectContinent verdict),
+ * exactly like the path/region/settlement/building handlers.
+ *
+ * The dump page's <title> IS its canonical title (the dump stores pages under their
+ * canonical title; redirects are separate pages handled in Pass A / Task 3), so we
+ * pass (title, wikitext, title) -- canonicalTitle = title.
+ *
+ * NB (settlement-as-territory branch): avesmapsWikiSyncMonitorParsePage also promotes
+ * some Siedlung infoboxes to territories (Reichsstadt / Freie Stadt / independent
+ * Stadtstaat). That branch is NEVER reached here: the dump classifier routes a
+ * Siedlung page to 'settlement' (avesmapsWikiDumpParseSettlementPage), so only pages
+ * classified 'territory' (staat/herrschaftsgebiet/reich) reach this handler. We still
+ * gate on is_territory so a mis-fed page yields no record (mirrors the other gates).
+ *
+ * I3 (geometry untouched): the handler reads/writes NO geometry -- it only produces
+ * the sandbox record. I4/I7: PERSIST (avesmapsWikiDumpPersistTerritoryRecords) writes
+ * ONLY political_territory_wiki_test + the wiki_redirect_alias title->key alias; it
+ * NEVER writes wiki_territory_model or political_territory (production). The derived
+ * hierarchy (parent_id) + editor overrides (parent_locked) are computed later by
+ * REBUILD from the affiliation fields -- untouched here.
+ *
+ * @param array{title:string, ns:int, redirect:?string, wikitext:string} $page
+ * @return array{
+ *   kept: bool,
+ *   reason: string,
+ *   record: array<string, mixed>|null,
+ *   continent: string,
+ *   parent_titles: array<int, string>,
+ *   source_origin: string
+ * }
+ *   kept=true only for a territory whose detected continent is Aventurien.
+ *   record is the political_territory_wiki_test sandbox row (null only when the page
+ *   carries no territory infobox / is rejected as a pure settlement). A non-Aventurien
+ *   territory returns kept=false with the record still present (intentional continent
+ *   filter). parent_titles / source_origin are surfaced from the reused parse (the
+ *   parent-candidate [[links]] feed REBUILD's parent resolution; not persisted here).
+ */
+function avesmapsWikiDumpParseTerritoryPage(array $page): array
+{
+    $title = (string) ($page['title'] ?? '');
+    $wikitext = (string) ($page['wikitext'] ?? '');
+
+    // Reuse the REAL territory parser verbatim (I1). canonicalTitle = title (dump
+    // pages are canonical). It derives wiki_key/type/affiliation/temporal internally.
+    $parsed = avesmapsWikiSyncMonitorParsePage($title, $wikitext, $title);
+
+    if (empty($parsed['is_territory']) || !is_array($parsed['record'] ?? null)) {
+        return [
+            'kept' => false,
+            'reason' => (string) ($parsed['reason'] ?? 'kein Herrschaftsgebiet'),
+            'record' => null,
+            'continent' => '',
+            'parent_titles' => [],
+            'source_origin' => (string) ($parsed['source_origin'] ?? ''),
+        ];
+    }
+
+    $record = $parsed['record'];
+    $continent = (string) ($record['continent'] ?? '');
+    $parentTitles = is_array($parsed['parent_titles'] ?? null) ? $parsed['parent_titles'] : [];
+    $sourceOrigin = (string) ($parsed['source_origin'] ?? '');
+
+    // Continent filter: Aventurien only. A territory detected on another continent
+    // (e.g. a Myranor Staat) is dropped -- never staged.
+    if ($continent !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT) {
+        return [
+            'kept' => false,
+            'reason' => 'Kontinent ' . ($continent !== '' ? $continent : '(unbekannt)') . ' != ' . AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+            'record' => $record,
+            'continent' => $continent,
+            'parent_titles' => $parentTitles,
+            'source_origin' => $sourceOrigin,
+        ];
+    }
+
+    return [
+        'kept' => true,
+        'reason' => '',
+        'record' => $record,
+        'continent' => $continent,
+        'parent_titles' => $parentTitles,
+        'source_origin' => $sourceOrigin,
+    ];
+}
+
+// ===========================================================================
 // 4. Collect / dry-run (DB-free) -- drives dispatch over a page stream.
 // ===========================================================================
 
@@ -781,9 +908,13 @@ function avesmapsWikiDumpCollectEntities(iterable $pages): array
                 $result = avesmapsWikiDumpParseBuildingPage($page);
                 break;
 
-            // case AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY:   // add handler here
+            case AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY:
+                $result = avesmapsWikiDumpParseTerritoryPage($page);
+                break;
+
             default:
-                // Recognised but unhandled in this task: counted above, no record.
+                // Recognised but unhandled: counted above, no record. (All recognised
+                // kinds now have a handler, so this branch is effectively unreachable.)
                 break;
         }
 
@@ -912,6 +1043,34 @@ function avesmapsWikiDumpCollectBuildingRecords(iterable $pages): array
             continue;
         }
         $result = avesmapsWikiDumpParseBuildingPage($page);
+        if ($result['kept'] && is_array($result['record'])) {
+            $records[] = $result['record'];
+        }
+    }
+
+    return $records;
+}
+
+/**
+ * Convenience DB-free collector that returns ONLY the kept TERRITORY sandbox records
+ * for a page stream (the political_territory_wiki_test rows Pass B would upsert). The
+ * territory analogue of avesmapsWikiDumpCollectBuildingRecords: classifies each page
+ * and runs the pure territory handler; path/region/settlement/building kinds are
+ * ignored. A non-Aventurien territory is dropped by the continent filter and never
+ * appears here; a page rejected by the real parser as a pure settlement yields no
+ * record either.
+ *
+ * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
+ * @return array<int, array<string, mixed>>
+ */
+function avesmapsWikiDumpCollectTerritoryRecords(iterable $pages): array
+{
+    $records = [];
+    foreach ($pages as $page) {
+        if (avesmapsWikiDumpClassifyPage($page) !== AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY) {
+            continue;
+        }
+        $result = avesmapsWikiDumpParseTerritoryPage($page);
         if ($result['kept'] && is_array($result['record'])) {
             $records[] = $result['record'];
         }
@@ -1110,24 +1269,81 @@ function avesmapsWikiDumpPersistBuildingRecords(PDO $pdo, iterable $pages): int
 }
 
 /**
+ * THIN persistence for the TERRITORY handler -- the analogue of
+ * avesmapsWikiDumpPersistBuildingRecords(). For each kept territory page it writes the
+ * sandbox row + the title->key alias in TWO reused steps, inventing no new upsert:
+ *
+ *   1. SANDBOX row via the REUSED avesmapsWikiSyncMonitorUpsertTestRecord()
+ *      (sync-monitor-licenses.php:273) -- the dynamic column-aware INSERT ... ON
+ *      DUPLICATE KEY UPDATE (by wiki_key) into political_territory_wiki_test. It writes
+ *      ONLY the sandbox; political_territory (production) is a SEPARATE promotion step
+ *      it never touches.
+ *   2. ALIAS via the REUSED avesmapsWikiSyncMonitorStoreAlias($pdo, [$title, $title],
+ *      $record['wiki_key']) (sync-monitor-model.php:35) -- registers the canonical
+ *      title-slug -> wiki_key in wiki_redirect_alias so REBUILD's ResolveParentKey can
+ *      resolve a child's |Staat= parent NAME to the parent's canonical wiki_key (I7).
+ *      title = canonical here (the dump page IS canonical; redirect->target aliases are
+ *      already registered by Pass A / Task 3), so both slots are the page title.
+ *
+ * This writes ONLY political_territory_wiki_test + wiki_redirect_alias (Phase-0
+ * non-destructive staging). It NEVER writes wiki_territory_model, political_territory
+ * (production) or political_territory_geometry (I3), and NEVER runs REBUILD / DIFF /
+ * APPLY -- the derived hierarchy (parent_id) + editor overrides (parent_locked, I4) are
+ * computed later by that untouched editor flow from the sandbox affiliation fields.
+ *
+ * DB-backed -> NOT covered by the fixture test; live-verified in the controlled
+ * rollout / compare-test. Nothing calls it automatically yet.
+ *
+ * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
+ * @return int number of territory sandbox rows written (Aventurien only)
+ */
+function avesmapsWikiDumpPersistTerritoryRecords(PDO $pdo, iterable $pages): int
+{
+    $written = 0;
+    foreach ($pages as $page) {
+        if (avesmapsWikiDumpClassifyPage($page) !== AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY) {
+            continue;
+        }
+        $result = avesmapsWikiDumpParseTerritoryPage($page);
+        if (!$result['kept'] || !is_array($result['record'])) {
+            continue;
+        }
+        $record = $result['record'];
+
+        // 1) Sandbox row via the reused test-record upsert (political_territory_wiki_test).
+        avesmapsWikiSyncMonitorUpsertTestRecord($pdo, $record);
+
+        // 2) Canonical title -> wiki_key alias via the reused alias store (I7). title is
+        //    canonical for a dump page, so both alias slots are the page title.
+        $title = (string) ($page['title'] ?? '');
+        avesmapsWikiSyncMonitorStoreAlias($pdo, [$title, $title], (string) ($record['wiki_key'] ?? ''));
+
+        $written++;
+    }
+
+    return $written;
+}
+
+/**
  * Process ONE bounded Pass-B step over the dump, resuming from a page-counter
  * cursor and persisting the recognised entities of this batch. Mirrors the
  * Pass-A step discipline in dump-reader.php (reopen-from-start + skip N + bounded
  * batch + set_time_limit) and reuses the reused entity handlers above.
  *
- * Tasks 4a-4c2 persist the PATH, REGION, SETTLEMENT and BUILDING entities (the
- * handled kinds); each routes to its own reused parse+upsert (settlement = reused
+ * Tasks 4a-4d persist ALL five handled kinds -- PATH, REGION, SETTLEMENT, BUILDING
+ * and TERRITORY; each routes to its own reused parse+upsert (settlement = reused
  * base UpsertPageCache + the enrich UPDATE, license NULL per I5; building = the
- * reused online building-row upsert). The remaining recognised-but-unhandled kind
- * (territory) is tallied for progress but not written until its handler lands. This
- * NEVER runs the settlement case flow.
+ * reused online building-row upsert; territory = the reused sandbox UpsertTestRecord
+ * + the title->key StoreAlias, writing ONLY political_territory_wiki_test +
+ * wiki_redirect_alias -- NEVER wiki_territory_model / political_territory / geometry,
+ * I3/I4/I7). This NEVER runs the settlement case flow or REBUILD/DIFF/APPLY.
  *
  * DB- AND dump-backed -> NOT exercised by the local fixture test. Its live
  * verification is DEFERRED to the controlled rollout / compare-test; nothing
  * calls it automatically yet. Kept intentionally thin (structure, not behaviour
  * under test) per the Task-4a/4b briefs.
  *
- * @return array{ok:bool, done:bool, cursor:int, processed_this_step:int, paths_written:int, regions_written:int, settlements_written:int, buildings_written:int}
+ * @return array{ok:bool, done:bool, cursor:int, processed_this_step:int, paths_written:int, regions_written:int, settlements_written:int, buildings_written:int, territories_written:int}
  */
 function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 0, ?int $pageBudget = null): array
 {
@@ -1152,6 +1368,7 @@ function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 
     $regionsWritten = 0;
     $settlementsWritten = 0;
     $buildingsWritten = 0;
+    $territoriesWritten = 0;
     $done = false;
 
     try {
@@ -1206,6 +1423,19 @@ function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 
                         $buildingsWritten++;
                     }
                     break;
+
+                case AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY:
+                    $result = avesmapsWikiDumpParseTerritoryPage($page);
+                    if ($result['kept'] && is_array($result['record'])) {
+                        // Reused sandbox upsert + title->key alias (I7). Writes ONLY
+                        // political_territory_wiki_test + wiki_redirect_alias -- never
+                        // wiki_territory_model / political_territory / geometry (I3/I4).
+                        avesmapsWikiSyncMonitorUpsertTestRecord($pdo, $result['record']);
+                        $territoryTitle = (string) ($page['title'] ?? '');
+                        avesmapsWikiSyncMonitorStoreAlias($pdo, [$territoryTitle, $territoryTitle], (string) ($result['record']['wiki_key'] ?? ''));
+                        $territoriesWritten++;
+                    }
+                    break;
             }
 
             if ($processedThisStep >= $pageBudget || microtime(true) >= $deadline) {
@@ -1228,5 +1458,6 @@ function avesmapsWikiDumpRunPassBStep(PDO $pdo, string $dumpPath, int $cursor = 
         'regions_written' => $regionsWritten,
         'settlements_written' => $settlementsWritten,
         'buildings_written' => $buildingsWritten,
+        'territories_written' => $territoriesWritten,
     ];
 }

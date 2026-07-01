@@ -374,4 +374,84 @@ Der '''Xarsnamoth''' ist ein Tempel in [[Myranor]].
 [[Kategorie:Tempel (Myranor)]]</text>
     </revision>
   </page>
+  <page>
+    <title>Grafschaft Ferdok</title>
+    <ns>0</ns>
+    <id>119</id>
+    <revision>
+      <id>5019</id>
+      <timestamp>2024-01-20T00:00:00Z</timestamp>
+      <contributor><username>Gareth</username><id>1</id></contributor>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="240" xml:space="preserve">{{Infobox Staat
+| Name          = Grafschaft Ferdok
+| Art           = Grafschaft
+| Staat         = [[Mittelreich]]
+| Gründungsdatum = {{BF|1050}}
+| Hauptstadt    = Ferdok
+}}
+Die '''Grafschaft Ferdok''' ist eine Grafschaft im [[Mittelreich]].
+
+[[Kategorie:Grafschaft]]</text>
+    </revision>
+  </page>
+  <page>
+    <title>Baronie Hügelland</title>
+    <ns>0</ns>
+    <id>120</id>
+    <revision>
+      <id>5020</id>
+      <timestamp>2024-01-21T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="220" xml:space="preserve">{{Infobox Staat
+| Name  = Baronie Hügelland
+| Art   = Baronie
+| Staat = [[Grafschaft Ferdok]]: [[Mittelreich]]
+}}
+Die '''Baronie Hügelland''' liegt in der [[Grafschaft Ferdok]].
+
+[[Kategorie:Baronie]]</text>
+    </revision>
+  </page>
+  <page>
+    <title>Sokramor</title>
+    <ns>0</ns>
+    <id>121</id>
+    <revision>
+      <id>5021</id>
+      <timestamp>2024-01-22T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="220" xml:space="preserve">{{Infobox Staat
+| Name  = Sokramor
+| Art   = Baronie
+| Staat = (beansprucht von: [[Horasreich]], [[Mittelreich]])
+}}
+'''Sokramor''' ist ein umstrittenes Grenzgebiet.
+
+[[Kategorie:Baronie]]</text>
+    </revision>
+  </page>
+  <page>
+    <title>Rastanreich</title>
+    <ns>0</ns>
+    <id>122</id>
+    <revision>
+      <id>5022</id>
+      <timestamp>2024-01-23T00:00:00Z</timestamp>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+      <text bytes="220" xml:space="preserve">{{Infobox Staat
+| Name  = Rastanreich
+| Art   = Provinz
+| Staat = [[Imperium]]
+}}
+Das '''Rastanreich''' ist eine Provinz in [[Myranor]].
+
+{{Nav Staaten Myranor}}
+[[Kategorie:Staat (Myranor)]]</text>
+    </revision>
+  </page>
 </mediawiki>

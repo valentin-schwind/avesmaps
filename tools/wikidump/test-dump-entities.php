@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 /**
  * Fixture-based unit test for Pass B of the dump-reader (WikiDump migration,
- * Tasks 4a + 4b + 4c + 4c2): entity-infobox ENUMERATION + the PATH handler (Fluss /
+ * Tasks 4a + 4b + 4c + 4c2 + 4d): entity-infobox ENUMERATION + the PATH handler (Fluss /
  * Straße), the REGION handler (Infobox Region / Landschaft), the SETTLEMENT handler
- * (Infobox Siedlung) and the BUILDING handler (Infobox Bauwerk / Festung / Burg),
- * plus the Aventurien continent filter. Exercises the DB-FREE core of
+ * (Infobox Siedlung), the BUILDING handler (Infobox Bauwerk / Festung / Burg) and the
+ * TERRITORY handler (Infobox Staat / Herrschaftsgebiet / Reich), plus the Aventurien
+ * continent filter. Exercises the DB-FREE core of
  * api/_internal/wiki/dump-entity-scan.php against the canonical hand-written
  * MediaWiki-export fixture (tools/wikidump/fixtures/mini-dump.xml), which Task 4a
  * extended with three ns0 path pages, Task 4b with three ns0 region pages, Task 4c
- * with settlement pages and Task 4c2 with building pages:
+ * with settlement pages, Task 4c2 with building pages and Task 4d with four ns0
+ * territory pages:
  *
  *   Breite           {{Infobox Fluss}}      -> path,   Aventurien   (KEPT, 4a)
  *   Reichsstraße 1   {{Infobox Straße}}     -> path,   Aventurien   (KEPT, 4a)
@@ -38,17 +40,26 @@ declare(strict_types=1);
  *   Ruine Tsatempel  {{Infobox Bauwerk}}    -> building, Aventurien, building_type=Ruine
  *                    (from [[Kategorie:Ruine]]), is_ruined=true (Art=Ruine) (KEPT, 4c2)
  *   Xarsnamoth       {{Infobox Bauwerk}}    -> building, Myranor              (FILTERED, 4c2)
+ *   Kosch            {{Infobox Staat}}      -> territory, Aventurien; |Zugehörigkeit= (not
+ *                    |Staat=) -> empty affiliation (KEPT, 4d; previously only "recognised")
+ *   Grafschaft Ferdok {{Infobox Staat}}     -> territory, Aventurien; |Staat=[[Mittelreich]]
+ *                    (SIMPLE), founded {{BF|1050}} -> founded_start_bf=1050 (KEPT, 4d)
+ *   Baronie Hügelland {{Infobox Staat}}     -> territory, Aventurien; |Staat=[[Grafschaft
+ *                    Ferdok]]: [[Mittelreich]] (COLON-PATH) -> path of 2 (KEPT, 4d)
+ *   Sokramor         {{Infobox Staat}}      -> territory, Aventurien; |Staat=(beansprucht
+ *                    von: [[Horasreich]], [[Mittelreich]]) (CONFLICT) -> empty path +
+ *                    conflicts + independent (KEPT, 4d)
+ *   Rastanreich      {{Infobox Staat}}      -> territory, Myranor              (FILTERED, 4d)
  *
- * plus the pre-existing pages exercising the "recognised but unhandled" and
- * "skipped" branches:
- *   Kosch            {{Infobox Staat}}    -> territory (recognised, NOT a path/region/settlement)
+ * plus the pre-existing pages exercising the "skipped" branches:
  *   Horasreich / Königreich Kosch (historisch) -> redirects (skipped)
  *   Vorlage:Infobox Staat (ns 10)         -> non-Main namespace (skipped)
  *
- * WHAT THIS PROVES (per the Task-4a + 4b briefs):
+ * WHAT THIS PROVES (per the Task-4a..4d briefs):
  *   (a) infobox-name enumeration classifies the fixture pages correctly
- *       (Fluss/Straße -> path; Region/Landschaft -> region; Staat/Siedlung ->
- *       recognised-but-unhandled; ns10 and redirects -> skipped);
+ *       (Fluss/Straße -> path; Region/Landschaft -> region; Siedlung -> settlement;
+ *       Bauwerk/Festung/Burg -> building; Staat/Herrschaftsgebiet/Reich -> territory;
+ *       ns10 and redirects -> skipped);
  *   (b) the path handler produces staging records whose fields match the REAL
  *       mapping -- name, art, kind ('fluss'/'strasse'), lage, laenge, verlauf,
  *       match_key (= avesmapsWikiSyncCreateMatchKey(name)), wiki_key
@@ -75,10 +86,25 @@ declare(strict_types=1);
  *       {{Infobox Bauwerk}} page (Burg Wallenstein) is CLASSIFIED building and is
  *       NOT mis-handled as a settlement (building = separate Task 4c2); and
  *       settlement<->path/region are never cross-mishandled.
+ *   (i) the TERRITORY handler (Task 4d) builds the political_territory_wiki_test
+ *       SANDBOX record by REUSING the real avesmapsWikiSyncMonitorParsePage (which
+ *       derives wiki_key via avesmapsPoliticalBuildWikiKey, type from Art, the
+ *       |Staat=->affiliation via avesmapsWikiSyncMonitorParseAffiliation, and the
+ *       BF-year founded_*_bf via avesmapsWikiSyncBuildPoliticalTemporalPayload):
+ *       affiliation_root/affiliation_path_json for the SIMPLE, COLON-PATH and
+ *       CONFLICT/independent |Staat= forms + founded_start_bf (=1050 for {{BF|1050}})
+ *       are asserted with HAND-DERIVED values; the Myranor territory (Rastanreich) is
+ *       FILTERED OUT; the (title,title)->wiki_key StoreAlias pair that feeds REBUILD's
+ *       ResolveParentKey (I7) is proven coherent at the record level; a Siedlung/
+ *       Bauwerk is NOT mis-handled as a territory; and territory<->other kinds are
+ *       never cross-mishandled. NO geometry / wiki_territory_model / political_territory
+ *       is touched (I3/I4); the DB StoreAlias/UpsertTestRecord live in the deferred
+ *       persist this DB-free test never runs.
  *
  * NO database and NO STRATO are touched: the tested functions (classify / parse /
  * collect) are DB-free; the DB persist path (avesmapsWikiDumpPersistPathRecords /
- * avesmapsWikiDumpRunPassBStep) is a separate thin layer this test never calls.
+ * avesmapsWikiDumpPersistTerritoryRecords / avesmapsWikiDumpRunPassBStep) is a separate
+ * thin layer this test never calls.
  *
  * DEPENDENCIES / HOW TO RUN (same mbstring caveat as Task 1/3 -- the reused
  * derivation functions call mb_strtolower()/mb_substr()):
@@ -110,11 +136,27 @@ if (!class_exists('XMLReader')) {
 //    territories-parsing.php, which needs a helper from territories-tree.php).
 // ---------------------------------------------------------------------------
 $repoRoot = dirname(__DIR__, 2); // tools/wikidump -> tools -> <repo root>
+// bootstrap.php defines avesmapsNormalizeSingleLine(), which the TERRITORY handler's
+// reused avesmapsPoliticalNormalizeWikiRecord() needs (the path/region/settlement
+// handlers never call it, so Tasks 4a-4c2 did not require it). Side-effect-free on
+// include: it only defines the AVESMAPS_API_ROOT const (guarded) + functions -- no
+// CORS/headers/DB run at include time (those are explicit function calls).
+require $repoRoot . '/api/_internal/bootstrap.php';
 require $repoRoot . '/api/_internal/political/territory.php';
 require $repoRoot . '/api/_internal/wiki/sync.php';
+// sync-monitor.php require_once's sync-monitor-parsing.php (avesmapsWikiSyncMonitorParsePage),
+// sync-monitor-licenses.php (avesmapsWikiSyncMonitorUpsertTestRecord) and
+// sync-monitor-model.php (avesmapsWikiSyncMonitorStoreAlias) -- the three functions the
+// TERRITORY handler (4d) reuses. All side-effect-free on include.
 require $repoRoot . '/api/_internal/wiki/sync-monitor.php';
 require $repoRoot . '/api/_internal/wiki/territories-tree.php';
 require $repoRoot . '/api/_internal/wiki/territories-parsing.php';
+// territories.php defines avesmapsWikiSyncBuildPoliticalTemporalPayload (BF-year parse),
+// which the TERRITORY handler's reused avesmapsWikiSyncMonitorParsePage calls. In
+// production it is loaded by endpoint.php; the test loads it explicitly (4d). It
+// require_once's the two territories-* siblings above (idempotent) and is
+// side-effect-free on include.
+require $repoRoot . '/api/_internal/wiki/territories.php';
 require $repoRoot . '/api/_internal/wiki/paths.php';
 require $repoRoot . '/api/_internal/wiki/regions.php';
 // locations.php auto-requires locations-helpers.php (avesmapsWikiSyncUpsertPageCache /
@@ -135,11 +177,13 @@ foreach ([
     'avesmapsWikiDumpParseRegionPage',
     'avesmapsWikiDumpParseSettlementPage',
     'avesmapsWikiDumpParseBuildingPage',
+    'avesmapsWikiDumpParseTerritoryPage',
     'avesmapsWikiDumpCollectEntities',
     'avesmapsWikiDumpCollectPathRecords',
     'avesmapsWikiDumpCollectRegionRecords',
     'avesmapsWikiDumpCollectSettlementRecords',
     'avesmapsWikiDumpCollectBuildingRecords',
+    'avesmapsWikiDumpCollectTerritoryRecords',
     'avesmapsWikiDumpBuildApiPageFromDump',
     // reused real functions (must be visible so the handlers can call them):
     'avesmapsWikiPathParsePage',
@@ -153,6 +197,15 @@ foreach ([
     'avesmapsWikiSettlementMatchBuildingType',
     'avesmapsWikiSettlementClassLabel',
     'avesmapsWikiSyncSettlementClassFromPage',
+    // reused TERRITORY functions (Task 4d handler calls these -- must be visible):
+    'avesmapsWikiSyncMonitorParsePage',
+    'avesmapsWikiSyncMonitorUpsertTestRecord',
+    'avesmapsWikiSyncMonitorStoreAlias',
+    'avesmapsWikiSyncMonitorParseAffiliation',
+    'avesmapsPoliticalNormalizeWikiRecord',
+    'avesmapsPoliticalBuildWikiKey',
+    'avesmapsWikiSyncBuildPoliticalTemporalPayload',
+    'avesmapsWikiSyncMonitorNormalizeTitle',
     'avesmapsWikiSyncGetCategoryNames',
     'avesmapsWikiSyncExtractCoordinatesFromContent',
     'avesmapsWikiSyncUpsertPageCache',
@@ -188,7 +241,7 @@ $iconvSample = function_exists('iconv')
     : '(iconv unavailable)';
 
 echo "================================================================\n";
-echo " dump-reader Pass B unit test (WikiDump migration, Tasks 4a + 4b)\n";
+echo " dump-reader Pass B unit test (WikiDump migration, Tasks 4a-4d)\n";
 echo "================================================================\n";
 echo 'PHP version        : ' . PHP_VERSION . "\n";
 echo 'mbstring loaded    : ' . (extension_loaded('mbstring') ? 'yes' : 'no') . "\n";
@@ -451,20 +504,21 @@ $check(
     array_key_exists('kosch', $recByKey),
     'a territory infobox never yields a path staging record (O4/I2)'
 );
-// Kosch IS still recognised (as a territory) by the enumeration -- just unhandled.
+// Kosch is recognised (and, since Task 4d, HANDLED) as a territory by the
+// enumeration -- but the PATH handler still must not touch it (cross-handling guard).
 $classifiedByTitle = [];
 foreach ($collected['classified'] as $c) {
     $classifiedByTitle[$c['title']] = $c['kind'];
 }
 $check(
-    '(d3) Kosch is recognised as territory (still unhandled), Burg Wallenstein as building',
+    '(d3) Kosch classified as territory, Burg Wallenstein as building',
     ['Kosch' => 'territory', 'Burg Wallenstein' => 'building'],
     ['Kosch' => $classifiedByTitle['Kosch'] ?? '(missing)', 'Burg Wallenstein' => $classifiedByTitle['Burg Wallenstein'] ?? '(missing)'],
-    'territory stays recognised-but-unhandled; Burg Wallenstein classifies as building (handled by its own handler, not the settlement one)'
+    'Kosch classifies as territory (handled by the territory handler, section (i)); Burg Wallenstein classifies as building (its own handler, not the settlement one)'
 );
 $check(
-    '(d4) per-kind counts: 3 paths, 1 territory, 5 settlements, 4 buildings, 3 regions recognised',
-    ['path' => 3, 'territory' => 1, 'settlement' => 5, 'building' => 4, 'region' => 3],
+    '(d4) per-kind counts: 3 paths, 5 territories, 5 settlements, 4 buildings, 3 regions recognised',
+    ['path' => 3, 'territory' => 5, 'settlement' => 5, 'building' => 4, 'region' => 3],
     [
         'path' => $collected['counts']['path'] ?? 0,
         'territory' => $collected['counts']['territory'] ?? 0,
@@ -472,7 +526,7 @@ $check(
         'building' => $collected['counts']['building'] ?? 0,
         'region' => $collected['counts']['region'] ?? 0,
     ],
-    '3 path + Kosch + 5 Siedlung infoboxes (Angbar, Ferdok, Auhof, Xarxaron, Selem) + 4 Bauwerk/Festung infoboxes (Burg Wallenstein, Zwingfeste, Ruine Tsatempel, Xarsnamoth) + 3 region infoboxes'
+    '3 path + 5 Staat infoboxes (Kosch, Grafschaft Ferdok, Baronie Hügelland, Sokramor, Rastanreich) + 5 Siedlung (Angbar, Ferdok, Auhof, Xarxaron, Selem) + 4 Bauwerk/Festung (Burg Wallenstein, Zwingfeste, Ruine Tsatempel, Xarsnamoth) + 3 region infoboxes'
 );
 
 // ===========================================================================
@@ -1124,6 +1178,260 @@ $check(
         && !array_key_exists('ruinetsatempel', $setByKey)
         && !array_key_exists('ferdok', $bldByKey),
     'kept settlement records exclude buildings; kept building records exclude settlements (O4/I2)'
+);
+
+// ===========================================================================
+// (i) TERRITORY handler (Task 4d): the highest-risk entity (hierarchy + wiki_key),
+//     but a clean reuse. Builds the political_territory_wiki_test SANDBOX record by
+//     REUSING the real avesmapsWikiSyncMonitorParsePage() verbatim -- NO field
+//     mapping, key derivation or |Staat=->affiliation parse is duplicated here (I1).
+//     Inside that reused parse:
+//       - wiki_key             = avesmapsPoliticalBuildWikiKey(wiki_url, name) -> 'wiki:'.slug
+//       - type                 <- Art field
+//       - affiliation_root / affiliation_path_json <- avesmapsWikiSyncMonitorParseAffiliation(|Staat=)
+//       - founded_*_bf         <- avesmapsWikiSyncBuildPoliticalTemporalPayload({{BF|...}})
+//     The record is Aventurien-filtered (real DetectContinent verdict) exactly like the
+//     other handlers. Expected values are HAND-DERIVED via the real functions (see the
+//     scratchpad derivation), never asserted equal to the handler's own output.
+//
+//     I3 (geometry untouched): the handler/collector read/write NO geometry.
+//     I4/I7: the collector NEVER writes wiki_territory_model / political_territory; the
+//     StoreAlias (title,title)->wiki_key pairs that feed REBUILD's ResolveParentKey are
+//     asserted at the record level below (the DB StoreAlias call lives in the deferred
+//     persist, which this DB-free test never runs).
+// ===========================================================================
+echo "\n-- (i) territory handler: sandbox record + real affiliation/key/temporal --\n";
+
+// The DB-free territory collector returns exactly the kept Aventurien territory
+// records. Kept: Kosch (Zugehörigkeit=, empty affiliation), Grafschaft Ferdok (simple),
+// Baronie Hügelland (colon-path), Sokramor (conflict/independent). Rastanreich is
+// Myranor -> filtered. So exactly 4 kept territory records.
+$territoryRecords = avesmapsWikiDumpCollectTerritoryRecords($pages);
+$check(
+    '(i1) exactly 4 Aventurien territory records kept',
+    4,
+    count($territoryRecords),
+    'Kosch + Grafschaft Ferdok + Baronie Hügelland + Sokramor kept; Rastanreich (Myranor) filtered'
+);
+
+// Index kept territory records by wiki_key.
+$terByKey = [];
+foreach ($territoryRecords as $r) {
+    $terByKey[(string) ($r['wiki_key'] ?? '')] = $r;
+}
+
+// -- Grafschaft Ferdok (SIMPLE affiliation |Staat=[[Mittelreich]], founded {{BF|1050}}).
+//    Hand-derived via the REAL funcs:
+//      wiki_url  = avesmapsWikiSyncMonitorPageUrl('Grafschaft Ferdok') = .../wiki/Grafschaft_Ferdok
+//      wiki_key  = avesmapsPoliticalBuildWikiKey(wiki_url, name)       = 'wiki:grafschaft-ferdok'
+//      type      = 'Grafschaft' (Art)
+//      affiliation_root='Mittelreich', affiliation_path_json=['Mittelreich']
+//      founded_start_bf = 1050 (temporal payload from {{BF|1050}})
+$graf = $terByKey['wiki:grafschaft-ferdok'] ?? null;
+$check(
+    '(i2) Grafschaft Ferdok present under wiki_key "wiki:grafschaft-ferdok"',
+    true,
+    is_array($graf),
+    "wiki_key = avesmapsPoliticalBuildWikiKey(pageUrl, name) = 'wiki:grafschaft-ferdok'"
+);
+$check('(i3) Grafschaft Ferdok.name', 'Grafschaft Ferdok', (string) ($graf['name'] ?? '(none)'), 'Name field from the Infobox Staat');
+$check('(i4) Grafschaft Ferdok.type', 'Grafschaft', (string) ($graf['type'] ?? '(none)'), 'Art= -> type (real NormalizeWikiRecord)');
+$check('(i5) Grafschaft Ferdok.continent', 'Aventurien', (string) ($graf['continent'] ?? '(none)'), 'real DetectContinent default -> Aventurien');
+$check(
+    '(i6) Grafschaft Ferdok.affiliation_root = Mittelreich (SIMPLE form)',
+    'Mittelreich',
+    (string) ($graf['affiliation_root'] ?? '(none)'),
+    "|Staat=[[Mittelreich]] -> ParseAffiliation root 'Mittelreich'"
+);
+$check(
+    '(i7) Grafschaft Ferdok.affiliation_path_json = [Mittelreich] (SIMPLE form)',
+    ['Mittelreich'],
+    $graf['affiliation_path_json'] ?? null,
+    "single-parent path (no ':' chain)"
+);
+$check(
+    '(i8) Grafschaft Ferdok.founded_start_bf = 1050 ({{BF|1050}})',
+    1050,
+    (int) ($graf['founded_start_bf'] ?? -1),
+    'reused avesmapsWikiSyncBuildPoliticalTemporalPayload parsed {{BF|1050}} -> 1050'
+);
+$check(
+    '(i9) Grafschaft Ferdok.founded_type = exact ({{BF|1050}})',
+    'exact',
+    (string) ($graf['founded_type'] ?? '(none)'),
+    'a single BF year is an exact founding date'
+);
+
+// Independent re-derivation cross-check: rebuild the wiki_key via the real funcs and
+// confirm the collected record used it (proves NOT a hard-coded literal, I1).
+$reTerWikiKey = avesmapsPoliticalBuildWikiKey(
+    avesmapsWikiSyncMonitorPageUrl('Grafschaft Ferdok'),
+    'Grafschaft Ferdok'
+);
+$check(
+    '(i10) collected territory wiki_key == independent real-function re-derivation',
+    $reTerWikiKey,
+    (string) ($graf['wiki_key'] ?? ''),
+    'record wiki_key matches avesmapsPoliticalBuildWikiKey(pageUrl, name) (I1)'
+);
+
+// -- Baronie Hügelland (COLON-PATH |Staat=[[Grafschaft Ferdok]]: [[Mittelreich]]).
+//    Hand-derived: affiliation splits on ':' -> path ['Grafschaft Ferdok','Mittelreich'],
+//    root 'Grafschaft Ferdok'; wiki_key 'wiki:baronie-h-ugelland' (umlaut ü -> '-u' via
+//    iconv, env-dependent -- the same env this test's other umlaut keys rely on).
+$baronie = $terByKey['wiki:baronie-h-ugelland'] ?? null;
+$check(
+    '(i11) Baronie Hügelland present under wiki_key "wiki:baronie-h-ugelland"',
+    true,
+    is_array($baronie),
+    "wiki_key = 'wiki:'.slug('Baronie Hügelland') = 'wiki:baronie-h-ugelland' (umlaut -> '-u')"
+);
+$check('(i12) Baronie Hügelland.type', 'Baronie', (string) ($baronie['type'] ?? '(none)'), 'Art= -> type');
+$check(
+    '(i13) Baronie Hügelland.affiliation_root = Grafschaft Ferdok (COLON-PATH form)',
+    'Grafschaft Ferdok',
+    (string) ($baronie['affiliation_root'] ?? '(none)'),
+    "|Staat=[[Grafschaft Ferdok]]: [[Mittelreich]] -> root is the FIRST ':' segment"
+);
+$check(
+    '(i14) Baronie Hügelland.affiliation_path_json = [Grafschaft Ferdok, Mittelreich] (COLON-PATH)',
+    ['Grafschaft Ferdok', 'Mittelreich'],
+    $baronie['affiliation_path_json'] ?? null,
+    "the ':' chain becomes a two-element affiliation path (real ParseAffiliation)"
+);
+
+// -- Sokramor (CONFLICT/INDEPENDENT |Staat=(beansprucht von: [[Horasreich]], [[Mittelreich]])).
+//    Hand-derived: the parenthetical claim yields conflicts ['Horasreich','Mittelreich'],
+//    NO primary parent -> empty path, empty root, independent=true. The record still
+//    carries the claimants in raw_json.affiliation.conflicts (for the editor's
+//    contested-territory handling), but affiliation_path_json is [] (no parent chain).
+$sokramor = $terByKey['wiki:sokramor'] ?? null;
+$check(
+    '(i15) Sokramor present under wiki_key "wiki:sokramor"',
+    true,
+    is_array($sokramor),
+    "wiki_key = 'wiki:sokramor'"
+);
+$check(
+    '(i16) Sokramor.affiliation_path_json = [] (CONFLICT -> no parent chain)',
+    [],
+    $sokramor['affiliation_path_json'] ?? '(none)',
+    "'(beansprucht von: ...)' produces conflicts, not a primary parent -> empty path"
+);
+$check(
+    '(i17) Sokramor.affiliation_root = "" (CONFLICT -> independent)',
+    '',
+    (string) ($sokramor['affiliation_root'] ?? '(none)'),
+    'no primary parent -> empty root'
+);
+// The conflicts + independent flag survive in the raw_json affiliation payload.
+$sokramorAffiliation = $sokramor['raw_json']['affiliation'] ?? [];
+$check(
+    '(i18) Sokramor conflicts = [Horasreich, Mittelreich], independent=true (raw_json)',
+    ['conflicts' => ['Horasreich', 'Mittelreich'], 'independent' => true],
+    [
+        'conflicts' => $sokramorAffiliation['conflicts'] ?? '(missing)',
+        'independent' => $sokramorAffiliation['independent'] ?? '(missing)',
+    ],
+    'the claimants are captured as conflicts and the territory is flagged independent'
+);
+
+// -- Kosch (the PRE-EXISTING fixture Staat page). It uses |Zugehörigkeit= (NOT |Staat=),
+//    which the affiliation field-alias set does NOT read -> empty affiliation. Activating
+//    the handler stages it as a valid Aventurien territory with an empty parent chain.
+$koschTer = $terByKey['wiki:kosch'] ?? null;
+$check(
+    '(i19) Kosch staged as a territory (empty affiliation; |Zugehörigkeit= is not |Staat=)',
+    ['present' => true, 'type' => 'Fürstentum', 'root' => '', 'path' => []],
+    [
+        'present' => is_array($koschTer),
+        'type' => (string) ($koschTer['type'] ?? '(none)'),
+        'root' => (string) ($koschTer['affiliation_root'] ?? '(none)'),
+        'path' => $koschTer['affiliation_path_json'] ?? '(none)',
+    ],
+    'the previously recognised-but-unhandled Kosch page is now a kept sandbox record'
+);
+
+// -- Continent filter: the Myranor territory (Rastanreich) is FILTERED OUT of the kept
+//    records but reported in the `filtered` bucket (intentional drop, not a parse miss).
+echo "\n-- (i/c) territory continent filter (Aventurien only) --\n";
+$check(
+    '(i20) Rastanreich NOT among kept territory records',
+    false,
+    array_key_exists('wiki:rastanreich', $terByKey),
+    'a Myranor territory is not staged (continent != Aventurien)'
+);
+$filteredTerritoryTitles = array_map(
+    static fn(array $x): string => $x['title'],
+    array_filter($collected['filtered'], static fn(array $x): bool => ($x['kind'] ?? '') === 'territory')
+);
+$check(
+    '(i21) Rastanreich reported in the filtered bucket (as a territory)',
+    true,
+    in_array('Rastanreich', $filteredTerritoryTitles, true),
+    'the drop is an intentional continent filter, not a parse failure'
+);
+$rastanreich = avesmapsWikiDumpParseTerritoryPage($byTitle['Rastanreich']);
+$check(
+    '(i22) Rastanreich handler: kept=false but record present (real record, continent-dropped)',
+    true,
+    $rastanreich['kept'] === false && is_array($rastanreich['record']) && $rastanreich['continent'] !== '' && $rastanreich['continent'] !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+    "DetectContinent classified it as '{$rastanreich['continent']}' (Myranor); record exists, only the continent filter removed it"
+);
+
+// -- I7 / parent resolution: StoreAlias would register (title,title)->wiki_key so
+//    REBUILD's ResolveParentKey can resolve a child's |Staat= parent NAME to the parent's
+//    canonical wiki_key. Assert the intended mapping at the record level for the
+//    parent-linked case: Baronie Hügelland's root "Grafschaft Ferdok" slugs to the alias
+//    slug the persist would register for the Grafschaft Ferdok PAGE, and that alias points
+//    at the Grafschaft Ferdok record's wiki_key. (The DB StoreAlias call lives in the
+//    deferred persist; here we prove the pair it WOULD feed is coherent.)
+echo "\n-- (i/I7) StoreAlias (title,title)->wiki_key feeds parent resolution --\n";
+$grafAliasSlug = avesmapsPoliticalSlug(avesmapsWikiSyncMonitorNormalizeTitle('Grafschaft Ferdok'));
+$baronieParentSlug = avesmapsPoliticalSlug(avesmapsWikiSyncMonitorNormalizeTitle((string) ($baronie['affiliation_root'] ?? '')));
+$check(
+    '(i23) Baronie parent root slug == Grafschaft Ferdok alias slug',
+    $grafAliasSlug,
+    $baronieParentSlug,
+    "child's affiliation_root 'Grafschaft Ferdok' slugs to the same alias_slug the parent page registers"
+);
+$check(
+    '(i24) that alias slug maps to the Grafschaft Ferdok wiki_key (I7 chain)',
+    (string) ($graf['wiki_key'] ?? '(none)'),
+    'wiki:' . $grafAliasSlug,
+    'StoreAlias([title,title], wiki_key) registers alias_slug -> the record wiki_key, so ResolveParentKey resolves the parent'
+);
+
+// -- A non-territory infobox (Siedlung / Bauwerk) is NOT mis-handled as a territory.
+echo "\n-- (i/x) non-territory infoboxes are not mis-handled as territories --\n";
+$auhofAsTerritory = avesmapsWikiDumpParseTerritoryPage($byTitle['Auhof']);
+$burgAsTerritory = avesmapsWikiDumpParseTerritoryPage($byTitle['Burg Wallenstein']);
+$check(
+    '(i25) Auhof (Siedlung) + Burg Wallenstein (Bauwerk) via territory handler: kept=false, no record',
+    true,
+    $auhofAsTerritory['kept'] === false && $auhofAsTerritory['record'] === null
+        && $burgAsTerritory['kept'] === false && $burgAsTerritory['record'] === null,
+    'the territory handler gate (infobox staat/herrschaftsgebiet/reich) rejects a Siedlung/Bauwerk -> no sandbox record'
+);
+// ...and a Staat page fed to the settlement/path/region/building handlers yields no record.
+$grafAsSettlement = avesmapsWikiDumpParseSettlementPage($byTitle['Grafschaft Ferdok']);
+$grafAsPath = avesmapsWikiDumpParsePathPage($byTitle['Grafschaft Ferdok']);
+$grafAsRegion = avesmapsWikiDumpParseRegionPage($byTitle['Grafschaft Ferdok']);
+$grafAsBuilding = avesmapsWikiDumpParseBuildingPage($byTitle['Grafschaft Ferdok']);
+$check(
+    '(i26) Grafschaft Ferdok (territory) via settlement/path/region/building handlers: no record',
+    true,
+    $grafAsSettlement['record'] === null && $grafAsPath['record'] === null
+        && $grafAsRegion['record'] === null && $grafAsBuilding['record'] === null,
+    'a territory infobox never yields a settlement/path/region/building record (O4/I2)'
+);
+$check(
+    '(i27) no territory key leaked into kept settlement/path/region records',
+    true,
+    !array_key_exists('grafschaft-ferdok', $setByKey)
+        && !array_key_exists('grafschaft-ferdok', $recByKey)
+        && !array_key_exists('grafschaft-ferdok', $regByKey),
+    'kept settlement/path/region records exclude territories (O4/I2/I3)'
 );
 
 // ---------------------------------------------------------------------------

@@ -139,33 +139,33 @@ echo "-- (a) page iteration: count + per-page title/ns/redirect --\n";
 
 $pages = $readAll($fixturePath);
 
-$check('(a1) page count', 19, count($pages), 'fixture has 19 <page> elements (4 ns0 territory/redirect + 1 ns10 + 3 ns0 path + 3 ns0 region + 5 ns0 settlement + 3 ns0 building pages)');
+$check('(a1) page count', 23, count($pages), 'fixture has 23 <page> elements (4 ns0 territory/redirect + 1 ns10 + 3 ns0 path + 3 ns0 region + 5 ns0 settlement + 3 ns0 building + 4 ns0 territory pages)');
 
 // Titles, in document order.
 $titles = array_map(static fn(array $p): string => $p['title'], $pages);
 $check(
     '(a2) titles in order',
-    ['Kosch', 'Angbar', 'Horasreich', 'Königreich Kosch (historisch)', 'Vorlage:Infobox Staat', 'Breite', 'Reichsstraße 1', 'Rastullah-Strom', 'Koschberge', 'Rote Sichel', 'Windhag', 'Ferdok', 'Auhof', 'Xarxaron', 'Selem', 'Burg Wallenstein', 'Zwingfeste Ochsenblut', 'Ruine Tsatempel', 'Xarsnamoth'],
+    ['Kosch', 'Angbar', 'Horasreich', 'Königreich Kosch (historisch)', 'Vorlage:Infobox Staat', 'Breite', 'Reichsstraße 1', 'Rastullah-Strom', 'Koschberge', 'Rote Sichel', 'Windhag', 'Ferdok', 'Auhof', 'Xarxaron', 'Selem', 'Burg Wallenstein', 'Zwingfeste Ochsenblut', 'Ruine Tsatempel', 'Xarsnamoth', 'Grafschaft Ferdok', 'Baronie Hügelland', 'Sokramor', 'Rastanreich'],
     $titles,
-    'streamed in document order, titles intact (umlaut preserved); path (4a), region (4b), settlement (4c) then building (4c2) pages appended'
+    'streamed in document order, titles intact (umlaut preserved); path (4a), region (4b), settlement (4c), building (4c2) then territory (4d) pages appended'
 );
 
 // Namespaces, in document order (proves <ns> is parsed as int, incl. ns 10).
 $namespaces = array_map(static fn(array $p): int => $p['ns'], $pages);
 $check(
     '(a3) namespaces in order',
-    [0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     $namespaces,
-    'ns parsed as int; ns 10 (Vorlage) present -> filtering is the caller\'s job; path + region + settlement + building pages are ns 0'
+    'ns parsed as int; ns 10 (Vorlage) present -> filtering is the caller\'s job; path + region + settlement + building + territory pages are ns 0'
 );
 
 // Redirect targets: only the two redirect pages expose a non-null target.
 $redirects = array_map(static fn(array $p): ?string => $p['redirect'], $pages);
 $check(
     '(a4) redirect targets in order',
-    [null, null, 'Lieblichesfeld', 'Kosch', null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
+    [null, null, 'Lieblichesfeld', 'Kosch', null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null],
     $redirects,
-    'only <redirect title="..."/> pages carry a target; others null (path + region + settlement + building pages are not redirects)'
+    'only <redirect title="..."/> pages carry a target; others null (path + region + settlement + building + territory pages are not redirects)'
 );
 
 // ===========================================================================
@@ -285,9 +285,9 @@ $check(
 );
 $check(
     '(e2) skip 2 -> remaining count',
-    17,
+    21,
     count($afterTwo),
-    '19 total - 2 skipped = 17 remaining'
+    '23 total - 2 skipped = 21 remaining'
 );
 
 $batch = $readAll($fixturePath, 1, 2); // skip 1, take 2 -> pages [1,3)
@@ -298,12 +298,12 @@ $check(
     'a step processes pages [cursor, cursor+batch) then returns'
 );
 
-$skipAll = $readAll($fixturePath, 19);
+$skipAll = $readAll($fixturePath, 23);
 $check(
     '(e4) skip >= total -> empty batch',
     0,
     count($skipAll),
-    'skipping all 19 pages yields nothing (terminal cursor)'
+    'skipping all 23 pages yields nothing (terminal cursor)'
 );
 
 // ===========================================================================
@@ -320,7 +320,7 @@ if ($bz2Loaded) {
     @unlink($bz2Path);
     $check(
         '(f1) .bz2 read yields same page count',
-        19,
+        23,
         count($bz2Pages),
         'compress.bzip2:// streams the fixture (bz2 present locally)'
     );
@@ -363,7 +363,7 @@ $gzPages = $readAll($gzPath);
 @unlink($gzPath);
 $check(
     '(f3) .gz read yields same page count',
-    19,
+    23,
     count($gzPages),
     'compress.zlib:// streams a gzipped fixture'
 );
