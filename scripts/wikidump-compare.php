@@ -74,6 +74,11 @@ if (isset($_SERVER['REQUEST_METHOD']) || isset($_SERVER['REQUEST_URI']) || isset
     exit(1);
 }
 
+// STRATO CLI runs under the cgi-fcgi SAPI, where the cli-only STDERR/STDOUT constants
+// are undefined. Define them (fallback to php://output) so fwrite(STDERR,...) works.
+if (!defined('STDERR')) { define('STDERR', fopen('php://stderr', 'wb') ?: fopen('php://output', 'wb')); }
+if (!defined('STDOUT')) { define('STDOUT', fopen('php://stdout', 'wb') ?: fopen('php://output', 'wb')); }
+
 if (!function_exists('mb_strtolower')) {
     fwrite(STDERR, "FATAL: mbstring is not loaded, but the reused derivations require mb_strtolower()/mb_substr().\n");
     fwrite(STDERR, "Re-run with:  php -d extension=php_mbstring.dll scripts/wikidump-compare.php\n");
