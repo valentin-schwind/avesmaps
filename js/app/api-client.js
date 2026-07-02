@@ -376,6 +376,32 @@ async function submitWikiSyncDumpAction(action, payload = {}) {
 	return data;
 }
 
+// GET ?action=status on the same endpoint: { present, size, age_seconds, last_fetch_at,
+// last_ok_at, username, url }. Read-only, used for the "Dump geholt: <date>" status line
+// next to the "Dump holen" button. Never includes the password (dump.php never returns it).
+async function fetchWikiSyncDumpStatus() {
+	const url = new URL(WIKI_SYNC_DUMP_API_URL, window.location.href);
+	url.searchParams.set("action", "status");
+	url.searchParams.set("_", String(Date.now()));
+
+	const response = await fetch(url.toString(), {
+		cache: "no-store",
+		credentials: "same-origin",
+		headers: {
+			Accept: "application/json",
+			"Cache-Control": "no-cache",
+			Pragma: "no-cache",
+		},
+	});
+	const data = await readJsonResponse(response, {});
+
+	if (!response.ok || data?.ok !== true) {
+		throw new Error(apiErrorMessage(data, `WikiDump-Status-API antwortet mit HTTP ${response.status}.`));
+	}
+
+	return data.status || {};
+}
+
 async function fetchWikiSyncLocationData(params = {}) {
 	const url = new URL(WIKI_SYNC_LOCATIONS_API_URL, window.location.href);
 	Object.entries(params).forEach(([key, value]) => {

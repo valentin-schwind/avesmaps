@@ -92,6 +92,10 @@ async function loadWikiSyncCases() {
 		return;
 	}
 
+	// Best-effort, independent of the case list below (own try/catch inside) -- shows
+	// "Dump geholt: <date>" next to the "Dump holen" button as soon as this tab loads.
+	void refreshWikiSyncDumpFetchedStatus();
+
 	setWikiSyncStatus("WikiSyncLocations-Fälle werden geladen...", "pending");
 	try {
 		const data = await fetchWikiSyncLocationData({ action: "cases" });
@@ -512,11 +516,15 @@ async function startWikiSyncRun() {
 
 // ===========================================================================
 // WikiDump hybrid read (H4c-f): a NEW, ADDITIVE trigger next to the online
-// WikiSync crawler (which stays as the fallback -- invariant I8). "WikiDump
-// lesen" runs the sandbox-safe read pass (start_read -> loop read_step until
-// done); a SEPARATE, gated "Übernehmen" button runs the sharp apply pass. The
-// loop mirrors startWikiSyncRun's one-POST-per-step pattern (never a server-side
-// loop -- STRATO). Backend: api/edit/wiki/dump.php (H4c-b).
+// WikiSync crawler (which stays as the fallback -- invariant I8). "Dump holen"
+// chains THREE steps as one user-visible operation: (1) fetch_dump -- re-download
+// the dump file from the wiki; (2) start_read + read_step loop -- the sandbox-safe
+// scan (dryRun, writes only wiki_dump_hybrid_state/wiki_dump_title_alias); (3)
+// cleanup_state -- once the scan succeeds, delete every OTHER dump_read run's
+// sandbox rows so exactly one dump's state remains ("immer genau ein Dump drin").
+// A SEPARATE, gated "Übernehmen" button still runs the sharp apply pass (untouched
+// by this chain). The read loop mirrors startWikiSyncRun's one-POST-per-step
+// pattern (never a server-side loop -- STRATO). Backend: api/edit/wiki/dump.php.
 // ===========================================================================
 
 let isWikiSyncDumpRunning = false;
@@ -534,17 +542,55 @@ const WIKI_SYNC_DUMP_PHASE_LABELS = {
 	completed: "Abgeschlossen",
 };
 
-function setWikiSyncDumpButtonsDisabled(isDisabled) {
+function setWikiSyncDumpButtonsDisabled(isDisabled, label = "📥 Dump holen") {
 	const readButton = document.getElementById("wiki-sync-dump-read");
 	if (readButton) {
 		readButton.disabled = isDisabled;
-		readButton.textContent = isWikiSyncDumpRunning ? "Liest Dump..." : "📥 WikiDump lesen";
+		readButton.textContent = isWikiSyncDumpRunning ? label : "📥 Dump holen";
 	}
 	// The other WikiSync buttons share the panel; disable them while the dump runs so
 	// two long passes can't fight for STRATO workers at once.
 	const startButton = document.getElementById("wiki-sync-start");
 	if (startButton) {
 		startButton.disabled = isDisabled || isWikiSyncLocationsRunning || isWikiSyncTerritoriesRunning;
+	}
+}
+
+// Format the "Dump geholt: <date>" status line next to the button, from the
+// GET ?action=status shape (present/size/age_seconds/last_fetch_at/last_ok_at).
+// last_ok_at is the DB-tracked timestamp of the last SUCCESSFUL fetch_dump call --
+// preferred over the raw file mtime because it is what the backend already exposes
+// and reflects "last time we successfully talked to the wiki", not just disk state.
+function formatWikiSyncDumpFetchedStatusText(status) {
+	const lastOkAt = status && typeof status.last_ok_at === "string" ? status.last_ok_at : "";
+	if (!lastOkAt) {
+		return status && status.present ? "Dump geholt: unbekannt" : "Noch kein Dump geholt";
+	}
+	// last_ok_at is a MySQL DATETIME string ("YYYY-MM-DD HH:MM:SS.mmm"); make it
+	// Safari/iOS-Date-parseable by swapping the space for "T" (same trick used
+	// elsewhere in this codebase for MySQL timestamp strings).
+	const parsed = new Date(lastOkAt.replace(" ", "T"));
+	if (Number.isNaN(parsed.getTime())) {
+		return `Dump geholt: ${lastOkAt}`;
+	}
+	const formatted = parsed.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" });
+	return `Dump geholt: ${formatted}`;
+}
+
+// Load + render the fetched-status line. Best-effort: a failed status fetch just
+// hides the line again (never blocks the panel or throws into a caller).
+async function refreshWikiSyncDumpFetchedStatus() {
+	const statusElement = document.getElementById("wiki-sync-dump-fetched-status");
+	if (!statusElement) {
+		return;
+	}
+	try {
+		const status = await fetchWikiSyncDumpStatus();
+		statusElement.textContent = formatWikiSyncDumpFetchedStatusText(status);
+		statusElement.hidden = false;
+	} catch (error) {
+		console.warn("WikiDump-Status konnte nicht geladen werden:", error);
+		statusElement.hidden = true;
 	}
 }
 
@@ -640,30 +686,56 @@ async function runWikiSyncDumpLoop(action, { runId = null } = {}) {
 	return lastRun;
 }
 
+// "Dump holen": ONE user-visible operation chaining three backend steps in strict
+// sequence -- each step only runs if the previous one succeeded:
+//   1. fetch_dump   -- re-download the dump file from the wiki (server-fetch).
+//   2. start_read + read_step loop -- the sandbox-safe scan (dryRun=true the whole
+//      way; writes ONLY wiki_dump_hybrid_state/wiki_dump_title_alias).
+//   3. cleanup_state -- ONLY after a successful scan: delete every OTHER dump_read
+//      run's sandbox rows so exactly one dump's state remains.
+// If fetch fails, the scan never runs. If the scan fails, cleanup never runs (so a
+// failed/partial run's rows stay around rather than silently vanishing, and the
+// previous good run -- if any -- is untouched since it is still "the newest
+// completed run" until a NEW run completes).
 async function startWikiSyncDumpRead() {
 	if (isWikiSyncDumpRunning) {
 		return;
 	}
 	isWikiSyncDumpRunning = true;
-	setWikiSyncDumpButtonsDisabled(true);
 	setWikiSyncDumpApplyEnabled(false);
-	setWikiSyncStatus("WikiDump wird gelesen (Sandbox) …", "pending");
 
 	try {
+		// Step 1/3: server-fetch (re-download from the wiki).
+		setWikiSyncDumpButtonsDisabled(true, "Lädt Dump herunter...");
+		setWikiSyncStatus("Dump wird vom Wiki heruntergeladen …", "pending");
+		await submitWikiSyncDumpAction("fetch_dump");
+
+		// Step 2/3: the sandbox-safe scan loop (dryRun=true throughout).
+		setWikiSyncDumpButtonsDisabled(true, "Liest Dump...");
+		setWikiSyncStatus("WikiDump wird gelesen (Sandbox) …", "pending");
 		await runWikiSyncDumpLoop("read_step");
-		setWikiSyncStatus("WikiDump gelesen (Sandbox). Vor dem Übernehmen den Vergleichstest grün fahren.", "success");
-		showFeedbackToast("WikiDump-Lesen abgeschlossen (Sandbox, nichts scharf geschrieben).", "success");
+
+		// Step 3/3: prune old sandbox state now that this scan succeeded. A cleanup
+		// failure is reported but does NOT roll back the scan that already completed
+		// (the scan's own success is real and independent of housekeeping).
+		setWikiSyncDumpButtonsDisabled(true, "Räumt alte Dump-Stände auf...");
+		setWikiSyncStatus("Alte Dump-Stände werden aufgeräumt …", "pending");
+		await submitWikiSyncDumpAction("cleanup_state");
+
+		setWikiSyncStatus("Dump geholt (Sandbox). Vor dem Übernehmen den Vergleichstest grün fahren.", "success");
+		showFeedbackToast("Dump geholt: heruntergeladen, gelesen (Sandbox) und aufgeräumt.", "success");
 		isWikiSyncDumpRunning = false;
 		setWikiSyncDumpButtonsDisabled(false);
 		// Read completed -> allow the sharp apply (still gated behind the confirm dialog).
 		setWikiSyncDumpApplyEnabled(true);
+		await refreshWikiSyncDumpFetchedStatus();
 	} catch (error) {
-		console.error("WikiDump-Lesen fehlgeschlagen:", error);
+		console.error("Dump holen fehlgeschlagen:", error);
 		isWikiSyncDumpRunning = false;
 		setWikiSyncDumpButtonsDisabled(false);
 		setWikiSyncDumpApplyEnabled(false);
-		setWikiSyncStatus(error.message || "WikiDump-Lesen fehlgeschlagen.", "error");
-		showFeedbackToast(error.message || "WikiDump-Lesen fehlgeschlagen.", "warning");
+		setWikiSyncStatus(error.message || "Dump holen fehlgeschlagen.", "error");
+		showFeedbackToast(error.message || "Dump holen fehlgeschlagen.", "warning");
 	}
 }
 

@@ -29,6 +29,13 @@ declare(strict_types=1);
  *        -> THE SHARP PATH: runs the parse_and_upsert phase with dryRun=FALSE
  *           (the sole real *_staging write). A SEPARATE action the owner triggers
  *           ONLY after the H5 compare-test is green (progress.md GATE WIRING).
+ *   POST { "action": "cleanup_state" }
+ *        -> "Dump holen" step 3/3: deletes every dump_read run's sandbox rows
+ *           from wiki_dump_hybrid_state/wiki_dump_title_alias EXCEPT the newest
+ *           COMPLETED run's, so exactly one dump's sandbox state remains. Called
+ *           by the frontend ONLY after its read_step loop reports done. No-op
+ *           (deletes nothing) if no dump_read run has ever completed. See
+ *           avesmapsWikiDumpHybridCleanupOldSandboxState() for the exact guard.
  *   GET  ?action=status
  *        -> { present, size, age_seconds, last_fetch_at, last_ok_at, username, url }.
  *           Never includes the password.
@@ -36,6 +43,9 @@ declare(strict_types=1);
  * THE GATE: read_step is dryRun/sandbox-safe; apply is the sole sharp writer and
  * a DISTINCT action. They are never folded together -- the only difference is the
  * $dryRun flag threaded into the parse_and_upsert phase by the shared driver.
+ * cleanup_state is a THIRD, independent action: it never touches parse_and_upsert,
+ * staging, or live tables -- it only prunes the sandbox/alias tables read_step
+ * itself writes, keeping just the most recently completed run's rows.
  */
 
 require __DIR__ . '/../../_internal/bootstrap.php';
@@ -220,6 +230,23 @@ try {
                 'cursor' => $applyResult['cursor'],
                 'done' => $applyResult['done'],
                 'progress' => $applyResult['progress'],
+            ]);
+            // no break -- avesmapsJsonResponse exits.
+
+        case 'cleanup_state':
+            // "Dump holen" step 3/3 (frontend calls this ONLY after its read_step loop
+            // reports done for a successful scan). Deletes every OTHER dump_read run's
+            // sandbox rows, keeping just the newest COMPLETED run's -- "immer genau ein
+            // Dump drin". Never touches parse_and_upsert/staging/live tables; the DELETE
+            // itself is guarded inside avesmapsWikiDumpHybridCleanupOldSandboxState()
+            // (transaction, re-derives the kept run server-side, no-op if no run has
+            // ever completed). Same 'edit' gate as the other dump actions.
+            $cleanupResult = avesmapsWikiDumpHybridCleanupOldSandboxState($pdo);
+            avesmapsJsonResponse(200, [
+                'ok' => true,
+                'kept_run_id' => $cleanupResult['kept_run_id'],
+                'deleted_state_rows' => $cleanupResult['deleted_state_rows'],
+                'deleted_alias_rows' => $cleanupResult['deleted_alias_rows'],
             ]);
             // no break -- avesmapsJsonResponse exits.
 

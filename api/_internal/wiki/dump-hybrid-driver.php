@@ -870,3 +870,120 @@ function avesmapsWikiDumpHybridProgressEnvelope(array $public, ?array $stepResul
 
     return $progress;
 }
+
+// ===========================================================================
+// 6. Sandbox cleanup ("Dump holen" seam): keep exactly ONE dump_read run's
+//    sandbox state after a successful scan.
+// ===========================================================================
+
+/**
+ * "Dump holen" (fetch -> scan -> cleanup) button seam: after a dump_read run
+ * has SUCCESSFULLY completed its sandbox read, delete every OTHER dump_read
+ * run's rows from `wiki_dump_hybrid_state` and `wiki_dump_title_alias`, so
+ * exactly one run's sandbox state remains -- the owner's "immer genau ein
+ * Dump drin" requirement. This is invoked as a SEPARATE `cleanup_state`
+ * action from the frontend, once the read_step loop reports done -- NOT
+ * folded into avesmapsWikiDumpHybridAdvanceReadStep()/-ComputeNextState(),
+ * because that engine is also reused BY THE SHARP `apply` ACTION (same
+ * dispatch/transition fns, only $dryRun differs -- see the driver's own
+ * "THE GATE" docblock above); embedding a DELETE into a phase transition
+ * both of those actions share would risk firing cleanup on the apply path
+ * too, which is explicitly out of scope for this task (apply/parse_and_upsert
+ * are untouched). A distinct action also mirrors how fetch_dump / start_read
+ * / read_step / apply are already separate actions in api/edit/wiki/dump.php.
+ *
+ * SAFETY (the only new destructive op this task adds):
+ *   - Only ever considers rows for `sync_type = 'dump_read'` runs (never
+ *     touches the online WikiSync crawler's `location`-type run rows, even
+ *     though the two tables this fn deletes from are dump_read-only anyway).
+ *   - The KEPT run is always the newest run with `status = 'completed'`
+ *     (ORDER BY completed_at DESC, id DESC) -- never the run that just
+ *     asked for cleanup by id, so a caller cannot accidentally pass the
+ *     wrong id and wipe the run it meant to keep; the kept run is always
+ *     re-derived from "what actually finished most recently".
+ *   - If NO dump_read run has ever reached status = 'completed' (e.g. only
+ *     an in-progress or failed run exists), there is nothing to keep ->
+ *     the function is a strict no-op (0 rows deleted, kept_run_id = null).
+ *     This is what makes it structurally incapable of wiping an
+ *     in-progress-only state: DELETE ... WHERE run_id IN (<dump_read ids>)
+ *     AND run_id != <kept id> only ever executes once a kept id is known.
+ *   - If exactly one dump_read run exists (whether completed or not), that
+ *     run -- if completed -- becomes the kept run and the "delete others"
+ *     set is empty, so nothing is deleted.
+ *   - Wrapped in a transaction; every value is bound via prepared
+ *     statements (never string-interpolated).
+ *
+ * @return array{kept_run_id: ?int, deleted_state_rows: int, deleted_alias_rows: int}
+ */
+function avesmapsWikiDumpHybridCleanupOldSandboxState(PDO $pdo): array
+{
+    avesmapsWikiDumpHybridEnsureStateTable($pdo);
+    avesmapsWikiDumpHybridEnsureTitleAliasTable($pdo);
+
+    $pdo->beginTransaction();
+    try {
+        // The run to KEEP: the newest COMPLETED dump_read run, always re-derived here
+        // (never trusted from a caller-supplied id) so this function can never keep
+        // the wrong run. FOR UPDATE serializes concurrent cleanup calls against the
+        // same completed-run set.
+        $keepStatement = $pdo->prepare(
+            "SELECT id FROM wiki_sync_runs
+             WHERE sync_type = :sync_type AND status = 'completed'
+             ORDER BY completed_at DESC, id DESC
+             LIMIT 1
+             FOR UPDATE"
+        );
+        $keepStatement->execute(['sync_type' => AVESMAPS_WIKI_DUMP_READ_SYNC_TYPE]);
+        $keepRunId = $keepStatement->fetchColumn();
+
+        // No completed run at all -> nothing is safe to call "the kept dump", so
+        // there is nothing to clean up either. Never deletes an in-progress-only
+        // (or failed-only) run's sandbox state.
+        if ($keepRunId === false || $keepRunId === null) {
+            $pdo->commit();
+            return ['kept_run_id' => null, 'deleted_state_rows' => 0, 'deleted_alias_rows' => 0];
+        }
+        $keepRunId = (int) $keepRunId;
+
+        // Every OTHER dump_read run's id (completed or not) -- the deletion scope.
+        // Scoped to sync_type = 'dump_read' so this can never reach a `location`-type
+        // wiki_sync_runs row (though the two target tables are dump_read-only anyway).
+        $otherRunsStatement = $pdo->prepare(
+            'SELECT id FROM wiki_sync_runs WHERE sync_type = :sync_type AND id != :keep_run_id'
+        );
+        $otherRunsStatement->execute([
+            'sync_type' => AVESMAPS_WIKI_DUMP_READ_SYNC_TYPE,
+            'keep_run_id' => $keepRunId,
+        ]);
+        $otherRunIds = array_map('intval', $otherRunsStatement->fetchAll(PDO::FETCH_COLUMN));
+
+        if ($otherRunIds === []) {
+            // Exactly one dump_read run exists (this one) -> nothing to delete.
+            $pdo->commit();
+            return ['kept_run_id' => $keepRunId, 'deleted_state_rows' => 0, 'deleted_alias_rows' => 0];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($otherRunIds), '?'));
+
+        $deleteState = $pdo->prepare("DELETE FROM wiki_dump_hybrid_state WHERE run_id IN ({$placeholders})");
+        $deleteState->execute($otherRunIds);
+        $deletedStateRows = $deleteState->rowCount();
+
+        $deleteAlias = $pdo->prepare("DELETE FROM wiki_dump_title_alias WHERE run_id IN ({$placeholders})");
+        $deleteAlias->execute($otherRunIds);
+        $deletedAliasRows = $deleteAlias->rowCount();
+
+        $pdo->commit();
+
+        return [
+            'kept_run_id' => $keepRunId,
+            'deleted_state_rows' => $deletedStateRows,
+            'deleted_alias_rows' => $deletedAliasRows,
+        ];
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $exception;
+    }
+}
