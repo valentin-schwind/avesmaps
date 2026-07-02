@@ -372,6 +372,106 @@ $check(
 );
 
 // ===========================================================================
+// (c-cont) CONTINENT-FIX #1: the continent map fills override_continent for
+// REGION and TERRITORY titles (not just settlements). After the driver phase
+// reorder (online_continent_map now runs AFTER the whole-dump wikitext_collect
+// scan), the continent map's title list -- FetchWantedTitles over the state
+// table -- includes dump-enumerated regions/territories. This block proves the
+// continent-map code path itself is kind-agnostic: given a mixed batch of
+// region/territory/settlement titles whose prop=categories carry a TEMPLATE-set
+// continent category (the I6 case the dump-only literal categories miss), the
+// assembler + the pure row-computer produce an override_continent row for EVERY
+// kind -- including a Myranor territory. The batch fetch + DetectContinent are
+// mocked (no PDO, no HTTP), so this exercises exactly the pre-upsert logic the
+// reordered phase runs over the now-fuller title set.
+// ===========================================================================
+echo "\n-- (c-cont) continent map covers region/territory titles, not just settlements (CONTINENT-FIX #1) --\n";
+
+// A mixed wanted-set as FetchWantedTitles would now return it AFTER the scan
+// enumerated all kinds: a settlement, a region, and two territories -- one of
+// which (the Myranor territory) has its continent set ONLY via a template-produced
+// category, i.e. exactly the case the dump-only continent (literal categories)
+// gets wrong and the online prop=categories fetch gets right.
+$mixedKindTitles = [
+    'Kuslik',            // settlement (Aventurien)
+    'Rastullah-Strom',   // region (Myranor, via template category)
+    'Provinz Yal-Mordai', // territory (Myranor, via template category)
+    'Grafschaft Ferdok', // territory (Aventurien)
+];
+// Mock prop=categories exactly as the READ-ONLY batch fetcher would return it:
+// {requestedTitle => {title, categories:[{title:'Kategorie:...'}]}}. The Myranor
+// pages carry a Myranor category (the template-set signal); the Aventurien ones
+// carry an Aventurien category. This is the shape avesmapsWikiSyncGetCategoryNames()
+// reads inside avesmapsWikiDumpCategoryAssembleContinentMap().
+$mixedKindFetcher = static function (array $batchTitles): array {
+    $catByTitle = [
+        'Kuslik' => 'Kategorie:Aventurien',
+        'Rastullah-Strom' => 'Kategorie:Myranor',
+        'Provinz Yal-Mordai' => 'Kategorie:Geographie (Myranor)',
+        'Grafschaft Ferdok' => 'Kategorie:Aventurien',
+    ];
+    $pages = [];
+    foreach ($batchTitles as $title) {
+        $pages[$title] = [
+            'title' => $title,
+            'categories' => [['title' => $catByTitle[$title] ?? 'Kategorie:Aventurien']],
+        ];
+    }
+    return $pages;
+};
+
+// Drive the REAL continent-map builder (the exact fn the fill step forwards to)
+// with the mocked fetch, then feed its map through the SAME pure row-computer the
+// fill step uses before its upsert.
+$mixedResult = avesmapsWikiDumpCategoryFetchContinentMap($mixedKindTitles, 0, null, $mixedKindFetcher);
+$mixedMap = is_array($mixedResult['map'] ?? null) ? $mixedResult['map'] : [];
+$mixedRows = avesmapsWikiDumpHybridComputeContinentMapRows($mixedMap);
+
+// Index the produced rows by normalized_title -> override_continent for assertions.
+$overrideByTitle = [];
+foreach ($mixedRows as $row) {
+    $overrideByTitle[(string) $row['normalized_title']] = $row['override_continent'];
+}
+
+$check(
+    '(c-cont-1) an override_continent row is produced for EVERY kind (settlement + region + both territories)',
+    4,
+    count($mixedRows),
+    'the continent map is kind-agnostic: one row per title in its list, whatever entity kind the state row is -- so after the reorder regions/territories are covered'
+);
+$check(
+    '(c-cont-2) the REGION title gets its template-set Myranor continent (I6 case the dump-only path misses)',
+    'Myranor / Güldenland',
+    $overrideByTitle['Rastullah-Strom'] ?? null,
+    'a region whose continent is set via a template-produced category is classified correctly by the ONLINE prop=categories fetch the continent map uses -- this is the D1 gap the reorder closes'
+);
+$check(
+    '(c-cont-3) the TERRITORY title gets its template-set Myranor continent too',
+    'Myranor / Güldenland',
+    $overrideByTitle['Provinz Yal-Mordai'] ?? null,
+    'territories are enumerated by the whole-dump scan and, after the reorder, are in the continent map\'s title list -- so they too get the online-detected continent'
+);
+$check(
+    '(c-cont-4) an Aventurien territory + settlement still resolve to Aventurien (no regression for the pre-fix kinds)',
+    ['Grafschaft Ferdok' => 'Aventurien', 'Kuslik' => 'Aventurien'],
+    ['Grafschaft Ferdok' => $overrideByTitle['Grafschaft Ferdok'] ?? null, 'Kuslik' => $overrideByTitle['Kuslik'] ?? null],
+    'the reorder does not change the continent for the kinds already covered -- override_continent for a settlement/Aventurien-territory is unchanged'
+);
+$check(
+    '(c-cont-5) DetectContinent is generic on (title + categories), not settlement-specific',
+    true,
+    (static function (): bool {
+        // Directly: the SAME context string the assembler builds ("title categories")
+        // classifies a region/territory identically to a settlement -- proving the
+        // detector has no notion of entity kind.
+        $regionCtx = avesmapsWikiSyncMonitorDetectContinent('Rastullah-Strom Myranor');
+        $territoryCtx = avesmapsWikiSyncMonitorDetectContinent('Provinz Yal-Mordai Geographie (Myranor)');
+        return $regionCtx === 'Myranor / Güldenland' && $territoryCtx === 'Myranor / Güldenland';
+    })(),
+    'avesmapsWikiSyncMonitorDetectContinent reads only the title+category context -- so feeding it region/territory titles (VERIFY #2) is sound'
+);
+
+// ===========================================================================
 // (d) wiring checks: DDL/upsert functions exist and take the documented shape
 //     (the DB-touching half; NOT exercised live here per the H4a brief).
 // ===========================================================================

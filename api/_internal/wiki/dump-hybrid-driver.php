@@ -16,17 +16,23 @@ declare(strict_types=1);
  * phase/stats_json mechanics of avesmapsWikiSyncAdvanceRun (locations.php:145)
  * VERBATIM -- it introduces NO new run-state store.
  *
- * PHASE ORDER (design report §5, one row, sync_type dump_read):
+ * PHASE ORDER (design report §5, one row, sync_type dump_read; the continent map
+ * was moved AFTER wikitext_collect by CONTINENT-FIX #1 -- see the ordered-list
+ * function's inline note for why):
  *   1. online_class_map     (H1 single-step: avesmapsWikiDumpHybridFillClassMap)
  *   2. online_building_map  (H1 single-step: avesmapsWikiDumpHybridFillBuildingMap)
- *   3. online_continent_map (RESUMABLE, cursor = stats['continent_cursor']:
- *                            avesmapsWikiDumpHybridFillContinentMapStep)
+ *   3. wikitext_collect     (RESUMABLE, cursor = stats['wikitext_cursor']:
+ *                            avesmapsWikiDumpHybridWikitextCollectStep -- the
+ *                            whole-dump scan that ENUMERATES all 5 kinds into the
+ *                            state table, so it must precede the continent map)
  *   4. redirect_aliases     (RESUMABLE, cursor = stats['dump_cursor']: build &
  *                            PERSIST the title->title alias map via H4a's
  *                            avesmapsWikiDumpCollectRedirectTitleAliases + the
  *                            same slug-keyed aliases Pass A writes)
- *   5. wikitext_collect     (RESUMABLE, cursor = stats['wikitext_cursor']:
- *                            avesmapsWikiDumpHybridWikitextCollectStep)
+ *   5. online_continent_map (RESUMABLE, cursor = stats['continent_cursor']:
+ *                            avesmapsWikiDumpHybridFillContinentMapStep -- now reads
+ *                            the FULLY-populated state table via FetchWantedTitles,
+ *                            so it covers regions/territories, not just settlements)
  *   6. parse_and_upsert     (RESUMABLE, cursor = stats['parse_cursor'], dryRun=
  *                            TRUE inside read_step: avesmapsWikiDumpHybridParseUpsertStep)
  *   7. completed
@@ -122,9 +128,20 @@ function avesmapsWikiDumpHybridPhaseOrder(): array
     return [
         AVESMAPS_WIKI_DUMP_PHASE_CLASS_MAP,
         AVESMAPS_WIKI_DUMP_PHASE_BUILDING_MAP,
-        AVESMAPS_WIKI_DUMP_PHASE_CONTINENT_MAP,
-        AVESMAPS_WIKI_DUMP_PHASE_REDIRECT_ALIASES,
+        // CONTINENT-FIX #1: wikitext_collect (the whole-dump scan) MUST run before
+        // online_continent_map. The continent map sources its title list from the
+        // state table via avesmapsWikiDumpHybridFetchWantedTitles(); only after the
+        // scan has enumerated ALL 5 kinds (paths/regions/settlements/buildings/
+        // territories) into the state table does that list cover regions/territories.
+        // Running it earlier (its former slot) covered only the H1 settlement/building
+        // rows, leaving dump-enumerated regions/territories with the dump-only
+        // (I6-broken, literal-category-only) continent. The transition machine is a
+        // name-keyed index walker (avesmapsWikiDumpHybridComputeNextState +
+        // -ResumableCursorKeys), so reordering this list is self-consistent -- each
+        // resumable phase keeps its own cursor key regardless of position.
         AVESMAPS_WIKI_DUMP_PHASE_WIKITEXT_COLLECT,
+        AVESMAPS_WIKI_DUMP_PHASE_REDIRECT_ALIASES,
+        AVESMAPS_WIKI_DUMP_PHASE_CONTINENT_MAP,
         AVESMAPS_WIKI_DUMP_PHASE_PARSE_AND_UPSERT,
     ];
 }

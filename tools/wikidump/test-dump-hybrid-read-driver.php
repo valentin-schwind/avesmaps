@@ -271,10 +271,10 @@ echo "\n-- (A) avesmapsWikiDumpHybridComputeNextState (the pure state machine) -
 
 $order = avesmapsWikiDumpHybridPhaseOrder();
 $check(
-    '(A0) phase order is the 6 work phases in the design-report sequence',
-    ['online_class_map', 'online_building_map', 'online_continent_map', 'redirect_aliases', 'wikitext_collect', 'parse_and_upsert'],
+    '(A0) phase order runs online_continent_map AFTER wikitext_collect (CONTINENT-FIX #1)',
+    ['online_class_map', 'online_building_map', 'wikitext_collect', 'redirect_aliases', 'online_continent_map', 'parse_and_upsert'],
     $order,
-    'the outer state-machine cursor walks exactly this contract'
+    'the continent map sources its titles from the fully-populated state table (via FetchWantedTitles), so it MUST run after the whole-dump wikitext_collect scan enumerated all kinds -- otherwise it only covers the H1 settlement/building rows'
 );
 
 // Non-resumable phases always advance on a single step.
@@ -287,27 +287,27 @@ $check(
 );
 $s2 = avesmapsWikiDumpHybridComputeNextState('online_building_map', [], ['done' => true]);
 $check(
-    '(A2) online_building_map -> online_continent_map',
-    ['online_continent_map', 2],
+    '(A2) online_building_map -> wikitext_collect (CONTINENT-FIX: the scan now runs before the continent map)',
+    ['wikitext_collect', 2],
     [$s2['phase'], $s2['progress_current']],
-    'second single-step phase advances into the first resumable phase'
+    'second single-step phase advances into the whole-dump wikitext_collect scan (which enumerates all 5 kinds and populates the state table the continent map later reads)'
 );
 
-// Resumable phase: NOT done -> stay put, persist the cursor.
-$s3a = avesmapsWikiDumpHybridComputeNextState('online_continent_map', ['continent_cursor' => 0], ['done' => false, 'nextCursor' => 500]);
+// wikitext_collect (resumable): NOT done -> stay put, persist the wikitext cursor.
+$s3a = avesmapsWikiDumpHybridComputeNextState('wikitext_collect', ['wikitext_cursor' => 0], ['done' => false, 'nextCursor' => 5000]);
 $check(
-    '(A3) resumable phase NOT done -> stays in phase, persists nextCursor',
-    ['online_continent_map', false, 500, false],
-    [$s3a['phase'], $s3a['phase_advanced'], $s3a['stats']['continent_cursor'], $s3a['done']],
-    'online_continent_map stays put across advances, advancing only its inner cursor until its own done flips'
+    '(A3) wikitext_collect NOT done -> stays in phase, persists nextCursor',
+    ['wikitext_collect', false, 5000, false],
+    [$s3a['phase'], $s3a['phase_advanced'], $s3a['stats']['wikitext_cursor'], $s3a['done']],
+    'the whole-dump scan stays put across advances, advancing only its own page cursor until its done flips'
 );
-// Resumable phase: done -> advance, cursor still persisted.
-$s3b = avesmapsWikiDumpHybridComputeNextState('online_continent_map', ['continent_cursor' => 500], ['done' => true, 'nextCursor' => 9000]);
+// wikitext_collect done -> advance to redirect_aliases, cursor still persisted.
+$s3b = avesmapsWikiDumpHybridComputeNextState('wikitext_collect', ['wikitext_cursor' => 5000], ['done' => true, 'nextCursor' => 223583]);
 $check(
-    '(A4) resumable phase done -> advances to redirect_aliases, final cursor persisted',
-    ['redirect_aliases', true, 9000, 3],
-    [$s3b['phase'], $s3b['phase_advanced'], $s3b['stats']['continent_cursor'], $s3b['progress_current']],
-    'once the continent step reports done, the phase name advances and the cursor is retained'
+    '(A4) wikitext_collect done -> advances to redirect_aliases, final cursor persisted',
+    ['redirect_aliases', true, 223583, 3],
+    [$s3b['phase'], $s3b['phase_advanced'], $s3b['stats']['wikitext_cursor'], $s3b['progress_current']],
+    'once the scan reports done (stream exhausted), the phase name advances and the wikitext cursor is retained'
 );
 
 // redirect_aliases uses the dump_cursor key.
@@ -319,13 +319,20 @@ $check(
     'the redirect phase reuses the existing dump_cursor stats field'
 );
 
-// wikitext_collect uses wikitext_cursor; done -> parse_and_upsert.
-$s5 = avesmapsWikiDumpHybridComputeNextState('wikitext_collect', ['wikitext_cursor' => 0], ['done' => true, 'nextCursor' => 223583]);
+// online_continent_map now runs AFTER the scan; resumable on continent_cursor; done -> parse_and_upsert.
+$s5a = avesmapsWikiDumpHybridComputeNextState('online_continent_map', ['continent_cursor' => 0], ['done' => false, 'nextCursor' => 500]);
 $check(
-    '(A6) wikitext_collect done -> parse_and_upsert, wikitext_cursor persisted',
-    ['parse_and_upsert', 223583],
-    [$s5['phase'], $s5['stats']['wikitext_cursor']],
-    'the last dump-walking phase hands off to the parse phase'
+    '(A6a) online_continent_map NOT done -> stays in phase, persists continent_cursor (now over the FULL enumerated title set)',
+    ['online_continent_map', false, 500, false],
+    [$s5a['phase'], $s5a['phase_advanced'], $s5a['stats']['continent_cursor'], $s5a['done']],
+    'after the reorder the continent map walks the full ~7000-title set from FetchWantedTitles; it takes more steps but still resumes on its own continent_cursor until done'
+);
+$s5b = avesmapsWikiDumpHybridComputeNextState('online_continent_map', ['continent_cursor' => 500], ['done' => true, 'nextCursor' => 9000]);
+$check(
+    '(A6b) online_continent_map done -> parse_and_upsert, continent_cursor persisted, progress index 5',
+    ['parse_and_upsert', true, 9000, 5],
+    [$s5b['phase'], $s5b['phase_advanced'], $s5b['stats']['continent_cursor'], $s5b['progress_current']],
+    'the continent map (now the LAST dump/online-walking phase before parse) hands off to the parse phase once its cursor drains the full title set'
 );
 
 // parse_and_upsert NOT done -> stay put (parse_cursor advances).
