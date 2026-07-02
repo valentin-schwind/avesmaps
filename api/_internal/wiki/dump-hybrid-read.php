@@ -707,16 +707,19 @@ function avesmapsWikiDumpHybridUpsertParsedRow(PDO $pdo, array $parsed, ?array $
             // Exactly Pass B's two-step settlement persistence: base cols via the
             // reused UpsertPageCache fed the API-shaped page rebuilt from the SAME
             // reconstructed dump page the parse used (so coords + content_hash come
-            // from the real body), then the reused enrich UPDATE (license NULL, I5).
+            // from the real body), then the reused enrich UPDATE. Per I5 the dump has no
+            // file-license metadata, so the existing coat_license_status/coat_author/
+            // coat_attribution/coat_license_url classification is PRESERVED (untouched),
+            // never overwritten/cleared. coat_url only overwrites when the dump page
+            // actually has a coat filename (COALESCE keeps the existing one otherwise).
             $settlementPage = is_array($parsed['page'] ?? null) ? $parsed['page'] : [];
             avesmapsWikiSyncUpsertPageCache($pdo, avesmapsWikiDumpBuildApiPageFromDump($settlementPage), true);
             $settlementCoat = (string) ($record['coat_url'] ?? '');
             $settlementContinent = (string) ($record['continent'] ?? '');
             $settlementEnrich = $pdo->prepare(
                 'UPDATE ' . AVESMAPS_WIKI_SETTLEMENT_PAGES_TABLE . ' SET
-                    continent = :continent, is_ruined = :is_ruined, coat_url = :coat_url,
-                    coat_license_status = NULL, coat_author = NULL,
-                    coat_attribution = NULL, coat_license_url = NULL,
+                    continent = :continent, is_ruined = :is_ruined,
+                    coat_url = COALESCE(:coat_url, coat_url),
                     enriched_at = CURRENT_TIMESTAMP()
                  WHERE title = :title'
             );

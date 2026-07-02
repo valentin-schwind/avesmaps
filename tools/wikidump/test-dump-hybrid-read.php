@@ -158,7 +158,8 @@ final class FakeHybridStmt extends PDOStatement
         private string $sql,
         private object $log,
         /** @var list<array<string,mixed>> */
-        private array $cannedRows = []
+        private array $cannedRows = [],
+        private ?int $preparedIndex = null
     ) {
     }
 
@@ -174,6 +175,12 @@ final class FakeHybridStmt extends PDOStatement
     {
         $effective = $params ?? $this->bound;
         $this->executions[] = $effective;
+        // Record the bound params keyed by this statement's prepare() index, so a
+        // test can look up exactly what a SPECIFIC prepared UPDATE was executed
+        // with (distinct from the bucketed wikitextWrites/processedWrites below).
+        if ($this->preparedIndex !== null) {
+            $this->log->executedByIndex[$this->preparedIndex] = $effective;
+        }
         // Record wikitext writes on the log. wikitext_collect now upserts the
         // scanned page via INSERT ... ON DUPLICATE KEY UPDATE (entity_kind +
         // wikitext + wikitext_found_at), leaving override_* untouched -- so match
@@ -221,6 +228,8 @@ final class FakeHybridPdo extends PDO
     public array $execs = [];
     /** @var list<string> */
     public array $prepared = [];
+    /** @var array<int,array<string,mixed>> execute() params, keyed by prepare()'s index into $prepared */
+    public array $executedByIndex = [];
     /** @var list<array<string,mixed>> */
     public array $cannedSelectRows = [];
 
@@ -250,6 +259,7 @@ final class FakeHybridPdo extends PDO
     public function prepare($query, $options = [])
     {
         $this->prepared[] = (string) $query;
+        $index = count($this->prepared) - 1;
         // The pending-title SELECT and the processable-row SELECT both read canned
         // rows; the wikitext UPDATE + processed UPDATE record their params.
         $canned = [];
@@ -257,7 +267,7 @@ final class FakeHybridPdo extends PDO
             && stripos((string) $query, 'SELECT') !== false) {
             $canned = $this->cannedSelectRows;
         }
-        return new FakeHybridStmt((string) $query, $this, $canned);
+        return new FakeHybridStmt((string) $query, $this, $canned, $index);
     }
 }
 
@@ -904,6 +914,100 @@ $check(
         'processed' => array_map(static fn(array $w): int => (int) ($w['id'] ?? 0), $pdoFiltered->processedWrites),
     ],
     'a non-kept row writes nothing sharp yet is consumed (processed_at set) so it is not re-scanned every step'
+);
+
+// ===========================================================================
+// (f) I5 REGRESSION: avesmapsWikiDumpHybridUpsertParsedRow's SETTLEMENT branch
+//   must PRESERVE the existing coat-of-arms license classification (never NULL
+//   it out) and must only overwrite coat_url when the dump page actually has a
+//   coat filename. Unlike section (e), this calls the REAL (non-spied) upsert
+//   for kind=settlement, so the enrich UPDATE's actual SQL text + bound params
+//   are captured -- proving the fix at the SQL level, not just via a spy.
+// ===========================================================================
+echo "\n-- (f) settlement enrich UPDATE preserves coat license (I5 regression) --\n";
+
+/**
+ * Find the settlement ENRICH UPDATE among a fake PDO's prepared statements.
+ * Both the base upsert (avesmapsWikiSyncUpsertPageCache, an
+ * "INSERT ... ON DUPLICATE KEY UPDATE") and the enrich statement target
+ * wiki_sync_pages and both contain the substring "UPDATE" -- so distinguish
+ * by the statement KIND (trimmed leading keyword), not a substring match.
+ */
+$findEnrichExecution = static function (FakeHybridPdo $pdo): array {
+    foreach ($pdo->prepared as $idx => $sql) {
+        if (stripos($sql, 'wiki_sync_pages') !== false && stripos(ltrim($sql), 'UPDATE') === 0) {
+            return ['sql' => $sql, 'params' => $pdo->executedByIndex[$idx] ?? []];
+        }
+    }
+    return ['sql' => '', 'params' => []];
+};
+
+// (f1-f3) Ferdok has a dump-derived coat_url (real fixture) -- the real
+// settlement branch runs (NO $upsertOverrides passed), so the enrich UPDATE's
+// actual SQL + bound params are captured.
+$pdoEnrich = new FakeHybridPdo();
+avesmapsWikiDumpHybridUpsertParsedRow($pdoEnrich, $ferdokDefault);
+
+$enrichFound = $findEnrichExecution($pdoEnrich);
+$enrichSql = $enrichFound['sql'];
+$enrichParams = $enrichFound['params'];
+
+$check(
+    '(f1) the enrich UPDATE SQL text does NOT set any coat_license_*/coat_author/coat_attribution column',
+    false,
+    $enrichSql !== '' && (
+        preg_match('/coat_license_status\s*=/i', $enrichSql) === 1
+        || preg_match('/coat_author\s*=/i', $enrichSql) === 1
+        || preg_match('/coat_attribution\s*=/i', $enrichSql) === 1
+        || preg_match('/coat_license_url\s*=/i', $enrichSql) === 1
+    ),
+    'I5: the dump has no license metadata, so the enrich UPDATE must leave the 4 license columns OUT of its SET clause entirely -- an existing classification (e.g. public_domain) is never overwritten/cleared'
+);
+$check(
+    '(f2) the enrich UPDATE still writes continent/is_ruined/enriched_at (unrelated cols unaffected by the fix)',
+    true,
+    $enrichSql !== ''
+        && stripos($enrichSql, 'continent') !== false
+        && stripos($enrichSql, 'is_ruined') !== false
+        && stripos($enrichSql, 'enriched_at') !== false,
+    'the fix only removes the license-clobbering columns; the legitimate enrichment columns are untouched'
+);
+$check(
+    '(f3) coat_url uses COALESCE(:coat_url, coat_url) so an empty dump coat never nulls an existing one',
+    true,
+    $enrichSql !== '' && preg_match('/coat_url\s*=\s*COALESCE\s*\(\s*:coat_url\s*,\s*coat_url\s*\)/i', $enrichSql) === 1,
+    'coat_url is only overwritten when the bound :coat_url param is non-null; COALESCE falls back to the existing DB value otherwise'
+);
+
+// (f4) Ferdok's fixture DOES have a coat filename -> :coat_url is bound non-null
+// (the COALESCE then lets the new value win, exactly like updating a changed coat).
+$check(
+    '(f4) a settlement whose dump page HAS a coat -> :coat_url is bound non-null (updates as expected)',
+    true,
+    array_key_exists('coat_url', $enrichParams) && $enrichParams['coat_url'] !== null && $enrichParams['coat_url'] !== '',
+    'Ferdok\'s real fixture wikitext carries a Wappen filename, so the dump-derived value is passed through to COALESCE (and wins, since it is non-null)'
+);
+
+// (f5) A settlement whose dump page has NO coat filename -> :coat_url is bound
+// NULL, so COALESCE(NULL, coat_url) preserves whatever coat_url already exists.
+$noCoatRow = $rowFromFixture('Ferdok', []);
+$noCoatRow['wikitext'] = "{{Infobox Siedlung\n| Name = Ferdok\n}}\nBODY, no Wappen field.";
+$noCoatParsed = avesmapsWikiDumpHybridParseRow($noCoatRow);
+$pdoNoCoat = new FakeHybridPdo();
+avesmapsWikiDumpHybridUpsertParsedRow($pdoNoCoat, $noCoatParsed);
+$noCoatParams = $findEnrichExecution($pdoNoCoat)['params'];
+// NOTE: coat_url is expected to be exactly NULL here (that is the whole point of
+// the assertion), so use array_key_exists rather than ?? -- the null-coalescing
+// operator cannot distinguish "key absent" from "key present with value null".
+$check(
+    '(f5) a settlement whose dump page has NO coat -> :coat_url is bound NULL (COALESCE keeps the existing coat_url)',
+    [true, true, null],
+    [
+        $noCoatParsed['kind'] === 'settlement',
+        array_key_exists('coat_url', $noCoatParams),
+        $noCoatParams['coat_url'] ?? null,
+    ],
+    'no Wappen field in the dump body -> the record\'s coat_url is empty -> bound as NULL -> COALESCE(NULL, coat_url) preserves the DB\'s existing coat_url instead of clearing it'
 );
 
 // ===========================================================================
