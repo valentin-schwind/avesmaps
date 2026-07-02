@@ -1434,6 +1434,193 @@ $check(
     'kept settlement/path/region records exclude territories (O4/I2/I3)'
 );
 
+// ===========================================================================
+// (j) H3 hybrid override hook: optional $override param on the 4 handlers whose
+//     class/building_type/continent the dump derives only from literal categories
+//     (I6). $override = [] (the default, used by every assertion above this
+//     section) MUST reproduce current behaviour bit-for-bit -- that is what
+//     sections (a)-(i) above already proved by never passing a 2nd argument. This
+//     section proves the OVERRIDE branch: for each handler, an override value Y
+//     wins over the internal dump-only derivation X, and passing [] still falls
+//     back to X (fallback unchanged, re-asserted here for belt-and-braces). Also
+//     covers the continent-override case: a non-Aventurien override is now acted
+//     on by the SAME existing Aventurien filter (H1's continent is ground truth).
+// ===========================================================================
+echo "\n===========================================================\n";
+echo " (j) H3 hybrid override hook (class/building_type/continent)\n";
+echo "===========================================================\n";
+
+// -- (j/settlement) class + continent override -------------------------------
+echo "\n-- (j1) settlement handler: override wins, [] falls back --\n";
+$ferdokOverrideClass = avesmapsWikiDumpParseSettlementPage($byTitle['Ferdok'], ['class' => 'metropole']);
+$check(
+    '(j1) Ferdok + override class=metropole -> settlement_class overridden',
+    'metropole',
+    (string) ($ferdokOverrideClass['record']['settlement_class'] ?? '(none)'),
+    'internal derivation would give stadt (from category); override Y wins over dump-only X (I1: substitute, not re-derive)'
+);
+$check(
+    '(j2) Ferdok + override class=metropole -> settlement_label follows the override',
+    avesmapsWikiSettlementClassLabel('metropole'),
+    (string) ($ferdokOverrideClass['record']['settlement_label'] ?? '(none)'),
+    'the label is re-derived from the OVERRIDDEN class via the reused avesmapsWikiSettlementClassLabel(), not left as the dump-derived stadt label'
+);
+$ferdokNoOverride = avesmapsWikiDumpParseSettlementPage($byTitle['Ferdok'], []);
+$check(
+    '(j3) Ferdok + [] -> settlement_class unchanged (stadt, dump-only fallback)',
+    'stadt',
+    (string) ($ferdokNoOverride['record']['settlement_class'] ?? '(none)'),
+    'no class key in $override -> handler behaves exactly as today (dump-only category derivation)'
+);
+$check(
+    '(j4) Ferdok + [] -> record identical to the zero-arg collected record used throughout (g)',
+    $ferdok,
+    $ferdokNoOverride['record'],
+    'explicit [] and the default (omitted) 2nd argument produce a byte-identical record'
+);
+
+$ferdokOverrideContinent = avesmapsWikiDumpParseSettlementPage($byTitle['Ferdok'], ['continent' => 'Myranor / Güldenland']);
+$check(
+    '(j5) Ferdok + override continent=Myranor -> the EXISTING Aventurien filter now drops it',
+    false,
+    $ferdokOverrideContinent['kept'],
+    "H1's continent is ground truth: overriding to a non-Aventurien value makes the SAME unmodified filter reject a page the dump alone would have kept"
+);
+$check(
+    '(j6) Ferdok + override continent=Myranor -> record still present (continent-drop, not a parse miss)',
+    true,
+    is_array($ferdokOverrideContinent['record']) && $ferdokOverrideContinent['continent'] === 'Myranor / Güldenland',
+    'the overridden value flows into both the returned continent and record[continent], exactly like a dump-detected non-Aventurien continent would'
+);
+$check(
+    '(j7) Ferdok + [] -> continent unchanged (Aventurien, dump-only fallback), still kept',
+    true,
+    $ferdokNoOverride['continent'] === AVESMAPS_POLITICAL_DEFAULT_CONTINENT && $ferdokNoOverride['kept'] === true,
+    'no continent key in $override -> handler behaves exactly as today (dump-only DetectContinent)'
+);
+
+// -- (j/building) building_type + continent override -------------------------
+echo "\n-- (j2) building handler: override wins, [] falls back --\n";
+$zwingOverrideType = avesmapsWikiDumpParseBuildingPage($byTitle['Zwingfeste Ochsenblut'], ['building_type' => 'Turm']);
+// NB: $zwing (below) is the RECORD pulled from the earlier collected $bldByKey dict
+// (built by avesmapsWikiDumpCollectEntities, section (h)), not a handler-return
+// shape -- compare it against ['record'] of a fresh zero-arg-equivalent call.
+$check(
+    '(j8) Zwingfeste Ochsenblut + override building_type=Turm -> overridden',
+    'Turm',
+    (string) ($zwingOverrideType['record']['building_type'] ?? '(none)'),
+    'internal derivation would give Festung (from [[Kategorie:Festung]]); override Y wins over dump-only X'
+);
+$zwingNoOverride = avesmapsWikiDumpParseBuildingPage($byTitle['Zwingfeste Ochsenblut'], []);
+$check(
+    '(j9) Zwingfeste Ochsenblut + [] -> building_type unchanged (Festung, dump-only fallback)',
+    'Festung',
+    (string) ($zwingNoOverride['record']['building_type'] ?? '(none)'),
+    'no building_type key in $override -> handler behaves exactly as today (literal-category match)'
+);
+$check(
+    '(j10) Zwingfeste Ochsenblut + [] -> record identical to the zero-arg collected record used throughout (h)',
+    $zwing,
+    $zwingNoOverride['record'],
+    'explicit [] and the default (omitted) 2nd argument produce a byte-identical record'
+);
+$ruinOverrideType = avesmapsWikiDumpParseBuildingPage($byTitle['Zwingfeste Ochsenblut'], ['building_type' => 'Festungsruine']);
+$check(
+    '(j11) override building_type=Festungsruine -> is_ruined follows the OVERRIDDEN type (type-based ruin rule reads the substituted value)',
+    true,
+    (bool) ($ruinOverrideType['record']['is_ruined'] ?? false),
+    'the override is applied BEFORE the type-based is_ruined OR-rule runs, so an overridden Festungsruine still flags is_ruined=true'
+);
+
+$zwingOverrideContinent = avesmapsWikiDumpParseBuildingPage($byTitle['Zwingfeste Ochsenblut'], ['continent' => 'Uthuria']);
+$check(
+    '(j12) Zwingfeste Ochsenblut + override continent=Uthuria -> the EXISTING Aventurien filter now drops it',
+    false,
+    $zwingOverrideContinent['kept'],
+    'a non-Aventurien override is acted on by the same unmodified continent filter'
+);
+$check(
+    '(j13) Zwingfeste Ochsenblut + [] -> continent unchanged (Aventurien, dump-only fallback), still kept',
+    true,
+    $zwingNoOverride['continent'] === AVESMAPS_POLITICAL_DEFAULT_CONTINENT && $zwingNoOverride['kept'] === true,
+    'no continent key in $override -> handler behaves exactly as today'
+);
+
+// -- (j/region) continent override --------------------------------------------
+echo "\n-- (j3) region handler: continent override wins, [] falls back --\n";
+$koschOverrideContinent = avesmapsWikiDumpParseRegionPage($byTitle['Koschberge'], ['continent' => 'Rakshazar / Riesland']);
+$check(
+    '(j14) Koschberge + override continent=Rakshazar -> the EXISTING Aventurien filter now drops it',
+    false,
+    $koschOverrideContinent['kept'],
+    'internal derivation would give Aventurien (DetectContinent default); override Y wins and the SAME filter now rejects it'
+);
+$check(
+    '(j15) Koschberge + override continent=Rakshazar -> record[continent] carries the overridden value',
+    'Rakshazar / Riesland',
+    (string) ($koschOverrideContinent['record']['continent'] ?? '(none)'),
+    'the override flows into the record, not just the returned continent field'
+);
+$koschNoOverride = avesmapsWikiDumpParseRegionPage($byTitle['Koschberge'], []);
+$check(
+    '(j16) Koschberge + [] -> continent unchanged (Aventurien, dump-only fallback), still kept',
+    true,
+    $koschNoOverride['continent'] === AVESMAPS_POLITICAL_DEFAULT_CONTINENT && $koschNoOverride['kept'] === true,
+    'no continent key in $override -> handler behaves exactly as today (reused avesmapsWikiRegionParsePage DetectContinent)'
+);
+$check(
+    '(j17) Koschberge + [] -> record identical to the zero-arg collected record used throughout (f)',
+    $kosch,
+    $koschNoOverride['record'],
+    'explicit [] and the default (omitted) 2nd argument produce a byte-identical record'
+);
+
+// -- (j/territory) continent override ------------------------------------------
+echo "\n-- (j4) territory handler: continent override wins, [] falls back --\n";
+$grafOverrideContinent = avesmapsWikiDumpParseTerritoryPage($byTitle['Grafschaft Ferdok'], ['continent' => 'Tharun']);
+$check(
+    '(j18) Grafschaft Ferdok + override continent=Tharun -> the EXISTING Aventurien filter now drops it',
+    false,
+    $grafOverrideContinent['kept'],
+    'internal derivation would give Aventurien; override Y wins and the SAME filter now rejects it'
+);
+$check(
+    '(j19) Grafschaft Ferdok + override continent=Tharun -> record[continent] carries the overridden value',
+    'Tharun',
+    (string) ($grafOverrideContinent['record']['continent'] ?? '(none)'),
+    'the override flows into the sandbox record, not just the returned continent field'
+);
+$grafNoOverride = avesmapsWikiDumpParseTerritoryPage($byTitle['Grafschaft Ferdok'], []);
+$check(
+    '(j20) Grafschaft Ferdok + [] -> continent unchanged (Aventurien, dump-only fallback), still kept',
+    true,
+    $grafNoOverride['continent'] === AVESMAPS_POLITICAL_DEFAULT_CONTINENT && $grafNoOverride['kept'] === true,
+    'no continent key in $override -> handler behaves exactly as today (reused avesmapsWikiSyncMonitorParsePage DetectContinent)'
+);
+$check(
+    '(j21) Grafschaft Ferdok + [] -> record identical to the zero-arg collected record used throughout (i)',
+    $graf,
+    $grafNoOverride['record'],
+    'explicit [] and the default (omitted) 2nd argument produce a byte-identical record'
+);
+// I1/I3/I4/I7 spot-check: the override touches ONLY continent, never wiki_key/affiliation.
+$check(
+    '(j22) Grafschaft Ferdok override continent=Tharun -> wiki_key/affiliation_root untouched',
+    [(string) ($graf['wiki_key'] ?? ''), (string) ($graf['affiliation_root'] ?? '')],
+    [(string) ($grafOverrideContinent['record']['wiki_key'] ?? ''), (string) ($grafOverrideContinent['record']['affiliation_root'] ?? '')],
+    'the continent override never touches wiki_key/affiliation (I1: substitute one field, never re-derive others)'
+);
+
+// -- (j/x) empty-string override is treated as absent (fail-safe, never blanks a value) --
+echo "\n-- (j5) empty-string override values are ignored (fail-safe) --\n";
+$ferdokEmptyStringOverride = avesmapsWikiDumpParseSettlementPage($byTitle['Ferdok'], ['class' => '', 'continent' => '']);
+$check(
+    '(j23) Ferdok + override with empty strings -> behaves exactly like [] (empty string treated as absent)',
+    $ferdokNoOverride,
+    $ferdokEmptyStringOverride,
+    "the brief's 'if set + non-empty' rule: an empty-string override value must not blank/override a real dump-derived value"
+);
+
 // ---------------------------------------------------------------------------
 // 4. Summary + exit code.
 // ---------------------------------------------------------------------------

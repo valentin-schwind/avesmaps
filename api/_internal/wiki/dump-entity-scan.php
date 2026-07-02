@@ -350,7 +350,16 @@ function avesmapsWikiDumpParsePathPage(array $page): array
  * record=null. That is faithful to the real crawler (which only ever fed
  * {{Infobox Region}} pages); we do NOT loosen the gate to force a record.
  *
+ * H3 (hybrid override, additive): optional $override['continent'] -- when set to a
+ * non-empty string, REPLACES the dump-derived $record['continent'] (from the reused
+ * avesmapsWikiRegionParsePage()'s internal DetectContinent) with the online
+ * category-enumeration's ground-truth value (H1) BEFORE the Aventurien filter below
+ * runs, so the filter acts on the trusted value. $override = [] (the default)
+ * reproduces current behaviour bit-for-bit -- no field is substituted. This never
+ * re-derives or transforms the override value (I1); it only substitutes it.
+ *
  * @param array{title:string, ns:int, redirect:?string, wikitext:string} $page
+ * @param array{continent?: ?string} $override H3 hybrid override (optional, default none).
  * @return array{
  *   kept: bool,
  *   reason: string,
@@ -362,7 +371,7 @@ function avesmapsWikiDumpParsePathPage(array $page): array
  *   continent). record is the exact record avesmapsWikiRegionParsePage() produced
  *   (null when not a region or filtered).
  */
-function avesmapsWikiDumpParseRegionPage(array $page): array
+function avesmapsWikiDumpParseRegionPage(array $page, array $override = []): array
 {
     $title = (string) ($page['title'] ?? '');
     $wikitext = (string) ($page['wikitext'] ?? '');
@@ -383,6 +392,14 @@ function avesmapsWikiDumpParseRegionPage(array $page): array
 
     $record = $parsed['record'];
     $continent = (string) ($record['continent'] ?? '');
+
+    // H3 hybrid override: a non-empty $override['continent'] wins over the
+    // dump-only derivation above (I1 -- substitute only, never re-derive). Absent
+    // override -> $continent stays the reused parser's own DetectContinent verdict.
+    if (isset($override['continent']) && is_string($override['continent']) && $override['continent'] !== '') {
+        $continent = $override['continent'];
+        $record['continent'] = mb_substr($continent, 0, 120, 'UTF-8');
+    }
 
     // Continent filter: Aventurien only. A region detected on another continent
     // (e.g. a Myranor Gebirge) is dropped -- never staged.
@@ -497,7 +514,18 @@ function avesmapsWikiDumpBuildApiPageFromDump(array $page): array
  * The coat FILENAME/URL (from |Wappen=) is still stored in coat_url. No license
  * value is invented.
  *
+ * H3 (hybrid override, additive): optional $override['class'] / $override['continent']
+ * -- when set to a non-empty string, each REPLACES the corresponding dump-derived
+ * value above ($resolvedClass from avesmapsWikiSyncSettlementClassFromPage() /
+ * $continent from avesmapsWikiSettlementBuildEnrichment()'s DetectContinent) with
+ * the online category-enumeration's ground-truth value (H1), resolving the
+ * SETTLEMENT-CLASS DIVERGENCE noted above. $override = [] (the default) reproduces
+ * current behaviour bit-for-bit. This never re-derives or transforms the override
+ * value (I1); it only substitutes it, and only after the internal derivation ran
+ * (so infobox parsing / coordinate extraction stay byte-identical).
+ *
  * @param array{title:string, ns:int, redirect:?string, wikitext:string} $page
+ * @param array{class?: ?string, continent?: ?string} $override H3 hybrid override (optional, default none).
  * @return array{
  *   kept: bool,
  *   reason: string,
@@ -509,7 +537,7 @@ function avesmapsWikiDumpBuildApiPageFromDump(array $page): array
  *   settlement infobox at all). A non-Aventurien settlement returns kept=false with
  *   the record still present (so the drop is an intentional continent filter).
  */
-function avesmapsWikiDumpParseSettlementPage(array $page): array
+function avesmapsWikiDumpParseSettlementPage(array $page, array $override = []): array
 {
     $title = (string) ($page['title'] ?? '');
     $wikitext = (string) ($page['wikitext'] ?? '');
@@ -552,6 +580,20 @@ function avesmapsWikiDumpParseSettlementPage(array $page): array
     $resolvedLabel = is_string($settlementLabel) && $settlementLabel !== ''
         ? $settlementLabel
         : (string) ($infobox['settlement_label'] ?? '');
+
+    // H3 hybrid override: a non-empty $override['class'] wins over the dump-only
+    // category-derived class above (I1 -- substitute only, never re-derive); its
+    // label follows via the reused avesmapsWikiSettlementClassLabel() so the label
+    // stays consistent with the overridden class instead of the dump-derived one.
+    if (isset($override['class']) && is_string($override['class']) && $override['class'] !== '') {
+        $resolvedClass = $override['class'];
+        $resolvedLabel = avesmapsWikiSettlementClassLabel($resolvedClass);
+    }
+    // H3 hybrid override: a non-empty $override['continent'] wins over the
+    // dump-only DetectContinent verdict above (I1 -- substitute only).
+    if (isset($override['continent']) && is_string($override['continent']) && $override['continent'] !== '') {
+        $continent = $override['continent'];
+    }
 
     // Assemble the wiki_sync_pages record. Keys/fields come from the reused parse;
     // categories_json from the dump's literal categories; coat_license_* = NULL (I5).
@@ -642,7 +684,17 @@ function avesmapsWikiDumpParseSettlementPage(array $page): array
  * coat_license_status/coat_author/coat_attribution/coat_license_url are NULL. (The
  * online building crawler stores no coat at all; buildings usually have none.)
  *
+ * H3 (hybrid override, additive): optional $override['building_type'] /
+ * $override['continent'] -- when set to a non-empty string, each REPLACES the
+ * corresponding dump-derived value above ($buildingType from the literal-category
+ * match+Art fallback / $continent from DetectContinent) with the online
+ * category-enumeration's ground-truth value (H1), resolving the building_type
+ * DIVERGENCE noted above. $override = [] (the default) reproduces current
+ * behaviour bit-for-bit. This never re-derives or transforms the override value
+ * (I1); it only substitutes it, after the internal derivation ran.
+ *
  * @param array{title:string, ns:int, redirect:?string, wikitext:string} $page
+ * @param array{building_type?: ?string, continent?: ?string} $override H3 hybrid override (optional, default none).
  * @return array{
  *   kept: bool,
  *   reason: string,
@@ -654,7 +706,7 @@ function avesmapsWikiDumpParseSettlementPage(array $page): array
  *   building infobox at all). A non-Aventurien building returns kept=false with the
  *   record still present (so the drop is an intentional continent filter).
  */
-function avesmapsWikiDumpParseBuildingPage(array $page): array
+function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): array
 {
     $title = (string) ($page['title'] ?? '');
     $wikitext = (string) ($page['wikitext'] ?? '');
@@ -694,9 +746,23 @@ function avesmapsWikiDumpParseBuildingPage(array $page): array
     }
 
     // Enrichment (continent + Art-based is_ruined) via the reused settlement fn.
-    // is_ruined ORs in the online crawler's type-based ruin rule (Ruine/Festungsruine).
     $enrichment = avesmapsWikiSettlementBuildEnrichment($apiPage);
     $continent = (string) ($enrichment['continent'] ?? '');
+
+    // H3 hybrid override: a non-empty $override['building_type'] wins over the
+    // dump-only literal-category+Art derivation above (I1 -- substitute only,
+    // never re-derive); applied BEFORE is_ruined below so an overridden type still
+    // feeds the same type-based ruin rule the dump-only value would have.
+    if (isset($override['building_type']) && is_string($override['building_type']) && $override['building_type'] !== '') {
+        $buildingType = $override['building_type'];
+    }
+    // H3 hybrid override: a non-empty $override['continent'] wins over the
+    // dump-only DetectContinent verdict above (I1 -- substitute only).
+    if (isset($override['continent']) && is_string($override['continent']) && $override['continent'] !== '') {
+        $continent = $override['continent'];
+    }
+
+    // is_ruined ORs in the online crawler's type-based ruin rule (Ruine/Festungsruine).
     $isRuined = (bool) ($enrichment['is_ruined'] ?? false)
         || ($buildingType !== '' && mb_stripos($buildingType, 'ruine') !== false);
 
@@ -776,7 +842,17 @@ function avesmapsWikiDumpParseBuildingPage(array $page): array
  * hierarchy (parent_id) + editor overrides (parent_locked) are computed later by
  * REBUILD from the affiliation fields -- untouched here.
  *
+ * H3 (hybrid override, additive): optional $override['continent'] -- when set to a
+ * non-empty string, REPLACES the dump-derived $record['continent'] (from the reused
+ * avesmapsWikiSyncMonitorParsePage()'s internal DetectContinent) with the online
+ * category-enumeration's ground-truth value (H1) BEFORE the Aventurien filter below
+ * runs, so the filter acts on the trusted value. $override = [] (the default)
+ * reproduces current behaviour bit-for-bit. This never re-derives or transforms the
+ * override value (I1); it only substitutes it, and does not touch wiki_key /
+ * affiliation / temporal fields (I1/I3/I4/I7 all stay untouched).
+ *
  * @param array{title:string, ns:int, redirect:?string, wikitext:string} $page
+ * @param array{continent?: ?string} $override H3 hybrid override (optional, default none).
  * @return array{
  *   kept: bool,
  *   reason: string,
@@ -792,7 +868,7 @@ function avesmapsWikiDumpParseBuildingPage(array $page): array
  *   filter). parent_titles / source_origin are surfaced from the reused parse (the
  *   parent-candidate [[links]] feed REBUILD's parent resolution; not persisted here).
  */
-function avesmapsWikiDumpParseTerritoryPage(array $page): array
+function avesmapsWikiDumpParseTerritoryPage(array $page, array $override = []): array
 {
     $title = (string) ($page['title'] ?? '');
     $wikitext = (string) ($page['wikitext'] ?? '');
@@ -816,6 +892,14 @@ function avesmapsWikiDumpParseTerritoryPage(array $page): array
     $continent = (string) ($record['continent'] ?? '');
     $parentTitles = is_array($parsed['parent_titles'] ?? null) ? $parsed['parent_titles'] : [];
     $sourceOrigin = (string) ($parsed['source_origin'] ?? '');
+
+    // H3 hybrid override: a non-empty $override['continent'] wins over the
+    // dump-only derivation above (I1 -- substitute only, never re-derive). Absent
+    // override -> $continent stays the reused parser's own DetectContinent verdict.
+    if (isset($override['continent']) && is_string($override['continent']) && $override['continent'] !== '') {
+        $continent = $override['continent'];
+        $record['continent'] = mb_substr($continent, 0, 120, 'UTF-8');
+    }
 
     // Continent filter: Aventurien only. A territory detected on another continent
     // (e.g. a Myranor Staat) is dropped -- never staged.
