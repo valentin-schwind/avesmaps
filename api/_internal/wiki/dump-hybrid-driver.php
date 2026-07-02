@@ -32,7 +32,9 @@ declare(strict_types=1);
  *   5. online_continent_map (RESUMABLE, cursor = stats['continent_cursor']:
  *                            avesmapsWikiDumpHybridFillContinentMapStep -- now reads
  *                            the FULLY-populated state table via FetchWantedTitles,
- *                            so it covers regions/territories, not just settlements)
+ *                            so it covers regions/territories, not just settlements;
+ *                            dispatched with an explicit per-step call budget, see
+ *                            AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET below)
  *   6. parse_and_upsert     (RESUMABLE, cursor = stats['parse_cursor'], dryRun=
  *                            TRUE inside read_step: avesmapsWikiDumpHybridParseUpsertStep)
  *   7. completed
@@ -113,6 +115,23 @@ const AVESMAPS_WIKI_DUMP_PHASE_REDIRECT_ALIASES = 'redirect_aliases';
 const AVESMAPS_WIKI_DUMP_PHASE_WIKITEXT_COLLECT = 'wikitext_collect';
 const AVESMAPS_WIKI_DUMP_PHASE_PARSE_AND_UPSERT = 'parse_and_upsert';
 const AVESMAPS_WIKI_DUMP_PHASE_COMPLETED = 'completed';
+
+/**
+ * Per-step API-call budget for the online_continent_map phase (PERF FIX: this
+ * used to be dispatched with $callBudget=null, i.e. "no limit", so ONE step
+ * walked the entire ~9k-title/~450-batch set in a single request -- each batch
+ * is one throttled HTTP call at ~600ms usleep (AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS,
+ * sync.php:11) plus the round-trip, so one step took roughly 4.5 MINUTES,
+ * starving the lock's between-step heartbeat (dump-lock.php) for that whole
+ * window. avesmapsWikiDumpCategoryFetchContinentMap() (dump-category-layer.php:429)
+ * already implements a full cursor/callBudget/done resume contract -- it was
+ * simply never driven with a bound. 20 calls/step x ~0.6-0.85s/call (throttle +
+ * HTTP) ~= 12-17s, comfortably under AVESMAPS_WIKI_DUMP_STEP_SECONDS (28s) even
+ * on a slow STRATO connection, while still making solid per-request progress;
+ * the phase resumes across steps via stats['continent_cursor'] exactly like the
+ * other resumable phases (wikitext_collect, redirect_aliases, parse_and_upsert).
+ */
+const AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET = 20;
 
 /**
  * The ordered work phases (excluding the terminal `completed`). progress_total
@@ -789,7 +808,10 @@ function avesmapsWikiDumpHybridDispatchPhaseStep(
 
         case AVESMAPS_WIKI_DUMP_PHASE_CONTINENT_MAP:
             $titles = avesmapsWikiDumpHybridFetchWantedTitles($pdo, $runId);
-            $r = avesmapsWikiDumpHybridFillContinentMapStep($pdo, $runId, $titles, $cursor);
+            // PERF FIX: an explicit per-step call budget (see the constant's docblock
+            // above) so this phase is bounded like every other resumable phase --
+            // NOT the ~4.5-minute single-step "process everything" default of null.
+            $r = avesmapsWikiDumpHybridFillContinentMapStep($pdo, $runId, $titles, $cursor, AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET);
             return [
                 'done' => (bool) ($r['done'] ?? false),
                 'nextCursor' => (int) ($r['nextCursor'] ?? $cursor),

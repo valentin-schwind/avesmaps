@@ -71,10 +71,11 @@ declare(strict_types=1);
  * be taken over by the next acquirer (the <stale> arm of the acquire condition).
  * This also fixes "a run wedged in status = running forever": there is no
  * 'failed' status for a dump_read run, so a crashed/abandoned run would
- * otherwise block every future run permanently. The threshold is comfortably
- * larger than one bounded step's own deadline (AVESMAPS_WIKI_DUMP_STEP_SECONDS,
- * 28s) plus HTTP + retry slack, so a healthy heartbeating run is never mistaken
- * for stale.
+ * otherwise block every future run permanently. The threshold (180s) is
+ * comfortably larger than one bounded step's own deadline
+ * (AVESMAPS_WIKI_DUMP_STEP_SECONDS, 28s) plus HTTP + retry slack, so a healthy
+ * heartbeating run is never mistaken for stale -- see the constant's own
+ * docblock for why this was bumped from a prior 112s.
  *
  * RELEASE: on successful completion (after cleanup_state), and on ANY
  * error/exception in a flow (the endpoint wraps each action so a throw releases
@@ -104,11 +105,21 @@ const AVESMAPS_WIKI_DUMP_LOCK_ROW_ID = 1;
  * than this is abandoned and may be taken over. Chosen as a comfortable multiple
  * of one bounded step's own deadline (AVESMAPS_WIKI_DUMP_STEP_SECONDS = 28s) so a
  * healthy run that heartbeats every step is NEVER judged stale, while a truly
- * crashed run is reclaimed within ~2 minutes. ~112s ~= 4 * 28s, and it is also
- * just under the online crawler's 120s AVESMAPS_WIKI_LOCK_TTL_SECONDS, keeping
- * the two "abandoned run" windows in the same ballpark.
+ * crashed run is reclaimed within a few minutes.
+ *
+ * ~180s ~= 6.4 * 28s. Bumped up from a prior 112s (~4 * 28s) after the
+ * online_continent_map phase's PERF FIX (dump-hybrid-driver.php,
+ * AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET): that phase used to be
+ * dispatched with an unbounded call budget, so a single step could run for
+ * ~4.5 minutes with NO heartbeat, which a 112s threshold would (correctly, but
+ * dangerously) judge stale mid-run and hand the lock to a second user --
+ * causing two concurrent runs and silent staging corruption (see the file
+ * header's "MULTI-USER" hazard). Every phase is now bounded well under the 28s
+ * step deadline, so 112s would already be safe again; 180s adds extra slack for
+ * a slow-STRATO step (retries, network jitter) without letting an actually
+ * abandoned run block others for more than a few minutes.
  */
-const AVESMAPS_WIKI_DUMP_LOCK_STALE_SECONDS = 112;
+const AVESMAPS_WIKI_DUMP_LOCK_STALE_SECONDS = 180;
 
 // ===========================================================================
 // Exception raised on a lost acquire (a second concurrent user).

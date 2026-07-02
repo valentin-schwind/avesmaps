@@ -578,6 +578,108 @@ $check(
 );
 
 // ===========================================================================
+// (C-continent) PERF FIX: the real online_continent_map dispatch case is
+// bounded by an explicit per-step call budget, not the unbounded
+// "process everything in one call" default (callBudget=null).
+// ---------------------------------------------------------------------------
+// Before this fix, avesmapsWikiDumpHybridDispatchPhaseStep()'s real (non-faked)
+// online_continent_map case called avesmapsWikiDumpHybridFillContinentMapStep()
+// with NO $callBudget, so a single step walked the ENTIRE title list -- for the
+// real ~9k-title/~450-batch set, roughly 4.5 minutes of throttled HTTP with no
+// lock heartbeat (dump-lock.php). avesmapsWikiDumpCategoryFetchContinentMap()
+// (dump-category-layer.php:429) already implements a full resumable
+// cursor/callBudget/done contract; the bug was that the driver never drove it
+// with a bound. These checks are HTTP/DB-free (same "no live MySQL" contract
+// as the rest of this file): (c-continent-1) is a STRUCTURAL check (mirrors
+// test-dump-hybrid-state.php's own source-inspection pattern) proving the real
+// dispatch case now passes AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET,
+// not null; (c-continent-2..4) prove BEHAVIORALLY, via a fake batch fetcher (no
+// PDO/HTTP) and a ~350-title list sized like the bug report's real scenario,
+// that this budget forces MULTIPLE bounded steps -- never one call that
+// attempts all ~350 titles -- and that the phase still resumes via its cursor
+// to completion (done=true) across those steps.
+// ===========================================================================
+echo "\n-- (C-continent) online_continent_map dispatch is call-budget-bounded (PERF FIX) --\n";
+
+$hybridDriverSource = (string) file_get_contents($repoRoot . '/api/_internal/wiki/dump-hybrid-driver.php');
+$dispatchSource = '';
+if (preg_match(
+    '/function avesmapsWikiDumpHybridDispatchPhaseStep\([^)]*\)[^{]*\{(.*)\n\}\n/s',
+    $hybridDriverSource,
+    $m
+) === 1) {
+    $dispatchSource = $m[1];
+}
+$check(
+    '(c-continent-1) the real dispatch case passes the named call-budget constant, not null',
+    true,
+    str_contains(
+        $dispatchSource,
+        'avesmapsWikiDumpHybridFillContinentMapStep($pdo, $runId, $titles, $cursor, AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET)'
+    ),
+    'structural check: the perf bug was $callBudget defaulting to null (unbounded) -- this proves the fix is a real explicit bound, not just a docblock claim'
+);
+$check(
+    '(c-continent-2) the call-budget constant is a small bounded number, not null/unbounded',
+    true,
+    is_int(AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET) && AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET > 0 && AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET <= 40,
+    'sanity bound: at ~0.6-0.85s/throttled call (sync.php AVESMAPS_WIKI_REQUEST_DELAY_MICROSECONDS), a step must stay well under the 28s AVESMAPS_WIKI_DUMP_STEP_SECONDS ceiling'
+);
+
+// Behavioral proof at H1's own (already fully mockable) layer, using the SAME
+// constant + a title count on the order of the bug report's "~350-450 batches"
+// scenario (350 batches x 20 titles/batch = 7000 titles) to show the bound
+// forces a multi-step resume rather than a single unbounded call.
+$manyTitles = array_map(static fn(int $i): string => "Titel {$i}", range(1, 7000));
+$callsMadeTotal = 0;
+$countingBatchFetcher = static function (array $batchTitles) use (&$callsMadeTotal): array {
+    $callsMadeTotal++;
+    $pages = [];
+    foreach ($batchTitles as $title) {
+        $pages[$title] = ['title' => $title, 'categories' => [['title' => 'Kategorie:Aventurien']]];
+    }
+    return $pages;
+};
+
+$continentCursor = 0;
+$continentSteps = 0;
+$continentDone = false;
+$maxStepsGuard = 50; // generous upper bound on THIS TEST's own loop, not the production code
+while (!$continentDone && $continentSteps < $maxStepsGuard) {
+    $stepResult = avesmapsWikiDumpCategoryFetchContinentMap(
+        $manyTitles,
+        $continentCursor,
+        AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET,
+        $countingBatchFetcher
+    );
+    $continentCursor = (int) $stepResult['nextCursor'];
+    $continentDone = (bool) $stepResult['done'];
+    $continentSteps++;
+
+    // The core regression check: NO SINGLE STEP may exceed the configured
+    // call budget -- this is exactly what "attempts all ~350 in one call" would
+    // violate (one step making ~350 calls instead of at most
+    // AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET).
+    $callsThisStepMax = AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET;
+    if ($callsMadeTotal > $continentSteps * $callsThisStepMax) {
+        break; // fail fast; the assertion below will report the violation
+    }
+}
+
+$check(
+    '(c-continent-3) a 7000-title list (350 batches) resumes across MULTIPLE steps, never all-in-one-call',
+    true,
+    $continentSteps > 1 && $continentDone,
+    "took {$continentSteps} bounded steps (budget=" . AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET . " calls/step) to finish 350 batches -- the pre-fix code (callBudget=null) would have done this in exactly 1 step / 1 call to this fetcher"
+);
+$check(
+    '(c-continent-4) every step stayed within its call budget (no step attempted all ~350 batches)',
+    true,
+    $callsMadeTotal <= $continentSteps * AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET && $callsMadeTotal === 350,
+    "{$callsMadeTotal} total fetcher calls across {$continentSteps} steps for 350 batches -- confirms the budget bounds EVERY step, not just the first"
+);
+
+// ===========================================================================
 // (D) progress envelope shape.
 // ===========================================================================
 echo "\n-- (D) avesmapsWikiDumpHybridProgressEnvelope --\n";
