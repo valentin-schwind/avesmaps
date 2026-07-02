@@ -94,6 +94,10 @@ ob_start();
 require $repoRoot . '/api/_internal/wiki/dump-hybrid-read.php';
 $includeOutput = (string) ob_get_clean();
 
+// The H5 grouping adapter -- used by the (c/dual) dual-parse assertions to prove the
+// promoted-Siedlung's two records bucket as 1 settlement + 1 territory (compare path).
+require $repoRoot . '/api/_internal/wiki/dump-hybrid-compare.php';
+
 $requiredFunctions = [
     'avesmapsWikiDumpHybridBuildWantedSet',
     'avesmapsWikiDumpHybridPageFromRow',
@@ -413,9 +417,10 @@ $check(
     'override_building_type=Tempel reaches avesmapsWikiDumpParseBuildingPage($page, $override) and wins over the dump-derived Burg'
 );
 
-// Region (Koschberge): a continent override to Myranor FILTERS the record out.
+// Region (Koschberge): a continent override to Myranor is KEPT under keep-all, with
+// the overridden continent carried on the record (no filter drop).
 $koschbergeKept = avesmapsWikiDumpHybridParseRow($rowFromFixture('Koschberge', ['continent' => 'Aventurien']));
-$koschbergeFiltered = avesmapsWikiDumpHybridParseRow($rowFromFixture('Koschberge', ['continent' => 'Myranor']));
+$koschbergeMyranor = avesmapsWikiDumpHybridParseRow($rowFromFixture('Koschberge', ['continent' => 'Myranor']));
 $check(
     '(c6) region kept when continent override = Aventurien',
     ['region', true],
@@ -423,10 +428,10 @@ $check(
     'the region handler keeps an Aventurien region and produces a wiki_region_staging record'
 );
 $check(
-    '(c7) region override continent=Myranor FILTERS the row out (kept=false)',
-    ['region', false, null],
-    [$koschbergeFiltered['kind'], $koschbergeFiltered['kept'], $koschbergeFiltered['record']],
-    'the override continent wins, then the Aventurien-only filter drops it -- exactly the H3 handler behaviour'
+    '(c7) region override continent=Myranor is KEPT under keep-all, record carries Myranor',
+    ['region', true, 'Myranor'],
+    [$koschbergeMyranor['kind'], $koschbergeMyranor['kept'], (string) ($koschbergeMyranor['record']['continent'] ?? '(none)')],
+    'the override continent wins and flows into the record; continent is no longer a keep/drop gate -- exactly the H3 handler behaviour under keep-all'
 );
 
 // Territory (Kosch): classified + kept; record carries a wiki_key for the alias write.
@@ -452,6 +457,85 @@ $check(
     ['', false, null],
     [$noInfobox['kind'], $noInfobox['kept'], $noInfobox['record']],
     'mirrors Pass B: an unrecognised page is silently skipped, never upserted'
+);
+
+// ===========================================================================
+// (c/dual) DUAL-PARSE settlement-as-territory: an {{Infobox Siedlung}} page that
+//   the promotion branch (Reichsstadt / Freie Stadt / independent) recognises as a
+//   territory must produce BOTH a settlement record AND a territory record (so it
+//   matches wiki_sync_pages AND political_territory_wiki). A plain Siedlung yields
+//   only a settlement record. The territory wiki_key is the crawler's own
+//   avesmapsPoliticalBuildWikiKey scheme -> 'wiki:'.slug (invariant I1).
+// ===========================================================================
+echo "\n-- (c/dual) dual-parse settlement-as-territory (Reichsstadt promotion) --\n";
+
+// A Reichsstadt-promoted Siedlung (mirrors abilacht: Infobox Siedlung + {{Reichsstadt}}
+// in the Staat chain). Classifies as settlement; the reused promotion branch also
+// makes it a territory.
+$promotedSiedlungWikitext = "{{Infobox Siedlung\n| Name = Teststadt\n| Staat = {{Reichsstadt|Testreich}}\n}}\n[[Kategorie:Stadt]]";
+$promotedRow = [
+    'id' => 30,
+    'normalized_title' => 'Teststadt',
+    'wikitext' => $promotedSiedlungWikitext,
+    'override_class' => null,
+    'override_building_type' => null,
+    'override_continent' => null,
+];
+$promotedParsed = avesmapsWikiDumpHybridParseRow($promotedRow);
+$check(
+    '(c10) promoted Siedlung: classified settlement, settlement record kept',
+    ['settlement', true, true],
+    [$promotedParsed['kind'], $promotedParsed['kept'], is_array($promotedParsed['record'])],
+    'the classifier still routes a Siedlung infobox to settlement (O4); its settlement record is kept'
+);
+$check(
+    '(c11) promoted Siedlung: ALSO yields a territory_record with wiki_key wiki:teststadt (I1)',
+    ['present' => true, 'wiki_key' => 'wiki:teststadt'],
+    [
+        'present' => is_array($promotedParsed['territory_record']),
+        'wiki_key' => (string) ($promotedParsed['territory_record']['wiki_key'] ?? '(none)'),
+    ],
+    'the reused promotion branch fires (Reichsstadt) and the reused avesmapsPoliticalBuildWikiKey derives wiki:<slug>'
+);
+
+// A plain Siedlung (no Reichsstadt/Freie-Stadt/independent marker) -> settlement only.
+$plainSiedlungWikitext = "{{Infobox Siedlung\n| Name = Dorfheim\n| Staat = [[Kosch]]\n}}\n[[Kategorie:Dorf]]";
+$plainRow = [
+    'id' => 31,
+    'normalized_title' => 'Dorfheim',
+    'wikitext' => $plainSiedlungWikitext,
+    'override_class' => null,
+    'override_building_type' => null,
+    'override_continent' => null,
+];
+$plainParsed = avesmapsWikiDumpHybridParseRow($plainRow);
+$check(
+    '(c12) plain Siedlung: settlement record kept, NO territory_record (reine Siedlung)',
+    ['settlement', true, true, null],
+    [$plainParsed['kind'], $plainParsed['kept'], is_array($plainParsed['record']), $plainParsed['territory_record']],
+    'a Siedlung with a plain [[Staat]] and no promotion marker is a pure settlement -> no second (territory) record'
+);
+
+// End-to-end: the dryRun step emits BOTH records for the promoted row into the flat
+// list, and the H5 grouping adapter buckets them as 1 settlement + 1 territory.
+$dualStep = avesmapsWikiDumpHybridParseUpsertStep(
+    new FakeHybridPdo(),
+    99,
+    0,
+    true,
+    2000,
+    static function () use ($promotedRow): array { return [$promotedRow]; }
+);
+$dualGrouped = avesmapsWikiDumpGroupHybridRecordsByKind($dualStep['records'] ?? []);
+$check(
+    '(c13) dryRun step: ONE promoted-Siedlung row -> kept=2, grouped as 1 settlement + 1 territory',
+    ['kept' => 2, 'settlements' => 1, 'territories' => 1],
+    [
+        'kept' => (int) ($dualStep['kept'] ?? 0),
+        'settlements' => count($dualGrouped[AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT]),
+        'territories' => count($dualGrouped[AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY]),
+    ],
+    'the compare-test sees the promoted Siedlung in BOTH the settlement bucket (wiki_sync_pages) and the territory bucket (political_territory_wiki)'
 );
 
 // ===========================================================================
@@ -787,15 +871,18 @@ $check(
     'the sharp mode performs writes; it does not return the read-only compare-test payload'
 );
 
-// A row that does NOT keep (region filtered to Myranor) is still marked processed
-// on the sharp path (so it is not re-scanned forever) but triggers no upsert.
+// A row that does NOT keep is still marked processed on the sharp path (so it is not
+// re-scanned forever) but triggers no upsert. Under keep-all the continent filter no
+// longer drops anything, so the kept=false case is a {{Infobox Landschaft}} page
+// (Windhag): classified region, but the REAL region parser accepts only an Infobox
+// Region -> is_region=false -> kept=false, record=null.
 $filteredRows = [[
     'id' => 20,
-    'normalized_title' => 'Koschberge',
-    'wikitext' => (string) ($fixturePages['Koschberge']['wikitext'] ?? ''),
+    'normalized_title' => 'Windhag',
+    'wikitext' => (string) ($fixturePages['Windhag']['wikitext'] ?? ''),
     'override_class' => null,
     'override_building_type' => null,
-    'override_continent' => 'Myranor', // filters the region out
+    'override_continent' => null,
 ]];
 $regionSpyCalls = 0;
 $pdoFiltered = new FakeHybridPdo();
@@ -809,14 +896,14 @@ $sharpFiltered = avesmapsWikiDumpHybridParseUpsertStep(
     [AVESMAPS_WIKI_DUMP_ENTITY_REGION => static function () use (&$regionSpyCalls): void { $regionSpyCalls++; }]
 );
 $check(
-    '(e11) sharp path: a filtered (kept=false) row is marked processed but NOT upserted',
+    '(e11) sharp path: a kept=false row (Landschaft rejected by the real parser) is marked processed but NOT upserted',
     ['kept' => 0, 'regionUpserts' => 0, 'processed' => [20]],
     [
         'kept' => $sharpFiltered['kept'],
         'regionUpserts' => $regionSpyCalls,
         'processed' => array_map(static fn(array $w): int => (int) ($w['id'] ?? 0), $pdoFiltered->processedWrites),
     ],
-    'a continent-filtered row writes nothing sharp yet is consumed (processed_at set) so it is not re-scanned every step'
+    'a non-kept row writes nothing sharp yet is consumed (processed_at set) so it is not re-scanned every step'
 );
 
 // ===========================================================================

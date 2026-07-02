@@ -368,13 +368,13 @@ $collected = avesmapsWikiDumpCollectEntities($pages);
 // section (b) and $recByKey stay strictly about PATH staging records).
 $records = avesmapsWikiDumpCollectPathRecords($pages);
 
-// Two Aventurien path pages kept (Breite + Reichsstraße 1); the Myranor river
-// (Rastullah-Strom) is filtered -> exactly 2 kept records.
+// Keep-all: all three path pages are kept (Breite + Reichsstraße 1 Aventurien, plus
+// the Myranor river Rastullah-Strom -- no continent filter any more).
 $check(
-    '(b1) exactly 2 Aventurien path records kept',
-    2,
+    '(b1) exactly 3 path records kept (keep-all across continents)',
+    3,
     count($records),
-    'Breite + Reichsstraße 1 kept; Rastullah-Strom (Myranor) filtered out'
+    'Breite + Reichsstraße 1 (Aventurien) + Rastullah-Strom (Myranor) all kept'
 );
 
 // Index kept records by wiki_key for targeted assertions.
@@ -441,35 +441,35 @@ $check(
 );
 
 // ===========================================================================
-// (c) continent filter: the Myranor river is FILTERED OUT of the records but
-//     reported in the `filtered` bucket (so the drop is intentional, not a
-//     parse failure). Hand-derivation: DetectContinent sees the category
-//     "Fluss (Myranor)" + "{{Nav Staaten Myranor}}" -> "Myranor / Güldenland".
+// (c) keep-all: the Myranor river is KEPT (no continent filter), with its
+//     non-Aventurien continent still detected + carried on the record.
+//     Hand-derivation: DetectContinent sees the category "Fluss (Myranor)" +
+//     "{{Nav Staaten Myranor}}" -> "Myranor / Güldenland".
 // ===========================================================================
-echo "\n-- (c) continent filter (Aventurien only) --\n";
+echo "\n-- (c) keep-all (Myranor river is kept, continent still labelled) --\n";
 
 $check(
-    '(c1) Rastullah-Strom NOT among kept records',
-    false,
+    '(c1) Rastullah-Strom IS among kept records (keep-all)',
+    true,
     array_key_exists('rastullah-strom', $recByKey),
-    'a Myranor river is not staged (continent != Aventurien)'
+    'a Myranor river is now staged (continent is no longer a keep/drop gate)'
 );
 
 $filteredTitles = array_map(static fn(array $f): string => $f['title'], $collected['filtered']);
 $check(
-    '(c2) Rastullah-Strom reported in the filtered bucket',
+    '(c2) filtered bucket is empty under keep-all',
     true,
-    in_array('Rastullah-Strom', $filteredTitles, true),
-    'the drop is an intentional continent filter, not a parse failure'
+    $filteredTitles === [],
+    'no page is dropped by continent any more, so nothing lands in the filtered bucket'
 );
 
-// The pure handler on that page directly: parsed as a path, but not kept.
+// The pure handler on that page directly: parsed as a path AND kept (keep-all).
 $rastullah = avesmapsWikiDumpParsePathPage($byTitle['Rastullah-Strom']);
 $check(
-    '(c3) Rastullah-Strom handler: kept=false',
-    false,
+    '(c3) Rastullah-Strom handler: kept=true (keep-all)',
+    true,
     $rastullah['kept'],
-    'handler decides keep=false for a non-Aventurien path'
+    'handler keeps a non-Aventurien path (continent carried, not gated)'
 );
 $check(
     '(c4) Rastullah-Strom detected continent != Aventurien',
@@ -561,14 +561,14 @@ echo "\n-- (f) region handler: staging record + real field/key mapping --\n";
 // The DB-free region collector returns exactly the kept Aventurien region records.
 $regionRecords = avesmapsWikiDumpCollectRegionRecords($pages);
 
-// Two Aventurien {{Infobox Region}} pages exist (Koschberge kept; Rote Sichel is
-// Myranor -> filtered); Windhag is {{Infobox Landschaft}} -> classified region but
-// rejected by the real parser -> not a record. So exactly 1 kept region record.
+// Keep-all: both {{Infobox Region}} pages are kept (Koschberge Aventurien + Rote
+// Sichel Myranor -- no continent filter); Windhag is {{Infobox Landschaft}} ->
+// classified region but rejected by the real parser -> not a record. So exactly 2.
 $check(
-    '(f1) exactly 1 Aventurien region record kept',
-    1,
+    '(f1) exactly 2 region records kept (keep-all across continents)',
+    2,
     count($regionRecords),
-    'Koschberge kept; Rote Sichel (Myranor) filtered; Windhag (Landschaft) not accepted by the real parser'
+    'Koschberge (Aventurien) + Rote Sichel (Myranor) kept; Windhag (Landschaft) not accepted by the real parser'
 );
 
 // Index kept region records by wiki_key.
@@ -627,7 +627,7 @@ $check(
 //    kept records but reported in the `filtered` bucket (intentional drop, not a
 //    parse failure). Hand-derivation: DetectContinent sees "Gebirge (Myranor)" +
 //    "{{Nav Staaten Myranor}}" -> "Myranor / Güldenland".
-echo "\n-- (f/c) region continent filter (Aventurien only) --\n";
+echo "\n-- (f/c) keep-all (Myranor region is kept, continent still labelled) --\n";
 
 $collectedAll = avesmapsWikiDumpCollectEntities($pages);
 $filteredRegionTitles = array_map(
@@ -635,25 +635,25 @@ $filteredRegionTitles = array_map(
     array_filter($collectedAll['filtered'], static fn(array $x): bool => ($x['kind'] ?? '') === 'region')
 );
 $check(
-    '(f13) Rote Sichel NOT among kept region records',
-    false,
+    '(f13) Rote Sichel IS among kept region records (keep-all)',
+    true,
     array_key_exists('rote-sichel', $regByKey),
-    'a Myranor region is not staged (continent != Aventurien)'
+    'a Myranor region is now staged (continent is no longer a keep/drop gate)'
 );
 $check(
-    '(f14) Rote Sichel reported in the filtered bucket (as a region)',
+    '(f14) no region in the filtered bucket under keep-all',
     true,
-    in_array('Rote Sichel', $filteredRegionTitles, true),
-    'the drop is an intentional continent filter, not a parse failure'
+    $filteredRegionTitles === [],
+    'no region is dropped by continent any more'
 );
 
-// The pure handler on that page directly: parsed as a region, but not kept.
+// The pure handler on that page directly: parsed as a region AND kept (keep-all).
 $roteSichel = avesmapsWikiDumpParseRegionPage($byTitle['Rote Sichel']);
 $check(
-    '(f15) Rote Sichel handler: kept=false',
-    false,
+    '(f15) Rote Sichel handler: kept=true (keep-all)',
+    true,
     $roteSichel['kept'],
-    'handler decides keep=false for a non-Aventurien region'
+    'handler keeps a non-Aventurien region (continent carried, not gated)'
 );
 $check(
     '(f16) Rote Sichel detected continent != Aventurien',
@@ -737,16 +737,15 @@ $check(
 // ===========================================================================
 echo "\n-- (g) settlement handler: registry record + real field/key mapping --\n";
 
-// The DB-free settlement collector returns exactly the kept Aventurien settlement
-// records. Kept: Angbar, Ferdok, Auhof, Xarxaron (Aventurien). Selem is Myranor ->
-// filtered. Burg Wallenstein is {{Infobox Bauwerk}} -> classified building, not a
-// settlement. So exactly 4 kept settlement records.
+// Keep-all: the settlement collector keeps every continent. Kept: Angbar, Ferdok,
+// Auhof, Xarxaron (Aventurien) AND Selem (Myranor) -- no continent filter. Burg
+// Wallenstein is {{Infobox Bauwerk}} -> classified building, not a settlement. So 5.
 $settlementRecords = avesmapsWikiDumpCollectSettlementRecords($pages);
 $check(
-    '(g1) exactly 4 Aventurien settlement records kept',
-    4,
+    '(g1) exactly 5 settlement records kept (keep-all across continents)',
+    5,
     count($settlementRecords),
-    'Angbar + Ferdok + Auhof + Xarxaron kept; Selem (Myranor) filtered; Burg Wallenstein is a building'
+    'Angbar + Ferdok + Auhof + Xarxaron (Aventurien) + Selem (Myranor) kept; Burg Wallenstein is a building'
 );
 
 // Index kept settlement records by normalized_key (= CreateMatchKey(title)).
@@ -886,31 +885,31 @@ $check(
     'a Siedlung page with no class category falls back to dorf; Aventurien default -> kept'
 );
 
-// -- Continent filter: the Myranor settlement (Selem) is FILTERED OUT of the kept
-//    records but reported in the `filtered` bucket (intentional drop, not a parse miss).
-echo "\n-- (g/c) settlement continent filter (Aventurien only) --\n";
+// -- Keep-all: the Myranor settlement (Selem) is KEPT, with its non-Aventurien
+//    continent still detected + carried on the record (no filter drop).
+echo "\n-- (g/c) keep-all (Myranor settlement is kept, continent still labelled) --\n";
 $check(
-    '(g20) Selem NOT among kept settlement records',
-    false,
+    '(g20) Selem IS among kept settlement records (keep-all)',
+    true,
     array_key_exists('selem', $setByKey),
-    'a Myranor settlement is not staged (continent != Aventurien)'
+    'a Myranor settlement is now staged (continent is no longer a keep/drop gate)'
 );
 $filteredSettlementTitles = array_map(
     static fn(array $x): string => $x['title'],
     array_filter($collected['filtered'], static fn(array $x): bool => ($x['kind'] ?? '') === 'settlement')
 );
 $check(
-    '(g21) Selem reported in the filtered bucket (as a settlement)',
+    '(g21) no settlement in the filtered bucket under keep-all',
     true,
-    in_array('Selem', $filteredSettlementTitles, true),
-    'the drop is an intentional continent filter, not a parse failure'
+    $filteredSettlementTitles === [],
+    'no settlement is dropped by continent any more'
 );
 $selem = avesmapsWikiDumpParseSettlementPage($byTitle['Selem']);
 $check(
-    '(g22) Selem handler: kept=false but record present (real record, continent-dropped)',
+    '(g22) Selem handler: kept=true, record present, continent still labelled Myranor',
     true,
-    $selem['kept'] === false && is_array($selem['record']) && $selem['continent'] !== '' && $selem['continent'] !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
-    "DetectContinent classified it as '{$selem['continent']}' (Myranor); record exists, only the continent filter removed it"
+    $selem['kept'] === true && is_array($selem['record']) && $selem['continent'] !== '' && $selem['continent'] !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+    "DetectContinent classified it as '{$selem['continent']}' (Myranor); record kept (keep-all), continent VALUE carried"
 );
 
 // -- A {{Infobox Bauwerk}} page is CLASSIFIED building and NOT mis-handled as a
@@ -974,15 +973,15 @@ $check(
 // ===========================================================================
 echo "\n-- (h) building handler: gebaeude record + reused type list + is_ruined --\n";
 
-// The DB-free building collector returns exactly the kept Aventurien building
-// records. Kept: Burg Wallenstein (Art=Burg), Zwingfeste Ochsenblut (Kat=Festung),
-// Ruine Tsatempel (Art=Ruine). Xarsnamoth is Myranor -> filtered. So exactly 3.
+// Keep-all: the building collector keeps every continent. Kept: Burg Wallenstein
+// (Art=Burg), Zwingfeste Ochsenblut (Kat=Festung), Ruine Tsatempel (Art=Ruine)
+// AND Xarsnamoth (Myranor) -- no continent filter. So exactly 4.
 $buildingRecords = avesmapsWikiDumpCollectBuildingRecords($pages);
 $check(
-    '(h1) exactly 3 Aventurien building records kept',
-    3,
+    '(h1) exactly 4 building records kept (keep-all across continents)',
+    4,
     count($buildingRecords),
-    'Burg Wallenstein + Zwingfeste Ochsenblut + Ruine Tsatempel kept; Xarsnamoth (Myranor) filtered'
+    'Burg Wallenstein + Zwingfeste Ochsenblut + Ruine Tsatempel (Aventurien) + Xarsnamoth (Myranor) kept'
 );
 
 // Index kept building records by normalized_key (= CreateMatchKey(title)).
@@ -1121,31 +1120,31 @@ $check(
     'dump carries no license metadata -> the 4 coat_license_* keys exist and are strictly NULL (I5)'
 );
 
-// -- Continent filter: the Myranor building (Xarsnamoth) is FILTERED OUT of the kept
-//    records but reported in the `filtered` bucket (intentional drop, not a parse miss).
-echo "\n-- (h/c) building continent filter (Aventurien only) --\n";
+// -- Keep-all: the Myranor building (Xarsnamoth) is KEPT, with its non-Aventurien
+//    continent still detected + carried on the record (no filter drop).
+echo "\n-- (h/c) keep-all (Myranor building is kept, continent still labelled) --\n";
 $check(
-    '(h23) Xarsnamoth NOT among kept building records',
-    false,
+    '(h23) Xarsnamoth IS among kept building records (keep-all)',
+    true,
     array_key_exists(avesmapsWikiSyncCreateMatchKey('Xarsnamoth'), $bldByKey),
-    'a Myranor building is not staged (continent != Aventurien)'
+    'a Myranor building is now staged (continent is no longer a keep/drop gate)'
 );
 $filteredBuildingTitles = array_map(
     static fn(array $x): string => $x['title'],
     array_filter($collected['filtered'], static fn(array $x): bool => ($x['kind'] ?? '') === 'building')
 );
 $check(
-    '(h24) Xarsnamoth reported in the filtered bucket (as a building)',
+    '(h24) no building in the filtered bucket under keep-all',
     true,
-    in_array('Xarsnamoth', $filteredBuildingTitles, true),
-    'the drop is an intentional continent filter, not a parse failure'
+    $filteredBuildingTitles === [],
+    'no building is dropped by continent any more'
 );
 $xarsnamoth = avesmapsWikiDumpParseBuildingPage($byTitle['Xarsnamoth']);
 $check(
-    '(h25) Xarsnamoth handler: kept=false but record present (real record, continent-dropped)',
+    '(h25) Xarsnamoth handler: kept=true, record present, continent still labelled Myranor',
     true,
-    $xarsnamoth['kept'] === false && is_array($xarsnamoth['record']) && $xarsnamoth['continent'] !== '' && $xarsnamoth['continent'] !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
-    "DetectContinent classified it as '{$xarsnamoth['continent']}' (Myranor); record exists, only the continent filter removed it"
+    $xarsnamoth['kept'] === true && is_array($xarsnamoth['record']) && $xarsnamoth['continent'] !== '' && $xarsnamoth['continent'] !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+    "DetectContinent classified it as '{$xarsnamoth['continent']}' (Myranor); record kept (keep-all), continent VALUE carried"
 );
 
 // -- Cross-handling: a building is NOT mis-handled by settlement/path/region, and a
@@ -1202,16 +1201,16 @@ $check(
 // ===========================================================================
 echo "\n-- (i) territory handler: sandbox record + real affiliation/key/temporal --\n";
 
-// The DB-free territory collector returns exactly the kept Aventurien territory
-// records. Kept: Kosch (Zugehörigkeit=, empty affiliation), Grafschaft Ferdok (simple),
-// Baronie Hügelland (colon-path), Sokramor (conflict/independent). Rastanreich is
-// Myranor -> filtered. So exactly 4 kept territory records.
+// Keep-all: the territory collector keeps every continent. Kept: Kosch
+// (Zugehörigkeit=, empty affiliation), Grafschaft Ferdok (simple), Baronie Hügelland
+// (colon-path), Sokramor (conflict/independent) AND Rastanreich (Myranor) -- no
+// continent filter. So exactly 5 kept territory records.
 $territoryRecords = avesmapsWikiDumpCollectTerritoryRecords($pages);
 $check(
-    '(i1) exactly 4 Aventurien territory records kept',
-    4,
+    '(i1) exactly 5 territory records kept (keep-all across continents)',
+    5,
     count($territoryRecords),
-    'Kosch + Grafschaft Ferdok + Baronie Hügelland + Sokramor kept; Rastanreich (Myranor) filtered'
+    'Kosch + Grafschaft Ferdok + Baronie Hügelland + Sokramor (Aventurien) + Rastanreich (Myranor) kept'
 );
 
 // Index kept territory records by wiki_key.
@@ -1352,31 +1351,31 @@ $check(
     'the previously recognised-but-unhandled Kosch page is now a kept sandbox record'
 );
 
-// -- Continent filter: the Myranor territory (Rastanreich) is FILTERED OUT of the kept
-//    records but reported in the `filtered` bucket (intentional drop, not a parse miss).
-echo "\n-- (i/c) territory continent filter (Aventurien only) --\n";
+// -- Keep-all: the Myranor territory (Rastanreich) is KEPT, with its non-Aventurien
+//    continent still detected + carried on the record (no filter drop).
+echo "\n-- (i/c) keep-all (Myranor territory is kept, continent still labelled) --\n";
 $check(
-    '(i20) Rastanreich NOT among kept territory records',
-    false,
+    '(i20) Rastanreich IS among kept territory records (keep-all)',
+    true,
     array_key_exists('wiki:rastanreich', $terByKey),
-    'a Myranor territory is not staged (continent != Aventurien)'
+    'a Myranor territory is now staged (continent is no longer a keep/drop gate)'
 );
 $filteredTerritoryTitles = array_map(
     static fn(array $x): string => $x['title'],
     array_filter($collected['filtered'], static fn(array $x): bool => ($x['kind'] ?? '') === 'territory')
 );
 $check(
-    '(i21) Rastanreich reported in the filtered bucket (as a territory)',
+    '(i21) no territory in the filtered bucket under keep-all',
     true,
-    in_array('Rastanreich', $filteredTerritoryTitles, true),
-    'the drop is an intentional continent filter, not a parse failure'
+    $filteredTerritoryTitles === [],
+    'no territory is dropped by continent any more'
 );
 $rastanreich = avesmapsWikiDumpParseTerritoryPage($byTitle['Rastanreich']);
 $check(
-    '(i22) Rastanreich handler: kept=false but record present (real record, continent-dropped)',
+    '(i22) Rastanreich handler: kept=true, record present, continent still labelled Myranor',
     true,
-    $rastanreich['kept'] === false && is_array($rastanreich['record']) && $rastanreich['continent'] !== '' && $rastanreich['continent'] !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
-    "DetectContinent classified it as '{$rastanreich['continent']}' (Myranor); record exists, only the continent filter removed it"
+    $rastanreich['kept'] === true && is_array($rastanreich['record']) && $rastanreich['continent'] !== '' && $rastanreich['continent'] !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
+    "DetectContinent classified it as '{$rastanreich['continent']}' (Myranor); record kept (keep-all), continent VALUE carried"
 );
 
 // -- I7 / parent resolution: StoreAlias would register (title,title)->wiki_key so
@@ -1481,16 +1480,16 @@ $check(
 
 $ferdokOverrideContinent = avesmapsWikiDumpParseSettlementPage($byTitle['Ferdok'], ['continent' => 'Myranor / Güldenland']);
 $check(
-    '(j5) Ferdok + override continent=Myranor -> the EXISTING Aventurien filter now drops it',
-    false,
+    '(j5) Ferdok + override continent=Myranor -> still KEPT under keep-all (no filter)',
+    true,
     $ferdokOverrideContinent['kept'],
-    "H1's continent is ground truth: overriding to a non-Aventurien value makes the SAME unmodified filter reject a page the dump alone would have kept"
+    'the override sets the continent VALUE (H1 ground truth), but continent is no longer a keep/drop gate -> kept'
 );
 $check(
-    '(j6) Ferdok + override continent=Myranor -> record still present (continent-drop, not a parse miss)',
+    '(j6) Ferdok + override continent=Myranor -> record carries the overridden continent',
     true,
     is_array($ferdokOverrideContinent['record']) && $ferdokOverrideContinent['continent'] === 'Myranor / Güldenland',
-    'the overridden value flows into both the returned continent and record[continent], exactly like a dump-detected non-Aventurien continent would'
+    'the overridden value flows into both the returned continent and record[continent]'
 );
 $check(
     '(j7) Ferdok + [] -> continent unchanged (Aventurien, dump-only fallback), still kept',
@@ -1534,10 +1533,16 @@ $check(
 
 $zwingOverrideContinent = avesmapsWikiDumpParseBuildingPage($byTitle['Zwingfeste Ochsenblut'], ['continent' => 'Uthuria']);
 $check(
-    '(j12) Zwingfeste Ochsenblut + override continent=Uthuria -> the EXISTING Aventurien filter now drops it',
-    false,
+    '(j12) Zwingfeste Ochsenblut + override continent=Uthuria -> still KEPT under keep-all',
+    true,
     $zwingOverrideContinent['kept'],
-    'a non-Aventurien override is acted on by the same unmodified continent filter'
+    'the override sets the continent VALUE, but continent is no longer a keep/drop gate -> kept'
+);
+$check(
+    '(j12b) Zwingfeste Ochsenblut + override continent=Uthuria -> record carries the overridden continent',
+    'Uthuria',
+    (string) ($zwingOverrideContinent['record']['continent'] ?? '(none)'),
+    'the overridden value flows into record[continent]'
 );
 $check(
     '(j13) Zwingfeste Ochsenblut + [] -> continent unchanged (Aventurien, dump-only fallback), still kept',
@@ -1550,10 +1555,10 @@ $check(
 echo "\n-- (j3) region handler: continent override wins, [] falls back --\n";
 $koschOverrideContinent = avesmapsWikiDumpParseRegionPage($byTitle['Koschberge'], ['continent' => 'Rakshazar / Riesland']);
 $check(
-    '(j14) Koschberge + override continent=Rakshazar -> the EXISTING Aventurien filter now drops it',
-    false,
+    '(j14) Koschberge + override continent=Rakshazar -> still KEPT under keep-all',
+    true,
     $koschOverrideContinent['kept'],
-    'internal derivation would give Aventurien (DetectContinent default); override Y wins and the SAME filter now rejects it'
+    'internal derivation would give Aventurien (DetectContinent default); the override sets the VALUE but continent is no longer a keep/drop gate -> kept'
 );
 $check(
     '(j15) Koschberge + override continent=Rakshazar -> record[continent] carries the overridden value',
@@ -1579,10 +1584,10 @@ $check(
 echo "\n-- (j4) territory handler: continent override wins, [] falls back --\n";
 $grafOverrideContinent = avesmapsWikiDumpParseTerritoryPage($byTitle['Grafschaft Ferdok'], ['continent' => 'Tharun']);
 $check(
-    '(j18) Grafschaft Ferdok + override continent=Tharun -> the EXISTING Aventurien filter now drops it',
-    false,
+    '(j18) Grafschaft Ferdok + override continent=Tharun -> still KEPT under keep-all',
+    true,
     $grafOverrideContinent['kept'],
-    'internal derivation would give Aventurien; override Y wins and the SAME filter now rejects it'
+    'internal derivation would give Aventurien; the override sets the VALUE but continent is no longer a keep/drop gate -> kept'
 );
 $check(
     '(j19) Grafschaft Ferdok + override continent=Tharun -> record[continent] carries the overridden value',

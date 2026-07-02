@@ -716,8 +716,11 @@ function avesmapsWikiDumpCoatSummary(array $dumpByTitle, array $dbByTitle): arra
 
 /**
  * A6: how many records the DB-free collectors dropped as non-Aventurien, split by
- * entity kind. These never reach staging/sandbox -- exactly the online crawler's
- * Aventurien-only behaviour, reproduced from the dump.
+ * entity kind. Under KEEP-ALL (the owner decision: the dump mirrors the online-crawler
+ * DB, which never filtered by continent) the collectors no longer drop anything by
+ * continent, so `$filtered` is always empty and this summary reports 0 -- retained so
+ * the report shape stays stable and so any future re-introduction of a drop still
+ * surfaces here.
  *
  * @param array<int, array{title:string, kind:string, continent:string, reason:string}> $filtered
  * @return array{total:int, by_kind:array<string,int>, samples:array<int,array{title:string,kind:string,continent:string}>}
@@ -897,7 +900,7 @@ function avesmapsWikiDumpComparePrintReport(array $report): void
 
     // --- A6 ---------------------------------------------------------------
     $a6 = (array) ($report['a6_continent_filter'] ?? []);
-    echo "-- A6  CONTINENT FILTER (non-Aventurien dropped by the collectors) --\n";
+    echo "-- A6  CONTINENT FILTER (keep-all: collectors drop nothing by continent; expect 0) --\n";
     if (isset($a6['note']) && (string) $a6['note'] !== '') {
         echo '  NOTE: ' . (string) $a6['note'] . "\n";
     } else {

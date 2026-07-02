@@ -50,8 +50,8 @@ declare(strict_types=1);
  *
  * The REGION handler (Task 4b) is a tight analogue of the PATH handler: it CALLS
  * the real region crawler's parse+upsert (avesmapsWikiRegionParsePage /
- * avesmapsWikiRegionUpsertRecord, regions.php:440/579) and applies the same
- * Aventurien-only continent filter. It writes ONLY to wiki_region_staging (via the
+ * avesmapsWikiRegionUpsertRecord, regions.php:440/579) and, like every handler,
+ * keeps all continents (keep-all). It writes ONLY to wiki_region_staging (via the
  * reused upsert); attaching a staged region to a map label
  * (avesmapsWikiRegionAssign) is a SEPARATE step it neither calls nor changes (I2).
  * NB the classifier routes {{Infobox Landschaft}} to the region kind, but the real
@@ -81,9 +81,11 @@ declare(strict_types=1);
  *       location name/coords. Assigning staging -> map_features is a SEPARATE
  *       step (avesmapsWikiPathAssign*), which this file does not call or change.
  *
- *   Continent filter = Aventurien only, via the real DetectContinent(); a path
- *   whose detected continent is not Aventurien (e.g. a Myranor river) is dropped
- *   from the produced records (and from persistence).
+ *   Continent = KEEP-ALL (owner decision): the real DetectContinent() still labels
+ *   every entity with its true continent (e.g. a Myranor river as "Myranor /
+ *   Güldenland"), and that VALUE is carried on the record, but the continent is no
+ *   longer a keep/drop gate -- EVERY continent is staged, so the dump mirrors the
+ *   online-crawler DB (which never filtered by continent).
  *
  * PURITY / DB-FREE CORE: side-effect-free on include (only const + function
  * definitions -- no top-level code, no DB connect, no headers). The CORE
@@ -264,8 +266,8 @@ function avesmapsWikiDumpExtractCategoryNames(string $wikitext): string
 
 /**
  * PURE path handler for ONE dump page: build the staging record by REUSING the
- * real avesmapsWikiPathParsePage() (no field mapping duplicated), then apply the
- * Aventurien continent filter.
+ * real avesmapsWikiPathParsePage() (no field mapping duplicated). The detected
+ * continent is carried on the record but is NOT a keep/drop gate (keep-all).
  *
  * The canonical title in a dump is the page's own <title> (the dump already
  * stores pages under their canonical title; redirects are separate pages handled
@@ -280,10 +282,9 @@ function avesmapsWikiDumpExtractCategoryNames(string $wikitext): string
  *   record: array<string, mixed>|null,
  *   continent: string
  * }
- *   kept=true only for a genuine path record whose continent is Aventurien.
- *   reason explains a skip ('not a path infobox' / parser reason / filtered
- *   continent). record is the exact record avesmapsWikiPathParsePage() produced
- *   (null when not a path or filtered).
+ *   kept=true for any genuine path record (keep-all across continents). reason
+ *   explains a skip ('not a path infobox' / parser reason). record is the exact
+ *   record avesmapsWikiPathParsePage() produced (null only when not a path).
  */
 function avesmapsWikiDumpParsePathPage(array $page): array
 {
@@ -307,17 +308,9 @@ function avesmapsWikiDumpParsePathPage(array $page): array
     $record = $parsed['record'];
     $continent = (string) ($record['continent'] ?? '');
 
-    // Continent filter: Aventurien only. A path detected on another continent
-    // (e.g. a Myranor river) is dropped -- never staged.
-    if ($continent !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT) {
-        return [
-            'kept' => false,
-            'reason' => 'Kontinent ' . ($continent !== '' ? $continent : '(unbekannt)') . ' != ' . AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
-            'record' => $record,
-            'continent' => $continent,
-        ];
-    }
-
+    // Keep-all: every continent is staged (owner decision -- the dump mirrors the
+    // online-crawler DB, which never filtered by continent). The detected continent
+    // VALUE is still carried on the record; only the keep/drop decision is keep-all.
     return ['kept' => true, 'reason' => '', 'record' => $record, 'continent' => $continent];
 }
 
@@ -353,8 +346,8 @@ function avesmapsWikiDumpParsePathPage(array $page): array
  * H3 (hybrid override, additive): optional $override['continent'] -- when set to a
  * non-empty string, REPLACES the dump-derived $record['continent'] (from the reused
  * avesmapsWikiRegionParsePage()'s internal DetectContinent) with the online
- * category-enumeration's ground-truth value (H1) BEFORE the Aventurien filter below
- * runs, so the filter acts on the trusted value. $override = [] (the default)
+ * category-enumeration's ground-truth value (H1) so the record carries the trusted
+ * continent (kept regardless -- keep-all, no filter). $override = [] (the default)
  * reproduces current behaviour bit-for-bit -- no field is substituted. This never
  * re-derives or transforms the override value (I1); it only substitutes it.
  *
@@ -366,10 +359,9 @@ function avesmapsWikiDumpParsePathPage(array $page): array
  *   record: array<string, mixed>|null,
  *   continent: string
  * }
- *   kept=true only for a genuine region record whose continent is Aventurien.
- *   reason explains a skip ('not a region infobox' / parser reason / filtered
- *   continent). record is the exact record avesmapsWikiRegionParsePage() produced
- *   (null when not a region or filtered).
+ *   kept=true for any genuine region record (keep-all across continents). reason
+ *   explains a skip ('not a region infobox' / parser reason). record is the exact
+ *   record avesmapsWikiRegionParsePage() produced (null only when not a region).
  */
 function avesmapsWikiDumpParseRegionPage(array $page, array $override = []): array
 {
@@ -401,17 +393,9 @@ function avesmapsWikiDumpParseRegionPage(array $page, array $override = []): arr
         $record['continent'] = mb_substr($continent, 0, 120, 'UTF-8');
     }
 
-    // Continent filter: Aventurien only. A region detected on another continent
-    // (e.g. a Myranor Gebirge) is dropped -- never staged.
-    if ($continent !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT) {
-        return [
-            'kept' => false,
-            'reason' => 'Kontinent ' . ($continent !== '' ? $continent : '(unbekannt)') . ' != ' . AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
-            'record' => $record,
-            'continent' => $continent,
-        ];
-    }
-
+    // Keep-all: every continent is staged (owner decision -- the dump mirrors the
+    // online-crawler DB, which never filtered by continent). The detected/overridden
+    // continent VALUE is still carried on the record; only keep/drop is keep-all.
     return ['kept' => true, 'reason' => '', 'record' => $record, 'continent' => $continent];
 }
 
@@ -486,8 +470,8 @@ function avesmapsWikiDumpBuildApiPageFromDump(array $page): array
  *   - coordinates           = avesmapsWikiSyncExtractCoordinatesFromContent($wikitext)
  *       (locations.php:558) -> {source,x,y} from {{DereGlobus-Link|Länge(x)=..|
  *       Breite(y)=..}} (or Positionskarte).
- * The record is then filtered to Aventurien only (the real DetectContinent's
- * verdict), exactly like the path/region handlers.
+ * The record carries the real DetectContinent verdict but is KEPT regardless of
+ * continent (keep-all), exactly like the path/region handlers.
  *
  * SETTLEMENT-CLASS DIVERGENCE (A4/A1 watch-item -- do NOT paper over it): phase 2
  * of the ONLINE settlement case flow (avesmapsWikiSyncInferSettlementClassFromPage,
@@ -532,10 +516,9 @@ function avesmapsWikiDumpBuildApiPageFromDump(array $page): array
  *   record: array<string, mixed>|null,
  *   continent: string
  * }
- *   kept=true only for a settlement whose detected continent is Aventurien.
- *   record is the wiki_sync_pages registry row (null only when the page carries no
- *   settlement infobox at all). A non-Aventurien settlement returns kept=false with
- *   the record still present (so the drop is an intentional continent filter).
+ *   kept=true for any settlement (keep-all across continents). record is the
+ *   wiki_sync_pages registry row (null only when the page carries no settlement
+ *   infobox at all). The detected continent VALUE is still carried on the record.
  */
 function avesmapsWikiDumpParseSettlementPage(array $page, array $override = []): array
 {
@@ -616,17 +599,9 @@ function avesmapsWikiDumpParseSettlementPage(array $page, array $override = []):
         'coat_license_url' => null,
     ];
 
-    // Continent filter: Aventurien only. A settlement detected on another continent
-    // (e.g. a Myranor city) is dropped -- never staged.
-    if ($continent !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT) {
-        return [
-            'kept' => false,
-            'reason' => 'Kontinent ' . ($continent !== '' ? $continent : '(unbekannt)') . ' != ' . AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
-            'record' => $record,
-            'continent' => $continent,
-        ];
-    }
-
+    // Keep-all: every continent is staged (owner decision -- the dump mirrors the
+    // online-crawler DB, which never filtered by continent). The detected/overridden
+    // continent VALUE is still carried on the record; only keep/drop is keep-all.
     return ['kept' => true, 'reason' => '', 'record' => $record, 'continent' => $continent];
 }
 
@@ -661,8 +636,8 @@ function avesmapsWikiDumpParseSettlementPage(array $page, array $override = []):
  *       -- all keyed off the TITLE, exactly like the online building crawler
  *       (settlements.php), reused verbatim (I1).
  *   - continent        = the reused avesmapsWikiSettlementBuildEnrichment() real
- *       DetectContinent verdict; the record is Aventurien-filtered like every other
- *       handler.
+ *       DetectContinent verdict; carried on the record but KEPT regardless of
+ *       continent (keep-all) like every other handler.
  *
  * building_type DIVERGENCE (A4 watch-item -- do NOT paper over it): ONLINE,
  * building_type is the crawled category NAME under "Bauwerk nach Art" (an
@@ -701,10 +676,9 @@ function avesmapsWikiDumpParseSettlementPage(array $page, array $override = []):
  *   record: array<string, mixed>|null,
  *   continent: string
  * }
- *   kept=true only for a building whose detected continent is Aventurien.
- *   record is the wiki_sync_pages registry row (null only when the page carries no
- *   building infobox at all). A non-Aventurien building returns kept=false with the
- *   record still present (so the drop is an intentional continent filter).
+ *   kept=true for any building (keep-all across continents). record is the
+ *   wiki_sync_pages registry row (null only when the page carries no building
+ *   infobox at all). The detected continent VALUE is still carried on the record.
  */
 function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): array
 {
@@ -787,17 +761,9 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
         'coat_license_url' => null,
     ];
 
-    // Continent filter: Aventurien only. A building detected on another continent
-    // (e.g. a Myranor temple) is dropped -- never staged.
-    if ($continent !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT) {
-        return [
-            'kept' => false,
-            'reason' => 'Kontinent ' . ($continent !== '' ? $continent : '(unbekannt)') . ' != ' . AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
-            'record' => $record,
-            'continent' => $continent,
-        ];
-    }
-
+    // Keep-all: every continent is staged (owner decision -- the dump mirrors the
+    // online-crawler DB, which never filtered by continent). The detected/overridden
+    // continent VALUE is still carried on the record; only keep/drop is keep-all.
     return ['kept' => true, 'reason' => '', 'record' => $record, 'continent' => $continent];
 }
 
@@ -821,8 +787,8 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
  *       independent). raw_json.affiliation keeps links/conflicts/independent.
  *   - founded_*_bf / dissolved_*_bf <- avesmapsWikiSyncBuildPoliticalTemporalPayload
  *       (territories.php:314) over {{BF|...}}/{{Datum|...}}.
- * The record is then filtered to Aventurien only (the real DetectContinent verdict),
- * exactly like the path/region/settlement/building handlers.
+ * The record carries the real DetectContinent verdict but is KEPT regardless of
+ * continent (keep-all), exactly like the path/region/settlement/building handlers.
  *
  * The dump page's <title> IS its canonical title (the dump stores pages under their
  * canonical title; redirects are separate pages handled in Pass A / Task 3), so we
@@ -830,10 +796,14 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
  *
  * NB (settlement-as-territory branch): avesmapsWikiSyncMonitorParsePage also promotes
  * some Siedlung infoboxes to territories (Reichsstadt / Freie Stadt / independent
- * Stadtstaat). That branch is NEVER reached here: the dump classifier routes a
- * Siedlung page to 'settlement' (avesmapsWikiDumpParseSettlementPage), so only pages
- * classified 'territory' (staat/herrschaftsgebiet/reich) reach this handler. We still
- * gate on is_territory so a mis-fed page yields no record (mirrors the other gates).
+ * Stadtstaat). The PLAIN-mode dispatch never reaches that branch here (the classifier
+ * routes a Siedlung page to 'settlement'), but the HYBRID seam does: to mirror the
+ * online crawler's dual nature (a promoted Siedlung became a territory row WITHOUT
+ * ceasing to be a settlement), avesmapsWikiDumpHybridParseRow() calls THIS handler a
+ * SECOND time on a settlement-classified page and keeps the territory record too when
+ * the promotion fires. We still gate on is_territory so a plain Siedlung (or a mis-fed
+ * page) yields no record (mirrors the other gates), and the wiki_key is derived by the
+ * reused parser exactly as the online crawler did (I1: 'wiki:'.slug).
  *
  * I3 (geometry untouched): the handler reads/writes NO geometry -- it only produces
  * the sandbox record. I4/I7: PERSIST (avesmapsWikiDumpPersistTerritoryRecords) writes
@@ -845,8 +815,8 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
  * H3 (hybrid override, additive): optional $override['continent'] -- when set to a
  * non-empty string, REPLACES the dump-derived $record['continent'] (from the reused
  * avesmapsWikiSyncMonitorParsePage()'s internal DetectContinent) with the online
- * category-enumeration's ground-truth value (H1) BEFORE the Aventurien filter below
- * runs, so the filter acts on the trusted value. $override = [] (the default)
+ * category-enumeration's ground-truth value (H1) so the record carries the trusted
+ * continent (kept regardless -- keep-all, no filter). $override = [] (the default)
  * reproduces current behaviour bit-for-bit. This never re-derives or transforms the
  * override value (I1); it only substitutes it, and does not touch wiki_key /
  * affiliation / temporal fields (I1/I3/I4/I7 all stay untouched).
@@ -861,12 +831,12 @@ function avesmapsWikiDumpParseBuildingPage(array $page, array $override = []): a
  *   parent_titles: array<int, string>,
  *   source_origin: string
  * }
- *   kept=true only for a territory whose detected continent is Aventurien.
- *   record is the political_territory_wiki_test sandbox row (null only when the page
- *   carries no territory infobox / is rejected as a pure settlement). A non-Aventurien
- *   territory returns kept=false with the record still present (intentional continent
- *   filter). parent_titles / source_origin are surfaced from the reused parse (the
- *   parent-candidate [[links]] feed REBUILD's parent resolution; not persisted here).
+ *   kept=true for any territory (keep-all across continents). record is the
+ *   political_territory_wiki_test sandbox row (null only when the page carries no
+ *   territory infobox / is rejected as a pure settlement). The detected continent
+ *   VALUE is still carried on the record. parent_titles / source_origin are surfaced
+ *   from the reused parse (the parent-candidate [[links]] feed REBUILD's parent
+ *   resolution; not persisted here).
  */
 function avesmapsWikiDumpParseTerritoryPage(array $page, array $override = []): array
 {
@@ -901,19 +871,9 @@ function avesmapsWikiDumpParseTerritoryPage(array $page, array $override = []): 
         $record['continent'] = mb_substr($continent, 0, 120, 'UTF-8');
     }
 
-    // Continent filter: Aventurien only. A territory detected on another continent
-    // (e.g. a Myranor Staat) is dropped -- never staged.
-    if ($continent !== AVESMAPS_POLITICAL_DEFAULT_CONTINENT) {
-        return [
-            'kept' => false,
-            'reason' => 'Kontinent ' . ($continent !== '' ? $continent : '(unbekannt)') . ' != ' . AVESMAPS_POLITICAL_DEFAULT_CONTINENT,
-            'record' => $record,
-            'continent' => $continent,
-            'parent_titles' => $parentTitles,
-            'source_origin' => $sourceOrigin,
-        ];
-    }
-
+    // Keep-all: every continent is staged (owner decision -- the dump mirrors the
+    // online-crawler DB, which never filtered by continent). The detected/overridden
+    // continent VALUE is still carried on the record; only keep/drop is keep-all.
     return [
         'kept' => true,
         'reason' => '',
@@ -932,7 +892,7 @@ function avesmapsWikiDumpParseTerritoryPage(array $page, array $override = []): 
  * PURE (DB-free) Pass-B collect over a page stream: classify every page and, for
  * a HANDLED kind (PATH / REGION / SETTLEMENT / BUILDING), run the matching pure
  * handler. Returns everything the fixture test needs to assert enumeration +
- * staging + the continent filter WITHOUT any DB.
+ * staging WITHOUT any DB.
  *
  * This is the generic dispatch loop; a remaining kind (territory) extends it by
  * adding its kind to the match below (routing to its own pure handler) -- the
@@ -941,14 +901,15 @@ function avesmapsWikiDumpParseTerritoryPage(array $page, array $override = []): 
  * `records` mixes kept staging records of every handled kind (each carries its own
  * fields; a caller that needs one kind uses avesmapsWikiDumpCollectPathRecords /
  * avesmapsWikiDumpCollectRegionRecords / avesmapsWikiDumpCollectSettlementRecords /
- * avesmapsWikiDumpCollectBuildingRecords, which filter by classification). Every
- * `filtered` entry is tagged with its `kind` so a continent-drop can be attributed
- * to the right handler.
+ * avesmapsWikiDumpCollectBuildingRecords, which filter by classification). The
+ * `filtered` bucket is retained in the return shape but is now ALWAYS EMPTY (keep-all:
+ * no entity is dropped by continent any more); it stays only so callers/tests that
+ * read the key don't break.
  *
  * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
  * @return array{
- *   records: array<int, array<string, mixed>>,     // kept path+region staging records
- *   filtered: array<int, array{title:string, kind:string, continent:string, reason:string}>, // pages dropped by the continent filter
+ *   records: array<int, array<string, mixed>>,     // kept staging records (every continent, every handled kind)
+ *   filtered: array<int, array{title:string, kind:string, continent:string, reason:string}>, // ALWAYS EMPTY under keep-all (retained for shape compatibility)
  *   classified: array<int, array{title:string, kind:string}>, // ns0 non-redirect pages that carried a recognised infobox
  *   counts: array<string, int>                     // entity-kind -> count of recognised pages (handled + unhandled)
  * }
@@ -970,10 +931,10 @@ function avesmapsWikiDumpCollectEntities(iterable $pages): array
         $classified[] = ['title' => (string) ($page['title'] ?? ''), 'kind' => $kind];
 
         // ---- dispatch (extension point for 4c-4d) --------------------------
-        // Each handled kind runs its pure handler; a kept record is collected, and
-        // a genuine record dropped only by the continent filter is reported in
-        // `filtered` (tagged with $kind). Recognised-but-unhandled kinds fall
-        // through to default and are merely counted.
+        // Each handled kind runs its pure handler; a kept record is collected.
+        // Under keep-all no handler drops by continent, so the `filtered` bucket
+        // below stays empty (the branch is retained only for shape/future safety).
+        // Recognised-but-unhandled kinds fall through to default and are counted.
         $result = null;
         switch ($kind) {
             case AVESMAPS_WIKI_DUMP_ENTITY_PATH:
@@ -1008,7 +969,8 @@ function avesmapsWikiDumpCollectEntities(iterable $pages): array
         if ($result['kept'] && is_array($result['record'])) {
             $records[] = $result['record'];
         } elseif ($result['record'] !== null) {
-            // A real record dropped by the continent filter (not a parse miss).
+            // Keep-all: no handler returns kept=false with a record any more, so this
+            // is effectively unreachable; retained for shape/future-handler safety.
             $filtered[] = [
                 'title' => (string) ($page['title'] ?? ''),
                 'kind' => $kind,
@@ -1084,8 +1046,8 @@ function avesmapsWikiDumpCollectRegionRecords(iterable $pages): array
  * records for a page stream (the wiki_sync_pages rows Pass B would upsert). The
  * settlement analogue of avesmapsWikiDumpCollectRegionRecords: classifies each
  * page and runs the pure settlement handler; path/region/other kinds are ignored.
- * A non-Aventurien settlement is dropped by the continent filter and never
- * appears here; a {{Infobox Bauwerk}} page classifies as BUILDING (not settlement)
+ * Settlements of every continent are kept (keep-all); a {{Infobox Bauwerk}} page
+ * classifies as BUILDING (not settlement)
  * so it is not collected here either.
  *
  * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
@@ -1112,8 +1074,8 @@ function avesmapsWikiDumpCollectSettlementRecords(iterable $pages): array
  * records for a page stream (the wiki_sync_pages gebaeude rows Pass B would
  * upsert). The building analogue of avesmapsWikiDumpCollectSettlementRecords:
  * classifies each page and runs the pure building handler; path/region/settlement/
- * other kinds are ignored. A non-Aventurien building is dropped by the continent
- * filter and never appears here; a {{Infobox Siedlung}} page classifies as
+ * other kinds are ignored. Buildings of every continent are kept (keep-all);
+ * a {{Infobox Siedlung}} page classifies as
  * SETTLEMENT (not building) so it is not collected here either.
  *
  * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
@@ -1140,8 +1102,8 @@ function avesmapsWikiDumpCollectBuildingRecords(iterable $pages): array
  * for a page stream (the political_territory_wiki_test rows Pass B would upsert). The
  * territory analogue of avesmapsWikiDumpCollectBuildingRecords: classifies each page
  * and runs the pure territory handler; path/region/settlement/building kinds are
- * ignored. A non-Aventurien territory is dropped by the continent filter and never
- * appears here; a page rejected by the real parser as a pure settlement yields no
+ * ignored. Territories of every continent are kept (keep-all); a page rejected by
+ * the real parser as a pure settlement yields no
  * record either.
  *
  * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
@@ -1342,7 +1304,7 @@ function avesmapsWikiDumpResolveWantedTitlesThroughAliases(array $wantedTitleSet
  * rollout / compare-test. Nothing calls it automatically yet.
  *
  * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
- * @return int number of path records upserted (Aventurien only)
+ * @return int number of path records upserted (all continents)
  */
 function avesmapsWikiDumpPersistPathRecords(PDO $pdo, iterable $pages): int
 {
@@ -1373,7 +1335,7 @@ function avesmapsWikiDumpPersistPathRecords(PDO $pdo, iterable $pages): int
  * rollout / compare-test. Nothing calls it automatically yet.
  *
  * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
- * @return int number of region records upserted (Aventurien only)
+ * @return int number of region records upserted (all continents)
  */
 function avesmapsWikiDumpPersistRegionRecords(PDO $pdo, iterable $pages): int
 {
@@ -1416,7 +1378,7 @@ function avesmapsWikiDumpPersistRegionRecords(PDO $pdo, iterable $pages): int
  * rollout / compare-test. Nothing calls it automatically yet.
  *
  * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
- * @return int number of settlement registry rows written (Aventurien only)
+ * @return int number of settlement registry rows written (all continents)
  */
 function avesmapsWikiDumpPersistSettlementRecords(PDO $pdo, iterable $pages): int
 {
@@ -1488,7 +1450,7 @@ function avesmapsWikiDumpPersistSettlementRecords(PDO $pdo, iterable $pages): in
  * rollout / compare-test. Nothing calls it automatically yet.
  *
  * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
- * @return int number of building rows written (Aventurien only)
+ * @return int number of building rows written (all continents)
  */
 function avesmapsWikiDumpPersistBuildingRecords(PDO $pdo, iterable $pages): int
 {
@@ -1544,7 +1506,7 @@ function avesmapsWikiDumpPersistBuildingRecords(PDO $pdo, iterable $pages): int
  * rollout / compare-test. Nothing calls it automatically yet.
  *
  * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
- * @return int number of territory sandbox rows written (Aventurien only)
+ * @return int number of territory sandbox rows written (all continents)
  */
 function avesmapsWikiDumpPersistTerritoryRecords(PDO $pdo, iterable $pages): int
 {

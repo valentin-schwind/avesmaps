@@ -219,9 +219,15 @@ function avesmapsWikiDumpHybridOverrideFromRow(array $row): array
  * (settlement/building/region/territory); the path handler has no override
  * triple and is called exactly as Pass B calls it. A row whose reconstructed
  * page classifies as '' (no recognised infobox) or whose handler returns
- * kept=false (e.g. a non-Aventurien continent, or a Landschaft that is not a
- * real Infobox Region) yields kept=false and is NOT upserted -- identical to
- * Pass B's own skip behaviour.
+ * kept=false (e.g. a Landschaft that is not a real Infobox Region) yields
+ * kept=false and is NOT upserted -- identical to Pass B's own skip behaviour.
+ *
+ * DUAL-PARSE: for a SETTLEMENT-classified row this ALSO runs the territory handler
+ * with the same override and, when the settlement-as-territory promotion fires
+ * (Reichsstadt / Freie Stadt / independent), surfaces the promoted territory row in
+ * `territory_record` (else null). The caller emits/upserts it as a SECOND,
+ * territory-kinded record -- the settlement record is untouched. This reuses the
+ * promotion detection + the crawler's wiki_key derivation verbatim (I1).
  *
  * @param array<string, mixed> $row a wiki_dump_hybrid_state row (needs normalized_title + wikitext + override_*)
  * @return array{
@@ -230,6 +236,7 @@ function avesmapsWikiDumpHybridOverrideFromRow(array $row): array
  *   title: string,
  *   override: array<string, string>,
  *   record: array<string, mixed>|null,
+ *   territory_record: array<string, mixed>|null,
  *   page: array{title:string, ns:int, redirect:null, wikitext:string}
  * }
  */
@@ -264,12 +271,33 @@ function avesmapsWikiDumpHybridParseRow(array $row): array
 
     $record = (!empty($result['kept']) && is_array($result['record'] ?? null)) ? $result['record'] : null;
 
+    // DUAL-PARSE (settlement-as-territory): the online crawler ran ONE unified parser
+    // over its whole title set, so a Siedlung page whose |Staat= marks it Reichsstadt /
+    // Freie Stadt / independent became a territory row WITHOUT ceasing to be a settlement
+    // (it lives in BOTH wiki_sync_pages and political_territory_wiki). The dump classifier
+    // routes every Siedlung infobox to 'settlement', so that promotion branch
+    // (sync-monitor-parsing.php:449-482, inside avesmapsWikiSyncMonitorParsePage) is never
+    // reached in plain mode. To reproduce the crawler's dual nature we run the territory
+    // handler a SECOND time on a settlement-classified page with the SAME override: it
+    // reuses the promotion detection AND the crawler's wiki_key derivation VERBATIM (I1),
+    // returning kept=true only when the promotion fires (a plain Siedlung -> kept=false ->
+    // no territory record). This emits a second, territory-kinded record downstream; it
+    // NEVER mutates the settlement record. keep-all means continent is not a gate here.
+    $territoryRecord = null;
+    if ($kind === AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT) {
+        $territoryResult = avesmapsWikiDumpParseTerritoryPage($page, $override);
+        if (!empty($territoryResult['kept']) && is_array($territoryResult['record'] ?? null)) {
+            $territoryRecord = $territoryResult['record'];
+        }
+    }
+
     return [
         'kind' => $kind,
         'kept' => $record !== null,
         'title' => $normalizedTitle,
         'override' => $override,
         'record' => $record,
+        'territory_record' => $territoryRecord, // dual-parse: a promoted Siedlung's territory row (else null)
         'page' => $page, // the reconstructed dump page (reused by the sharp settlement base-upsert)
     ];
 }
@@ -512,6 +540,13 @@ function avesmapsWikiDumpHybridLogCollectStep(
  * done=true when fewer than $budget rows were scanned (the pending set is
  * exhausted for this run).
  *
+ * DUAL-PARSE: a settlement row whose page also promotes to a territory
+ * (avesmapsWikiDumpHybridParseRow's `territory_record`) contributes TWO outputs from
+ * ONE row -- the settlement record AND a territory-kinded record -- in both modes
+ * (dryRun emits both into `records`; sharp upserts both). One state row can therefore
+ * increment `kept` by 2. This mirrors the online crawler storing the same title in
+ * both wiki_sync_pages and political_territory_wiki.
+ *
  * @param PDO      $pdo
  * @param int      $runId  numeric wiki_sync_runs.id (see file docblock RUN-ID NOTE)
  * @param int      $cursor state-row id high-water mark (rows with id > cursor are scanned)
@@ -573,6 +608,19 @@ function avesmapsWikiDumpHybridParseUpsertStep(
                     'record' => $parsed['record'],
                 ];
             }
+            // DUAL-PARSE: a promoted Siedlung ALSO yields a territory record (so the
+            // compare matches both wiki_sync_pages AND political_territory_wiki). Emit
+            // it as a SECOND, territory-kinded entry -- the grouping adapter buckets it
+            // under territory without touching the settlement entry above.
+            if (is_array($parsed['territory_record'] ?? null)) {
+                $kept++;
+                $records[] = [
+                    'kind' => AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY,
+                    'title' => $parsed['title'],
+                    'override' => $parsed['override'],
+                    'record' => $parsed['territory_record'],
+                ];
+            }
             continue;
         }
 
@@ -581,7 +629,22 @@ function avesmapsWikiDumpHybridParseUpsertStep(
             avesmapsWikiDumpHybridUpsertParsedRow($pdo, $parsed, $upsertOverrides);
             $kept++;
         }
-        avesmapsWikiDumpHybridMarkProcessed($pdo, $rowId); // runs even when kept=false (e.g. continent-filtered) -- intentional: the row was still validly examined, so it must not be rescanned every step.
+        // DUAL-PARSE (sharp): upsert the promoted Siedlung's territory row too, via the
+        // SAME reused territory upsert Pass B uses (sandbox test-record + title->key
+        // alias). Built as a territory-kinded parsed shape so the switch routes it right.
+        if (is_array($parsed['territory_record'] ?? null)) {
+            avesmapsWikiDumpHybridUpsertParsedRow(
+                $pdo,
+                [
+                    'kind' => AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY,
+                    'title' => $parsed['title'],
+                    'record' => $parsed['territory_record'],
+                ],
+                $upsertOverrides
+            );
+            $kept++;
+        }
+        avesmapsWikiDumpHybridMarkProcessed($pdo, $rowId); // runs even when kept=false -- intentional: the row was still validly examined, so it must not be rescanned every step.
     }
 
     $done = $processedThisStep < $budget; // fewer than a full batch -> pending set drained
