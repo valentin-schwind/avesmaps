@@ -14,7 +14,7 @@ declare(strict_types=1);
  *     php scripts/wikidump-compare.php --dump=/abs/path/to/other.xml.bz2
  *     php scripts/wikidump-compare.php --samples=25    # sample size per list
  *
- * WHAT IT DOES (and nothing else):
+ * PLAIN mode (default, Task 5b, unchanged):
  *   1. opens the fetched dump (compress.bzip2://) via the reader that Task 5a
  *      already placed at uploads/dumps/;
  *   2. runs the already-built DB-FREE collectors in memory
@@ -25,13 +25,47 @@ declare(strict_types=1);
  *   4. calls the PURE compare core (api/_internal/wiki/dump-compare.php);
  *   5. prints a per-entity A1-A6 report (optionally as JSON).
  *
- * IT WRITES NOTHING. There is no INSERT / UPDATE / DELETE / CREATE / ALTER / TRUNCATE
- * anywhere in this file. It never calls a Persist* / Upsert* / RunPassX* function.
- * (O5 resolved: read-only in-memory compare, no shadow tables.) The persist layer
- * lives in dump-reader.php / dump-entity-scan.php and is deliberately NOT invoked
- * here. This is the gate that must pass BEFORE any of that runs for real.
+ * HYBRID mode (Task H5, `--hybrid [--run=<public_id>]`), the GREEN GATE before
+ * the sharp "apply" action:
+ *   1. resolves a completed `dump_read` run (the state table `read_step` already
+ *      filled -- see the OWNER-RUN RECIPE below; --run=<public_id> picks one
+ *      explicitly, otherwise the latest completed dump_read run is used);
+ *   2. loops H4b's avesmapsWikiDumpHybridParseUpsertStep($pdo, $runId, $cursor,
+ *      dryRun=true) to completion over that run's wiki_dump_hybrid_state rows --
+ *      this WRITES NOTHING (dryRun=true is a read-only parse: it neither upserts
+ *      nor marks a row processed_at) and RETURNS the parsed records, each already
+ *      carrying the run's online-category class/building_type/continent override;
+ *   3. groups those records by entity kind (avesmapsWikiDumpGroupHybridRecordsByKind,
+ *      a PURE function -- the only genuinely new logic H5 adds) and indexes each
+ *      group by the SAME identity key the plain collectors use (the hybrid parse
+ *      handlers are the IDENTICAL avesmapsWikiDumpParse{Path,Region,Settlement,
+ *      Building,Territory}Page() functions the plain collectors call, so the
+ *      record SHAPE -- field names, identity-key fields -- is bit-for-bit the
+ *      same; only the SOURCE and the override differ);
+ *   4. feeds those hybrid-sourced maps into the EXACT SAME A1-A6 core + the SAME
+ *      read-only DB SELECTs as plain mode -- steps 3 (SELECT) / 4 (compare core)
+ *      of plain mode above are reused VERBATIM, unbranched. The comparison logic
+ *      never changes; only the dump-side record source does.
+ *   A6 CAVEAT (documented, not papered over): the hybrid dryRun records carry
+ *   only KEPT rows -- avesmapsWikiDumpHybridParseRow() drops a continent-filtered
+ *   or unrecognised page silently (kept=false, no record surfaces), so the
+ *   per-kind non-Aventurien filter COUNT that plain mode's
+ *   avesmapsWikiDumpCollectEntities() reports is not reconstructable from the
+ *   hybrid record stream. Hybrid A6 reports this explicitly instead of a
+ *   fabricated 0. Every other assert (A1/A2/A3/A4/A5) is fully reproducible.
  *
- * A1-A6 (per the §9 brief):
+ * IT WRITES NOTHING, in EITHER mode. There is no INSERT / UPDATE / DELETE / CREATE
+ * / ALTER / TRUNCATE anywhere in this file. It never calls a Persist* / Upsert* /
+ * RunPassX* function, and the ONE H4b function it calls
+ * (avesmapsWikiDumpHybridParseUpsertStep) is ALWAYS invoked with dryRun=true here
+ * (hardcoded, never a CLI flag -- there is no way to make this tool write). (O5
+ * resolved: read-only in-memory compare, no shadow tables.) The persist layer
+ * lives in dump-reader.php / dump-entity-scan.php / dump-hybrid-read.php's sharp
+ * branch and is deliberately NOT invoked here. This is the gate that must pass
+ * BEFORE any of that runs for real.
+ *
+ * A1-A6 (per the §9 brief; identical semantics in both modes -- only the
+ * dump-side record source differs):
  *   A1  key coverage per entity -- headline: missing_in_dump (a DB row the dump did
  *       NOT re-create). This is the HARD assert; drive it to 0.
  *   A2  territory hierarchy drift (dump affiliation-resolved parent vs DB
@@ -48,19 +82,53 @@ declare(strict_types=1);
  *   A5  coats -- count dump coat filenames present; license is PRESERVED (the dump
  *       has no file-license metadata, so the DB's existing classification stands, I5).
  *   A6  continent -- count records the collectors filtered as non-Aventurien.
+ *       HYBRID mode: not reconstructable from dryRun records (see the file
+ *       docblock A6 CAVEAT above) -- reported as a note, not a count.
  *
- * KEY ALIGNMENT (dump collector key <-> DB column), all reused, never re-derived:
+ * KEY ALIGNMENT (dump collector key <-> DB column), all reused, never re-derived,
+ * and IDENTICAL in hybrid mode (the hybrid records come from the SAME
+ * avesmapsWikiDumpParse*Page() functions, so they carry the SAME field names):
  *   paths       wiki_key   <-> wiki_path_staging.wiki_key       (UNIQUE)
  *   regions     wiki_key   <-> wiki_region_staging.wiki_key     (UNIQUE)
  *   settlements title      <-> wiki_sync_pages.title            (UNIQUE, class<>gebaeude)
  *   buildings   title      <-> wiki_sync_pages.title            (UNIQUE, class =gebaeude)
  *   territories wiki_key   <-> political_territory_wiki.wiki_key (UNIQUE; 'wiki:'+slug)
  *
- * NOTE ON DUMP PASSES: the collectors consume an iterable ONCE, so the reader is
- * reopened per collector (one full stream per entity kind + one for redirect
- * aliases). That is ~6 streams over the ~315 MB dump for a one-off owner run --
- * acceptable, and far simpler than trying to fan one pass into five typed buckets.
- * @set_time_limit(0) is set for the CLI.
+ * NOTE ON DUMP PASSES (plain mode only): the collectors consume an iterable ONCE,
+ * so the reader is reopened per collector (one full stream per entity kind + one
+ * for redirect aliases). That is ~6 streams over the ~315 MB dump for a one-off
+ * owner run -- acceptable, and far simpler than trying to fan one pass into five
+ * typed buckets. Hybrid mode never reopens the dump at all -- it reads the
+ * ALREADY-COLLECTED wikitext out of wiki_dump_hybrid_state (an owner read_step run
+ * filled it earlier; see the OWNER-RUN RECIPE below), so it is DB-bound, not
+ * dump-stream-bound. @set_time_limit(0) is set for the CLI (both modes).
+ *
+ * OWNER-RUN RECIPE (hybrid mode) -- READ THIS BEFORE RUNNING --hybrid:
+ *   1. The hybrid record source is the wiki_dump_hybrid_state table. It is EMPTY
+ *      until an owner has driven a read_step run (via the editor's dump panel, or
+ *      an equivalent POST /api/edit/wiki/dump.php {action:"start_read"} then
+ *      repeated {action:"read_step", run_id} calls) all the way through phases
+ *      1-5 (online_class_map, online_building_map, online_continent_map,
+ *      redirect_aliases, wikitext_collect) AND at least once into phase 6
+ *      (parse_and_upsert, which read_step always runs dryRun=true -- sandbox-safe)
+ *      so `wikitext_found_at` is filled for every wanted row. A run that is only
+ *      status='running' has NOT finished collecting wikitext; --hybrid on such a
+ *      run will simply see fewer/zero processable rows (not an error, just an
+ *      incomplete comparison -- finish the read_step loop first).
+ *   2. THEN run:  php scripts/wikidump-compare.php --hybrid [--run=<public_id>]
+ *      (omit --run to auto-pick the latest run with sync_type=dump_read AND
+ *      status=completed).
+ *   3. Read A1 missing_in_dump per entity (drive to 0) + A4 class/continent diffs
+ *      (drive toward collapse -- the whole point of the hybrid pipeline is that
+ *      the online-category overrides make these match the DB). Iterate: re-run
+ *      read_step / re-sync the online maps / fix a parser edge case, then re-run
+ *      --hybrid again.
+ *   4. GREEN = every entity's A1 missing_in_dump = 0 (exit code 0) AND A4's
+ *      settlement_class/building_type/continent diffs have collapsed (the
+ *      remaining A4 rows, if any, are the genuinely-expected editorial ones, not
+ *      the D1/D2 divergences the hybrid pipeline exists to fix). Only THEN is it
+ *      safe to click the owner-facing "apply" action (dryRun=false, the sole
+ *      sharp *_staging writer).
  */
 
 // ---------------------------------------------------------------------------
@@ -98,16 +166,25 @@ $options = avesmapsWikiDumpCompareParseArgs($argv ?? []);
 if ($options['help']) {
     echo "Avesmaps WikiDump compare-test (READ-ONLY)\n\n";
     echo "Usage:\n";
-    echo "  php scripts/wikidump-compare.php [--json] [--dump=<path>] [--samples=<n>]\n\n";
+    echo "  php scripts/wikidump-compare.php [--json] [--dump=<path>] [--samples=<n>]\n";
+    echo "  php scripts/wikidump-compare.php --hybrid [--run=<public_id>] [--json] [--samples=<n>]\n\n";
     echo "Options:\n";
     echo "  --json          Emit the full comparison as JSON (for tooling).\n";
-    echo "  --dump=<path>   Override the dump path (default: uploads/dumps/<dump>).\n";
+    echo "  --dump=<path>   Override the dump path (plain mode only; default: uploads/dumps/<dump>).\n";
     echo "  --samples=<n>   Max keys/rows per sample list (default: 50).\n";
+    echo "  --hybrid        Source dump-side records from the HYBRID dryRun parse_and_upsert\n";
+    echo "                  step (api/_internal/wiki/dump-hybrid-read.php) instead of the plain\n";
+    echo "                  DB-free collectors. Requires an owner read_step run to have already\n";
+    echo "                  filled wiki_dump_hybrid_state (see the file docblock OWNER-RUN RECIPE).\n";
+    echo "  --run=<id>      With --hybrid: the dump_read run's public_id to compare. Omit to\n";
+    echo "                  auto-select the latest completed dump_read run.\n";
     echo "  --help          Show this help.\n";
     exit(0);
 }
 $emitJson = $options['json'];
 $sampleLimit = $options['samples'];
+$hybridMode = $options['hybrid'];
+$runOption = $options['run'];
 
 // ---------------------------------------------------------------------------
 // 2. Include chain -- all side-effect-free on include (const + function defs).
@@ -130,13 +207,20 @@ require_once $repoRoot . '/api/_internal/wiki/settlements.php';
 require_once $repoRoot . '/api/_internal/wiki/dump-fetch.php';   // avesmapsWikiDumpStoragePath()
 require_once $repoRoot . '/api/_internal/wiki/dump-reader.php';  // reader + redirect collector
 require_once $repoRoot . '/api/_internal/wiki/dump-entity-scan.php'; // entity collectors
+require_once $repoRoot . '/api/_internal/wiki/dump-hybrid-state.php'; // H4a state table (dryRun's dep)
+require_once $repoRoot . '/api/_internal/wiki/dump-hybrid-read.php';  // H4b parse_and_upsert(dryRun) -- HYBRID record source
+require_once $repoRoot . '/api/_internal/wiki/dump-hybrid-compare.php'; // H5 record-sourcing adapter (unit-testable in isolation)
 require_once $repoRoot . '/api/_internal/wiki/dump-compare.php'; // PURE compare core
 
 // ---------------------------------------------------------------------------
-// 3. Resolve + validate the dump path (read-only existence check).
+// 3. Resolve + validate the dump path (read-only existence check). HYBRID mode
+//    never opens the dump (it reads wiki_dump_hybrid_state instead), but the
+//    path is still resolved/validated up front for a consistent report header
+//    and because A3's note references it; PLAIN mode additionally requires it
+//    to exist before doing any work.
 // ---------------------------------------------------------------------------
 $dumpPath = $options['dump'] !== '' ? $options['dump'] : avesmapsWikiDumpStoragePath();
-if (!is_file($dumpPath)) {
+if (!$hybridMode && !is_file($dumpPath)) {
     fwrite(STDERR, "FATAL: dump file not found: {$dumpPath}\n");
     fwrite(STDERR, "Fetch it first (Task 5a) or pass --dump=<abs path>.\n");
     exit(2);
@@ -149,37 +233,111 @@ $config = avesmapsLoadApiConfig($repoRoot . '/api');
 $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
 // ===========================================================================
-// 5. Build the DUMP-side maps (in memory, DB-free collectors, reopen per pass).
+// 5. Build the DUMP-side maps.
+//    PLAIN mode (unchanged, Task 5b): in memory, DB-free collectors, reopen the
+//    dump stream per pass.
+//    HYBRID mode (Task H5): source records from H4b's dryRun parse_and_upsert
+//    step instead -- see the file docblock. The resulting $*Dump maps below feed
+//    the EXACT SAME A1/A4/A2/A5 calls in sections 7-10 either way; only how they
+//    are populated differs in this section.
 // ===========================================================================
-if (!$emitJson) {
-    fwrite(STDERR, "Reading dump (this streams the whole file per entity kind)...\n");
+$a6HybridNote = null; // set below only in hybrid mode (A6 caveat)
+$hybridRunPublicId = null;
+
+if ($hybridMode) {
+    if (!$emitJson) {
+        fwrite(STDERR, "HYBRID mode: sourcing records from wiki_dump_hybrid_state via parse_and_upsert(dryRun=true)...\n");
+    }
+
+    $hybridRun = avesmapsWikiDumpCompareResolveHybridRun($pdo, $runOption);
+    $hybridRunId = (int) $hybridRun['id'];
+    $hybridRunPublicId = (string) $hybridRun['public_id'];
+    if (!$emitJson) {
+        fwrite(STDERR, "  run: {$hybridRunPublicId}  (status={$hybridRun['status']}, phase={$hybridRun['phase']})\n");
+    }
+
+    // Loop the READ-ONLY dryRun step to completion, collecting every returned
+    // record. dryRun=true is HARDCODED here -- never a CLI flag -- so this call
+    // can never become the sharp writer (see the file docblock IT WRITES NOTHING
+    // paragraph).
+    $hybridRecords = avesmapsWikiDumpHybridCollectAllRecords($pdo, $hybridRunId, $emitJson ? null : STDERR);
+
+    // PURE adapter (the one genuinely new piece of logic H5 adds): group the flat
+    // {kind, title, override, record} list by entity kind.
+    $hybridByKind = avesmapsWikiDumpGroupHybridRecordsByKind($hybridRecords);
+
+    // Index each kind's records by the SAME identity key plain mode uses (the
+    // reused, UNCHANGED avesmapsWikiDumpIndexRecordsByKey from the pure core).
+    $pathDump = avesmapsWikiDumpIndexRecordsByKey($hybridByKind[AVESMAPS_WIKI_DUMP_ENTITY_PATH], 'wiki_key');
+    $regionDump = avesmapsWikiDumpIndexRecordsByKey($hybridByKind[AVESMAPS_WIKI_DUMP_ENTITY_REGION], 'wiki_key');
+    $settlementDump = avesmapsWikiDumpIndexRecordsByKey($hybridByKind[AVESMAPS_WIKI_DUMP_ENTITY_SETTLEMENT], 'title');
+    $buildingDump = avesmapsWikiDumpIndexRecordsByKey($hybridByKind[AVESMAPS_WIKI_DUMP_ENTITY_BUILDING], 'title');
+    $territoryDump = avesmapsWikiDumpIndexRecordsByKey($hybridByKind[AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY], 'wiki_key');
+
+    // A2 needs a redirect alias map + territory parent-NAME candidates. The
+    // title-keyed alias table H4c's redirect_aliases phase persisted IS the same
+    // information avesmapsWikiDumpCollectRedirectAliases() would derive from the
+    // dump directly, but slug-keyed (alias_slug => canonical_wiki_key) -- exactly
+    // the shape avesmapsWikiSyncMonitorResolveParentKey() expects (A2 is reused
+    // verbatim below). avesmapsWikiSyncMonitorStoreAlias() already wrote that
+    // SAME slug-keyed table (wiki_redirect_alias) during the redirect_aliases
+    // phase, so it is read back here -- READ-ONLY, no new alias logic.
+    $aliasMap = avesmapsWikiDumpSelectRedirectAliasMap($pdo);
+
+    // Territory parent-name candidates: each hybrid territory record already
+    // carries affiliation_root (the SAME field avesmapsWikiDumpParseTerritoryPage()
+    // always sets -- plain mode reads this identical field from a freshly-parsed
+    // record; hybrid mode reads it from the SAME field on the dryRun-returned
+    // record, no re-parse). Never re-derived.
+    $dumpTerritoryAffiliation = [];
+    foreach ($territoryDump['map'] as $wikiKey => $record) {
+        $dumpTerritoryAffiliation[(string) $wikiKey] = [
+            'parent_name' => (string) (is_array($record) ? ($record['affiliation_root'] ?? '') : ''),
+        ];
+    }
+
+    // A6 CAVEAT (file docblock): the hybrid dryRun records carry only KEPT rows --
+    // a continent-filtered page never surfaces (avesmapsWikiDumpHybridParseRow()
+    // returns kept=false, record=null, and the caller drops it), so the per-kind
+    // filtered COUNT plain mode's avesmapsWikiDumpCollectEntities() reports is not
+    // reconstructable here. Report the caveat instead of fabricating a count.
+    $filtered = [];
+    $a6HybridNote = 'HYBRID mode: the non-Aventurien filter COUNT is not observable from '
+        . 'dryRun parse_and_upsert records -- avesmapsWikiDumpHybridParseRow() silently '
+        . 'drops a continent-filtered (or unrecognised) page (kept=false, no record '
+        . 'surfaces), so total/by_kind below are always 0/empty in this mode, not a real '
+        . 'measurement. Run the PLAIN mode compare (no --hybrid) for the real A6 count.';
+} else {
+    if (!$emitJson) {
+        fwrite(STDERR, "Reading dump (this streams the whole file per entity kind)...\n");
+    }
+
+    // Each collector consumes the stream once -> reopen for each.
+    $pathRecords = avesmapsWikiDumpCollectPathRecords(avesmapsWikiDumpStreamPages($dumpPath));
+    $regionRecords = avesmapsWikiDumpCollectRegionRecords(avesmapsWikiDumpStreamPages($dumpPath));
+    $settlementRecords = avesmapsWikiDumpCollectSettlementRecords(avesmapsWikiDumpStreamPages($dumpPath));
+    $buildingRecords = avesmapsWikiDumpCollectBuildingRecords(avesmapsWikiDumpStreamPages($dumpPath));
+    $territoryRecords = avesmapsWikiDumpCollectTerritoryRecords(avesmapsWikiDumpStreamPages($dumpPath));
+
+    // One CollectEntities pass for the A6 non-Aventurien filter count (tagged by kind).
+    $entities = avesmapsWikiDumpCollectEntities(avesmapsWikiDumpStreamPages($dumpPath));
+    $filtered = is_array($entities['filtered'] ?? null) ? $entities['filtered'] : [];
+
+    // Redirect aliases (Pass A) -- needed to resolve dump affiliation parents (A2).
+    $aliasMap = avesmapsWikiDumpCollectRedirectAliases(avesmapsWikiDumpStreamPages($dumpPath));
+
+    // Territory parent CANDIDATES from the dump (affiliation_root / last link per key),
+    // captured while collecting so A2 can resolve them via the reused resolver.
+    $dumpTerritoryAffiliation = avesmapsWikiDumpCollectTerritoryAffiliation(avesmapsWikiDumpStreamPages($dumpPath));
+
+    // Index the dump records by their identity key (paths/regions/territories: wiki_key;
+    // settlements/buildings: title). keyList carries duplicates for A1 dup detection.
+    $pathDump = avesmapsWikiDumpIndexRecordsByKey($pathRecords, 'wiki_key');
+    $regionDump = avesmapsWikiDumpIndexRecordsByKey($regionRecords, 'wiki_key');
+    $settlementDump = avesmapsWikiDumpIndexRecordsByKey($settlementRecords, 'title');
+    $buildingDump = avesmapsWikiDumpIndexRecordsByKey($buildingRecords, 'title');
+    $territoryDump = avesmapsWikiDumpIndexRecordsByKey($territoryRecords, 'wiki_key');
 }
-
-// Each collector consumes the stream once -> reopen for each.
-$pathRecords = avesmapsWikiDumpCollectPathRecords(avesmapsWikiDumpStreamPages($dumpPath));
-$regionRecords = avesmapsWikiDumpCollectRegionRecords(avesmapsWikiDumpStreamPages($dumpPath));
-$settlementRecords = avesmapsWikiDumpCollectSettlementRecords(avesmapsWikiDumpStreamPages($dumpPath));
-$buildingRecords = avesmapsWikiDumpCollectBuildingRecords(avesmapsWikiDumpStreamPages($dumpPath));
-$territoryRecords = avesmapsWikiDumpCollectTerritoryRecords(avesmapsWikiDumpStreamPages($dumpPath));
-
-// One CollectEntities pass for the A6 non-Aventurien filter count (tagged by kind).
-$entities = avesmapsWikiDumpCollectEntities(avesmapsWikiDumpStreamPages($dumpPath));
-$filtered = is_array($entities['filtered'] ?? null) ? $entities['filtered'] : [];
-
-// Redirect aliases (Pass A) -- needed to resolve dump affiliation parents (A2).
-$aliasMap = avesmapsWikiDumpCollectRedirectAliases(avesmapsWikiDumpStreamPages($dumpPath));
-
-// Territory parent CANDIDATES from the dump (affiliation_root / last link per key),
-// captured while collecting so A2 can resolve them via the reused resolver.
-$dumpTerritoryAffiliation = avesmapsWikiDumpCollectTerritoryAffiliation(avesmapsWikiDumpStreamPages($dumpPath));
-
-// Index the dump records by their identity key (paths/regions/territories: wiki_key;
-// settlements/buildings: title). keyList carries duplicates for A1 dup detection.
-$pathDump = avesmapsWikiDumpIndexRecordsByKey($pathRecords, 'wiki_key');
-$regionDump = avesmapsWikiDumpIndexRecordsByKey($regionRecords, 'wiki_key');
-$settlementDump = avesmapsWikiDumpIndexRecordsByKey($settlementRecords, 'title');
-$buildingDump = avesmapsWikiDumpIndexRecordsByKey($buildingRecords, 'title');
-$territoryDump = avesmapsWikiDumpIndexRecordsByKey($territoryRecords, 'wiki_key');
 
 // ===========================================================================
 // 6. Load the DB-side maps (READ-ONLY SELECTs).
@@ -261,21 +419,28 @@ $a2 = avesmapsWikiDumpCompareHierarchy($dumpParentByKey, $dbParentByKey, $parent
 // ===========================================================================
 $a3 = [
     'path_staging_rows_in_dump' => count($pathDump['map']),
-    'note' => 'By construction: the reader fills staging/sandbox only. The sole map '
-        . 'write a path import performs is properties_json[wiki_path] on an EXISTING '
-        . 'map_features row (a separate assign step, not this reader). The route graph '
-        . 'is built from map_features geometry, which the reader never writes. No DB '
-        . 'write is needed to prove this negative.',
+    'note' => 'By construction: the reader (plain mode) / the dryRun parse_and_upsert step '
+        . '(hybrid mode) fills staging/sandbox only -- and, in hybrid mode specifically, '
+        . 'dryRun=true additionally writes NOTHING at all (no staging write either), since '
+        . 'the records are only returned in memory for this comparison. The sole map write '
+        . 'a path import performs is properties_json[wiki_path] on an EXISTING map_features '
+        . 'row (a separate assign step, never this tool). The route graph is built from '
+        . 'map_features geometry, which neither mode ever writes. No DB write is needed to '
+        . 'prove this negative.',
 ];
 
 $a5 = avesmapsWikiDumpCoatSummary($settlementDump['map'], $settlementDb);
 
-$a6 = avesmapsWikiDumpContinentFilterSummary($filtered);
+$a6 = $hybridMode
+    ? ['total' => 0, 'by_kind' => [], 'samples' => [], 'note' => (string) $a6HybridNote]
+    : avesmapsWikiDumpContinentFilterSummary($filtered);
 
 // ===========================================================================
 // 11. Report.
 // ===========================================================================
 $report = [
+    'mode' => $hybridMode ? 'hybrid' : 'plain',
+    'run_id' => $hybridRunPublicId,
     'dump_path' => $dumpPath,
     'generated_at' => date('c'),
     'a1_key_coverage' => $a1,
@@ -610,10 +775,15 @@ function avesmapsWikiDumpCompareExitCode(array $a1): int
 /** @param array<string,mixed> $report */
 function avesmapsWikiDumpComparePrintReport(array $report): void
 {
+    $mode = (string) ($report['mode'] ?? 'plain');
     $line = str_repeat('=', 72);
     echo $line, "\n";
-    echo " WikiDump COMPARE-TEST (READ-ONLY) -- dump vs. real DB\n";
+    echo ' WikiDump COMPARE-TEST (READ-ONLY) -- ' . strtoupper($mode) . " mode -- dump vs. real DB\n";
     echo $line, "\n";
+    echo 'Mode : ' . $mode . ($mode === 'hybrid' ? ' (source: dryRun parse_and_upsert records)' : ' (source: DB-free collectors)') . "\n";
+    if ($mode === 'hybrid') {
+        echo 'Run  : ' . (string) ($report['run_id'] ?? '(unknown)') . "\n";
+    }
     echo 'Dump : ' . (string) ($report['dump_path'] ?? '') . "\n";
     echo 'When : ' . (string) ($report['generated_at'] ?? '') . "\n";
     echo "This tool writes NOTHING. It is the safety gate before any real write.\n\n";
@@ -728,9 +898,13 @@ function avesmapsWikiDumpComparePrintReport(array $report): void
     // --- A6 ---------------------------------------------------------------
     $a6 = (array) ($report['a6_continent_filter'] ?? []);
     echo "-- A6  CONTINENT FILTER (non-Aventurien dropped by the collectors) --\n";
-    echo '  total filtered: ' . (int) ($a6['total'] ?? 0) . "\n";
-    foreach ((array) ($a6['by_kind'] ?? []) as $kind => $count) {
-        echo "    {$kind}: {$count}\n";
+    if (isset($a6['note']) && (string) $a6['note'] !== '') {
+        echo '  NOTE: ' . (string) $a6['note'] . "\n";
+    } else {
+        echo '  total filtered: ' . (int) ($a6['total'] ?? 0) . "\n";
+        foreach ((array) ($a6['by_kind'] ?? []) as $kind => $count) {
+            echo "    {$kind}: {$count}\n";
+        }
     }
     echo "\n";
 
@@ -748,21 +922,25 @@ function avesmapsWikiDumpComparePrintReport(array $report): void
 
 /**
  * @param array<int, string> $argv
- * @return array{help:bool, json:bool, dump:string, samples:int}
+ * @return array{help:bool, json:bool, dump:string, samples:int, hybrid:bool, run:string}
  */
 function avesmapsWikiDumpCompareParseArgs(array $argv): array
 {
-    $options = ['help' => false, 'json' => false, 'dump' => '', 'samples' => 50];
+    $options = ['help' => false, 'json' => false, 'dump' => '', 'samples' => 50, 'hybrid' => false, 'run' => ''];
     foreach (array_slice($argv, 1) as $token) {
         $token = (string) $token;
         if ($token === '--help' || $token === '-h') {
             $options['help'] = true;
         } elseif ($token === '--json') {
             $options['json'] = true;
+        } elseif ($token === '--hybrid') {
+            $options['hybrid'] = true;
         } elseif (str_starts_with($token, '--dump=')) {
             $options['dump'] = trim(substr($token, strlen('--dump=')));
         } elseif (str_starts_with($token, '--samples=')) {
             $options['samples'] = max(0, (int) substr($token, strlen('--samples=')));
+        } elseif (str_starts_with($token, '--run=')) {
+            $options['run'] = trim(substr($token, strlen('--run=')));
         } else {
             fwrite(STDERR, "Unknown option: {$token} (use --help)\n");
             exit(2);
