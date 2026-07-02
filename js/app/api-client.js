@@ -340,9 +340,14 @@ async function submitWikiSyncLocationAction(action, payload = {}) {
 
 // WikiDump control endpoint (api/edit/wiki/dump.php): start_read / read_step / apply /
 // set_dump_credentials. Mirrors submitWikiSyncLocationAction. IMPORTANT: apiErrorMessage
-// drops error.code, so the credential-prompt trigger checks response.status === 401
-// DIRECTLY (the dump_unauthorized signal) and tags the thrown Error so the caller can
-// open the inline cred-prompt instead of just surfacing the message (mirrors the 409 special-case above).
+// drops error.code, so the credential-prompt trigger reads data.error.code DIRECTLY and
+// tags the thrown Error so the caller can open the inline cred-prompt instead of just
+// surfacing the message (mirrors the 409 special-case above). NOTE: dump.php calls
+// avesmapsRequireUserWithCapability('edit') BEFORE the action switch, so an expired
+// editor session ALSO returns HTTP 401 (error.code "unauthenticated") -- that must NOT
+// be confused with the true dump-fetch rejection (error.code "dump_unauthorized" from
+// avesmapsWikiDumpEnsureDumpPresentOrFail / the fetch_dump branch). Status alone can't
+// tell them apart; only the body's error.code can.
 async function submitWikiSyncDumpAction(action, payload = {}) {
 	const response = await fetch(WIKI_SYNC_DUMP_API_URL, {
 		method: "POST",
@@ -360,9 +365,10 @@ async function submitWikiSyncDumpAction(action, payload = {}) {
 
 	if (!response.ok || data?.ok !== true) {
 		const error = new Error(apiErrorMessage(data, `WikiDump-API antwortet mit HTTP ${response.status}.`));
-		// 401 = the dump server rejected the stored credentials -> the caller shows the
-		// inline credential prompt (O1). Tag it so the loop can branch without string-matching.
-		error.dumpUnauthorized = response.status === 401;
+		// Only the true dump-fetch rejection opens the inline credential prompt (O1).
+		// A generic session 401 ("unauthenticated", or no code at all) must fall through
+		// to a normal error instead of wrongly asking for dump credentials.
+		error.dumpUnauthorized = response.status === 401 && data?.error?.code === "dump_unauthorized";
 		error.httpStatus = response.status;
 		throw error;
 	}
