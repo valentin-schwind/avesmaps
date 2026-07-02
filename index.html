@@ -348,6 +348,12 @@
 						<button id="wiki-sync-start" class="wiki-sync-panel__start" type="button">🚨 WikiSync</button>
 					</div>
 					<progress id="wiki-sync-progress" class="wiki-sync-progress" max="5" value="0" hidden></progress>
+					<div class="wiki-sync-panel__actions wiki-sync-dump-actions">
+						<button id="wiki-sync-dump-read" class="wiki-sync-panel__start" type="button" title="Liest den heruntergeladenen Wiki-Dump ein (Sandbox, schreibt nichts Scharfes).">📥 WikiDump lesen</button>
+						<button id="wiki-sync-dump-apply" class="wiki-sync-case__action wiki-sync-case__action--danger" type="button" title="Schreibt den gelesenen Dump scharf in die Staging-Tabellen. Erst nach grünem Vergleichstest ausführen." disabled>Übernehmen</button>
+					</div>
+					<progress id="wiki-sync-dump-progress" class="wiki-sync-progress" max="6" value="0" hidden></progress>
+					<p id="wiki-sync-dump-status" class="wiki-sync-panel__summary" role="status" aria-live="polite" hidden></p>
 						<details class="wiki-sync-accordion" id="wiki-sync-cases-accordion">
 						<summary class="wiki-sync-accordion__summary">Konfliktl&ouml;sung</summary>
 						<div class="wiki-sync-accordion__body">
@@ -678,6 +684,30 @@
 					<div class="location-report-form__actions">
 						<button id="wiki-sync-resolve-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
 						<button id="wiki-sync-resolve-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Lösen</button>
+					</div>
+				</form>
+			</div>
+		</div>
+		<div id="wiki-sync-dump-credentials-overlay" hidden>
+			<div id="wiki-sync-dump-credentials-dialog" class="location-report-dialog" role="dialog" aria-modal="true" aria-labelledby="wiki-sync-dump-credentials-title" tabindex="-1">
+				<div class="location-report-dialog__header">
+					<h2 id="wiki-sync-dump-credentials-title">Dump-Zugangsdaten</h2>
+					<button id="wiki-sync-dump-credentials-close" class="location-report-dialog__close" type="button" aria-label="Dialog schließen">×</button>
+				</div>
+				<form id="wiki-sync-dump-credentials-form" class="location-report-form" novalidate>
+					<p class="location-report-form__meta">Der Wiki-Server hat die gespeicherten Zugangsdaten abgelehnt (HTTP 401). Bitte gültige Zugangsdaten eingeben; das zuletzt funktionierende Paar wird serverseitig gespeichert.</p>
+					<label class="location-report-form__field">
+						<span>Benutzername *</span>
+						<input id="wiki-sync-dump-credentials-username" name="username" type="text" maxlength="190" autocomplete="username" required />
+					</label>
+					<label class="location-report-form__field">
+						<span>Passwort *</span>
+						<input id="wiki-sync-dump-credentials-password" name="password" type="password" maxlength="255" autocomplete="current-password" required />
+					</label>
+					<p id="wiki-sync-dump-credentials-status" class="location-report-form__status" role="status" aria-live="polite"></p>
+					<div class="location-report-form__actions">
+						<button id="wiki-sync-dump-credentials-cancel" class="location-report-form__button location-report-form__button--secondary" type="button">Abbrechen</button>
+						<button id="wiki-sync-dump-credentials-submit" class="location-report-form__button location-report-form__button--primary" type="submit">Speichern und fortsetzen</button>
 					</div>
 				</form>
 			</div>

@@ -336,7 +336,39 @@ async function submitWikiSyncLocationAction(action, payload = {}) {
 	}
 
 	return data;
-} 
+}
+
+// WikiDump control endpoint (api/edit/wiki/dump.php): start_read / read_step / apply /
+// set_dump_credentials. Mirrors submitWikiSyncLocationAction. IMPORTANT: apiErrorMessage
+// drops error.code, so the credential-prompt trigger checks response.status === 401
+// DIRECTLY (the dump_unauthorized signal) and tags the thrown Error so the caller can
+// open the inline cred-prompt instead of just surfacing the message (mirrors the 409 special-case above).
+async function submitWikiSyncDumpAction(action, payload = {}) {
+	const response = await fetch(WIKI_SYNC_DUMP_API_URL, {
+		method: "POST",
+		credentials: "same-origin",
+		headers: {
+			"Content-Type": "application/json",
+			Accept: "application/json",
+		},
+		body: JSON.stringify({
+			action,
+			...payload,
+		}),
+	});
+	const data = await readJsonResponse(response, {});
+
+	if (!response.ok || data?.ok !== true) {
+		const error = new Error(apiErrorMessage(data, `WikiDump-API antwortet mit HTTP ${response.status}.`));
+		// 401 = the dump server rejected the stored credentials -> the caller shows the
+		// inline credential prompt (O1). Tag it so the loop can branch without string-matching.
+		error.dumpUnauthorized = response.status === 401;
+		error.httpStatus = response.status;
+		throw error;
+	}
+
+	return data;
+}
 
 async function fetchWikiSyncLocationData(params = {}) {
 	const url = new URL(WIKI_SYNC_LOCATIONS_API_URL, window.location.href);

@@ -219,6 +219,14 @@ $("#wiki-sync-start").on("click", () => {
     }
 });
 $("#wiki-sync-territories").on("click", () => startWikiSyncTerritoryRun());
+// WikiDump hybrid read (H4c-f): sandbox read loop + gated sharp apply + inline cred-prompt.
+$("#wiki-sync-dump-read").on("click", () => startWikiSyncDumpRead());
+$("#wiki-sync-dump-apply").on("click", () => startWikiSyncDumpApply());
+$("#wiki-sync-dump-credentials-form").on("submit", (event) => {
+    event.preventDefault();
+    void submitWikiSyncDumpCredentials();
+});
+$("#wiki-sync-dump-credentials-close, #wiki-sync-dump-credentials-cancel").on("click", () => closeWikiSyncDumpCredentialsPrompt(false));
 $("[data-wiki-sync-panel-tab]").on("click", function () {
     setWikiSyncPanelTab(this.dataset.wikiSyncPanelTab || "locations");
 });

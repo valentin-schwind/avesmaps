@@ -184,6 +184,7 @@ const LOCATION_REPORT_REVIEW_API_URL = window.AVESMAPS_LOCATION_REPORT_REVIEW_EN
 const MAP_AUDIT_LOG_API_URL = window.AVESMAPS_MAP_AUDIT_LOG_ENDPOINT || "api/edit/map/audit-log.php";
 const WIKI_SYNC_LOCATIONS_API_URL = window.AVESMAPS_WIKI_SYNC_LOCATIONS_ENDPOINT || "api/edit/wiki/sync.php";
 const WIKI_SYNC_TERRITORIES_API_URL = window.AVESMAPS_WIKI_SYNC_TERRITORIES_ENDPOINT || "api/edit/wiki/territories.php";
+const WIKI_SYNC_DUMP_API_URL = window.AVESMAPS_WIKI_SYNC_DUMP_ENDPOINT || "api/edit/wiki/dump.php";
 const EDITOR_PRESENCE_API_URL = window.AVESMAPS_EDITOR_PRESENCE_ENDPOINT || "api/edit/map/presence.php";
 const EDIT_MODE_PLANNER_STATE_STORAGE_KEY = "avesmaps.edit.plannerState";
 const EDIT_MODE_REVIEW_PANEL_STORAGE_KEY = "avesmaps.edit.reviewPanelHidden";

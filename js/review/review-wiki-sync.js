@@ -510,6 +510,273 @@ async function startWikiSyncRun() {
 	}
 }
 
+// ===========================================================================
+// WikiDump hybrid read (H4c-f): a NEW, ADDITIVE trigger next to the online
+// WikiSync crawler (which stays as the fallback -- invariant I8). "WikiDump
+// lesen" runs the sandbox-safe read pass (start_read -> loop read_step until
+// done); a SEPARATE, gated "Übernehmen" button runs the sharp apply pass. The
+// loop mirrors startWikiSyncRun's one-POST-per-step pattern (never a server-side
+// loop -- STRATO). Backend: api/edit/wiki/dump.php (H4c-b).
+// ===========================================================================
+
+let isWikiSyncDumpRunning = false;
+let lastWikiSyncDumpCredentialsUsername = "";
+let wikiSyncDumpCredentialsResolver = null;
+
+// Human-readable German labels for the 6 work phases (dump-hybrid-driver.php phase constants).
+const WIKI_SYNC_DUMP_PHASE_LABELS = {
+	online_class_map: "Online-Klassen-Karte",
+	online_building_map: "Online-Bauwerks-Karte",
+	online_continent_map: "Online-Kontinent-Karte",
+	redirect_aliases: "Weiterleitungen",
+	wikitext_collect: "Wikitext sammeln",
+	parse_and_upsert: "Parsen und schreiben",
+	completed: "Abgeschlossen",
+};
+
+function setWikiSyncDumpButtonsDisabled(isDisabled) {
+	const readButton = document.getElementById("wiki-sync-dump-read");
+	if (readButton) {
+		readButton.disabled = isDisabled;
+		readButton.textContent = isWikiSyncDumpRunning ? "Liest Dump..." : "📥 WikiDump lesen";
+	}
+	// The other WikiSync buttons share the panel; disable them while the dump runs so
+	// two long passes can't fight for STRATO workers at once.
+	const startButton = document.getElementById("wiki-sync-start");
+	if (startButton) {
+		startButton.disabled = isDisabled || isWikiSyncLocationsRunning || isWikiSyncTerritoriesRunning;
+	}
+}
+
+// The sharp apply button stays disabled until a sandbox read has completed in this
+// session (a soft gate); the confirm dialog is the hard reminder that a GREEN
+// compare-test must precede it. `enabled` is set true only after a read run reaches done.
+function setWikiSyncDumpApplyEnabled(enabled) {
+	const applyButton = document.getElementById("wiki-sync-dump-apply");
+	if (applyButton) {
+		applyButton.disabled = !enabled || isWikiSyncDumpRunning;
+	}
+}
+
+function renderWikiSyncDumpProgress(progress, done) {
+	const progressElement = document.getElementById("wiki-sync-dump-progress");
+	const statusElement = document.getElementById("wiki-sync-dump-status");
+
+	const current = Number(progress?.progress_current ?? 0);
+	const total = Number(progress?.progress_total ?? 6);
+	if (progressElement) {
+		progressElement.hidden = false;
+		progressElement.max = Number.isFinite(total) && total > 0 ? total : 6;
+		progressElement.value = Number.isFinite(current) && current >= 0 ? Math.min(current, progressElement.max) : 0;
+	}
+
+	if (statusElement) {
+		const phaseKey = String(progress?.phase ?? "");
+		const phaseLabel = WIKI_SYNC_DUMP_PHASE_LABELS[phaseKey] || phaseKey || "…";
+		// Surface whichever per-step counter the current phase returned (dump-hybrid-driver.php envelope).
+		const counters = [];
+		if (progress && Number(progress.pages_scanned) > 0) counters.push(`${Number(progress.pages_scanned)} Seiten`);
+		if (progress && Number(progress.found_this_step) > 0) counters.push(`${Number(progress.found_this_step)} gefunden`);
+		if (progress && Number(progress.title_aliases_written) > 0) counters.push(`${Number(progress.title_aliases_written)} Aliase`);
+		if (progress && Number(progress.processed_this_step) > 0) counters.push(`${Number(progress.processed_this_step)} verarbeitet`);
+		if (progress && Number(progress.kept) > 0) counters.push(`${Number(progress.kept)} übernommen`);
+		const counterText = counters.length > 0 ? ` (${counters.join(", ")})` : "";
+		const prefix = done ? "Fertig" : `Phase ${Math.min(current + (done ? 0 : 1), total)}/${total}`;
+		statusElement.hidden = false;
+		statusElement.textContent = `${prefix}: ${phaseLabel}${counterText}`;
+	}
+}
+
+// Drive one dump pass to completion: create the run (unless resuming a passed-in one),
+// then loop the advance action once per step until the response says done. `action` is
+// "read_step" (sandbox) or "apply" (sharp). Returns the final run on success. On a 401
+// (dump_unauthorized) it opens the inline cred-prompt, awaits new credentials, and resumes.
+async function runWikiSyncDumpLoop(action, { runId = null } = {}) {
+	let activeRunId = runId;
+	if (!activeRunId) {
+		const startResult = await submitWikiSyncDumpAction("start_read");
+		activeRunId = startResult.run?.public_id || null;
+	}
+	if (!activeRunId) {
+		throw new Error("Der WikiDump-Lauf konnte nicht gestartet werden.");
+	}
+
+	let done = false;
+	let safetyCounter = 0;
+	let lastRun = null;
+	// The hybrid read can take many bounded steps (wikitext_collect re-walks the dump per
+	// step); allow a generous ceiling but still bound it so a backend bug can't spin forever.
+	const MAX_STEPS = 2000;
+
+	while (!done) {
+		if (safetyCounter > MAX_STEPS) {
+			throw new Error("WikiDump-Lauf nach zu vielen Teilschritten angehalten.");
+		}
+		safetyCounter += 1;
+
+		let stepResult;
+		try {
+			stepResult = await submitWikiSyncDumpAction(action, { run_id: activeRunId });
+		} catch (error) {
+			if (error && error.dumpUnauthorized) {
+				// O1: the dump server rejected the stored creds. Prompt inline, store the
+				// last-working pair via set_dump_credentials, then retry the SAME step.
+				setWikiSyncStatus("Dump-Zugangsdaten werden benötigt …", "pending");
+				const accepted = await openWikiSyncDumpCredentialsPrompt();
+				if (!accepted) {
+					throw new Error("WikiDump-Lauf abgebrochen: keine Zugangsdaten eingegeben.");
+				}
+				continue; // credentials stored -> re-issue the step that 401'd
+			}
+			throw error;
+		}
+
+		lastRun = stepResult.run || lastRun;
+		done = stepResult.done === true || (stepResult.run?.status === "completed");
+		renderWikiSyncDumpProgress(stepResult.progress, done);
+		setWikiSyncStatus(stepResult.run?.message || (action === "apply" ? "Übernahme läuft …" : "WikiDump wird gelesen …"), "pending");
+	}
+
+	return lastRun;
+}
+
+async function startWikiSyncDumpRead() {
+	if (isWikiSyncDumpRunning) {
+		return;
+	}
+	isWikiSyncDumpRunning = true;
+	setWikiSyncDumpButtonsDisabled(true);
+	setWikiSyncDumpApplyEnabled(false);
+	setWikiSyncStatus("WikiDump wird gelesen (Sandbox) …", "pending");
+
+	try {
+		await runWikiSyncDumpLoop("read_step");
+		setWikiSyncStatus("WikiDump gelesen (Sandbox). Vor dem Übernehmen den Vergleichstest grün fahren.", "success");
+		showFeedbackToast("WikiDump-Lesen abgeschlossen (Sandbox, nichts scharf geschrieben).", "success");
+		isWikiSyncDumpRunning = false;
+		setWikiSyncDumpButtonsDisabled(false);
+		// Read completed -> allow the sharp apply (still gated behind the confirm dialog).
+		setWikiSyncDumpApplyEnabled(true);
+	} catch (error) {
+		console.error("WikiDump-Lesen fehlgeschlagen:", error);
+		isWikiSyncDumpRunning = false;
+		setWikiSyncDumpButtonsDisabled(false);
+		setWikiSyncDumpApplyEnabled(false);
+		setWikiSyncStatus(error.message || "WikiDump-Lesen fehlgeschlagen.", "error");
+		showFeedbackToast(error.message || "WikiDump-Lesen fehlgeschlagen.", "warning");
+	}
+}
+
+async function startWikiSyncDumpApply() {
+	if (isWikiSyncDumpRunning) {
+		return;
+	}
+	// The HARD gate: an explicit confirm warning this writes real staging and must only
+	// run after a green compare-test (progress.md "SHARP-WRITE GATE").
+	const confirmed = window.confirm(
+		"Übernehmen schreibt den gelesenen Dump SCHARF in die Staging-Tabellen.\n\n" +
+			"Nur ausführen, wenn der Vergleichstest (H5) GRÜN ist. Fortfahren?"
+	);
+	if (!confirmed) {
+		return;
+	}
+
+	isWikiSyncDumpRunning = true;
+	setWikiSyncDumpButtonsDisabled(true);
+	setWikiSyncDumpApplyEnabled(false);
+	setWikiSyncStatus("WikiDump wird scharf übernommen …", "pending");
+
+	try {
+		// Fresh run: apply drives the same state machine; phase 6 runs dryRun=false (sharp).
+		await runWikiSyncDumpLoop("apply");
+		setWikiSyncStatus("WikiDump scharf übernommen (Staging geschrieben).", "success");
+		showFeedbackToast("WikiDump übernommen — Staging-Tabellen geschrieben.", "success");
+	} catch (error) {
+		console.error("WikiDump-Übernahme fehlgeschlagen:", error);
+		setWikiSyncStatus(error.message || "WikiDump-Übernahme fehlgeschlagen.", "error");
+		showFeedbackToast(error.message || "WikiDump-Übernahme fehlgeschlagen.", "warning");
+	} finally {
+		isWikiSyncDumpRunning = false;
+		setWikiSyncDumpButtonsDisabled(false);
+		setWikiSyncDumpApplyEnabled(true);
+	}
+}
+
+// --- Inline credential prompt (O1) -------------------------------------------
+// Copies the #wiki-sync-resolve-overlay dialog pattern. Resolves to true once the
+// credentials are stored server-side (set_dump_credentials), false if cancelled.
+function setWikiSyncDumpCredentialsStatus(message = "", tone = "") {
+	const statusElement = document.getElementById("wiki-sync-dump-credentials-status");
+	if (!statusElement) {
+		return;
+	}
+	statusElement.textContent = message;
+	statusElement.dataset.tone = tone;
+}
+
+function closeWikiSyncDumpCredentialsPrompt(accepted) {
+	const overlay = document.getElementById("wiki-sync-dump-credentials-overlay");
+	if (overlay) {
+		overlay.hidden = true;
+	}
+	const resolver = wikiSyncDumpCredentialsResolver;
+	wikiSyncDumpCredentialsResolver = null;
+	if (typeof resolver === "function") {
+		resolver(Boolean(accepted));
+	}
+}
+
+function openWikiSyncDumpCredentialsPrompt() {
+	const overlay = document.getElementById("wiki-sync-dump-credentials-overlay");
+	const usernameInput = document.getElementById("wiki-sync-dump-credentials-username");
+	const passwordInput = document.getElementById("wiki-sync-dump-credentials-password");
+	if (!overlay || !usernameInput || !passwordInput) {
+		return Promise.resolve(false);
+	}
+
+	// If a prompt is somehow already open, resolve the stale one as cancelled first.
+	if (typeof wikiSyncDumpCredentialsResolver === "function") {
+		const stale = wikiSyncDumpCredentialsResolver;
+		wikiSyncDumpCredentialsResolver = null;
+		stale(false);
+	}
+
+	usernameInput.value = lastWikiSyncDumpCredentialsUsername || "";
+	passwordInput.value = "";
+	setWikiSyncDumpCredentialsStatus("");
+	overlay.hidden = false;
+	// Prefer focusing the password when the username is already prefilled.
+	(lastWikiSyncDumpCredentialsUsername ? passwordInput : usernameInput).focus();
+
+	return new Promise((resolve) => {
+		wikiSyncDumpCredentialsResolver = resolve;
+	});
+}
+
+async function submitWikiSyncDumpCredentials() {
+	const usernameInput = document.getElementById("wiki-sync-dump-credentials-username");
+	const passwordInput = document.getElementById("wiki-sync-dump-credentials-password");
+	const username = (usernameInput?.value || "").trim();
+	const password = passwordInput?.value || "";
+	if (username === "" || password === "") {
+		setWikiSyncDumpCredentialsStatus("Benutzername und Passwort dürfen nicht leer sein.", "error");
+		return;
+	}
+
+	setWikiSyncDumpCredentialsStatus("Zugangsdaten werden gespeichert …", "pending");
+	try {
+		const result = await submitWikiSyncDumpAction("set_dump_credentials", { username, password });
+		// The backend echoes the stored username (never the password) for the next prefill.
+		lastWikiSyncDumpCredentialsUsername = result.username || username;
+		closeWikiSyncDumpCredentialsPrompt(true);
+	} catch (error) {
+		console.error("Dump-Zugangsdaten konnten nicht gespeichert werden:", error);
+		// set_dump_credentials needs the 'admin' capability; a non-admin editor gets a 403
+		// with a ready-to-show German message -> surface it in the dialog, keep it open.
+		setWikiSyncDumpCredentialsStatus(error.message || "Zugangsdaten konnten nicht gespeichert werden.", "error");
+	}
+}
+
 // Inline-Dialog (statt neuem Fenster) für den Sync-Editor — im Stil des Herrschaftsgebiet-
 // Eigenschaften-Editors (gleiche CSS-Klassen), nur etwas breiter für die zwei Spalten.
 window.openAvesmapsSyncEditorOverlay = window.openAvesmapsSyncEditorOverlay || function openAvesmapsSyncEditorOverlay(wikiKey) {
