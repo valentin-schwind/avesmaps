@@ -32,6 +32,14 @@ declare(strict_types=1);
  *       completed_at/id.
  *   (E) Every write happens inside a single transaction (begin + commit
  *       observed; a thrown exception rolls back and rethrows).
+ *   (F) CONCURRENCY GUARD: a second dump_read run that is still in progress
+ *       (status='running') and is NOT the kept run must SURVIVE cleanup --
+ *       neither its wiki_dump_hybrid_state nor its wiki_dump_title_alias
+ *       rows may be deleted, because it might be mid-scan. The "other runs"
+ *       delete-candidate set is scoped to TERMINAL (non-'running') runs
+ *       only; a caller-supplied kept-run id is irrelevant here since the
+ *       running run in this case is a completely separate id from the kept
+ *       one, yet must still be excluded from the delete IN(...) list.
  *
  * This is a fake-PDO test (no live MySQL), following the same convention as
  * tools/wikidump/test-dump-hybrid-read-driver.php's FakeDriverPdo/
@@ -205,13 +213,16 @@ final class FakeCleanupStmt extends PDOStatement
     #[\ReturnTypeWillChange]
     public function fetchAll($mode = PDO::FETCH_DEFAULT, ...$args): array
     {
-        // The "other runs" SELECT: every run of this sync_type except keep_run_id.
+        // The "other runs" SELECT: every TERMINAL (non-'running') run of this
+        // sync_type except keep_run_id -- mirrors the real WHERE clause's
+        // "AND status != 'running'" concurrency guard, so a fake run seeded with
+        // status='running' is excluded here exactly as MySQL would exclude it.
         if (stripos($this->sql, 'id != :keep_run_id') !== false) {
             $syncType = $this->namedParams['sync_type'] ?? '';
             $keepId = (int) ($this->namedParams['keep_run_id'] ?? 0);
             $ids = [];
             foreach ($this->pdo->runs as $run) {
-                if ($run['sync_type'] === $syncType && (int) $run['id'] !== $keepId) {
+                if ($run['sync_type'] === $syncType && (int) $run['id'] !== $keepId && $run['status'] !== 'running') {
                     $ids[] = $run['id'];
                 }
             }
@@ -428,6 +439,58 @@ $check(
     [1, 1, 0],
     [$pdoC->beginCount, $pdoC->commitCount, $pdoC->rollBackCount],
     'a no-completed-run scan is a normal, successful outcome -- not a thrown error'
+);
+
+// ===========================================================================
+// (F) CONCURRENCY GUARD: a second, in-progress (status='running') dump_read
+//     run that is NOT the kept run must survive cleanup untouched -- proves
+//     the fix for the gap where the "other runs" SELECT picked candidates by
+//     sync_type alone, letting a concurrent in-flight scan's state rows be
+//     deleted out from under it.
+// ===========================================================================
+echo "\n-- (F) a concurrent in-progress dump_read run survives cleanup --\n";
+
+$runsF = [
+    ['id' => 40, 'sync_type' => 'dump_read', 'status' => 'completed', 'completed_at' => '2026-07-02 12:00:00.000'], // newest completed -> kept
+    ['id' => 41, 'sync_type' => 'dump_read', 'status' => 'completed', 'completed_at' => '2026-06-30 09:00:00.000'], // older completed -> deleted
+    ['id' => 42, 'sync_type' => 'dump_read', 'status' => 'running', 'completed_at' => null], // concurrent in-flight scan -> MUST survive
+];
+$pdoF = new FakeCleanupPdo(
+    $runsF,
+    /* stateRowCounts */ [40 => 80, 41 => 60, 42 => 999],
+    /* aliasRowCounts */ [40 => 9, 41 => 7, 42 => 123]
+);
+$resultF = avesmapsWikiDumpHybridCleanupOldSandboxState($pdoF);
+
+$check(
+    '(F1) the kept run is still the newest completed run (id 40)',
+    40,
+    $resultF['kept_run_id'],
+    'the running run (42) never competes for "kept" status -- only completed runs do'
+);
+$check(
+    '(F2) the delete scope is ONLY the older completed run (41) -- the running run (42) is excluded',
+    [41],
+    $pdoF->deleteStateCalls[0] ?? [],
+    'run 42 is neither the kept run NOR eligible for deletion: it is mid-scan (status=running), so it must be excluded from the "other runs" candidate set entirely'
+);
+$check(
+    '(F3) the alias-table DELETE also excludes the running run (42), same scope as the state-table DELETE',
+    [41],
+    $pdoF->deleteAliasCalls[0] ?? [],
+    'both tables use the same terminal-only "other runs" id list'
+);
+$check(
+    '(F4) deleted_state_rows counts only run 41\'s 60 rows -- NOT run 42\'s 999 in-flight rows',
+    60,
+    $resultF['deleted_state_rows'],
+    'if run 42 had been included, this would wrongly be 60+999=1059 and would have deleted a live scan\'s sandbox state'
+);
+$check(
+    '(F5) deleted_alias_rows counts only run 41\'s 7 rows -- NOT run 42\'s 123 in-flight rows',
+    7,
+    $resultF['deleted_alias_rows'],
+    'same guard, alias table'
 );
 
 // ===========================================================================

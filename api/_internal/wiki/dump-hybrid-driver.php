@@ -910,6 +910,11 @@ function avesmapsWikiDumpHybridProgressEnvelope(array $public, ?array $stepResul
  *   - If exactly one dump_read run exists (whether completed or not), that
  *     run -- if completed -- becomes the kept run and the "delete others"
  *     set is empty, so nothing is deleted.
+ *   - The "delete others" set additionally excludes any run with
+ *     `status = 'running'` (a concurrent in-progress dump_read run), even
+ *     though such a run is never the kept one either -- this is what stops
+ *     cleanup from deleting a second run's sandbox state out from under it
+ *     while that run is still mid-scan.
  *   - Wrapped in a transaction; every value is bound via prepared
  *     statements (never string-interpolated).
  *
@@ -945,11 +950,19 @@ function avesmapsWikiDumpHybridCleanupOldSandboxState(PDO $pdo): array
         }
         $keepRunId = (int) $keepRunId;
 
-        // Every OTHER dump_read run's id (completed or not) -- the deletion scope.
+        // Every OTHER TERMINAL (non-'running') dump_read run's id -- the deletion scope.
         // Scoped to sync_type = 'dump_read' so this can never reach a `location`-type
         // wiki_sync_runs row (though the two target tables are dump_read-only anyway).
+        // Excluding status = 'running' is the concurrency guard: without it, a SECOND
+        // dump_read run that is still mid-scan (status still 'running') when this
+        // cleanup fires would land in the delete set purely because it isn't the kept
+        // id, and its wiki_dump_hybrid_state / wiki_dump_title_alias rows would be
+        // deleted out from under that in-flight scan. This tool has a single owner (low
+        // likelihood), but the guard is cheap and matches the "never wipe an
+        // in-progress run" invariant already documented above for the
+        // no-completed-run case.
         $otherRunsStatement = $pdo->prepare(
-            'SELECT id FROM wiki_sync_runs WHERE sync_type = :sync_type AND id != :keep_run_id'
+            "SELECT id FROM wiki_sync_runs WHERE sync_type = :sync_type AND id != :keep_run_id AND status != 'running'"
         );
         $otherRunsStatement->execute([
             'sync_type' => AVESMAPS_WIKI_DUMP_READ_SYNC_TYPE,
