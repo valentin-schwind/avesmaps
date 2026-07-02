@@ -124,9 +124,18 @@ function avesmapsWikiSyncApiRequest(array $params): array {
             ],
         ]);
 
+        $http_response_header = null;
         $rawResponse = @file_get_contents($url, false, $context);
         $lastRawResponse = is_string($rawResponse) ? $rawResponse : '';
-        $lastStatusCode = avesmapsWikiSyncReadHttpStatusCode($http_response_header ?? []);
+        // A connection-level failure (DNS/timeout/reset -- no response reaches
+        // the wrapper at all) leaves $http_response_header unset, which
+        // avesmapsWikiSyncReadHttpStatusCode() already reports as 0. The
+        // explicit reset above (rather than trusting "unset") guards against a
+        // PHP quirk: $http_response_header is NOT cleared by a failing
+        // file_get_contents() call, so without the reset a connection failure
+        // on attempt N>0 could silently inherit attempt N-1's real HTTP status
+        // line instead of correctly reading as 0.
+        $lastStatusCode = $rawResponse === false ? 0 : avesmapsWikiSyncReadHttpStatusCode($http_response_header ?? []);
 
         if (
             $lastStatusCode === 429
@@ -137,6 +146,19 @@ function avesmapsWikiSyncApiRequest(array $params): array {
             avesmapsWikiSyncLogServerError('wiki_api_temporary_http_error', [
                 'url' => $url,
                 'status_code' => $lastStatusCode,
+                'attempt' => $attempt + 1,
+            ]);
+            continue;
+        }
+
+        if ($rawResponse === false) {
+            // Transient connection-level failure (DNS/timeout/reset): no HTTP
+            // response reached us at all. Retry it the same way as a 5xx --
+            // this used to fall through to the generic empty-response branch
+            // below and retry silently/unlogged; it now gets the same
+            // explicit, logged treatment as the other temporary failures.
+            avesmapsWikiSyncLogServerError('wiki_api_connection_failure', [
+                'url' => $url,
                 'attempt' => $attempt + 1,
             ]);
             continue;
