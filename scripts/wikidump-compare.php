@@ -67,7 +67,7 @@ declare(strict_types=1);
 // 0. CLI GUARD -- never run over HTTP. This reads the DB + parses the dump; it is
 //    CLI-only. Over HTTP it 403s and exits before loading anything.
 // ---------------------------------------------------------------------------
-if (PHP_SAPI !== 'cli') {
+if (isset($_SERVER['REQUEST_METHOD']) || isset($_SERVER['REQUEST_URI']) || isset($_SERVER['HTTP_HOST'])) { // STRATO CLI runs as cgi-fcgi (not 'cli'); detect a real HTTP request by its server markers instead
     http_response_code(403);
     header('Content-Type: text/plain; charset=utf-8');
     echo "Forbidden: wikidump-compare.php is a CLI-only tool.\n";
