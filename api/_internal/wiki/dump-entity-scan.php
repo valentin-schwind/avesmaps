@@ -1080,6 +1080,171 @@ function avesmapsWikiDumpCollectTerritoryRecords(iterable $pages): array
 }
 
 // ===========================================================================
+// 4x. Hybrid migration (Task H2) -- title-set-gated wikitext collector.
+// ---------------------------------------------------------------------------
+// H1 (online category layer, commit f0b9dc46) enumerates the WANTED title set
+// (breadth) + a class/building_type/continent override map from the live wiki
+// API. H2 (this section) is the DUMP side: given that wanted title set, pull
+// ONLY those pages' wikitext from the dump stream in one pass, instead of
+// classifying all ~223k pages by infobox presence (the O4 approach the
+// avesmapsWikiDumpCollect*Records functions above still use). H3 will feed the
+// H1 overrides into the existing parse handlers; H4 owns the resumable
+// step/cursor orchestration around the one-pass filter below (reopen reader,
+// skip N, budget, accumulate found-map across web-request steps) -- NEITHER is
+// built here. Both functions in this section are pure (iterable/array in,
+// array out), READ-ONLY (no DB / staging / sandbox / map writes) and
+// side-effect-free, so they are unit-tested without a real dump
+// (tools/wikidump/test-dump-collect-wikitext.php).
+// ===========================================================================
+
+/**
+ * One streaming pass over a page source, returning ONLY the pages whose
+ * NORMALIZED title is a member of $wantedTitleSet -- an O(1) membership test
+ * per page (isset()), with an early exit once every wanted title has been
+ * found. This is the title-set analogue of the avesmapsWikiDumpCollect*Records
+ * functions above: instead of gating on "does this page's infobox classify as
+ * KIND", it gates on "is this page's title one we were told to fetch" (the
+ * kind/class/continent decision itself is H1's online enumeration, not this
+ * function's job).
+ *
+ * CONTRACT -- $wantedTitleSet keys MUST already be normalized the same way this
+ * function normalizes each dump page's title, i.e. via
+ * avesmapsWikiSyncMonitorNormalizeTitle() (sync-monitor.php:319:
+ * str_replace('_',' ',trim($title)), then strip a trailing #fragment, then
+ * trim again) -- the SAME normalizer avesmapsWikiRegionFetchCategory /
+ * avesmapsWikiPathFetchCategory / avesmapsWikiSyncMonitorFetchCategoryMembers
+ * already apply to online-crawled member titles (regions.php:280, paths.php:179,
+ * sync-monitor.php:462). H1/H4 are expected to pass already-normalized keys;
+ * this function does NOT re-normalize the wanted-set keys themselves (only the
+ * dump page titles it compares against them) -- see the recon report's §4.2 for
+ * the full title-keying analysis.
+ *
+ * A dump page whose title normalizes to '' is never collected, even if ''
+ * happens to be a (degenerate) key of $wantedTitleSet.
+ *
+ * On a duplicate title in the stream (the SAME normalized title appearing
+ * twice -- e.g. a stale dump artifact), the FIRST occurrence found is kept:
+ * $found[$key] is set once and never overwritten by a later hit of the same
+ * key, matching the recon §4.3 sketch verbatim.
+ *
+ * Redirect resolution is NOT this function's job -- a wanted title that is
+ * itself a wiki redirect will never appear as a dump <title> (the dump stores
+ * the article under its canonical title, and a redirect page's OWN title is a
+ * different string). Callers must resolve the wanted set through
+ * avesmapsWikiDumpResolveWantedTitlesThroughAliases() BEFORE calling this
+ * function if the wanted set may contain redirect-alias titles (see that
+ * function's docblock for why this could not be built as a simple pre-pass
+ * inside this same function).
+ *
+ * @param iterable<array{title:string, ns:int, redirect:?string, wikitext:string}> $pages
+ * @param array<string, mixed> $wantedTitleSet normalized-title => truthy (value ignored; membership only)
+ * @return array<string, array{title:string, ns:int, redirect:?string, wikitext:string}> normalized-title => the whole matched page row
+ */
+function avesmapsWikiDumpCollectWikitextForTitles(iterable $pages, array $wantedTitleSet): array
+{
+    $found = [];
+    $wantedCount = count($wantedTitleSet);
+    if ($wantedCount === 0) {
+        return $found; // nothing asked for -> nothing to do, don't even start pulling the stream
+    }
+
+    foreach ($pages as $page) {
+        $key = avesmapsWikiSyncMonitorNormalizeTitle((string) ($page['title'] ?? ''));
+        if ($key === '' || !isset($wantedTitleSet[$key]) || isset($found[$key])) {
+            continue; // no title, not wanted, or already found (first occurrence wins)
+        }
+
+        $found[$key] = $page; // {title, ns, redirect, wikitext} -- the whole page row
+
+        if (count($found) === $wantedCount) {
+            break; // early exit: every wanted title has been found, stop pulling the stream
+        }
+    }
+
+    return $found;
+}
+
+/**
+ * Resolve a wanted-title set through the Pass-A redirect-alias map so that a
+ * wanted title which is actually a wiki REDIRECT gets replaced by its dump-side
+ * CANONICAL identity before the wikitext pass -- the dump stores an article
+ * under its canonical title, never under a redirect's title, so an unresolved
+ * alias in $wantedTitleSet would simply never be found by
+ * avesmapsWikiDumpCollectWikitextForTitles().
+ *
+ * IMPORTANT SHAPE NOTE (divergence from a naive "alias title => canonical
+ * title" assumption -- see the H2 report for the full analysis): $aliasMap is
+ * expected in the REAL shape avesmapsWikiDumpCollectRedirectAliases()
+ * (dump-reader.php:379) actually produces and avesmapsWikiSyncMonitorStoreAlias()
+ * (sync-monitor-model.php:35) actually persists to wiki_redirect_alias --
+ * i.e. `alias_slug => canonical_wiki_key`:
+ *   - keys   = avesmapsPoliticalSlug(avesmapsWikiSyncMonitorNormalizeTitle($title))
+ *              -- a SLUG (lowercase, ASCII-transliterated, hyphenated), NOT the
+ *              plain normalized-title-with-spaces form avesmapsWikiSyncMonitorNormalizeTitle()
+ *              alone produces.
+ *   - values = a 'wiki:'- or 'name:'-prefixed slug (avesmapsPoliticalBuildWikiKey()),
+ *              i.e. a `wiki_key` identity string, NOT a plain canonical page
+ *              TITLE. There is no function that recovers a literal dump
+ *              <title> string from a wiki_key (the slug transform is lossy),
+ *              so this function's "resolved" side is keyed by CANONICAL
+ *              WIKI_KEY, not by canonical title.
+ *
+ * This function therefore builds the wanted title's own alias_slug (via the
+ * SAME composition, avesmapsPoliticalSlug(avesmapsWikiSyncMonitorNormalizeTitle(...)))
+ * to probe $aliasMap, and -- on a hit -- replaces that wanted title's entry
+ * with a key of the resulting canonical_wiki_key (not a title). A caller
+ * wiring this in front of avesmapsWikiDumpCollectWikitextForTitles() (which
+ * matches on NORMALIZED TITLE, not wiki_key) MUST separately resolve a
+ * canonical_wiki_key back to a canonical dump title through some other channel
+ * (e.g. the territory handler's own wiki_key derivation on each dump page) --
+ * this function alone cannot bridge wiki_key back to title, because no such
+ * reverse function exists anywhere in the codebase today. This is flagged
+ * explicitly in the H2 report as a real gap for H4 to close, not invented away
+ * here.
+ *
+ * Returns BOTH the resolved set and a reverse map so a caller (H4) can trace a
+ * found canonical key back to the title that was originally requested:
+ *   - 'resolved': the wanted set with every aliased entry's key replaced by its
+ *     canonical_wiki_key (non-aliased entries pass through with their original
+ *     normalized-title key and value untouched).
+ *   - 'requestedByResolvedKey': canonical_wiki_key => the ORIGINAL wanted title
+ *     that resolved to it (only present for entries that WERE aliased; a
+ *     pass-through entry has no reverse-mapping row because its key never
+ *     changed).
+ *
+ * On a wanted-title key whose alias_slug is '' (e.g. an already-empty title),
+ * the entry is left untouched (pass-through) rather than dropped or guessed at.
+ *
+ * @param array<string, mixed> $wantedTitleSet normalized-title (or already-resolved key) => truthy
+ * @param array<string, string> $aliasMap alias_slug => canonical_wiki_key, EXACTLY the shape avesmapsWikiDumpCollectRedirectAliases() returns
+ * @return array{resolved: array<string, mixed>, requestedByResolvedKey: array<string, string>}
+ */
+function avesmapsWikiDumpResolveWantedTitlesThroughAliases(array $wantedTitleSet, array $aliasMap): array
+{
+    $resolved = [];
+    $requestedByResolvedKey = [];
+
+    foreach ($wantedTitleSet as $wantedTitle => $value) {
+        $wantedTitleString = (string) $wantedTitle;
+        $aliasSlug = avesmapsPoliticalSlug(avesmapsWikiSyncMonitorNormalizeTitle($wantedTitleString));
+
+        if ($aliasSlug === '' || !isset($aliasMap[$aliasSlug])) {
+            $resolved[$wantedTitleString] = $value; // not an alias (or empty slug) -> pass through unchanged
+            continue;
+        }
+
+        $canonicalWikiKey = $aliasMap[$aliasSlug];
+        $resolved[$canonicalWikiKey] = $value; // key REPLACED by the canonical wiki_key
+        $requestedByResolvedKey[$canonicalWikiKey] = $wantedTitleString;
+    }
+
+    return [
+        'resolved' => $resolved,
+        'requestedByResolvedKey' => $requestedByResolvedKey,
+    ];
+}
+
+// ===========================================================================
 // 5. PERSIST (DB-backed, deferred) + read_step scaffold.
 // ===========================================================================
 
