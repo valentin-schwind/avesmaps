@@ -575,7 +575,7 @@ function avesmapsWikiDumpHybridParseUpsertStep(
             avesmapsWikiDumpHybridUpsertParsedRow($pdo, $parsed, $upsertOverrides);
             $kept++;
         }
-        avesmapsWikiDumpHybridMarkProcessed($pdo, $rowId);
+        avesmapsWikiDumpHybridMarkProcessed($pdo, $rowId); // runs even when kept=false (e.g. continent-filtered) -- intentional: the row was still validly examined, so it must not be rescanned every step.
     }
 
     $done = $processedThisStep < $budget; // fewer than a full batch -> pending set drained

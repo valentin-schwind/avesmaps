@@ -181,6 +181,16 @@ if ($options['run'] !== '') {
         fwrite(STDERR, 'FATAL: --run=' . $options['run'] . ' is not a valid run id: ' . $exception->getMessage() . "\n");
         exit(2);
     }
+    // Guard against pasting an unrelated run's id (e.g. an online-crawl 'location'
+    // run): without this check, avesmapsWikiDumpHybridAdvanceReadStep() would only
+    // fail later with a confusing 'unknown phase' error. Same sync_type constant
+    // scripts/wikidump-compare.php's --hybrid resolver checks against.
+    $existingRun = avesmapsWikiSyncFetchRunByPublicId($pdo, $runPublicId);
+    $existingRunSyncType = (string) ($existingRun['sync_type'] ?? '');
+    if ($existingRunSyncType !== AVESMAPS_WIKI_DUMP_SYNC_TYPE) {
+        fwrite(STDERR, "FATAL: run {$runPublicId} is not a dump_read run (sync_type={$existingRunSyncType}).\n");
+        exit(2);
+    }
     fwrite(STDERR, "Resuming existing dump_read run: {$runPublicId}\n");
 } else {
     $startResult = avesmapsWikiDumpHybridStartRun($pdo, null);

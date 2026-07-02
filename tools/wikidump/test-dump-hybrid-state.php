@@ -206,19 +206,38 @@ $check(
 
 // Rerun with a synthetic empty-title/empty-target redirect page mixed in, to
 // prove the skip conditions independent of what the real fixture happens to contain.
+// Also mixes in an alias page whose title/target actually EXERCISE
+// avesmapsWikiSyncMonitorNormalizeTitle() on both sides (underscore -> space,
+// trailing #anchor + trailing space stripped) -- the real fixture's two redirects
+// (Horasreich, "Koenigreich Kosch (historisch)") contain neither an underscore nor
+// a '#', so without this synthetic page the normalization call on the alias side
+// is exercised only by inspection, never actually forced to change a value (I1).
 $syntheticPages = [
     ['title' => 'Alias Eins', 'ns' => 0, 'redirect' => 'Ziel Eins', 'wikitext' => ''],
     ['title' => '', 'ns' => 0, 'redirect' => 'Ziel Ohne Titel', 'wikitext' => ''], // empty alias title -> skipped
     ['title' => 'Alias Drei', 'ns' => 0, 'redirect' => '', 'wikitext' => ''], // empty target -> not a redirect at all
     ['title' => 'Alias Eins', 'ns' => 0, 'redirect' => 'Ziel Zwei', 'wikitext' => ''], // duplicate alias -> last write wins
     ['title' => 'Normale Seite', 'ns' => 0, 'redirect' => null, 'wikitext' => 'Inhalt'], // not a redirect
+    ['title' => 'Alte_Handelsstadt ', 'ns' => 0, 'redirect' => 'Neue Handelsstadt#Geschichte', 'wikitext' => ''], // underscore + trailing space (alias) / #anchor (target) -> both sides must normalize
 ];
 $syntheticMap = avesmapsWikiDumpCollectRedirectTitleAliases($syntheticPages);
 $check(
     '(a7) synthetic: empty alias title / empty target / non-redirect page all skipped',
-    ['Alias Eins' => 'Ziel Zwei'],
+    ['Alias Eins' => 'Ziel Zwei', 'Alte Handelsstadt' => 'Neue Handelsstadt'],
     $syntheticMap,
-    'only "Alias Eins" survives, and with its LAST target ("Ziel Zwei") -- last write wins, matching the existing collector\'s documented semantics'
+    'only "Alias Eins" (LAST target "Ziel Zwei" -- last write wins) and the normalized "Alte Handelsstadt" survive'
+);
+$check(
+    '(a8) alias side normalized: underscore -> space AND trailing space trimmed',
+    'Neue Handelsstadt',
+    $syntheticMap['Alte Handelsstadt'] ?? null,
+    'raw alias title "Alte_Handelsstadt " must be looked up via its NORMALIZED form -- proves avesmapsWikiSyncMonitorNormalizeTitle() actually ran on the alias side, not just the canonical side'
+);
+$check(
+    '(a9) canonical side normalized: trailing #anchor stripped',
+    false,
+    str_contains((string) ($syntheticMap['Alte Handelsstadt'] ?? ''), '#'),
+    '"Neue Handelsstadt#Geschichte" must lose its #anchor via the SAME normalizer applied to the target'
 );
 
 // ===========================================================================

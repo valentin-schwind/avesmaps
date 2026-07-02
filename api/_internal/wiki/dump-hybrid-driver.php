@@ -459,8 +459,8 @@ function avesmapsWikiDumpHybridRedirectAliasStep(
     foreach ($source($dumpPath, max(0, $cursor)) as $page) {
         $pagesScanned++;
 
-        $target = $page['redirect'] ?? null;
-        if (is_string($target) && $target !== '' && trim((string) ($page['title'] ?? '')) !== '') {
+        $target = avesmapsWikiDumpPageRedirectTarget($page);
+        if ($target !== null && trim((string) ($page['title'] ?? '')) !== '') {
             // (a) title->title: keep the minimal shape H4a's extractor reads (title +
             //     redirect only -- never the wikitext body, so memory stays bounded);
             //     the extractor is called ONCE over the whole window below so its

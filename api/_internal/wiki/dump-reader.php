@@ -349,6 +349,29 @@ function avesmapsWikiDumpReadElementText(XMLReader $reader): string
     return $buffer;
 }
 
+/**
+ * Read the raw `redirect` target string off a dump-reader page array (as
+ * produced by avesmapsWikiDumpIteratePages() / avesmapsWikiDumpReadPageElement()),
+ * or null if the page has no redirect target. This is exactly the
+ * `is_string($target) && $target !== ''` guard that was inline-duplicated at
+ * several Pass-A/Pass-B/hybrid call sites; it does NO normalization or slugging
+ * -- callers that need avesmapsWikiSyncMonitorNormalizeTitle() or a wiki_key
+ * still apply that themselves afterward, unchanged.
+ *
+ * NOT used for the XMLReader `<redirect title="...">` ATTRIBUTE read inside
+ * avesmapsWikiDumpReadPageElement() (this file, above) -- that site reads
+ * `$reader->getAttribute('title')` off an XMLReader, not a `$page['redirect']`
+ * array field, so it is a different input shape and is left as-is.
+ *
+ * @param array{title?:string, ns?:int, redirect?:?string, wikitext?:string} $page
+ */
+function avesmapsWikiDumpPageRedirectTarget(array $page): ?string
+{
+    $target = $page['redirect'] ?? null;
+
+    return (is_string($target) && $target !== '') ? $target : null;
+}
+
 // ===========================================================================
 // 4. Pass A -- redirect alias extraction (PURE collect + THIN persist).
 // ===========================================================================
@@ -381,8 +404,8 @@ function avesmapsWikiDumpCollectRedirectAliases(iterable $pages): array
     $map = [];
 
     foreach ($pages as $page) {
-        $target = $page['redirect'] ?? null;
-        if (!is_string($target) || $target === '') {
+        $target = avesmapsWikiDumpPageRedirectTarget($page);
+        if ($target === null) {
             continue; // not a redirect page
         }
 
@@ -452,8 +475,8 @@ function avesmapsWikiDumpPersistRedirectAliases(PDO $pdo, iterable $pages): int
     $titlesByCanonical = [];
 
     foreach ($pages as $page) {
-        $target = $page['redirect'] ?? null;
-        if (!is_string($target) || $target === '') {
+        $target = avesmapsWikiDumpPageRedirectTarget($page);
+        if ($target === null) {
             continue;
         }
         $title = (string) ($page['title'] ?? '');
@@ -574,8 +597,8 @@ function avesmapsWikiDumpRunPassAStep(PDO $pdo, string $dumpPath, string $runPub
         foreach (avesmapsWikiDumpIteratePages($reader, $cursor) as $page) {
             $processedThisStep++;
 
-            $target = $page['redirect'] ?? null;
-            if (is_string($target) && $target !== '' && trim((string) ($page['title'] ?? '')) !== '') {
+            $target = avesmapsWikiDumpPageRedirectTarget($page);
+            if ($target !== null && trim((string) ($page['title'] ?? '')) !== '') {
                 $canonical = avesmapsWikiDumpCanonicalWikiKeyForTitle($target);
                 if ($canonical !== '') {
                     $batchTitlesByCanonical[$canonical][] = (string) $page['title'];
