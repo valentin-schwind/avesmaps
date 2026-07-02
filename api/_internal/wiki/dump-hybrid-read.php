@@ -89,6 +89,11 @@ declare(strict_types=1);
 // ===========================================================================
 
 /**
+ * DEAD CODE since the enumeration fix (wikitext_collect now scans the whole dump
+ * + classifies by infobox instead of a wanted-set). Retained (not deleted) per
+ * the enum-fix brief; flagged for a later cleanup task. Still unit-tested for its
+ * pure shape while it lives.
+ *
  * Build the wikitext_collect wanted-title SET from a list of still-pending
  * normalized titles, resolving each through the H4a title->title redirect alias
  * map FIRST so a wanted title that is itself a wiki redirect matches its
@@ -274,31 +279,42 @@ function avesmapsWikiDumpHybridParseRow(array $row): array
 // ===========================================================================
 
 /**
- * Process ONE bounded wikitext_collect step: fill the `wikitext` column of the
- * still-pending state rows for $runId from the dump, resuming from a page-counter
- * cursor. Mirrors avesmapsWikiDumpRunPassBStep's reopen+skip discipline, but with
- * the ADJUDICATED time-budget-primary stopping rule (see the file docblock) and
- * writing ONLY the sandbox wiki_dump_hybrid_state table.
+ * Process ONE bounded wikitext_collect step: SCAN the dump window and classify
+ * EVERY page by infobox presence -- exactly like plain-mode
+ * avesmapsWikiDumpRunPassBStep (dump-entity-scan.php:1597, invariant O4) -- then
+ * stage each recognised entity as a wiki_dump_hybrid_state row. This is the
+ * ENUMERATION for the hybrid: paths / regions / settlements / buildings /
+ * territories are all discovered here from the dump, NOT from an online-map
+ * wanted-set (the previous behaviour, which only enumerated the settlement +
+ * building titles the H1 online-category fills wrote, so paths/regions/
+ * territories were never collected).
  *
- * Per step:
- *   1. Rebuild the wanted-title SET FRESH from a bounded
- *      `SELECT normalized_title ... WHERE run_id=? AND wikitext_found_at IS NULL`
- *      (never held resident across steps -- PHP memory stays bounded regardless
- *      of the total wanted-set size), resolved through the H4a title->title alias
- *      map via avesmapsWikiDumpHybridBuildWantedSet().
- *   2. If the wanted set is empty, return done=true immediately (nothing left to
- *      collect -- do not even open the dump).
- *   3. Reopen the reader, skip $cursor pages, then stream pages, running H2's
- *      avesmapsWikiDumpCollectWikitextForTitles() semantics inline (normalize
- *      each dump title, membership-test, collect) and writing wikitext +
- *      wikitext_found_at to the matching state row as each is found. Stop when
- *      the TIME budget is hit (primary cap, ~25s margin), when every wanted title
- *      has been found (H2 early-exit), or when the stream ends (done).
+ * Per step (mirrors Pass B's reopen+skip discipline, with the ADJUDICATED
+ * time-budget-primary stopping rule from the file docblock, writing ONLY the
+ * sandbox wiki_dump_hybrid_state table):
+ *   1. Reopen the reader and skip $cursor pages (Pass A/B model). There is NO
+ *      pending-title read and NO wanted-set: the dump scan itself is the
+ *      enumeration, so PHP memory stays bounded without holding any title set.
+ *   2. For EVERY page in the window, call avesmapsWikiDumpClassifyPage($page)
+ *      (reused VERBATIM from dump-entity-scan.php:214 -- ns!=0 and <redirect>
+ *      pages short-circuit to '', the entity kind is read from the infobox name).
+ *   3. If the kind is one of the 5 handled kinds, UPSERT a state row keyed
+ *      (run_id, normalized_title) with entity_kind = the classified kind,
+ *      wikitext = the page body, wikitext_found_at = now. The upsert is an
+ *      INSERT ... ON DUPLICATE KEY UPDATE that MERGES into an H1-pre-seeded
+ *      override row -- override_class/override_building_type/override_continent are
+ *      NOT in the UPDATE clause, so a pre-seeded override survives (the same
+ *      COALESCE-merge intent as avesmapsWikiDumpHybridUpsertRows, which cannot
+ *      write entity_kind/wikitext and so is not reused for this write). A fresh
+ *      (non-preseeded) entity is INSERTed with override_* left NULL.
+ *   4. Kind '' (no recognised infobox) -> skip, exactly like Pass B.
+ *   Stop when the TIME budget is hit (primary cap, ~25s margin) or the stream ends.
  *
  * nextCursor = $cursor + pages_scanned so the caller resumes past the pages this
- * step consumed. done=true when the stream ends OR the fresh wanted set was empty
- * (i.e. every row already has wikitext). pages_scanned + step_counter are logged
- * via error_log so the owner can see whether one full pass takes 1 step or many.
+ * step consumed. done=true iff the stream ran to exhaustion (Pass B's own done
+ * semantics -- there is no fixed target to early-exit against). pages_scanned +
+ * found_this_step + step_counter are logged via error_log so the owner can see
+ * whether one full pass takes 1 step or many.
  *
  * @param PDO      $pdo
  * @param string   $dumpPath  path to the .bz2 / .gz / .xml dump
@@ -307,8 +323,8 @@ function avesmapsWikiDumpHybridParseRow(array $row): array
  * @param int      $stepIndex 0-based running step counter, for the log line only
  * @param float|null $marginSeconds time margin below STEP_SECONDS to stop at (default ~25s of the 28s budget)
  * @param callable|null $pageSource test seam: (dumpPath, skipPages) => iterable of page rows; default = real reader
- * @param array<string,string>|null $titleAliasMap H4a title->title redirect map (normalized alias => normalized canonical); null/[] = no alias resolution
- * @return array{ok:bool, done:bool, nextCursor:int, pages_scanned:int, found_this_step:int, wanted_remaining:int, step:int}
+ * @param array<string,string>|null $titleAliasMap DEAD since the enumeration fix (the scan needs no alias resolution); retained ONLY to keep the caller signature stable -- flagged for cleanup.
+ * @return array{ok:bool, done:bool, nextCursor:int, pages_scanned:int, found_this_step:int, step:int}
  */
 function avesmapsWikiDumpHybridWikitextCollectStep(
     PDO $pdo,
@@ -328,70 +344,61 @@ function avesmapsWikiDumpHybridWikitextCollectStep(
     @set_time_limit((int) AVESMAPS_WIKI_DUMP_STEP_SECONDS + 15);
     $deadline = microtime(true) + $margin;
 
-    // (1) Fresh pending-title set for this run, resolved through H4a's title->title
-    //     redirect alias map. The map is passed in by the caller (H4c owns where
-    //     the redirect_aliases phase produces/persists
-    //     avesmapsWikiDumpCollectRedirectTitleAliases()'s output); [] = no alias
-    //     resolution, which is correct when no wanted title is a redirect.
-    $pendingTitles = avesmapsWikiDumpHybridFetchPendingTitles($pdo, $runId);
-    $wantedSet = avesmapsWikiDumpHybridBuildWantedSet($pendingTitles, $titleAliasMap ?? []);
-    $wantedRemaining = count($wantedSet);
+    // $titleAliasMap is DEAD since the enumeration fix (the whole-dump scan needs
+    // no wanted-set alias resolution); referenced here only so a static analyzer
+    // sees the retained-for-signature parameter is intentionally unused.
+    unset($titleAliasMap);
 
-    if ($wantedRemaining === 0) {
-        avesmapsWikiDumpHybridLogCollectStep($stepIndex, $cursor, 0, 0, 0, true);
-        return [
-            'ok' => true,
-            'done' => true, // nothing pending -> the collect phase is complete
-            'nextCursor' => max(0, $cursor),
-            'pages_scanned' => 0,
-            'found_this_step' => 0,
-            'wanted_remaining' => 0,
-            'step' => $stepIndex,
-        ];
-    }
-
-    // (3) Reopen + skip + stream. The page source is injectable for tests; the
-    //     default reopens the real reader and skips $cursor pages (Pass A/B model).
+    // Reopen + skip + stream. The page source is injectable for tests; the default
+    // reopens the real reader and skips $cursor pages (Pass A/B model). No
+    // maxPages: the TIME budget (not a page count) is the primary cap.
     $source = $pageSource ?? static function (string $path, int $skip): iterable {
         $reader = avesmapsWikiDumpOpenReader($path);
         try {
-            // No maxPages: the TIME budget (not a page count) is the primary cap.
             yield from avesmapsWikiDumpIteratePages($reader, max(0, $skip));
         } finally {
             $reader->close();
         }
     };
 
-    $upsertWikitext = $pdo->prepare(
-        'UPDATE wiki_dump_hybrid_state
-            SET wikitext = :wikitext, wikitext_found_at = CURRENT_TIMESTAMP(3)
-          WHERE run_id = :run_id AND normalized_title = :normalized_title'
+    // Stage a scanned entity: MERGE (entity_kind + wikitext + wikitext_found_at)
+    // into the (run_id, normalized_title) row. override_* are deliberately ABSENT
+    // from the UPDATE clause, so an H1-pre-seeded override row survives the scan
+    // attaching wikitext (same COALESCE-merge intent as
+    // avesmapsWikiDumpHybridUpsertRows, which cannot write entity_kind/wikitext);
+    // a fresh entity is INSERTed with override_* left NULL.
+    $upsertEntity = $pdo->prepare(
+        'INSERT INTO wiki_dump_hybrid_state
+            (run_id, normalized_title, entity_kind, wikitext, wikitext_found_at)
+        VALUES
+            (:run_id, :normalized_title, :entity_kind, :wikitext, CURRENT_TIMESTAMP(3))
+        ON DUPLICATE KEY UPDATE
+            entity_kind = VALUES(entity_kind),
+            wikitext = VALUES(wikitext),
+            wikitext_found_at = CURRENT_TIMESTAMP(3)'
     );
 
+    $handledKinds = avesmapsWikiDumpHandledEntityKinds();
     $pagesScanned = 0;
     $foundThisStep = 0;
-    $found = [];                 // canonical normalized title => true (H2 early-exit tracker)
-    $streamExhausted = true;     // stays true iff the foreach falls through without any break
+    $streamExhausted = true; // stays true iff the foreach falls through without a break
 
     foreach ($source($dumpPath, max(0, $cursor)) as $page) {
         $pagesScanned++;
 
-        // H2 collector semantics, inline: normalize the dump title, membership-test.
-        $key = avesmapsWikiSyncMonitorNormalizeTitle((string) ($page['title'] ?? ''));
-        if ($key !== '' && isset($wantedSet[$key]) && !isset($found[$key])) {
-            $found[$key] = true;
-            // Write the body back onto the ORIGINAL requested state row (the trace
-            // value), which is the row whose wikitext_found_at is still NULL.
-            $upsertWikitext->execute([
-                'wikitext' => (string) ($page['wikitext'] ?? ''),
-                'run_id' => $runId,
-                'normalized_title' => $wantedSet[$key],
-            ]);
-            $foundThisStep++;
-
-            if (count($found) === $wantedRemaining) {
-                $streamExhausted = false; // H2 early-exit -- more pages may remain
-                break; // every wanted title found in this pass
+        // Enumeration = infobox-presence classification (O4), reused VERBATIM from
+        // Pass B. ns!=0 / redirect pages classify as '' and are skipped.
+        $kind = avesmapsWikiDumpClassifyPage($page);
+        if ($kind !== '' && in_array($kind, $handledKinds, true)) {
+            $normalizedTitle = avesmapsWikiSyncMonitorNormalizeTitle((string) ($page['title'] ?? ''));
+            if ($normalizedTitle !== '') {
+                $upsertEntity->execute([
+                    'run_id' => $runId,
+                    'normalized_title' => $normalizedTitle,
+                    'entity_kind' => $kind,
+                    'wikitext' => (string) ($page['wikitext'] ?? ''),
+                ]);
+                $foundThisStep++;
             }
         }
 
@@ -402,15 +409,13 @@ function avesmapsWikiDumpHybridWikitextCollectStep(
         }
     }
 
-    // done iff the stream ran to exhaustion (the foreach fell through with neither
-    // the time budget nor the early-exit breaking it). When the phase early-exits
-    // because every wanted title was found, the NEXT step's fresh wanted-set will
-    // be empty and return done=true via the empty-set path above -- so an early
-    // exit never wrongly reports the whole collect phase complete here.
+    // done iff the stream ran to exhaustion (the foreach fell through without the
+    // time budget breaking it). There is no early-exit: the dump scan has no fixed
+    // target to complete against, so only running off the end reports the phase done.
     $done = $streamExhausted;
 
     $nextCursor = max(0, $cursor) + $pagesScanned;
-    avesmapsWikiDumpHybridLogCollectStep($stepIndex, $cursor, $pagesScanned, $foundThisStep, $wantedRemaining, $done);
+    avesmapsWikiDumpHybridLogCollectStep($stepIndex, $cursor, $pagesScanned, $foundThisStep, $foundThisStep, $done);
 
     return [
         'ok' => true,
@@ -418,16 +423,17 @@ function avesmapsWikiDumpHybridWikitextCollectStep(
         'nextCursor' => $nextCursor,
         'pages_scanned' => $pagesScanned,
         'found_this_step' => $foundThisStep,
-        'wanted_remaining' => $wantedRemaining,
         'step' => $stepIndex,
     ];
 }
 
 /**
  * Fetch the still-pending normalized titles for a run (wikitext_found_at IS NULL)
- * as a plain list -- the bounded SELECT wikitext_collect rebuilds fresh each step
- * so the wanted set is never held resident across steps. Thin DB accessor;
- * owner-live-verified (a fixture test injects a fake page source instead).
+ * as a plain list. DEAD CODE since the enumeration fix: wikitext_collect no longer
+ * reads a wanted-set (it scans the whole dump + classifies by infobox), so nothing
+ * calls this. Retained (not deleted) per the enum-fix brief; flagged for a later
+ * cleanup task alongside avesmapsWikiDumpHybridBuildWantedSet and H2's title-set
+ * collector. Thin DB accessor.
  *
  * @return list<string>
  */

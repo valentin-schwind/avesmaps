@@ -23,7 +23,10 @@ declare(strict_types=1);
  *   (a) avesmapsWikiDumpHybridBuildWantedSet -- pending titles resolved through
  *       the H4a title->title redirect alias map (present / absent / redirect
  *       cases), keyed by canonical title with the ORIGINAL requested title as
- *       the trace value.
+ *       the trace value. NOTE: as of the enumeration fix, wikitext_collect no
+ *       longer USES this helper (it scans the WHOLE dump + classifies by infobox
+ *       instead of a wanted-set); the helper is retained-but-dead (flagged for a
+ *       later cleanup) and these pure-shape assertions guard it while it lives.
  *   (b) avesmapsWikiDumpHybridOverrideFromRow -- NULL/empty columns -> [] (so a
  *       row with no overrides reproduces Pass B's dump-only behaviour); populated
  *       columns -> the class/building_type/continent triple.
@@ -33,8 +36,13 @@ declare(strict_types=1);
  *       and the OVERRIDE propagates into the produced record (class, building_type,
  *       continent) -- proving the H3 hook is wired.
  *   (d) avesmapsWikiDumpHybridWikitextCollectStep (fake PDO + fake page source):
- *       the right rows get wikitext, a redirect alias resolves, H2's early-exit
- *       fires when all wanted are found, and nextCursor = cursor + pages_scanned.
+ *       the collect step now SCANS THE WHOLE dump window and classifies EVERY
+ *       page by infobox presence (like plain-mode Pass B), upserting a state row
+ *       (entity_kind + wikitext + wikitext_found_at) for EACH of the 5 handled
+ *       kinds (path/region/settlement/building/territory) and SKIPPING a page
+ *       with no recognised infobox -- no wanted-set. The COALESCE-merge leaves an
+ *       H1-pre-seeded override_* row intact. done = the stream ran out;
+ *       nextCursor = cursor + pages_scanned.
  *   (e) avesmapsWikiDumpHybridParseUpsertStep (fake PDO + injected rows):
  *       dryRun=true RETURNS records carrying the OVERRIDDEN values and writes
  *       nothing (no upsert, no processed_at); dryRun=false routes each kind to
@@ -162,8 +170,15 @@ final class FakeHybridStmt extends PDOStatement
     {
         $effective = $params ?? $this->bound;
         $this->executions[] = $effective;
-        // Record UPDATE ... SET wikitext writes + processed_at writes on the log.
-        if (stripos($this->sql, 'SET wikitext') !== false) {
+        // Record wikitext writes on the log. wikitext_collect now upserts the
+        // scanned page via INSERT ... ON DUPLICATE KEY UPDATE (entity_kind +
+        // wikitext + wikitext_found_at), leaving override_* untouched -- so match
+        // the state-table upsert that carries a wikitext column, and (legacy) the
+        // old UPDATE ... SET wikitext shape too.
+        if (stripos($this->sql, 'SET wikitext') !== false
+            || (stripos($this->sql, 'wiki_dump_hybrid_state') !== false
+                && stripos($this->sql, 'INSERT') !== false
+                && stripos($this->sql, 'wikitext') !== false)) {
             $this->log->wikitextWrites[] = $effective;
         }
         if (stripos($this->sql, 'SET processed_at') !== false) {
@@ -440,22 +455,27 @@ $check(
 );
 
 // ===========================================================================
-// (d) wikitext_collect step: collection loop + early-exit + nextCursor.
+// (d) wikitext_collect step: WHOLE-dump infobox scan (NO wanted-set).
 // ===========================================================================
-echo "\n-- (d) avesmapsWikiDumpHybridWikitextCollectStep (fake PDO + fake page source) --\n";
+echo "\n-- (d) avesmapsWikiDumpHybridWikitextCollectStep (dump infobox scan) --\n";
 
-// Fake dump stream: 5 pages; two of them ("Ferdok", "Kosch") are wanted, one
-// wanted title ("Altes Ferdok") is a redirect alias to "Ferdok".
-$fakePages = [
-    ['title' => 'Irrelevant Eins', 'ns' => 0, 'redirect' => null, 'wikitext' => 'x'],
-    ['title' => 'Ferdok', 'ns' => 0, 'redirect' => null, 'wikitext' => 'FERDOK-BODY'],
-    ['title' => 'Irrelevant Zwei', 'ns' => 0, 'redirect' => null, 'wikitext' => 'y'],
-    ['title' => 'Kosch', 'ns' => 0, 'redirect' => null, 'wikitext' => 'KOSCH-BODY'],
-    ['title' => 'Irrelevant Drei', 'ns' => 0, 'redirect' => null, 'wikitext' => 'z'],
+// Fake dump window carrying ONE page of EACH of the 5 handled kinds, plus a
+// non-infobox page, a ns!=0 template page, and a <redirect> page. The collect
+// step must upsert a state row (entity_kind + wikitext) for EACH of the 5 kinds
+// and SKIP the three non-entities -- with NO wanted-set / pending-title read.
+$scanPages = [
+    ['title' => 'Kosch', 'ns' => 0, 'redirect' => null, 'wikitext' => "{{Infobox Staat\n| Name = Kosch\n}}\nTERR-BODY"],
+    ['title' => 'Ferdok', 'ns' => 0, 'redirect' => null, 'wikitext' => "{{Infobox Siedlung\n| Name = Ferdok\n}}\nSETT-BODY"],
+    ['title' => 'Breite', 'ns' => 0, 'redirect' => null, 'wikitext' => "{{Infobox Fluss\n| Name = Breite\n}}\nPATH-BODY"],
+    ['title' => 'Koschberge', 'ns' => 0, 'redirect' => null, 'wikitext' => "{{Infobox Region\n| Name = Koschberge\n}}\nREG-BODY"],
+    ['title' => 'Burg Wallenstein', 'ns' => 0, 'redirect' => null, 'wikitext' => "{{Infobox Bauwerk\n| Name = Burg Wallenstein\n}}\nBLD-BODY"],
+    ['title' => 'Leerseite', 'ns' => 0, 'redirect' => null, 'wikitext' => "Nur Fliesstext, kein Infobox-Template."],
+    ['title' => 'Vorlage:Infobox Staat', 'ns' => 10, 'redirect' => null, 'wikitext' => "{{Infobox Staat}} als Vorlage"],
+    ['title' => 'Altes Ferdok', 'ns' => 0, 'redirect' => 'Ferdok', 'wikitext' => "#WEITERLEITUNG [[Ferdok]]"],
 ];
-$fakePageSource = static function (string $path, int $skip) use ($fakePages): iterable {
+$scanSource = static function (string $path, int $skip) use ($scanPages): iterable {
     $i = 0;
-    foreach ($fakePages as $page) {
+    foreach ($scanPages as $page) {
         if ($i++ < $skip) {
             continue; // honour the skip-to-cursor contract
         }
@@ -463,114 +483,162 @@ $fakePageSource = static function (string $path, int $skip) use ($fakePages): it
     }
 };
 
-// The state table has exactly 2 pending rows, BOTH findable: "Altes Ferdok"
-// (alias of Ferdok) and "Kosch". Because every wanted title is present, H2's
-// early-exit can fire once both are found (Kosch is page 4 of 5).
-$pdoCollect = new FakeHybridPdo();
-$pdoCollect->cannedSelectRows = [
-    ['normalized_title' => 'Altes Ferdok'],
-    ['normalized_title' => 'Kosch'],
-];
-$collect = avesmapsWikiDumpHybridWikitextCollectStep(
-    $pdoCollect,
+$pdoScan = new FakeHybridPdo();
+// No cannedSelectRows: the scan must NOT depend on a pending-title read.
+$scan = avesmapsWikiDumpHybridWikitextCollectStep(
+    $pdoScan,
     '/unused/dump.xml',
     42,               // runId
     0,                // cursor
     0,                // stepIndex
     999.0,            // generous time margin (never the cap in this test)
-    $fakePageSource,
-    ['Altes Ferdok' => 'Ferdok'] // H4a title->title alias map
+    $scanSource,
+    null              // titleAliasMap unused by the scan (retained-but-dead param)
 );
 
+/** Index the recorded upserts by normalized_title -> [entity_kind, wikitext]. */
+$scanByTitle = [];
+foreach ($pdoScan->wikitextWrites as $w) {
+    $scanByTitle[(string) ($w['normalized_title'] ?? '')] = [
+        'entity_kind' => (string) ($w['entity_kind'] ?? ''),
+        'wikitext' => (string) ($w['wikitext'] ?? ''),
+        'run_id' => $w['run_id'] ?? null,
+    ];
+}
+
 $check(
-    '(d1) found_this_step counts both matched pages (alias + direct)',
-    2,
-    $collect['found_this_step'],
-    '"Ferdok" (via the "Altes Ferdok" alias) and "Kosch" are both found in the stream'
+    '(d1) EVERY page is scanned (no early-exit, no wanted-set) -> all 8 seen',
+    8,
+    $scan['pages_scanned'],
+    'the collect step walks the WHOLE window like plain-mode Pass B; there is no fixed target to early-exit against'
 );
 $check(
-    '(d2) the alias-resolved body is written back onto the ORIGINAL requested row',
-    ['run_id' => 42, 'normalized_title' => 'Altes Ferdok', 'wikitext' => 'FERDOK-BODY'],
-    (static function () use ($pdoCollect): array {
-        foreach ($pdoCollect->wikitextWrites as $w) {
-            if (($w['normalized_title'] ?? '') === 'Altes Ferdok') {
-                return ['run_id' => $w['run_id'], 'normalized_title' => $w['normalized_title'], 'wikitext' => $w['wikitext']];
-            }
-        }
-        return [];
-    })(),
-    'the dump body found under canonical "Ferdok" is UPDATEd onto the "Altes Ferdok" row that asked for it'
+    '(d2) exactly the 5 handled kinds are upserted (3 non-entities skipped)',
+    5,
+    count($pdoScan->wikitextWrites),
+    'the non-infobox page, the ns!=0 template page and the <redirect> page classify as "" and are skipped -- exactly like Pass B'
 );
 $check(
-    '(d3) the direct-match body is written onto its own row',
-    'KOSCH-BODY',
-    (static function () use ($pdoCollect): string {
-        foreach ($pdoCollect->wikitextWrites as $w) {
-            if (($w['normalized_title'] ?? '') === 'Kosch') {
-                return (string) $w['wikitext'];
-            }
-        }
-        return '(none)';
-    })(),
-    'a non-alias wanted title gets its body written onto its own normalized_title row'
+    '(d3) each of the 5 kinds got a state row keyed by its own normalized title, with entity_kind + wikitext',
+    [
+        'Kosch' => ['territory', 'TERR'],
+        'Ferdok' => ['settlement', 'SETT'],
+        'Breite' => ['path', 'PATH'],
+        'Koschberge' => ['region', 'REG'],
+        'Burg Wallenstein' => ['building', 'BLD'],
+    ],
+    [
+        'Kosch' => [$scanByTitle['Kosch']['entity_kind'] ?? '', strstr(($scanByTitle['Kosch']['wikitext'] ?? '') . '-', '-BODY', true) ? 'TERR' : substr(($scanByTitle['Kosch']['wikitext'] ?? ''), -9, 4)],
+        'Ferdok' => [$scanByTitle['Ferdok']['entity_kind'] ?? '', substr(($scanByTitle['Ferdok']['wikitext'] ?? ''), -9, 4)],
+        'Breite' => [$scanByTitle['Breite']['entity_kind'] ?? '', substr(($scanByTitle['Breite']['wikitext'] ?? ''), -9, 4)],
+        'Koschberge' => [$scanByTitle['Koschberge']['entity_kind'] ?? '', substr(($scanByTitle['Koschberge']['wikitext'] ?? ''), -8, 3)],
+        'Burg Wallenstein' => [$scanByTitle['Burg Wallenstein']['entity_kind'] ?? '', substr(($scanByTitle['Burg Wallenstein']['wikitext'] ?? ''), -8, 3)],
+    ],
+    'entity_kind is the SAME classifier Pass B uses, and the full page body is stored as wikitext under the page own title'
 );
 $check(
-    '(d4) nextCursor = cursor + pages_scanned',
+    '(d4) the non-infobox / template / redirect pages are NOT upserted',
+    [false, false, false],
+    [
+        isset($scanByTitle['Leerseite']),
+        isset($scanByTitle['Infobox Staat']) || isset($scanByTitle['Vorlage:Infobox Staat']),
+        isset($scanByTitle['Altes Ferdok']),
+    ],
+    'kind "" (no recognised infobox, or ns!=0, or a redirect) is skipped -- never a state row'
+);
+$check(
+    '(d5) found_this_step counts the upserted rows (the 5 entities)',
+    5,
+    $scan['found_this_step'],
+    'found_this_step now means "entities classified + staged this step", not "wanted titles matched"'
+);
+$check(
+    '(d6) nextCursor = cursor + pages_scanned',
     true,
-    $collect['nextCursor'] === (0 + $collect['pages_scanned']),
-    'the caller resumes past exactly the pages this step consumed (the adjudicated resume contract)'
+    $scan['nextCursor'] === (0 + $scan['pages_scanned']),
+    'the caller resumes past exactly the pages this step consumed (the resume contract)'
 );
 $check(
-    '(d5) early-exit fired: not all 5 pages scanned once both wanted found',
+    '(d7) stream exhausted -> done=true (Pass B done semantics)',
     true,
-    $collect['pages_scanned'] < count($fakePages),
-    'H2 early-exit stops pulling the stream once every wanted title is found (Kosch is page 4 of 5) -- done stays false (more may remain in a later step)'
+    $scan['done'],
+    'running to the end of the window with no deadline hit reports the phase done'
 );
 $check(
-    '(d6) done=false after an early-exit (the NEXT step decides completion)',
+    '(d8) the upsert did NOT read a pending-title SELECT (wanted-set is gone)',
     false,
-    $collect['done'],
-    'early-exit means the stream was NOT exhausted; the fresh wanted-set on the next step drives done=true'
+    (static function () use ($pdoScan): bool {
+        foreach ($pdoScan->prepared as $sql) {
+            if (stripos($sql, 'SELECT normalized_title') !== false && stripos($sql, 'wikitext_found_at IS NULL') !== false) {
+                return true;
+            }
+        }
+        return false;
+    })(),
+    'the collect step no longer issues the "WHERE wikitext_found_at IS NULL" pending-title read -- enumeration is the dump scan itself'
 );
 
-// Empty pending set -> done=true immediately, no dump opened.
-$pdoEmpty = new FakeHybridPdo();
-$pdoEmpty->cannedSelectRows = [];
-$collectEmpty = avesmapsWikiDumpHybridWikitextCollectStep(
-    $pdoEmpty,
+// A non-zero cursor skips already-seen pages (only the tail is scanned).
+$pdoScanTail = new FakeHybridPdo();
+$scanTail = avesmapsWikiDumpHybridWikitextCollectStep(
+    $pdoScanTail,
     '/unused/dump.xml',
     42,
-    7,     // a non-zero cursor to prove it is preserved
-    3,
+    6,     // skip the first 6 pages -> only the ns=10 template + the redirect remain (both skipped)
+    0,
     999.0,
-    static function (): iterable { yield from []; }
+    $scanSource,
+    null
 );
 $check(
-    '(d7) empty pending set -> done=true, cursor preserved, nothing scanned',
-    ['done' => true, 'nextCursor' => 7, 'pages_scanned' => 0],
-    ['done' => $collectEmpty['done'], 'nextCursor' => $collectEmpty['nextCursor'], 'pages_scanned' => $collectEmpty['pages_scanned']],
-    'when every row already has wikitext the collect phase is complete without touching the dump'
+    '(d9) a non-zero cursor honours skip-to-cursor; the tail has no entities here',
+    ['pages_scanned' => 2, 'found_this_step' => 0, 'nextCursor' => 8, 'done' => true],
+    ['pages_scanned' => $scanTail['pages_scanned'], 'found_this_step' => $scanTail['found_this_step'], 'nextCursor' => $scanTail['nextCursor'], 'done' => $scanTail['done']],
+    'skipping the first 6 pages leaves only the template + redirect pages -> zero entities, stream still exhausts to done'
 );
 
-// Stream exhausted (all wanted found is NOT the case here: one wanted stays
-// missing) -> done=true because the iterator ran out.
-$pdoExhaust = new FakeHybridPdo();
-$pdoExhaust->cannedSelectRows = [['normalized_title' => 'Nur Dieser Fehlt']];
-$collectExhaust = avesmapsWikiDumpHybridWikitextCollectStep(
-    $pdoExhaust,
+// COALESCE-MERGE: a page whose row was H1-pre-seeded with override_class keeps
+// that override when the scan attaches wikitext + entity_kind. Proven at the SQL
+// level: the state-table upsert must NOT list override_* in its UPDATE clause
+// (so ON DUPLICATE KEY UPDATE leaves any pre-seeded override intact), and it must
+// carry entity_kind + wikitext.
+$pdoMerge = new FakeHybridPdo();
+$mergePages = [['title' => 'Ferdok', 'ns' => 0, 'redirect' => null, 'wikitext' => "{{Infobox Siedlung\n| Name = Ferdok\n}}\nBODY"]];
+avesmapsWikiDumpHybridWikitextCollectStep(
+    $pdoMerge,
     '/unused/dump.xml',
     42,
     0,
     0,
     999.0,
-    $fakePageSource, // none of the 5 pages match "Nur Dieser Fehlt"
-    []
+    static function (string $p, int $s) use ($mergePages): iterable { $i = 0; foreach ($mergePages as $pg) { if ($i++ < $s) { continue; } yield $pg; } },
+    null
+);
+$mergeUpsertSql = '';
+foreach ($pdoMerge->prepared as $sql) {
+    if (stripos($sql, 'wiki_dump_hybrid_state') !== false && stripos($sql, 'INSERT') !== false && stripos($sql, 'wikitext') !== false) {
+        $mergeUpsertSql = $sql;
+        break;
+    }
+}
+$check(
+    '(d10) the collect upsert is an ON DUPLICATE KEY UPDATE carrying entity_kind + wikitext',
+    true,
+    $mergeUpsertSql !== ''
+        && stripos($mergeUpsertSql, 'ON DUPLICATE KEY UPDATE') !== false
+        && stripos($mergeUpsertSql, 'entity_kind') !== false
+        && stripos($mergeUpsertSql, 'wikitext') !== false,
+    'wikitext_collect MERGES into the (run_id, normalized_title) row instead of an UPDATE that would miss a fresh (non-preseeded) entity'
 );
 $check(
-    '(d8) stream exhausted with a wanted title never found -> done=true, 0 found',
-    ['done' => true, 'found_this_step' => 0, 'pages_scanned' => 5],
-    ['done' => $collectExhaust['done'], 'found_this_step' => $collectExhaust['found_this_step'], 'pages_scanned' => $collectExhaust['pages_scanned']],
-    'running off the end of the dump (no early-exit, no deadline) is the ONLY way this step reports the phase done'
+    '(d11) the collect upsert UPDATE clause does NOT clobber override_* (COALESCE-merge parity)',
+    false,
+    $mergeUpsertSql !== '' && (
+        preg_match('/ON DUPLICATE KEY UPDATE.*override_class/is', $mergeUpsertSql) === 1
+        || preg_match('/ON DUPLICATE KEY UPDATE.*override_building_type/is', $mergeUpsertSql) === 1
+        || preg_match('/ON DUPLICATE KEY UPDATE.*override_continent/is', $mergeUpsertSql) === 1
+    ),
+    'override_* are absent from the UPDATE clause, so an H1-pre-seeded override survives the scan attaching wikitext + entity_kind'
 );
 
 // ===========================================================================
