@@ -70,6 +70,10 @@ require __DIR__ . '/../../_internal/wiki/dump-entity-scan.php';
 require __DIR__ . '/../../_internal/wiki/dump-hybrid-state.php';
 require __DIR__ . '/../../_internal/wiki/dump-hybrid-read.php';
 require __DIR__ . '/../../_internal/wiki/dump-hybrid-driver.php';
+// Single-flight concurrency lock (DB-persisted): serializes the WHOLE dump
+// pipeline (fetch_dump/start_read/read_step/apply/cleanup_state) so only ONE
+// runs at a time across ALL editors. See avesmapsWikiDumpLock* in dump-lock.php.
+require __DIR__ . '/../../_internal/wiki/dump-lock.php';
 
 /**
  * Resolve the local dump path for the read_step/apply parser, auto-fetching the
@@ -121,7 +125,16 @@ try {
     }
 
     // Editor-only surface (same capability as the WikiSync editor endpoints).
-    avesmapsRequireUserWithCapability('edit');
+    $currentUser = avesmapsRequireUserWithCapability('edit');
+    // The lock holder identity is resolved from THIS auth/capability context (the
+    // same context that gates every dump action), so "who holds the pipeline" is
+    // always the acting editor. user_id is the re-entry key; username is display-only.
+    $lockUserId = (int) ($currentUser['id'] ?? 0);
+    $lockUsername = (string) ($currentUser['username'] ?? '');
+    // Tracks whether THIS request currently holds the lock, so the outer catch can
+    // release it on ANY throw in a mutating flow (holder-guarded release is a no-op
+    // if a stale-takeover already reassigned it). GET/status never acquires.
+    $lockHeldByThisRequest = false;
 
     $pdo = avesmapsCreatePdo($config['database'] ?? []);
 
@@ -144,6 +157,16 @@ try {
 
     switch ($action) {
         case 'fetch_dump':
+            // Acquire the whole-pipeline lock: fetch_dump BEGINS the "Dump holen"
+            // chain (fetch -> start_read -> read_step* -> cleanup_state). Held for
+            // the whole chain (same-holder re-entry across the later actions); the
+            // terminal cleanup_state releases it. A DIFFERENT live holder is rejected
+            // here (WikiDumpLockBusyException -> 409), so a second editor cannot
+            // start a competing fetch. NOT released on success below -- the chain
+            // continues in the next request as the same holder.
+            avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'fetch_dump');
+            $lockHeldByThisRequest = true;
+
             $forceRefresh = filter_var($payload['force_refresh'] ?? false, FILTER_VALIDATE_BOOLEAN);
             $result = avesmapsWikiDumpFetch($pdo, $forceRefresh);
 
@@ -190,10 +213,23 @@ try {
             // no break -- avesmapsJsonResponse exits.
 
         case 'start_read':
+            // Acquire the whole-pipeline lock BEFORE inserting a run row. Without this
+            // the pre-lock bug is exactly here: every start_read used to INSERT a fresh
+            // wiki_sync_runs row unconditionally, so two users each spawned a run. Now a
+            // DIFFERENT live holder is rejected (409) and no second run is created. If
+            // this same user already holds the lock (the "Dump holen" chain acquired it
+            // in fetch_dump, or the apply chain is re-entering), this is a same-holder
+            // re-entry no-op that just refreshes the heartbeat. Held across the loop;
+            // the terminal action (cleanup_state / apply-done) releases.
+            avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'start_read');
+            $lockHeldByThisRequest = true;
+
             // Create a new dump_read run (the 7-phase state machine's row). The
             // frontend (H4c-f) then loops read_step against the returned run_id.
-            $user = avesmapsRequireUserWithCapability('edit');
-            $startResult = avesmapsWikiDumpHybridStartRun($pdo, (int) ($user['id'] ?? 0) ?: null);
+            $startResult = avesmapsWikiDumpHybridStartRun($pdo, $lockUserId ?: null);
+            // Record the run_id on the lock so a stale-takeover diagnostic / the busy
+            // message can point at the exact wedged run.
+            avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'start_read', (string) ($startResult['run']['public_id'] ?? '') ?: null);
             avesmapsJsonResponse(200, ['ok' => true, 'run' => $startResult['run']]);
             // no break -- avesmapsJsonResponse exits.
 
@@ -202,6 +238,14 @@ try {
             // write only the state/alias tables; phase 6 runs dryRun=TRUE (nothing
             // sharp). If the dump file is absent, auto-fetch it first (Task 5a).
             $runPublicId = avesmapsWikiSyncReadPublicId($payload['run_id'] ?? '');
+            // Acquire-or-throw on EVERY step: this is both the concurrency gate for the
+            // (up-to-2000-request) loop AND the heartbeat that keeps a long legit read
+            // from being judged stale. Same holder -> re-entry refresh; a DIFFERENT live
+            // holder is rejected (409) so a second editor's loop stops after one step
+            // instead of interleaving sandbox writes. NOT released on done -- the
+            // "Dump holen" chain proceeds to cleanup_state as the same holder.
+            avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'read_step', $runPublicId);
+            $lockHeldByThisRequest = true;
             $dumpPath = avesmapsWikiDumpEnsureDumpPresentOrFail($pdo);
             $stepResult = avesmapsWikiDumpHybridAdvanceReadStep($pdo, $runPublicId, $dumpPath, true);
             avesmapsJsonResponse(200, [
@@ -221,8 +265,22 @@ try {
             // design (progress.md "H4c GATE WIRING"). Same 'edit' gate as the other
             // dump write actions; one bounded step per call (the frontend loops).
             $runPublicId = avesmapsWikiSyncReadPublicId($payload['run_id'] ?? '');
+            // The apply path is ALSO a client-driven loop, so it ALSO holds the lock:
+            // acquire-or-throw on every apply step (heartbeat + concurrency gate). This
+            // is the CRITICAL guard -- two concurrent applies are the worst hazard
+            // (both ON DUPLICATE KEY UPDATE the run_id-less staging tables, silently
+            // mixing two dump snapshots). A DIFFERENT live holder is rejected (409).
+            avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'apply', $runPublicId);
+            $lockHeldByThisRequest = true;
             $dumpPath = avesmapsWikiDumpEnsureDumpPresentOrFail($pdo);
             $applyResult = avesmapsWikiDumpHybridAdvanceReadStep($pdo, $runPublicId, $dumpPath, false);
+            // Terminal release: apply is the LAST action of the apply chain, so once its
+            // state machine reports done, free the lock for the next editor. (read_step
+            // deliberately does NOT release on done -- its chain continues to cleanup.)
+            if (($applyResult['done'] ?? false) === true) {
+                avesmapsWikiDumpLockRelease($pdo, $lockUserId);
+                $lockHeldByThisRequest = false;
+            }
             avesmapsJsonResponse(200, [
                 'ok' => true,
                 'run' => $applyResult['run'],
@@ -241,7 +299,16 @@ try {
             // itself is guarded inside avesmapsWikiDumpHybridCleanupOldSandboxState()
             // (transaction, re-derives the kept run server-side, no-op if no run has
             // ever completed). Same 'edit' gate as the other dump actions.
+            // cleanup_state is the TERMINAL action of the "Dump holen" (read) chain.
+            // Acquire-or-throw first: the holder re-enters (fetch/start_read/read_step
+            // already established the hold), a DIFFERENT live holder is rejected. Then
+            // run the cleanup and RELEASE -- the whole chain is now done, so the lock is
+            // handed back to the next editor.
+            avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'cleanup_state');
+            $lockHeldByThisRequest = true;
             $cleanupResult = avesmapsWikiDumpHybridCleanupOldSandboxState($pdo);
+            avesmapsWikiDumpLockRelease($pdo, $lockUserId);
+            $lockHeldByThisRequest = false;
             avesmapsJsonResponse(200, [
                 'ok' => true,
                 'kept_run_id' => $cleanupResult['kept_run_id'],
@@ -253,12 +320,31 @@ try {
         default:
             avesmapsErrorResponse(400, 'invalid_request', 'Unknown dump action.');
     }
+} catch (WikiDumpLockBusyException $busy) {
+    // A second concurrent editor tried a dump action while another holds the
+    // pipeline lock. Reject cleanly (HTTP 409) with the standard envelope +
+    // machine code so the frontend shows the busy message and STOPS its loop
+    // gracefully (never spins up to 2000 times). This request never held the
+    // lock (it lost the race), so nothing to release here.
+    avesmapsErrorResponse(409, 'dump_locked', $busy->getMessage());
 } catch (InvalidArgumentException $exception) {
     // Malformed JSON body etc. Safe to surface (never contains credentials).
+    // Release the lock if this request acquired one before the throw (holder-guarded).
+    if (isset($pdo, $lockHeldByThisRequest) && $lockHeldByThisRequest) {
+        try { avesmapsWikiDumpLockRelease($pdo, $lockUserId); } catch (Throwable) { /* best-effort */ }
+    }
     avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
 } catch (PDOException $exception) {
     // Do NOT leak the DB error text (it can echo bound values in some drivers).
+    if (isset($pdo, $lockHeldByThisRequest) && $lockHeldByThisRequest) {
+        try { avesmapsWikiDumpLockRelease($pdo, $lockUserId); } catch (Throwable) { /* best-effort */ }
+    }
     avesmapsServerErrorResponse($exception, 'wiki-dump');
 } catch (Throwable $error) {
+    // ANY other failure in a mutating flow releases the lock so a crash cannot
+    // wedge the pipeline (the stale-takeover is the backstop if even this fails).
+    if (isset($pdo, $lockHeldByThisRequest) && $lockHeldByThisRequest) {
+        try { avesmapsWikiDumpLockRelease($pdo, $lockUserId); } catch (Throwable) { /* best-effort */ }
+    }
     avesmapsServerErrorResponse($error, 'wiki-dump');
 }

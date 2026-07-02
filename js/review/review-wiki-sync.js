@@ -674,6 +674,14 @@ async function runWikiSyncDumpLoop(action, { runId = null } = {}) {
 				}
 				continue; // credentials stored -> re-issue the step that 401'd
 			}
+			if (error && error.dumpLocked) {
+				// Single-flight lock: ANOTHER editor holds the whole dump pipeline. STOP
+				// the loop immediately (do NOT retry -- that would spin up to 2000x). The
+				// server sent the German busy message; surface it and rethrow so the outer
+				// handler ends the run cleanly. The other user's run is unaffected.
+				setWikiSyncStatus(error.message || "Ein anderer Nutzer bearbeitet gerade den WikiDump - bitte warten.", "error");
+				throw error;
+			}
 			throw error;
 		}
 

@@ -369,6 +369,10 @@ async function submitWikiSyncDumpAction(action, payload = {}) {
 		// A generic session 401 ("unauthenticated", or no code at all) must fall through
 		// to a normal error instead of wrongly asking for dump credentials.
 		error.dumpUnauthorized = response.status === 401 && data?.error?.code === "dump_unauthorized";
+		// Single-flight lock rejection (another editor holds the whole dump pipeline).
+		// HTTP 409 + error.code "dump_locked" from api/edit/wiki/dump.php. The caller
+		// (runWikiSyncDumpLoop) must STOP its loop gracefully instead of spinning.
+		error.dumpLocked = response.status === 409 && data?.error?.code === "dump_locked";
 		error.httpStatus = response.status;
 		throw error;
 	}
