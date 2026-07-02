@@ -12,3 +12,12 @@ tiles/old/
 tiles/politics/
 layer0.json
 .refactor-backup/
+
+# Local geo-import artifact (DB-IP Lite, not for the repo)
+tools/geo-import.sql
+tools/geo-import.sql.gz
+
+# Runtime-fetched Wiki Aventurica dump (server data, never the repo).
+# Keep the deny-all .htaccess; ignore the downloaded dump artifacts.
+uploads/dumps/*
+!uploads/dumps/.htaccess
