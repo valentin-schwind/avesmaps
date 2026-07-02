@@ -94,6 +94,10 @@ try {
             // no break -- avesmapsErrorResponse exits.
 
         case 'set_dump_credentials':
+            // Narrower than the endpoint's 'edit' gate: writing the SHARED credential
+            // pair has blast radius (a bad pair makes every editor's fetch 401 until
+            // fixed), and doc §5.0 specifies the dump-credential setting is admin-only.
+            avesmapsRequireUserWithCapability('admin');
             $username = (string) ($payload['username'] ?? '');
             $password = (string) ($payload['password'] ?? '');
             try {
