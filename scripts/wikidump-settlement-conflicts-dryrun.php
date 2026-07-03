@@ -23,13 +23,16 @@ declare(strict_types=1);
  *      compare-test uses.
  *   3. Reads the live map places (avesmapsWikiSyncReadMapPlaces -- a pure SELECT
  *      on map_features, REUSED verbatim; no API).
- *   4. Classifies (dump settlements x map places) into the EXISTING 8 settlement
- *      case types by REPRODUCING the live decision tree
+ *   4. Classifies (dump settlements x map places) into the 10 settlement case
+ *      types -- the original 8 by REPRODUCING the live decision tree
  *      (avesmapsWikiSyncMatchMapPlaces + avesmapsWikiSyncBuildAndStoreCases,
- *      locations.php) as NON-FETCHING, NON-PERSISTING mirrors
- *      (settlement-conflicts-dryrun.php), and additionally counts the
- *      "9th-category candidates" -- the divergences NONE of the 8 types compares.
- *   5. Prints a report: count per the 8 types + candidate counts (with example
+ *      locations.php) as NON-FETCHING, NON-PERSISTING mirrors, PLUS 2
+ *      DUMP-SPECIFIC types with no live-crawl analogue (field_divergence,
+ *      coat_available -- promoted from Section B candidates the owner reviewed on
+ *      real data; see settlement-conflicts-dryrun.php's docblock) -- and
+ *      additionally counts the remaining "9th-category candidates" -- divergences
+ *      NONE of the case types compares (continent stays informational-only).
+ *   5. Prints a report: count per the 10 types + candidate counts (with example
  *      titles) + totals. Optionally --json.
  *
  * IT WRITES NOTHING AND CALLS NO MEDIAWIKI API. There is no INSERT / UPDATE /
@@ -60,20 +63,31 @@ declare(strict_types=1);
  *   2. THEN run:  php scripts/wikidump-settlement-conflicts-dryrun.php [--run=<id>]
  *      (omit --run to auto-pick the latest completed dump_read run).
  *   3. Read the report:
- *        Section A -- how many cases each of the 8 EXISTING types would fire on
- *          this data (the counts a live crawl would upsert). If a type is 0
- *          everywhere and stays 0 across dumps, it is not load-bearing for
- *          settlements; if type_conflict / unresolved dominate, the 8 types are
- *          doing real work.
- *        Section B -- the 9th-category CANDIDATES: divergences the 8 types do NOT
- *          model (coordinate_drift, continent, is_ruined/url change, coat presence
- *          diff) + how many exact matches would need a NEW category. THIS is the
- *          signal for whether a 9th type is worth building: a non-trivial
- *          `exact_matches_needing_9th` means real conflicts are being dropped
- *          today.
- *        Section C -- totals: clean exact matches vs. those needing a 9th, plus
- *          dual-parse promotions (settlements that also became territories -- no
- *          analogue among the 8).
+ *        Section A -- how many cases each of the 10 EXISTING types would fire on
+ *          this data (the original 8 -- the counts a live crawl would upsert --
+ *          PLUS the 2 promoted dump-only types field_divergence / coat_available,
+ *          which have no live-crawl analogue: see settlement-conflicts-dryrun.php).
+ *          If a type is 0 everywhere and stays 0 across dumps, it is not
+ *          load-bearing for settlements; if type_conflict / unresolved dominate,
+ *          the 8 original types are doing real work.
+ *        Section B -- the REMAINING candidates: divergences no case type compares.
+ *          Its 4 buckets are UNCHANGED (coordinate_drift, continent,
+ *          is_ruined/url change, coat presence diff, all still at the original
+ *          5.0u/either-direction tuning) -- two of them ALSO feed the Section A
+ *          promotions at a stricter/narrower bar (see
+ *          avesmapsWikiDumpDryRunCandidateScan's docblock for exactly which
+ *          direction/threshold each promotion uses), so do not read a Section B
+ *          count as "not yet categorized" for those two; check Section A's
+ *          field_divergence/coat_available counts for the real, promoted numbers.
+ *          `exact_matches_needing_9th` keeps its original (broader, 5.0u/either-
+ *          direction) meaning; `continent_dump_nondefault` stays informational
+ *          ONLY -- it is not, and will not become, a category (map LOCATION
+ *          features have no continent column).
+ *        Section C -- totals: clean exact matches vs. those needing a 9th (the
+ *          original, broader Section B signal), PLUS the real, narrower
+ *          `field_divergence_cases` / `coat_available_cases` counts (the actual
+ *          Section A numbers), plus dual-parse promotions (settlements that also
+ *          became territories -- no analogue among the 10).
  *   4. Nothing here writes, so it is always safe to run and re-run.
  */
 
@@ -257,9 +271,14 @@ function avesmapsWikiDumpDryRunPrintReport(array $report): void
     echo 'Map places (map_features location, active): ' . (int) ($header['map_places'] ?? 0) . "\n";
     echo "This tool writes NOTHING and calls no MediaWiki API.\n\n";
 
-    // --- Section A: the 8 existing case types ------------------------------
+    // --- Section A: the 10 case types (original 8 + 2 promoted dump-only) --
     $sectionA = (array) ($report['section_a_case_types'] ?? []);
-    echo "-- SECTION A  THE 8 EXISTING CASE TYPES (counts a live crawl would fire) --\n";
+    echo "-- SECTION A  THE 10 CASE TYPES (8 original + 2 promoted dump-only) --\n";
+    echo "  field_divergence / coat_available are DUMP-SPECIFIC (no live-crawl\n";
+    echo "  analogue -- promoted from Section B candidates the owner reviewed on real\n";
+    echo "  data). field_divergence coordinate threshold: > "
+        . (float) ($header['field_divergence_coord_threshold_units'] ?? 0) . " image units\n";
+    echo "  (stricter than Section B's " . (float) ($header['coord_drift_threshold_units'] ?? 0) . "u candidate-scan threshold).\n";
     printf("  %-32s | %6s | %s\n", 'case_type', 'count', 'examples');
     foreach ((array) ($sectionA['by_type'] ?? []) as $caseType => $info) {
         $samples = (array) ($info['samples'] ?? []);
@@ -271,12 +290,19 @@ function avesmapsWikiDumpDryRunPrintReport(array $report): void
         );
     }
     echo '  ' . str_repeat('-', 44) . "\n";
-    printf("  %-32s | %6d |\n", 'TOTAL cases (all 8 types)', (int) ($sectionA['total_cases'] ?? 0));
+    printf("  %-32s | %6d |\n", 'TOTAL cases (all 10 types)', (int) ($sectionA['total_cases'] ?? 0));
     echo "\n";
 
-    // --- Section B: 9th-category candidates --------------------------------
+    // --- Section B: remaining candidates (UNCHANGED buckets, original 5.0u) ---
     $sectionB = (array) ($report['section_b_candidates'] ?? []);
-    echo "-- SECTION B  9th-CATEGORY CANDIDATES (divergences the 8 types do NOT compare) --\n";
+    echo "-- SECTION B  REMAINING CANDIDATES (divergences no case type compares) --\n";
+    echo "  Buckets below are UNCHANGED (still tuned at the original, looser threshold\n";
+    echo "  for owner review): coordinate_drift and is_ruined_or_url_change ALSO feed\n";
+    echo "  Section A's field_divergence at a STRICTER/narrower bar, and coat_presence_diff's\n";
+    echo "  dump-only direction ALSO feeds coat_available -- a count here does NOT mean\n";
+    echo "  \"not yet categorized\"; see Section A / C for the real, promoted counts.\n";
+    echo "  continent_dump_nondefault stays informational ONLY (never a category --\n";
+    echo "  map LOCATION features have no continent column).\n";
     echo '  coordinate_drift threshold: > ' . (float) ($header['coord_drift_threshold_units'] ?? 0)
         . " image units (0..1024 space)\n\n";
 
@@ -311,21 +337,28 @@ function avesmapsWikiDumpDryRunPrintReport(array $report): void
     $sectionC = (array) ($report['section_c_totals'] ?? []);
     echo "-- SECTION C  TOTALS --\n";
     printf("  exact matches ................. %6d\n", (int) ($sectionC['exact_matches'] ?? 0));
-    printf("    clean (none of 8, no candidate) %6d\n", (int) ($sectionC['clean_exact_matches'] ?? 0));
-    printf("    would need a 9th category ..... %6d\n", (int) ($sectionC['exact_matches_needing_9th'] ?? 0));
+    printf("    clean (none of 8 original, no B-candidate) %6d\n", (int) ($sectionC['clean_exact_matches'] ?? 0));
+    printf("    flagged by >=1 Section B candidate (5.0u/either-dir, informational) %6d\n",
+        (int) ($sectionC['exact_matches_needing_9th'] ?? 0));
+    printf("  field_divergence cases (Section A, real, >%.1fu coord/is_ruined/url) %6d\n",
+        (float) ($header['field_divergence_coord_threshold_units'] ?? 0), (int) ($sectionC['field_divergence_cases'] ?? 0));
+    printf("  coat_available cases (Section A, real, dump-only direction) ......... %6d\n",
+        (int) ($sectionC['coat_available_cases'] ?? 0));
     printf("  unresolved map places ......... %6d\n", (int) ($sectionC['unresolved'] ?? 0));
     printf("  missing wiki settlements ...... %6d\n", (int) ($sectionC['missing_wiki'] ?? 0));
-    printf("  dual-parse promotions (obs.) .. %6d  (settlements also promoted to a territory; no analogue in the 8)\n",
+    printf("  dual-parse promotions (obs.) .. %6d  (settlements also promoted to a territory; no analogue in the 10)\n",
         (int) ($sectionC['dual_parse_promotions'] ?? 0));
     echo "\n";
 
     echo $line, "\n";
-    $needNinth = (int) ($sectionC['exact_matches_needing_9th'] ?? 0);
-    echo $needNinth > 0
-        ? " READ: {$needNinth} exact match(es) carry a divergence NONE of the 8 types models.\n"
-            . "       Review Section B to decide whether a 9th settlement category is warranted.\n"
-        : " READ: every exact match is fully described by the 8 existing types on this data.\n"
-            . "       No 9th settlement category is indicated by this run.\n";
+    $fieldDivergence = (int) ($sectionC['field_divergence_cases'] ?? 0);
+    $coatAvailable = (int) ($sectionC['coat_available_cases'] ?? 0);
+    echo ($fieldDivergence > 0 || $coatAvailable > 0)
+        ? " READ: {$fieldDivergence} field_divergence + {$coatAvailable} coat_available case(s) fired on this data\n"
+            . "       (Section A, real counts). Section B's remaining candidate buckets are\n"
+            . "       informational only -- continent stays informational (never a category).\n"
+        : " READ: neither field_divergence nor coat_available fired on this data.\n"
+            . "       Section B's remaining candidate buckets are informational only.\n";
     echo "       This is a DRY-RUN: it wrote nothing and fetched nothing.\n";
     echo $line, "\n";
 }

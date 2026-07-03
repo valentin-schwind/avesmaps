@@ -13,6 +13,13 @@ const AVESMAPS_WIKI_CASE_LABELS = [
     'duplicate_wiki_title' => 'Doppelter Wiki-Titel',
     'missing_wiki_with_coordinates' => 'Wiki-Ort mit Koordinaten fehlt',
     'missing_wiki_without_coordinates' => 'Wiki-Ort ohne Koordinaten fehlt',
+    // WikiDump-DRY-RUN-ONLY case types (settlement-conflicts-dryrun.php). Labels
+    // are display-only and safe to add here; the LIVE crawl classifier
+    // (avesmapsWikiSyncBuildAndStoreCases) never emits these two types -- they
+    // compare fields (coordinates/is_ruined/wiki_url/coat) the live match phase
+    // never fetches. See settlement-conflicts-dryrun.php docblock for why.
+    'field_divergence' => 'Weicht vom Wiki ab',
+    'coat_available' => 'Wappen im Wiki verfügbar',
 ];
 
 const AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS = [

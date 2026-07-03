@@ -16,14 +16,20 @@ declare(strict_types=1);
  * It feeds SYNTHETIC dump settlements + map places -- crafted so each triggers a
  * specific outcome -- through the mirrored match + classify + candidate-scan and
  * asserts the resulting COUNTS:
- *   (A) each of the 8 existing case types fires exactly as the live tree would
+ *   (A) each of the 8 ORIGINAL case types fires exactly as the live tree would
  *       (duplicate_avesmaps_name, canonical_name_difference[=0, never fires],
  *       type_conflict, probable_match, unresolved_without_candidate,
  *       duplicate_wiki_title, missing_wiki_with_coordinates,
  *       missing_wiki_without_coordinates);
  *   (B) each 9th-category candidate is counted honestly
  *       (coordinate_drift, continent_dump_nondefault, is_ruined_or_url_change,
- *       coat_presence_diff) and the gebaeude filter drops buildings.
+ *       coat_presence_diff) and the gebaeude filter drops buildings;
+ *   (D) the 2 PROMOTED dump-only case types (field_divergence, coat_available --
+ *       no live-crawl analogue) fire on an exact match for each individually
+ *       diverging field (coordinates > 20u, is_ruined, wiki_url) with the correct
+ *       `diverging_fields` payload, and a 10u coordinate drift (below the 20u
+ *       field_divergence bar but above the 5u Section B candidate-scan bar) fires
+ *       ONLY in the Section B candidate scan, never as a field_divergence case.
  *
  * No DB, no dump, no MediaWiki API -- every function under test is pure and is
  * driven with in-memory arrays. The map-place shape mirrors
@@ -391,9 +397,176 @@ $check('(C5) exact matches total = 1 (only Ferdok)', 1, $report['section_c_total
 $check('(C6) the report carries the tuned coord-drift threshold in its header', AVESMAPS_WIKIDUMP_DRYRUN_COORD_DRIFT_UNITS,
     $report['header']['coord_drift_threshold_units'],
     'the threshold is surfaced so the owner sees which value produced the counts');
-$check('(C7) all 8 case types are present in section A (even at 0)', 8,
+$check('(C7) all 10 case types are present in section A (even at 0)', 10,
     count($report['section_a_case_types']['by_type']),
-    'the report always shows the full 8-type shape so a 0 is visible, not omitted');
+    'the report always shows the full 10-type shape (8 original + field_divergence + coat_available) so a 0 is visible, not omitted');
+
+// ===========================================================================
+// (D) PROMOTED dump-only case types: field_divergence + coat_available.
+//     No live-crawl analogue -- these compare fields the live match phase never
+//     fetches (coordinates/is_ruined/wiki_url/coat), so they only exist here.
+// ===========================================================================
+echo "\n-- (D) promoted dump-only case types: field_divergence + coat_available --\n";
+
+// Shared reference point: the SAME dereglobus conversion the (B1) tests use --
+// x=10,y=15 -> ~(741.3, 36.9) -- so drift distances below are exact axis offsets.
+$dCoordsRef = ['source' => 'dereglobus', 'x' => 10.0, 'y' => 15.0]; // -> ~(741.3, 36.9)
+
+// --- (D1) field_divergence fires on coordinates > 20u, naming 'coordinates'. ---
+// Map geometry offset +30 in x from the converted wiki point -> drift = 30.0 > 20.0.
+$mapCoordDiv = [$mapPlace(30, 'Driftstadt', 'dorf', [741.3 + 30.0, 36.9])];
+$recCoordDiv = [$dumpRecord('Driftstadt', 'dorf', $dCoordsRef)];
+$casesCoordDiv = avesmapsWikiDumpDryRunBuildCases(
+    avesmapsWikiDumpDryRunMatchMapPlaces($mapCoordDiv, avesmapsWikiDumpDryRunWikiPlacesFromRecords($recCoordDiv)),
+    $mapCoordDiv,
+    []
+);
+$check('(D1) field_divergence fires on a >20u coordinate drift', 1, count($casesCoordDiv['field_divergence']),
+    '30.0u drift exceeds AVESMAPS_WIKIDUMP_FIELD_DIVERGENCE_COORD_UNITS (20.0) -> one field_divergence case');
+$check('(D1b) diverging_fields names exactly [coordinates]', ['coordinates'],
+    $casesCoordDiv['field_divergence'][0]['payload']['diverging_fields'] ?? null,
+    'the payload names which field(s) diverged so the UI can show them');
+$check('(D1c) field_values carries the drift + threshold for coordinates', true,
+    isset($casesCoordDiv['field_divergence'][0]['payload']['field_values']['coordinates']['drift_units'])
+        && $casesCoordDiv['field_divergence'][0]['payload']['field_values']['coordinates']['drift_units'] > 20.0,
+    'the case payload carries the actual drift value, not just the flag, so the UI can show it');
+
+// --- (D2) field_divergence fires on is_ruined differing, naming 'is_ruined'. ---
+$mapRuinDiv = [$mapPlace(31, 'Ruinendorf', 'dorf', null, ['is_ruined' => false])];
+$recRuinDiv = [$dumpRecord('Ruinendorf', 'dorf', ['source' => 'none', 'x' => null, 'y' => null], 'Aventurien', true)];
+$casesRuinDiv = avesmapsWikiDumpDryRunBuildCases(
+    avesmapsWikiDumpDryRunMatchMapPlaces($mapRuinDiv, avesmapsWikiDumpDryRunWikiPlacesFromRecords($recRuinDiv)),
+    $mapRuinDiv,
+    []
+);
+$check('(D2) field_divergence fires on an is_ruined mismatch', 1, count($casesRuinDiv['field_divergence']),
+    'map properties.is_ruined=false vs dump is_ruined=true -> one field_divergence case');
+$check('(D2b) diverging_fields names exactly [is_ruined]', ['is_ruined'],
+    $casesRuinDiv['field_divergence'][0]['payload']['diverging_fields'] ?? null,
+    'only is_ruined diverged here (no coords, no url) -> the field list names just that one');
+$check('(D2c) field_values carries both sides of the is_ruined mismatch', ['map' => false, 'wiki' => true],
+    $casesRuinDiv['field_divergence'][0]['payload']['field_values']['is_ruined'] ?? null,
+    'the payload carries the map AND wiki value so the UI can show both');
+
+// --- (D3) field_divergence fires on wiki_url differing, naming 'wiki_url'. ---
+$mapUrlDiv = [$mapPlace(32, 'Urlendorf', 'dorf', null,
+    ['is_ruined' => false, 'wiki_settlement' => ['wiki_url' => 'https://wiki/old-url']],
+    'https://wiki/old-url')];
+$recUrlDiv = [$dumpRecord('Urlendorf', 'dorf', ['source' => 'none', 'x' => null, 'y' => null], 'Aventurien', false, '', 'https://wiki/new-url')];
+$casesUrlDiv = avesmapsWikiDumpDryRunBuildCases(
+    avesmapsWikiDumpDryRunMatchMapPlaces($mapUrlDiv, avesmapsWikiDumpDryRunWikiPlacesFromRecords($recUrlDiv)),
+    $mapUrlDiv,
+    []
+);
+$check('(D3) field_divergence fires on a wiki_url mismatch', 1, count($casesUrlDiv['field_divergence']),
+    'map wiki_url differs from the dump wiki_url -> one field_divergence case');
+$check('(D3b) diverging_fields names exactly [wiki_url]', ['wiki_url'],
+    $casesUrlDiv['field_divergence'][0]['payload']['diverging_fields'] ?? null,
+    'only wiki_url diverged here (no coords, is_ruined matches) -> the field list names just that one');
+$check('(D3c) field_values carries both sides of the wiki_url mismatch', ['map' => 'https://wiki/old-url', 'wiki' => 'https://wiki/new-url'],
+    $casesUrlDiv['field_divergence'][0]['payload']['field_values']['wiki_url'] ?? null,
+    'the payload carries the map AND wiki url so the UI can show both');
+
+// --- (D4) a combination of diverging fields is named together, one case. ---
+$mapCombo = [$mapPlace(33, 'Mehrfachdorf', 'dorf', [741.3 + 30.0, 36.9], ['is_ruined' => false])];
+$recCombo = [$dumpRecord('Mehrfachdorf', 'dorf', $dCoordsRef, 'Aventurien', true)];
+$casesCombo = avesmapsWikiDumpDryRunBuildCases(
+    avesmapsWikiDumpDryRunMatchMapPlaces($mapCombo, avesmapsWikiDumpDryRunWikiPlacesFromRecords($recCombo)),
+    $mapCombo,
+    []
+);
+$check('(D4) two diverging fields still produce exactly ONE field_divergence case', 1, count($casesCombo['field_divergence']),
+    'one case per match naming every diverged field, not one case per field');
+$check('(D4b) diverging_fields lists both coordinates and is_ruined', ['coordinates', 'is_ruined'],
+    $casesCombo['field_divergence'][0]['payload']['diverging_fields'] ?? null,
+    'both fields diverged on this match -> both are named in one payload');
+
+// --- (D5) a 10u drift (below 20u field_divergence bar, above 5u B-scan bar)
+//     fires ONLY in the Section B candidate scan, NEVER as field_divergence. ---
+$mapNear = [$mapPlace(34, 'Nahdorf', 'dorf', [741.3 + 10.0, 36.9])];
+$recNear = [$dumpRecord('Nahdorf', 'dorf', $dCoordsRef)];
+$matchNear = avesmapsWikiDumpDryRunMatchMapPlaces($mapNear, avesmapsWikiDumpDryRunWikiPlacesFromRecords($recNear));
+$casesNear = avesmapsWikiDumpDryRunBuildCases($matchNear, $mapNear, []);
+$scanNear = avesmapsWikiDumpDryRunCandidateScan($matchNear['matches']);
+$check('(D5) a 10u drift does NOT fire field_divergence (below the 20u bar)', 0, count($casesNear['field_divergence']),
+    '10.0u < AVESMAPS_WIKIDUMP_FIELD_DIVERGENCE_COORD_UNITS (20.0) -> no field_divergence case');
+$check('(D5b) the same 10u drift DOES still show in the Section B candidate scan (5u bar)', 1,
+    $scanNear['coordinate_drift']['count'],
+    '10.0u > the unchanged 5.0u AVESMAPS_WIKIDUMP_DRYRUN_COORD_DRIFT_UNITS -> still an informational Section B candidate');
+
+// --- (D6) coat_available fires when the dump has a coat and the map has none. ---
+$mapCoatAvail = [$mapPlace(35, 'Wappendorf', 'dorf', null, ['wiki_settlement' => ['wappen_url' => '']])];
+$recCoatAvail = [$dumpRecord('Wappendorf', 'dorf', ['source' => 'none', 'x' => null, 'y' => null], 'Aventurien', false, 'https://wiki/File:NeuesWappen.svg')];
+$casesCoatAvail = avesmapsWikiDumpDryRunBuildCases(
+    avesmapsWikiDumpDryRunMatchMapPlaces($mapCoatAvail, avesmapsWikiDumpDryRunWikiPlacesFromRecords($recCoatAvail)),
+    $mapCoatAvail,
+    []
+);
+$check('(D6) coat_available fires when dump has a coat_url and map has none', 1, count($casesCoatAvail['coat_available']),
+    'dump coat_url present, map wiki_settlement.wappen_url empty -> one coat_available case');
+$check('(D6b) the case payload carries the coat_url', 'https://wiki/File:NeuesWappen.svg',
+    $casesCoatAvail['coat_available'][0]['payload']['coat_url'] ?? null,
+    'the payload carries the actual coat URL so the UI can show/link it');
+
+// --- (D7) coat_available does NOT fire when the map already has a coat too
+//     (even though coat_presence_diff's map-only direction is a DIFFERENT case). ---
+$mapCoatBoth = [$mapPlace(36, 'Zweiwappendorf', 'dorf', null, ['wiki_settlement' => ['wappen_url' => 'https://existing/coat.svg']])];
+$recCoatBoth = [$dumpRecord('Zweiwappendorf', 'dorf', ['source' => 'none', 'x' => null, 'y' => null], 'Aventurien', false, 'https://wiki/File:NeuesWappen.svg')];
+$casesCoatBoth = avesmapsWikiDumpDryRunBuildCases(
+    avesmapsWikiDumpDryRunMatchMapPlaces($mapCoatBoth, avesmapsWikiDumpDryRunWikiPlacesFromRecords($recCoatBoth)),
+    $mapCoatBoth,
+    []
+);
+$check('(D7) coat_available does NOT fire when the map already has a coat', 0, count($casesCoatBoth['coat_available']),
+    'coat_available only means "dump has one, map has none" -- both-present is not a divergence for this type');
+
+// --- (D8) a genuinely clean exact match flags NEITHER promoted type. ---
+$mapCleanD = [$mapPlace(37, 'Sauberdorf', 'dorf', null,
+    ['is_ruined' => false, 'wiki_settlement' => ['wappen_url' => '', 'wiki_url' => 'https://wiki/Sauberdorf']],
+    'https://wiki/Sauberdorf')];
+$recCleanD = [$dumpRecord('Sauberdorf', 'dorf', ['source' => 'none', 'x' => null, 'y' => null], 'Aventurien', false, '', 'https://wiki/Sauberdorf')];
+$casesCleanD = avesmapsWikiDumpDryRunBuildCases(
+    avesmapsWikiDumpDryRunMatchMapPlaces($mapCleanD, avesmapsWikiDumpDryRunWikiPlacesFromRecords($recCleanD)),
+    $mapCleanD,
+    []
+);
+$check('(D8) a clean exact match flags NO field_divergence', 0, count($casesCleanD['field_divergence']),
+    'same is_ruined, same url, no coords -> nothing diverges');
+$check('(D8b) a clean exact match flags NO coat_available', 0, count($casesCleanD['coat_available']),
+    'neither side has a coat -> nothing to promote');
+
+// --- (D9) end-to-end orchestration: field_divergence/coat_available surface in
+//     Section A AND section_c_totals, alongside the untouched 8 original types. ---
+$allRecordsD = [
+    $dumpRecord('Ferdok', 'metropole'),   // type_conflict vs map stadt (untouched original type)
+    $dumpRecord('Driftburg', 'dorf', ['source' => 'dereglobus', 'x' => 10.0, 'y' => 15.0], 'Aventurien', false, 'https://wiki/File:Wappen.svg'),
+];
+$mapForD9 = [
+    $mapPlace(40, 'Ferdok', 'stadt'),
+    $mapPlace(41, 'Driftburg', 'dorf', [741.3 + 30.0, 36.9], ['wiki_settlement' => ['wappen_url' => '']]), // >20u drift + coat_available
+];
+$reportD9 = avesmapsWikiDumpDryRunClassifySettlements($mapForD9, $allRecordsD, 8);
+$check('(D9) field_divergence surfaces in section A alongside the original 8', 1,
+    $reportD9['section_a_case_types']['by_type']['field_divergence']['count'],
+    'Driftburg drifted >20u -> one field_divergence case, reported in the canonical AVESMAPS_WIKI_CASE_LABELS order');
+$check('(D9b) coat_available surfaces in section A alongside the original 8', 1,
+    $reportD9['section_a_case_types']['by_type']['coat_available']['count'],
+    'Driftburg has a dump coat_url and no map coat -> one coat_available case');
+$check('(D9c) type_conflict (an original, untouched type) still fires correctly', 1,
+    $reportD9['section_a_case_types']['by_type']['type_conflict']['count'],
+    'Ferdok metropole(dump) vs stadt(map) still fires exactly as before -- the 8 originals are not perturbed');
+$check('(D9d) section_c_totals reports the real field_divergence_cases count', 1,
+    $reportD9['section_c_totals']['field_divergence_cases'] ?? null,
+    'the promoted counts are surfaced in section C alongside the original totals');
+$check('(D9e) section_c_totals reports the real coat_available_cases count', 1,
+    $reportD9['section_c_totals']['coat_available_cases'] ?? null,
+    'the promoted counts are surfaced in section C alongside the original totals');
+$check('(D9f) the header carries the NEW field_divergence coordinate threshold (20.0)', AVESMAPS_WIKIDUMP_FIELD_DIVERGENCE_COORD_UNITS,
+    $reportD9['header']['field_divergence_coord_threshold_units'] ?? null,
+    'the 20.0u threshold is distinct from and reported alongside the original 5.0u candidate-scan threshold');
+$check('(D9g) the ORIGINAL 5.0u candidate-scan threshold is unchanged', 5.0,
+    $reportD9['header']['coord_drift_threshold_units'] ?? null,
+    'promoting field_divergence at 20.0u does not alter the existing Section B candidate-scan threshold');
 
 // ===========================================================================
 // Summary.

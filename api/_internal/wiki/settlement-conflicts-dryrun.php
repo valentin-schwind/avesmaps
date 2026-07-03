@@ -6,11 +6,18 @@ declare(strict_types=1);
  * WikiDump migration -- SETTLEMENT-CONFLICT DRY-RUN library (READ-ONLY, no API).
  * ===========================================================================
  * This is the include-safe logic layer behind
- * scripts/wikidump-settlement-conflicts-dryrun.php. It answers ONE question for
- * the owner, from REAL data, BEFORE the sharp settlement-Syncen is built: are the
- * 8 existing settlement conflict case types (AVESMAPS_WIKI_CASE_LABELS,
- * locations.php:7-16) enough to describe what a settlement crawl finds, or is a
- * 9th category needed?
+ * scripts/wikidump-settlement-conflicts-dryrun.php. It originally answered ONE
+ * question for the owner, from REAL data, BEFORE the sharp settlement-Syncen is
+ * built: are the 8 existing settlement conflict case types
+ * (AVESMAPS_WIKI_CASE_LABELS, locations.php:7-16) enough to describe what a
+ * settlement crawl finds, or is a 9th category needed? The owner ran it, reviewed
+ * Section B's candidates on real data, and DECIDED to promote two of them into
+ * real case types: `field_divergence` and `coat_available` (both DUMP-SPECIFIC --
+ * see avesmapsWikiDumpDryRunBuildCases's docblock). Section A now reports 10
+ * types (the original 8 + these 2); Section B's original 4 candidate buckets are
+ * UNCHANGED (kept at their original 5.0u threshold, for reference/tuning), with
+ * notes on which ones fed a promotion and at what (different, stricter) bar --
+ * see avesmapsWikiDumpDryRunCandidateScan's docblock for the exact mapping.
  *
  * It does that by REPRODUCING, byte-faithfully, the live decision tree the online
  * WikiSync uses to turn (wiki settlement pages x map places) into cases --
@@ -18,9 +25,10 @@ declare(strict_types=1);
  * avesmapsWikiSyncBuildAndStoreCases (locations.php:470-556) -- but sourcing the
  * wiki side from the DUMP sandbox instead of a live MediaWiki fetch, and NEVER
  * persisting a single row. It then additionally counts, per exact match, the
- * things NONE of the 8 case types compares (the "9th-category candidates"), so
- * the owner can see whether real data actually contains conflicts the current 8
- * types would silently drop.
+ * things NONE of the ORIGINAL 8 case types compares (the "9th-category
+ * candidates", Section B) -- two of which are now ALSO real Section A case types
+ * (field_divergence, coat_available), so the owner can see both the real counts
+ * and the underlying informational signal side by side.
  *
  * WHY MIRROR, NOT CALL, the live functions
  * ---------------------------------------------------------------------------
@@ -76,6 +84,27 @@ declare(strict_types=1);
 // is comparable across the two coordinate sources.
 // ---------------------------------------------------------------------------
 const AVESMAPS_WIKIDUMP_DRYRUN_COORD_DRIFT_UNITS = 5.0;
+
+// ---------------------------------------------------------------------------
+// field_divergence coordinate threshold -- image-space units, DISTINCT from the
+// 5.0u candidate-scan threshold above.
+//
+// REASONING: the 5.0u threshold above is deliberately loose -- it exists to
+// SURFACE candidates for the owner to eyeball (Section B), so it is tuned to
+// catch anything above rounding/positionskarte-coarseness noise, even values
+// that are probably still fine. Promoting a candidate into a real, always-on
+// case type (Section A) changes the cost/benefit: every dump run now emits one
+// `field_divergence` case per flagged settlement, so the bar needs to be high
+// enough that the category only fires on real position errors -- a marker
+// genuinely dragged to the wrong place -- not on the ordinary rounding drift
+// that 5.0u already tolerates. 20.0 units is 4x the candidate-scan threshold
+// (~1.95% of the 1024-unit axis span): comfortably clears rounding + the
+// positionskarte's documented coarseness (locations-helpers.php:425), while
+// still catching markers that are tens of units off. The existing 5.0u
+// candidate scan (Section B) is kept AS-IS for reference/tuning; this constant
+// is ONLY consulted by the field_divergence case builder below.
+// ---------------------------------------------------------------------------
+const AVESMAPS_WIKIDUMP_FIELD_DIVERGENCE_COORD_UNITS = 20.0;
 
 // How many example titles to carry per candidate/section in the report.
 const AVESMAPS_WIKIDUMP_DRYRUN_SAMPLE_LIMIT = 8;
@@ -400,6 +429,78 @@ function avesmapsWikiDumpDryRunBuildCases(array $matchResult, array $mapPlaces, 
         $byType[$caseType][] = avesmapsWikiSyncBuildCase($caseType, $payload);
     }
 
+    // ---------------------------------------------------------------------
+    // DRY-RUN-ONLY (no live-crawl analogue): field_divergence + coat_available.
+    // NOT a mirror of any locations.php block -- these compare fields
+    // (coordinates/is_ruined/wiki_url/coat) the LIVE match phase never fetches
+    // (avesmapsWikiSyncMatchMapPlaces only ever builds title/normalized_key/
+    // settlement_class/url -- see avesmapsWikiDumpDryRunWikiPlacesFromRecords's
+    // docblock above), so avesmapsWikiSyncBuildAndStoreCases has no equivalent
+    // branch to mirror. Promoted from the Section B 9th-category candidate scan
+    // (see avesmapsWikiDumpDryRunCandidateScan below, whose coordinate_drift /
+    // is_ruined_or_url_change / coat_presence_diff buckets remain unchanged for
+    // reference at their original 5.0u threshold) after the owner reviewed real
+    // counts and decided these two are worth real categories. Reuses the SAME
+    // pure comparison helpers the candidate scan uses
+    // (avesmapsWikiDumpDryRunCoordinateDrift / avesmapsWikiDumpDryRunMapSnapshot),
+    // so a settlement's field_divergence/coat_available verdict here is computed
+    // by the identical logic Section B already used to detect the divergence --
+    // only the threshold (20.0u, not 5.0u -- see
+    // AVESMAPS_WIKIDUMP_FIELD_DIVERGENCE_COORD_UNITS) and the "is this now a real
+    // case" decision are new.
+    // ---------------------------------------------------------------------
+    foreach ($matches as $match) {
+        $mapPlace = is_array($match['map'] ?? null) ? $match['map'] : [];
+        $wikiRecord = is_array($match['wiki_record'] ?? null) ? $match['wiki_record'] : [];
+        $snapshot = avesmapsWikiDumpDryRunMapSnapshot($mapPlace);
+
+        // --- field_divergence: coordinate drift > 20u OR is_ruined differs OR
+        //     wiki_url differs. One case per match, naming every field that
+        //     diverged (not one case per field) so the UI shows the full picture.
+        $divergingFields = [];
+        $fieldValues = [];
+
+        $drift = avesmapsWikiDumpDryRunCoordinateDrift($mapPlace, $wikiRecord);
+        if ($drift !== null && $drift > AVESMAPS_WIKIDUMP_FIELD_DIVERGENCE_COORD_UNITS) {
+            $divergingFields[] = 'coordinates';
+            $fieldValues['coordinates'] = [
+                'drift_units' => round($drift, 2),
+                'threshold_units' => AVESMAPS_WIKIDUMP_FIELD_DIVERGENCE_COORD_UNITS,
+            ];
+        }
+
+        $dumpRuined = (bool) ($wikiRecord['is_ruined'] ?? false);
+        if ($snapshot['is_ruined'] !== null && $snapshot['is_ruined'] !== $dumpRuined) {
+            $divergingFields[] = 'is_ruined';
+            $fieldValues['is_ruined'] = ['map' => $snapshot['is_ruined'], 'wiki' => $dumpRuined];
+        }
+
+        $dumpUrl = trim((string) ($wikiRecord['wiki_url'] ?? ''));
+        if ($dumpUrl !== '' && $snapshot['wiki_url'] !== '' && $dumpUrl !== $snapshot['wiki_url']) {
+            $divergingFields[] = 'wiki_url';
+            $fieldValues['wiki_url'] = ['map' => $snapshot['wiki_url'], 'wiki' => $dumpUrl];
+        }
+
+        if ($divergingFields !== []) {
+            $byType['field_divergence'][] = avesmapsWikiSyncBuildCase('field_divergence', [
+                'map' => $match['map'] ?? [],
+                'wiki' => $match['wiki'] ?? [],
+                'diverging_fields' => $divergingFields,
+                'field_values' => $fieldValues,
+            ]);
+        }
+
+        // --- coat_available: dump has a coat_url, map has none. ---
+        $dumpCoat = trim((string) ($wikiRecord['coat_url'] ?? ''));
+        if ($dumpCoat !== '' && !$snapshot['coat_present']) {
+            $byType['coat_available'][] = avesmapsWikiSyncBuildCase('coat_available', [
+                'map' => $match['map'] ?? [],
+                'wiki' => $match['wiki'] ?? [],
+                'coat_url' => $dumpCoat,
+            ]);
+        }
+    }
+
     return $byType;
 }
 
@@ -504,6 +605,32 @@ function avesmapsWikiDumpDryRunMapSnapshot(array $mapPlace): array
  * location feature has no continent column -- only territories do), so its count
  * is an informational "dump asserts a non-default continent" tally, never a
  * fabricated mismatch against a field that does not exist.
+ *
+ * WHAT MOVED TO SECTION A (real case types, see avesmapsWikiDumpDryRunBuildCases):
+ * this bucket's numbers are UNCHANGED (kept as-is for reference/tuning at the
+ * original 5.0u threshold) but two of its four candidates now ALSO surface as a
+ * real, always-on case type at a DIFFERENT, stricter bar:
+ *   - coordinate_drift        (this bucket, >5.0u, informational)
+ *     -> promoted as one of the `diverging_fields` inside `field_divergence`
+ *        (Section A), but only above >20.0u
+ *        (AVESMAPS_WIKIDUMP_FIELD_DIVERGENCE_COORD_UNITS) -- so a settlement can
+ *        appear here (5-20u drift) WITHOUT a field_divergence case.
+ *   - is_ruined_or_url_change (this bucket, either sub-field, informational)
+ *     -> promoted verbatim (same is_ruined/wiki_url comparison, no new
+ *        threshold) into `field_divergence`'s `diverging_fields`.
+ *   - coat_presence_diff      (this bucket, EITHER direction: dump-only OR
+ *     map-only, informational)
+ *     -> promoted as `coat_available`, but ONLY the dump-only direction (dump
+ *        has a coat_url, map does not); the map-only direction (map has a coat
+ *        the dump lacks) has no Section A analogue and stays informational-only
+ *        here.
+ *   - continent_dump_nondefault stays informational ONLY (not a category -- map
+ *     LOCATION features have no continent column at all, see the note below).
+ * `matched_no_case_but_candidate` is UNCHANGED: it still means "flagged by
+ * >=1 of these four 5.0u-tuned candidate checks", which is a DIFFERENT (looser,
+ * broader) question than Section A's `exact_matches_needing_9th`-successor
+ * count -- see avesmapsWikiDumpDryRunClassifySettlements's section_c_totals for
+ * the now-real field_divergence/coat_available counts.
  *
  * @param list<array<string,mixed>> $matches   avesmapsWikiDumpDryRunMatchMapPlaces()['matches']
  * @param int $sampleLimit examples to keep per candidate
@@ -642,8 +769,9 @@ function avesmapsWikiDumpDryRunClassifySettlements(
     $casesByType = avesmapsWikiDumpDryRunBuildCases($matchResult, $mapPlaces, $missingPlaces);
     $candidates = avesmapsWikiDumpDryRunCandidateScan($matchResult['matches'], $sampleLimit);
 
-    // Section A: count per the 8 types (+ a few example titles each), in the
-    // canonical AVESMAPS_WIKI_CASE_LABELS order.
+    // Section A: count per all 10 types (the original 8 + the promoted
+    // field_divergence / coat_available), in the canonical AVESMAPS_WIKI_CASE_LABELS
+    // order (+ a few example titles each).
     $caseTypeReport = [];
     $caseTotal = 0;
     foreach (AVESMAPS_WIKI_CASE_LABELS as $caseType => $label) {
@@ -663,10 +791,17 @@ function avesmapsWikiDumpDryRunClassifySettlements(
         ];
     }
 
-    // Section C totals.
+    // Section C totals. `exact_matches_needing_9th` keeps its ORIGINAL meaning
+    // (>=1 of the four 5.0u-tuned Section B candidate checks fired -- a broader,
+    // still-informational question); `field_divergence_cases` / `coat_available_cases`
+    // are the NEW, real Section A counts at their own (stricter/narrower) bars, so
+    // the owner can see both the old informational signal and the real promoted
+    // counts side by side without either being silently replaced.
     $exactMatchCount = count($matchResult['matches']);
     $wouldNeedNinth = (int) ($candidates['matched_no_case_but_candidate']['count'] ?? 0);
     $cleanMatches = max(0, $exactMatchCount - $wouldNeedNinth);
+    $fieldDivergenceCases = count($casesByType['field_divergence'] ?? []);
+    $coatAvailableCases = count($casesByType['coat_available'] ?? []);
 
     return [
         'header' => [
@@ -674,6 +809,7 @@ function avesmapsWikiDumpDryRunClassifySettlements(
             'gebaeude_filtered_out' => $gebaeudeFiltered,
             'map_places' => count($mapPlaces),
             'coord_drift_threshold_units' => AVESMAPS_WIKIDUMP_DRYRUN_COORD_DRIFT_UNITS,
+            'field_divergence_coord_threshold_units' => AVESMAPS_WIKIDUMP_FIELD_DIVERGENCE_COORD_UNITS,
         ],
         'section_a_case_types' => [
             'by_type' => $caseTypeReport,
@@ -686,6 +822,8 @@ function avesmapsWikiDumpDryRunClassifySettlements(
             'missing_wiki' => count($missingPlaces),
             'clean_exact_matches' => $cleanMatches,
             'exact_matches_needing_9th' => $wouldNeedNinth,
+            'field_divergence_cases' => $fieldDivergenceCases,
+            'coat_available_cases' => $coatAvailableCases,
             'dual_parse_promotions' => $dualParsePromotions,
         ],
     ];
