@@ -325,6 +325,14 @@ function buildContMenu(){
 }
 function updateContCount(total){ const n=contSel?contSel.size:0; $('contCount').textContent = (total && n>=total)?'(alle)':`(${n})`; }
 function applyCont(){ contSel = new Set([...document.querySelectorAll('.contck:checked')].map(c=>c.value)); updateContCount(document.querySelectorAll('.contck').length); render(); }
+// Kontinent-Override-Optionen = die im Datenbestand tatsächlich vorkommenden Kontinente
+// (gleiche Ableitung wie das Filter-Menü, Aventurien zuerst). `include` sorgt dafür, dass ein
+// bereits gesetzter Override-Wert immer wählbar bleibt, auch wenn kein Knoten ihn (noch) trägt.
+function continentOptions(include){
+  const set = new Set(NODES.map(n=>n.continent||'Aventurien'));
+  if(include) set.add(include);
+  return [...set].sort((a,b)=>/aventurien/i.test(a)?-1:/aventurien/i.test(b)?1:a.localeCompare(b));
+}
 
 // --- Filter-Erklärung (steht unter dem Konflikt-Dropdown) ---
 const FILTER_INFO = {
@@ -716,6 +724,16 @@ function renderEditForm(n){
         + `<span class="muted" data-cap-label>${capPicked?(' verknüpft: '+esc(capPicked.name)):''}</span>`
         + `<div data-cap-box hidden><input type="search" data-cap-search placeholder="Siedlung suchen…"><div class="dt-cap-results" data-cap-results>${renderCapResults()}</div></div></div>`;
     }
+    if(f.key==='continent'){
+      // Kontinent = Dropdown-Override (überschreibt den Wiki/Dump-Wert, sonst gilt der Dump).
+      // Leere erste Option "— (Wiki)" = kein Override. effVal(n,'continent') ist Override ?? Wiki.
+      const cur=effVal(n,f.key);
+      const opts=['<option value="">— (Wiki)</option>'].concat(
+        continentOptions(cur).map(c=>`<option value="${esc(c)}"${c===cur?' selected':''}>${esc(c)}</option>`)
+      ).join('');
+      const wikiHint=n.continent?`<div class="muted dt-bf-wiki">Wiki: ${esc(n.continent)}</div>`:'';
+      return `<div class="k${ov?' ovr':''}">${f.label}${reset}</div><div><select class="dt-in" data-fk="${esc(f.key)}">${opts}</select>${wikiHint}</div>`;
+    }
     return `<div class="k${ov?' ovr':''}">${f.label}${reset}</div><div><input class="dt-in" data-fk="${esc(f.key)}" value="${esc(val)}">${extra}</div>`;
   }).join('');
   // Zeit-Controls: numerische BF-Werte (kontrollierend) + BF/v.BF-Umschalter + „besteht"-Häkchen.
@@ -752,6 +770,8 @@ async function saveEdits(){
       if(!fk) continue;
       if(fk==='capital_name' && pendingCapital!==undefined) continue; // unten zusammen mit dem Link gesetzt
       const val=inp.value, wiki=wikiVal(n,fk), ov=isOvr(n,fk);
+      // Kontinent-Dropdown: leere Wahl ("— (Wiki)") = kein Override -> ggf. löschen, nie "" schreiben.
+      if(fk==='continent' && val===''){ if(ov) await api('clear_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:fk}}); continue; }
       if(val===wiki){ if(ov) await api('clear_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:fk}}); }
       else { await api('set_field_override',{method:'POST',body:{wiki_key:n.wiki_key,field_key:fk,value:val}}); }
     }
