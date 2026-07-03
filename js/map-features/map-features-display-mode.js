@@ -158,10 +158,12 @@ function setSelectedMapLayerMode(mode) {
 	// "Original" ist die einzige Derographie-Ansicht mit abweichender Basiskarte: sie zeigt die alte
 	// Karte (Tile-Style "old"). Beim Verlassen zurueck auf "stylized" -- im Frontend automatisch; im
 	// Edit-Modus bleibt eine manuell ueber #mapStyleSelect gewaehlte Basis unangetastet.
-	if (typeof setMapStyle === "function" && typeof activeMapStyle !== "undefined") {
+	if (typeof setMapStyle === "function") {
 		if (normalizedMode === "original") {
 			setMapStyle("old");
-		} else if (activeMapStyle === "old" && (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE)) {
+		} else if (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE) {
+			// Alle anderen Derographie-Modi nutzen im Frontend IMMER die stylized-Basis. setMapStyle ist
+			// ein No-op, wenn stylized bereits aktiv ist (Guard in bootstrap.js), daher unbedingt sicher.
 			setMapStyle("stylized");
 		}
 	}
