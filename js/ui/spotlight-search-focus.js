@@ -32,7 +32,8 @@ function getSpotlightPathBounds(path) {
 }
 
 function selectSpotlightSearchEntry(entry) {
-	if (typeof trackVisitorEvent === "function") { trackVisitorEvent("search", String(document.getElementById("spotlight-search-input")?.value || "").slice(0, 80)); }
+	// The search term is logged centrally in closeSpotlightSearch() (called right below), which also
+	// captures searches that end without a selection -- so no separate tracking call is needed here.
 	closeSpotlightSearch();
 	clearSpotlightSelection();
 	spotlightActiveSelectionId = entry.id;

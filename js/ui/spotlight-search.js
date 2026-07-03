@@ -68,6 +68,14 @@ function closeSpotlightSearch({ resetInput = false } = {}) {
 		return;
 	}
 
+	// Record the final search query once per closed session (this also captures searches that
+	// end without picking a result), feeding the "Top-Suchbegriffe" visitor-analytics panel.
+	if (!overlay.hidden && typeof trackVisitorEvent === "function") {
+		const finalSpotlightQuery = String(input?.value || "").trim();
+		if (finalSpotlightQuery.length >= 2) {
+			trackVisitorEvent("search", finalSpotlightQuery.slice(0, 80));
+		}
+	}
 	overlay.hidden = true;
 	spotlightSearchRenderToken++;
 	spotlightRenderedEntries = [];
