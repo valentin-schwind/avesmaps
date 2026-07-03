@@ -35,14 +35,17 @@ try {
                 avesmapsErrorResponse(400, 'invalid_request', 'uid and a non-empty message are required.');
             }
             $meta = avesmapsImapMessageMeta($imap, $uid);
-            if ($meta === null || $meta['fromEmail'] === '') {
-                avesmapsErrorResponse(422, 'no_recipient', 'The referenced message has no usable sender address.');
+            $replyRecipient = $meta === null
+                ? ''
+                : (((string) ($meta['replyToEmail'] ?? '')) !== '' ? (string) $meta['replyToEmail'] : (string) $meta['fromEmail']);
+            if ($meta === null || $replyRecipient === '') {
+                avesmapsErrorResponse(422, 'no_recipient', 'The referenced message has no usable reply address.');
             }
 
             $sender = trim((string) ($config['contact']['sender'] ?? $imapCfg['username']));
             $subject = avesmapsMailReplySubject($meta['subject']);
             $env = [
-                'from' => $sender, 'fromName' => 'Avesmaps', 'to' => $meta['fromEmail'],
+                'from' => $sender, 'fromName' => 'Avesmaps', 'to' => $replyRecipient,
                 'replyTo' => $sender, 'subject' => $subject, 'body' => $bodyText,
                 'headers' => array_filter([
                     'In-Reply-To' => $meta['messageId'] !== '' ? $meta['messageId'] : null,
@@ -56,7 +59,7 @@ try {
                  VALUES (:m, :to, :subj, :body, :editor, :status)'
             );
             $insert->execute([
-                'm' => $meta['messageId'], 'to' => $meta['fromEmail'], 'subj' => $subject,
+                'm' => $meta['messageId'], 'to' => $replyRecipient, 'subj' => $subject,
                 'body' => $bodyText, 'editor' => (string) ($user['username'] ?? ''),
                 'status' => mb_substr($deliveryStatus, 0, 40),
             ]);
@@ -86,6 +89,7 @@ try {
             avesmapsJsonResponse(200, ['ok' => true, 'message' => [
                 'uid' => $uid,
                 'fromEmail' => $meta['fromEmail'],
+                'replyTo' => ((string) ($meta['replyToEmail'] ?? '')) !== '' ? (string) $meta['replyToEmail'] : (string) $meta['fromEmail'],
                 'subject' => $meta['subject'],
                 'text' => $text,
                 'answered' => $reply !== null,

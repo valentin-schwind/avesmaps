@@ -57,10 +57,11 @@
         const body = document.createElement("div"); body.className = "mail-inbox__body"; body.textContent = msg.text || "(kein Textinhalt)";
         el.append(head, body);
 
-        if (!msg.fromEmail) { const n = document.createElement("div"); n.className = "mail-inbox__status"; n.textContent = "Keine Absenderadresse — Antwort nicht möglich."; el.appendChild(n); return; }
+        const replyTarget = msg.replyTo || msg.fromEmail;
+        if (!replyTarget) { const n = document.createElement("div"); n.className = "mail-inbox__status"; n.textContent = "Keine Absenderadresse — Antwort nicht möglich."; el.appendChild(n); return; }
 
         const wrap = document.createElement("div"); wrap.className = "mail-inbox__reply";
-        const ta = document.createElement("textarea"); ta.placeholder = "Antwort an " + msg.fromEmail + " …";
+        const ta = document.createElement("textarea"); ta.placeholder = "Antwort an " + replyTarget + " …";
         const actions = document.createElement("div"); actions.className = "mail-inbox__reply-actions";
         const btn = document.createElement("button"); btn.type = "button"; btn.className = "wiki-sync-panel__start"; btn.textContent = "Mail beantworten";
         const status = document.createElement("span"); status.className = "mail-inbox__status";

@@ -54,6 +54,18 @@ function avesmapsImapExtractEmail(string $from): string {
     return filter_var($from, FILTER_VALIDATE_EMAIL) !== false ? $from : '';
 }
 
+function avesmapsImapReplyToEmail($imap, int $uid): string {
+    $rawHeader = @imap_fetchheader($imap, $uid, FT_UID);
+    if (!is_string($rawHeader) || $rawHeader === '') { return ''; }
+    $parsed = @imap_rfc822_parse_headers($rawHeader);
+    if (!is_object($parsed) || empty($parsed->reply_to) || !is_array($parsed->reply_to)) { return ''; }
+    $addr = $parsed->reply_to[0];
+    $mailbox = trim((string) ($addr->mailbox ?? ''));
+    $host = trim((string) ($addr->host ?? ''));
+    if ($mailbox === '' || $host === '') { return ''; }
+    return avesmapsImapExtractEmail($mailbox . '@' . $host);
+}
+
 function avesmapsImapListRecent($imap, int $limit): array {
     $limit = max(1, min(100, $limit));
     $total = imap_num_msg($imap);
@@ -85,6 +97,7 @@ function avesmapsImapMessageMeta($imap, int $uid): ?array {
     $from = avesmapsImapDecodeMime((string) ($o->from ?? ''));
     return [
         'fromEmail' => avesmapsImapExtractEmail($from),
+        'replyToEmail' => avesmapsImapReplyToEmail($imap, $uid),
         'subject' => avesmapsImapDecodeMime((string) ($o->subject ?? '')),
         'messageId' => trim((string) ($o->message_id ?? '')),
     ];
