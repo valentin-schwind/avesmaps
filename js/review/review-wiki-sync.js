@@ -693,7 +693,6 @@ const WIKI_SYNC_KIND_ELEMENTS = {
 	settlement: { button: "wiki-sync-sync-settlement", progress: "wiki-sync-sync-settlement-progress", status: "wiki-sync-sync-settlement-status", synced: "wiki-sync-sync-settlement-synced" },
 	path: { button: "wiki-sync-sync-path", progress: "wiki-sync-sync-path-progress", status: "wiki-sync-sync-path-status", synced: "wiki-sync-sync-path-synced" },
 	region: { button: "wiki-sync-sync-region", progress: "wiki-sync-sync-region-progress", status: "wiki-sync-sync-region-status", synced: "wiki-sync-sync-region-synced" },
-	territory: { button: "wiki-sync-sync-territory", progress: "wiki-sync-sync-territory-progress", status: "wiki-sync-sync-territory-status", synced: "wiki-sync-sync-territory-synced" },
 };
 
 // Only one kind syncs at a time (they share the single-flight dump pipeline lock
