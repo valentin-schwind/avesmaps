@@ -203,3 +203,19 @@
 	cursor: pointer;
 	font: inherit;
 }
+
+/* Frontend read-only variant: reduce the whole widget to a small centered "Jahr … BF"
+   badge (no slider / year input / range panel) so visitors see which year the map shows. */
+.political-timeline--readonly {
+	width: auto;
+	padding: 6px 14px;
+}
+.political-timeline--readonly .political-territory-range,
+.political-timeline--readonly .political-timeline__field,
+.political-timeline--readonly .political-timeline__year {
+	display: none !important;
+}
+.political-timeline--readonly .political-timeline__label {
+	font-size: 14px;
+	font-weight: 700;
+}

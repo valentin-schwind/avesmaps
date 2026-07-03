@@ -12,18 +12,23 @@ function syncPoliticalTimelineVisibility() {
 		return;
 	}
 
-	const showTimeline = isPoliticalMode && isPoliticalTimelineEnabled();
+	const interactive = isPoliticalTimelineEnabled();
+	// Frontend (no interactive timeline): still show a small read-only "Jahr … BF" badge so
+	// visitors know which year the political map refers to.
+	const readOnly = !interactive && (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE);
+	const showTimeline = isPoliticalMode && (interactive || readOnly);
 	timelineElement.hidden = !showTimeline;
+	timelineElement.classList.toggle("political-timeline--readonly", showTimeline && readOnly);
 
 	if (!showTimeline) {
 		clearPoliticalTerritoryTimelineSelection();
 		return;
 	}
 
-	syncPoliticalTimelineControls();
+	syncPoliticalTimelineControls(readOnly);
 }
 
-function syncPoliticalTimelineControls() {
+function syncPoliticalTimelineControls(readOnly = false) {
 	const rangeElement = document.getElementById("political-timeline-range");
 	const yearElement = document.getElementById("political-timeline-year");
 	const labelElement = document.getElementById("political-timeline-label");
@@ -33,11 +38,13 @@ function syncPoliticalTimelineControls() {
 
 	rangeElement.value = String(politicalTimelineYear);
 	yearElement.value = String(politicalTimelineYear);
-	labelElement.textContent = formatPoliticalTimelineYear(politicalTimelineYear);
+	labelElement.textContent = readOnly
+		? `Jahr ${formatPoliticalTimelineYear(politicalTimelineYear)}`
+		: formatPoliticalTimelineYear(politicalTimelineYear);
 }
 
 function formatPoliticalTimelineYear(yearBf) {
-	return "BF";
+	return `${yearBf} BF`;
 }
 
 function setPoliticalTimelineYear(value) {
