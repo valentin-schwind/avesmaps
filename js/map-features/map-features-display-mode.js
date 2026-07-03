@@ -152,9 +152,19 @@ function syncPowerlineMapTint() {
 }
 
 function setSelectedMapLayerMode(mode) {
-	const normalizedMode = ["none", "political", "deregraphic", "powerlines"].includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
+	const normalizedMode = ["none", "political", "deregraphic", "powerlines", "original"].includes(mode) ? mode : DEFAULT_PLANNER_STATE.mapLayerMode;
 	$("#mapLayerModeSelect").val(normalizedMode);
 	syncTransportControl("mapLayerModeSelect");
+	// "Original" ist die einzige Derographie-Ansicht mit abweichender Basiskarte: sie zeigt die alte
+	// Karte (Tile-Style "old"). Beim Verlassen zurueck auf "stylized" -- im Frontend automatisch; im
+	// Edit-Modus bleibt eine manuell ueber #mapStyleSelect gewaehlte Basis unangetastet.
+	if (typeof setMapStyle === "function" && typeof activeMapStyle !== "undefined") {
+		if (normalizedMode === "original") {
+			setMapStyle("old");
+		} else if (activeMapStyle === "old" && (typeof IS_EDIT_MODE === "undefined" || !IS_EDIT_MODE)) {
+			setMapStyle("stylized");
+		}
+	}
 	// Mittelgrauer Karten-Hintergrund hinter/um die Kacheln -- NUR im Edit-Modus, und dort nur in den Modi
 	// "Politisch" und "Nur Karte" (none). Frontend bleibt unveraendert. Direkt am Container per inline-Style,
 	// da der Editor-iframe map-layout.css nicht laedt; inline gewinnt ueber die Leaflet-Default-Farbe.
@@ -211,7 +221,7 @@ function applyFrontendLayerModeDefaults(mode, { includeCities = true } = {}) {
 		}
 		return;
 	}
-	if (mode !== "none" && mode !== "deregraphic" && mode !== "powerlines") {
+	if (mode !== "none" && mode !== "original" && mode !== "deregraphic" && mode !== "powerlines") {
 		return; // (political wird oben behandelt)
 	}
 	const isStandard = mode === "deregraphic";

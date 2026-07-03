@@ -82,6 +82,7 @@ window.AVESMAPS_I18N_EN = {
 	"view.mode.political": "Political",
 	"view.mode.standard": "Standard",
 	"view.mode.powerlines": "Ley lines",
+	"view.mode.original": "Original",
 
 	// --- spotlight search ---
 	"spotlight.title": "Search",

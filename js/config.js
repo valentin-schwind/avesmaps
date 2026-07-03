@@ -175,7 +175,7 @@ const MAP_SEARCH_API_URL = window.AVESMAPS_MAP_SEARCH_ENDPOINT || (SQL_MAP_HOSTS
 const INITIAL_SEARCH_PARAMS = new URLSearchParams(window.location.search);
 const IS_EDIT_MODE = INITIAL_SEARCH_PARAMS.get("edit") === "1";
 const MAP_TILE_STYLES = {
-	old: { label: "Old", url: "./tiles/old/{z}/map_{x}_{y}.jpg" },
+	old: { label: "Original", url: "./tiles/old/{z}/map_{x}_{y}.jpg" },
 	stylized: { label: "Stylized", url: "./tiles/stylized/{z}/map_{x}_{y}.webp" },
 	politics: { label: "Politics", url: "./tiles/politics/{z}/map_{x}_{y}.webp", maxNativeZoom: 4 },
 };
@@ -380,6 +380,7 @@ const TRANSPORT_ICON_PATHS = {
 		political: "icons/PolitischeKarte.webp",
 		deregraphic: "icons/RegionenKarte.webp",
 		powerlines: "icons/kraftlinien.webp",
+		original: "icons/OriginalKarte.webp",
 	},
 	landTransport: {
 		caravan: "icons/karavane.webp",
