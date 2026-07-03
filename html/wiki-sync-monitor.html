@@ -316,8 +316,8 @@ let unassignedGeomCount = 0; // server-gezählte Gesamtzahl (autoritativ für Z�
 // --- Kontinente-Dropdown (Filter für beide Listen) ---
 let contSel = null;   // null = noch nicht initialisiert
 function buildContMenu(){
-  const counts={}; for(const n of NODES){ const c=n.continent||'Aventurien'; counts[c]=(counts[c]||0)+1; }
-  const found = [...new Set(NODES.map(n=>n.continent||'Aventurien'))].sort((a,b)=>/aventurien/i.test(a)?-1:/aventurien/i.test(b)?1:a.localeCompare(b));
+  const counts={}; for(const n of NODES){ const c=(effVal(n,'continent')||'Aventurien'); counts[c]=(counts[c]||0)+1; }
+  const found = [...new Set(NODES.map(n=>(effVal(n,'continent')||'Aventurien')))].sort((a,b)=>/aventurien/i.test(a)?-1:/aventurien/i.test(b)?1:a.localeCompare(b));
   if (contSel === null) contSel = new Set(found.filter(c=>/aventurien/i.test(c)));   // Default: nur Aventurien
   const row=(c)=>`<label><input type="checkbox" class="contck" value="${esc(c)}" ${contSel.has(c)?'checked':''}> ${esc(c)} <span class="muted">(${counts[c]||0})</span></label>`;
   $('contMenu').innerHTML = `<div class="ddtools"><a data-cont-all="1">Alle</a><a data-cont-none="1">Keine</a></div>` + (found.length?found.map(row).join(''):'<span class="muted">— noch keine Daten —</span>');
@@ -329,7 +329,7 @@ function applyCont(){ contSel = new Set([...document.querySelectorAll('.contck:c
 // (gleiche Ableitung wie das Filter-Menü, Aventurien zuerst). `include` sorgt dafür, dass ein
 // bereits gesetzter Override-Wert immer wählbar bleibt, auch wenn kein Knoten ihn (noch) trägt.
 function continentOptions(include){
-  const set = new Set(NODES.map(n=>n.continent||'Aventurien'));
+  const set = new Set(NODES.map(n=>(effVal(n,'continent')||'Aventurien')));
   if(include) set.add(include);
   return [...set].sort((a,b)=>/aventurien/i.test(a)?-1:/aventurien/i.test(b)?1:a.localeCompare(b));
 }
@@ -817,7 +817,7 @@ function isKirche(n){ return /kirchenprovinz/i.test(n.status||'') || /\b(kirche|
 const PROMOTED_SETTLEMENT_ORIGINS = new Set(['reichsstadt','freiestadt','siedlung']);
 function isFlaechenland(n){ return !PROMOTED_SETTLEMENT_ORIGINS.has(String((n&&n.source_origin)||'').toLowerCase()); }
 let leftFlaech = false, rightFlaech = false;
-function visibleByContinent(n){ if(!contSel || contSel.size===0) return true; return contSel.has(n.continent||'Aventurien'); }
+function visibleByContinent(n){ if(!contSel || contSel.size===0) return true; return contSel.has((effVal(n,'continent')||'Aventurien')); }
 // Zeitfilter: aus / heute / Bereich [von,bis] (BF). Knoten ohne Daten werden nicht versteckt.
 const leftTime={mode:'off',from:-Infinity,to:Infinity};
 const rightTime={mode:'today',from:-Infinity,to:Infinity};   // Hierarchie-Baum startet auf "heute" (historische über Filter einblendbar)
