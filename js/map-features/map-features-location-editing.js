@@ -266,6 +266,13 @@ async function deleteLocationMarker(markerEntry) {
 		updateRevisionFromEditResponse(result);
 		refreshPlannerAfterFeatureChange({ updateRoute: didClearWaypoint });
 		showFeedbackToast(`${locationTypeLabel} gelöscht.`, "success");
+		// Settlement list's green/"placed" dot is derived from map_features at load time; a deleted
+		// place must not keep showing as placed until the next manual reload. Only for real locations
+		// (crossings aren't listed there anyway) and only if the list was actually loaded once
+		// (avoids forcing a fetch/tab-open from an unrelated part of the app).
+		if (markerEntry.locationType !== CROSSING_LOCATION_TYPE && typeof settlementListItems !== "undefined" && settlementListItems.length > 0 && typeof loadSettlementList === "function") {
+			void loadSettlementList();
+		}
 	} catch (error) {
 		console.error(`${locationTypeLabel} konnte nicht gelöscht werden:`, error);
 		showFeedbackToast(error.message || `${locationTypeLabel} konnte nicht gelöscht werden.`, "warning");
