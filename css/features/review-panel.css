@@ -410,7 +410,12 @@
    to fill the column-flex tab-panel's leftover space (same fix as the progress bar). */
 .wiki-sync-panel__row-summary {
 	flex: 0 0 auto;
-	margin: -4px 10px 8px;
+	/* Trenner zwischen dem Sync-Aktionsblock und der Statistikzeile; Zeile schlank + nicht fett. */
+	margin: 6px 10px 8px;
+	padding-top: 7px;
+	border-top: 1px solid rgba(96, 72, 48, 0.22);
+	font-weight: 400;
+	font-size: 11px;
 }
 
 .wiki-sync-panel__filter {
