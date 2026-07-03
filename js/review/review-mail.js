@@ -7,6 +7,7 @@
     let inboxLoaded = false;
     let sentLoaded = false;
     let sentLoadPromise = null;
+    let openUid = null;
 
     function api(action, opts, query) {
         let url = API + "?action=" + encodeURIComponent(action);
@@ -41,13 +42,24 @@
         });
     }
 
+    function closeDetail() {
+        const el = detailEl(); if (!el) return;
+        el.hidden = true;
+        el.textContent = "";
+        openUid = null;
+    }
+
     function openMessage(m) {
         const el = detailEl(); if (!el) return;
+        // Second click on the already-open mail collapses everything under the divider.
+        if (openUid === m.uid && !el.hidden) { closeDetail(); return; }
+        openUid = m.uid;
         el.hidden = false; el.textContent = "Lade …";
         api("message", null, { uid: m.uid }).then((res) => {
+            if (openUid !== m.uid) { return; }
             if (!res || !res.ok) { el.textContent = "Konnte Nachricht nicht laden."; return; }
             renderDetail(res.message);
-        }).catch(() => { el.textContent = "Fehler beim Laden."; });
+        }).catch(() => { if (openUid === m.uid) { el.textContent = "Fehler beim Laden."; } });
     }
 
     function renderDetail(msg) {
