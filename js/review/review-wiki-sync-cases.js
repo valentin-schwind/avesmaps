@@ -351,6 +351,12 @@ function getWikiSyncCaseTypeOrder(caseType) {
 		canonical_name_difference: 10,
 		type_conflict: 20,
 		probable_match: 30,
+		// WikiDump comparison cases (exact match, but a field/position/coat differs).
+		// Clustered right after probable_match so they read as a group; each has its own
+		// German label below. coordinate_drift comes first because it has a map action.
+		coordinate_drift: 32,
+		field_divergence: 34,
+		coat_available: 36,
 		unresolved_without_candidate: 40,
 		duplicate_avesmaps_name: 50,
 		duplicate_wiki_title: 60,
@@ -373,6 +379,13 @@ function getWikiSyncCaseTypeLabel(caseType) {
 		missing_wiki_with_coordinates: "Fehlende Wiki-Orte mit Koordinaten",
 		missing_wiki_without_coordinates: "Fehlende Wiki-Orte ohne nutzbare Koordinaten",
 		missing_capital: "Fehlende Hauptstädte",
+		// WikiDump comparison cases. Labels mirror the backend single source
+		// (AVESMAPS_WIKI_CASE_LABELS in api/_internal/wiki/locations.php); the per-case
+		// case_label from the server takes precedence at render time (getWikiSyncGroupedCases),
+		// so these are the fallback when a case arrives without one.
+		coordinate_drift: "Position weicht vom Wiki ab",
+		field_divergence: "Weicht vom Wiki ab",
+		coat_available: "Wappen im Wiki verfügbar",
 	};
 
 	return labels[caseType] || caseType;
@@ -403,15 +416,33 @@ function createWikiSyncCaseElement(caseEntry) {
 	bodyElement.className = "wiki-sync-case__body";
 	if (caseEntry.case_type === "missing_capital") {
 		appendMissingCapitalCaseBody(bodyElement, caseEntry);
+	} else if (caseEntry.case_type === "coordinate_drift") {
+		// Drift case: its own body (both positions + distance) and its own two
+		// actions ("Auf Wiki-Position setzen" / "Karte behalten"), mirroring the
+		// missing_capital precedent. NOT the generic rows/candidates/actions.
+		appendCoordinateDriftCaseBody(bodyElement, caseEntry);
 	} else {
 		appendWikiSyncCaseRows(bodyElement, caseEntry);
 		appendWikiSyncCaseCandidates(bodyElement, caseEntry);
 	}
-	appendWikiSyncCaseActions(bodyElement, caseEntry);
+	if (caseEntry.case_type !== "coordinate_drift") {
+		appendWikiSyncCaseActions(bodyElement, caseEntry);
+	}
 
 	detailsElement.append(summaryElement, bodyElement);
 	detailsElement.addEventListener("toggle", () => {
 		if (isWikiSyncAccordionRestoring) {
+			return;
+		}
+
+		// A drift case that CLOSES must clear its two markers + line (mirrors the
+		// preview-marker auto-remove). An OPEN drift case draws them via its own hook.
+		if (caseEntry.case_type === "coordinate_drift") {
+			if (detailsElement.open) {
+				focusWikiSyncCoordinateDriftCase(caseEntry);
+			} else {
+				clearWikiSyncCoordinateDriftLayers();
+			}
 			return;
 		}
 
@@ -653,6 +684,93 @@ function appendMissingCapitalCaseBody(bodyElement, caseEntry) {
 		);
 		bodyElement.appendChild(controls);
 	}
+}
+
+// Body for a coordinate_drift case: the Avesmaps marker name + BOTH positions
+// (map vs wiki, both in 0..1024 map units) + the euclidean drift distance, then a
+// dedicated actions block. Mirrors appendMissingCapitalCaseBody. The payload shape
+// (Wave 1, dump-sync-kind.php): payload.map = {public_id, lat, lng, revision, name}
+// and payload.wiki_position = {lat, lng}. The map line+markers are drawn by
+// focusWikiSyncCoordinateDriftCase on the <details> toggle (review-wiki-sync-resolve.js).
+function appendCoordinateDriftCaseBody(bodyElement, caseEntry) {
+	const payload = caseEntry.payload || {};
+	const mapPlace = payload.map || {};
+	const wikiPosition = payload.wiki_position || {};
+
+	appendWikiSyncInfoRow(bodyElement, "Avesmaps", mapPlace.name || "Unbenannter Ort");
+
+	const mapLatLng = readWikiSyncDriftLatLng(mapPlace);
+	const wikiLatLng = readWikiSyncDriftLatLng(wikiPosition);
+	appendWikiSyncInfoRow(bodyElement, "Karte", mapLatLng ? formatLocationReportCoordinates(mapLatLng) : "-");
+	appendWikiSyncInfoRow(bodyElement, "Wiki-Position", wikiLatLng ? formatLocationReportCoordinates(wikiLatLng) : "-");
+
+	const drift = wikiSyncDriftDistance(mapLatLng, wikiLatLng);
+	if (drift !== null) {
+		appendWikiSyncInfoRow(bodyElement, "Abstand", `${drift.toFixed(1)} Karteneinheiten`);
+	}
+
+	if (payload.wiki && (payload.wiki.title || payload.wiki.url)) {
+		appendWikiSyncLinkRow(bodyElement, "Wiki", payload.wiki.title || "Wiki Aventurica", payload.wiki.url || "");
+	}
+
+	appendCoordinateDriftCaseActions(bodyElement, caseEntry);
+}
+
+// Two-position → euclidean distance in map units (both positions are already in
+// 0..1024 map units; no CRS conversion). Returns null if either is missing.
+function wikiSyncDriftDistance(mapLatLng, wikiLatLng) {
+	if (!mapLatLng || !wikiLatLng) {
+		return null;
+	}
+	const dLat = Number(mapLatLng.lat) - Number(wikiLatLng.lat);
+	const dLng = Number(mapLatLng.lng) - Number(wikiLatLng.lng);
+	return Math.sqrt(dLat * dLat + dLng * dLng);
+}
+
+// Parse {lat,lng} (map units) into an L.latLng WITHOUT swapping: the drift payload
+// names its fields lat/lng and the vertical (y) is already the `lat` — same
+// convention as payload.proposed_location (review-wiki-sync-resolve.js). Returns
+// null on non-finite input. Shared by the body (distance/labels) and the map draw.
+function readWikiSyncDriftLatLng(position) {
+	if (!position) {
+		return null;
+	}
+	const lat = Number(position.lat);
+	const lng = Number(position.lng);
+	if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+		return null;
+	}
+	return L.latLng(lat, lng);
+}
+
+// Actions for a drift case: "Anzeigen" (redraw line+markers), the two resolution
+// buttons (gated exactly like canResolveWikiSyncCase -> only when open) and the
+// shared defer/archive/reopen lifecycle buttons. The two resolution buttons are
+// dispatched by handleWikiSyncCaseActionClick via their data-wiki-sync-action.
+function appendCoordinateDriftCaseActions(bodyElement, caseEntry) {
+	const actionsElement = document.createElement("div");
+	actionsElement.className = "wiki-sync-case__actions";
+
+	if (caseEntry.status === "archived" || caseEntry.status === "deferred") {
+		actionsElement.appendChild(createWikiSyncActionButton("reopen", "Wieder öffnen", "wiki-sync-case__action--primary"));
+	}
+
+	actionsElement.appendChild(createWikiSyncActionButton("drift-focus", "Anzeigen", "wiki-sync-case__action--primary"));
+
+	// Gate the two resolution buttons like canResolveWikiSyncCase (open-only). Also
+	// require a valid wiki position + the map feature's public_id, else "Auf
+	// Wiki-Position setzen" has nothing to write.
+	const payload = caseEntry.payload || {};
+	const hasWikiPosition = Boolean(readWikiSyncDriftLatLng(payload.wiki_position || null));
+	const hasMapFeature = Boolean(payload.map && payload.map.public_id);
+	if (caseEntry.status === "open" && hasWikiPosition && hasMapFeature) {
+		actionsElement.appendChild(createWikiSyncActionButton("set-geometry-to-wiki", "Auf Wiki-Position setzen", "wiki-sync-case__action--primary"));
+		actionsElement.appendChild(createWikiSyncActionButton("keep-map-position", "Karte behalten", "wiki-sync-case__action--danger"));
+	}
+
+	actionsElement.appendChild(createWikiSyncActionButton("defer", "Zurückstellen", "wiki-sync-case__action--danger"));
+	actionsElement.appendChild(createWikiSyncActionButton("archive", "Archivieren", "wiki-sync-case__action--danger"));
+	bodyElement.appendChild(actionsElement);
 }
 
 function createWikiSyncActionButton(action, label, className) {

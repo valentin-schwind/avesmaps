@@ -809,6 +809,77 @@ function avesmapsWikiSyncResolveCase(PDO $pdo, array $payload, array $user): arr
     ];
 }
 
+/**
+ * coordinate_drift resolution: "Auf Wiki-Position setzen".
+ *
+ * The ONLY new map write in the WikiDump rollout: it moves ONE location marker
+ * (per-case, on the owner's explicit click) to the wiki position carried in the
+ * case payload, then archives the case. It is a THIN wrapper -- NOT an extension
+ * of avesmapsWikiSyncResolveCase (which is property-coupled to the resolve form):
+ *
+ *   1. Reuse avesmapsMovePointFeature (api/_internal/map/features.php) -- the SAME
+ *      geometry-write path drag-to-move uses, so it carries the SAME 'edit'
+ *      capability (already gated at the endpoint), the SAME map_feature_locks
+ *      check AND the SAME expected_revision optimistic-concurrency guard (both
+ *      enforced inside avesmapsAssertFeatureCanBeEdited). It begins+commits its
+ *      OWN transaction and returns the updated feature.
+ *   2. Archive the case with the SAME UPDATE wiki_sync_cases SET status='archived',
+ *      reviewed_at/reviewed_by/resolution_json pattern resolve_case uses. This
+ *      runs as a SEPARATE statement AFTER the move committed (no outer transaction
+ *      wrapping both -- avesmapsMovePointFeature already committed its own).
+ *
+ * NEVER automatic, NEVER bulk: the frontend calls this once per case on an
+ * explicit button click. The lat/lng are the wiki position in 0..1024 map units;
+ * avesmapsMovePointFeature validates them (avesmapsParseMapCoordinate: 0..1024)
+ * and writes GeoJSON [lng, lat] itself, so the caller passes lat/lng straight
+ * through (same convention as drag-to-move).
+ */
+function avesmapsWikiSyncSetGeometryToWiki(PDO $pdo, array $payload, array $user): array {
+    $caseId = avesmapsWikiSyncReadPositiveInt($payload['case_id'] ?? null, 'case_id');
+    // Load the case up front so a bad/missing case_id fails before any map write.
+    $case = avesmapsWikiSyncFetchCase($pdo, $caseId);
+    if ((string) ($case['case_type'] ?? '') !== 'coordinate_drift') {
+        throw new InvalidArgumentException('Diese Aktion ist nur fuer coordinate_drift-Faelle erlaubt.');
+    }
+    $casePayload = avesmapsWikiSyncDecodeJson($case['payload_json'] ?? null);
+
+    // Reuse the drag-to-move helper verbatim: it reads public_id/lat/lng/
+    // expected_revision from the payload, enforces the lock + revision guard, and
+    // writes the geometry in its own transaction. The frontend supplies the wiki
+    // position (payload.wiki_position) as lat/lng in map units.
+    $feature = avesmapsMovePointFeature($pdo, $payload, $user);
+
+    // Archive the resolved case (separate statement, AFTER the move committed).
+    $resolution = [
+        'resolved_at' => gmdate('c'),
+        'resolved_by' => (string) ($user['username'] ?? ''),
+        'resolution' => 'set_geometry_to_wiki',
+        'feature' => $feature,
+        'case_type' => 'coordinate_drift',
+        'wiki_position' => is_array($casePayload['wiki_position'] ?? null) ? $casePayload['wiki_position'] : null,
+    ];
+    $statement = $pdo->prepare(
+        'UPDATE wiki_sync_cases
+        SET status = :status,
+            reviewed_at = CURRENT_TIMESTAMP(3),
+            reviewed_by = :reviewed_by,
+            resolution_json = :resolution_json
+        WHERE id = :id'
+    );
+    $statement->execute([
+        'id' => $caseId,
+        'status' => 'archived',
+        'reviewed_by' => (int) ($user['id'] ?? 0) ?: null,
+        'resolution_json' => avesmapsWikiSyncEncodeJson($resolution),
+    ]);
+
+    return [
+        'ok' => true,
+        'case_id' => $caseId,
+        'feature' => $feature,
+    ];
+}
+
 function avesmapsWikiSyncUpdateLocationFeature(
     PDO $pdo,
     array $payload,

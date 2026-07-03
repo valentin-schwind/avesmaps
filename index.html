@@ -308,6 +308,21 @@
 				<div id="change-log-list" class="review-panel__list"></div>
 			</section>
 			<section class="review-panel__section" data-editor-panel-section="wiki-sync">
+				<!-- Central WikiDump procurement block (moved ABOVE the 4 tabs per the owner's mockup):
+				     ONE "Dump holen" control for all kinds. The SAME progress bar (#wiki-sync-dump-progress)
+				     and status line (#wiki-sync-dump-fetched-status / #wiki-sync-dump-status) that used to sit
+				     inside the Siedlungen tab were MOVED here unchanged -- reused, not rebuilt -- so the
+				     progress-during-fetch and "Dump geholt: <date>" behaviour keeps working. The per-tab
+				     "Syncen" buttons below drive sync_kind for each kind. -->
+				<div class="wiki-sync-dump-central">
+					<div class="wiki-sync-panel__actions wiki-sync-dump-actions">
+						<button id="wiki-sync-dump-read" class="wiki-sync-panel__start" type="button" title="Lädt den Wiki-Dump neu herunter, liest ihn ein (Sandbox, schreibt nichts Scharfes) und räumt danach alte Dump-Stände auf.">📥 Dump holen</button>
+						<span id="wiki-sync-dump-fetched-status" class="wiki-sync-panel__summary" hidden></span>
+						<button id="wiki-sync-dump-apply" class="wiki-sync-case__action wiki-sync-case__action--danger" type="button" title="Schreibt den gelesenen Dump scharf in die Staging-Tabellen. Erst nach grünem Vergleichstest ausführen." disabled>Übernehmen</button>
+					</div>
+					<progress id="wiki-sync-dump-progress" class="wiki-sync-progress" max="6" value="0" hidden></progress>
+					<p id="wiki-sync-dump-status" class="wiki-sync-panel__summary" role="status" aria-live="polite" hidden></p>
+				</div>
 				<nav class="wiki-sync-panel__tabs" aria-label="WikiSync-Bereiche">
 					<button class="wiki-sync-panel__tab is-active" type="button" data-wiki-sync-panel-tab="locations">Siedlungen</button>
 					<button class="wiki-sync-panel__tab" type="button" data-wiki-sync-panel-tab="territories">Territorien</button>
@@ -318,8 +333,11 @@
 				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="paths">
 						<div class="wiki-sync-panel__actions">
 							<span id="path-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
+							<button id="wiki-sync-sync-path" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Wege aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen).">🔄 Syncen</button>
 							<button id="path-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Wege neu crawlen (läuft im Hintergrund)">🚨 WikiSync</button>
 								<progress id="path-sync-progress" class="wiki-sync-progress" max="1" value="0" style="flex:1 1 100%;width:100%" hidden></progress>
+								<progress id="wiki-sync-sync-path-progress" class="wiki-sync-progress wiki-sync-kind-sync-progress" max="1" value="0" style="flex:1 1 100%;width:100%" hidden></progress>
+								<p id="wiki-sync-sync-path-status" class="wiki-sync-panel__summary wiki-sync-kind-sync-status" role="status" aria-live="polite" style="flex:1 1 100%;width:100%" hidden></p>
 						</div>
 						<div class="wiki-sync-panel__filter">
 							<input id="path-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Wege suchen ..." aria-label="Wege durchsuchen" />
@@ -331,8 +349,11 @@
 						<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="regions">
 						<div class="wiki-sync-panel__actions">
 							<span id="region-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
+								<button id="wiki-sync-sync-region" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Regionen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen).">🔄 Syncen</button>
 															<button id="region-sync-crawl" class="wiki-sync-panel__start" type="button" title="Wiki-Regionen neu crawlen (läuft im Hintergrund)">🚨 WikiSync</button>
 								<progress id="region-sync-progress" class="wiki-sync-progress" max="1" value="0" style="flex:1 1 100%;width:100%" hidden></progress>
+									<progress id="wiki-sync-sync-region-progress" class="wiki-sync-progress wiki-sync-kind-sync-progress" max="1" value="0" style="flex:1 1 100%;width:100%" hidden></progress>
+									<p id="wiki-sync-sync-region-status" class="wiki-sync-panel__summary wiki-sync-kind-sync-status" role="status" aria-live="polite" style="flex:1 1 100%;width:100%" hidden></p>
 						</div>
 						<div class="wiki-sync-panel__filter">
 							<input id="region-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Regionen suchen ..." aria-label="Regionen durchsuchen" />
@@ -345,16 +366,12 @@
 					<div class="wiki-sync-panel__tab-panel is-active" data-wiki-sync-panel-section="locations">
 					<div class="wiki-sync-panel__actions">
 						<span id="wiki-sync-locations-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
+						<button id="wiki-sync-sync-settlement" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Siedlungen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen).">🔄 Syncen</button>
 						<button id="wiki-sync-start" class="wiki-sync-panel__start" type="button">🚨 WikiSync</button>
 					</div>
 					<progress id="wiki-sync-progress" class="wiki-sync-progress" max="5" value="0" hidden></progress>
-					<div class="wiki-sync-panel__actions wiki-sync-dump-actions">
-						<button id="wiki-sync-dump-read" class="wiki-sync-panel__start" type="button" title="Lädt den Wiki-Dump neu herunter, liest ihn ein (Sandbox, schreibt nichts Scharfes) und räumt danach alte Dump-Stände auf.">📥 Dump holen</button>
-						<span id="wiki-sync-dump-fetched-status" class="wiki-sync-panel__summary" hidden></span>
-						<button id="wiki-sync-dump-apply" class="wiki-sync-case__action wiki-sync-case__action--danger" type="button" title="Schreibt den gelesenen Dump scharf in die Staging-Tabellen. Erst nach grünem Vergleichstest ausführen." disabled>Übernehmen</button>
-					</div>
-					<progress id="wiki-sync-dump-progress" class="wiki-sync-progress" max="6" value="0" hidden></progress>
-					<p id="wiki-sync-dump-status" class="wiki-sync-panel__summary" role="status" aria-live="polite" hidden></p>
+					<progress id="wiki-sync-sync-settlement-progress" class="wiki-sync-progress wiki-sync-kind-sync-progress" max="1" value="0" hidden></progress>
+					<p id="wiki-sync-sync-settlement-status" class="wiki-sync-panel__summary wiki-sync-kind-sync-status" role="status" aria-live="polite" hidden></p>
 						<details class="wiki-sync-accordion" id="wiki-sync-cases-accordion">
 						<summary class="wiki-sync-accordion__summary">Konfliktl&ouml;sung</summary>
 						<div class="wiki-sync-accordion__body">
@@ -387,9 +404,12 @@
 				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="territories">
 					<div class="wiki-sync-panel__actions">
 						<span id="wiki-sync-territories-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
+						<button id="wiki-sync-sync-territory" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Herrschaftsgebiete aus dem zuletzt gelesenen Dump in die Sandbox-/Staging-Tabellen und baut das Modell neu (Wave 2 Syncen).">🔄 Syncen</button>
 						<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button">WikiSync &amp; Editor</button>
 					</div>
 					<progress id="wiki-sync-territories-progress" class="wiki-sync-progress" max="1" value="0" hidden></progress>
+					<progress id="wiki-sync-sync-territory-progress" class="wiki-sync-progress wiki-sync-kind-sync-progress" max="1" value="0" hidden></progress>
+					<p id="wiki-sync-sync-territory-status" class="wiki-sync-panel__summary wiki-sync-kind-sync-status" role="status" aria-live="polite" hidden></p>
 
 					<div class="wiki-sync-panel__filter">
 						<input id="wiki-sync-territory-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="Herrschaftsgebiete durchsuchen" />

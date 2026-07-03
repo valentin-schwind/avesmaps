@@ -222,6 +222,11 @@ $("#wiki-sync-territories").on("click", () => startWikiSyncTerritoryRun());
 // WikiDump hybrid read (H4c-f): sandbox read loop + gated sharp apply + inline cred-prompt.
 $("#wiki-sync-dump-read").on("click", () => startWikiSyncDumpRead());
 $("#wiki-sync-dump-apply").on("click", () => startWikiSyncDumpApply());
+// Per-kind "Syncen" (Wave 2): one button per tab drives sync_kind for that kind.
+$("#wiki-sync-sync-settlement").on("click", () => startWikiSyncKindSync("settlement"));
+$("#wiki-sync-sync-path").on("click", () => startWikiSyncKindSync("path"));
+$("#wiki-sync-sync-region").on("click", () => startWikiSyncKindSync("region"));
+$("#wiki-sync-sync-territory").on("click", () => startWikiSyncKindSync("territory"));
 $("#wiki-sync-dump-credentials-form").on("submit", (event) => {
     event.preventDefault();
     void submitWikiSyncDumpCredentials();

@@ -8,6 +8,19 @@ require_once __DIR__ . '/locations.php';
 require_once __DIR__ . '/territories.php';
 require_once __DIR__ . '/territories-dom.php';
 require_once __DIR__ . '/../political/territory.php';
+// coordinate_drift resolution ("Auf Wiki-Position setzen") reuses the shared
+// map geometry-write helper avesmapsMovePointFeature (+ its lock/revision guard).
+// The internal map lib defines only DEFS (it is include-safe: no top-level code),
+// but the AvesmapsConflictException class it THROWS is declared only at the edit
+// endpoint layer (api/edit/map/features.php). Declare it here (guarded) so the
+// move helper's lock/stale-revision throw resolves to a real class instead of a
+// fatal "class not found". No function-name collision with the WikiSync chain:
+// features.php uses unprefixed names, the WikiSync helpers use avesmapsWikiSync*.
+require_once __DIR__ . '/../map/features.php';
+if (!class_exists('AvesmapsConflictException')) {
+    class AvesmapsConflictException extends RuntimeException {
+    }
+}
 
 function avesmapsWikiSyncAssertEndpointScope(string $endpointScope, array $allowedScopes, string $action): void {
     if (in_array($endpointScope, $allowedScopes, true)) {
@@ -99,6 +112,17 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
                 return avesmapsWikiSyncResolveCase($pdo, $payload, avesmapsRequireUserWithCapability('edit'));
             })(),
 
+            // coordinate_drift resolution ("Auf Wiki-Position setzen"): a SIBLING of
+            // resolve_case (NOT an extension of the property-coupled resolver). Same
+            // 'edit' capability; the reused avesmapsMovePointFeature adds the SAME
+            // lock + expected_revision guard drag-to-move uses, then the case is
+            // archived. The ONLY new map write in the WikiDump rollout -- per-case,
+            // on an explicit click, never automatic/bulk.
+            'set_geometry_to_wiki' => (function () use ($pdo, $payload, $endpointScope, $action): array {
+                avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'locations'], $action);
+                return avesmapsWikiSyncSetGeometryToWiki($pdo, $payload, avesmapsRequireUserWithCapability('edit'));
+            })(),
+
             'sync_territories' => (function () use ($pdo, $payload, $endpointScope, $action): array {
                 avesmapsWikiSyncAssertEndpointScope($endpointScope, ['legacy', 'territories'], $action);
                 return avesmapsWikiSyncSyncTerritoriesFromDomCache($pdo, avesmapsRequireUserWithCapability('edit'), $payload);
@@ -116,6 +140,13 @@ function avesmapsWikiSyncHandleRequest(string $endpointScope = 'legacy'): void {
         avesmapsJsonResponse(200, $response);
     } catch (InvalidArgumentException $exception) {
         avesmapsErrorResponse(400, 'invalid_request', $exception->getMessage());
+    } catch (AvesmapsConflictException $exception) {
+        // Stale expected_revision or a lock held by another editor, thrown by the
+        // reused avesmapsMovePointFeature (set_geometry_to_wiki). Must be caught
+        // BEFORE the RuntimeException arm below (it extends RuntimeException) so a
+        // concurrency conflict surfaces as HTTP 409 with the German message, and
+        // the frontend's 409 handler (pollLiveMapUpdates) refreshes the map.
+        avesmapsErrorResponse(409, 'conflict', $exception->getMessage());
     } catch (PDOException $exception) {
         avesmapsWikiSyncLogServerError('database_error', [
             'exception_code' => (string) $exception->getCode(),

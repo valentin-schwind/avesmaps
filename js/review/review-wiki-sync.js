@@ -782,6 +782,163 @@ async function startWikiSyncDumpApply() {
 	}
 }
 
+// ===========================================================================
+// Per-kind "Syncen" (Wave 2): each of the 4 tabs (settlement/path/region/
+// territory) has a "🔄 Syncen" button that drives the backend `sync_kind` action
+// for THAT kind via the SAME one-POST-per-step client loop the dump read uses
+// (runWikiSyncDumpLoop pattern). It re-reads the newest completed dump into the
+// matching STAGING table (never map_features / live political_territory). The
+// per-tab progress bar + a "Zuletzt gesynct: <date>" line come from the sync
+// response's `run` (completed_at, falling back to updated_at).
+// ===========================================================================
+
+// Static per-kind DOM wiring: button + progress + status ids, and the tab's kind.
+const WIKI_SYNC_KIND_ELEMENTS = {
+	settlement: { button: "wiki-sync-sync-settlement", progress: "wiki-sync-sync-settlement-progress", status: "wiki-sync-sync-settlement-status" },
+	path: { button: "wiki-sync-sync-path", progress: "wiki-sync-sync-path-progress", status: "wiki-sync-sync-path-status" },
+	region: { button: "wiki-sync-sync-region", progress: "wiki-sync-sync-region-progress", status: "wiki-sync-sync-region-status" },
+	territory: { button: "wiki-sync-sync-territory", progress: "wiki-sync-sync-territory-progress", status: "wiki-sync-sync-territory-status" },
+};
+
+// Only one kind syncs at a time (they share the single-flight dump pipeline lock
+// server-side; a second would 409). This guards the frontend from starting two.
+let isWikiSyncKindSyncRunning = false;
+
+function setWikiSyncKindButtonsDisabled(isDisabled, activeKind = null) {
+	Object.entries(WIKI_SYNC_KIND_ELEMENTS).forEach(([kind, ids]) => {
+		const button = document.getElementById(ids.button);
+		if (button) {
+			button.disabled = isDisabled;
+			button.textContent = isDisabled && kind === activeKind ? "Synchronisiert..." : "🔄 Syncen";
+		}
+	});
+}
+
+// "Zuletzt gesynct: <date>" from a run row (completed_at preferred, else updated_at).
+// Reuses the MySQL-DATETIME -> Date parse trick (space -> "T") used for the dump date.
+function formatWikiSyncKindSyncedText(run) {
+	const raw = String(run?.completed_at || run?.updated_at || "").trim();
+	if (raw === "") {
+		return "Zuletzt gesynct: unbekannt";
+	}
+	const parsed = new Date(raw.replace(" ", "T"));
+	if (Number.isNaN(parsed.getTime())) {
+		return `Zuletzt gesynct: ${raw}`;
+	}
+	return `Zuletzt gesynct: ${parsed.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}`;
+}
+
+function renderWikiSyncKindProgress(kind, progress, done, run) {
+	const ids = WIKI_SYNC_KIND_ELEMENTS[kind];
+	if (!ids) {
+		return;
+	}
+	const progressElement = document.getElementById(ids.progress);
+	const statusElement = document.getElementById(ids.status);
+
+	const processed = Number(progress?.processed ?? 0);
+	const total = Number(progress?.total ?? 0);
+	if (progressElement) {
+		progressElement.hidden = false;
+		progressElement.max = Number.isFinite(total) && total > 0 ? total : 1;
+		progressElement.value = Number.isFinite(processed) && processed >= 0 ? Math.min(processed, progressElement.max) : 0;
+	}
+	if (statusElement) {
+		statusElement.hidden = false;
+		if (done) {
+			// On done show the "Zuletzt gesynct" date; append post-action notes if any.
+			statusElement.textContent = formatWikiSyncKindSyncedText(run);
+		} else {
+			statusElement.textContent = total > 0 ? `Syncen läuft … ${processed}/${total}` : "Syncen läuft …";
+		}
+	}
+}
+
+// Drive sync_kind to completion for ONE kind: loop the action once per step,
+// advancing the server-returned cursor (high-water mark) until done. Mirrors
+// runWikiSyncDumpLoop (bounded step ceiling; stops cleanly on the 409 lock).
+async function runWikiSyncKindSyncLoop(kind) {
+	let cursor = 0;
+	let done = false;
+	let safetyCounter = 0;
+	let lastResult = null;
+	const MAX_STEPS = 2000;
+
+	while (!done) {
+		if (safetyCounter > MAX_STEPS) {
+			throw new Error("Syncen wurde nach zu vielen Teilschritten angehalten.");
+		}
+		safetyCounter += 1;
+
+		let stepResult;
+		try {
+			stepResult = await submitWikiSyncDumpAction("sync_kind", { kind, cursor });
+		} catch (error) {
+			if (error && error.dumpLocked) {
+				// Another editor holds the dump pipeline: stop immediately (do NOT retry).
+				setWikiSyncStatus(error.message || "Ein anderer Nutzer bearbeitet gerade den WikiDump - bitte warten.", "error");
+				throw error;
+			}
+			throw error;
+		}
+
+		lastResult = stepResult;
+		cursor = Number(stepResult.cursor ?? cursor);
+		done = stepResult.done === true;
+		renderWikiSyncKindProgress(kind, stepResult.progress, done, stepResult.run);
+	}
+
+	return lastResult;
+}
+
+// Click handler for a tab's "Syncen" button. Runs the loop, then refreshes the
+// affected tab so the newly-synced staging rows show up (and the territory model
+// rebuild / settlement conflict cases surface).
+async function startWikiSyncKindSync(kind) {
+	if (!WIKI_SYNC_KIND_ELEMENTS[kind] || isWikiSyncKindSyncRunning) {
+		return;
+	}
+	isWikiSyncKindSyncRunning = true;
+	setWikiSyncKindButtonsDisabled(true, kind);
+	setWikiSyncStatus(`Syncen (${kind}) läuft …`, "pending");
+
+	try {
+		const result = await runWikiSyncKindSyncLoop(kind);
+		const postActions = result?.post_actions || {};
+		let note = "";
+		if (kind === "settlement" && postActions.settlement_cases) {
+			note = ` (+${Number(postActions.settlement_cases.stored || 0)} Konfliktfälle)`;
+		} else if (kind === "territory" && postActions.territory_model) {
+			note = ` (Modell: ${Number(postActions.territory_model.nodes || 0)} Knoten)`;
+		}
+		setWikiSyncStatus(`Syncen (${kind}) abgeschlossen.${note}`, "success");
+		showFeedbackToast(`Syncen (${kind}) abgeschlossen.${note}`, "success");
+
+		// Refresh the affected tab so the freshly-synced rows/cases appear.
+		try {
+			if (kind === "settlement") {
+				await loadWikiSyncCases();
+				if (typeof loadSettlementList === "function") loadSettlementList();
+			} else if (kind === "path" && typeof loadPathWikiSync === "function") {
+				await loadPathWikiSync();
+			} else if (kind === "region" && typeof loadRegionWikiSync === "function") {
+				await loadRegionWikiSync();
+			} else if (kind === "territory") {
+				await renderWikiSyncTerritoryTree({ forceReload: true });
+			}
+		} catch (refreshError) {
+			/* Refresh is best-effort; the sync itself already succeeded. */
+		}
+	} catch (error) {
+		console.error(`Syncen (${kind}) fehlgeschlagen:`, error);
+		setWikiSyncStatus(error.message || `Syncen (${kind}) fehlgeschlagen.`, "error");
+		showFeedbackToast(error.message || `Syncen (${kind}) fehlgeschlagen.`, "warning");
+	} finally {
+		isWikiSyncKindSyncRunning = false;
+		setWikiSyncKindButtonsDisabled(false);
+	}
+}
+
 // --- Inline credential prompt (O1) -------------------------------------------
 // Copies the #wiki-sync-resolve-overlay dialog pattern. Resolves to true once the
 // credentials are stored server-side (set_dump_credentials), false if cancelled.

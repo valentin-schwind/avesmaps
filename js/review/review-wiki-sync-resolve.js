@@ -35,6 +35,25 @@ async function handleWikiSyncCaseActionClick(event) {
 		return;
 	}
 
+	// coordinate_drift actions (Wave 2): redraw the line+markers; write the map to
+	// the wiki position (the sole new map write); or keep the map (plain archive).
+	if (action === "drift-focus") {
+		focusWikiSyncCoordinateDriftCase(caseEntry);
+		return;
+	}
+
+	if (action === "set-geometry-to-wiki") {
+		await resolveWikiSyncCoordinateDriftToWiki(caseEntry);
+		return;
+	}
+
+	if (action === "keep-map-position") {
+		// "Karte behalten" = archive, writing NOTHING to the map.
+		clearWikiSyncCoordinateDriftLayers();
+		await updateWikiSyncCaseStatus(caseEntry, "archive_case", "Karte behalten - Fall archiviert.");
+		return;
+	}
+
 	if (action === "defer") {
 		await updateWikiSyncCaseStatus(caseEntry, "defer_case", "Fall zurückgestellt.");
 		return;
@@ -183,6 +202,134 @@ function showWikiSyncPreviewMarker(caseEntry, latlng) {
 		className: "wiki-sync-preview-tooltip",
 		offset: [0, -12],
 	}).openTooltip();
+}
+
+// --- coordinate_drift map visualization ------------------------------------
+// On a drift case's <details> toggle we draw, in the SAME pane the preview marker
+// uses (measurementHandlesPane), TWO circle markers -- the current map position
+// and the wiki position -- plus a polyline between them. CONVERSION: the payload's
+// map/wiki_position carry {lat,lng} ALREADY in 0..1024 map units, and the vertical
+// (y) is the `lat` field (same as payload.proposed_location), so they go straight
+// into L.latLng(lat,lng) WITHOUT the GeoJSON [x,y]->[y,x] swap (that swap only
+// applies to raw geometry coordinate arrays). The layers live in one L.layerGroup
+// so clearing is a single removeLayer; they auto-clear when the case closes or
+// another case opens (mirrors clearWikiSyncPreviewMarker).
+
+function clearWikiSyncCoordinateDriftLayers() {
+	if (!wikiSyncCoordinateDriftLayers) {
+		return;
+	}
+	map.removeLayer(wikiSyncCoordinateDriftLayers);
+	wikiSyncCoordinateDriftLayers = null;
+}
+
+function focusWikiSyncCoordinateDriftCase(caseEntry) {
+	// Only ONE drift visualization at a time (and never alongside the preview marker).
+	clearWikiSyncCoordinateDriftLayers();
+	clearWikiSyncPreviewMarker();
+
+	const payload = caseEntry.payload || {};
+	const mapLatLng = readWikiSyncDriftLatLng(payload.map || null);
+	const wikiLatLng = readWikiSyncDriftLatLng(payload.wiki_position || null);
+	if (!mapLatLng || !wikiLatLng) {
+		showFeedbackToast("Dieser Fall hat keine vollständigen Positionen.", "warning");
+		return;
+	}
+
+	const group = L.layerGroup();
+
+	// The connecting line first (under the markers). Stroke attributes mirror the
+	// route style (getRouteSegmentStyle/ROUTE_STYLE: weight/lineCap/lineJoin) but on
+	// the handles pane and dashed, to read as a drift indicator rather than a route.
+	L.polyline([mapLatLng, wikiLatLng], {
+		pane: "measurementHandlesPane",
+		color: "#6a4c9c",
+		weight: 4,
+		opacity: 0.9,
+		dashArray: "10 8",
+		lineCap: "round",
+		lineJoin: "round",
+		interactive: false,
+	}).addTo(group);
+
+	// Current map position (solid fill) — where the marker sits today.
+	L.circleMarker(mapLatLng, {
+		pane: "measurementHandlesPane",
+		radius: 11,
+		color: "#6a4c9c",
+		weight: 4,
+		fillColor: "#6a4c9c",
+		fillOpacity: 0.65,
+	})
+		.bindTooltip("Karte", { permanent: true, direction: "bottom", className: "wiki-sync-preview-tooltip", offset: [0, 12] })
+		.addTo(group);
+
+	// Wiki position (hollow, same palette as the preview marker) — the proposed target.
+	L.circleMarker(wikiLatLng, {
+		pane: "measurementHandlesPane",
+		radius: 13,
+		color: "#6a4c9c",
+		weight: 4,
+		fillColor: "#ffffff",
+		fillOpacity: 0.96,
+	})
+		.bindTooltip(caseEntry.payload?.wiki?.title || "Wiki-Position", {
+			permanent: true,
+			direction: "top",
+			className: "wiki-sync-preview-tooltip",
+			offset: [0, -12],
+		})
+		.addTo(group);
+
+	group.addTo(map);
+	wikiSyncCoordinateDriftLayers = group;
+
+	// Frame both positions so the drift is visible even for far-apart points.
+	const bounds = L.latLngBounds([mapLatLng, wikiLatLng]);
+	if (bounds.isValid()) {
+		map.flyToBounds(bounds, { padding: [80, 80], maxZoom: 5, duration: 0.8 });
+	}
+}
+
+// Resolve a drift case by writing the map geometry to the wiki position. Calls the
+// NEW backend action set_geometry_to_wiki via the existing case-action dispatch,
+// passing the guard fields (expected_revision) so a stale marker is rejected (409).
+async function resolveWikiSyncCoordinateDriftToWiki(caseEntry) {
+	const payload = caseEntry.payload || {};
+	const mapPlace = payload.map || {};
+	const wikiPosition = payload.wiki_position || {};
+	const wikiLatLng = readWikiSyncDriftLatLng(wikiPosition);
+	if (!mapPlace.public_id || !wikiLatLng) {
+		showFeedbackToast("Diesem Fall fehlt eine Position oder das Kartenobjekt.", "warning");
+		return;
+	}
+
+	try {
+		const result = await submitWikiSyncLocationAction("set_geometry_to_wiki", {
+			case_id: Number(caseEntry.id),
+			public_id: String(mapPlace.public_id),
+			lat: Number(wikiPosition.lat),
+			lng: Number(wikiPosition.lng),
+			expected_revision: mapPlace.revision !== undefined && mapPlace.revision !== null ? String(mapPlace.revision) : "",
+		});
+
+		// Reflect the moved marker on the live map (same handling resolve uses).
+		if (result.feature) {
+			const markerEntry = findLocationMarkerByPublicId(result.feature.public_id);
+			if (markerEntry) {
+				applyFeatureResponseToMarker(markerEntry, result.feature);
+			}
+			updateRevisionFromEditResponse(result);
+		}
+
+		clearWikiSyncCoordinateDriftLayers();
+		void loadChangeLog();
+		await loadWikiSyncCases();
+		showFeedbackToast("Kartenobjekt auf die Wiki-Position gesetzt.", "success");
+	} catch (error) {
+		console.error("Auf Wiki-Position setzen fehlgeschlagen:", error);
+		showFeedbackToast(error.message || "Auf Wiki-Position setzen fehlgeschlagen.", "warning");
+	}
 }
 
 function startWikiSyncLocationPick(caseEntry) {
