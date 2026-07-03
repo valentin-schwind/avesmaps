@@ -21,13 +21,57 @@ try {
         avesmapsJsonResponse(200, ['ok' => true, 'sent' => avesmapsMailListSent($pdo)]);
     }
 
-    if ($action === 'reply') { // handled in Task 4; leave a stub that 405s until then
-        avesmapsErrorResponse(405, 'not_implemented', 'Reply is added in a later task.');
-    }
-
     $imapCfg = avesmapsResolveImapConfig($config);
     $imap = avesmapsImapConnect($imapCfg);
     try {
+        if ($action === 'reply') {
+            if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
+                avesmapsErrorResponse(405, 'method_not_allowed', 'Reply requires POST.');
+            }
+            $payload = avesmapsReadJsonRequest();
+            $uid = (int) ($payload['uid'] ?? 0);
+            $bodyText = trim((string) ($payload['message'] ?? ''));
+            if ($uid <= 0 || $bodyText === '') {
+                avesmapsErrorResponse(400, 'invalid_request', 'uid and a non-empty message are required.');
+            }
+            $meta = avesmapsImapMessageMeta($imap, $uid);
+            if ($meta === null || $meta['fromEmail'] === '') {
+                avesmapsErrorResponse(422, 'no_recipient', 'The referenced message has no usable sender address.');
+            }
+
+            $sender = trim((string) ($config['contact']['sender'] ?? $imapCfg['username']));
+            $subject = avesmapsMailReplySubject($meta['subject']);
+            $env = [
+                'from' => $sender, 'fromName' => 'Avesmaps', 'to' => $meta['fromEmail'],
+                'replyTo' => $sender, 'subject' => $subject, 'body' => $bodyText,
+                'headers' => array_filter([
+                    'In-Reply-To' => $meta['messageId'] !== '' ? $meta['messageId'] : null,
+                    'References' => $meta['messageId'] !== '' ? $meta['messageId'] : null,
+                ]),
+            ];
+            $deliveryStatus = avesmapsSendMailViaSmtp((array) ($config['contact']['smtp'] ?? []), $env);
+
+            $insert = $pdo->prepare(
+                'INSERT INTO mail_reply (message_id, to_email, subject, body, editor_user, delivery_status)
+                 VALUES (:m, :to, :subj, :body, :editor, :status)'
+            );
+            $insert->execute([
+                'm' => $meta['messageId'], 'to' => $meta['fromEmail'], 'subj' => $subject,
+                'body' => $bodyText, 'editor' => (string) ($user['username'] ?? ''),
+                'status' => mb_substr($deliveryStatus, 0, 40),
+            ]);
+            $replyId = (int) $pdo->lastInsertId();
+
+            // Best-effort: drop a copy into the Sent folder so a real mail client sees it too.
+            @imap_append($imap, $imapCfg['ref'] . $imapCfg['sent_mailbox'], avesmapsMailBuildMessage($env), "\\Seen");
+
+            $ok = str_starts_with($deliveryStatus, 'smtp_sent') || $deliveryStatus === 'mail_sent';
+            avesmapsJsonResponse($ok ? 200 : 502, [
+                'ok' => $ok,
+                'replyId' => $replyId,
+                'deliveryStatus' => $deliveryStatus,
+            ]);
+        }
         if ($action === 'ping') {
             avesmapsJsonResponse(200, ['ok' => true, 'count' => imap_num_msg($imap)]);
         }
@@ -71,6 +115,12 @@ try {
     avesmapsErrorResponse(500, 'server_error', 'The mailbox request could not be processed.');
 } catch (Throwable $e) {
     avesmapsErrorResponse(500, 'server_error', 'The mailbox request could not be processed.');
+}
+
+function avesmapsMailReplySubject(string $subject): string {
+    $subject = trim(str_replace(["\r", "\n"], '', $subject));
+    if ($subject === '') { return 'Re: (kein Betreff)'; }
+    return preg_match('/^\s*re:/i', $subject) === 1 ? $subject : 'Re: ' . $subject;
 }
 
 function avesmapsEnsureMailReplyTable(PDO $pdo): void {
