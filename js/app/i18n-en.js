@@ -274,7 +274,7 @@ window.AVESMAPS_I18N_EN = {
 	"legal.fanproject.lead": "Fan project.",
 	"legal.fanproject.body": "Avesmaps is a private, open, non-commercial fan project by Valentin Schwind. Avesmaps is not an official publication for Das Schwarze Auge and has no official connection to Ulisses Spiele, Ulisses Medien & Spiel Distribution GmbH, or other rights holders. The information about Das Schwarze Auge, Aventurien and Dere contained on this website is unofficial, may be incomplete or incorrect, and may contradict official publications.",
 	"legal.responsible.lead": "Operator.",
-	"legal.responsible.body": "Development, design, programming, editorial maintenance and operation are carried out by Valentin Schwind.",
+	"legal.responsible.body": "Development, design, programming and operation are carried out by Valentin Schwind. Thomas Braun is responsible for the editorial maintenance of the map content.",
 	"legal.wappen.lead": "Coats of arms.",
 	"legal.wappen.body": "The coats of arms of the territories shown on the map are taken from Wiki Aventurica (imported via its \"Wappen-Link\" field). Only coats of arms classified as public domain according to the license marking adopted during import are displayed; coats with an unknown or restrictive license status remain hidden. The rights to the coats of arms remain with their respective creators and rights holders; their display on Avesmaps does not establish any rights to them. Upon notice from rights holders, the coats of arms concerned are reviewed and, where necessary, removed or adjusted.",
 	"legal.mapMaterial.lead": "Map material.",
