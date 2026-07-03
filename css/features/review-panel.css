@@ -1047,15 +1047,6 @@
 }
 
 @media (max-width: 520px) {
-	.wiki-sync-panel__actions {
-		grid-template-columns: 1fr;
-	}
-
-	.wiki-sync-panel__start {
-		width: auto;
-		justify-self: start;
-	}
-
 	/* Mobil: das aktive Tab-Panel ist EIN Scroll-Container statt verschachtelter Mini-Scroll-
 	   bereiche. Sonst „endet" das Scrollen in der Case-Liste (min-height:320px + eigener
 	   overflow) und die Siedlungsliste darunter ist unerreichbar. */
