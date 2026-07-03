@@ -357,6 +357,32 @@
 	padding: 0;
 }
 
+/* Central "Dump holen" block (above the 4 tabs): button + fetched-status on one row
+   (inherited from .wiki-sync-panel__actions' grid), with a divider below separating
+   it from the tab nav that follows. */
+.wiki-sync-dump-central {
+	padding-bottom: 8px;
+	border-bottom: 1px solid rgba(96, 72, 48, 0.22);
+}
+
+.wiki-sync-dump-actions {
+	margin-bottom: 4px;
+}
+
+/* Per-tab "Syncen" progress bar + status: sit next to the button instead of wrapping
+   to their own full-width row (reuses the dump progress-bar look via .wiki-sync-progress). */
+.wiki-sync-kind-sync-progress {
+	flex: 1 1 140px !important;
+	width: auto !important;
+	margin: 0 !important;
+}
+
+.wiki-sync-kind-sync-status {
+	flex: 1 1 100% !important;
+	width: 100% !important;
+	margin: 0 10px 4px !important;
+}
+
 .wiki-sync-panel__summary {
 	min-width: 0;
 	color: #4a3c2e;

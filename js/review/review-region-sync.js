@@ -215,68 +215,6 @@ function renderRegionSyncList() {
 	renderTypeFilter("region-continent-filter-toggle", "region-continent-filter-menu", regionContinentOptions(), regionContinentFilter, "Kontinent");
 }
 
-async function startRegionWikiCrawl() {
-	if (regionSyncBusy) {
-		return;
-	}
-	regionSyncBusy = true;
-	const status = regionSyncElement("region-sync-summary");
-	const button = regionSyncElement("region-sync-crawl");
-	const progress = regionSyncElement("region-sync-progress");
-	if (button) {
-		button.disabled = true;
-	}
-	if (progress) {
-		progress.hidden = false;
-		progress.removeAttribute("value"); // indeterminate, bis es Zahlen gibt
-	}
-	try {
-		if (status) {
-			status.textContent = "Crawl startet ...";
-		}
-		const run = await regionSyncPost({ action: "start_run" });
-		if (!run || !run.run_id) {
-			throw new Error(apiErrorMessage(run, "Kein run_id"));
-		}
-		let step = 0;
-		let last;
-		do {
-			last = await regionSyncPost({ action: "crawl_step", run_id: run.run_id });
-			const runStatus = last.status || {};
-			step += 1;
-			if (status) {
-				status.textContent = `Crawl Schritt ${step}: ${runStatus.staging_rows || 0} Regionen erfasst, ${runStatus.pending || 0} offen ...`;
-			}
-			if (progress) {
-				const done = Number(runStatus.staging_rows || 0);
-				const total = done + Number(runStatus.pending || 0);
-				if (total > 0) {
-					progress.max = total;
-					progress.value = Math.min(done, total);
-				}
-			}
-			await new Promise((resolve) => setTimeout(resolve, 350));
-		} while (last.status && !last.status.complete && step < 200);
-		if (status) {
-			status.textContent = "Crawl fertig — gleiche ab ...";
-		}
-		await loadRegionWikiSync();
-	} catch (error) {
-		if (status) {
-			status.textContent = "Crawl-Fehler: " + (error.message || error);
-		}
-	} finally {
-		regionSyncBusy = false;
-		if (button) {
-			button.disabled = false;
-		}
-		if (progress) {
-			progress.hidden = true;
-			progress.value = 0;
-		}
-	}
-}
-
 // Springt zur Stelle eines Karten-Labels (Zoom/Flug). Aktiviert die Derographie-Ebene,
 // damit das Label sichtbar ist.
 function focusRegionLabelOnMap(publicId) {
@@ -374,12 +312,6 @@ document.addEventListener("click", (event) => {
 	if (viewButton) {
 		regionSyncView = viewButton.dataset.regionView || "missing";
 		renderRegionSyncList();
-		return;
-	}
-	if (event.target.closest && event.target.closest("#region-sync-crawl")) {
-		if (window.confirm("WikiSync für Regionen jetzt starten? Das crawlt das Wiki im Hintergrund neu.")) {
-			void startRegionWikiCrawl();
-		}
 		return;
 	}
 	if (event.target.closest && event.target.closest("#region-sync-assign-berge")) {

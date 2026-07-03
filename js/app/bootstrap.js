@@ -213,15 +213,9 @@ $("#legal-overlay").on("click", function (event) {
 });
 $("#location-report-close, #location-report-cancel").on("click", () => setLocationReportDialogOpen(false, { resetForm: true }));
 $("#location-edit-close, #location-edit-cancel").on("click", () => setLocationEditDialogOpen(false, { resetForm: true }));
-$("#wiki-sync-start").on("click", () => {
-    if (window.confirm("WikiSync für Siedlungen jetzt starten? Das crawlt das Wiki im Hintergrund neu.")) {
-        startWikiSyncRun();
-    }
-});
 $("#wiki-sync-territories").on("click", () => startWikiSyncTerritoryRun());
-// WikiDump hybrid read (H4c-f): sandbox read loop + gated sharp apply + inline cred-prompt.
+// WikiDump hybrid read (H4c-f): sandbox read loop + inline cred-prompt.
 $("#wiki-sync-dump-read").on("click", () => startWikiSyncDumpRead());
-$("#wiki-sync-dump-apply").on("click", () => startWikiSyncDumpApply());
 // Per-kind "Syncen" (Wave 2): one button per tab drives sync_kind for that kind.
 $("#wiki-sync-sync-settlement").on("click", () => startWikiSyncKindSync("settlement"));
 $("#wiki-sync-sync-path").on("click", () => startWikiSyncKindSync("path"));

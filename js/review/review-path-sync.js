@@ -262,55 +262,6 @@ async function assignAllPathWiki() {
 	}
 }
 
-async function startPathWikiCrawl() {
-	if (pathSyncBusy) {
-		return;
-	}
-	pathSyncBusy = true;
-	const status = pathSyncElement("path-sync-summary");
-	const progress = pathSyncElement("path-sync-progress");
-	if (progress) {
-		progress.hidden = false;
-		progress.removeAttribute("value"); // indeterminate, bis es Zahlen gibt
-	}
-	try {
-		const run = await pathSyncPost({ action: "start_run" });
-		if (!run || !run.run_id) {
-			throw new Error(apiErrorMessage(run, "Kein run_id"));
-		}
-		let step = 0;
-		let last;
-		do {
-			last = await pathSyncPost({ action: "crawl_step", run_id: run.run_id, options: { step_runtime: 12 } });
-			const rs = last.status || {};
-			step += 1;
-			if (status) {
-				status.textContent = `Crawl Schritt ${step}: ${rs.staging_rows || 0} Wege, ${rs.pending || 0} offen ...`;
-			}
-			if (progress) {
-				const done = Number(rs.staging_rows || 0);
-				const total = done + Number(rs.pending || 0);
-				if (total > 0) {
-					progress.max = total;
-					progress.value = Math.min(done, total);
-				}
-			}
-			await new Promise((resolve) => setTimeout(resolve, 350));
-		} while (last.status && !last.status.complete && step < 250);
-		await loadPathWikiSync();
-	} catch (error) {
-		if (status) {
-			status.textContent = "Crawl-Fehler: " + (error.message || error);
-		}
-	} finally {
-		pathSyncBusy = false;
-		if (progress) {
-			progress.hidden = true;
-			progress.value = 0;
-		}
-	}
-}
-
 function findPathSyncRow(wikiKey) {
 	if (!pathSyncData || !wikiKey) {
 		return null;
@@ -442,11 +393,6 @@ document.addEventListener("click", (event) => {
 	if (candidate) {
 		focusPathOnMap(candidate.dataset.pathId);
 		return;
-	}
-	if (event.target.closest("#path-sync-crawl")) {
-		if (window.confirm("WikiSync für Wege jetzt starten? Das crawlt das Wiki im Hintergrund neu.")) {
-			void startPathWikiCrawl();
-		}
 	}
 });
 

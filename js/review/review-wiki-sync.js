@@ -43,12 +43,6 @@ function setWikiSyncResolveDialogOpen(isOpen, { resetForm = false } = {}) {
 function setWikiSyncLocationsRunning(isRunning, run = null) {
 	isWikiSyncLocationsRunning = isRunning;
 
-	const buttonElement = document.getElementById("wiki-sync-start");
-	if (buttonElement) {
-		buttonElement.disabled = isRunning || isWikiSyncTerritoriesRunning;
-		buttonElement.textContent = isRunning ? "Synchronisiert..." : "🚨 WikiSync";
-	}
-
 	const progressElement = document.getElementById("wiki-sync-progress");
 	if (progressElement) {
 		progressElement.hidden = !isRunning;
@@ -425,106 +419,18 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 	}
 }
 
-async function startWikiSyncRun() {
-	if (isWikiSyncLocationsRunning) {
-		return;
-	}
-
-	setWikiSyncLocationsRunning(true);
-	setWikiSyncStatus(activeWikiSyncRunStatus === "running" ? "WikiSyncLocations wird fortgesetzt..." : "WikiSyncLocations wird gestartet...", "pending");
-
-	try {
-		let run = null;
-		if (activeWikiSyncRunStatus === "running" && activeWikiSyncRunId) {
-			run = { public_id: activeWikiSyncRunId, status: "running" };
-		} else {
-			const startResult = await submitWikiSyncLocationAction("start_run");
-			activeWikiSyncRunId = startResult.run?.public_id || null;
-			activeWikiSyncRunStatus = startResult.run?.status || "running";
-			run = startResult.run || null;
-		}
-		let safetyCounter = 0;
-		setWikiSyncLocationsRunning(true, run);
-
-		while (run && run.status !== "completed" && run.status !== "failed") {
-			if (safetyCounter > 8) {
-				throw new Error("WikiSync wurde nach zu vielen Teilschritten angehalten.");
-			}
-
-			const advanceResult = await submitWikiSyncLocationAction("advance_run", { run_id: activeWikiSyncRunId });
-			run = advanceResult.run || null;
-			activeWikiSyncRunStatus = run?.status || "";
-			wikiSyncSummary = advanceResult.summary || wikiSyncSummary;
-			setWikiSyncLocationsRunning(true, run);
-			setWikiSyncStatus(run?.message || "WikiSync läuft...", "pending");
-			safetyCounter += 1;
-		}
-
-		if (run?.status === "failed") {
-			throw new Error(run.message || "WikiSync ist fehlgeschlagen.");
-		}
-
-		setWikiSyncLocationsRunning(false);
-		activeWikiSyncRunStatus = "";
-		await loadWikiSyncCases();
-
-		// Option A: Bauwerke (alle Typen aus „Bauwerk nach Art") gleich mitcrawlen, damit ein
-		// WikiSync-Klick Siedlungen UND Bauwerke abdeckt. Optional — Fehler hier brechen den
-		// (erfolgreichen) Siedlungs-Sync nicht ab.
-		let buildingNote = "";
-		const buildingProgress = document.getElementById("wiki-sync-progress");
-		try {
-			setWikiSyncStatus("Bauwerke werden gecrawlt …", "pending");
-			if (buildingProgress) {
-				buildingProgress.hidden = false;
-				buildingProgress.removeAttribute("value"); // indeterminate (kein bekanntes Total)
-			}
-			// Gechunkt (geteilte Funktion aus review-settlement-list-bulk-ops.js): EIN Typ pro Request,
-			// sonst lief der Bauwerks-Crawl in den STRATO-Timeout und schrieb gar nichts.
-			if (typeof crawlSettlementBuildingsChunked === "function") {
-				const buildingResult = await crawlSettlementBuildingsChunked((done, total) => {
-					if (buildingProgress) {
-						buildingProgress.max = total;
-						buildingProgress.value = done;
-					}
-				});
-				buildingNote = buildingResult.failed
-					? ` (+${buildingResult.seen || 0} Bauwerke, ${buildingResult.failed} Typen fehlgeschlagen — nochmal syncen)`
-					: ` (+${buildingResult.seen || 0} Bauwerke)`;
-			}
-			if (typeof loadSettlementList === "function") {
-				loadSettlementList();
-			}
-		} catch (buildingError) {
-			console.warn("Bauwerks-Crawl im WikiSync übersprungen:", buildingError);
-		} finally {
-			if (buildingProgress) {
-				buildingProgress.hidden = true;
-				buildingProgress.value = 0;
-			}
-		}
-
-		setWikiSyncStatus(buildWikiSyncStatusMessage("WikiSyncLocations abgeschlossen." + buildingNote), "success");
-	} catch (error) {
-		console.error("WikiSyncLocations konnte nicht ausgeführt werden:", error);
-		activeWikiSyncRunStatus = "";
-		setWikiSyncLocationsRunning(false);
-		setWikiSyncStatus(error.message || "WikiSyncLocations konnte nicht ausgeführt werden.", "error");
-		showFeedbackToast(error.message || "WikiSyncLocations konnte nicht ausgeführt werden.", "warning");
-	}
-}
-
 // ===========================================================================
-// WikiDump hybrid read (H4c-f): a NEW, ADDITIVE trigger next to the online
-// WikiSync crawler (which stays as the fallback -- invariant I8). "Dump holen"
-// chains THREE steps as one user-visible operation: (1) fetch_dump -- re-download
-// the dump file from the wiki; (2) start_read + read_step loop -- the sandbox-safe
-// scan (dryRun, writes only wiki_dump_hybrid_state/wiki_dump_title_alias); (3)
-// cleanup_state -- once the scan succeeds, delete every OTHER dump_read run's
-// sandbox rows so exactly one dump's state remains ("immer genau ein Dump drin").
-// A SEPARATE, gated "Übernehmen" button still runs the sharp apply pass (untouched
-// by this chain). The read loop mirrors startWikiSyncRun's one-POST-per-step
-// pattern (never a server-side loop -- STRATO). Backend: api/edit/wiki/dump.php.
+// WikiDump hybrid read (H4c-f): "Dump holen" chains THREE steps as one
+// user-visible operation: (1) fetch_dump -- re-download the dump file from the
+// wiki; (2) start_read + read_step loop -- the sandbox-safe scan (dryRun,
+// writes only wiki_dump_hybrid_state/wiki_dump_title_alias); (3) cleanup_state
+// -- once the scan succeeds, delete every OTHER dump_read run's sandbox rows
+// so exactly one dump's state remains ("immer genau ein Dump drin"). The
+// per-tab "Syncen" buttons (below) then take the freshly-read dump into each
+// kind's staging tables -- the old standalone "Übernehmen" button and the
+// per-kind online WikiSync crawlers were retired once Syncen covered their
+// job. The read loop is one-POST-per-step (never a server-side loop --
+// STRATO). Backend: api/edit/wiki/dump.php.
 // ===========================================================================
 
 let isWikiSyncDumpRunning = false;
@@ -547,12 +453,6 @@ function setWikiSyncDumpButtonsDisabled(isDisabled, label = "📥 Dump holen") {
 	if (readButton) {
 		readButton.disabled = isDisabled;
 		readButton.textContent = isWikiSyncDumpRunning ? label : "📥 Dump holen";
-	}
-	// The other WikiSync buttons share the panel; disable them while the dump runs so
-	// two long passes can't fight for STRATO workers at once.
-	const startButton = document.getElementById("wiki-sync-start");
-	if (startButton) {
-		startButton.disabled = isDisabled || isWikiSyncLocationsRunning || isWikiSyncTerritoriesRunning;
 	}
 }
 
@@ -591,16 +491,6 @@ async function refreshWikiSyncDumpFetchedStatus() {
 	} catch (error) {
 		console.warn("WikiDump-Status konnte nicht geladen werden:", error);
 		statusElement.hidden = true;
-	}
-}
-
-// The sharp apply button stays disabled until a sandbox read has completed in this
-// session (a soft gate); the confirm dialog is the hard reminder that a GREEN
-// compare-test must precede it. `enabled` is set true only after a read run reaches done.
-function setWikiSyncDumpApplyEnabled(enabled) {
-	const applyButton = document.getElementById("wiki-sync-dump-apply");
-	if (applyButton) {
-		applyButton.disabled = !enabled || isWikiSyncDumpRunning;
 	}
 }
 
@@ -710,7 +600,6 @@ async function startWikiSyncDumpRead() {
 		return;
 	}
 	isWikiSyncDumpRunning = true;
-	setWikiSyncDumpApplyEnabled(false);
 
 	try {
 		// Step 1/3: server-fetch (re-download from the wiki).
@@ -730,61 +619,23 @@ async function startWikiSyncDumpRead() {
 		setWikiSyncStatus("Alte Dump-Stände werden aufgeräumt …", "pending");
 		await submitWikiSyncDumpAction("cleanup_state");
 
-		setWikiSyncStatus("Dump geholt (Sandbox). Vor dem Übernehmen den Vergleichstest grün fahren.", "success");
+		setWikiSyncStatus("Dump geholt (Sandbox). Die einzelnen Tabs koennen jetzt per Syncen uebernommen werden.", "success");
 		showFeedbackToast("Dump geholt: heruntergeladen, gelesen (Sandbox) und aufgeräumt.", "success");
 		isWikiSyncDumpRunning = false;
 		setWikiSyncDumpButtonsDisabled(false);
-		// Read completed -> allow the sharp apply (still gated behind the confirm dialog).
-		setWikiSyncDumpApplyEnabled(true);
 		await refreshWikiSyncDumpFetchedStatus();
 	} catch (error) {
 		console.error("Dump holen fehlgeschlagen:", error);
 		isWikiSyncDumpRunning = false;
 		setWikiSyncDumpButtonsDisabled(false);
-		setWikiSyncDumpApplyEnabled(false);
 		setWikiSyncStatus(error.message || "Dump holen fehlgeschlagen.", "error");
 		showFeedbackToast(error.message || "Dump holen fehlgeschlagen.", "warning");
 	}
 }
 
-async function startWikiSyncDumpApply() {
-	if (isWikiSyncDumpRunning) {
-		return;
-	}
-	// The HARD gate: an explicit confirm warning this writes real staging and must only
-	// run after a green compare-test (progress.md "SHARP-WRITE GATE").
-	const confirmed = window.confirm(
-		"Übernehmen schreibt den gelesenen Dump SCHARF in die Staging-Tabellen.\n\n" +
-			"Nur ausführen, wenn der Vergleichstest (H5) GRÜN ist. Fortfahren?"
-	);
-	if (!confirmed) {
-		return;
-	}
-
-	isWikiSyncDumpRunning = true;
-	setWikiSyncDumpButtonsDisabled(true);
-	setWikiSyncDumpApplyEnabled(false);
-	setWikiSyncStatus("WikiDump wird scharf übernommen …", "pending");
-
-	try {
-		// Fresh run: apply drives the same state machine; phase 6 runs dryRun=false (sharp).
-		await runWikiSyncDumpLoop("apply");
-		setWikiSyncStatus("WikiDump scharf übernommen (Staging geschrieben).", "success");
-		showFeedbackToast("WikiDump übernommen — Staging-Tabellen geschrieben.", "success");
-	} catch (error) {
-		console.error("WikiDump-Übernahme fehlgeschlagen:", error);
-		setWikiSyncStatus(error.message || "WikiDump-Übernahme fehlgeschlagen.", "error");
-		showFeedbackToast(error.message || "WikiDump-Übernahme fehlgeschlagen.", "warning");
-	} finally {
-		isWikiSyncDumpRunning = false;
-		setWikiSyncDumpButtonsDisabled(false);
-		setWikiSyncDumpApplyEnabled(true);
-	}
-}
-
 // ===========================================================================
 // Per-kind "Syncen" (Wave 2): each of the 4 tabs (settlement/path/region/
-// territory) has a "🔄 Syncen" button that drives the backend `sync_kind` action
+// territory) has a "🚨 Syncen" button that drives the backend `sync_kind` action
 // for THAT kind via the SAME one-POST-per-step client loop the dump read uses
 // (runWikiSyncDumpLoop pattern). It re-reads the newest completed dump into the
 // matching STAGING table (never map_features / live political_territory). The
@@ -809,7 +660,7 @@ function setWikiSyncKindButtonsDisabled(isDisabled, activeKind = null) {
 		const button = document.getElementById(ids.button);
 		if (button) {
 			button.disabled = isDisabled;
-			button.textContent = isDisabled && kind === activeKind ? "Synchronisiert..." : "🔄 Syncen";
+			button.textContent = isDisabled && kind === activeKind ? "Synchronisiert..." : "🚨 Syncen";
 		}
 	});
 }
@@ -1139,12 +990,7 @@ function syncWikiSyncPanelSummaries() {
 }
 
 function syncWikiSyncActionButtonLabels() {
-	const locationsButtonElement = document.getElementById("wiki-sync-start");
 	const territoriesButtonElement = document.getElementById("wiki-sync-territories");
-
-	if (locationsButtonElement) {
-		locationsButtonElement.textContent = isWikiSyncLocationsRunning ? "Synchronisiert..." : "🚨 WikiSync";
-	}
 
 	if (territoriesButtonElement) {
 		territoriesButtonElement.textContent = isWikiSyncTerritoriesRunning ? "Synchronisiert..." : "WikiSync & Editor";
