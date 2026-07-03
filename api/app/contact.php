@@ -236,6 +236,14 @@ function avesmapsNotifyContactRecipient(array $config, array $contact): string {
 
     $subject = 'Avesmaps: neue Kontaktnachricht';
     $fromName = 'Avesmaps Kontakt';
+    // Surface the sender's own address as the From display name when they gave one,
+    // so the message shows as being "from" that person in the editor mailbox. The
+    // From address stays info@ for SMTP auth; base64 encoding of the display name
+    // (in avesmapsMailBuildMessage) neutralizes any CR/LF, and $replyTo is validated.
+    if ($replyTo !== '') {
+        $contactName = trim((string) ($contact['name'] ?? ''));
+        $fromName = $contactName !== '' ? ($contactName . ' (' . $replyTo . ')') : $replyTo;
+    }
 
     // Preferred path: authenticated SMTP (STRATO blocks local mail()).
     $smtp = $config['contact']['smtp'] ?? null;

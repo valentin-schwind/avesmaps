@@ -8,8 +8,9 @@
     let sentLoaded = false;
     let sentLoadPromise = null;
 
-    function api(action, opts) {
-        const url = API + "?action=" + encodeURIComponent(action);
+    function api(action, opts, query) {
+        let url = API + "?action=" + encodeURIComponent(action);
+        if (query) { Object.keys(query).forEach((k) => { url += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(query[k]); }); }
         return fetch(url, Object.assign({ credentials: "same-origin" }, opts || {})).then((r) => r.json());
     }
 
@@ -43,7 +44,7 @@
     function openMessage(m) {
         const el = detailEl(); if (!el) return;
         el.hidden = false; el.textContent = "Lade …";
-        api("message&uid=" + encodeURIComponent(m.uid)).then((res) => {
+        api("message", null, { uid: m.uid }).then((res) => {
             if (!res || !res.ok) { el.textContent = "Konnte Nachricht nicht laden."; return; }
             renderDetail(res.message);
         }).catch(() => { el.textContent = "Fehler beim Laden."; });
@@ -53,7 +54,7 @@
         const el = detailEl(); if (!el) return;
         el.textContent = "";
         const head = document.createElement("div"); head.className = "mail-inbox__meta";
-        head.textContent = (msg.fromEmail || "") + " · " + (msg.subject || "(kein Betreff)");
+        head.textContent = ((msg.replyTo || msg.fromEmail) || "") + " · " + (msg.subject || "(kein Betreff)");
         const body = document.createElement("div"); body.className = "mail-inbox__body"; body.textContent = msg.text || "(kein Textinhalt)";
         el.append(head, body);
 
