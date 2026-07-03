@@ -214,6 +214,13 @@ function avesmapsNotifyContactRecipient(array $config, array $contact): string {
         $sender = $recipient;
     }
 
+    // Deliver to the configured recipient plus (if distinct) the sender mailbox
+    // itself, so contact messages also land in the info@ inbox editors read.
+    $recipients = [$recipient];
+    if (filter_var($sender, FILTER_VALIDATE_EMAIL) !== false && strcasecmp($sender, $recipient) !== 0) {
+        $recipients[] = $sender;
+    }
+
     $senderEmail = (string) ($contact['email'] ?? '');
     $replyTo = ($senderEmail !== '' && filter_var($senderEmail, FILTER_VALIDATE_EMAIL) !== false) ? $senderEmail : '';
 
@@ -234,10 +241,17 @@ function avesmapsNotifyContactRecipient(array $config, array $contact): string {
     $smtp = $config['contact']['smtp'] ?? null;
     if (is_array($smtp) && trim((string) ($smtp['password'] ?? '')) !== '') {
         try {
-            return avesmapsSendMailViaSmtp($smtp, [
-                'from' => $sender, 'fromName' => $fromName, 'to' => $recipient,
-                'replyTo' => $replyTo, 'subject' => $subject, 'body' => $body,
-            ]);
+            $finalStatus = '';
+            foreach ($recipients as $oneRecipient) {
+                $status = avesmapsSendMailViaSmtp($smtp, [
+                    'from' => $sender, 'fromName' => $fromName, 'to' => $oneRecipient,
+                    'replyTo' => $replyTo, 'subject' => $subject, 'body' => $body,
+                ]);
+                if ($finalStatus === '' && $status !== 'smtp_sent') {
+                    $finalStatus = $status;
+                }
+            }
+            return $finalStatus !== '' ? $finalStatus : 'smtp_sent';
         } catch (Throwable $error) {
             return 'smtp_exception';
         }
@@ -254,7 +268,7 @@ function avesmapsNotifyContactRecipient(array $config, array $contact): string {
         $headerLines[] = 'Reply-To: ' . $replyTo;
     }
     try {
-        $sent = @mail($recipient, $encodedSubject, wordwrap($body, 990, "\r\n", true), implode("\r\n", $headerLines), '-f' . $sender);
+        $sent = @mail(implode(', ', $recipients), $encodedSubject, wordwrap($body, 990, "\r\n", true), implode("\r\n", $headerLines), '-f' . $sender);
         return $sent ? 'mail_sent' : 'mail_failed';
     } catch (Throwable $error) {
         return 'mail_exception';
