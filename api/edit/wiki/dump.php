@@ -29,17 +29,25 @@ declare(strict_types=1);
  *        -> THE SHARP PATH: runs the parse_and_upsert phase with dryRun=FALSE
  *           (the sole real *_staging write). A SEPARATE action the owner triggers
  *           ONLY after the H5 compare-test is green (progress.md GATE WIRING).
- *   POST { "action": "sync_kind", "kind": "path"|"region"|"settlement"|"territory", "cursor"?: int }
+ *   POST { "action": "sync_kind", "kind": "path"|"region"|"settlement"|"territory",
+ *          "cursor"?: int, "phase"?: "staging"|"conflict_gen", "conflict_cursor"?: int }
  *        -> WAVE 1 "Syncen": reads the newest COMPLETED dump_read run's sandbox
  *           rows FILTERED to `kind` and upserts them into the matching STAGING
  *           table via the SAME per-kind upserts the sharp apply path uses (so a
  *           settlement->territory promotion still dual-writes). Client-loopable
  *           like read_step; returns
- *           { run, kind, cursor, done, progress:{processed,total} }. On done:
- *           kind=territory ALSO rebuilds wiki_territory_model (preserving
- *           parent_locked/overrides); kind=settlement ALSO writes the settlement
- *           conflict cases (post_actions.settlement_cases:{stored,run_id,by_type}).
- *           STAGING-ONLY (+ model / wiki_sync_cases): never map_features, never
+ *           { run, kind, phase, cursor, conflict_cursor, done, progress:{processed,total} }.
+ *           kind=settlement runs in TWO client-driven phases: a STAGING phase, then
+ *           a CONFLICT_GEN phase that CHUNKS the sharp settlement-conflict
+ *           classifier across steps by a map-place id cursor (so the O(n*m) fuzzy
+ *           match never runs one-shot -- that hung STRATO). The frontend advances
+ *           `cursor` in the staging phase and `conflict_cursor` in the conflict_gen
+ *           phase; when staging drains, the response flips phase to 'conflict_gen'
+ *           (done stays false, lock stays HELD) until conflict-gen finalizes
+ *           (post_actions.settlement_cases:{stored,run_id,by_type}). kind=territory
+ *           rebuilds wiki_territory_model ONCE on staging-drain (preserving
+ *           parent_locked/overrides). STAGING-ONLY (+ model / wiki_sync_cases +
+ *           the tiny conflict-gen accumulator table): never map_features, never
  *           live political_territory. Holds the pipeline lock; releases on done.
  *   POST { "action": "cleanup_state" }
  *        -> "Dump holen" step 3/3: deletes every dump_read run's sandbox rows
@@ -327,19 +335,89 @@ try {
 
             // Resolve the sandbox run (newest completed dump_read run) + its int id.
             $syncRunId = avesmapsWikiDumpSyncKindResolveDumpRunId($pdo);
-            $syncCursor = (int) ($payload['cursor'] ?? 0);
             $syncEntityKinds = avesmapsWikiDumpSyncKindEntityKinds($syncKind);
+
+            // Two-phase for settlement: a STAGING phase (per-kind upserts, like every
+            // kind) followed by a CONFLICT_GEN phase (the sharp classifier). The
+            // conflict phase is CHUNKED across steps (a map-place id cursor) so the
+            // O(n*m) fuzzy match never runs one-shot -- that one-shot was PHP-fatalling
+            // on STRATO's max_execution_time and freezing the tab. Other kinds have no
+            // conflict phase. The phase is threaded through the request payload.
+            $syncPhase = avesmapsNormalizeSingleLine((string) ($payload['phase'] ?? 'staging'), 20);
+            if ($syncPhase !== 'conflict_gen') {
+                $syncPhase = 'staging';
+            }
+
+            // --- CONFLICT_GEN phase (settlement only): one chunked classifier step ---
+            if ($syncPhase === 'conflict_gen' && $syncKind === 'settlement') {
+                $conflictCursor = (int) ($payload['conflict_cursor'] ?? 0);
+                $conflictStep = avesmapsWikiDumpSettlementConflictsGenerateStep(
+                    $pdo,
+                    null,
+                    $lockUserId,
+                    $conflictCursor
+                );
+                $conflictDone = ($conflictStep['done'] ?? false) === true;
+
+                $syncPostActions = [];
+                if ($conflictDone) {
+                    // The finalize step reports its own by_type/stored for THAT step; the
+                    // frontend note only needs a non-zero stored to confirm completion.
+                    $syncPostActions['settlement_cases'] = [
+                        'stored' => (int) ($conflictStep['stored'] ?? 0),
+                        'run_id' => (int) ($conflictStep['run_id'] ?? 0),
+                        'by_type' => $conflictStep['by_type'] ?? [],
+                    ];
+                }
+
+                avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'sync_' . $syncKind);
+                if ($conflictDone) {
+                    // Whole chain (staging + conflict-gen) done -> hand the lock back.
+                    avesmapsWikiDumpLockRelease($pdo, $lockUserId);
+                    $lockHeldByThisRequest = false;
+                }
+
+                $conflictProgress = is_array($conflictStep['progress'] ?? null) ? $conflictStep['progress'] : [];
+                $syncRunRow = avesmapsWikiDumpSyncKindFetchRunById($pdo, $syncRunId);
+                avesmapsJsonResponse(200, [
+                    'ok' => true,
+                    'run' => $syncRunRow !== null ? avesmapsWikiSyncPublicRun($syncRunRow) : null,
+                    'kind' => $syncKind,
+                    'phase' => 'conflict_gen',
+                    // Echo BOTH cursors so the loop keeps advancing the right one.
+                    'cursor' => (int) ($payload['cursor'] ?? 0),
+                    'conflict_cursor' => (int) ($conflictStep['cursor'] ?? $conflictCursor),
+                    'done' => $conflictDone,
+                    // Cases upserted by THIS step (the frontend sums these across the
+                    // conflict-gen phase for the "+N Konfliktfaelle" note, since cases
+                    // are written incrementally across steps, not all at the end).
+                    'conflict_stored' => (int) ($conflictStep['stored'] ?? 0),
+                    'progress' => [
+                        'processed' => (int) ($conflictProgress['processed'] ?? 0),
+                        'total' => (int) ($conflictProgress['total'] ?? 0),
+                    ],
+                    'post_actions' => $syncPostActions,
+                ]);
+                // no break -- avesmapsJsonResponse exits.
+            }
+
+            // --- STAGING phase (all kinds) -------------------------------------
+            $syncCursor = (int) ($payload['cursor'] ?? 0);
             $syncTotal = avesmapsWikiDumpSyncKindCountRows($pdo, $syncRunId, $syncEntityKinds);
-
             $syncStep = avesmapsWikiDumpSyncKindStep($pdo, $syncRunId, $syncKind, $syncCursor);
+            $stagingDone = ($syncStep['done'] ?? false) === true;
 
-            // Post-actions run ONCE, when the kind's filled set is drained (done):
-            //   territory  -> rebuild the sandbox territory model (parent_conflict
+            // On staging-drain, the post-action depends on the kind:
+            //   territory  -> rebuild the sandbox territory model ONCE (parent_conflict
             //                 refreshed; parent_locked/overrides PRESERVED, I4).
-            //   settlement -> write the settlement conflict cases (the sharp
-            //                 classifier; wiki_sync_cases only).
+            //   settlement -> HAND OFF to the chunked conflict_gen phase (do NOT finish,
+            //                 do NOT release the lock) -- the frontend loop then drives
+            //                 conflict_gen to completion. This replaces the old one-shot
+            //                 avesmapsWikiDumpSettlementConflictsGenerate post-action
+            //                 that hung.
             $syncPostActions = [];
-            if (($syncStep['done'] ?? false) === true) {
+            $handOffToConflictGen = false;
+            if ($stagingDone) {
                 if ($syncKind === 'territory') {
                     $rebuild = avesmapsWikiSyncMonitorRebuildModel($pdo);
                     $rebuildSummary = is_array($rebuild['summary'] ?? null) ? $rebuild['summary'] : [];
@@ -348,20 +426,16 @@ try {
                         'nodes' => (int) ($rebuildSummary['total'] ?? 0),
                     ];
                 } elseif ($syncKind === 'settlement') {
-                    $cases = avesmapsWikiDumpSettlementConflictsGenerate($pdo, null, $lockUserId);
-                    $syncPostActions['settlement_cases'] = [
-                        'stored' => (int) ($cases['stored'] ?? 0),
-                        'run_id' => (int) ($cases['run_id'] ?? 0),
-                        'by_type' => $cases['by_type'] ?? [],
-                    ];
+                    $handOffToConflictGen = true;
                 }
             }
 
             // Refresh the heartbeat so the (possibly slow) post-action does not make
-            // this hold look stale to a stale-takeover; release on done (this per-kind
-            // sync is a self-contained chain, like apply).
+            // this hold look stale to a stale-takeover. Release only when the WHOLE
+            // chain is done: for settlement that is the END of conflict_gen, not here,
+            // so the lock is HELD across the hand-off (still $lockHeldByThisRequest).
             avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'sync_' . $syncKind);
-            if (($syncStep['done'] ?? false) === true) {
+            if ($stagingDone && !$handOffToConflictGen) {
                 avesmapsWikiDumpLockRelease($pdo, $lockUserId);
                 $lockHeldByThisRequest = false;
             }
@@ -369,17 +443,24 @@ try {
             // Accurate processed count (rows of this kind with id <= the new cursor;
             // the cursor is a row id, not a count, and ids interleave across kinds).
             $syncNextCursor = (int) ($syncStep['nextCursor'] ?? $syncCursor);
-            $syncProcessed = ($syncStep['done'] ?? false) === true
+            $syncProcessed = $stagingDone
                 ? $syncTotal
                 : avesmapsWikiDumpSyncKindCountRows($pdo, $syncRunId, $syncEntityKinds, $syncNextCursor);
+
+            // For settlement, staging-drain is NOT the end: report done=false and flip
+            // the frontend into the conflict_gen phase (its own cursor starts at 0).
+            $syncResponseDone = $stagingDone && !$handOffToConflictGen;
+            $syncResponsePhase = $handOffToConflictGen ? 'conflict_gen' : 'staging';
 
             $syncRunRow = avesmapsWikiDumpSyncKindFetchRunById($pdo, $syncRunId);
             avesmapsJsonResponse(200, [
                 'ok' => true,
                 'run' => $syncRunRow !== null ? avesmapsWikiSyncPublicRun($syncRunRow) : null,
                 'kind' => $syncKind,
+                'phase' => $syncResponsePhase,
                 'cursor' => $syncNextCursor,
-                'done' => (bool) ($syncStep['done'] ?? false),
+                'conflict_cursor' => 0,
+                'done' => $syncResponseDone,
                 'progress' => [
                     'processed' => $syncProcessed,
                     'kept_this_step' => (int) ($syncStep['kept'] ?? 0),

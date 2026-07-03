@@ -334,15 +334,43 @@ function avesmapsWikiSyncFetchRunByPublicId(PDO $pdo, string $publicId): array {
     return $run;
 }
 
-function avesmapsWikiSyncFetchLatestCompletedRun(PDO $pdo): ?array {
-    $statement = $pdo->query(
+/**
+ * Newest COMPLETED wiki_sync_runs row. With $syncType = null (default) this is
+ * ACROSS ALL sync types -- the historical behaviour every existing caller relies
+ * on. Pass a $syncType (e.g. AVESMAPS_WIKI_SYNC_TYPE_LOCATION) to scope the lookup
+ * to one run type: the case-list path needs this because after "Dump holen" the
+ * newest completed run is a dump_read run, but the settlement conflict cases are
+ * keyed to a LOCATION run (avesmapsWikiDumpSettlementCaseRunId) -- an unscoped
+ * lookup would resolve the dump_read run and the WHERE last_seen_run_id filter
+ * would then match 0 cases. Only the case-list reader passes a type; do NOT change
+ * the other (untyped) callers, whose semantics are "newest completed run of any
+ * kind".
+ *
+ * @param string|null $syncType null = any type (unchanged); a value scopes to it.
+ */
+function avesmapsWikiSyncFetchLatestCompletedRun(PDO $pdo, ?string $syncType = null): ?array {
+    if ($syncType === null) {
+        $statement = $pdo->query(
+            "SELECT *
+            FROM wiki_sync_runs
+            WHERE status = 'completed'
+            ORDER BY completed_at DESC, id DESC
+            LIMIT 1"
+        );
+        $run = $statement !== false ? $statement->fetch() : false;
+
+        return $run ?: null;
+    }
+
+    $statement = $pdo->prepare(
         "SELECT *
         FROM wiki_sync_runs
-        WHERE status = 'completed'
+        WHERE status = 'completed' AND sync_type = :sync_type
         ORDER BY completed_at DESC, id DESC
         LIMIT 1"
     );
-    $run = $statement !== false ? $statement->fetch() : false;
+    $statement->execute(['sync_type' => $syncType]);
+    $run = $statement->fetch();
 
     return $run ?: null;
 }

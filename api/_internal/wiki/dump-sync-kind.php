@@ -764,3 +764,485 @@ function avesmapsWikiDumpSettlementConflictsGenerate(
         'by_type' => $byType,
     ];
 }
+
+// ===========================================================================
+// 6. CHUNKED settlement-conflict generation (client-loopable, STRATO-safe).
+// ===========================================================================
+//
+// WHY: avesmapsWikiDumpSettlementConflictsGenerate() above runs the WHOLE
+// O(n*m) fuzzy match (avesmapsWikiSyncFindProbableWikiMatches / similar_text over
+// ~2464 map_features x ~2650 settlements) SYNCHRONOUSLY in one request. On STRATO
+// that PHP-fatals on max_execution_time and the response never returns, so the
+// per-kind "Syncen" tab freezes on its final step. The stepper below spreads that
+// exact same match/classify across client-driven steps, keyed by a map-place id
+// cursor, WITHOUT changing the classifier: it reuses avesmapsWikiDumpDryRun*
+// (match/missing) and avesmapsWikiDumpSettlementBuildSharpCases VERBATIM, only
+// controlling WHICH cases each phase upserts.
+//
+// CHUNKING MODEL (proven identical to the one-shot):
+//   - MATCH phase (repeated): each step matches ONE bounded batch of map places
+//     (id > cursor) against ALL wiki places and upserts only the PER-MAP-PLACE
+//     case types for that batch (type_conflict, canonical_name_difference,
+//     probable_match, unresolved_without_candidate, field_divergence,
+//     coat_available, coordinate_drift -- each depends solely on its own match/
+//     unresolved entry). It ACCUMULATES the batch's matched wiki titles (exact
+//     matches AND fuzzy candidates -- both mark a title "matched", so a title that
+//     only ever appears as a fuzzy candidate is not later mis-reported missing).
+//   - FINALIZE phase (once, after every map place is processed): recomputes the
+//     three CROSS-BATCH case types over the WHOLE set -- duplicate_avesmaps_name
+//     (all map places), duplicate_wiki_title (all EXACT matches, re-derived in the
+//     SAME name-order avesmapsWikiSyncReadMapPlaces returns so the representative
+//     $titleMatches[0] payload is byte-identical to the one-shot), and
+//     missing_wiki_with/without_coordinates (wiki titles NOT in the accumulated
+//     matched-title set). Fuzzy matching is NOT re-run here (that cost already ran
+//     across the match batches); finalize only does cheap exact-key work + reads
+//     the durable matched-title set.
+//
+// Case-upsert is per-case autocommit (avesmapsWikiSyncUpsertCase) exactly as the
+// one-shot, so partial progress is durable; a resumed/re-run step is idempotent
+// (deterministic case_key). Writes ONLY wiki_sync_cases (+ the small accumulator
+// table below, + possibly one minted wiki_sync_runs row) -- never map_features,
+// never political_territory.
+
+/**
+ * The PER-MAP-PLACE case types a MATCH-phase batch may upsert (each depends only
+ * on its own match/unresolved entry -- see the cross-batch audit in the section
+ * docblock). The three EXCLUDED types (duplicate_avesmaps_name / duplicate_wiki_title
+ * / missing_wiki_*) are cross-batch and are emitted ONLY by the finalize phase.
+ */
+const AVESMAPS_WIKI_DUMP_SETTLEMENT_PER_BATCH_CASE_TYPES = [
+    'canonical_name_difference',
+    'type_conflict',
+    'probable_match',
+    'unresolved_without_candidate',
+    'field_divergence',
+    'coat_available',
+    'coordinate_drift',
+];
+
+/** The CROSS-BATCH case types the finalize phase owns (over the WHOLE data set). */
+const AVESMAPS_WIKI_DUMP_SETTLEMENT_FINALIZE_CASE_TYPES = [
+    'duplicate_avesmaps_name',
+    'duplicate_wiki_title',
+    'missing_wiki_with_coordinates',
+    'missing_wiki_without_coordinates',
+];
+
+/**
+ * Map places per MATCH-phase step. Deliberately SMALL relative to the sync_kind
+ * budget: each map place fuzzy-matches against ~2.6k wiki places (similar_text),
+ * so ~200 map places per step is ~520k comparisons -- well inside one STRATO step
+ * (28s) with wide margin, while keeping the number of steps modest (~13 steps for
+ * ~2.5k map places). Tunable from one place.
+ */
+const AVESMAPS_WIKI_DUMP_SETTLEMENT_MATCH_BATCH = 200;
+
+/**
+ * Self-healing DDL for the tiny per-run accumulator that carries the MATCH-phase's
+ * running set of matched wiki titles into the FINALIZE phase (which needs the
+ * union across ALL batches to compute missing_wiki_*, and cannot recompute it
+ * itself without re-running the fuzzy match). One row per location run; disposable
+ * (cleared when finalize completes). Mirrors the sandbox tables' self-healing
+ * pattern (schema-in-code). Idempotent.
+ */
+function avesmapsWikiDumpSettlementConflictStateEnsure(PDO $pdo): void
+{
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS wiki_dump_settlement_conflict_state (
+            run_id BIGINT UNSIGNED NOT NULL,
+            matched_titles_json LONGTEXT NOT NULL,
+            updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+            PRIMARY KEY (run_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+}
+
+/**
+ * Read the accumulated matched-title set for a run as an associative set
+ * (title => true), so callers can O(1)-test membership. Empty when no row yet.
+ *
+ * When $stateSeam is provided (test seam), the accumulator lives in that array
+ * under key 'matched_titles' instead of the DB -- so the stepper is drivable
+ * against a fake PDO with no accumulator table.
+ *
+ * @param array<string,mixed>|null $stateSeam
+ * @return array<string,bool>
+ */
+function avesmapsWikiDumpSettlementConflictStateReadSet(PDO $pdo, int $runId, ?array &$stateSeam = null): array
+{
+    if ($stateSeam !== null) {
+        $titles = is_array($stateSeam['matched_titles'] ?? null) ? $stateSeam['matched_titles'] : [];
+        return $titles;
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT matched_titles_json FROM wiki_dump_settlement_conflict_state WHERE run_id = :run_id LIMIT 1'
+    );
+    $statement->execute(['run_id' => $runId]);
+    $json = $statement->fetchColumn();
+    if ($json === false || $json === null || $json === '') {
+        return [];
+    }
+
+    $decoded = json_decode((string) $json, true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+
+    // Stored as a list of titles; rehydrate to a set for membership tests.
+    $set = [];
+    foreach ($decoded as $title) {
+        $title = (string) $title;
+        if ($title !== '') {
+            $set[$title] = true;
+        }
+    }
+
+    return $set;
+}
+
+/**
+ * Persist the matched-title set for a run (as a title list). UPSERT so repeated
+ * MATCH steps grow the same row. Honours the same $stateSeam test seam as the
+ * reader.
+ *
+ * @param array<string,bool>       $set       title => true
+ * @param array<string,mixed>|null $stateSeam
+ */
+function avesmapsWikiDumpSettlementConflictStateWriteSet(PDO $pdo, int $runId, array $set, ?array &$stateSeam = null): void
+{
+    if ($stateSeam !== null) {
+        $stateSeam['matched_titles'] = $set;
+        return;
+    }
+
+    $json = avesmapsWikiSyncEncodeJson(array_keys($set));
+    $statement = $pdo->prepare(
+        'INSERT INTO wiki_dump_settlement_conflict_state (run_id, matched_titles_json)
+         VALUES (:run_id, :json)
+         ON DUPLICATE KEY UPDATE matched_titles_json = VALUES(matched_titles_json)'
+    );
+    $statement->execute(['run_id' => $runId, 'json' => $json]);
+}
+
+/**
+ * Drop the accumulator row for a run (called when finalize completes -- the set
+ * has served its purpose). Honours the $stateSeam test seam. Best-effort.
+ *
+ * @param array<string,mixed>|null $stateSeam
+ */
+function avesmapsWikiDumpSettlementConflictStateClear(PDO $pdo, int $runId, ?array &$stateSeam = null): void
+{
+    if ($stateSeam !== null) {
+        unset($stateSeam['matched_titles']);
+        return;
+    }
+
+    $statement = $pdo->prepare('DELETE FROM wiki_dump_settlement_conflict_state WHERE run_id = :run_id');
+    $statement->execute(['run_id' => $runId]);
+}
+
+/**
+ * PURE: filter gebaeude out of the raw settlement records and build the wiki-place
+ * list (the exact two steps avesmapsWikiDumpSettlementConflictsGenerate does
+ * before matching). Extracted so the one-shot and the stepper build the SAME wiki
+ * places from the SAME records. gebaeude are buildings, not settlements -- dropping
+ * them here is identical to the one-shot / dry-run orchestration.
+ *
+ * @param list<array<string,mixed>> $settlementRecordsAll
+ * @return list<array<string,mixed>> wiki places (avesmapsWikiDumpDryRunWikiPlacesFromRecords shape)
+ */
+function avesmapsWikiDumpSettlementWikiPlacesFromRecords(array $settlementRecordsAll): array
+{
+    $settlementRecords = [];
+    foreach ($settlementRecordsAll as $record) {
+        if (!is_array($record)) {
+            continue;
+        }
+        if ((string) ($record['settlement_class'] ?? '') === 'gebaeude') {
+            continue;
+        }
+        $settlementRecords[] = $record;
+    }
+
+    return avesmapsWikiDumpDryRunWikiPlacesFromRecords($settlementRecords);
+}
+
+/**
+ * Upsert a grouped case set (case_type => list<built case>), but ONLY the buckets
+ * whose case_type is in $allowedTypes. Reuses the one-shot's per-case try/catch
+ * tolerance VERBATIM (a duplicate_avesmaps_name collision is logged + skipped;
+ * anything else re-throws). Returns [storedCount, byTypeCounts].
+ *
+ * @param array<string, list<array<string,mixed>>> $casesByType
+ * @param list<string> $allowedTypes
+ * @return array{0:int, 1:array<string,int>}
+ */
+function avesmapsWikiDumpSettlementUpsertCaseSubset(PDO $pdo, int $caseRunId, array $casesByType, array $allowedTypes): array
+{
+    $allowed = array_fill_keys($allowedTypes, true);
+    $stored = 0;
+    $byType = [];
+
+    foreach ($casesByType as $caseType => $cases) {
+        if (!isset($allowed[$caseType])) {
+            continue;
+        }
+        $byType[$caseType] = count($cases);
+        foreach ($cases as $case) {
+            try {
+                avesmapsWikiSyncUpsertCase($pdo, $caseRunId, $case);
+                $stored++;
+            } catch (Throwable $exception) {
+                if ((string) ($case['case_type'] ?? '') !== 'duplicate_avesmaps_name') {
+                    throw $exception;
+                }
+                avesmapsWikiSyncLogServerError('dump_settlement_case_store_error', [
+                    'exception_class' => $exception::class,
+                    'exception_message' => $exception->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    return [$stored, $byType];
+}
+
+/**
+ * Build the EXACT-match subset of avesmapsWikiDumpDryRunMatchMapPlaces WITHOUT the
+ * fuzzy pass -- the FINALIZE phase's cheap re-derivation. Reproduces ONLY the
+ * exact-key branches (the count($candidates)===1 "one match" and the >1 "ambiguous"
+ * branch) of that function VERBATIM; it SKIPS the 0-candidate fuzzy branch (the
+ * similar_text O(n*m) cost, already paid across the MATCH batches). Only the
+ * count===1 branch feeds $matches, which is exactly what duplicate_wiki_title
+ * groups; the >1 branch (unresolved) and matched_titles are not read by any
+ * finalize case type, so this is a faithful, cheaper stand-in for finalize's needs.
+ *
+ * @param list<array<string,mixed>> $mapPlaces  full map-place list (name-ordered)
+ * @param list<array<string,mixed>> $wikiPlaces full wiki-place list
+ * @return array{matches:list<array<string,mixed>>, unresolved:list<array<string,mixed>>, matched_titles:list<string>}
+ */
+function avesmapsWikiDumpSettlementExactMatchesForFinalize(array $mapPlaces, array $wikiPlaces): array
+{
+    // Group wiki places by normalized_key (verbatim: settlement-conflicts-dryrun.php:197-203).
+    $wikiByKey = [];
+    foreach ($wikiPlaces as $wikiPlace) {
+        $key = (string) ($wikiPlace['normalized_key'] ?? '');
+        if ($key !== '') {
+            $wikiByKey[$key][] = $wikiPlace;
+        }
+    }
+
+    $matchedWikiTitles = [];
+    $matches = [];
+    $unresolved = [];
+
+    foreach ($mapPlaces as $mapPlace) {
+        $mapKey = (string) ($mapPlace['normalized_key'] ?? '');
+        $candidates = $mapKey !== '' ? ($wikiByKey[$mapKey] ?? []) : [];
+
+        if (count($candidates) === 1) {
+            $wikiPlace = $candidates[0];
+            $matchedWikiTitles[(string) $wikiPlace['title']] = true;
+            $matches[] = [
+                'match_kind' => 'exact',
+                'score' => 1.0,
+                'map' => $mapPlace,
+                'wiki' => avesmapsWikiSyncBuildPublicWikiPlace($wikiPlace),
+                'wiki_record' => is_array($wikiPlace['record'] ?? null) ? $wikiPlace['record'] : [],
+            ];
+            continue;
+        }
+
+        if (count($candidates) > 1) {
+            $candidatePayloads = array_map(
+                static fn(array $candidate): array => [
+                    'match_kind' => 'exact',
+                    'score' => 1.0,
+                    'wiki' => avesmapsWikiSyncBuildPublicWikiPlace($candidate),
+                ],
+                $candidates
+            );
+            foreach ($candidates as $candidate) {
+                $matchedWikiTitles[(string) $candidate['title']] = true;
+            }
+            $unresolved[] = [
+                'map' => $mapPlace,
+                'candidates' => $candidatePayloads,
+            ];
+            continue;
+        }
+
+        // 0 exact candidates: the fuzzy branch is intentionally SKIPPED here (see
+        // docblock) -- finalize does not need fuzzy unresolved/matched_titles.
+    }
+
+    return [
+        'matches' => $matches,
+        'unresolved' => $unresolved,
+        'matched_titles' => array_keys($matchedWikiTitles),
+    ];
+}
+
+/**
+ * ONE chunked step of settlement-conflict generation. Client-loopable exactly like
+ * avesmapsWikiDumpSyncKindStep: the caller loops it, advancing the returned cursor,
+ * until done=true. See the section docblock for the MATCH/FINALIZE model and the
+ * proof that the union of all steps' writes equals a one-shot
+ * avesmapsWikiDumpSettlementConflictsGenerate.
+ *
+ * PHASES:
+ *   - phase='match'   : cursor is a map-place id high-water mark. Processes the
+ *                       next AVESMAPS_WIKI_DUMP_SETTLEMENT_MATCH_BATCH map places
+ *                       (id > cursor), upserts the per-batch case types, grows the
+ *                       matched-title accumulator. done=false.
+ *   - phase='finalize': fired once, when no map place has id > cursor (all done).
+ *                       Upserts the cross-batch case types over the whole set and
+ *                       clears the accumulator. done=true.
+ *
+ * @param int|null $runId location run id to key cases to; null -> resolve/mint (once)
+ * @param int      $userId acting editor id (for a minted run's created_by)
+ * @param int      $cursor map-place id high-water mark (0 to start)
+ * @param list<array<string,mixed>>|null $mapPlacesOverride     test seam (skip the live SELECT)
+ * @param list<array<string,mixed>>|null $settlementRecordsOverride test seam (skip the sandbox read)
+ * @param int|null $batchSize override the map-place batch size (tests use a tiny one)
+ * @param array<string,mixed>|null $stateSeam in-memory accumulator seam (tests; null -> DB table)
+ * @return array{ok:bool, done:bool, phase:string, run_id:int, cursor:int, stored:int, by_type:array<string,int>, progress:array{processed:int,total:int}}
+ */
+function avesmapsWikiDumpSettlementConflictsGenerateStep(
+    PDO $pdo,
+    ?int $runId = null,
+    int $userId = 0,
+    int $cursor = 0,
+    ?array $mapPlacesOverride = null,
+    ?array $settlementRecordsOverride = null,
+    ?int $batchSize = null,
+    ?array &$stateSeam = null
+): array {
+    @set_time_limit((int) AVESMAPS_WIKI_DUMP_STEP_SECONDS + 15);
+    avesmapsWikiSyncEnsureLocationTables($pdo);
+    if ($stateSeam === null) {
+        avesmapsWikiDumpSettlementConflictStateEnsure($pdo);
+    }
+
+    $caseRunId = $runId ?? avesmapsWikiDumpSettlementCaseRunId($pdo, $userId);
+    $batchSize = $batchSize !== null && $batchSize > 0 ? $batchSize : AVESMAPS_WIKI_DUMP_SETTLEMENT_MATCH_BATCH;
+
+    // Read the map places ONCE per step. avesmapsWikiSyncReadMapPlaces returns them
+    // in name-order (name ASC, id ASC); the heavy cost is the fuzzy match, not this
+    // SELECT, so re-reading each step is cheap.
+    $mapPlaces = $mapPlacesOverride ?? avesmapsWikiSyncReadMapPlaces($pdo);
+    $total = count($mapPlaces);
+
+    // Build the wiki places ONCE per step (all batches match against the full set).
+    $settlementRecordsAll = $settlementRecordsOverride
+        ?? avesmapsWikiDumpSettlementRecordsFromSandbox($pdo, avesmapsWikiDumpSyncKindResolveDumpRunId($pdo));
+    $wikiPlaces = avesmapsWikiDumpSettlementWikiPlacesFromRecords($settlementRecordsAll);
+
+    // Iterate the batches in strict ID ORDER so the id cursor is a monotonic,
+    // GAP-FREE high-water mark: a map place with a small id but a late name-position
+    // must not be skipped by an earlier-named batch whose max id ran ahead. Batching
+    // order is independent of the finalize phase, which re-derives over ALL map
+    // places in avesmapsWikiSyncReadMapPlaces's own name-order (so the order-sensitive
+    // duplicate_wiki_title representative still matches the one-shot).
+    $mapPlacesById = $mapPlaces;
+    usort($mapPlacesById, static fn(array $a, array $b): int => ((int) ($a['id'] ?? 0)) <=> ((int) ($b['id'] ?? 0)));
+
+    $batch = [];
+    $maxId = $cursor;
+    foreach ($mapPlacesById as $mapPlace) {
+        $id = (int) ($mapPlace['id'] ?? 0);
+        if ($id <= $cursor) {
+            continue;
+        }
+        $batch[] = $mapPlace;
+        if ($id > $maxId) {
+            $maxId = $id;
+        }
+        if (count($batch) >= $batchSize) {
+            break;
+        }
+    }
+
+    // ----------------------------------------------------------------- MATCH ---
+    if ($batch !== []) {
+        // Match ONLY this batch against ALL wiki places (fuzzy included). Build the
+        // sharp cases for the batch, then upsert ONLY the per-map-place buckets.
+        $matchResult = avesmapsWikiDumpDryRunMatchMapPlaces($batch, $wikiPlaces);
+        // missingPlaces is a FINALIZE concern; pass [] so no missing case is built here.
+        $casesByType = avesmapsWikiDumpSettlementBuildSharpCases($matchResult, $batch, []);
+        [$stored, $byType] = avesmapsWikiDumpSettlementUpsertCaseSubset(
+            $pdo,
+            $caseRunId,
+            $casesByType,
+            AVESMAPS_WIKI_DUMP_SETTLEMENT_PER_BATCH_CASE_TYPES
+        );
+
+        // Grow the durable matched-title set with THIS batch's matched titles
+        // (exact + fuzzy candidates -- avesmapsWikiDumpDryRunMatchMapPlaces already
+        // unions both into matched_titles).
+        $set = avesmapsWikiDumpSettlementConflictStateReadSet($pdo, $caseRunId, $stateSeam);
+        foreach (($matchResult['matched_titles'] ?? []) as $title) {
+            $title = (string) $title;
+            if ($title !== '') {
+                $set[$title] = true;
+            }
+        }
+        avesmapsWikiDumpSettlementConflictStateWriteSet($pdo, $caseRunId, $set, $stateSeam);
+
+        $processed = 0;
+        foreach ($mapPlaces as $mapPlace) {
+            if ((int) ($mapPlace['id'] ?? 0) <= $maxId) {
+                $processed++;
+            }
+        }
+
+        return [
+            'ok' => true,
+            'done' => false,
+            'phase' => 'match',
+            'run_id' => $caseRunId,
+            'cursor' => $maxId,
+            'stored' => $stored,
+            'by_type' => $byType,
+            'progress' => ['processed' => $processed, 'total' => $total],
+        ];
+    }
+
+    // -------------------------------------------------------------- FINALIZE ---
+    // No map place past the cursor -> every batch is done. Emit the three
+    // cross-batch case types over the WHOLE data set.
+    //
+    // Build an EXACT-ONLY match result over ALL map places in the one-shot's
+    // name-order. This is the cheap part of the matcher (exact-key bucket lookups,
+    // NO similar_text) -- the expensive fuzzy pass already ran, spread across the
+    // MATCH batches, so finalize must NOT re-run it (that would reintroduce the very
+    // one-shot O(n*m) hang this change removes). The exact matches are all
+    // duplicate_wiki_title needs, and iterating map places in name-order makes its
+    // representative ($titleMatches[0]) byte-identical to the one-shot.
+    // missing_wiki_* is driven by the durable accumulated matched-title set (which
+    // DID include fuzzy candidates from every batch), NOT by this exact-only pass.
+    $matchedSet = avesmapsWikiDumpSettlementConflictStateReadSet($pdo, $caseRunId, $stateSeam);
+    $matchResult = avesmapsWikiDumpSettlementExactMatchesForFinalize($mapPlaces, $wikiPlaces);
+    $missingPlaces = avesmapsWikiDumpDryRunMissingWikiPlaces($wikiPlaces, array_keys($matchedSet));
+    $casesByType = avesmapsWikiDumpSettlementBuildSharpCases($matchResult, $mapPlaces, $missingPlaces);
+    [$stored, $byType] = avesmapsWikiDumpSettlementUpsertCaseSubset(
+        $pdo,
+        $caseRunId,
+        $casesByType,
+        AVESMAPS_WIKI_DUMP_SETTLEMENT_FINALIZE_CASE_TYPES
+    );
+
+    avesmapsWikiDumpSettlementConflictStateClear($pdo, $caseRunId, $stateSeam);
+
+    return [
+        'ok' => true,
+        'done' => true,
+        'phase' => 'finalize',
+        'run_id' => $caseRunId,
+        'cursor' => $cursor,
+        'stored' => $stored,
+        'by_type' => $byType,
+        'progress' => ['processed' => $total, 'total' => $total],
+    ];
+}

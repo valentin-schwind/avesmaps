@@ -679,7 +679,30 @@ function formatWikiSyncKindSyncedText(run) {
 	return `Zuletzt gesynct: ${parsed.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" })}`;
 }
 
-function renderWikiSyncKindProgress(kind, progress, done, run) {
+// Surface a tab-level message (success/error/pending) in the per-kind status
+// node (wiki-sync-sync-<kind>-status) so a real step FAILURE is visible right on
+// the tab, not only in the global #wiki-sync-status. tone drives a data-tone hook
+// consumers can style; the text is always set so a hang can never be misread as a
+// silent success.
+function setWikiSyncKindStatus(kind, message, tone = "") {
+	const ids = WIKI_SYNC_KIND_ELEMENTS[kind];
+	if (!ids) {
+		return;
+	}
+	const statusElement = document.getElementById(ids.status);
+	if (!statusElement) {
+		return;
+	}
+	statusElement.hidden = false;
+	statusElement.textContent = message;
+	if (tone) {
+		statusElement.dataset.tone = tone;
+	} else {
+		delete statusElement.dataset.tone;
+	}
+}
+
+function renderWikiSyncKindProgress(kind, progress, done, run, phase = "staging") {
 	const ids = WIKI_SYNC_KIND_ELEMENTS[kind];
 	if (!ids) {
 		return;
@@ -696,9 +719,14 @@ function renderWikiSyncKindProgress(kind, progress, done, run) {
 	}
 	if (statusElement) {
 		statusElement.hidden = false;
+		// A fresh progress render means the step SUCCEEDED, so drop any prior error tone.
+		delete statusElement.dataset.tone;
 		if (done) {
 			// On done show the "Zuletzt gesynct" date; append post-action notes if any.
 			statusElement.textContent = formatWikiSyncKindSyncedText(run);
+		} else if (phase === "conflict_gen") {
+			// The chunked settlement conflict-generation phase (after staging drained).
+			statusElement.textContent = total > 0 ? `Konfliktanalyse läuft … ${processed}/${total}` : "Konfliktanalyse läuft …";
 		} else {
 			statusElement.textContent = total > 0 ? `Syncen läuft … ${processed}/${total}` : "Syncen läuft …";
 		}
@@ -709,11 +737,23 @@ function renderWikiSyncKindProgress(kind, progress, done, run) {
 // advancing the server-returned cursor (high-water mark) until done. Mirrors
 // runWikiSyncDumpLoop (bounded step ceiling; stops cleanly on the 409 lock).
 async function runWikiSyncKindSyncLoop(kind) {
+	// Two cursors: `cursor` drives the STAGING phase, `conflictCursor` the chunked
+	// settlement CONFLICT_GEN phase. `phase` is echoed by the server; we send back
+	// whatever phase it last reported so it can flip us from staging to conflict_gen
+	// when staging drains (settlement only). Non-settlement kinds never leave
+	// 'staging'.
 	let cursor = 0;
+	let conflictCursor = 0;
+	let phase = "staging";
 	let done = false;
 	let safetyCounter = 0;
 	let lastResult = null;
-	const MAX_STEPS = 2000;
+	// Cases are upserted incrementally across the conflict-gen steps, so sum each
+	// step's count for an accurate "+N Konfliktfälle" note (not just the last step).
+	let conflictStoredTotal = 0;
+	// Roomier ceiling: staging (up to ~2000 steps) PLUS the conflict-gen phase
+	// (~13 map-place batches + 1 finalize) can chain in one run.
+	const MAX_STEPS = 4000;
 
 	while (!done) {
 		if (safetyCounter > MAX_STEPS) {
@@ -723,22 +763,37 @@ async function runWikiSyncKindSyncLoop(kind) {
 
 		let stepResult;
 		try {
-			stepResult = await submitWikiSyncDumpAction("sync_kind", { kind, cursor });
+			stepResult = await submitWikiSyncDumpAction("sync_kind", { kind, cursor, phase, conflict_cursor: conflictCursor });
 		} catch (error) {
 			if (error && error.dumpLocked) {
 				// Another editor holds the dump pipeline: stop immediately (do NOT retry).
 				setWikiSyncStatus(error.message || "Ein anderer Nutzer bearbeitet gerade den WikiDump - bitte warten.", "error");
+				setWikiSyncKindStatus(kind, error.message || "Ein anderer Nutzer bearbeitet gerade den WikiDump - bitte warten.", "error");
 				throw error;
 			}
+			// A REAL step failure (e.g. a server error on the final conflict-gen step)
+			// must be visible on the tab itself, so a hang can never be misread as a
+			// silent success. Surface it in the per-kind status node before rethrowing.
+			setWikiSyncKindStatus(kind, error.message || `Syncen (${kind}) fehlgeschlagen.`, "error");
 			throw error;
 		}
 
 		lastResult = stepResult;
+		phase = stepResult.phase === "conflict_gen" ? "conflict_gen" : "staging";
+		// Advance the cursor that belongs to the phase the server just ran/returned.
+		if (phase === "conflict_gen") {
+			conflictCursor = Number(stepResult.conflict_cursor ?? conflictCursor);
+		}
 		cursor = Number(stepResult.cursor ?? cursor);
+		conflictStoredTotal += Number(stepResult.conflict_stored ?? 0);
 		done = stepResult.done === true;
-		renderWikiSyncKindProgress(kind, stepResult.progress, done, stepResult.run);
+		renderWikiSyncKindProgress(kind, stepResult.progress, done, stepResult.run, phase);
 	}
 
+	// Expose the summed conflict-gen case count so the caller's note is accurate.
+	if (lastResult && typeof lastResult === "object") {
+		lastResult.conflict_stored_total = conflictStoredTotal;
+	}
 	return lastResult;
 }
 
@@ -757,8 +812,11 @@ async function startWikiSyncKindSync(kind) {
 		const result = await runWikiSyncKindSyncLoop(kind);
 		const postActions = result?.post_actions || {};
 		let note = "";
-		if (kind === "settlement" && postActions.settlement_cases) {
-			note = ` (+${Number(postActions.settlement_cases.stored || 0)} Konfliktfälle)`;
+		if (kind === "settlement") {
+			// The summed conflict-gen total (all steps); fall back to the final step's
+			// settlement_cases.stored if the total is somehow absent.
+			const storedTotal = Number(result?.conflict_stored_total ?? postActions.settlement_cases?.stored ?? 0);
+			note = ` (+${storedTotal} Konfliktfälle)`;
 		} else if (kind === "territory" && postActions.territory_model) {
 			note = ` (Modell: ${Number(postActions.territory_model.nodes || 0)} Knoten)`;
 		}
@@ -783,6 +841,9 @@ async function startWikiSyncKindSync(kind) {
 	} catch (error) {
 		console.error(`Syncen (${kind}) fehlgeschlagen:`, error);
 		setWikiSyncStatus(error.message || `Syncen (${kind}) fehlgeschlagen.`, "error");
+		// Mirror the failure onto the tab's own status node (belt-and-suspenders with
+		// the loop's catch) so the tab never looks stuck-but-fine after a real error.
+		setWikiSyncKindStatus(kind, error.message || `Syncen (${kind}) fehlgeschlagen.`, "error");
 		showFeedbackToast(error.message || `Syncen (${kind}) fehlgeschlagen.`, "warning");
 	} finally {
 		isWikiSyncKindSyncRunning = false;

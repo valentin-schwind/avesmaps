@@ -661,7 +661,14 @@ function avesmapsWikiSyncReadLocationName(mixed $value): string {
 }
 
 function avesmapsWikiSyncListCases(PDO $pdo): array {
-    $run = avesmapsWikiSyncFetchLatestCompletedRun($pdo);
+    // Scope the "latest completed run" to LOCATION runs specifically. The settlement
+    // conflict cases are keyed (first_seen_run_id/last_seen_run_id) to a location run
+    // by avesmapsWikiDumpSettlementCaseRunId; an UNSCOPED lookup would, after
+    // "Dump holen", resolve the newer dump_read run instead, and the
+    // `WHERE last_seen_run_id = :run_id` filter below would then match 0 cases
+    // (the accordion would show empty even though the cases exist). Scoping here
+    // makes the reader's run match the writer's run.
+    $run = avesmapsWikiSyncFetchLatestCompletedRun($pdo, AVESMAPS_WIKI_SYNC_TYPE_LOCATION);
     $activeRun = avesmapsWikiSyncFetchLatestActiveRun($pdo);
     if ($run === null) {
         return [
