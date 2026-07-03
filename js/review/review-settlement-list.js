@@ -349,6 +349,17 @@ document.addEventListener("input", (event) => {
 let settlementDragTitle = "";
 let settlementDragClass = "";
 let settlementMapDropReady = false;
+// Set at drop time (same value as settlementDragTitle, captured just before that var is
+// cleared) so handleLocationEditFormSubmit (review-editor-submit.js) can auto-fire the
+// SAME assign_to action the manual "Zuweisen" button uses once the new feature has a
+// public_id -- fixes the drop-a-wiki-settlement flow opening "Siedlung bearbeiten"
+// unlinked, requiring a manual 2nd-step "Zuweisen" click. Only ever set from THIS
+// drag-and-drop list (draggable items here are always wiki-only settlement-registry rows,
+// see avesmapsWikiSettlementListLocations -- draggable=!on_map is exclusively the wiki
+// registry loop), so a non-empty value here is a reliable "this is a known wiki
+// settlement" guard. Read-and-cleared by review-editor-submit.js; stays "" for every
+// other way of creating a location (never mis-fires on a map-only place).
+let settlementPendingWikiAssignTitle = "";
 
 function ensureSettlementMapDropTarget() {
 	if (settlementMapDropReady || typeof map === "undefined" || !map || typeof map.getContainer !== "function") {
@@ -372,6 +383,9 @@ function ensureSettlementMapDropTarget() {
 		const presetType = settlementDragClass;
 		settlementDragTitle = "";
 		settlementDragClass = "";
+		// Remember the wiki title for the auto-assign follow-up once the dialog's
+		// create_point save returns a public_id (see review-editor-submit.js).
+		settlementPendingWikiAssignTitle = presetName;
 		const latlng = map.mouseEventToLatLng(event);
 		if (typeof openLocationEditDialog === "function") {
 			openLocationEditDialog({ latlng, presetName, presetLocationType: presetType || "dorf" });

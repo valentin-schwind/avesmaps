@@ -119,6 +119,62 @@ function avesmapsWikiDumpSyncKindEntityKinds(string $taskKind): array
 }
 
 // ===========================================================================
+// 1a. Last-synced-per-kind (read-only status for the panel's persistent
+//     "Zuletzt gesynct" labels, so they survive a page reload).
+// ===========================================================================
+
+/**
+ * Read-only: the last time EACH of the 4 task-facing kinds was synced into its
+ * staging table, independent of any in-progress run. Backs GET ?action=last_synced
+ * on api/edit/wiki/dump.php so the panel can fill "Zuletzt gesynct: <date>" on
+ * load (the fresh-sync path only sets it from that request's own response, so a
+ * reload previously left it blank until the next sync).
+ *
+ * Per-kind source (the actual staging write each kind's sync_kind step performs):
+ *   - settlement -> newest COMPLETED wiki_sync_runs row with
+ *                   sync_type = AVESMAPS_WIKI_SYNC_TYPE_LOCATION (the SAME run
+ *                   type the settlement conflict-gen phase keys its cases to,
+ *                   see avesmapsWikiDumpSettlementCaseRunId's docblock above).
+ *                   completed_at is the timestamp.
+ *   - path        -> MAX(synced_at) on AVESMAPS_WIKI_PATH_STAGING_TABLE.
+ *   - region      -> MAX(synced_at) on AVESMAPS_WIKI_REGION_STAGING_TABLE.
+ *   - territory   -> MAX(synced_at) on AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE
+ *                    (political_territory_wiki_test; the sync_kind territory
+ *                    step upserts here via avesmapsWikiSyncMonitorUpsertTestRecord).
+ *
+ * Never writes anything; safe to call on every panel load. Returns MySQL
+ * DATETIME strings (or null per kind if that kind has never been synced).
+ *
+ * @return array<string, string|null> keyed by AVESMAPS_WIKI_DUMP_SYNC_KINDS
+ */
+function avesmapsWikiDumpSyncKindLastSynced(PDO $pdo): array
+{
+    $result = [];
+
+    foreach (AVESMAPS_WIKI_DUMP_SYNC_KINDS as $kind) {
+        $result[$kind] = null;
+    }
+
+    $locationRun = avesmapsWikiSyncFetchLatestCompletedRun($pdo, AVESMAPS_WIKI_SYNC_TYPE_LOCATION);
+    if ($locationRun !== null && !empty($locationRun['completed_at'])) {
+        $result['settlement'] = (string) $locationRun['completed_at'];
+    }
+
+    $staleColumnQuery = static function (PDO $pdo, string $table): ?string {
+        $statement = $pdo->query('SELECT MAX(synced_at) FROM ' . $table);
+        $value = $statement !== false ? $statement->fetchColumn() : false;
+
+        return $value !== false && $value !== null ? (string) $value : null;
+    };
+
+    $result['path'] = $staleColumnQuery($pdo, AVESMAPS_WIKI_PATH_STAGING_TABLE);
+    $result['region'] = $staleColumnQuery($pdo, AVESMAPS_WIKI_REGION_STAGING_TABLE);
+    $result['territory'] = $staleColumnQuery($pdo, AVESMAPS_WIKI_SYNC_MONITOR_STAGING_TABLE);
+
+    return $result;
+}
+
+// ===========================================================================
 // 2. Resolve the newest completed dump_read run (the sandbox to read).
 // ===========================================================================
 

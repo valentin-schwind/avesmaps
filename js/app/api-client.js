@@ -406,6 +406,33 @@ async function fetchWikiSyncDumpStatus() {
 	return data.status || {};
 }
 
+// GET ?action=last_synced on the same endpoint: { settlement, path, region, territory },
+// each a MySQL DATETIME string or null. Read-only (no lock), used to fill the per-tab
+// "Zuletzt gesynct: <date>" labels on panel load/reload (the fresh-sync path only ever
+// set them from that request's own response, so a reload left them blank).
+async function fetchWikiSyncKindLastSynced() {
+	const url = new URL(WIKI_SYNC_DUMP_API_URL, window.location.href);
+	url.searchParams.set("action", "last_synced");
+	url.searchParams.set("_", String(Date.now()));
+
+	const response = await fetch(url.toString(), {
+		cache: "no-store",
+		credentials: "same-origin",
+		headers: {
+			Accept: "application/json",
+			"Cache-Control": "no-cache",
+			Pragma: "no-cache",
+		},
+	});
+	const data = await readJsonResponse(response, {});
+
+	if (!response.ok || data?.ok !== true) {
+		throw new Error(apiErrorMessage(data, `WikiDump-Last-Synced-API antwortet mit HTTP ${response.status}.`));
+	}
+
+	return data.synced || {};
+}
+
 async function fetchWikiSyncLocationData(params = {}) {
 	const url = new URL(WIKI_SYNC_LOCATIONS_API_URL, window.location.href);
 	Object.entries(params).forEach(([key, value]) => {

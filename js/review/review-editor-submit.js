@@ -1,3 +1,53 @@
+// Auto-assign the dragged wiki settlement once a NEW location feature (create_point) has
+// a public_id, so dropping a #settlement-list item onto the map no longer requires the
+// manual "Zuweisen" 2nd step. GUARD: settlementPendingWikiAssignTitle (review-settlement-
+// list.js) is only ever set by THAT list's drag-and-drop, and every draggable item there
+// is a known wiki settlement (avesmapsWikiSettlementListLocations only marks the wiki-
+// registry rows draggable, never a map-only place) -- so a non-empty value here IS the
+// "this came from a real wiki settlement" guard; nothing to do otherwise (current
+// behavior for every other way of creating a location, e.g. the "+" map click or a
+// WikiSync-case create, is unchanged). Reuses the EXACT SAME assign_to action + payload
+// shape the manual "Zuweisen" button uses (review-settlement-wiki.js's
+// selectSettlementWikiResult -> settlementWikiPost), just triggered here instead of from
+// a picker click; does not invent a new assignment mechanism.
+async function autoAssignWikiSettlementAfterDragDropCreate(responseFeature) {
+	const title = settlementPendingWikiAssignTitle;
+	settlementPendingWikiAssignTitle = ""; // one-shot: consume regardless of outcome below.
+	const publicId = responseFeature?.public_id;
+	if (!title || !publicId) {
+		return;
+	}
+	try {
+		const result = await settlementWikiPost({ action: "assign_to", title, public_id: publicId, dry_run: false, confirm: "apply" });
+		if (!result || result.ok !== true) {
+			showFeedbackToast?.("Wiki-Siedlung „" + title + "\" konnte nicht automatisch zugewiesen werden: " + apiErrorMessage(result, ""), "warning");
+			return;
+		}
+		// Mirror selectSettlementWikiResult's post-assign state sync so the marker/popup
+		// and the WikiSync panel reflect the link immediately, same as a manual assign.
+		const entry = typeof findLocationMarkerByPublicId === "function" ? findLocationMarkerByPublicId(publicId) : null;
+		if (entry && entry.location) {
+			entry.location.wikiSettlement = result.settlement || null;
+			if (result.settlement) {
+				entry.location.description = "";
+			}
+			if (result.revision) {
+				entry.location.revision = result.revision;
+			}
+			if (typeof refreshLocationMarkerPopup === "function") {
+				refreshLocationMarkerPopup(entry);
+			}
+		}
+		showFeedbackToast?.(`„${result.wiki_name}" automatisch verbunden.`, "success");
+		if (typeof refreshActiveWikiSyncPanelAfterAssignment === "function") {
+			void refreshActiveWikiSyncPanelAfterAssignment();
+		}
+	} catch (error) {
+		console.error("Wiki-Siedlung konnte nicht automatisch zugewiesen werden:", error);
+		showFeedbackToast?.("Wiki-Siedlung konnte nicht automatisch zugewiesen werden: " + (error.message || error), "warning");
+	}
+}
+
 async function handleLocationEditFormSubmit(event) {
 	event.preventDefault();
 	const formElement = event.currentTarget instanceof HTMLFormElement ? event.currentTarget : null;
@@ -33,6 +83,7 @@ async function handleLocationEditFormSubmit(event) {
 			}
 		} else {
 			addCreatedLocationMarker(responseFeature);
+			await autoAssignWikiSettlementAfterDragDropCreate(responseFeature);
 		}
 		if (payload.action === "create_point" && activeReviewReportId) {
 			await updateReviewReportStatus(activeReviewReportId, "approved", activeReviewReportSource || "location_reports");

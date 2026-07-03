@@ -59,6 +59,13 @@ declare(strict_types=1);
  *   GET  ?action=status
  *        -> { present, size, age_seconds, last_fetch_at, last_ok_at, username, url }.
  *           Never includes the password.
+ *   GET  ?action=last_synced
+ *        -> { synced: { settlement, path, region, territory } }, each a MySQL
+ *           DATETIME string or null. READ-ONLY (no lock, no writes): backs the
+ *           per-tab "Zuletzt gesynct: <date>" labels on panel load/reload, since
+ *           those previously only ever came from a fresh sync_kind response and
+ *           went blank again after a reload. See
+ *           avesmapsWikiDumpSyncKindLastSynced() for the exact source per kind.
  *
  * THE GATE: read_step is dryRun/sandbox-safe; apply is the sole sharp writer and
  * a DISTINCT action. They are never folded together -- the only difference is the
@@ -173,6 +180,16 @@ try {
 
     if ($requestMethod === 'GET') {
         $action = avesmapsNormalizeSingleLine((string) ($_GET['action'] ?? 'status'), 60);
+
+        if ($action === 'last_synced') {
+            // Read-only per-kind "Zuletzt gesynct" status (see
+            // avesmapsWikiDumpSyncKindLastSynced's docblock for the source per
+            // kind). Fills the panel's persistent labels on load/reload; never
+            // acquires the pipeline lock and writes nothing.
+            $lastSynced = avesmapsWikiDumpSyncKindLastSynced($pdo);
+            avesmapsJsonResponse(200, ['ok' => true, 'synced' => $lastSynced]);
+        }
+
         if ($action !== 'status') {
             avesmapsErrorResponse(400, 'invalid_request', 'Unknown dump action for GET.');
         }

@@ -89,6 +89,10 @@ async function loadWikiSyncCases() {
 	// Best-effort, independent of the case list below (own try/catch inside) -- shows
 	// "Dump geholt: <date>" next to the "Dump holen" button as soon as this tab loads.
 	void refreshWikiSyncDumpFetchedStatus();
+	// Same best-effort pattern: fills each tab's persistent "Zuletzt gesynct: <date>"
+	// label from the server on load, so it survives a reload (previously only a FRESH
+	// sync_kind response ever set it -- see refreshWikiSyncKindSyncedStatus's docblock).
+	void refreshWikiSyncKindSyncedStatus();
 
 	setWikiSyncStatus("WikiSyncLocations-Fälle werden geladen...", "pending");
 	try {
@@ -491,6 +495,36 @@ async function refreshWikiSyncDumpFetchedStatus() {
 	} catch (error) {
 		console.warn("WikiDump-Status konnte nicht geladen werden:", error);
 		statusElement.hidden = true;
+	}
+}
+
+// Fill each of the 4 tabs' persistent "Zuletzt gesynct: <date>" label from the server
+// on load (GET ?action=last_synced, read-only). Fix: previously that label was ONLY
+// ever set from a FRESH sync_kind response's `run` (see renderWikiSyncKindProgress),
+// so it went blank again after a page reload even though the kind had been synced
+// before. WIKI_SYNC_KIND_ELEMENTS is defined further below in this file, but this
+// function is only ever called from loadWikiSyncCases (an async call site reached
+// well after full parse), so the forward reference is safe. Best-effort: a failed
+// fetch just leaves the labels in whatever state they were already in (hidden by
+// default), never blocks the panel or throws into a caller.
+async function refreshWikiSyncKindSyncedStatus() {
+	try {
+		const synced = await fetchWikiSyncKindLastSynced();
+		Object.entries(WIKI_SYNC_KIND_ELEMENTS).forEach(([kind, ids]) => {
+			const syncedElement = document.getElementById(ids.synced);
+			if (!syncedElement) {
+				return;
+			}
+			const raw = synced ? synced[kind] : null;
+			if (!raw) {
+				return; // never synced -- leave the label hidden (default markup state).
+			}
+			// Reuses the same formatter the fresh-sync path uses (completed_at-shaped input).
+			syncedElement.textContent = formatWikiSyncKindSyncedText({ completed_at: raw });
+			syncedElement.hidden = false;
+		});
+	} catch (error) {
+		console.warn("WikiDump Zuletzt-gesynct-Status konnte nicht geladen werden:", error);
 	}
 }
 
