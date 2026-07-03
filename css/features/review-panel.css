@@ -870,6 +870,8 @@
 	border-bottom: 2px solid transparent;
 	border-radius: 0;
 	background: none;
+	appearance: none;
+	-webkit-appearance: none;
 	color: #8a7355;
 	cursor: pointer;
 	font: inherit;
