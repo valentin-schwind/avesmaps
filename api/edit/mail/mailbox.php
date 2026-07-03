@@ -61,8 +61,14 @@ try {
         imap_close($imap);
     }
 } catch (RuntimeException $e) {
-    // imap_unavailable / imap_not_configured / imap_connect_failed
-    avesmapsErrorResponse(502, 'imap_error', 'Mailbox is not reachable: ' . $e->getMessage());
+    // Surface only the controlled IMAP tokens thrown by the IMAP lib; anything
+    // else reaching here (e.g. PDOException, which extends RuntimeException) must
+    // not leak its message (DSN host / internal config strings).
+    $imapCodes = ['imap_unavailable', 'imap_not_configured', 'imap_connect_failed'];
+    if (in_array($e->getMessage(), $imapCodes, true)) {
+        avesmapsErrorResponse(502, 'imap_error', 'Mailbox is not reachable: ' . $e->getMessage());
+    }
+    avesmapsErrorResponse(500, 'server_error', 'The mailbox request could not be processed.');
 } catch (Throwable $e) {
     avesmapsErrorResponse(500, 'server_error', 'The mailbox request could not be processed.');
 }
