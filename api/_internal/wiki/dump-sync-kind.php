@@ -428,7 +428,7 @@ function avesmapsWikiDumpSettlementCaseRunId(PDO $pdo, int $userId): int
           ORDER BY completed_at DESC, id DESC
           LIMIT 1"
     );
-    $existingStatement->execute(['sync_type' => AVESMAPS_WIKI_SYNC_TYPE_LOCATION]);
+    $existingStatement->execute(['sync_type' => 'location']);
     $existingId = $existingStatement->fetchColumn();
     if ($existingId !== false) {
         return (int) $existingId;
@@ -444,7 +444,7 @@ function avesmapsWikiDumpSettlementCaseRunId(PDO $pdo, int $userId): int
     );
     $statement->execute([
         'public_id' => $publicId,
-        'sync_type' => AVESMAPS_WIKI_SYNC_TYPE_LOCATION,
+        'sync_type' => 'location',
         'status' => 'completed',
         'phase' => 'completed',
         'progress_current' => 4,
