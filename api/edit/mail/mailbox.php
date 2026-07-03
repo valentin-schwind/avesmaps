@@ -44,12 +44,13 @@ try {
 
             $sender = trim((string) ($config['contact']['sender'] ?? $imapCfg['username']));
             $subject = avesmapsMailReplySubject($meta['subject']);
+            $threadRef = avesmapsMailFormatMessageId($meta['messageId']);
             $env = [
                 'from' => $sender, 'fromName' => 'Avesmaps', 'to' => $replyRecipient,
                 'replyTo' => $sender, 'subject' => $subject, 'body' => $bodyText,
                 'headers' => array_filter([
-                    'In-Reply-To' => $meta['messageId'] !== '' ? $meta['messageId'] : null,
-                    'References' => $meta['messageId'] !== '' ? $meta['messageId'] : null,
+                    'In-Reply-To' => $threadRef !== '' ? $threadRef : null,
+                    'References' => $threadRef !== '' ? $threadRef : null,
                 ]),
             ];
             $deliveryStatus = avesmapsSendMailViaSmtp((array) ($config['contact']['smtp'] ?? []), $env);
@@ -59,7 +60,7 @@ try {
                  VALUES (:m, :to, :subj, :body, :editor, :status)'
             );
             $insert->execute([
-                'm' => $meta['messageId'], 'to' => $replyRecipient, 'subj' => $subject,
+                'm' => $meta['messageId'] !== '' ? $meta['messageId'] : null, 'to' => $replyRecipient, 'subj' => $subject,
                 'body' => $bodyText, 'editor' => (string) ($user['username'] ?? ''),
                 'status' => mb_substr($deliveryStatus, 0, 40),
             ]);
@@ -127,6 +128,14 @@ function avesmapsMailReplySubject(string $subject): string {
     return preg_match('/^\s*re:/i', $subject) === 1 ? $subject : 'Re: ' . $subject;
 }
 
+// Normalize a Message-ID to RFC 5322 angle-bracket form for outgoing
+// In-Reply-To / References headers (imap_fetch_overview often yields it bare).
+function avesmapsMailFormatMessageId(string $messageId): string {
+    $messageId = trim($messageId);
+    if ($messageId === '') { return ''; }
+    return '<' . trim($messageId, '<>') . '>';
+}
+
 function avesmapsEnsureMailReplyTable(PDO $pdo): void {
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS mail_reply (
@@ -149,7 +158,7 @@ function avesmapsMailAnsweredMap(PDO $pdo, array $messageIds): array {
     $ids = array_values(array_unique(array_filter($messageIds, static fn($v) => (string) $v !== '')));
     if ($ids === []) { return []; }
     $placeholders = implode(',', array_fill(0, count($ids), '?'));
-    $stmt = $pdo->prepare("SELECT message_id, MAX(id) AS rid FROM mail_reply WHERE message_id IN ($placeholders) GROUP BY message_id");
+    $stmt = $pdo->prepare("SELECT message_id, MAX(id) AS rid FROM mail_reply WHERE message_id IN ($placeholders) AND (delivery_status LIKE 'smtp_sent%' OR delivery_status = 'mail_sent') GROUP BY message_id");
     $stmt->execute($ids);
     $map = [];
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) { $map[(string) $r['message_id']] = (int) $r['rid']; }
@@ -158,7 +167,7 @@ function avesmapsMailAnsweredMap(PDO $pdo, array $messageIds): array {
 
 function avesmapsMailFindReply(PDO $pdo, string $messageId): ?array {
     if (trim($messageId) === '') { return null; }
-    $stmt = $pdo->prepare('SELECT id, to_email, subject, body, sent_at FROM mail_reply WHERE message_id = :m ORDER BY id DESC LIMIT 1');
+    $stmt = $pdo->prepare("SELECT id, to_email, subject, body, sent_at FROM mail_reply WHERE message_id = :m AND (delivery_status LIKE 'smtp_sent%' OR delivery_status = 'mail_sent') ORDER BY id DESC LIMIT 1");
     $stmt->execute(['m' => $messageId]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     return $row === false ? null : $row;
