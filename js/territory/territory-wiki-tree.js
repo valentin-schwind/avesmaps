@@ -543,8 +543,25 @@
 		return { kind: "none", ownAssigned, hasAnyCoverage: false, isComplete: false };
 	}
 
-	function getTreeMapStatus(node) {
-		const status = getTreeCoverageStatus(node);
+	// Coverage-Status pro wiki_key aus dem VOLLSTÄNDIGEN (ungefilterten) Baum vorberechnen. Wird beim
+	// Rendern gefilterter Ansichten (Reiter Alle/Platziert/Fehlt) genutzt, damit der Punkt eines Gebiets
+	// über ALLE echten Kinder aggregiert — nicht nur über die im Filter gerade sichtbaren. Ohne das zeigte
+	// dasselbe Gebiet je Reiter verschiedene Punkte (z. B. "all" in Alle, "none" in Fehlt).
+	function computeCoverageByKey(root) {
+		const byKey = new Map();
+		const visit = (node) => {
+			if (!node) return;
+			if (node.id && node.id !== "root") byKey.set(node.id, getTreeCoverageStatus(node));
+			for (const child of Array.isArray(node.children) ? node.children : []) visit(child);
+		};
+		visit(root);
+		return byKey;
+	}
+
+	function getTreeMapStatus(node, coverageByKey = null) {
+		const status = coverageByKey && typeof coverageByKey.get === "function" && node && coverageByKey.has(node.id)
+			? coverageByKey.get(node.id)
+			: getTreeCoverageStatus(node);
 		if (status.kind === "all") return { kind: "all", label: status.ownAssigned ? "Gebiet und Untergebiete sind auf der Karte vorhanden" : "Alle Untergebiete sind auf der Karte vorhanden" };
 		if (status.kind === "own-only") return { kind: "own-only", label: "Gebiet ist auf der Karte vorhanden, Untergebiete fehlen oder sind nicht vollständig" };
 		if (status.kind === "children-only") return { kind: "children-only", label: "Gebiet ist indirekt durch Untergebiete auf der Karte vorhanden, Untergebiete fehlen oder sind nicht vollständig" };
@@ -633,7 +650,7 @@
 		}
 		const treeRootElement = document.createElement("ul");
 		treeRootElement.className = "tree-root";
-		renderTreeChildren(treeRootElement, root.children, 0, { searchText, selectedNodeId, itemClassName, onItemClick: options.onItemClick, onItemDragStart: options.onItemDragStart, enableDrag: options.enableDrag !== false });
+		renderTreeChildren(treeRootElement, root.children, 0, { searchText, selectedNodeId, itemClassName, onItemClick: options.onItemClick, onItemDragStart: options.onItemDragStart, enableDrag: options.enableDrag !== false, coverageByKey: options.coverageByKey });
 		container.appendChild(treeRootElement);
 		if (infoElement) infoElement.textContent = `${totalRowCount} Knoten · ${root.children.length} Wurzelknoten`;
 	}
@@ -708,7 +725,7 @@
 			}
 			itemElement.appendChild(meta);
 		}
-		const mapStatus = getTreeMapStatus(node);
+		const mapStatus = getTreeMapStatus(node, options.coverageByKey);
 		const mapStatusElement = document.createElement("span");
 		mapStatusElement.className = `tree-map-status tree-map-status--${mapStatus.kind}`;
 		mapStatusElement.title = mapStatus.label;
@@ -934,6 +951,7 @@
 		revealNode,
 		getTreeCoverageStatus,
 		getTreeMapStatus,
+		computeCoverageByKey,
 		isTreeNodeAssignedToMap,
 		isRowAssignedToMap,
 		isSyntheticNode,

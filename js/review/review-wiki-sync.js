@@ -386,6 +386,12 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 						.filter((row) => row && row.continent === "Aventurien")
 				: baseRows;
 		const treeResult = treeModule.buildTree(filteredRows);
+		// Coverage-Status (grüner Punkt) über die VOLLE Basismenge (mapStatus-unabhängig) vorberechnen,
+		// damit ein Gebiet in allen drei Reitern (Alle/Platziert/Fehlt) denselben Punkt zeigt. Ohne das
+		// aggregierte der Punkt nur über die im Reiter sichtbaren Kinder → gleiches Gebiet, andere Farbe.
+		const coverageByKey = typeof treeModule.computeCoverageByKey === "function"
+			? treeModule.computeCoverageByKey(treeModule.buildTree(baseRows).root)
+			: null;
 		// Summary identisch zum Sync-Monitor: alle Knoten gesamt, sichtbare Wurzeln (Aventurien+heute = 53).
 		wikiSyncTerritorySummary = {
 			territory_count: Array.isArray(rows) ? rows.length : 0,
@@ -395,6 +401,7 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 		treeModule.renderTree({
 			container: treeElement,
 			root: treeResult.root,
+			coverageByKey,
 			rowCount: filteredRows.length,
 			totalRowCount: rows.length,
 			searchText: wikiSyncTerritoryFilterQuery,
