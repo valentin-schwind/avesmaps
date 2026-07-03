@@ -741,6 +741,28 @@ function avesmapsWikiDumpHybridUpsertParsedRow(PDO $pdo, array $parsed, ?array $
             break;
 
         case AVESMAPS_WIKI_DUMP_ENTITY_TERRITORY:
+            // Dump-only coat guard (owner rule "gibt es ein wappen, gibt es einen
+            // wappenlink"; mirrors the settlement coat_url COALESCE above). The
+            // normalized territory record ALWAYS carries coat_of_arms_url, and the
+            // dump has NO file-license metadata (I5 -- license comes from the
+            // separate online enrich pass). UpsertTestRecord maps ''->NULL, so an
+            // empty dump coat value here would null a precious staged coat link or
+            // license classification. Drop any empty/whitespace coat key from the
+            // record so the ON DUPLICATE KEY UPDATE leaves the staged value intact.
+            // Never touches the shared parse/normalize/upsert (online crawler reuses
+            // them); a NON-empty coat link still flows through and updates.
+            foreach ([
+                'coat_of_arms_url',
+                'coat_of_arms_license',
+                'coat_of_arms_license_status',
+                'coat_of_arms_author',
+                'coat_of_arms_attribution',
+                'coat_of_arms_license_url',
+            ] as $coatKey) {
+                if (array_key_exists($coatKey, $record) && trim((string) ($record[$coatKey] ?? '')) === '') {
+                    unset($record[$coatKey]);
+                }
+            }
             // Reused sandbox upsert + title->key alias (I7) -- exactly Pass B.
             avesmapsWikiSyncMonitorUpsertTestRecord($pdo, $record);
             $territoryTitle = (string) ($record['title'] ?? ($parsed['title'] ?? ''));
