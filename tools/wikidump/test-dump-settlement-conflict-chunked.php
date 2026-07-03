@@ -67,22 +67,12 @@ require_once $repoRoot . '/api/_internal/wiki/dump-reader.php';
 require_once $repoRoot . '/api/_internal/wiki/dump-entity-scan.php';
 require $repoRoot . '/api/_internal/wiki/dump-sync-kind.php';
 
-// Endpoint-only constants the reused helpers need (defined only in
-// api/edit/wiki/sync.php, which this test never loads). Mirror the SAME values.
-if (!defined('AVESMAPS_WIKI_SYNC_TYPE_LOCATION')) { define('AVESMAPS_WIKI_SYNC_TYPE_LOCATION', 'location'); }
-if (!defined('AVESMAPS_WIKI_FUZZY_CUTOFF')) { define('AVESMAPS_WIKI_FUZZY_CUTOFF', 0.82); }
-if (!defined('AVESMAPS_DEREGLOBUS_TO_MAP')) {
-    define('AVESMAPS_DEREGLOBUS_TO_MAP', [
-        'x_lon' => 30.3257445760, 'x_lat' => 0.0014126835, 'x_offset' => 438.0819758605,
-        'y_lon' => 0.007511999997, 'y_lat' => 33.5769120338, 'y_offset' => -466.8085324960,
-    ]);
-}
-if (!defined('AVESMAPS_POSITIONKARTE_TO_MAP')) {
-    define('AVESMAPS_POSITIONKARTE_TO_MAP', [
-        'x_x' => 2.1490004455, 'x_y' => 0.0010081646, 'x_offset' => 188.8734061695,
-        'y_x' => -0.0024556121, 'y_y' => -2.1502199630, 'y_offset' => 1018.3819994023,
-    ]);
-}
+// Cross-cutting WikiSync constants the reused helpers need. Load the REAL
+// production source (api/_internal/wiki/sync-constants.php) instead of
+// mirroring define() shims -- a shim here previously masked the live gap where
+// api/edit/wiki/dump.php's require graph never defined these (settlement
+// conflict-analysis phase -> HTTP 500).
+require_once $repoRoot . '/api/_internal/wiki/sync-constants.php';
 
 foreach ([
     'avesmapsWikiDumpSettlementConflictsGenerate',

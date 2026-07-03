@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 const AVESMAPS_WIKI_SYNC_NO_AUTO_HANDLE = true;
 
-const AVESMAPS_WIKI_FUZZY_CUTOFF = 0.82;
-const AVESMAPS_WIKI_SYNC_TYPE_LOCATION = 'location';
+// AVESMAPS_WIKI_FUZZY_CUTOFF / AVESMAPS_WIKI_SYNC_TYPE_LOCATION /
+// AVESMAPS_DEREGLOBUS_TO_MAP / AVESMAPS_POSITIONKARTE_TO_MAP moved to
+// _internal/wiki/sync-constants.php so api/edit/wiki/dump.php's settlement
+// conflict-generation path can also require them (it never required this
+// endpoint file). See that file's docblock for the live-500 history.
+require __DIR__ . '/../../_internal/wiki/sync-constants.php';
 
 const AVESMAPS_WIKI_SETTLEMENT_CLASS_LABELS = [
     'dorf' => 'Dorf',
@@ -43,24 +47,6 @@ const AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS = [
 // endpoint. Removing the duplicate here makes locations.php the single source;
 // avesmapsWikiSyncCaseLabel() only reads the const at request time, long after
 // endpoint.php has required locations.php, so this is safe.
-
-const AVESMAPS_DEREGLOBUS_TO_MAP = [
-	'x_lon' => 30.3257445760,
-	'x_lat' => 0.0014126835,
-	'x_offset' => 438.0819758605,
-	'y_lon' => 0.007511999997,
-	'y_lat' => 33.5769120338,
-	'y_offset' => -466.8085324960,
-];
-
-const AVESMAPS_POSITIONKARTE_TO_MAP = [
-	'x_x' => 2.1490004455,
-	'x_y' => 0.0010081646,
-	'x_offset' => 188.8734061695,
-	'y_x' => -0.0024556121,
-	'y_y' => -2.1502199630,
-	'y_offset' => 1018.3819994023,
-];
 
 require __DIR__ . '/../../_internal/wiki/endpoint.php';
 

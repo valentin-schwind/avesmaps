@@ -76,6 +76,13 @@ require __DIR__ . '/../../_internal/wiki/dump-fetch.php';
 // need the full wiki parse chain (the SAME chain dump-hybrid-read.php documents).
 require __DIR__ . '/../../_internal/political/territory.php';
 require __DIR__ . '/../../_internal/wiki/sync.php';
+// Cross-cutting WikiSync constants (fuzzy cutoff, sync-type tag, DereGlobus/
+// Positionskarte coordinate-transform matrices) that were previously declared
+// ONLY inside the api/edit/wiki/sync.php ENDPOINT file (never required here).
+// The settlement conflict-generation phase below (dump-sync-kind.php ->
+// locations-helpers.php) reads them -> live "Undefined constant" fatal ->
+// caught -> HTTP 500. See sync-constants.php's docblock.
+require __DIR__ . '/../../_internal/wiki/sync-constants.php';
 require __DIR__ . '/../../_internal/wiki/sync-monitor.php';
 require __DIR__ . '/../../_internal/wiki/territories-tree.php';
 require __DIR__ . '/../../_internal/wiki/territories-parsing.php';

@@ -380,7 +380,14 @@
 .wiki-sync-kind-sync-status {
 	flex: 1 1 100% !important;
 	width: 100% !important;
-	margin: 0 10px 4px !important;
+	/* Match the central dump status line's (#wiki-sync-dump-status) spacing: that
+	   element is plain .wiki-sync-panel__summary with NO margin of its own (its
+	   spacing comes purely from its .wiki-sync-dump-central parent's padding).
+	   Zero out the margin here too instead of the previous 10px/4px offset, so the
+	   per-tab "Syncen läuft … x/y" / "Konfliktanalyse läuft …" line sits flush like
+	   the central "Phase X/6: …" line; the row's own .wiki-sync-panel__actions
+	   gap:8px still separates it from the button/progress bar above it. */
+	margin: 0 !important;
 }
 
 .wiki-sync-panel__summary {

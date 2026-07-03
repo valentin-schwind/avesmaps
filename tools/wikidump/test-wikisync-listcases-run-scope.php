@@ -48,9 +48,11 @@ require_once $repoRoot . '/api/_internal/wiki/sync.php';
 require_once $repoRoot . '/api/_internal/wiki/settlements.php';
 require_once $repoRoot . '/api/_internal/wiki/locations.php';
 
-// Endpoint-only constant the reader reads at request time (defined in
-// api/edit/wiki/sync.php in production; mirror the value here).
-if (!defined('AVESMAPS_WIKI_SYNC_TYPE_LOCATION')) { define('AVESMAPS_WIKI_SYNC_TYPE_LOCATION', 'location'); }
+// AVESMAPS_WIKI_SYNC_TYPE_LOCATION the reader reads at request time. Load the
+// REAL production source (not a mirrored define() shim) so this test exercises
+// the same constant production does -- a shim here previously masked the live
+// gap where api/edit/wiki/dump.php's require graph never defined it (500).
+require_once $repoRoot . '/api/_internal/wiki/sync-constants.php';
 
 foreach (['avesmapsWikiSyncFetchLatestCompletedRun', 'avesmapsWikiSyncListCases'] as $fn) {
     if (!function_exists($fn)) {
