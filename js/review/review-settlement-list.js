@@ -349,17 +349,72 @@ document.addEventListener("input", (event) => {
 let settlementDragTitle = "";
 let settlementDragClass = "";
 let settlementMapDropReady = false;
-// Set at drop time (same value as settlementDragTitle, captured just before that var is
-// cleared) so handleLocationEditFormSubmit (review-editor-submit.js) can auto-fire the
-// SAME assign_to action the manual "Zuweisen" button uses once the new feature has a
-// public_id -- fixes the drop-a-wiki-settlement flow opening "Siedlung bearbeiten"
-// unlinked, requiring a manual 2nd-step "Zuweisen" click. Only ever set from THIS
-// drag-and-drop list (draggable items here are always wiki-only settlement-registry rows,
-// see avesmapsWikiSettlementListLocations -- draggable=!on_map is exclusively the wiki
-// registry loop), so a non-empty value here is a reliable "this is a known wiki
-// settlement" guard. Read-and-cleared by review-editor-submit.js; stays "" for every
-// other way of creating a location (never mis-fires on a map-only place).
-let settlementPendingWikiAssignTitle = "";
+
+// Drop a known wiki settlement onto the map: CREATE the point feature and ASSIGN the wiki
+// link BEFORE opening "Siedlung bearbeiten", so the dialog opens already linked and shows
+// the "Wiki-Siedlung" reference immediately -- no more blank-on-open + manual "Zuweisen"
+// 2nd step, and no post-save auto-assign either (single write, not two). Reuses the exact
+// same actions the manual flow uses (create_point via submitMapFeatureEdit, then assign_to
+// via settlementWikiPost -- the same call selectSettlementWikiResult makes); no new
+// assignment mechanism. On any failure (duplicate name, network, assign error) falls back
+// to opening the dialog pre-filled but unlinked, same as before this change, so the drop
+// still lets the user create the location manually.
+async function createAndAssignDraggedSettlement(latlng, presetName, presetType) {
+	const fallbackToPresetDialog = () => {
+		if (typeof openLocationEditDialog === "function") {
+			openLocationEditDialog({ latlng, presetName, presetLocationType: presetType || "dorf" });
+		}
+	};
+
+	let feature;
+	try {
+		const createResult = await submitMapFeatureEdit({
+			action: "create_point",
+			name: presetName,
+			feature_subtype: presetType || "dorf",
+			description: "",
+			wiki_url: "",
+			is_nodix: false,
+			is_ruined: false,
+			lat: latlng.lat,
+			lng: latlng.lng,
+		});
+		feature = createResult?.feature;
+	} catch (error) {
+		console.error("Siedlung konnte nicht angelegt werden:", error);
+		showFeedbackToast?.("Siedlung konnte nicht angelegt werden: " + (error.message || error), "warning");
+		fallbackToPresetDialog();
+		return;
+	}
+	if (!feature || !feature.public_id) {
+		fallbackToPresetDialog();
+		return;
+	}
+
+	try {
+		const assignResult = await settlementWikiPost({ action: "assign_to", title: presetName, public_id: feature.public_id, dry_run: false, confirm: "apply" });
+		if (assignResult && assignResult.ok === true) {
+			feature = { ...feature, wiki_settlement: assignResult.settlement || null, revision: assignResult.revision || feature.revision };
+			if (assignResult.settlement) {
+				feature.description = "";
+			}
+		} else {
+			showFeedbackToast?.("Wiki-Siedlung „" + presetName + "\" konnte nicht automatisch zugewiesen werden: " + apiErrorMessage(assignResult, ""), "warning");
+		}
+	} catch (error) {
+		console.error("Wiki-Siedlung konnte nicht automatisch zugewiesen werden:", error);
+		showFeedbackToast?.("Wiki-Siedlung konnte nicht automatisch zugewiesen werden: " + (error.message || error), "warning");
+	}
+
+	addCreatedLocationMarker(feature, { openPopup: false });
+	if (typeof refreshActiveWikiSyncPanelAfterAssignment === "function") {
+		void refreshActiveWikiSyncPanelAfterAssignment();
+	}
+	const markerEntry = typeof findLocationMarkerByPublicId === "function" ? findLocationMarkerByPublicId(feature.public_id) : null;
+	if (typeof openLocationEditDialog === "function") {
+		openLocationEditDialog({ markerEntry, latlng });
+	}
+}
 
 function ensureSettlementMapDropTarget() {
 	if (settlementMapDropReady || typeof map === "undefined" || !map || typeof map.getContainer !== "function") {
@@ -383,13 +438,8 @@ function ensureSettlementMapDropTarget() {
 		const presetType = settlementDragClass;
 		settlementDragTitle = "";
 		settlementDragClass = "";
-		// Remember the wiki title for the auto-assign follow-up once the dialog's
-		// create_point save returns a public_id (see review-editor-submit.js).
-		settlementPendingWikiAssignTitle = presetName;
 		const latlng = map.mouseEventToLatLng(event);
-		if (typeof openLocationEditDialog === "function") {
-			openLocationEditDialog({ latlng, presetName, presetLocationType: presetType || "dorf" });
-		}
+		void createAndAssignDraggedSettlement(latlng, presetName, presetType);
 	});
 	settlementMapDropReady = true;
 }
