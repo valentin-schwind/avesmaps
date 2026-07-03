@@ -643,12 +643,16 @@ async function startWikiSyncDumpRead() {
 // response's `run` (completed_at, falling back to updated_at).
 // ===========================================================================
 
-// Static per-kind DOM wiring: button + progress + status ids, and the tab's kind.
+// Static per-kind DOM wiring: button + progress + status + synced ids, and the tab's kind.
+// `status` is the TRANSIENT "Syncen läuft … x/y" line (visible only while a sync is
+// actively running, alongside `progress`); `synced` is the PERSISTENT "Zuletzt gesynct:
+// <date>" label next to the button (mirrors the central block's #wiki-sync-dump-fetched-status,
+// stays visible once known instead of hiding with the transient run status).
 const WIKI_SYNC_KIND_ELEMENTS = {
-	settlement: { button: "wiki-sync-sync-settlement", progress: "wiki-sync-sync-settlement-progress", status: "wiki-sync-sync-settlement-status" },
-	path: { button: "wiki-sync-sync-path", progress: "wiki-sync-sync-path-progress", status: "wiki-sync-sync-path-status" },
-	region: { button: "wiki-sync-sync-region", progress: "wiki-sync-sync-region-progress", status: "wiki-sync-sync-region-status" },
-	territory: { button: "wiki-sync-sync-territory", progress: "wiki-sync-sync-territory-progress", status: "wiki-sync-sync-territory-status" },
+	settlement: { button: "wiki-sync-sync-settlement", progress: "wiki-sync-sync-settlement-progress", status: "wiki-sync-sync-settlement-status", synced: "wiki-sync-sync-settlement-synced" },
+	path: { button: "wiki-sync-sync-path", progress: "wiki-sync-sync-path-progress", status: "wiki-sync-sync-path-status", synced: "wiki-sync-sync-path-synced" },
+	region: { button: "wiki-sync-sync-region", progress: "wiki-sync-sync-region-progress", status: "wiki-sync-sync-region-status", synced: "wiki-sync-sync-region-synced" },
+	territory: { button: "wiki-sync-sync-territory", progress: "wiki-sync-sync-territory-progress", status: "wiki-sync-sync-territory-status", synced: "wiki-sync-sync-territory-synced" },
 };
 
 // Only one kind syncs at a time (they share the single-flight dump pipeline lock
@@ -709,9 +713,33 @@ function renderWikiSyncKindProgress(kind, progress, done, run, phase = "staging"
 	}
 	const progressElement = document.getElementById(ids.progress);
 	const statusElement = document.getElementById(ids.status);
+	const syncedElement = document.getElementById(ids.synced);
 
 	const processed = Number(progress?.processed ?? 0);
 	const total = Number(progress?.total ?? 0);
+
+	if (done) {
+		// Idle again: hide the transient bar + "läuft …" status (fix: they used to stay
+		// full-green/visible forever after a sync finished). The persistent "Zuletzt
+		// gesynct" label next to the button takes over instead, mirroring the central
+		// "Dump holen" block's #wiki-sync-dump-fetched-status.
+		if (progressElement) {
+			progressElement.hidden = true;
+			progressElement.value = 0;
+		}
+		if (statusElement) {
+			statusElement.hidden = true;
+			statusElement.textContent = "";
+			delete statusElement.dataset.tone;
+		}
+		if (syncedElement) {
+			syncedElement.hidden = false;
+			syncedElement.textContent = formatWikiSyncKindSyncedText(run);
+		}
+		return;
+	}
+
+	// Actively running: show the bar + transient status, same as before.
 	if (progressElement) {
 		progressElement.hidden = false;
 		progressElement.max = Number.isFinite(total) && total > 0 ? total : 1;
@@ -721,10 +749,7 @@ function renderWikiSyncKindProgress(kind, progress, done, run, phase = "staging"
 		statusElement.hidden = false;
 		// A fresh progress render means the step SUCCEEDED, so drop any prior error tone.
 		delete statusElement.dataset.tone;
-		if (done) {
-			// On done show the "Zuletzt gesynct" date; append post-action notes if any.
-			statusElement.textContent = formatWikiSyncKindSyncedText(run);
-		} else if (phase === "conflict_gen") {
+		if (phase === "conflict_gen") {
 			// The chunked settlement conflict-generation phase (after staging drained).
 			statusElement.textContent = total > 0 ? `Konfliktanalyse läuft … ${processed}/${total}` : "Konfliktanalyse läuft …";
 		} else {

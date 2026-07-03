@@ -369,25 +369,31 @@
 	margin-bottom: 4px;
 }
 
-/* Per-tab "Syncen" progress bar + status: sit next to the button instead of wrapping
-   to their own full-width row (reuses the dump progress-bar look via .wiki-sync-progress). */
+/* Per-tab "Syncen" progress bar + transient "läuft …" status: both are direct children
+   of the COLUMN-flex .wiki-sync-panel__tab-panel.is-active (NOT flex items of the
+   .wiki-sync-panel__actions row), so `flex-basis` here sets a HEIGHT, not a width.
+   flex: 0 0 auto pins each to its natural (slim) height so it can never grow to fill
+   the column's leftover vertical space -- that growth used to render the bar as a huge
+   full-width/full-height green block while a sync was running (and, once finished,
+   left a big empty-looking gap before the "Konfliktlösung" accordion below it). Both
+   are hidden while idle and shown ONLY while a sync is actively running
+   (js/review/review-wiki-sync.js renderWikiSyncKindProgress); the horizontal 10px
+   margin matches the accordion/filter rows below since there is no wrapping padded
+   container here (unlike .wiki-sync-dump-central for the central block's bar). */
 .wiki-sync-kind-sync-progress {
-	flex: 1 1 140px !important;
+	flex: 0 0 auto !important;
 	width: auto !important;
-	margin: 0 !important;
+	margin: 0 10px 4px !important;
 }
 
 .wiki-sync-kind-sync-status {
-	flex: 1 1 100% !important;
-	width: 100% !important;
-	/* Match the central dump status line's (#wiki-sync-dump-status) spacing: that
-	   element is plain .wiki-sync-panel__summary with NO margin of its own (its
-	   spacing comes purely from its .wiki-sync-dump-central parent's padding).
-	   Zero out the margin here too instead of the previous 10px/4px offset, so the
-	   per-tab "Syncen läuft … x/y" / "Konfliktanalyse läuft …" line sits flush like
-	   the central "Phase X/6: …" line; the row's own .wiki-sync-panel__actions
-	   gap:8px still separates it from the button/progress bar above it. */
-	margin: 0 !important;
+	flex: 0 0 auto !important;
+	width: auto !important;
+	/* Same "no extra vertical margin" spacing as the central dump status line
+	   (#wiki-sync-dump-status, plain .wiki-sync-panel__summary with zero margin of its
+	   own) so the per-tab "Syncen läuft … x/y" / "Konfliktanalyse läuft …" line sits
+	   flush under the progress bar like the central "Phase X/6: …" line does. */
+	margin: 0 10px 8px !important;
 }
 
 .wiki-sync-panel__summary {
@@ -397,6 +403,14 @@
 	font-weight: 700;
 	line-height: 1.25;
 	overflow-wrap: anywhere;
+}
+
+/* Case-counter/data-summary line that now sits BELOW the Syncen-button-and-date row
+   (row 1 = button + "Zuletzt gesynct", row 2 = this). flex: 0 0 auto so it never grows
+   to fill the column-flex tab-panel's leftover space (same fix as the progress bar). */
+.wiki-sync-panel__row-summary {
+	flex: 0 0 auto;
+	margin: -4px 10px 8px;
 }
 
 .wiki-sync-panel__filter {

@@ -331,11 +331,12 @@
 
 				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="paths">
 						<div class="wiki-sync-panel__actions">
-							<span id="path-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
 							<button id="wiki-sync-sync-path" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Wege aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen).">🚨 Syncen</button>
-								<progress id="wiki-sync-sync-path-progress" class="wiki-sync-progress wiki-sync-kind-sync-progress" max="1" value="0" hidden></progress>
-								<p id="wiki-sync-sync-path-status" class="wiki-sync-panel__summary wiki-sync-kind-sync-status" role="status" aria-live="polite" hidden></p>
+							<span id="wiki-sync-sync-path-synced" class="wiki-sync-panel__summary" hidden></span>
 						</div>
+							<progress id="wiki-sync-sync-path-progress" class="wiki-sync-progress wiki-sync-kind-sync-progress" max="1" value="0" hidden></progress>
+							<p id="wiki-sync-sync-path-status" class="wiki-sync-panel__summary wiki-sync-kind-sync-status" role="status" aria-live="polite" hidden></p>
+							<span id="path-sync-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Keine Daten geladen</span>
 						<div class="wiki-sync-panel__filter">
 							<input id="path-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Wege suchen ..." aria-label="Wege durchsuchen" />
 								<div class="type-filter"><button type="button" id="path-type-filter-toggle" class="type-filter__toggle">Typ ▾</button><div id="path-type-filter-menu" class="type-filter__menu" hidden></div></div><div class="type-filter"><button type="button" id="path-continent-filter-toggle" class="type-filter__toggle">Kontinent ▾</button><div id="path-continent-filter-menu" class="type-filter__menu" hidden></div></div>
@@ -345,11 +346,12 @@
 					</div>
 						<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="regions">
 						<div class="wiki-sync-panel__actions">
-							<span id="region-sync-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
 								<button id="wiki-sync-sync-region" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Regionen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen).">🚨 Syncen</button>
-									<progress id="wiki-sync-sync-region-progress" class="wiki-sync-progress wiki-sync-kind-sync-progress" max="1" value="0" hidden></progress>
-									<p id="wiki-sync-sync-region-status" class="wiki-sync-panel__summary wiki-sync-kind-sync-status" role="status" aria-live="polite" hidden></p>
+								<span id="wiki-sync-sync-region-synced" class="wiki-sync-panel__summary" hidden></span>
 						</div>
+								<progress id="wiki-sync-sync-region-progress" class="wiki-sync-progress wiki-sync-kind-sync-progress" max="1" value="0" hidden></progress>
+								<p id="wiki-sync-sync-region-status" class="wiki-sync-panel__summary wiki-sync-kind-sync-status" role="status" aria-live="polite" hidden></p>
+								<span id="region-sync-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Keine Daten geladen</span>
 						<div class="wiki-sync-panel__filter">
 							<input id="region-sync-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Regionen suchen ..." aria-label="Regionen durchsuchen" />
 							<div class="type-filter"><button type="button" id="region-type-filter-toggle" class="type-filter__toggle">Typ ▾</button><div id="region-type-filter-menu" class="type-filter__menu" hidden></div></div><div class="type-filter"><button type="button" id="region-continent-filter-toggle" class="type-filter__toggle">Kontinent ▾</button><div id="region-continent-filter-menu" class="type-filter__menu" hidden></div></div>
@@ -360,12 +362,13 @@
 
 					<div class="wiki-sync-panel__tab-panel is-active" data-wiki-sync-panel-section="locations">
 					<div class="wiki-sync-panel__actions">
-						<span id="wiki-sync-locations-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
 						<button id="wiki-sync-sync-settlement" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Siedlungen aus dem zuletzt gelesenen Dump in die Staging-Tabellen (Wave 2 Syncen).">🚨 Syncen</button>
+						<span id="wiki-sync-sync-settlement-synced" class="wiki-sync-panel__summary" hidden></span>
 					</div>
 					<progress id="wiki-sync-progress" class="wiki-sync-progress" max="5" value="0" hidden></progress>
 					<progress id="wiki-sync-sync-settlement-progress" class="wiki-sync-progress wiki-sync-kind-sync-progress" max="1" value="0" hidden></progress>
 					<p id="wiki-sync-sync-settlement-status" class="wiki-sync-panel__summary wiki-sync-kind-sync-status" role="status" aria-live="polite" hidden></p>
+					<span id="wiki-sync-locations-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Keine Daten geladen</span>
 						<details class="wiki-sync-accordion" id="wiki-sync-cases-accordion">
 						<summary class="wiki-sync-accordion__summary">Konfliktl&ouml;sung</summary>
 						<div class="wiki-sync-accordion__body">
@@ -384,8 +387,6 @@
 						</details>
 
 						<div class="wiki-sync-locations-section">
-							<div class="wiki-sync-locations-section__head">
-																																															</div>
 							<div class="wiki-sync-panel__filter wiki-sync-locations-filterbar">
 								<input id="settlement-list-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Siedlung suchen ..." aria-label="Siedlungen durchsuchen" />
 								<div class="type-filter"><button type="button" id="settlement-type-filter-toggle" class="type-filter__toggle">Typ ▾</button><div id="settlement-type-filter-menu" class="type-filter__menu" hidden></div></div><div class="type-filter"><button type="button" id="settlement-continent-filter-toggle" class="type-filter__toggle">Kontinent ▾</button><div id="settlement-continent-filter-menu" class="type-filter__menu" hidden></div></div>
@@ -397,13 +398,16 @@
 
 				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="territories">
 					<div class="wiki-sync-panel__actions">
-						<span id="wiki-sync-territories-summary" class="wiki-sync-panel__summary">Keine Daten geladen</span>
 						<button id="wiki-sync-sync-territory" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Herrschaftsgebiete aus dem zuletzt gelesenen Dump in die Sandbox-/Staging-Tabellen und baut das Modell neu (Wave 2 Syncen).">🚨 Syncen</button>
-						<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button">WikiSync &amp; Editor</button>
+						<span id="wiki-sync-sync-territory-synced" class="wiki-sync-panel__summary" hidden></span>
 					</div>
 					<progress id="wiki-sync-territories-progress" class="wiki-sync-progress" max="1" value="0" hidden></progress>
 					<progress id="wiki-sync-sync-territory-progress" class="wiki-sync-progress wiki-sync-kind-sync-progress" max="1" value="0" hidden></progress>
 					<p id="wiki-sync-sync-territory-status" class="wiki-sync-panel__summary wiki-sync-kind-sync-status" role="status" aria-live="polite" hidden></p>
+					<div class="wiki-sync-panel__actions">
+						<span id="wiki-sync-territories-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Keine Daten geladen</span>
+						<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button">WikiSync &amp; Editor</button>
+					</div>
 
 					<div class="wiki-sync-panel__filter">
 						<input id="wiki-sync-territory-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="Herrschaftsgebiete durchsuchen" />
