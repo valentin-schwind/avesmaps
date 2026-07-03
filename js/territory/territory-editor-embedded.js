@@ -130,7 +130,8 @@
 			geometryDatabaseInfo: document.getElementById("geometryDatabaseInfo"),
 			treeTimeFrom: document.getElementById("treeTimeFrom"),
 			treeTimeTo: document.getElementById("treeTimeTo"),
-			treeTimeToday: document.getElementById("treeTimeToday")
+			treeTimeToday: document.getElementById("treeTimeToday"),
+			treeFlaechenland: document.getElementById("treeFlaechenland")
 		};
 
 		function ensureInheritOpacityButton(referenceButton) {
@@ -162,6 +163,7 @@
 		els.statusFilter.addEventListener("change", render);
 		if (els.treeTimeFrom) els.treeTimeFrom.addEventListener("input", render);
 		if (els.treeTimeTo) els.treeTimeTo.addEventListener("input", render);
+		if (els.treeFlaechenland) els.treeFlaechenland.addEventListener("change", render);
 		if (els.treeTimeToday) els.treeTimeToday.addEventListener("change", () => {
 			const today = els.treeTimeToday.checked;
 			if (els.treeTimeFrom) els.treeTimeFrom.disabled = today;
@@ -2142,6 +2144,7 @@
 			const continent = els.continentFilter.value;
 			const type = els.typeFilter.value;
 			const status = normalizeText(els.statusFilter.value).toLowerCase();
+			const flaechenlaenderOnly = Boolean(els.treeFlaechenland && els.treeFlaechenland.checked);
 			const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
 			const timeFilter = (treeModule && typeof treeModule.readTimeFilter === "function")
 				? treeModule.readTimeFilter(els.treeTimeFrom, els.treeTimeTo, els.treeTimeToday)
@@ -2150,6 +2153,8 @@
 			return allRows.filter(row => {
 				if (timeFilter && treeModule && typeof treeModule.doesRowMatchTimeFilter === "function"
 					&& !treeModule.doesRowMatchTimeFilter(row, timeFilter)) return false;
+				if (flaechenlaenderOnly && treeModule && typeof treeModule.isFlaechenlandRow === "function"
+					&& !treeModule.isFlaechenlandRow(row)) return false;
 				if (continent && row.continent !== continent) return false;
 				if (type && row.type !== type) return false;
 				if (status) {

@@ -258,6 +258,9 @@ $("#wiki-sync-territory-time-today").on("change", function () {
     if (toInput) toInput.disabled = today;
     void renderWikiSyncTerritoryTree();
 });
+$("#wiki-sync-territory-flaechenland").on("change", function () {
+    void renderWikiSyncTerritoryTree();
+});
 $("#wiki-sync-case-list").on("click", "[data-wiki-sync-action]", handleWikiSyncCaseActionClick);
 $("#wiki-sync-resolve-close, #wiki-sync-resolve-cancel").on("click", () => setWikiSyncResolveDialogOpen(false, { resetForm: true }));
 $("#wiki-sync-preset-wiki").on("click", () => applyWikiSyncResolvePreset("wiki"));

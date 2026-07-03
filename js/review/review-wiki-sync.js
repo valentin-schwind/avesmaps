@@ -282,6 +282,13 @@ function getWikiSyncTerritoryTimeFilter() {
 	);
 }
 
+// Liest die „nur Flächenländer"-Checkbox: promotete Siedlungen (Reichsstadt/Freie Stadt/Stadtstaat)
+// ausblenden. Default aus (alle zeigen).
+function getWikiSyncTerritoryFlaechenlandOnly() {
+	const checkbox = document.getElementById("wiki-sync-territory-flaechenland");
+	return Boolean(checkbox && checkbox.checked);
+}
+
 async function loadWikiSyncTerritoryTreeRows({ forceReload = false } = {}) {
 	const treeModule = window.AvesmapsPoliticalTerritoryWikiTree;
 	if (!treeModule || typeof treeModule.fetchRows !== "function" || typeof treeModule.buildTree !== "function") {
@@ -363,9 +370,10 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 		const rows = await loadWikiSyncTerritoryTreeRows({ forceReload });
 		const search = getWikiSyncTerritoryFilterQuery();
 		const time = getWikiSyncTerritoryTimeFilter();
-		// Basismenge (Such-/Zeitfilter, ohne Karten-Status) — Grundlage für die Tab-Zähler.
+		const flaechenlaenderOnly = getWikiSyncTerritoryFlaechenlandOnly();
+		// Basismenge (Such-/Zeit-/Flächenland-Filter, ohne Karten-Status) — Grundlage für die Tab-Zähler.
 		const baseRows = treeModule
-			.filterRows(rows, { search, time })
+			.filterRows(rows, { search, time, flaechenlaenderOnly })
 			.filter((row) => row && row.continent === "Aventurien");
 		const isPlaced =
 			typeof treeModule.isRowAssignedToMap === "function"
@@ -382,7 +390,7 @@ async function renderWikiSyncTerritoryTree({ forceReload = false } = {}) {
 		const filteredRows =
 			wikiSyncTerritoryMapStatus === "placed" || wikiSyncTerritoryMapStatus === "missing"
 				? treeModule
-						.filterRows(rows, { search, time, mapStatus: wikiSyncTerritoryMapStatus })
+						.filterRows(rows, { search, time, flaechenlaenderOnly, mapStatus: wikiSyncTerritoryMapStatus })
 						.filter((row) => row && row.continent === "Aventurien")
 				: baseRows;
 		const treeResult = treeModule.buildTree(filteredRows);

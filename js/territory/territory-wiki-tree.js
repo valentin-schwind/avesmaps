@@ -499,6 +499,17 @@
 		return Boolean(row && row.map_assigned) || Number((row && row.map_geometry_count) || 0) > 0;
 	}
 
+	// „Nur Flächenländer": promotete Siedlungen (Reichsstadt/Freie Stadt/eigenständige Stadt)
+	// sind zwar korrekt Territorien in den Daten, aber KEINE Flächenländer (Reiche/Grafschaften/
+	// Baronien). Der Parser markiert sie über source_origin. HIER ausblenden bedeutet: Zeilen mit
+	// source_origin in {reichsstadt, freiestadt, siedlung} verstecken; alles andere (staat, eigene
+	// Knoten, unbekannt/leer) gilt als Flächenland. Rein optischer Filter, keine Datenänderung.
+	const PROMOTED_SETTLEMENT_ORIGINS = new Set(["reichsstadt", "freiestadt", "siedlung"]);
+	function isFlaechenlandRow(row) {
+		const origin = normalizeText(row && row.source_origin).toLowerCase();
+		return !PROMOTED_SETTLEMENT_ORIGINS.has(origin);
+	}
+
 	function filterRows(rows, filters = {}) {
 		const allRows = Array.isArray(rows) ? rows : [];
 		const search = normalizeText(filters.search || filters.query || "").toLowerCase();
@@ -515,6 +526,13 @@
 		if (mapStatus === "placed" || mapStatus === "missing") {
 			const wantPlaced = mapStatus === "placed";
 			matched = matched.filter((row) => isRowAssignedToMap(row) === wantPlaced);
+			needsAncestorExpansion = true;
+		}
+		// „Nur Flächenländer": promotete Siedlungen (Reichsstadt/Freie Stadt/Stadtstaat) ausblenden.
+		// Vorfahren bleiben erhalten, damit das Ausblenden einer promoteten Blatt-Siedlung nie einen
+		// echten Eltern-Pfad verwaist (gleiche Ancestor-Erhaltung wie beim Karten-Status-Filter).
+		if (filters.flaechenlaenderOnly === true) {
+			matched = matched.filter((row) => isFlaechenlandRow(row));
 			needsAncestorExpansion = true;
 		}
 		return needsAncestorExpansion ? expandRowsWithAncestors(matched) : matched;
@@ -954,6 +972,7 @@
 		computeCoverageByKey,
 		isTreeNodeAssignedToMap,
 		isRowAssignedToMap,
+		isFlaechenlandRow,
 		isSyntheticNode,
 		getNodePath,
 		createNodeReference,
