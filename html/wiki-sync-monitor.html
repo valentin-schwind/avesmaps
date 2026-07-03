@@ -30,11 +30,7 @@
   .timefilter { font-size:12px; color:var(--mut); display:flex; align-items:center; gap:5px; }
   .timefilter input[type=number] { width:62px; }
   .timefilter input:disabled { opacity:.4; }
-  #seedDD > summary { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; min-height:48px; line-height:1.15; gap:1px; position:relative; padding-right:22px; }
-  #seedDD > summary .t1 { font-size:13px; font-weight:bold; }
-  #seedDD > summary .t2 { font-size:10px; color:var(--mut); }
-  #seedDD > summary::after { position:absolute; right:9px; top:50%; transform:translateY(-50%); margin:0; }
-  textarea { width:100%; height:54px; background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:6px; font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; resize:vertical; }
+  textarea {width:100%; height:54px; background:var(--soft); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:6px; font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; resize:vertical; }
   #status { padding:6px 14px; color:var(--mut); border-bottom:1px solid var(--line); white-space:nowrap; display:flex; align-items:center; gap:14px; }
   .cols { display:flex; flex:1 1 auto; min-height:0; }
   .col { flex:1; overflow:hidden; padding:8px; display:flex; flex-direction:column; min-height:0; }
@@ -192,11 +188,7 @@
 <body>
 <header>
   <div class="controls">
-    <details id="seedDD" class="dd">
-      <summary title="Aus welchen Wiki-Kategorien und Typ-Listen die Herrschaftsgebiete gezogen werden"><span class="t1">Wiki-Quelle</span><span class="t2" id="seedCount">—</span></summary>
-      <div class="dd-menu" id="seedMenu"></div>
-    </details>
-    <button class="btn2 primary" id="btnCrawl"><span class="t1">🚨 Sync starten</span><span class="t2" id="stSync">—</span></button>
+    <button class="btn2 primary" id="btnCrawl" title="Übernimmt die Herrschaftsgebiete aus dem geholten Offline-Dump ins Staging und baut die Hierarchie neu (läuft in Schüben)."><span class="t1">🚨 Syncen</span><span class="t2" id="stSync">—</span></button>
     <button class="btn2" id="btnModel" title="Berechnet die Hierarchie aus dem Staging neu (Locks + Aussortiert bleiben erhalten)"><span class="t1">Hierarchie</span><span class="t2" id="stModel">—</span></button>
     <button class="btn2" id="btnDiff" title="Vergleicht Staging gegen das aktuelle Wiki: gelöscht / geändert / neu"><span class="t1">Unterschiede</span><span class="t2" id="stDiff">—</span></button>
     <button class="btn2" id="btnCache" title="Testweise zeigen, was die Übertragung nach Avesmaps ändern würde – schreibt nichts"><span class="t1">Test</span><span class="t2" id="stTest">—</span></button>
@@ -311,30 +303,15 @@
 </div>
 <script>
 const API = '/api/edit/wiki/sync-monitor.php';
-const DEFAULT_SEEDS = [
-  'Kategorie:Staat','Kategorie:Provinz','Kategorie:Anspruchsgebiet','Kategorie:Bund','Kategorie:Kirchenprovinz','Kategorie:Kolonie',
-  'Baronie/Liste','Emirat/Liste','Freie Stadt/Liste','Freiherrschaft/Liste','Fürstentum/Liste','Grafschaft/Liste','Herzogtum/Liste','Jarltum/Liste',
-  'Kaiserreich/Liste','Königreich/Liste','Markgrafschaft/Liste','Pfalzgrafschaft/Liste','Reichsmark/Liste','Reichsstadt/Liste',
-  'Republik/Liste','Shîkanydad/Liste','Staat/Liste','Sultanat/Liste'
-];
+// Offline-Dump endpoint (api/edit/wiki/dump.php). "Syncen" drives its sync_kind
+// action (kind=territory) in a client cursor loop, replacing the old online crawl.
+// Same origin + same 'edit' capability as sync-monitor.php, so the session cookie
+// carries the auth (no extra token). Mirrors runWikiSyncKindSyncLoop in review-wiki-sync.js.
+const DUMP_API = '/api/edit/wiki/dump.php';
 const $ = (id) => document.getElementById(id);
 let NODES = [], BYKEY = new Map();
 let unassignedGeoms = [];   // verwaiste Geometrien (keinem aktiven Gebiet zugewiesen) – gelistete (ggf. gedeckelt)
 let unassignedGeomCount = 0; // server-gezählte Gesamtzahl (autoritativ für Zähler + „Alle löschen")
-
-// --- Seed-Dropdown („Was synchronisieren?") ---
-function buildSeedMenu(){
-  const cats = DEFAULT_SEEDS.filter(s=>s.startsWith('Kategorie:'));
-  const lists = DEFAULT_SEEDS.filter(s=>!s.startsWith('Kategorie:'));
-  const row = (s)=>`<label><input type="checkbox" class="seedck" value="${esc(s)}" checked> ${esc(s)}</label>`;
-  $('seedMenu').innerHTML =
-    `<div class="ddtools"><a data-seed-all="1">Alle</a><a data-seed-none="1">Keine</a></div>`
-    + `<div class="grp">Kategorien (vollständige Buckets)</div>` + cats.map(row).join('')
-    + `<div class="grp">Listen (ergänzend)</div>` + lists.map(row).join('');
-  updateSeedCount();
-}
-function selectedSeeds(){ return [...document.querySelectorAll('.seedck:checked')].map(c=>c.value); }
-function updateSeedCount(){ const n=selectedSeeds().length, t=DEFAULT_SEEDS.length; $('seedCount').textContent = n===t?`alle ${t} Quellen`:`${n} von ${t} Quellen`; }
 
 // --- Kontinente-Dropdown (Filter für beide Listen) ---
 let contSel = null;   // null = noch nicht initialisiert
@@ -379,25 +356,69 @@ async function api(action, opts={}) {
 function setStatus(msg) { $('statusText').textContent = msg; }
 function busy(on) { $('busy').textContent = on ? '⏳ läuft…' : ''; document.querySelectorAll('header button').forEach(b=>b.disabled=on); }
 
+// Direct call to the offline-dump endpoint (api/edit/wiki/dump.php). The editor's
+// own api() helper targets sync-monitor.php and reads a FLAT error string; the dump
+// endpoint speaks the gold envelope { ok, error:{ code, message } }, so it needs its
+// own reader. Same-origin POST with the shared session cookie (credentials:'same-origin')
+// -- dump.php requires the same 'edit' capability the page already holds, so no token.
+// Tags the thrown Error with dumpLocked / dumpUnauthorized, mirroring
+// submitWikiSyncDumpAction in js/app/api-client.js.
+async function dumpApi(action, body={}) {
+  const r = await fetch(DUMP_API, {
+    method:'POST',
+    credentials:'same-origin',
+    headers:{'Content-Type':'application/json','Accept':'application/json'},
+    body: JSON.stringify(Object.assign({action}, body))
+  });
+  const t = await r.text();
+  let j; try { j = t ? JSON.parse(t) : {}; } catch(e) { throw new Error('Ungültige Antwort: '+t.slice(0,200)); }
+  if (!r.ok || j.ok !== true) {
+    const msg = (j && j.error && typeof j.error === 'object') ? (j.error.message || j.error.code) : (j && typeof j.error === 'string' ? j.error : null);
+    const err = new Error(msg || ('HTTP '+r.status));
+    err.dumpLocked = r.status === 409 && j?.error?.code === 'dump_locked';
+    err.dumpUnauthorized = r.status === 401 && j?.error?.code === 'dump_unauthorized';
+    throw err;
+  }
+  return j;
+}
+
+// "Syncen": take the Herrschaftsgebiete out of the freshly-fetched OFFLINE dump into
+// staging (kind=territory) via dump.php's sync_kind action, driven as a one-POST-per-step
+// cursor loop (mirrors runWikiSyncKindSyncLoop). This REPLACES the old online start_run +
+// crawl_step crawler. kind=territory has NO conflict_gen phase, so only `cursor`/`done`
+// matter; on staging-drain the backend rebuilds wiki_territory_model ONCE (same as the
+// "Hierarchie" step), so no explicit rebuild is needed here. STRATO: never a server-side
+// loop -- each step is a single bounded request, bounded by a generous step ceiling.
 async function runCrawl() {
-  const seeds = selectedSeeds();
-  if (!seeds.length) { setStatus('Bitte oben unter „Was synchronisieren?" mindestens eine Quelle auswählen.'); return; }
   busy(true);
   try {
-    const start = await api('start_run', {method:'POST', body:{seeds}});
-    const run = start.run_id;
-    setStatus(`Sync ${run.slice(0,8)} gestartet: ${start.seeded} Quellen. Lade Wiki (inkl. Wappen-Lizenzen)…`);
-    let guard = 0;
-    while (guard++ < 400) {
-      const step = await api('crawl_step', {method:'POST', body:{run_id:run, options:{batch_limit:40, step_runtime:20, sleep_ms:120}}});
-      const s = step.status;
-      $('stSync').textContent = `läuft… offen ${s.pending}, Seiten ${s.by_role.page||0}`;
-      setStatus(`Sync ${run.slice(0,8)}: offen ${s.pending}, fertig ${s.done}, Seiten ${s.by_role.page||0}, gespeichert ${step.stored}, Fehler ${s.error}`);
-      if ((s.pending||0) === 0) break;
+    let cursor = 0, done = false, steps = 0, lastRun = null;
+    const MAX_STEPS = 4000;   // generous ceiling; still bounds a backend bug
+    setStatus('Syncen aus dem Dump gestartet (Herrschaftsgebiete → Staging)…');
+    $('stSync').textContent = 'Syncen …';
+    while (!done) {
+      if (steps++ > MAX_STEPS) throw new Error('Syncen nach zu vielen Teilschritten angehalten.');
+      let step;
+      try {
+        step = await dumpApi('sync_kind', {kind:'territory', cursor});
+      } catch(e) {
+        if (e.dumpLocked) { setStatus('Ein anderer Nutzer synchronisiert gerade den Dump – bitte warten.'); break; }
+        throw e;   // dump absent (dumpUnauthorized) or session/other error -> surfaced below
+      }
+      cursor = Number(step.cursor ?? cursor);
+      done = step.done === true;
+      lastRun = step.run || lastRun;
+      const p = step.progress || {};
+      const processed = Number(p.processed ?? 0), total = Number(p.total ?? 0);
+      const frac = total > 0 ? ` ${processed}/${total}` : '';
+      $('stSync').textContent = done ? 'Sync fertig' : `Syncen …${frac}`;
+      setStatus(done ? 'Syncen fertig.' : `Syncen aus dem Dump …${frac}`);
     }
-    await loadModel();
-    await loadEditorState();
-    setStatus('Sync fertig. „Hierarchie ableiten" klicken, um die Hierarchie zu aktualisieren.');
+    if (done) {
+      await loadModel();
+      await loadEditorState();
+      setStatus('Syncen fertig. Die Hierarchie wurde aus dem Dump neu berechnet.');
+    }
   } catch(e) { setStatus('Fehler: '+e.message); }
   busy(false);
 }
@@ -1018,7 +1039,7 @@ document.addEventListener('click', e => {
   if(el) selectKey(el.dataset.key);               // Klick = auswählen -> Detail-Panel
 });
 
-$('btnCrawl').onclick = () => { if (window.confirm("Sync wirklich starten? Das crawlt + synchronisiert die Herrschaftsgebiete neu (läuft im Hintergrund).")) runCrawl(); };
+$('btnCrawl').onclick = () => { if (window.confirm("Syncen wirklich starten? Das übernimmt die Herrschaftsgebiete aus dem geholten Offline-Dump ins Staging und baut die Hierarchie neu (läuft in Schüben).")) runCrawl(); };
 $('btnModel').onclick = async()=>{ busy(true); try{ const r=await api('rebuild_model',{method:'POST'}); setStatus(`Hierarchie: ${r.summary.total} Knoten, ${r.summary.resolved_parents} Eltern aufgelöst, ${r.summary.gap_parents} Lücken, ${r.summary.roots} Wurzeln.`); await loadModel(); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnDiff').onclick = async()=>{ busy(true); try{ const d=await api('diff'); setStatus(`Unterschiede (Staging vs Wiki): neu ${d.new}, verschwunden ${d.disappeared}, geändert ${d.changed}.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
 $('btnCache').onclick = async()=>{ busy(true); try{ const c=await api('sync_parent_cache',{method:'POST',body:{}}); setStatus(`Testübertragung: auffüllbar ${c.fillable}, deckungsgleich ${c.already_aligned}, divergent ${c.divergent_existing} – es wurde nichts geschrieben.`); await loadEditorState(); }catch(e){setStatus('Fehler: '+e.message);} busy(false); };
@@ -1085,12 +1106,6 @@ $('timeRightToday').onchange = ()=>applyTime('timeRight', rightTime, renderTree)
 $('timeRightFrom').oninput = ()=>applyTime('timeRight', rightTime, renderTree);
 $('timeRightTo').oninput = ()=>applyTime('timeRight', rightTime, renderTree);
 
-// Seed-Dropdown
-$('seedMenu').addEventListener('click', e=>{
-  if(e.target.matches('[data-seed-all]')){ document.querySelectorAll('.seedck').forEach(c=>c.checked=true); updateSeedCount(); }
-  else if(e.target.matches('[data-seed-none]')){ document.querySelectorAll('.seedck').forEach(c=>c.checked=false); updateSeedCount(); }
-});
-$('seedMenu').addEventListener('change', e=>{ if(e.target.matches('.seedck')) updateSeedCount(); });
 // Kontinente-Dropdown
 $('contMenu').addEventListener('click', e=>{
   if(e.target.matches('[data-cont-all]')){ document.querySelectorAll('.contck').forEach(c=>c.checked=true); applyCont(); }
@@ -1294,7 +1309,6 @@ $('geomModal').addEventListener('click', e=>{ if(e.target.id==='geomModal') $('g
 $('geomPurgeAll').onclick = purgeAllGeoms;
 $('geomList').addEventListener('click', e=>{ const b=e.target.closest('[data-geomdel]'); if(b){ deleteGeom(b.dataset.geomdel); } });
 
-buildSeedMenu();
 updateFilterInfo();
 loadModel().then(()=>{
   // Deep-Link vom Territoriumseditor („Im Wiki-Sync bearbeiten"): ?key=wiki:xxx vorselektieren.
