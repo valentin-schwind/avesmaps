@@ -152,7 +152,7 @@ function avesmapsVisitorReadMetrics(PDO $pdo, string $actorType, int $days): arr
     return [
         'daily' => $daily->fetchAll(PDO::FETCH_ASSOC),
         'heatmap' => $heat->fetchAll(PDO::FETCH_ASSOC),
-        'search' => $top('search', 3),
+        'search' => $top('search', 1),
         'referrer' => $top('referrer', 1),
         'device' => $top('device', 1),
         'map_mode' => $top('map_mode', 1),
