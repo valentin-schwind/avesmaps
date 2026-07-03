@@ -36,6 +36,7 @@
 		<link rel="stylesheet" href="css/components/visitor-analytics.css" />
 		<link rel="stylesheet" href="css/styles.css?v=20260610-metropole-case" />
 		<link rel="stylesheet" href="css/features/loading-bar.css" />
+		<link rel="stylesheet" href="css/features/mail-inbox.css" />
 		<script type="application/ld+json">
 {
 	"@context": "https://schema.org",
@@ -293,6 +294,7 @@
 				<nav class="wiki-sync-panel__tabs" aria-label="Meldungen-Bereiche">
 					<button class="wiki-sync-panel__tab is-active" type="button" data-review-subtab="reports">Community Meldungen</button>
 					<button class="wiki-sync-panel__tab" type="button" data-review-subtab="ratings">Bewertungen</button>
+					<button class="wiki-sync-panel__tab" type="button" data-review-subtab="mails">Mails</button>
 				</nav>
 				<div class="wiki-sync-panel__tab-panel is-active" data-review-subtab-section="reports">
 					<p id="review-panel-status" class="review-panel__status" role="status" aria-live="polite">Meldungen werden geladen...</p>
@@ -301,6 +303,20 @@
 				<div class="wiki-sync-panel__tab-panel" data-review-subtab-section="ratings">
 					<p id="review-ratings-status" class="review-panel__status" role="status" aria-live="polite">Bewertungen werden geladen...</p>
 					<div id="review-ratings-list" class="review-panel__list review-panel__list--ratings"></div>
+				</div>
+				<div class="wiki-sync-panel__tab-panel" data-review-subtab-section="mails">
+					<nav class="mail-inbox__tabs" aria-label="Mail-Bereiche">
+						<button class="status-subtab is-active" type="button" data-mail-tab="empfangen">Empfangen</button>
+						<button class="status-subtab" type="button" data-mail-tab="gesendet">Gesendet</button>
+						<button id="mail-refresh" class="mail-inbox__refresh" type="button" title="Aktualisieren" aria-label="Aktualisieren">↻</button>
+					</nav>
+					<div class="mail-inbox__pane is-active" data-mail-pane="empfangen">
+						<div id="mail-inbox-list" class="mail-inbox__list" aria-live="polite"></div>
+						<div id="mail-inbox-detail" class="mail-inbox__detail" hidden></div>
+					</div>
+					<div class="mail-inbox__pane" data-mail-pane="gesendet">
+						<div id="mail-sent-list" class="mail-inbox__list" aria-live="polite"></div>
+					</div>
 				</div>
 			</section>
 			<section class="review-panel__section" data-editor-panel-section="changes">
@@ -398,16 +414,10 @@
 
 				<div class="wiki-sync-panel__tab-panel" data-wiki-sync-panel-section="territories">
 					<div class="wiki-sync-panel__actions">
-						<button id="wiki-sync-sync-territory" class="wiki-sync-panel__start wiki-sync-kind-sync" type="button" title="Übernimmt die Herrschaftsgebiete aus dem zuletzt gelesenen Dump in die Sandbox-/Staging-Tabellen und baut das Modell neu (Wave 2 Syncen).">🚨 Syncen</button>
-						<span id="wiki-sync-sync-territory-synced" class="wiki-sync-panel__summary" hidden></span>
-					</div>
-					<progress id="wiki-sync-territories-progress" class="wiki-sync-progress" max="1" value="0" hidden></progress>
-					<progress id="wiki-sync-sync-territory-progress" class="wiki-sync-progress wiki-sync-kind-sync-progress" max="1" value="0" hidden></progress>
-					<p id="wiki-sync-sync-territory-status" class="wiki-sync-panel__summary wiki-sync-kind-sync-status" role="status" aria-live="polite" hidden></p>
-					<div class="wiki-sync-panel__actions">
-						<span id="wiki-sync-territories-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Keine Daten geladen</span>
 						<button id="wiki-sync-territories" class="wiki-sync-panel__start" type="button">WikiSync &amp; Editor</button>
 					</div>
+					<progress id="wiki-sync-territories-progress" class="wiki-sync-progress" max="1" value="0" hidden></progress>
+					<span id="wiki-sync-territories-summary" class="wiki-sync-panel__summary wiki-sync-panel__row-summary">Keine Daten geladen</span>
 
 					<div class="wiki-sync-panel__filter">
 						<input id="wiki-sync-territory-filter" class="wiki-sync-panel__filter-input" type="search" placeholder="Suchen ..." aria-label="Herrschaftsgebiete durchsuchen" />
@@ -1390,6 +1400,7 @@
 		<script src="js/ui/spotlight-search.js"></script>
 		<script src="js/ui/spotlight-search-focus.js"></script>
 		<script src="js/app/bootstrap.js"></script>
+		<script src="js/review/review-mail.js"></script>
 		<script src="js/app/perf-trace.js"></script>
 		<script src="js/ui/route-planner-toggle.js"></script>
 	</body>
