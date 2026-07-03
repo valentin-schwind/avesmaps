@@ -397,9 +397,13 @@ $check('(C5) exact matches total = 1 (only Ferdok)', 1, $report['section_c_total
 $check('(C6) the report carries the tuned coord-drift threshold in its header', AVESMAPS_WIKIDUMP_DRYRUN_COORD_DRIFT_UNITS,
     $report['header']['coord_drift_threshold_units'],
     'the threshold is surfaced so the owner sees which value produced the counts');
-$check('(C7) all 10 case types are present in section A (even at 0)', 10,
+$check('(C7) all 11 labelled case types are present in section A (even at 0)', 11,
     count($report['section_a_case_types']['by_type']),
-    'the report always shows the full 10-type shape (8 original + field_divergence + coat_available) so a 0 is visible, not omitted');
+    'the report shows every AVESMAPS_WIKI_CASE_LABELS type so a 0 is visible, not omitted. '
+    . 'The dry-run library is UNCHANGED; the count grew from 10 to 11 because the SHARP '
+    . 'settlement sync (dump-sync-kind.php) registered a "coordinate_drift" label in the '
+    . 'shared table. The dry-run never EMITS coordinate_drift (it folds coordinates into '
+    . 'field_divergence), so it simply reports a coordinate_drift:0 bucket here -- harmless.');
 
 // ===========================================================================
 // (D) PROMOTED dump-only case types: field_divergence + coat_available.

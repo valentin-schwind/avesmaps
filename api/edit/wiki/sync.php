@@ -34,16 +34,15 @@ const AVESMAPS_WIKI_LOCATION_SUBTYPE_LABELS = [
     'metropole' => 'Metropole',
 ];
 
-const AVESMAPS_WIKI_CASE_LABELS = [
-    'canonical_name_difference' => 'Abweichende Benennung',
-    'type_conflict' => 'Typkonflikte',
-    "probable_match" => "Unaufgel\u{00F6}st, aber mit wahrscheinlichem Match",
-    "unresolved_without_candidate" => "Unaufgel\u{00F6}st, ohne Match",
-    'duplicate_avesmaps_name' => 'Dubletten in Avesmaps',
-    'duplicate_wiki_title' => 'Mehrere Avesmaps-Namen zeigen auf denselben Wiki-Titel',
-    'missing_wiki_with_coordinates' => 'Fehlende Wiki-Orte mit Koordinaten',
-    'missing_wiki_without_coordinates' => 'Fehlende Wiki-Orte ohne nutzbare Koordinaten',
-];
+// AVESMAPS_WIKI_CASE_LABELS is defined ONCE, in api/_internal/wiki/locations.php
+// (required below via endpoint.php). This endpoint used to declare its OWN copy
+// here; because both were file-scope `const` (which cannot be defined()-guarded)
+// and this file is included FIRST, this copy silently WON the redeclare and the
+// newer WikiDump labels added in locations.php (field_divergence / coat_available
+// / coordinate_drift) never reached avesmapsWikiSyncCaseLabel() -> the cases-list
+// endpoint. Removing the duplicate here makes locations.php the single source;
+// avesmapsWikiSyncCaseLabel() only reads the const at request time, long after
+// endpoint.php has required locations.php, so this is safe.
 
 const AVESMAPS_DEREGLOBUS_TO_MAP = [
 	'x_lon' => 30.3257445760,

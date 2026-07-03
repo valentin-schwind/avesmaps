@@ -29,6 +29,18 @@ declare(strict_types=1);
  *        -> THE SHARP PATH: runs the parse_and_upsert phase with dryRun=FALSE
  *           (the sole real *_staging write). A SEPARATE action the owner triggers
  *           ONLY after the H5 compare-test is green (progress.md GATE WIRING).
+ *   POST { "action": "sync_kind", "kind": "path"|"region"|"settlement"|"territory", "cursor"?: int }
+ *        -> WAVE 1 "Syncen": reads the newest COMPLETED dump_read run's sandbox
+ *           rows FILTERED to `kind` and upserts them into the matching STAGING
+ *           table via the SAME per-kind upserts the sharp apply path uses (so a
+ *           settlement->territory promotion still dual-writes). Client-loopable
+ *           like read_step; returns
+ *           { run, kind, cursor, done, progress:{processed,total} }. On done:
+ *           kind=territory ALSO rebuilds wiki_territory_model (preserving
+ *           parent_locked/overrides); kind=settlement ALSO writes the settlement
+ *           conflict cases (post_actions.settlement_cases:{stored,run_id,by_type}).
+ *           STAGING-ONLY (+ model / wiki_sync_cases): never map_features, never
+ *           live political_territory. Holds the pipeline lock; releases on done.
  *   POST { "action": "cleanup_state" }
  *        -> "Dump holen" step 3/3: deletes every dump_read run's sandbox rows
  *           from wiki_dump_hybrid_state/wiki_dump_title_alias EXCEPT the newest
@@ -70,6 +82,12 @@ require __DIR__ . '/../../_internal/wiki/dump-entity-scan.php';
 require __DIR__ . '/../../_internal/wiki/dump-hybrid-state.php';
 require __DIR__ . '/../../_internal/wiki/dump-hybrid-read.php';
 require __DIR__ . '/../../_internal/wiki/dump-hybrid-driver.php';
+// Per-kind "Syncen" step + SHARP settlement-conflict generation (Wave 1). Reads
+// the newest completed dump_read run's sandbox rows FILTERED to one kind and
+// re-upserts them via the SAME per-kind upserts the sharp apply path uses;
+// settlements ALSO get their conflict cases written. STAGING-only (+ territory
+// model / wiki_sync_cases) -- never map_features or live political_territory.
+require __DIR__ . '/../../_internal/wiki/dump-sync-kind.php';
 // Single-flight concurrency lock (DB-persisted): serializes the WHOLE dump
 // pipeline (fetch_dump/start_read/read_step/apply/cleanup_state) so only ONE
 // runs at a time across ALL editors. See avesmapsWikiDumpLock* in dump-lock.php.
@@ -288,6 +306,87 @@ try {
                 'cursor' => $applyResult['cursor'],
                 'done' => $applyResult['done'],
                 'progress' => $applyResult['progress'],
+            ]);
+            // no break -- avesmapsJsonResponse exits.
+
+        case 'sync_kind':
+            // WAVE 1 per-kind "Syncen" step. Reads the newest COMPLETED dump_read
+            // run's sandbox rows FILTERED to `kind` and upserts them into STAGING
+            // via the SAME sharp per-kind upserts the apply path uses. Client-driven
+            // loop, so it ALSO holds the lock: acquire-or-throw on every step
+            // (heartbeat + concurrency gate). This is a REAL staging write, so a
+            // second concurrent editor is rejected (409) -- two concurrent per-kind
+            // syncs would ON DUPLICATE KEY UPDATE the run_id-less staging tables and
+            // silently mix snapshots, the same hazard apply guards against.
+            $syncKind = avesmapsNormalizeSingleLine((string) ($payload['kind'] ?? ''), 40);
+            if (!in_array($syncKind, AVESMAPS_WIKI_DUMP_SYNC_KINDS, true)) {
+                avesmapsErrorResponse(400, 'invalid_request', 'Unknown or missing sync kind (path|region|settlement|territory).');
+            }
+            avesmapsWikiDumpLockAcquireOrThrow($pdo, $lockUserId, $lockUsername, 'sync_' . $syncKind);
+            $lockHeldByThisRequest = true;
+
+            // Resolve the sandbox run (newest completed dump_read run) + its int id.
+            $syncRunId = avesmapsWikiDumpSyncKindResolveDumpRunId($pdo);
+            $syncCursor = (int) ($payload['cursor'] ?? 0);
+            $syncEntityKinds = avesmapsWikiDumpSyncKindEntityKinds($syncKind);
+            $syncTotal = avesmapsWikiDumpSyncKindCountRows($pdo, $syncRunId, $syncEntityKinds);
+
+            $syncStep = avesmapsWikiDumpSyncKindStep($pdo, $syncRunId, $syncKind, $syncCursor);
+
+            // Post-actions run ONCE, when the kind's filled set is drained (done):
+            //   territory  -> rebuild the sandbox territory model (parent_conflict
+            //                 refreshed; parent_locked/overrides PRESERVED, I4).
+            //   settlement -> write the settlement conflict cases (the sharp
+            //                 classifier; wiki_sync_cases only).
+            $syncPostActions = [];
+            if (($syncStep['done'] ?? false) === true) {
+                if ($syncKind === 'territory') {
+                    $rebuild = avesmapsWikiSyncMonitorRebuildModel($pdo);
+                    $rebuildSummary = is_array($rebuild['summary'] ?? null) ? $rebuild['summary'] : [];
+                    $syncPostActions['territory_model'] = [
+                        'rebuilt' => true,
+                        'nodes' => (int) ($rebuildSummary['total'] ?? 0),
+                    ];
+                } elseif ($syncKind === 'settlement') {
+                    $cases = avesmapsWikiDumpSettlementConflictsGenerate($pdo, null, $lockUserId);
+                    $syncPostActions['settlement_cases'] = [
+                        'stored' => (int) ($cases['stored'] ?? 0),
+                        'run_id' => (int) ($cases['run_id'] ?? 0),
+                        'by_type' => $cases['by_type'] ?? [],
+                    ];
+                }
+            }
+
+            // Refresh the heartbeat so the (possibly slow) post-action does not make
+            // this hold look stale to a stale-takeover; release on done (this per-kind
+            // sync is a self-contained chain, like apply).
+            avesmapsWikiDumpLockHeartbeat($pdo, $lockUserId, 'sync_' . $syncKind);
+            if (($syncStep['done'] ?? false) === true) {
+                avesmapsWikiDumpLockRelease($pdo, $lockUserId);
+                $lockHeldByThisRequest = false;
+            }
+
+            // Accurate processed count (rows of this kind with id <= the new cursor;
+            // the cursor is a row id, not a count, and ids interleave across kinds).
+            $syncNextCursor = (int) ($syncStep['nextCursor'] ?? $syncCursor);
+            $syncProcessed = ($syncStep['done'] ?? false) === true
+                ? $syncTotal
+                : avesmapsWikiDumpSyncKindCountRows($pdo, $syncRunId, $syncEntityKinds, $syncNextCursor);
+
+            $syncRunRow = avesmapsWikiDumpSyncKindFetchRunById($pdo, $syncRunId);
+            avesmapsJsonResponse(200, [
+                'ok' => true,
+                'run' => $syncRunRow !== null ? avesmapsWikiSyncPublicRun($syncRunRow) : null,
+                'kind' => $syncKind,
+                'cursor' => $syncNextCursor,
+                'done' => (bool) ($syncStep['done'] ?? false),
+                'progress' => [
+                    'processed' => $syncProcessed,
+                    'kept_this_step' => (int) ($syncStep['kept'] ?? 0),
+                    'processed_this_step' => (int) ($syncStep['processed_this_step'] ?? 0),
+                    'total' => $syncTotal,
+                ],
+                'post_actions' => $syncPostActions,
             ]);
             // no break -- avesmapsJsonResponse exits.
 
