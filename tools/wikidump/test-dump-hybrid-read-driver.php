@@ -670,13 +670,13 @@ $check(
     '(c-continent-3) a 7000-title list (350 batches) resumes across MULTIPLE steps, never all-in-one-call',
     true,
     $continentSteps > 1 && $continentDone,
-    "took {$continentSteps} bounded steps (budget=" . AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET . " calls/step) to finish 350 batches -- the pre-fix code (callBudget=null) would have done this in exactly 1 step / 1 call to this fetcher"
+    "took {$continentSteps} bounded steps (budget=" . AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET . " calls/step) to finish 140 batches -- the pre-fix code (callBudget=null) would have done this in exactly 1 step / 1 call to this fetcher"
 );
 $check(
-    '(c-continent-4) every step stayed within its call budget (no step attempted all ~350 batches)',
+    '(c-continent-4) every step stayed within its call budget (no step attempted all ~140 batches)',
     true,
-    $callsMadeTotal <= $continentSteps * AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET && $callsMadeTotal === 350,
-    "{$callsMadeTotal} total fetcher calls across {$continentSteps} steps for 350 batches -- confirms the budget bounds EVERY step, not just the first"
+    $callsMadeTotal <= $continentSteps * AVESMAPS_WIKI_DUMP_CONTINENT_MAP_STEP_CALL_BUDGET && $callsMadeTotal === 140,
+    "{$callsMadeTotal} total fetcher calls across {$continentSteps} steps for 140 batches -- confirms the budget bounds EVERY step, not just the first"
 );
 
 // ===========================================================================

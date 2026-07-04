@@ -648,6 +648,9 @@ async function startWikiSyncDumpRead() {
 	if (isWikiSyncDumpRunning) {
 		return;
 	}
+	if (!window.confirm("Dump holen lädt den kompletten Wiki-Dump neu und holt Weiterleitungen + Kontinente online — das dauert einige Minuten. Jetzt starten?")) {
+		return;
+	}
 	isWikiSyncDumpRunning = true;
 
 	try {
