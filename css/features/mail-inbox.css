@@ -1,5 +1,7 @@
-.mail-inbox__tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; border-bottom: 1px solid #e7d8c6; padding: 4px 12px 0; }
-.mail-inbox__refresh { margin-left: auto; border: 0; background: none; color: #8a7355; cursor: pointer; font-size: 16px; line-height: 1; padding: 4px; appearance: none; -webkit-appearance: none; }
+/* The Mails inner-tab row reuses the shared .status-subtabs styling (review-panel.css)
+   so it stays in lockstep with the sibling sub-tab rows; only the ↻ refresh icon is
+   mail-specific here (align-self keeps it centered since .status-subtabs uses stretch). */
+.mail-inbox__refresh { margin-left: auto; align-self: center; border: 0; background: none; color: #8a7355; cursor: pointer; font-size: 16px; line-height: 1; padding: 4px; appearance: none; -webkit-appearance: none; }
 .mail-inbox__refresh:hover { color: #5a4a3a; }
 .mail-inbox__pane { display: none; padding: 8px 12px 12px; }
 .mail-inbox__pane.is-active { display: block; }
