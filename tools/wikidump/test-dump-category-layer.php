@@ -326,14 +326,24 @@ $check(
 // ===========================================================================
 echo "\n-- (d) resumable cursor (outer fetch, fake batch fetcher, no HTTP) --\n";
 
-// 45 mock titles. Inject a fake "fetch one batch of prop=categories pages" callable so this
-// stays 100% HTTP-free -- it never calls avesmapsWikiSyncApiRequest or
-// avesmapsWikiSyncFetchPagesByRequestedTitle. Every returned page is a plain "Aventurien" page
-// (no continent-signal categories) so the assembled continent values are not the point of this
-// sub-test -- only the cursor/budget bookkeeping is.
-$title45 = [];
-for ($i = 1; $i <= 45; $i++) {
-    $title45[] = "Titel {$i}";
+// Mock titles for the cursor/budget bookkeeping. Inject a fake "fetch one batch of
+// prop=categories pages" callable so this stays 100% HTTP-free -- it never calls
+// avesmapsWikiSyncApiRequest or avesmapsWikiSyncFetchPagesByRequestedTitle. Every returned page
+// is a plain "Aventurien" page (no continent-signal categories) so the assembled continent
+// values are not the point of this sub-test -- only the cursor/budget bookkeeping is.
+//
+// BATCH-AGNOSTIC FIXTURE: the fixture size is DERIVED from AVESMAPS_WIKI_TITLE_BATCH_SIZE so this
+// sub-test exercises the SAME multi-batch behaviour at any batch size (it was originally a fixed
+// 45 titles hand-sized for batch=20; the constant has since moved to 50). We pick
+// 2.5 * batch, rounding the half down, so the list always spans exactly THREE batches with a
+// PARTIAL last batch: e.g. batch=20 -> 50 (20,20,10); batch=50 -> 125 (50,50,25). This preserves
+// the original intent of (d3) not-done-after-one-batch, (d5) one-batch map coverage, and (d8)
+// multi-batch resume, none of which hold if the whole list fits one batch.
+$batchSize = AVESMAPS_WIKI_TITLE_BATCH_SIZE;
+$titleCount = $batchSize * 2 + intdiv($batchSize, 2); // 2.5 batches, half rounded down -> partial last batch
+$mockTitles = [];
+for ($i = 1; $i <= $titleCount; $i++) {
+    $mockTitles[] = "Titel {$i}";
 }
 $batchCallLog = [];
 $fakeBatchFetcher = static function (array $batchTitles) use (&$batchCallLog): array {
@@ -345,36 +355,35 @@ $fakeBatchFetcher = static function (array $batchTitles) use (&$batchCallLog): a
     return $pages;
 };
 
-// NOTE ON THE EXPECTED CURSOR VALUES BELOW (documented discrepancy vs. the H1 brief):
-// The brief's test section states (verbatim): "a 45-title list with callBudget=1 (batch 20)
-// returns nextCursor=40, done=false". With AVESMAPS_WIKI_TITLE_BATCH_SIZE=20 (sync.php:8) and
-// "stop after $callBudget API calls" (brief's own builder contract, one bullet above), 1 API
-// call processes exactly ONE batch of 20 titles, so the mathematically consistent result is
-// nextCursor=20, NOT 40 (that would require 2 API calls under a budget of 1, contradicting the
-// "stop after $callBudget calls" rule in the same section). This looks like an arithmetic slip
-// in the brief's own example (40 = 2x20, as if callBudget=1 meant "2 batches"). Per the escalate
-// clause ("if anything in the brief is ambiguous... STOP and report"), this is flagged in the H1
-// report rather than silently special-cased into the implementation. The test below asserts the
-// INTERNALLY CONSISTENT behaviour (budget=1 -> exactly 1 batch -> cursor=20), which is what the
-// shipped avesmapsWikiDumpCategoryFetchContinentMap() actually does.
-$batch1 = avesmapsWikiDumpCategoryFetchContinentMap($title45, 0, 1, $fakeBatchFetcher);
+// Helper: the sorted map keys the harness expects after processing $mockTitles[$from .. $to).
+// (sort() is lexicographic, matching how each assertion sorts the actual keys before comparing.)
+$expectedSortedTitleKeys = static function (int $from, int $to) use ($mockTitles): array {
+    $slice = array_slice($mockTitles, $from, $to - $from);
+    sort($slice);
+    return $slice;
+};
+
+// One API call spends exactly ONE batch (the builder's "stop after $callBudget API calls"
+// contract), so budget=1 from cursor=0 consumes exactly min($batchSize, $titleCount) titles.
+$firstBatchLen = min($batchSize, $titleCount);
+$batch1 = avesmapsWikiDumpCategoryFetchContinentMap($mockTitles, 0, 1, $fakeBatchFetcher);
 $check(
-    '(d1) callBudget=1, batch 20: exactly 1 API call made',
+    '(d1) callBudget=1: exactly 1 API call made',
     1,
     count($batchCallLog),
     'the fetcher must stop after spending exactly $callBudget API calls'
 );
 $check(
-    '(d2) callBudget=1, batch 20: nextCursor=20 (1 batch of 20 consumed)',
-    20,
+    '(d2) callBudget=1: nextCursor = one AVESMAPS_WIKI_TITLE_BATCH_SIZE batch consumed',
+    $firstBatchLen,
     $batch1['nextCursor'],
-    '20 titles = AVESMAPS_WIKI_TITLE_BATCH_SIZE consumed by the single permitted API call (see NOTE above re: brief\'s literal "40")'
+    'min(AVESMAPS_WIKI_TITLE_BATCH_SIZE, count) titles consumed by the single permitted API call'
 );
 $check(
-    '(d3) callBudget=1, batch 20: done=false (25 titles remain)',
+    '(d3) callBudget=1: done=false (later batches still remain)',
     false,
     $batch1['done'],
-    'cursor (20) < count($titles) (45) -> not done yet'
+    'cursor (one batch) < count($titles) -> not done yet (fixture is >1 batch by construction)'
 );
 $check(
     '(d4) result carries a map key too',
@@ -386,50 +395,54 @@ $batch1MapKeys = array_keys($batch1['map']);
 sort($batch1MapKeys);
 $check(
     '(d5) map covers exactly the titles processed in this call',
-    ['Titel 1', 'Titel 10', 'Titel 11', 'Titel 12', 'Titel 13', 'Titel 14', 'Titel 15', 'Titel 16', 'Titel 17', 'Titel 18', 'Titel 19', 'Titel 2', 'Titel 20', 'Titel 3', 'Titel 4', 'Titel 5', 'Titel 6', 'Titel 7', 'Titel 8', 'Titel 9'],
+    $expectedSortedTitleKeys(0, $firstBatchLen),
     $batch1MapKeys,
-    'exactly the 20 titles from this batch appear as map keys'
+    'exactly the titles from this one batch appear as map keys'
 );
 
-// Second call resumes from nextCursor=20 with enough budget to finish the remaining 25 titles
-// (2 more batches: 20 -> 40, then 40 -> 45).
+// Second call resumes from nextCursor=$firstBatchLen with enough budget to finish the rest.
+// Remaining titles span ceil((count - firstBatch) / batch) further batches.
+$remainingAfterFirst = $titleCount - $firstBatchLen;
+$expectedResumeBatches = (int) ceil($remainingAfterFirst / $batchSize);
 $batchCallLog = [];
-$batch2 = avesmapsWikiDumpCategoryFetchContinentMap($title45, $batch1['nextCursor'], 5, $fakeBatchFetcher);
+$batch2 = avesmapsWikiDumpCategoryFetchContinentMap($mockTitles, $batch1['nextCursor'], $expectedResumeBatches + 3, $fakeBatchFetcher);
 $check(
-    '(d6) resuming from cursor=20 with budget=5: done=true (all 45 covered)',
+    '(d6) resuming from one batch in with ample budget: done=true (all covered)',
     true,
     $batch2['done'],
-    'cursor reaches count($titles)=45 within the given budget -> done'
+    'cursor reaches count($titles) within the given budget -> done'
 );
 $check(
-    '(d7) resuming from cursor=20: nextCursor=45 (end of list)',
-    45,
+    '(d7) resuming: nextCursor caps at count($titles) (end of list)',
+    $titleCount,
     $batch2['nextCursor'],
     'nextCursor caps at count($titles) once the last batch is consumed'
 );
 $check(
-    '(d8) resuming from cursor=20: only 2 more API calls needed (25 titles / 20 batch = 2 batches)',
-    2,
+    '(d8) resuming: only ceil(remaining / batch) more API calls needed',
+    $expectedResumeBatches,
     count($batchCallLog),
-    'ceil(25/20)=2 batches to cover titles 21..45, well within budget=5 -> stops early, not at the budget ceiling'
+    'ceil(remaining/AVESMAPS_WIKI_TITLE_BATCH_SIZE) batches cover the rest, within the ample budget -> stops early, not at the budget ceiling'
 );
 
-// Also verify the brief's OWN second-call claim independently of the disputed first-call cursor:
-// "a second call from 40 returns done=true" -- resuming from a literal cursor=40 (5 titles left)
-// must finish in exactly 1 more batch and report done=true, regardless of how cursor=40 was reached.
+// Also verify the last-batch claim independently: resuming from a cursor positioned INSIDE the
+// final (partial) batch -- i.e. fewer than $batchSize titles remain -- must finish in exactly ONE
+// more batch and report done=true, regardless of how that cursor was reached. This is the
+// batch-agnostic analogue of the brief's literal "a second call from 40 returns done=true".
+$lastBatchCursor = $batchSize * 2; // start of the partial 3rd batch; ($titleCount - it) < $batchSize remain
 $batchCallLog = [];
-$batchFrom40 = avesmapsWikiDumpCategoryFetchContinentMap($title45, 40, 1, $fakeBatchFetcher);
+$batchLast = avesmapsWikiDumpCategoryFetchContinentMap($mockTitles, $lastBatchCursor, 1, $fakeBatchFetcher);
 $check(
-    '(d9) brief\'s literal claim: resuming from cursor=40 with budget=1 -> done=true',
+    '(d9) resuming inside the final partial batch with budget=1 -> done=true',
     true,
-    $batchFrom40['done'],
-    "the brief's own second-call example (\"a second call from 40 returns done=true\") holds independently of how cursor 40 was reached"
+    $batchLast['done'],
+    'fewer than one batch of titles remain, so a single API call finishes the list'
 );
 $check(
-    '(d10) resuming from cursor=40: nextCursor=45 (5 remaining titles, 1 batch covers them)',
-    45,
-    $batchFrom40['nextCursor'],
-    'only 5 titles remain after cursor=40; one batch (<=20) covers all of them'
+    '(d10) resuming inside the final batch: nextCursor=count (the <1-batch remainder is covered)',
+    $titleCount,
+    $batchLast['nextCursor'],
+    'only the partial-batch remainder remains; one batch (<=AVESMAPS_WIKI_TITLE_BATCH_SIZE) covers all of them'
 );
 
 // ===========================================================================
