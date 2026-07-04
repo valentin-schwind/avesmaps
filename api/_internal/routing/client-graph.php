@@ -153,6 +153,14 @@ function avesmapsAddClientCompatiblePathSliceConnection(array &$graph, array $fr
 }
 
 function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, array $locations, array $request): int {
+    // Synthetic "Querfeldein" bridges are only legitimate when cross-country travel is enabled
+    // (Querfeldein maps to the land domain). With land/synthetic disabled -- e.g. "nur ueber Fluss"
+    // -- do NOT bridge the disconnected river components: a route impossible on rivers alone must
+    // return "no route" rather than an absurd cross-country detour. Mirrors the client guard in
+    // js/routing/route-graph-routing.js (skips synthetic when no land transport is active).
+    if (!avesmapsIsClientRouteDomainEnabled(AVESMAPS_ROUTE_CLIENT_SYNTHETIC_TYPE, $request)) {
+        return 0;
+    }
     $components = avesmapsFindClientCompatibleGraphComponents($graph);
     usort($components, static fn(array $a, array $b): int => count($b['node_names']) <=> count($a['node_names']));
     if (count($components) <= 1) return 0;
