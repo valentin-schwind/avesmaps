@@ -333,12 +333,40 @@ function avesmapsWikiDumpCategoryAssembleContinentMap(array $pagesByRequestedTit
         if ($normTitle === '') {
             continue;
         }
-        $categories = avesmapsWikiSyncGetCategoryNames($page);
+        $categories = avesmapsWikiDumpCategoryStripNonContinentCategories(
+            avesmapsWikiSyncGetCategoryNames($page)
+        );
         $context = $normTitle . ' ' . implode(' ', $categories);
         $map[$normTitle] = avesmapsWikiSyncMonitorDetectContinent($context);
     }
 
     return $map;
+}
+
+/**
+ * Drop name-/cross-wiki DERIVATION categories from the continent-detection
+ * context BEFORE it is keyed.
+ *
+ * These categories reference a DERIVED-FROM or sister-wiki entity by NAME and
+ * never denote continent placement, yet their name can carry a foreign-continent
+ * token (e.g. "Abgeleitet von Horas (Myranor)") that the substring needle-loop in
+ * avesmapsWikiSyncMonitorDetectContinent (sync-monitor-parsing.php:186-200) then
+ * mis-matches ('myranor' is tested before 'aventurien', array-order first-match
+ * wins). Concrete bug: "Wiedererstandenes Reich des Horas" carries
+ * "Abgeleitet von Horas (Myranor)" AND "Aventurien-Artikel" -> was wrongly keyed
+ * Myranor, and the whole Horas subtree then inherited it via the REBUILD
+ * continent-inheritance step (sync-monitor-tree.php:209-233).
+ *
+ * Genuine Myranor placement is signalled by "... in Myranor" /
+ * "Nav Staaten Myranor" / "Staat (Myranor)" -- none of which is an
+ * "Abgeleitet von ..." derivation category -- so stripping this family is safe.
+ * Categories arrive here already "Kategorie:"-stripped (avesmapsWikiSyncGetCategoryNames).
+ */
+function avesmapsWikiDumpCategoryStripNonContinentCategories(array $categories): array {
+    return array_values(array_filter(
+        $categories,
+        static fn(string $category): bool => preg_match('/^\s*abgeleitet von\b/iu', $category) !== 1
+    ));
 }
 
 /**

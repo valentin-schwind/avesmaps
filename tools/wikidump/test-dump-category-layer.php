@@ -259,6 +259,32 @@ $mockContinentPages = [
             ['title' => 'Kategorie:Mittelreich'],
         ],
     ],
+    // Regression (continent-misdetection fix): a page whose ONLY Myranor token is a
+    // name-derivation category "Abgeleitet von Horas (Myranor)" -- NOT a continent
+    // signal -- must NOT be keyed Myranor; its "Aventurien-Artikel" wins after the
+    // derivation category is stripped. (dump-category-layer.php:
+    // avesmapsWikiDumpCategoryStripNonContinentCategories). Mirrors the real
+    // "Wiedererstandenes Reich des Horas" page (recon 2026-07-04).
+    'Wiedererstandenes Reich des Horas' => [
+        'title' => 'Wiedererstandenes Reich des Horas',
+        'categories' => [
+            ['title' => 'Kategorie:Aventurien-Artikel'],
+            ['title' => 'Kategorie:Kaiserreich'],
+            ['title' => 'Kategorie:Herrschaftsgebiet in Aventurien'],
+            ['title' => 'Kategorie:Abgeleitet von Horas (Myranor)'],
+            ['title' => 'Kategorie:Abgeleitet von Horas-Kaiser'],
+        ],
+    ],
+    // Regression guard: a GENUINE Myranor page (keyed by "Staat (Myranor)") must
+    // STILL detect Myranor -- the strip only removes "Abgeleitet von ..." derivation
+    // categories, never real "... (Myranor)" / "... in Myranor" placement categories.
+    'Rastullah-Feld (Myranor)' => [
+        'title' => 'Rastullah-Feld (Myranor)',
+        'categories' => [
+            ['title' => 'Kategorie:Staat (Myranor)'],
+            ['title' => 'Kategorie:Nav Staaten Myranor'],
+        ],
+    ],
 ];
 $continentMap = avesmapsWikiDumpCategoryAssembleContinentMap($mockContinentPages);
 
@@ -273,6 +299,26 @@ $check(
     'Aventurien',
     $continentMap['Ferdok'] ?? null,
     'no continent needle found -> AVESMAPS_POLITICAL_DEFAULT_CONTINENT fallback (sync-monitor-parsing.php:202)'
+);
+$check(
+    '(c3) {Aventurien-Artikel, Abgeleitet von Horas (Myranor)} -> "Aventurien" (was Myranor)',
+    'Aventurien',
+    $continentMap['Wiedererstandenes Reich des Horas'] ?? null,
+    'name-derivation category "Abgeleitet von Horas (Myranor)" stripped before keying -> Aventurien-Artikel wins (continent-misdetection fix)'
+);
+$check(
+    '(c4) genuine Myranor page {Staat (Myranor), Nav Staaten Myranor} STILL -> "Myranor / Güldenland"',
+    'Myranor / Güldenland',
+    $continentMap['Rastullah-Feld (Myranor)'] ?? null,
+    'real Myranor placement categories are NOT stripped -- only "Abgeleitet von ..." derivation categories are'
+);
+$check(
+    '(c5) strip helper is a no-op for pages without a derivation category (Ferdok unchanged)',
+    'Aventurien',
+    avesmapsWikiDumpCategoryAssembleContinentMap([
+        'PlainAv' => ['title' => 'PlainAv', 'categories' => [['title' => 'Kategorie:Aventurien-Artikel']]],
+    ])['PlainAv'] ?? null,
+    'a plain {Aventurien-Artikel} page is unaffected by the strip -> Aventurien'
 );
 
 // ===========================================================================
