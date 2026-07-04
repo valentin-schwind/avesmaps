@@ -396,6 +396,14 @@
 	margin: 0 10px 8px !important;
 }
 
+/* The central "Phase X/6: …" dump status is a <p>; without an explicit margin it keeps the
+   browser default paragraph margins (too much top/bottom + no side inset, so it glues to the
+   panel edge). Give it the same flush-under-progress-bar, 10px-inset spacing as the per-tab
+   status lines above. */
+#wiki-sync-dump-status {
+	margin: 0 10px 8px;
+}
+
 .wiki-sync-panel__summary {
 	min-width: 0;
 	color: #4a3c2e;
