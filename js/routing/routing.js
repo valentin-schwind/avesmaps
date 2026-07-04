@@ -405,7 +405,7 @@ routeDataRequest
 		} else {
 			focusMapOnActiveTargets();
 		}
-		startLiveMapUpdates(); applyPlaceFocusFromUrl(); map.on("zoomend", notifyEditorZoomLevel);
+		startLiveMapUpdates(); applyPlaceFocusFromUrl(); applyWikiDeeplinkFromUrl(); map.on("zoomend", notifyEditorZoomLevel);
 	})
 	.catch((err) => console.error("Fehler beim Laden der GeoJSON-Datei:", err))
 		// Signalisiert dem Lade-Balken (loading-bar.js), dass die Karte einsatzbereit ist -- egal ob der
