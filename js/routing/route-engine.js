@@ -507,7 +507,11 @@ async function updateMapViewServerPrimary() {
 			return;
 		}
 
-		if (requestId !== updateMapViewServerPrimary.requestId || !routeResult) {
+		if (requestId !== updateMapViewServerPrimary.requestId) {
+			return;
+		}
+		if (!routeResult) {
+			$("#overview").text(tr("planner.overview.noRoute", "Keine Route gefunden"));
 			return;
 		}
 

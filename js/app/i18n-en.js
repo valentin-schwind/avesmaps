@@ -46,6 +46,7 @@ window.AVESMAPS_I18N_EN = {
 
 	// --- planner: dynamic overview/summary (tr) ---
 	"planner.overview.calculating": "Calculating route...",
+	"planner.overview.noRoute": "No route found.",
 	"planner.journey.prefix": "The journey",
 	"planner.journey.from": "from",
 	"planner.journey.to": "to",
