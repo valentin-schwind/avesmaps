@@ -894,7 +894,15 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
     $assignObject = avesmapsWikiPathBuildAssignObject($row, $assignMeta);
     // R1: the assigned wiki way names the way. '' (unusable staging row) keeps existing names.
     $canonicalName = avesmapsWikiPathCanonicalName($assignObject);
-    $paths = $pdo->query("SELECT id, public_id, name, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
+    // Fast path (perf, behavior-preserving): single_segment only ever touches the target row (the
+    // loop skips every other public_id), so fetch just that row instead of scanning all paths.
+    if ($singleSegment) {
+        $single = $pdo->prepare("SELECT id, public_id, name, properties_json FROM map_features WHERE public_id = :p AND is_active = 1 AND feature_type = 'path' AND name <> '' LIMIT 1");
+        $single->execute(['p' => $publicId]);
+        $paths = $single->fetchAll(PDO::FETCH_ASSOC);
+    } else {
+        $paths = $pdo->query("SELECT id, public_id, name, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
+    }
     $segments = 0;
     $applied = 0;
     $revision = null;
@@ -1023,11 +1031,22 @@ function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, i
     $targetProps = avesmapsWikiSyncDecodeJson($target['properties_json'] ?? null);
     $targetWikiKey = (string) ($targetProps['wiki_path']['wiki_key'] ?? '');
 
-    $paths = $pdo->query("SELECT id, public_id, name, feature_subtype, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
-    // R2: JEDES Segment bekommt einen EIGENEN generischen Namen (Phase-1-Schema) -- die
-    // Gruppe loest sich auf, damit selektives Neu-Zuweisen kein Alt-Buendel einsammelt.
-    // Der Pool waechst pro vergebenem Namen mit (kollisionsfrei ueber alle Subtypen).
-    $namePool = array_map(static fn(array $p): string => (string) $p['name'], $paths);
+    // Fast path (perf, behavior-preserving): single_segment only clears the target row (the loop
+    // skips every other public_id), so fetch just that row. The generic-name pool still needs ALL
+    // path names (avesmapsWikiPathNextGenericName must not collide with an existing name), so pull a
+    // names-only pool separately instead of deriving it from the (now single-row) $paths list.
+    if ($singleSegment) {
+        $single = $pdo->prepare("SELECT id, public_id, name, feature_subtype, properties_json FROM map_features WHERE public_id = :p AND is_active = 1 AND feature_type = 'path' AND name <> '' LIMIT 1");
+        $single->execute(['p' => $publicId]);
+        $paths = $single->fetchAll(PDO::FETCH_ASSOC);
+        $namePool = array_map(static fn(array $r): string => (string) $r['name'], $pdo->query("SELECT name FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC));
+    } else {
+        $paths = $pdo->query("SELECT id, public_id, name, feature_subtype, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
+        // R2: JEDES Segment bekommt einen EIGENEN generischen Namen (Phase-1-Schema) -- die
+        // Gruppe loest sich auf, damit selektives Neu-Zuweisen kein Alt-Buendel einsammelt.
+        // Der Pool waechst pro vergebenem Namen mit (kollisionsfrei ueber alle Subtypen).
+        $namePool = array_map(static fn(array $p): string => (string) $p['name'], $paths);
+    }
     $applied = 0;
     $matchCount = 0;
     $revision = null;

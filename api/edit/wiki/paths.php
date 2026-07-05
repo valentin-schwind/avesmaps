@@ -111,11 +111,31 @@ try {
                 is_array($payload['resolution'] ?? null) ? $payload['resolution'] : null,
                 (int) ($user['id'] ?? 0)
             ),
+            // Verlauf-Sync apply (Task 5): recomputes the case server-side, then writes it. Same
+            // dry_run:false + confirm:"apply" gate as the other map_features writers; in the cache
+            // list below so clients see the reassignment.
+            'apply_verlauf_case' => avesmapsWikiPathVerlaufApplyCase(
+                $pdo,
+                $config,
+                (string) ($payload['wiki_key'] ?? ''),
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
+                (int) ($user['id'] ?? 0)
+            ),
+            'apply_verlauf_cases_clean' => avesmapsWikiPathVerlaufApplyCleanCases(
+                $pdo,
+                $config,
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
+                (int) ($user['id'] ?? 0),
+                [
+                    'cursor' => (int) ($payload['cursor'] ?? 0),
+                    'limit' => (int) ($payload['limit'] ?? 20),
+                ]
+            ),
             default => null,
         };
 
         // map_features-Cache invalidieren, wenn echt geschrieben wurde (Clients sehen die Zuordnung).
-        if (in_array($action, ['assign', 'clear_assign', 'assign_all', 'assign_to', 'backfill_verlauf_source'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
+        if (in_array($action, ['assign', 'clear_assign', 'assign_all', 'assign_to', 'backfill_verlauf_source', 'apply_verlauf_case', 'apply_verlauf_cases_clean'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
 

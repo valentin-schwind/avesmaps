@@ -208,7 +208,7 @@ function avesmapsWikiPathVerlaufLower(string $value): string {
 // properties_json once per row; rows without a wiki_path.wiki_key are absent from both indices
 // (a segment that carries no wiki assignment is neither part of any way's Ist nor a conflict
 // candidate). Returns two views of the same data:
-//   byWikiKey[wiki_key][public_id] => ['public_id','name','subtype','source','course_hash']
+//   byWikiKey[wiki_key][public_id] => ['public_id','name','subtype','source','course_hash','course_hops']
 //   byPublicId[public_id]          => ['wiki_key','name','source']
 function avesmapsWikiPathVerlaufReadAssignments(PDO $pdo): array {
     $statement = $pdo->query(
@@ -233,6 +233,9 @@ function avesmapsWikiPathVerlaufReadAssignments(PDO $pdo): array {
         $name = (string) ($row['name'] ?? '');
         $source = (string) ($wikiPath['source'] ?? 'editor');
         $courseHash = (string) ($wikiPath['course_hash'] ?? '');
+        // Current hop labels for this segment (Task 5 restamp compares stored vs. Soll hops to skip
+        // a no-op restamp when both hash and hops already match).
+        $courseHops = is_array($wikiPath['course_hops'] ?? null) ? array_values(array_map('strval', $wikiPath['course_hops'])) : [];
 
         $byWikiKey[$wikiKey][$publicId] = [
             'public_id' => $publicId,
@@ -240,6 +243,7 @@ function avesmapsWikiPathVerlaufReadAssignments(PDO $pdo): array {
             'subtype' => (string) ($row['feature_subtype'] ?? ''),
             'source' => $source,
             'course_hash' => $courseHash,
+            'course_hops' => $courseHops,
         ];
         $byPublicId[$publicId] = [
             'wiki_key' => $wikiKey,
@@ -545,6 +549,64 @@ function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignment
     ];
 }
 
+// Pure write planner (Task 5). Turns a recomputed case (Soll) plus the way's CURRENT segment state
+// into the exact set of writes ApplyCase executes, honouring the owner-edit-since-compute traps:
+//   - adds     => [public_id => hops]  every routable Soll-Add (always written single-segment).
+//   - removes  => [public_id, ...]      Ist-Removes whose CURRENT source is STILL 'verlauf-sync'
+//                                        (owner may have flipped it or the row may have vanished
+//                                        from Ist between compute and write -> drop it, never clear).
+//   - restamps => [public_id => hops]   Soll ∩ Ist keeps whose stored course_hash != staging_hash OR
+//                                        whose stored course_hops differ from this keep's hops
+//                                        (hash-only cases restamp here; provenance/source untouched).
+// $currentByPublicId[public_id] => ['source' => s, 'course_hash' => s, 'course_hops' => array].
+function avesmapsWikiPathVerlaufPlanWrites(array $case, array $currentByPublicId): array {
+    $stagingHash = (string) ($case['staging_hash'] ?? '');
+
+    $adds = [];
+    foreach (is_array($case['adds'] ?? null) ? $case['adds'] : [] as $add) {
+        $publicId = (string) ($add['public_id'] ?? '');
+        if ($publicId === '') {
+            continue;
+        }
+        $adds[$publicId] = is_array($add['hops'] ?? null) ? array_values(array_map('strval', $add['hops'])) : [];
+    }
+
+    $removes = [];
+    foreach (is_array($case['removes'] ?? null) ? $case['removes'] : [] as $remove) {
+        $publicId = (string) ($remove['public_id'] ?? '');
+        if ($publicId === '') {
+            continue;
+        }
+        $current = $currentByPublicId[$publicId] ?? null;
+        // Owner may have re-touched (source flipped) or unassigned the segment between compute and
+        // write: only clear rows still owned by verlauf-sync (invariant 2 / spec §3 remove rule).
+        if (is_array($current) && (string) ($current['source'] ?? '') === 'verlauf-sync') {
+            $removes[] = $publicId;
+        }
+    }
+
+    $restamps = [];
+    foreach (is_array($case['keeps'] ?? null) ? $case['keeps'] : [] as $keep) {
+        $publicId = (string) ($keep['public_id'] ?? '');
+        if ($publicId === '') {
+            continue;
+        }
+        $current = $currentByPublicId[$publicId] ?? null;
+        if (!is_array($current)) {
+            continue;
+        }
+        $hops = is_array($keep['hops'] ?? null) ? array_values(array_map('strval', $keep['hops'])) : [];
+        $currentHops = is_array($current['course_hops'] ?? null) ? array_values(array_map('strval', $current['course_hops'])) : [];
+        $hashMatches = (string) ($current['course_hash'] ?? '') === $stagingHash;
+        if ($hashMatches && $currentHops === $hops) {
+            continue;
+        }
+        $restamps[$publicId] = $hops;
+    }
+
+    return ['adds' => $adds, 'removes' => $removes, 'restamps' => $restamps];
+}
+
 // Case-status side-table (Task 4): persists ONLY the user's review decision (deferred/archived) per
 // wiki way, keyed by wiki_key. "open" cases are computed live in avesmapsWikiPathVerlaufListCases (a
 // staging row whose hash differs from the way's current stored hash); a persisted status applies only
@@ -623,37 +685,26 @@ function avesmapsWikiPathVerlaufUpdateCaseStatus(PDO $pdo, string $wikiKey, stri
 //
 // $options: cursor (staging id, default 0), limit (default 20, max 50), step_runtime (seconds,
 // default 15, max 25). Response: {ok, cases, scanned, next_cursor, complete, runtime_seconds}.
-function avesmapsWikiPathVerlaufListCases(PDO $pdo, array $config, array $options = []): array {
+// Shared lazy routing context for the verlauf-sync case engine (used by both ListCases and the
+// ApplyCase/ApplyCleanCases flow). Loads the routing libs, then builds -- at most once per kind per
+// request, and only when actually asked -- a router closure per transport kind plus the station
+// name lookup. The expensive avesmapsLoadRouteMapData / network build happen lazily on first
+// router() call, so a scan that never needs routing never pays for them. Returns:
+//   ['router' => fn(string $kind): callable,  'lookup' => fn(): array (name-lower => canonicalName)]
+// The lookup is populated as a side effect of the first router() call (it needs the loaded network);
+// callers pass lookup() into avesmapsWikiPathVerlaufComputeCase AFTER building the kind's router.
+function avesmapsWikiPathVerlaufBuildRoutingContext(array $config): array {
     require_once __DIR__ . '/../routing/request.php';
     require_once __DIR__ . '/../routing/map-data.php';
     require_once __DIR__ . '/../routing/network-data.php';
     require_once __DIR__ . '/../routing/client-graph.php';
 
-    avesmapsWikiPathEnsureTables($pdo);
-    avesmapsWikiPathVerlaufEnsureCaseTable($pdo);
-
-    $cursor = max(0, (int) ($options['cursor'] ?? 0));
-    $limit = max(1, min(50, (int) ($options['limit'] ?? 20)));
-    $stepRuntime = max(3, min(25, (int) ($options['step_runtime'] ?? 15)));
-    @set_time_limit($stepRuntime + 15);
-    $startedAt = microtime(true);
-
-    $assignments = avesmapsWikiPathVerlaufReadAssignments($pdo);
-
-    // Persisted review decisions, loaded once per request (Task 4). Applied per case below: a status
-    // row only "counts" while its stored course_hash still matches that case's staging_hash -- a newer
-    // wiki edit changes the staging hash and the case reopens automatically.
-    $statusByWikiKey = [];
-    foreach ($pdo->query('SELECT wiki_key, status, course_hash FROM wiki_path_verlauf_case_status') as $statusRow) {
-        $statusByWikiKey[(string) $statusRow['wiki_key']] = $statusRow;
-    }
-
-    // Routing context, built lazily and reused across staging rows within this request.
     $mapData = null;
     $networkData = null;
     $locationLookup = null;
     $routersByKind = [];   // kind => callable
-    $buildRouter = static function (string $kind) use ($config, &$mapData, &$networkData, &$locationLookup, &$routersByKind): callable {
+
+    $router = static function (string $kind) use ($config, &$mapData, &$networkData, &$locationLookup, &$routersByKind): callable {
         if (isset($routersByKind[$kind])) {
             return $routersByKind[$kind];
         }
@@ -677,7 +728,7 @@ function avesmapsWikiPathVerlaufListCases(PDO $pdo, array $config, array $option
             }
         }
         $graph = avesmapsBuildClientCompatibleRouteGraph($networkData, $request);
-        $router = static function (string $from, string $to) use ($graph, $request): array {
+        $kindRouter = static function (string $from, string $to) use ($graph, $request): array {
             $result = avesmapsFindClientCompatibleRoute($graph, $from, $to, $request);
             if (empty($result['found'])) {
                 return ['found' => false, 'reason' => 'no_route', 'segments' => []];
@@ -685,9 +736,41 @@ function avesmapsWikiPathVerlaufListCases(PDO $pdo, array $config, array $option
             $segments = avesmapsBuildClientRouteDiagnosticSegments(is_array($result['segments'] ?? null) ? $result['segments'] : []);
             return ['found' => true, 'reason' => '', 'segments' => $segments];
         };
-        $routersByKind[$kind] = $router;
-        return $router;
+        $routersByKind[$kind] = $kindRouter;
+        return $kindRouter;
     };
+
+    $lookup = static function () use (&$locationLookup): array {
+        return $locationLookup ?? [];
+    };
+
+    return ['router' => $router, 'lookup' => $lookup];
+}
+
+function avesmapsWikiPathVerlaufListCases(PDO $pdo, array $config, array $options = []): array {
+    avesmapsWikiPathEnsureTables($pdo);
+    avesmapsWikiPathVerlaufEnsureCaseTable($pdo);
+
+    $cursor = max(0, (int) ($options['cursor'] ?? 0));
+    $limit = max(1, min(50, (int) ($options['limit'] ?? 20)));
+    $stepRuntime = max(3, min(25, (int) ($options['step_runtime'] ?? 15)));
+    @set_time_limit($stepRuntime + 15);
+    $startedAt = microtime(true);
+
+    $assignments = avesmapsWikiPathVerlaufReadAssignments($pdo);
+
+    // Persisted review decisions, loaded once per request (Task 4). Applied per case below: a status
+    // row only "counts" while its stored course_hash still matches that case's staging_hash -- a newer
+    // wiki edit changes the staging hash and the case reopens automatically.
+    $statusByWikiKey = [];
+    foreach ($pdo->query('SELECT wiki_key, status, course_hash FROM wiki_path_verlauf_case_status') as $statusRow) {
+        $statusByWikiKey[(string) $statusRow['wiki_key']] = $statusRow;
+    }
+
+    // Routing context, built lazily and reused across staging rows within this request (shared helper).
+    $routingContext = avesmapsWikiPathVerlaufBuildRoutingContext($config);
+    $buildRouter = $routingContext['router'];
+    $lookup = $routingContext['lookup'];
 
     $select = $pdo->prepare(
         'SELECT * FROM ' . AVESMAPS_WIKI_PATH_STAGING_TABLE . '
@@ -732,7 +815,7 @@ function avesmapsWikiPathVerlaufListCases(PDO $pdo, array $config, array $option
 
         $kind = (string) ($row['kind'] ?? '') === 'fluss' ? 'fluss' : 'strasse';
         $router = $buildRouter($kind);
-        $case = avesmapsWikiPathVerlaufComputeCase($row, $assignments, $locationLookup ?? [], $router);
+        $case = avesmapsWikiPathVerlaufComputeCase($row, $assignments, $lookup(), $router);
         if ($case !== null) {
             $statusRow = $statusByWikiKey[$wikiKey] ?? null;
             $case['status'] = $statusRow !== null && (string) $statusRow['course_hash'] === (string) $case['staging_hash']
@@ -751,5 +834,370 @@ function avesmapsWikiPathVerlaufListCases(PDO $pdo, array $config, array $option
         'next_cursor' => $nextCursor,
         'complete' => $complete,
         'runtime_seconds' => round(microtime(true) - $startedAt, 3),
+    ];
+}
+
+// Recomputes ONE case fresh (never trusts a client-sent segment list -- the owner may edit in
+// parallel between compute and write, so the case is always rebuilt from current data). Reads the
+// staging row by wiki_key (throws 'case_not_found' when missing), builds the kind's router from the
+// shared routing context, and diffs against the passed-in $assignments snapshot. Returns null exactly
+// when avesmapsWikiPathVerlaufComputeCase does (unchanged / not verlauf-syncable).
+function avesmapsWikiPathVerlaufRecomputeCase(PDO $pdo, string $wikiKey, array $assignments, array $routingContext): ?array {
+    $wikiKey = trim($wikiKey);
+    if ($wikiKey === '') {
+        throw new RuntimeException('wiki_key fehlt.');
+    }
+    $statement = $pdo->prepare('SELECT * FROM ' . AVESMAPS_WIKI_PATH_STAGING_TABLE . ' WHERE wiki_key = :k LIMIT 1');
+    $statement->execute(['k' => $wikiKey]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+    if ($row === false) {
+        throw new RuntimeException('case_not_found: ' . $wikiKey);
+    }
+
+    $kind = (string) ($row['kind'] ?? '') === 'fluss' ? 'fluss' : 'strasse';
+    $buildRouter = $routingContext['router'];
+    $lookup = $routingContext['lookup'];
+    $router = $buildRouter($kind);
+
+    return avesmapsWikiPathVerlaufComputeCase($row, $assignments, $lookup(), $router);
+}
+
+// Restamps the `keeps` of a case in place: sets wiki_path.course_hash = staging_hash and
+// course_hops = <this segment's hop labels> on each still-present Ist segment, PRESERVING everything
+// else -- especially wiki_path.source (an owner-curated keep stays owner-curated; the hash records
+// which course the segment currently traces, not its provenance) and the name column (untouched).
+// One shared map revision for the whole batch; each change is audited (undo-restorable). $restamps
+// = [public_id => [hop label, ...]] as produced by avesmapsWikiPathVerlaufPlanWrites. Returns the
+// list of public_ids actually written.
+function avesmapsWikiPathVerlaufRestampKeeps(PDO $pdo, string $stagingHash, array $restamps, int $userId): array {
+    if ($restamps === []) {
+        return [];
+    }
+    $publicIds = array_keys($restamps);
+    $placeholders = implode(',', array_fill(0, count($publicIds), '?'));
+    $select = $pdo->prepare(
+        "SELECT id, public_id, name, properties_json FROM map_features
+        WHERE is_active = 1 AND feature_type = 'path' AND public_id IN (" . $placeholders . ')'
+    );
+    $select->execute(array_values($publicIds));
+
+    $revision = null;
+    $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
+    $restamped = [];
+    foreach ($select->fetchAll(PDO::FETCH_ASSOC) as $current) {
+        $publicId = (string) ($current['public_id'] ?? '');
+        if (!array_key_exists($publicId, $restamps)) {
+            continue;
+        }
+        $props = avesmapsWikiSyncDecodeJson($current['properties_json'] ?? null);
+        $wikiPath = is_array($props['wiki_path'] ?? null) ? $props['wiki_path'] : null;
+        // Only restamp a segment that still carries a wiki_path (owner may have unassigned it).
+        if ($wikiPath === null) {
+            continue;
+        }
+        $hops = array_values(array_map('strval', $restamps[$publicId]));
+        $wikiPath['course_hash'] = $stagingHash;
+        if ($hops !== []) {
+            $wikiPath['course_hops'] = $hops;
+        } else {
+            unset($wikiPath['course_hops']);
+        }
+        $props['wiki_path'] = $wikiPath;
+
+        $auditBefore = avesmapsWikiSyncFetchAuditRow($pdo, (int) $current['id']);
+        $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
+        $update->execute([
+            'pj' => avesmapsWikiSyncEncodeJson($props),
+            'rev' => $revision,
+            'id' => (int) $current['id'],
+        ]);
+        // NAME UNCHANGED: restamp touches only wiki_path.course_hash/course_hops; the audit after_json
+        // keeps the current name so the undo conflict-guard accepts a later rollback.
+        avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId, (string) ($current['name'] ?? ''));
+        $restamped[] = $publicId;
+    }
+
+    return $restamped;
+}
+
+// Reads the CURRENT wiki_path.source of a single segment right before a remove write (owner may have
+// touched it between compute and write). Returns '' when the row is gone / carries no wiki_path.
+function avesmapsWikiPathVerlaufCurrentSource(PDO $pdo, string $publicId): string {
+    $statement = $pdo->prepare("SELECT properties_json FROM map_features WHERE public_id = :p AND is_active = 1 AND feature_type = 'path' LIMIT 1");
+    $statement->execute(['p' => $publicId]);
+    $row = $statement->fetch(PDO::FETCH_ASSOC);
+    if ($row === false) {
+        return '';
+    }
+    $props = avesmapsWikiSyncDecodeJson($row['properties_json'] ?? null);
+    $wikiPath = is_array($props['wiki_path'] ?? null) ? $props['wiki_path'] : [];
+    return (string) ($wikiPath['source'] ?? '');
+}
+
+// Applies a single verlauf-sync case (POST apply_verlauf_case). ALWAYS recomputes server-side.
+// Execution order (spec T5 / §3):
+//   1. Recompute the case (case_not_found when the staging row is gone; RuntimeException 'Nothing to
+//      apply (case unchanged).' when nothing is actionable -> the endpoint's generic handler).
+//   2. Dry-run: return the recomputed case preview, no writes.
+//   3. Adds: each add via avesmapsWikiPathAssignTo(..., single_segment:true, source='verlauf-sync',
+//      course_hash=staging_hash, course_hops=<this add's hops>). single_segment ALWAYS -- name-group
+//      matching is dangerous in the sync context.
+//   4. Removes: re-read each row's CURRENT wiki_path.source right before the write; clear only when it
+//      is still 'verlauf-sync' (single_segment:true), else count skipped_conflicts.
+//   5. Restamp keeps whose stored course_hash/course_hops drifted (source preserved, name untouched).
+//   6. Delete the case-status row for wiki_key (Task 4 pattern).
+// hash_only cases: steps 3-4 are no-ops, step 5 restamps -- repeated scans go quiet.
+function avesmapsWikiPathVerlaufApplyCase(PDO $pdo, array $config, string $wikiKey, bool $dryRun, int $userId): array {
+    avesmapsWikiPathEnsureTables($pdo);
+    avesmapsWikiPathVerlaufEnsureCaseTable($pdo);
+    $wikiKey = trim($wikiKey);
+
+    $assignments = avesmapsWikiPathVerlaufReadAssignments($pdo);
+    $routingContext = avesmapsWikiPathVerlaufBuildRoutingContext($config);
+    $case = avesmapsWikiPathVerlaufRecomputeCase($pdo, $wikiKey, $assignments, $routingContext);
+    if ($case === null) {
+        throw new RuntimeException('Nothing to apply (case unchanged).');
+    }
+
+    if ($dryRun) {
+        return [
+            'ok' => true,
+            'dry_run' => true,
+            'wiki_key' => $wikiKey,
+            'case' => $case,
+            'adds_applied' => 0,
+            'removes_applied' => 0,
+            'restamped' => 0,
+            'skipped_conflicts' => 0,
+            'segments_updated' => [],
+        ];
+    }
+
+    $stagingHash = (string) ($case['staging_hash'] ?? '');
+    $currentByPublicId = [];
+    foreach ($case['keeps'] as $keep) {
+        $publicId = (string) ($keep['public_id'] ?? '');
+        $ist = $assignments['byWikiKey'][$wikiKey][$publicId] ?? null;
+        if (is_array($ist)) {
+            $currentByPublicId[$publicId] = [
+                'source' => (string) ($ist['source'] ?? ''),
+                'course_hash' => (string) ($ist['course_hash'] ?? ''),
+                'course_hops' => is_array($ist['course_hops'] ?? null) ? $ist['course_hops'] : [],
+            ];
+        }
+    }
+    $plan = avesmapsWikiPathVerlaufPlanWrites($case, $currentByPublicId);
+
+    $segmentsUpdated = [];
+
+    // Step 3: adds (always single_segment, stamped as verlauf-sync with this course's hash/hops).
+    $addsApplied = 0;
+    foreach ($case['adds'] as $add) {
+        $publicId = (string) ($add['public_id'] ?? '');
+        if ($publicId === '' || !isset($plan['adds'][$publicId])) {
+            continue;
+        }
+        $assignMeta = [
+            'source' => 'verlauf-sync',
+            'course_hash' => $stagingHash,
+            'course_hops' => $plan['adds'][$publicId],
+        ];
+        $result = avesmapsWikiPathAssignTo($pdo, $wikiKey, $publicId, false, $userId, true, $assignMeta);
+        if (($result['type_ok'] ?? true) === true && (int) ($result['applied'] ?? 0) > 0) {
+            $addsApplied++;
+            foreach (($result['segments_updated'] ?? []) as $segment) {
+                $segmentsUpdated[] = $segment;
+            }
+        }
+    }
+
+    // Step 4: removes (re-read current source right before the write; only clear verlauf-sync rows).
+    $removesApplied = 0;
+    $skippedConflicts = 0;
+    foreach ($case['removes'] as $remove) {
+        $publicId = (string) ($remove['public_id'] ?? '');
+        if ($publicId === '') {
+            continue;
+        }
+        if (avesmapsWikiPathVerlaufCurrentSource($pdo, $publicId) !== 'verlauf-sync') {
+            $skippedConflicts++;
+            continue;
+        }
+        $result = avesmapsWikiPathClearAssign($pdo, $publicId, false, $userId, true);
+        if ((int) ($result['applied'] ?? 0) > 0) {
+            $removesApplied++;
+            foreach (($result['segments_updated'] ?? []) as $segment) {
+                $segmentsUpdated[] = $segment;
+            }
+        }
+    }
+
+    // Step 5: restamp keeps whose stored course drifted (source/name preserved).
+    $restamped = avesmapsWikiPathVerlaufRestampKeeps($pdo, $stagingHash, $plan['restamps'], $userId);
+
+    // Step 6: a successful sync clears any deferred/archived decision for this way (Task 4 pattern:
+    // deleting the row falls the case back to its live-computed open state, which is now quiet).
+    $pdo->prepare('DELETE FROM wiki_path_verlauf_case_status WHERE wiki_key = :k')->execute(['k' => $wikiKey]);
+
+    return [
+        'ok' => true,
+        'dry_run' => false,
+        'wiki_key' => $wikiKey,
+        'case' => $case,
+        'adds_applied' => $addsApplied,
+        'removes_applied' => $removesApplied,
+        'restamped' => count($restamped),
+        'skipped_conflicts' => $skippedConflicts,
+        'segments_updated' => $segmentsUpdated,
+    ];
+}
+
+// Bulk apply (POST apply_verlauf_cases_clean). Walks wiki_path_staging by an id cursor exactly like
+// avesmapsWikiPathVerlaufListCases, applies ONLY clean cases with status 'open', and time-boxes the
+// batch (STRATO). Cross-case dedupe via $claimedThisRun: before applying a case, drop any add whose
+// public_id an EARLIER case in this run already claimed; if that drops anything, SKIP the whole case
+// (skipped_not_clean) rather than write a silently partial course -- it resurfaces next scan. After
+// each applied case, its Soll ids (adds + keeps) join $claimedThisRun.
+//
+// $options: cursor (staging id, default 0), limit (default 20, max 50), step_runtime (seconds,
+// default 15, max 25). Response: {ok, dry_run, applied_cases, skipped_not_clean, scanned, next_cursor,
+// complete}.
+function avesmapsWikiPathVerlaufApplyCleanCases(PDO $pdo, array $config, bool $dryRun, int $userId, array $options = []): array {
+    avesmapsWikiPathEnsureTables($pdo);
+    avesmapsWikiPathVerlaufEnsureCaseTable($pdo);
+
+    $cursor = max(0, (int) ($options['cursor'] ?? 0));
+    $limit = max(1, min(50, (int) ($options['limit'] ?? 20)));
+    $stepRuntime = max(3, min(25, (int) ($options['step_runtime'] ?? 15)));
+    @set_time_limit($stepRuntime + 15);
+    $startedAt = microtime(true);
+
+    $assignments = avesmapsWikiPathVerlaufReadAssignments($pdo);
+
+    $statusByWikiKey = [];
+    foreach ($pdo->query('SELECT wiki_key, status, course_hash FROM wiki_path_verlauf_case_status') as $statusRow) {
+        $statusByWikiKey[(string) $statusRow['wiki_key']] = $statusRow;
+    }
+
+    $routingContext = avesmapsWikiPathVerlaufBuildRoutingContext($config);
+    $buildRouter = $routingContext['router'];
+    $lookup = $routingContext['lookup'];
+
+    $select = $pdo->prepare(
+        'SELECT * FROM ' . AVESMAPS_WIKI_PATH_STAGING_TABLE . '
+        WHERE id > :cursor
+        ORDER BY id ASC
+        LIMIT ' . $limit
+    );
+    $select->bindValue('cursor', $cursor, PDO::PARAM_INT);
+    $select->execute();
+    $rows = $select->fetchAll(PDO::FETCH_ASSOC);
+
+    $appliedCases = [];
+    $skippedNotClean = 0;
+    $scanned = 0;
+    $nextCursor = $cursor;
+    $stoppedEarly = false;
+    $claimedThisRun = [];   // public_id => true (Soll ids claimed by an earlier applied case)
+
+    foreach ($rows as $row) {
+        if ((microtime(true) - $startedAt) >= $stepRuntime) {
+            $stoppedEarly = true;
+            break;
+        }
+        $scanned++;
+        $nextCursor = (int) ($row['id'] ?? $nextCursor);
+
+        $verlauf = trim((string) ($row['verlauf'] ?? ''));
+        if ($verlauf === '') {
+            continue;
+        }
+
+        // Cheap exits (mirror ListCases): unassigned or unchanged ways never load the router.
+        $wikiKey = (string) ($row['wiki_key'] ?? '');
+        $currentSegments = is_array($assignments['byWikiKey'][$wikiKey] ?? null) ? $assignments['byWikiKey'][$wikiKey] : [];
+        if ($currentSegments === []) {
+            continue;
+        }
+        $stagingHash = avesmapsWikiPathCourseHash($verlauf);
+        $storedHash = avesmapsWikiPathVerlaufStoredHash($currentSegments);
+        if ($stagingHash !== '' && $stagingHash === $storedHash) {
+            continue;
+        }
+
+        $kind = (string) ($row['kind'] ?? '') === 'fluss' ? 'fluss' : 'strasse';
+        $router = $buildRouter($kind);
+        $case = avesmapsWikiPathVerlaufComputeCase($row, $assignments, $lookup(), $router);
+        if ($case === null) {
+            continue;
+        }
+
+        // Only clean, open cases are auto-applied (a persisted defer/archive is respected).
+        if (($case['clean'] ?? false) !== true) {
+            $skippedNotClean++;
+            continue;
+        }
+        $statusRow = $statusByWikiKey[$wikiKey] ?? null;
+        $status = $statusRow !== null && (string) $statusRow['course_hash'] === (string) $case['staging_hash']
+            ? (string) $statusRow['status']
+            : 'open';
+        if ($status !== 'open') {
+            $skippedNotClean++;
+            continue;
+        }
+
+        // Cross-case dedupe (Falle: deduplicate Soll sets against each other BEFORE writing). If an
+        // earlier applied case in this run claimed any of this case's add ids, skip the whole case --
+        // writing a partial course would silently drop segments; it resurfaces on the next scan.
+        $conflictWithEarlier = false;
+        foreach ($case['adds'] as $add) {
+            if (isset($claimedThisRun[(string) ($add['public_id'] ?? '')])) {
+                $conflictWithEarlier = true;
+                break;
+            }
+        }
+        if ($conflictWithEarlier) {
+            $skippedNotClean++;
+            continue;
+        }
+
+        if ($dryRun) {
+            $appliedCases[] = [
+                'wiki_key' => $wikiKey,
+                'name' => (string) ($case['name'] ?? ''),
+                'adds_applied' => 0,
+                'removes_applied' => 0,
+                'restamped' => 0,
+            ];
+        } else {
+            $applied = avesmapsWikiPathVerlaufApplyCase($pdo, $config, $wikiKey, false, $userId);
+            $appliedCases[] = [
+                'wiki_key' => $wikiKey,
+                'name' => (string) ($case['name'] ?? ''),
+                'adds_applied' => (int) ($applied['adds_applied'] ?? 0),
+                'removes_applied' => (int) ($applied['removes_applied'] ?? 0),
+                'restamped' => (int) ($applied['restamped'] ?? 0),
+            ];
+        }
+
+        // Claim this case's whole Soll (adds + keeps) so a later shared-trasse case is skipped.
+        foreach ($case['adds'] as $add) {
+            $claimedThisRun[(string) ($add['public_id'] ?? '')] = true;
+        }
+        foreach ($case['keeps'] as $keep) {
+            $claimedThisRun[(string) ($keep['public_id'] ?? '')] = true;
+        }
+    }
+
+    $complete = !$stoppedEarly && count($rows) < $limit;
+
+    return [
+        'ok' => true,
+        'dry_run' => $dryRun,
+        'applied_cases' => $appliedCases,
+        'skipped_not_clean' => $skippedNotClean,
+        'scanned' => $scanned,
+        'next_cursor' => $nextCursor,
+        'complete' => $complete,
     ];
 }

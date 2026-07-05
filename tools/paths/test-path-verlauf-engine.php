@@ -128,5 +128,62 @@ check('hash-only detected', $case['hash_only'], true);
 check('hash-only clean', $case['clean'], true);
 check('hash-only empty diff', [$case['adds'], $case['removes']], [[], []]);
 
+// --- avesmapsWikiPathVerlaufPlanWrites (Task 5 pure write planner) ---
+// The plan is what ApplyCase turns into single-segment assigns/clears/restamps. It is recomputed
+// from the case (Soll) and the current Ist ($currentByPublicId) so an owner edit between compute
+// and write is honoured: removes drop when source flipped away from 'verlauf-sync'; restamps skip
+// keeps whose stored course already matches.
+$planCase = [
+    'staging_hash' => 'newhash',
+    'hash_only' => false,
+    'adds' => [['public_id' => 's2', 'name' => 'n', 'hops' => ['A → B']]],
+    'removes' => [['public_id' => 's9', 'name' => 'n']],
+    'keeps' => [['public_id' => 's1', 'hops' => ['A → B']]],
+];
+$planCurrent = [
+    's1' => ['source' => 'editor', 'course_hash' => 'old', 'course_hops' => []],
+    's9' => ['source' => 'verlauf-sync', 'course_hash' => 'old', 'course_hops' => []],
+];
+$plan = avesmapsWikiPathVerlaufPlanWrites($planCase, $planCurrent);
+check('plan adds', $plan['adds'], ['s2' => ['A → B']]);
+check('plan removes only sync source', $plan['removes'], ['s9']);
+check('plan restamps stale keep', $plan['restamps'], ['s1' => ['A → B']]);
+// keep already current => no restamp
+$planCurrent2 = $planCurrent;
+$planCurrent2['s1'] = ['source' => 'editor', 'course_hash' => 'newhash', 'course_hops' => ['A → B']];
+$plan = avesmapsWikiPathVerlaufPlanWrites($planCase, $planCurrent2);
+check('no restamp when current', $plan['restamps'], []);
+// keep with matching hash but different hops => restamp (hops label drift)
+$planCurrent2b = $planCurrent;
+$planCurrent2b['s1'] = ['source' => 'editor', 'course_hash' => 'newhash', 'course_hops' => ['X → Y']];
+$plan = avesmapsWikiPathVerlaufPlanWrites($planCase, $planCurrent2b);
+check('restamp on hop drift', $plan['restamps'], ['s1' => ['A → B']]);
+// remove whose source flipped to editor since compute => dropped
+$planCurrent3 = $planCurrent;
+$planCurrent3['s9']['source'] = 'editor';
+$plan = avesmapsWikiPathVerlaufPlanWrites($planCase, $planCurrent3);
+check('editor-flipped remove dropped', $plan['removes'], []);
+// remove whose row vanished from Ist since compute => dropped (no source to verify)
+$planCurrent3b = $planCurrent;
+unset($planCurrent3b['s9']);
+$plan = avesmapsWikiPathVerlaufPlanWrites($planCase, $planCurrent3b);
+check('vanished remove dropped', $plan['removes'], []);
+// hash-only case: no adds/removes, keeps restamp
+$hashOnlyCase = [
+    'staging_hash' => 'newhash',
+    'hash_only' => true,
+    'adds' => [],
+    'removes' => [],
+    'keeps' => [['public_id' => 's1', 'hops' => ['A → B']], ['public_id' => 's2', 'hops' => ['B → C']]],
+];
+$hashOnlyCurrent = [
+    's1' => ['source' => 'verlauf-sync', 'course_hash' => 'old', 'course_hops' => ['A → B']],
+    's2' => ['source' => 'editor', 'course_hash' => 'newhash', 'course_hops' => ['B → C']],
+];
+$plan = avesmapsWikiPathVerlaufPlanWrites($hashOnlyCase, $hashOnlyCurrent);
+check('hash-only no adds', $plan['adds'], []);
+check('hash-only no removes', $plan['removes'], []);
+check('hash-only restamps only stale keep', $plan['restamps'], ['s1' => ['A → B']]);
+
 echo $failures === 0 ? "{$total}/{$total} passed\n" : "{$failures}/{$total} FAILED\n";
 exit($failures === 0 ? 0 : 1);
