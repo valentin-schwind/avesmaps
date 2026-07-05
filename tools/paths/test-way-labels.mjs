@@ -180,4 +180,21 @@ check("offsets: totalLen 100, interval 600, textLen 120 -> []", () => {
 	assert.deepEqual(offsets, []);
 });
 
-console.log(`${passed}/8 passed`);
+check("closed ring of 4 segments -> terminates, every segment used exactly once, chains connect end-to-start", () => {
+	// Square ring: (0,0)->(10,0)->(10,10)->(0,10)->(0,0). Every joint has degree 2 (no open end,
+	// no branch) -- this is the pure-loop case (Pass 2 in buildWayLabelChains): no Grad-1 start
+	// exists, so walkFrom must still terminate by re-consuming the starting segment via `used`
+	// rather than looping forever back to it.
+	const segments = [
+		{ id: "seg-A", coordinates: [[0, 0], [10, 0]] },
+		{ id: "seg-B", coordinates: [[10, 0], [10, 10]] },
+		{ id: "seg-C", coordinates: [[10, 10], [0, 10]] },
+		{ id: "seg-D", coordinates: [[0, 10], [0, 0]] },
+	];
+	const chains = buildWayLabelChains(segments);
+	assertChainsWellFormed(chains, segments);
+	assert.equal(chains.length, 1, "a closed ring with no branch has exactly one chain");
+	assert.equal(chains[0].length, 4, "all four segments end up in that one chain");
+});
+
+console.log(`${passed}/9 passed`);

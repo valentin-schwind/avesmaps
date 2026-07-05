@@ -139,31 +139,46 @@ function computeWayLabelIntervalOffsets(totalLenPx, intervalPx, textLenPx) {
 	return offsets;
 }
 
+// PERF: baut EINMAL pro Redraw die Werte, die isWayLabelEligible sonst pro Pfad neu abfragen würde
+// (getSelectedMapLayerMode()/jQuery-Toggle-Lookup/map.getZoom() -- bei ~5000 Pfaden pro Redraw sonst
+// ~5000-faches Neu-Abfragen derselben Werte). Gleiches Muster wie currentPathVisibilityContext()
+// (map-features-display-mode.js). Browser-only -- kein reiner Helfer, daher wie isWayLabelEligible
+// selbst nicht Teil der extractFunction-Unit-Tests.
+function buildWayLabelEligibilityContext() {
+	return {
+		powerlines: typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "powerlines",
+		pathsToggle: typeof $ === "function" ? $("#togglePaths").is(":checked") : true,
+		riverLabels: pathRiverLabelsVisible,
+		zoomOk: map.getZoom() >= LOCATION_NAME_LABEL_CONFIG.dorf.minZoom,
+	};
+}
+
 // Ist dieser Pfad für Kanal-A-Way-Labels zulässig? Wie isPathLabelVisibleAtCurrentZoom
 // (map-features-path-labels.js), aber OHNE die show_label-Bedingung (Kanal A ignoriert
 // show_label bewusst -- der Weg wird als Ganzes beschriftet) und ZUSÄTZLICH nur, wenn ein
-// Wiki-Weg zugewiesen ist (wiki_path.wiki_key). Browser-only (map/$/Globals) -- kein reiner
+// Wiki-Weg zugewiesen ist (wiki_path.wiki_key). ctx = buildWayLabelEligibilityContext(), einmal pro
+// Redraw gebaut (siehe dort) -- hier bleiben nur die PRO-Pfad-Teile: wiki_key-Prüfung und die
+// Fluss-vs-Straße-Weiche (welcher ctx-Toggle zählt). Browser-only (map/$/Globals) -- kein reiner
 // Helfer, daher nicht Teil der extractFunction-Unit-Tests (wie isPathLabelVisibleAtCurrentZoom
 // selbst auch nicht unit-getestet ist).
-function isWayLabelEligible(path) {
+function isWayLabelEligible(path, ctx) {
 	if (!path?.properties?.wiki_path?.wiki_key) {
 		return false;
 	}
 	// Kraftlinien-Modus: keine Wege-/Fluss-Namen (Magiersicht; nur Kraftlinien-Namen werden gezeichnet).
-	if (typeof getSelectedMapLayerMode === "function" && getSelectedMapLayerMode() === "powerlines") {
+	if (ctx.powerlines) {
 		return false;
 	}
 	const pathSubtype = normalizePathSubtype(path.properties?.feature_subtype || path.properties?.name);
 	const isRiver = pathSubtype === "Flussweg" || pathSubtype === "Seeweg";
 	if (isRiver) {
-		if (!pathRiverLabelsVisible) {
+		if (!ctx.riverLabels) {
 			return false;
 		}
-	} else if (typeof $ === "function" && !$("#togglePaths").is(":checked")) {
+	} else if (!ctx.pathsToggle) {
 		// Wege-/Straßen-Labels folgen weiterhin ihrer Pfad-Sichtbarkeit (#togglePaths).
 		return false;
 	}
 	// Wie Straßen-/Fluss-Labels: erst ab dorf.minZoom (Zoom 4) zeigen.
-	const minZoom = LOCATION_NAME_LABEL_CONFIG.dorf.minZoom;
-	return map.getZoom() >= minZoom;
+	return ctx.zoomOk;
 }

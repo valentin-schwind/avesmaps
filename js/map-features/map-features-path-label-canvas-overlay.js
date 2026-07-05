@@ -217,9 +217,13 @@
 			&& typeof computeWayLabelIntervalOffsets === "function"
 			&& typeof getPathGeomBounds === "function") {
 			const viewportBounds = map.getBounds().pad(0.25); // gleiches Polster wie currentPathVisibilityContext()
+			// PERF: einmal pro Redraw statt einmal pro Pfad (siehe buildWayLabelEligibilityContext).
+			const wayLabelEligibilityCtx = typeof buildWayLabelEligibilityContext === "function"
+				? buildWayLabelEligibilityContext()
+				: {};
 			const wayGroups = new Map(); // wiki_key -> { name, pathsById: Map<public_id, path> }
 			pathData.forEach((path) => {
-				if (!isWayLabelEligible(path)) {
+				if (!isWayLabelEligible(path, wayLabelEligibilityCtx)) {
 					return;
 				}
 				const geomBounds = getPathGeomBounds(path);
