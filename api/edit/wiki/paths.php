@@ -87,6 +87,30 @@ try {
                 (int) ($user['id'] ?? 0),
                 $options
             ),
+            // Verlauf-Sync case-status side-table (Task 4): direct writes, not dry-run gated (same
+            // shape as the political capital-case actions) -- these never touch map_features, so they
+            // are deliberately excluded from the cache-invalidation list below.
+            'defer_verlauf_case' => avesmapsWikiPathVerlaufUpdateCaseStatus(
+                $pdo,
+                (string) ($payload['wiki_key'] ?? ''),
+                'deferred',
+                is_array($payload['resolution'] ?? null) ? $payload['resolution'] : null,
+                (int) ($user['id'] ?? 0)
+            ),
+            'archive_verlauf_case' => avesmapsWikiPathVerlaufUpdateCaseStatus(
+                $pdo,
+                (string) ($payload['wiki_key'] ?? ''),
+                'archived',
+                is_array($payload['resolution'] ?? null) ? $payload['resolution'] : null,
+                (int) ($user['id'] ?? 0)
+            ),
+            'reopen_verlauf_case' => avesmapsWikiPathVerlaufUpdateCaseStatus(
+                $pdo,
+                (string) ($payload['wiki_key'] ?? ''),
+                'open',
+                is_array($payload['resolution'] ?? null) ? $payload['resolution'] : null,
+                (int) ($user['id'] ?? 0)
+            ),
             default => null,
         };
 

@@ -545,6 +545,77 @@ function avesmapsWikiPathVerlaufComputeCase(array $stagingRow, array $assignment
     ];
 }
 
+// Case-status side-table (Task 4): persists ONLY the user's review decision (deferred/archived) per
+// wiki way, keyed by wiki_key. "open" cases are computed live in avesmapsWikiPathVerlaufListCases (a
+// staging row whose hash differs from the way's current stored hash); a persisted status applies only
+// while its stored course_hash still matches that staging hash -- a later wiki course edit changes the
+// staging hash and the case reopens automatically (deviation from the political_capital_case_status
+// pattern, justified because verlauf cases are versioned by course). Convention as elsewhere in the
+// schema: no FK constraints.
+function avesmapsWikiPathVerlaufEnsureCaseTable(PDO $pdo): void {
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS wiki_path_verlauf_case_status (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            wiki_key VARCHAR(255) NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'open',
+            course_hash CHAR(40) NOT NULL DEFAULT '',
+            resolution_json JSON NULL,
+            reviewed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+            reviewed_by BIGINT UNSIGNED NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY uq_wiki_path_verlauf_case_key (wiki_key),
+            KEY idx_wiki_path_verlauf_case_status (status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+}
+
+// Persists the user's review decision for a verlauf-sync case. defer/archive upsert the override,
+// stamped with the wiki way's CURRENT staging hash (so a later wiki edit auto-reopens the case, see
+// the table comment above); reopen ('open') removes it so the case falls back to its live-computed
+// open state. The apply path (Task 5) deletes the row entirely on a successful sync, same as
+// avesmapsPoliticalAssignCapital does for political_capital_case_status.
+function avesmapsWikiPathVerlaufUpdateCaseStatus(PDO $pdo, string $wikiKey, string $status, ?array $resolution, int $userId): array {
+    avesmapsWikiPathVerlaufEnsureCaseTable($pdo);
+
+    if (!in_array($status, ['open', 'deferred', 'archived'], true)) {
+        throw new RuntimeException('Unknown case status.');
+    }
+
+    if ($status === 'open') {
+        $pdo->prepare('DELETE FROM wiki_path_verlauf_case_status WHERE wiki_key = :k')
+            ->execute(['k' => $wikiKey]);
+        return ['ok' => true, 'wiki_key' => $wikiKey, 'status' => 'open'];
+    }
+
+    $stagingStatement = $pdo->prepare('SELECT verlauf FROM ' . AVESMAPS_WIKI_PATH_STAGING_TABLE . ' WHERE wiki_key = :k LIMIT 1');
+    $stagingStatement->execute(['k' => $wikiKey]);
+    $stagingRow = $stagingStatement->fetch(PDO::FETCH_ASSOC);
+    if ($stagingRow === false) {
+        throw new RuntimeException('Unknown wiki way: ' . $wikiKey);
+    }
+    $courseHash = avesmapsWikiPathCourseHash((string) ($stagingRow['verlauf'] ?? ''));
+
+    $resolutionJson = $resolution !== null
+        ? json_encode($resolution, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        : null;
+    $reviewedBy = $userId > 0 ? $userId : null;
+
+    $statement = $pdo->prepare(
+        'INSERT INTO wiki_path_verlauf_case_status (wiki_key, status, course_hash, resolution_json, reviewed_by)
+        VALUES (:wiki_key, :status, :course_hash, :resolution_json, :reviewed_by)
+        ON DUPLICATE KEY UPDATE status = VALUES(status), course_hash = VALUES(course_hash), resolution_json = VALUES(resolution_json), reviewed_by = VALUES(reviewed_by)'
+    );
+    $statement->execute([
+        'wiki_key' => $wikiKey,
+        'status' => $status,
+        'course_hash' => $courseHash,
+        'resolution_json' => $resolutionJson,
+        'reviewed_by' => $reviewedBy,
+    ]);
+
+    return ['ok' => true, 'wiki_key' => $wikiKey, 'status' => $status];
+}
+
 // Paginated case scan for the review UI (GET ?action=verlauf_cases). Walks wiki_path_staging by an
 // id cursor, computes a case per row, and time-boxes the batch (STRATO shared hosting). Builds the
 // routing context lazily and at most once per kind per request: the expensive full map load
@@ -559,6 +630,7 @@ function avesmapsWikiPathVerlaufListCases(PDO $pdo, array $config, array $option
     require_once __DIR__ . '/../routing/client-graph.php';
 
     avesmapsWikiPathEnsureTables($pdo);
+    avesmapsWikiPathVerlaufEnsureCaseTable($pdo);
 
     $cursor = max(0, (int) ($options['cursor'] ?? 0));
     $limit = max(1, min(50, (int) ($options['limit'] ?? 20)));
@@ -567,6 +639,14 @@ function avesmapsWikiPathVerlaufListCases(PDO $pdo, array $config, array $option
     $startedAt = microtime(true);
 
     $assignments = avesmapsWikiPathVerlaufReadAssignments($pdo);
+
+    // Persisted review decisions, loaded once per request (Task 4). Applied per case below: a status
+    // row only "counts" while its stored course_hash still matches that case's staging_hash -- a newer
+    // wiki edit changes the staging hash and the case reopens automatically.
+    $statusByWikiKey = [];
+    foreach ($pdo->query('SELECT wiki_key, status, course_hash FROM wiki_path_verlauf_case_status') as $statusRow) {
+        $statusByWikiKey[(string) $statusRow['wiki_key']] = $statusRow;
+    }
 
     // Routing context, built lazily and reused across staging rows within this request.
     $mapData = null;
@@ -654,6 +734,10 @@ function avesmapsWikiPathVerlaufListCases(PDO $pdo, array $config, array $option
         $router = $buildRouter($kind);
         $case = avesmapsWikiPathVerlaufComputeCase($row, $assignments, $locationLookup ?? [], $router);
         if ($case !== null) {
+            $statusRow = $statusByWikiKey[$wikiKey] ?? null;
+            $case['status'] = $statusRow !== null && (string) $statusRow['course_hash'] === (string) $case['staging_hash']
+                ? (string) $statusRow['status']
+                : 'open';
             $cases[] = $case;
         }
     }
