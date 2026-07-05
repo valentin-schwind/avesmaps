@@ -131,6 +131,27 @@ function avesmapsAddClientCompatiblePathConnection(array &$graph, array $locatio
     }
 }
 
+// Normalized river-flow object for a route path (properties.flow, Flussrichtung spec §2/§4).
+// Null unless the path is a Flussweg with a valid dir; factor clamped to [1.0, 3.0], default
+// 1.5. Self-contained mirror of the wiki lib's avesmapsPathFlowNormalize (routing must not
+// depend on the wiki lib) and of js/routing/route-graph-routing.js getRiverFlowTimeFactors.
+function avesmapsRouteClientNormalizeFlow(array $path, string $routeType): ?array {
+    if ($routeType !== 'Flussweg') {
+        return null;
+    }
+    $flow = $path['flow'] ?? null;
+    if (!is_array($flow)) {
+        return null;
+    }
+    $dir = (string) ($flow['dir'] ?? '');
+    if ($dir !== 'forward' && $dir !== 'reverse') {
+        return null;
+    }
+    $factor = is_numeric($flow['factor'] ?? null) ? (float) $flow['factor'] : 1.5;
+    $factor = max(1.0, min(3.0, $factor));
+    return ['dir' => $dir, 'factor' => $factor];
+}
+
 function avesmapsAddClientCompatiblePathSliceConnection(array &$graph, array $fromNode, array $toNode, array $coordinates, string $routeType, string $transportOption, float $speed, string $connectionId, array $path): void {
     $distance = avesmapsCalculateClientRouteCoordinateDistance($coordinates);
     $connection = [
@@ -148,8 +169,29 @@ function avesmapsAddClientCompatiblePathSliceConnection(array &$graph, array $fr
         'synthetic' => false,
     ];
 
-    avesmapsAddClientCompatibleGraphConnection($graph, $connection['from'], $connection['to'], $connection);
-    avesmapsAddClientCompatibleGraphConnection($graph, $connection['to'], $connection['from'], $connection);
+    $flow = avesmapsRouteClientNormalizeFlow($path, $routeType);
+    if ($flow === null) {
+        // No known flow direction: symmetric, EXACTLY today's behaviour (shared object).
+        avesmapsAddClientCompatibleGraphConnection($graph, $connection['from'], $connection['to'], $connection);
+        avesmapsAddClientCompatibleGraphConnection($graph, $connection['to'], $connection['from'], $connection);
+        return;
+    }
+
+    // Asymmetric river edge (spec §4): slice coordinates are in stored drawing order and
+    // from/to follow that order, so the from->to edge travels WITH dir 'forward' and AGAINST
+    // dir 'reverse'. Upstream legs cost time * factor; downstream stays the exact base time.
+    // from/to fields stay the STORED orientation on both variants -- the verlauf flow
+    // derivation's chain walk depends on that.
+    $upstreamTime = $connection['time'] * $flow['factor'];
+    $forwardConnection = $connection;
+    $forwardConnection['time'] = $flow['dir'] === 'reverse' ? $upstreamTime : $connection['time'];
+    $forwardConnection['flow_time_factor'] = $flow['dir'] === 'reverse' ? $flow['factor'] : 1.0;
+    $reverseConnection = $connection;
+    $reverseConnection['time'] = $flow['dir'] === 'forward' ? $upstreamTime : $connection['time'];
+    $reverseConnection['flow_time_factor'] = $flow['dir'] === 'forward' ? $flow['factor'] : 1.0;
+
+    avesmapsAddClientCompatibleGraphConnection($graph, $connection['from'], $connection['to'], $forwardConnection);
+    avesmapsAddClientCompatibleGraphConnection($graph, $connection['to'], $connection['from'], $reverseConnection);
 }
 
 function avesmapsConnectClientCompatibleDetachedGraphComponents(array &$graph, array $locations, array $request): int {
@@ -449,6 +491,7 @@ function avesmapsBuildClientRouteDiagnosticSegments(array $segments): array {
             // actual sub-edge instead of re-resolving the whole parent path by feature_id.
             'geometry' => ['type' => 'LineString', 'coordinates' => $coordinates],
             'synthetic' => !empty($segment['synthetic']),
+            'flow_time_factor' => (float) ($segment['flow_time_factor'] ?? 1.0),
         ];
     }, $segments, array_keys($segments));
 }

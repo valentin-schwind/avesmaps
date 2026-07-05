@@ -153,5 +153,7 @@ function avesmapsBuildRoutePathData(array $feature, string $clientPathId = ''): 
 		'subtype' => $routeSubtype,
 		'geometry' => is_array($feature['geometry'] ?? null) ? $feature['geometry'] : [],
 		'properties' => is_array($properties['properties'] ?? null) ? $properties['properties'] : [],
+		// Flussrichtung spec §2: top-level properties.flow, needed by the graph builder.
+		'flow' => is_array($properties['flow'] ?? null) ? $properties['flow'] : null,
 	];
 }
