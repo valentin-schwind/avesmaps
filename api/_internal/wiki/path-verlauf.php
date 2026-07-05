@@ -935,6 +935,11 @@ function avesmapsWikiPathVerlaufCurrentSource(PDO $pdo, string $publicId): strin
 }
 
 // Applies a single verlauf-sync case (POST apply_verlauf_case). ALWAYS recomputes server-side.
+// Thin public wrapper: builds the shared per-request state (full-table assignment snapshot + lazy
+// routing context) ONCE, recomputes the case against it, then delegates the write to
+// avesmapsWikiPathVerlaufApplyCaseWithContext. The bulk path (ApplyCleanCases) reuses that same
+// internal entry point with its already-built shared state, so a batch pays for exactly one
+// ReadAssignments + one routing context instead of one per case.
 // Execution order (spec T5 / §3):
 //   1. Recompute the case (case_not_found when the staging row is gone; RuntimeException 'Nothing to
 //      apply (case unchanged).' when nothing is actionable -> the endpoint's generic handler).
@@ -959,6 +964,25 @@ function avesmapsWikiPathVerlaufApplyCase(PDO $pdo, array $config, string $wikiK
         throw new RuntimeException('Nothing to apply (case unchanged).');
     }
 
+    return avesmapsWikiPathVerlaufApplyCaseWithContext($pdo, $wikiKey, $case, $dryRun, $userId, $assignments);
+}
+
+// Internal case-apply body shared by the single-case wrapper (avesmapsWikiPathVerlaufApplyCase) and
+// the bulk loop (avesmapsWikiPathVerlaufApplyCleanCases). Accepts the ALREADY-recomputed $case and the
+// shared batch-start $assignments snapshot instead of rebuilding both per case -- this is the whole
+// point of the extraction: on STRATO a bulk batch must not re-run the expensive full-map ReadAssignments
+// / route-map load once per applied case.
+//
+// STALENESS NOTE (shared-state handoff): reusing the batch-start $assignments across applied cases is
+// SAFE even though an earlier case in the same run may have written segments $assignments does not yet
+// reflect, because (a) removes are gated by a LIVE per-row wiki_path.source re-read (step 4 /
+// avesmapsWikiPathVerlaufCurrentSource) immediately before each clear, so a segment an earlier case
+// turned into a verlauf-sync member is judged on its real current source, not the stale snapshot; and
+// (b) any segment an earlier case wrote is in the caller's $claimedThisRun set, and a later case whose
+// adds overlap it is skipped WHOLE (skipped_not_clean) before ever reaching this function -- so stale
+// $assignments (here used only to seed $currentByPublicId for the keeps/restamp diff) can only cause a
+// conservative skip of a no-op restamp, never a wrong write.
+function avesmapsWikiPathVerlaufApplyCaseWithContext(PDO $pdo, string $wikiKey, array $case, bool $dryRun, int $userId, array $assignments): array {
     if ($dryRun) {
         return [
             'ok' => true,
@@ -966,6 +990,7 @@ function avesmapsWikiPathVerlaufApplyCase(PDO $pdo, array $config, string $wikiK
             'wiki_key' => $wikiKey,
             'case' => $case,
             'adds_applied' => 0,
+            'adds_failed' => 0,
             'removes_applied' => 0,
             'restamped' => 0,
             'skipped_conflicts' => 0,
@@ -974,6 +999,9 @@ function avesmapsWikiPathVerlaufApplyCase(PDO $pdo, array $config, string $wikiK
     }
 
     $stagingHash = (string) ($case['staging_hash'] ?? '');
+    // DEAD PLAN BRANCH: $currentByPublicId is seeded ONLY from keeps, so PlanWrites' remove branch is
+    // structurally empty here -- production removes go through the step-4 live re-read loop below, NOT
+    // through $plan['removes']. Do not assume the plan drives removes.
     $currentByPublicId = [];
     foreach ($case['keeps'] as $keep) {
         $publicId = (string) ($keep['public_id'] ?? '');
@@ -992,6 +1020,7 @@ function avesmapsWikiPathVerlaufApplyCase(PDO $pdo, array $config, string $wikiK
 
     // Step 3: adds (always single_segment, stamped as verlauf-sync with this course's hash/hops).
     $addsApplied = 0;
+    $addsFailed = 0;
     foreach ($case['adds'] as $add) {
         $publicId = (string) ($add['public_id'] ?? '');
         if ($publicId === '' || !isset($plan['adds'][$publicId])) {
@@ -1008,6 +1037,10 @@ function avesmapsWikiPathVerlaufApplyCase(PDO $pdo, array $config, string $wikiK
             foreach (($result['segments_updated'] ?? []) as $segment) {
                 $segmentsUpdated[] = $segment;
             }
+        } else {
+            // An add that the assign refused (type mismatch) or that touched no row: previously silent
+            // (adds_applied just came out lower). Counted so the live verification can see it.
+            $addsFailed++;
         }
     }
 
@@ -1045,6 +1078,7 @@ function avesmapsWikiPathVerlaufApplyCase(PDO $pdo, array $config, string $wikiK
         'wiki_key' => $wikiKey,
         'case' => $case,
         'adds_applied' => $addsApplied,
+        'adds_failed' => $addsFailed,
         'removes_applied' => $removesApplied,
         'restamped' => count($restamped),
         'skipped_conflicts' => $skippedConflicts,
@@ -1166,15 +1200,21 @@ function avesmapsWikiPathVerlaufApplyCleanCases(PDO $pdo, array $config, bool $d
                 'wiki_key' => $wikiKey,
                 'name' => (string) ($case['name'] ?? ''),
                 'adds_applied' => 0,
+                'adds_failed' => 0,
                 'removes_applied' => 0,
                 'restamped' => 0,
             ];
         } else {
-            $applied = avesmapsWikiPathVerlaufApplyCase($pdo, $config, $wikiKey, false, $userId);
+            // Reuse the loop's already-computed $case and the shared batch-start $assignments instead
+            // of the public wrapper (which would re-run ReadAssignments + rebuild the routing context
+            // and re-recompute the case per row). Safe per the staleness note on
+            // avesmapsWikiPathVerlaufApplyCaseWithContext.
+            $applied = avesmapsWikiPathVerlaufApplyCaseWithContext($pdo, $wikiKey, $case, false, $userId, $assignments);
             $appliedCases[] = [
                 'wiki_key' => $wikiKey,
                 'name' => (string) ($case['name'] ?? ''),
                 'adds_applied' => (int) ($applied['adds_applied'] ?? 0),
+                'adds_failed' => (int) ($applied['adds_failed'] ?? 0),
                 'removes_applied' => (int) ($applied['removes_applied'] ?? 0),
                 'restamped' => (int) ($applied['restamped'] ?? 0),
             ];
