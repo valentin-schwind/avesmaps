@@ -178,8 +178,14 @@ function fitWaypointAutocompleteMenu($input) {
 
 	const viewportPadding = 8;
 	const inputRect = inputElement.getBoundingClientRect();
-	const availableBelow = Math.max(0, window.innerHeight - inputRect.bottom - viewportPadding);
-	const availableAbove = Math.max(0, inputRect.top - viewportPadding);
+	// Use the VISUAL viewport when available: on mobile the on-screen keyboard shrinks it while
+	// window.innerHeight often stays full-height -- without this the menu is placed below the input
+	// and hidden BEHIND the keyboard (looks like "no autocomplete offered"). Falls back to innerHeight.
+	const visualViewport = window.visualViewport;
+	const viewportTop = visualViewport ? visualViewport.offsetTop : 0;
+	const viewportBottom = visualViewport ? visualViewport.offsetTop + visualViewport.height : window.innerHeight;
+	const availableBelow = Math.max(0, viewportBottom - inputRect.bottom - viewportPadding);
+	const availableAbove = Math.max(0, inputRect.top - viewportTop - viewportPadding);
 	const shouldOpenAbove = availableBelow < 160 && availableAbove > availableBelow;
 	const availableHeight = Math.max(110, Math.min(360, shouldOpenAbove ? availableAbove : availableBelow));
 
@@ -213,6 +219,10 @@ function initializeWaypointAutocompletePositioning() {
 	initializeWaypointAutocompletePositioning.isInitialized = true;
 	document.getElementById("search")?.addEventListener("scroll", fitOpenWaypointAutocompleteMenus);
 	window.addEventListener("resize", fitOpenWaypointAutocompleteMenus);
+	if (window.visualViewport) {
+		window.visualViewport.addEventListener("resize", fitOpenWaypointAutocompleteMenus);
+		window.visualViewport.addEventListener("scroll", fitOpenWaypointAutocompleteMenus);
+	}
 }
 
 function initializeWaypointAutocomplete($input) {
