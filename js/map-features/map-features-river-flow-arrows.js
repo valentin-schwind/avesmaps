@@ -11,7 +11,11 @@
 	const ARROW_MIN_ZOOM = 1;
 
 	function ready() {
-		return typeof map !== "undefined" && map && typeof L !== "undefined"
+		// typeof map.createPane guards against the pre-bootstrap window: until bootstrap.js
+		// assigns the Leaflet map, the global name `map` resolves to the #map DOM element
+		// (named element access), which is truthy but has no Leaflet API.
+		return typeof map !== "undefined" && map && typeof map.createPane === "function"
+			&& typeof L !== "undefined"
 			&& typeof IS_EDIT_MODE !== "undefined" && typeof pathData !== "undefined";
 	}
 
