@@ -609,6 +609,10 @@ function avesmapsWikiPathSetFlow(PDO $pdo, string $publicId, array $options, boo
             $writes[$pid] = $write;
         }
     } elseif ($setDir) {
+        // Stale-panel guard: a way that already has a direction must be flipped, not re-oriented.
+        if ($directedBefore > 0) {
+            throw new RuntimeException('Way already has a direction (use flip).');
+        }
         $chain = avesmapsPathFlowChainOrientation($coordinatesByPublicId);
         if ($chain === []) {
             throw new RuntimeException('No unambiguous segment chain found.');
