@@ -9,6 +9,8 @@ declare(strict_types=1);
 // AvesmapsConflictException class and the try/catch dispatch. Bootstrap/auth deps
 // and the const/class are resolved at call time.
 
+require_once __DIR__ . '/../wiki/path-naming.php';
+
 function avesmapsReadMapFeaturePublicId(mixed $value): string {
     $publicId = avesmapsNormalizeSingleLine((string) $value, 36);
     if (preg_match('/^[a-f0-9-]{36}$/i', $publicId) !== 1) {
@@ -1536,6 +1538,9 @@ function avesmapsUpdatePathFeatureDetails(PDO $pdo, array $payload, array $user)
         $feature = avesmapsFetchEditableLineStringFeature($pdo, $publicId);
         avesmapsAssertFeatureCanBeEdited($pdo, $payload, $feature, $user);
         $properties = avesmapsDecodeJsonColumnForEdit($feature['properties_json'] ?? null);
+        // R1: an assigned wiki way (properties.wiki_path) always names the way -- the typed or
+        // auto-generated form name must not override it. show_label stays form-controlled (R3).
+        $name = avesmapsWikiPathEffectiveEditName($name, $properties);
         $properties['name'] = $name;
         $properties['display_name'] = $name;
         $properties['feature_type'] = 'path';
