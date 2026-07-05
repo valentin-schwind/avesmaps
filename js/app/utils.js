@@ -117,7 +117,8 @@ function getPlannerTravelHoursPerDay() {
 	if (!Number.isFinite(parsed)) {
 		return 24 - DEFAULT_PLANNER_STATE.restHours;
 	}
-	return Math.min(23.5, Math.max(0.5, parsed));
+	// 24 ist erlaubt (= durchreisen ohne Rast, Raststunden 0).
+	return Math.min(24, Math.max(0.5, parsed));
 }
 
 function getPlannerRestHoursPerDay() {

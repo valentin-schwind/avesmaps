@@ -416,25 +416,16 @@ $("#searchButton").on("click", () => updateMapView());
 $("#search").on("change", 'input[type="checkbox"], input[type="radio"], select, input[type="number"]', () => syncPlannerStateToUrl());
 $("#search").on("input", "#travelHoursPerDay, .waypoint-input", () => syncPlannerStateToUrl());
 
-// Reisestunden-Feld: gueltiger Bereich 0,5-23,5 Stunden/Tag. Wert >= 24 bedeutet "keine Rast" ->
-// Rastzeiten-Haken automatisch entfernen und Feld auf den Maximalwert setzen; leer -> Standard.
+// Reisestunden-Feld: gueltiger Bereich 0,5-24 Stunden/Tag (24 = durchreisen ohne Rast); leer -> Standard.
 $("#search").on("change", "#travelHoursPerDay", function () {
 	const $travelHoursField = $(this);
 	const parsedTravelHours = parseFloat($travelHoursField.val());
-	if (Number.isFinite(parsedTravelHours) && parsedTravelHours >= 24) {
-		if ($("#includeRests").is(":checked")) {
-			$("#includeRests").prop("checked", false).trigger("change");
-		}
-		$travelHoursField.val("23.5");
-		if (typeof syncPlannerStateToUrl === "function") syncPlannerStateToUrl();
-		return;
-	}
 	if (!Number.isFinite(parsedTravelHours)) {
 		$travelHoursField.val(String(24 - DEFAULT_PLANNER_STATE.restHours));
 		if (typeof syncPlannerStateToUrl === "function") syncPlannerStateToUrl();
 		return;
 	}
-	const clampedTravelHours = Math.min(Math.max(parsedTravelHours, 0.5), 23.5);
+	const clampedTravelHours = Math.min(Math.max(parsedTravelHours, 0.5), 24);
 	if (clampedTravelHours !== parsedTravelHours) {
 		$travelHoursField.val(String(clampedTravelHours));
 		if (typeof syncPlannerStateToUrl === "function") syncPlannerStateToUrl();
@@ -447,8 +438,8 @@ $("#search").on("change", "#includeRests", function () {
 	const parsedTravelHours = parseFloat($("#travelHoursPerDay").val());
 	if (!Number.isFinite(parsedTravelHours) || parsedTravelHours < 0.5) {
 		$("#travelHoursPerDay").val(String(24 - DEFAULT_PLANNER_STATE.restHours));
-	} else if (parsedTravelHours > 23.5) {
-		$("#travelHoursPerDay").val("23.5");
+	} else if (parsedTravelHours > 24) {
+		$("#travelHoursPerDay").val("24");
 	}
 });
 $(document).ajaxError((event, jqXHR, settings, thrownError) => {

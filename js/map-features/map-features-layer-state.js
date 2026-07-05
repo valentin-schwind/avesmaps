@@ -118,7 +118,8 @@ function applyPlannerStateFromUrl() {
 	$("#allowRiver").prop("checked", parseBooleanQueryParam(searchParams.get("allowRiver"), DEFAULT_PLANNER_STATE.allowRiver));
 	$("#allowSea").prop("checked", parseBooleanQueryParam(searchParams.get("allowSea"), DEFAULT_PLANNER_STATE.allowSea));
 	// URL-Param bleibt "restHours" (Share-Link-Kompatibilität); das Feld zeigt Reisestunden (24 - Rast).
-	const restHoursFromParams = parseNumberQueryParam(searchParams.get("restHours"), DEFAULT_PLANNER_STATE.restHours, 0.5, 23.5);
+	// Min 0 (nicht 0,5): restHours=0 entspricht 24 Reisestunden ("durchreisen").
+	const restHoursFromParams = parseNumberQueryParam(searchParams.get("restHours"), DEFAULT_PLANNER_STATE.restHours, 0, 23.5);
 	$("#travelHoursPerDay").val(String(24 - restHoursFromParams));
 
 	if (landTransport && VALID_TRANSPORT_OPTIONS.land.has(landTransport)) {
