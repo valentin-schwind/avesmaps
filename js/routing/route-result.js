@@ -56,6 +56,9 @@ function buildRouteSteps(routeNames, segments, options = {}) {
 			from: entry.startName,
 			to: entry.endName,
 			path_name: entry.segmentLabel || "",
+			// Stroemungszustand der Fluss-Etappe (flussabwaerts/-aufwaerts) fuer die Anzeige;
+			// null = unbekannt/kein Fluss.
+			flow_state: entry.flowState || null,
 			distance: entry.distance,
 			travel_time: entry.travelTime,
 			rest_time: restTime,

@@ -25,6 +25,7 @@ function buildRoutePlanViewModel(routeResult, routeNames, routeLocations = []) {
 		startName: step.from || "",
 		endName: step.to || "",
 		segmentLabel: step.path_name || "",
+		flowState: step.flow_state === "upstream" || step.flow_state === "downstream" ? step.flow_state : null,
 		distance: Number(step.distance) || 0,
 		travelTime: Number(step.travel_time) || 0,
 		restTime: Number(step.rest_time) || 0,
