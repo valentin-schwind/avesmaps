@@ -29,13 +29,6 @@ function isTransportAllowedForPath(pathProperties, transportOption) {
 	return allowedTransports.includes(transportOption);
 }
 
-// 24 Reisestunden/Tag = keine Rast -> Identitaet (der frühere Rastzeiten-Haken ist entfallen).
-function applyRestTimes(travelHours) {
-	const hoursPerDay = getPlannerTravelHoursPerDay();
-	const days = travelHours / hoursPerDay;
-	return days * 24;
-}
-
 function shouldProbeServerRouting() {
 	return new URLSearchParams(window.location.search).get("serverrouting") === "1";
 }

@@ -271,6 +271,7 @@
 	font: inherit;
 	padding: 0 4px;
 	box-sizing: border-box;
+	text-align: right;
 }
 
 .display-options__label {
