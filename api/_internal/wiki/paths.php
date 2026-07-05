@@ -746,7 +746,30 @@ function avesmapsWikiPathBuildAssignObject(array $stagingRow): array {
     ];
 }
 
-// Heftet einen Wiki-Weg an ALLE aktiven Path-Features mit gleichem (normalisiertem) Namen.
+// Weg-Identitaet fuer Assign/Clear: ein Segment gehoert zum Ziel-Weg, wenn sein NAME denselben
+// Match-Key traegt ODER es bereits demselben Wiki-Weg zugeordnet ist (wiki_path.wiki_key).
+// Der wiki_key ist die verlaessliche Identitaet: Bestands-Zuweisungen tragen noch die
+// Phase-1-Random-Namen (z.B. Reichsstrasse-89), die nie einen gemeinsamen Namens-Key hatten.
+function avesmapsWikiPathRowMatchesWay(string $rowName, ?string $rowPropertiesJson, string $targetKey, string $targetWikiKey): bool {
+    if ($targetKey !== '' && avesmapsWikiSyncCreateMatchKey($rowName) === $targetKey) {
+        return true;
+    }
+    if ($targetWikiKey === '' || $rowPropertiesJson === null || $rowPropertiesJson === '') {
+        return false;
+    }
+    // Billiger Vorfilter auf dem Roh-JSON (json_encode schreibt ASCII-Keys ohne Leerzeichen;
+    // das schliessende Anfuehrungszeichen verhindert reichsstrasse-1 vs. -11); der exakte
+    // Vergleich nach dem Decode schuetzt vor Vorkommen des Fragments in Textfeldern.
+    if (strpos($rowPropertiesJson, '"wiki_key":"' . $targetWikiKey . '"') === false) {
+        return false;
+    }
+    $props = avesmapsWikiSyncDecodeJson($rowPropertiesJson);
+
+    return (string) ($props['wiki_path']['wiki_key'] ?? '') === $targetWikiKey;
+}
+
+// Heftet einen Wiki-Weg an ALLE aktiven Path-Features mit gleichem (normalisiertem) Namen ODER
+// bereits bestehender Zuordnung zu diesem Wiki-Weg (Weg-Identitaet, s.o.).
 // Gated: dry_run zaehlt nur; Schreiben nur bei dry_run:false. map_features-Write (Produktion).
 function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $userId = 0): array {
     avesmapsWikiPathEnsureTables($pdo);
@@ -769,7 +792,7 @@ function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $us
     $paths = $pdo->query("SELECT id, public_id, name, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
     $targets = [];
     foreach ($paths as $p) {
-        if (avesmapsWikiSyncCreateMatchKey((string) $p['name']) === $targetKey) {
+        if (avesmapsWikiPathRowMatchesWay((string) $p['name'], $p['properties_json'] ?? null, $targetKey, $wikiKey)) {
             $targets[] = $p;
         }
     }
@@ -805,8 +828,9 @@ function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $us
     ];
 }
 
-// Re-Targeting: heftet einen Wiki-Weg an EIN auf der Karte gewaehltes Ziel-Segment (und alle
-// gleichnamigen). Mit Typ-Pruefung (Fluss <-> Strasse/Weg). Gated.
+// Re-Targeting: heftet einen Wiki-Weg an EIN auf der Karte gewaehltes Ziel-Segment und den ganzen
+// Weg (Namens-Key ODER bereits zugeordneter wiki_key des Ziel-Segments, Weg-Identitaet s.o.). Mit
+// Typ-Pruefung (Fluss <-> Strasse/Weg). Gated.
 function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, bool $dryRun, int $userId = 0): array {
     avesmapsWikiPathEnsureTables($pdo);
     $wikiKey = trim($wikiKey);
@@ -820,7 +844,7 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
     if (!$row) {
         throw new RuntimeException('Wiki-Weg nicht im Staging: ' . $wikiKey);
     }
-    $targetStatement = $pdo->prepare("SELECT name, feature_subtype FROM map_features WHERE public_id = :p AND feature_type = 'path' LIMIT 1");
+    $targetStatement = $pdo->prepare("SELECT name, feature_subtype, properties_json FROM map_features WHERE public_id = :p AND feature_type = 'path' LIMIT 1");
     $targetStatement->execute(['p' => $publicId]);
     $target = $targetStatement->fetch(PDO::FETCH_ASSOC);
     if (!$target) {
@@ -843,6 +867,9 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
     }
 
     $targetKey = avesmapsWikiSyncCreateMatchKey((string) $target['name']);
+    $targetProps = avesmapsWikiSyncDecodeJson($target['properties_json'] ?? null);
+    // "Aendern": haengt das Ziel-Segment schon an einem Wiki-Weg, wandert der GANZE Weg mit.
+    $targetWikiKey = (string) ($targetProps['wiki_path']['wiki_key'] ?? '');
     $assignObject = avesmapsWikiPathBuildAssignObject($row);
     // R1: the assigned wiki way names the way. '' (unusable staging row) keeps existing names.
     $canonicalName = avesmapsWikiPathCanonicalName($assignObject);
@@ -852,7 +879,7 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
     $revision = null;
     $segmentsUpdated = [];
     foreach ($paths as $p) {
-        if (avesmapsWikiSyncCreateMatchKey((string) $p['name']) !== $targetKey) {
+        if (!avesmapsWikiPathRowMatchesWay((string) $p['name'], $p['properties_json'] ?? null, $targetKey, $targetWikiKey)) {
             continue;
         }
         $segments++;
@@ -944,17 +971,18 @@ function avesmapsWikiPathAssignAll(PDO $pdo, string $continentFilter, bool $dryR
     ];
 }
 
-// Entfernt die Wiki-Zuordnung von allen gleichnamigen Path-Segmenten (per public_id eines
-// Segments). R2: die ganze Weg-Gruppe bekommt EINEN frischen generischen `<Subtype>-<n>`-Namen
-// zurueck (Gruppierung bleibt intakt; ein Re-Assign trifft wieder alle Segmente). Segmente ohne
-// wiki_path werden mit-umbenannt, damit der Wiki-Name vollstaendig verschwindet.
+// Entfernt die Wiki-Zuordnung vom ganzen Weg (Namens-Key ODER bereits zugeordneter wiki_key des
+// Ziel-Segments, Weg-Identitaet s.o.; per public_id eines Segments). R2: die ganze Weg-Gruppe
+// bekommt EINEN frischen generischen `<Subtype>-<n>`-Namen zurueck (Gruppierung bleibt intakt;
+// ein Re-Assign trifft wieder alle Segmente). Segmente ohne wiki_path werden mit-umbenannt, damit
+// der Wiki-Name vollstaendig verschwindet.
 function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, int $userId = 0): array {
     avesmapsWikiPathEnsureTables($pdo);
     $publicId = trim($publicId);
     if ($publicId === '') {
         throw new RuntimeException('public_id fehlt.');
     }
-    $statement = $pdo->prepare("SELECT name, feature_subtype FROM map_features WHERE public_id = :pid AND feature_type = 'path' LIMIT 1");
+    $statement = $pdo->prepare("SELECT name, feature_subtype, properties_json FROM map_features WHERE public_id = :pid AND feature_type = 'path' LIMIT 1");
     $statement->execute(['pid' => $publicId]);
     $target = $statement->fetch(PDO::FETCH_ASSOC);
     $name = (string) ($target['name'] ?? '');
@@ -962,6 +990,8 @@ function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, i
         throw new RuntimeException('Weg nicht gefunden: ' . $publicId);
     }
     $targetKey = avesmapsWikiSyncCreateMatchKey($name);
+    $targetProps = avesmapsWikiSyncDecodeJson($target['properties_json'] ?? null);
+    $targetWikiKey = (string) ($targetProps['wiki_path']['wiki_key'] ?? '');
 
     $paths = $pdo->query("SELECT id, public_id, name, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
     $genericName = avesmapsWikiPathNextGenericName(
@@ -973,7 +1003,7 @@ function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, i
     $revision = null;
     $segmentsUpdated = [];
     foreach ($paths as $p) {
-        if (avesmapsWikiSyncCreateMatchKey((string) $p['name']) !== $targetKey) {
+        if (!avesmapsWikiPathRowMatchesWay((string) $p['name'], $p['properties_json'] ?? null, $targetKey, $targetWikiKey)) {
             continue;
         }
         $matchCount++;

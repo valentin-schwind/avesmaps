@@ -1,6 +1,7 @@
 // Wiki-Weg-Picker im „Weg bearbeiten"-Dialog: ordnet einem Pfad-Feature manuell einen Wiki-Weg
-// (Fluss/Straße) zu. Auswahl schreibt sofort (assign_to, Typcheck Fluss<->Straße) auf alle
-// gleichnamigen Segmente. Nutzt die label-wiki-*-Optik wieder.
+// (Fluss/Straße) zu. Auswahl schreibt sofort (assign_to, Typcheck Fluss<->Straße) auf den ganzen
+// Weg (Weg-Identitaet = Namens-Key ODER bereits zugeordneter wiki_key, nicht nur gleichnamige
+// Segmente). Nutzt die label-wiki-*-Optik wieder.
 
 const PATH_WIKI_API_URL = "/api/edit/wiki/paths.php";
 let pathWikiPickerResults = [];
