@@ -5,19 +5,29 @@
 // map-features-path-label-canvas-overlay.js). Diese Datei enthält NUR die reinen, testbaren Helfer;
 // Projektion/Zeichnen bleibt im Overlay (siehe tools/paths/test-way-labels.mjs).
 
-// Rundet eine [x,y]-Koordinate auf 4 Nachkommastellen -> stabiler Verkettungs-Key (Toleranz gegen
-// Fließkomma-Rauschen zwischen Segment-Endpunkten, die geometrisch denselben Knoten meinen).
-function wayLabelEndpointKey(coord) {
-	const x = Number(coord?.[0]);
-	const y = Number(coord?.[1]);
-	return `${x.toFixed(4)}:${y.toFixed(4)}`;
+// Toleranz (Kartenneinheiten) für die Endpunkt-Verschmelzung in buildWayLabelChains. Gemessene
+// Verteilung auf Produktionsdaten (Reichsstraße 3, 50 Segmente): 75% der nächstgelegenen
+// Endpunkt-Abstände exakt 0 (Kreuzungs-Split, gemeinsamer Vertex), ~10% ≈0.001 (Fließkomma-Rauschen
+// OBERHALB des alten 1e-4-Rastergrids), reale Ortsstoß-Lücken (handgezeichnete Segmente treffen sich
+// "an" einem Ort, nicht auf einem gemeinsamen Vertex) bis zu 6,2 Karteneinheiten.
+const WAY_LABEL_CHAIN_SNAP_EPS = 7;
+
+// Zellen-Key fürs Spatial-Hash-Grid (Zellgröße = eps): rundet (x,y) auf die umschließende Zelle ab
+// und baut daraus den Map-Key. Zum Adjazenz-Lookup werden die 3x3-Nachbarzellen eines Punkts
+// abgefragt (siehe buildWayLabelChains/findOrCreateNode) -- das deckt jeden Knoten ab, der
+// innerhalb von eps entfernt liegt, unabhängig von Zellgrenzen.
+function wayLabelChainCellKey(x, y, eps) {
+	return `${Math.floor(x / eps)}:${Math.floor(y / eps)}`;
 }
 
 // Verkettet Weg-Segmente über ihre Endpunkte zu geordneten Ketten (fortlaufende Beschriftungs-
 // Läufe). Eingabe: [{id, coordinates:[[x,y],...]}, ...] (rohe Segment-Geometrie, ein Eintrag pro
 // sichtbarem Segment DESSELBEN Wegs). Ausgabe: Array von Ketten, jede Kette ein geordnetes Array
 // von {id, coordinates, reversed}. Regeln:
-//   - Adjazenz über die (gerundeten) Endpunkt-Keys beider Segment-Enden.
+//   - Adjazenz über Knoten: Segment-Endpunkte werden per Spatial-Hash auf denselben Knoten
+//     verschmolzen, wenn ihr euklidischer Abstand <= eps ist (Default WAY_LABEL_CHAIN_SNAP_EPS,
+//     siehe dort für die gemessene Abstandsverteilung) -- Toleranz gegen Fließkomma-Rauschen UND
+//     echte, handgezeichnete Ortsstoß-Lücken.
 //   - Ketten starten an Endpunkten mit Grad 1 (offenes Ende); bleiben nur Grad-2+-Knoten übrig
 //     (reine Schleife), startet die Kette an einem beliebigen unbesuchten Segment.
 //   - An einem Knoten mit Grad > 2 (Verzweigung) ENDET die Kette dort -- sie läuft nicht durch die
@@ -25,21 +35,60 @@ function wayLabelEndpointKey(coord) {
 //   - Einzelne, isolierte Segmente (kein passender Nachbar bzw. nur über eine Verzweigung
 //     erreichbar) werden zu Ein-Segment-Ketten.
 // Pur -- keine Globals, kein DOM.
-function buildWayLabelChains(segments) {
+function buildWayLabelChains(segments, eps) {
 	const list = Array.isArray(segments) ? segments : [];
 	if (!list.length) {
 		return [];
 	}
+	const snapEps = Number.isFinite(eps) && eps > 0 ? eps : WAY_LABEL_CHAIN_SNAP_EPS;
 
-	// Für jedes Segment die zwei Endpunkt-Keys vorab berechnen.
+	// Knoten-Verschmelzung: pro Segment-Endpunkt einen bestehenden Knoten im eps-Radius
+	// wiederverwenden oder einen neuen anlegen. nodesByCell: Zellen-Key -> Liste von
+	// {nodeId, x, y} (Spatial-Hash-Grid, Zellgröße = eps).
+	const nodesByCell = new Map();
+	let nextNodeId = 0;
+	function findOrCreateNode(x, y) {
+		const cx = Math.floor(x / snapEps);
+		const cy = Math.floor(y / snapEps);
+		// 3x3-Nachbarzellen absuchen: Zellkoordinaten sind hier schon bekannt (cx+dx, cy+dy), daher
+		// direkt zum Key zusammengesetzt statt erneut über wayLabelChainCellKey(x,y,eps) berechnet.
+		for (let dx = -1; dx <= 1; dx += 1) {
+			for (let dy = -1; dy <= 1; dy += 1) {
+				const neighbors = nodesByCell.get(`${cx + dx}:${cy + dy}`);
+				if (!neighbors) {
+					continue;
+				}
+				for (let i = 0; i < neighbors.length; i += 1) {
+					const node = neighbors[i];
+					if (Math.hypot(node.x - x, node.y - y) <= snapEps) {
+						return node.nodeId;
+					}
+				}
+			}
+		}
+		const nodeId = nextNodeId;
+		nextNodeId += 1;
+		const cellKey = wayLabelChainCellKey(x, y, snapEps);
+		if (!nodesByCell.has(cellKey)) {
+			nodesByCell.set(cellKey, []);
+		}
+		nodesByCell.get(cellKey).push({ nodeId, x, y });
+		return nodeId;
+	}
+
+	// Für jedes Segment die zwei Endpunkt-Knoten-IDs vorab berechnen (Reihenfolge = Eingabe-
+	// Reihenfolge, d.h. das zuerst gesehene Segment bestimmt die Knoten-Position).
 	const endpointsBySegment = list.map((segment) => {
 		const coords = segment?.coordinates || [];
-		const start = coords[0];
-		const end = coords[coords.length - 1];
-		return { startKey: wayLabelEndpointKey(start), endKey: wayLabelEndpointKey(end) };
+		const start = coords[0] || [];
+		const end = coords[coords.length - 1] || [];
+		return {
+			startKey: findOrCreateNode(Number(start[0]), Number(start[1])),
+			endKey: findOrCreateNode(Number(end[0]), Number(end[1])),
+		};
 	});
 
-	// Adjazenz: Endpunkt-Key -> Liste von {segmentIndex, atStart} (welches Ende dort liegt).
+	// Adjazenz: Knoten-ID -> Liste von {segmentIndex, atStart} (welches Ende dort liegt).
 	const touchesByKey = new Map();
 	const addTouch = (key, segmentIndex, atStart) => {
 		if (!touchesByKey.has(key)) {
