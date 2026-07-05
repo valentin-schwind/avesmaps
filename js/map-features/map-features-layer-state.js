@@ -121,7 +121,7 @@ function applyPlannerStateFromUrl() {
 	// includeRests=0 (der Haken wurde entfernt) bedeuten ebenfalls "ohne Rast" -> 24 Reisestunden.
 	const legacyIncludeRests = parseBooleanQueryParam(searchParams.get("includeRests"), true);
 	const restHoursFromParams = parseNumberQueryParam(searchParams.get("restHours"), DEFAULT_PLANNER_STATE.restHours, 0, 23.5);
-	$("#travelHoursPerDay").val(legacyIncludeRests ? String(24 - restHoursFromParams) : "24");
+	$("#travelHoursPerDay").val(legacyIncludeRests ? (24 - restHoursFromParams).toFixed(1) : "24.0");
 
 	if (landTransport && VALID_TRANSPORT_OPTIONS.land.has(landTransport)) {
 		$("#landTransport").val(landTransport);

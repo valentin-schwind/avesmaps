@@ -417,19 +417,15 @@ $("#search").on("change", 'input[type="checkbox"], input[type="radio"], select, 
 $("#search").on("input", "#travelHoursPerDay, .waypoint-input", () => syncPlannerStateToUrl());
 
 // Reisestunden-Feld: gueltiger Bereich 0,5-24 Stunden/Tag (24 = durchreisen ohne Rast); leer -> Standard.
+// Anzeige immer mit einer Nachkommastelle (11 -> "11.0").
 $("#search").on("change", "#travelHoursPerDay", function () {
 	const $travelHoursField = $(this);
 	const parsedTravelHours = parseFloat($travelHoursField.val());
-	if (!Number.isFinite(parsedTravelHours)) {
-		$travelHoursField.val(String(24 - DEFAULT_PLANNER_STATE.restHours));
-		if (typeof syncPlannerStateToUrl === "function") syncPlannerStateToUrl();
-		return;
-	}
-	const clampedTravelHours = Math.min(Math.max(parsedTravelHours, 0.5), 24);
-	if (clampedTravelHours !== parsedTravelHours) {
-		$travelHoursField.val(String(clampedTravelHours));
-		if (typeof syncPlannerStateToUrl === "function") syncPlannerStateToUrl();
-	}
+	const clampedTravelHours = Number.isFinite(parsedTravelHours)
+		? Math.min(Math.max(parsedTravelHours, 0.5), 24)
+		: 24 - DEFAULT_PLANNER_STATE.restHours;
+	$travelHoursField.val(clampedTravelHours.toFixed(1));
+	if (typeof syncPlannerStateToUrl === "function") syncPlannerStateToUrl();
 });
 $(document).ajaxError((event, jqXHR, settings, thrownError) => {
 	const requestUrl = settings?.url || "unbekannte Anfrage";
