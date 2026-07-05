@@ -190,3 +190,16 @@ function getRouteSegmentUpstreamFactor(segment, orientation, type) {
 	const rawFactor = Number(flow.factor);
 	return Number.isFinite(rawFactor) ? Math.min(3.0, Math.max(1.0, rawFactor)) : 1.5;
 }
+
+// Display flow factor for a route segment: server-primary display segments carry the
+// EXPLICIT per-slice factor the server applied (flow_time_factor on the diagnostic
+// segment, mirrored into properties by the route-engine builders) -- prefer it. Client-
+// engine segments are full pathData features without that field; fall back to deriving
+// the factor from flow.dir + traversal orientation.
+function resolveRouteSegmentFlowFactor(segment, orientation, type) {
+	const explicit = Number(segment?.properties?.flow_time_factor);
+	if (Number.isFinite(explicit) && explicit > 0) {
+		return Math.min(3.0, Math.max(1.0, explicit));
+	}
+	return getRouteSegmentUpstreamFactor(segment, orientation, type);
+}

@@ -278,9 +278,11 @@ function buildRoutePlanEntries(routeNames, segments) {
 		const isWaterRoute = type === "Flussweg" || type === "Seeweg";
 		const orientation = orientedSegmentEndpoints[index];
 		// Upstream river legs display time * flow.factor (spec §4) -- must match the graph
-		// edge cost or the shown hours would contradict the chosen route.
+		// edge cost or the shown hours would contradict the chosen route. Prefers the
+		// explicit server-shipped flow_time_factor (server-primary display segments) over
+		// the derived flow.dir + orientation factor (client-engine segments).
 		const segTravelTime = (segDistance / speedMiles) * TIME_SCALE_FACTOR
-			* getRouteSegmentUpstreamFactor(segment, orientation, type);
+			* resolveRouteSegmentFlowFactor(segment, orientation, type);
 		// Namen aus der Segment-Geometrie (orientiert) -> stimmen immer mit der gehighlighteten Linie
 		// ueberein. Fallback auf die Server-Knotenlabels nur, wenn keine Orientierung vorliegt.
 		const startName = orientation

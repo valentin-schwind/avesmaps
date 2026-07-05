@@ -208,6 +208,10 @@ function clonePathSegmentForServerRoute(pathSegment, serverSegment) {
 			name: subtype,
 			transportOption: String(serverSegment?.transport_type || serverSegment?.transport_option || "") || pathSegment.properties?.transportOption || getTransportOption(subtype),
 			synthetic: Boolean(pathSegment.properties?.synthetic),
+			// Flussrichtung spec §4: the server already applied the per-slice upstream factor
+			// (flow_time_factor on the diagnostic segment) -- carry it so the plan display
+			// recomputation (resolveRouteSegmentFlowFactor) uses the same factor as the chosen route.
+			flow_time_factor: Number(serverSegment?.flow_time_factor) || 1,
 		},
 	};
 }
@@ -254,6 +258,9 @@ function buildServerGeometryRouteSegment(serverSegment, coordinates) {
 			feature_subtype: subtype,
 			transportOption: String(serverSegment?.transport_type || serverSegment?.transport_option || "") || getTransportOption(subtype),
 			synthetic: Boolean(serverSegment?.synthetic),
+			// Flussrichtung spec §4: carry the server-applied upstream factor for display-time
+			// recomputation (resolveRouteSegmentFlowFactor prefers this explicit value).
+			flow_time_factor: Number(serverSegment?.flow_time_factor) || 1,
 		},
 	};
 }

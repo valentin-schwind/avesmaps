@@ -144,6 +144,9 @@ function avesmapsBuildRouteLocationData(array $feature, int $clientCrossingIndex
 function avesmapsBuildRoutePathData(array $feature, string $clientPathId = ''): array {
 	$properties = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
 	$routeSubtype = avesmapsResolveRoutePathSubtype($properties);
+	// The decoded properties_json is NESTED under properties.properties in the route map
+	// feature shape (avesmapsFetchRouteMapFeatures) -- flow lives inside it, not top-level.
+	$nestedProperties = is_array($properties['properties'] ?? null) ? $properties['properties'] : [];
 
 	return [
 		'id' => (string) ($feature['id'] ?? $properties['public_id'] ?? ''),
@@ -152,8 +155,8 @@ function avesmapsBuildRoutePathData(array $feature, string $clientPathId = ''): 
 		'name' => $routeSubtype,
 		'subtype' => $routeSubtype,
 		'geometry' => is_array($feature['geometry'] ?? null) ? $feature['geometry'] : [],
-		'properties' => is_array($properties['properties'] ?? null) ? $properties['properties'] : [],
-		// Flussrichtung spec §2: top-level properties.flow, needed by the graph builder.
-		'flow' => is_array($properties['flow'] ?? null) ? $properties['flow'] : null,
+		'properties' => $nestedProperties,
+		// Flussrichtung spec §2: properties.flow, needed by the graph builder.
+		'flow' => is_array($nestedProperties['flow'] ?? null) ? $nestedProperties['flow'] : null,
 	];
 }

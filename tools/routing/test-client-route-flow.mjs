@@ -37,6 +37,9 @@ const graphSource = readFileSync(path.join(repoRoot, "js", "routing", "route-gra
 const nodeSource = readFileSync(path.join(repoRoot, "js", "routing", "route-node.js"), "utf8");
 const getRiverFlowTimeFactors = new Function(`${extractFunction(graphSource, "getRiverFlowTimeFactors")}; return getRiverFlowTimeFactors;`)();
 const getRouteSegmentUpstreamFactor = new Function(`${extractFunction(nodeSource, "getRouteSegmentUpstreamFactor")}; return getRouteSegmentUpstreamFactor;`)();
+const resolveRouteSegmentFlowFactor = new Function(
+	`${extractFunction(nodeSource, "getRouteSegmentUpstreamFactor")}; ${extractFunction(nodeSource, "resolveRouteSegmentFlowFactor")}; return resolveRouteSegmentFlowFactor;`
+)();
 
 // --- getRiverFlowTimeFactors ---
 assert.equal(getRiverFlowTimeFactors({ flow: { dir: "forward" } }, "Weg"), null, "non-river ignored");
@@ -62,5 +65,55 @@ assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "forward", factor
 assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "forward" }), null, "Flussweg"), 1, "no orientation -> neutral");
 assert.equal(getRouteSegmentUpstreamFactor(riverSegment({ dir: "forward" }), reverseTraversal, "Seeweg"), 1, "non-river neutral");
 assert.equal(getRouteSegmentUpstreamFactor(riverSegment(undefined), reverseTraversal, "Flussweg"), 1, "no flow neutral");
+
+// --- resolveRouteSegmentFlowFactor ---
+// Explicit server-shipped factor (flow_time_factor) takes priority over the derived
+// flow.dir + orientation calculation used for client-engine segments.
+assert.equal(
+	resolveRouteSegmentFlowFactor({ properties: { flow_time_factor: 2 } }, null, "Flussweg"),
+	2,
+	"explicit factor preferred"
+);
+assert.equal(
+	resolveRouteSegmentFlowFactor({ properties: { flow_time_factor: 9 } }, null, "Flussweg"),
+	3,
+	"explicit factor clamped"
+);
+assert.equal(
+	resolveRouteSegmentFlowFactor(
+		{ properties: { flow_time_factor: 1, flow: { dir: "forward" } } },
+		reverseTraversal,
+		"Flussweg"
+	),
+	1,
+	"explicit neutral factor preferred over derived upstream"
+);
+assert.equal(
+	resolveRouteSegmentFlowFactor(
+		{ properties: { flow: { dir: "forward" } }, geometry: { coordinates: coords } },
+		reverseTraversal,
+		"Flussweg"
+	),
+	1.5,
+	"falls back to derived factor when flow_time_factor absent"
+);
+assert.equal(
+	resolveRouteSegmentFlowFactor(
+		{ properties: { flow_time_factor: 0, flow: { dir: "forward" } }, geometry: { coordinates: coords } },
+		reverseTraversal,
+		"Flussweg"
+	),
+	1.5,
+	"falls back to derived factor when flow_time_factor is 0 (invalid)"
+);
+assert.equal(
+	resolveRouteSegmentFlowFactor(
+		{ properties: { flow_time_factor: "abc", flow: { dir: "forward" } }, geometry: { coordinates: coords } },
+		reverseTraversal,
+		"Flussweg"
+	),
+	1.5,
+	"falls back to derived factor when flow_time_factor is non-numeric"
+);
 
 console.log("test-client-route-flow: all assertions passed");

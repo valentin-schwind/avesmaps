@@ -104,11 +104,16 @@ $seaAB = routeCost([makePath('s1', 'Seeweg', $line, $flowForward)], 'A', 'B', $s
 $seaBA = routeCost([makePath('s1', 'Seeweg', $line, $flowForward)], 'B', 'A', $seaRequest);
 check('seaweg: flow ignored', round($seaBA / $seaAB, 9), 1.0);
 
-// avesmapsBuildRoutePathData extracts top-level properties.flow.
+// avesmapsBuildRoutePathData extracts flow from the NESTED decoded properties_json
+// (production shape from avesmapsFetchRouteMapFeatures: properties.properties.flow).
 $pathData = avesmapsBuildRoutePathData([
     'id' => 'f1',
     'geometry' => ['type' => 'LineString', 'coordinates' => $line],
-    'properties' => ['public_id' => 'f1', 'feature_subtype' => 'Flussweg', 'flow' => $flowForward],
+    'properties' => [
+        'public_id' => 'f1',
+        'feature_subtype' => 'Flussweg',
+        'properties' => ['flow' => $flowForward],
+    ],
 ], 'path-1');
 check('path data carries flow', $pathData['flow'], $flowForward);
 
