@@ -50,7 +50,7 @@ function buildRouteRequestFromPlannerState() {
 	const routeOptions = buildRouteOptionsFromPlannerControls();
 	const optimize = $('input[name="pathType"]:checked').val() === "shortest" ? "shortest" : "fastest";
 	const includeRests = $("#includeRests").is(":checked");
-	const restHoursPerDay = Number.parseFloat($("#restHours").val());
+	const restHoursPerDay = getPlannerRestHoursPerDay();
 	const from = waypointNames.length ? waypointNames[0] : "";
 	const to = waypointNames.length ? waypointNames[waypointNames.length - 1] : "";
 	const via = waypointNames.length > 2 ? waypointNames.slice(1, -1) : [];
@@ -64,7 +64,7 @@ function buildRouteRequestFromPlannerState() {
 		include_geometry: true,
 		include_steps: true,
 		include_rests: includeRests,
-		rest_hours_per_day: Number.isFinite(restHoursPerDay) ? restHoursPerDay : 0,
+		rest_hours_per_day: restHoursPerDay,
 		minimize_transfers: $("#minimizeTransfers").is(":checked"),
 		transports: {
 			land: {

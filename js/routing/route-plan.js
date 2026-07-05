@@ -368,8 +368,7 @@ function buildRoutePlanEntries(routeNames, segments) {
 
 function showRoutePlan(routeNames, segments) {
 	const $overview = $("#overview").empty();
-	const restPerDayParsed = parseFloat($("#restHours").val());
-	const restPerDay = Number.isFinite(restPerDayParsed) ? restPerDayParsed : 10;
+	const restPerDay = getPlannerRestHoursPerDay();
 	const routeResult = buildRouteResult(selectedLocations, routeNames, segments, {
 		includeRests: $("#includeRests").is(":checked"),
 		restHoursPerDay: restPerDay,
@@ -398,7 +397,7 @@ function showRoutePlan(routeNames, segments) {
 			(${entry.distance.toFixed(2)} ${tr("planner.unit.miles", "Meilen")})
 			${tr("planner.leg.from", "von")} <strong>${formattedStartName}</strong>
 			${tr("planner.leg.to", "bis")} <strong>${formattedEndName}</strong>
-			${tr("planner.leg.in", "in")} ${entry.travelTime.toFixed(2)} ${tr("planner.unit.hours", "Stunden")}
+			${tr("planner.leg.in", "in")} ${entry.travelTime.toFixed(2)} ${tr("planner.unit.hours", "Stunden")} (${(entry.travelTime / 24).toFixed(2)} ${tr("planner.unit.days", "Tage")})
 			</button>
 		`);
 	});

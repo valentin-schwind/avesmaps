@@ -109,6 +109,21 @@ function formatDistanceMeasurement(distanceInMiles) {
 	return tr("units.miles", `${distanceInMiles.toFixed(1)} Meilen`, { n: distanceInMiles.toFixed(1) });
 }
 
+// Planner-Feld zeigt "Reisestunden pro Tag" (Nutzer-Wunsch: intuitiver als Rastzeit), der Rechenkern,
+// die Route-API und der Share-Link-Param "restHours" arbeiten weiter mit Raststunden (24 - Reise).
+// Diese beiden Helfer sind die EINZIGE Umrechnungsstelle zwischen Feld und Rest der App.
+function getPlannerTravelHoursPerDay() {
+	const parsed = Number.parseFloat($("#travelHoursPerDay").val());
+	if (!Number.isFinite(parsed)) {
+		return 24 - DEFAULT_PLANNER_STATE.restHours;
+	}
+	return Math.min(23.5, Math.max(0.5, parsed));
+}
+
+function getPlannerRestHoursPerDay() {
+	return 24 - getPlannerTravelHoursPerDay();
+}
+
 function withAssetVersion(sourcePath) {
 	if (!sourcePath) {
 		return sourcePath;

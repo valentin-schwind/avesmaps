@@ -16,8 +16,8 @@ window.AVESMAPS_I18N_EN = {
 	"planner.minimizeTransfers": "Minimize transfers",
 	"planner.minimizeTransfers.title": "Finds the route with the fewest changes between modes of transport",
 	"planner.rests": "Rest periods",
-	"planner.rests.title": "Sets the rest times (land travel only)",
-	"planner.restHoursSuffix": "hours per day",
+	"planner.rests.title": "Include rest times: whatever exceeds the daily travel hours is rest (land travel only)",
+	"planner.travelHoursSuffix": "travel hours per day",
 	"planner.overview.default": "Waypoints and travel time are shown here.",
 
 	// --- planner: transport section (data-i18n; the custom combobox mirrors the

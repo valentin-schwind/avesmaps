@@ -31,9 +31,7 @@ function isTransportAllowedForPath(pathProperties, transportOption) {
 
 function applyRestTimes(travelHours) {
 	if (!$("#includeRests").is(":checked")) return travelHours;
-	const restHoursParsed = parseFloat($("#restHours").val());
-	const restHours = Number.isFinite(restHoursParsed) ? restHoursParsed : 10;
-	const hoursPerDay = 24 - restHours;
+	const hoursPerDay = getPlannerTravelHoursPerDay();
 	const days = travelHours / hoursPerDay;
 	return days * 24;
 }
@@ -66,7 +64,7 @@ function buildServerRouteProbeRequest(start, end, useShortest, clientRoute) {
 		include_geometry: true,
 		include_steps: true,
 		include_rests: $("#includeRests").is(":checked"),
-		rest_hours_per_day: parseFloat($("#restHours").val()) || 0,
+		rest_hours_per_day: getPlannerRestHoursPerDay(),
 		minimize_transfers: $("#minimizeTransfers").is(":checked"),
 		enabled_transports: {
 			land: Boolean(routeOptions.allowLand),

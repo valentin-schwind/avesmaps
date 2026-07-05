@@ -117,7 +117,9 @@ function applyPlannerStateFromUrl() {
 	$("#allowLand").prop("checked", parseBooleanQueryParam(searchParams.get("allowLand"), DEFAULT_PLANNER_STATE.allowLand));
 	$("#allowRiver").prop("checked", parseBooleanQueryParam(searchParams.get("allowRiver"), DEFAULT_PLANNER_STATE.allowRiver));
 	$("#allowSea").prop("checked", parseBooleanQueryParam(searchParams.get("allowSea"), DEFAULT_PLANNER_STATE.allowSea));
-	$("#restHours").val(parseNumberQueryParam(searchParams.get("restHours"), DEFAULT_PLANNER_STATE.restHours, 0.5, 23.5));
+	// URL-Param bleibt "restHours" (Share-Link-Kompatibilität); das Feld zeigt Reisestunden (24 - Rast).
+	const restHoursFromParams = parseNumberQueryParam(searchParams.get("restHours"), DEFAULT_PLANNER_STATE.restHours, 0.5, 23.5);
+	$("#travelHoursPerDay").val(String(24 - restHoursFromParams));
 
 	if (landTransport && VALID_TRANSPORT_OPTIONS.land.has(landTransport)) {
 		$("#landTransport").val(landTransport);
@@ -222,7 +224,7 @@ function buildPlannerSearchParams() {
 	}
 	const selectedPathType = $('input[name="pathType"]:checked').val() || DEFAULT_PLANNER_STATE.pathType;
 	const waypointNames = getWaypointInputValues();
-	const restHours = parseNumberQueryParam($("#restHours").val(), DEFAULT_PLANNER_STATE.restHours, 0.5, 23.5);
+	const restHours = getPlannerRestHoursPerDay();
 
 	waypointNames.forEach((waypointName) => searchParams.append(DEFAULT_ROUTE_QUERY_PARAM, waypointName));
 
