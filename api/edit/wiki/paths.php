@@ -12,6 +12,7 @@ require_once __DIR__ . '/../../_internal/wiki/territories.php';
 require_once __DIR__ . '/../../_internal/political/territory.php';
 require_once __DIR__ . '/../../_internal/wiki/sync-monitor.php';
 require_once __DIR__ . '/../../_internal/wiki/paths.php';
+require_once __DIR__ . '/../../_internal/wiki/path-verlauf.php';
 
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
@@ -80,11 +81,17 @@ try {
                 ($payload['single_segment'] ?? false) === true,
                 $assignMeta
             ),
+            'backfill_verlauf_source' => avesmapsWikiPathVerlaufBackfillSource(
+                $pdo,
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
+                (int) ($user['id'] ?? 0),
+                $options
+            ),
             default => null,
         };
 
         // map_features-Cache invalidieren, wenn echt geschrieben wurde (Clients sehen die Zuordnung).
-        if (in_array($action, ['assign', 'clear_assign', 'assign_all', 'assign_to'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
+        if (in_array($action, ['assign', 'clear_assign', 'assign_all', 'assign_to', 'backfill_verlauf_source'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
 
