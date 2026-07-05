@@ -302,3 +302,173 @@ function avesmapsPathFlowTracePath(string $sourceKey, string $targetKey, array $
     }
     return $steps;
 }
+
+// ---------------------------------------------------------------------------------------
+// DB-backed derivation (spec §3). Callers (api/edit/wiki/paths.php) provide the wiki-sync
+// helpers via their own requires; this file stays require-free at top level.
+// ---------------------------------------------------------------------------------------
+
+// Fresh read of the way's current Flussweg segments (public_id => id/name/raw flow).
+// Deliberately NOT the assignments snapshot: the apply_verlauf_case hook runs AFTER
+// adds/removes changed the very assignment this derivation must see.
+function avesmapsWikiPathFlowReadWaySegments(PDO $pdo, string $wikiKey): array {
+    $needle = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], '"wiki_key":"' . $wikiKey . '"') . '%';
+    $statement = $pdo->prepare(
+        "SELECT id, public_id, name, properties_json FROM map_features
+         WHERE is_active = 1 AND feature_type = 'path' AND feature_subtype = 'Flussweg'
+           AND properties_json LIKE :needle"
+    );
+    $statement->execute(['needle' => $needle]);
+    $segments = [];
+    foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $props = avesmapsWikiSyncDecodeJson($row['properties_json'] ?? null);
+        if ((string) ($props['wiki_path']['wiki_key'] ?? '') !== $wikiKey) {
+            continue;  // LIKE prefilter hit inside a text field -> exact check rejects
+        }
+        $segments[(string) $row['public_id']] = [
+            'id' => (int) $row['id'],
+            'name' => (string) $row['name'],
+            'flow' => is_array($props['flow'] ?? null) ? $props['flow'] : null,
+        ];
+    }
+    return $segments;
+}
+
+// Applies planned flow writes (public_id => ['flow' => array|null]) to map_features:
+// properties_json-only UPDATE (name/geometry untouched), ONE revision per batch, full audit
+// per row (undo restores the whole previous properties JSON). Props are re-read from the
+// fresh audit row so concurrent edits between plan and write are not clobbered.
+function avesmapsWikiPathFlowApplyWrites(PDO $pdo, array $writes, array $waySegments, int $userId): array {
+    $segmentsUpdated = [];
+    if ($writes === []) {
+        return $segmentsUpdated;
+    }
+    $revision = avesmapsWikiSyncNextMapRevision($pdo);
+    $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
+    foreach ($writes as $publicId => $write) {
+        $segment = $waySegments[(string) $publicId] ?? null;
+        if (!is_array($segment)) {
+            continue;
+        }
+        $auditBefore = avesmapsWikiSyncFetchAuditRow($pdo, (int) $segment['id']);
+        if ($auditBefore === []) {
+            continue;
+        }
+        $props = avesmapsWikiSyncDecodeJson($auditBefore['properties_json'] ?? null);
+        if ($write['flow'] === null) {
+            unset($props['flow']);
+        } else {
+            $props['flow'] = $write['flow'];
+        }
+        $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $segment['id']]);
+        avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId, (string) ($auditBefore['name'] ?? ''));
+        $segmentsUpdated[] = [
+            'public_id' => (string) $publicId,
+            'revision' => $revision,
+            'name' => (string) ($auditBefore['name'] ?? ''),
+            'display_name' => (string) ($props['display_name'] ?? ($auditBefore['name'] ?? '')),
+            'wiki_path' => is_array($props['wiki_path'] ?? null) ? $props['wiki_path'] : null,
+            'flow' => $write['flow'],
+        ];
+    }
+    return $segmentsUpdated;
+}
+
+// Derives flow.dir for ONE wiki way from its staging verlauf (spec §3). Reuses the
+// verlauf-sync hop router. Safety rules: only routable, non-synthetic, non-detour hops with
+// an unbroken chain contribute; a segment gets a dir only when traversed in exactly ONE
+// orientation; only segments CURRENTLY assigned to the way are written. Qualification is
+// deliberately independent of wiki_path.source (owner-curated rivers qualify too; only
+// `flow` is written, never the assignment).
+function avesmapsWikiPathFlowDeriveForWay(PDO $pdo, array $config, string $wikiKey, bool $dryRun, int $userId, ?array $routingContext = null): array {
+    $wikiKey = trim($wikiKey);
+    if ($wikiKey === '') {
+        throw new RuntimeException('wiki_key missing.');
+    }
+    $stagingStatement = $pdo->prepare('SELECT * FROM ' . AVESMAPS_WIKI_PATH_STAGING_TABLE . ' WHERE wiki_key = :k LIMIT 1');
+    $stagingStatement->execute(['k' => $wikiKey]);
+    $stagingRow = $stagingStatement->fetch(PDO::FETCH_ASSOC);
+    if (!$stagingRow) {
+        throw new RuntimeException('Wiki way not in staging: ' . $wikiKey);
+    }
+
+    $base = [
+        'ok' => true, 'dry_run' => $dryRun, 'wiki_key' => $wikiKey,
+        'segments_total' => 0, 'directed' => 0, 'cleared' => 0, 'unchanged' => 0,
+        'ambiguous' => [], 'hops_routable' => 0, 'hops_skipped' => 0, 'segments_updated' => [],
+    ];
+    if ((string) ($stagingRow['kind'] ?? '') !== 'fluss') {
+        return $base + ['skipped' => 'not_a_river'];
+    }
+    $waySegments = avesmapsWikiPathFlowReadWaySegments($pdo, $wikiKey);
+    $base['segments_total'] = count($waySegments);
+    if ($waySegments === []) {
+        return $base + ['skipped' => 'no_assigned_segments'];
+    }
+    $stations = avesmapsWikiPathVerlaufStations((string) ($stagingRow['verlauf'] ?? ''));
+    if (count($stations) < 2) {
+        return $base + ['skipped' => 'no_course'];
+    }
+
+    $routingContext ??= avesmapsWikiPathVerlaufBuildRoutingContext($config);
+    $router = $routingContext['router']('fluss');
+    $locationLookup = $routingContext['lookup']();
+
+    $matchedChain = [];
+    foreach ($stations as $station) {
+        $canonical = $locationLookup[avesmapsWikiPathVerlaufLower($station)] ?? null;
+        if ($canonical !== null) {
+            $matchedChain[] = (string) $canonical;
+        }
+    }
+    if (count($matchedChain) < 2) {
+        return $base + ['skipped' => 'stations_not_found'];
+    }
+
+    $occurrences = [];
+    $hopsRoutable = 0;
+    $hopsSkipped = 0;
+    for ($i = 0; $i < count($matchedChain) - 1; $i++) {
+        $result = $router($matchedChain[$i], $matchedChain[$i + 1]);
+        $segments = is_array($result['segments'] ?? null) ? $result['segments'] : [];
+        if (empty($result['found']) || $segments === []) {
+            $hopsSkipped++;
+            continue;
+        }
+        $hasSynthetic = false;
+        foreach ($segments as $segment) {
+            if (!empty($segment['synthetic']) || (string) ($segment['public_id'] ?? '') === '') {
+                $hasSynthetic = true;
+                break;
+            }
+        }
+        if ($hasSynthetic || count($segments) > AVESMAPS_WIKI_PATH_VERLAUF_MAX_HOP_SEGMENTS) {
+            $hopsSkipped++;
+            continue;
+        }
+        $hop = avesmapsPathFlowHopOrientations($segments, $matchedChain[$i]);
+        if (!$hop['ok']) {
+            $hopsSkipped++;
+            continue;
+        }
+        foreach ($hop['occurrences'] as $occurrence) {
+            $occurrences[] = $occurrence;
+        }
+        $hopsRoutable++;
+    }
+
+    $combined = avesmapsPathFlowCombineOrientations($occurrences, array_keys($waySegments));
+    $currentFlowByPublicId = array_map(static fn(array $segment) => $segment['flow'], $waySegments);
+    $plan = avesmapsPathFlowPlanWrites($combined['dir_by_public_id'], $currentFlowByPublicId);
+
+    $segmentsUpdated = [];
+    if (!$dryRun && $plan['writes'] !== []) {
+        $segmentsUpdated = avesmapsWikiPathFlowApplyWrites($pdo, $plan['writes'], $waySegments, $userId);
+    }
+    return array_merge($base, [
+        'directed' => $plan['set'], 'cleared' => $plan['cleared'], 'unchanged' => $plan['unchanged'],
+        'ambiguous' => $combined['ambiguous'],
+        'hops_routable' => $hopsRoutable, 'hops_skipped' => $hopsSkipped,
+        'segments_updated' => $segmentsUpdated,
+    ]);
+}

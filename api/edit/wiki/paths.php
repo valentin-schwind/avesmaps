@@ -13,6 +13,7 @@ require_once __DIR__ . '/../../_internal/political/territory.php';
 require_once __DIR__ . '/../../_internal/wiki/sync-monitor.php';
 require_once __DIR__ . '/../../_internal/wiki/paths.php';
 require_once __DIR__ . '/../../_internal/wiki/path-verlauf.php';
+require_once __DIR__ . '/../../_internal/wiki/path-flow.php';
 
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
@@ -131,11 +132,20 @@ try {
                     'limit' => (int) ($payload['limit'] ?? 20),
                 ]
             ),
+            // Flussrichtung (spec §3 trigger 1): derive flow.dir for one river way from its
+            // staging verlauf. Same dry_run+confirm gate as the other map_features writers.
+            'derive_flow' => avesmapsWikiPathFlowDeriveForWay(
+                $pdo,
+                $config,
+                (string) ($payload['wiki_key'] ?? ''),
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
+                (int) ($user['id'] ?? 0)
+            ),
             default => null,
         };
 
         // map_features-Cache invalidieren, wenn echt geschrieben wurde (Clients sehen die Zuordnung).
-        if (in_array($action, ['assign', 'clear_assign', 'assign_all', 'assign_to', 'backfill_verlauf_source', 'apply_verlauf_case', 'apply_verlauf_cases_clean'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
+        if (in_array($action, ['assign', 'clear_assign', 'assign_all', 'assign_to', 'backfill_verlauf_source', 'apply_verlauf_case', 'apply_verlauf_cases_clean', 'derive_flow', 'derive_flow_all', 'set_flow'], true) && is_array($response) && ($response['dry_run'] ?? true) === false) {
             avesmapsWikiSyncNextMapRevision($pdo);
         }
 
