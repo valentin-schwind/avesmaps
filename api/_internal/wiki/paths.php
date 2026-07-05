@@ -746,10 +746,13 @@ function avesmapsWikiPathBuildAssignObject(array $stagingRow): array {
     ];
 }
 
-// Weg-Identitaet fuer Assign/Clear: ein Segment gehoert zum Ziel-Weg, wenn sein NAME denselben
-// Match-Key traegt ODER es bereits demselben Wiki-Weg zugeordnet ist (wiki_path.wiki_key).
-// Der wiki_key ist die verlaessliche Identitaet: Bestands-Zuweisungen tragen noch die
-// Phase-1-Random-Namen (z.B. Reichsstrasse-89), die nie einen gemeinsamen Namens-Key hatten.
+// Weg-Identitaet fuer die weg-weiten Operationen -- avesmapsWikiPathClearAssign (Entfernen) und
+// den Bulk-avesmapsWikiPathAssign (WikiSync-Panel, Re-Stamp per Staging-wiki_key): ein Segment
+// gehoert zum Ziel-Weg, wenn sein NAME denselben Match-Key traegt ODER es bereits demselben
+// Wiki-Weg zugeordnet ist (wiki_path.wiki_key). Der wiki_key ist die verlaessliche Identitaet:
+// Bestands-Zuweisungen tragen noch die Phase-1-Random-Namen (z.B. Reichsstrasse-89), die nie
+// einen gemeinsamen Namens-Key hatten. NICHT von avesmapsWikiPathAssignTo (Zuweisen/Aendern)
+// genutzt -- das matcht bewusst nur exakt gleichnamige Segmente (chirurgisch, kein wiki_key-Union).
 function avesmapsWikiPathRowMatchesWay(string $rowName, ?string $rowPropertiesJson, string $targetKey, string $targetWikiKey): bool {
     if ($targetKey !== '' && avesmapsWikiSyncCreateMatchKey($rowName) === $targetKey) {
         return true;
@@ -828,9 +831,12 @@ function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $us
     ];
 }
 
-// Re-Targeting: heftet einen Wiki-Weg an EIN auf der Karte gewaehltes Ziel-Segment und den ganzen
-// Weg (Namens-Key ODER bereits zugeordneter wiki_key des Ziel-Segments, Weg-Identitaet s.o.). Mit
-// Typ-Pruefung (Fluss <-> Strasse/Weg). Gated.
+// Re-Targeting: heftet einen Wiki-Weg an EIN auf der Karte gewaehltes Ziel-Segment und alle
+// EXAKT gleichnamigen Segmente (chirurgisch -- KEINE wiki_key-Union hier, s.
+// avesmapsWikiPathRowMatchesWay). Weg-weites Umziehen ergibt sich ueber die konvergierten
+// R1-Namen (nach einem Sync tragen alle Segmente eines Wegs den kanonischen Wiki-Namen); ein
+// Alt-Buendel mit uneinheitlichen Namen muss zuerst per Entfernen aufgeloest werden (das raeumt
+// auch wiki_key-Geister). Mit Typ-Pruefung (Fluss <-> Strasse/Weg). Gated.
 function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, bool $dryRun, int $userId = 0): array {
     avesmapsWikiPathEnsureTables($pdo);
     $wikiKey = trim($wikiKey);
@@ -844,7 +850,7 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
     if (!$row) {
         throw new RuntimeException('Wiki-Weg nicht im Staging: ' . $wikiKey);
     }
-    $targetStatement = $pdo->prepare("SELECT name, feature_subtype, properties_json FROM map_features WHERE public_id = :p AND feature_type = 'path' LIMIT 1");
+    $targetStatement = $pdo->prepare('SELECT name, feature_subtype FROM map_features WHERE public_id = :p AND feature_type = \'path\' LIMIT 1');
     $targetStatement->execute(['p' => $publicId]);
     $target = $targetStatement->fetch(PDO::FETCH_ASSOC);
     if (!$target) {
@@ -867,9 +873,6 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
     }
 
     $targetKey = avesmapsWikiSyncCreateMatchKey((string) $target['name']);
-    $targetProps = avesmapsWikiSyncDecodeJson($target['properties_json'] ?? null);
-    // "Aendern": haengt das Ziel-Segment schon an einem Wiki-Weg, wandert der GANZE Weg mit.
-    $targetWikiKey = (string) ($targetProps['wiki_path']['wiki_key'] ?? '');
     $assignObject = avesmapsWikiPathBuildAssignObject($row);
     // R1: the assigned wiki way names the way. '' (unusable staging row) keeps existing names.
     $canonicalName = avesmapsWikiPathCanonicalName($assignObject);
@@ -879,7 +882,7 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
     $revision = null;
     $segmentsUpdated = [];
     foreach ($paths as $p) {
-        if (!avesmapsWikiPathRowMatchesWay((string) $p['name'], $p['properties_json'] ?? null, $targetKey, $targetWikiKey)) {
+        if (avesmapsWikiSyncCreateMatchKey((string) $p['name']) !== $targetKey) {
             continue;
         }
         $segments++;
@@ -972,10 +975,12 @@ function avesmapsWikiPathAssignAll(PDO $pdo, string $continentFilter, bool $dryR
 }
 
 // Entfernt die Wiki-Zuordnung vom ganzen Weg (Namens-Key ODER bereits zugeordneter wiki_key des
-// Ziel-Segments, Weg-Identitaet s.o.; per public_id eines Segments). R2: die ganze Weg-Gruppe
-// bekommt EINEN frischen generischen `<Subtype>-<n>`-Namen zurueck (Gruppierung bleibt intakt;
-// ein Re-Assign trifft wieder alle Segmente). Segmente ohne wiki_path werden mit-umbenannt, damit
-// der Wiki-Name vollstaendig verschwindet.
+// Ziel-Segments, Weg-Identitaet s.o.; per public_id eines Segments) -- Entfernen wirkt bewusst
+// weg-weit (Namens-Key UNION wiki_key), das raeumt auch Geister-Traeger auf, die unter alten
+// Code-Staenden nie sauber entkoppelt wurden. Anders als beim Entfernen bekommt aber JEDES
+// Segment einen EIGENEN generischen `<Subtype>-<n>`-Namen (owner-reported blast radius 2026-07-05:
+// EIN gemeinsamer Name klebte vormals distinkte Segmente aneinander -- ein spaeteres Zuweisen auf
+// eines von ihnen riss dann alle mit hinein). Die Gruppe loest sich beim Entfernen also bewusst auf.
 function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, int $userId = 0): array {
     avesmapsWikiPathEnsureTables($pdo);
     $publicId = trim($publicId);
@@ -993,20 +998,26 @@ function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, i
     $targetProps = avesmapsWikiSyncDecodeJson($target['properties_json'] ?? null);
     $targetWikiKey = (string) ($targetProps['wiki_path']['wiki_key'] ?? '');
 
-    $paths = $pdo->query("SELECT id, public_id, name, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
-    $genericName = avesmapsWikiPathNextGenericName(
-        (string) ($target['feature_subtype'] ?? 'Weg'),
-        array_map(static fn(array $p): string => (string) $p['name'], $paths)
-    );
+    $paths = $pdo->query("SELECT id, public_id, name, feature_subtype, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
+    // R2: JEDES Segment bekommt einen EIGENEN generischen Namen (Phase-1-Schema) -- die
+    // Gruppe loest sich auf, damit selektives Neu-Zuweisen kein Alt-Buendel einsammelt.
+    // Der Pool waechst pro vergebenem Namen mit (kollisionsfrei ueber alle Subtypen).
+    $namePool = array_map(static fn(array $p): string => (string) $p['name'], $paths);
     $applied = 0;
     $matchCount = 0;
     $revision = null;
+    $anchorGenericName = '';
     $segmentsUpdated = [];
     foreach ($paths as $p) {
         if (!avesmapsWikiPathRowMatchesWay((string) $p['name'], $p['properties_json'] ?? null, $targetKey, $targetWikiKey)) {
             continue;
         }
         $matchCount++;
+        $genericName = avesmapsWikiPathNextGenericName((string) ($p['feature_subtype'] ?? 'Weg'), $namePool);
+        $namePool[] = $genericName;
+        if ((string) $p['public_id'] === $publicId) {
+            $anchorGenericName = $genericName;
+        }
         if (!$dryRun) {
             $auditBefore = avesmapsWikiSyncFetchAuditRow($pdo, (int) $p['id']);
             $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
@@ -1034,7 +1045,7 @@ function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, i
         'ok' => true,
         'dry_run' => $dryRun,
         'name' => $name,
-        'generic_name' => $genericName,
+        'generic_name' => $anchorGenericName,
         'segments' => $matchCount,
         'applied' => $applied,
         'segments_updated' => $segmentsUpdated,

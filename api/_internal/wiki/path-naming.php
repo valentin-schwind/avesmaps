@@ -66,3 +66,18 @@ function avesmapsWikiPathNextGenericName(string $subtype, array $existingNames):
 
     return $subtype . '-' . ($highestNumber + 1);
 }
+
+// R2-Sequenz: EIGENER generischer Name je Segment (Phase-1-Schema, random-eindeutig). Die
+// Weg-Gruppe loest sich beim Entfernen bewusst auf, damit selektives Neu-Zuweisen kein
+// Alt-Buendel wieder einsammelt. Der Pool waechst mit, damit die Sequenz kollisionsfrei bleibt.
+function avesmapsWikiPathNextGenericNameSequence(array $rowSubtypes, array $existingNames): array {
+    $pool = $existingNames;
+    $names = [];
+    foreach ($rowSubtypes as $subtype) {
+        $name = avesmapsWikiPathNextGenericName((string) $subtype, $pool);
+        $pool[] = $name;
+        $names[] = $name;
+    }
+
+    return $names;
+}

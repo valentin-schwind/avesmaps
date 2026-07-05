@@ -7,6 +7,9 @@ declare(strict_types=1);
  * Pure functions, no DB, no mbstring needed. Run:
  *     php tools/paths/test-path-wiki-naming.php
  */
+// 22 checks total: canonical name (7) + R1 effective edit name (5) + R2 next generic name
+// (6) + R2 generic name SEQUENCE (4, owner blast-radius fix 2026-07-05 -- each cleared
+// segment gets its OWN generic name instead of one shared name for the whole group).
 
 require __DIR__ . '/../../api/_internal/wiki/path-naming.php';
 
@@ -46,6 +49,12 @@ check('R2: other subtypes and non-matching names are ignored', avesmapsWikiPathN
 check('R2: number-sensitive exact pattern only (no digit-strip collapse)', avesmapsWikiPathNextGenericName('Flussweg', ['Flussweg-10', 'Flussweg-100']), 'Flussweg-101');
 check('R2: empty subtype falls back to Weg', avesmapsWikiPathNextGenericName('  ', ['Weg-4']), 'Weg-5');
 check('R2: pool entries are trimmed', avesmapsWikiPathNextGenericName('Weg', [' Weg-12 ']), 'Weg-13');
+
+// --- avesmapsWikiPathNextGenericNameSequence (R2: eigener Name je Segment) ---
+check('R2-Sequenz: zaehlt innerhalb eines Subtyps hoch', avesmapsWikiPathNextGenericNameSequence(['Reichsstrasse', 'Reichsstrasse', 'Reichsstrasse'], ['Reichsstrasse-7']), ['Reichsstrasse-8', 'Reichsstrasse-9', 'Reichsstrasse-10']);
+check('R2-Sequenz: gemischte Subtypen zaehlen unabhaengig', avesmapsWikiPathNextGenericNameSequence(['Reichsstrasse', 'Flussweg', 'Reichsstrasse'], ['Reichsstrasse-2', 'Flussweg-9']), ['Reichsstrasse-3', 'Flussweg-10', 'Reichsstrasse-4']);
+check('R2-Sequenz: leerer Pool startet bei 1', avesmapsWikiPathNextGenericNameSequence(['Pfad', 'Pfad'], []), ['Pfad-1', 'Pfad-2']);
+check('R2-Sequenz: leerer Subtyp faellt auf Weg zurueck', avesmapsWikiPathNextGenericNameSequence([' ', 'Weg'], ['Weg-4']), ['Weg-5', 'Weg-6']);
 
 echo $failures === 0 ? "{$total}/{$total} passed\n" : "{$failures}/{$total} FAILED\n";
 exit($failures === 0 ? 0 : 1);

@@ -1,7 +1,7 @@
 // Wiki-Weg-Picker im „Weg bearbeiten"-Dialog: ordnet einem Pfad-Feature manuell einen Wiki-Weg
-// (Fluss/Straße) zu. Auswahl schreibt sofort (assign_to, Typcheck Fluss<->Straße) auf den ganzen
-// Weg (Weg-Identitaet = Namens-Key ODER bereits zugeordneter wiki_key, nicht nur gleichnamige
-// Segmente). Nutzt die label-wiki-*-Optik wieder.
+// (Fluss/Straße) zu. Zuweisen schreibt sofort (assign_to, Typcheck Fluss<->Straße) auf exakt
+// gleichnamige Segmente (chirurgisch). Entfernen loest den ganzen Weg (Namens-Key UNION wiki_key,
+// raeumt auch Geister-Traeger) in EINZELN benannte Segmente auf. Nutzt die label-wiki-*-Optik wieder.
 
 const PATH_WIKI_API_URL = "/api/edit/wiki/paths.php";
 let pathWikiPickerResults = [];
@@ -288,7 +288,7 @@ async function removePathWiki() {
 		if (nameInput && result.generic_name) {
 			nameInput.value = result.generic_name;
 		}
-		showFeedbackToast?.(result.generic_name ? `Wiki-Zuordnung entfernt — Weg heißt jetzt „${result.generic_name}".` : "Wiki-Zuordnung entfernt.", "info");
+		showFeedbackToast?.(result.generic_name ? `Wiki-Zuordnung entfernt — Segmente wieder einzeln benannt (dieses: „${result.generic_name}").` : "Wiki-Zuordnung entfernt.", "info");
 	} catch (error) {
 		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
 	}
