@@ -1040,7 +1040,7 @@ function avesmapsWikiPathVerlaufApplyCase(PDO $pdo, array $config, string $wikiK
         throw new RuntimeException('Nothing to apply (case unchanged).');
     }
 
-    return avesmapsWikiPathVerlaufApplyCaseWithContext($pdo, $wikiKey, $case, $dryRun, $userId, $assignments);
+    return avesmapsWikiPathVerlaufApplyCaseWithContext($pdo, $wikiKey, $case, $dryRun, $userId, $assignments, $config, $routingContext);
 }
 
 // Internal case-apply body shared by the single-case wrapper (avesmapsWikiPathVerlaufApplyCase) and
@@ -1058,7 +1058,7 @@ function avesmapsWikiPathVerlaufApplyCase(PDO $pdo, array $config, string $wikiK
 // adds overlap it is skipped WHOLE (skipped_not_clean) before ever reaching this function -- so stale
 // $assignments (here used only to seed $currentByPublicId for the keeps/restamp diff) can only cause a
 // conservative skip of a no-op restamp, never a wrong write.
-function avesmapsWikiPathVerlaufApplyCaseWithContext(PDO $pdo, string $wikiKey, array $case, bool $dryRun, int $userId, array $assignments): array {
+function avesmapsWikiPathVerlaufApplyCaseWithContext(PDO $pdo, string $wikiKey, array $case, bool $dryRun, int $userId, array $assignments, array $config = [], ?array $routingContext = null): array {
     if ($dryRun) {
         // Preview goes to the client: resolve empty adds[].name (router segments carry none in
         // production) in one bounded IN-query before returning it (finding #2).
@@ -1150,6 +1150,23 @@ function avesmapsWikiPathVerlaufApplyCaseWithContext(PDO $pdo, string $wikiKey, 
     // Step 5: restamp keeps whose stored course drifted (source/name preserved; foreign-key rows skipped).
     $restamped = avesmapsWikiPathVerlaufRestampKeeps($pdo, $stagingHash, $plan['restamps'], $userId, $wikiKey);
 
+    // Step 5b (Flussrichtung spec §3 trigger 3): after a river way's course was applied,
+    // derive its flow direction from the FRESH assignment. Never fails the apply -- the
+    // course writes above are already committed; a derivation problem is reported, not thrown.
+    // Dry-run applies return before this point: the flow preview is derive_flow's own dry-run.
+    $flowResult = null;
+    if ((string) ($case['kind'] ?? '') === 'fluss' && $routingContext !== null && function_exists('avesmapsWikiPathFlowDeriveForWay')) {
+        try {
+            $flowResult = avesmapsWikiPathFlowDeriveForWay($pdo, $config, $wikiKey, false, $userId, $routingContext);
+            foreach (($flowResult['segments_updated'] ?? []) as $segment) {
+                $segmentsUpdated[] = $segment;
+            }
+            unset($flowResult['segments_updated']);
+        } catch (Throwable $error) {
+            $flowResult = ['ok' => false, 'error' => 'derive_failed'];
+        }
+    }
+
     // Step 6: a successful sync clears any deferred/archived decision for this way (Task 4 pattern:
     // deleting the row falls the case back to its live-computed open state, which is now quiet).
     $pdo->prepare('DELETE FROM wiki_path_verlauf_case_status WHERE wiki_key = :k')->execute(['k' => $wikiKey]);
@@ -1165,6 +1182,7 @@ function avesmapsWikiPathVerlaufApplyCaseWithContext(PDO $pdo, string $wikiKey, 
         'restamped' => count($restamped),
         'skipped_conflicts' => $skippedConflicts,
         'segments_updated' => $segmentsUpdated,
+        'flow' => $flowResult,
     ];
 }
 
@@ -1292,7 +1310,7 @@ function avesmapsWikiPathVerlaufApplyCleanCases(PDO $pdo, array $config, bool $d
             // of the public wrapper (which would re-run ReadAssignments + rebuild the routing context
             // and re-recompute the case per row). Safe per the staleness note on
             // avesmapsWikiPathVerlaufApplyCaseWithContext.
-            $applied = avesmapsWikiPathVerlaufApplyCaseWithContext($pdo, $wikiKey, $case, false, $userId, $assignments);
+            $applied = avesmapsWikiPathVerlaufApplyCaseWithContext($pdo, $wikiKey, $case, false, $userId, $assignments, $config, $routingContext);
             $appliedCases[] = [
                 'wiki_key' => $wikiKey,
                 'name' => (string) ($case['name'] ?? ''),

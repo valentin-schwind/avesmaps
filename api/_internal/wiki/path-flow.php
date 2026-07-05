@@ -472,3 +472,57 @@ function avesmapsWikiPathFlowDeriveForWay(PDO $pdo, array $config, string $wikiK
         'segments_updated' => $segmentsUpdated,
     ]);
 }
+
+// First-run batch derivation over ALL wiki river ways (spec §3 trigger 2). Walks
+// wiki_path_staging by id cursor exactly like verlauf_cases, timeboxed for STRATO; ONE
+// routing context is shared across the batch. Ways without assignment/course are cheap
+// skips inside DeriveForWay. Response mirrors the ListCases envelope.
+function avesmapsWikiPathFlowDeriveAll(PDO $pdo, array $config, bool $dryRun, int $userId, array $options = []): array {
+    $cursor = max(0, (int) ($options['cursor'] ?? 0));
+    $limit = max(1, min(50, (int) ($options['limit'] ?? 10)));
+    $stepRuntime = max(3, min(25, (int) ($options['step_runtime'] ?? 15)));
+    $startedAt = microtime(true);
+    @set_time_limit($stepRuntime + 15);
+
+    $statement = $pdo->prepare('SELECT * FROM ' . AVESMAPS_WIKI_PATH_STAGING_TABLE .
+        " WHERE id > :cursor AND kind = 'fluss' ORDER BY id ASC LIMIT " . $limit);
+    $statement->bindValue('cursor', $cursor, PDO::PARAM_INT);
+    $statement->execute();
+    $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+    $routingContext = avesmapsWikiPathVerlaufBuildRoutingContext($config);
+    $results = [];
+    $scanned = 0;
+    $nextCursor = $cursor;
+    $stoppedEarly = false;
+    foreach ($rows as $row) {
+        if ((microtime(true) - $startedAt) >= $stepRuntime) {
+            $stoppedEarly = true;
+            break;
+        }
+        $scanned++;
+        $nextCursor = (int) $row['id'];
+        $rowWikiKey = (string) ($row['wiki_key'] ?? '');
+        if ($rowWikiKey === '') {
+            continue;
+        }
+        try {
+            $result = avesmapsWikiPathFlowDeriveForWay($pdo, $config, $rowWikiKey, $dryRun, $userId, $routingContext);
+        } catch (Throwable $error) {
+            $result = ['ok' => false, 'wiki_key' => $rowWikiKey, 'error' => 'derive_failed'];
+        }
+        unset($result['segments_updated']);  // keep batch responses small
+        if (($result['directed'] ?? 0) > 0 || ($result['cleared'] ?? 0) > 0 || ($result['ok'] ?? false) === false || count($result['ambiguous'] ?? []) > 0) {
+            $results[] = $result;
+        }
+    }
+    return [
+        'ok' => true,
+        'dry_run' => $dryRun,
+        'results' => $results,
+        'scanned' => $scanned,
+        'next_cursor' => $nextCursor,
+        'complete' => !$stoppedEarly && count($rows) < $limit,
+        'runtime_seconds' => round(microtime(true) - $startedAt, 2),
+    ];
+}

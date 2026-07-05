@@ -141,6 +141,19 @@ try {
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
                 (int) ($user['id'] ?? 0)
             ),
+            // Flussrichtung (spec §3 trigger 2): timeboxed first-run derivation over all
+            // wiki river ways; cursor loop pattern like verlauf_cases.
+            'derive_flow_all' => avesmapsWikiPathFlowDeriveAll(
+                $pdo,
+                $config,
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
+                (int) ($user['id'] ?? 0),
+                [
+                    'cursor' => (int) ($payload['cursor'] ?? 0),
+                    'limit' => (int) ($payload['limit'] ?? 10),
+                    'step_runtime' => (int) ($payload['step_runtime'] ?? 15),
+                ]
+            ),
             default => null,
         };
 
