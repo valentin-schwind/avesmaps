@@ -127,6 +127,7 @@ document.addEventListener("click", (event) => {
 				? `Richtung umgedreht (${result.flipped} Segmente).`
 				: `Richtung festgelegt (${result.directed} von ${result.segments} Segmenten${result.segments > result.directed ? " — Abzweige bleiben ohne Richtung" : ""}).`
 		);
+		return;
 	}
 	if (event.target.closest("#path-flow-factor-save")) {
 		const publicId = pathWikiCurrentFeaturePublicId();

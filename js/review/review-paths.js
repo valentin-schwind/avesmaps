@@ -63,6 +63,9 @@ function populatePathEditFormFromLastSettings(path) {
 		resetToDefault: !allowedTransports,
 	});
 	syncPathAutoNameControls({ forceName: true });
+	if (typeof renderPathFlowSection === "function") {
+		renderPathFlowSection();
+	}
 }
 
 function openPathEditDialog(path, { inheritLastSettings = false } = {}) {
