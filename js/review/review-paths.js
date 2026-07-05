@@ -23,6 +23,9 @@ function populatePathEditForm(path) {
 	if (typeof renderPathWikiReference === "function") {
 		renderPathWikiReference();
 	}
+	if (typeof renderPathFlowSection === "function") {
+		renderPathFlowSection();
+	}
 }
 
 function populatePathEditFormFromLastSettings(path) {

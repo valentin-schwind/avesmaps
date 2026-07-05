@@ -84,6 +84,13 @@ function applyWikiPathSegmentsUpdate(segmentsUpdated) {
 		} else {
 			delete path.properties.wiki_path;
 		}
+		if ("flow" in segment) {
+			if (segment.flow) {
+				path.properties.flow = segment.flow;
+			} else {
+				delete path.properties.flow;
+			}
+		}
 		if (typeof refreshPathLayerPopup === "function") {
 			refreshPathLayerPopup(path);
 		}
@@ -253,6 +260,9 @@ async function selectPathWikiResult(wikiKey) {
 			showFeedbackToast?.(`„${result.wiki_name}" verknüpft (${result.applied} Abschnitte).`, "success");
 			setPathWikiPickerOpen(false);
 			renderPathWikiReference();
+			if (typeof renderPathFlowSection === "function") {
+				renderPathFlowSection();
+			}
 			if (typeof syncPathAutoNameControls === "function") {
 				syncPathAutoNameControls(); // R1: lock the name field onto the wiki name
 			}
@@ -297,6 +307,9 @@ async function removePathWiki() {
 			delete pathEditFeature.properties.wiki_path;
 		}
 		renderPathWikiReference();
+		if (typeof renderPathFlowSection === "function") {
+			renderPathFlowSection();
+		}
 		if (typeof syncPathAutoNameControls === "function") {
 			syncPathAutoNameControls(); // R2: unlock and show the fresh generic name
 		}
