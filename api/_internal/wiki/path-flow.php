@@ -571,7 +571,8 @@ function avesmapsWikiPathFlowDeriveAll(PDO $pdo, array $config, bool $dryRun, in
 
 // POST set_flow (spec §6): way-wide flow edits from the path detail panel.
 //   {public_id, flip:true}     invert dir on every directed segment of the way
-//   {public_id, set_dir:true}  "Richtung festlegen": orient the undirected way's main chain
+//   {public_id, set_dir:true}  "Richtung festlegen/vervollstaendigen": orient the way's main
+//                              chain, aligned with (and never rewriting) existing dirs
 //   {public_id, factor:2.0}    way-wide Stroemungsfaktor (clamped)
 // flip/set_dir are mutually exclusive; factor may combine with either. Way identity =
 // avesmapsWikiPathRowMatchesWay (name match-key UNION wiki_key) restricted to Flussweg --
@@ -651,15 +652,28 @@ function avesmapsWikiPathSetFlow(PDO $pdo, string $publicId, array $options, boo
             $writes[$pid] = $write;
         }
     } elseif ($setDir) {
-        // Stale-panel guard: a way that already has a direction must be flipped, not re-oriented.
-        if ($directedBefore > 0) {
-            throw new RuntimeException('Way already has a direction (use flip).');
+        // Anchor-aware (spec 2026-07-06): existing dirs act as alignment anchors and are
+        // never rewritten here -- a partially wiki-derived river gets the undirected rest
+        // of its main chain completed consistently instead of erroring out.
+        $anchorDirs = [];
+        foreach ($working as $pid => $flowRaw) {
+            $normalized = avesmapsPathFlowNormalize($flowRaw);
+            if ($normalized !== null) {
+                $anchorDirs[(string) $pid] = $normalized['dir'];
+            }
         }
-        $chain = avesmapsPathFlowChainOrientation($coordinatesByPublicId);
-        if ($chain === []) {
-            throw new RuntimeException('No unambiguous segment chain found.');
+        $plan = avesmapsPathFlowPlanSetDir($coordinatesByPublicId, $anchorDirs);
+        if (!$plan['ok']) {
+            throw new RuntimeException(match ($plan['reason']) {
+                'anchors_conflict' => 'Directed segments on the main chain disagree -- re-derive or flip first.',
+                'no_anchor_on_chain' => 'No directed segment lies on the main chain; cannot orient the rest consistently.',
+                default => 'No unambiguous segment chain found.',
+            });
         }
-        foreach ($chain as $pid => $dir) {
+        if ($plan['dir_by_public_id'] === []) {
+            throw new RuntimeException('Main chain is already fully directed (use flip).');
+        }
+        foreach ($plan['dir_by_public_id'] as $pid => $dir) {
             $new = is_array($working[$pid] ?? null) ? $working[$pid] : [];
             $new['dir'] = $dir;
             $new['source'] = 'editor';
