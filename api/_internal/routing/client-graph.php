@@ -182,13 +182,17 @@ function avesmapsAddClientCompatiblePathSliceConnection(array &$graph, array $fr
     // dir 'reverse'. Upstream legs cost time * factor; downstream stays the exact base time.
     // from/to fields stay the STORED orientation on both variants -- the verlauf flow
     // derivation's chain walk depends on that.
+    // flow_state names the traversal relative to the current: the display layer cannot
+    // derive "downstream" from a neutral factor alone (downstream and no-flow both ship 1.0).
     $upstreamTime = $connection['time'] * $flow['factor'];
     $forwardConnection = $connection;
     $forwardConnection['time'] = $flow['dir'] === 'reverse' ? $upstreamTime : $connection['time'];
     $forwardConnection['flow_time_factor'] = $flow['dir'] === 'reverse' ? $flow['factor'] : 1.0;
+    $forwardConnection['flow_state'] = $flow['dir'] === 'reverse' ? 'upstream' : 'downstream';
     $reverseConnection = $connection;
     $reverseConnection['time'] = $flow['dir'] === 'forward' ? $upstreamTime : $connection['time'];
     $reverseConnection['flow_time_factor'] = $flow['dir'] === 'forward' ? $flow['factor'] : 1.0;
+    $reverseConnection['flow_state'] = $flow['dir'] === 'forward' ? 'upstream' : 'downstream';
 
     avesmapsAddClientCompatibleGraphConnection($graph, $connection['from'], $connection['to'], $forwardConnection);
     avesmapsAddClientCompatibleGraphConnection($graph, $connection['to'], $connection['from'], $reverseConnection);
@@ -492,6 +496,7 @@ function avesmapsBuildClientRouteDiagnosticSegments(array $segments): array {
             'geometry' => ['type' => 'LineString', 'coordinates' => $coordinates],
             'synthetic' => !empty($segment['synthetic']),
             'flow_time_factor' => (float) ($segment['flow_time_factor'] ?? 1.0),
+            'flow_state' => (string) ($segment['flow_state'] ?? ''),
         ];
     }, $segments, array_keys($segments));
 }

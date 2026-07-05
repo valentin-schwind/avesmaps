@@ -117,12 +117,20 @@ $pathData = avesmapsBuildRoutePathData([
 ], 'path-1');
 check('path data carries flow', $pathData['flow'], $flowForward);
 
-// Diagnostic segments expose the applied factor.
+// Diagnostic segments expose the applied factor AND the traversal flow state.
 $networkData = ['locations' => [makeLocation('A', 0.0, 0.0), makeLocation('B', 10.0, 0.0)], 'paths' => [makePath('r1', 'Flussweg', $line, $flowForward)]];
 $graph = avesmapsBuildClientCompatibleRouteGraph($networkData, $request);
 $route = avesmapsFindClientCompatibleRoute($graph, 'B', 'A', $request);
 $diag = avesmapsBuildClientRouteDiagnosticSegments($route['segments']);
 check('diagnostic flow_time_factor', round((float) ($diag[0]['flow_time_factor'] ?? 0.0), 6), 1.5);
+check('diagnostic flow_state upstream', (string) ($diag[0]['flow_state'] ?? ''), 'upstream');
+$routeDown = avesmapsFindClientCompatibleRoute($graph, 'A', 'B', $request);
+$diagDown = avesmapsBuildClientRouteDiagnosticSegments($routeDown['segments']);
+check('diagnostic flow_state downstream', (string) ($diagDown[0]['flow_state'] ?? ''), 'downstream');
+$graphNoFlow = avesmapsBuildClientCompatibleRouteGraph(['locations' => [makeLocation('A', 0.0, 0.0), makeLocation('B', 10.0, 0.0)], 'paths' => [makePath('r1', 'Flussweg', $line, null)]], $request);
+$routeNoFlow = avesmapsFindClientCompatibleRoute($graphNoFlow, 'A', 'B', $request);
+$diagNoFlow = avesmapsBuildClientRouteDiagnosticSegments($routeNoFlow['segments']);
+check('diagnostic flow_state empty without flow', (string) ($diagNoFlow[0]['flow_state'] ?? 'MISSING'), '');
 
 echo "\n{$total} checks, {$failures} failures\n";
 exit($failures === 0 ? 0 : 1);

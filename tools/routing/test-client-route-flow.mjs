@@ -160,5 +160,26 @@ assert.equal(
 	"upstream",
 	"state: invalid explicit factor falls back to the derived verdict"
 );
+// Server-shipped flow_state is authoritative (server-primary display segments have no flow object).
+assert.equal(
+	resolveRouteSegmentFlowState({ properties: { flow_state: "downstream", flow_time_factor: 1 } }, null, "Flussweg"),
+	"downstream",
+	"state: explicit server flow_state downstream"
+);
+assert.equal(
+	resolveRouteSegmentFlowState({ properties: { flow_state: "upstream", flow_time_factor: 1.5 } }, null, "Flussweg"),
+	"upstream",
+	"state: explicit server flow_state upstream"
+);
+assert.equal(
+	resolveRouteSegmentFlowState({ properties: { flow_state: "" } }, null, "Flussweg"),
+	null,
+	"state: empty server flow_state falls through"
+);
+assert.equal(
+	resolveRouteSegmentFlowState({ properties: { flow_state: "downstream" } }, null, "Seeweg"),
+	null,
+	"state: explicit flow_state still gated to rivers"
+);
 
 console.log("test-client-route-flow: all assertions passed");

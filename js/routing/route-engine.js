@@ -205,6 +205,9 @@ function clonePathSegmentForServerRoute(pathSegment, serverSegment) {
 			// (flow_time_factor on the diagnostic segment) -- carry it so the plan display
 			// recomputation (resolveRouteSegmentFlowFactor) uses the same factor as the chosen route.
 			flow_time_factor: Number(serverSegment?.flow_time_factor) || 1,
+			// flow_state (upstream/downstream) feeds the plan's leg labels: a neutral factor
+			// alone cannot distinguish downstream from unknown.
+			flow_state: String(serverSegment?.flow_state || ""),
 		},
 	};
 }
@@ -254,6 +257,9 @@ function buildServerGeometryRouteSegment(serverSegment, coordinates) {
 			// Flussrichtung spec §4: carry the server-applied upstream factor for display-time
 			// recomputation (resolveRouteSegmentFlowFactor prefers this explicit value).
 			flow_time_factor: Number(serverSegment?.flow_time_factor) || 1,
+			// flow_state (upstream/downstream) feeds the plan's leg labels: a neutral factor
+			// alone cannot distinguish downstream from unknown.
+			flow_state: String(serverSegment?.flow_state || ""),
 		},
 	};
 }

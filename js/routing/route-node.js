@@ -214,6 +214,12 @@ function resolveRouteSegmentFlowState(segment, orientation, type) {
 	if (type !== "Flussweg") {
 		return null;
 	}
+	// Server-primary display segments carry the authoritative per-slice state directly
+	// (flow_state on the diagnostic segment, mirrored by the route-engine builders).
+	const explicitState = segment?.properties?.flow_state;
+	if (explicitState === "upstream" || explicitState === "downstream") {
+		return explicitState;
+	}
 	const explicit = Number(segment?.properties?.flow_time_factor);
 	const hasExplicit = Number.isFinite(explicit) && explicit > 0;
 	if (hasExplicit && explicit > 1) {
