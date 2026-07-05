@@ -102,8 +102,10 @@ function focusSpotlightRegionBounds(bounds, minZoom, maxZoom) {
 	if (!bounds?.isValid?.()) {
 		return;
 	}
-	const hasMin = Number.isFinite(Number(minZoom));
-	const hasMax = Number.isFinite(Number(maxZoom));
+	// Number(null) === 0: without the explicit null/undefined guard a territory WITHOUT a stored
+	// zoom band would set hasMax=true with cap 0 -> fitBounds capped at zoom 0 (no visible move).
+	const hasMin = minZoom !== null && minZoom !== undefined && Number.isFinite(Number(minZoom));
+	const hasMax = maxZoom !== null && maxZoom !== undefined && Number.isFinite(Number(maxZoom));
 	const cap = hasMax ? Number(maxZoom) : 4;
 	map.fitBounds(bounds.pad(0.12), { padding: [54, 54], maxZoom: cap });
 	let targetZoom = map.getZoom();
