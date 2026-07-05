@@ -59,7 +59,6 @@ function applyPathFeatureResponse(path, feature) {
 		display_name: displayName,
 		original_name: displayName,
 		feature_subtype: pathSubtype,
-		name: `${pathSubtype}-${path.properties.id?.replace(/^path-/, "") || pathData.indexOf(path) + 1}`,
 	};
 	updatePathLayerGeometry(path);
 	updatePathLayerStyle(path);

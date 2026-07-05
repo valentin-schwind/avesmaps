@@ -38,6 +38,60 @@ function pathWikiCurrentAssignment() {
 	return wiki && wiki.wiki_key ? wiki : null;
 }
 
+// Client mirror of avesmapsWikiPathCanonicalName (api/_internal/wiki/path-naming.php):
+// staging name, else the decoded /wiki/<Page> segment of wiki_url (underscores -> spaces).
+function pathWikiCanonicalName(wiki) {
+	if (!wiki) {
+		return "";
+	}
+	const name = String(wiki.name || "").trim();
+	if (name) {
+		return name;
+	}
+	const wikiUrl = String(wiki.wiki_url || "").trim();
+	const wikiMatch = /\/wiki\/([^?#]+)/i.exec(wikiUrl);
+	if (!wikiMatch) {
+		return "";
+	}
+	let pageSegment = wikiMatch[1];
+	try {
+		pageSegment = decodeURIComponent(pageSegment);
+	} catch (error) {
+		// Malformed escape -> keep raw segment.
+	}
+	return pageSegment.replace(/_/g, " ").trim();
+}
+
+// Applies the segments_updated payload of assign_to/clear_assign to the local pathData:
+// fresh revision (the 409 fix -- expected_revision must match the server again), the
+// R1/R2 name, and the wiki_path object. show_label is deliberately untouched (R3).
+function applyWikiPathSegmentsUpdate(segmentsUpdated) {
+	if (!Array.isArray(segmentsUpdated) || typeof findPathByPublicId !== "function") {
+		return;
+	}
+	segmentsUpdated.forEach((segment) => {
+		const path = findPathByPublicId(String(segment?.public_id || ""));
+		if (!path || !path.properties) {
+			return;
+		}
+		path.properties.revision = segment.revision;
+		path.properties.name = segment.name;
+		path.properties.display_name = segment.display_name;
+		path.properties.original_name = segment.display_name;
+		if (segment.wiki_path) {
+			path.properties.wiki_path = segment.wiki_path;
+		} else {
+			delete path.properties.wiki_path;
+		}
+		if (typeof refreshPathLayerPopup === "function") {
+			refreshPathLayerPopup(path);
+		}
+	});
+	if (segmentsUpdated.length && typeof syncPathLabels === "function") {
+		syncPathLabels();
+	}
+}
+
 function pathWikiKindLabel(kind) {
 	return kind === "fluss" ? "Fluss" : (kind === "strasse" ? "Straße/Weg" : "");
 }
@@ -49,9 +103,10 @@ function renderPathWikiReference() {
 	if (!list) {
 		return;
 	}
-	// Per-Feld-Sync-Buttons (Name/Typ) nur aktiv, wenn ein Wiki-Weg zugeordnet ist.
+	// Der Typ-Sync-Button ist nur aktiv, wenn ein Wiki-Weg zugeordnet ist. (Der Namens-Sync-
+	// Button ist weg: R1 -- der Name IST immer der Wiki-Name, solange die Zuordnung besteht.)
 	const hasWikiPath = Boolean(pathWikiCurrentAssignment());
-	["path-edit-wiki-sync-name", "path-edit-wiki-sync-type"].forEach((id) => {
+	["path-edit-wiki-sync-type"].forEach((id) => {
 		const button = pathWikiElement(id);
 		if (button) {
 			button.disabled = !hasWikiPath;
@@ -189,12 +244,17 @@ async function selectPathWikiResult(wikiKey) {
 		}
 		if (result && result.ok) {
 			const row = pathWikiPickerResults.find((entry) => String(entry.wiki_key) === String(wikiKey));
-			if (pathEditFeature && pathEditFeature.properties) {
+			applyWikiPathSegmentsUpdate(result.segments_updated);
+			if (pathEditFeature && pathEditFeature.properties && !Array.isArray(result.segments_updated)) {
+				// Fallback for a stale backend without segments_updated: at least keep the optimistic object.
 				pathEditFeature.properties.wiki_path = pathWikiFromRow(row);
 			}
 			showFeedbackToast?.(`„${result.wiki_name}" verknüpft (${result.applied} Abschnitte).`, "success");
 			setPathWikiPickerOpen(false);
 			renderPathWikiReference();
+			if (typeof syncPathAutoNameControls === "function") {
+				syncPathAutoNameControls(); // R1: lock the name field onto the wiki name
+			}
 		} else if (status) {
 			status.textContent = "Fehler: " + apiErrorMessage(result, "");
 		}
@@ -211,12 +271,23 @@ async function removePathWiki() {
 		return;
 	}
 	try {
-		await pathWikiPost({ action: "clear_assign", public_id: publicId, dry_run: false, confirm: "apply" });
-		if (pathEditFeature && pathEditFeature.properties) {
+		const result = await pathWikiPost({ action: "clear_assign", public_id: publicId, dry_run: false, confirm: "apply" });
+		if (!result || result.ok !== true) {
+			throw new Error(apiErrorMessage(result, "Entfernen fehlgeschlagen"));
+		}
+		applyWikiPathSegmentsUpdate(result.segments_updated);
+		if (pathEditFeature && pathEditFeature.properties && !Array.isArray(result.segments_updated)) {
 			delete pathEditFeature.properties.wiki_path;
 		}
 		renderPathWikiReference();
-		showFeedbackToast?.("Wiki-Zuordnung entfernt.", "info");
+		if (typeof syncPathAutoNameControls === "function") {
+			syncPathAutoNameControls(); // R2: unlock and show the fresh generic name
+		}
+		const nameInput = pathWikiElement("path-edit-name");
+		if (nameInput && result.generic_name) {
+			nameInput.value = result.generic_name;
+		}
+		showFeedbackToast?.(result.generic_name ? `Wiki-Zuordnung entfernt — Weg heißt jetzt „${result.generic_name}".` : "Wiki-Zuordnung entfernt.", "info");
 	} catch (error) {
 		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
 	}
@@ -250,23 +321,6 @@ function pathWikiGuessWegtyp(wiki) {
 	return "Weg";
 }
 
-function syncPathNameFromWiki() {
-	const wiki = pathWikiCurrentAssignment();
-	if (!wiki) {
-		showFeedbackToast?.("Erst einen Wiki-Weg zuweisen.", "info");
-		return;
-	}
-	const input = pathWikiElement("path-edit-name");
-	if (input && String(wiki.name || "").trim() !== "") {
-		input.value = wiki.name;
-		const autoname = pathWikiElement("path-edit-autoname");
-		if (autoname) {
-			autoname.checked = false; // sonst überschreibt der Auto-Name den Wiki-Namen
-		}
-		showFeedbackToast?.("Wegname aus Wiki übernommen.", "success");
-	}
-}
-
 function syncPathTypeFromWiki() {
 	const wiki = pathWikiCurrentAssignment();
 	if (!wiki) {
@@ -283,10 +337,6 @@ function syncPathTypeFromWiki() {
 
 document.addEventListener("click", (event) => {
 	if (!event.target.closest) {
-		return;
-	}
-	if (event.target.closest("#path-edit-wiki-sync-name")) {
-		syncPathNameFromWiki();
 		return;
 	}
 	if (event.target.closest("#path-edit-wiki-sync-type")) {

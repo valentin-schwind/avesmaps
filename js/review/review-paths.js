@@ -11,6 +11,7 @@ function populatePathEditForm(path) {
 	document.getElementById("path-edit-name").value = getPathDisplayName(path);
 	document.getElementById("path-edit-type").value = pathSubtype;
 	document.getElementById("path-edit-autoname").checked = true;
+	document.getElementById("path-edit-autoname").disabled = false;
 	document.getElementById("path-edit-show-label").checked = shouldPathNameBeDisplayed(path);
 	syncPathTransportOptions({ path });
 	syncPathAutoNameControls();
@@ -38,6 +39,7 @@ function populatePathEditFormFromLastSettings(path) {
 	document.getElementById("path-edit-name").value = getNextPathDisplayName(pathSubtype, { excludePath: pathEditFeature });
 	document.getElementById("path-edit-type").value = pathSubtype;
 	document.getElementById("path-edit-autoname").checked = autoNameEnabled;
+	document.getElementById("path-edit-autoname").disabled = false;
 	document.getElementById("path-edit-show-label").checked = showLabelEnabled;
 	syncPathTransportOptions({
 		path: {
@@ -94,9 +96,15 @@ function buildPathEditPayload(formElement) {
 	const formData = new FormData(formElement);
 	const featureSubtype = String(formData.get("feature_subtype") || "").trim();
 	const isAutoNameEnabled = formData.get("autoname") === "on";
-	const submittedName = isAutoNameEnabled
-		? String(formData.get("name") || "").trim()
-		: getPathDisplayNameOrGenerated(formData.get("name"), featureSubtype, { excludePath: pathEditFeature });
+	// R1 defense in depth (the server enforces it too): with a wiki way assigned, the
+	// submitted name IS the wiki way name, whatever the input field claims.
+	const wiki = typeof pathWikiCurrentAssignment === "function" ? pathWikiCurrentAssignment() : null;
+	const wikiName = wiki && typeof pathWikiCanonicalName === "function" ? pathWikiCanonicalName(wiki) : "";
+	const submittedName = wikiName !== ""
+		? wikiName
+		: (isAutoNameEnabled
+			? String(formData.get("name") || "").trim()
+			: getPathDisplayNameOrGenerated(formData.get("name"), featureSubtype, { excludePath: pathEditFeature }));
 	return {
 		action: "update_path_details",
 		public_id: String(formData.get("public_id") || "").trim(),
@@ -166,6 +174,18 @@ function syncPathAutoNameControls({ forceName = false } = {}) {
 	const typeSelectElement = document.getElementById("path-edit-type");
 	const autoNameElement = document.getElementById("path-edit-autoname");
 	if (!nameInputElement || !typeSelectElement || !autoNameElement) {
+		return;
+	}
+
+	// R1: an assigned wiki way owns the name -- no auto-name, no manual override. The
+	// checkbox is disabled (not just unchecked) so the lock is visible in the form.
+	const wiki = typeof pathWikiCurrentAssignment === "function" ? pathWikiCurrentAssignment() : null;
+	const wikiName = wiki && typeof pathWikiCanonicalName === "function" ? pathWikiCanonicalName(wiki) : "";
+	autoNameElement.disabled = wikiName !== "";
+	if (wikiName !== "") {
+		autoNameElement.checked = false;
+		nameInputElement.value = wikiName;
+		nameInputElement.readOnly = true;
 		return;
 	}
 
