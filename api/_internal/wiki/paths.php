@@ -988,7 +988,8 @@ function avesmapsWikiPathAssignAll(PDO $pdo, string $continentFilter, bool $dryR
 // Segment einen EIGENEN generischen `<Subtype>-<n>`-Namen (owner-reported blast radius 2026-07-05:
 // EIN gemeinsamer Name klebte vormals distinkte Segmente aneinander -- ein spaeteres Zuweisen auf
 // eines von ihnen riss dann alle mit hinein). Die Gruppe loest sich beim Entfernen also bewusst auf.
-function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, int $userId = 0): array {
+// Mit single_segment:true wird NUR das Ziel-Segment geloest (eigener generischer Name, Rest des Wegs bleibt).
+function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, int $userId = 0, bool $singleSegment = false): array {
     avesmapsWikiPathEnsureTables($pdo);
     $publicId = trim($publicId);
     if ($publicId === '') {
@@ -1016,6 +1017,11 @@ function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, i
     $anchorGenericName = '';
     $segmentsUpdated = [];
     foreach ($paths as $p) {
+        // single_segment: chirurgisches Entfernen NUR des Ziel-Segments (z.B. faelschlich
+        // zugewiesene Zufahrts-Sporne) -- ohne den weg-weiten Namens-/wiki_key-Match.
+        if ($singleSegment && (string) $p['public_id'] !== $publicId) {
+            continue;
+        }
         if (!avesmapsWikiPathRowMatchesWay((string) $p['name'], $p['properties_json'] ?? null, $targetKey, $targetWikiKey)) {
             continue;
         }
