@@ -33,6 +33,15 @@ try {
         $action = trim((string) ($payload['action'] ?? ($_GET['action'] ?? '')));
         $options = is_array($payload['options'] ?? null) ? $payload['options'] : $payload;
 
+        // Provenance for the assign* actions (Verlauf-Sync T1): editors may pass 'source' to
+        // mark a write as owner-curated vs. sync-written. course_hash/course_hops are NOT
+        // accepted over HTTP -- only server-side callers (Task 5) pass those directly.
+        $assignSource = trim((string) ($payload['source'] ?? ''));
+        if ($assignSource !== '' && !in_array($assignSource, ['editor', 'verlauf-sync'], true)) {
+            avesmapsErrorResponse(400, 'invalid_source', 'Unknown assign source.');
+        }
+        $assignMeta = $assignSource === '' ? [] : ['source' => $assignSource];
+
         $response = match ($action) {
             'start_run' => avesmapsWikiPathStartRun(
                 $pdo,
@@ -46,7 +55,8 @@ try {
                 (string) ($payload['wiki_key'] ?? ''),
                 // Schreiben NUR bei dry_run:false UND confirm:"apply".
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
-                (int) ($user['id'] ?? 0)
+                (int) ($user['id'] ?? 0),
+                $assignMeta
             ),
             'clear_assign' => avesmapsWikiPathClearAssign(
                 $pdo,
@@ -58,7 +68,8 @@ try {
             'assign_all' => avesmapsWikiPathAssignAll(
                 $pdo,
                 array_key_exists('continent', $payload) ? (string) $payload['continent'] : 'Aventurien',
-                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply')
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
+                $assignMeta
             ),
             'assign_to' => avesmapsWikiPathAssignTo(
                 $pdo,
@@ -66,7 +77,8 @@ try {
                 (string) ($payload['public_id'] ?? ''),
                 !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
                 (int) ($user['id'] ?? 0),
-                ($payload['single_segment'] ?? false) === true
+                ($payload['single_segment'] ?? false) === true,
+                $assignMeta
             ),
             default => null,
         };
