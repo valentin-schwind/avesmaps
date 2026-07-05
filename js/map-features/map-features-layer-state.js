@@ -188,9 +188,34 @@ function copyRoutingModeFlags(searchParams) {
 	});
 }
 
+// Wiki deep-link params (?siedlung/?staat/?region/?strasse/?fluss, js/app/wiki-deeplink.js)
+// are read-only entry points: no UI state carries them, so the rebuilt query would silently
+// drop them and the URL would visibly "jump" to the toggle params right after the deep link
+// resolves. Re-merge them from the CURRENT url; the ?s= share-code strip list keeps them out
+// of share links independently.
+function mergeWikiDeeplinkParams(searchParams, locationSearch) {
+	const paramNames = typeof WIKI_DEEPLINK_PARAM_NAMES !== "undefined" && Array.isArray(WIKI_DEEPLINK_PARAM_NAMES)
+		? WIKI_DEEPLINK_PARAM_NAMES
+		: ["siedlung", "staat", "region", "strasse", "fluss"];
+	let currentParams;
+	try {
+		currentParams = new URLSearchParams(String(locationSearch || ""));
+	} catch (error) {
+		return searchParams;
+	}
+	paramNames.forEach((paramName) => {
+		const value = currentParams.get(paramName);
+		if (value !== null && String(value).trim() !== "") {
+			searchParams.set(paramName, value);
+		}
+	});
+	return searchParams;
+}
+
 function buildPlannerSearchParams() {
 	const searchParams = new URLSearchParams();
 	copyRoutingModeFlags(searchParams);
+	mergeWikiDeeplinkParams(searchParams, window.location.search);
 	if (IS_EDIT_MODE) {
 		searchParams.set("edit", "1");
 		searchParams.set("debugMap", "1");
