@@ -787,7 +787,7 @@ function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $us
             $props['name'] = $newName;
             $props['display_name'] = $newName;
             $update->execute(['name' => $newName, 'pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $p['id']]);
-            avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId);
+            avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId, $newName);
             $applied++;
         }
     }
@@ -838,6 +838,7 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
                 . ', das Ziel „' . (string) $target['name'] . '" ist ' . ($targetIsRiver ? 'ein Fluss' : 'eine Straße/Weg') . '.',
             'dry_run' => $dryRun,
             'applied' => 0,
+            'segments_updated' => [],
         ];
     }
 
@@ -865,7 +866,7 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
             $props['display_name'] = $newName;
             $update = $pdo->prepare('UPDATE map_features SET name = :name, properties_json = :pj, revision = :rev WHERE id = :id');
             $update->execute(['name' => $newName, 'pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $p['id']]);
-            avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId);
+            avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId, $newName);
             $applied++;
             // The editor applies these locally so its expected_revision stays fresh (409 fix).
             $segmentsUpdated[] = [
@@ -988,7 +989,7 @@ function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, i
             $props['display_name'] = $genericName;
             $update = $pdo->prepare('UPDATE map_features SET name = :name, properties_json = :pj, revision = :rev WHERE id = :id');
             $update->execute(['name' => $genericName, 'pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $p['id']]);
-            avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId);
+            avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId, $genericName);
             $segmentsUpdated[] = [
                 'public_id' => (string) $p['public_id'],
                 'revision' => $revision,

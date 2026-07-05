@@ -178,7 +178,9 @@ function avesmapsWikiSyncFetchAuditRow(PDO $pdo, int $featureId): array {
 
 // Schreibt einen Verlaufs-/Undo-Eintrag (wiki_sync_update_point) für eine properties_json-Änderung
 // eines Features. Stellt beim „Rückgängig" name/feature_subtype/properties_json wieder her.
-function avesmapsWikiSyncAuditFeaturePropsChange(PDO $pdo, array $beforeRow, array $newProps, int $revision, int $userId): void {
+// Bei Umbenennungen (R1/R2 Wege) muss after_json.name der NEUE Name sein, sonst weist der
+// Undo-Conflict-Guard das Rückgängigmachen ab.
+function avesmapsWikiSyncAuditFeaturePropsChange(PDO $pdo, array $beforeRow, array $newProps, int $revision, int $userId, ?string $newName = null): void {
     if (empty($beforeRow['id'])) {
         return;
     }
@@ -191,7 +193,7 @@ function avesmapsWikiSyncAuditFeaturePropsChange(PDO $pdo, array $beforeRow, arr
         avesmapsWikiSyncEncodeJson([
             'public_id' => (string) ($beforeRow['public_id'] ?? ''),
             'feature_type' => (string) ($beforeRow['feature_type'] ?? 'label'),
-            'name' => (string) ($beforeRow['name'] ?? ''),
+            'name' => $newName !== null ? $newName : (string) ($beforeRow['name'] ?? ''),
             'feature_subtype' => (string) ($beforeRow['feature_subtype'] ?? ''),
             'properties_json' => $newProps,
             'revision' => $revision,
