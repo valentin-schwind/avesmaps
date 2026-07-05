@@ -20,7 +20,7 @@ const AVESMAPS_SETTLEMENT_COAT_TYPES = [
     'image/gif' => 'gif',
 ];
 
-const AVESMAPS_SETTLEMENT_COAT_MAX_DIM = 256; // downscale own coats to a max edge (px); keeps files small
+const AVESMAPS_SETTLEMENT_COAT_MAX_DIM = 128; // max edge (px). Coats display <=40px (map 40 / infobox 34), so 128 stays crisp even at 3x DPI while keeping files small
 
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
