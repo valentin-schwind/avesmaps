@@ -272,7 +272,23 @@ async function removePathWiki() {
 		return;
 	}
 	try {
-		const result = await pathWikiPost({ action: "clear_assign", public_id: publicId, dry_run: false, confirm: "apply" });
+		// Owner rule (2026-07-05): Entfernen must NEVER strip the whole way unasked. Probe the
+		// blast radius first; with more than one segment the default answer is the surgical
+		// single-segment clear, and the way-wide clear needs its own explicit confirmation.
+		const preview = await pathWikiPost({ action: "clear_assign", public_id: publicId, dry_run: true });
+		if (!preview || preview.ok !== true) {
+			throw new Error(apiErrorMessage(preview, "Entfernen fehlgeschlagen"));
+		}
+		const segmentCount = Number(preview.segments || 0);
+		let singleSegment = false;
+		if (segmentCount > 1) {
+			if (window.confirm(`Die Wiki-Zuordnung „${preview.name || ""}" hängt an ${segmentCount} Segmenten dieses Wegs.\n\nOK = NUR dieses eine Segment lösen (empfohlen)\nAbbrechen = weitere Optionen`)) {
+				singleSegment = true;
+			} else if (!window.confirm(`Stattdessen den GANZEN Weg entkoppeln?\n\nAlle ${segmentCount} Segmente verlieren die Wiki-Zuordnung und bekommen je einen eigenen generischen Namen.`)) {
+				return;
+			}
+		}
+		const result = await pathWikiPost({ action: "clear_assign", public_id: publicId, single_segment: singleSegment, dry_run: false, confirm: "apply" });
 		if (!result || result.ok !== true) {
 			throw new Error(apiErrorMessage(result, "Entfernen fehlgeschlagen"));
 		}
@@ -288,7 +304,9 @@ async function removePathWiki() {
 		if (nameInput && result.generic_name) {
 			nameInput.value = result.generic_name;
 		}
-		showFeedbackToast?.(result.generic_name ? `Wiki-Zuordnung entfernt — Segmente wieder einzeln benannt (dieses: „${result.generic_name}").` : "Wiki-Zuordnung entfernt.", "info");
+		showFeedbackToast?.(singleSegment
+			? (result.generic_name ? `Segment vom Weg gelöst (heißt jetzt „${result.generic_name}") — der übrige Weg bleibt verknüpft.` : "Segment vom Weg gelöst — der übrige Weg bleibt verknüpft.")
+			: (result.generic_name ? `Wiki-Zuordnung entfernt — Segmente wieder einzeln benannt (dieses: „${result.generic_name}").` : "Wiki-Zuordnung entfernt."), "info");
 	} catch (error) {
 		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
 	}
