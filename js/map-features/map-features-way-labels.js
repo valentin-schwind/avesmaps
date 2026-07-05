@@ -1,6 +1,7 @@
 // Way-Labels (Kanal A): wiki-zugewiesene Wege (properties.wiki_path.wiki_key) werden als GANZER Weg
 // beschriftet statt pro Segment — sichtbare Segmente werden über ihre Endpunkte zu Ketten verkettet
-// (Verzweigungen = Kettenschnitt), der Wegname wird dann alle ~WAY_LABEL_SCREEN_INTERVAL_PX
+// (an Verzweigungen laufen die zwei geradesten Arme als EIN Zug durch, übrige Arme schneiden),
+// der Wegname wird dann alle ~WAY_LABEL_SCREEN_INTERVAL_PX
 // Bildschirm-Pixel entlang jeder Kette gezeichnet (Integration in
 // map-features-path-label-canvas-overlay.js). Diese Datei enthält NUR die reinen, testbaren Helfer;
 // Projektion/Zeichnen bleibt im Overlay (siehe tools/paths/test-way-labels.mjs).
@@ -10,10 +11,10 @@
 // mediane Segmentlänge 7.84 (Kronstraße: 10 von 24 Segmenten KÜRZER als 7), echte Ortsstoß-Lücken
 // bis ~6.2. Deshalb darf NICHT pauschal jeder Endpunkt auf 7 Einheiten gesnappt werden: Segmente
 // kürzer als eps kollabieren dabei zu Self-Loops (eigene zwei Endpunkte = ein Knoten, Grad +2) und
-// Orts-Knoten schlucken 3+ Enden (Grad >= 3 -> Verzweigungsschnitt überall; live: 40 Ketten aus 50
-// Segmenten). Stattdessen: Phase 1 verkettet strikt (0.01-Raster, weit über dem Rauschen und weit
-// unter der Mindest-Segmentlänge), Phase 2 überbrückt nur noch OFFENE Ketten-Enden bis zu dieser
-// Distanz.
+// Orts-Knoten schlucken 3+ Enden (Grad >= 3 -> künstliche Verzweigungen überall; live unter der
+// damaligen Alle-Arme-schneiden-Regel: 40 Ketten aus 50 Segmenten). Stattdessen: Phase 1 verkettet
+// strikt (0.01-Raster, weit über dem Rauschen und weit unter der Mindest-Segmentlänge), Phase 2
+// überbrückt nur noch OFFENE Ketten-Enden bis zu dieser Distanz.
 const WAY_LABEL_CHAIN_GAP_EPS = 7;
 
 // Rundet eine [x,y]-Koordinate auf 2 Nachkommastellen -> stabiler Verkettungs-Key für Phase 1
@@ -26,16 +27,44 @@ function wayLabelEndpointKey(coord) {
 	return `${x.toFixed(2)}:${y.toFixed(2)}`;
 }
 
+// Einheitsvektor [dx,dy], mit dem ein Segment-Arm seinen Endpunkt VERLÄSST (atStart: erster,
+// sonst letzter Punkt), bestimmt zum ersten davon unterscheidbaren Folge-Vertex (Abstand
+// > 0.005 = halbes 0.01-Verkettungsraster -- exakte Duplikat-Vertices und Fließkomma-Rauschen
+// definieren keine Richtung). null bei degeneriertem Arm (kein unterscheidbarer zweiter Punkt).
+// Grundlage der Durchlauf-Paarung an Verzweigungen in buildWayLabelChains. Pur.
+function wayLabelArmDirection(coordinates, atStart) {
+	const coords = Array.isArray(coordinates) ? coordinates : [];
+	if (coords.length < 2) {
+		return null;
+	}
+	const anchor = atStart ? coords[0] : coords[coords.length - 1];
+	const ax = Number(anchor?.[0]);
+	const ay = Number(anchor?.[1]);
+	const step = atStart ? 1 : -1;
+	for (let i = atStart ? 1 : coords.length - 2; i >= 0 && i < coords.length; i += step) {
+		const dx = Number(coords[i]?.[0]) - ax;
+		const dy = Number(coords[i]?.[1]) - ay;
+		const len = Math.hypot(dx, dy);
+		if (len > 0.005) {
+			return [dx / len, dy / len];
+		}
+	}
+	return null;
+}
+
 // Verkettet Weg-Segmente in ZWEI Phasen zu geordneten Ketten (fortlaufende Beschriftungs-Läufe).
 // Eingabe: [{id, coordinates:[[x,y],...]}, ...] (rohe Segment-Geometrie, ein Eintrag pro
 // sichtbarem Segment DESSELBEN Wegs). Ausgabe: Array von Ketten, jede Kette ein geordnetes Array
 // von {id, coordinates, reversed}.
 // Phase 1 (striktes Verketten):
 //   - Adjazenz über die (auf 2 Nachkommastellen gerundeten) Endpunkt-Keys beider Segment-Enden.
-//   - Ketten starten an Endpunkten mit Grad 1 (offenes Ende); bleiben nur Grad-2+-Knoten übrig
-//     (reine Schleife), startet die Kette an einem beliebigen unbesuchten Segment.
-//   - An einem Knoten mit Grad > 2 (Verzweigung) ENDET die Kette dort -- sie läuft nicht durch die
-//     Verzweigung hindurch (Branch = Schnitt). Jedes Segment wird genau einmal verwendet.
+//   - An einem Knoten mit Grad > 2 (Verzweigung) laufen die zwei richtungs-kontinuierlichsten
+//     Arme (kleinster Knickwinkel zwischen ankommender und abgehender Richtung, nur unter
+//     90 Grad) als EIN Zug hindurch; alle ÜBRIGEN Arme schneiden dort (Schnitt-Arme). Jedes
+//     Segment wird genau einmal verwendet.
+//   - Ketten starten an toten Enden (Grad 1 oder Schnitt-Arm); bleiben nur Ringe übrig
+//     (jeder Knoten Grad 2 oder Durchlauf), startet die Kette an einem beliebigen
+//     unbesuchten Segment.
 // Phase 2 (Lücken-Brücken, handgezeichnete Ortsstoß-Lücken):
 //   - Freie Enden = Ketten-Außenenden, deren Phase-1-Knoten Grad 1 hat (echt offene Enden).
 //     Verzweigungs-Enden (Grad > 2) sind NICHT frei -- eine Brücke dort würde den bewussten
@@ -77,11 +106,47 @@ function buildWayLabelChains(segments, eps) {
 	});
 	const degreeOf = (key) => (touchesByKey.get(key) || []).length;
 
+	// Durchlauf-Paarung an Verzweigungen (Grad >= 3): statt ALLE Arme zu schneiden (auf echten
+	// Daten treffen sich an Ortsknoten oft 3+ Segmente DESSELBEN Wegs -- der Weg zerfiel in
+	// kurze Ketten und die 600px-Intervall-Regelmäßigkeit litt), laufen die zwei
+	// richtungs-kontinuierlichsten Arme als EIN Zug durch den Knoten: das Paar, dessen
+	// weg-VERLASSENDE Richtungen dem Skalarprodukt -1 am nächsten kommen (= kleinster
+	// Knickwinkel zwischen ankommender und abgehender Richtung). Nur Knicke unter 90 Grad
+	// (Skalarprodukt < 0) zählen als Durchlauf -- sonst liefe die Kette haarnadelartig auf
+	// sich selbst zurück. Alle übrigen Arme schneiden weiterhin (Schnitt-Arme).
+	const throughPairByKey = new Map();
+	touchesByKey.forEach((touches, key) => {
+		if (touches.length <= 2) {
+			return;
+		}
+		const dirs = touches.map((t) => wayLabelArmDirection(list[t.segmentIndex]?.coordinates, t.atStart));
+		let best = null;
+		for (let a = 0; a < touches.length; a += 1) {
+			if (!dirs[a]) {
+				continue;
+			}
+			for (let b = a + 1; b < touches.length; b += 1) {
+				// Nie die beiden Enden DESSELBEN Segments paaren (Mini-Ring am Knoten).
+				if (!dirs[b] || touches[b].segmentIndex === touches[a].segmentIndex) {
+					continue;
+				}
+				const dot = dirs[a][0] * dirs[b][0] + dirs[a][1] * dirs[b][1];
+				if (dot < 0 && (!best || dot < best.dot)) {
+					best = { pair: [touches[a], touches[b]], dot };
+				}
+			}
+		}
+		if (best) {
+			throughPairByKey.set(key, best.pair);
+		}
+	});
+
 	const used = new Array(list.length).fill(false);
 	let chains = [];
 
 	// Setzt an einem gegebenen (unbenutzten) Segment + Richtung an und läuft vorwärts, solange am
-	// jeweils neuen Kettenende genau EIN weiteres unbenutztes Segment anschließt (Grad <= 2 dort).
+	// jeweils neuen Kettenende ein unbenutztes Segment anschließt: an Grad-<=-2-Knoten der einzige
+	// Nachbar, an Verzweigungen NUR der Durchlauf-Partner (siehe throughPairByKey).
 	function walkFrom(startSegmentIndex, startReversed) {
 		const chain = [];
 		let currentIndex = startSegmentIndex;
@@ -93,14 +158,21 @@ function buildWayLabelChains(segments, eps) {
 
 			const ep = endpointsBySegment[currentIndex];
 			const trailingKey = currentReversed ? ep.startKey : ep.endKey;
-			// Verzweigung (Grad > 2) -> Kette endet hier, nicht hindurchlaufen.
+			let next = null;
 			if (degreeOf(trailingKey) > 2) {
-				break;
+				// Verzweigung: weiter geht es nur, wenn das aktuelle Ende Teil des Durchlauf-Paars
+				// ist -- dann in dessen Partner-Arm; jeder andere Arm schneidet hier. Das aktuelle
+				// Ende liegt atStart genau dann, wenn das Segment reversed durchlaufen wird.
+				const pair = throughPairByKey.get(trailingKey) || null;
+				const matches = (t) => t.segmentIndex === currentIndex && t.atStart === currentReversed;
+				const partner = !pair ? null : (matches(pair[0]) ? pair[1] : (matches(pair[1]) ? pair[0] : null));
+				next = partner && !used[partner.segmentIndex] ? partner : null;
+			} else {
+				const touches = touchesByKey.get(trailingKey) || [];
+				next = touches.find((t) => !used[t.segmentIndex]) || null;
 			}
-			const touches = touchesByKey.get(trailingKey) || [];
-			const next = touches.find((t) => !used[t.segmentIndex]);
 			if (!next) {
-				break; // offenes Ende oder Nachbar bereits verbraucht
+				break; // offenes Ende, Schnitt-Arm oder Nachbar bereits verbraucht
 			}
 			// Nächstes Segment muss so orientiert werden, dass es am trailingKey ANFÄNGT.
 			currentIndex = next.segmentIndex;
@@ -109,21 +181,38 @@ function buildWayLabelChains(segments, eps) {
 		return chain;
 	}
 
-	// Pass 1: Ketten an offenen Enden (Grad 1) starten -- ergibt die "natürliche" Leserichtung.
+	// "Totes Ende" = Kettenstart-Kandidat: offenes Ende (Grad 1) oder Schnitt-Arm einer
+	// Verzweigung (Arm außerhalb des Durchlauf-Paars). Start NUR an toten Enden garantiert,
+	// dass jeder Nicht-Ring-Zug vollständig in EINER Kette landet -- ein Start mitten im Zug
+	// (Richtung = Speicher-Zufall) würde ihn fragmentieren, und die Bruchstellen (Grad 2)
+	// wären für Phase 2 unsichtbar (die verbrückt nur Grad-1-Enden).
+	const isDeadEnd = (key, segmentIndex, atStart) => {
+		const degree = degreeOf(key);
+		if (degree === 1) {
+			return true;
+		}
+		if (degree === 2) {
+			return false;
+		}
+		const pair = throughPairByKey.get(key);
+		return !pair || !pair.some((t) => t.segmentIndex === segmentIndex && t.atStart === atStart);
+	};
+
+	// Pass 1: Ketten an toten Enden starten -- ergibt die "natürliche" Leserichtung.
 	for (let i = 0; i < list.length; i += 1) {
 		if (used[i]) {
 			continue;
 		}
 		const ep = endpointsBySegment[i];
-		if (degreeOf(ep.startKey) === 1) {
+		if (isDeadEnd(ep.startKey, i, true)) {
 			chains.push(walkFrom(i, false));
-		} else if (degreeOf(ep.endKey) === 1) {
+		} else if (isDeadEnd(ep.endKey, i, false)) {
 			chains.push(walkFrom(i, true));
 		}
 	}
 
-	// Pass 2: übrige unbesuchte Segmente (reine Schleifen ohne Grad-1-Ende, oder Segmente, die nur
-	// über eine Verzweigung erreichbar sind) -- an einem beliebigen unbesuchten Segment starten.
+	// Pass 2: übrige unbesuchte Segmente -- nach Pass 1 nur noch reine Ringe (jeder Knoten
+	// Grad 2 oder Durchlauf-Paar) -- an einem beliebigen unbesuchten Segment starten.
 	for (let i = 0; i < list.length; i += 1) {
 		if (!used[i]) {
 			chains.push(walkFrom(i, false));

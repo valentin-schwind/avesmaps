@@ -2,10 +2,15 @@
 // js/map-features/map-features-way-labels.js:
 //   - wayLabelEndpointKey(coord): rounds [x,y] to 2 decimals -> phase-1 strict-join key.
 //   - buildWayLabelChains(segments, eps): TWO-PHASE chain builder. Phase 1 joins segments
-//     strictly over (rounded) shared endpoints, cutting at junctions (degree > 2). Phase 2
-//     bridges gaps between FREE chain ends (phase-1 degree 1 only) by iteratively merging
-//     the globally closest pair of ends of different chains within eps map units
-//     (hand-drawn town joints; default WAY_LABEL_CHAIN_GAP_EPS = 7).
+//     strictly over (rounded) shared endpoints; at junctions (degree >= 3) the two most
+//     direction-continuous arms (smallest bend angle, and only under 90 degrees) pass
+//     through as ONE run, all other arms cut there. Phase 2 bridges gaps between FREE chain
+//     ends (phase-1 degree 1 only) by iteratively merging the globally closest pair of ends
+//     of different chains within eps map units (hand-drawn town joints; default
+//     WAY_LABEL_CHAIN_GAP_EPS = 7).
+//   - wayLabelArmDirection(coordinates, atStart): unit vector with which a segment arm
+//     LEAVES its endpoint (skipping duplicate/float-noise vertices) -- basis for the
+//     junction pass-through pairing.
 //   - computeWayLabelIntervalOffsets(totalLenPx, intervalPx, textLenPx): center offsets
 //     (px along the chain) for placing repeated labels at a fixed screen interval.
 //
@@ -58,11 +63,12 @@ function extractConst(source, name) {
 const sandbox = new Function(`
 	${extractConst(wayLabelsSource, "WAY_LABEL_CHAIN_GAP_EPS")}
 	${extractFunction(wayLabelsSource, "wayLabelEndpointKey")}
+	${extractFunction(wayLabelsSource, "wayLabelArmDirection")}
 	${extractFunction(wayLabelsSource, "buildWayLabelChains")}
 	${extractFunction(wayLabelsSource, "computeWayLabelIntervalOffsets")}
-	return { wayLabelEndpointKey, buildWayLabelChains, computeWayLabelIntervalOffsets };
+	return { wayLabelEndpointKey, wayLabelArmDirection, buildWayLabelChains, computeWayLabelIntervalOffsets };
 `)();
-const { wayLabelEndpointKey, buildWayLabelChains, computeWayLabelIntervalOffsets } = sandbox;
+const { wayLabelEndpointKey, wayLabelArmDirection, buildWayLabelChains, computeWayLabelIntervalOffsets } = sandbox;
 
 // Euclidean distance -- used by assertChainsWellFormed to check end-to-start connectivity
 // against the SAME tolerance buildWayLabelChains itself bridges with in phase 2 (default eps=7,
@@ -112,6 +118,19 @@ check("endpoint key rounds coordinates to 2 decimals (phase-1 strict-join grid)"
 	assert.equal(wayLabelEndpointKey([10, 0]), wayLabelEndpointKey([10.0008, 0]));
 	// ... while 0.01-scale differences stay distinct (min segment length 2.32 is far above).
 	assert.notEqual(wayLabelEndpointKey([10.0, 5.0]), wayLabelEndpointKey([10.01, 5.0]));
+});
+
+check("arm direction: unit away-vector at either end, noise vertices skipped, degenerate -> null", () => {
+	// Direction with which an arm LEAVES its endpoint: atStart=true reads forward from the
+	// first point, atStart=false backward from the last point.
+	assert.deepEqual(wayLabelArmDirection([[0, 0], [10, 0]], true), [1, 0]);
+	assert.deepEqual(wayLabelArmDirection([[0, 0], [10, 0]], false), [-1, 0]);
+	// Exact duplicate and float-noise vertices (below half the 0.01 join grid) don't define
+	// a direction -- skip to the first distinguishable vertex.
+	assert.deepEqual(wayLabelArmDirection([[0, 0], [0, 0], [0.001, 0], [0, 7]], true), [0, 1]);
+	// Degenerate arms (no distinguishable second point) have no direction.
+	assert.equal(wayLabelArmDirection([[5, 5], [5, 5]], true), null);
+	assert.equal(wayLabelArmDirection([[5, 5]], false), null);
 });
 
 check("two segments sharing an endpoint -> one chain of 2, correct order and reversed flags", () => {
@@ -179,11 +198,12 @@ check("gap of 20 map units (above gap eps) -> two chains", () => {
 	assert.equal(chains.length, 2, "a 20-unit gap is well above eps=7 and must not bridge");
 });
 
-check("three segments meeting at one point (degree-3 junction) -> junction cuts, no chain crosses it", () => {
-	// Star: seg-A (0,0)->(10,0), seg-B (10,0)->(20,0), seg-C (10,0)->(10,10) all touch (10,0) at degree 3.
-	// Doubles as a phase-2 regression: the three cut chains all END at the junction (their ends are
-	// 0 apart -- far below gap eps), but junction ends have phase-1 degree 3, are NOT free, and must
-	// never be re-bridged (that would undo the deliberate cut).
+check("T-junction (degree 3): the two straightest arms pass through, the spur is cut", () => {
+	// Junction pass-through (was: every degree-3+ node cut ALL arms; on real data 3+ segments
+	// of the SAME way meet at town nodes and the way fell apart into short chains): the two
+	// arms with the smallest bend between incoming and outgoing direction pair into ONE run,
+	// every other arm still cuts. seg-A (0,0)->(10,0) and seg-B (10,0)->(20,0) are collinear
+	// through the junction (10,0); seg-C branches off at 90 degrees and stays separate.
 	const segments = [
 		{ id: "seg-A", coordinates: [[0, 0], [10, 0]] },
 		{ id: "seg-B", coordinates: [[10, 0], [20, 0]] },
@@ -191,26 +211,72 @@ check("three segments meeting at one point (degree-3 junction) -> junction cuts,
 	];
 	const chains = buildWayLabelChains(segments);
 	assertChainsWellFormed(chains, segments);
-	// Invariant: the junction point (10,0) must never appear as an INTERNAL point of any
-	// chain (i.e. no chain has a segment continuing past it) -- every chain that touches
-	// the junction must have it only at a chain END (first or last entry's outer endpoint).
-	const junctionPoint = [10, 0];
-	chains.forEach((chain) => {
-		for (let i = 1; i < chain.length; i += 1) {
-			const prev = chain[i - 1];
-			const prevCoords = segments.find((s) => s.id === prev.id).coordinates;
-			const prevEnd = prev.reversed ? prevCoords[0] : prevCoords[prevCoords.length - 1];
-			// An internal joint equal to the junction point would mean the chain crossed the
-			// junction (walked straight through instead of cutting) -- only allowed if this
-			// is genuinely the last connecting joint, which by construction of this fixture
-			// (all three segments meet at ONE junction) can't happen for a well-cut result.
-			assert.ok(dist(prevEnd, junctionPoint) > DEFAULT_TEST_EPS, "chain must not walk through the junction internally");
-		}
-	});
-	// Each segment appears exactly once (already checked by assertChainsWellFormed), and since
-	// no two of these three segments can be joined without crossing the shared junction, every
-	// segment must end up as its own single-entry chain.
-	assert.equal(chains.length, 3);
+	assert.equal(chains.length, 2, "straight-through pair joins into one chain, spur stays separate");
+	const idsPerChain = chains.map((chain) => chain.map((e) => e.id).sort()).sort();
+	assert.deepEqual(idsPerChain, [["seg-A", "seg-B"], ["seg-C"]]);
+});
+
+check("4-arm star: only the two most collinear arms pair, remaining arms start their own chains", () => {
+	// Node (50,50), degree 4. Away directions: seg-W (-1,0) and seg-E ~(1,0.025) form the
+	// straightest pair (bend ~1.4 deg). seg-N (0,1) and seg-SE ~(0.71,-0.71) would pair at a
+	// 45-degree bend, but only ONE pass-through pair per node is allowed -- remaining arms
+	// are cut arms and start new chains.
+	const segments = [
+		{ id: "seg-W", coordinates: [[10, 50], [50, 50]] }, // stored pointing INTO the node
+		{ id: "seg-E", coordinates: [[50, 50], [90, 51]] },
+		{ id: "seg-N", coordinates: [[50, 50], [50, 90]] },
+		{ id: "seg-SE", coordinates: [[50, 50], [80, 20]] },
+	];
+	const chains = buildWayLabelChains(segments);
+	assertChainsWellFormed(chains, segments);
+	assert.equal(chains.length, 3, "one through-pair plus two cut arms");
+	const idsPerChain = chains.map((chain) => chain.map((e) => e.id).sort()).sort();
+	assert.deepEqual(idsPerChain, [["seg-E", "seg-W"], ["seg-N"], ["seg-SE"]]);
+});
+
+check("run between two junctions chains fully regardless of stored segment orientation", () => {
+	// Regression: segments between two junctions have no degree-1 endpoint, so the old code
+	// started them in pass 2 with the STORED orientation -- walking into the near junction
+	// after one segment and leaving the rest fragmented (and those degree-2 break joints are
+	// invisible to phase 2, which only bridges degree-1 ends). Starting walks at CUT arms
+	// (junction arms outside the through-pair) makes the whole run one chain: left arm ->
+	// through J1 (0,0) -> run-A (stored backwards on purpose) -> run-B -> through J2 (20,0)
+	// -> right arm. The two spurs stay separate chains.
+	const segments = [
+		{ id: "seg-L", coordinates: [[0, 0], [-30, 0]] },
+		{ id: "seg-spurN", coordinates: [[0, 0], [0, 30]] },
+		{ id: "seg-runA", coordinates: [[10, 0], [0, 0]] }, // stored backwards on purpose
+		{ id: "seg-runB", coordinates: [[10, 0], [20, 0]] },
+		{ id: "seg-R", coordinates: [[20, 0], [30, 0]] },
+		{ id: "seg-spurS", coordinates: [[20, 0], [20, -30]] },
+	];
+	const chains = buildWayLabelChains(segments);
+	assertChainsWellFormed(chains, segments);
+	assert.equal(chains.length, 3, "main run is ONE chain through both junctions, plus the two spurs");
+	const idsPerChain = chains.map((chain) => chain.map((e) => e.id).sort()).sort();
+	assert.deepEqual(idsPerChain, [
+		["seg-L", "seg-R", "seg-runA", "seg-runB"],
+		["seg-spurN"],
+		["seg-spurS"],
+	]);
+});
+
+check("fan junction (all arms leave into the same half-plane) -> no pass-through, all arms cut", () => {
+	// Guard: a pass-through pair needs a bend angle under 90 degrees (dot of the away
+	// directions < 0). Here all three arms leave the node roughly eastwards -- ANY pairing
+	// would fold the label run back on itself (hairpin) -- so the junction cuts all arms.
+	// Doubles as the phase-2 junction regression: the three ends coincide at (0,0) (well
+	// inside gap eps) but junction ends (degree 3) are not free and must never re-bridge.
+	// (The FAR ends are kept > 7 units apart on purpose -- those are genuine free ends and
+	// would otherwise legitimately bridge.)
+	const segments = [
+		{ id: "seg-F1", coordinates: [[0, 0], [40, 0]] },
+		{ id: "seg-F2", coordinates: [[0, 0], [40, 12]] },
+		{ id: "seg-F3", coordinates: [[0, 0], [40, -16]] },
+	];
+	const chains = buildWayLabelChains(segments);
+	assertChainsWellFormed(chains, segments);
+	assert.equal(chains.length, 3, "no arm pair continues onward -> junction cuts everything");
 	chains.forEach((chain) => assert.equal(chain.length, 1));
 });
 
@@ -300,4 +366,4 @@ check("closed ring of 4 segments -> terminates, every segment used exactly once,
 	assert.equal(chains[0].length, 4, "all four segments end up in that one chain");
 });
 
-console.log(`${passed}/14 passed`);
+console.log(`${passed}/18 passed`);
