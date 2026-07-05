@@ -52,6 +52,23 @@ $d = avesmapsWikiPathVerlaufBackfillDecision(['wiki_path' => ['wiki_key' => 'k',
 check('empty verlauf keeps old hash', $d['props']['wiki_path']['course_hash'], 'old');
 check('restamp allowed', $d['props']['wiki_path']['source'], 'verlauf-sync');
 
+// Self-feed guard (Critical #1): an already-stamped segment whose stored hash already matches the
+// audit verlauf is a no-op skip -- otherwise the backfill re-stamps its own audit rows forever.
+// (a) already-stamped, SAME hash => skip already_stamped (no UPDATE, no audit row).
+$sameHash = avesmapsWikiPathCourseHash('A → B');
+$d = avesmapsWikiPathVerlaufBackfillDecision(['wiki_path' => ['wiki_key' => 'k', 'source' => 'verlauf-sync', 'course_hash' => $sameHash]], 'k', 'A → B');
+check('already-stamped same hash skipped', $d['action'], 'skip');
+check('already-stamped same hash reason', $d['reason'], 'already_stamped');
+check('already-stamped same hash no props', $d['props'], null);
+// (b) already-stamped, DIFFERENT hash => still re-stamps (a legitimate later audit entry).
+$d = avesmapsWikiPathVerlaufBackfillDecision(['wiki_path' => ['wiki_key' => 'k', 'source' => 'verlauf-sync', 'course_hash' => 'stale']], 'k', 'A → B');
+check('already-stamped different hash restamps', $d['action'], 'stamp');
+check('already-stamped different hash new hash', $d['props']['wiki_path']['course_hash'], $sameHash);
+// (c) stamped-no-hash + empty audit verlauf => skip already_stamped (both hash to '', nothing changes).
+$d = avesmapsWikiPathVerlaufBackfillDecision(['wiki_path' => ['wiki_key' => 'k', 'source' => 'verlauf-sync']], 'k', '');
+check('stamped-no-hash empty verlauf skipped', $d['action'], 'skip');
+check('stamped-no-hash empty verlauf reason', $d['reason'], 'already_stamped');
+
 // --- avesmapsWikiPathVerlaufComputeCase (Task 3 diff engine) ---
 // Fake router over a fixture map: no DB, no routing lib -- exercises the 13 rules directly.
 $lookup = ['punin' => 'Punin', 'ragath' => 'Ragath', 'kuslik' => 'Kuslik'];

@@ -45,7 +45,8 @@ function avesmapsWikiPathVerlaufStations(string $verlauf): array {
 
 // Decides the backfill action for one feature. $currentProps = decoded properties_json
 // (or null when the row is missing/inactive). Returns ['action' => 'stamp'|'skip',
-// 'reason' => ''|'inactive_or_missing'|'reassigned'|'editor_source', 'props' => array|null].
+// 'reason' => ''|'inactive_or_missing'|'reassigned'|'editor_source'|'already_stamped',
+// 'props' => array|null].
 function avesmapsWikiPathVerlaufBackfillDecision(?array $currentProps, string $auditWikiKey, string $auditVerlauf): array {
     if ($currentProps === null) {
         return ['action' => 'skip', 'reason' => 'inactive_or_missing', 'props' => null];
@@ -57,8 +58,16 @@ function avesmapsWikiPathVerlaufBackfillDecision(?array $currentProps, string $a
     if ((string) ($wikiPath['source'] ?? '') === 'editor') {
         return ['action' => 'skip', 'reason' => 'editor_source', 'props' => null];
     }
-    $wikiPath['source'] = 'verlauf-sync';
     $hash = avesmapsWikiPathCourseHash($auditVerlauf);
+    // Self-feed guard: a segment already stamped by verlauf-sync whose stored course_hash already
+    // matches this audit verlauf is a no-op -- re-stamping it would write a fresh audit row that the
+    // backfill's own scan filter then matches, so the cursor never reaches `complete`. Skip it
+    // without an UPDATE. The empty/absent case (no stored hash, empty audit verlauf) also matches:
+    // both sides hash to '' and nothing would change.
+    if ((string) ($wikiPath['source'] ?? '') === 'verlauf-sync' && (string) ($wikiPath['course_hash'] ?? '') === $hash) {
+        return ['action' => 'skip', 'reason' => 'already_stamped', 'props' => null];
+    }
+    $wikiPath['source'] = 'verlauf-sync';
     if ($hash !== '') {
         $wikiPath['course_hash'] = $hash;
     }
@@ -120,7 +129,7 @@ function avesmapsWikiPathVerlaufBackfillSource(PDO $pdo, bool $dryRun, int $user
         ];
     }
 
-    $skipped = ['inactive_or_missing' => 0, 'reassigned' => 0, 'editor_source' => 0];
+    $skipped = ['inactive_or_missing' => 0, 'reassigned' => 0, 'editor_source' => 0, 'already_stamped' => 0];
     $stamped = 0;
     $sample = [];
     $revision = null;
