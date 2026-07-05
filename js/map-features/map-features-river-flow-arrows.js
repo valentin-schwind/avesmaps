@@ -58,13 +58,15 @@
 			ctx.translate(x, y);
 			ctx.rotate(angle);
 			ctx.beginPath();
-			ctx.moveTo(5, 0);
-			ctx.lineTo(-3, -3.5);
-			ctx.lineTo(-3, 3.5);
+			ctx.moveTo(8, 0);
+			ctx.lineTo(-5, -5.5);
+			ctx.lineTo(-5, 5.5);
 			ctx.closePath();
-			ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
-			ctx.strokeStyle = "rgba(15, 60, 110, 0.9)";
-			ctx.lineWidth = 1;
+			// River blue (getPathStyleColors centerColors.Flussweg) with a white contour, so the
+			// arrows read as part of the river instead of floating on top of it.
+			ctx.fillStyle = "#6ec6ff";
+			ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+			ctx.lineWidth = 1.5;
 			ctx.fill();
 			ctx.stroke();
 			ctx.restore();
