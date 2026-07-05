@@ -859,6 +859,17 @@ $(document).on("click", ".location-popup__action-button", function (event) {
 		return;
 	}
 
+	if (action === "flip-river-flow") {
+		const path = findPathByPublicId(this.dataset.publicId);
+		if (!path) {
+			showFeedbackToast("Weg konnte nicht gefunden werden.", "warning");
+			return;
+		}
+
+		void submitPathFlowShortcut(path);
+		return;
+	}
+
 	if (action === "edit-path-details") {
 		const path = findPathByPublicId(this.dataset.publicId);
 		if (!path) {

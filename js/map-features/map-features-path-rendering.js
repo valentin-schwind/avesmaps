@@ -43,6 +43,16 @@ function createPathPopupMarkup(path) {
 		showWikiLink: false,
 		showType: true,
 		actionsMarkup: (IS_EDIT_MODE ? locationPopupActionsMarkup([
+			// Fluss-Shortcut: Stroemung direkt am Segment umkehren/festlegen, ohne den
+			// "Weg bearbeiten"-Dialog (weg-weite Wirkung wie die Panel-Buttons).
+			...(pathType === "Flussweg" && typeof pathFlowShortcutLabelFor === "function" ? [popupActionButtonMarkup({
+				label: pathFlowShortcutLabelFor(path),
+				className: "location-popup__action-button--accent",
+				attributes: {
+					"data-popup-action": "flip-river-flow",
+					"data-public-id": getPathPublicId(path),
+				},
+			})] : []),
 			popupActionButtonMarkup({
 				label: "Details bearbeiten",
 				attributes: {

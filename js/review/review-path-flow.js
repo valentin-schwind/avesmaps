@@ -26,12 +26,12 @@ function pathFlowIsRiverSegment() {
 // Weg-weiter Blick: das angeklickte Segment kann selbst richtungslos sein (Zufahrt), obwohl
 // der Weg gerichtet ist -> Button-Beschriftung am WEG festmachen. Client-Spiegel der
 // Weg-Identitaet (exakter Name ODER gleicher wiki_key); autoritativ entscheidet der Server.
-function pathFlowWaySegments() {
-	if (typeof pathData === "undefined" || !Array.isArray(pathData) || typeof pathEditFeature === "undefined" || !pathEditFeature) {
+function pathFlowWaySegmentsFor(feature) {
+	if (typeof pathData === "undefined" || !Array.isArray(pathData) || !feature) {
 		return [];
 	}
-	const name = String(pathEditFeature.properties?.name || "");
-	const wikiKey = String(pathEditFeature.properties?.wiki_path?.wiki_key || "");
+	const name = String(feature.properties?.name || "");
+	const wikiKey = String(feature.properties?.wiki_path?.wiki_key || "");
 	return pathData.filter((path) => {
 		if (normalizePathSubtype(path.properties?.feature_subtype) !== "Flussweg") {
 			return false;
@@ -40,6 +40,53 @@ function pathFlowWaySegments() {
 		const sameWiki = wikiKey !== "" && String(path.properties?.wiki_path?.wiki_key || "") === wikiKey;
 		return sameName || sameWiki;
 	});
+}
+
+function pathFlowWaySegments() {
+	return pathFlowWaySegmentsFor(typeof pathEditFeature === "undefined" ? null : pathEditFeature);
+}
+
+// Popup-Shortcut (Editmode, direkt am Segment): gerichteter Weg -> umkehren, richtungsloser
+// Weg -> festlegen. Vervollstaendigen teilgerichteter Wege bleibt bewusst im Detailpanel.
+function pathFlowShortcutModeFor(feature) {
+	const wayHasDirection = pathFlowWaySegmentsFor(feature).some((path) => {
+		const dir = path.properties?.flow?.dir;
+		return dir === "forward" || dir === "reverse";
+	});
+	return wayHasDirection ? "flip" : "set_dir";
+}
+
+function pathFlowShortcutLabelFor(feature) {
+	return pathFlowShortcutModeFor(feature) === "flip" ? "Strömung umkehren" : "Strömung festlegen";
+}
+
+// Ein-Klick-Aktion aus dem Segment-Popup, ohne den "Weg bearbeiten"-Dialog: schreibt weg-weit
+// (wie die Panel-Buttons), aktualisiert pathData/Popups/Pfeile und schliesst das Popup.
+async function submitPathFlowShortcut(path) {
+	const publicId = String(path?.properties?.public_id || path?.id || "");
+	if (!publicId) {
+		return;
+	}
+	const mode = pathFlowShortcutModeFor(path);
+	if (typeof map !== "undefined" && typeof map.closePopup === "function") {
+		map.closePopup();
+	}
+	try {
+		const result = await pathWikiPost({ action: "set_flow", public_id: publicId, [mode]: true, dry_run: false, confirm: "apply" });
+		if (!result || result.ok !== true) {
+			throw new Error(result?.error?.message || result?.error || "Aktion fehlgeschlagen");
+		}
+		applyWikiPathSegmentsUpdate(result.segments_updated);
+		renderPathFlowSection();
+		if (typeof window.avesmapsRedrawRiverFlowArrows === "function") {
+			window.avesmapsRedrawRiverFlowArrows();
+		}
+		showFeedbackToast?.(mode === "flip"
+			? `Strömung umgekehrt (${result.flipped} Segmente).`
+			: `Strömung festgelegt (${result.directed} von ${result.segments} Segmenten${result.segments > result.directed ? " — Abzweige bleiben ohne Richtung" : ""}).`, "info");
+	} catch (error) {
+		showFeedbackToast?.("Fehler: " + (error.message || error), "error");
+	}
 }
 
 function renderPathFlowSection() {
