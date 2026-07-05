@@ -131,12 +131,15 @@ function spotlightEntryWikiKeys(entry) {
 // buildSpotlightPathEntries' label/visibility filter, so the spotlight path bundle -- and thus the generic
 // "first wiki_url match wins" resolve -- covers a single segment. Here we gather ALL segments of the way
 // from the unfiltered global `pathData` and feed the complete list through the SAME focusSpotlightPath
-// highlight path. We take the UNION of two matchers so we are robust to how the server stamped the data:
-//   (a) wiki_url: every segment whose properties.wiki_path.wiki_url page-segment equals the target
-//       (avesmapsWikiPathAssign stamps wiki_path onto all same-name segments, so this alone usually covers
-//        the road), and
-//   (b) display name: every segment whose normalized display name equals the target -- catches continuation
-//       segments in case a wiki_url is not present on all of them.
+// highlight path (which fits the map to the combined bounds of every segment we pass).
+//
+// Matching is EXACT and number-sensitive so "Reichsstraße 1" never collects "Reichsstraße 2":
+//   (a) wiki_url: the segment's properties.wiki_path.wiki_url `/wiki/<Page>` segment normalizes EQUAL to the
+//       requested page (avesmapsWikiPathAssign stamps the same wiki_path onto every same-name segment), OR
+//   (b) name: the segment's RAW stored display name (properties.display_name / original_name) normalizes
+//       EQUAL to the requested page. We deliberately do NOT use getPathDisplayName here -- its
+//       `name.replace(/-\d+$/,"")` fallback strips the trailing number, which would make "Reichsstraße 1"
+//       and "Reichsstraße 2" collide. No prefix/substring, no number-less spotlight group key.
 // The subtype is anchored from the matches so a road and a like-named river never merge.
 function subtypeOfPath(path) {
 	return typeof normalizePathSubtype === "function"
@@ -144,30 +147,38 @@ function subtypeOfPath(path) {
 		: "";
 }
 
+// Exact, number-preserving name key: only the raw stored display name (never the generated `<subtype>-<n>`
+// internal name, whose number getPathDisplayName would strip). Empty when the segment has no real name.
+function exactPathNameKey(path) {
+	const rawName = path?.properties?.display_name || path?.properties?.original_name || "";
+	return normalizeWikiDeeplinkKey(rawName);
+}
+
+function pathMatchesDeeplinkTarget(path, targetKey) {
+	return wikiUrlToDeeplinkKey(path?.properties?.wiki_path?.wiki_url) === targetKey
+		|| exactPathNameKey(path) === targetKey;
+}
+
 function focusWholeWikiDeeplinkPath(targetKey) {
-	if (typeof pathData === "undefined" || !Array.isArray(pathData) || !pathData.length) {
+	if (!targetKey || typeof pathData === "undefined" || !Array.isArray(pathData) || !pathData.length) {
 		return false;
 	}
-	const nameKey = (path) => normalizeWikiDeeplinkKey(typeof getPathDisplayName === "function" ? getPathDisplayName(path) : (path?.properties?.display_name || path?.properties?.name || ""));
-	const wikiHits = pathData.filter((path) => wikiUrlToDeeplinkKey(path?.properties?.wiki_path?.wiki_url) === targetKey);
-	// Anchor the subtype on the wiki_url hits (most reliable); fall back to the first name hit.
-	const anchor = wikiHits[0] || pathData.find((path) => nameKey(path) === targetKey) || null;
+	// Anchor: prefer a wiki_url hit (most reliable), else the first exact-name hit -- both number-sensitive.
+	const anchor = pathData.find((path) => wikiUrlToDeeplinkKey(path?.properties?.wiki_path?.wiki_url) === targetKey)
+		|| pathData.find((path) => exactPathNameKey(path) === targetKey)
+		|| null;
 	if (!anchor) {
 		return false;
 	}
 	const matchedSubtype = subtypeOfPath(anchor);
-	const segments = pathData.filter((path) => {
-		if (subtypeOfPath(path) !== matchedSubtype) {
-			return false;
-		}
-		return wikiUrlToDeeplinkKey(path?.properties?.wiki_path?.wiki_url) === targetKey || nameKey(path) === targetKey;
-	});
+	const segments = pathData.filter((path) => subtypeOfPath(path) === matchedSubtype && pathMatchesDeeplinkTarget(path, targetKey));
 	if (!segments.length || typeof focusSpotlightPath !== "function") {
 		return false;
 	}
 	// Synthesize a spotlight-path entry carrying the COMPLETE segment set, then reuse focusSpotlightPath:
 	// it enables the paths layer, syncs visibility/labels/URL, highlights every segment via
-	// highlightSpotlightPaths, and fits the combined bounds. No highlight logic is re-invented here.
+	// highlightSpotlightPaths, and fits the map to the UNION bounds of all segments (focusSpotlightBounds ->
+	// map.fitBounds). No highlight/zoom logic is re-invented here.
 	let bounds = null;
 	if (typeof getSpotlightPathBounds === "function" && typeof extendSpotlightBounds === "function") {
 		segments.forEach((path) => {
