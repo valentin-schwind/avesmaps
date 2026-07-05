@@ -187,3 +187,30 @@ Expectation:
 - Routes with land-water-land changes.
 - Routes where an explicit waypoint itself has a marker proximity or a harbor special position.
 - Behavior with deactivated transport domains, e.g. river or sea switched off.
+
+## River flow direction (Flussrichtung, 2026-07-05)
+
+Rivers with a known flow direction cost `time × factor` (default 1.5, clamp 1.0–3.0)
+when travelled upstream; downstream stays the exact previous time. Spec (owner-approved):
+`docs/superpowers/specs/2026-07-05-flussrichtung-design.md`.
+
+- Data model: per-segment `properties.flow = {dir: "forward"|"reverse", factor, source}`
+  in `map_features.properties_json`; `dir` is relative to the drawn coordinate order.
+  Missing `flow`/`dir` ⇒ symmetric (exactly the old behavior).
+- Both engines implement the identical rule: server `api/_internal/routing/client-graph.php`
+  (two directional edge variants, `flow_time_factor` on diagnostic segments) and client
+  `js/routing/route-graph-routing.js`. Time only (`fastest` + displayed hours); `shortest`,
+  Seeweg, land and Querfeldein are unchanged.
+- Plan display: `resolveRouteSegmentFlowFactor` (js/routing/route-node.js) prefers the
+  server's explicit per-slice `flow_time_factor` (server-primary mode) and falls back to
+  deriving the factor from `flow.dir` + traversal orientation (client engine mode).
+- Direction sources: derived from the wiki `verlauf` via the verlauf-sync hop router
+  (`derive_flow`, `derive_flow_all`, plus automatic derivation after `apply_verlauf_case`
+  for rivers), or set manually way-wide in the editor (`set_flow`: flip / festlegen /
+  Strömungsfaktor). Sync-derived direction overwrites a manual one; the factor is always
+  owner-owned and never touched by derivation.
+- Edit mode shows flow arrows on directed rivers
+  (`js/map-features/map-features-river-flow-arrows.js`); arrow-less rivers have no known
+  direction. The "Strömung" section in the path detail panel edits direction and factor.
+- Tests: `tools/routing/test-client-graph-flow.php`, `tools/routing/test-client-route-flow.mjs`,
+  `tools/paths/test-path-flow-engine.php`.
