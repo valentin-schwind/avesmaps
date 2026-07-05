@@ -20,6 +20,8 @@ const AVESMAPS_SETTLEMENT_COAT_TYPES = [
     'image/gif' => 'gif',
 ];
 
+const AVESMAPS_SETTLEMENT_COAT_MAX_DIM = 256; // downscale own coats to a max edge (px); keeps files small
+
 try {
     $config = avesmapsLoadApiConfig(__DIR__);
     if (!avesmapsApplyCorsPolicy($config)) {
@@ -77,6 +79,7 @@ try {
         avesmapsErrorResponse(500, 'server_error', 'Datei konnte nicht gespeichert werden.');
     }
     @chmod($target, 0644);
+    avesmapsSettlementCoatDownscale($target, $mime, AVESMAPS_SETTLEMENT_COAT_MAX_DIM);
     $url = '/uploads/wappen/own/' . $filename;
 
     $props = $feature['props'];
@@ -101,4 +104,64 @@ try {
     avesmapsJsonResponse(200, ['ok' => true, 'coat' => $props['coat'], 'revision' => $revision]);
 } catch (Throwable $error) {
     avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
+}
+
+// Best-effort server-side downscale so an uploaded 'own' coat is stored at a sane icon size
+// instead of its original (possibly huge) resolution. Never upscales. If GD is unavailable or
+// anything fails, the original file is left untouched and the upload still succeeds.
+function avesmapsSettlementCoatDownscale(string $path, string $mime, int $maxDim): void {
+    if (!function_exists('imagecreatefromstring') || !function_exists('imagecopyresampled')) {
+        return;
+    }
+    $data = @file_get_contents($path);
+    if ($data === false) {
+        return;
+    }
+    $src = @imagecreatefromstring($data);
+    if ($src === false) {
+        return;
+    }
+    $w = imagesx($src);
+    $h = imagesy($src);
+    if ($w <= 0 || $h <= 0 || ($w <= $maxDim && $h <= $maxDim)) {
+        imagedestroy($src);
+        return;
+    }
+    $scale = $maxDim / max($w, $h);
+    $nw = max(1, (int) round($w * $scale));
+    $nh = max(1, (int) round($h * $scale));
+    $dst = @imagecreatetruecolor($nw, $nh);
+    if ($dst === false) {
+        imagedestroy($src);
+        return;
+    }
+    imagealphablending($dst, false);
+    imagesavealpha($dst, true);
+    imagefilledrectangle($dst, 0, 0, $nw, $nh, imagecolorallocatealpha($dst, 0, 0, 0, 127));
+    imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
+
+    $tmp = $path . '.resized';
+    $ok = false;
+    switch ($mime) {
+        case 'image/png':
+            $ok = imagepng($dst, $tmp, 6);
+            break;
+        case 'image/webp':
+            $ok = function_exists('imagewebp') && imagewebp($dst, $tmp, 82);
+            break;
+        case 'image/gif':
+            $ok = imagegif($dst, $tmp);
+            break;
+        case 'image/jpeg':
+            $ok = imagejpeg($dst, $tmp, 85);
+            break;
+    }
+    imagedestroy($src);
+    imagedestroy($dst);
+
+    if ($ok && is_file($tmp) && filesize($tmp) > 0) {
+        @rename($tmp, $path);
+    } elseif (is_file($tmp)) {
+        @unlink($tmp);
+    }
 }
