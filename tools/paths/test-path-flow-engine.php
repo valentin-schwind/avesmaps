@@ -258,5 +258,42 @@ check('reconcile: consistent dirs pass through', [$reconcileClean['dropped'], co
 $reconcileNoChain = avesmapsPathFlowReconcileChainDirs([], ['x' => 'forward']);
 check('reconcile: no chain -> unchanged', $reconcileNoChain, ['dir_by_public_id' => ['x' => 'forward'], 'dropped' => []]);
 
+// --- multi-component ways (Cresval pattern: gap wider than the endpoint EPS) ---
+// A river drawn as two disconnected pieces must still get ONE consistent flow: every
+// component's main chain is oriented, and unanchored components are aligned across a
+// virtual bridge (closest terminals; the flow leaves one sink and enters the next source).
+$twoComponents = [
+    'a1' => [[0.0, 0.0], [10.0, 0.0]],
+    'a2' => [[10.0, 0.0], [20.0, 0.0]],
+    'b1' => [[23.0, 0.0], [33.0, 0.0]],
+    'b2' => [[33.0, 0.0], [43.0, 0.0]],
+];
+$twoOriented = avesmapsPathFlowChainOrientation($twoComponents);
+check('components: all four oriented', count($twoOriented), 4);
+$twoConsistent = ($twoOriented === ['a1' => 'forward', 'a2' => 'forward', 'b1' => 'forward', 'b2' => 'forward'])
+    || ($twoOriented === ['a1' => 'reverse', 'a2' => 'reverse', 'b1' => 'reverse', 'b2' => 'reverse']);
+check('components: serial flow across the gap', $twoConsistent, true);
+
+$componentPlan = avesmapsPathFlowPlanSetDir($twoComponents, ['a1' => 'forward']);
+$componentDirs = $componentPlan['dir_by_public_id'];
+ksort($componentDirs);
+check('components: anchor in one component aligns the other', [$componentPlan['ok'], $componentDirs],
+    [true, ['a2' => 'forward', 'b1' => 'forward', 'b2' => 'forward']]);
+
+$componentPlanReverse = avesmapsPathFlowPlanSetDir($twoComponents, ['a1' => 'reverse']);
+$componentDirsReverse = $componentPlanReverse['dir_by_public_id'];
+ksort($componentDirsReverse);
+check('components: reversed anchor propagates across the bridge', [$componentPlanReverse['ok'], $componentDirsReverse],
+    [true, ['a2' => 'reverse', 'b1' => 'reverse', 'b2' => 'reverse']]);
+
+// Bridge rule with an opposed drawing direction: a1 flows 0->10 (sink at 10); the second
+// piece is drawn 25->13, so continuing the flow (13->25) means dir 'reverse' for it.
+$opposedPlan = avesmapsPathFlowPlanSetDir([
+    'a1' => [[0.0, 0.0], [10.0, 0.0]],
+    'b1' => [[25.0, 0.0], [13.0, 0.0]],
+], ['a1' => 'forward']);
+check('components: sink-to-source bridge respects drawing direction', [$opposedPlan['ok'], $opposedPlan['dir_by_public_id']],
+    [true, ['b1' => 'reverse']]);
+
 echo "\n{$total} checks, {$failures} failures\n";
 exit($failures === 0 ? 0 : 1);

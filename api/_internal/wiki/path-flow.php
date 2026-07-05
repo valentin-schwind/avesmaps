@@ -237,14 +237,17 @@ function avesmapsPathFlowEndpointNodes(array $coordinatesByPublicId, float $eps 
     return $nodes;
 }
 
-// Orients the way's MAIN CHAIN from one loose end to the other. The main chain is the pair
-// of loose ends with the LONGEST connecting path (drawn length, Dijkstra) -- which end
-// becomes the source is arbitrary (owner decision: the editor checks the arrows and presses
-// flip once if wrong). Spur segments off the chain stay undirected; cycles yield nothing.
-// Input: public_id => LineString coordinates ([[x,y],...], stored drawing order).
+// Orients the way's main chain(s). PER CONNECTED COMPONENT the pair of loose ends with the
+// LONGEST connecting path (drawn length, Dijkstra) forms the chain; disconnected pieces
+// (gaps wider than the endpoint EPS, Cresval lesson) are aligned to one flow across virtual
+// bridges between the closest terminals. Which end of the longest component becomes the
+// source is arbitrary (owner decision: the editor checks the arrows and presses flip once
+// if wrong). Spur segments off the chains stay undirected; cycle-only components yield
+// nothing. Input: public_id => LineString coordinates ([[x,y],...], stored drawing order).
 function avesmapsPathFlowChainOrientation(array $coordinatesByPublicId): array {
     $edges = [];
     $adjacency = [];
+    $nodeCoordinates = [];
     $endpointNodes = avesmapsPathFlowEndpointNodes($coordinatesByPublicId);
     foreach ($coordinatesByPublicId as $publicId => $coordinates) {
         if (!is_array($coordinates) || count($coordinates) < 2) {
@@ -268,44 +271,116 @@ function avesmapsPathFlowChainOrientation(array $coordinatesByPublicId): array {
         $edges[(string) $publicId] = ['a' => $keyA, 'b' => $keyB, 'length' => $length];
         $adjacency[$keyA][] = (string) $publicId;
         $adjacency[$keyB][] = (string) $publicId;
+        $first = is_array($coordinates[0]) ? $coordinates[0] : [];
+        $last = is_array($coordinates[count($coordinates) - 1]) ? $coordinates[count($coordinates) - 1] : [];
+        $nodeCoordinates[$keyA] ??= [(float) ($first[0] ?? 0.0), (float) ($first[1] ?? 0.0)];
+        $nodeCoordinates[$keyB] ??= [(float) ($last[0] ?? 0.0), (float) ($last[1] ?? 0.0)];
     }
     if ($edges === []) {
         return [];
     }
 
-    $looseEnds = [];
+    // Connected components over the node graph (Cresval lesson: a river drawn as several
+    // disconnected pieces -- gaps wider than the endpoint EPS -- must still get ONE flow).
+    $nodeParent = [];
+    foreach ($adjacency as $key => $publicIds) {
+        $nodeParent[(string) $key] = (string) $key;
+    }
+    $findNode = static function (string $key) use (&$nodeParent): string {
+        while ($nodeParent[$key] !== $key) {
+            $nodeParent[$key] = $nodeParent[$nodeParent[$key]];
+            $key = $nodeParent[$key];
+        }
+        return $key;
+    };
+    foreach ($edges as $edge) {
+        $rootA = $findNode($edge['a']);
+        $rootB = $findNode($edge['b']);
+        if ($rootA !== $rootB) {
+            $nodeParent[$rootB] = $rootA;
+        }
+    }
+    $looseEndsByComponent = [];
     foreach ($adjacency as $key => $publicIds) {
         if (count($publicIds) === 1) {
-            $looseEnds[] = (string) $key;
+            $looseEndsByComponent[$findNode((string) $key)][] = (string) $key;
         }
     }
-    sort($looseEnds, SORT_STRING);
-    if (count($looseEnds) < 2) {
-        return [];  // pure cycle -> nothing safe to orient
+    $componentRoots = [];
+    foreach ($edges as $edge) {
+        $componentRoots[$findNode($edge['a'])] = true;
     }
 
-    $bestPath = null;
-    $bestDistance = -1.0;
-    foreach ($looseEnds as $sourceKey) {
-        [$distances, $previousEdge] = avesmapsPathFlowDijkstra($sourceKey, $edges, $adjacency);
-        foreach ($looseEnds as $targetKey) {
-            if ($targetKey === $sourceKey || !isset($distances[$targetKey])) {
-                continue;
-            }
-            if ($distances[$targetKey] > $bestDistance) {
-                $bestDistance = $distances[$targetKey];
-                $bestPath = avesmapsPathFlowTracePath($sourceKey, $targetKey, $edges, $previousEdge);
+    // Diameter walk per component (cycle-only components stay unoriented, as before).
+    $walks = [];
+    foreach (array_keys($componentRoots) as $root) {
+        $looseEnds = $looseEndsByComponent[$root] ?? [];
+        sort($looseEnds, SORT_STRING);
+        if (count($looseEnds) < 2) {
+            continue;
+        }
+        $bestPath = null;
+        $bestDistance = -1.0;
+        $bestSource = null;
+        $bestSink = null;
+        foreach ($looseEnds as $sourceKey) {
+            [$distances, $previousEdge] = avesmapsPathFlowDijkstra($sourceKey, $edges, $adjacency);
+            foreach ($looseEnds as $targetKey) {
+                if ($targetKey === $sourceKey || !isset($distances[$targetKey])) {
+                    continue;
+                }
+                if ($distances[$targetKey] > $bestDistance) {
+                    $bestDistance = $distances[$targetKey];
+                    $bestPath = avesmapsPathFlowTracePath($sourceKey, $targetKey, $edges, $previousEdge);
+                    $bestSource = $sourceKey;
+                    $bestSink = $targetKey;
+                }
             }
         }
+        if (!is_array($bestPath) || $bestPath === [] || $bestSource === null || $bestSink === null) {
+            continue;
+        }
+        $walks[] = ['steps' => $bestPath, 'source' => $bestSource, 'sink' => $bestSink, 'length' => $bestDistance];
     }
-    if (!is_array($bestPath) || $bestPath === []) {
+    if ($walks === []) {
         return [];
     }
 
+    // Orient the longest walk as walked; align every further component across a VIRTUAL
+    // BRIDGE: the closest terminal pair decides -- flow leaving an oriented sink continues
+    // into the next component's source (and a new sink may feed an oriented source);
+    // matching roles (sink-sink / source-source) mean the new walk runs backwards -> invert.
+    usort($walks, static fn(array $x, array $y): int => ($y['length'] <=> $x['length']) ?: strcmp($x['source'], $y['source']));
     $result = [];
-    foreach ($bestPath as $step) {
-        $edge = $edges[$step['public_id']];
-        $result[$step['public_id']] = $edge['a'] === $step['enter'] ? 'forward' : 'reverse';
+    $orientedTerminals = [];
+    foreach ($walks as $walkIndex => $walk) {
+        $invert = false;
+        if ($walkIndex > 0) {
+            $bestGap = INF;
+            $bestRoles = null;
+            foreach ($orientedTerminals as $terminal) {
+                foreach (['source' => $walk['source'], 'sink' => $walk['sink']] as $role => $key) {
+                    $coordA = $nodeCoordinates[$terminal['key']] ?? null;
+                    $coordB = $nodeCoordinates[$key] ?? null;
+                    if ($coordA === null || $coordB === null) {
+                        continue;
+                    }
+                    $gap = hypot($coordA[0] - $coordB[0], $coordA[1] - $coordB[1]);
+                    if ($gap < $bestGap) {
+                        $bestGap = $gap;
+                        $bestRoles = [$terminal['role'], $role];
+                    }
+                }
+            }
+            $invert = $bestRoles !== null && $bestRoles[0] === $bestRoles[1];
+        }
+        foreach ($walk['steps'] as $step) {
+            $edge = $edges[$step['public_id']];
+            $dir = $edge['a'] === $step['enter'] ? 'forward' : 'reverse';
+            $result[$step['public_id']] = $invert ? ($dir === 'forward' ? 'reverse' : 'forward') : $dir;
+        }
+        $orientedTerminals[] = ['key' => $invert ? $walk['sink'] : $walk['source'], 'role' => 'source'];
+        $orientedTerminals[] = ['key' => $invert ? $walk['source'] : $walk['sink'], 'role' => 'sink'];
     }
     return $result;
 }
