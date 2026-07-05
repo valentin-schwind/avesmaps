@@ -375,7 +375,7 @@ function showRoutePlan(routeNames, segments) {
 	const $overview = $("#overview").empty();
 	const restPerDay = getPlannerRestHoursPerDay();
 	const routeResult = buildRouteResult(selectedLocations, routeNames, segments, {
-		includeRests: $("#includeRests").is(":checked"),
+		includeRests: getPlannerRestHoursPerDay() > 0,
 		restHoursPerDay: restPerDay,
 		optimize: $('input[name="pathType"]:checked').val() === "shortest" ? "shortest" : "fastest",
 	});

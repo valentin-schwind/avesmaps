@@ -354,7 +354,6 @@ const DEFAULT_PLANNER_STATE = {
 	toggleNodix: false,
 	pathType: "fastest",
 	minimizeTransfers: false,
-	includeRests: true,
 	restHours: 12,
 	allowLand: true,
 	landTransport: "groupFoot",

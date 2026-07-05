@@ -15,8 +15,7 @@ window.AVESMAPS_I18N_EN = {
 	"planner.route.shortest.title": "Finds the shortest route",
 	"planner.minimizeTransfers": "Minimize transfers",
 	"planner.minimizeTransfers.title": "Finds the route with the fewest changes between modes of transport",
-	"planner.rests": "Rest periods",
-	"planner.rests.title": "Include rest times: whatever exceeds the daily travel hours is rest (land travel only)",
+	"planner.travelHours.title": "Travel hours per day; the rest of the day is spent resting (land travel only). 24 = travel without rest.",
 	"planner.travelHoursSuffix": "travel hours per day",
 	"planner.overview.default": "Waypoints and travel time are shown here.",
 

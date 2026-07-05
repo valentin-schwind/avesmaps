@@ -113,14 +113,15 @@ function applyPlannerStateFromUrl() {
 	}
 
 	$("#minimizeTransfers").prop("checked", parseBooleanQueryParam(searchParams.get("minimizeTransfers"), DEFAULT_PLANNER_STATE.minimizeTransfers));
-	$("#includeRests").prop("checked", parseBooleanQueryParam(searchParams.get("includeRests"), DEFAULT_PLANNER_STATE.includeRests));
 	$("#allowLand").prop("checked", parseBooleanQueryParam(searchParams.get("allowLand"), DEFAULT_PLANNER_STATE.allowLand));
 	$("#allowRiver").prop("checked", parseBooleanQueryParam(searchParams.get("allowRiver"), DEFAULT_PLANNER_STATE.allowRiver));
 	$("#allowSea").prop("checked", parseBooleanQueryParam(searchParams.get("allowSea"), DEFAULT_PLANNER_STATE.allowSea));
 	// URL-Param bleibt "restHours" (Share-Link-Kompatibilität); das Feld zeigt Reisestunden (24 - Rast).
-	// Min 0 (nicht 0,5): restHours=0 entspricht 24 Reisestunden ("durchreisen").
+	// Min 0 (nicht 0,5): restHours=0 entspricht 24 Reisestunden ("durchreisen"). Alte Links mit
+	// includeRests=0 (der Haken wurde entfernt) bedeuten ebenfalls "ohne Rast" -> 24 Reisestunden.
+	const legacyIncludeRests = parseBooleanQueryParam(searchParams.get("includeRests"), true);
 	const restHoursFromParams = parseNumberQueryParam(searchParams.get("restHours"), DEFAULT_PLANNER_STATE.restHours, 0, 23.5);
-	$("#travelHoursPerDay").val(String(24 - restHoursFromParams));
+	$("#travelHoursPerDay").val(legacyIncludeRests ? String(24 - restHoursFromParams) : "24");
 
 	if (landTransport && VALID_TRANSPORT_OPTIONS.land.has(landTransport)) {
 		$("#landTransport").val(landTransport);
@@ -262,10 +263,6 @@ function buildPlannerSearchParams() {
 
 	if ($("#minimizeTransfers").is(":checked") !== DEFAULT_PLANNER_STATE.minimizeTransfers) {
 		searchParams.set("minimizeTransfers", $("#minimizeTransfers").is(":checked") ? "1" : "0");
-	}
-
-	if ($("#includeRests").is(":checked") !== DEFAULT_PLANNER_STATE.includeRests) {
-		searchParams.set("includeRests", $("#includeRests").is(":checked") ? "1" : "0");
 	}
 
 	if (restHours !== DEFAULT_PLANNER_STATE.restHours) {

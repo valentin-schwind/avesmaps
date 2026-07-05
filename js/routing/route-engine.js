@@ -29,8 +29,8 @@ function isTransportAllowedForPath(pathProperties, transportOption) {
 	return allowedTransports.includes(transportOption);
 }
 
+// 24 Reisestunden/Tag = keine Rast -> Identitaet (der frühere Rastzeiten-Haken ist entfallen).
 function applyRestTimes(travelHours) {
-	if (!$("#includeRests").is(":checked")) return travelHours;
 	const hoursPerDay = getPlannerTravelHoursPerDay();
 	const days = travelHours / hoursPerDay;
 	return days * 24;
@@ -63,7 +63,7 @@ function buildServerRouteProbeRequest(start, end, useShortest, clientRoute) {
 		include_air_distance: true,
 		include_geometry: true,
 		include_steps: true,
-		include_rests: $("#includeRests").is(":checked"),
+		include_rests: getPlannerRestHoursPerDay() > 0,
 		rest_hours_per_day: getPlannerRestHoursPerDay(),
 		minimize_transfers: $("#minimizeTransfers").is(":checked"),
 		enabled_transports: {

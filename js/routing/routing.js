@@ -431,17 +431,6 @@ $("#search").on("change", "#travelHoursPerDay", function () {
 		if (typeof syncPlannerStateToUrl === "function") syncPlannerStateToUrl();
 	}
 });
-
-// Beim (Wieder-)Aktivieren der Rastzeiten sicherstellen, dass das Feld im gueltigen Bereich liegt.
-$("#search").on("change", "#includeRests", function () {
-	if (!$(this).is(":checked")) return;
-	const parsedTravelHours = parseFloat($("#travelHoursPerDay").val());
-	if (!Number.isFinite(parsedTravelHours) || parsedTravelHours < 0.5) {
-		$("#travelHoursPerDay").val(String(24 - DEFAULT_PLANNER_STATE.restHours));
-	} else if (parsedTravelHours > 24) {
-		$("#travelHoursPerDay").val("24");
-	}
-});
 $(document).ajaxError((event, jqXHR, settings, thrownError) => {
 	const requestUrl = settings?.url || "unbekannte Anfrage";
 	const requestError = thrownError || jqXHR?.statusText || "XMLHttpRequest fehlgeschlagen";

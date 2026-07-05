@@ -31,14 +31,14 @@ function enhanceRoutePlannerOptionPanel() {
 		const fastestPath = document.getElementById("fastestPath");
 		const shortestPath = document.getElementById("shortestPath");
 		const minimizeTransfers = document.getElementById("minimizeTransfers");
-		const includeRests = document.getElementById("includeRests");
+		const travelHoursPerDay = document.getElementById("travelHoursPerDay");
 		const optionRows = [
 			fastestPath?.closest("div"),
 			minimizeTransfers?.closest("div"),
-			includeRests?.closest("div"),
+			travelHoursPerDay?.closest("div"),
 		].filter(Boolean);
 
-		if (!fastestPath || !shortestPath || !minimizeTransfers || !includeRests || !optionRows.length) {
+		if (!fastestPath || !shortestPath || !minimizeTransfers || !travelHoursPerDay || !optionRows.length) {
 			return;
 		}
 

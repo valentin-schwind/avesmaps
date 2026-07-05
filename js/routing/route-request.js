@@ -49,7 +49,7 @@ function buildRouteRequestFromPlannerState() {
 
 	const routeOptions = buildRouteOptionsFromPlannerControls();
 	const optimize = $('input[name="pathType"]:checked').val() === "shortest" ? "shortest" : "fastest";
-	const includeRests = $("#includeRests").is(":checked");
+	const includeRests = getPlannerRestHoursPerDay() > 0;
 	const restHoursPerDay = getPlannerRestHoursPerDay();
 	const from = waypointNames.length ? waypointNames[0] : "";
 	const to = waypointNames.length ? waypointNames[waypointNames.length - 1] : "";
