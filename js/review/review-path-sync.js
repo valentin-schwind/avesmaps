@@ -4,9 +4,33 @@
 
 const PATH_SYNC_API_URL = "/api/edit/wiki/paths.php";
 let pathSyncData = null;
-let pathSyncView = "assigned"; // assigned (matched+mehrteilig) | missing
+let pathSyncView = "assigned"; // assigned (matched+mehrteilig) | missing | cases (Verlauf-Fälle)
 const pathTypeFilter = new Set(); // ausgewählte Wege-Arten (leer = alle)
 const pathContinentFilter = new Set(["Aventurien"]); // Default: nur Aventurien (Karte ist Aventurien)
+
+// Verlauf-Fälle (Task 6): eigene Liste + Ladezustand, getrennt von pathSyncData (match-Liste).
+let verlaufCases = []; // flache Liste aller geladenen Fälle (offen + zurückgestellt + archiviert)
+let verlaufCasesLoaded = false; // mind. einmal fertig durchgescannt
+let verlaufCasesLoading = false; // Lade-Guard gegen Doppelstart
+let verlaufCasesScanned = 0; // Fortschritt: geprüfte Wege
+let verlaufCasesBusy = false; // Guard für Einzel-/Bulk-Aktionen (defer/archive/apply/apply-clean)
+
+const VERLAUF_CASE_TYPE_LABELS = {
+	verlauf_changed: "Verlauf geändert",
+	course_conflict: "Konflikt (manuell)",
+	station_missing: "Ort fehlt",
+	hops_unroutable: "Nicht routbar",
+};
+const VERLAUF_CASE_TYPE_ORDER = ["verlauf_changed", "course_conflict", "station_missing", "hops_unroutable"];
+const VERLAUF_HOP_REASON_LABELS = {
+	no_route: "keine Route",
+	synthetic_gap: "künstliche Lücke",
+	detour: "Umweg",
+};
+const VERLAUF_CONFLICT_LABELS = {
+	foreign: "fremd",
+	owner: "Owner",
+};
 
 // Kontinent eines Weges; leer -> Aventurien (wie der Herrschaftsgebiete-Dialog: continent || 'Aventurien').
 function pathRowContinent(row) {
@@ -133,6 +157,34 @@ function renderPathSyncList() {
 	if (!list) {
 		return;
 	}
+
+	// Toggle-Tabs (Alle / Platziert / Fehlt / Verlauf-Fälle) — im eigenen Container unter dem
+	// Suchfeld. „Platziert" = matched + mehrteilig. Tab-Zähler kontinent-bewusst (sonst stimmen
+	// sie nicht mit der gefilterten Liste überein). Verlauf-Fälle zählen offene Fälle (eigener Scan).
+	const assignedCount =
+		((pathSyncData && pathSyncData.matched) || []).filter(pathContinentMatch).length +
+		((pathSyncData && pathSyncData.ambiguous) || []).filter(pathContinentMatch).length;
+	const missingCount = ((pathSyncData && pathSyncData.missing) || []).filter(pathContinentMatch).length;
+	const openCasesCount = verlaufCases.filter((c) => c.status === "open").length;
+	const tabsHost = pathSyncElement("path-sync-tabs");
+	if (tabsHost) {
+		const tab = (view, label, count) =>
+			`<button type="button" data-path-view="${view}" class="region-sync__viewtab${pathSyncView === view ? " is-active" : ""}">${label} (${count})</button>`;
+		tabsHost.innerHTML =
+			tab("all", "Alle", assignedCount + missingCount) +
+			tab("assigned", "Platziert", assignedCount) +
+			tab("missing", "Fehlt", missingCount) +
+			tab("cases", "Verlauf-Fälle", openCasesCount);
+	}
+
+	if (pathSyncView === "cases") {
+		renderVerlaufCaseList();
+		if (!verlaufCasesLoaded && !verlaufCasesLoading) {
+			void loadVerlaufCases();
+		}
+		return;
+	}
+
 	const summary = (pathSyncData && pathSyncData.summary) || {};
 	const filterValue = (pathSyncElement("path-sync-filter")?.value || "").trim().toLowerCase();
 	const rows = pathSyncCurrentRows().filter((row) => {
@@ -147,21 +199,6 @@ function renderPathSyncList() {
 		}
 		return [row.name, row.art, row.lage].filter(Boolean).some((v) => String(v).toLowerCase().includes(filterValue));
 	});
-
-	// Toggle-Tabs (Alle / Platziert / Fehlt) wie bei Siedlungen — im eigenen Container unter dem
-	// Suchfeld. „Platziert" = matched + mehrteilig.
-	// Tab-Zähler kontinent-bewusst (sonst stimmen sie nicht mit der gefilterten Liste überein).
-	const assignedCount =
-		((pathSyncData && pathSyncData.matched) || []).filter(pathContinentMatch).length +
-		((pathSyncData && pathSyncData.ambiguous) || []).filter(pathContinentMatch).length;
-	const missingCount = ((pathSyncData && pathSyncData.missing) || []).filter(pathContinentMatch).length;
-	const tabsHost = pathSyncElement("path-sync-tabs");
-	if (tabsHost) {
-		const tab = (view, label, count) =>
-			`<button type="button" data-path-view="${view}" class="region-sync__viewtab${pathSyncView === view ? " is-active" : ""}">${label} (${count})</button>`;
-		tabsHost.innerHTML =
-			tab("all", "Alle", assignedCount + missingCount) + tab("assigned", "Platziert", assignedCount) + tab("missing", "Fehlt", missingCount);
-	}
 
 	const candidate = (p) => `<button type="button" class="region-sync__cand" data-path-id="${pathSyncEscapeAttr((p && p.public_id) || "")}">${pathSyncEscapeText(p.name)}</button>`;
 	const items = rows
@@ -195,6 +232,322 @@ function renderPathSyncList() {
 	list.innerHTML = items || '<p class="review-panel__status">Keine Einträge.</p>';
 	renderTypeFilter("path-type-filter-toggle", "path-type-filter-menu", pathTypeOptions(), pathTypeFilter);
 	renderTypeFilter("path-continent-filter-toggle", "path-continent-filter-menu", pathContinentOptions(), pathContinentFilter, "Kontinent");
+}
+
+// Sequentieller Cursor-Scan über ?action=verlauf_cases. NIEMALS parallel (STRATO) — eine Anfrage
+// nach der anderen, jede Seite direkt ins Rendering übernommen (Fortschritt sichtbar).
+async function loadVerlaufCases() {
+	if (verlaufCasesLoading) {
+		return;
+	}
+	verlaufCasesLoading = true;
+	verlaufCases = [];
+	verlaufCasesScanned = 0;
+	const status = pathSyncElement("path-sync-summary");
+	try {
+		let cursor = 0;
+		let complete = false;
+		while (!complete) {
+			const page = await pathSyncGet(`?action=verlauf_cases&cursor=${cursor}&limit=200`);
+			if (!page || page.ok !== true) {
+				throw new Error(apiErrorMessage(page, "Unerwartete Antwort"));
+			}
+			verlaufCases = verlaufCases.concat(page.cases || []);
+			verlaufCasesScanned = Number(page.scanned) || verlaufCasesScanned;
+			complete = Boolean(page.complete);
+			cursor = Number(page.next_cursor) || cursor;
+			if (status && !complete) {
+				status.textContent = `Prüfe Verläufe … (${verlaufCasesScanned} Wege geprüft, ${verlaufCases.length} Fälle)`;
+			}
+			if (pathSyncView === "cases") {
+				renderVerlaufCaseList();
+			}
+		}
+		verlaufCasesLoaded = true;
+		if (status) {
+			status.textContent = `Verlauf-Prüfung abgeschlossen: ${verlaufCasesScanned} Wege geprüft, ${verlaufCases.length} Fälle.`;
+		}
+	} catch (error) {
+		if (status) {
+			status.textContent = "Fehler: " + (error.message || error);
+		}
+	} finally {
+		verlaufCasesLoading = false;
+		if (pathSyncView === "cases") {
+			renderVerlaufCaseList();
+		}
+	}
+}
+
+// Case-Sortierung innerhalb einer Gruppe: neueste zuerst ist nicht bekannt (kein Timestamp im
+// Case), daher stabil nach Name.
+function verlaufCasesByStatus(status) {
+	return verlaufCases.filter((c) => c.status === status).sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+}
+
+function verlaufKindLabel(kind) {
+	return kind === "fluss" ? "Fluss" : "Straße";
+}
+
+// Chips für die Flags eines Falls: fehlende Orte, unroutbare Etappen (mit Grund), Konflikte
+// (Segmentname + fremd/Owner) und Backtrack-Hinweis. Nur nicht-leere Gruppen werden gerendert.
+// Reuses .region-sync__cand--conflict (existing "problem chip" styling) — no new CSS needed.
+function renderVerlaufCaseFlags(flags) {
+	if (!flags) {
+		return "";
+	}
+	const chips = [];
+	const missingStations = Array.isArray(flags.missing_stations) ? flags.missing_stations : [];
+	if (missingStations.length) {
+		chips.push(`<span class="region-sync__cand region-sync__cand--conflict">Fehlende Orte: ${missingStations.map(pathSyncEscapeText).join(", ")}</span>`);
+	}
+	const unroutableHops = Array.isArray(flags.unroutable_hops) ? flags.unroutable_hops : [];
+	unroutableHops.forEach((hop) => {
+		const reason = VERLAUF_HOP_REASON_LABELS[hop && hop.reason] || (hop && hop.reason) || "";
+		chips.push(
+			`<span class="region-sync__cand region-sync__cand--conflict">Nicht routbar: ${pathSyncEscapeText((hop && hop.from) || "?")} → ${pathSyncEscapeText((hop && hop.to) || "?")}${reason ? ` (${pathSyncEscapeText(reason)})` : ""}</span>`
+		);
+	});
+	const conflicts = Array.isArray(flags.conflicts) ? flags.conflicts : [];
+	conflicts.forEach((conflict) => {
+		const conflictLabel = VERLAUF_CONFLICT_LABELS[conflict && conflict.conflict] || (conflict && conflict.conflict) || "";
+		chips.push(
+			`<span class="region-sync__cand region-sync__cand--conflict">Konflikt: ${pathSyncEscapeText((conflict && conflict.name) || "?")}${conflictLabel ? ` (${pathSyncEscapeText(conflictLabel)})` : ""}</span>`
+		);
+	});
+	const backtrackHops = Array.isArray(flags.backtrack_hops) ? flags.backtrack_hops : [];
+	if (backtrackHops.length) {
+		chips.push(`<span class="region-sync__cand region-sync__cand--conflict">Rückwärts: ${backtrackHops.map(pathSyncEscapeText).join(", ")}</span>`);
+	}
+	return chips.join(" ");
+}
+
+// Rendert einen einzelnen Verlauf-Fall (Name+Link, Kind-Badge, Flags, adds/removes, Aktionen).
+// Layout + classes reuse the existing tree-item/region-sync/wiki-sync-case styling (no new CSS
+// in this task — only review-path-sync.js is in scope).
+function renderVerlaufCase(caseEntry) {
+	const kindLabel = verlaufKindLabel(caseEntry.kind);
+	const nameHtml = caseEntry.wiki_url
+		? `<a class="region-sync__link" href="${pathSyncEscapeAttr(caseEntry.wiki_url)}" target="_blank" rel="noopener">${pathSyncEscapeText(caseEntry.name)}</a>`
+		: pathSyncEscapeText(caseEntry.name);
+	const adds = Array.isArray(caseEntry.adds) ? caseEntry.adds : [];
+	const removes = Array.isArray(caseEntry.removes) ? caseEntry.removes : [];
+	const addRemoveParts = [].concat(
+		adds.map((a) => `<span class="region-sync__cand" style="color:#2f6b3a;border-color:#8fa46d;">+ ${pathSyncEscapeText(a.name)}${Array.isArray(a.hops) && a.hops.length ? ` (${a.hops.map(pathSyncEscapeText).join(" → ")})` : ""}</span>`),
+		removes.map((r) => `<span class="region-sync__cand" style="color:#8a2d22;border-color:#b87d73;">− ${pathSyncEscapeText(r.name)}</span>`)
+	);
+	const addRemoveHtml = addRemoveParts.join(" ");
+	const hashOnlyHtml = caseEntry.hash_only ? '<span class="region-sync__badge">Nur Kurs-Stempel aktualisieren</span>' : "";
+	const flagsHtml = renderVerlaufCaseFlags(caseEntry.flags);
+
+	const actions = [];
+	if (caseEntry.status === "open") {
+		actions.push(`<button type="button" class="wiki-sync-case__action wiki-sync-case__action--primary" data-verlauf-action="apply" data-wiki-key="${pathSyncEscapeAttr(caseEntry.wiki_key)}">Übernehmen</button>`);
+		actions.push(`<button type="button" class="wiki-sync-case__action wiki-sync-case__action--danger" data-verlauf-action="defer" data-wiki-key="${pathSyncEscapeAttr(caseEntry.wiki_key)}">Zurückstellen</button>`);
+		actions.push(`<button type="button" class="wiki-sync-case__action wiki-sync-case__action--danger" data-verlauf-action="archive" data-wiki-key="${pathSyncEscapeAttr(caseEntry.wiki_key)}">Archivieren</button>`);
+	} else {
+		actions.push(`<button type="button" class="wiki-sync-case__action wiki-sync-case__action--primary" data-verlauf-action="reopen" data-wiki-key="${pathSyncEscapeAttr(caseEntry.wiki_key)}">Wieder öffnen</button>`);
+	}
+
+	return (
+		'<div class="tree-item region-sync__item">' +
+		'<span class="drag-handle" aria-hidden="true"></span>' +
+		`<span class="tree-item-name">${nameHtml}</span>` +
+		'<span class="tree-item-meta">' +
+		`<span class="region-sync__badge">${pathSyncEscapeText(kindLabel)}</span>` +
+		(caseEntry.clean ? ' <span class="region-sync__badge">unstrittig</span>' : "") +
+		(flagsHtml ? ` ${flagsHtml}` : "") +
+		(addRemoveHtml ? ` ${addRemoveHtml}` : "") +
+		(hashOnlyHtml ? ` ${hashOnlyHtml}` : "") +
+		`<div class="wiki-sync-case__actions">${actions.join("")}</div>` +
+		"</span>" +
+		'<span class="tree-map-status" aria-hidden="true"></span>' +
+		"</div>"
+	);
+}
+
+// Gruppiert offene Fälle nach Typ (feste Reihenfolge/Überschriften) + <details> für
+// Zurückgestellt/Archiviert (Muster: renderWikiSyncCases() in review-wiki-sync-cases.js).
+function renderVerlaufCaseList() {
+	const list = pathSyncElement("path-sync-list");
+	if (!list) {
+		return;
+	}
+
+	const openCases = verlaufCasesByStatus("open");
+	const deferredCases = verlaufCasesByStatus("deferred");
+	const archivedCases = verlaufCasesByStatus("archived");
+	const cleanOpenCount = openCases.filter((c) => c.clean === true).length;
+
+	// Top bar reuses .wiki-sync-panel__actions (existing 2-col grid) + .wiki-sync-panel__start
+	// button look — no new CSS in this task (only review-path-sync.js is in scope).
+	const topBar =
+		'<div class="wiki-sync-panel__actions">' +
+		`<span class="wiki-sync-panel__summary">${openCases.length} offen · ${deferredCases.length} zurückgestellt · ${archivedCases.length} archiviert</span>` +
+		`<button type="button" class="wiki-sync-panel__start" data-verlauf-action="rescan">Neu berechnen</button>` +
+		"</div>" +
+		'<div class="wiki-sync-panel__actions">' +
+		`<button type="button" class="wiki-sync-panel__start" data-verlauf-action="apply-clean"${cleanOpenCount ? "" : " disabled"}>Alle unstrittigen übernehmen (${cleanOpenCount})</button>` +
+		"</div>";
+
+	if (verlaufCasesLoading && verlaufCases.length === 0) {
+		list.innerHTML = topBar + '<p class="review-panel__status">Verläufe werden geprüft …</p>';
+		return;
+	}
+	if (verlaufCasesLoaded && openCases.length === 0 && deferredCases.length === 0 && archivedCases.length === 0) {
+		list.innerHTML = topBar + '<p class="review-panel__status">Keine Verlauf-Fälle.</p>';
+		return;
+	}
+
+	const groupsHtml = VERLAUF_CASE_TYPE_ORDER.map((type) => {
+		const casesOfType = openCases.filter((c) => c.type === type);
+		if (!casesOfType.length) {
+			return "";
+		}
+		return (
+			`<section class="wiki-sync-case-section wiki-sync-case-section--open">` +
+			`<h3 class="wiki-sync-case-section__title">${pathSyncEscapeText(VERLAUF_CASE_TYPE_LABELS[type] || type)}</h3>` +
+			`<div class="wiki-sync-case-section__body">${casesOfType.map(renderVerlaufCase).join("")}</div>` +
+			"</section>"
+		);
+	}).join("");
+
+	const deferredHtml = deferredCases.length
+		? `<details class="wiki-sync-case-group"><summary class="wiki-sync-case-group__summary"><span class="wiki-sync-case-group__title">Zurückgestellt</span><span class="wiki-sync-case-group__count">${deferredCases.length}</span></summary><div class="wiki-sync-case-group__body">${deferredCases
+				.map(renderVerlaufCase)
+				.join("")}</div></details>`
+		: "";
+	const archivedHtml = archivedCases.length
+		? `<details class="wiki-sync-case-group"><summary class="wiki-sync-case-group__summary"><span class="wiki-sync-case-group__title">Archiviert</span><span class="wiki-sync-case-group__count">${archivedCases.length}</span></summary><div class="wiki-sync-case-group__body">${archivedCases
+				.map(renderVerlaufCase)
+				.join("")}</div></details>`
+		: "";
+
+	list.innerHTML = topBar + groupsHtml + deferredHtml + archivedHtml;
+}
+
+function findVerlaufCase(wikiKey) {
+	return verlaufCases.find((c) => String(c.wiki_key) === String(wikiKey)) || null;
+}
+
+// Übernehmen: Dry-Run-Preview -> confirm mit Zählern -> scharfe Anwendung. Nach Erfolg wird der
+// Fall lokal entfernt (er ist server-seitig kein offener Fall mehr) + Statusmeldung.
+async function applyVerlaufCase(wikiKey) {
+	if (verlaufCasesBusy || !wikiKey) {
+		return;
+	}
+	const caseEntry = findVerlaufCase(wikiKey);
+	verlaufCasesBusy = true;
+	const status = pathSyncElement("path-sync-summary");
+	try {
+		const preview = await pathSyncPost({ action: "apply_verlauf_case", wiki_key: wikiKey });
+		if (!preview || preview.ok !== true) {
+			if (status) {
+				status.textContent = "Fehler: " + apiErrorMessage(preview, "");
+			}
+			return;
+		}
+		const previewCase = preview.case || {};
+		const addsCount = Array.isArray(previewCase.adds) ? previewCase.adds.length : 0;
+		const removesCount = Array.isArray(previewCase.removes) ? previewCase.removes.length : 0;
+		const name = (caseEntry && caseEntry.name) || previewCase.name || wikiKey;
+		if (!window.confirm(`„${name}": ${addsCount} Segmente zuweisen, ${removesCount} lösen. Übernehmen?`)) {
+			return;
+		}
+		const result = await pathSyncPost({ action: "apply_verlauf_case", wiki_key: wikiKey, dry_run: false, confirm: "apply" });
+		if (!result || result.ok !== true) {
+			if (status) {
+				status.textContent = "Fehler: " + apiErrorMessage(result, "");
+			}
+			return;
+		}
+		verlaufCases = verlaufCases.filter((c) => String(c.wiki_key) !== String(wikiKey));
+		if (status) {
+			status.textContent = `„${name}" übernommen: ${result.adds_applied || 0} zugewiesen, ${result.removes_applied || 0} gelöst, ${result.restamped || 0} Kurs-Stempel aktualisiert.`;
+		}
+		renderVerlaufCaseList();
+	} catch (error) {
+		if (status) {
+			status.textContent = "Fehler: " + (error.message || error);
+		}
+	} finally {
+		verlaufCasesBusy = false;
+	}
+}
+
+// Zurückstellen/Archivieren/Wieder öffnen: kein confirm, direkte POST + lokaler Statuswechsel.
+async function setVerlaufCaseStatus(wikiKey, action) {
+	if (verlaufCasesBusy || !wikiKey) {
+		return;
+	}
+	verlaufCasesBusy = true;
+	const status = pathSyncElement("path-sync-summary");
+	try {
+		const result = await pathSyncPost({ action, wiki_key: wikiKey });
+		if (!result || result.ok !== true) {
+			if (status) {
+				status.textContent = "Fehler: " + apiErrorMessage(result, "");
+			}
+			return;
+		}
+		const caseEntry = findVerlaufCase(wikiKey);
+		if (caseEntry) {
+			caseEntry.status = result.status;
+		}
+		renderVerlaufCaseList();
+	} catch (error) {
+		if (status) {
+			status.textContent = "Fehler: " + (error.message || error);
+		}
+	} finally {
+		verlaufCasesBusy = false;
+	}
+}
+
+// „Alle unstrittigen übernehmen": confirm mit Zähler -> sequentieller Cursor-Loop über
+// apply_verlauf_cases_clean (NIE parallel) -> vollständiger Re-Scan danach.
+async function applyAllCleanVerlaufCases() {
+	if (verlaufCasesBusy) {
+		return;
+	}
+	const cleanCount = verlaufCasesByStatus("open").filter((c) => c.clean === true).length;
+	if (cleanCount < 1) {
+		return;
+	}
+	if (!window.confirm(`${cleanCount} unstrittige Verlauf-Fälle übernehmen?`)) {
+		return;
+	}
+	verlaufCasesBusy = true;
+	const status = pathSyncElement("path-sync-summary");
+	try {
+		let cursor = 0;
+		let complete = false;
+		let totalApplied = 0;
+		let totalSkipped = 0;
+		while (!complete) {
+			const page = await pathSyncPost({ action: "apply_verlauf_cases_clean", dry_run: false, confirm: "apply", cursor, limit: 50 });
+			if (!page || page.ok !== true) {
+				throw new Error(apiErrorMessage(page, "Unerwartete Antwort"));
+			}
+			totalApplied += Array.isArray(page.applied_cases) ? page.applied_cases.length : 0;
+			totalSkipped += Number(page.skipped_not_clean) || 0;
+			complete = Boolean(page.complete);
+			cursor = Number(page.next_cursor) || cursor;
+			if (status && !complete) {
+				status.textContent = `Übernehme unstrittige Fälle … (${totalApplied} übernommen)`;
+			}
+		}
+		if (status) {
+			status.textContent = `Unstrittige Fälle übernommen: ${totalApplied}${totalSkipped ? `, ${totalSkipped} übersprungen` : ""}.`;
+		}
+		await loadVerlaufCases();
+	} catch (error) {
+		if (status) {
+			status.textContent = "Fehler: " + (error.message || error);
+		}
+	} finally {
+		verlaufCasesBusy = false;
+	}
 }
 
 // Bulk-Zuordnung (mehrere Segmente per wiki_key). Backend liefert hier bewusst KEIN segments_updated;
@@ -397,6 +750,26 @@ document.addEventListener("click", (event) => {
 	const candidate = event.target.closest(".region-sync__cand[data-path-id]");
 	if (candidate) {
 		focusPathOnMap(candidate.dataset.pathId);
+		return;
+	}
+	const verlaufBtn = event.target.closest("[data-verlauf-action]");
+	if (verlaufBtn) {
+		const action = verlaufBtn.dataset.verlaufAction;
+		const wikiKey = verlaufBtn.dataset.wikiKey || "";
+		if (action === "apply") {
+			void applyVerlaufCase(wikiKey);
+		} else if (action === "defer") {
+			void setVerlaufCaseStatus(wikiKey, "defer_verlauf_case");
+		} else if (action === "archive") {
+			void setVerlaufCaseStatus(wikiKey, "archive_verlauf_case");
+		} else if (action === "reopen") {
+			void setVerlaufCaseStatus(wikiKey, "reopen_verlauf_case");
+		} else if (action === "apply-clean") {
+			void applyAllCleanVerlaufCases();
+		} else if (action === "rescan") {
+			verlaufCasesLoaded = false;
+			void loadVerlaufCases();
+		}
 		return;
 	}
 });
