@@ -13,6 +13,8 @@ declare(strict_types=1);
 // Setzt voraus, dass der einbindende Endpoint zuvor geladen hat: sync.php, sync-monitor.php,
 // political/territory.php (wie regions.php). map_features wird nur gelesen.
 
+require_once __DIR__ . '/path-naming.php';
+
 const AVESMAPS_WIKI_PATH_STAGING_TABLE = 'wiki_path_staging';
 const AVESMAPS_WIKI_PATH_QUEUE_TABLE = 'wiki_path_queue';
 const AVESMAPS_WIKI_PATH_MAX_DEPTH = 4;
@@ -746,7 +748,7 @@ function avesmapsWikiPathBuildAssignObject(array $stagingRow): array {
 
 // Heftet einen Wiki-Weg an ALLE aktiven Path-Features mit gleichem (normalisiertem) Namen.
 // Gated: dry_run zaehlt nur; Schreiben nur bei dry_run:false. map_features-Write (Produktion).
-function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun): array {
+function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun, int $userId = 0): array {
     avesmapsWikiPathEnsureTables($pdo);
     $wikiKey = trim($wikiKey);
     if ($wikiKey === '') {
@@ -773,13 +775,19 @@ function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun): array 
     }
 
     $applied = 0;
+    $canonicalName = avesmapsWikiPathCanonicalName($assignObject);
     if (!$dryRun && $targets !== []) {
         $revision = avesmapsWikiSyncNextMapRevision($pdo);
-        $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
+        $update = $pdo->prepare('UPDATE map_features SET name = :name, properties_json = :pj, revision = :rev WHERE id = :id');
         foreach ($targets as $p) {
+            $auditBefore = avesmapsWikiSyncFetchAuditRow($pdo, (int) $p['id']);
+            $newName = $canonicalName !== '' ? $canonicalName : (string) $p['name'];
             $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
             $props['wiki_path'] = $assignObject;
-            $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $p['id']]);
+            $props['name'] = $newName;
+            $props['display_name'] = $newName;
+            $update->execute(['name' => $newName, 'pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $p['id']]);
+            avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId);
             $applied++;
         }
     }
@@ -789,6 +797,7 @@ function avesmapsWikiPathAssign(PDO $pdo, string $wikiKey, bool $dryRun): array 
         'dry_run' => $dryRun,
         'wiki_key' => $wikiKey,
         'wiki_name' => (string) $row['name'],
+        'wiki_display_name' => $canonicalName,
         'match_key' => $targetKey,
         'segments' => count($targets),
         'segment_names' => array_values(array_unique(array_map(static fn(array $p): string => (string) $p['name'], array_slice($targets, 0, 8)))),
@@ -834,10 +843,13 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
 
     $targetKey = avesmapsWikiSyncCreateMatchKey((string) $target['name']);
     $assignObject = avesmapsWikiPathBuildAssignObject($row);
-    $paths = $pdo->query("SELECT id, name, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
+    // R1: the assigned wiki way names the way. '' (unusable staging row) keeps existing names.
+    $canonicalName = avesmapsWikiPathCanonicalName($assignObject);
+    $paths = $pdo->query("SELECT id, public_id, name, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
     $segments = 0;
     $applied = 0;
     $revision = null;
+    $segmentsUpdated = [];
     foreach ($paths as $p) {
         if (avesmapsWikiSyncCreateMatchKey((string) $p['name']) !== $targetKey) {
             continue;
@@ -846,12 +858,23 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
         if (!$dryRun) {
             $auditBefore = avesmapsWikiSyncFetchAuditRow($pdo, (int) $p['id']);
             $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
+            $newName = $canonicalName !== '' ? $canonicalName : (string) $p['name'];
             $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
             $props['wiki_path'] = $assignObject;
-            $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
-            $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $p['id']]);
+            $props['name'] = $newName;
+            $props['display_name'] = $newName;
+            $update = $pdo->prepare('UPDATE map_features SET name = :name, properties_json = :pj, revision = :rev WHERE id = :id');
+            $update->execute(['name' => $newName, 'pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $p['id']]);
             avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId);
             $applied++;
+            // The editor applies these locally so its expected_revision stays fresh (409 fix).
+            $segmentsUpdated[] = [
+                'public_id' => (string) $p['public_id'],
+                'revision' => $revision,
+                'name' => $newName,
+                'display_name' => $newName,
+                'wiki_path' => $assignObject,
+            ];
         }
     }
     return [
@@ -859,14 +882,18 @@ function avesmapsWikiPathAssignTo(PDO $pdo, string $wikiKey, string $publicId, b
         'type_ok' => true,
         'dry_run' => $dryRun,
         'wiki_name' => (string) $row['name'],
+        'wiki_display_name' => $canonicalName,
         'target_name' => (string) $target['name'],
         'segments' => $segments,
         'applied' => $applied,
+        'segments_updated' => $segmentsUpdated,
     ];
 }
 
 // Bulk: verknuepft in EINEM Durchlauf alle Karten-Wege, deren Name zu einem Staging-Weg passt
 // (= matched + ambiguous; missing haben kein Segment). Gated wie assign.
+// NICHT auf R1-Umbenennung umgestellt: Bulk ueber tausende Zeilen (STRATO). Namen konvergieren
+// beim naechsten assign_to/Details-Save (R1 wird dort server-seitig erzwungen).
 function avesmapsWikiPathAssignAll(PDO $pdo, string $continentFilter, bool $dryRun): array {
     avesmapsWikiPathEnsureTables($pdo);
     $continentFilter = trim($continentFilter);
@@ -916,42 +943,69 @@ function avesmapsWikiPathAssignAll(PDO $pdo, string $continentFilter, bool $dryR
     ];
 }
 
-// Entfernt die Wiki-Zuordnung von allen gleichnamigen Path-Segmenten (per public_id eines Segments).
-function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun): array {
+// Entfernt die Wiki-Zuordnung von allen gleichnamigen Path-Segmenten (per public_id eines
+// Segments). R2: die ganze Weg-Gruppe bekommt EINEN frischen generischen `<Subtype>-<n>`-Namen
+// zurueck (Gruppierung bleibt intakt; ein Re-Assign trifft wieder alle Segmente). Segmente ohne
+// wiki_path werden mit-umbenannt, damit der Wiki-Name vollstaendig verschwindet.
+function avesmapsWikiPathClearAssign(PDO $pdo, string $publicId, bool $dryRun, int $userId = 0): array {
     avesmapsWikiPathEnsureTables($pdo);
     $publicId = trim($publicId);
     if ($publicId === '') {
         throw new RuntimeException('public_id fehlt.');
     }
-    $statement = $pdo->prepare("SELECT name FROM map_features WHERE public_id = :pid AND feature_type = 'path' LIMIT 1");
+    $statement = $pdo->prepare("SELECT name, feature_subtype FROM map_features WHERE public_id = :pid AND feature_type = 'path' LIMIT 1");
     $statement->execute(['pid' => $publicId]);
-    $name = (string) ($statement->fetchColumn() ?: '');
+    $target = $statement->fetch(PDO::FETCH_ASSOC);
+    $name = (string) ($target['name'] ?? '');
     if ($name === '') {
         throw new RuntimeException('Weg nicht gefunden: ' . $publicId);
     }
     $targetKey = avesmapsWikiSyncCreateMatchKey($name);
 
-    $paths = $pdo->query("SELECT id, name, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
+    $paths = $pdo->query("SELECT id, public_id, name, properties_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND name <> ''")->fetchAll(PDO::FETCH_ASSOC);
+    $genericName = avesmapsWikiPathNextGenericName(
+        (string) ($target['feature_subtype'] ?? 'Weg'),
+        array_map(static fn(array $p): string => (string) $p['name'], $paths)
+    );
     $applied = 0;
     $matchCount = 0;
     $revision = null;
+    $segmentsUpdated = [];
     foreach ($paths as $p) {
         if (avesmapsWikiSyncCreateMatchKey((string) $p['name']) !== $targetKey) {
             continue;
         }
         $matchCount++;
-        $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
-        if (!array_key_exists('wiki_path', $props)) {
-            continue;
-        }
         if (!$dryRun) {
+            $auditBefore = avesmapsWikiSyncFetchAuditRow($pdo, (int) $p['id']);
             $revision ??= avesmapsWikiSyncNextMapRevision($pdo);
-            unset($props['wiki_path']);
-            $update = $pdo->prepare('UPDATE map_features SET properties_json = :pj, revision = :rev WHERE id = :id');
-            $update->execute(['pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $p['id']]);
-            $applied++;
+            $props = avesmapsWikiSyncDecodeJson($p['properties_json'] ?? null);
+            if (array_key_exists('wiki_path', $props)) {
+                unset($props['wiki_path']);
+                $applied++;
+            }
+            $props['name'] = $genericName;
+            $props['display_name'] = $genericName;
+            $update = $pdo->prepare('UPDATE map_features SET name = :name, properties_json = :pj, revision = :rev WHERE id = :id');
+            $update->execute(['name' => $genericName, 'pj' => avesmapsWikiSyncEncodeJson($props), 'rev' => $revision, 'id' => (int) $p['id']]);
+            avesmapsWikiSyncAuditFeaturePropsChange($pdo, $auditBefore, $props, $revision, $userId);
+            $segmentsUpdated[] = [
+                'public_id' => (string) $p['public_id'],
+                'revision' => $revision,
+                'name' => $genericName,
+                'display_name' => $genericName,
+                'wiki_path' => null,
+            ];
         }
     }
 
-    return ['ok' => true, 'dry_run' => $dryRun, 'name' => $name, 'segments' => $matchCount, 'applied' => $applied];
+    return [
+        'ok' => true,
+        'dry_run' => $dryRun,
+        'name' => $name,
+        'generic_name' => $genericName,
+        'segments' => $matchCount,
+        'applied' => $applied,
+        'segments_updated' => $segmentsUpdated,
+    ];
 }
