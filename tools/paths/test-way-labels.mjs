@@ -1,10 +1,11 @@
 // Unit test (Node, no build) for the pure way-label helpers in
 // js/map-features/map-features-way-labels.js:
-//   - wayLabelChainCellKey(x, y): spatial-hash cell key for eps-snap node lookup.
-//   - buildWayLabelChains(segments, eps): endpoint-adjacency walk that stitches same-way
-//     segments into ordered chains (continuous label runs), snapping endpoints within
-//     eps map units to the same node (float noise + hand-drawn town joints), and
-//     CUTTING at junctions (degree > 2) so a chain never crosses a branch point.
+//   - wayLabelEndpointKey(coord): rounds [x,y] to 2 decimals -> phase-1 strict-join key.
+//   - buildWayLabelChains(segments, eps): TWO-PHASE chain builder. Phase 1 joins segments
+//     strictly over (rounded) shared endpoints, cutting at junctions (degree > 2). Phase 2
+//     bridges gaps between FREE chain ends (phase-1 degree 1 only) by iteratively merging
+//     the globally closest pair of ends of different chains within eps map units
+//     (hand-drawn town joints; default WAY_LABEL_CHAIN_GAP_EPS = 7).
 //   - computeWayLabelIntervalOffsets(totalLenPx, intervalPx, textLenPx): center offsets
 //     (px along the chain) for placing repeated labels at a fixed screen interval.
 //
@@ -40,7 +41,7 @@ function extractFunction(source, name) {
 }
 
 // Extracts a single-line `const NAME = ...;` module-level declaration from the source (used for
-// WAY_LABEL_CHAIN_SNAP_EPS, which buildWayLabelChains reads as its default eps).
+// WAY_LABEL_CHAIN_GAP_EPS, which buildWayLabelChains reads as its default bridging eps).
 function extractConst(source, name) {
 	const startMarker = `const ${name} = `;
 	const startIndex = source.indexOf(startMarker);
@@ -55,17 +56,17 @@ function extractConst(source, name) {
 }
 
 const sandbox = new Function(`
-	${extractConst(wayLabelsSource, "WAY_LABEL_CHAIN_SNAP_EPS")}
-	${extractFunction(wayLabelsSource, "wayLabelChainCellKey")}
+	${extractConst(wayLabelsSource, "WAY_LABEL_CHAIN_GAP_EPS")}
+	${extractFunction(wayLabelsSource, "wayLabelEndpointKey")}
 	${extractFunction(wayLabelsSource, "buildWayLabelChains")}
 	${extractFunction(wayLabelsSource, "computeWayLabelIntervalOffsets")}
-	return { wayLabelChainCellKey, buildWayLabelChains, computeWayLabelIntervalOffsets };
+	return { wayLabelEndpointKey, buildWayLabelChains, computeWayLabelIntervalOffsets };
 `)();
-const { wayLabelChainCellKey, buildWayLabelChains, computeWayLabelIntervalOffsets } = sandbox;
+const { wayLabelEndpointKey, buildWayLabelChains, computeWayLabelIntervalOffsets } = sandbox;
 
 // Euclidean distance -- used by assertChainsWellFormed to check end-to-start connectivity
-// against the SAME eps tolerance buildWayLabelChains itself snaps with (default eps=7, see
-// WAY_LABEL_CHAIN_SNAP_EPS in the source), rather than requiring exact coordinate equality.
+// against the SAME tolerance buildWayLabelChains itself bridges with in phase 2 (default eps=7,
+// see WAY_LABEL_CHAIN_GAP_EPS in the source), rather than requiring exact coordinate equality.
 function dist(a, b) {
 	return Math.hypot(a[0] - b[0], a[1] - b[1]);
 }
@@ -81,7 +82,7 @@ function check(label, fn) {
 // Asserts the invariants any buildWayLabelChains output must hold, regardless of how
 // segments were partitioned into chains: every segment id from the input appears
 // exactly once across all chains, and consecutive entries within a chain connect
-// end-to-start within the eps snap tolerance (default WAY_LABEL_CHAIN_SNAP_EPS=7).
+// end-to-start within the bridging tolerance (default WAY_LABEL_CHAIN_GAP_EPS=7).
 function assertChainsWellFormed(chains, segments, eps = DEFAULT_TEST_EPS) {
 	const seenIds = [];
 	chains.forEach((chain) => {
@@ -105,11 +106,12 @@ function assertChainsWellFormed(chains, segments, eps = DEFAULT_TEST_EPS) {
 	assert.deepEqual(actualIds, expectedIds, "every segment must appear exactly once across all chains");
 }
 
-check("cell key groups nearby coordinates into the same spatial-hash bucket", () => {
-	// Same cell (cell size = eps): both floor to the same cell index.
-	assert.equal(wayLabelChainCellKey(1, 1, 7), wayLabelChainCellKey(2, 2, 7));
-	// Far enough apart (>1 cell width) to land in different cells.
-	assert.notEqual(wayLabelChainCellKey(0, 0, 7), wayLabelChainCellKey(20, 20, 7));
+check("endpoint key rounds coordinates to 2 decimals (phase-1 strict-join grid)", () => {
+	// Float noise (~0.001 measured) collapses onto the same 0.01-grid key ...
+	assert.equal(wayLabelEndpointKey([10.0004, 5.0004]), wayLabelEndpointKey([10.0009, 5.0001]));
+	assert.equal(wayLabelEndpointKey([10, 0]), wayLabelEndpointKey([10.0008, 0]));
+	// ... while 0.01-scale differences stay distinct (min segment length 2.32 is far above).
+	assert.notEqual(wayLabelEndpointKey([10.0, 5.0]), wayLabelEndpointKey([10.01, 5.0]));
 });
 
 check("two segments sharing an endpoint -> one chain of 2, correct order and reversed flags", () => {
@@ -127,29 +129,29 @@ check("two segments sharing an endpoint -> one chain of 2, correct order and rev
 	assert.equal(chains[0][1].reversed, false);
 });
 
-check("joint endpoints 3 map units apart (below eps) -> one connected chain of 2", () => {
+check("joint endpoints 3 map units apart (below gap eps) -> one connected chain of 2 (phase-2 bridge)", () => {
 	// Real hand-drawn town-joint case: segments don't share an exact vertex, they meet
-	// "at" a town within a few map units. 3 < WAY_LABEL_CHAIN_SNAP_EPS(7) -> must snap.
+	// "at" a town within a few map units. 3 < WAY_LABEL_CHAIN_GAP_EPS(7) -> free ends bridge.
 	const segments = [
 		{ id: "seg-A", coordinates: [[0, 0], [10, 0]] },
 		{ id: "seg-B", coordinates: [[13, 0], [20, 0]] },
 	];
 	const chains = buildWayLabelChains(segments);
 	assertChainsWellFormed(chains, segments);
-	assert.equal(chains.length, 1, "endpoints within eps must snap to the same node");
+	assert.equal(chains.length, 1, "free chain ends within gap eps must be bridged into one chain");
 	assert.equal(chains[0].length, 2);
 });
 
-check("float-noise gap of 0.0008 map units -> one connected chain of 2", () => {
+check("float-noise gap of 0.0008 map units -> one connected chain of 2 (phase-1 rounding)", () => {
 	// Measured on production data: ~10% of nearest-neighbor endpoint gaps are float noise
-	// just ABOVE the old 1e-4 rounding grid (e.g. 0.001) -- these must still snap.
+	// (~0.001) just ABOVE the old 1e-4 rounding grid -- the 0.01 grid joins these strictly.
 	const segments = [
 		{ id: "seg-A", coordinates: [[0, 0], [10, 0]] },
 		{ id: "seg-B", coordinates: [[10.0008, 0], [20, 0]] },
 	];
 	const chains = buildWayLabelChains(segments);
 	assertChainsWellFormed(chains, segments);
-	assert.equal(chains.length, 1, "float-noise gaps well under eps must snap");
+	assert.equal(chains.length, 1, "float-noise gaps well under the 0.01 grid must join in phase 1");
 	assert.equal(chains[0].length, 2);
 });
 
@@ -167,18 +169,21 @@ check("segments A-B and C-D with a 50-unit gap -> two chains", () => {
 	assert.deepEqual(idsPerChain, [["seg-A", "seg-B"], ["seg-C", "seg-D"]]);
 });
 
-check("gap of 20 map units (above eps) -> two chains", () => {
+check("gap of 20 map units (above gap eps) -> two chains", () => {
 	const segments = [
 		{ id: "seg-A", coordinates: [[0, 0], [10, 0]] },
 		{ id: "seg-B", coordinates: [[30, 0], [40, 0]] },
 	];
 	const chains = buildWayLabelChains(segments);
 	assertChainsWellFormed(chains, segments);
-	assert.equal(chains.length, 2, "a 20-unit gap is well above eps=7 and must not snap");
+	assert.equal(chains.length, 2, "a 20-unit gap is well above eps=7 and must not bridge");
 });
 
 check("three segments meeting at one point (degree-3 junction) -> junction cuts, no chain crosses it", () => {
 	// Star: seg-A (0,0)->(10,0), seg-B (10,0)->(20,0), seg-C (10,0)->(10,10) all touch (10,0) at degree 3.
+	// Doubles as a phase-2 regression: the three cut chains all END at the junction (their ends are
+	// 0 apart -- far below gap eps), but junction ends have phase-1 degree 3, are NOT free, and must
+	// never be re-bridged (that would undo the deliberate cut).
 	const segments = [
 		{ id: "seg-A", coordinates: [[0, 0], [10, 0]] },
 		{ id: "seg-B", coordinates: [[10, 0], [20, 0]] },
@@ -242,6 +247,42 @@ check("offsets: totalLen 100, interval 600, textLen 120 -> []", () => {
 	assert.deepEqual(offsets, []);
 });
 
+check("short-segment safety: 2-unit middle segment with exact joints -> ONE chain of 3 (no self-merge)", () => {
+	// Live regression (Kronstraße): median segment length 7.84 map units, 10/24 segments SHORTER
+	// than 7. Wholesale endpoint snapping at eps=7 merged such a segment's own two endpoints into
+	// one node (self-loop, degree +2) and let town nodes swallow 3+ endpoints (degree >= 3 ->
+	// junction cut everywhere; live: 23 chains from 24 segments). Exact joints + one 2-unit
+	// segment must chain up as ONE run of 3.
+	const segments = [
+		{ id: "seg-A", coordinates: [[0, 0], [10, 0]] },
+		{ id: "seg-B", coordinates: [[10, 0], [12, 0]] },
+		{ id: "seg-C", coordinates: [[12, 0], [22, 0]] },
+	];
+	const chains = buildWayLabelChains(segments);
+	assertChainsWellFormed(chains, segments);
+	assert.equal(chains.length, 1, "a segment shorter than the gap eps must not self-merge and fragment the way");
+	assert.equal(chains[0].length, 3);
+	assert.deepEqual(chains[0].map((e) => e.id), ["seg-A", "seg-B", "seg-C"]);
+});
+
+check("branch + gap combined: three free ends within 7 of each other -> exactly one bridge (nearest pair), third stays free", () => {
+	// A true Y-branch drawn with small gaps (no exact shared vertex): X's right end (30,0),
+	// Y's left end (33,0) and Z's bottom end (31,5) are pairwise within 7 (3 / ~5.10 / ~5.39).
+	// Gap bridging must merge ONLY the nearest pair (X-Y, distance 3); after that merge both
+	// joined ends are interior, so Z cannot bridge anywhere and stays its own chain.
+	const segments = [
+		{ id: "seg-X", coordinates: [[0, 0], [30, 0]] },
+		{ id: "seg-Y", coordinates: [[33, 0], [60, 0]] },
+		{ id: "seg-Z", coordinates: [[31, 5], [31, 40]] },
+	];
+	const chains = buildWayLabelChains(segments);
+	assertChainsWellFormed(chains, segments);
+	assert.equal(chains.length, 2, "exactly one bridge: nearest pair merges, third end stays free");
+	const idsBySize = chains.map((c) => c.map((e) => e.id)).sort((a, b) => b.length - a.length);
+	assert.deepEqual(idsBySize[0], ["seg-X", "seg-Y"]);
+	assert.deepEqual(idsBySize[1], ["seg-Z"]);
+});
+
 check("closed ring of 4 segments -> terminates, every segment used exactly once, chains connect end-to-start", () => {
 	// Square ring: (0,0)->(10,0)->(10,10)->(0,10)->(0,0). Every joint has degree 2 (no open end,
 	// no branch) -- this is the pure-loop case (Pass 2 in buildWayLabelChains): no Grad-1 start
@@ -259,4 +300,4 @@ check("closed ring of 4 segments -> terminates, every segment used exactly once,
 	assert.equal(chains[0].length, 4, "all four segments end up in that one chain");
 });
 
-console.log(`${passed}/12 passed`);
+console.log(`${passed}/14 passed`);
