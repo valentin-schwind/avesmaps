@@ -182,6 +182,61 @@ function avesmapsPathFlowEndpointKey(array $coordinate): string {
     return sprintf('%.5f:%.5f', (float) ($coordinate[0] ?? 0.0), (float) ($coordinate[1] ?? 0.0));
 }
 
+// Hand-drawn river segments rarely share EXACT endpoint coordinates: they meet with
+// sub-unit gaps and connect in routing through shared location nodes (endpoint threshold
+// 0.5 per side). Exact-key matching therefore fragments real chains into mini-pieces.
+// Two endpoints within 0.5 of the same location are at most 1.0 apart.
+const AVESMAPS_PATH_FLOW_ENDPOINT_EPS = 1.0;
+
+// Clusters all segment endpoints within EPS map units (union-find) and returns, per
+// public_id, the node ids of its two ends: [pid => ['a' => nodeId, 'b' => nodeId]].
+// Node ids are deterministic (lexicographically smallest exact key in the cluster).
+// A segment shorter than the cluster radius ends up with a === b (node-internal stub).
+function avesmapsPathFlowEndpointNodes(array $coordinatesByPublicId, float $eps = AVESMAPS_PATH_FLOW_ENDPOINT_EPS): array {
+    $points = [];
+    foreach ($coordinatesByPublicId as $publicId => $coordinates) {
+        if (!is_array($coordinates) || count($coordinates) < 2) {
+            continue;
+        }
+        $first = is_array($coordinates[0]) ? $coordinates[0] : [];
+        $last = is_array($coordinates[count($coordinates) - 1]) ? $coordinates[count($coordinates) - 1] : [];
+        $points[] = ['pid' => (string) $publicId, 'end' => 'a', 'x' => (float) ($first[0] ?? 0.0), 'y' => (float) ($first[1] ?? 0.0)];
+        $points[] = ['pid' => (string) $publicId, 'end' => 'b', 'x' => (float) ($last[0] ?? 0.0), 'y' => (float) ($last[1] ?? 0.0)];
+    }
+    $count = count($points);
+    if ($count === 0) {
+        return [];
+    }
+    $parent = range(0, $count - 1);
+    $find = static function (int $i) use (&$parent): int {
+        while ($parent[$i] !== $i) {
+            $parent[$i] = $parent[$parent[$i]];
+            $i = $parent[$i];
+        }
+        return $i;
+    };
+    for ($i = 0; $i < $count; $i++) {
+        for ($j = $i + 1; $j < $count; $j++) {
+            if (hypot($points[$i]['x'] - $points[$j]['x'], $points[$i]['y'] - $points[$j]['y']) <= $eps) {
+                $parent[$find($j)] = $find($i);
+            }
+        }
+    }
+    $clusterKeys = [];
+    for ($i = 0; $i < $count; $i++) {
+        $root = $find($i);
+        $key = avesmapsPathFlowEndpointKey([$points[$i]['x'], $points[$i]['y']]);
+        if (!isset($clusterKeys[$root]) || strcmp($key, $clusterKeys[$root]) < 0) {
+            $clusterKeys[$root] = $key;
+        }
+    }
+    $nodes = [];
+    for ($i = 0; $i < $count; $i++) {
+        $nodes[$points[$i]['pid']][$points[$i]['end']] = $clusterKeys[$find($i)];
+    }
+    return $nodes;
+}
+
 // Orients the way's MAIN CHAIN from one loose end to the other. The main chain is the pair
 // of loose ends with the LONGEST connecting path (drawn length, Dijkstra) -- which end
 // becomes the source is arbitrary (owner decision: the editor checks the arrows and presses
@@ -190,16 +245,19 @@ function avesmapsPathFlowEndpointKey(array $coordinate): string {
 function avesmapsPathFlowChainOrientation(array $coordinatesByPublicId): array {
     $edges = [];
     $adjacency = [];
+    $endpointNodes = avesmapsPathFlowEndpointNodes($coordinatesByPublicId);
     foreach ($coordinatesByPublicId as $publicId => $coordinates) {
         if (!is_array($coordinates) || count($coordinates) < 2) {
             continue;
         }
-        $first = is_array($coordinates[0]) ? $coordinates[0] : [];
-        $last = is_array($coordinates[count($coordinates) - 1]) ? $coordinates[count($coordinates) - 1] : [];
-        $keyA = avesmapsPathFlowEndpointKey($first);
-        $keyB = avesmapsPathFlowEndpointKey($last);
+        $nodePair = $endpointNodes[(string) $publicId] ?? null;
+        if ($nodePair === null) {
+            continue;
+        }
+        $keyA = $nodePair['a'];
+        $keyB = $nodePair['b'];
         if ($keyA === $keyB) {
-            continue;  // degenerate loop segment
+            continue;  // node-internal stub or degenerate loop segment
         }
         $length = 0.0;
         for ($i = 0; $i < count($coordinates) - 1; $i++) {
@@ -294,6 +352,51 @@ function avesmapsPathFlowPlanSetDir(array $coordinatesByPublicId, array $anchorD
     return ['ok' => true, 'reason' => null, 'dir_by_public_id' => $dirByPublicId];
 }
 
+// Derivation consistency (Yaquir lesson): independent hops can disagree (a mis-matched
+// station routes a hop backwards along the river), which would write head-on arrows onto
+// ONE physical chain. Project every derived dir onto the way's main chain: the majority
+// flow direction wins, the conflicting minority is DROPPED (PlanWrites then clears any
+// previously written dir on those segments). A tie drops all chain dirs (no safe majority).
+// Dirs on segments off the chain (spurs, node-internal stubs) are never touched.
+function avesmapsPathFlowReconcileChainDirs(array $coordinatesByPublicId, array $dirByPublicId): array {
+    $chain = avesmapsPathFlowChainOrientation($coordinatesByPublicId);
+    if ($chain === []) {
+        return ['dir_by_public_id' => $dirByPublicId, 'dropped' => []];
+    }
+    $with = [];
+    $against = [];
+    foreach ($dirByPublicId as $publicId => $dir) {
+        if ($dir !== 'forward' && $dir !== 'reverse') {
+            continue;
+        }
+        $chainDir = $chain[(string) $publicId] ?? null;
+        if ($chainDir === null) {
+            continue;
+        }
+        if ($chainDir === $dir) {
+            $with[] = (string) $publicId;
+        } else {
+            $against[] = (string) $publicId;
+        }
+    }
+    if ($with === [] || $against === []) {
+        return ['dir_by_public_id' => $dirByPublicId, 'dropped' => []];
+    }
+    if (count($with) === count($against)) {
+        $dropped = array_merge($with, $against);
+    } else {
+        $dropped = count($with) > count($against) ? $against : $with;
+    }
+    sort($dropped, SORT_STRING);
+    $filtered = [];
+    foreach ($dirByPublicId as $publicId => $dir) {
+        if (!in_array((string) $publicId, $dropped, true)) {
+            $filtered[(string) $publicId] = $dir;
+        }
+    }
+    return ['dir_by_public_id' => $filtered, 'dropped' => $dropped];
+}
+
 // Plain-array Dijkstra over the endpoint graph (way-sized inputs; no heap needed).
 function avesmapsPathFlowDijkstra(string $sourceKey, array $edges, array $adjacency): array {
     $distances = [$sourceKey => 0.0];
@@ -356,7 +459,7 @@ function avesmapsPathFlowTracePath(string $sourceKey, string $targetKey, array $
 function avesmapsWikiPathFlowReadWaySegments(PDO $pdo, string $wikiKey): array {
     $needle = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], '"wiki_key":"' . $wikiKey . '"') . '%';
     $statement = $pdo->prepare(
-        "SELECT id, public_id, name, properties_json FROM map_features
+        "SELECT id, public_id, name, properties_json, geometry_json FROM map_features
          WHERE is_active = 1 AND feature_type = 'path' AND feature_subtype = 'Flussweg'
            AND properties_json LIKE :needle"
     );
@@ -367,10 +470,13 @@ function avesmapsWikiPathFlowReadWaySegments(PDO $pdo, string $wikiKey): array {
         if ((string) ($props['wiki_path']['wiki_key'] ?? '') !== $wikiKey) {
             continue;  // LIKE prefilter hit inside a text field -> exact check rejects
         }
+        $geometry = avesmapsWikiSyncDecodeJson($row['geometry_json'] ?? null);
         $segments[(string) $row['public_id']] = [
             'id' => (int) $row['id'],
             'name' => (string) $row['name'],
             'flow' => is_array($props['flow'] ?? null) ? $props['flow'] : null,
+            // Geometry feeds the chain-consistency reconciliation of the derivation.
+            'coordinates' => is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [],
         ];
     }
     return $segments;
@@ -437,7 +543,7 @@ function avesmapsWikiPathFlowDeriveForWay(PDO $pdo, array $config, string $wikiK
     $base = [
         'ok' => true, 'dry_run' => $dryRun, 'wiki_key' => $wikiKey,
         'segments_total' => 0, 'directed' => 0, 'cleared' => 0, 'unchanged' => 0,
-        'ambiguous' => [], 'hops_routable' => 0, 'hops_skipped' => 0, 'segments_updated' => [],
+        'ambiguous' => [], 'conflicting' => [], 'hops_routable' => 0, 'hops_skipped' => 0, 'segments_updated' => [],
     ];
     if ((string) ($stagingRow['kind'] ?? '') !== 'fluss') {
         return $base + ['skipped' => 'not_a_river'];
@@ -500,8 +606,13 @@ function avesmapsWikiPathFlowDeriveForWay(PDO $pdo, array $config, string $wikiK
     }
 
     $combined = avesmapsPathFlowCombineOrientations($occurrences, array_keys($waySegments));
+    // Chain-consistency reconciliation (Yaquir lesson): hops that ran backwards along the
+    // river must not write head-on arrows -- the minority against the chain majority is
+    // dropped, and PlanWrites clears any dir previously written on those segments.
+    $coordinatesByPublicId = array_map(static fn(array $segment) => $segment['coordinates'] ?? [], $waySegments);
+    $reconciled = avesmapsPathFlowReconcileChainDirs($coordinatesByPublicId, $combined['dir_by_public_id']);
     $currentFlowByPublicId = array_map(static fn(array $segment) => $segment['flow'], $waySegments);
-    $plan = avesmapsPathFlowPlanWrites($combined['dir_by_public_id'], $currentFlowByPublicId);
+    $plan = avesmapsPathFlowPlanWrites($reconciled['dir_by_public_id'], $currentFlowByPublicId);
 
     $segmentsUpdated = [];
     if (!$dryRun && $plan['writes'] !== []) {
@@ -510,6 +621,7 @@ function avesmapsWikiPathFlowDeriveForWay(PDO $pdo, array $config, string $wikiK
     return array_merge($base, [
         'directed' => $plan['set'], 'cleared' => $plan['cleared'], 'unchanged' => $plan['unchanged'],
         'ambiguous' => $combined['ambiguous'],
+        'conflicting' => $reconciled['dropped'],
         'hops_routable' => $hopsRoutable, 'hops_skipped' => $hopsSkipped,
         'segments_updated' => $segmentsUpdated,
     ]);
@@ -554,7 +666,7 @@ function avesmapsWikiPathFlowDeriveAll(PDO $pdo, array $config, bool $dryRun, in
             $result = ['ok' => false, 'wiki_key' => $rowWikiKey, 'error' => 'derive_failed'];
         }
         unset($result['segments_updated']);  // keep batch responses small
-        if (($result['directed'] ?? 0) > 0 || ($result['cleared'] ?? 0) > 0 || ($result['ok'] ?? false) === false || count($result['ambiguous'] ?? []) > 0) {
+        if (($result['directed'] ?? 0) > 0 || ($result['cleared'] ?? 0) > 0 || ($result['ok'] ?? false) === false || count($result['ambiguous'] ?? []) > 0 || count($result['conflicting'] ?? []) > 0) {
             $results[] = $result;
         }
     }

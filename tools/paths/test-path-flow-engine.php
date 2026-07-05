@@ -198,5 +198,65 @@ ksort($gfDirs);
 check('set_dir plan: gf rest directed downstream, arm untouched', [$gf['ok'], $gfDirs],
     [true, ['c1' => 'forward', 'c4' => 'forward', 'c5' => 'forward']]);
 
+// --- tolerant endpoint clustering (hand-drawn rivers meet with sub-unit gaps) ---
+// Yaquir pattern: consecutive segments whose endpoints do NOT coincide exactly (~0.5-0.9
+// map units apart, bridged in routing through shared location nodes). Exact-key matching
+// fragmented such ways into mini-chains; endpoint clustering must chain them through.
+$gapChain = [
+    'g1' => [[0.0, 0.0], [10.0, 0.0]],
+    'g2' => [[10.7, 0.3], [20.0, 0.0]],
+    'g3' => [[20.4, -0.4], [30.0, 0.0]],
+];
+$gapOriented = avesmapsPathFlowChainOrientation($gapChain);
+check('gap chain: all three oriented', count($gapOriented), 3);
+$gapConsistent = ($gapOriented === ['g1' => 'forward', 'g2' => 'forward', 'g3' => 'forward'])
+    || ($gapOriented === ['g1' => 'reverse', 'g2' => 'reverse', 'g3' => 'reverse']);
+check('gap chain: consistent orientation', $gapConsistent, true);
+
+// A tiny stub whose endpoints fall into ONE node cluster is node-internal: excluded from
+// the chain walk, but the chain still passes through the shared node.
+$stubChain = [
+    's1' => [[0.0, 0.0], [10.0, 0.0]],
+    'stub' => [[10.2, 0.1], [10.6, 0.4]],
+    's2' => [[10.5, 0.2], [20.0, 0.0]],
+];
+$stubOriented = avesmapsPathFlowChainOrientation($stubChain);
+check('stub: node-internal segment excluded', isset($stubOriented['stub']), false);
+check('stub: chain passes through the node', count($stubOriented), 2);
+
+// Vervollstaendigen must work across gaps too (anchor on one side of a gap).
+$gapPlan = avesmapsPathFlowPlanSetDir($gapChain, ['g1' => $gapOriented['g1'] ?? 'forward']);
+check('set_dir plan: anchor aligns across endpoint gaps', [$gapPlan['ok'], count($gapPlan['dir_by_public_id'])], [true, 2]);
+
+// --- avesmapsPathFlowReconcileChainDirs (derivation consistency) ---
+// Hops can disagree (mis-matched stations route a hop backwards); on ONE chain the flow
+// must be consistent: majority wins, the conflicting minority is DROPPED (their existing
+// dirs get cleared by PlanWrites), off-chain dirs stay untouched.
+$reconcileWay = [
+    'r1' => [[0.0, 0.0], [10.0, 0.0]],
+    'r2' => [[10.6, 0.2], [20.0, 0.0]],
+    'r3' => [[20.5, 0.3], [30.0, 0.0]],
+    'r4' => [[30.2, -0.2], [40.0, 0.0]],
+    'spur' => [[20.0, 0.0], [20.0, 8.0]],
+];
+$reconciled = avesmapsPathFlowReconcileChainDirs($reconcileWay, [
+    'r1' => 'forward', 'r2' => 'forward', 'r3' => 'reverse', 'r4' => 'forward', 'spur' => 'forward',
+]);
+check('reconcile: minority dropped', $reconciled['dropped'], ['r3']);
+check('reconcile: majority + spur kept', array_keys($reconciled['dir_by_public_id']), ['r1', 'r2', 'r4', 'spur']);
+check('reconcile: kept dirs unchanged', $reconciled['dir_by_public_id']['r4'], 'forward');
+
+$reconcileTie = avesmapsPathFlowReconcileChainDirs($reconcileWay, [
+    'r1' => 'forward', 'r3' => 'reverse', 'spur' => 'forward',
+]);
+check('reconcile tie: all chain dirs dropped', $reconcileTie['dropped'], ['r1', 'r3']);
+check('reconcile tie: spur survives', array_keys($reconcileTie['dir_by_public_id']), ['spur']);
+
+$reconcileClean = avesmapsPathFlowReconcileChainDirs($reconcileWay, ['r1' => 'forward', 'r2' => 'forward']);
+check('reconcile: consistent dirs pass through', [$reconcileClean['dropped'], count($reconcileClean['dir_by_public_id'])], [[], 2]);
+
+$reconcileNoChain = avesmapsPathFlowReconcileChainDirs([], ['x' => 'forward']);
+check('reconcile: no chain -> unchanged', $reconcileNoChain, ['dir_by_public_id' => ['x' => 'forward'], 'dropped' => []]);
+
 echo "\n{$total} checks, {$failures} failures\n";
 exit($failures === 0 ? 0 : 1);
