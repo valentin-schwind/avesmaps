@@ -154,6 +154,19 @@ try {
                     'step_runtime' => (int) ($payload['step_runtime'] ?? 15),
                 ]
             ),
+            // Flussrichtung (spec §6): way-wide flip / festlegen / Stroemungsfaktor from the
+            // path detail panel.
+            'set_flow' => avesmapsWikiPathSetFlow(
+                $pdo,
+                (string) ($payload['public_id'] ?? ''),
+                [
+                    'flip' => ($payload['flip'] ?? false) === true,
+                    'set_dir' => ($payload['set_dir'] ?? false) === true,
+                    'factor' => $payload['factor'] ?? null,
+                ],
+                !(($payload['dry_run'] ?? true) === false && (string) ($payload['confirm'] ?? '') === 'apply'),
+                (int) ($user['id'] ?? 0)
+            ),
             default => null,
         };
 

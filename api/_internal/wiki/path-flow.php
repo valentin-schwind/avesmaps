@@ -526,3 +526,125 @@ function avesmapsWikiPathFlowDeriveAll(PDO $pdo, array $config, bool $dryRun, in
         'runtime_seconds' => round(microtime(true) - $startedAt, 2),
     ];
 }
+
+// POST set_flow (spec §6): way-wide flow edits from the path detail panel.
+//   {public_id, flip:true}     invert dir on every directed segment of the way
+//   {public_id, set_dir:true}  "Richtung festlegen": orient the undirected way's main chain
+//   {public_id, factor:2.0}    way-wide Stroemungsfaktor (clamped)
+// flip/set_dir are mutually exclusive; factor may combine with either. Way identity =
+// avesmapsWikiPathRowMatchesWay (name match-key UNION wiki_key) restricted to Flussweg --
+// a lone generically-named segment thus deliberately matches only itself.
+function avesmapsWikiPathSetFlow(PDO $pdo, string $publicId, array $options, bool $dryRun, int $userId): array {
+    $publicId = trim($publicId);
+    if ($publicId === '') {
+        throw new RuntimeException('public_id missing.');
+    }
+    $flip = ($options['flip'] ?? false) === true;
+    $setDir = ($options['set_dir'] ?? false) === true;
+    $factorRaw = $options['factor'] ?? null;
+    $hasFactor = is_numeric($factorRaw);
+    if ($flip && $setDir) {
+        throw new RuntimeException('flip and set_dir are mutually exclusive.');
+    }
+    if (!$flip && !$setDir && !$hasFactor) {
+        throw new RuntimeException('No flow change requested.');
+    }
+
+    $targetStatement = $pdo->prepare("SELECT id, name, feature_subtype, properties_json FROM map_features WHERE public_id = :p AND feature_type = 'path' AND is_active = 1 LIMIT 1");
+    $targetStatement->execute(['p' => $publicId]);
+    $target = $targetStatement->fetch(PDO::FETCH_ASSOC);
+    if (!$target) {
+        throw new RuntimeException('Target path not found.');
+    }
+    if ((string) $target['feature_subtype'] !== 'Flussweg') {
+        throw new RuntimeException('Flow direction only applies to rivers (Flussweg).');
+    }
+
+    $targetProps = avesmapsWikiSyncDecodeJson($target['properties_json'] ?? null);
+    $targetKey = avesmapsWikiSyncCreateMatchKey((string) $target['name']);
+    $targetWikiKey = (string) ($targetProps['wiki_path']['wiki_key'] ?? '');
+
+    // Way-wide target set; geometry needed for the set_dir chain walk.
+    $rows = $pdo->query("SELECT id, public_id, name, properties_json, geometry_json FROM map_features WHERE is_active = 1 AND feature_type = 'path' AND feature_subtype = 'Flussweg'")->fetchAll(PDO::FETCH_ASSOC);
+    $waySegments = [];
+    $coordinatesByPublicId = [];
+    foreach ($rows as $row) {
+        if (!avesmapsWikiPathRowMatchesWay((string) $row['name'], $row['properties_json'] ?? null, $targetKey, $targetWikiKey)) {
+            continue;
+        }
+        $props = avesmapsWikiSyncDecodeJson($row['properties_json'] ?? null);
+        $rowPublicId = (string) $row['public_id'];
+        $waySegments[$rowPublicId] = [
+            'id' => (int) $row['id'],
+            'name' => (string) $row['name'],
+            'flow' => is_array($props['flow'] ?? null) ? $props['flow'] : null,
+        ];
+        $geometry = avesmapsWikiSyncDecodeJson($row['geometry_json'] ?? null);
+        $coordinatesByPublicId[$rowPublicId] = is_array($geometry['coordinates'] ?? null) ? $geometry['coordinates'] : [];
+    }
+    if ($waySegments === []) {
+        throw new RuntimeException('No river segments found for this way.');
+    }
+
+    $currentFlow = array_map(static fn(array $segment) => $segment['flow'], $waySegments);
+    $directedBefore = 0;
+    foreach ($currentFlow as $flowRaw) {
+        if (avesmapsPathFlowNormalize($flowRaw) !== null) {
+            $directedBefore++;
+        }
+    }
+
+    // Compose on a working copy: direction change first, factor applied to the RESULT.
+    $working = $currentFlow;
+    $writes = [];
+    $summary = ['flipped' => 0, 'directed' => 0, 'factor_updated' => 0];
+    if ($flip) {
+        if ($directedBefore === 0) {
+            throw new RuntimeException('This river has no direction yet (use set_dir).');
+        }
+        $plan = avesmapsPathFlowPlanFlip($working);
+        $summary['flipped'] = $plan['flipped'];
+        foreach ($plan['writes'] as $pid => $write) {
+            $working[$pid] = $write['flow'];
+            $writes[$pid] = $write;
+        }
+    } elseif ($setDir) {
+        $chain = avesmapsPathFlowChainOrientation($coordinatesByPublicId);
+        if ($chain === []) {
+            throw new RuntimeException('No unambiguous segment chain found.');
+        }
+        foreach ($chain as $pid => $dir) {
+            $new = is_array($working[$pid] ?? null) ? $working[$pid] : [];
+            $new['dir'] = $dir;
+            $new['source'] = 'editor';
+            $working[$pid] = $new;
+            $writes[$pid] = ['flow' => $new];
+            $summary['directed']++;
+        }
+    }
+    if ($hasFactor) {
+        $plan = avesmapsPathFlowPlanFactor($working, (float) $factorRaw);
+        $summary['factor_updated'] = $plan['updated'];
+        $summary['factor'] = $plan['factor'];
+        foreach ($plan['writes'] as $pid => $write) {
+            $working[$pid] = $write['flow'];
+            $writes[$pid] = $write;
+        }
+    }
+
+    $segmentsUpdated = [];
+    if (!$dryRun && $writes !== []) {
+        $segmentsUpdated = avesmapsWikiPathFlowApplyWrites($pdo, $writes, $waySegments, $userId);
+    }
+    return [
+        'ok' => true,
+        'dry_run' => $dryRun,
+        'public_id' => $publicId,
+        'name' => (string) $target['name'],
+        'segments' => count($waySegments),
+        'directed_before' => $directedBefore,
+    ] + $summary + [
+        'writes' => count($writes),
+        'segments_updated' => $segmentsUpdated,
+    ];
+}
