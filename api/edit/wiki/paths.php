@@ -214,6 +214,13 @@ try {
     }
 
     avesmapsJsonResponse(200, $response);
+} catch (PDOException $error) {
+    // PDOException extends RuntimeException -- catch it FIRST: DB details never reach clients.
+    avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
+} catch (RuntimeException $error) {
+    // Deliberate hand-written validation messages (English, no internals) -- surface them so
+    // editors see WHY an action was refused instead of a masked 500 (M3 envelope direction).
+    avesmapsErrorResponse(400, 'invalid_request', $error->getMessage());
 } catch (Throwable $error) {
     avesmapsErrorResponse(500, 'server_error', 'Internal server error.');
 }

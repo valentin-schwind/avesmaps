@@ -752,7 +752,7 @@ function avesmapsWikiPathSetFlow(PDO $pdo, string $publicId, array $options, boo
     // Compose on a working copy: direction change first, factor applied to the RESULT.
     $working = $currentFlow;
     $writes = [];
-    $summary = ['flipped' => 0, 'directed' => 0, 'factor_updated' => 0];
+    $summary = ['flipped' => 0, 'directed' => 0, 'factor_updated' => 0, 'conflicts_cleared' => 0];
     if ($flip) {
         if ($directedBefore === 0) {
             throw new RuntimeException('This river has no direction yet (use set_dir).');
@@ -774,6 +774,19 @@ function avesmapsWikiPathSetFlow(PDO $pdo, string $publicId, array $options, boo
                 $anchorDirs[(string) $pid] = $normalized['dir'];
             }
         }
+        // Self-healing (Yaquir lesson): anchors contradicting the chain majority are cleared
+        // here and re-oriented by the aligned walk below in the SAME write -- one click on
+        // "vervollstaendigen" repairs head-on arrows instead of erroring on anchors_conflict.
+        // A tie clears all chain anchors; the walk then re-orients the chain from scratch.
+        $reconciledAnchors = avesmapsPathFlowReconcileChainDirs($coordinatesByPublicId, $anchorDirs);
+        foreach ($reconciledAnchors['dropped'] as $pid) {
+            $cleared = is_array($working[$pid] ?? null) ? $working[$pid] : [];
+            unset($cleared['dir'], $cleared['source']);
+            $working[$pid] = $cleared === [] ? null : $cleared;
+            $writes[$pid] = ['flow' => $working[$pid]];
+        }
+        $summary['conflicts_cleared'] = count($reconciledAnchors['dropped']);
+        $anchorDirs = $reconciledAnchors['dir_by_public_id'];
         $plan = avesmapsPathFlowPlanSetDir($coordinatesByPublicId, $anchorDirs);
         if (!$plan['ok']) {
             throw new RuntimeException(match ($plan['reason']) {
