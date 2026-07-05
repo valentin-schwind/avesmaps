@@ -7,7 +7,9 @@ declare(strict_types=1);
 //   R1  A segment with an assigned wiki way (properties.wiki_path) ALWAYS carries the
 //       wiki way name -- neither the auto-name nor a manually typed name overrides it
 //       while the assignment exists.
-//   R2  Clearing the assignment hands the whole way ONE fresh generic <Subtype>-<n> name.
+//   R2  Clearing the assignment hands EACH segment its OWN fresh generic <Subtype>-<n>
+//       name (amended 2026-07-05: one shared name glued cleared groups together and a
+//       later assign dragged the whole bundle back in).
 // Deliberately dependency-free: required by BOTH api/_internal/wiki/paths.php and
 // api/_internal/map/features.php (the map lib must not pull the wiki-sync stack).
 

@@ -24,7 +24,7 @@
 
 1. **R2 — each cleared segment gets its OWN generic name (AMENDED 2026-07-05, owner bug report):** the original "ONE name for the whole cleared way" glued formerly-distinct segments together — a later assign on one of them dragged the whole bundle back in. `clear_assign` still clears way-wide (name key ∪ wiki_key, also sweeping ghost carriers), but names each segment individually (`avesmapsWikiPathNextGenericNameSequence` semantics); `assign_to` matches name-key-only again (surgical adds; way-wide re-target works via the converged R1 names).
 2. **Canonical wiki way name** = staging `wiki_path.name`, fallback = decoded `/wiki/<Page>` segment of `wiki_path.wiki_url` (underscores → spaces). If both unusable, the name is left unchanged (never write an empty name; `avesmapsReadFeatureName` rejects empty).
-3. **`clear_assign` renames ALL name-matched segments** of the way to the generic name (also those that had no `wiki_path` — keeps the group intact), but only unsets `wiki_path` where present.
+3. **`clear_assign` renames ALL matched segments** of the way (name key ∪ wiki_key; also those that had no `wiki_path`), but only unsets `wiki_path` where present. Since the 2026-07-05 amendment each segment gets its OWN generic name — removal dissolves the group instead of keeping it intact.
 4. The **"Name aus Wiki übernehmen"** button (`#path-edit-wiki-sync-name`) is removed — obsolete under R1 (the name IS always the wiki name). The "Wegtyp aus Wiki übernehmen" button stays.
 5. `applyPathFeatureResponse` stops re-synthesizing a local `properties.name` and mirrors the server name (server is the naming authority now).
 
