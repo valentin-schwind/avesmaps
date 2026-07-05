@@ -1,6 +1,7 @@
 // Stroemungs-Sektion im "Weg bearbeiten"-Dialog (Flussrichtung spec §6): zeigt den
 // Richtungsstatus des angeklickten Fluss-Segments, dreht/setzt die Richtung WEG-WEIT
-// (set_flow: flip | set_dir) und pflegt den weg-weiten Stroemungsfaktor (Clamp 1,0-3,0).
+// (set_flow: flip | set_dir; set_dir vervollstaendigt teilgerichtete Wege anker-konsistent,
+// Anker bleiben unangetastet) und pflegt den weg-weiten Stroemungsfaktor (Clamp 1,0-3,0).
 // Nur fuer Flussweg-Segmente sichtbar. Writes: dry_run:false + confirm:"apply" (weg-weit
 // ist hier das DESIGN, kein Blast-Radius-Dialog wie beim Entfernen noetig).
 
@@ -60,14 +61,23 @@ function renderPathFlowSection() {
 			: "unbekannt";
 	}
 	const waySegments = pathFlowWaySegments();
-	const wayHasDirection = waySegments.some((path) => {
+	const directedCount = waySegments.filter((path) => {
 		const wayDir = path.properties?.flow?.dir;
 		return wayDir === "forward" || wayDir === "reverse";
-	});
+	}).length;
+	const wayHasDirection = directedCount > 0;
 	const directionButton = pathFlowElement("path-flow-direction");
 	if (directionButton) {
 		directionButton.textContent = wayHasDirection ? "Richtung umdrehen (ganzer Fluss)" : "Richtung festlegen";
 		directionButton.dataset.flowMode = wayHasDirection ? "flip" : "set_dir";
+	}
+	// Teilgerichteter Weg (z. B. Grosser Fluss: nur die wiki-ableitbaren Etappen tragen dir):
+	// Rest der Hauptkette anker-konsistent vervollstaendigen. Abzweige bleiben immer dirlos,
+	// daher kann der Button auch bei voll gerichteter Kette sichtbar sein -- der Server
+	// antwortet dann mit dem klaren "already fully directed"-Fehler (Server ist autoritativ).
+	const completeButton = pathFlowElement("path-flow-complete");
+	if (completeButton) {
+		completeButton.hidden = !(wayHasDirection && directedCount < waySegments.length);
 	}
 	const factorInput = pathFlowElement("path-flow-factor");
 	const saveButton = pathFlowElement("path-flow-factor-save");
@@ -114,18 +124,25 @@ document.addEventListener("click", (event) => {
 	if (!event.target.closest) {
 		return;
 	}
-	if (event.target.closest("#path-flow-direction")) {
-		const button = pathFlowElement("path-flow-direction");
-		const mode = button?.dataset.flowMode === "flip" ? "flip" : "set_dir";
+	const directionTrigger = event.target.closest("#path-flow-direction, #path-flow-complete");
+	if (directionTrigger) {
+		const mode = directionTrigger.id === "path-flow-complete" ? "set_dir"
+			: (directionTrigger.dataset.flowMode === "flip" ? "flip" : "set_dir");
 		const publicId = pathWikiCurrentFeaturePublicId();
 		if (!publicId) {
 			return;
 		}
 		void submitPathFlowAction(
 			{ action: "set_flow", public_id: publicId, [mode]: true },
-			(result) => mode === "flip"
-				? `Richtung umgedreht (${result.flipped} Segmente).`
-				: `Richtung festgelegt (${result.directed} von ${result.segments} Segmenten${result.segments > result.directed ? " — Abzweige bleiben ohne Richtung" : ""}).`
+			(result) => {
+				if (mode === "flip") {
+					return `Richtung umgedreht (${result.flipped} Segmente).`;
+				}
+				if (Number(result.directed_before) > 0) {
+					return `Richtung vervollständigt (${result.directed} Segmente ergänzt, ${result.directed_before} waren schon gerichtet — Abzweige bleiben ohne Richtung).`;
+				}
+				return `Richtung festgelegt (${result.directed} von ${result.segments} Segmenten${result.segments > result.directed ? " — Abzweige bleiben ohne Richtung" : ""}).`;
+			}
 		);
 		return;
 	}
