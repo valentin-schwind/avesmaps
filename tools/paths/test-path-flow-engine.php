@@ -139,5 +139,64 @@ $cycle = avesmapsPathFlowChainOrientation([
 ]);
 check('chain: cycle yields nothing', $cycle, []);
 
+// --- avesmapsPathFlowPlanSetDir ---
+// Baseline first: the diameter walk's end choice is arbitrary, so anchors are pinned
+// RELATIVE to the baseline result to keep every check deterministic.
+$setDirCoordinates = [
+    's1' => [[0.0, 0.0], [10.0, 0.0]],
+    's2' => [[20.0, 0.0], [10.0, 0.0]],   // drawn against the line
+    's3' => [[20.0, 0.0], [30.0, 0.0]],
+    's4' => [[30.0, 0.0], [40.0, 0.0]],
+];
+$baseline = avesmapsPathFlowChainOrientation($setDirCoordinates);
+$invert = static fn(string $dir): string => $dir === 'forward' ? 'reverse' : 'forward';
+
+$noAnchors = avesmapsPathFlowPlanSetDir($setDirCoordinates, []);
+check('set_dir plan: no anchors = baseline walk', [$noAnchors['ok'], $noAnchors['reason'], $noAnchors['dir_by_public_id']], [true, null, $baseline]);
+
+$expectedRest = $baseline;
+unset($expectedRest['s2']);
+$agreeing = avesmapsPathFlowPlanSetDir($setDirCoordinates, ['s2' => $baseline['s2']]);
+check('set_dir plan: agreeing anchor keeps walk, anchor excluded', [$agreeing['ok'], $agreeing['dir_by_public_id']], [true, $expectedRest]);
+
+$opposing = avesmapsPathFlowPlanSetDir($setDirCoordinates, ['s2' => $invert($baseline['s2'])]);
+check('set_dir plan: opposing anchor inverts the walk', [$opposing['ok'], $opposing['dir_by_public_id']], [true, array_map($invert, $expectedRest)]);
+
+$conflict = avesmapsPathFlowPlanSetDir($setDirCoordinates, ['s1' => $baseline['s1'], 's3' => $invert($baseline['s3'])]);
+check('set_dir plan: conflicting anchors rejected', $conflict, ['ok' => false, 'reason' => 'anchors_conflict', 'dir_by_public_id' => []]);
+
+$fullyAnchored = avesmapsPathFlowPlanSetDir($setDirCoordinates, $baseline);
+check('set_dir plan: fully anchored chain -> empty plan', [$fullyAnchored['ok'], $fullyAnchored['dir_by_public_id']], [true, []]);
+
+// Anchor only on a spur: arm flow relative to the chain is undecidable -> refuse.
+$offChain = avesmapsPathFlowPlanSetDir([
+    's1' => [[0.0, 0.0], [10.0, 0.0]],
+    's2' => [[10.0, 0.0], [20.0, 0.0]],
+    'spur' => [[10.0, 0.0], [10.0, 3.0]],
+], ['spur' => 'forward']);
+check('set_dir plan: anchor only on spur rejected', $offChain, ['ok' => false, 'reason' => 'no_anchor_on_chain', 'dir_by_public_id' => []]);
+
+$cyclePlan = avesmapsPathFlowPlanSetDir([
+    's1' => [[0.0, 0.0], [10.0, 0.0]],
+    's2' => [[10.0, 0.0], [10.0, 10.0]],
+    's3' => [[10.0, 10.0], [0.0, 0.0]],
+], ['s1' => 'forward']);
+check('set_dir plan: cycle rejected', $cyclePlan, ['ok' => false, 'reason' => 'no_chain', 'dir_by_public_id' => []]);
+
+// GF shape: long course, two mid-course anchors pinning downstream, junction arm.
+$gfCoordinates = [
+    'c1' => [[0.0, 0.0], [10.0, 0.0]],
+    'c2' => [[10.0, 0.0], [20.0, 0.0]],
+    'c3' => [[30.0, 0.0], [20.0, 0.0]],   // drawn against the course
+    'c4' => [[30.0, 0.0], [40.0, 0.0]],
+    'c5' => [[40.0, 0.0], [50.0, 0.0]],
+    'arm' => [[20.0, 0.0], [20.0, 8.0]],
+];
+$gf = avesmapsPathFlowPlanSetDir($gfCoordinates, ['c2' => 'forward', 'c3' => 'reverse']);
+$gfDirs = $gf['dir_by_public_id'];
+ksort($gfDirs);
+check('set_dir plan: gf rest directed downstream, arm untouched', [$gf['ok'], $gfDirs],
+    [true, ['c1' => 'forward', 'c4' => 'forward', 'c5' => 'forward']]);
+
 echo "\n{$total} checks, {$failures} failures\n";
 exit($failures === 0 ? 0 : 1);

@@ -252,6 +252,48 @@ function avesmapsPathFlowChainOrientation(array $coordinatesByPublicId): array {
     return $result;
 }
 
+// Anchor-aware set_dir plan (spec 2026-07-06): orients the way's main chain like
+// avesmapsPathFlowChainOrientation, but aligns the walk with the dirs the way ALREADY has.
+// Anchors are never rewritten -- the plan covers only previously undirected chain segments.
+// Anchors off the chain (spurs) carry no alignment information (whether an arm flows into
+// or out of the chain is geometrically undecidable) and are only protected, never consulted.
+function avesmapsPathFlowPlanSetDir(array $coordinatesByPublicId, array $anchorDirByPublicId): array {
+    $chain = avesmapsPathFlowChainOrientation($coordinatesByPublicId);
+    if ($chain === []) {
+        return ['ok' => false, 'reason' => 'no_chain', 'dir_by_public_id' => []];
+    }
+    $agree = 0;
+    $disagree = 0;
+    foreach ($anchorDirByPublicId as $publicId => $anchorDir) {
+        if ($anchorDir !== 'forward' && $anchorDir !== 'reverse') {
+            continue;
+        }
+        $chainDir = $chain[(string) $publicId] ?? null;
+        if ($chainDir === null) {
+            continue;
+        }
+        if ($chainDir === $anchorDir) {
+            $agree++;
+        } else {
+            $disagree++;
+        }
+    }
+    if ($agree > 0 && $disagree > 0) {
+        return ['ok' => false, 'reason' => 'anchors_conflict', 'dir_by_public_id' => []];
+    }
+    if ($anchorDirByPublicId !== [] && $agree === 0 && $disagree === 0) {
+        return ['ok' => false, 'reason' => 'no_anchor_on_chain', 'dir_by_public_id' => []];
+    }
+    $dirByPublicId = [];
+    foreach ($chain as $publicId => $dir) {
+        if (isset($anchorDirByPublicId[$publicId])) {
+            continue;
+        }
+        $dirByPublicId[$publicId] = $disagree > 0 ? ($dir === 'forward' ? 'reverse' : 'forward') : $dir;
+    }
+    return ['ok' => true, 'reason' => null, 'dir_by_public_id' => $dirByPublicId];
+}
+
 // Plain-array Dijkstra over the endpoint graph (way-sized inputs; no heap needed).
 function avesmapsPathFlowDijkstra(string $sourceKey, array $edges, array $adjacency): array {
     $distances = [$sourceKey => 0.0];
