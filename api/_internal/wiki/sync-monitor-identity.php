@@ -93,11 +93,12 @@ function avesmapsWikiSyncMonitorImageExtension(string $contentType, string $url)
 
 // Verkleinert ein Raster-Wappen auf eine vernuenftige Kantenlaenge (laengste Seite <= $maxEdge),
 // bevor es in /uploads/wappen/ landet. Originale sind oft 1000-2000px / mehrere MB, angezeigt wird
-// das Wappen aber nur mit 18-42px (Karten-Label/Tooltip/Infobox). Seitenverhaeltnis und Transparenz
+// das Wappen aber nur mit 18-42px (Karten-Label/Tooltip/Infobox), daher reicht ein kleiner Default
+// (128px ~= 3x der groessten Anzeige, scharf auch auf HiDPI). Seitenverhaeltnis und Transparenz
 // (PNG/WebP) bleiben erhalten. SVG (Vektor) und GIF (evtl. animiert) sowie alles, was GD nicht sauber
 // round-trippt oder nicht kleiner wird, bleiben unveraendert -- der Upload darf an der Verkleinerung
 // NIE scheitern, im Zweifel das Original behalten.
-function avesmapsWikiSyncMonitorDownscaleCoatBytes(string $bytes, string $ext, int $maxEdge = 512): string {
+function avesmapsWikiSyncMonitorDownscaleCoatBytes(string $bytes, string $ext, int $maxEdge = 128): string {
     $ext = strtolower($ext);
     if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp'], true)) {
         return $bytes;
