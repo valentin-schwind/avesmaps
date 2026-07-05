@@ -41,7 +41,7 @@ check('R1: unusable wiki_path -> submitted name survives', avesmapsWikiPathEffec
 
 // --- avesmapsWikiPathNextGenericName (R2) ---
 check('R2: empty pool -> <subtype>-1', avesmapsWikiPathNextGenericName('Reichsstrasse', []), 'Reichsstrasse-1');
-check('R2: next free number is max+1', avesmapsWikiPathNextGenericName('Reichsstrasse', ['Reichsstrasse-2715', 'Reichsstrasse-31']), 'Reichsstrasse-2716');
+check('R2: next free number is max+1', avesmapsWikiPathNextGenericName('Reichsstrasse', ['Reichsstrasse-2715', 'Reichsstrasse-31', 'Reichsstrasse-2798']), 'Reichsstrasse-2799');
 check('R2: other subtypes and non-matching names are ignored', avesmapsWikiPathNextGenericName('Pfad', ['Reichsstrasse-2715', 'Pfad-3', 'Pfad-7b', 'Pfad 9', 'Reichsstraße 1']), 'Pfad-4');
 check('R2: number-sensitive exact pattern only (no digit-strip collapse)', avesmapsWikiPathNextGenericName('Flussweg', ['Flussweg-10', 'Flussweg-100']), 'Flussweg-101');
 check('R2: empty subtype falls back to Weg', avesmapsWikiPathNextGenericName('  ', ['Weg-4']), 'Weg-5');
