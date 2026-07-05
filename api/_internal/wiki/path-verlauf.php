@@ -756,6 +756,61 @@ function avesmapsWikiPathVerlaufBuildRoutingContext(array $config): array {
     return ['router' => $router, 'lookup' => $lookup];
 }
 
+// Batch-fills missing adds[].name across a set of cases from map_features in ONE bounded IN-query.
+// The real router segments (avesmapsBuildClientRouteDiagnosticSegments) carry no `name` key, so the
+// rule-7 router-name channel comes up empty in production and adds[].name is often '' (a foreign
+// row's name from $byPublicId is the only other source, and that rarely fires). This restores the
+// UI label without touching the routing lib: collect every add id whose name is still empty across
+// all $cases, resolve names once, then patch the case arrays in place. Cases are passed by reference.
+function avesmapsWikiPathVerlaufFillAddNames(PDO $pdo, array &$cases): void {
+    $missingIds = [];
+    foreach ($cases as $case) {
+        foreach (is_array($case['adds'] ?? null) ? $case['adds'] : [] as $add) {
+            $publicId = (string) ($add['public_id'] ?? '');
+            if ($publicId !== '' && (string) ($add['name'] ?? '') === '') {
+                $missingIds[$publicId] = true;
+            }
+        }
+    }
+    if ($missingIds === []) {
+        return;
+    }
+
+    $ids = array_keys($missingIds);
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $select = $pdo->prepare(
+        "SELECT public_id, name FROM map_features
+        WHERE is_active = 1 AND feature_type = 'path' AND public_id IN (" . $placeholders . ')'
+    );
+    $select->execute($ids);
+    $nameById = [];
+    foreach ($select->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $nameById[(string) ($row['public_id'] ?? '')] = (string) ($row['name'] ?? '');
+    }
+
+    foreach ($cases as &$case) {
+        if (!is_array($case['adds'] ?? null)) {
+            continue;
+        }
+        foreach ($case['adds'] as &$add) {
+            $publicId = (string) ($add['public_id'] ?? '');
+            if ($publicId !== '' && (string) ($add['name'] ?? '') === '' && ($nameById[$publicId] ?? '') !== '') {
+                $add['name'] = $nameById[$publicId];
+            }
+        }
+        unset($add);
+    }
+    unset($case);
+}
+
+// Single-case convenience wrapper for avesmapsWikiPathVerlaufFillAddNames: patches one case's
+// adds[].name in place via the same one-query path.
+function avesmapsWikiPathVerlaufFillAddNamesForCase(PDO $pdo, array &$case): void {
+    $wrapper = [$case];
+    avesmapsWikiPathVerlaufFillAddNames($pdo, $wrapper);
+    $case = $wrapper[0];
+}
+
 function avesmapsWikiPathVerlaufListCases(PDO $pdo, array $config, array $options = []): array {
     avesmapsWikiPathEnsureTables($pdo);
     avesmapsWikiPathVerlaufEnsureCaseTable($pdo);
@@ -835,6 +890,10 @@ function avesmapsWikiPathVerlaufListCases(PDO $pdo, array $config, array $option
     }
 
     $complete = !$stoppedEarly && count($rows) < $limit;
+
+    // Router segments carry no name in production; resolve every empty adds[].name for the whole
+    // page in one bounded IN-query before returning (finding #2).
+    avesmapsWikiPathVerlaufFillAddNames($pdo, $cases);
 
     return [
         'ok' => true,
@@ -993,6 +1052,9 @@ function avesmapsWikiPathVerlaufApplyCase(PDO $pdo, array $config, string $wikiK
 // conservative skip of a no-op restamp, never a wrong write.
 function avesmapsWikiPathVerlaufApplyCaseWithContext(PDO $pdo, string $wikiKey, array $case, bool $dryRun, int $userId, array $assignments): array {
     if ($dryRun) {
+        // Preview goes to the client: resolve empty adds[].name (router segments carry none in
+        // production) in one bounded IN-query before returning it (finding #2).
+        avesmapsWikiPathVerlaufFillAddNamesForCase($pdo, $case);
         return [
             'ok' => true,
             'dry_run' => true,
@@ -1208,6 +1270,7 @@ function avesmapsWikiPathVerlaufApplyCleanCases(PDO $pdo, array $config, bool $d
             $appliedCases[] = [
                 'wiki_key' => $wikiKey,
                 'name' => (string) ($case['name'] ?? ''),
+                'adds' => is_array($case['adds'] ?? null) ? $case['adds'] : [],
                 'adds_applied' => 0,
                 'adds_failed' => 0,
                 'removes_applied' => 0,
@@ -1239,6 +1302,12 @@ function avesmapsWikiPathVerlaufApplyCleanCases(PDO $pdo, array $config, bool $d
     }
 
     $complete = !$stoppedEarly && count($rows) < $limit;
+
+    // Dry-run previews surface adds[] to the client; resolve every empty name across the whole batch
+    // in one bounded IN-query (finding #2). The sharp path carries no adds[] in its summary rows.
+    if ($dryRun) {
+        avesmapsWikiPathVerlaufFillAddNames($pdo, $appliedCases);
+    }
 
     return [
         'ok' => true,
