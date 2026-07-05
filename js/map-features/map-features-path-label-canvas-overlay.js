@@ -265,7 +265,14 @@
 						}
 						const segPts = latlngs.map(([lat, lng]) => map.latLngToContainerPoint(L.latLng(lat, lng)));
 						if (pts.length && segPts.length) {
-							pts.push(...segPts.slice(1)); // gemeinsamer Gelenkpunkt nicht doppelt
+							// Ersten Punkt nur dann überspringen, wenn er den vorigen Kettenpunkt WIRKLICH
+							// dupliziert (exakt/gerundet geteilter Gelenkpunkt, <= 1.5px). An Phase-2-
+							// verbrückten Ortsstoß-Lücken (bis ~7 Karteneinheiten ≈ ~112px bei Zoom 4) ist
+							// er ein echter Stützpunkt und muss erhalten bleiben.
+							const prevPt = pts[pts.length - 1];
+							const firstPt = segPts[0];
+							const isDuplicateJoint = Math.hypot(firstPt.x - prevPt.x, firstPt.y - prevPt.y) <= 1.5;
+							pts.push(...(isDuplicateJoint ? segPts.slice(1) : segPts));
 						} else {
 							pts.push(...segPts);
 						}
