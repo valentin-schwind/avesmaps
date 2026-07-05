@@ -247,6 +247,7 @@ async function loadVerlaufCases() {
 	try {
 		let cursor = 0;
 		let complete = false;
+		let stallCount = 0;
 		while (!complete) {
 			const page = await pathSyncGet(`?action=verlauf_cases&cursor=${cursor}&limit=200`);
 			if (!page || page.ok !== true) {
@@ -255,8 +256,23 @@ async function loadVerlaufCases() {
 			verlaufCases = verlaufCases.concat(page.cases || []);
 			verlaufCasesScanned = Number(page.scanned) || verlaufCasesScanned;
 			complete = Boolean(page.complete);
-			cursor = Number(page.next_cursor) || cursor;
-			if (status && !complete) {
+			const nextCursor = Number(page.next_cursor) || cursor;
+			// Server exhausted its time budget without advancing (STRATO under load): back off
+			// instead of hammering the endpoint with zero-delay retries. Give up after 3 stalls.
+			if (!complete && nextCursor === cursor) {
+				stallCount += 1;
+				if (stallCount >= 3) {
+					throw new Error(`Verlauf-Prüfung abgebrochen: Server überlastet – später erneut versuchen. (${verlaufCasesScanned} Wege geprüft, ${verlaufCases.length} Fälle)`);
+				}
+				if (status) {
+					status.textContent = `Server überlastet, warte … (${verlaufCasesScanned} Wege geprüft, ${verlaufCases.length} Fälle)`;
+				}
+				await new Promise((resolve) => setTimeout(resolve, 1500 * stallCount));
+			} else {
+				stallCount = 0;
+			}
+			cursor = nextCursor;
+			if (status && !complete && stallCount === 0) {
 				status.textContent = `Prüfe Verläufe … (${verlaufCasesScanned} Wege geprüft, ${verlaufCases.length} Fälle)`;
 			}
 			if (pathSyncView === "cases") {
@@ -524,6 +540,7 @@ async function applyAllCleanVerlaufCases() {
 		let complete = false;
 		let totalApplied = 0;
 		let totalSkipped = 0;
+		let stallCount = 0;
 		while (!complete) {
 			const page = await pathSyncPost({ action: "apply_verlauf_cases_clean", dry_run: false, confirm: "apply", cursor, limit: 50 });
 			if (!page || page.ok !== true) {
@@ -532,8 +549,23 @@ async function applyAllCleanVerlaufCases() {
 			totalApplied += Array.isArray(page.applied_cases) ? page.applied_cases.length : 0;
 			totalSkipped += Number(page.skipped_not_clean) || 0;
 			complete = Boolean(page.complete);
-			cursor = Number(page.next_cursor) || cursor;
-			if (status && !complete) {
+			const nextCursor = Number(page.next_cursor) || cursor;
+			// Same stall guard as loadVerlaufCases: a non-advancing page means the server ran out
+			// of time budget before applying anything — back off instead of retrying immediately.
+			if (!complete && nextCursor === cursor) {
+				stallCount += 1;
+				if (stallCount >= 3) {
+					throw new Error(`Übernahme abgebrochen: Server überlastet – später erneut versuchen. (${totalApplied} übernommen)`);
+				}
+				if (status) {
+					status.textContent = `Server überlastet, warte … (${totalApplied} übernommen)`;
+				}
+				await new Promise((resolve) => setTimeout(resolve, 1500 * stallCount));
+			} else {
+				stallCount = 0;
+			}
+			cursor = nextCursor;
+			if (status && !complete && stallCount === 0) {
 				status.textContent = `Übernehme unstrittige Fälle … (${totalApplied} übernommen)`;
 			}
 		}
